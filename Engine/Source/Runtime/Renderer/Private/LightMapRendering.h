@@ -340,7 +340,7 @@ enum ELightMapPolicyType
 	LMP_DUMMY
 };
 
-class RENDERER_API FUniformLightMapPolicyShaderParametersType
+class FUniformLightMapPolicyShaderParametersType
 {
 	DECLARE_TYPE_LAYOUT(FUniformLightMapPolicyShaderParametersType, NonVirtual);
 public:
@@ -363,7 +363,7 @@ public:
 	LAYOUT_FIELD(FShaderUniformBufferParameter, LightmapResourceCluster);
 };
 
-class RENDERER_API FUniformLightMapPolicy
+class FUniformLightMapPolicy
 {
 public:
 
@@ -378,23 +378,23 @@ public:
 
 	FUniformLightMapPolicy(ELightMapPolicyType InIndirectPolicy) : IndirectPolicy(InIndirectPolicy) {}
 
-	static bool ShouldCompilePermutation(ELightMapPolicyType Policy, const FMeshMaterialShaderPermutationParameters& Parameters);
-	static void ModifyCompilationEnvironment(ELightMapPolicyType Policy, const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
+	static RENDERER_API bool ShouldCompilePermutation(ELightMapPolicyType Policy, const FMeshMaterialShaderPermutationParameters& Parameters);
+	static RENDERER_API void ModifyCompilationEnvironment(ELightMapPolicyType Policy, const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 
-	static void GetVertexShaderBindings(
+	static RENDERER_API void GetVertexShaderBindings(
 		const FPrimitiveSceneProxy* PrimitiveSceneProxy,
 		const ElementDataType& ShaderElementData,
 		const VertexParametersType* VertexShaderParameters,
 		FMeshDrawSingleShaderBindings& ShaderBindings);
 
-	static void GetPixelShaderBindings(
+	static RENDERER_API void GetPixelShaderBindings(
 		const FPrimitiveSceneProxy* PrimitiveSceneProxy,
 		const ElementDataType& ShaderElementData,
 		const PixelParametersType* PixelShaderParameters,
 		FMeshDrawSingleShaderBindings& ShaderBindings);
 
 #if RHI_RAYTRACING
-	void GetRayHitGroupShaderBindings(
+	RENDERER_API void GetRayHitGroupShaderBindings(
 		const FPrimitiveSceneProxy* PrimitiveSceneProxy,
 		const FLightCacheInterface* ElementData,
 		const RayHitGroupParametersType* RayHitGroupShaderParameters,
@@ -402,7 +402,7 @@ public:
 	) const;
 #endif // RHI_RAYTRACING
 
-	static void GetComputeShaderBindings(
+	static RENDERER_API void GetComputeShaderBindings(
 		const FPrimitiveSceneProxy* PrimitiveSceneProxy,
 		const ElementDataType& ShaderElementData,
 		const ComputeParametersType* PixelShaderParameters,

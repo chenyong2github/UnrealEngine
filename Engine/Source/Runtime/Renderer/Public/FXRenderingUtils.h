@@ -84,7 +84,7 @@ namespace UE::FXRenderingUtils
 /**
  * This class exposes methods required by FX rendering that must access rendering internals.
  */ 
-class RENDERER_API FFXRenderingUtils
+class FFXRenderingUtils
 {
 public:
 	FFXRenderingUtils() = delete;

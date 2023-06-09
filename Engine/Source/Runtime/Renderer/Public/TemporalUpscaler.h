@@ -8,12 +8,12 @@ namespace UE::Renderer::Private
 {
 
 /** Interface for implementing third party temporal upscaler. */
-class RENDERER_API ITemporalUpscaler : public ISceneViewFamilyExtention
+class ITemporalUpscaler : public ISceneViewFamilyExtention
 {
 public:
 
 	/** Ref counted history to be saved in the history. */
-	class RENDERER_API IHistory : public IRefCountedObject
+	class IHistory : public IRefCountedObject
 	{
 	public:
 		virtual ~IHistory() {}

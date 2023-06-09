@@ -11,10 +11,10 @@ namespace RectLightAtlas
 
 // Scope for invalidating a particular texture 
 // This ensures the atlas contains the latest version of the texture and filter it
-struct RENDERER_API FAtlasTextureInvalidationScope
+struct FAtlasTextureInvalidationScope
 {
-	FAtlasTextureInvalidationScope(const UTexture* In);
-	~FAtlasTextureInvalidationScope();
+	RENDERER_API FAtlasTextureInvalidationScope(const UTexture* In);
+	RENDERER_API ~FAtlasTextureInvalidationScope();
 	FAtlasTextureInvalidationScope(const FAtlasTextureInvalidationScope&) = delete;
 	FAtlasTextureInvalidationScope& operator=(const FAtlasTextureInvalidationScope&) = delete;
 	bool bLocked = false;

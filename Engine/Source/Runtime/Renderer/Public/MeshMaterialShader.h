@@ -68,18 +68,18 @@ struct FVertexFactoryShaderPermutationParameters
 };
 
 /** Base class of all shaders that need material and vertex factory parameters. */
-class RENDERER_API FMeshMaterialShader : public FMaterialShader
+class FMeshMaterialShader : public FMaterialShader
 {
-	DECLARE_TYPE_LAYOUT(FMeshMaterialShader, NonVirtual);
+	DECLARE_EXPORTED_TYPE_LAYOUT(FMeshMaterialShader, RENDERER_API, NonVirtual);
 public:
 	using FPermutationParameters = FMeshMaterialShaderPermutationParameters;
 	using ShaderMetaType = FMeshMaterialShaderType;
 
 	FMeshMaterialShader() {}
 
-	FMeshMaterialShader(const FMeshMaterialShaderType::CompiledShaderInitializerType& Initializer);
+	RENDERER_API FMeshMaterialShader(const FMeshMaterialShaderType::CompiledShaderInitializerType& Initializer);
 
-	void GetShaderBindings(
+	RENDERER_API void GetShaderBindings(
 		const FScene* Scene,
 		ERHIFeatureLevel::Type FeatureLevel,
 		const FPrimitiveSceneProxy* PrimitiveSceneProxy,
@@ -89,7 +89,7 @@ public:
 		const FMeshMaterialShaderElementData& ShaderElementData,
 		FMeshDrawSingleShaderBindings& ShaderBindings) const;
 
-	void GetElementShaderBindings(
+	RENDERER_API void GetElementShaderBindings(
 		const FShaderMapPointerTable& PointerTable,
 		const FScene* Scene, 
 		const FSceneView* ViewIfDynamicMeshCommand, 
@@ -121,7 +121,7 @@ public:
 	}
 
 private:
-	void WriteFrozenVertexFactoryParameters(FMemoryImageWriter& Writer, const TMemoryImagePtr<FVertexFactoryShaderParameters>& InVertexFactoryParameters) const;
+	RENDERER_API void WriteFrozenVertexFactoryParameters(FMemoryImageWriter& Writer, const TMemoryImagePtr<FVertexFactoryShaderParameters>& InVertexFactoryParameters) const;
 	LAYOUT_FIELD_WITH_WRITER(TMemoryImagePtr<FVertexFactoryShaderParameters>, VertexFactoryParameters, WriteFrozenVertexFactoryParameters);
 
 protected:

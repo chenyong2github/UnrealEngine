@@ -124,7 +124,7 @@ extern RENDERER_API FSceneTextureShaderParameters GetSceneTextureShaderParameter
  *  left in an SRV read state, so they can safely be used for read without being re-imported into
  *  RDG. Likewise, the uniform buffer is non-RDG and can be used as is.
  */
-class RENDERER_API FSceneTextureExtracts : public FRenderResource
+class FSceneTextureExtracts : public FRenderResource
 {
 public:
 	FRHIUniformBuffer* GetUniformBuffer() const
@@ -147,10 +147,10 @@ public:
 		return Depth ? Depth->GetRHI() : nullptr;
 	}
 
-	void QueueExtractions(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures);
+	RENDERER_API void QueueExtractions(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures);
 
 private:
-	void Release();
+	RENDERER_API void Release();
 	void ReleaseRHI() override { Release(); }
 
 	// Contains the resolved scene depth target.

@@ -46,7 +46,7 @@ END_SHADER_PARAMETER_STRUCT()
 
 
 /** Interface for denoiser to have all hook in the renderer. */
-class RENDERER_API IScreenSpaceDenoiser
+class IScreenSpaceDenoiser
 {
 public:
 	/** Maximum number a denoiser might be able to denoise at the same time. */
@@ -216,9 +216,9 @@ public:
 	};
 	
 
-	static FHarmonicTextures CreateHarmonicTextures(FRDGBuilder& GraphBuilder, FIntPoint Extent, const TCHAR* DebugName);
-	static FHarmonicUAVs CreateUAVs(FRDGBuilder& GraphBuilder, const FHarmonicTextures& Textures);
-	static FDiffuseIndirectHarmonicUAVs CreateUAVs(FRDGBuilder& GraphBuilder, const FDiffuseIndirectHarmonic& Textures);
+	static RENDERER_API FHarmonicTextures CreateHarmonicTextures(FRDGBuilder& GraphBuilder, FIntPoint Extent, const TCHAR* DebugName);
+	static RENDERER_API FHarmonicUAVs CreateUAVs(FRDGBuilder& GraphBuilder, const FHarmonicTextures& Textures);
+	static RENDERER_API FDiffuseIndirectHarmonicUAVs CreateUAVs(FRDGBuilder& GraphBuilder, const FDiffuseIndirectHarmonic& Textures);
 
 
 
@@ -326,7 +326,7 @@ public:
 		const FAmbientOcclusionRayTracingConfig Config) const = 0;
 
 	/** Entry point to denoise diffuse indirect probe hierarchy. */
-	static FSSDSignalTextures DenoiseIndirectProbeHierarchy(
+	static RENDERER_API FSSDSignalTextures DenoiseIndirectProbeHierarchy(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
 		FPreviousViewInfo* PreviousViewInfos,
@@ -336,10 +336,10 @@ public:
 		FRDGTextureRef CompressedShadingModelTexture);
 
 	/** Returns the interface of the default denoiser of the renderer. */
-	static const IScreenSpaceDenoiser* GetDefaultDenoiser();
+	static RENDERER_API const IScreenSpaceDenoiser* GetDefaultDenoiser();
 
 	/** Returns the denoising mode. */
-	static EMode GetDenoiserMode(const TAutoConsoleVariable<int32>& CVar);
+	static RENDERER_API EMode GetDenoiserMode(const TAutoConsoleVariable<int32>& CVar);
 }; // class IScreenSpaceDenoiser
 
 

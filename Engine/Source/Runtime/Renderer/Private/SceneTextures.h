@@ -16,10 +16,10 @@ class FViewFamilyInfo;
 extern RENDERER_API void InitializeSceneTexturesConfig(FSceneTexturesConfig& Config, const FSceneViewFamily& ViewFamily);
 
 /** RDG struct containing the minimal set of scene textures common across all rendering configurations. */
-struct RENDERER_API FMinimalSceneTextures
+struct FMinimalSceneTextures
 {
 	// Initializes the minimal scene textures structure in the FViewFamilyInfo
-	static void InitializeViewFamily(FRDGBuilder& GraphBuilder, FViewFamilyInfo& ViewFamily);
+	static RENDERER_API void InitializeViewFamily(FRDGBuilder& GraphBuilder, FViewFamilyInfo& ViewFamily);
 
 	// Immutable copy of the config used to create scene textures.
 	FSceneTexturesConfig Config;
@@ -47,20 +47,20 @@ struct RENDERER_API FMinimalSceneTextures
 	// Textures containing depth / stencil information from the custom depth pass.
 	FCustomDepthTextures CustomDepth{};
 
-	FSceneTextureShaderParameters GetSceneTextureShaderParameters(ERHIFeatureLevel::Type FeatureLevel) const;
+	RENDERER_API FSceneTextureShaderParameters GetSceneTextureShaderParameters(ERHIFeatureLevel::Type FeatureLevel) const;
 };
 
 /** RDG struct containing the complete set of scene textures for the deferred or mobile renderers. */
-struct RENDERER_API FSceneTextures : public FMinimalSceneTextures
+struct FSceneTextures : public FMinimalSceneTextures
 {
 	// Initializes the scene textures structure in the FViewFamilyInfo
-	static void InitializeViewFamily(FRDGBuilder& GraphBuilder, FViewFamilyInfo& ViewFamily);
+	static RENDERER_API void InitializeViewFamily(FRDGBuilder& GraphBuilder, FViewFamilyInfo& ViewFamily);
 
 	// Configures an array of render targets for the GBuffer pass.
-	uint32 GetGBufferRenderTargets(
+	RENDERER_API uint32 GetGBufferRenderTargets(
 		TArrayView<FTextureRenderTargetBinding> RenderTargets,
 		EGBufferLayout Layout = GBL_Default) const;
-	uint32 GetGBufferRenderTargets(
+	RENDERER_API uint32 GetGBufferRenderTargets(
 		ERenderTargetLoadAction LoadAction,
 		FRenderTargetBindingSlots& RenderTargets,
 		EGBufferLayout Layout = GBL_Default) const;

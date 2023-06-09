@@ -1284,7 +1284,7 @@ public:
 };
 
 /** FVisibleMeshDrawCommand sort key. */
-class RENDERER_API FMeshDrawCommandSortKey
+class FMeshDrawCommandSortKey
 {
 public:
 	union 
@@ -1322,7 +1322,7 @@ public:
 		return PackedData < B.PackedData;
 	}
 
-	static const FMeshDrawCommandSortKey Default;
+	static RENDERER_API const FMeshDrawCommandSortKey Default;
 };
 
 

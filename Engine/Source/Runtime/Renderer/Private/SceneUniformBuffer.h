@@ -94,10 +94,10 @@ DECLARE_UNIFORM_BUFFER_STRUCT(FSceneUniformParameters, RENDERER_API)
 /**
  * RDG shader parameter struct containing data for FSceneUniformBuffer.
  */
-MS_ALIGN(SHADER_PARAMETER_STRUCT_ALIGNMENT) class RENDERER_API FSceneUniformParameters final
+MS_ALIGN(SHADER_PARAMETER_STRUCT_ALIGNMENT) class FSceneUniformParameters final
 {
 public:
-	struct RENDERER_API FTypeInfo {
+	struct FTypeInfo {
 		static constexpr int32 NumRows = 1;
 		static constexpr int32 NumColumns = 1;
 		static constexpr int32 NumElements = 0;
@@ -106,7 +106,7 @@ public:
 		static constexpr const ANSICHAR* const FileName = UE_LOG_SOURCE_FILE(__FILE__);
 		static constexpr int32 FileLine = __LINE__;
 		using TAlignedType = FSceneUniformParameters;
-		static const FShaderParametersMetadata* GetStructMetadata();
+		static RENDERER_API const FShaderParametersMetadata* GetStructMetadata();
 	};
 
 	const void* GetContents() const

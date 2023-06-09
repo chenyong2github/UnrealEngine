@@ -237,7 +237,7 @@ private:
 /**
  * Encapsulates the resources and render targets used by global illumination plugins.
  */
-class RENDERER_API FGlobalIlluminationPluginResources : public FRenderResource
+class FGlobalIlluminationPluginResources : public FRenderResource
 
 {
 public:
@@ -252,20 +252,20 @@ public:
 /**
  * Delegate callback used by global illumination plugins
  */
-class RENDERER_API FGlobalIlluminationPluginDelegates
+class FGlobalIlluminationPluginDelegates
 {
 public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FAnyRayTracingPassEnabled, bool& /*bAnyRayTracingPassEnabled*/);
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FPrepareRayTracing, const FViewInfo& /*View*/, TArray<FRHIRayTracingShader*>& /*OutRayGenShaders*/);
 	DECLARE_MULTICAST_DELEGATE_FourParams(FRenderDiffuseIndirectLight, const FScene& /*Scene*/, const FViewInfo& /*View*/, FRDGBuilder& /*GraphBuilder*/, FGlobalIlluminationPluginResources& /*Resources*/);
 
-	static FAnyRayTracingPassEnabled& AnyRayTracingPassEnabled();
-	static FPrepareRayTracing& PrepareRayTracing();
-	static FRenderDiffuseIndirectLight& RenderDiffuseIndirectLight();
+	static RENDERER_API FAnyRayTracingPassEnabled& AnyRayTracingPassEnabled();
+	static RENDERER_API FPrepareRayTracing& PrepareRayTracing();
+	static RENDERER_API FRenderDiffuseIndirectLight& RenderDiffuseIndirectLight();
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	DECLARE_MULTICAST_DELEGATE_FourParams(FRenderDiffuseIndirectVisualizations, const FScene& /*Scene*/, const FViewInfo& /*View*/, FRDGBuilder& /*GraphBuilder*/, FGlobalIlluminationPluginResources& /*Resources*/);
-	static FRenderDiffuseIndirectVisualizations& RenderDiffuseIndirectVisualizations();
+	static RENDERER_API FRenderDiffuseIndirectVisualizations& RenderDiffuseIndirectVisualizations();
 #endif //!(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 };
 

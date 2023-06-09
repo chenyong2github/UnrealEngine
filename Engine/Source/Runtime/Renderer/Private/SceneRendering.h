@@ -2132,7 +2132,7 @@ public:
 
 	// FSceneRenderer interface
 
-	RENDERER_API virtual void Render(FRDGBuilder& GraphBuilder) = 0;
+	virtual void Render(FRDGBuilder& GraphBuilder) = 0;
 	virtual void RenderHitProxies(FRDGBuilder& GraphBuilder) {}
 	virtual bool ShouldRenderVelocities() const { return false; }
 	virtual bool ShouldRenderPrePass() const { return false; }

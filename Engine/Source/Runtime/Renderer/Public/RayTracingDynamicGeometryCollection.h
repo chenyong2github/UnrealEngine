@@ -13,13 +13,13 @@ class FSceneView;
 struct FMeshComputeDispatchCommand;
 struct FRayTracingDynamicGeometryUpdateParams;
 
-class RENDERER_API FRayTracingDynamicGeometryCollection
+class FRayTracingDynamicGeometryCollection
 {
 public:
-	FRayTracingDynamicGeometryCollection();
-	~FRayTracingDynamicGeometryCollection();
+	RENDERER_API FRayTracingDynamicGeometryCollection();
+	RENDERER_API ~FRayTracingDynamicGeometryCollection();
 
-	void AddDynamicMeshBatchForGeometryUpdate(
+	RENDERER_API void AddDynamicMeshBatchForGeometryUpdate(
 		const FScene* Scene, 
 		const FSceneView* View, 
 		const FPrimitiveSceneProxy* PrimitiveSceneProxy, 
@@ -28,15 +28,15 @@ public:
 	);
 
 	// Starts an update batch and returns the current shared buffer generation ID which is used for validation.
-	int64 BeginUpdate();
-	void DispatchUpdates(FRHICommandListImmediate& ParentCmdList, FRHIBuffer* ScratchBuffer);
-	void EndUpdate(FRHICommandListImmediate& RHICmdList);
+	RENDERER_API int64 BeginUpdate();
+	RENDERER_API void DispatchUpdates(FRHICommandListImmediate& ParentCmdList, FRHIBuffer* ScratchBuffer);
+	RENDERER_API void EndUpdate(FRHICommandListImmediate& RHICmdList);
 
 	// Clears the working arrays to not hold any references.
 	// Needs to be called every frame when ray tracing is enabled or once when ray tracing mode has changed.
-	void Clear();
+	RENDERER_API void Clear();
 
-	uint32 ComputeScratchBufferSize();
+	RENDERER_API uint32 ComputeScratchBufferSize();
 
 private:
 

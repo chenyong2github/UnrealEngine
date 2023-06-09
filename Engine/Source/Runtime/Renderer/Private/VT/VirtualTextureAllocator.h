@@ -9,16 +9,16 @@
 class FAllocatedVirtualTexture;
 
 /** Allocates virtual memory address space. */
-class RENDERER_API FVirtualTextureAllocator
+class FVirtualTextureAllocator
 {
 public:
-	explicit FVirtualTextureAllocator(uint32 Dimensions);
+	RENDERER_API explicit FVirtualTextureAllocator(uint32 Dimensions);
 	~FVirtualTextureAllocator() {}
 
 	/**
 	 * Initialise the allocator
 	 */
-	void Initialize(uint32 MaxSize);
+	RENDERER_API void Initialize(uint32 MaxSize);
 
 	uint32 GetAllocatedWidth() const { return AllocatedWidth; }
 	uint32 GetAllocatedHeight() const { return AllocatedHeight; }
@@ -27,25 +27,25 @@ public:
 	 * Translate a virtual page address in the address space to a local page address within a virtual texture.
 	 * @return nullptr If there is no virtual texture allocated at this address.
 	 */
-	FAllocatedVirtualTexture* Find(uint32 vAddress, uint32& OutLocal_vAddress) const;
+	RENDERER_API FAllocatedVirtualTexture* Find(uint32 vAddress, uint32& OutLocal_vAddress) const;
 	inline FAllocatedVirtualTexture* Find(uint32 vAddress) const { uint32 UnusedLocal_vAddress = 0u; return Find(vAddress, UnusedLocal_vAddress); }
 
 	/**
 	 * Allocate address space for the virtual texture.
 	 * @return (~0) if no space left, the virtual page address if successfully allocated.
 	 */
-	uint32 Alloc(FAllocatedVirtualTexture* VT);
+	RENDERER_API uint32 Alloc(FAllocatedVirtualTexture* VT);
 
 	/**
 	 * Test if an allocation of the given size will succeed.
 	 * @return false if there isn't enough space left.
 	 */
-	bool TryAlloc(uint32 InSize);
+	RENDERER_API bool TryAlloc(uint32 InSize);
 
 	/**
 	 * Free the virtual texture.
 	 */
-	void Free(FAllocatedVirtualTexture* VT);
+	RENDERER_API void Free(FAllocatedVirtualTexture* VT);
 
 	/** Get current number of allocations. */
 	inline uint32 GetNumAllocations() const { return NumAllocations; }
@@ -54,10 +54,10 @@ public:
 	inline uint32 GetNumAllocatedPages() const { return NumAllocatedPages; }
 
 	/** Output debugging information to the console. */
-	void DumpToConsole(bool verbose);
+	RENDERER_API void DumpToConsole(bool verbose);
 
 #if WITH_EDITOR
-	void SaveDebugImage(const TCHAR* ImageName) const;
+	RENDERER_API void SaveDebugImage(const TCHAR* ImageName) const;
 #endif
 
 private:
@@ -79,26 +79,26 @@ private:
 		uint32 vTileY1;
 	};
 
-	void LinkFreeList(uint16& InOutListHead, EBlockState State, uint16 Index);
-	void UnlinkFreeList(uint16& InOutListHead, EBlockState State, uint16 Index);
+	RENDERER_API void LinkFreeList(uint16& InOutListHead, EBlockState State, uint16 Index);
+	RENDERER_API void UnlinkFreeList(uint16& InOutListHead, EBlockState State, uint16 Index);
 
-	int32 AcquireBlock();
-	void FreeAddressBlock(uint32 Index, bool bTopLevelBlock);
-	uint32 FindAddressBlock(uint32 vAddress) const;
+	RENDERER_API int32 AcquireBlock();
+	RENDERER_API void FreeAddressBlock(uint32 Index, bool bTopLevelBlock);
+	RENDERER_API uint32 FindAddressBlock(uint32 vAddress) const;
 
-	void SubdivideBlock(uint32 ParentIndex);
+	RENDERER_API void SubdivideBlock(uint32 ParentIndex);
 
-	void MarkBlockAllocated(uint32 Index, uint32 vAllocatedTileX, uint32 vAllocatedTileY, FAllocatedVirtualTexture* VT);
+	RENDERER_API void MarkBlockAllocated(uint32 Index, uint32 vAllocatedTileX, uint32 vAllocatedTileY, FAllocatedVirtualTexture* VT);
 
-	bool TestAllocation(uint32 Index, uint32 vTileX0, uint32 vTileY0, uint32 vTileX1, uint32 vTileY1) const;
+	RENDERER_API bool TestAllocation(uint32 Index, uint32 vTileX0, uint32 vTileY0, uint32 vTileX1, uint32 vTileY1) const;
 
-	void RecurseComputeFreeMip(uint16 BlockIndex, uint32 Depth, uint64& IoBlockMap) const;
-	uint32 ComputeFreeMip(uint16 BlockIndex) const;
+	RENDERER_API void RecurseComputeFreeMip(uint16 BlockIndex, uint32 Depth, uint64& IoBlockMap) const;
+	RENDERER_API uint32 ComputeFreeMip(uint16 BlockIndex) const;
 
-	void FreeMipUpdateParents(uint16 ParentIndex);
+	RENDERER_API void FreeMipUpdateParents(uint16 ParentIndex);
 
 #if WITH_EDITOR
-	void FillDebugImage(uint32 Index, uint32* ImageData, TMap<FAllocatedVirtualTexture*, uint32>& ColorMap) const;
+	RENDERER_API void FillDebugImage(uint32 Index, uint32* ImageData, TMap<FAllocatedVirtualTexture*, uint32>& ColorMap) const;
 #endif
 
 	struct FAddressBlock

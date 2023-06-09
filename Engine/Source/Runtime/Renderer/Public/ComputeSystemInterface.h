@@ -15,7 +15,7 @@ class IComputeTaskWorker;
  * IComputeTaskWorker objects have their work executed by the renderer at specific points in the frame.
  * The compute tasks are scheduled by the IComputeSystem.
  */
-class RENDERER_API IComputeSystem
+class IComputeSystem
 {
 public:
 	virtual ~IComputeSystem() {}

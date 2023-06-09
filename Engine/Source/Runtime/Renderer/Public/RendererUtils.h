@@ -20,10 +20,10 @@ class FScene;
 struct IPooledRenderTarget;
 template <typename ReferencedType> class TRefCountPtr;
 
-class RENDERER_API FRenderTargetWriteMask
+class FRenderTargetWriteMask
 {
 public:
-	static void Decode(
+	static RENDERER_API void Decode(
 		FRHICommandListImmediate& RHICmdList,
 		FGlobalShaderMap* ShaderMap,
 		TArrayView<IPooledRenderTarget* const> InRenderTargets,
@@ -31,7 +31,7 @@ public:
 		ETextureCreateFlags RTWriteMaskFastVRamConfig,
 		const TCHAR* RTWriteMaskDebugName);
 
-	static void Decode(
+	static RENDERER_API void Decode(
 		FRDGBuilder& GraphBuilder,
 		FGlobalShaderMap* ShaderMap,
 		TArrayView<FRDGTextureRef const> InRenderTargets,
@@ -40,7 +40,7 @@ public:
 		const TCHAR* RTWriteMaskDebugName);
 };
 
-class RENDERER_API FDepthBounds
+class FDepthBounds
 {
 public:
 
@@ -50,7 +50,7 @@ public:
 		float MaxDepth;
 	};
 
-	static FDepthBoundsValues CalculateNearFarDepthExcludingSky();
+	static RENDERER_API FDepthBoundsValues CalculateNearFarDepthExcludingSky();
 };
 
 // A minimal uniform struct providing necessary access for external systems to Strata parameters.

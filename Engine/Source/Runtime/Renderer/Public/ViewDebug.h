@@ -18,15 +18,15 @@ DECLARE_MULTICAST_DELEGATE(FOnUpdateViewDebugInfo);
 /**
  * A collection of debug data associated with the current on screen view.
  */
-struct RENDERER_API FViewDebugInfo
+struct FViewDebugInfo
 {
 	friend class FDrawPrimitiveDebuggerModule;
 
 private:
 
-	static FViewDebugInfo Instance;
+	static RENDERER_API FViewDebugInfo Instance;
 
-	FViewDebugInfo();
+	RENDERER_API FViewDebugInfo();
 	
 public:
 
@@ -80,23 +80,23 @@ private:
 	
 	TArray<FPrimitiveInfo> Primitives;
 
-	void ProcessPrimitive(FPrimitiveSceneInfo* PrimitiveSceneInfo, const FViewInfo& View, FScene* Scene, const UPrimitiveComponent* DebugComponent);
+	RENDERER_API void ProcessPrimitive(FPrimitiveSceneInfo* PrimitiveSceneInfo, const FViewInfo& View, FScene* Scene, const UPrimitiveComponent* DebugComponent);
 
-	void CaptureNextFrame();
+	RENDERER_API void CaptureNextFrame();
 
-	void EnableLiveCapture();
+	RENDERER_API void EnableLiveCapture();
 
-	void DisableLiveCapture();
+	RENDERER_API void DisableLiveCapture();
 
-	static void DumpPrimitives(FScene* Scene, const FViewCommands& ViewCommands);
+	static RENDERER_API void DumpPrimitives(FScene* Scene, const FViewCommands& ViewCommands);
 
 public:
-	void ProcessPrimitives(FScene* Scene, const FViewInfo& View, const FViewCommands& ViewCommands);
+	RENDERER_API void ProcessPrimitives(FScene* Scene, const FViewInfo& View, const FViewCommands& ViewCommands);
 
 	/**
 	 * Writes the currently stored information out to a CSV file.
 	 */
-	void DumpToCSV() const;
+	RENDERER_API void DumpToCSV() const;
 
 	/**
 	 * Performs an operation for each primitive currently tracked.
@@ -121,13 +121,13 @@ public:
 	 * Checks if this debug information has ever been updated.
 	 * @returns True if the information has been updated at least once.
 	 */
-	bool HasEverUpdated() const;
+	RENDERER_API bool HasEverUpdated() const;
 
 	/**
 	 * Checks if current information is from an older frame.
 	 * @returns True if the data in this object is outdated.
 	 */
-	bool IsOutOfDate() const;
+	RENDERER_API bool IsOutOfDate() const;
 
 	template <typename UserClass>
 	FDelegateHandle AddUpdateHandler(UserClass* UserObject, void (UserClass::*Func)())

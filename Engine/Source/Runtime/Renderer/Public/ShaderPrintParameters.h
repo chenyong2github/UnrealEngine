@@ -84,14 +84,14 @@ namespace ShaderPrint
 	RENDERER_API void RequestSpaceForTriangles(uint32 MaxElementCount);
 
 	/** Structure containing setup for shader print capturing. */
-	struct RENDERER_API FShaderPrintSetup
+	struct FShaderPrintSetup
 	{
 		/** Construct with shader print disabled setup. */
 		FShaderPrintSetup() = default;
 		/** Construct with view and system defaults. */
-		FShaderPrintSetup(FSceneView const& InView);
+		RENDERER_API FShaderPrintSetup(FSceneView const& InView);
 		/** Construct with view rectangle and system defaults. */
-		FShaderPrintSetup(FIntRect InViewRect);
+		RENDERER_API FShaderPrintSetup(FIntRect InViewRect);
 
 		/** The shader print system's enabled state. This is set in the constructor and should't be overriden. */
 		bool bEnabled = false;
@@ -151,7 +151,7 @@ namespace ShaderPrint
  * (i) FreezeShaderPrintData() to "freeze" the data which exports it from the current RDG builder context.
  * (ii) SubmitShaderPrintData() to submit the frozen data for later thawing and rendering.
  */
-struct RENDERER_API FShaderPrintData
+struct FShaderPrintData
 {
 	ShaderPrint::FShaderPrintSetup Setup;
 	TUniformBufferRef<ShaderPrint::FShaderPrintCommonParameters> UniformBuffer;
@@ -166,7 +166,7 @@ struct RENDERER_API FShaderPrintData
  * (i) Can be thawed by the client for continued gathering of shader print glyphs, or
  * (ii) Can be submitted for later rendering using SubmitShaderPrintData().
  */
-struct RENDERER_API FFrozenShaderPrintData
+struct FFrozenShaderPrintData
 {
 	ShaderPrint::FShaderPrintSetup Setup;
 

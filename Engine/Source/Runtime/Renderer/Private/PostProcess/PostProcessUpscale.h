@@ -61,7 +61,7 @@ enum class EUpscaleStage
 };
 
 /** Interface for custom spatial upscaling algorithm meant to be set on the FSceneViewFamily by ISceneViewExtension::BeginRenderViewFamily(). */
-class RENDERER_API ISpatialUpscaler : public ISceneViewFamilyExtention
+class ISpatialUpscaler : public ISceneViewFamilyExtention
 {
 public:
 	struct FInputs
@@ -86,7 +86,7 @@ public:
 		const FViewInfo& View,
 		const FInputs& PassInputs) const = 0;
 
-	static FScreenPassTexture AddDefaultUpscalePass(
+	static RENDERER_API FScreenPassTexture AddDefaultUpscalePass(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
 		const FInputs& PassInputs,

@@ -140,16 +140,16 @@ enum class ERDGImportedBufferFlags
 };
 ENUM_CLASS_FLAGS(ERDGImportedBufferFlags);
 
-struct RENDERER_API FRDGExternalBuffer
+struct FRDGExternalBuffer
 {
 	TRefCountPtr<FRDGPooledBuffer> Buffer = nullptr;
 	FShaderResourceViewRHIRef SRV = nullptr;
 	FUnorderedAccessViewRHIRef UAV = nullptr;
 	EPixelFormat Format = PF_Unknown;
-	void Release();
+	RENDERER_API void Release();
 };
 
-struct RENDERER_API FRDGImportedBuffer
+struct FRDGImportedBuffer
 {
 	FRDGBufferRef Buffer = nullptr;
 	FRDGBufferSRVRef SRV = nullptr;
@@ -198,12 +198,12 @@ enum EHairInterpolationType
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Public group data 
 
-struct RENDERER_API FHairStrandsInstance
+struct FHairStrandsInstance
 {
 	virtual ~FHairStrandsInstance() = default;
-	uint32 GetRefCount() const;
-	uint32 AddRef() const;
-	uint32 Release() const;
+	RENDERER_API uint32 GetRefCount() const;
+	RENDERER_API uint32 AddRef() const;
+	RENDERER_API uint32 Release() const;
 	int32 RegisteredIndex = -1;
 	virtual const FBoxSphereBounds& GetBounds() const = 0;
 	virtual const FBoxSphereBounds& GetLocalBounds() const = 0;
@@ -214,17 +214,17 @@ protected:
 };
 typedef TArray<FHairStrandsInstance*> FHairStrandsInstances;
 
-class RENDERER_API FHairGroupPublicData : public FRenderResource
+class FHairGroupPublicData : public FRenderResource
 {
 public:
-	FHairGroupPublicData(uint32 InGroupIndex, const FName& OwnerName);
+	RENDERER_API FHairGroupPublicData(uint32 InGroupIndex, const FName& OwnerName);
 	
-	virtual void InitRHI() override;
-	virtual void ReleaseRHI() override;
+	RENDERER_API virtual void InitRHI() override;
+	RENDERER_API virtual void ReleaseRHI() override;
 	virtual FString GetFriendlyName() const override { return TEXT("FHairGroupPublicData"); }
-	void Allocate(FRDGBuilder& GraphBuilder);
-	void Release();
-	uint32 GetResourcesSize() const;
+	RENDERER_API void Allocate(FRDGBuilder& GraphBuilder);
+	RENDERER_API void Release();
+	RENDERER_API uint32 GetResourcesSize() const;
 
 	uint32 GetGroupIndex() const { return GroupIndex; }
 
@@ -304,9 +304,9 @@ public:
 	uint32 GetClusterCount() const { return ClusterCount;  }
 
 	// Return the number of active point/curve for strand geometry
-	uint32 GetActiveStrandsPointCount() const;
-	uint32 GetActiveStrandsCurveCount() const;
-	float  GetActiveStrandsCoverageScale() const;
+	RENDERER_API uint32 GetActiveStrandsPointCount() const;
+	RENDERER_API uint32 GetActiveStrandsCurveCount() const;
+	RENDERER_API float  GetActiveStrandsCoverageScale() const;
 
 	struct FVertexFactoryInput 
 	{
