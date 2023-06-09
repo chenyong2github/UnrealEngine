@@ -310,9 +310,11 @@ void FMemoryCacheStore::Put(
 			Components.Meta = Record.GetMeta();
 			Components.Values = Record.GetValues();
 			RequestStats.LogicalWriteSize += Components.Meta.GetSize();
+			RequestStats.PhysicalWriteSize += Components.Meta.GetSize();
 			for (const FValue& Value : Components.Values)
 			{
 				RequestStats.AddLogicalWrite(Value);
+				RequestStats.PhysicalWriteSize += Value.GetData().GetCompressedSize();
 			}
 		}
 		else if (!bReplaceExisting)
@@ -321,6 +323,7 @@ void FMemoryCacheStore::Put(
 			{
 				Components.Meta = Record.GetMeta();
 				RequestStats.LogicalWriteSize += Components.Meta.GetSize();
+				RequestStats.PhysicalWriteSize += Components.Meta.GetSize();
 			}
 			for (FValueWithId& Value : Components.Values)
 			{
@@ -330,6 +333,7 @@ void FMemoryCacheStore::Put(
 					{
 						Value = NewValue;
 						RequestStats.AddLogicalWrite(Value);
+						RequestStats.PhysicalWriteSize += Value.GetData().GetCompressedSize();
 					}
 				}
 			}
@@ -340,9 +344,11 @@ void FMemoryCacheStore::Put(
 			Components.Meta = Record.GetMeta();
 			Components.Values = Record.GetValues();
 			RequestStats.LogicalWriteSize += Components.Meta.GetSize();
+			RequestStats.PhysicalWriteSize += Components.Meta.GetSize();
 			for (FValueWithId& Value : Components.Values)
 			{
 				RequestStats.AddLogicalWrite(Value);
+				RequestStats.PhysicalWriteSize += Value.GetData().GetCompressedSize();
 				if (!Value.HasData())
 				{
 					if (const int32 ExistingValueIndex = Algo::BinarySearchBy(ExistingComponents.Values, Value.GetId(), &FValueWithId::GetId);
@@ -415,6 +421,7 @@ void FMemoryCacheStore::Get(
 			{
 				Builder.SetMeta(CopyTemp(Components.Meta));
 				RequestStats.LogicalReadSize += Components.Meta.GetSize();
+				RequestStats.PhysicalReadSize += Components.Meta.GetSize();
 			}
 
 			for (const FValueWithId& Value : Components.Values)
@@ -442,6 +449,7 @@ void FMemoryCacheStore::Get(
 				{
 					Builder.AddValue(Value);
 					RequestStats.AddLogicalRead(Value);
+					RequestStats.PhysicalReadSize += Value.GetData().GetCompressedSize();
 				}
 			}
 		}
@@ -547,6 +555,7 @@ void FMemoryCacheStore::PutValue(
 		}
 
 		RequestStats.AddLogicalWrite(Value);
+		RequestStats.PhysicalWriteSize += Value.GetData().GetCompressedSize();
 
 		Status = EStatus::Ok;
 	}
@@ -601,6 +610,7 @@ void FMemoryCacheStore::GetValue(
 		}
 
 		RequestStats.AddLogicalRead(Value);
+		RequestStats.PhysicalReadSize += Value.GetData().GetCompressedSize();
 
 		OnComplete({Request.Name, Request.Key, MoveTemp(Value), Request.UserData, Status});
 	}

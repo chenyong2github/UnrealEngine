@@ -68,7 +68,7 @@ ILegacyCacheStore* CreateCacheStoreVerify(ILegacyCacheStore* InnerCache, bool bP
 ILegacyCacheStore* CreateFileSystemCacheStore(const TCHAR* Name, const TCHAR* Config, ICacheStoreOwner& Owner, FString& OutPath);
 TTuple<ILegacyCacheStore*, ECacheStoreFlags> CreateHttpCacheStore(const TCHAR* NodeName, const TCHAR* Config);
 void CreateMemoryCacheStore(IMemoryCacheStore*& OutCache, const TCHAR* Name, ICacheStoreOwner* Owner, int64 MaxCacheSize, bool bCanBeDisabled);
-IPakFileCacheStore* CreatePakFileCacheStore(const TCHAR* Filename, bool bWriting, bool bCompressed);
+IPakFileCacheStore* CreatePakFileCacheStore(const TCHAR* Name, const TCHAR* Filename, bool bWriting, bool bCompressed, ICacheStoreOwner* Owner);
 ILegacyCacheStore* CreateS3CacheStore(const TCHAR* RootManifestPath, const TCHAR* BaseUrl, const TCHAR* Region, const TCHAR* CanaryObjectKey, const TCHAR* CachePath);
 TTuple<ILegacyCacheStore*, ECacheStoreFlags> CreateZenCacheStore(const TCHAR* NodeName, const TCHAR* Config);
 ILegacyCacheStore* TryCreateCacheStoreReplay(ILegacyCacheStore* InnerCache);
@@ -301,11 +301,11 @@ public:
 				}
 				else if (NodeType == TEXT("ReadPak"))
 				{
-					return ParsePak(*NodeName, *Entry, /*bWriting*/ false, ECacheStoreFlags::Local | ECacheStoreFlags::Query | ECacheStoreFlags::StopStore);
+					return ParsePak(*NodeName, *Entry, /*bWriting*/ false);
 				}
 				else if (NodeType == TEXT("WritePak"))
 				{
-					return ParsePak(*NodeName, *Entry, /*bWriting*/ true, ECacheStoreFlags::Local | ECacheStoreFlags::Store);
+					return ParsePak(*NodeName, *Entry, /*bWriting*/ true);
 				}
 				else if (NodeType == TEXT("S3"))
 				{
@@ -343,7 +343,7 @@ public:
 	 * @param bWriting true to create pak interface for writing
 	 * @return Pak file data backend interface instance or nullptr if unsuccessful
 	 */
-	bool ParsePak(const TCHAR* NodeName, const TCHAR* Entry, const bool bWriting, const ECacheStoreFlags Flags)
+	bool ParsePak(const TCHAR* NodeName, const TCHAR* Entry, const bool bWriting)
 	{
 		ILegacyCacheStore* PakNode = nullptr;
 		FString PakFilename;
@@ -367,9 +367,8 @@ public:
 			FGuid Temp = FGuid::NewGuid();
 			ReadPakFilename = PakFilename;
 			WritePakFilename = PakFilename + TEXT(".") + Temp.ToString();
-			WritePakCache = CreatePakFileCacheStore(*WritePakFilename, /*bWriting*/ true, bCompressed);
+			WritePakCache = CreatePakFileCacheStore(NodeName, *WritePakFilename, /*bWriting*/ true, bCompressed, this);
 			PakNode = WritePakCache;
-			Add(WritePakCache, Flags);
 			return true;
 		}
 		else
@@ -381,11 +380,10 @@ public:
 				return false;
 			}
 
-			IPakFileCacheStore* ReadPak = CreatePakFileCacheStore(*PakFilename, /*bWriting*/ false, bCompressed);
+			IPakFileCacheStore* ReadPak = CreatePakFileCacheStore(NodeName, *PakFilename, /*bWriting*/ false, bCompressed, this);
 			ReadPakFilename = PakFilename;
 			PakNode = ReadPak;
 			ReadPakCache.Add(ReadPak);
-			Add(ReadPak, Flags);
 			return true;
 		}
 	}
@@ -760,7 +758,7 @@ public:
 				for(const FString& MergePakName : MergePakList)
 				{
 					TUniquePtr<IPakFileCacheStore> ReadPak(
-						CreatePakFileCacheStore(*FPaths::Combine(*FPaths::GetPath(WritePakFilename), *MergePakName), /*bWriting*/ false, /*bCompressed*/ false));
+						CreatePakFileCacheStore(TEXT("Merge"), *FPaths::Combine(*FPaths::GetPath(WritePakFilename), *MergePakName), /*bWriting*/ false, /*bCompressed*/ false, /*Owner*/ nullptr));
 					WritePakCache->MergeCache(ReadPak.Get());
 				}
 			}
@@ -849,11 +847,9 @@ public:
 		// Assumptions: there's at least one read-only pak backend in the hierarchy
 		// and its parent is a hierarchical backend.
 		IPakFileCacheStore* ReadPak = nullptr;
-		if (Hierarchy && FPlatformFileManager::Get().GetPlatformFile().FileExists(PakFilename))
+		if (FPlatformFileManager::Get().GetPlatformFile().FileExists(PakFilename))
 		{
-			ReadPak = CreatePakFileCacheStore(PakFilename, /*bWriting*/ false, /*bCompressed*/ false);
-
-			Hierarchy->Add(ReadPak, ECacheStoreFlags::Local | ECacheStoreFlags::Query | ECacheStoreFlags::StopStore);
+			ReadPak = CreatePakFileCacheStore(TEXT("Mount"), PakFilename, /*bWriting*/ false, /*bCompressed*/ false, this);
 			ReadPakCache.Add(ReadPak);
 		}
 		else
@@ -876,7 +872,6 @@ public:
 				// Wait until all async requests are complete.
 				WaitForQuiescence(false);
 
-				Hierarchy->RemoveNotSafe(ReadPak);
 				ReadPakCache.RemoveAt(PakIndex);
 				ReadPak->Close();
 				delete ReadPak;
