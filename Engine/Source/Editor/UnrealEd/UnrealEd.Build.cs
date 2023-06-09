@@ -89,7 +89,9 @@ public class UnrealEd : ModuleRules
 				"PhysicsUtilities",
 				"ToolWidgets",
 				"AssetTools", 
-				"WidgetRegistration"
+				"WidgetRegistration",
+				"GameplayTasks",
+				"TargetPlatform"
 			}
 		);
 
