@@ -1,14 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "10XSourceCodeAccessModule.h"
-#include "Features/IModularFeatures.h"
+#include "N10XSourceCodeAccessModule.h"
+
 #include "Modules/ModuleManager.h"
-#include "HAL/LowLevelMemTracker.h"
-#include "10XSourceCodeAccessor.h"
+#include "N10XSourceCodeAccessor.h"
 
-LLM_DEFINE_TAG(XSourceCodeAccess_10);
-
-IMPLEMENT_MODULE( F10XSourceCodeAccessModule, 10XSourceCodeAccess );
+IMPLEMENT_MODULE( F10XSourceCodeAccessModule, N10XSourceCodeAccess );
 
 F10XSourceCodeAccessModule::F10XSourceCodeAccessModule()
 	: SourceCodeAccessor(MakeShareable(new F10XSourceCodeAccessor()))
@@ -17,8 +14,6 @@ F10XSourceCodeAccessModule::F10XSourceCodeAccessModule()
 
 void F10XSourceCodeAccessModule::StartupModule()
 {
-	LLM_SCOPE_BYTAG(XSourceCodeAccess_10);
-
 	SourceCodeAccessor->Startup();
 
 	IModularFeatures::Get().RegisterModularFeature(TEXT("SourceCodeAccessor"), &SourceCodeAccessor.Get() );
