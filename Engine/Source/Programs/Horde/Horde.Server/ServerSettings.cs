@@ -634,6 +634,12 @@ namespace Horde.Server
 		/// Config for the fleet manager (serialized JSON)
 		/// </summary>
 		public string? FleetManagerV2Config { get; set; }
+		
+		/// <summary>
+		/// AWS SQS queue URL where lifecycle events from EC2 auto-scaling are received
+		/// <see cref="AwsAutoScalingLifecycleService" />
+		/// </summary>
+		public string? AwsAutoScalingQueueUrl { get; set; }
 
 		/// <summary>
 		/// Whether to run scheduled jobs.

@@ -100,7 +100,6 @@ namespace Horde.Server.Tests
 		public AclService AclService => ServiceProvider.GetRequiredService<AclService>();
 		public FleetService FleetService => ServiceProvider.GetRequiredService<FleetService>();
 		public AgentService AgentService => ServiceProvider.GetRequiredService<AgentService>();
-		public AwsAutoScalingLifecycleService AwsAsgLifecycleService => ServiceProvider.GetRequiredService<AwsAutoScalingLifecycleService>();
 		public ICommitService CommitService => ServiceProvider.GetRequiredService<ICommitService>();
 		public GlobalsService GlobalsService => ServiceProvider.GetRequiredService<GlobalsService>();
 		public MongoService MongoService => ServiceProvider.GetRequiredService<MongoService>();
@@ -134,7 +133,6 @@ namespace Horde.Server.Tests
 		public DashboardController DashboardController => GetDashboardController();
 		public TestDataController TestDataController => GetTestDataController();
 		public BisectTasksController BisectTasksController => GetBisectTasksController();
-		public AwsAutoScalingLifecycleController AwsAutoScalingLifecycleController => GetAwsAutoScalingLifecycleController();
 
 		public OpenTelemetry.Trace.Tracer Tracer => ServiceProvider.GetRequiredService<OpenTelemetry.Trace.Tracer>();
 		public Meter Meter => ServiceProvider.GetRequiredService<Meter>();
@@ -317,13 +315,6 @@ namespace Horde.Server.Tests
 			TestDataController dataCtrl = new TestDataController(TestDataService, StreamCollection, JobService, TestDataCollection, GlobalConfigSnapshot);
 			dataCtrl.ControllerContext = GetControllerContext();
 			return dataCtrl;
-		}
-		
-		private AwsAutoScalingLifecycleController GetAwsAutoScalingLifecycleController()
-		{
-			AwsAutoScalingLifecycleController ctrl = new (AwsAsgLifecycleService);
-			ctrl.ControllerContext = GetControllerContext();
-			return ctrl;
 		}
 
 		private BisectTasksController GetBisectTasksController()

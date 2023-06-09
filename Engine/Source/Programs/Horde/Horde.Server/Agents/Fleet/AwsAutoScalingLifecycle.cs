@@ -10,14 +10,16 @@ using System.Threading;
 using System.Threading.Tasks;
 using Amazon.AutoScaling;
 using Amazon.AutoScaling.Model;
+using Amazon.Runtime;
+using Amazon.SQS;
+using Amazon.SQS.Model;
+using EpicGames.Core;
 using Horde.Server.Server;
-using Horde.Server.Utilities;
 using HordeCommon;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using OpenTelemetry.Trace;
 using StackExchange.Redis;
 
@@ -63,9 +65,12 @@ public sealed class AwsAutoScalingLifecycleService : IHostedService, IDisposable
 	private readonly Tracer _tracer;
 	private readonly ILogger<AwsAutoScalingLifecycleService> _logger;
 	private readonly ITicker _updateLifecyclesTicker;
+	private readonly BackgroundTask _lifecycleEventListenerTask;
+	private readonly string? _sqsQueueUrl;
 
 #pragma warning disable CA2213 // Disposable fields should be disposed
 	private IAmazonAutoScaling? _awsAutoScaling;
+	private IAmazonSQS? _awsSqs;
 #pragma warning restore CA2213
 	
 	/// <summary>
@@ -76,6 +81,7 @@ public sealed class AwsAutoScalingLifecycleService : IHostedService, IDisposable
 		RedisService redisService,
 		IAgentCollection agents,
 		IClock clock,
+		IOptionsMonitor<ServerSettings> settings,
 		IServiceProvider serviceProvider,
 		Tracer tracer,
 		ILogger<AwsAutoScalingLifecycleService> logger)
@@ -87,32 +93,122 @@ public sealed class AwsAutoScalingLifecycleService : IHostedService, IDisposable
 		_tracer = tracer;
 		_logger = logger;
 		_awsAutoScaling = serviceProvider.GetService<IAmazonAutoScaling>();
+		_awsSqs = serviceProvider.GetService<IAmazonSQS>();
 
 		string tickerName = $"{nameof(AwsAutoScalingLifecycleService)}.{nameof(UpdateLifecyclesAsync)}";
 		_updateLifecyclesTicker = clock.AddSharedTicker(tickerName, LifecycleUpdaterInterval, UpdateLifecyclesAsync, logger);
+		_lifecycleEventListenerTask = new BackgroundTask(ListenForLifecycleEventsAsync);
+		_sqsQueueUrl = settings.CurrentValue.AwsAutoScalingQueueUrl;
 	}
 
-	internal void SetAmazonAutoScalingClient(IAmazonAutoScaling awsAutoScaling)
+	internal void SetAmazonClientsTesting(IAmazonAutoScaling awsAutoScaling, IAmazonSQS awsSqs)
 	{
 		_awsAutoScaling = awsAutoScaling;
+		_awsSqs = awsSqs;
 	}
 	
 	/// <inheritdoc/>
 	public async Task StartAsync(CancellationToken cancellationToken)
 	{
-		await _updateLifecyclesTicker.StartAsync();
+		if (_sqsQueueUrl != null)
+		{
+			await _updateLifecyclesTicker.StartAsync();
+			_lifecycleEventListenerTask.Start();	
+		}
 	}
 
 	/// <inheritdoc/>
 	public async Task StopAsync(CancellationToken cancellationToken)
 	{
+		await _lifecycleEventListenerTask.StopAsync();
 		await _updateLifecyclesTicker.StopAsync();
-	} 
+	}
 
 	/// <inheritdoc/>
 	public void Dispose()
 	{
 		_updateLifecyclesTicker.Dispose();
+		_lifecycleEventListenerTask.Dispose();
+	}
+
+	/// <summary>
+	/// Continuously request and receive messages from SQS
+	/// </summary>
+	/// <param name="cancellationToken">Cancellation token</param>
+	private async Task ListenForLifecycleEventsAsync(CancellationToken cancellationToken)
+	{
+		_logger.LogInformation("Listening for lifecycle events...");
+		while (!cancellationToken.IsCancellationRequested)
+		{
+			try
+			{
+				await ReceiveLifecycleEventsAsync(cancellationToken);
+			}
+			catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+			{
+				break;
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Exception while receiving lifecycle events: {Message}", ex.Message);
+				await Task.Delay(TimeSpan.FromSeconds(15), cancellationToken);
+			}
+			
+			await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
+		}
+	}
+	
+	/// <summary>
+	/// Receive any queued messages from SQS.
+	/// This is a one-time operation, if more messages are expected, call this method again.
+	/// </summary>
+	/// <param name="cancellationToken"></param>
+	/// <exception cref="JsonException"></exception>
+	internal async Task ReceiveLifecycleEventsAsync(CancellationToken cancellationToken)
+	{
+		ReceiveMessageRequest request = new ()
+		{
+			QueueUrl = _sqsQueueUrl,
+			MaxNumberOfMessages = 10,
+			VisibilityTimeout = 10,
+			WaitTimeSeconds = 10,
+		};
+		
+		ReceiveMessageResponse response = await GetSqs().ReceiveMessageAsync(request, cancellationToken);
+		foreach (Message message in response.Messages)
+		{
+			try
+			{
+				LifecycleActionEvent ev = JsonSerializer.Deserialize<LifecycleActionEvent>(message.Body) ?? throw new JsonException("Value is null");
+				await InitiateTerminationAsync(ev, cancellationToken);
+			}
+			catch (JsonException je)
+			{
+				_logger.LogError(je, "Failed deserializing message. Body={Body}", message.Body);
+			}
+			finally
+			{
+				await DeleteMessageAsync(message, cancellationToken);
+			}
+		}
+	}
+
+	private async Task DeleteMessageAsync(Message message, CancellationToken cancellationToken)
+	{
+		try
+		{
+			DeleteMessageRequest deleteRequest = new () { QueueUrl = _sqsQueueUrl, ReceiptHandle = message.ReceiptHandle };
+			await GetSqs().DeleteMessageAsync(deleteRequest, cancellationToken);
+		}
+		catch (AmazonServiceException e)
+		{
+			_logger.LogError(e, "Failed to delete message {MessageId} from SQS queue after processing it", message.MessageId);
+		}
+	}
+
+	private IAmazonSQS GetSqs()
+	{
+		return _awsSqs ?? throw new Exception("AWS SQS client is not set. Make sure AWS is configured in settings.");;
 	}
 	
 	/// <summary>
@@ -258,27 +354,6 @@ public sealed class AwsAutoScalingLifecycleService : IHostedService, IDisposable
 }
 
 /// <summary>
-/// An AWS EventBridge event containing a lifecycle hook message for an auto-scaling group
-/// </summary>
-public class LifecycleActionRequest
-{
-	/// <summary>
-	/// Event
-	/// </summary>
-	[JsonPropertyName("detail")]
-	public LifecycleActionEvent Event { get; set; }
-
-	/// <summary>
-	/// Constructor
-	/// </summary>
-	/// <param name="event"></param>
-	public LifecycleActionRequest(LifecycleActionEvent @event)
-	{
-		Event = @event;
-	}
-}
-
-/// <summary>
 /// Lifecycle action event from AWS auto-scaling group
 /// The property names are explicitly set to highlight these are not controlled by Horde but sent from AWS API.
 /// </summary>
@@ -313,38 +388,4 @@ public class LifecycleActionEvent
 	/// Origin of the instance (e.g an agent in service or in a warm pool)
 	/// </summary>
 	[JsonPropertyName("Origin")] public string Origin { get; set; } = "";
-}
-
-/// <summary>
-/// Controller handling callbacks for AWS auto-scaling
-/// </summary>
-[ApiController]
-[Authorize]
-[Route("[controller]")]
-public class AwsAutoScalingLifecycleController : HordeControllerBase
-{
-	private AwsAutoScalingLifecycleService _lifecycleService;
-
-	/// <summary>
-	/// Constructor
-	/// </summary>
-	public AwsAutoScalingLifecycleController(AwsAutoScalingLifecycleService lifecycleService)
-	{
-		_lifecycleService = lifecycleService;
-	}
-	
-	/// <summary>
-	/// Callback handling auto-scaling notification generated by the ASG
-	/// A Lambda function should be configured first to receive the notification from AWS EventBridge.
-	/// Then in turn, call the Horde server on this endpoint. 
-	/// </summary>
-	/// <param name="request">Request coming from</param>
-	/// <returns>Human readable message</returns>
-	[HttpPost]
-	[Route("/api/v1/aws/asg-lifecycle-hook")]
-	public async Task<ActionResult> LifecycleHookAsync([FromBody] LifecycleActionRequest request)
-	{
-		await _lifecycleService.InitiateTerminationAsync(request.Event, CancellationToken.None);
-		return new JsonResult(new { message = "Handled" });
-	}
 }

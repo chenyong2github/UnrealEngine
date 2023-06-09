@@ -20,55 +20,20 @@ using Moq;
 namespace Horde.Server.Tests.Fleet;
 
 [TestClass]
-public class LifecycleHookMessageTest
-{
-	[TestMethod]
-	public void DeserializeLifecycleHookRequest()
-	{
-		string rawText = @"
-{
-	""version"": ""0"",
-	""id"": ""d2b0a72e-03a4-11ee-be56-0242ac120002"",
-	""detail-type"": ""EC2 Instance-terminate Lifecycle Action"",
-	""source"": ""aws.autoscaling"",
-	""account"": ""111111111111"",
-	""time"": ""2023-06-05T10:48:08Z"",
-	""region"": ""us-east-1"",
-	""resources"": [""arn:aws:autoscaling:us-east-1:111111111111:autoScalingGroup:d816d436-03a4-11ee-be56-0242ac120002:autoScalingGroupName/my-asg-name""],
-	""detail"": {
-		""LifecycleActionToken"": ""f191f274-03a4-11ee-be56-0242ac120002"",
-		""AutoScalingGroupName"": ""my-asg-name"",
-		""LifecycleHookName"": ""my-hook-name"",
-		""EC2InstanceId"": ""i-11234567890abcdef"",
-		""LifecycleTransition"": ""autoscaling:EC2_INSTANCE_TERMINATING"",
-		""Origin"": ""AutoScalingGroup"",
-		""Destination"": ""EC2""
-	}
-}
-";
-
-		LifecycleActionRequest? req = JsonSerializer.Deserialize<LifecycleActionRequest>(rawText);
-		Assert.AreEqual("f191f274-03a4-11ee-be56-0242ac120002", req!.Event.LifecycleActionToken);
-		Assert.AreEqual("my-asg-name", req!.Event.AutoScalingGroupName);
-		Assert.AreEqual("my-hook-name", req!.Event.LifecycleHookName);
-		Assert.AreEqual("i-11234567890abcdef", req!.Event.Ec2InstanceId);
-		Assert.AreEqual("autoscaling:EC2_INSTANCE_TERMINATING", req!.Event.LifecycleTransition);
-		Assert.AreEqual("AutoScalingGroup", req!.Event.Origin);
-	}
-}
-
-[TestClass]
 public class AwsAutoScalingLifecycleServiceTest : TestSetup
 {
 	private AwsAutoScalingLifecycleService _asgLifecycleService = default!;
 	private Mock<IAmazonAutoScaling> _asgMock = default!;
 	private readonly List<CompleteLifecycleActionRequest> _lifecycleUpdates = new();
+	private readonly FakeAmazonSqs _fakeSqs = new();
+	private readonly string _queueUrl = "https://sqs.us-east-1.amazonaws.com/123456789/MyQueue";
 
 	protected override void Dispose(bool disposing)
 	{
 		if (disposing)
 		{
 			_asgLifecycleService?.Dispose();
+			_fakeSqs?.Dispose();
 		}
 
 		base.Dispose(disposing);
@@ -90,21 +55,23 @@ public class AwsAutoScalingLifecycleServiceTest : TestSetup
 			.Setup(x => x.CompleteLifecycleActionAsync(It.IsAny<CompleteLifecycleActionRequest>(), It.IsAny<CancellationToken>()))
 			.Returns(OnCompleteLifecycleActionAsync);
 		
-		_asgLifecycleService = new AwsAutoScalingLifecycleService(AgentService, GetRedisServiceSingleton(), AgentCollection, Clock, ServiceProvider, Tracer, logger);
-		_asgLifecycleService.SetAmazonAutoScalingClient(_asgMock.Object);
+		ServerSettings ss = new () { AwsAutoScalingQueueUrl = _queueUrl };
+		_asgLifecycleService = new AwsAutoScalingLifecycleService(AgentService, GetRedisServiceSingleton(), AgentCollection, Clock, new TestOptionsMonitor<ServerSettings>(ss), ServiceProvider, Tracer, logger);
+		_asgLifecycleService.SetAmazonClientsTesting(_asgMock.Object, _fakeSqs);
 		await _asgLifecycleService.StartAsync(CancellationToken.None);
 	}
-
+	
 	[TestMethod]
 	public async Task TerminationRequested_WithAgentInService_MarkedForShutdown()
 	{
 		// Arrange
 		LifecycleActionEvent lae = new() { Ec2InstanceId = "i-1234", LifecycleActionToken = "action-token-test", Origin = "AutoScalingGroup" };
 		IAgent agent = await CreateAgentAsync(new PoolId("pool1"), properties: new() { KnownPropertyNames.AwsInstanceId + "=" + lae.Ec2InstanceId });
-
-		// Act
-		await AwsAsgLifecycleService.InitiateTerminationAsync(lae, CancellationToken.None);
 		
+		// Act
+		await _fakeSqs.SendMessageAsync(_queueUrl, JsonSerializer.Serialize(lae));
+		await _asgLifecycleService.ReceiveLifecycleEventsAsync(CancellationToken.None);
+
 		// Assert
 		agent = (await AgentService.GetAgentAsync(agent.Id))!;
 		Assert.IsTrue(agent.RequestShutdown);
@@ -165,6 +132,34 @@ public class AwsAutoScalingLifecycleServiceTest : TestSetup
 		
 		// Assert
 		AssertLifecycleUpdate(lae, AwsAutoScalingLifecycleService.ActionAbandon, _lifecycleUpdates[0]);
+	}
+	
+	[TestMethod]
+	public void DeserializeLifecycleActionEvent()
+	{
+		string rawText = @"
+{
+	""Origin"": ""AutoScalingGroup"",
+	""LifecycleHookName"": ""my-hook-name"",
+	""Destination"": ""EC2"",
+	""AccountId"": ""123456789"",
+	""RequestId"": ""5ab929ac-06d9-11ee-be56-0242ac120002"",
+	""LifecycleTransition"": ""autoscaling:EC2_INSTANCE_TERMINATING"",
+	""AutoScalingGroupName"": ""my-asg-name"",
+	""Service"": ""AWS Auto Scaling"",
+	""Time"": ""2023-06-09T11:11:20.345Z"",
+	""EC2InstanceId"": ""i-123456789"",
+	""LifecycleActionToken"": ""5ec3537e-06d9-11ee-be56-0242ac120002""
+}
+";
+
+		LifecycleActionEvent? ev = JsonSerializer.Deserialize<LifecycleActionEvent>(rawText);
+		Assert.AreEqual("5ec3537e-06d9-11ee-be56-0242ac120002", ev!.LifecycleActionToken);
+		Assert.AreEqual("my-asg-name", ev.AutoScalingGroupName);
+		Assert.AreEqual("my-hook-name", ev.LifecycleHookName);
+		Assert.AreEqual("i-123456789", ev.Ec2InstanceId);
+		Assert.AreEqual("autoscaling:EC2_INSTANCE_TERMINATING", ev.LifecycleTransition);
+		Assert.AreEqual("AutoScalingGroup", ev.Origin);
 	}
 
 	private static void AssertLifecycleUpdate(LifecycleActionEvent expectedEvent, string expectedResult, CompleteLifecycleActionRequest actual)
