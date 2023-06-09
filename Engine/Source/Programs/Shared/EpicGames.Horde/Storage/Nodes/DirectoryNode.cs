@@ -771,7 +771,7 @@ namespace EpicGames.Horde.Storage.Nodes
 			string[] fragments = path.Split(new char[] { '/', '\\' });
 
 			DirectoryUpdate lastDir = this;
-			for (int idx = 0; idx < fragments.Length; idx++)
+			for (int idx = 0; idx + 1 < fragments.Length; idx++)
 			{
 				DirectoryUpdate? nextDir;
 				if (!lastDir.Directories.TryGetValue(fragments[idx], out nextDir) || nextDir == null)
