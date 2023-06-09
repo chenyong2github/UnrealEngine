@@ -68,9 +68,10 @@ struct FLoopConnexion
 		return (Loop == &Loop1) ? &Loop2 : &Loop1;
 	}
 
-	bool IsShortestPath()
+	bool IsShortestPath(const int32 MaxLoopCount)
 	{
 		TMap<const FLoopCell*, double> DistanceToLoops;
+		DistanceToLoops.Reserve(MaxLoopCount);
 		DistanceToLoops.Add(&Loop1, 0.);
 		double MinPathDistance = HUGE_VALUE;
 		while (true)

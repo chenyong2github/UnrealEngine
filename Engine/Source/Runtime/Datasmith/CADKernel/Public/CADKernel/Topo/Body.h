@@ -79,7 +79,7 @@ public:
 
 	void AddShell(TSharedRef<FShell> Shell);
 
-	void RemoveEmptyShell(FModel& Model);
+	void RemoveEmptyShell();
 
 	virtual void Remove(const FTopologicalShapeEntity* ShellToRemove) override;
 
@@ -95,6 +95,16 @@ public:
 	const TArray<TSharedPtr<FShell>>& GetShells() const
 	{
 		return Shells;
+	}
+
+	int32 ShellCount() const
+	{
+		return Shells.Num();
+	}
+
+	bool IsEmpty() const
+	{
+		return Shells.IsEmpty();
 	}
 
 	virtual int32 FaceCount() const override

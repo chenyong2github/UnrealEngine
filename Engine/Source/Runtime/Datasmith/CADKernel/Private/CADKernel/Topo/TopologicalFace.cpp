@@ -357,6 +357,20 @@ bool FTopologicalFace::IsANonManifoldFace() const
 	return false;
 }
 
+void FTopologicalFace::DeleteNonmanifoldLink()
+{
+	for (const TSharedPtr<FTopologicalLoop>& Loop : GetLoops())
+	{
+		for (const FOrientedEdge& Edge : Loop->GetEdges())
+		{
+			if (Edge.Entity->GetTwinEntityCount() > 2)
+			{
+				Edge.Entity->UnlinkTwinEntities();
+			}
+		}
+	}
+}
+
 bool FTopologicalFace::IsABorderFace() const
 {
 	for (const TSharedPtr<FTopologicalLoop>& Loop : GetLoops())

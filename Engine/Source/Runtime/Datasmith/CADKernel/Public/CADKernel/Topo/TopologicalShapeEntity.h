@@ -12,6 +12,10 @@ class FTopologyReport;
 
 class CADKERNEL_API FTopologicalShapeEntity : public FTopologicalEntity
 {
+	friend class FBody;
+	friend class FModel;
+	friend class FShell;
+
 private:
 	FTopologicalShapeEntity* HostedBy = nullptr;
 	FMetadataDictionary Dictionary;
@@ -73,13 +77,14 @@ public:
 
 	void SetHost(FTopologicalShapeEntity* Body)
 	{
+		if (HostedBy)
+		{
+			HostedBy->Remove(this);
+		}
 		HostedBy = Body;
 	}
 
-	void ResetHost()
-	{
-		HostedBy = nullptr;
-	}
+	virtual void Remove(const FTopologicalShapeEntity*) = 0;
 
 	void SetHostId(const int32 InHostId)
 	{
@@ -141,20 +146,18 @@ public:
 		return Dictionary.GetPatchId();
 	}
 
-	void RemoveOfHost()
-	{
-		if (FTopologicalShapeEntity* Host = GetHost())
-		{
-			Host->Remove(this);
-			ResetHost();
-		}
-	}
-
-	virtual void Remove(const FTopologicalShapeEntity*) = 0;
-
 #ifdef CADKERNEL_DEV
 	virtual FInfoEntity& GetInfo(FInfoEntity&) const override;
 #endif
+
+protected:
+	/**
+	 * Mandatory: The host must have remove this from his array
+	 */
+	void ResetHost()
+	{
+		HostedBy = nullptr;
+	}
 
 };
 

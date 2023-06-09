@@ -298,7 +298,6 @@ public:
 	void Remove(TArray<FTopologicalEdge*>* NewBorderEdges = nullptr)
 	{
 		Disjoin(NewBorderEdges);
-		RemoveOfHost();
 		Delete();
 	}
 
@@ -317,7 +316,6 @@ public:
 		}
 		Loops.Empty();
 #endif
-		RemoveOfHost();
 
 		Mesh.Reset();
 		MeshCuttingCoordinates.Empty();
@@ -354,6 +352,13 @@ public:
 	 * @param OutNewBorderEdges the neighbors edges
 	 */
 	void Disjoin(TArray<FTopologicalEdge*>* NewBorderEdges = nullptr);
+
+	/**
+	 * Delete only nonmanifold edge link
+	 * 
+	 */
+	void DeleteNonmanifoldLink();
+
 
 #ifdef CADKERNEL_DEV
 	virtual void FillTopologyReport(FTopologyReport& Report) const override;

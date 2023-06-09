@@ -239,8 +239,13 @@ bool FFaceAnalyzer::IsThinFace(double& OutGapSize)
 #ifdef DEBUG_THIN_FACE
 	F3DDebugSession _(TEXT("Thin Surface"));
 #endif
+	FTopologicalLoop* Loop = Face.GetExternalLoop().Get();
+	if (!Loop)
+	{
+		return true;
+	}
 
-	Topo::FThinFaceContext Context(*Face.GetExternalLoop());
+	Topo::FThinFaceContext Context(*Loop);
 
 	FTimePoint StartTime = FChrono::Now();
 	BuildLoopSegments(Context);

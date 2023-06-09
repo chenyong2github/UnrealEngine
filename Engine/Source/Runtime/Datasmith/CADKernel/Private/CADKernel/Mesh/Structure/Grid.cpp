@@ -1150,21 +1150,24 @@ void FGrid::GetMeshOfThinZone(const FThinZone2D& ThinZone)
 
 	TFunction<void(TArray<FPoint2D>&)> RemoveDuplicatedNode = [](TArray<FPoint2D>& ThinZoneMesh)
 	{
-		if (ThinZoneMesh.Num())
+		if (ThinZoneMesh.Num() > 1)
 		{
 			// Remove Duplicated Node
 			constexpr double Tolerance = DOUBLE_SMALL_NUMBER;
-			FPoint2D* Next = &ThinZoneMesh[0];
-			for (int32 Index = ThinZoneMesh.Num() - 1; Index >= 0; --Index)
+			for (int32 Index = ThinZoneMesh.Num() - 1; Index > 0; --Index)
 			{
-				double SquareDist = Next->SquareDistance(ThinZoneMesh[Index]);
+				double SquareDist = ThinZoneMesh[Index-1].SquareDistance(ThinZoneMesh[Index]);
 				if (SquareDist < Tolerance)
 				{
 					ThinZoneMesh.RemoveAt(Index);
 				}
-				else
+			}
+			if (ThinZoneMesh.Num() > 2)
+			{
+				double SquareDist = ThinZoneMesh[0].SquareDistance(ThinZoneMesh.Last());
+				if (SquareDist < Tolerance)
 				{
-					Next = &ThinZoneMesh[Index];
+					ThinZoneMesh.RemoveAt(ThinZoneMesh.Num()-1);
 				}
 			}
 		}

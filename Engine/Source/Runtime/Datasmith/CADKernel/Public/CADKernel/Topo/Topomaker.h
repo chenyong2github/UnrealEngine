@@ -100,7 +100,6 @@ public:
 
 	FTopomaker(FSession& InSession, const FTopomakerOptions& InOptions);
 	FTopomaker(FSession& InSession, const TArray<TSharedPtr<FShell>>& Shells, const FTopomakerOptions& InOptions);
-	FTopomaker(FSession& InSession, const TArray<TSharedPtr<FTopologicalFace>>& Surfaces, const FTopomakerOptions& InOptions);
 
 	void SetTolerance(const FTopomakerOptions Options)
 	{
@@ -146,6 +145,12 @@ public:
 
 	void RemoveThinFaces();
 
+	/**
+	 * Mandatory: 
+	 * UnlinkNonManifoldVertex has to be call after
+	 */
+	void DeleteNonmanifoldLink();
+
 #ifdef CADKERNEL_DEV
 	void PrintSewReport()
 	{
@@ -167,11 +172,6 @@ private:
 	void InitFaces();
 
 	void EmptyShells();
-
-	/**
-	 * Remove a subset of faces of their shell and keep the other shell's faces in the shell
-	 */
-	void RemoveFacesFromShell();
 
 	void RemoveEmptyShells();
 

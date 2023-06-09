@@ -42,8 +42,7 @@ public:
 
 class CADKERNEL_API FShell : public FTopologicalShapeEntity
 {
-	friend FEntity;
-	friend class FBody;
+	friend class FEntity;
 
 private:
 	TArray<FOrientedFace> TopologicalFaces;
@@ -95,6 +94,9 @@ public:
 	}
 
 	void RemoveFaces();
+
+	void RemoveDeletedOrDegeneratedFaces();
+
 	virtual void Empty() override;
 
 	void Add(TSharedRef<FTopologicalFace> InTopologicalFace, EOrientation InOrientation);
@@ -117,7 +119,7 @@ public:
 	void ReplaceFaces(TArray<FOrientedFace>& NewFaces)
 	{
 		Swap(TopologicalFaces, NewFaces);
-		NewFaces.Empty();
+		NewFaces.Reset();
 	}
 
 	const TArray<FOrientedFace>& GetFaces() const

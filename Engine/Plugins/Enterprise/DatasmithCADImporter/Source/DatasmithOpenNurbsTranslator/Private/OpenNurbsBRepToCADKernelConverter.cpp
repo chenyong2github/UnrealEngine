@@ -290,6 +290,15 @@ TSharedPtr<UE::CADKernel::FTopologicalFace> FOpenNurbsBRepToCADKernelConverter::
 		}
 	}
 
+	if (Face->GetLoops().Num() == 0)
+	{
+		Face->SetAsDegenerated();
+		Face->Delete();
+
+		FMessage::Printf(EVerboseLevel::Log, TEXT("A Face is degenerate, this face is ignored\n"));
+		return TSharedPtr<FTopologicalFace>();
+	}
+
 	return Face;
 }
 

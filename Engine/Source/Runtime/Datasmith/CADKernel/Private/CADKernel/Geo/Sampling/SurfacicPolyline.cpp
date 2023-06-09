@@ -159,7 +159,7 @@ void FSurfacicPolyline::ComputeIntersectionsWithIsos(const FLinearBoundary& InBo
 			IsoCoordinate = IsoCoordinates[IsoCoordinateIndex];
 		}
 
-		while (IsoCoordinates[IsoCoordinateIndex] < UMin && IsoCoordinateIndex < IsoCoordinates.Num())
+		while (IsoCoordinateIndex < IsoCoordinates.Num() - 1 && IsoCoordinates[IsoCoordinateIndex] < UMin)
 		{
 			IsoCoordinateIndex++;
 		}

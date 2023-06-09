@@ -96,13 +96,13 @@ public:
 		FTopologicalShapeEntity::Empty();
 	}
 
-	void RemoveBody(TSharedPtr<FBody> InBody)
-	{
-		Bodies.Remove(InBody);
-	}
-
 	virtual void Remove(const FTopologicalShapeEntity* InBody) override
 	{
+		if (!InBody)
+		{
+			return;
+		}
+
 		int32 Index = Bodies.IndexOfByPredicate([&](const TSharedPtr<FBody>& Body) { return (InBody == (FTopologicalShapeEntity*) Body.Get()); });
 		if (Index != INDEX_NONE)
 		{
@@ -110,9 +110,9 @@ public:
 		}
 	}
 
-	void PrintBodyAndShellCount();
+	void RemoveEmptyBodies();
 
-	void RemoveEntity(TSharedPtr<FTopologicalEntity> InEntity);
+	void PrintBodyAndShellCount();
 
 	bool Contains(TSharedPtr<FTopologicalEntity> InEntity);
 
@@ -145,6 +145,16 @@ public:
 	int32 EntityCount() const
 	{
 		return Bodies.Num();
+	}
+
+	int32 BodyCount() const
+	{
+		return Bodies.Num();
+	}
+
+	bool IsEmpty() const
+	{
+		return Bodies.IsEmpty();
 	}
 
 	virtual void GetFaces(TArray<FTopologicalFace*>& OutFaces) override;

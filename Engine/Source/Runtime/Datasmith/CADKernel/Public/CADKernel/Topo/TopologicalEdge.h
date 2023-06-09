@@ -248,8 +248,16 @@ public:
 	 */
 	void Link(FTopologicalEdge& OtherEdge);
 
+	/**
+	 * Remove the edge and the extremity vertices of the linked entity
+	 * vs UnlinkTwinEntities delete only the edge link
+	 */
 	void Disjoin();
 
+	/**
+	 * Remove the edge and the extremity vertices of the linked entity
+	 * vs UnlinkTwinEntities delete only the edge link
+	 */
 	void Unlink()
 	{
 		Disjoin();

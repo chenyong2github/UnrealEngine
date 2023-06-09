@@ -373,7 +373,8 @@ void FCADKernelTools::GetBodyTessellation(const UE::CADKernel::FModelMesh& Model
 			FObjectDisplayDataId FaceMaterial = ShellMaterial;
 			GetDisplayDataIds(*Face.Entity, FaceMaterial);
 
-			uint32 TriangleNum = GetFaceTessellation(*Face.Entity->GetMesh(), OutBodyMesh, FaceMaterial);
+			UE::CADKernel::FFaceMesh* FaceMesh = Face.Entity->GetMesh();
+			uint32 TriangleNum = GetFaceTessellation(*FaceMesh, OutBodyMesh, FaceMaterial);
 			OutBodyMesh.TriangleCount += TriangleNum;
 		}
 	}

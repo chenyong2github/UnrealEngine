@@ -50,6 +50,11 @@ TSharedPtr<FTopologicalLoop> FTopologicalLoop::Make(const TArray<TSharedPtr<FTop
 	Loop.EnsureLogicalClosing(GeometricTolerance);
 	Loop.RemoveDegeneratedEdges();
 
+	if (Loop.GetEdges().IsEmpty())
+	{
+		return  TSharedPtr<FTopologicalLoop>();
+	}
+
 	for (FOrientedEdge& OrientedEdge : Loop.GetEdges())
 	{
 		OrientedEdge.Entity->SetLoop(Loop);
@@ -143,6 +148,11 @@ EOrientation FTopologicalLoop::GetDirection(TSharedPtr<FTopologicalEdge>& InEdge
 
 void FTopologicalLoop::Get2DSampling(TArray<FPoint2D>& LoopSampling) const
 {
+	if (Edges.IsEmpty())
+	{
+		return;
+	}
+
 	int32 PointCount = 0;
 	for (const FOrientedEdge& Edge : Edges)
 	{
@@ -161,6 +171,11 @@ void FTopologicalLoop::Get2DSampling(TArray<FPoint2D>& LoopSampling) const
 
 bool FTopologicalLoop::Get2DSamplingWithoutDegeneratedEdges(TArray<FPoint2D>& LoopSampling) const
 {
+	if (Edges.IsEmpty())
+	{
+		return false;
+	}
+
 	double LoopLength = 0;
 	int32 EdgeCount = 0;
 	int32 PointCount = 0;

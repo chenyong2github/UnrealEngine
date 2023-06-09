@@ -109,6 +109,8 @@ protected:
 	TArray<FIsoSegment*> FinalInnerSegments;
 	TArray<FIsoSegment*> InnerToOuterSegments;
 
+	TArray<FIsoSegment*> InnerToLoopCandidateSegments;
+
 	/**
 	 * Tool to check if a segment intersect or not existing segments.
 	 * To be optimal, depending on the segment, only a subset of segment is used.
@@ -116,7 +118,6 @@ protected:
 	 */
 	FIntersectionSegmentTool LoopSegmentsIntersectionTool;
 	FIntersectionSegmentTool InnerSegmentsIntersectionTool;
-	FIntersectionSegmentTool InnerToLoopSegmentsIntersectionTool;
 	FIntersectionNodePairTool InnerToOuterIsoSegmentsIntersectionTool;
 	FIntersectionSegmentTool ThinZoneIntersectionTool;
 
@@ -210,12 +211,7 @@ public:
 
 	void ConnectCellCornerToLoops(FCell& Cell);
 
-	void FindCandidateSegmentsToLinkInnerAndLoop();
-
-	/**
-	 * The goal of this algorithm is to connect unconnected inner segment extremity i.e. extremity with one or less connected segment to the closed boundary node
-	 */
-	void ConnectUnconnectedInnerSegments();
+	void AddCandidateSegmentsToLinkInnerAndLoop();
 
 	/**
 	 * Finalize the tessellation between inner grid boundary and loops.

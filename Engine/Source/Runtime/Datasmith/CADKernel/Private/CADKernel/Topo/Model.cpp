@@ -38,18 +38,6 @@ bool FModel::Contains(TSharedPtr<FTopologicalEntity> Entity)
 	return false;
 }
 
-void FModel::RemoveEntity(TSharedPtr<FTopologicalEntity> Entity)
-{
-	switch (Entity->GetEntityType())
-	{
-	case EEntity::Body:
-		RemoveBody(StaticCastSharedPtr<FBody>(Entity));
-		break;
-	default:
-		break;
-	}
-}
-
 void FModel::PrintBodyAndShellCount()
 {
 	int32 NbBody = 0;
@@ -74,7 +62,28 @@ int32 FModel::FaceCount() const
 	return FaceCount;
 }
 
-void FModel::GetFaces(TArray<FTopologicalFace*>& OutFaces) 
+void FModel::RemoveEmptyBodies()
+{
+	TArray<TSharedPtr<FBody>> NewBodies;
+	NewBodies.Reserve(Bodies.Num());
+
+	for (const TSharedPtr<FBody>& Body : Bodies)
+	{
+		if (!Body->IsDeleted() && Body->ShellCount())
+		{
+			NewBodies.Add(Body);
+		}
+		else
+		{
+			Body->Delete();
+			Body->ResetHost();
+		}
+	}
+
+	Bodies = MoveTemp(NewBodies);
+}
+
+void FModel::GetFaces(TArray<FTopologicalFace*>& OutFaces)
 {
 	for (const TSharedPtr<FBody>& Body : Bodies)
 	{

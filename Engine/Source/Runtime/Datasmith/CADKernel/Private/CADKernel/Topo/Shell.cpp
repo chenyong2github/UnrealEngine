@@ -58,6 +58,25 @@ void FShell::RemoveFaces()
 	TopologicalFaces.Empty();
 }
 
+void FShell::RemoveDeletedOrDegeneratedFaces()
+{
+	TArray<FOrientedFace> NewTopologicalFaces;
+	NewTopologicalFaces.Reserve(TopologicalFaces.Num());
+
+	for (FOrientedFace& Face : TopologicalFaces)
+	{
+		if (!Face.Entity->IsDeletedOrDegenerated())
+		{
+			NewTopologicalFaces.Emplace(Face);
+		}
+		else
+		{
+			Face.Entity->ResetHost();
+		}
+	}
+	TopologicalFaces = MoveTemp(NewTopologicalFaces);
+}
+
 void FShell::Empty()
 {
 	RemoveFaces();
@@ -92,7 +111,10 @@ void FShell::Remove(const FTopologicalShapeEntity* FaceToRemove)
 	}
 
 	int32 Index = TopologicalFaces.IndexOfByPredicate([&](const FOrientedFace& Face) { return (Face.Entity.Get() == FaceToRemove); });
-	TopologicalFaces.RemoveAt(Index);
+	if(Index >= 0)
+	{
+		TopologicalFaces.RemoveAt(Index);
+	}
 }
 
 #ifdef CADKERNEL_DEV

@@ -542,13 +542,6 @@ FTopomaker::FTopomaker(FSession& InSession, const FTopomakerOptions& InOptions)
 	InitFaces();
 }
 
-FTopomaker::FTopomaker(FSession& InSession, const TArray<TSharedPtr<FTopologicalFace>>& InFaces, const FTopomakerOptions& InOptions)
-	: Session(InSession)
-	, Faces(InFaces)
-{
-	SetTolerance(InOptions);
-}
-
 FTopomaker::FTopomaker(FSession& InSession, const TArray<TSharedPtr<FShell>>& InShells, const FTopomakerOptions& InOptions)
 	: Session(InSession)
 {
@@ -588,43 +581,6 @@ void FTopomaker::InitFaces()
 	for (const TSharedPtr<FTopologicalFace>& Face : Faces)
 	{
 		Face->ResetMarker2();
-	}
-}
-
-void FTopomaker::RemoveFacesFromShell()
-{
-	// remove faces from their shells
-	TSet<FShell*> ShellSet;
-	for (const TSharedPtr<FTopologicalFace>& Face : Faces)
-	{
-		if (Face->GetHost() != nullptr)
-		{
-			ShellSet.Add((FShell*)Face->GetHost());
-			Face->ResetHost();
-		}
-	}
-
-	for (FShell* Shell : ShellSet)
-	{
-		const bool bIsOuter = Shell->IsOuter();
-
-		TArray<FOrientedFace> ShellFace;
-		ShellFace.Reserve(Shell->FaceCount());
-		for (const FOrientedFace& Face : Shell->GetFaces())
-		{
-			if (!Face.Entity->GetHost())
-			{
-				if (bIsOuter != (Face.Direction == EOrientation::Front))
-				{
-					Face.Entity->SetBackOriented();
-				}
-			}
-			else
-			{
-				ShellFace.Emplace(Face);
-			}
-		}
-		Shell->ReplaceFaces(ShellFace);
 	}
 }
 
@@ -1014,6 +970,12 @@ void FTopomaker::RemoveThinFaces()
 	// Find thin faces
 	for (TSharedPtr<FTopologicalFace> Face : Faces)
 	{
+		if (Face->GetLoops().Num() == 0)
+		{
+			Face->SetDeletedMarker();
+			continue;
+		}
+
 		FFaceAnalyzer Analyer(*Face, ThinFaceWidth);
 		double GapSize = 0;
 		if (Analyer.IsThinFace(GapSize))
@@ -1026,6 +988,7 @@ void FTopomaker::RemoveThinFaces()
 			}
 #endif
 			Face->Remove(&BorderEdges);
+			Face->SetDeletedMarker();
 
 			TopomakerTools::GetVertices(BorderEdges, BorderVertices);
 			TopomakerTools::MergeCoincidentVertices(BorderVertices, GapSize * 1.2);
@@ -1113,6 +1076,8 @@ void FTopomaker::CheckSelfConnectedEdge(double MaxLengthOfDegeneratedEdge, TArra
 void FTopomaker::SplitIntoConnectedShells()
 {
 	FTimePoint StartTime = FChrono::Now();
+
+	DeleteNonmanifoldLink();
 
 	// Processed1 : Surfaces added in CandidateSurfacesForMesh
 
@@ -1227,14 +1192,7 @@ void FTopomaker::SplitIntoConnectedShells()
 		FaceSubset.SetMainColor(ColorToFaceCount);
 	}
 
-	if (Shells.Num())
-	{
-		EmptyShells();
-	}
-	else
-	{
-		RemoveFacesFromShell();
-	}
+	EmptyShells();
 
 	// for each FaceSubset, process the Shell
 	for (FFaceSubset FaceSubset : SubShells)
@@ -1279,6 +1237,7 @@ void FTopomaker::SplitIntoConnectedShells()
 	UnlinkNonManifoldVertex();
 
 	RemoveEmptyShells();
+	Session.GetModel().RemoveEmptyBodies();
 
 	FDuration StepDuration = FChrono::Elapse(StartTime);
 	FChrono::PrintClockElapse(EVerboseLevel::Log, TEXT(""), TEXT("Split"), StepDuration);
@@ -1311,7 +1270,7 @@ void FTopomaker::RemoveEmptyShells()
 				Body->SetMarker1();
 				Bodies.Add(Body);
 			}
-			Shell->Delete();
+			Shell->SetDeletedMarker();
 		}
 		else
 		{
@@ -1320,10 +1279,9 @@ void FTopomaker::RemoveEmptyShells()
 	}
 	Swap(Shells, NewShells);
 
-	FModel& Model = Session.GetModel();
 	for (FBody* Body : Bodies)
 	{
-		Body->RemoveEmptyShell(Model);
+		Body->RemoveEmptyShell();
 		Body->ResetMarkers();
 	}
 }
@@ -1473,6 +1431,13 @@ void FTopomaker::ResetMarkersOfFaces()
 	}
 }
 
+void FTopomaker::DeleteNonmanifoldLink()
+{
+	for (const TSharedPtr<FTopologicalFace>& Face : Faces)
+	{
+		Face->DeleteNonmanifoldLink();
+	}
+}
 
 void FTopomaker::UnlinkFromOther()
 {
@@ -1504,6 +1469,7 @@ void FTopomaker::UnlinkFromOther()
 		MergeCoincidents(VerticesToLink);
 	}
 
+	if(Shells.IsEmpty())
 	{
 		VerticesToLink.Reset();
 		TArray<FTopologicalFace*> FacePtrs;

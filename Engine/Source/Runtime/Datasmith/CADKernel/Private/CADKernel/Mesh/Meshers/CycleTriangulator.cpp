@@ -510,7 +510,7 @@ bool FCycleTriangulator::FindCandidateNodes(int32 StartIndex)
 			//F3DDebugSession W(TEXT("Next Segment"));
 			Grid.DisplayIsoNode(EGridSpace::UniformScaled, *CNode.Node, 0, CNode.bIsValid ? EVisuProperty::BluePoint : EVisuProperty::PinkPoint);
 		}
-		//Wait();
+		Wait(false);
 	}
 #endif
 
@@ -660,7 +660,7 @@ bool FCycleTriangulator::FindTheBestCandidateNode()
 		F3DDebugSession _(FString::Printf(TEXT("Selected triangle %d"), ++TriangleIndex2));
 		Grid.DisplayIsoSegment(EGridSpace::UniformScaled, *FirstSideStartNode, *Node, 1, EVisuProperty::BlueCurve);
 		Grid.DisplayIsoSegment(EGridSpace::UniformScaled, *FirstSideEndNode, *Node, 2, EVisuProperty::BlueCurve);
-		//Wait();
+		Wait(false);
 	}
 #endif
 
@@ -769,7 +769,7 @@ bool FCycleTriangulator::FindTheBestCandidateNode()
 		F3DDebugSession _(FString::Printf(TEXT("Selected triangle %d"), ++TriangleIndex));
 		Grid.DisplayIsoSegment(EGridSpace::UniformScaled, *FirstSideStartNode, *Node, 1, EVisuProperty::YellowCurve);
 		Grid.DisplayIsoSegment(EGridSpace::UniformScaled, *FirstSideEndNode, *Node, 2, EVisuProperty::YellowCurve);
-		if (TriangleIndex == 1000)
+		if (TriangleIndex > 1000)
 		{
 			Wait();
 		}
@@ -810,11 +810,13 @@ void FCycleTriangulator::ValidateAddNodesAccordingSlopeWithSide(FAdditionalIso& 
 		if (SlopeAtStart < Slope::NullSlope)
 		{
 			SlopeAtStart = Slope::PiSlope;
+			Side.bForceNodes = false;
 		}
 
 		if (SlopeAtEnd < Slope::NullSlope)
 		{
 			SlopeAtEnd = Slope::PiSlope;
+			Side.bForceNodes = false;
 		}
 
 #ifdef DEBUG_COMPUTE_SLOTE_CRITERION
