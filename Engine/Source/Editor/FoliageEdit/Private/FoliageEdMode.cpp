@@ -513,7 +513,8 @@ void FEdModeFoliage::Exit()
 	{
 		EndTracking();
 	}
-	check(!GEditor->IsTransactionActive());
+
+	ensureMsgf(!GEditor->IsTransactionActive(), TEXT("Transaction Active when exiting foliage edit mode: '%s'"), *GEditor->GetTransactionName().ToString());
 
 	FToolkitManager::Get().CloseToolkit(Toolkit.ToSharedRef());
 	Toolkit.Reset();
