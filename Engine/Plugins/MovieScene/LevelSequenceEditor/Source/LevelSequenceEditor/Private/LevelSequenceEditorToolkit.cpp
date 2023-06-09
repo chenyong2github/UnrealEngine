@@ -8,6 +8,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Containers/ArrayBuilder.h"
 #include "KeyParams.h"
+#include "ILevelSequenceModule.h"
 #include "LevelSequenceEditorModule.h"
 #include "LevelSequenceEditorSubsystem.h"
 #include "Misc/LevelSequenceEditorSettings.h"
@@ -625,6 +626,10 @@ void FLevelSequenceEditorToolkit::AddDefaultTracksForActor(AActor& Actor, const 
 			Sequencer->KeyProperty(KeyPropertyParams);
 		}
 	}
+
+	// callback to set up default tracks via code
+	ILevelSequenceModule& LevelSequenceModule = FModuleManager::LoadModuleChecked<ILevelSequenceModule>("LevelSequence");
+	LevelSequenceModule.OnNewActorTrackAdded().Broadcast(Actor, Binding, Sequencer);
 }
 
 

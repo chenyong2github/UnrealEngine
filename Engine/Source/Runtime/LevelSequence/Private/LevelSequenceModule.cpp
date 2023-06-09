@@ -343,6 +343,11 @@ void FLevelSequenceModule::UnregisterObjectSpawner(FDelegateHandle InHandle)
 	OnCreateMovieSceneObjectSpawnerDelegates.RemoveAll([=](const FOnCreateMovieSceneObjectSpawner& Delegate) { return Delegate.GetHandle() == InHandle; });
 }
 
+FLevelSequenceModule::FOnNewActorTrackAdded& FLevelSequenceModule::OnNewActorTrackAdded()
+{
+	return NewActorTrackAdded;
+}
+
 void FLevelSequenceModule::GenerateObjectSpawners(TArray<TSharedRef<IMovieSceneObjectSpawner>>& OutSpawners) const
 {
 	for (const FOnCreateMovieSceneObjectSpawner& SpawnerFactory : OnCreateMovieSceneObjectSpawnerDelegates)

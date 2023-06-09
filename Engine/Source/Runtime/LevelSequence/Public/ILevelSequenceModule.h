@@ -21,4 +21,8 @@ public:
 
 	/** Unregister an object spawner */
 	virtual void UnregisterObjectSpawner(FDelegateHandle InHandle) = 0;
+
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnNewActorTrackAdded, const AActor& /*SourceActor*/, const FGuid& /*Binding*/, TSharedPtr<ISequencer> /*Sequencer*/);
+	/** Callback to set up defaults for new actor tracks */
+	virtual FOnNewActorTrackAdded& OnNewActorTrackAdded() = 0;
 };

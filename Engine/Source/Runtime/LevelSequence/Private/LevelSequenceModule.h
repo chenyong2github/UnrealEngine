@@ -24,6 +24,7 @@ public:
 	virtual FDelegateHandle RegisterObjectSpawner(FOnCreateMovieSceneObjectSpawner InOnCreateMovieSceneObjectSpawner) override;
 	virtual void GenerateObjectSpawners(TArray<TSharedRef<IMovieSceneObjectSpawner>>& OutSpawners) const override;
 	virtual void UnregisterObjectSpawner(FDelegateHandle InHandle) override;
+	virtual FOnNewActorTrackAdded& OnNewActorTrackAdded() override;
 
 protected:
 	// FSelfRegisteringExec interface
@@ -40,4 +41,5 @@ private:
 	// Weak ptr to the level sequence CDO so we can gracefully remove the meta-data on shutdown module
 	// without crashing when ShutdownModule is called after the CDO has been destroyed.
 	TWeakObjectPtr<ULevelSequence> LevelSequenceCDO;
+	FOnNewActorTrackAdded NewActorTrackAdded;
 };
