@@ -50,7 +50,6 @@ public:
 	using FGraphPtr = Super::FDigestPtr;
 
 	FNiagaraCompilationGraphHandle() = default;
-	FNiagaraCompilationGraphHandle(const FNiagaraCompilationGraphHandle& Handle) = default;
 	FNiagaraCompilationGraphHandle(const UNiagaraScriptSourceBase* ScriptSource);
 	FNiagaraCompilationGraphHandle(const UNiagaraGraph* Graph);
 
