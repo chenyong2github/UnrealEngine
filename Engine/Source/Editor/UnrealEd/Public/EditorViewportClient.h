@@ -2050,6 +2050,11 @@ private:
 
 	/** True if this is the current viewport client in editing */
 	bool bIsCurrentLevelEditingFocus = false;
+
+	/**
+	 * true during FEditorViewportClient::StopTracking. Used to guard against reentry.
+	 */
+	bool bIsTrackingBeingStopped;
 };
 
 

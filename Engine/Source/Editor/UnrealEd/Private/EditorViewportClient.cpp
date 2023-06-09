@@ -470,6 +470,7 @@ FEditorViewportClient::FEditorViewportClient(FEditorModeTools* InModeTools, FPre
 	, bShouldInvalidateViewportWidget(false)
 	, DragStartView(nullptr)
 	, DragStartViewFamily(nullptr)
+	, bIsTrackingBeingStopped(false)
 {
 	InitViewOptionsArray();
 	if (!ModeTools)
@@ -3066,8 +3067,10 @@ bool FEditorViewportClient::Internal_InputKey(const FInputKeyEventArgs& EventArg
 
 void FEditorViewportClient::StopTracking()
 {
-	if( bIsTracking )
+	if( bIsTracking && !bIsTrackingBeingStopped )
 	{
+		bIsTrackingBeingStopped = true;
+
 		DragStartView = nullptr;
 		if (DragStartViewFamily != nullptr)
 		{
@@ -3094,6 +3097,7 @@ void FEditorViewportClient::StopTracking()
   		CheckHoveredHitProxy(HitProxy);
 
 		bIsTracking = false;
+		bIsTrackingBeingStopped = false;
 	}
 
 	bHasMouseMovedSinceClick = false;
