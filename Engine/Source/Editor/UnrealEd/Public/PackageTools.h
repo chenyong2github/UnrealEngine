@@ -28,8 +28,8 @@ enum class EReloadPackagesInteractionMode : uint8
 	AssumeNegative,
 };
 
-UCLASS(Abstract)
-class UNREALED_API UPackageTools : public UObject
+UCLASS(Abstract, MinimalAPI)
+class UPackageTools : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -42,7 +42,7 @@ public:
 	 * @param	OutGroupPackages			The map that receives the filtered list of group packages.
 	 * @param	OutPackageList				The array that will contain the list of filtered packages.
 	 */
-	static void GetFilteredPackageList(TSet<UPackage*>& OutFilteredPackageMap);
+	static UNREALED_API void GetFilteredPackageList(TSet<UPackage*>& OutFilteredPackageMap);
 	
 	/**
 	 * Fills the OutObjects list with all valid objects that are supported by the current
@@ -51,7 +51,7 @@ public:
 	 * @param	InPackages			Filters objects based on package.
 	 * @param	OutObjects			[out] Receives the list of objects
 	 */
-	static void GetObjectsInPackages( const TArray<UPackage*>* InPackages, TArray<UObject*>& OutObjects );
+	static UNREALED_API void GetObjectsInPackages( const TArray<UPackage*>* InPackages, TArray<UObject*>& OutObjects );
 
 	/**
 	 * Handles fully loading passed in packages.
@@ -61,7 +61,7 @@ public:
 	 * 
 	 * @return true if all packages where fully loaded, false otherwise
 	 */
-	static bool HandleFullyLoadingPackages( const TArray<UPackage*>& TopLevelPackages, const FText& OperationText );
+	static UNREALED_API bool HandleFullyLoadingPackages( const TArray<UPackage*>& TopLevelPackages, const FText& OperationText );
 
 
 	/**
@@ -71,7 +71,7 @@ public:
 	 *
 	 * @return	The loaded package (or NULL if something went wrong.)
 	 */
-	static UPackage* LoadPackage( FString InFilename );
+	static UNREALED_API UPackage* LoadPackage( FString InFilename );
 
 	/**
 	 * Helper function that attempts to unload the specified top-level packages.
@@ -80,7 +80,7 @@ public:
 	 *
 	 * @return	true if the set of loaded packages was changed
 	 */
-	static bool UnloadPackages( const TArray<UPackage*>& PackagesToUnload );
+	static UNREALED_API bool UnloadPackages( const TArray<UPackage*>& PackagesToUnload );
 
 	/**
 	 * Helper function that attempts to unload the specified top-level packages.
@@ -91,7 +91,7 @@ public:
 	 *
 	 * @return	true if the set of loaded packages was changed
 	 */
-	static bool UnloadPackages( const TArray<UPackage*>& PackagesToUnload, FText& OutErrorMessage, bool bUnloadDirtyPackages = false);
+	static UNREALED_API bool UnloadPackages( const TArray<UPackage*>& PackagesToUnload, FText& OutErrorMessage, bool bUnloadDirtyPackages = false);
 
 	/**
 	 * struct containing list of packages to unload and other params.
@@ -118,7 +118,7 @@ public:
 	 * 
 	 * @return true if the set of loaded packages was changed
 	 */
-	static bool UnloadPackages(FUnloadPackageParams& Params);
+	static UNREALED_API bool UnloadPackages(FUnloadPackageParams& Params);
 
 	/**
 	 * Helper function that attempts to reload the specified top-level packages.
@@ -127,7 +127,7 @@ public:
 	 *
 	 * @return	true if the set of loaded packages was changed
 	 */
-	static bool ReloadPackages( const TArray<UPackage*>& PackagesToReload );
+	static UNREALED_API bool ReloadPackages( const TArray<UPackage*>& PackagesToReload );
 
 	/**
 	 * Helper function that attempts to reload the specified top-level packages.
@@ -139,7 +139,7 @@ public:
 	 * @return	true if the set of loaded packages was changed
 	 */
 	UE_DEPRECATED(4.21, "ReloadPackages taking bInteractive is deprecated. Use the version taking EReloadPackagesInteractionMode instead.")
-	static bool ReloadPackages( const TArray<UPackage*>& PackagesToReload, FText& OutErrorMessage, const bool bInteractive = true );
+	static UNREALED_API bool ReloadPackages( const TArray<UPackage*>& PackagesToReload, FText& OutErrorMessage, const bool bInteractive = true );
 
 	/**
 	 * Helper function that attempts to reload the specified top-level packages.
@@ -150,7 +150,7 @@ public:
 	 *
 	 * @return	true if the set of loaded packages was changed
 	 */
-	static bool ReloadPackages( const TArray<UPackage*>& PackagesToReload, FText& OutErrorMessage, const EReloadPackagesInteractionMode InteractionMode = EReloadPackagesInteractionMode::Interactive );
+	static UNREALED_API bool ReloadPackages( const TArray<UPackage*>& PackagesToReload, FText& OutErrorMessage, const EReloadPackagesInteractionMode InteractionMode = EReloadPackagesInteractionMode::Interactive );
 
 	/**
 	 *	Exports the given packages to files.
@@ -159,7 +159,7 @@ public:
 	 * @param	ExportPath				receives the value of the path the user chose for exporting.
 	 * @param	bUseProvidedExportPath	If true and ExportPath is specified, use ExportPath as the user's export path w/o prompting for a directory, where applicable
 	 */
-	static void ExportPackages( const TArray<UPackage*>& PackagesToExport, FString* ExportPath=NULL, bool bUseProvidedExportPath = false );
+	static UNREALED_API void ExportPackages( const TArray<UPackage*>& PackagesToExport, FString* ExportPath=NULL, bool bUseProvidedExportPath = false );
 
 	/**
 	 * Wrapper method for multiple objects at once.
@@ -171,10 +171,10 @@ public:
 	 *
 	 * @return	the path that the user chose for the export.
 	 */
-	static FString DoBulkExport(const TArray<UPackage*>& TopLevelPackages, FString LastExportPath, const TSet<UClass*>* FilteredClasses = NULL, bool bUseProvidedExportPath = false );
+	static UNREALED_API FString DoBulkExport(const TArray<UPackage*>& TopLevelPackages, FString LastExportPath, const TSet<UClass*>* FilteredClasses = NULL, bool bUseProvidedExportPath = false );
 
 	/** Helper function that attempts to check out the specified top-level packages. */
-	static void CheckOutRootPackages( const TArray<UPackage*>& Packages );
+	static UNREALED_API void CheckOutRootPackages( const TArray<UPackage*>& Packages );
 
 
 	/**
@@ -183,7 +183,7 @@ public:
 	 * @param	PackagePath	Path of the package to check, relative or absolute
 	 * @return	true if PackagePath points to an external location
 	 */
-	static bool IsPackagePathExternal(const FString& PackagePath);
+	static UNREALED_API bool IsPackagePathExternal(const FString& PackagePath);
 
 	/**
 	 * Checks if the passed in package's filename is in an external directory. I.E Ones not found automatically in the content directory
@@ -191,10 +191,10 @@ public:
 	 * @param	Package	The package to check
 	 * @return	true if the package points to an external filename
 	 */
-	static bool IsPackageExternal(const UPackage& Package);
+	static UNREALED_API bool IsPackageExternal(const UPackage& Package);
 
 	/** Saves all the dirty packages for the specified objects*/
-	static bool SavePackagesForObjects(const TArray<UObject*>& ObjectsToSave);
+	static UNREALED_API bool SavePackagesForObjects(const TArray<UObject*>& ObjectsToSave);
 
 	/**
 	 * Checks if the package has only one asset which shares its name
@@ -202,11 +202,11 @@ public:
 	 * @param Package The package to check
 	 * @return true if the package has only one asset which shares the name of the package
 	 */
-	static bool IsSingleAssetPackage (const FString& Package);
+	static UNREALED_API bool IsSingleAssetPackage (const FString& Package);
 
 	/** Replaces all invalid package name characters with _ */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Package Tools")
-	static FString SanitizePackageName(const FString& InPackageName);
+	static UNREALED_API FString SanitizePackageName(const FString& InPackageName);
 
 	/** 
 	 * Converts a long package name to a file name.
@@ -217,7 +217,7 @@ public:
 	 * @return Package filename, or empty if it failed.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Package Tools", meta=(AdvancedDisplay=1))
-	static FString PackageNameToFilename(const FString& PackageName, const FString& Extension = TEXT(""));
+	static UNREALED_API FString PackageNameToFilename(const FString& PackageName, const FString& Extension = TEXT(""));
 	
 	/** 
 	 * Tries to convert a given relative or absolute filename to a long package name or path starting with a root like /Game
@@ -226,7 +226,7 @@ public:
 	 * @return Resulting long package name if the supplied filename properly maps to a long package root, empty string otherwise.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Package Tools")
-	static FString FilenameToPackageName(const FString& Filename);
+	static UNREALED_API FString FilenameToPackageName(const FString& Filename);
 
 	/**
 	 * Find or create a package at the desired path
@@ -235,7 +235,7 @@ public:
 	 * @param LongPackageName The package path in unreal asset path
 	 * @param AssetClass The class of asset the package should be for.
 	 */
-	static UPackage* FindOrCreatePackageForAssetType(const FName LongPackageName, UClass* AssetClass);
+	static UNREALED_API UPackage* FindOrCreatePackageForAssetType(const FName LongPackageName, UClass* AssetClass);
 
 	/**
 	 * Utility function that gathers all async compilable objects from given packages
@@ -243,7 +243,7 @@ public:
 	 * from said packages.
 	 * @param Packages List of packages from which to gather compilable assets to flush.
 	 */
-	static void FlushAsyncCompilation(TArrayView<UPackage* const> Packages);
+	static UNREALED_API void FlushAsyncCompilation(TArrayView<UPackage* const> Packages);
 
 private:
 	static void RestoreStandaloneOnReachableObjects();

@@ -20,7 +20,7 @@
 class SWidget;
 struct FAssetData;
 
-class UNREALED_API FCollectionDragDropOp : public FDecoratedDragDropOp
+class FCollectionDragDropOp : public FDecoratedDragDropOp
 {
 public:
 	DRAG_DROP_OPERATOR_TYPE(FCollectionDragDropOp, FDecoratedDragDropOp)
@@ -42,12 +42,12 @@ public:
 	
 public:
 	/** @return The assets from this drag operation */
-	TArray<FAssetData> GetAssets() const;
+	UNREALED_API TArray<FAssetData> GetAssets() const;
 
-	virtual TSharedPtr<SWidget> GetDefaultDecorator() const override;
+	UNREALED_API virtual TSharedPtr<SWidget> GetDefaultDecorator() const override;
 
 private:
-	FText GetDecoratorText() const;
+	UNREALED_API FText GetDecoratorText() const;
 
 	EAssetTagItemViewMode AssetTagViewMode = EAssetTagItemViewMode::Standard;
 };

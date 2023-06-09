@@ -8,14 +8,14 @@
 
 #include "PreviewMaterial.generated.h"
 
-UCLASS()
-class UNREALED_API UPreviewMaterial : public UMaterial
+UCLASS(MinimalAPI)
+class UPreviewMaterial : public UMaterial
 {
 	GENERATED_UCLASS_BODY()
 
 
 	//~ Begin UMaterial Interface.
-	virtual FMaterialResource* AllocateResource() override;
+	UNREALED_API virtual FMaterialResource* AllocateResource() override;
 	virtual bool IsAsset()  const override  { return false; }
 	//~ End UMaterial Interface.
 };

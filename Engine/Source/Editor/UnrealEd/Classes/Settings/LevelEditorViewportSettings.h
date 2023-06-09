@@ -86,7 +86,7 @@ enum class EMaterialKind : uint8
  * Implements the Level Editor's per-instance view port settings.
  */
 USTRUCT()
-struct UNREALED_API FLevelEditorViewportInstanceSettings
+struct FLevelEditorViewportInstanceSettings
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -209,7 +209,7 @@ struct UNREALED_API FLevelEditorViewportInstanceSettings
  * Implements a key -> value pair for the per-instance view port settings
  */
 USTRUCT()
-struct UNREALED_API FLevelEditorViewportInstanceSettingsKeyValuePair
+struct FLevelEditorViewportInstanceSettingsKeyValuePair
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -227,7 +227,7 @@ struct UNREALED_API FLevelEditorViewportInstanceSettingsKeyValuePair
  * Settings that control the behavior of the "snap to surface" feature
  */
 USTRUCT()
-struct UNREALED_API FSnapToSurfaceSettings
+struct FSnapToSurfaceSettings
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -251,7 +251,7 @@ struct UNREALED_API FSnapToSurfaceSettings
 };
 
 USTRUCT()
-struct UNREALED_API FLevelEditorViewporEditorViews
+struct FLevelEditorViewporEditorViews
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -262,8 +262,8 @@ struct UNREALED_API FLevelEditorViewporEditorViews
 /**
  * Implements the Level Editor's view port settings.
  */
-UCLASS(config=EditorPerProjectUserSettings)
-class UNREALED_API ULevelEditorViewportSettings
+UCLASS(config=EditorPerProjectUserSettings, MinimalAPI)
+class ULevelEditorViewportSettings
 	: public UObject
 {
 	GENERATED_UCLASS_BODY()
@@ -667,8 +667,8 @@ protected:
 
 	// UObject overrides
 
-	virtual void PostInitProperties() override;
-	virtual void PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent ) override;
+	UNREALED_API virtual void PostInitProperties() override;
+	UNREALED_API virtual void PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent ) override;
 
 private:
 

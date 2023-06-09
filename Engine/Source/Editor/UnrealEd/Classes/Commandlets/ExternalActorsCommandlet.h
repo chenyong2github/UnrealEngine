@@ -8,16 +8,16 @@
 #include "PackageSourceControlHelper.h"
 #include "ExternalActorsCommandlet.generated.h"
 
-UCLASS()
-class UNREALED_API UExternalActorsCommandlet : public UCommandlet
+UCLASS(MinimalAPI)
+class UExternalActorsCommandlet : public UCommandlet
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 	//~ Begin UCommandlet Interface
-	virtual int32 Main(const FString& Params) override;
+	UNREALED_API virtual int32 Main(const FString& Params) override;
 	//~ End UCommandlet Interface
 
 protected:
-	UWorld* LoadWorld(const FString& LevelToLoad);
+	UNREALED_API UWorld* LoadWorld(const FString& LevelToLoad);
 };

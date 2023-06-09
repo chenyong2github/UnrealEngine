@@ -12,8 +12,8 @@
 #include "UObject/Object.h"
 #include "AnimationBlueprintEditorOptions.generated.h"
 
-UCLASS(hidecategories=Object, config=EditorPerProjectUserSettings)
-class UNREALED_API UAnimationBlueprintEditorOptions : public UObject
+UCLASS(hidecategories=Object, config=EditorPerProjectUserSettings, MinimalAPI)
+class UAnimationBlueprintEditorOptions : public UObject
 {
 	GENERATED_UCLASS_BODY()
 

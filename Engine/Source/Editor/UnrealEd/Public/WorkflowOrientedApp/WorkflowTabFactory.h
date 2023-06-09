@@ -68,7 +68,7 @@ public:
 /////////////////////////////////////////////////////
 // FWorkflowTabFactory
 
-class UNREALED_API FWorkflowTabFactory : public TSharedFromThis<FWorkflowTabFactory>
+class FWorkflowTabFactory : public TSharedFromThis<FWorkflowTabFactory>
 {
 protected:
 	FName TabIdentifier;
@@ -91,9 +91,9 @@ public:
 	virtual ~FWorkflowTabFactory() {}
 
 	// Creates a toolkit tab given the spawning information
-	virtual TSharedRef<SDockTab> SpawnTab(const FWorkflowTabSpawnInfo& Info) const;
+	UNREALED_API virtual TSharedRef<SDockTab> SpawnTab(const FWorkflowTabSpawnInfo& Info) const;
 	// Creates a toolkit tab without any content, given the spawning information
-	virtual TSharedRef<SDockTab> SpawnBlankTab() const;
+	UNREALED_API virtual TSharedRef<SDockTab> SpawnBlankTab() const;
 
 	/**
 	 * Updates a given tab with new content
@@ -102,17 +102,17 @@ public:
 	 * @param InInfo		The spawning info, used to generate required tab information
 	 * @param InContent		The content to update the tab with
 	 */
-	virtual void UpdateTab(TSharedPtr<SDockTab> InDockTab, const FWorkflowTabSpawnInfo& Info, TSharedPtr< SWidget > InContent) const;
+	UNREALED_API virtual void UpdateTab(TSharedPtr<SDockTab> InDockTab, const FWorkflowTabSpawnInfo& Info, TSharedPtr< SWidget > InContent) const;
 
 	// Creates a view menu entry for this factory
-	virtual void CreateViewMenuEntry(FMenuBuilder& MenuBuilder, const FUIAction& Action) const;
+	UNREALED_API virtual void CreateViewMenuEntry(FMenuBuilder& MenuBuilder, const FUIAction& Action) const;
 
 	/** Register a tab spawner for this factory */
-	virtual FTabSpawnerEntry& RegisterTabSpawner(TSharedRef<FTabManager> TabManager, const FApplicationMode* CurrentApplicationMode) const;
+	UNREALED_API virtual FTabSpawnerEntry& RegisterTabSpawner(TSharedRef<FTabManager> TabManager, const FApplicationMode* CurrentApplicationMode) const;
 
 public:
 	// Constructor
-	FWorkflowTabFactory(FName InIdentifier, TSharedPtr<class FAssetEditorToolkit> InHostingApp);
+	UNREALED_API FWorkflowTabFactory(FName InIdentifier, TSharedPtr<class FAssetEditorToolkit> InHostingApp);
 
 	// Get the identifier of this factory
 	FName GetIdentifier() const { return TabIdentifier; }
@@ -121,34 +121,34 @@ public:
 	bool IsSingleton() const { return bIsSingleton; }
 
 	// Creates the label for the tab
-	virtual TAttribute<FText> ConstructTabName(const FWorkflowTabSpawnInfo& Info) const;
+	UNREALED_API virtual TAttribute<FText> ConstructTabName(const FWorkflowTabSpawnInfo& Info) const;
 
 	/** Returns TRUE if the payload is valid */
 	virtual bool IsPayloadValid(TSharedRef<FTabPayload> Payload) const { return false; }
 
 protected:
 	// Call this to enable the default padding surrounding the tab contents
-	void EnableTabPadding();
+	UNREALED_API void EnableTabPadding();
 
 	/** Callback function for spawning the tab */
-	virtual TSharedRef<SDockTab> OnSpawnTab(const FSpawnTabArgs& SpawnArgs, TWeakPtr<FTabManager> WeakTabManager) const;
+	UNREALED_API virtual TSharedRef<SDockTab> OnSpawnTab(const FSpawnTabArgs& SpawnArgs, TWeakPtr<FTabManager> WeakTabManager) const;
 
 	/** Callback function for checking to see if a tab can/should be spawned */
-	bool CanSpawnTab(const FSpawnTabArgs& SpawnArgs, TWeakPtr<FTabManager> WeakTabManager) const;
+	UNREALED_API bool CanSpawnTab(const FSpawnTabArgs& SpawnArgs, TWeakPtr<FTabManager> WeakTabManager) const;
 
 public:
 	// Creates the widget that will be the body of the new tab
 	// Users will most commonly override just this.
-	virtual TSharedRef<SWidget> CreateTabBody(const FWorkflowTabSpawnInfo& Info) const;
+	UNREALED_API virtual TSharedRef<SWidget> CreateTabBody(const FWorkflowTabSpawnInfo& Info) const;
 
 	// Virtual to create an icon for the tab
-	virtual const FSlateBrush* GetTabIcon(const FWorkflowTabSpawnInfo& Info) const;
+	UNREALED_API virtual const FSlateBrush* GetTabIcon(const FWorkflowTabSpawnInfo& Info) const;
 	
 	// Virtual to create an icon for the menu entry
-	virtual const FSlateIcon& GetTabSpawnerIcon(const FWorkflowTabSpawnInfo& Info) const;
+	UNREALED_API virtual const FSlateIcon& GetTabSpawnerIcon(const FWorkflowTabSpawnInfo& Info) const;
 
 	// Create a tooltip widget for the tab
-	virtual TSharedPtr<SToolTip> CreateTabToolTipWidget(const FWorkflowTabSpawnInfo& Info) const;
+	UNREALED_API virtual TSharedPtr<SToolTip> CreateTabToolTipWidget(const FWorkflowTabSpawnInfo& Info) const;
 
 	// Virtual to get optional extra tooltip text for tab
 	virtual FText GetTabToolTipText(const FWorkflowTabSpawnInfo& Info) const
@@ -163,7 +163,7 @@ private:
 /////////////////////////////////////////////////////
 // FDocumentTabFactory
 
-class UNREALED_API FDocumentTabFactory : public FWorkflowTabFactory
+class FDocumentTabFactory : public FWorkflowTabFactory
 {
 public:
 	// Saves the state for this tab
@@ -189,8 +189,8 @@ public:
 	virtual bool IsPayloadSupported(TSharedRef<FTabPayload> Payload) const { return false; }
 
 	/** Creates a tab history node from the passed in payload */
-	virtual TSharedRef<struct FGenericTabHistory> CreateTabHistoryNode(TSharedPtr<FTabPayload> Payload);
+	UNREALED_API virtual TSharedRef<struct FGenericTabHistory> CreateTabHistoryNode(TSharedPtr<FTabPayload> Payload);
 
 protected:
-	FDocumentTabFactory(FName InIdentifier, TSharedPtr<class FAssetEditorToolkit> InHostingApp);
+	UNREALED_API FDocumentTabFactory(FName InIdentifier, TSharedPtr<class FAssetEditorToolkit> InHostingApp);
 };

@@ -8,11 +8,11 @@
 #include "Misc/Paths.h"
 #include "UObject/NameTypes.h"
 
-class UNREALED_API FEditorFolderUtils
+class FEditorFolderUtils
 {
 public:
 	/** Get the leaf name of a specified folder path */
-	static FName GetLeafName(const FName& InPath);
+	static UNREALED_API FName GetLeafName(const FName& InPath);
 
 	/** Get the parent path for the specified folder path */
 	FORCEINLINE static FName GetParentPath(const FName& InPath)
@@ -21,6 +21,6 @@ public:
 	}
 
 	/** Check if the specified path is a child of the specified parent */
-	static bool PathIsChildOf(const FString& PotentialChild, const FString& Parent);
-	static bool PathIsChildOf(const FName& PotentialChild, const FName& Parent);
+	static UNREALED_API bool PathIsChildOf(const FString& PotentialChild, const FString& Parent);
+	static UNREALED_API bool PathIsChildOf(const FName& PotentialChild, const FName& Parent);
 };

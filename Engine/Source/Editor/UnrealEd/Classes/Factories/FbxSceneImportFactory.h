@@ -341,17 +341,17 @@ namespace UnFbx
 typedef TMap<FString, UnFbx::FBXImportOptions*> ImportOptionsNameMap;
 typedef ImportOptionsNameMap* ImportOptionsNameMapPtr;
 
-UCLASS(BlueprintType, hidecategories=Object)
-class UNREALED_API UFbxSceneImportFactory : public USceneImportFactory
+UCLASS(BlueprintType, hidecategories=Object, MinimalAPI)
+class UFbxSceneImportFactory : public USceneImportFactory
 {
 	GENERATED_UCLASS_BODY()
 
 	/** UFactory Interface */
-	virtual UObject* FactoryCreateFile(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, const FString& Filename, const TCHAR* Parms, FFeedbackContext* Warn, bool& bOutOperationCanceled) override;
-	virtual UObject* FactoryCreateBinary(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, const TCHAR* Type, const uint8*& Buffer, const uint8* BufferEnd, FFeedbackContext* Warn) override;
-	virtual UObject* FactoryCreateBinary(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, const TCHAR* Type, const uint8*& Buffer, const uint8* BufferEnd, FFeedbackContext* Warn, bool& bOutOperationCanceled) override;
-	virtual bool FactoryCanImport(const FString& Filename) override;
-	virtual TArray<FString> GetFormats() const override;
+	UNREALED_API virtual UObject* FactoryCreateFile(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, const FString& Filename, const TCHAR* Parms, FFeedbackContext* Warn, bool& bOutOperationCanceled) override;
+	UNREALED_API virtual UObject* FactoryCreateBinary(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, const TCHAR* Type, const uint8*& Buffer, const uint8* BufferEnd, FFeedbackContext* Warn) override;
+	UNREALED_API virtual UObject* FactoryCreateBinary(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, const TCHAR* Type, const uint8*& Buffer, const uint8* BufferEnd, FFeedbackContext* Warn, bool& bOutOperationCanceled) override;
+	UNREALED_API virtual bool FactoryCanImport(const FString& Filename) override;
+	UNREALED_API virtual TArray<FString> GetFormats() const override;
 
 	/** USceneImportFactory Interface */
 	virtual bool ImportsAssets() const override { return true; }
@@ -385,60 +385,60 @@ class UNREALED_API UFbxSceneImportFactory : public USceneImportFactory
 	TObjectPtr<class UFbxTextureImportData> TextureImportData;
 	
 	/* Default Options always have the same name "Default" */
-	static FString DefaultOptionName;
+	static UNREALED_API FString DefaultOptionName;
 
 public:
-	static TSharedPtr<FFbxSceneInfo> ConvertSceneInfo(void* VoidFbxImporter, void* VoidFbxSceneInfo);
-	static void ExtractMaterialInfo(void* FbxImporterVoid, TSharedPtr<FFbxSceneInfo> SceneInfoPtr);
+	static UNREALED_API TSharedPtr<FFbxSceneInfo> ConvertSceneInfo(void* VoidFbxImporter, void* VoidFbxSceneInfo);
+	static UNREALED_API void ExtractMaterialInfo(void* FbxImporterVoid, TSharedPtr<FFbxSceneInfo> SceneInfoPtr);
 
 protected:
 	/** Convert the scene and remake all the transform for the SceneInfo pass in parameter.
 	 *  We need this because EvaluateGlobal and EvaluateLocal are dependent of the scene conversion.
 	 */
-	void ChangeFrontAxis(void* VoidFbxImporter, void* VoidSceneInfo, TSharedPtr<FFbxSceneInfo> SceneInfoPtr);
+	UNREALED_API void ChangeFrontAxis(void* VoidFbxImporter, void* VoidSceneInfo, TSharedPtr<FFbxSceneInfo> SceneInfoPtr);
 
 	/** Make sure GlobalImportSettings is pointing to the correct options */
-	void ApplyMeshInfoFbxOptions(TSharedPtr<FFbxMeshInfo> MeshInfo);
+	UNREALED_API void ApplyMeshInfoFbxOptions(TSharedPtr<FFbxMeshInfo> MeshInfo);
 
 	/* Compute the path of every node and fill the result in the node. This data will be use by the reimport
 	*  as a unique key for for the reimport status of the node hierarchy.
 	*/
-	static void FillSceneHierarchyPath(TSharedPtr<FFbxSceneInfo> SceneInfo);
+	static UNREALED_API void FillSceneHierarchyPath(TSharedPtr<FFbxSceneInfo> SceneInfo);
 
 	/** Create a hierarchy of actor in the current level */
-	void CreateLevelActorHierarchy(TSharedPtr<FFbxSceneInfo> SceneInfoPtr);
+	UNREALED_API void CreateLevelActorHierarchy(TSharedPtr<FFbxSceneInfo> SceneInfoPtr);
 
 	/** Create a hierarchy of actor in the current level */
-	AActor *CreateActorComponentsHierarchy(TSharedPtr<FFbxSceneInfo> SceneInfoPtr);
+	UNREALED_API AActor *CreateActorComponentsHierarchy(TSharedPtr<FFbxSceneInfo> SceneInfoPtr);
 
 	/** Apply the LocalTransform to the SceneComponent and if PreMultiplyTransform is not null do a pre multiplication
 	* SceneComponent: Must be a valid pointer
 	* LocalTransform: Must be a valid pointer
 	* PreMultiplyTransform: Can be nullptr
 	*/
-	void ApplyTransformToComponent(USceneComponent *SceneComponent, FTransform *LocalTransform, FTransform *PreMultiplyTransform, FVector &PivotLocation, FVector &ParentPivotAccumulation);
+	UNREALED_API void ApplyTransformToComponent(USceneComponent *SceneComponent, FTransform *LocalTransform, FTransform *PreMultiplyTransform, FVector &PivotLocation, FVector &ParentPivotAccumulation);
 
 	/** Import all skeletal mesh from the fbx scene */
-	void ImportAllSkeletalMesh(void* VoidRootNodeToImport, void* VoidFbxImporter, EObjectFlags Flags, int32& NodeIndex, int32& InterestingNodeCount , TSharedPtr<FFbxSceneInfo> SceneInfo);
+	UNREALED_API void ImportAllSkeletalMesh(void* VoidRootNodeToImport, void* VoidFbxImporter, EObjectFlags Flags, int32& NodeIndex, int32& InterestingNodeCount , TSharedPtr<FFbxSceneInfo> SceneInfo);
 	
-	UObject* ImportOneSkeletalMesh(void* VoidRootNodeToImport, void* VoidFbxImporter, TSharedPtr<FFbxSceneInfo> SceneInfo, EObjectFlags Flags, TArray<void*> &VoidNodeArray, int32 &TotalNumNodes);
+	UNREALED_API UObject* ImportOneSkeletalMesh(void* VoidRootNodeToImport, void* VoidFbxImporter, TSharedPtr<FFbxSceneInfo> SceneInfo, EObjectFlags Flags, TArray<void*> &VoidNodeArray, int32 &TotalNumNodes);
 
 	/** Import all static mesh from the fbx scene */
-	void ImportAllStaticMesh(void* VoidRootNodeToImport, void* VoidFbxImporter, EObjectFlags Flags, int32& NodeIndex, int32& InterestingNodeCount, TSharedPtr<FFbxSceneInfo> SceneInfo);
+	UNREALED_API void ImportAllStaticMesh(void* VoidRootNodeToImport, void* VoidFbxImporter, EObjectFlags Flags, int32& NodeIndex, int32& InterestingNodeCount, TSharedPtr<FFbxSceneInfo> SceneInfo);
 
 	// @todo document
-	UObject* RecursiveImportNode(void* FFbxImporter, void* VoidNode, EObjectFlags Flags, int32& Index, int32 Total, TSharedPtr<FFbxSceneInfo> SceneInfo, FString PackagePath);
+	UNREALED_API UObject* RecursiveImportNode(void* FFbxImporter, void* VoidNode, EObjectFlags Flags, int32& Index, int32 Total, TSharedPtr<FFbxSceneInfo> SceneInfo, FString PackagePath);
 
 	// @todo document
-	UObject* ImportANode(void* VoidFbxImporter, TArray<void*> &VoidNode, EObjectFlags Flags, int32& NodeIndex, TSharedPtr<FFbxSceneInfo> SceneInfo, TSharedPtr<FFbxNodeInfo> &OutNodeInfo, FString PackagePath, int32 Total = 0, UObject* InMesh = NULL, int LODIndex = 0);
+	UNREALED_API UObject* ImportANode(void* VoidFbxImporter, TArray<void*> &VoidNode, EObjectFlags Flags, int32& NodeIndex, TSharedPtr<FFbxSceneInfo> SceneInfo, TSharedPtr<FFbxNodeInfo> &OutNodeInfo, FString PackagePath, int32 Total = 0, UObject* InMesh = NULL, int LODIndex = 0);
 
 	/** Find the FFbxNodeInfo in the hierarchy. */
-	bool FindSceneNodeInfo(TSharedPtr<FFbxSceneInfo> SceneInfo, uint64 NodeInfoUniqueId, TSharedPtr<FFbxNodeInfo> &OutNodeInfo);
+	UNREALED_API bool FindSceneNodeInfo(TSharedPtr<FFbxSceneInfo> SceneInfo, uint64 NodeInfoUniqueId, TSharedPtr<FFbxNodeInfo> &OutNodeInfo);
 
 	/** Create a package for the specified node. Package will be the concatenation of UFbxSceneImportFactory::Path and Node->GetName(). */
-	UPackage *CreatePackageForNode(FString PackageName, FString &StaticMeshName);
+	UNREALED_API UPackage *CreatePackageForNode(FString PackageName, FString &StaticMeshName);
 
-	bool SetStaticMeshComponentOverrideMaterial(class UStaticMeshComponent* StaticMeshComponent, TSharedPtr<FFbxNodeInfo> NodeInfo);
+	UNREALED_API bool SetStaticMeshComponentOverrideMaterial(class UStaticMeshComponent* StaticMeshComponent, TSharedPtr<FFbxNodeInfo> NodeInfo);
 
 	/** The path of the asset to import */
 	FString Path;
@@ -460,7 +460,7 @@ protected:
 	ImportOptionsNameMap NameOptionsMap;
 
 	/* Return the Options from the NameOptionMap Map. return nulptr if the options are not found*/
-	UnFbx::FBXImportOptions *GetOptionsFromName(FString OptionName);
+	UNREALED_API UnFbx::FBXImportOptions *GetOptionsFromName(FString OptionName);
 
 	/** Is the import was cancel*/
 	bool ImportWasCancel;

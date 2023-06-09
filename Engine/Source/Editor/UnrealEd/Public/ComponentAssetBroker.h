@@ -42,48 +42,48 @@ public:
 // FComponentAssetBrokerageage
 
 /** Utility class that associates assets with component classes */
-class UNREALED_API FComponentAssetBrokerage
+class FComponentAssetBrokerage
 {
 public:
 	/** Find set of components that support this asset */
-	static TArray< TSubclassOf<UActorComponent> > GetComponentsForAsset(const UObject* InAsset);
+	static UNREALED_API TArray< TSubclassOf<UActorComponent> > GetComponentsForAsset(const UObject* InAsset);
 
 	/** Get the primary component for this asset*/
-	static TSubclassOf<UActorComponent> GetPrimaryComponentForAsset(UClass* InAssetClass);
+	static UNREALED_API TSubclassOf<UActorComponent> GetPrimaryComponentForAsset(UClass* InAssetClass);
 
 	/** Assign the assigned asset to the supplied component */
-	static bool AssignAssetToComponent(UActorComponent* InComponent, UObject* InAsset);
+	static UNREALED_API bool AssignAssetToComponent(UActorComponent* InComponent, UObject* InAsset);
 
 	/** Get the currently assigned asset from the component */
-	static UObject* GetAssetFromComponent(UActorComponent* InComponent);
+	static UNREALED_API UObject* GetAssetFromComponent(UActorComponent* InComponent);
 
 	/** See if this component supports assets of any type */
-	static bool SupportsAssets(UActorComponent* InComponent);
+	static UNREALED_API bool SupportsAssets(UActorComponent* InComponent);
 
 	/** Register a component class for a specified asset class */
-	static void RegisterAssetToComponentMapping(UClass* InAssetClass, TSubclassOf<UActorComponent> InComponentClass, bool bSetAsPrimary);
+	static UNREALED_API void RegisterAssetToComponentMapping(UClass* InAssetClass, TSubclassOf<UActorComponent> InComponentClass, bool bSetAsPrimary);
 
 	/** Unregister a component type for a specified asset class */
-	static void UnregisterAssetToComponentMapping(UClass* InAssetClass, TSubclassOf<UActorComponent> InComponentClass);
+	static UNREALED_API void UnregisterAssetToComponentMapping(UClass* InAssetClass, TSubclassOf<UActorComponent> InComponentClass);
 
 	/** Try to find the broker for the specified component type */
-	static TSharedPtr<IComponentAssetBroker> FindBrokerByComponentType(TSubclassOf<UActorComponent> InComponentClass);
+	static UNREALED_API TSharedPtr<IComponentAssetBroker> FindBrokerByComponentType(TSubclassOf<UActorComponent> InComponentClass);
 
 	/** Try to find the *primary* broker for the specified asset type */
-	static TSharedPtr<IComponentAssetBroker> FindBrokerByAssetType(UClass* InAssetClass);
+	static UNREALED_API TSharedPtr<IComponentAssetBroker> FindBrokerByAssetType(UClass* InAssetClass);
 
 	/** Get the currently supported assets, optionally filtered by the supplied component class */
-	static TArray<UClass*> GetSupportedAssets(UClass* InFilterComponentClass = NULL);
+	static UNREALED_API TArray<UClass*> GetSupportedAssets(UClass* InFilterComponentClass = NULL);
 
 
 	/** Register a component class for a specified asset class */
-	static void RegisterBroker(TSharedPtr<IComponentAssetBroker> Broker, TSubclassOf<UActorComponent> InComponentClass, bool bSetAsPrimary, bool bMapComponentForAssets);
+	static UNREALED_API void RegisterBroker(TSharedPtr<IComponentAssetBroker> Broker, TSubclassOf<UActorComponent> InComponentClass, bool bSetAsPrimary, bool bMapComponentForAssets);
 
 	/** Unregister a component type for a specified asset class */
-	static void UnregisterBroker(TSharedPtr<IComponentAssetBroker> Broker);
+	static UNREALED_API void UnregisterBroker(TSharedPtr<IComponentAssetBroker> Broker);
 
 	/** Shut down the brokerage; should only be called by the editor during shutdown */
-	static void PRIVATE_ShutdownBrokerage();
+	static UNREALED_API void PRIVATE_ShutdownBrokerage();
 
 private:
 	FComponentAssetBrokerage() {}

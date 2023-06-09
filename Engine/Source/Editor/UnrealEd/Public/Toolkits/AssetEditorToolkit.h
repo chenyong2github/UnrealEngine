@@ -48,7 +48,7 @@ DECLARE_DELEGATE_RetVal_TwoParams(TSharedRef<FExtender>, FAssetEditorExtender, c
 * Extensibility managers simply keep a series of FExtenders for a single menu/toolbar/anything
 * It is here to keep a standardized approach to editor extensibility among modules
 */
-class UNREALED_API FExtensibilityManager
+class FExtensibilityManager
 {
 public:
 	virtual ~FExtensibilityManager() {}
@@ -61,9 +61,9 @@ public:
 	virtual TArray<FAssetEditorExtender>& GetExtenderDelegates() { return ExtenderDelegates; }
 
 	/** Gets all extenders, consolidated, for use by the editor to be extended */
-	virtual TSharedPtr<FExtender> GetAllExtenders();
+	UNREALED_API virtual TSharedPtr<FExtender> GetAllExtenders();
 	/** Gets all extenders and asset editor extenders from delegates consolidated */
-	virtual TSharedPtr<FExtender> GetAllExtenders(const TSharedRef<FUICommandList>& CommandList, const TArray<UObject*>& ContextSensitiveObjects);
+	UNREALED_API virtual TSharedPtr<FExtender> GetAllExtenders(const TSharedRef<FUICommandList>& CommandList, const TArray<UObject*>& ContextSensitiveObjects);
 
 private:
 	/** A list of extenders the editor will use */
@@ -89,7 +89,7 @@ public:
 /**
  * Base class for toolkits that are used for asset editing (abstract)
  */
-class UNREALED_API FAssetEditorToolkit
+class FAssetEditorToolkit
 	: public IAssetEditorInstance
 	, public FBaseToolkit
 	, public TSharedFromThis<FAssetEditorToolkit>
@@ -99,7 +99,7 @@ public:
 
 
 	/** Default constructor */
-	FAssetEditorToolkit();
+	UNREALED_API FAssetEditorToolkit();
 
 	/**
 	 * Initializes this asset editor.  Called immediately after construction.
@@ -115,86 +115,86 @@ public:
 	 * @param	bInIsToolbarFocusable	Whether the buttons on the default toolbar can receive keyboard focus
 	 * @param	bUseSmallToolbarIcons	Whether the buttons on the default toolbar use the small icons
 	 */
-	void InitAssetEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, const FName AppIdentifier, const TSharedRef<FTabManager::FLayout>& StandaloneDefaultLayout, const bool bCreateDefaultStandaloneMenu, const bool bCreateDefaultToolbar, const TArray<UObject*>& ObjectsToEdit, const bool bInIsToolbarFocusable = false, const bool bInUseSmallToolbarIcons = false);
-	void InitAssetEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, const FName AppIdentifier, const TSharedRef<FTabManager::FLayout>& StandaloneDefaultLayout, const bool bCreateDefaultStandaloneMenu, const bool bCreateDefaultToolbar, UObject* ObjectToEdit, const bool bInIsToolbarFocusable = false, const bool bInUseSmallToolbarIcons = false);
+	UNREALED_API void InitAssetEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, const FName AppIdentifier, const TSharedRef<FTabManager::FLayout>& StandaloneDefaultLayout, const bool bCreateDefaultStandaloneMenu, const bool bCreateDefaultToolbar, const TArray<UObject*>& ObjectsToEdit, const bool bInIsToolbarFocusable = false, const bool bInUseSmallToolbarIcons = false);
+	UNREALED_API void InitAssetEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, const FName AppIdentifier, const TSharedRef<FTabManager::FLayout>& StandaloneDefaultLayout, const bool bCreateDefaultStandaloneMenu, const bool bCreateDefaultToolbar, UObject* ObjectToEdit, const bool bInIsToolbarFocusable = false, const bool bInUseSmallToolbarIcons = false);
 
 	FAssetEditorToolkit(const FAssetEditorToolkit&) = delete;
 	FAssetEditorToolkit& operator=(const FAssetEditorToolkit&) = delete;
 	
 	/** Virtual destructor, so that we can clean up our app when destroyed */
-	virtual ~FAssetEditorToolkit();
+	UNREALED_API virtual ~FAssetEditorToolkit();
 
 	/** IToolkit interface */
-	virtual void RegisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
-	virtual void UnregisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
-	virtual bool IsAssetEditor() const override;
-	virtual const TArray< UObject* >* GetObjectsCurrentlyBeingEdited() const override;
+	UNREALED_API virtual void RegisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
+	UNREALED_API virtual void UnregisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
+	UNREALED_API virtual bool IsAssetEditor() const override;
+	UNREALED_API virtual const TArray< UObject* >* GetObjectsCurrentlyBeingEdited() const override;
 	virtual FName GetToolkitFName() const override = 0;				// Must implement in derived class!
 	virtual FText GetBaseToolkitName() const override = 0;			// Must implement in derived class!
-	virtual FText GetToolkitName() const override;
-	virtual FText GetTabSuffix() const override;
-	virtual FText GetToolkitToolTipText() const override;
+	UNREALED_API virtual FText GetToolkitName() const override;
+	UNREALED_API virtual FText GetTabSuffix() const override;
+	UNREALED_API virtual FText GetToolkitToolTipText() const override;
 	virtual FString GetWorldCentricTabPrefix() const override = 0;	// Must implement in derived class!
-	virtual FEditorModeTools& GetEditorModeManager() const final;
+	UNREALED_API virtual FEditorModeTools& GetEditorModeManager() const final;
 
 	/** IAssetEditorInstance interface */
-	virtual FName GetEditorName() const override;
-	virtual void FocusWindow(UObject* ObjectToFocusOn = nullptr) override;
+	UNREALED_API virtual FName GetEditorName() const override;
+	UNREALED_API virtual void FocusWindow(UObject* ObjectToFocusOn = nullptr) override;
 	UE_DEPRECATED(5.3, "Use CloseWindow that takes in an EAssetEditorCloseReason instead")
-	virtual bool CloseWindow() override;
-	virtual bool CloseWindow(EAssetEditorCloseReason InCloseReason) override;
+	UNREALED_API virtual bool CloseWindow() override;
+	UNREALED_API virtual bool CloseWindow(EAssetEditorCloseReason InCloseReason) override;
 	virtual bool IsPrimaryEditor() const override { return true; };
-	virtual void InvokeTab(const FTabId& TabId) override;
-	virtual FName GetEditingAssetTypeName() const override;
-	virtual TSharedPtr<FTabManager> GetAssociatedTabManager() override;
-	virtual double GetLastActivationTime() override;
-	virtual void RemoveEditingAsset(UObject* Asset) override;
+	UNREALED_API virtual void InvokeTab(const FTabId& TabId) override;
+	UNREALED_API virtual FName GetEditingAssetTypeName() const override;
+	UNREALED_API virtual TSharedPtr<FTabManager> GetAssociatedTabManager() override;
+	UNREALED_API virtual double GetLastActivationTime() override;
+	UNREALED_API virtual void RemoveEditingAsset(UObject* Asset) override;
 
 	/**
 	 * Fills in the supplied menu with commands for working with this asset file
 	 *
 	 * @param	MenuBuilder		The menu to add commands to
 	 */
-	void FillDefaultFileMenuOpenCommands(FToolMenuSection& InSection);
+	UNREALED_API void FillDefaultFileMenuOpenCommands(FToolMenuSection& InSection);
 
 	/**
 	 * Fills in the supplied menu with commands for working with this asset file
 	 *
 	 * @param	MenuBuilder		The menu to add commands to
 	 */
-	void FillDefaultFileMenuCommands(FToolMenuSection& InSection);
+	UNREALED_API void FillDefaultFileMenuCommands(FToolMenuSection& InSection);
 
 	/**
 	 * Fills in the supplied menu with commands for modifying this asset that are generally common to most asset editors
 	 *
 	 * @param	MenuBuilder		The menu to add commands to
 	 */
-	void FillDefaultAssetMenuCommands(FToolMenuSection& InSection);
+	UNREALED_API void FillDefaultAssetMenuCommands(FToolMenuSection& InSection);
 
 	/**
 	 * Fills in the supplied menu with commands for the help menu
 	 *
 	 * @param	MenuBuilder		The menu to add commands to
 	 */
-	void FillDefaultHelpMenuCommands(FToolMenuSection& InSection);
+	UNREALED_API void FillDefaultHelpMenuCommands(FToolMenuSection& InSection);
 
 	/** @return	For standalone asset editing tool-kits, returns the toolkit host that was last hosting this asset editor before it was switched to standalone mode (if it's still valid.)  Returns null if these conditions aren't met. */
-	TSharedPtr< IToolkitHost > GetPreviousWorldCentricToolkitHost();
+	UNREALED_API TSharedPtr< IToolkitHost > GetPreviousWorldCentricToolkitHost();
 
 	/**
 	 * Static: Used internally to set the world-centric toolkit host for a newly-created standalone asset editing toolkit
 	 *
 	 * @param ToolkitHost	The tool-kit to use if/when this toolkit is switched back to world-centric mode
 	 */
-	static void SetPreviousWorldCentricToolkitHostForNewAssetEditor(TSharedRef< IToolkitHost > ToolkitHost);
+	static UNREALED_API void SetPreviousWorldCentricToolkitHostForNewAssetEditor(TSharedRef< IToolkitHost > ToolkitHost);
 
 	/**
 	 * Registers a drawer for the asset editor status bar
 	 */
-	void RegisterDrawer(struct FWidgetDrawerConfig&& Drawer, int32 SlotIndex = INDEX_NONE);
+	UNREALED_API void RegisterDrawer(struct FWidgetDrawerConfig&& Drawer, int32 SlotIndex = INDEX_NONE);
 
 	/** Applies the passed in layout (or the saved user-modified version if available).  Must be called after InitAssetEditor. */
-	void RestoreFromLayout(const TSharedRef<FTabManager::FLayout>& NewLayout);
+	UNREALED_API void RestoreFromLayout(const TSharedRef<FTabManager::FLayout>& NewLayout);
 
 	/** @return Returns this asset editor's tab manager object.  May be nullptr for non-standalone toolkits */
 	TSharedPtr<FTabManager> GetTabManager()
@@ -203,20 +203,20 @@ public:
 	}
 
 	/** Registers default tool bar */
-	static void RegisterDefaultToolBar();
+	static UNREALED_API void RegisterDefaultToolBar();
 
 	/** Makes a default asset editing toolbar */
-	void GenerateToolbar();
+	UNREALED_API void GenerateToolbar();
 
 	/** Regenerates the menubar and toolbar widgets */
-	void RegenerateMenusAndToolbars();
+	UNREALED_API void RegenerateMenusAndToolbars();
 
 	/** Get name used by tool menu */
-	virtual FName GetToolMenuToolbarName(FName& OutParentName) const;
-	virtual void InitToolMenuContext(FToolMenuContext& MenuContext);
-	FName GetToolMenuToolbarName() const;
-	FName GetToolMenuAppName() const;
-	FName GetToolMenuName() const;
+	UNREALED_API virtual FName GetToolMenuToolbarName(FName& OutParentName) const;
+	UNREALED_API virtual void InitToolMenuContext(FToolMenuContext& MenuContext);
+	UNREALED_API FName GetToolMenuToolbarName() const;
+	UNREALED_API FName GetToolMenuAppName() const;
+	UNREALED_API FName GetToolMenuName() const;
 
 	/** Called at the end of RegenerateMenusAndToolbars() */
 	virtual void PostRegenerateMenusAndToolbars() { }
@@ -236,14 +236,14 @@ public:
 	virtual void RemoveViewportOverlayWidget(TSharedRef<SWidget> InViewportOverlayWidget) {}
 	
 	/** Adds or removes extenders to the default menu or the toolbar menu this asset editor */
-	void AddMenuExtender(TSharedPtr<FExtender> Extender);
-	void RemoveMenuExtender(TSharedPtr<FExtender> Extender);
-	void AddToolbarExtender(TSharedPtr<FExtender> Extender);
-	void RemoveToolbarExtender(TSharedPtr<FExtender> Extender);
+	UNREALED_API void AddMenuExtender(TSharedPtr<FExtender> Extender);
+	UNREALED_API void RemoveMenuExtender(TSharedPtr<FExtender> Extender);
+	UNREALED_API void AddToolbarExtender(TSharedPtr<FExtender> Extender);
+	UNREALED_API void RemoveToolbarExtender(TSharedPtr<FExtender> Extender);
 
 	/** Returns the default extensibility managers, these are applied for all asset types */
-	static TSharedPtr<FExtensibilityManager> GetSharedMenuExtensibilityManager();
-	static TSharedPtr<FExtensibilityManager> GetSharedToolBarExtensibilityManager();
+	static UNREALED_API TSharedPtr<FExtensibilityManager> GetSharedMenuExtensibilityManager();
+	static UNREALED_API TSharedPtr<FExtensibilityManager> GetSharedToolBarExtensibilityManager();
 
 	/** Override this to manually specify the tab that cannot be closed for your asset editor, it is the first tab
 	 *  registered otherwise
@@ -255,36 +255,36 @@ public:
 	 *
 	 * @param Widget The widget to use as the overlay
 	 */
-	void SetMenuOverlay(TSharedRef<SWidget> Widget);
+	UNREALED_API void SetMenuOverlay(TSharedRef<SWidget> Widget);
 
 	/** Adds or removes widgets from the default toolbar in this asset editor */
-	void AddToolbarWidget(TSharedRef<SWidget> Widget);
-	void RemoveAllToolbarWidgets();
+	UNREALED_API void AddToolbarWidget(TSharedRef<SWidget> Widget);
+	UNREALED_API void RemoveAllToolbarWidgets();
 
 	/** True if this actually is editing an asset */
-	bool IsActuallyAnAsset() const;
+	UNREALED_API bool IsActuallyAnAsset() const;
 
 	/**
 	 * Gets the text to display in a toolkit titlebar for an object
 	 * @param	InObject	The object we want a description of
 	 * @return a formatted description of the object state (e.g. "MyObject*")
 	 */
-	static FText GetLabelForObject(const UObject* InObject);
+	static UNREALED_API FText GetLabelForObject(const UObject* InObject);
 
 	/**
 	 * Gets the text to display in a toolkit tooltip for an object
 	 * @param	InObject	The object we want a description of
 	 * @return a formatted description of the object
 	 */
-	static FText GetToolTipTextForObject(const UObject* InObject);
+	static UNREALED_API FText GetToolTipTextForObject(const UObject* InObject);
 
 	/** Get the asset editor mode manager we are using */
 	UE_DEPRECATED(4.26, "Use GetEditorModeManager instead.")
-	class FAssetEditorModeManager* GetAssetEditorModeManager() const;
+	UNREALED_API class FAssetEditorModeManager* GetAssetEditorModeManager() const;
 
 	/** Set the asset editor mode manager we are using */
 	UE_DEPRECATED(4.26, "Override CreateEditorModeManager on the toolkit class instead.")
-	void SetAssetEditorModeManager(class FAssetEditorModeManager* InModeManager);
+	UNREALED_API void SetAssetEditorModeManager(class FAssetEditorModeManager* InModeManager);
 
 	virtual void AddGraphEditorPinActionsToContextMenu(FToolMenuSection& InSection) const {};
 
@@ -301,35 +301,35 @@ protected:
 	bool HasEditingObject() const { return !EditingObjects.IsEmpty(); }
 
 	/**	Returns the single object currently being edited. Asserts if currently editing no object or multiple objects */
-	UObject* GetEditingObject() const;
+	UNREALED_API UObject* GetEditingObject() const;
 
 	/**	Returns an array of all the objects currently being edited. Asserts if editing no objects */
-	const TArray< UObject* >& GetEditingObjects() const;
-	TArray<TObjectPtr<UObject>>& GetEditingObjectPtrs();
+	UNREALED_API const TArray< UObject* >& GetEditingObjects() const;
+	UNREALED_API TArray<TObjectPtr<UObject>>& GetEditingObjectPtrs();
 
 	/** Generate the toolbar for common asset actions like Save*/
-	UToolMenu* GenerateCommonActionsToolbar(FToolMenuContext& MenuContext);
+	UNREALED_API UToolMenu* GenerateCommonActionsToolbar(FToolMenuContext& MenuContext);
 
 	/** Get the collection of edited objects that can be saved. */
-	virtual void GetSaveableObjects(TArray<UObject*>& OutObjects) const;
+	UNREALED_API virtual void GetSaveableObjects(TArray<UObject*>& OutObjects) const;
 
 	/** Adds an item to the Editing Objects list */
-	virtual void AddEditingObject(UObject* Object);
+	UNREALED_API virtual void AddEditingObject(UObject* Object);
 
 	/** Removes an item from the Editing Objects list */
-	virtual void RemoveEditingObject(UObject* Object);
+	UNREALED_API virtual void RemoveEditingObject(UObject* Object);
 
 	/** Called to test if "Save" should be enabled for this asset */
 	virtual bool CanSaveAsset() const { return true; }
 
 	/** Called when "Save" is clicked for this asset */
-	virtual void SaveAsset_Execute();
+	UNREALED_API virtual void SaveAsset_Execute();
 
 	/** Called to test if "Save As" should be enabled for this asset */
 	virtual bool CanSaveAssetAs() const { return true; }
 
 	/** Called when "Save As" is clicked for this asset */
-	virtual void SaveAssetAs_Execute();
+	UNREALED_API virtual void SaveAssetAs_Execute();
 
 	/** Called to test if "Find in Content Browser" should be enabled for this asset */
 	virtual bool CanFindInContentBrowser() const { return true; }
@@ -338,31 +338,31 @@ protected:
 	virtual bool IsFindInContentBrowserButtonVisible() const { return true; }
 
 	/** Called when "Find in Content Browser" is clicked for this asset */
-	virtual void FindInContentBrowser_Execute();
+	UNREALED_API virtual void FindInContentBrowser_Execute();
 
 	/** Called when "Browse Documentation" is clicked for this asset */
-	virtual void BrowseDocumentation_Execute() const;
+	UNREALED_API virtual void BrowseDocumentation_Execute() const;
 
 	/** @return the documentation location for this editor */
-	virtual FString GetDocumentationLink() const;
+	UNREALED_API virtual FString GetDocumentationLink() const;
 
 	/** Called to check to see if there's an asset capable of being reimported */
-	virtual bool CanReimport() const;
-	virtual bool CanReimport(UObject* EditingObject) const;
+	UNREALED_API virtual bool CanReimport() const;
+	UNREALED_API virtual bool CanReimport(UObject* EditingObject) const;
 
 	/** Called when "Reimport" is clicked for this asset */
-	virtual void Reimport_Execute();
-	virtual void Reimport_Execute(UObject* EditingObject);
+	UNREALED_API virtual void Reimport_Execute();
+	UNREALED_API virtual void Reimport_Execute(UObject* EditingObject);
 
 	/** Called to determine if the user should be prompted for a new file if one is missing during an asset reload */
-	virtual bool ShouldPromptForNewFilesOnReload(const UObject& object) const;
+	UNREALED_API virtual bool ShouldPromptForNewFilesOnReload(const UObject& object) const;
 
 	/** Called when this toolkit is requested to close. Returns false if closing should be prevented. */
 	UE_DEPRECATED(5.3, "Use OnRequestClose that takes in an EAssetEditorCloseReason instead")
 	virtual bool OnRequestClose() { return true; }
 
 	/** Called when this toolkit is requested to close. Returns false if closing should be prevented. */
-	virtual bool OnRequestClose(EAssetEditorCloseReason InCloseReason);
+	UNREALED_API virtual bool OnRequestClose(EAssetEditorCloseReason InCloseReason);
 
 	/** Called when this toolkit is being closed */
 	virtual void OnClose() {}
@@ -371,22 +371,22 @@ protected:
 	  *
 	  * @param ThisToolkitWeakRef	The toolkit that we want to restart in standalone mode
 	  */
-	static void SwitchToStandaloneEditor_Execute(TWeakPtr< FAssetEditorToolkit > ThisToolkitWeakRef);
+	static UNREALED_API void SwitchToStandaloneEditor_Execute(TWeakPtr< FAssetEditorToolkit > ThisToolkitWeakRef);
 
 	/**
 	  * Static: Called when "Switch to World-Centric Editor" is clicked for the asset editor
 	  *
 	  * @param	ThisToolkitWeakRef			The toolkit that we want to restart in world-centric mode
 	  */
-	static void SwitchToWorldCentricEditor_Execute(TWeakPtr< FAssetEditorToolkit > ThisToolkitWeakRef);
+	static UNREALED_API void SwitchToWorldCentricEditor_Execute(TWeakPtr< FAssetEditorToolkit > ThisToolkitWeakRef);
 
 	/** @return a pointer to the brush to use for the tab icon */
-	virtual const FSlateBrush* GetDefaultTabIcon() const;
+	UNREALED_API virtual const FSlateBrush* GetDefaultTabIcon() const;
 
 	/** @return the color to use for the tab color */
-	virtual FLinearColor GetDefaultTabColor() const;
+	UNREALED_API virtual FLinearColor GetDefaultTabColor() const;
 
-	virtual void CreateEditorModeManager() override;
+	UNREALED_API virtual void CreateEditorModeManager() override;
 
 private:
 	// Callback for persisting the Asset Editor's layout.
@@ -404,14 +404,14 @@ private:
 	 * so that we don't break compatibility with all the asset editors out there that individually 
 	 * implement FGCObject.
 	 */
-	class UNREALED_API FGCEditingObjects : public FGCObject
+	class FGCEditingObjects : public FGCObject
 	{
 	public:
 		FGCEditingObjects(FAssetEditorToolkit& InOwnerToolkit) : OwnerToolkit(InOwnerToolkit) {}
 
 		/** FGCObject interface */
-		virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-		virtual FString GetReferencerName() const override;
+		UNREALED_API virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+		UNREALED_API virtual FString GetReferencerName() const override;
 
 	private:
 		FAssetEditorToolkit& OwnerToolkit;
@@ -442,16 +442,16 @@ protected:
 	TSharedPtr<FWorkspaceItem> AssetEditorTabsCategory;
 
 private:
-	static const FName DefaultAssetEditorToolBarName;
+	static UNREALED_API const FName DefaultAssetEditorToolBarName;
 	/** The toolkit standalone host; may be nullptr */
 	TWeakPtr<SStandaloneAssetEditorToolkitHost> StandaloneHost;
 
 	/** Static: World centric toolkit host to use for the next created asset editing toolkit */
-	static TWeakPtr< IToolkitHost > PreviousWorldCentricToolkitHostForNewAssetEditor;
+	static UNREALED_API TWeakPtr< IToolkitHost > PreviousWorldCentricToolkitHostForNewAssetEditor;
 
 	/** The extensibility managers shared by all asset types */
-	static TSharedPtr<FExtensibilityManager> SharedMenuExtensibilityManager;
-	static TSharedPtr<FExtensibilityManager> SharedToolBarExtensibilityManager;
+	static UNREALED_API TSharedPtr<FExtensibilityManager> SharedMenuExtensibilityManager;
+	static UNREALED_API TSharedPtr<FExtensibilityManager> SharedToolBarExtensibilityManager;
 
 	/** The object we're currently editing */
 	// @todo toolkit minor: Currently we don't need to serialize this object reference because the AssetEditorSubsystem is kept in sync (and will always serialize it.)

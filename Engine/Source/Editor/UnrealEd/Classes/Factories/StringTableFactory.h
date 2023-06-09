@@ -7,12 +7,12 @@
 #include "Factories/Factory.h"
 #include "StringTableFactory.generated.h"
 
-UCLASS(hidecategories=Object)
-class UNREALED_API UStringTableFactory : public UFactory
+UCLASS(hidecategories=Object, MinimalAPI)
+class UStringTableFactory : public UFactory
 {
 	GENERATED_UCLASS_BODY()
 
 	//~ Begin UFactory Interface
-	virtual UObject* FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;
+	UNREALED_API virtual UObject* FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;
 	//~ Begin UFactory Interface
 };

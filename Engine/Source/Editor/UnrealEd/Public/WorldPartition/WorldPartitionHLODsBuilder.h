@@ -75,43 +75,43 @@ enum class EHLODBuildStep : uint8
 };
 ENUM_CLASS_FLAGS(EHLODBuildStep);
 
-UCLASS()
-class UNREALED_API UWorldPartitionHLODsBuilder : public UWorldPartitionBuilder
+UCLASS(MinimalAPI)
+class UWorldPartitionHLODsBuilder : public UWorldPartitionBuilder
 {
 	GENERATED_UCLASS_BODY()
 public:
 	// UWorldPartitionBuilder interface begin
-	virtual bool RequiresCommandletRendering() const override;
+	UNREALED_API virtual bool RequiresCommandletRendering() const override;
 	virtual ELoadingMode GetLoadingMode() const override { return ELoadingMode::Custom; }
-	virtual bool PreWorldInitialization(UWorld* World, FPackageSourceControlHelper& PackageHelper) override;
+	UNREALED_API virtual bool PreWorldInitialization(UWorld* World, FPackageSourceControlHelper& PackageHelper) override;
 
 protected:
-	virtual bool RunInternal(UWorld* World, const FCellInfo& InCellInfo, FPackageSourceControlHelper& PackageHelper) override;
+	UNREALED_API virtual bool RunInternal(UWorld* World, const FCellInfo& InCellInfo, FPackageSourceControlHelper& PackageHelper) override;
 	virtual bool CanProcessNonPartitionedWorlds() const override { return true; }
 	// UWorldPartitionBuilder interface end
 
 	bool IsDistributedBuild() const { return bDistributedBuild; }
 	bool IsUsingBuildManifest() const { return !BuildManifest.IsEmpty(); }
-	bool ValidateParams() const;
+	UNREALED_API bool ValidateParams() const;
 
-	bool SetupHLODActors();
-	bool BuildHLODActors();
-	bool DeleteHLODActors();
-	bool SubmitHLODActors();
-	bool DumpStats();
+	UNREALED_API bool SetupHLODActors();
+	UNREALED_API bool BuildHLODActors();
+	UNREALED_API bool DeleteHLODActors();
+	UNREALED_API bool SubmitHLODActors();
+	UNREALED_API bool DumpStats();
 
-	bool GenerateBuildManifest(TMap<FString, int32>& FilesToBuilderMap) const;
-	bool GetHLODActorsToBuild(TArray<FGuid>& HLODActorsToBuild) const;
+	UNREALED_API bool GenerateBuildManifest(TMap<FString, int32>& FilesToBuilderMap) const;
+	UNREALED_API bool GetHLODActorsToBuild(TArray<FGuid>& HLODActorsToBuild) const;
 
-	TArray<TArray<FGuid>> GetHLODWorkloads(int32 NumWorkloads) const;
-	bool ValidateWorkload(const TArray<FGuid>& Workload) const;
+	UNREALED_API TArray<TArray<FGuid>> GetHLODWorkloads(int32 NumWorkloads) const;
+	UNREALED_API bool ValidateWorkload(const TArray<FGuid>& Workload) const;
 
-	bool CopyFilesToWorkingDir(const FString& TargetDir, const FHLODModifiedFiles& ModifiedFiles, TArray<FString>& BuildProducts);
-	bool CopyFilesFromWorkingDir(const FString& SourceDir);
+	UNREALED_API bool CopyFilesToWorkingDir(const FString& TargetDir, const FHLODModifiedFiles& ModifiedFiles, TArray<FString>& BuildProducts);
+	UNREALED_API bool CopyFilesFromWorkingDir(const FString& SourceDir);
 
-	bool ShouldRunStep(const EHLODBuildStep BuildStep) const;
+	UNREALED_API bool ShouldRunStep(const EHLODBuildStep BuildStep) const;
 
-	bool AddBuildProducts(const TArray<FString>& BuildProducts) const;
+	UNREALED_API bool AddBuildProducts(const TArray<FString>& BuildProducts) const;
 
 private:
 	UWorld* World;

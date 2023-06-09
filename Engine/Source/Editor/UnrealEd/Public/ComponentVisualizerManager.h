@@ -12,63 +12,63 @@ class SWidget;
 struct FViewportClick;
 
 /** Class that managed active component visualizer and routes input to it */
-class UNREALED_API FComponentVisualizerManager
+class FComponentVisualizerManager
 {
 public:
-	FComponentVisualizerManager();
+	UNREALED_API FComponentVisualizerManager();
 	virtual ~FComponentVisualizerManager() {}
 
 
 	/** Activate a component visualizer given a clicked proxy */
-	bool HandleProxyForComponentVis(FEditorViewportClient* InViewportClient, HHitProxy *HitProxy, const FViewportClick &Click);
+	UNREALED_API bool HandleProxyForComponentVis(FEditorViewportClient* InViewportClient, HHitProxy *HitProxy, const FViewportClick &Click);
 
 	/** Activate a component visualizer given the specific visualizer */
-	bool SetActiveComponentVis(FEditorViewportClient* InViewportClient, TSharedPtr<FComponentVisualizer>& InVisualizer);
+	UNREALED_API bool SetActiveComponentVis(FEditorViewportClient* InViewportClient, TSharedPtr<FComponentVisualizer>& InVisualizer);
 
 	/** Clear active component visualizer */
-	void ClearActiveComponentVis();
+	UNREALED_API void ClearActiveComponentVis();
 
 	/** Handle a click on the specified level editor viewport client */
-	bool HandleClick(FEditorViewportClient* InViewportClient, HHitProxy *HitProxy, const FViewportClick &Click);
+	UNREALED_API bool HandleClick(FEditorViewportClient* InViewportClient, HHitProxy *HitProxy, const FViewportClick &Click);
 
 	/** Pass key input to active visualizer */
-	bool HandleInputKey(FEditorViewportClient* InViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event) const;
+	UNREALED_API bool HandleInputKey(FEditorViewportClient* InViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event) const;
 
 	/** Pass delta input to active visualizer */
-	bool HandleInputDelta(FEditorViewportClient* InViewportClient, FViewport* InViewport, FVector& InDrag, FRotator& InRot, FVector& InScale) const;
+	UNREALED_API bool HandleInputDelta(FEditorViewportClient* InViewportClient, FViewport* InViewport, FVector& InDrag, FRotator& InRot, FVector& InScale) const;
 
 	/** Pass box select input to active visualizer */
-	bool HandleBoxSelect(const FBox& InBox, FEditorViewportClient* InViewportClient, FViewport* InViewport) const;
+	UNREALED_API bool HandleBoxSelect(const FBox& InBox, FEditorViewportClient* InViewportClient, FViewport* InViewport) const;
 
 	/** Pass frustum select input to active visualizer */
-	bool HandleFrustumSelect(const FConvexVolume &InFrustum, FEditorViewportClient* InViewportClient, FViewport* InViewport) const;
+	UNREALED_API bool HandleFrustumSelect(const FConvexVolume &InFrustum, FEditorViewportClient* InViewportClient, FViewport* InViewport) const;
 
 	/** Return whether focus on selection should focus on bounding box defined by active visualizer */
-	bool HasFocusOnSelectionBoundingBox(FBox& OutBoundingBox) const;
+	UNREALED_API bool HasFocusOnSelectionBoundingBox(FBox& OutBoundingBox) const;
 
 	/** Pass snap input to active visualizer */
-	bool HandleSnapTo(const bool bInAlign, const bool bInUseLineTrace, const bool bInUseBounds, const bool bInUsePivot, AActor* InDestination);
+	UNREALED_API bool HandleSnapTo(const bool bInAlign, const bool bInUseLineTrace, const bool bInUseBounds, const bool bInUsePivot, AActor* InDestination);
 
 	/** Get widget location from active visualizer */
-	bool GetWidgetLocation(const FEditorViewportClient* InViewportClient, FVector& OutLocation) const;
+	UNREALED_API bool GetWidgetLocation(const FEditorViewportClient* InViewportClient, FVector& OutLocation) const;
 
 	/** Get custom widget coordinate system from active visualizer */
-	bool GetCustomInputCoordinateSystem(const FEditorViewportClient* InViewportClient, FMatrix& OutMatrix) const;
+	UNREALED_API bool GetCustomInputCoordinateSystem(const FEditorViewportClient* InViewportClient, FMatrix& OutMatrix) const;
 
 	/** Gets called when the mouse tracking has started (dragging behavior) */
-	void TrackingStarted(FEditorViewportClient* InViewportClient);
+	UNREALED_API void TrackingStarted(FEditorViewportClient* InViewportClient);
 
 	/** Gets called when the mouse tracking has stopped (dragging behavior) */
-	void TrackingStopped(FEditorViewportClient* InViewportClient, bool bInDidMove);
+	UNREALED_API void TrackingStopped(FEditorViewportClient* InViewportClient, bool bInDidMove);
 
 	/** Generate context menu for the component visualizer */
-	TSharedPtr<SWidget> GenerateContextMenuForComponentVis() const;
+	UNREALED_API TSharedPtr<SWidget> GenerateContextMenuForComponentVis() const;
 
 	/** Returns whether there is currently an active visualizer */
-	bool IsActive() const;
+	UNREALED_API bool IsActive() const;
 
 	/** Returns whether the component being visualized is an archetype or not */
-	bool IsVisualizingArchetype() const;
+	UNREALED_API bool IsVisualizingArchetype() const;
 
 private:
 	/** Currently 'active' visualizer that we should pass input to etc */

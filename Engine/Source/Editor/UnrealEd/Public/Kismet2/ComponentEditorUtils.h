@@ -12,55 +12,55 @@
 class UToolMenu;
 class UMaterialInterface;
 
-class UNREALED_API FComponentEditorUtils
+class FComponentEditorUtils
 {
 public:
 	/** Is the instance component is editable */
-	static bool CanEditComponentInstance(const UActorComponent* ActorComp, const UActorComponent* ParentSceneComp, bool bAllowUserContructionScript);
+	static UNREALED_API bool CanEditComponentInstance(const UActorComponent* ActorComp, const UActorComponent* ParentSceneComp, bool bAllowUserContructionScript);
 
 	/** 
 	* Test if the native component is editable. If it is, return a valid pointer to it's FProperty
 	* Otherwise, return nullptr. A native component is editable if it is marked as EditAnywhere
 	* via meta data tags or is within an editable property container 
 	*/
-	static FProperty* GetPropertyForEditableNativeComponent(const UActorComponent* NativeComponent);
+	static UNREALED_API FProperty* GetPropertyForEditableNativeComponent(const UActorComponent* NativeComponent);
 
 	/** Test whether or not the given string is a valid variable name string for the given component instance */
-	static bool IsValidVariableNameString(const UActorComponent* InComponent, const FString& InString);
+	static UNREALED_API bool IsValidVariableNameString(const UActorComponent* InComponent, const FString& InString);
 
 	/** 
 	 * Test whether or not the given string is already the name string of a component on the the owner
 	 * Optionally excludes an existing component from the check (ex. a component currently being renamed)
 	 * @return True if the InString is an available name for a component of ComponentOwner
 	 */
-	static bool IsComponentNameAvailable(const FString& InString, UObject* ComponentOwner, const UActorComponent* ComponentToIgnore = nullptr);
+	static UNREALED_API bool IsComponentNameAvailable(const FString& InString, UObject* ComponentOwner, const UActorComponent* ComponentToIgnore = nullptr);
 		
 	/** Generate a valid variable name string for the given component instance */
-	static FString GenerateValidVariableName(TSubclassOf<UActorComponent> InComponentClass, AActor* ComponentOwner);
+	static UNREALED_API FString GenerateValidVariableName(TSubclassOf<UActorComponent> InComponentClass, AActor* ComponentOwner);
 
 	/** Generate a valid variable name string for the given component instance based on the name of the asset referenced by the component */
-	static FString GenerateValidVariableNameFromAsset(UObject* Asset, AActor* ComponentOwner);
+	static UNREALED_API FString GenerateValidVariableNameFromAsset(UObject* Asset, AActor* ComponentOwner);
 
 	/**
 	* Checks whether it is valid to copy the given component
 	* @param ComponentToCopy The component to check
 	* @return Whether the given component can be copied
 	*/
-	static bool CanCopyComponent(const UActorComponent* ComponentToCopy);
+	static UNREALED_API bool CanCopyComponent(const UActorComponent* ComponentToCopy);
 
 	/**
 	 * Checks whether it is valid to copy the indicated components
 	 * @param ComponentsToCopy The list of components to check
 	 * @return Whether the indicated components can be copied
 	 */
-	static bool CanCopyComponents(const TArray<UActorComponent*>& ComponentsToCopy);
+	static UNREALED_API bool CanCopyComponents(const TArray<UActorComponent*>& ComponentsToCopy);
 
 	/**
 	 * Copies the selected components to the clipboard
 	 * @param ComponentsToCopy The list of components to copy
 	 * @param DestinationData Buffer to fill with the copied data, or null to use the clipboard
 	 */
-	static void CopyComponents(const TArray<UActorComponent*>& ComponentsToCopy, FString* DestinationData = nullptr);
+	static UNREALED_API void CopyComponents(const TArray<UActorComponent*>& ComponentsToCopy, FString* DestinationData = nullptr);
 
 	/**
 	 * Determines whether the current contents of the clipboard contain paste-able component information
@@ -69,7 +69,7 @@ public:
 	 * @param SourceData Component data to paste, or null to use the clipboard
 	 * @return Whether components can be pasted
 	 */
-	static bool CanPasteComponents(const USceneComponent* RootComponent, bool bOverrideCanAttach = false, bool bPasteAsArchetypes = false, const FString* SourceData = nullptr);
+	static UNREALED_API bool CanPasteComponents(const USceneComponent* RootComponent, bool bOverrideCanAttach = false, bool bPasteAsArchetypes = false, const FString* SourceData = nullptr);
 
 	/**
 	 * Attempts to paste components from the clipboard as siblings of the target component
@@ -78,28 +78,28 @@ public:
 	 * @param TargetComponent The component the paste is targeting (will attempt to paste components as siblings). If null, will attach pasted components to the root.
 	 * @param SourceData Component data to paste, or null to use the clipboard
 	 */
-	static void PasteComponents(TArray<UActorComponent*>& OutPastedComponents, AActor* TargetActor, USceneComponent* TargetComponent = nullptr, const FString* SourceData = nullptr);
+	static UNREALED_API void PasteComponents(TArray<UActorComponent*>& OutPastedComponents, AActor* TargetActor, USceneComponent* TargetComponent = nullptr, const FString* SourceData = nullptr);
 
 	/**
 	 * Gets the copied components from the clipboard without attempting to paste/apply them in any way
 	 * @param OutParentMap Contains the child->parent name relationships of the copied components
 	 * @param OutNewObjectMap Contains the name->instance object mapping of the copied components
 	 */
-	static void GetComponentsFromClipboard(TMap<FName, FName>& OutParentMap, TMap<FName, UActorComponent*>& OutNewObjectMap, bool bGetComponentsAsArchetypes);
+	static UNREALED_API void GetComponentsFromClipboard(TMap<FName, FName>& OutParentMap, TMap<FName, UActorComponent*>& OutNewObjectMap, bool bGetComponentsAsArchetypes);
 
 	/**
 	 * Determines whether the indicated component can be deleted
 	 * @param ComponentToDelete The component to determine can be deleted
 	 * @return Whether the indicated component can be deleted
 	 */
-	static bool CanDeleteComponent(const UActorComponent* ComponentToDelete);
+	static UNREALED_API bool CanDeleteComponent(const UActorComponent* ComponentToDelete);
 
 	/**
 	 * Determines whether the indicated components can be deleted
 	 * @param ComponentsToDelete The list of components to determine can be deleted
 	 * @return Whether the indicated components can be deleted
 	 */
-	static bool CanDeleteComponents(const TArray<UActorComponent*>& ComponentsToDelete);
+	static UNREALED_API bool CanDeleteComponents(const TArray<UActorComponent*>& ComponentsToDelete);
 
 	/**
 	 * Deletes the indicated components and identifies the component that should be selected following the operation.
@@ -109,14 +109,14 @@ public:
 	 * @param OutComponentToSelect The component that should be selected after the deletion
 	 * @return The number of components that were actually deleted
 	 */
-	static int32 DeleteComponents(const TArray<UActorComponent*>& ComponentsToDelete, UActorComponent*& OutComponentToSelect);
+	static UNREALED_API int32 DeleteComponents(const TArray<UActorComponent*>& ComponentsToDelete, UActorComponent*& OutComponentToSelect);
 
 	/** 
 	 * Duplicates a component instance and takes care of attachment and registration.
 	 * @param TemplateComponent The component to duplicate
 	 * @return The created clone of the provided TemplateComponent. nullptr if the duplication failed.
 	 */
-	static UActorComponent* DuplicateComponent(UActorComponent* TemplateComponent);
+	static UNREALED_API UActorComponent* DuplicateComponent(UActorComponent* TemplateComponent);
 
 	/**
 	 * Ensures that the selection override delegate is properly bound for the supplied component
@@ -125,7 +125,7 @@ public:
 	 * @param SceneComponent The component to set the selection override for
 	 * @param bBind Whether the override should be bound
 	*/
-	static void BindComponentSelectionOverride(USceneComponent* SceneComponent, bool bBind);
+	static UNREALED_API void BindComponentSelectionOverride(USceneComponent* SceneComponent, bool bBind);
 
 	/**
 	 * Attempts to apply a material to a component at the specified slot.
@@ -136,10 +136,10 @@ public:
 	 *
 	 * @return	True if the material was successfully applied to the component.
 	 */
-	static bool AttemptApplyMaterialToComponent( USceneComponent* SceneComponent, UMaterialInterface* MaterialToApply, int32 OptionalMaterialSlot = -1 );
+	static UNREALED_API bool AttemptApplyMaterialToComponent( USceneComponent* SceneComponent, UMaterialInterface* MaterialToApply, int32 OptionalMaterialSlot = -1 );
 
 	/** Potentially transforms the delta to be applied to a component into the appropriate space */
-	static void AdjustComponentDelta(const USceneComponent* Component, FVector& Drag, FRotator& Rotation);
+	static UNREALED_API void AdjustComponentDelta(const USceneComponent* Component, FVector& Drag, FRotator& Rotation);
 
 	// Given a template and a property, propagates a default value change to all instances (only if applicable)
 	template<typename T>
@@ -260,14 +260,14 @@ public:
 	}
 
 	// Try to find the correct variable name for a given native component template or instance (which can have a mismatch)
-	static FName FindVariableNameGivenComponentInstance(const UActorComponent* ComponentInstance);
+	static UNREALED_API FName FindVariableNameGivenComponentInstance(const UActorComponent* ComponentInstance);
 
 	/**
 	* Populates the given menu with basic options for operations on components in the world.
 	* @param Menu Used to register the menu options
 	* @param SelectedComponents The selected components to create menu options for
 	*/
-	static void FillComponentContextMenuOptions(UToolMenu* Menu, const TArray<UActorComponent*>& SelectedComponents);
+	static UNREALED_API void FillComponentContextMenuOptions(UToolMenu* Menu, const TArray<UActorComponent*>& SelectedComponents);
 
 	/**
 	 * Tries to find a match for ComponentInstance in the ComponentList. First by name and then if multiple Components have a matching name try to match the SceneComponent hierarchy to find the best match.
@@ -275,19 +275,19 @@ public:
 	 * @param ComponentList List containing possible matches
 	 * @return Valid Component pointer if match was found. nullptr otherwise.
 	 */
-	static UActorComponent* FindMatchingComponent(const UActorComponent* ComponentInstance, const TInlineComponentArray<UActorComponent*>& ComponentList);
+	static UNREALED_API UActorComponent* FindMatchingComponent(const UActorComponent* ComponentInstance, const TInlineComponentArray<UActorComponent*>& ComponentList);
 
 	/**
 	 * Make a FComponentReference from a component pointer.
 	 * @param ExpectedComponentOwner The expected component owner. Should be the same as OwningActor from FComponentReference::GetComponent().
 	 * @param Component The component we would like to initialize the FComponentReference with.
 	 */
-	static FComponentReference MakeComponentReference(const AActor* ExpectedComponentOwner, const UActorComponent* Component);
+	static UNREALED_API FComponentReference MakeComponentReference(const AActor* ExpectedComponentOwner, const UActorComponent* Component);
 
 private:	
-	static USceneComponent* FindClosestParentInList(UActorComponent* ChildComponent, const TArray<UActorComponent*>& ComponentList);
+	static UNREALED_API USceneComponent* FindClosestParentInList(UActorComponent* ChildComponent, const TArray<UActorComponent*>& ComponentList);
 
-	static void OnGoToComponentAssetInBrowser(UObject* Asset);
-	static void OnOpenComponentCodeFile(const FString CodeFileName);
-	static void OnEditBlueprintComponent(UObject* Blueprint);
+	static UNREALED_API void OnGoToComponentAssetInBrowser(UObject* Asset);
+	static UNREALED_API void OnOpenComponentCodeFile(const FString CodeFileName);
+	static UNREALED_API void OnEditBlueprintComponent(UObject* Blueprint);
 };

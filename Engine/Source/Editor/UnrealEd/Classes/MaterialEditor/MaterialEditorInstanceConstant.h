@@ -217,8 +217,8 @@ struct FEditorStaticComponentMaskParameterValue : public FEditorParameterValue
 	}
 };
 
-UCLASS(hidecategories=Object, collapsecategories)
-class UNREALED_API UMaterialEditorInstanceConstant : public UObject
+UCLASS(hidecategories=Object, collapsecategories, MinimalAPI)
+class UMaterialEditorInstanceConstant : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -283,56 +283,56 @@ class UNREALED_API UMaterialEditorInstanceConstant : public UObject
 	TSoftObjectPtr<UMaterialInterface> NaniteOverrideMaterial;
 
 	//~ Begin UObject Interface.
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	UNREALED_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #if WITH_EDITOR
-	virtual void PostEditUndo() override;
+	UNREALED_API virtual void PostEditUndo() override;
 #endif
 	//~ End UObject Interface.
 
 	/** Regenerates the parameter arrays. */
-	void RegenerateArrays();
+	UNREALED_API void RegenerateArrays();
 #if WITH_EDITOR
 	/** Sets back to zero the overrides for any parameters copied out of the layer stack */
-	void CleanParameterStack(int32 Index, EMaterialParameterAssociation MaterialType);
+	UNREALED_API void CleanParameterStack(int32 Index, EMaterialParameterAssociation MaterialType);
 	/** Copies the overrides for any parameters copied out of the layer stack from the layer or blend */
-	void ResetOverrides(int32 Index, EMaterialParameterAssociation MaterialType);
+	UNREALED_API void ResetOverrides(int32 Index, EMaterialParameterAssociation MaterialType);
 #endif
 	/** Copies the parameter array values back to the source instance. */
-	void CopyToSourceInstance(const bool bForceStaticPermutationUpdate = false);
+	UNREALED_API void CopyToSourceInstance(const bool bForceStaticPermutationUpdate = false);
 
-	void ApplySourceFunctionChanges();
+	UNREALED_API void ApplySourceFunctionChanges();
 
 	/** 
 	 * Sets the source instance for this object and regenerates arrays. 
 	 *
 	 * @param MaterialInterface		Instance to use as the source for this material editor instance.
 	 */
-	void SetSourceInstance(UMaterialInstanceConstant* MaterialInterface);
+	UNREALED_API void SetSourceInstance(UMaterialInstanceConstant* MaterialInterface);
 
-	void CopyBasePropertiesFromParent();
+	UNREALED_API void CopyBasePropertiesFromParent();
 
-	void SetSourceFunction(UMaterialFunctionInstance* MaterialFunction);
+	UNREALED_API void SetSourceFunction(UMaterialFunctionInstance* MaterialFunction);
 
 	/** 
 	 * Update the source instance parent to match this
 	 */
-	void UpdateSourceInstanceParent();
+	UNREALED_API void UpdateSourceInstanceParent();
 
 	/** 
 	 *  Returns group for parameter. Creates one if needed. 
 	 *
 	 * @param ParameterGroup		Name to be looked for.
 	 */
-	FEditorParameterGroup & GetParameterGroup(FName& ParameterGroup);
+	UNREALED_API FEditorParameterGroup & GetParameterGroup(FName& ParameterGroup);
 	/** 
 	 *  Creates/adds value to group retrieved from parent material . 
 	 *
 	 * @param ParameterValue		Current data to be grouped
 	 * @param GroupName				Name of the group
 	 */
-	void AssignParameterToGroup(UDEditorParameterValue* ParameterValue, const FName& GroupName);
+	UNREALED_API void AssignParameterToGroup(UDEditorParameterValue* ParameterValue, const FName& GroupName);
 
-	static FName GlobalGroupPrefix;
+	static UNREALED_API FName GlobalGroupPrefix;
 
 	TWeakPtr<class IDetailsView> DetailsView;
 

@@ -21,8 +21,8 @@ public:
 	TArray<FMirrorFindReplaceExpression> FindReplaceExpressions;
 };
 
-UCLASS(hidecategories=Object)
-class UNREALED_API UMirrorDataTableFactory : public UFactory
+UCLASS(hidecategories=Object, MinimalAPI)
+class UMirrorDataTableFactory : public UFactory
 {
 	GENERATED_BODY()
 	UMirrorDataTableFactory(const FObjectInitializer& ObjectInitializer);
@@ -38,18 +38,18 @@ class UNREALED_API UMirrorDataTableFactory : public UFactory
 
 public:
 	//~ Begin UFactory Interface
-	virtual bool ConfigureProperties() override;
-	virtual UObject* FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;
+	UNREALED_API virtual bool ConfigureProperties() override;
+	UNREALED_API virtual UObject* FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;
 	//~ Begin UFactory Interface
 
 		/** Returns the name of the factory for menus */
-	virtual FText GetDisplayName() const override;
+	UNREALED_API virtual FText GetDisplayName() const override;
 
 	/** When shown in menus, this is the category containing this factory. Return type is a BitFlag mask using EAssetTypeCategories. */
-	virtual uint32 GetMenuCategories() const override;
+	UNREALED_API virtual uint32 GetMenuCategories() const override;
 protected:
 
-	void OnWindowUserActionDelegate(bool bCreate, USkeleton* InSkeleton, UMirrorTableFindReplaceExpressions* InFindReplaceExpressions, const UScriptStruct* InResultStruct);
-	virtual UMirrorDataTable* MakeNewMirrorDataTable(UObject* InParent, FName Name, EObjectFlags Flags);
+	UNREALED_API void OnWindowUserActionDelegate(bool bCreate, USkeleton* InSkeleton, UMirrorTableFindReplaceExpressions* InFindReplaceExpressions, const UScriptStruct* InResultStruct);
+	UNREALED_API virtual UMirrorDataTable* MakeNewMirrorDataTable(UObject* InParent, FName Name, EObjectFlags Flags);
 };
 

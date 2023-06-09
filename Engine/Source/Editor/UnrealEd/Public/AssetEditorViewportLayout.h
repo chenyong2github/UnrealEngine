@@ -23,7 +23,7 @@ class FEditorViewportTabContent;
 class FViewportTabContent;
 
 /** Arguments for constructing a viewport */
-struct UNREALED_API FAssetEditorViewportConstructionArgs
+struct FAssetEditorViewportConstructionArgs
 {
 	FAssetEditorViewportConstructionArgs()
 		: ViewportType(LVT_Perspective)
@@ -65,7 +65,7 @@ namespace EditorViewportConfigurationNames
 * It will also store the ViewportLayout data because that data can't be stored
 * per app; it must be stored per viewport overlay in case the app that made it closes.
 */
-class UNREALED_API SAssetEditorViewportsOverlay : public SCompoundWidget
+class SAssetEditorViewportsOverlay : public SCompoundWidget
 {
 
 public:
@@ -75,7 +75,7 @@ public:
 		SLATE_ARGUMENT(TSharedPtr<FViewportTabContent>, ViewportTab)
 	SLATE_END_ARGS()
 
-		void Construct(const FArguments& InArgs);
+		UNREALED_API void Construct(const FArguments& InArgs);
 
 	/** Default constructor */
 	SAssetEditorViewportsOverlay()
@@ -83,23 +83,23 @@ public:
 	{}
 
 	/** Overridden from SWidget */
-	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+	UNREALED_API virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 	/** Wraps SOverlay::AddSlot() */
-	SOverlay::FScopedWidgetSlotArguments AddSlot();
+	UNREALED_API SOverlay::FScopedWidgetSlotArguments AddSlot();
 
 	/** Wraps SOverlay::RemoveSlot() */
-	void RemoveSlot();
+	UNREALED_API void RemoveSlot();
 
 	/**
 	* Returns the cached size of this viewport overlay
 	*
 	* @return	The size that was cached
 	*/
-	const FVector2D& GetCachedSize() const;
+	UNREALED_API const FVector2D& GetCachedSize() const;
 
 	/** Gets the  Viewport Tab that created this overlay */
-	TSharedPtr<FViewportTabContent> GetViewportTab() const;
+	UNREALED_API TSharedPtr<FViewportTabContent> GetViewportTab() const;
 
 private:
 
@@ -113,7 +113,7 @@ private:
 	FVector2D CachedSize;
 };
 
-class UNREALED_API FAssetEditorViewportPaneLayout
+class FAssetEditorViewportPaneLayout
 {
 public:
 	virtual ~FAssetEditorViewportPaneLayout() = default;
@@ -132,14 +132,14 @@ public:
 	 */
 	virtual const FName& GetLayoutTypeName() const = 0;
 
-	void LoadConfig(const FString& LayoutString, TFunction<void(const FString&, const FName)> LoadAdditionalLayoutInfoCallback = nullptr);
+	UNREALED_API void LoadConfig(const FString& LayoutString, TFunction<void(const FString&, const FName)> LoadAdditionalLayoutInfoCallback = nullptr);
 
-	void SaveConfig(const FString& LayoutString, TFunction<void(const FString&)> SaveAdditionalLayoutInfoCallback = nullptr) const;
+	UNREALED_API void SaveConfig(const FString& LayoutString, TFunction<void(const FString&)> SaveAdditionalLayoutInfoCallback = nullptr) const;
 
 	virtual void ReplaceWidget(TSharedRef<SWidget> OriginalWidget, TSharedRef<SWidget> ReplacementWidget) = 0;
 
 protected:
-	FString GetTypeSpecificLayoutString(const FString& LayoutString) const;
+	UNREALED_API FString GetTypeSpecificLayoutString(const FString& LayoutString) const;
 	virtual void SaveLayoutString(const FString& LayoutString) const {}
 	virtual void LoadLayoutString(const FString& LayoutString) {}
 
@@ -150,29 +150,29 @@ protected:
  * Base class for viewport layout configurations
  * Handles maximizing and restoring well as visibility of specific viewports.
  */
-class UNREALED_API FAssetEditorViewportLayout : public TSharedFromThis<FAssetEditorViewportLayout>, public FEditorViewportLayout, public FTickableEditorObject
+class FAssetEditorViewportLayout : public TSharedFromThis<FAssetEditorViewportLayout>, public FEditorViewportLayout, public FTickableEditorObject
 {
 public:
 	/**
 	 * Constructor
 	 */
-	FAssetEditorViewportLayout();
+	UNREALED_API FAssetEditorViewportLayout();
 
 	/**
 	 * Destructor
 	 */
-	virtual ~FAssetEditorViewportLayout();
+	UNREALED_API virtual ~FAssetEditorViewportLayout();
 
 	/** Create an instance of a custom viewport from the specified viewport type name */
-	virtual TSharedRef<SWidget> FactoryViewport(FName InTypeName, const FAssetEditorViewportConstructionArgs& ConstructionArgs);
+	UNREALED_API virtual TSharedRef<SWidget> FactoryViewport(FName InTypeName, const FAssetEditorViewportConstructionArgs& ConstructionArgs);
 
 	/** FTickableEditorObject interface */
 	virtual void Tick(float DeltaTime) override {}
 	virtual bool IsTickable() const override { return false; }
  	virtual TStatId GetStatId() const override { return TStatId(); }
 
-	virtual void FactoryPaneConfigurationFromTypeName(const FName& InLayoutConfigTypeName) override;
-	virtual const FName GetActivePaneConfigurationTypeName() const override;
+	UNREALED_API virtual void FactoryPaneConfigurationFromTypeName(const FName& InLayoutConfigTypeName) override;
+	UNREALED_API virtual const FName GetActivePaneConfigurationTypeName() const override;
 
 	/**
 	 * Builds a viewport layout and returns the widget containing the layout
@@ -181,7 +181,7 @@ public:
 	 * @param InParentTab			The parent tab object
 	 * @param LayoutString			The layout string loaded from file to custom build the layout with
 	 */
- 	virtual TSharedRef<SWidget> BuildViewportLayout(TSharedPtr<SDockTab> InParentDockTab, TSharedPtr<FEditorViewportTabContent> InParentTab, const FString& LayoutString );
+ 	UNREALED_API virtual TSharedRef<SWidget> BuildViewportLayout(TSharedPtr<SDockTab> InParentDockTab, TSharedPtr<FEditorViewportTabContent> InParentTab, const FString& LayoutString );
 
 	/** Returns the parent tab content object */
 	TWeakPtr< FEditorViewportTabContent > GetParentTabContent() const { return ParentTabContent; }
@@ -193,10 +193,10 @@ public:
 	 * @return The base widget representing the layout.  This is commonly a splitter.
 	 */
 	UE_DEPRECATED(5.0, "This functionality has moved to the layout configurations. Use BuildViewportLayout.")
-	virtual TSharedRef<SWidget> MakeViewportLayout(const FString& LayoutString) final;
+	UNREALED_API virtual TSharedRef<SWidget> MakeViewportLayout(const FString& LayoutString) final;
 
-	virtual void LoadConfig(const FString& LayoutString);
-	virtual void SaveConfig(const FString& LayoutString) const;
+	UNREALED_API virtual void LoadConfig(const FString& LayoutString);
+	UNREALED_API virtual void SaveConfig(const FString& LayoutString) const;
 
 protected:
 	/**
@@ -205,7 +205,7 @@ protected:
 	 *
 	 * @param EVisibility::Visible when visible, EVisibility::Collapsed otherwise
 	 */
-	virtual EVisibility OnGetNonMaximizedVisibility() const;
+	UNREALED_API virtual EVisibility OnGetNonMaximizedVisibility() const;
 
 	/** The overlay widget that handles what viewports should be on top (non-maximized or maximized) */
 	TWeakPtr< SAssetEditorViewportsOverlay > ViewportsOverlayPtr;

@@ -93,7 +93,7 @@ public:
  * Describes a chain of properties from the parent actor of a given component, to the component itself.
  */
 USTRUCT()
-struct UNREALED_API FComponentPropertyPath
+struct FComponentPropertyPath
 {
 public:
 	 GENERATED_USTRUCT_BODY()
@@ -113,10 +113,10 @@ public:
 	AActor* GetParentOwningActor() const { return ParentOwningActor.Get(); }
 
 	/** Gets a pointer to the component, or nullptr if it is not valid */
-	UActorComponent* GetComponent() const;
+	UNREALED_API UActorComponent* GetComponent() const;
 
 	/** Determines whether the property path is valid or not */
-	bool IsValid() const;
+	UNREALED_API bool IsValid() const;
 
 	bool operator ==(const FComponentPropertyPath& InRHS) const
 	{
@@ -131,7 +131,7 @@ public:
 private:
 
 	/** Sets the component referred to by the object */
-	void Set(const UActorComponent* Component);
+	UNREALED_API void Set(const UActorComponent* Component);
 
 	UPROPERTY()
 	TWeakObjectPtr<AActor> ParentOwningActor;
@@ -146,7 +146,7 @@ private:
 
 
 /** Base class for a component visualizer, that draw editor information for a particular component class */
-class UNREALED_API FComponentVisualizer : public TSharedFromThis<FComponentVisualizer>
+class FComponentVisualizer : public TSharedFromThis<FComponentVisualizer>
 {
 public:
 	FComponentVisualizer() {}
@@ -201,17 +201,17 @@ public:
 
 	/** Find the name of the property that points to this component */
 	UE_DEPRECATED(4.24, "Please use the FComponentPropertyPath class to build property name paths for components.")
-	static FPropertyNameAndIndex GetComponentPropertyName(const UActorComponent* Component);
+	static UNREALED_API FPropertyNameAndIndex GetComponentPropertyName(const UActorComponent* Component);
 
 	/** Get a component pointer from the property name */
 	UE_DEPRECATED(4.24, "Please use the FComponentPropertyPath::GetComponent() to retrieve a component pointer from a property name path.")
-	static UActorComponent* GetComponentFromPropertyName(const AActor* CompOwner, const FPropertyNameAndIndex& Property);
+	static UNREALED_API UActorComponent* GetComponentFromPropertyName(const AActor* CompOwner, const FPropertyNameAndIndex& Property);
 
 	/** Notify that a component property has been modified */
-	static void NotifyPropertyModified(UActorComponent* Component, FProperty* Property, EPropertyChangeType::Type PropertyChangeType = EPropertyChangeType::Unspecified);
+	static UNREALED_API void NotifyPropertyModified(UActorComponent* Component, FProperty* Property, EPropertyChangeType::Type PropertyChangeType = EPropertyChangeType::Unspecified);
 
 	/** Notify that many component properties have been modified */
-	static void NotifyPropertiesModified(UActorComponent* Component, const TArray<FProperty*>& Properties, EPropertyChangeType::Type PropertyChangeType = EPropertyChangeType::Unspecified);
+	static UNREALED_API void NotifyPropertiesModified(UActorComponent* Component, const TArray<FProperty*>& Properties, EPropertyChangeType::Type PropertyChangeType = EPropertyChangeType::Unspecified);
 };
 
 struct FCachedComponentVisualizer

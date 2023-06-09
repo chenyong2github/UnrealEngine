@@ -13,8 +13,8 @@
 /**
  * Implements Editor settings for experimental features.
  */
-UCLASS(config=EditorPerProjectUserSettings)
-class UNREALED_API UEditorExperimentalSettings
+UCLASS(config=EditorPerProjectUserSettings, MinimalAPI)
+class UEditorExperimentalSettings
 	: public UObject
 {
 	GENERATED_UCLASS_BODY()
@@ -157,8 +157,8 @@ public:
 protected:
 
 	// UObject overrides
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PostInitProperties() override;
+	UNREALED_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	UNREALED_API virtual void PostInitProperties() override;
 
 private:
 

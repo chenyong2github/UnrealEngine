@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -10,8 +10,8 @@
 
 #include "ComponentElementEditorCopyAndPaste.generated.h"
 
-UCLASS(BlueprintType)
-class UNREALED_API UComponentElementsCopy : public UObject
+UCLASS(BlueprintType, MinimalAPI)
+class UComponentElementsCopy : public UObject
 {
 	GENERATED_BODY()
 
@@ -20,26 +20,26 @@ public:
 	TArray<TObjectPtr<UActorComponent>> ComponentsToCopy;
 };
 
-UCLASS()
-class UNREALED_API UComponentElementsExporterT3D : public UExporter
+UCLASS(MinimalAPI)
+class UComponentElementsExporterT3D : public UExporter
 {
 public:
 	GENERATED_BODY()
 
 public:
-	explicit UComponentElementsExporterT3D(const FObjectInitializer& ObjectInitializer = FObjectInitializer());
+	UNREALED_API explicit UComponentElementsExporterT3D(const FObjectInitializer& ObjectInitializer = FObjectInitializer());
 
 	//~ Begin UExporter Interface
-	virtual bool ExportText(const FExportObjectInnerContext* Context, UObject* Object, const TCHAR* Type, FOutputDevice& Out, FFeedbackContext* Warn, uint32 PortFlags = 0) override;
+	UNREALED_API virtual bool ExportText(const FExportObjectInnerContext* Context, UObject* Object, const TCHAR* Type, FOutputDevice& Out, FFeedbackContext* Warn, uint32 PortFlags = 0) override;
 	//~ End UExporter Interface
 };
 
-struct UNREALED_API FComponentElementEditorPasteImporter : public FWorldElementPasteImporter
+struct FComponentElementEditorPasteImporter : public FWorldElementPasteImporter
 {
 public:
-	virtual void Import(FContext& Context) override;
+	UNREALED_API virtual void Import(FContext& Context) override;
 	
-	virtual TArray<FTypedElementHandle> GetImportedElements() override;
+	UNREALED_API virtual TArray<FTypedElementHandle> GetImportedElements() override;
 private:
 	TArray<TObjectPtr<UActorComponent>> ImportedComponents;
 };

@@ -20,14 +20,14 @@ class UStaticMesh;
  * This class is a simple customizable object factory driven from a text buffer.  
  * Subclasses need to implement CanCreateClass and ProcessConstructedObject.
  */
-class UNREALED_API FCustomizableTextObjectFactory
+class FCustomizableTextObjectFactory
 {
 protected:
 	FFeedbackContext* WarningContext;
 	FObjectInstancingGraph InstanceGraph;
 public:
 	/** Constructor for the factory; takes a context for emitting warnings such as GWarn */
-	FCustomizableTextObjectFactory(FFeedbackContext* InWarningContext);
+	UNREALED_API FCustomizableTextObjectFactory(FFeedbackContext* InWarningContext);
 	virtual ~FCustomizableTextObjectFactory() {}
 
 	/**
@@ -37,24 +37,24 @@ public:
 	 *	@param	Flags		Flags used when creating AnimObjects
 	 *	@param	TextBuffer	Text buffer with descriptions of nodes
 	 */
-	void ProcessBuffer(UObject* InParent, EObjectFlags Flags, const FString& TextBuffer);
+	UNREALED_API void ProcessBuffer(UObject* InParent, EObjectFlags Flags, const FString& TextBuffer);
 
-	void ProcessBuffer(UObject* InParent, EObjectFlags Flags, const TCHAR* TextBuffer);
+	UNREALED_API void ProcessBuffer(UObject* InParent, EObjectFlags Flags, const TCHAR* TextBuffer);
 
 	/**
 	 *	Determine if it is possible to create objects from the specified TextBuffer
 	 */
-	bool CanCreateObjectsFromText(const FString& TextBuffer) const;
+	UNREALED_API bool CanCreateObjectsFromText(const FString& TextBuffer) const;
 
 protected:
 	/** Return true if the an object of type ObjectClass is allowed to be created; If false is returned, the object and subobjects will be ignored. */
-	virtual bool CanCreateClass(UClass* ObjectClass, bool& bOmitSubObjs) const;
+	UNREALED_API virtual bool CanCreateClass(UClass* ObjectClass, bool& bOmitSubObjs) const;
 
 	/** Return true if the an object of type ObjectClass is allowed to be created with a given name under the provided parent; If false is returned, the object and subobjects will be ignored. */
-	virtual bool CanCreateObject(UObject* InParent, UClass* ObjectClass, const FName& InDesiredName) const;
+	UNREALED_API virtual bool CanCreateObject(UObject* InParent, UClass* ObjectClass, const FName& InDesiredName) const;
 
 	/** This is called on each created object after the property text is imported */
-	virtual void ProcessConstructedObject(UObject* CreatedObject);
+	UNREALED_API virtual void ProcessConstructedObject(UObject* CreatedObject);
 
 	/** Post handling of constructed objects by the factory */
 	virtual void PostProcessConstructedObjects() {};
@@ -63,7 +63,7 @@ protected:
 	virtual void UpdateObjectName(UClass* ObjectClass, UObject* InParent, FName& InOutObjName) {};
 
 	/** Util to ensure that InName is a valid name for a new object within InParent. Will rename any existing object within InParent if it is called InName. */
-	static void ClearObjectNameUsage(UObject* InParent, FName InName);
+	static UNREALED_API void ClearObjectNameUsage(UObject* InParent, FName InName);
 
 	/** If we cant do anything with the line ourselves hand off to child class */
 	virtual void ProcessUnidentifiedLine(const FString& StrLine) {}

@@ -268,7 +268,7 @@ namespace DiffUtils
 DECLARE_DELEGATE(FOnDiffEntryFocused);
 DECLARE_DELEGATE_RetVal(TSharedRef<SWidget>, FGenerateDiffEntryWidget);
 
-class UNREALED_API FBlueprintDifferenceTreeEntry
+class FBlueprintDifferenceTreeEntry
 {
 public:
 	FBlueprintDifferenceTreeEntry(FOnDiffEntryFocused InOnFocus, FGenerateDiffEntryWidget InGenerateWidget, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> > InChildren = TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >())
@@ -282,16 +282,16 @@ public:
 	virtual ~FBlueprintDifferenceTreeEntry() = default;
 
 	/** Displays message to user saying there are no differences */
-	static TSharedPtr<FBlueprintDifferenceTreeEntry> NoDifferencesEntry();
+	static UNREALED_API TSharedPtr<FBlueprintDifferenceTreeEntry> NoDifferencesEntry();
 
 	/** Displays message to user warning that there may be undetected differences */
-	static TSharedPtr<FBlueprintDifferenceTreeEntry> UnknownDifferencesEntry();
+	static UNREALED_API TSharedPtr<FBlueprintDifferenceTreeEntry> UnknownDifferencesEntry();
 
 	/** Create category message for the diff UI */
-	static TSharedPtr<FBlueprintDifferenceTreeEntry> CreateCategoryEntry(const FText& LabelText, const FText& ToolTipText, FOnDiffEntryFocused FocusCallback, const TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& Children, bool bHasDifferences);
+	static UNREALED_API TSharedPtr<FBlueprintDifferenceTreeEntry> CreateCategoryEntry(const FText& LabelText, const FText& ToolTipText, FOnDiffEntryFocused FocusCallback, const TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& Children, bool bHasDifferences);
 
 	/** Create category message for the merge UI */
-	static TSharedPtr<FBlueprintDifferenceTreeEntry> CreateCategoryEntryForMerge(const FText& LabelText, const FText& ToolTipText, FOnDiffEntryFocused FocusCallback, const TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& Children, bool bHasRemoteDifferences, bool bHasLocalDifferences, bool bHasConflicts);
+	static UNREALED_API TSharedPtr<FBlueprintDifferenceTreeEntry> CreateCategoryEntryForMerge(const FText& LabelText, const FText& ToolTipText, FOnDiffEntryFocused FocusCallback, const TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& Children, bool bHasRemoteDifferences, bool bHasLocalDifferences, bool bHasConflicts);
 	
 	FOnDiffEntryFocused OnFocus;
 	FGenerateDiffEntryWidget GenerateWidget;

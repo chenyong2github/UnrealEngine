@@ -31,48 +31,48 @@ struct FHLODLayerActorMapping
 	FString HLODLayer;
 };
 
-UCLASS(Config = Engine)
-class UNREALED_API UWorldPartitionConvertCommandlet : public UCommandlet
+UCLASS(Config = Engine, MinimalAPI)
+class UWorldPartitionConvertCommandlet : public UCommandlet
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 	//~ Begin UCommandlet Interface
-	virtual int32 Main(const FString& Params) override;
+	UNREALED_API virtual int32 Main(const FString& Params) override;
 	//~ End UCommandlet Interface
 
-	static const FString GetConversionSuffix(const bool bInOnlyMergeSubLevels);
+	static UNREALED_API const FString GetConversionSuffix(const bool bInOnlyMergeSubLevels);
 
 private:
-	void GatherAndPrepareSubLevelsToConvert(ULevel* Level, TArray<ULevel*>& SubLevels);
+	UNREALED_API void GatherAndPrepareSubLevelsToConvert(ULevel* Level, TArray<ULevel*>& SubLevels);
 
 protected:
-	virtual bool GetAdditionalLevelsToConvert(ULevel* Level, TArray<ULevel*>& SubLevels);
-	virtual bool PrepareStreamingLevelForConversion(ULevelStreaming* StreamingLevel);
-	virtual bool ShouldConvertStreamingLevel(ULevelStreaming* StreamingLevel);
-	virtual bool ShouldDeleteActor(AActor* Actor, bool bMainLevel) const;
-	virtual void PerformAdditionalWorldCleanup(UWorld* World) const;
+	UNREALED_API virtual bool GetAdditionalLevelsToConvert(ULevel* Level, TArray<ULevel*>& SubLevels);
+	UNREALED_API virtual bool PrepareStreamingLevelForConversion(ULevelStreaming* StreamingLevel);
+	UNREALED_API virtual bool ShouldConvertStreamingLevel(ULevelStreaming* StreamingLevel);
+	UNREALED_API virtual bool ShouldDeleteActor(AActor* Actor, bool bMainLevel) const;
+	UNREALED_API virtual void PerformAdditionalWorldCleanup(UWorld* World) const;
 	virtual void PerformAdditionalActorChanges(AActor* Actor) const {}
-	virtual void OutputConversionReport() const;
-	virtual void OnWorldLoaded(UWorld* World);
+	UNREALED_API virtual void OutputConversionReport() const;
+	UNREALED_API virtual void OnWorldLoaded(UWorld* World);
 	virtual void ReadAdditionalTokensAndSwitches(const TArray<FString>& Tokens, const TArray<FString>& Switches) {}
 
-	UWorldPartition* CreateWorldPartition(class AWorldSettings* MainWorldSettings);
-	UWorld* LoadWorld(const FString& LevelToLoad);
-	ULevel* InitWorld(UWorld* World);
+	UNREALED_API UWorldPartition* CreateWorldPartition(class AWorldSettings* MainWorldSettings);
+	UNREALED_API UWorld* LoadWorld(const FString& LevelToLoad);
+	UNREALED_API ULevel* InitWorld(UWorld* World);
 
-	void ChangeObjectOuter(UObject* Object, UObject* NewOuter);
-	void FixupSoftObjectPaths(UPackage* OuterPackage);
+	UNREALED_API void ChangeObjectOuter(UObject* Object, UObject* NewOuter);
+	UNREALED_API void FixupSoftObjectPaths(UPackage* OuterPackage);
 
-	bool DetachDependantLevelPackages(ULevel* Level);
-	bool RenameWorldPackageWithSuffix(UWorld* World);
+	UNREALED_API bool DetachDependantLevelPackages(ULevel* Level);
+	UNREALED_API bool RenameWorldPackageWithSuffix(UWorld* World);
 
-	void SetupHLOD();
-	void SetupHLODLayerAssets();
-	UHLODLayer* CreateHLODLayerFromINI(const FString& InHLODLayerName);
+	UNREALED_API void SetupHLOD();
+	UNREALED_API void SetupHLODLayerAssets();
+	UNREALED_API UHLODLayer* CreateHLODLayerFromINI(const FString& InHLODLayerName);
 
-	void SetActorGuid(AActor* Actor, const FGuid& NewGuid);
-	void CreateWorldMiniMapTexture(UWorld* World);
+	UNREALED_API void SetActorGuid(AActor* Actor, const FGuid& NewGuid);
+	UNREALED_API void CreateWorldMiniMapTexture(UWorld* World);
 
 	// Conversion report
 	TSet<FString> MapsWithLevelScriptsBPs;

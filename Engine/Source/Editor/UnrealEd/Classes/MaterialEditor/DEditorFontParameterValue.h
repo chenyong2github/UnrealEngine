@@ -9,7 +9,7 @@
 #include "DEditorFontParameterValue.generated.h"
 
 USTRUCT()
-struct UNREALED_API FDFontParameters
+struct FDFontParameters
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -20,8 +20,8 @@ struct UNREALED_API FDFontParameters
 	int32 FontPage = 0;
 };
 
-UCLASS(hidecategories = Object, collapsecategories)
-class UNREALED_API UDEditorFontParameterValue : public UDEditorParameterValue
+UCLASS(hidecategories = Object, collapsecategories, MinimalAPI)
+class UDEditorFontParameterValue : public UDEditorParameterValue
 {
 	GENERATED_UCLASS_BODY()
 

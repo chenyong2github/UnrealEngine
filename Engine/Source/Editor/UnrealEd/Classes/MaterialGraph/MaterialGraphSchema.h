@@ -12,7 +12,7 @@ struct FToolMenuContext;
 
 /** Action to add an expression node to the graph */
 USTRUCT()
-struct UNREALED_API FMaterialGraphSchemaAction_NewNode : public FEdGraphSchemaAction
+struct FMaterialGraphSchemaAction_NewNode : public FEdGraphSchemaAction
 {
 	GENERATED_USTRUCT_BODY();
 
@@ -35,7 +35,7 @@ struct UNREALED_API FMaterialGraphSchemaAction_NewNode : public FEdGraphSchemaAc
 	{}
 
 	//~ Begin FEdGraphSchemaAction Interface
-	virtual UEdGraphNode* PerformAction(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
+	UNREALED_API virtual UEdGraphNode* PerformAction(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
 	//~ End FEdGraphSchemaAction Interface
 
 	/**
@@ -44,12 +44,12 @@ struct UNREALED_API FMaterialGraphSchemaAction_NewNode : public FEdGraphSchemaAc
 	 * @param	FunctionInput		The function input to set.
 	 * @param	MaterialValueType	Value type we want input to accept.
 	 */
-	void SetFunctionInputType(class UMaterialExpressionFunctionInput* FunctionInput, uint32 MaterialValueType) const;
+	UNREALED_API void SetFunctionInputType(class UMaterialExpressionFunctionInput* FunctionInput, uint32 MaterialValueType) const;
 };
 
 /** Action to add a Material Function call to the graph */
 USTRUCT()
-struct UNREALED_API FMaterialGraphSchemaAction_NewFunctionCall : public FEdGraphSchemaAction
+struct FMaterialGraphSchemaAction_NewFunctionCall : public FEdGraphSchemaAction
 {
 	GENERATED_USTRUCT_BODY();
 
@@ -70,13 +70,13 @@ struct UNREALED_API FMaterialGraphSchemaAction_NewFunctionCall : public FEdGraph
 	{}
 
 	//~ Begin FEdGraphSchemaAction Interface
-	virtual UEdGraphNode* PerformAction(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
+	UNREALED_API virtual UEdGraphNode* PerformAction(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
 	//~ End FEdGraphSchemaAction Interface
 };
 
 /** Action to add a composite node to the graph */
 USTRUCT()
-struct UNREALED_API FMaterialGraphSchemaAction_NewComposite : public FEdGraphSchemaAction
+struct FMaterialGraphSchemaAction_NewComposite : public FEdGraphSchemaAction
 {
 	GENERATED_USTRUCT_BODY();
 
@@ -93,15 +93,15 @@ struct UNREALED_API FMaterialGraphSchemaAction_NewComposite : public FEdGraphSch
 	{}
 
 	//~ Begin FEdGraphSchemaAction Interface
-	virtual UEdGraphNode* PerformAction(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
+	UNREALED_API virtual UEdGraphNode* PerformAction(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
 	//~ End FEdGraphSchemaAction Interface
 
-	static UEdGraphNode* SpawnNode(class UEdGraph* ParentGraph, const FVector2D Location);
+	static UNREALED_API UEdGraphNode* SpawnNode(class UEdGraph* ParentGraph, const FVector2D Location);
 };
 
 /** Action to add a comment node to the graph */
 USTRUCT()
-struct UNREALED_API FMaterialGraphSchemaAction_NewComment : public FEdGraphSchemaAction
+struct FMaterialGraphSchemaAction_NewComment : public FEdGraphSchemaAction
 {
 	GENERATED_USTRUCT_BODY();
 
@@ -118,13 +118,13 @@ struct UNREALED_API FMaterialGraphSchemaAction_NewComment : public FEdGraphSchem
 	{}
 
 	//~ Begin FEdGraphSchemaAction Interface
-	virtual UEdGraphNode* PerformAction(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
+	UNREALED_API virtual UEdGraphNode* PerformAction(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
 	//~ End FEdGraphSchemaAction Interface
 };
 
 /** Action to add a local variable usage to the graph */
 USTRUCT()
-struct UNREALED_API FMaterialGraphSchemaAction_NewNamedRerouteUsage : public FEdGraphSchemaAction
+struct FMaterialGraphSchemaAction_NewNamedRerouteUsage : public FEdGraphSchemaAction
 {
 	GENERATED_USTRUCT_BODY();
 
@@ -145,13 +145,13 @@ struct UNREALED_API FMaterialGraphSchemaAction_NewNamedRerouteUsage : public FEd
 	{}
 
 	//~ Begin FEdGraphSchemaAction Interface
-	virtual UEdGraphNode* PerformAction(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
+	UNREALED_API virtual UEdGraphNode* PerformAction(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
 	//~ End FEdGraphSchemaAction Interface
 };
 
 /** Action to paste clipboard contents into the graph */
 USTRUCT()
-struct UNREALED_API FMaterialGraphSchemaAction_Paste : public FEdGraphSchemaAction
+struct FMaterialGraphSchemaAction_Paste : public FEdGraphSchemaAction
 {
 	GENERATED_USTRUCT_BODY();
 
@@ -168,7 +168,7 @@ struct UNREALED_API FMaterialGraphSchemaAction_Paste : public FEdGraphSchemaActi
 	{}
 
 	//~ Begin FEdGraphSchemaAction Interface
-	virtual UEdGraphNode* PerformAction(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
+	UNREALED_API virtual UEdGraphNode* PerformAction(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
 	//~ End FEdGraphSchemaAction Interface
 };
 

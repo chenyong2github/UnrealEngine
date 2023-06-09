@@ -9,7 +9,7 @@
 
 class IPlugin;
 
-struct UNREALED_API FThumbnailExternalCacheSettings
+struct FThumbnailExternalCacheSettings
 {
 	/** Recompress any lossless thumbnails */
 	bool bRecompressLossless = false;

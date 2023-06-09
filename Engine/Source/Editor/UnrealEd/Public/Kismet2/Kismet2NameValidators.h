@@ -15,10 +15,10 @@ class UBlueprint;
 
 //////////////////////////////////////////////////////////////////////////
 // FNameValidtorFactory
-class UNREALED_API FNameValidatorFactory
+class FNameValidatorFactory
 {
 public:
-	static TSharedPtr<class INameValidatorInterface> MakeValidator(class UEdGraphNode* Node);
+	static UNREALED_API TSharedPtr<class INameValidatorInterface> MakeValidator(class UEdGraphNode* Node);
 };
 
 enum class EValidatorResult
@@ -43,7 +43,7 @@ enum class EValidatorResult
 //////////////////////////////////////////////////////////////////////////
 // FNameValidatorInterface
 
-class UNREALED_API INameValidatorInterface
+class INameValidatorInterface
 {
 public:
 	virtual ~INameValidatorInterface() {}
@@ -55,7 +55,7 @@ public:
 	virtual EValidatorResult IsValid (const FString& Name, bool bOriginal = false) = 0;
 
 	/** @return A text string describing the type of error in ErrorCode for Name */
-	static FText GetErrorText(const FString& Name, EValidatorResult ErrorCode);
+	static UNREALED_API FText GetErrorText(const FString& Name, EValidatorResult ErrorCode);
 
 	/** @return A string describing the type of error in ErrorCode for Name */
 	static FString GetErrorString(const FString& Name, EValidatorResult ErrorCode)
@@ -64,7 +64,7 @@ public:
 	}
 
 	/** @return Ok if was valid and doesn't require anything, AlreadyInUse if was already in use and is replaced with new one */
-	EValidatorResult FindValidString(FString& InOutName);
+	UNREALED_API EValidatorResult FindValidString(FString& InOutName);
 
 	/** 
 	 * Helper method to see if object exists with this name in the blueprint. Useful for 
@@ -75,23 +75,23 @@ public:
 	 *
 	 * @return True if name is not used by object in the blueprint, False otherwise
 	 */
-	static bool BlueprintObjectNameIsUnique(class UBlueprint* Blueprint, const FName& Name);
+	static UNREALED_API bool BlueprintObjectNameIsUnique(class UBlueprint* Blueprint, const FName& Name);
 };
 
 /////////////////////////////////////////////////////
 // FKismetNameValidator
-class UNREALED_API FKismetNameValidator : public INameValidatorInterface
+class FKismetNameValidator : public INameValidatorInterface
 {
 public:
-	FKismetNameValidator(const class UBlueprint* Blueprint, FName InExistingName = NAME_None, const UStruct* InScope = nullptr);
+	UNREALED_API FKismetNameValidator(const class UBlueprint* Blueprint, FName InExistingName = NAME_None, const UStruct* InScope = nullptr);
 	~FKismetNameValidator() {}
 
 	/** Return the name validator maximum string length */
-	static int32 GetMaximumNameLength();
+	static UNREALED_API int32 GetMaximumNameLength();
 
 	// Begin FNameValidatorInterface
-	virtual EValidatorResult IsValid( const FString& Name, bool bOriginal = false) override;
-	virtual EValidatorResult IsValid( const FName& Name, bool bOriginal = false) override;
+	UNREALED_API virtual EValidatorResult IsValid( const FString& Name, bool bOriginal = false) override;
+	UNREALED_API virtual EValidatorResult IsValid( const FName& Name, bool bOriginal = false) override;
 	// End FNameValidatorInterface
 private:
 	/** Name set to validate */
@@ -107,12 +107,12 @@ private:
 /////////////////////////////////////////////////////
 // FStringSetNameValidator
 
-class UNREALED_API FStringSetNameValidator : public INameValidatorInterface
+class FStringSetNameValidator : public INameValidatorInterface
 {
 public:
 	// Begin FNameValidatorInterface
-	virtual EValidatorResult IsValid(const FString& Name, bool bOriginal) override;
-	virtual EValidatorResult IsValid(const FName& Name, bool bOriginal) override;
+	UNREALED_API virtual EValidatorResult IsValid(const FString& Name, bool bOriginal) override;
+	UNREALED_API virtual EValidatorResult IsValid(const FName& Name, bool bOriginal) override;
 	// End FNameValidatorInterface
 
 	// This class is a base class for anything that just needs to validate a string is unique
@@ -130,26 +130,26 @@ protected:
 /////////////////////////////////////////////////////
 // FAnimStateTransitionNodeSharedRulesNameValidator
 
-class UNREALED_API FAnimStateTransitionNodeSharedRulesNameValidator : public FStringSetNameValidator
+class FAnimStateTransitionNodeSharedRulesNameValidator : public FStringSetNameValidator
 {
 public:
-	FAnimStateTransitionNodeSharedRulesNameValidator(class UAnimStateTransitionNode* InStateTransitionNode);
+	UNREALED_API FAnimStateTransitionNodeSharedRulesNameValidator(class UAnimStateTransitionNode* InStateTransitionNode);
 };
 
 /////////////////////////////////////////////////////
 // FAnimStateTransitionNodeSharedCrossfadeNameValidator
 
-class UNREALED_API FAnimStateTransitionNodeSharedCrossfadeNameValidator : public FStringSetNameValidator
+class FAnimStateTransitionNodeSharedCrossfadeNameValidator : public FStringSetNameValidator
 {
 public:
-	FAnimStateTransitionNodeSharedCrossfadeNameValidator(class UAnimStateTransitionNode* InStateTransitionNode);
+	UNREALED_API FAnimStateTransitionNodeSharedCrossfadeNameValidator(class UAnimStateTransitionNode* InStateTransitionNode);
 };
 
 /////////////////////////////////////////////////////
 // FDummyNameValidator
 
 // Always returns the same value
-class UNREALED_API FDummyNameValidator : public INameValidatorInterface
+class FDummyNameValidator : public INameValidatorInterface
 {
 public:
 	FDummyNameValidator(EValidatorResult InReturnValue) : ReturnValue(InReturnValue) {}

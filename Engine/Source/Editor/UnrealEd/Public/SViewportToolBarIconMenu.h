@@ -26,7 +26,7 @@ struct FSlateIcon;
  * | Icon     Menu button |
  * +--------+-------------+
  */
-class UNREALED_API SViewportToolBarIconMenu : public SCompoundWidget 
+class SViewportToolBarIconMenu : public SCompoundWidget 
 {
 public:
 	SLATE_BEGIN_ARGS( SViewportToolBarIconMenu ){}
@@ -53,7 +53,7 @@ public:
 	 *
 	 * @param	InArgs	The declaration data for this widget
 	 */
-	void Construct( const FArguments& InArgs );
+	UNREALED_API void Construct( const FArguments& InArgs );
 	
 private:
 	/**
@@ -65,7 +65,7 @@ private:
 	 * Called when the mouse enters a menu button.  If there was a menu previously opened
 	 * we open this menu automatically
 	 */
-	void OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
+	UNREALED_API void OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
 
 private:
 	/** Our menus anchor */

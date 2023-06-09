@@ -13,9 +13,9 @@
 // Log category should be accessible by derived classes
 UNREALED_API DECLARE_LOG_CATEGORY_EXTERN(LogContentCommandlet, Log, All);
 
-UCLASS()
+UCLASS(MinimalAPI)
 // Added UNREALED_API to expose this to the save packages test
-class UNREALED_API UResavePackagesCommandlet : public UCommandlet
+class UResavePackagesCommandlet : public UCommandlet
 {
     GENERATED_UCLASS_BODY()
 
@@ -178,20 +178,20 @@ protected:
 	 *
 	 * @return	0 to indicate that the commandlet should continue; otherwise, the error code that should be returned by Main()
 	 */
-	virtual int32 InitializeResaveParameters( const TArray<FString>& Tokens, TArray<FString>& MapPathNames );
+	UNREALED_API virtual int32 InitializeResaveParameters( const TArray<FString>& Tokens, TArray<FString>& MapPathNames );
 
-	void ParseSourceControlOptions(const TArray<FString>& Tokens);
+	UNREALED_API void ParseSourceControlOptions(const TArray<FString>& Tokens);
 
-	void OnAddResaveOnDemandPackage(FName SystemName, FName PackageName);
+	UNREALED_API void OnAddResaveOnDemandPackage(FName SystemName, FName PackageName);
 
 	/** Loads and saves a single package */
-	virtual void LoadAndSaveOnePackage(const FString& Filename);
+	UNREALED_API virtual void LoadAndSaveOnePackage(const FString& Filename);
 
 	/** Checks to see if a package should be skipped */
-	virtual bool ShouldSkipPackage(const FString& Filename);
+	UNREALED_API virtual bool ShouldSkipPackage(const FString& Filename);
 
 	/** Deletes a single package */
-	virtual void DeleteOnePackage(const FString& Filename);
+	UNREALED_API virtual void DeleteOnePackage(const FString& Filename);
 
 	/**
 	 * Allow the commandlet to perform any operations on the export/import table of the package before all objects in the package are loaded.
@@ -200,7 +200,7 @@ protected:
 	 * @param	bSavePackage	[in]	indicates whether the package is currently going to be saved
 	 *							[out]	set to true to resave the package
 	 */
-	virtual void PerformPreloadOperations( FLinkerLoad* PackageLinker, bool& bSavePackage );
+	UNREALED_API virtual void PerformPreloadOperations( FLinkerLoad* PackageLinker, bool& bSavePackage );
 
 	/**
 	 * Allows the commandlet to perform any additional operations on the object before it is resaved.
@@ -209,7 +209,7 @@ protected:
 	 * @param	bSavePackage	[in]	indicates whether the package is currently going to be saved
 	 *							[out]	set to true to resave the package
 	 */
-	virtual void PerformAdditionalOperations( class UObject* Object, bool& bSavePackage );
+	UNREALED_API virtual void PerformAdditionalOperations( class UObject* Object, bool& bSavePackage );
 
 	/**
 	 * Allows the commandlet to perform any additional operations on the package before it is resaved.
@@ -218,7 +218,7 @@ protected:
 	 * @param	bSavePackage	[in]	indicates whether the package is currently going to be saved
 	 *							[out]	set to true to resave the package
 	 */
-	virtual void PerformAdditionalOperations( class UPackage* Package, bool& bSavePackage );
+	UNREALED_API virtual void PerformAdditionalOperations( class UPackage* Package, bool& bSavePackage );
 
 	/**
 	* Allows the commandlet to perform any additional operations on the world before it is resaved.
@@ -227,7 +227,7 @@ protected:
 	* @param	bSavePackage	[in]	indicates whether the package is currently going to be saved
 	*							[out]	set to true to resave the package
 	*/
-	virtual void PerformAdditionalOperations(class UWorld* World, bool& bSavePackage);
+	UNREALED_API virtual void PerformAdditionalOperations(class UWorld* World, bool& bSavePackage);
 
 	/**
 	 * Removes any UClass exports from packages which aren't script packages.
@@ -236,24 +236,24 @@ protected:
 	 *
 	 * @return	true to resave the package
 	 */
-	bool CleanClassesFromContentPackages( class UPackage* Package );
+	UNREALED_API bool CleanClassesFromContentPackages( class UPackage* Package );
 
 	// Get the changelist description to use if automatically checking packages out
-	virtual FText GetChangelistDescription() const;
+	UNREALED_API virtual FText GetChangelistDescription() const;
 
-	bool CheckoutFile(const FString& Filename, bool bAddFile = false, bool bIgnoreAlreadyCheckedOut = false);
-	bool RevertFile(const FString& Filename);
-	bool CanCheckoutFile(const FString& Filename, FString& CheckedOutUser);
-	void CheckoutAndSavePackage(UPackage* Package, TArray<FString>& SublevelFilenames, bool bIgnoreAlreadyCheckedOut = false);
-	void CheckInFiles(const TArray<FString>& InFilesToSubmit, const FText& InDescription) const;
-	static bool TryVirtualization(const TArray<FString>& FilesToSubmit, FText& InOutDescription);
+	UNREALED_API bool CheckoutFile(const FString& Filename, bool bAddFile = false, bool bIgnoreAlreadyCheckedOut = false);
+	UNREALED_API bool RevertFile(const FString& Filename);
+	UNREALED_API bool CanCheckoutFile(const FString& Filename, FString& CheckedOutUser);
+	UNREALED_API void CheckoutAndSavePackage(UPackage* Package, TArray<FString>& SublevelFilenames, bool bIgnoreAlreadyCheckedOut = false);
+	UNREALED_API void CheckInFiles(const TArray<FString>& InFilesToSubmit, const FText& InDescription) const;
+	static UNREALED_API bool TryVirtualization(const TArray<FString>& FilesToSubmit, FText& InOutDescription);
 
 	/**
 	 * Creates and returns a unique filename in the temporary file directory.
 	 *
 	 * @return	A unique temporary filename
 	 */
-	FString CreateTempFilename();
+	UNREALED_API FString CreateTempFilename();
 
 	/**
 	 * Returns the path of the directory we use to store all temporary files for
@@ -261,21 +261,21 @@ protected:
 	 *
 	 * @return Path to the temporary file directory
 	 */
-	FString GetTempFilesDirectory();
+	UNREALED_API FString GetTempFilesDirectory();
 
 	/**
 	 * Delete the remaining files in the temporary files directory for the commandlet.
 	 */
-	void CleanTempFiles();	
+	UNREALED_API void CleanTempFiles();	
 
 	// Print out a message only if running in very verbose mode
-	void VerboseMessage(const FString& Message);
+	UNREALED_API void VerboseMessage(const FString& Message);
 
 	/** Parse commandline to decide whether resaveondemand is activated for the given system. */
-	TSet<FName> ParseResaveOnDemandSystems();
+	UNREALED_API TSet<FName> ParseResaveOnDemandSystems();
 
 public:		
 	//~ Begin UCommandlet Interface
-	virtual int32 Main(const FString& Params) override;
+	UNREALED_API virtual int32 Main(const FString& Params) override;
 	//~ End UCommandlet Interface
 };

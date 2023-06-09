@@ -34,8 +34,8 @@ struct FCellInfo
 	static UNREALED_API FWorldBuilderCellCoord GetCellCount(const FBox& InBounds, const int32 InCellSize);
 };
 
-UCLASS(Abstract, Config=Engine)
-class UNREALED_API UWorldPartitionBuilder : public UObject
+UCLASS(Abstract, Config=Engine, MinimalAPI)
+class UWorldPartitionBuilder : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -48,21 +48,21 @@ public:
 		IterativeCells2D,
 	};
 
-	bool RunBuilder(UWorld* World);
+	UNREALED_API bool RunBuilder(UWorld* World);
 
-	virtual bool RequiresCommandletRendering() const PURE_VIRTUAL(UWorldPartitionBuilder::RequiresCommandletRendering, return false;);
-	virtual ELoadingMode GetLoadingMode() const PURE_VIRTUAL(UWorldPartitionBuilder::GetLoadingMode, return ELoadingMode::Custom;);
+	UNREALED_API virtual bool RequiresCommandletRendering() const PURE_VIRTUAL(UWorldPartitionBuilder::RequiresCommandletRendering, return false;);
+	UNREALED_API virtual ELoadingMode GetLoadingMode() const PURE_VIRTUAL(UWorldPartitionBuilder::GetLoadingMode, return ELoadingMode::Custom;);
 	
-	bool Run(UWorld* World, FPackageSourceControlHelper& PackageHelper);
+	UNREALED_API bool Run(UWorld* World, FPackageSourceControlHelper& PackageHelper);
 
 	virtual bool PreWorldInitialization(UWorld* World, FPackageSourceControlHelper& PackageHelper) { return true; }
 
-	static bool SavePackages(const TArray<UPackage*>& Packages, FPackageSourceControlHelper& PackageHelper, bool bErrorsAsWarnings = false);
-	static bool DeletePackages(const TArray<UPackage*>& Packages, FPackageSourceControlHelper& PackageHelper, bool bErrorsAsWarnings = false);
-	static bool DeletePackages(const TArray<FString>& PackageNames, FPackageSourceControlHelper& PackageHelper, bool bErrorsAsWarnings = false);
+	static UNREALED_API bool SavePackages(const TArray<UPackage*>& Packages, FPackageSourceControlHelper& PackageHelper, bool bErrorsAsWarnings = false);
+	static UNREALED_API bool DeletePackages(const TArray<UPackage*>& Packages, FPackageSourceControlHelper& PackageHelper, bool bErrorsAsWarnings = false);
+	static UNREALED_API bool DeletePackages(const TArray<FString>& PackageNames, FPackageSourceControlHelper& PackageHelper, bool bErrorsAsWarnings = false);
 
 	DECLARE_DELEGATE_RetVal_TwoParams(bool, FModifiedFilesHandler, const TArray<FString>&, const FString&); /*bool ModifiedFileHander(ModifiedFiles, ChangeDescription) */
-	void SetModifiedFilesHandler(const FModifiedFilesHandler& ModifiedFilesHandler);
+	UNREALED_API void SetModifiedFilesHandler(const FModifiedFilesHandler& ModifiedFilesHandler);
 
 protected:
 	/**
@@ -71,7 +71,7 @@ protected:
 	 */
 	virtual bool PreRun(UWorld* World, FPackageSourceControlHelper& PackageHelper) { return true; }
 
-	virtual bool RunInternal(UWorld* World, const FCellInfo& InCellInfo, FPackageSourceControlHelper& PackageHelper) PURE_VIRTUAL(UWorldPartition::RunInternal, return false;);
+	UNREALED_API virtual bool RunInternal(UWorld* World, const FCellInfo& InCellInfo, FPackageSourceControlHelper& PackageHelper) PURE_VIRTUAL(UWorldPartition::RunInternal, return false;);
 
 	/**
 	 * Overridable method for derived classes to perform operations when world builder process completes.
@@ -94,8 +94,8 @@ protected:
 	 */
 	virtual bool CanProcessNonPartitionedWorlds() const { return false; }
 
-	bool OnFilesModified(const TArray<FString>& InModifiedFiles, const FString& InChangelistDescription) const;
-	bool OnPackagesModified(const TArray<UPackage*>& InModifiedPackages, const FString& InChangelistDescription) const;
+	UNREALED_API bool OnFilesModified(const TArray<FString>& InModifiedFiles, const FString& InChangelistDescription) const;
+	UNREALED_API bool OnPackagesModified(const TArray<UPackage*>& InModifiedPackages, const FString& InChangelistDescription) const;
 
 	/**
 	 * Test if the builder was provided the given parameter.
@@ -129,11 +129,11 @@ protected:
 	}
 
 	UE_DEPRECATED(5.3, "Please use OnFilesModified")
-	bool AutoSubmitFiles(const TArray<FString>& InModifiedFiles, const FString& InChangelistDescription) const;
+	UNREALED_API bool AutoSubmitFiles(const TArray<FString>& InModifiedFiles, const FString& InChangelistDescription) const;
 	UE_DEPRECATED(5.3, "Please use OnPackagesModified")
-	bool AutoSubmitPackages(const TArray<UPackage*>& InModifiedPackages, const FString& InChangelistDescription) const;
+	UNREALED_API bool AutoSubmitPackages(const TArray<UPackage*>& InModifiedPackages, const FString& InChangelistDescription) const;
 
-	virtual UWorld::InitializationValues GetWorldInitializationValues() const;
+	UNREALED_API virtual UWorld::InitializationValues GetWorldInitializationValues() const;
 
 	UE_DEPRECATED(5.3, "You must override the version that takes a World parameter")
 	virtual bool PreWorldInitialization(FPackageSourceControlHelper& PackageHelper) final { return true; }
@@ -150,10 +150,10 @@ protected:
 	FModifiedFilesHandler ModifiedFilesHandler;
 
 private:
-	void LoadDataLayers(UWorld* InWorld);
+	UNREALED_API void LoadDataLayers(UWorld* InWorld);
 
 	friend struct FWorldPartitionBuilderArgsScope;
-	static FString Args;
+	static UNREALED_API FString Args;
 };
 
 /**

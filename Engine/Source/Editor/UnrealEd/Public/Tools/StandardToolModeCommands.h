@@ -36,20 +36,20 @@ enum class EStandardToolModeCommands
  * call FStandardToolModeCommands::Get().FindStandardCommand() to get the registered UICommandInfo.
  * 
  */
-class UNREALED_API FStandardToolModeCommands : public TCommands<FStandardToolModeCommands>
+class FStandardToolModeCommands : public TCommands<FStandardToolModeCommands>
 {
 public:
-	FStandardToolModeCommands();
+	UNREALED_API FStandardToolModeCommands();
 
 	/**
 	 * Registers the set of standard commands. Call on module startup.
 	 */
-	virtual void RegisterCommands() override;
+	UNREALED_API virtual void RegisterCommands() override;
 
 	/**
 	 * Look up the UICommandInfo for a standard command
 	 */
-	TSharedPtr<FUICommandInfo> FindStandardCommand(EStandardToolModeCommands Command) const;
+	UNREALED_API TSharedPtr<FUICommandInfo> FindStandardCommand(EStandardToolModeCommands Command) const;
 
 protected:
 	TMap<EStandardToolModeCommands, TSharedPtr<FUICommandInfo>> Commands;

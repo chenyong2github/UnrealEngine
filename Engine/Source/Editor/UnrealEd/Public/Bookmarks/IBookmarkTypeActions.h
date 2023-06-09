@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -9,7 +9,7 @@
  * Actions that can be applied to or completed with bookmarks.
  * Must be registered, see IBookmarkTypeTools.
  */
-class UNREALED_API IBookmarkTypeActions
+class IBookmarkTypeActions
 {
 public:
 

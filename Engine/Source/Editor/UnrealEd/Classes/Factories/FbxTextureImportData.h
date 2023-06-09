@@ -12,8 +12,8 @@
 /**
  * Import data and options used when importing any mesh from FBX
  */
-UCLASS(BlueprintType, AutoExpandCategories=(Texture))
-class UNREALED_API UFbxTextureImportData : public UFbxAssetImportData
+UCLASS(BlueprintType, AutoExpandCategories=(Texture), MinimalAPI)
+class UFbxTextureImportData : public UFbxAssetImportData
 {
 	GENERATED_UCLASS_BODY()
 
@@ -53,5 +53,5 @@ class UNREALED_API UFbxTextureImportData : public UFbxAssetImportData
 	UPROPERTY(BlueprintReadWrite, config, Category = Material, meta = (ImportType = "Mesh"))
 	FString BaseOpacityTextureName;
 
-	bool CanEditChange( const FProperty* InProperty ) const override;
+	UNREALED_API bool CanEditChange( const FProperty* InProperty ) const override;
 };

@@ -17,7 +17,7 @@
  * If you need a class that can tick in both the Editor and at Runtime then use FTickableGameObject
  * instead, overriding the IsTickableInEditor() function instead.
  */
-class UNREALED_API FTickableEditorObject : public FTickableObjectBase
+class FTickableEditorObject : public FTickableObjectBase
 {
 public:
 
@@ -112,17 +112,17 @@ private:
 	friend class TTickableObjectsCollection;
 
 	/** True if collection of tickable objects is still intact. */
-	static bool bCollectionIntact;
+	static UNREALED_API bool bCollectionIntact;
 	/** True if currently ticking of tickable editor objects. */
-	static bool bIsTickingObjects;
+	static UNREALED_API bool bIsTickingObjects;
 
 	/** Set if we are in the Tick function for an editor tickable object */
-	static FTickableObjectBase* ObjectBeingTicked;
+	static UNREALED_API FTickableObjectBase* ObjectBeingTicked;
 
 
-	static TArray<FTickableObjectEntry>& GetTickableObjects();
+	static UNREALED_API TArray<FTickableObjectEntry>& GetTickableObjects();
 
-	static TArray<FTickableEditorObject*>& GetPendingTickableObjects();
+	static UNREALED_API TArray<FTickableEditorObject*>& GetPendingTickableObjects();
 };
 
 /**
@@ -132,7 +132,7 @@ private:
  * it should dual-inherit from both FTickableCookObject and FTickableEditorObject.
  * TODO: Reduce duplication between  FTickableCookObject and FTickableEditorObject.
  */
-class UNREALED_API FTickableCookObject : public FTickableObjectBase
+class FTickableCookObject : public FTickableObjectBase
 {
 public:
 
@@ -230,15 +230,15 @@ private:
 	friend class TTickableObjectsCollection;
 
 	/** True if collection of tickable objects is still intact. */
-	static bool bCollectionIntact;
+	static UNREALED_API bool bCollectionIntact;
 	/** True if currently ticking of tickable editor objects. */
-	static bool bIsTickingObjects;
+	static UNREALED_API bool bIsTickingObjects;
 
 	/** Set if we are in the Tick function for an editor tickable object */
-	static FTickableCookObject* ObjectBeingTicked;
+	static UNREALED_API FTickableCookObject* ObjectBeingTicked;
 
 
-	static TArray<FTickableObjectEntry>& GetTickableObjects();
+	static UNREALED_API TArray<FTickableObjectEntry>& GetTickableObjects();
 
-	static TArray<FTickableCookObject*>& GetPendingTickableObjects();
+	static UNREALED_API TArray<FTickableCookObject*>& GetPendingTickableObjects();
 };

@@ -28,7 +28,7 @@ enum class ECheckBoxState : uint8;
 /**
  * A simple class that represents a toolbar button in an editor viewport toolbar
  */
-class UNREALED_API SEditorViewportToolBarButton : public SCompoundWidget
+class SEditorViewportToolBarButton : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SEditorViewportToolBarButton)
@@ -59,7 +59,7 @@ public:
 		SLATE_DEFAULT_SLOT( FArguments, Content )
 	SLATE_END_ARGS()
 
-	void Construct( const FArguments& Declaration );
+	UNREALED_API void Construct( const FArguments& Declaration );
 private:
 	/** 
 	 * Called when the button check state changes

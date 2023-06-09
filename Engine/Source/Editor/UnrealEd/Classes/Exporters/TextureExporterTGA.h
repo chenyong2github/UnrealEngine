@@ -12,10 +12,10 @@
 #include "Exporters/TextureExporterGeneric.h"
 #include "TextureExporterTGA.generated.h"
 
-UCLASS()
-class UNREALED_API UTextureExporterTGA : public UTextureExporterGeneric
+UCLASS(MinimalAPI)
+class UTextureExporterTGA : public UTextureExporterGeneric
 {
 	GENERATED_UCLASS_BODY()
 	
-	virtual bool SupportsTexture(UTexture* Texture) const override;
+	UNREALED_API virtual bool SupportsTexture(UTexture* Texture) const override;
 };

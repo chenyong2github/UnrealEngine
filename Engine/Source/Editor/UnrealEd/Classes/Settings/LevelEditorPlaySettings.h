@@ -195,8 +195,8 @@ public:
 	void PostInitProperties();
 };
 
-UCLASS()
-class UNREALED_API UCommonResolutionMenuContext
+UCLASS(MinimalAPI)
+class UCommonResolutionMenuContext
 	: public UToolMenuContextBase
 {
 	GENERATED_BODY()
@@ -209,8 +209,8 @@ public:
 /**
  * Implements the Editor's play settings.
  */
-UCLASS(config=EditorPerProjectUserSettings)
-class UNREALED_API ULevelEditorPlaySettings
+UCLASS(config=EditorPerProjectUserSettings, MinimalAPI)
+class ULevelEditorPlaySettings
 	: public UObject
 {
 	GENERATED_UCLASS_BODY()
@@ -444,7 +444,7 @@ private:
 	FLinearColor ServerDebugDrawingColorTint;
 
 private:
-	void PushDebugDrawingSettings();
+	UNREALED_API void PushDebugDrawingSettings();
 
 public:
 	bool ShowServerDebugDrawingByDefault() const
@@ -629,27 +629,27 @@ public:
 	TArray<FVector2D> CustomUnsafeZoneDimensions;
 
 	// UObject interface
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PostInitProperties() override;
-	virtual bool CanEditChange(const FProperty* InProperty) const override;
+	UNREALED_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	UNREALED_API virtual void PostInitProperties() override;
+	UNREALED_API virtual bool CanEditChange(const FProperty* InProperty) const override;
 	// End of UObject interface
 
 #if WITH_EDITOR
 	// Recalculates and broadcasts safe zone size changes based on device to emulate and r.DebugSafeZone.TitleRatio values.
-	void UpdateCustomSafeZones();
+	UNREALED_API void UpdateCustomSafeZones();
 #endif
 
-	FMargin CalculateCustomUnsafeZones(TArray<FVector2D>& CustomSafeZoneStarts, TArray<FVector2D>& CustomSafeZoneDimensions, FString& DeviceType, FVector2D PreviewSize);
-	FMargin FlipCustomUnsafeZones(TArray<FVector2D>& CustomSafeZoneStarts, TArray<FVector2D>& CustomSafeZoneDimensions, FString& DeviceType, FVector2D PreviewSize);
-	void RescaleForMobilePreview(const class UDeviceProfile* DeviceProfile, int32 &PreviewWidth, int32 &PreviewHeight, float &ScaleFactor);
+	UNREALED_API FMargin CalculateCustomUnsafeZones(TArray<FVector2D>& CustomSafeZoneStarts, TArray<FVector2D>& CustomSafeZoneDimensions, FString& DeviceType, FVector2D PreviewSize);
+	UNREALED_API FMargin FlipCustomUnsafeZones(TArray<FVector2D>& CustomSafeZoneStarts, TArray<FVector2D>& CustomSafeZoneDimensions, FString& DeviceType, FVector2D PreviewSize);
+	UNREALED_API void RescaleForMobilePreview(const class UDeviceProfile* DeviceProfile, int32 &PreviewWidth, int32 &PreviewHeight, float &ScaleFactor);
 
 	/**
      * Creates a widget for the resolution picker.
      *
      * @return The widget.
      */
-	void RegisterCommonResolutionsMenu();
-	static FName GetCommonResolutionsMenuName();
+	UNREALED_API void RegisterCommonResolutionsMenu();
+	static UNREALED_API FName GetCommonResolutionsMenuName();
 
 protected:
 	/**
@@ -659,5 +659,5 @@ protected:
 	 * @param Resolutions The collection of screen resolutions to add.
 	 * @param SectionName The name of the section to add.
 	 */
-	static void AddScreenResolutionSection( UToolMenu* InToolMenu, const TArray<FPlayScreenResolution>* Resolutions, const FString SectionName );
+	static UNREALED_API void AddScreenResolutionSection( UToolMenu* InToolMenu, const TArray<FPlayScreenResolution>* Resolutions, const FString SectionName );
 };

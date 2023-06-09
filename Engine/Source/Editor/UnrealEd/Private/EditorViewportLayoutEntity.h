@@ -9,20 +9,20 @@
 
 class FEditorViewportClient;
 
-class UNREALED_API FEditorViewportLayoutEntity : public IEditorViewportLayoutEntity
+class FEditorViewportLayoutEntity : public IEditorViewportLayoutEntity
 {
 public:
 
-	FEditorViewportLayoutEntity(TSharedPtr<SAssetEditorViewport>& InViewport);
-	virtual TSharedRef<SWidget> AsWidget() const override;
-	virtual TSharedPtr<SAssetEditorViewport> AsAssetEditorViewport() const;
+	UNREALED_API FEditorViewportLayoutEntity(TSharedPtr<SAssetEditorViewport>& InViewport);
+	UNREALED_API virtual TSharedRef<SWidget> AsWidget() const override;
+	UNREALED_API virtual TSharedPtr<SAssetEditorViewport> AsAssetEditorViewport() const;
 
-	void SetKeyboardFocus() override;
-	void OnLayoutDestroyed() override;
-	void SaveConfig(const FString& ConfigSection) override;
-	TSharedPtr<FEditorViewportClient> GetViewportClient() const;
-	FName GetType() const override;
-	void TakeHighResScreenShot() const override;
+	UNREALED_API void SetKeyboardFocus() override;
+	UNREALED_API void OnLayoutDestroyed() override;
+	UNREALED_API void SaveConfig(const FString& ConfigSection) override;
+	UNREALED_API TSharedPtr<FEditorViewportClient> GetViewportClient() const;
+	UNREALED_API FName GetType() const override;
+	UNREALED_API void TakeHighResScreenShot() const override;
 
 protected:
 

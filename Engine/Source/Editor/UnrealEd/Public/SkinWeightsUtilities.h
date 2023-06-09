@@ -14,7 +14,7 @@ namespace UnFbx
 //////////////////////////////////////////////////////////////////////////
 // FSkinWeightsUtilities
 
-class UNREALED_API FSkinWeightsUtilities
+class FSkinWeightsUtilities
 {
 public:
 	/**
@@ -27,7 +27,7 @@ public:
 	* @Param ProfileName - The name of the profile to associate the imported skin weight
 	* @param bReregisterComponent - if true the component using the skeletal mesh will all be re register.
 	*/
-	static bool ImportAlternateSkinWeight(USkeletalMesh* SkeletalMesh, const FString& Path, int32 TargetLODIndex, const FName& ProfileName, const bool bIsReimport);
+	static UNREALED_API bool ImportAlternateSkinWeight(USkeletalMesh* SkeletalMesh, const FString& Path, int32 TargetLODIndex, const FName& ProfileName, const bool bIsReimport);
 	
 	/**
 	* This function reimport all skin weights profile for a specified LOD. Return true if the weights are successfully updates.
@@ -37,14 +37,14 @@ public:
 	* @Param TargetLODIndex - The LODIndex to imp[ort the skin weight
 	* @param bReregisterComponent - if true the component using the skeletal mesh will all be re register.
 	*/
-	static bool ReimportAlternateSkinWeight(USkeletalMesh* SkeletalMesh, int32 TargetLODIndex);
+	static UNREALED_API bool ReimportAlternateSkinWeight(USkeletalMesh* SkeletalMesh, int32 TargetLODIndex);
 
-	static bool RemoveSkinnedWeightProfileData(USkeletalMesh* SkeletalMesh, const FName& ProfileName, int32 LODIndex);
+	static UNREALED_API bool RemoveSkinnedWeightProfileData(USkeletalMesh* SkeletalMesh, const FName& ProfileName, int32 LODIndex);
 
 	/*
 	 * Ask user a file path for a particular LOD
 	 */
-	static FString PickSkinWeightPath(int32 LODIndex, USkeletalMesh* SkeletalMesh);
+	static UNREALED_API FString PickSkinWeightPath(int32 LODIndex, USkeletalMesh* SkeletalMesh);
 private:
 	FSkinWeightsUtilities() {}
 };

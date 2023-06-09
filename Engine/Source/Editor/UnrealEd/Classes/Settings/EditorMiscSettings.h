@@ -12,8 +12,8 @@
 /**
  * Implements the miscellaneous Editor settings.
  */
-UCLASS(config=EditorPerProjectUserSettings)
-class UNREALED_API UEditorMiscSettings
+UCLASS(config=EditorPerProjectUserSettings, MinimalAPI)
+class UEditorMiscSettings
 	: public UObject
 {
 	GENERATED_UCLASS_BODY()

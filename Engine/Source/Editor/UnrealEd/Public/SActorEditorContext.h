@@ -4,17 +4,17 @@
 
 #include "Widgets/SCompoundWidget.h"
 
-class UNREALED_API SActorEditorContext : public SCompoundWidget
+class SActorEditorContext : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SActorEditorContext) {}
 	SLATE_ARGUMENT(UWorld*, World)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
-	~SActorEditorContext();
+	UNREALED_API void Construct(const FArguments& InArgs);
+	UNREALED_API ~SActorEditorContext();
 
-	static bool IsVisible(UWorld* InWorld);
+	static UNREALED_API bool IsVisible(UWorld* InWorld);
 private:
 
 	void OnEditorMapChange(uint32 MapChangeFlags = 0) { Rebuild(); }

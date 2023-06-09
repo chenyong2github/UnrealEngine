@@ -67,8 +67,8 @@ enum class EToolsContextScope
 /**
  * Base class for all editor modes.
  */
-UCLASS(Abstract)
-class UNREALED_API UEdMode : public UObject
+UCLASS(Abstract, MinimalAPI)
+class UEdMode : public UObject
 {
 	GENERATED_BODY()
 
@@ -76,9 +76,9 @@ public:
 	/** Friends so it can access mode's internals on construction */
 	friend class UAssetEditorSubsystem;
 
-	UEdMode();
+	UNREALED_API UEdMode();
 
-	virtual void Initialize();
+	UNREALED_API virtual void Initialize();
 
 	// Added for handling EDIT Command...
 	virtual EEditAction::Type GetActionEditDuplicate() { return EEditAction::Skip; }
@@ -87,7 +87,7 @@ public:
 	virtual EEditAction::Type GetActionEditCopy() { return EEditAction::Skip; }
 	virtual EEditAction::Type GetActionEditPaste() { return EEditAction::Skip; }
 	virtual bool ProcessEditDuplicate() { return false; }
-	virtual bool ProcessEditDelete();
+	UNREALED_API virtual bool ProcessEditDelete();
 	virtual bool ProcessEditCut() { return false; }
 	virtual bool ProcessEditCopy() { return false; }
 	virtual bool ProcessEditPaste() { return false; }
@@ -118,7 +118,7 @@ public:
 	virtual bool ShouldDrawBrushWireframe(AActor* InActor) const { return true; }
 
 	/** If Rotation Snap should be enabled for this mode*/
-	virtual bool IsSnapRotationEnabled();
+	UNREALED_API virtual bool IsSnapRotationEnabled();
 
 	/** If this mode should override the snap rotation
 	* @param	Rotation		The Rotation Override
@@ -129,7 +129,7 @@ public:
 
 	virtual void UpdateInternalData() {}
 
-	virtual void Enter();
+	UNREALED_API virtual void Enter();
 
 	/**
 	 * Registers and maps the provided UI command to actions that start / stop a given tool.
@@ -140,14 +140,14 @@ public:
 	 * @param	Builder			Builder for tool to be used by actions
 	 * @param	ToolScope		Scope to determine lifetime of tool (Editor, Mode, etc)
 	 */
-	virtual void RegisterTool(TSharedPtr<FUICommandInfo> UICommand, FString ToolIdentifier, UInteractiveToolBuilder* Builder, EToolsContextScope ToolScope = EToolsContextScope::Default);
+	UNREALED_API virtual void RegisterTool(TSharedPtr<FUICommandInfo> UICommand, FString ToolIdentifier, UInteractiveToolBuilder* Builder, EToolsContextScope ToolScope = EToolsContextScope::Default);
 
 	/** 
 	 * Subclasses can override this to add additional checks on whether a tool should be allowed to start.
 	 * By default the check disallows starting tools during play/simulate in editor.
 	 */
-	virtual bool ShouldToolStartBeAllowed(const FString& ToolIdentifier) const;
-	virtual void Exit();
+	UNREALED_API virtual bool ShouldToolStartBeAllowed(const FString& ToolIdentifier) const;
+	UNREALED_API virtual void Exit();
 
 	virtual void PostUndo() {}
 
@@ -165,7 +165,7 @@ public:
 	 */
 	virtual bool IsOperationSupportedForCurrentAsset(EAssetOperation InOperation) const { return true; }
 
-	virtual void SelectNone();
+	UNREALED_API virtual void SelectNone();
 	virtual void SelectionChanged() {}
 
 	/**
@@ -194,16 +194,16 @@ public:
 	const FEditorModeInfo& GetModeInfo() const { return Info; }
 
 	/** True if this mode uses a toolkit mode (eventually they all should) */
-	virtual bool UsesToolkits() const;
+	UNREALED_API virtual bool UsesToolkits() const;
 
 	/** Gets the toolkit created by this mode */
 	TWeakPtr<FModeToolkit> GetToolkit() { return Toolkit; }
 
 	/** Returns the world this toolkit is editing */
-	UWorld* GetWorld() const;
+	UNREALED_API UWorld* GetWorld() const;
 
 	/** Returns the owning mode manager for this mode */
-	FEditorModeTools* GetModeManager() const;
+	UNREALED_API FEditorModeTools* GetModeManager() const;
 
 	/**
 	 * For use by the EditorModeTools class to get the legacy FEdMode type from a legacy FEdMode wrapper
@@ -231,7 +231,7 @@ protected:
 	/**
 	 * Returns the first selected Actor, or NULL if there is no selection.
 	 */
-	AActor* GetFirstSelectedActorInstance() const;
+	UNREALED_API AActor* GetFirstSelectedActorInstance() const;
 
 	bool bHaveSavedEditorState;
 	bool bSavedAntiAliasingState;
@@ -247,12 +247,12 @@ public:
 	/**
 	 * @return active ToolManager for the desired (or default) ToolsContext Scope
 	 */
-	UInteractiveToolManager* GetToolManager(EToolsContextScope ToolScope = EToolsContextScope::Default) const;
+	UNREALED_API UInteractiveToolManager* GetToolManager(EToolsContextScope ToolScope = EToolsContextScope::Default) const;
 
 	/**
 	 * @return active ToolsContext for the desired (or default) ToolsContext Scope
 	 */
-	UEditorInteractiveToolsContext* GetInteractiveToolsContext(EToolsContextScope ToolScope = EToolsContextScope::Default) const;
+	UNREALED_API UEditorInteractiveToolsContext* GetInteractiveToolsContext(EToolsContextScope ToolScope = EToolsContextScope::Default) const;
 
 
 	virtual TMap<FName, TArray<TSharedPtr<FUICommandInfo>>> GetModeCommands() const
@@ -261,12 +261,12 @@ public:
 	};
 
 protected:
-	virtual void CreateToolkit();
+	UNREALED_API virtual void CreateToolkit();
 	virtual void OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool) {}
 	virtual void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool) {}
 	virtual void ActivateDefaultTool() {}
 	virtual void BindCommands() {}
-	void OnModeActivated(const FEditorModeID& InID, bool bIsActive);
+	UNREALED_API void OnModeActivated(const FEditorModeID& InID, bool bIsActive);
 
 private:
 
@@ -293,6 +293,6 @@ protected:
 
 protected:
 
-	void CreateInteractiveToolsContexts();
-	void DestroyInteractiveToolsContexts();
+	UNREALED_API void CreateInteractiveToolsContexts();
+	UNREALED_API void DestroyInteractiveToolsContexts();
 };

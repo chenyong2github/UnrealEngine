@@ -9,7 +9,7 @@
 #include "DEditorStaticComponentMaskParameterValue.generated.h"
 
 USTRUCT()
-struct UNREALED_API FDComponentMaskParameter
+struct FDComponentMaskParameter
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -45,8 +45,8 @@ struct UNREALED_API FDComponentMaskParameter
 	
 };
 
-UCLASS(hidecategories=Object, collapsecategories)
-class UNREALED_API UDEditorStaticComponentMaskParameterValue : public UDEditorParameterValue
+UCLASS(hidecategories=Object, collapsecategories, MinimalAPI)
+class UDEditorStaticComponentMaskParameterValue : public UDEditorParameterValue
 {
 	GENERATED_UCLASS_BODY()
 

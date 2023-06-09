@@ -139,7 +139,7 @@ public:
 
 	/* === FGCObject interface === */
 	UNREALED_API virtual void AddReferencedObjects( FReferenceCollector& Collector );
-	UNREALED_API virtual FString GetReferencerName() const override
+	virtual FString GetReferencerName() const override
 	{
 		return TEXT("FFindReferencedAssets");
 	}

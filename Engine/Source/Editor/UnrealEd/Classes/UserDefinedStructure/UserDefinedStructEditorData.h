@@ -111,8 +111,8 @@ struct TStructOpsTypeTraits< FStructVariableDescription > : public TStructOpsTyp
 	};
 };
 
-UCLASS()
-class UNREALED_API UUserDefinedStructEditorData : public UObject, public FEditorUndoClient
+UCLASS(MinimalAPI)
+class UUserDefinedStructEditorData : public UObject, public FEditorUndoClient
 {
 	GENERATED_UCLASS_BODY()
 
@@ -130,28 +130,28 @@ public:
 
 public:
 	// UObject interface.
-	virtual TSharedPtr<ITransactionObjectAnnotation> FactoryTransactionAnnotation(const ETransactionAnnotationCreationMode InCreationMode) const override;
-	virtual void Serialize(FArchive& Ar) override;
-	virtual void PostEditUndo() override;
-	virtual void PostEditUndo(TSharedPtr<ITransactionObjectAnnotation> TransactionAnnotation) override;
-	virtual void PostLoadSubobjects(struct FObjectInstancingGraph* OuterInstanceGraph) override;
-	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
+	UNREALED_API virtual TSharedPtr<ITransactionObjectAnnotation> FactoryTransactionAnnotation(const ETransactionAnnotationCreationMode InCreationMode) const override;
+	UNREALED_API virtual void Serialize(FArchive& Ar) override;
+	UNREALED_API virtual void PostEditUndo() override;
+	UNREALED_API virtual void PostEditUndo(TSharedPtr<ITransactionObjectAnnotation> TransactionAnnotation) override;
+	UNREALED_API virtual void PostLoadSubobjects(struct FObjectInstancingGraph* OuterInstanceGraph) override;
+	UNREALED_API virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 	// End of UObject interface.
 
 	// FEditorUndoClient interface
-	virtual void PostUndo(bool bSuccess) override;
+	UNREALED_API virtual void PostUndo(bool bSuccess) override;
 	virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); }
 	// End of FEditorUndoClient interface.
 
 
-	uint32 GenerateUniqueNameIdForMemberVariable();
-	class UUserDefinedStruct* GetOwnerStruct() const;
+	UNREALED_API uint32 GenerateUniqueNameIdForMemberVariable();
+	UNREALED_API class UUserDefinedStruct* GetOwnerStruct() const;
 
-	const uint8* GetDefaultInstance() const;
-	void RecreateDefaultInstance(FString* OutLog = nullptr);
-	void ReinitializeDefaultInstance(FString* OutLog = nullptr);
-	void CleanDefaultInstance();
-	void RefreshValuesFromDefaultInstance();
+	UNREALED_API const uint8* GetDefaultInstance() const;
+	UNREALED_API void RecreateDefaultInstance(FString* OutLog = nullptr);
+	UNREALED_API void ReinitializeDefaultInstance(FString* OutLog = nullptr);
+	UNREALED_API void CleanDefaultInstance();
+	UNREALED_API void RefreshValuesFromDefaultInstance();
 
 private:
 
@@ -159,6 +159,6 @@ private:
 	FStructureEditorUtils::EStructureEditorChangeInfo CachedStructureChange;
 
 	// Utility function for both PostEditUndo to route through
-	void ConsolidatedPostEditUndo(FStructureEditorUtils::EStructureEditorChangeInfo ActiveChange);
+	UNREALED_API void ConsolidatedPostEditUndo(FStructureEditorUtils::EStructureEditorChangeInfo ActiveChange);
 
 };

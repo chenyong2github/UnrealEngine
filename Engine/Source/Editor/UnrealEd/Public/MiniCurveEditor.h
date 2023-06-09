@@ -12,7 +12,7 @@
 class FCurveOwnerInterface;
 class SCurveEditor;
 
-class UNREALED_API SMiniCurveEditor :  public SCompoundWidget,public IAssetEditorInstance
+class SMiniCurveEditor :  public SCompoundWidget,public IAssetEditorInstance
 {
 public:
 	SLATE_BEGIN_ARGS( SMiniCurveEditor )
@@ -25,19 +25,19 @@ public:
 	SLATE_ARGUMENT( TWeakPtr<SWindow>, ParentWindow )
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
-	virtual ~SMiniCurveEditor();
+	UNREALED_API void Construct(const FArguments& InArgs);
+	UNREALED_API virtual ~SMiniCurveEditor();
 
 	// IAssetEditorInstance interface
-	virtual FName GetEditorName() const override;
-	virtual void FocusWindow(UObject* ObjectToFocusOn) override;
-	virtual bool CloseWindow() override;
-	virtual bool CloseWindow(EAssetEditorCloseReason InCloseReason) override;
+	UNREALED_API virtual FName GetEditorName() const override;
+	UNREALED_API virtual void FocusWindow(UObject* ObjectToFocusOn) override;
+	UNREALED_API virtual bool CloseWindow() override;
+	UNREALED_API virtual bool CloseWindow(EAssetEditorCloseReason InCloseReason) override;
 	virtual bool IsPrimaryEditor() const override { return true; };
 	virtual void InvokeTab(const struct FTabId& TabId) override {}
-	virtual TSharedPtr<class FTabManager> GetAssociatedTabManager() override;
-	virtual double GetLastActivationTime() override;
-	virtual void RemoveEditingAsset(UObject* Asset) override;
+	UNREALED_API virtual TSharedPtr<class FTabManager> GetAssociatedTabManager() override;
+	UNREALED_API virtual double GetLastActivationTime() override;
+	UNREALED_API virtual void RemoveEditingAsset(UObject* Asset) override;
 
 private:
 
@@ -49,9 +49,9 @@ private:
 	float GetViewMinInput() const { return ViewMinInput; }
 	float GetViewMaxInput() const { return ViewMaxInput; }
 	/** Return length of timeline */
-	float GetTimelineLength() const;
+	UNREALED_API float GetTimelineLength() const;
 
-	void SetInputViewRange(float InViewMinInput, float InViewMaxInput);
+	UNREALED_API void SetInputViewRange(float InViewMinInput, float InViewMaxInput);
 
 
 protected:

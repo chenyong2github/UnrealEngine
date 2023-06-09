@@ -11,7 +11,7 @@
 * A collection of utilities for creating, using, and changing the value of wildcard pin types
 * throughout the graph editor.
 */
-class UNREALED_API FWildcardNodeUtils
+class FWildcardNodeUtils
 {
 public:
 	
@@ -19,7 +19,7 @@ public:
 	* Gets the default wildcard pin type. Useful for doing comparisons on other pin types 
 	* and checks during compilation of nodes.
 	*/
-	static FEdGraphPinType GetDefaultWildcardPinType();
+	static UNREALED_API FEdGraphPinType GetDefaultWildcardPinType();
 
 	/**
 	* Checks if the given pin is in a wildcard state
@@ -27,14 +27,14 @@ public:
 	* @param	Pin		The pin the consider
 	* @return	True if the given pin is a Wildcard pin
 	*/
-	static bool IsWildcardPin(const UEdGraphPin* const Pin);
+	static UNREALED_API bool IsWildcardPin(const UEdGraphPin* const Pin);
 
 	/**
 	* Checks if the given pin is linked to any wildcard pins
 	* 
 	* @return	True if the given pin is linked to any wildcard pins
 	*/
-	static bool IsLinkedToWildcard(const UEdGraphPin* const Pin);
+	static UNREALED_API bool IsLinkedToWildcard(const UEdGraphPin* const Pin);
 
 	/**
 	* Add a default wildcard pin to the given node
@@ -45,12 +45,12 @@ public:
 	* @param ContainerType		
 	* @return	The newly created pin or nullptr if failed
 	*/
-	static UEdGraphPin* CreateWildcardPin(UEdGraphNode* Node, const FName PinName, const EEdGraphPinDirection Direction, const EPinContainerType ContainerType = EPinContainerType::None);
+	static UNREALED_API UEdGraphPin* CreateWildcardPin(UEdGraphNode* Node, const FName PinName, const EEdGraphPinDirection Direction, const EPinContainerType ContainerType = EPinContainerType::None);
 
 	/**
 	* Check this node for any wildcard pins
 	*
 	* @return	True if the given node has any wildcard pins on it
 	*/
-	static bool NodeHasAnyWildcards(const UEdGraphNode* const Node);
+	static UNREALED_API bool NodeHasAnyWildcards(const UEdGraphNode* const Node);
 };

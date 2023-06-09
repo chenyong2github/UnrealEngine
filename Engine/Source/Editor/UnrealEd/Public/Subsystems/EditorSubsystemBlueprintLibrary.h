@@ -8,8 +8,8 @@
 
 #include "EditorSubsystemBlueprintLibrary.generated.h"
 
-UCLASS()
-class UNREALED_API UEditorSubsystemBlueprintLibrary : public UBlueprintFunctionLibrary
+UCLASS(MinimalAPI)
+class UEditorSubsystemBlueprintLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 
@@ -17,6 +17,6 @@ public:
 
 	/** Get a Local Player Subsystem from the Local Player associated with the provided context */
 	UFUNCTION(BlueprintPure, Category = "Editor Subsystems", meta = (BlueprintInternalUseOnly = "true"))
-	static UEditorSubsystem* GetEditorSubsystem(TSubclassOf<UEditorSubsystem> Class);
+	static UNREALED_API UEditorSubsystem* GetEditorSubsystem(TSubclassOf<UEditorSubsystem> Class);
 
 };

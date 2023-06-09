@@ -82,10 +82,10 @@ public:
 	};
 
 	/** Helper struct to specify settings for an automated editor build */
-	struct UNREALED_API FEditorAutomatedBuildSettings
+	struct FEditorAutomatedBuildSettings
 	{
 		/** Constructor */
-		FEditorAutomatedBuildSettings();
+		UNREALED_API FEditorAutomatedBuildSettings();
 
 		/** Behavior to take when a map build results in map check errors */
 		EAutomatedBuildBehavior BuildErrorBehavior;
@@ -195,12 +195,12 @@ public:
 	*
 	* @return	true if the build was triggered as user request; false if it did not 
 	*/
-	static UNREALED_API bool IsBuildingNavigationFromUserRequest() { return bBuildingNavigationFromUserRequest; }
+	static bool IsBuildingNavigationFromUserRequest() { return bBuildingNavigationFromUserRequest; }
 
 	/** 
 	* call it to notify that navigation builder finished building 
 	*/
-	static UNREALED_API void PathBuildingFinished() { bBuildingNavigationFromUserRequest = false; }
+	static void PathBuildingFinished() { bBuildingNavigationFromUserRequest = false; }
 
 	/**
 	 * Call this when an async custom build step has completed (successfully or not).

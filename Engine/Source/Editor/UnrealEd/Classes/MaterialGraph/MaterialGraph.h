@@ -120,8 +120,8 @@ private:
 
 };
 
-UCLASS(Optional)
-class UNREALED_API UMaterialGraph : public UEdGraph
+UCLASS(Optional, MinimalAPI)
+class UMaterialGraph : public UEdGraph
 {
 	GENERATED_UCLASS_BODY()
 
@@ -158,20 +158,20 @@ class UNREALED_API UMaterialGraph : public UEdGraph
 	FString	OriginalMaterialFullName;
 
 	//~ Begin UEdGraph interface
-	virtual void NotifyGraphChanged() override;
+	UNREALED_API virtual void NotifyGraphChanged() override;
 protected:
-	virtual void NotifyGraphChanged(const FEdGraphEditAction& Action) override;
+	UNREALED_API virtual void NotifyGraphChanged(const FEdGraphEditAction& Action) override;
 	//~ End UEdGraph interface
 
 public:
-	UMaterialGraph();
-	UMaterialGraph(FVTableHelper& Helper);
-	virtual ~UMaterialGraph();
+	UNREALED_API UMaterialGraph();
+	UNREALED_API UMaterialGraph(FVTableHelper& Helper);
+	UNREALED_API virtual ~UMaterialGraph();
 
 	/**
 	 * Completely rebuild the graph from the material, removing all old nodes
 	 */
-	void RebuildGraph();
+	UNREALED_API void RebuildGraph();
 
 	/**
 	 * Add an Expression to the Graph
@@ -180,7 +180,7 @@ public:
 	 *
 	 * @return	UMaterialGraphNode*	Newly created Graph node to represent expression
 	 */
-	class UMaterialGraphNode*			AddExpression(UMaterialExpression* Expression, bool bUserInvoked);
+	UNREALED_API class UMaterialGraphNode*			AddExpression(UMaterialExpression* Expression, bool bUserInvoked);
 
 	/**
 	 * Add a Comment to the Graph
@@ -190,7 +190,7 @@ public:
 	 *
 	 * @return	UMaterialGraphNode_Comment*	Newly created Graph node to represent comment
 	 */
-	class UMaterialGraphNode_Comment*	AddComment(UMaterialExpressionComment* Comment, bool bIsUserInvoked = false);
+	UNREALED_API class UMaterialGraphNode_Comment*	AddComment(UMaterialExpressionComment* Comment, bool bIsUserInvoked = false);
 
 	/**
 	 * Add a Subgraph to the Graph
@@ -199,32 +199,32 @@ public:
 	 *
 	 * @return	UMaterialGraph* Newly created subgraph
 	 */
-	UMaterialGraph* AddSubGraph(UMaterialExpression* InSubgraphExpression);
+	UNREALED_API UMaterialGraph* AddSubGraph(UMaterialExpression* InSubgraphExpression);
 
 	/** Link all of the Graph nodes using the Material's connections */
-	void LinkGraphNodesFromMaterial();
+	UNREALED_API void LinkGraphNodesFromMaterial();
 
 	/** Link the Material using the Graph node's connections */
-	void LinkMaterialExpressionsFromGraph();
+	UNREALED_API void LinkMaterialExpressionsFromGraph();
 
 	/**
 	 * Check whether a material input should be marked as active
 	 *
 	 * @param	GraphPin	Pin representing the material input
 	 */
-	bool IsInputActive(class UEdGraphPin* GraphPin) const;
+	UNREALED_API bool IsInputActive(class UEdGraphPin* GraphPin) const;
 
 	/** Returns the input index associated with the given property */
-	int32 GetInputIndexForProperty(EMaterialProperty Property) const;
+	UNREALED_API int32 GetInputIndexForProperty(EMaterialProperty Property) const;
 
 	/**
 	 * Get a list of nodes representing expressions that are not used in the Material
 	 *
 	 * @param	UnusedNodes	Array to contain nodes representing unused expressions
 	 */
-	void GetUnusedExpressions(TArray<class UEdGraphNode*>& UnusedNodes) const;
+	UNREALED_API void GetUnusedExpressions(TArray<class UEdGraphNode*>& UnusedNodes) const;
 
-	void UpdatePinTypes();
+	UNREALED_API void UpdatePinTypes();
 
 private:
 	/**

@@ -12,15 +12,15 @@ class UBookMark;
  * Provides a way to temporarily bookmark and restore all viewports
  * This allows camera locations and rotations to be preserved across a map reload
  */
-class UNREALED_API FBookmarkScoped
+class FBookmarkScoped
 {
 public:
 
 	/** Constructor; bookmark all viewports */
-	FBookmarkScoped();
+	UNREALED_API FBookmarkScoped();
 
 	/** Destructor; restore all viewports */
-	~FBookmarkScoped();
+	UNREALED_API ~FBookmarkScoped();
 
 private:
 

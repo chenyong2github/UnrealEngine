@@ -30,7 +30,7 @@ class ULegacyEdModeSelectInterface : public UInterface
 	GENERATED_BODY()
 };
 
-class UNREALED_API ILegacyEdModeSelectInterface
+class ILegacyEdModeSelectInterface
 {
 	GENERATED_BODY()
 public:
@@ -57,7 +57,7 @@ class ULegacyEdModeWidgetInterface : public UInterface
 	GENERATED_BODY()
 };
 
-class UNREALED_API ILegacyEdModeWidgetInterface
+class ILegacyEdModeWidgetInterface
 {
 	GENERATED_BODY()
 
@@ -126,7 +126,7 @@ class ULegacyEdModeToolInterface : public UInterface
 	GENERATED_BODY()
 };
 
-class UNREALED_API ILegacyEdModeToolInterface
+class ILegacyEdModeToolInterface
 {
 	GENERATED_BODY()
 
@@ -149,7 +149,7 @@ class ULegacyEdModeDrawHelperInterface : public UInterface
 	GENERATED_BODY()
 };
 
-class UNREALED_API ILegacyEdModeDrawHelperInterface
+class ILegacyEdModeDrawHelperInterface
 {
 	GENERATED_BODY()
 
@@ -163,7 +163,7 @@ class ULegacyEdModeViewportInterface : public UInterface
 	GENERATED_BODY()
 };
 
-class UNREALED_API ILegacyEdModeViewportInterface
+class ILegacyEdModeViewportInterface
 {
 	GENERATED_BODY()
 

@@ -26,26 +26,26 @@ namespace EDocumentOpenBehavior
 /////////////////////////////////////////////////////
 // FWorkflowAllowedTabSet
 
-class UNREALED_API FWorkflowAllowedTabSet
+class FWorkflowAllowedTabSet
 {
 public:
 	// Searches this set for a factory with the specified ID, or returns NULL.
-	TSharedPtr<class FWorkflowTabFactory> GetFactory(FName FactoryID) const;
+	UNREALED_API TSharedPtr<class FWorkflowTabFactory> GetFactory(FName FactoryID) const;
 
 	// Registers a factory with this set - must be unique.
-	void RegisterFactory(TSharedPtr<class FWorkflowTabFactory> Factory);
+	UNREALED_API void RegisterFactory(TSharedPtr<class FWorkflowTabFactory> Factory);
 
 	// Unregisters a factory with this specified ID.
-	void UnregisterFactory(FName FactoryID);
+	UNREALED_API void UnregisterFactory(FName FactoryID);
 
 	// Merges in a set of factories into this set - duplicates are OK.
-	void MergeInSet(const FWorkflowAllowedTabSet& OtherSet);
+	UNREALED_API void MergeInSet(const FWorkflowAllowedTabSet& OtherSet);
 
 	// Clears the set
-	void Clear();
+	UNREALED_API void Clear();
 
 	// Allows iteration over Factories
-	TMap< FName, TSharedPtr<class FWorkflowTabFactory> >::TIterator CreateIterator();
+	UNREALED_API TMap< FName, TSharedPtr<class FWorkflowTabFactory> >::TIterator CreateIterator();
 
 private:
 	// Map of available factories in this mode
@@ -57,15 +57,15 @@ private:
 /////////////////////////////////////////////////////
 // FTabInfo
 
-class UNREALED_API FTabInfo : public TSharedFromThis<FTabInfo>
+class FTabInfo : public TSharedFromThis<FTabInfo>
 {
 public:
-	FTabInfo(const TSharedRef<SDockTab>& InTab, const TSharedPtr<FDocumentTabFactory>& InSpawner, const TSharedPtr<class FDocumentTracker>& InTracker);
+	UNREALED_API FTabInfo(const TSharedRef<SDockTab>& InTab, const TSharedPtr<FDocumentTabFactory>& InSpawner, const TSharedPtr<class FDocumentTracker>& InTracker);
 
 	/** Returns TRUE if the payload used by this TabInfo is the same as passed in */
-	bool PayloadMatches(const TSharedPtr<FTabPayload> TestPayload) const;
+	UNREALED_API bool PayloadMatches(const TSharedPtr<FTabPayload> TestPayload) const;
 
-	static bool PayloadMatches(TSharedPtr<FTabPayload> A, TSharedPtr<FTabPayload> B);
+	static UNREALED_API bool PayloadMatches(TSharedPtr<FTabPayload> A, TSharedPtr<FTabPayload> B);
 
 	/**
 	 * Adds history data to immediately after the current location in the history list, wiping out any history after in the process
@@ -73,28 +73,28 @@ public:
 	 * @param InHistoryNode		The history node to add
 	 * @param bInSaveHistory	TRUE if history should be saved
 	 */
-	void AddTabHistory(TSharedPtr< struct FGenericTabHistory > InHistoryNode, bool bInSaveHistory = true);
+	UNREALED_API void AddTabHistory(TSharedPtr< struct FGenericTabHistory > InHistoryNode, bool bInSaveHistory = true);
 
 	/** Retrieves the history currently visible in this tab */
-	TSharedPtr<struct FGenericTabHistory> GetCurrentHistory() const;
+	UNREALED_API TSharedPtr<struct FGenericTabHistory> GetCurrentHistory() const;
 
 	/** Sets the current history and evoke it, this can either be an old or new history node */
-	void SetCurrentHistory(TSharedPtr<struct FGenericTabHistory> NewHistory, bool bInSaveHistory = true, bool bShouldRestore = true);
+	UNREALED_API void SetCurrentHistory(TSharedPtr<struct FGenericTabHistory> NewHistory, bool bInSaveHistory = true, bool bShouldRestore = true);
 
 	/** Single step forward in history */
-	FReply OnGoForwardInHistory();
+	UNREALED_API FReply OnGoForwardInHistory();
 
 	/** Single step back in history */
-	FReply OnGoBackInHistory();
+	UNREALED_API FReply OnGoBackInHistory();
 
 	/** Jumps backwards to the nearest valid history. If no history backwards is valid, jumps forward. In the case that there is no valid history, the tab is closed */
-	void JumpToNearestValidHistoryData();
+	UNREALED_API void JumpToNearestValidHistoryData();
 
 	/** Retrieves the factory from the current history data, which is being displayed by the tab */
-	TWeakPtr<FDocumentTabFactory> GetFactory() const;
+	UNREALED_API TWeakPtr<FDocumentTabFactory> GetFactory() const;
 
 	/** Retrieves the payload from the current history data, which is being displayed by the tab */
-	TSharedPtr<FTabPayload> GetPayload() const;
+	UNREALED_API TSharedPtr<FTabPayload> GetPayload() const;
 
 	/** Retrieves the tab used by this TabInfo */
 	TWeakPtr<class SDockTab> GetTab() const
@@ -103,16 +103,16 @@ public:
 	}
 
 	/** Jumps immediately to an index in the history if valid */
-	void GoToHistoryIndex(int32 InHistoryIdx);
+	UNREALED_API void GoToHistoryIndex(int32 InHistoryIdx);
 
 	/** Returns TRUE if stepping backward in history is allowed */
-	bool CanStepBackwardInHistory() const;
+	UNREALED_API bool CanStepBackwardInHistory() const;
 
 	/** Returns TRUE if stepping forward in history is allowed */
-	bool CanStepForwardInHistory() const;
+	UNREALED_API bool CanStepForwardInHistory() const;
 
 	/** Creates the history navigation widget used for navigating back and forward in history */
-	TSharedRef< SWidget > CreateHistoryNavigationWidget();
+	UNREALED_API TSharedRef< SWidget > CreateHistoryNavigationWidget();
 
 private:
 	/**
@@ -120,7 +120,7 @@ private:
 	 *
 	 * @param InMenuAnchor		This is the anchor the menu will use for positioning
 	 */
-	FReply OnMouseDownHistory( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, TWeakPtr< SMenuAnchor > InMenuAnchor );
+	UNREALED_API FReply OnMouseDownHistory( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, TWeakPtr< SMenuAnchor > InMenuAnchor );
 
 	/** 
 	 * Callback to create the history menu.
@@ -129,7 +129,7 @@ private:
 	 *
 	 * @return						The menu widget displaying all available history
 	 */
-	TSharedRef<SWidget> CreateHistoryMenu(bool bInBackHistory) const;
+	UNREALED_API TSharedRef<SWidget> CreateHistoryMenu(bool bInBackHistory) const;
 
 private:	
 	/** Cached history navigation widget */
@@ -243,19 +243,19 @@ protected:
 
 DECLARE_DELEGATE_OneParam(FOnTabActivated, TSharedPtr<SDockTab>);
 
-class UNREALED_API FDocumentTracker : public TSharedFromThis<FDocumentTracker>
+class FDocumentTracker : public TSharedFromThis<FDocumentTracker>
 {
 public:
-	FDocumentTracker();
-	~FDocumentTracker();
+	UNREALED_API FDocumentTracker();
+	UNREALED_API ~FDocumentTracker();
 
-	void ClearDocumentFactories();
-	void RegisterDocumentFactory(TSharedPtr<class FDocumentTabFactory> Factory);
+	UNREALED_API void ClearDocumentFactories();
+	UNREALED_API void RegisterDocumentFactory(TSharedPtr<class FDocumentTabFactory> Factory);
 
 	// Creates a new tab manager
-	void Initialize(TSharedPtr<FAssetEditorToolkit> InHostingApp);
+	UNREALED_API void Initialize(TSharedPtr<FAssetEditorToolkit> InHostingApp);
 
-	void SetTabManager(const TSharedRef<FTabManager>& InTabManager);
+	UNREALED_API void SetTabManager(const TSharedRef<FTabManager>& InTabManager);
 
 	/** Are we opening a new document, or restoring a previously opened document */
 	enum EOpenDocumentCause
@@ -291,37 +291,37 @@ public:
 	 *
 	 * @return							The tab modified
 	 */
-	TSharedPtr<SDockTab> OpenDocument(TSharedPtr<FTabPayload> InPayload, EOpenDocumentCause InOpenCause);
+	UNREALED_API TSharedPtr<SDockTab> OpenDocument(TSharedPtr<FTabPayload> InPayload, EOpenDocumentCause InOpenCause);
 
 	// Closes any tabs of the specified type that match the payload (or all of them if the payload is NULL)
-	void CloseTab(TSharedPtr<FTabPayload> Payload);
+	UNREALED_API void CloseTab(TSharedPtr<FTabPayload> Payload);
 
 	/** Cleans any invalid tabs, either moving them to a valid place in history or closing the tab altogether */
-	void CleanInvalidTabs();
+	UNREALED_API void CleanInvalidTabs();
 
 	// Calls OnTabRefreshed for each open tab (on the factories that created them)
-	void RefreshAllTabs() const;
+	UNREALED_API void RefreshAllTabs() const;
 
 	// Finds a factory that can deal with the supplied payload
-	TSharedPtr<FDocumentTabFactory> FindSupportingFactory(TSharedRef<FTabPayload> Payload) const;
+	UNREALED_API TSharedPtr<FDocumentTabFactory> FindSupportingFactory(TSharedRef<FTabPayload> Payload) const;
 
 	// Finds all tabs that match the specified identifier and optional payload, placing them in the specified array
-	void FindMatchingTabs(TSharedPtr<FTabPayload> Payload, /*inout*/ TArray< TSharedPtr<SDockTab> >& Results);
+	UNREALED_API void FindMatchingTabs(TSharedPtr<FTabPayload> Payload, /*inout*/ TArray< TSharedPtr<SDockTab> >& Results);
 
 	// Finds all tabs that match the specified identifier, placing them in the specified array
-	void FindAllTabsForFactory(const TWeakPtr<FDocumentTabFactory>& Factory, /*inout*/ TArray< TSharedPtr<SDockTab> >& Results);
+	UNREALED_API void FindAllTabsForFactory(const TWeakPtr<FDocumentTabFactory>& Factory, /*inout*/ TArray< TSharedPtr<SDockTab> >& Results);
 
 	// Saves the state of all tabs
-	void SaveAllState();
+	UNREALED_API void SaveAllState();
 
 	// Replaces the open payload in the specified tab with a new one; recreating the contents
-	void ReplacePayloadInTab(TSharedPtr<SDockTab> TargetTab, TSharedPtr<FTabPayload> NewPayload);
+	UNREALED_API void ReplacePayloadInTab(TSharedPtr<SDockTab> TargetTab, TSharedPtr<FTabPayload> NewPayload);
 
 	/** Get all the live documents tracked by this tracker */
-	TArray< TSharedPtr<SDockTab> > GetAllDocumentTabs() const;
+	UNREALED_API TArray< TSharedPtr<SDockTab> > GetAllDocumentTabs() const;
 
 	/** Returns the current active tab */
-	TSharedPtr<SDockTab> GetActiveTab() const;
+	UNREALED_API TSharedPtr<SDockTab> GetActiveTab() const;
 private:
 
 	// List of open tabs; used to bring one to front and focus it
@@ -356,28 +356,28 @@ private:
 
 private:
 	// Clean the spawned list 
-	FTabList& GetSpawnedList();
+	UNREALED_API FTabList& GetSpawnedList();
 
 	// Cleans the LastEditedTabInfo and returns pinned
-	TSharedPtr<FTabInfo> GetLastEditedTabInfo();
+	UNREALED_API TSharedPtr<FTabInfo> GetLastEditedTabInfo();
 
 	// Called by the global active tab changed callback; dispatches to individually registered callbacks
-	void OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated);
+	UNREALED_API void OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated);
 
 	// Called by the global tab manager foregrounds a tab; dispatches to individually registered callbacks
-	void OnTabForegrounded(TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated);
+	UNREALED_API void OnTabForegrounded(TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated);
 
 	/** Callback for navigating tabs with buttons */
-	FReply OnNavigateTab(FDocumentTracker::EOpenDocumentCause InCause);
+	UNREALED_API FReply OnNavigateTab(FDocumentTracker::EOpenDocumentCause InCause);
 
 	/** Helper function to find the tab in the foreground */
-	TWeakPtr< FTabInfo > FindTabInForeground();
+	UNREALED_API TWeakPtr< FTabInfo > FindTabInForeground();
 
 	/** Navigates to specific index in tab history, returns success if it was found */
-	bool NavigateToTabHistory(int32 InHistoryIdx);
+	UNREALED_API bool NavigateToTabHistory(int32 InHistoryIdx);
 
 	/** Returns the currently active tab history, may be null */
-	TSharedPtr<FGenericTabHistory> GetCurrentTabHistory();
+	UNREALED_API TSharedPtr<FGenericTabHistory> GetCurrentTabHistory();
 
 	/**
 	 * Navigates current tab
@@ -387,7 +387,7 @@ private:
 	 *
 	 * @return							The tab navigated and modified
 	 */
-	TSharedPtr<SDockTab> NavigateCurrentTab(TSharedPtr<FTabPayload> InPayload, EOpenDocumentCause InNavigateCause);
+	UNREALED_API TSharedPtr<SDockTab> NavigateCurrentTab(TSharedPtr<FTabPayload> InPayload, EOpenDocumentCause InNavigateCause);
 
 	/**
 	 * Opens a new tab
@@ -397,7 +397,7 @@ private:
 	 *
 	 * @return							The tab opened and modified
 	 */
-	TSharedPtr<SDockTab> OpenNewTab(TSharedPtr<FGenericTabHistory> InTabHistory, EOpenDocumentCause InOpenCause);
+	UNREALED_API TSharedPtr<SDockTab> OpenNewTab(TSharedPtr<FGenericTabHistory> InTabHistory, EOpenDocumentCause InOpenCause);
 
 	friend class FTabInfo;
 };

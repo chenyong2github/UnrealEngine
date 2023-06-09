@@ -47,19 +47,19 @@ struct FChunkDependencyTreeNode
 };
 
 /** This is read out of config and defines a tree of chunk dependencies */
-UCLASS(config=Engine, defaultconfig)
-class UNREALED_API UChunkDependencyInfo : public UObject
+UCLASS(config=Engine, defaultconfig, MinimalAPI)
+class UChunkDependencyInfo : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
 	/** Will return an existing dependency graph, or build if it necessary */
-	const FChunkDependencyTreeNode* GetOrBuildChunkDependencyGraph(int32 HighestChunk = 0);
+	UNREALED_API const FChunkDependencyTreeNode* GetOrBuildChunkDependencyGraph(int32 HighestChunk = 0);
 
 	/** Will create a dependency tree starting with RootTreeNode. If HighestChunk is == 0 it will only add dependencies on 0 for chunks already in the dependencies list */
-	const FChunkDependencyTreeNode* BuildChunkDependencyGraph(int32 HighestChunk);
+	UNREALED_API const FChunkDependencyTreeNode* BuildChunkDependencyGraph(int32 HighestChunk);
 
 	/** Removes redundant chunks from a chunk list */
-	void RemoveRedundantChunks(TArray<int32>& ChunkIDs) const;
+	UNREALED_API void RemoveRedundantChunks(TArray<int32>& ChunkIDs) const;
 
 	/** List of dependencies used to remove redundant chunks */
 	UPROPERTY(config)

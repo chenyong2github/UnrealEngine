@@ -7,15 +7,15 @@
 
 #include "AssetDefinitionDefault.generated.h"
 
-UCLASS(Abstract)
-class UNREALED_API UAssetDefinitionDefault : public UAssetDefinition
+UCLASS(Abstract, MinimalAPI)
+class UAssetDefinitionDefault : public UAssetDefinition
 {
 	GENERATED_BODY()
 
 public:
 	// UAssetDefinition Begin
-	virtual EAssetCommandResult OpenAssets(const FAssetOpenArgs& OpenArgs) const override;
-	virtual EAssetCommandResult PerformAssetDiff(const FAssetDiffArgs& DiffArgs) const override;
+	UNREALED_API virtual EAssetCommandResult OpenAssets(const FAssetOpenArgs& OpenArgs) const override;
+	UNREALED_API virtual EAssetCommandResult PerformAssetDiff(const FAssetDiffArgs& DiffArgs) const override;
 	// UAssetDefinition End
 };
 

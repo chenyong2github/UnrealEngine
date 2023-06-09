@@ -11,7 +11,7 @@ class FViewportTabContent;
 class FMenuBuilder;
 struct FAssetEditorViewportConstructionArgs;
 
-class UNREALED_API SAssetEditorViewport : public SEditorViewport
+class SAssetEditorViewport : public SEditorViewport
 {
 public:
 
@@ -23,16 +23,16 @@ public:
 		SLATE_ARGUMENT(TSharedPtr<FEditorViewportClient>, EditorViewportClient)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const FAssetEditorViewportConstructionArgs& InViewportConstructionArgs);
-	void OnSetViewportConfiguration(FName ConfigurationName);
-	bool IsViewportConfigurationSet(FName ConfigurationName) const;
+	UNREALED_API void Construct(const FArguments& InArgs, const FAssetEditorViewportConstructionArgs& InViewportConstructionArgs);
+	UNREALED_API void OnSetViewportConfiguration(FName ConfigurationName);
+	UNREALED_API bool IsViewportConfigurationSet(FName ConfigurationName) const;
 
-	void GenerateLayoutMenu(FMenuBuilder& MenuBuilder) const;
+	UNREALED_API void GenerateLayoutMenu(FMenuBuilder& MenuBuilder) const;
 
 protected:
-	virtual void BindCommands() override;
+	UNREALED_API virtual void BindCommands() override;
 
-	virtual TSharedRef<FEditorViewportClient> MakeEditorViewportClient() override;
+	UNREALED_API virtual TSharedRef<FEditorViewportClient> MakeEditorViewportClient() override;
 	FName ConfigKey;
 	TWeakPtr<FViewportTabContent> ParentTabContent;
 };

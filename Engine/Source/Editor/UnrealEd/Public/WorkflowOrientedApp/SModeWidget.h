@@ -22,7 +22,7 @@ DECLARE_DELEGATE_OneParam( FOnModeChangeRequested, FName );
 enum class ECheckBoxState : uint8;
 
 // This is the base class for a mode widget in a workflow oriented editor
-class UNREALED_API SModeWidget : public SCompoundWidget
+class SModeWidget : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SModeWidget)
@@ -49,7 +49,7 @@ public:
 
 public:
 	// Construct a SModeWidget
-	void Construct(const FArguments& InArgs, const FText& InText, const FName InMode);
+	UNREALED_API void Construct(const FArguments& InArgs, const FText& InText, const FName InMode);
 
 private:
 	bool IsActiveMode() const;

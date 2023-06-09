@@ -66,49 +66,49 @@ struct FActorPlacementFolder
 };
 
 /** Per-World Actor Folders UObject (used to support undo/redo reliably) */
-UCLASS()
-class UNREALED_API UWorldFolders : public UObject
+UCLASS(MinimalAPI)
+class UWorldFolders : public UObject
 {
 public:
 	GENERATED_BODY()
 
-	void Initialize(UWorld* InWorld);
+	UNREALED_API void Initialize(UWorld* InWorld);
 
-	void RebuildList();
-	bool AddFolder(const FFolder& InFolder);
-	bool RemoveFolder(const FFolder& InFolder, bool bShouldDeleteFolder = false);
-	bool RenameFolder(const FFolder& InOldFolder, const FFolder& InNewFolder);
-	bool IsFolderExpanded(const FFolder& InFolder) const;
-	bool SetIsFolderExpanded(const FFolder& InFolder, bool bIsExpanded);
-	FFolder GetActorEditorContextFolder(bool bMustMatchCurrentLevel) const;
-	bool SetActorEditorContextFolder(const FFolder& InFolder);
-	void PushActorEditorContext();
-	void PopActorEditorContext();
-	bool ContainsFolder(const FFolder& InFolder) const;
-	void ForEachFolder(TFunctionRef<bool(const FFolder&)> Operation);
-	void ForEachFolderWithRootObject(const FFolder::FRootObject& InFolderRootObject, TFunctionRef<bool(const FFolder&)> Operation);
-	void SaveState();
-	UWorld* GetWorld() const;
+	UNREALED_API void RebuildList();
+	UNREALED_API bool AddFolder(const FFolder& InFolder);
+	UNREALED_API bool RemoveFolder(const FFolder& InFolder, bool bShouldDeleteFolder = false);
+	UNREALED_API bool RenameFolder(const FFolder& InOldFolder, const FFolder& InNewFolder);
+	UNREALED_API bool IsFolderExpanded(const FFolder& InFolder) const;
+	UNREALED_API bool SetIsFolderExpanded(const FFolder& InFolder, bool bIsExpanded);
+	UNREALED_API FFolder GetActorEditorContextFolder(bool bMustMatchCurrentLevel) const;
+	UNREALED_API bool SetActorEditorContextFolder(const FFolder& InFolder);
+	UNREALED_API void PushActorEditorContext();
+	UNREALED_API void PopActorEditorContext();
+	UNREALED_API bool ContainsFolder(const FFolder& InFolder) const;
+	UNREALED_API void ForEachFolder(TFunctionRef<bool(const FFolder&)> Operation);
+	UNREALED_API void ForEachFolderWithRootObject(const FFolder::FRootObject& InFolderRootObject, TFunctionRef<bool(const FFolder&)> Operation);
+	UNREALED_API void SaveState();
+	UNREALED_API UWorld* GetWorld() const;
 
 	//~ Begin UObject
-	virtual void Serialize(FArchive& Ar) override;
+	UNREALED_API virtual void Serialize(FArchive& Ar) override;
 	//~ End UObject
 
 	//~ Begin Deprecated
-	FActorFolderProps* GetFolderProperties(const FFolder& InFolder);
+	UNREALED_API FActorFolderProps* GetFolderProperties(const FFolder& InFolder);
 	//~ End Deprecated
 
 private:
 
-	void BroadcastOnActorFolderCreated(const FFolder& InFolder);
-	void BroadcastOnActorFolderDeleted(const FFolder& InFolder);
-	void BroadcastOnActorFolderMoved(const FFolder& InSrcFolder, const FFolder& InDstFolder);
+	UNREALED_API void BroadcastOnActorFolderCreated(const FFolder& InFolder);
+	UNREALED_API void BroadcastOnActorFolderDeleted(const FFolder& InFolder);
+	UNREALED_API void BroadcastOnActorFolderMoved(const FFolder& InSrcFolder, const FFolder& InDstFolder);
 
-	FWorldFoldersImplementation& GetImpl(const FFolder& InFolder) const;
-	bool IsUsingPersistentFolders(const FFolder& InFolder) const;
+	UNREALED_API FWorldFoldersImplementation& GetImpl(const FFolder& InFolder) const;
+	UNREALED_API bool IsUsingPersistentFolders(const FFolder& InFolder) const;
 
-	FString GetWorldStateFilename() const;
-	void LoadState();
+	UNREALED_API FString GetWorldStateFilename() const;
+	UNREALED_API void LoadState();
 
 	TUniquePtr<FWorldPersistentFolders> PersistentFolders;
 	TUniquePtr<FWorldTransientFolders> TransientFolders;

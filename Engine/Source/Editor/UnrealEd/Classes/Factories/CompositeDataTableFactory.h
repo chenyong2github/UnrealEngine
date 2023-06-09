@@ -5,12 +5,12 @@
 #include "DataTableFactory.h"
 #include "CompositeDataTableFactory.generated.h"
 
-UCLASS(hidecategories = Object)
-class UNREALED_API UCompositeDataTableFactory : public UDataTableFactory
+UCLASS(hidecategories = Object, MinimalAPI)
+class UCompositeDataTableFactory : public UDataTableFactory
 {
 	GENERATED_UCLASS_BODY()
 
 protected:
-	virtual UDataTable* MakeNewDataTable(UObject* InParent, FName Name, EObjectFlags Flags) override;
+	UNREALED_API virtual UDataTable* MakeNewDataTable(UObject* InParent, FName Name, EObjectFlags Flags) override;
 };
 

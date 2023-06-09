@@ -61,24 +61,24 @@ namespace PropertyInfoViewStyle
 	 * see SDebugLineItem::GenerateWidgetForColumn (SKismetDebuggingView.cpp) for
 	 * use example
 	 */
-	class UNREALED_API SIndent : public SCompoundWidget
+	class SIndent : public SCompoundWidget
 	{ 
 	public:
 			
 		SLATE_BEGIN_ARGS(SIndent) {}
 		SLATE_END_ARGS()
 
-		void Construct(const FArguments& InArgs, TSharedRef<ITableRow> DetailsRow);
+		UNREALED_API void Construct(const FArguments& InArgs, TSharedRef<ITableRow> DetailsRow);
 
 	private:
-		virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry,
+		UNREALED_API virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry,
 		                      const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements,
 		                      int32 LayerId, const FWidgetStyle& InWidgetStyle,
 		                      bool bParentEnabled) const override;
 
-		virtual FOptionalSize GetIndentWidth() const;
+		UNREALED_API virtual FOptionalSize GetIndentWidth() const;
 
-		virtual FSlateColor GetRowBackgroundColor(int32 IndentLevel) const;
+		UNREALED_API virtual FSlateColor GetRowBackgroundColor(int32 IndentLevel) const;
 
 	private:
 		TWeakPtr<ITableRow> Row;
@@ -93,14 +93,14 @@ namespace PropertyInfoViewStyle
 	 * see SDebugLineItem::GenerateWidgetForColumn (SKismetDebuggingView.cpp) for
 	 * use example
 	 */
-	class UNREALED_API SExpanderArrow : public SCompoundWidget
+	class SExpanderArrow : public SCompoundWidget
 	{
 	public:
 		SLATE_BEGIN_ARGS(SExpanderArrow) {}
 			SLATE_ATTRIBUTE(bool, HasChildren)
 		SLATE_END_ARGS()
 
-		void Construct(const FArguments& InArgs, TSharedRef<ITableRow> DetailsRow);
+		UNREALED_API void Construct(const FArguments& InArgs, TSharedRef<ITableRow> DetailsRow);
 
 	private:
 		EVisibility GetExpanderVisibility() const;
@@ -124,7 +124,7 @@ namespace PropertyInfoViewStyle
 	 * the same as a standard STextBlock would be in order for the highlight
 	 * to match up properly
 	 */
-	class UNREALED_API STextHighlightOverlay : public SCompoundWidget
+	class STextHighlightOverlay : public SCompoundWidget
 	{
 	public:
 		SLATE_BEGIN_ARGS(STextHighlightOverlay) {}
@@ -133,6 +133,6 @@ namespace PropertyInfoViewStyle
 			SLATE_ATTRIBUTE(FText, HighlightText)
 		SLATE_END_ARGS()
 
-		void Construct(const FArguments& InArgs);
+		UNREALED_API void Construct(const FArguments& InArgs);
 	};
 }

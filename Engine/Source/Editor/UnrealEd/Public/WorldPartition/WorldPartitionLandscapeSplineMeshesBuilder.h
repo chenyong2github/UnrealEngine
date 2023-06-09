@@ -12,8 +12,8 @@ class UPackage;
 class ILandscapeSplineInterface;
 
 // Example Command Line: ProjectName MapName -run=WorldPartitionBuilderCommandlet -SCCProvider=Perforce -Builder=WorldPartitionLandscapeSplineMeshesBuilder (<Optional> -NewGridSize=Value)
-UCLASS()
-class UNREALED_API UWorldPartitionLandscapeSplineMeshesBuilder : public UWorldPartitionBuilder
+UCLASS(MinimalAPI)
+class UWorldPartitionLandscapeSplineMeshesBuilder : public UWorldPartitionBuilder
 {
 	GENERATED_UCLASS_BODY()
 
@@ -21,21 +21,21 @@ public:
 	// UWorldPartitionBuilder interface begin
 	virtual bool RequiresCommandletRendering() const override { return false; }
 	virtual ELoadingMode GetLoadingMode() const override { return ELoadingMode::Custom; }
-	virtual bool RunInternal(UWorld* World, const FCellInfo& InCellInfo, FPackageSourceControlHelper& PackageHelper) override;
+	UNREALED_API virtual bool RunInternal(UWorld* World, const FCellInfo& InCellInfo, FPackageSourceControlHelper& PackageHelper) override;
 	// UWorldPartitionBuilder interface end
 
 	// Helper function that creates a builder and runs it on an already loaded/initialized world
-	static bool RunOnInitializedWorld(UWorld* World);
+	static UNREALED_API bool RunOnInitializedWorld(UWorld* World);
 
 private:
-	void FilterStaticMeshComponents(TArray<class UStaticMeshComponent*>& InOutComponents);
-	void CloneStaticMeshComponentInActor(ALandscapeSplineMeshesActor* InActor, const UStaticMeshComponent* InMeshComponent);
-	void CloneStaticMeshComponent(const UStaticMeshComponent* InSrcMeshComponent, UStaticMeshComponent* DstMeshComponent);
-	int32 HashStaticMeshComponent(const UStaticMeshComponent* InComponent);
-	FName GetSplineCollisionProfileName(const UStaticMeshComponent* InMeshComponent);
-	ALandscapeSplineMeshesActor* GetOrCreatePartitionActorForComponent(class UWorld* InWorld, const UStaticMeshComponent* InMeshComponent, const FGuid& InLandscapeGuid);
+	UNREALED_API void FilterStaticMeshComponents(TArray<class UStaticMeshComponent*>& InOutComponents);
+	UNREALED_API void CloneStaticMeshComponentInActor(ALandscapeSplineMeshesActor* InActor, const UStaticMeshComponent* InMeshComponent);
+	UNREALED_API void CloneStaticMeshComponent(const UStaticMeshComponent* InSrcMeshComponent, UStaticMeshComponent* DstMeshComponent);
+	UNREALED_API int32 HashStaticMeshComponent(const UStaticMeshComponent* InComponent);
+	UNREALED_API FName GetSplineCollisionProfileName(const UStaticMeshComponent* InMeshComponent);
+	UNREALED_API ALandscapeSplineMeshesActor* GetOrCreatePartitionActorForComponent(class UWorld* InWorld, const UStaticMeshComponent* InMeshComponent, const FGuid& InLandscapeGuid);
 
 	uint32 NewGridSize;
 	
-	static class UStaticMesh* SplineEditorMesh;
+	static UNREALED_API class UStaticMesh* SplineEditorMesh;
 };

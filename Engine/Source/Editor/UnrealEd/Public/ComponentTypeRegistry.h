@@ -24,9 +24,9 @@ struct FComponentTypeEntry
 	TObjectPtr<class UClass> ComponentClass;
 };
 
-struct UNREALED_API FComponentTypeRegistry
+struct FComponentTypeRegistry
 {
-	static FComponentTypeRegistry& Get();
+	static UNREALED_API FComponentTypeRegistry& Get();
 
 	/**
 	 * Called when the user changes the text in the search box.
@@ -34,22 +34,22 @@ struct UNREALED_API FComponentTypeRegistry
 	 * @return Deleate that can be used to handle change notifications. change notifications are raised when entries are 
 	 *	added or removed from the component type list
 	 */
-	FOnComponentTypeListChanged& SubscribeToComponentList(TArray<FComponentClassComboEntryPtr>*& OutComponentList);
-	FOnComponentTypeListChanged& SubscribeToComponentList(const TArray<FComponentTypeEntry>*& OutComponentList);
-	FOnComponentTypeListChanged& GetOnComponentTypeListChanged();
+	UNREALED_API FOnComponentTypeListChanged& SubscribeToComponentList(TArray<FComponentClassComboEntryPtr>*& OutComponentList);
+	UNREALED_API FOnComponentTypeListChanged& SubscribeToComponentList(const TArray<FComponentTypeEntry>*& OutComponentList);
+	UNREALED_API FOnComponentTypeListChanged& GetOnComponentTypeListChanged();
 
 	/**
 	 * Called when a specific class has been updated and should force the component type registry to update as well
 	 */
-	void InvalidateClass(TSubclassOf<UActorComponent> ClassToUpdate);
+	UNREALED_API void InvalidateClass(TSubclassOf<UActorComponent> ClassToUpdate);
 
 	/** Schedules a full update of the component type registry on the next frame */
-	void Invalidate();
+	UNREALED_API void Invalidate();
 
 	/**
 	 * Attempts to locate the class entry corresponding to the given object path.
 	 */
-	FComponentClassComboEntryPtr FindClassEntryForObjectPath(FTopLevelAssetPath InObjectPath) const;
+	UNREALED_API FComponentClassComboEntryPtr FindClassEntryForObjectPath(FTopLevelAssetPath InObjectPath) const;
 
 private:
 	void OnReloadComplete(EReloadCompleteReason Reason);

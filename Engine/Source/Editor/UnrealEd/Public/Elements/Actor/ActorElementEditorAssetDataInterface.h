@@ -13,11 +13,11 @@ class UObject;
 struct FAssetData;
 struct FTypedElementHandle;
 
-UCLASS()
-class UNREALED_API UActorElementEditorAssetDataInterface : public UActorElementAssetDataInterface
+UCLASS(MinimalAPI)
+class UActorElementEditorAssetDataInterface : public UActorElementAssetDataInterface
 {
 	GENERATED_BODY()
 
 public:
-	virtual TArray<FAssetData> GetAllReferencedAssetDatas(const FTypedElementHandle& InElementHandle) override;
+	UNREALED_API virtual TArray<FAssetData> GetAllReferencedAssetDatas(const FTypedElementHandle& InElementHandle) override;
 };

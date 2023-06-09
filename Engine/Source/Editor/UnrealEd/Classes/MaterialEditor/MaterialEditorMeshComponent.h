@@ -8,12 +8,12 @@
 #include "Components/StaticMeshComponent.h"
 #include "MaterialEditorMeshComponent.generated.h"
 
-UCLASS()
-class UNREALED_API UMaterialEditorMeshComponent : public UStaticMeshComponent
+UCLASS(MinimalAPI)
+class UMaterialEditorMeshComponent : public UStaticMeshComponent
 {
 	GENERATED_UCLASS_BODY()
 
 	// USceneComponent Interface
-	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
+	UNREALED_API virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 };
 

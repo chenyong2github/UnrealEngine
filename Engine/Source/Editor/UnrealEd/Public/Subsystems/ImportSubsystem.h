@@ -29,19 +29,19 @@ public:
  * Subsystem for importing assets in the editor, 
  * Contains utility functions and callbacks for hooking into importing.
  */
-UCLASS()
-class UNREALED_API UImportSubsystem : public UEditorSubsystem
+UCLASS(MinimalAPI)
+class UImportSubsystem : public UEditorSubsystem
 {
 	GENERATED_BODY()
 
 public:
-	UImportSubsystem();
+	UNREALED_API UImportSubsystem();
 
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-	virtual void Deinitialize() override;
+	UNREALED_API virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	UNREALED_API virtual void Deinitialize() override;
 
 	/* Import files next tick */
-	void ImportNextTick(const TArray<FString>& Files, const FString& DestinationPath);
+	UNREALED_API void ImportNextTick(const TArray<FString>& Files, const FString& DestinationPath);
 
 	/** delegate type fired when new assets are being (re-)imported. Params: UFactory* InFactory, UClass* InClass, UObject* InParent, const FName& Name, const TCHAR* Type */
 	DECLARE_MULTICAST_DELEGATE_FiveParams(FOnAssetPreImport, UFactory*, UClass*, UObject*, const FName&, const TCHAR*);
@@ -53,13 +53,13 @@ public:
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnAssetPostLODImport, UObject*, int32);
 
 	// Broadcast AssetPreImport, do not broadcast with OnAssetPostImport directly.
-	void BroadcastAssetPreImport(UFactory* InFactory, UClass* InClass, UObject* InParent, const FName& Name, const TCHAR* Type);
+	UNREALED_API void BroadcastAssetPreImport(UFactory* InFactory, UClass* InClass, UObject* InParent, const FName& Name, const TCHAR* Type);
 	// Broadcast AssetPostImport, do not broadcast with OnAssetPostImport directly.
-	void BroadcastAssetPostImport(UFactory* InFactory, UObject* InCreatedObject);
+	UNREALED_API void BroadcastAssetPostImport(UFactory* InFactory, UObject* InCreatedObject);
 	// Broadcast AssetReimport, do not broadcast with OnAssetReimport directly.
-	void BroadcastAssetReimport(UObject* InCreatedObject);
+	UNREALED_API void BroadcastAssetReimport(UObject* InCreatedObject);
 	// Broadcast AssetPostLODImport, do not broadcast with OnAssetPostLODImport directly.
-	void BroadcastAssetPostLODImport(UObject* InObject, int32 inLODIndex);
+	UNREALED_API void BroadcastAssetPostLODImport(UObject* InObject, int32 inLODIndex);
 
 	// Used to register and unregister ONLY use Broadcast functions to execute the delegate
 	FOnAssetPreImport OnAssetPreImport;

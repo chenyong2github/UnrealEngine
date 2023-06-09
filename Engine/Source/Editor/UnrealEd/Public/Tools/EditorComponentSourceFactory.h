@@ -10,35 +10,35 @@
 
 
 
-class UNREALED_API FStaticMeshComponentTargetFactory : public FComponentTargetFactory
+class FStaticMeshComponentTargetFactory : public FComponentTargetFactory
 {
 public:
 	// new FStaticMeshComponentTargets returned by Build() will be requested for this LOD
 	EMeshLODIdentifier CurrentEditingLOD = EMeshLODIdentifier::MaxQuality;
 
-	bool CanBuild( UActorComponent* Candidate ) override;
-	TUniquePtr<FPrimitiveComponentTarget> Build( UPrimitiveComponent* PrimitiveComponent ) override;
+	UNREALED_API bool CanBuild( UActorComponent* Candidate ) override;
+	UNREALED_API TUniquePtr<FPrimitiveComponentTarget> Build( UPrimitiveComponent* PrimitiveComponent ) override;
 };
 
 
 
-class UNREALED_API FStaticMeshComponentTarget : public FPrimitiveComponentTarget
+class FStaticMeshComponentTarget : public FPrimitiveComponentTarget
 {
 public:
 
-	FStaticMeshComponentTarget(UPrimitiveComponent* Component, EMeshLODIdentifier EditingLOD = EMeshLODIdentifier::LOD0);
+	UNREALED_API FStaticMeshComponentTarget(UPrimitiveComponent* Component, EMeshLODIdentifier EditingLOD = EMeshLODIdentifier::LOD0);
 
-	virtual bool IsValid() const override;
+	UNREALED_API virtual bool IsValid() const override;
 
-	virtual void GetMaterialSet(FComponentMaterialSet& MaterialSetOut, bool bAssetMaterials) const override;
+	UNREALED_API virtual void GetMaterialSet(FComponentMaterialSet& MaterialSetOut, bool bAssetMaterials) const override;
 
-	FMeshDescription* GetMesh() override;
+	UNREALED_API FMeshDescription* GetMesh() override;
 
-	void CommitMesh( const FCommitter& ) override;
+	UNREALED_API void CommitMesh( const FCommitter& ) override;
 
-	virtual void CommitMaterialSetUpdate(const FComponentMaterialSet& MaterialSet, bool bApplyToAsset) override;
+	UNREALED_API virtual void CommitMaterialSetUpdate(const FComponentMaterialSet& MaterialSet, bool bApplyToAsset) override;
 
-	virtual bool HasSameSourceData(const FPrimitiveComponentTarget& OtherTarget) const override;
+	UNREALED_API virtual bool HasSameSourceData(const FPrimitiveComponentTarget& OtherTarget) const override;
 
 
 protected:

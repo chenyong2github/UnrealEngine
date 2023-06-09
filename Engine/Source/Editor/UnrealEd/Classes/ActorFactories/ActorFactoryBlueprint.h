@@ -11,16 +11,16 @@
 class AActor;
 struct FAssetData;
 
-UCLASS(config=Editor, collapsecategories, hidecategories=Object)
-class UNREALED_API UActorFactoryBlueprint : public UActorFactory
+UCLASS(config=Editor, collapsecategories, hidecategories=Object, MinimalAPI)
+class UActorFactoryBlueprint : public UActorFactory
 {
 	GENERATED_UCLASS_BODY()
 
 	//~ Begin UActorFactory Interface
-	virtual bool PreSpawnActor( UObject* Asset, FTransform& InOutLocation ) override;
-	virtual bool CanCreateActorFrom( const FAssetData& AssetData, FText& OutErrorMsg ) override;
-	virtual AActor* GetDefaultActor( const FAssetData& AssetData ) override;
-	virtual UClass* GetDefaultActorClass( const FAssetData& AssetData ) override;
+	UNREALED_API virtual bool PreSpawnActor( UObject* Asset, FTransform& InOutLocation ) override;
+	UNREALED_API virtual bool CanCreateActorFrom( const FAssetData& AssetData, FText& OutErrorMsg ) override;
+	UNREALED_API virtual AActor* GetDefaultActor( const FAssetData& AssetData ) override;
+	UNREALED_API virtual UClass* GetDefaultActorClass( const FAssetData& AssetData ) override;
 	//~ End UActorFactory Interface	
 };
 

@@ -635,7 +635,7 @@ public:
 
 
 	/** Returns the graph panel used for this graph editor */
-	UNREALED_API virtual SGraphPanel* GetGraphPanel() const
+	virtual SGraphPanel* GetGraphPanel() const
 	{
 		if (Implementation.IsValid())
 		{

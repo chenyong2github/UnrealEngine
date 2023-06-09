@@ -23,32 +23,32 @@ class HHitProxy;
 struct FViewportClick;
 class UObject;
 
-class UNREALED_API FLegacyEdModeWidgetHelper
+class FLegacyEdModeWidgetHelper
 {
 	friend class FEditorModeRegistry;
 	friend class UBaseLegacyWidgetEdMode;
 
 public:
-	FLegacyEdModeWidgetHelper();
+	UNREALED_API FLegacyEdModeWidgetHelper();
 	virtual ~FLegacyEdModeWidgetHelper() = default;
 
-	virtual bool AllowWidgetMove();
-	virtual bool CanCycleWidgetMode() const;
-	virtual bool ShowModeWidgets() const;
-	virtual EAxisList::Type GetWidgetAxisToDraw(UE::Widget::EWidgetMode InWidgetMode) const;
-	virtual FVector GetWidgetLocation() const;
-	virtual bool ShouldDrawWidget() const;
-	virtual bool UsesTransformWidget() const;
-	virtual bool UsesTransformWidget(UE::Widget::EWidgetMode CheckMode) const;
-	virtual FVector GetWidgetNormalFromCurrentAxis(void* InData);
-	virtual void SetCurrentWidgetAxis(EAxisList::Type InAxis) final;
-	virtual EAxisList::Type GetCurrentWidgetAxis() const final;
-	virtual bool UsesPropertyWidgets() const;
-	virtual bool GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, void* InData);
-	virtual bool GetCustomInputCoordinateSystem(FMatrix& InMatrix, void* InData);
+	UNREALED_API virtual bool AllowWidgetMove();
+	UNREALED_API virtual bool CanCycleWidgetMode() const;
+	UNREALED_API virtual bool ShowModeWidgets() const;
+	UNREALED_API virtual EAxisList::Type GetWidgetAxisToDraw(UE::Widget::EWidgetMode InWidgetMode) const;
+	UNREALED_API virtual FVector GetWidgetLocation() const;
+	UNREALED_API virtual bool ShouldDrawWidget() const;
+	UNREALED_API virtual bool UsesTransformWidget() const;
+	UNREALED_API virtual bool UsesTransformWidget(UE::Widget::EWidgetMode CheckMode) const;
+	UNREALED_API virtual FVector GetWidgetNormalFromCurrentAxis(void* InData);
+	UNREALED_API virtual void SetCurrentWidgetAxis(EAxisList::Type InAxis) final;
+	UNREALED_API virtual EAxisList::Type GetCurrentWidgetAxis() const final;
+	UNREALED_API virtual bool UsesPropertyWidgets() const;
+	UNREALED_API virtual bool GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, void* InData);
+	UNREALED_API virtual bool GetCustomInputCoordinateSystem(FMatrix& InMatrix, void* InData);
 	
-	virtual void ActorSelectionChangeNotify();
-	virtual bool AllowsViewportDragTool() const;
+	UNREALED_API virtual void ActorSelectionChangeNotify();
+	UNREALED_API virtual bool AllowsViewportDragTool() const;
 
 	// Property Widgets
 	/** Structure that holds info about our optional property widget */
@@ -69,28 +69,28 @@ public:
 		void GetTransformAndColor(UObject* BestSelectedItem, bool bIsSelected, FTransform& OutLocalTransform, FString& OutValidationMessage, FColor& OutDrawColor) const;
 	};
 
-	virtual bool InputDelta(FEditorViewportClient* InViewportClient, FViewport* InViewport, FVector& InDrag, FRotator& InRot, FVector& InScale);
-	virtual bool HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click);
-	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI);
-	virtual void DrawHUD(FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas);
+	UNREALED_API virtual bool InputDelta(FEditorViewportClient* InViewportClient, FViewport* InViewport, FVector& InDrag, FRotator& InRot, FVector& InScale);
+	UNREALED_API virtual bool HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click);
+	UNREALED_API virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI);
+	UNREALED_API virtual void DrawHUD(FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas);
 
 	// @TODO: Find a better home for these?
 	/** Value of UPROPERTY can be edited with a widget in the editor (translation, rotation) */
-	static const FName MD_MakeEditWidget;
+	static UNREALED_API const FName MD_MakeEditWidget;
 	/** Specifies a function used for validation of the current value of a property.  The function returns a string that is empty if the value is valid, or contains an error description if the value is invalid */
-	static const FName MD_ValidateWidgetUsing;
+	static UNREALED_API const FName MD_ValidateWidgetUsing;
 	/** Returns true if this structure can support creating a widget in the editor */
-	static bool CanCreateWidgetForStructure(const UStruct* InPropStruct);
+	static UNREALED_API bool CanCreateWidgetForStructure(const UStruct* InPropStruct);
 	/** Returns true if this property can support creating a widget in the editor */
-	static bool CanCreateWidgetForProperty(FProperty* InProp);
+	static UNREALED_API bool CanCreateWidgetForProperty(FProperty* InProp);
 	/** See if we should create a widget for the supplied property when selecting an actor instance */
-	static bool ShouldCreateWidgetForProperty(FProperty* InProp);
+	static UNREALED_API bool ShouldCreateWidgetForProperty(FProperty* InProp);
 
 protected:
 	/**
 	 * Returns the first selected Actor, or NULL if there is no selection.
 	 */
-	AActor* GetFirstSelectedActorInstance() const;
+	UNREALED_API AActor* GetFirstSelectedActorInstance() const;
 
 	/**
 	 * Gets an array of property widget info structures for the given struct/class type for the given container.
@@ -99,10 +99,10 @@ protected:
 	 * @param InContainer The container of the given type.
 	 * @param OutInfos An array of widget info structures (output).
 	 */
-	void GetPropertyWidgetInfos(const UStruct* InStruct, const void* InContainer, TArray<FPropertyWidgetInfo>& OutInfos) const;
+	UNREALED_API void GetPropertyWidgetInfos(const UStruct* InStruct, const void* InContainer, TArray<FPropertyWidgetInfo>& OutInfos) const;
 
 	/** Finds the best item to display widgets for (preferring selected components over selected actors) */
-	virtual UObject* GetItemToTryDisplayingWidgetsFor(FTransform& OutWidgetToWorld) const;
+	UNREALED_API virtual UObject* GetItemToTryDisplayingWidgetsFor(FTransform& OutWidgetToWorld) const;
 
 	/** Name of the property currently being edited */
 	FString EditedPropertyName;
@@ -127,8 +127,8 @@ protected:
 //   1. Subclass FLegacyEdModeWidgetHelper, and override the methods needed for your native FEdMode implementation
 //   2. Transition your native FEdMode to a UObject, by inheriting from this class
 //   3. Override CreateWidgetHelper function to return a SharedRef to the class you created in step 1.
-UCLASS(Abstract)
-class UNREALED_API UBaseLegacyWidgetEdMode : public UEdMode, public ILegacyEdModeWidgetInterface, public ILegacyEdModeViewportInterface
+UCLASS(Abstract, MinimalAPI)
+class UBaseLegacyWidgetEdMode : public UEdMode, public ILegacyEdModeWidgetInterface, public ILegacyEdModeViewportInterface
 {
 	GENERATED_BODY()
 
@@ -136,32 +136,32 @@ public:
 	// UEdMode overrides
 	// If you need to do any initialization in your mode, be sure to still call through to this function.
 	// It creates the WidgetHelper and hooks up the mode manager pointer for you.
-	virtual void Initialize() override;
-	virtual bool InputDelta(FEditorViewportClient* InViewportClient, FViewport* InViewport, FVector& InDrag, FRotator& InRot, FVector& InScale) override;
-	virtual bool HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click) override;
-	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI) override;
-	virtual void DrawHUD(FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas) override;
+	UNREALED_API virtual void Initialize() override;
+	UNREALED_API virtual bool InputDelta(FEditorViewportClient* InViewportClient, FViewport* InViewport, FVector& InDrag, FRotator& InRot, FVector& InScale) override;
+	UNREALED_API virtual bool HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click) override;
+	UNREALED_API virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI) override;
+	UNREALED_API virtual void DrawHUD(FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas) override;
 
 	// ILegacyEdModeWidgetInterface overrides are just a pass through to the FLegacyEdModeWidgetHelper
-	virtual bool AllowWidgetMove() override;
-	virtual bool CanCycleWidgetMode() const override;
-	virtual bool ShowModeWidgets() const override;
-	virtual EAxisList::Type GetWidgetAxisToDraw(UE::Widget::EWidgetMode InWidgetMode) const override;
-	virtual FVector GetWidgetLocation() const override;
-	virtual bool ShouldDrawWidget() const override;
-	virtual bool UsesTransformWidget() const override;
-	virtual bool UsesTransformWidget(UE::Widget::EWidgetMode CheckMode) const override;
-	virtual FVector GetWidgetNormalFromCurrentAxis(void* InData) override;
-	virtual void SetCurrentWidgetAxis(EAxisList::Type InAxis) override;
-	virtual EAxisList::Type GetCurrentWidgetAxis() const override;
-	virtual bool UsesPropertyWidgets() const override;
-	virtual bool GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, void* InData) override;
-	virtual bool GetCustomInputCoordinateSystem(FMatrix& InMatrix, void* InData) override;
-	virtual void ActorSelectionChangeNotify() override;
-	virtual bool AllowsViewportDragTool() const override;
+	UNREALED_API virtual bool AllowWidgetMove() override;
+	UNREALED_API virtual bool CanCycleWidgetMode() const override;
+	UNREALED_API virtual bool ShowModeWidgets() const override;
+	UNREALED_API virtual EAxisList::Type GetWidgetAxisToDraw(UE::Widget::EWidgetMode InWidgetMode) const override;
+	UNREALED_API virtual FVector GetWidgetLocation() const override;
+	UNREALED_API virtual bool ShouldDrawWidget() const override;
+	UNREALED_API virtual bool UsesTransformWidget() const override;
+	UNREALED_API virtual bool UsesTransformWidget(UE::Widget::EWidgetMode CheckMode) const override;
+	UNREALED_API virtual FVector GetWidgetNormalFromCurrentAxis(void* InData) override;
+	UNREALED_API virtual void SetCurrentWidgetAxis(EAxisList::Type InAxis) override;
+	UNREALED_API virtual EAxisList::Type GetCurrentWidgetAxis() const override;
+	UNREALED_API virtual bool UsesPropertyWidgets() const override;
+	UNREALED_API virtual bool GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, void* InData) override;
+	UNREALED_API virtual bool GetCustomInputCoordinateSystem(FMatrix& InMatrix, void* InData) override;
+	UNREALED_API virtual void ActorSelectionChangeNotify() override;
+	UNREALED_API virtual bool AllowsViewportDragTool() const override;
 
 protected:
-	virtual TSharedRef<FLegacyEdModeWidgetHelper> CreateWidgetHelper();
+	UNREALED_API virtual TSharedRef<FLegacyEdModeWidgetHelper> CreateWidgetHelper();
 
 	TSharedPtr<FLegacyEdModeWidgetHelper> WidgetHelper;
 };

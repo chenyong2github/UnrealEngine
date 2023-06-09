@@ -27,8 +27,8 @@ enum class EClassViewerDeveloperType : uint8
 /**
  * Implements the Class Viewer's loading and saving settings.
  */
-UCLASS(config=EditorPerProjectUserSettings)
-class UNREALED_API UClassViewerSettings
+UCLASS(config=EditorPerProjectUserSettings, MinimalAPI)
+class UClassViewerSettings
 	: public UObject
 {
 	GENERATED_UCLASS_BODY()
@@ -60,12 +60,12 @@ public:
 protected:
 
 	// UObject overrides
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PostInitProperties() override;
-	virtual void PostLoad() override;
+	UNREALED_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	UNREALED_API virtual void PostInitProperties() override;
+	UNREALED_API virtual void PostLoad() override;
 
-	void FixupShortNames();
+	UNREALED_API void FixupShortNames();
 
 	// Holds an event delegate that is executed when a setting has changed.
-	static FSettingChangedEvent SettingChangedEvent;
+	static UNREALED_API FSettingChangedEvent SettingChangedEvent;
 };

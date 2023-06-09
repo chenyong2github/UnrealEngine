@@ -13,7 +13,7 @@
 
 
 USTRUCT()
-struct UNREALED_API FBlueprintBreakpoint
+struct FBlueprintBreakpoint
 {
 	GENERATED_BODY()
 
@@ -37,7 +37,7 @@ private:
 	uint8 bStepOnce_RemoveAfterHit:1;
 
 public:
-	FBlueprintBreakpoint();
+	UNREALED_API FBlueprintBreakpoint();
 
 	/** Get the target node for the breakpoint */
 	UEdGraphNode* GetLocation() const
@@ -63,7 +63,7 @@ public:
 	}
 
 	/** Gets a string that describes the location */
-	FText GetLocationDescription() const;
+	UNREALED_API FText GetLocationDescription() const;
 
 	friend class FKismetDebugUtilities;
 };

@@ -15,14 +15,14 @@
 /**
  * An MRU list of files.
  */
-class UNREALED_API FMRUList
+class FMRUList
 {
 public:
-	FMRUList(const FString& InINISection, const int32 InitMaxItems = 12 );
-	virtual ~FMRUList();
+	UNREALED_API FMRUList(const FString& InINISection, const int32 InitMaxItems = 12 );
+	UNREALED_API virtual ~FMRUList();
 
-	virtual void ReadFromINI();
-	virtual void WriteToINI() const;
+	UNREALED_API virtual void ReadFromINI();
+	UNREALED_API virtual void WriteToINI() const;
 	
 	/**
 	 * Returns the number of MRU items
@@ -39,7 +39,7 @@ public:
 	 *
 	 * @param	Item		The long package name of the item to add.
 	 */
-	void AddMRUItem(const FString& Item);
+	UNREALED_API void AddMRUItem(const FString& Item);
 	
 	/**
 	 * Returns the index of the specified item, or INDEX_NONE if not found.
@@ -47,26 +47,26 @@ public:
 	 * @param	Item		The item to query.
 	 * @return				The index of the specified item.
 	 */
-	int32 FindMRUItemIdx(const FString& Item) const;
+	UNREALED_API int32 FindMRUItemIdx(const FString& Item) const;
 
 	/**
 	 * Removes the specified item from the list if it exists.
 	 *
 	 * @param	Item		The item to remove.
 	 */
-	void RemoveMRUItem(const FString& Item);
+	UNREALED_API void RemoveMRUItem(const FString& Item);
 
 	/**
 	 * Removes the item at the specified index.
 	 *
 	 * @param	ItemIndex	Index of the item to remove.  Must be in [0, GetMaxItems()-1].
 	 */
-	void RemoveMRUItem(int32 ItemIndex);
+	UNREALED_API void RemoveMRUItem(int32 ItemIndex);
 
 	/**
 	 * Clears the list of MRU items. 
 	 */
-	void ClearMRUItems();
+	UNREALED_API void ClearMRUItems();
 
 	/**
 	 * Checks to make sure the file specified still exists.  If it does, it is
@@ -77,7 +77,7 @@ public:
 	 * @param	OutPackageName	Long package name after following redirector
 	 * @return					true if the item exists, false if it doesn't
 	 */
-	bool VerifyMRUFile(int32 ItemIndex, FString& OutPackageName);
+	UNREALED_API bool VerifyMRUFile(int32 ItemIndex, FString& OutPackageName);
 
 	/**
 	 * Accessor.
@@ -96,14 +96,14 @@ private:
 	/**
 	 * Make sure we don't have more than GetMaxItems() in the list.
 	 */
-	void Cull();
+	UNREALED_API void Cull();
 
 	/**
 	 * Moves the specified item to the top of the MRU list.
 	 *
 	 * @param	ItemIndex		Index of the item to bring to top.
 	 */
-	void MoveToTop(int32 ItemIndex);
+	UNREALED_API void MoveToTop(int32 ItemIndex);
 
 protected:
 
@@ -116,7 +116,7 @@ protected:
 	 * @param	INIKeyBase	Base string to use to search for individual items; this value will have a number appended to it while searching
 	 * @param	NumElements	Maximum number of elements to search in the INI for
 	 */
-	static void InternalReadINI( TArray<FString>& OutItems, const FString& INISection, const FString& INIKeyBase, int32 NumElements );
+	static UNREALED_API void InternalReadINI( TArray<FString>& OutItems, const FString& INISection, const FString& INIKeyBase, int32 NumElements );
 	
 	/**
 	 * Internal helper function to write out the provided array of data to the provided INI section, using the provided key base as a prefix
@@ -126,7 +126,7 @@ protected:
 	 * @param	INISection	Section of the INI file to write to
 	 * @param	INIKeyBase	Base prefix to use for each item written to the INI file
 	 */
-	static void InternalWriteINI( const TArray<FString>& InItems, const FString& INISection, const FString& INIKeyBase );
+	static UNREALED_API void InternalWriteINI( const TArray<FString>& InItems, const FString& INISection, const FString& INIKeyBase );
 
 	/** Maximum MRU items */
 	const int32 MaxItems;

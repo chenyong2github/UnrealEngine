@@ -88,7 +88,7 @@ struct FAnimationCompressionSelectionDialogConfig
 };
 
 /** Dialog to prompt user to select an animation compression settings asset. */
-class UNREALED_API SAnimationCompressionSelectionDialog : public SCompoundWidget
+class SAnimationCompressionSelectionDialog : public SCompoundWidget
 {
 public:
 	/** Called from the Dialog when an asset has been selected. */
@@ -98,13 +98,13 @@ public:
 
 	SLATE_END_ARGS()
 
-	SAnimationCompressionSelectionDialog();
-	virtual ~SAnimationCompressionSelectionDialog();
+	UNREALED_API SAnimationCompressionSelectionDialog();
+	UNREALED_API virtual ~SAnimationCompressionSelectionDialog();
 
-	virtual void Construct(const FArguments& InArgs, const FAnimationCompressionSelectionDialogConfig& InConfig);
+	UNREALED_API virtual void Construct(const FArguments& InArgs, const FAnimationCompressionSelectionDialogConfig& InConfig);
 
 	/** Sets the delegate handler for when an open operation is committed */
-	void SetOnAssetSelected(const FOnAssetSelected& InHandler);
+	UNREALED_API void SetOnAssetSelected(const FOnAssetSelected& InHandler);
 
 private:
 	void DoSelectAsset(const FAssetData& SelectedAsset);

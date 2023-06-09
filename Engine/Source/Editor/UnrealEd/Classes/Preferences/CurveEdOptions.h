@@ -14,8 +14,8 @@
 #include "UObject/Object.h"
 #include "CurveEdOptions.generated.h"
 
-UCLASS(hidecategories=Object, config=EditorPerProjectUserSettings)
-class UNREALED_API UCurveEdOptions : public UObject
+UCLASS(hidecategories=Object, config=EditorPerProjectUserSettings, MinimalAPI)
+class UCurveEdOptions : public UObject
 {
 	GENERATED_UCLASS_BODY()
 

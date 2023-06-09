@@ -5,16 +5,16 @@
 #include "CSVImportFactory.h"
 #include "CompositeCurveTableFactory.generated.h"
 
-UCLASS(hidecategories = Object)
-class UNREALED_API UCompositeCurveTableFactory : public UFactory
+UCLASS(hidecategories = Object, MinimalAPI)
+class UCompositeCurveTableFactory : public UFactory
 {
 	GENERATED_UCLASS_BODY()
 
 	//~ Begin UFactory Interface
-	virtual UObject* FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;
+	UNREALED_API virtual UObject* FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;
 	//~ End UFactory Interface
 
 protected:
-	virtual UCurveTable* MakeNewCurveTable(UObject* InParent, FName Name, EObjectFlags Flags);
+	UNREALED_API virtual UCurveTable* MakeNewCurveTable(UObject* InParent, FName Name, EObjectFlags Flags);
 };
 

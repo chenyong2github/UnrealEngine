@@ -56,12 +56,12 @@ struct IEditorModeFactory : public TSharedFromThis<IEditorModeFactory>
 	virtual TSharedRef<FEdMode> CreateMode() const = 0;
 };
 
-struct UNREALED_API FEditorModeFactory : IEditorModeFactory
+struct FEditorModeFactory : IEditorModeFactory
 {
 public:
-	FEditorModeFactory(const FEditorModeInfo& InModeInfo);
-	FEditorModeFactory(FEditorModeInfo&& InModeInfo);
-	virtual ~FEditorModeFactory();
+	UNREALED_API FEditorModeFactory(const FEditorModeInfo& InModeInfo);
+	UNREALED_API FEditorModeFactory(FEditorModeInfo&& InModeInfo);
+	UNREALED_API virtual ~FEditorModeFactory();
 
 	/** Information pertaining to this factory's mode */
 	FEditorModeInfo ModeInfo;
@@ -72,9 +72,9 @@ public:
 	/**
 	 * Gets the information pertaining to the mode type that this factory creates
 	 */
-	virtual FEditorModeInfo GetModeInfo() const final;
+	UNREALED_API virtual FEditorModeInfo GetModeInfo() const final;
 
-	virtual TSharedRef<FEdMode> CreateMode() const final;
+	UNREALED_API virtual TSharedRef<FEdMode> CreateMode() const final;
 };
 
 /**

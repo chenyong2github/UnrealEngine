@@ -19,25 +19,25 @@ class UEdGraphNode;
 /** Contains information about a watched pin in a Blueprint graph for local settings data.
  */
 USTRUCT()
-struct UNREALED_API FBlueprintWatchedPin
+struct FBlueprintWatchedPin
 {
 	GENERATED_BODY()
 
-	FBlueprintWatchedPin();
-	FBlueprintWatchedPin(const UEdGraphPin* Pin);
-	FBlueprintWatchedPin(const UEdGraphPin* Pin, TArray<FName>&& InPathToProperty);
+	UNREALED_API FBlueprintWatchedPin();
+	UNREALED_API FBlueprintWatchedPin(const UEdGraphPin* Pin);
+	UNREALED_API FBlueprintWatchedPin(const UEdGraphPin* Pin, TArray<FName>&& InPathToProperty);
 
 	/** Returns a reference to the underlying graph pin */
-	UEdGraphPin* Get() const;
+	UNREALED_API UEdGraphPin* Get() const;
 
 	/** Returns a reference to the path to the property we're watching on this pin */
 	const TArray<FName>& GetPathToProperty() const { return PathToProperty; }
 
 	/** Resets the pin watch to the given graph pin */
-	void SetFromPin(const UEdGraphPin* Pin);
+	UNREALED_API void SetFromPin(const UEdGraphPin* Pin);
 
 	/** Move another watched pin struct into this one */
-	void SetFromWatchedPin(FBlueprintWatchedPin&& Other);
+	UNREALED_API void SetFromWatchedPin(FBlueprintWatchedPin&& Other);
 
 	bool operator==(const FBlueprintWatchedPin& Other) const
 	{

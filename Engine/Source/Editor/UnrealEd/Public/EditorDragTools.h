@@ -15,10 +15,10 @@ class FSceneView;
  * The base class that all drag tools inherit from.
  * The drag tools implement special behaviors for the user clicking and dragging in a viewport.
  */
-class UNREALED_API FDragTool
+class FDragTool
 {
 public:
-	FDragTool(FEditorModeTools* InModeTools);
+	UNREALED_API FDragTool(FEditorModeTools* InModeTools);
 	virtual ~FDragTool() {}
 
 	/**
@@ -27,7 +27,7 @@ public:
 	 *
 	 * @param	InDelta		A delta of mouse movement.
 	 */
-	virtual void AddDelta( const FVector& InDelta );
+	UNREALED_API virtual void AddDelta( const FVector& InDelta );
 
 	/**
 	 * Starts a mouse drag behavior.  The start location is snapped to the editor constraints if bUseSnapping is true.
@@ -35,12 +35,12 @@ public:
 	 * @param	InViewportClient	The viewport client in which the drag event occurred.
 	 * @param	InStart				Where the mouse was when the drag started.
 	 */
-	virtual void StartDrag(FEditorViewportClient* InViewportClient, const FVector& InStartWorld, const FVector2D& InStartScreen);
+	UNREALED_API virtual void StartDrag(FEditorViewportClient* InViewportClient, const FVector& InStartWorld, const FVector2D& InStartScreen);
 
 	/**
 	 * Ends a mouse drag behavior (the user has let go of the mouse button).
 	 */
-	virtual void EndDrag();
+	UNREALED_API virtual void EndDrag();
 	virtual void Render3D(const FSceneView* View,FPrimitiveDrawInterface* PDI) {}
 	virtual void Render(const FSceneView* View,FCanvas* Canvas) {}
 

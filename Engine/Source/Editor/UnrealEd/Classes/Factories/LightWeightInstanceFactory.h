@@ -9,18 +9,18 @@
 
 class ALightWeightInstanceManager;
 
-UCLASS(hidecategories=Object)
-class UNREALED_API ULightWeightInstanceFactory : public UFactory
+UCLASS(hidecategories=Object, MinimalAPI)
+class ULightWeightInstanceFactory : public UFactory
 {
 	GENERATED_UCLASS_BODY()
 
 	//~ Begin UFactory Interface
-	virtual bool ConfigureProperties() override;
-	virtual UObject* FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;
+	UNREALED_API virtual bool ConfigureProperties() override;
+	UNREALED_API virtual UObject* FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;
 	//~ Begin UFactory Interface
 
 protected:
-	virtual ALightWeightInstanceManager* MakeNewLightWeightInstanceManager(UObject* InParent, FName Name, EObjectFlags Flags);
+	UNREALED_API virtual ALightWeightInstanceManager* MakeNewLightWeightInstanceManager(UObject* InParent, FName Name, EObjectFlags Flags);
 
 	// The parent class of the created blueprint
 	UPROPERTY()

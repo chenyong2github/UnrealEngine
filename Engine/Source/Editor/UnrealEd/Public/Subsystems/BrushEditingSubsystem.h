@@ -12,13 +12,13 @@ class HHitProxy;
 class ABrush;
 struct FViewportClick;
 
-UCLASS(abstract)
-class UNREALED_API UBrushEditingSubsystem : public UEditorSubsystem
+UCLASS(abstract, MinimalAPI)
+class UBrushEditingSubsystem : public UEditorSubsystem
 {
 	GENERATED_BODY()
 
 public:
-	UBrushEditingSubsystem();
+	UNREALED_API UBrushEditingSubsystem();
 
 	virtual bool ProcessClickOnBrushGeometry(FLevelEditorViewportClient* ViewportClient, HHitProxy* InHitProxy, const FViewportClick& Click) { return false; }
 

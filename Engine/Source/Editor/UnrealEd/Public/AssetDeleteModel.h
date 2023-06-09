@@ -82,7 +82,7 @@ private:
  * that must be performed against the GC for UObjects, and looking up references for assets through
  * the asset registry.
  */
-class UNREALED_API FAssetDeleteModel
+class FAssetDeleteModel
 {
 public:
 	/** States used to manage the async deletion process. */
@@ -103,13 +103,13 @@ public:
 public:
 
 	/** Constructor */
-	FAssetDeleteModel( const TArray<UObject*>& InObjectsToDelete );
+	UNREALED_API FAssetDeleteModel( const TArray<UObject*>& InObjectsToDelete );
 
 	/** Destructor */
-	~FAssetDeleteModel();
+	UNREALED_API ~FAssetDeleteModel();
 
 	/** Add an object to the list of pending deleted assets, this will invalidate the scanning state. */
-	void AddObjectToDelete(UObject* InObject);
+	UNREALED_API void AddObjectToDelete(UObject* InObject);
 
 	/** Returns the pending deleted assets. */
 	const TArray< TSharedPtr< FPendingDelete > >* GetPendingDeletedAssets() const { return &PendingDeletes; };
@@ -124,43 +124,43 @@ public:
 	const TSet< FName >& GetAssetReferences() const { return OnDiskReferences; };
 
 	/** Ticks the delete model which does a little work before returning so that we don't completely block when deleting a lot of things. */
-	void Tick( const float InDeltaTime );
+	UNREALED_API void Tick( const float InDeltaTime );
 
 	/** Returns true if the object is one of the pending deleted assets. */
-	bool IsObjectInPendingDeletes( const UObject* InObject ) const;
+	UNREALED_API bool IsObjectInPendingDeletes( const UObject* InObject ) const;
 
 	/** Returns true if the package is one of the pending deleted assets. */
-	bool IsAssetInPendingDeletes( const FName& PackageName ) const;
+	UNREALED_API bool IsAssetInPendingDeletes( const FName& PackageName ) const;
 
 	/** Deletes any source content files referenced by the assets */
-	void DeleteSourceContentFiles();
+	UNREALED_API void DeleteSourceContentFiles();
 
 	/** Returns true if it is valid to delete the current objects with no problems. */
-	bool CanDelete() const;
+	UNREALED_API bool CanDelete() const;
 
 	/** Performs the delete if it's possible. */
-	bool DoDelete();
+	UNREALED_API bool DoDelete();
 
 	/** Returns true if it is valid to force the delete of the current assets. */
-	bool CanForceDelete() const;
+	UNREALED_API bool CanForceDelete() const;
 
 	/** Performs a force delete on the pending deleted assets if possible. */
-	bool DoForceDelete();
+	UNREALED_API bool DoForceDelete();
 
 	/** Returns true if it's valid to replace the references of the pending deleted objects. */
-	bool CanReplaceReferences() const;
+	UNREALED_API bool CanReplaceReferences() const;
 
 	/** Returns true if it is valid to force the delete of the current assets with the provided asset. */
-	bool CanReplaceReferencesWith( const FAssetData& InAssetData ) const;
+	UNREALED_API bool CanReplaceReferencesWith( const FAssetData& InAssetData ) const;
 
 	/** Performs the replace references action if possible with the provided asset. */
-	bool DoReplaceReferences( const FAssetData& ReplaceReferencesWith );
+	UNREALED_API bool DoReplaceReferences( const FAssetData& ReplaceReferencesWith );
 
 	/** Gets the 0..1 progress of the scanning. */
-	float GetProgress() const;
+	UNREALED_API float GetProgress() const;
 
 	/** Gets the current text to display for the current progress of the scanning. */
-	FText GetProgressText() const;
+	UNREALED_API FText GetProgressText() const;
 
 	/** Is any of the pending deleted assets being referenced in memory. */
 	bool IsAnythingReferencedInMemoryByNonUndo() const { return bIsAnythingReferencedInMemoryByNonUndo; }
@@ -169,13 +169,13 @@ public:
 	bool IsAnythingReferencedInMemoryByUndo() const { return bIsAnythingReferencedInMemoryByUndo; }
 
 	/** Check whether we have any source files residing under monitored, mounted paths to delete */
-	bool HasAnySourceContentFilesToDelete() const;
+	UNREALED_API bool HasAnySourceContentFilesToDelete() const;
 
 	/** Goes to the next actor in the loaded level if it is available */
-	bool GoToNextReferenceInLevel() const;
+	UNREALED_API bool GoToNextReferenceInLevel() const;
 
 	/** Gets the number of objects successfully deleted. */
-	int32 GetDeletedObjectCount() const;
+	UNREALED_API int32 GetDeletedObjectCount() const;
 	
 	/** Fires whenever the state changes. */
 	DECLARE_EVENT_OneParam( FAssetDeleteModel, FOnStateChanged, EState /*NewState*/ );
@@ -185,16 +185,16 @@ public:
 	}
 
 private:
-	void PrepareToDelete(UObject* InObject);
+	UNREALED_API void PrepareToDelete(UObject* InObject);
 
 	/** Sets the current state of the model. */
-	void SetState( EState NewState );
+	UNREALED_API void SetState( EState NewState );
 
 	/** Computes the value that should be used for CanReplaceReferences */
-	bool ComputeCanReplaceReferences();
+	UNREALED_API bool ComputeCanReplaceReferences();
 
 	/** Discover source file references for the specified object */
-	void DiscoverSourceFileReferences(FPendingDelete& PendingDelete);
+	UNREALED_API void DiscoverSourceFileReferences(FPendingDelete& PendingDelete);
 
 private:
 

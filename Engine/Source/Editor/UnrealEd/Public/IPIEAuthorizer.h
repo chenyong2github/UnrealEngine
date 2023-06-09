@@ -9,7 +9,7 @@
 
 class FString;
 
-class UNREALED_API IPIEAuthorizer : public IModularFeature
+class IPIEAuthorizer : public IModularFeature
 {
 public:
 	virtual ~IPIEAuthorizer() {}

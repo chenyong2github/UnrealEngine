@@ -21,8 +21,8 @@ class UMaterial;
 class UMaterialInstanceConstant;
 struct FPropertyChangedEvent;
 
-UCLASS(hidecategories = Object, collapsecategories)
-class UNREALED_API UMaterialEditorPreviewParameters : public UObject
+UCLASS(hidecategories = Object, collapsecategories, MinimalAPI)
+class UMaterialEditorPreviewParameters : public UObject
 {
 	GENERATED_BODY()
 
@@ -48,20 +48,20 @@ public:
 #endif
 
 	//~ Begin UObject Interface.
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	UNREALED_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #if WITH_EDITOR
-	virtual void PostEditUndo() override;
+	UNREALED_API virtual void PostEditUndo() override;
 #endif
 	//~ End UObject Interface.
 
 	/** Regenerates the parameter arrays. */
-	void RegenerateArrays();
+	UNREALED_API void RegenerateArrays();
 
 protected:
 	/** Copies the parameter array values back to the source instance. */
-	void CopyToSourceInstance();
+	UNREALED_API void CopyToSourceInstance();
 
-	void ApplySourceFunctionChanges();
+	UNREALED_API void ApplySourceFunctionChanges();
 
 	/**
 	*  Creates/adds value to group retrieved from parent material .
@@ -69,7 +69,7 @@ protected:
 	* @param ParameterValue		Current data to be grouped
 	* @param GroupName			Name of the group
 	*/
-	void AssignParameterToGroup(UDEditorParameterValue* ParameterValue, const FName& GroupName);
+	UNREALED_API void AssignParameterToGroup(UDEditorParameterValue* ParameterValue, const FName& GroupName);
 
-	static FName GlobalGroupPrefix;
+	static UNREALED_API FName GlobalGroupPrefix;
 };

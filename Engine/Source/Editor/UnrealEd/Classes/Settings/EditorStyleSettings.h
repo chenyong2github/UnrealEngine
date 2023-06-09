@@ -32,14 +32,14 @@ enum class EAssetEditorOpenLocation : uint8
 /**
  * Implements the Editor style settings.
  */
-UCLASS(config=EditorPerProjectUserSettings)
-class UNREALED_API UEditorStyleSettings : public UObject
+UCLASS(config=EditorPerProjectUserSettings, MinimalAPI)
+class UEditorStyleSettings : public UObject
 {
 public:
 
 	GENERATED_UCLASS_BODY()
 
-	void Init();
+	UNREALED_API void Init();
 public:
 	/**
 	 * Enables high dpi support in the editor which will adjust the scale of elements in the UI to account for high DPI monitors
@@ -159,15 +159,15 @@ public:
 	FSettingChangedEvent& OnSettingChanged( ) { return SettingChangedEvent; }
 
 	/** @return A subdued version of the users selection color (for use with inactive selection)*/
-	FLinearColor GetSubduedSelectionColor() const;
+	UNREALED_API FLinearColor GetSubduedSelectionColor() const;
 	
-	bool OnImportBegin(const FString& ImportFromPath);
-	bool OnExportBegin(const FString& ExportToPath);
+	UNREALED_API bool OnImportBegin(const FString& ImportFromPath);
+	UNREALED_API bool OnExportBegin(const FString& ExportToPath);
 
 protected:
 
 	// UObject overrides
-	virtual void PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent ) override;
+	UNREALED_API virtual void PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent ) override;
 
 private:
 

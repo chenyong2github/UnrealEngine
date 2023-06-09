@@ -15,8 +15,8 @@
 
 class FClassViewerInitializationOptions;
 
-UCLASS(hidecategories=Object, collapsecategories)
-class UNREALED_API UBlueprintFactory : public UFactory
+UCLASS(hidecategories=Object, collapsecategories, MinimalAPI)
+class UBlueprintFactory : public UFactory
 {
 	GENERATED_UCLASS_BODY()
 
@@ -37,9 +37,9 @@ class UNREALED_API UBlueprintFactory : public UFactory
 	FOnConfigureProperties OnConfigurePropertiesDelegate;
 
 	// UFactory Interface
-	virtual bool ConfigureProperties() override;
-	virtual UObject* FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn, FName CallingContext) override;
-	virtual UObject* FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;
+	UNREALED_API virtual bool ConfigureProperties() override;
+	UNREALED_API virtual UObject* FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn, FName CallingContext) override;
+	UNREALED_API virtual UObject* FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;
 	// End of UFactory Interface
 };
 

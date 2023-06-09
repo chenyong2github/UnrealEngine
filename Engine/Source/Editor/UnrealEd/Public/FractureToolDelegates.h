@@ -6,12 +6,12 @@
 #include "Delegates/Delegate.h"
 #include "HAL/Platform.h"
 
-class UNREALED_API FFractureToolDelegates
+class FFractureToolDelegates
 {
 public:
 
 	/** Return a single FFractureToolDelegates object */
-	static FFractureToolDelegates& Get();
+	static UNREALED_API FFractureToolDelegates& Get();
 
 	FSimpleMulticastDelegate OnFractureExpansionBegin;
 	FSimpleMulticastDelegate OnFractureExpansionUpdate;

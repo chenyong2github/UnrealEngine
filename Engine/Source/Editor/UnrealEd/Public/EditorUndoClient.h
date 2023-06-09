@@ -14,11 +14,11 @@ class FTransactionObjectEvent;
 /**
  * Interface for tools wanting to handle undo/redo operations
  */
-class UNREALED_API FEditorUndoClient
+class FEditorUndoClient
 {
 public:
 	/** Always unregister for undo on destruction, just in case. */
-	virtual ~FEditorUndoClient();
+	UNREALED_API virtual ~FEditorUndoClient();
 
 	/**
 	 * Called to see if the context of the current undo/redo operation is a match for the client
@@ -48,11 +48,11 @@ public:
 };
 
 /** An undo client that registers itself in its constructor and unregisters itself in its destructor */
-class UNREALED_API FSelfRegisteringEditorUndoClient : public FEditorUndoClient
+class FSelfRegisteringEditorUndoClient : public FEditorUndoClient
 {
 public:
 	/** Register in constructor */
-	FSelfRegisteringEditorUndoClient();
+	UNREALED_API FSelfRegisteringEditorUndoClient();
 
 	/** FEditorUndoClient already unregisters in its destructor */
 };

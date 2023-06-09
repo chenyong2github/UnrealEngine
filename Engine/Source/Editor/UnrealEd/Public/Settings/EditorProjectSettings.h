@@ -54,17 +54,17 @@ enum class EReferenceViewerSettingMode : uint8
 /**
  * Editor project appearance settings. Stored in default config, per-project
  */
-UCLASS(config=Editor, defaultconfig, meta=(DisplayName="Appearance"))
-class UNREALED_API UEditorProjectAppearanceSettings : public UDeveloperSettings
+UCLASS(config=Editor, defaultconfig, meta=(DisplayName="Appearance"), MinimalAPI)
+class UEditorProjectAppearanceSettings : public UDeveloperSettings
 {
 public:
 	GENERATED_BODY()
-	UEditorProjectAppearanceSettings(const FObjectInitializer&);
+	UNREALED_API UEditorProjectAppearanceSettings(const FObjectInitializer&);
 
 protected:
 	/** Called when a property on this object is changed */
-	virtual void PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent ) override;
-	virtual void PostInitProperties() override;
+	UNREALED_API virtual void PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent ) override;
+	UNREALED_API virtual void PostInitProperties() override;
 
 public:
 
@@ -119,7 +119,7 @@ public:
 * 2D layer settings
 */
 USTRUCT()
-struct UNREALED_API FMode2DLayer
+struct FMode2DLayer
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -153,8 +153,8 @@ enum class ELevelEditor2DAxis : uint8
 /**
  * Configure settings for the 2D Level Editor
  */
-UCLASS(config=Editor, meta=(DisplayName="2D"), defaultconfig)
-class UNREALED_API ULevelEditor2DSettings : public UDeveloperSettings
+UCLASS(config=Editor, meta=(DisplayName="2D"), defaultconfig, MinimalAPI)
+class ULevelEditor2DSettings : public UDeveloperSettings
 {
 	GENERATED_UCLASS_BODY()
 
@@ -177,7 +177,7 @@ public:
 
 public:
 	// UObject interface
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	UNREALED_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	// End of UObject interface
 
 };
@@ -185,8 +185,8 @@ public:
 /**
  * Configure per-project settings for the Level Editor
  */
-UCLASS(config=Editor, meta=(DisplayName="Level Editor"), defaultconfig)
-class UNREALED_API ULevelEditorProjectSettings : public UDeveloperSettings
+UCLASS(config=Editor, meta=(DisplayName="Level Editor"), defaultconfig, MinimalAPI)
+class ULevelEditorProjectSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
 
@@ -197,18 +197,18 @@ public:
 	bool bEnableViewportSMInstanceSelection;
 
 public:
-	ULevelEditorProjectSettings(const class FObjectInitializer& ObjectInitializer);
+	UNREALED_API ULevelEditorProjectSettings(const class FObjectInitializer& ObjectInitializer);
 	// UObject interface
-	virtual void PostInitProperties() override;
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	UNREALED_API virtual void PostInitProperties() override;
+	UNREALED_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	// End of UObject interface
 };
 
 /**
  * Configure per-project performance settings for the Editor
  */
-UCLASS(config=Editor, meta=(DisplayName="Performance"), defaultconfig)
-class UNREALED_API UEditorPerformanceProjectSettings : public UDeveloperSettings
+UCLASS(config=Editor, meta=(DisplayName="Performance"), defaultconfig, MinimalAPI)
+class UEditorPerformanceProjectSettings : public UDeveloperSettings
 {
 	GENERATED_UCLASS_BODY()
 
@@ -240,19 +240,19 @@ public:
 	int32 MaxViewportRenderingResolution;
 
 
-	static void ExportResolutionValuesToConsoleVariables();
+	static UNREALED_API void ExportResolutionValuesToConsoleVariables();
 
 public:
 	// UObject interface
-	virtual void PostInitProperties() override;
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	UNREALED_API virtual void PostInitProperties() override;
+	UNREALED_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	// End of UObject interface
 
 };
 
 
-UCLASS(config=Editor, meta=(DisplayName="Derived Data"), defaultconfig)
-class UNREALED_API UDDCProjectSettings : public UDeveloperSettings
+UCLASS(config=Editor, meta=(DisplayName="Derived Data"), defaultconfig, MinimalAPI)
+class UDDCProjectSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
 

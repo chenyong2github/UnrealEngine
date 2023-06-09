@@ -67,7 +67,7 @@ ENUM_CLASS_FLAGS(EBlueprintCompileOptions)
 //////////////////////////////////////////////////////////////////////////
 // FKismetEditorUtilities
 
-class UNREALED_API FKismetEditorUtilities
+class FKismetEditorUtilities
 {
 public:
 	/** 
@@ -107,7 +107,7 @@ public:
 	 * @param CallingContext				the name of the calling method or module used to identify creation methods to engine analytics/usage stats (default None will be ignored)
 	 * @return								the new blueprint
 	 */
-	static UBlueprint* CreateBlueprint(UClass* ParentClass, UObject* Outer, const FName NewBPName, enum EBlueprintType BlueprintType, FName CallingContext = NAME_None);
+	static UNREALED_API UBlueprint* CreateBlueprint(UClass* ParentClass, UObject* Outer, const FName NewBPName, enum EBlueprintType BlueprintType, FName CallingContext = NAME_None);
 
 	/**
 	 * Create a new Blueprint and initialize it to a valid state.
@@ -121,7 +121,7 @@ public:
 	 * @param CallingContext				the name of the calling method or module used to identify creation methods to engine analytics/usage stats (default None will be ignored)
 	 * @return								the new blueprint
 	 */
-	static UBlueprint* CreateBlueprint(UClass* ParentClass, UObject* Outer, const FName NewBPName, enum EBlueprintType BlueprintType, TSubclassOf<UBlueprint> BlueprintClassType, TSubclassOf<UBlueprintGeneratedClass> BlueprintGeneratedClassType, FName CallingContext = NAME_None);
+	static UNREALED_API UBlueprint* CreateBlueprint(UClass* ParentClass, UObject* Outer, const FName NewBPName, enum EBlueprintType BlueprintType, TSubclassOf<UBlueprint> BlueprintClassType, TSubclassOf<UBlueprintGeneratedClass> BlueprintGeneratedClassType, FName CallingContext = NAME_None);
 
 	/**
 	 * Creates a user construction script graph for the blueprint.
@@ -129,18 +129,18 @@ public:
 	 * @param Blueprint					the blueprint
 	 * @return							the new UCS Graph, does not register it.
 	 */
-	static UEdGraph* CreateUserConstructionScript(UBlueprint* Blueprint);
+	static UNREALED_API UEdGraph* CreateUserConstructionScript(UBlueprint* Blueprint);
 
 	/** 
 	 * Event that's broadcast anytime a blueprint is unloaded, and becomes 
 	 * invalid (with calls to ReplaceBlueprint(), for example).
 	 */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnBlueprintUnloaded, UBlueprint*);
-	static FOnBlueprintUnloaded OnBlueprintUnloaded;
+	static UNREALED_API FOnBlueprintUnloaded OnBlueprintUnloaded;
 
 	/** Event that's broadcast anytime a blueprint generated class is unloaded */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnBlueprintGeneratedClassUnloaded, UBlueprintGeneratedClass*);
-	static FOnBlueprintGeneratedClassUnloaded OnBlueprintGeneratedClassUnloaded;
+	static UNREALED_API FOnBlueprintGeneratedClassUnloaded OnBlueprintGeneratedClassUnloaded;
 
 	/** 
 	 * Unloads the specified Blueprint (marking it pending-kill, and removing it 
@@ -151,7 +151,7 @@ public:
 	 * @param  Replacement	The Blueprint you cloned and used to replace Target.
 	 * @return The duplicated replacement Blueprint.
 	 */
-	static UBlueprint* ReplaceBlueprint(UBlueprint* Target, UBlueprint const* Replacement);
+	static UNREALED_API UBlueprint* ReplaceBlueprint(UBlueprint* Target, UBlueprint const* Replacement);
 
 	/** 
 	 * Determines if the specified blueprint is referenced currently in the undo 
@@ -160,22 +160,22 @@ public:
 	 * @param  Blueprint	The Blueprint you want to query about.
 	 * @return True if the Blueprint is saved in the undo buffer, false if not.
 	 */
-	static bool IsReferencedByUndoBuffer(UBlueprint* Blueprint);
+	static UNREALED_API bool IsReferencedByUndoBuffer(UBlueprint* Blueprint);
 
 	/** Create the correct event graphs for this blueprint */
-	static void CreateDefaultEventGraphs(UBlueprint* Blueprint);
+	static UNREALED_API void CreateDefaultEventGraphs(UBlueprint* Blueprint);
 
 	/** Tries to compile a blueprint, updating any actors in the editor who are using the old class, etc... */
-	static void CompileBlueprint(UBlueprint* BlueprintObj, EBlueprintCompileOptions CompileFlags = EBlueprintCompileOptions::None, class FCompilerResultsLog* pResults = nullptr );
+	static UNREALED_API void CompileBlueprint(UBlueprint* BlueprintObj, EBlueprintCompileOptions CompileFlags = EBlueprintCompileOptions::None, class FCompilerResultsLog* pResults = nullptr );
 
 	/** Generates a blueprint skeleton only.  Minimal compile, no notifications will be sent, no GC, etc.  Only successful if there isn't already a skeleton generated */
-	static bool GenerateBlueprintSkeleton(UBlueprint* BlueprintObj, bool bForceRegeneration = false);
+	static UNREALED_API bool GenerateBlueprintSkeleton(UBlueprint* BlueprintObj, bool bForceRegeneration = false);
 
 	/** Tries to make sure that a data-only blueprint is conformed to its native parent, in case any native class flags have changed */
-	static void ConformBlueprintFlagsAndComponents(UBlueprint* BlueprintObj);
+	static UNREALED_API void ConformBlueprintFlagsAndComponents(UBlueprint* BlueprintObj);
 
 	/** @return true is it's possible to create a blueprint from the specified class */
-	static bool CanCreateBlueprintOfClass(const UClass* Class);
+	static UNREALED_API bool CanCreateBlueprintOfClass(const UClass* Class);
 
 	/** 
 	 * Given an array of Actors, identifies which of those Actors are roots of attachment hierarchies (and implicitly which are attached to another actor in the array)
@@ -183,7 +183,7 @@ public:
 	 * For example if A is attached to B is attached to C and E is attached to D, and A, C, and E are in the Actors array, C and E will be in the RootActors, 
 	 * and the AttachmentMap will indicate that C has A as an attachment 
 	 */
-	static void IdentifyRootActors(const TArray<AActor*>& Actors, TArray<AActor*>& RootActors, TMap<AActor*, TArray<AActor*>>* AttachmentMap = nullptr);
+	static UNREALED_API void IdentifyRootActors(const TArray<AActor*>& Actors, TArray<AActor*>& RootActors, TMap<AActor*, TArray<AActor*>>* AttachmentMap = nullptr);
 
 	enum class EAddComponentToBPHarvestMode : uint8
 	{
@@ -222,7 +222,7 @@ public:
 	};
 
 	/** Take a list of components that belong to a single Actor and add them to a blueprint as SCSNodes */
-	static void AddComponentsToBlueprint(UBlueprint* Blueprint, const TArray<UActorComponent*>& Components, const FAddComponentsToBlueprintParams& Params = FAddComponentsToBlueprintParams());
+	static UNREALED_API void AddComponentsToBlueprint(UBlueprint* Blueprint, const TArray<UActorComponent*>& Components, const FAddComponentsToBlueprintParams& Params = FAddComponentsToBlueprintParams());
 
 	UE_DEPRECATED(4.26, "Use version that uses parameter struct instead of individual parameters")
 	static void AddComponentsToBlueprint(UBlueprint* Blueprint, const TArray<UActorComponent*>& Components, EAddComponentToBPHarvestMode HarvestMode, USCS_Node* OptionalNewRootNode = nullptr, bool bKeepMobility = false)
@@ -275,7 +275,7 @@ public:
 	};
 
 	/** Take a list of actors and add them to a blueprint as Child Actor Components */
-	static void AddActorsToBlueprint(UBlueprint* Blueprint, const TArray<AActor*>& Actors, const FAddActorsToBlueprintParams& Params = FAddActorsToBlueprintParams());
+	static UNREALED_API void AddActorsToBlueprint(UBlueprint* Blueprint, const TArray<AActor*>& Actors, const FAddActorsToBlueprintParams& Params = FAddActorsToBlueprintParams());
 
 	/** Parameter struct for customizing calls to CreateBlueprintFromActor */
 	struct FCreateBlueprintFromActorParams
@@ -312,7 +312,7 @@ public:
 	 * @param Params				The parameter struct of additional behaviors
 	 * @return The blueprint created from the actor
 	 */
-	static UBlueprint* CreateBlueprintFromActor(const FString& Path, AActor* Actor, const FCreateBlueprintFromActorParams& Params = FCreateBlueprintFromActorParams());
+	static UNREALED_API UBlueprint* CreateBlueprintFromActor(const FString& Path, AActor* Actor, const FCreateBlueprintFromActorParams& Params = FCreateBlueprintFromActorParams());
 
 	/** 
 	 * Take an Actor and generate a blueprint based on it. Uses the Actors type as the parent class. 
@@ -322,7 +322,7 @@ public:
 	 * @param Params				The parameter struct of additional behaviors
 	 * @return The blueprint created from the actor
 	 */
-	static UBlueprint* CreateBlueprintFromActor(const FName BlueprintName, UObject* Outer, AActor* Actor, const FCreateBlueprintFromActorParams& Params = FCreateBlueprintFromActorParams());
+	static UNREALED_API UBlueprint* CreateBlueprintFromActor(const FName BlueprintName, UObject* Outer, AActor* Actor, const FCreateBlueprintFromActorParams& Params = FCreateBlueprintFromActorParams());
 
 	/** 
 	 * Take an Actor and generate a blueprint based on it. Uses the Actors type as the parent class. 
@@ -414,7 +414,7 @@ public:
 	 * @param Params				The parameter struct containing actors and additional behavior definitions
 	 * @return The blueprint created from the actor
 	 */
-	static UBlueprint* CreateBlueprintFromActors(const FString& Path, const FCreateBlueprintFromActorsParams& Params);
+	static UNREALED_API UBlueprint* CreateBlueprintFromActors(const FString& Path, const FCreateBlueprintFromActorsParams& Params);
 
 	/**
 	 * Take a collection of Actors and generate a blueprint based on it
@@ -423,7 +423,7 @@ public:
 	 * @param Params				The parameter struct containing actors and additional behavior definitions
 	 * @return The blueprint created from the actor
 	 */
-	static UBlueprint* CreateBlueprintFromActors(const FName BlueprintName, UPackage* Package, const FCreateBlueprintFromActorsParams& Params);
+	static UNREALED_API UBlueprint* CreateBlueprintFromActors(const FName BlueprintName, UPackage* Package, const FCreateBlueprintFromActorsParams& Params);
 
 	/** 
 	 * Take a list of Actors and generate a blueprint based on it using the Actors as templates for child actor components.
@@ -492,7 +492,7 @@ public:
 	 * @param Params				The parameter struct containing actors and additional behavior definitions
 	 * @return The blueprint created from the actors
 	 */
-	static UBlueprint* HarvestBlueprintFromActors(const FString& Path, const TArray<AActor*>& Actors, const FHarvestBlueprintFromActorsParams& Params = FHarvestBlueprintFromActorsParams());
+	static UNREALED_API UBlueprint* HarvestBlueprintFromActors(const FString& Path, const TArray<AActor*>& Actors, const FHarvestBlueprintFromActorsParams& Params = FHarvestBlueprintFromActorsParams());
 
 	/**
 	 * Take a list of Actors and generate a blueprint by harvesting the components they have.
@@ -502,7 +502,7 @@ public:
 	 * @param Params				The parameter struct containing actors and additional behavior definitions
 	 * @return The blueprint created from the actors
 	 */
-	static UBlueprint* HarvestBlueprintFromActors(const FName BlueprintName, UPackage* Package, const TArray<AActor*>& Actors, const FHarvestBlueprintFromActorsParams& Params = FHarvestBlueprintFromActorsParams());
+	static UNREALED_API UBlueprint* HarvestBlueprintFromActors(const FName BlueprintName, UPackage* Package, const TArray<AActor*>& Actors, const FHarvestBlueprintFromActorsParams& Params = FHarvestBlueprintFromActorsParams());
 
 	/** 
 	 * Take a list of Actors and generate a blueprint  by harvesting the components they have.
@@ -528,7 +528,7 @@ public:
 	 * @param Actors				The actor list to use as the template for the blueprint.
 	 * @return The updated blueprint, or null if it failed somehow
 	 */
-	static UBlueprint* UpdateExistingBlueprintFromActors(const FString& Path, const TArray<AActor*>& Actors);
+	static UNREALED_API UBlueprint* UpdateExistingBlueprintFromActors(const FString& Path, const TArray<AActor*>& Actors);
 
 	/**
 	 * Take a list of Actors and generate a blueprint  by harvesting the components they have. Uses AActor as parent class type as the parent class.
@@ -552,7 +552,7 @@ public:
 	 * Updates this Actor's blueprint based on the actor itself. 
 	 * @return The number of properties that changes in the blueprint.
 	 */
-	static int32 ApplyInstanceChangesToBlueprint(AActor* Actor);
+	static UNREALED_API int32 ApplyInstanceChangesToBlueprint(AActor* Actor);
 
 	/** 
 	 * Creates a new blueprint instance and replaces the provided actor list with the new actor
@@ -562,7 +562,7 @@ public:
 	 * @param Rotator               The rotation of the newly created actor
 	 * @param AttachParent          The actor the newly created instance should be attached to if any
 	 */
-	static AActor* CreateBlueprintInstanceFromSelection(class UBlueprint* Blueprint, const TArray<AActor*>& SelectedActors, const FVector& Location, const FRotator& Rotator, AActor* AttachParent = nullptr);
+	static UNREALED_API AActor* CreateBlueprintInstanceFromSelection(class UBlueprint* Blueprint, const TArray<AActor*>& SelectedActors, const FVector& Location, const FRotator& Rotator, AActor* AttachParent = nullptr);
 
 	/** 
 	 * Create a new Blueprint from the supplied base class. Pops up window to let user select location and name.
@@ -570,92 +570,92 @@ public:
 	 * @param InWindowTitle			The window title
 	 * @param InParentClass			The class to create a Blueprint based on
 	 */
-	static UBlueprint* CreateBlueprintFromClass(FText InWindowTitle, UClass* InParentClass, FString NewNameSuggestion = TEXT(""));
+	static UNREALED_API UBlueprint* CreateBlueprintFromClass(FText InWindowTitle, UClass* InParentClass, FString NewNameSuggestion = TEXT(""));
 
 	/** Create a new Actor Blueprint and add the supplied asset to it. */
-	static UBlueprint* CreateBlueprintUsingAsset(UObject* Asset, bool bOpenInEditor);
+	static UNREALED_API UBlueprint* CreateBlueprintUsingAsset(UObject* Asset, bool bOpenInEditor);
 
 	/** Open a Kismet window, focusing on the specified object (either a node, or a graph).  Prefers existing windows, but will open a new application if required. */
-	static void BringKismetToFocusAttentionOnObject(const UObject* ObjectToFocusOn, bool bRequestRename=false);
+	static UNREALED_API void BringKismetToFocusAttentionOnObject(const UObject* ObjectToFocusOn, bool bRequestRename=false);
 
 	/** Open a Kismet window, focusing on the specified pin.  Prefers existing windows, but will open a new application if required. */
-	static void BringKismetToFocusAttentionOnPin(const UEdGraphPin* PinToFocusOn );
+	static UNREALED_API void BringKismetToFocusAttentionOnPin(const UEdGraphPin* PinToFocusOn );
 
 	/** Open level script kismet window and show any references to the selected actor */
-	static void ShowActorReferencesInLevelScript(const AActor* Actor);
+	static UNREALED_API void ShowActorReferencesInLevelScript(const AActor* Actor);
 
 	/** Upgrade any cosmetically stale information in a blueprint (done when edited instead of PostLoad to make certain operations easier)
 		@returns True if blueprint modified, False otherwise */
-	static void UpgradeCosmeticallyStaleBlueprint(UBlueprint* Blueprint);
+	static UNREALED_API void UpgradeCosmeticallyStaleBlueprint(UBlueprint* Blueprint);
 
 	/** Create a new event node in the level script blueprint, for the supplied Actor and event (multicast delegate property) name */
-	static void CreateNewBoundEventForActor(AActor* Actor, FName EventName);
+	static UNREALED_API void CreateNewBoundEventForActor(AActor* Actor, FName EventName);
 
 	/** Create a new event node in the  blueprint, for the supplied component, event name and blueprint */
-	static void CreateNewBoundEventForComponent(UObject* Component, FName EventName, UBlueprint* Blueprint, FObjectProperty* ComponentProperty);
+	static UNREALED_API void CreateNewBoundEventForComponent(UObject* Component, FName EventName, UBlueprint* Blueprint, FObjectProperty* ComponentProperty);
 
 	/** Create a new event node in the  blueprint, for the supplied class, event name and blueprint */
-	static void CreateNewBoundEventForClass(UClass* Class, FName EventName, UBlueprint* Blueprint, FObjectProperty* ComponentProperty);
+	static UNREALED_API void CreateNewBoundEventForClass(UClass* Class, FName EventName, UBlueprint* Blueprint, FObjectProperty* ComponentProperty);
 
 	/** Can we paste to this graph? */
-	static bool CanPasteNodes(const class UEdGraph* Graph);
+	static UNREALED_API bool CanPasteNodes(const class UEdGraph* Graph);
 
 	/** Perform paste on graph, at location */
-	static void  PasteNodesHere( class UEdGraph* Graph, const FVector2D& Location);
+	static UNREALED_API void  PasteNodesHere( class UEdGraph* Graph, const FVector2D& Location);
 
 	/** Attempt to get the bounds for currently selected nodes
 		@returns false if no nodes are selected */
-	static bool GetBoundsForSelectedNodes(const class UBlueprint* Blueprint, class FSlateRect& Rect, float Padding = 0.0f);
+	static UNREALED_API bool GetBoundsForSelectedNodes(const class UBlueprint* Blueprint, class FSlateRect& Rect, float Padding = 0.0f);
 
-	static int32 GetNumberOfSelectedNodes(const class UBlueprint* Blueprint);
+	static UNREALED_API int32 GetNumberOfSelectedNodes(const class UBlueprint* Blueprint);
 
 	/** Find the event node for this actor with the given event name */
-	static const class UK2Node_ActorBoundEvent* FindBoundEventForActor(AActor const* Actor, FName EventName);
+	static UNREALED_API const class UK2Node_ActorBoundEvent* FindBoundEventForActor(AActor const* Actor, FName EventName);
 
 	/** Find the event node for the component property with the given event name */
-	static const class UK2Node_ComponentBoundEvent* FindBoundEventForComponent(const UBlueprint* Blueprint, FName EventName, FName PropertyName);
+	static UNREALED_API const class UK2Node_ComponentBoundEvent* FindBoundEventForComponent(const UBlueprint* Blueprint, FName EventName, FName PropertyName);
 
 	/** Finds all bound component nodes for the given property on this blueprint */
-	static void FindAllBoundEventsForComponent(const UBlueprint* Blueprint, FName PropertyName, TArray<UK2Node_ComponentBoundEvent*>& OutNodes);
+	static UNREALED_API void FindAllBoundEventsForComponent(const UBlueprint* Blueprint, FName PropertyName, TArray<UK2Node_ComponentBoundEvent*>& OutNodes);
 
 	/** Returns true if the given property name has any bound component events in any blueprint graphs */
-	static bool PropertyHasBoundEvents(const UBlueprint* Blueprint, FName PropertyName);
+	static UNREALED_API bool PropertyHasBoundEvents(const UBlueprint* Blueprint, FName PropertyName);
 
 	/** Checks to see if the class is an interface class of any type, including native interfaces that are blueprint accessible */
-	static bool IsClassABlueprintInterface(const UClass* Class);
+	static UNREALED_API bool IsClassABlueprintInterface(const UClass* Class);
 
 	/** Checks to see if a given class is implementable by any blueprints, if false a native class needs to implement it */
-	static bool IsClassABlueprintImplementableInterface(const UClass* Class);
+	static UNREALED_API bool IsClassABlueprintImplementableInterface(const UClass* Class);
 
 	/** Checks to see if a blueprint can implement the specified class as an interface */
-	static bool CanBlueprintImplementInterface(UBlueprint const* Blueprint, UClass const* Class);
+	static UNREALED_API bool CanBlueprintImplementInterface(UBlueprint const* Blueprint, UClass const* Class);
 
 	/** Check to see if a given class is blueprint skeleton class. */
-	static bool IsClassABlueprintSkeleton (const UClass* Class);
+	static UNREALED_API bool IsClassABlueprintSkeleton (const UClass* Class);
 
 	/** Check to see if a given class is blueprint spawnable component class. */
-	static bool IsClassABlueprintSpawnableComponent(const UClass* Class);
+	static UNREALED_API bool IsClassABlueprintSpawnableComponent(const UClass* Class);
 
 	/** Check to see if a given class is a blueprint macro library */
-	static bool IsClassABlueprintMacroLibrary(const UClass* Class);
+	static UNREALED_API bool IsClassABlueprintMacroLibrary(const UClass* Class);
 
 	/** Run over the components in the blueprint, and then remove any that fall outside this blueprint's scope (e.g. components brought over after reparenting from another class) */
-	static void StripExternalComponents(class UBlueprint* Blueprint);
+	static UNREALED_API void StripExternalComponents(class UBlueprint* Blueprint);
 
 	/** Whether or not the specified actor is a valid target for bound events */
-	static bool IsActorValidForLevelScript(const AActor* Actor);
+	static UNREALED_API bool IsActorValidForLevelScript(const AActor* Actor);
 
 	/** 
 	 *	if bCouldAddAny is true it returns if any event can be bound in LevelScript for given Actor
 	 *	else it returns if there exists any event in level script bound with the actor
 	 */
-	static bool AnyBoundLevelScriptEventForActor(AActor* Actor, bool bCouldAddAny);
+	static UNREALED_API bool AnyBoundLevelScriptEventForActor(AActor* Actor, bool bCouldAddAny);
 
 	/** It lists bounded LevelScriptEvents for given actor */
-	static void AddLevelScriptEventOptionsForActor(UToolMenu* Menu, TWeakObjectPtr<AActor> ActorPtr, bool bExistingEvents, bool bNewEvents, bool bOnlyEventName);
+	static UNREALED_API void AddLevelScriptEventOptionsForActor(UToolMenu* Menu, TWeakObjectPtr<AActor> ActorPtr, bool bExistingEvents, bool bNewEvents, bool bOnlyEventName);
 	
 	/** Return information about the given macro graph */
-	static void GetInformationOnMacro(UEdGraph* MacroGraph, /*out*/ class UK2Node_Tunnel*& EntryNode, /*out*/ class UK2Node_Tunnel*& ExitNode, bool& bIsPure);
+	static UNREALED_API void GetInformationOnMacro(UEdGraph* MacroGraph, /*out*/ class UK2Node_Tunnel*& EntryNode, /*out*/ class UK2Node_Tunnel*& ExitNode, bool& bIsPure);
 	
 	/** 
 	 * Add information about any interfaces that have been implemented to the OutTags array
@@ -663,7 +663,7 @@ public:
 	 * @param	Blueprint		Blueprint to harvest interface data from
 	 * @param	OutTags			Array to add tags to
 	 */
-	static void AddInterfaceTags(const UBlueprint* Blueprint, TArray<UObject::FAssetRegistryTag>& OutTags);
+	static UNREALED_API void AddInterfaceTags(const UBlueprint* Blueprint, TArray<UObject::FAssetRegistryTag>& OutTags);
 
 	/**
 	 * Add a default event node to the graph, this node will also be in a disabled state and will spawn
@@ -676,7 +676,7 @@ public:
 	 * @param InOutNodePosY		Position to spawn the node at, will return with an offset more suitable to offset the next node
 	 * @return					The K2Node_Event will be returned
 	 */
-	static class UK2Node_Event* AddDefaultEventNode(UBlueprint* InBlueprint, UEdGraph* InGraph, FName InEventName, UClass* InEventClass, int32& InOutNodePosY);
+	static UNREALED_API class UK2Node_Event* AddDefaultEventNode(UBlueprint* InBlueprint, UEdGraph* InGraph, FName InEventName, UClass* InEventClass, int32& InOutNodePosY);
 
 	/**
 	 * Will add an event to the list of default event nodes to be auto-generated for the class or a child of the class
@@ -685,7 +685,7 @@ public:
 	 * @param InTargetClass		If a new Blueprint is a child of the target class, the event will attempt to be placed in the main event graph
 	 * @param InEventName		Name of event to place
 	 */
-	static void RegisterAutoGeneratedDefaultEvent(void* InOwner, UClass* InTargetClass, FName InEventName);
+	static UNREALED_API void RegisterAutoGeneratedDefaultEvent(void* InOwner, UClass* InTargetClass, FName InEventName);
 
 	/**
 	 * Will add an event to a list of callbacks to occur post Blueprint creation if the Blueprint is a child of the class
@@ -694,28 +694,28 @@ public:
 	 * @param InTargetClass						If a new Blueprint is a child of the target class, the event will attempt to be placed in the main event graph
 	 * @param InOnBlueprintCreatedCallback		Callback to call when the Blueprint is created
 	 */
-	static void RegisterOnBlueprintCreatedCallback(void* InOwner, UClass* InTargetClass, FOnBlueprintCreated InOnBlueprintCreatedCallback);
+	static UNREALED_API void RegisterOnBlueprintCreatedCallback(void* InOwner, UClass* InTargetClass, FOnBlueprintCreated InOnBlueprintCreatedCallback);
 
 	/** Unregisters a class from having AutoGeneratedDefaultEvent nodes or callbacks for OnBlueprintCreated */
-	static void UnregisterAutoBlueprintNodeCreation(void* InOwner);
+	static UNREALED_API void UnregisterAutoBlueprintNodeCreation(void* InOwner);
 
 	/** Add InNode to selection of editor */
-	static void AddToSelection(const class UEdGraph* Graph, UEdGraphNode* InNode);
+	static UNREALED_API void AddToSelection(const class UEdGraph* Graph, UEdGraphNode* InNode);
 
 	/** Get IBlueprintEditor for given object, if it exists */
-	static TSharedPtr<class IBlueprintEditor> GetIBlueprintEditorForObject(const UObject* ObjectToFocusOn, bool bOpenEditor);
+	static UNREALED_API TSharedPtr<class IBlueprintEditor> GetIBlueprintEditorForObject(const UObject* ObjectToFocusOn, bool bOpenEditor);
 private:
 	/** Stores whether we are already listening for kismet clicks */
-	static bool bIsListeningForClicksOnKismetLog;
+	static UNREALED_API bool bIsListeningForClicksOnKismetLog;
 
 	/** List of blueprint parent class names cached by IsTrackedBlueprintParent() */
-	static TArray<FString> TrackedBlueprintParentList;
+	static UNREALED_API TArray<FString> TrackedBlueprintParentList;
 
 	/** Mapping of classes to names of Events that should be automatically spawned */
-	static TMultiMap<void*, FDefaultEventNodeData> AutoGeneratedDefaultEventsMap;
+	static UNREALED_API TMultiMap<void*, FDefaultEventNodeData> AutoGeneratedDefaultEventsMap;
 
 	/** Mapping of classes to delegate callbacks when a Blueprint is created, occurs post Event node creation */
-	static TMultiMap<void*, FOnBlueprintCreatedData> OnBlueprintCreatedCallbacks;
+	static UNREALED_API TMultiMap<void*, FOnBlueprintCreatedData> OnBlueprintCreatedCallbacks;
 private:
 	
 	/**
@@ -725,7 +725,7 @@ private:
 	 * 
 	 * @return	True if the parent class is one we wish to track by reporting creation of children to analytics, otherwise false
 	 */
-	static bool IsTrackedBlueprintParent(const UClass* ParentClass);
+	static UNREALED_API bool IsTrackedBlueprintParent(const UClass* ParentClass);
 
 	FKismetEditorUtilities() {}
 };

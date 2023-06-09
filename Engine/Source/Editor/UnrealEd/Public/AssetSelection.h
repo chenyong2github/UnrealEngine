@@ -221,7 +221,7 @@ namespace ActorPlacementUtils
 	UNREALED_API bool IsLevelValidForActorPlacement(ULevel* Level, TArray<FTransform>& InActorTransforms);
 }
 
-class UNREALED_API FActorFactoryAssetProxy
+class FActorFactoryAssetProxy
 {
 public:
 
@@ -250,7 +250,7 @@ public:
 	 * @param	OutMenuItems				receives the list of menu items to use for populating an actor factory menu.
 	 * @param	ExcludeStandAloneFactories	if true, only factories that can create actors with the currently selected assets will be added
 	 */
-	static void GenerateActorFactoryMenuItems( const FAssetData& AssetData, TArray<FMenuItem>* OutMenuItems, bool ExcludeStandAloneFactories );
+	static UNREALED_API void GenerateActorFactoryMenuItems( const FAssetData& AssetData, TArray<FMenuItem>* OutMenuItems, bool ExcludeStandAloneFactories );
 
 	/**
 	 * Find the appropriate actor factory for an asset by type.
@@ -261,7 +261,7 @@ public:
 	 *
 	 * @return	the factory that is responsible for creating actors for the specified asset type.
 	 */
-	static UActorFactory* GetFactoryForAsset( const FAssetData& DropData, bool bRequireValidObject=false );
+	static UNREALED_API UActorFactory* GetFactoryForAsset( const FAssetData& DropData, bool bRequireValidObject=false );
 
 	/**
 	 * Find the appropriate actor factory for an asset.
@@ -270,7 +270,7 @@ public:
 	 *
 	 * @return	The factory that is responsible for creating actors for the specified asset
 	 */
-	static UActorFactory* GetFactoryForAssetObject( UObject* AssetObj );
+	static UNREALED_API UActorFactory* GetFactoryForAssetObject( UObject* AssetObj );
 
 	/**
 	 * Places an actor instance using the factory appropriate for the type of asset
@@ -283,7 +283,7 @@ public:
 	 * @return	the actor that was created by the factory, or NULL if there aren't any factories for this asset (or
 	 *			the actor couldn't be created for some other reason)
 	 */
-	static AActor* AddActorForAsset( UObject* AssetObj, bool SelectActor = true, EObjectFlags ObjectFlags = RF_Transactional, UActorFactory* FactoryToUse = NULL, const FName Name = NAME_None );
+	static UNREALED_API AActor* AddActorForAsset( UObject* AssetObj, bool SelectActor = true, EObjectFlags ObjectFlags = RF_Transactional, UActorFactory* FactoryToUse = NULL, const FName Name = NAME_None );
 
 	/**
 	 * Places an actor instance using the factory appropriate for the type of asset using the current object selection as the asset
@@ -298,7 +298,7 @@ public:
 	 * @return	the actor that was created by the factory, or NULL if there aren't any factories for this asset (or
 	 *			the actor couldn't be created for some other reason)
 	 */
-	static AActor* AddActorFromSelection( UClass* ActorClass, const FVector* ActorLocation=NULL, bool SelectActor = true, EObjectFlags ObjectFlags = RF_Transactional, UActorFactory* ActorFactory = NULL, const FName Name = NAME_None );
+	static UNREALED_API AActor* AddActorFromSelection( UClass* ActorClass, const FVector* ActorLocation=NULL, bool SelectActor = true, EObjectFlags ObjectFlags = RF_Transactional, UActorFactory* ActorFactory = NULL, const FName Name = NAME_None );
 
 	/**
 	 * Determines if the provided actor is capable of having a material applied to it.
@@ -307,7 +307,7 @@ public:
 	 *
 	 * @return	true if the actor is valid for material application; false otherwise
 	 */
-	static bool IsActorValidForMaterialApplication( AActor* TargetActor );
+	static UNREALED_API bool IsActorValidForMaterialApplication( AActor* TargetActor );
 
 	/**
 	 * Attempts to apply the material to the specified actor.
@@ -318,7 +318,7 @@ public:
 	 *
 	 * @return	true if the material was successfully applied to the actor
 	 */
-	static bool ApplyMaterialToActor( AActor* TargetActor, UMaterialInterface* MaterialToApply, int32 OptionalMaterialSlot = -1 );
+	static UNREALED_API bool ApplyMaterialToActor( AActor* TargetActor, UMaterialInterface* MaterialToApply, int32 OptionalMaterialSlot = -1 );
 
 private:
 	/**

@@ -7,7 +7,7 @@
 
 // Helper struct for setting string console ini values.
 USTRUCT()
-struct UNREALED_API FIniStringValue
+struct FIniStringValue
 {
 	GENERATED_BODY()
 		
@@ -34,8 +34,8 @@ struct UNREALED_API FIniStringValue
 * This class intentionally does not accept FText arguments. The project using your bundled asset would need to have
 * your localization tables, and we currently do not support text table referencing.
 */
-UCLASS(Blueprintable)
-class UNREALED_API UAssetGuideline : public UAssetUserData
+UCLASS(Blueprintable, MinimalAPI)
+class UAssetGuideline : public UAssetUserData
 {
 	GENERATED_BODY()
 
@@ -58,23 +58,23 @@ private:
 
 	TWeakPtr<class SNotificationItem> NotificationPtr;
 
-	static bool bAssetGuidelinesEnabled;
+	static UNREALED_API bool bAssetGuidelinesEnabled;
 #endif // WITH_EDITORONLY_DATA
 
 #if WITH_EDITOR
 public:
 	/** Begin UObject interface */
-	virtual bool IsPostLoadThreadSafe() const override;
-	virtual void PostLoad() override;
-	virtual void BeginDestroy() override;
+	UNREALED_API virtual bool IsPostLoadThreadSafe() const override;
+	UNREALED_API virtual void PostLoad() override;
+	UNREALED_API virtual void BeginDestroy() override;
 	/** End UObject interface */
 
 	static void EnableAssetGuidelines(bool isEnabled) { bAssetGuidelinesEnabled = isEnabled; }
 	static bool AreAssetGuidelinesEnabled() { return bAssetGuidelinesEnabled; }
 
 private:
-	void EnableMissingGuidelines(TArray<FString> IncorrectPlugins, TArray<FIniStringValue> IncorrectProjectSettings);
-	void DismissNotifications();
-	void RemoveAssetGuideline();
+	UNREALED_API void EnableMissingGuidelines(TArray<FString> IncorrectPlugins, TArray<FIniStringValue> IncorrectProjectSettings);
+	UNREALED_API void DismissNotifications();
+	UNREALED_API void RemoveAssetGuideline();
 #endif // WITH_EDITOR
 };

@@ -20,16 +20,16 @@
 *		/Game/MyNewFolder/
 *		/Game/MyNewFolder
 */
-UCLASS()
-class UNREALED_API UEditorAssetSubsystem : public UEditorSubsystem
+UCLASS(MinimalAPI)
+class UEditorAssetSubsystem : public UEditorSubsystem
 {
 	GENERATED_BODY()
 	
 public:
 
-	UEditorAssetSubsystem();
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-	virtual void Deinitialize() override;
+	UNREALED_API UEditorAssetSubsystem();
+	UNREALED_API virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	UNREALED_API virtual void Deinitialize() override;
 	
 	/**
 	 * Load an asset. It will verify if the object is already loaded and only load it if it's necessary.
@@ -37,7 +37,7 @@ public:
 	 * @return	Found or loaded asset.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset")
-	UObject* LoadAsset(const FString& AssetPath);
+	UNREALED_API UObject* LoadAsset(const FString& AssetPath);
 
 	/**
 	 * Load a Blueprint asset and return its generated class. It will verify if the object is already loaded and only load it if it's necessary.
@@ -45,7 +45,7 @@ public:
 	 * @return	Found or loaded class.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset")
-	UClass* LoadBlueprintClass(const FString& AssetPath);
+	UNREALED_API UClass* LoadBlueprintClass(const FString& AssetPath);
 
 	/**
 	 * Return a valid AssetPath for a loaded asset.
@@ -54,7 +54,7 @@ public:
 	 * @return	If valid, the asset Path of the loaded asset.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset")
-	FString GetPathNameForLoadedAsset(UObject* LoadedAsset);
+	UNREALED_API FString GetPathNameForLoadedAsset(UObject* LoadedAsset);
 
 	/**
 	 * Return the AssetData for the Asset that can then be used with AssetRegistryHelpers.
@@ -62,7 +62,7 @@ public:
 	 * @return	The AssetData found.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset")
-	FAssetData FindAssetData(const FString& AssetPath);
+	UNREALED_API FAssetData FindAssetData(const FString& AssetPath);
 
 	/**
 	 * Check if an asset exists in the Asset Registry.
@@ -70,7 +70,7 @@ public:
 	 * @return	True if the asset exists and is valid.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset")
-	bool DoesAssetExist(const FString& AssetPath);
+	UNREALED_API bool DoesAssetExist(const FString& AssetPath);
 
 	/**
 	 * Check if assets exist in the Asset Registry.
@@ -78,7 +78,7 @@ public:
 	 * @return	True if all assets exist and are valid.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset")
-	bool DoAssetsExist(const TArray<FString>& AssetPaths);
+	UNREALED_API bool DoAssetsExist(const TArray<FString>& AssetPaths);
 	
 	/**
 	 * Find Package Referencers for an asset. Only Soft and Hard dependencies will be looked for.
@@ -91,7 +91,7 @@ public:
 	 * @return	The package paths of the referencers.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset", meta=(AdvancedDisplay=1))
-	TArray<FString> FindPackageReferencersForAsset(const FString& AssetPath, bool bLoadAssetsToConfirm = false);
+	UNREALED_API TArray<FString> FindPackageReferencersForAsset(const FString& AssetPath, bool bLoadAssetsToConfirm = false);
 
 	/**
 	 * Consolidates assets by replacing all references/uses of the provided AssetsToConsolidate with references to AssetToConsolidateTo.
@@ -105,7 +105,7 @@ public:
 	 * @return	True if the operation succeeds.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset")
-	bool ConsolidateAssets(UObject* AssetToConsolidateTo, const TArray<UObject*>& AssetsToConsolidate);
+	UNREALED_API bool ConsolidateAssets(UObject* AssetToConsolidateTo, const TArray<UObject*>& AssetsToConsolidate);
 	
 	/**
 	 * Delete an asset that is already loaded.
@@ -116,7 +116,7 @@ public:
 	 * @return	True if the operation succeeds.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset")
-	bool DeleteLoadedAsset(UObject* AssetToDelete);
+	UNREALED_API bool DeleteLoadedAsset(UObject* AssetToDelete);
 
 	/**
 	 * Delete assets that are already loaded.
@@ -127,7 +127,7 @@ public:
 	 * @return	True if the operation succeeds.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset")
-	bool DeleteLoadedAssets(const TArray<UObject*>& AssetsToDelete);
+	UNREALED_API bool DeleteLoadedAssets(const TArray<UObject*>& AssetsToDelete);
 
 	/**
 	 * Delete the package an asset is in. All objects in the package will be deleted.
@@ -138,7 +138,7 @@ public:
 	 * @return	True if the operation succeeds.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset")
-	bool DeleteAsset(const FString& AssetPathToDelete);
+	UNREALED_API bool DeleteAsset(const FString& AssetPathToDelete);
 
 	/**
 	 * Delete the packages inside a directory. If the directory is then empty, delete the directory.
@@ -150,7 +150,7 @@ public:
 	 * @return	True if the operation succeeds.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset")
-	bool DeleteDirectory(const FString& DirectoryPath);
+	UNREALED_API bool DeleteDirectory(const FString& DirectoryPath);
 	
 	/**
 	 * Duplicate an asset that is already loaded. Will try to checkout the file.
@@ -159,7 +159,7 @@ public:
 	 * @return	The duplicated object if the operation succeeds
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset")
-	UObject* DuplicateLoadedAsset(UObject* SourceAsset, const FString& DestinationAssetPath);
+	UNREALED_API UObject* DuplicateLoadedAsset(UObject* SourceAsset, const FString& DestinationAssetPath);
 
 	/**
 	 * Duplicate an asset. Will try to checkout the file. The Asset will be loaded before being duplicated.
@@ -168,7 +168,7 @@ public:
 	 * @return	The duplicated object if the operation succeeds.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset")
-	UObject* DuplicateAsset(const FString& SourceAssetPath, const FString& DestinationAssetPath);
+	UNREALED_API UObject* DuplicateAsset(const FString& SourceAssetPath, const FString& DestinationAssetPath);
 
 	/**
 	 * Duplicate a directory and the assets in it.
@@ -178,7 +178,7 @@ public:
 	 * @return	The duplicated object if the operation succeeds.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset")
-	bool DuplicateDirectory(const FString& SourceDirectoryPath, const FString& DestinationDirectoryPath);
+	UNREALED_API bool DuplicateDirectory(const FString& SourceDirectoryPath, const FString& DestinationDirectoryPath);
 
 	/**
 	 * Rename an asset that is already loaded. Equivalent to a Move operation.
@@ -188,7 +188,7 @@ public:
 	 * @return	True if the operation succeeds.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset")
-	bool RenameLoadedAsset(UObject* SourceAsset, const FString& DestinationAssetPath);
+	UNREALED_API bool RenameLoadedAsset(UObject* SourceAsset, const FString& DestinationAssetPath);
 
 	/**
 	 * Rename an asset. Equivalent to a Move operation.
@@ -198,7 +198,7 @@ public:
 	 * @return	True if the operation succeeds.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset")
-	bool RenameAsset(const FString& SourceAssetPath, const FString& DestinationAssetPath);
+	UNREALED_API bool RenameAsset(const FString& SourceAssetPath, const FString& DestinationAssetPath);
 
 	/**
 	 * Rename a directory. Equivalent to a Move operation moving all contained assets.
@@ -208,7 +208,7 @@ public:
 	 * @return	True if the operation succeeds.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset")
-	bool RenameDirectory(const FString& SourceDirectoryPath, const FString& DestinationDirectoryPath);
+	UNREALED_API bool RenameDirectory(const FString& SourceDirectoryPath, const FString& DestinationDirectoryPath);
 	
 	/**
 	 * Checkout the asset corresponding to an object.
@@ -216,7 +216,7 @@ public:
 	 * @return	True if the operation succeeds.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset | Revision Control", meta = (Keywords = "Source Control"))
-	bool CheckoutLoadedAsset(UObject* AssetToCheckout);
+	UNREALED_API bool CheckoutLoadedAsset(UObject* AssetToCheckout);
 
 	/**
 	 * Checkout the assets.
@@ -224,7 +224,7 @@ public:
 	 * @return	True if the operation succeeds.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset | Revision Control", meta = (Keywords = "Source Control"))
-	bool CheckoutLoadedAssets(const TArray<UObject*>& AssetsToCheckout);
+	UNREALED_API bool CheckoutLoadedAssets(const TArray<UObject*>& AssetsToCheckout);
 
 	/**
 	 * Checkout an asset.
@@ -232,7 +232,7 @@ public:
 	 * @return	True if the operation succeeds.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset | Revision Control", meta = (Keywords = "Source Control"))
-	bool CheckoutAsset(const FString& AssetToCheckout);
+	UNREALED_API bool CheckoutAsset(const FString& AssetToCheckout);
 
 	/**
 	 * Checkout all assets in a directory. It will load the assets if needed.
@@ -242,7 +242,7 @@ public:
 	 * @return	True if the operation succeeds.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset | Revision Control", meta = (Keywords = "Source Control"))
-	bool CheckoutDirectory(const FString& DirectoryPath, bool bRecursive = true);
+	UNREALED_API bool CheckoutDirectory(const FString& DirectoryPath, bool bRecursive = true);
 	
 	/**
 	 * Save the package the asset lives in. All objects that live in the package will be saved. Will try to checkout the file.
@@ -251,7 +251,7 @@ public:
 	 * @return	True if the operation succeeds.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset")
-	bool SaveLoadedAsset(UObject* AssetToSave, bool bOnlyIfIsDirty = true);
+	UNREALED_API bool SaveLoadedAsset(UObject* AssetToSave, bool bOnlyIfIsDirty = true);
 
 	/**
 	 * Save the packages the assets live in. All objects that live in the packages will be saved. Will try to checkout the files.
@@ -260,7 +260,7 @@ public:
 	 * @return	True if the operation succeeds.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset")
-	bool SaveLoadedAssets(const TArray<UObject*>& AssetsToSave, bool bOnlyIfIsDirty = true);
+	UNREALED_API bool SaveLoadedAssets(const TArray<UObject*>& AssetsToSave, bool bOnlyIfIsDirty = true);
 
 	/**
 	 * Save the packages the assets live in. All objects that live in the package will be saved.
@@ -270,7 +270,7 @@ public:
 	 * @return	True if the operation succeeds.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset")
-	bool SaveAsset(const FString& AssetToSave, bool bOnlyIfIsDirty = true);
+	UNREALED_API bool SaveAsset(const FString& AssetToSave, bool bOnlyIfIsDirty = true);
 
 	/**
 	 * Save the packages the assets live in inside the directory. All objects that are in the directory will be saved.
@@ -281,7 +281,7 @@ public:
 	 * @return	True if the operation succeeds.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset")
-	bool SaveDirectory(const FString& DirectoryPath, bool bOnlyIfIsDirty = true, bool bRecursive = true);
+	UNREALED_API bool SaveDirectory(const FString& DirectoryPath, bool bOnlyIfIsDirty = true, bool bRecursive = true);
 	
 	/**
 	* Check if a directory exists.
@@ -289,7 +289,7 @@ public:
 	* @return	True if it does exist and it is valid.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset")
-	bool DoesDirectoryExist(const FString& DirectoryPath);
+	UNREALED_API bool DoesDirectoryExist(const FString& DirectoryPath);
 
 	/**
 	 * Check if a directory contains any assets.
@@ -297,7 +297,7 @@ public:
 	 * @return	True if there is any assets.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset")
-	bool DoesDirectoryContainAssets(const FString& DirectoryPath, bool bRecursive = true);
+	UNREALED_API bool DoesDirectoryContainAssets(const FString& DirectoryPath, bool bRecursive = true);
 
 	/**
 	 * Create a directory on disk.
@@ -305,7 +305,7 @@ public:
 	 * @return	True if the operation succeeds.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset")
-	bool MakeDirectory(const FString& DirectoryPath);
+	UNREALED_API bool MakeDirectory(const FString& DirectoryPath);
 	
 	/**
 	 * Return the list of all the assets found in the DirectoryPath.
@@ -315,7 +315,7 @@ public:
 	 * @return	The list of assets found.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset")
-	TArray<FString> ListAssets(const FString& DirectoryPath, bool bRecursive = true, bool bIncludeFolder = false);
+	UNREALED_API TArray<FString> ListAssets(const FString& DirectoryPath, bool bRecursive = true, bool bIncludeFolder = false);
 
 	/**
 	 * Return the list of all the assets that have the pair of Tag/Value.
@@ -324,7 +324,7 @@ public:
 	 * @return	The list of assets found.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset")
-	TArray<FString> ListAssetsByTagValue(FName TagName, const FString& TagValue);
+	UNREALED_API TArray<FString> ListAssetsByTagValue(FName TagName, const FString& TagValue);
 
 	/**
 	 * Gets all TagValues (from Asset Registry) associated with an (unloaded) asset as strings value.
@@ -332,7 +332,7 @@ public:
 	 * @return	The list of all TagNames & TagValues.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset")
-	TMap<FName, FString> GetTagValues(const FString& AssetPath);
+	UNREALED_API TMap<FName, FString> GetTagValues(const FString& AssetPath);
 	
 	/**
      * Get all tags/values of a loaded asset's metadata.
@@ -340,7 +340,7 @@ public:
      * @return	The list of all Tags and Values.
      */
     UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset | Metadata")
-    TMap<FName, FString> GetMetadataTagValues(UObject* Object);
+    UNREALED_API TMap<FName, FString> GetMetadataTagValues(UObject* Object);
    
     /**
      * Get the value associated with the given tag of a loaded asset's metadata.
@@ -349,7 +349,7 @@ public:
      * @return	The string value associated with the tag.
      */
     UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset | Metadata")
-    FString GetMetadataTag(UObject* Object, FName Tag);
+    UNREALED_API FString GetMetadataTag(UObject* Object, FName Tag);
    
     /**
      * Set the value associated with a given tag of a loaded asset's metadata.
@@ -358,7 +358,7 @@ public:
      * @param	Value		The string value to associate with the tag.
      */
     UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset | Metadata")
-    void SetMetadataTag(UObject* Object, FName Tag, const FString& Value);
+    UNREALED_API void SetMetadataTag(UObject* Object, FName Tag, const FString& Value);
    
     /**
      * Remove the given tag from a loaded asset's metadata.
@@ -366,7 +366,7 @@ public:
      * @param	Tag			The tag to remove from the metadata.
      */
     UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset | Metadata")
-    void RemoveMetadataTag(UObject* Object, FName Tag);
+    UNREALED_API void RemoveMetadataTag(UObject* Object, FName Tag);
 
 	/**
 	 * Delegate for extracting an asset from a file, for example from a drag and drop operation.
@@ -386,13 +386,13 @@ public:
 	 * for example from a drag and drop operation.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset")
-		void AddOnExtractAssetFromFile(FOnExtractAssetFromFileDynamic Delegate);
+		UNREALED_API void AddOnExtractAssetFromFile(FOnExtractAssetFromFileDynamic Delegate);
 
 	/**
 	 * Call this to remove a callback added with AddOnExtractAssetFromFile.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset")
-		void RemoveOnExtractAssetFromFile(FOnExtractAssetFromFileDynamic Delegate);
+		UNREALED_API void RemoveOnExtractAssetFromFile(FOnExtractAssetFromFileDynamic Delegate);
 
 	/**
 	 * Get the delegate for extracting an asset from a file,
@@ -409,7 +409,7 @@ private:
 	 * Calls all the delegates in OnExtractAssetFromFileDynamicArray when OnExtractAssetFromFile
 	 * is broadcast.
 	 */
-	void CallOnExtractAssetFromFileDynamicArray(const TArray<FString>& Files,
+	UNREALED_API void CallOnExtractAssetFromFileDynamicArray(const TArray<FString>& Files,
 		TArray<FAssetData>& InAssetDataArray);
 
 	/** Delegate for extracting an asset from a file, for example from a drag and drop operation. */

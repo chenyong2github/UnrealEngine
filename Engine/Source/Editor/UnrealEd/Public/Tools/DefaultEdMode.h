@@ -6,17 +6,17 @@
 
 #include "DefaultEdMode.generated.h"
 
-UCLASS(Transient)
-class UNREALED_API UEdModeDefault : public UBaseLegacyWidgetEdMode
+UCLASS(Transient, MinimalAPI)
+class UEdModeDefault : public UBaseLegacyWidgetEdMode
 {
 	GENERATED_BODY()
 
 public:
-	UEdModeDefault();
+	UNREALED_API UEdModeDefault();
 
-	virtual bool UsesPropertyWidgets() const override;
-	virtual bool UsesToolkits() const override;
+	UNREALED_API virtual bool UsesPropertyWidgets() const override;
+	UNREALED_API virtual bool UsesToolkits() const override;
 
 protected:
-	virtual TSharedRef<FLegacyEdModeWidgetHelper> CreateWidgetHelper() override;
+	UNREALED_API virtual TSharedRef<FLegacyEdModeWidgetHelper> CreateWidgetHelper() override;
 };

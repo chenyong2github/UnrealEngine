@@ -17,7 +17,7 @@ class SBorder;
 class SComboButton;
 
 // This widget is a content reference, which can optionally show buttons for interacting with the reference
-class UNREALED_API SContentReference : public SCompoundWidget
+class SContentReference : public SCompoundWidget
 {
 public:
 
@@ -80,34 +80,34 @@ public:
 
 public:
 	// Construct a SContentReference
-	void Construct(const FArguments& InArgs);
+	UNREALED_API void Construct(const FArguments& InArgs);
 
 	// Causes the asset picker to open, allowing the user to select a new asset
-	void OpenAssetPickerMenu();
+	UNREALED_API void OpenAssetPickerMenu();
 
 protected:
-	EVisibility GetUseButtonVisibility() const;
-	EVisibility GetPickButtonVisibility() const;
-	EVisibility GetFindButtonVisibility() const;
-	EVisibility GetClearButtonVisibility() const;
-	EVisibility GetToolsButtonVisibility() const;
+	UNREALED_API EVisibility GetUseButtonVisibility() const;
+	UNREALED_API EVisibility GetPickButtonVisibility() const;
+	UNREALED_API EVisibility GetFindButtonVisibility() const;
+	UNREALED_API EVisibility GetClearButtonVisibility() const;
+	UNREALED_API EVisibility GetToolsButtonVisibility() const;
 
-	FReply OnClickUseButton();
-	FReply OnClickFindButton();
-	FReply OnClickClearButton();
+	UNREALED_API FReply OnClickUseButton();
+	UNREALED_API FReply OnClickFindButton();
+	UNREALED_API FReply OnClickClearButton();
 
-	TSharedRef<SWidget> MakeAssetPickerMenu();
-	void OnAssetSelectedFromPicker(const FAssetData& AssetData);
+	UNREALED_API TSharedRef<SWidget> MakeAssetPickerMenu();
+	UNREALED_API void OnAssetSelectedFromPicker(const FAssetData& AssetData);
 
-	FText GetAssetShortName() const;
-	FText GetAssetFullName() const;
+	UNREALED_API FText GetAssetShortName() const;
+	UNREALED_API FText GetAssetFullName() const;
 
-	FReply OnDoubleClickedOnAssetName(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent);
-	void OpenAssetToEdit();
+	UNREALED_API FReply OnDoubleClickedOnAssetName(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent);
+	UNREALED_API void OpenAssetToEdit();
 
-	const FSlateBrush* GetBorderImage() const;
+	UNREALED_API const FSlateBrush* GetBorderImage() const;
 
-	static void FindObjectInContentBrowser(UObject* Object);
+	static UNREALED_API void FindObjectInContentBrowser(UObject* Object);
 protected:
 	// Attributes
 	TAttribute<UObject*> AssetReference;

@@ -15,22 +15,22 @@
 #include "MRUList.h"
 
 /** Simple class to represent a combined MRU and favorite map list */
-class UNREALED_API FMainMRUFavoritesList : public FMRUList
+class FMainMRUFavoritesList : public FMRUList
 {
 public:
 	/** Constructor */
-	FMainMRUFavoritesList();
+	UNREALED_API FMainMRUFavoritesList();
 
-	FMainMRUFavoritesList(const FString& IniSectionOverride, const int32 InitMaxItems = 12);
+	UNREALED_API FMainMRUFavoritesList(const FString& IniSectionOverride, const int32 InitMaxItems = 12);
 	
 	/** Destructor */
-	~FMainMRUFavoritesList();
+	UNREALED_API ~FMainMRUFavoritesList();
 	
 	/** Populate MRU/Favorites list by reading saved values from the relevant INI file */
-	virtual void ReadFromINI();
+	UNREALED_API virtual void ReadFromINI();
 
 	/** Save off the state of the MRU and favorites lists to the relevant INI file */
-	virtual void WriteToINI() const;
+	UNREALED_API virtual void WriteToINI() const;
 
 	/**
 	 * Returns the number of favorites items
@@ -47,14 +47,14 @@ public:
 	 *
 	 * @param	Item	Filename of the item to add to the favorites list
 	 */
-	void AddFavoritesItem( const FString& Item );
+	UNREALED_API void AddFavoritesItem( const FString& Item );
 	
 	/**
 	 * Remove a file from the favorites list
 	 *
 	 * @param	Item	Filename of the item to remove from the favorites list
 	 */
-	void RemoveFavoritesItem( const FString& Item );
+	UNREALED_API void RemoveFavoritesItem( const FString& Item );
 
 	/**
 	 * Returns whether a filename is favorited or not
@@ -63,7 +63,7 @@ public:
 	 *
 	 * @return	true if the provided item is in the favorite's list; false if it is not
 	 */
-	bool ContainsFavoritesItem( const FString& Item ) const;
+	UNREALED_API bool ContainsFavoritesItem( const FString& Item ) const;
 
 	/**
 	 * Return the favorites item specified by the provided index
@@ -72,7 +72,7 @@ public:
 	 *
 	 * @return	The favorites item specified by the provided index
 	 */
-	FString GetFavoritesItem( int32 ItemIndex ) const;
+	UNREALED_API FString GetFavoritesItem( int32 ItemIndex ) const;
 
 	/**
 	 * Verifies that the favorites item specified by the provided index still exists. If it does not, the item
@@ -82,14 +82,14 @@ public:
 	 *
 	 * @return	true if the item specified by the index was verified and still exists; false if it does not
 	 */
-	bool VerifyFavoritesFile( int32 ItemIndex );
+	UNREALED_API bool VerifyFavoritesFile( int32 ItemIndex );
 
 	/**
 	 * Moves the specified favorites item to the head of the list
 	 *
 	 * @param	Item	Filename of the item to move
 	 */
-	void MoveFavoritesItemToHead( const FString& Item );
+	UNREALED_API void MoveFavoritesItemToHead( const FString& Item );
 
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FDoesMRUFavoritesItemPassFilter, const FString& MRUFavoritesItem);
 	/**
@@ -98,12 +98,12 @@ public:
 	*
 	* @param DoesMRUFavoritesItemPassFilterDelegate The delegate to use
 	*/
-	void RegisterDoesMRUFavoritesItemPassFilterDelegate(FDoesMRUFavoritesItemPassFilter DoesMRUFavoritesItemPassFilterDelegate);
+	UNREALED_API void RegisterDoesMRUFavoritesItemPassFilterDelegate(FDoesMRUFavoritesItemPassFilter DoesMRUFavoritesItemPassFilterDelegate);
 
 	/**
 	* Unregisters the optional filter delegate
 	*/
-	void UnregisterDoesMRUFavoritesItemPassFilterDelegate();
+	UNREALED_API void UnregisterDoesMRUFavoritesItemPassFilterDelegate();
 
 	/**
 	* Checks the favorites item specified by the provided index against the optional 'DoesMRUFavoritesItemPassFilterDelegate'.
@@ -112,7 +112,7 @@ public:
 	*
 	* @return true if the item specified by the index passes the filter or if no filter has been provided; false if it does not pass the filter
 	*/
-	bool FavoritesItemPassesCurrentFilter(int32 ItemIndex) const;
+	UNREALED_API bool FavoritesItemPassesCurrentFilter(int32 ItemIndex) const;
 
 	/**
 	* Checks the MRU item specified by the provided index against the optional 'DoesMRUFavoritesItemPassFilterDelegate'.
@@ -121,7 +121,7 @@ public:
 	*
 	* @return true if the item specified by the index passes the filter or if no filter has been provided; false if it does not pass the filter
 	*/
-	bool MRUItemPassesCurrentFilter(int32 ItemIndex) const;
+	UNREALED_API bool MRUItemPassesCurrentFilter(int32 ItemIndex) const;
 
 private:
 
@@ -132,5 +132,5 @@ private:
 	TArray<FString> FavoriteItems;
 
 	/** INI section to read/write favorite items to */
-	static const FString FAVORITES_INI_SECTION;
+	static UNREALED_API const FString FAVORITES_INI_SECTION;
 };

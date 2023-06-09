@@ -8,8 +8,8 @@
 
 class SEditorViewportViewMenu;
 
-UCLASS()
-class UNREALED_API UEditorViewportViewMenuContext : public UObject
+UCLASS(MinimalAPI)
+class UEditorViewportViewMenuContext : public UObject
 {
 	GENERATED_BODY()
 public:

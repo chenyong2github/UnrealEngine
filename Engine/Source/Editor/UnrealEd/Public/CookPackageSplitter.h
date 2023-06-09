@@ -226,22 +226,22 @@ namespace Private
 {
 
 /** Interface for internal use only (used by REGISTER_COOKPACKAGE_SPLITTER to register an ICookPackageSplitter for a class) */
-class UNREALED_API FRegisteredCookPackageSplitter
+class FRegisteredCookPackageSplitter
 {
 public:
-	FRegisteredCookPackageSplitter();
-	virtual ~FRegisteredCookPackageSplitter();
+	UNREALED_API FRegisteredCookPackageSplitter();
+	UNREALED_API virtual ~FRegisteredCookPackageSplitter();
 
 	virtual UClass* GetSplitDataClass() const = 0;
 	virtual bool ShouldSplitPackage(UObject* Object) const = 0;
 	virtual ICookPackageSplitter* CreateInstance(UObject* Object) const = 0;
 	virtual FString GetSplitterDebugName() const = 0;
 
-	static void ForEach(TFunctionRef<void(FRegisteredCookPackageSplitter*)> Func);
+	static UNREALED_API void ForEach(TFunctionRef<void(FRegisteredCookPackageSplitter*)> Func);
 
 private:
 	
-	static TLinkedList<FRegisteredCookPackageSplitter*>*& GetRegisteredList();
+	static UNREALED_API TLinkedList<FRegisteredCookPackageSplitter*>*& GetRegisteredList();
 	TLinkedList<FRegisteredCookPackageSplitter*> GlobalListLink;
 };
 

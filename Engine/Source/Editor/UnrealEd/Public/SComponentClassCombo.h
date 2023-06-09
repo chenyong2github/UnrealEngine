@@ -187,7 +187,7 @@ private:
 
 //////////////////////////////////////////////////////////////////////////
 
-class UNREALED_API SComponentClassCombo : public SCompoundWidget
+class SComponentClassCombo : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS( SComponentClassCombo )
@@ -201,33 +201,33 @@ public:
 
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
+	UNREALED_API void Construct(const FArguments& InArgs);
 
-	~SComponentClassCombo();
+	UNREALED_API ~SComponentClassCombo();
 
 	/** Clear the current combo list selection */
-	void ClearSelection();
+	UNREALED_API void ClearSelection();
 
-	FText GetCurrentSearchString() const;
+	UNREALED_API FText GetCurrentSearchString() const;
 
 	/**
 	 * Called when the user changes the text in the search box.
 	 * @param InSearchText The new search string.
 	 */
-	void OnSearchBoxTextChanged( const FText& InSearchText );
+	UNREALED_API void OnSearchBoxTextChanged( const FText& InSearchText );
 
 	/** Callback when the user commits the text in the searchbox */
-	void OnSearchBoxTextCommitted(const FText& NewText, ETextCommit::Type CommitInfo);
+	UNREALED_API void OnSearchBoxTextCommitted(const FText& NewText, ETextCommit::Type CommitInfo);
 
-	void OnAddComponentSelectionChanged( FComponentClassComboEntryPtr InItem, ESelectInfo::Type SelectInfo );
+	UNREALED_API void OnAddComponentSelectionChanged( FComponentClassComboEntryPtr InItem, ESelectInfo::Type SelectInfo );
 
-	TSharedRef<ITableRow> GenerateAddComponentRow( FComponentClassComboEntryPtr Entry, const TSharedRef<STableViewBase> &OwnerTable ) const;
+	UNREALED_API TSharedRef<ITableRow> GenerateAddComponentRow( FComponentClassComboEntryPtr Entry, const TSharedRef<STableViewBase> &OwnerTable ) const;
 
 	/** Update list of component classes */
-	void UpdateComponentClassList();
+	UNREALED_API void UpdateComponentClassList();
 
 	/** Returns a component name without the substring "Component" and sanitized for display */
-	static FString GetSanitizedComponentName(FComponentClassComboEntryPtr Entry);
+	static UNREALED_API FString GetSanitizedComponentName(FComponentClassComboEntryPtr Entry);
 
 protected:
 	/** Internal data used to facilitate component class filtering */
@@ -241,7 +241,7 @@ protected:
 	/**
 	 * Updates the filtered list of component names.
 	 */
-	void GenerateFilteredComponentList();
+	UNREALED_API void GenerateFilteredComponentList();
 
 private:
 	

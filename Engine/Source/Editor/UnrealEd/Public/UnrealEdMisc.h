@@ -28,27 +28,27 @@ enum class EMapChangeType : uint8
 };
 
 /** The public interface for the unreal editor misc singleton. */
-class UNREALED_API FUnrealEdMisc
+class FUnrealEdMisc
 {
 public:
 
 	/** Singleton accessor */
-	static FUnrealEdMisc& Get();
+	static UNREALED_API FUnrealEdMisc& Get();
 
 	/** Destructor */
-	virtual ~FUnrealEdMisc();
+	UNREALED_API virtual ~FUnrealEdMisc();
 
 	/** Initalizes various systems */
-	virtual void OnInit();
+	UNREALED_API virtual void OnInit();
 
 	/* Check if this we are editing a template project, and if so mount any shared resource paths it uses */
-	void MountTemplateSharedPaths();
+	UNREALED_API void MountTemplateSharedPaths();
 
 	/* Cleans up various systems */
-	virtual void OnExit();
+	UNREALED_API virtual void OnExit();
 
 	/** Performs any required cleanup in the case of a fatal error. */
-	virtual void ShutdownAfterError();
+	UNREALED_API virtual void ShutdownAfterError();
 
 	/**
 	 *	Whether or not the map build in progressed was cancelled by the user. 
@@ -159,16 +159,16 @@ public:
 	}
 
 	/** Opens the specified project file or game. Restarts the editor */
-	void SwitchProject(const FString& GameOrProjectFileName, bool bWarn = true, const TOptional<FString>& NewCommandLine = TOptional<FString>());
+	UNREALED_API void SwitchProject(const FString& GameOrProjectFileName, bool bWarn = true, const TOptional<FString>& NewCommandLine = TOptional<FString>());
 
 	/** Restarts the editor, reopening the current project, if any */
-	void RestartEditor(bool bWarn = true, const TOptional<FString>& NewCommandLine = TOptional<FString>());
+	UNREALED_API void RestartEditor(bool bWarn = true, const TOptional<FString>& NewCommandLine = TOptional<FString>());
 
 	/** Ticks the performance analytics used by the analytics heartbeat */
-	void TickPerformanceAnalytics();
+	UNREALED_API void TickPerformanceAnalytics();
 
 	/** Triggers asset analytics if it hasn't been run yet */
-	void TickAssetAnalytics();
+	UNREALED_API void TickAssetAnalytics();
 
 	/**
 	 * Fetches a URL from the config and optionally switches it to rocket if required
@@ -179,113 +179,113 @@ public:
 	 *
 	 * @returns true if successful
 	 */
-	bool GetURL( const TCHAR* InKey, FString& OutURL, const bool bCheckRocket = false ) const;
+	UNREALED_API bool GetURL( const TCHAR* InKey, FString& OutURL, const bool bCheckRocket = false ) const;
 
-	void ReplaceDocumentationURLWildcards(FString& Url, const FCultureRef& Culture, const FString& PageId = FString());
+	UNREALED_API void ReplaceDocumentationURLWildcards(FString& Url, const FCultureRef& Culture, const FString& PageId = FString());
 
 	/** Returns the editor executable to use to execute commandlets */
-	FString GetExecutableForCommandlets() const;
+	UNREALED_API FString GetExecutableForCommandlets() const;
 
 	/** 
 	 * Opens the Unreal Engine Launcher marketplace page
 	 *
 	 * @param CustomLocation	Optional custom location within the marketplace to navigate to.  If not specified the launcher will open to the root marketplace page
 	 */
-	void OpenMarketplace(const FString& CustomLocation = TEXT(""));
+	UNREALED_API void OpenMarketplace(const FString& CustomLocation = TEXT(""));
 
 	/** Constructor, private - use Get() function */
-	FUnrealEdMisc();
+	UNREALED_API FUnrealEdMisc();
 
 	/** Displays a property dialog based upon what is currently selected. If any actors are selected, the actor property dialog is displayed. */
-	void CB_SelectedProps();
-	void CB_DisplayLoadErrors();
-	void CB_RefreshEditor();
+	UNREALED_API void CB_SelectedProps();
+	UNREALED_API void CB_DisplayLoadErrors();
+	UNREALED_API void CB_RefreshEditor();
 
 	/** Tells the editor that something has been done to change the map.  Can be anything from loading a whole new map to changing the BSP. */
-	void CB_MapChange( uint32 InFlags );
-	void CB_RedrawAllViewports();
-	void CB_EditorModeWindowClosed(const TSharedRef<SWindow>&);
-	void CB_LevelActorsAdded(class AActor* InActor);
+	UNREALED_API void CB_MapChange( uint32 InFlags );
+	UNREALED_API void CB_RedrawAllViewports();
+	UNREALED_API void CB_EditorModeWindowClosed(const TSharedRef<SWindow>&);
+	UNREALED_API void CB_LevelActorsAdded(class AActor* InActor);
 
 	/** Called right before unit testing is about to begin */
-	void CB_PreAutomationTesting();
+	UNREALED_API void CB_PreAutomationTesting();
 
 	/** Called right after unit testing concludes */
-	void CB_PostAutomationTesting();
+	UNREALED_API void CB_PostAutomationTesting();
 
-	void OnEditorChangeMode(FEditorModeID NewEditorMode);
-	void OnEditorPreModal();
-	void OnEditorPostModal();
+	UNREALED_API void OnEditorChangeMode(FEditorModeID NewEditorMode);
+	UNREALED_API void OnEditorPreModal();
+	UNREALED_API void OnEditorPostModal();
 
 	/** BP nativization settings */
 	UE_DEPRECATED(5.0, "Blueprint Nativization has been removed as a supported feature. This delegate method will eventually be removed.")
 	void OnNativizeBlueprintsSettingChanged(const FString& PackageName, bool bSelect) {}
 
 	/** Called from tab manager when the tab changes */
-	void OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated);
-	void OnTabForegrounded(TSharedPtr<SDockTab> ForegroundTab, TSharedPtr<SDockTab> BackgroundTab);
-	void OnUserActivityTabChanged(TSharedPtr<SDockTab> InTab);
+	UNREALED_API void OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated);
+	UNREALED_API void OnTabForegrounded(TSharedPtr<SDockTab> ForegroundTab, TSharedPtr<SDockTab> BackgroundTab);
+	UNREALED_API void OnUserActivityTabChanged(TSharedPtr<SDockTab> InTab);
 
 	/** Delegate that gets called by modules that can't directly access Engine */
-	void OnDeferCommand( const FString& DeferredCommand );
+	UNREALED_API void OnDeferCommand( const FString& DeferredCommand );
 
 	/** Start the performance survey that attempts to monitor editor performance in the default or simple startup maps */
-	void BeginPerformanceSurvey();
+	UNREALED_API void BeginPerformanceSurvey();
 
 	/** End the performance survey that attempts to monitor editor performance in the default or simple startup maps */
-	void CancelPerformanceSurvey();
+	UNREALED_API void CancelPerformanceSurvey();
 
 	/**
 	 * Called when a map is changed (loaded,saved,new map, etc)
 	 */
-	void OnMapChanged( UWorld* World, EMapChangeType MapChangeType );
+	UNREALED_API void OnMapChanged( UWorld* World, EMapChangeType MapChangeType );
 
 	/** Called when the input manager records a user-defined chord */
-	void OnUserDefinedChordChanged(const FUICommandInfo& CommandInfo);
+	UNREALED_API void OnUserDefinedChordChanged(const FUICommandInfo& CommandInfo);
 
 	/** Delegate for (default) message log UObject token activation - selects the object that the token refers to (if any) */
-	void OnMessageTokenActivated(const TSharedRef<class IMessageToken>& Token);
+	UNREALED_API void OnMessageTokenActivated(const TSharedRef<class IMessageToken>& Token);
 
 	/** Delegate for (default) display name of UObject tokens. Can display the name of the actor if an object is/is part of one */
-	FText OnGetDisplayName(const UObject* InObject, const bool bFullPath);
+	UNREALED_API FText OnGetDisplayName(const UObject* InObject, const bool bFullPath);
 
 	/** Delegate for (default) message log message selection - selects the objects that the tokens refer to (if any) */
-	void OnMessageSelectionChanged(TArray< TSharedRef<class FTokenizedMessage> >& Selection);
+	UNREALED_API void OnMessageSelectionChanged(TArray< TSharedRef<class FTokenizedMessage> >& Selection);
 
 	/** Delegate used to go to assets in the content browser */
-	void OnGotoAsset(const FString& InAssetPath) const;
+	UNREALED_API void OnGotoAsset(const FString& InAssetPath) const;
 
 	/** Delegate used on message log AActor token activation */
-	void OnActorTokenActivated(const TSharedRef<class IMessageToken>& Token);
+	UNREALED_API void OnActorTokenActivated(const TSharedRef<class IMessageToken>& Token);
 
 	/** Delegate used to update the map of asset update counts */
-	void OnObjectSaved(UObject* SavedObject, FObjectPreSaveContext SaveContext);
+	UNREALED_API void OnObjectSaved(UObject* SavedObject, FObjectPreSaveContext SaveContext);
 
 	/** Logs an update to an asset */
-	void LogAssetUpdate(UObject* UpdatedAsset, FObjectPreSaveContext SaveContext);
+	UNREALED_API void LogAssetUpdate(UObject* UpdatedAsset, FObjectPreSaveContext SaveContext);
 
 	/** Initialize engine analytics */
-	void InitEngineAnalytics();
+	UNREALED_API void InitEngineAnalytics();
 
 	/** Called when the heartbeat event should be sent to engine analytics */
-	void EditorAnalyticsHeartbeat();
+	UNREALED_API void EditorAnalyticsHeartbeat();
 
 	/** Handles "Enable World Composition" option in WorldSettings */
-	bool EnableWorldComposition(UWorld* InWorld, bool bEnable);
+	UNREALED_API bool EnableWorldComposition(UWorld* InWorld, bool bEnable);
 
 	/** Get the path to the executable that runs the editor */
-	FString GetProjectEditorBinaryPath();
+	UNREALED_API FString GetProjectEditorBinaryPath();
 
 	/** Finds a map using only the map name, no extension, no path, also caches it for faster lookup next time. */
-	FString FindMapFileFromPartialName(const FString& PartialMapName);
+	UNREALED_API FString FindMapFileFromPartialName(const FString& PartialMapName);
 
 	/** Launch an editor instance, passing ProjectName and the command line args from this running instance */
-	bool SpawnEditorInstance(const FString& ProjectName);
+	UNREALED_API bool SpawnEditorInstance(const FString& ProjectName);
 
 private:
-	void SelectActorFromMessageToken(AActor* InActor);
+	UNREALED_API void SelectActorFromMessageToken(AActor* InActor);
 
-	void PreSaveWorld(class UWorld* World, FObjectPreSaveContext ObjectSaveContext);
+	UNREALED_API void PreSaveWorld(class UWorld* World, FObjectPreSaveContext ObjectSaveContext);
 
 	/** Stores whether or not the current map build was cancelled. */
 	bool bCancelBuild;

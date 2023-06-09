@@ -18,7 +18,7 @@ class SBuildProgressWidget;
 /**
  * A FFeedbackContext implementation for use in UnrealEd.
  */
-class UNREALED_API FFeedbackContextEditor : public FFeedbackContext
+class FFeedbackContextEditor : public FFeedbackContext
 {
 	/** Slate slow task widget */
 	TWeakPtr<class SWindow> SlowTaskWindow;
@@ -33,12 +33,12 @@ class UNREALED_API FFeedbackContextEditor : public FFeedbackContext
 
 public:
 
-	FFeedbackContextEditor();
+	UNREALED_API FFeedbackContextEditor();
 
-	virtual void StartSlowTask( const FText& Task, bool bShowCancelButton=false ) override;
-	virtual void FinalizeSlowTask( ) override;
-	virtual void ProgressReported( const float TotalProgressInterp, FText DisplayMessage ) override;
-	virtual bool IsPlayingInEditor() const override;
+	UNREALED_API virtual void StartSlowTask( const FText& Task, bool bShowCancelButton=false ) override;
+	UNREALED_API virtual void FinalizeSlowTask( ) override;
+	UNREALED_API virtual void ProgressReported( const float TotalProgressInterp, FText DisplayMessage ) override;
+	UNREALED_API virtual bool IsPlayingInEditor() const override;
 
 	void SetContext( FContextSupplier* InSupplier ) override {}
 
@@ -47,9 +47,9 @@ public:
 	 * (i.e. the ongoing slow task or the last one that ran).
 	 * The user cancel flag is reset when starting a new root slow task.
 	 */
-	virtual bool ReceivedUserCancel() override;
+	UNREALED_API virtual bool ReceivedUserCancel() override;
 
-	void OnUserCancel();
+	UNREALED_API void OnUserCancel();
 
 	virtual bool YesNof( const FText& Question ) override
 	{
@@ -60,8 +60,8 @@ public:
 	 * Show the Build Progress Window 
 	 * @return Handle to the Build Progress Widget created
 	 */
-	TWeakPtr<class SBuildProgressWidget> ShowBuildProgressWindow() override;
+	UNREALED_API TWeakPtr<class SBuildProgressWidget> ShowBuildProgressWindow() override;
 	
 	/** Close the Build Progress Window */
-	void CloseBuildProgressWindow() override;
+	UNREALED_API void CloseBuildProgressWindow() override;
 };

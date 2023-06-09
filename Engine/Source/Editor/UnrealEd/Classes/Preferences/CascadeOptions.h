@@ -14,8 +14,8 @@
 #include "UObject/Object.h"
 #include "CascadeOptions.generated.h"
 
-UCLASS(hidecategories=Object, config=EditorPerProjectUserSettings)
-class UNREALED_API UCascadeOptions : public UObject
+UCLASS(hidecategories=Object, config=EditorPerProjectUserSettings, MinimalAPI)
+class UCascadeOptions : public UObject
 {
 	GENERATED_UCLASS_BODY()
 

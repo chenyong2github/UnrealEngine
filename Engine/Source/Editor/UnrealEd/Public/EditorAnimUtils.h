@@ -36,34 +36,34 @@ namespace EditorAnimUtils
 		FString Rename(const UObject* Asset) const;
 	};
 
-	class UNREALED_API FAnimationRetargetContext
+	class FAnimationRetargetContext
 	{
 	public:
-		FAnimationRetargetContext(const TArray<FAssetData>& AssetsToRetarget, bool bRetargetReferredAssets, bool bInConvertAnimationDataInComponentSpaces, const FNameDuplicationRule& NameRule=FNameDuplicationRule());
-		FAnimationRetargetContext(TArray<TWeakObjectPtr<UObject>> AssetsToRetarget, bool bRetargetReferredAssets, bool bInConvertAnimationDataInComponentSpaces, const FNameDuplicationRule& NameRule=FNameDuplicationRule());
+		UNREALED_API FAnimationRetargetContext(const TArray<FAssetData>& AssetsToRetarget, bool bRetargetReferredAssets, bool bInConvertAnimationDataInComponentSpaces, const FNameDuplicationRule& NameRule=FNameDuplicationRule());
+		UNREALED_API FAnimationRetargetContext(TArray<TWeakObjectPtr<UObject>> AssetsToRetarget, bool bRetargetReferredAssets, bool bInConvertAnimationDataInComponentSpaces, const FNameDuplicationRule& NameRule=FNameDuplicationRule());
 
 		/** Were we supplied anything that we can retarget */
-		bool HasAssetsToRetarget() const;
+		UNREALED_API bool HasAssetsToRetarget() const;
 
 		/** Did we duplicate any assets */
-		bool HasDuplicates() const;
+		UNREALED_API bool HasDuplicates() const;
 
 		/** Returns the UObject that was chosen to retarget if there was only one in the first place */
-		UObject* GetSingleTargetObject() const;
+		UNREALED_API UObject* GetSingleTargetObject() const;
 
 		/** Returns the duplicate of the supplied object if there is one, otherwise NULL */
-		UObject* GetDuplicate(const UObject* OriginalObject) const;
+		UNREALED_API UObject* GetDuplicate(const UObject* OriginalObject) const;
 
 		/** return all duplicates */
-		TArray<UObject*> GetAllDuplicates() const;
+		UNREALED_API TArray<UObject*> GetAllDuplicates() const;
 
 		/** Duplicates the assets stored for retargetting, populating maps of original assets to new asset */
-		void DuplicateAssetsToRetarget(UPackage* DestinationPackage, const FNameDuplicationRule* NameRule);
+		UNREALED_API void DuplicateAssetsToRetarget(UPackage* DestinationPackage, const FNameDuplicationRule* NameRule);
 
 		/** Retarget the contained assets */
-		void RetargetAnimations(USkeleton* OldSkeleton, USkeleton* NewSkeleton);
+		UNREALED_API void RetargetAnimations(USkeleton* OldSkeleton, USkeleton* NewSkeleton);
 	
-		void AddRemappedAsset(UAnimationAsset* OriginalAsset, UAnimationAsset* NewAsset);
+		UNREALED_API void AddRemappedAsset(UAnimationAsset* OriginalAsset, UAnimationAsset* NewAsset);
 
 	private:
 		/** Lists of assets to retarget. Populated from FAssetData supplied to constructor */

@@ -83,8 +83,8 @@ struct FClassMoveInfo
 class FPerformanceMonitor;
 
 
-UCLASS(config=Engine, transient)
-class UNREALED_API UUnrealEdEngine : public UEditorEngine, public FNotifyHook
+UCLASS(config=Engine, transient, MinimalAPI)
+class UUnrealEdEngine : public UEditorEngine, public FNotifyHook
 {
 public:
 	GENERATED_BODY()
@@ -160,92 +160,92 @@ public:
 	FComponentVisualizerManager	ComponentVisManager;
 
 	//~ Begin UObject Interface.
-	~UUnrealEdEngine();
-	virtual void FinishDestroy() override;
-	virtual void Serialize( FArchive& Ar ) override;
+	UNREALED_API ~UUnrealEdEngine();
+	UNREALED_API virtual void FinishDestroy() override;
+	UNREALED_API virtual void Serialize( FArchive& Ar ) override;
 	//~ End UObject Interface.
 
 	//~ Begin FNotify Interface.
-	virtual void NotifyPreChange( FProperty* PropertyAboutToChange ) override;
-	virtual void NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged ) override;
+	UNREALED_API virtual void NotifyPreChange( FProperty* PropertyAboutToChange ) override;
+	UNREALED_API virtual void NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged ) override;
 	//~ End FNotify Interface.
 
 	//~ Begin UEditorEngine Interface
-	virtual void SelectActor(AActor* Actor, bool InSelected, bool bNotify, bool bSelectEvenIfHidden = false, bool bForceRefresh = false) override;
-	virtual bool CanSelectActor(AActor* Actor, bool InSelected, bool bSelectEvenIfHidden=false, bool bWarnIfLevelLocked=false) const override;
-	virtual void SelectGroup(AGroupActor* InGroupActor, bool bForceSelection=false, bool bInSelected=true, bool bNotify=true) override;
-	virtual void SelectComponent(class UActorComponent* Component, bool bInSelected, bool bNotify, bool bSelectEvenIfHidden = false) override;
-	virtual void SelectBSPSurf(UModel* InModel, int32 iSurf, bool bSelected, bool bNoteSelectionChange) override;
-	virtual void SelectNone(bool bNoteSelectionChange, bool bDeselectBSPSurfs, bool WarnAboutManyActors=true) override;
-	virtual void DeselectAllSurfaces() override;
-	virtual void NoteSelectionChange(bool bNotify = true) override;
-	virtual void NoteActorMovement() override;
-	virtual void FinishAllSnaps() override;
-	virtual void Cleanse( bool ClearSelection, bool Redraw, const FText& Reason, bool bResetTrans ) override;
-	virtual bool GetMapBuildCancelled() const override;
-	virtual void SetMapBuildCancelled( bool InCancelled ) override;
-	virtual FVector GetPivotLocation() override;
-	virtual void SetPivot(FVector NewPivot, bool bSnapPivotToGrid, bool bIgnoreAxis, bool bAssignPivot=false) override;
-	virtual void ResetPivot() override;
-	virtual void RedrawLevelEditingViewports(bool bInvalidateHitProxies=true) override;
-	virtual void TakeHighResScreenShots() override;
-	virtual void GetPackageList( TArray<UPackage*>* InPackages, UClass* InClass ) override;
-	virtual bool ShouldAbortActorDeletion() const override final; // @note Final - Override ShouldAbortComponentDeletion or ShouldAbortActorDeletion (with parameters) instead.
-	virtual void CloseEditor() override;
+	UNREALED_API virtual void SelectActor(AActor* Actor, bool InSelected, bool bNotify, bool bSelectEvenIfHidden = false, bool bForceRefresh = false) override;
+	UNREALED_API virtual bool CanSelectActor(AActor* Actor, bool InSelected, bool bSelectEvenIfHidden=false, bool bWarnIfLevelLocked=false) const override;
+	UNREALED_API virtual void SelectGroup(AGroupActor* InGroupActor, bool bForceSelection=false, bool bInSelected=true, bool bNotify=true) override;
+	UNREALED_API virtual void SelectComponent(class UActorComponent* Component, bool bInSelected, bool bNotify, bool bSelectEvenIfHidden = false) override;
+	UNREALED_API virtual void SelectBSPSurf(UModel* InModel, int32 iSurf, bool bSelected, bool bNoteSelectionChange) override;
+	UNREALED_API virtual void SelectNone(bool bNoteSelectionChange, bool bDeselectBSPSurfs, bool WarnAboutManyActors=true) override;
+	UNREALED_API virtual void DeselectAllSurfaces() override;
+	UNREALED_API virtual void NoteSelectionChange(bool bNotify = true) override;
+	UNREALED_API virtual void NoteActorMovement() override;
+	UNREALED_API virtual void FinishAllSnaps() override;
+	UNREALED_API virtual void Cleanse( bool ClearSelection, bool Redraw, const FText& Reason, bool bResetTrans ) override;
+	UNREALED_API virtual bool GetMapBuildCancelled() const override;
+	UNREALED_API virtual void SetMapBuildCancelled( bool InCancelled ) override;
+	UNREALED_API virtual FVector GetPivotLocation() override;
+	UNREALED_API virtual void SetPivot(FVector NewPivot, bool bSnapPivotToGrid, bool bIgnoreAxis, bool bAssignPivot=false) override;
+	UNREALED_API virtual void ResetPivot() override;
+	UNREALED_API virtual void RedrawLevelEditingViewports(bool bInvalidateHitProxies=true) override;
+	UNREALED_API virtual void TakeHighResScreenShots() override;
+	UNREALED_API virtual void GetPackageList( TArray<UPackage*>* InPackages, UClass* InClass ) override;
+	UNREALED_API virtual bool ShouldAbortActorDeletion() const override final; // @note Final - Override ShouldAbortComponentDeletion or ShouldAbortActorDeletion (with parameters) instead.
+	UNREALED_API virtual void CloseEditor() override;
 
 	
-	virtual bool IsAutosaving() const override;
+	UNREALED_API virtual bool IsAutosaving() const override;
 	//~ End UEditorEngine Interface 
 	
 	//~ Begin FExec Interface
 #if UE_ALLOW_EXEC_COMMANDS
-	virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar=*GLog ) override;
+	UNREALED_API virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar=*GLog ) override;
 #endif
 	//~ End FExec Interface
 
 
 	//~ Begin UEngine Interface.
-	virtual void Init(IEngineLoop* InEngineLoop) override;
+	UNREALED_API virtual void Init(IEngineLoop* InEngineLoop) override;
 
-	virtual void PreExit() override;
-	virtual void Tick(float DeltaSeconds, bool bIdleMode) override;
+	UNREALED_API virtual void PreExit() override;
+	UNREALED_API virtual void Tick(float DeltaSeconds, bool bIdleMode) override;
 	//~ End UEngine Interface.
 
 	/** Builds a list of sprite categories for use in menus */
-	static void MakeSortedSpriteInfo(TArray<struct FSpriteCategoryInfo>& OutSortedSpriteInfo);
+	static UNREALED_API void MakeSortedSpriteInfo(TArray<struct FSpriteCategoryInfo>& OutSortedSpriteInfo);
 
 	/** called when a package has has its dirty state updated */
-	void OnPackageDirtyStateUpdated( UPackage* Pkg);
+	UNREALED_API void OnPackageDirtyStateUpdated( UPackage* Pkg);
 	/** called when a package's source control state is updated */
-	void OnSourceControlStateUpdated(const FSourceControlOperationRef& SourceControlOp, ECommandResult::Type ResultType, TArray<TWeakObjectPtr<UPackage>> Packages);
+	UNREALED_API void OnSourceControlStateUpdated(const FSourceControlOperationRef& SourceControlOp, ECommandResult::Type ResultType, TArray<TWeakObjectPtr<UPackage>> Packages);
 	/** called when a package is automatically checked out from source control */
-	void OnPackagesCheckedOut(const FSourceControlOperationRef& SourceControlOp, ECommandResult::Type ResultType, TArray<TWeakObjectPtr<UPackage>> Packages);
+	UNREALED_API void OnPackagesCheckedOut(const FSourceControlOperationRef& SourceControlOp, ECommandResult::Type ResultType, TArray<TWeakObjectPtr<UPackage>> Packages);
 	/** caled by FCoreDelegate::PostGarbageCollect */
-	void OnPostGarbageCollect();
+	UNREALED_API void OnPostGarbageCollect();
 	/** called by color picker change event */
-	void OnColorPickerChanged();
+	UNREALED_API void OnColorPickerChanged();
 	/** called by the viewport client before a windows message is processed */
-	void OnPreWindowsMessage(FViewport* Viewport, uint32 Message);
+	UNREALED_API void OnPreWindowsMessage(FViewport* Viewport, uint32 Message);
 	/** called by the viewport client after a windows message is processed */
-	void OnPostWindowsMessage(FViewport* Viewport, uint32 Message);
+	UNREALED_API void OnPostWindowsMessage(FViewport* Viewport, uint32 Message);
 
 	/** Register a function to draw extra information when a particular component is selected */
-	void RegisterComponentVisualizer(FName ComponentClassName, TSharedPtr<class FComponentVisualizer> Visualizer);
+	UNREALED_API void RegisterComponentVisualizer(FName ComponentClassName, TSharedPtr<class FComponentVisualizer> Visualizer);
 	/** Unregister component visualizer function */
-	void UnregisterComponentVisualizer(FName ComponentClassName);
+	UNREALED_API void UnregisterComponentVisualizer(FName ComponentClassName);
 	/** Find a component visualizer for the given component class name */
-	TSharedPtr<class FComponentVisualizer> FindComponentVisualizer(FName ComponentClassName) const;
+	UNREALED_API TSharedPtr<class FComponentVisualizer> FindComponentVisualizer(FName ComponentClassName) const;
 
 	/** Find a component visualizer for the given component class (checking parent classes too) */
-	TSharedPtr<class FComponentVisualizer> FindComponentVisualizer(UClass* ComponentClass) const;
+	UNREALED_API TSharedPtr<class FComponentVisualizer> FindComponentVisualizer(UClass* ComponentClass) const;
 
 	/** Draw component visualizers for components for selected actors */
-	void DrawComponentVisualizers(const FSceneView* View, FPrimitiveDrawInterface* PDI);
+	UNREALED_API void DrawComponentVisualizers(const FSceneView* View, FPrimitiveDrawInterface* PDI);
 	/** Draw component visualizers HUD elements for components for selected actors */
-	void DrawComponentVisualizersHUD(const FViewport* Viewport, const FSceneView* View, FCanvas* Canvas);
+	UNREALED_API void DrawComponentVisualizersHUD(const FViewport* Viewport, const FSceneView* View, FCanvas* Canvas);
 
 	/** Updates the property windows of selected actors */
-	void UpdateFloatingPropertyWindows(bool bForceRefresh=false, bool bNotifyActorSelectionChanged=true);
+	UNREALED_API void UpdateFloatingPropertyWindows(bool bForceRefresh=false, bool bNotifyActorSelectionChanged=true);
 
 	/**
 	*	Updates the property windows to show the data of the supplied ActorList
@@ -253,29 +253,29 @@ public:
 	*	@param	ActorList	The list of actors to show the properties for
 	*
 	*/
-	void UpdateFloatingPropertyWindowsFromActorList(const TArray<AActor*>& ActorList, bool bForceRefresh=false);
+	UNREALED_API void UpdateFloatingPropertyWindowsFromActorList(const TArray<AActor*>& ActorList, bool bForceRefresh=false);
 
 	/**
 	 * Called whenever the actor selection has changed to invalidate any cached state
 	 */
-	void PostActorSelectionChanged();
+	UNREALED_API void PostActorSelectionChanged();
 
 	/**
 	 * Set whether the pivot has been moved independently or not
 	 */
-	void SetPivotMovedIndependently( bool bMovedIndependently );
+	UNREALED_API void SetPivotMovedIndependently( bool bMovedIndependently );
 
 	/**
 	 * Return whether the pivot has been moved independently or not
 	 */
-	bool IsPivotMovedIndependently() const;
+	UNREALED_API bool IsPivotMovedIndependently() const;
 
 	/**
 	 * Called to reset the editor's pivot (widget) location using the currently selected objects.  Usually
 	 * called when the selection changes.
 	 * @param bOnChange Set to true when we know for a fact the selected object has changed
 	 */
-	void UpdatePivotLocationForSelection( bool bOnChange = false );
+	UNREALED_API void UpdatePivotLocationForSelection( bool bOnChange = false );
 
 
 	/**
@@ -288,13 +288,13 @@ public:
 	 * @param	bNoteSelectionChange	If true, call NoteSelectionChange if the new actor was created successfully.
 	 * @return							The new actor.
 	 */
-	virtual AActor* ReplaceActor( AActor* CurrentActor, UClass* NewActorClass, UObject* Archetype, bool bNoteSelectionChange );
+	UNREALED_API virtual AActor* ReplaceActor( AActor* CurrentActor, UClass* NewActorClass, UObject* Archetype, bool bNoteSelectionChange );
 
 
 	/**
 	 * @return Returns the global instance of the editor options class.
 	 */
-	UUnrealEdOptions* GetUnrealEdOptions();
+	UNREALED_API UUnrealEdOptions* GetUnrealEdOptions();
 
 	/**
 	 * Iterate over all levels of the world and create a list of world infos, then
@@ -307,34 +307,34 @@ public:
 	 * @param	OutDeletableActors		Can be NULL, provides a list of all the actors, from the selection, that are deletable
 	 * @return							true if any of the selection can be deleted
 	 */
-	bool CanDeleteSelectedActors( const UWorld* InWorld, const bool bStopAtFirst, const bool bLogUndeletable, TArray<AActor*>* OutDeletableActors = NULL ) const;
+	UNREALED_API bool CanDeleteSelectedActors( const UWorld* InWorld, const bool bStopAtFirst, const bool bLogUndeletable, TArray<AActor*>* OutDeletableActors = NULL ) const;
 
 	// UnrealEdSrv stuff.
-	bool Exec_Edit( UWorld* InWorld, const TCHAR* Str, FOutputDevice& Ar );
-	bool Exec_Pivot( const TCHAR* Str, FOutputDevice& Ar );
-	bool Exec_Actor( UWorld* InWorld, const TCHAR* Str, FOutputDevice& Ar );
-	bool Exec_Element( UWorld* InWorld, const TCHAR* Str, FOutputDevice& Ar );
-	bool Exec_Mode( const TCHAR* Str, FOutputDevice& Ar );
-	bool Exec_Group( const TCHAR* Str, FOutputDevice& Ar );
+	UNREALED_API bool Exec_Edit( UWorld* InWorld, const TCHAR* Str, FOutputDevice& Ar );
+	UNREALED_API bool Exec_Pivot( const TCHAR* Str, FOutputDevice& Ar );
+	UNREALED_API bool Exec_Actor( UWorld* InWorld, const TCHAR* Str, FOutputDevice& Ar );
+	UNREALED_API bool Exec_Element( UWorld* InWorld, const TCHAR* Str, FOutputDevice& Ar );
+	UNREALED_API bool Exec_Mode( const TCHAR* Str, FOutputDevice& Ar );
+	UNREALED_API bool Exec_Group( const TCHAR* Str, FOutputDevice& Ar );
 
 
 	// Editor actor virtuals from EditorActor.cpp.
 	/**
 	 * Select all actors and BSP models, except those which are hidden.
 	 */
-	virtual void edactSelectAll( UWorld* InWorld );
+	UNREALED_API virtual void edactSelectAll( UWorld* InWorld );
 
 	/**
 	 * Invert the selection of all actors and BSP models.
 	 */
-	virtual void edactSelectInvert( UWorld* InWorld );
+	UNREALED_API virtual void edactSelectInvert( UWorld* InWorld );
 
 	/**
 	 * Select all children actors of the current selection.
 	 *
 	 * @param   bRecurseChildren	true to recurse through all descendants of the children
 	 */
-	virtual void edactSelectAllChildren( bool bRecurseChildren );
+	UNREALED_API virtual void edactSelectAllChildren( bool bRecurseChildren );
 
 	/**
 	 * Select all actors in a particular class.
@@ -342,7 +342,7 @@ public:
 	 * @param	InWorld		World context
 	 * @param	InClass		Class of actor to select
 	 */
-	virtual void edactSelectOfClass( UWorld* InWorld, UClass* Class );
+	UNREALED_API virtual void edactSelectOfClass( UWorld* InWorld, UClass* Class );
 
 	/**
 	 * Select all actors of a particular class and archetype.
@@ -351,52 +351,52 @@ public:
 	 * @param	InClass		Class of actor to select
 	 * @param	InArchetype	Archetype of actor to select
 	 */
-	virtual void edactSelectOfClassAndArchetype( UWorld* InWorld, const TSubclassOf<AActor> InClass, const UObject* InArchetype );
+	UNREALED_API virtual void edactSelectOfClassAndArchetype( UWorld* InWorld, const TSubclassOf<AActor> InClass, const UObject* InArchetype );
 
 	/**
 	 * Select all actors in a particular class and its subclasses.
 	 *
 	 * @param	InWorld		World context
 	 */
-	virtual void edactSelectSubclassOf( UWorld* InWorld, UClass* Class );
+	UNREALED_API virtual void edactSelectSubclassOf( UWorld* InWorld, UClass* Class );
 
 	/**
 	 * Select all actors in a level that are marked for deletion.
 	 *
 	 * @param	InWorld		World context
 	 */
-	virtual void edactSelectDeleted( UWorld* InWorld );
+	UNREALED_API virtual void edactSelectDeleted( UWorld* InWorld );
 
 	/**
 	 * Select all actors that have the same static mesh assigned to them as the selected ones.
 	 *
 	 * @param bAllClasses		If true, also select non-AStaticMeshActor actors whose meshes match.
 	 */
-	virtual void edactSelectMatchingStaticMesh(bool bAllClasses);
+	UNREALED_API virtual void edactSelectMatchingStaticMesh(bool bAllClasses);
 
 	/**
 	 * Select all actors that have the same skeletal mesh assigned to them as the selected ones.
 	 *
 	 * @param bAllClasses		If true, also select non-ASkeletalMeshActor actors whose meshes match.
 	 */
-	virtual void edactSelectMatchingSkeletalMesh(bool bAllClasses);
+	UNREALED_API virtual void edactSelectMatchingSkeletalMesh(bool bAllClasses);
 
 	/**
 	 * Select all material actors that have the same material assigned to them as the selected ones.
 	 */
-	virtual void edactSelectMatchingMaterial();
+	UNREALED_API virtual void edactSelectMatchingMaterial();
 
 	/**
 	 * Select all emitter actors that have the same particle system template assigned to them as the selected ones.
 	 */
-	virtual void edactSelectMatchingEmitter();
+	UNREALED_API virtual void edactSelectMatchingEmitter();
 
 	/**
 	 * Select the relevant lights for all selected actors
 	 *
 	 * @param	InWorld					World context
 	 */
-	virtual void edactSelectRelevantLights( UWorld* InWorld );
+	UNREALED_API virtual void edactSelectRelevantLights( UWorld* InWorld );
 
 	/**
 	 * Can the given component be deleted?
@@ -404,7 +404,7 @@ public:
 	 * @param InComponent				Component to check
 	 * @param OutReason					Optional value to fill with the reason the component cannot be deleted, if any
 	 */
-	virtual bool CanDeleteComponent(const UActorComponent* InComponent, FText* OutReason = nullptr) const;
+	UNREALED_API virtual bool CanDeleteComponent(const UActorComponent* InComponent, FText* OutReason = nullptr) const;
 
 	/**
 	 * Can the given actor be deleted?
@@ -412,7 +412,7 @@ public:
 	 * @param InActor					Actor to check
 	 * @param OutReason					Optional value to fill with the reason the actor cannot be deleted, if any
 	 */
-	virtual bool CanDeleteActor(const AActor* InActor, FText* OutReason = nullptr) const;
+	UNREALED_API virtual bool CanDeleteActor(const AActor* InActor, FText* OutReason = nullptr) const;
 
 	/**
 	 * Should the deletion of the given components be outright aborted?
@@ -420,7 +420,7 @@ public:
 	 * @param InComponentsToDelete		Components to check
 	 * @param OutReason					Optional value to fill with the reason the component deletion was aborted, if any
 	 */
-	virtual bool ShouldAbortComponentDeletion(const TArray<UActorComponent*>& InComponentsToDelete, FText* OutReason = nullptr) const;
+	UNREALED_API virtual bool ShouldAbortComponentDeletion(const TArray<UActorComponent*>& InComponentsToDelete, FText* OutReason = nullptr) const;
 
 	/**
 	 * Should the deletion of the given actors be outright aborted?
@@ -428,7 +428,7 @@ public:
 	 * @param InActorsToDelete			Actors to check
 	 * @param OutReason					Optional value to fill with the reason the actor deletion was aborted, if any
 	 */
-	virtual bool ShouldAbortActorDeletion(const TArray<AActor*>& InActorsToDelete, FText* OutReason = nullptr) const;
+	UNREALED_API virtual bool ShouldAbortActorDeletion(const TArray<AActor*>& InActorsToDelete, FText* OutReason = nullptr) const;
 
 	/**
 	 * Delete the given components.
@@ -440,7 +440,7 @@ public:
 	 * 
 	 * @return								true unless the delete operation was aborted.
 	 */
-	virtual bool DeleteComponents(const TArray<UActorComponent*>& InComponentsToDelete, UTypedElementSelectionSet* InSelectionSet, const bool bVerifyDeletionCanHappen = true);
+	UNREALED_API virtual bool DeleteComponents(const TArray<UActorComponent*>& InComponentsToDelete, UTypedElementSelectionSet* InSelectionSet, const bool bVerifyDeletionCanHappen = true);
 
 	/**
 	 * Deletes the given actors.
@@ -454,7 +454,7 @@ public:
 	 * 
 	 * @return								true unless the delete operation was aborted.
 	 */
-	virtual bool DeleteActors(const TArray<AActor*>& InActorsToDelete, UWorld* InWorld, UTypedElementSelectionSet* InSelectionSet, const bool bVerifyDeletionCanHappen = true, const bool bWarnAboutReferences = true, const bool bWarnAboutSoftReferences = true);
+	UNREALED_API virtual bool DeleteActors(const TArray<AActor*>& InActorsToDelete, UWorld* InWorld, UTypedElementSelectionSet* InSelectionSet, const bool bVerifyDeletionCanHappen = true, const bool bWarnAboutReferences = true, const bool bWarnAboutSoftReferences = true);
 
 	/**
 	 * Deletes all selected actors
@@ -466,7 +466,7 @@ public:
 	 * @param	bWarnAboutSoftReferences	[opt] If true (default), we prompt the user about soft references to actors they are about to delete
 	 * @return								true unless the delete operation was aborted.
 	 */
-	virtual bool edactDeleteSelected( UWorld* InWorld, bool bVerifyDeletionCanHappen=true, bool bWarnAboutReferences = true, bool bWarnAboutSoftReferences = true) override final;
+	UNREALED_API virtual bool edactDeleteSelected( UWorld* InWorld, bool bVerifyDeletionCanHappen=true, bool bWarnAboutReferences = true, bool bWarnAboutSoftReferences = true) override final;
 
 	/**
 	 * Copy selected actors to the clipboard.  Does not copy PrefabInstance actors or parts of Prefabs.
@@ -475,7 +475,7 @@ public:
 	 * @param	InWorld					World context
 	 * @param	DestinationData			If != NULL, fill instead of clipboard data
 	 */
-	virtual void edactCopySelected(UWorld* InWorld, FString* DestinationData = nullptr) override final;
+	UNREALED_API virtual void edactCopySelected(UWorld* InWorld, FString* DestinationData = nullptr) override final;
 
 	/**
 	 * Copy the given components to the clipboard.
@@ -483,7 +483,7 @@ public:
 	 * @param	InComponentsToCopy		Array of components to copy
 	 * @param	DestinationData			If != NULL, fill instead of clipboard data
 	 */
-	virtual void CopyComponents(const TArray<UActorComponent*>& InComponentsToCopy, FString* DestinationData = nullptr) const;
+	UNREALED_API virtual void CopyComponents(const TArray<UActorComponent*>& InComponentsToCopy, FString* DestinationData = nullptr) const;
 
 	/**
 	 * Copy the given actors to the clipboard.  Does not copy PrefabInstance actors or parts of Prefabs.
@@ -492,7 +492,7 @@ public:
 	 * @param	InWorld					World context
 	 * @param	DestinationData			If != NULL, fill instead of clipboard data
 	 */
-	virtual void CopyActors(const TArray<AActor*>& InActorsToCopy, UWorld* InWorld, FString* DestinationData = nullptr) const;
+	UNREALED_API virtual void CopyActors(const TArray<AActor*>& InActorsToCopy, UWorld* InWorld, FString* DestinationData = nullptr) const;
 
 	/**
 	 * Paste selected actors from the clipboard.
@@ -504,7 +504,7 @@ public:
 	 * @param	bWarnIfHidden		If true displays a warning if the destination level is hidden
 	 * @param	SourceData			If != NULL, use instead of clipboard data
 	 */
-	virtual void edactPasteSelected(UWorld* InWorld, bool bDuplicate, bool bOffsetLocations, bool bWarnIfHidden, const FString* SourceData = nullptr) override final;
+	UNREALED_API virtual void edactPasteSelected(UWorld* InWorld, bool bDuplicate, bool bOffsetLocations, bool bWarnIfHidden, const FString* SourceData = nullptr) override final;
 
 	/**
 	 * Paste the components from the clipboard.
@@ -514,7 +514,7 @@ public:
 	 * @param	bWarnIfHidden		If true displays a warning if the destination level is hidden
 	 * @param	SourceData			If != NULL, use instead of clipboard data
 	 */
-	virtual void PasteComponents(TArray<UActorComponent*>& OutPastedComponents, AActor* TargetActor, const bool bWarnIfHidden, const FString* SourceData = nullptr);
+	UNREALED_API virtual void PasteComponents(TArray<UActorComponent*>& OutPastedComponents, AActor* TargetActor, const bool bWarnIfHidden, const FString* SourceData = nullptr);
 
 	/**
 	 * Paste the actors from the clipboard.
@@ -526,7 +526,7 @@ public:
 	 * @param	bWarnIfHidden		If true displays a warning if the destination level is hidden
 	 * @param	SourceData			If != NULL, use instead of clipboard data
 	 */
-	virtual void PasteActors(TArray<AActor*>& OutPastedActors, UWorld* InWorld, const FVector& LocationOffset, bool bDuplicate, bool bWarnIfHidden, const FString* SourceData = nullptr);
+	UNREALED_API virtual void PasteActors(TArray<AActor*>& OutPastedActors, UWorld* InWorld, const FVector& LocationOffset, bool bDuplicate, bool bWarnIfHidden, const FString* SourceData = nullptr);
 
 	/**
 	 * Duplicates selected actors.  Handles the case where you are trying to duplicate PrefabInstance actors.
@@ -535,7 +535,7 @@ public:
 	 * @param	InLevel				Level to place duplicate
 	 * @param	bOffsetLocations	Should the actor locations be offset after they are created?
 	 */
-	virtual void edactDuplicateSelected(ULevel* InLevel, bool bOffsetLocations) override final;
+	UNREALED_API virtual void edactDuplicateSelected(ULevel* InLevel, bool bOffsetLocations) override final;
 
 	/**
 	 * Duplicate the given components.
@@ -543,7 +543,7 @@ public:
 	 * @param	InComponentsToDuplicate		Array of components to duplicate
 	 * @param	OutNewComponents			List of all the components that were duplicated
 	 */
-	virtual void DuplicateComponents(const TArray<UActorComponent*>& InComponentsToDuplicate, TArray<UActorComponent*>& OutNewComponents);
+	UNREALED_API virtual void DuplicateComponents(const TArray<UActorComponent*>& InComponentsToDuplicate, TArray<UActorComponent*>& OutNewComponents);
 
 	/**
 	 * Duplicates the given actors.  Handles the case where you are trying to duplicate PrefabInstance actors.
@@ -553,19 +553,19 @@ public:
 	 * @param	InLevel				Level to place duplicate
 	 * @param	LocationOffset		Offset to apply to actor locations after they're created
 	 */
-	virtual void DuplicateActors(const TArray<AActor*>& InActorsToDuplicate, TArray<AActor*>& OutNewActors, ULevel* InLevel, const FVector& LocationOffset);
+	UNREALED_API virtual void DuplicateActors(const TArray<AActor*>& InActorsToDuplicate, TArray<AActor*>& OutNewActors, ULevel* InLevel, const FVector& LocationOffset);
 
 	/**
 	 * Replace all selected brushes with the default brush.
 	 *
 	 * @param	InWorld					World context
 	 */
-	virtual void edactReplaceSelectedBrush( UWorld* InWorld );
+	UNREALED_API virtual void edactReplaceSelectedBrush( UWorld* InWorld );
 
 	/**
 	 * Replace all selected non-brush actors with the specified class.
 	 */
-	virtual void edactReplaceSelectedNonBrushWithClass(UClass* Class);
+	UNREALED_API virtual void edactReplaceSelectedNonBrushWithClass(UClass* Class);
 
 	/**
 	 * Replace all actors of the specified source class with actors of the destination class.
@@ -574,105 +574,105 @@ public:
 	 * @param	SrcClass	The class of actors to replace.
 	 * @param	DstClass	The class to replace with.
 	 */
-	virtual void edactReplaceClassWithClass(UWorld* InWorld, UClass* SrcClass, UClass* DstClass);
+	UNREALED_API virtual void edactReplaceClassWithClass(UWorld* InWorld, UClass* SrcClass, UClass* DstClass);
 
 	/**
 	* Align the origin with the current grid.
 	*/
-	virtual void edactAlignOrigin();
+	UNREALED_API virtual void edactAlignOrigin();
 
 	/**
 	 * Align all vertices with the current grid.
 	 */
-	virtual void edactAlignVertices();
+	UNREALED_API virtual void edactAlignVertices();
 
 	/**
 	 * Hide selected actors and BSP models by marking their bHiddenEdTemporary flags true. Will not
 	 * modify/dirty actors/BSP.
 	 */
-	virtual void edactHideSelected( UWorld* InWorld );
+	UNREALED_API virtual void edactHideSelected( UWorld* InWorld );
 
 	/**
 	 * Hide unselected actors and BSP models by marking their bHiddenEdTemporary flags true. Will not
 	 * modify/dirty actors/BSP.
 	 */
-	virtual void edactHideUnselected( UWorld* InWorld );
+	UNREALED_API virtual void edactHideUnselected( UWorld* InWorld );
 
 	/**
 	 * Attempt to unhide all actors and BSP models by setting their bHiddenEdTemporary flags to false if they
 	 * are true. Note: Will not unhide actors/BSP hidden by higher priority visibility settings, such as bHiddenEdGroup,
 	 * but also will not modify/dirty actors/BSP.
 	 */
-	virtual void edactUnHideAll( UWorld* InWorld );
+	UNREALED_API virtual void edactUnHideAll( UWorld* InWorld );
 
 	/**
 	 * Mark all selected actors and BSP models to be hidden upon editor startup, by setting their bHiddenEd flag to
 	 * true, if it is not already. This directly modifies/dirties the relevant actors/BSP.
 	 */
-	virtual void edactHideSelectedStartup( UWorld* InWorld );
+	UNREALED_API virtual void edactHideSelectedStartup( UWorld* InWorld );
 
 	/**
 	 * Mark all actors and BSP models to be shown upon editor startup, by setting their bHiddenEd flag to false, if it is
 	 * not already. This directly modifies/dirties the relevant actors/BSP.
 	 */
-	virtual void edactUnHideAllStartup( UWorld* InWorld );
+	UNREALED_API virtual void edactUnHideAllStartup( UWorld* InWorld );
 
 	/**
 	 * Mark all selected actors and BSP models to be shown upon editor startup, by setting their bHiddenEd flag to false, if it
 	 * not already. This directly modifies/dirties the relevant actors/BSP.
 	 */
-	virtual void edactUnHideSelectedStartup( UWorld* InWorld );
+	UNREALED_API virtual void edactUnHideSelectedStartup( UWorld* InWorld );
 
 	/**
 	 * Show selected actors and BSP models by marking their bHiddenEdTemporary flags false. Will not
 	 * modify/dirty actors/BSP.
 	 */
-	virtual void edactUnhideSelected( UWorld* InWorld );
+	UNREALED_API virtual void edactUnhideSelected( UWorld* InWorld );
 
 	/** Will create a map of currently visible BSP surfaces. */
-	virtual void CreateBSPVisibilityMap( UWorld* InWorld, TMap<AActor*, TArray<int32>>& OutBSPMap, bool& bOutAllVisible );
+	UNREALED_API virtual void CreateBSPVisibilityMap( UWorld* InWorld, TMap<AActor*, TArray<int32>>& OutBSPMap, bool& bOutAllVisible );
 
 	/** Go through a map of BSP and make only the requested objects visible. */
-	virtual void MakeBSPMapVisible(const TMap<AActor*, TArray<int32>>& InBSPMap, UWorld* InWorld );
+	UNREALED_API virtual void MakeBSPMapVisible(const TMap<AActor*, TArray<int32>>& InBSPMap, UWorld* InWorld );
 
 	/** Returns the configuration of attachment that would result from calling AttachSelectedActors at this point in time */
-	AActor* GetDesiredAttachmentState(TArray<AActor*>& OutNewChildren);
+	UNREALED_API AActor* GetDesiredAttachmentState(TArray<AActor*>& OutNewChildren);
 
 	/** Uses the current selection state to attach actors together. Last selected Actor becomes the base. */
-	void AttachSelectedActors();
+	UNREALED_API void AttachSelectedActors();
 
 
 	
 	/**
 	 * Can the editor do cook by the book in the editor process space
 	 */
-	virtual bool CanCookByTheBookInEditor(const FString& PlatformName) const override;
+	UNREALED_API virtual bool CanCookByTheBookInEditor(const FString& PlatformName) const override;
 
 	/**
 	 * Can the editor act as a cook on the fly server
 	 */
-	virtual bool CanCookOnTheFlyInEditor(const FString& PlatformName) const override;
+	UNREALED_API virtual bool CanCookOnTheFlyInEditor(const FString& PlatformName) const override;
 
 	/**
 	 * Start cook by the book in the editor process space
 	 */
-	virtual void StartCookByTheBookInEditor( const TArray<ITargetPlatform*> &TargetPlatforms, const TArray<FString> &CookMaps, const TArray<FString> &CookDirectories, const TArray<FString> &CookCultures, const TArray<FString> &IniMapSections ) override;
+	UNREALED_API virtual void StartCookByTheBookInEditor( const TArray<ITargetPlatform*> &TargetPlatforms, const TArray<FString> &CookMaps, const TArray<FString> &CookDirectories, const TArray<FString> &CookCultures, const TArray<FString> &IniMapSections ) override;
 
 	/**
 	 * Checks if the cook by the book is finished
 	 */
-	virtual bool IsCookByTheBookInEditorFinished() const override;
+	UNREALED_API virtual bool IsCookByTheBookInEditorFinished() const override;
 
 
 	/**
 	 * cancels the current cook by the book in editor
 	 */
-	virtual void CancelCookByTheBookInEditor() override;
+	UNREALED_API virtual void CancelCookByTheBookInEditor() override;
 
 
 
 	// Hook replacements.
-	void ShowActorProperties();
+	UNREALED_API void ShowActorProperties();
 
 	/**
 	 * Checks to see if any worlds are dirty (that is, they need to be saved.)
@@ -681,21 +681,21 @@ public:
 	 * 
 	 * @return true if any worlds are dirty
 	 */
-	bool AnyWorldsAreDirty( UWorld* InWorld ) const;
+	UNREALED_API bool AnyWorldsAreDirty( UWorld* InWorld ) const;
 
 	/**
 	 * Checks to see if any content packages are dirty (that is, they need to be saved.)
 	 *
 	 * @return true if any content packages are dirty
 	 */
-	bool AnyContentPackagesAreDirty() const;
+	UNREALED_API bool AnyContentPackagesAreDirty() const;
 
 	// Misc
 	/**
 	 * Attempts to prompt the user with a balloon notification to checkout modified packages from source control.
 	 * Will defer prompting the user if they are interacting with something
 	 */
-	void AttemptModifiedPackageNotification();
+	UNREALED_API void AttemptModifiedPackageNotification();
 
 	/**
 	 * Prompts the user with a modal checkout dialog to checkout packages from source control.
@@ -704,75 +704,75 @@ public:
 	 *
 	 * @param bPromptAll	If true we prompt for all packages in the PackageToNotifyState map.  If false only prompt about ones we have never prompted about before.
 	 */
-	void PromptToCheckoutModifiedPackages( bool bPromptAll = false );
+	UNREALED_API void PromptToCheckoutModifiedPackages( bool bPromptAll = false );
 
 	/**
 	 * Displays a toast notification or warning when a package is dirtied, indicating that it needs checking out (or that it cannot be checked out)
 	 */
-	void ShowPackageNotification();
+	UNREALED_API void ShowPackageNotification();
 
 	/**
 	 * @return Returns the number of dirty packages that require checkout.
 	 */
-	int32 GetNumDirtyPackagesThatNeedCheckout() const;
+	UNREALED_API int32 GetNumDirtyPackagesThatNeedCheckout() const;
 
 	/**
 	 * Checks to see if there are any packages in the PackageToNotifyState map that are not checked out by the user
 	 *
 	 * @return True if packages need to be checked out.
 	 */
-	bool DoDirtyPackagesNeedCheckout() const;
+	UNREALED_API bool DoDirtyPackagesNeedCheckout() const;
 
 	/**
 	 * Checks whether the specified map is a template map.
 	 *
 	 * @return true if the map is a template map, false otherwise.
 	 */
-	bool IsTemplateMap( const FString& MapName ) const;
+	UNREALED_API bool IsTemplateMap( const FString& MapName ) const;
 
-	void RebuildTemplateMapData();
+	UNREALED_API void RebuildTemplateMapData();
 
 	/**
 	 * Returns true if the user is currently interacting with a viewport.
 	 */
-	bool IsUserInteracting();
+	UNREALED_API bool IsUserInteracting();
 
-	void SetCurrentClass( UClass* InClass );
+	UNREALED_API void SetCurrentClass( UClass* InClass );
 
 	/**
 	 * @return true if selection of translucent objects in perspective viewports is allowed
 	 */
-	virtual bool AllowSelectTranslucent() const override;
+	UNREALED_API virtual bool AllowSelectTranslucent() const override;
 
 	/**
 	 * @return true if only editor-visible levels should be loaded in Play-In-Editor sessions
 	 */
-	virtual bool OnlyLoadEditorVisibleLevelsInPIE() const override;
+	UNREALED_API virtual bool OnlyLoadEditorVisibleLevelsInPIE() const override;
 
 	/**
 	 * @return true if level streaming should prefer to stream levels from disk instead of duplicating them from editor world
 	 */
-	virtual bool PreferToStreamLevelsInPIE() const override;
+	UNREALED_API virtual bool PreferToStreamLevelsInPIE() const override;
 
 	/**
 	 * Duplicate the currently selected actors.
 	 *
 	 * This is a high level routine which may ultimately call edactDuplicateSelected
 	 */
-	void DuplicateSelectedActors(UWorld* InWorld);
+	UNREALED_API void DuplicateSelectedActors(UWorld* InWorld);
 
 	/**
 	 * If all selected actors belong to the same level, that level is made the current level.
 	 */
-	void MakeSelectedActorsLevelCurrent();
+	UNREALED_API void MakeSelectedActorsLevelCurrent();
 
 	/** Returns the thumbnail manager and creates it if missing */
-	class UThumbnailManager* GetThumbnailManager();
+	UNREALED_API class UThumbnailManager* GetThumbnailManager();
 
 	/**
 	 * Returns whether saving the specified package is allowed
 	 */
-	virtual bool CanSavePackage( UPackage* PackageToSave );
+	UNREALED_API virtual bool CanSavePackage( UPackage* PackageToSave );
 
 	/**
 	 * Updates the volume actor visibility for all viewports based on the passed in volume class
@@ -780,12 +780,12 @@ public:
 	 * @param InVolumeActorClass	The type of volume actors to update.  If NULL is passed in all volume actor types are updated.
 	 * @param InViewport			The viewport where actor visibility should apply.  Pass NULL for all editor viewports.
 	 */
-	void UpdateVolumeActorVisibility( UClass* InVolumeActorClass = NULL , FLevelEditorViewportClient* InViewport = NULL);
+	UNREALED_API void UpdateVolumeActorVisibility( UClass* InVolumeActorClass = NULL , FLevelEditorViewportClient* InViewport = NULL);
 
 	/**
 	 * Identify any brushes whose sense is inverted and repair them
 	 */
-	void FixAnyInvertedBrushes(UWorld* World);
+	UNREALED_API void FixAnyInvertedBrushes(UWorld* World);
 
 	/**
 	 * Get the index of the provided sprite category
@@ -794,41 +794,41 @@ public:
 	 *
 	 * @return	Index of the provided sprite category, if possible; INDEX_NONE otherwise
 	 */
-	virtual int32 GetSpriteCategoryIndex( const FName& InSpriteCategory ) override;
+	UNREALED_API virtual int32 GetSpriteCategoryIndex( const FName& InSpriteCategory ) override;
 	
 	/**
 	 * Shows the LightingStaticMeshInfoWindow, creating it first if it hasn't been initialized.
 	 */
-	void ShowLightingStaticMeshInfoWindow();
+	UNREALED_API void ShowLightingStaticMeshInfoWindow();
 	
 	/**
 	 * Shows the SceneStatsWindow, creating it first if it hasn't been initialized.
 	 */
-	void OpenSceneStatsWindow();
+	UNREALED_API void OpenSceneStatsWindow();
 
 	/**
 	 * Shows the TextureStatsWindow, creating it first if it hasn't been initialized.
 	 */
-	void OpenTextureStatsWindow();
+	UNREALED_API void OpenTextureStatsWindow();
 
 	/**
 	* Puts all of the AVolume classes into the passed in array and sorts them by class name.
 	*
 	* @param	VolumeClasses		Array to populate with AVolume classes.
 	*/
-	static void GetSortedVolumeClasses( TArray< UClass* >* VolumeClasses );
+	static UNREALED_API void GetSortedVolumeClasses( TArray< UClass* >* VolumeClasses );
 
 	/**
 	 * Checks the destination level visibility and warns the user if they are trying to paste to a hidden level, offering the option to cancel the operation or unhide the level that is hidden
 	 * 
 	 * @param InWorld			World context
 	 */
-	bool WarnIfDestinationLevelIsHidden( UWorld* InWorld ) const;
+	UNREALED_API bool WarnIfDestinationLevelIsHidden( UWorld* InWorld ) const;
 
 	/**
 	 * Generate the package thumbails if they are needed. 
 	 */
-	UPackage* GeneratePackageThumbnailsIfRequired( const TCHAR* Str, FOutputDevice& Ar, TArray<FString>& ThumbNamesToUnload );
+	UNREALED_API UPackage* GeneratePackageThumbnailsIfRequired( const TCHAR* Str, FOutputDevice& Ar, TArray<FString>& ThumbNamesToUnload );
 
 	/** @return The package auto-saver instance used by the editor */
 	IPackageAutoSaver& GetPackageAutoSaver() const
@@ -839,48 +839,48 @@ public:
 	/**
 	 * Exec command handlers
 	 */
-	bool HandleDumpModelGUIDCommand( const TCHAR* Str, FOutputDevice& Ar );
-	bool HandleModalTestCommand( const TCHAR* Str, FOutputDevice& Ar );
-	bool HandleDisallowExportCommand( const TCHAR* Str, FOutputDevice& Ar );
-	bool HandleDumpBPClassesCommand( const TCHAR* Str, FOutputDevice& Ar );
-	bool HandleFindOutdateInstancesCommand( const TCHAR* Str, FOutputDevice& Ar );
-	bool HandleDumpSelectionCommand( const TCHAR* Str, FOutputDevice& Ar );
-	bool HandleBuildLightingCommand( const TCHAR* Str, FOutputDevice& Ar, UWorld* InWorld );
-	bool HandleBuildPathsCommand( const TCHAR* Str, FOutputDevice& Ar, UWorld* InWorld );
-	bool HandleRecreateLandscapeCollisionCommand(const TCHAR* Str, FOutputDevice& Ar, UWorld* InWorld);
-	bool HandleRemoveLandscapeXYOffsetsCommand(const TCHAR* Str, FOutputDevice& Ar, UWorld* InWorld);
-	bool HandleDisasmScriptCommand( const TCHAR* Str, FOutputDevice& Ar );	
+	UNREALED_API bool HandleDumpModelGUIDCommand( const TCHAR* Str, FOutputDevice& Ar );
+	UNREALED_API bool HandleModalTestCommand( const TCHAR* Str, FOutputDevice& Ar );
+	UNREALED_API bool HandleDisallowExportCommand( const TCHAR* Str, FOutputDevice& Ar );
+	UNREALED_API bool HandleDumpBPClassesCommand( const TCHAR* Str, FOutputDevice& Ar );
+	UNREALED_API bool HandleFindOutdateInstancesCommand( const TCHAR* Str, FOutputDevice& Ar );
+	UNREALED_API bool HandleDumpSelectionCommand( const TCHAR* Str, FOutputDevice& Ar );
+	UNREALED_API bool HandleBuildLightingCommand( const TCHAR* Str, FOutputDevice& Ar, UWorld* InWorld );
+	UNREALED_API bool HandleBuildPathsCommand( const TCHAR* Str, FOutputDevice& Ar, UWorld* InWorld );
+	UNREALED_API bool HandleRecreateLandscapeCollisionCommand(const TCHAR* Str, FOutputDevice& Ar, UWorld* InWorld);
+	UNREALED_API bool HandleRemoveLandscapeXYOffsetsCommand(const TCHAR* Str, FOutputDevice& Ar, UWorld* InWorld);
+	UNREALED_API bool HandleDisasmScriptCommand( const TCHAR* Str, FOutputDevice& Ar );	
 
-	bool IsComponentSelected(const UPrimitiveComponent* PrimComponent);
+	UNREALED_API bool IsComponentSelected(const UPrimitiveComponent* PrimComponent);
 
 	/** Return if we have write permission under the mount point this packages lives in. */
-	bool HasMountWritePermissionForPackage(const FString& PackageName);
+	UNREALED_API bool HasMountWritePermissionForPackage(const FString& PackageName);
 	UE_DEPRECATED(5.0, "Use HasMountWritePermissionForPackage instead")
-	bool HasMountWritePersmissionForPackage(const FString& PackageName);
+	UNREALED_API bool HasMountWritePersmissionForPackage(const FString& PackageName);
 
 	/* Delegate to override TemplateMapInfos */
 	DECLARE_DELEGATE_RetVal(const TArray<FTemplateMapInfo>&, FGetTemplateMapInfos);
 	FGetTemplateMapInfos& OnGetTemplateMapInfos() { return GetTemplateMapInfosDelegate; }
 
 	/** Gets the canonical list of map templates that should be visible in new level picker. This function calls OnGetTemplateMapInfos to allow runtime override of the default maps */
-	const TArray<FTemplateMapInfo>& GetTemplateMapInfos() const;
+	UNREALED_API const TArray<FTemplateMapInfo>& GetTemplateMapInfos() const;
 
 	/** Gets the project default map templates without any runtime overrides */
-	const TArray<FTemplateMapInfo>& GetProjectDefaultMapTemplates() const;
+	UNREALED_API const TArray<FTemplateMapInfo>& GetProjectDefaultMapTemplates() const;
 
 protected:
 
 	/** Called when global editor selection changes */
-	void OnEditorSelectionChanged(UObject* SelectionThatChanged);
+	UNREALED_API void OnEditorSelectionChanged(UObject* SelectionThatChanged);
 
 	/** Called when the element selection set pointer set on the global editor selection changes */
-	void OnEditorElementSelectionPtrChanged(USelection* Selection, UTypedElementSelectionSet* OldSelectionSet, UTypedElementSelectionSet* NewSelectionSet);
+	UNREALED_API void OnEditorElementSelectionPtrChanged(USelection* Selection, UTypedElementSelectionSet* OldSelectionSet, UTypedElementSelectionSet* NewSelectionSet);
 
 	/** Called when the element selection set associated with the global editor selection changes */
-	void OnEditorElementSelectionChanged(const UTypedElementSelectionSet* SelectionSet);
+	UNREALED_API void OnEditorElementSelectionChanged(const UTypedElementSelectionSet* SelectionSet);
 
 	/** Called when a HISM tree has finished building */
-	void OnHISMTreeBuilt(UHierarchicalInstancedStaticMeshComponent* Component, bool bWasAsyncBuild);
+	UNREALED_API void OnHISMTreeBuilt(UHierarchicalInstancedStaticMeshComponent* Component, bool bWasAsyncBuild);
 
 	/** The package auto-saver instance used by the editor */
 	TUniquePtr<IPackageAutoSaver> PackageAutoSaver;
@@ -907,13 +907,13 @@ protected:
 
 private:
 	/** Verify if we have write permission under the specified mount point. */
-	bool VerifyMountPointWritePermission(FName MountPoint);
+	UNREALED_API bool VerifyMountPointWritePermission(FName MountPoint);
 
 	/** Delegate when a new mount point is added, used to test writing permission. */
-	void OnContentPathMounted(const FString& AssetPath, const FString& FileSystemPath);
+	UNREALED_API void OnContentPathMounted(const FString& AssetPath, const FString& FileSystemPath);
 
 	/** Delegate when a new mount point is removed, used to test writing permission. */
-	void OnContentPathDismounted(const FString& AssetPath, const FString& FileSystemPath);
+	UNREALED_API void OnContentPathDismounted(const FString& AssetPath, const FString& FileSystemPath);
 
 	/** Map to track which mount point has write permissions. */
 	TMap<FName, bool> MountPointCheckedForWritePermission;
@@ -937,16 +937,16 @@ private:
 	*
 	* @return	Returns the number of dirty packages that require checkout. If bCheckIfAny is true, returns 1 if any packages will require checkout.
 	*/
-	int32 InternalGetNumDirtyPackagesThatNeedCheckout(bool bCheckIfAny) const;
+	UNREALED_API int32 InternalGetNumDirtyPackagesThatNeedCheckout(bool bCheckIfAny) const;
 
 	/**
 	* Internal function to validate free space on drives used by Unreal Engine
 	* The intent is to notify the user of situations where stability maybe impacted.
 	*/
-	void ValidateFreeDiskSpace() const;
+	UNREALED_API void ValidateFreeDiskSpace() const;
 
 	/** Internal function to filter and add visualizers to a specific list */
-	void AddVisualizers(AActor* Actor, TArray<FCachedComponentVisualizer>& Visualizers, TFunctionRef<bool(const TSharedPtr<FComponentVisualizer>&)> Condition);
+	UNREALED_API void AddVisualizers(AActor* Actor, TArray<FCachedComponentVisualizer>& Visualizers, TFunctionRef<bool(const TSharedPtr<FComponentVisualizer>&)> Condition);
 
 	/** Delegate Called after files have been deleted to perform necessary cleanups. */
 	FDelegateHandle SourceControlFilesDeletedHandle;

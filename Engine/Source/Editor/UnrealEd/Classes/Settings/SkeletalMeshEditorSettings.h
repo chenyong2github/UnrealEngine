@@ -16,8 +16,8 @@
 /**
  * Implements the settings for the skeletal mesh editor.
  */
-UCLASS(config=EditorPerProjectUserSettings)
-class UNREALED_API USkeletalMeshEditorSettings
+UCLASS(config=EditorPerProjectUserSettings, MinimalAPI)
+class USkeletalMeshEditorSettings
 	: public UObject
 {
 	GENERATED_UCLASS_BODY()

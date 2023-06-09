@@ -10,8 +10,8 @@
 #include "WorldPartitionMiniMapBuilder.generated.h"
 
 
-UCLASS(config = Engine, defaultconfig)
-class UNREALED_API UWorldPartitionMiniMapBuilder : public UWorldPartitionBuilder
+UCLASS(config = Engine, defaultconfig, MinimalAPI)
+class UWorldPartitionMiniMapBuilder : public UWorldPartitionBuilder
 {
 	GENERATED_UCLASS_BODY()
 
@@ -21,9 +21,9 @@ public:
 	virtual ELoadingMode GetLoadingMode() const override { return ELoadingMode::IterativeCells2D; }
 
 protected:
-	virtual bool PreRun(UWorld* World, FPackageSourceControlHelper& PackageHelper) override;
-	virtual bool RunInternal(UWorld* World, const FCellInfo& InCellInfo, FPackageSourceControlHelper& PackageHelper) override;
-	virtual bool PostRun(UWorld* World, FPackageSourceControlHelper& PackageHelper, const bool bInRunSuccess) override;
+	UNREALED_API virtual bool PreRun(UWorld* World, FPackageSourceControlHelper& PackageHelper) override;
+	UNREALED_API virtual bool RunInternal(UWorld* World, const FCellInfo& InCellInfo, FPackageSourceControlHelper& PackageHelper) override;
+	UNREALED_API virtual bool PostRun(UWorld* World, FPackageSourceControlHelper& PackageHelper, const bool bInRunSuccess) override;
 	// UWorldPartitionBuilder interface end
 
 private:

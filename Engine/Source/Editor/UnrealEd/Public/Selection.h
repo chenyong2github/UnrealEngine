@@ -35,8 +35,8 @@ struct FTypedElementHandle;
  * Manages selections of objects.
  * Used in the editor for selecting objects in the various browser windows.
  */
-UCLASS(transient)
-class UNREALED_API USelection : public UObject
+UCLASS(transient, MinimalAPI)
+class USelection : public UObject
 {
 	GENERATED_BODY()
 
@@ -45,9 +45,9 @@ private:
 	friend class TSelectionIterator;
 
 public:
-	static USelection* CreateObjectSelection(UObject* InOuter = GetTransientPackage(), FName InName = NAME_None, EObjectFlags InFlags = RF_NoFlags);
-	static USelection* CreateActorSelection(UObject* InOuter = GetTransientPackage(), FName InName = NAME_None, EObjectFlags InFlags = RF_NoFlags);
-	static USelection* CreateComponentSelection(UObject* InOuter = GetTransientPackage(), FName InName = NAME_None, EObjectFlags InFlags = RF_NoFlags);
+	static UNREALED_API USelection* CreateObjectSelection(UObject* InOuter = GetTransientPackage(), FName InName = NAME_None, EObjectFlags InFlags = RF_NoFlags);
+	static UNREALED_API USelection* CreateActorSelection(UObject* InOuter = GetTransientPackage(), FName InName = NAME_None, EObjectFlags InFlags = RF_NoFlags);
+	static UNREALED_API USelection* CreateComponentSelection(UObject* InOuter = GetTransientPackage(), FName InName = NAME_None, EObjectFlags InFlags = RF_NoFlags);
 
 	/** Params: UObject* NewSelection */
 	DECLARE_EVENT_OneParam(USelection, FOnSelectionChanged, UObject*);
@@ -56,24 +56,24 @@ public:
 	DECLARE_EVENT_ThreeParams(USelection, FOnSelectionElementSelectionPtrChanged, USelection* /*Selection*/, UTypedElementSelectionSet* /*OldSelectionSet*/, UTypedElementSelectionSet* /*NewSelectionSet*/);
 
 	/** Called when selection in editor has changed */
-	static FOnSelectionChanged SelectionChangedEvent;
+	static UNREALED_API FOnSelectionChanged SelectionChangedEvent;
 	/** Called when an object has been selected (generally an actor) */
-	static FOnSelectionChanged SelectObjectEvent;
+	static UNREALED_API FOnSelectionChanged SelectObjectEvent;
 	/** Called to deselect everything */
-	static FSimpleMulticastDelegate SelectNoneEvent;
+	static UNREALED_API FSimpleMulticastDelegate SelectNoneEvent;
 	/** Called when the assigned typed element selection pointer set for a selection is changed */
-	static FOnSelectionElementSelectionPtrChanged SelectionElementSelectionPtrChanged;
+	static UNREALED_API FOnSelectionElementSelectionPtrChanged SelectionElementSelectionPtrChanged;
 
 	/**
 	 * Set the element selection set instance for this selection set.
 	 * @note Also sets the element list instance.
 	 */
-	void SetElementSelectionSet(UTypedElementSelectionSet* InElementSelectionSet);
+	UNREALED_API void SetElementSelectionSet(UTypedElementSelectionSet* InElementSelectionSet);
 
 	/**
 	 * Get the element selection set instance for this selection set, if any.
 	 */
-	UTypedElementSelectionSet* GetElementSelectionSet() const;
+	UNREALED_API UTypedElementSelectionSet* GetElementSelectionSet() const;
 
 	/**
 	 * Returns the number of objects in the selection set.  This function is used by clients in
@@ -83,42 +83,42 @@ public:
 	 * 
 	 * @return		Number of objects in the selection set.
 	 */
-	int32 Num() const;
+	UNREALED_API int32 Num() const;
 
 	/**
 	 * @return	The Index'th selected objects.  May be NULL.
 	 */
-	UObject* GetSelectedObject(const int32 InIndex) const;
+	UNREALED_API UObject* GetSelectedObject(const int32 InIndex) const;
 
 	/**
 	 * Call before beginning selection operations
 	 */
-	void BeginBatchSelectOperation();
+	UNREALED_API void BeginBatchSelectOperation();
 
 	/**
 	 * Should be called when selection operations are complete.  If all selection operations are complete, notifies all listeners
 	 * that the selection has been changed.
 	 */
-	void EndBatchSelectOperation(bool bNotify = true);
+	UNREALED_API void EndBatchSelectOperation(bool bNotify = true);
 
 	/**
 	 * @return	Returns whether or not the selection object is currently in the middle of a batch select block.
 	 */
-	bool IsBatchSelecting() const;
+	UNREALED_API bool IsBatchSelecting() const;
 
 	/**
 	 * Selects the specified object.
 	 *
 	 * @param	InObject	The object to select/deselect.  Must be non-NULL.
 	 */
-	void Select(UObject* InObject);
+	UNREALED_API void Select(UObject* InObject);
 
 	/**
 	 * Deselects the specified object.
 	 *
 	 * @param	InObject	The object to deselect.  Must be non-NULL.
 	 */
-	void Deselect(UObject* InObject);
+	UNREALED_API void Deselect(UObject* InObject);
 
 	/**
 	 * Selects or deselects the specified object, depending on the value of the bSelect flag.
@@ -126,37 +126,37 @@ public:
 	 * @param	InObject	The object to select/deselect.  Must be non-NULL.
 	 * @param	bSelect		true selects the object, false deselects.
 	 */
-	void Select(UObject* InObject, bool bSelect);
+	UNREALED_API void Select(UObject* InObject, bool bSelect);
 
 	/**
 	 * Toggles the selection state of the specified object.
 	 *
 	 * @param	InObject	The object to select/deselect.  Must be non-NULL.
 	 */
-	void ToggleSelect(UObject* InObject);
+	UNREALED_API void ToggleSelect(UObject* InObject);
 
 	/**
 	 * Deselects all objects of the specified class, if no class is specified it deselects all objects.
 	 *
 	 * @param	InClass		The type of object to deselect.  Can be NULL.
 	 */
-	void DeselectAll( UClass* InClass = NULL );
+	UNREALED_API void DeselectAll( UClass* InClass = NULL );
 
 	/**
 	 * If batch selection is active, sets flag indicating something actually changed.
 	 */
-	void ForceBatchDirty();
+	UNREALED_API void ForceBatchDirty();
 
 	/**
 	 * Manually invoke a selection changed notification for this set.
 	 */
-	void NoteSelectionChanged();
+	UNREALED_API void NoteSelectionChanged();
 
 	/**
 	 * Manually invoke a selection changed notification for no specific set.
 	 * @note Legacy BSP code only!
 	 */
-	static void NoteUnknownSelectionChanged();
+	static UNREALED_API void NoteUnknownSelectionChanged();
 
 	/**
 	 * Returns the first selected object of the specified class.
@@ -249,7 +249,7 @@ public:
 	 * @param	InObject	The object to query.  Can be NULL.
 	 * @return				true if the object is selected, or false if InObject is unselected or NULL.
 	 */
-	bool IsSelected(const UObject* InObject) const;
+	UNREALED_API bool IsSelected(const UObject* InObject) const;
 
 	/**
 	 * Returns the number of selected objects of the specified type.
@@ -280,11 +280,11 @@ public:
 		return Count;
 	}
 
-	bool IsClassSelected(UClass* Class) const;
+	UNREALED_API bool IsClassSelected(UClass* Class) const;
 
 	//~ Begin UObject Interface
-	virtual void Serialize(FArchive& Ar) override;
-	virtual bool Modify( bool bAlwaysMarkDirty=true) override;
+	UNREALED_API virtual void Serialize(FArchive& Ar) override;
+	UNREALED_API virtual bool Modify( bool bAlwaysMarkDirty=true) override;
 	//~ End UObject Interface
 
 
@@ -339,12 +339,12 @@ public:
 
 private:
 	/** Initializes the selection set with its typed element bridge */
-	void Initialize(TSharedRef<ISelectionElementBridge>&& InSelectionElementBridge);
+	UNREALED_API void Initialize(TSharedRef<ISelectionElementBridge>&& InSelectionElementBridge);
 
-	bool IsValidObjectToSelect(const UObject* InObject) const;
-	UObject* GetObjectForElementHandle(const FTypedElementHandle& InElementHandle) const;
+	UNREALED_API bool IsValidObjectToSelect(const UObject* InObject) const;
+	UNREALED_API UObject* GetObjectForElementHandle(const FTypedElementHandle& InElementHandle) const;
 
-	void OnElementListSyncEvent(const FTypedElementList& InElementList, FTypedElementList::FLegacySync::ESyncType InSyncType, const FTypedElementHandle& InElementHandle, bool bIsWithinBatchOperation);
+	UNREALED_API void OnElementListSyncEvent(const FTypedElementList& InElementList, FTypedElementList::FLegacySync::ESyncType InSyncType, const FTypedElementHandle& InElementHandle, bool bIsWithinBatchOperation);
 
 	/** Bridge from UObjects to their corresponding typed elements. */
 	TSharedPtr<ISelectionElementBridge> SelectionElementBridge;
@@ -495,14 +495,14 @@ public:
 	{}
 };
 
-class UNREALED_API FDeselectedActorsEvent
+class FDeselectedActorsEvent
 {
 public:
 	FDeselectedActorsEvent(const TArray<AActor*>& InDeselectedActors)
 		: DeselectedActors(InDeselectedActors)
 	{}
 
-	~FDeselectedActorsEvent();
+	UNREALED_API ~FDeselectedActorsEvent();
 
 private:
 	const TArray<AActor*>& DeselectedActors;

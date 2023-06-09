@@ -13,14 +13,14 @@ class ITypedElementTransactedElement;
 class UObject;
 struct FTypedElementHandle;
 
-UCLASS()
-class UNREALED_API UObjectElementEditorSelectionInterface : public UObjectElementSelectionInterface
+UCLASS(MinimalAPI)
+class UObjectElementEditorSelectionInterface : public UObjectElementSelectionInterface
 {
 	GENERATED_BODY()
 
 public:
-	virtual bool ShouldPreventTransactions(const FTypedElementHandle& InElementHandle) override;
-	virtual TUniquePtr<ITypedElementTransactedElement> CreateTransactedElementImpl() override;
+	UNREALED_API virtual bool ShouldPreventTransactions(const FTypedElementHandle& InElementHandle) override;
+	UNREALED_API virtual TUniquePtr<ITypedElementTransactedElement> CreateTransactedElementImpl() override;
 
-	static bool ShouldObjectPreventTransactions(const UObject* InObject);
+	static UNREALED_API bool ShouldObjectPreventTransactions(const UObject* InObject);
 };

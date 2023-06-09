@@ -221,7 +221,7 @@ public:
 	/** Constructor */
 	UNREALED_API FEditorCameraController();
 
-	UNREALED_API virtual ~FEditorCameraController() {}
+	virtual ~FEditorCameraController() {}
 
 	/** Sets the configuration for this camera controller */
 	void SetConfig( const FCameraControllerConfig& InConfig )

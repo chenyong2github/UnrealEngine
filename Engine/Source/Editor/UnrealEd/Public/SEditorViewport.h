@@ -18,7 +18,7 @@ class SViewport;
 struct FSlateBrush;
 struct FToolMenuContext;
 
-class UNREALED_API SEditorViewport
+class SEditorViewport
 	: public SCompoundWidget
 {
 public:
@@ -28,56 +28,56 @@ public:
 	SLATE_ATTRIBUTE(FVector2D, ViewportSize);
 	SLATE_END_ARGS()
 	
-	SEditorViewport();
-	virtual ~SEditorViewport();
+	UNREALED_API SEditorViewport();
+	UNREALED_API virtual ~SEditorViewport();
 
-	void Construct( const FArguments& InArgs );
+	UNREALED_API void Construct( const FArguments& InArgs );
 
-	virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
-	virtual bool SupportsKeyboardFocus() const override;
-	virtual FReply OnFocusReceived( const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent ) override;
-	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
+	UNREALED_API virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
+	UNREALED_API virtual bool SupportsKeyboardFocus() const override;
+	UNREALED_API virtual FReply OnFocusReceived( const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent ) override;
+	UNREALED_API virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
 	
 	/**
 	 * @return True if the viewport is being updated in realtime
 	 */
-	bool IsRealtime() const;
+	UNREALED_API bool IsRealtime() const;
 
 	/** @return True if the viewport is currently visible */
-	virtual bool IsVisible() const;
+	UNREALED_API virtual bool IsVisible() const;
 
 	/** 
 	 * Invalidates the viewport to ensure it is redrawn during the next tick. 
 	 * This is implied every frame while the viewport IsRealtime().
 	 */
-	void Invalidate();
+	UNREALED_API void Invalidate();
 
 	/** Toggles realtime on/off for the viewport. Slate tick/paint is ensured when realtime is on. */
-	void OnToggleRealtime();
+	UNREALED_API void OnToggleRealtime();
 
 	/**
 	 * Sets whether this viewport can render directly to the back buffer.  Advanced use only
 	 * 
 	 * @param	bInRenderDirectlyToWindow	Whether we should be able to render to the back buffer
 	 */
-	void SetRenderDirectlyToWindow( const bool bInRenderDirectlyToWindow );
+	UNREALED_API void SetRenderDirectlyToWindow( const bool bInRenderDirectlyToWindow );
 
 	/**
 	 * Sets whether stereo rendering is allowed for this viewport.  Advanced use only
 	 * 
 	 * @param	bInEnableStereoRendering	Whether stereo rendering should be allowed for this viewport
 	 */
-	void EnableStereoRendering( const bool bInEnableStereoRendering );
+	UNREALED_API void EnableStereoRendering( const bool bInEnableStereoRendering );
 
 	/**
 	 * @return true if the specified coordinate system the active one active
 	 */
-	virtual bool IsCoordSystemActive( ECoordSystem CoordSystem ) const;
+	UNREALED_API virtual bool IsCoordSystemActive( ECoordSystem CoordSystem ) const;
 
 	/**
 	 * Cycles between world and local coordinate systems
 	 */
-	virtual void OnCycleCoordinateSystem();
+	UNREALED_API virtual void OnCycleCoordinateSystem();
 	
 	/** @return The viewport command list */
 	const TSharedPtr<FUICommandList> GetCommandList() const { return CommandList; }
@@ -92,55 +92,55 @@ public:
 	/**
 	 * Controls the visibility of the widget transform toolbar, if there is an associated toolbar
 	 */
-	virtual EVisibility GetTransformToolbarVisibility() const;
+	UNREALED_API virtual EVisibility GetTransformToolbarVisibility() const;
 
 	/** Build the exposure menu using EV100 settings */
-	TSharedRef<SWidget> BuildFixedEV100Menu()  const;
+	UNREALED_API TSharedRef<SWidget> BuildFixedEV100Menu()  const;
 
 	/**
  * Called when the user wants to show the in-viewport context menu
  */
 	virtual void ToggleInViewportContextMenu() {}
 	virtual void HideInViewportContextMenu() {}
-	virtual void UpdateInViewportMenuLocation(const FVector2D InLocation);
+	UNREALED_API virtual void UpdateInViewportMenuLocation(const FVector2D InLocation);
 	virtual bool CanToggleInViewportContextMenu() { return false; }
 
-	bool IsPreviewingScreenPercentage() const;
-	void TogglePreviewingScreenPercentage();
-	void OnOpenViewportPerformanceProjectSettings();
-	void OnOpenViewportPerformanceEditorPreferences();
+	UNREALED_API bool IsPreviewingScreenPercentage() const;
+	UNREALED_API void TogglePreviewingScreenPercentage();
+	UNREALED_API void OnOpenViewportPerformanceProjectSettings();
+	UNREALED_API void OnOpenViewportPerformanceEditorPreferences();
 
 ///////////////////////////////////////////////////////////////////////////////
 // begin feature level control functions block
 ///////////////////////////////////////////////////////////////////////////////
 private:
 	/** Called to get the feature level preview text */
-	FText GetCurrentFeatureLevelPreviewText(bool bDrawOnlyLabel) const;
+	UNREALED_API FText GetCurrentFeatureLevelPreviewText(bool bDrawOnlyLabel) const;
 
 	/** Helper function that, for some FeatureLevel argument, will retrieve the required shader platform */
-	EShaderPlatform GetShaderPlatformHelper(const ERHIFeatureLevel::Type InFeatureLevel) const;
+	UNREALED_API EShaderPlatform GetShaderPlatformHelper(const ERHIFeatureLevel::Type InFeatureLevel) const;
 
 protected:
 	/** @return The visibility of the current feature level preview text display */
-	EVisibility GetCurrentFeatureLevelPreviewTextVisibility() const;
+	UNREALED_API EVisibility GetCurrentFeatureLevelPreviewTextVisibility() const;
 
 	/** @return true if realtime can be toggled (it cannot be toggled directly if there is an override in place) */
-	bool CanToggleRealtime() const;
+	UNREALED_API bool CanToggleRealtime() const;
 
 	/** call this function to build a 'text' widget that can display the present feature level */
-	TSharedRef<SWidget> BuildFeatureLevelWidget() const;
+	UNREALED_API TSharedRef<SWidget> BuildFeatureLevelWidget() const;
 ///////////////////////////////////////////////////////////////////////////////
 // end feature level control functions block
 ///////////////////////////////////////////////////////////////////////////////
 
 	/** Called by the fixed EV100 slider to get the fixed EV100 value */
-	float OnGetFixedEV100Value() const;
+	UNREALED_API float OnGetFixedEV100Value() const;
 
 	/** Called when fixed EV100 slider is adjusted */
-	void OnFixedEV100ValueChanged( float NewValue );
+	UNREALED_API void OnFixedEV100ValueChanged( float NewValue );
 
 	/** Called to know whether the fixed EV100 slider is enabled. */
-	bool IsFixedEV100Enabled() const;
+	UNREALED_API bool IsFixedEV100Enabled() const;
 
 
 	virtual TSharedRef<FEditorViewportClient> MakeEditorViewportClient() = 0;
@@ -151,14 +151,14 @@ protected:
 	// Implement this to add an arbitrary set of toolbars or other overlays to the inside of the viewport
 	virtual void PopulateViewportOverlays(TSharedRef<SOverlay> Overlay) { }
 
-	virtual void BindCommands();
+	UNREALED_API virtual void BindCommands();
 	virtual const FSlateBrush* OnGetViewportBorderBrush() const { return NULL; }
 	virtual FSlateColor OnGetViewportBorderColorAndOpacity() const { return FLinearColor::Black; }
 	
 	/**
 	 * @return The visibility of widgets in the viewport (e.g, menus).  Note this is not the visibility of the scene rendered in the viewport                                                              
 	 */
-	virtual EVisibility OnGetViewportContentVisibility() const;
+	UNREALED_API virtual EVisibility OnGetViewportContentVisibility() const;
 
 	/**
 	 * @return The visibility of the viewport focus indicator.                                                             
@@ -166,28 +166,28 @@ protected:
 	virtual EVisibility OnGetFocusedViewportIndicatorVisibility() const { return EVisibility::Collapsed; }
 
 	/** UI Command delegate bindings */
-	void OnToggleStats();
+	UNREALED_API void OnToggleStats();
 
 	/**
 	 * Toggles Stat command visibility in this viewport
 	 *
 	 * @param CommandName				Name of the command
 	 */
-	virtual void ToggleStatCommand(FString CommandName);
+	UNREALED_API virtual void ToggleStatCommand(FString CommandName);
 
 	/**
 	 * Checks if Stat command is visible in this viewport
 	 *
 	 * @param CommandName				Name of the command
 	 */
-	virtual bool IsStatCommandVisible(FString CommandName) const;
+	UNREALED_API virtual bool IsStatCommandVisible(FString CommandName) const;
 
 	/**
 	 * Toggles a show flag in this viewport
 	 *
 	 * @param EngineShowFlagIndex	the ID to toggle
 	 */
-	void ToggleShowFlag( uint32 EngineShowFlagIndex );
+	UNREALED_API void ToggleShowFlag( uint32 EngineShowFlagIndex );
 
 	/**
 	 * Checks if a show flag is enabled in this viewport
@@ -195,16 +195,16 @@ protected:
 	 * @param EngineShowFlagIndex	the ID to check
 	 * @return true if the show flag is enabled, false otherwise
 	 */
-	bool IsShowFlagEnabled( uint32 EngineShowFlagIndex ) const;
+	UNREALED_API bool IsShowFlagEnabled( uint32 EngineShowFlagIndex ) const;
 
 	/** Changes the auto exposure setting for this viewport */
-	void ChangeExposureSetting();
+	UNREALED_API void ChangeExposureSetting();
 
 	/** Checks if auto exposure setting is selected */
-	bool IsExposureSettingSelected() const;
+	UNREALED_API bool IsExposureSettingSelected() const;
 	
-	virtual void OnScreenCapture();
-	virtual void OnScreenCaptureForProjectThumbnail();
+	UNREALED_API virtual void OnScreenCapture();
+	UNREALED_API virtual void OnScreenCaptureForProjectThumbnail();
 	virtual bool DoesAllowScreenCapture() { return true; }
 	
 	/**
@@ -218,22 +218,22 @@ protected:
 	/**
 	 * @return true if the specified widget mode is active
 	 */
-	virtual bool IsWidgetModeActive( UE::Widget::EWidgetMode Mode ) const;
+	UNREALED_API virtual bool IsWidgetModeActive( UE::Widget::EWidgetMode Mode ) const;
 
 	/**
 	 * @return true if the translate/rotate mode widget is visible 
 	 */
-	virtual bool IsTranslateRotateModeVisible() const;
+	UNREALED_API virtual bool IsTranslateRotateModeVisible() const;
 
 	/**
 	* @return true if the 2d mode widget is visible
 	*/
-	virtual bool Is2DModeVisible() const;
+	UNREALED_API virtual bool Is2DModeVisible() const;
 
 	/**
 	 * Moves between widget modes
 	 */
-	virtual void OnCycleWidgetMode();
+	UNREALED_API virtual void OnCycleWidgetMode();
 
 	/**
 	 * Called when the user wants to focus the viewport to the current selection
@@ -241,17 +241,17 @@ protected:
 	virtual void OnFocusViewportToSelection(){}
 
 	/** Gets the world this viewport is for */
-	virtual UWorld* GetWorld() const;
+	UNREALED_API virtual UWorld* GetWorld() const;
 
 	/**
 	 * Called when surface snapping has been enabled/disabled
 	 */
-	static void OnToggleSurfaceSnap();
+	static UNREALED_API void OnToggleSurfaceSnap();
 
 	/**
 	 * Called to test whether surface snapping is enabled or not
 	 */
-	static bool OnIsSurfaceSnapEnabled();
+	static UNREALED_API bool OnIsSurfaceSnapEnabled();
 
 
 protected:
@@ -276,10 +276,10 @@ protected:
 
 private:
 	/** Ensures a Slate tick/paint pass when the viewport is realtime or was invalidated this frame */
-	EActiveTimerReturnType EnsureTick( double InCurrentTime, float InDeltaTime );
+	UNREALED_API EActiveTimerReturnType EnsureTick( double InCurrentTime, float InDeltaTime );
 
 	/** Gets the visibility of the active viewport border */
-	EVisibility GetActiveBorderVisibility() const;
+	UNREALED_API EVisibility GetActiveBorderVisibility() const;
 private:
 	/** The handle to the active timer */
 	TWeakPtr<FActiveTimerHandle> ActiveTimerHandle;

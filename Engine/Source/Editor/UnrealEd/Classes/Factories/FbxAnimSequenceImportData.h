@@ -33,8 +33,8 @@ enum EFBXAnimationLengthImportType : int
 /**
 * Import data and options used when importing any mesh from FBX
 */
-UCLASS(BlueprintType, config = EditorPerProjectUserSettings, configdonotcheckdefaults)
-class UNREALED_API UFbxAnimSequenceImportData : public UFbxAssetImportData
+UCLASS(BlueprintType, config = EditorPerProjectUserSettings, configdonotcheckdefaults, MinimalAPI)
+class UFbxAnimSequenceImportData : public UFbxAssetImportData
 {
 	GENERATED_UCLASS_BODY()
 	
@@ -118,13 +118,13 @@ class UNREALED_API UFbxAnimSequenceImportData : public UFbxAssetImportData
 	bool bPreserveLocalTransform;
 
 	/** Gets or creates fbx import data for the specified anim sequence */
-	static UFbxAnimSequenceImportData* GetImportDataForAnimSequence(UAnimSequence* AnimSequence, UFbxAnimSequenceImportData* TemplateForCreation);
+	static UNREALED_API UFbxAnimSequenceImportData* GetImportDataForAnimSequence(UAnimSequence* AnimSequence, UFbxAnimSequenceImportData* TemplateForCreation);
 
-	virtual bool CanEditChange(const FProperty* InProperty) const override;
+	UNREALED_API virtual bool CanEditChange(const FProperty* InProperty) const override;
 
-	virtual void Serialize(FArchive& Ar) override;
+	UNREALED_API virtual void Serialize(FArchive& Ar) override;
 
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	UNREALED_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
-	void CopyAnimationValues(const UFbxAnimSequenceImportData* Other);
+	UNREALED_API void CopyAnimationValues(const UFbxAnimSequenceImportData* Other);
 };

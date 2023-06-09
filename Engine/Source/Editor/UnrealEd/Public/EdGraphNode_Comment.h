@@ -111,7 +111,7 @@ public:
 	UNREALED_API const FCommentNodeSet& GetNodesUnderComment() const;
 
 	/** Return the font size of the comment */
-	UNREALED_API virtual int32 GetFontSize() const { return FontSize; }
+	virtual int32 GetFontSize() const { return FontSize; }
 
 	/** Override the default selection state of this graph node */
 	enum class ESelectionState : uint8 { Inherited, Selected, Deselected };

@@ -34,8 +34,8 @@ enum class EPhysicsAssetEditorConstraintViewMode : uint8
 	AllLimits
 };
 
-UCLASS(hidecategories=Object, config=EditorPerProjectUserSettings)
-class UNREALED_API UPhysicsAssetEditorOptions : public UObject
+UCLASS(hidecategories=Object, config=EditorPerProjectUserSettings, MinimalAPI)
+class UPhysicsAssetEditorOptions : public UObject
 {
 	GENERATED_UCLASS_BODY()
 

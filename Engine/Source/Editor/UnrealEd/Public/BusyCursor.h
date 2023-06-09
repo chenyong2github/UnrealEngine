@@ -7,9 +7,9 @@
 /**
  * While in scope, sets the cursor to the busy (hourglass) cursor for all windows.
  */
-class UNREALED_API FScopedBusyCursor
+class FScopedBusyCursor
 {
 public:
-	FScopedBusyCursor();
-	~FScopedBusyCursor();
+	UNREALED_API FScopedBusyCursor();
+	UNREALED_API ~FScopedBusyCursor();
 };

@@ -9,15 +9,15 @@
 
 class FAssetEditorToolkit;
 
-UCLASS()
-class UNREALED_API UAssetEditorToolkitMenuContext : public UObject
+UCLASS(MinimalAPI)
+class UAssetEditorToolkitMenuContext : public UObject
 {
 	GENERATED_BODY()
 
 public:
 
 	UFUNCTION(BlueprintCallable, Category = "Tool Menus")
-	TArray<UObject*> GetEditingObjects() const;
+	UNREALED_API TArray<UObject*> GetEditingObjects() const;
 
 	TWeakPtr<FAssetEditorToolkit> Toolkit;
 };

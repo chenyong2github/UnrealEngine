@@ -52,7 +52,7 @@ enum class ERowInsertionPosition
 	Bottom,
 };
 
-struct UNREALED_API FDataTableEditorUtils
+struct FDataTableEditorUtils
 {
 	enum class EDataTableChangeInfo
 	{
@@ -74,7 +74,7 @@ struct UNREALED_API FDataTableEditorUtils
 	public:
 		UNREALED_API static FDataTableEditorManager& Get();
 
-		class UNREALED_API ListenerType : public InnerListenerType<FDataTableEditorManager>
+		class ListenerType : public InnerListenerType<FDataTableEditorManager>
 		{
 		public:
 			virtual void SelectionChange(const UDataTable* DataTable, FName RowName) { }
@@ -83,53 +83,53 @@ struct UNREALED_API FDataTableEditorUtils
 
 	typedef FDataTableEditorManager::ListenerType INotifyOnDataTableChanged;
 
-	static bool RemoveRow(UDataTable* DataTable, FName Name);
-	static uint8* AddRow(UDataTable* DataTable, FName RowName);
-	static uint8* DuplicateRow(UDataTable* DataTable, FName SourceRowName, FName RowName);
-	static bool RenameRow(UDataTable* DataTable, FName OldName, FName NewName);
-	static bool MoveRow(UDataTable* DataTable, FName RowName, ERowMoveDirection Direction, int32 NumRowsToMoveBy = 1);
-	static bool SelectRow(const UDataTable* DataTable, FName RowName);
-	static bool DiffersFromDefault(UDataTable* DataTable, FName RowName);
-	static bool ResetToDefault(UDataTable* DataTable, FName RowName);
+	static UNREALED_API bool RemoveRow(UDataTable* DataTable, FName Name);
+	static UNREALED_API uint8* AddRow(UDataTable* DataTable, FName RowName);
+	static UNREALED_API uint8* DuplicateRow(UDataTable* DataTable, FName SourceRowName, FName RowName);
+	static UNREALED_API bool RenameRow(UDataTable* DataTable, FName OldName, FName NewName);
+	static UNREALED_API bool MoveRow(UDataTable* DataTable, FName RowName, ERowMoveDirection Direction, int32 NumRowsToMoveBy = 1);
+	static UNREALED_API bool SelectRow(const UDataTable* DataTable, FName RowName);
+	static UNREALED_API bool DiffersFromDefault(UDataTable* DataTable, FName RowName);
+	static UNREALED_API bool ResetToDefault(UDataTable* DataTable, FName RowName);
 
-	static uint8* AddRowAboveOrBelowSelection(UDataTable* DataTable, const FName& RowName, const FName& NewRowName, ERowInsertionPosition InsertPosition);
+	static UNREALED_API uint8* AddRowAboveOrBelowSelection(UDataTable* DataTable, const FName& RowName, const FName& NewRowName, ERowInsertionPosition InsertPosition);
 
-	static void BroadcastPreChange(UDataTable* DataTable, EDataTableChangeInfo Info);
-	static void BroadcastPostChange(UDataTable* DataTable, EDataTableChangeInfo Info);
+	static UNREALED_API void BroadcastPreChange(UDataTable* DataTable, EDataTableChangeInfo Info);
+	static UNREALED_API void BroadcastPostChange(UDataTable* DataTable, EDataTableChangeInfo Info);
 
 	/** Reads a data table and parses out editable copies of rows and columns */
-	static void CacheDataTableForEditing(const UDataTable* DataTable, TArray<FDataTableEditorColumnHeaderDataPtr>& OutAvailableColumns, TArray<FDataTableEditorRowListViewDataPtr>& OutAvailableRows);
+	static UNREALED_API void CacheDataTableForEditing(const UDataTable* DataTable, TArray<FDataTableEditorColumnHeaderDataPtr>& OutAvailableColumns, TArray<FDataTableEditorRowListViewDataPtr>& OutAvailableRows);
 
 	/** Generic version that works with any datatable-like structure */
-	static void CacheDataForEditing(const UScriptStruct* RowStruct, const TMap<FName, uint8*>& RowMap, TArray<FDataTableEditorColumnHeaderDataPtr>& OutAvailableColumns, TArray<FDataTableEditorRowListViewDataPtr>& OutAvailableRows);
+	static UNREALED_API void CacheDataForEditing(const UScriptStruct* RowStruct, const TMap<FName, uint8*>& RowMap, TArray<FDataTableEditorColumnHeaderDataPtr>& OutAvailableColumns, TArray<FDataTableEditorRowListViewDataPtr>& OutAvailableRows);
 
 	/** Returns all script structs that can be used as a data table row. This only includes loaded ones */
-	static TArray<UScriptStruct*> GetPossibleStructs();
+	static UNREALED_API TArray<UScriptStruct*> GetPossibleStructs();
 
 	/** Fills in an array with all possible DataTable structs, unloaded and loaded */
-	static void GetPossibleStructAssetData(TArray<FAssetData>& StructAssets);
+	static UNREALED_API void GetPossibleStructAssetData(TArray<FAssetData>& StructAssets);
 	
 	/** Utility function which verifies that the specified struct type is viable for data tables */
-	static bool IsValidTableStruct(const UScriptStruct* Struct);
+	static UNREALED_API bool IsValidTableStruct(const UScriptStruct* Struct);
 
 	/** Add a UI action for search for references, useful for customizations */
-	static void AddSearchForReferencesContextMenu(class FDetailWidgetRow& RowNameDetailWidget, FExecuteAction SearchForReferencesAction);
+	static UNREALED_API void AddSearchForReferencesContextMenu(class FDetailWidgetRow& RowNameDetailWidget, FExecuteAction SearchForReferencesAction);
 
 	/** Short description for a data or curve handle */
-	static FText GetHandleShortDescription(const UObject* TableAsset, FName RowName);
+	static UNREALED_API FText GetHandleShortDescription(const UObject* TableAsset, FName RowName);
 
 	/** Tooltip text for the data table row type */
-	static FText GetRowTypeInfoTooltipText(FDataTableEditorColumnHeaderDataPtr ColumnHeaderDataPtr);
+	static UNREALED_API FText GetRowTypeInfoTooltipText(FDataTableEditorColumnHeaderDataPtr ColumnHeaderDataPtr);
 
 	/** Doc excerpt name for the data table row type */
-	static FString GetRowTypeTooltipDocExcerptName(FDataTableEditorColumnHeaderDataPtr ColumnHeaderDataPtr);
+	static UNREALED_API FString GetRowTypeTooltipDocExcerptName(FDataTableEditorColumnHeaderDataPtr ColumnHeaderDataPtr);
 
 	/** Link to variable type doc  */
-	static const FString VariableTypesTooltipDocLink;
+	static UNREALED_API const FString VariableTypesTooltipDocLink;
 
 	/** Delegate called when a data table struct is selected */
 	DECLARE_DELEGATE_OneParam(FOnDataTableStructSelected, UScriptStruct*);
 
 	/** Creates a combo box that allows selecting from the list of possible row structures */
-	static TSharedRef<SWidget> MakeRowStructureComboBox(FOnDataTableStructSelected OnSelected);
+	static UNREALED_API TSharedRef<SWidget> MakeRowStructureComboBox(FOnDataTableStructSelected OnSelected);
 };

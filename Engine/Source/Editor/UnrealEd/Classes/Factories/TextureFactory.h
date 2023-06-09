@@ -46,8 +46,8 @@ enum class ETextureSourceColorSpace
 	SRGB
 };
 
-UCLASS(customconstructor, collapsecategories, hidecategories=Object)
-class UNREALED_API UTextureFactory : public UFactory, public IImportSettingsParser
+UCLASS(customconstructor, collapsecategories, hidecategories=Object, MinimalAPI)
+class UTextureFactory : public UFactory, public IImportSettingsParser
 {
 	GENERATED_UCLASS_BODY()
 
@@ -159,33 +159,33 @@ class UNREALED_API UTextureFactory : public UFactory, public IImportSettingsPars
 	TEnumAsByte<EAppReturnType::Type> HDRImportShouldBeLongLatCubeMap = EAppReturnType::Retry;
 
 public:
-	UTextureFactory(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	UNREALED_API UTextureFactory(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	//~ Begin UObject Interface
-	virtual void PostInitProperties() override;
+	UNREALED_API virtual void PostInitProperties() override;
 	//~ End UObject Interface
 
 	//~ Begin UFactory Interface
-	virtual bool DoesSupportClass(UClass* Class) override;
-	virtual UObject* FactoryCreateBinary( UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, const TCHAR* Type, const uint8*& Buffer, const uint8* BufferEnd, FFeedbackContext* Warn ) override;
-	virtual bool FactoryCanImport(const FString& Filename) override;
-	virtual IImportSettingsParser* GetImportSettingsParser() override;
+	UNREALED_API virtual bool DoesSupportClass(UClass* Class) override;
+	UNREALED_API virtual UObject* FactoryCreateBinary( UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, const TCHAR* Type, const uint8*& Buffer, const uint8* BufferEnd, FFeedbackContext* Warn ) override;
+	UNREALED_API virtual bool FactoryCanImport(const FString& Filename) override;
+	UNREALED_API virtual IImportSettingsParser* GetImportSettingsParser() override;
 
 	//~ End UFactory Interface
 	
 	/** IImportSettingsParser interface */
-	virtual void ParseFromJson(TSharedRef<class FJsonObject> ImportSettingsJson) override;
+	UNREALED_API virtual void ParseFromJson(TSharedRef<class FJsonObject> ImportSettingsJson) override;
 
 
 	/** Create a texture given the appropriate input parameters	*/
-	virtual UTexture2D* CreateTexture2D( UObject* InParent, FName Name, EObjectFlags Flags );
-	virtual UTextureCube* CreateTextureCube( UObject* InParent, FName Name, EObjectFlags Flags );
-	virtual UTexture2DArray* CreateTexture2DArray(UObject* InParent, FName Name, EObjectFlags Flags);
+	UNREALED_API virtual UTexture2D* CreateTexture2D( UObject* InParent, FName Name, EObjectFlags Flags );
+	UNREALED_API virtual UTextureCube* CreateTextureCube( UObject* InParent, FName Name, EObjectFlags Flags );
+	UNREALED_API virtual UTexture2DArray* CreateTexture2DArray(UObject* InParent, FName Name, EObjectFlags Flags);
 	/**
 	 * Suppresses the dialog box that, when importing over an existing texture, asks if the users wishes to overwrite its settings.
 	 * This is primarily for reimporting textures.
 	 */
-	static void SuppressImportOverwriteDialog(bool bOverwriteExistingSettings = false);
+	static UNREALED_API void SuppressImportOverwriteDialog(bool bOverwriteExistingSettings = false);
 
 	/**
 	 *	Initializes the given texture from the TextureData text block supplied.
@@ -197,16 +197,16 @@ public:
 	 *
 	 *	@return	bool		true if successful, false if not
 	 */
-	bool InitializeFromT3DTextureDataText(UTexture* InTexture, const FString& Text, FFeedbackContext* Warn);
+	UNREALED_API bool InitializeFromT3DTextureDataText(UTexture* InTexture, const FString& Text, FFeedbackContext* Warn);
 	
 	// @todo document
-	bool InitializeFromT3DTexture2DDataText(UTexture2D* InTexture2D, const TCHAR*& Buffer, FFeedbackContext* Warn);
+	UNREALED_API bool InitializeFromT3DTexture2DDataText(UTexture2D* InTexture2D, const TCHAR*& Buffer, FFeedbackContext* Warn);
 
 	// @todo document
-	void FindCubeMapFace(const FString& ParsedText, const FString& FaceString, UTextureCube& TextureCube, UTexture2D*& TextureFace);
+	UNREALED_API void FindCubeMapFace(const FString& ParsedText, const FString& FaceString, UTextureCube& TextureCube, UTexture2D*& TextureFace);
 
 	// @todo document
-	bool InitializeFromT3DTextureCubeDataText(UTextureCube* InTextureCube, const TCHAR*& Buffer, FFeedbackContext* Warn);
+	UNREALED_API bool InitializeFromT3DTextureCubeDataText(UTextureCube* InTextureCube, const TCHAR*& Buffer, FFeedbackContext* Warn);
 
 protected:
 	/** Keep track of if we are doing a reimport */

@@ -25,7 +25,7 @@ DECLARE_DELEGATE_OneParam(FOnCamSpeedScalarChanged, float);
 /**
  * Viewport toolbar containing transform, grid snapping, local to world and camera speed controls.
  */
-class UNREALED_API STransformViewportToolBar  : public SViewportToolBar
+class STransformViewportToolBar  : public SViewportToolBar
 {
 
 public:
@@ -38,13 +38,13 @@ public:
 		SLATE_EVENT( FOnCamSpeedScalarChanged, OnCamSpeedScalarChanged )
 	SLATE_END_ARGS()
 
-	void Construct( const FArguments& InArgs );
+	UNREALED_API void Construct( const FArguments& InArgs );
 	/**
 	 * Static: Creates a widget for the main tool bar
 	 *
 	 * @return	New widget
 	 */
-	TSharedRef<SWidget> MakeTransformToolBar(const TSharedPtr< FExtender > InExtenders);
+	UNREALED_API TSharedRef<SWidget> MakeTransformToolBar(const TSharedPtr< FExtender > InExtenders);
 
 private:
 	FSlateIcon GetLocalToWorldIcon() const;

@@ -17,21 +17,21 @@ class FCurveOwnerInterface;
 class FPaintArgs;
 class FSlateWindowElementList;
 
-struct UNREALED_API FGradientStopMark
+struct FGradientStopMark
 {
 public:
 
-	FGradientStopMark();
-	FGradientStopMark( float InTime, FKeyHandle InRedKeyHandle, FKeyHandle InGreenKeyHandle, FKeyHandle InBlueKeyHandle, FKeyHandle InAlphaKeyHandle = FKeyHandle() );
+	UNREALED_API FGradientStopMark();
+	UNREALED_API FGradientStopMark( float InTime, FKeyHandle InRedKeyHandle, FKeyHandle InGreenKeyHandle, FKeyHandle InBlueKeyHandle, FKeyHandle InAlphaKeyHandle = FKeyHandle() );
 
 
-	bool operator==( const FGradientStopMark& Other ) const;
-	bool IsValid( FCurveOwnerInterface& CurveOwner );
-	bool IsValidAlphaMark( const TArray<FRichCurveEditInfo>& Curves ) const;
-	bool IsValidColorMark( const TArray<FRichCurveEditInfo>& Curves ) const;
-	FLinearColor GetColor( FCurveOwnerInterface& CurveOwner ) const;
-	void SetColor( const FLinearColor& InColor, FCurveOwnerInterface& CurveOwner );
-	void SetTime( float NewTime, FCurveOwnerInterface& CurveOwner );
+	UNREALED_API bool operator==( const FGradientStopMark& Other ) const;
+	UNREALED_API bool IsValid( FCurveOwnerInterface& CurveOwner );
+	UNREALED_API bool IsValidAlphaMark( const TArray<FRichCurveEditInfo>& Curves ) const;
+	UNREALED_API bool IsValidColorMark( const TArray<FRichCurveEditInfo>& Curves ) const;
+	UNREALED_API FLinearColor GetColor( FCurveOwnerInterface& CurveOwner ) const;
+	UNREALED_API void SetColor( const FLinearColor& InColor, FCurveOwnerInterface& CurveOwner );
+	UNREALED_API void SetTime( float NewTime, FCurveOwnerInterface& CurveOwner );
 
 public:
 	float Time;
@@ -42,7 +42,7 @@ public:
 
 };
 
-class UNREALED_API SColorGradientEditor : public SLeafWidget
+class SColorGradientEditor : public SLeafWidget
 {
 public:
 	SLATE_BEGIN_ARGS( SColorGradientEditor ) 
@@ -56,25 +56,25 @@ public:
 	SLATE_END_ARGS()
 
 
-	void Construct( const FArguments& InArgs );
+	UNREALED_API void Construct( const FArguments& InArgs );
 
 	/** SWidget Interface */
 	virtual bool SupportsKeyboardFocus() const override { return true; }
-	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
-	virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnMouseButtonDoubleClick( const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent ) override;
-	virtual FReply OnMouseMove( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
-	virtual void OnMouseLeave(const FPointerEvent& MouseEvent) override;
-	virtual FVector2D ComputeDesiredSize(float) const override;
+	UNREALED_API virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
+	UNREALED_API virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	UNREALED_API virtual FReply OnMouseButtonDoubleClick( const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent ) override;
+	UNREALED_API virtual FReply OnMouseMove( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	UNREALED_API virtual FReply OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	UNREALED_API virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
+	UNREALED_API virtual void OnMouseLeave(const FPointerEvent& MouseEvent) override;
+	UNREALED_API virtual FVector2D ComputeDesiredSize(float) const override;
 
 	/**
 	 * Sets the curve that is being edited by this editor
 	 *
 	 * @param InCurveOwner Interface to the curves to edit
 	 */
-	void SetCurveOwner( FCurveOwnerInterface* InCurveOwner );
+	UNREALED_API void SetCurveOwner( FCurveOwnerInterface* InCurveOwner );
 
 private:
 	/**
@@ -82,51 +82,51 @@ private:
 	 *
 	 * @param MouseEvent	The mouse event that raised this handler (containing the location and widget path of the click)
 	 */
-	void OpenGradientStopContextMenu(const FPointerEvent& MouseEvent);
+	UNREALED_API void OpenGradientStopContextMenu(const FPointerEvent& MouseEvent);
 
 	/**
 	 * Opens a color picker to change the color of the selected stop
 	 */
-	void OpenGradientStopColorPicker();
+	UNREALED_API void OpenGradientStopColorPicker();
 
 	/**
 	 * Called when the selected stop color changes from the color picker
 	 *
 	 * @param InNewColor	The new color
 	 */
-	void OnSelectedStopColorChanged( FLinearColor InNewColor );
+	UNREALED_API void OnSelectedStopColorChanged( FLinearColor InNewColor );
 
 	/**
 	 * Called when canceling out of the color picker
 	 *
 	 * @param PreviousColor	The color before anything was changed
 	 */
-	void OnCancelSelectedStopColorChange( FLinearColor PreviousColor );
+	UNREALED_API void OnCancelSelectedStopColorChange( FLinearColor PreviousColor );
 
 	/**
 	 * Called right before a user begins using the slider to change the alpha value of a stop
 	 */
-	void OnBeginChangeAlphaValue();
+	UNREALED_API void OnBeginChangeAlphaValue();
 
 	/**
 	 * Called right after a user ends using the slider to change the alpha value of a stop
 	 */
-	void OnEndChangeAlphaValue( float NewValue );
+	UNREALED_API void OnEndChangeAlphaValue( float NewValue );
 
 	/**
 	 * Called when the alpha value of a stop changes
 	 */
-	void OnAlphaValueChanged( float NewValue );
+	UNREALED_API void OnAlphaValueChanged( float NewValue );
 
 	/**
 	 * Called when the alpha value of a stop changes by typing into the sliders text box
 	 */
-	void OnAlphaValueCommitted( float NewValue, ETextCommit::Type );
+	UNREALED_API void OnAlphaValueCommitted( float NewValue, ETextCommit::Type );
 
 	/**
 	 * Called to remove the selected gradient stop
 	 */
-	void OnRemoveSelectedGradientStop();
+	UNREALED_API void OnRemoveSelectedGradientStop();
 
 	/**
 	 * Called when the gradient stop time is changed from the text entry popup
@@ -134,7 +134,7 @@ private:
 	 * @param NewText	The new time as text
 	 * @param Type		How the value was committed 
 	 */
-	void OnSetGradientStopTimeFromPopup( const FText& NewText, ETextCommit::Type Type );
+	UNREALED_API void OnSetGradientStopTimeFromPopup( const FText& NewText, ETextCommit::Type Type );
 
 	/**
 	 * Draws a single gradient stop
@@ -149,21 +149,21 @@ private:
 	 * @param DrawEffects		Any draw effects to apply
 	 * @param bColor			If true RGB of the Color param will be used, otherwise the A value will be used
 	 */
-	void DrawGradientStopMark( const FGradientStopMark& Mark, const FGeometry& Geometry, float XPos, const FLinearColor& Color, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FSlateRect& InClippingRect, ESlateDrawEffect DrawEffects, bool bColor, const FWidgetStyle& InWidgetStyle ) const;
+	UNREALED_API void DrawGradientStopMark( const FGradientStopMark& Mark, const FGeometry& Geometry, float XPos, const FLinearColor& Color, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FSlateRect& InClippingRect, ESlateDrawEffect DrawEffects, bool bColor, const FWidgetStyle& InWidgetStyle ) const;
 
 	/**
 	 * Calculates the geometry of the gradient stop color mark area
 	 *
 	 * @param InGeometry The parent geometry of the area
 	 */
-	FGeometry GetColorMarkAreaGeometry( const FGeometry& InGeometry ) const;
+	UNREALED_API FGeometry GetColorMarkAreaGeometry( const FGeometry& InGeometry ) const;
 
 	/**
 	 * Calculates the geometry of the gradient stop alpha mark area
 	 *
 	 * @param InGeometry The parent geometry of the area
 	 */
-	FGeometry GetAlphaMarkAreaGeometry( const FGeometry& InGeometry ) const;
+	UNREALED_API FGeometry GetAlphaMarkAreaGeometry( const FGeometry& InGeometry ) const;
 
 	/**
 	 * Gets the gradient stop (if any) of at the current mouse position
@@ -172,19 +172,19 @@ private:
 	 * @param MyGeometry	The geometry that was clicked in
 	 * @return				The stop mark at MousePos or invalid if none was found
 	 */
-	FGradientStopMark GetGradientStopAtPoint( const FVector2D& MousePos, const FGeometry& MyGeometry );
+	UNREALED_API FGradientStopMark GetGradientStopAtPoint( const FVector2D& MousePos, const FGeometry& MyGeometry );
 
 	/**
 	 * Get all gradient stop marks on the curve
 	 */
-	void GetGradientStopMarks( TArray<FGradientStopMark>& OutColorMarks, TArray<FGradientStopMark>& OutAlphaMarks ) const;
+	UNREALED_API void GetGradientStopMarks( TArray<FGradientStopMark>& OutColorMarks, TArray<FGradientStopMark>& OutAlphaMarks ) const;
 
 	/**
 	 * Removes a gradient stop
 	 *
 	 * @param InMark	The stop to remove
 	 */
-	void DeleteStop( const FGradientStopMark& InMark );
+	UNREALED_API void DeleteStop( const FGradientStopMark& InMark );
 
 	/**
 	 * Adds a gradient stop
@@ -193,7 +193,7 @@ private:
 	 * @param MyGeometry	The geometry of the stop area
 	 * @param bColorStop	If true a color stop is added, otherwise an alpha stop is added
 	 */
-	FGradientStopMark AddStop( const FVector2D& Position, const FGeometry& MyGeometry, bool bColorStop );
+	UNREALED_API FGradientStopMark AddStop( const FVector2D& Position, const FGeometry& MyGeometry, bool bColorStop );
 
 	/**
 	 * Moves a gradient stop to a new time
@@ -201,11 +201,11 @@ private:
 	 * @param Mark		The gradient stop to move
 	 * @param NewTime	The new time to move to
 	 */
-	void MoveStop( FGradientStopMark& Mark, float NewTime );
+	UNREALED_API void MoveStop( FGradientStopMark& Mark, float NewTime );
 
 private:
 	/** Local space rectangle of each gradient stop handle */
-	static const FSlateRect HandleRect;
+	static UNREALED_API const FSlateRect HandleRect;
 
 	/** The currently selected stop */
 	FGradientStopMark SelectedStop;

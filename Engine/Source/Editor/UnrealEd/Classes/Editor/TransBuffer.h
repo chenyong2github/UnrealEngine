@@ -11,8 +11,8 @@
 #include "Editor/Transactor.h"
 #include "TransBuffer.generated.h"
 
-UCLASS(transient)
-class UNREALED_API UTransBuffer
+UCLASS(transient, MinimalAPI)
+class UTransBuffer
 	: public UTransactor
 {
 public:
@@ -42,28 +42,28 @@ public:
 public:
 
 	// Constructor.
-	void Initialize(SIZE_T InMaxMemory);
+	UNREALED_API void Initialize(SIZE_T InMaxMemory);
 
 public:
 
 	/**
 	 * Validates the state of the transaction buffer.
 	 */
-	void CheckState() const;
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	UNREALED_API void CheckState() const;
+	static UNREALED_API void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 
 public:
 
 	//~ Begin UObject Interface.
 
-	virtual void Serialize( FArchive& Ar ) override;
-	virtual void FinishDestroy() override;
+	UNREALED_API virtual void Serialize( FArchive& Ar ) override;
+	UNREALED_API virtual void FinishDestroy() override;
 
 	//~ End UObject Interface.
 
 protected:
 	
-	void OnObjectsReinstanced(const TMap<UObject*, UObject*>& OldToNewInstances);
+	UNREALED_API void OnObjectsReinstanced(const TMap<UObject*, UObject*>& OldToNewInstances);
 
 	/** Implementation of the begin function. Used to create a specific transaction type */
 	template<typename TTransaction>
@@ -145,32 +145,32 @@ public:
 
 	//~ Begin UTransactor Interface.
 
-	virtual int32 Begin( const TCHAR* SessionContext, const FText& Description ) override;
-	virtual int32 End() override;
-	virtual void Cancel( int32 StartIndex = 0 ) override;
-	virtual void Reset( const FText& Reason ) override;
-	virtual bool CanUndo( FText* Text=NULL ) override;
-	virtual bool CanRedo( FText* Text=NULL ) override;
+	UNREALED_API virtual int32 Begin( const TCHAR* SessionContext, const FText& Description ) override;
+	UNREALED_API virtual int32 End() override;
+	UNREALED_API virtual void Cancel( int32 StartIndex = 0 ) override;
+	UNREALED_API virtual void Reset( const FText& Reason ) override;
+	UNREALED_API virtual bool CanUndo( FText* Text=NULL ) override;
+	UNREALED_API virtual bool CanRedo( FText* Text=NULL ) override;
 	virtual int32 GetQueueLength( ) const override { return UndoBuffer.Num(); }
-	virtual int32 FindTransactionIndex(const FGuid& TransactionId) const override;
-	virtual const FTransaction* GetTransaction( int32 QueueIndex ) const override;
-	virtual FTransactionContext GetUndoContext( bool bCheckWhetherUndoPossible = true ) override;
-	virtual SIZE_T GetUndoSize() const override;
+	UNREALED_API virtual int32 FindTransactionIndex(const FGuid& TransactionId) const override;
+	UNREALED_API virtual const FTransaction* GetTransaction( int32 QueueIndex ) const override;
+	UNREALED_API virtual FTransactionContext GetUndoContext( bool bCheckWhetherUndoPossible = true ) override;
+	UNREALED_API virtual SIZE_T GetUndoSize() const override;
 	virtual int32 GetUndoCount( ) const override { return UndoCount; }
-	virtual FTransactionContext GetRedoContext() override;
-	virtual void SetUndoBarrier() override;
-	virtual void RemoveUndoBarrier() override;
-	virtual void ClearUndoBarriers() override;
-	virtual int32 GetCurrentUndoBarrier() const override;
-	virtual bool Undo(bool bCanRedo = true) override;
-	virtual bool Redo() override;
-	virtual bool EnableObjectSerialization() override;
-	virtual bool DisableObjectSerialization() override;
+	UNREALED_API virtual FTransactionContext GetRedoContext() override;
+	UNREALED_API virtual void SetUndoBarrier() override;
+	UNREALED_API virtual void RemoveUndoBarrier() override;
+	UNREALED_API virtual void ClearUndoBarriers() override;
+	UNREALED_API virtual int32 GetCurrentUndoBarrier() const override;
+	UNREALED_API virtual bool Undo(bool bCanRedo = true) override;
+	UNREALED_API virtual bool Redo() override;
+	UNREALED_API virtual bool EnableObjectSerialization() override;
+	UNREALED_API virtual bool DisableObjectSerialization() override;
 	virtual bool IsObjectSerializationEnabled() override { return DisallowObjectSerialization == 0; }
-	virtual void SetPrimaryUndoObject( UObject* Object ) override;
-	virtual bool IsObjectInTransactionBuffer( const UObject* Object ) const override;
-	virtual bool IsObjectTransacting(const UObject* Object) const override;
-	virtual bool ContainsPieObjects() const override;
+	UNREALED_API virtual void SetPrimaryUndoObject( UObject* Object ) override;
+	UNREALED_API virtual bool IsObjectInTransactionBuffer( const UObject* Object ) const override;
+	UNREALED_API virtual bool IsObjectTransacting(const UObject* Object) const override;
+	UNREALED_API virtual bool ContainsPieObjects() const override;
 	virtual bool IsActive() override
 	{
 		return ActiveCount > 0;

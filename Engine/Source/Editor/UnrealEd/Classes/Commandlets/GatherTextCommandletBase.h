@@ -10,15 +10,15 @@
 #include "LocalizedAssetUtil.h"
 #include "GatherTextCommandletBase.generated.h"
 
-struct UNREALED_API FGatherTextDelegates
+struct FGatherTextDelegates
 {
 	/** Delegate called during a localization gather to allow code to inject new gather and exclude paths for the given localization target */
 	DECLARE_MULTICAST_DELEGATE_ThreeParams(FGetAdditionalGatherPaths, const FString& /*InLocalizationTargetName*/, TArray<FString>& /*InOutIncludePathFilters*/, TArray<FString>& /*InOutExcludePathFilters*/);
-	static FGetAdditionalGatherPaths GetAdditionalGatherPaths;
+	static UNREALED_API FGetAdditionalGatherPaths GetAdditionalGatherPaths;
 };
 
 /** Performs fuzzy path matching against a set of include and exclude paths */
-class UNREALED_API FFuzzyPathMatcher
+class FFuzzyPathMatcher
 {
 public:
 	enum class EPathMatch
@@ -29,9 +29,9 @@ public:
 	};
 
 public:
-	FFuzzyPathMatcher(const TArray<FString>& InIncludePathFilters, const TArray<FString>& InExcludePathFilters);
+	UNREALED_API FFuzzyPathMatcher(const TArray<FString>& InIncludePathFilters, const TArray<FString>& InExcludePathFilters);
 
-	EPathMatch TestPath(const FString& InPathToTest) const;
+	UNREALED_API EPathMatch TestPath(const FString& InPathToTest) const;
 
 private:
 	enum class EPathType : uint8
@@ -58,29 +58,29 @@ private:
 /**
  *	UGatherTextCommandletBase: Base class for localization commandlets. Just to force certain behaviors and provide helper functionality. 
  */
-UCLASS()
-class UNREALED_API UGatherTextCommandletBase : public UCommandlet
+UCLASS(MinimalAPI)
+class UGatherTextCommandletBase : public UCommandlet
 {
 	GENERATED_UCLASS_BODY()
 
 public:
-	virtual void Initialize( const TSharedRef< FLocTextHelper >& InGatherManifestHelper, const TSharedPtr< FLocalizationSCC >& InSourceControlInfo );
-	virtual void BeginDestroy() override;
+	UNREALED_API virtual void Initialize( const TSharedRef< FLocTextHelper >& InGatherManifestHelper, const TSharedPtr< FLocalizationSCC >& InSourceControlInfo );
+	UNREALED_API virtual void BeginDestroy() override;
 
 	// Wrappers for extracting config values
-	bool GetBoolFromConfig( const TCHAR* Section, const TCHAR* Key, bool& OutValue, const FString& Filename );
-	bool GetStringFromConfig( const TCHAR* Section, const TCHAR* Key, FString& OutValue, const FString& Filename );
-	bool GetPathFromConfig( const TCHAR* Section, const TCHAR* Key, FString& OutValue, const FString& Filename );
-	int32 GetStringArrayFromConfig( const TCHAR* Section, const TCHAR* Key, TArray<FString>& OutArr, const FString& Filename );
-	int32 GetPathArrayFromConfig( const TCHAR* Section, const TCHAR* Key, TArray<FString>& OutArr, const FString& Filename );
+	UNREALED_API bool GetBoolFromConfig( const TCHAR* Section, const TCHAR* Key, bool& OutValue, const FString& Filename );
+	UNREALED_API bool GetStringFromConfig( const TCHAR* Section, const TCHAR* Key, FString& OutValue, const FString& Filename );
+	UNREALED_API bool GetPathFromConfig( const TCHAR* Section, const TCHAR* Key, FString& OutValue, const FString& Filename );
+	UNREALED_API int32 GetStringArrayFromConfig( const TCHAR* Section, const TCHAR* Key, TArray<FString>& OutArr, const FString& Filename );
+	UNREALED_API int32 GetPathArrayFromConfig( const TCHAR* Section, const TCHAR* Key, TArray<FString>& OutArr, const FString& Filename );
 
 	// Utilities for split platform detection
-	bool IsSplitPlatformName(const FName InPlatformName) const;
-	bool ShouldSplitPlatformForPath(const FString& InPath, FName* OutPlatformName = nullptr) const;
-	FName GetSplitPlatformNameFromPath(const FString& InPath) const;
+	UNREALED_API bool IsSplitPlatformName(const FName InPlatformName) const;
+	UNREALED_API bool ShouldSplitPlatformForPath(const FString& InPath, FName* OutPlatformName = nullptr) const;
+	UNREALED_API FName GetSplitPlatformNameFromPath(const FString& InPath) const;
 
 	// Utility to get the correct base path (engine or project) for the current environment
-	static const FString& GetProjectBasePath();
+	static UNREALED_API const FString& GetProjectBasePath();
 
 	/**
 * Returns true if this commandlet should run during a preview run.
@@ -101,12 +101,12 @@ protected:
 	TMap<FName, FString> SplitPlatforms;
 
 	// Common params and switches among all text gathering commadnlets 
-	static const TCHAR* ConfigParam;
-	static const TCHAR* EnableSourceControlSwitch;
-	static const TCHAR* DisableSubmitSwitch;
-	static const TCHAR* PreviewSwitch;
-	static const TCHAR* GatherTypeParam;
+	static UNREALED_API const TCHAR* ConfigParam;
+	static UNREALED_API const TCHAR* EnableSourceControlSwitch;
+	static UNREALED_API const TCHAR* DisableSubmitSwitch;
+	static UNREALED_API const TCHAR* PreviewSwitch;
+	static UNREALED_API const TCHAR* GatherTypeParam;
 
 private:
-	virtual void CreateCustomEngine(const FString& Params) override ; //Disallow other text commandlets to make their own engine.	
+	UNREALED_API virtual void CreateCustomEngine(const FString& Params) override ; //Disallow other text commandlets to make their own engine.	
 };

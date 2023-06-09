@@ -21,8 +21,8 @@ enum class EStructViewerDeveloperType : uint8
 /**
  * Implements the Struct Viewer's loading and saving settings.
  */
-UCLASS(config=EditorPerProjectUserSettings)
-class UNREALED_API UStructViewerSettings : public UObject
+UCLASS(config=EditorPerProjectUserSettings, MinimalAPI)
+class UStructViewerSettings : public UObject
 {
 	GENERATED_BODY()
 
@@ -46,8 +46,8 @@ public:
 
 protected:
 	//~ UObject overrides
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	UNREALED_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 
 	// Holds an event delegate that is executed when a setting has changed.
-	static FSettingChangedEvent SettingChangedEvent;
+	static UNREALED_API FSettingChangedEvent SettingChangedEvent;
 };

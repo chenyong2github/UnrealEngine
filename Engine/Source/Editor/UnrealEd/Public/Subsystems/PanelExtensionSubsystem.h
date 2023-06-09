@@ -78,27 +78,27 @@ private:
  * UPanelExtensionSubsystem
  * Subsystem for creating extensible panels in the Editor
  */
-UCLASS()
-class UNREALED_API UPanelExtensionSubsystem : public UEditorSubsystem
+UCLASS(MinimalAPI)
+class UPanelExtensionSubsystem : public UEditorSubsystem
 {
 	GENERATED_BODY()
 
 public:
-	UPanelExtensionSubsystem();
+	UNREALED_API UPanelExtensionSubsystem();
 
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-	virtual void Deinitialize() override;
+	UNREALED_API virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	UNREALED_API virtual void Deinitialize() override;
 
-	void RegisterPanelFactory(FName ExtensionPanelID, const FPanelExtensionFactory& InPanelExtensionFactory);
-	void UnregisterPanelFactory(FName Identifier, FName ExtensionPanelID = NAME_None);
-	bool IsPanelFactoryRegistered(FName Identifier, FName ExtensionPanelID = NAME_None) const;
+	UNREALED_API void RegisterPanelFactory(FName ExtensionPanelID, const FPanelExtensionFactory& InPanelExtensionFactory);
+	UNREALED_API void UnregisterPanelFactory(FName Identifier, FName ExtensionPanelID = NAME_None);
+	UNREALED_API bool IsPanelFactoryRegistered(FName Identifier, FName ExtensionPanelID = NAME_None) const;
 
 protected:
 	friend class SExtensionPanel;
-	TSharedRef<SWidget> CreateWidget(FName ExtensionPanelID, FWeakObjectPtr ExtensionContext);
+	UNREALED_API TSharedRef<SWidget> CreateWidget(FName ExtensionPanelID, FWeakObjectPtr ExtensionContext);
 
 	DECLARE_MULTICAST_DELEGATE(FPanelFactoryRegistryChanged);
-	FPanelFactoryRegistryChanged& OnPanelFactoryRegistryChanged(FName ExtensionPanelID);
+	UNREALED_API FPanelFactoryRegistryChanged& OnPanelFactoryRegistryChanged(FName ExtensionPanelID);
 
 private:
 	TMap<FName, TArray<FPanelExtensionFactory>> ExtensionPointMap;

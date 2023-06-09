@@ -24,7 +24,7 @@ public:
 
 	SLATE_END_ARGS()
 
-	UNREALED_API SDlgPickAssetPath()
+	SDlgPickAssetPath()
 	:	UserResponse(EAppReturnType::Cancel)
 	{
 	}

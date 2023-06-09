@@ -15,7 +15,7 @@ class FExtender;
 /////////////////////////////////////////////////////
 // FApplicationMode
 
-class UNREALED_API FApplicationMode : public TSharedFromThis<FApplicationMode>
+class FApplicationMode : public TSharedFromThis<FApplicationMode>
 {
 protected:
 	// The layout to use in this mode
@@ -38,14 +38,14 @@ protected:
 	TSharedPtr<FWorkspaceItem> WorkspaceMenuCategory;
 
 public:
-	FApplicationMode(FName InModeName);
+	UNREALED_API FApplicationMode(FName InModeName);
 
-	FApplicationMode(FName InModeName, FText(*GetLocalizedMode)(const FName));
+	UNREALED_API FApplicationMode(FName InModeName, FText(*GetLocalizedMode)(const FName));
 
 	virtual ~FApplicationMode() {}
 
-	void DeactivateMode(TSharedPtr<FTabManager> InTabManager);
-	TSharedRef<FTabManager::FLayout> ActivateMode(TSharedPtr<FTabManager> InTabManager);
+	UNREALED_API void DeactivateMode(TSharedPtr<FTabManager> InTabManager);
+	UNREALED_API TSharedRef<FTabManager::FLayout> ActivateMode(TSharedPtr<FTabManager> InTabManager);
 	virtual void RegisterTabFactories(TSharedPtr<FTabManager> InTabManager) {}
 
 	virtual void AddTabFactory(FCreateWorkflowTabFactory FactoryCreator) {}

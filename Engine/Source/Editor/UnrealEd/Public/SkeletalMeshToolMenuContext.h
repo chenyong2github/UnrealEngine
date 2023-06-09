@@ -8,8 +8,8 @@
 
 class ISkeletalMeshEditor;
 
-UCLASS()
-class UNREALED_API USkeletalMeshToolMenuContext : public UObject
+UCLASS(MinimalAPI)
+class USkeletalMeshToolMenuContext : public UObject
 {
 	GENERATED_BODY()
 public:

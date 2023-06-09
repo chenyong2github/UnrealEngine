@@ -27,17 +27,17 @@ ENUM_CLASS_FLAGS(EBlueprintCompileReinstancerFlags)
 
 class FReinstanceFinalizer;
 
-struct UNREALED_API FRecreateUberGraphFrameScope
+struct FRecreateUberGraphFrameScope
 {
 private:
 	TArray<UObject*> Objects;
 	UClass* RecompiledClass;
 public:
-	FRecreateUberGraphFrameScope(UClass* InClass, bool bRecreate);
-	~FRecreateUberGraphFrameScope();
+	UNREALED_API FRecreateUberGraphFrameScope(UClass* InClass, bool bRecreate);
+	UNREALED_API ~FRecreateUberGraphFrameScope();
 };
 
-struct UNREALED_API FReplaceInstancesOfClassParameters
+struct FReplaceInstancesOfClassParameters
 {
 	UE_NONCOPYABLE(FReplaceInstancesOfClassParameters)
 
@@ -108,16 +108,16 @@ struct UNREALED_API UE_DEPRECATED(5.2, "This type is no longer in use.") FBatchR
 	bool bReplaceReferencesToOldClasses = false;
 };
 
-class UNREALED_API FBlueprintCompileReinstancer : public TSharedFromThis<FBlueprintCompileReinstancer>, public FGCObject
+class FBlueprintCompileReinstancer : public TSharedFromThis<FBlueprintCompileReinstancer>, public FGCObject
 {
 protected:
 	friend struct FBlueprintCompilationManagerImpl;
 	friend struct FReinstancingJob;
 
-	static TSet<TWeakObjectPtr<UBlueprint>> CompiledBlueprintsToSave;
+	static UNREALED_API TSet<TWeakObjectPtr<UBlueprint>> CompiledBlueprintsToSave;
 
-	static UClass* HotReloadedOldClass;
-	static UClass* HotReloadedNewClass;
+	static UNREALED_API UClass* HotReloadedOldClass;
+	static UNREALED_API UClass* HotReloadedNewClass;
 
 	/** Reference to the class we're actively reinstancing */
 	UClass* ClassToReinstance;
@@ -164,61 +164,61 @@ protected:
 
 public:
 	// FSerializableObject interface
-	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	UNREALED_API virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	virtual FString GetReferencerName() const override
 	{
 		return TEXT("FBlueprintCompileReinstancer");
 	}
 	// End of FSerializableObject interface
 
-	static void OptionallyRefreshNodes(UBlueprint* BP);
+	static UNREALED_API void OptionallyRefreshNodes(UBlueprint* BP);
 
 	UE_DEPRECATED(5.0, "This method performs no function and isn't invoked by the base class.  Remove all calls to the base class method.")
-	virtual void EnlistDependentBlueprintToRecompile(UBlueprint* BP, bool bBytecodeOnly);
-	virtual void BlueprintWasRecompiled(UBlueprint* BP, bool bBytecodeOnly);
+	UNREALED_API virtual void EnlistDependentBlueprintToRecompile(UBlueprint* BP, bool bBytecodeOnly);
+	UNREALED_API virtual void BlueprintWasRecompiled(UBlueprint* BP, bool bBytecodeOnly);
 
 	static TSharedPtr<FBlueprintCompileReinstancer> Create(UClass* InClassToReinstance, EBlueprintCompileReinstancerFlags Flags = EBlueprintCompileReinstancerFlags::AutoInferSaveOnCompile)
 	{
 		return MakeShareable(new FBlueprintCompileReinstancer(InClassToReinstance, Flags));
 	}
 
-	virtual ~FBlueprintCompileReinstancer();
+	UNREALED_API virtual ~FBlueprintCompileReinstancer();
 
 	/** Saves a mapping of field names to their UField equivalents, so we can remap any bytecode that references them later */
-	void SaveClassFieldMapping(UClass* InClassToReinstance);
+	UNREALED_API void SaveClassFieldMapping(UClass* InClassToReinstance);
 
 	/** Helper to gather mappings from the old class's fields to the new class's version */
-	void GenerateFieldMappings(TMap<FFieldVariant, FFieldVariant>& FieldMapping);
+	UNREALED_API void GenerateFieldMappings(TMap<FFieldVariant, FFieldVariant>& FieldMapping);
 
 	/** Reinstances all objects in the ObjectReinstancingMap */
-	void ReinstanceObjects(bool bForceAlwaysReinstance = false);
+	UNREALED_API void ReinstanceObjects(bool bForceAlwaysReinstance = false);
 
 	/** Updates references to properties and functions of the class that has in the bytecode of dependent blueprints */
-	void UpdateBytecodeReferences( TSet<UBlueprint*>& OutDependentBlueprints, TMap<FFieldVariant, FFieldVariant>& OutFieldMapping);
+	UNREALED_API void UpdateBytecodeReferences( TSet<UBlueprint*>& OutDependentBlueprints, TMap<FFieldVariant, FFieldVariant>& OutFieldMapping);
 
 	/** Consumes the set and map populated by calls to UpdateBytecodeReferences */
-	static void FinishUpdateBytecodeReferences( const TSet<UBlueprint*>& DependentBPs, const TMap<FFieldVariant, FFieldVariant>& FieldMappings);
+	static UNREALED_API void FinishUpdateBytecodeReferences( const TSet<UBlueprint*>& DependentBPs, const TMap<FFieldVariant, FFieldVariant>& FieldMappings);
 
 	// @todo_deprecated - To be removed in a future release.
 	UE_DEPRECATED(5.2, "Please use the version that takes an FReplaceInstancesOfClassParameters input instead.")
-	static void ReplaceInstancesOfClass(UClass* OldClass, UClass* NewClass, UObject* OriginalCDO = nullptr, TSet<UObject*>* ObjectsThatShouldUseOldStuff = nullptr, bool bClassObjectReplaced = false, bool bPreserveRootComponent = true);
+	static UNREALED_API void ReplaceInstancesOfClass(UClass* OldClass, UClass* NewClass, UObject* OriginalCDO = nullptr, TSet<UObject*>* ObjectsThatShouldUseOldStuff = nullptr, bool bClassObjectReplaced = false, bool bPreserveRootComponent = true);
 	UE_DEPRECATED(5.2, "Please use ReplaceInstancesOfClass() instead.")
-	static void ReplaceInstancesOfClassEx(const FReplaceInstancesOfClassParameters& Parameters );
+	static UNREALED_API void ReplaceInstancesOfClassEx(const FReplaceInstancesOfClassParameters& Parameters );
 	UE_DEPRECATED(5.2, "Please use the version that takes an FReplaceInstancesOfClassParameters input instead.")
-	static void BatchReplaceInstancesOfClass(TMap<UClass*, UClass*>& InOldToNewClassMap,
+	static UNREALED_API void BatchReplaceInstancesOfClass(TMap<UClass*, UClass*>& InOldToNewClassMap,
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		const FBatchReplaceInstancesOfClassParameters& BatchParams = FBatchReplaceInstancesOfClassParameters()
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	);
 
 	/** Replace all instances of OldClass with a new instance of NewClass */
-	static void ReplaceInstancesOfClass(UClass* OldClass, UClass* NewClass, const FReplaceInstancesOfClassParameters& Params);
+	static UNREALED_API void ReplaceInstancesOfClass(UClass* OldClass, UClass* NewClass, const FReplaceInstancesOfClassParameters& Params);
 
 	/** Batch replaces a mapping of one or more classes to their new class */
-	static void BatchReplaceInstancesOfClass(const TMap<UClass*, UClass*>& InOldToNewClassMap, const FReplaceInstancesOfClassParameters& Params);
+	static UNREALED_API void BatchReplaceInstancesOfClass(const TMap<UClass*, UClass*>& InOldToNewClassMap, const FReplaceInstancesOfClassParameters& Params);
 	
 	/** Function used to safely discard a CDO, so that the class can have its layout changed, callers must move parent CDOs aside before moving child CDOs aside: */
-	static UClass* MoveCDOToNewClass(UClass* OwnerClass, const TMap<UClass*, UClass*>& OldToNewMap, bool bAvoidCDODuplication);
+	static UNREALED_API UClass* MoveCDOToNewClass(UClass* OwnerClass, const TMap<UClass*, UClass*>& OldToNewMap, bool bAvoidCDODuplication);
 
 	/**
 	* Moves CDOs aside to immutable versions of classes(`REINST`) so that the CDO's can safely be GC'd.
@@ -226,13 +226,13 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	* through this function again later, so we avoid O(N^2) processing of REINST classes.
 	* Maps each given `SKEL` class to its appropriate `REINST` version of itself
 	*/
-	static void MoveDependentSkelToReinst(UClass* OwnerClass, TMap<UClass*, UClass*>& OldToNewMap);
+	static UNREALED_API void MoveDependentSkelToReinst(UClass* OwnerClass, TMap<UClass*, UClass*>& OldToNewMap);
 
 	/** Gathers the full class Hierarchy of the ClassToSearch, sorted top down (0 index being UObject, n being the subclasses) */
-	static void GetSortedClassHierarchy(UClass* ClassToSearch, TArray<UClass*>& OutHierarchy, UClass** OutNativeParent);
+	static UNREALED_API void GetSortedClassHierarchy(UClass* ClassToSearch, TArray<UClass*>& OutHierarchy, UClass** OutNativeParent);
 
 	/** Returns true if the given class is a REINST class (starts with the 'REINST_' prefix) */
-	static bool IsReinstClass(const UClass* Class);
+	static UNREALED_API bool IsReinstClass(const UClass* Class);
 
 	/**
 	 * When re-instancing a component, we have to make sure all instance owners' 
@@ -241,21 +241,21 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	 * 
 	 * @param  ComponentClass    Identifies the component that was altered (used to find all its instances, and thusly all instance owners).
 	 */
-	static void ReconstructOwnerInstances(TSubclassOf<UActorComponent> ComponentClass);
+	static UNREALED_API void ReconstructOwnerInstances(TSubclassOf<UActorComponent> ComponentClass);
 	
 	/** Verify that all instances of the duplicated class have been replaced and collected */
-	void VerifyReplacement();
+	UNREALED_API void VerifyReplacement();
 
 	virtual bool IsClassObjectReplaced() const { return false; }
 
-	void FinalizeFastReinstancing(TArray<UObject*>& ObjectsToReplace);
+	UNREALED_API void FinalizeFastReinstancing(TArray<UObject*>& ObjectsToReplace);
 protected:
 
-	TSharedPtr<FReinstanceFinalizer> ReinstanceInner(bool bForceAlwaysReinstance);
+	UNREALED_API TSharedPtr<FReinstanceFinalizer> ReinstanceInner(bool bForceAlwaysReinstance);
 
-	TSharedPtr<FReinstanceFinalizer> ReinstanceFast();
+	UNREALED_API TSharedPtr<FReinstanceFinalizer> ReinstanceFast();
 
-	void CompileChildren();
+	UNREALED_API void CompileChildren();
 
 	bool IsReinstancingSkeleton() const { return (ReinstClassType == RCT_BpSkeleton); }
 
@@ -278,11 +278,11 @@ protected:
 	 * @param bSkipGC					TRUE if garbage collection should be skipped
 	 * @param bAutoInferSaveOnCompile	TRUE if the reinstancer should infer whether or not save on compile should occur, FALSE if it should never save on compile
 	 */
-	FBlueprintCompileReinstancer(UClass* InClassToReinstance, EBlueprintCompileReinstancerFlags Flags = EBlueprintCompileReinstancerFlags::AutoInferSaveOnCompile);
+	UNREALED_API FBlueprintCompileReinstancer(UClass* InClassToReinstance, EBlueprintCompileReinstancerFlags Flags = EBlueprintCompileReinstancerFlags::AutoInferSaveOnCompile);
 
 	/** Reparents the specified blueprint or class to be the duplicated class in order to allow properties to be copied from the previous CDO to the new one */
-	void ReparentChild(UBlueprint* ChildBP);
-	void ReparentChild(UClass* ChildClass);
+	UNREALED_API void ReparentChild(UBlueprint* ChildBP);
+	UNREALED_API void ReparentChild(UClass* ChildClass);
 
 	/** Determine whether reinstancing actors should preserve the root component of the new actor */
 	virtual bool ShouldPreserveRootComponentOfReinstancedActor() const { return true; }
@@ -296,12 +296,12 @@ protected:
 	* @param bClearExternalReferences		If true then attempt to replace references to old classes and instances on this object with the corresponding new ones
 	* @param bForceDeltaSerialization		If true the delta serialization will be used when copying
 	*/
-	static void CopyPropertiesForUnrelatedObjects(UObject* OldObject, UObject* NewObject, bool bClearExternalReferences, bool bForceDeltaSerialization = false);
+	static UNREALED_API void CopyPropertiesForUnrelatedObjects(UObject* OldObject, UObject* NewObject, bool bClearExternalReferences, bool bForceDeltaSerialization = false);
 
 private:
 	/** Handles the work of ReplaceInstancesOfClass, handling both normal replacement of instances and batch */
-	static void ReplaceInstancesOfClass_Inner(const TMap<UClass*, UClass*>& InOldToNewClassMap, const FReplaceInstancesOfClassParameters& Params);
+	static UNREALED_API void ReplaceInstancesOfClass_Inner(const TMap<UClass*, UClass*>& InOldToNewClassMap, const FReplaceInstancesOfClassParameters& Params);
 
 	/** Returns true if A is higher up the class hierarchy  */
-	static bool ReinstancerOrderingFunction(UClass* A, UClass* B);
+	static UNREALED_API bool ReinstancerOrderingFunction(UClass* A, UClass* B);
 };

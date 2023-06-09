@@ -55,7 +55,7 @@ private:
 	bool bReferencesChecked;
 };
 
-class UNREALED_API FAssetPrivatizeModel
+class FAssetPrivatizeModel
 {
 public:
 	enum EState
@@ -70,10 +70,10 @@ public:
 		Finished,
 	};
 
-	FAssetPrivatizeModel(const TArray<UObject*>& InObjectsToPrivatize);
+	UNREALED_API FAssetPrivatizeModel(const TArray<UObject*>& InObjectsToPrivatize);
 
 	/** Add an object to the list of pending private assets, this will invalidate the scanning state */
-	void AddObjectToPrivatize(UObject* InObject, UPackage* InOwningPackage);
+	UNREALED_API void AddObjectToPrivatize(UObject* InObject, UPackage* InOwningPackage);
 
 	/** Returns the pending private assets */
 	const TArray<TSharedPtr<FPendingPrivateAsset>>* GetPendingPrivateAssets() const { return &PendingPrivateAssets; }
@@ -82,16 +82,16 @@ public:
 	const TSet<FName>& GetIllegalAssetReferences() const { return IllegalOnDiskReferences; }
 
 	/** Ticks the privatize model which does a timeslice of work before returning */
-	void Tick(const float InDeltaTime);
+	UNREALED_API void Tick(const float InDeltaTime);
 
 	/** Returns the current state of the scanning process */
 	EState GetState() { return State; }
 
 	/** Gets the 0..1 progress of the scan */
-	float GetProgress() const;
+	UNREALED_API float GetProgress() const;
 
 	/** Gets the current text to display for the current progress of the scan */
-	FText GetProgressText() const;
+	UNREALED_API FText GetProgressText() const;
 
 	/** Are any of the pending assets being referenced in memory. */
 	bool IsAnythingReferencedInMemoryByNonUndo() const { return bIsAnythingReferencedInMemoryByNonUndo; }
@@ -103,16 +103,16 @@ public:
 	int32 GetObjectsPrivatizedCount() const { return ObjectsPrivatized; }
 
 	/** Returns true if it is valid to mark private the pending objects with no problems (there are no illegal references detected) */
-	bool CanPrivatize();
+	UNREALED_API bool CanPrivatize();
 
 	/** Performs the privatization action if possible */
-	bool DoPrivatize();
+	UNREALED_API bool DoPrivatize();
 
 	/** Returns true if we can't cleanly mark the pending objects as private (there are illegal references detected) */
-	bool CanForcePrivatize();
+	UNREALED_API bool CanForcePrivatize();
 
 	/** Marks the pending private objects as private and nulls out all detected illegal references */
-	bool DoForcePrivatize();
+	UNREALED_API bool DoForcePrivatize();
 
 	/** Fires whenever the state changes */
 	DECLARE_EVENT_OneParam(FAssetPrivatizeModel, FOnStateChanged, EState /*NewState*/);
@@ -124,10 +124,10 @@ public:
 private:
 
 	/** Sets the current state of the model */
-	void SetState(EState NewState);
+	UNREALED_API void SetState(EState NewState);
 
 	/** Helper that does the reference detection during scanning */
-	void ScanForReferences();
+	UNREALED_API void ScanForReferences();
 
 private:
 

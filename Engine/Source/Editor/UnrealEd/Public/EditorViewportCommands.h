@@ -15,10 +15,10 @@ class FUICommandList;
 /**
  * Class containing commands for editor viewport actions common to all viewports
  */
-class UNREALED_API FEditorViewportCommands : public TCommands<FEditorViewportCommands>
+class FEditorViewportCommands : public TCommands<FEditorViewportCommands>
 {
 public:
-	FEditorViewportCommands();
+	UNREALED_API FEditorViewportCommands();
 	
 	/** Viewport pane configurations */
 	TSharedPtr< FUICommandInfo > ViewportConfig_OnePane;
@@ -248,7 +248,7 @@ public:
 	TSharedPtr< FUICommandInfo > SurfaceSnapping;
 public:
 	/** Registers our commands with the binding system */
-	virtual void RegisterCommands() override;
+	UNREALED_API virtual void RegisterCommands() override;
 };
 
 /**

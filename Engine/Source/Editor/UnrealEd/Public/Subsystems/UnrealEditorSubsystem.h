@@ -11,8 +11,8 @@
 * UUnrealEditorSubsystem 
 * Subsystem for exposing editor functionality to scripts
 */
-UCLASS()
-class UNREALED_API UUnrealEditorSubsystem  : public UEditorSubsystem
+UCLASS(MinimalAPI)
+class UUnrealEditorSubsystem  : public UEditorSubsystem
 {
 	GENERATED_BODY()
 
@@ -27,7 +27,7 @@ public:
 	 * @return	Whether or not we were able to get a camera for a level editing viewport
 	 */
 	UFUNCTION(BlueprintPure, Category = "Development|Editor")
-	bool GetLevelViewportCameraInfo(FVector& CameraLocation, FRotator& CameraRotation);
+	UNREALED_API bool GetLevelViewportCameraInfo(FVector& CameraLocation, FRotator& CameraRotation);
 
 	/**
 	* Sets information about the camera position for the primary level editor viewport.
@@ -37,15 +37,15 @@ public:
 	* @param	CameraRotation	Rotation the camera will be set to.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Development|Editor")
-	void SetLevelViewportCameraInfo(FVector CameraLocation, FRotator CameraRotation);
+	UNREALED_API void SetLevelViewportCameraInfo(FVector CameraLocation, FRotator CameraRotation);
 
 	/**
 	 * Find the World in the world editor. It can then be used as WorldContext by other libraries like GameplayStatics.
 	 * @return	The World used by the world editor.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
-	UWorld* GetEditorWorld();
+	UNREALED_API UWorld* GetEditorWorld();
 
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
-	UWorld* GetGameWorld();
+	UNREALED_API UWorld* GetGameWorld();
 };

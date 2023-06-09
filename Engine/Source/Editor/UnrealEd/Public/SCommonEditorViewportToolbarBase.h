@@ -63,7 +63,7 @@ namespace CommonEditorViewportUtils
 /**
  * A viewport toolbar widget for an asset or level editor that is placed in a viewport
  */
-class UNREALED_API SCommonEditorViewportToolbarBase : public SViewportToolBar
+class SCommonEditorViewportToolbarBase : public SViewportToolBar
 {
 public:
 	SLATE_BEGIN_ARGS(SCommonEditorViewportToolbarBase)
@@ -75,12 +75,12 @@ public:
 		SLATE_ARGUMENT(TSharedPtr<IPreviewProfileController>, PreviewProfileController) // Should be null if the Preview doesn't require profile.
 	SLATE_END_ARGS()
 
-	virtual ~SCommonEditorViewportToolbarBase();
+	UNREALED_API virtual ~SCommonEditorViewportToolbarBase();
 
-	void Construct(const FArguments& InArgs, TSharedPtr<class ICommonEditorViewportToolbarInfoProvider> InInfoProvider);
+	UNREALED_API void Construct(const FArguments& InArgs, TSharedPtr<class ICommonEditorViewportToolbarInfoProvider> InInfoProvider);
 
 	/** Build the screen percentage menu. */
-	static void ConstructScreenPercentageMenu(FMenuBuilder& MenuBuilder, class FEditorViewportClient* ViewportClient);
+	static UNREALED_API void ConstructScreenPercentageMenu(FMenuBuilder& MenuBuilder, class FEditorViewportClient* ViewportClient);
 
 private:
 	/**
@@ -88,7 +88,7 @@ private:
 	 *
 	 * @return	Label to use for this menu label
 	 */
-	FText GetCameraMenuLabel() const;
+	UNREALED_API FText GetCameraMenuLabel() const;
 
 
 	/**
@@ -96,82 +96,82 @@ private:
 	 *
 	 * @return	Label to use for this menu label
 	 */
-	FText GetViewMenuLabel() const;
+	UNREALED_API FText GetViewMenuLabel() const;
 
 	/**
 	 * Generates the toolbar options menu content 
 	 *
 	 * @return The widget containing the options menu content
 	 */
-	TSharedRef<SWidget> GenerateOptionsMenu() const;
+	UNREALED_API TSharedRef<SWidget> GenerateOptionsMenu() const;
 
 	/**
 	 * Generates the toolbar camera menu content 
 	 *
 	 * @return The widget containing the view menu content
 	 */
-	TSharedRef<SWidget> GenerateCameraMenu() const;
+	UNREALED_API TSharedRef<SWidget> GenerateCameraMenu() const;
 
 	/**
 	 * Generates the toolbar view menu content 
 	 *
 	 * @return The widget containing the view menu content
 	 */
-	TSharedRef<SWidget> GenerateViewMenu() const;
+	UNREALED_API TSharedRef<SWidget> GenerateViewMenu() const;
 
 	/**
 	 * Generates the toolbar show menu content 
 	 *
 	 * @return The widget containing the show menu content
 	 */
-	virtual TSharedRef<SWidget> GenerateShowMenu() const;
+	UNREALED_API virtual TSharedRef<SWidget> GenerateShowMenu() const;
 
 	/**
 	 * Returns the initial visibility of the view mode options widget 
 	 *
 	 * @return The visibility value
 	 */
-	EVisibility GetViewModeOptionsVisibility() const;
+	UNREALED_API EVisibility GetViewModeOptionsVisibility() const;
 
 	/**
 	 * Generates the toolbar view param menu content 
 	 *
 	 * @return The widget containing the show menu content
 	 */
-	TSharedRef<SWidget> GenerateViewModeOptionsMenu() const;
+	UNREALED_API TSharedRef<SWidget> GenerateViewModeOptionsMenu() const;
 
 	/**
 	 * @return The widget containing the perspective only FOV window.
 	 */
-	TSharedRef<SWidget> GenerateFOVMenu() const;
+	UNREALED_API TSharedRef<SWidget> GenerateFOVMenu() const;
 
 	/** Called by the FOV slider in the perspective viewport to get the FOV value */
-	float OnGetFOVValue() const;
+	UNREALED_API float OnGetFOVValue() const;
 
 	/**
 	 * @return The widget containing the far view plane slider.
 	 */
-	TSharedRef<SWidget> GenerateFarViewPlaneMenu() const;
+	UNREALED_API TSharedRef<SWidget> GenerateFarViewPlaneMenu() const;
 
 	/** Called by the far view plane slider in the perspective viewport to get the far view plane value */
-	float OnGetFarViewPlaneValue() const;
+	UNREALED_API float OnGetFarViewPlaneValue() const;
 
 	/** Called when the far view plane slider is adjusted in the perspective viewport */
-	void OnFarViewPlaneValueChanged( float NewValue );
+	UNREALED_API void OnFarViewPlaneValueChanged( float NewValue );
 
 	/** Called when we click the realtime warning */
-	FReply OnRealtimeWarningClicked();
+	UNREALED_API FReply OnRealtimeWarningClicked();
 	/** Called to determine if we should show the realtime warning */
-	EVisibility GetRealtimeWarningVisibility() const;
+	UNREALED_API EVisibility GetRealtimeWarningVisibility() const;
 
 protected:
 	// Merges the extender list from the host with the specified extender and returns the results
-	TSharedPtr<FExtender> GetCombinedExtenderList(TSharedRef<FExtender> MenuExtender) const;
+	UNREALED_API TSharedPtr<FExtender> GetCombinedExtenderList(TSharedRef<FExtender> MenuExtender) const;
 
 	/** Gets the extender for the view menu */
-	virtual TSharedPtr<FExtender> GetViewMenuExtender() const;
+	UNREALED_API virtual TSharedPtr<FExtender> GetViewMenuExtender() const;
 
-	void CreateViewMenuExtensions(FMenuBuilder& MenuBuilder);
+	UNREALED_API void CreateViewMenuExtensions(FMenuBuilder& MenuBuilder);
 
 	/** Extension allowing derived classes to add to the options menu.*/	
 	virtual void ExtendOptionsMenu(FMenuBuilder& OptionsMenuBuilder) const {}
@@ -181,37 +181,37 @@ protected:
 
 protected:
 	// Returns the info provider for this viewport
-	ICommonEditorViewportToolbarInfoProvider& GetInfoProvider() const;
+	UNREALED_API ICommonEditorViewportToolbarInfoProvider& GetInfoProvider() const;
 
 	// Get the viewport client
-	class FEditorViewportClient& GetViewportClient() const;
+	UNREALED_API class FEditorViewportClient& GetViewportClient() const;
 
 protected:
 	// Creates the view menu widget (override point for children)
-	virtual TSharedRef<class SEditorViewportViewMenu> MakeViewMenu();
+	UNREALED_API virtual TSharedRef<class SEditorViewportViewMenu> MakeViewMenu();
 
-	FText GetScalabilityWarningLabel() const;
-	EVisibility GetScalabilityWarningVisibility() const;
-	TSharedRef<SWidget> GetScalabilityWarningMenuContent() const;
+	UNREALED_API FText GetScalabilityWarningLabel() const;
+	UNREALED_API EVisibility GetScalabilityWarningVisibility() const;
+	UNREALED_API TSharedRef<SWidget> GetScalabilityWarningMenuContent() const;
 	virtual bool GetShowScalabilityMenu() const
 	{
 		return false;
 	}
 	/** Called when the FOV slider is adjusted in the perspective viewport */
-	virtual void OnFOVValueChanged(float NewValue) const;
+	UNREALED_API virtual void OnFOVValueChanged(float NewValue) const;
 
 	/** Called when the ScreenPercentage slider is adjusted in the viewport */
-	void OnScreenPercentageValueChanged(int32 NewValue);
+	UNREALED_API void OnScreenPercentageValueChanged(int32 NewValue);
 
 	/** Update the list of asset viewer profiles displayed by the combo box. */
-	void UpdateAssetViewerProfileList();
-	void UpdateAssetViewerProfileSelection();
+	UNREALED_API void UpdateAssetViewerProfileList();
+	UNREALED_API void UpdateAssetViewerProfileSelection();
 
 	/** Invoked when the asset viewer profile combo box selection changes. */
-	void OnAssetViewerProfileComboBoxSelectionChanged(TSharedPtr<FString> NewSelection, ESelectInfo::Type /*SelectInfo*/);
+	UNREALED_API void OnAssetViewerProfileComboBoxSelectionChanged(TSharedPtr<FString> NewSelection, ESelectInfo::Type /*SelectInfo*/);
 
 	/** Creates and returns the asset viewr profile combo box.*/
-	TSharedRef<SWidget> MakeAssetViewerProfileComboBox();
+	UNREALED_API TSharedRef<SWidget> MakeAssetViewerProfileComboBox();
 
 private:
 	/** The viewport that we are in */

@@ -8,8 +8,8 @@
 
 #include "DEditorStaticSwitchParameterValue.generated.h"
 
-UCLASS(hidecategories=Object, collapsecategories)
-class UNREALED_API UDEditorStaticSwitchParameterValue : public UDEditorParameterValue
+UCLASS(hidecategories=Object, collapsecategories, MinimalAPI)
+class UDEditorStaticSwitchParameterValue : public UDEditorParameterValue
 {
 	GENERATED_UCLASS_BODY()
 

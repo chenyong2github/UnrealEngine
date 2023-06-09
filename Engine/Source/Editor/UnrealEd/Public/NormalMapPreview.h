@@ -12,10 +12,10 @@
 /**
  * Batched element parameters for previewing normal maps.
  */
-class UNREALED_API FNormalMapBatchedElementParameters : public FBatchedElementParameters
+class FNormalMapBatchedElementParameters : public FBatchedElementParameters
 {
 	/** Binds vertex and pixel shaders for this element */
-	virtual void BindShaders(
+	UNREALED_API virtual void BindShaders(
 		FRHICommandList& RHICmdList,
 		FGraphicsPipelineStateInitializer& GraphicsPSOInit,
 		ERHIFeatureLevel::Type InFeatureLevel,

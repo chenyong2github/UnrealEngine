@@ -11,13 +11,13 @@
 #include "Factories/Factory.h"
 #include "FontFactory.generated.h"
 
-UCLASS()
-class UNREALED_API UFontFactory : public UFactory
+UCLASS(MinimalAPI)
+class UFontFactory : public UFactory
 {
 	GENERATED_UCLASS_BODY()
 
 	//~ Begin UFactory Interface
-	virtual UObject* FactoryCreateNew(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;
+	UNREALED_API virtual UObject* FactoryCreateNew(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;
 	//~ Begin UFactory Interface	
 };
 

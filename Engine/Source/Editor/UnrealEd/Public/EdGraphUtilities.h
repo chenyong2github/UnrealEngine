@@ -25,7 +25,7 @@ class UObject;
 
 //////////////////////////////////////////////////////////////////////////
 
-struct UNREALED_API FGraphPanelNodeFactory : public TSharedFromThis<FGraphPanelNodeFactory>
+struct FGraphPanelNodeFactory : public TSharedFromThis<FGraphPanelNodeFactory>
 {
 public:
 	virtual ~FGraphPanelNodeFactory() {}
@@ -34,7 +34,7 @@ public:
 
 //////////////////////////////////////////////////////////////////////////
 
-struct UNREALED_API FGraphPanelPinFactory : public TSharedFromThis<FGraphPanelPinFactory>
+struct FGraphPanelPinFactory : public TSharedFromThis<FGraphPanelPinFactory>
 {
 public:
 	virtual ~FGraphPanelPinFactory() {}
@@ -43,7 +43,7 @@ public:
 
 //////////////////////////////////////////////////////////////////////////
 
-struct UNREALED_API FGraphPanelPinConnectionFactory : public TSharedFromThis<FGraphPanelPinConnectionFactory>
+struct FGraphPanelPinConnectionFactory : public TSharedFromThis<FGraphPanelPinConnectionFactory>
 {
 public:
     virtual ~FGraphPanelPinConnectionFactory() {}
@@ -52,29 +52,29 @@ public:
 
 //////////////////////////////////////////////////////////////////////////
 
-class UNREALED_API FEdGraphUtilities
+class FEdGraphUtilities
 {
 public:
-	static void RegisterVisualNodeFactory(TSharedPtr<FGraphPanelNodeFactory> NewFactory);
-	static void UnregisterVisualNodeFactory(TSharedPtr<FGraphPanelNodeFactory> OldFactory);
+	static UNREALED_API void RegisterVisualNodeFactory(TSharedPtr<FGraphPanelNodeFactory> NewFactory);
+	static UNREALED_API void UnregisterVisualNodeFactory(TSharedPtr<FGraphPanelNodeFactory> OldFactory);
 
-	static void RegisterVisualPinFactory(TSharedPtr<FGraphPanelPinFactory> NewFactory);
-	static void UnregisterVisualPinFactory(TSharedPtr<FGraphPanelPinFactory> OldFactory);
+	static UNREALED_API void RegisterVisualPinFactory(TSharedPtr<FGraphPanelPinFactory> NewFactory);
+	static UNREALED_API void UnregisterVisualPinFactory(TSharedPtr<FGraphPanelPinFactory> OldFactory);
 
-    static void RegisterVisualPinConnectionFactory(TSharedPtr<FGraphPanelPinConnectionFactory> NewFactory);
-    static void UnregisterVisualPinConnectionFactory(TSharedPtr<FGraphPanelPinConnectionFactory> OldFactory);
+    static UNREALED_API void RegisterVisualPinConnectionFactory(TSharedPtr<FGraphPanelPinConnectionFactory> NewFactory);
+    static UNREALED_API void UnregisterVisualPinConnectionFactory(TSharedPtr<FGraphPanelPinConnectionFactory> OldFactory);
 
 	/** After pasting nodes, need to perform some fixup for pins etc. */
-	static void PostProcessPastedNodes(TSet<class UEdGraphNode*>& SpawnedNodes);
+	static UNREALED_API void PostProcessPastedNodes(TSet<class UEdGraphNode*>& SpawnedNodes);
 
 	/** Finds the net associated with a particular pin */
-	static UEdGraphPin* GetNetFromPin(UEdGraphPin* Pin);
+	static UNREALED_API UEdGraphPin* GetNetFromPin(UEdGraphPin* Pin);
 
 	/** 
 	 *	Clones (deep copies) a UEdGraph, including all of it's nodes and pins and their links, maintaining a mapping from the clone to the source nodes (even across multiple clonings) 
 	 *	A NewOuter of NULL indicates the transient package
 	 */
-	static UEdGraph* CloneGraph(UEdGraph* Source, UObject* NewOuter, FCompilerResultsLog* MessageLog = NULL, bool bCloningForCompile = false);
+	static UNREALED_API UEdGraph* CloneGraph(UEdGraph* Source, UObject* NewOuter, FCompilerResultsLog* MessageLog = NULL, bool bCloningForCompile = false);
 
 	/**
 	  * Clones the content from SourceGraph and merges it into MergeTarget;
@@ -89,17 +89,17 @@ public:
 	  * @param OutClonedNodes			Will populate with a full list of cloned nodes if provided
 	  * @param bInIsCompiling			TRUE if the function is being called during compilation, this will eliminate some nodes that will not be compiled
 	  */
-	static void CloneAndMergeGraphIn(UEdGraph* MergeTarget, UEdGraph* SourceGraph, FCompilerResultsLog& MessageLog, bool bRequireSchemaMatch, bool bInIsCompiling = false, TArray<UEdGraphNode*>* OutClonedNodes = NULL);
+	static UNREALED_API void CloneAndMergeGraphIn(UEdGraph* MergeTarget, UEdGraph* SourceGraph, FCompilerResultsLog& MessageLog, bool bRequireSchemaMatch, bool bInIsCompiling = false, TArray<UEdGraphNode*>* OutClonedNodes = NULL);
 
 	/**
 	 * Moves the contents of all of the children graphs of ParentGraph (recursively) into the MergeTarget graph.
 	 * This does not clone, it's destructive to the ParentGraph
 	 */
-	static void MergeChildrenGraphsIn(UEdGraph* MergeTarget, UEdGraph* ParentGraph, bool bRequireSchemaMatch, bool bInIsCompiling = false, FCompilerResultsLog* MessageLog = nullptr);
+	static UNREALED_API void MergeChildrenGraphsIn(UEdGraph* MergeTarget, UEdGraph* ParentGraph, bool bRequireSchemaMatch, bool bInIsCompiling = false, FCompilerResultsLog* MessageLog = nullptr);
 
 	/** Tries to rename the graph to have a name similar to BaseName */
-	static void RenameGraphCloseToName(UEdGraph* Graph, const FString& BaseName, int32 StartIndex = 1);
-	static void RenameGraphToNameOrCloseToName(UEdGraph* Graph, const FString& DesiredName);
+	static UNREALED_API void RenameGraphCloseToName(UEdGraph* Graph, const FString& BaseName, int32 StartIndex = 1);
+	static UNREALED_API void RenameGraphToNameOrCloseToName(UEdGraph* Graph, const FString& DesiredName);
 
 	/**
 	 * Exports a set of nodes to text
@@ -107,7 +107,7 @@ public:
 	 * @param	NodesToExport		Set of nodes to export, all nodes must be in the same graph
 	 * @param	[out] ExportedText	The text representation will be stored here
 	 */
-	static void ExportNodesToText(TSet<UObject*> NodesToExport, /*out*/ FString& ExportedText);
+	static UNREALED_API void ExportNodesToText(TSet<UObject*> NodesToExport, /*out*/ FString& ExportedText);
 
 	/**
 	 * Imports a set of previously exported nodes into a graph
@@ -116,7 +116,7 @@ public:
 	 * @param	TextToImport			The text representation of the nodes to import
 	 * @param	[out] ImportedNodeSet	The set of nodes that were imported
 	 */
-	static void ImportNodesFromText(UEdGraph* DestinationGraph, const FString& TextToImport, /*out*/ TSet<UEdGraphNode*>& ImportedNodeSet);
+	static UNREALED_API void ImportNodesFromText(UEdGraph* DestinationGraph, const FString& TextToImport, /*out*/ TSet<UEdGraphNode*>& ImportedNodeSet);
 
 	/**
 	 * Can we import nodes from this text ?
@@ -124,15 +124,15 @@ public:
 	 * @param	DestinationGraph		The target graph to place the imported nodes in
 	 * @param	TextToImport			The text representation of the nodes to import
 	 */
-	static bool CanImportNodesFromText(const UEdGraph* DestinationGraph, const FString& TextToImport);
+	static UNREALED_API bool CanImportNodesFromText(const UEdGraph* DestinationGraph, const FString& TextToImport);
 
 	// Calculates an approximate bounding box for the specified nodes
-	static FIntRect CalculateApproximateNodeBoundaries(const TArray<UEdGraphNode*>& Nodes);
+	static UNREALED_API FIntRect CalculateApproximateNodeBoundaries(const TArray<UEdGraphNode*>& Nodes);
 
 	/** Copy Common State of data from OldNode to NewNode **/
-	static void CopyCommonState(UEdGraphNode* OldNode, UEdGraphNode* NewNode);
+	static UNREALED_API void CopyCommonState(UEdGraphNode* OldNode, UEdGraphNode* NewNode);
 
-	struct UNREALED_API FNodeVisitor
+	struct FNodeVisitor
 	{
 		TSet<UEdGraphNode*> VisitedNodes;
 
@@ -140,32 +140,32 @@ public:
 		{
 		}
 
-		void TraverseNodes(UEdGraphNode* Node);
+		UNREALED_API void TraverseNodes(UEdGraphNode* Node);
 	};
 
 	/** returns true if the ParameterName is marked as a SetParam in the relevant Function */
-	static bool IsSetParam(const UFunction* Function, const FName ParameterName);
+	static UNREALED_API bool IsSetParam(const UFunction* Function, const FName ParameterName);
 
 	/** returns true if the ParameterName is marked as a MapParam, MapKeyParam, or MapValueParam in the relevant Function */
-	static bool IsMapParam(const UFunction* Function, const FName ParameterName);
+	static UNREALED_API bool IsMapParam(const UFunction* Function, const FName ParameterName);
 
 	/** returns true if the ParameterName is marked as ArrayTypeDependentParams */
-	static bool IsArrayDependentParam(const UFunction* Function, const FName ParameterName );
+	static UNREALED_API bool IsArrayDependentParam(const UFunction* Function, const FName ParameterName );
 
 	/** returns true if the ParamaterName is marked as a Set, Map, or array param in the relevant function */
-	static bool IsDynamicContainerParam(const UFunction* Function, const FName ParameterName);
+	static UNREALED_API bool IsDynamicContainerParam(const UFunction* Function, const FName ParameterName);
 
 	/** returns the first pin marked as an ArrayParam, usually returning nullptr */
-	static UEdGraphPin* FindArrayParamPin(const UFunction* Function, const UEdGraphNode* Node);
+	static UNREALED_API UEdGraphPin* FindArrayParamPin(const UFunction* Function, const UEdGraphNode* Node);
 
 	/** returns the first pin marked as an SetParam, usually returning nullptr */
-	static UEdGraphPin* FindSetParamPin(const UFunction* Function, const UEdGraphNode* Node);
+	static UNREALED_API UEdGraphPin* FindSetParamPin(const UFunction* Function, const UEdGraphNode* Node);
 	
 	/** returns the first pin marked as an MapParam, usually returning nullptr */
-	static UEdGraphPin* FindMapParamPin(const UFunction* Function, const UEdGraphNode* Node);
+	static UNREALED_API UEdGraphPin* FindMapParamPin(const UFunction* Function, const UEdGraphNode* Node);
 
 	/** returns the first pin referred to in a , and | delineated list of pin names */
-	static UEdGraphPin* FindPinFromMetaData(const UFunction* Function, const UEdGraphNode* Node, FName MetaData );
+	static UNREALED_API UEdGraphPin* FindPinFromMetaData(const UFunction* Function, const UEdGraphNode* Node, FName MetaData );
 
 	/**
 	* Output a map of pin names to a set of connections given a function entry pin
@@ -173,7 +173,7 @@ public:
 	* @param Node				The entry pin to gather connections from
 	* @param OutPinConnections	Output map of connection data
 	*/
-	static void GetPinConnectionMap(const UEdGraphNode* Node, TMap<FString, TSet<UEdGraphPin*>>& OutPinConnections);
+	static UNREALED_API void GetPinConnectionMap(const UEdGraphNode* Node, TMap<FString, TSet<UEdGraphPin*>>& OutPinConnections);
 
 	/**
 	* Reconnect the pin map to the given node
@@ -181,15 +181,15 @@ public:
 	* @param Node				The node to connect pins to
 	* @param PinConnections		Map of pin connections to set
 	*/
-	static void ReconnectPinMap(UEdGraphNode* Node, const TMap<FString, TSet<UEdGraphPin*>>& PinConnections);
+	static UNREALED_API void ReconnectPinMap(UEdGraphNode* Node, const TMap<FString, TSet<UEdGraphPin*>>& PinConnections);
 
 	/** Copy pin default values between nodes for any pins with matching names */
-	static void CopyPinDefaults(const UEdGraphNode* NodeFrom, UEdGraphNode* NodeTo);
+	static UNREALED_API void CopyPinDefaults(const UEdGraphNode* NodeFrom, UEdGraphNode* NodeTo);
 
 private:
-	static TArray< TSharedPtr<FGraphPanelNodeFactory> > VisualNodeFactories;
-	static TArray< TSharedPtr<FGraphPanelPinFactory> > VisualPinFactories;
-    static TArray< TSharedPtr<FGraphPanelPinConnectionFactory> > VisualPinConnectionFactories;
+	static UNREALED_API TArray< TSharedPtr<FGraphPanelNodeFactory> > VisualNodeFactories;
+	static UNREALED_API TArray< TSharedPtr<FGraphPanelPinFactory> > VisualPinFactories;
+    static UNREALED_API TArray< TSharedPtr<FGraphPanelPinConnectionFactory> > VisualPinConnectionFactories;
 	friend class FNodeFactory;
 
 	// Should never create an instance of this class

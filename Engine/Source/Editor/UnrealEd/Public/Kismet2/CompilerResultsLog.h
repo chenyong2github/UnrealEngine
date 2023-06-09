@@ -43,7 +43,7 @@ struct FObjectKey;
 #if WITH_EDITOR
 
 /** This class maps from final objects to their original source object, across cloning, autoexpansion, etc... */
-class UNREALED_API FBacktrackMap
+class FBacktrackMap
 {
 protected:
 	// Maps from transient object created during compiling to original 'source code' object
@@ -53,20 +53,20 @@ protected:
 
 public:
 	/** Update the source backtrack map to note that NewObject was most closely generated/caused by the SourceObject */
-	void NotifyIntermediateObjectCreation(UObject* NewObject, UObject* SourceObject);
+	UNREALED_API void NotifyIntermediateObjectCreation(UObject* NewObject, UObject* SourceObject);
 
 	/** Update the pin source backtrack map to note that NewPin was most closely generated/caused by the SourcePin */
-	void NotifyIntermediatePinCreation(UEdGraphPin* NewPin, UEdGraphPin* SourcePin);
+	UNREALED_API void NotifyIntermediatePinCreation(UEdGraphPin* NewPin, UEdGraphPin* SourcePin);
 
 	/** Returns the true source object for the passed in object */
-	UObject* FindSourceObject(UObject* PossiblyDuplicatedObject);
-	UObject const* FindSourceObject(UObject const* PossiblyDuplicatedObject) const;
-	UEdGraphPin* FindSourcePin(UEdGraphPin* PossiblyDuplicatedPin);
-	UEdGraphPin const* FindSourcePin(UEdGraphPin const* PossiblyDuplicatedPin) const;
+	UNREALED_API UObject* FindSourceObject(UObject* PossiblyDuplicatedObject);
+	UNREALED_API UObject const* FindSourceObject(UObject const* PossiblyDuplicatedObject) const;
+	UNREALED_API UEdGraphPin* FindSourcePin(UEdGraphPin* PossiblyDuplicatedPin);
+	UNREALED_API UEdGraphPin const* FindSourcePin(UEdGraphPin const* PossiblyDuplicatedPin) const;
 };
 
 /** This class represents a log of compiler output lines (errors, warnings, and information notes), each of which can be a rich tokenized message */
-class UNREALED_API FCompilerResultsLog
+class FCompilerResultsLog
 {
 	// Compiler event
 	struct FCompilerEvent
@@ -144,14 +144,14 @@ protected:
 	TMap<TWeakObjectPtr<const UEdGraphNode>, TWeakObjectPtr<UEdGraphNode>> FullMacroBacktrackMap;
 
 public:
-	FCompilerResultsLog(bool bIsCompatibleWithEvents = true);
-	virtual ~FCompilerResultsLog();
+	UNREALED_API FCompilerResultsLog(bool bIsCompatibleWithEvents = true);
+	UNREALED_API virtual ~FCompilerResultsLog();
 
 	/** Register this log with the MessageLog module */
-	static void Register();
+	static UNREALED_API void Register();
 
 	/** Unregister this log from the MessageLog module */
-	static void Unregister();
+	static UNREALED_API void Unregister();
 
 	/** Accessor for the LogName, so it can be opened elsewhere */
 	static FName GetLogName(){ return Name; }
@@ -282,28 +282,28 @@ public:
 	/**
 	 * Commit all stored potential messages for a given node. Returns true if any messages were written.
 	 */
-	bool CommitPotentialMessages(UEdGraphNode* Source);
+	UNREALED_API bool CommitPotentialMessages(UEdGraphNode* Source);
 
 	/** Update the source backtrack map to note that NewObject was most closely generated/caused by the SourceObject */
-	void NotifyIntermediateObjectCreation(UObject* NewObject, UObject* SourceObject);
-	void NotifyIntermediatePinCreation(UEdGraphPin* NewObject, UEdGraphPin* SourceObject);
+	UNREALED_API void NotifyIntermediateObjectCreation(UObject* NewObject, UObject* SourceObject);
+	UNREALED_API void NotifyIntermediatePinCreation(UEdGraphPin* NewObject, UEdGraphPin* SourceObject);
 
 	/** Update the expansion map to note that Node was expanded from OuterTunnelInstance, both the node and tunnel instance should be intermediate nodes */
-	void NotifyIntermediateTunnelNode(const UEdGraphNode* Node, const UEdGraphNode* OuterTunnelInstance);
+	UNREALED_API void NotifyIntermediateTunnelNode(const UEdGraphNode* Node, const UEdGraphNode* OuterTunnelInstance);
 
 	/** Update the map that tracks nodes created by macro instance nodes */
-	void NotifyIntermediateMacroNode(UEdGraphNode* SourceNode, const UEdGraphNode* IntermediateNode);
+	UNREALED_API void NotifyIntermediateMacroNode(UEdGraphNode* SourceNode, const UEdGraphNode* IntermediateNode);
 
 	/** Returns the true source object for the passed in object */
-	UObject* FindSourceObject(UObject* PossiblyDuplicatedObject);
-	UObject const* FindSourceObject(UObject const* PossiblyDuplicatedObject) const;
-	UObject* FindSourceMacroInstance(const UEdGraphNode* IntermediateNode) const;
+	UNREALED_API UObject* FindSourceObject(UObject* PossiblyDuplicatedObject);
+	UNREALED_API UObject const* FindSourceObject(UObject const* PossiblyDuplicatedObject) const;
+	UNREALED_API UObject* FindSourceMacroInstance(const UEdGraphNode* IntermediateNode) const;
 
 	/** Returns the intermediate tunnel instance that generated the node */
-	const UEdGraphNode* GetIntermediateTunnelInstance(const UEdGraphNode* IntermediateNode) const;
+	UNREALED_API const UEdGraphNode* GetIntermediateTunnelInstance(const UEdGraphNode* IntermediateNode) const;
 
 	/** Returns a int32 used to uniquely identify an action for the latent action manager */
-	int32 CalculateStableIdentifierForLatentActionManager( const UEdGraphNode* Node );
+	UNREALED_API int32 CalculateStableIdentifierForLatentActionManager( const UEdGraphNode* Node );
 
 	/** Returns the true source object for the passed in object; does type checking on the result */
 	template <typename T>
@@ -318,17 +318,17 @@ public:
 		return CastChecked<T const>(FindSourceObject(PossiblyDuplicatedObject));
 	}
 
-	UEdGraphPin* FindSourcePin(UEdGraphPin* PossiblyDuplicatedPin);
-	const UEdGraphPin* FindSourcePin(const UEdGraphPin* PossiblyDuplicatedPin) const;
+	UNREALED_API UEdGraphPin* FindSourcePin(UEdGraphPin* PossiblyDuplicatedPin);
+	UNREALED_API const UEdGraphPin* FindSourcePin(const UEdGraphPin* PossiblyDuplicatedPin) const;
 	
 	/** Copy errors from an existing log into this one, and optionally write out to log if it was suppressed the first time */
-	void Append(FCompilerResultsLog const& Other, bool bWriteToSystemLog = false);
+	UNREALED_API void Append(FCompilerResultsLog const& Other, bool bWriteToSystemLog = false);
 
 	/** Begin a new compiler event */
-	void BeginEvent(const TCHAR* InName);
+	UNREALED_API void BeginEvent(const TCHAR* InName);
 
 	/** End the current compiler event */
-	void EndEvent();
+	UNREALED_API void EndEvent();
 
 	/** Access the current event target log */
 	static FCompilerResultsLog* GetEventTarget()
@@ -337,13 +337,13 @@ public:
 	}
 
 	/** Get the message log listing for this blueprint */
-	static TSharedRef<IMessageLogListing> GetBlueprintMessageLog(UBlueprint* InBlueprint);
+	static UNREALED_API TSharedRef<IMessageLogListing> GetBlueprintMessageLog(UBlueprint* InBlueprint);
 
 protected:
 	/** Helper method to add a child event to the given parent event scope */
-	void AddChildEvent(TSharedPtr<FCompilerEvent>& ParentEventScope, TSharedRef<FCompilerEvent>& ChildEventScope);
+	UNREALED_API void AddChildEvent(TSharedPtr<FCompilerEvent>& ParentEventScope, TSharedRef<FCompilerEvent>& ChildEventScope);
 
-	void InternalLogMessage(FName MessageID, const TSharedRef<FTokenizedMessage>& Message, const TArray<UEdGraphNode*>& SourceNodes );
+	UNREALED_API void InternalLogMessage(FName MessageID, const TSharedRef<FTokenizedMessage>& Message, const TArray<UEdGraphNode*>& SourceNodes );
 
 	void Tokenize(const TCHAR* Text, FTokenizedMessage &OutMessage, TArray<UEdGraphNode*>& OutSourceNode)
 	{
@@ -384,45 +384,45 @@ protected:
 	}
 
 	/** Links the UEdGraphNode with the LogLine: */
-	void AnnotateNode(const TArray<UEdGraphNode*>& Nodes, TSharedRef<FTokenizedMessage> LogLine);
+	UNREALED_API void AnnotateNode(const TArray<UEdGraphNode*>& Nodes, TSharedRef<FTokenizedMessage> LogLine);
 
 	/** Internal method to append the final compiler results summary to the MessageLog */
-	void InternalLogSummary();
+	UNREALED_API void InternalLogSummary();
 
 	/** Internal helper method to recursively append event details into the MessageLog */
-	void InternalLogEvent(const FCompilerEvent& InEvent, int32 InDepth = 0);
+	UNREALED_API void InternalLogEvent(const FCompilerEvent& InEvent, int32 InDepth = 0);
 
 	/** Returns true if the user has requested this compiler message be suppressed */
-	bool IsMessageEnabled(FName ID);
+	UNREALED_API bool IsMessageEnabled(FName ID);
 private:
 
 	/** Map of stored potential messages indexed by a node. Can be committed to the results log by calling CommitPotentialMessages for that node. */
 	TMap< FObjectKey, TArray< TSharedRef<FTokenizedMessage> > > PotentialMessages;
 
 	/** Parses a compiler log dump to generate tokenized output */
-	static TArray< TSharedRef<FTokenizedMessage> > ParseCompilerLogDump(const FString& LogDump);
+	static UNREALED_API TArray< TSharedRef<FTokenizedMessage> > ParseCompilerLogDump(const FString& LogDump);
 
 	/** Goes to an error given a Message Token */
-	static void OnGotoError(const class TSharedRef<IMessageToken>& Token);
+	static UNREALED_API void OnGotoError(const class TSharedRef<IMessageToken>& Token);
 
 	/** Callback function for binding the global compiler dump to open the static compiler log */
-	static void GetGlobalModuleCompilerDump(const FString& LogDump, ECompilationResult::Type CompilationResult, bool bShowLog);
+	static UNREALED_API void GetGlobalModuleCompilerDump(const FString& LogDump, ECompilationResult::Type CompilationResult, bool bShowLog);
 	
 	/** Searches a token list for referenced UEdGraphNodes, used to update the nodes when a log is committed */
-	static void GetNodesFromTokens(const TArray<TSharedRef<IMessageToken> >& MessageTokens, TArray<UEdGraphNode*>& OutOwnerNodes);
+	static UNREALED_API void GetNodesFromTokens(const TArray<TSharedRef<IMessageToken> >& MessageTokens, TArray<UEdGraphNode*>& OutOwnerNodes);
 
 	/** The log's name, for easy re-use */
-	static const FName Name;
+	static UNREALED_API const FName Name;
 	
 	/** The log target for compile events */
-	static FCompilerResultsLog* CurrentEventTarget;
+	static UNREALED_API FCompilerResultsLog* CurrentEventTarget;
 
 	/** Handle to the registered GetGlobalModuleCompilerDump delegate. */
-	static FDelegateHandle GetGlobalModuleCompilerDumpDelegateHandle;
+	static UNREALED_API FDelegateHandle GetGlobalModuleCompilerDumpDelegateHandle;
 };
 
 /** This class will begin a new compile event on construction, and automatically end it when the instance goes out of scope */
-class UNREALED_API FScopedCompilerEvent
+class FScopedCompilerEvent
 {
 public:
 	/** Constructor; automatically begins a new event */
@@ -447,11 +447,11 @@ public:
 };
 
 /** Scope wrapper for the blueprint message log. Ensures we dont leak logs that we dont need (i.e. those that have no messages) */
-class UNREALED_API FScopedBlueprintMessageLog
+class FScopedBlueprintMessageLog
 {
 public:
-	FScopedBlueprintMessageLog(UBlueprint* InBlueprint);
-	~FScopedBlueprintMessageLog();
+	UNREALED_API FScopedBlueprintMessageLog(UBlueprint* InBlueprint);
+	UNREALED_API ~FScopedBlueprintMessageLog();
 
 public:
 	/** The listing we wrap */

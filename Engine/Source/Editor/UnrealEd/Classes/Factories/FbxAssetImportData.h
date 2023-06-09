@@ -12,8 +12,8 @@ class UFbxSceneImportData;
 /**
  * Base class for import data and options used when importing any asset from FBX
  */
-UCLASS(BlueprintType, config=EditorPerProjectUserSettings, HideCategories=Object, abstract)
-class UNREALED_API UFbxAssetImportData : public UAssetImportData
+UCLASS(BlueprintType, config=EditorPerProjectUserSettings, HideCategories=Object, abstract, MinimalAPI)
+class UFbxAssetImportData : public UAssetImportData
 {
 	GENERATED_UCLASS_BODY()
 

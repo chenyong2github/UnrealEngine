@@ -14,14 +14,14 @@
 struct FSlateBrush;
 class UToolMenu;
 
-class UNREALED_API SEditorViewportViewMenu : public SEditorViewportToolbarMenu
+class SEditorViewportViewMenu : public SEditorViewportToolbarMenu
 {
 public:
 	SLATE_BEGIN_ARGS( SEditorViewportViewMenu ){}
 		SLATE_ARGUMENT( TSharedPtr<class FExtender>, MenuExtenders )
 	SLATE_END_ARGS()
 
-	void Construct( const FArguments& InArgs, TSharedRef<SEditorViewport> InViewport, TSharedRef<class SViewportToolBar> InParentToolBar );
+	UNREALED_API void Construct( const FArguments& InArgs, TSharedRef<SEditorViewport> InViewport, TSharedRef<class SViewportToolBar> InParentToolBar );
 
 private:
 	FText GetViewMenuLabel() const;
@@ -29,11 +29,11 @@ private:
 	void FillViewMenu(UToolMenu* Menu) const;
 
 protected:
-	virtual TSharedRef<SWidget> GenerateViewMenuContent() const;
-	virtual void RegisterMenus() const;
+	UNREALED_API virtual TSharedRef<SWidget> GenerateViewMenuContent() const;
+	UNREALED_API virtual void RegisterMenus() const;
 
 	TWeakPtr<SEditorViewport> Viewport;
 	TSharedPtr<class FExtender> MenuExtenders;
 
-	static const FName BaseMenuName;
+	static UNREALED_API const FName BaseMenuName;
 };

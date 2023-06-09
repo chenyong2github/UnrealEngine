@@ -15,32 +15,32 @@ DECLARE_MULTICAST_DELEGATE(FOnActorEditorContextSubsystemChanged);
 /**
 * UActorEditorContextSubsystem 
 */
-UCLASS()
-class UNREALED_API UActorEditorContextSubsystem : public UEditorSubsystem
+UCLASS(MinimalAPI)
+class UActorEditorContextSubsystem : public UEditorSubsystem
 {
 public:
 
 	GENERATED_BODY()
 
-	static UActorEditorContextSubsystem* Get();
+	static UNREALED_API UActorEditorContextSubsystem* Get();
 
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-	virtual void Deinitialize() override;
+	UNREALED_API virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	UNREALED_API virtual void Deinitialize() override;
 
-	void RegisterClient(IActorEditorContextClient* Client);
-	void UnregisterClient(IActorEditorContextClient* Client);
-	void ResetContext();
-	void ResetContext(IActorEditorContextClient* Client);
-	void PushContext();
-	void PopContext();
-	TArray<IActorEditorContextClient*> GetDisplayableClients() const;
+	UNREALED_API void RegisterClient(IActorEditorContextClient* Client);
+	UNREALED_API void UnregisterClient(IActorEditorContextClient* Client);
+	UNREALED_API void ResetContext();
+	UNREALED_API void ResetContext(IActorEditorContextClient* Client);
+	UNREALED_API void PushContext();
+	UNREALED_API void PopContext();
+	UNREALED_API TArray<IActorEditorContextClient*> GetDisplayableClients() const;
 	FOnActorEditorContextSubsystemChanged& OnActorEditorContextSubsystemChanged() { return ActorEditorContextSubsystemChanged; }
 
 private:
 
-	UWorld* GetWorld() const;
-	void OnActorEditorContextClientChanged(IActorEditorContextClient* Client);
-	void ApplyContext(AActor* InActor);
+	UNREALED_API UWorld* GetWorld() const;
+	UNREALED_API void OnActorEditorContextClientChanged(IActorEditorContextClient* Client);
+	UNREALED_API void ApplyContext(AActor* InActor);
 
 	FOnActorEditorContextSubsystemChanged ActorEditorContextSubsystemChanged;
 	TArray<IActorEditorContextClient*> Clients;

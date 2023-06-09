@@ -7,8 +7,8 @@
 
 class SViewportToolBar;
 
-UCLASS()
-class UNREALED_API UViewportToolBarContext : public UObject
+UCLASS(MinimalAPI)
+class UViewportToolBarContext : public UObject
 {
 	GENERATED_BODY()
 public:

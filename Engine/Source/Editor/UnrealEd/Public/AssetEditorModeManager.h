@@ -10,21 +10,21 @@ class FPreviewScene;
 //////////////////////////////////////////////////////////////////////////
 // FAssetEditorModeManager
 
-class UNREALED_API FAssetEditorModeManager : public FEditorModeTools
+class FAssetEditorModeManager : public FEditorModeTools
 {
 public:
-	FAssetEditorModeManager();
-	virtual ~FAssetEditorModeManager() override;
+	UNREALED_API FAssetEditorModeManager();
+	UNREALED_API virtual ~FAssetEditorModeManager() override;
 
 	// FEditorModeTools interface
-	virtual USelection* GetSelectedActors() const override;
-	virtual USelection* GetSelectedObjects() const override;
-	virtual USelection* GetSelectedComponents() const override;
-	virtual UWorld* GetWorld() const override;
+	UNREALED_API virtual USelection* GetSelectedActors() const override;
+	UNREALED_API virtual USelection* GetSelectedObjects() const override;
+	UNREALED_API virtual USelection* GetSelectedComponents() const override;
+	UNREALED_API virtual UWorld* GetWorld() const override;
 	// End of FEditorModeTools interface
 
-	virtual void SetPreviewScene(FPreviewScene* NewPreviewScene);
-	FPreviewScene* GetPreviewScene() const;
+	UNREALED_API virtual void SetPreviewScene(FPreviewScene* NewPreviewScene);
+	UNREALED_API FPreviewScene* GetPreviewScene() const;
 
 protected:
 	USelection* ActorSet = nullptr;

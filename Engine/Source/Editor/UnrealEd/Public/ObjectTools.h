@@ -173,7 +173,7 @@ namespace ObjectTools
 	UNREALED_API UObject* DuplicateSingleObject(UObject* Object, const FPackageGroupName& PGN, TSet<UPackage*>& InOutPackagesUserRefusedToFullyLoad, bool bPromptToOverwrite = true, TMap<TSoftObjectPtr<UObject>, TSoftObjectPtr<UObject>>* DuplicatedObjects = nullptr);
 
 	/** Helper struct to detail the results of a consolidation operation */
-	struct UNREALED_API FConsolidationResults : public FGCObject
+	struct FConsolidationResults : public FGCObject
 	{
 		/** FGCObject interface; Serialize any object references */
 		virtual void AddReferencedObjects( FReferenceCollector& Collector ) override

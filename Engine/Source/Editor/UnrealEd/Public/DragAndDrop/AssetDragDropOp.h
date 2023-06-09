@@ -11,20 +11,20 @@
 class FAssetThumbnail;
 class UActorFactory;
 
-class UNREALED_API FAssetDragDropOp : public FDecoratedDragDropOp
+class FAssetDragDropOp : public FDecoratedDragDropOp
 {
 public:
 	DRAG_DROP_OPERATOR_TYPE(FAssetDragDropOp, FDecoratedDragDropOp)
 
-	static TSharedRef<FAssetDragDropOp> New(const FAssetData& InAssetData, UActorFactory* ActorFactory = nullptr);
+	static UNREALED_API TSharedRef<FAssetDragDropOp> New(const FAssetData& InAssetData, UActorFactory* ActorFactory = nullptr);
 
-	static TSharedRef<FAssetDragDropOp> New(TArray<FAssetData> InAssetData, UActorFactory* ActorFactory = nullptr);
+	static UNREALED_API TSharedRef<FAssetDragDropOp> New(TArray<FAssetData> InAssetData, UActorFactory* ActorFactory = nullptr);
 
-	static TSharedRef<FAssetDragDropOp> New(FString InAssetPath);
+	static UNREALED_API TSharedRef<FAssetDragDropOp> New(FString InAssetPath);
 
-	static TSharedRef<FAssetDragDropOp> New(TArray<FString> InAssetPaths);
+	static UNREALED_API TSharedRef<FAssetDragDropOp> New(TArray<FString> InAssetPaths);
 
-	static TSharedRef<FAssetDragDropOp> New(TArray<FAssetData> InAssetData, TArray<FString> InAssetPaths, UActorFactory* ActorFactory = nullptr);
+	static UNREALED_API TSharedRef<FAssetDragDropOp> New(TArray<FAssetData> InAssetData, TArray<FString> InAssetPaths, UActorFactory* ActorFactory = nullptr);
 
 	/** @return true if this drag operation contains assets */
 	bool HasAssets() const
@@ -57,21 +57,21 @@ public:
 	}
 
 public:
-	virtual ~FAssetDragDropOp();
+	UNREALED_API virtual ~FAssetDragDropOp();
 
-	virtual TSharedPtr<SWidget> GetDefaultDecorator() const override;
+	UNREALED_API virtual TSharedPtr<SWidget> GetDefaultDecorator() const override;
 
-	FText GetDecoratorText() const;
+	UNREALED_API FText GetDecoratorText() const;
 
 protected:
-	void Init(TArray<FAssetData> InAssetData, TArray<FString> InAssetPaths, UActorFactory* InActorFactory);
-	virtual void InitThumbnail();
+	UNREALED_API void Init(TArray<FAssetData> InAssetData, TArray<FString> InAssetPaths, UActorFactory* InActorFactory);
+	UNREALED_API virtual void InitThumbnail();
 
-	virtual bool HasFiles() const;
-	virtual bool HasFolders() const;
+	UNREALED_API virtual bool HasFiles() const;
+	UNREALED_API virtual bool HasFolders() const;
 
-	virtual int32 GetTotalCount() const;
-	virtual FText GetFirstItemText() const;
+	UNREALED_API virtual int32 GetTotalCount() const;
+	UNREALED_API virtual FText GetFirstItemText() const;
 
 private:
 	/** Data for the assets this item represents */

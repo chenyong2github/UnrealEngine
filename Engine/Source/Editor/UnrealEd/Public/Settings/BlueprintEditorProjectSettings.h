@@ -10,8 +10,8 @@
 #include "BlueprintEditorProjectSettings.generated.h"
 
 
-UCLASS(config=Editor, meta=(DisplayName="Blueprint Project Settings"), defaultconfig)
-class UNREALED_API UBlueprintEditorProjectSettings : public UDeveloperSettings
+UCLASS(config=Editor, meta=(DisplayName="Blueprint Project Settings"), defaultconfig, MinimalAPI)
+class UBlueprintEditorProjectSettings : public UDeveloperSettings
 {
 	GENERATED_UCLASS_BODY()
 
@@ -80,6 +80,6 @@ public:
 
 public:
 	// UObject interface
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	UNREALED_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	// End of UObject interface
 };

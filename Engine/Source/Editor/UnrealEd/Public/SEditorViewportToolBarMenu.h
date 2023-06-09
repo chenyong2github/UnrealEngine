@@ -39,7 +39,7 @@ namespace EMenuItemType
 /**
  * Widget that opens a menu when clicked
  */
-class UNREALED_API SEditorViewportToolbarMenu : public SCompoundWidget
+class SEditorViewportToolbarMenu : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SEditorViewportToolbarMenu)
@@ -65,17 +65,17 @@ public:
 	/**
 	 * Constructs the menu
 	 */
-	void Construct( const FArguments& Declaration );
+	UNREALED_API void Construct( const FArguments& Declaration );
 
 	/**
 	 * Returns parent tool bar
 	 */
-	TWeakPtr<class SViewportToolBar> GetParentToolBar() const;
+	UNREALED_API TWeakPtr<class SViewportToolBar> GetParentToolBar() const;
 
 	/**
 	 * @return true if this menu is open
 	 */
-	bool IsMenuOpen() const;
+	UNREALED_API bool IsMenuOpen() const;
 
 private:
 	/**
@@ -87,7 +87,7 @@ private:
 	 * Called when the mouse enters a menu button.  If there was a menu previously opened
 	 * we open this menu automatically
 	 */
-	void OnMouseEnter( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent );
+	UNREALED_API void OnMouseEnter( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent );
 
 	EVisibility GetLabelIconVisibility() const;
 
@@ -106,7 +106,7 @@ protected:
 	 *
 	 * @return	Tool tip text, or an empty text if filtered out
 	 */
-	FText GetFilteredToolTipText(TAttribute<FText> ToolTipText) const;
+	UNREALED_API FText GetFilteredToolTipText(TAttribute<FText> ToolTipText) const;
 
 private:
 	/** Our menus anchor */

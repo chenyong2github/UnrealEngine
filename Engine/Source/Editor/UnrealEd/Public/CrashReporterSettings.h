@@ -14,8 +14,8 @@
 /**
  * Implements per-project cooker settings exposed to the editor
  */
-UCLASS(config = EditorPerProjectUserSettings)
-class UNREALED_API UCrashReporterSettings
+UCLASS(config = EditorPerProjectUserSettings, MinimalAPI)
+class UCrashReporterSettings
 	: public UObject
 {
 	GENERATED_UCLASS_BODY()

@@ -12,7 +12,7 @@
 class UBlueprint;
 class UK2Node;
 
-class UNREALED_API FReload : public IReload
+class FReload : public IReload
 {
 public:
 	struct FNativeFuncPtrMapKeyFuncs : TDefaultMapKeyFuncs<FNativeFuncPtr, FNativeFuncPtr, false>
@@ -27,33 +27,33 @@ public:
 
 public:
 
-	FReload(EActiveReloadType InType, const TCHAR* InPrefix, const TArray<UPackage*>& InPackages, FOutputDevice& InAr);
-	FReload(EActiveReloadType InType, const TCHAR* InPrefix, FOutputDevice& InAr);
+	UNREALED_API FReload(EActiveReloadType InType, const TCHAR* InPrefix, const TArray<UPackage*>& InPackages, FOutputDevice& InAr);
+	UNREALED_API FReload(EActiveReloadType InType, const TCHAR* InPrefix, FOutputDevice& InAr);
 
-	virtual ~FReload();
+	UNREALED_API virtual ~FReload();
 
 	// IReload interface 
 	virtual EActiveReloadType GetType() const override { return Type; }
 	virtual const TCHAR* GetPrefix() const override { return Prefix; };
-	virtual bool GetEnableReinstancing(bool bHasChanged) const override;
-	virtual void NotifyFunctionRemap(FNativeFuncPtr NewFunctionPointer, FNativeFuncPtr OldFunctionPointer) override;
-	virtual void NotifyChange(UClass* New, UClass* Old) override;
-	virtual void NotifyChange(UEnum* New, UEnum* Old) override;
-	virtual void NotifyChange(UScriptStruct* New, UScriptStruct* Old) override;
-	virtual void NotifyChange(UPackage* New, UPackage* Old) override;
-	virtual void Reinstance() override;
-	virtual UObject* GetReinstancedCDO(UObject* CDO) override;
-	virtual const UObject* GetReinstancedCDO(const UObject* CDO) override;
+	UNREALED_API virtual bool GetEnableReinstancing(bool bHasChanged) const override;
+	UNREALED_API virtual void NotifyFunctionRemap(FNativeFuncPtr NewFunctionPointer, FNativeFuncPtr OldFunctionPointer) override;
+	UNREALED_API virtual void NotifyChange(UClass* New, UClass* Old) override;
+	UNREALED_API virtual void NotifyChange(UEnum* New, UEnum* Old) override;
+	UNREALED_API virtual void NotifyChange(UScriptStruct* New, UScriptStruct* Old) override;
+	UNREALED_API virtual void NotifyChange(UPackage* New, UPackage* Old) override;
+	UNREALED_API virtual void Reinstance() override;
+	UNREALED_API virtual UObject* GetReinstancedCDO(UObject* CDO) override;
+	UNREALED_API virtual const UObject* GetReinstancedCDO(const UObject* CDO) override;
 
 	/**
 	 * If you wish to reuse the same reload object, invoke this method to reset the state
 	 */
-	void Reset();
+	UNREALED_API void Reset();
 
 	/**
 	 * Perform any finalize processing for reloading.
 	 */
-	void Finalize(bool bRunGC = true);
+	UNREALED_API void Finalize(bool bRunGC = true);
 
 	/**
 	 * Set the sending of the complete notification
@@ -108,22 +108,22 @@ private:
 	 * Skipping UBlueprintGeneratedClass::OverridenArchetypeForCDO as it's the
 	 * only one needed.
 	 */
-	void ReplaceReferencesToReconstructedCDOs();
+	UNREALED_API void ReplaceReferencesToReconstructedCDOs();
 
 	/**
 	 * Based on the pointers, update the given stat
 	 */
-	void UpdateStats(FReinstanceStats& Stats, void* New, void* Old);
+	UNREALED_API void UpdateStats(FReinstanceStats& Stats, void* New, void* Old);
 
 	/**
 	 * Helper method to format all the stats
 	 */
-	static void FormatStats(FStringBuilderBase& Out, const TCHAR* Singular, const TCHAR* Plural, const FReinstanceStats& Stats);
+	static UNREALED_API void FormatStats(FStringBuilderBase& Out, const TCHAR* Singular, const TCHAR* Plural, const FReinstanceStats& Stats);
 
 	/**
 	 * Helper method to format a specific stat
 	 */
-	static void FormatStat(FStringBuilderBase& Out, const TCHAR* Singular, const TCHAR* Plural, const TCHAR* What, int32 Value);
+	static UNREALED_API void FormatStat(FStringBuilderBase& Out, const TCHAR* Singular, const TCHAR* Plural, const TCHAR* What, int32 Value);
 
 	/** Type of the active reload */
 	EActiveReloadType Type = EActiveReloadType::None;

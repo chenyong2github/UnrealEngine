@@ -23,8 +23,8 @@ public:
 	TSoftObjectPtr<class UCurveLinearColorAtlas> Atlas;
 };
 
-UCLASS(hidecategories=Object, collapsecategories, editinlinenew)
-class UNREALED_API UDEditorScalarParameterValue : public UDEditorParameterValue
+UCLASS(hidecategories=Object, collapsecategories, editinlinenew, MinimalAPI)
+class UDEditorScalarParameterValue : public UDEditorParameterValue
 {
 	GENERATED_UCLASS_BODY()
 

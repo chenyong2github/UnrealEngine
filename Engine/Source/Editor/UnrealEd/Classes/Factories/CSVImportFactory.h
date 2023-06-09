@@ -53,36 +53,36 @@ struct FCSVImportSettings
 	FString DataToImport;
 };
 
-UCLASS(hidecategories=Object)
-class UNREALED_API UCSVImportFactory : public UFactory, public IImportSettingsParser
+UCLASS(hidecategories=Object, MinimalAPI)
+class UCSVImportFactory : public UFactory, public IImportSettingsParser
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 	//~ Begin UFactory Interface
-	virtual FText GetDisplayName() const override;
-	virtual UObject* FactoryCreateFile(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags,
+	UNREALED_API virtual FText GetDisplayName() const override;
+	UNREALED_API virtual UObject* FactoryCreateFile(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags,
 		const FString& Filename, const TCHAR* Parms, FFeedbackContext* Warn, bool& bOutOperationCanceled) override;
-	virtual UObject* FactoryCreateText(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags,
+	UNREALED_API virtual UObject* FactoryCreateText(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags,
 		UObject* Context, const TCHAR* Type, const TCHAR*& Buffer, const TCHAR* BufferEnd, FFeedbackContext* Warn,
 		bool& bOutOperationCanceled) override;
-	virtual bool DoesSupportClass(UClass * Class) override;
-	virtual bool FactoryCanImport(const FString& Filename) override;
-	virtual	IImportSettingsParser* GetImportSettingsParser() override;
-	virtual void CleanUp() override;
+	UNREALED_API virtual bool DoesSupportClass(UClass * Class) override;
+	UNREALED_API virtual bool FactoryCanImport(const FString& Filename) override;
+	UNREALED_API virtual	IImportSettingsParser* GetImportSettingsParser() override;
+	UNREALED_API virtual void CleanUp() override;
 
 	/* Reimport an object that was created based on a CSV */
-	EReimportResult::Type ReimportCSV(UObject* Obj);
+	UNREALED_API EReimportResult::Type ReimportCSV(UObject* Obj);
 	
 	/**
 	 * IImportSettings interface
 	 */
-	virtual void ParseFromJson(TSharedRef<class FJsonObject> ImportSettingsJson) override;
+	UNREALED_API virtual void ParseFromJson(TSharedRef<class FJsonObject> ImportSettingsJson) override;
 
 protected:
-	virtual TArray<FString> DoImportDataTable(const FCSVImportSettings& ImportSettings, class UDataTable* TargetDataTable);
-	virtual TArray<FString> DoImportCurveTable(const FCSVImportSettings& ImportSettings, class UCurveTable* TargetCurveTable);
-	virtual TArray<FString> DoImportCurve(const FCSVImportSettings& InImportSettings, class UCurveBase* TargetCurve);
+	UNREALED_API virtual TArray<FString> DoImportDataTable(const FCSVImportSettings& ImportSettings, class UDataTable* TargetDataTable);
+	UNREALED_API virtual TArray<FString> DoImportCurveTable(const FCSVImportSettings& ImportSettings, class UCurveTable* TargetCurveTable);
+	UNREALED_API virtual TArray<FString> DoImportCurve(const FCSVImportSettings& InImportSettings, class UCurveBase* TargetCurve);
 
 private:
 	/* Reimport object from the given path*/

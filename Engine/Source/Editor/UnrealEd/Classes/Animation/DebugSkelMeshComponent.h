@@ -161,8 +161,8 @@ enum class ESkeletonDrawMode : uint8
 	GreyedOut
 };
 
-UCLASS(transient)
-class UNREALED_API UDebugSkelMeshComponent : public USkeletalMeshComponent
+UCLASS(transient, MinimalAPI)
+class UDebugSkelMeshComponent : public USkeletalMeshComponent
 {
 	GENERATED_UCLASS_BODY()
 	
@@ -339,102 +339,102 @@ class UNREALED_API UDebugSkelMeshComponent : public USkeletalMeshComponent
 	bool bTrackAttachedInstanceLOD;
 
 	// Helper method that sets the forced lod
-	void SetDebugForcedLOD(int32 InNewForcedLOD);
+	UNREALED_API void SetDebugForcedLOD(int32 InNewForcedLOD);
 
 	//~ Begin USceneComponent Interface.
-	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
+	UNREALED_API virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	//~ End USceneComponent Interface.
 
 	//~ Begin UPrimitiveComponent Interface.
-	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
+	UNREALED_API virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	
 	// engine only draw bounds IF selected
 	// @todo fix this properly
 	// this isn't really the best way to do this, but for now
 	// we'll just mark as selected
-	virtual bool ShouldRenderSelected() const override;
+	UNREALED_API virtual bool ShouldRenderSelected() const override;
 	//~ End UPrimitiveComponent Interface.
 
 	//~ Begin SkinnedMeshComponent Interface
-	virtual bool ShouldCPUSkin() override;
-	virtual void PostInitMeshObject(class FSkeletalMeshObject* MeshObject) override;
-	virtual void RefreshBoneTransforms(FActorComponentTickFunction* TickFunction = NULL) override;
+	UNREALED_API virtual bool ShouldCPUSkin() override;
+	UNREALED_API virtual void PostInitMeshObject(class FSkeletalMeshObject* MeshObject) override;
+	UNREALED_API virtual void RefreshBoneTransforms(FActorComponentTickFunction* TickFunction = NULL) override;
 	virtual int32 GetLODBias() const override { return 0; }
 	//~ End SkinnedMeshComponent Interface
 
 	//~ Begin SkeletalMeshComponent Interface
-	virtual void InitAnim(bool bForceReinit) override;
+	UNREALED_API virtual void InitAnim(bool bForceReinit) override;
 	virtual bool IsWindEnabled() const override { return true; }
-	virtual void SetAnimClass(class UClass* NewClass) override;
-	virtual void OnClearAnimScriptInstance() override;
-	virtual void SetSkeletalMesh(USkeletalMesh* InSkelMesh, bool bReinitPose = true) override;
+	UNREALED_API virtual void SetAnimClass(class UClass* NewClass) override;
+	UNREALED_API virtual void OnClearAnimScriptInstance() override;
+	UNREALED_API virtual void SetSkeletalMesh(USkeletalMesh* InSkelMesh, bool bReinitPose = true) override;
 	//~ End SkeletalMeshComponent Interface
 
 	// return true if currently preview animation asset is on
-	virtual bool IsPreviewOn() const;
+	UNREALED_API virtual bool IsPreviewOn() const;
 
 	// @todo document
-	FString GetPreviewText() const;
+	UNREALED_API FString GetPreviewText() const;
 
 	// @todo anim : you still need to give asset, so that we know which one to disable
 	// we can disable per asset, so that if some other window disabled before me, I don't accidently turn it off
-	virtual void EnablePreview(bool bEnable, class UAnimationAsset * PreviewAsset);
+	UNREALED_API virtual void EnablePreview(bool bEnable, class UAnimationAsset * PreviewAsset);
 
 	// Create the preview instance to use (default UAnimPreviewInstance)
-	virtual TObjectPtr<UAnimPreviewInstance> CreatePreviewInstance();
+	UNREALED_API virtual TObjectPtr<UAnimPreviewInstance> CreatePreviewInstance();
 
 	// reference pose for this component
 	// we don't want to use default refpose because you still want to move joint when this mode is on
-	virtual void ShowReferencePose(bool bRefPose);
-	virtual bool IsReferencePoseShown() const;
+	UNREALED_API virtual void ShowReferencePose(bool bRefPose);
+	UNREALED_API virtual bool IsReferencePoseShown() const;
 
 	/**
 	 * Update material information depending on color render mode 
 	 * Refresh/replace materials 
 	 */
-	void SetShowBoneWeight(bool bNewShowBoneWeight);
+	UNREALED_API void SetShowBoneWeight(bool bNewShowBoneWeight);
 
 	/**
 	* Update material information depending on color render mode
 	* Refresh/replace materials
 	*/
-	void SetShowMorphTargetVerts(bool bNewShowMorphTargetVerts);
+	UNREALED_API void SetShowMorphTargetVerts(bool bNewShowMorphTargetVerts);
 
 	/**
 	 * Does it use in-game bounds or bounds calculated from bones
 	 */
-	bool IsUsingInGameBounds() const;
+	UNREALED_API bool IsUsingInGameBounds() const;
 
 	/**
 	 * Set to use in-game bounds or bounds calculated from bones
 	 */
-	void UseInGameBounds(bool bUseInGameBounds);
+	UNREALED_API void UseInGameBounds(bool bUseInGameBounds);
 
 	/**
 	 * Does it use pre-skinned bounds
 	 */
-	bool IsUsingPreSkinnedBounds() const;
+	UNREALED_API bool IsUsingPreSkinnedBounds() const;
 
 	/**
 	 * Set to use pre-skinned bounds
 	 */
-	void UsePreSkinnedBounds(bool bUsePreSkinnedBounds);
+	UNREALED_API void UsePreSkinnedBounds(bool bUsePreSkinnedBounds);
 
 	/**
 	 * Test if in-game bounds are as big as preview bounds
 	 */
-	bool CheckIfBoundsAreCorrrect();
+	UNREALED_API bool CheckIfBoundsAreCorrrect();
 
 	/** Get the in-game bounds of the skeleton mesh */
-	FBoxSphereBounds CalcGameBounds(const FTransform& LocalToWorld) const;
+	UNREALED_API FBoxSphereBounds CalcGameBounds(const FTransform& LocalToWorld) const;
 
 	/** 
 	 * Update components position based on animation root motion
 	 */
-	void ConsumeRootMotion(const FVector& FloorMin, const FVector& FloorMax);
+	UNREALED_API void ConsumeRootMotion(const FVector& FloorMin, const FVector& FloorMax);
 
 	/** Sets the flag used to determine whether or not the current active cloth sim mesh should be rendered */
-	void SetShowClothProperty(bool bState);
+	UNREALED_API void SetShowClothProperty(bool bState);
 
 	/** Get whether we should be previewing root motion */
 	UE_DEPRECATED(5.0, "Please use IsProcessingRootMotion or GetProcessRootMotionMode")
@@ -445,22 +445,22 @@ class UNREALED_API UDebugSkelMeshComponent : public USkeletalMeshComponent
 	void SetPreviewRootMotion(bool bInPreviewRootMotion) { SetProcessRootMotionMode(bInPreviewRootMotion ? EProcessRootMotionMode::Loop : EProcessRootMotionMode::Ignore); }
 
 	/** Whether we are processing root motion or not */
-	bool IsProcessingRootMotion() const;
+	UNREALED_API bool IsProcessingRootMotion() const;
 
 	/** Gets process root motion mode */
-	EProcessRootMotionMode GetProcessRootMotionMode() const;
+	UNREALED_API EProcessRootMotionMode GetProcessRootMotionMode() const;
 
 	/** Sets process root motion mode. Note: disabling root motion preview resets transform. */
-	void SetProcessRootMotionMode(EProcessRootMotionMode Mode);
+	UNREALED_API void SetProcessRootMotionMode(EProcessRootMotionMode Mode);
 
 	/** Whether the supplied root motion mode can be used for the current asset */
-	bool CanUseProcessRootMotionMode(EProcessRootMotionMode Mode) const;
+	UNREALED_API bool CanUseProcessRootMotionMode(EProcessRootMotionMode Mode) const;
 
 	/** Whether the current asset or animation blueprint is using root motion */
-	bool DoesCurrentAssetHaveRootMotion() const;
+	UNREALED_API bool DoesCurrentAssetHaveRootMotion() const;
 
 	/** Whether the current LOD of the debug mesh is being synced with the attached (preview) mesh instance. */
-	bool IsTrackingAttachedLOD() const;
+	UNREALED_API bool IsTrackingAttachedLOD() const;
 
 	/** Set the wireframe mesh overlay color, which basically controls the color of the wireframe. */
 	void SetWireframeMeshOverlayColor(FLinearColor Color) { WireframeMeshOverlayColor = Color; }
@@ -480,19 +480,19 @@ class UNREALED_API UDebugSkelMeshComponent : public USkeletalMeshComponent
 		TArray<FString> Errors;
 	};
 	TArray<FAnimNotifyErrors> AnimNotifyErrors;
-	virtual void ReportAnimNotifyError(const FText& Error, UObject* InSourceNotify) override;
-	virtual void ClearAnimNotifyErrors(UObject* InSourceNotify) override;
+	UNREALED_API virtual void ReportAnimNotifyError(const FText& Error, UObject* InSourceNotify) override;
+	UNREALED_API virtual void ClearAnimNotifyErrors(UObject* InSourceNotify) override;
 
 	/** 
 	 * Extended viewport text delegate handling. Registering a delegate allows external
 	 * objects to place custom text in the anim tools viewports.
 	 */
-	FDelegateHandle RegisterExtendedViewportTextDelegate(const FGetExtendedViewportText& InDelegate);
-	void UnregisterExtendedViewportTextDelegate(const FDelegateHandle& InDelegateHandle);
+	UNREALED_API FDelegateHandle RegisterExtendedViewportTextDelegate(const FGetExtendedViewportText& InDelegate);
+	UNREALED_API void UnregisterExtendedViewportTextDelegate(const FDelegateHandle& InDelegateHandle);
 	const TArray<FGetExtendedViewportText>& GetExtendedViewportTextDelegates() const { return ExtendedViewportTextDelegates; }
 
-	FDelegateHandle RegisterOnDebugForceLODChangedDelegate(const FOnDebugForceLODChanged& InDelegate);
-	void UnregisterOnDebugForceLODChangedDelegate();
+	UNREALED_API FDelegateHandle RegisterOnDebugForceLODChangedDelegate(const FOnDebugForceLODChanged& InDelegate);
+	UNREALED_API void UnregisterOnDebugForceLODChangedDelegate();
 
 private:
 	TArray<FGetExtendedViewportText> ExtendedViewportTextDelegates;
@@ -521,18 +521,18 @@ public:
 	 * if bShowOnlyClothSections is true, shows only cloth sections. On the other hand, 
 	 * if bShowOnlyClothSections is false, hides only cloth sections.
 	 */
-	void ToggleClothSectionsVisibility(bool bShowOnlyClothSections);
+	UNREALED_API void ToggleClothSectionsVisibility(bool bShowOnlyClothSections);
 	/** Restore all section visibilities to original states for all LODs */
-	void RestoreClothSectionsVisibility();
+	UNREALED_API void RestoreClothSectionsVisibility();
 
 	/** 
 	 * To normal game/runtime code we don't want to expose a non-const pointer to the simulation, so we can only get
 	 * one from this editor-only component. Intended for debug options/visualisations/editor-only code to poke the sim
 	 */
-	IClothingSimulation* GetMutableClothingSimulation();
+	UNREALED_API IClothingSimulation* GetMutableClothingSimulation();
 
 	/** to avoid clothing reset while modifying properties in Persona */
-	virtual void CheckClothTeleport() override;
+	UNREALED_API virtual void CheckClothTeleport() override;
 
 	/** The currently selected asset guid if we're painting, used to build dynamic mesh to paint sim parameters */
 	FGuid SelectedClothingGuidForPainting;
@@ -544,17 +544,17 @@ public:
 	int32 SelectedClothingLodMaskForPainting;
 
 	/** Find a section using a clothing asset with the given GUID and set its visiblity */
-	void SetMeshSectionVisibilityForCloth(FGuid InClothGuid, bool bVisibility);
+	UNREALED_API void SetMeshSectionVisibilityForCloth(FGuid InClothGuid, bool bVisibility);
 
 	// fixes up the disabled flags so clothing is enabled and originals are disabled as
 	// ToggleMeshSectionForCloth will make these get out of sync
-	void ResetMeshSectionVisibility();
+	UNREALED_API void ResetMeshSectionVisibility();
 
 	// Rebuilds the fixed parameter on the mesh to mesh data, to be used if the editor has
 	// changed a vert to be fixed or unfixed otherwise the simulation will not work
 	// bInvalidateDerivedDataCache can only be false during previewing as otherwise the changes won't be correctly saved
 	UE_DEPRECATED(5.0, "This function is redundant, since it is always called after ApplyParameterMasks and therefore will be removed.")
-	void RebuildClothingSectionsFixedVerts(bool bInvalidateDerivedDataCache = true);
+	UNREALED_API void RebuildClothingSectionsFixedVerts(bool bInvalidateDerivedDataCache = true);
 
 	TArray<FVector3f> SkinnedSelectedClothingPositions;
 	TArray<FVector3f> SkinnedSelectedClothingNormals;
@@ -563,22 +563,22 @@ private:
 	// Rebuilds the fixed vertex attribute on any cloth deformer mappings,
 	// including LOD bias mappings, that reference the specified LOD section.
 	UE_DEPRECATED(5.0, "This function is redundant, since it is always called after ApplyParameterMasks and therefore will be removed.")
-	void RebuildClothingSectionFixedVerts(int32 LODIndex, int32 SectionIndex);
+	UNREALED_API void RebuildClothingSectionFixedVerts(int32 LODIndex, int32 SectionIndex);
 
 	// Helper function to generate space bases for current frame
-	void GenSpaceBases(TArray<FTransform>& OutSpaceBases);
+	UNREALED_API void GenSpaceBases(TArray<FTransform>& OutSpaceBases);
 
 	// Helper function to enable overlay material
-	void EnableOverlayMaterial(bool bEnable);
+	UNREALED_API void EnableOverlayMaterial(bool bEnable);
 
 	// Rebuilds the cloth bounds for the asset.
-	void RebuildCachedClothBounds();
+	UNREALED_API void RebuildCachedClothBounds();
 protected:
 
 	// Overridden to support single clothing ticks
-	virtual bool ShouldRunClothTick() const override;
+	UNREALED_API virtual bool ShouldRunClothTick() const override;
 
-	virtual void SendRenderDynamicData_Concurrent() override;
+	UNREALED_API virtual void SendRenderDynamicData_Concurrent() override;
 
 public:
 	/** Current turn table mode */
@@ -586,13 +586,13 @@ public:
 	/** Current turn table speed scaling */
 	float TurnTableSpeedScaling;
 
-	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
+	UNREALED_API virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 
-	void RefreshSelectedClothingSkinnedPositions();
+	UNREALED_API void RefreshSelectedClothingSkinnedPositions();
 
 	virtual bool CanOverrideCollisionProfile() const { return true; }
 
-	virtual void GetUsedMaterials(TArray<UMaterialInterface *>& OutMaterials, bool bGetDebugMaterials = false) const override;
+	UNREALED_API virtual void GetUsedMaterials(TArray<UMaterialInterface *>& OutMaterials, bool bGetDebugMaterials = false) const override;
 
 	/**
 	 * Define Custom Default pose for this component for preview
@@ -647,7 +647,7 @@ public:
  * Important it should be destroy after the PostEditChange of the skeletalmesh is done and the renderdata have been recreate
  * i.e. FScopedSkeletalMeshPostEditChange should be create after FScopedSuspendAlternateSkinWeightPreview and delete before FScopedSuspendAlternateSkinWeightPreview
  */
-class UNREALED_API FScopedSuspendAlternateSkinWeightPreview
+class FScopedSuspendAlternateSkinWeightPreview
 {
 public:
 	/*
@@ -655,12 +655,12 @@ public:
 	 * Parameters:
 	 * @param InSkeletalMesh - SkeletalMesh use to know which preview component we have to suspend the alternate skinning preview.
 	 */
-	FScopedSuspendAlternateSkinWeightPreview(class USkeletalMesh* InSkeletalMesh);
+	UNREALED_API FScopedSuspendAlternateSkinWeightPreview(class USkeletalMesh* InSkeletalMesh);
 
 	/*
 	 * This destructor put back the preview alternate skinning
 	 */
-	~FScopedSuspendAlternateSkinWeightPreview();
+	UNREALED_API ~FScopedSuspendAlternateSkinWeightPreview();
 
 private:
 	TArray< TTuple<UDebugSkelMeshComponent*, FName> > SuspendedComponentArray;

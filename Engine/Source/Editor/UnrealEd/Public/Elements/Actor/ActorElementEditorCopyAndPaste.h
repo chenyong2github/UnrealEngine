@@ -16,8 +16,8 @@
 class AActor;
 class AGroupActor;
 
-UCLASS(BlueprintType)
-class UNREALED_API UActorElementsCopy : public UObject
+UCLASS(BlueprintType, MinimalAPI)
+class UActorElementsCopy : public UObject
 {
 	GENERATED_BODY()
 
@@ -26,25 +26,25 @@ public:
 	TArray<TObjectPtr<AActor>> ActorsToCopy;
 };
 
-UCLASS()
-class UNREALED_API UActorElementsExporterT3D : public UExporter
+UCLASS(MinimalAPI)
+class UActorElementsExporterT3D : public UExporter
 {
 public:
 	GENERATED_BODY()
 
 public:
-	UActorElementsExporterT3D(const FObjectInitializer& ObjectInitializer = FObjectInitializer());
+	UNREALED_API UActorElementsExporterT3D(const FObjectInitializer& ObjectInitializer = FObjectInitializer());
 
 	//~ Begin UExporter Interface
-	virtual bool ExportText(const FExportObjectInnerContext* Context, UObject* Object, const TCHAR* Type, FOutputDevice& Out, FFeedbackContext* Warn, uint32 PortFlags = 0) override;
+	UNREALED_API virtual bool ExportText(const FExportObjectInnerContext* Context, UObject* Object, const TCHAR* Type, FOutputDevice& Out, FFeedbackContext* Warn, uint32 PortFlags = 0) override;
 	//~ End UExporter Interface
 };
 
-struct UNREALED_API FActorElementEditorPasteImporter : public FWorldElementPasteImporter
+struct FActorElementEditorPasteImporter : public FWorldElementPasteImporter
 {
-	virtual void Import(FContext& Context) override;
+	UNREALED_API virtual void Import(FContext& Context) override;
 	
-	virtual TArray<FTypedElementHandle> GetImportedElements() override;
+	UNREALED_API virtual TArray<FTypedElementHandle> GetImportedElements() override;
 	
 private:
 	void PostImportProcess();

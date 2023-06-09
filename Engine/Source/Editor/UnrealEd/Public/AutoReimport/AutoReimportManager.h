@@ -23,30 +23,30 @@ struct FPathAndMountPoint
 };
 	
 /* Deals with auto reimporting of objects when the objects file on disk is modified*/
-UCLASS(config=Editor, transient)
-class UNREALED_API UAutoReimportManager : public UObject
+UCLASS(config=Editor, transient, MinimalAPI)
+class UAutoReimportManager : public UObject
 {
 	GENERATED_UCLASS_BODY()
 public:
 
-	~UAutoReimportManager();
+	UNREALED_API ~UAutoReimportManager();
 
 	/** Initialize during engine startup */
-	void Initialize();
+	UNREALED_API void Initialize();
 
 	/** Get a list of absolute directories that we are monitoring */
-	TArray<FPathAndMountPoint> GetMonitoredDirectories() const;
+	UNREALED_API TArray<FPathAndMountPoint> GetMonitoredDirectories() const;
 
 	/** Report an external change to the manager, such that a subsequent equal change reported by the os be ignored */
-	void IgnoreNewFile(const FString& Filename);
-	void IgnoreFileModification(const FString& Filename);
-	void IgnoreMovedFile(const FString& SrcFilename, const FString& DstFilename);
-	void IgnoreDeletedFile(const FString& Filename);
+	UNREALED_API void IgnoreNewFile(const FString& Filename);
+	UNREALED_API void IgnoreFileModification(const FString& Filename);
+	UNREALED_API void IgnoreMovedFile(const FString& SrcFilename, const FString& DstFilename);
+	UNREALED_API void IgnoreDeletedFile(const FString& Filename);
 
 private:
 
 	/** UObject Interface */
-	virtual void BeginDestroy() override;
+	UNREALED_API virtual void BeginDestroy() override;
 
 	/** Private implementation of the reimport manager */
 	TSharedPtr<class FAutoReimportManager> Implementation;

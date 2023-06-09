@@ -5,11 +5,11 @@
 #include "Elements/Interfaces/TypedElementDetailsInterface.h"
 #include "SMInstanceElementDetailsInterface.generated.h"
 
-UCLASS()
-class UNREALED_API USMInstanceElementDetailsInterface : public UObject, public ITypedElementDetailsInterface
+UCLASS(MinimalAPI)
+class USMInstanceElementDetailsInterface : public UObject, public ITypedElementDetailsInterface
 {
 	GENERATED_BODY()
 
 public:
-	virtual TUniquePtr<ITypedElementDetailsObject> GetDetailsObject(const FTypedElementHandle& InElementHandle) override;
+	UNREALED_API virtual TUniquePtr<ITypedElementDetailsObject> GetDetailsObject(const FTypedElementHandle& InElementHandle) override;
 };

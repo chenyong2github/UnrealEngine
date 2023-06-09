@@ -13,8 +13,8 @@
 #include "UObject/Object.h"
 #include "MaterialEditorOptions.generated.h"
 
-UCLASS(hidecategories=Object, config=EditorPerProjectUserSettings)
-class UNREALED_API UMaterialEditorOptions : public UObject
+UCLASS(hidecategories=Object, config=EditorPerProjectUserSettings, MinimalAPI)
+class UMaterialEditorOptions : public UObject
 {
 	GENERATED_UCLASS_BODY()
 

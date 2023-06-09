@@ -16,15 +16,15 @@ class UObject;
 struct FTypedElementHandle;
 struct FTypedElementIsSelectedOptions;
 
-UCLASS()
-class UNREALED_API UComponentElementEditorSelectionInterface : public UComponentElementSelectionInterface
+UCLASS(MinimalAPI)
+class UComponentElementEditorSelectionInterface : public UComponentElementSelectionInterface
 {
 	GENERATED_BODY()
 
 public:
-	virtual bool IsElementSelected(const FTypedElementHandle& InElementHandle, const FTypedElementListConstPtr& InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions) override;
-	virtual bool ShouldPreventTransactions(const FTypedElementHandle& InElementHandle) override;
-	virtual TUniquePtr<ITypedElementTransactedElement> CreateTransactedElementImpl() override;
+	UNREALED_API virtual bool IsElementSelected(const FTypedElementHandle& InElementHandle, const FTypedElementListConstPtr& InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions) override;
+	UNREALED_API virtual bool ShouldPreventTransactions(const FTypedElementHandle& InElementHandle) override;
+	UNREALED_API virtual TUniquePtr<ITypedElementTransactedElement> CreateTransactedElementImpl() override;
 
-	static bool IsComponentSelected(const UActorComponent* InComponent, FTypedElementListConstRef InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions);
+	static UNREALED_API bool IsComponentSelected(const UActorComponent* InComponent, FTypedElementListConstRef InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions);
 };

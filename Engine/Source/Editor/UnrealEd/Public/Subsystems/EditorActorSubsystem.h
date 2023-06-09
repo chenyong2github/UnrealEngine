@@ -40,15 +40,15 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnDeleteActorsEnd);
 * UEditorActorUtilitiesSubsystem
 * Subsystem for exposing actor related utilities to scripts,
 */
-UCLASS()
-class UNREALED_API UEditorActorSubsystem : public UEditorSubsystem
+UCLASS(MinimalAPI)
+class UEditorActorSubsystem : public UEditorSubsystem
 {
 	GENERATED_BODY()
 
 public:
 
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-	virtual void Deinitialize() override;
+	UNREALED_API virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	UNREALED_API virtual void Deinitialize() override;
 
 	UPROPERTY(BlueprintAssignable, Category = "Editor Scripting | Level Utility")
 	FOnEditNewActorsDropped OnNewActorsDropped;
@@ -94,7 +94,7 @@ public:
 	 * @return	The duplicated actor, or none if it didn't succeed
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (AdvancedDisplay = 1))
-	AActor* DuplicateActor(AActor* ActorToDuplicate, UWorld* ToWorld = nullptr, FVector Offset = FVector::ZeroVector);
+	UNREALED_API AActor* DuplicateActor(AActor* ActorToDuplicate, UWorld* ToWorld = nullptr, FVector Offset = FVector::ZeroVector);
 
 	/**
 	 * Duplicate actors from the world editor.
@@ -104,35 +104,35 @@ public:
 	 * @return	The duplicated actors, or empty if it didn't succeed
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (AdvancedDisplay = 1))
-	TArray<AActor*> DuplicateActors(const TArray<AActor*>& ActorsToDuplicate, UWorld* ToWorld = nullptr, FVector Offset = FVector::ZeroVector);
+	UNREALED_API TArray<AActor*> DuplicateActors(const TArray<AActor*>& ActorsToDuplicate, UWorld* ToWorld = nullptr, FVector Offset = FVector::ZeroVector);
 
 	/**
 	 * Duplicate all the selected actors in the given world
 	 * @param	InWorld 	The world the actors are selected in.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
-	void DuplicateSelectedActors(UWorld* InWorld);
+	UNREALED_API void DuplicateSelectedActors(UWorld* InWorld);
 
 	/**
 	 * Delete all the selected actors in the given world
 	 * @param	InWorld 	The world the actors are selected in.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
-	void DeleteSelectedActors(UWorld* InWorld);
+	UNREALED_API void DeleteSelectedActors(UWorld* InWorld);
 
 	/**
 	 * Invert the selection in the given world
 	 * @param	InWorld 	The world the selection is in.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
-	void InvertSelection(UWorld* InWorld);
+	UNREALED_API void InvertSelection(UWorld* InWorld);
 
 	/**
 	* Select all actors and BSP models in the given world, except those which are hidden
 	*  @param	InWorld 	The world the actors are to be selected in.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
-	void SelectAll(UWorld* InWorld);
+	UNREALED_API void SelectAll(UWorld* InWorld);
 
 	/**
 	 * Select all children actors of the current selection.
@@ -140,21 +140,21 @@ public:
 	 * @param   bRecurseChildren	True to recurse through all descendants of the children
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
-	void SelectAllChildren(bool bRecurseChildren);
+	UNREALED_API void SelectAllChildren(bool bRecurseChildren);
 
 	/**
 	 * Find all loaded Actors in the world editor. Exclude actor that are pending kill, in PIE, PreviewEditor, ...
 	 * @return	List of found Actors
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
-	TArray<class AActor*> GetAllLevelActors();
+	UNREALED_API TArray<class AActor*> GetAllLevelActors();
 
 	/**
 	 * Find all loaded ActorComponent own by an actor in the world editor. Exclude actor that are pending kill, in PIE, PreviewEditor, ...
 	 * @return	List of found ActorComponent
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
-	TArray<class UActorComponent*> GetAllLevelActorsComponents();
+	UNREALED_API TArray<class UActorComponent*> GetAllLevelActorsComponents();
 
 	/**
 	 * Find all loaded Actors that are selected in the world editor. Exclude actor that are pending kill, in PIE, PreviewEditor, ...
@@ -162,26 +162,26 @@ public:
 	 * @return	List of found Actors
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
-	TArray<class AActor*> GetSelectedLevelActors();
+	UNREALED_API TArray<class AActor*> GetSelectedLevelActors();
 
 	/**
 	 * Clear the current world editor selection and select the provided actors. Exclude actor that are pending kill, in PIE, PreviewEditor, ...
 	 * @param	ActorsToSelect	Actor that should be selected in the world editor.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
-	void SetSelectedLevelActors(const TArray<class AActor*>& ActorsToSelect);
+	UNREALED_API void SetSelectedLevelActors(const TArray<class AActor*>& ActorsToSelect);
 
 	// Remove all actors from the selection set
 	UFUNCTION(BlueprintCallable, Category = "Development|Editor")
-	void ClearActorSelectionSet();
+	UNREALED_API void ClearActorSelectionSet();
 
 	// Selects nothing in the editor (another way to clear the selection)
 	UFUNCTION(BlueprintCallable, Category = "Development|Editor")
-	void SelectNothing();
+	UNREALED_API void SelectNothing();
 
 	// Set the selection state for the selected actor
 	UFUNCTION(BlueprintCallable, Category = "Development|Editor")
-	void SetActorSelectionState(AActor* Actor, bool bShouldBeSelected);
+	UNREALED_API void SetActorSelectionState(AActor* Actor, bool bShouldBeSelected);
 
 	/**
 	* Attempts to find the actor specified by PathToActor in the current editor world
@@ -189,7 +189,7 @@ public:
 	* @return	A reference to the actor, or none if it wasn't found
 	*/
 	UFUNCTION(BlueprintPure, Category = "Development|Editor")
-	AActor* GetActorReference(FString PathToActor);
+	UNREALED_API AActor* GetActorReference(FString PathToActor);
 
 	/**
 	 * Create an actor and place it in the world editor. The Actor can be created from a Factory, Archetype, Blueprint, Class or an Asset.
@@ -199,7 +199,7 @@ public:
 	 * @return	The created actor.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
-	AActor* SpawnActorFromObject(class UObject* ObjectToUse, FVector Location, FRotator Rotation = FRotator::ZeroRotator, bool bTransient = false);
+	UNREALED_API AActor* SpawnActorFromObject(class UObject* ObjectToUse, FVector Location, FRotator Rotation = FRotator::ZeroRotator, bool bTransient = false);
 
 	/**
 	 * Create an actor and place it in the world editor. Can be created from a Blueprint or a Class.
@@ -209,7 +209,7 @@ public:
 	 * @return	The created actor.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DeterminesOutputType = "ActorClass"))
-	AActor* SpawnActorFromClass(TSubclassOf<class AActor> ActorClass, FVector Location, FRotator Rotation = FRotator::ZeroRotator, bool bTransient = false);
+	UNREALED_API AActor* SpawnActorFromClass(TSubclassOf<class AActor> ActorClass, FVector Location, FRotator Rotation = FRotator::ZeroRotator, bool bTransient = false);
 
 	/**
 	 * Destroy the actor from the world editor. Notify the Editor that the actor got destroyed.
@@ -217,7 +217,7 @@ public:
 	 * @return	True if the operation succeeds.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
-	bool DestroyActor(AActor* ActorToDestroy);
+	UNREALED_API bool DestroyActor(AActor* ActorToDestroy);
 
 	/**
 	* Destroy the actors from the world editor. Notify the Editor that the actor got destroyed.
@@ -225,7 +225,7 @@ public:
 	* @return	True if the operation succeeds.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
-	bool DestroyActors(const TArray<AActor*>& ActorsToDestroy);
+	UNREALED_API bool DestroyActors(const TArray<AActor*>& ActorsToDestroy);
 
 	/**
 	 * Replace in the level all Actors provided with a new actor of type ActorClass. Destroy all Actors provided.
@@ -234,21 +234,21 @@ public:
 	 * @param	StaticMeshPackagePath	If the list contains Brushes and it is requested to change them to StaticMesh, StaticMeshPackagePath is the package path to where the StaticMesh will be created. ie. /Game/MyFolder/
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Dataprep", meta = (DeterminesOutputType = "ActorClass"))
-	TArray<class AActor*> ConvertActors(const TArray<class AActor*>& Actors, TSubclassOf<class AActor> ActorClass, const FString& StaticMeshPackagePath);
+	UNREALED_API TArray<class AActor*> ConvertActors(const TArray<class AActor*>& Actors, TSubclassOf<class AActor> ActorClass, const FString& StaticMeshPackagePath);
 
 	/**
 	 * Sets the world transform of the given actor, if possible.
 	 * @returns false if the world transform could not be set.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
-	bool SetActorTransform(AActor* InActor, const FTransform& InWorldTransform);
+	UNREALED_API bool SetActorTransform(AActor* InActor, const FTransform& InWorldTransform);
 
 	/**
 	 * Sets the world transform of the given component, if possible.
 	 * @returns false if the world transform could not be set.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
-	bool SetComponentTransform(USceneComponent* InSceneComponent, const FTransform& InWorldTransform);
+	UNREALED_API bool SetComponentTransform(USceneComponent* InSceneComponent, const FTransform& InWorldTransform);
 
 private:
 

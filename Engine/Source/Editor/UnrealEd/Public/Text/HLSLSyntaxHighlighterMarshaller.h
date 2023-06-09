@@ -14,7 +14,7 @@
 /**
  * Syntax highlighting for hlsl text
  */
-class UNREALED_API FHLSLSyntaxHighlighterMarshaller : public FSyntaxHighlighterTextLayoutMarshaller
+class FHLSLSyntaxHighlighterMarshaller : public FSyntaxHighlighterTextLayoutMarshaller
 {
 public:
 
@@ -51,7 +51,7 @@ public:
 		FTextBlockStyle ErrorTextStyle;
 	};
 
-	static TSharedRef<FHLSLSyntaxHighlighterMarshaller> Create(const FSyntaxTextStyle& InSyntaxTextStyle);
+	static UNREALED_API TSharedRef<FHLSLSyntaxHighlighterMarshaller> Create(const FSyntaxTextStyle& InSyntaxTextStyle);
 
 protected:
 
@@ -64,13 +64,13 @@ protected:
 		LookingForMultiLineComment,
 	};
 
-	static TSharedPtr<ISyntaxTokenizer> CreateTokenizer();
+	static UNREALED_API TSharedPtr<ISyntaxTokenizer> CreateTokenizer();
 	
-	virtual void ParseTokens(const FString& SourceString, FTextLayout& TargetTextLayout, TArray<ISyntaxTokenizer::FTokenizedLine> TokenizedLines) override;
+	UNREALED_API virtual void ParseTokens(const FString& SourceString, FTextLayout& TargetTextLayout, TArray<ISyntaxTokenizer::FTokenizedLine> TokenizedLines) override;
 
-	virtual FTextLayout::FNewLineData ProcessTokenizedLine(const ISyntaxTokenizer::FTokenizedLine& TokenizedLine, const int32& LineNumber, const FString& SourceString, EParseState& CurrentParseState);
+	UNREALED_API virtual FTextLayout::FNewLineData ProcessTokenizedLine(const ISyntaxTokenizer::FTokenizedLine& TokenizedLine, const int32& LineNumber, const FString& SourceString, EParseState& CurrentParseState);
 
-	FHLSLSyntaxHighlighterMarshaller(TSharedPtr<ISyntaxTokenizer> InTokenizer, const FSyntaxTextStyle& InSyntaxTextStyle);
+	UNREALED_API FHLSLSyntaxHighlighterMarshaller(TSharedPtr<ISyntaxTokenizer> InTokenizer, const FSyntaxTextStyle& InSyntaxTextStyle);
 
 	/** Styles used to display the text */
 	FSyntaxTextStyle SyntaxTextStyle;

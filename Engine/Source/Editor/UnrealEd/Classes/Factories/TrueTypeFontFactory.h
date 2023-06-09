@@ -15,8 +15,8 @@
 class UFont;
 class UTexture2D;
 
-UCLASS(hidecategories=Object, collapsecategories)
-class UNREALED_API UTrueTypeFontFactory : public UTextureFactory, public FReimportHandler
+UCLASS(hidecategories=Object, collapsecategories, MinimalAPI)
+class UTrueTypeFontFactory : public UTextureFactory, public FReimportHandler
 {
 	GENERATED_UCLASS_BODY()
 
@@ -33,12 +33,12 @@ class UNREALED_API UTrueTypeFontFactory : public UTextureFactory, public FReimpo
 	bool bFontSelected;
 
 	//~ Begin UObject Interface
-	virtual void PostInitProperties() override;
+	UNREALED_API virtual void PostInitProperties() override;
 	//~ End UObject Interface
 
 	//~ Begin UFactory Interface
-	virtual bool ConfigureProperties() override;
-	virtual UObject* FactoryCreateNew(UClass* Class,UObject* InParent,FName Name,EObjectFlags Flags,UObject* Context,FFeedbackContext* Warn) override;
+	UNREALED_API virtual bool ConfigureProperties() override;
+	UNREALED_API virtual UObject* FactoryCreateNew(UClass* Class,UObject* InParent,FName Name,EObjectFlags Flags,UObject* Context,FFeedbackContext* Warn) override;
 	virtual bool ShouldShowInNewMenu() const override
 	{
 		// Don't show this factory in the content browser menu; it's invoked manually when changing the UFont cache type to "Offline" 
@@ -47,14 +47,14 @@ class UNREALED_API UTrueTypeFontFactory : public UTextureFactory, public FReimpo
 	//~ Begin UFactory Interface	
 
 	//~ Begin FReimportHandler Interface
-	virtual bool CanReimport( UObject* Obj, TArray<FString>& OutFilenames ) override;
-	virtual void SetReimportPaths( UObject* Obj, const TArray<FString>& NewReimportPaths ) override;
-	virtual EReimportResult::Type Reimport( UObject* Obj ) override;
-	virtual int32 GetPriority() const override;
+	UNREALED_API virtual bool CanReimport( UObject* Obj, TArray<FString>& OutFilenames ) override;
+	UNREALED_API virtual void SetReimportPaths( UObject* Obj, const TArray<FString>& NewReimportPaths ) override;
+	UNREALED_API virtual EReimportResult::Type Reimport( UObject* Obj ) override;
+	UNREALED_API virtual int32 GetPriority() const override;
 	//~ End FReimportHandler Interface
 
 	/** Creates the import options structure for this font */
-	void SetupFontImportOptions();
+	UNREALED_API void SetupFontImportOptions();
 
 #if PLATFORM_WINDOWS
 	/**
@@ -67,17 +67,17 @@ class UNREALED_API UTrueTypeFontFactory : public UTextureFactory, public FReimpo
 	 *
 	 * @return Returns the newly created texture, if successful, otherwise NULL
 	 */
-	UTexture2D* CreateTextureFromDC( UFont* Font, Windows::HDC dc, int32 RowHeight, int32 TextureNum );
+	UNREALED_API UTexture2D* CreateTextureFromDC( UFont* Font, Windows::HDC dc, int32 RowHeight, int32 TextureNum );
 #endif
 
 #if PLATFORM_WINDOWS || PLATFORM_MAC || PLATFORM_LINUX
-	void* LoadFontFace( void* FTLibrary, int32 Height, FFeedbackContext* Warn, void** OutFontData );
-	UTexture2D* CreateTextureFromBitmap( UFont* Font, uint8* BitmapData, int32 Height, int32 TextureNum );
-	bool CreateFontTexture( UFont* Font, FFeedbackContext* Warn, const int32 NumResolutions, const int32 CharsPerPage,
+	UNREALED_API void* LoadFontFace( void* FTLibrary, int32 Height, FFeedbackContext* Warn, void** OutFontData );
+	UNREALED_API UTexture2D* CreateTextureFromBitmap( UFont* Font, uint8* BitmapData, int32 Height, int32 TextureNum );
+	UNREALED_API bool CreateFontTexture( UFont* Font, FFeedbackContext* Warn, const int32 NumResolutions, const int32 CharsPerPage,
 		const TMap<TCHAR,TCHAR>& InverseMap, const TArray< float >& ResHeights );
 
 #if PLATFORM_WINDOWS
-	FString FindBitmapFontFile();
+	UNREALED_API FString FindBitmapFontFile();
 #endif
 
 	/**
@@ -90,7 +90,7 @@ class UNREALED_API UTrueTypeFontFactory : public UTextureFactory, public FReimpo
 	 *
 	 * @return true if successful
 	 */
-	bool ImportTrueTypeFont( UFont* Font, FFeedbackContext* Warn, const int32 NumResolutions, const TArray< float >& ResHeights );
+	UNREALED_API bool ImportTrueTypeFont( UFont* Font, FFeedbackContext* Warn, const int32 NumResolutions, const TArray< float >& ResHeights );
 #endif
 };
 

@@ -9,7 +9,7 @@
  * 
  * Supports filling the settings from a json file for automated importing
  */
-class UNREALED_API IImportSettingsParser
+class IImportSettingsParser
 {
 public:
 	/**

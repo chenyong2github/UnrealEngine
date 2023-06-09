@@ -38,8 +38,8 @@ struct FEditorWorldExtensionActorData
 	bool bValidForPIE = false;
 };
 
-UCLASS()
-class UNREALED_API UEditorWorldExtension : public UObject
+UCLASS(MinimalAPI)
+class UEditorWorldExtension : public UObject
 {
 	GENERATED_BODY()
 
@@ -47,10 +47,10 @@ class UNREALED_API UEditorWorldExtension : public UObject
 public:
 	
 	/** Default constructor */
-	UEditorWorldExtension();
+	UNREALED_API UEditorWorldExtension();
 
 	/** Default destructor */
-	virtual ~UEditorWorldExtension();
+	UNREALED_API virtual ~UEditorWorldExtension();
 
 	/** Initialize extension */
 	virtual void Init() {};
@@ -61,14 +61,14 @@ public:
 	/** Give base class the chance to tick */
 	virtual void Tick( float DeltaSeconds ) {};
 
-	virtual bool InputKey( FEditorViewportClient* InViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event);
-	virtual bool InputAxis( FEditorViewportClient* InViewportClient, FViewport* Viewport, int32 ControllerId, FKey Key, float Delta, float DeltaTime);
+	UNREALED_API virtual bool InputKey( FEditorViewportClient* InViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event);
+	UNREALED_API virtual bool InputAxis( FEditorViewportClient* InViewportClient, FViewport* Viewport, int32 ControllerId, FKey Key, float Delta, float DeltaTime);
 
 	/** Gets the world owning this extension */
-	virtual UWorld* GetWorld() const override;
+	UNREALED_API virtual UWorld* GetWorld() const override;
 
 	/** Gets the world owning this extension's non-PIE valid actors when current world is a play world */
-	virtual UWorld* GetLastEditorWorld() const;
+	UNREALED_API virtual UWorld* GetLastEditorWorld() const;
 
 	/**  Spawns a transient actor that we can use in the current world of this extension (templated for convenience) */
 	template<class T>
@@ -78,27 +78,27 @@ public:
 	}
 
 	/** Spawns a transient actor that we can use in the current world of this extension */
-	AActor* SpawnTransientSceneActor(TSubclassOf<AActor> ActorClass, const FString& ActorName, const bool bWithSceneComponent = false, const EObjectFlags InObjectFlags = EObjectFlags::RF_Transient | EObjectFlags::RF_DuplicateTransient, const bool bValidForPIE = false);
+	UNREALED_API AActor* SpawnTransientSceneActor(TSubclassOf<AActor> ActorClass, const FString& ActorName, const bool bWithSceneComponent = false, const EObjectFlags InObjectFlags = EObjectFlags::RF_Transient | EObjectFlags::RF_DuplicateTransient, const bool bValidForPIE = false);
 
 	/** Destroys a transient actor we created earlier */
-	void DestroyTransientActor(AActor* Actor);
+	UNREALED_API void DestroyTransientActor(AActor* Actor);
 
 	/** Sets if this extension should be ticked. */
-	void SetActive(const bool bInActive);
+	UNREALED_API void SetActive(const bool bInActive);
 
 	/** If this extension is currently being ticked. */
-	bool IsActive() const;
+	UNREALED_API bool IsActive() const;
 
 	/** Get the owning collection of extensions */
-	UEditorWorldExtensionCollection* GetOwningCollection();
+	UNREALED_API UEditorWorldExtensionCollection* GetOwningCollection();
 
 	/** Executes command */
-	bool ExecCommand(const FString& InCommand);
+	UNREALED_API bool ExecCommand(const FString& InCommand);
 
 protected:
 	
 	/** Reparent actors to a new world */
-	virtual void TransitionWorld(UWorld* NewWorld, EEditorWorldExtensionTransitionState TransitionState);
+	UNREALED_API virtual void TransitionWorld(UWorld* NewWorld, EEditorWorldExtensionTransitionState TransitionState);
 
 	/** Give child class a chance to act on entering simulate mode */
 	virtual void EnteredSimulateInEditor() {};
@@ -112,10 +112,10 @@ protected:
 private:
 
 	/** Reparent the actors to a new world. */
-	void ReparentActor(AActor* Actor, UWorld* NewWorld);
+	UNREALED_API void ReparentActor(AActor* Actor, UWorld* NewWorld);
 
 	/** Let the FEditorWorldExtensionCollection set the world of this extension before init */
-	void InitInternal(UEditorWorldExtensionCollection* InOwningExtensionsCollection);
+	UNREALED_API void InitInternal(UEditorWorldExtensionCollection* InOwningExtensionsCollection);
 
 	UPROPERTY()
 	TArray<FEditorWorldExtensionActorData> ExtensionActors;
@@ -127,8 +127,8 @@ private:
 /**
  * Holds a collection of UEditorExtension
  */
-UCLASS()
-class UNREALED_API UEditorWorldExtensionCollection : public UObject
+UCLASS(MinimalAPI)
+class UEditorWorldExtensionCollection : public UObject
 {
 	GENERATED_BODY()
 
@@ -136,73 +136,73 @@ class UNREALED_API UEditorWorldExtensionCollection : public UObject
 public:
 
 	/** Default constructor */
-	UEditorWorldExtensionCollection();
+	UNREALED_API UEditorWorldExtensionCollection();
 
 	/** Default destructor */
-	virtual ~UEditorWorldExtensionCollection();
+	UNREALED_API virtual ~UEditorWorldExtensionCollection();
 
 	/** Gets the world from the world context */
-	virtual UWorld* GetWorld() const override;
+	UNREALED_API virtual UWorld* GetWorld() const override;
 
 	/** Gets the last editor world, will only be non-null when current world is a play world. */
-	UWorld* GetLastEditorWorld() const;
+	UNREALED_API UWorld* GetLastEditorWorld() const;
 
 	/**
 	 * Checks if the passed extension already exists and creates one if it doesn't.
 	 * @param EditorExtensionClass the subclass of an extension to create if necessary and add.
 	 */
-	UEditorWorldExtension* AddExtension(TSubclassOf<UEditorWorldExtension> EditorExtensionClass);
+	UNREALED_API UEditorWorldExtension* AddExtension(TSubclassOf<UEditorWorldExtension> EditorExtensionClass);
 
 	/** 
 	 * Adds an extension to the collection
 	 * @param	EditorExtension			The UEditorExtension that will be created, initialized and added to the collection.
 	 */
-	void AddExtension( UEditorWorldExtension* EditorExtension );
+	UNREALED_API void AddExtension( UEditorWorldExtension* EditorExtension );
 	
 	/** 
 	 * Removes an extension from the collection and calls Shutdown() on the extension
 	 * @param	EditorExtension			The UEditorExtension to remove.  It must already have been added.
 	 */
-	void RemoveExtension( UEditorWorldExtension* EditorExtension );
+	UNREALED_API void RemoveExtension( UEditorWorldExtension* EditorExtension );
 
 	/**
 	 * Find an extension based on the class
 	 * @param	EditorExtensionClass	The class to find an extension with
 	 * @return							The first extension that is found based on class
 	 */
-	UEditorWorldExtension* FindExtension( TSubclassOf<UEditorWorldExtension> EditorExtensionClass );
+	UNREALED_API UEditorWorldExtension* FindExtension( TSubclassOf<UEditorWorldExtension> EditorExtensionClass );
 
 	/** Ticks all extensions */
-	void Tick( float DeltaSeconds );
+	UNREALED_API void Tick( float DeltaSeconds );
 
 	/** Notifies all extensions of keyboard input */
-	bool InputKey( FEditorViewportClient* InViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event);
+	UNREALED_API bool InputKey( FEditorViewportClient* InViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event);
 
 	/** Notifies all extensions of axis movement */
-	bool InputAxis( FEditorViewportClient* InViewportClient, FViewport* Viewport, int32 ControllerId, FKey Key, float Delta, float DeltaTime);
+	UNREALED_API bool InputAxis( FEditorViewportClient* InViewportClient, FViewport* Viewport, int32 ControllerId, FKey Key, float Delta, float DeltaTime);
 	
 	/** Show or hide all the actors of extensions that belong to this collection. */
-	void ShowAllActors(const bool bShow);
+	UNREALED_API void ShowAllActors(const bool bShow);
 
 private:
 
 	/** Sets the world for this collection and gives every extension an opportunity to transition */
-	void SetWorld(UWorld* NewWorld, EEditorWorldExtensionTransitionState TransitionState /* = EEditorWorldExtensionTransitionState::TransitionAll */);
+	UNREALED_API void SetWorld(UWorld* NewWorld, EEditorWorldExtensionTransitionState TransitionState /* = EEditorWorldExtensionTransitionState::TransitionAll */);
 
 	/** Transitions actors in every extension to the specified world */
-	void TransitionWorld(UWorld* NewWorld, EEditorWorldExtensionTransitionState TransitionState);
+	UNREALED_API void TransitionWorld(UWorld* NewWorld, EEditorWorldExtensionTransitionState TransitionState);
 
 	/** Called by the editor after PIE or Simulate is started */
-	void PostPIEStarted( bool bIsSimulatingInEditor );
+	UNREALED_API void PostPIEStarted( bool bIsSimulatingInEditor );
 
 	/** Called just before PIE or Simulate ends */
-	void OnPreEndPIE(bool bWasSimulatingInEditor);
+	UNREALED_API void OnPreEndPIE(bool bWasSimulatingInEditor);
 
 	/** Called when PIE or Simulate ends */
-	void OnEndPIE( bool bWasSimulatingInEditor );
+	UNREALED_API void OnEndPIE( bool bWasSimulatingInEditor );
 
 	/** Called when switching between play and simulate */
-	void SwitchPIEAndSIE(bool bIsSimulatingInEditor);
+	UNREALED_API void SwitchPIEAndSIE(bool bIsSimulatingInEditor);
 
 	/** World context */
 	TWeakObjectPtr<UWorld> Currentworld;
@@ -220,24 +220,24 @@ private:
 /**
  * Holds a map of extension collections paired with worlds
  */
-UCLASS()
-class UNREALED_API UEditorWorldExtensionManager	: public UObject
+UCLASS(MinimalAPI)
+class UEditorWorldExtensionManager	: public UObject
 {
 	GENERATED_BODY()
 
 public:
 	/** Default constructor */
-	UEditorWorldExtensionManager();
+	UNREALED_API UEditorWorldExtensionManager();
 
 	/** Default destructor */
-	virtual ~UEditorWorldExtensionManager();
+	UNREALED_API virtual ~UEditorWorldExtensionManager();
 
 	/** Gets the editor world wrapper that is found with the world passed.
 	 * Adds one for this world if there was non found. */
-	UEditorWorldExtensionCollection* GetEditorWorldExtensions(UWorld* InWorld, const bool bCreateIfNeeded = true);
+	UNREALED_API UEditorWorldExtensionCollection* GetEditorWorldExtensions(UWorld* InWorld, const bool bCreateIfNeeded = true);
 
 	/** Ticks all the collections */
-	void Tick( float DeltaSeconds );
+	UNREALED_API void Tick( float DeltaSeconds );
 
 private:
 

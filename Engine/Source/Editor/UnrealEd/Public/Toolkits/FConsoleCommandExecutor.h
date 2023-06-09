@@ -10,19 +10,19 @@
 /**
 * Executor for Unreal console commands
 */
-class UNREALED_API FConsoleCommandExecutor : public IConsoleCommandExecutor
+class FConsoleCommandExecutor : public IConsoleCommandExecutor
 {
 public:
-	static FName StaticName();
-	virtual FName GetName() const override;
-	virtual FText GetDisplayName() const override;
-	virtual FText GetDescription() const override;
-	virtual FText GetHintText() const override;
-	virtual void GetAutoCompleteSuggestions(const TCHAR* Input, TArray<FString>& Out) override;
-	virtual void GetExecHistory(TArray<FString>& Out) override;
-	virtual bool Exec(const TCHAR* Input) override;
-	virtual bool AllowHotKeyClose() const override;
-	virtual bool AllowMultiLine() const override;
+	static UNREALED_API FName StaticName();
+	UNREALED_API virtual FName GetName() const override;
+	UNREALED_API virtual FText GetDisplayName() const override;
+	UNREALED_API virtual FText GetDescription() const override;
+	UNREALED_API virtual FText GetHintText() const override;
+	UNREALED_API virtual void GetAutoCompleteSuggestions(const TCHAR* Input, TArray<FString>& Out) override;
+	UNREALED_API virtual void GetExecHistory(TArray<FString>& Out) override;
+	UNREALED_API virtual bool Exec(const TCHAR* Input) override;
+	UNREALED_API virtual bool AllowHotKeyClose() const override;
+	UNREALED_API virtual bool AllowMultiLine() const override;
 
 	virtual FInputChord GetHotKey() const override
 	{
@@ -34,5 +34,5 @@ public:
 		return FGlobalEditorCommonCommands::Get().FGlobalEditorCommonCommands::Get().SelectNextConsoleExecutor->GetActiveChord(EMultipleKeyBindingIndex::Primary).Get();
 	}
 private:
-	bool ExecInternal(const TCHAR*) const;
+	UNREALED_API bool ExecInternal(const TCHAR*) const;
 };

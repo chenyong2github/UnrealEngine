@@ -8,8 +8,8 @@
 
 #include "DEditorSparseVolumeTextureParameterValue.generated.h"
 
-UCLASS(hidecategories=Object, collapsecategories)
-class UNREALED_API UDEditorSparseVolumeTextureParameterValue : public UDEditorParameterValue
+UCLASS(hidecategories=Object, collapsecategories, MinimalAPI)
+class UDEditorSparseVolumeTextureParameterValue : public UDEditorParameterValue
 {
 	GENERATED_UCLASS_BODY()
 

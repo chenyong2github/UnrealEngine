@@ -81,8 +81,8 @@ struct FClassPickerDefaults
 	FText GetDescription() const;
 };
 
-UCLASS(Config=Editor)
-class UNREALED_API UUnrealEdOptions : public UObject
+UCLASS(Config=Editor, MinimalAPI)
+class UUnrealEdOptions : public UObject
 {
 	GENERATED_BODY()
 public:
@@ -128,13 +128,13 @@ public:
 	TMap<FName, int32>	CommandMap;
 
 	//~ Begin UObject Interface
-	virtual void PostInitProperties() override;
+	UNREALED_API virtual void PostInitProperties() override;
 	//~ End UObject Interface
 
 	/**
 	 * Generates a mapping from commnands to their parent sets for quick lookup.
 	 */
-	void GenerateCommandMap();
+	UNREALED_API void GenerateCommandMap();
 
 	/**
 	 * Attempts to locate a exec command bound to a hotkey.
@@ -145,7 +145,7 @@ public:
 	 * @param bShiftDown	Whether or not SHIFT is pressed.
 	 * @param EditorSet		Set of bindings to search in.
 	 */
-	FString GetExecCommand(FKey Key, bool bAltDown, bool bCtrlDown, bool bShiftDown, FName EditorSet);
+	UNREALED_API FString GetExecCommand(FKey Key, bool bAltDown, bool bCtrlDown, bool bShiftDown, FName EditorSet);
 
 private:
 

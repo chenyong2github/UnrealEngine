@@ -9,8 +9,8 @@
 /**
  * Implements Editor settings for animation blueprints
  */
-UCLASS(config = EditorPerProjectUserSettings)
-class UNREALED_API UAnimBlueprintSettings : public UObject
+UCLASS(config = EditorPerProjectUserSettings, MinimalAPI)
+class UAnimBlueprintSettings : public UObject
 {
 	GENERATED_BODY()
 

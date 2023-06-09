@@ -8,8 +8,8 @@
 #include "Materials/MaterialExpressionVectorParameter.h"
 #include "DEditorDoubleVectorParameterValue.generated.h"
 
-UCLASS(hidecategories = Object, collapsecategories, editinlinenew)
-class UNREALED_API UDEditorDoubleVectorParameterValue : public UDEditorParameterValue
+UCLASS(hidecategories = Object, collapsecategories, editinlinenew, MinimalAPI)
+class UDEditorDoubleVectorParameterValue : public UDEditorParameterValue
 {
 	GENERATED_UCLASS_BODY()
 

@@ -267,7 +267,7 @@ public:
 	 * @param Ar The archive to serialize with
 	 */
 	UNREALED_API virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
-	UNREALED_API virtual FString GetReferencerName() const override
+	virtual FString GetReferencerName() const override
 	{
 		return TEXT("SCurveEditor");
 	}
@@ -276,8 +276,8 @@ public:
 	UNREALED_API TSharedPtr<FUICommandList> GetCommands();
 
 	/** Gets or sets whether autoframing is allowed */
-	UNREALED_API bool GetAllowAutoFrame() const { return bAllowAutoFrame; }
-	UNREALED_API void SetAllowAutoFrame(bool bInAllowAutoFrame) { bAllowAutoFrame = bInAllowAutoFrame; }
+	bool GetAllowAutoFrame() const { return bAllowAutoFrame; }
+	void SetAllowAutoFrame(bool bInAllowAutoFrame) { bAllowAutoFrame = bInAllowAutoFrame; }
 
 	/** Gets whether autoframe will be invoked (combination of allow auto frame and curve editor auto frame setting) */
 	UNREALED_API bool GetAutoFrame() const;
@@ -598,7 +598,7 @@ private:
 
 	//~ Begin FEditorUndoClient Interface
 	UNREALED_API virtual void PostUndo(bool bSuccess) override;
-	UNREALED_API virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); }
+	virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); }
 	// End of FEditorUndoClient
 
 	bool AreCurvesVisible() const { return bAlwaysDisplayColorCurves || bAreCurvesVisible.Get(); }

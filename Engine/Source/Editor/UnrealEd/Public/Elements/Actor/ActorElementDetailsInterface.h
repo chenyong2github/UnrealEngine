@@ -12,11 +12,11 @@
 
 struct FTypedElementHandle;
 
-UCLASS()
-class UNREALED_API UActorElementDetailsInterface : public UObject, public ITypedElementDetailsInterface
+UCLASS(MinimalAPI)
+class UActorElementDetailsInterface : public UObject, public ITypedElementDetailsInterface
 {
 	GENERATED_BODY()
 
 public:
-	virtual TUniquePtr<ITypedElementDetailsObject> GetDetailsObject(const FTypedElementHandle& InElementHandle) override;
+	UNREALED_API virtual TUniquePtr<ITypedElementDetailsObject> GetDetailsObject(const FTypedElementHandle& InElementHandle) override;
 };

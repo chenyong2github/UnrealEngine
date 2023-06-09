@@ -14,8 +14,8 @@
 /**
  * Implements content browser settings.  These are global not per-project
  */
-UCLASS(config=EditorSettings)
-class UNREALED_API UContentBrowserSettings : public UObject
+UCLASS(config=EditorSettings, MinimalAPI)
+class UContentBrowserSettings : public UObject
 {
 	GENERATED_BODY()
 
@@ -235,7 +235,7 @@ protected:
 
 	// UObject overrides
 
-	virtual void PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent ) override;
+	UNREALED_API virtual void PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent ) override;
 
 private:
 
@@ -272,5 +272,5 @@ private:
 	bool IncludeCollectionNames;
 
 	// Holds an event delegate that is executed when a setting has changed.
-	static FSettingChangedEvent SettingChangedEvent;
+	static UNREALED_API FSettingChangedEvent SettingChangedEvent;
 };

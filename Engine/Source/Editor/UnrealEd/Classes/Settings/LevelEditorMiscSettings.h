@@ -14,8 +14,8 @@ class ULevelStreaming;
 /**
  * Configure miscellaneous settings for the Level Editor.
  */
-UCLASS(config=EditorPerProjectUserSettings, meta=( DisplayName="Miscellaneous" ))
-class UNREALED_API ULevelEditorMiscSettings : public UDeveloperSettings
+UCLASS(config=EditorPerProjectUserSettings, meta=( DisplayName="Miscellaneous" ), MinimalAPI)
+class ULevelEditorMiscSettings : public UDeveloperSettings
 {
 	GENERATED_UCLASS_BODY()
 
@@ -96,5 +96,5 @@ protected:
 
 	// UObject overrides
 
-	virtual void PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent ) override;
+	UNREALED_API virtual void PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent ) override;
 };

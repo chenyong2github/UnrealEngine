@@ -17,8 +17,8 @@
 #include "SceneTypes.h"
 #include "MaterialStatsOptions.generated.h"
 
-UCLASS(hidecategories = Object, config = EditorPerProjectUserSettings)
-class UNREALED_API UMaterialStatsOptions : public UObject
+UCLASS(hidecategories = Object, config = EditorPerProjectUserSettings, MinimalAPI)
+class UMaterialStatsOptions : public UObject
 {
 	GENERATED_UCLASS_BODY()
 

@@ -21,13 +21,13 @@ class UFactory;
 /**
  * Contains data for a group of assets to import
  */ 
-UCLASS(Transient, BlueprintType)
-class UNREALED_API UAssetImportTask : public UObject
+UCLASS(Transient, BlueprintType, MinimalAPI)
+class UAssetImportTask : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	UAssetImportTask();
+	UNREALED_API UAssetImportTask();
 
 // Task Options
 public:
@@ -79,14 +79,14 @@ public:
 	 * To test whether asynchronous results are ready or not, use IsAsyncImportComplete().
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Asset Import Task")
-	const TArray<UObject*>& GetObjects() const;
+	UNREALED_API const TArray<UObject*>& GetObjects() const;
 
 	/**
 	 * Query whether this asynchronous import task is complete, and the results are ready to read.
 	 * This will always return true in the case of a blocking import.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Asset Import Task")
-	bool IsAsyncImportComplete() const;
+	UNREALED_API bool IsAsyncImportComplete() const;
 
 	/** Paths to objects created or updated after import */
 	UPROPERTY(BlueprintReadWrite, Category = "Asset Import Task")

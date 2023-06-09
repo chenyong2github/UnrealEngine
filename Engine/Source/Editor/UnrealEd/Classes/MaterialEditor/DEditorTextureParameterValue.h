@@ -8,8 +8,8 @@
 
 #include "DEditorTextureParameterValue.generated.h"
 
-UCLASS(hidecategories=Object, collapsecategories)
-class UNREALED_API UDEditorTextureParameterValue : public UDEditorParameterValue
+UCLASS(hidecategories=Object, collapsecategories, MinimalAPI)
+class UDEditorTextureParameterValue : public UDEditorParameterValue
 {
 	GENERATED_UCLASS_BODY()
 

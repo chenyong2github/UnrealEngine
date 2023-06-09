@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -8,7 +8,7 @@
 /**
  * Provides convenience methods for interacting with Bookmarks.
  */
-class UNREALED_API IBookmarkTypeTools : public FNoncopyable
+class IBookmarkTypeTools : public FNoncopyable
 {
 protected:
 
@@ -16,7 +16,7 @@ protected:
 
 public:
 
-	static IBookmarkTypeTools& Get();
+	static UNREALED_API IBookmarkTypeTools& Get();
 
 	/**
 	 * Gets the current maximum number of bookmarks allowed.

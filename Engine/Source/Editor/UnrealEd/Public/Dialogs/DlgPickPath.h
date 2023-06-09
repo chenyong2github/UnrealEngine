@@ -24,7 +24,7 @@ public:
 
 	SLATE_END_ARGS()
 
-	UNREALED_API SDlgPickPath()
+	SDlgPickPath()
 	:	UserResponse(EAppReturnType::Cancel)
 	{
 	}

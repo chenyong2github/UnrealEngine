@@ -104,8 +104,8 @@ struct FAssetEditorOptions
 	void SetViewportConfigsToDefault();
 };
 
-UCLASS(hidecategories=Object, config=EditorPerProjectUserSettings)
-class UNREALED_API UPersonaOptions : public UObject
+UCLASS(hidecategories=Object, config=EditorPerProjectUserSettings, MinimalAPI)
+class UPersonaOptions : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -251,25 +251,25 @@ class UNREALED_API UPersonaOptions : public UObject
 	UPROPERTY(EditAnywhere, config, Category = "Timeline")
 	FString AnimationCurveGroupingDelimiters = TEXT("._/|\\");
 public:
-	void SetShowGrid( bool bInShowGrid );
-	void SetHighlightOrigin( bool bInHighlightOrigin );
-	void SetAutoAlignFloorToMesh(bool bInAutoAlignFloorToMesh);
-	void SetMuteAudio( bool bInMuteAudio );
-	void SetUseAudioAttenuation( bool bInUseAudioAttenuation );
-	void SetViewModeIndex( FName InContext, EViewModeIndex InViewModeIndex, int32 InViewportIndex );
-	void SetViewFOV( FName InContext, float InViewFOV, int32 InViewportIndex );
-	void SetCameraSpeed(FName InContext, int32 InCameraSpeed, int32 InViewportIndex);
-	void SetCameraSpeedScalar(FName InContext, float InCameraSpeedScalar, int32 InViewportIndex);
-	void SetViewCameraFollow( FName InContext, EAnimationViewportCameraFollowMode InCameraFollowMode, FName InCameraFollowBoneName, int32 InViewportIndex );
-	void SetDefaultLocalAxesSelection( uint32 InDefaultLocalAxesSelection );
-	void SetDefaultBoneDrawSelection(uint32 InDefaultBoneAxesSelection);
-	void SetShowMeshStats( int32 InShowMeshStats );
-	void SetSectionTimingNodeColor(const FLinearColor& InColor);
-	void SetNotifyTimingNodeColor(const FLinearColor& InColor);
-	void SetBranchingPointTimingNodeColor(const FLinearColor& InColor);
-	FAssetEditorOptions& GetAssetEditorOptions(const FName& InContext);
-	bool GetAllowIncompatibleSkeletonSelection() const;
-	void SetAllowIncompatibleSkeletonSelection(bool bState);
+	UNREALED_API void SetShowGrid( bool bInShowGrid );
+	UNREALED_API void SetHighlightOrigin( bool bInHighlightOrigin );
+	UNREALED_API void SetAutoAlignFloorToMesh(bool bInAutoAlignFloorToMesh);
+	UNREALED_API void SetMuteAudio( bool bInMuteAudio );
+	UNREALED_API void SetUseAudioAttenuation( bool bInUseAudioAttenuation );
+	UNREALED_API void SetViewModeIndex( FName InContext, EViewModeIndex InViewModeIndex, int32 InViewportIndex );
+	UNREALED_API void SetViewFOV( FName InContext, float InViewFOV, int32 InViewportIndex );
+	UNREALED_API void SetCameraSpeed(FName InContext, int32 InCameraSpeed, int32 InViewportIndex);
+	UNREALED_API void SetCameraSpeedScalar(FName InContext, float InCameraSpeedScalar, int32 InViewportIndex);
+	UNREALED_API void SetViewCameraFollow( FName InContext, EAnimationViewportCameraFollowMode InCameraFollowMode, FName InCameraFollowBoneName, int32 InViewportIndex );
+	UNREALED_API void SetDefaultLocalAxesSelection( uint32 InDefaultLocalAxesSelection );
+	UNREALED_API void SetDefaultBoneDrawSelection(uint32 InDefaultBoneAxesSelection);
+	UNREALED_API void SetShowMeshStats( int32 InShowMeshStats );
+	UNREALED_API void SetSectionTimingNodeColor(const FLinearColor& InColor);
+	UNREALED_API void SetNotifyTimingNodeColor(const FLinearColor& InColor);
+	UNREALED_API void SetBranchingPointTimingNodeColor(const FLinearColor& InColor);
+	UNREALED_API FAssetEditorOptions& GetAssetEditorOptions(const FName& InContext);
+	UNREALED_API bool GetAllowIncompatibleSkeletonSelection() const;
+	UNREALED_API void SetAllowIncompatibleSkeletonSelection(bool bState);
 
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnUpdateSettingsMulticaster, const UPersonaOptions*, EPropertyChangeType::Type);
 	FOnUpdateSettingsMulticaster OnSettingsChange;
@@ -320,7 +320,7 @@ public:
 
 protected:
 	// UObject interface
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	UNREALED_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 
 private:
 	FNamePermissionList AllowedAnimationEditorTracks;

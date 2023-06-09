@@ -36,26 +36,26 @@ struct FViewportClick;
 /**
  * Base class for all editor modes.
  */
-class UNREALED_API FEdMode : public TSharedFromThis<FEdMode>, public FGCObject, public FEditorCommonDrawHelper, public FLegacyEdModeWidgetHelper
+class FEdMode : public TSharedFromThis<FEdMode>, public FGCObject, public FEditorCommonDrawHelper, public FLegacyEdModeWidgetHelper
 {
 public:
 	/** Friends so it can access mode's internals on construction */
 	friend class FEditorModeRegistry;
 
-	FEdMode();
-	virtual ~FEdMode();
+	UNREALED_API FEdMode();
+	UNREALED_API virtual ~FEdMode();
 
 	virtual void Initialize() {}
 
-	virtual bool MouseEnter( FEditorViewportClient* ViewportClient,FViewport* Viewport,int32 x, int32 y );
+	UNREALED_API virtual bool MouseEnter( FEditorViewportClient* ViewportClient,FViewport* Viewport,int32 x, int32 y );
 
-	virtual bool MouseLeave( FEditorViewportClient* ViewportClient,FViewport* Viewport );
+	UNREALED_API virtual bool MouseLeave( FEditorViewportClient* ViewportClient,FViewport* Viewport );
 
-	virtual bool MouseMove(FEditorViewportClient* ViewportClient,FViewport* Viewport,int32 x, int32 y);
+	UNREALED_API virtual bool MouseMove(FEditorViewportClient* ViewportClient,FViewport* Viewport,int32 x, int32 y);
 
-	virtual bool ReceivedFocus(FEditorViewportClient* ViewportClient,FViewport* Viewport);
+	UNREALED_API virtual bool ReceivedFocus(FEditorViewportClient* ViewportClient,FViewport* Viewport);
 
-	virtual bool LostFocus(FEditorViewportClient* ViewportClient,FViewport* Viewport);
+	UNREALED_API virtual bool LostFocus(FEditorViewportClient* ViewportClient,FViewport* Viewport);
 
 	/**
 	 * Called when the mouse is moved while a window input capture is in effect
@@ -67,16 +67,16 @@ public:
 	 *
 	 * @return	true if input was handled
 	 */
-	virtual bool CapturedMouseMove( FEditorViewportClient* InViewportClient, FViewport* InViewport, int32 InMouseX, int32 InMouseY );
+	UNREALED_API virtual bool CapturedMouseMove( FEditorViewportClient* InViewportClient, FViewport* InViewport, int32 InMouseX, int32 InMouseY );
 
 	/** Process all captured mouse moves that occurred during the current frame */
 	virtual bool ProcessCapturedMouseMoves( FEditorViewportClient* InViewportClient, FViewport* InViewport, const TArrayView<FIntPoint>& CapturedMouseMoves ) { return false; }
 
-	virtual bool InputKey(FEditorViewportClient* ViewportClient,FViewport* Viewport,FKey Key,EInputEvent Event);
-	virtual bool InputAxis(FEditorViewportClient* InViewportClient,FViewport* Viewport,int32 ControllerId,FKey Key,float Delta,float DeltaTime);
-	virtual bool InputDelta(FEditorViewportClient* InViewportClient,FViewport* InViewport,FVector& InDrag,FRotator& InRot,FVector& InScale);
-	virtual bool StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport);
-	virtual bool EndTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport);
+	UNREALED_API virtual bool InputKey(FEditorViewportClient* ViewportClient,FViewport* Viewport,FKey Key,EInputEvent Event);
+	UNREALED_API virtual bool InputAxis(FEditorViewportClient* InViewportClient,FViewport* Viewport,int32 ControllerId,FKey Key,float Delta,float DeltaTime);
+	UNREALED_API virtual bool InputDelta(FEditorViewportClient* InViewportClient,FViewport* InViewport,FVector& InDrag,FRotator& InRot,FVector& InScale);
+	UNREALED_API virtual bool StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport);
+	UNREALED_API virtual bool EndTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport);
 	// Added for handling EDIT Command...
 	virtual EEditAction::Type GetActionEditDuplicate() { return EEditAction::Skip; }
 	virtual EEditAction::Type GetActionEditDelete() { return EEditAction::Skip; }
@@ -89,7 +89,7 @@ public:
 	virtual bool ProcessEditCopy() { return false; }
 	virtual bool ProcessEditPaste() { return false; }
 
-	virtual void Tick(FEditorViewportClient* ViewportClient,float DeltaTime);
+	UNREALED_API virtual void Tick(FEditorViewportClient* ViewportClient,float DeltaTime);
 
 	virtual bool IsCompatibleWith(FEditorModeID OtherModeID) const { return false; }
 	virtual void ActorMoveNotify() {}
@@ -125,7 +125,7 @@ public:
 	virtual bool ShouldDrawBrushWireframe( AActor* InActor ) const { return true; }
 
 	/** If Rotation Snap should be enabled for this mode*/ 
-	virtual bool IsSnapRotationEnabled();
+	UNREALED_API virtual bool IsSnapRotationEnabled();
 
 	/** If this mode should override the snap rotation
 	* @param	Rotation		The Rotation Override
@@ -141,17 +141,17 @@ public:
 		return TEXT("FEdMode");
 	}
 
-	virtual void Enter();
-	virtual void Exit();
-	virtual UTexture2D* GetVertexTexture();
+	UNREALED_API virtual void Enter();
+	UNREALED_API virtual void Exit();
+	UNREALED_API virtual UTexture2D* GetVertexTexture();
 
 	/**
 	 * Lets each tool determine if it wants to use the editor widget or not.  If the tool doesn't want to use it,
 	 * it will be fed raw mouse delta information (not snapped or altered in any way).
 	 */
-	virtual bool UsesTransformWidget() const override;
-	virtual bool UsesTransformWidget(UE::Widget::EWidgetMode CheckMode) const override;
-	virtual bool UsesPropertyWidgets() const override;
+	UNREALED_API virtual bool UsesTransformWidget() const override;
+	UNREALED_API virtual bool UsesTransformWidget(UE::Widget::EWidgetMode CheckMode) const override;
+	UNREALED_API virtual bool UsesPropertyWidgets() const override;
 
 	virtual void PostUndo() {}
 
@@ -167,7 +167,7 @@ public:
 	 * @param	InBox	The selection box to use, in worldspace coordinates.
 	 * @return		true if something was selected/deselected, false otherwise.
 	 */
-	virtual bool BoxSelect( FBox& InBox, bool InSelect = true );
+	UNREALED_API virtual bool BoxSelect( FBox& InBox, bool InSelect = true );
 
 	/**
 	 * Lets each mode/tool handle frustum selection in its own way.
@@ -175,12 +175,12 @@ public:
 	 * @param	InFrustum	The selection box to use, in worldspace coordinates.
 	 * @return	true if something was selected/deselected, false otherwise.
 	 */
-	virtual bool FrustumSelect( const FConvexVolume& InFrustum, FEditorViewportClient* InViewportClient, bool InSelect = true );
+	UNREALED_API virtual bool FrustumSelect( const FConvexVolume& InFrustum, FEditorViewportClient* InViewportClient, bool InSelect = true );
 
-	virtual void SelectNone();
+	UNREALED_API virtual void SelectNone();
 	virtual void SelectionChanged() {}
 
-	virtual bool HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click);
+	UNREALED_API virtual bool HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click);
 
 	/**
 	 * Allows an editor mode to override the bounding box used to focus the viewport on a selection
@@ -206,9 +206,9 @@ public:
 
 	// Tools
 
-	void SetCurrentTool( EModeTools InID );
-	void SetCurrentTool( FModeTool* InModeTool );
-	FModeTool* FindTool( EModeTools InID );
+	UNREALED_API void SetCurrentTool( EModeTools InID );
+	UNREALED_API void SetCurrentTool( FModeTool* InModeTool );
+	UNREALED_API FModeTool* FindTool( EModeTools InID );
 
 	const TArray<FModeTool*>& GetTools() const		{ return Tools; }
 
@@ -223,11 +223,11 @@ public:
 	/** @name Rendering */
 	//@{
 	/** Draws translucent polygons on brushes and volumes. */
-	virtual void Render(const FSceneView* View,FViewport* Viewport,FPrimitiveDrawInterface* PDI);
+	UNREALED_API virtual void Render(const FSceneView* View,FViewport* Viewport,FPrimitiveDrawInterface* PDI);
 	//void DrawGridSection(int32 ViewportLocX,int32 ViewportGridY,FVector* A,FVector* B,float* AX,float* BX,int32 Axis,int32 AlphaCase,FSceneView* View,FPrimitiveDrawInterface* PDI);
 
 	/** Overlays the editor hud (brushes, drag tools, static mesh vertices, etc*. */
-	virtual void DrawHUD(FEditorViewportClient* ViewportClient,FViewport* Viewport,const FSceneView* View,FCanvas* Canvas);
+	UNREALED_API virtual void DrawHUD(FEditorViewportClient* ViewportClient,FViewport* Viewport,const FSceneView* View,FCanvas* Canvas);
 	//@}
 
 	/**
@@ -237,16 +237,16 @@ public:
 	virtual bool HandleDragDuplicate() { return false; }
 
 	/** True if this mode uses a toolkit mode (eventually they all should) */
-	virtual bool UsesToolkits() const;
+	UNREALED_API virtual bool UsesToolkits() const;
 
 	/** Gets the toolkit created by this mode */
 	TSharedPtr<FModeToolkit> GetToolkit() { return Toolkit; }
 
 	/** Returns the world this toolkit is editing */
-	UWorld* GetWorld() const;
+	UNREALED_API UWorld* GetWorld() const;
 
 	/** Returns the owning mode manager for this mode */
-	class FEditorModeTools* GetModeManager() const;
+	UNREALED_API class FEditorModeTools* GetModeManager() const;
 
 	/** 
 	 * Called when the editor mode should rebuild its toolbar 
@@ -265,11 +265,11 @@ public:
 public:
 
 	/** Request that this mode be deleted at the next convenient opportunity (FEditorModeTools::Tick) */
-	void RequestDeletion();
+	UNREALED_API void RequestDeletion();
 
 private:
 	/** Called whenever a mode type is unregistered */
-	void OnModeUnregistered(FEditorModeID ModeID);
+	UNREALED_API void OnModeUnregistered(FEditorModeID ModeID);
 
 protected:
 	/** Optional array of tools for this mode. */

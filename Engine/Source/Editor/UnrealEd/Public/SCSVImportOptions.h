@@ -45,7 +45,7 @@ enum class ECSVImportOptionDlgResponse : uint8
 	Cancel
 };
 
-class UNREALED_API SCSVImportOptions : public SCompoundWidget
+class SCSVImportOptions : public SCompoundWidget
 {
 private:
 	/** Typedef for curve enum pointers */
@@ -70,64 +70,64 @@ public:
 		, TempImportDataTable(nullptr)
 		{}
 
-	void Construct(const FArguments& InArgs);
+	UNREALED_API void Construct(const FArguments& InArgs);
 
 	/** If we should import */
-	bool ShouldImport();
+	UNREALED_API bool ShouldImport();
 
 	/** If the current settings should be applied to all items being imported */
-	bool ShouldImportAll();
+	UNREALED_API bool ShouldImportAll();
 
 	/** Get the row struct we selected */
-	UScriptStruct* GetSelectedRowStruct();
+	UNREALED_API UScriptStruct* GetSelectedRowStruct();
 
 	/** Get the import type we selected */
-	ECSVImportType GetSelectedImportType();
+	UNREALED_API ECSVImportType GetSelectedImportType();
 
 	/** Get the interpolation mode we selected */
-	ERichCurveInterpMode GetSelectedCurveIterpMode();
+	UNREALED_API ERichCurveInterpMode GetSelectedCurveIterpMode();
 
 	/** Whether to show table row options */
-	EVisibility GetTableRowOptionVis() const;
+	UNREALED_API EVisibility GetTableRowOptionVis() const;
 
 	/** Whether to show curve type options */
-	EVisibility GetCurveTypeVis() const;
+	UNREALED_API EVisibility GetCurveTypeVis() const;
 
 	/** Whether to show details panel */
-	EVisibility GetDetailsPanelVis() const;
+	UNREALED_API EVisibility GetDetailsPanelVis() const;
 
-	FString GetImportTypeText(TSharedPtr<ECSVImportType> Type) const;
+	UNREALED_API FString GetImportTypeText(TSharedPtr<ECSVImportType> Type) const;
 
 	/** Called to create a widget for each struct */
-	TSharedRef<SWidget> MakeImportTypeItemWidget(TSharedPtr<ECSVImportType> Type);
+	UNREALED_API TSharedRef<SWidget> MakeImportTypeItemWidget(TSharedPtr<ECSVImportType> Type);
 
 	/** Called when import type changes */
-	void OnImportTypeSelected(TSharedPtr<ECSVImportType> Selection, ESelectInfo::Type SelectionType);
+	UNREALED_API void OnImportTypeSelected(TSharedPtr<ECSVImportType> Selection, ESelectInfo::Type SelectionType);
 
 	/** Called when datatable row is selected */
-	void OnStructSelected(UScriptStruct* NewStruct);
+	UNREALED_API void OnStructSelected(UScriptStruct* NewStruct);
 
-	FString GetCurveTypeText(CurveInterpModePtr InterpMode) const;
+	UNREALED_API FString GetCurveTypeText(CurveInterpModePtr InterpMode) const;
 
 	/** Called to create a widget for each curve interpolation enum */
-	TSharedRef<SWidget> MakeCurveTypeWidget(CurveInterpModePtr InterpMode);
+	UNREALED_API TSharedRef<SWidget> MakeCurveTypeWidget(CurveInterpModePtr InterpMode);
 
 	/** Called when 'Apply' button is pressed */
-	FReply OnImport();
+	UNREALED_API FReply OnImport();
 
 	/** Do we have all of the data we need to import this asset? */
-	bool CanImport() const;
+	UNREALED_API bool CanImport() const;
 
 	/** Called when 'Cancel' button is pressed */
-	FReply OnCancel();
+	UNREALED_API FReply OnCancel();
 
-	FText GetSelectedItemText() const;
+	UNREALED_API FText GetSelectedItemText() const;
 
-	FText GetSelectedCurveTypeText() const;
+	UNREALED_API FText GetSelectedCurveTypeText() const;
 
 private:
-	FReply HandleImport();
-	FReply OnImportAll();
+	UNREALED_API FReply HandleImport();
+	UNREALED_API FReply OnImportAll();
 
 	/** Whether we should go ahead with import */
 	ECSVImportOptionDlgResponse					UserDlgResponse;

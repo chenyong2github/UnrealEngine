@@ -11,18 +11,18 @@
 #include "Exporters/Exporter.h"
 #include "TextureCubeExporterHDR.generated.h"
 
-UCLASS()
-class UNREALED_API UTextureCubeExporterHDR : public UExporter
+UCLASS(MinimalAPI)
+class UTextureCubeExporterHDR : public UExporter
 {
 	GENERATED_UCLASS_BODY()
 
 	//~ Begin UExporter Interface
-	virtual bool ExportBinary(UObject* Object, const TCHAR* Type, FArchive& Ar, FFeedbackContext* Warn, int32 FileIndex = 0, uint32 PortFlags = 0) override;
+	UNREALED_API virtual bool ExportBinary(UObject* Object, const TCHAR* Type, FArchive& Ar, FFeedbackContext* Warn, int32 FileIndex = 0, uint32 PortFlags = 0) override;
 	//~ End UExporter Interface
 };
 
-UCLASS()
-class UNREALED_API URenderTargetCubeExporterHDR : public UTextureCubeExporterHDR
+UCLASS(MinimalAPI)
+class URenderTargetCubeExporterHDR : public UTextureCubeExporterHDR
 {
 	GENERATED_UCLASS_BODY()
 };

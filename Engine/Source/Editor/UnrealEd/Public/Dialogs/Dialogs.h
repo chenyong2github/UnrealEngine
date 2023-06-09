@@ -73,7 +73,7 @@ public:
 /**
  * A Dialog that displays a warning message to the user and provides the option to not display it in the future
  */
-class UNREALED_API FSuppressableWarningDialog 
+class FSuppressableWarningDialog 
 {
 public:
 
@@ -146,10 +146,10 @@ public:
 	 * 
 	 * @param FSetupInfo Info - struct used to initialize the dialog. 
 	 */
-	FSuppressableWarningDialog ( const FSuppressableWarningDialog::FSetupInfo& Info );
+	UNREALED_API FSuppressableWarningDialog ( const FSuppressableWarningDialog::FSetupInfo& Info );
 	
 	/** Launches warning window, returns user response or suppressed */
-	EResult ShowModal() const;
+	UNREALED_API EResult ShowModal() const;
 
 private:
 

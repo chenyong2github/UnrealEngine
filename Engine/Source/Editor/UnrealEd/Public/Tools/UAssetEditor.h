@@ -18,32 +18,32 @@ struct FTabId;
 /**
  * Base class for all asset editors.
  */
-UCLASS(Abstract)
-class UNREALED_API UAssetEditor : public UObject, public IAssetEditorInstance
+UCLASS(Abstract, MinimalAPI)
+class UAssetEditor : public UObject, public IAssetEditorInstance
 {
 	GENERATED_BODY()
 
 public:
-	UAssetEditor();
+	UNREALED_API UAssetEditor();
 
-	virtual FName GetEditorName() const override;
-	virtual void FocusWindow(UObject* ObjectToFocusOn = nullptr) override;
+	UNREALED_API virtual FName GetEditorName() const override;
+	UNREALED_API virtual void FocusWindow(UObject* ObjectToFocusOn = nullptr) override;
 	virtual bool IsPrimaryEditor() const override
 	{
 		return true;
 	}
 	virtual void InvokeTab(const FTabId& TabId) override {}
-	virtual TSharedPtr<FTabManager> GetAssociatedTabManager() override;
+	UNREALED_API virtual TSharedPtr<FTabManager> GetAssociatedTabManager() override;
 	virtual double GetLastActivationTime() override
 	{
 		return 0.0;
 	}
 	virtual void RemoveEditingAsset(UObject* Asset) override {}
 
-	void Initialize();
-	virtual void GetObjectsToEdit(TArray<UObject*>& InObjectsToEdit);
-	virtual TSharedPtr<FBaseAssetToolkit> CreateToolkit();
-	void OnToolkitClosed();
+	UNREALED_API void Initialize();
+	UNREALED_API virtual void GetObjectsToEdit(TArray<UObject*>& InObjectsToEdit);
+	UNREALED_API virtual TSharedPtr<FBaseAssetToolkit> CreateToolkit();
+	UNREALED_API void OnToolkitClosed();
 
 protected:
 	FBaseAssetToolkit* ToolkitInstance;
