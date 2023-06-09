@@ -172,7 +172,7 @@ int32 SPropertyTableCell::OnPaint( const FPaintArgs& Args, const FGeometry& Allo
 		}
 
 		// If the cell is in edit mode, we give the presenter a chance to specify the background
-		if(Cell->InEditMode())
+		if(Cell->InEditMode() && Presenter)
 		{
 			if(const FSlateBrush* PresenterBackground = Presenter->GetEditModeCellBrush())
 			{
