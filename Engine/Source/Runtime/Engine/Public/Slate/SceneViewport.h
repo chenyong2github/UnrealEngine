@@ -284,12 +284,10 @@ private:
 	void Destroy() override;
 
 	// FRenderResource interface.
-	virtual void InitDynamicRHI() override;
-	virtual void ReleaseDynamicRHI() override;
+	virtual void InitRHI() override;
+	virtual void ReleaseRHI() override;
 
 	// @todo DLL: Without these functions we get unresolved linker errors with FRenderResource
-	virtual void InitRHI() override {}
-	virtual void ReleaseRHI() override {}
 	virtual void InitResource() override { FViewport::InitResource(); }
 	virtual void ReleaseResource() override { FViewport::ReleaseResource(); }
 	virtual FString GetFriendlyName() const override { return FString(TEXT("FSlateSceneViewport"));}

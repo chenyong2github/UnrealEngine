@@ -24,7 +24,7 @@ public:
 	virtual uint32 GetSizeY() const override { return LightCardResourceSize.Y; }
 	virtual FIntPoint GetSizeXY() const override { return LightCardResourceSize; }
 
-	virtual void InitDynamicRHI() override;
+	virtual void InitRHI() override;
 
 	virtual FString GetFriendlyName() const override { return TEXT("DisplayClusterViewportLightCardResource"); }
 

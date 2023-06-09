@@ -9,7 +9,7 @@
 #include "RenderingThread.h"
 #include "Rendering/SlateRenderer.h"
 
-void FBinkMediaTextureResource::InitDynamicRHI() 
+void FBinkMediaTextureResource::InitRHI() 
 {
 	int w = Owner->GetSurfaceWidth() > 0 ? Owner->GetSurfaceWidth() : 1;
 	int h = Owner->GetSurfaceHeight() > 0 ? Owner->GetSurfaceHeight() : 1;
@@ -77,9 +77,9 @@ void FBinkMediaTextureResource::InitDynamicRHI()
 	}
 }
 
-void FBinkMediaTextureResource::ReleaseDynamicRHI() 
+void FBinkMediaTextureResource::ReleaseRHI() 
 {
-	ReleaseRHI();
+	FTexture::ReleaseRHI();
 	RenderTargetTextureRHI.SafeRelease();
 	RemoveFromDeferredUpdateList();
 }

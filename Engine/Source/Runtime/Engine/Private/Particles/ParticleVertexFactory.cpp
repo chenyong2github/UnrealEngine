@@ -178,7 +178,7 @@ public:
 		Offset += sizeof(float) * 4;
 	}
 
-	virtual void InitDynamicRHI()
+	virtual void InitRHI()
 	{
 		FVertexDeclarationElementList Elements;
 		int32	Offset = 0;
@@ -186,12 +186,10 @@ public:
 		FillDeclElements(Elements, Offset);
 
 		// Create the vertex declaration for rendering the factory normally.
-		// This is done in InitDynamicRHI instead of InitRHI to allow FParticleSpriteVertexFactory::InitRHI
-		// to rely on it being initialized, since InitDynamicRHI is called before InitRHI.
 		VertexDeclarationRHI = PipelineStateCache::GetOrCreateVertexDeclaration(Elements);
 	}
 
-	virtual void ReleaseDynamicRHI()
+	virtual void ReleaseRHI()
 	{
 		VertexDeclarationRHI.SafeRelease();
 	}

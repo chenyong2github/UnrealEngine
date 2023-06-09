@@ -144,7 +144,7 @@ TRefCountPtr<FRDGPooledBuffer> FRDGBufferPool::FindFreeBuffer(const FRDGBufferDe
 	}
 }
 
-void FRDGBufferPool::ReleaseDynamicRHI()
+void FRDGBufferPool::ReleaseRHI()
 {
 	AllocatedBuffers.Empty();
 	AllocatedBufferHashes.Empty();
@@ -215,12 +215,12 @@ uint32 FRDGTransientRenderTarget::Release()
 	return Refs;
 }
 
-void FRDGTransientResourceAllocator::InitDynamicRHI()
+void FRDGTransientResourceAllocator::InitRHI()
 {
 	Allocator = RHICreateTransientResourceAllocator();
 }
 
-void FRDGTransientResourceAllocator::ReleaseDynamicRHI()
+void FRDGTransientResourceAllocator::ReleaseRHI()
 {
 	if (Allocator)
 	{

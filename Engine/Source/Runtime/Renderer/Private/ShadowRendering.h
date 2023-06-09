@@ -1325,7 +1325,7 @@ class FEmptyTranslucentSelfShadowUniformBuffer : public TUniformBuffer< FTranslu
 {
 	typedef TUniformBuffer< FTranslucentSelfShadowUniformParameters > Super;
 public:
-	virtual void InitDynamicRHI() override;
+	virtual void InitRHI() override;
 };
 
 /** Global uniform buffer containing the default precomputed lighting data. */

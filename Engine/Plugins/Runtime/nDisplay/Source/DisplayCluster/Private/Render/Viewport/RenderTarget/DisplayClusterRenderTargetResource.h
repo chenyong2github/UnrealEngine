@@ -157,7 +157,7 @@ public:
 	{ }
 
 public:
-	virtual void InitDynamicRHI() override;
+	virtual void InitRHI() override;
 
 	virtual FString GetFriendlyName() const override
 	{
@@ -183,7 +183,7 @@ public:
 	{ }
 
 public:
-	virtual void InitDynamicRHI() override;
+	virtual void InitRHI() override;
 
 	virtual FIntPoint GetSizeXY() const override
 	{

@@ -217,7 +217,7 @@ public:
 	/**
 	* Release textures when device is lost/destroyed.
 	*/
-	virtual void ReleaseDynamicRHI() override;
+	virtual void ReleaseRHI() override;
 
 	// for debugging, can be removed
 	void Dump();

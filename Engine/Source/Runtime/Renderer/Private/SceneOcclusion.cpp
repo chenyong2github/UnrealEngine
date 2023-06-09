@@ -796,7 +796,7 @@ void FHZBOcclusionTester::SetInvalidFrameNumber()
 	checkSlow(IsInvalidFrame());
 }
 
-void FHZBOcclusionTester::InitDynamicRHI()
+void FHZBOcclusionTester::InitRHI()
 {
 	if (GetFeatureLevel() >= ERHIFeatureLevel::SM5)
 	{
@@ -804,7 +804,7 @@ void FHZBOcclusionTester::InitDynamicRHI()
 	}
 }
 
-void FHZBOcclusionTester::ReleaseDynamicRHI()
+void FHZBOcclusionTester::ReleaseRHI()
 {
 	if (GetFeatureLevel() >= ERHIFeatureLevel::SM5)
 	{
@@ -1627,7 +1627,7 @@ FOcclusionFeedback::~FOcclusionFeedback()
 {
 }
 
-void FOcclusionFeedback::InitDynamicRHI()
+void FOcclusionFeedback::InitRHI()
 {
 	for (int32 i = 0; i < UE_ARRAY_COUNT(OcclusionBuffers); ++i)
 	{
@@ -1642,7 +1642,7 @@ void FOcclusionFeedback::InitDynamicRHI()
 		OcclusionVertexDeclarationRHI = PipelineStateCache::GetOrCreateVertexDeclaration(Elements);
 	}
 }
-void FOcclusionFeedback::ReleaseDynamicRHI()
+void FOcclusionFeedback::ReleaseRHI()
 {
 	BatchOcclusionQueries.Empty();
 

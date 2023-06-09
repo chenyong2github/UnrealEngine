@@ -831,7 +831,7 @@ struct FDynamicVertexBufferPool : public FRenderResource
 	}
 
 private:
-	void ReleaseDynamicRHI() override
+	void ReleaseRHI() override
 	{
 		check(LockList.IsEmpty());
 		check(FreeList.Num() == LiveList.Num());

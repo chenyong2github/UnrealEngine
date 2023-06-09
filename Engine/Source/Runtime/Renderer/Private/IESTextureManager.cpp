@@ -87,7 +87,7 @@ struct FIESTextureManager : public FRenderResource
 	{
 	}
 
-	virtual void ReleaseDynamicRHI()
+	virtual void ReleaseRHI()
 	{
 		AtlasTexture.SafeRelease();
 	}

@@ -31,10 +31,10 @@ public:
 	virtual uint32 GetHeight() const override { return Height; }
 
 	/** FRenderResource Interface.  Called when render resources need to be initialized */
-	virtual void InitDynamicRHI() override;
+	virtual void InitRHI() override;
 
 	/** FRenderResource Interface.  Called when render resources need to be released */
-	virtual void ReleaseDynamicRHI() override;
+	virtual void ReleaseRHI() override;
 
 	/**
 	 * Resize the texture.  Can only be called on the render thread
@@ -99,7 +99,7 @@ private:
 
 	/** Texture creation flags for if this texture needs to be recreated dynamically */
 	ETextureCreateFlags TexCreateFlags;
-	/** Data used between ReleaseDynamicRHI and InitDynamicRHI.  May be null if the data is not used */
+	/** Data used between ReleaseRHI and InitRHI.  May be null if the data is not used */
 	TSharedPtr<FSlateTextureData, ESPMode::ThreadSafe> TextureData;
 	/** Pixel format of the texture */
 	EPixelFormat PixelFormat;
@@ -120,12 +120,12 @@ public:
 	{
 	}
 
-	virtual void InitDynamicRHI() override {}
+	virtual void InitRHI() override {}
 
 	/** 
 	 * Releases all dynamic RHI data
 	 */
-	virtual void ReleaseDynamicRHI() override
+	virtual void ReleaseRHI() override
 	{
 		ShaderResource.SafeRelease();
 	}
@@ -161,8 +161,8 @@ public:
 	virtual void ClampSize(int32 SizeX,int32 SizeY) override;
 
 	// FRenderResource implementation
-	virtual void InitDynamicRHI() override;
-	virtual void ReleaseDynamicRHI() override;
+	virtual void InitRHI() override;
+	virtual void ReleaseRHI() override;
 
 	// FRenderTarget interface
 	virtual uint32 GetSizeX() const override;

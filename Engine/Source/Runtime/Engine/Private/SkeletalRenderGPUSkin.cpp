@@ -84,7 +84,7 @@ static int32 GetRayTracingSkeletalMeshGlobalLODBias()
 FMorphVertexBuffer
 -----------------------------------------------------------------------------*/
 
-void FMorphVertexBuffer::InitDynamicRHI()
+void FMorphVertexBuffer::InitRHI()
 {
 	// LOD of the skel mesh is used to find number of vertices in buffer
 	FSkeletalMeshLODRenderData& LodData = SkelMeshRenderData->LODRenderData[LODIdx];
@@ -126,7 +126,7 @@ void FMorphVertexBuffer::InitDynamicRHI()
 	bHasBeenUpdated = false;
 }
 
-void FMorphVertexBuffer::ReleaseDynamicRHI()
+void FMorphVertexBuffer::ReleaseRHI()
 {
 	UAVValue.SafeRelease();
 	VertexBufferRHI.SafeRelease();

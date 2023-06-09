@@ -145,7 +145,7 @@ bool IsReflectionCaptureAvailable()
 	return (!AllowStaticLightingVar || AllowStaticLightingVar->GetInt() != 0);
 }
 
-void FReflectionEnvironmentCubemapArray::InitDynamicRHI()
+void FReflectionEnvironmentCubemapArray::InitRHI()
 {
 	if (SupportsTextureCubeArray(GetFeatureLevel()))
 	{
@@ -184,7 +184,7 @@ void FReflectionEnvironmentCubemapArray::ReleaseCubeArray()
 	GRenderTargetPool.FreeUnusedResource(ReflectionEnvs);
 }
 
-void FReflectionEnvironmentCubemapArray::ReleaseDynamicRHI()
+void FReflectionEnvironmentCubemapArray::ReleaseRHI()
 {
 	ReleaseCubeArray();
 }
@@ -537,13 +537,13 @@ void FReflectionEnvironmentCubemapArray::ResizeCubemapArrayGPU(uint32 InMaxCubem
 	check(IsInitialized());
 	check(InCubemapSize == CubemapSize);
 
-	// Take a reference to the old cubemap array and then release it to prevent it getting destroyed during InitDynamicRHI
+	// Take a reference to the old cubemap array and then release it to prevent it getting destroyed during InitRHI
 	TRefCountPtr<IPooledRenderTarget> OldReflectionEnvs = ReflectionEnvs;
 	ReflectionEnvs = nullptr;
 	int OldMaxCubemaps = MaxCubemaps;
 	MaxCubemaps = InMaxCubemaps;
 
-	InitDynamicRHI();
+	InitRHI();
 
 	FTextureRHIRef TexRef = OldReflectionEnvs->GetRHI();
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
@@ -606,7 +606,7 @@ void FReflectionEnvironmentCubemapArray::UpdateMaxCubemaps(uint32 InMaxCubemaps,
 
 void FReflectionEnvironmentCubemapArray::Reset()
 {
-	ReleaseDynamicRHI();
+	ReleaseRHI();
 	MaxCubemaps = 0;
 	CubemapSize = 0;
 }

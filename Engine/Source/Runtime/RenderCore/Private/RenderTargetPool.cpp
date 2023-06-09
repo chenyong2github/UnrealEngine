@@ -502,7 +502,7 @@ void FRenderTargetPool::DumpMemoryUsage(FOutputDevice& OutputDevice)
 	OutputDevice.Logf(TEXT("%.3fMB Deferred total"), DeferredTotal / 1024.f);
 }
 
-void FRenderTargetPool::ReleaseDynamicRHI()
+void FRenderTargetPool::ReleaseRHI()
 {
 	check(IsInRenderingThread());
 	DeferredDeleteArray.Empty();

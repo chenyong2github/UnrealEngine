@@ -78,7 +78,7 @@ public:
 	virtual ~FVariableRateShadingImageManager();
 
 	virtual void InitRHI() override;
-	virtual void ReleaseDynamicRHI() override;
+	virtual void ReleaseRHI() override;
 
 	/**
 	 * Get the combined VRS image for the specified view setup, target size/configuration, and application flags.

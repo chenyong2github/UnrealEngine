@@ -1116,7 +1116,7 @@ public:
 		DistanceFieldTemporalSampleIndex = 0;
 		PreExposure = 1.f;
 
-		ReleaseDynamicRHI();
+		ReleaseRHI();
 	}
 
 	void SetupDistanceFieldTemporalOffset(const FSceneViewFamily& Family)
@@ -1341,14 +1341,14 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	// FRenderResource interface.
-	virtual void InitDynamicRHI() override
+	virtual void InitRHI() override
 	{
-		HZBOcclusionTests.InitDynamicRHI();
+		HZBOcclusionTests.InitRHI();
 	}
 
-	virtual void ReleaseDynamicRHI() override
+	virtual void ReleaseRHI() override
 	{
-		HZBOcclusionTests.ReleaseDynamicRHI();
+		HZBOcclusionTests.ReleaseRHI();
 		EyeAdaptationManager.SafeRelease();
 		OcclusionFeedback.ReleaseResource();
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -1579,8 +1579,8 @@ public:
 		, CubemapSize(0)
 	{}
 
-	virtual void InitDynamicRHI() override;
-	virtual void ReleaseDynamicRHI() override;
+	virtual void InitRHI() override;
+	virtual void ReleaseRHI() override;
 
 	/** 
 	 * Updates the maximum number of cubemaps that this array is allocated for.
@@ -2208,8 +2208,8 @@ public:
 	FIndirectLightingCache(ERHIFeatureLevel::Type InFeatureLevel);
 
 	// FRenderResource interface
-	virtual void InitDynamicRHI();
-	virtual void ReleaseDynamicRHI();
+	virtual void InitRHI();
+	virtual void ReleaseRHI();
 
 	/** Allocates a block in the volume texture atlas for a primitive. */
 	FIndirectLightingCacheAllocation* AllocatePrimitive(const FPrimitiveSceneInfo* PrimitiveSceneInfo, bool bUnbuiltPreview);

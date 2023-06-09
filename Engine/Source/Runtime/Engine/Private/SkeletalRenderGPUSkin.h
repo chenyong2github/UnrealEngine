@@ -210,12 +210,12 @@ public:
 	/** 
 	* Initialize the dynamic RHI for this rendering resource 
 	*/
-	virtual void InitDynamicRHI();
+	virtual void InitRHI();
 
 	/** 
 	* Release the dynamic RHI for this rendering resource 
 	*/
-	virtual void ReleaseDynamicRHI();
+	virtual void ReleaseRHI();
 
 	inline void RecreateResourcesIfRequired(bool bInUsesComputeShader)
 	{
@@ -231,7 +231,7 @@ public:
 	virtual FString GetFriendlyName() const { return TEXT("Morph target mesh vertices"); }
 
 	/**
-	 * Get Resource Size : mostly copied from InitDynamicRHI - how much they allocate when initialize
+	 * Get Resource Size : mostly copied from InitRHI - how much they allocate when initialize
 	 */
 	SIZE_T GetResourceSize() const
 	{
@@ -260,7 +260,7 @@ public:
 	/** Has been updated or not by UpdateMorphVertexBuffer**/
 	bool bHasBeenUpdated;
 
-	/** DX12 cannot clear the buffer in InitDynamicRHI with UAV flag enables, we should really have a Zero initzialized flag instead**/
+	/** DX12 cannot clear the buffer in InitRHI with UAV flag enables, we should really have a Zero initzialized flag instead**/
 	bool bNeedsInitialClear;
 
 	// @param guaranteed only to be valid if the vertex buffer is valid
