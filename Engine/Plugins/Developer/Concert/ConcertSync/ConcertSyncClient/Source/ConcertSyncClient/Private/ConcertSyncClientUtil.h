@@ -140,5 +140,8 @@ namespace ConcertSyncClientUtil
 
 	UWorld* GetCurrentWorld();
 
+	/** Return the Persistent Level if it is currently using external objects, i.e. one file per actor for world partitioning. */
+	ULevel* GetExternalPersistentWorld();
+
 	void FillPackageInfo(UPackage* InPackage, UObject* InAsset, const EConcertPackageUpdateType InPackageUpdateType, FConcertPackageInfo& OutPackageInfo);
 }

@@ -125,17 +125,13 @@ FConcertClientPackageManager::~FConcertClientPackageManager()
 	// reloaded as long as the package hasn't been marked for purge. If it has
 	// been marked for purge, then it must have only existed in the sandbox
 	// that was just discarded, so it should not be reloaded.
-	UWorld* CurrentWorld = ConcertSyncClientUtil::GetCurrentWorld();
-	if (CurrentWorld)
+	ULevel* PersistentLevel = ConcertSyncClientUtil::GetExternalPersistentWorld();
+	if (PersistentLevel)
 	{
-		ULevel* PersistentLevel = CurrentWorld->PersistentLevel;
-		if (PersistentLevel && PersistentLevel->IsUsingExternalObjects())
+		const FName PackageName = PersistentLevel->GetPackage()->GetFName();
+		if (!PackagesPendingPurge.Contains(PackageName) && !PackagesPendingHotReload.Contains(PackageName))
 		{
-			const FName PackageName = PersistentLevel->GetPackage()->GetFName();
-			if (!PackagesPendingPurge.Contains(PackageName) && !PackagesPendingHotReload.Contains(PackageName))
-			{
-				PackagesPendingHotReload.Add(PackageName);
-			}
+			PackagesPendingHotReload.Add(PackageName);
 		}
 	}
 
@@ -464,6 +460,25 @@ void FConcertClientPackageManager::HandlePackageDirtyStateChanged(UPackage* InPa
 	}
 }
 
+void FConcertClientPackageManager::AddPendingReloadForNewExternalMaps(const FConcertPackageInfo& PackageInfo, const FString& PackagePathname)
+{
+	// Saved world partitioned main levels depend on loading other external assets. We need to schedule a reload of the map after initial
+	// save to ensure we have all of the content to fully load the p-level.
+	//
+	ULevel* PersistentLevel = ConcertSyncClientUtil::GetExternalPersistentWorld();
+	if (PersistentLevel)
+	{
+		const FName PackageName = PersistentLevel->GetPackage()->GetFName();
+		if (PackageName == PackageInfo.PackageName
+			&& !PackagesPendingPurge.Contains(PackageName)
+			&& !PackagesPendingHotReload.Contains(PackageName))
+		{
+			UE_LOG(LogConcert, Display, TEXT("Scheduling reloading for world partition persistent level %s."), *PackagePathname);
+			PackagesPendingHotReload.Add(PackageName);
+		}
+	}
+}
+
 void FConcertClientPackageManager::HandleLocalPackageEvent(const FConcertPackageInfo& PackageInfo, const FString& PackagePathname)
 {
 	// Ignore unwanted saves
@@ -491,6 +506,7 @@ void FConcertClientPackageManager::HandleLocalPackageEvent(const FConcertPackage
 				return; // Prevent capturing the original package state at every pre-save.
 			}
 		}
+		AddPendingReloadForNewExternalMaps(PackageInfo, PackagePathname);
 	}
 
 	if (PackageInfo.PackageUpdateType == EConcertPackageUpdateType::Added && EnumHasAnyFlags(LiveSession->GetSessionFlags(), EConcertSyncSessionFlags::ShouldUsePackageSandbox))

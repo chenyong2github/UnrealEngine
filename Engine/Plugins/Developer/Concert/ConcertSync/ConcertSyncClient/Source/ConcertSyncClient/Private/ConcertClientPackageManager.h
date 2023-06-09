@@ -177,6 +177,11 @@ private:
 	 */
 	bool CanExchangePackageDataAsByteArray(int64 PackageDataSize) const;
 
+	/**
+	 * World partition nodes need to perform a map reload on initial save but only after all actors have been saved.
+	 */
+	void AddPendingReloadForNewExternalMaps(const FConcertPackageInfo& PackageInfo, const FString& PackagePathname);
+
 #if WITH_EDITOR
 	/**
 	 * Sandbox for storing package changes to disk within a Concert session.

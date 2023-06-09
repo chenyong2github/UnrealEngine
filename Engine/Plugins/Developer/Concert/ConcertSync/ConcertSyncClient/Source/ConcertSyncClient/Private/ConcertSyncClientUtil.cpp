@@ -725,6 +725,20 @@ UWorld* GetCurrentWorld()
 	return CurrentWorld;
 }
 
+ULevel* GetExternalPersistentWorld()
+{
+	UWorld* CurrentWorld = ConcertSyncClientUtil::GetCurrentWorld();
+	if (CurrentWorld)
+	{
+		ULevel* PersistentLevel = CurrentWorld->PersistentLevel;
+		if (PersistentLevel && PersistentLevel->IsUsingExternalObjects())
+		{
+			return PersistentLevel;
+		}
+	}
+	return nullptr;
+}
+
 void FillPackageInfo(UPackage* InPackage, UObject* InAsset, const EConcertPackageUpdateType InPackageUpdateType, FConcertPackageInfo& OutPackageInfo)
 {
 	UObject* Asset = InAsset ? InAsset : InPackage->FindAssetInPackage();
