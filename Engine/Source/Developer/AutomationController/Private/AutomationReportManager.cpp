@@ -219,14 +219,14 @@ void FAutomationReportManager::AddResultReport(TSharedPtr< IAutomationReport > I
 				}
 				else if( InReport->GetState( ClusterIndex,CurrentTestPass ) == EAutomationState::Skipped )
 				{
-					Status = TEXT( "Skipped." );
+					Status = TEXT( "Skipped" );
 				}
 				else
 				{
 					Status = "Issues ";
 					if (TestResults.GetWarningTotal())
 					{
-						Status += "Warnings ";
+						Status += "Warnings";
 					}
 					if (TestResults.GetErrorTotal())
 					{
