@@ -124,6 +124,7 @@ enum class EAppleHttpRequestResponseState: uint8
 		// Determine if the specific error was failing to connect to the host.
 		switch ([error code])
 		{
+			case NSURLErrorTimedOut:
 			case NSURLErrorCannotFindHost:
 			case NSURLErrorCannotConnectToHost:
 			case NSURLErrorDNSLookupFailed:
@@ -183,6 +184,8 @@ FAppleHttpNSUrlSessionRequest::FAppleHttpNSUrlSessionRequest(NSURLSession* InSes
 ,	ContentBytesLength(0)
 ,	StartRequestTime(0.0)
 ,	ElapsedTime(0.0f)
+,   LastReportedBytesWritten(0)
+,   LastReportedBytesRead(0)
 {
 	UE_LOG(LogHttp, Verbose, TEXT("FAppleHttpNSUrlSessionRequest::FAppleHttpNSUrlSessionRequest()"));
 	Request = [[NSMutableURLRequest alloc] init];
@@ -202,7 +205,7 @@ FAppleHttpNSUrlSessionRequest::FAppleHttpNSUrlSessionRequest(NSURLSession* InSes
 FAppleHttpNSUrlSessionRequest::~FAppleHttpNSUrlSessionRequest()
 {
 	UE_LOG(LogHttp, Verbose, TEXT("FAppleHttpNSUrlSessionRequest::~FAppleHttpNSUrlSessionRequest()"));
-	check(Task == nil);
+	DiscardExistingRequest();
 	[Request release];
     [Session release];
 }
@@ -511,6 +514,11 @@ bool FAppleHttpNSUrlSessionRequest::StartRequest()
 		[Request setValue:Tag forHTTPHeaderField:@"User-Agent"];
 	}
 
+	LastReportedBytesWritten = 0;
+	LastReportedBytesRead = 0;
+
+	DiscardExistingRequest();
+
 	Task = [Session dataTaskWithRequest: Request];
 	
 	if (Task != nil)
@@ -553,7 +561,6 @@ void FAppleHttpNSUrlSessionRequest::FinishedRequest()
 
 		// TODO: Try to broadcast OnHeaderReceived when we receive headers instead of here at the end
 		BroadcastResponseHeadersReceived();
-		OnProcessRequestComplete().ExecuteIfBound(SharedThis(this), Response, true);
 	}
 	else
 	{
@@ -566,17 +573,26 @@ void FAppleHttpNSUrlSessionRequest::FinishedRequest()
 		}
 
 		Response = nullptr;
-		OnProcessRequestComplete().ExecuteIfBound(SharedThis(this), nullptr, false);
 	}
 
 	// Clean up session/request handles that may have been created
 	CleanupRequest();
 
-	// Remove from global list since processing is now complete
-	if (FHttpModule::Get().GetHttpManager().IsValidRequest(this))
+	OnProcessRequestComplete().ExecuteIfBound(SharedThis(this), Response, Response != nullptr);
+}
+
+void FAppleHttpNSUrlSessionRequest::DiscardExistingRequest()
+{
+	if (Task != nil)
 	{
-		FHttpModule::Get().GetHttpManager().RemoveRequest(SharedThis(this));
+		if (CompletionStatus == EHttpRequestStatus::Processing)
+		{
+			[Task cancel];
+		}
+		[Task release];
+		Task = nil;
 	}
+	Response = nullptr;
 }
 
 void FAppleHttpNSUrlSessionRequest::CleanupRequest()
@@ -631,9 +647,11 @@ void FAppleHttpNSUrlSessionRequest::Tick(float DeltaSeconds)
 		{
 			const int32 BytesWritten = Response->GetNumBytesWritten();
 			const int32 BytesRead = Response->GetNumBytesReceived();
-			if (BytesWritten > 0 || BytesRead > 0)
+			if (BytesWritten != LastReportedBytesWritten || BytesRead != LastReportedBytesRead)
 			{
 				OnRequestProgress().ExecuteIfBound(SharedThis(this), BytesWritten, BytesRead);
+				LastReportedBytesWritten = BytesWritten;
+				LastReportedBytesRead = BytesRead;
 			}
 		}
 		if (Response->IsReady())

@@ -184,15 +184,11 @@ float FNullHttpRequest::GetElapsedTime() const
 void FNullHttpRequest::FinishedRequest()
 {
 	CompletionStatus = EHttpRequestStatus::Failed;
-	FHttpRequestRef Request = SharedThis(this);
-	FHttpManager& HttpManager = FHttpModule::Get().GetHttpManager();
-	HttpManager.BroadcastHttpRequestCompleted(Request);
-	HttpManager.RemoveRequest(Request);
 
 	UE_LOG(LogHttp, Log, TEXT("Finished request %p. no response %s url=%s elapsed=%.3f"),
 		this, *GetVerb(), *GetURL(), ElapsedTime);
 
-	OnProcessRequestComplete().ExecuteIfBound(Request, NULL, false);
+	OnProcessRequestComplete().ExecuteIfBound(SharedThis(this), NULL, false);
 }
 
 void FNullHttpRequest::SetDelegateThreadPolicy(EHttpRequestDelegateThreadPolicy InThreadPolicy)

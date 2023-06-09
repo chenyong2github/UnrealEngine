@@ -410,17 +410,15 @@ bool FHttpManager::Tick(float DeltaSeconds)
 		Task();
 	}
 
-	FScopeLock ScopeLock(&RequestLock);
-
-	// Tick each active request
-	for (TArray<FHttpRequestRef>::TIterator It(Requests); It; ++It)
-	{
-		FHttpRequestRef Request = *It;
-		Request->Tick(DeltaSeconds);
-	}
-
 	if (Thread)
 	{
+		FScopeLock ScopeLock(&RequestLock);
+		// Tick each active request
+		for (const FHttpRequestRef& Request: Requests)
+		{
+			Request->Tick(DeltaSeconds);
+		}
+
 		TArray<IHttpThreadedRequest*> CompletedThreadedRequests;
 		Thread->GetCompletedRequests(CompletedThreadedRequests);
 
@@ -435,6 +433,27 @@ bool FHttpManager::Tick(float DeltaSeconds)
 			}
 			BroadcastHttpRequestCompleted(CompletedRequestRef);
 		}
+	}
+	else
+	{
+		TArray<FHttpRequestRef> CompletedRequests;
+		
+		FScopeLock ScopeLock(&RequestLock);
+		// Tick each active request
+		for (const FHttpRequestRef& Request: Requests)
+		{
+			Request->Tick(DeltaSeconds);
+			if (EHttpRequestStatus::IsFinished(Request->GetStatus()))
+			{
+				CompletedRequests.Add(Request);
+			}
+		}
+
+		for (const FHttpRequestRef& CompletedRequest: CompletedRequests)
+		{
+            Requests.Remove(CompletedRequest);
+            BroadcastHttpRequestCompleted(CompletedRequest);
+        }		
 	}
 	// keep ticking
 	return true;

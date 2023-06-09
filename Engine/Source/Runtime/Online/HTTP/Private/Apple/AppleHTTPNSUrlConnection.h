@@ -86,6 +86,10 @@ private:
 	 */
 	void CleanupRequest();
 
+	/**
+	 * Cleans up request without triggering additional callbacks
+	*/
+	void DiscardExistingRequest();
 
 private:
 	/** This is the NSMutableURLRequest, all our Apple functionality will deal with this. */
@@ -117,6 +121,12 @@ private:
 
 	/** Time taken to complete/cancel the request. */
 	float ElapsedTime;
+
+	/** Last reported bytes written */
+	int32 LastReportedBytesWritten;
+
+	/** Last reported bytesread */
+	int32 LastReportedBytesRead;
 };
 
 
