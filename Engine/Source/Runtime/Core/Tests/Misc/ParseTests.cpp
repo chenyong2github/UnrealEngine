@@ -146,6 +146,8 @@ TEST_CASE("Parse::GrammaredCLIParse::Callback", "[Smoke]")
 				{ TEXT("-key=-111.22"),	{ {TEXT("-key"), TEXT("-111.22")} } },
 				{ TEXT("-key=../../some+dir\\text-file.txt"),	{ {TEXT("-key"), TEXT("../../some+dir\\text-file.txt")} } },
 				{ TEXT("-key=c:\\log.txt"),	{ {TEXT("-key"), TEXT("c:\\log.txt")} } },
+				{ TEXT("-token=00aabbcc99"),	{ {TEXT("-token"), TEXT("00aabbcc99")} } },
+				{ TEXT("-token=\"00aab bcc99\""),	{ {TEXT("-token"), TEXT("\"00aab bcc99\"")} } },
 				{ TEXT("a -b --c d=e"),	{ {TEXT("a"), nullptr},
 										  {TEXT("-b"), nullptr},
 										  {TEXT("--c"), nullptr},
@@ -174,13 +176,14 @@ TEST_CASE("Parse::GrammaredCLIParse::Callback", "[Smoke]")
 			++CallbackCalledCount;
 		};
 
+		INFO("ExpectedPass " << FStringView{ Input });
 		FParse::FGrammarBasedParseResult Result = FParse::GrammarBasedCLIParse(Input, CallBack);
 
 		CHECK(CallbackCalledCount == ExpectedResults.size());
 		CHECK(Result.ErrorCode == FParse::EGrammarBasedParseErrorCode::Succeeded);
 	}
 
-	SECTION("Quoted commadns may be dissallowed, if so gives an error code.")
+	SECTION("Quoted commands may be dissallowed, if so gives an error code.")
 	{
 		auto [Input, ExpectedErrorCode, ExpectedErrorAt, ExpectedResults] = GENERATE_COPY(table<const TCHAR*, FParse::EGrammarBasedParseErrorCode, size_t, std::vector<StringKeyValue>>(
 			{

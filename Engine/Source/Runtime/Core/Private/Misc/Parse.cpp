@@ -1393,14 +1393,8 @@ struct FGrammarBasedParser
 
 	bool MatchValueChar()
 	{
-		if (FChar::IsAlnum(*Cursor)
-			|| (*Cursor == TCHAR('_'))
-			|| (*Cursor == TCHAR('.'))
-			|| (*Cursor == TCHAR(':'))
-			|| (*Cursor == TCHAR('-'))
-			|| (*Cursor == TCHAR('+'))
-			|| (*Cursor == TCHAR('/'))
-			|| (*Cursor == TCHAR('\\')))
+		if (!FChar::IsWhitespace(*Cursor)
+			&& (*Cursor != TCHAR('"')))
 		{
 			++Cursor;
 			return true;
@@ -1437,12 +1431,17 @@ struct FGrammarBasedParser
 	template<typename OperationType>
 	void ZeroOrMore(OperationType&& ParseExpression)
 	{
-		if (!HasError() && !IsEnd()) {
-			bool bContinue = false;
-			do
+		for (;;) 
+		{
+			if (HasError() || IsEnd())
 			{
-				bContinue = ParseExpression();
-			} while (!HasError() && !IsEnd() && bContinue);
+				break;
+			}
+
+			if (!ParseExpression()) 
+			{
+				break;
+			}
 		}
 	}
 
@@ -1548,25 +1547,6 @@ struct FGrammarBasedParser
 			{
 				SetError(FParse::EGrammarBasedParseErrorCode::UnBalancedQuote, Start);
 				return {};
-			}
-			return FStringView{ Start,  UE_PTRDIFF_TO_INT32(Cursor - Start) };
-		}
-
-		// A number, Starts as an Integer, but can also be a Real
-		if (MatchBetween(TCHAR('0'), TCHAR('9')) || MatchChar(TCHAR('-')))
-		{
-			ZeroOrMore([this]() 
-			{
-				return MatchBetween(TCHAR('0'), TCHAR('9')); 
-			});
-			
-			// Are we real number?
-			if (MatchChar(TCHAR('.')))
-			{
-				ZeroOrMore([this]() 
-				{ 
-					return MatchBetween(TCHAR('0'), TCHAR('9')); 
-				});
 			}
 			return FStringView{ Start,  UE_PTRDIFF_TO_INT32(Cursor - Start) };
 		}

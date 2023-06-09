@@ -175,9 +175,8 @@ struct CORE_API FParse
 	* 	 Cmd   -> "Cmd*"			-- allowed if EGrammaredParseFlags::AllowQuotedCommands is given
 	* 	 	   | Key(=Value)?   -- invokes OnCommandCallback
 	* 	 Key   -> (/|(-?-?))Ident
-	* 	 Value -> -?[0-9]+(.[0-9]+)?
-	* 	       | "[^"]*"
-	* 	 	   | [_a-zA-Z0-9.:/\+-]+
+	* 	 Value -> "[^"]*"
+	* 	 	   | [^" \t\r\n]+
 	* 	 Ident -> [_a-zA-Z][_a-zA-Z0-9.]*
 	* 
 	* Grammar Key

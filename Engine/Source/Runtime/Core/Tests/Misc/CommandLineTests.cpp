@@ -26,13 +26,13 @@ TEST_CASE("CommandLine::Filtering::FilterMove", "[Smoke]")
 			{ TEXT("-cmd_a -cmd_a -cmd_a"), TEXT("-cmd_a -cmd_a -cmd_a") },
 			{ TEXT("-cmd_a --cmd_b \"-cmd_a --cmd_b not_on_this_list\""), TEXT("-cmd_a --cmd_b -cmd_a --cmd_b") },
 			{ TEXT("-cmd_a=1 not_on_this_list=2 --cmd_b=true "), TEXT("-cmd_a=1 --cmd_b=true") },
-			{ TEXT("-cmd_a=  not_on_this_list=2 --cmd_b=true "), TEXT("-cmd_a=not_on_this_list --cmd_b=true") },
-			{ TEXT("-cmd_a=  -not_on_this_list=2 --cmd_b=true "), TEXT("-cmd_a=- --cmd_b=true") },
+			{ TEXT("-cmd_a=  not_on_this_list=2 --cmd_b=true "), TEXT("-cmd_a=not_on_this_list=2 --cmd_b=true") },
+			{ TEXT("-cmd_a=  -not_on_this_list=2 --cmd_b=true "), TEXT("-cmd_a=-not_on_this_list=2 --cmd_b=true") },
 		}));
 		TCHAR Result[256]{};
 
 		CHECK(FCommandLine::FilterMove(Result, UE_ARRAY_COUNT(Result), Input, AllowedList));
-		CHECK(0 == FCString::Strcmp(Result, Expected));
+		CHECK(FStringView{ Result } == FStringView{ Expected });
 	}
 
 	SECTION("Filtering applies to key values in quotes.. FORT-602120")
@@ -46,7 +46,7 @@ TEST_CASE("CommandLine::Filtering::FilterMove", "[Smoke]")
 		TCHAR Result[256]{};
 
 		CHECK(FCommandLine::FilterMove(Result, UE_ARRAY_COUNT(Result), Input, AllowedList));
-		CHECK(0 == FCString::Strcmp(Result, Expected));
+		CHECK(FStringView{ Result } == FStringView{ Expected });
 	}
 
 
@@ -62,8 +62,8 @@ TEST_CASE("CommandLine::Filtering::FilterMove", "[Smoke]")
 				{ TEXT("-cmd_a -cmd_a -cmd_a"), TEXT("-cmd_a -cmd_a -cmd_a") },
 				{ TEXT("-cmd_a --cmd_b \"-cmd_a --cmd_b not_on_this_list\""), TEXT("-cmd_a --cmd_b -cmd_a --cmd_b") },
 				{ TEXT("-cmd_a=1 not_on_this_list=2 --cmd_b=true "), TEXT("-cmd_a=1 --cmd_b=true") },
-				{ TEXT("-cmd_a=  not_on_this_list=2 --cmd_b=true "), TEXT("-cmd_a=not_on_this_list --cmd_b=true") },
-				{ TEXT("-cmd_a=  -not_on_this_list=2 --cmd_b=true "), TEXT("-cmd_a=- --cmd_b=true") },
+				{ TEXT("-cmd_a=  not_on_this_list=2 --cmd_b=true "), TEXT("-cmd_a=not_on_this_list=2 --cmd_b=true") },
+				{ TEXT("-cmd_a=  -not_on_this_list=2 --cmd_b=true "), TEXT("-cmd_a=-not_on_this_list=2 --cmd_b=true") },
 				{ TEXT("\"-cmd_a --cmd_b not_on_this_list\""), TEXT("-cmd_a --cmd_b") },
 				{ TEXT("\"-cmd_a not_on_this_list --cmd_b\""), TEXT("-cmd_a --cmd_b") },
 				{ TEXT("-cmd_a \"not_on_this_list --cmd_b\""), TEXT("-cmd_a --cmd_b") },
@@ -72,7 +72,7 @@ TEST_CASE("CommandLine::Filtering::FilterMove", "[Smoke]")
 		
 		FCString::Strcpy(SourceAndResult, Input);
 		CHECK(FCommandLine::FilterMove(SourceAndResult, UE_ARRAY_COUNT(SourceAndResult), SourceAndResult, AllowedList));
-		CHECK(0 == FCString::Strcmp(SourceAndResult, Expected));
+		CHECK(FStringView{ SourceAndResult } == FStringView{ Expected });
 	}
 
 	SECTION("Filtering with an empty AllowedList, returns an empty string")
@@ -116,8 +116,8 @@ TEST_CASE("CommandLine::Filtering::FilterMove", "[Smoke]")
 				{ TEXT("cmd_a -cmd_a -cmd_a"), TEXT("cmd_a -cmd_a -cmd_a") },
 				{ TEXT("-cmd_a --cmd_b \"-cmd_a --cmd_b not_on_this_list\""), TEXT("-cmd_a --cmd_b -cmd_a --cmd_b") },
 				{ TEXT("-cmd_a=1 not_on_this_list=2 --cmd_b=true "), TEXT("-cmd_a=1 --cmd_b=true") },
-				{ TEXT("-cmd_a=  not_on_this_list=2 --cmd_b=true "), TEXT("-cmd_a=not_on_this_list --cmd_b=true") },
-				{ TEXT("-cmd_a=  -not_on_this_list=2 --cmd_b=true "), TEXT("-cmd_a=- --cmd_b=true") },
+				{ TEXT("-cmd_a=  not_on_this_list=2 --cmd_b=true "), TEXT("-cmd_a=not_on_this_list=2 --cmd_b=true") },
+				{ TEXT("-cmd_a=  -not_on_this_list=2 --cmd_b=true "), TEXT("-cmd_a=-not_on_this_list=2 --cmd_b=true") },
 				{ TEXT("\"-cmd_a --cmd_b not_on_this_list\""), TEXT("-cmd_a --cmd_b") },
 				{ TEXT("\"-cmd_a not_on_this_list --cmd_b\""), TEXT("-cmd_a --cmd_b") },
 				{ TEXT("-cmd_a \"not_on_this_list --cmd_b\""), TEXT("-cmd_a --cmd_b") },
@@ -127,7 +127,7 @@ TEST_CASE("CommandLine::Filtering::FilterMove", "[Smoke]")
 
 		FCString::Strcpy(SourceAndResult, Input);
 		CHECK(FCommandLine::FilterMove(SourceAndResult, UE_ARRAY_COUNT(SourceAndResult), SourceAndResult, ApprovedArgs));
-		CHECK(0 == FCString::Strcmp(SourceAndResult, Expected));
+		CHECK(FStringView{ SourceAndResult } == FStringView{ Expected });
 	}
 
 }
