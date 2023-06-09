@@ -368,18 +368,18 @@ void USkeletalMeshModelingToolsEditorMode::SetEditorBinding(TSharedPtr<ISkeletal
 	Binding = InBinding;
 }
 
-ISkeletalMeshEditionInterface* USkeletalMeshModelingToolsEditorMode::GetSkeletonInterface(UInteractiveTool* InTool)
+ISkeletalMeshEditingInterface* USkeletalMeshModelingToolsEditorMode::GetSkeletonInterface(UInteractiveTool* InTool)
 {
-	if (!IsValid(InTool) || !InTool->Implements<USkeletalMeshEditionInterface>())
+	if (!IsValid(InTool) || !InTool->Implements<USkeletalMeshEditingInterface>())
 	{
 		return nullptr;
 	}
-	return static_cast<ISkeletalMeshEditionInterface*>(InTool->GetInterfaceAddress(USkeletalMeshEditionInterface::StaticClass()));
+	return static_cast<ISkeletalMeshEditingInterface*>(InTool->GetInterfaceAddress(USkeletalMeshEditingInterface::StaticClass()));
 }
 
 void USkeletalMeshModelingToolsEditorMode::ConnectTool(UInteractiveTool* InTool)
 {
-	ISkeletalMeshEditionInterface* SkeletonInterface = GetSkeletonInterface(InTool);
+	ISkeletalMeshEditingInterface* SkeletonInterface = GetSkeletonInterface(InTool);
 	if (!SkeletonInterface)
 	{
 		return;
@@ -428,7 +428,7 @@ void USkeletalMeshModelingToolsEditorMode::DisconnectTool(UInteractiveTool* InTo
 
 	if (FromToolNotifierHandle.IsValid())
 	{
-		ISkeletalMeshEditionInterface* SkeletonInterface = GetSkeletonInterface(InTool);
+		ISkeletalMeshEditingInterface* SkeletonInterface = GetSkeletonInterface(InTool);
 		check(SkeletonInterface);
 		SkeletonInterface->GetNotifier().Delegate().Remove(FromToolNotifierHandle);
 		FromToolNotifierHandle.Reset();
@@ -439,7 +439,7 @@ void USkeletalMeshModelingToolsEditorMode::DisconnectTool(UInteractiveTool* InTo
 bool USkeletalMeshModelingToolsEditorMode::NeedsTransformGizmo() const
 {
 	UInteractiveTool* Tool = GetToolManager()->GetActiveTool(EToolSide::Mouse);
-	if (const ISkeletalMeshEditionInterface* SkeletonInterface = GetSkeletonInterface(Tool))
+	if (const ISkeletalMeshEditingInterface* SkeletonInterface = GetSkeletonInterface(Tool))
 	{
 		return !SkeletonInterface->GetSelectedBones().IsEmpty();
 	}

@@ -23,7 +23,7 @@ struct FInputDeviceRay;
  */
 
 UINTERFACE()
-class MESHMODELINGTOOLSEDITORONLYEXP_API USkeletalMeshEditionInterface : public UInterface
+class MESHMODELINGTOOLSEDITORONLYEXP_API USkeletalMeshEditingInterface : public UInterface
 {
 	GENERATED_BODY()
 };
@@ -32,7 +32,7 @@ class MESHMODELINGTOOLSEDITORONLYEXP_API USkeletalMeshEditionInterface : public 
  * ISkeletalMeshEditionInterface
  */
 
-class MESHMODELINGTOOLSEDITORONLYEXP_API ISkeletalMeshEditionInterface
+class MESHMODELINGTOOLSEDITORONLYEXP_API ISkeletalMeshEditingInterface
 {
 	GENERATED_BODY()
 
@@ -64,11 +64,11 @@ private:
 class FSkeletalMeshToolNotifier: public ISkeletalMeshNotifier
 {
 public:
-	FSkeletalMeshToolNotifier(TWeakInterfacePtr<ISkeletalMeshEditionInterface> InInterface);
+	FSkeletalMeshToolNotifier(TWeakInterfacePtr<ISkeletalMeshEditingInterface> InInterface);
 	virtual void HandleNotification(const TArray<FName>& BoneNames, const ESkeletalMeshNotifyType InNotifyType) override;
 	
 protected:
-	TWeakInterfacePtr<ISkeletalMeshEditionInterface> Interface;
+	TWeakInterfacePtr<ISkeletalMeshEditingInterface> Interface;
 };
 
 /**

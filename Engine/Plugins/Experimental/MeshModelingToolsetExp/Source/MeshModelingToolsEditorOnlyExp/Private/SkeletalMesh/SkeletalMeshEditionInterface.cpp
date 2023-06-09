@@ -4,32 +4,32 @@
 
 IMPLEMENT_HIT_PROXY(HBoneHitProxy, HHitProxy)
 
-ISkeletalMeshNotifier& ISkeletalMeshEditionInterface::GetNotifier()
+ISkeletalMeshNotifier& ISkeletalMeshEditingInterface::GetNotifier()
 {
 	if (!Notifier)
 	{
-		Notifier.Reset(new FSkeletalMeshToolNotifier(TWeakInterfacePtr<ISkeletalMeshEditionInterface>(this)));
+		Notifier.Reset(new FSkeletalMeshToolNotifier(TWeakInterfacePtr<ISkeletalMeshEditingInterface>(this)));
 	}
 	
 	return *Notifier;
 }
 
-bool ISkeletalMeshEditionInterface::NeedsNotification() const
+bool ISkeletalMeshEditingInterface::NeedsNotification() const
 {
 	return Notifier && Notifier->Delegate().IsBound(); 
 }
 
-void ISkeletalMeshEditionInterface::BindTo(TSharedPtr<ISkeletalMeshEditorBinding> InBinding)
+void ISkeletalMeshEditingInterface::BindTo(TSharedPtr<ISkeletalMeshEditorBinding> InBinding)
 {
 	Binding = InBinding;
 }
 
-void ISkeletalMeshEditionInterface::Unbind()
+void ISkeletalMeshEditingInterface::Unbind()
 {
 	Binding.Reset();
 }
 
-TOptional<FName> ISkeletalMeshEditionInterface::GetBoneName(HHitProxy* InHitProxy) const
+TOptional<FName> ISkeletalMeshEditingInterface::GetBoneName(HHitProxy* InHitProxy) const
 {
 	if (const HBoneHitProxy* BoneProxy = HitProxyCast<HBoneHitProxy>(InHitProxy))
 	{
@@ -39,13 +39,13 @@ TOptional<FName> ISkeletalMeshEditionInterface::GetBoneName(HHitProxy* InHitProx
 	return Binding.IsValid() && Binding.Pin()->GetNameFunction() ? Binding.Pin()->GetNameFunction()(InHitProxy) : TOptional<FName>();
 }
 
-TArray<FName> ISkeletalMeshEditionInterface::GetSelectedBones() const
+TArray<FName> ISkeletalMeshEditingInterface::GetSelectedBones() const
 {
 	static const TArray<FName> Dummy;
 	return Binding.IsValid() ? Binding.Pin()->GetSelectedBones() : Dummy;
 }
 
-FSkeletalMeshToolNotifier::FSkeletalMeshToolNotifier(TWeakInterfacePtr<ISkeletalMeshEditionInterface> InInterface)
+FSkeletalMeshToolNotifier::FSkeletalMeshToolNotifier(TWeakInterfacePtr<ISkeletalMeshEditingInterface> InInterface)
 	: ISkeletalMeshNotifier()
 	, Interface(InInterface)
 {}

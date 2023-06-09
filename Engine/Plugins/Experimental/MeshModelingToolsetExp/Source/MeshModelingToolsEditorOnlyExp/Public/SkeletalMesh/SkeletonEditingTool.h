@@ -96,7 +96,7 @@ UCLASS()
 class MESHMODELINGTOOLSEDITORONLYEXP_API USkeletonEditingTool :
 	public USingleSelectionTool,
 	public IClickDragBehaviorTarget,
-	public ISkeletalMeshEditionInterface
+	public ISkeletalMeshEditingInterface
 {
 	GENERATED_BODY()
 

@@ -287,7 +287,7 @@ public:
 
 // An interactive tool for painting and editing skin weights.
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLYEXP_API USkinWeightsPaintTool : public UDynamicMeshBrushTool, public ISkeletalMeshEditionInterface
+class MESHMODELINGTOOLSEDITORONLYEXP_API USkinWeightsPaintTool : public UDynamicMeshBrushTool, public ISkeletalMeshEditingInterface
 {
 	GENERATED_BODY()
 

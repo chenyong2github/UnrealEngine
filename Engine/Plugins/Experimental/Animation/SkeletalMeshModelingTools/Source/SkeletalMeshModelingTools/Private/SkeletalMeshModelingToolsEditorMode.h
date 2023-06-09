@@ -12,7 +12,7 @@ class FSkeletalMeshModelingToolsEditorModeToolkit;
 class UEdModeInteractiveToolsContext;
 class ISkeletalMeshNotifier;
 class ISkeletalMeshEditorBinding;
-class ISkeletalMeshEditionInterface;
+class ISkeletalMeshEditingInterface;
 class HHitProxy;
 class UDebugSkelMeshComponent;
 
@@ -55,7 +55,7 @@ private:
 	// Stylus support is currently disabled; this is left in for reference if/when it is brought back
 	//TUniquePtr<FStylusStateTracker> StylusStateTracker;
 
-	static ISkeletalMeshEditionInterface* GetSkeletonInterface(UInteractiveTool* InTool);
+	static ISkeletalMeshEditingInterface* GetSkeletonInterface(UInteractiveTool* InTool);
 
 	UDebugSkelMeshComponent* GetSkelMeshComponent() const;
 
