@@ -1345,25 +1345,6 @@ namespace Horde.Server.Issues
 		}
 
 		/// <summary>
-		/// Attempts to parse the Robomerge owner from this commit information
-		/// </summary>
-		/// <param name="description">Description text to parse</param>
-		/// <returns>The Robomerge owner, or null if no #ROBOMERGE-OWNER tag was present</returns>
-		static string? ParseRobomergeOwner(string description)
-		{
-			// #ROBOMERGE-OWNER: ben.marsh
-			Match match = Regex.Match(description, @"^#ROBOMERGE-OWNER:\s*([^\s]+)", RegexOptions.Multiline);
-			if (match.Success)
-			{
-				return match.Groups[1].Value;
-			}
-			else
-			{
-				return null;
-			}
-		}
-
-		/// <summary>
 		/// Finds the handler for a given issue
 		/// </summary>
 		/// <param name="fingerprint">The fingerprint to get the handler for</param>

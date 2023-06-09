@@ -730,7 +730,7 @@ namespace Horde.Server.Perforce
 		static string? ParseRobomergeOwner(string description)
 		{
 			// #ROBOMERGE-OWNER: ben.marsh
-			Match match = Regex.Match(description, @"^#ROBOMERGE-OWNER:\s*([^\s]+)", RegexOptions.Multiline);
+			Match match = Regex.Match(description, @"^#ROBOMERGE-OWNER:\s*([^@\s]+)", RegexOptions.Multiline);
 			if (match.Success)
 			{
 				return match.Groups[1].Value;
