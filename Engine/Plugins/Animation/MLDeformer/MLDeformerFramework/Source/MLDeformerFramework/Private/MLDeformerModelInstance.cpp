@@ -90,6 +90,17 @@ void UMLDeformerModelInstance::Init(USkeletalMeshComponent* SkelMeshComponent)
 	if (SkelMeshComponent == nullptr)
 	{
 		AssetBonesToSkelMeshMappings.Empty();
+
+		UMLDeformerAsset* Asset = GetModel()->GetDeformerAsset();
+		if (Asset && Asset->GetModel()->GetInputInfo())
+		{
+			const FSoftObjectPath& SkelMeshPath = Asset->GetModel()->GetInputInfo()->GetSkeletalMesh();
+			if (SkelMeshPath.IsValid())
+			{
+				UE_LOG(LogMLDeformer, Error, TEXT("ML Deformer '%s' is trained on skeletal mesh '%s', which cannot be found on actor!"), *Asset->GetName(), *SkelMeshPath.ToString());
+			}
+		}
+
 		return;
 	}
 

@@ -57,7 +57,7 @@ void UMLDeformerGeomCacheModel::SampleGroundTruthPositions(float SampleTime, TAr
 	{
 		TArray<FString> FailedImportedMeshNames;
 		TArray<FString> VertexMisMatchNames;
-		UE::MLDeformer::GenerateGeomCacheMeshMappings(GetSkeletalMesh(), GeomCache, MeshMappings, FailedImportedMeshNames, VertexMisMatchNames);
+		UE::MLDeformer::GenerateGeomCacheMeshMappings(GetSkeletalMesh(), GeomCache, MeshMappings, FailedImportedMeshNames, VertexMisMatchNames, /**bSuppressLog*/true);
 	}
 
 	UE::MLDeformer::SampleGeomCachePositions(
