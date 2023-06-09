@@ -281,30 +281,30 @@ void DumpLoadedGroomBindingAssets(IConsoleVariable* InCVarPakTesterEnabled)
 	{
 		if (AssetIt)
 		{			
-			const uint32 GroupCount = AssetIt->HairGroupsPlatformData.Num();
+			const uint32 GroupCount = AssetIt->GetHairGroupsPlatformData().Num();
 			for (uint32 GroupIt = 0; GroupIt < GroupCount; ++GroupIt)
 			{
-				const uint32 CPUMemorySize_Guides  = AssetIt->HairGroupsPlatformData[GroupIt].SimRootBulkData.GetDataSize();
-				const uint32 CPUMemorySize_Strands = AssetIt->HairGroupsPlatformData[GroupIt].RenRootBulkData.GetDataSize();
+				const uint32 CPUMemorySize_Guides  = AssetIt->GetHairGroupsPlatformData()[GroupIt].SimRootBulkData.GetDataSize();
+				const uint32 CPUMemorySize_Strands = AssetIt->GetHairGroupsPlatformData()[GroupIt].RenRootBulkData.GetDataSize();
 
 				uint32 GPUMemorySize_Guides = 0;
-				if (const FHairStrandsRestRootResource* RootResource = AssetIt->HairGroupResources[GroupIt].SimRootResources)
+				if (const FHairStrandsRestRootResource* RootResource = AssetIt->GetHairGroupResources()[GroupIt].SimRootResources)
 				{
 					GPUMemorySize_Guides += RootResource->GetResourcesSize();
 				}
 				uint32 GPUMemorySize_Strands = 0;
-				if (const FHairStrandsRestRootResource* RootResource = AssetIt->HairGroupResources[GroupIt].RenRootResources)
+				if (const FHairStrandsRestRootResource* RootResource = AssetIt->GetHairGroupResources()[GroupIt].RenRootResources)
 				{
 					GPUMemorySize_Strands += RootResource->GetResourcesSize();
 				}
 
 				uint32 CPUMemorySize_Cards = 0;
 				uint32 GPUMemorySize_Cards = 0;
-				const uint32 CardCount = AssetIt->HairGroupsPlatformData[GroupIt].CardsRootBulkData.Num();
+				const uint32 CardCount = AssetIt->GetHairGroupsPlatformData()[GroupIt].CardsRootBulkData.Num();
 				for (uint32 CardIt = 0; CardIt < CardCount; ++CardIt)
 				{
-					CPUMemorySize_Cards += AssetIt->HairGroupsPlatformData[GroupIt].CardsRootBulkData[CardIt].GetDataSize();
-					if (const FHairStrandsRestRootResource* RootResource = AssetIt->HairGroupResources[GroupIt].CardsRootResources[CardIt])
+					CPUMemorySize_Cards += AssetIt->GetHairGroupsPlatformData()[GroupIt].CardsRootBulkData[CardIt].GetDataSize();
+					if (const FHairStrandsRestRootResource* RootResource = AssetIt->GetHairGroupResources()[GroupIt].CardsRootResources[CardIt])
 					{
 						GPUMemorySize_Cards += RootResource->GetResourcesSize();
 					}
@@ -321,7 +321,7 @@ void DumpLoadedGroomBindingAssets(IConsoleVariable* InCVarPakTesterEnabled)
 				Total_GPUMemorySize_Strands+= GPUMemorySize_Strands;
 				Total_GPUMemorySize_Cards  += GPUMemorySize_Cards;
 
-				const uint32 SkelLODCount = AssetIt->HairGroupsPlatformData[GroupIt].RenRootBulkData.GetLODCount();
+				const uint32 SkelLODCount = AssetIt->GetHairGroupsPlatformData()[GroupIt].RenRootBulkData.GetLODCount();
 				if (bDetails)
 				{
 //					UE_LOG(LogHairStrands, Log, TEXT("--  No.  - LOD -    CPU Total (     Guides|    Strands|      Cards) -    GPU Total (     Guides|    Strands|      Cards) - Asset Name "));

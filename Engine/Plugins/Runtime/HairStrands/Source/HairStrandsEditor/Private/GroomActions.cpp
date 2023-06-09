@@ -223,7 +223,7 @@ void ExecuteCreateBindingAsset(const FToolMenuContext& InContext)
 				if (BindingAsset)
 				{
 					BindingAsset->Build();
-					if (BindingAsset->bIsValid)
+					if (BindingAsset->IsValid())
 					{
 						TArray<UObject*> CreatedObjects;
 						CreatedObjects.Add(BindingAsset);

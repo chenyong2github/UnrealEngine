@@ -219,21 +219,21 @@ UGroomBindingAsset* FHairStrandsCore::CreateGroomBindingAsset(EGroomBindingMeshT
 
 	if (UGroomBindingAsset* Out = NewObject<UGroomBindingAsset>(Package, *Name, RF_Public | RF_Standalone | RF_Transactional))
 	{
-		Out->GroomBindingType = BindingType;
-		Out->Groom = GroomAsset;
+		Out->SetGroomBindingType(BindingType);
+		Out->SetGroom(GroomAsset);
 		if (BindingType == EGroomBindingMeshType::SkeletalMesh)
 		{
-			Out->SourceSkeletalMesh = Cast<USkeletalMesh>(Source);
-			Out->TargetSkeletalMesh = Cast<USkeletalMesh>(Target);
+			Out->SetSourceSkeletalMesh(Cast<USkeletalMesh>(Source));
+			Out->SetTargetSkeletalMesh(Cast<USkeletalMesh>(Target));
 		}
 		else
 		{
-			Out->SourceGeometryCache = Cast<UGeometryCache>(Source);
-			Out->TargetGeometryCache = Cast<UGeometryCache>(Target);
+			Out->SetSourceGeometryCache(Cast<UGeometryCache>(Source));
+			Out->SetTargetGeometryCache(Cast<UGeometryCache>(Target));
 		}
-		Out->HairGroupsPlatformData.Reserve(GroomAsset->HairGroupsPlatformData.Num());
-		Out->NumInterpolationPoints = NumInterpolationPoints;
-		Out->MatchingSection = MatchingSection;
+		Out->GetHairGroupsPlatformData().Reserve(GroomAsset->HairGroupsPlatformData.Num());
+		Out->SetNumInterpolationPoints(NumInterpolationPoints);
+		Out->SetMatchingSection(MatchingSection);
 		Out->MarkPackageDirty();
 		AssetHelper().RegisterAsset(Out);
 		return Out;

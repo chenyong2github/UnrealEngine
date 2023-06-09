@@ -356,11 +356,11 @@ TSet<UObject*> IUsdClassesModule::GetAssetDependencies(UObject* Asset)
 	}
 	else if (UGroomBindingAsset* GroomBinding = Cast<UGroomBindingAsset>(Asset))
 	{
-		Result.Add(GroomBinding->Groom);
-		Result.Add(GroomBinding->TargetSkeletalMesh);
-		Result.Add(GroomBinding->SourceSkeletalMesh);
-		Result.Add(GroomBinding->SourceGeometryCache);
-		Result.Add(GroomBinding->TargetGeometryCache);
+		Result.Add(GroomBinding->GetGroom());
+		Result.Add(GroomBinding->GetTargetSkeletalMesh());
+		Result.Add(GroomBinding->GetSourceSkeletalMesh());
+		Result.Add(GroomBinding->GetSourceGeometryCache());
+		Result.Add(GroomBinding->GetTargetGeometryCache());
 	}
 	else if (UGroomAsset* GroomAsset = Cast<UGroomAsset>(Asset))
 	{

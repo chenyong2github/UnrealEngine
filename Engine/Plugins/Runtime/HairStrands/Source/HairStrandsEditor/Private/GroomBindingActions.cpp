@@ -28,23 +28,23 @@ void ExecuteRebuildBindingAsset(const FToolMenuContext& InContext)
 	{
 		for (UGroomBindingAsset* BindingAsset : Context->LoadSelectedObjects<UGroomBindingAsset>())
 		{
-			if (BindingAsset->Groom && BindingAsset->HasValidTarget())
+			if (BindingAsset->GetGroom() && BindingAsset->HasValidTarget())
 			{
-				BindingAsset->Groom->ConditionalPostLoad();
-				if (BindingAsset->GroomBindingType == EGroomBindingMeshType::SkeletalMesh)
+				BindingAsset->GetGroom()->ConditionalPostLoad();
+				if (BindingAsset->GetGroomBindingType() == EGroomBindingMeshType::SkeletalMesh)
 				{
-					BindingAsset->TargetSkeletalMesh->ConditionalPostLoad();
-					if (BindingAsset->SourceSkeletalMesh)
+					BindingAsset->GetTargetSkeletalMesh()->ConditionalPostLoad();
+					if (BindingAsset->GetSourceSkeletalMesh())
 					{
-						BindingAsset->SourceSkeletalMesh->ConditionalPostLoad();
+						BindingAsset->GetSourceSkeletalMesh()->ConditionalPostLoad();
 					}
 				}
 				else
 				{
-					BindingAsset->TargetGeometryCache->ConditionalPostLoad();
-					if (BindingAsset->SourceGeometryCache)
+					BindingAsset->GetTargetGeometryCache()->ConditionalPostLoad();
+					if (BindingAsset->GetSourceGeometryCache())
 					{
-						BindingAsset->SourceGeometryCache->ConditionalPostLoad();
+						BindingAsset->GetSourceGeometryCache()->ConditionalPostLoad();
 					}
 				}
 				FGroomBindingBuilder::BuildBinding(BindingAsset, true);

@@ -111,21 +111,21 @@ namespace UE::UsdGroomTranslatorUtils::Private
 		);
 		if (GroomBinding)
 		{
-			GroomBinding->GroomBindingType = Settings.GroomBindingType;
-			GroomBinding->Groom = Settings.Groom;
-			if (GroomBinding->GroomBindingType == EGroomBindingMeshType::SkeletalMesh)
+			GroomBinding->SetGroomBindingType(Settings.GroomBindingType);
+			GroomBinding->SetGroom(Settings.Groom);
+			if (GroomBinding->GetGroomBindingType() == EGroomBindingMeshType::SkeletalMesh)
 			{
-				GroomBinding->SourceSkeletalMesh = Cast<USkeletalMesh>(Settings.SourceMesh);
-				GroomBinding->TargetSkeletalMesh = Cast<USkeletalMesh>(Settings.TargetMesh);
+				GroomBinding->SetSourceSkeletalMesh(Cast<USkeletalMesh>(Settings.SourceMesh));
+				GroomBinding->SetTargetSkeletalMesh(Cast<USkeletalMesh>(Settings.TargetMesh));
 			}
 			else
 			{
-				GroomBinding->SourceGeometryCache = Cast<UGeometryCache>(Settings.SourceMesh);
-				GroomBinding->TargetGeometryCache = Cast<UGeometryCache>(Settings.TargetMesh);
+				GroomBinding->SetSourceGeometryCache(Cast<UGeometryCache>(Settings.SourceMesh));
+				GroomBinding->SetTargetGeometryCache(Cast<UGeometryCache>(Settings.TargetMesh));
 			}
-			GroomBinding->HairGroupsPlatformData.Reserve(Settings.Groom->HairGroupsPlatformData.Num());
-			GroomBinding->NumInterpolationPoints = Settings.NumInterpolationPoints;
-			GroomBinding->MatchingSection = Settings.MatchingSection;
+			GroomBinding->GetHairGroupsPlatformData().Reserve(Settings.Groom->HairGroupsPlatformData.Num());
+			GroomBinding->SetNumInterpolationPoints(Settings.NumInterpolationPoints);
+			GroomBinding->SetMatchingSection(Settings.MatchingSection);
 
 			GroomBinding->Build();
 		}

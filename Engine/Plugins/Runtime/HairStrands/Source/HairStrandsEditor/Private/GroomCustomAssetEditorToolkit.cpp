@@ -331,7 +331,7 @@ static void ListAllBindingAssets(const UGroomAsset* InGroomAsset, TWeakObjectPtr
 
 	// 1. Use tagged properties for searching compatible binding assets (for assets saved after AssetRegistrySearchable has been added)
 	{
-		const FName GroomAssetProperty = GET_MEMBER_NAME_CHECKED(UGroomBindingAsset, Groom);
+		const FName GroomAssetProperty = UGroomBindingAsset::GetGroomMemberName();
 		FString GroomAssetName = FAssetData(InGroomAsset).GetExportTextName();
 		FARFilter Filter;
 		Filter.ClassPaths.Add(UGroomBindingAsset::StaticClass()->GetClassPathName());
@@ -342,7 +342,7 @@ static void ListAllBindingAssets(const UGroomAsset* InGroomAsset, TWeakObjectPtr
 		{
 			if (UGroomBindingAsset* Binding = (UGroomBindingAsset*)Asset.GetAsset(/*bLoad*/))
 			{
-				if (Binding->Groom == InGroomAsset)
+				if (Binding->GetGroom() == InGroomAsset)
 				{
 					Out->Bindings.Add(Binding);
 				}
@@ -364,7 +364,7 @@ static void ListAllBindingAssets(const UGroomAsset* InGroomAsset, TWeakObjectPtr
 			UGroomBindingAsset* Binding = (UGroomBindingAsset*)Asset.FastGetAsset(false /*bLoad*/);
 			if (Binding)
 			{
-				if (Binding->Groom == InGroomAsset)
+				if (Binding->GetGroom() == InGroomAsset)
 				{
 					Out->Bindings.Add(Binding);
 				}
@@ -377,7 +377,7 @@ static void ListAllBindingAssets(const UGroomAsset* InGroomAsset, TWeakObjectPtr
 				if (TCString<TCHAR>::Strfind(*BindingAssetName, *GroomAssetName, true))
 				{
 					Binding = (UGroomBindingAsset*)Asset.GetAsset(/*bLoad*/);
-					if (Binding->Groom == InGroomAsset)
+					if (Binding->GetGroom() == InGroomAsset)
 					{
 						Out->Bindings.Add(Binding);
 					}
@@ -959,7 +959,7 @@ void FGroomCustomAssetEditorToolkit::PreviewBinding(int32 BindingIndex)
 	if (GroomBindingAsset.Get())
 	{
 		PreviewSkeletalMeshComponent = NewObject<USkeletalMeshComponent>(GetTransientPackage(), NAME_None, RF_Transient);
-		PreviewSkeletalMeshComponent->SetSkeletalMesh(GroomBindingAsset->TargetSkeletalMesh);
+		PreviewSkeletalMeshComponent->SetSkeletalMesh(GroomBindingAsset->GetTargetSkeletalMesh());
 		PreviewSkeletalMeshComponent->SetVisibility(true);
 		PreviewSkeletalMeshComponent->Activate(true);
 		PreviewGroomComponent->AttachToComponent(PreviewSkeletalMeshComponent.Get(), FAttachmentTransformRules::KeepRelativeTransform);

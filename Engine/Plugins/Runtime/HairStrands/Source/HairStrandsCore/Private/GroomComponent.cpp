@@ -2250,10 +2250,10 @@ static USkeletalMeshComponent* ValidateBindingAsset(
 				const bool bIsCardsBindingCompatible =
 					bIsBindingCompatible &&
 					BindingAsset &&
-					GroupIt < BindingAsset->HairGroupResources.Num() &&
-					CardsLODIndex < uint32(BindingAsset->HairGroupResources[GroupIt].CardsRootResources.Num()) &&
-					BindingAsset->HairGroupResources[GroupIt].CardsRootResources[CardsLODIndex] != nullptr &&
-					((SkeletalMeshComponent && SkeletalMeshComponent->GetSkeletalMeshAsset()) ? SkeletalMeshComponent->GetSkeletalMeshAsset()->GetLODInfoArray().Num() == BindingAsset->HairGroupResources[GroupIt].CardsRootResources[CardsLODIndex]->GetLODCount() : false);
+					GroupIt < BindingAsset->GetHairGroupResources().Num() &&
+					CardsLODIndex < uint32(BindingAsset->GetHairGroupResources()[GroupIt].CardsRootResources.Num()) &&
+					BindingAsset->GetHairGroupResources()[GroupIt].CardsRootResources[CardsLODIndex] != nullptr &&
+					((SkeletalMeshComponent && SkeletalMeshComponent->GetSkeletalMeshAsset()) ? SkeletalMeshComponent->GetSkeletalMeshAsset()->GetLODInfoArray().Num() == BindingAsset->GetHairGroupResources()[GroupIt].CardsRootResources[CardsLODIndex]->GetLODCount() : false);
 
 				if (!bIsCardsBindingCompatible)
 				{
@@ -2280,7 +2280,7 @@ static UMeshComponent* ValidateBindingAsset(
 		return nullptr;
 	}
 
-	if (BindingAsset->GroomBindingType == EGroomBindingMeshType::SkeletalMesh)
+	if (BindingAsset->GetGroomBindingType() == EGroomBindingMeshType::SkeletalMesh)
 	{
 		return ValidateBindingAsset(GroomAsset, BindingAsset, Cast<USkeletalMeshComponent>(MeshComponent), bIsBindingReloading, bValidationEnable, Component);
 	}
@@ -2393,8 +2393,8 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		if (ValidatedMeshComponent)
 		{
 			if (BindingAsset && 
-				((BindingAsset->GroomBindingType == EGroomBindingMeshType::SkeletalMesh && Cast<USkeletalMeshComponent>(ValidatedMeshComponent)->GetSkeletalMeshAsset() == nullptr) ||
-				(BindingAsset->GroomBindingType == EGroomBindingMeshType::GeometryCache && Cast<UGeometryCacheComponent>(ValidatedMeshComponent)->GeometryCache == nullptr)))
+				((BindingAsset->GetGroomBindingType() == EGroomBindingMeshType::SkeletalMesh && Cast<USkeletalMeshComponent>(ValidatedMeshComponent)->GetSkeletalMeshAsset() == nullptr) ||
+				(BindingAsset->GetGroomBindingType() == EGroomBindingMeshType::GeometryCache && Cast<UGeometryCacheComponent>(ValidatedMeshComponent)->GeometryCache == nullptr)))
 			{
 				ValidatedMeshComponent = nullptr;
 			}
@@ -2481,7 +2481,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		if (bHasNeedBindingData)
 		{
 			LocalBindingAsset = BindingAsset;
-			if (LocalBindingAsset && LocalBindingAsset->HairGroupResources.Num() != GroomAsset->HairGroupsPlatformData.Num())
+			if (LocalBindingAsset && LocalBindingAsset->GetHairGroupResources().Num() != GroomAsset->HairGroupsPlatformData.Num())
 			{
 				LocalBindingAsset = nullptr;
 			}
@@ -2523,7 +2523,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		HairGroupInstance->Debug.GroomAssetName = GroomAsset->GetName();
 		HairGroupInstance->Debug.MeshComponentForDebug = RegisteredMeshComponent;
 		HairGroupInstance->Debug.GroomComponentForDebug = this;
-		HairGroupInstance->Debug.GroomBindingType = BindingAsset ? BindingAsset->GroomBindingType : EGroomBindingMeshType::SkeletalMesh;
+		HairGroupInstance->Debug.GroomBindingType = BindingAsset ? BindingAsset->GetGroomBindingType() : EGroomBindingMeshType::SkeletalMesh;
 		HairGroupInstance->Debug.GroomCacheType = GetEffectiveGroomCacheType(GroomCache, GroomAsset);
 		HairGroupInstance->Debug.GroomCacheBuffers = GroomCacheBuffers;
 		HairGroupInstance->Debug.LODForcedIndex = LODForcedIndex;
@@ -2618,13 +2618,13 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 			{
 				check(RegisteredMeshComponent);
 				check(LocalBindingAsset);
-				check(GroupIt < LocalBindingAsset->HairGroupResources.Num());
+				check(GroupIt < LocalBindingAsset->GetHairGroupResources().Num());
 				if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(RegisteredMeshComponent))
 				{
-					check(SkeletalMeshComponent->GetSkeletalMeshAsset() ? SkeletalMeshComponent->GetSkeletalMeshAsset()->GetLODInfoArray().Num() == LocalBindingAsset->HairGroupResources[GroupIt].SimRootResources->GetLODCount() : false);
+					check(SkeletalMeshComponent->GetSkeletalMeshAsset() ? SkeletalMeshComponent->GetSkeletalMeshAsset()->GetLODInfoArray().Num() == LocalBindingAsset->GetHairGroupResources()[GroupIt].SimRootResources->GetLODCount() : false);
 				}
 
-				HairGroupInstance->Guides.RestRootResource = LocalBindingAsset->HairGroupResources[GroupIt].SimRootResources;
+				HairGroupInstance->Guides.RestRootResource = LocalBindingAsset->GetHairGroupResources()[GroupIt].SimRootResources;
 				HairGroupInstance->Guides.DeformedRootResource = new FHairStrandsDeformedRootResource(HairGroupInstance->Guides.RestRootResource, EHairStrandsResourcesType::Guides, ResourceName, OwnerName);
 			}
 
@@ -2742,13 +2742,13 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 			{
 				check(LocalBindingAsset);
 				check(RegisteredMeshComponent);
-				check(GroupIt < LocalBindingAsset->HairGroupResources.Num());
+				check(GroupIt < LocalBindingAsset->GetHairGroupResources().Num());
 				if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(RegisteredMeshComponent))
 				{
-					check(SkeletalMeshComponent->GetSkeletalMeshAsset() ? SkeletalMeshComponent->GetSkeletalMeshAsset()->GetLODInfoArray().Num() == LocalBindingAsset->HairGroupResources[GroupIt].RenRootResources->GetLODCount() : false);
+					check(SkeletalMeshComponent->GetSkeletalMeshAsset() ? SkeletalMeshComponent->GetSkeletalMeshAsset()->GetLODInfoArray().Num() == LocalBindingAsset->GetHairGroupResources()[GroupIt].RenRootResources->GetLODCount() : false);
 				}
 
-				HairGroupInstance->Strands.RestRootResource = LocalBindingAsset->HairGroupResources[GroupIt].RenRootResources;
+				HairGroupInstance->Strands.RestRootResource = LocalBindingAsset->GetHairGroupResources()[GroupIt].RenRootResources;
 				HairGroupInstance->Strands.DeformedRootResource = new FHairStrandsDeformedRootResource(HairGroupInstance->Strands.RestRootResource, EHairStrandsResourcesType::Strands, ResourceName, OwnerName);
 			}
 
@@ -2847,13 +2847,13 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 					if (bNeedRootData)
 					{
 						check(LocalBindingAsset);
-						check(GroupIt < LocalBindingAsset->HairGroupResources.Num());
+						check(GroupIt < LocalBindingAsset->GetHairGroupResources().Num());
 						if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(RegisteredMeshComponent))
 						{
-							check(SkeletalMeshComponent->GetSkeletalMeshAsset() ? SkeletalMeshComponent->GetSkeletalMeshAsset()->GetLODInfoArray().Num() == LocalBindingAsset->HairGroupResources[GroupIt].CardsRootResources[CardsLODIndex]->GetLODCount() : false);
+							check(SkeletalMeshComponent->GetSkeletalMeshAsset() ? SkeletalMeshComponent->GetSkeletalMeshAsset()->GetLODInfoArray().Num() == LocalBindingAsset->GetHairGroupResources()[GroupIt].CardsRootResources[CardsLODIndex]->GetLODCount() : false);
 						}
 
-						InstanceLOD.Guides.RestRootResource = LocalBindingAsset->HairGroupResources[GroupIt].CardsRootResources[CardsLODIndex];
+						InstanceLOD.Guides.RestRootResource = LocalBindingAsset->GetHairGroupResources()[GroupIt].CardsRootResources[CardsLODIndex];
 						InstanceLOD.Guides.DeformedRootResource = new FHairStrandsDeformedRootResource(InstanceLOD.Guides.RestRootResource, EHairStrandsResourcesType::Cards, LODResourceName, LODOwnerName);
 					}
 

@@ -907,11 +907,11 @@ namespace UsdStageImporterImpl
 			}
 			else if (UGroomBindingAsset* GroomBinding = Cast<UGroomBindingAsset>(Asset))
 			{
-				if(GroomBinding->TargetSkeletalMesh)
+				if (GroomBinding->GetTargetSkeletalMesh())
 				{
 					AssetTypeFolderPtr = &SkeletalMeshesFolder;
 				}
-				else if (GroomBinding->TargetGeometryCache)
+				else if (GroomBinding->GetTargetGeometryCache())
 				{
 					AssetTypeFolderPtr = &GeometryCachesFolder;
 				}

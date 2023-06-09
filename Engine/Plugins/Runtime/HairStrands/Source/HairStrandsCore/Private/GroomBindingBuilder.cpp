@@ -57,7 +57,7 @@ static FAutoConsoleVariableRef CVarHairStrandsBindingBuilderWarningEnable(TEXT("
 FString FGroomBindingBuilder::GetVersion()
 {
 	// Important to update the version when groom building changes
-	return TEXT("3e");
+	return TEXT("3f");
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2041,9 +2041,9 @@ static bool InternalBuildBinding_CPU(UGroomBindingAsset* BindingAsset, uint32 In
 {
 #if WITH_EDITORONLY_DATA
 	if (!BindingAsset ||
-		!BindingAsset->Groom ||
+		!BindingAsset->GetGroom() ||
 		!BindingAsset->HasValidTarget() ||
-		BindingAsset->Groom->GetNumHairGroups() == 0)
+		BindingAsset->GetGroom()->GetNumHairGroups() == 0)
 	{
 		UE_LOG(LogHairStrands, Error, TEXT("[Groom] Binding asset cannot be created/rebuilt."));
 		return false;
@@ -2052,34 +2052,34 @@ static bool InternalBuildBinding_CPU(UGroomBindingAsset* BindingAsset, uint32 In
 	// 1. Build groom root data
 	FHairRootGroupData OutData;
 	{
-		BindingAsset->Groom->ConditionalPostLoad();
+		BindingAsset->GetGroom()->ConditionalPostLoad();
 
-		const int32 NumInterpolationPoints = BindingAsset->NumInterpolationPoints;
-		UGroomAsset* GroomAsset = BindingAsset->Groom;
+		const int32 NumInterpolationPoints = BindingAsset->GetNumInterpolationPoints();
+		UGroomAsset* GroomAsset = BindingAsset->GetGroom();
 
 		TUniquePtr<IMeshData> SourceMeshData;
 		TUniquePtr<IMeshData> TargetMeshData;
-		if (BindingAsset->GroomBindingType == EGroomBindingMeshType::SkeletalMesh)
+		if (BindingAsset->GetGroomBindingType() == EGroomBindingMeshType::SkeletalMesh)
 		{
-			BindingAsset->TargetSkeletalMesh->ConditionalPostLoad();
-			if (BindingAsset->SourceSkeletalMesh)
+			BindingAsset->GetTargetSkeletalMesh()->ConditionalPostLoad();
+			if (BindingAsset->GetSourceSkeletalMesh())
 			{
-				BindingAsset->SourceSkeletalMesh->ConditionalPostLoad();
+				BindingAsset->GetSourceSkeletalMesh()->ConditionalPostLoad();
 			}
 
-			SourceMeshData = TUniquePtr<FSkeletalMeshData, TDefaultDelete<IMeshData>>(new FSkeletalMeshData(BindingAsset->SourceSkeletalMesh));
-			TargetMeshData = TUniquePtr<FSkeletalMeshData, TDefaultDelete<IMeshData>>(new FSkeletalMeshData(BindingAsset->TargetSkeletalMesh));
+			SourceMeshData = TUniquePtr<FSkeletalMeshData, TDefaultDelete<IMeshData>>(new FSkeletalMeshData(BindingAsset->GetSourceSkeletalMesh()));
+			TargetMeshData = TUniquePtr<FSkeletalMeshData, TDefaultDelete<IMeshData>>(new FSkeletalMeshData(BindingAsset->GetTargetSkeletalMesh()));
 		}
 		else
 		{
-			BindingAsset->TargetGeometryCache->ConditionalPostLoad();
-			if (BindingAsset->SourceGeometryCache)
+			BindingAsset->GetTargetGeometryCache()->ConditionalPostLoad();
+			if (BindingAsset->GetSourceGeometryCache())
 			{
-				BindingAsset->SourceGeometryCache->ConditionalPostLoad();
+				BindingAsset->GetSourceGeometryCache()->ConditionalPostLoad();
 			}
 
-			SourceMeshData = TUniquePtr<FGeometryCacheData, TDefaultDelete<IMeshData>>(new FGeometryCacheData(BindingAsset->SourceGeometryCache));
-			TargetMeshData = TUniquePtr<FGeometryCacheData, TDefaultDelete<IMeshData>>(new FGeometryCacheData(BindingAsset->TargetGeometryCache));
+			SourceMeshData = TUniquePtr<FGeometryCacheData, TDefaultDelete<IMeshData>>(new FGeometryCacheData(BindingAsset->GetSourceGeometryCache()));
+			TargetMeshData = TUniquePtr<FGeometryCacheData, TDefaultDelete<IMeshData>>(new FGeometryCacheData(BindingAsset->GetTargetGeometryCache()));
 		}
 
 		if (!TargetMeshData->IsValid())
@@ -2162,7 +2162,7 @@ static bool InternalBuildBinding_CPU(UGroomBindingAsset* BindingAsset, uint32 In
 			if (!GroomBinding_Transfer::Transfer(
 				SourceMeshData.Get(),
 				TargetMeshData.Get(),
-				TransferredPositions, BindingAsset->MatchingSection))
+				TransferredPositions, BindingAsset->GetMatchingSection()))
 			{
 				UE_LOG(LogHairStrands, Error, TEXT("[Groom] Binding asset could not be built. Positions transfer between source and target mesh failed."));
 				return false;
@@ -2205,7 +2205,7 @@ static bool InternalBuildBinding_CPU(UGroomBindingAsset* BindingAsset, uint32 In
 			const uint32 CardsLODCount = OutData.CardsRootData.Num();
 			for (uint32 CardsLODIt = 0; CardsLODIt < CardsLODCount; ++CardsLODIt)
 			{
-				if (BindingAsset->Groom->HairGroupsPlatformData[InGroupIndex].Cards.IsValid(CardsLODIt))
+				if (BindingAsset->GetGroom()->HairGroupsPlatformData[InGroupIndex].Cards.IsValid(CardsLODIt))
 				{
 					FHairStrandsDatas LODGuidesData;
 					const bool bIsValid = GroomAsset->GetHairCardsGuidesDatas(InGroupIndex, CardsLODIt, LODGuidesData);
@@ -2228,25 +2228,25 @@ static bool InternalBuildBinding_CPU(UGroomBindingAsset* BindingAsset, uint32 In
 		
 		// 1.5 RBF building
 		{
-			GroomBinding_RBFWeighting::ComputeInterpolationWeights(OutData, bNeedStrandsRoot, BindingAsset->NumInterpolationPoints, BindingAsset->MatchingSection, TargetMeshData.Get(), TransferredPositions);
+			GroomBinding_RBFWeighting::ComputeInterpolationWeights(OutData, bNeedStrandsRoot, BindingAsset->GetNumInterpolationPoints(), BindingAsset->GetMatchingSection(), TargetMeshData.Get(), TransferredPositions);
 			SlowTask.EnterProgressFrame();
 		}
 	}
 
 	// 2. Release existing resources data
-	UGroomBindingAsset::FHairGroupResources& OutHairGroupResources = BindingAsset->HairGroupResources;
-	if (BindingAsset->HairGroupResources.Num() > 0)
+	UGroomBindingAsset::FHairGroupResources& OutHairGroupResources = BindingAsset->GetHairGroupResources();
+	if (OutHairGroupResources.Num() > 0)
 	{
 		for (UGroomBindingAsset::FHairGroupResource& GroupResrouces : OutHairGroupResources)
 		{
-			BindingAsset->HairGroupResourcesToDelete.Enqueue(GroupResrouces);
+			BindingAsset->AddHairGroupResourcesToDelete(GroupResrouces);
 		}
 		OutHairGroupResources.Empty();
 	}
 	check(OutHairGroupResources.Num() == 0);
 
 	// 3. Convert data to bulk data
-	GroomBinding_BulkCopy::BuildRootBulkData(BindingAsset->HairGroupsPlatformData[InGroupIndex], OutData);
+	GroomBinding_BulkCopy::BuildRootBulkData(BindingAsset->GetHairGroupsPlatformData()[InGroupIndex], OutData);
 
 	BindingAsset->QueryStatus = UGroomBindingAsset::EQueryStatus::Completed;
 #endif
@@ -2264,8 +2264,8 @@ bool FGroomBindingBuilder::BuildBinding(UGroomBindingAsset* BindingAsset, bool b
 	bool bOutValid = true;
 
 	// 1. Build binding asset
-	const uint32 GroupCount = BindingAsset->HairGroupsPlatformData.Num();
-	BindingAsset->GroupInfos.SetNum(GroupCount);
+	const uint32 GroupCount = BindingAsset->GetHairGroupsPlatformData().Num();
+	BindingAsset->GetGroupInfos().SetNum(GroupCount);
 	for (uint32 InGroupIndex = 0; InGroupIndex < GroupCount; ++InGroupIndex)
 	{
 		bOutValid = InternalBuildBinding_CPU(BindingAsset, InGroupIndex) && bOutValid;

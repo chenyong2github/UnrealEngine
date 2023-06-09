@@ -8,19 +8,19 @@
 // Customization for UGroomBindingAsset
 void FGroomBindingDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder& LayoutBuilder)
 {
-	TSharedRef<IPropertyHandle> GroomBindingType = LayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UGroomBindingAsset, GroomBindingType));
+	TSharedRef<IPropertyHandle> GroomBindingType = LayoutBuilder.GetProperty(UGroomBindingAsset::GetGroomBindingTypeMemberName());
 	
 	uint8 EnumValue;
 	GroomBindingType->GetValue(EnumValue);
 	if (EnumValue == (uint8) EGroomBindingMeshType::SkeletalMesh)
 	{
-		LayoutBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UGroomBindingAsset, SourceGeometryCache));
-		LayoutBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UGroomBindingAsset, TargetGeometryCache));
+		LayoutBuilder.HideProperty(UGroomBindingAsset::GetSourceGeometryCacheMemberName());
+		LayoutBuilder.HideProperty(UGroomBindingAsset::GetTargetGeometryCacheMemberName());
 	}
 	else
 	{
-		LayoutBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UGroomBindingAsset, SourceSkeletalMesh));
-		LayoutBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UGroomBindingAsset, TargetSkeletalMesh));
+		LayoutBuilder.HideProperty(UGroomBindingAsset::GetSourceSkeletalMeshMemberName());
+		LayoutBuilder.HideProperty(UGroomBindingAsset::GetTargetSkeletalMeshMemberName());
 	}
 }
 

@@ -135,9 +135,9 @@ void UGroomBindingAsset::Serialize(FArchive& Ar)
 {
 	uint8 Flags = 0;
 #if WITH_EDITOR
-	if (Groom)
+	if (GetGroom())
 	{
-		Flags = Groom->GenerateClassStripFlags(Ar);
+		Flags = GetGroom()->GenerateClassStripFlags(Ar);
 	}
 #endif
 
@@ -147,7 +147,7 @@ void UGroomBindingAsset::Serialize(FArchive& Ar)
 	if (Ar.IsCooking())
 #endif
 	{
-		InternalSerializePlatformDatas(Ar, this, HairGroupsPlatformData, Flags);
+		InternalSerializePlatformDatas(Ar, this, GetHairGroupsPlatformData(), Flags);
 		bIsValid = true;
 	}
 }
@@ -156,13 +156,15 @@ void UGroomBindingAsset::InitResource()
 {
 	LLM_SCOPE_BYTAG(Groom);
 
+	TRACE_CPUPROFILER_EVENT_SCOPE(UGroomBindingAsset::InitResource);
+
 	// Ensure we are releasing binding resources before reallocating them
 	ReleaseResource();
 
-	for (UGroomBindingAsset::FHairGroupPlatformData& BulkData : HairGroupsPlatformData)
+	for (UGroomBindingAsset::FHairGroupPlatformData& BulkData : GetHairGroupsPlatformData())
 	{
-		const int32 GroupIndex = HairGroupResources.Num();
-		FHairGroupResource& Resource = HairGroupResources.AddDefaulted_GetRef();
+		const int32 GroupIndex = GetHairGroupResources().Num();
+		FHairGroupResource& Resource = GetHairGroupResources().AddDefaulted_GetRef();
 
 		FHairResourceName ResourceName(GetFName(), GroupIndex);
 		const FName OwnerName = GetAssetPathName();
@@ -203,7 +205,7 @@ void UGroomBindingAsset::InitResource()
 
 void UGroomBindingAsset::UpdateResource()
 {
-	for (FHairGroupResource& Resource : HairGroupResources)
+	for (FHairGroupResource& Resource : GetHairGroupResources())
 	{
 		if (Resource.SimRootResources)
 		{
@@ -228,9 +230,9 @@ void UGroomBindingAsset::UpdateResource()
 void UGroomBindingAsset::ReleaseResource()
 {
 	// Delay destruction to insure that the rendering thread is done with all resources usage
-	if (HairGroupResources.Num() > 0)
+	if (GetHairGroupResources().Num() > 0)
 	{
-		for (FHairGroupResource& Resource : HairGroupResources)
+		for (FHairGroupResource& Resource : GetHairGroupResources())
 		{
 			FHairStrandsRestRootResource* InSimRootResources = Resource.SimRootResources;
 			FHairStrandsRestRootResource* InRenRootResources = Resource.RenRootResources;
@@ -265,12 +267,12 @@ void UGroomBindingAsset::ReleaseResource()
 				InCardsRootResources = nullptr;
 			}
 		}
-		HairGroupResources.Empty();
+		GetHairGroupResources().Empty();
 	}
 
 	// Process resources to be deleted (should happen only in editor)
 	FHairGroupResource ResourceToDelete;
-	while (HairGroupResourcesToDelete.Dequeue(ResourceToDelete))
+	while (RemoveHairGroupResourcesToDelete(ResourceToDelete))
 	{
 		FHairStrandsRestRootResource* InSimRootResources = ResourceToDelete.SimRootResources;
 		FHairStrandsRestRootResource* InRenRootResources = ResourceToDelete.RenRootResources;
@@ -295,7 +297,7 @@ void UGroomBindingAsset::ReleaseResource()
 void UGroomBindingAsset::Reset()
 {
 	ReleaseResource();
-	for (UGroomBindingAsset::FHairGroupPlatformData& Data : HairGroupsPlatformData)
+	for (UGroomBindingAsset::FHairGroupPlatformData& Data : GetHairGroupsPlatformData())
 	{
 		Data.SimRootBulkData.Reset();
 		Data.RenRootBulkData.Reset();
@@ -327,33 +329,32 @@ void UGroomBindingAsset::PostLoad()
 	LLM_SCOPE_BYTAG(Groom);
 
 	Super::PostLoad();
-
-	if (Groom)
+	if (UGroomAsset* LocalGroom = GetGroom())
 	{
 		// Make sure that the asset initialized its resources first since the component needs them to initialize its own resources
-		Groom->ConditionalPostLoad();
+		LocalGroom->ConditionalPostLoad();
 
 	#if WITH_EDITOR
 		CacheDerivedDatas();
 
 		// Sanity check. This function will report back warnings/issues into the log for user.
-		UGroomBindingAsset::IsCompatible(Groom, this, true);
+		UGroomBindingAsset::IsCompatible(LocalGroom, this, true);
 
-		if (TargetSkeletalMesh)
+		if (USkeletalMesh* LocalTargetSkeletalMesh = GetTargetSkeletalMesh())
 		{
-			TargetSkeletalMesh->OnPostMeshCached().AddUObject(this, &UGroomBindingAsset::InvalidateBinding);
+			LocalTargetSkeletalMesh->OnPostMeshCached().AddUObject(this, &UGroomBindingAsset::InvalidateBinding);
 			bRegisterTargetMeshCallback = true;
 		}
 
-		if (SourceSkeletalMesh)
+		if (USkeletalMesh* LocalSourceSkeletalMesh = GetSourceSkeletalMesh())
 		{
-			SourceSkeletalMesh->OnPostMeshCached().AddUObject(this, &UGroomBindingAsset::InvalidateBinding);
+			LocalSourceSkeletalMesh->OnPostMeshCached().AddUObject(this, &UGroomBindingAsset::InvalidateBinding);
 			bRegisterSourceMeshCallback = true;
 		}
 
-		if (Groom)
+		if (LocalGroom)
 		{
-			Groom->GetOnGroomAssetChanged().AddUObject(this, &UGroomBindingAsset::InvalidateBinding);
+			LocalGroom->GetOnGroomAssetChanged().AddUObject(this, &UGroomBindingAsset::InvalidateBinding);
 			bRegisterGroomAssetCallback = true;
 		}
 	#endif
@@ -407,21 +408,21 @@ void UGroomBindingAsset::BeginDestroy()
 	Super::BeginDestroy();
 
 #if WITH_EDITOR
-	if (TargetSkeletalMesh && bRegisterTargetMeshCallback)
+	if (GetTargetSkeletalMesh() && bRegisterTargetMeshCallback)
 	{
-		TargetSkeletalMesh->OnPostMeshCached().RemoveAll(this);
+		GetTargetSkeletalMesh()->OnPostMeshCached().RemoveAll(this);
 		bRegisterTargetMeshCallback = false;
 	}
 
-	if (SourceSkeletalMesh && bRegisterSourceMeshCallback)
+	if (GetSourceSkeletalMesh() && bRegisterSourceMeshCallback)
 	{
-		SourceSkeletalMesh->OnPostMeshCached().RemoveAll(this);
+		GetSourceSkeletalMesh()->OnPostMeshCached().RemoveAll(this);
 		bRegisterSourceMeshCallback = false;
 	}
 
-	if (Groom && bRegisterGroomAssetCallback)
+	if (GetGroom() && bRegisterGroomAssetCallback)
 	{
-		Groom->GetOnGroomAssetChanged().RemoveAll(this);
+		GetGroom()->GetOnGroomAssetChanged().RemoveAll(this);
 		bRegisterGroomAssetCallback = false;
 	}
 #endif
@@ -431,7 +432,7 @@ bool UGroomBindingAsset::IsCompatible(const USkeletalMesh* InSkeletalMesh, const
 {
 	if (InBinding && InSkeletalMesh && IsHairStrandsBindingEnable())
 	{
-		if (InBinding->GroomBindingType != EGroomBindingMeshType::SkeletalMesh)
+		if (InBinding->GetGroomBindingType() != EGroomBindingMeshType::SkeletalMesh)
 		{
 			if (bIssueWarning)
 			{
@@ -440,7 +441,7 @@ bool UGroomBindingAsset::IsCompatible(const USkeletalMesh* InSkeletalMesh, const
 			return false;
 		}
 
-		if (!InBinding->TargetSkeletalMesh)
+		if (!InBinding->GetTargetSkeletalMesh())
 		{
 			if (bIssueWarning)
 			{
@@ -469,7 +470,7 @@ bool UGroomBindingAsset::IsCompatible(const USkeletalMesh* InSkeletalMesh, const
 		}
 		#endif
 
-		for (const FHairGroupResource& Resource : InBinding->HairGroupResources)
+		for (const FHairGroupResource& Resource : InBinding->GetHairGroupResources())
 		{
 			if (Resource.SimRootResources && InSkeletalMesh->GetLODNum() != Resource.SimRootResources->GetLODCount())
 			{
@@ -506,7 +507,7 @@ bool UGroomBindingAsset::IsCompatible(const UGeometryCache* InGeometryCache, con
 {
 	if (InBinding && InGeometryCache && IsHairStrandsBindingEnable())
 	{
-		if (InBinding->GroomBindingType != EGroomBindingMeshType::GeometryCache)
+		if (InBinding->GetGroomBindingType() != EGroomBindingMeshType::GeometryCache)
 		{
 			if (bIssueWarning)
 			{
@@ -515,7 +516,7 @@ bool UGroomBindingAsset::IsCompatible(const UGeometryCache* InGeometryCache, con
 			return false;
 		}
 
-		if (!InBinding->TargetGeometryCache)
+		if (!InBinding->GetTargetGeometryCache())
 		{
 			if (bIssueWarning)
 			{
@@ -566,34 +567,34 @@ bool UGroomBindingAsset::IsCompatible(const UGroomAsset* InGroom, const UGroomBi
 {
 	if (InBinding && InGroom && IsHairStrandsBindingEnable())
 	{
-		if (InBinding->Groom && !InBinding->Groom->IsValid())
+		if (InBinding->GetGroom() && !InBinding->GetGroom()->IsValid())
 		{
 			// The groom could be invalid if it's still being loaded asynchronously
 			return false;
 		}
 
-		if (!InBinding->Groom)
+		if (!InBinding->GetGroom())
 		{
 			UE_CLOG(bIssueWarning, LogHairStrands, Warning, TEXT("[Groom] The binding asset (%s) does not reference a groom. Falling back onto non-binding version."), *InBinding->GetName());
 			return false;
 		}
 
-		if (InGroom->GetPrimaryAssetId() != InBinding->Groom->GetPrimaryAssetId())
+		if (InGroom->GetPrimaryAssetId() != InBinding->GetGroom()->GetPrimaryAssetId())
 		{
 			UE_LOG(LogHairStrands, Warning, TEXT("[Groom] The Groom binding (%s) does not reference the same groom asset (BindingAsset's groom:%s vs. Groom:%s). The binding asset will not be used."), 
 				*InBinding->GetName(),
-				*InBinding->Groom->GetName(),
+				*InBinding->GetGroom()->GetName(),
 				*InGroom->GetName());
 			return false;
 		}
 
 		const uint32 GroupCount = InGroom->GetNumHairGroups();
-		if (GroupCount != InBinding->GroupInfos.Num())
+		if (GroupCount != InBinding->GetGroupInfos().Num())
 		{
 			UE_CLOG(bIssueWarning, LogHairStrands, Warning, TEXT("[Groom] The GroomBinding asset (%s) does not contains the same number of groups (%d vs. %d) than the groom (%s). The binding asset will not be used."),
 				*InBinding->GetName(),
 				GroupCount,
-				InBinding->GroupInfos.Num(),
+				InBinding->GetGroupInfos().Num(),
 				*InGroom->GetName());
 			return false;
 		}
@@ -603,7 +604,7 @@ bool UGroomBindingAsset::IsCompatible(const UGroomAsset* InGroom, const UGroomBi
 			// Guides
 			{
 				const uint32 GroomCount = InGroom->HairGroupsPlatformData[GroupIt].Guides.BulkData.GetNumCurves();
-				const uint32 BindingCount = InBinding->GroupInfos[GroupIt].SimRootCount;
+				const uint32 BindingCount = InBinding->GetGroupInfos()[GroupIt].SimRootCount;
 
 				if (GroomCount != 0 && GroomCount != BindingCount)
 				{
@@ -622,7 +623,7 @@ bool UGroomBindingAsset::IsCompatible(const UGroomAsset* InGroom, const UGroomBi
 			if (bNeedStrandsRoot)
 			{
 				const uint32 GroomCount = InGroom->HairGroupsPlatformData[GroupIt].Strands.BulkData.GetNumCurves();
-				const uint32 BindingCount = InBinding->GroupInfos[GroupIt].RenRootCount;
+				const uint32 BindingCount = InBinding->GetGroupInfos()[GroupIt].RenRootCount;
 
 				// Groom may have stripped strands data so GroomCount would be 0
 				if (GroomCount != 0 && GroomCount != BindingCount)
@@ -654,7 +655,7 @@ bool UGroomBindingAsset::IsBindingAssetValid(const UGroomBindingAsset* InBinding
 			return false;
 		}
 
-		if (!InBinding->Groom)
+		if (!InBinding->GetGroom())
 		{
 			if (bIssueWarning)
 			{
@@ -662,33 +663,33 @@ bool UGroomBindingAsset::IsBindingAssetValid(const UGroomBindingAsset* InBinding
 			}
 			return false;
 		}
-		if (InBinding->GroupInfos.Num() == 0)
+		if (InBinding->GetGroupInfos().Num() == 0)
 		{
 			if (bIssueWarning)
 			{
-				UE_LOG(LogHairStrands, Warning, TEXT("[Groom] The GroomBinding asset (Groom:%s) does not contain any groups. It is invalid and can't be assigned. The binding asset will not be used."), *InBinding->Groom->GetName());
+				UE_LOG(LogHairStrands, Warning, TEXT("[Groom] The GroomBinding asset (Groom:%s) does not contain any groups. It is invalid and can't be assigned. The binding asset will not be used."), *InBinding->GetGroom()->GetName());
 			}
 			return false;
 		}
 
 		uint32 GroupIt = 0;
-		for (const FGoomBindingGroupInfo& Info : InBinding->GroupInfos)
+		for (const FGoomBindingGroupInfo& Info : InBinding->GetGroupInfos())
 		{
 			if (Info.SimRootCount == 0)
 			{
 				if (bIssueWarning)
 				{
-					UE_LOG(LogHairStrands, Warning, TEXT("[Groom] The GroomBinding asset (Groom:%s) has group with 0 guides. It is invalid and can't be assigned. The binding asset will not be used."), *InBinding->Groom->GetName());
+					UE_LOG(LogHairStrands, Warning, TEXT("[Groom] The GroomBinding asset (Groom:%s) has group with 0 guides. It is invalid and can't be assigned. The binding asset will not be used."), *InBinding->GetGroom()->GetName());
 				}
 				return false;
 			}
 
-			const bool bNeedStrandsRoot = DoesGroomNeedStrandsBinding(InBinding->Groom, GroupIt);
+			const bool bNeedStrandsRoot = DoesGroomNeedStrandsBinding(InBinding->GetGroom(), GroupIt);
 			if (bNeedStrandsRoot && Info.RenRootCount == 0 && IsHairStrandsEnabled(EHairStrandsShaderType::Strands))
 			{
 				if (bIssueWarning)
 				{
-					UE_LOG(LogHairStrands, Warning, TEXT("[Groom] The GroomBinding asset (Groom:%s) has group with 0 curves. It is invalid and can't be assigned. The binding asset will not be used."), *InBinding->Groom->GetName());
+					UE_LOG(LogHairStrands, Warning, TEXT("[Groom] The GroomBinding asset (Groom:%s) has group with 0 curves. It is invalid and can't be assigned. The binding asset will not be used."), *InBinding->GetGroom()->GetName());
 				}
 				return false;
 			}
@@ -701,15 +702,15 @@ bool UGroomBindingAsset::IsBindingAssetValid(const UGroomBindingAsset* InBinding
 
 bool UGroomBindingAsset::HasValidTarget() const
 {
-	return (GroomBindingType == EGroomBindingMeshType::SkeletalMesh && TargetSkeletalMesh) ||
-		   (GroomBindingType == EGroomBindingMeshType::GeometryCache && TargetGeometryCache);
+	return (GetGroomBindingType() == EGroomBindingMeshType::SkeletalMesh && GetTargetSkeletalMesh()) ||
+		   (GetGroomBindingType() == EGroomBindingMeshType::GeometryCache && GetTargetGeometryCache());
 }
 
 #if WITH_EDITOR
 
 void UGroomBindingAsset::Build()
 {
-	if (Groom && HasValidTarget())
+	if (GetGroom() && HasValidTarget())
 	{
 		OnGroomBindingAssetChanged.Broadcast();
 		Reset();
@@ -729,12 +730,12 @@ void UpdateGroomBindingAssetInfos(UGroomBindingAsset* In)
 {
 	if (In)
 	{
-		const uint32 GroupCount = In->HairGroupsPlatformData.Num();
-		In->GroupInfos.SetNum(GroupCount);
+		const uint32 GroupCount = In->GetHairGroupsPlatformData().Num();
+		In->GetGroupInfos().SetNum(GroupCount);
 		for (uint32 GroupIt=0; GroupIt< GroupCount; ++GroupIt)
 		{
-			FGoomBindingGroupInfo& Info = In->GroupInfos[GroupIt];
-			const UGroomBindingAsset::FHairGroupPlatformData& BulkData = In->HairGroupsPlatformData[GroupIt];
+			FGoomBindingGroupInfo& Info = In->GetGroupInfos()[GroupIt];
+			const UGroomBindingAsset::FHairGroupPlatformData& BulkData = In->GetHairGroupsPlatformData()[GroupIt];
 			Info.SimRootCount = BulkData.SimRootBulkData.GetRootCount();
 			Info.SimLODCount  = BulkData.SimRootBulkData.GetLODCount();
 
@@ -775,23 +776,23 @@ static FString BuildDerivedDataKeySuffix(const UGroomBindingAsset& BindingAsset)
 	FString SourceKey;
 	FString TargetKey;
 
-	if (BindingAsset.GroomBindingType == EGroomBindingMeshType::SkeletalMesh)
+	if (BindingAsset.GetGroomBindingType() == EGroomBindingMeshType::SkeletalMesh)
 	{
 		// Binding type is implicitly SkeletalMesh so keep BindingType empty to prevent triggering rebuild of old binding for nothing
-		SourceKey = BindingAsset.SourceSkeletalMesh ? BindingAsset.SourceSkeletalMesh->GetDerivedDataKey() : FString();
-		TargetKey = BindingAsset.TargetSkeletalMesh ? BindingAsset.TargetSkeletalMesh->GetDerivedDataKey() : FString();
+		SourceKey = BindingAsset.GetSourceSkeletalMesh() ? BindingAsset.GetSourceSkeletalMesh()->GetDerivedDataKey() : FString();
+		TargetKey = BindingAsset.GetTargetSkeletalMesh() ? BindingAsset.GetTargetSkeletalMesh()->GetDerivedDataKey() : FString();
 	}
 	else
 	{
 		BindingType = "GEOCACHE_";
-		SourceKey = BindingAsset.SourceGeometryCache ? BindingAsset.SourceGeometryCache->GetHash() : FString();
-		TargetKey = BindingAsset.TargetGeometryCache ? BindingAsset.TargetGeometryCache->GetHash() : FString();
+		SourceKey = BindingAsset.GetSourceGeometryCache() ? BindingAsset.GetSourceGeometryCache()->GetHash() : FString();
+		TargetKey = BindingAsset.GetTargetGeometryCache() ? BindingAsset.GetTargetGeometryCache()->GetHash() : FString();
 	}
 	// When possible, use the GroomAsset 'cached DDC key'. This allows to avoid a bug where the DDC key would change 
 	// when loading GroomAsset's hair description, which would modify the hair description hash ID with legacy content.
-	FString GroomKey  = BindingAsset.Groom ? BindingAsset.Groom->GetDerivedDataKey(true /*bUseCachedKey*/) : FString();
-	FString PointKey  = FString::FromInt(BindingAsset.NumInterpolationPoints);
-	FString SectionKey = FString::FromInt(BindingAsset.MatchingSection);
+	FString GroomKey  = BindingAsset.GetGroom() ? BindingAsset.GetGroom()->GetDerivedDataKey(true /*bUseCachedKey*/) : FString();
+	FString PointKey  = FString::FromInt(BindingAsset.GetNumInterpolationPoints());
+	FString SectionKey = FString::FromInt(BindingAsset.GetMatchingSection());
 
 	uint32 KeyLength  = BindingType.Len() + SourceKey.Len() + TargetKey.Len() + GroomKey.Len() + PointKey.Len() + SectionKey.Len();
 
@@ -803,17 +804,16 @@ static FString BuildDerivedDataKeySuffix(const UGroomBindingAsset& BindingAsset)
 
 void UGroomBindingAsset::CacheDerivedDatas()
 {
-	if (!Groom || !Groom->IsValid())
+	if (!GetGroom() || !GetGroom()->IsValid())
 	{
-		// The groom could be invalid if it's still being loaded asynchronously
 		return;
 	}
 
 	// 1. Set group count to the groom target
-	const uint32 GroupCount = Groom->GetNumHairGroups();
-	HairGroupsPlatformData.SetNum(GroupCount);
+	const uint32 GroupCount = GetGroom()->GetNumHairGroups();
+	GetHairGroupsPlatformData().SetNum(GroupCount);
 	CachedDerivedDataKey.SetNum(GroupCount);
-	GroupInfos.SetNum(GroupCount);
+	GetGroupInfos().SetNum(GroupCount);
 
 	// 2. Prepare main cache key
 	const FString KeySuffix = BuildDerivedDataKeySuffix(*this);
@@ -864,7 +864,7 @@ void UGroomBindingAsset::CacheDerivedDatas(uint32 InGroupIndex, const FString Ke
 			Owner.Wait();
 		}
 
-		UGroomBindingAsset::FHairGroupPlatformData& PlatformData = HairGroupsPlatformData[InGroupIndex];
+		UGroomBindingAsset::FHairGroupPlatformData& PlatformData = GetHairGroupsPlatformData()[InGroupIndex];
 
 		// Populate key/name for streaming data request
 		auto FillDrivedDataKey = [&DerivedDataKey, &Name](UGroomBindingAsset::FHairGroupPlatformData& In)
@@ -872,7 +872,7 @@ void UGroomBindingAsset::CacheDerivedDatas(uint32 InGroupIndex, const FString Ke
 			In.RenRootBulkData.DerivedDataKey = DerivedDataKey + FString(TEXT("_Data"));
 		};
 
-		FGroomComponentRecreateRenderStateContext RecreateRenderContext(Groom);
+		FGroomComponentRecreateRenderStateContext RecreateRenderContext(GetGroom());
 
 		if (Data)
 		{
@@ -936,9 +936,9 @@ void UGroomBindingAsset::CacheDerivedDatas(uint32 InGroupIndex, const FString Ke
 
 void UGroomBindingAsset::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 {
-	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(HairGroupsPlatformData.GetAllocatedSize());
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(GetHairGroupsPlatformData().GetAllocatedSize());
 
-	for (const FHairGroupResource& Group : HairGroupResources)
+	for (const FHairGroupResource& Group : GetHairGroupResources())
 	{
 		if (Group.SimRootResources) CumulativeResourceSize.AddDedicatedVideoMemoryBytes(Group.SimRootResources->GetResourcesSize());
 		if (Group.RenRootResources) CumulativeResourceSize.AddDedicatedVideoMemoryBytes(Group.RenRootResources->GetResourcesSize());
@@ -963,4 +963,107 @@ FName UGroomBindingAsset::GetAssetPathName(int32 LODIndex)
 #else
 	return NAME_None;
 #endif
+}
+
+#define DEFINE_GROOMBINDING_MEMBER_ACCESSOR(Type, Access, Name, GetConst, SetConst)\
+	FName UGroomBindingAsset::Get##Name##MemberName()\
+	{\
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS\
+		return FName(TEXT(#Name));\
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS\
+	}\
+	UFUNCTION(BlueprintGetter)\
+	GetConst Type Access UGroomBindingAsset::Get##Name() const\
+	{\
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS\
+		return Name;\
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS\
+	}\
+	UFUNCTION(BlueprintSetter)\
+	void UGroomBindingAsset::Set##Name(SetConst Type Access In##Name)\
+	{\
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS\
+		Name = In##Name;\
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS\
+	}
+
+// Define most of the binding member accessor
+DEFINE_GROOMBINDING_MEMBER_ACCESSOR(EGroomBindingMeshType, , GroomBindingType, , );
+DEFINE_GROOMBINDING_MEMBER_ACCESSOR(UGroomAsset, *, Groom, , );
+DEFINE_GROOMBINDING_MEMBER_ACCESSOR(USkeletalMesh, *, SourceSkeletalMesh, , );
+DEFINE_GROOMBINDING_MEMBER_ACCESSOR(USkeletalMesh, *, TargetSkeletalMesh, , );
+DEFINE_GROOMBINDING_MEMBER_ACCESSOR(UGeometryCache, *, SourceGeometryCache, , );
+DEFINE_GROOMBINDING_MEMBER_ACCESSOR(UGeometryCache, *, TargetGeometryCache, , );
+DEFINE_GROOMBINDING_MEMBER_ACCESSOR(int32, , NumInterpolationPoints, , );
+DEFINE_GROOMBINDING_MEMBER_ACCESSOR(int32, , MatchingSection, , );
+DEFINE_GROOMBINDING_MEMBER_ACCESSOR(TArray<FGoomBindingGroupInfo>, &, GroupInfos, const, const);
+
+TArray<FGoomBindingGroupInfo>& UGroomBindingAsset::GetGroupInfos()
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return GroupInfos;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+void UGroomBindingAsset::AddHairGroupResourcesToDelete(FHairGroupResource& In)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	HairGroupResourcesToDelete.Enqueue(In);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+bool UGroomBindingAsset::RemoveHairGroupResourcesToDelete(FHairGroupResource& Out)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return HairGroupResourcesToDelete.Dequeue(Out);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+FName UGroomBindingAsset::GetHairGroupResourcesMemberName()
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return GET_MEMBER_NAME_CHECKED(UGroomBindingAsset, GroupInfos);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+UGroomBindingAsset::FHairGroupResources& UGroomBindingAsset::GetHairGroupResources()
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return HairGroupResources;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+const UGroomBindingAsset::FHairGroupResources& UGroomBindingAsset::GetHairGroupResources() const
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return HairGroupResources;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+void UGroomBindingAsset::SetHairGroupResources(UGroomBindingAsset::FHairGroupResources InHairGroupResources)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	HairGroupResources = InHairGroupResources;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+FName UGroomBindingAsset::GetHairGroupPlatformDataMemberName()
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return GET_MEMBER_NAME_CHECKED(UGroomBindingAsset, HairGroupsPlatformData);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+const TArray<UGroomBindingAsset::FHairGroupPlatformData>& UGroomBindingAsset::GetHairGroupsPlatformData() const
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return HairGroupsPlatformData;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+TArray<UGroomBindingAsset::FHairGroupPlatformData>& UGroomBindingAsset::GetHairGroupsPlatformData()
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return HairGroupsPlatformData;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }

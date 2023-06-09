@@ -18,11 +18,11 @@ UGroomBindingFactory::UGroomBindingFactory()
 UObject* UGroomBindingFactory::FactoryCreateNew(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
 {
 	UGroomBindingAsset* GroomBinding = NewObject<UGroomBindingAsset>(InParent, InName, Flags | RF_Transactional);
-	GroomBinding->Groom = nullptr;
-	GroomBinding->TargetSkeletalMesh = nullptr;
-	GroomBinding->SourceSkeletalMesh = nullptr;
-	GroomBinding->NumInterpolationPoints = 100;
-	GroomBinding->MatchingSection = 0;
+	GroomBinding->SetGroom(nullptr);
+	GroomBinding->SetTargetSkeletalMesh(nullptr);
+	GroomBinding->SetSourceSkeletalMesh(nullptr);
+	GroomBinding->SetNumInterpolationPoints(100);
+	GroomBinding->SetMatchingSection(0);
 
 	return GroomBinding;
 }
