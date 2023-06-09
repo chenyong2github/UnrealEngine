@@ -617,18 +617,3 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size)
     return 0;
 }
 #endif
-
-/* @cdep pre
-    $NoAutoInclude
-    $Defaults
-    $requires(popmal.c)
-    $requires(binkace.c)
-    $requires(binka_ue_encode.cpp)
-    $requires(radfft.cpp)
-    $requires(varbits.c)
-    $requires(ranged_log.cpp)
-*/
-
-/* @cdep post
-    $Build
-*/
