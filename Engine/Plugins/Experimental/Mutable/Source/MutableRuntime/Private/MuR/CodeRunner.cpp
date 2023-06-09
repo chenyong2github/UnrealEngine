@@ -1589,9 +1589,9 @@ namespace mu
                 {
                         AddOp( FScheduledOp( item.At, item, 1),
                                FScheduledOp( source, item) );
-                    }
-                    else
-                    {
+                }
+                else
+                {
                     StoreMesh( item, nullptr );
                 }
                 break;
@@ -1601,18 +1601,22 @@ namespace mu
 				MUTABLE_CPUPROFILER_SCOPE(ME_EXTRACTLAYOUTBLOCK_1)
 
                 Ptr<const Mesh> Source = LoadMesh( FCacheAddress(source,item) );
+				MeshPtr pResult;
 
-                // Access with memcpy necessary for unaligned arm issues.
-                uint32 blocks[1024];
-				FMemory::Memcpy( blocks, data, sizeof(uint32)*FMath::Min(1024,int(blockCount)) );
+				if (Source)
+				{
+					// Access with memcpy necessary for unaligned arm issues.
+					uint32 blocks[1024];
+					FMemory::Memcpy(blocks, data, sizeof(uint32)* FMath::Min(1024, int(blockCount)));
 
-                MeshPtr pResult;
-                pResult = MeshExtractLayoutBlock( Source.get(),
-                                                  layout,
-                                                  blockCount,
-                                                  blocks );
+					pResult = MeshExtractLayoutBlock(Source.get(),
+						layout,
+						blockCount,
+						blocks);
+				}
 
-                StoreMesh( item, pResult );
+				StoreMesh(item, pResult);
+
                 break;
             }
 
