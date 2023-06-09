@@ -179,11 +179,6 @@ namespace EpicGames.Horde.Storage
 	public interface IStorageWriter : IAsyncDisposable
 	{
 		/// <summary>
-		/// Accessor for the store instance
-		/// </summary>
-		IStorageClient Store { get; }
-
-		/// <summary>
 		/// Create another writer instance, allowing multiple threads to write in parallel.
 		/// </summary>
 		/// <returns>New writer instance</returns>
@@ -212,6 +207,14 @@ namespace EpicGames.Horde.Storage
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Handle to the written node</returns>
 		ValueTask<NodeHandle> WriteNodeAsync(int size, IReadOnlyList<NodeHandle> references, NodeType type, CancellationToken cancellationToken = default);
+
+		/// <summary>
+		/// Writes the reference using the given target node
+		/// </summary>
+		/// <param name="target">The target node</param>
+		/// <param name="options">Options for the new ref</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		ValueTask WriteRefAsync(NodeHandle target, RefOptions? options = null, CancellationToken cancellationToken = default);
 	}
 
 	/// <summary>

@@ -424,7 +424,7 @@ namespace EpicGames.Horde.Storage
 		{
 			await using IStorageWriter writer = store.CreateWriter(name);
 			NodeRef<Node> nodeRef = await writer.WriteNodeAsync(node, cancellationToken);
-			await store.WriteRefTargetAsync(name, nodeRef.Handle, refOptions, cancellationToken);
+			await writer.WriteRefAsync(nodeRef.Handle, refOptions, cancellationToken);
 			return nodeRef.Handle;
 		}
 

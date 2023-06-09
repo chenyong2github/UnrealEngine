@@ -686,9 +686,9 @@ namespace EpicGames.Horde.Storage
 		static readonly BundleOptions s_defaultOptions = new BundleOptions();
 
 		readonly IStorageClient _store;
-		readonly BundleReader _treeReader;
+		readonly BundleReader _reader;
 		readonly BundleOptions _options;
-		readonly Utf8String _prefix;
+		readonly RefName _refName;
 
 		readonly NodeCache _nodeCache;
 		readonly Queue<PendingBundle> _writeQueue = new Queue<PendingBundle>();
@@ -701,11 +701,6 @@ namespace EpicGames.Horde.Storage
 		internal readonly ILogger? _traceLogger;
 
 		/// <summary>
-		/// Accessor for the store backing this writer
-		/// </summary>
-		public IStorageClient Store => _store;
-
-		/// <summary>
 		/// Cache of nodes to deduplicate against
 		/// </summary>
 		public NodeCache NodeCache => _nodeCache;
@@ -714,32 +709,19 @@ namespace EpicGames.Horde.Storage
 		/// Constructor
 		/// </summary>
 		/// <param name="store">Store to write data to</param>
-		/// <param name="treeReader">Reader for serialized node data</param>
+		/// <param name="reader">Reader for serialized node data</param>
+		/// <param name="refName">Name of the ref being written</param>
 		/// <param name="options">Options for the writer</param>
-		/// <param name="prefix">Prefix for blobs written to the store</param>
 		/// <param name="nodeCache">Cache of nodes for deduplication</param>
 		/// <param name="traceLogger">Optional logger for trace information</param>
-		public BundleWriter(IStorageClient store, BundleReader treeReader, BundleOptions? options = null, Utf8String prefix = default, NodeCache? nodeCache = null, ILogger? traceLogger = null)
+		public BundleWriter(IStorageClient store, BundleReader reader, RefName refName, BundleOptions? options = null, NodeCache? nodeCache = null, ILogger? traceLogger = null)
 		{
 			_store = store;
-			_treeReader = treeReader;
+			_reader = reader;
+			_refName = refName;
 			_options = options ?? s_defaultOptions;
-			_prefix = prefix;
 			_nodeCache = nodeCache ?? new NodeCache(_options.NodeCacheSize);
 			_traceLogger = traceLogger;
-		}
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="store">Store to write data to</param>
-		/// <param name="reader">Reader for serialized node data</param>
-		/// <param name="refName">Ref being written. Will be used as a prefix for storing blobs.</param>
-		/// <param name="options">Options for the writer</param>
-		/// <param name="traceLogger">Optional logger for trace information</param>
-		public BundleWriter(IStorageClient store, BundleReader reader, RefName refName, BundleOptions? options = null, ILogger? traceLogger = null)
-			: this(store, reader, options, refName.Text, traceLogger: traceLogger)
-		{
 		}
 
 		/// <summary>
@@ -747,7 +729,7 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		/// <param name="other"></param>
 		public BundleWriter(BundleWriter other)
-			: this(other._store, other._treeReader, other._options, other._prefix, other._nodeCache, other._traceLogger)
+			: this(other._store, other._reader, other._refName, other._options, other._nodeCache, other._traceLogger)
 		{
 		}
 
@@ -777,7 +759,7 @@ namespace EpicGames.Horde.Storage
 		{
 			if (_currentBundle != null)
 			{
-				_currentBundle.MarkAsComplete(_store, _prefix, _traceLogger);
+				_currentBundle.MarkAsComplete(_store, _refName.Text, _traceLogger);
 				_writeQueue.Enqueue(_currentBundle);
 				_currentBundle = null;
 			}
@@ -857,7 +839,7 @@ namespace EpicGames.Horde.Storage
 			if (_currentBundle == null || _currentBundle.IsReadOnly)
 			{
 				int bufferSize = (int)(_options.MinCompressionPacketSize * 1.2);
-				_currentBundle = new PendingBundle(_treeReader, this, bufferSize, _options.MaxBlobSize, _options.CompressionFormat);
+				_currentBundle = new PendingBundle(_reader, this, bufferSize, _options.MaxBlobSize, _options.CompressionFormat);
 			}
 			return _currentBundle;
 		}
@@ -888,6 +870,12 @@ namespace EpicGames.Horde.Storage
 			{
 				await WaitForWriteAsync(cancellationToken);
 			}
+		}
+
+		/// <inheritdoc/>
+		public async ValueTask WriteRefAsync(NodeHandle target, RefOptions? options = null, CancellationToken cancellationToken = default)
+		{
+			await _store.WriteRefTargetAsync(_refName, target, options, cancellationToken);
 		}
 	}
 }
