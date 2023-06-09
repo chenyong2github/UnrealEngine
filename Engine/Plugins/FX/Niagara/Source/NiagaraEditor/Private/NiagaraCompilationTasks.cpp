@@ -54,35 +54,42 @@ namespace NiagaraCompilationCopyImpl
 		TArray<UNiagaraScript*> DependentScripts;
 
 		const ENiagaraScriptUsage ScriptUsage = Script->GetUsage();
-		const bool bIsGpuEmitter = EmitterData && EmitterData->SimTarget == ENiagaraSimTarget::GPUComputeSim;
 
-		if (UNiagaraScript::IsEquivalentUsage(ScriptUsage, ENiagaraScriptUsage::EmitterSpawnScript))
+		if (System)
 		{
-			DependentScripts.Add(System->GetSystemSpawnScript());
-		}
-
-		if (UNiagaraScript::IsEquivalentUsage(ScriptUsage, ENiagaraScriptUsage::EmitterUpdateScript))
-		{
-			DependentScripts.Add(System->GetSystemUpdateScript());
-		}
-
-		if (UNiagaraScript::IsEquivalentUsage(ScriptUsage, ENiagaraScriptUsage::ParticleSpawnScript))
-		{
-			if (bIsGpuEmitter)
+			if (UNiagaraScript::IsEquivalentUsage(ScriptUsage, ENiagaraScriptUsage::EmitterSpawnScript))
 			{
-				DependentScripts.Add(EmitterData->GetGPUComputeScript());
+				DependentScripts.Add(System->GetSystemSpawnScript());
+			}
+
+			if (UNiagaraScript::IsEquivalentUsage(ScriptUsage, ENiagaraScriptUsage::EmitterUpdateScript))
+			{
+				DependentScripts.Add(System->GetSystemUpdateScript());
 			}
 		}
 
-		if (UNiagaraScript::IsEquivalentUsage(ScriptUsage, ENiagaraScriptUsage::ParticleUpdateScript))
+		if (EmitterData)
 		{
-			if (bIsGpuEmitter)
+			const bool bIsGpuEmitter = EmitterData->SimTarget == ENiagaraSimTarget::GPUComputeSim;
+
+			if (UNiagaraScript::IsEquivalentUsage(ScriptUsage, ENiagaraScriptUsage::ParticleSpawnScript))
 			{
-				DependentScripts.Add(EmitterData->GetGPUComputeScript());
+				if (bIsGpuEmitter)
+				{
+					DependentScripts.Add(EmitterData->GetGPUComputeScript());
+				}
 			}
-			else if (EmitterData->bInterpolatedSpawning)
+
+			if (UNiagaraScript::IsEquivalentUsage(ScriptUsage, ENiagaraScriptUsage::ParticleUpdateScript))
 			{
-				DependentScripts.Add(EmitterData->SpawnScriptProps.Script);
+				if (bIsGpuEmitter)
+				{
+					DependentScripts.Add(EmitterData->GetGPUComputeScript());
+				}
+				else if (EmitterData->bInterpolatedSpawning)
+				{
+					DependentScripts.Add(EmitterData->SpawnScriptProps.Script);
+				}
 			}
 		}
 

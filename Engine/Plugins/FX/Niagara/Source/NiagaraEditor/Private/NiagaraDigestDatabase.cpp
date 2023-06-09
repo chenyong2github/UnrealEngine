@@ -246,10 +246,13 @@ UNiagaraDataInterface* FNiagaraCompilationNPC::GetDataInterface(const FNiagaraVa
 }
 
 FNiagaraCompilationNPCHandle::FNiagaraCompilationNPCHandle(const UNiagaraParameterCollection* Connection)
-	: Namespace(Connection ? Connection->GetNamespace() : NAME_None)
 {
-	AssetKey = Connection;
-	Hash = Connection->GetCompileHash();
+	if (Connection)
+	{
+		Namespace = Connection->GetNamespace();
+		AssetKey = Connection;
+		Hash = Connection->GetCompileHash();
+	}
 }
 
 FNiagaraCompilationNPCHandle::FDigestPtr FNiagaraCompilationNPCHandle::Resolve() const

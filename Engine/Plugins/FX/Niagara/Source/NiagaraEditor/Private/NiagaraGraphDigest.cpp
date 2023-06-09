@@ -140,7 +140,12 @@ FNodeHelper CreateNodeHelper(FNiagaraCompilationNode::ENodeType NodeType)
 	(
 		[](const UEdGraphNode* SourceNode, FNiagaraCompilationGraphCreateContext& NodeContext) -> TUniquePtr<FNiagaraCompilationNode>
 		{
-			return MakeUnique<CompilationNodeClass>(static_cast<const NodeClass*>(SourceNode), NodeContext);
+			if (const NodeClass* TypedSourceNode = static_cast<const NodeClass*>(SourceNode))
+			{
+				return MakeUnique<CompilationNodeClass>(TypedSourceNode, NodeContext);
+			}
+
+			return TUniquePtr<FNiagaraCompilationNode>();
 		}
 	);
 
@@ -148,7 +153,11 @@ FNodeHelper CreateNodeHelper(FNiagaraCompilationNode::ENodeType NodeType)
 	(
 		[](const FNiagaraCompilationNode* SourceNode, FNiagaraCompilationGraphDuplicateContext& NodeContext) -> TUniquePtr<FNiagaraCompilationNode>
 		{
-			return MakeUnique<CompilationNodeClass>(*static_cast<const CompilationNodeClass*>(SourceNode), NodeContext);
+			if (const CompilationNodeClass* TypedSourceNode = static_cast<const CompilationNodeClass*>(SourceNode))
+			{
+				return MakeUnique<CompilationNodeClass>(*TypedSourceNode, NodeContext);
+			}
+			return TUniquePtr<FNiagaraCompilationNode>();
 		}
 	);
 
@@ -1466,17 +1475,18 @@ FNiagaraCompilationInputPin::FNiagaraCompilationInputPin(const FNiagaraCompilati
 	if (const FNiagaraCompilationOutputPin* OutputPin = TracedInputPin->LinkedTo)
 	{
 		const FNiagaraCompilationNode* SourceNode = OutputPin->OwningNode;
-		ensure(SourceNode);
-
-		FNiagaraCompilationNode* ConnectedNode = Context.DuplicatedNodeMap.FindRef(SourceNode);
-		if (ensure(ConnectedNode))
+		if (ensure(SourceNode))
 		{
-			// find the pin index in the array
-			const int32 OutputPinIndex = UE_PTRDIFF_TO_INT32(OutputPin - SourceNode->OutputPins.GetData());
-			ensure(SourceNode->OutputPins.IsValidIndex(OutputPinIndex));
+			FNiagaraCompilationNode* ConnectedNode = Context.DuplicatedNodeMap.FindRef(SourceNode);
+			if (ensure(ConnectedNode))
+			{
+				// find the pin index in the array
+				const int32 OutputPinIndex = UE_PTRDIFF_TO_INT32(OutputPin - SourceNode->OutputPins.GetData());
+				ensure(SourceNode->OutputPins.IsValidIndex(OutputPinIndex));
 
-			LinkedTo = &ConnectedNode->OutputPins[OutputPinIndex];
-			ConnectedNode->OutputPins[OutputPinIndex].LinkedTo.Add(this);
+				LinkedTo = &ConnectedNode->OutputPins[OutputPinIndex];
+				ConnectedNode->OutputPins[OutputPinIndex].LinkedTo.Add(this);
+			}
 		}
 	}
 	// if we're not connected to anything we need to also check to see if that's because our link has
