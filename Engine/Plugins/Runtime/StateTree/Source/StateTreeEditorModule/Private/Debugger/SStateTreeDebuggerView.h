@@ -92,8 +92,8 @@ private:
 	TSharedPtr<FStateTreeViewModel> StateTreeViewModel;
 	TWeakObjectPtr<const UStateTree> StateTree;
 
-	/** Tracks for all instances producing trace events for the associated state tree asset. */
-	TArray<TSharedPtr<RewindDebugger::FRewindDebuggerTrack>> InstanceTracks;
+	/** Tracks for all statetree instance owners producing trace events for the associated state tree asset. */
+	TArray<TSharedPtr<RewindDebugger::FRewindDebuggerTrack>> InstanceOwnerTracks;
 
 	/**
 	 * Tree view displaying the instance names and synced with InstanceTimelinesTreeView.

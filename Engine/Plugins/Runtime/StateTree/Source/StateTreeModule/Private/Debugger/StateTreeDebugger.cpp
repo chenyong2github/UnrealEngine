@@ -137,26 +137,27 @@ void FStateTreeDebugger::SyncToCurrentSessionDuration()
 	}
 }
 
-FText FStateTreeDebugger::GetInstanceName(FStateTreeInstanceDebugId InstanceId) const
+const UE::StateTreeDebugger::FInstanceDescriptor* FStateTreeDebugger::GetInstanceDescriptor(const FStateTreeInstanceDebugId InstanceId) const
 {
-	using namespace UE::StateTreeDebugger;
-	const FInstanceDescriptor* FoundInstance = InstanceDescs.FindByPredicate([InstanceId](const FInstanceDescriptor& InstanceDesc)
+	const UE::StateTreeDebugger::FInstanceDescriptor* FoundDescriptor = InstanceDescs.FindByPredicate(
+		[InstanceId](const UE::StateTreeDebugger::FInstanceDescriptor& Descriptor)
 		{
-			return InstanceDesc.Id == InstanceId;
+			return Descriptor.Id == InstanceId;
 		});
 
-	return (FoundInstance != nullptr) ? FText::FromString(FoundInstance->Name) : LOCTEXT("InstanceNotFound","Instance not found");
+	return FoundDescriptor;
 }
 
-FText FStateTreeDebugger::GetInstanceDescription(FStateTreeInstanceDebugId InstanceId) const
+FText FStateTreeDebugger::GetInstanceName(const FStateTreeInstanceDebugId InstanceId) const
 {
-	using namespace UE::StateTreeDebugger;
-	const FInstanceDescriptor* FoundInstance = InstanceDescs.FindByPredicate([InstanceId](const FInstanceDescriptor& InstanceDesc)
-		{
-			return InstanceDesc.Id == InstanceId;
-		});
+	const UE::StateTreeDebugger::FInstanceDescriptor* FoundDescriptor = GetInstanceDescriptor(InstanceId);
+	return (FoundDescriptor != nullptr) ? FText::FromString(FoundDescriptor->Name) : LOCTEXT("InstanceNotFound","Instance not found");
+}
 
-	return (FoundInstance != nullptr) ? DescribeInstance(*FoundInstance) : LOCTEXT("InstanceNotFound","Instance not found");
+FText FStateTreeDebugger::GetInstanceDescription(const FStateTreeInstanceDebugId InstanceId) const
+{
+	const UE::StateTreeDebugger::FInstanceDescriptor* FoundDescriptor = GetInstanceDescriptor(InstanceId);
+	return (FoundDescriptor != nullptr) ? DescribeInstance(*FoundDescriptor) : LOCTEXT("InstanceNotFound","Instance not found");
 }
 
 void FStateTreeDebugger::SelectInstance(const FStateTreeInstanceDebugId InstanceId)

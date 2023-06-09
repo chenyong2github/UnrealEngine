@@ -83,7 +83,9 @@ struct STATETREEMODULE_API FStateTreeDebugger : FTickableGameObject
 	FText GetInstanceName(FStateTreeInstanceDebugId InstanceId) const;
 	FText GetInstanceDescription(FStateTreeInstanceDebugId InstanceId) const;
 	void SelectInstance(const FStateTreeInstanceDebugId InstanceId);
-	FStateTreeInstanceDebugId GetSelectedInstance() const { return SelectedInstanceId; }
+	FStateTreeInstanceDebugId GetSelectedInstanceId() const { return SelectedInstanceId; }
+	const UE::StateTreeDebugger::FInstanceDescriptor* GetInstanceDescriptor(const FStateTreeInstanceDebugId InstanceId) const ;
+	const UE::StateTreeDebugger::FInstanceDescriptor* GetSelectedInstanceDescriptor() const { return GetInstanceDescriptor(SelectedInstanceId); }
 
 	static FText DescribeTrace(const FTraceDescriptor& TraceDescriptor);
 	static FText DescribeInstance(const UE::StateTreeDebugger::FInstanceDescriptor& StateTreeInstanceDesc);

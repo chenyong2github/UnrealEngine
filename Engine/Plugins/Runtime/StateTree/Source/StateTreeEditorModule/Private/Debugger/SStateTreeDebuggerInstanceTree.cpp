@@ -49,9 +49,9 @@ TSharedRef<ITableRow> SStateTreeDebuggerInstanceTree::GenerateTreeRow(TSharedPtr
 				.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 				.ColorAndOpacity_Lambda([Item]()
 				{
-					if (const FStateTreeDebuggerTrack* DebuggerTrack = static_cast<FStateTreeDebuggerTrack*>(Item.Get()))
+					if (const FStateTreeDebuggerBaseTrack* DebuggerTrack = static_cast<FStateTreeDebuggerBaseTrack*>(Item.Get()))
 					{
-						if (DebuggerTrack->IsStale())
+						if (DebuggerTrack != nullptr && DebuggerTrack->IsStale())
 						{
 							return FSlateColor::UseSubduedForeground();
 						}

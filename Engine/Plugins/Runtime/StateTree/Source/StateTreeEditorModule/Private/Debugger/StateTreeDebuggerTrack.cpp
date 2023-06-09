@@ -5,13 +5,17 @@
 #include "Debugger/StateTreeDebuggerTrack.h"
 #include "Debugger/StateTreeDebugger.h"
 #include "SStateTreeDebuggerEventTimelineView.h"
-#include "Styling/AppStyle.h"
 
 //----------------------------------------------------------------------//
-// FStateTreeTrack
+// FStateTreeDebuggerInstanceTrack
 //----------------------------------------------------------------------//
-FStateTreeDebuggerTrack::FStateTreeDebuggerTrack(const TSharedPtr<FStateTreeDebugger>& InDebugger, const FStateTreeInstanceDebugId InInstanceId, const FText InName, const TRange<double>& InViewRange)
-	: TrackName(InName)
+FStateTreeDebuggerInstanceTrack::FStateTreeDebuggerInstanceTrack(
+	const TSharedPtr<FStateTreeDebugger>& InDebugger,
+	const FStateTreeInstanceDebugId InInstanceId,
+	const FText& InName,
+	const TRange<double>& InViewRange
+	)
+	: FStateTreeDebuggerBaseTrack(FSlateIcon("StateTreeEditorStyle", "StateTreeEditor.Debugger.InstanceTrack", "StateTreeEditor.Debugger.InstanceTrack"), InName)
 	, StateTreeDebugger(InDebugger)
 	, InstanceId(InInstanceId)
 	, ViewRange(InViewRange)
@@ -19,12 +23,15 @@ FStateTreeDebuggerTrack::FStateTreeDebuggerTrack(const TSharedPtr<FStateTreeDebu
 	EventData = MakeShared<SStateTreeDebuggerEventTimelineView::FTimelineEventData>();
 }
 
-TSharedPtr<SWidget> FStateTreeDebuggerTrack::GetDetailsViewInternal() 
+void FStateTreeDebuggerInstanceTrack::OnSelected()
 {
-	return SNullWidget::NullWidget;
+	if (FStateTreeDebugger* Debugger = StateTreeDebugger.Get())
+	{
+		Debugger->SelectInstance(InstanceId);
+	}
 }
 
-bool FStateTreeDebuggerTrack::UpdateInternal()
+bool FStateTreeDebuggerInstanceTrack::UpdateInternal()
 {
 	const int32 PrevNumPoints = EventData->Points.Num();
 	const int32 PrevNumWindows = EventData->Windows.Num();
@@ -106,11 +113,70 @@ bool FStateTreeDebuggerTrack::UpdateInternal()
 	return bChanged;
 }
 
-TSharedPtr<SWidget> FStateTreeDebuggerTrack::GetTimelineViewInternal()
+TSharedPtr<SWidget> FStateTreeDebuggerInstanceTrack::GetTimelineViewInternal()
 {
 	return SNew(SStateTreeDebuggerEventTimelineView)
 		.ViewRange_Lambda([this](){ return ViewRange; })
 		.EventData_Lambda([this](){ return EventData; });
+}
+
+
+//----------------------------------------------------------------------//
+// FStateTreeDebuggerOwnerTrack
+//----------------------------------------------------------------------//
+FStateTreeDebuggerOwnerTrack::FStateTreeDebuggerOwnerTrack(const FText& InInstanceName)
+	: FStateTreeDebuggerBaseTrack(FSlateIcon("StateTreeEditorStyle", "StateTreeEditor.Debugger.OwnerTrack", "StateTreeEditor.Debugger.OwnerTrack"), InInstanceName)
+{
+}
+
+bool FStateTreeDebuggerOwnerTrack::UpdateInternal()
+{
+	bool bChanged = false;
+	for (const TSharedPtr<FStateTreeDebuggerInstanceTrack>& Track : SubTracks)
+	{
+		bChanged = Track->Update() || bChanged;
+	}
+
+	return bChanged;
+}
+
+void FStateTreeDebuggerOwnerTrack::IterateSubTracksInternal(TFunction<void(TSharedPtr<FRewindDebuggerTrack> SubTrack)> IteratorFunction)
+{
+	for (TSharedPtr<FStateTreeDebuggerInstanceTrack>& Track : SubTracks)
+	{
+		IteratorFunction(Track);
+	}
+}
+
+void FStateTreeDebuggerOwnerTrack::MarkAsStale()
+{
+	for (TSharedPtr<FStateTreeDebuggerInstanceTrack>& Track : SubTracks)
+	{
+		if (FStateTreeDebuggerBaseTrack* InstanceTrack = Track.Get())
+		{
+			InstanceTrack->MarkAsStale();
+		}
+	}
+}
+
+bool FStateTreeDebuggerOwnerTrack::IsStale() const
+{
+	// Considered stale only if all sub tracks are stale
+	if (SubTracks.IsEmpty())
+	{
+		return false;
+	}
+
+	for (const TSharedPtr<FStateTreeDebuggerInstanceTrack>& Track : SubTracks)
+	{
+		const FStateTreeDebuggerBaseTrack* InstanceTrack = Track.Get();
+		if (InstanceTrack && InstanceTrack->IsStale() == false)
+		{
+			return false;
+		}
+	}
+
+	return true;
 }
 
 #endif // WITH_STATETREE_DEBUGGER

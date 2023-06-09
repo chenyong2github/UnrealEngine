@@ -195,9 +195,9 @@ void SStateTreeDebuggerView::StopRecording()
 		bRecording = false;
 
 		// Mark all tracks from the stopped session as stale to have different look.
-		for (const TSharedPtr<RewindDebugger::FRewindDebuggerTrack>& DebugTrack : InstanceTracks)
+		for (const TSharedPtr<RewindDebugger::FRewindDebuggerTrack>& DebugTrack : InstanceOwnerTracks)
 		{
-			if (FStateTreeDebuggerTrack* StateTreeTrack = static_cast<FStateTreeDebuggerTrack*>(DebugTrack.Get()))
+			if (FStateTreeDebuggerBaseTrack* StateTreeTrack = static_cast<FStateTreeDebuggerBaseTrack*>(DebugTrack.Get()))
 			{
 				StateTreeTrack->MarkAsStale();
 			}
@@ -316,7 +316,7 @@ void SStateTreeDebuggerView::Construct(const FArguments& InArgs, const UStateTre
 			})
 		];
 
-	TSharedPtr<SScrollBar> ScrollBar = SNew(SScrollBar); 
+	const TSharedPtr<SScrollBar> ScrollBar = SNew(SScrollBar); 
 	
 	// Instances TreeView
 	InstancesTreeView =	SNew(SStateTreeDebuggerInstanceTree)
@@ -326,13 +326,15 @@ void SStateTreeDebuggerView::Construct(const FArguments& InArgs, const UStateTre
 		{
 			InstanceTimelinesTreeView->ScrollTo(ScrollOffset);
 		})
-		.InstanceTracks(&InstanceTracks)
+		.InstanceTracks(&InstanceOwnerTracks)
 		.OnSelectionChanged_Lambda([this](TSharedPtr<RewindDebugger::FRewindDebuggerTrack> SelectedItem, ESelectInfo::Type SelectInfo)
 			{
 				InstanceTimelinesTreeView->SetSelection(SelectedItem);
 
-				const FStateTreeDebuggerTrack* StateTreeTrack = static_cast<FStateTreeDebuggerTrack*>(SelectedItem.Get());
-				Debugger->SelectInstance(StateTreeTrack != nullptr ? StateTreeTrack->GetInstanceId() : FStateTreeInstanceDebugId::Invalid);
+				if (FStateTreeDebuggerBaseTrack* StateTreeTrack = static_cast<FStateTreeDebuggerBaseTrack*>(SelectedItem.Get()))
+				{
+					StateTreeTrack->OnSelected();
+				}
 			});
 	
 	// Timelines TreeView
@@ -340,7 +342,7 @@ void SStateTreeDebuggerView::Construct(const FArguments& InArgs, const UStateTre
 		.ExternalScrollbar(ScrollBar)
 		.OnExpansionChanged_Lambda([this]() { InstancesTreeView->RestoreExpansion(); })
 		.OnScrolled_Lambda([this](double ScrollOffset) { InstancesTreeView->ScrollTo(ScrollOffset); })
-		.InstanceTracks(&InstanceTracks)
+		.InstanceTracks(&InstanceOwnerTracks)
 		.ViewRange_Lambda([this]() { return ViewRange; })
 		.ClampRange_Lambda([this]() { return TRange<double>(0, Debugger->GetRecordingDuration()); })
 		.OnViewRangeChanged_Lambda([this](TRange<double> NewRange) { ViewRange = NewRange; })
@@ -587,7 +589,7 @@ void SStateTreeDebuggerView::Tick(const FGeometry& AllottedGeometry, const doubl
 void SStateTreeDebuggerView::RefreshTracks()
 {
 	bool bChanged = false;
-	for (const TSharedPtr<RewindDebugger::FRewindDebuggerTrack>& DebugTrack : InstanceTracks)
+	for (const TSharedPtr<RewindDebugger::FRewindDebuggerTrack>& DebugTrack : InstanceOwnerTracks)
 	{
 		bChanged = DebugTrack->Update() || bChanged;
 	}
@@ -831,14 +833,27 @@ void SStateTreeDebuggerView::OnBreakpointHit(const FStateTreeInstanceDebugId Ins
 
 void SStateTreeDebuggerView::OnNewInstance(FStateTreeInstanceDebugId InstanceId)
 {
-	const TSharedPtr<RewindDebugger::FRewindDebuggerTrack>* ExistingTrack = InstanceTracks.FindByPredicate([InstanceId](const TSharedPtr<RewindDebugger::FRewindDebuggerTrack>& Track)
+	const UE::StateTreeDebugger::FInstanceDescriptor* FoundDescriptor = Debugger->GetInstanceDescriptor(InstanceId);
+	if (!ensureMsgf(FoundDescriptor != nullptr, TEXT("This callback is from the Debugger so we expect to be able to find matching descriptor.")))
 	{
-		return static_cast<FStateTreeDebuggerTrack*>(Track.Get())->GetInstanceId() == InstanceId;
-	});
+		return;
+	}
 
-	if (ExistingTrack == nullptr)
+	const TSharedPtr<RewindDebugger::FRewindDebuggerTrack>* ExistingOwnerTrack = InstanceOwnerTracks.FindByPredicate(
+		[FoundDescriptor](const TSharedPtr<RewindDebugger::FRewindDebuggerTrack>& Track)
+		{
+			return Track.Get()->GetName() == FoundDescriptor->Name;
+		});
+
+	if (ExistingOwnerTrack == nullptr)
 	{
-		InstanceTracks.Add(MakeShared<FStateTreeDebuggerTrack>(Debugger, InstanceId, Debugger->GetInstanceName(InstanceId), ViewRange));
+		ExistingOwnerTrack = &InstanceOwnerTracks.Add_GetRef(MakeShared<FStateTreeDebuggerOwnerTrack>(FText::FromString(FoundDescriptor->Name)));
+	}
+
+	if (FStateTreeDebuggerOwnerTrack* OwnerTrack = static_cast<FStateTreeDebuggerOwnerTrack*>(ExistingOwnerTrack->Get()))
+	{
+		const FString TrackName = FString::Printf(TEXT("Execution #%d"), OwnerTrack->NumSubTracks()+1);
+		OwnerTrack->AddSubTrack(MakeShared<FStateTreeDebuggerInstanceTrack>(Debugger, InstanceId, FText::FromString(TrackName), ViewRange));
 	}
 
 	InstancesTreeView->Refresh();
@@ -850,7 +865,7 @@ void SStateTreeDebuggerView::OnSelectedInstanceCleared()
 	EventsTreeElements.Reset();
 	if (EventsTreeView)
 	{
-		EventsTreeView->RequestTreeRefresh();	
+		EventsTreeView->RequestTreeRefresh();
 	}
 
 	PropertiesBorder->ClearContent();
