@@ -2106,12 +2106,9 @@ FComputePipelineState* PipelineStateCache::GetAndOrCreateComputePipelineState(FR
 	}
 	else
 	{
-		if (DoAsyncCompile)
+		if (!bFromFileCache && !OutCachedState->IsComplete())
 		{
-			if(!OutCachedState->IsComplete())
-			{
-				RHICmdList.AddDispatchPrerequisite(OutCachedState->CompletionEvent);
-			}
+			RHICmdList.AddDispatchPrerequisite(OutCachedState->CompletionEvent);
 		}
 
 #if PSO_TRACK_CACHE_STATS
