@@ -7,7 +7,7 @@
 #include "Templates/SharedPointer.h"
 #include "ClothVertBoneData.h"
 #include "ClothTetherData.h"
-
+#include "SkeletalMeshTypes.h"
 #include "ClothSimulationModel.generated.h"
 
 struct FReferenceSkeleton;
@@ -37,6 +37,10 @@ struct FChaosClothSimulationLodModel
 	/** Skinning weights. */
 	UPROPERTY()
 	TArray<FClothVertBoneData> BoneData;
+
+	/** LOD Transition mesh to mesh skinning weights. */
+	TArray<FMeshToMeshVertData> LODTransitionUpData;
+	TArray<FMeshToMeshVertData> LODTransitionDownData;
 
 	/** 2d pattern positions. */
 	UPROPERTY()

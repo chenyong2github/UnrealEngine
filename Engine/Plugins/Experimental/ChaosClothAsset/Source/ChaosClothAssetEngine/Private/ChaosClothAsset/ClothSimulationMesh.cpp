@@ -173,13 +173,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	TConstArrayView<FMeshToMeshVertData> FClothSimulationMesh::GetTransitionUpSkinData(int32 LODIndex) const
 	{
-		// TODO: UpSkinData
-		return TConstArrayView<FMeshToMeshVertData>();
+		return ClothSimulationModel.ClothSimulationLodModels[LODIndex].LODTransitionUpData;
 	}
 
 	TConstArrayView<FMeshToMeshVertData> FClothSimulationMesh::GetTransitionDownSkinData(int32 LODIndex) const
 	{
-		// TODO: DownSkinData
-		return TConstArrayView<FMeshToMeshVertData>();
+		return ClothSimulationModel.ClothSimulationLodModels[LODIndex].LODTransitionDownData;
 	}
 }
