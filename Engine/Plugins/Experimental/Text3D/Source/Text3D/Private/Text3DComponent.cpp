@@ -159,11 +159,28 @@ void UText3DComponent::OnUnregister()
 void UText3DComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
-	
-	static FName BevelTypePropertyName = GET_MEMBER_NAME_CHECKED(UText3DComponent, BevelType);
-	static FName BevelSegmentsPropertyName = GET_MEMBER_NAME_CHECKED(UText3DComponent, BevelSegments);
+
+	static TMap<FName, EText3DGroupType> MaterialToGroup =
+	{
+		{ GET_MEMBER_NAME_CHECKED(UText3DComponent, FrontMaterial), EText3DGroupType::Front },
+		{ GET_MEMBER_NAME_CHECKED(UText3DComponent, BackMaterial), EText3DGroupType::Back },
+		{ GET_MEMBER_NAME_CHECKED(UText3DComponent, ExtrudeMaterial), EText3DGroupType::Extrude },
+		{ GET_MEMBER_NAME_CHECKED(UText3DComponent, BevelMaterial), EText3DGroupType::Bevel }
+	};
+
+	using FGetter = TDelegate<const TObjectPtr<UMaterialInterface>&()>;
+	static TMap<FName, FGetter> MaterialLookup =
+	{
+		{ GET_MEMBER_NAME_CHECKED(UText3DComponent, FrontMaterial), FGetter::CreateUObject(this, &UText3DComponent::GetFrontMaterial) },
+		{ GET_MEMBER_NAME_CHECKED(UText3DComponent, BackMaterial), FGetter::CreateUObject(this, &UText3DComponent::GetBackMaterial) },
+		{ GET_MEMBER_NAME_CHECKED(UText3DComponent, ExtrudeMaterial), FGetter::CreateUObject(this, &UText3DComponent::GetExtrudeMaterial) },
+		{ GET_MEMBER_NAME_CHECKED(UText3DComponent, BevelMaterial), FGetter::CreateUObject(this, &UText3DComponent::GetBevelMaterial) }
+	};
 
 	const FName Name = PropertyChangedEvent.GetPropertyName();
+
+	static FName BevelTypePropertyName = GET_MEMBER_NAME_CHECKED(UText3DComponent, BevelType);
+	static FName BevelSegmentsPropertyName = GET_MEMBER_NAME_CHECKED(UText3DComponent, BevelSegments);
 	if (Name == BevelTypePropertyName)
 	{
 		switch (BevelType)
@@ -216,6 +233,16 @@ void UText3DComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 			 Name == GET_MEMBER_NAME_CHECKED(UText3DComponent, MaxHeight) ||
 			 Name == GET_MEMBER_NAME_CHECKED(UText3DComponent, bScaleProportionally))
 	{
+		MarkForLayoutUpdate();
+	}
+	else if (const EText3DGroupType* MaterialGroup = MaterialToGroup.Find(Name))
+	{
+		UpdateMaterial(*MaterialGroup, MaterialLookup[Name].Execute());
+	}
+	// Any property not explicitly handled should trigger a full rebuild
+	else
+	{
+		MarkForGeometryUpdate();
 		MarkForLayoutUpdate();
 	}
 

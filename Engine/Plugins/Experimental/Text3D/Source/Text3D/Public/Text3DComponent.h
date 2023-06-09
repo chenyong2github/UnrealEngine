@@ -92,19 +92,19 @@ public:
 	float OutlineExpand;
 
 	/** Material for the front part */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetFrontMaterial, Category = "Text3D")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = "Auto", BlueprintSetter = SetFrontMaterial, Category = "Text3D")
 	TObjectPtr<class UMaterialInterface> FrontMaterial;
 
 	/** Material for the bevel part */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetBevelMaterial, Category = "Text3D", Meta = (EditCondition = "!bOutline"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = "Auto", BlueprintSetter = SetBevelMaterial, Category = "Text3D", Meta = (EditCondition = "!bOutline"))
 	TObjectPtr<class UMaterialInterface> BevelMaterial;
 
 	/** Material for the extruded part */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetExtrudeMaterial, Category = "Text3D")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = "Auto", BlueprintSetter = SetExtrudeMaterial, Category = "Text3D")
 	TObjectPtr<class UMaterialInterface> ExtrudeMaterial;
 
 	/** Material for the back part */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetBackMaterial, Category = "Text3D")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = "Auto", BlueprintSetter = SetBackMaterial, Category = "Text3D")
 	TObjectPtr<class UMaterialInterface> BackMaterial;
 
 	/** Text font */
