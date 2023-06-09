@@ -5,6 +5,7 @@
 =============================================================================*/
 #include "Misc/EngineVersion.h"
 #include "D3D11RHIPrivate.h"
+#include "HAL/FileManager.h"
 #include "Misc/CommandLine.h"
 #include "Misc/EngineVersion.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
@@ -25,7 +26,6 @@
 #include "GenericPlatform/GenericPlatformCrashContext.h"
 #include "RHIValidation.h"
 #include "RHIUtilities.h"
-#include "HAL/ExceptionHandling.h"
 #include "HDRHelper.h"
 #include "GlobalShader.h"
 
@@ -33,6 +33,14 @@
 bool GDX11NVAfterMathEnabled = false;
 bool GNVAftermathModuleLoaded = false;
 bool GDX11NVAfterMathMarkers = false;
+
+float GDX11NVAfterMathDumpWaitTime = 10.0f;
+static FAutoConsoleVariableRef CVarDX12NVAfterMathDumpWaitTime(
+	TEXT("r.DX11NVAfterMathDumpWaitTime"),
+	GDX11NVAfterMathDumpWaitTime,
+	TEXT("Amount of time to wait for NV Aftermath to finish processing GPU crash dumps."),
+	ECVF_Default
+);
 #endif
 
 #if INTEL_METRICSDISCOVERY
@@ -1404,19 +1412,20 @@ static void D3D11AftermathCrashCallback(const void* InGPUCrashDump, const uint32
 		GDynamicRHI->CheckGpuHeartbeat();
 	}
 
-	// Write out crash dump to project log dir - exception handling code will take care of copying it to the correct location
-	const FString GPUMiniDumpPath = FPaths::Combine(FPaths::ProjectLogDir(), FWindowsPlatformCrashContext::UEGPUAftermathMinidumpName);
-
-	// Just use raw windows file routines for the GPU minidump (TODO: refactor to our own functions?)
-	HANDLE FileHandle = CreateFileW(*GPUMiniDumpPath, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-	if (FileHandle != INVALID_HANDLE_VALUE)
+	// If we have crash dump data then dump to disc
+	if (InGPUCrashDump)
 	{
-		WriteFile(FileHandle, InGPUCrashDump, InGPUCrashDumpSize, nullptr, nullptr);
-	}
-	CloseHandle(FileHandle);
+		// Write out crash dump to project log dir - exception handling code will take care of copying it to the correct location
+		const FString GpuMiniDumpPath = FPaths::Combine(FPaths::ProjectLogDir(), FWindowsPlatformCrashContext::UEGPUAftermathMinidumpName);
 
-	// Report the GPU crash which will raise the exception
-	ReportGPUCrash(TEXT("Aftermath GPU Crash dump Triggered"), nullptr);
+		UE_LOG(LogD3D11RHI, Error, TEXT("Aftermath: Writing Aftermath dump to: %s"), *GpuMiniDumpPath);
+
+		if (FArchive* Writer = IFileManager::Get().CreateFileWriter(*GpuMiniDumpPath))
+		{
+			Writer->Serialize((void*)InGPUCrashDump, InGPUCrashDumpSize);
+			Writer->Close();
+		}
+	}
 }
 
 void EnableNVAftermathCrashDumps()
@@ -1426,7 +1435,6 @@ void EnableNVAftermathCrashDumps()
 		static IConsoleVariable* GPUCrashDump = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDump"));
 		if (FParse::Param(FCommandLine::Get(), TEXT("gpucrashdump")) || (GPUCrashDump && GPUCrashDump->GetInt()))
 		{
-
 			GFSDK_Aftermath_Result Result = GFSDK_Aftermath_EnableGpuCrashDumps(
 				GFSDK_Aftermath_Version_API,
 				GFSDK_Aftermath_GpuCrashDumpWatchedApiFlags_DX,

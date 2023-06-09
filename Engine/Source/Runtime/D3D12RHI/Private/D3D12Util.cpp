@@ -9,8 +9,10 @@ D3D12Util.h: D3D RHI utility implementation.
 #include "RendererInterface.h"
 #include "CoreGlobals.h"
 #include "Misc/OutputDeviceRedirector.h"
-#include "Windows/WindowsPlatformCrashContext.h"
 #include "HAL/ExceptionHandling.h"
+#if PLATFORM_WINDOWS
+#include "HAL/PlatformCrashContext.h"
+#endif
 
 #define D3DERR(x) case x: ErrorCodeText = TEXT(#x); break;
 #define LOCTEXT_NAMESPACE "Developer.MessageLog"
@@ -508,7 +510,7 @@ static bool LogDREDData(ID3D12Device* Device, bool bTrackingAllAllocations, D3D1
 			UE_LOG(LogD3D12RHI, Error, TEXT("DRED: No breadcrumb head found."));
 		}
 
-		FGenericCrashContext::SetEngineData(TEXT("RHI.DRED.HasBreadcrumbData"), bHasValidBreadcrumbData ? TEXT("true") : TEXT("false"));
+		FPlatformCrashContext::SetEngineData(TEXT("RHI.DRED.HasBreadcrumbData"), bHasValidBreadcrumbData ? TEXT("true") : TEXT("false"));
 
 		bool bHasValidPageFaultData = false;
 		D3D12_DRED_PAGE_FAULT_OUTPUT DredPageFaultOutput;
@@ -559,7 +561,7 @@ static bool LogDREDData(ID3D12Device* Device, bool bTrackingAllAllocations, D3D1
 			UE_LOG(LogD3D12RHI, Error, TEXT("DRED: No PageFault data."));
 		}
 
-		FGenericCrashContext::SetEngineData(TEXT("RHI.DRED.HasPageFaultData"), bHasValidPageFaultData ? TEXT("true") : TEXT("false"));
+		FPlatformCrashContext::SetEngineData(TEXT("RHI.DRED.HasPageFaultData"), bHasValidPageFaultData ? TEXT("true") : TEXT("false"));
 
 		return true;
 	}
@@ -757,7 +759,7 @@ static void TerminateOnOutOfMemory(ID3D12Device* InDevice, HRESULT D3DResult, bo
 
 namespace D3D12RHI
 {
-	void TerminateOnGPUCrash(ID3D12Device* InDevice, const void* InGPUCrashDump, const size_t InGPUCrashDumpSize)
+	void TerminateOnGPUCrash(ID3D12Device* InDevice)
 	{		
 		// This function can be called outside of VerifyD3D12Result & co, so it uses its own critical section to make sure it's not re-entered.
 		static FCriticalSection cs;
@@ -799,6 +801,26 @@ namespace D3D12RHI
 				}
 			});
 #endif  // PLATFORM_WINDOWS
+
+#if NV_AFTERMATH
+		GFSDK_Aftermath_CrashDump_Status AftermathStatus{};
+		if (GDX12NVAfterMathEnabled)
+		{
+			GFSDK_Aftermath_GetCrashDumpStatus(&AftermathStatus);
+			if (AftermathStatus != GFSDK_Aftermath_CrashDump_Status_Unknown && AftermathStatus != GFSDK_Aftermath_CrashDump_Status_NotStarted)
+			{
+				const float StartTime = FPlatformTime::Seconds();
+				const float EndTime = StartTime + GDX12NVAfterMathDumpWaitTime;
+				while (AftermathStatus != GFSDK_Aftermath_CrashDump_Status_CollectingDataFailed
+					&& AftermathStatus != GFSDK_Aftermath_CrashDump_Status_Finished
+					&& FPlatformTime::Seconds() < EndTime)
+				{
+					FPlatformProcess::Sleep(0.01f);
+					GFSDK_Aftermath_GetCrashDumpStatus(&AftermathStatus);
+				}
+			}
+		}
+#endif
 		
 		// Build the error message
 		FTextBuilder ErrorMessage;
@@ -817,10 +839,12 @@ namespace D3D12RHI
 		}
 
 		// And info on gpu crash dump as well
-		if (InGPUCrashDump)
+#if NV_AFTERMATH
+		if (AftermathStatus == GFSDK_Aftermath_CrashDump_Status_Finished)
 		{
-			ErrorMessage.AppendLine(LOCTEXT("GPU CrashDump", "\nA GPU mini dump will be saved in the Crashes folder."));
+			ErrorMessage.AppendLine(LOCTEXT("GPU CrashDump", "\nA GPU mini dump was be saved in the Logs folder."));
 		}
+#endif
 		
 		// Make sure the log is flushed!
 		GLog->Panic();
@@ -837,34 +861,18 @@ namespace D3D12RHI
 			UE_LOG(LogD3D12RHI, D3D12RHI_GPU_CRASH_LOG_VERBOSITY, TEXT("%s"), *ErrorMessage.ToText().ToString());
 		}
 
-#if PLATFORM_WINDOWS
-		// If we have crash dump data then dump to disc
-		if (InGPUCrashDump != nullptr)
-		{
-			// Write out crash dump to project log dir - exception handling code will take care of copying it to the correct location
-			const FString GPUMiniDumpPath = FPaths::Combine(FPaths::ProjectLogDir(), FWindowsPlatformCrashContext::UEGPUAftermathMinidumpName);
-
-			// Just use raw windows file routines for the GPU minidump (TODO: refactor to our own functions?)
-			HANDLE FileHandle = CreateFileW(*GPUMiniDumpPath, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-			if (FileHandle != INVALID_HANDLE_VALUE)
-			{
-				WriteFile(FileHandle, InGPUCrashDump, InGPUCrashDumpSize, nullptr, nullptr);
-			}
-			CloseHandle(FileHandle);
-
-			// Report the GPU crash which will raise the exception (only interesting if we have a GPU dump)
-			ReportGPUCrash(TEXT("Aftermath GPU Crash dump Triggered"), nullptr);
-
-			// Force shutdown, we can't do anything useful anymore.
-			FPlatformMisc::RequestExit(true, TEXT("D3D12Util.TerminateOnGPUCrash"));
-		}
-#endif // PLATFORM_WINDOWS
-
 		// hard break here when the debugger is attached
 		if (IsDebuggerPresent())
 		{
 			UE_DEBUG_BREAK();
 		}
+
+#if PLATFORM_WINDOWS
+		ReportGPUCrash(TEXT("GPU Crash dump Triggered"), nullptr);
+#endif
+
+		// Force shutdown, we can't do anything useful anymore.
+		FPlatformMisc::RequestExit(true, TEXT("D3D12Util.TerminateOnGPUCrash"));
 	}
 
 	// It's possible for multiple threads to catch GPU crashes or other D3D errors at the same time. Make sure we only log the error once by acquiring
@@ -886,7 +894,7 @@ namespace D3D12RHI
 		}
 		else if (D3DResult == DXGI_ERROR_DEVICE_REMOVED || D3DResult == DXGI_ERROR_DEVICE_HUNG || D3DResult == DXGI_ERROR_DEVICE_RESET)
 		{
-			TerminateOnGPUCrash(Device, nullptr, 0);
+			TerminateOnGPUCrash(Device);
 		}
 
 		// Make sure the log is flushed!
@@ -924,7 +932,7 @@ namespace D3D12RHI
 		// Terminate with device removed but we don't have any GPU crash dump information
 		if (D3DResult == DXGI_ERROR_DEVICE_REMOVED || D3DResult == DXGI_ERROR_DEVICE_HUNG || D3DResult == DXGI_ERROR_DEVICE_RESET)
 		{
-			TerminateOnGPUCrash(Device, nullptr, 0);
+			TerminateOnGPUCrash(Device);
 		}
 		else if (D3DResult == E_OUTOFMEMORY)
 		{

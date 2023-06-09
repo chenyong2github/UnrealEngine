@@ -18,7 +18,7 @@ namespace D3D12RHI
 	/**
 	 * Dump & Log all the information we have on a GPU crash (NvAfterMath, DRED, Breadcrumbs, ...) and force quit
 	 */
-	extern void TerminateOnGPUCrash(ID3D12Device* InDevice, const void* InGPUCrashDump, const size_t InGPUCrashDumpSize);
+	CA_NO_RETURN void TerminateOnGPUCrash(ID3D12Device* InDevice);
 
 	/**
 	 * Checks that the given result isn't a failure.  If it is, the application exits with an appropriate error message.

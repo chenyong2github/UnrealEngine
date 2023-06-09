@@ -47,6 +47,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogD3D11RHI, Log, All);
 #undef GFSDK_Aftermath_WITH_DX11
 extern bool GDX11NVAfterMathEnabled;
 extern bool GDX11NVAfterMathMarkers;
+extern float GDX11NVAfterMathDumpWaitTime;
 #endif
 
 #if INTEL_METRICSDISCOVERY

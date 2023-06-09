@@ -46,19 +46,27 @@ FD3D12DynamicRHI* GD3D12RHI = nullptr;
 
 	// Disabled by default since introduces stalls between render and driver threads
 	int32 GDX12NVAfterMathEnabled = 0;
-	static FAutoConsoleVariableRef CVarDX12NVAfterMathBufferSize(
-	TEXT("r.DX12NVAfterMathEnabled"),
-	GDX12NVAfterMathEnabled,
-	TEXT("Use NV Aftermath for GPU crash analysis in D3D12"),
-	ECVF_ReadOnly
+	static FAutoConsoleVariableRef CVarDX12NVAfterMathEnabled(
+		TEXT("r.DX12NVAfterMathEnabled"),
+		GDX12NVAfterMathEnabled,
+		TEXT("Use NV Aftermath for GPU crash analysis in D3D12"),
+		ECVF_ReadOnly
 	);
 
 	int32 GDX12NVAfterMathTrackResources = 0;
 	static FAutoConsoleVariableRef CVarDX12NVAfterMathTrackResources(
-	TEXT("r.DX12NVAfterMathTrackResources"),
-	GDX12NVAfterMathTrackResources,
-	TEXT("Enable NV Aftermath resource tracing in D3D12"),
-	ECVF_ReadOnly
+		TEXT("r.DX12NVAfterMathTrackResources"),
+		GDX12NVAfterMathTrackResources,
+		TEXT("Enable NV Aftermath resource tracing in D3D12"),
+		ECVF_ReadOnly
+	);
+
+	float GDX12NVAfterMathDumpWaitTime = 10.0f;
+	static FAutoConsoleVariableRef CVarDX12NVAfterMathDumpWaitTime(
+		TEXT("r.DX12NVAfterMathDumpWaitTime"),
+		GDX12NVAfterMathDumpWaitTime,
+		TEXT("Amount of time to wait for NV Aftermath to finish processing GPU crash dumps."),
+		ECVF_Default
 	);
 
 	int32 GDX12NVAfterMathMarkers = 0;

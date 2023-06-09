@@ -7,6 +7,7 @@ D3D12Adapter.cpp:D3D12 Adapter implementation.
 #include "D3D12RHIPrivate.h"
 #include "D3D12AmdExtensions.h"
 #include "D3D12IntelExtensions.h"
+#include "HAL/FileManager.h"
 #include "Misc/CommandLine.h"
 #include "Misc/EngineVersion.h"
 #include "Misc/OutputDeviceRedirector.h"
@@ -16,6 +17,7 @@ D3D12Adapter.cpp:D3D12 Adapter implementation.
 #if PLATFORM_WINDOWS
 #include "Windows/WindowsPlatformMisc.h"
 #include "Windows/WindowsPlatformStackWalk.h"
+#include "Windows/WindowsPlatformCrashContext.h"
 #endif
 #include "Modules/ModuleManager.h"
 #include "Windows/HideWindowsPlatformTypes.h"
@@ -328,14 +330,60 @@ FD3D12Adapter::FD3D12Adapter(FD3D12AdapterDesc& DescIn)
 	}
 }
 
+#if NV_AFTERMATH
 /** Callback function called when the GPU crashes, when Aftermath is enabled */
 static void D3D12AftermathCrashCallback(const void* InGPUCrashDump, const uint32_t InGPUCrashDumpSize, void* InUserData)
 {
-	// Disabled for now, let the regular rendering code catch the error on the next API call via VERIFYD3D12RESULT & co.
-	// Note that this means we won't be getting aftermath crash dump files anymore, since those are written based on the data passed to this function via InGPUCrashDump.
-	// D3D12RHI::TerminateOnGPUCrash(nullptr, InGPUCrashDump, InGPUCrashDumpSize);
+	// If we have crash dump data then dump to disc
+	if (InGPUCrashDump != nullptr)
+	{
+		// Write out crash dump to project log dir - exception handling code will take care of copying it to the correct location
+		const FString GpuMiniDumpPath = FPaths::Combine(FPaths::ProjectLogDir(), FWindowsPlatformCrashContext::UEGPUAftermathMinidumpName);
+
+		UE_LOG(LogD3D12RHI, Error, TEXT("Aftermath: Writing Aftermath dump to: %s"), *GpuMiniDumpPath);
+
+		if (FArchive* Writer = IFileManager::Get().CreateFileWriter(*GpuMiniDumpPath))
+		{
+			Writer->Serialize((void*)InGPUCrashDump, InGPUCrashDumpSize);
+			Writer->Close();
+		}
+	}
 }
 
+void EnableNVAftermathCrashDumps(ED3D12GPUCrashDebuggingModes GPUCrashDebuggingModes)
+{
+	// GPUcrash dump handler must be attached prior to device creation
+	if (GDX12NVAfterMathModuleLoaded && EnumHasAnyFlags(GPUCrashDebuggingModes, ED3D12GPUCrashDebuggingModes::NvAftermath))
+	{
+		const HANDLE CurrentThread = ::GetCurrentThread();
+
+		const GFSDK_Aftermath_Result Result = GFSDK_Aftermath_EnableGpuCrashDumps(
+			GFSDK_Aftermath_Version_API,
+			GFSDK_Aftermath_GpuCrashDumpWatchedApiFlags_DX,
+			GFSDK_Aftermath_GpuCrashDumpFeatureFlags_Default,
+			&D3D12AftermathCrashCallback,
+			nullptr, //Shader debug callback
+			nullptr, // description callback
+			nullptr, // resolve marker callback
+			CurrentThread
+		); // user data
+
+		if (Result == GFSDK_Aftermath_Result_Success)
+		{
+			UE_LOG(LogD3D12RHI, Log, TEXT("[Aftermath] Aftermath crash dumping enabled"));
+
+			// enable core Aftermath to set the init flags
+			GDX12NVAfterMathEnabled = 1;
+		}
+		else
+		{
+			UE_LOG(LogD3D12RHI, Log, TEXT("[Aftermath] Aftermath crash dumping failed to initialize (%x)"), Result);
+
+			GDX12NVAfterMathEnabled = 0;
+		}
+	}
+}
+#endif
 
 void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 {
@@ -382,35 +430,7 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 #if NV_AFTERMATH
 	if (IsRHIDeviceNVIDIA() && GDX12NVAfterMathModuleLoaded)
 	{
-		// GPUcrash dump handler must be attached prior to device creation
-		if (EnumHasAnyFlags(GPUCrashDebuggingModes, ED3D12GPUCrashDebuggingModes::NvAftermath))
-		{
-			HANDLE CurrentThread = ::GetCurrentThread();
-
-			GFSDK_Aftermath_Result Result = GFSDK_Aftermath_EnableGpuCrashDumps(
-				GFSDK_Aftermath_Version_API,
-				GFSDK_Aftermath_GpuCrashDumpWatchedApiFlags_DX,
-				GFSDK_Aftermath_GpuCrashDumpFeatureFlags_Default,
-				&D3D12AftermathCrashCallback,
-				nullptr, //Shader debug callback
-				nullptr, // description callback
-				nullptr, // resolve marker callback
-				CurrentThread); // user data
-
-			if (Result == GFSDK_Aftermath_Result_Success)
-			{
-				UE_LOG(LogD3D12RHI, Log, TEXT("[Aftermath] Aftermath crash dumping enabled"));
-
-				// enable core Aftermath to set the init flags
-				GDX12NVAfterMathEnabled = 1;
-			}
-			else
-			{
-				UE_LOG(LogD3D12RHI, Log, TEXT("[Aftermath] Aftermath crash dumping failed to initialize (%x)"), Result);
-
-				GDX12NVAfterMathEnabled = 0;
-			}
-		}
+		EnableNVAftermathCrashDumps(GPUCrashDebuggingModes);
 	}
 #endif
 

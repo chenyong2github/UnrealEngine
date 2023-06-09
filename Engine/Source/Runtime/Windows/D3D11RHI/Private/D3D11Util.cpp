@@ -8,6 +8,7 @@
 #include "EngineModule.h"
 #include "RendererInterface.h"
 #include "ProfilingDebugging/ScopedDebugInfo.h"
+#include "HAL/ExceptionHandling.h"
 
 #define D3DERR(x) case x: ErrorCodeText = TEXT(#x); break;
 #define LOCTEXT_NAMESPACE "Developer.MessageLog"
@@ -98,14 +99,29 @@ static void TerminateOnDeviceRemoved(HRESULT D3DResult, ID3D11Device* Direct3DDe
 	if (D3DResult == DXGI_ERROR_DEVICE_REMOVED)
 	{
 #if NV_AFTERMATH
-		uint32 Result = 0xffffffff;
+		GFSDK_Aftermath_Result Result{};
 		uint32 bDeviceActive = 0;
 		if (GDX11NVAfterMathEnabled)
 		{
+			// Wait until the Aftermath crash dump has been handled.
+			GFSDK_Aftermath_CrashDump_Status AftermathStatus{};
+			GFSDK_Aftermath_GetCrashDumpStatus(&AftermathStatus);
+			if (AftermathStatus != GFSDK_Aftermath_CrashDump_Status_Unknown && AftermathStatus != GFSDK_Aftermath_CrashDump_Status_NotStarted)
+			{
+				const float StartTime = FPlatformTime::Seconds();
+				const float EndTime = StartTime + GDX11NVAfterMathDumpWaitTime;
+				while (AftermathStatus != GFSDK_Aftermath_CrashDump_Status_CollectingDataFailed
+					&& AftermathStatus != GFSDK_Aftermath_CrashDump_Status_Finished
+					&& FPlatformTime::Seconds() < EndTime)
+				{
+					FPlatformProcess::Sleep(0.01f);
+					GFSDK_Aftermath_GetCrashDumpStatus(&AftermathStatus);
+				}
+			}
+
 			GFSDK_Aftermath_Device_Status Status;
-			auto Res = GFSDK_Aftermath_GetDeviceStatus(&Status);
-			Result = uint32(Res);
-			if (Res == GFSDK_Aftermath_Result_Success)
+			Result = GFSDK_Aftermath_GetDeviceStatus(&Status);
+			if (Result == GFSDK_Aftermath_Result_Success)
 			{
 				bDeviceActive = Status == GFSDK_Aftermath_Device_Status_Active ? 1 : 0;
 			}
@@ -114,6 +130,9 @@ static void TerminateOnDeviceRemoved(HRESULT D3DResult, ID3D11Device* Direct3DDe
 #else
 		UE_LOG(LogD3D11RHI, Log, TEXT("[Aftermath] NV_AFTERMATH is not set"));
 #endif
+
+		// Report the GPU crash which will raise the exception
+		ReportGPUCrash(TEXT("GPU Crash dump Triggered"), nullptr);
 
 		GIsGPUCrashed = true;		
 		if (Direct3DDevice)

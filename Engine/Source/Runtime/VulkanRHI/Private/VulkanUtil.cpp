@@ -29,6 +29,16 @@ static const uint32	EventDeepCRC = FCrc::StrCrc32<TCHAR>(*EventDeepString);
 static const uint32 BUFFERED_TIMING_QUERIES = 1;
 static const uint32 TIMING_QUERY_RETRIES = 1;
 
+#if NV_AFTERMATH
+	float GVulkanNVAfterMathDumpWaitTime = 10.0f;
+	static FAutoConsoleVariableRef CVarVulkanNVAfterMathDumpWaitTime(
+		TEXT("r.VulkanNVAfterMathDumpWaitTime"),
+		GVulkanNVAfterMathDumpWaitTime,
+		TEXT("Amount of time to wait for NV Aftermath to finish processing GPU crash dumps."),
+		ECVF_Default
+	);
+#endif
+
 /**
  * Initializes the static variables, if necessary.
  */
@@ -1093,6 +1103,27 @@ namespace VulkanRHI
 #endif
 
 			CheckDeviceFault(Device);
+
+			// Make sure we wait on the Aftermath crash dump before we crash.
+#if NV_AFTERMATH
+			if (GGPUCrashDebuggingEnabled && GVulkanNVAftermathModuleLoaded)
+			{
+				GFSDK_Aftermath_CrashDump_Status AftermathStatus{};
+				GFSDK_Aftermath_GetCrashDumpStatus(&AftermathStatus);
+				if (AftermathStatus != GFSDK_Aftermath_CrashDump_Status_Unknown && AftermathStatus != GFSDK_Aftermath_CrashDump_Status_NotStarted)
+				{
+					const float StartTime = FPlatformTime::Seconds();
+					const float EndTime = StartTime + GVulkanNVAfterMathDumpWaitTime;
+					while (AftermathStatus != GFSDK_Aftermath_CrashDump_Status_CollectingDataFailed
+						&& AftermathStatus != GFSDK_Aftermath_CrashDump_Status_Finished
+						&& FPlatformTime::Seconds() < EndTime)
+					{
+						FPlatformProcess::Sleep(0.01f);
+						GFSDK_Aftermath_GetCrashDumpStatus(&AftermathStatus);
+					}
+				}
+			}
+#endif
 		}
 
 #if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT

@@ -24,5 +24,6 @@
 	extern bool GDX12NVAfterMathModuleLoaded;
 	extern int32 GDX12NVAfterMathEnabled;
 	extern int32 GDX12NVAfterMathTrackResources;
+	extern float GDX12NVAfterMathDumpWaitTime;
 	extern int32 GDX12NVAfterMathMarkers;
 #endif // NV_AFTERMATH
