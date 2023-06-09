@@ -252,13 +252,16 @@ namespace Horde.Server.Tools
 
 			IStorageClient client = await _storageService.GetClientAsync(Namespace.Tools, cancellationToken);
 
-			NodeHandle handle;
+			NodeRef<DirectoryNode> nodeRef;
 			await using (IStorageWriter writer = client.CreateWriter(refName))
 			{
 				DirectoryNode directoryNode = new DirectoryNode();
-				await directoryNode.CopyFromZipStreamAsync(stream, writer, cancellationToken);
-				handle = await writer.WriteAsync(refName, directoryNode, cancellationToken: cancellationToken);
+				await directoryNode.CopyFromZipStreamAsync(stream, writer, new ChunkingOptions(), cancellationToken);
+				nodeRef = await writer.WriteNodeAsync(directoryNode, cancellationToken);
 			}
+
+			NodeHandle handle = nodeRef.Handle;
+			await client.WriteRefTargetAsync(refName, handle, cancellationToken: cancellationToken);
 
 			return await CreateDeploymentAsync(tool, options, new HashedNodeLocator(handle.Hash, handle.GetLocator()), globalConfig, cancellationToken);
 		}

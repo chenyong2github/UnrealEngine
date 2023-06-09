@@ -776,9 +776,9 @@ namespace Horde.Agent.Execution
 				await using IStorageWriter writer = storage.CreateWriter(new RefName(artifact.RefName));
 
 				DirectoryNode dir = new DirectoryNode();
-				await dir.CopyFilesAsync(baseDir, files, new ChunkingOptions(), writer, new CopyStatsLogger(logger), cancellationToken);
+				await dir.AddFilesAsync(baseDir, files, new ChunkingOptions(), writer, new CopyStatsLogger(logger), cancellationToken);
 
-				await writer.WriteAsync(new RefName(artifact.RefName), dir, cancellationToken: cancellationToken);
+				await storage.WriteNodeAsync(new RefName(artifact.RefName), dir, cancellationToken: cancellationToken);
 			}
 			catch (Exception ex)
 			{
@@ -992,7 +992,7 @@ namespace Horde.Agent.Execution
 				}
 
 				// Write the final node
-				await treeWriter.WriteAsync(refName, outputNode, new RefOptions(), cancellationToken);
+				await storage.WriteNodeAsync(refName, outputNode, refOptions: new RefOptions(), cancellationToken: cancellationToken);
 				logger.LogInformation("Upload took {Time:n1}s", timer.Elapsed.TotalSeconds);
 
 				// Create the artifact

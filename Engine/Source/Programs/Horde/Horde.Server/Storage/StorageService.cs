@@ -260,7 +260,11 @@ namespace Horde.Server.Storage
 			}
 
 			/// <inheritdoc/>
-			public override Task WriteRefTargetAsync(RefName name, NodeHandle target, RefOptions? options = null, CancellationToken cancellationToken = default) => _outer.WriteRefTargetAsync(NamespaceId, name, new HashedNodeLocator(target.Hash, target.GetLocator()), options, cancellationToken);
+			public override async Task WriteRefTargetAsync(RefName name, NodeHandle target, RefOptions? options = null, CancellationToken cancellationToken = default)
+			{
+				NodeLocator locator = await target.FlushAsync(cancellationToken);
+				await _outer.WriteRefTargetAsync(NamespaceId, name, new HashedNodeLocator(target.Hash, locator), options, cancellationToken);
+			}
 
 			/// <inheritdoc/>
 			public Task WriteRefTargetAsync(RefName name, HashedNodeLocator target, RefOptions? options = null, CancellationToken cancellationToken = default) => _outer.WriteRefTargetAsync(NamespaceId, name, target, options, cancellationToken);

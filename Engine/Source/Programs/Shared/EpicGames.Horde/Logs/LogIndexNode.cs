@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using OpenTracing;
@@ -115,9 +116,11 @@ namespace EpicGames.Horde.Logs
 		/// <summary>
 		/// Appends a set of text blocks to this index
 		/// </summary>
+		/// <param name="writer">Writer for output nodes</param>
 		/// <param name="appendPlainTextChunks">Text blocks to append</param>
+		/// <param name="cancellationToken"></param>
 		/// <returns>New log index with the given blocks appended</returns>
-		public LogIndexNode Append(IReadOnlyList<LogChunkNode> appendPlainTextChunks)
+		public async ValueTask<LogIndexNode> AppendAsync(IStorageWriter writer, IReadOnlyList<LogChunkNode> appendPlainTextChunks, CancellationToken cancellationToken)
 		{
 			using IScope scope = GlobalTracer.Instance.BuildSpan("LogIndex.Append").StartActive();
 
@@ -132,10 +135,11 @@ namespace EpicGames.Horde.Logs
 			long offset = Length;
 			for (int idx = 0; idx < appendPlainTextChunks.Count; idx++)
 			{
-				LogChunkNode appendBlock = appendPlainTextChunks[idx];
-				newChunks[_plainTextChunkRefs.Length + idx] = new LogChunkRef(lineIndex, offset, appendPlainTextChunks[idx]);
-				lineIndex += appendBlock.LineCount;
-				offset += appendBlock.Length;
+				LogChunkNode newChunk = appendPlainTextChunks[idx];
+				NodeRef<LogChunkNode> newChunkRef = await writer.WriteNodeAsync(newChunk, cancellationToken);
+				newChunks[_plainTextChunkRefs.Length + idx] = new LogChunkRef(lineIndex, newChunk.LineCount, offset, newChunk.Length, newChunkRef);
+				lineIndex += newChunk.LineCount;
+				offset += newChunk.Length;
 			}
 
 			// Figure out how many bits to devote to the block size
@@ -187,7 +191,7 @@ namespace EpicGames.Horde.Logs
 				LogChunkRef indexChunk = _plainTextChunkRefs[blockIdx];
 
 				stats.NumScannedBlocks++;
-				stats.NumDecompressedBlocks += (indexChunk.Target == null)? 1 : 0;
+//				stats.NumDecompressedBlocks += (indexChunk.Target == null)? 1 : 0;
 
 				stats.NumSkippedBlocks += blockIdx - lastBlockCount;
 				lastBlockCount = blockIdx + 1;

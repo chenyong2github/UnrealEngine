@@ -7,55 +7,18 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using Microsoft.Extensions.Logging;
 
 namespace EpicGames.Horde.Storage
 {
 	/// <summary>
-	/// Stores a reference to a node, which may be in memory or in the storage system.
-	/// 
-	/// Refs may be in the following states:
-	///  * In storage 
-	///      * Locator is valid, Target is null, IsDirty() returns false.
-	///      * Writing or calling Collapse() is a no-op.
-	///  * In memory and target was expanded, has not been modified 
-	///      * Locator is valid, Target is valid, IsDirty() returns false.
-	///      * Writing or calling Collapse() on a ref transitions it to the "in storage" state.
-	///  * In memory and target is new
-	///      * Locator is invalid, Target is valid, IsDirty() returns true.
-	///      * Writing a ref transitions it to the "in storage" state. Calling Collapse is a no-op.
-	///  * In memory but target has been modified
-	///      * Locator is set but may not reflect the current node state, Target is valid, IsDirty() returns true. 
-	///      * Writing a ref transitions it to the "in storage" state. Calling Collapse is a no-op.
-	///
-	/// The <see cref="OnCollapse"/> and <see cref="OnExpand"/> methods allow overriden implementations to cache information about the target.
-	///
-	/// Each ref must have EXACTLY one owner; sharing of refs between objects is not permitted and will break change tracking.
-	/// Multiple refs MAY point to the same target object.
-	/// 
-	/// To read an untracked object that can be added to a new ref, call <see cref="TreeReader.ReadNodeDataAsync(NodeLocator, CancellationToken)"/> 
-	/// directly, or use <see cref="NodeRef{T}.ExpandCopyAsync(CancellationToken)"/>.
+	/// Stores a reference to a <see cref="Node"/> object in the storage system.
 	/// </summary>
 	public class NodeRef
 	{
 		/// <summary>
-		/// The target node, or null if the node is not resident in memory.
-		/// </summary>
-		public Node? Target { get; private set; }
-
-		/// <summary>
 		/// Handle to the node if in storage (or pending write to storage)
 		/// </summary>
-		public NodeHandle? Handle { get; private set; }
-
-		/// <summary>
-		/// Creates a reference to a node in memory.
-		/// </summary>
-		/// <param name="target">Node to reference</param>
-		public NodeRef(Node target)
-		{
-			Target = target;
-		}
+		public NodeHandle Handle { get; }
 
 		/// <summary>
 		/// Creates a reference to a node in storage.
@@ -75,46 +38,6 @@ namespace EpicGames.Horde.Storage
 		}
 
 		/// <summary>
-		/// Determines whether the the referenced node has been modified from the last version written to storage
-		/// </summary>
-		/// <returns></returns>
-		public bool IsDirty() => Target != null && (Handle == null || Target.Hash != Handle.Hash);
-
-		/// <summary>
-		/// Update the reference to refer to a node in memory.
-		/// </summary>
-		public void MarkAsDirty()
-		{
-			if (Target == null)
-			{
-				throw new InvalidOperationException("Cannot mark a ref as dirty without having expanded it.");
-			}
-
-			Handle = null;
-		}
-
-		/// <summary>
-		/// Updates the hash and revision number for the ref.
-		/// </summary>
-		/// <returns></returns>
-		internal void MarkAsPendingWrite(NodeHandle handle)
-		{
-			OnCollapse();
-			Handle = handle;
-		}
-
-		/// <summary>
-		/// Update the reference to refer to a location in storage.
-		/// </summary>
-		internal void MarkAsWritten()
-		{
-			if (Target != null && Handle != null && Target.Hash == Handle.Hash)
-			{
-				Target = null;
-			}
-		}
-
-		/// <summary>
 		/// Serialize the node to the given writer
 		/// </summary>
 		/// <param name="writer"></param>
@@ -131,39 +54,8 @@ namespace EpicGames.Horde.Storage
 		/// <returns></returns>
 		public async ValueTask<Node> ExpandAsync(CancellationToken cancellationToken = default)
 		{
-			if (Target == null)
-			{
-				NodeData nodeData = await Handle!.ReadAsync(cancellationToken);
-				Target = Node.Deserialize(nodeData);
-				OnExpand();
-			}
-			return Target;
-		}
-
-		/// <summary>
-		/// Collapse the current node
-		/// </summary>
-		public void Collapse()
-		{
-			if (Target != null && !IsDirty())
-			{
-				OnCollapse();
-				Target = null;
-			}
-		}
-
-		/// <summary>
-		/// Callback after a node is expanded, allowing overridden implementations to cache any information about the target
-		/// </summary>
-		protected virtual void OnExpand()
-		{
-		}
-
-		/// <summary>
-		/// Callback before a node is collapsed, allowing overridden implementations to cache any information about the target
-		/// </summary>
-		protected virtual void OnCollapse()
-		{
+			NodeData nodeData = await Handle!.ReadAsync(cancellationToken);
+			return Node.Deserialize(nodeData);
 		}
 	}
 
@@ -174,22 +66,8 @@ namespace EpicGames.Horde.Storage
 	public class NodeRef<T> : NodeRef where T : Node
 	{
 		/// <summary>
-		/// Accessor for the target node
-		/// </summary>
-		public new T? Target => (T?)base.Target;
-
-		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="target">The referenced node</param>
-		public NodeRef(T target) : base(target)
-		{
-		}
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="handle">Handle to the referenced node</param>
 		public NodeRef(NodeHandle handle) : base(handle)
 		{
 		}
@@ -197,8 +75,14 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="reader">The reader to deserialize from</param>
-		public NodeRef(NodeReader reader) : base(reader)
+		public NodeRef(NodeRef<T> other) : base(other.Handle)
+		{
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public NodeRef(NodeReader reader) : base(reader.ReadNodeHandle())
 		{
 		}
 
@@ -211,22 +95,6 @@ namespace EpicGames.Horde.Storage
 		{
 			return (T)await base.ExpandAsync(cancellationToken);
 		}
-
-		/// <summary>
-		/// Resolve this reference to a concrete node
-		/// </summary>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns></returns>
-		public async ValueTask<T> ExpandCopyAsync(CancellationToken cancellationToken = default)
-		{
-			if (Handle == null)
-			{
-				throw new InvalidOperationException("TreeNodeRef has not been serialized to storage");
-			}
-
-			NodeData nodeData = await Handle!.ReadAsync(cancellationToken);
-			return Node.Deserialize<T>(nodeData);
-		}
 	}
 
 	/// <summary>
@@ -235,25 +103,85 @@ namespace EpicGames.Horde.Storage
 	public static class NodeRefExtensions
 	{
 		/// <summary>
-		/// Class used to track nodes which are pending write (and the state of the object when the write was started)
+		/// Read an untyped ref from the reader
 		/// </summary>
-		internal class NodeRefWriteCallback : NodeWriteCallback
+		/// <param name="reader">Reader to deserialize from</param>
+		/// <returns>New untyped ref</returns>
+		public static NodeRef ReadNodeRef(this NodeReader reader)
 		{
-			readonly NodeRef _nodeRef;
-			readonly NodeHandle _handle;
+			return new NodeRef(reader);
+		}
 
-			public NodeRefWriteCallback(NodeRef nodeRef, NodeHandle handle)
+		/// <summary>
+		/// Read a strongly typed ref from the reader
+		/// </summary>
+		/// <typeparam name="T">Type of the referenced node</typeparam>
+		/// <param name="reader">Reader to deserialize from</param>
+		/// <returns>New strongly typed ref</returns>
+		public static NodeRef<T> ReadNodeRef<T>(this NodeReader reader) where T : Node
+		{
+			return new NodeRef<T>(reader);
+		}
+
+		/// <summary>
+		/// Read an optional untyped ref from the reader
+		/// </summary>
+		/// <param name="reader">Reader to deserialize from</param>
+		/// <returns>New untyped ref</returns>
+		public static NodeRef? ReadOptionalNodeRef(this NodeReader reader)
+		{
+			if (reader.ReadBoolean())
 			{
-				_nodeRef = nodeRef;
-				_handle = handle;
+				return reader.ReadNodeRef();
 			}
-
-			public override void OnWrite()
+			else
 			{
-				if (_nodeRef.Handle == _handle)
-				{
-					_nodeRef.MarkAsWritten();
-				}
+				return null;
+			}
+		}
+
+		/// <summary>
+		/// Read an optional strongly typed ref from the reader
+		/// </summary>
+		/// <param name="reader">Reader to deserialize from</param>
+		/// <returns>New strongly typed ref</returns>
+		public static NodeRef<T>? ReadOptionalNodeRef<T>(this NodeReader reader) where T : Node
+		{
+			if (reader.ReadBoolean())
+			{
+				return reader.ReadNodeRef<T>();
+			}
+			else
+			{
+				return null;
+			}
+		}
+
+		/// <summary>
+		/// Writes a ref to storage
+		/// </summary>
+		/// <param name="writer">Writer to serialize to</param>
+		/// <param name="nodeRef">Value to write</param>
+		public static void WriteNodeRef(this NodeWriter writer, NodeRef nodeRef)
+		{
+			nodeRef.Serialize(writer);
+		}
+
+		/// <summary>
+		/// Writes an optional ref value to storage
+		/// </summary>
+		/// <param name="writer">Writer to serialize to</param>
+		/// <param name="value">Value to write</param>
+		public static void WriteOptionalNodeRef(this NodeWriter writer, NodeRef? value)
+		{
+			if (value == null)
+			{
+				writer.WriteBoolean(false);
+			}
+			else
+			{
+				writer.WriteBoolean(true);
+				writer.WriteNodeRef(value);
 			}
 		}
 
@@ -261,77 +189,48 @@ namespace EpicGames.Horde.Storage
 		/// Writes an individual node to storage
 		/// </summary>
 		/// <param name="writer">Writer to serialize nodes to</param>
-		/// <param name="nodeRef">Reference to the node</param>
+		/// <param name="node">Node to write</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>A flag indicating whether the node is dirty, and if it is, an optional bundle that contains it</returns>
-		public static async ValueTask<NodeHandle> WriteAsync(this IStorageWriter writer, NodeRef nodeRef, CancellationToken cancellationToken)
+		public static async ValueTask<NodeRef<TNode>> WriteNodeAsync<TNode>(this IStorageWriter writer, TNode node, CancellationToken cancellationToken = default) where TNode : Node
 		{
-			// Check we actually have a target node. If we don't, we don't need to write anything.
-			Node? target = nodeRef.Target;
-			if (target == null)
-			{
-				Debug.Assert(nodeRef.Handle != null);
-				return nodeRef.Handle;
-			}
-
-			// Write all the nodes it references, and mark the ref as dirty if any of them change.
-			List<NodeRef> nextRefs = target.EnumerateRefs().ToList();
-			List<NodeHandle> nextRefHandles = new List<NodeHandle>(nextRefs.Count);
-			foreach (NodeRef nextRef in nextRefs)
-			{
-				NodeHandle nextRefHandle = await WriteAsync(writer, nextRef, cancellationToken);
-				if (!nextRefHandle.HasLocator())
-				{
-					nodeRef.MarkAsDirty();
-				}
-				nextRefHandles.Add(nextRefHandle);
-			}
-
-			// If the target node hasn't been modified, use the existing serialized state.
-			if (!nodeRef.IsDirty())
-			{
-				// Make sure the locator is valid. The node may be queued for writing but not flushed to disk yet.
-				Debug.Assert(nodeRef.Handle != null);
-				if (nodeRef.Handle.HasLocator())
-				{
-					nodeRef.Collapse();
-				}
-				return nodeRef.Handle;
-			}
-
 			// Serialize the node
 			NodeWriter nodeWriter = new NodeWriter(writer);
-			target.Serialize(nodeWriter);
+			node.Serialize(nodeWriter);
 
 			// Write the final data
-			NodeHandle handle = await writer.WriteNodeAsync(nodeWriter.Length, nextRefHandles, target.NodeType, cancellationToken);
-			target.Hash = handle.Hash;
+			NodeHandle handle = await writer.WriteNodeAsync(nodeWriter.Length, nodeWriter.References, node.NodeType, cancellationToken);
+			return new NodeRef<TNode>(handle);
+		}
 
-			NodeRefWriteCallback writeState = new NodeRefWriteCallback(nodeRef, handle);
-			handle.AddWriteCallback(writeState);
-
-			nodeRef.MarkAsPendingWrite(handle);
-			return handle;
+		/// <summary>
+		/// Reads and deserializes a node for the given ref
+		/// </summary>
+		/// <param name="storageClient"></param>
+		/// <param name="refName">Name of the ref to write</param>
+		/// <param name="cacheTime"></param>
+		/// <param name="cancellationToken"></param>
+		public static async ValueTask<NodeRef<TNode>?> TryReadRefTargetAsync<TNode>(this IStorageClient storageClient, RefName refName, DateTime cacheTime = default, CancellationToken cancellationToken = default) where TNode : Node
+		{
+			NodeHandle? handle = await storageClient.TryReadRefTargetAsync(refName, cacheTime, cancellationToken);
+			if (handle == null)
+			{
+				return null;
+			}
+			return new NodeRef<TNode>(handle);
 		}
 
 		/// <summary>
 		/// Writes a node to the given ref
 		/// </summary>
-		/// <param name="writer"></param>
-		/// <param name="name">Name of the ref to write</param>
+		/// <param name="storageClient"></param>
+		/// <param name="refName">Name of the ref to write</param>
 		/// <param name="node"></param>
-		/// <param name="options"></param>
+		/// <param name="refOptions"></param>
 		/// <param name="cancellationToken"></param>
-		/// <returns></returns>
-		public static async Task<NodeHandle> WriteAsync(this IStorageWriter writer, RefName name, Node node, RefOptions? options = null, CancellationToken cancellationToken = default)
+		public static async ValueTask WriteRefTargetAsync<TNode>(this IStorageClient storageClient, RefName refName, NodeRef<TNode> node, RefOptions? refOptions = null, CancellationToken cancellationToken = default) where TNode : Node
 		{
-			NodeRef nodeRef = new NodeRef(node);
-			await writer.WriteAsync(nodeRef, cancellationToken);
-			await writer.FlushAsync(cancellationToken);
-
-			Debug.Assert(nodeRef.Handle != null);
-			await writer.Store.WriteRefTargetAsync(name, nodeRef.Handle, options, cancellationToken);
-			return nodeRef.Handle;
+			await storageClient.WriteRefTargetAsync(refName, node.Handle, refOptions, cancellationToken);
 		}
 
 		/// <summary>
@@ -343,14 +242,8 @@ namespace EpicGames.Horde.Storage
 		/// <returns></returns>
 		public static async Task<NodeHandle> FlushAsync(this IStorageWriter writer, Node root, CancellationToken cancellationToken = default)
 		{
-			NodeRef rootRef = new NodeRef(root);
-
-			NodeHandle handle = await writer.WriteAsync(rootRef, cancellationToken);
-//			writer._traceLogger?.LogInformation("Written root node {Handle}", handle);
-
+			NodeRef<Node> rootRef = await writer.WriteNodeAsync(root, cancellationToken);
 			await writer.FlushAsync(cancellationToken);
-//			writer._traceLogger?.LogInformation("Flushed root node {Handle}", handle);
-
 			return rootRef.Handle!;
 		}
 	}

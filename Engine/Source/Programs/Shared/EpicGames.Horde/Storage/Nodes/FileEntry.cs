@@ -79,13 +79,13 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public FileEntry(Utf8String name, FileEntryFlags flags, long length, NodeHandle node)
+		public FileEntry(Utf8String name, FileEntryFlags flags, long length, NodeRef<ChunkedDataNode> node)
 			: base(node)
 		{
 			Name = name;
 			Flags = flags;
 			Length = length;
-			Hash = node.Hash;
+			Hash = node.Handle.Hash;
 		}
 
 		/// <summary>

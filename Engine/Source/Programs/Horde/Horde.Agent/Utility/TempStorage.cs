@@ -602,9 +602,9 @@ namespace Horde.Storage.Utility
 			fileList.Save(localFileListLocation);
 
 			ChunkedDataWriter fileNodeWriter = new ChunkedDataWriter(writer, new ChunkingOptions());
-			NodeHandle handle = await fileNodeWriter.CreateAsync(localFileListLocation.ToFileInfo(), cancellationToken);
+			NodeRef<ChunkedDataNode> rootRef = await fileNodeWriter.CreateAsync(localFileListLocation.ToFileInfo(), cancellationToken);
 
-			return new FileEntry(localFileListLocation.GetFileName(), FileEntryFlags.None, fileNodeWriter.Length, handle);
+			return new FileEntry(localFileListLocation.GetFileName(), FileEntryFlags.None, fileNodeWriter.Length, rootRef);
 		}
 
 		/// <summary>
@@ -648,11 +648,15 @@ namespace Horde.Storage.Utility
 			FileReference manifestLocation = GetBlockManifestLocation(manifestDir, nodeName, blockName);
 			manifest.Save(manifestLocation);
 
+			List<FileInfo> archiveFiles = new List<FileInfo>(fileInfos);
+			archiveFiles.Add(manifestLocation.ToFileInfo());
+
 			// Create the file tree
 			DirectoryNode rootNode = new DirectoryNode();
-			await rootNode.CopyFilesAsync(workspaceDir, Enumerable.Concat(files, new[] { manifestLocation }), new ChunkingOptions(), writer, new CopyStatsLogger(logger), cancellationToken);
-
-			return new DirectoryEntry(blockDirectoryName, rootNode);
+			await rootNode.AddFilesAsync(workspaceDir, archiveFiles, new ChunkingOptions(), writer, new CopyStatsLogger(logger), cancellationToken);
+			
+			NodeRef<DirectoryNode> rootNodeRef = await writer.WriteNodeAsync(rootNode, cancellationToken);
+			return new DirectoryEntry(blockDirectoryName, rootNode.Length, rootNodeRef);
 		}
 
 		/// <summary>

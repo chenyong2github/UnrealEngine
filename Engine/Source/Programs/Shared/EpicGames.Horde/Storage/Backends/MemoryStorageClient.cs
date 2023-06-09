@@ -30,7 +30,7 @@ namespace EpicGames.Horde.Storage.Backends
 		/// <summary>
 		/// Map of ref name to ref data
 		/// </summary>
-		readonly ConcurrentDictionary<RefName, NodeHandle> _refs = new ConcurrentDictionary<RefName, NodeHandle>();
+		readonly ConcurrentDictionary<RefName, HashedNodeLocator> _refs = new ConcurrentDictionary<RefName, HashedNodeLocator>();
 
 		/// <summary>
 		/// Content addressed data lookup
@@ -41,7 +41,7 @@ namespace EpicGames.Horde.Storage.Backends
 		public IReadOnlyDictionary<BlobLocator, Bundle> Blobs => _blobs;
 
 		/// <inheritdoc cref="_refs"/>
-		public IReadOnlyDictionary<RefName, NodeHandle> Refs => _refs;
+		public IReadOnlyDictionary<RefName, HashedNodeLocator> Refs => _refs;
 
 		/// <summary>
 		/// Constructor
@@ -118,16 +118,22 @@ namespace EpicGames.Horde.Storage.Backends
 		/// <inheritdoc/>
 		public override Task<NodeHandle?> TryReadRefTargetAsync(RefName name, RefCacheTime cacheTime = default, CancellationToken cancellationToken = default)
 		{
-			NodeHandle? refTarget;
-			_refs.TryGetValue(name, out refTarget);
-			return Task.FromResult(refTarget);
+			HashedNodeLocator hashedLocator;
+			if (_refs.TryGetValue(name, out hashedLocator))
+			{
+				return Task.FromResult<NodeHandle?>(new FlushedNodeHandle(TreeReader, hashedLocator)); 
+			}
+			else
+			{
+				return Task.FromResult<NodeHandle?>(null);
+			}
 		}
 
 		/// <inheritdoc/>
-		public override Task WriteRefTargetAsync(RefName name, NodeHandle target, RefOptions? options = null, CancellationToken cancellationToken = default)
+		public override async Task WriteRefTargetAsync(RefName name, NodeHandle target, RefOptions? options = null, CancellationToken cancellationToken = default)
 		{
-			_refs[name] = target;
-			return Task.CompletedTask;
+			NodeLocator locator = await target.FlushAsync(cancellationToken);
+			_refs[name] = new HashedNodeLocator(target.Hash, locator);
 		}
 
 		#endregion

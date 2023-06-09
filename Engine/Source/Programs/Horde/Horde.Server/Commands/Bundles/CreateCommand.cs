@@ -59,7 +59,7 @@ namespace Horde.Server.Commands.Bundles
 			DirectoryNode node = new DirectoryNode(DirectoryFlags.None);
 			await node.CopyFromDirectoryAsync(InputDir.ToDirectoryInfo(), new ChunkingOptions(), writer, new CopyStatsLogger(logger), CancellationToken.None);
 
-			await writer.WriteAsync(RefName, node);
+			await storageClient.WriteNodeAsync(RefName, node);
 			return 0;
 		}
 	}

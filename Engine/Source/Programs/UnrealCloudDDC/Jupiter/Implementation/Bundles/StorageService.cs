@@ -159,7 +159,7 @@ public class StorageClient : IStorageClientJupiter
 
     }
 
-    public async Task<NodeHandle?> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
+    public async Task<NodeHandle?> TryReadRefTargetAsync(RefName name, RefCacheTime cacheTime = default, CancellationToken cancellationToken = default)
     {
         // TODO: Cache time is ignored
         try

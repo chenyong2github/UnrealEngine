@@ -81,8 +81,7 @@ namespace EpicGames.Horde.Tests
 			NodeRef<LogNode> logRef;
 			await using (IStorageWriter writer = _store.CreateWriter())
 			{
-				NodeHandle target = await builder.FlushAsync(writer, true, CancellationToken.None);
-				logRef = new NodeRef<LogNode>(target);
+				logRef = await builder.FlushAsync(writer, true, CancellationToken.None);
 			}
 			LogNode log = await logRef.ExpandAsync();
 
@@ -129,8 +128,7 @@ namespace EpicGames.Horde.Tests
 			NodeRef<LogNode> rootNodeRef;
 			await using (IStorageWriter writer = _store.CreateWriter())
 			{
-				NodeHandle rootNodeHandle = await builder.FlushAsync(writer, true, CancellationToken.None);
-				rootNodeRef = new NodeRef<LogNode>(rootNodeHandle);
+				rootNodeRef = await builder.FlushAsync(writer, true, CancellationToken.None);
 			}
 
 			// Read it back in and test the index

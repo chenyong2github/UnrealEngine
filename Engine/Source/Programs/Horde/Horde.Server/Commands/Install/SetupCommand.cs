@@ -71,7 +71,7 @@ namespace Horde.Server.Commands.Install
 			{
 				DirectoryNode dirNode = new DirectoryNode();
 				await dirNode.CopyFromDirectoryAsync(looseAgentDir.ToDirectoryInfo(), new ChunkingOptions(), writer, null);
-				await writer.WriteAsync(refName, dirNode);
+				await client.WriteNodeAsync(refName, dirNode);
 			}
 
 			// Update the server config to include the bundled tool

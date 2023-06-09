@@ -216,15 +216,17 @@ namespace EpicGames.Horde.Logs
 		/// Constructor
 		/// </summary>
 		/// <param name="lineIndex">Index of the first line within this block</param>
+		/// <param name="lineCount">Number of lines in the chunk</param>
 		/// <param name="offset">Offset within the log file</param>
+		/// <param name="length">Length of the chunk</param>
 		/// <param name="target">Referenced log text</param>
-		public LogChunkRef(int lineIndex, long offset, LogChunkNode target)
+		public LogChunkRef(int lineIndex, int lineCount, long offset, int length, NodeRef<LogChunkNode> target)
 			: base(target)
 		{
 			LineIndex = lineIndex;
-			LineCount = target.LineCount;
+			LineCount = lineCount;
 			Offset = offset;
-			Length = target.Length;
+			Length = length;
 		}
 
 		/// <summary>

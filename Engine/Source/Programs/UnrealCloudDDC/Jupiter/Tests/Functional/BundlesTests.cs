@@ -400,14 +400,14 @@ public abstract class BundlesTests
             await using IStorageWriter writer = store.CreateWriter(new RefName("test"), options);
 
             SimpleNode node1 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 1 }), Array.Empty<NodeRef<SimpleNode>>());
-            SimpleNode node2 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 2 }), new[] { new NodeRef<SimpleNode>(node1) });
-            SimpleNode node3 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 3 }), new[] { new NodeRef<SimpleNode>(node2) });
+            SimpleNode node2 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 2 }), new[] { new NodeRef<SimpleNode>(await writer.WriteNodeAsync(node1)) });
+            SimpleNode node3 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 3 }), new[] { new NodeRef<SimpleNode>(await writer.WriteNodeAsync(node2)) });
             SimpleNode node4 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 4 }), Array.Empty<NodeRef<SimpleNode>>());
 
-            SimpleNode root = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 5 }), new[] { new NodeRef<SimpleNode>(node4), new NodeRef<SimpleNode>(node3) });
+            SimpleNode root = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 5 }), new[] { new NodeRef<SimpleNode>(await writer.WriteNodeAsync(node4)), new NodeRef<SimpleNode>(await writer.WriteNodeAsync(node3)) });
 
-            await writer.WriteAsync(rootRefName, root);
-            await writer.WriteAsync(leafRefName, node1);
+            await store.WriteNodeAsync(rootRefName, root);
+            await store.WriteNodeAsync(leafRefName, node1);
         }
     }
 }

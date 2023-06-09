@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using EpicGames.Horde.Logs;
 using Microsoft.CodeAnalysis.Options;
 using Microsoft.Extensions.Logging;
 using System;
@@ -215,57 +216,13 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="name">Name of the new directory</param>
 		/// <param name="flags">Flags for the new file</param>
 		/// <param name="length">Length of the file</param>
-		/// <param name="handle">Handle to the file data</param>
+		/// <param name="dataRef">Handle to the file data</param>
 		/// <returns>The new directory object</returns>
-		public FileEntry AddFile(Utf8String name, FileEntryFlags flags, long length, NodeHandle handle)
+		public FileEntry AddFile(Utf8String name, FileEntryFlags flags, long length, NodeRef<ChunkedDataNode> dataRef)
 		{
-			FileEntry entry = new FileEntry(name, flags, length, handle);
+			FileEntry entry = new FileEntry(name, flags, length, dataRef);
 			AddFile(entry);
 			return entry;
-		}
-
-		/// <summary>
-		/// Finds or adds a file with the given path
-		/// </summary>
-		/// <param name="path">Path to the file</param>
-		/// <param name="flags">Flags for the new file</param>
-		/// <param name="handle">The file node</param>
-		/// <param name="length">Length of the node</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>The new directory object</returns>
-		public async ValueTask<FileEntry> AddFileByPathAsync(Utf8String path, FileEntryFlags flags, long length, NodeHandle handle, CancellationToken cancellationToken = default)
-		{
-			DirectoryNode directory = this;
-
-			Utf8String remainingPath = path;
-			if (remainingPath[0] == '/' || remainingPath[0] == '\\')
-			{
-				remainingPath = remainingPath.Substring(1);
-			}
-
-			for (; ; )
-			{
-				int pathLength = 0;
-				for (; ; pathLength++)
-				{
-					if (pathLength == remainingPath.Length)
-					{
-						return directory.AddFile(remainingPath, flags, length, handle);
-					}
-
-					byte character = remainingPath[pathLength];
-					if (character == '\\' || character == '/')
-					{
-						break;
-					}
-				}
-
-				if (pathLength > 0)
-				{
-					directory = await directory.FindOrAddDirectoryAsync(remainingPath.Slice(0, pathLength), cancellationToken);
-				}
-				remainingPath = remainingPath.Slice(pathLength + 1);
-			}
 		}
 
 		/// <summary>
@@ -414,18 +371,6 @@ namespace EpicGames.Horde.Storage.Nodes
 		}
 
 		/// <summary>
-		/// Adds a new directory with the given name
-		/// </summary>
-		/// <param name="name">Name of the new directory</param>
-		/// <returns>The new directory object</returns>
-		public DirectoryNode AddDirectory(Utf8String name)
-		{
-			DirectoryNode node = new DirectoryNode(Flags);
-			AddDirectory(new DirectoryEntry(name, node));
-			return node;
-		}
-
-		/// <summary>
 		/// Get a directory entry with the given name
 		/// </summary>
 		/// <param name="name">Name of the directory</param>
@@ -439,23 +384,6 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="entry">Entry for the directory</param>
 		/// <returns>True if the directory was found</returns>
 		public bool TryGetDirectoryEntry(Utf8String name, [NotNullWhen(true)] out DirectoryEntry? entry) => _nameToDirectoryEntry.TryGetValue(name, out entry);
-
-		/// <summary>
-		/// Attempts to get a directory entry with the given name, and adds one if it does not already exist.
-		/// </summary>
-		/// <param name="name">Name of the directory</param>
-		/// <returns>Directory entry with the given name</returns>
-		public DirectoryEntry FindOrAddDirectoryEntry(Utf8String name)
-		{
-			DirectoryEntry? entry;
-			if (!_nameToDirectoryEntry.TryGetValue(name, out entry))
-			{
-				entry = new DirectoryEntry(name);
-				_nameToDirectoryEntry.Add(name, entry);
-				MarkAsDirty();
-			}
-			return entry;
-		}
 
 		/// <summary>
 		/// Tries to get a directory with the given name
@@ -473,22 +401,6 @@ namespace EpicGames.Horde.Storage.Nodes
 			{
 				return null;
 			}
-		}
-
-		/// <summary>
-		/// Tries to get a directory with the given name
-		/// </summary>
-		/// <param name="name">Name of the new directory</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>The new directory object</returns>
-		public async ValueTask<DirectoryNode> FindOrAddDirectoryAsync(Utf8String name, CancellationToken cancellationToken)
-		{
-			DirectoryNode? directory = await FindDirectoryAsync(name, cancellationToken);
-			if (directory == null)
-			{
-				directory = AddDirectory(name);
-			}
-			return directory;
 		}
 
 		/// <summary>
@@ -562,113 +474,27 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="writer">Writer for new node data</param>
 		/// <param name="progress">Feedback interface for progress updates</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static async Task<DirectoryNode> CreateAsync(DirectoryReference baseDir, IEnumerable<FileReference> files, ChunkingOptions options, IStorageWriter writer, IProgress<ICopyStats>? progress, CancellationToken cancellationToken)
+		public static async Task<DirectoryNode> CreateAsync(DirectoryReference baseDir, IReadOnlyList<FileInfo> files, ChunkingOptions options, IStorageWriter writer, IProgress<ICopyStats>? progress, CancellationToken cancellationToken)
 		{
 			DirectoryNode directoryNode = new DirectoryNode();
-			await directoryNode.CopyFilesAsync(baseDir, files, options, writer, progress, cancellationToken);
+			await directoryNode.AddFilesAsync(baseDir, files, options, writer, progress, cancellationToken);
 			return directoryNode;
 		}
 
-		static List<List<FileContent>> PartitionInputFiles(List<FileContent> sortedFiles, long totalSize)
+		/// <inheritdoc cref="AddFilesAsync(DirectoryReference, IReadOnlyList{FileInfo}, ChunkingOptions, IStorageWriter, IProgress{ICopyStats}?, CancellationToken)"/>
+		public Task AddFilesAsync(DirectoryReference baseDir, IEnumerable<FileReference> files, ChunkingOptions options, IStorageWriter writer, IProgress<ICopyStats>? progress, CancellationToken cancellationToken)
 		{
-			// Maximum number of streams to write in parallel
-			const int MaxWriters = 8;
-
-			// Minimum size of output payload for each writer
-			const long MinSizePerWriter = 1024 * 1024;
-
-			// Calculate the number of writers
-			int numWriters = 1 + (int)Math.Min(totalSize / MinSizePerWriter, MaxWriters);
-
-			// Create the partitions
-			List<List<FileContent>> partitions = new List<List<FileContent>>();
-
-			long writtenSize = 0;
-			long remainingSizeForPartition = 0;
-			foreach (FileContent sortedFile in sortedFiles)
-			{
-				if (sortedFile.Length >= remainingSizeForPartition && partitions.Count < numWriters)
-				{
-					remainingSizeForPartition = (totalSize - writtenSize) / (numWriters - partitions.Count);
-					partitions.Add(new List<FileContent>());
-				}
-
-				partitions[^1].Add(sortedFile);
-				writtenSize += sortedFile.Length;
-
-				remainingSizeForPartition -= sortedFile.Length;
-			}
-
-			return partitions;
+			return AddFilesAsync(baseDir, files.Select(x => x.ToFileInfo()).ToList(), options, writer, progress, cancellationToken);
 		}
 
-		static long GetInputFiles(DirectoryUpdate tree, List<FileContent> files)
+		/// <inheritdoc cref="AddFilesAsync(DirectoryReference, IReadOnlyList{FileInfo}, ChunkingOptions, IStorageWriter, IProgress{ICopyStats}?, CancellationToken)"/>
+		public Task AddFilesAsync(DirectoryInfo baseDir, IEnumerable<FileInfo> files, ChunkingOptions options, IStorageWriter writer, IProgress<ICopyStats>? progress, CancellationToken cancellationToken)
 		{
-			long totalSize = 0;
-			foreach (DirectoryUpdate? directory in tree.Directories.Values)
-			{
-				if (directory != null)
-				{
-					totalSize += GetInputFiles(directory, files);
-				}
-			}
-
-			foreach (FileContent? inputFile in tree.Files.Values)
-			{
-				if (inputFile != null)
-				{
-					totalSize += inputFile.Length;
-					files.Add(inputFile);
-				}
-			}
-			return totalSize;
-		}
-
-		static async ValueTask CreateLeafChunkNodesAsync(IStorageWriter writer, List<FileContent> files, CopyStats? copyStats, ChunkingOptions options, CancellationToken cancellationToken)
-		{
-			await using IStorageWriter writerFork = writer.Fork();
-			foreach (FileContent file in files)
-			{
-				using (Stream stream = file.OpenRead())
-				{
-					file.Handles.Clear();
-					file.Handles.AddRange(await LeafChunkedDataNode.CreateFromStreamAsync(writerFork, stream, options.LeafOptions, cancellationToken));
-				}
-				copyStats?.Update(1, file.Length);
-			}
-			await writerFork.FlushAsync(cancellationToken);
-		}
-
-		async Task CreateDirectoryNodesAsync(DirectoryUpdate tree, IStorageWriter writer, ChunkingOptions options, CancellationToken cancellationToken)
-		{
-			foreach ((string name, DirectoryUpdate? directory) in tree.Directories)
-			{
-				if (directory == null)
-				{
-					_nameToDirectoryEntry.Remove(name);
-				}
-				else
-				{
-					DirectoryNode childNode = await FindOrAddDirectoryAsync(name, cancellationToken);
-					await childNode.CreateDirectoryNodesAsync(directory, writer, options, cancellationToken);
-				}
-			}
-			foreach ((string name, FileContent? file) in tree.Files)
-			{
-				if (file == null)
-				{
-					_nameToFileEntry.Remove(name);
-				}
-				else
-				{
-					FileEntry fileEntry = new FileEntry(name, FileEntryFlags.None, file.Length, file.Handles[0]);
-					_nameToFileEntry[name] = fileEntry;
-				}
-			}
+			return AddFilesAsync(baseDir, files.ToList(), options, writer, progress, cancellationToken);
 		}
 
 		/// <summary>
-		/// Adds files from a flat list of paths
+		/// Adds files from a directory to the storage
 		/// </summary>
 		/// <param name="baseDir">Base directory to base paths relative to</param>
 		/// <param name="files">Files to add</param>
@@ -676,47 +502,150 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="writer">Writer for new node data</param>
 		/// <param name="progress">Feedback interface for progress updates</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public async Task CopyFilesAsync(DirectoryReference baseDir, IEnumerable<FileReference> files, ChunkingOptions options, IStorageWriter writer, IProgress<ICopyStats>? progress, CancellationToken cancellationToken)
+		public async Task AddFilesAsync(DirectoryReference baseDir, IReadOnlyList<FileInfo> files, ChunkingOptions options, IStorageWriter writer, IProgress<ICopyStats>? progress, CancellationToken cancellationToken)
 		{
-			DirectoryUpdate tree = new DirectoryUpdate();
-			tree.AddFiles(baseDir, files.Select(x => x.ToFileInfo()));
-
-			await CopyFilesAsync(tree, options, writer, progress, cancellationToken);
-		}
-
-		/// <summary>
-		/// Adds files from a flat list of paths
-		/// </summary>
-		/// <param name="tree">Files to add</param>
-		/// <param name="options">Options for chunking file content</param>
-		/// <param name="writer">Writer for new node data</param>
-		/// <param name="progress">Feedback interface for progress updates</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		async Task CopyFilesAsync(DirectoryUpdate tree, ChunkingOptions options, IStorageWriter writer, IProgress<ICopyStats>? progress, CancellationToken cancellationToken)
-		{
-			// Create all the leaf chunks
-			List<FileContent> sortedFiles = new List<FileContent>();
-			long totalSize = GetInputFiles(tree, sortedFiles);
-			List<List<FileContent>> filePartitions = PartitionInputFiles(sortedFiles, totalSize);
+			// Get the total size of all the files
+			long totalSize = 0;
+			foreach (FileInfo file in files)
+			{
+				totalSize += file.Length;
+			}
 
 			CopyStats? copyStats = null;
 			if (progress != null)
 			{
-				copyStats = new CopyStats(sortedFiles.Count, totalSize, progress);
+				copyStats = new CopyStats(files.Count, totalSize, progress);
 			}
 
-			await Parallel.ForEachAsync(filePartitions, cancellationToken, (filePartition, ctx) => CreateLeafChunkNodesAsync(writer, filePartition, copyStats, options, ctx));
+			// Partition them into blocks for parallel writers to process asynchronously
+			List<(int Start, int Count)> partitions = ComputePartitions(files, totalSize);
+			List<NodeRef<ChunkedDataNode>>[] leafChunks = new List<NodeRef<ChunkedDataNode>>[files.Count];
+			await Parallel.ForEachAsync(partitions, cancellationToken, (filePartition, ctx) => CreateLeafChunkNodesAsync(writer, files, leafChunks, filePartition.Start, filePartition.Count, copyStats, options, cancellationToken));
 
-			// Create all the interior chunks
-			foreach (FileContent file in sortedFiles)
+			// Create interior nodes for all the leaf chunks
+			NodeRef<ChunkedDataNode>[] chunks = await CreateInteriorChunkNodesAsync(leafChunks, options.InteriorOptions, writer, cancellationToken);
+
+			// Write all the interior nodes and generate the directory update
+			DirectoryUpdate update = new DirectoryUpdate();
+			for(int idx = 0; idx < files.Count; idx++)
 			{
-				NodeHandle handle = await InteriorChunkedDataNode.CreateTreeAsync(file.Handles, options.InteriorOptions, writer, cancellationToken);
-				file.Handles.Clear();
-				file.Handles.Add(handle);
+				FileInfo file = files[idx];
+				FileEntry entry = new FileEntry(file.Name, FileEntryFlags.None, file.Length, chunks[idx]);
+				update.AddFile(new FileReference(file).MakeRelativeTo(baseDir), entry);
 			}
 
-			// Update all the directories
-			await CreateDirectoryNodesAsync(tree, writer, options, cancellationToken);
+			// Add all the new entries to the tree
+			await UpdateAsync(update, writer, cancellationToken);
+		}
+
+		static List<(int Index, int Count)> ComputePartitions(IReadOnlyList<FileInfo> files, long totalSize)
+		{
+			// Maximum number of streams to write in parallel
+			const int MaxPartitions = 8;
+
+			// Minimum size of output payload for each writer
+			const long MinSizePerPartition = 1024 * 1024;
+
+			// Calculate the number of writers
+			int numPartitions = 1 + (int)Math.Min(totalSize / MinSizePerPartition, MaxPartitions);
+
+			// Create the partitions
+			List<(int Index, int Count)> partitions = new List<(int, int)>();
+
+			long writtenSize = 0;
+			long remainingSizeForPartition = 0;
+
+			int startIndex = 0;
+			for (int index = 0; index < files.Count; index++)
+			{
+				FileInfo file = files[index];
+				if (file.Length >= remainingSizeForPartition && partitions.Count < numPartitions)
+				{
+					remainingSizeForPartition = (totalSize - writtenSize) / (numPartitions - partitions.Count);
+					partitions.Add((startIndex, index - startIndex));
+					startIndex = index;
+				}
+
+				writtenSize += file.Length;
+				remainingSizeForPartition -= file.Length;
+			}
+
+			partitions.Add((startIndex, files.Count - startIndex));
+			return partitions;
+		}
+
+		static async ValueTask CreateLeafChunkNodesAsync(IStorageWriter writer, IReadOnlyList<FileInfo> files, List<NodeRef<ChunkedDataNode>>[] leafChunks, int start, int count, CopyStats? copyStats, ChunkingOptions options, CancellationToken cancellationToken)
+		{
+			await using IStorageWriter writerFork = writer.Fork();
+			for (int idx = start; idx < start + count; idx++)
+			{
+				FileInfo file = files[idx];
+				using (Stream stream = file.OpenRead())
+				{
+					leafChunks[idx] = await LeafChunkedDataNode.CreateFromStreamAsync(writerFork, stream, options.LeafOptions, cancellationToken);
+				}
+				copyStats?.Update(1, file.Length);
+			}
+			await writerFork.FlushAsync(cancellationToken);
+		}
+
+		static async Task<NodeRef<ChunkedDataNode>[]> CreateInteriorChunkNodesAsync(List<NodeRef<ChunkedDataNode>>[] chunks, InteriorChunkedDataNodeOptions options, IStorageWriter writer, CancellationToken cancellationToken)
+		{
+			NodeRef<ChunkedDataNode>[] nodes = new NodeRef<ChunkedDataNode>[chunks.Length];
+			for (int idx = 0; idx < chunks.Length; idx++)
+			{
+				nodes[idx] = await InteriorChunkedDataNode.CreateTreeAsync(chunks[idx], options, writer, cancellationToken);
+			}
+			return nodes;
+		}
+
+		/// <summary>
+		/// Updates this tree of directory objects
+		/// </summary>
+		/// <param name="updates">Files to add</param>
+		/// <param name="writer">Writer for new node data</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		public Task UpdateAsync(IEnumerable<FileUpdate> updates, IStorageWriter writer, CancellationToken cancellationToken = default)
+		{
+			DirectoryUpdate update = new DirectoryUpdate();
+			update.AddFiles(updates);
+			return UpdateAsync(update, writer, cancellationToken);
+		}
+
+		/// <summary>
+		/// Updates this tree of directory objects
+		/// </summary>
+		/// <param name="update">Files to add</param>
+		/// <param name="writer">Writer for new node data</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		public async Task UpdateAsync(DirectoryUpdate update, IStorageWriter writer, CancellationToken cancellationToken = default)
+		{
+			foreach ((string name, DirectoryUpdate? directory) in update.Directories)
+			{
+				if (directory == null)
+				{
+					_nameToDirectoryEntry.Remove(name);
+				}
+				else
+				{
+					DirectoryNode? childNode = await FindDirectoryAsync(name, cancellationToken);
+					childNode ??= new DirectoryNode();
+					await childNode.UpdateAsync(directory, writer, cancellationToken);
+					NodeRef<DirectoryNode> nodeRef = await writer.WriteNodeAsync(childNode, cancellationToken);
+					_nameToDirectoryEntry[name] = new DirectoryEntry(name, childNode.Length, nodeRef);
+				}
+			}
+			foreach ((string name, FileEntry? file) in update.Files)
+			{
+				if (file == null)
+				{
+					_nameToFileEntry.Remove(name);
+				}
+				else
+				{
+					_nameToFileEntry[name] = file;
+				}
+			}
 		}
 
 		/// <summary>
@@ -724,46 +653,43 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// </summary>
 		/// <param name="stream">Input stream</param>
 		/// <param name="writer">Writer for new nodes</param>
+		/// <param name="options"></param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public async Task CopyFromZipStreamAsync(Stream stream, IStorageWriter writer, CancellationToken cancellationToken = default)
+		public async Task CopyFromZipStreamAsync(Stream stream, IStorageWriter writer, ChunkingOptions options, CancellationToken cancellationToken = default)
 		{
-			ChunkedDataWriter fileWriter = new ChunkedDataWriter(writer, new ChunkingOptions());
+			// Create all the leaf nodes
+			List<(ZipArchiveEntry, List<NodeRef<ChunkedDataNode>>)> entries = new List<(ZipArchiveEntry, List<NodeRef<ChunkedDataNode>>)>();
 			using (ZipArchive archive = new ZipArchive(stream, ZipArchiveMode.Read, true))
 			{
 				foreach (ZipArchiveEntry entry in archive.Entries)
 				{
 					if (entry.Name.Length > 0)
 					{
-						NodeHandle node;
 						using (Stream entryStream = entry.Open())
 						{
-							node = await fileWriter.CreateAsync(entryStream, cancellationToken);
+							List<NodeRef<ChunkedDataNode>> chunks = await LeafChunkedDataNode.CreateFromStreamAsync(writer, entryStream, options.LeafOptions, cancellationToken);
+							entries.Add((entry, chunks));
 						}
-
-						string fullName = entry.FullName;
-						int slashIdx = fullName.LastIndexOf('/');
-
-						DirectoryNode directory;
-						if (slashIdx == -1)
-						{
-							directory = this;
-						}
-						else
-						{
-							directory = await FindOrAddDirectoryAsync(fullName.Substring(0, slashIdx), cancellationToken);
-						}
-
-						FileEntryFlags flags = FileEntryFlags.None;
-						if ((entry.ExternalAttributes & (0b_001_001_001 << 16)) != 0)
-						{
-							flags |= FileEntryFlags.Executable;
-						}
-
-						FileEntry fileEntry = new FileEntry(entry.Name, flags, fileWriter.Length, node);
-						directory.AddFile(fileEntry);
 					}
 				}
 			}
+
+			// Create all the interior nodes
+			List<FileUpdate> updates = new List<FileUpdate>();
+			foreach ((ZipArchiveEntry entry, List<NodeRef<ChunkedDataNode>> chunks) in entries)
+			{
+				FileEntryFlags flags = FileEntryFlags.None;
+				if ((entry.ExternalAttributes & (0b_001_001_001 << 16)) != 0)
+				{
+					flags |= FileEntryFlags.Executable;
+				}
+
+				NodeRef<ChunkedDataNode> chunk = await InteriorChunkedDataNode.CreateTreeAsync(chunks, options.InteriorOptions, writer, cancellationToken);
+				updates.Add(new FileUpdate(entry.FullName, flags, entry.Length, chunk));
+			}
+
+			// Update the tree
+			await UpdateAsync(updates, writer, cancellationToken);
 		}
 
 		/// <summary>
@@ -776,10 +702,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		public async Task CopyFromDirectoryAsync(DirectoryInfo directoryInfo, ChunkingOptions options, IStorageWriter writer, IProgress<ICopyStats>? progress, CancellationToken cancellationToken = default)
 		{
-			DirectoryUpdate tree = new DirectoryUpdate();
-			tree.AddFiles(directoryInfo);
-
-			await CopyFilesAsync(tree, options, writer, progress, cancellationToken);
+			await AddFilesAsync(new DirectoryReference(directoryInfo), directoryInfo.EnumerateFiles("*", SearchOption.AllDirectories).ToList(), options, writer, progress, cancellationToken);
 		}
 
 		/// <summary>
@@ -819,41 +742,13 @@ namespace EpicGames.Horde.Storage.Nodes
 	}
 
 	/// <summary>
-	/// Information about the content of a file
+	/// Describes an update to a file in a directory tree
 	/// </summary>
-	public abstract class FileContent
-	{
-		internal List<NodeHandle> Handles { get; } = new List<NodeHandle>();
-
-		/// <summary>
-		/// Length of the file
-		/// </summary>
-		public abstract long Length { get; }
-
-		/// <summary>
-		/// Opens the stream for reading
-		/// </summary>
-		public abstract Stream OpenRead();
-	}
-
-	/// <summary>
-	/// Information about the content of a file
-	/// </summary>
-	public class FileInfoFileContent : FileContent
-	{
-		readonly FileInfo _fileInfo;
-
-		/// <inheritdoc/>
-		public override long Length => _fileInfo.Length;
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		public FileInfoFileContent(FileInfo fileInfo) => _fileInfo = fileInfo;
-
-		/// <inheritdoc/>
-		public override Stream OpenRead() => _fileInfo.OpenRead();
-	}
+	/// <param name="Path">Path to the file</param>
+	/// <param name="Length">Length of the file data</param>
+	/// <param name="Flags">Flags for the new file entry</param>
+	/// <param name="DataRef">Reference to the root data node</param>
+	public record class FileUpdate(string Path, FileEntryFlags Flags, long Length, NodeRef<ChunkedDataNode> DataRef);
 
 	/// <summary>
 	/// Describes an update to a directory node
@@ -868,48 +763,91 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Files to be updated
 		/// </summary>
-		public Dictionary<string, FileContent?> Files { get; } = new Dictionary<string, FileContent?>();
+		public Dictionary<string, FileEntry?> Files { get; } = new Dictionary<string, FileEntry?>();
 
 		/// <summary>
-		/// Adds new files from a directory on disk
+		/// Reset this instance
 		/// </summary>
-		/// <param name="directoryInfo"></param>
-		public void AddFiles(DirectoryInfo directoryInfo) => AddFiles(new DirectoryReference(directoryInfo), directoryInfo.EnumerateFiles("*", SearchOption.AllDirectories));
+		public void Clear()
+		{
+			Directories.Clear();
+			Files.Clear();
+		}
+
+		/// <summary>
+		/// Adds a file by path to this object
+		/// </summary>
+		/// <param name="path">Path to add to</param>
+		/// <param name="fileEntry">Content for the file</param>
+		public void AddFile(string path, FileEntry? fileEntry)
+		{
+			string[] fragments = path.Split(new char[] { '/', '\\' });
+
+			DirectoryUpdate lastDir = this;
+			for (int idx = 0; idx < fragments.Length; idx++)
+			{
+				DirectoryUpdate? nextDir;
+				if (!lastDir.Directories.TryGetValue(fragments[idx], out nextDir) || nextDir == null)
+				{
+					if (fileEntry == null)
+					{
+						return;
+					}
+
+					nextDir = new DirectoryUpdate();
+					lastDir.Directories.Add(fragments[idx], nextDir);
+				}
+				lastDir = nextDir;
+			}
+
+			lastDir.Files[fragments[^1]] = fileEntry;
+		}
+
+		/// <summary>
+		/// Adds a file to the tree
+		/// </summary>
+		/// <param name="path">Path to the file</param>
+		/// <param name="flags">Flags for the new file entry</param>
+		/// <param name="length">Length of the file</param>
+		/// <param name="dataRef">Reference to the file data</param>
+		public FileEntry AddFile(string path, FileEntryFlags flags, long length, NodeRef<ChunkedDataNode> dataRef)
+		{
+			int endIdx = path.LastIndexOf(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+			string name = (endIdx == -1) ? path : path.Substring(endIdx + 1);
+
+			FileEntry entry = new FileEntry(name, flags, length, dataRef);
+			AddFile(path, entry);
+			return entry;
+		}
 
 		/// <summary>
 		/// Adds a filtered list of files from disk
 		/// </summary>
-		/// <param name="baseDir">Base directory to root file paths from</param>
 		/// <param name="files">Files to add</param>
-		public void AddFiles(DirectoryReference baseDir, IEnumerable<FileInfo> files)
+		public void AddFiles(IEnumerable<FileUpdate> files)
 		{
-			IEnumerator<FileInfo> enumerator = files.GetEnumerator();
+			IEnumerator<FileUpdate> enumerator = files.GetEnumerator();
 			if (enumerator.MoveNext())
 			{
-				if (AddFiles(baseDir.FullName, enumerator))
-				{
-					throw new ArgumentException($"File {enumerator.Current} is not under {baseDir}", nameof(baseDir));
-				}
+				AddFiles(String.Empty, enumerator);
 			}
 		}
 
-		bool AddFiles(ReadOnlySpan<char> baseDir, IEnumerator<FileInfo> files)
+		bool AddFiles(ReadOnlySpan<char> prefix, IEnumerator<FileUpdate> files)
 		{
 			for (; ; )
 			{
-				FileInfo fileInfo = files.Current;
-
-				int dirNameLength = baseDir.Length;
-				if (fileInfo.FullName.Length < dirNameLength || !fileInfo.FullName.AsSpan().StartsWith(baseDir, FileReference.Comparison) || fileInfo.FullName[dirNameLength] != Path.DirectorySeparatorChar)
+				FileUpdate fileUpdate = files.Current;
+				if (fileUpdate.Path.Length < prefix.Length || !fileUpdate.Path.AsSpan().StartsWith(prefix, FileReference.Comparison))
 				{
 					return true;
 				}
 
-				int nextDirLength = fileInfo.FullName.AsSpan(baseDir.Length + 1).IndexOf(Path.DirectorySeparatorChar);
+				int nextDirLength = fileUpdate.Path.AsSpan(prefix.Length).IndexOfAny(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 				if (nextDirLength == -1)
 				{
-					string fileName = fileInfo.FullName.Substring(dirNameLength + 1);
-					Files[fileName] = new FileInfoFileContent(fileInfo);
+					string fileName = fileUpdate.Path.Substring(prefix.Length);
+					Files[fileName] = new FileEntry(fileName, fileUpdate.Flags, fileUpdate.Length, fileUpdate.DataRef);
 
 					if (!files.MoveNext())
 					{
@@ -918,7 +856,7 @@ namespace EpicGames.Horde.Storage.Nodes
 				}
 				else
 				{
-					string dirName = fileInfo.FullName.Substring(dirNameLength + 1, nextDirLength);
+					string dirName = fileUpdate.Path.Substring(prefix.Length, nextDirLength);
 
 					DirectoryUpdate? nextTree;
 					if (!Directories.TryGetValue(dirName, out nextTree) || nextTree == null)
@@ -927,8 +865,8 @@ namespace EpicGames.Horde.Storage.Nodes
 						Directories[dirName] = nextTree;
 					}
 
-					ReadOnlySpan<char> nextBaseDir = fileInfo.FullName.AsSpan(0, dirNameLength + 1 + nextDirLength);
-					if (!nextTree.AddFiles(nextBaseDir, files))
+					ReadOnlySpan<char> nextPrefix = fileUpdate.Path.AsSpan(0, prefix.Length + nextDirLength + 1);
+					if (!nextTree.AddFiles(nextPrefix, files))
 					{
 						return false;
 					}

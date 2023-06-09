@@ -76,27 +76,27 @@ namespace EpicGames.Horde.Tests
 
 			ChunkedDataWriter fileNodeWriter = new ChunkedDataWriter(writer, options);
 
-			NodeHandle handle;
 			ChunkedDataNode node;
+			NodeRef<ChunkedDataNode> nodeRef;
 			byte[] data = CreateBuffer(1024);
 
-			handle = await fileNodeWriter.CreateAsync(data.AsMemory(0, 7), CancellationToken.None);
-			node = await handle.ReadNodeAsync<ChunkedDataNode>();
+			nodeRef = await fileNodeWriter.CreateAsync(data.AsMemory(0, 7), CancellationToken.None);
+			node = await nodeRef.ExpandAsync();
 			Assert.IsTrue(node is LeafChunkedDataNode);
 			Assert.AreEqual(7, ((LeafChunkedDataNode)node).Data.Length);
-			await TestBufferlessReadsAsync(handle, data.AsMemory(0, 7));
+			await TestBufferlessReadsAsync(nodeRef, data.AsMemory(0, 7));
 
-			handle = await fileNodeWriter.CreateAsync(data.AsMemory(0, 8), CancellationToken.None);
-			node = await handle.ReadNodeAsync<ChunkedDataNode>();
+			nodeRef = await fileNodeWriter.CreateAsync(data.AsMemory(0, 8), CancellationToken.None);
+			node = await nodeRef.ExpandAsync();
 			Assert.IsTrue(node is LeafChunkedDataNode);
 			Assert.AreEqual(8, ((LeafChunkedDataNode)node).Data.Length);
-			await TestBufferlessReadsAsync(handle, data.AsMemory(0, 8));
+			await TestBufferlessReadsAsync(nodeRef, data.AsMemory(0, 8));
 
-			handle = await fileNodeWriter.CreateAsync(data.AsMemory(0, 9), CancellationToken.None);
-			node = await handle.ReadNodeAsync<ChunkedDataNode>();
+			nodeRef = await fileNodeWriter.CreateAsync(data.AsMemory(0, 9), CancellationToken.None);
+			node = await nodeRef.ExpandAsync();
 			Assert.IsTrue(node is InteriorChunkedDataNode);
 			Assert.AreEqual(2, ((InteriorChunkedDataNode)node).Children.Count);
-			await TestBufferlessReadsAsync(handle, data.AsMemory(0, 9));
+			await TestBufferlessReadsAsync(nodeRef, data.AsMemory(0, 9));
 
 			ChunkedDataNode? childNode1 = await ((InteriorChunkedDataNode)node).Children[0].ExpandAsync();
 			Assert.IsNotNull(childNode1);
@@ -108,10 +108,10 @@ namespace EpicGames.Horde.Tests
 			Assert.IsTrue(childNode2 is LeafChunkedDataNode);
 			Assert.AreEqual(1, ((LeafChunkedDataNode)childNode2!).Data.Length);
 
-			handle = await fileNodeWriter.CreateAsync(data, CancellationToken.None);
-			node = await handle.ReadNodeAsync<ChunkedDataNode>();
+			nodeRef = await fileNodeWriter.CreateAsync(data, CancellationToken.None);
+			node = await nodeRef.ExpandAsync();
 			Assert.IsTrue(node is InteriorChunkedDataNode);
-			await TestBufferlessReadsAsync(handle, data);
+			await TestBufferlessReadsAsync(nodeRef, data);
 		}
 
 		private static byte[] CreateBuffer(int length)
@@ -124,10 +124,10 @@ namespace EpicGames.Horde.Tests
 			return output;
 		}
 
-		private static async Task TestBufferlessReadsAsync(NodeHandle handle, ReadOnlyMemory<byte> expected)
+		private static async Task TestBufferlessReadsAsync(NodeRef<ChunkedDataNode> nodeRef, ReadOnlyMemory<byte> expected)
 		{
 			using MemoryStream memoryStream = new MemoryStream();
-			await ChunkedDataNode.CopyToStreamAsync(handle, memoryStream, default);
+			await ChunkedDataNode.CopyToStreamAsync(nodeRef.Handle, memoryStream, default);
 			ReadOnlyMemory<byte> read = memoryStream.ToArray().AsMemory();
 			Assert.IsTrue(read.Span.SequenceEqual(expected.Span));			
 		}
@@ -191,12 +191,25 @@ namespace EpicGames.Horde.Tests
 		{
 			MemoryStorageClient store = _storage;
 
-			DirectoryNode root = new DirectoryNode(DirectoryFlags.None);
-			DirectoryNode node = root.AddDirectory("hello");
-			DirectoryNode node2 = node.AddDirectory("world");
+			NodeRef<DirectoryNode> rootRef;
+			await using (IStorageWriter writer = store.CreateWriter())
+			{
+				DirectoryNode world = new DirectoryNode();
+				NodeRef<DirectoryNode> worldRef = await writer.WriteNodeAsync(world);
+
+				DirectoryNode hello = new DirectoryNode();
+				hello.AddDirectory(new DirectoryEntry("world", 0, worldRef));
+				NodeRef<DirectoryNode> helloRef = await writer.WriteNodeAsync(hello);
+
+				DirectoryNode root = new DirectoryNode();
+				root.AddDirectory(new DirectoryEntry("hello", 0, helloRef));
+				rootRef = await writer.WriteNodeAsync(root);
+
+				await writer.FlushAsync();
+			}
 
 			RefName refName = new RefName("testref");
-			await store.WriteNodeAsync(refName, root);
+			await store.WriteRefTargetAsync(refName, rootRef);
 
 			// Should be stored inline
 			Assert.AreEqual(1, store.Refs.Count);
@@ -228,19 +241,25 @@ namespace EpicGames.Horde.Tests
 		[TestMethod]
 		public async Task DedupTests()
 		{
-			TreeOptions options = new TreeOptions();
-			options.MaxBlobSize = 1;
-
-			DirectoryNode root = new DirectoryNode(DirectoryFlags.None);
-			root.AddDirectory("node1");
-			root.AddDirectory("node2");
-			root.AddDirectory("node3");
-
 			Assert.AreEqual(0, _storage.Refs.Count);
 			Assert.AreEqual(0, _storage.Blobs.Count);
 
-			RefName refName = new RefName("ref");
-			await _storage.WriteNodeAsync(refName, root, options);
+			TreeOptions options = new TreeOptions();
+			options.MaxBlobSize = 1;
+
+			await using (IStorageWriter writer = _storage.CreateWriter())
+			{
+				DirectoryNode root = new DirectoryNode();
+				for (int idx = 1; idx <= 3; idx++)
+				{
+					DirectoryNode node = new DirectoryNode();
+					NodeRef<DirectoryNode> nodeRef = await writer.WriteNodeAsync(node);
+					root.AddDirectory(new DirectoryEntry($"node{idx}", 0, nodeRef));
+				}
+
+				RefName refName = new RefName("ref");
+				await _storage.WriteNodeAsync(refName, root, options);
+			}
 
 			Assert.AreEqual(1, _storage.Refs.Count);
 			Assert.AreEqual(2, _storage.Blobs.Count);
@@ -255,14 +274,17 @@ namespace EpicGames.Horde.Tests
 			RefName refName = new RefName("ref");
 
 			{
-				DirectoryNode root = new DirectoryNode(DirectoryFlags.None);
-
-				DirectoryNode node1 = root.AddDirectory("node1");
-				DirectoryNode node2 = node1.AddDirectory("node2");
-				DirectoryNode node3 = node2.AddDirectory("node3");
-				DirectoryNode node4 = node3.AddDirectory("node4");
-
-				await _storage.WriteNodeAsync(refName, root, options);
+				await using (IStorageWriter writer = _storage.CreateWriter(options: options))
+				{
+					NodeRef<DirectoryNode> rootRef = await writer.WriteNodeAsync(new DirectoryNode());
+					for (int idx = 4; idx >= 1; idx--)
+					{
+						DirectoryNode next = new DirectoryNode();
+						next.AddDirectory(new DirectoryEntry($"node{idx}", 0, rootRef));
+						rootRef = await writer.WriteNodeAsync(next);
+					}
+					await _storage.WriteRefTargetAsync(refName, rootRef);
+				}
 
 				Assert.AreEqual(1, _storage.Refs.Count);
 				Assert.AreEqual(5, _storage.Blobs.Count);

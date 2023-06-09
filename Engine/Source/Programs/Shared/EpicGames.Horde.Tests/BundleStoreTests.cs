@@ -146,13 +146,13 @@ namespace EpicGames.Horde.Tests
 				await using IStorageWriter writer = store.CreateWriter(new RefName("test"), options);
 
 				SimpleNode node1 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 1 }), Array.Empty<NodeRef<SimpleNode>>());
-				SimpleNode node2 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 2 }), new[] { new NodeRef<SimpleNode>(node1) });
-				SimpleNode node3 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 3 }), new[] { new NodeRef<SimpleNode>(node2) });
+				SimpleNode node2 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 2 }), new[] { await writer.WriteNodeAsync(node1) });
+				SimpleNode node3 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 3 }), new[] { await writer.WriteNodeAsync(node2) });
 				SimpleNode node4 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 4 }), Array.Empty<NodeRef<SimpleNode>>());
 
-				SimpleNode root = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 5 }), new[] { new NodeRef<SimpleNode>(node4), new NodeRef<SimpleNode>(node3) });
+				SimpleNode root = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 5 }), new[] { await writer.WriteNodeAsync(node4), await writer.WriteNodeAsync(node3) });
 
-				await writer.WriteAsync(new RefName("test"), root);
+				await store.WriteRefTargetAsync(new RefName("test"), await writer.WriteNodeAsync(root));
 
 				TreeReader reader = new TreeReader(store, null, NullLogger.Instance);
 				await CheckTree(root);
@@ -218,12 +218,23 @@ namespace EpicGames.Horde.Tests
 
 			// Generate a tree
 			{
-				DirectoryNode root = new DirectoryNode(DirectoryFlags.None);
-				DirectoryNode hello = root.AddDirectory("hello");
-				DirectoryNode world = hello.AddDirectory("world");
-				await store.WriteNodeAsync(new RefName("test"), root);
+				await using (IStorageWriter writer = store.CreateWriter(new RefName("test")))
+				{
+					DirectoryNode world = new DirectoryNode();
+					NodeRef<DirectoryNode> worldRef = await writer.WriteNodeAsync(world);
 
-				await CheckDirectoryTreeAsync(root);
+					DirectoryNode hello = new DirectoryNode();
+					hello.AddDirectory(new DirectoryEntry("world", 0, worldRef));
+					NodeRef<DirectoryNode> helloRef = await writer.WriteNodeAsync(hello);
+
+					DirectoryNode root = new DirectoryNode(DirectoryFlags.None);
+					root.AddDirectory(new DirectoryEntry("hello", 0, helloRef));
+					NodeRef<DirectoryNode> rootRef = await writer.WriteNodeAsync(root);
+
+					await writer.FlushAsync();
+
+					await store.WriteRefTargetAsync(new RefName("test"), rootRef);
+				}
 			}
 
 			// Check we can read it back in
@@ -257,14 +268,17 @@ namespace EpicGames.Horde.Tests
 			{
 				await using IStorageWriter writer = store.CreateWriter();
 
-				DirectoryNode root = new DirectoryNode(DirectoryFlags.None);
-				DirectoryNode hello = root.AddDirectory("hello");
-
 				ChunkedDataWriter fileWriter = new ChunkedDataWriter(writer, new ChunkingOptions());
-				NodeHandle fileHandle = await fileWriter.CreateAsync(Encoding.UTF8.GetBytes("world"), CancellationToken.None);
-				hello.AddFile("world", FileEntryFlags.None, fileWriter.Length, fileHandle);
+				NodeRef<ChunkedDataNode> fileHandle = await fileWriter.CreateAsync(Encoding.UTF8.GetBytes("world"), CancellationToken.None);
 
-				await writer.WriteAsync(new RefName("test"), root);
+				List<FileUpdate> fileUpdates = new List<FileUpdate>();
+				fileUpdates.Add(new FileUpdate("hello/world", FileEntryFlags.None, fileWriter.Length, fileHandle));
+
+				DirectoryNode root = new DirectoryNode();
+				await root.UpdateAsync(fileUpdates, writer);
+
+				NodeRef<DirectoryNode> rootRef = await writer.WriteNodeAsync(root);
+				await store.WriteRefTargetAsync(new RefName("test"), rootRef);
 
 				await CheckFileTreeAsync(root);
 			}
@@ -316,8 +330,7 @@ namespace EpicGames.Horde.Tests
 					await fileWriter.AppendAsync(chunk.AsMemory(idx * 16, 16), CancellationToken.None);
 				}
 
-				NodeHandle handle = await fileWriter.FlushAsync(CancellationToken.None);
-				nodeRef = new NodeRef<ChunkedDataNode>(handle);
+				nodeRef = await fileWriter.FlushAsync(CancellationToken.None);
 			}
 
 			// Check we can read it back in
@@ -355,16 +368,17 @@ namespace EpicGames.Horde.Tests
 			{
 				await using IStorageWriter writer = store.CreateWriter(options: new TreeOptions { MaxBlobSize = 1024 });
 
-				root = new DirectoryNode(DirectoryFlags.None);
-
 				ChunkingOptions options = new ChunkingOptions();
 				options.LeafOptions = new LeafChunkedDataNodeOptions(128, 256, 64 * 1024);
 
 				ChunkedDataWriter fileWriter = new ChunkedDataWriter(writer, options);
-				NodeHandle handle = await fileWriter.CreateAsync(data, CancellationToken.None);
-				root.AddFile("test", FileEntryFlags.None, fileWriter.Length, handle);
+				NodeRef<ChunkedDataNode> nodeRef = await fileWriter.CreateAsync(data, CancellationToken.None);
 
-				await writer.WriteAsync(new RefName("test"), root);
+				root = new DirectoryNode(DirectoryFlags.None);
+				root.AddFile("test", FileEntryFlags.None, fileWriter.Length, nodeRef);
+
+				NodeRef<DirectoryNode> rootRef = await writer.WriteNodeAsync(root);
+				await store.WriteRefTargetAsync(new RefName("test"), rootRef);
 
 				await CheckLargeFileTreeAsync(root, data);
 			}

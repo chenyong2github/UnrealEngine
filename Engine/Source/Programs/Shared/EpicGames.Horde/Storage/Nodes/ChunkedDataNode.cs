@@ -148,7 +148,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="options"></param>
 		/// <param name="cancellationToken"></param>
 		/// <returns></returns>
-		public static async Task<List<NodeHandle>> CreateFromFileAsync(IStorageWriter writer, FileReference file, LeafChunkedDataNodeOptions options, CancellationToken cancellationToken)
+		public static async Task<List<NodeRef<ChunkedDataNode>>> CreateFromFileAsync(IStorageWriter writer, FileReference file, LeafChunkedDataNodeOptions options, CancellationToken cancellationToken)
 		{
 			using (FileStream stream = FileReference.Open(file, FileMode.Open, FileAccess.Read, FileShare.Read))
 			{
@@ -164,7 +164,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="options"></param>
 		/// <param name="cancellationToken"></param>
 		/// <returns></returns>
-		public static async Task<List<NodeHandle>> CreateFromFileAsync(IStorageWriter writer, FileInfo file, LeafChunkedDataNodeOptions options, CancellationToken cancellationToken)
+		public static async Task<List<NodeRef<ChunkedDataNode>>> CreateFromFileAsync(IStorageWriter writer, FileInfo file, LeafChunkedDataNodeOptions options, CancellationToken cancellationToken)
 		{
 			using (FileStream stream = file.Open(FileMode.Open, FileAccess.Read, FileShare.Read))
 			{
@@ -180,9 +180,9 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="options"></param>
 		/// <param name="cancellationToken"></param>
 		/// <returns></returns>
-		public static async Task<List<NodeHandle>> CreateFromStreamAsync(IStorageWriter writer, Stream stream, LeafChunkedDataNodeOptions options, CancellationToken cancellationToken)
+		public static async Task<List<NodeRef<ChunkedDataNode>>> CreateFromStreamAsync(IStorageWriter writer, Stream stream, LeafChunkedDataNodeOptions options, CancellationToken cancellationToken)
 		{
-			List<NodeHandle> handles = new List<NodeHandle>();
+			List<NodeRef<ChunkedDataNode>> handles = new List<NodeRef<ChunkedDataNode>>();
 
 			using IMemoryOwner<byte> readBuffer = MemoryPool<byte>.Shared.Rent(options.MaxSize);
 
@@ -201,7 +201,7 @@ namespace EpicGames.Horde.Storage.Nodes
 				readBuffer.Memory.Slice(0, nextLength).CopyTo(outputBuffer);
 
 				NodeHandle handle = await writer.WriteNodeAsync(nextLength, Array.Empty<NodeHandle>(), GetNodeType<LeafChunkedDataNode>(), cancellationToken);
-				handles.Add(handle);
+				handles.Add(new NodeRef<ChunkedDataNode>(handle));
 
 				readBuffer.Memory.Slice(nextLength, size - nextLength).CopyTo(readBuffer.Memory);
 				size -= nextLength;
@@ -334,9 +334,9 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="writer">Output writer for new interior nodes</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Handle to the root node of the tree</returns>
-		public static async Task<NodeHandle> CreateTreeAsync(List<NodeHandle> handles, InteriorChunkedDataNodeOptions options, IStorageWriter writer, CancellationToken cancellationToken)
+		public static async Task<NodeRef<ChunkedDataNode>> CreateTreeAsync(List<NodeRef<ChunkedDataNode>> handles, InteriorChunkedDataNodeOptions options, IStorageWriter writer, CancellationToken cancellationToken)
 		{
-			List<NodeHandle> handleBuffer = new List<NodeHandle>();
+			List<NodeRef<ChunkedDataNode>> handleBuffer = new List<NodeRef<ChunkedDataNode>>();
 
 			List<InteriorChunkedDataNode> interiorNodes = new List<InteriorChunkedDataNode>();
 			while (handles.Count > 1)
@@ -347,7 +347,7 @@ namespace EpicGames.Horde.Storage.Nodes
 				handleBuffer.Clear();
 				foreach (InteriorChunkedDataNode interiorNode in interiorNodes)
 				{
-					NodeHandle handle = await writer.WriteNodeAsync(interiorNode, cancellationToken);
+					NodeRef<ChunkedDataNode> handle = await writer.WriteNodeAsync<ChunkedDataNode>(interiorNode, cancellationToken);
 					handleBuffer.Add(handle);
 				}
 
@@ -360,7 +360,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Split a list of handles into a layer of interior nodes
 		/// </summary>
-		static void CreateTreeLayer(List<NodeHandle> handles, InteriorChunkedDataNodeOptions options, List<InteriorChunkedDataNode> interiorNodes)
+		static void CreateTreeLayer(List<NodeRef<ChunkedDataNode>> handles, InteriorChunkedDataNodeOptions options, List<InteriorChunkedDataNode> interiorNodes)
 		{
 			Span<byte> buffer = stackalloc byte[IoHash.NumBytes];
 
@@ -372,7 +372,7 @@ namespace EpicGames.Horde.Storage.Nodes
 				index = Math.Min(index + options.MinChildCount, handles.Count);
 				for (; index < maxIndex; index++)
 				{
-					handles[index].Hash.CopyTo(buffer);
+					handles[index].Handle.Hash.CopyTo(buffer);
 
 					uint value = BinaryPrimitives.ReadUInt32LittleEndian(buffer);
 					if (value < options.SliceThreshold)

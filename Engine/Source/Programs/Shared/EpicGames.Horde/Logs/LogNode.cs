@@ -39,11 +39,6 @@ namespace EpicGames.Horde.Logs
 	public class LogNode : Node
 	{
 		/// <summary>
-		/// Default value for an empty log file
-		/// </summary>
-		public static LogNode Empty { get; } = new LogNode(LogFormat.Json, 0, 0, Array.Empty<LogChunkRef>(), new NodeRef<LogIndexNode>(LogIndexNode.Empty), false);
-
-		/// <summary>
 		/// Format for this log file
 		/// </summary>
 		public LogFormat Format { get; }
@@ -141,17 +136,17 @@ namespace EpicGames.Horde.Logs
 		/// <summary>
 		/// Number of lines written to the log
 		/// </summary>
-		public int LineCount => _root.LineCount + _textBuilder.LineCount;
+		public int LineCount => FlushedLineCount + _textBuilder.LineCount;
 
 		/// <summary>
 		/// Number of lines flushed to storage
 		/// </summary>
-		public int FlushedLineCount => _root.LineCount;
+		public int FlushedLineCount => _root?.LineCount ?? 0;
 
 		readonly LogFormat _format;
 
 		// Data for the log file which has been flushed to disk so far
-		LogNode _root = LogNode.Empty;
+		LogNode? _root;
 		LogIndexNode _index = LogIndexNode.Empty;
 
 		// Json data read but not flushed
@@ -269,7 +264,7 @@ namespace EpicGames.Horde.Logs
 		/// <param name="writer">Writer for the output nodes</param>
 		/// <param name="complete">Whether the log is complete</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public async Task<NodeHandle> FlushAsync(IStorageWriter writer, bool complete, CancellationToken cancellationToken)
+		public async Task<NodeRef<LogNode>> FlushAsync(IStorageWriter writer, bool complete, CancellationToken cancellationToken)
 		{
 			// Capture the new data that needs to be written
 			IReadOnlyList<LogChunkNode> writeTextChunks;
@@ -285,21 +280,24 @@ namespace EpicGames.Horde.Logs
 			}
 
 			// Flush any complete chunks to storage
-			LogIndexNode newIndex = _index.Append(writeIndexTextChunks);
+			LogIndexNode newIndex = await _index.AppendAsync(writer, writeIndexTextChunks, cancellationToken);
+			NodeRef<LogIndexNode> newIndexRef = await writer.WriteNodeAsync(newIndex, cancellationToken);
 
-			List<LogChunkRef> newJsonChunkRefs = new List<LogChunkRef>(_root.TextChunkRefs);
-			int lineCount = _root.LineCount;
-			long length = _root.Length;
+			List<LogChunkRef> newJsonChunkRefs = new List<LogChunkRef>(_root?.TextChunkRefs ?? Array.Empty<LogChunkRef>());
+			int lineCount = _root?.LineCount ?? 0;
+			long length = _root?.Length ?? 0;
 			foreach (LogChunkNode writeTextChunk in writeTextChunks)
 			{
-				newJsonChunkRefs.Add(new LogChunkRef(lineCount, length, writeTextChunk));
+				NodeRef<LogChunkNode> writeTextChunkRef = await writer.WriteNodeAsync(writeTextChunk, cancellationToken);
+				newJsonChunkRefs.Add(new LogChunkRef(lineCount, writeTextChunk.LineCount, length, writeTextChunk.Length, writeTextChunkRef));
 				lineCount += writeTextChunk.LineCount;
 				length += writeTextChunk.Length;
 			}
 
-			LogNode newRoot = new LogNode(_format, lineCount, length, newJsonChunkRefs, new NodeRef<LogIndexNode>(newIndex), complete);
+			LogNode newRoot = new LogNode(_format, lineCount, length, newJsonChunkRefs, newIndexRef, complete);
+			NodeRef<LogNode> newRootRef = await writer.WriteNodeAsync(newRoot, cancellationToken);
 
-			NodeHandle newRootHandle = await writer.FlushAsync(newRoot, cancellationToken);
+			await writer.FlushAsync(cancellationToken);
 
 			// Update the new state
 			lock (_lockObject)
@@ -310,7 +308,7 @@ namespace EpicGames.Horde.Logs
 				_indexTextBuilder.Remove(writeIndexTextChunks.Count);
 			}
 
-			return newRootHandle;
+			return newRootRef;
 		}
 	}
 

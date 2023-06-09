@@ -418,102 +418,6 @@ namespace EpicGames.Horde.Storage
 		}
 
 		/// <summary>
-		/// Read an untyped ref from the reader
-		/// </summary>
-		/// <param name="reader">Reader to deserialize from</param>
-		/// <returns>New untyped ref</returns>
-		public static NodeRef ReadNodeRef(this NodeReader reader)
-		{
-			return new NodeRef(reader);
-		}
-
-		/// <summary>
-		/// Read a strongly typed ref from the reader
-		/// </summary>
-		/// <typeparam name="T">Type of the referenced node</typeparam>
-		/// <param name="reader">Reader to deserialize from</param>
-		/// <returns>New strongly typed ref</returns>
-		public static NodeRef<T> ReadNodeRef<T>(this NodeReader reader) where T : Node
-		{
-			return new NodeRef<T>(reader);
-		}
-
-		/// <summary>
-		/// Read an optional untyped ref from the reader
-		/// </summary>
-		/// <param name="reader">Reader to deserialize from</param>
-		/// <returns>New untyped ref</returns>
-		public static NodeRef? ReadOptionalNodeRef(this NodeReader reader)
-		{
-			if (reader.ReadBoolean())
-			{
-				return reader.ReadNodeRef();
-			}
-			else
-			{
-				return null;
-			}
-		}
-
-		/// <summary>
-		/// Read an optional strongly typed ref from the reader
-		/// </summary>
-		/// <param name="reader">Reader to deserialize from</param>
-		/// <returns>New strongly typed ref</returns>
-		public static NodeRef<T>? ReadOptionalNodeRef<T>(this NodeReader reader) where T : Node
-		{
-			if (reader.ReadBoolean())
-			{
-				return reader.ReadNodeRef<T>();
-			}
-			else
-			{
-				return null;
-			}
-		}
-
-		/// <summary>
-		/// Writes a ref to storage
-		/// </summary>
-		/// <param name="writer">Writer to serialize to</param>
-		/// <param name="value">Value to write</param>
-		public static void WriteNodeRef(this NodeWriter writer, NodeRef value)
-		{
-			value.Serialize(writer);
-		}
-
-		/// <summary>
-		/// Writes an optional ref value to storage
-		/// </summary>
-		/// <param name="writer">Writer to serialize to</param>
-		/// <param name="value">Value to write</param>
-		public static void WriteOptionalNodeRef(this NodeWriter writer, NodeRef? value)
-		{
-			if (value == null)
-			{
-				writer.WriteBoolean(false);
-			}
-			else
-			{
-				writer.WriteBoolean(true);
-				writer.WriteNodeRef(value);
-			}
-		}
-
-		/// <summary>
-		/// Serializes a single node
-		/// </summary>
-		/// <param name="writer">Writer for the node data</param>
-		/// <param name="node">The node to write</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>Handle to the written node</returns>
-		public static async Task<NodeHandle> WriteNodeAsync(this IStorageWriter writer, Node node, CancellationToken cancellationToken = default)
-		{
-			NodeRef nodeRef = new NodeRef(node);
-			return await writer.WriteAsync(nodeRef, cancellationToken);
-		}
-
-		/// <summary>
 		/// Writes a node to storage
 		/// </summary>
 		/// <param name="store">Store instance to write to</param>
@@ -526,7 +430,9 @@ namespace EpicGames.Horde.Storage
 		public static async Task<NodeHandle> WriteNodeAsync(this IStorageClient store, RefName name, Node node, TreeOptions? options = null, RefOptions? refOptions = null, CancellationToken cancellationToken = default)
 		{
 			await using IStorageWriter writer = store.CreateWriter(name, options);
-			return await writer.WriteAsync(name, node, refOptions, cancellationToken);
+			NodeRef<Node> nodeRef = await writer.WriteNodeAsync(node, cancellationToken);
+			await store.WriteRefTargetAsync(name, nodeRef.Handle, refOptions, cancellationToken);
+			return nodeRef.Handle;
 		}
 
 		/// <summary>

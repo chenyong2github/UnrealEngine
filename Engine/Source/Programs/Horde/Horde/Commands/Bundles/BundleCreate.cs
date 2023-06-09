@@ -69,18 +69,21 @@ namespace Horde.Commands.Bundles
 			await using (IStorageWriter writer = store.CreateWriter())
 			{
 				ChunkingOptions options = new ChunkingOptions();
-				DirectoryNode node = await DirectoryNode.CreateAsync(baseDir, files, options, writer, null, CancellationToken.None);
 
-				NodeHandle handle = await writer.FlushAsync(node);
+				DirectoryNode node = await DirectoryNode.CreateAsync(baseDir, files.ConvertAll(x => x.ToFileInfo()), options, writer, null, CancellationToken.None);
+				NodeRef<DirectoryNode> nodeRef = await writer.WriteNodeAsync(node, CancellationToken.None);
+
+				await writer.FlushAsync();
+
 				if (File != null)
 				{
 					logger.LogInformation("Writing {File}", File);
-					await FileReference.WriteAllTextAsync(File, handle.ToString());
+					await FileReference.WriteAllTextAsync(File, nodeRef.Handle.ToString());
 				}
 				else
 				{
 					logger.LogInformation("Writing ref {Ref}", Ref);
-					await store.WriteRefTargetAsync(new RefName(Ref!), handle);
+					await store.WriteRefTargetAsync(new RefName(Ref!), nodeRef.Handle);
 				}
 			}
 

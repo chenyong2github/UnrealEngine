@@ -526,7 +526,7 @@ namespace Horde.Server.Logs
 
 						// Get the chunk data
 						LogChunkRef chunk = _rootNode.TextChunkRefs[_chunkIdx];
-						LogChunkNode chunkNode = await chunk.ExpandCopyAsync(cancellationToken);
+						LogChunkNode chunkNode = await chunk.ExpandAsync(cancellationToken);
 
 						// Get the source data
 						_sourceBuffer = chunkNode.Data;

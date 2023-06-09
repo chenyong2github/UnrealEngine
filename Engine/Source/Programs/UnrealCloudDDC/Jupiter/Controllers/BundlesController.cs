@@ -474,7 +474,7 @@ namespace Jupiter.Controllers
                         List<object> directories = new List<object>();
                         foreach ((Utf8String name, DirectoryEntry entry) in directoryNode.NameToDirectory)
                         {
-                            directories.Add(new { name = name.ToString(), length = entry.Length, hash = entry.Hash, link = Url.Action("GetNode", new { namespaceId = namespaceId, locator = entry.Handle!.GetLocator().Blob, export = entry.Handle!.GetLocator().ExportIdx})! });
+                            directories.Add(new { name = name.ToString(), length = entry.Length, hash = entry.Handle.Hash, link = Url.Action("GetNode", new { namespaceId = namespaceId, locator = entry.Handle!.GetLocator().Blob, export = entry.Handle!.GetLocator().ExportIdx})! });
                         }
 
                         List<object> files = new List<object>();

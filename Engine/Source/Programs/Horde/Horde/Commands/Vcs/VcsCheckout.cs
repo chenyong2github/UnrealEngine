@@ -114,7 +114,7 @@ namespace Horde.Commands.Vcs
 				}
 			}
 
-			newState.Hash = directoryRef.Hash;
+			newState.Hash = directoryRef.Handle.Hash;
 			return newState;
 		}
 

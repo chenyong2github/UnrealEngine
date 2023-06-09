@@ -1,10 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using EpicGames.Core;
 
 namespace EpicGames.Horde.Storage.Nodes
@@ -17,35 +12,24 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Length of this directory tree
 		/// </summary>
-		public long Length => (Target == null) ? _cachedLength : Target.Length;
-
-		/// <summary>
-		/// Hash of the target node
-		/// </summary>
-		public IoHash Hash { get; private set; }
-
-		/// <summary>
-		/// Cached value for the length of this tree
-		/// </summary>
-		long _cachedLength;
+		public long Length { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public DirectoryNodeRef(DirectoryNode node)
-			: base(node)
+		public DirectoryNodeRef(long length, NodeRef<DirectoryNode> nodeRef)
+			: base(nodeRef.Handle)
 		{
+			Length = length;
 		}
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="reader"></param>
 		public DirectoryNodeRef(NodeReader reader)
 			: base(reader)
 		{
-			_cachedLength = (long)reader.ReadUnsignedVarInt();
-			Hash = reader.ReadIoHash();
+			Length = (long)reader.ReadUnsignedVarInt();
 		}
 
 		/// <summary>
@@ -57,16 +41,6 @@ namespace EpicGames.Horde.Storage.Nodes
 			base.Serialize(writer);
 
 			writer.WriteUnsignedVarInt((ulong)Length);
-			writer.WriteIoHash(Hash);
-		}
-
-		/// <inheritdoc/>
-		protected override void OnCollapse()
-		{
-			base.OnCollapse();
-
-			Hash = Target!.Hash;
-			_cachedLength = Target!.Length;
 		}
 	}
 }

@@ -42,7 +42,7 @@ namespace Horde.Server.Perforce
 		{
 			public int Change { get; }
 			public int ParentChange { get; }
-			public NodeRef<DirectoryNode> Contents { get; }
+			public NodeRef<DirectoryNode> Contents { get; set; }
 			public List<Utf8String> Paths { get; }
 
 			public SyncNode(int number, int parentNumber, NodeRef<DirectoryNode> contents)
@@ -107,7 +107,7 @@ namespace Horde.Server.Perforce
 			}
 		}
 
-		record class FileInfo(Utf8String Path, FileEntryFlags Flags, long Length, byte[] Md5, NodeHandle Node);
+		record class FileInfo(Utf8String Path, FileEntryFlags Flags, long Length, byte[] Md5, NodeRef<ChunkedDataNode> NodeRef);
 
 		class FileWriter : IDisposable
 		{
@@ -183,9 +183,9 @@ namespace Horde.Server.Perforce
 					throw new ReplicationException($"Invalid size for replicated file '{handle._path}'. Expected {handle._size}, got {handle._sizeWritten}.");
 				}
 
-				NodeHandle node = await handle._fileWriter.FlushAsync(cancellationToken);
+				NodeRef<ChunkedDataNode> nodeRef = await handle._fileWriter.FlushAsync(cancellationToken);
 				byte[] hash = handle._hash.GetHashAndReset();
-				FileInfo info = new FileInfo(handle._path, handle._flags, handle._size, hash, node);
+				FileInfo info = new FileInfo(handle._path, handle._flags, handle._size, hash, nodeRef);
 
 				_openHandles.Remove(fd);
 				_freeHandles.Push(handle);
@@ -259,8 +259,19 @@ namespace Horde.Server.Perforce
 
 			// Find the parent node
 			RefName refName = GetRefName(streamConfig.Id);
-			CommitNode? parent = await FindParentAsync(store, refName, change, cancellationToken);
-			NodeRef<CommitNode>? parentRef = (parent == null) ? null : new NodeRef<CommitNode>(parent);
+
+			CommitNode? parent = null;
+			NodeRef<CommitNode>? parentRef = await store.TryReadRefTargetAsync<CommitNode>(refName, cancellationToken: cancellationToken);
+			while (parentRef != null)
+			{
+				parent = await parentRef.ExpandAsync(cancellationToken);
+				if (parent.Number < change)
+				{
+					break;
+				}
+				parentRef = parent.Parent;
+			}
+
 			int parentChange = parent?.Number ?? 0;
 
 			// Read the current incremental state or create a new node to track the incremental state
@@ -268,9 +279,26 @@ namespace Horde.Server.Perforce
 			SyncNode? syncNode = await store.TryReadNodeAsync<SyncNode>(incRefName, cancellationToken: cancellationToken);
 			if (syncNode == null || syncNode.Change != change || syncNode.ParentChange != parentChange)
 			{
-				syncNode = new SyncNode(change, parentChange, parent?.Contents ?? new NodeRef<DirectoryNode>(new DirectoryNode()));
+				if (parent == null)
+				{
+					syncNode = new SyncNode(change, parentChange, null!);
+				}
+				else
+				{
+					syncNode = new SyncNode(change, parentChange, parent.Contents);
+				}
 			}
-			DirectoryNode root = await syncNode.Contents.ExpandAsync(cancellationToken);
+
+			// Get the root node
+			DirectoryNode root;
+			if (syncNode.Contents != null)
+			{
+				root = await syncNode.Contents.ExpandAsync(cancellationToken);
+			}
+			else
+			{
+				root = new DirectoryNode();
+			}
 
 			// Create a client to replicate from this stream
 			ReplicationClient clientInfo = await FindOrAddReplicationClientAsync(streamConfig);
@@ -336,6 +364,9 @@ namespace Horde.Server.Perforce
 			// Create the tree writer
 			await using IStorageWriter writer = store.CreateWriter(refName, options.TreeOptions);
 
+			// Keep track of changes to make to the directory structure
+			DirectoryUpdate rootUpdate = new DirectoryUpdate();
+
 			// Sync incrementally
 			long syncedSize = 0;
 			while (directories.Count > 0)
@@ -344,7 +375,13 @@ namespace Horde.Server.Perforce
 				if (syncedSize > 0)
 				{
 					Stopwatch flushTimer = Stopwatch.StartNew();
-					await writer.WriteAsync(incRefName, syncNode, cancellationToken: cancellationToken);
+
+					await root.UpdateAsync(rootUpdate, writer, cancellationToken);
+					syncNode.Contents = await writer.WriteNodeAsync(root, cancellationToken);
+					NodeRef<SyncNode> syncNodeRef = await writer.WriteNodeAsync(syncNode, cancellationToken);
+					await store.WriteRefTargetAsync(incRefName, syncNodeRef, cancellationToken: cancellationToken);
+					rootUpdate.Clear();
+
 					flushTimer.Stop();
 				}
 
@@ -454,9 +491,8 @@ namespace Horde.Server.Perforce
 						else if (io.Command == PerforceIoCommand.Close)
 						{
 							FileInfo info = await fileWriter.CloseAsync(io.File, cancellationToken);
-							FileEntry entry = await root.AddFileByPathAsync(info.Path, info.Flags, info.Length, info.Node, cancellationToken);
+							FileEntry entry = rootUpdate.AddFile(info.Path.ToString(), info.Flags, info.Length, info.NodeRef);
 							entry.CustomData = info.Md5;
-							await writer.WriteAsync(entry, cancellationToken);
 						}
 						else if (io.Command == PerforceIoCommand.Unlink)
 						{
@@ -510,21 +546,9 @@ namespace Horde.Server.Perforce
 
 			// Create the commit node
 			ChangeRecord changeRecord = await perforce.GetChangeAsync(GetChangeOptions.None, change, cancellationToken);
-			CommitNode commitNode = new CommitNode(change, parentRef, changeRecord.User ?? "Unknown", changeRecord.Description ?? String.Empty, changeRecord.Date, new DirectoryNodeRef(root));
-			await writer.WriteAsync(refName, commitNode, options.RefOptions, cancellationToken); 
-		}
-
-		static async Task<CommitNode?> FindParentAsync(IStorageClient storageClient, RefName refName, int change, CancellationToken cancellationToken)
-		{
-			CommitNode? commitNode = await storageClient.TryReadNodeAsync<CommitNode>(refName, cancellationToken: cancellationToken);
-			if (commitNode != null)
-			{
-				while (commitNode.Parent != null && commitNode.Number >= change)
-				{
-					commitNode = await commitNode.Parent.ExpandAsync(cancellationToken);
-				}
-			}
-			return commitNode;
+			DirectoryNodeRef rootRef = new DirectoryNodeRef(root.Length, await writer.WriteNodeAsync(root, cancellationToken));
+			CommitNode commitNode = new CommitNode(change, parentRef, changeRecord.User ?? "Unknown", changeRecord.Description ?? String.Empty, changeRecord.Date, rootRef);
+			await store.WriteNodeAsync(refName, commitNode, refOptions: options.RefOptions, cancellationToken: cancellationToken); 
 		}
 
 		static int GetFileOffset(Utf8String path)

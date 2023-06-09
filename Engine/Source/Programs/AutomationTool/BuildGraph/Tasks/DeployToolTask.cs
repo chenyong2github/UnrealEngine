@@ -157,7 +157,7 @@ namespace AutomationTool.Tasks
 				if (Parameters.File != null)
 				{
 					using FileStream stream = FileReference.Open(ResolveFile(Parameters.File), FileMode.Open, FileAccess.Read);
-					await sandbox.CopyFromZipStreamAsync(stream, treeWriter);
+					await sandbox.CopyFromZipStreamAsync(stream, treeWriter, new ChunkingOptions());
 				}
 				else if (Parameters.Directory != null)
 				{

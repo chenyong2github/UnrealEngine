@@ -53,8 +53,8 @@ namespace Horde.Commands.Vcs
 
 			IStorageClient store = await GetStorageClientAsync();
 
-			CommitNode? tip = await store.TryReadNodeAsync<CommitNode>(workspaceState.Branch);
-			NodeRef<CommitNode>? tipRef = (tip == null) ? null : new NodeRef<CommitNode>(tip);
+			NodeRef<CommitNode>? tipRef = await store.TryReadRefTargetAsync<CommitNode>(workspaceState.Branch);
+			CommitNode? tip = (tipRef == null)? null : await tipRef.ExpandAsync();
 
 			DirectoryNode rootNode;
 			if (tip == null)
@@ -63,17 +63,19 @@ namespace Horde.Commands.Vcs
 			}
 			else
 			{
-				rootNode = await tip.Contents.ExpandCopyAsync();
+				rootNode = await tip.Contents.ExpandAsync();
 			}
 
-			DirectoryNodeRef rootRef = new DirectoryNodeRef(rootNode);
+//			DirectoryNodeRef rootRef = new DirectoryNodeRef(rootNode);
 
 			List<(DirectoryNode, FileInfo, FileState)> files = new List<(DirectoryNode, FileInfo, FileState)>();
 			List<(DirectoryNodeRef, DirectoryState)> directories = new List<(DirectoryNodeRef, DirectoryState)>();
 			await UpdateTreeAsync(rootRef, rootDir, oldState, newState, files, directories);
 
-			using IStorageWriter writer = store.CreateWriter();
+			await using IStorageWriter writer = store.CreateWriter();
 			await DirectoryNode.CopyFromDirectoryAsync(files.ConvertAll(x => (x.Item1, x.Item2)), new ChunkingOptions(), writer, null, CancellationToken.None);
+
+			DirectoryNodeRef rootRef = new DirectoryNodeRef(rootNode.Length, await writer.WriteNodeAsync(rootNode));
 
 			CommitNode newTip;
 			if (tip == null)
@@ -88,7 +90,7 @@ namespace Horde.Commands.Vcs
 
 			foreach ((DirectoryNodeRef directoryRef, DirectoryState directoryState) in directories)
 			{
-				directoryState.Hash = directoryRef.Hash;
+				directoryState.Hash = directoryRef.Handle.Hash;
 			}
 
 			foreach ((DirectoryNode directoryNode, FileInfo fileInfo, FileState fileState) in files)
@@ -104,7 +106,7 @@ namespace Horde.Commands.Vcs
 			logger.LogInformation("Commited in change {Number}", newTip.Number);
 			return 0;*/
 		}
-
+		/*
 		private async Task UpdateTreeAsync(DirectoryNodeRef rootRef, DirectoryReference rootDir, DirectoryState? oldState, DirectoryState newState, List<(DirectoryNode, FileInfo, FileState)> files, List<(DirectoryNodeRef, DirectoryState)> directories)
 		{
 			directories.Add((rootRef, newState));
@@ -133,6 +135,6 @@ namespace Horde.Commands.Vcs
 					files.Add((root, FileReference.Combine(rootDir, name.ToString()).ToFileInfo(), newFileState));
 				}
 			}
-		}
+		}*/
 	}
 }

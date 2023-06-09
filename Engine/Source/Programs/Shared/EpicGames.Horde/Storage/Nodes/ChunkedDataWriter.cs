@@ -71,7 +71,7 @@ namespace EpicGames.Horde.Storage.Nodes
 
 		// Tree state
 		long _totalLength;
-		readonly List<NodeHandle> _leafHandles = new List<NodeHandle>();
+		readonly List<NodeRef<ChunkedDataNode>> _leafHandles = new List<NodeRef<ChunkedDataNode>>();
 
 		// Leaf node state
 		uint _leafHash;
@@ -117,7 +117,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// </summary>
 		/// <param name="fileInfo">File to append</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public async Task<NodeHandle> CreateAsync(FileInfo fileInfo, CancellationToken cancellationToken)
+		public async Task<NodeRef<ChunkedDataNode>> CreateAsync(FileInfo fileInfo, CancellationToken cancellationToken)
 		{
 			return await CreateAsync(fileInfo, DefaultBufferLength, cancellationToken);
 		}
@@ -128,7 +128,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="fileInfo">File to append</param>
 		/// <param name="bufferLength">Size of the read buffer</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public async Task<NodeHandle> CreateAsync(FileInfo fileInfo, int bufferLength, CancellationToken cancellationToken)
+		public async Task<NodeRef<ChunkedDataNode>> CreateAsync(FileInfo fileInfo, int bufferLength, CancellationToken cancellationToken)
 		{
 			using (FileStream stream = fileInfo.OpenRead())
 			{
@@ -141,7 +141,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// </summary>
 		/// <param name="stream">Stream to append</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public async Task<NodeHandle> CreateAsync(Stream stream, CancellationToken cancellationToken)
+		public async Task<NodeRef<ChunkedDataNode>> CreateAsync(Stream stream, CancellationToken cancellationToken)
 		{
 			return await CreateAsync(stream, DefaultBufferLength, cancellationToken);
 		}
@@ -152,7 +152,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="stream">Stream to append</param>
 		/// <param name="bufferLength">Size of the read buffer</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public async Task<NodeHandle> CreateAsync(Stream stream, int bufferLength, CancellationToken cancellationToken)
+		public async Task<NodeRef<ChunkedDataNode>> CreateAsync(Stream stream, int bufferLength, CancellationToken cancellationToken)
 		{
 			Reset();
 			await AppendAsync(stream, bufferLength, cancellationToken);
@@ -164,7 +164,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// </summary>
 		/// <param name="data">Stream to append</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public async Task<NodeHandle> CreateAsync(ReadOnlyMemory<byte> data, CancellationToken cancellationToken)
+		public async Task<NodeRef<ChunkedDataNode>> CreateAsync(ReadOnlyMemory<byte> data, CancellationToken cancellationToken)
 		{
 			Reset();
 			await AppendAsync(data, cancellationToken);
@@ -303,10 +303,10 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// </summary>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Handle to the root node</returns>
-		public async Task<NodeHandle> CompleteAsync(CancellationToken cancellationToken)
+		public async Task<NodeRef<ChunkedDataNode>> CompleteAsync(CancellationToken cancellationToken)
 		{
 			await FlushLeafNodeAsync(cancellationToken);
-			NodeHandle rootHandle = await InteriorChunkedDataNode.CreateTreeAsync(_leafHandles, _options.InteriorOptions, _writer, cancellationToken);
+			NodeRef<ChunkedDataNode> rootHandle = await InteriorChunkedDataNode.CreateTreeAsync(_leafHandles, _options.InteriorOptions, _writer, cancellationToken);
 			return rootHandle;
 		}
 
@@ -315,9 +315,9 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// </summary>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Handle to the root FileNode</returns>
-		public async Task<NodeHandle> FlushAsync(CancellationToken cancellationToken)
+		public async Task<NodeRef<ChunkedDataNode>> FlushAsync(CancellationToken cancellationToken)
 		{
-			NodeHandle handle = await CompleteAsync(cancellationToken);
+			NodeRef<ChunkedDataNode> handle = await CompleteAsync(cancellationToken);
 			await _writer.FlushAsync(cancellationToken);
 			return handle;
 		}
@@ -330,7 +330,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		async ValueTask FlushLeafNodeAsync(CancellationToken cancellationToken)
 		{
 			NodeHandle handle = await _writer.WriteNodeAsync(_leafLength, Array.Empty<NodeHandle>(), s_leafNodeType, cancellationToken);
-			_leafHandles.Add(handle);
+			_leafHandles.Add(new NodeRef<ChunkedDataNode>(handle));
 			ResetLeafState();
 		}
 	}

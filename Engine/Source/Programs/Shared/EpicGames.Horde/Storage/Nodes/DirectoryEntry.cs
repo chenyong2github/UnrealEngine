@@ -17,16 +17,8 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public DirectoryEntry(Utf8String name)
-			: this(name, new DirectoryNode())
-		{
-		}
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		public DirectoryEntry(Utf8String name, DirectoryNode node)
-			: base(node)
+		public DirectoryEntry(Utf8String name, long length, NodeRef<DirectoryNode> nodeRef)
+			: base(length, nodeRef)
 		{
 			Name = name;
 		}

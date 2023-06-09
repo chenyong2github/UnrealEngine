@@ -85,7 +85,7 @@ namespace Horde.Server.Artifacts
 		public long Length => _entry.Length;
 
 		/// <inheritdoc cref="FileEntry.Hash"/>
-		public IoHash Hash => _entry.Hash;
+		public IoHash Hash => _entry.Handle.Hash;
 
 		internal GetArtifactDirectoryEntryResponse(DirectoryEntry entry) => _entry = entry;
 	}
