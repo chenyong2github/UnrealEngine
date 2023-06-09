@@ -52,8 +52,9 @@ public:
 	ENiagaraSystemSpawnSectionEndBehavior GetSectionEndBehavior() const;
 
 	NIAGARA_API ENiagaraAgeUpdateMode GetAgeUpdateMode() const;
+	NIAGARA_API void SetAgeUpdateMode(ENiagaraAgeUpdateMode NewMode);
 
-	bool GetAllowScalability()const;
+	bool GetAllowScalability() const;
 
 private:
 	/** Specifies what should happen to the niagara system from before the section evaluates up until the first frame of the section. */

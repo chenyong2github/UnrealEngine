@@ -35,6 +35,11 @@ ENiagaraAgeUpdateMode UMovieSceneNiagaraSystemSpawnSection::GetAgeUpdateMode() c
 	return AgeUpdateMode;
 }
 
+void UMovieSceneNiagaraSystemSpawnSection::SetAgeUpdateMode(ENiagaraAgeUpdateMode NewMode)
+{
+	AgeUpdateMode = NewMode;
+}
+
 bool UMovieSceneNiagaraSystemSpawnSection::GetAllowScalability()const
 {
 	return bAllowScalability;
