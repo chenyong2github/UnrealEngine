@@ -11,19 +11,19 @@
 /** 
  * Sound node that contains a reference to the raw wave file to be played
  */
-UCLASS(abstract)
-class ENGINE_API USoundNodeAssetReferencer : public USoundNode
+UCLASS(abstract, MinimalAPI)
+class USoundNodeAssetReferencer : public USoundNode
 {
 	GENERATED_BODY()
 
 public:
-	virtual void LoadAsset(bool bAddToRoot = false) PURE_VIRTUAL(USoundNodeAssetReferencer::LoadAsset,);
-	virtual void ClearAssetReferences() PURE_VIRTUAL(USoundNodeAssetReferencer::ClearAssetReferences, );
+	ENGINE_API virtual void LoadAsset(bool bAddToRoot = false) PURE_VIRTUAL(USoundNodeAssetReferencer::LoadAsset,);
+	ENGINE_API virtual void ClearAssetReferences() PURE_VIRTUAL(USoundNodeAssetReferencer::ClearAssetReferences, );
 
-	bool ShouldHardReferenceAsset(const class ITargetPlatform*) const;
+	ENGINE_API bool ShouldHardReferenceAsset(const class ITargetPlatform*) const;
 
 #if WITH_EDITOR
-	virtual void PostEditImport() override;
+	ENGINE_API virtual void PostEditImport() override;
 #endif
 };
 

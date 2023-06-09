@@ -12,20 +12,20 @@
  * Each AActor is affected at any time by one PhysicsVolume.
  */
 
-UCLASS()
-class ENGINE_API APhysicsVolume : public AVolume
+UCLASS(MinimalAPI)
+class APhysicsVolume : public AVolume
 {
 	GENERATED_UCLASS_BODY()
 
 	//~ Begin UObject Interface.
 #if WITH_EDITOR
-	virtual void LoadedFromAnotherClass(const FName& OldClassName) override;
+	ENGINE_API virtual void LoadedFromAnotherClass(const FName& OldClassName) override;
 #endif // WITH_EDITOR	
 	//~ End UObject Interface.
 
-	virtual void PostInitializeComponents() override;
-	virtual void Destroyed() override;
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	ENGINE_API virtual void PostInitializeComponents() override;
+	ENGINE_API virtual void Destroyed() override;
+	ENGINE_API virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	//~======================================================================================
 	// Character Movement related properties
@@ -55,14 +55,14 @@ class ENGINE_API APhysicsVolume : public AVolume
 
 public:
 	/** @Returns the Z component of the current world gravity. */
-	virtual float GetGravityZ() const;
+	ENGINE_API virtual float GetGravityZ() const;
 	
 	// Called when actor enters a volume
-	virtual void ActorEnteredVolume(class AActor* Other);
+	ENGINE_API virtual void ActorEnteredVolume(class AActor* Other);
 	
 	// Called when actor leaves a volume, Other can be NULL
-	virtual void ActorLeavingVolume(class AActor* Other);
+	ENGINE_API virtual void ActorLeavingVolume(class AActor* Other);
 
 	/** Given a known overlap with the given component, validate that it meets the rules imposed by bPhysicsOnContact. */
-	virtual bool IsOverlapInVolume(const class USceneComponent& TestComponent) const;
+	ENGINE_API virtual bool IsOverlapInVolume(const class USceneComponent& TestComponent) const;
 };

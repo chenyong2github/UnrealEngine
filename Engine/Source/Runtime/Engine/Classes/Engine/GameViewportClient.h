@@ -64,16 +64,16 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnInputKeySignature, const FInputKeyEventAr
  *
  * @see UGameViewportClient
  */
-UCLASS(Within=Engine, transient, config=Engine)
-class ENGINE_API UGameViewportClient : public UScriptViewportClient, public FExec
+UCLASS(Within=Engine, transient, config=Engine, MinimalAPI)
+class UGameViewportClient : public UScriptViewportClient, public FExec
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 	/** DO NOT USE. This constructor is for internal usage only for hot-reload purposes. */
-	UGameViewportClient(FVTableHelper& Helper);
+	ENGINE_API UGameViewportClient(FVTableHelper& Helper);
 
-	virtual ~UGameViewportClient();
+	ENGINE_API virtual ~UGameViewportClient();
 
 	/** The viewport's console.   Might be null on consoles */
 	UPROPERTY()
@@ -131,75 +131,75 @@ public:
 
 	/** Rotates controller ids among gameplayers, useful for testing splitscreen with only one controller. */
 	UFUNCTION(exec)
-	virtual void SSSwapControllers();
+	ENGINE_API virtual void SSSwapControllers();
 
 	/** Exec for toggling the display of the title safe area
 	  * @deprecated Use the cvar "r.DebugSafeZone.Mode=1".
 	  */
 	UFUNCTION(exec, meta = (DeprecatedFunction, DeprecationMessage = "Use the cvar \"r.DebugSafeZone.Mode=1.\""))
-	virtual void ShowTitleSafeArea();
+	ENGINE_API virtual void ShowTitleSafeArea();
 
 	/** Sets the player which console commands will be executed in the context of. */
 	UFUNCTION(exec)
-	virtual void SetConsoleTarget(int32 PlayerIndex);
+	ENGINE_API virtual void SetConsoleTarget(int32 PlayerIndex);
 
 	/** Sets the widget to use fore the cursor. */
-	void AddCursorWidget(EMouseCursor::Type Cursor, class UUserWidget* CursorWidget);
+	ENGINE_API void AddCursorWidget(EMouseCursor::Type Cursor, class UUserWidget* CursorWidget);
 
 	/** Returns a relative world context for this viewport.	 */
-	virtual UWorld* GetWorld() const override;
+	ENGINE_API virtual UWorld* GetWorld() const override;
 
 	/* Create the game viewport */
-	virtual FSceneViewport* CreateGameViewport(TSharedPtr<SViewport> InViewportWidget);
+	ENGINE_API virtual FSceneViewport* CreateGameViewport(TSharedPtr<SViewport> InViewportWidget);
 
 	/* Returns the game viewport */
-	FSceneViewport* GetGameViewport();
-	const FSceneViewport* GetGameViewport() const;
+	ENGINE_API FSceneViewport* GetGameViewport();
+	ENGINE_API const FSceneViewport* GetGameViewport() const;
 
 	/* Returns the widget for this viewport */
-	TSharedPtr<SViewport> GetGameViewportWidget() const;
+	ENGINE_API TSharedPtr<SViewport> GetGameViewportWidget() const;
 
 	/* Returns the relevant game instance for this viewport */
-	UGameInstance* GetGameInstance() const;
+	ENGINE_API UGameInstance* GetGameInstance() const;
 
-	virtual void Init(struct FWorldContext& WorldContext, UGameInstance* OwningGameInstance, bool bCreateNewAudioDevice = true);
+	ENGINE_API virtual void Init(struct FWorldContext& WorldContext, UGameInstance* OwningGameInstance, bool bCreateNewAudioDevice = true);
 
 public:
 	//~ Begin UObject Interface
-	virtual void PostInitProperties() override;
-	virtual void BeginDestroy() override;
+	ENGINE_API virtual void PostInitProperties() override;
+	ENGINE_API virtual void BeginDestroy() override;
 	//~ End UObject Interface
 
 	//~ Begin FViewportClient Interface.
 	virtual void RedrawRequested(FViewport* InViewport) override {}
-	virtual bool InputKey(const FInputKeyEventArgs& EventArgs) override;
+	ENGINE_API virtual bool InputKey(const FInputKeyEventArgs& EventArgs) override;
 	
 	UE_DEPRECATED(5.1, "This version of InputAxis has been deprecated. Please use the version that takes an FInputDeviceId instead")
-	virtual bool InputAxis(FViewport* Viewport, int32 ControllerId, FKey Key, float Delta, float DeltaTime, int32 NumSamples=1, bool bGamepad=false) override;
-	virtual bool InputAxis(FViewport* Viewport, FInputDeviceId InputDevice, FKey Key, float Delta, float DeltaTime, int32 NumSamples = 1, bool bGamepad = false) override;
+	ENGINE_API virtual bool InputAxis(FViewport* Viewport, int32 ControllerId, FKey Key, float Delta, float DeltaTime, int32 NumSamples=1, bool bGamepad=false) override;
+	ENGINE_API virtual bool InputAxis(FViewport* Viewport, FInputDeviceId InputDevice, FKey Key, float Delta, float DeltaTime, int32 NumSamples = 1, bool bGamepad = false) override;
 	
-	virtual bool InputChar(FViewport* Viewport,int32 ControllerId, TCHAR Character) override;
-	virtual bool InputTouch(FViewport* Viewport, int32 ControllerId, uint32 Handle, ETouchType::Type Type, const FVector2D& TouchLocation, float Force, FDateTime DeviceTimestamp, uint32 TouchpadIndex) override;
-	virtual bool InputMotion(FViewport* Viewport, int32 ControllerId, const FVector& Tilt, const FVector& RotationRate, const FVector& Gravity, const FVector& Acceleration) override;
-	virtual EMouseCursor::Type GetCursor(FViewport* Viewport, int32 X, int32 Y ) override;
-	virtual TOptional<TSharedRef<SWidget>> MapCursor(FViewport* Viewport, const FCursorReply& CursorReply) override;
-	virtual void Precache() override;
-	virtual void Draw(FViewport* Viewport,FCanvas* SceneCanvas) override;
-	virtual bool ProcessScreenShots(FViewport* Viewport) override;
-	virtual TOptional<bool> QueryShowFocus(const EFocusCause InFocusCause) const override;
-	virtual void LostFocus(FViewport* Viewport) override;
-	virtual void ReceivedFocus(FViewport* Viewport) override;
-	virtual bool IsFocused(FViewport* Viewport) override;
-	virtual void Activated(FViewport* InViewport, const FWindowActivateEvent& InActivateEvent) override;
-	virtual void Deactivated(FViewport* InViewport, const FWindowActivateEvent& InActivateEvent) override;
-	virtual bool IsInPermanentCapture() override;
-	virtual bool WindowCloseRequested() override;
-	virtual void CloseRequested(FViewport* Viewport) override;
+	ENGINE_API virtual bool InputChar(FViewport* Viewport,int32 ControllerId, TCHAR Character) override;
+	ENGINE_API virtual bool InputTouch(FViewport* Viewport, int32 ControllerId, uint32 Handle, ETouchType::Type Type, const FVector2D& TouchLocation, float Force, FDateTime DeviceTimestamp, uint32 TouchpadIndex) override;
+	ENGINE_API virtual bool InputMotion(FViewport* Viewport, int32 ControllerId, const FVector& Tilt, const FVector& RotationRate, const FVector& Gravity, const FVector& Acceleration) override;
+	ENGINE_API virtual EMouseCursor::Type GetCursor(FViewport* Viewport, int32 X, int32 Y ) override;
+	ENGINE_API virtual TOptional<TSharedRef<SWidget>> MapCursor(FViewport* Viewport, const FCursorReply& CursorReply) override;
+	ENGINE_API virtual void Precache() override;
+	ENGINE_API virtual void Draw(FViewport* Viewport,FCanvas* SceneCanvas) override;
+	ENGINE_API virtual bool ProcessScreenShots(FViewport* Viewport) override;
+	ENGINE_API virtual TOptional<bool> QueryShowFocus(const EFocusCause InFocusCause) const override;
+	ENGINE_API virtual void LostFocus(FViewport* Viewport) override;
+	ENGINE_API virtual void ReceivedFocus(FViewport* Viewport) override;
+	ENGINE_API virtual bool IsFocused(FViewport* Viewport) override;
+	ENGINE_API virtual void Activated(FViewport* InViewport, const FWindowActivateEvent& InActivateEvent) override;
+	ENGINE_API virtual void Deactivated(FViewport* InViewport, const FWindowActivateEvent& InActivateEvent) override;
+	ENGINE_API virtual bool IsInPermanentCapture() override;
+	ENGINE_API virtual bool WindowCloseRequested() override;
+	ENGINE_API virtual void CloseRequested(FViewport* Viewport) override;
 	virtual bool RequiresHitProxyStorage() override { return 0; }
-	virtual bool IsOrtho() const override;
-	virtual void MouseEnter(FViewport* Viewport, int32 x, int32 y) override;
-	virtual void MouseLeave(FViewport* Viewport) override;
-	virtual void SetIsSimulateInEditorViewport(bool bInIsSimulateInEditorViewport) override;
+	ENGINE_API virtual bool IsOrtho() const override;
+	ENGINE_API virtual void MouseEnter(FViewport* Viewport, int32 x, int32 y) override;
+	ENGINE_API virtual void MouseLeave(FViewport* Viewport) override;
+	ENGINE_API virtual void SetIsSimulateInEditorViewport(bool bInIsSimulateInEditorViewport) override;
 
 	//~ End FViewportClient Interface.
 
@@ -209,50 +209,50 @@ public:
 
 	//~ Begin FExec Interface.
 #if UE_ALLOW_EXEC_COMMANDS
-	virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd,FOutputDevice& Ar) override;
+	ENGINE_API virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd,FOutputDevice& Ar) override;
 #endif
 protected:
-	virtual bool Exec_Runtime( UWorld* InWorld, const TCHAR* Cmd,FOutputDevice& Ar) override;
+	ENGINE_API virtual bool Exec_Runtime( UWorld* InWorld, const TCHAR* Cmd,FOutputDevice& Ar) override;
 	//~ End FExec Interface.
 
 public:
 	/**
 	 * Gives the game's custom viewport client a way to handle F11 or Alt+Enter before processing the input
 	 */
-	bool TryToggleFullscreenOnInputKey(FKey Key, EInputEvent EventType);
+	ENGINE_API bool TryToggleFullscreenOnInputKey(FKey Key, EInputEvent EventType);
 
 	/** Function that handles remapping controller information for cases like PIE */
-	virtual void RemapControllerInput(FInputKeyEventArgs& InOutKeyEvent);
+	ENGINE_API virtual void RemapControllerInput(FInputKeyEventArgs& InOutKeyEvent);
 
 	/**
 	 * Exec command handlers
 	 */
-	bool HandleForceFullscreenCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleShowCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );
-	bool HandleShowLayerCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );
-	bool HandleViewModeCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );
-	bool HandleNextViewModeCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );
-	bool HandlePrevViewModeCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );
-	bool HandlePreCacheCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleToggleFullscreenCommand();
-	bool HandleSetResCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleHighresScreenshotCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleHighresScreenshotUICommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleScreenshotCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleBugScreenshotwithHUDInfoCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleBugScreenshotCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleKillParticlesCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleForceSkelLODCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );
-	bool HandleDisplayCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleDisplayAllCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleDisplayAllLocationCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleDisplayAllRotationCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleDisplayClearCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleGetAllLocationCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleGetAllRotationCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleTextureDefragCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleToggleMIPFadeCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandlePauseRenderClockCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleForceFullscreenCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleShowCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );
+	ENGINE_API bool HandleShowLayerCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );
+	ENGINE_API bool HandleViewModeCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );
+	ENGINE_API bool HandleNextViewModeCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );
+	ENGINE_API bool HandlePrevViewModeCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );
+	ENGINE_API bool HandlePreCacheCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleToggleFullscreenCommand();
+	ENGINE_API bool HandleSetResCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleHighresScreenshotCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleHighresScreenshotUICommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleScreenshotCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleBugScreenshotwithHUDInfoCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleBugScreenshotCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleKillParticlesCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleForceSkelLODCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );
+	ENGINE_API bool HandleDisplayCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleDisplayAllCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleDisplayAllLocationCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleDisplayAllRotationCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleDisplayClearCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleGetAllLocationCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleGetAllRotationCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleTextureDefragCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleToggleMIPFadeCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandlePauseRenderClockCommand( const TCHAR* Cmd, FOutputDevice& Ar );
 
 	/**
 	 * Adds a widget to the Slate viewport's overlay (i.e for in game UI or tools) at the specified Z-order
@@ -260,14 +260,14 @@ public:
 	 * @param  ViewportContent	The widget to add.  Must be valid.
 	 * @param  ZOrder  The Z-order index for this widget.  Larger values will cause the widget to appear on top of widgets with lower values.
 	 */
-	virtual void AddViewportWidgetContent( TSharedRef<class SWidget> ViewportContent, const int32 ZOrder = 0 );
+	ENGINE_API virtual void AddViewportWidgetContent( TSharedRef<class SWidget> ViewportContent, const int32 ZOrder = 0 );
 
 	/**
 	 * Removes a previously-added widget from the Slate viewport
 	 *
 	 * @param	ViewportContent  The widget to remove.  Must be valid.
 	 */
-	virtual void RemoveViewportWidgetContent( TSharedRef<class SWidget> ViewportContent );
+	ENGINE_API virtual void RemoveViewportWidgetContent( TSharedRef<class SWidget> ViewportContent );
 
 	/**
 	 * Adds a widget to the Slate viewport's overlay (i.e for in game UI or tools) at the specified Z-order.
@@ -277,7 +277,7 @@ public:
 	 * @param  ViewportContent	The widget to add.  Must be valid.
 	 * @param  ZOrder  The Z-order index for this widget.  Larger values will cause the widget to appear on top of widgets with lower values.
 	 */
-	virtual void AddViewportWidgetForPlayer(ULocalPlayer* Player, TSharedRef<SWidget> ViewportContent, const int32 ZOrder);
+	ENGINE_API virtual void AddViewportWidgetForPlayer(ULocalPlayer* Player, TSharedRef<SWidget> ViewportContent, const int32 ZOrder);
 
 	/**
 	 * Removes a previously-added widget from the Slate viewport, in the player's section.
@@ -285,12 +285,12 @@ public:
 	 * @param	Player The player to remove the widget's viewport from. Null will remove the widget regardless of which player it was added for.
 	 * @param	ViewportContent  The widget to remove.  Must be valid.
 	 */
-	virtual void RemoveViewportWidgetForPlayer(ULocalPlayer* Player, TSharedRef<SWidget> ViewportContent);
+	ENGINE_API virtual void RemoveViewportWidgetForPlayer(ULocalPlayer* Player, TSharedRef<SWidget> ViewportContent);
 
 	/**
 	 * This function removes all widgets from the viewport overlay
 	 */
-	void RemoveAllViewportWidgets();
+	ENGINE_API void RemoveAllViewportWidgets();
 
 	/**
 	 * Adds a widget to the Slate viewport's game overlay (i.e for top-level debug tools) at the specified Z-order.
@@ -298,55 +298,55 @@ public:
 	 * @param  ViewportContent	The widget to add.  Must be valid.
 	 * @param  ZOrder  The Z-order index for this widget.  Larger values will cause the widget to appear on top of widgets with lower values.
 	 */
-	virtual void AddGameLayerWidget(TSharedRef<SWidget> ViewportContent, const int32 ZOrder);
+	ENGINE_API virtual void AddGameLayerWidget(TSharedRef<SWidget> ViewportContent, const int32 ZOrder);
 
 	/**
 	 * Removes a previously-added widget from the Slate viewport's game overlay.
 	 *
 	 * @param	ViewportContent  The widget to remove.  Must be valid.
 	 */
-	virtual void RemoveGameLayerWidget(TSharedRef<SWidget> ViewportContent);
+	ENGINE_API virtual void RemoveGameLayerWidget(TSharedRef<SWidget> ViewportContent);
 
 	/**
 	 * Recreates cursor widgets from UISettings class.
 	 */
-	void RebuildCursors();
+	ENGINE_API void RebuildCursors();
 
 	/**
 	 * Cleans up all rooted or referenced objects created or managed by the GameViewportClient.  This method is called
 	 * when this GameViewportClient has been disassociated with the game engine (i.e. is no longer the engine's GameViewport).
 	 */
-	virtual void DetachViewportClient();
+	ENGINE_API virtual void DetachViewportClient();
 
 	/**
 	 * Called every frame to allow the game viewport to update time based state.
 	 * @param	DeltaTime	The time since the last call to Tick.
 	 */
-	virtual void Tick( float DeltaTime );
+	ENGINE_API virtual void Tick( float DeltaTime );
 
 	/**
 	 * Determines whether this viewport client should receive calls to InputAxis() if the game's window is not currently capturing the mouse.
 	 * Used by the UI system to easily receive calls to InputAxis while the viewport's mouse capture is disabled.
 	 */
-	virtual bool RequiresUncapturedAxisInput() const override;
+	ENGINE_API virtual bool RequiresUncapturedAxisInput() const override;
 
 	/**
 	 * Set this GameViewportClient's viewport and viewport frame to the viewport specified
 	 * @param	InViewportFrame	The viewportframe to set
 	 */
-	virtual void SetViewportFrame( FViewportFrame* InViewportFrame );
+	ENGINE_API virtual void SetViewportFrame( FViewportFrame* InViewportFrame );
 
 	/**
 	 * Set this GameViewportClient's viewport to the viewport specified
 	 * @param	InViewportFrame	The viewport to set
 	 */
-	virtual void SetViewport( FViewport* InViewportFrame );
+	ENGINE_API virtual void SetViewport( FViewport* InViewportFrame );
 
 	/** Assigns the viewport overlay widget to use for this viewport client.  Should only be called when first created */
-	void SetViewportOverlayWidget(TSharedPtr< SWindow > InWindow, TSharedRef<SOverlay> InViewportOverlayWidget);
+	ENGINE_API void SetViewportOverlayWidget(TSharedPtr< SWindow > InWindow, TSharedRef<SOverlay> InViewportOverlayWidget);
 
 	/** Assigns the viewport game layer manager for this viewport client.  Should only be called when first created. */
-	void SetGameLayerManager(TSharedPtr< IGameLayerManager > LayerManager);
+	ENGINE_API void SetGameLayerManager(TSharedPtr< IGameLayerManager > LayerManager);
 
 	/**
 	 * Gets the layer manager for the UI.
@@ -368,44 +368,44 @@ public:
 	 * @param DeltaSeconds - amount of time passed since last tick
 	 * @see UWorld
 	 */
-	virtual void SetDropDetail(float DeltaSeconds);
+	ENGINE_API virtual void SetDropDetail(float DeltaSeconds);
 
 	/**
 	 * Process Console Command
 	 *
 	 * @param	Command		command to process
 	 */
-	virtual FString ConsoleCommand( const FString& Command );
+	ENGINE_API virtual FString ConsoleCommand( const FString& Command );
 
 	/**
 	 * Retrieve the size of the main viewport.
 	 *
 	 * @param	out_ViewportSize	[out] will be filled in with the size of the main viewport
 	 */
-	void GetViewportSize( FVector2D& ViewportSize ) const;
+	ENGINE_API void GetViewportSize( FVector2D& ViewportSize ) const;
 
 	/** @return Whether or not the main viewport is fullscreen or windowed. */
-	bool IsFullScreenViewport() const;
+	ENGINE_API bool IsFullScreenViewport() const;
 
 	/** @return If we're specifically in fullscreen mode, not windowed fullscreen. */
-	bool IsExclusiveFullscreenViewport() const;
+	ENGINE_API bool IsExclusiveFullscreenViewport() const;
 
 	/** @return mouse position in game viewport coordinates (does not account for splitscreen) */
-	virtual bool GetMousePosition(FVector2D& MousePosition) const;
+	ENGINE_API virtual bool GetMousePosition(FVector2D& MousePosition) const;
 
 	/**
 	 * Determine whether a fullscreen viewport should be used in cases where there are multiple players.
 	 *
 	 * @return	true to use a fullscreen viewport; false to allow each player to have their own area of the viewport.
 	 */
-	bool ShouldForceFullscreenViewport() const;
+	ENGINE_API bool ShouldForceFullscreenViewport() const;
 
 	/**
 	 * Initialize the game viewport.
 	 * @param OutError - If an error occurs, returns the error description.
 	 * @return False if an error occurred, true if the viewport was initialized successfully.
 	 */
-	virtual ULocalPlayer* SetupInitialLocalPlayer(FString& OutError);
+	ENGINE_API virtual ULocalPlayer* SetupInitialLocalPlayer(FString& OutError);
 
 	/** @return Returns the splitscreen type that is currently being used */
 	FORCEINLINE ESplitScreenType::Type GetCurrentSplitscreenConfiguration() const
@@ -417,13 +417,13 @@ public:
 	 * Sets the value of ActiveSplitscreenConfiguration based on the desired split-screen layout type, current number of players, and any other
 	 * factors that might affect the way the screen should be laid out.
 	 */
-	virtual void UpdateActiveSplitscreenType();
+	ENGINE_API virtual void UpdateActiveSplitscreenType();
 
 	/** Called before rendering to allow the game viewport to allocate subregions to players. */
-	virtual void LayoutPlayers();
+	ENGINE_API virtual void LayoutPlayers();
 
 	/** Allows game code to disable splitscreen (useful when in menus) */
-	void SetForceDisableSplitscreen(const bool bDisabled);
+	ENGINE_API void SetForceDisableSplitscreen(const bool bDisabled);
 
 	/** Determines whether splitscreen is forced to be turned off */
 	bool IsSplitscreenForceDisabled() const
@@ -449,48 +449,48 @@ public:
 	 * @param Min top left bounds of subtitle region (0 to 1)
 	 * @param Max bottom right bounds of subtitle region (0 to 1)
 	 */
-	virtual void GetSubtitleRegion(FVector2D& MinPos, FVector2D& MaxPos);
+	ENGINE_API virtual void GetSubtitleRegion(FVector2D& MinPos, FVector2D& MaxPos);
 
 	/**
 	* Convert a LocalPlayer to it's index in the GamePlayer array
 	* @param LPlayer Player to get the index of
 	* @returns -1 if the index could not be found.
 	*/
-	int32 ConvertLocalPlayerToGamePlayerIndex( ULocalPlayer* LPlayer );
+	ENGINE_API int32 ConvertLocalPlayerToGamePlayerIndex( ULocalPlayer* LPlayer );
 
 	/** Whether the player at LocalPlayerIndex's viewport has a "top of viewport" safezone or not. */
-	bool HasTopSafeZone( int32 LocalPlayerIndex );
+	ENGINE_API bool HasTopSafeZone( int32 LocalPlayerIndex );
 
 	/** Whether the player at LocalPlayerIndex's viewport has a "bottom of viewport" safezone or not.*/
-	bool HasBottomSafeZone( int32 LocalPlayerIndex );
+	ENGINE_API bool HasBottomSafeZone( int32 LocalPlayerIndex );
 
 	/** Whether the player at LocalPlayerIndex's viewport has a "left of viewport" safezone or not. */
-	bool HasLeftSafeZone( int32 LocalPlayerIndex );
+	ENGINE_API bool HasLeftSafeZone( int32 LocalPlayerIndex );
 
 	/** Whether the player at LocalPlayerIndex's viewport has a "right of viewport" safezone or not. */
-	bool HasRightSafeZone( int32 LocalPlayerIndex );
+	ENGINE_API bool HasRightSafeZone( int32 LocalPlayerIndex );
 
 	/**
 	* Get the total pixel size of the screen.
 	* This is different from the pixel size of the viewport since we could be in splitscreen
 	*/
-	void GetPixelSizeOfScreen( float& Width, float& Height, UCanvas* Canvas, int32 LocalPlayerIndex );
+	ENGINE_API void GetPixelSizeOfScreen( float& Width, float& Height, UCanvas* Canvas, int32 LocalPlayerIndex );
 
 	/** Calculate the amount of safezone needed for a single side for both vertical and horizontal dimensions*/
-	void CalculateSafeZoneValues( FMargin& SafeZone, UCanvas* Canvas, int32 LocalPlayerIndex, bool bUseMaxPercent );
+	ENGINE_API void CalculateSafeZoneValues( FMargin& SafeZone, UCanvas* Canvas, int32 LocalPlayerIndex, bool bUseMaxPercent );
 
 	/**
 	* pixel size of the deadzone for all sides (right/left/top/bottom) based on which local player it is
 	* @return true if the safe zone exists
 	*/
-	bool CalculateDeadZoneForAllSides( ULocalPlayer* LPlayer, UCanvas* Canvas, float& fTopSafeZone, float& fBottomSafeZone, float& fLeftSafeZone, float& fRightSafeZone, bool bUseMaxPercent = false );
+	ENGINE_API bool CalculateDeadZoneForAllSides( ULocalPlayer* LPlayer, UCanvas* Canvas, float& fTopSafeZone, float& fBottomSafeZone, float& fLeftSafeZone, float& fRightSafeZone, bool bUseMaxPercent = false );
 
 	/**  
 	 * Draws the safe area using the current r.DebugSafeZone.Mode=1 when there is not a valid PlayerController HUD.
 	 * 
 	 * @param Canvas	Canvas on which to draw
 	 */
-	virtual void DrawTitleSafeArea( UCanvas* Canvas );
+	ENGINE_API virtual void DrawTitleSafeArea( UCanvas* Canvas );
 
 	/**
 	 * Called after rendering the player views and HUDs to render menus, the console, etc.
@@ -498,14 +498,14 @@ public:
 	 *
 	 * @param Canvas	The canvas to use for rendering.
 	 */
-	virtual void PostRender( UCanvas* Canvas );
+	ENGINE_API virtual void PostRender( UCanvas* Canvas );
 
 	/**
 	 * Displays the transition screen.
 	 *
 	 * @param Canvas	The canvas to use for rendering.
 	 */
-	virtual void DrawTransition( UCanvas* Canvas );
+	ENGINE_API virtual void DrawTransition( UCanvas* Canvas );
 
 	/** 
 	 * Print a centered transition message with a drop shadow. 
@@ -513,7 +513,7 @@ public:
 	 * @param Canvas	The canvas to use for rendering.
 	 * @param Message	Transition message
 	 */
-	virtual void DrawTransitionMessage( UCanvas* Canvas, const FString& Message );
+	ENGINE_API virtual void DrawTransitionMessage( UCanvas* Canvas, const FString& Message );
 
 	/**
 	 * Notifies all interactions that a new player has been added to the list of active players.
@@ -521,7 +521,7 @@ public:
 	 * @param	PlayerIndex		the index [into the GamePlayers array] where the player was inserted
 	 * @param	AddedPlayer		the player that was added
 	 */
-	virtual void NotifyPlayerAdded( int32 PlayerIndex, class ULocalPlayer* AddedPlayer );
+	ENGINE_API virtual void NotifyPlayerAdded( int32 PlayerIndex, class ULocalPlayer* AddedPlayer );
 
 	/**
 	 * Notifies all interactions that a new player has been added to the list of active players.
@@ -529,7 +529,7 @@ public:
 	 * @param	PlayerIndex		the index [into the GamePlayers array] where the player was located
 	 * @param	RemovedPlayer	the player that was removed
 	 */
-	virtual void NotifyPlayerRemoved( int32 PlayerIndex, class ULocalPlayer* RemovedPlayer );
+	ENGINE_API virtual void NotifyPlayerRemoved( int32 PlayerIndex, class ULocalPlayer* RemovedPlayer );
 
 	/**
 	 * Notification of server travel error messages, generally network connection related (package verification, client server handshaking, etc) 
@@ -538,7 +538,7 @@ public:
 	 * @param	FailureType	the type of error
 	 * @param	ErrorString	additional string detailing the error
 	 */
-	virtual void PeekTravelFailureMessages(UWorld* InWorld, enum ETravelFailure::Type FailureType, const FString& ErrorString);
+	ENGINE_API virtual void PeekTravelFailureMessages(UWorld* InWorld, enum ETravelFailure::Type FailureType, const FString& ErrorString);
 
 	/**
 	 * Notification of network error messages
@@ -549,10 +549,10 @@ public:
 	 * @param	FailureType	the type of error
 	 * @param	ErrorString	additional string detailing the error
 	 */
-	virtual void PeekNetworkFailureMessages(UWorld *InWorld, UNetDriver *NetDriver, enum ENetworkFailure::Type FailureType, const FString& ErrorString);
+	ENGINE_API virtual void PeekNetworkFailureMessages(UWorld *InWorld, UNetDriver *NetDriver, enum ENetworkFailure::Type FailureType, const FString& ErrorString);
 
 	/** Make sure all navigation objects have appropriate path rendering components set.  Called when EngineShowFlags.Navigation is set. */
-	virtual void VerifyPathRenderingComponents();
+	ENGINE_API virtual void VerifyPathRenderingComponents();
 
 	/** Accessor for delegate called when a screenshot is captured */
 	static FOnScreenshotCaptured& OnScreenshotCaptured()
@@ -656,17 +656,17 @@ public:
 		return &EngineShowFlags; 
 	}
 
-	bool SetHardwareCursor(EMouseCursor::Type CursorShape, FName GameContentPath, FVector2D HotSpot);
+	ENGINE_API bool SetHardwareCursor(EMouseCursor::Type CursorShape, FName GameContentPath, FVector2D HotSpot);
 
 	/** 
 	 * @return @true if this viewport is currently being used for simulate in editors
 	 */
-	bool IsSimulateInEditorViewport() const;
+	ENGINE_API bool IsSimulateInEditorViewport() const;
 
 	/** FViewport interface */
 	virtual bool ShouldDPIScaleSceneCanvas() const override { return false; }
 
-	bool GetUseMouseForTouch() const;
+	ENGINE_API bool GetUseMouseForTouch() const;
 
 protected:
 	void SetCurrentBufferVisualizationMode(FName NewBufferVisualizationMode) { CurrentBufferVisualizationMode = NewBufferVisualizationMode; }
@@ -690,11 +690,11 @@ protected:
 	bool HasAudioFocus() const { return bHasAudioFocus; }
 
 	/** Updates CSVProfiler camera stats */
-	void UpdateCsvCameraStats(const TMap<ULocalPlayer*, FSceneView*>& PlayerViewMap);
+	ENGINE_API void UpdateCsvCameraStats(const TMap<ULocalPlayer*, FSceneView*>& PlayerViewMap);
 
 protected:
 	/** FCommonViewportClient interface */
-	virtual float UpdateViewportClientWindowDPIScale() const override;
+	ENGINE_API virtual float UpdateViewportClientWindowDPIScale() const override;
 
 public:
 	/** The show flags used by the viewport's players. */
@@ -745,7 +745,7 @@ public:
 	 *
 	 * @param InEnabledStats	Stats to enable
 	 */
-	virtual void SetEnabledStats(const TArray<FString>& InEnabledStats) override;
+	ENGINE_API virtual void SetEnabledStats(const TArray<FString>& InEnabledStats) override;
 
 	/**
 	 * Check whether a specific stat is enabled for this viewport
@@ -776,12 +776,12 @@ public:
 	/**
 	 * Set the mouse capture behavior for the viewport.
 	 */
-	void SetMouseCaptureMode(EMouseCaptureMode Mode);
+	ENGINE_API void SetMouseCaptureMode(EMouseCaptureMode Mode);
 
 	/**
 	 * Gets the mouse capture behavior when the viewport is clicked
 	 */
-	virtual EMouseCaptureMode GetMouseCaptureMode() const override;
+	ENGINE_API virtual EMouseCaptureMode GetMouseCaptureMode() const override;
 
 	/**
 	 * Gets whether or not the viewport captures the Mouse on launch of the application
@@ -789,7 +789,7 @@ public:
 	 * where the application is launched but isn't activated the effect is delayed until
 	 * activation.
 	 */
-	virtual bool CaptureMouseOnLaunch() override;
+	ENGINE_API virtual bool CaptureMouseOnLaunch() override;
 
 	/**
 	 * Gets whether or not the cursor is locked to the viewport when the viewport captures the mouse
@@ -811,17 +811,17 @@ public:
 	/**
 	* Sets the current mouse cursor lock mode when the viewport is clicked
 	*/
-	void SetMouseLockMode(EMouseLockMode InMouseLockMode);
+	ENGINE_API void SetMouseLockMode(EMouseLockMode InMouseLockMode);
 
 	/**
 	 * Returns the current mouse cursor lock mode when the viewport is clicked.
 	 */
-	EMouseLockMode GetMouseLockMode() const;
+	ENGINE_API EMouseLockMode GetMouseLockMode() const;
 
 	/**
 	 * Sets whether or not the cursor is hidden when the viewport captures the mouse
 	 */
-	void SetHideCursorDuringCapture(bool InHideCursorDuringCapture);
+	ENGINE_API void SetHideCursorDuringCapture(bool InHideCursorDuringCapture);
 
 	/**
 	 * Gets whether or not the cursor is hidden when the viewport captures the mouse
@@ -834,12 +834,12 @@ public:
 	/** 
 	 * Should we make new windows for popups or create an overlay in the current window.
 	 */
-	virtual FPopupMethodReply OnQueryPopupMethod() const override;
+	ENGINE_API virtual FPopupMethodReply OnQueryPopupMethod() const override;
 
 	/**
 	* Optionally do custom handling of a navigation.
 	*/
-	virtual bool HandleNavigation(const uint32 InUserIndex, TSharedPtr<SWidget> InDestination) override;
+	ENGINE_API virtual bool HandleNavigation(const uint32 InUserIndex, TSharedPtr<SWidget> InDestination) override;
 
 	/**
 	 * Sets whether or not the software cursor widgets are used.
@@ -874,27 +874,27 @@ public:
 	 * @param Dimensions Pointer to new dimensions of the display. nullptr for no change.
 	 * @param WindowMode What window mode do we want to st the display to.
 	 */
-	bool SetDisplayConfiguration( const FIntPoint* Dimensions, EWindowMode::Type WindowMode);
+	ENGINE_API bool SetDisplayConfiguration( const FIntPoint* Dimensions, EWindowMode::Type WindowMode);
 
-	void SetVirtualCursorWidget(EMouseCursor::Type Cursor, class UUserWidget* Widget);
+	ENGINE_API void SetVirtualCursorWidget(EMouseCursor::Type Cursor, class UUserWidget* Widget);
 
 	/** Add a cursor to the set based on the enum and a slate widget */
-	void AddSoftwareCursorFromSlateWidget(EMouseCursor::Type InCursorType, TSharedPtr<SWidget> CursorWidgetPtr);
+	ENGINE_API void AddSoftwareCursorFromSlateWidget(EMouseCursor::Type InCursorType, TSharedPtr<SWidget> CursorWidgetPtr);
 
 	/** Adds a cursor to the set based on the enum and the class reference to it. */
-	void AddSoftwareCursor(EMouseCursor::Type Cursor, const FSoftClassPath& CursorClass);
+	ENGINE_API void AddSoftwareCursor(EMouseCursor::Type Cursor, const FSoftClassPath& CursorClass);
 
 	/** Get the slate widget of the current software cursor */
-	TSharedPtr<SWidget> GetSoftwareCursorWidget(EMouseCursor::Type Cursor) const;
+	ENGINE_API TSharedPtr<SWidget> GetSoftwareCursorWidget(EMouseCursor::Type Cursor) const;
 
 	/** Does the viewport client have a software cursor set up for the given enum? */
-	bool HasSoftwareCursor(EMouseCursor::Type Cursor) const;
+	ENGINE_API bool HasSoftwareCursor(EMouseCursor::Type Cursor) const;
 
-	void EnableCsvPlayerStats(int32 LocalPlayerCount);
+	ENGINE_API void EnableCsvPlayerStats(int32 LocalPlayerCount);
 
 private:
 	/** Resets the platform type shape to nullptr, to restore it to the OS default. */
-	void ResetHardwareCursorStates();
+	ENGINE_API void ResetHardwareCursorStates();
 
 	/**
 	 * Set a specific stat to either enabled or disabled (returns the number of remaining enabled stats)
@@ -921,25 +921,25 @@ private:
 	}
 
 	/** Process the 'show volumes' console command */
-	void ToggleShowVolumes();
+	ENGINE_API void ToggleShowVolumes();
 
 	/** Process the 'show collision' console command */
-	void ToggleShowCollision();
+	ENGINE_API void ToggleShowCollision();
 
 	/** Delegate handler to see if a stat is enabled on this viewport */
-	void HandleViewportStatCheckEnabled(const TCHAR* InName, bool& bOutCurrentEnabled, bool& bOutOthersEnabled);
+	ENGINE_API void HandleViewportStatCheckEnabled(const TCHAR* InName, bool& bOutCurrentEnabled, bool& bOutOthersEnabled);
 
 	/** Delegate handler for when stats are enabled in a viewport */
-	void HandleViewportStatEnabled(const TCHAR* InName);
+	ENGINE_API void HandleViewportStatEnabled(const TCHAR* InName);
 
 	/** Delegate handler for when stats are disabled in a viewport */
-	void HandleViewportStatDisabled(const TCHAR* InName);
+	ENGINE_API void HandleViewportStatDisabled(const TCHAR* InName);
 
 	/** Delegate handler for when all stats are disabled in a viewport */
-	void HandleViewportStatDisableAll(const bool bInAnyViewport);
+	ENGINE_API void HandleViewportStatDisableAll(const bool bInAnyViewport);
 
 	/** Delegate handler for when a window DPI changes and we might need to adjust the scenes resolution */
-	void HandleWindowDPIScaleChanged(TSharedRef<SWindow> InWindow);
+	ENGINE_API void HandleWindowDPIScaleChanged(TSharedRef<SWindow> InWindow);
 
 	struct FPngFileData
 	{
@@ -954,10 +954,10 @@ private:
 	};
 
 	/** Tries to create a hardware cursor from supplied PNGs images */
-	void* LoadCursorFromPngs(ICursor& PlatformCursor, const FString& InPathToCursorWithoutExtension, FVector2D InHotSpot);
+	ENGINE_API void* LoadCursorFromPngs(ICursor& PlatformCursor, const FString& InPathToCursorWithoutExtension, FVector2D InHotSpot);
 
 	/** Finds available PNG cursor images */
-	bool LoadAvailableCursorPngs(TArray<TSharedPtr<FPngFileData>>& Results, const FString& InPathToCursorWithoutExtension);
+	ENGINE_API bool LoadAvailableCursorPngs(TArray<TSharedPtr<FPngFileData>>& Results, const FString& InPathToCursorWithoutExtension);
 
 	/**
 	* Adds a DebugDisplayProperty to the DebugProperties array if it does not already exist. 
@@ -968,7 +968,7 @@ private:
 	* @param PropertyName		name of the property to display
 	* @param bSpecialProperty	whether PropertyName is a "special" value not directly mapping to a real property (e.g. state name)
 	*/
-	void AddDebugDisplayProperty(class UObject* Obj, TSubclassOf<class UObject> WithinClass, const FName& PropertyName, bool bSpecialProperty = false);
+	ENGINE_API void AddDebugDisplayProperty(class UObject* Obj, TSubclassOf<class UObject> WithinClass, const FName& PropertyName, bool bSpecialProperty = false);
 
 protected:
 	/** Handle to the audio device created for this viewport. Each viewport (for multiple PIE) will have its own audio device. */
@@ -1021,7 +1021,7 @@ private:
 	bool bUseSoftwareCursorWidgets;
 
 	/* Function that handles bug screen-shot requests w/ or w/o extra HUD info (project-specific) */
-	bool RequestBugScreenShot(const TCHAR* Cmd, bool bDisplayHUDInfo);
+	ENGINE_API bool RequestBugScreenShot(const TCHAR* Cmd, bool bDisplayHUDInfo);
 
 #if WITH_EDITOR
 	/** Delegate called when game viewport client received input key */
@@ -1029,10 +1029,10 @@ private:
 #endif
 
 	/** Delegate called at the end of the frame when a screenshot is captured */
-	static FOnScreenshotCaptured ScreenshotCapturedDelegate;
+	static ENGINE_API FOnScreenshotCaptured ScreenshotCapturedDelegate;
 	
 	/** Delegate called right after the viewport is rendered */
-	static FOnViewportRendered ViewportRenderedDelegate;
+	static ENGINE_API FOnViewportRendered ViewportRenderedDelegate;
 
 	/** Delegate called when a request to close the viewport is received */
 	FOnCloseRequested CloseRequestedDelegate;
@@ -1041,7 +1041,7 @@ private:
 	FOnWindowCloseRequested WindowCloseRequestedDelegate;
 
 	/** Delegate called when the game viewport is created. */
-	static FSimpleMulticastDelegate CreatedDelegate;
+	static ENGINE_API FSimpleMulticastDelegate CreatedDelegate;
 
 	/** Delegate called when a player is added to the game viewport */
 	FOnGameViewportClientPlayerAction PlayerAddedDelegate;
@@ -1086,7 +1086,7 @@ private:
 	FStatHitchesData* StatHitchesData;
 
 	/** A list of all the stat names which are enabled for this viewport (static so they persist between runs) */
-	static TArray<FString> EnabledStats;
+	static ENGINE_API TArray<FString> EnabledStats;
 
 	/** Disables splitscreen, useful when game code is in menus, and doesn't want splitscreen on */
 	bool bDisableSplitScreenOverride;

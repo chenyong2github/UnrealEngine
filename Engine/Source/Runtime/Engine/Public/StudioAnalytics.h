@@ -35,7 +35,7 @@ public:
 	static ENGINE_API IAnalyticsProviderET& GetProvider();
 
 	/** Helper function to determine if the provider is valid. */
-	static ENGINE_API bool IsAvailable() { return Analytics.IsValid(); }
+	static bool IsAvailable() { return Analytics.IsValid(); }
 
 	static ENGINE_API double GetAnalyticSeconds();
 

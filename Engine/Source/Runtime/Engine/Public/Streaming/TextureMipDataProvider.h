@@ -88,7 +88,7 @@ struct FTextureUpdateContext
 * used in FTextureStreamIn. It allows to decouples where the texture mip data source from the texture update.
 * Typical implementations are using DDC, disk files, internet server or dynamically generated.
 */
-class ENGINE_API FTextureMipDataProvider
+class FTextureMipDataProvider
 {
 public:
 
@@ -109,7 +109,7 @@ public:
 	};
 
 	// Constructor, defining the first tick step and thread.
-	FTextureMipDataProvider(const UTexture* Texture, ETickState InTickState, ETickThread InTickThread);
+	ENGINE_API FTextureMipDataProvider(const UTexture* Texture, ETickState InTickState, ETickThread InTickThread);
 
 	virtual ~FTextureMipDataProvider() {}
 

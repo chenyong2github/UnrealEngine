@@ -23,8 +23,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnCanvasRenderTargetUpdate, UCan
  * function.  Also, remember to hold onto your new canvas render target with a reference so that it doesn't get
  * garbage collected.
  */
-UCLASS(BlueprintType, Blueprintable)
-class ENGINE_API UCanvasRenderTarget2D
+UCLASS(BlueprintType, Blueprintable, MinimalAPI)
+class UCanvasRenderTarget2D
 	: public UTextureRenderTarget2D
 {
 	GENERATED_UCLASS_BODY()
@@ -40,7 +40,7 @@ public:
 	 * texture to make it available for rendering.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Canvas Render Target 2D")
-	virtual void UpdateResource() override;
+	ENGINE_API virtual void UpdateResource() override;
 
 	/**
 	 * Creates a new canvas render target and initializes it to the specified dimensions
@@ -53,7 +53,7 @@ public:
 	 * @return						Returns the instanced render target.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Canvas Render Target 2D",meta=(WorldContext="WorldContextObject" ))
-	static UCanvasRenderTarget2D* CreateCanvasRenderTarget2D(UObject* WorldContextObject, TSubclassOf<UCanvasRenderTarget2D> CanvasRenderTarget2DClass, int32 Width = 1024, int32 Height = 1024);
+	static ENGINE_API UCanvasRenderTarget2D* CreateCanvasRenderTarget2D(UObject* WorldContextObject, TSubclassOf<UCanvasRenderTarget2D> CanvasRenderTarget2DClass, int32 Width = 1024, int32 Height = 1024);
  
 	/**
 	 * Allows a Blueprint to implement how this Canvas Render Target 2D should be updated.
@@ -63,7 +63,7 @@ public:
 	 * @param	Height				Height of the render target.
 	 */
 	UFUNCTION(BlueprintImplementableEvent, Category="Canvas Render Target 2D")
-	void ReceiveUpdate(UCanvas* Canvas, int32 Width, int32 Height);
+	ENGINE_API void ReceiveUpdate(UCanvas* Canvas, int32 Width, int32 Height);
 
 	/**
 	 * Gets a specific render target's size from the global map of canvas render targets.
@@ -72,7 +72,7 @@ public:
 	 * @param	Height	Output variable for the render target's height
 	 */
 	UFUNCTION(BlueprintPure, Category="Canvas Render Target 2D")
-	void GetSize(int32& Width, int32& Height);
+	ENGINE_API void GetSize(int32& Width, int32& Height);
 
 
 	/** Called when this Canvas Render Target is asked to update its texture resource. */
@@ -80,10 +80,10 @@ public:
 	FOnCanvasRenderTargetUpdate OnCanvasRenderTargetUpdate;
 
 	// UObject overrides
-	virtual UWorld* GetWorld() const override;
+	ENGINE_API virtual UWorld* GetWorld() const override;
 
 	/** Don't delete the underlying resource if it already exists */
-	void FastUpdateResource();
+	ENGINE_API void FastUpdateResource();
 
 	FORCEINLINE bool ShouldClearRenderTargetOnReceiveUpdate() const { return bShouldClearRenderTargetOnReceiveUpdate; }
 	FORCEINLINE void SetShouldClearRenderTargetOnReceiveUpdate(bool bInShouldClearRenderTargetOnReceiveUpdate)
@@ -93,7 +93,7 @@ public:
 
 protected:
 
-	void RepaintCanvas();
+	ENGINE_API void RepaintCanvas();
 
 	/* The world this render target will be used with */
 	UPROPERTY()

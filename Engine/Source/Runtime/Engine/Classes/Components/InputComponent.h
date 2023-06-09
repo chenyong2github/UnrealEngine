@@ -723,8 +723,8 @@ struct FCachedKeyToActionInfo
  *
  * @see https://docs.unrealengine.com/latest/INT/Gameplay/Input/index.html
  */
-UCLASS(NotBlueprintable, transient, config=Input, hidecategories=(Activation, "Components|Activation"))
-class ENGINE_API UInputComponent
+UCLASS(NotBlueprintable, transient, config=Input, hidecategories=(Activation, "Components|Activation"), MinimalAPI)
+class UInputComponent
 	: public UActorComponent
 {
 	GENERATED_UCLASS_BODY()
@@ -755,7 +755,7 @@ private:
 	TArray<FCachedKeyToActionInfo> CachedKeyToActionInfo;
 
 	UFUNCTION()
-	void OnInputOwnerEndPlayed(AActor* InOwner, EEndPlayReason::Type EndPlayReason);
+	ENGINE_API void OnInputOwnerEndPlayed(AActor* InOwner, EEndPlayReason::Type EndPlayReason);
 
 public:
 	/** The priority of this input component when pushed in to the stack. */
@@ -765,9 +765,9 @@ public:
 	uint8 bBlockInput:1;
 
 	/** Clears any inut callback delegates from the given UObject */
-	virtual void ClearBindingsForObject(UObject* InOwner);
+	ENGINE_API virtual void ClearBindingsForObject(UObject* InOwner);
 	
-	void ConditionalBuildKeyMap(UPlayerInput* PlayerInput);
+	ENGINE_API void ConditionalBuildKeyMap(UPlayerInput* PlayerInput);
 
 	/**
 	 * Gets the current value of the axis with the specified name.
@@ -776,7 +776,7 @@ public:
 	 * @return Axis value.
 	 * @see GetAxisKeyValue, GetVectorAxisValue
 	 */
-	float GetAxisValue( const FName AxisName ) const;
+	ENGINE_API float GetAxisValue( const FName AxisName ) const;
 
 	/**
 	 * Gets the current value of the axis with the specified key.
@@ -785,7 +785,7 @@ public:
 	 * @return Axis value.
 	 * @see GetAxisKeyValue, GetVectorAxisValue
 	 */
-	float GetAxisKeyValue( const FKey AxisKey ) const;
+	ENGINE_API float GetAxisKeyValue( const FKey AxisKey ) const;
 
 	/**
 	 * Gets the current vector value of the axis with the specified key.
@@ -794,14 +794,14 @@ public:
 	 * @return Axis value.
 	 * @see GetAxisValue, GetAxisKeyValue
 	 */
-	FVector GetVectorAxisValue( const FKey AxisKey ) const;
+	ENGINE_API FVector GetVectorAxisValue( const FKey AxisKey ) const;
 
 	/**
 	 * Checks whether this component has any input bindings.
 	 *
 	 * @return true if any bindings are set, false otherwise.
 	 */
-	bool HasBindings() const;
+	ENGINE_API bool HasBindings() const;
 
 
 	/**
@@ -811,14 +811,14 @@ public:
 	 * @return The last binding in the list.
 	 * @see ClearActionBindings, GetActionBinding, GetNumActionBindings, RemoveActionBinding
 	 */
-	FInputActionBinding& AddActionBinding( FInputActionBinding Binding );
+	ENGINE_API FInputActionBinding& AddActionBinding( FInputActionBinding Binding );
 
 	/**
 	 * Removes all action bindings.
 	 *
 	 * @see AddActionBinding, GetActionBinding, GetNumActionBindings, RemoveActionBinding
 	 */
-	virtual void ClearActionBindings();
+	ENGINE_API virtual void ClearActionBindings();
 
 	/**
 	 * Gets the action binding with the specified index.
@@ -842,8 +842,8 @@ public:
 	 * @param BindingIndex The index of the binding to remove.
 	 * @see AddActionBinding, ClearActionBindings, GetActionBinding, GetNumActionBindings
 	 */
-	void RemoveActionBinding( const int32 BindingIndex );
-	void RemoveActionBinding(FName ActionName, EInputEvent KeyEvent);
+	ENGINE_API void RemoveActionBinding( const int32 BindingIndex );
+	ENGINE_API void RemoveActionBinding(FName ActionName, EInputEvent KeyEvent);
 
 	/**
 	 * Removes the action binding at the specified handle.
@@ -851,7 +851,7 @@ public:
 	 * @param Handle The handle of the binding to remove.
 	 * @see AddActionBinding, ClearActionBindings, GetActionBinding, GetNumActionBindings
 	 */
-	void RemoveActionBindingForHandle(const int32 Handle);
+	ENGINE_API void RemoveActionBindingForHandle(const int32 Handle);
 
 	/**
 	 * Removes the action binding (index need for multi-name fixups).
@@ -860,10 +860,10 @@ public:
 	 * @param BindingIndex The binding's index for actions with the same name to fixup their data.
 	 * @see AddActionBinding, ClearActionBindings, GetActionBinding, GetNumActionBindings
 	 */
-	void RemoveActionBinding(const FInputActionBinding &BindingToRemove, const int32 BindingIndex);
+	ENGINE_API void RemoveActionBinding(const FInputActionBinding &BindingToRemove, const int32 BindingIndex);
 
 	/** Clears all cached binding values. */
-	void ClearBindingValues();
+	ENGINE_API void ClearBindingValues();
 
 	/**
 	 * Binds a delegate function to an Action defined in the project settings.
@@ -919,12 +919,12 @@ public:
 	*
 	* @param AxisName the name of the axis to remove.
 	*/
-	void RemoveAxisBinding(const FName AxisName);
+	ENGINE_API void RemoveAxisBinding(const FName AxisName);
 
 	/**
 	* Removes all axis bindings.
 	*/
-	void ClearAxisBindings();
+	ENGINE_API void ClearAxisBindings();
 
 	/**
 	 * Indicates that the InputComponent is interested in knowing the Axis value
@@ -1053,45 +1053,45 @@ public:
 private:
 
 	/** Retrieves the actions bound to the input component which are triggered by a given key. Requires that the internal key map has already been built. */
-	void GetActionsBoundToKey(UPlayerInput* PlayerInput, FKey Key, TArray<TSharedPtr<FInputActionBinding>>& Actions) const;
+	ENGINE_API void GetActionsBoundToKey(UPlayerInput* PlayerInput, FKey Key, TArray<TSharedPtr<FInputActionBinding>>& Actions) const;
 
 	friend struct FGetActionsBoundToKey;
 
 	/** Returns true if the given key/button is pressed on the input of the controller (if present) */
 	UFUNCTION(BlueprintCallable, meta=(DeprecatedFunction, DeprecationMessage="Use PlayerController.IsInputKeyDown instead."))
-	bool IsControllerKeyDown(FKey Key) const;
+	ENGINE_API bool IsControllerKeyDown(FKey Key) const;
 
 	/** Returns true if the given key/button was up last frame and down this frame. */
 	UFUNCTION(BlueprintCallable, meta=(DeprecatedFunction, DeprecationMessage="Use PlayerController.WasInputKeyJustPressed instead."))
-	bool WasControllerKeyJustPressed(FKey Key) const;
+	ENGINE_API bool WasControllerKeyJustPressed(FKey Key) const;
 
 	/** Returns true if the given key/button was down last frame and up this frame. */
 	UFUNCTION(BlueprintCallable, meta=(DeprecatedFunction, DeprecationMessage="Use PlayerController.WasInputKeyJustReleased instead."))
-	bool WasControllerKeyJustReleased(FKey Key) const;
+	ENGINE_API bool WasControllerKeyJustReleased(FKey Key) const;
 
 	/** Returns the analog value for the given key/button.  If analog isn't supported, returns 1 for down and 0 for up. */
 	UFUNCTION(BlueprintCallable, meta=(DeprecatedFunction, DeprecationMessage="Use PlayerController.GetInputAnalogKeyState instead."))
-	float GetControllerAnalogKeyState(FKey Key) const;
+	ENGINE_API float GetControllerAnalogKeyState(FKey Key) const;
 
 	/** Returns the vector value for the given key/button. */
 	UFUNCTION(BlueprintCallable, meta=(DeprecatedFunction, DeprecationMessage="Use PlayerController.GetInputVectorKeyState instead."))
-	FVector GetControllerVectorKeyState(FKey Key) const;
+	ENGINE_API FVector GetControllerVectorKeyState(FKey Key) const;
 
 	/** Returns the location of a touch, and if it's held down */
 	UFUNCTION(BlueprintCallable, meta=(DeprecatedFunction, DeprecationMessage="Use PlayerController.GetInputTouchState instead."))
-	void GetTouchState(int32 FingerIndex, float& LocationX, float& LocationY, bool& bIsCurrentlyPressed) const;
+	ENGINE_API void GetTouchState(int32 FingerIndex, float& LocationX, float& LocationY, bool& bIsCurrentlyPressed) const;
 
 	/** Returns how long the given key/button has been down.  Returns 0 if it's up or it just went down this frame. */
 	UFUNCTION(BlueprintCallable, meta=(DeprecatedFunction, DeprecationMessage="Use PlayerController.GetInputKeyTimeDown instead."))
-	float GetControllerKeyTimeDown(FKey Key) const;
+	ENGINE_API float GetControllerKeyTimeDown(FKey Key) const;
 
 	/** Retrieves how far the mouse moved this frame. */
 	UFUNCTION(BlueprintCallable, meta=(DeprecatedFunction, DeprecationMessage="Use PlayerController.GetInputMouseDelta instead."))
-	void GetControllerMouseDelta(float& DeltaX, float& DeltaY) const;
+	ENGINE_API void GetControllerMouseDelta(float& DeltaX, float& DeltaY) const;
 
 	/** Retrieves the X and Y displacement of the given analog stick.  For WhickStick, 0 = left, 1 = right. */
 	UFUNCTION(BlueprintCallable, meta=(DeprecatedFunction, DeprecationMessage="Use PlayerController.GetInputAnalogStickState instead."))
-	void GetControllerAnalogStickState(EControllerAnalogStick::Type WhichStick, float& StickX, float& StickY) const;
+	ENGINE_API void GetControllerAnalogStickState(EControllerAnalogStick::Type WhichStick, float& StickX, float& StickY) const;
 
 	friend class UEnhancedInputComponent;	// TEMP: Support for ongoing input rework
 };

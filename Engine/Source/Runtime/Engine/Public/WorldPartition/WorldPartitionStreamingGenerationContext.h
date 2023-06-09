@@ -11,15 +11,15 @@ class UActorDescContainer;
 class UDataLayerInstance;
 
 #if WITH_EDITOR
-class ENGINE_API IStreamingGenerationContext
+class IStreamingGenerationContext
 {
 public:
-	struct ENGINE_API FActorSet
+	struct FActorSet
 	{
 		TArray<FGuid> Actors;
 	};
 
-	struct ENGINE_API FActorSetContainer
+	struct FActorSetContainer
 	{
 		FActorSetContainer()
 			: ActorDescViewMap(nullptr)
@@ -35,7 +35,7 @@ public:
 		TArray<TUniquePtr<FActorSet>> ActorSets;
 	};
 
-	struct ENGINE_API FActorSetInstance
+	struct FActorSetInstance
 	{
 		FBox Bounds;
 		FName RuntimeGrid;
@@ -48,7 +48,7 @@ public:
 		const FActorSet* ActorSet;
 	};
 
-	struct ENGINE_API FActorInstance
+	struct FActorInstance
 	{
 		FActorInstance(const FGuid& InActorGuid, const FActorSetInstance* InActorSetInstance)
 			: ActorGuid(InActorGuid)
@@ -58,10 +58,10 @@ public:
 		FGuid ActorGuid;
 		const FActorSetInstance* ActorSetInstance;
 
-		const FWorldPartitionActorDescView& GetActorDescView() const;
-		const FActorContainerID& GetContainerID() const;
-		const FTransform& GetTransform() const;
-		const UActorDescContainer* GetActorDescContainer() const;
+		ENGINE_API const FWorldPartitionActorDescView& GetActorDescView() const;
+		ENGINE_API const FActorContainerID& GetContainerID() const;
+		ENGINE_API const FTransform& GetTransform() const;
+		ENGINE_API const UActorDescContainer* GetActorDescContainer() const;
 	};
 
 	virtual FBox GetWorldBounds() const = 0;

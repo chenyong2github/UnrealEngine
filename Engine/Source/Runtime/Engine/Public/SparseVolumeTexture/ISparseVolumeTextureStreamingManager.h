@@ -14,7 +14,7 @@ namespace SVT
 {
 
 // Interface for the SparseVolumeTexture streaming manager
-class ENGINE_API IStreamingManager
+class IStreamingManager
 {
 public:
 	//~ Begin game thread functions.

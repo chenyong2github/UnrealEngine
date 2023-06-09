@@ -133,7 +133,7 @@ public:
  * Chart for a single portion of gameplay (e.g., gameplay or in-game-shop or settings menu open)
  * WARNING: If you add members here, you MUST also update AccumulateWith() as it accumulates each measure from another chart. 
  */
-class ENGINE_API FPerformanceTrackingChart : public IPerformanceDataConsumer
+class FPerformanceTrackingChart : public IPerformanceDataConsumer
 {
 public:
 	// The mode being tracked by this chart
@@ -238,14 +238,14 @@ public:
 	uint64 TotalVirtualMemoryUsed;
 
 public:
-	FPerformanceTrackingChart();
-	FPerformanceTrackingChart(const FDateTime& InStartTime, const FString& InChartLabel);
-	virtual ~FPerformanceTrackingChart();
+	ENGINE_API FPerformanceTrackingChart();
+	ENGINE_API FPerformanceTrackingChart(const FDateTime& InStartTime, const FString& InChartLabel);
+	ENGINE_API virtual ~FPerformanceTrackingChart();
 
 	// Discard all accumulated data
-	void Reset(const FDateTime& InStartTime);
+	ENGINE_API void Reset(const FDateTime& InStartTime);
 
-	void AccumulateWith(const FPerformanceTrackingChart& Chart);
+	ENGINE_API void AccumulateWith(const FPerformanceTrackingChart& Chart);
 
 	double GetTotalTime() const
 	{
@@ -271,7 +271,7 @@ public:
 	 * Sum of all recorded hitch lengths (in seconds)
 	 * @param bSubtractHitchThreshold Bias towards larger hitches by removing "acceptable" frame time
 	 **/
-	double GetTotalHitchFrameTime(bool bSubtractHitchThreshold = true) const;
+	ENGINE_API double GetTotalHitchFrameTime(bool bSubtractHitchThreshold = true) const;
 
 	double GetPercentHitchTime(bool bSubtractHitchThreshold = true) const
 	{
@@ -305,31 +305,31 @@ public:
 		ChartLabel = NewLabel;
 	}
 
-	void DumpFPSChart(const FString& InMapName);
+	ENGINE_API void DumpFPSChart(const FString& InMapName);
 
 	// Dumps the FPS chart information to an analytic event param array.
-	void DumpChartToAnalyticsParams(const FString& InMapName, TArray<struct FAnalyticsEventAttribute>& InParamArray, bool bIncludeClientHWInfo, bool bIncludeHistograms = true) const;
+	ENGINE_API void DumpChartToAnalyticsParams(const FString& InMapName, TArray<struct FAnalyticsEventAttribute>& InParamArray, bool bIncludeClientHWInfo, bool bIncludeHistograms = true) const;
 
 
 	// Dumps the FPS chart information to the log.
-	void DumpChartsToOutputLog(double WallClockElapsed, const TArray<const FPerformanceTrackingChart*>& Charts, const FString& InMapName);
+	ENGINE_API void DumpChartsToOutputLog(double WallClockElapsed, const TArray<const FPerformanceTrackingChart*>& Charts, const FString& InMapName);
 
 #if ALLOW_DEBUG_FILES
 	// Dumps the FPS chart information to HTML.
-	void DumpChartsToHTML(double WallClockElapsed, const TArray<const FPerformanceTrackingChart*>& Charts, const FString& InMapName, const FString& HTMLFilename);
+	ENGINE_API void DumpChartsToHTML(double WallClockElapsed, const TArray<const FPerformanceTrackingChart*>& Charts, const FString& InMapName, const FString& HTMLFilename);
 
 	// Dumps the FPS chart information to the special stats log file.
-	void DumpChartsToLogFile(double WallClockElapsed, const TArray<const FPerformanceTrackingChart*>& Charts, const FString& InMapName, const FString& LogFileName);
+	ENGINE_API void DumpChartsToLogFile(double WallClockElapsed, const TArray<const FPerformanceTrackingChart*>& Charts, const FString& InMapName, const FString& LogFileName);
 #endif
 
 	// IPerformanceDataConsumer interface
-	virtual void StartCharting() override;
-	virtual void ProcessFrame(const FFrameData& FrameData) override;
-	virtual void StopCharting() override;
+	ENGINE_API virtual void StartCharting() override;
+	ENGINE_API virtual void ProcessFrame(const FFrameData& FrameData) override;
+	ENGINE_API virtual void StopCharting() override;
 	// End of IPerformanceDataConsumer interface
 
-	void PauseCharting();
-	void ResumeCharting();
+	ENGINE_API void PauseCharting();
+	ENGINE_API void ResumeCharting();
 };
 
 //////////////////////////////////////////////////////////////////////
@@ -338,18 +338,18 @@ public:
 #if ALLOW_DEBUG_FILES
 
 // Fine-grained tracking (records the frame time of each frame rather than just a histogram)
-class ENGINE_API FFineGrainedPerformanceTracker : public IPerformanceDataConsumer
+class FFineGrainedPerformanceTracker : public IPerformanceDataConsumer
 {
 public:
-	FFineGrainedPerformanceTracker(const FDateTime& InStartTime);
+	ENGINE_API FFineGrainedPerformanceTracker(const FDateTime& InStartTime);
 
 	/** Resets the fine-grained tracker, allocating enough memory to hold NumFrames frames (it can track more, but this avoids extra allocations when the length is short enough) */
-	void Presize(int32 NumFrames);
+	ENGINE_API void Presize(int32 NumFrames);
 
 	/**
 	 * Dumps the timings for each frame to a .csv
 	 */
-	void DumpFrameTimesToStatsLog(const FString& FrameTimeFilename);
+	ENGINE_API void DumpFrameTimesToStatsLog(const FString& FrameTimeFilename);
 
 	/**
 	 * Finds a percentile value in an array.
@@ -358,12 +358,12 @@ public:
 	 * @param Percentile number between 0-99
 	 * @return percentile value or -1 if no samples
 	 */
-	static float GetPercentileValue(TArray<float>& Samples, int32 Percentile);
+	static ENGINE_API float GetPercentileValue(TArray<float>& Samples, int32 Percentile);
 
 	// IPerformanceDataConsumer interface
-	virtual void StartCharting() override;
-	virtual void ProcessFrame(const FFrameData& FrameData) override;
-	virtual void StopCharting() override;
+	ENGINE_API virtual void StartCharting() override;
+	ENGINE_API virtual void ProcessFrame(const FFrameData& FrameData) override;
+	ENGINE_API virtual void StopCharting() override;
 	// End of IPerformanceDataConsumer interface
 
 public:
@@ -388,14 +388,14 @@ public:
 // FPerformanceTrackingSystem
 
 // Overall state of the built-in performance tracking
-struct ENGINE_API FPerformanceTrackingSystem
+struct FPerformanceTrackingSystem
 {
 public:
-	FPerformanceTrackingSystem();
+	ENGINE_API FPerformanceTrackingSystem();
 
-	IPerformanceDataConsumer::FFrameData AnalyzeFrame(float DeltaSeconds);
-	void StartCharting();
-	void StopCharting();
+	ENGINE_API IPerformanceDataConsumer::FFrameData AnalyzeFrame(float DeltaSeconds);
+	ENGINE_API void StartCharting();
+	ENGINE_API void StopCharting();
 
 	/**
 	 * This will create the file name for the file we are saving out.
@@ -404,14 +404,14 @@ public:
 	 * @param InMapName	the name of the map
 	 * @param FileExtension	the filename extension to append
 	 **/
-	static FString CreateFileNameForChart(const FString& ChartType, const FString& InMapName, const FString& FileExtension);
+	static ENGINE_API FString CreateFileNameForChart(const FString& ChartType, const FString& InMapName, const FString& FileExtension);
 
 	/** This will create the folder name for the output directory for FPS charts (and actually create the directory). */
-	static FString CreateOutputDirectory(const FDateTime& CaptureStartTime);
+	static ENGINE_API FString CreateOutputDirectory(const FDateTime& CaptureStartTime);
 
 	// Should we subtract off idle time spent waiting (due to running above target framerate) before thresholding into bins?
 	// (controlled by t.FPSChart.ExcludeIdleTime)
-	static bool ShouldExcludeIdleTimeFromCharts();
+	static ENGINE_API bool ShouldExcludeIdleTimeFromCharts();
 
 private:
 	/** Start time of current FPS chart */
@@ -433,7 +433,7 @@ private:
 //////////////////////////////////////////////////////////////////////
 
 // Prints the FPS chart summary to an endpoint
-struct ENGINE_API FDumpFPSChartToEndpoint
+struct FDumpFPSChartToEndpoint
 {
 protected:
 	const FPerformanceTrackingChart& Chart;
@@ -442,7 +442,7 @@ public:
 	/**
 	* Dumps a chart, allowing subclasses to format the data in their own way via various protected virtuals to be overridden
 	*/
-	void DumpChart(double InWallClockTimeFromStartOfCharting, FString InMapName, FString InDeviceProfileName = FString(TEXT("Unknown")));
+	ENGINE_API void DumpChart(double InWallClockTimeFromStartOfCharting, FString InMapName, FString InDeviceProfileName = FString(TEXT("Unknown")));
 
 	FDumpFPSChartToEndpoint(const FPerformanceTrackingChart& InChart)
 		: Chart(InChart)
@@ -490,10 +490,10 @@ protected:
 protected:
 	virtual void PrintToEndpoint(const FString& Text) = 0;
 
-	virtual void FillOutMemberStats();
-	virtual void HandleHitchBucket(const FHistogram& HitchHistogram, int32 BucketIndex);
-	virtual void HandleHitchSummary(int32 TotalHitchCount, double TotalTimeSpentInHitchBuckets);
-	virtual void HandleFPSThreshold(int32 TargetFPS, float PctMissedFrames);
-	virtual void HandleDynamicResThreshold(int32 TargetScreenPercentage, float PctTimeAbove);
-	virtual void HandleBasicStats();
+	ENGINE_API virtual void FillOutMemberStats();
+	ENGINE_API virtual void HandleHitchBucket(const FHistogram& HitchHistogram, int32 BucketIndex);
+	ENGINE_API virtual void HandleHitchSummary(int32 TotalHitchCount, double TotalTimeSpentInHitchBuckets);
+	ENGINE_API virtual void HandleFPSThreshold(int32 TargetFPS, float PctMissedFrames);
+	ENGINE_API virtual void HandleDynamicResThreshold(int32 TargetScreenPercentage, float PctTimeAbove);
+	ENGINE_API virtual void HandleBasicStats();
 };

@@ -133,7 +133,7 @@ struct FWrappedStringElement
 	
 };
 
-class ENGINE_API FCanvasWordWrapper
+class FCanvasWordWrapper
 {
 public:
 	/** Array of indices where the wrapped lines begin and end in the source string */
@@ -164,7 +164,7 @@ private:
 	};
 
 public:
-	FCanvasWordWrapper();
+	ENGINE_API FCanvasWordWrapper();
 
 	/**
 	* Used to generate multi-line/wrapped text.
@@ -174,7 +174,7 @@ public:
 	* @param InWrapWidth The width available.
 	* @param OutWrappedLineData An optional array to fill with the indices from the source string marking the begin and end points of the wrapped lines
 	*/
-	void Execute(const TCHAR* const InString, const FTextSizingParameters& InParameters, TArray<FWrappedStringElement>& OutStrings, FWrappedLineData* const OutWrappedLineData);
+	ENGINE_API void Execute(const TCHAR* const InString, const FTextSizingParameters& InParameters, TArray<FWrappedStringElement>& OutStrings, FWrappedLineData* const OutWrappedLineData);
 
 private:
 	/**
@@ -384,7 +384,7 @@ public:
 	* Get the current top-most transform entry without the canvas projection
 	* @return matrix from transform stack.
 	*/
-	ENGINE_API FMatrix GetTransform() const
+	FMatrix GetTransform() const
 	{
 		return TransformStack.Top().GetMatrix() * TransformStack[0].GetMatrix().InverseFast();
 	}
@@ -393,7 +393,7 @@ public:
 	* Get the bottom-most element of the transform stack.
 	* @return matrix from transform stack.
 	*/
-	ENGINE_API const FMatrix& GetBottomTransform() const
+	const FMatrix& GetBottomTransform() const
 	{
 		return TransformStack[0].GetMatrix();
 	}
@@ -402,7 +402,7 @@ public:
 	* Get the current top-most transform entry
 	* @return matrix from transform stack.
 	*/
-	ENGINE_API const FMatrix& GetFullTransform() const
+	const FMatrix& GetFullTransform() const
 	{
 		return TransformStack.Top().GetMatrix();
 	}
@@ -422,7 +422,7 @@ public:
 	/**
 	* Get the current render target for the canvas
 	*/
-	ENGINE_API FORCEINLINE FRenderTarget* GetRenderTarget() const
+	FORCEINLINE FRenderTarget* GetRenderTarget() const
 	{
 		return RenderTarget;
 	}

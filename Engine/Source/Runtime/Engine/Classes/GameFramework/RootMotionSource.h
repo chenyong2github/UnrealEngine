@@ -18,11 +18,11 @@ class UCurveVector;
 #define ROOT_MOTION_DEBUG (1 && !(UE_BUILD_SHIPPING || UE_BUILD_TEST))
 
 #if ROOT_MOTION_DEBUG
-struct ENGINE_API RootMotionSourceDebug
+struct RootMotionSourceDebug
 {
-	static TAutoConsoleVariable<int32> CVarDebugRootMotionSources;
-	static void PrintOnScreen(const ACharacter& InCharacter, const FString& InString);
-	static void PrintOnScreenServerMsg(const FString& InString);
+	static ENGINE_API TAutoConsoleVariable<int32> CVarDebugRootMotionSources;
+	static ENGINE_API void PrintOnScreen(const ACharacter& InCharacter, const FString& InString);
+	static ENGINE_API void PrintOnScreenServerMsg(const FString& InString);
 };
 #endif
 
@@ -79,16 +79,16 @@ enum class ERootMotionSourceID : uint16 { Invalid = 0 };
 /** 
  * Structure for mapping RootMotionSource server IDs to those on this client
  */
-struct ENGINE_API FRootMotionServerToLocalIDMapping
+struct FRootMotionServerToLocalIDMapping
 {
-	FRootMotionServerToLocalIDMapping();
+	ENGINE_API FRootMotionServerToLocalIDMapping();
 
 	uint16 ServerID; // ID of root motion source on server
 	uint16 LocalID; // ID of root motion source on local client
 	float TimeStamp; // Last time this ID mapping was updated/still valid
 
 	// Given CurrentTimeStamp, returns whether this mapping is still valid (has expired yet)
-	bool IsStillValid(float CurrentTimeStamp);
+	ENGINE_API bool IsStillValid(float CurrentTimeStamp);
 };
 
 /** 
@@ -96,20 +96,20 @@ struct ENGINE_API FRootMotionServerToLocalIDMapping
  * (used for convenience instead of having to manually manipulate flag bitfields)
  */
 USTRUCT()
-struct ENGINE_API FRootMotionSourceStatus
+struct FRootMotionSourceStatus
 {
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
 	uint8 Flags;
 
-	FRootMotionSourceStatus();
+	ENGINE_API FRootMotionSourceStatus();
 
-	void Clear();
+	ENGINE_API void Clear();
 
-	void SetFlag(ERootMotionSourceStatusFlags Flag);
-	void UnSetFlag(ERootMotionSourceStatusFlags Flag);
-	bool HasFlag(ERootMotionSourceStatusFlags Flag) const;
+	ENGINE_API void SetFlag(ERootMotionSourceStatusFlags Flag);
+	ENGINE_API void UnSetFlag(ERootMotionSourceStatusFlags Flag);
+	ENGINE_API bool HasFlag(ERootMotionSourceStatusFlags Flag) const;
 };
 
 /** 
@@ -117,23 +117,23 @@ struct ENGINE_API FRootMotionSourceStatus
  * (used for convenience instead of having to manually manipulate flag bitfields)
  */
 USTRUCT()
-struct ENGINE_API FRootMotionSourceSettings
+struct FRootMotionSourceSettings
 {
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
 	uint8 Flags;
 
-	FRootMotionSourceSettings();
+	ENGINE_API FRootMotionSourceSettings();
 
-	void Clear();
+	ENGINE_API void Clear();
 
-	void SetFlag(ERootMotionSourceSettingsFlags Flag);
-	void UnSetFlag(ERootMotionSourceSettingsFlags Flag);
-	bool HasFlag(ERootMotionSourceSettingsFlags Flag) const;
+	ENGINE_API void SetFlag(ERootMotionSourceSettingsFlags Flag);
+	ENGINE_API void UnSetFlag(ERootMotionSourceSettingsFlags Flag);
+	ENGINE_API bool HasFlag(ERootMotionSourceSettingsFlags Flag) const;
 
 	// Accumulate settings with one another
-	FRootMotionSourceSettings& operator+=(const FRootMotionSourceSettings& Other);
+	ENGINE_API FRootMotionSourceSettings& operator+=(const FRootMotionSourceSettings& Other);
 };
 
 UENUM()
@@ -151,7 +151,7 @@ enum class ERootMotionFinishVelocityMode : uint8
  * Struct for RootMotion Finish Velocity options.
  */
 USTRUCT()
-struct ENGINE_API FRootMotionFinishVelocitySettings
+struct FRootMotionFinishVelocitySettings
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -214,7 +214,7 @@ struct ENGINE_API FRootMotionFinishVelocitySettings
 *	
 */
 USTRUCT()
-struct ENGINE_API FRootMotionSource
+struct FRootMotionSource
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -294,27 +294,27 @@ struct ENGINE_API FRootMotionSource
 	UPROPERTY(NotReplicated)
 	FRootMotionFinishVelocitySettings FinishVelocityParams;
 
-	FRootMotionSource();
+	ENGINE_API FRootMotionSource();
 
 	virtual ~FRootMotionSource() {}
 
 	/** @return the CurrentTime - amount of time elapsed so far for this source */
-	float GetTime() const;
+	ENGINE_API float GetTime() const;
 
 	/** @return the StartTime - time this source should start (in character movement client time)  */
-	float GetStartTime() const;
+	ENGINE_API float GetStartTime() const;
 
 	/** @return whether the start time has been set */
-	bool IsStartTimeValid() const;
+	ENGINE_API bool IsStartTimeValid() const;
 
 	/** @return the Duration - the length of this root motion - < 0 for infinite (to be removed manually) */
-	float GetDuration() const;
+	ENGINE_API float GetDuration() const;
 
 	/** @return whether this source will be removed when CurrentTime reaches Duration */
-	virtual bool IsTimeOutEnabled() const;
+	ENGINE_API virtual bool IsTimeOutEnabled() const;
 
 	/** @return newly allocated copy of this FRootMotionSource. Must be overridden by child classes. */
-	virtual FRootMotionSource* Clone() const;
+	ENGINE_API virtual FRootMotionSource* Clone() const;
 
 	/** 
 	 *  @return Whether this is the same RootMotionSource as Other. 
@@ -338,10 +338,10 @@ struct ENGINE_API FRootMotionSource
 	 *
 	 *  Should be overridden by child classes, as default implementation only contains basic equivalency checks 
 	 **/
-	virtual bool Matches(const FRootMotionSource* Other) const;
+	ENGINE_API virtual bool Matches(const FRootMotionSource* Other) const;
 
 	/** Checks that it Matches() and has the same state (time, track position, etc.) */
-	virtual bool MatchesAndHasSameState(const FRootMotionSource* Other) const;
+	ENGINE_API virtual bool MatchesAndHasSameState(const FRootMotionSource* Other) const;
 
 	/** 
 	 *  Mainly for server correction purposes - update this Source's state from
@@ -352,16 +352,16 @@ struct ENGINE_API FRootMotionSource
 	 *          We need to remove since we don't have a way of reverting partial updates
 	 *          depending on where the update failed.
 	 **/
-	virtual bool UpdateStateFrom(const FRootMotionSource* SourceToTakeStateFrom, bool bMarkForSimulatedCatchup = false);
+	ENGINE_API virtual bool UpdateStateFrom(const FRootMotionSource* SourceToTakeStateFrom, bool bMarkForSimulatedCatchup = false);
 
 	/** True when this RootMotionSource should be affecting root motion */
-	virtual bool IsActive() const;
+	ENGINE_API virtual bool IsActive() const;
 
 	/** Set the CurrentTime of this source. Use this setter so that sources based on duration can get correctly marked for end */
-	virtual void SetTime(float NewTime);
+	ENGINE_API virtual void SetTime(float NewTime);
 
 	/** Checks if this source has timed out and marks for removal if necessary */
-	virtual void CheckTimeOut();
+	ENGINE_API virtual void CheckTimeOut();
 
 	/** 
 	*	Generates the RootMotion for this Source, can be used for both "live" generation
@@ -379,18 +379,18 @@ struct ENGINE_API FRootMotionSource
 	*	@param MovementTickTime How much time the movement is going to take that this is being prepared for
 	*
 	*/
-	virtual void PrepareRootMotion(
+	ENGINE_API virtual void PrepareRootMotion(
 		float SimulationTime,
 		float MovementTickTime,
 		const ACharacter& Character, 
 		const UCharacterMovementComponent& MoveComponent
 		);
 
-	virtual bool NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSuccess);
+	ENGINE_API virtual bool NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSuccess);
 
-	virtual UScriptStruct* GetScriptStruct() const;
+	ENGINE_API virtual UScriptStruct* GetScriptStruct() const;
 
-	virtual FString ToSimpleString() const;
+	ENGINE_API virtual FString ToSimpleString() const;
 
 	virtual void AddReferencedObjects(class FReferenceCollector& Collector) {}
 };
@@ -407,11 +407,11 @@ struct TStructOpsTypeTraits< FRootMotionSource > : public TStructOpsTypeTraitsBa
 
 /** ConstantForce applies a fixed force to the target */
 USTRUCT()
-struct ENGINE_API FRootMotionSource_ConstantForce : public FRootMotionSource
+struct FRootMotionSource_ConstantForce : public FRootMotionSource
 {
 	GENERATED_USTRUCT_BODY()
 
-	FRootMotionSource_ConstantForce();
+	ENGINE_API FRootMotionSource_ConstantForce();
 
 	virtual ~FRootMotionSource_ConstantForce() {}
 
@@ -421,28 +421,28 @@ struct ENGINE_API FRootMotionSource_ConstantForce : public FRootMotionSource
 	UPROPERTY()
 	TObjectPtr<UCurveFloat> StrengthOverTime;
 
-	virtual FRootMotionSource* Clone() const override;
+	ENGINE_API virtual FRootMotionSource* Clone() const override;
 
-	virtual bool Matches(const FRootMotionSource* Other) const override;
+	ENGINE_API virtual bool Matches(const FRootMotionSource* Other) const override;
 
-	virtual bool MatchesAndHasSameState(const FRootMotionSource* Other) const override;
+	ENGINE_API virtual bool MatchesAndHasSameState(const FRootMotionSource* Other) const override;
 
-	virtual bool UpdateStateFrom(const FRootMotionSource* SourceToTakeStateFrom, bool bMarkForSimulatedCatchup = false) override;
+	ENGINE_API virtual bool UpdateStateFrom(const FRootMotionSource* SourceToTakeStateFrom, bool bMarkForSimulatedCatchup = false) override;
 
-	virtual void PrepareRootMotion(
+	ENGINE_API virtual void PrepareRootMotion(
 		float SimulationTime, 
 		float MovementTickTime,
 		const ACharacter& Character, 
 		const UCharacterMovementComponent& MoveComponent
 		) override;
 
-	virtual bool NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSuccess) override;
+	ENGINE_API virtual bool NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSuccess) override;
 
-	virtual UScriptStruct* GetScriptStruct() const override;
+	ENGINE_API virtual UScriptStruct* GetScriptStruct() const override;
 
-	virtual FString ToSimpleString() const override;
+	ENGINE_API virtual FString ToSimpleString() const override;
 
-	virtual void AddReferencedObjects(class FReferenceCollector& Collector) override;
+	ENGINE_API virtual void AddReferencedObjects(class FReferenceCollector& Collector) override;
 };
 
 template<>
@@ -458,11 +458,11 @@ struct TStructOpsTypeTraits< FRootMotionSource_ConstantForce > : public TStructO
 
 /** RadialForce applies a force pulling or pushing away from a given world location to the target */
 USTRUCT()
-struct ENGINE_API FRootMotionSource_RadialForce : public FRootMotionSource
+struct FRootMotionSource_RadialForce : public FRootMotionSource
 {
 	GENERATED_USTRUCT_BODY()
 
-	FRootMotionSource_RadialForce();
+	ENGINE_API FRootMotionSource_RadialForce();
 
 	virtual ~FRootMotionSource_RadialForce() {}
 
@@ -496,28 +496,28 @@ struct ENGINE_API FRootMotionSource_RadialForce : public FRootMotionSource
 	UPROPERTY()
 	FRotator FixedWorldDirection;
 
-	virtual FRootMotionSource* Clone() const override;
+	ENGINE_API virtual FRootMotionSource* Clone() const override;
 
-	virtual bool Matches(const FRootMotionSource* Other) const override;
+	ENGINE_API virtual bool Matches(const FRootMotionSource* Other) const override;
 
-	virtual bool MatchesAndHasSameState(const FRootMotionSource* Other) const override;
+	ENGINE_API virtual bool MatchesAndHasSameState(const FRootMotionSource* Other) const override;
 
-	virtual bool UpdateStateFrom(const FRootMotionSource* SourceToTakeStateFrom, bool bMarkForSimulatedCatchup = false) override;
+	ENGINE_API virtual bool UpdateStateFrom(const FRootMotionSource* SourceToTakeStateFrom, bool bMarkForSimulatedCatchup = false) override;
 
-	virtual void PrepareRootMotion(
+	ENGINE_API virtual void PrepareRootMotion(
 		float SimulationTime, 
 		float MovementTickTime,
 		const ACharacter& Character, 
 		const UCharacterMovementComponent& MoveComponent
 		) override;
 
-	virtual bool NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSuccess) override;
+	ENGINE_API virtual bool NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSuccess) override;
 
-	virtual UScriptStruct* GetScriptStruct() const override;
+	ENGINE_API virtual UScriptStruct* GetScriptStruct() const override;
 
-	virtual FString ToSimpleString() const override;
+	ENGINE_API virtual FString ToSimpleString() const override;
 
-	virtual void AddReferencedObjects(class FReferenceCollector& Collector) override;
+	ENGINE_API virtual void AddReferencedObjects(class FReferenceCollector& Collector) override;
 };
 
 template<>
@@ -533,11 +533,11 @@ struct TStructOpsTypeTraits< FRootMotionSource_RadialForce > : public TStructOps
 
 /** MoveToForce moves the target to a given fixed location in world space over the duration */
 USTRUCT()
-struct ENGINE_API FRootMotionSource_MoveToForce : public FRootMotionSource
+struct FRootMotionSource_MoveToForce : public FRootMotionSource
 {
 	GENERATED_USTRUCT_BODY()
 
-	FRootMotionSource_MoveToForce();
+	ENGINE_API FRootMotionSource_MoveToForce();
 
 	virtual ~FRootMotionSource_MoveToForce() {}
 
@@ -553,32 +553,32 @@ struct ENGINE_API FRootMotionSource_MoveToForce : public FRootMotionSource
 	UPROPERTY()
 	TObjectPtr<UCurveVector> PathOffsetCurve;
 
-	FVector GetPathOffsetInWorldSpace(const float MoveFraction) const;
+	ENGINE_API FVector GetPathOffsetInWorldSpace(const float MoveFraction) const;
 
-	virtual FRootMotionSource* Clone() const override;
+	ENGINE_API virtual FRootMotionSource* Clone() const override;
 
-	virtual bool Matches(const FRootMotionSource* Other) const override;
+	ENGINE_API virtual bool Matches(const FRootMotionSource* Other) const override;
 
-	virtual bool MatchesAndHasSameState(const FRootMotionSource* Other) const override;
+	ENGINE_API virtual bool MatchesAndHasSameState(const FRootMotionSource* Other) const override;
 
-	virtual bool UpdateStateFrom(const FRootMotionSource* SourceToTakeStateFrom, bool bMarkForSimulatedCatchup = false) override;
+	ENGINE_API virtual bool UpdateStateFrom(const FRootMotionSource* SourceToTakeStateFrom, bool bMarkForSimulatedCatchup = false) override;
 
-	virtual void SetTime(float NewTime) override;
+	ENGINE_API virtual void SetTime(float NewTime) override;
 
-	virtual void PrepareRootMotion(
+	ENGINE_API virtual void PrepareRootMotion(
 		float SimulationTime, 
 		float MovementTickTime,
 		const ACharacter& Character, 
 		const UCharacterMovementComponent& MoveComponent
 		) override;
 
-	virtual bool NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSuccess) override;
+	ENGINE_API virtual bool NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSuccess) override;
 
-	virtual UScriptStruct* GetScriptStruct() const override;
+	ENGINE_API virtual UScriptStruct* GetScriptStruct() const override;
 
-	virtual FString ToSimpleString() const override;
+	ENGINE_API virtual FString ToSimpleString() const override;
 
-	virtual void AddReferencedObjects(class FReferenceCollector& Collector) override;
+	ENGINE_API virtual void AddReferencedObjects(class FReferenceCollector& Collector) override;
 };
 
 template<>
@@ -597,11 +597,11 @@ struct TStructOpsTypeTraits< FRootMotionSource_MoveToForce > : public TStructOps
  * is dynamic and can change during the move (meant to be used for things like moving to a moving target)
  */
 USTRUCT()
-struct ENGINE_API FRootMotionSource_MoveToDynamicForce : public FRootMotionSource
+struct FRootMotionSource_MoveToDynamicForce : public FRootMotionSource
 {
 	GENERATED_USTRUCT_BODY()
 
-	FRootMotionSource_MoveToDynamicForce();
+	ENGINE_API FRootMotionSource_MoveToDynamicForce();
 
 	virtual ~FRootMotionSource_MoveToDynamicForce() {}
 
@@ -624,34 +624,34 @@ struct ENGINE_API FRootMotionSource_MoveToDynamicForce : public FRootMotionSourc
 	UPROPERTY()
 	TObjectPtr<UCurveFloat> TimeMappingCurve;
 
-	void SetTargetLocation(FVector NewTargetLocation);
+	ENGINE_API void SetTargetLocation(FVector NewTargetLocation);
 
-	FVector GetPathOffsetInWorldSpace(const float MoveFraction) const;
+	ENGINE_API FVector GetPathOffsetInWorldSpace(const float MoveFraction) const;
 
-	virtual FRootMotionSource* Clone() const override;
+	ENGINE_API virtual FRootMotionSource* Clone() const override;
 
-	virtual bool Matches(const FRootMotionSource* Other) const override;
+	ENGINE_API virtual bool Matches(const FRootMotionSource* Other) const override;
 
-	virtual bool MatchesAndHasSameState(const FRootMotionSource* Other) const override;
+	ENGINE_API virtual bool MatchesAndHasSameState(const FRootMotionSource* Other) const override;
 
-	virtual bool UpdateStateFrom(const FRootMotionSource* SourceToTakeStateFrom, bool bMarkForSimulatedCatchup = false) override;
+	ENGINE_API virtual bool UpdateStateFrom(const FRootMotionSource* SourceToTakeStateFrom, bool bMarkForSimulatedCatchup = false) override;
 
-	virtual void SetTime(float NewTime) override;
+	ENGINE_API virtual void SetTime(float NewTime) override;
 
-	virtual void PrepareRootMotion(
+	ENGINE_API virtual void PrepareRootMotion(
 		float SimulationTime, 
 		float MovementTickTime,
 		const ACharacter& Character, 
 		const UCharacterMovementComponent& MoveComponent
 		) override;
 
-	virtual bool NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSuccess) override;
+	ENGINE_API virtual bool NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSuccess) override;
 
-	virtual UScriptStruct* GetScriptStruct() const override;
+	ENGINE_API virtual UScriptStruct* GetScriptStruct() const override;
 
-	virtual FString ToSimpleString() const override;
+	ENGINE_API virtual FString ToSimpleString() const override;
 
-	virtual void AddReferencedObjects(class FReferenceCollector& Collector) override;
+	ENGINE_API virtual void AddReferencedObjects(class FReferenceCollector& Collector) override;
 };
 
 template<>
@@ -667,11 +667,11 @@ struct TStructOpsTypeTraits< FRootMotionSource_MoveToDynamicForce > : public TSt
 
 /** JumpForce moves the target in a jump-like manner (ends when landing, applied force is relative) */
 USTRUCT()
-struct ENGINE_API FRootMotionSource_JumpForce : public FRootMotionSource
+struct FRootMotionSource_JumpForce : public FRootMotionSource
 {
 	GENERATED_USTRUCT_BODY()
 
-	FRootMotionSource_JumpForce();
+	ENGINE_API FRootMotionSource_JumpForce();
 
 	virtual ~FRootMotionSource_JumpForce() {}
 
@@ -695,34 +695,34 @@ struct ENGINE_API FRootMotionSource_JumpForce : public FRootMotionSource
 
 	FVector SavedHalfwayLocation;
 
-	FVector GetPathOffset(float MoveFraction) const;
+	ENGINE_API FVector GetPathOffset(float MoveFraction) const;
 
-	FVector GetRelativeLocation(float MoveFraction) const;
+	ENGINE_API FVector GetRelativeLocation(float MoveFraction) const;
 
-	virtual bool IsTimeOutEnabled() const override;
+	ENGINE_API virtual bool IsTimeOutEnabled() const override;
 
-	virtual FRootMotionSource* Clone() const override;
+	ENGINE_API virtual FRootMotionSource* Clone() const override;
 
-	virtual bool Matches(const FRootMotionSource* Other) const override;
+	ENGINE_API virtual bool Matches(const FRootMotionSource* Other) const override;
 
-	virtual bool MatchesAndHasSameState(const FRootMotionSource* Other) const override;
+	ENGINE_API virtual bool MatchesAndHasSameState(const FRootMotionSource* Other) const override;
 
-	virtual bool UpdateStateFrom(const FRootMotionSource* SourceToTakeStateFrom, bool bMarkForSimulatedCatchup = false) override;
+	ENGINE_API virtual bool UpdateStateFrom(const FRootMotionSource* SourceToTakeStateFrom, bool bMarkForSimulatedCatchup = false) override;
 
-	virtual void PrepareRootMotion(
+	ENGINE_API virtual void PrepareRootMotion(
 		float SimulationTime, 
 		float MovementTickTime,
 		const ACharacter& Character, 
 		const UCharacterMovementComponent& MoveComponent
 		) override;
 
-	virtual bool NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSuccess) override;
+	ENGINE_API virtual bool NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSuccess) override;
 
-	virtual UScriptStruct* GetScriptStruct() const override;
+	ENGINE_API virtual UScriptStruct* GetScriptStruct() const override;
 
-	virtual FString ToSimpleString() const override;
+	ENGINE_API virtual FString ToSimpleString() const override;
 
-	virtual void AddReferencedObjects(class FReferenceCollector& Collector) override;
+	ENGINE_API virtual void AddReferencedObjects(class FReferenceCollector& Collector) override;
 };
 
 template<>
@@ -740,11 +740,11 @@ struct TStructOpsTypeTraits< FRootMotionSource_JumpForce > : public TStructOpsTy
  *
  **/
 USTRUCT()
-struct ENGINE_API FRootMotionSourceGroup
+struct FRootMotionSourceGroup
 {
 	GENERATED_USTRUCT_BODY()
 
-	FRootMotionSourceGroup();
+	ENGINE_API FRootMotionSourceGroup();
 
 	virtual ~FRootMotionSourceGroup() {}
 
@@ -789,7 +789,7 @@ struct ENGINE_API FRootMotionSourceGroup
 	UPROPERTY()
 	FVector_NetQuantize10 LastPreAdditiveVelocity;
 
-	void CleanUpInvalidRootMotion(float DeltaTime, const ACharacter& Character, UCharacterMovementComponent& MoveComponent);
+	ENGINE_API void CleanUpInvalidRootMotion(float DeltaTime, const ACharacter& Character, UCharacterMovementComponent& MoveComponent);
 
 	/** 
 	 *  Generates root motion by accumulating transforms through current root motion sources. 
@@ -797,60 +797,60 @@ struct ENGINE_API FRootMotionSourceGroup
 	 *                            Needed due to SavedMove playback/server correction only applying corrections to
 	 *                            Sources that need updating, so in that case we only Prepare those that need it.
 	 */
-	void PrepareRootMotion(float DeltaTime, const ACharacter& Character, const UCharacterMovementComponent& InMoveComponent, bool bForcePrepareAll = false);
+	ENGINE_API void PrepareRootMotion(float DeltaTime, const ACharacter& Character, const UCharacterMovementComponent& InMoveComponent, bool bForcePrepareAll = false);
 
 	/**  Helper function for accumulating override velocity into InOutVelocity */
-	void AccumulateOverrideRootMotionVelocity(float DeltaTime, const ACharacter& Character, const UCharacterMovementComponent& MoveComponent, FVector& InOutVelocity) const;
+	ENGINE_API void AccumulateOverrideRootMotionVelocity(float DeltaTime, const ACharacter& Character, const UCharacterMovementComponent& MoveComponent, FVector& InOutVelocity) const;
 
 	/**  Helper function for accumulating additive velocity into InOutVelocity */
-	void AccumulateAdditiveRootMotionVelocity(float DeltaTime, const ACharacter& Character, const UCharacterMovementComponent& MoveComponent, FVector& InOutVelocity) const;
+	ENGINE_API void AccumulateAdditiveRootMotionVelocity(float DeltaTime, const ACharacter& Character, const UCharacterMovementComponent& MoveComponent, FVector& InOutVelocity) const;
 
 	/** Get rotation output of current override root motion source, returns true if OutRotation was filled */
-	bool GetOverrideRootMotionRotation(float DeltaTime, const ACharacter& Character, const UCharacterMovementComponent& MoveComponent, FQuat& OutRotation) const;
+	ENGINE_API bool GetOverrideRootMotionRotation(float DeltaTime, const ACharacter& Character, const UCharacterMovementComponent& MoveComponent, FQuat& OutRotation) const;
 
 	/** Gets whether any active root motion source has been marked to need NetworkSmoothing as a SimulatedProxy */
-	bool NeedsSimulatedSmoothing() const;
+	ENGINE_API bool NeedsSimulatedSmoothing() const;
 
 	/** Sets the StartTime of all pending root motion sources to be at least this time, can be used on servers to match client-side start times */
-	void SetPendingRootMotionSourceMinStartTimes(float NewStartTime);
+	ENGINE_API void SetPendingRootMotionSourceMinStartTimes(float NewStartTime);
 
 	/** Applies a reset to the start time for each root motion when the time stamp is reset */
-	void ApplyTimeStampReset(float DeltaTime);
+	ENGINE_API void ApplyTimeStampReset(float DeltaTime);
 
 	/** @return true if Velocity will be overridden by root motion sources, meaning we can skip all normal movement-based velocity calculations */
-	bool HasOverrideVelocity() const;
+	ENGINE_API bool HasOverrideVelocity() const;
 
 	/** @return true if Velocity will be overridden by root motion sources that do not affect Z velocity (matching animation root motion behavior) */
-	bool HasOverrideVelocityWithIgnoreZAccumulate() const;
+	ENGINE_API bool HasOverrideVelocityWithIgnoreZAccumulate() const;
 
 	/** @return true if any axis of velocity has additive velocity applied by root motion sources */
-	bool HasAdditiveVelocity() const;
+	ENGINE_API bool HasAdditiveVelocity() const;
 
 	/** @return true if any axis of velocity is modified by root motion sources */
-	bool HasVelocity() const;
+	ENGINE_API bool HasVelocity() const;
 
 	/** @return true if we have Root Motion from any source to use in PerformMovement() physics. */
-	bool HasActiveRootMotionSources() const;
+	ENGINE_API bool HasActiveRootMotionSources() const;
 
 	/** @return true if we have Root Motion accumulated from sources to use in PerformMovement() physics. 
 		Not valid outside of the scope of that function. Since RootMotion is extracted and used in it. */
-	bool HasRootMotionToApply() const;
+	ENGINE_API bool HasRootMotionToApply() const;
 
 	/** Apply a RootMotionSource to this Group 
 	 *  @return LocalID for this RMS */
-	uint16 ApplyRootMotionSource(TSharedPtr<FRootMotionSource> SourcePtr);
+	ENGINE_API uint16 ApplyRootMotionSource(TSharedPtr<FRootMotionSource> SourcePtr);
 
 	/** Get a RootMotionSource from this Group by name */
-	TSharedPtr<FRootMotionSource> GetRootMotionSource(FName InstanceName);
+	ENGINE_API TSharedPtr<FRootMotionSource> GetRootMotionSource(FName InstanceName);
 
 	/** Get a RootMotionSource from this Group by ID */
-	TSharedPtr<FRootMotionSource> GetRootMotionSourceByID(uint16 RootMotionSourceID);
+	ENGINE_API TSharedPtr<FRootMotionSource> GetRootMotionSourceByID(uint16 RootMotionSourceID);
 
 	/** Remove a RootMotionSource from this Group by name */
-	void RemoveRootMotionSource(FName InstanceName);
+	ENGINE_API void RemoveRootMotionSource(FName InstanceName);
 
 	/** Remove a RootMotionSource from this Group by ID */
-	void RemoveRootMotionSourceByID(uint16 RootMotionSourceID);
+	ENGINE_API void RemoveRootMotionSourceByID(uint16 RootMotionSourceID);
 
 	/** 
 	 *  Update contained Sources to state in matching sources from other group.
@@ -859,39 +859,39 @@ struct ENGINE_API FRootMotionSourceGroup
 	 *  @param bMarkForSimulatedCatchup marks Sources as needing to return to their current Time on next Prepare
 	 *  @return whether it successfully updated state
 	 **/
-	void UpdateStateFrom(const FRootMotionSourceGroup& GroupToTakeStateFrom, bool bMarkForSimulatedCatchup = false);
+	ENGINE_API void UpdateStateFrom(const FRootMotionSourceGroup& GroupToTakeStateFrom, bool bMarkForSimulatedCatchup = false);
 
 	/** Serialize the root motion sources and their states for this group */
-	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess, uint8 MaxNumRootMotionSourcesToSerialize = MAX_uint8);
+	ENGINE_API bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess, uint8 MaxNumRootMotionSourcesToSerialize = MAX_uint8);
 
 	/** Clear the contents to return it to "empty" */
-	void Clear();
+	ENGINE_API void Clear();
 
 	/** Removes any Sources without a valid ID */
-	void CullInvalidSources();
+	ENGINE_API void CullInvalidSources();
 
 	/** Copy operator - deep copy so it can be used for archiving/saving off moves */
-	FRootMotionSourceGroup& operator=(const FRootMotionSourceGroup& Other);
+	ENGINE_API FRootMotionSourceGroup& operator=(const FRootMotionSourceGroup& Other);
 
 	/** Comparison operator - needs matching Sources along with identical states in those sources */
-	bool operator==(const FRootMotionSourceGroup& Other) const;
+	ENGINE_API bool operator==(const FRootMotionSourceGroup& Other) const;
 
 	/** Comparison operator */
-	bool operator!=(const FRootMotionSourceGroup& Other) const;
+	ENGINE_API bool operator!=(const FRootMotionSourceGroup& Other) const;
 
 	/** Exposes references to GC system */
-	void AddStructReferencedObjects(FReferenceCollector& Collector) const;
+	ENGINE_API void AddStructReferencedObjects(FReferenceCollector& Collector) const;
 
 protected:
 
 	/** Accumulates contributions for velocity into InOutVelocity for a given type of root motion from this group */
-	void AccumulateRootMotionVelocity(ERootMotionAccumulateMode RootMotionType, float DeltaTime, const ACharacter& Character, const UCharacterMovementComponent& MoveComponent, FVector& InOutVelocity) const;
+	ENGINE_API void AccumulateRootMotionVelocity(ERootMotionAccumulateMode RootMotionType, float DeltaTime, const ACharacter& Character, const UCharacterMovementComponent& MoveComponent, FVector& InOutVelocity) const;
 
 	/** Accumulates contributions for velocity into InOutVelocity for a given type of root motion from this group */
-	void AccumulateRootMotionVelocityFromSource(const FRootMotionSource& RootMotionSource, float DeltaTime, const ACharacter& Character, const UCharacterMovementComponent& MoveComponent, FVector& InOutVelocity) const;
+	ENGINE_API void AccumulateRootMotionVelocityFromSource(const FRootMotionSource& RootMotionSource, float DeltaTime, const ACharacter& Character, const UCharacterMovementComponent& MoveComponent, FVector& InOutVelocity) const;
 
 	/** Helper function for serializing array of root motion sources */
-	static void NetSerializeRMSArray(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess, TArray< TSharedPtr<FRootMotionSource> >& RootMotionSourceArray, uint8 MaxNumRootMotionSourcesToSerialize = MAX_uint8);
+	static ENGINE_API void NetSerializeRMSArray(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess, TArray< TSharedPtr<FRootMotionSource> >& RootMotionSourceArray, uint8 MaxNumRootMotionSourcesToSerialize = MAX_uint8);
 
 };
 

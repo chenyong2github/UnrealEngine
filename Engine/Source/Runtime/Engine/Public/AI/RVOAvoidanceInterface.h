@@ -19,7 +19,7 @@ class URVOAvoidanceInterface : public UInterface
 	GENERATED_UINTERFACE_BODY()
 };
 
-class ENGINE_API IRVOAvoidanceInterface
+class IRVOAvoidanceInterface
 {
 	GENERATED_IINTERFACE_BODY()
 

@@ -19,8 +19,8 @@ class APlayerController;
  *
  *	@see https://docs.unrealengine.com/latest/INT/Gameplay/SaveGame
  */
-UCLASS(abstract, Blueprintable, BlueprintType)
-class ENGINE_API USaveGame : public UObject
+UCLASS(abstract, Blueprintable, BlueprintType, MinimalAPI)
+class USaveGame : public UObject
 {
 	/**
 	 *	@see UGameplayStatics::CreateSaveGameObject
@@ -43,8 +43,8 @@ DECLARE_DELEGATE_OneParam(FOnLocalPlayerSaveGameLoadedNative, class ULocalPlayer
  * For simple games, it is fine to blueprint this class directly and add parameters and override functions in blueprint,
  * but for complicated games you will want to subclass this in native code and set up proper versioning.
  */
-UCLASS(abstract, Blueprintable, BlueprintType)
-class ENGINE_API ULocalPlayerSaveGame : public USaveGame
+UCLASS(abstract, Blueprintable, BlueprintType, MinimalAPI)
+class ULocalPlayerSaveGame : public USaveGame
 {
 	GENERATED_BODY()
 public:
@@ -54,139 +54,139 @@ public:
 	 * This will return null for invalid parameters, but will create a new instance if the parameters are valid but loading fails.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SaveGame|LocalPlayer")
-	static ULocalPlayerSaveGame* LoadOrCreateSaveGameForLocalPlayer(TSubclassOf<ULocalPlayerSaveGame> SaveGameClass, APlayerController* LocalPlayerController, const FString& SlotName);
+	static ENGINE_API ULocalPlayerSaveGame* LoadOrCreateSaveGameForLocalPlayer(TSubclassOf<ULocalPlayerSaveGame> SaveGameClass, APlayerController* LocalPlayerController, const FString& SlotName);
 
 	/**
 	 * Native version of above function, this takes a ULocalPlayer because you can have a local player before a player controller.
 	 * This will return null for invalid parameters, but will create a new instance if the parameters are valid but loading fails.
 	 */
-	static ULocalPlayerSaveGame* LoadOrCreateSaveGameForLocalPlayer(TSubclassOf<ULocalPlayerSaveGame> SaveGameClass, const ULocalPlayer* LocalPlayer, const FString& SlotName);
+	static ENGINE_API ULocalPlayerSaveGame* LoadOrCreateSaveGameForLocalPlayer(TSubclassOf<ULocalPlayerSaveGame> SaveGameClass, const ULocalPlayer* LocalPlayer, const FString& SlotName);
 
 	/**
 	 * Asynchronously loads a save game object in the specified slot for the local player, if this returns true the delegate will get called later.
 	 * False means the load was never scheduled, otherwise it will create and initialize a new instance before calling the delegate if loading failed.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SaveGame|LocalPlayer")
-	static bool AsyncLoadOrCreateSaveGameForLocalPlayer(TSubclassOf<ULocalPlayerSaveGame> SaveGameClass, APlayerController* LocalPlayerController, const FString& SlotName, FOnLocalPlayerSaveGameLoaded Delegate);
+	static ENGINE_API bool AsyncLoadOrCreateSaveGameForLocalPlayer(TSubclassOf<ULocalPlayerSaveGame> SaveGameClass, APlayerController* LocalPlayerController, const FString& SlotName, FOnLocalPlayerSaveGameLoaded Delegate);
 
 	/**
 	 * Native version of above function, this takes a ULocalPlayer and calls a native delegate.
 	 * False means the load was never scheduled, otherwise it will create and initialize a new instance before calling the delegate if loading failed.
 	 */
-	static bool AsyncLoadOrCreateSaveGameForLocalPlayer(TSubclassOf<ULocalPlayerSaveGame> SaveGameClass, const ULocalPlayer* LocalPlayer, const FString& SlotName, FOnLocalPlayerSaveGameLoadedNative Delegate);
+	static ENGINE_API bool AsyncLoadOrCreateSaveGameForLocalPlayer(TSubclassOf<ULocalPlayerSaveGame> SaveGameClass, const ULocalPlayer* LocalPlayer, const FString& SlotName, FOnLocalPlayerSaveGameLoadedNative Delegate);
 
 	/**
 	 * Create a brand new save game, possibly ready for saving but without trying to load from disk. This will always succeed.
 	 */
-	static ULocalPlayerSaveGame* CreateNewSaveGameForLocalPlayer(TSubclassOf<ULocalPlayerSaveGame> SaveGameClass, const ULocalPlayer* LocalPlayer, const FString& SlotName);
+	static ENGINE_API ULocalPlayerSaveGame* CreateNewSaveGameForLocalPlayer(TSubclassOf<ULocalPlayerSaveGame> SaveGameClass, const ULocalPlayer* LocalPlayer, const FString& SlotName);
 
 	/**
 	 * Synchronously save using the slot and user index, stalling the main thread until it completes. 
 	 * This will return true if the save was requested, and errors should be handled by the HandlePostSave function that will be called immediately.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SaveGame|LocalPlayer")
-	virtual bool SaveGameToSlotForLocalPlayer();
+	ENGINE_API virtual bool SaveGameToSlotForLocalPlayer();
 
 	/**
 	 * Asynchronously save to the slot and user index.
 	 * This will return true if the save was requested, and errors should be handled by the HandlePostSave function after the save succeeds or fails
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SaveGame|LocalPlayer")
-	virtual bool AsyncSaveGameToSlotForLocalPlayer();
+	ENGINE_API virtual bool AsyncSaveGameToSlotForLocalPlayer();
 
 
 	/** Returns the local player controller this is associated with, this will be valid if it is ready to save */
 	UFUNCTION(BlueprintCallable, Category = "SaveGame|LocalPlayer")
-	virtual APlayerController* GetLocalPlayerController() const;
+	ENGINE_API virtual APlayerController* GetLocalPlayerController() const;
 
 	/** Returns the local player this is associated with, this will be valid if it is ready to save */
-	virtual const ULocalPlayer* GetLocalPlayer() const;
+	ENGINE_API virtual const ULocalPlayer* GetLocalPlayer() const;
 
 	/** Associates this save game with a local player, this is called automatically during load/create */
-	virtual void SetLocalPlayer(const ULocalPlayer* LocalPlayer);
+	ENGINE_API virtual void SetLocalPlayer(const ULocalPlayer* LocalPlayer);
 
 	/** Returns the platform user to save to, based on Local Player by default */
 	UFUNCTION(BlueprintCallable, Category = "SaveGame|LocalPlayer")
-	virtual FPlatformUserId GetPlatformUserId() const;
+	ENGINE_API virtual FPlatformUserId GetPlatformUserId() const;
 
 	/** Returns the user index to save to, based on Local Player by default */
 	UFUNCTION(BlueprintCallable, Category = "SaveGame|LocalPlayer")
-	virtual int32 GetPlatformUserIndex() const;
+	ENGINE_API virtual int32 GetPlatformUserIndex() const;
 
 	/** Returns the save slot name to use */
 	UFUNCTION(BlueprintCallable, Category = "SaveGame|LocalPlayer")
-	virtual FString GetSaveSlotName() const;
+	ENGINE_API virtual FString GetSaveSlotName() const;
 
 	/** Sets the save slot name for any future saves */
-	virtual void SetSaveSlotName(const FString& SlotName);
+	ENGINE_API virtual void SetSaveSlotName(const FString& SlotName);
 
 	/** Returns the game-specific version number this was last saved/loaded as */
 	UFUNCTION(BlueprintCallable, Category = "SaveGame|LocalPlayer")
-	virtual int32 GetSavedDataVersion() const;
+	ENGINE_API virtual int32 GetSavedDataVersion() const;
 
 	/** Returns the invalid save data version, which means it has never been saved/loaded */
 	UFUNCTION(BlueprintCallable, Category = "SaveGame|LocalPlayer")
-	virtual int32 GetInvalidDataVersion() const;
+	ENGINE_API virtual int32 GetInvalidDataVersion() const;
 
 	/** Returns the latest save data version, this is used when the new data is saved */
 	UFUNCTION(BlueprintCallable, Category = "SaveGame|LocalPlayer")
-	virtual int32 GetLatestDataVersion() const;
+	ENGINE_API virtual int32 GetLatestDataVersion() const;
 
 	/** Returns true if this was loaded from an existing save */
 	UFUNCTION(BlueprintCallable, Category = "SaveGame|LocalPlayer")
-	virtual bool WasLoaded() const;
+	ENGINE_API virtual bool WasLoaded() const;
 
 	/** Returns true if a save is in progress */
 	UFUNCTION(BlueprintCallable, Category = "SaveGame|LocalPlayer")
-	virtual bool IsSaveInProgress() const;
+	ENGINE_API virtual bool IsSaveInProgress() const;
 
 	/** Returns true if it has been saved at least once and the last save was successful */
 	UFUNCTION(BlueprintCallable, Category = "SaveGame|LocalPlayer")
-	virtual bool WasLastSaveSuccessful() const;
+	ENGINE_API virtual bool WasLastSaveSuccessful() const;
 
 	/** Returns true if a save was ever requested, may still be in progress */
 	UFUNCTION(BlueprintCallable, Category = "SaveGame|LocalPlayer")
-	virtual bool WasSaveRequested() const;
+	ENGINE_API virtual bool WasSaveRequested() const;
 
 
 	/** Initializes this save after either loading or initial creation, automatically called by load/create functions above */
-	virtual void InitializeSaveGame(const ULocalPlayer* LocalPlayer, FString InSlotName, bool bWasLoaded);
+	ENGINE_API virtual void InitializeSaveGame(const ULocalPlayer* LocalPlayer, FString InSlotName, bool bWasLoaded);
 
 	/** Resets all saved data to default values, called when the load fails or manually */
 	UFUNCTION(BlueprintCallable, Category = "SaveGame|LocalPlayer")
-	virtual void ResetToDefault();
+	ENGINE_API virtual void ResetToDefault();
 
 	/** Blueprint event called to reset all saved data to default, called when the load fails or manually */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SaveGame|LocalPlayer")
-	void OnResetToDefault();
+	ENGINE_API void OnResetToDefault();
 
 	/** Called after loading, this is not called for newly created saves */
-	virtual void HandlePostLoad();
+	ENGINE_API virtual void HandlePostLoad();
 
 	/** Blueprint event called after loading, is not called for newly created saves */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SaveGame|LocalPlayer")
-	void OnPostLoad();
+	ENGINE_API void OnPostLoad();
 
 	/** Called before saving, do any game-specific fixup here */
-	virtual void HandlePreSave();
+	ENGINE_API virtual void HandlePreSave();
 
 	/** Blueprint event called before saving, do any game-specific fixup here  */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SaveGame|LocalPlayer")
-	void OnPreSave();
+	ENGINE_API void OnPreSave();
 
 	/** Called after saving finishes with success/failure result */
-	virtual void HandlePostSave(bool bSuccess);
+	ENGINE_API virtual void HandlePostSave(bool bSuccess);
 
 	/** Blueprint event called after saving finishes with success/failure result */
 	UFUNCTION(BlueprintImplementableEvent, Category = "SaveGame|LocalPlayer")
-	void OnPostSave(bool bSuccess);
+	ENGINE_API void OnPostSave(bool bSuccess);
 
 protected:
 	/** Internal callback that will call HandlePostSave */
-	virtual void ProcessSaveComplete(const FString& SlotName, const int32 UserIndex, bool bSuccess, int32 SaveRequest);
+	ENGINE_API virtual void ProcessSaveComplete(const FString& SlotName, const int32 UserIndex, bool bSuccess, int32 SaveRequest);
 
 	/** Internal helper function used by both the sync and async save */
-	static ULocalPlayerSaveGame* ProcessLoadedSave(USaveGame* BaseSave, const FString& SlotName, const int32 UserIndex, TSubclassOf<ULocalPlayerSaveGame> SaveGameClass, const ULocalPlayer* LocalPlayer);
+	static ENGINE_API ULocalPlayerSaveGame* ProcessLoadedSave(USaveGame* BaseSave, const FString& SlotName, const int32 UserIndex, TSubclassOf<ULocalPlayerSaveGame> SaveGameClass, const ULocalPlayer* LocalPlayer);
 
 	/** The local player this is connected to, can be null if subclasses override Get/Set Local Player or it hasn't been initialized */
 	UPROPERTY(Transient)

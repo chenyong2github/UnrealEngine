@@ -10,7 +10,7 @@
 class UBlendSpace;
 
 USTRUCT()
-struct ENGINE_API FAnimSubsystem_BlendSpaceGraph : public FAnimSubsystem
+struct FAnimSubsystem_BlendSpaceGraph : public FAnimSubsystem
 {
 	GENERATED_BODY()
 

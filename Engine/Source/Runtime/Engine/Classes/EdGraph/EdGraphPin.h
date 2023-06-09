@@ -243,7 +243,7 @@ enum EBlueprintPinStyleType : int
 };
 
 USTRUCT()
-struct ENGINE_API FEdGraphPinReference
+struct FEdGraphPinReference
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -253,10 +253,10 @@ struct ENGINE_API FEdGraphPinReference
 	FEdGraphPinReference(const UEdGraphPin* InPin) : OwningNode(nullptr) { SetPin(InPin); }
 
 	/** Sets the pin referred to by this struct */
-	void SetPin(const UEdGraphPin* NewPin);
+	ENGINE_API void SetPin(const UEdGraphPin* NewPin);
 
 	/** Gets the pin referred to by this struct */
-	UEdGraphPin* Get() const;
+	ENGINE_API UEdGraphPin* Get() const;
 
 	friend uint32 GetTypeHash(const FEdGraphPinReference& EdGraphPinReference)
 	{
@@ -544,10 +544,10 @@ public:
 	ENGINE_API bool ExportTextItem(FString& ValueStr, int32 PortFlags) const;
 	ENGINE_API bool ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, class UObject* Parent, FOutputDevice* ErrorText);
 
-	ENGINE_API const FString GetName() const { return PinName.ToString(); }
-	ENGINE_API const FName GetFName() const { return PinName; }
-	ENGINE_API UEdGraphNode* GetOuter() const { return GetOwningNodeUnchecked(); }
-	ENGINE_API bool IsPendingKill() const {	return bWasTrashed; }
+	const FString GetName() const { return PinName.ToString(); }
+	const FName GetFName() const { return PinName; }
+	UEdGraphNode* GetOuter() const { return GetOwningNodeUnchecked(); }
+	bool IsPendingKill() const {	return bWasTrashed; }
 	ENGINE_API FEdGraphTerminalType GetPrimaryTerminalType() const;
 
 	/** Verification that all pins have been destroyed after shutting down */

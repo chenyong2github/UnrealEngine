@@ -353,9 +353,9 @@ public:
 	bool IsRootPage(uint32 PageIndex) const { return PageIndex < NumRootPages; }
 };
 
-class ENGINE_API FVertexFactory final : public ::FVertexFactory
+class FVertexFactory final : public ::FVertexFactory
 {
-	DECLARE_VERTEX_FACTORY_TYPE(FVertexFactory);
+	DECLARE_VERTEX_FACTORY_TYPE_API(FVertexFactory, ENGINE_API);
 
 public:
 	FVertexFactory(ERHIFeatureLevel::Type FeatureLevel) : ::FVertexFactory(FeatureLevel)
@@ -366,11 +366,11 @@ public:
 		ReleaseResource();
 	}
 
-	virtual void InitRHI() override final;
+	ENGINE_API virtual void InitRHI() override final;
 
-	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
-	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
-	static void GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements);
+	static ENGINE_API bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
+	static ENGINE_API void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
+	static ENGINE_API void GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements);
 };
 
 class FVertexFactoryResource : public FRenderResource

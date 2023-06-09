@@ -21,8 +21,8 @@
 // Forward Declarations
 class UWorld;
 
-UCLASS()
-class ENGINE_API UAudioWidgetSubsystem : public UEngineSubsystem
+UCLASS(MinimalAPI)
+class UAudioWidgetSubsystem : public UEngineSubsystem
 {
 	GENERATED_BODY()
 
@@ -32,5 +32,5 @@ private:
 
 public:
 	// Returns user widgets that implement a widget interface of the given subclass and optionally, filters and returns only those which pass the provided filter function.
-	TArray<UUserWidget*> CreateUserWidgets(UWorld& InWorld, TSubclassOf<UInterface> InWidgetInterface, TFunction<bool(UUserWidget*)> FilterFunction = TFunction<bool(UUserWidget*)>()) const;
+	ENGINE_API TArray<UUserWidget*> CreateUserWidgets(UWorld& InWorld, TSubclassOf<UInterface> InWidgetInterface, TFunction<bool(UUserWidget*)> FilterFunction = TFunction<bool(UUserWidget*)>()) const;
 };

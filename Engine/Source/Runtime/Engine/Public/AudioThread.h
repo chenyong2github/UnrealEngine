@@ -99,26 +99,26 @@ struct FAudioThreadSuspendContext
 /**
 * Used to track pending audio commands from the game thread.
 */
-class ENGINE_API FAudioCommandFence
+class FAudioCommandFence
 {
 public:
-	~FAudioCommandFence();
+	ENGINE_API ~FAudioCommandFence();
 
 	/**
 	* Adds a fence command to the audio command queue.
 	* Conceptually, the pending fence count is incremented to reflect the pending fence command.
 	* Once the rendering thread has executed the fence command, it decrements the pending fence count.
 	*/
-	void BeginFence();
+	ENGINE_API void BeginFence();
 
 	/**
 	* Waits for pending fence commands to retire.
 	* @param bProcessGameThreadTasks, if true we are on a short callstack where it is safe to process arbitrary game thread tasks while we wait
 	*/
-	void Wait(bool bProcessGameThreadTasks = false) const;
+	ENGINE_API void Wait(bool bProcessGameThreadTasks = false) const;
 
 	// return true if the fence is complete
-	bool IsFenceComplete() const;
+	ENGINE_API bool IsFenceComplete() const;
 
 private:
 	/** The last audio batch task **/

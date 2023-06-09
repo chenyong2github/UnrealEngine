@@ -11,8 +11,8 @@
 #include "GameFramework/FloatingPawnMovement.h"
 #include "SpectatorPawnMovement.generated.h"
 
-UCLASS()
-class ENGINE_API USpectatorPawnMovement : public UFloatingPawnMovement
+UCLASS(MinimalAPI)
+class USpectatorPawnMovement : public UFloatingPawnMovement
 {
 	GENERATED_UCLASS_BODY()
 
@@ -20,6 +20,6 @@ class ENGINE_API USpectatorPawnMovement : public UFloatingPawnMovement
 	UPROPERTY()
 	uint32 bIgnoreTimeDilation:1;
 
-	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
+	ENGINE_API virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 };
 

@@ -12,8 +12,8 @@
  * is overwritten when bUpdateStatNet == true. For data that both the client and server set, the server
  * data will only overwrite if bUpdateStatNet == true && bOverwriteClientStats == true. 
  */
-UCLASS(BlueprintType)
-class ENGINE_API AServerStatReplicator :
+UCLASS(BlueprintType, MinimalAPI)
+class AServerStatReplicator :
 	public AInfo
 {
 	GENERATED_UCLASS_BODY()
@@ -219,7 +219,7 @@ public:
 	UPROPERTY(Replicated)
 	uint32 NetSaturated;
 
-	virtual void Tick(float DeltaSeconds) override;
-	virtual void BeginPlay() override;
-	virtual void Destroyed() override;
+	ENGINE_API virtual void Tick(float DeltaSeconds) override;
+	ENGINE_API virtual void BeginPlay() override;
+	ENGINE_API virtual void Destroyed() override;
 };

@@ -13,8 +13,8 @@
  * Function signatures are preserved for the most part with adjustments made to some 
  * signatures to better match Blueprints / Python workflow
  */
-UCLASS(meta = (ScriptName = "Paths"))
-class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
+UCLASS(meta = (ScriptName = "Paths"), MinimalAPI)
+class UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_UCLASS_BODY()
 
@@ -22,13 +22,13 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* Should the "saved" directory structures be rooted in the user dir or relative to the "engine/game"
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static bool ShouldSaveToUserDir();
+	static ENGINE_API bool ShouldSaveToUserDir();
 
 	/**
 	* Returns the directory the application was launched from (useful for commandline utilities)
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString LaunchDir();
+	static ENGINE_API FString LaunchDir();
 
 	/**
 	* Returns the base directory of the "core" engine that can be shared across
@@ -38,7 +38,7 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @return engine directory
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString EngineDir();
+	static ENGINE_API FString EngineDir();
 
 	/**
 	* Returns the root directory for user-specific engine files. Always writable.
@@ -46,7 +46,7 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @return root user directory
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString EngineUserDir();
+	static ENGINE_API FString EngineUserDir();
 
 	/**
 	* Returns the root directory for user-specific engine files which can be shared between versions. Always writable.
@@ -54,7 +54,7 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @return root user directory
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString EngineVersionAgnosticUserDir();
+	static ENGINE_API FString EngineVersionAgnosticUserDir();
 
 	/**
 	* Returns the content directory of the "core" engine that can be shared across
@@ -63,7 +63,7 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @return engine content directory
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString EngineContentDir();
+	static ENGINE_API FString EngineContentDir();
 
 	/**
 	* Returns the directory the root configuration files are located.
@@ -71,7 +71,7 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @return root config directory
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString EngineConfigDir();
+	static ENGINE_API FString EngineConfigDir();
 
 	/**
 	* Returns the intermediate directory of the engine
@@ -79,7 +79,7 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @return content directory
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString EngineIntermediateDir();
+	static ENGINE_API FString EngineIntermediateDir();
 
 	/**
 	* Returns the saved directory of the engine
@@ -87,7 +87,7 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @return Saved directory.
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString EngineSavedDir();
+	static ENGINE_API FString EngineSavedDir();
 
 	/**
 	* Returns the plugins directory of the engine
@@ -95,7 +95,7 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @return Plugins directory.
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString EnginePluginsDir();
+	static ENGINE_API FString EnginePluginsDir();
 
 	/**
 	* Returns the base directory enterprise directory.
@@ -103,7 +103,7 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @return enterprise directory
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString EnterpriseDir();
+	static ENGINE_API FString EnterpriseDir();
 
 	/**
 	* Returns the enterprise plugins directory
@@ -111,7 +111,7 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @return Plugins directory.
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString EnterprisePluginsDir();
+	static ENGINE_API FString EnterprisePluginsDir();
 
 	/**
 	* Returns the enterprise FeaturePack directory
@@ -119,7 +119,7 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @return FeaturePack directory.
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString EnterpriseFeaturePackDir();
+	static ENGINE_API FString EnterpriseFeaturePackDir();
 
 	/**
 	* Returns the root directory of the engine directory tree
@@ -127,7 +127,7 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @return Root directory.
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString RootDir();
+	static ENGINE_API FString RootDir();
 
 	/**
 	* Returns the base directory of the current project by looking at FApp::GetProjectName().
@@ -138,7 +138,7 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @return base directory
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString ProjectDir();
+	static ENGINE_API FString ProjectDir();
 
 	/**
 	* Returns the root directory for user-specific game files.
@@ -146,7 +146,7 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @return game user directory
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString ProjectUserDir();
+	static ENGINE_API FString ProjectUserDir();
 
 	/**
 	* Returns the content directory of the current game by looking at FApp::GetProjectName().
@@ -154,7 +154,7 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @return content directory
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString ProjectContentDir();
+	static ENGINE_API FString ProjectContentDir();
 
 	/**
 	* Returns the directory the root configuration files are located.
@@ -162,7 +162,7 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @return root config directory
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString ProjectConfigDir();
+	static ENGINE_API FString ProjectConfigDir();
 
 	/**
 	* Returns the saved directory of the current game by looking at FApp::GetProjectName().
@@ -170,7 +170,7 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @return saved directory
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString ProjectSavedDir();
+	static ENGINE_API FString ProjectSavedDir();
 
 	/**
 	* Returns the intermediate directory of the current game by looking at FApp::GetProjectName().
@@ -178,7 +178,7 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @return intermediate directory
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString ProjectIntermediateDir();
+	static ENGINE_API FString ProjectIntermediateDir();
 
 	/**
 	 * Returns the Shader Working Directory
@@ -186,7 +186,7 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	 * @return shader working directory
 	 */
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString ShaderWorkingDir();
+	static ENGINE_API FString ShaderWorkingDir();
 
 	/**
 	* Returns the plugins directory of the current game by looking at FApp::GetProjectName().
@@ -194,7 +194,7 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @return plugins directory
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString ProjectPluginsDir();
+	static ENGINE_API FString ProjectPluginsDir();
 
 	/**
 	* Returns the mods directory of the current project by looking at FApp::GetProjectName().
@@ -202,19 +202,19 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @return mods directory
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString ProjectModsDir();
+	static ENGINE_API FString ProjectModsDir();
 
 	/*
 	* Returns true if a writable directory for downloaded data that persists across play sessions is available
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static bool HasProjectPersistentDownloadDir();
+	static ENGINE_API bool HasProjectPersistentDownloadDir();
 
 	/*
 	* Returns the writable directory for downloaded data that persists across play sessions.
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString ProjectPersistentDownloadDir();
+	static ENGINE_API FString ProjectPersistentDownloadDir();
 
 	/**
 	* Returns the directory the engine uses to look for the source leaf ini files. This
@@ -223,7 +223,7 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @return source config directory
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString SourceConfigDir();
+	static ENGINE_API FString SourceConfigDir();
 
 	/**
 	* Returns the directory the engine saves generated config files.
@@ -231,7 +231,7 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @return config directory
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString GeneratedConfigDir();
+	static ENGINE_API FString GeneratedConfigDir();
 
 	/**
 	* Returns the directory the engine stores sandbox output
@@ -239,7 +239,7 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @return sandbox directory
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString SandboxesDir();
+	static ENGINE_API FString SandboxesDir();
 
 	/**
 	* Returns the directory the engine uses to output profiling files.
@@ -247,7 +247,7 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @return log directory
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString ProfilingDir();
+	static ENGINE_API FString ProfilingDir();
 
 	/**
 	* Returns the directory the engine uses to output screenshot files.
@@ -255,7 +255,7 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @return screenshot directory
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString ScreenShotDir();
+	static ENGINE_API FString ScreenShotDir();
 
 	/**
 	* Returns the directory the engine uses to output BugIt files.
@@ -263,7 +263,7 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @return screenshot directory
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString BugItDir();
+	static ENGINE_API FString BugItDir();
 
 	/**
 	* Returns the directory the engine uses to output user requested video capture files.
@@ -271,7 +271,7 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @return Video capture directory
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString VideoCaptureDir();
+	static ENGINE_API FString VideoCaptureDir();
 
 	/**
 	* Returns the directory the engine uses to output logs. This currently can't
@@ -281,77 +281,77 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @return log directory
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString ProjectLogDir();
+	static ENGINE_API FString ProjectLogDir();
 
 	/** Returns the directory for automation save files */
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString AutomationDir();
+	static ENGINE_API FString AutomationDir();
 
 	/** Returns the directory for automation save files that are meant to be deleted every run */
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString AutomationTransientDir();
+	static ENGINE_API FString AutomationTransientDir();
 
 	/** Returns the directory for automation log files */
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString AutomationLogDir();
+	static ENGINE_API FString AutomationLogDir();
 
 	/** Returns the directory for local files used in cloud emulation or support */
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString CloudDir();
+	static ENGINE_API FString CloudDir();
 
 	/** Returns the directory that contains subfolders for developer-specific content */
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString GameDevelopersDir();
+	static ENGINE_API FString GameDevelopersDir();
 
 	/** Returns the directory that contains developer-specific content for the current user */
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString GameUserDeveloperDir();
+	static ENGINE_API FString GameUserDeveloperDir();
 
 	/** Returns the directory for temp files used for diffing */
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString DiffDir();
+	static ENGINE_API FString DiffDir();
 
 	/**
 	* Returns a list of engine-specific localization paths
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static const TArray<FString>& GetEngineLocalizationPaths();
+	static ENGINE_API const TArray<FString>& GetEngineLocalizationPaths();
 
 	/**
 	* Returns a list of editor-specific localization paths
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static const TArray<FString>& GetEditorLocalizationPaths();
+	static ENGINE_API const TArray<FString>& GetEditorLocalizationPaths();
 
 	/**
 	* Returns a list of property name localization paths
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static const TArray<FString>& GetPropertyNameLocalizationPaths();
+	static ENGINE_API const TArray<FString>& GetPropertyNameLocalizationPaths();
 
 	/**
 	* Returns a list of tool tip localization paths
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static const TArray<FString>& GetToolTipLocalizationPaths();
+	static ENGINE_API const TArray<FString>& GetToolTipLocalizationPaths();
 
 	/**
 	* Returns a list of game-specific localization paths
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static const TArray<FString>& GetGameLocalizationPaths();
+	static ENGINE_API const TArray<FString>& GetGameLocalizationPaths();
 
 	/**
 	* Returns a list of restricted/internal folder names (without any slashes) which may be tested against full paths to determine if a path is restricted or not.
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static const TArray<FString>& GetRestrictedFolderNames();
+	static ENGINE_API const TArray<FString>& GetRestrictedFolderNames();
 
 	/**
 	* Determines if supplied path uses a restricted/internal subdirectory.	Note that slashes are normalized and character case is ignored for the comparison.
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static bool IsRestrictedPath(const FString& InPath);
+	static ENGINE_API bool IsRestrictedPath(const FString& InPath);
 
 	/**
 	* Returns the saved directory that is not game specific. This is usually the same as
@@ -360,19 +360,19 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @return saved directory
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString GameAgnosticSavedDir();
+	static ENGINE_API FString GameAgnosticSavedDir();
 
 	/** Returns the directory where engine source code files are kept */
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString EngineSourceDir();
+	static ENGINE_API FString EngineSourceDir();
 
 	/** Returns the directory where game source code files are kept */
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString GameSourceDir();
+	static ENGINE_API FString GameSourceDir();
 
 	/** Returns the directory where feature packs are kept */
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString FeaturePackDir();
+	static ENGINE_API FString FeaturePackDir();
 
 	/**
 	* Checks whether the path to the project file, if any, is set.
@@ -380,7 +380,7 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @return true if the path is set, false otherwise.
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static bool IsProjectFilePathSet();
+	static ENGINE_API bool IsProjectFilePathSet();
 
 	/**
 	* Gets the path to the project file.
@@ -388,7 +388,7 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @return Project file path.
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString GetProjectFilePath();
+	static ENGINE_API FString GetProjectFilePath();
 
 	/**
 	* Sets the path to the project file.
@@ -396,7 +396,7 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @param NewGameProjectFilePath - The project file path to set.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Utilities|Paths")
-	static void SetProjectFilePath(const FString& NewGameProjectFilePath);
+	static ENGINE_API void SetProjectFilePath(const FString& NewGameProjectFilePath);
 
 	/**
 	* Gets the extension for this filename.
@@ -406,47 +406,47 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @return	the extension of this filename, or an empty string if the filename doesn't have an extension.
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString GetExtension(const FString& InPath, bool bIncludeDot = false);
+	static ENGINE_API FString GetExtension(const FString& InPath, bool bIncludeDot = false);
 
 	// Returns the filename (with extension), minus any path information.
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString GetCleanFilename(const FString& InPath);
+	static ENGINE_API FString GetCleanFilename(const FString& InPath);
 
 	// Returns the same thing as GetCleanFilename, but without the extension
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString GetBaseFilename(const FString& InPath, bool bRemovePath = true);
+	static ENGINE_API FString GetBaseFilename(const FString& InPath, bool bRemovePath = true);
 
 	// Returns the path in front of the filename
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString GetPath(const FString& InPath);
+	static ENGINE_API FString GetPath(const FString& InPath);
 
 	/** Changes the extension of the given filename (does nothing if the file has no extension) */
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString ChangeExtension(const FString& InPath, const FString& InNewExtension);
+	static ENGINE_API FString ChangeExtension(const FString& InPath, const FString& InNewExtension);
 
 	/** Sets the extension of the given filename (like ChangeExtension, but also applies the extension if the file doesn't have one) */
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString SetExtension(const FString& InPath, const FString& InNewExtension);
+	static ENGINE_API FString SetExtension(const FString& InPath, const FString& InNewExtension);
 
 	/** Returns true if this file was found, false otherwise */
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static bool FileExists(const FString& InPath);
+	static ENGINE_API bool FileExists(const FString& InPath);
 
 	/** Returns true if this directory was found, false otherwise */
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static bool DirectoryExists(const FString& InPath);
+	static ENGINE_API bool DirectoryExists(const FString& InPath);
 
 	/** Returns true if this path represents a root drive or volume  */
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static bool IsDrive(const FString& InPath);
+	static ENGINE_API bool IsDrive(const FString& InPath);
 
 	/** Returns true if this path is relative to another path */
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static bool IsRelative(const FString& InPath);
+	static ENGINE_API bool IsRelative(const FString& InPath);
 
 	/** Convert all / and \ to TEXT("/") */
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static void NormalizeFilename(const FString& InPath, FString& OutPath);
+	static ENGINE_API void NormalizeFilename(const FString& InPath, FString& OutPath);
 
 	/**
 	* Checks if two paths are the same.
@@ -457,11 +457,11 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @returns True if both paths are the same. False otherwise.
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static bool IsSamePath(const FString& PathA, const FString& PathB);
+	static ENGINE_API bool IsSamePath(const FString& PathA, const FString& PathB);
 
 	/** Normalize all / and \ to TEXT("/") and remove any trailing TEXT("/") if the character before that is not a TEXT("/") or a colon */
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static void NormalizeDirectoryName(const FString& InPath, FString& OutPath);
+	static ENGINE_API void NormalizeDirectoryName(const FString& InPath, FString& OutPath);
 
 	/**
 	* Takes a fully pathed string and eliminates relative pathing (eg: annihilates ".." with the adjacent directory).
@@ -472,7 +472,7 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	*	BaseDirectory/SomeOtherDirectory/Filename.ext
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static bool CollapseRelativeDirectories(const FString& InPath, FString& OutPath);
+	static ENGINE_API bool CollapseRelativeDirectories(const FString& InPath, FString& OutPath);
 
 	/**
 	* Removes duplicate slashes in paths.
@@ -483,7 +483,7 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	*	BaseDirectory/SomeDirectory/SomeOtherDirectory/Filename.ext
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static void RemoveDuplicateSlashes(const FString& InPath, FString& OutPath);
+	static ENGINE_API void RemoveDuplicateSlashes(const FString& InPath, FString& OutPath);
 
 	/**
 	* Make fully standard "Unreal" pathname:
@@ -493,11 +493,11 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	*    - Makes relative to Engine\Binaries\<Platform> (will ALWAYS start with ..\..\..)
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static void MakeStandardFilename(const FString& InPath, FString& OutPath);
+	static ENGINE_API void MakeStandardFilename(const FString& InPath, FString& OutPath);
 
 	/** Takes an "Unreal" pathname and converts it to a platform filename. */
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static void MakePlatformFilename(const FString& InPath, FString& OutPath);
+	static ENGINE_API void MakePlatformFilename(const FString& InPath, FString& OutPath);
 
 
 	/**
@@ -509,14 +509,14 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	 * @returns true if OutPath was changed to be relative
 	 */
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static bool MakePathRelativeTo(const FString& InPath, const FString& InRelativeTo, FString& OutPath);
+	static ENGINE_API bool MakePathRelativeTo(const FString& InPath, const FString& InRelativeTo, FString& OutPath);
 
 	/**
 	* Converts a relative path name to a fully qualified name relative to the specified BasePath.
 	* BasePath will be the process BaseDir() if not BasePath is given
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString ConvertRelativePathToFull(const FString& InPath, const FString& InBasePath = TEXT(""));
+	static ENGINE_API FString ConvertRelativePathToFull(const FString& InPath, const FString& InBasePath = TEXT(""));
 
 	/**
 	* Converts a normal path to a sandbox path (in Saved/Sandboxes).
@@ -524,7 +524,7 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @param InSandboxName The name of the sandbox.
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString ConvertToSandboxPath(const FString& InPath, const FString& InSandboxName);
+	static ENGINE_API FString ConvertToSandboxPath(const FString& InPath, const FString& InSandboxName);
 
 	/**
 	* Converts a sandbox (in Saved/Sandboxes) path to a normal path.
@@ -532,7 +532,7 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @param InSandboxName The name of the sandbox.
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString ConvertFromSandboxPath(const FString& InPath, const FString& InSandboxName);
+	static ENGINE_API FString ConvertFromSandboxPath(const FString& InPath, const FString& InSandboxName);
 
 	/**
 	* Creates a temporary filename with the specified prefix.
@@ -542,11 +542,11 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @param Extension File extension ('.' required).
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString CreateTempFilename(const FString& Path, const FString& Prefix = TEXT(""), const FString& Extension = TEXT(".tmp"));
+	static ENGINE_API FString CreateTempFilename(const FString& Path, const FString& Prefix = TEXT(""), const FString& Extension = TEXT(".tmp"));
 
 	/** Returns a string containing all invalid characters as dictated by the operating system */
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString GetInvalidFileSystemChars();
+	static ENGINE_API FString GetInvalidFileSystemChars();
 
 	/**
 	*	Returns a string that is safe to use as a filename because all items in
@@ -558,7 +558,7 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @param  InReplacementChar
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString MakeValidFileName(const FString& InString, const FString& InReplacementChar = TEXT(""));
+	static ENGINE_API FString MakeValidFileName(const FString& InString, const FString& InReplacementChar = TEXT(""));
 
 	/**
 	* Validates that the parts that make up the path contain no invalid characters as dictated by the operating system
@@ -569,7 +569,7 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @param bDidSucceed - Whether the path could be validated
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static void ValidatePath(const FString& InPath, bool& bDidSucceed, FText& OutReason);
+	static ENGINE_API void ValidatePath(const FString& InPath, bool& bDidSucceed, FText& OutReason);
 
 	/**
 	* Parses a fully qualified or relative filename into its components (filename, path, extension).
@@ -579,14 +579,14 @@ class ENGINE_API UBlueprintPathsLibrary : public UBlueprintFunctionLibrary
 	* @param	Extension	[out] receives the value of the extension portion of the input string
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static void Split(const FString& InPath, FString& PathPart, FString& FilenamePart, FString& ExtensionPart);
+	static ENGINE_API void Split(const FString& InPath, FString& PathPart, FString& FilenamePart, FString& ExtensionPart);
 
 	/** Gets the relative path to get from BaseDir to RootDirectory  */
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static const FString& GetRelativePathToRoot();
+	static ENGINE_API const FString& GetRelativePathToRoot();
 
 	/** Combine two or more Paths into one single Path */
 	UFUNCTION(BlueprintPure, Category = "Utilities|Paths")
-	static FString Combine(const TArray<FString>& InPaths);
+	static ENGINE_API FString Combine(const TArray<FString>& InPaths);
 
 };

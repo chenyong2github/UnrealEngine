@@ -17,7 +17,7 @@ enum class EVertexPaintAxis : uint8
 };
 
 
-class ENGINE_API FMeshVertexPainter
+class FMeshVertexPainter
 {
 public:
 	/**
@@ -27,7 +27,7 @@ public:
 	 * @param	FillColor				The color to be applied.
 	 * @param	bConvertToSRGB			Whether the vertex color should be converted to sRGB.
 	 */
-	static void PaintVerticesSingleColor(UStaticMeshComponent* StaticMeshComponent, const FLinearColor& FillColor, bool bConvertToSRGB = true);
+	static ENGINE_API void PaintVerticesSingleColor(UStaticMeshComponent* StaticMeshComponent, const FLinearColor& FillColor, bool bConvertToSRGB = true);
 
 	/**
 	 * Paints vertex colors on a mesh component lerping from the start to the end color along the specified axis.
@@ -38,12 +38,12 @@ public:
 	 * @param	Axis					The mesh local space axis along which to lerp
 	 * @param	bConvertToSRGB			Whether the vertex color should be converted to sRGB.
 	 */
-	static void PaintVerticesLerpAlongAxis(UStaticMeshComponent* StaticMeshComponent, const FLinearColor& StartColor, const FLinearColor& EndColor, EVertexPaintAxis Axis, bool bConvertToSRGB = true);
+	static ENGINE_API void PaintVerticesLerpAlongAxis(UStaticMeshComponent* StaticMeshComponent, const FLinearColor& StartColor, const FLinearColor& EndColor, EVertexPaintAxis Axis, bool bConvertToSRGB = true);
 
 	/**
 	 * Removes painted vertex colors from the given mesh component.
 	 *
 	 * @param	StaticMeshComponent		The static mesh component to have its vertex colors removed
 	 */
-	static void RemovePaintedVertices(UStaticMeshComponent* StaticMeshComponent);
+	static ENGINE_API void RemovePaintedVertices(UStaticMeshComponent* StaticMeshComponent);
 };

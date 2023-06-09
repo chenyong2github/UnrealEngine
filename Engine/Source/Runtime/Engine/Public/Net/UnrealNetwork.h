@@ -78,60 +78,60 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnReplayRecordingCompleteDelegate, UWorld* 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPauseChannelsChangedDelegate, UWorld* /*World*/, bool /*bPaused*/);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnReplayIDChangedDelegate, UWorld* /*World*/, const FString& /*ReplayID*/);
 
-struct ENGINE_API FNetworkReplayDelegates
+struct FNetworkReplayDelegates
 {
 	/** global delegate called one time prior to scrubbing */
-	static FPreReplayScrub OnPreScrub;
-	static FReplayScrubTeardown OnScrubTeardown;
+	static ENGINE_API FPreReplayScrub OnPreScrub;
+	static ENGINE_API FReplayScrubTeardown OnScrubTeardown;
 
 	/** Game specific demo headers */
-	static FOnWriteGameSpecificDemoHeader OnWriteGameSpecificDemoHeader;
-	static FOnProcessGameSpecificDemoHeader OnProcessGameSpecificDemoHeader;
+	static ENGINE_API FOnWriteGameSpecificDemoHeader OnWriteGameSpecificDemoHeader;
+	static ENGINE_API FOnProcessGameSpecificDemoHeader OnProcessGameSpecificDemoHeader;
 
 	/** Game specific per frame data */
-	static FOnWriteGameSpecificFrameData OnWriteGameSpecificFrameData;
-	static FOnProcessGameSpecificFrameData OnProcessGameSpecificFrameData;
+	static ENGINE_API FOnWriteGameSpecificFrameData OnWriteGameSpecificFrameData;
+	static ENGINE_API FOnProcessGameSpecificFrameData OnProcessGameSpecificFrameData;
 
 	/** Game Overridable Header Version Data */
-	static FGetOverridableVersionDataForDemoHeaderReadDelegate  GetOverridableVersionDataForHeaderRead;
-	static FGetOverridableVersionDataForDemoHeaderWriteDelegate GetOverridableVersionDataForHeaderWrite;
+	static ENGINE_API FGetOverridableVersionDataForDemoHeaderReadDelegate  GetOverridableVersionDataForHeaderRead;
+	static ENGINE_API FGetOverridableVersionDataForDemoHeaderWriteDelegate GetOverridableVersionDataForHeaderWrite;
 
 	/** Public delegate for external systems to be notified when a replay begins */
-	static FOnReplayStartedDelegate OnReplayStarted;
+	static ENGINE_API FOnReplayStartedDelegate OnReplayStarted;
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/** Public delegate to be notified when a replay failed to start */
 	UE_DEPRECATED(5.1, "Deprecated in favor of OnReplayPlaybackFailure")
-	static FOnReplayStartFailureDelegate OnReplayStartFailure;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	static ENGINE_API FOnReplayStartFailureDelegate OnReplayStartFailure;
+	ENGINE_API PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** Public delegate to be notified when replay playback failed */
 	static FOnReplayPlaybackFailureDelegate OnReplayPlaybackFailure;
 
 	/** Public delegate for external systems to be notified when scrubbing is complete. Only called for successful scrub. */
-	static FOnReplayScrubCompleteDelegate OnReplayScrubComplete;
+	static ENGINE_API FOnReplayScrubCompleteDelegate OnReplayScrubComplete;
 
 	/** Delegate for external systems to be notified when playback ends */
-	static FOnReplayPlaybackCompleteDelegate OnReplayPlaybackComplete;
+	static ENGINE_API FOnReplayPlaybackCompleteDelegate OnReplayPlaybackComplete;
 
 	/** Public Delegate for external systems to be notified when replay recording is about to start. */
-	static FOnReplayRecordingStartAttemptDelegate OnReplayRecordingStartAttempt;
+	static ENGINE_API FOnReplayRecordingStartAttemptDelegate OnReplayRecordingStartAttempt;
 
 	/** Public Delegate for external systems to be notified when replay recording is about to finish. */
-	static FOnReplayRecordingCompleteDelegate OnReplayRecordingComplete;
+	static ENGINE_API FOnReplayRecordingCompleteDelegate OnReplayRecordingComplete;
 
 	/** Delegate for external systems to be notified when channels are paused during playback, usually waiting for data to be available. */
-	static FOnPauseChannelsChangedDelegate OnPauseChannelsChanged;
+	static ENGINE_API FOnPauseChannelsChangedDelegate OnPauseChannelsChanged;
 
 	/** Delegate for external systems to be notified when the SessionName has changed (The replay identifier). */
-	static FOnReplayIDChangedDelegate OnReplayIDChanged;
+	static ENGINE_API FOnReplayIDChangedDelegate OnReplayIDChanged;
 };
 
 /**
  * Struct containing various parameters that can be passed to DOREPLIFETIME_WITH_PARAMS to control
  * how variables are replicated.
  */
-struct ENGINE_API FDoRepLifetimeParams
+struct FDoRepLifetimeParams
 {
 	/** Replication Condition. The property will only be replicated to connections where this condition is met. */
 	ELifetimeCondition Condition = COND_None;
@@ -154,7 +154,7 @@ struct ENGINE_API FDoRepLifetimeParams
 
 namespace NetworkingPrivate
 {
-	struct ENGINE_API FRepPropertyDescriptor
+	struct FRepPropertyDescriptor
 	{
 		UE_DEPRECATED(5.2, "No longer used")
 		FRepPropertyDescriptor(const FProperty* Property)
@@ -184,7 +184,7 @@ namespace NetworkingPrivate
 		void operator delete[](void*) = delete;
 	};
 
-	struct ENGINE_API FRepClassDescriptor
+	struct FRepClassDescriptor
 	{
 		FRepClassDescriptor(const TCHAR* InClassName, const int32 InStartRepIndex, const int32 InEndRepIndex)
 			: ClassName(InClassName)

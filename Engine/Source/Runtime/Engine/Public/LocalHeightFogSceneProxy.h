@@ -8,13 +8,13 @@
 class ULocalHeightFogComponent;
 
 /** Represents a UVolumetricCloudComponent to the rendering thread, created game side from the component. */
-class ENGINE_API FLocalHeightFogSceneProxy
+class FLocalHeightFogSceneProxy
 {
 public:
 
 	// Initialization constructor.
-	FLocalHeightFogSceneProxy(const ULocalHeightFogComponent* InComponent);
-	~FLocalHeightFogSceneProxy();
+	ENGINE_API FLocalHeightFogSceneProxy(const ULocalHeightFogComponent* InComponent);
+	ENGINE_API ~FLocalHeightFogSceneProxy();
 
 	FTransform FogTransform;
 

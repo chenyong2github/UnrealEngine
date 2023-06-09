@@ -15,7 +15,7 @@ class UNavAreaBase;
 
 template<typename InElementType> class TNavStatArray;
 
-struct ENGINE_API FNavigationModifier
+struct FNavigationModifier
 {
 	FNavigationModifier() : bHasMetaAreas(false) {}
 	FORCEINLINE bool HasMetaAreas() const { return !!bHasMetaAreas; }
@@ -91,24 +91,24 @@ struct FConvexNavAreaData
 };
 
 /** Area modifier: base */
-struct ENGINE_API FAreaNavModifier : public FNavigationModifier
+struct FAreaNavModifier : public FNavigationModifier
 {
 	/** transient value used for navigation modifiers sorting. If < 0 then not set*/
 	float Cost;
 	float FixedCost;
 
-	FAreaNavModifier();
-	FAreaNavModifier(float Radius, float Height, const FTransform& LocalToWorld, const TSubclassOf<UNavAreaBase> AreaClass);
-	FAreaNavModifier(const FVector& Extent, const FTransform& LocalToWorld, const TSubclassOf<UNavAreaBase> AreaClass);
-	FAreaNavModifier(const FBox& Box, const FTransform& LocalToWorld, const TSubclassOf<UNavAreaBase> AreaClass);
-	FAreaNavModifier(const TArray<FVector>& Points, ENavigationCoordSystem::Type CoordType, const FTransform& LocalToWorld, const TSubclassOf<UNavAreaBase> AreaClass);
-	FAreaNavModifier(const TArray<FVector>& Points, const int32 FirstIndex, const int32 LastIndex, ENavigationCoordSystem::Type CoordType, const FTransform& LocalToWorld, const TSubclassOf<UNavAreaBase> AreaClass);
-	FAreaNavModifier(const TNavStatArray<FVector>& Points, const int32 FirstIndex, const int32 LastIndex, ENavigationCoordSystem::Type CoordType, const FTransform& LocalToWorld, const TSubclassOf<UNavAreaBase> AreaClass);
+	ENGINE_API FAreaNavModifier();
+	ENGINE_API FAreaNavModifier(float Radius, float Height, const FTransform& LocalToWorld, const TSubclassOf<UNavAreaBase> AreaClass);
+	ENGINE_API FAreaNavModifier(const FVector& Extent, const FTransform& LocalToWorld, const TSubclassOf<UNavAreaBase> AreaClass);
+	ENGINE_API FAreaNavModifier(const FBox& Box, const FTransform& LocalToWorld, const TSubclassOf<UNavAreaBase> AreaClass);
+	ENGINE_API FAreaNavModifier(const TArray<FVector>& Points, ENavigationCoordSystem::Type CoordType, const FTransform& LocalToWorld, const TSubclassOf<UNavAreaBase> AreaClass);
+	ENGINE_API FAreaNavModifier(const TArray<FVector>& Points, const int32 FirstIndex, const int32 LastIndex, ENavigationCoordSystem::Type CoordType, const FTransform& LocalToWorld, const TSubclassOf<UNavAreaBase> AreaClass);
+	ENGINE_API FAreaNavModifier(const TNavStatArray<FVector>& Points, const int32 FirstIndex, const int32 LastIndex, ENavigationCoordSystem::Type CoordType, const FTransform& LocalToWorld, const TSubclassOf<UNavAreaBase> AreaClass);
 	UE_DEPRECATED(5.0, "FAreaNavModifier constructor with a UBrushComponent* parameter has been deprecated since it wasn't able to handle concave shapes. Use FCompositeNavModifier::CreateAreaModifiers instead")
-	FAreaNavModifier(const UBrushComponent* BrushComponent, const TSubclassOf<UNavAreaBase> AreaClass);
+	ENGINE_API FAreaNavModifier(const UBrushComponent* BrushComponent, const TSubclassOf<UNavAreaBase> AreaClass);
 
-	void InitializePerInstanceConvex(const TNavStatArray<FVector>& Points, const int32 FirstIndex, const int32 LastIndex, const TSubclassOf<UNavAreaBase> AreaClass);
-	void InitializeConvex(const TNavStatArray<FVector>& Points, const int32 FirstIndex, const int32 LastIndex, const FTransform& LocalToWorld, const TSubclassOf<UNavAreaBase> AreaClass);
+	ENGINE_API void InitializePerInstanceConvex(const TNavStatArray<FVector>& Points, const int32 FirstIndex, const int32 LastIndex, const TSubclassOf<UNavAreaBase> AreaClass);
+	ENGINE_API void InitializeConvex(const TNavStatArray<FVector>& Points, const int32 FirstIndex, const int32 LastIndex, const FTransform& LocalToWorld, const TSubclassOf<UNavAreaBase> AreaClass);
 
 	FORCEINLINE const FBox& GetBounds() const { return Bounds; }
 	FORCEINLINE ENavigationShapeType::Type GetShapeType() const { return ShapeType; }
@@ -122,18 +122,18 @@ struct ENGINE_API FAreaNavModifier : public FNavigationModifier
 	FORCEINLINE const TSubclassOf<UNavAreaBase> GetAreaClassToReplace() const { return TSubclassOf<UNavAreaBase>(ReplaceAreaClassOb.Get()); }
 
 	/** navigation area applied by this modifier */
-	void SetAreaClass(const TSubclassOf<UNavAreaBase> AreaClass);
+	ENGINE_API void SetAreaClass(const TSubclassOf<UNavAreaBase> AreaClass);
 
 	/** operation mode, ReplaceInLowPass will always automatically use UNavArea_LowHeight as ReplaceAreaClass! */
-	void SetApplyMode(ENavigationAreaMode::Type InApplyMode);
+	ENGINE_API void SetApplyMode(ENavigationAreaMode::Type InApplyMode);
 	
 	/** additional class for used by some ApplyModes, setting it will automatically change ApplyMode to keep backwards compatibility! */
-	void SetAreaClassToReplace(const TSubclassOf<UNavAreaBase> AreaClass);
+	ENGINE_API void SetAreaClassToReplace(const TSubclassOf<UNavAreaBase> AreaClass);
 
-	void GetCylinder(FCylinderNavAreaData& Data) const;
-	void GetBox(FBoxNavAreaData& Data) const;
-	void GetConvex(FConvexNavAreaData& Data) const;
-	void GetPerInstanceConvex(const FTransform& InLocalToWorld, FConvexNavAreaData& OutData) const;
+	ENGINE_API void GetCylinder(FCylinderNavAreaData& Data) const;
+	ENGINE_API void GetBox(FBoxNavAreaData& Data) const;
+	ENGINE_API void GetConvex(FConvexNavAreaData& Data) const;
+	ENGINE_API void GetPerInstanceConvex(const FTransform& InLocalToWorld, FConvexNavAreaData& OutData) const;
 
 protected:
 	/** this should take a value of a game specific navigation modifier	*/
@@ -154,20 +154,20 @@ protected:
 	/** set when this modifier affects low spans in navmesh generation step */
 	uint8 bIsLowAreaModifier : 1;
 
-	void Init(const TSubclassOf<UNavAreaBase> InAreaClass);
+	ENGINE_API void Init(const TSubclassOf<UNavAreaBase> InAreaClass);
 	/** @param CoordType specifies which coord system the input data is in */
-	void SetConvex(const FVector* InPoints, const int32 FirstIndex, const int32 LastIndex, ENavigationCoordSystem::Type CoordType, const FTransform& LocalToWorld);
-	void SetPerInstanceConvex(const FVector* InPoints, const int32 InFirstIndex, const int32 InLastIndex);
-	void SetBox(const FBox& Box, const FTransform& LocalToWorld);
+	ENGINE_API void SetConvex(const FVector* InPoints, const int32 FirstIndex, const int32 LastIndex, ENavigationCoordSystem::Type CoordType, const FTransform& LocalToWorld);
+	ENGINE_API void SetPerInstanceConvex(const FVector* InPoints, const int32 InFirstIndex, const int32 InLastIndex);
+	ENGINE_API void SetBox(const FBox& Box, const FTransform& LocalToWorld);
 	
-	static void FillConvexNavAreaData(const FVector* InPoints, const int32 InNumPoints, const FTransform& InLocalToWorld, FConvexNavAreaData& OutConvexData, FBox& OutBounds);
+	static ENGINE_API void FillConvexNavAreaData(const FVector* InPoints, const int32 InNumPoints, const FTransform& InLocalToWorld, FConvexNavAreaData& OutConvexData, FBox& OutBounds);
 };
 
 /**
  *	This modifier allows defining ad-hoc navigation links defining 
  *	connections in an straightforward way.
  */
-struct ENGINE_API FSimpleLinkNavModifier : public FNavigationModifier
+struct FSimpleLinkNavModifier : public FNavigationModifier
 {
 	/** use Set/Append/Add function to update links, they will take care of meta areas */
 	TArray<FNavigationLink> Links;
@@ -240,13 +240,13 @@ struct ENGINE_API FSimpleLinkNavModifier : public FNavigationModifier
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	FORCEINLINE bool HasFallDownLinks() const { return !!bHasFallDownLinks; }
-	void SetLinks(const TArray<FNavigationLink>& InLinks);
-	void SetSegmentLinks(const TArray<FNavigationSegmentLink>& InLinks);
-	void AppendLinks(const TArray<FNavigationLink>& InLinks);
-	void AppendSegmentLinks(const TArray<FNavigationSegmentLink>& InLinks);
-	void AddLink(const FNavigationLink& InLink);
-	void AddSegmentLink(const FNavigationSegmentLink& InLink);
-	void UpdateFlags();
+	ENGINE_API void SetLinks(const TArray<FNavigationLink>& InLinks);
+	ENGINE_API void SetSegmentLinks(const TArray<FNavigationSegmentLink>& InLinks);
+	ENGINE_API void AppendLinks(const TArray<FNavigationLink>& InLinks);
+	ENGINE_API void AppendSegmentLinks(const TArray<FNavigationSegmentLink>& InLinks);
+	ENGINE_API void AddLink(const FNavigationLink& InLink);
+	ENGINE_API void AddSegmentLink(const FNavigationSegmentLink& InLink);
+	ENGINE_API void UpdateFlags();
 
 protected:
 	/** set to true if any of links stored is a "fall down" link, i.e. requires vertical snapping to geometry */
@@ -255,18 +255,18 @@ protected:
 	int32 bHasMetaAreasSegment : 1;
 };
 
-struct ENGINE_API FCustomLinkNavModifier : public FNavigationModifier
+struct FCustomLinkNavModifier : public FNavigationModifier
 {
 	FTransform LocalToWorld;
 
-	void Set(TSubclassOf<UNavLinkDefinition> LinkDefinitionClass, const FTransform& InLocalToWorld);
+	ENGINE_API void Set(TSubclassOf<UNavLinkDefinition> LinkDefinitionClass, const FTransform& InLocalToWorld);
 	FORCEINLINE const TSubclassOf<UNavLinkDefinition> GetNavLinkClass() const { return TSubclassOf<UNavLinkDefinition>(LinkDefinitionClassOb.Get()); }
 
 protected:
 	TWeakObjectPtr<UClass> LinkDefinitionClassOb;
 };
 
-struct ENGINE_API FCompositeNavModifier : public FNavigationModifier
+struct FCompositeNavModifier : public FNavigationModifier
 {
 	FCompositeNavModifier() 
 		: bHasPotentialLinks(false)
@@ -278,9 +278,9 @@ struct ENGINE_API FCompositeNavModifier : public FNavigationModifier
 		, NavMeshResolution(ENavigationDataResolution::Invalid)
 	{}
 
-	void Shrink();
-	void Reset();
-	void Empty();
+	ENGINE_API void Shrink();
+	ENGINE_API void Reset();
+	ENGINE_API void Empty();
 
 	FORCEINLINE bool IsEmpty() const 
 	{ 
@@ -326,8 +326,8 @@ struct ENGINE_API FCompositeNavModifier : public FNavigationModifier
 		}
 	}
 
-	void CreateAreaModifiers(const UPrimitiveComponent* PrimComp, const TSubclassOf<UNavAreaBase> AreaClass);
-	void CreateAreaModifiers(const FCollisionShape& CollisionShape, const FTransform& LocalToWorld, const TSubclassOf<UNavAreaBase> AreaClass, const bool bIncludeAgentHeight = false);
+	ENGINE_API void CreateAreaModifiers(const UPrimitiveComponent* PrimComp, const TSubclassOf<UNavAreaBase> AreaClass);
+	ENGINE_API void CreateAreaModifiers(const FCollisionShape& CollisionShape, const FTransform& LocalToWorld, const TSubclassOf<UNavAreaBase> AreaClass, const bool bIncludeAgentHeight = false);
 
 	FORCEINLINE const TArray<FAreaNavModifier>& GetAreas() const { return Areas; }
 	FORCEINLINE const TArray<FSimpleLinkNavModifier>& GetSimpleLinks() const { return SimpleLinks; }
@@ -351,11 +351,11 @@ struct ENGINE_API FCompositeNavModifier : public FNavigationModifier
     void MarkAsPerInstanceModifier() { bIsPerInstanceModifier = true; }
 
 	/** returns a copy of Modifier */
-	FCompositeNavModifier GetInstantiatedMetaModifier(const struct FNavAgentProperties* NavAgent, TWeakObjectPtr<UObject> WeakOwnerPtr) const;
-	uint32 GetAllocatedSize() const;
+	ENGINE_API FCompositeNavModifier GetInstantiatedMetaModifier(const struct FNavAgentProperties* NavAgent, TWeakObjectPtr<UObject> WeakOwnerPtr) const;
+	ENGINE_API uint32 GetAllocatedSize() const;
 
 	UE_DEPRECATED(4.24, "This method will be removed in future versions. Use FNavigationRelevantData::HasPerInstanceTransforms instead.")
-	bool HasPerInstanceTransforms() const;
+	ENGINE_API bool HasPerInstanceTransforms() const;
 
 	TArray<FAreaNavModifier>& GetMutableAreas() { return Areas; }
 	TArray<FSimpleLinkNavModifier>& GetSimpleLinks() { return SimpleLinks; }
@@ -367,7 +367,7 @@ public:
 	// Gathers per instance data for navigation area modifiers in a specified area box
 	FNavDataPerInstanceTransformDelegate NavDataPerInstanceTransformDelegate;
 
-	static bool bEnableNavMeshResolutions;
+	static ENGINE_API bool bEnableNavMeshResolutions;
 	
 private:
 	TArray<FAreaNavModifier> Areas;

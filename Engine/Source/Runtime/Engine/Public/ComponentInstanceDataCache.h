@@ -65,20 +65,20 @@ struct TStructOpsTypeTraits<FDataCacheDuplicatedObjectData> : public TStructOpsT
 
 /** Base class for instance cached data of a particular type. */
 USTRUCT()
-struct ENGINE_API FInstanceCacheDataBase
+struct FInstanceCacheDataBase
 {
 	GENERATED_BODY()
 
 	virtual ~FInstanceCacheDataBase() = default;
 
-	virtual void AddReferencedObjects(FReferenceCollector& Collector);
+	ENGINE_API virtual void AddReferencedObjects(FReferenceCollector& Collector);
 
 	UE_DEPRECATED(5.3, "Use GetUniqueTransientObject instead")
 	/** Get (or create) the unique transient outer for the duplicated objects created for this object */
 	UObject* GetUniqueTransientPackage() { return GetUniqueTransientObject(UObject::StaticClass()); }
 
 	/** Get (or create) the unique transient outer for the duplicated objects created for this object */
-	UObject* GetUniqueTransientObject(UClass* Class);
+	ENGINE_API UObject* GetUniqueTransientObject(UClass* Class);
 
 	const TArray<FDataCacheDuplicatedObjectData>& GetDuplicatedObjects() const { return DuplicatedObjects; }
 	const TArray<TObjectPtr<UObject>>& GetReferencedObjects() const { return ReferencedObjects; }
@@ -113,20 +113,20 @@ private:
 };
 
 USTRUCT()
-struct ENGINE_API FActorComponentInstanceSourceInfo
+struct FActorComponentInstanceSourceInfo
 {
 	GENERATED_BODY()
 
 public:
 	FActorComponentInstanceSourceInfo() = default;
-	explicit FActorComponentInstanceSourceInfo(const UActorComponent* SourceComponent);
-	FActorComponentInstanceSourceInfo(TObjectPtr<const UObject> InSourceComponentTemplate, EComponentCreationMethod InSourceComponentCreationMethod, int32 InSourceComponentTypeSerializedIndex);
+	ENGINE_API explicit FActorComponentInstanceSourceInfo(const UActorComponent* SourceComponent);
+	ENGINE_API FActorComponentInstanceSourceInfo(TObjectPtr<const UObject> InSourceComponentTemplate, EComponentCreationMethod InSourceComponentCreationMethod, int32 InSourceComponentTypeSerializedIndex);
 
 	/** Determines whether this component instance data matches the component */
-	bool MatchesComponent(const UActorComponent* Component) const;
-	bool MatchesComponent(const UActorComponent* Component, const UObject* ComponentTemplate) const;
+	ENGINE_API bool MatchesComponent(const UActorComponent* Component) const;
+	ENGINE_API bool MatchesComponent(const UActorComponent* Component, const UObject* ComponentTemplate) const;
 
-	void AddReferencedObjects(FReferenceCollector& Collector);
+	ENGINE_API void AddReferencedObjects(FReferenceCollector& Collector);
 
 private:
 	/** The template used to create the source component */
@@ -145,26 +145,26 @@ private:
 
 /** Base class for component instance cached data of a particular type. */
 USTRUCT()
-struct ENGINE_API FActorComponentInstanceData : public FInstanceCacheDataBase
+struct FActorComponentInstanceData : public FInstanceCacheDataBase
 {
 	GENERATED_BODY()
 public:
-	FActorComponentInstanceData();
-	FActorComponentInstanceData(const UActorComponent* SourceComponent);
+	ENGINE_API FActorComponentInstanceData();
+	ENGINE_API FActorComponentInstanceData(const UActorComponent* SourceComponent);
 
 	/** Determines whether this component instance data matches the component */
-	bool MatchesComponent(const UActorComponent* Component, const UObject* ComponentTemplate) const;
+	ENGINE_API bool MatchesComponent(const UActorComponent* Component, const UObject* ComponentTemplate) const;
 
 	/** Determines if any instance data was actually saved. */
 	virtual bool ContainsData() const { return SavedProperties.Num() > 0; }
 
 	/** Applies this component instance data to the supplied component */
-	virtual void ApplyToComponent(UActorComponent* Component, const ECacheApplyPhase CacheApplyPhase);
+	ENGINE_API virtual void ApplyToComponent(UActorComponent* Component, const ECacheApplyPhase CacheApplyPhase);
 
 	/** Replaces any references to old instances during Actor reinstancing */
 	virtual void FindAndReplaceInstances(const TMap<UObject*, UObject*>& OldToNewInstanceMap) { };
 
-	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	ENGINE_API virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 
 	const UClass* GetComponentClass() const { return SourceComponentTemplate ? SourceComponentTemplate->GetClass() : nullptr; }
 
@@ -188,19 +188,19 @@ protected:
 
 /** Per instance data to be persisted for a given actor */
 USTRUCT()
-struct ENGINE_API FActorInstanceData : public FInstanceCacheDataBase
+struct FActorInstanceData : public FInstanceCacheDataBase
 {
 	GENERATED_BODY()
 public:
 	FActorInstanceData() = default;
-	FActorInstanceData(const AActor* SourceActor);
+	ENGINE_API FActorInstanceData(const AActor* SourceActor);
 
-	const UClass* GetActorClass() const;
+	ENGINE_API const UClass* GetActorClass() const;
 
 	bool HasInstanceData() const { return GetSavedProperties().Num() > 0; }
 
 	/** Iterates over an Actor's components and applies the stored component instance data to each */
-	void ApplyToActor(AActor* Actor, const ECacheApplyPhase CacheApplyPhase);
+	ENGINE_API void ApplyToActor(AActor* Actor, const ECacheApplyPhase CacheApplyPhase);
 
 protected:
 
@@ -213,14 +213,14 @@ protected:
  *	Cache for component instance data.
  *	Note, does not collect references for GC, so is not safe to GC if the cache is only reference to a UObject.
  */
-class ENGINE_API FComponentInstanceDataCache
+class FComponentInstanceDataCache
 {
 public:
 
 	FComponentInstanceDataCache() = default;
 
 	/** Constructor that also populates cache from Actor */
-	FComponentInstanceDataCache(const AActor* InActor);
+	ENGINE_API FComponentInstanceDataCache(const AActor* InActor);
 
 	~FComponentInstanceDataCache() = default;
 
@@ -233,23 +233,23 @@ public:
 	FComponentInstanceDataCache& operator=(FComponentInstanceDataCache&&) = default;
 
 	/** Serialize Instance data for persistence or transmission. */
-	void Serialize(FArchive& Ar);
+	ENGINE_API void Serialize(FArchive& Ar);
 
 	/** Iterates over an Actor's components and applies the stored component instance data to each */
-	void ApplyToActor(AActor* Actor, const ECacheApplyPhase CacheApplyPhase) const;
+	ENGINE_API void ApplyToActor(AActor* Actor, const ECacheApplyPhase CacheApplyPhase) const;
 
 	/** Iterates over components and replaces any object references with the reinstanced information */
-	void FindAndReplaceInstances(const TMap<UObject*, UObject*>& OldToNewInstanceMap);
+	ENGINE_API void FindAndReplaceInstances(const TMap<UObject*, UObject*>& OldToNewInstanceMap);
 
 	bool HasInstanceData() const { return ComponentsInstanceData.Num() > 0; }
 
-	void AddReferencedObjects(FReferenceCollector& Collector);
+	ENGINE_API void AddReferencedObjects(FReferenceCollector& Collector);
 
-	static void GetComponentHierarchy(const AActor* Actor, TArray<UActorComponent*, TInlineAllocator<NumInlinedActorComponents>>& OutComponentHierarchy);
+	static ENGINE_API void GetComponentHierarchy(const AActor* Actor, TArray<UActorComponent*, TInlineAllocator<NumInlinedActorComponents>>& OutComponentHierarchy);
 
 private:
 	// called during de-serialization to copy serialized properties over existing component instance data and keep non UPROPERTY data intact
-	void CopySerializableProperties(TArray<TStructOnScope<FActorComponentInstanceData>> InComponentsInstanceData);
+	ENGINE_API void CopySerializableProperties(TArray<TStructOnScope<FActorComponentInstanceData>> InComponentsInstanceData);
 
 	/** Map of component instance data struct (template -> instance data) */
 	TArray<TStructOnScope<FActorComponentInstanceData>> ComponentsInstanceData;

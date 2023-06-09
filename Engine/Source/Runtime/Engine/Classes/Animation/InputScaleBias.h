@@ -15,7 +15,7 @@ struct FAnimationUpdateContext;
 
 // Input modifier with scaling and biasing
 USTRUCT(BlueprintType)
-struct ENGINE_API FInputScaleBias
+struct FInputScaleBias
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -32,14 +32,14 @@ public:
 	{
 	}
 
-	float ApplyTo(float Value) const;
+	ENGINE_API float ApplyTo(float Value) const;
 #if WITH_EDITOR
-	FText GetFriendlyName(FText InFriendlyName) const;
+	ENGINE_API FText GetFriendlyName(FText InFriendlyName) const;
 #endif
 };
 
 USTRUCT(BlueprintType)
-struct ENGINE_API FInputRange
+struct FInputRange
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -74,7 +74,7 @@ public:
 
 // Input modifier with remapping, scaling, biasing, clamping, and interpolation
 USTRUCT(BlueprintType)
-struct ENGINE_API FInputScaleBiasClamp
+struct FInputScaleBiasClamp
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -131,17 +131,17 @@ public:
 	{
 	}
 
-	float ApplyTo(float Value, float InDeltaTime) const;
+	ENGINE_API float ApplyTo(float Value, float InDeltaTime) const;
 
 	void Reinitialize() { bInitialized = false; }
 #if WITH_EDITOR
-	FText GetFriendlyName(FText InFriendlyName) const;
+	ENGINE_API FText GetFriendlyName(FText InFriendlyName) const;
 #endif
 };
 
 // Input modifier with clamping and interpolation
 USTRUCT(BlueprintType)
-struct ENGINE_API FInputClampConstants
+struct FInputClampConstants
 {
 	GENERATED_BODY()
 
@@ -165,13 +165,13 @@ struct ENGINE_API FInputClampConstants
 
 #if WITH_EDITOR
 	// Get a friendly name to display on a pin
-	FText GetFriendlyName(FText InFriendlyName) const;
+	ENGINE_API FText GetFriendlyName(FText InFriendlyName) const;
 #endif
 };
 
 // Mutable state struct to be used with FInputClampConstants
 USTRUCT(BlueprintType)
-struct ENGINE_API FInputClampState
+struct FInputClampState
 {
 	GENERATED_BODY()
 
@@ -182,13 +182,13 @@ struct ENGINE_API FInputClampState
 	bool bInitialized = false;
 
 	// Apply scale, bias, and clamp to value
-	float ApplyTo(const FInputClampConstants& InConstants, float InValue, float InDeltaTime);
+	ENGINE_API float ApplyTo(const FInputClampConstants& InConstants, float InValue, float InDeltaTime);
 
 	void Reinitialize() { bInitialized = false; }
 };
 
 USTRUCT(BlueprintType)
-struct ENGINE_API FInputScaleBiasClampConstants
+struct FInputScaleBiasClampConstants
 {
 	GENERATED_BODY()
 
@@ -241,16 +241,16 @@ public:
 
 #if WITH_EDITOR
 	// Get a friendly name to display on a pin
-	FText GetFriendlyName(FText InFriendlyName) const;
+	ENGINE_API FText GetFriendlyName(FText InFriendlyName) const;
 
 	// Copy parameters from the legacy combined constants/state structure
-	void CopyFromLegacy(const FInputScaleBiasClamp& InLegacy);
+	ENGINE_API void CopyFromLegacy(const FInputScaleBiasClamp& InLegacy);
 #endif
 };
 
 // Mutable state struct to be used with FInputScaleBiasClampConstants
 USTRUCT(BlueprintType)
-struct ENGINE_API FInputScaleBiasClampState
+struct FInputScaleBiasClampState
 {
 	GENERATED_BODY()
 
@@ -268,10 +268,10 @@ public:
 	}
 
 	// Apply scale, bias, and clamp to value
-	float ApplyTo(const FInputScaleBiasClampConstants& InConstants, float Value, float InDeltaTime);
+	ENGINE_API float ApplyTo(const FInputScaleBiasClampConstants& InConstants, float Value, float InDeltaTime);
 
 	// Apply but dont modify InterpolatedResult
-	float ApplyTo(const FInputScaleBiasClampConstants& InConstants, float Value) const;
+	ENGINE_API float ApplyTo(const FInputScaleBiasClampConstants& InConstants, float Value) const;
 
 	void Reinitialize() { bInitialized = false; }
 };
@@ -286,7 +286,7 @@ enum class EAnimAlphaInputType : uint8
 };
 
 USTRUCT(BlueprintType)
-struct ENGINE_API FInputAlphaBoolBlend
+struct FInputAlphaBoolBlend
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -316,7 +316,7 @@ struct ENGINE_API FInputAlphaBoolBlend
 		, CustomCurve(nullptr)
 	{}
 
-	float ApplyTo(bool bEnabled, float InDeltaTime);
+	ENGINE_API float ApplyTo(bool bEnabled, float InDeltaTime);
 
 	void Reinitialize() { bInitialized = false; }
 };

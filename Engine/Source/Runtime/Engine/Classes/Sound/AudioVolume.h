@@ -35,7 +35,7 @@ enum class EAudioVolumeLocationState : uint8
 
 /** Struct to determine dynamic submix send data for use with audio volumes. */
 USTRUCT(BlueprintType)
-struct ENGINE_API FAudioVolumeSubmixSendSettings
+struct FAudioVolumeSubmixSendSettings
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -52,7 +52,7 @@ struct ENGINE_API FAudioVolumeSubmixSendSettings
 };
 
 USTRUCT(BlueprintType)
-struct ENGINE_API FAudioVolumeSubmixOverrideSettings
+struct FAudioVolumeSubmixOverrideSettings
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -72,7 +72,7 @@ struct ENGINE_API FAudioVolumeSubmixOverrideSettings
 
 /** Struct encapsulating settings for interior areas. */
 USTRUCT(BlueprintType)
-struct ENGINE_API FInteriorSettings
+struct FInteriorSettings
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -112,13 +112,13 @@ struct ENGINE_API FInteriorSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=InteriorSettings)
 	float InteriorLPFTime;
 
-	FInteriorSettings();
+	ENGINE_API FInteriorSettings();
 
-	bool operator==(const FInteriorSettings& Other) const;
-	bool operator!=(const FInteriorSettings& Other) const;
+	ENGINE_API bool operator==(const FInteriorSettings& Other) const;
+	ENGINE_API bool operator!=(const FInteriorSettings& Other) const;
 
 #if WITH_EDITORONLY_DATA
-	void PostSerialize(const FArchive& Ar);
+	ENGINE_API void PostSerialize(const FArchive& Ar);
 #endif
 };
 
@@ -148,8 +148,8 @@ struct FAudioVolumeProxy
 	bool bChanged = false;
 };
 
-UCLASS(hidecategories=(Advanced, Attachment, Collision, Volume))
-class ENGINE_API AAudioVolume : public AVolume
+UCLASS(hidecategories=(Advanced, Attachment, Collision, Volume), MinimalAPI)
+class AAudioVolume : public AVolume
 {
 	GENERATED_UCLASS_BODY()
 
@@ -186,55 +186,55 @@ public:
 	float GetPriority() const { return Priority; }
 	
 	UFUNCTION(BlueprintCallable, Category=AudioVolume)
-	void SetPriority(float NewPriority);
+	ENGINE_API void SetPriority(float NewPriority);
 
 	bool GetEnabled() const { return bEnabled; }
 	
 	UFUNCTION(BlueprintCallable, Category=AudioVolume)
-	void SetEnabled(bool bNewEnabled);
+	ENGINE_API void SetEnabled(bool bNewEnabled);
 
 	const FReverbSettings& GetReverbSettings() const { return Settings; }
 	
 	UFUNCTION(BlueprintCallable, Category=AudioVolume)
-	void SetReverbSettings(const FReverbSettings& NewReverbSettings);
+	ENGINE_API void SetReverbSettings(const FReverbSettings& NewReverbSettings);
 
 	const FInteriorSettings& GetInteriorSettings() const { return AmbientZoneSettings; }
 
 	UFUNCTION(BlueprintCallable, Category=AudioVolume)
-	void SetInteriorSettings(const FInteriorSettings& NewInteriorSettings);
+	ENGINE_API void SetInteriorSettings(const FInteriorSettings& NewInteriorSettings);
 
 	const TArray<FAudioVolumeSubmixSendSettings>& GetSubmixSendSettings() const { return SubmixSendSettings; }
 
 	UFUNCTION(BlueprintCallable, Category = AudioVolume)
-	void SetSubmixSendSettings(const TArray<FAudioVolumeSubmixSendSettings>& NewSubmixSendSettings);
+	ENGINE_API void SetSubmixSendSettings(const TArray<FAudioVolumeSubmixSendSettings>& NewSubmixSendSettings);
 
 	const TArray<FAudioVolumeSubmixOverrideSettings>& GetSubmixOverrideSettings() const { return SubmixOverrideSettings; }
 
 	UFUNCTION(BlueprintCallable, Category = AudioVolume)
-	void SetSubmixOverrideSettings(const TArray<FAudioVolumeSubmixOverrideSettings>& NewSubmixOverrideSettings);
+	ENGINE_API void SetSubmixOverrideSettings(const TArray<FAudioVolumeSubmixOverrideSettings>& NewSubmixOverrideSettings);
 
 private:
 
 	UFUNCTION()
-	virtual void OnRep_bEnabled();
+	ENGINE_API virtual void OnRep_bEnabled();
 
-	void TransformUpdated(USceneComponent* RootComponent, EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport);
+	ENGINE_API void TransformUpdated(USceneComponent* RootComponent, EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport);
 
-	void AddProxy() const;
-	void RemoveProxy() const;
-	void UpdateProxy() const;
+	ENGINE_API void AddProxy() const;
+	ENGINE_API void RemoveProxy() const;
+	ENGINE_API void UpdateProxy() const;
 
 public:
 
 	//~ Begin UObject Interface
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
-	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	ENGINE_API virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	//~ End UObject Interface
 
 	//~ Begin AActor Interface
-	virtual void PostUnregisterAllComponents() override;
-	virtual void PostRegisterAllComponents() override;
+	ENGINE_API virtual void PostUnregisterAllComponents() override;
+	ENGINE_API virtual void PostRegisterAllComponents() override;
 	//~ End AActor Interface
 };

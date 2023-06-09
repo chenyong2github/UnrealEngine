@@ -8,16 +8,16 @@
 #include "VirtualTexture.generated.h"
 
 /** Deprecated class */
-UCLASS(ClassGroup = Rendering)
-class ENGINE_API UVirtualTexture : public UObject
+UCLASS(ClassGroup = Rendering, MinimalAPI)
+class UVirtualTexture : public UObject
 {
 	GENERATED_UCLASS_BODY()
-	virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
 };
 
 /** Deprecated class */
-UCLASS(ClassGroup = Rendering)
-class ENGINE_API ULightMapVirtualTexture : public UVirtualTexture
+UCLASS(ClassGroup = Rendering, MinimalAPI)
+class ULightMapVirtualTexture : public UVirtualTexture
 {
 	GENERATED_UCLASS_BODY()
 };

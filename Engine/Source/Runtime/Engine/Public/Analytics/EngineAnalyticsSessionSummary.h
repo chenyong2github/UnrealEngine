@@ -14,7 +14,7 @@ struct FUserActivity;
 /**
  * Collects engine events/stats and stores a summary on disk until reported by the analytics session summary manager.
  */
-class ENGINE_API FEngineAnalyticsSessionSummary
+class FEngineAnalyticsSessionSummary
 {
 public:
 	/**
@@ -22,16 +22,16 @@ public:
 	 * @param Storage Where to store the engine summary properties that are sent on exit.
 	 * @param MonitorProcessId The process ID of CRC launched at start up in 'monitor mode', zero otherwise.
 	 */
-	FEngineAnalyticsSessionSummary(TSharedPtr<IAnalyticsPropertyStore> Storage, uint32 MonitorProcessId);
+	ENGINE_API FEngineAnalyticsSessionSummary(TSharedPtr<IAnalyticsPropertyStore> Storage, uint32 MonitorProcessId);
 
 	/** Destructor. */
 	virtual ~FEngineAnalyticsSessionSummary() = default;
 
 	/** Ticks the session. This calls UpdateSessionProgress() at the configured update period which calls UpdateSessionProgressInternal() for derived classes. */
-	void Tick(float DeltaTime);
+	ENGINE_API void Tick(float DeltaTime);
 
 	/** Shuts down the session, unregistering the callbacks and closing the session. */
-	void Shutdown();
+	ENGINE_API void Shutdown();
 
 	/** Set the period used to persist the properties to disk. Some events ignore this setting and persist the properties right away. */
 	void SetPersistPeriod(const FTimespan& Period) { PersistPeriod = Period; }
@@ -40,7 +40,7 @@ public:
 	FTimespan GetPersistPeriod() const { return PersistPeriod; }
 
 	/** Invoked by the engine when the user is running low on disk space.. */
-	void LowDriveSpaceDetected();
+	ENGINE_API void LowDriveSpaceDetected();
 
 protected:
 	/** Invoked during Shutdown() to let derived classes hook in the shutdown. Default implementation does nothing.*/
@@ -54,28 +54,28 @@ protected:
 
 private:
 	/** Invoked periodically and during important events to update the session progression.*/
-	void UpdateSessionProgress(bool bFlushAsync = true, const FTimespan& FlushTimeout = FTimespan::Zero(), bool bCrashing = false);
+	ENGINE_API void UpdateSessionProgress(bool bFlushAsync = true, const FTimespan& FlushTimeout = FTimespan::Zero(), bool bCrashing = false);
 
 	/** Invoked when the engine is crashing.. */
-	void OnCrashing();
+	ENGINE_API void OnCrashing();
 
 	/** Invoked when the engine is requested to terminate. */
-	void OnTerminate();
+	ENGINE_API void OnTerminate();
 
 	/** Invoked when the user is logging in or logging out. Only handles when the user logs out. */
-	void OnUserLoginChanged(bool bLoggingIn, int32, int32);
+	ENGINE_API void OnUserLoginChanged(bool bLoggingIn, int32, int32);
 
 	/** Invoked when the user activity changes. */
-	void OnUserActivity(const FUserActivity& UserActivity);
+	ENGINE_API void OnUserActivity(const FUserActivity& UserActivity);
 
 	/** Invoked if the engine detects some local changes.. */
-	void OnVanillaStateChanged(bool bIsVanilla);
+	ENGINE_API void OnVanillaStateChanged(bool bIsVanilla);
 
 	/** Check on CRC and return true if its running state state changed (so that the change is persisted on disk). */
-	bool UpdateExternalProcessReporterState(bool bQuickCheck);
+	ENGINE_API bool UpdateExternalProcessReporterState(bool bQuickCheck);
 
 	/** Returns whether the debugger state changed. */
-	bool UpdateDebuggerStates();
+	ENGINE_API bool UpdateDebuggerStates();
 
 private:
 	/** The store used to persist the session properties until they are sent. */

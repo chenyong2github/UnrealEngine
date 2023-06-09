@@ -21,27 +21,27 @@ class UPrimitiveComponent;
  *  3) It lets us pinpoint what exactly is being added/removed (vs if all this data was stored in an array) which lets
  *     us be a bit more efficient in terms of modifying the cluster union.
  */
-UCLASS()
-class ENGINE_API UClusterUnionReplicatedProxyComponent : public UActorComponent
+UCLASS(MinimalAPI)
+class UClusterUnionReplicatedProxyComponent : public UActorComponent
 {
 	GENERATED_BODY()
 public:
-	UClusterUnionReplicatedProxyComponent(const FObjectInitializer& ObjectInitializer);
+	ENGINE_API UClusterUnionReplicatedProxyComponent(const FObjectInitializer& ObjectInitializer);
 
 	UFUNCTION()
 	UClusterUnionComponent* GetParentClusterUnionComponent() const { return ParentClusterUnion.Get(); }
 
 	UFUNCTION()
-	void SetParentClusterUnion(UClusterUnionComponent* InComponent);
+	ENGINE_API void SetParentClusterUnion(UClusterUnionComponent* InComponent);
 
 	UFUNCTION()
-	void SetChildClusteredComponent(UPrimitiveComponent* InComponent);
+	ENGINE_API void SetChildClusteredComponent(UPrimitiveComponent* InComponent);
 
 	UFUNCTION()
-	void SetParticleBoneIds(const TArray<int32>& InIds);
+	ENGINE_API void SetParticleBoneIds(const TArray<int32>& InIds);
 
 	UFUNCTION()
-	void SetParticleChildToParent(int32 BoneId, const FTransform& ChildToParent);
+	ENGINE_API void SetParticleChildToParent(int32 BoneId, const FTransform& ChildToParent);
 
 	UFUNCTION()
 	void MarkPendingDeletion() { bIsPendingDeletion = true; }
@@ -52,16 +52,16 @@ public:
 protected:
 
 	UFUNCTION()
-	void OnRep_ParentClusterUnion();
+	ENGINE_API void OnRep_ParentClusterUnion();
 
 	UFUNCTION()
-	void OnRep_ChildClusteredComponent();
+	ENGINE_API void OnRep_ChildClusteredComponent();
 
 	UFUNCTION()
-	void OnRep_ParticleBoneIds();
+	ENGINE_API void OnRep_ParticleBoneIds();
 
 	UFUNCTION()
-	void OnRep_ParticleChildToParents();
+	ENGINE_API void OnRep_ParticleChildToParents();
 
 private:
 	UPROPERTY(ReplicatedUsing=OnRep_ParentClusterUnion)
@@ -92,19 +92,19 @@ private:
 	bool bIsPendingDeletion = false;
 
 	FTimerHandle DeferSetChildToParentHandle;
-	void DeferSetChildToParentChildUntilClusteredComponentInParentUnion();
+	ENGINE_API void DeferSetChildToParentChildUntilClusteredComponentInParentUnion();
 
 	FTimerHandle DeferAddComponentToClusterHandle;
-	void DeferAddComponentToClusterHandleUntilInitialTransformUpdate();
+	ENGINE_API void DeferAddComponentToClusterHandleUntilInitialTransformUpdate();
 
 	//~ Begin UActorComponent Interface
 public:
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	ENGINE_API virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	ENGINE_API virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	//~ End UActorComponent Interface
 
 	//~ Begin UObject Interface
 public:
-	virtual void PostRepNotifies() override;
+	ENGINE_API virtual void PostRepNotifies() override;
 	//~ End UObject Interface
 };

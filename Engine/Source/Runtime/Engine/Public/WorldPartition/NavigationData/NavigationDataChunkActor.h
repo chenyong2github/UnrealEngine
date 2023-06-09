@@ -9,36 +9,36 @@
 class UNavigationDataChunk;
 class UNavigationSystemBase;
 
-UCLASS(NotPlaceable)
-class ENGINE_API ANavigationDataChunkActor : public APartitionActor
+UCLASS(NotPlaceable, MinimalAPI)
+class ANavigationDataChunkActor : public APartitionActor
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 #if WITH_EDITOR
 	//~ Begin UObject Interface
-	virtual void PostLoad() override;
-	virtual void BeginDestroy() override;
+	ENGINE_API virtual void PostLoad() override;
+	ENGINE_API virtual void BeginDestroy() override;
 	//~ End UObject Interface
 
 	//~ Begin APartitionActor Interface
-	virtual uint32 GetDefaultGridSize(UWorld* InWorld) const override;
+	ENGINE_API virtual uint32 GetDefaultGridSize(UWorld* InWorld) const override;
 	//~ End APartitionActor Interface
 	
-	void AddNavigationDataChunkInEditor(const UNavigationSystemBase& NavSys);
+	ENGINE_API void AddNavigationDataChunkInEditor(const UNavigationSystemBase& NavSys);
 #endif // WITH_EDITOR
 
 	const TArray<UNavigationDataChunk*>& GetNavDataChunk() const { return NavDataChunks; }
 	TArray<TObjectPtr<UNavigationDataChunk>>& GetMutableNavDataChunk() { return NavDataChunks; }
 
-	void CollectNavData(const FBox& QueryBounds, FBox& OutTilesBounds);
+	ENGINE_API void CollectNavData(const FBox& QueryBounds, FBox& OutTilesBounds);
 
 #if WITH_EDITOR
-	void SetDataChunkActorBounds(const FBox& InBounds);
+	ENGINE_API void SetDataChunkActorBounds(const FBox& InBounds);
 
 	//~ Begin AActor Interface.
 	virtual bool CanChangeIsSpatiallyLoadedFlag() const override { return false; }
-	virtual FBox GetStreamingBounds() const override;
+	ENGINE_API virtual FBox GetStreamingBounds() const override;
 	//~ End AActor Interface.
 #endif // WITH_EDITOR
 
@@ -46,14 +46,14 @@ public:
 	
 protected:
 	//~ Begin AActor Interface.
-	virtual void BeginPlay() override;
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-	virtual void GetActorBounds(bool bOnlyCollidingComponents, FVector& OutOrigin, FVector& OutBoxExtent, bool bIncludeFromChildActors) const override;
+	ENGINE_API virtual void BeginPlay() override;
+	ENGINE_API virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	ENGINE_API virtual void GetActorBounds(bool bOnlyCollidingComponents, FVector& OutOrigin, FVector& OutBoxExtent, bool bIncludeFromChildActors) const override;
 	//~ End AActor Interface.
 
-	void AddNavigationDataChunkToWorld();
-	void RemoveNavigationDataChunkFromWorld();
-	void Log(const TCHAR* FunctionName) const;
+	ENGINE_API void AddNavigationDataChunkToWorld();
+	ENGINE_API void RemoveNavigationDataChunkFromWorld();
+	ENGINE_API void Log(const TCHAR* FunctionName) const;
 
 	UPROPERTY()
 	TArray<TObjectPtr<UNavigationDataChunk>> NavDataChunks;

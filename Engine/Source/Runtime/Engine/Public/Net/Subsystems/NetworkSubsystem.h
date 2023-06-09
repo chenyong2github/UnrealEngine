@@ -8,8 +8,8 @@
 #include "NetworkSubsystem.generated.h"
 
 
-UCLASS()
-class ENGINE_API UNetworkSubsystem : public UWorldSubsystem
+UCLASS(MinimalAPI)
+class UNetworkSubsystem : public UWorldSubsystem
 {
 	GENERATED_BODY()
 public:
@@ -27,7 +27,7 @@ protected:
 
 private:
 
-	virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
 
 	/** Manage the of the subobjects and their relationships to different groups */
 	UE::Net::FNetConditionGroupManager GroupsManager;

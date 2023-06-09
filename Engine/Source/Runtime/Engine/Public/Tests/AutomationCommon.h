@@ -165,13 +165,13 @@ DEFINE_ENGINE_LATENT_AUTOMATION_COMMAND(FWaitForShadersToFinishCompilingInGame);
  *
  * If values are zero the defaults in [/Script/Engine.AutomationTestSetting] will be used
  */
-class ENGINE_API FWaitForInteractiveFrameRate : public IAutomationLatentCommand
+class FWaitForInteractiveFrameRate : public IAutomationLatentCommand
 {
 public:
 
-	FWaitForInteractiveFrameRate(float InDesiredFrameRate = 0, float InDuration = 0, float InMaxWaitTime = 0);
+	ENGINE_API FWaitForInteractiveFrameRate(float InDesiredFrameRate = 0, float InDuration = 0, float InMaxWaitTime = 0);
 
-	bool Update() override;
+	ENGINE_API bool Update() override;
 
 public:
 
@@ -220,11 +220,11 @@ private:
 /**
  * Latent command to wait for one engine frame
  */
-class ENGINE_API FWaitForNextEngineFrameCommand : public IAutomationLatentCommand
+class FWaitForNextEngineFrameCommand : public IAutomationLatentCommand
 {
 public:
 
-	bool Update() override;
+	ENGINE_API bool Update() override;
 
 private:
 

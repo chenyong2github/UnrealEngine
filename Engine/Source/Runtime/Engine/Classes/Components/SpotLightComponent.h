@@ -12,8 +12,8 @@ class FLightSceneProxy;
 /**
  * A spot light component emits a directional cone shaped light (Eg a Torch).
  */
-UCLASS(Blueprintable, ClassGroup=Lights, hidecategories=Object, editinlinenew, meta=(BlueprintSpawnableComponent))
-class ENGINE_API USpotLightComponent : public UPointLightComponent
+UCLASS(Blueprintable, ClassGroup=Lights, hidecategories=Object, editinlinenew, meta=(BlueprintSpawnableComponent), MinimalAPI)
+class USpotLightComponent : public UPointLightComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -26,28 +26,28 @@ class ENGINE_API USpotLightComponent : public UPointLightComponent
 	float OuterConeAngle;
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
-	void SetInnerConeAngle(float NewInnerConeAngle);
+	ENGINE_API void SetInnerConeAngle(float NewInnerConeAngle);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
-	void SetOuterConeAngle(float NewOuterConeAngle);
+	ENGINE_API void SetOuterConeAngle(float NewOuterConeAngle);
 
 	// ULightComponent interface.
-	virtual FSphere GetBoundingSphere() const override;
-	virtual bool AffectsBounds(const FBoxSphereBounds& InBounds) const override;
-	virtual ELightComponentType GetLightType() const override;
-	virtual FLightSceneProxy* CreateSceneProxy() const override;
+	ENGINE_API virtual FSphere GetBoundingSphere() const override;
+	ENGINE_API virtual bool AffectsBounds(const FBoxSphereBounds& InBounds) const override;
+	ENGINE_API virtual ELightComponentType GetLightType() const override;
+	ENGINE_API virtual FLightSceneProxy* CreateSceneProxy() const override;
 
-	virtual float ComputeLightBrightness() const override;
+	ENGINE_API virtual float ComputeLightBrightness() const override;
 #if WITH_EDITOR
-	virtual void SetLightBrightness(float InBrightness) override;
-	virtual FBox GetStreamingBounds() const override;
+	ENGINE_API virtual void SetLightBrightness(float InBrightness) override;
+	ENGINE_API virtual FBox GetStreamingBounds() const override;
 #endif
 
-	float GetHalfConeAngle() const;
-	float GetCosHalfConeAngle() const;
+	ENGINE_API float GetHalfConeAngle() const;
+	ENGINE_API float GetCosHalfConeAngle() const;
 
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 };
 

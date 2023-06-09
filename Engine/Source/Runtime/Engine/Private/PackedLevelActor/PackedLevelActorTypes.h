@@ -11,7 +11,7 @@
 
 using FPackedLevelActorBuilderID = uint32;
 
-class ENGINE_API FPackedLevelActorBuilderCluster
+class FPackedLevelActorBuilderCluster
 {
 	FPackedLevelActorBuilderID BuilderID;
 
@@ -37,10 +37,10 @@ private:
 	FPackedLevelActorBuilderCluster& operator=(const FPackedLevelActorBuilderCluster&) = delete;
 };
 
-class ENGINE_API FPackedLevelActorBuilderClusterID
+class FPackedLevelActorBuilderClusterID
 {
 public:
-	static FPackedLevelActorBuilderClusterID Invalid;
+	static ENGINE_API FPackedLevelActorBuilderClusterID Invalid;
 
 	FPackedLevelActorBuilderClusterID() : Hash(0)
 	{

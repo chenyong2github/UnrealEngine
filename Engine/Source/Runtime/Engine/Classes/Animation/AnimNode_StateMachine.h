@@ -119,7 +119,7 @@ public:
 
 // State machine node
 USTRUCT()
-struct ENGINE_API FAnimNode_StateMachine : public FAnimNode_Base
+struct FAnimNode_StateMachine : public FAnimNode_Base
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -175,9 +175,9 @@ public:
 		return ElapsedTime;
 	}
 
-	FName GetCurrentStateName() const;
+	ENGINE_API FName GetCurrentStateName() const;
 
-	bool IsTransitionActive(int32 TransIndex) const;
+	ENGINE_API bool IsTransitionActive(int32 TransIndex) const;
 
 protected:
 	// The current state within the state machine
@@ -238,70 +238,70 @@ public:
 	}
 
 	// FAnimNode_Base interface
-	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
-	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
-	virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
-	virtual void Evaluate_AnyThread(FPoseContext& Output) override;
-	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
+	ENGINE_API virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
+	ENGINE_API virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
+	ENGINE_API virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
+	ENGINE_API virtual void Evaluate_AnyThread(FPoseContext& Output) override;
+	ENGINE_API virtual void GatherDebugData(FNodeDebugData& DebugData) override;
 	// End of FAnimNode_Base interface
 
-	void ConditionallyCacheBonesForState(int32 StateIndex, FAnimationBaseContext Context);
+	ENGINE_API void ConditionallyCacheBonesForState(int32 StateIndex, FAnimationBaseContext Context);
 
 	// Returns the blend weight of the specified state, as calculated by the last call to Update()
-	float GetStateWeight(int32 StateIndex) const;
+	ENGINE_API float GetStateWeight(int32 StateIndex) const;
 
-	const FBakedAnimationState& GetStateInfo(int32 StateIndex) const;
-	const FAnimationTransitionBetweenStates& GetTransitionInfo(int32 TransIndex) const;
+	ENGINE_API const FBakedAnimationState& GetStateInfo(int32 StateIndex) const;
+	ENGINE_API const FAnimationTransitionBetweenStates& GetTransitionInfo(int32 TransIndex) const;
 	
-	bool IsValidTransitionIndex(int32 TransitionIndex) const;
+	ENGINE_API bool IsValidTransitionIndex(int32 TransitionIndex) const;
 
 	/** Cache the internal machine description */
-	void CacheMachineDescription(IAnimClassInterface* AnimBlueprintClass);
+	ENGINE_API void CacheMachineDescription(IAnimClassInterface* AnimBlueprintClass);
 
-	void SetState(const FAnimationBaseContext& Context, int32 NewStateIndex);
-	void TransitionToState(const FAnimationUpdateContext& Context, const FAnimationTransitionBetweenStates& TransitionInfo, const FAnimationPotentialTransition* BakedTransitionInfo = nullptr);
-	const int32 GetStateIndex(FName StateName) const;
+	ENGINE_API void SetState(const FAnimationBaseContext& Context, int32 NewStateIndex);
+	ENGINE_API void TransitionToState(const FAnimationUpdateContext& Context, const FAnimationTransitionBetweenStates& TransitionInfo, const FAnimationPotentialTransition* BakedTransitionInfo = nullptr);
+	ENGINE_API const int32 GetStateIndex(FName StateName) const;
 
 protected:
 	// Tries to get the instance information for the state machine
-	const FBakedAnimationStateMachine* GetMachineDescription() const;
+	ENGINE_API const FBakedAnimationStateMachine* GetMachineDescription() const;
 
-	void SetStateInternal(int32 NewStateIndex);
+	ENGINE_API void SetStateInternal(int32 NewStateIndex);
 
-	const FBakedAnimationState& GetStateInfo() const;
-	const int32 GetStateIndex(const FBakedAnimationState& StateInfo) const;
+	ENGINE_API const FBakedAnimationState& GetStateInfo() const;
+	ENGINE_API const int32 GetStateIndex(const FBakedAnimationState& StateInfo) const;
 	
 	// finds the highest priority valid transition, information pass via the OutPotentialTransition variable.
 	// OutVisitedStateIndices will let you know what states were checked, but is also used to make sure we don't get stuck in an infinite loop or recheck states
-	bool FindValidTransition(const FAnimationUpdateContext& Context, 
+	ENGINE_API bool FindValidTransition(const FAnimationUpdateContext& Context, 
 							const FBakedAnimationState& StateInfo,
 							/*OUT*/ FAnimationPotentialTransition& OutPotentialTransition,
 							/*OUT*/ TArray<int32, TInlineAllocator<4>>& OutVisitedStateIndices);
 
 	// Helper function that will update the states associated with a transition
-	void UpdateTransitionStates(const FAnimationUpdateContext& Context, FAnimationActiveTransitionEntry& Transition);
+	ENGINE_API void UpdateTransitionStates(const FAnimationUpdateContext& Context, FAnimationActiveTransitionEntry& Transition);
 
 	// helper function to test if a state is a conduit
-	bool IsAConduitState(int32 StateIndex) const;
+	ENGINE_API bool IsAConduitState(int32 StateIndex) const;
 
 	// helper functions for calling update and evaluate on state nodes
-	void UpdateState(int32 StateIndex, const FAnimationUpdateContext& Context);
-	const FPoseContext& EvaluateState(int32 StateIndex, const FPoseContext& Context);
+	ENGINE_API void UpdateState(int32 StateIndex, const FAnimationUpdateContext& Context);
+	ENGINE_API const FPoseContext& EvaluateState(int32 StateIndex, const FPoseContext& Context);
 
 	// transition type evaluation functions
-	void EvaluateTransitionStandardBlend(FPoseContext& Output, FAnimationActiveTransitionEntry& Transition, bool bIntermediatePoseIsValid);
-	void EvaluateTransitionStandardBlendInternal(FPoseContext& Output, FAnimationActiveTransitionEntry& Transition, const FPoseContext& PreviousStateResult, const FPoseContext& NextStateResult);
-	void EvaluateTransitionCustomBlend(FPoseContext& Output, FAnimationActiveTransitionEntry& Transition, bool bIntermediatePoseIsValid);
+	ENGINE_API void EvaluateTransitionStandardBlend(FPoseContext& Output, FAnimationActiveTransitionEntry& Transition, bool bIntermediatePoseIsValid);
+	ENGINE_API void EvaluateTransitionStandardBlendInternal(FPoseContext& Output, FAnimationActiveTransitionEntry& Transition, const FPoseContext& PreviousStateResult, const FPoseContext& NextStateResult);
+	ENGINE_API void EvaluateTransitionCustomBlend(FPoseContext& Output, FAnimationActiveTransitionEntry& Transition, bool bIntermediatePoseIsValid);
 
 	// Get the time remaining in seconds for the most relevant animation in the source state 
-	float GetRelevantAnimTimeRemaining(const FAnimInstanceProxy* InAnimInstanceProxy, int32 StateIndex) const;
+	ENGINE_API float GetRelevantAnimTimeRemaining(const FAnimInstanceProxy* InAnimInstanceProxy, int32 StateIndex) const;
 	float GetRelevantAnimTimeRemaining(const FAnimationUpdateContext& Context, int32 StateIndex) const
 	{
 		return GetRelevantAnimTimeRemaining(Context.AnimInstanceProxy, StateIndex);
 	}
 
 	// Get the time remaining as a fraction of the duration for the most relevant animation in the source state 
-	float GetRelevantAnimTimeRemainingFraction(const FAnimInstanceProxy* InAnimInstanceProxy, int32 StateIndex) const;
+	ENGINE_API float GetRelevantAnimTimeRemainingFraction(const FAnimInstanceProxy* InAnimInstanceProxy, int32 StateIndex) const;
 	float GetRelevantAnimTimeRemainingFraction(const FAnimationUpdateContext& Context, int32 StateIndex) const
 	{
 		return GetRelevantAnimTimeRemainingFraction(Context.AnimInstanceProxy, StateIndex);
@@ -319,31 +319,31 @@ protected:
 		return nullptr;
 	}
 
-	const FAnimNode_AssetPlayerRelevancyBase* GetRelevantAssetPlayerInterfaceFromState(const FAnimInstanceProxy* InAnimInstanceProxy, const FBakedAnimationState& StateInfo) const;
+	ENGINE_API const FAnimNode_AssetPlayerRelevancyBase* GetRelevantAssetPlayerInterfaceFromState(const FAnimInstanceProxy* InAnimInstanceProxy, const FBakedAnimationState& StateInfo) const;
 	const FAnimNode_AssetPlayerRelevancyBase* GetRelevantAssetPlayerInterfaceFromState(const FAnimationUpdateContext& Context, const FBakedAnimationState& StateInfo) const
 	{
 		return GetRelevantAssetPlayerInterfaceFromState(Context.AnimInstanceProxy, StateInfo);
 	}
 
-	void LogInertializationRequestError(const FAnimationUpdateContext& Context, int32 PreviousState, int32 NextState);
+	ENGINE_API void LogInertializationRequestError(const FAnimationUpdateContext& Context, int32 PreviousState, int32 NextState);
 
 	/** Queues a new transition request, returns true if the transition request was successfully queued */
-	bool RequestTransitionEvent(const FTransitionEvent& InTransitionEvent);
+	ENGINE_API bool RequestTransitionEvent(const FTransitionEvent& InTransitionEvent);
 
 	/** Removes all queued transition requests with the given event name */
-	void ClearTransitionEvents(const FName& EventName);
+	ENGINE_API void ClearTransitionEvents(const FName& EventName);
 
 	/** Removes all queued transition requests*/
-	void ClearAllTransitionEvents();
+	ENGINE_API void ClearAllTransitionEvents();
 
 	/** Returns whether or not the given event transition request has been queued */
-	bool QueryTransitionEvent(const int32 TransitionIndex, const FName& EventName) const;
+	ENGINE_API bool QueryTransitionEvent(const int32 TransitionIndex, const FName& EventName) const;
 
 	/** Behaves like QueryTransitionEvent but additionally marks the event for consumption */
-	bool QueryAndMarkTransitionEvent(const int32 TransitionIndex, const FName& EventName);
+	ENGINE_API bool QueryAndMarkTransitionEvent(const int32 TransitionIndex, const FName& EventName);
 
 	/** Removes all marked events that are queued */
-	void ConsumeMarkedTransitionEvents();
+	ENGINE_API void ConsumeMarkedTransitionEvents();
 
 public:
 	friend struct FAnimInstanceProxy;

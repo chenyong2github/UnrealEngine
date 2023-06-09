@@ -105,7 +105,7 @@ public:
 };
 
 USTRUCT()
-struct ENGINE_API FWorldPSCPool
+struct FWorldPSCPool
 {
 	GENERATED_BODY()
 
@@ -119,16 +119,16 @@ private:
 	float CachedWorldTime;
 public:
 
-	FWorldPSCPool();
-	~FWorldPSCPool();
+	ENGINE_API FWorldPSCPool();
+	ENGINE_API ~FWorldPSCPool();
 
-	void Cleanup(UWorld* World);
+	ENGINE_API void Cleanup(UWorld* World);
 
-	UParticleSystemComponent* CreateWorldParticleSystem(UParticleSystem* Template, UWorld* World, EPSCPoolMethod PoolingMethod);
+	ENGINE_API UParticleSystemComponent* CreateWorldParticleSystem(UParticleSystem* Template, UWorld* World, EPSCPoolMethod PoolingMethod);
 
 	/** Called when an in-use particle component is finished and wishes to be returned to the pool. */
-	void ReclaimWorldParticleSystem(UParticleSystemComponent* PSC);
+	ENGINE_API void ReclaimWorldParticleSystem(UParticleSystemComponent* PSC);
 
 	/** Dumps the current state of the pool to the log. */
-	void Dump();
+	ENGINE_API void Dump();
 };

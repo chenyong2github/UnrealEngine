@@ -9,30 +9,30 @@ class UActorDescContainer;
 class AWorldDataLayers;
 struct FActorSpawnParameters;
 
-class ENGINE_API FWorldDataLayersReference
+class FWorldDataLayersReference
 {
 public:
-	FWorldDataLayersReference();
-	FWorldDataLayersReference(UActorDescContainer* Container, FName WorldDataLayerName); // Retrieve Actor
-	FWorldDataLayersReference(const FActorSpawnParameters& SpawnParameters); // Retrieve and Create Actor if Not Found, FActorSpawnParameters::Name must be set
-	FWorldDataLayersReference(FWorldDataLayersReference&& Other);
+	ENGINE_API FWorldDataLayersReference();
+	ENGINE_API FWorldDataLayersReference(UActorDescContainer* Container, FName WorldDataLayerName); // Retrieve Actor
+	ENGINE_API FWorldDataLayersReference(const FActorSpawnParameters& SpawnParameters); // Retrieve and Create Actor if Not Found, FActorSpawnParameters::Name must be set
+	ENGINE_API FWorldDataLayersReference(FWorldDataLayersReference&& Other);
 
-	~FWorldDataLayersReference();
+	ENGINE_API ~FWorldDataLayersReference();
 
 	bool IsValid() const { return Get() != nullptr; }
 
 	AWorldDataLayers* operator->() { return const_cast<AWorldDataLayers*>(const_cast<const FWorldDataLayersReference*>(this)->operator->()); }
 	const AWorldDataLayers* operator->() const { return Get(); }
 
-	const AWorldDataLayers* Get() const;
+	ENGINE_API const AWorldDataLayers* Get() const;
 	AWorldDataLayers* Get() { return const_cast<AWorldDataLayers*>(const_cast<const FWorldDataLayersReference*>(this)->Get()); }
 
-	void Reset();
+	ENGINE_API void Reset();
 
-	FWorldDataLayersReference& operator=(FWorldDataLayersReference&& Other);
+	ENGINE_API FWorldDataLayersReference& operator=(FWorldDataLayersReference&& Other);
 
 private:
-	bool TrySetReference(UActorDescContainer* Container, FName WorldDataLayerName);
+	ENGINE_API bool TrySetReference(UActorDescContainer* Container, FName WorldDataLayerName);
 
 	TVariant<AWorldDataLayers*, FWorldPartitionReference> WorldDataLayersVariant;
 };

@@ -190,7 +190,7 @@ struct TStructOpsTypeTraits<FMaterialLayersFunctionsRuntimeData> : TStructOpsTyp
 };
 
 USTRUCT()
-struct ENGINE_API FMaterialLayersFunctions : public FMaterialLayersFunctionsRuntimeData
+struct FMaterialLayersFunctions : public FMaterialLayersFunctionsRuntimeData
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -198,7 +198,7 @@ struct ENGINE_API FMaterialLayersFunctions : public FMaterialLayersFunctionsRunt
 	using ID = FMaterialLayersFunctionsID;
 #endif // WITH_EDITOR
 
-	static const FGuid BackgroundGuid;
+	static ENGINE_API const FGuid BackgroundGuid;
 
 	FMaterialLayersFunctions() = default;
 	FMaterialLayersFunctions(const FMaterialLayersFunctionsRuntimeData&) = delete;
@@ -234,9 +234,9 @@ struct ENGINE_API FMaterialLayersFunctions : public FMaterialLayersFunctionsRunt
 		EditorOnly.LayerLinkStates.Add(EMaterialLayerLinkState::NotFromParent);
 	}
 
-	int32 AppendBlendedLayer();
+	ENGINE_API int32 AppendBlendedLayer();
 
-	int32 AddLayerCopy(const FMaterialLayersFunctionsRuntimeData& Source,
+	ENGINE_API int32 AddLayerCopy(const FMaterialLayersFunctionsRuntimeData& Source,
 		const FMaterialLayersFunctionsEditorOnlyData& SourceEditorOnly,
 		int32 SourceLayerIndex,
 		bool bVisible,
@@ -250,7 +250,7 @@ struct ENGINE_API FMaterialLayersFunctions : public FMaterialLayersFunctionsRunt
 		return AddLayerCopy(Source, Source.EditorOnly, SourceLayerIndex, bVisible, LinkState);
 	}
 
-	void InsertLayerCopy(const FMaterialLayersFunctionsRuntimeData& Source,
+	ENGINE_API void InsertLayerCopy(const FMaterialLayersFunctionsRuntimeData& Source,
 		const FMaterialLayersFunctionsEditorOnlyData& SourceEditorOnly,
 		int32 SourceLayerIndex,
 		EMaterialLayerLinkState LinkState,
@@ -264,19 +264,19 @@ struct ENGINE_API FMaterialLayersFunctions : public FMaterialLayersFunctionsRunt
 		return InsertLayerCopy(Source, Source.EditorOnly, SourceLayerIndex, LinkState, LayerIndex);
 	}
 
-	void RemoveBlendedLayerAt(int32 Index);
+	ENGINE_API void RemoveBlendedLayerAt(int32 Index);
 
-	void MoveBlendedLayer(int32 SrcLayerIndex, int32 DstLayerIndex);
+	ENGINE_API void MoveBlendedLayer(int32 SrcLayerIndex, int32 DstLayerIndex);
 
 	const ID GetID() const { return FMaterialLayersFunctionsRuntimeData::GetID(EditorOnly); }
 
 	/** Gets a string representation of the ID */
-	FString GetStaticPermutationString() const;
+	ENGINE_API FString GetStaticPermutationString() const;
 
-	void UnlinkLayerFromParent(int32 Index);
-	bool IsLayerLinkedToParent(int32 Index) const;
-	void RelinkLayersToParent();
-	bool HasAnyUnlinkedLayers() const;
+	ENGINE_API void UnlinkLayerFromParent(int32 Index);
+	ENGINE_API bool IsLayerLinkedToParent(int32 Index) const;
+	ENGINE_API void RelinkLayersToParent();
+	ENGINE_API bool HasAnyUnlinkedLayers() const;
 
 	void ToggleBlendedLayerVisibility(int32 Index)
 	{
@@ -311,7 +311,7 @@ struct ENGINE_API FMaterialLayersFunctions : public FMaterialLayersFunctionsRunt
 		EditorOnly.LinkAllLayersToParent();
 	}
 
-	static bool MatchesParent(const FMaterialLayersFunctionsRuntimeData& Runtime,
+	static ENGINE_API bool MatchesParent(const FMaterialLayersFunctionsRuntimeData& Runtime,
 		const FMaterialLayersFunctionsEditorOnlyData& EditorOnly,
 		const FMaterialLayersFunctionsRuntimeData& ParentRuntime,
 		const FMaterialLayersFunctionsEditorOnlyData& ParentEditorOnly);
@@ -321,7 +321,7 @@ struct ENGINE_API FMaterialLayersFunctions : public FMaterialLayersFunctionsRunt
 		return MatchesParent(GetRuntime(), EditorOnly, Parent.GetRuntime(), Parent.EditorOnly);
 	}
 
-	static bool ResolveParent(const FMaterialLayersFunctionsRuntimeData& ParentRuntime,
+	static ENGINE_API bool ResolveParent(const FMaterialLayersFunctionsRuntimeData& ParentRuntime,
 		const FMaterialLayersFunctionsEditorOnlyData& ParentEditorOnly,
 		FMaterialLayersFunctionsRuntimeData& Runtime,
 		FMaterialLayersFunctionsEditorOnlyData& EditorOnly,
@@ -332,17 +332,17 @@ struct ENGINE_API FMaterialLayersFunctions : public FMaterialLayersFunctionsRunt
 		return FMaterialLayersFunctions::ResolveParent(Parent.GetRuntime(), Parent.EditorOnly, GetRuntime(), EditorOnly, OutRemapLayerIndices);
 	}
 
-	static void Validate(const FMaterialLayersFunctionsRuntimeData& Runtime, const FMaterialLayersFunctionsEditorOnlyData& EditorOnly);
+	static ENGINE_API void Validate(const FMaterialLayersFunctionsRuntimeData& Runtime, const FMaterialLayersFunctionsEditorOnlyData& EditorOnly);
 
 	void Validate()
 	{
 		Validate(GetRuntime(), EditorOnly);
 	}
 
-	void SerializeLegacy(FArchive& Ar);
+	ENGINE_API void SerializeLegacy(FArchive& Ar);
 #endif // WITH_EDITOR
 
-	void PostSerialize(const FArchive& Ar);
+	ENGINE_API void PostSerialize(const FArchive& Ar);
 
 	FORCEINLINE bool operator==(const FMaterialLayersFunctions& Other) const
 	{

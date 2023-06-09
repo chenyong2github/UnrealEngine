@@ -37,26 +37,26 @@ namespace ESplineCoordinateSpace
 	};
 }
 
-UCLASS(Abstract)
-class ENGINE_API USplineMetadata : public UObject
+UCLASS(Abstract, MinimalAPI)
+class USplineMetadata : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 	/** Insert point before index, lerping metadata between previous and next key values */
-	virtual void InsertPoint(int32 Index, float t, bool bClosedLoop) PURE_VIRTUAL(USplineMetadata::InsertPoint, );
+	ENGINE_API virtual void InsertPoint(int32 Index, float t, bool bClosedLoop) PURE_VIRTUAL(USplineMetadata::InsertPoint, );
 	/** Update point at index by lerping metadata between previous and next key values */
-	virtual void UpdatePoint(int32 Index, float t, bool bClosedLoop) PURE_VIRTUAL(USplineMetadata::UpdatePoint, );
-	virtual void AddPoint(float InputKey) PURE_VIRTUAL(USplineMetadata::AddPoint, );
-	virtual void RemovePoint(int32 Index) PURE_VIRTUAL(USplineMetadata::RemovePoint, );
-	virtual void DuplicatePoint(int32 Index) PURE_VIRTUAL(USplineMetadata::DuplicatePoint, );
-	virtual void CopyPoint(const USplineMetadata* FromSplineMetadata, int32 FromIndex, int32 ToIndex) PURE_VIRTUAL(USplineMetadata::CopyPoint, );
-	virtual void Reset(int32 NumPoints) PURE_VIRTUAL(USplineMetadata::Reset, );
-	virtual void Fixup(int32 NumPoints, USplineComponent* SplineComp) PURE_VIRTUAL(USplineMetadata::Fixup, );
+	ENGINE_API virtual void UpdatePoint(int32 Index, float t, bool bClosedLoop) PURE_VIRTUAL(USplineMetadata::UpdatePoint, );
+	ENGINE_API virtual void AddPoint(float InputKey) PURE_VIRTUAL(USplineMetadata::AddPoint, );
+	ENGINE_API virtual void RemovePoint(int32 Index) PURE_VIRTUAL(USplineMetadata::RemovePoint, );
+	ENGINE_API virtual void DuplicatePoint(int32 Index) PURE_VIRTUAL(USplineMetadata::DuplicatePoint, );
+	ENGINE_API virtual void CopyPoint(const USplineMetadata* FromSplineMetadata, int32 FromIndex, int32 ToIndex) PURE_VIRTUAL(USplineMetadata::CopyPoint, );
+	ENGINE_API virtual void Reset(int32 NumPoints) PURE_VIRTUAL(USplineMetadata::Reset, );
+	ENGINE_API virtual void Fixup(int32 NumPoints, USplineComponent* SplineComp) PURE_VIRTUAL(USplineMetadata::Fixup, );
 };
 
 USTRUCT()
-struct ENGINE_API FSplineCurves
+struct FSplineCurves
 {
 	GENERATED_BODY()
 
@@ -101,17 +101,17 @@ struct ENGINE_API FSplineCurves
 	 * @param	LoopPosition			The loop position to use instead of the last key
 	 * @param	Scale3D					The world scale to override
 	 */
-	void UpdateSpline(bool bClosedLoop = false, bool bStationaryEndpoints = false, int32 ReparamStepsPerSegment = 10, bool bLoopPositionOverride = false, float LoopPosition = 0.0f, const FVector& Scale3D = FVector(1.0f));
+	ENGINE_API void UpdateSpline(bool bClosedLoop = false, bool bStationaryEndpoints = false, int32 ReparamStepsPerSegment = 10, bool bLoopPositionOverride = false, float LoopPosition = 0.0f, const FVector& Scale3D = FVector(1.0f));
 
 	/** Returns the length of the specified spline segment up to the parametric value given */
-	float GetSegmentLength(const int32 Index, const float Param, bool bClosedLoop = false, const FVector& Scale3D = FVector(1.0f)) const;
+	ENGINE_API float GetSegmentLength(const int32 Index, const float Param, bool bClosedLoop = false, const FVector& Scale3D = FVector(1.0f)) const;
 
 	/** Returns total length along this spline */
-	float GetSplineLength() const;
+	ENGINE_API float GetSplineLength() const;
 };
 
 /** A single point in linear approximation of a spline */
-struct ENGINE_API FSplinePositionLinearApproximation
+struct FSplinePositionLinearApproximation
 {
 	FSplinePositionLinearApproximation(const FVector& InPosition, float InSplineParam)
 		: Position(InPosition)
@@ -124,7 +124,7 @@ struct ENGINE_API FSplinePositionLinearApproximation
 	 * @param	OutPoints	The array of points to fill as a linear approximation
 	 * @param	InDensity	Scalar applied to determine how many points are generated in the approximation. 1.0 = one point per distance unit.
 	 */
-	static void Build(const FSplineCurves& InCurves, TArray<FSplinePositionLinearApproximation>& OutPoints, float InDensity = 0.5f);
+	static ENGINE_API void Build(const FSplineCurves& InCurves, TArray<FSplinePositionLinearApproximation>& OutPoints, float InDensity = 0.5f);
 
 	/** Position on the spline */
 	FVector Position;
@@ -190,8 +190,8 @@ struct FSplinePoint
  *	A spline component is a spline shape which can be used for other purposes (e.g. animating objects). It contains debug rendering capabilities.
  *	@see https://docs.unrealengine.com/latest/INT/Resources/ContentExamples/Blueprint_Splines
  */
-UCLASS(ClassGroup=Utility, ShowCategories = (Mobility), HideCategories = (Physics, Collision, Lighting, Rendering, Mobile), meta=(BlueprintSpawnableComponent))
-class ENGINE_API USplineComponent : public UPrimitiveComponent
+UCLASS(ClassGroup=Utility, ShowCategories = (Mobility), HideCategories = (Physics, Collision, Lighting, Rendering, Mobile), meta=(BlueprintSpawnableComponent), MinimalAPI)
+class USplineComponent : public UPrimitiveComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -297,36 +297,36 @@ public:
 #endif
 
 	//~ Begin UObject Interface
-	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
-	virtual void Serialize(FArchive& Ar) override;
-	virtual void PostLoad() override;
-	virtual bool GetIgnoreBoundsForEditorFocus() const override;
+	ENGINE_API virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void PostLoad() override;
+	ENGINE_API virtual bool GetIgnoreBoundsForEditorFocus() const override;
 #if WITH_EDITOR
-	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #endif
 	//~ End UObject Interface
 
 	//~ Begin UActorComponent Interface.
-	virtual TStructOnScope<FActorComponentInstanceData> GetComponentInstanceData() const override;
+	ENGINE_API virtual TStructOnScope<FActorComponentInstanceData> GetComponentInstanceData() const override;
 	//~ End UActorComponent Interface.
 
 #if UE_ENABLE_DEBUG_DRAWING
 	//~ Begin UPrimitiveComponent Interface.
-	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
+	ENGINE_API virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 #endif
 	
 #if WITH_EDITOR
-	virtual void PushSelectionToProxy() override;
+	ENGINE_API virtual void PushSelectionToProxy() override;
 #endif
 	//~ End UPrimitiveComponent Interface.
 
 
 	//~ Begin USceneComponent Interface
-	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
+	ENGINE_API virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	//~ End USceneComponent Interface
 #if UE_ENABLE_DEBUG_DRAWING
 	/** Helper function to draw a vector curve */
-	static void Draw(FPrimitiveDrawInterface* PDI, const FSceneView* View, const FInterpCurveVector& SplineInfo, const FMatrix& LocalToWorld, const FLinearColor& LineColor, uint8 DepthPriorityGroup);
+	static ENGINE_API void Draw(FPrimitiveDrawInterface* PDI, const FSceneView* View, const FInterpCurveVector& SplineInfo, const FMatrix& LocalToWorld, const FLinearColor& LineColor, uint8 DepthPriorityGroup);
 #endif
 
 	FInterpCurveVector& GetSplinePointsPosition() { return SplineCurves.Position; }
@@ -340,7 +340,7 @@ public:
 	virtual const USplineMetadata* GetSplinePointsMetadata() const { return nullptr; }
 
 	/** Get the enabled Spline Point types for this spline component. */
-	virtual TArray<ESplinePointType::Type> GetEnabledSplinePointTypes() const;
+	ENGINE_API virtual TArray<ESplinePointType::Type> GetEnabledSplinePointTypes() const;
 
 	/** Controls the visibility of the Spline point location editor in the details panel. */
 	virtual bool AllowsSpinePointLocationEditing() const { return true; }
@@ -354,474 +354,474 @@ public:
 	virtual bool AllowsSplinePointLeaveTangentEditing() const { return true; }
 
 
-	void ApplyComponentInstanceData(struct FSplineInstanceData* ComponentInstanceData, const bool bPostUCS);
+	ENGINE_API void ApplyComponentInstanceData(struct FSplineInstanceData* ComponentInstanceData, const bool bPostUCS);
 
 	/** Reset the spline to its default shape (a spline of two points) */
-	void ResetToDefault();
+	ENGINE_API void ResetToDefault();
 
 	/** Update the spline tangents and SplineReparamTable */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	virtual void UpdateSpline();
+	ENGINE_API virtual void UpdateSpline();
 
 	/** Get location along spline at the provided input key value */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	FVector GetLocationAtSplineInputKey(float InKey, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	ENGINE_API FVector GetLocationAtSplineInputKey(float InKey, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Get tangent along spline at the provided input key value */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	FVector GetTangentAtSplineInputKey(float InKey, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	ENGINE_API FVector GetTangentAtSplineInputKey(float InKey, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Get unit direction along spline at the provided input key value */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	FVector GetDirectionAtSplineInputKey(float InKey, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	ENGINE_API FVector GetDirectionAtSplineInputKey(float InKey, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Get rotator corresponding to rotation along spline at the provided input key value */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	FRotator GetRotationAtSplineInputKey(float InKey, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	ENGINE_API FRotator GetRotationAtSplineInputKey(float InKey, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Get quaternion corresponding to rotation along spline at the provided input key value */
-	FQuat GetQuaternionAtSplineInputKey(float InKey, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	ENGINE_API FQuat GetQuaternionAtSplineInputKey(float InKey, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Get up vector at the provided input key value */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	FVector GetUpVectorAtSplineInputKey(float InKey, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	ENGINE_API FVector GetUpVectorAtSplineInputKey(float InKey, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Get right vector at the provided input key value */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	FVector GetRightVectorAtSplineInputKey(float InKey, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	ENGINE_API FVector GetRightVectorAtSplineInputKey(float InKey, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Get transform at the provided input key value */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	FTransform GetTransformAtSplineInputKey(float InKey, ESplineCoordinateSpace::Type CoordinateSpace, bool bUseScale = false) const;
+	ENGINE_API FTransform GetTransformAtSplineInputKey(float InKey, ESplineCoordinateSpace::Type CoordinateSpace, bool bUseScale = false) const;
 
 	/** Get roll in degrees at the provided input key value */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	float GetRollAtSplineInputKey(float InKey, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	ENGINE_API float GetRollAtSplineInputKey(float InKey, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Get scale at the provided input key value */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	FVector GetScaleAtSplineInputKey(float InKey) const;
+	ENGINE_API FVector GetScaleAtSplineInputKey(float InKey) const;
 
 	/** Get distance along the spline at the provided input key value */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	float GetDistanceAlongSplineAtSplineInputKey(float InKey) const;
+	ENGINE_API float GetDistanceAlongSplineAtSplineInputKey(float InKey) const;
 
 	/** Get distance along the spline at closest point of the provided input location */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	float GetDistanceAlongSplineAtLocation(const FVector& InLocation, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	ENGINE_API float GetDistanceAlongSplineAtLocation(const FVector& InLocation, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Get a metadata property float value along the spline at spline input key */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	float GetFloatPropertyAtSplineInputKey(float InKey, FName PropertyName) const;
+	ENGINE_API float GetFloatPropertyAtSplineInputKey(float InKey, FName PropertyName) const;
 
 	/** Get a metadata property vector value along the spline at spline input key */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	FVector GetVectorPropertyAtSplineInputKey(float InKey, FName PropertyName) const;
+	ENGINE_API FVector GetVectorPropertyAtSplineInputKey(float InKey, FName PropertyName) const;
 
 	/** Specify unselected spline component segment color in the editor */
 	UFUNCTION(BlueprintCallable, Category = Editor)
-	void SetUnselectedSplineSegmentColor(const FLinearColor& SegmentColor);
+	ENGINE_API void SetUnselectedSplineSegmentColor(const FLinearColor& SegmentColor);
 
 	/** Specify selected spline component segment color in the editor */
 	UFUNCTION(BlueprintCallable, Category = Editor)
-	void SetSelectedSplineSegmentColor(const FLinearColor& SegmentColor);
+	ENGINE_API void SetSelectedSplineSegmentColor(const FLinearColor& SegmentColor);
 
 	/** Specify selected spline component segment color in the editor */
 	UFUNCTION(BlueprintCallable, Category = Editor)
-	void SetTangentColor(const FLinearColor& TangentColor);
+	ENGINE_API void SetTangentColor(const FLinearColor& TangentColor);
 
 	/** Specify whether this spline should be rendered when the Editor/Game spline show flag is set */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	void SetDrawDebug(bool bShow);
+	ENGINE_API void SetDrawDebug(bool bShow);
 
 	/** Specify whether the spline is a closed loop or not. The loop position will be at 1.0 after the last point's input key */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	void SetClosedLoop(bool bInClosedLoop, bool bUpdateSpline = true);
+	ENGINE_API void SetClosedLoop(bool bInClosedLoop, bool bUpdateSpline = true);
 
 	/** Specify whether the spline is a closed loop or not, and if so, the input key corresponding to the loop point */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	void SetClosedLoopAtPosition(bool bInClosedLoop, float Key, bool bUpdateSpline = true);
+	ENGINE_API void SetClosedLoopAtPosition(bool bInClosedLoop, float Key, bool bUpdateSpline = true);
 
 	/** Check whether the spline is a closed loop or not */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	bool IsClosedLoop() const;
+	ENGINE_API bool IsClosedLoop() const;
 
 	/** Clears all the points in the spline */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	void ClearSplinePoints(bool bUpdateSpline = true);
+	ENGINE_API void ClearSplinePoints(bool bUpdateSpline = true);
 
 	/** Adds an FSplinePoint to the spline. This contains its input key, position, tangent, rotation and scale. */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	void AddPoint(const FSplinePoint& Point, bool bUpdateSpline = true);
+	ENGINE_API void AddPoint(const FSplinePoint& Point, bool bUpdateSpline = true);
 
 	/** Adds an array of FSplinePoints to the spline. */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	void AddPoints(const TArray<FSplinePoint>& Points, bool bUpdateSpline = true);
+	ENGINE_API void AddPoints(const TArray<FSplinePoint>& Points, bool bUpdateSpline = true);
 
 	/** Adds a point to the spline */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	void AddSplinePoint(const FVector& Position, ESplineCoordinateSpace::Type CoordinateSpace, bool bUpdateSpline = true);
+	ENGINE_API void AddSplinePoint(const FVector& Position, ESplineCoordinateSpace::Type CoordinateSpace, bool bUpdateSpline = true);
 
 	/** Adds a point to the spline at the specified index */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	void AddSplinePointAtIndex(const FVector& Position, int32 Index, ESplineCoordinateSpace::Type CoordinateSpace, bool bUpdateSpline = true);
+	ENGINE_API void AddSplinePointAtIndex(const FVector& Position, int32 Index, ESplineCoordinateSpace::Type CoordinateSpace, bool bUpdateSpline = true);
 
 	/** Removes point at specified index from the spline */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	void RemoveSplinePoint(int32 Index, bool bUpdateSpline = true);
+	ENGINE_API void RemoveSplinePoint(int32 Index, bool bUpdateSpline = true);
 
 	/** Adds a world space point to the spline */
 	UFUNCTION(BlueprintCallable, Category = Spline, meta = (DeprecatedFunction, DeprecationMessage = "Please use AddSplinePoint, specifying SplineCoordinateSpace::World"))
-	void AddSplineWorldPoint(const FVector& Position);
+	ENGINE_API void AddSplineWorldPoint(const FVector& Position);
 
 	/** Adds a local space point to the spline */
 	UFUNCTION(BlueprintCallable, Category = Spline, meta = (DeprecatedFunction, DeprecationMessage = "Please use AddSplinePoint, specifying SplineCoordinateSpace::Local"))
-	void AddSplineLocalPoint(const FVector& Position);
+	ENGINE_API void AddSplineLocalPoint(const FVector& Position);
 
 	/** Sets the spline to an array of points */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	void SetSplinePoints(const TArray<FVector>& Points, ESplineCoordinateSpace::Type CoordinateSpace, bool bUpdateSpline = true);
+	ENGINE_API void SetSplinePoints(const TArray<FVector>& Points, ESplineCoordinateSpace::Type CoordinateSpace, bool bUpdateSpline = true);
 
 	/** Sets the spline to an array of world space points */
 	UFUNCTION(BlueprintCallable, Category = Spline, meta = (DeprecatedFunction, DeprecationMessage = "Please use SetSplinePoints, specifying SplineCoordinateSpace::World"))
-	void SetSplineWorldPoints(const TArray<FVector>& Points);
+	ENGINE_API void SetSplineWorldPoints(const TArray<FVector>& Points);
 
 	/** Sets the spline to an array of local space points */
 	UFUNCTION(BlueprintCallable, Category = Spline, meta = (DeprecatedFunction, DeprecationMessage = "Please use SetSplinePoints, specifying SplineCoordinateSpace::Local"))
-	void SetSplineLocalPoints(const TArray<FVector>& Points);
+	ENGINE_API void SetSplineLocalPoints(const TArray<FVector>& Points);
 
 	/** Move an existing point to a new location */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	void SetLocationAtSplinePoint(int32 PointIndex, const FVector& InLocation, ESplineCoordinateSpace::Type CoordinateSpace, bool bUpdateSpline = true);
+	ENGINE_API void SetLocationAtSplinePoint(int32 PointIndex, const FVector& InLocation, ESplineCoordinateSpace::Type CoordinateSpace, bool bUpdateSpline = true);
 
 	/** Move an existing point to a new world location */
 	UFUNCTION(BlueprintCallable, Category = Spline, meta = (DeprecatedFunction, DeprecationMessage = "Please use SetLocationAtSplinePoint, specifying SplineCoordinateSpace::World"))
-	void SetWorldLocationAtSplinePoint(int32 PointIndex, const FVector& InLocation);
+	ENGINE_API void SetWorldLocationAtSplinePoint(int32 PointIndex, const FVector& InLocation);
 
 	/** Specify the tangent at a given spline point */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	void SetTangentAtSplinePoint(int32 PointIndex, const FVector& InTangent, ESplineCoordinateSpace::Type CoordinateSpace, bool bUpdateSpline = true);
+	ENGINE_API void SetTangentAtSplinePoint(int32 PointIndex, const FVector& InTangent, ESplineCoordinateSpace::Type CoordinateSpace, bool bUpdateSpline = true);
 
 	/** Specify the tangents at a given spline point */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	void SetTangentsAtSplinePoint(int32 PointIndex, const FVector& InArriveTangent, const FVector& InLeaveTangent, ESplineCoordinateSpace::Type CoordinateSpace, bool bUpdateSpline = true);
+	ENGINE_API void SetTangentsAtSplinePoint(int32 PointIndex, const FVector& InArriveTangent, const FVector& InLeaveTangent, ESplineCoordinateSpace::Type CoordinateSpace, bool bUpdateSpline = true);
 
 	/** Specify the up vector at a given spline point */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	void SetUpVectorAtSplinePoint(int32 PointIndex, const FVector& InUpVector, ESplineCoordinateSpace::Type CoordinateSpace, bool bUpdateSpline = true);
+	ENGINE_API void SetUpVectorAtSplinePoint(int32 PointIndex, const FVector& InUpVector, ESplineCoordinateSpace::Type CoordinateSpace, bool bUpdateSpline = true);
 
 	/** Set the rotation of an existing spline point */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	void SetRotationAtSplinePoint(int32 PointIndex, const FRotator& InRotation, ESplineCoordinateSpace::Type CoordinateSpace, bool bUpdateSpline = true);
+	ENGINE_API void SetRotationAtSplinePoint(int32 PointIndex, const FRotator& InRotation, ESplineCoordinateSpace::Type CoordinateSpace, bool bUpdateSpline = true);
 
 	/** Set the scale at a given spline point */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	void SetScaleAtSplinePoint(int32 PointIndex, const FVector& InScaleVector, bool bUpdateSpline = true); 
+	ENGINE_API void SetScaleAtSplinePoint(int32 PointIndex, const FVector& InScaleVector, bool bUpdateSpline = true); 
 
 	/** Get the type of a spline point */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	ESplinePointType::Type GetSplinePointType(int32 PointIndex) const;
+	ENGINE_API ESplinePointType::Type GetSplinePointType(int32 PointIndex) const;
 
 	/** Specify the type of a spline point */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	void SetSplinePointType(int32 PointIndex, ESplinePointType::Type Type, bool bUpdateSpline = true);
+	ENGINE_API void SetSplinePointType(int32 PointIndex, ESplinePointType::Type Type, bool bUpdateSpline = true);
 
 	/** Get the number of points that make up this spline */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	int32 GetNumberOfSplinePoints() const;
+	ENGINE_API int32 GetNumberOfSplinePoints() const;
 
 	/** Get the number of segments that make up this spline */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	int32 GetNumberOfSplineSegments() const;
+	ENGINE_API int32 GetNumberOfSplineSegments() const;
 
 	/** Get the input key (e.g. the time) of the control point of the spline at the specified index. */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	float GetInputKeyValueAtSplinePoint(int32 PointIndex) const;
+	ENGINE_API float GetInputKeyValueAtSplinePoint(int32 PointIndex) const;
 
 	/** Gets the spline point of the spline at the specified index */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	FSplinePoint GetSplinePointAt(int32 PointIndex, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	ENGINE_API FSplinePoint GetSplinePointAt(int32 PointIndex, ESplineCoordinateSpace::Type CoordinateSpace) const;
 		
 	/** Get the location at spline point */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	FVector GetLocationAtSplinePoint(int32 PointIndex, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	ENGINE_API FVector GetLocationAtSplinePoint(int32 PointIndex, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Get the world location at spline point */
 	UFUNCTION(BlueprintCallable, Category = Spline, meta = (DeprecatedFunction, DeprecationMessage = "Please use GetLocationAtSplinePoint, specifying SplineCoordinateSpace::World"))
-	FVector GetWorldLocationAtSplinePoint(int32 PointIndex) const;
+	ENGINE_API FVector GetWorldLocationAtSplinePoint(int32 PointIndex) const;
 
 	/** Get the direction at spline point */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	FVector GetDirectionAtSplinePoint(int32 PointIndex, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	ENGINE_API FVector GetDirectionAtSplinePoint(int32 PointIndex, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Get the tangent at spline point. This fetches the Leave tangent of the point. */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	FVector GetTangentAtSplinePoint(int32 PointIndex, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	ENGINE_API FVector GetTangentAtSplinePoint(int32 PointIndex, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Get the arrive tangent at spline point */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	FVector GetArriveTangentAtSplinePoint(int32 PointIndex, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	ENGINE_API FVector GetArriveTangentAtSplinePoint(int32 PointIndex, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Get the leave tangent at spline point */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	FVector GetLeaveTangentAtSplinePoint(int32 PointIndex, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	ENGINE_API FVector GetLeaveTangentAtSplinePoint(int32 PointIndex, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Get the rotation at spline point as a quaternion */
-	FQuat GetQuaternionAtSplinePoint(int32 PointIndex, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	ENGINE_API FQuat GetQuaternionAtSplinePoint(int32 PointIndex, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Get the rotation at spline point as a rotator */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	FRotator GetRotationAtSplinePoint(int32 PointIndex, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	ENGINE_API FRotator GetRotationAtSplinePoint(int32 PointIndex, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Get the up vector at spline point */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	FVector GetUpVectorAtSplinePoint(int32 PointIndex, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	ENGINE_API FVector GetUpVectorAtSplinePoint(int32 PointIndex, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Get the right vector at spline point */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	FVector GetRightVectorAtSplinePoint(int32 PointIndex, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	ENGINE_API FVector GetRightVectorAtSplinePoint(int32 PointIndex, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Get the amount of roll at spline point, in degrees */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	float GetRollAtSplinePoint(int32 PointIndex, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	ENGINE_API float GetRollAtSplinePoint(int32 PointIndex, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Get the scale at spline point */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	FVector GetScaleAtSplinePoint(int32 PointIndex) const;
+	ENGINE_API FVector GetScaleAtSplinePoint(int32 PointIndex) const;
 
 	/** Get the transform at spline point */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	FTransform GetTransformAtSplinePoint(int32 PointIndex, ESplineCoordinateSpace::Type CoordinateSpace, bool bUseScale = false) const;
+	ENGINE_API FTransform GetTransformAtSplinePoint(int32 PointIndex, ESplineCoordinateSpace::Type CoordinateSpace, bool bUseScale = false) const;
 
 	/** Get location and tangent at a spline point */
 	UFUNCTION(BlueprintCallable, Category=Spline)
-	void GetLocationAndTangentAtSplinePoint(int32 PointIndex, FVector& Location, FVector& Tangent, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	ENGINE_API void GetLocationAndTangentAtSplinePoint(int32 PointIndex, FVector& Location, FVector& Tangent, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Get local location and tangent at a spline point */
 	UFUNCTION(BlueprintCallable, Category = Spline, meta = (DeprecatedFunction, DeprecationMessage = "Please use GetLocationAndTangentAtSplinePoint, specifying SplineCoordinateSpace::Local"))
-	void GetLocalLocationAndTangentAtSplinePoint(int32 PointIndex, FVector& LocalLocation, FVector& LocalTangent) const;
+	ENGINE_API void GetLocalLocationAndTangentAtSplinePoint(int32 PointIndex, FVector& LocalLocation, FVector& LocalTangent) const;
 
 	/** Get the distance along the spline at the spline point */
 	UFUNCTION(BlueprintCallable, Category=Spline)
-	float GetDistanceAlongSplineAtSplinePoint(int32 PointIndex) const;
+	ENGINE_API float GetDistanceAlongSplineAtSplinePoint(int32 PointIndex) const;
 
     /** Get a metadata property float value along the spline at spline point */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	float GetFloatPropertyAtSplinePoint(int32 Index, FName PropertyName) const;
+	ENGINE_API float GetFloatPropertyAtSplinePoint(int32 Index, FName PropertyName) const;
 	
  	/** Get a metadata property vector value along the spline at spline point */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	FVector GetVectorPropertyAtSplinePoint(int32 Index, FName PropertyName) const;
+	ENGINE_API FVector GetVectorPropertyAtSplinePoint(int32 Index, FName PropertyName) const;
 
 	/** Returns total length along this spline */
 	UFUNCTION(BlueprintCallable, Category=Spline) 
-	float GetSplineLength() const;
+	ENGINE_API float GetSplineLength() const;
 
 	/** Sets the default up vector used by this spline */
 	UFUNCTION(BlueprintCallable, Category=Spline)
-	void SetDefaultUpVector(const FVector& UpVector, ESplineCoordinateSpace::Type CoordinateSpace);
+	ENGINE_API void SetDefaultUpVector(const FVector& UpVector, ESplineCoordinateSpace::Type CoordinateSpace);
 
 	/** Gets the default up vector used by this spline */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	FVector GetDefaultUpVector(ESplineCoordinateSpace::Type CoordinateSpace) const;
+	ENGINE_API FVector GetDefaultUpVector(ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Given a distance along the length of this spline, return the corresponding input key at that point */
 	/** This method has been deprecated because it was incorrectly returning the input key at time. To maintain the same behavior,
 	 *  replace it with GetTimeAtDistanceAlongSpline. To actually get the input key, instead call GetInputKeyValueAtDistanceAlongSpline. */
 	UFUNCTION(BlueprintCallable, Category=Spline, meta = (DeprecatedFunction, DeprecationMessage = "Please use GetInputKeyValueAtDistanceAlongSpline to get input key at distance or GetTimeAtDistanceAlongSpline to get time value (normalized to duration) at distance (same logic as deprecated function)."))
-	float GetInputKeyAtDistanceAlongSpline(float Distance) const;
+	ENGINE_API float GetInputKeyAtDistanceAlongSpline(float Distance) const;
 
 	/** Given a distance along the length of this spline, return the corresponding input key at that point 
       * with a fractional component between the current input key and the next as a percentage. */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	float GetInputKeyValueAtDistanceAlongSpline(float Distance) const;
+	ENGINE_API float GetInputKeyValueAtDistanceAlongSpline(float Distance) const;
 	
 	/** Given a distance along the length of this spline, return the corresponding time at that point */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	float GetTimeAtDistanceAlongSpline(float Distance) const;
+	ENGINE_API float GetTimeAtDistanceAlongSpline(float Distance) const;
 
 	/** Given a distance along the length of this spline, return the point in space where this puts you */
 	UFUNCTION(BlueprintCallable, Category=Spline)
-	FVector GetLocationAtDistanceAlongSpline(float Distance, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	ENGINE_API FVector GetLocationAtDistanceAlongSpline(float Distance, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Given a distance along the length of this spline, return the point in world space where this puts you */
 	UFUNCTION(BlueprintCallable, Category = Spline, meta = (DeprecatedFunction, DeprecationMessage = "Please use GetLocationAtDistanceAlongSpline, specifying SplineCoordinateSpace::World"))
-	FVector GetWorldLocationAtDistanceAlongSpline(float Distance) const;
+	ENGINE_API FVector GetWorldLocationAtDistanceAlongSpline(float Distance) const;
 	
 	/** Given a distance along the length of this spline, return a unit direction vector of the spline tangent there. */
 	UFUNCTION(BlueprintCallable, Category=Spline)
-	FVector GetDirectionAtDistanceAlongSpline(float Distance, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	ENGINE_API FVector GetDirectionAtDistanceAlongSpline(float Distance, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Given a distance along the length of this spline, return a unit direction vector of the spline tangent there, in world space. */
 	UFUNCTION(BlueprintCallable, Category = Spline, meta = (DeprecatedFunction, DeprecationMessage = "Please use GetDirectionAtDistanceAlongSpline, specifying SplineCoordinateSpace::World"))
-	FVector GetWorldDirectionAtDistanceAlongSpline(float Distance) const;
+	ENGINE_API FVector GetWorldDirectionAtDistanceAlongSpline(float Distance) const;
 
 	/** Given a distance along the length of this spline, return the tangent vector of the spline there. */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	FVector GetTangentAtDistanceAlongSpline(float Distance, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	ENGINE_API FVector GetTangentAtDistanceAlongSpline(float Distance, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Given a distance along the length of this spline, return the tangent vector of the spline there, in world space. */
 	UFUNCTION(BlueprintCallable, Category = Spline, meta = (DeprecatedFunction, DeprecationMessage = "Please use GetTangentAtDistanceAlongSpline, specifying SplineCoordinateSpace::World"))
-	FVector GetWorldTangentAtDistanceAlongSpline(float Distance) const;
+	ENGINE_API FVector GetWorldTangentAtDistanceAlongSpline(float Distance) const;
 
 	/** Given a distance along the length of this spline, return a quaternion corresponding to the spline's rotation there. */
-	FQuat GetQuaternionAtDistanceAlongSpline(float Distance, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	ENGINE_API FQuat GetQuaternionAtDistanceAlongSpline(float Distance, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Given a distance along the length of this spline, return a rotation corresponding to the spline's rotation there. */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	FRotator GetRotationAtDistanceAlongSpline(float Distance, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	ENGINE_API FRotator GetRotationAtDistanceAlongSpline(float Distance, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Given a distance along the length of this spline, return a rotation corresponding to the spline's rotation there, in world space. */
 	UFUNCTION(BlueprintCallable, Category = Spline, meta = (DeprecatedFunction, DeprecationMessage = "Please use GetRotationAtDistanceAlongSpline, specifying SplineCoordinateSpace::World"))
-	FRotator GetWorldRotationAtDistanceAlongSpline(float Distance) const;
+	ENGINE_API FRotator GetWorldRotationAtDistanceAlongSpline(float Distance) const;
 
 	/** Given a distance along the length of this spline, return a unit direction vector corresponding to the spline's up vector there. */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	FVector GetUpVectorAtDistanceAlongSpline(float Distance, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	ENGINE_API FVector GetUpVectorAtDistanceAlongSpline(float Distance, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Given a distance along the length of this spline, return a unit direction vector corresponding to the spline's right vector there. */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	FVector GetRightVectorAtDistanceAlongSpline(float Distance, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	ENGINE_API FVector GetRightVectorAtDistanceAlongSpline(float Distance, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Given a distance along the length of this spline, return the spline's roll there, in degrees. */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	float GetRollAtDistanceAlongSpline(float Distance, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	ENGINE_API float GetRollAtDistanceAlongSpline(float Distance, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Given a distance along the length of this spline, return the spline's scale there. */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	FVector GetScaleAtDistanceAlongSpline(float Distance) const;
+	ENGINE_API FVector GetScaleAtDistanceAlongSpline(float Distance) const;
 
 	/** Given a distance along the length of this spline, return an FTransform corresponding to that point on the spline. */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	FTransform GetTransformAtDistanceAlongSpline(float Distance, ESplineCoordinateSpace::Type CoordinateSpace, bool bUseScale = false) const;
+	ENGINE_API FTransform GetTransformAtDistanceAlongSpline(float Distance, ESplineCoordinateSpace::Type CoordinateSpace, bool bUseScale = false) const;
 
 	/** Given a time from 0 to the spline duration, return the point in space where this puts you */
 	UFUNCTION(BlueprintCallable, Category=Spline)
-	FVector GetLocationAtTime(float Time, ESplineCoordinateSpace::Type CoordinateSpace, bool bUseConstantVelocity = false) const;
+	ENGINE_API FVector GetLocationAtTime(float Time, ESplineCoordinateSpace::Type CoordinateSpace, bool bUseConstantVelocity = false) const;
 
 	/** Given a time from 0 to the spline duration, return the point in space where this puts you */
 	UFUNCTION(BlueprintCallable, Category = Spline, meta = (DeprecatedFunction, DeprecationMessage = "Please use GetLocationAtTime, specifying SplineCoordinateSpace::World"))
-	FVector GetWorldLocationAtTime(float Time, bool bUseConstantVelocity = false) const;
+	ENGINE_API FVector GetWorldLocationAtTime(float Time, bool bUseConstantVelocity = false) const;
 
 	/** Given a time from 0 to the spline duration, return a unit direction vector of the spline tangent there. */
 	UFUNCTION(BlueprintCallable, Category=Spline)
-	FVector GetDirectionAtTime(float Time, ESplineCoordinateSpace::Type CoordinateSpace, bool bUseConstantVelocity = false) const;
+	ENGINE_API FVector GetDirectionAtTime(float Time, ESplineCoordinateSpace::Type CoordinateSpace, bool bUseConstantVelocity = false) const;
 
 	/** Given a time from 0 to the spline duration, return a unit direction vector of the spline tangent there. */
 	UFUNCTION(BlueprintCallable, Category = Spline, meta = (DeprecatedFunction, DeprecationMessage = "Please use GetDirectionAtTime, specifying SplineCoordinateSpace::World"))
-	FVector GetWorldDirectionAtTime(float Time, bool bUseConstantVelocity = false) const;
+	ENGINE_API FVector GetWorldDirectionAtTime(float Time, bool bUseConstantVelocity = false) const;
 
 	/** Given a time from 0 to the spline duration, return the spline's tangent there. */
 	UFUNCTION(BlueprintCallable, Category=Spline)
-	FVector GetTangentAtTime(float Time, ESplineCoordinateSpace::Type CoordinateSpace, bool bUseConstantVelocity = false) const;
+	ENGINE_API FVector GetTangentAtTime(float Time, ESplineCoordinateSpace::Type CoordinateSpace, bool bUseConstantVelocity = false) const;
 
 	/** Given a time from 0 to the spline duration, return a quaternion corresponding to the spline's rotation there. */
-	FQuat GetQuaternionAtTime(float Time, ESplineCoordinateSpace::Type CoordinateSpace, bool bUseConstantVelocity = false) const;
+	ENGINE_API FQuat GetQuaternionAtTime(float Time, ESplineCoordinateSpace::Type CoordinateSpace, bool bUseConstantVelocity = false) const;
 
 	/** Given a time from 0 to the spline duration, return a rotation corresponding to the spline's position and direction there. */
 	UFUNCTION(BlueprintCallable, Category=Spline)
-	FRotator GetRotationAtTime(float Time, ESplineCoordinateSpace::Type CoordinateSpace, bool bUseConstantVelocity = false) const;
+	ENGINE_API FRotator GetRotationAtTime(float Time, ESplineCoordinateSpace::Type CoordinateSpace, bool bUseConstantVelocity = false) const;
 
 	/** Given a time from 0 to the spline duration, return a rotation corresponding to the spline's position and direction there, in world space. */
 	UFUNCTION(BlueprintCallable, Category = Spline, meta = (DeprecatedFunction, DeprecationMessage = "Please use GetRotationAtTime, specifying SplineCoordinateSpace::World"))
-	FRotator GetWorldRotationAtTime(float Time, bool bUseConstantVelocity = false) const;
+	ENGINE_API FRotator GetWorldRotationAtTime(float Time, bool bUseConstantVelocity = false) const;
 
 	/** Given a time from 0 to the spline duration, return the spline's up vector there. */
 	UFUNCTION(BlueprintCallable, Category=Spline)
-	FVector GetUpVectorAtTime(float Time, ESplineCoordinateSpace::Type CoordinateSpace, bool bUseConstantVelocity = false) const;
+	ENGINE_API FVector GetUpVectorAtTime(float Time, ESplineCoordinateSpace::Type CoordinateSpace, bool bUseConstantVelocity = false) const;
 
 	/** Given a time from 0 to the spline duration, return the spline's right vector there. */
 	UFUNCTION(BlueprintCallable, Category=Spline)
-	FVector GetRightVectorAtTime(float Time, ESplineCoordinateSpace::Type CoordinateSpace, bool bUseConstantVelocity = false) const;
+	ENGINE_API FVector GetRightVectorAtTime(float Time, ESplineCoordinateSpace::Type CoordinateSpace, bool bUseConstantVelocity = false) const;
 
 	/** Given a time from 0 to the spline duration, return the spline's transform at the corresponding position. */
 	UFUNCTION(BlueprintCallable, Category=Spline)
-	FTransform GetTransformAtTime(float Time, ESplineCoordinateSpace::Type CoordinateSpace, bool bUseConstantVelocity = false, bool bUseScale = false) const;
+	ENGINE_API FTransform GetTransformAtTime(float Time, ESplineCoordinateSpace::Type CoordinateSpace, bool bUseConstantVelocity = false, bool bUseScale = false) const;
 
 	/** Given a time from 0 to the spline duration, return the spline's roll there, in degrees. */
 	UFUNCTION(BlueprintCallable, Category=Spline)
-	float GetRollAtTime(float Time, ESplineCoordinateSpace::Type CoordinateSpace, bool bUseConstantVelocity = false) const;
+	ENGINE_API float GetRollAtTime(float Time, ESplineCoordinateSpace::Type CoordinateSpace, bool bUseConstantVelocity = false) const;
 
 	/** Given a time from 0 to the spline duration, return the spline's scale there. */
 	UFUNCTION(BlueprintCallable, Category=Spline)
-	FVector GetScaleAtTime(float Time, bool bUseConstantVelocity = false) const;
+	ENGINE_API FVector GetScaleAtTime(float Time, bool bUseConstantVelocity = false) const;
 
     /** Given a location, in world space, return the input key closest to that location. */
 	UFUNCTION(BlueprintCallable, Category=Spline)
-	float FindInputKeyClosestToWorldLocation(const FVector& WorldLocation) const;
+	ENGINE_API float FindInputKeyClosestToWorldLocation(const FVector& WorldLocation) const;
 
 	/** Given a location, in world space, return the point on the curve that is closest to the location. */
 	UFUNCTION(BlueprintCallable, Category=Spline)
-	FVector FindLocationClosestToWorldLocation(const FVector& WorldLocation, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	ENGINE_API FVector FindLocationClosestToWorldLocation(const FVector& WorldLocation, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Given a location, in world space, return a unit direction vector of the spline tangent closest to the location. */
 	UFUNCTION(BlueprintCallable, Category=Spline)
-	FVector FindDirectionClosestToWorldLocation(const FVector& WorldLocation, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	ENGINE_API FVector FindDirectionClosestToWorldLocation(const FVector& WorldLocation, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Given a location, in world space, return the tangent vector of the spline closest to the location. */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	FVector FindTangentClosestToWorldLocation(const FVector& WorldLocation, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	ENGINE_API FVector FindTangentClosestToWorldLocation(const FVector& WorldLocation, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Given a location, in world space, return a quaternion corresponding to the spline's rotation closest to the location. */
-	FQuat FindQuaternionClosestToWorldLocation(const FVector& WorldLocation, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	ENGINE_API FQuat FindQuaternionClosestToWorldLocation(const FVector& WorldLocation, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Given a location, in world space, return rotation corresponding to the spline's rotation closest to the location. */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	FRotator FindRotationClosestToWorldLocation(const FVector& WorldLocation, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	ENGINE_API FRotator FindRotationClosestToWorldLocation(const FVector& WorldLocation, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Given a location, in world space, return a unit direction vector corresponding to the spline's up vector closest to the location. */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	FVector FindUpVectorClosestToWorldLocation(const FVector& WorldLocation, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	ENGINE_API FVector FindUpVectorClosestToWorldLocation(const FVector& WorldLocation, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
     /** Given a location, in world space, return a unit direction vector corresponding to the spline's right vector closest to the location. */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	FVector FindRightVectorClosestToWorldLocation(const FVector& WorldLocation, ESplineCoordinateSpace::Type CoordinateSpace) const;
+	ENGINE_API FVector FindRightVectorClosestToWorldLocation(const FVector& WorldLocation, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
     /** Given a location, in world space, return the spline's roll closest to the location, in degrees. */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-    float FindRollClosestToWorldLocation(const FVector& WorldLocation, ESplineCoordinateSpace::Type CoordinateSpace) const;
+    ENGINE_API float FindRollClosestToWorldLocation(const FVector& WorldLocation, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
 	/** Given a location, in world space, return the spline's scale closest to the location. */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	FVector FindScaleClosestToWorldLocation(const FVector& WorldLocation) const;
+	ENGINE_API FVector FindScaleClosestToWorldLocation(const FVector& WorldLocation) const;
 
 	/** Given a location, in world space, return an FTransform closest to that location. */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	FTransform FindTransformClosestToWorldLocation(const FVector& WorldLocation, ESplineCoordinateSpace::Type CoordinateSpace, bool bUseScale = false) const;
+	ENGINE_API FTransform FindTransformClosestToWorldLocation(const FVector& WorldLocation, ESplineCoordinateSpace::Type CoordinateSpace, bool bUseScale = false) const;
 
 	/** Given a threshold, recursively sub-divides the spline section until the list of segments (polyline) matches the spline shape. */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	bool DivideSplineIntoPolylineRecursive(float StartDistanceAlongSpline, float EndDistanceAlongSpline, ESplineCoordinateSpace::Type CoordinateSpace, const float MaxSquareDistanceFromSpline, TArray<FVector>& OutPoints) const;
+	ENGINE_API bool DivideSplineIntoPolylineRecursive(float StartDistanceAlongSpline, float EndDistanceAlongSpline, ESplineCoordinateSpace::Type CoordinateSpace, const float MaxSquareDistanceFromSpline, TArray<FVector>& OutPoints) const;
 
 	/** Given a threshold, recursively sub-divides the spline section until the list of segments (polyline) matches the spline shape. */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	bool DivideSplineIntoPolylineRecursiveWithDistances(float StartDistanceAlongSpline, float EndDistanceAlongSpline, ESplineCoordinateSpace::Type CoordinateSpace, const float MaxSquareDistanceFromSpline, TArray<FVector>& OutPoints, TArray<double>& OutDistancesAlongSpline) const;
+	ENGINE_API bool DivideSplineIntoPolylineRecursiveWithDistances(float StartDistanceAlongSpline, float EndDistanceAlongSpline, ESplineCoordinateSpace::Type CoordinateSpace, const float MaxSquareDistanceFromSpline, TArray<FVector>& OutPoints, TArray<double>& OutDistancesAlongSpline) const;
 
 
 	/** Given a threshold, returns a list of vertices along the spline segment that, treated as a list of segments (polyline), matches the spline shape. */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	bool ConvertSplineSegmentToPolyLine(int32 SplinePointStartIndex, ESplineCoordinateSpace::Type CoordinateSpace, const float MaxSquareDistanceFromSpline, TArray<FVector>& OutPoints) const;
+	ENGINE_API bool ConvertSplineSegmentToPolyLine(int32 SplinePointStartIndex, ESplineCoordinateSpace::Type CoordinateSpace, const float MaxSquareDistanceFromSpline, TArray<FVector>& OutPoints) const;
 
 	/** Given a threshold, returns a list of vertices along the spline that, treated as a list of segments (polyline), matches the spline shape. */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	bool ConvertSplineToPolyLine(ESplineCoordinateSpace::Type CoordinateSpace, const float MaxSquareDistanceFromSpline, TArray<FVector>& OutPoints) const;
+	ENGINE_API bool ConvertSplineToPolyLine(ESplineCoordinateSpace::Type CoordinateSpace, const float MaxSquareDistanceFromSpline, TArray<FVector>& OutPoints) const;
 
 private:
 	/** The dummy value used for queries when there are no point in a spline */
-	static const FInterpCurvePointVector DummyPointPosition;
-	static const FInterpCurvePointQuat DummyPointRotation;
-	static const FInterpCurvePointVector DummyPointScale;
+	static ENGINE_API const FInterpCurvePointVector DummyPointPosition;
+	static ENGINE_API const FInterpCurvePointQuat DummyPointRotation;
+	static ENGINE_API const FInterpCurvePointVector DummyPointScale;
 
 private:
 
 	/** Set the SplineCurves with the default shape i.e. a spline of two points (Used by default constructor) */
-	void SetDefaultSpline();
+	ENGINE_API void SetDefaultSpline();
 
 	/** Returns the length of the specified spline segment up to the parametric value given */
-	float GetSegmentLength(const int32 Index, const float Param = 1.0f) const;
+	ENGINE_API float GetSegmentLength(const int32 Index, const float Param = 1.0f) const;
 
 	/** Returns the parametric value t which would result in a spline segment of the given length between S(0)...S(t) */
-	float GetSegmentParamFromLength(const int32 Index, const float Length, const float SegmentLength) const;
+	ENGINE_API float GetSegmentParamFromLength(const int32 Index, const float Length, const float SegmentLength) const;
 
 	/** Returns a const reference to the specified position point, but gives back a dummy point if there are no points */
 	inline const FInterpCurvePointVector& GetPositionPointSafe(int32 PointIndex) const

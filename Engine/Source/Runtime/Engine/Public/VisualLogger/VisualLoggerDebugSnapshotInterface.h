@@ -13,7 +13,7 @@ class UVisualLoggerDebugSnapshotInterface : public UInterface
 	GENERATED_UINTERFACE_BODY()
 };
 
-class ENGINE_API IVisualLoggerDebugSnapshotInterface
+class IVisualLoggerDebugSnapshotInterface
 {
 	GENERATED_IINTERFACE_BODY()
 public:

@@ -61,36 +61,36 @@ class USkeleton;
 struct FReferenceSkeleton;
 
 // Allow modifications to a reference skeleton while guaranteeing that virtual bones remain valid.
-struct ENGINE_API FReferenceSkeletonModifier
+struct FReferenceSkeletonModifier
 {
 private:
 	FReferenceSkeleton& RefSkeleton;
 	const USkeleton*	Skeleton;
 public:
 	FReferenceSkeletonModifier(FReferenceSkeleton& InRefSkel, const USkeleton* InSkeleton) : RefSkeleton(InRefSkel), Skeleton(InSkeleton) {}
-	FReferenceSkeletonModifier(USkeleton* InSkeleton);
-	~FReferenceSkeletonModifier();
+	ENGINE_API FReferenceSkeletonModifier(USkeleton* InSkeleton);
+	ENGINE_API ~FReferenceSkeletonModifier();
 
 	// Update the reference pose transform of the specified bone
-	void UpdateRefPoseTransform(const int32 BoneIndex, const FTransform& BonePose);
+	ENGINE_API void UpdateRefPoseTransform(const int32 BoneIndex, const FTransform& BonePose);
 
 	// Add a new bone. BoneName must not already exist! ParentIndex must be valid.
-	void Add(const FMeshBoneInfo& BoneInfo, const FTransform& BonePose, const bool bAllowMultipleRoots = false);
+	ENGINE_API void Add(const FMeshBoneInfo& BoneInfo, const FTransform& BonePose, const bool bAllowMultipleRoots = false);
 
 	// Remove a bone. BoneName must be valid.
-	void Remove(const FName& BoneName, const bool bRemoveChildren);
+	ENGINE_API void Remove(const FName& BoneName, const bool bRemoveChildren);
 
 	// Rename a bone. InOldName must be valid and InNewName not already a bone name.
-	void Rename(const FName& InOldName, const FName& InNewName);
+	ENGINE_API void Rename(const FName& InOldName, const FName& InNewName);
 
 	// Change bone's parent. InBoneName must be valid and InParentName can be Name_NONE to unparent.
-	int32 SetParent(const FName& InBoneName, const FName& InParentName, const bool bAllowMultipleRoots = false);
+	ENGINE_API int32 SetParent(const FName& InBoneName, const FName& InParentName, const bool bAllowMultipleRoots = false);
 	
 	/** Find Bone Index from BoneName. Precache as much as possible in speed critical sections! */
-	int32 FindBoneIndex(const FName& BoneName) const;
+	ENGINE_API int32 FindBoneIndex(const FName& BoneName) const;
 
 	/** Accessor to private data. Const so it can't be changed recklessly. */
-	const TArray<FMeshBoneInfo> & GetRefBoneInfo() const;
+	ENGINE_API const TArray<FMeshBoneInfo> & GetRefBoneInfo() const;
 
 	const FReferenceSkeleton& GetReferenceSkeleton() const { return RefSkeleton; }
 };

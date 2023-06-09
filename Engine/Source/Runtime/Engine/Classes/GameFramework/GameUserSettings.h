@@ -34,105 +34,105 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnGameUserSettingsUINeedsUpdate);
 /**
  * Stores user settings for a game (for example graphics and sound settings), with the ability to save and load to and from a file.
  */
-UCLASS(config=GameUserSettings, configdonotcheckdefaults)
-class ENGINE_API UGameUserSettings : public UObject
+UCLASS(config=GameUserSettings, configdonotcheckdefaults, MinimalAPI)
+class UGameUserSettings : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 
 	/** @return the location where GGameUserSettingsIni will be found */
-	static FString GetConfigDir();
+	static ENGINE_API FString GetConfigDir();
 
 	/** Applies all current user settings to the game and saves to permanent storage (e.g. file), optionally checking for command line overrides. */
 	UFUNCTION(BlueprintCallable, Category=Settings, meta=(bCheckForCommandLineOverrides=true))
-	virtual void ApplySettings(bool bCheckForCommandLineOverrides);
+	ENGINE_API virtual void ApplySettings(bool bCheckForCommandLineOverrides);
 	
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	virtual void ApplyNonResolutionSettings();
+	ENGINE_API virtual void ApplyNonResolutionSettings();
 
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	void ApplyResolutionSettings(bool bCheckForCommandLineOverrides);
+	ENGINE_API void ApplyResolutionSettings(bool bCheckForCommandLineOverrides);
 
 	/** Returns the user setting for game screen resolution, in pixels. */
 	UFUNCTION(BlueprintPure, Category=Settings)
-	FIntPoint GetScreenResolution() const;
+	ENGINE_API FIntPoint GetScreenResolution() const;
 
 	/** Returns the last confirmed user setting for game screen resolution, in pixels. */
 	UFUNCTION(BlueprintPure, Category=Settings)
-	FIntPoint GetLastConfirmedScreenResolution() const;
+	ENGINE_API FIntPoint GetLastConfirmedScreenResolution() const;
 
 	/** Returns user's desktop resolution, in pixels. */
 	UFUNCTION(BlueprintPure, Category = Settings)
-	FIntPoint GetDesktopResolution() const;
+	ENGINE_API FIntPoint GetDesktopResolution() const;
 
 	/** Sets the user setting for game screen resolution, in pixels. */
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	void SetScreenResolution(FIntPoint Resolution);
+	ENGINE_API void SetScreenResolution(FIntPoint Resolution);
 
 	/** Returns the user setting for game window fullscreen mode. */
 	UFUNCTION(BlueprintPure, Category=Settings)
-	EWindowMode::Type GetFullscreenMode() const;
+	ENGINE_API EWindowMode::Type GetFullscreenMode() const;
 
 	/** Returns the last confirmed user setting for game window fullscreen mode. */
 	UFUNCTION(BlueprintPure, Category=Settings)
-	EWindowMode::Type GetLastConfirmedFullscreenMode() const;
+	ENGINE_API EWindowMode::Type GetLastConfirmedFullscreenMode() const;
 
 	/** Sets the user setting for the game window fullscreen mode. See UGameUserSettings::FullscreenMode. */
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	void SetFullscreenMode(EWindowMode::Type InFullscreenMode);
+	ENGINE_API void SetFullscreenMode(EWindowMode::Type InFullscreenMode);
 
 	/** Returns the user setting for game window fullscreen mode. */
 	UFUNCTION(BlueprintPure, Category = Settings)
-	EWindowMode::Type GetPreferredFullscreenMode() const;
+	ENGINE_API EWindowMode::Type GetPreferredFullscreenMode() const;
 
 	/** Sets the user setting for vsync. See UGameUserSettings::bUseVSync. */
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	void SetVSyncEnabled(bool bEnable);
+	ENGINE_API void SetVSyncEnabled(bool bEnable);
 
 	/** Returns the user setting for vsync. */
 	UFUNCTION(BlueprintPure, Category=Settings)
-	bool IsVSyncEnabled() const;
+	ENGINE_API bool IsVSyncEnabled() const;
 
 	/** Sets the user setting for dynamic resolution. See UGameUserSettings::bUseDynamicResolution. */
 	UFUNCTION(BlueprintCallable, Category = Settings)
-	void SetDynamicResolutionEnabled(bool bEnable);
+	ENGINE_API void SetDynamicResolutionEnabled(bool bEnable);
 
 	/** Returns the user setting for dynamic resolution. */
 	UFUNCTION(BlueprintPure, Category = Settings)
-	virtual bool IsDynamicResolutionEnabled() const;
+	ENGINE_API virtual bool IsDynamicResolutionEnabled() const;
 
 	/** Checks if the Screen Resolution user setting is different from current */
 	UFUNCTION(BlueprintPure, Category=Settings)
-	bool IsScreenResolutionDirty() const;
+	ENGINE_API bool IsScreenResolutionDirty() const;
 
 	/** Checks if the FullscreenMode user setting is different from current */
 	UFUNCTION(BlueprintPure, Category=Settings)
-	bool IsFullscreenModeDirty() const;
+	ENGINE_API bool IsFullscreenModeDirty() const;
 
 	/** Checks if the vsync user setting is different from current system setting */
 	UFUNCTION(BlueprintPure, Category=Settings)
-	bool IsVSyncDirty() const;
+	ENGINE_API bool IsVSyncDirty() const;
 
 	/** Checks if the dynamic resolution user setting is different from current system setting */
 	UFUNCTION(BlueprintPure, Category = Settings)
-	bool IsDynamicResolutionDirty() const;
+	ENGINE_API bool IsDynamicResolutionDirty() const;
 
 	/** Mark current video mode settings (fullscreenmode/resolution) as being confirmed by the user */
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	virtual void ConfirmVideoMode();
+	ENGINE_API virtual void ConfirmVideoMode();
 
 	/** Revert video mode (fullscreenmode/resolution) back to the last user confirmed values */
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	void RevertVideoMode();
+	ENGINE_API void RevertVideoMode();
 
 	/** Set scalability settings to sensible fallback values, for use when the benchmark fails or potentially causes a crash */
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	void SetBenchmarkFallbackValues();
+	ENGINE_API void SetBenchmarkFallbackValues();
 
 	/** Sets the user's audio quality level setting */
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	void SetAudioQualityLevel(int32 QualityLevel);
+	ENGINE_API void SetAudioQualityLevel(int32 QualityLevel);
 
 	/** Returns the user's audio quality level setting */
 	UFUNCTION(BlueprintPure, Category=Settings)
@@ -140,228 +140,228 @@ public:
 
 	/** Sets the user's frame rate limit (0 will disable frame rate limiting) */
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	void SetFrameRateLimit(float NewLimit);
+	ENGINE_API void SetFrameRateLimit(float NewLimit);
 
 	/** Gets the user's frame rate limit (0 indiciates the frame rate limit is disabled) */
 	UFUNCTION(BlueprintPure, Category=Settings)
-	float GetFrameRateLimit() const;
+	ENGINE_API float GetFrameRateLimit() const;
 
 	// Changes all scalability settings at once based on a single overall quality level
 	// @param Value 0:low, 1:medium, 2:high, 3:epic, 4:cinematic
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	virtual void SetOverallScalabilityLevel(int32 Value);
+	ENGINE_API virtual void SetOverallScalabilityLevel(int32 Value);
 
 	// Returns the overall scalability level (can return -1 if the settings are custom)
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	virtual int32 GetOverallScalabilityLevel() const;
+	ENGINE_API virtual int32 GetOverallScalabilityLevel() const;
 
 	// Returns the current resolution scale and the range
 	UE_DEPRECATED(4.12, "Please call GetResolutionScaleInformationEx")
 	UFUNCTION(BlueprintCallable, Category = Settings, meta = (DeprecatedFunction, DisplayName = "GetResolutionScaleInformation_Deprecated"))
-	void GetResolutionScaleInformation(float& CurrentScaleNormalized, int32& CurrentScaleValue, int32& MinScaleValue, int32& MaxScaleValue) const;
+	ENGINE_API void GetResolutionScaleInformation(float& CurrentScaleNormalized, int32& CurrentScaleValue, int32& MinScaleValue, int32& MaxScaleValue) const;
 
 	// Returns the current resolution scale and the range
 	UFUNCTION(BlueprintCallable, Category=Settings, meta=(DisplayName="GetResolutionScaleInformation"))
-	void GetResolutionScaleInformationEx(float& CurrentScaleNormalized, float& CurrentScaleValue, float& MinScaleValue, float& MaxScaleValue) const;
+	ENGINE_API void GetResolutionScaleInformationEx(float& CurrentScaleNormalized, float& CurrentScaleValue, float& MinScaleValue, float& MaxScaleValue) const;
 
 	// Gets the current resolution scale as a normalized 0..1 value between MinScaleValue and MaxScaleValue
 	UFUNCTION(BlueprintCallable, Category = Settings)
-	float GetResolutionScaleNormalized() const;
+	ENGINE_API float GetResolutionScaleNormalized() const;
 
 	// Sets the current resolution scale
 	UE_DEPRECATED(4.12, "Please call SetResolutionScaleValueEx")
 	UFUNCTION(BlueprintCallable, Category=Settings, meta=(DeprecatedFunction, DisplayName="SetResolutionScaleValue_Deprecated"))
-	void SetResolutionScaleValue(int32 NewScaleValue);
+	ENGINE_API void SetResolutionScaleValue(int32 NewScaleValue);
 
 	// Sets the current resolution scale
 	UFUNCTION(BlueprintCallable, Category=Settings, meta=(DisplayName="SetResolutionScaleValue"))
-	void SetResolutionScaleValueEx(float NewScaleValue);
+	ENGINE_API void SetResolutionScaleValueEx(float NewScaleValue);
 
 	// Sets the current resolution scale as a normalized 0..1 value between MinScaleValue and MaxScaleValue
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	void SetResolutionScaleNormalized(float NewScaleNormalized);
+	ENGINE_API void SetResolutionScaleNormalized(float NewScaleNormalized);
 
 	// Sets the view distance quality (0..4, higher is better)
 	// @param Value 0:low, 1:medium, 2:high, 3:epic, 4:cinematic (gets clamped if needed)
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	void SetViewDistanceQuality(int32 Value);
+	ENGINE_API void SetViewDistanceQuality(int32 Value);
 
 	// Returns the view distance quality (0..4, higher is better)
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	int32 GetViewDistanceQuality() const;
+	ENGINE_API int32 GetViewDistanceQuality() const;
 
 	// Sets the shadow quality (0..4, higher is better)
 	// @param Value 0:low, 1:medium, 2:high, 3:epic, 4:cinematic (gets clamped if needed)
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	void SetShadowQuality(int32 Value);
+	ENGINE_API void SetShadowQuality(int32 Value);
 
 	// Returns the shadow quality (0..4, higher is better)
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	int32 GetShadowQuality() const;
+	ENGINE_API int32 GetShadowQuality() const;
 
 	// Sets the global illumination quality (0..4, higher is better)
 	// @param Value 0:low, 1:medium, 2:high, 3:epic, 4:cinematic (gets clamped if needed)
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	void SetGlobalIlluminationQuality(int32 Value);
+	ENGINE_API void SetGlobalIlluminationQuality(int32 Value);
 
 	// Returns the global illumination quality (0..4, higher is better)
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	int32 GetGlobalIlluminationQuality() const;
+	ENGINE_API int32 GetGlobalIlluminationQuality() const;
 
 	// Sets the reflection quality (0..4, higher is better)
 	// @param Value 0:low, 1:medium, 2:high, 3:epic, 4:cinematic (gets clamped if needed)
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	void SetReflectionQuality(int32 Value);
+	ENGINE_API void SetReflectionQuality(int32 Value);
 
 	// Returns the reflection quality (0..4, higher is better)
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	int32 GetReflectionQuality() const;
+	ENGINE_API int32 GetReflectionQuality() const;
 
 	// Sets the anti-aliasing quality (0..4, higher is better)
 	// @param Value 0:low, 1:medium, 2:high, 3:epic, 4:cinematic (gets clamped if needed)
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	void SetAntiAliasingQuality(int32 Value);
+	ENGINE_API void SetAntiAliasingQuality(int32 Value);
 
 	// Returns the anti-aliasing quality (0..4, higher is better)
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	int32 GetAntiAliasingQuality() const;
+	ENGINE_API int32 GetAntiAliasingQuality() const;
 
 	// Sets the texture quality (0..4, higher is better)
 	// @param Value 0:low, 1:medium, 2:high, 3:epic, 4:cinematic  (gets clamped if needed)
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	void SetTextureQuality(int32 Value);
+	ENGINE_API void SetTextureQuality(int32 Value);
 
 	// Returns the texture quality (0..4, higher is better)
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	int32 GetTextureQuality() const;
+	ENGINE_API int32 GetTextureQuality() const;
 
 	// Sets the visual effects quality (0..4, higher is better)
 	// @param Value 0:low, 1:medium, 2:high, 3:epic, 4:cinematic (gets clamped if needed)
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	void SetVisualEffectQuality(int32 Value);
+	ENGINE_API void SetVisualEffectQuality(int32 Value);
 
 	// Returns the visual effects quality (0..4, higher is better)
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	int32 GetVisualEffectQuality() const;
+	ENGINE_API int32 GetVisualEffectQuality() const;
 
 	// Sets the post-processing quality (0..4, higher is better)
 	// @param Value 0:low, 1:medium, 2:high, 3:epic, 4:cinematic (gets clamped if needed)
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	void SetPostProcessingQuality(int32 Value);
+	ENGINE_API void SetPostProcessingQuality(int32 Value);
 
 	// Returns the post-processing quality (0..4, higher is better)
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	int32 GetPostProcessingQuality() const;
+	ENGINE_API int32 GetPostProcessingQuality() const;
 	
 	// Sets the foliage quality (0..4, higher is better)
 	// @param Value 0:low, 1:medium, 2:high, 3:epic, 4:cinematic (gets clamped if needed)
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	void SetFoliageQuality(int32 Value);
+	ENGINE_API void SetFoliageQuality(int32 Value);
 
 	// Returns the foliage quality (0..4, higher is better)
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	int32 GetFoliageQuality() const;
+	ENGINE_API int32 GetFoliageQuality() const;
 
 	// Sets the shading quality (0..4, higher is better)
 	// @param Value 0:low, 1:medium, 2:high, 3:epic, 4:cinematic (gets clamped if needed)
 	UFUNCTION(BlueprintCallable, Category = Settings)
-	void SetShadingQuality(int32 Value);
+	ENGINE_API void SetShadingQuality(int32 Value);
 
 	// Returns the shading quality (0..4, higher is better)
 	UFUNCTION(BlueprintCallable, Category = Settings)
-	int32 GetShadingQuality() const;
+	ENGINE_API int32 GetShadingQuality() const;
 
 	/** Checks if any user settings is different from current */
 	UFUNCTION(BlueprintPure, Category=Settings)
-	virtual bool IsDirty() const;
+	ENGINE_API virtual bool IsDirty() const;
 
 	/** Validates and resets bad user settings to default. Deletes stale user settings file if necessary. */
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	virtual void ValidateSettings();
+	ENGINE_API virtual void ValidateSettings();
 
 	/** Loads the user settings from persistent storage */
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	virtual void LoadSettings(bool bForceReload = false);
+	ENGINE_API virtual void LoadSettings(bool bForceReload = false);
 
 	/** Save the user settings to persistent storage (automatically happens as part of ApplySettings) */
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	virtual void SaveSettings();
+	ENGINE_API virtual void SaveSettings();
 
 	/** This function resets all settings to the current system settings */
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	virtual void ResetToCurrentSettings();
+	ENGINE_API virtual void ResetToCurrentSettings();
 
-	virtual void SetWindowPosition(int32 WindowPosX, int32 WindowPosY);
+	ENGINE_API virtual void SetWindowPosition(int32 WindowPosX, int32 WindowPosY);
 
-	virtual FIntPoint GetWindowPosition();
+	ENGINE_API virtual FIntPoint GetWindowPosition();
 	
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	virtual void SetToDefaults();
+	ENGINE_API virtual void SetToDefaults();
 
 	/** Gets the desired resolution quality based on DesiredScreenWidth/Height and the current screen resolution */
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	virtual float GetDefaultResolutionScale();
+	ENGINE_API virtual float GetDefaultResolutionScale();
 
 	/** Gets the recommended resolution quality based on LastRecommendedScreenWidth/Height and the current screen resolution */
 	UFUNCTION(BlueprintCallable, Category = Settings)
-	virtual float GetRecommendedResolutionScale();
+	ENGINE_API virtual float GetRecommendedResolutionScale();
 
 	/** Loads the resolution settings before is object is available */
-	static void PreloadResolutionSettings(bool bAllowCmdLineOverrides = true);
+	static ENGINE_API void PreloadResolutionSettings(bool bAllowCmdLineOverrides = true);
 
 	/** Returns the default resolution when no resolution is set */
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	static FIntPoint GetDefaultResolution();
+	static ENGINE_API FIntPoint GetDefaultResolution();
 
 	/** Returns the default window position when no position is set */
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	static FIntPoint GetDefaultWindowPosition();
+	static ENGINE_API FIntPoint GetDefaultWindowPosition();
 
 	/** Returns the default window mode when no mode is set */
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	static EWindowMode::Type GetDefaultWindowMode();
+	static ENGINE_API EWindowMode::Type GetDefaultWindowMode();
 
 	/** Gets the current vsync interval setting */
 	UE_DEPRECATED(4.25, "Please use GetFramePace to get the paced frame rate")
 	UFUNCTION(BlueprintPure, Category = Settings)
-	static int32 GetSyncInterval();
+	static ENGINE_API int32 GetSyncInterval();
 
 	/** Gets the current frame pacing frame rate in fps, or 0 if none */
 	UFUNCTION(BlueprintPure, Category = Settings)
-	static int32 GetFramePace();
+	static ENGINE_API int32 GetFramePace();
 
 	/** Loads the user .ini settings into GConfig */
-	static void LoadConfigIni(bool bForceReload = false);
+	static ENGINE_API void LoadConfigIni(bool bForceReload = false);
 
 	/** Request a change to the specified resolution and window mode. Optionally apply cmd line overrides. */
-	static void RequestResolutionChange(int32 InResolutionX, int32 InResolutionY, EWindowMode::Type InWindowMode, bool bInDoOverrides = true);
+	static ENGINE_API void RequestResolutionChange(int32 InResolutionX, int32 InResolutionY, EWindowMode::Type InWindowMode, bool bInDoOverrides = true);
 
 	/** Returns the game local machine settings (resolution, windowing mode, scalability settings, etc...) */
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	static UGameUserSettings* GetGameUserSettings();
+	static ENGINE_API UGameUserSettings* GetGameUserSettings();
 
 	/** Runs the hardware benchmark and populates ScalabilityQuality as well as the last benchmark results config members, but does not apply the settings it determines. Designed to be called in conjunction with ApplyHardwareBenchmarkResults */
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	virtual void RunHardwareBenchmark(int32 WorkScale = 10, float CPUMultiplier = 1.0f, float GPUMultiplier = 1.0f);
+	ENGINE_API virtual void RunHardwareBenchmark(int32 WorkScale = 10, float CPUMultiplier = 1.0f, float GPUMultiplier = 1.0f);
 
 	/** Applies the settings stored in ScalabilityQuality and saves settings */
 	UFUNCTION(BlueprintCallable, Category=Settings)
-	virtual void ApplyHardwareBenchmarkResults();
+	ENGINE_API virtual void ApplyHardwareBenchmarkResults();
 
 	/** Whether the curently running system supports HDR display output */
 	UFUNCTION(BlueprintCallable, Category=Settings, meta = (DisplayName = "Supports HDR Display Output"))
-	virtual bool SupportsHDRDisplayOutput() const;
+	ENGINE_API virtual bool SupportsHDRDisplayOutput() const;
 
 	/** Enables or disables HDR display output. Can be called again to change the desired nit level */
 	UFUNCTION(BlueprintCallable, Category=Settings, meta=(DisplayName = "Enable HDR Display Output"))
-	void EnableHDRDisplayOutput(bool bEnable, int32 DisplayNits = 1000);
+	ENGINE_API void EnableHDRDisplayOutput(bool bEnable, int32 DisplayNits = 1000);
 
 	/** Returns 0 if HDR isn't supported or is turned off */
 	UFUNCTION(BlueprintCallable, Category = Settings, meta = (DisplayName = "Get Current HDR Display Nits"))
-	int32 GetCurrentHDRDisplayNits() const;
+	ENGINE_API int32 GetCurrentHDRDisplayNits() const;
 
 	UFUNCTION(BlueprintCallable, Category = Settings, meta = (DisplayName = "Is HDR Enabled"))
-	bool IsHDREnabled() const;
+	ENGINE_API bool IsHDREnabled() const;
 
 	/** Whether to use VSync or not. (public to allow UI to connect to it) */
 	UPROPERTY(config)
@@ -539,35 +539,35 @@ protected:
 	 * Check if the current version of the game user settings is valid. Sub-classes can override this to provide game-specific versioning as necessary.
 	 * @return True if the current version is valid, false if it is not
 	 */
-	virtual bool IsVersionValid();
+	ENGINE_API virtual bool IsVersionValid();
 
 	/** Update the version of the game user settings to the current version */
-	virtual void UpdateVersion();
+	ENGINE_API virtual void UpdateVersion();
 
 	/** Picks the best resolution quality for a given screen size */
-	float FindResolutionQualityForScreenSize(float Width, float Height);
+	ENGINE_API float FindResolutionQualityForScreenSize(float Width, float Height);
 
 	/** Sets the frame rate limit CVar to the passed in value, 0.0 indicates no limit */
-	static void SetFrameRateLimitCVar(float InLimit);
+	static ENGINE_API void SetFrameRateLimitCVar(float InLimit);
 
 	/** Sets the sync interval limit CVar for consoles 0-3 */
 	UE_DEPRECATED(4.25, "Please use FPlatformRHIFramePacer::SetFramePace to set the desired frame rate")
-	static void SetSyncIntervalCVar(int32 InInterval);
+	static ENGINE_API void SetSyncIntervalCVar(int32 InInterval);
 
 	/** Sets the input latency mode 0 and 2 */
-	static void SetSyncTypeCVar(int32 InInterval);
+	static ENGINE_API void SetSyncTypeCVar(int32 InInterval);
 
 	/** Returns the effective frame rate limit (by default it returns the FrameRateLimit member) */
-	virtual float GetEffectiveFrameRateLimit();
+	ENGINE_API virtual float GetEffectiveFrameRateLimit();
 
-	void UpdateResolutionQuality();
+	ENGINE_API void UpdateResolutionQuality();
 
-	void EnableHDRDisplayOutputInternal(bool bEnable, int32 DisplayNits, bool bFromUserSettings);
+	ENGINE_API void EnableHDRDisplayOutputInternal(bool bEnable, int32 DisplayNits, bool bFromUserSettings);
 
 private:
 
 	UPROPERTY(BlueprintAssignable, meta = (AllowPrivateAccess = "true"))
 	FOnGameUserSettingsUINeedsUpdate OnGameUserSettingsUINeedsUpdate;
 
-	void SetPreferredFullscreenMode(int32 Mode);
+	ENGINE_API void SetPreferredFullscreenMode(int32 Mode);
 };

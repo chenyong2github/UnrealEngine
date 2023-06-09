@@ -33,7 +33,7 @@ enum class EVectorCurveChannel : uint8
 /** Script-friendly structure for identifying an animation curve.
 * Wrapping the unique type and smart-name for use within the AnimDataController API. */
 USTRUCT(BlueprintType)
-struct ENGINE_API FAnimationCurveIdentifier
+struct FAnimationCurveIdentifier
 {
 	GENERATED_BODY();
 
@@ -80,7 +80,7 @@ struct ENGINE_API FAnimationCurveIdentifier
 		return HashCombine(HashCombine(HashCombine((uint32)CurveId.Channel, (uint32)CurveId.Axis), (uint32)CurveId.CurveType), GetTypeHash(CurveId.CurveName));
 	}
 	
-	void PostSerialize(const FArchive& Ar);
+	ENGINE_API void PostSerialize(const FArchive& Ar);
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
@@ -112,8 +112,8 @@ struct TStructOpsTypeTraits<FAnimationCurveIdentifier> : public TStructOpsTypeTr
 };
 
 /** Script-exposed functionality for wrapping native functionality and constructing valid FAnimationCurveIdentifier instances */
-UCLASS()
-class ENGINE_API UAnimationCurveIdentifierExtensions : public UBlueprintFunctionLibrary
+UCLASS(MinimalAPI)
+class UAnimationCurveIdentifierExtensions : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 public:
@@ -153,10 +153,10 @@ public:
 	* @param	CurveType			Type of the curve to find or add
 	*/
 	UFUNCTION(BlueprintCallable, Category = Curves, meta = (ScriptMethod))
-	static void SetCurveIdentifier(UPARAM(ref) FAnimationCurveIdentifier& InOutIdentifier, FName Name, ERawCurveTrackTypes CurveType);
+	static ENGINE_API void SetCurveIdentifier(UPARAM(ref) FAnimationCurveIdentifier& InOutIdentifier, FName Name, ERawCurveTrackTypes CurveType);
 
 	UFUNCTION(BlueprintCallable, Category = Curves, meta = (ScriptMethod, DeprecatedFunction, DeprecationMessage="Please use SetCurveIdentifier."))
-	static FAnimationCurveIdentifier GetCurveIdentifier(USkeleton* InSkeleton, FName Name, ERawCurveTrackTypes CurveType);
+	static ENGINE_API FAnimationCurveIdentifier GetCurveIdentifier(USkeleton* InSkeleton, FName Name, ERawCurveTrackTypes CurveType);
 	
 	/**
 	* Tries to construct a valid FAnimationCurveIdentifier instance. It tries to find the underlying SmartName on the provided Skeleton for the provided curve type.
@@ -168,7 +168,7 @@ public:
 	* @return	Valid FAnimationCurveIdentifier if the name exists on the skeleton and the operation was successful, invalid otherwise
 	*/
 	UFUNCTION(BlueprintCallable, Category = Curves, meta = (ScriptMethod, DeprecatedFunction, DeprecationMessage="Curve identifiers are no longer retrievable globally from the skeleton, they are specified per-animation."))
-	static FAnimationCurveIdentifier FindCurveIdentifier(const USkeleton* InSkeleton, FName Name, ERawCurveTrackTypes CurveType);
+	static ENGINE_API FAnimationCurveIdentifier FindCurveIdentifier(const USkeleton* InSkeleton, FName Name, ERawCurveTrackTypes CurveType);
 
 	/**
 	* Retrieves all curve identifiers for a specific curve types from the provided Skeleton
@@ -179,7 +179,7 @@ public:
 	* @return	Array of FAnimationCurveIdentifier instances each representing a unique curve if the operation was successful, empyty array otherwise
 	*/
 	UFUNCTION(BlueprintCallable, Category = Curves, meta = (ScriptMethod, DeprecatedFunction, DeprecationMessage="Curve identifiers are no longer retrievable globally from the skeleton, they are specified per-animation."))
-	static TArray<FAnimationCurveIdentifier> GetCurveIdentifiers(USkeleton* InSkeleton, ERawCurveTrackTypes CurveType);
+	static ENGINE_API TArray<FAnimationCurveIdentifier> GetCurveIdentifiers(USkeleton* InSkeleton, ERawCurveTrackTypes CurveType);
 
 	/**
 	* Converts a valid FAnimationCurveIdentifier instance with RCT_Transform curve type to target a child curve.
@@ -191,7 +191,7 @@ public:
 	* @return	Valid FAnimationCurveIdentifier if the operation was successful
 	*/
 	UFUNCTION(BlueprintCallable, Category = Curves, meta = (ScriptMethod))
-	static bool GetTransformChildCurveIdentifier(UPARAM(ref) FAnimationCurveIdentifier& InOutIdentifier, ETransformCurveChannel Channel, EVectorCurveChannel Axis);
+	static ENGINE_API bool GetTransformChildCurveIdentifier(UPARAM(ref) FAnimationCurveIdentifier& InOutIdentifier, ETransformCurveChannel Channel, EVectorCurveChannel Axis);
 #endif // WITH_EDITOR
 };
 

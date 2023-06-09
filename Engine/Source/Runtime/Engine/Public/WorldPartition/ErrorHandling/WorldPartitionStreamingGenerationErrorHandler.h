@@ -8,7 +8,7 @@
 class UDataLayerInstance;
 class UDataLayerInstanceWithAsset;
 
-class ENGINE_API IStreamingGenerationErrorHandler
+class IStreamingGenerationErrorHandler
 {
 public:
 	virtual ~IStreamingGenerationErrorHandler() {}
@@ -88,7 +88,7 @@ public:
 	virtual void OnActorFilterFailed(const FWorldPartitionActorDescView& ActorDescView) = 0;
 
 	// Helpers
-	static FString GetActorName(const FWorldPartitionActorDescView& ActorDescView);
-	static FString GetFullActorName(const FWorldPartitionActorDescView& ActorDescView);
+	static ENGINE_API FString GetActorName(const FWorldPartitionActorDescView& ActorDescView);
+	static ENGINE_API FString GetFullActorName(const FWorldPartitionActorDescView& ActorDescView);
 };
 #endif

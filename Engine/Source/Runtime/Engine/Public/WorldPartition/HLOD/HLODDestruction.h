@@ -12,7 +12,7 @@ class UWorldPartitionDestructibleHLODComponent;
 
 
 USTRUCT(BlueprintType)
-struct ENGINE_API FWorldPartitionHLODDestructionTag
+struct FWorldPartitionHLODDestructionTag
 {
 	GENERATED_BODY()
 
@@ -35,35 +35,35 @@ struct ENGINE_API FWorldPartitionHLODDestructionTag
 };
 
 
-UINTERFACE(NotBlueprintable, meta=(DisplayName="Destructible in HLOD Interface"))
-class ENGINE_API UWorldPartitionDestructibleInHLODInterface : public UInterface
+UINTERFACE(NotBlueprintable, meta=(DisplayName="Destructible in HLOD Interface"), MinimalAPI)
+class UWorldPartitionDestructibleInHLODInterface : public UInterface
 {
 	GENERATED_BODY()
 };
 
 
-class ENGINE_API IWorldPartitionDestructibleInHLODInterface
+class IWorldPartitionDestructibleInHLODInterface
 {
 	GENERATED_BODY()
 
 public:
 	UFUNCTION(BlueprintNativeEvent, meta=(BlueprintInternalUseOnly = "true"))
-	void SetHLODDestructionTag(const FWorldPartitionHLODDestructionTag& InDestructionTag);
+	ENGINE_API void SetHLODDestructionTag(const FWorldPartitionHLODDestructionTag& InDestructionTag);
 
 	UFUNCTION(BlueprintNativeEvent, meta=(BlueprintInternalUseOnly = "true"))
-	FWorldPartitionHLODDestructionTag GetHLODDestructionTag() const;
+	ENGINE_API FWorldPartitionHLODDestructionTag GetHLODDestructionTag() const;
 };
 
 
-UCLASS()
-class ENGINE_API UWorldPartitionDestructibleInHLODSupportLibrary : public UBlueprintFunctionLibrary
+UCLASS(MinimalAPI)
+class UWorldPartitionDestructibleInHLODSupportLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "HLOD Destruction")
-	static void DestroyInHLOD(const TScriptInterface<IWorldPartitionDestructibleInHLODInterface>& DestructibleInHLOD);
+	static ENGINE_API void DestroyInHLOD(const TScriptInterface<IWorldPartitionDestructibleInHLODInterface>& DestructibleInHLOD);
 
 	UFUNCTION(BlueprintCallable, Category="HLOD Destruction")
-	static void DamageInHLOD(const TScriptInterface<IWorldPartitionDestructibleInHLODInterface>& DestructibleInHLOD, float DamagePercent);
+	static ENGINE_API void DamageInHLOD(const TScriptInterface<IWorldPartitionDestructibleInHLODInterface>& DestructibleInHLOD, float DamagePercent);
 };

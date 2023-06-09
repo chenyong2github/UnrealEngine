@@ -9,22 +9,20 @@
 /**
  * Default screen percentage interface that just apply View->FinalPostProcessSettings.ScreenPercentage.
  */
-class ENGINE_API FLegacyScreenPercentageDriver : public ISceneViewFamilyScreenPercentage
+class FLegacyScreenPercentageDriver : public ISceneViewFamilyScreenPercentage
 {
 public:
-	FORCEINLINE FLegacyScreenPercentageDriver(
+	ENGINE_API FLegacyScreenPercentageDriver(
 		const FSceneViewFamily& InViewFamily,
-		float InGlobalResolutionFraction)
-		: FLegacyScreenPercentageDriver(InViewFamily, InGlobalResolutionFraction, InGlobalResolutionFraction)
-	{ }
+		float InGlobalResolutionFraction);
 
-	FLegacyScreenPercentageDriver(
+	ENGINE_API FLegacyScreenPercentageDriver(
 		const FSceneViewFamily& InViewFamily,
 		float InGlobalResolutionFraction,
 		float InGlobalResolutionFractionUpperBound);
 
 	/** Gets the view rect fraction from the r.ScreenPercentage cvar. */
-	static float GetCVarResolutionFraction();
+	static ENGINE_API float GetCVarResolutionFraction();
 
 private:
 	// View family to take care of.
@@ -38,9 +36,9 @@ private:
 
 
 	// Implements ISceneViewFamilyScreenPercentage
-	virtual DynamicRenderScaling::TMap<float> GetResolutionFractionsUpperBound() const override;
-	virtual DynamicRenderScaling::TMap<float> GetResolutionFractions_RenderThread() const override;
-	virtual ISceneViewFamilyScreenPercentage* Fork_GameThread(const class FSceneViewFamily& ForkedViewFamily) const override;
+	ENGINE_API virtual DynamicRenderScaling::TMap<float> GetResolutionFractionsUpperBound() const override;
+	ENGINE_API virtual DynamicRenderScaling::TMap<float> GetResolutionFractions_RenderThread() const override;
+	ENGINE_API virtual ISceneViewFamilyScreenPercentage* Fork_GameThread(const class FSceneViewFamily& ForkedViewFamily) const override;
 };
 
 // Mode for the computation of the screen percentage (r.ScreenPercentage.Mode).
@@ -60,14 +58,14 @@ enum class EScreenPercentageMode
 /**
  * Heuristic to automatically compute a default resolution fraction based user settings and display information.
  */
-struct ENGINE_API FStaticResolutionFractionHeuristic
+struct FStaticResolutionFractionHeuristic
 {
 	FStaticResolutionFractionHeuristic() = default;
 
-	FStaticResolutionFractionHeuristic(const FEngineShowFlags& EngineShowFlags);
+	ENGINE_API FStaticResolutionFractionHeuristic(const FEngineShowFlags& EngineShowFlags);
 
 	// User configurable settings
-	struct ENGINE_API FUserSettings
+	struct FUserSettings
 	{
 		EScreenPercentageMode Mode = EScreenPercentageMode::Manual;
 
@@ -86,7 +84,7 @@ struct ENGINE_API FStaticResolutionFractionHeuristic
 
 		/** Return whether should use the editor settings for PIE. */
 #if WITH_EDITOR
-		static bool EditorOverridePIESettings();
+		static ENGINE_API bool EditorOverridePIESettings();
 #else
 		static inline bool EditorOverridePIESettings()
 		{
@@ -95,10 +93,10 @@ struct ENGINE_API FStaticResolutionFractionHeuristic
 #endif
 
 		/** Pulls the user settings from the gameplay runtime cvars. */
-		void PullRunTimeRenderingSettings();
+		ENGINE_API void PullRunTimeRenderingSettings();
 
 		/** Pulls the user settings from the editor cvars. */
-		void PullEditorRenderingSettings(bool bIsRealTime, bool bIsPathTraced);
+		ENGINE_API void PullEditorRenderingSettings(bool bIsRealTime, bool bIsPathTraced);
 	};
 
 	FUserSettings Settings;
@@ -113,7 +111,7 @@ struct ENGINE_API FStaticResolutionFractionHeuristic
 	float DPIScale = 1.0f;
 
 	// Fetches rendering information from the ViewFamily.
-	void PullViewFamilyRenderingSettings(const FSceneViewFamily& ViewFamily);
+	ENGINE_API void PullViewFamilyRenderingSettings(const FSceneViewFamily& ViewFamily);
 
-	float ResolveResolutionFraction() const;
+	ENGINE_API float ResolveResolutionFraction() const;
 };

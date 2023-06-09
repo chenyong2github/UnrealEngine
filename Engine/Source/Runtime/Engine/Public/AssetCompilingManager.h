@@ -46,39 +46,39 @@ struct IAssetCompilingManager
 	/**
 	 * A unique name among all asset compiling manager to identify the type of asset this manager handles.
 	 */
-	ENGINE_API virtual FName GetAssetTypeName() const = 0;
+	virtual FName GetAssetTypeName() const = 0;
 
 	/**
 	 * Returns an FTextFormat representing a localized singular/plural formatter for this resource name.
 	 * 
 	 * Note: Should be in a similar form as "{0}|plural(one=Singular Name,other=Plural Name)"
 	 */
-	ENGINE_API virtual FTextFormat GetAssetNameFormat() const = 0;
+	virtual FTextFormat GetAssetNameFormat() const = 0;
 
 	/**
 	 * Return other asset types that should preferably be handled before this one.
 	 */
-	ENGINE_API virtual TArrayView<FName> GetDependentTypeNames() const = 0;
+	virtual TArrayView<FName> GetDependentTypeNames() const = 0;
 
 	/**
 	 * Returns the number of remaining compilations.
 	 */
-	ENGINE_API virtual int32 GetNumRemainingAssets() const = 0;
+	virtual int32 GetNumRemainingAssets() const = 0;
 
 	/**
 	 * Blocks until completion of the requested objects.
 	 */
-	ENGINE_API virtual void FinishCompilationForObjects(TArrayView<UObject* const> InObjects) {} /* Optional for backward compatibility */
+	virtual void FinishCompilationForObjects(TArrayView<UObject* const> InObjects) {} /* Optional for backward compatibility */
 
 	/**
 	 * Blocks until completion of all assets.
 	 */
-	ENGINE_API virtual void FinishAllCompilation() = 0;
+	virtual void FinishAllCompilation() = 0;
 
 	/**
 	 * Cancel any pending work and blocks until it is safe to shut down.
 	 */
-	ENGINE_API virtual void Shutdown() = 0;
+	virtual void Shutdown() = 0;
 
 protected:
 	friend class FAssetCompilingManager;
@@ -86,18 +86,18 @@ protected:
 	/** 
 	 * Called once per frame, fetches completed tasks and applies them to the scene. 
 	 */
-	ENGINE_API virtual void ProcessAsyncTasks(bool bLimitExecutionTime = false) = 0;
+	virtual void ProcessAsyncTasks(bool bLimitExecutionTime = false) = 0;
 
 	/**
 	 * Called once per frame, fetches completed tasks and applies them to the scene.
 	 */
-	ENGINE_API virtual void ProcessAsyncTasks(const AssetCompilation::FProcessAsyncTaskParams& Params)
+	virtual void ProcessAsyncTasks(const AssetCompilation::FProcessAsyncTaskParams& Params)
 	{
 		/* Forward for backward compatibility */
 		ProcessAsyncTasks(Params.bLimitExecutionTime);
 	}
 
-	ENGINE_API virtual ~IAssetCompilingManager() {}
+	virtual ~IAssetCompilingManager() {}
 };
 
 DECLARE_TS_MULTICAST_DELEGATE_OneParam(FAssetPostCompileEvent, const TArray<FAssetCompileData>&);

@@ -8,7 +8,7 @@
 class UPrimitiveComponent;
 
 /** Overlap info consisting of the primitive and the body that is overlapping */
-struct ENGINE_API FOverlapInfo
+struct FOverlapInfo
 {
 	FOverlapInfo()
 	{}
@@ -18,7 +18,7 @@ struct ENGINE_API FOverlapInfo
 	{
 	}
 
-	explicit FOverlapInfo(UPrimitiveComponent* InComponent, int32 InBodyIndex = INDEX_NONE);
+	ENGINE_API explicit FOverlapInfo(UPrimitiveComponent* InComponent, int32 InBodyIndex = INDEX_NONE);
 
 	int32 GetBodyIndex() const { return OverlapInfo.Item; }
 

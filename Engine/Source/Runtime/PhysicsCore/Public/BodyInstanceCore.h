@@ -12,15 +12,15 @@
 class UBodySetupCore;
 
 USTRUCT(BlueprintType)
-struct PHYSICSCORE_API FBodyInstanceCore
+struct FBodyInstanceCore
 {
 	GENERATED_USTRUCT_BODY()
 
 	/** BodySetupCore pointer that this instance is initialized from */
 	TWeakObjectPtr<UBodySetupCore> BodySetup;
 
-	FBodyInstanceCore();
-	virtual ~FBodyInstanceCore() = default;
+	PHYSICSCORE_API FBodyInstanceCore();
+	virtual ~FBodyInstanceCore() {}
 
 	/** 
 	 * If true, this body will use simulation. If false, will be 'fixed' (ie kinematic) and move where it is told. 
@@ -63,5 +63,5 @@ struct PHYSICSCORE_API FBodyInstanceCore
 	uint8 bDirtyMassProps : 1;
 
 	/** Should Simulate Physics **/
-	bool ShouldInstanceSimulatingPhysics() const;
+	PHYSICSCORE_API bool ShouldInstanceSimulatingPhysics() const;
 };

@@ -9,8 +9,8 @@
 #include "WorldPartition/WorldPartitionEditorHash.h"
 #include "WorldPartitionEditorSpatialHash.generated.h"
 
-UCLASS()
-class ENGINE_API UWorldPartitionEditorSpatialHash : public UWorldPartitionEditorHash
+UCLASS(MinimalAPI)
+class UWorldPartitionEditorSpatialHash : public UWorldPartitionEditorHash
 {
 	GENERATED_UCLASS_BODY()
 
@@ -187,25 +187,25 @@ public:
 	virtual ~UWorldPartitionEditorSpatialHash() {}
 
 	// UWorldPartitionEditorHash interface begin
-	virtual void Initialize() override;
-	virtual void SetDefaultValues() override;
-	virtual FName GetWorldPartitionEditorName() const override;
-	virtual FBox GetEditorWorldBounds() const override;
-	virtual FBox GetRuntimeWorldBounds() const override;
-	virtual FBox GetNonSpatialBounds() const override;
-	virtual void Tick(float DeltaSeconds) override;
+	ENGINE_API virtual void Initialize() override;
+	ENGINE_API virtual void SetDefaultValues() override;
+	ENGINE_API virtual FName GetWorldPartitionEditorName() const override;
+	ENGINE_API virtual FBox GetEditorWorldBounds() const override;
+	ENGINE_API virtual FBox GetRuntimeWorldBounds() const override;
+	ENGINE_API virtual FBox GetNonSpatialBounds() const override;
+	ENGINE_API virtual void Tick(float DeltaSeconds) override;
 
-	virtual void HashActor(FWorldPartitionHandle& InActorHandle) override;
-	virtual void UnhashActor(FWorldPartitionHandle& InActorHandle) override;
+	ENGINE_API virtual void HashActor(FWorldPartitionHandle& InActorHandle) override;
+	ENGINE_API virtual void UnhashActor(FWorldPartitionHandle& InActorHandle) override;
 
-	virtual int32 ForEachIntersectingActor(const FBox& Box, TFunctionRef<void(FWorldPartitionActorDesc*)> InOperation, const FForEachIntersectingActorParams& Params = FForEachIntersectingActorParams()) override;
+	ENGINE_API virtual int32 ForEachIntersectingActor(const FBox& Box, TFunctionRef<void(FWorldPartitionActorDesc*)> InOperation, const FForEachIntersectingActorParams& Params = FForEachIntersectingActorParams()) override;
 	// UWorldPartitionEditorHash interface end
 #endif
 
 #if WITH_EDITORONLY_DATA
 private:
-	int32 ForEachIntersectingCell(const FBox& Box, TFunctionRef<void(FCell*)> InOperation, int32 MinimumLevel = 0);
-	int32 ForEachIntersectingCellInner(const FBox& Box, const FCellCoord& CellCoord, TFunctionRef<void(FCell*)> InOperation, int32 MinimumLevel = 0);
+	ENGINE_API int32 ForEachIntersectingCell(const FBox& Box, TFunctionRef<void(FCell*)> InOperation, int32 MinimumLevel = 0);
+	ENGINE_API int32 ForEachIntersectingCellInner(const FBox& Box, const FCellCoord& CellCoord, TFunctionRef<void(FCell*)> InOperation, int32 MinimumLevel = 0);
 
 	UPROPERTY(Config)
 	int32 CellSize;

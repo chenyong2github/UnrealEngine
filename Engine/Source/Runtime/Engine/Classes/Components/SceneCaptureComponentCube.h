@@ -13,8 +13,8 @@ class FSceneInterface;
 /**
  *	Used to capture a 'snapshot' of the scene from a 6 planes and feed it to a render target.
  */
-UCLASS(hidecategories = (Collision, Object, Physics, SceneComponent), ClassGroup=Rendering, editinlinenew, meta = (BlueprintSpawnableComponent))
-class ENGINE_API USceneCaptureComponentCube : public USceneCaptureComponent
+UCLASS(hidecategories = (Collision, Object, Physics, SceneComponent), ClassGroup=Rendering, editinlinenew, meta = (BlueprintSpawnableComponent), MinimalAPI)
+class USceneCaptureComponentCube : public USceneCaptureComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -28,16 +28,16 @@ class ENGINE_API USceneCaptureComponentCube : public USceneCaptureComponent
 
 public:
 	//~ Begin UActorComponent Interface
-	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
-	virtual void OnRegister() override;
-	virtual void SendRenderTransform_Concurrent() override;
-	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+	ENGINE_API virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
+	ENGINE_API virtual void OnRegister() override;
+	ENGINE_API virtual void SendRenderTransform_Concurrent() override;
+	ENGINE_API virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 	//~ End UActorComponent Interface
 
 	//~ Begin UObject Interface
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	static ENGINE_API void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 	//~ End UObject Interface
 
@@ -45,7 +45,7 @@ public:
 	 * Render the scene to the texture the next time the main view is rendered.
 	 * If r.SceneCapture.CullByDetailMode is set, nothing will happen if DetailMode is higher than r.DetailMode.
 	 */
-	void CaptureSceneDeferred();
+	ENGINE_API void CaptureSceneDeferred();
 
 	/** 
 	 * Render the scene to the texture target immediately.  
@@ -53,18 +53,18 @@ public:
 	 * If r.SceneCapture.CullByDetailMode is set, nothing will happen if DetailMode is higher than r.DetailMode.
 	 */
 	UFUNCTION(BlueprintCallable,Category = "Rendering|SceneCapture")
-	void CaptureScene();
+	ENGINE_API void CaptureScene();
 
 	// For backwards compatibility
 	void UpdateContent() { CaptureSceneDeferred(); }
 
-	void UpdateSceneCaptureContents(FSceneInterface* Scene) override;
+	ENGINE_API void UpdateSceneCaptureContents(FSceneInterface* Scene) override;
 
 	/** Whether this component is a USceneCaptureComponentCube */
 	virtual bool IsCube() const override { return true; }
 
 #if WITH_EDITORONLY_DATA
-	void UpdateDrawFrustum();
+	ENGINE_API void UpdateDrawFrustum();
 
 	/** The frustum component used to show visually where the camera field of view is */
 	TObjectPtr<class UDrawFrustumComponent> DrawFrustum;

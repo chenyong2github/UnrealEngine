@@ -139,27 +139,27 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnClusterUnionBoundsChanged, UClus
  * a GT -> PT data sync. There's no particula reason this happens...it just mirrors the single particle physics proxy here.
  *
  */
-UCLASS()
-class ENGINE_API UClusterUnionComponent : public UPrimitiveComponent
+UCLASS(MinimalAPI)
+class UClusterUnionComponent : public UPrimitiveComponent
 {
 	GENERATED_BODY()
 public:
-	UClusterUnionComponent(const FObjectInitializer& ObjectInitializer);
+	ENGINE_API UClusterUnionComponent(const FObjectInitializer& ObjectInitializer);
 
 	UFUNCTION(BlueprintCallable, Category="Cluster Union")
-	void AddComponentToCluster(UPrimitiveComponent* InComponent, const TArray<int32>& BoneIds);
+	ENGINE_API void AddComponentToCluster(UPrimitiveComponent* InComponent, const TArray<int32>& BoneIds);
 
 	UFUNCTION(BlueprintCallable, Category = "Cluster Union")
-	void RemoveComponentFromCluster(UPrimitiveComponent* InComponent);
+	ENGINE_API void RemoveComponentFromCluster(UPrimitiveComponent* InComponent);
 
 	UFUNCTION(BlueprintCallable, Category = "Cluster Union")
-	TArray<UPrimitiveComponent*> GetPrimitiveComponents();
+	ENGINE_API TArray<UPrimitiveComponent*> GetPrimitiveComponents();
 
 	UFUNCTION(BlueprintCallable, Category = "Cluster Union")
-	void SetIsAnchored(bool bIsAnchored);
+	ENGINE_API void SetIsAnchored(bool bIsAnchored);
 
 	// SyncClusterUnionFromProxy will examine the make up of the cluster union (particles, child to parent, etc.) and do whatever is needed on the GT in terms of bookkeeping.
-	void SyncClusterUnionFromProxy();
+	ENGINE_API void SyncClusterUnionFromProxy();
 
 	UFUNCTION()
 	bool IsComponentAdded(UPrimitiveComponent* Component) { return ComponentToPhysicsObjects.Contains(Component) || PendingComponentSync.Contains(Component); }
@@ -167,8 +167,8 @@ public:
 	bool HasReceivedTransform() const { return bHasReceivedTransform; }
 
 	// Multi-trace/sweep functions that only make sense in the context of a cluster union.
-	bool LineTraceComponent(TArray<FHitResult>& OutHit, const FVector Start, const FVector End, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams);
-	bool SweepComponent(TArray<FHitResult>& OutHit, const FVector Start, const FVector End, const FQuat& ShapeWorldRotation, const FPhysicsGeometry& Geometry, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams);
+	ENGINE_API bool LineTraceComponent(TArray<FHitResult>& OutHit, const FVector Start, const FVector End, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams);
+	ENGINE_API bool SweepComponent(TArray<FHitResult>& OutHit, const FVector Start, const FVector End, const FQuat& ShapeWorldRotation, const FPhysicsGeometry& Geometry, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams);
 
 	UPROPERTY(BlueprintAssignable, Category = "Events")
 	FOnClusterUnionAddedComponent OnComponentAddedEvent;
@@ -180,18 +180,18 @@ public:
 	FOnClusterUnionBoundsChanged OnComponentBoundsChangedEvent;
 
 	// Lambda returns whether or not iteration should continue;
-	void VisitAllCurrentChildComponents(const TFunction<bool(UPrimitiveComponent*)>& Lambda) const;
+	ENGINE_API void VisitAllCurrentChildComponents(const TFunction<bool(UPrimitiveComponent*)>& Lambda) const;
 
-	int32 NumChildClusterComponents() const;
+	ENGINE_API int32 NumChildClusterComponents() const;
 
 	friend class UClusterUnionReplicatedProxyComponent;
 protected:
 
 	// This should only be called on the client when replication happens.
 	UFUNCTION()
-	void ForceSetChildToParent(UPrimitiveComponent* InComponent, const TArray<int32>& BoneIds, const TArray<FTransform>& ChildToParent);
+	ENGINE_API void ForceSetChildToParent(UPrimitiveComponent* InComponent, const TArray<int32>& BoneIds, const TArray<FTransform>& ChildToParent);
 
-	TArray<int32> GetAddedBoneIdsForComponent(UPrimitiveComponent* Component) const;
+	ENGINE_API TArray<int32> GetAddedBoneIdsForComponent(UPrimitiveComponent* Component) const;
 
 private:
 	// These are the statically clustered components. These should
@@ -237,9 +237,9 @@ private:
 	// Handles changes to ReplicatedRigidState. Note that this function does not handle replication of X/R since we make use
 	// of the scene component's default replication for that.
 	UFUNCTION()
-	void OnRep_RigidState();
+	ENGINE_API void OnRep_RigidState();
 
-	FPhysScene_Chaos* GetChaosScene() const;
+	ENGINE_API FPhysScene_Chaos* GetChaosScene() const;
 
 	Chaos::FClusterUnionPhysicsProxy* PhysicsProxy;
 	bool bHasReceivedTransform;
@@ -254,35 +254,35 @@ private:
 	// ClusteredComponentsReferences. This function lets us listen to OnComponentPhysicsStateChanged on the incoming
 	// primitive component so that once the physics state is properly created we can begin the process of adding it.
 	UFUNCTION()
-	void HandleComponentPhysicsStateChange(UPrimitiveComponent* ChangedComponent, EComponentPhysicsStateChange StateChange);
+	ENGINE_API void HandleComponentPhysicsStateChange(UPrimitiveComponent* ChangedComponent, EComponentPhysicsStateChange StateChange);
 
 	// Once in the cluster union, if the component's physics state is destroyed, we should remove it from the cluster union.
 	UFUNCTION()
-	void HandleComponentPhysicsStateChangePostAddIntoClusterUnion(UPrimitiveComponent* ChangedComponent, EComponentPhysicsStateChange StateChange);
+	ENGINE_API void HandleComponentPhysicsStateChangePostAddIntoClusterUnion(UPrimitiveComponent* ChangedComponent, EComponentPhysicsStateChange StateChange);
 
 	// These functions only get called when the physics thread syncs to the game thread thereby enforcing a physics thread authoritative view of
 	// what particles are currently contained within the cluster union.
-	void HandleAddOrModifiedClusteredComponent(UPrimitiveComponent* ChangedComponent, const TMap<int32, FTransform>& PerBoneChildToParent);
-	void HandleRemovedClusteredComponent(UPrimitiveComponent* ChangedComponent, bool bDestroyReplicatedProxy);
+	ENGINE_API void HandleAddOrModifiedClusteredComponent(UPrimitiveComponent* ChangedComponent, const TMap<int32, FTransform>& PerBoneChildToParent);
+	ENGINE_API void HandleRemovedClusteredComponent(UPrimitiveComponent* ChangedComponent, bool bDestroyReplicatedProxy);
 
-	TArray<UPrimitiveComponent*> GetAllCurrentChildComponents() const;
-	void VisitAllCurrentChildComponentsForCollision(ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams, const TFunction<bool(UPrimitiveComponent*)>& Lambda) const;
+	ENGINE_API TArray<UPrimitiveComponent*> GetAllCurrentChildComponents() const;
+	ENGINE_API void VisitAllCurrentChildComponentsForCollision(ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams, const TFunction<bool(UPrimitiveComponent*)>& Lambda) const;
 
 	// Whether or not this code is running on the server.
 	UFUNCTION()
-	bool IsAuthority() const;
+	ENGINE_API bool IsAuthority() const;
 
 	// Force a rebuild of the GT geometry. This needs to happen immediately when we add/remove on the GT so that the SQ is up to date
 	// and doesn't need to wait for the next OnSyncBodies.
-	void ForceRebuildGTParticleGeometry();
+	ENGINE_API void ForceRebuildGTParticleGeometry();
 
 	//~ Begin UActorComponent Interface
 public:
-	virtual void OnCreatePhysicsState() override;
-	virtual void OnDestroyPhysicsState() override;
-	virtual bool ShouldCreatePhysicsState() const override;
-	virtual bool HasValidPhysicsState() const override;
-	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	ENGINE_API virtual void OnCreatePhysicsState() override;
+	ENGINE_API virtual void OnDestroyPhysicsState() override;
+	ENGINE_API virtual bool ShouldCreatePhysicsState() const override;
+	ENGINE_API virtual bool HasValidPhysicsState() const override;
+	ENGINE_API virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	//~ End UActorComponent Interface
 
 	//~ Begin UPrimitiveComponent Interface
@@ -292,31 +292,31 @@ public:
 	using UPrimitiveComponent::OverlapComponentWithResult;
 
 	virtual FBodyInstance* GetBodyInstance(FName BoneName, bool bGetWelded, int32 Index) const override { return nullptr; }
-	virtual void SetSimulatePhysics(bool bSimulate) override;
+	ENGINE_API virtual void SetSimulatePhysics(bool bSimulate) override;
 	virtual bool CanEditSimulatePhysics() override { return true; }
-	virtual bool LineTraceComponent(FHitResult& OutHit, const FVector Start, const FVector End, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams) override;
-	virtual bool SweepComponent(FHitResult& OutHit, const FVector Start, const FVector End, const FQuat& ShapeWorldRotation, const FPhysicsGeometry& Geometry, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams) override;
-	virtual bool OverlapComponentWithResult(const FVector& Pos, const FQuat& Rot, const FPhysicsGeometry& Geometry, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams, TArray<FOverlapResult>& OutOverlap) const override;
-	virtual bool ComponentOverlapComponentWithResultImpl(const class UPrimitiveComponent* const PrimComp, const FVector& Pos, const FQuat& Rot, const FCollisionQueryParams& Params, TArray<FOverlapResult>& OutOverlap) const override;
+	ENGINE_API virtual bool LineTraceComponent(FHitResult& OutHit, const FVector Start, const FVector End, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams) override;
+	ENGINE_API virtual bool SweepComponent(FHitResult& OutHit, const FVector Start, const FVector End, const FQuat& ShapeWorldRotation, const FPhysicsGeometry& Geometry, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams) override;
+	ENGINE_API virtual bool OverlapComponentWithResult(const FVector& Pos, const FQuat& Rot, const FPhysicsGeometry& Geometry, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams, TArray<FOverlapResult>& OutOverlap) const override;
+	ENGINE_API virtual bool ComponentOverlapComponentWithResultImpl(const class UPrimitiveComponent* const PrimComp, const FVector& Pos, const FQuat& Rot, const FCollisionQueryParams& Params, TArray<FOverlapResult>& OutOverlap) const override;
 	virtual bool ShouldDispatchWakeEvents(FName BoneName) const override { return true; }
 	//~ End UPrimitiveComponent Interface
 
 	//~ Begin USceneComponent Interface
 public:
-	virtual void OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport) override;
-	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
+	ENGINE_API virtual void OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport) override;
+	ENGINE_API virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	//~ End USceneComponent Interface
 
 	//~ Begin IPhysicsComponent Interface.
 public:
-	virtual Chaos::FPhysicsObject* GetPhysicsObjectById(Chaos::FPhysicsObjectId Id) const override;
-	virtual Chaos::FPhysicsObject* GetPhysicsObjectByName(const FName& Name) const override;
-	virtual TArray<Chaos::FPhysicsObject*> GetAllPhysicsObjects() const override;
-	virtual Chaos::FPhysicsObjectId GetIdFromGTParticle(Chaos::FGeometryParticle* Particle) const override;
+	ENGINE_API virtual Chaos::FPhysicsObject* GetPhysicsObjectById(Chaos::FPhysicsObjectId Id) const override;
+	ENGINE_API virtual Chaos::FPhysicsObject* GetPhysicsObjectByName(const FName& Name) const override;
+	ENGINE_API virtual TArray<Chaos::FPhysicsObject*> GetAllPhysicsObjects() const override;
+	ENGINE_API virtual Chaos::FPhysicsObjectId GetIdFromGTParticle(Chaos::FGeometryParticle* Particle) const override;
 	//~ End IPhysicsComponent Interface.
 
 	//~ Begin UObject Interface.
 public:
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	static ENGINE_API void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	//~ End UObject Interface.
 };

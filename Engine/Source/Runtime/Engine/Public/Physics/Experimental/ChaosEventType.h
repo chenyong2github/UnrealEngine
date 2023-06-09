@@ -15,12 +15,12 @@ namespace Chaos
 }
 
 USTRUCT(BlueprintType)
-struct ENGINE_API FCollisionChaosEventBodyInfo
+struct FCollisionChaosEventBodyInfo
 {
 	GENERATED_BODY()
 
 public:
-	FCollisionChaosEventBodyInfo();
+	ENGINE_API FCollisionChaosEventBodyInfo();
 
 	UPROPERTY(BlueprintReadOnly, Category = "Collision Event")
 	FVector Velocity;
@@ -50,13 +50,13 @@ public:
 
 
 USTRUCT(BlueprintType)
-struct ENGINE_API FCollisionChaosEvent
+struct FCollisionChaosEvent
 {
 	GENERATED_BODY()
 
 public:
-	FCollisionChaosEvent();
-	FCollisionChaosEvent(const Chaos::FCollidingData& CollisionData);
+	ENGINE_API FCollisionChaosEvent();
+	ENGINE_API FCollisionChaosEvent(const Chaos::FCollidingData& CollisionData);
 
 	UPROPERTY(BlueprintReadOnly, Category = "Collision Event")
 	FVector Location;
@@ -80,14 +80,14 @@ public:
 
 
 USTRUCT(BlueprintType)
-struct ENGINE_API FChaosBreakEvent
+struct FChaosBreakEvent
 {
 	GENERATED_BODY()
 
 public:
 
-	FChaosBreakEvent();
-	FChaosBreakEvent(const Chaos::FBreakingData& BreakingData);
+	ENGINE_API FChaosBreakEvent();
+	ENGINE_API FChaosBreakEvent(const Chaos::FBreakingData& BreakingData);
 
 	/** primitive component involved in the break event */
 	UPROPERTY(BlueprintReadOnly, Category = "Break Event")
@@ -123,13 +123,13 @@ public:
 };
 
 USTRUCT(BlueprintType)
-struct ENGINE_API FChaosRemovalEvent
+struct FChaosRemovalEvent
 {
 	GENERATED_BODY()
 
 public:
 
-	FChaosRemovalEvent();
+	ENGINE_API FChaosRemovalEvent();
 
 	UPROPERTY(BlueprintReadOnly, Category = "Removal Event")
 	TObjectPtr<UPrimitiveComponent> Component = nullptr;
@@ -143,7 +143,7 @@ public:
 
 
 USTRUCT(BlueprintType)
-struct ENGINE_API FChaosCrumblingEvent
+struct FChaosCrumblingEvent
 {
 	GENERATED_BODY()
 

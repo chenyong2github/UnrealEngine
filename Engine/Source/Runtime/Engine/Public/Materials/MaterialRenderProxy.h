@@ -77,20 +77,20 @@ private:
  *  task is launched at a time though. The async task is synced when the scope destructs. The scope enqueues render commands
  *  so it can be used on the game or render threads.
  */
-class ENGINE_API FUniformExpressionCacheAsyncUpdateScope
+class FUniformExpressionCacheAsyncUpdateScope
 {
 public:
-	FUniformExpressionCacheAsyncUpdateScope();
-	~FUniformExpressionCacheAsyncUpdateScope();
+	ENGINE_API FUniformExpressionCacheAsyncUpdateScope();
+	ENGINE_API ~FUniformExpressionCacheAsyncUpdateScope();
 
 	/** Call if a wait is required within the scope. */
-	static void WaitForTask();
+	static ENGINE_API void WaitForTask();
 };
 
 /**
  * A material render proxy used by the renderer.
  */
-class ENGINE_API FMaterialRenderProxy : public FRenderResource, public FNoncopyable
+class FMaterialRenderProxy : public FRenderResource, public FNoncopyable
 {
 public:
 
@@ -101,10 +101,10 @@ public:
 	mutable FImmutableSamplerState ImmutableSamplerState;
 
 	/** Default constructor. */
-	FMaterialRenderProxy(FString InMaterialName);
+	ENGINE_API FMaterialRenderProxy(FString InMaterialName);
 
 	/** Destructor. */
-	virtual ~FMaterialRenderProxy();
+	ENGINE_API virtual ~FMaterialRenderProxy();
 
 	UE_DEPRECATED(5.1, "EvaluateUniformExpressions with a command list is deprecated.")
 	void EvaluateUniformExpressions(FUniformExpressionCache& OutUniformExpressionCache, const FMaterialRenderContext& Context, class FRHIComputeCommandList*) const
@@ -117,15 +117,15 @@ public:
 	 * @param OutUniformExpressionCache - The uniform expression cache to build.
 	 * @param MaterialRenderContext - The context for which to cache expressions.
 	 */
-	void EvaluateUniformExpressions(FUniformExpressionCache& OutUniformExpressionCache, const FMaterialRenderContext& Context, FUniformExpressionCacheAsyncUpdater* Updater = nullptr) const;
+	ENGINE_API void EvaluateUniformExpressions(FUniformExpressionCache& OutUniformExpressionCache, const FMaterialRenderContext& Context, FUniformExpressionCacheAsyncUpdater* Updater = nullptr) const;
 
 	/**
 	 * Caches uniform expressions for efficient runtime evaluation.
 	 */
-	void CacheUniformExpressions(bool bRecreateUniformBuffer);
+	ENGINE_API void CacheUniformExpressions(bool bRecreateUniformBuffer);
 
 	/** Cancels an in-flight cache operation. */
-	void CancelCacheUniformExpressions();
+	ENGINE_API void CancelCacheUniformExpressions();
 
 	/**
 	 * Enqueues a rendering command to cache uniform expressions for efficient runtime evaluation.
@@ -133,14 +133,14 @@ public:
 	 *		This is required if the FMaterial is being recompiled (the uniform buffer layout will change).
 	 *		This should only be done if the calling code is using FMaterialUpdateContext to recreate the rendering state of primitives using this material, since cached mesh commands also cache uniform buffer pointers.
 	 */
-	void CacheUniformExpressions_GameThread(bool bRecreateUniformBuffer);
+	ENGINE_API void CacheUniformExpressions_GameThread(bool bRecreateUniformBuffer);
 
 	/**
 	 * Invalidates the uniform expression cache.
 	 */
-	void InvalidateUniformExpressionCache(bool bRecreateUniformBuffer);
+	ENGINE_API void InvalidateUniformExpressionCache(bool bRecreateUniformBuffer);
 
-	void UpdateUniformExpressionCacheIfNeeded(ERHIFeatureLevel::Type InFeatureLevel) const;
+	ENGINE_API void UpdateUniformExpressionCacheIfNeeded(ERHIFeatureLevel::Type InFeatureLevel) const;
 
 
 	/** Returns the FMaterial, without using a fallback if the FMaterial doesn't have a valid shader map. Can return NULL. */
@@ -154,21 +154,21 @@ public:
 	 * The returned FMaterial is guaranteed to have a complete shader map, so all relevant shaders should be available
 	 * OutFallbackMaterialRenderProxy - The proxy that corresponds to the returned FMaterial, should be used for further rendering.  May be a fallback material, or 'this' if no fallback was needed
 	 */
-	const FMaterial& GetMaterialWithFallback(ERHIFeatureLevel::Type InFeatureLevel, const FMaterialRenderProxy*& OutFallbackMaterialRenderProxy) const;
+	ENGINE_API const FMaterial& GetMaterialWithFallback(ERHIFeatureLevel::Type InFeatureLevel, const FMaterialRenderProxy*& OutFallbackMaterialRenderProxy) const;
 
 	/**
 	 * Finds the FMaterial to use for rendering this FMaterialRenderProxy.  Will fall back to a default material if needed due to a content error, or async compilation.
 	 * Will always return a valid FMaterial, but unlike GetMaterialWithFallback, FMaterial's shader map may be incomplete
 	 */
-	const FMaterial& GetIncompleteMaterialWithFallback(ERHIFeatureLevel::Type InFeatureLevel) const;
+	ENGINE_API const FMaterial& GetIncompleteMaterialWithFallback(ERHIFeatureLevel::Type InFeatureLevel) const;
 
 	virtual UMaterialInterface* GetMaterialInterface() const { return NULL; }
 
-	bool GetVectorValue(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const;
-	bool GetScalarValue(const FHashedMaterialParameterInfo& ParameterInfo, float* OutValue, const FMaterialRenderContext& Context) const;
-	bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const UTexture** OutValue, const FMaterialRenderContext& Context) const;
-	bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const;
-	bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const USparseVolumeTexture** OutValue, const FMaterialRenderContext& Context) const;
+	ENGINE_API bool GetVectorValue(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const;
+	ENGINE_API bool GetScalarValue(const FHashedMaterialParameterInfo& ParameterInfo, float* OutValue, const FMaterialRenderContext& Context) const;
+	ENGINE_API bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const UTexture** OutValue, const FMaterialRenderContext& Context) const;
+	ENGINE_API bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const;
+	ENGINE_API bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const USparseVolumeTexture** OutValue, const FMaterialRenderContext& Context) const;
 	virtual bool GetParameterValue(EMaterialParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo, FMaterialParameterValue& OutValue, const FMaterialRenderContext& Context) const = 0;
 
 	bool IsDeleted() const
@@ -187,9 +187,9 @@ public:
 	}
 
 	// FRenderResource interface.
-	virtual void InitRHI() override;
-	virtual void ReleaseRHI() override;
-	virtual void ReleaseResource() override;
+	ENGINE_API virtual void InitRHI() override;
+	ENGINE_API virtual void ReleaseRHI() override;
+	ENGINE_API virtual void ReleaseResource() override;
 
 #if WITH_EDITOR
 	static const TSet<FMaterialRenderProxy*>& GetMaterialRenderProxyMap()
@@ -213,17 +213,17 @@ public:
 	const USpecularProfile* GetSpecularProfileRT(uint32 Index) const { check(Index<uint32(SpecularProfilesRT.Num())); return SpecularProfilesRT[Index]; }
 	const uint32 NumSpecularProfileRT() const { return SpecularProfilesRT.Num(); }
 
-	static void UpdateDeferredCachedUniformExpressions();
+	static ENGINE_API void UpdateDeferredCachedUniformExpressions();
 
-	static bool HasDeferredUniformExpressionCacheRequests();
+	static ENGINE_API bool HasDeferredUniformExpressionCacheRequests();
 
 	int32 GetExpressionCacheSerialNumber() const { return UniformExpressionCacheSerialNumber; }
 
 	const FString& GetMaterialName() const { return MaterialName; }
 
 private:
-	IAllocatedVirtualTexture* GetPreallocatedVTStack(const FMaterialRenderContext& Context, const FUniformExpressionSet& UniformExpressionSet, const FMaterialVirtualTextureStack& VTStack) const;
-	IAllocatedVirtualTexture* AllocateVTStack(const FMaterialRenderContext& Context, const FUniformExpressionSet& UniformExpressionSet, const FMaterialVirtualTextureStack& VTStack) const;
+	ENGINE_API IAllocatedVirtualTexture* GetPreallocatedVTStack(const FMaterialRenderContext& Context, const FUniformExpressionSet& UniformExpressionSet, const FMaterialVirtualTextureStack& VTStack) const;
+	ENGINE_API IAllocatedVirtualTexture* AllocateVTStack(const FMaterialRenderContext& Context, const FUniformExpressionSet& UniformExpressionSet, const FMaterialVirtualTextureStack& VTStack) const;
 
 	virtual void StartCacheUniformExpressions() const {}
 	virtual void FinishCacheUniformExpressions() const {}
@@ -248,21 +248,21 @@ private:
 	 * Tracks all material render proxies in all scenes.
 	 * This is used to propagate new shader maps to materials being used for rendering.
 	 */
-	static TSet<FMaterialRenderProxy*> MaterialRenderProxyMap;
+	static ENGINE_API TSet<FMaterialRenderProxy*> MaterialRenderProxyMap;
 
 	/**
 	 * Lock that guards the access to the render proxy map
 	 */
-	static FCriticalSection MaterialRenderProxyMapLock;
+	static ENGINE_API FCriticalSection MaterialRenderProxyMapLock;
 #endif
 
-	static TSet<FMaterialRenderProxy*> DeferredUniformExpressionCacheRequests;
+	static ENGINE_API TSet<FMaterialRenderProxy*> DeferredUniformExpressionCacheRequests;
 };
 
 /**
  * An material render proxy which overrides the material's Color vector parameter.
  */
-class ENGINE_API FColoredMaterialRenderProxy : public FMaterialRenderProxy
+class FColoredMaterialRenderProxy : public FMaterialRenderProxy
 {
 public:
 	const FMaterialRenderProxy* const Parent;
@@ -270,18 +270,18 @@ public:
 	FName ColorParamName;
 
 	/** Initialization constructor. */
-	FColoredMaterialRenderProxy(const FMaterialRenderProxy* InParent, const FLinearColor& InColor, FName InColorParamName = NAME_Color);
+	ENGINE_API FColoredMaterialRenderProxy(const FMaterialRenderProxy* InParent, const FLinearColor& InColor, FName InColorParamName = NAME_Color);
 
 	// FMaterialRenderProxy interface.
-	virtual const FMaterial* GetMaterialNoFallback(ERHIFeatureLevel::Type InFeatureLevel) const override;
-	virtual const FMaterialRenderProxy* GetFallback(ERHIFeatureLevel::Type InFeatureLevel) const override;
-	virtual bool GetParameterValue(EMaterialParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo, FMaterialParameterValue& OutValue, const FMaterialRenderContext& Context) const override;
+	ENGINE_API virtual const FMaterial* GetMaterialNoFallback(ERHIFeatureLevel::Type InFeatureLevel) const override;
+	ENGINE_API virtual const FMaterialRenderProxy* GetFallback(ERHIFeatureLevel::Type InFeatureLevel) const override;
+	ENGINE_API virtual bool GetParameterValue(EMaterialParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo, FMaterialParameterValue& OutValue, const FMaterialRenderContext& Context) const override;
 };
 
 /**
  * An material render proxy which overrides the material's Color vector and Texture parameter (mixed together).
  */
-class ENGINE_API FColoredTexturedMaterialRenderProxy : public FColoredMaterialRenderProxy
+class FColoredTexturedMaterialRenderProxy : public FColoredMaterialRenderProxy
 {
 public:
 	const UTexture* Texture;
@@ -290,40 +290,40 @@ public:
 	FName UVChannelParamName = FName("None");
 
 	/** Initialization constructor. */
-	FColoredTexturedMaterialRenderProxy(const FMaterialRenderProxy* InParent, const FLinearColor& InColor, FName InColorParamName, const UTexture* InTexture, FName InTextureParamName);
+	ENGINE_API FColoredTexturedMaterialRenderProxy(const FMaterialRenderProxy* InParent, const FLinearColor& InColor, FName InColorParamName, const UTexture* InTexture, FName InTextureParamName);
 
-	virtual bool GetParameterValue(EMaterialParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo, FMaterialParameterValue& OutValue, const FMaterialRenderContext& Context) const override;
+	ENGINE_API virtual bool GetParameterValue(EMaterialParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo, FMaterialParameterValue& OutValue, const FMaterialRenderContext& Context) const override;
 };
 
 /**
  * A material render proxy which overrides the selection color
  */
-class ENGINE_API FOverrideSelectionColorMaterialRenderProxy : public FMaterialRenderProxy
+class FOverrideSelectionColorMaterialRenderProxy : public FMaterialRenderProxy
 {
 public:
 	const FMaterialRenderProxy* const Parent;
 	const FLinearColor SelectionColor;
 
 	/** Initialization constructor. */
-	FOverrideSelectionColorMaterialRenderProxy(const FMaterialRenderProxy* InParent, const FLinearColor& InSelectionColor);
+	ENGINE_API FOverrideSelectionColorMaterialRenderProxy(const FMaterialRenderProxy* InParent, const FLinearColor& InSelectionColor);
 
 	// FMaterialRenderProxy interface.
-	virtual const FMaterial* GetMaterialNoFallback(ERHIFeatureLevel::Type InFeatureLevel) const override;
-	virtual const FMaterialRenderProxy* GetFallback(ERHIFeatureLevel::Type InFeatureLevel) const override;
-	virtual bool GetParameterValue(EMaterialParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo, FMaterialParameterValue& OutValue, const FMaterialRenderContext& Context) const override;
+	ENGINE_API virtual const FMaterial* GetMaterialNoFallback(ERHIFeatureLevel::Type InFeatureLevel) const override;
+	ENGINE_API virtual const FMaterialRenderProxy* GetFallback(ERHIFeatureLevel::Type InFeatureLevel) const override;
+	ENGINE_API virtual bool GetParameterValue(EMaterialParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo, FMaterialParameterValue& OutValue, const FMaterialRenderContext& Context) const override;
 };
 
 /**
  * An material render proxy which overrides the material's Color and Lightmap resolution vector parameter.
  */
-class ENGINE_API FLightingDensityMaterialRenderProxy : public FColoredMaterialRenderProxy
+class FLightingDensityMaterialRenderProxy : public FColoredMaterialRenderProxy
 {
 public:
 	const FVector2D LightmapResolution;
 
 	/** Initialization constructor. */
-	FLightingDensityMaterialRenderProxy(const FMaterialRenderProxy* InParent, const FLinearColor& InColor, const FVector2D& InLightmapResolution);
+	ENGINE_API FLightingDensityMaterialRenderProxy(const FMaterialRenderProxy* InParent, const FLinearColor& InColor, const FVector2D& InLightmapResolution);
 
 	// FMaterialRenderProxy interface.
-	virtual bool GetParameterValue(EMaterialParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo, FMaterialParameterValue& OutValue, const FMaterialRenderContext& Context) const override;
+	ENGINE_API virtual bool GetParameterValue(EMaterialParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo, FMaterialParameterValue& OutValue, const FMaterialRenderContext& Context) const override;
 };

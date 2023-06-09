@@ -596,7 +596,7 @@ public:
 	ENGINE_API bool	DeleteSample(const int32 BlendSampleIndex);
 	
 	/** Get the number of sample points for this blend space */
-	ENGINE_API int32 GetNumberOfBlendSamples()  const { return SampleData.Num(); }
+	int32 GetNumberOfBlendSamples()  const { return SampleData.Num(); }
 
 	/** Check whether or not the sample index is valid in combination with the stored sample data */
 	ENGINE_API bool IsValidBlendSampleIndex(const int32 SampleIndex) const;

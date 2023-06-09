@@ -13,42 +13,42 @@ class FLoaderAdapterActor;
 /**
  * A volume representing a location in the world
  */
-UCLASS(BlueprintType, Blueprintable)
-class ENGINE_API ALocationVolume : public AVolume, public IWorldPartitionActorLoaderInterface
+UCLASS(BlueprintType, Blueprintable, MinimalAPI)
+class ALocationVolume : public AVolume, public IWorldPartitionActorLoaderInterface
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 	//~ Begin UObject Interface
 #if WITH_EDITOR
-	virtual void BeginDestroy() override;
+	ENGINE_API virtual void BeginDestroy() override;
 #endif
 	//~ End UObject Interface
 
 	//~ Begin AActor Interface
 	virtual bool IsEditorOnly() const override { return !bIsRuntime; }
 #if WITH_EDITOR
-	virtual void PostRegisterAllComponents();
-	virtual void UnregisterAllComponents(bool bForReregister) override;
+	ENGINE_API virtual void PostRegisterAllComponents();
+	ENGINE_API virtual void UnregisterAllComponents(bool bForReregister) override;
 	virtual bool CanChangeIsSpatiallyLoadedFlag() const override { return false; }
 	//~ End AActor Interface
 
 	//~ Begin IWorldPartitionActorLoaderInterface interface
-	virtual ILoaderAdapter* GetLoaderAdapter() override;
+	ENGINE_API virtual ILoaderAdapter* GetLoaderAdapter() override;
 	//~ End IWorldPartitionActorLoaderInterface interface
 #endif
 
 	/** Load this location volume */
 	UFUNCTION(BlueprintCallable, CallInEditor, Category=WorldPartition)
-	void Load();
+	ENGINE_API void Load();
 
 	/** Unload this location volume */
 	UFUNCTION(BlueprintCallable, CallInEditor, Category=WorldPartition)
-	void Unload();
+	ENGINE_API void Unload();
 
 	/** Return if this location volume is loaded */
 	UFUNCTION(BlueprintCallable, Category=WorldPartition)
-	bool IsLoaded() const;
+	ENGINE_API bool IsLoaded() const;
 
 	UPROPERTY(EditAnywhere, Category=LocationVolume)
 	FColor DebugColor;

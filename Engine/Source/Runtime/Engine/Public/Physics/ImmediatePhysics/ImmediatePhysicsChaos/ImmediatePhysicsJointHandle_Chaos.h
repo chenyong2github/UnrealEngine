@@ -17,24 +17,24 @@ namespace Chaos
 namespace ImmediatePhysics_Chaos
 {
 	/** handle associated with a physics joint. This is the proper way to read/write to the physics simulation */
-	struct ENGINE_API FJointHandle
+	struct FJointHandle
 	{
 	public:
 		using FChaosConstraintContainer = Chaos::FPBDJointConstraints;
 		using FChaosConstraintHandle = typename Chaos::FPBDJointConstraintHandle;
 		using FPBDJointSettings = Chaos::FPBDJointSettings;
 
-		FJointHandle(FChaosConstraintContainer* InConstraints, FConstraintInstance* ConstraintInstance, FActorHandle* InActor1, FActorHandle* InActor2);
-		FJointHandle(FChaosConstraintContainer* InConstraints, const FPBDJointSettings& ConstraintSettings, FActorHandle* InActor1, FActorHandle* InActor2);
-		~FJointHandle();
+		ENGINE_API FJointHandle(FChaosConstraintContainer* InConstraints, FConstraintInstance* ConstraintInstance, FActorHandle* InActor1, FActorHandle* InActor2);
+		ENGINE_API FJointHandle(FChaosConstraintContainer* InConstraints, const FPBDJointSettings& ConstraintSettings, FActorHandle* InActor1, FActorHandle* InActor2);
+		ENGINE_API ~FJointHandle();
 
-		FChaosConstraintHandle* GetConstraint();
-		const FChaosConstraintHandle* GetConstraint() const;
+		ENGINE_API FChaosConstraintHandle* GetConstraint();
+		ENGINE_API const FChaosConstraintHandle* GetConstraint() const;
 
-		const Chaos::TVec2<FActorHandle*>& GetActorHandles();
-		const Chaos::TVec2<const FActorHandle*>& GetActorHandles() const;
+		ENGINE_API const Chaos::TVec2<FActorHandle*>& GetActorHandles();
+		ENGINE_API const Chaos::TVec2<const FActorHandle*>& GetActorHandles() const;
 
-		void SetSoftLinearSettings(bool bLinearSoft, FReal LinearStiffness, FReal LinearDamping);
+		ENGINE_API void SetSoftLinearSettings(bool bLinearSoft, FReal LinearStiffness, FReal LinearDamping);
 
 	private:
 		void SetActorInertiaConditioningDirty();

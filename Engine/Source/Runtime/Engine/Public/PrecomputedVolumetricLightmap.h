@@ -86,7 +86,7 @@ public:
 
 	ENGINE_API int32 GetMinimumVoxelSize() const;
 
-	ENGINE_API void ReleaseRHI()
+	void ReleaseRHI()
 	{
 		AmbientVector.Texture.SafeRelease();
 
@@ -547,14 +547,14 @@ struct FVolumetricLightmapBrickTextureSet : public FVolumetricLightmapBasicBrick
 	}
 };
 
-class ENGINE_API FVolumetricLightmapBrickAtlas : public FRenderResource
+class FVolumetricLightmapBrickAtlas : public FRenderResource
 {
 public:
-	FVolumetricLightmapBrickAtlas();
+	ENGINE_API FVolumetricLightmapBrickAtlas();
 
 	FVolumetricLightmapBrickTextureSet TextureSet;
 
-	virtual void ReleaseRHI() override;
+	ENGINE_API virtual void ReleaseRHI() override;
 
 	struct Allocation
 	{
@@ -567,8 +567,8 @@ public:
 
 	TArray<Allocation> Allocations;
 
-	void Insert(int32 Index, FPrecomputedVolumetricLightmapData* Data);
-	void Remove(FPrecomputedVolumetricLightmapData* Data);
+	ENGINE_API void Insert(int32 Index, FPrecomputedVolumetricLightmapData* Data);
+	ENGINE_API void Remove(FPrecomputedVolumetricLightmapData* Data);
 
 private:
 	bool bInitialized;

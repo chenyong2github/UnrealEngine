@@ -18,12 +18,12 @@ class UAnimSequence;
  * @see https://docs.unrealengine.com/latest/INT/Engine/Content/Types/SkeletalMeshes/
  * @see USkeletalMesh
  */
-UCLASS(ClassGroup=ISkeletalMeshes, Blueprintable, ComponentWrapperClass, ConversionRoot, meta=(ChildCanTick))
-class ENGINE_API ASkeletalMeshActor : public AActor
+UCLASS(ClassGroup=ISkeletalMeshes, Blueprintable, ComponentWrapperClass, ConversionRoot, meta=(ChildCanTick), MinimalAPI)
+class ASkeletalMeshActor : public AActor
 {
 	GENERATED_UCLASS_BODY()
 
-	virtual void GetLifetimeReplicatedProps(TArray< FLifetimeProperty > & OutLifetimeProps) const override;
+	ENGINE_API virtual void GetLifetimeReplicatedProps(TArray< FLifetimeProperty > & OutLifetimeProps) const override;
 
 	/** Whether or not this actor should respond to anim notifies - CURRENTLY ONLY AFFECTS PlayParticleEffect NOTIFIES**/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Animation, AdvancedDisplay)
@@ -56,32 +56,32 @@ public:
 
 	/** Replication Notification Callbacks */
 	UFUNCTION()
-	virtual void OnRep_ReplicatedMesh();
+	ENGINE_API virtual void OnRep_ReplicatedMesh();
 
 	UFUNCTION()
-	virtual void OnRep_ReplicatedPhysAsset();
+	ENGINE_API virtual void OnRep_ReplicatedPhysAsset();
 
 	UFUNCTION()
-	virtual void OnRep_ReplicatedMaterial0();
+	ENGINE_API virtual void OnRep_ReplicatedMaterial0();
 
 	UFUNCTION()
-	virtual void OnRep_ReplicatedMaterial1();
+	ENGINE_API virtual void OnRep_ReplicatedMaterial1();
 
 
 	//~ Begin UObject Interface
 protected:
-	virtual FString GetDetailedInfoInternal() const override;
+	ENGINE_API virtual FString GetDetailedInfoInternal() const override;
 public:
 	//~ End UObject Interface
 
 	//~ Begin AActor Interface
 #if WITH_EDITOR
-	virtual void CheckForErrors() override;
-	virtual bool GetReferencedContentObjects( TArray<UObject*>& Objects ) const override;
-	virtual void EditorReplacedActor(AActor* OldActor) override;
-	virtual void LoadedFromAnotherClass(const FName& OldClassName) override;
+	ENGINE_API virtual void CheckForErrors() override;
+	ENGINE_API virtual bool GetReferencedContentObjects( TArray<UObject*>& Objects ) const override;
+	ENGINE_API virtual void EditorReplacedActor(AActor* OldActor) override;
+	ENGINE_API virtual void LoadedFromAnotherClass(const FName& OldClassName) override;
 #endif
-	virtual void PostInitializeComponents() override;
+	ENGINE_API virtual void PostInitializeComponents() override;
 	//~ End AActor Interface
 
 private:

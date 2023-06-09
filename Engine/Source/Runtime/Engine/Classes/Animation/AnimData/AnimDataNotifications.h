@@ -267,8 +267,8 @@ protected:
 	UScriptStruct* Struct;
 };
 
-UCLASS()
-class ENGINE_API UAnimationDataModelNotifiesExtensions : public UBlueprintFunctionLibrary
+UCLASS(MinimalAPI)
+class UAnimationDataModelNotifiesExtensions : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 public:

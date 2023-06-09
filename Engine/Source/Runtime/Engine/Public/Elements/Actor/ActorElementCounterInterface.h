@@ -5,12 +5,12 @@
 #include "Elements/Framework/TypedElementCounter.h"
 #include "ActorElementCounterInterface.generated.h"
 
-UCLASS()
-class ENGINE_API UActorElementCounterInterface : public UObject, public ITypedElementCounterInterface
+UCLASS(MinimalAPI)
+class UActorElementCounterInterface : public UObject, public ITypedElementCounterInterface
 {
 	GENERATED_BODY()
 
 public:
-	virtual void IncrementCountersForElement(const FTypedElementHandle& InElementHandle, FTypedElementCounter& InOutCounter) override;
-	virtual void DecrementCountersForElement(const FTypedElementHandle& InElementHandle, FTypedElementCounter& InOutCounter) override;
+	ENGINE_API virtual void IncrementCountersForElement(const FTypedElementHandle& InElementHandle, FTypedElementCounter& InOutCounter) override;
+	ENGINE_API virtual void DecrementCountersForElement(const FTypedElementHandle& InElementHandle, FTypedElementCounter& InOutCounter) override;
 };

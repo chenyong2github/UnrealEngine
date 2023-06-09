@@ -13,37 +13,37 @@ class FAudioDevice;
 class USoundBase;
 struct FActiveSound;
 
-UINTERFACE(BlueprintType, meta = (CannotImplementInterfaceInBlueprint))
-class ENGINE_API USoundParameterControllerInterface : public UAudioParameterControllerInterface
+UINTERFACE(BlueprintType, meta = (CannotImplementInterfaceInBlueprint), MinimalAPI)
+class USoundParameterControllerInterface : public UAudioParameterControllerInterface
 {
 	GENERATED_UINTERFACE_BODY()
 };
 
 // UObject interface for all object types that are controlling parameter values sent
 // to sound instances (i.e. sources)
-class ENGINE_API ISoundParameterControllerInterface : public IAudioParameterControllerInterface
+class ISoundParameterControllerInterface : public IAudioParameterControllerInterface
 {
 	GENERATED_IINTERFACE_BODY()
 
 public:
 	// IAudioParameterControllerInterface
-	void ResetParameters() override;
+	ENGINE_API void ResetParameters() override;
 
-	void SetTriggerParameter(FName InName) override;
-	void SetBoolParameter(FName InName, bool InBool) override;
-	void SetBoolArrayParameter(FName InName, const TArray<bool>& InValue) override;
-	void SetIntParameter(FName InName, int32 InInt) override;
-	void SetIntArrayParameter(FName InName, const TArray<int32>& InValue) override;
-	void SetFloatParameter(FName InName, float InFloat) override;
-	void SetFloatArrayParameter(FName InName, const TArray<float>& InValue) override;
-	void SetStringParameter(FName InName, const FString& InValue) override;
-	void SetStringArrayParameter(FName InName, const TArray<FString>& InValue) override;
-	void SetObjectParameter(FName InName, UObject* InValue) override;
-	void SetObjectArrayParameter(FName InName, const TArray<UObject*>& InValue) override;
+	ENGINE_API void SetTriggerParameter(FName InName) override;
+	ENGINE_API void SetBoolParameter(FName InName, bool InBool) override;
+	ENGINE_API void SetBoolArrayParameter(FName InName, const TArray<bool>& InValue) override;
+	ENGINE_API void SetIntParameter(FName InName, int32 InInt) override;
+	ENGINE_API void SetIntArrayParameter(FName InName, const TArray<int32>& InValue) override;
+	ENGINE_API void SetFloatParameter(FName InName, float InFloat) override;
+	ENGINE_API void SetFloatArrayParameter(FName InName, const TArray<float>& InValue) override;
+	ENGINE_API void SetStringParameter(FName InName, const FString& InValue) override;
+	ENGINE_API void SetStringArrayParameter(FName InName, const TArray<FString>& InValue) override;
+	ENGINE_API void SetObjectParameter(FName InName, UObject* InValue) override;
+	ENGINE_API void SetObjectArrayParameter(FName InName, const TArray<UObject*>& InValue) override;
 
-	void SetParameter(FAudioParameter&& InValue) override;
-	void SetParameters(TArray<FAudioParameter>&& InValues) override;
-	void SetParameters_Blueprint(const TArray<FAudioParameter>& InValues) override;
+	ENGINE_API void SetParameter(FAudioParameter&& InValue) override;
+	ENGINE_API void SetParameters(TArray<FAudioParameter>&& InValues) override;
+	ENGINE_API void SetParameters_Blueprint(const TArray<FAudioParameter>& InValues) override;
 
 	/** Returns the active audio device to use for this component based on whether or not the component is playing in a world. */
 	virtual FAudioDevice* GetAudioDevice() const = 0;
@@ -62,39 +62,39 @@ public:
 	virtual bool GetDisableParameterUpdatesWhilePlaying() const = 0;
 };
 
-UCLASS()
-class ENGINE_API UAudioParameterConversionStatics : public UBlueprintFunctionLibrary
+UCLASS(MinimalAPI)
+class UAudioParameterConversionStatics : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 
 public:
 	UFUNCTION(BlueprintPure, Category = "Audio|Parameter", meta = (Keywords = "make construct convert create"))
-	static UPARAM(DisplayName = "Parameter") FAudioParameter BooleanToAudioParameter(FName Name, bool Bool);
+	static UPARAM(DisplayName = "ParENGINE_API ameter") FAudioParameter BooleanToAudioParameter(FName Name, bool Bool);
 
 	UFUNCTION(BlueprintPure, Category = "Audio|Parameter", meta = (Keywords = "make construct convert create"))
-	static UPARAM(DisplayName = "Parameter") FAudioParameter FloatToAudioParameter(FName Name, float Float);
+	static UPARAM(DisplayName = "ParENGINE_API ameter") FAudioParameter FloatToAudioParameter(FName Name, float Float);
 
 	UFUNCTION(BlueprintPure, Category = "Audio|Parameter", meta = (Keywords = "make construct convert create"))
-	static UPARAM(DisplayName = "Parameter") FAudioParameter IntegerToAudioParameter(FName Name, int32 Integer);
+	static UPARAM(DisplayName = "ParENGINE_API ameter") FAudioParameter IntegerToAudioParameter(FName Name, int32 Integer);
 
 	UFUNCTION(BlueprintPure, Category = "Audio|Parameter", meta = (Keywords = "make construct convert create"))
-	static UPARAM(DisplayName = "Parameter") FAudioParameter StringToAudioParameter(FName Name, FString String);
+	static UPARAM(DisplayName = "ParENGINE_API ameter") FAudioParameter StringToAudioParameter(FName Name, FString String);
 
 	UFUNCTION(BlueprintPure, Category = "Audio|Parameter", meta = (Keywords = "make construct convert create"))
-	static UPARAM(DisplayName = "Parameter") FAudioParameter ObjectToAudioParameter(FName Name, UObject* Object);
+	static UPARAM(DisplayName = "ParENGINE_API ameter") FAudioParameter ObjectToAudioParameter(FName Name, UObject* Object);
 
 	UFUNCTION(BlueprintPure, Category = "Audio|Parameter", meta = (Keywords = "make construct convert create"))
-	static UPARAM(DisplayName = "Parameter") FAudioParameter BooleanArrayToAudioParameter(FName Name, TArray<bool> Bools);
+	static UPARAM(DisplayName = "ParENGINE_API ameter") FAudioParameter BooleanArrayToAudioParameter(FName Name, TArray<bool> Bools);
 
 	UFUNCTION(BlueprintPure, Category = "Audio|Parameter", meta = (Keywords = "make construct convert create"))
-	static UPARAM(DisplayName = "Parameter") FAudioParameter FloatArrayToAudioParameter(FName Name, TArray<float> Floats);
+	static UPARAM(DisplayName = "ParENGINE_API ameter") FAudioParameter FloatArrayToAudioParameter(FName Name, TArray<float> Floats);
 
 	UFUNCTION(BlueprintPure, Category = "Audio|Parameter", meta = (Keywords = "make construct convert create"))
-	static UPARAM(DisplayName = "Parameter") FAudioParameter IntegerArrayToAudioParameter(FName Name, TArray<int32> Integers);
+	static UPARAM(DisplayName = "ParENGINE_API ameter") FAudioParameter IntegerArrayToAudioParameter(FName Name, TArray<int32> Integers);
 
 	UFUNCTION(BlueprintPure, Category = "Audio|Parameter", meta = (Keywords = "make construct convert create"))
-	static UPARAM(DisplayName = "Parameter") FAudioParameter StringArrayToAudioParameter(FName Name, TArray<FString> Strings);
+	static UPARAM(DisplayName = "ParENGINE_API ameter") FAudioParameter StringArrayToAudioParameter(FName Name, TArray<FString> Strings);
 
 	UFUNCTION(BlueprintPure, Category = "Audio|Parameter", meta = (Keywords = "make construct convert create"))
-	static UPARAM(DisplayName = "Parameter") FAudioParameter ObjectArrayToAudioParameter(FName Name, TArray<UObject*> Objects);
+	static UPARAM(DisplayName = "ParENGINE_API ameter") FAudioParameter ObjectArrayToAudioParameter(FName Name, TArray<UObject*> Objects);
 };

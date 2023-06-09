@@ -66,8 +66,8 @@ enum class ESceneCapturePrimitiveRenderMode : uint8
 };
 
 	// -> will be exported to EngineDecalClasses.h
-UCLASS(abstract, hidecategories=(Collision, Object, Physics, SceneComponent, Mobility))
-class ENGINE_API USceneCaptureComponent : public USceneComponent
+UCLASS(abstract, hidecategories=(Collision, Object, Physics, SceneComponent, Mobility), MinimalAPI)
+class USceneCaptureComponent : public USceneComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -135,90 +135,90 @@ public:
 	UPROPERTY(EditAnywhere, interp, Category = SceneCapture)
 	FString ProfilingEventName;
 
-	virtual void BeginDestroy() override;
+	ENGINE_API virtual void BeginDestroy() override;
 
 	//~ Begin UActorComponent Interface
-	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
-	virtual void OnRegister() override;
+	ENGINE_API virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
+	ENGINE_API virtual void OnRegister() override;
 	//~ End UActorComponent Interface
 
 	/** Adds the component to our list of hidden components. */
 	UFUNCTION(BlueprintCallable, Category = "Rendering|SceneCapture")
-	void HideComponent(UPrimitiveComponent* InComponent);
+	ENGINE_API void HideComponent(UPrimitiveComponent* InComponent);
 
 	/**
 	 * Adds all primitive components in the actor to our list of hidden components.
 	 * @param bIncludeFromChildActors Whether to include the components from child actors
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Rendering|SceneCapture")
-	void HideActorComponents(AActor* InActor, const bool bIncludeFromChildActors = false);
+	ENGINE_API void HideActorComponents(AActor* InActor, const bool bIncludeFromChildActors = false);
 
 	/** Adds the component to our list of show-only components. */
 	UFUNCTION(BlueprintCallable, Category = "Rendering|SceneCapture")
-	void ShowOnlyComponent(UPrimitiveComponent* InComponent);
+	ENGINE_API void ShowOnlyComponent(UPrimitiveComponent* InComponent);
 
 	/**
 	 * Adds all primitive components in the actor to our list of show-only components.
 	 * @param bIncludeFromChildActors Whether to include the components from child actors
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Rendering|SceneCapture")
-	void ShowOnlyActorComponents(AActor* InActor, const bool bIncludeFromChildActors = false);
+	ENGINE_API void ShowOnlyActorComponents(AActor* InActor, const bool bIncludeFromChildActors = false);
 
 	/** Removes a component from the Show Only list. */
 	UFUNCTION(BlueprintCallable, Category = "Rendering|SceneCapture")
-	void RemoveShowOnlyComponent(UPrimitiveComponent* InComponent);
+	ENGINE_API void RemoveShowOnlyComponent(UPrimitiveComponent* InComponent);
 
 	/**
 	 * Removes an actor's components from the Show Only list.
 	 * @param bIncludeFromChildActors Whether to remove the components from child actors
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Rendering|SceneCapture")
-	void RemoveShowOnlyActorComponents(AActor* InActor, const bool bIncludeFromChildActors = false);
+	ENGINE_API void RemoveShowOnlyActorComponents(AActor* InActor, const bool bIncludeFromChildActors = false);
 
 	/** Clears the Show Only list. */
 	UFUNCTION(BlueprintCallable, Category = "Rendering|SceneCapture")
-	void ClearShowOnlyComponents();
+	ENGINE_API void ClearShowOnlyComponents();
 
 	/** Clears the hidden list. */
 	UFUNCTION(BlueprintCallable, Category = "Rendering|SceneCapture")
-	void ClearHiddenComponents();
+	ENGINE_API void ClearHiddenComponents();
 
 	/** Changes the value of TranslucentSortPriority. */
 	UFUNCTION(BlueprintCallable, Category = "Rendering|SceneCapture")
-	void SetCaptureSortPriority(int32 NewCaptureSortPriority);
+	ENGINE_API void SetCaptureSortPriority(int32 NewCaptureSortPriority);
 
 	/** Returns the view state, if any, and allocates one if needed. This function can return NULL, e.g. when bCaptureEveryFrame is false. */
-	FSceneViewStateInterface* GetViewState(int32 ViewIndex);
+	ENGINE_API FSceneViewStateInterface* GetViewState(int32 ViewIndex);
 
 #if WITH_EDITOR
-	virtual bool CanEditChange(const FProperty* InProperty) const override;
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual bool CanEditChange(const FProperty* InProperty) const override;
+	ENGINE_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif	
 
-	virtual void Serialize(FArchive& Ar);
+	ENGINE_API virtual void Serialize(FArchive& Ar);
 
-	virtual void OnUnregister() override;
-	virtual void PostLoad() override;
+	ENGINE_API virtual void OnUnregister() override;
+	ENGINE_API virtual void PostLoad() override;
 
 	/** To leverage a component's bOwnerNoSee/bOnlyOwnerSee properties, the capture view requires an "owner". Override this to set a "ViewActor" for the scene. */
 	virtual const AActor* GetViewOwner() const { return nullptr; }
 
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	static ENGINE_API void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 
-	static void UpdateDeferredCaptures(FSceneInterface* Scene);
+	static ENGINE_API void UpdateDeferredCaptures(FSceneInterface* Scene);
 
 	/** Whether this component is a USceneCaptureComponentCube */
 	virtual bool IsCube() const { return false; }
 
 protected:
 	/** Update the show flags from our show flags settings (ideally, you'd be able to set this more directly, but currently unable to make FEngineShowFlags a UStruct to use it as a FProperty...) */
-	void UpdateShowFlags();
+	ENGINE_API void UpdateShowFlags();
 
-	void RegisterDelegates();
-	void UnregisterDelegates();
-	void ReleaseGarbageReferences();
+	ENGINE_API void RegisterDelegates();
+	ENGINE_API void UnregisterDelegates();
+	ENGINE_API void ReleaseGarbageReferences();
 
-	bool IsCulledByDetailMode() const;
+	ENGINE_API bool IsCulledByDetailMode() const;
 
 	virtual void UpdateSceneCaptureContents(FSceneInterface* Scene) {};
 

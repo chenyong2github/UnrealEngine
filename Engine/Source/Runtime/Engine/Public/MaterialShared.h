@@ -331,7 +331,7 @@ struct FMaterialCompileTargetParameters
 /**
  * The context of a material being rendered.
  */
-struct ENGINE_API FMaterialRenderContext
+struct FMaterialRenderContext
 {
 	/** material instance used for the material shader */
 	const FMaterialRenderProxy* MaterialRenderProxy;
@@ -344,7 +344,7 @@ struct ENGINE_API FMaterialRenderContext
 	/** 
 	* Constructor
 	*/
-	FMaterialRenderContext(
+	ENGINE_API FMaterialRenderContext(
 		const FMaterialRenderProxy* InMaterialRenderProxy,
 		const FMaterial& InMaterial,
 		const FSceneView* InView);
@@ -358,10 +358,10 @@ struct ENGINE_API FMaterialRenderContext
 		, bShowSelection(bInShowSelection)
 	{}
 
-	void GetTextureParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, int32 TextureIndex, const UTexture*& OutValue) const;
-	void GetTextureParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, int32 TextureIndex, const URuntimeVirtualTexture*& OutValue) const;
-	void GetTextureParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, int32 TextureIndex, const USparseVolumeTexture*& OutValue) const;
-	FGuid GetExternalTextureGuid(const FGuid& ExternalTextureGuid, const FName& ParameterName, int32 SourceTextureIndex) const;
+	ENGINE_API void GetTextureParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, int32 TextureIndex, const UTexture*& OutValue) const;
+	ENGINE_API void GetTextureParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, int32 TextureIndex, const URuntimeVirtualTexture*& OutValue) const;
+	ENGINE_API void GetTextureParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, int32 TextureIndex, const USparseVolumeTexture*& OutValue) const;
+	ENGINE_API FGuid GetExternalTextureGuid(const FGuid& ExternalTextureGuid, const FName& ParameterName, int32 SourceTextureIndex) const;
 };
 
 class FMaterialVirtualTextureStack
@@ -494,7 +494,7 @@ enum class EMaterialTextureParameterType : uint32
 };
 static const uint32 NumMaterialTextureParameterTypes = (uint32)EMaterialTextureParameterType::Count;
 
-class ENGINE_API FMaterialTextureParameterInfo
+class FMaterialTextureParameterInfo
 {
 	DECLARE_TYPE_LAYOUT(FMaterialTextureParameterInfo, NonVirtual);
 public:
@@ -509,8 +509,8 @@ public:
 
 	inline FName GetParameterName() const { return ScriptNameToName(ParameterInfo.Name); }
 
-	void GetGameThreadTextureValue(const UMaterialInterface* MaterialInterface, const FMaterial& Material, UTexture*& OutValue) const;
-	void GetGameThreadTextureValue(const UMaterialInterface* MaterialInterface, const FMaterial& Material, USparseVolumeTexture*& OutValue) const;
+	ENGINE_API void GetGameThreadTextureValue(const UMaterialInterface* MaterialInterface, const FMaterial& Material, UTexture*& OutValue) const;
+	ENGINE_API void GetGameThreadTextureValue(const UMaterialInterface* MaterialInterface, const FMaterial& Material, USparseVolumeTexture*& OutValue) const;
 
 	LAYOUT_FIELD(FHashedMaterialParameterInfo, ParameterInfo);
 	LAYOUT_FIELD_INITIALIZED(int32, TextureIndex, INDEX_NONE);
@@ -716,19 +716,19 @@ public:
 #endif
 	}
 
-	ENGINE_API bool IsSceneTextureUsed(ESceneTextureId TexId) const { return (UsedSceneTextures & (1 << TexId)) != 0; }
-	ENGINE_API void SetIsSceneTextureUsed(ESceneTextureId TexId) { UsedSceneTextures |= (1 << TexId); }
+	bool IsSceneTextureUsed(ESceneTextureId TexId) const { return (UsedSceneTextures & (1 << TexId)) != 0; }
+	void SetIsSceneTextureUsed(ESceneTextureId TexId) { UsedSceneTextures |= (1 << TexId); }
 
-	ENGINE_API void SetIsDBufferTextureUsed(int32 TextureIndex) { UsedDBufferTextures |= (1 << TextureIndex); }
-	ENGINE_API void SetIsDBufferTextureLookupUsed(bool bValue) { bUsesDBufferTextureLookup = bValue; }
+	void SetIsDBufferTextureUsed(int32 TextureIndex) { UsedDBufferTextures |= (1 << TextureIndex); }
+	void SetIsDBufferTextureLookupUsed(bool bValue) { bUsesDBufferTextureLookup = bValue; }
 
-	ENGINE_API void SetIsPathTracingBufferTextureUsed(int32 TexId) { UsedPathTracingBufferTextures |= (1 << TexId); }
+	void SetIsPathTracingBufferTextureUsed(int32 TexId) { UsedPathTracingBufferTextures |= (1 << TexId); }
 
 	/** Indicates whether the material uses scene color. */
-	ENGINE_API bool RequiresSceneColorCopy() const { return IsSceneTextureUsed(PPI_SceneColor); }
+	bool RequiresSceneColorCopy() const { return IsSceneTextureUsed(PPI_SceneColor); }
 
 	/** true if the material uses any GBuffer textures */
-	ENGINE_API bool NeedsGBuffer() const
+	bool NeedsGBuffer() const
 	{
 		return
 			IsSceneTextureUsed(PPI_DiffuseColor) ||
@@ -752,10 +752,10 @@ public:
 	}
 
 	/** true if the material uses the SceneDepth lookup */
-	ENGINE_API bool UsesSceneDepthLookup() const { return IsSceneTextureUsed(PPI_SceneDepth); }
+	bool UsesSceneDepthLookup() const { return IsSceneTextureUsed(PPI_SceneDepth); }
 
 	/** true if the material uses the Velocity SceneTexture lookup */
-	ENGINE_API bool UsesVelocitySceneTexture() const { return IsSceneTextureUsed(PPI_Velocity); }
+	bool UsesVelocitySceneTexture() const { return IsSceneTextureUsed(PPI_Velocity); }
 
 	LAYOUT_FIELD(FUniformExpressionSet, UniformExpressionSet);
 
@@ -1032,7 +1032,7 @@ public:
 	/** Hashes the material-specific part of this shader map Id. */
 	ENGINE_API void GetMaterialHash(FSHAHash& OutHash, bool bWithStaticParameters) const;
 
-	ENGINE_API void GetMaterialHash(FSHAHash& OutHash) const
+	void GetMaterialHash(FSHAHash& OutHash) const
 	{
 		GetMaterialHash(OutHash, true);
 	}
@@ -1213,7 +1213,7 @@ public:
 	static void LoadFromDerivedDataCache(const FMaterial* Material, const FMaterialShaderMapId& ShaderMapId, EShaderPlatform Platform, const ITargetPlatform* TargetPlatform, TRefCountPtr<FMaterialShaderMap>& InOutShaderMap, FString& OutDDCKeyDesc);
 
 	/** A context returned by BeginLoadFromDerivedDataCache that can be queried to know the state of the async request. */
-	struct ENGINE_API FAsyncLoadContext
+	struct FAsyncLoadContext
 	{
 		virtual ~FAsyncLoadContext() { };
 		virtual bool IsReady() const = 0;
@@ -2294,8 +2294,8 @@ public:
 	virtual FString GetFullPath() const { return TEXT(""); };
 
 #if WITH_EDITOR
-	ENGINE_API virtual void BeginAllowCachingStaticParameterValues() {};
-	ENGINE_API virtual void EndAllowCachingStaticParameterValues() {};
+	virtual void BeginAllowCachingStaticParameterValues() {};
+	virtual void EndAllowCachingStaticParameterValues() {};
 #endif // WITH_EDITOR
 
 #if UE_CHECK_FMATERIAL_LIFETIME
@@ -2331,7 +2331,7 @@ protected:
 	 * Checks that no pre-compilation errors have been detected and if so it reports them using specified compiler.
 	 * @return whether no errors occurred.
 	 */
-	ENGINE_API virtual bool CheckInValidStateForCompilation(class FMaterialCompiler* Compiler) const { return true; }
+	virtual bool CheckInValidStateForCompilation(class FMaterialCompiler* Compiler) const { return true; }
 #endif // WITH_EDITOR
 
 	/**

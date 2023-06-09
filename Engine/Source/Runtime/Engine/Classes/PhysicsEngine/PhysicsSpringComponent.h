@@ -15,8 +15,8 @@ class UPrimitiveComponent;
  *	Used with objects that have physics to create a spring down the X direction
  *	ie. point X in the direction you want generate spring.
  */
-UCLASS(hidecategories=(Object, Mobility, LOD), ClassGroup=Physics, showcategories=Trigger)
-class ENGINE_API UPhysicsSpringComponent : public USceneComponent
+UCLASS(hidecategories=(Object, Mobility, LOD), ClassGroup=Physics, showcategories=Trigger, MinimalAPI)
+class UPhysicsSpringComponent : public USceneComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -49,26 +49,26 @@ class ENGINE_API UPhysicsSpringComponent : public USceneComponent
 	float SpringCompression;
 
 	//~ Begin UActorComponent Interface
-	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
+	ENGINE_API virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 	//~ End UActorComponent Interface
 
 	/** Returns the spring compression as a normalized scalar along spring direction.
 	 *  0 implies spring is at rest
 	 *  1 implies fully compressed */
 	UFUNCTION(BlueprintCallable, Category = Physics)
-	float GetNormalizedCompressionScalar() const;
+	ENGINE_API float GetNormalizedCompressionScalar() const;
 
 	/** Returns the spring resting point in world space.*/
 	UFUNCTION(BlueprintCallable, Category = Physics)
-	FVector GetSpringRestingPoint() const;
+	ENGINE_API FVector GetSpringRestingPoint() const;
 
 	/** Returns the spring current end point in world space.*/
 	UFUNCTION(BlueprintCallable, Category = Physics)
-	FVector GetSpringCurrentEndPoint() const;
+	ENGINE_API FVector GetSpringCurrentEndPoint() const;
 
 	/** Returns the spring direction from start to resting point */
 	UFUNCTION(BlueprintCallable, Category = Physics)
-	FVector GetSpringDirection() const;
+	ENGINE_API FVector GetSpringDirection() const;
 
 private:
 

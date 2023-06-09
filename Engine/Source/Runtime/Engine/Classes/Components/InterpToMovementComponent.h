@@ -58,8 +58,8 @@ public:
  *
  * @see UMovementComponent
  */
-UCLASS(ClassGroup=Movement, meta=(BlueprintSpawnableComponent),HideCategories=Velocity)
-class ENGINE_API UInterpToMovementComponent : public UMovementComponent 
+UCLASS(ClassGroup=Movement, meta=(BlueprintSpawnableComponent),HideCategories=Velocity, MinimalAPI)
+class UInterpToMovementComponent : public UMovementComponent 
 {
 	GENERATED_UCLASS_BODY()
 
@@ -123,24 +123,24 @@ class ENGINE_API UInterpToMovementComponent : public UMovementComponent
 	FOnInterpToResetDelegate OnResetDelegate; 
 
 	//Begin UActorComponent Interface
-	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
-	virtual void BeginPlay() override;
-	virtual void ApplyWorldOffset(const FVector& InOffset, bool bWorldShift) override;
+	ENGINE_API virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
+	ENGINE_API virtual void BeginPlay() override;
+	ENGINE_API virtual void ApplyWorldOffset(const FVector& InOffset, bool bWorldShift) override;
 	//End UActorComponent Interface
 
 	//Begin UMovementComponent Interface
-	virtual void StopMovementImmediately() override;
+	ENGINE_API virtual void StopMovementImmediately() override;
 	//End UMovementComponent Interface
 
 	/**
 	 * This will check to see if the InterpTo is still in the world.  It will check things like
 	 * the KillZ, outside world bounds, etc. and handle the situation.
 	 */
-	virtual bool CheckStillInWorld();
+	ENGINE_API virtual bool CheckStillInWorld();
 
 	/** Clears the reference to UpdatedComponent, fires stop event, and stops ticking. */
 	UFUNCTION(BlueprintCallable, Category="Game|Components|InterpToMovement")
-	void StopSimulating(const FHitResult& HitResult);
+	ENGINE_API void StopSimulating(const FHitResult& HitResult);
 
 	bool HasStoppedSimulation() { return UpdatedComponent == NULL; }
 
@@ -154,7 +154,7 @@ class ENGINE_API UInterpToMovementComponent : public UMovementComponent
 	 * @see MaxSimulationTimeStep, MaxSimulationIterations
 	 * @see ShouldUseSubStepping()
 	 */
-	float GetSimulationTimeStep(float RemainingTime, int32 Iterations) const;
+	ENGINE_API float GetSimulationTimeStep(float RemainingTime, int32 Iterations) const;
 
 	/**
 	 * Determine whether or not to use substepping in the InterpTo motion update.
@@ -162,7 +162,7 @@ class ENGINE_API UInterpToMovementComponent : public UMovementComponent
 	 * @return Whether or not to use substepping in the InterpTo motion update.
 	 * @see GetSimulationTimeStep()
 	 */
-	virtual bool ShouldUseSubStepping() const;
+	ENGINE_API virtual bool ShouldUseSubStepping() const;
 
 	/**
 	 * Max time delta for each discrete simulation step.
@@ -190,39 +190,39 @@ class ENGINE_API UInterpToMovementComponent : public UMovementComponent
 		
 	/* Add a control point that represents a position. */
 	UFUNCTION(BlueprintCallable, Category = "Control")
-	virtual void AddControlPointPosition(FVector Pos, bool bPositionIsRelative = true);
+	ENGINE_API virtual void AddControlPointPosition(FVector Pos, bool bPositionIsRelative = true);
 	
 	/* Reset to start. Sets time to zero and direction to 1.  */
 	UFUNCTION(BlueprintCallable, Category = "Control")
-	void RestartMovement(float InitialDirection = 1.0f);
+	ENGINE_API void RestartMovement(float InitialDirection = 1.0f);
 
 	/* Initialise the control points array. Call after adding control points if they are add after begin play .  */
 	UFUNCTION(BlueprintCallable, Category = "Control")
-	void FinaliseControlPoints();
+	ENGINE_API void FinaliseControlPoints();
 
 	/* Clear the control points array and set to stopped. */
 	UFUNCTION(BlueprintCallable, Category = "Control")
-	void ResetControlPoints();
+	ENGINE_API void ResetControlPoints();
 
 #if WITH_EDITOR
 	//~ Begin UObject Interface.
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	//~ End UObject Interface.
 #endif // WITH_EDITOR
 
 protected:
 
 	/** @return true if the simulation should stop. */
-	bool HandleHitWall(const FHitResult& Hit, float TimeTick, const FVector& MoveDelta);
+	ENGINE_API bool HandleHitWall(const FHitResult& Hit, float TimeTick, const FVector& MoveDelta);
 
 	/** Deal with an impact. Change direction, stop etc depending on the current behaviour setting. */
-	virtual void HandleImpact(const FHitResult& Hit, float TimeSlice=0.f, const FVector& MoveDelta = FVector::ZeroVector) override;
+	ENGINE_API virtual void HandleImpact(const FHitResult& Hit, float TimeSlice=0.f, const FVector& MoveDelta = FVector::ZeroVector) override;
 
 	/* Reverse direction we are moving */
-	void ReverseDirection(const FHitResult& Hit, float Time, bool InBroadcastEvent);
+	ENGINE_API void ReverseDirection(const FHitResult& Hit, float Time, bool InBroadcastEvent);
 
 	/** Compute the distance for the given time. */
-	virtual FVector ComputeMoveDelta(float Time) const;
+	ENGINE_API virtual FVector ComputeMoveDelta(float Time) const;
 
 	/* Current position on spline */
 	float CurrentTime;
@@ -243,13 +243,13 @@ protected:
 	bool bContainsActorControlPoints;
 
 	/** Minimum delta time considered when ticking. Delta times below this are not considered. This is a very small non-zero positive value to avoid potential divide-by-zero in simulation code. */
-	static const float MIN_TICK_TIME;
+	static ENGINE_API const float MIN_TICK_TIME;
 	
 	/* Update the control points. Adjusts the positions of there are any actor control points as well as updating the spline type */
-	virtual void UpdateControlPoints(bool InForceUpdate);	
+	ENGINE_API virtual void UpdateControlPoints(bool InForceUpdate);	
 
 	/* Calculate the new current time */
-	float CalculateNewTime( float TimeNow, float Delta, FHitResult& HitResult, bool InBroadcastEvent, bool& OutStopped, float& OutTimeRemainder );
+	ENGINE_API float CalculateNewTime( float TimeNow, float Delta, FHitResult& HitResult, bool InBroadcastEvent, bool& OutStopped, float& OutTimeRemainder );
 
 private:
 	float TotalDistance;

@@ -100,10 +100,10 @@ struct FAnimLinkableElement
 	ENGINE_API virtual void SetTime(float NewTime, EAnimLinkMethod::Type ReferenceFrame = EAnimLinkMethod::Absolute);
 
 	/** Gets the sequence this element is linked to */
-	ENGINE_API const UAnimSequenceBase* GetLinkedSequence() const {return LinkedSequence;}
+	const UAnimSequenceBase* GetLinkedSequence() const {return LinkedSequence;}
 
 	/** Gets the Montage this element is linked to, if any */
-	ENGINE_API const UAnimMontage* GetLinkedMontage() const { return LinkedMontage; }
+	const UAnimMontage* GetLinkedMontage() const { return LinkedMontage; }
 
 	/** Changes the way this element is linked to its segment
 	 * @param NewLinkMethod The new linking method to use
@@ -116,18 +116,18 @@ struct FAnimLinkableElement
 	ENGINE_API void ChangeSlotIndex(int32 NewSlotIndex);
 
 	/** Get the method used to link this element to its segment */
-	ENGINE_API EAnimLinkMethod::Type GetLinkMethod() const {return LinkMethod;}
+	EAnimLinkMethod::Type GetLinkMethod() const {return LinkMethod;}
 
 	/** Get the slot index this element is currently linked to */
-	ENGINE_API int32 GetSlotIndex() const {return SlotIndex;}
+	int32 GetSlotIndex() const {return SlotIndex;}
 	
 	/** Get the index of the segment this element is currently linked to */
-	ENGINE_API int32 GetSegmentIndex() const {return SegmentIndex;}
+	int32 GetSegmentIndex() const {return SegmentIndex;}
 
 	/** Directly sets segment index
 	 *	@param NewSegmentIndex New segment index
 	 */
-	ENGINE_API void SetSegmentIndex(int32 NewSegmentIndex) {SegmentIndex = NewSegmentIndex;}
+	void SetSegmentIndex(int32 NewSegmentIndex) {SegmentIndex = NewSegmentIndex;}
 
 	/** Relinks this element if internal state requires relinking */
 	ENGINE_API bool ConditionalRelink();

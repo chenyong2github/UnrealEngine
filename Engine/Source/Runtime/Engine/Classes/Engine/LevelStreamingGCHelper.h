@@ -12,38 +12,38 @@ class UWorld;
  * Helper structure encapsulating functionality used to defer marking actors and their components as pending
  * kill till right before garbage collection by registering a callback.
  */
-struct ENGINE_API FLevelStreamingGCHelper
+struct FLevelStreamingGCHelper
 {
 	/** Called when streamed out levels are going to be garbage collected  */
 	DECLARE_MULTICAST_DELEGATE(FOnGCStreamedOutLevelsEvent);
-	static FOnGCStreamedOutLevelsEvent OnGCStreamedOutLevels;
+	static ENGINE_API FOnGCStreamedOutLevelsEvent OnGCStreamedOutLevels;
 
 	/**
 	 * Register with the garbage collector to receive callbacks pre and post garbage collection
 	 */
-	static void AddGarbageCollectorCallback();
+	static ENGINE_API void AddGarbageCollectorCallback();
 
 	/**
 	 * Request to be unloaded.
 	 *
 	 * @param InLevel	Level that should be unloaded
 	 */
-	static void RequestUnload( ULevel* InLevel );
+	static ENGINE_API void RequestUnload( ULevel* InLevel );
 
 	/**
 	 * Cancel any pending unload requests for passed in Level.
 	 */
-	static void CancelUnloadRequest( ULevel* InLevel );
+	static ENGINE_API void CancelUnloadRequest( ULevel* InLevel );
 
 	/**
 	 * @return	The number of levels pending a purge by the garbage collector
 	 */
-	static int32 GetNumLevelsPendingPurge();
+	static ENGINE_API int32 GetNumLevelsPendingPurge();
 
 	/**
 	 * Allows FLevelStreamingGCHelper to be used in a commandlet.
 	 */
-	static void EnableForCommandlet();
+	static ENGINE_API void EnableForCommandlet();
 	
 private:
 	/** Prepares levels that are marked for unload for the next GC call by marking their actors and components as garbage. */

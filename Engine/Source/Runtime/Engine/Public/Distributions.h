@@ -161,7 +161,7 @@ struct FDistributionLookupTable
 /**
  * Raw distribution used to quickly sample distributions at runtime.
  */
-struct ENGINE_API FRawDistribution
+struct FRawDistribution
 {
 	/** Default constructor. */
 	FRawDistribution()
@@ -173,7 +173,7 @@ struct ENGINE_API FRawDistribution
 	 * @param Ar - The archive with which to serialize.
 	 * @returns true if serialization was successful.
 	 */
-	bool Serialize( FArchive& Ar );
+	ENGINE_API bool Serialize( FArchive& Ar );
 
 	/**
 	 * Calcuate the float or vector value at the given time 
@@ -182,11 +182,11 @@ struct ENGINE_API FRawDistribution
 	 * @param NumCoords The number of floats in the Value array
 	 * @param Extreme For distributions that use one of the extremes, this is which extreme to use
 	 */
-	void GetValue(float Time, float* Value, int32 NumCoords, int32 Extreme, struct FRandomStream* InRandomStream) const;
+	ENGINE_API void GetValue(float Time, float* Value, int32 NumCoords, int32 Extreme, struct FRandomStream* InRandomStream) const;
 
 	// prebaked versions of these
-	void GetValue1(float Time, float* Value, int32 Extreme, struct FRandomStream* InRandomStream) const;
-	void GetValue3(float Time, float* Value, int32 Extreme, struct FRandomStream* InRandomStream) const;
+	ENGINE_API void GetValue1(float Time, float* Value, int32 Extreme, struct FRandomStream* InRandomStream) const;
+	ENGINE_API void GetValue3(float Time, float* Value, int32 Extreme, struct FRandomStream* InRandomStream) const;
 	inline void GetValue1None(float Time, float* InValue) const
 	{
 		float* Value = InValue;
@@ -214,10 +214,10 @@ struct ENGINE_API FRawDistribution
 		Value[1] = T1;
 		Value[2] = T2;
 	}
-	void GetValue1Extreme(float Time, float* Value, int32 Extreme, struct FRandomStream* InRandomStream) const;
-	void GetValue3Extreme(float Time, float* Value, int32 Extreme, struct FRandomStream* InRandomStream) const;
-	void GetValue1Random(float Time, float* Value, struct FRandomStream* InRandomStream) const;
-	void GetValue3Random(float Time, float* Value, struct FRandomStream* InRandomStream) const;
+	ENGINE_API void GetValue1Extreme(float Time, float* Value, int32 Extreme, struct FRandomStream* InRandomStream) const;
+	ENGINE_API void GetValue3Extreme(float Time, float* Value, int32 Extreme, struct FRandomStream* InRandomStream) const;
+	ENGINE_API void GetValue1Random(float Time, float* Value, struct FRandomStream* InRandomStream) const;
+	ENGINE_API void GetValue3Random(float Time, float* Value, struct FRandomStream* InRandomStream) const;
 
 	FORCEINLINE bool IsSimple() 
 	{
@@ -232,7 +232,7 @@ struct ENGINE_API FRawDistribution
 	 * @return The UDisitribution* object if this is a FRawDistribution* struct, 
 	 *         or NULL otherwise
 	 */
-	static UObject* TryGetDistributionObjectFromRawDistributionProperty(FStructProperty* Property, uint8* Data);
+	static ENGINE_API UObject* TryGetDistributionObjectFromRawDistributionProperty(FStructProperty* Property, uint8* Data);
 
 protected:
 

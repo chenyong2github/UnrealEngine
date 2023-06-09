@@ -9,8 +9,8 @@
 
 class UParticleLODLevel;
 
-UCLASS(editinlinenew, hidecategories=Object, DisplayName="Pivot Offset")
-class ENGINE_API UParticleModulePivotOffset : public UParticleModuleLocationBase
+UCLASS(editinlinenew, hidecategories=Object, DisplayName="Pivot Offset", MinimalAPI)
+class UParticleModulePivotOffset : public UParticleModuleLocationBase
 {
 	GENERATED_UCLASS_BODY()
 
@@ -19,18 +19,18 @@ class ENGINE_API UParticleModulePivotOffset : public UParticleModuleLocationBase
 	FVector2D PivotOffset;
 
 	/** Initializes the default values for this property */
-	void InitializeDefaults();
+	ENGINE_API void InitializeDefaults();
 
 	//Begin UObject Interface
-	virtual void PostInitProperties() override;
+	ENGINE_API virtual void PostInitProperties() override;
 	//End UObject Interface
 
 	//Begin UParticleModule Interface
-	virtual void CompileModule( struct FParticleEmitterBuildInfo& EmitterInfo ) override;
+	ENGINE_API virtual void CompileModule( struct FParticleEmitterBuildInfo& EmitterInfo ) override;
 	//End UParticleModule Interface
 
 #if WITH_EDITOR
-	virtual bool IsValidForLODLevel(UParticleLODLevel* LODLevel, FString& OutErrorString) override;
+	ENGINE_API virtual bool IsValidForLODLevel(UParticleLODLevel* LODLevel, FString& OutErrorString) override;
 #endif
 
 };

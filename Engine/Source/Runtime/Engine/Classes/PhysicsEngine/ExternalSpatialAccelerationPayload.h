@@ -20,21 +20,21 @@ class UPrimitiveComponent;
  * physics object interface to grab them when needed.
  */
 USTRUCT()
-struct ENGINE_API FExternalSpatialAccelerationPayload
+struct FExternalSpatialAccelerationPayload
 {
 	GENERATED_BODY()
 public:
 	static constexpr bool bHasPayloadOnInternalThread = false;
 
-	FExternalSpatialAccelerationPayload();
+	ENGINE_API FExternalSpatialAccelerationPayload();
 
-	void Initialize(UPrimitiveComponent* InComponent, int32 InBoneId);
+	ENGINE_API void Initialize(UPrimitiveComponent* InComponent, int32 InBoneId);
 
-	Chaos::FGeometryParticle* GetExternalGeometryParticle_ExternalThread() const;
-	bool operator==(const FExternalSpatialAccelerationPayload& Other) const;
-	bool operator!=(const FExternalSpatialAccelerationPayload& Other) const;
-	Chaos::FUniqueIdx UniqueIdx() const;
-	void Serialize(Chaos::FChaosArchive& Ar);
+	ENGINE_API Chaos::FGeometryParticle* GetExternalGeometryParticle_ExternalThread() const;
+	ENGINE_API bool operator==(const FExternalSpatialAccelerationPayload& Other) const;
+	ENGINE_API bool operator!=(const FExternalSpatialAccelerationPayload& Other) const;
+	ENGINE_API Chaos::FUniqueIdx UniqueIdx() const;
+	ENGINE_API void Serialize(Chaos::FChaosArchive& Ar);
 	bool PrePreQueryFilter(const void* QueryData) const { return false; }
 	bool PrePreSimFilter(const void* SimData) const { return false; }
 
@@ -46,7 +46,7 @@ private:
 
 #if CHAOS_DEBUG_DRAW
 public:
-	void DebugDraw(const bool bExternal, const bool bHit) const;
+	ENGINE_API void DebugDraw(const bool bExternal, const bool bHit) const;
 #endif
 };
 

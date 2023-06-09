@@ -84,88 +84,88 @@ struct FFormatArgumentData
 };
 #endif
 
-UCLASS(meta=(BlueprintThreadSafe, ScriptName="TextLibrary"))
-class ENGINE_API UKismetTextLibrary : public UBlueprintFunctionLibrary
+UCLASS(meta=(BlueprintThreadSafe, ScriptName="TextLibrary"), MinimalAPI)
+class UKismetTextLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_UCLASS_BODY()
 
 	/** Converts a vector value to localized formatted text, in the form 'X= Y= Z=' */
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "To Text (Vector)", CompactNodeTitle = "->", BlueprintAutocast), Category = "Utilities|Text")
-	static FText Conv_VectorToText(FVector InVec);
+	static ENGINE_API FText Conv_VectorToText(FVector InVec);
 
 	/** Converts a vector2d value to localized formatted text, in the form 'X= Y=' */
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "To Text (Vector2d)", CompactNodeTitle = "->", BlueprintAutocast), Category = "Utilities|Text")
-	static FText Conv_Vector2dToText(FVector2D InVec);
+	static ENGINE_API FText Conv_Vector2dToText(FVector2D InVec);
 
 	/** Converts a rotator value to localized formatted text, in the form 'P= Y= R=' */
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "To Text (Rotator)", CompactNodeTitle = "->", BlueprintAutocast), Category = "Utilities|Text")
-	static FText Conv_RotatorToText(FRotator InRot);
+	static ENGINE_API FText Conv_RotatorToText(FRotator InRot);
 
 	/** Converts a transform value to localized formatted text, in the form 'Translation: X= Y= Z= Rotation: P= Y= R= Scale: X= Y= Z=' */
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "To Text (Transform)", CompactNodeTitle = "->", BlueprintAutocast), Category = "Utilities|Text")
-	static FText Conv_TransformToText(const FTransform& InTrans);
+	static ENGINE_API FText Conv_TransformToText(const FTransform& InTrans);
 
 	/** Converts a UObject value to culture invariant text by calling the object's GetName method */
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "To Text (Object)", BlueprintAutocast), Category = "Utilities|Text")
-	static FText Conv_ObjectToText(class UObject* InObj);
+	static ENGINE_API FText Conv_ObjectToText(class UObject* InObj);
 
 	/** Converts a linear color value to localized formatted text, in the form '(R=,G=,B=,A=)' */
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "To Text (LinearColor)", CompactNodeTitle = "->", BlueprintAutocast), Category = "Utilities|Text")
-	static FText Conv_ColorToText(FLinearColor InColor);
+	static ENGINE_API FText Conv_ColorToText(FLinearColor InColor);
 
 	/** Converts localizable text to the string */
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "To String (Text)", CompactNodeTitle = "->", BlueprintAutocast), Category = "Utilities|String")
-	static FString Conv_TextToString(const FText& InText);
+	static ENGINE_API FString Conv_TextToString(const FText& InText);
 
 	/** Converts string to culture invariant text. Use Format or Make Literal Text to create localizable text */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "To Text (String)", BlueprintAutocast), Category="Utilities|Text")
-	static FText Conv_StringToText(const FString& InString);
+	static ENGINE_API FText Conv_StringToText(const FString& InString);
 
 	/** Converts Name to culture invariant text */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "To Text (Name)", BlueprintAutocast), Category="Utilities|Text")
-	static FText Conv_NameToText(FName InName);
+	static ENGINE_API FText Conv_NameToText(FName InName);
 
 	/** Returns true if text is empty. */
 	UFUNCTION(BlueprintPure, Category="Utilities|Text")
-	static bool TextIsEmpty(const FText& InText);
+	static ENGINE_API bool TextIsEmpty(const FText& InText);
 
 	/** Returns true if text is transient. */
 	UFUNCTION(BlueprintPure, Category="Utilities|Text")
-	static bool TextIsTransient(const FText& InText);
+	static ENGINE_API bool TextIsTransient(const FText& InText);
 
 	/** Returns true if text is culture invariant. */
 	UFUNCTION(BlueprintPure, Category="Utilities|Text")
-	static bool TextIsCultureInvariant(const FText& InText);
+	static ENGINE_API bool TextIsCultureInvariant(const FText& InText);
 
 	/**
 	 * Transforms the text to lowercase in a culture correct way.
 	 * @note The returned instance is linked to the original and will be rebuilt if the active culture is changed.
 	 */
 	UFUNCTION(BlueprintPure, Category="Utilities|Text")
-	static FText TextToLower(const FText& InText);
+	static ENGINE_API FText TextToLower(const FText& InText);
 
 	/**
 	 * Transforms the text to uppercase in a culture correct way.
 	 * @note The returned instance is linked to the original and will be rebuilt if the active culture is changed.
 	 */
 	UFUNCTION(BlueprintPure, Category="Utilities|Text")
-	static FText TextToUpper(const FText& InText);
+	static ENGINE_API FText TextToUpper(const FText& InText);
 
 	/** Removes whitespace characters from the front of the text. */
 	UFUNCTION(BlueprintPure, Category="Utilities|Text")
-	static FText TextTrimPreceding(const FText& InText);
+	static ENGINE_API FText TextTrimPreceding(const FText& InText);
 
 	/** Removes trailing whitespace characters. */
 	UFUNCTION(BlueprintPure, Category="Utilities|Text")
-	static FText TextTrimTrailing(const FText& InText);
+	static ENGINE_API FText TextTrimTrailing(const FText& InText);
 
 	/** Removes whitespace characters from the front and end of the text. */
 	UFUNCTION(BlueprintPure, Category="Utilities|Text")
-	static FText TextTrimPrecedingAndTrailing(const FText& InText);
+	static ENGINE_API FText TextTrimPrecedingAndTrailing(const FText& InText);
 
 	/** Returns an empty piece of text. */
 	UFUNCTION(BlueprintPure, Category="Utilities|Text")
-	static FText GetEmptyText();
+	static ENGINE_API FText GetEmptyText();
 
 	/**
 	 * Attempts to find existing Text using the representation found in the loc tables for the specified namespace and key.
@@ -174,49 +174,49 @@ class ENGINE_API UKismetTextLibrary : public UBlueprintFunctionLibrary
 	 * @param SourceString If set (not empty) then the found text must also have been created from this source string.
 	 */
 	UFUNCTION(BlueprintPure, Category="Utilities|Text", meta = (AdvancedDisplay = "SourceString"))
-	static bool FindTextInLocalizationTable(const FString& Namespace, const FString& Key, FText& OutText, const FString& SourceString = TEXT(""));
+	static ENGINE_API bool FindTextInLocalizationTable(const FString& Namespace, const FString& Key, FText& OutText, const FString& SourceString = TEXT(""));
 
 	/** Returns true if A and B are linguistically equal (A == B). */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "Equal Exactly (Text)", CompactNodeTitle = "==="), Category="Utilities|Text")
-	static bool EqualEqual_TextText(const FText& A, const FText& B);
+	static ENGINE_API bool EqualEqual_TextText(const FText& A, const FText& B);
 
 	/** Returns true if A and B are linguistically equal (A == B), ignoring case. */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "Equal, Case Insensitive (Text)", CompactNodeTitle = "=="), Category="Utilities|Text")
-	static bool EqualEqual_IgnoreCase_TextText(const FText& A, const FText& B);
+	static ENGINE_API bool EqualEqual_IgnoreCase_TextText(const FText& A, const FText& B);
 				
 	/** Returns true if A and B are linguistically not equal (A != B). */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "Not Equal Exactly (Text)", CompactNodeTitle = "!=="), Category="Utilities|Text")
-	static bool NotEqual_TextText(const FText& A, const FText& B);
+	static ENGINE_API bool NotEqual_TextText(const FText& A, const FText& B);
 
 	/** Returns true if A and B are linguistically not equal (A != B), ignoring case. */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "Not Equal, Case Insensitive (Text)", CompactNodeTitle = "!="), Category="Utilities|Text")
-	static bool NotEqual_IgnoreCase_TextText(const FText& A, const FText& B);
+	static ENGINE_API bool NotEqual_IgnoreCase_TextText(const FText& A, const FText& B);
 
 	/** Converts a boolean value to formatted text, either 'true' or 'false' */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "To Text (Boolean)", CompactNodeTitle = "->", BlueprintAutocast), Category="Utilities|Text")
-	static FText Conv_BoolToText(bool InBool);
+	static ENGINE_API FText Conv_BoolToText(bool InBool);
 
 	/** Converts a byte value to formatted text */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "To Text (Byte)", CompactNodeTitle = "->", BlueprintAutocast), Category="Utilities|Text")
-	static FText Conv_ByteToText(uint8 Value);
+	static ENGINE_API FText Conv_ByteToText(uint8 Value);
 
 	// Default values are duplicated from FNumberFormattingOptions and should be replicated in all functions and in the struct when changed!
 	/** Converts a passed in integer to text based on formatting options */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "To Text (Integer)", AdvancedDisplay = "1", BlueprintAutocast), Category="Utilities|Text")
-	static FText Conv_IntToText(int32 Value, bool bAlwaysSign = false, bool bUseGrouping = true, int32 MinimumIntegralDigits = 1, int32 MaximumIntegralDigits = 324);
+	static ENGINE_API FText Conv_IntToText(int32 Value, bool bAlwaysSign = false, bool bUseGrouping = true, int32 MinimumIntegralDigits = 1, int32 MaximumIntegralDigits = 324);
 
 	/** Converts a passed in integer to text based on formatting options */
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "To Text (Integer64)", AdvancedDisplay = "1", BlueprintAutocast), Category = "Utilities|Text")
-	static FText Conv_Int64ToText(int64 Value, bool bAlwaysSign = false, bool bUseGrouping = true, int32 MinimumIntegralDigits = 1, int32 MaximumIntegralDigits = 324);
+	static ENGINE_API FText Conv_Int64ToText(int64 Value, bool bAlwaysSign = false, bool bUseGrouping = true, int32 MinimumIntegralDigits = 1, int32 MaximumIntegralDigits = 324);
 
 	/** Converts a passed in double to text based on formatting options */
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "To Text (Float)", AdvancedDisplay = "1", BlueprintAutocast), Category = "Utilities|Text")
-	static FText Conv_DoubleToText(double Value, TEnumAsByte<ERoundingMode> RoundingMode, bool bAlwaysSign = false, bool bUseGrouping = true, int32 MinimumIntegralDigits = 1, int32 MaximumIntegralDigits = 324, int32 MinimumFractionalDigits = 0, int32 MaximumFractionalDigits = 3);
+	static ENGINE_API FText Conv_DoubleToText(double Value, TEnumAsByte<ERoundingMode> RoundingMode, bool bAlwaysSign = false, bool bUseGrouping = true, int32 MinimumIntegralDigits = 1, int32 MaximumIntegralDigits = 324, int32 MinimumFractionalDigits = 0, int32 MaximumFractionalDigits = 3);
 	
 	// Default values are duplicated from FNumberFormattingOptions and should be replicated in all functions and in the struct when changed!
 	/** Converts a passed in float to text based on formatting options */
 	UE_DEPRECATED(5.1, "This method has been deprecated and will be removed.")
-	static FText Conv_FloatToText(float Value, TEnumAsByte<ERoundingMode> RoundingMode, bool bAlwaysSign = false, bool bUseGrouping = true, int32 MinimumIntegralDigits = 1, int32 MaximumIntegralDigits = 324, int32 MinimumFractionalDigits = 0, int32 MaximumFractionalDigits = 3);
+	static ENGINE_API FText Conv_FloatToText(float Value, TEnumAsByte<ERoundingMode> RoundingMode, bool bAlwaysSign = false, bool bUseGrouping = true, int32 MinimumIntegralDigits = 1, int32 MaximumIntegralDigits = 324, int32 MinimumFractionalDigits = 0, int32 MaximumFractionalDigits = 3);
 	
 	/**
 	 * Generate an FText that represents the passed number as currency in the current culture.
@@ -225,58 +225,58 @@ class ENGINE_API UKismetTextLibrary : public UBlueprintFunctionLibrary
 	 * For example: FText::AsCurrencyBase(650, TEXT("EUR")); would return an FText of "<EUR>6.50" in most English cultures (en_US/en_UK) and "6,50<EUR>" in Spanish (es_ES) (where <EUR> is U+20AC)
 	 */
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "As Currency"), Category = "Utilities|Text")
-	static FText AsCurrencyBase(int32 BaseValue, const FString& CurrencyCode);
+	static ENGINE_API FText AsCurrencyBase(int32 BaseValue, const FString& CurrencyCode);
 
 	// Default values are duplicated from FNumberFormattingOptions and should be replicated in all functions and in the struct when changed!
 	/** Converts a passed in integer to a text formatted as a currency */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "AsCurrency (integer) - DEPRECATED (use AsCurrency)"), Category="Utilities|Text")
-	static FText AsCurrency_Integer(int32 Value, TEnumAsByte<ERoundingMode> RoundingMode, bool bAlwaysSign = false, bool bUseGrouping = true, int32 MinimumIntegralDigits = 1, int32 MaximumIntegralDigits = 324, int32 MinimumFractionalDigits = 0, int32 MaximumFractionalDigits = 3, const FString& CurrencyCode = TEXT(""));
+	static ENGINE_API FText AsCurrency_Integer(int32 Value, TEnumAsByte<ERoundingMode> RoundingMode, bool bAlwaysSign = false, bool bUseGrouping = true, int32 MinimumIntegralDigits = 1, int32 MaximumIntegralDigits = 324, int32 MinimumFractionalDigits = 0, int32 MaximumFractionalDigits = 3, const FString& CurrencyCode = TEXT(""));
 
 	// Default values are duplicated from FNumberFormattingOptions and should be replicated in all functions and in the struct when changed!
 	/** Converts a passed in float to a text formatted as a currency */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "AsCurrency (float) - DEPRECATED (use AsCurrency)"), Category="Utilities|Text")
-	static FText AsCurrency_Float(float Value, TEnumAsByte<ERoundingMode> RoundingMode, bool bAlwaysSign = false, bool bUseGrouping = true, int32 MinimumIntegralDigits = 1, int32 MaximumIntegralDigits = 324, int32 MinimumFractionalDigits = 0, int32 MaximumFractionalDigits = 3, const FString& CurrencyCode = TEXT(""));
+	static ENGINE_API FText AsCurrency_Float(float Value, TEnumAsByte<ERoundingMode> RoundingMode, bool bAlwaysSign = false, bool bUseGrouping = true, int32 MinimumIntegralDigits = 1, int32 MaximumIntegralDigits = 324, int32 MinimumFractionalDigits = 0, int32 MaximumFractionalDigits = 3, const FString& CurrencyCode = TEXT(""));
 
 	// Default values are duplicated from FNumberFormattingOptions and should be replicated in all functions and in the struct when changed!
 	/** Converts a passed in float to a text, formatted as a percent */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "As Percent", AdvancedDisplay = "1"), Category="Utilities|Text")
-	static FText AsPercent_Float(float Value, TEnumAsByte<ERoundingMode> RoundingMode, bool bAlwaysSign = false, bool bUseGrouping = true, int32 MinimumIntegralDigits = 1, int32 MaximumIntegralDigits = 324, int32 MinimumFractionalDigits = 0, int32 MaximumFractionalDigits = 3);
+	static ENGINE_API FText AsPercent_Float(float Value, TEnumAsByte<ERoundingMode> RoundingMode, bool bAlwaysSign = false, bool bUseGrouping = true, int32 MinimumIntegralDigits = 1, int32 MaximumIntegralDigits = 324, int32 MinimumFractionalDigits = 0, int32 MaximumFractionalDigits = 3);
 
 	/** Converts a passed in date & time to a text, formatted as a date using an invariant timezone. This will use the given date & time as-is, so it's assumed to already be in the correct timezone. */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "As Date", AdvancedDisplay = "1"), Category="Utilities|Text")
-	static FText AsDate_DateTime(const FDateTime& InDateTime);
+	static ENGINE_API FText AsDate_DateTime(const FDateTime& InDateTime);
 
 	/** Converts a passed in date & time to a text, formatted as a date using the given timezone (default is the local timezone). This will convert the given date & time from UTC to the given timezone (taking into account DST). */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "As Date (from UTC)", AdvancedDisplay = "1"), Category="Utilities|Text")
-	static FText AsTimeZoneDate_DateTime(const FDateTime& InDateTime, const FString& InTimeZone = TEXT(""));
+	static ENGINE_API FText AsTimeZoneDate_DateTime(const FDateTime& InDateTime, const FString& InTimeZone = TEXT(""));
 
 	/** Converts a passed in date & time to a text, formatted as a date & time using an invariant timezone. This will use the given date & time as-is, so it's assumed to already be in the correct timezone. */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "As DateTime", AdvancedDisplay = "1"), Category="Utilities|Text")
-	static FText AsDateTime_DateTime(const FDateTime& In);
+	static ENGINE_API FText AsDateTime_DateTime(const FDateTime& In);
 
 	/** Converts a passed in date & time to a text, formatted as a date & time using the given timezone (default is the local timezone). This will convert the given date & time from UTC to the given timezone (taking into account DST). */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "As DateTime (from UTC)", AdvancedDisplay = "1"), Category="Utilities|Text")
-	static FText AsTimeZoneDateTime_DateTime(const FDateTime& InDateTime, const FString& InTimeZone = TEXT(""));
+	static ENGINE_API FText AsTimeZoneDateTime_DateTime(const FDateTime& InDateTime, const FString& InTimeZone = TEXT(""));
 
 	/** Converts a passed in date & time to a text, formatted as a time using an invariant timezone. This will use the given date & time as-is, so it's assumed to already be in the correct timezone. */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "As Time", AdvancedDisplay = "1"), Category="Utilities|Text")
-	static FText AsTime_DateTime(const FDateTime& In);
+	static ENGINE_API FText AsTime_DateTime(const FDateTime& In);
 
 	/** Converts a passed in date & time to a text, formatted as a time using the given timezone (default is the local timezone). This will convert the given date & time from UTC to the given timezone (taking into account DST). */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "As Time (from UTC)", AdvancedDisplay = "1"), Category="Utilities|Text")
-	static FText AsTimeZoneTime_DateTime(const FDateTime& InDateTime, const FString& InTimeZone = TEXT(""));
+	static ENGINE_API FText AsTimeZoneTime_DateTime(const FDateTime& InDateTime, const FString& InTimeZone = TEXT(""));
 
 	/** Converts a passed in time span to a text, formatted as a time span */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "As Timespan", AdvancedDisplay = "1"), Category="Utilities|Text")
-	static FText AsTimespan_Timespan(const FTimespan& InTimespan);
+	static ENGINE_API FText AsTimespan_Timespan(const FTimespan& InTimespan);
 
 	/** Used for formatting text using the FText::Format function and utilized by the UK2Node_FormatText */
 	UFUNCTION(BlueprintPure, meta=(BlueprintInternalUseOnly = "true"))
-	static FText Format(FText InPattern, TArray<FFormatArgumentData> InArgs);
+	static ENGINE_API FText Format(FText InPattern, TArray<FFormatArgumentData> InArgs);
 
 	/** Returns true if the given text is referencing a string table. */
 	UFUNCTION(BlueprintPure, Category="Utilities|Text", meta=(DisplayName="Is Text from String Table"))
-	static bool TextIsFromStringTable(const FText& Text);
+	static ENGINE_API bool TextIsFromStringTable(const FText& Text);
 
 	/**
 	 * Attempts to create a text instance from a string table ID and key.
@@ -284,26 +284,26 @@ class ENGINE_API UKismetTextLibrary : public UBlueprintFunctionLibrary
 	 * @return The found text, or a dummy text if the entry could not be found.
 	 */
 	UFUNCTION(BlueprintPure, Category="Utilities|Text", meta=(DisplayName="Make Text from String Table (Advanced)"))
-	static FText TextFromStringTable(const FName TableId, const FString& Key);
+	static ENGINE_API FText TextFromStringTable(const FName TableId, const FString& Key);
 
 	/**
 	 * Attempts to find the String Table ID and key used by the given text.
 	 * @return True if the String Table ID and key were found, false otherwise.
 	 */
 	UFUNCTION(BlueprintPure, Category="Utilities|Text", meta=(DisplayName="Find String Table ID and Key from Text"))
-	static bool StringTableIdAndKeyFromText(FText Text, FName& OutTableId, FString& OutKey);
+	static ENGINE_API bool StringTableIdAndKeyFromText(FText Text, FName& OutTableId, FString& OutKey);
 
 	/**
 	 * Check whether the given polyglot data is valid.
 	 * @return True if the polyglot data is valid, false otherwise. ErrorMessage will be filled in if the the data is invalid.
 	 */
 	UFUNCTION(BlueprintPure, Category="Utilities|Text")
-	static void IsPolyglotDataValid(const FPolyglotTextData& PolyglotData, bool& IsValid, FText& ErrorMessage);
+	static ENGINE_API void IsPolyglotDataValid(const FPolyglotTextData& PolyglotData, bool& IsValid, FText& ErrorMessage);
 
 	/**
 	 * Get the text instance created from this polyglot data.
 	 * @return The text instance, or an empty text if the data is invalid.
 	 */
 	UFUNCTION(BlueprintPure, Category="Utilities|Text")
-	static FText PolyglotDataToText(const FPolyglotTextData& PolyglotData);
+	static ENGINE_API FText PolyglotDataToText(const FPolyglotTextData& PolyglotData);
 };

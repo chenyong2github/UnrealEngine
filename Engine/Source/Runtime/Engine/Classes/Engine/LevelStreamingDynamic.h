@@ -16,8 +16,8 @@
 #include "Engine/LevelStreaming.h"
 #include "LevelStreamingDynamic.generated.h"
 
-UCLASS(BlueprintType)
-class ENGINE_API ULevelStreamingDynamic : public ULevelStreaming
+UCLASS(BlueprintType, MinimalAPI)
+class ULevelStreamingDynamic : public ULevelStreaming
 {
 	GENERATED_UCLASS_BODY()
 
@@ -77,33 +77,33 @@ class ENGINE_API ULevelStreamingDynamic : public ULevelStreaming
  	* @return Streaming level object for a level instance
  	*/ 
  	UFUNCTION(BlueprintCallable, Category = LevelStreaming, meta=(DisplayName = "Load Level Instance (by Name)", WorldContext="WorldContextObject"))
- 	static ULevelStreamingDynamic* LoadLevelInstance(UObject* WorldContextObject, FString LevelName, FVector Location, FRotator Rotation, bool& bOutSuccess, const FString& OptionalLevelNameOverride = TEXT(""), TSubclassOf<ULevelStreamingDynamic> OptionalLevelStreamingClass = nullptr, bool bLoadAsTempPackage = false);
+ 	static ENGINE_API ULevelStreamingDynamic* LoadLevelInstance(UObject* WorldContextObject, FString LevelName, FVector Location, FRotator Rotation, bool& bOutSuccess, const FString& OptionalLevelNameOverride = TEXT(""), TSubclassOf<ULevelStreamingDynamic> OptionalLevelStreamingClass = nullptr, bool bLoadAsTempPackage = false);
 
  	UFUNCTION(BlueprintCallable, Category = LevelStreaming, meta=(DisplayName = "Load Level Instance (by Object Reference)", WorldContext="WorldContextObject"))
- 	static ULevelStreamingDynamic* LoadLevelInstanceBySoftObjectPtr(UObject* WorldContextObject, TSoftObjectPtr<UWorld> Level, FVector Location, FRotator Rotation, bool& bOutSuccess, const FString& OptionalLevelNameOverride = TEXT(""), TSubclassOf<ULevelStreamingDynamic> OptionalLevelStreamingClass = nullptr, bool bLoadAsTempPackage = false);
+ 	static ENGINE_API ULevelStreamingDynamic* LoadLevelInstanceBySoftObjectPtr(UObject* WorldContextObject, TSoftObjectPtr<UWorld> Level, FVector Location, FRotator Rotation, bool& bOutSuccess, const FString& OptionalLevelNameOverride = TEXT(""), TSubclassOf<ULevelStreamingDynamic> OptionalLevelStreamingClass = nullptr, bool bLoadAsTempPackage = false);
  	
-	static ULevelStreamingDynamic* LoadLevelInstanceBySoftObjectPtr(UObject* WorldContextObject, TSoftObjectPtr<UWorld> Level, const FTransform LevelTransform, bool& bOutSuccess, const FString& OptionalLevelNameOverride = TEXT(""), TSubclassOf<ULevelStreamingDynamic> OptionalLevelStreamingClass = nullptr, bool bLoadAsTempPackage = false);
+	static ENGINE_API ULevelStreamingDynamic* LoadLevelInstanceBySoftObjectPtr(UObject* WorldContextObject, TSoftObjectPtr<UWorld> Level, const FTransform LevelTransform, bool& bOutSuccess, const FString& OptionalLevelNameOverride = TEXT(""), TSubclassOf<ULevelStreamingDynamic> OptionalLevelStreamingClass = nullptr, bool bLoadAsTempPackage = false);
 
-	static ULevelStreamingDynamic* LoadLevelInstance(const FLoadLevelInstanceParams& Params, bool& bOutSuccess);
+	static ENGINE_API ULevelStreamingDynamic* LoadLevelInstance(const FLoadLevelInstanceParams& Params, bool& bOutSuccess);
 
-	static FString GetLevelInstancePackageName(const FLoadLevelInstanceParams& Params);
+	static ENGINE_API FString GetLevelInstancePackageName(const FLoadLevelInstanceParams& Params);
 
 	//~ Begin UObject Interface
-	virtual void PostLoad() override;
+	ENGINE_API virtual void PostLoad() override;
 	//~ End UObject Interface
 
 	//~ Begin ULevelStreaming Interface
 	virtual bool ShouldBeLoaded() const override { return bShouldBeLoaded; }
 	//~ End ULevelStreaming Interface
 
-	virtual void SetShouldBeLoaded(bool bShouldBeLoaded) override;
+	ENGINE_API virtual void SetShouldBeLoaded(bool bShouldBeLoaded) override;
 
 private:
 
 	// Counter used by LoadLevelInstance to create unique level names
-	static int32 UniqueLevelInstanceId;
+	static ENGINE_API int32 UniqueLevelInstanceId;
 
- 	static ULevelStreamingDynamic* LoadLevelInstance_Internal(const FLoadLevelInstanceParams& Params, bool& bOutSuccess);
+ 	static ENGINE_API ULevelStreamingDynamic* LoadLevelInstance_Internal(const FLoadLevelInstanceParams& Params, bool& bOutSuccess);
 
 };
 

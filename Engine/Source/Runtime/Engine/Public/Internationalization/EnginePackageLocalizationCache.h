@@ -8,16 +8,16 @@
 struct FAssetData;
 
 /** Implementation of a package localization cache that takes advantage of the asset registry. */
-class ENGINE_API FEnginePackageLocalizationCache : public FPackageLocalizationCache
+class FEnginePackageLocalizationCache : public FPackageLocalizationCache
 {
 public:
-	FEnginePackageLocalizationCache();
-	virtual ~FEnginePackageLocalizationCache();
+	ENGINE_API FEnginePackageLocalizationCache();
+	ENGINE_API virtual ~FEnginePackageLocalizationCache();
 
 protected:
 	//~ FPackageLocalizationCache interface
-	virtual void FindLocalizedPackages(const TMap<FString, TArray<FString>>& NewSourceToLocalizedPaths, TMap<FName, TArray<FName>>& InOutSourcePackagesToLocalizedPackages) override;
-	virtual void FindAssetGroupPackages(const FName InAssetGroupName, const FTopLevelAssetPath& InAssetClassName) override;
+	ENGINE_API virtual void FindLocalizedPackages(const TMap<FString, TArray<FString>>& NewSourceToLocalizedPaths, TMap<FName, TArray<FName>>& InOutSourcePackagesToLocalizedPackages) override;
+	ENGINE_API virtual void FindAssetGroupPackages(const FName InAssetGroupName, const FTopLevelAssetPath& InAssetClassName) override;
 
 private:
 	/**

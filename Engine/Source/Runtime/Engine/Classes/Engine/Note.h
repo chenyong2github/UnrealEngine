@@ -41,9 +41,9 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	/** Returns SpriteComponent subobject **/
-	ENGINE_API class UBillboardComponent* GetSpriteComponent() const { return SpriteComponent; }
+	class UBillboardComponent* GetSpriteComponent() const { return SpriteComponent; }
 	/** Returns ArrowComponent subobject **/
-	ENGINE_API class UArrowComponent* GetArrowComponent() const { return ArrowComponent; }
+	class UArrowComponent* GetArrowComponent() const { return ArrowComponent; }
 #endif
 };
 

@@ -8,7 +8,7 @@
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/Filter/WorldPartitionActorFilter.h"
 
-class ENGINE_API FPackedLevelActorDesc : public FWorldPartitionActorDesc
+class FPackedLevelActorDesc : public FWorldPartitionActorDesc
 {
 public:
 	FPackedLevelActorDesc() {}
@@ -19,10 +19,10 @@ public:
 	virtual const FWorldPartitionActorFilter* GetContainerFilter() const override { return &ContainerFilter; }
 
 protected:
-	virtual void Init(const AActor* InActor) override;
-	virtual void Init(const FWorldPartitionActorDescInitData& DescData) override;
-	virtual void Serialize(FArchive& Ar) override;
-	virtual bool Equals(const FWorldPartitionActorDesc* Other) const override;
+	ENGINE_API virtual void Init(const AActor* InActor) override;
+	ENGINE_API virtual void Init(const FWorldPartitionActorDescInitData& DescData) override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual bool Equals(const FWorldPartitionActorDesc* Other) const override;
 	virtual uint32 GetSizeOf() const override { return sizeof(FPackedLevelActorDesc); }
 
 	FSoftObjectPath WorldAsset;

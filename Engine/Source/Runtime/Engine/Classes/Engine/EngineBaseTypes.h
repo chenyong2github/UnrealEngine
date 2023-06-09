@@ -168,7 +168,7 @@ struct FTickPrerequisite
 * Abstract Base class for all tick functions.
 **/
 USTRUCT()
-struct ENGINE_API FTickFunction
+struct FTickFunction
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -292,35 +292,35 @@ private:
 
 public:
 	/** Default constructor, intitalizes to reasonable defaults **/
-	FTickFunction();
+	ENGINE_API FTickFunction();
 	/** Destructor, unregisters the tick function **/
-	virtual ~FTickFunction();
+	ENGINE_API virtual ~FTickFunction();
 
 	/** 
 	 * Adds the tick function to the primary list of tick functions. 
 	 * @param Level - level to place this tick function in
 	 **/
-	void RegisterTickFunction(class ULevel* Level);
+	ENGINE_API void RegisterTickFunction(class ULevel* Level);
 	/** Removes the tick function from the primary list of tick functions. **/
-	void UnRegisterTickFunction();
+	ENGINE_API void UnRegisterTickFunction();
 	/** See if the tick function is currently registered */
 	bool IsTickFunctionRegistered() const { return (InternalData && InternalData->bRegistered); }
 
 	/** Enables or disables this tick function. **/
-	void SetTickFunctionEnable(bool bInEnabled);
+	ENGINE_API void SetTickFunctionEnable(bool bInEnabled);
 	/** Returns whether the tick function is currently enabled */
 	bool IsTickFunctionEnabled() const { return TickState != ETickState::Disabled; }
 	/** Returns whether it is valid to access this tick function's completion handle */
 	bool IsCompletionHandleValid() const { return (InternalData && InternalData->TaskPointer); }
 	/** Update tick interval in the system and overwrite the current cooldown if any. */
-	void UpdateTickIntervalAndCoolDown(float NewTickInterval);
+	ENGINE_API void UpdateTickIntervalAndCoolDown(float NewTickInterval);
 
 	/**
 	* Gets the current completion handle of this tick function, so it can be delayed until a later point when some additional
 	* tasks have been completed.  Only valid after TG_PreAsyncWork has started and then only until the TickFunction finishes
 	* execution
 	**/
-	FGraphEventRef GetCompletionHandle() const;
+	ENGINE_API FGraphEventRef GetCompletionHandle() const;
 
 	/** 
 	* Gets the action tick group that this function will be elligible to start in.
@@ -346,18 +346,18 @@ public:
 	 * @param TargetObject - UObject containing this tick function. Only used to verify that the other pointer is still usable
 	 * @param TargetTickFunction - Actual tick function to use as a prerequisite
 	 **/
-	void AddPrerequisite(UObject* TargetObject, struct FTickFunction& TargetTickFunction);
+	ENGINE_API void AddPrerequisite(UObject* TargetObject, struct FTickFunction& TargetTickFunction);
 	/** 
 	 * Removes a prerequisite that was previously added.
 	 * @param TargetObject - UObject containing this tick function. Only used to verify that the other pointer is still usable
 	 * @param TargetTickFunction - Actual tick function to use as a prerequisite
 	 **/
-	void RemovePrerequisite(UObject* TargetObject, struct FTickFunction& TargetTickFunction);
+	ENGINE_API void RemovePrerequisite(UObject* TargetObject, struct FTickFunction& TargetTickFunction);
 	/** 
 	 * Sets this function to hipri and all prerequisites recursively
 	 * @param bInHighPriority - priority to set
 	 **/
-	void SetPriorityIncludingPrerequisites(bool bInHighPriority);
+	ENGINE_API void SetPriorityIncludingPrerequisites(bool bInHighPriority);
 
 	/**
 	 * @return a reference to prerequisites for this tick function.
@@ -382,22 +382,22 @@ private:
 	 * Queues a tick function for execution from the game thread
 	 * @param TickContext - context to tick in
 	 */
-	void QueueTickFunction(class FTickTaskSequencer& TTS, const FTickContext& TickContext);
+	ENGINE_API void QueueTickFunction(class FTickTaskSequencer& TTS, const FTickContext& TickContext);
 
 	/**
 	 * Queues a tick function for execution from the game thread
 	 * @param TickContext - context to tick in
 	 * @param StackForCycleDetection - Stack For Cycle Detection
 	 */
-	void QueueTickFunctionParallel(const FTickContext& TickContext, TArray<FTickFunction*, TInlineAllocator<8> >& StackForCycleDetection);
+	ENGINE_API void QueueTickFunctionParallel(const FTickContext& TickContext, TArray<FTickFunction*, TInlineAllocator<8> >& StackForCycleDetection);
 
 	/** Returns the delta time to use when ticking this function given the TickContext */
-	float CalculateDeltaTime(const FTickContext& TickContext);
+	ENGINE_API float CalculateDeltaTime(const FTickContext& TickContext);
 
 	/** 
 	 * Logs the prerequisites
 	 */
-	void ShowPrerequistes(int32 Indent = 1);
+	ENGINE_API void ShowPrerequistes(int32 Indent = 1);
 
 	/** 
 	 * Abstract function actually execute the tick. 
@@ -406,9 +406,9 @@ private:
 	 * @param CurrentThread - thread we are executing on, useful to pass along as new tasks are created
 	 * @param MyCompletionGraphEvent - completion event for this task. Useful for holding the completetion of this task until certain child tasks are complete.
 	 **/
-	virtual void ExecuteTick(float DeltaTime, ELevelTick TickType, ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent) PURE_VIRTUAL(,);
+	ENGINE_API virtual void ExecuteTick(float DeltaTime, ELevelTick TickType, ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent) PURE_VIRTUAL(,);
 	/** Abstract function to describe this tick. Used to print messages about illegal cycles in the dependency graph **/
-	virtual FString DiagnosticMessage() PURE_VIRTUAL(, return TEXT("DiagnosticMessage() not implemented"););
+	ENGINE_API virtual FString DiagnosticMessage() PURE_VIRTUAL(, return TEXT("DiagnosticMessage() not implemented"););
 	/** Function to give a 'context' for this tick, used for grouped active tick reporting */
 	virtual FName DiagnosticContext(bool bDetailed)
 	{
@@ -687,7 +687,7 @@ namespace EDemoPlayFailure
 
 //URL structure.
 USTRUCT()
-struct ENGINE_API FURL
+struct FURL
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -723,8 +723,8 @@ struct ENGINE_API FURL
 	FString Portal;
 
 	// Statics.
-	static FUrlConfig UrlConfig;
-	static bool bDefaultsInitialized;
+	static ENGINE_API FUrlConfig UrlConfig;
+	static ENGINE_API bool bDefaultsInitialized;
 
 	/**
 	 * Prevent default from being generated.
@@ -734,22 +734,22 @@ struct ENGINE_API FURL
 	/**
 	 * Construct a purely default, local URL from an optional filename.
 	 */
-	FURL( const TCHAR* Filename=nullptr );
+	ENGINE_API FURL( const TCHAR* Filename=nullptr );
 
 	/**
 	 * Construct a URL from text and an optional relative base.
 	 */
-	FURL( FURL* Base, const TCHAR* TextURL, ETravelType Type );
+	ENGINE_API FURL( FURL* Base, const TCHAR* TextURL, ETravelType Type );
 
-	static void StaticInit();
-	static void StaticExit();
+	static ENGINE_API void StaticInit();
+	static ENGINE_API void StaticExit();
 
 	/**
 	 * Static: Removes any special URL characters from the specified string
 	 *
 	 * @param Str String to be filtered
 	 */
-	static void FilterURLString( FString& Str );
+	static ENGINE_API void FilterURLString( FString& Str );
 
 	/**
 	 * Returns whether this URL corresponds to an internal object, i.e. an Unreal
@@ -757,18 +757,18 @@ struct ENGINE_API FURL
 	 * is false, the URL refers to an object that a remote application like Internet
 	 * Explorer can execute.
 	 */
-	bool IsInternal() const;
+	ENGINE_API bool IsInternal() const;
 
 	/**
 	 * Returns whether this URL corresponds to an internal object on this local 
 	 * process. In this case, no Internet use is necessary.
 	 */
-	bool IsLocalInternal() const;
+	ENGINE_API bool IsLocalInternal() const;
 
 	/**
 	 * Tests if the URL contains an option string.
 	 */
-	bool HasOption( const TCHAR* Test ) const;
+	ENGINE_API bool HasOption( const TCHAR* Test ) const;
 
 	/**
 	 * Returns the value associated with an option.
@@ -778,37 +778,37 @@ struct ENGINE_API FURL
 	 *
 	 * @return The value of the named option, or Default if the option wasn't found.
 	 */
-	const TCHAR* GetOption( const TCHAR* Match, const TCHAR* Default ) const;
+	ENGINE_API const TCHAR* GetOption( const TCHAR* Match, const TCHAR* Default ) const;
 
 	/**
 	 * Load URL from config.
 	 */
-	void LoadURLConfig( const TCHAR* Section, const FString& Filename=GGameIni );
+	ENGINE_API void LoadURLConfig( const TCHAR* Section, const FString& Filename=GGameIni );
 
 	/**
 	 * Save URL to config.
 	 */
-	void SaveURLConfig( const TCHAR* Section, const TCHAR* Item, const FString& Filename=GGameIni ) const;
+	ENGINE_API void SaveURLConfig( const TCHAR* Section, const TCHAR* Item, const FString& Filename=GGameIni ) const;
 
 	/**
 	 * Add a unique option to the URL, replacing any existing one.
 	 */
-	void AddOption( const TCHAR* Str );
+	ENGINE_API void AddOption( const TCHAR* Str );
 
 	/**
 	 * Remove an option from the URL
 	 */
-	void RemoveOption( const TCHAR* Key, const TCHAR* Section = nullptr, const FString& Filename = GGameIni);
+	ENGINE_API void RemoveOption( const TCHAR* Key, const TCHAR* Section = nullptr, const FString& Filename = GGameIni);
 
 	/**
 	 * Convert this URL to text.
 	 */
-	FString ToString( bool FullyQualified=0 ) const;
+	ENGINE_API FString ToString( bool FullyQualified=0 ) const;
 
 	/**
 	 * Prepares the Host and Port values into a standards compliant string
 	 */
-	FString GetHostPortString() const;
+	ENGINE_API FString GetHostPortString() const;
 
 	/**
 	 * Serializes a FURL to or from an archive.
@@ -818,7 +818,7 @@ struct ENGINE_API FURL
 	/**
 	 * Compare two URLs to see if they refer to the same exact thing.
 	 */
-	bool operator==( const FURL& Other ) const;
+	ENGINE_API bool operator==( const FURL& Other ) const;
 };
 
 /**
@@ -937,8 +937,8 @@ enum EViewModeIndex : int
 /**
  * Class containing a static util function to help with EViewModeIndex
  */
-UCLASS(config = Engine)
-class ENGINE_API UViewModeUtils : public UObject
+UCLASS(config = Engine, MinimalAPI)
+class UViewModeUtils : public UObject
 {
 	GENERATED_BODY()
 
@@ -946,8 +946,8 @@ public:
 	/**
 	 * Get the display name associated with a particular EViewModeIndex
 	 */
-	static FText GetViewModeDisplayName(const EViewModeIndex ViewModeIndex);
-	static const FSlateBrush* GetViewModeDisplayIcon(const EViewModeIndex ViewModeIndex);
+	static ENGINE_API FText GetViewModeDisplayName(const EViewModeIndex ViewModeIndex);
+	static ENGINE_API const FSlateBrush* GetViewModeDisplayIcon(const EViewModeIndex ViewModeIndex);
 };
 
 

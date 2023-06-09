@@ -22,11 +22,11 @@ class USkeletalBodySetup;
  * @note These settings have no effect when the Physics Asset is used in a world simulation (i.e., as a ragdoll on a SkeletalMeshComponent).
  */
 USTRUCT(BlueprintType)
-struct ENGINE_API FPhysicsAssetSolverSettings
+struct FPhysicsAssetSolverSettings
 {
 	GENERATED_USTRUCT_BODY()
 
-	FPhysicsAssetSolverSettings();
+	ENGINE_API FPhysicsAssetSolverSettings();
 
 	/**
 	 * RBAN: The number of position iterations to run. The position solve is responsible for depenetration.
@@ -91,11 +91,11 @@ struct ENGINE_API FPhysicsAssetSolverSettings
  * @note These settings have no effect when the Physics Asset is used in a world simulation (ragdoll).
  */
 USTRUCT(BlueprintType)
-struct ENGINE_API FSolverIterations
+struct FSolverIterations
 {
 	GENERATED_USTRUCT_BODY()
 
-	FSolverIterations();
+	ENGINE_API FSolverIterations();
 
 	/**
 	 * The recommended number of solver iterations. Increase this if collision and joints are fighting, or joint chains are stretching.
@@ -260,12 +260,12 @@ public:
 #if WITH_EDITOR
 	virtual void PostEditUndo() override;
 
-	ENGINE_API const TArray<FName>& GetPhysicalAnimationProfileNames() const
+	const TArray<FName>& GetPhysicalAnimationProfileNames() const
 	{
 		return PhysicalAnimationProfiles;
 	}
 
-	ENGINE_API const TArray<FName>& GetConstraintProfileNames() const
+	const TArray<FName>& GetConstraintProfileNames() const
 	{
 		return ConstraintProfiles;
 	}

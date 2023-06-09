@@ -7,8 +7,8 @@
 #include "UObject/Object.h"
 #include "IntSerialization.generated.h"
 
-UCLASS()
-class ENGINE_API UIntSerialization	: public UObject
+UCLASS(MinimalAPI)
+class UIntSerialization	: public UObject
 {
 	GENERATED_UCLASS_BODY()
 

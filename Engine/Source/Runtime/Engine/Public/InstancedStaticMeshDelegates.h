@@ -8,7 +8,7 @@
 class UInstancedStaticMeshComponent;
 class UHierarchicalInstancedStaticMeshComponent;
 
-struct ENGINE_API FInstancedStaticMeshDelegates
+struct FInstancedStaticMeshDelegates
 {
 	enum class EInstanceIndexUpdateType : uint8
 	{
@@ -48,14 +48,14 @@ struct ENGINE_API FInstancedStaticMeshDelegates
 	 * @note: This is only fired for instances added or removed via the various Add/Remove/ClearInstances functions, and not for instances updated via serialization or undo/redo.
 	 */
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnInstanceIndexUpdated, UInstancedStaticMeshComponent* /*Component*/, TArrayView<const FInstanceIndexUpdateData> /*IndexUpdates*/);
-	static FOnInstanceIndexUpdated OnInstanceIndexUpdated;
+	static ENGINE_API FOnInstanceIndexUpdated OnInstanceIndexUpdated;
 };
 
-struct ENGINE_API FHierarchicalInstancedStaticMeshDelegates
+struct FHierarchicalInstancedStaticMeshDelegates
 {
 	/**
 	 * Delegate called when the tree of a HISM has been (re)built.
 	 */
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnTreeBuilt, UHierarchicalInstancedStaticMeshComponent* /*Component*/, bool /*bWasAsyncBuild*/);
-	static FOnTreeBuilt OnTreeBuilt;
+	static ENGINE_API FOnTreeBuilt OnTreeBuilt;
 };

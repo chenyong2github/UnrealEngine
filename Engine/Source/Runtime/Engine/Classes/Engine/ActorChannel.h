@@ -69,8 +69,8 @@ ENUM_CLASS_FLAGS(ESetChannelActorFlags);
  * | </End Tag>           |                                                                           |
  * +----------------------+---------------------------------------------------------------------------+
  */
-UCLASS(transient, customConstructor)
-class ENGINE_API UActorChannel : public UChannel
+UCLASS(transient, customConstructor, MinimalAPI)
+class UActorChannel : public UChannel
 {
 	GENERATED_BODY()
 
@@ -153,105 +153,105 @@ public:
 	/**
 	 * Default constructor
 	 */
-	UActorChannel(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	ENGINE_API UActorChannel(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	~UActorChannel();
+	ENGINE_API ~UActorChannel();
 
 public:
 
 	// UChannel interface.
 
-	virtual void Init( UNetConnection* InConnection, int32 InChIndex, EChannelCreateFlags CreateFlags ) override;
-	virtual void SetClosingFlag() override;
-	virtual void ReceivedBunch( FInBunch& Bunch ) override;
-	virtual void Tick() override;
-	virtual bool CanStopTicking() const override;
+	ENGINE_API virtual void Init( UNetConnection* InConnection, int32 InChIndex, EChannelCreateFlags CreateFlags ) override;
+	ENGINE_API virtual void SetClosingFlag() override;
+	ENGINE_API virtual void ReceivedBunch( FInBunch& Bunch ) override;
+	ENGINE_API virtual void Tick() override;
+	ENGINE_API virtual bool CanStopTicking() const override;
 
-	void ProcessBunch( FInBunch & Bunch );
-	bool ProcessQueuedBunches();
+	ENGINE_API void ProcessBunch( FInBunch & Bunch );
+	ENGINE_API bool ProcessQueuedBunches();
 
-	virtual void ReceivedNak( int32 NakPacketId ) override;
-	virtual int64 Close(EChannelCloseReason Reason) override;
-	virtual FString Describe() override;
+	ENGINE_API virtual void ReceivedNak( int32 NakPacketId ) override;
+	ENGINE_API virtual int64 Close(EChannelCloseReason Reason) override;
+	ENGINE_API virtual FString Describe() override;
 
 	/** Release any references this channel is holding to UObjects and object replicators and mark it as broken. */
-	void BreakAndReleaseReferences();
+	ENGINE_API void BreakAndReleaseReferences();
 
-	void ReleaseReferences(bool bKeepReplicators);
+	ENGINE_API void ReleaseReferences(bool bKeepReplicators);
 
 	/** UActorChannel interface and accessors. */
 	AActor* GetActor() const { return Actor; }
 
 	/** Replicate this channel's actor differences. Returns how many bits were replicated (does not include non-bunch packet overhead) */
-	int64 ReplicateActor();
+	ENGINE_API int64 ReplicateActor();
 
 	/** Tells if the actor is ready to be replicated since he is BeginPlay or inside BeginPlay */
-	bool IsActorReadyForReplication() const;
+	ENGINE_API bool IsActorReadyForReplication() const;
 
 	/**
 	 * Set this channel's actor to the given actor.
 	 * It's expected that InActor is either null (releasing the channel's reference) or
 	 * a valid actor that is not PendingKill or PendingKillPending.
 	 */
-	void SetChannelActor(AActor* InActor, ESetChannelActorFlags Flags);
+	ENGINE_API void SetChannelActor(AActor* InActor, ESetChannelActorFlags Flags);
 
-	virtual void NotifyActorChannelOpen(AActor* InActor, FInBunch& InBunch);
+	ENGINE_API virtual void NotifyActorChannelOpen(AActor* InActor, FInBunch& InBunch);
 
 	/** Append any export bunches */
-	virtual void AppendExportBunches( TArray< FOutBunch* >& OutExportBunches ) override;
+	ENGINE_API virtual void AppendExportBunches( TArray< FOutBunch* >& OutExportBunches ) override;
 
 	/** Append any "must be mapped" guids to front of bunch. These are guids that the client will wait on before processing this bunch. */
-	virtual void AppendMustBeMappedGuids( FOutBunch* Bunch ) override;
+	ENGINE_API virtual void AppendMustBeMappedGuids( FOutBunch* Bunch ) override;
 
-	virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
 
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	static ENGINE_API void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 
 	/** Queue a function bunch for this channel to be sent on the next property update. */
-	void QueueRemoteFunctionBunch( UObject* CallTarget, UFunction* Func, FOutBunch &Bunch );
+	ENGINE_API void QueueRemoteFunctionBunch( UObject* CallTarget, UFunction* Func, FOutBunch &Bunch );
 
 	/** If not queueing the RPC, prepare the channel for replicating the call.  */
-	void PrepareForRemoteFunction(UObject* TargetObj);
+	ENGINE_API void PrepareForRemoteFunction(UObject* TargetObj);
 	
 	/** Returns true if channel is ready to go dormant (e.g., all outstanding property updates have been ACK'd) */
-	virtual bool ReadyForDormancy(bool debug=false) override;
+	ENGINE_API virtual bool ReadyForDormancy(bool debug=false) override;
 	
 	/** Puts the channel in a state to start becoming dormant. It will not become dormant until ReadyForDormancy returns true in Tick */
-	virtual void StartBecomingDormant() override;
+	ENGINE_API virtual void StartBecomingDormant() override;
 
 	/** Cleans up replicators and clears references to the actor class this channel was associated with.*/
-	void CleanupReplicators( const bool bKeepReplicators = false );
+	ENGINE_API void CleanupReplicators( const bool bKeepReplicators = false );
 
 	/** Writes the header for a content block of properties / RPCs for the given object (either the actor a subobject of the actor) */
-	void WriteContentBlockHeader( UObject* Obj, FNetBitWriter &Bunch, const bool bHasRepLayout );
+	ENGINE_API void WriteContentBlockHeader( UObject* Obj, FNetBitWriter &Bunch, const bool bHasRepLayout );
 
 	/** Writes the header for a content block specifically for deleting sub-objects */
 	UE_DEPRECATED(5.2, "This function will be made private in the future." )
-	void WriteContentBlockForSubObjectDelete( FOutBunch & Bunch, FNetworkGUID & GuidToDelete);
+	ENGINE_API void WriteContentBlockForSubObjectDelete( FOutBunch & Bunch, FNetworkGUID & GuidToDelete);
 
 	/** Writes header and payload of content block */
-	int32 WriteContentBlockPayload( UObject* Obj, FNetBitWriter &Bunch, const bool bHasRepLayout, FNetBitWriter& Payload );
+	ENGINE_API int32 WriteContentBlockPayload( UObject* Obj, FNetBitWriter &Bunch, const bool bHasRepLayout, FNetBitWriter& Payload );
 
 	/** Reads the header of the content block and instantiates the subobject if necessary */
-	UObject* ReadContentBlockHeader( FInBunch& Bunch, bool& bObjectDeleted, bool& bOutHasRepLayout );
+	ENGINE_API UObject* ReadContentBlockHeader( FInBunch& Bunch, bool& bObjectDeleted, bool& bOutHasRepLayout );
 
 	/** Reads content block header and payload */
-	UObject* ReadContentBlockPayload( FInBunch &Bunch, FNetBitReader& OutPayload, bool& bOutHasRepLayout );
+	ENGINE_API UObject* ReadContentBlockPayload( FInBunch &Bunch, FNetBitReader& OutPayload, bool& bOutHasRepLayout );
 
 	/** Writes property/function header and data blob to network stream */
-	int32 WriteFieldHeaderAndPayload( FNetBitWriter& Bunch, const FClassNetCache* ClassCache, const FFieldNetCache* FieldCache, FNetFieldExportGroup* NetFieldExportGroup, FNetBitWriter& Payload, bool bIgnoreInternalAck=false );
+	ENGINE_API int32 WriteFieldHeaderAndPayload( FNetBitWriter& Bunch, const FClassNetCache* ClassCache, const FFieldNetCache* FieldCache, FNetFieldExportGroup* NetFieldExportGroup, FNetBitWriter& Payload, bool bIgnoreInternalAck=false );
 
 	/** Reads property/function header and data blob from network stream */
-	bool ReadFieldHeaderAndPayload( UObject* Object, const FClassNetCache* ClassCache, FNetFieldExportGroup* NetFieldExportGroup, FNetBitReader& Bunch, const FFieldNetCache** OutField, FNetBitReader& OutPayload ) const;
+	ENGINE_API bool ReadFieldHeaderAndPayload( UObject* Object, const FClassNetCache* ClassCache, FNetFieldExportGroup* NetFieldExportGroup, FNetBitReader& Bunch, const FFieldNetCache** OutField, FNetBitReader& OutPayload ) const;
 
 	/** Finds the net field export group for a class net cache, if not found, creates one */
-	FNetFieldExportGroup* GetNetFieldExportGroupForClassNetCache( UClass* ObjectClass );
+	ENGINE_API FNetFieldExportGroup* GetNetFieldExportGroupForClassNetCache( UClass* ObjectClass );
 		
 	/** Finds (or creates) the net field export group for a class net cache, if not found, creates one */
-	FNetFieldExportGroup* GetOrCreateNetFieldExportGroupForClassNetCache( const UObject* Object );
+	ENGINE_API FNetFieldExportGroup* GetOrCreateNetFieldExportGroupForClassNetCache( const UObject* Object );
 
 	/** Returns the replicator for the actor associated with this channel. Guaranteed to exist. */
-	FObjectReplicator & GetActorReplicationData();
+	ENGINE_API FObjectReplicator & GetActorReplicationData();
 
 	// --------------------------------
 	// Subobject Replication state
@@ -303,19 +303,19 @@ public:
     * Sets the owner of the next replicated subobjects that will be passed to ReplicateSubObject.
     * The ActorComponent version will choose not to replicate the future subobjects if the component opted to use the registered list.
     */
-	static void SetCurrentSubObjectOwner(AActor* SubObjectOwner);
-	static void SetCurrentSubObjectOwner(UActorComponent* SubObjectOwner);
+	static ENGINE_API void SetCurrentSubObjectOwner(AActor* SubObjectOwner);
+	static ENGINE_API void SetCurrentSubObjectOwner(UActorComponent* SubObjectOwner);
 
 #if SUBOBJECT_TRANSITION_VALIDATION
 	/** Only returns true when calling ReplicateSubobjects() while we are trying to detect bad usage of the legacy function. */
-	static bool CanIgnoreDeprecatedReplicateSubObjects();
+	static ENGINE_API bool CanIgnoreDeprecatedReplicateSubObjects();
 #endif
 
 	/** Replicates given subobject on this actor channel */
-	bool ReplicateSubobject(UObject* Obj, FOutBunch& Bunch, FReplicationFlags RepFlags);
+	ENGINE_API bool ReplicateSubobject(UObject* Obj, FOutBunch& Bunch, FReplicationFlags RepFlags);
 
 	/** Replicates an ActorComponent subobject. Used to catch ActorChannels who are using the registration list while their Owner is not flagged to use it */
-	bool ReplicateSubobject(UActorComponent* ActorChannel, FOutBunch& Bunch, FReplicationFlags RepFlags);
+	ENGINE_API bool ReplicateSubobject(UActorComponent* ActorChannel, FOutBunch& Bunch, FReplicationFlags RepFlags);
 	
 	/** Custom implementation for ReplicateSubobject when RepFlags.bUseCustomSubobjectReplication is true */
 	virtual bool ReplicateSubobjectCustom(UObject* Obj, FOutBunch& Bunch, const FReplicationFlags& RepFlags) { return true;  }
@@ -360,17 +360,17 @@ public:
 	
 	// Returns true if the given ObjID is not up to date with RepKey
 	// this implicitly 'writes' the RepKey to the current out bunch.
-	bool KeyNeedsToReplicate(int32 ObjID, int32 RepKey);
+	ENGINE_API bool KeyNeedsToReplicate(int32 ObjID, int32 RepKey);
 #endif // NET_ENABLE_SUBOBJECT_REPKEYS
 	
 	// --------------------------------
 
-	virtual void AddedToChannelPool() override;
+	ENGINE_API virtual void AddedToChannelPool() override;
 
 protected:
 
 	/** Attempts to find a valid, non-dormant replicator for the given object. */
-	TSharedRef<FObjectReplicator>* FindReplicator(UObject* Obj);
+	ENGINE_API TSharedRef<FObjectReplicator>* FindReplicator(UObject* Obj);
 
 	/**
 	* Attempts to find a valid, non-dormant replicator for the given object.
@@ -381,12 +381,12 @@ protected:
 	* @return A replicator, if one was found.
 	*/
 	UE_DEPRECATED(5.2, "This function has been deprecated in favor of the one with a single parameter")
-	TSharedRef<FObjectReplicator>* FindReplicator(UObject* Obj, bool* bOutFoundInvalid);
+	ENGINE_API TSharedRef<FObjectReplicator>* FindReplicator(UObject* Obj, bool* bOutFoundInvalid);
 
 	/** 
 	* Creates a new object replicator or reuses a replicator if it was stored for dormancy in the Connection.
 	*/
-	 TSharedRef<FObjectReplicator>& CreateReplicator(UObject* Obj);
+	 ENGINE_API TSharedRef<FObjectReplicator>& CreateReplicator(UObject* Obj);
 
 	/**
 	 * Creates a new object replicator.
@@ -402,7 +402,7 @@ protected:
 	 * @return The newly created replicator.
 	 */
 	UE_DEPRECATED(5.2, "This function has been deprecated in favor of the one with a single parameter")
-	TSharedRef<FObjectReplicator>& CreateReplicator(UObject* Obj, bool bCheckDormantReplicators);
+	ENGINE_API TSharedRef<FObjectReplicator>& CreateReplicator(UObject* Obj, bool bCheckDormantReplicators);
 
 	/**
 	 * Convenience method for finding a replicator, and creating one if necessary, all at once.
@@ -412,22 +412,22 @@ protected:
 	 *
 	 * @return The found or created replicator.
 	 */
-	TSharedRef<FObjectReplicator>& FindOrCreateReplicator(UObject* Obj, bool* bOutCreated=nullptr);
+	ENGINE_API TSharedRef<FObjectReplicator>& FindOrCreateReplicator(UObject* Obj, bool* bOutCreated=nullptr);
 
-	bool ObjectHasReplicator(const TWeakObjectPtr<UObject>& Obj) const;	// returns whether we have already created a replicator for this object or not
+	ENGINE_API bool ObjectHasReplicator(const TWeakObjectPtr<UObject>& Obj) const;	// returns whether we have already created a replicator for this object or not
 
 	/** Unmap all references to this object, so that if later we receive this object again, we can remap the original references */
-	void MoveMappedObjectToUnmapped(const UObject* Object);
+	ENGINE_API void MoveMappedObjectToUnmapped(const UObject* Object);
 
-	void DestroyActorAndComponents();
+	ENGINE_API void DestroyActorAndComponents();
 
-	virtual bool CleanUp( const bool bForDestroy, EChannelCloseReason CloseReason ) override;
+	ENGINE_API virtual bool CleanUp( const bool bForDestroy, EChannelCloseReason CloseReason ) override;
 
 	/** Closes the actor channel but with a 'dormant' flag set so it can be reopened */
-	virtual void BecomeDormant() override;
+	ENGINE_API virtual void BecomeDormant() override;
 
 	/** Handle the replication of subobjects for this actor. Returns true if data was written into the Bunch. */
-	bool DoSubObjectReplication(FOutBunch& Bunch, FReplicationFlags& OutRepFlags);
+	ENGINE_API bool DoSubObjectReplication(FOutBunch& Bunch, FReplicationFlags& OutRepFlags);
 
 	enum class ESubObjectDeleteFlag : uint8
 	{
@@ -437,32 +437,32 @@ protected:
 	};
 
 	/** Writes the header for a content block specifically for deleting sub-objects */
-	void WriteContentBlockForSubObjectDelete(FOutBunch& Bunch, FNetworkGUID& GuidToDelete, ESubObjectDeleteFlag DeleteFlag);
+	ENGINE_API void WriteContentBlockForSubObjectDelete(FOutBunch& Bunch, FNetworkGUID& GuidToDelete, ESubObjectDeleteFlag DeleteFlag);
 
-	const TCHAR* ToString(UActorChannel::ESubObjectDeleteFlag DeleteFlag);
+	ENGINE_API const TCHAR* ToString(UActorChannel::ESubObjectDeleteFlag DeleteFlag);
 
 private:
 
 	/** Replicate Subobjects using the actor's registered list and its replicated actor component list */
-	bool ReplicateRegisteredSubObjects(FOutBunch& Bunch, FReplicationFlags RepFlags);
+	ENGINE_API bool ReplicateRegisteredSubObjects(FOutBunch& Bunch, FReplicationFlags RepFlags);
 
     /** Write the replicated bits into the bunch data */
-	bool WriteSubObjectInBunch(UObject* Obj, FOutBunch& Bunch, FReplicationFlags RepFlags);
+	ENGINE_API bool WriteSubObjectInBunch(UObject* Obj, FOutBunch& Bunch, FReplicationFlags RepFlags);
 
 	/** Find the replicated subobjects of the component and write them into the bunch */
-	bool WriteComponentSubObjects(UActorComponent* Component, FOutBunch& Bunch, FReplicationFlags RepFlags, const TStaticBitArray<COND_Max>& ConditionMap);
+	ENGINE_API bool WriteComponentSubObjects(UActorComponent* Component, FOutBunch& Bunch, FReplicationFlags RepFlags, const TStaticBitArray<COND_Max>& ConditionMap);
 
 	/** Replicate a list of subobjects */
-	bool WriteSubObjects(UObject* SubObjectOwner, const UE::Net::FSubObjectRegistry& SubObjectList, FOutBunch& Bunch, FReplicationFlags RepFlags, const TStaticBitArray<COND_Max>& ConditionMap);
+	ENGINE_API bool WriteSubObjects(UObject* SubObjectOwner, const UE::Net::FSubObjectRegistry& SubObjectList, FOutBunch& Bunch, FReplicationFlags RepFlags, const TStaticBitArray<COND_Max>& ConditionMap);
 
-	bool CanSubObjectReplicateToClient(ELifetimeCondition NetCondition, FObjectKey SubObjectKey, const TStaticBitArray<COND_Max>& ConditionMap) const;
+	ENGINE_API bool CanSubObjectReplicateToClient(ELifetimeCondition NetCondition, FObjectKey SubObjectKey, const TStaticBitArray<COND_Max>& ConditionMap) const;
 
-	bool ValidateReplicatedSubObjects();
+	ENGINE_API bool ValidateReplicatedSubObjects();
 
-	void TestLegacyReplicateSubObjects(UActorComponent* ReplicatedComponent, FOutBunch& Bunch, FReplicationFlags RepFlags);
-	void TestLegacyReplicateSubObjects(FOutBunch& Bunch, FReplicationFlags RepFlags);
+	ENGINE_API void TestLegacyReplicateSubObjects(UActorComponent* ReplicatedComponent, FOutBunch& Bunch, FReplicationFlags RepFlags);
+	ENGINE_API void TestLegacyReplicateSubObjects(FOutBunch& Bunch, FReplicationFlags RepFlags);
 
-	bool UpdateDeletedSubObjects(FOutBunch& Bunch);
+	ENGINE_API bool UpdateDeletedSubObjects(FOutBunch& Bunch);
 
 	inline TArray< TObjectPtr<UObject> >& GetCreatedSubObjects()
 	{
@@ -477,5 +477,5 @@ private:
 	// especially since both of these sets should be empty most of the time for most channels.
 	TSet<TSharedRef<struct FQueuedBunchObjectReference>> QueuedBunchObjectReferences;
 
-	static const FString ClassNetCacheSuffix;
+	static ENGINE_API const FString ClassNetCacheSuffix;
 };

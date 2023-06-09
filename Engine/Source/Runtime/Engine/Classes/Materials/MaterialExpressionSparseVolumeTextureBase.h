@@ -12,8 +12,8 @@
 class USparseVolumeTexture;
 struct FMaterialParameterMetadata;
 
-UCLASS(abstract, hidecategories = Object)
-class ENGINE_API UMaterialExpressionSparseVolumeTextureBase : public UMaterialExpression
+UCLASS(abstract, hidecategories = Object, MinimalAPI)
+class UMaterialExpressionSparseVolumeTextureBase : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
 
@@ -22,7 +22,7 @@ class ENGINE_API UMaterialExpressionSparseVolumeTextureBase : public UMaterialEx
 	TObjectPtr<USparseVolumeTexture> SparseVolumeTexture;
 
 	//~ Begin UMaterialExpression Interface
-	virtual UObject* GetReferencedTexture() const override;
+	ENGINE_API virtual UObject* GetReferencedTexture() const override;
 	virtual bool CanReferenceTexture() const { return true; }
 	//~ End UMaterialExpression Interface
 };

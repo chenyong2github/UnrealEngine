@@ -22,7 +22,7 @@ class FPrecomputedLightVolumeData;
 class FPrecomputedVolumetricLightmapData;
 struct FAssetCompileData;
 
-struct ENGINE_API FPerInstanceLightmapData
+struct FPerInstanceLightmapData
 {
 	FVector2f LightmapUVBias;
 	FVector2f ShadowmapUVBias;
@@ -382,9 +382,9 @@ private:
 	void HandleAssetPostCompileEvent(const TArray<FAssetCompileData>& CompiledAssets);
 #endif
 
-	ENGINE_API void ReleaseResources(const TSet<FGuid>* ResourcesToKeep = nullptr);
-	ENGINE_API void EmptyLevelData(const TSet<FGuid>* ResourcesToKeep = nullptr);
-	ENGINE_API void CleanupTransientOverrideMapBuildData();
+	void ReleaseResources(const TSet<FGuid>* ResourcesToKeep = nullptr);
+	void EmptyLevelData(const TSet<FGuid>* ResourcesToKeep = nullptr);
+	void CleanupTransientOverrideMapBuildData();
 
 	TMap<FGuid, FMeshMapBuildData> MeshBuildData;
 	TMap<FGuid, FPrecomputedLightVolumeData*> LevelPrecomputedLightVolumeBuildData;

@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -8,7 +8,7 @@
 namespace UE { namespace Anim {
 
 // Scoped graph message used to synchronize tick records using inertialization 
-class ENGINE_API FAnimInertializationSyncScope : public IGraphMessage
+class FAnimInertializationSyncScope : public IGraphMessage
 {
 	DECLARE_ANIMGRAPH_MESSAGE(FAnimInertializationSyncScope)
 };

@@ -11,7 +11,7 @@
 #include "Animation/AnimCurveCompressionCodec.h"
 #include "AnimCurveCompressionCodec_UniformIndexable.generated.h"
 
-struct ENGINE_API FAnimCurveBufferAccess
+struct FAnimCurveBufferAccess
 {
 private:
 	int32 NumSamples;
@@ -24,9 +24,9 @@ private:
 public:
 
 	UE_DEPRECATED(5.3, "Please use the constructor that takes a FName")
-	FAnimCurveBufferAccess(const UAnimSequenceBase* InSequence, SmartName::UID_Type InUID);
+	ENGINE_API FAnimCurveBufferAccess(const UAnimSequenceBase* InSequence, SmartName::UID_Type InUID);
 
-	FAnimCurveBufferAccess(const UAnimSequenceBase* InSequence, FName InName);
+	ENGINE_API FAnimCurveBufferAccess(const UAnimSequenceBase* InSequence, FName InName);
 
 	bool IsValid() const
 	{
@@ -35,13 +35,13 @@ public:
 
 	int32 GetNumSamples() const { return NumSamples; }
 
-	float GetValue(int32 SampleIndex) const;
+	ENGINE_API float GetValue(int32 SampleIndex) const;
 
-	float GetTime(int32 SampleIndex) const;
+	ENGINE_API float GetTime(int32 SampleIndex) const;
 };
 
-UCLASS(meta = (DisplayName = "Uniform Indexable"))
-class ENGINE_API UAnimCurveCompressionCodec_UniformIndexable : public UAnimCurveCompressionCodec
+UCLASS(meta = (DisplayName = "Uniform Indexable"), MinimalAPI)
+class UAnimCurveCompressionCodec_UniformIndexable : public UAnimCurveCompressionCodec
 {
 	GENERATED_UCLASS_BODY()
 
@@ -49,14 +49,14 @@ class ENGINE_API UAnimCurveCompressionCodec_UniformIndexable : public UAnimCurve
 
 #if WITH_EDITORONLY_DATA
 	// UAnimCurveCompressionCodec overrides
-	virtual bool Compress(const FCompressibleAnimData& AnimSeq, FAnimCurveCompressionResult& OutResult) override;
-	virtual void PopulateDDCKey(FArchive& Ar) override;
+	ENGINE_API virtual bool Compress(const FCompressibleAnimData& AnimSeq, FAnimCurveCompressionResult& OutResult) override;
+	ENGINE_API virtual void PopulateDDCKey(FArchive& Ar) override;
 #endif
 	
-	virtual void DecompressCurves(const FCompressedAnimSequence& AnimSeq, FBlendedCurve& Curves, float CurrentTime) const override;
-	virtual float DecompressCurve(const FCompressedAnimSequence& AnimSeq, FName CurveName, float CurrentTime) const override;
+	ENGINE_API virtual void DecompressCurves(const FCompressedAnimSequence& AnimSeq, FBlendedCurve& Curves, float CurrentTime) const override;
+	ENGINE_API virtual float DecompressCurve(const FCompressedAnimSequence& AnimSeq, FName CurveName, float CurrentTime) const override;
 
 	UE_DEPRECATED(5.3, "Please use GetCurveBufferAndSamples that takes a curve's FName")
 	bool GetCurveBufferAndSamples(const FCompressedAnimSequence& AnimSeq, SmartName::UID_Type CurveUID, const float*& OutCurveBuffer, int32& OutSamples, float& OutSampleRate) { return false; }
-	bool GetCurveBufferAndSamples(const FCompressedAnimSequence& AnimSeq, FName CurveName, const float*& OutCurveBuffer, int32& OutSamples, float& OutSampleRate);
+	ENGINE_API bool GetCurveBufferAndSamples(const FCompressedAnimSequence& AnimSeq, FName CurveName, const float*& OutCurveBuffer, int32& OutSamples, float& OutSampleRate);
 };

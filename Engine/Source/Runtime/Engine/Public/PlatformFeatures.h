@@ -13,7 +13,7 @@ class IVideoRecordingSystem;
  */
 
 /** Defines the interface of a module implementing platform feature collector class. */
-class ENGINE_API IPlatformFeaturesModule : public IModuleInterface
+class IPlatformFeaturesModule : public IModuleInterface
 {
 public:
 
@@ -38,13 +38,13 @@ public:
 		return *StaticModule;
 	}
 
-	virtual class ISaveGameSystem* GetSaveGameSystem();
+	ENGINE_API virtual class ISaveGameSystem* GetSaveGameSystem();
 
-	virtual class IDVRStreamingSystem* GetStreamingSystem();
+	ENGINE_API virtual class IDVRStreamingSystem* GetStreamingSystem();
 
-	virtual FString GetUniqueAppId();
+	ENGINE_API virtual FString GetUniqueAppId();
 
-	virtual IVideoRecordingSystem* GetVideoRecordingSystem();
+	ENGINE_API virtual IVideoRecordingSystem* GetVideoRecordingSystem();
 
-	virtual void SetScreenshotEnableState(bool bEnabled);
+	ENGINE_API virtual void SetScreenshotEnableState(bool bEnabled);
 };

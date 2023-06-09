@@ -100,7 +100,7 @@ struct FExpressionInput
 	ENGINE_API FExpressionInput GetTracedInput() const;
 
 	/** Helper for setting component mask. */
-	ENGINE_API void SetMask(int32 UseMask, int32 R, int32 G, int32 B, int32 A)
+	void SetMask(int32 UseMask, int32 R, int32 G, int32 B, int32 A)
 	{
 		Mask = UseMask;
 		MaskR = R;
@@ -153,7 +153,7 @@ struct FExpressionOutput
 	{}
 
 	/** Helper for setting component mask. */
-	ENGINE_API void SetMask(int32 UseMask, int32 R, int32 G, int32 B, int32 A)
+	void SetMask(int32 UseMask, int32 R, int32 G, int32 B, int32 A)
 	{
 		Mask = UseMask;
 		MaskR = R;

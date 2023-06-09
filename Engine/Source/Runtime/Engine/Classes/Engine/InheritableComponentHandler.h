@@ -16,7 +16,7 @@ class USCS_Node;
 struct FUCSComponentId;
 
 USTRUCT()
-struct ENGINE_API FComponentKey
+struct FComponentKey
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -24,12 +24,12 @@ struct ENGINE_API FComponentKey
 		: OwnerClass(nullptr)
 	{}
 
-	FComponentKey(const USCS_Node* SCSNode);
+	ENGINE_API FComponentKey(const USCS_Node* SCSNode);
 #if WITH_EDITOR
-	FComponentKey(UBlueprint* Blueprint, const FUCSComponentId& UCSComponentID);
+	ENGINE_API FComponentKey(UBlueprint* Blueprint, const FUCSComponentId& UCSComponentID);
 #endif 
 
-	bool Match(const FComponentKey& OtherKey) const;
+	ENGINE_API bool Match(const FComponentKey& OtherKey) const;
 
 	bool IsSCSKey() const
 	{
@@ -46,9 +46,9 @@ struct ENGINE_API FComponentKey
 		return OwnerClass && AssociatedGuid.IsValid() && (!IsSCSKey() || (SCSVariableName != NAME_None));
 	}
 
-	USCS_Node* FindSCSNode() const;
-	UActorComponent* GetOriginalTemplate(const FName& TemplateName = NAME_None) const;
-	bool RefreshVariableName();
+	ENGINE_API USCS_Node* FindSCSNode() const;
+	ENGINE_API UActorComponent* GetOriginalTemplate(const FName& TemplateName = NAME_None) const;
+	ENGINE_API bool RefreshVariableName();
 
 	UClass* GetComponentOwner()  const { return OwnerClass; }
 	FName   GetSCSVariableName() const { return SCSVariableName; }
@@ -88,57 +88,57 @@ struct FComponentOverrideRecord
 	{}
 };
 
-UCLASS()
-class ENGINE_API UInheritableComponentHandler : public UObject
+UCLASS(MinimalAPI)
+class UInheritableComponentHandler : public UObject
 {
 	GENERATED_BODY()
 
 private:
 
 	/* Template name prefix for SCS DefaultSceneRootNode overrides */
-	static const FString SCSDefaultSceneRootOverrideNamePrefix;
+	static ENGINE_API const FString SCSDefaultSceneRootOverrideNamePrefix;
 
 #if WITH_EDITOR
 
-	bool IsRecordValid(const FComponentOverrideRecord& Record) const;
-	bool IsRecordNecessary(const FComponentOverrideRecord& Record) const;
+	ENGINE_API bool IsRecordValid(const FComponentOverrideRecord& Record) const;
+	ENGINE_API bool IsRecordNecessary(const FComponentOverrideRecord& Record) const;
 
 public:
 
-	UActorComponent* CreateOverridenComponentTemplate(const FComponentKey& Key);
-	void RemoveOverridenComponentTemplate(const FComponentKey& Key);
-	void UpdateOwnerClass(UBlueprintGeneratedClass* OwnerClass);
-	void ValidateTemplates();
-	bool IsValid() const;
-	UActorComponent* FindBestArchetype(const FComponentKey& Key, const FName& TemplateName = NAME_None) const;
+	ENGINE_API UActorComponent* CreateOverridenComponentTemplate(const FComponentKey& Key);
+	ENGINE_API void RemoveOverridenComponentTemplate(const FComponentKey& Key);
+	ENGINE_API void UpdateOwnerClass(UBlueprintGeneratedClass* OwnerClass);
+	ENGINE_API void ValidateTemplates();
+	ENGINE_API bool IsValid() const;
+	ENGINE_API UActorComponent* FindBestArchetype(const FComponentKey& Key, const FName& TemplateName = NAME_None) const;
 
 	bool IsEmpty() const
 	{
 		return 0 == Records.Num();
 	}
 
-	bool RefreshTemplateName(const FComponentKey& OldKey);
+	ENGINE_API bool RefreshTemplateName(const FComponentKey& OldKey);
 
-	FComponentKey FindKey(UActorComponent* ComponentTemplate) const;
+	ENGINE_API FComponentKey FindKey(UActorComponent* ComponentTemplate) const;
 #endif
 
 public:
 
 	//~ Begin UObject Interface
-	virtual void Serialize(FArchive& Ar) override;
-	virtual void PostLoad() override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void PostLoad() override;
 #if WITH_EDITOR
-	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
+	ENGINE_API virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 #endif	// WITH_EDITOR
 	//~ End UObject Interface
 
-	void PreloadAllTemplates();
-	void PreloadAll();
+	ENGINE_API void PreloadAllTemplates();
+	ENGINE_API void PreloadAll();
 
-	FComponentKey FindKey(const FName VariableName) const;
+	ENGINE_API FComponentKey FindKey(const FName VariableName) const;
 
-	UActorComponent* GetOverridenComponentTemplate(const FComponentKey& Key) const;
-	const FBlueprintCookedComponentInstancingData* GetOverridenComponentTemplateData(const FComponentKey& Key) const;
+	ENGINE_API UActorComponent* GetOverridenComponentTemplate(const FComponentKey& Key) const;
+	ENGINE_API const FBlueprintCookedComponentInstancingData* GetOverridenComponentTemplateData(const FComponentKey& Key) const;
 
 	TArray<FComponentOverrideRecord>::TIterator CreateRecordIterator()
 	{
@@ -160,10 +160,10 @@ public:
 	}
 
 private:
-	const FComponentOverrideRecord* FindRecord(const FComponentKey& Key) const;
+	ENGINE_API const FComponentOverrideRecord* FindRecord(const FComponentKey& Key) const;
 
 	/** Helper method used to assist with fixing up component template names at load time. */
-	void FixComponentTemplateName(UActorComponent* ComponentTemplate, FName NewName);
+	ENGINE_API void FixComponentTemplateName(UActorComponent* ComponentTemplate, FName NewName);
 	
 	/** All component records */
 	UPROPERTY()

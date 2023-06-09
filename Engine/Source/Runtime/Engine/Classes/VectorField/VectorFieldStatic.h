@@ -86,7 +86,7 @@ public:
 	ENGINE_API void UpdateCPUData(bool bDiscardData);
 
 	UE_DEPRECATED(4.25, "Please call UpdateCPUData(bool bDiscardData) instead and choose if the internal data should be discarded or not")
-	ENGINE_API void UpdateCPUData() { UpdateCPUData(true); }
+	void UpdateCPUData() { UpdateCPUData(true); }
 
 #if WITH_EDITOR
 	/** Sets the bAllowCPUAccess flag and calls UpdateCPUData(). */
@@ -135,13 +135,13 @@ private:
 };
 
 // work around for the private nature of FVectorFieldResource
-struct ENGINE_API FVectorFieldTextureAccessor
+struct FVectorFieldTextureAccessor
 {
-	FVectorFieldTextureAccessor(UVectorField* InVectorField);
-	FVectorFieldTextureAccessor(const FVectorFieldTextureAccessor& rhs);
-	~FVectorFieldTextureAccessor();
+	ENGINE_API FVectorFieldTextureAccessor(UVectorField* InVectorField);
+	ENGINE_API FVectorFieldTextureAccessor(const FVectorFieldTextureAccessor& rhs);
+	ENGINE_API ~FVectorFieldTextureAccessor();
 
-	FRHITexture* GetTexture() const;
+	ENGINE_API FRHITexture* GetTexture() const;
 
 private:
 	TUniquePtr<struct FVectorFieldTextureAccessorImpl> Impl;

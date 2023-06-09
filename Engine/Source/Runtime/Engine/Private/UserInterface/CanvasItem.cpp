@@ -919,6 +919,9 @@ void FCanvasTextItemBase::Draw( class FCanvas* InCanvas )
 	DrawStringInternal( InCanvas, DrawPos, DrawColor, TextEffects);
 }
 
+FCanvasTextItem::~FCanvasTextItem()
+{
+}
 
 EFontCacheType FCanvasTextItem::GetFontCacheType() const
 {

@@ -55,7 +55,7 @@ struct FVector4Distribution
 #endif
 
 USTRUCT()
-struct ENGINE_API FRawDistributionVector : public FRawDistribution
+struct FRawDistributionVector : public FRawDistribution
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -77,7 +77,7 @@ public:
 	TObjectPtr<class UDistributionVector> Distribution;
 
 	/** Whether the distribution data has been cooked or the object itself is available */
-	bool IsCreated();
+	ENGINE_API bool IsCreated();
 
 	FRawDistributionVector()
 		: MinValue(0)
@@ -93,35 +93,35 @@ public:
 	/**
 	* Initialize a raw distribution from the original Unreal distribution
 	*/
-	void Initialize();
+	ENGINE_API void Initialize();
 #endif
 
 	/**
 	* Gets a pointer to the raw distribution if you can just call FRawDistribution::GetValue3 on it, otherwise NULL 
 	*/
-	const FRawDistribution *GetFastRawDistribution();
+	ENGINE_API const FRawDistribution *GetFastRawDistribution();
 
 	/**
 	* Get the value at the specified F
 	*/
-	FVector GetValue(float F=0.0f, UObject* Data=NULL, int32 LastExtreme=0, struct FRandomStream* InRandomStream = NULL);
+	ENGINE_API FVector GetValue(float F=0.0f, UObject* Data=NULL, int32 LastExtreme=0, struct FRandomStream* InRandomStream = NULL);
 
 	/**
 	* Get the min and max values
 	*/
-	void GetOutRange(float& MinOut, float& MaxOut);
+	ENGINE_API void GetOutRange(float& MinOut, float& MaxOut);
 
 	/**
 	* Get the min and max values
 	*/
-	void GetRange(FVector& MinOut, FVector& MaxOut);
+	ENGINE_API void GetRange(FVector& MinOut, FVector& MaxOut);
 
 	/**
 	* Is this distribution a uniform type? (ie, does it have two values per entry?)
 	*/
 	inline bool IsUniform() { return LookupTable.SubEntryStride != 0; }
 
-	void InitLookupTable();
+	ENGINE_API void InitLookupTable();
 
 	FORCEINLINE bool HasLookupTable(bool bInitializeIfNeeded = true)
 	{
@@ -143,8 +143,8 @@ public:
 };
 
 
-UCLASS(abstract, customconstructor)
-class ENGINE_API UDistributionVector : public UDistribution
+UCLASS(abstract, customconstructor, MinimalAPI)
+class UDistributionVector : public UDistribution
 {
 	GENERATED_UCLASS_BODY()
 
@@ -161,7 +161,7 @@ protected:
 public:
 
 	/** Script-accessible way to query a FVector distribution */
-	virtual FVector GetVectorValue(float F = 0);
+	ENGINE_API virtual FVector GetVectorValue(float F = 0);
 
 
 	UDistributionVector(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get())
@@ -189,14 +189,14 @@ public:
 	 * @param Values An array of values to be filled out, guaranteed to be big enough for 2 vectors
 	 * @return The number of elements (values) set in the array
 	 */
-	virtual uint32 InitializeRawEntry(float Time, float* Values) const;
+	ENGINE_API virtual uint32 InitializeRawEntry(float Time, float* Values) const;
 
-	virtual FVector	GetValue( float F = 0.f, UObject* Data = NULL, int32 LastExtreme = 0, struct FRandomStream* InRandomStream = NULL ) const;
+	ENGINE_API virtual FVector	GetValue( float F = 0.f, UObject* Data = NULL, int32 LastExtreme = 0, struct FRandomStream* InRandomStream = NULL ) const;
 
 	//~ Begin FCurveEdInterface Interface
-	virtual void GetInRange(float& MinIn, float& MaxIn) const override;
-	virtual void GetOutRange(float& MinOut, float& MaxOut) const override;
-	virtual	void GetRange(FVector& OutMin, FVector& OutMax) const;
+	ENGINE_API virtual void GetInRange(float& MinIn, float& MaxIn) const override;
+	ENGINE_API virtual void GetOutRange(float& MinOut, float& MaxOut) const override;
+	ENGINE_API virtual	void GetRange(FVector& OutMin, FVector& OutMax) const;
 	//~ End FCurveEdInterface Interface
 
 	/** @return true of this distribution can be baked into a FRawDistribution lookup table, otherwise false */
@@ -220,12 +220,12 @@ public:
 
 	/** Begin UObject interface */
 #if	WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
-	virtual bool NeedsLoadForClient() const override;
-	virtual bool NeedsLoadForServer() const override;
-	virtual bool NeedsLoadForEditorGame() const override;
-	virtual void Serialize(FStructuredArchive::FRecord Record) override;
+	ENGINE_API virtual bool NeedsLoadForClient() const override;
+	ENGINE_API virtual bool NeedsLoadForServer() const override;
+	ENGINE_API virtual bool NeedsLoadForEditorGame() const override;
+	ENGINE_API virtual void Serialize(FStructuredArchive::FRecord Record) override;
 	/** End UObject interface */
 
 };

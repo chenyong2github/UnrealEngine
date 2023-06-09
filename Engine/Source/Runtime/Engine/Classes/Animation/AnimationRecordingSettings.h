@@ -11,18 +11,18 @@
 
 /** Settings describing how to record an animation */
 USTRUCT()
-struct ENGINE_API FAnimationRecordingSettings
+struct FAnimationRecordingSettings
 {
 	GENERATED_BODY()
 
 	/** 30Hz default sample frame rate */
-	static const FFrameRate DefaultSampleFrameRate;
+	static ENGINE_API const FFrameRate DefaultSampleFrameRate;
 
 	/** 1 minute default length */
-	static const float DefaultMaximumLength;
+	static ENGINE_API const float DefaultMaximumLength;
 
 	/** Length used to specify unbounded */
-	static const float UnboundedMaximumLength;
+	static ENGINE_API const float UnboundedMaximumLength;
 
 	FAnimationRecordingSettings()
 		: bRecordInWorldSpace(true)

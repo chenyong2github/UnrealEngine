@@ -30,13 +30,13 @@ enum class EPlacementInstanceFlags : uint32
 /**
  * Editor information about where and how an instance was placed
  */
-struct ENGINE_API FPlacementInstance
+struct FPlacementInstance
 {
 public:
 	friend FArchive& operator<<(FArchive& Ar, FPlacementInstance& Instance);
-	FTransform GetInstanceWorldTransform() const;
-	void SetInstanceWorldTransform(const FTransform& Transform);
-	void AlignToNormal(const FVector& InNormal, int32 AlignMaxAngle = 0);
+	ENGINE_API FTransform GetInstanceWorldTransform() const;
+	ENGINE_API void SetInstanceWorldTransform(const FTransform& Transform);
+	ENGINE_API void AlignToNormal(const FVector& InNormal, int32 AlignMaxAngle = 0);
 
 	double ZOffset = 0.0;
 	uint32 Flags = (uint32)EPlacementInstanceFlags::None;
@@ -48,8 +48,8 @@ protected:
 #endif //WITH_EDITORONLY_DATA
 
 // Settings which can be shared across partition actors
-UCLASS(Abstract, hideCategories=Object, editinlinenew, collapsecategories)
-class ENGINE_API UInstancedPlacemenClientSettings : public UObject
+UCLASS(Abstract, hideCategories=Object, editinlinenew, collapsecategories, MinimalAPI)
+class UInstancedPlacemenClientSettings : public UObject
 {
 	GENERATED_BODY()
 
@@ -66,16 +66,16 @@ public:
 #endif //WITH_EDITORONLY_DATA
 
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void RegisterISMDescriptors(AInstancedPlacementPartitionActor* ParentPartitionActor, TSortedMap<int32, TArray<FTransform>>& ISMDefinition) const;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void RegisterISMDescriptors(AInstancedPlacementPartitionActor* ParentPartitionActor, TSortedMap<int32, TArray<FTransform>>& ISMDefinition) const;
 #endif	// WITH_EDITOR
 };
 
 #if WITH_EDITORONLY_DATA
 // Settings which are unique per partition actor
-struct ENGINE_API FClientPlacementInfo : public IISMPartitionInstanceManager
+struct FClientPlacementInfo : public IISMPartitionInstanceManager
 {
-	FClientPlacementInfo();
+	ENGINE_API FClientPlacementInfo();
 
 	friend FArchive& operator<<(FArchive& Ar, FClientPlacementInfo& PlacementInfo);
 
@@ -105,31 +105,31 @@ struct ENGINE_API FClientPlacementInfo : public IISMPartitionInstanceManager
 	TSet<FISMClientInstanceId> MovingInstances;
 
 	using FClientDescriptorFunc = TFunctionRef<void(AInstancedPlacementPartitionActor*, TSortedMap<int32, TArray<FTransform>>&)>;
-	bool Initialize(const FGuid& InClientGuid, const FString& InClientDisplayName, AInstancedPlacementPartitionActor* InParentPartitionActor, FClientDescriptorFunc RegisterDescriptorFunc);
-	void Uninitialize();
-	void PostLoad(AInstancedPlacementPartitionActor* InParentPartitionActor);
-	void PostSerialize(FArchive& Ar, AInstancedPlacementPartitionActor* InParentPartitionActor);
-	bool IsInitialized() const;
-	void PreEditUndo();
-	void PostEditUndo();
-	TArray<FSMInstanceId> AddInstances(TArrayView<const FPlacementInstance> InWorldTransforms);
+	ENGINE_API bool Initialize(const FGuid& InClientGuid, const FString& InClientDisplayName, AInstancedPlacementPartitionActor* InParentPartitionActor, FClientDescriptorFunc RegisterDescriptorFunc);
+	ENGINE_API void Uninitialize();
+	ENGINE_API void PostLoad(AInstancedPlacementPartitionActor* InParentPartitionActor);
+	ENGINE_API void PostSerialize(FArchive& Ar, AInstancedPlacementPartitionActor* InParentPartitionActor);
+	ENGINE_API bool IsInitialized() const;
+	ENGINE_API void PreEditUndo();
+	ENGINE_API void PostEditUndo();
+	ENGINE_API TArray<FSMInstanceId> AddInstances(TArrayView<const FPlacementInstance> InWorldTransforms);
 
 private:
 	void RemoveInstancesFromPartitionActor(TArrayView<const FISMClientInstanceId> InstanceIds, bool bUpdateHISMTrees, TFunctionRef<void(int32)> RemoveFn);
 
 	//~ IISMPartitionInstanceManager interface
-	virtual FText GetISMPartitionInstanceDisplayName(const FISMClientInstanceId& InstanceId) const override;
-	virtual FText GetISMPartitionInstanceTooltip(const FISMClientInstanceId& InstanceId) const override;
-	virtual bool CanEditISMPartitionInstance(const FISMClientInstanceId& InstanceId) const override;
-	virtual bool CanMoveISMPartitionInstance(const FISMClientInstanceId& InstanceId, const ETypedElementWorldType InWorldType) const override;
-	virtual bool GetISMPartitionInstanceTransform(const FISMClientInstanceId& InstanceId, FTransform& OutInstanceTransform, bool bWorldSpace = false) const override;
-	virtual bool SetISMPartitionInstanceTransform(const FISMClientInstanceId& InstanceId, const FTransform& InstanceTransform, bool bWorldSpace = false, bool bTeleport = false) override;
-	virtual void NotifyISMPartitionInstanceMovementStarted(const FISMClientInstanceId& InstanceId) override;
-	virtual void NotifyISMPartitionInstanceMovementOngoing(const FISMClientInstanceId& InstanceId) override;
-	virtual void NotifyISMPartitionInstanceMovementEnded(const FISMClientInstanceId& InstanceId) override;
-	virtual void NotifyISMPartitionInstanceSelectionChanged(const FISMClientInstanceId& InstanceId, const bool bIsSelected) override;
-	virtual bool DeleteISMPartitionInstances(TArrayView<const FISMClientInstanceId> InstanceIds) override;
-	virtual bool DuplicateISMPartitionInstances(TArrayView<const FISMClientInstanceId> InstanceIds, TArray<FISMClientInstanceId>& OutNewInstanceIds) override;
+	ENGINE_API virtual FText GetISMPartitionInstanceDisplayName(const FISMClientInstanceId& InstanceId) const override;
+	ENGINE_API virtual FText GetISMPartitionInstanceTooltip(const FISMClientInstanceId& InstanceId) const override;
+	ENGINE_API virtual bool CanEditISMPartitionInstance(const FISMClientInstanceId& InstanceId) const override;
+	ENGINE_API virtual bool CanMoveISMPartitionInstance(const FISMClientInstanceId& InstanceId, const ETypedElementWorldType InWorldType) const override;
+	ENGINE_API virtual bool GetISMPartitionInstanceTransform(const FISMClientInstanceId& InstanceId, FTransform& OutInstanceTransform, bool bWorldSpace = false) const override;
+	ENGINE_API virtual bool SetISMPartitionInstanceTransform(const FISMClientInstanceId& InstanceId, const FTransform& InstanceTransform, bool bWorldSpace = false, bool bTeleport = false) override;
+	ENGINE_API virtual void NotifyISMPartitionInstanceMovementStarted(const FISMClientInstanceId& InstanceId) override;
+	ENGINE_API virtual void NotifyISMPartitionInstanceMovementOngoing(const FISMClientInstanceId& InstanceId) override;
+	ENGINE_API virtual void NotifyISMPartitionInstanceMovementEnded(const FISMClientInstanceId& InstanceId) override;
+	ENGINE_API virtual void NotifyISMPartitionInstanceSelectionChanged(const FISMClientInstanceId& InstanceId, const bool bIsSelected) override;
+	ENGINE_API virtual bool DeleteISMPartitionInstances(TArrayView<const FISMClientInstanceId> InstanceIds) override;
+	ENGINE_API virtual bool DuplicateISMPartitionInstances(TArrayView<const FISMClientInstanceId> InstanceIds, TArray<FISMClientInstanceId>& OutNewInstanceIds) override;
 };
 
 #endif	// WITH_EDITORONLY_DATA

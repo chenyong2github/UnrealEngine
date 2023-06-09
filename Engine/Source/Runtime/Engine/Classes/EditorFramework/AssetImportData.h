@@ -10,7 +10,7 @@
 
 /** Struct that is used to store an array of asset import data as an asset registry tag */
 USTRUCT()
-struct ENGINE_API FAssetImportInfo
+struct FAssetImportInfo
 {
 	GENERATED_BODY()
 	
@@ -49,10 +49,10 @@ struct ENGINE_API FAssetImportInfo
 	};
 
 	/** Convert this import information to JSON */
-	FString ToJson() const;
+	ENGINE_API FString ToJson() const;
 
 	/** Attempt to parse an asset import structure from the specified json string. */
-	static TOptional<FAssetImportInfo> FromJson(FString InJsonString);
+	static ENGINE_API TOptional<FAssetImportInfo> FromJson(FString InJsonString);
 
 	/** Insert information pertaining to a new source file to this structure */
 	void Insert(const FSourceFile& InSourceFile) { SourceFiles.Add(InSourceFile); }
@@ -66,8 +66,8 @@ struct ENGINE_API FAssetImportInfo
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnImportDataChanged, const FAssetImportInfo& /*OldData*/, const class UAssetImportData* /* NewData */);
 
 /* todo: Make this class better suited to multiple import paths - maybe have FAssetImportInfo use a map rather than array? */
-UCLASS(EditInlineNew)
-class ENGINE_API UAssetImportData : public UObject
+UCLASS(EditInlineNew, MinimalAPI)
+class UAssetImportData : public UObject
 {
 public:
 	GENERATED_UCLASS_BODY()
@@ -85,7 +85,7 @@ public:
 	 * @Param SourceFileLabel: Optional, can be empty string, the label we want to see in the UI when displaying the source file. (useful for multi source)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "AssetImportData")
-	void ScriptedAddFilename(const FString& InPath, int32 Index, FString SourceFileLabel);
+	ENGINE_API void ScriptedAddFilename(const FString& InPath, int32 Index, FString SourceFileLabel);
 #endif //WITH_EDITOR
 
 
@@ -106,27 +106,27 @@ public:
 public:
 
 	/** Static event that is broadcast whenever any asset has updated its import data */
-	static FOnImportDataChanged OnImportDataChanged;
+	static ENGINE_API FOnImportDataChanged OnImportDataChanged;
 
 	/** Update this import data using the specified file. Called when an asset has been imported from a file. */
-	void Update(const FString& AbsoluteFilename, FMD5Hash *Md5Hash = nullptr);
+	ENGINE_API void Update(const FString& AbsoluteFilename, FMD5Hash *Md5Hash = nullptr);
 
 	//@third party BEGIN SIMPLYGON
 	/** Update this import data using the specified filename and Precomputed Hash. */
-	void Update(const FString& AbsoluteFileName, const FMD5Hash PreComputedHash);
+	ENGINE_API void Update(const FString& AbsoluteFileName, const FMD5Hash PreComputedHash);
 	//@third party END SIMPLYGON
 
 	/** Update this import data using the specified filename. Will not update the imported timestamp or MD5 (so we can update files when they move). */
-	void UpdateFilenameOnly(const FString& InPath);
+	ENGINE_API void UpdateFilenameOnly(const FString& InPath);
 
 	/** Update the filename at the specific specified index. Will not update the imported timestamp or MD5 (so we can update files when they move). */
-	void UpdateFilenameOnly(const FString& InPath, int32 Index);
+	ENGINE_API void UpdateFilenameOnly(const FString& InPath, int32 Index);
 
 	/** Add a filename at the specific index. Will update the imported timespan and MD5. It will also add in between with empty filenames*/
-	void AddFileName(const FString& InPath, int32 Index, FString SourceFileLabel = FString());
+	ENGINE_API void AddFileName(const FString& InPath, int32 Index, FString SourceFileLabel = FString());
 
 	/** Replace the source files with the one provided. The MD5 hashes will be computed if they aren't set */
-	void SetSourceFiles(TArray<FAssetImportInfo::FSourceFile>&& SourceFiles);
+	ENGINE_API void SetSourceFiles(TArray<FAssetImportInfo::FSourceFile>&& SourceFiles);
 
 #if WITH_EDITOR
 	/** If your asset import data flavor need to add some asset registry tag, override this function. */
@@ -134,9 +134,9 @@ public:
 	
 	/** Helper function to return the first filename stored in this data. The resulting filename will be absolute (ie, not relative to the asset).  */
 	UFUNCTION(BlueprintCallable, meta=(DisplayName="GetFirstFilename", ScriptName="GetFirstFilename"), Category="AssetImportData")
-	FString K2_GetFirstFilename() const;
+	ENGINE_API FString K2_GetFirstFilename() const;
 #endif
-	FString GetFirstFilename() const;
+	ENGINE_API FString GetFirstFilename() const;
 
 	/** Const access to the source file data */
 	const FAssetImportInfo& GetSourceData() const { return SourceData; }
@@ -144,34 +144,34 @@ public:
 	/** Extract all the (resolved) filenames from this data  */
 #if WITH_EDITOR
 	UFUNCTION(BlueprintCallable, meta=(DisplayName="ExtractFilenames", ScriptName="ExtractFilenames"), Category="AssetImportData")
-	TArray<FString> K2_ExtractFilenames() const;
+	ENGINE_API TArray<FString> K2_ExtractFilenames() const;
 #endif
-	TArray<FString> ExtractFilenames() const;
-	void ExtractFilenames(TArray<FString>& AbsoluteFilenames) const;
+	ENGINE_API TArray<FString> ExtractFilenames() const;
+	ENGINE_API void ExtractFilenames(TArray<FString>& AbsoluteFilenames) const;
 	
-	void ExtractDisplayLabels(TArray<FString>& FileDisplayLabels) const;
+	ENGINE_API void ExtractDisplayLabels(TArray<FString>& FileDisplayLabels) const;
 
 	int32 GetSourceFileCount() const { return SourceData.SourceFiles.Num(); }
 
 	/** Resolve a filename that is relative to either the specified package, BaseDir() or absolute */
-	static FString ResolveImportFilename(const FString& InRelativePath, const UPackage* Outermost);
+	static ENGINE_API FString ResolveImportFilename(const FString& InRelativePath, const UPackage* Outermost);
 
 	/** Convert an absolute import path so that it's relative to either this object's package, BaseDir() or leave it absolute */
-	static FString SanitizeImportFilename(const FString& InPath, const UPackage* Outermost);
-	static FString SanitizeImportFilename(const FString& InPath, const FString& PackagePath);
+	static ENGINE_API FString SanitizeImportFilename(const FString& InPath, const UPackage* Outermost);
+	static ENGINE_API FString SanitizeImportFilename(const FString& InPath, const FString& PackagePath);
 
-	virtual void PostLoad() override;
+	ENGINE_API virtual void PostLoad() override;
 
 	/** Convert an absolute import path so that it's relative to either this object's package, BaseDir() or leave it absolute */
-	FString SanitizeImportFilename(const FString& InPath) const;
+	ENGINE_API FString SanitizeImportFilename(const FString& InPath) const;
 
 protected:
 
 	/** Resolve a filename that is relative to either this object's package, BaseDir() or absolute */
-	FString ResolveImportFilename(const FString& InRelativePath) const;
+	ENGINE_API FString ResolveImportFilename(const FString& InRelativePath) const;
 
 	/** Overridden serialize function to write out the underlying data as json */
-	virtual void Serialize(FStructuredArchive::FRecord Record) override;
+	ENGINE_API virtual void Serialize(FStructuredArchive::FRecord Record) override;
 	
 #endif		// WITH_EDITORONLY_DATA
 };

@@ -7,18 +7,18 @@
 #include "HLODSourceActorsFromCell.generated.h"
 
 
-UCLASS()
-class ENGINE_API UWorldPartitionHLODSourceActorsFromCell : public UWorldPartitionHLODSourceActors
+UCLASS(MinimalAPI)
+class UWorldPartitionHLODSourceActorsFromCell : public UWorldPartitionHLODSourceActors
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 #if WITH_EDITOR
-	virtual ULevelStreaming* LoadSourceActors(bool& bOutDirty) const override;
-	virtual uint32 GetHLODHash() const override;
+	ENGINE_API virtual ULevelStreaming* LoadSourceActors(bool& bOutDirty) const override;
+	ENGINE_API virtual uint32 GetHLODHash() const override;
 
-	void SetActors(const TArray<FHLODSubActor>& InSourceActors);
-	const TArray<FHLODSubActor>& GetActors() const;
+	ENGINE_API void SetActors(const TArray<FHLODSubActor>& InSourceActors);
+	ENGINE_API const TArray<FHLODSubActor>& GetActors() const;
 #endif
 
 private:

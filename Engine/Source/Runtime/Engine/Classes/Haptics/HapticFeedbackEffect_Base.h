@@ -24,7 +24,7 @@ class UHapticFeedbackEffect_Base : public UObject
 
 
 USTRUCT()
-struct ENGINE_API FActiveHapticFeedbackEffect
+struct FActiveHapticFeedbackEffect
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -53,7 +53,7 @@ struct ENGINE_API FActiveHapticFeedbackEffect
 		HapticEffect->Initialize(HapticBuffer);
 	}
 
-	bool Update(const float DeltaTime, struct FHapticFeedbackValues& Values);
+	ENGINE_API bool Update(const float DeltaTime, struct FHapticFeedbackValues& Values);
 
 	bool bLoop;
 

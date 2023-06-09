@@ -107,6 +107,12 @@ static float GetResolutionFraction(float ScreenPercentage)
 
 FLegacyScreenPercentageDriver::FLegacyScreenPercentageDriver(
 	const FSceneViewFamily& InViewFamily,
+	float InGlobalResolutionFraction)
+	: FLegacyScreenPercentageDriver(InViewFamily, InGlobalResolutionFraction, InGlobalResolutionFraction)
+{ }
+
+FLegacyScreenPercentageDriver::FLegacyScreenPercentageDriver(
+	const FSceneViewFamily& InViewFamily,
 	float InGlobalResolutionFraction,
 	float InGlobalResolutionFractionUpperBound)
 	: ViewFamily(InViewFamily)

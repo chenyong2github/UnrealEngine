@@ -91,7 +91,7 @@ enum class EPriorityAttenuationMethod : uint8
 
 
 USTRUCT(BlueprintType)
-struct ENGINE_API FSoundAttenuationPluginSettings
+struct FSoundAttenuationPluginSettings
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -113,7 +113,7 @@ struct ENGINE_API FSoundAttenuationPluginSettings
 };
 
 USTRUCT(BlueprintType)
-struct ENGINE_API FAttenuationSubmixSendSettings
+struct FAttenuationSubmixSendSettings
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -169,7 +169,7 @@ enum class ENonSpatializedRadiusSpeakerMapMode : uint8
 The settings for attenuating.
 */
 USTRUCT(BlueprintType)
-struct ENGINE_API FSoundAttenuationSettings : public FBaseAttenuationSettings
+struct FSoundAttenuationSettings : public FBaseAttenuationSettings
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -511,15 +511,15 @@ struct ENGINE_API FSoundAttenuationSettings : public FBaseAttenuationSettings
 	{
 	}
 
-	bool operator==(const FSoundAttenuationSettings& Other) const;
+	ENGINE_API bool operator==(const FSoundAttenuationSettings& Other) const;
 #if WITH_EDITORONLY_DATA
-	void PostSerialize(const FArchive& Ar);
+	ENGINE_API void PostSerialize(const FArchive& Ar);
 #endif
 
-	virtual void CollectAttenuationShapesForVisualization(TMultiMap<EAttenuationShape::Type, FBaseAttenuationSettings::AttenuationShapeDetails>& ShapeDetailsMap) const override;
-	float GetFocusPriorityScale(const struct FGlobalFocusSettings& FocusSettings, float FocusFactor) const;
-	float GetFocusAttenuation(const struct FGlobalFocusSettings& FocusSettings, float FocusFactor) const;
-	float GetFocusDistanceScale(const struct FGlobalFocusSettings& FocusSettings, float FocusFactor) const;
+	ENGINE_API virtual void CollectAttenuationShapesForVisualization(TMultiMap<EAttenuationShape::Type, FBaseAttenuationSettings::AttenuationShapeDetails>& ShapeDetailsMap) const override;
+	ENGINE_API float GetFocusPriorityScale(const struct FGlobalFocusSettings& FocusSettings, float FocusFactor) const;
+	ENGINE_API float GetFocusAttenuation(const struct FGlobalFocusSettings& FocusSettings, float FocusFactor) const;
+	ENGINE_API float GetFocusDistanceScale(const struct FGlobalFocusSettings& FocusSettings, float FocusFactor) const;
 };
 
 #if WITH_EDITORONLY_DATA

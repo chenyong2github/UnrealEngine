@@ -25,7 +25,7 @@ DECLARE_DELEGATE_TwoParams(FDebugDrawDelegate, UCanvas*, APlayerController*);
 class FDebugRenderSceneProxy : public FPrimitiveSceneProxy
 {
 public:
-	ENGINE_API virtual ~FDebugRenderSceneProxy() {};
+	virtual ~FDebugRenderSceneProxy() {};
 	
 	ENGINE_API SIZE_T GetTypeHash() const override;
 
@@ -36,7 +36,7 @@ public:
 		SolidAndWireMeshes = 2,
 	};
 	ENGINE_API FDebugRenderSceneProxy(const UPrimitiveComponent* InComponent);
-	ENGINE_API FDebugRenderSceneProxy(FDebugRenderSceneProxy const&) = default;
+	FDebugRenderSceneProxy(FDebugRenderSceneProxy const&) = default;
 
 	// FPrimitiveSceneProxy interface.
 
@@ -309,13 +309,13 @@ public:
 	}
 
 	UE_DEPRECATED(5.0, "This method is deprecated. Call RequestRegisterDebugDrawDelegate or override RegisterDebugDrawDelegateInternal instead.")
-	ENGINE_API virtual void RegisterDebugDrawDelgate() final { RegisterDebugDrawDelegateInternal(); }
+	virtual void RegisterDebugDrawDelgate() final { RegisterDebugDrawDelegateInternal(); }
 	UE_DEPRECATED(5.0, "This method is deprecated. Use UnregisterDebugDrawDelegate instead.")
-	ENGINE_API virtual void UnregisterDebugDrawDelgate() { UnregisterDebugDrawDelegate(); }
+	virtual void UnregisterDebugDrawDelgate() { UnregisterDebugDrawDelegate(); }
 	UE_DEPRECATED(5.0, "This method is deprecated. Use ReregisterDebugDrawDelegate instead.")
-	ENGINE_API void ReregisterDebugDrawDelgate() { ReregisterDebugDrawDelegate(); }
+	void ReregisterDebugDrawDelgate() { ReregisterDebugDrawDelegate(); }
 	UE_DEPRECATED(5.0, "This method is deprecated. Call RequestRegisterDebugDrawDelegate or override RegisterDebugDrawDelegateInternal instead.")
-	ENGINE_API virtual void RegisterDebugDrawDelegate() final { RegisterDebugDrawDelegateInternal(); }
+	virtual void RegisterDebugDrawDelegate() final { RegisterDebugDrawDelegateInternal(); }
 
 	/**
 	 * Method that should be called at render state creation (i.e. CreateRenderState_Concurrent).
@@ -342,9 +342,9 @@ protected:
 	ENGINE_API virtual void RegisterDebugDrawDelegateInternal();
 
 	ENGINE_API virtual void DrawDebugLabels(UCanvas* Canvas, APlayerController*);
-	ENGINE_API void ResetTexts() { Texts.Reset(); }
-	ENGINE_API const TextArray& GetTexts() const { return Texts; }
-	ENGINE_API float GetTextWithoutShadowDistance() const {return TextWithoutShadowDistance; }
+	void ResetTexts() { Texts.Reset(); }
+	const TextArray& GetTexts() const { return Texts; }
+	float GetTextWithoutShadowDistance() const {return TextWithoutShadowDistance; }
 
 protected:
 	FDebugDrawDelegate DebugTextDrawingDelegate;

@@ -43,7 +43,7 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("PreFilter"), STAT_Collision_PreFilter, STATGROUP
 //	FSeparatingAxisPointCheck - Checks for intersection between an AABB and a convex polygon.
 //
 
-class ENGINE_API FSeparatingAxisPointCheck
+class FSeparatingAxisPointCheck
 {
 public:
 	/** The normal of the separating axis that the bounding box is penetrating the least */
@@ -116,7 +116,7 @@ private:
 	 *	@param	ProjectedPolyMin	The minimum polygon point, projected onto the separating axis.
 	 *	@param	ProjectedPolyMax	The maximum polygon point, projected onto the separating axis.
 	 */
-	bool TestSeparatingAxisCommon(const FVector& Axis, float ProjectedPolyMin, float ProjectedPolyMax);
+	ENGINE_API bool TestSeparatingAxisCommon(const FVector& Axis, float ProjectedPolyMin, float ProjectedPolyMax);
 
 	/**
 	 *	Determines whether the bounding box encroaches on the triangle along the given axis.
@@ -125,7 +125,7 @@ private:
 	 *
 	 *	@return	True if the bounding box encroaches on the triangle along the given axis.
 	 */
-	bool TestSeparatingAxisTriangle(const FVector& Axis);
+	ENGINE_API bool TestSeparatingAxisTriangle(const FVector& Axis);
 
 	/**
 	 *	Determines whether the bounding box encroaches on the convex polygon along the given axis.
@@ -134,21 +134,21 @@ private:
 	 *
 	 *	@return	True if the bounding box encroaches on the triangle along the given axis.
 	 */
-	bool TestSeparatingAxisGeneric(const FVector& Axis);
+	ENGINE_API bool TestSeparatingAxisGeneric(const FVector& Axis);
 
 	/**
 	 *	Determines whether the bounding box encroaches on the triangle, checking all relevant axes.
 	 *
 	 *	@return	True if the bounding box encroaches on the triangle.
 	 */
-	bool FindSeparatingAxisTriangle();
+	ENGINE_API bool FindSeparatingAxisTriangle();
 
 	/**
 	 *	Determines whether the bounding box encroaches on the convex polygon, checking all relevant axes.
 	 *
 	 *	@return	True if the bounding box encroaches on the convex polygon.
 	 */
-	bool FindSeparatingAxisGeneric();
+	ENGINE_API bool FindSeparatingAxisGeneric();
 
 	/** Array of vertices defining the convex polygon being checked. */
 	const TArray<FVector>& PolyVertices;
@@ -163,7 +163,7 @@ private:
 	bool bCalcLeastPenetration;
 
 	/** Array into which triangle vertices are placed (legacy use only) */
-	static TArray<FVector> TriangleVertices;
+	static ENGINE_API TArray<FVector> TriangleVertices;
 };
 
 /**

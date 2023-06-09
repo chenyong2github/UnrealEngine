@@ -28,15 +28,15 @@ struct FWorldPartitionResolveData
 	FString SourceWorldAssetPath;
 };
 
-UINTERFACE()
-class ENGINE_API UWorldPartitionObjectResolver
+UINTERFACE(MinimalAPI)
+class UWorldPartitionObjectResolver
 	: public UInterface
 {
 public:
 	GENERATED_BODY()
 };
 
-class ENGINE_API IWorldPartitionObjectResolver
+class IWorldPartitionObjectResolver
 {
 public:
 	GENERATED_BODY()

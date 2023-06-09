@@ -8,8 +8,8 @@
 #include "Distributions/DistributionFloatConstant.h"
 #include "DistributionFloatParameterBase.generated.h"
 
-UCLASS(abstract, collapsecategories, hidecategories=Object, editinlinenew)
-class ENGINE_API UDistributionFloatParameterBase : public UDistributionFloatConstant
+UCLASS(abstract, collapsecategories, hidecategories=Object, editinlinenew, MinimalAPI)
+class UDistributionFloatParameterBase : public UDistributionFloatConstant
 {
 	GENERATED_UCLASS_BODY()
 
@@ -39,7 +39,7 @@ class ENGINE_API UDistributionFloatParameterBase : public UDistributionFloatCons
 
 
 	//~ Begin UDistributionFloat Interface
-	virtual float GetValue( float F = 0.f, UObject* Data = NULL, struct FRandomStream* InRandomStream = NULL ) const override;
+	ENGINE_API virtual float GetValue( float F = 0.f, UObject* Data = NULL, struct FRandomStream* InRandomStream = NULL ) const override;
 	//~ End UDistributionFloat Interface
 	
 	

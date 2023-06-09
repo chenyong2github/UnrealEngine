@@ -108,17 +108,17 @@ public:
 	virtual bool IsProxy() const { return false; }
 
 	// Dynamic cast methods.
-	ENGINE_API virtual FTexture2DResource* GetTexture2DResource() { return nullptr; }
-	ENGINE_API virtual FTexture3DResource* GetTexture3DResource() { return nullptr; }
-	ENGINE_API virtual FTexture2DArrayResource* GetTexture2DArrayResource() { return nullptr; }
-	ENGINE_API virtual FStreamableTextureResource* GetStreamableTextureResource() { return nullptr; }
-	ENGINE_API virtual FVirtualTexture2DResource* GetVirtualTexture2DResource() { return nullptr; }
+	virtual FTexture2DResource* GetTexture2DResource() { return nullptr; }
+	virtual FTexture3DResource* GetTexture3DResource() { return nullptr; }
+	virtual FTexture2DArrayResource* GetTexture2DArrayResource() { return nullptr; }
+	virtual FStreamableTextureResource* GetStreamableTextureResource() { return nullptr; }
+	virtual FVirtualTexture2DResource* GetVirtualTexture2DResource() { return nullptr; }
 	// Dynamic cast methods (const).
-	ENGINE_API virtual const FTexture2DResource* GetTexture2DResource() const { return nullptr; }
-	ENGINE_API virtual const FTexture3DResource* GetTexture3DResource() const { return nullptr; }
-	ENGINE_API virtual const FTexture2DArrayResource* GetTexture2DArrayResource() const { return nullptr; }
-	ENGINE_API virtual const FStreamableTextureResource* GetStreamableTextureResource() const { return nullptr; }
-	ENGINE_API virtual const FVirtualTexture2DResource* GetVirtualTexture2DResource() const { return nullptr; }
+	virtual const FTexture2DResource* GetTexture2DResource() const { return nullptr; }
+	virtual const FTexture3DResource* GetTexture3DResource() const { return nullptr; }
+	virtual const FTexture2DArrayResource* GetTexture2DArrayResource() const { return nullptr; }
+	virtual const FStreamableTextureResource* GetStreamableTextureResource() const { return nullptr; }
+	virtual const FVirtualTexture2DResource* GetVirtualTexture2DResource() const { return nullptr; }
 
 	// Current mip count. We use "current" to specify that it is not computed from SizeX() which is the size when fully streamed in.
 	FORCEINLINE int32 GetCurrentMipCount() const
@@ -173,9 +173,9 @@ public:
 	ENGINE_API virtual void ReleaseRHI() override;
 
 	// Dynamic cast methods.
-	ENGINE_API virtual FVirtualTexture2DResource* GetVirtualTexture2DResource() { return this; }
+	virtual FVirtualTexture2DResource* GetVirtualTexture2DResource() { return this; }
 	// Dynamic cast methods (const).
-	ENGINE_API virtual const FVirtualTexture2DResource* GetVirtualTexture2DResource() const { return this; }
+	virtual const FVirtualTexture2DResource* GetVirtualTexture2DResource() const { return this; }
 
 #if WITH_EDITOR
 	ENGINE_API virtual void InitializeEditorResources(class IVirtualTexture* InVirtualTexture);

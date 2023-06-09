@@ -59,8 +59,8 @@ struct FComponentSync
  *
  * This allows to find the highest LOD of all the parts, and sync to that LOD
  */
-UCLASS(Blueprintable, ClassGroup = Component, BlueprintType, meta = (BlueprintSpawnableComponent))
-class ENGINE_API ULODSyncComponent : public UActorComponent
+UCLASS(Blueprintable, ClassGroup = Component, BlueprintType, meta = (BlueprintSpawnableComponent), MinimalAPI)
+class ULODSyncComponent : public UActorComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -92,7 +92,7 @@ class ENGINE_API ULODSyncComponent : public UActorComponent
 
 	/** Returns a string detailing  */
 	UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh")
-	FString GetLODSyncDebugText() const;
+	ENGINE_API FString GetLODSyncDebugText() const;
 
 private:
 	UPROPERTY(transient)
@@ -111,13 +111,13 @@ private:
 	TArray<TObjectPtr<UPrimitiveComponent>> SubComponents;
 
 	// BEGIN AActorComponent interface
-	virtual void OnRegister() override;
-	virtual void OnUnregister() override;
-	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+	ENGINE_API virtual void OnRegister() override;
+	ENGINE_API virtual void OnUnregister() override;
+	ENGINE_API virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 	// END AActorComponent interface
 
 public: 
-	void RefreshSyncComponents();
+	ENGINE_API void RefreshSyncComponents();
 
 private:
 	int32 GetCustomMappingLOD(const FName& ComponentName, int32 CurrentWorkingLOD) const;

@@ -391,19 +391,19 @@ public:
 	int32						MaxImportVertex;
 
 	/** Accessor for the RawPointIndice which is editor only data: array of the original point (wedge) indices for each of the vertices in a FSkeletalMeshLODModel */
-	ENGINE_API const TArray<uint32>& GetRawPointIndices() const
+	const TArray<uint32>& GetRawPointIndices() const
 	{
 		return RawPointIndices2;
 	}
 
 	/** Accessor for the RawPointIndice which is editor only data: array of the original point (wedge) indices for each of the vertices in a FSkeletalMeshLODModel */
-	ENGINE_API TArray<uint32>& GetRawPointIndices()
+	TArray<uint32>& GetRawPointIndices()
 	{
 		return RawPointIndices2;
 	}
 	
 	UE_DEPRECATED(5.0, "Please do not access this function anymore. This data is not use anymore.")
-	ENGINE_API FRawSkeletalMeshBulkData& GetRawSkeletalMeshBulkData_DEPRECATED()
+	FRawSkeletalMeshBulkData& GetRawSkeletalMeshBulkData_DEPRECATED()
 	{
 		return RawSkeletalMeshBulkData_DEPRECATED;
 	}
@@ -556,7 +556,7 @@ public:
 	* Create a new FSkeletalMeshLODModel on the heap. Copy data from the "FSkeletalMeshLODModel* Other" to the just created LODModel return the heap allocated LODModel.
 	* This function is thread safe since its use the thread safe CopyStructure function to copy the data from Other.
 	*/
-	static ENGINE_API FSkeletalMeshLODModel* CreateCopy(const FSkeletalMeshLODModel* Other)
+	static FSkeletalMeshLODModel* CreateCopy(const FSkeletalMeshLODModel* Other)
 	{
 		FSkeletalMeshLODModel* Destination = new FSkeletalMeshLODModel();
 		FSkeletalMeshLODModel::CopyStructure(Destination, Other);

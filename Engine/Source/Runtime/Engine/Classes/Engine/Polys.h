@@ -218,7 +218,7 @@ public:
 	* @param	InPolygons		An array of FPolys that will be replaced with a new set of polygons that are merged together as much as possible.
 	*/
 	template<typename ArrayType>
-	ENGINE_API static void OptimizeIntoConvexPolys(ABrush* InOwnerBrush, ArrayType& InPolygons);
+	static void OptimizeIntoConvexPolys(ABrush* InOwnerBrush, ArrayType& InPolygons);
 
 	/**
 	* Takes a set of polygons and returns a vertex array representing the outside winding

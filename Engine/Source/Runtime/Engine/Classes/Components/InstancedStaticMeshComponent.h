@@ -83,16 +83,16 @@ struct FInstancedStaticMeshRandomSeed
 };
 
 /** A component that efficiently renders multiple instances of the same StaticMesh. */
-UCLASS(ClassGroup = Rendering, meta = (BlueprintSpawnableComponent), Blueprintable)
-class ENGINE_API UInstancedStaticMeshComponent : public UStaticMeshComponent, public ISMInstanceManager
+UCLASS(ClassGroup = Rendering, meta = (BlueprintSpawnableComponent), Blueprintable, MinimalAPI)
+class UInstancedStaticMeshComponent : public UStaticMeshComponent, public ISMInstanceManager
 {
 	GENERATED_UCLASS_BODY()
 
 	friend class ALightWeightInstanceManager;
 	
 	/** Needs implementation in InstancedStaticMesh.cpp to compile UniquePtr for forward declared class */
-	UInstancedStaticMeshComponent(FVTableHelper& Helper);
-	virtual ~UInstancedStaticMeshComponent();
+	ENGINE_API UInstancedStaticMeshComponent(FVTableHelper& Helper);
+	ENGINE_API virtual ~UInstancedStaticMeshComponent();
 	
 	/** Array of instances, bulk serialized. */
 	UPROPERTY(EditAnywhere, SkipSerialization, DisplayName="Instances", Category=Instances, meta=(MakeEditWidget=true, EditFixedOrder))
@@ -144,11 +144,11 @@ class ENGINE_API UInstancedStaticMeshComponent : public UStaticMeshComponent, pu
 
 	/** Add an instance to this component. Transform is given in local space of this component unless bWorldSpace is set. */
 	UFUNCTION(BlueprintCallable, Category="Components|InstancedStaticMesh")
-	virtual int32 AddInstance(const FTransform& InstanceTransform, bool bWorldSpace = false);
+	ENGINE_API virtual int32 AddInstance(const FTransform& InstanceTransform, bool bWorldSpace = false);
 
 	/** Add multiple instances to this component. Transform is given in local space of this component unless bWorldSpace is set. */
 	UFUNCTION(BlueprintCallable, Category="Components|InstancedStaticMesh")
-	virtual TArray<int32> AddInstances(const TArray<FTransform>& InstanceTransforms, bool bShouldReturnIndices, bool bWorldSpace = false);
+	ENGINE_API virtual TArray<int32> AddInstances(const TArray<FTransform>& InstanceTransforms, bool bShouldReturnIndices, bool bWorldSpace = false);
 
 	/** Add an instance to this component. Transform is given in world space. */
 	UE_DEPRECATED(5.0, "Use AddInstance or AddInstances with bWorldSpace set to true.")
@@ -160,36 +160,36 @@ class ENGINE_API UInstancedStaticMeshComponent : public UStaticMeshComponent, pu
 
 	/** Update custom data for specific instance */
 	UFUNCTION(BlueprintCallable, Category = "Components|InstancedStaticMesh")
-	virtual bool SetCustomDataValue(int32 InstanceIndex, int32 CustomDataIndex, float CustomDataValue, bool bMarkRenderStateDirty = false);
+	ENGINE_API virtual bool SetCustomDataValue(int32 InstanceIndex, int32 CustomDataIndex, float CustomDataValue, bool bMarkRenderStateDirty = false);
 
 	/** Update number of custom data entries per instance. This applies to all instances and will reallocate the full custom data buffer and reset all values to 0 */
 	UFUNCTION(BlueprintCallable, Category = "Components|InstancedStaticMesh")
-	virtual void SetNumCustomDataFloats(int32 InNumCustomDataFloats);
+	ENGINE_API virtual void SetNumCustomDataFloats(int32 InNumCustomDataFloats);
 
 	/** Per Instance Custom Data */
-	virtual bool SetCustomData(int32 InstanceIndex, TArrayView<const float> CustomDataFloats, bool bMarkRenderStateDirty = false); 
+	ENGINE_API virtual bool SetCustomData(int32 InstanceIndex, TArrayView<const float> CustomDataFloats, bool bMarkRenderStateDirty = false); 
 
 	/** Preallocated memory to include the new added instances count, to prevent reallloc during the add operation. */
-	virtual void PreAllocateInstancesMemory(int32 AddedInstanceCount);
+	ENGINE_API virtual void PreAllocateInstancesMemory(int32 AddedInstanceCount);
 
 	/** Get the transform for the instance specified. Instance is returned in local space of this component unless bWorldSpace is set.  Returns True on success. */
 	UFUNCTION(BlueprintCallable, Category = "Components|InstancedStaticMesh")
-	bool GetInstanceTransform(int32 InstanceIndex, FTransform& OutInstanceTransform, bool bWorldSpace = false) const;
+	ENGINE_API bool GetInstanceTransform(int32 InstanceIndex, FTransform& OutInstanceTransform, bool bWorldSpace = false) const;
 	
 	// TODO: KevinO cleanup
 	/** Get the prev transform for the instance specified. Only works if PerInstancePrevTransform has been setup and updated through BatchUpdateInstancesTransforms */
-	bool GetInstancePrevTransform(int32 InstanceIndex, FTransform& OutInstanceTransform, bool bWorldSpace = false) const;
+	ENGINE_API bool GetInstancePrevTransform(int32 InstanceIndex, FTransform& OutInstanceTransform, bool bWorldSpace = false) const;
 
-	virtual void OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport) override;
+	ENGINE_API virtual void OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport) override;
 
 	/** Get the scale comming form the component, when computing StreamingTexture data. Used to support instanced meshes. */
-	virtual float GetTextureStreamingTransformScale() const override;
+	ENGINE_API virtual float GetTextureStreamingTransformScale() const override;
 	/** Get material, UV density and bounds for a given material index. */
-	virtual bool GetMaterialStreamingData(int32 MaterialIndex, FPrimitiveMaterialInfo& MaterialData) const override;
+	ENGINE_API virtual bool GetMaterialStreamingData(int32 MaterialIndex, FPrimitiveMaterialInfo& MaterialData) const override;
 	/** Build the data to compute accuracte StreaminTexture data. */
-	virtual bool BuildTextureStreamingDataImpl(ETextureStreamingBuildType BuildType, EMaterialQualityLevel::Type QualityLevel, ERHIFeatureLevel::Type FeatureLevel, TSet<FGuid>& DependentResources, bool& bOutSupportsBuildTextureStreamingData) override;
+	ENGINE_API virtual bool BuildTextureStreamingDataImpl(ETextureStreamingBuildType BuildType, EMaterialQualityLevel::Type QualityLevel, ERHIFeatureLevel::Type FeatureLevel, TSet<FGuid>& DependentResources, bool& bOutSupportsBuildTextureStreamingData) override;
 	/** Get the StreaminTexture data. */
-	virtual void GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const override;
+	ENGINE_API virtual void GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const override;
 
 	/**
 	* Update the transform for the instance specified.
@@ -202,7 +202,7 @@ class ENGINE_API UInstancedStaticMeshComponent : public UStaticMeshComponent, pu
 	* @return						True on success.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Components|InstancedStaticMesh")
-	virtual bool UpdateInstanceTransform(int32 InstanceIndex, const FTransform& NewInstanceTransform, bool bWorldSpace=false, bool bMarkRenderStateDirty=false, bool bTeleport=false);
+	ENGINE_API virtual bool UpdateInstanceTransform(int32 InstanceIndex, const FTransform& NewInstanceTransform, bool bWorldSpace=false, bool bMarkRenderStateDirty=false, bool bTeleport=false);
 
     /**
 	* Update the transform for an array of instances.
@@ -215,16 +215,16 @@ class ENGINE_API UInstancedStaticMeshComponent : public UStaticMeshComponent, pu
 	* @return						True on success.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Components|InstancedStaticMesh")
-	virtual bool BatchUpdateInstancesTransforms(int32 StartInstanceIndex, const TArray<FTransform>& NewInstancesTransforms, bool bWorldSpace=false, bool bMarkRenderStateDirty=false, bool bTeleport=false);
+	ENGINE_API virtual bool BatchUpdateInstancesTransforms(int32 StartInstanceIndex, const TArray<FTransform>& NewInstancesTransforms, bool bWorldSpace=false, bool bMarkRenderStateDirty=false, bool bTeleport=false);
 
 	/** this is array view version of the UFUNCTION, blueprints do not support ArrayViews at the time of adding this one  */
-	virtual bool BatchUpdateInstancesTransforms(int32 StartInstanceIndex, TArrayView<const FTransform> NewInstancesTransforms, bool bWorldSpace = false, bool bMarkRenderStateDirty = false, bool bTeleport = false);
+	ENGINE_API virtual bool BatchUpdateInstancesTransforms(int32 StartInstanceIndex, TArrayView<const FTransform> NewInstancesTransforms, bool bWorldSpace = false, bool bMarkRenderStateDirty = false, bool bTeleport = false);
 
 	// TODO: KevinO cleanup
 	/**
 	* Update the transform for an array of instances. Overloaded version which takes an array of NewPreviousFrameTransforms.
 	*/
-	virtual bool BatchUpdateInstancesTransforms(int32 StartInstanceIndex, const TArray<FTransform>& NewInstancesTransforms, const TArray<FTransform>& NewInstancesPrevTransforms, bool bWorldSpace = false, bool bMarkRenderStateDirty = false, bool bTeleport = false);
+	ENGINE_API virtual bool BatchUpdateInstancesTransforms(int32 StartInstanceIndex, const TArray<FTransform>& NewInstancesTransforms, const TArray<FTransform>& NewInstancesPrevTransforms, bool bWorldSpace = false, bool bMarkRenderStateDirty = false, bool bTeleport = false);
 
 	/**
 	* Lightweight interface to add, remove and update instances.
@@ -236,7 +236,7 @@ class ENGINE_API UInstancedStaticMeshComponent : public UStaticMeshComponent, pu
 	* @param UpdateInstancePreviousTransforms	The transforms of the new instances to update.
 	* @return									True on success
 	*/
-	virtual bool UpdateInstances(
+	ENGINE_API virtual bool UpdateInstances(
 		const TArray<int32>& UpdateInstanceIds, 
 		const TArray<FTransform>& UpdateInstanceTransforms, 
 		const TArray<FTransform>& UpdateInstancePreviousTransforms,
@@ -255,39 +255,39 @@ class ENGINE_API UInstancedStaticMeshComponent : public UStaticMeshComponent, pu
 	* @return						True on success.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Components|InstancedStaticMesh")
-	virtual bool BatchUpdateInstancesTransform(int32 StartInstanceIndex, int32 NumInstances, const FTransform& NewInstancesTransform, bool bWorldSpace=false, bool bMarkRenderStateDirty=false, bool bTeleport=false);
+	ENGINE_API virtual bool BatchUpdateInstancesTransform(int32 StartInstanceIndex, int32 NumInstances, const FTransform& NewInstancesTransform, bool bWorldSpace=false, bool bMarkRenderStateDirty=false, bool bTeleport=false);
 
-	virtual bool BatchUpdateInstancesData(int32 StartInstanceIndex, int32 NumInstances, FInstancedStaticMeshInstanceData* StartInstanceData, bool bMarkRenderStateDirty = false, bool bTeleport = false);
+	ENGINE_API virtual bool BatchUpdateInstancesData(int32 StartInstanceIndex, int32 NumInstances, FInstancedStaticMeshInstanceData* StartInstanceData, bool bMarkRenderStateDirty = false, bool bTeleport = false);
 
 	/** Remove the instance specified. Returns True on success. */
 	UFUNCTION(BlueprintCallable, Category = "Components|InstancedStaticMesh")
-	virtual bool RemoveInstance(int32 InstanceIndex);
+	ENGINE_API virtual bool RemoveInstance(int32 InstanceIndex);
 
 	/** Remove the instances specified. Returns True on success. */
 	UFUNCTION(BlueprintCallable, Category = "Components|InstancedStaticMesh")
-	virtual bool RemoveInstances(const TArray<int32>& InstancesToRemove);
+	ENGINE_API virtual bool RemoveInstances(const TArray<int32>& InstancesToRemove);
 
 	/** Remove the instances specified. Returns True on success.
 	* @param InstancesToRemove array of the instance indices to remove ( can be sorted @see bInstanceArrayAlreadySortedInReverseOrder )
 	* @param bInstanceArrayAlreadySortedInReverseOrder true is the array is already sorted in reverse order
 	*/
-	virtual bool RemoveInstances(const TArray<int32>& InstancesToRemove, bool bInstanceArrayAlreadySortedInReverseOrder);
+	ENGINE_API virtual bool RemoveInstances(const TArray<int32>& InstancesToRemove, bool bInstanceArrayAlreadySortedInReverseOrder);
 
 	/** Clear all instances being rendered by this component. */
 	UFUNCTION(BlueprintCallable, Category="Components|InstancedStaticMesh")
-	virtual void ClearInstances();
+	ENGINE_API virtual void ClearInstances();
 
 	/** Get the number of instances in this component. */
 	UFUNCTION(BlueprintCallable, Category = "Components|InstancedStaticMesh")
-	int32 GetInstanceCount() const;
+	ENGINE_API int32 GetInstanceCount() const;
 
 	/** Does the given index map to a valid instance in this component? */
 	UFUNCTION(BlueprintCallable, Category = "Components|InstancedStaticMesh")
-	bool IsValidInstance(int32 InstanceIndex) const;
+	ENGINE_API bool IsValidInstance(int32 InstanceIndex) const;
 
 	/** Sets the fading start and culling end distances for this component. */
 	UFUNCTION(BlueprintCallable, Category = "Components|InstancedStaticMesh")
-	void SetCullDistances(int32 StartCullDistance, int32 EndCullDistance);
+	ENGINE_API void SetCullDistances(int32 StartCullDistance, int32 EndCullDistance);
 
 	/** Gets the fading start and culling end distances for this component. */
 	UFUNCTION(BlueprintCallable, Category = "Components|InstancedStaticMesh")
@@ -295,28 +295,28 @@ class ENGINE_API UInstancedStaticMeshComponent : public UStaticMeshComponent, pu
 
 	/** Returns the instances with instance bounds overlapping the specified sphere. The return value is an array of instance indices. */
 	UFUNCTION(BlueprintCallable, Category = "Components|InstancedStaticMesh")
-	virtual TArray<int32> GetInstancesOverlappingSphere(const FVector& Center, float Radius, bool bSphereInWorldSpace=true) const;
+	ENGINE_API virtual TArray<int32> GetInstancesOverlappingSphere(const FVector& Center, float Radius, bool bSphereInWorldSpace=true) const;
 
 	/** Returns the instances with instance bounds overlapping the specified box. The return value is an array of instance indices. */
 	UFUNCTION(BlueprintCallable, Category = "Components|InstancedStaticMesh")
-	virtual TArray<int32> GetInstancesOverlappingBox(const FBox& Box, bool bBoxInWorldSpace=true) const;
+	ENGINE_API virtual TArray<int32> GetInstancesOverlappingBox(const FBox& Box, bool bBoxInWorldSpace=true) const;
 
-	virtual bool ShouldCreatePhysicsState() const override;
+	ENGINE_API virtual bool ShouldCreatePhysicsState() const override;
 
-	virtual void PostLoad() override;
-	virtual void OnRegister() override;
+	ENGINE_API virtual void PostLoad() override;
+	ENGINE_API virtual void OnRegister() override;
 	
 	/** Sets to use RemoveAtSwap on instance removal. This is an optimization, but will change the resultant instance reordering. */
 	void SetRemoveSwap() { bSupportRemoveAtSwap = true; }
 	/** Returns true if RemoveAtSwap is enabled. Derived classes may always return true regardless of whether SetRemoveSwapEnabled() was called. */
-	virtual bool SupportsRemoveSwap() const;
+	ENGINE_API virtual bool SupportsRemoveSwap() const;
 
 #if WITH_EDITOR
-	virtual bool ComponentIsTouchingSelectionBox(const FBox& InSelBBox, const bool bConsiderOnlyBSP, const bool bMustEncompassEntireComponent) const override;
-	virtual bool ComponentIsTouchingSelectionFrustum(const FConvexVolume& InFrustum, const bool bConsiderOnlyBSP, const bool bMustEncompassEntireComponent) const override;
+	ENGINE_API virtual bool ComponentIsTouchingSelectionBox(const FBox& InSelBBox, const bool bConsiderOnlyBSP, const bool bMustEncompassEntireComponent) const override;
+	ENGINE_API virtual bool ComponentIsTouchingSelectionFrustum(const FConvexVolume& InFrustum, const bool bConsiderOnlyBSP, const bool bMustEncompassEntireComponent) const override;
 
-	virtual bool IsInstanceTouchingSelectionBox(int32 InstanceIndex, const FBox& InBox, const bool bMustEncompassEntireInstance) const;
-	virtual bool IsInstanceTouchingSelectionFrustum(int32 InstanceIndex, const FConvexVolume& InFrustum, const bool bMustEncompassEntireInstance) const;
+	ENGINE_API virtual bool IsInstanceTouchingSelectionBox(int32 InstanceIndex, const FBox& InBox, const bool bMustEncompassEntireInstance) const;
+	ENGINE_API virtual bool IsInstanceTouchingSelectionFrustum(int32 InstanceIndex, const FConvexVolume& InFrustum, const bool bMustEncompassEntireInstance) const;
 #endif
 
 public:
@@ -354,59 +354,59 @@ public:
 	TArray<FBodyInstance*> InstanceBodies;
 
 	//~ Begin UActorComponent Interface
-	virtual TStructOnScope<FActorComponentInstanceData> GetComponentInstanceData() const override;
-	virtual void GetComponentChildElements(TArray<FTypedElementHandle>& OutElementHandles, const bool bAllowCreate = true) override;
-	virtual bool IsHLODRelevant() const override;
-	virtual void SendRenderInstanceData_Concurrent() override;
+	ENGINE_API virtual TStructOnScope<FActorComponentInstanceData> GetComponentInstanceData() const override;
+	ENGINE_API virtual void GetComponentChildElements(TArray<FTypedElementHandle>& OutElementHandles, const bool bAllowCreate = true) override;
+	ENGINE_API virtual bool IsHLODRelevant() const override;
+	ENGINE_API virtual void SendRenderInstanceData_Concurrent() override;
 	//~ End UActorComponent Interface
 
 	//~ Begin UPrimitiveComponent Interface
-	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
-	virtual FMatrix GetRenderMatrix() const override;
-	virtual FBodyInstance* GetBodyInstance(FName BoneName = NAME_None, bool bGetWelded = true, int32 Index = INDEX_NONE) const override;
+	ENGINE_API virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
+	ENGINE_API virtual FMatrix GetRenderMatrix() const override;
+	ENGINE_API virtual FBodyInstance* GetBodyInstance(FName BoneName = NAME_None, bool bGetWelded = true, int32 Index = INDEX_NONE) const override;
 protected:
-	virtual void OnCreatePhysicsState() override;
-	virtual void OnDestroyPhysicsState() override;
+	ENGINE_API virtual void OnCreatePhysicsState() override;
+	ENGINE_API virtual void OnDestroyPhysicsState() override;
 public:
-	virtual bool CanEditSimulatePhysics() override;
+	ENGINE_API virtual bool CanEditSimulatePhysics() override;
 
-	virtual FBoxSphereBounds CalcBounds(const FTransform& BoundTransform) const override;
+	ENGINE_API virtual FBoxSphereBounds CalcBounds(const FTransform& BoundTransform) const override;
 	virtual bool SupportsStaticLighting() const override { return true; }
 #if WITH_EDITOR
-	virtual void GetStaticLightingInfo(FStaticLightingPrimitiveInfo& OutPrimitiveInfo,const TArray<ULightComponent*>& InRelevantLights,const FLightingBuildOptions& Options) override;
-	virtual FBox GetStreamingBounds() const override;
+	ENGINE_API virtual void GetStaticLightingInfo(FStaticLightingPrimitiveInfo& OutPrimitiveInfo,const TArray<ULightComponent*>& InRelevantLights,const FLightingBuildOptions& Options) override;
+	ENGINE_API virtual FBox GetStreamingBounds() const override;
 #endif
-	virtual void GetLightAndShadowMapMemoryUsage( int32& LightMapMemoryUsage, int32& ShadowMapMemoryUsage ) const override;
+	ENGINE_API virtual void GetLightAndShadowMapMemoryUsage( int32& LightMapMemoryUsage, int32& ShadowMapMemoryUsage ) const override;
 
-	virtual bool DoCustomNavigableGeometryExport(FNavigableGeometryExport& GeomExport) const override;
+	ENGINE_API virtual bool DoCustomNavigableGeometryExport(FNavigableGeometryExport& GeomExport) const override;
 
-	virtual bool LineTraceComponent(FHitResult& OutHit, const FVector Start, const FVector End, const FCollisionQueryParams& Params) override;
-	virtual bool SweepComponent(FHitResult& OutHit, const FVector Start, const FVector End, const FQuat& ShapRotation, const FCollisionShape& CollisionShape, bool bTraceComplex = false) override;
-	virtual bool OverlapComponent(const FVector& Pos, const FQuat& Rot, const FCollisionShape& CollisionShape) const override;
+	ENGINE_API virtual bool LineTraceComponent(FHitResult& OutHit, const FVector Start, const FVector End, const FCollisionQueryParams& Params) override;
+	ENGINE_API virtual bool SweepComponent(FHitResult& OutHit, const FVector Start, const FVector End, const FQuat& ShapRotation, const FCollisionShape& CollisionShape, bool bTraceComplex = false) override;
+	ENGINE_API virtual bool OverlapComponent(const FVector& Pos, const FQuat& Rot, const FCollisionShape& CollisionShape) const override;
 protected:
-	virtual bool ComponentOverlapComponentImpl(class UPrimitiveComponent* PrimComp, const FVector Pos, const FQuat& Quat, const FCollisionQueryParams& Params) override;
-	virtual bool ComponentOverlapMultiImpl(TArray<struct FOverlapResult>& OutOverlaps, const class UWorld* InWorld, const FVector& Pos, const FQuat& Rot, ECollisionChannel TestChannel, const struct FComponentQueryParams& Params, const struct FCollisionObjectQueryParams& ObjectQueryParams = FCollisionObjectQueryParams::DefaultObjectQueryParam) const override;
+	ENGINE_API virtual bool ComponentOverlapComponentImpl(class UPrimitiveComponent* PrimComp, const FVector Pos, const FQuat& Quat, const FCollisionQueryParams& Params) override;
+	ENGINE_API virtual bool ComponentOverlapMultiImpl(TArray<struct FOverlapResult>& OutOverlaps, const class UWorld* InWorld, const FVector& Pos, const FQuat& Rot, ECollisionChannel TestChannel, const struct FComponentQueryParams& Params, const struct FCollisionObjectQueryParams& ObjectQueryParams = FCollisionObjectQueryParams::DefaultObjectQueryParam) const override;
 	//~ End UPrimitiveComponent Interface
 
 	//~ Begin UStaticMeshComponentInterface
 protected:
-	virtual FPrimitiveSceneProxy* CreateStaticMeshSceneProxy(Nanite::FMaterialAudit& NaniteMaterials, bool bCreateNanite) override;
+	ENGINE_API virtual FPrimitiveSceneProxy* CreateStaticMeshSceneProxy(Nanite::FMaterialAudit& NaniteMaterials, bool bCreateNanite) override;
 	//~ End UStaticMeshComponentInterface
 
 	//~ Begin UNavRelevantInterface Interface
 public:
-	virtual void GetNavigationData(FNavigationRelevantData& Data) const override;
-	virtual FBox GetNavigationBounds() const override;
-	virtual bool IsNavigationRelevant() const override;
+	ENGINE_API virtual void GetNavigationData(FNavigationRelevantData& Data) const override;
+	ENGINE_API virtual FBox GetNavigationBounds() const override;
+	ENGINE_API virtual bool IsNavigationRelevant() const override;
 	//~ End UNavRelevantInterface Interface
 
 	//~ Begin UObject Interface
-	virtual void Serialize(FArchive& Ar) override;
-	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
-	void BeginDestroy() override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
+	ENGINE_API void BeginDestroy() override;
 #if WITH_EDITOR
-	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
-	virtual void PostEditUndo() override;
+	ENGINE_API virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditUndo() override;
 #endif
 	//~ End UObject Interface
 
@@ -418,34 +418,34 @@ public:
 	virtual FVector GetTranslatedInstanceSpaceOrigin() const { return FVector::Zero(); }
 
 	/** Applies the cached component instance data to a newly blueprint constructed component. */
-	virtual void ApplyComponentInstanceData(struct FInstancedStaticMeshComponentInstanceData* ComponentInstanceData);
+	ENGINE_API virtual void ApplyComponentInstanceData(struct FInstancedStaticMeshComponentInstanceData* ComponentInstanceData);
 
 	/** Check to see if an instance is selected. */
-	bool IsInstanceSelected(int32 InInstanceIndex) const;
+	ENGINE_API bool IsInstanceSelected(int32 InInstanceIndex) const;
 
 	/** Select/deselect an instance or group of instances. */
-	void SelectInstance(bool bInSelected, int32 InInstanceIndex, int32 InInstanceCount = 1);
+	ENGINE_API void SelectInstance(bool bInSelected, int32 InInstanceIndex, int32 InInstanceCount = 1);
 
 	/** Deselect all instances. */
-	void ClearInstanceSelection();
+	ENGINE_API void ClearInstanceSelection();
 
 	/** Initialize the Per Instance Render Data */
-	void InitPerInstanceRenderData(bool InitializeFromCurrentData, FStaticMeshInstanceData* InSharedInstanceBufferData = nullptr, bool InRequireCPUAccess = false);
+	ENGINE_API void InitPerInstanceRenderData(bool InitializeFromCurrentData, FStaticMeshInstanceData* InSharedInstanceBufferData = nullptr, bool InRequireCPUAccess = false);
 
 	/** Transfers ownership of instance render data to a render thread. Instance render data will be released in scene proxy destructor or on render thread task. */
-	void ReleasePerInstanceRenderData();
+	ENGINE_API void ReleasePerInstanceRenderData();
 
 	/** Precache all PSOs which can be used by the component */
-	virtual void CollectPSOPrecacheData(const FPSOPrecacheParams& BasePrecachePSOParams, FComponentPSOPrecacheParamsList& OutParams) override;
+	ENGINE_API virtual void CollectPSOPrecacheData(const FPSOPrecacheParams& BasePrecachePSOParams, FComponentPSOPrecacheParamsList& OutParams) override;
 	
 	// Number of instances in the render-side instance buffer
 	virtual int32 GetNumRenderInstances() const { return PerInstanceSMData.Num(); }
 
-	virtual void PropagateLightingScenarioChange() override;
+	ENGINE_API virtual void PropagateLightingScenarioChange() override;
 
-	void GetInstancesMinMaxScale(FVector& MinScale, FVector& MaxScale) const;
+	ENGINE_API void GetInstancesMinMaxScale(FVector& MinScale, FVector& MaxScale) const;
 
-	void FlushInstanceUpdateCommands(bool bFlushInstanceUpdateCmdBuffer);
+	ENGINE_API void FlushInstanceUpdateCommands(bool bFlushInstanceUpdateCmdBuffer);
 
 	TArray<int32> PerInstanceIds;
 
@@ -469,41 +469,41 @@ public:
 private:
 
 	/** Sets up new instance data to sensible defaults, creates physics counterparts if possible. */
-	void SetupNewInstanceData(FInstancedStaticMeshInstanceData& InOutNewInstanceData, int32 InInstanceIndex, const FTransform& InInstanceTransform);
+	ENGINE_API void SetupNewInstanceData(FInstancedStaticMeshInstanceData& InOutNewInstanceData, int32 InInstanceIndex, const FTransform& InInstanceTransform);
 
 	/** Update instance body with a new transform */
-	void UpdateInstanceBodyTransform(int32 InstanceIndex, const FTransform& WorldSpaceInstanceTransform, bool bTeleport);
+	ENGINE_API void UpdateInstanceBodyTransform(int32 InstanceIndex, const FTransform& WorldSpaceInstanceTransform, bool bTeleport);
 
 	/** hidden Implementation of BatchUpdateInstancesTransforms - it is shared by the TArray and TArrayView version of public API */
-	bool BatchUpdateInstancesTransformsInternal(int32 StartInstanceIndex, TArrayView<const FTransform> NewInstancesTransforms, bool bWorldSpace, bool bMarkRenderStateDirty, bool bTeleport);
+	ENGINE_API bool BatchUpdateInstancesTransformsInternal(int32 StartInstanceIndex, TArrayView<const FTransform> NewInstancesTransforms, bool bWorldSpace, bool bMarkRenderStateDirty, bool bTeleport);
 
 protected:
 	/** Creates body instances for all instances owned by this component. */
-	void CreateAllInstanceBodies();
+	ENGINE_API void CreateAllInstanceBodies();
 
 	/** Terminate all body instances owned by this component. */
-	void ClearAllInstanceBodies();
+	ENGINE_API void ClearAllInstanceBodies();
 
 	/** Request to navigation system to update only part of navmesh occupied by specified instance. */
-	virtual void PartialNavigationUpdate(int32 InstanceIdx);
+	ENGINE_API virtual void PartialNavigationUpdate(int32 InstanceIdx);
 
 	/** Does this component support partial navigation updates */
 	virtual bool SupportsPartialNavigationUpdate() const { return false; }
 
 	/** Internal version of AddInstance */
-	int32 AddInstanceInternal(int32 InstanceIndex, FInstancedStaticMeshInstanceData* InNewInstanceData, const FTransform& InstanceTransform, bool bWorldSpace);
+	ENGINE_API int32 AddInstanceInternal(int32 InstanceIndex, FInstancedStaticMeshInstanceData* InNewInstanceData, const FTransform& InstanceTransform, bool bWorldSpace);
 
 	/** Internal implementation of AddInstances */
-	TArray<int32> AddInstancesInternal(TConstArrayView<FTransform> InstanceTransforms, bool bShouldReturnIndices, bool bWorldSpace);
+	ENGINE_API TArray<int32> AddInstancesInternal(TConstArrayView<FTransform> InstanceTransforms, bool bShouldReturnIndices, bool bWorldSpace);
 
 	/** Internal version of RemoveInstance */	
-	bool RemoveInstanceInternal(int32 InstanceIndex, bool InstanceAlreadyRemoved);
+	ENGINE_API bool RemoveInstanceInternal(int32 InstanceIndex, bool InstanceAlreadyRemoved);
 
 	/** Handles request from navigation system to gather instance transforms in a specific area box. */
-	virtual void GetNavigationPerInstanceTransforms(const FBox& AreaBox, TArray<FTransform>& InstanceData) const;
+	ENGINE_API virtual void GetNavigationPerInstanceTransforms(const FBox& AreaBox, TArray<FTransform>& InstanceData) const;
 
 	/** Initializes the body instance for the specified instance of the static mesh. */
-	void InitInstanceBody(int32 InstanceIdx, FBodyInstance* InBodyInstance);
+	ENGINE_API void InitInstanceBody(int32 InstanceIdx, FBodyInstance* InBodyInstance);
 
 	/** Number of pending lightmaps still to be calculated (Apply()'d). */
 	UPROPERTY(Transient, DuplicateTransient, TextExportTransient)
@@ -513,30 +513,30 @@ protected:
 	UPROPERTY(Transient, DuplicateTransient, TextExportTransient)
 	TArray<FInstancedStaticMeshMappingInfo> CachedMappings;
 
-	void ApplyLightMapping(FStaticLightingTextureMapping_InstancedStaticMesh* InMapping, ULevel* LightingScenario);
+	ENGINE_API void ApplyLightMapping(FStaticLightingTextureMapping_InstancedStaticMesh* InMapping, ULevel* LightingScenario);
 	
-	void CreateHitProxyData(TArray<TRefCountPtr<HHitProxy>>& HitProxies);
+	ENGINE_API void CreateHitProxyData(TArray<TRefCountPtr<HHitProxy>>& HitProxies);
 
     /** Build instance buffer for rendering from current component data. */
-	void BuildRenderData(FStaticMeshInstanceData& OutData, TArray<TRefCountPtr<HHitProxy>>& OutHitProxies);
+	ENGINE_API void BuildRenderData(FStaticMeshInstanceData& OutData, TArray<TRefCountPtr<HHitProxy>>& OutHitProxies);
 	
     /** Serialize instance buffer that is used for rendering. Only for cooked content */
-	void SerializeRenderData(FArchive& Ar);
+	ENGINE_API void SerializeRenderData(FArchive& Ar);
 	
 	/** Creates rendering buffer from serialized data, if any */
-	virtual void OnPostLoadPerInstanceData();
+	ENGINE_API virtual void OnPostLoadPerInstanceData();
 
 	//~ ISMInstanceManager interface
-	virtual bool CanEditSMInstance(const FSMInstanceId& InstanceId) const override;
-	virtual bool CanMoveSMInstance(const FSMInstanceId& InstanceId, const ETypedElementWorldType InWorldType) const override;
-	virtual bool GetSMInstanceTransform(const FSMInstanceId& InstanceId, FTransform& OutInstanceTransform, bool bWorldSpace = false) const override;
-	virtual bool SetSMInstanceTransform(const FSMInstanceId& InstanceId, const FTransform& InstanceTransform, bool bWorldSpace = false, bool bMarkRenderStateDirty = false, bool bTeleport = false) override;
-	virtual void NotifySMInstanceMovementStarted(const FSMInstanceId& InstanceId) override;
-	virtual void NotifySMInstanceMovementOngoing(const FSMInstanceId& InstanceId) override;
-	virtual void NotifySMInstanceMovementEnded(const FSMInstanceId& InstanceId) override;
-	virtual void NotifySMInstanceSelectionChanged(const FSMInstanceId& InstanceId, const bool bIsSelected) override;
-	virtual bool DeleteSMInstances(TArrayView<const FSMInstanceId> InstanceIds) override;
-	virtual bool DuplicateSMInstances(TArrayView<const FSMInstanceId> InstanceIds, TArray<FSMInstanceId>& OutNewInstanceIds) override;
+	ENGINE_API virtual bool CanEditSMInstance(const FSMInstanceId& InstanceId) const override;
+	ENGINE_API virtual bool CanMoveSMInstance(const FSMInstanceId& InstanceId, const ETypedElementWorldType InWorldType) const override;
+	ENGINE_API virtual bool GetSMInstanceTransform(const FSMInstanceId& InstanceId, FTransform& OutInstanceTransform, bool bWorldSpace = false) const override;
+	ENGINE_API virtual bool SetSMInstanceTransform(const FSMInstanceId& InstanceId, const FTransform& InstanceTransform, bool bWorldSpace = false, bool bMarkRenderStateDirty = false, bool bTeleport = false) override;
+	ENGINE_API virtual void NotifySMInstanceMovementStarted(const FSMInstanceId& InstanceId) override;
+	ENGINE_API virtual void NotifySMInstanceMovementOngoing(const FSMInstanceId& InstanceId) override;
+	ENGINE_API virtual void NotifySMInstanceMovementEnded(const FSMInstanceId& InstanceId) override;
+	ENGINE_API virtual void NotifySMInstanceSelectionChanged(const FSMInstanceId& InstanceId, const bool bIsSelected) override;
+	ENGINE_API virtual bool DeleteSMInstances(TArrayView<const FSMInstanceId> InstanceIds) override;
+	ENGINE_API virtual bool DuplicateSMInstances(TArrayView<const FSMInstanceId> InstanceIds, TArray<FSMInstanceId>& OutNewInstanceIds) override;
 
 	friend FStaticLightingTextureMapping_InstancedStaticMesh;
 	friend FInstancedLightMap2D;

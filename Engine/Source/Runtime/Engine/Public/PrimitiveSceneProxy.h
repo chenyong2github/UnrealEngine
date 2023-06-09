@@ -189,13 +189,13 @@ public:
 	ENGINE_API FPrimitiveSceneProxy(const UPrimitiveComponent* InComponent, FName ResourceName = NAME_None);
 
 	/** Copy constructor. */
-	ENGINE_API FPrimitiveSceneProxy(FPrimitiveSceneProxy const&) = default;
+	FPrimitiveSceneProxy(FPrimitiveSceneProxy const&) = default;
 
 	/** Virtual destructor. */
 	ENGINE_API virtual ~FPrimitiveSceneProxy();
 
 	/** Return a type (or subtype) specific hash for sorting purposes */
-	ENGINE_API virtual SIZE_T GetTypeHash() const = 0;
+	virtual SIZE_T GetTypeHash() const = 0;
 
 	/**
 	 * Updates selection for the primitive proxy. This simply sends a message to the rendering thread to call SetSelection_RenderThread.
@@ -311,7 +311,7 @@ public:
 	/**
 	 * If the ray tracing data is streaming then get the coarse mesh streaming handle 
 	 */
-	ENGINE_API virtual Nanite::CoarseMeshStreamingHandle GetCoarseMeshStreamingHandle() const { return INDEX_NONE; }
+	virtual Nanite::CoarseMeshStreamingHandle GetCoarseMeshStreamingHandle() const { return INDEX_NONE; }
 #endif // RHI_RAYTRACING
 
 	/** 
@@ -1031,7 +1031,7 @@ public:
 
 #if ENABLE_DRAW_DEBUG
 
-	struct ENGINE_API FDebugMassData
+	struct FDebugMassData
 	{
 		//Local here just means local to ElemTM which can be different depending on how the component uses the mass data
 		FQuat LocalTensorOrientation;
@@ -1039,7 +1039,7 @@ public:
 		FVector MassSpaceInertiaTensor;
 		int32 BoneIndex;
 
-		void DrawDebugMass(class FPrimitiveDrawInterface* PDI, const FTransform& ElemTM) const;
+		ENGINE_API void DrawDebugMass(class FPrimitiveDrawInterface* PDI, const FTransform& ElemTM) const;
 	};
 
 	TArray<FDebugMassData> DebugMassData;
@@ -1052,7 +1052,7 @@ public:
 	 * Get the list of LCIs. Used to set the precomputed lighting uniform buffers, which can only be created by the RENDERER_API.
 	 */
 	typedef TArray<class FLightCacheInterface*, TInlineAllocator<8> > FLCIArray;
-	ENGINE_API virtual void GetLCIs(FLCIArray& LCIs) {}
+	virtual void GetLCIs(FLCIArray& LCIs) {}
 
 #if WITH_EDITORONLY_DATA
 	/**
@@ -1096,7 +1096,7 @@ public:
 	virtual int32 GetLightMapCoordinateIndex() const { return INDEX_NONE; }
 
 	/** Tell us if this proxy is drawn in game.*/
-	ENGINE_API virtual bool IsDrawnInGame() const { return DrawInGame; }
+	virtual bool IsDrawnInGame() const { return DrawInGame; }
 
 	/** Tell us if this proxy is drawn in editor.*/
 	FORCEINLINE bool IsDrawnInEditor() const { return DrawInEditor; }
@@ -1107,7 +1107,7 @@ public:
 	 * Get the custom primitive data for this scene proxy.
 	 * @return The payload of custom data that will be set on the primitive and accessible in the material through a material expression.
 	 */
-	ENGINE_API const FCustomPrimitiveData* GetCustomPrimitiveData() const { return &CustomPrimitiveData; }
+	const FCustomPrimitiveData* GetCustomPrimitiveData() const { return &CustomPrimitiveData; }
 
 	EShadowCacheInvalidationBehavior GetShadowCacheInvalidationBehavior() const { return ShadowCacheInvalidationBehavior; }
 
@@ -1118,7 +1118,7 @@ protected:
 	ENGINE_API void UpdateVisibleInLumenScene();
 
 	/** Returns true if a primitive can never be rendered outside of a runtime virtual texture. */
-	ENGINE_API bool IsVirtualTextureOnly() const { return bVirtualTextureMainPassDrawNever; }
+	bool IsVirtualTextureOnly() const { return bVirtualTextureMainPassDrawNever; }
 
 	/** Returns true if a primitive should currently be hidden because it is drawn only to the runtime virtual texture. The result can depend on the current scene state. */
 	bool DrawInVirtualTextureOnly(bool bEditor) const;
@@ -1604,7 +1604,7 @@ protected:
 	void SetHovered_RenderThread(const bool bInHovered);
 
 	/** Allows child implementations to do render-thread work when bEvaluateWorldPositionOffset changes */
-	ENGINE_API virtual void OnEvaluateWorldPositionOffsetChanged_RenderThread() {}
+	virtual void OnEvaluateWorldPositionOffsetChanged_RenderThread() {}
 
 	/**
 	 * Sets the instance local bounds for the specified instance index, and optionally will pad the bounds extents to

@@ -42,7 +42,7 @@ class FMeshParticleInstanceVertices;
 /**
  * Vertex factory for rendering instanced mesh particles with out dynamic parameter support.
  */
-class ENGINE_API FMeshParticleVertexFactory : public FParticleVertexFactoryBase
+class FMeshParticleVertexFactory : public FParticleVertexFactoryBase
 {
 	DECLARE_VERTEX_FACTORY_TYPE(FMeshParticleVertexFactory);
 public:
@@ -105,25 +105,25 @@ public:
 	/**
 	 * Should we cache the material's shadertype on this platform with this vertex factory? 
 	 */
-	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
+	static ENGINE_API bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
 
 
 	/**
 	 * Modify compile environment to enable instancing
 	 * @param OutEnvironment - shader compile environment to modify
 	 */
-	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
+	static ENGINE_API void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 
 	/**
 	 * Get vertex elements used when during PSO precaching materials using this vertex factory type
 	 */
-	static void GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements);
-	static void GetVertexElements(ERHIFeatureLevel::Type FeatureLevel, int32 InDynamicVertexStride, int32 InDynamicParameterVertexStride, FDataType& Data, FVertexDeclarationElementList& Elements);
+	static ENGINE_API void GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements);
+	static ENGINE_API void GetVertexElements(ERHIFeatureLevel::Type FeatureLevel, int32 InDynamicVertexStride, int32 InDynamicParameterVertexStride, FDataType& Data, FVertexDeclarationElementList& Elements);
 
 	/**
 	 * An implementation of the interface used by TSynchronizedResource to update the resource with new data from the game thread.
 	 */
-	void SetData(const FDataType& InData);
+	ENGINE_API void SetData(const FDataType& InData);
 
 	/**
 	 * Set the uniform buffer for this vertex factory.
@@ -154,25 +154,25 @@ public:
 	 /**
 	 * Set the source vertex buffer that contains particle instance data.
 	 */
-	void SetInstanceBuffer(const FVertexBuffer* InstanceBuffer, uint32 StreamOffset, uint32 Stride);
+	ENGINE_API void SetInstanceBuffer(const FVertexBuffer* InstanceBuffer, uint32 StreamOffset, uint32 Stride);
 
 	/**
 	 * Set the source vertex buffer that contains particle dynamic parameter data.
 	 */
-	void SetDynamicParameterBuffer(const FVertexBuffer* InDynamicParameterBuffer, uint32 StreamOffset, uint32 Stride);
+	ENGINE_API void SetDynamicParameterBuffer(const FVertexBuffer* InDynamicParameterBuffer, uint32 StreamOffset, uint32 Stride);
 
-	uint8* LockPreviousTransformBuffer(uint32 ParticleCount);
-	void UnlockPreviousTransformBuffer();
-	FRHIShaderResourceView* GetPreviousTransformBufferSRV() const;
+	ENGINE_API uint8* LockPreviousTransformBuffer(uint32 ParticleCount);
+	ENGINE_API void UnlockPreviousTransformBuffer();
+	ENGINE_API FRHIShaderResourceView* GetPreviousTransformBufferSRV() const;
 
 	/**
 	* Copy the data from another vertex factory
 	* @param Other - factory to copy from
 	*/
-	void Copy(const FMeshParticleVertexFactory& Other);
+	ENGINE_API void Copy(const FMeshParticleVertexFactory& Other);
 
 	// FRenderResource interface.
-	virtual void InitRHI() override;
+	ENGINE_API virtual void InitRHI() override;
 
 	FMeshParticleInstanceVertices*& GetInstanceVerticesCPU()
 	{
@@ -189,7 +189,7 @@ public:
 		return LODIdx;
 	}
 protected:
-	static void GetVertexElements(ERHIFeatureLevel::Type FeatureLevel, int32 InDynamicVertexStride, int32 InDynamicParameterVertexStride, FDataType& Data, FVertexDeclarationElementList& Elements, FVertexStreamList& InOutStreams);
+	static ENGINE_API void GetVertexElements(ERHIFeatureLevel::Type FeatureLevel, int32 InDynamicVertexStride, int32 InDynamicParameterVertexStride, FDataType& Data, FVertexDeclarationElementList& Elements, FVertexStreamList& InOutStreams);
 
 protected:
 	FDataType Data;

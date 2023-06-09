@@ -21,58 +21,58 @@ class UBlueprint;
  * 
  * Other components are unsupported and will result in an incomplete APackedLevelActor. In this case using a regular ALevelInstance is recommended.
  */
-UCLASS()
-class ENGINE_API APackedLevelActor : public ALevelInstance
+UCLASS(MinimalAPI)
+class APackedLevelActor : public ALevelInstance
 {
 	GENERATED_BODY()
 
 public:
-	APackedLevelActor();
+	ENGINE_API APackedLevelActor();
 
-	virtual bool IsLoadingEnabled() const override;
+	ENGINE_API virtual bool IsLoadingEnabled() const override;
 
-	virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
 #if WITH_EDITOR
-	virtual EWorldPartitionActorFilterType GetDetailsFilterTypes() const override;
-	virtual EWorldPartitionActorFilterType GetLoadingFilterTypes() const override;
-	virtual void OnFilterChanged() override;
+	ENGINE_API virtual EWorldPartitionActorFilterType GetDetailsFilterTypes() const override;
+	ENGINE_API virtual EWorldPartitionActorFilterType GetLoadingFilterTypes() const override;
+	ENGINE_API virtual void OnFilterChanged() override;
 	void SetShouldLoadForPacking(bool bInLoadForPacking) { bLoadForPacking = bInLoadForPacking; }
-	bool ShouldLoadForPacking() const;
+	ENGINE_API bool ShouldLoadForPacking() const;
 	// When Loading a APackedLevelActor it needs to be fully loaded for packing.
 	virtual bool SupportsPartialEditorLoading() const override { return false; }
 
-	virtual TUniquePtr<class FWorldPartitionActorDesc> CreateClassActorDesc() const override;
+	ENGINE_API virtual TUniquePtr<class FWorldPartitionActorDesc> CreateClassActorDesc() const override;
 	
-	static bool CreateOrUpdateBlueprint(ALevelInstance* InLevelInstance, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave = true, bool bPromptForSave = true);
-	static bool CreateOrUpdateBlueprint(TSoftObjectPtr<UWorld> InWorldAsset, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave = true, bool bPromptForSave = true);
-	static void UpdateBlueprint(UBlueprint* InBlueprint, bool bCheckoutAndSave = true);
+	static ENGINE_API bool CreateOrUpdateBlueprint(ALevelInstance* InLevelInstance, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave = true, bool bPromptForSave = true);
+	static ENGINE_API bool CreateOrUpdateBlueprint(TSoftObjectPtr<UWorld> InWorldAsset, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave = true, bool bPromptForSave = true);
+	static ENGINE_API void UpdateBlueprint(UBlueprint* InBlueprint, bool bCheckoutAndSave = true);
 
-	static FName GetPackedComponentTag();
+	static ENGINE_API FName GetPackedComponentTag();
 
-	virtual void PostLoad() override;
-	virtual void UpdateLevelInstanceFromWorldAsset() override;
-	virtual void OnCommit(bool bChanged) override;
-	virtual void OnCommitChild(bool bChanged) override;
-	virtual void OnEdit() override;
-	virtual void OnEditChild() override;
+	ENGINE_API virtual void PostLoad() override;
+	ENGINE_API virtual void UpdateLevelInstanceFromWorldAsset() override;
+	ENGINE_API virtual void OnCommit(bool bChanged) override;
+	ENGINE_API virtual void OnCommitChild(bool bChanged) override;
+	ENGINE_API virtual void OnEdit() override;
+	ENGINE_API virtual void OnEditChild() override;
 
-	virtual bool CanEditChange(const FProperty* InProperty) const override;
+	ENGINE_API virtual bool CanEditChange(const FProperty* InProperty) const override;
 		
 	void SetPackedVersion(const FGuid& Version) { PackedVersion = Version; }
 
-	virtual bool IsHiddenEd() const override;
-	virtual bool IsHLODRelevant() const override;
+	ENGINE_API virtual bool IsHiddenEd() const override;
+	ENGINE_API virtual bool IsHLODRelevant() const override;
 
-	void DestroyPackedComponents();
-	void GetPackedComponents(TArray<UActorComponent*>& OutPackedComponents) const;
+	ENGINE_API void DestroyPackedComponents();
+	ENGINE_API void GetPackedComponents(TArray<UActorComponent*>& OutPackedComponents) const;
 
 	virtual ELevelInstanceRuntimeBehavior GetDefaultRuntimeBehavior() const override { return ELevelInstanceRuntimeBehavior::None; }
 
-	virtual void RerunConstructionScripts() override;
+	ENGINE_API virtual void RerunConstructionScripts() override;
 
-	static bool IsRootBlueprint(UClass* InClass);
-	bool IsRootBlueprintTemplate() const;
-	UBlueprint* GetRootBlueprint() const;
+	static ENGINE_API bool IsRootBlueprint(UClass* InClass);
+	ENGINE_API bool IsRootBlueprintTemplate() const;
+	ENGINE_API UBlueprint* GetRootBlueprint() const;
 
 	template<class T>
 	T* AddPackedComponent(TSubclassOf<T> ComponentClass)

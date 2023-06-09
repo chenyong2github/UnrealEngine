@@ -8,11 +8,11 @@
 /**
  * A volume to be placed in the level while browsing visual logger output.
  */
-UCLASS()
-class ENGINE_API AVisualLoggerFilterVolume : public AVolume
+UCLASS(MinimalAPI)
+class AVisualLoggerFilterVolume : public AVolume
 {
 	GENERATED_BODY()
 public:
-	AVisualLoggerFilterVolume(const FObjectInitializer& ObjectInitializer);
+	ENGINE_API AVisualLoggerFilterVolume(const FObjectInitializer& ObjectInitializer);
 	
 };

@@ -130,17 +130,17 @@ struct FDynamicMeshBuilderSettings
  * This class provides the vertex/index allocator interface used by FDynamicMeshBuilder which is
  * already implemented internally with caching in mind but can be customized if needed.
  */
-class ENGINE_API FDynamicMeshBufferAllocator
+class FDynamicMeshBufferAllocator
 {
 public:
-	int32 GetIndexBufferSize(uint32 NumElements) const;
-	int32 GetVertexBufferSize(uint32 Stride, uint32 NumElements) const;
-	virtual ~FDynamicMeshBufferAllocator();
+	ENGINE_API int32 GetIndexBufferSize(uint32 NumElements) const;
+	ENGINE_API int32 GetVertexBufferSize(uint32 Stride, uint32 NumElements) const;
+	ENGINE_API virtual ~FDynamicMeshBufferAllocator();
 
-	virtual FBufferRHIRef AllocIndexBuffer(uint32 NumElements);
-	virtual void ReleaseIndexBuffer(FBufferRHIRef& IndexBufferRHI);
-	virtual FBufferRHIRef AllocVertexBuffer(uint32 Stride, uint32 NumElements);
-	virtual void ReleaseVertexBuffer(FBufferRHIRef& VertexBufferRHI);
+	ENGINE_API virtual FBufferRHIRef AllocIndexBuffer(uint32 NumElements);
+	ENGINE_API virtual void ReleaseIndexBuffer(FBufferRHIRef& IndexBufferRHI);
+	ENGINE_API virtual FBufferRHIRef AllocVertexBuffer(uint32 Stride, uint32 NumElements);
+	ENGINE_API virtual void ReleaseVertexBuffer(FBufferRHIRef& VertexBufferRHI);
 };
 
 /**
@@ -219,20 +219,20 @@ private:
 };
 
 /** Index Buffer */
-class ENGINE_API FDynamicMeshIndexBuffer32 : public FIndexBuffer
+class FDynamicMeshIndexBuffer32 : public FIndexBuffer
 {
 public:
 	TArray<uint32> Indices;
 
-	virtual void InitRHI() override;
-	void UpdateRHI();
+	ENGINE_API virtual void InitRHI() override;
+	ENGINE_API void UpdateRHI();
 };
 
-class ENGINE_API FDynamicMeshIndexBuffer16 : public FIndexBuffer
+class FDynamicMeshIndexBuffer16 : public FIndexBuffer
 {
 public:
 	TArray<uint16> Indices;
 
-	virtual void InitRHI() override;
-	void UpdateRHI();
+	ENGINE_API virtual void InitRHI() override;
+	ENGINE_API void UpdateRHI();
 };

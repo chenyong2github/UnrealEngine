@@ -202,50 +202,50 @@ struct FReplicatedPhysicsTarget
 #endif
 };
 
-class ENGINE_API FPhysicsReplication : public IPhysicsReplication
+class FPhysicsReplication : public IPhysicsReplication
 {
 public:
-	FPhysicsReplication(FPhysScene* PhysScene);
-	virtual ~FPhysicsReplication();
+	ENGINE_API FPhysicsReplication(FPhysScene* PhysScene);
+	ENGINE_API virtual ~FPhysicsReplication();
 
 	/** Helper method so the Skip Replication CVar can be check elsewhere (including game extensions to this class) */
-	static bool ShouldSkipPhysicsReplication();
+	static ENGINE_API bool ShouldSkipPhysicsReplication();
 
 	/** Tick and update all body states according to replicated targets */
-	virtual void Tick(float DeltaSeconds) override;
+	ENGINE_API virtual void Tick(float DeltaSeconds) override;
 
 	/** Sets the latest replicated target for a body instance */
 	UE_DEPRECATED(5.1, "SetReplicatedTarget now takes the ServerFrame.  Please update calls and overloads.")
 	virtual void SetReplicatedTarget(UPrimitiveComponent* Component, FName BoneName, const FRigidBodyState& ReplicatedTarget) { SetReplicatedTarget(Component, BoneName, ReplicatedTarget, 0); }
-	virtual void SetReplicatedTarget(UPrimitiveComponent* Component, FName BoneName, const FRigidBodyState& ReplicatedTarget, int32 ServerFrame) override;
+	ENGINE_API virtual void SetReplicatedTarget(UPrimitiveComponent* Component, FName BoneName, const FRigidBodyState& ReplicatedTarget, int32 ServerFrame) override;
 private:
-	void SetReplicatedTarget(Chaos::FPhysicsObject* PhysicsObject, const FRigidBodyState& ReplicatedTarget, int32 ServerFrame, EPhysicsReplicationMode ReplicationMode = EPhysicsReplicationMode::Default);
+	ENGINE_API void SetReplicatedTarget(Chaos::FPhysicsObject* PhysicsObject, const FRigidBodyState& ReplicatedTarget, int32 ServerFrame, EPhysicsReplicationMode ReplicationMode = EPhysicsReplicationMode::Default);
 
 public:
 	/** Remove the replicated target*/
-	virtual void RemoveReplicatedTarget(UPrimitiveComponent* Component) override;
+	ENGINE_API virtual void RemoveReplicatedTarget(UPrimitiveComponent* Component) override;
 
 protected:
 
 	/** Update the physics body state given a set of replicated targets */
-	virtual void OnTick(float DeltaSeconds, TMap<TWeakObjectPtr<UPrimitiveComponent>, FReplicatedPhysicsTarget>& ComponentsToTargets);
+	ENGINE_API virtual void OnTick(float DeltaSeconds, TMap<TWeakObjectPtr<UPrimitiveComponent>, FReplicatedPhysicsTarget>& ComponentsToTargets);
 	virtual void OnTargetRestored(TWeakObjectPtr<UPrimitiveComponent> Component, const FReplicatedPhysicsTarget& Target) {}
 	virtual void OnSetReplicatedTarget(UPrimitiveComponent* Component, FName BoneName, const FRigidBodyState& ReplicatedTarget, int32 ServerFrame, FReplicatedPhysicsTarget& Target) {}
 
 	/** Called when a dynamic rigid body receives a physics update */
-	virtual bool ApplyRigidBodyState(float DeltaSeconds, FBodyInstance* BI, FReplicatedPhysicsTarget& PhysicsTarget, const FRigidBodyErrorCorrection& ErrorCorrection, const float PingSecondsOneWay, int32 LocalFrame, int32 NumPredictedFrames);
-	virtual bool ApplyRigidBodyState(float DeltaSeconds, FBodyInstance* BI, FReplicatedPhysicsTarget& PhysicsTarget, const FRigidBodyErrorCorrection& ErrorCorrection, const float PingSecondsOneWay, bool* bDidHardSnap = nullptr); // deprecated path with no localframe/numpredicted
+	ENGINE_API virtual bool ApplyRigidBodyState(float DeltaSeconds, FBodyInstance* BI, FReplicatedPhysicsTarget& PhysicsTarget, const FRigidBodyErrorCorrection& ErrorCorrection, const float PingSecondsOneWay, int32 LocalFrame, int32 NumPredictedFrames);
+	ENGINE_API virtual bool ApplyRigidBodyState(float DeltaSeconds, FBodyInstance* BI, FReplicatedPhysicsTarget& PhysicsTarget, const FRigidBodyErrorCorrection& ErrorCorrection, const float PingSecondsOneWay, bool* bDidHardSnap = nullptr); // deprecated path with no localframe/numpredicted
 
-	UWorld* GetOwningWorld();
-	const UWorld* GetOwningWorld() const;
+	ENGINE_API UWorld* GetOwningWorld();
+	ENGINE_API const UWorld* GetOwningWorld() const;
 
 private:
 
 	/** Get the ping from this machine to the server */
-	float GetLocalPing() const;
+	ENGINE_API float GetLocalPing() const;
 
 	/** Get the ping from  */
-	float GetOwnerPing(const AActor* const Owner, const FReplicatedPhysicsTarget& Target) const;
+	ENGINE_API float GetOwnerPing(const AActor* const Owner, const FReplicatedPhysicsTarget& Target) const;
 
 private:
 	TMap<TWeakObjectPtr<UPrimitiveComponent>, FReplicatedPhysicsTarget> ComponentToTargets_DEPRECATED; // This collection is keeping the legacy flow working until fully deprecated in a future release
@@ -255,5 +255,5 @@ private:
 	FPhysicsReplicationAsync* PhysicsReplicationAsync;
 	FPhysicsReplicationAsyncInput* AsyncInput;	//async data being written into before we push into callback
 
-	void PrepareAsyncData_External(const FRigidBodyErrorCorrection& ErrorCorrection);	//prepare async data for writing. Call on external thread (i.e. game thread)
+	ENGINE_API void PrepareAsyncData_External(const FRigidBodyErrorCorrection& ErrorCorrection);	//prepare async data for writing. Call on external thread (i.e. game thread)
 };

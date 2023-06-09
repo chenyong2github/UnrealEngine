@@ -23,11 +23,11 @@ class UWorld;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDataLayerInstanceRuntimeStateChanged, const UDataLayerInstance*, DataLayer, EDataLayerRuntimeState, State);
 
 #if WITH_EDITOR
-class ENGINE_API FDataLayersEditorBroadcast
+class FDataLayersEditorBroadcast
 {
 public:
-	static FDataLayersEditorBroadcast& Get();
-	static void StaticOnActorDataLayersEditorLoadingStateChanged(bool bIsFromUserChange);
+	static ENGINE_API FDataLayersEditorBroadcast& Get();
+	static ENGINE_API void StaticOnActorDataLayersEditorLoadingStateChanged(bool bIsFromUserChange);
 	/** Broadcasts whenever one or more DataLayers editor loading state changed */
 	DECLARE_EVENT_OneParam(FDataLayersEditorBroadcast, FOnActorDataLayersEditorLoadingStateChanged, bool /*bIsFromUserChange*/);
 	FOnActorDataLayersEditorLoadingStateChanged& OnActorDataLayersEditorLoadingStateChanged() { return DataLayerEditorLoadingStateChanged; }
@@ -39,8 +39,8 @@ private:
 };
 #endif
 
-UCLASS(Config = Engine, Within = WorldPartition)
-class ENGINE_API UDataLayerManager : public UObject
+UCLASS(Config = Engine, Within = WorldPartition, MinimalAPI)
+class UDataLayerManager : public UObject
 {
 	GENERATED_BODY()
 
@@ -55,22 +55,22 @@ public:
 	//~ Begin Blueprint interface
 
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	const UDataLayerInstance* GetDataLayerInstanceFromAsset(const UDataLayerAsset* InDataLayerAsset) const;
+	ENGINE_API const UDataLayerInstance* GetDataLayerInstanceFromAsset(const UDataLayerAsset* InDataLayerAsset) const;
 
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	const UDataLayerInstance* GetDataLayerInstanceFromName(const FName& InDataLayerInstanceName) const;
+	ENGINE_API const UDataLayerInstance* GetDataLayerInstanceFromName(const FName& InDataLayerInstanceName) const;
 
 	UFUNCTION(BlueprintCallable, Category = DataLayers, BlueprintAuthorityOnly)
-	bool SetDataLayerInstanceRuntimeState(const UDataLayerInstance* InDataLayerInstance, EDataLayerRuntimeState InState, bool bInIsRecursive = false);
+	ENGINE_API bool SetDataLayerInstanceRuntimeState(const UDataLayerInstance* InDataLayerInstance, EDataLayerRuntimeState InState, bool bInIsRecursive = false);
 
 	UFUNCTION(BlueprintCallable, Category = DataLayers, BlueprintAuthorityOnly)
-	bool SetDataLayerRuntimeState(const UDataLayerAsset* InDataLayerAsset, EDataLayerRuntimeState InState, bool bInIsRecursive = false);
+	ENGINE_API bool SetDataLayerRuntimeState(const UDataLayerAsset* InDataLayerAsset, EDataLayerRuntimeState InState, bool bInIsRecursive = false);
 
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	EDataLayerRuntimeState GetDataLayerInstanceRuntimeState(const UDataLayerInstance* InDataLayerInstance) const;
+	ENGINE_API EDataLayerRuntimeState GetDataLayerInstanceRuntimeState(const UDataLayerInstance* InDataLayerInstance) const;
 
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	EDataLayerRuntimeState GetDataLayerInstanceEffectiveRuntimeState(const UDataLayerInstance* InDataLayerInstance) const;
+	ENGINE_API EDataLayerRuntimeState GetDataLayerInstanceEffectiveRuntimeState(const UDataLayerInstance* InDataLayerInstance) const;
 
 	UPROPERTY(BlueprintAssignable)
 	FOnDataLayerInstanceRuntimeStateChanged OnDataLayerInstanceRuntimeStateChanged;
@@ -86,52 +86,52 @@ public:
 	template<class T>
 	TArray<FName> GetDataLayerInstanceNames(const TArray<T>& InDataLayerIdentifiers) const;
 
-	void ForEachDataLayerInstance(TFunctionRef<bool(UDataLayerInstance*)> Func);
-	void ForEachDataLayerInstance(TFunctionRef<bool(UDataLayerInstance*)> Func) const;
+	ENGINE_API void ForEachDataLayerInstance(TFunctionRef<bool(UDataLayerInstance*)> Func);
+	ENGINE_API void ForEachDataLayerInstance(TFunctionRef<bool(UDataLayerInstance*)> Func) const;
 
 	//~ Begin Runtime State
-	const TSet<FName>& GetEffectiveActiveDataLayerNames() const;
-	const TSet<FName>& GetEffectiveLoadedDataLayerNames() const;
-	bool IsAnyDataLayerInEffectiveRuntimeState(const TArray<FName>& InDataLayerNames, EDataLayerRuntimeState InState) const;
+	ENGINE_API const TSet<FName>& GetEffectiveActiveDataLayerNames() const;
+	ENGINE_API const TSet<FName>& GetEffectiveLoadedDataLayerNames() const;
+	ENGINE_API bool IsAnyDataLayerInEffectiveRuntimeState(const TArray<FName>& InDataLayerNames, EDataLayerRuntimeState InState) const;
 	//~ End Runtime State
 
 private:
 
 	//~ Begin Initialization/Deinitialization
-	UDataLayerManager();
-	void Initialize();
-	void DeInitialize();
+	ENGINE_API UDataLayerManager();
+	ENGINE_API void Initialize();
+	ENGINE_API void DeInitialize();
 	//~ End Initialization/Deinitialization
 
 	//~ Begin Debugging
-	void DrawDataLayersStatus(UCanvas* Canvas, FVector2D& Offset) const;
-	void DumpDataLayers(FOutputDevice& OutputDevice) const;
-	TArray<UDataLayerInstance*> ConvertArgsToDataLayers(const TArray<FString>& InArgs);
+	ENGINE_API void DrawDataLayersStatus(UCanvas* Canvas, FVector2D& Offset) const;
+	ENGINE_API void DumpDataLayers(FOutputDevice& OutputDevice) const;
+	ENGINE_API TArray<UDataLayerInstance*> ConvertArgsToDataLayers(const TArray<FString>& InArgs);
 	//~ End Debugging
 
 	//~ Begin Verse support
-	void AddReferencedObject(UObject* InObject);
-	void RemoveReferencedObject(UObject* InObject);
+	ENGINE_API void AddReferencedObject(UObject* InObject);
+	ENGINE_API void RemoveReferencedObject(UObject* InObject);
 	const TSet<TObjectPtr<UObject>>& GetReferencedObjects() const { return ReferencedObjects; }
 	//~ End Verse support
 
-	AWorldDataLayers* GetWorldDataLayers() const;
-	const UDataLayerInstance* GetDataLayerInstanceFromAssetName(const FName& InDataLayerAssetFullName) const;
+	ENGINE_API AWorldDataLayers* GetWorldDataLayers() const;
+	ENGINE_API const UDataLayerInstance* GetDataLayerInstanceFromAssetName(const FName& InDataLayerAssetFullName) const;
 
-	void BroadcastOnDataLayerInstanceRuntimeStateChanged(const UDataLayerInstance* InDataLayer, EDataLayerRuntimeState InState);
+	ENGINE_API void BroadcastOnDataLayerInstanceRuntimeStateChanged(const UDataLayerInstance* InDataLayer, EDataLayerRuntimeState InState);
 
 	/** Referenced objects (used by verse) */
 	UPROPERTY(Transient)
 	TSet<TObjectPtr<UObject>> ReferencedObjects;
 
 	/** Console command used to toggle activation of a Data Layer */
-	static class FAutoConsoleCommand ToggleDataLayerActivation;
+	static ENGINE_API class FAutoConsoleCommand ToggleDataLayerActivation;
 
 	/** Console command used to set Runtime Data Layer state */
-	static class FAutoConsoleCommand SetDataLayerRuntimeStateCommand;
+	static ENGINE_API class FAutoConsoleCommand SetDataLayerRuntimeStateCommand;
 
 	/** Console command used to list Data Layers */
-	static class FAutoConsoleCommandWithOutputDevice DumpDataLayersCommand;
+	static ENGINE_API class FAutoConsoleCommandWithOutputDevice DumpDataLayersCommand;
 
 	/** Data layers load time */
 	mutable TMap<const UDataLayerInstance*, double> ActiveDataLayersLoadTime;
@@ -150,33 +150,33 @@ private:
 private:
 
 	//~ Begin Editor Context
-	void PushActorEditorContext() const;
-	void PopActorEditorContext() const;
-	TArray<UDataLayerInstance*> GetActorEditorContextDataLayers() const;
-	TArray<AWorldDataLayers*> GetActorEditorContextWorldDataLayers() const;
-	uint32 GetDataLayerEditorContextHash() const;
+	ENGINE_API void PushActorEditorContext() const;
+	ENGINE_API void PopActorEditorContext() const;
+	ENGINE_API TArray<UDataLayerInstance*> GetActorEditorContextDataLayers() const;
+	ENGINE_API TArray<AWorldDataLayers*> GetActorEditorContextWorldDataLayers() const;
+	ENGINE_API uint32 GetDataLayerEditorContextHash() const;
 	//~ End Editor Context
 
 	//~ Begin ActorDesc
-	void OnActorDescContainerInitialized(UActorDescContainer* InActorDescContainer) const;
-	bool CanResolveDataLayers() const;
-	void ResolveActorDescContainersDataLayers() const;
-	void ResolveActorDescContainerDataLayers(UActorDescContainer* InActorDescContainer) const;
-	void ResolveActorDescDataLayers(FWorldPartitionActorDesc* InActorDesc) const;
-	void ResolveActorDescContainerDataLayersInternal(UActorDescContainer* InActorDescContainer, FWorldPartitionActorDesc* InActorDesc) const;
+	ENGINE_API void OnActorDescContainerInitialized(UActorDescContainer* InActorDescContainer) const;
+	ENGINE_API bool CanResolveDataLayers() const;
+	ENGINE_API void ResolveActorDescContainersDataLayers() const;
+	ENGINE_API void ResolveActorDescContainerDataLayers(UActorDescContainer* InActorDescContainer) const;
+	ENGINE_API void ResolveActorDescDataLayers(FWorldPartitionActorDesc* InActorDesc) const;
+	ENGINE_API void ResolveActorDescContainerDataLayersInternal(UActorDescContainer* InActorDescContainer, FWorldPartitionActorDesc* InActorDesc) const;
 	//~ End
 
 	//~ Begin Editor loading
-	TSubclassOf<UDataLayerLoadingPolicy> GetDataLayerLoadingPolicyClass() const;
-	bool ResolveIsLoadedInEditor(const TArray<FName>& InDataLayerInstanceNames) const;
+	ENGINE_API TSubclassOf<UDataLayerLoadingPolicy> GetDataLayerLoadingPolicyClass() const;
+	ENGINE_API bool ResolveIsLoadedInEditor(const TArray<FName>& InDataLayerInstanceNames) const;
 	//~ End Editor loading
 
 	// Helper
-	TArray<const UDataLayerInstance*> GetRuntimeDataLayerInstances(const TArray<FName>& InDataLayerInstanceNames) const;
+	ENGINE_API TArray<const UDataLayerInstance*> GetRuntimeDataLayerInstances(const TArray<FName>& InDataLayerInstanceNames) const;
 
 	//~ Begin User settings
-	void UpdateDataLayerEditorPerProjectUserSettings() const;
-	void GetUserLoadedInEditorStates(TArray<FName>& OutDataLayersLoadedInEditor, TArray<FName>& OutDataLayersNotLoadedInEditor) const;
+	ENGINE_API void UpdateDataLayerEditorPerProjectUserSettings() const;
+	ENGINE_API void GetUserLoadedInEditorStates(TArray<FName>& OutDataLayersLoadedInEditor, TArray<FName>& OutDataLayersNotLoadedInEditor) const;
 	//~ End User settings
 
 	/** Used by Editor Context */

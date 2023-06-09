@@ -23,12 +23,12 @@
 namespace UE { namespace Anim {
 
 // Event that can be subscribed to request inertialization-based blends
-class ENGINE_API IInertializationRequester : public IGraphMessage
+class IInertializationRequester : public IGraphMessage
 {
-	DECLARE_ANIMGRAPH_MESSAGE(IInertializationRequester);
+	DECLARE_ANIMGRAPH_MESSAGE_API(IInertializationRequester, ENGINE_API);
 
 public:
-	static const FName Attribute;
+	static ENGINE_API const FName Attribute;
 
 	// Request to activate inertialization for a duration.
 	// If multiple requests are made on the same inertialization node, the minimum requested time will be used.
@@ -36,7 +36,7 @@ public:
 
 	// Request to activate inertialization.
 	// If multiple requests are made on the same inertialization node, the minimum requested time will be used.
-	virtual void RequestInertialization(const FInertializationRequest& InInertializationRequest);
+	ENGINE_API virtual void RequestInertialization(const FInertializationRequest& InInertializationRequest);
 
 	// Add a record of this request
 	virtual void AddDebugRecord(const FAnimInstanceProxy& InSourceProxy, int32 InSourceNodeId) = 0;
@@ -70,7 +70,7 @@ enum class EInertializationSpace : uint8
 	WorldRotation	// Inertialize rotation only in world space (to conceal discontinuities in actor orientation)
 };
 
-struct ENGINE_API FInertializationCurve
+struct FInertializationCurve
 {
 	FBlendedHeapCurve BlendedCurve;
 
@@ -343,7 +343,7 @@ private:
 
 
 USTRUCT(BlueprintInternalUseOnly)
-struct ENGINE_API FAnimNode_Inertialization : public FAnimNode_Base
+struct FAnimNode_Inertialization : public FAnimNode_Base
 {
 	GENERATED_BODY()
 
@@ -362,32 +362,32 @@ private:
 
 public: // FAnimNode_Inertialization
 
-	FAnimNode_Inertialization();
+	ENGINE_API FAnimNode_Inertialization();
 	
 	// Request to activate inertialization for a duration.
 	// If multiple requests are made on the same inertialization node, the minimum requested time will be used.
 	//
-	virtual void RequestInertialization(float Duration, const UBlendProfile* BlendProfile);
+	ENGINE_API virtual void RequestInertialization(float Duration, const UBlendProfile* BlendProfile);
 
 	// Request to activate inertialization.
 	// If multiple requests are made on the same inertialization node, the minimum requested time will be used.
 	//
-	virtual void RequestInertialization(const FInertializationRequest& InertializationRequest);
+	ENGINE_API virtual void RequestInertialization(const FInertializationRequest& InertializationRequest);
 
 	// Log an error when a node wants to inertialize but no inertialization ancestor node exists
 	//
-	static void LogRequestError(const FAnimationUpdateContext& Context, const FPoseLinkBase& RequesterPoseLink);
+	static ENGINE_API void LogRequestError(const FAnimationUpdateContext& Context, const FPoseLinkBase& RequesterPoseLink);
 
 public: // FAnimNode_Base
 
-	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
-	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
-	virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
-	virtual void Evaluate_AnyThread(FPoseContext& Output) override;
-	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
+	ENGINE_API virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
+	ENGINE_API virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
+	ENGINE_API virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
+	ENGINE_API virtual void Evaluate_AnyThread(FPoseContext& Output) override;
+	ENGINE_API virtual void GatherDebugData(FNodeDebugData& DebugData) override;
 
-	virtual bool NeedsDynamicReset() const override;
-	virtual void ResetDynamics(ETeleportType InTeleportType) override;
+	ENGINE_API virtual bool NeedsDynamicReset() const override;
+	ENGINE_API virtual void ResetDynamics(ETeleportType InTeleportType) override;
 
 protected:
 
@@ -397,14 +397,14 @@ protected:
 	// is virtual so that a derived class could optionally regularize the pose snapshots to align better with the current frame's pose
 	// before computing the inertial difference (for example to correct for instantaneous changes in the root relative to its children).
 	//
-	virtual void StartInertialization(FPoseContext& Context, FInertializationPose& PreviousPose1, FInertializationPose& PreviousPose2, float Duration, TArrayView<const float> DurationPerBone, /*OUT*/ FInertializationPoseDiff& OutPoseDiff);
+	ENGINE_API virtual void StartInertialization(FPoseContext& Context, FInertializationPose& PreviousPose1, FInertializationPose& PreviousPose2, float Duration, TArrayView<const float> DurationPerBone, /*OUT*/ FInertializationPoseDiff& OutPoseDiff);
 
 	// Apply Inertialization
 	//
 	// Applies the inertialization pose difference to the current pose (feathering down to zero as ElapsedTime approaches Duration).  This
 	// function is virtual so that a derived class could optionally adjust the pose based on any regularization done in StartInertialization.
 	//
-	virtual void ApplyInertialization(FPoseContext& Context, const FInertializationPoseDiff& PoseDiff, float ElapsedTime, float Duration, TArrayView<const float> DurationPerBone);
+	ENGINE_API virtual void ApplyInertialization(FPoseContext& Context, const FInertializationPoseDiff& PoseDiff, float ElapsedTime, float Duration, TArrayView<const float> DurationPerBone);
 
 
 private:

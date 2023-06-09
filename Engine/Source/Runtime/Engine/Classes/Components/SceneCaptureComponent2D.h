@@ -16,8 +16,8 @@ class FSceneInterface;
 /**
  *	Used to capture a 'snapshot' of the scene from a single plane and feed it to a render target.
  */
-UCLASS(hidecategories=(Collision, Object, Physics, SceneComponent), ClassGroup=Rendering, editinlinenew, meta=(BlueprintSpawnableComponent))
-class ENGINE_API USceneCaptureComponent2D : public USceneCaptureComponent
+UCLASS(hidecategories=(Collision, Object, Physics, SceneComponent), ClassGroup=Rendering, editinlinenew, meta=(BlueprintSpawnableComponent), MinimalAPI)
+class USceneCaptureComponent2D : public USceneCaptureComponent
 {
 	GENERATED_UCLASS_BODY()
 		
@@ -117,35 +117,35 @@ public:
 	int32 TileID = 0;
 
 	//~ Begin UActorComponent Interface
-	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
-	virtual void OnRegister() override;
-	virtual void SendRenderTransform_Concurrent() override;
+	ENGINE_API virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
+	ENGINE_API virtual void OnRegister() override;
+	ENGINE_API virtual void SendRenderTransform_Concurrent() override;
 	virtual bool RequiresGameThreadEndOfFrameUpdates() const override
 	{
 		// this method could probably be removed allowing them to run on any thread, but it isn't worth the trouble
 		return true;
 	}
-	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
+	ENGINE_API virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 
 	/** Reset Orthographic tiling counter */
-	void ResetOrthographicTilingCounter();
+	ENGINE_API void ResetOrthographicTilingCounter();
 
 	//~ End UActorComponent Interface
 
 	//~ Begin UObject Interface
 #if WITH_EDITOR
-	virtual bool CanEditChange(const FProperty* InProperty) const override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual bool CanEditChange(const FProperty* InProperty) const override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
-	virtual void Serialize(FArchive& Ar);
+	static ENGINE_API void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	ENGINE_API virtual void Serialize(FArchive& Ar);
 
 	//~ End UObject Interface
 
-	void SetCameraView(const FMinimalViewInfo& DesiredView);
+	ENGINE_API void SetCameraView(const FMinimalViewInfo& DesiredView);
 
-	virtual void GetCameraView(float DeltaTime, FMinimalViewInfo& OutDesiredView);
+	ENGINE_API virtual void GetCameraView(float DeltaTime, FMinimalViewInfo& OutDesiredView);
 
 	/** Adds an Blendable (implements IBlendableInterface) to the array of Blendables (if it doesn't exist) and update the weight */
 	UFUNCTION(BlueprintCallable, Category="Rendering")
@@ -159,7 +159,7 @@ public:
 	 * Render the scene to the texture the next time the main view is rendered.
 	 * If r.SceneCapture.CullByDetailMode is set, nothing will happen if DetailMode is higher than r.DetailMode.
 	 */
-	void CaptureSceneDeferred();
+	ENGINE_API void CaptureSceneDeferred();
 
 	// For backwards compatibility
 	void UpdateContent() { CaptureSceneDeferred(); }
@@ -170,21 +170,21 @@ public:
 	 * If r.SceneCapture.CullByDetailMode is set, nothing will happen if DetailMode is higher than r.DetailMode.
 	 */
 	UFUNCTION(BlueprintCallable,Category = "Rendering|SceneCapture")
-	void CaptureScene();
+	ENGINE_API void CaptureScene();
 
-	void UpdateSceneCaptureContents(FSceneInterface* Scene) override;
+	ENGINE_API void UpdateSceneCaptureContents(FSceneInterface* Scene) override;
 
 	/* Return if orthographic tiling rendering is enabled or not */
-	bool GetEnableOrthographicTiling() const;
+	ENGINE_API bool GetEnableOrthographicTiling() const;
 
 	/* Return number of X tiles to render (to be used when orthographic tiling rendering is enabled) */
-	int32 GetNumXTiles() const;
+	ENGINE_API int32 GetNumXTiles() const;
 
 	/* Return number of Y tiles to render (to be used when orthographic tiling rendering is enabled) */
-	int32 GetNumYTiles() const;
+	ENGINE_API int32 GetNumYTiles() const;
 
 #if WITH_EDITORONLY_DATA
-	void UpdateDrawFrustum();
+	ENGINE_API void UpdateDrawFrustum();
 
 	/** The frustum component used to show visually where the camera field of view is */
 	TObjectPtr<class UDrawFrustumComponent> DrawFrustum;

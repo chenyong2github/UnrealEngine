@@ -53,9 +53,9 @@ public:
 /**
  * A vertex factory for Geometry Collections
  */
-struct ENGINE_API FGeometryCollectionVertexFactory : public FVertexFactory
+struct FGeometryCollectionVertexFactory : public FVertexFactory
 {
-	DECLARE_VERTEX_FACTORY_TYPE(FGeometryCollectionVertexFactory);
+	DECLARE_VERTEX_FACTORY_TYPE_API(FGeometryCollectionVertexFactory, ENGINE_API);
 
 public:
 	FGeometryCollectionVertexFactory(ERHIFeatureLevel::Type InFeatureLevel, bool EnableLooseParameter = false)
@@ -76,17 +76,17 @@ public:
 	//
 	// Permutations are controlled by the material flag
 	//
-	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
+	static ENGINE_API bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
 
 	//
 	// Modify compile environment to enable instancing
 	// @param OutEnvironment - shader compile environment to modify
 	//
-	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
+	static ENGINE_API void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 
-	static void ValidateCompiledResult(const FVertexFactoryType* Type, EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutErrors);
+	static ENGINE_API void ValidateCompiledResult(const FVertexFactoryType* Type, EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutErrors);
 
-	static void GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements);
+	static ENGINE_API void GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements);
 
 	//
 	// Set the data on the vertex factory
@@ -115,8 +115,8 @@ public:
 	}
 
 	// FRenderResource interface.
-	virtual void InitRHI() override;
-	virtual void ReleaseRHI() override;
+	ENGINE_API virtual void InitRHI() override;
+	ENGINE_API virtual void ReleaseRHI() override;
 
 	inline FRHIShaderResourceView* GetPositionsSRV() const
 	{

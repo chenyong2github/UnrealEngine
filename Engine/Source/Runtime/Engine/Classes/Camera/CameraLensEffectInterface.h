@@ -18,17 +18,17 @@ class UCameraLensEffectInterface : public UInterface
 	GENERATED_BODY()
 };
 
-class ENGINE_API ICameraLensEffectInterface
+class ICameraLensEffectInterface
 {
 	GENERATED_BODY()
 
 public:
 
 	UFUNCTION(BlueprintCallable, Category = "CameraLensEffect")
-	virtual TArray<UFXSystemComponent*> GetParticleComponents() const;
+	ENGINE_API virtual TArray<UFXSystemComponent*> GetParticleComponents() const;
 
 	UFUNCTION(BlueprintCallable, Category = "CameraLensEffect")
-	virtual UFXSystemComponent* GetPrimaryParticleComponent() const;
+	ENGINE_API virtual UFXSystemComponent* GetPrimaryParticleComponent() const;
 
 	virtual const FTransform& GetRelativeTransform() const = 0;
 	virtual float GetBaseFOV() const = 0;
@@ -54,11 +54,11 @@ public:
 	virtual void DeactivateLensEffect() = 0;
 	
 	/** Given updated camera information, adjust this effect to display appropriately. */
-	virtual void UpdateLocation(const FVector& CamLoc, const FRotator& CamRot, float CamFOVDeg);
+	ENGINE_API virtual void UpdateLocation(const FVector& CamLoc, const FRotator& CamRot, float CamFOVDeg);
 
 	virtual void AdjustBaseFOV(float NewFOV) = 0;
 
-	static FTransform GetAttachedEmitterTransform(const AActor* Emitter, const FVector& CamLoc, const FRotator& CamRot, float CamFOVDeg);
+	static ENGINE_API FTransform GetAttachedEmitterTransform(const AActor* Emitter, const FVector& CamLoc, const FRotator& CamRot, float CamFOVDeg);
 
 	/** Returns true if any associated particle system is set to looping */
 	virtual bool IsLooping() const = 0;

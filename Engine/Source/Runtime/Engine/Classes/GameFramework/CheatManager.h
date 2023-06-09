@@ -67,36 +67,36 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnCheatManagerCreated, UCheatManager*);
 
 
 /** A cheat manager extension can extend the main cheat manager in a modular way, being enabled or disabled when the system associated with the cheats is enabled or disabled */
-UCLASS(Blueprintable, Within=CheatManager)
-class ENGINE_API UCheatManagerExtension : public UObject
+UCLASS(Blueprintable, Within=CheatManager, MinimalAPI)
+class UCheatManagerExtension : public UObject
 {
 	GENERATED_BODY()
 
 public:
 	/** Use the outer cheat manager to get a World. */
-	virtual UWorld* GetWorld() const override;
+	ENGINE_API virtual UWorld* GetWorld() const override;
 
 	UFUNCTION(BlueprintPure, Category = "Cheat Manager")
-	APlayerController* GetPlayerController() const;
+	ENGINE_API APlayerController* GetPlayerController() const;
 
 	UFUNCTION(BlueprintImplementableEvent, meta=(DisplayName = "Added To Cheat Manager", Keywords="Begin Play"))
-	void AddedToCheatManager();
+	ENGINE_API void AddedToCheatManager();
 
 	UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "Removed From Cheat Manager", Keywords = "End Play"))
-	void RemovedFromCheatManager();
+	ENGINE_API void RemovedFromCheatManager();
 };
 
 /** 
 	Cheat Manager is a central blueprint to implement test and debug code and actions that are not to ship with the game.
 	As the Cheat Manager is not instanced in shipping builds, it is for debugging purposes only
 */
-UCLASS(Blueprintable, Within=PlayerController)
-class ENGINE_API UCheatManager : public UObject
+UCLASS(Blueprintable, Within=PlayerController, MinimalAPI)
+class UCheatManager : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
 	//~UObject interface
-	virtual bool ProcessConsoleExec(const TCHAR* Cmd, FOutputDevice& Ar, UObject* Executor) override;
+	ENGINE_API virtual bool ProcessConsoleExec(const TCHAR* Cmd, FOutputDevice& Ar, UObject* Executor) override;
 	//~End of UObject interface
 
 	/** Debug camera - used to have independent camera without stopping gameplay */
@@ -118,7 +118,7 @@ class ENGINE_API UCheatManager : public UObject
 	uint32 bToggleAILogging : 1;
 
 	/** If we should should perform a debug capsule trace for pawns and draw results. Toggled with DebugCapsuleSweepPawn() */
-	static bool bDebugCapsuleSweepPawn;
+	static ENGINE_API bool bDebugCapsuleSweepPawn;
 
 	/** Return true if debug sweeps are enabled for pawns. */ 
 	static FORCEINLINE bool IsDebugCapsuleSweepPawnEnabled() { return bDebugCapsuleSweepPawn; }
@@ -152,163 +152,163 @@ class ENGINE_API UCheatManager : public UObject
 
 	/** Pause the game for Delay seconds. */
 	UFUNCTION(exec,BlueprintCallable,Category="Cheat Manager")
-	virtual void FreezeFrame(float Delay);
+	ENGINE_API virtual void FreezeFrame(float Delay);
 
 	/* Teleport to surface player is looking at. */
 	UFUNCTION(exec,BlueprintCallable,Category="Cheat Manager")
-	virtual void Teleport();
+	ENGINE_API virtual void Teleport();
 
 	/* Scale the player's size to be F * default size. */
 	UFUNCTION(exec,BlueprintCallable,Category="Cheat Manager")
-	virtual void ChangeSize(float F);
+	ENGINE_API virtual void ChangeSize(float F);
 
 	/** Pawn can fly. */
 	UFUNCTION(exec,BlueprintCallable,Category="Cheat Manager")
-	virtual void Fly();
+	ENGINE_API virtual void Fly();
 
 	/** Return to walking movement mode from Fly or Ghost cheat. */
 	UFUNCTION(exec,BlueprintCallable,Category="Cheat Manager")
-	virtual void Walk();
+	ENGINE_API virtual void Walk();
 
 	/** Pawn no longer collides with the world, and can fly */
 	UFUNCTION(exec,BlueprintCallable,Category="Cheat Manager")
-	virtual void Ghost();
+	ENGINE_API virtual void Ghost();
 
 	/** Invulnerability cheat. */
 	UFUNCTION(exec,BlueprintCallable,Category="Cheat Manager")
-	virtual void God();
+	ENGINE_API virtual void God();
 
 	/** Modify time dilation to change apparent speed of passage of time. e.g. "Slomo 0.1" makes everything move very slowly, while "Slomo 10" makes everything move very fast. */
 	UFUNCTION(exec,BlueprintCallable,Category="Cheat Manager")
-	virtual void Slomo(float NewTimeDilation);
+	ENGINE_API virtual void Slomo(float NewTimeDilation);
 
 	/** Damage the actor you're looking at (sourced from the player). */
 	UFUNCTION(exec,BlueprintCallable,Category="Cheat Manager")
-	virtual void DamageTarget(float DamageAmount);
+	ENGINE_API virtual void DamageTarget(float DamageAmount);
 
 	/** Destroy the actor you're looking at. */
 	UFUNCTION(exec,BlueprintCallable,Category="Cheat Manager")
-	virtual void DestroyTarget();
+	ENGINE_API virtual void DestroyTarget();
 	
 	/** Destroy all actors of class aClass */
 	UFUNCTION(exec)
-	virtual void DestroyAll(TSubclassOf<class AActor>  aClass);
+	ENGINE_API virtual void DestroyAll(TSubclassOf<class AActor>  aClass);
 
 	/** Destroy all pawns except for the (pawn) target.  If no (pawn) target is found we don't destroy anything. */
 	UFUNCTION(exec)
-	virtual void DestroyAllPawnsExceptTarget();
+	ENGINE_API virtual void DestroyAllPawnsExceptTarget();
 
 	/** Destroys (by calling destroy directly) all non-player pawns of class aClass in the level */
 	UFUNCTION(exec)
-	virtual void DestroyPawns(TSubclassOf<class APawn> aClass);
+	ENGINE_API virtual void DestroyPawns(TSubclassOf<class APawn> aClass);
 
 	/** Load Classname and spawn an actor of that class */
 	UFUNCTION(exec)
-	virtual void Summon(const FString& ClassName);
+	ENGINE_API virtual void Summon(const FString& ClassName);
 
 	/** Freeze everything in the level except for players. */
 	UFUNCTION(exec,BlueprintCallable,Category="Cheat Manager")
-	virtual void PlayersOnly();
+	ENGINE_API virtual void PlayersOnly();
 
 	/** Make controlled pawn the viewtarget again. */
 	UFUNCTION(exec)
-	virtual void ViewSelf();
+	ENGINE_API virtual void ViewSelf();
 
 	/** View from the point of view of player with PlayerName S. */
 	UFUNCTION(exec)
-	virtual void ViewPlayer(const FString& S);
+	ENGINE_API virtual void ViewPlayer(const FString& S);
 
 	/** View from the point of view of AActor with Name ActorName. */
 	UFUNCTION(exec)
-	virtual void ViewActor(FName ActorName);
+	ENGINE_API virtual void ViewActor(FName ActorName);
 
 	/** View from the point of view of an AActor of class DesiredClass.  Each subsequent ViewClass cycles through the list of actors of that class. */
 	UFUNCTION(exec)
-	virtual void ViewClass(TSubclassOf<class AActor> DesiredClass);
+	ENGINE_API virtual void ViewClass(TSubclassOf<class AActor> DesiredClass);
 
 	/** Stream in the given level. */
 	UFUNCTION(exec)
-	virtual void StreamLevelIn(FName PackageName);
+	ENGINE_API virtual void StreamLevelIn(FName PackageName);
 
 	/** Load the given level. */
 	UFUNCTION(exec)
-	virtual void OnlyLoadLevel(FName PackageName);
+	ENGINE_API virtual void OnlyLoadLevel(FName PackageName);
 
 	/** Stream out the given level. */
 	UFUNCTION(exec)
-	virtual void StreamLevelOut(FName PackageName);
+	ENGINE_API virtual void StreamLevelOut(FName PackageName);
 
 	/** Toggle between debug camera/player camera without locking gameplay and with locking local player controller input. */
 	UFUNCTION(exec)
-	virtual void ToggleDebugCamera();
+	ENGINE_API virtual void ToggleDebugCamera();
 
 	/** toggles AI logging */
 	UFUNCTION(exec)
-	virtual void ToggleAILogging();
+	ENGINE_API virtual void ToggleAILogging();
 
 	UFUNCTION(reliable, server, WithValidation)
-	virtual void ServerToggleAILogging();
+	ENGINE_API virtual void ServerToggleAILogging();
 
 	/** Toggle capsule trace debugging. Will trace a capsule from current view point and show where it hits the world */
 	UFUNCTION(exec)
-	virtual void DebugCapsuleSweep();
+	ENGINE_API virtual void DebugCapsuleSweep();
 
 	/** Change Trace capsule size **/
 	UFUNCTION(exec)
-	virtual void DebugCapsuleSweepSize(float HalfHeight, float Radius);
+	ENGINE_API virtual void DebugCapsuleSweepSize(float HalfHeight, float Radius);
 
 	/** Change Trace Channel **/
 	UFUNCTION(exec)
-	virtual void DebugCapsuleSweepChannel(enum ECollisionChannel Channel);
+	ENGINE_API virtual void DebugCapsuleSweepChannel(enum ECollisionChannel Channel);
 
 	/** Change Trace Complex setting **/
 	UFUNCTION(exec)
-	virtual void DebugCapsuleSweepComplex(bool bTraceComplex);
+	ENGINE_API virtual void DebugCapsuleSweepComplex(bool bTraceComplex);
 
 	/** Capture current trace and add to persistent list **/
 	UFUNCTION(exec)
-	virtual void DebugCapsuleSweepCapture();
+	ENGINE_API virtual void DebugCapsuleSweepCapture();
 
 	/** Capture current local PC's pawn's location and add to persistent list **/
 	UFUNCTION(exec)
-	virtual void DebugCapsuleSweepPawn();
+	ENGINE_API virtual void DebugCapsuleSweepPawn();
 
 	/** Clear persistent list for trace capture **/
 	UFUNCTION(exec)
-	virtual void DebugCapsuleSweepClear();
+	ENGINE_API virtual void DebugCapsuleSweepClear();
 
 	/** Test all volumes in the world to the player controller's view location**/
 	UFUNCTION(exec)
-	virtual void TestCollisionDistance();
+	ENGINE_API virtual void TestCollisionDistance();
 
 	/** Dump online session information */
 	UFUNCTION(exec)
-	virtual void DumpOnlineSessionState();
+	ENGINE_API virtual void DumpOnlineSessionState();
 
 	/** Dump known party information */
 	UFUNCTION(exec)
-	virtual void DumpPartyState();
+	ENGINE_API virtual void DumpPartyState();
 
 	/** Dump known chat information */
 	UFUNCTION(exec)
-	virtual void DumpChatState();
+	ENGINE_API virtual void DumpChatState();
 
 	/** Dump current state of voice chat */
 	UFUNCTION(exec)
-	virtual void DumpVoiceMutingState();
+	ENGINE_API virtual void DumpVoiceMutingState();
 
 	/**
 	 * This will move the player and set their rotation to the passed in values.
 	 * We have this version of the BugIt family as it is easier to type in just raw numbers in the console.
 	 */
 	UFUNCTION(exec)
-	virtual void BugItGo(float X, float Y, float Z, float Pitch, float Yaw, float Roll);
+	ENGINE_API virtual void BugItGo(float X, float Y, float Z, float Pitch, float Yaw, float Roll);
 
 	/**
 	 * This will move the player and set their rotation to the passed in values.
 	 * We have this version of the BugIt family strings can be passed in from the game ?options easily
 	 */
-	virtual void BugItGoString(const FString& TheLocation, const FString& TheRotation);
+	ENGINE_API virtual void BugItGoString(const FString& TheLocation, const FString& TheRotation);
 
 	/**
 	* This function is used to print out the BugIt location.  It prints out copy and paste versions for both IMing someone to type in
@@ -317,70 +317,70 @@ class ENGINE_API UCheatManager : public UObject
 	*
 	**/
 	UFUNCTION(exec)
-	virtual void BugIt(const FString& ScreenShotDescription = TEXT(""));
+	ENGINE_API virtual void BugIt(const FString& ScreenShotDescription = TEXT(""));
 
 	/** This will create a BugItGo string for us.  Nice for calling form c++ where you just want the string and no Screenshots **/
 	UFUNCTION(exec)
-	virtual void BugItStringCreator(FVector ViewLocation, FRotator ViewRotation, FString& GoString, FString& LocString);
+	ENGINE_API virtual void BugItStringCreator(FVector ViewLocation, FRotator ViewRotation, FString& GoString, FString& LocString);
 
 	/** This will force a flush of the output log to file*/
 	UFUNCTION(exec)
-	virtual void FlushLog();
+	ENGINE_API virtual void FlushLog();
 
 	/** Logs the current location in bugit format without taking screenshot and further routing. */
 	UFUNCTION(exec)
-	virtual void LogLoc();
+	ENGINE_API virtual void LogLoc();
 
 	/** Translate world origin to this player position */
 	UFUNCTION(exec)
-	void SetWorldOrigin();
+	ENGINE_API void SetWorldOrigin();
 
 	/** Exec function to return the mouse sensitivity to its default value */
 	UFUNCTION(exec)
-	virtual void SetMouseSensitivityToDefault();
+	ENGINE_API virtual void SetMouseSensitivityToDefault();
 
 	/** Backwards compatibility exec function for people used to it instead of using InvertAxisKey */
 	UFUNCTION(exec)
-	virtual void InvertMouse();
+	ENGINE_API virtual void InvertMouse();
 
 	/** Executes commands listed in CheatScript.ScriptName ini section of DefaultGame.ini */
 	UFUNCTION(exec)
-	void CheatScript(FString ScriptName);
+	ENGINE_API void CheatScript(FString ScriptName);
 
 	UFUNCTION(Exec)
-	void SpawnServerStatReplicator();
+	ENGINE_API void SpawnServerStatReplicator();
 
 	UFUNCTION(Exec)
-	void DestroyServerStatReplicator();
+	ENGINE_API void DestroyServerStatReplicator();
 
 	UFUNCTION(Exec)
-	void ToggleServerStatReplicatorClientOverwrite();
+	ENGINE_API void ToggleServerStatReplicatorClientOverwrite();
 
 	UFUNCTION(Exec)
-	void ToggleServerStatReplicatorUpdateStatNet();
+	ENGINE_API void ToggleServerStatReplicatorUpdateStatNet();
 
 	UFUNCTION(exec)
-	void UpdateSafeArea();
+	ENGINE_API void UpdateSafeArea();
 
 	UFUNCTION()
-	void OnPlayerEndPlayed(AActor* Player, EEndPlayReason::Type EndPlayReason);
+	ENGINE_API void OnPlayerEndPlayed(AActor* Player, EEndPlayReason::Type EndPlayReason);
 
 	/**
 	 * This will move the player and set their rotation to the passed in values.
 	 * This actually does the location / rotation setting.  Additionally it will set you as ghost as the level may have
 	 * changed since the last time you were here.  And the bug may actually be inside of something.
 	 */
-	virtual void BugItWorker( FVector TheLocation, FRotator TheRotation );
+	ENGINE_API virtual void BugItWorker( FVector TheLocation, FRotator TheRotation );
 
 	/** Bug it log to file */
-	virtual void LogOutBugItGoToLogFile( const FString& InScreenShotDesc, const FString& InScreenShotPath, const FString& InGoString, const FString& InLocString );
+	ENGINE_API virtual void LogOutBugItGoToLogFile( const FString& InScreenShotDesc, const FString& InScreenShotPath, const FString& InGoString, const FString& InLocString );
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	/** Do any trace debugging that is currently enabled */
-	void TickCollisionDebug();
+	ENGINE_API void TickCollisionDebug();
 
 	/** Add Debug Trace info into current index - used when DebugCapsuleSweepPawn is on**/
-	void AddCapsuleSweepDebugInfo(
+	ENGINE_API void AddCapsuleSweepDebugInfo(
 		const FVector& LineTraceStart, 
 		const FVector& LineTraceEnd, 
 		const FVector& HitImpactLocation, 
@@ -395,43 +395,43 @@ class ENGINE_API UCheatManager : public UObject
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
 	/** streaming level debugging */
-	virtual void SetLevelStreamingStatus(FName PackageName, bool bShouldBeLoaded, bool bShouldBeVisible);
+	ENGINE_API virtual void SetLevelStreamingStatus(FName PackageName, bool bShouldBeLoaded, bool bShouldBeVisible);
 
 	/** 
 	* BP implementable event for when CheatManager is created to allow any needed initialization.  
 	*/
 	UFUNCTION(BlueprintImplementableEvent, meta=(DisplayName = "Init Cheat Manager", Keywords="Begin Play"))
-	void ReceiveInitCheatManager();
+	ENGINE_API void ReceiveInitCheatManager();
 
 	/** 
 	 * Called when CheatManager is created to allow any needed initialization.  
 	 */
-	virtual void InitCheatManager();
+	ENGINE_API virtual void InitCheatManager();
 
 	/**
 	* This is the End Play event for the CheatManager
 	*/
 	UFUNCTION(BlueprintImplementableEvent, meta=(DisplayName = "Shutdown", keywords="endplay"))
-	void ReceiveEndPlay();
+	ENGINE_API void ReceiveEndPlay();
 	
 	/**
 	* Called before destroying the object.  This is called immediately upon deciding to destroy the object, to allow the object to begin an
 	* asynchronous cleanup process.
 	*/
-	virtual void BeginDestroy() override;
+	ENGINE_API virtual void BeginDestroy() override;
 
 	/** Use the Outer Player Controller to get a World.  */
-	virtual UWorld* GetWorld() const override;
+	ENGINE_API virtual UWorld* GetWorld() const override;
 
 public:
 	/** Registers a cheat manager extension with this cheat manager */
-	void AddCheatManagerExtension(UCheatManagerExtension* CheatObject);
+	ENGINE_API void AddCheatManagerExtension(UCheatManagerExtension* CheatObject);
 
 	/** Removes a cheat manager extension from this cheat manager */
-	void RemoveCheatManagerExtension(UCheatManagerExtension* CheatObject);
+	ENGINE_API void RemoveCheatManagerExtension(UCheatManagerExtension* CheatObject);
 	
 	/** Finds a previously registered cheat manager extension of the specified class */
-	UCheatManagerExtension* FindCheatManagerExtension(const UClass* InClass) const;
+	ENGINE_API UCheatManagerExtension* FindCheatManagerExtension(const UClass* InClass) const;
 
 	/** Finds a previously registered cheat manager extension of the specified class */
 	template<typename T>
@@ -441,7 +441,7 @@ public:
 	}
 
 	/** Finds a previously registered cheat manager extension that implements the specified interface */
-	UCheatManagerExtension* FindCheatManagerExtensionInterface(const UClass* InClass) const;
+	ENGINE_API UCheatManagerExtension* FindCheatManagerExtensionInterface(const UClass* InClass) const;
 
 	/** Finds a previously registered cheat manager extension that implements the specified interface */
 	template<class T = UInterface>
@@ -451,10 +451,10 @@ public:
 	}
 
 	/** Register a delegate to call whenever a cheat manager is spawned; it will also be called immediately for cheat managers that already exist at this point */
-	static FDelegateHandle RegisterForOnCheatManagerCreated(FOnCheatManagerCreated::FDelegate&& Delegate);
+	static ENGINE_API FDelegateHandle RegisterForOnCheatManagerCreated(FOnCheatManagerCreated::FDelegate&& Delegate);
 
 	/** Unregister a delegate previously registered with CallOrRegister_OnCheatManagerCreated */
-	static void UnregisterFromOnCheatManagerCreated(FDelegateHandle DelegateHandle);
+	static ENGINE_API void UnregisterFromOnCheatManagerCreated(FDelegateHandle DelegateHandle);
 
 protected:
 	/** List of registered cheat manager extensions */
@@ -462,7 +462,7 @@ protected:
 	TArray<TObjectPtr<UCheatManagerExtension>> CheatManagerExtensions;
 
 	/** Delegate called when the asset manager singleton is created */
-	static FOnCheatManagerCreated OnCheatManagerCreatedDelegate;
+	static ENGINE_API FOnCheatManagerCreated OnCheatManagerCreatedDelegate;
 
 protected:
 	/** Do game specific bugIt */
@@ -470,18 +470,18 @@ protected:
 
 	/** Switch controller to debug camera without locking gameplay and with locking local player controller input */
 	UFUNCTION(BlueprintCallable,Category="Cheat Manager")
-	virtual void EnableDebugCamera();
+	ENGINE_API virtual void EnableDebugCamera();
 	
 	/** Switch controller from debug camera back to normal controller */
 	UFUNCTION(BlueprintCallable,Category="Cheat Manager")
-	virtual void DisableDebugCamera();
+	ENGINE_API virtual void DisableDebugCamera();
     
     /** Retrieve the given PlayerContoller's current "target" AActor. */
-    virtual AActor* GetTarget(APlayerController* PlayerController, struct FHitResult& OutHit);
+    ENGINE_API virtual AActor* GetTarget(APlayerController* PlayerController, struct FHitResult& OutHit);
 
 public:
 	UFUNCTION(BlueprintPure, Category = "Cheat Manager")
-	APlayerController* GetPlayerController() const;
+	ENGINE_API APlayerController* GetPlayerController() const;
 };
 
 

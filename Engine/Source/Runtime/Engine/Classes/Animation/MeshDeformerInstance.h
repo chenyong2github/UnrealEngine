@@ -12,8 +12,8 @@ class FSceneInterface;
  * Base class for mesh deformers instance settings.
  * This contains the serialized user settings to apply to the UMeshDeformer.
  */
-UCLASS(Abstract)
-class ENGINE_API UMeshDeformerInstanceSettings : public UObject
+UCLASS(Abstract, MinimalAPI)
+class UMeshDeformerInstanceSettings : public UObject
 {
 	GENERATED_BODY()
 };
@@ -23,17 +23,17 @@ class ENGINE_API UMeshDeformerInstanceSettings : public UObject
  * Base class for mesh deformers instances.
  * This contains the transient per instance state for a UMeshDeformer.
  */
-UCLASS(Abstract)
-class ENGINE_API UMeshDeformerInstance : public UObject
+UCLASS(Abstract, MinimalAPI)
+class UMeshDeformerInstance : public UObject
 {
 	GENERATED_BODY()
 
 public:
 	/** Called to allocate any persistent render resources */
-	virtual void AllocateResources() PURE_VIRTUAL(, );
+	ENGINE_API virtual void AllocateResources() PURE_VIRTUAL(, );
 
 	/** Called when persistent render resources should be released */
-	virtual void ReleaseResources() PURE_VIRTUAL(, );
+	ENGINE_API virtual void ReleaseResources() PURE_VIRTUAL(, );
 
 	/** Enumeration for workloads to EnqueueWork. */
 	enum EWorkLoad
@@ -64,5 +64,5 @@ public:
 	};
 
 	/** Enqueue the mesh deformer workload on a scene. */
-	virtual void EnqueueWork(FEnqueueWorkDesc const& InDesc) PURE_VIRTUAL(, );
+	ENGINE_API virtual void EnqueueWork(FEnqueueWorkDesc const& InDesc) PURE_VIRTUAL(, );
 };

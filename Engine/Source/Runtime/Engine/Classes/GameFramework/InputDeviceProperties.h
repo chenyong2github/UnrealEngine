@@ -28,15 +28,15 @@ class UCurveFloat;
 * support certain device properties. An older gamepad may not have any advanced trigger haptics for 
 * example. 
 */
-UCLASS(Abstract, Blueprintable, BlueprintType, EditInlineNew, CollapseCategories, meta = (ShowWorldContextPin))
-class ENGINE_API UInputDeviceProperty : public UObject
+UCLASS(Abstract, Blueprintable, BlueprintType, EditInlineNew, CollapseCategories, meta = (ShowWorldContextPin), MinimalAPI)
+class UInputDeviceProperty : public UObject
 {
 	friend class UInputDeviceSubsystem;
 
 	GENERATED_BODY()
 public:
 
-	UInputDeviceProperty(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	ENGINE_API UInputDeviceProperty(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 protected:
 
@@ -50,7 +50,7 @@ protected:
 	* @return					A pointer to the evaluated input device property.
 	*/
 	UFUNCTION(BlueprintNativeEvent, Category = "InputDevice")
-	void EvaluateDeviceProperty(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId, const float DeltaTime, const float Duration);
+	ENGINE_API void EvaluateDeviceProperty(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId, const float DeltaTime, const float Duration);
 
 	/** 
 	* Native C++ implementation of EvaluateDeviceProperty.
@@ -58,7 +58,7 @@ protected:
 	* Override this to alter your device property in native code.
 	* @see UInputDeviceProperty::EvaluateDeviceProperty
 	*/
-	virtual void EvaluateDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId, const float DeltaTime, const float Duration);
+	ENGINE_API virtual void EvaluateDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId, const float DeltaTime, const float Duration);
 
 	/**
 	* Reset the current device property. Provides an opportunity to reset device state after evaluation is complete. 
@@ -67,7 +67,7 @@ protected:
 	* @param PlatformUser		The platform user that should receive this device property change
 	*/
 	UFUNCTION(BlueprintNativeEvent, Category = "InputDevice")
-	void ResetDeviceProperty(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId, bool bForceReset = false);
+	ENGINE_API void ResetDeviceProperty(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId, bool bForceReset = false);
 
 	/**
 	* Native C++ implementation of ResetDeviceProperty
@@ -75,7 +75,7 @@ protected:
 	* 
 	* @see ResetDeviceProperty
 	*/
-	virtual void ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId, bool bForceReset = false);
+	ENGINE_API virtual void ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId, bool bForceReset = false);
 
 	/**
 	* Apply the device property from GetInternalDeviceProperty to the given platform user. 
@@ -84,7 +84,7 @@ protected:
 	* @param UserId		The owning Platform User whose input device this property should be applied to.
 	*/
 	UFUNCTION(Category = "InputDevice")
-	virtual void ApplyDeviceProperty(const FPlatformUserId UserId, const FInputDeviceId DeviceId);
+	ENGINE_API virtual void ApplyDeviceProperty(const FPlatformUserId UserId, const FInputDeviceId DeviceId);
 	
 	/** Gets a pointer to the current input device property that the IInputInterface can use. */
 	virtual FInputDeviceProperty* GetInternalDeviceProperty() { return nullptr; };
@@ -95,17 +95,17 @@ public:
 	* The duration that this device property should last. Override this if your property has any dynamic curves 
 	* to be the max time range.
 	*/
-	float GetDuration() const;
+	ENGINE_API float GetDuration() const;
 	
 	/**
 	 * Recalculates this device property's duration. This should be called whenever there are changes made
 	 * to things like curves, or other time sensitive properties.
 	 */
-	virtual float RecalculateDuration();
+	ENGINE_API virtual float RecalculateDuration();
 
 	// Post edit change property to update the duration if there are any dynamic options like for curves
 #if WITH_EDITOR
-	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #endif	// WITH_EDITOR
 
 protected:
@@ -116,7 +116,7 @@ protected:
 	* @param UserId			The owning Platform User whose input device this property should be applied to.
 	* @param RawProperty	The internal input device property to apply.
 	*/
-	static void ApplyDeviceProperty_Internal(const FPlatformUserId UserId, const FInputDeviceId DeviceId, FInputDeviceProperty* RawProperty);
+	static ENGINE_API void ApplyDeviceProperty_Internal(const FPlatformUserId UserId, const FInputDeviceId DeviceId, FInputDeviceProperty* RawProperty);
 
 	/** Returns the device specific data for the given platform user. Returns the default data if none are given */
 	template<class TDataLayout>
@@ -284,16 +284,16 @@ struct FDeviceTriggerBaseData
 };
 
 /** A property that effect the triggers on a gamepad */
-UCLASS(Abstract, meta = (DisplayName = "Base Trigger Effect"))
-class ENGINE_API UInputDeviceTriggerEffect : public UInputDeviceProperty
+UCLASS(Abstract, meta = (DisplayName = "Base Trigger Effect"), MinimalAPI)
+class UInputDeviceTriggerEffect : public UInputDeviceProperty
 {
 	GENERATED_BODY()
 
 public:	
 
-	virtual FInputDeviceProperty* GetInternalDeviceProperty() override;
-	virtual void ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId, bool bForceReset = false) override;
-	virtual void ApplyDeviceProperty(const FPlatformUserId UserId, const FInputDeviceId DeviceId) override;
+	ENGINE_API virtual FInputDeviceProperty* GetInternalDeviceProperty() override;
+	ENGINE_API virtual void ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const FInputDeviceId DeviceId, bool bForceReset = false) override;
+	ENGINE_API virtual void ApplyDeviceProperty(const FPlatformUserId UserId, const FInputDeviceId DeviceId) override;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Triggers")
 	FDeviceTriggerBaseData BaseTriggerData;

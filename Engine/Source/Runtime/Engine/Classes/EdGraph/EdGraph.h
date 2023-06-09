@@ -18,7 +18,7 @@ struct FEdGraphEditAction;
 struct FPropertyChangedEvent;
 
 USTRUCT()
-struct ENGINE_API FGraphReference
+struct FGraphReference
 {
 	GENERATED_USTRUCT_BODY()
 protected:
@@ -41,7 +41,7 @@ public:
 	{
 	}
 
-	void PostSerialize(const FArchive& Ar);
+	ENGINE_API void PostSerialize(const FArchive& Ar);
 
 	class UBlueprint* GetBlueprint() const
 	{
@@ -49,8 +49,8 @@ public:
 	}
 
 #if WITH_EDITORONLY_DATA
-	void SetGraph(UEdGraph* InGraph);
-	UEdGraph* GetGraph() const;
+	ENGINE_API void SetGraph(UEdGraph* InGraph);
+	ENGINE_API UEdGraph* GetGraph() const;
 #endif
 };
 
@@ -63,8 +63,8 @@ struct TStructOpsTypeTraits<FGraphReference> : public TStructOpsTypeTraitsBase2<
 	};
 };
 
-UCLASS()
-class ENGINE_API UEdGraph : public UObject
+UCLASS(MinimalAPI)
+class UEdGraph : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -112,20 +112,20 @@ public:
 	template <typename NodeType> friend struct FGraphNodeCreator;
 
 	/** Get the schema associated with this graph */
-	const class UEdGraphSchema* GetSchema() const;
+	ENGINE_API const class UEdGraphSchema* GetSchema() const;
 
 	/** Add a listener for OnGraphChanged events */
-	FDelegateHandle AddOnGraphChangedHandler( const FOnGraphChanged::FDelegate& InHandler );
+	ENGINE_API FDelegateHandle AddOnGraphChangedHandler( const FOnGraphChanged::FDelegate& InHandler );
 
 	/** Remove a listener for OnGraphChanged events */
-	void RemoveOnGraphChangedHandler( FDelegateHandle Handle );
+	ENGINE_API void RemoveOnGraphChangedHandler( FDelegateHandle Handle );
 
 	//~ Begin UObject interface
 #if WITH_EDITORONLY_DATA
-	virtual void BuildSubobjectMapping(UObject* OtherObject, TMap<UObject*, UObject*>& ObjectMapping) const override;
-	virtual void Serialize(FStructuredArchiveRecord Record) override;
-	virtual void PostInitProperties() override;
-	virtual void PostLoad() override;
+	ENGINE_API virtual void BuildSubobjectMapping(UObject* OtherObject, TMap<UObject*, UObject*>& ObjectMapping) const override;
+	ENGINE_API virtual void Serialize(FStructuredArchiveRecord Record) override;
+	ENGINE_API virtual void PostInitProperties() override;
+	ENGINE_API virtual void PostLoad() override;
 	//~ End UObject Interface
 #endif
 
@@ -145,7 +145,7 @@ public:
 	 * @param bUserAction	true if the node was added as the result of a direct user action
 	 * @param bSelectNewNode	Whether or not to select the new node being created
 	 */
-	void AddNode( UEdGraphNode* NodeToAdd, bool bUserAction = false, bool bSelectNewNode = true );
+	ENGINE_API void AddNode( UEdGraphNode* NodeToAdd, bool bUserAction = false, bool bSelectNewNode = true );
 
 	/**
 	 * Queues up a select operation for a series of nodes in this graph.
@@ -153,7 +153,7 @@ public:
 	 * @param  NodeSelection	The group of nodes you want selected
 	 * @param  bFromUI			True if the node was added as the result of a direct user action.
 	 */
-	void SelectNodeSet(TSet<const UEdGraphNode*> NodeSelection, bool bFromUI = false);
+	ENGINE_API void SelectNodeSet(TSet<const UEdGraphNode*> NodeSelection, bool bFromUI = false);
 
 	/** 
 	* Remove a node from this graph
@@ -163,13 +163,13 @@ public:
 	* 
 	* @return True if the node has been removed from the graph
 	*/
-	bool RemoveNode( UEdGraphNode* NodeToRemove, bool bBreakAllLinks = true );
+	ENGINE_API bool RemoveNode( UEdGraphNode* NodeToRemove, bool bBreakAllLinks = true );
 
 	/** Signal to listeners that the graph has changed - prefer to use NotifyNodeChanged when updating a single node */
-	virtual void NotifyGraphChanged();
+	ENGINE_API virtual void NotifyGraphChanged();
 
 	/** Signal to listeners that a node has changed in the graph - commonly used to get UI up to date with a data change */
-	void NotifyNodeChanged(const UEdGraphNode* Node);
+	ENGINE_API void NotifyNodeChanged(const UEdGraphNode* Node);
 
 	/** 
 	 * Move all nodes from this graph to another graph
@@ -177,7 +177,7 @@ public:
 	 * @param bIsLoading		If true, the node move is occurring during a blueprint load
 	 * @param bInIsCompiling	TRUE if the function is being called during compilation, this will eliminate some nodes that will not be compiled
 	 */
-	void MoveNodesToAnotherGraph(UEdGraph* DestinationGraph, bool bIsLoading, bool bInIsCompiling);
+	ENGINE_API void MoveNodesToAnotherGraph(UEdGraph* DestinationGraph, bool bIsLoading, bool bInIsCompiling);
 
 	/** Finds all the nodes of a given minimum type in the graph */
 	template<class MinRequiredType, class ArrayElementType>
@@ -201,30 +201,30 @@ public:
 	}
 
 	/** Get all children graphs in the specified graph */
-	void GetAllChildrenGraphs(TArray<UEdGraph*>& Graphs) const;
+	ENGINE_API void GetAllChildrenGraphs(TArray<UEdGraph*>& Graphs) const;
 
 	/** Get parent outer graph, if it exists */
-	static UEdGraph* GetOuterGraph(UObject* Obj);
+	static ENGINE_API UEdGraph* GetOuterGraph(UObject* Obj);
 
 	/** Util to find a good place for a new node */
-	FVector2D GetGoodPlaceForNewNode();
+	ENGINE_API FVector2D GetGoodPlaceForNewNode();
 
 #if WITH_EDITOR
 	/** Notify the graph and its associated listeners that a property is about to change  */
-	void NotifyPreChange( const FString& PropertyName );
+	ENGINE_API void NotifyPreChange( const FString& PropertyName );
 
 	/** Notify the graph and associated listeners that a property has changed */
-	void NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, const FString& PropertyName );
+	ENGINE_API void NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, const FString& PropertyName );
 
 	/** Add a delegate listening for property change notifications */
-	FDelegateHandle AddPropertyChangedNotifier(const FOnPropertyChanged::FDelegate& InDelegate );
+	ENGINE_API FDelegateHandle AddPropertyChangedNotifier(const FOnPropertyChanged::FDelegate& InDelegate );
 
 	/** Remove a delegate listening for property changed notifications */
-	void RemovePropertyChangedNotifier(FDelegateHandle InHandle );
+	ENGINE_API void RemovePropertyChangedNotifier(FDelegateHandle InHandle );
 #endif
 
 protected:
-	virtual void NotifyGraphChanged( const FEdGraphEditAction& Action );
+	ENGINE_API virtual void NotifyGraphChanged( const FEdGraphEditAction& Action );
 
 	/** 
 	 * Creates an empty node in this graph. Use FGraphNodeCreator above
@@ -235,7 +235,7 @@ protected:
 	 *
 	 * @return A new graph node of the given type
 	 */
-	UEdGraphNode* CreateNode( TSubclassOf<UEdGraphNode> NewNodeClass, bool bFromUI, bool bSelectNewNode );
+	ENGINE_API UEdGraphNode* CreateNode( TSubclassOf<UEdGraphNode> NewNodeClass, bool bFromUI, bool bSelectNewNode );
 
 	UEdGraphNode* CreateNode(TSubclassOf<UEdGraphNode> NewNodeClass, bool bSelectNewNode = true)
 	{

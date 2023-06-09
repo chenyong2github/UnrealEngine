@@ -23,8 +23,8 @@
 
 DECLARE_DELEGATE_TwoParams( FOnSoundWaveProceduralUnderflow, class USoundWaveProcedural*, int32 );
 
-UCLASS()
-class ENGINE_API USoundWaveProcedural : public USoundWave
+UCLASS(MinimalAPI)
+class USoundWaveProcedural : public USoundWave
 {
 	GENERATED_BODY()
 
@@ -42,7 +42,7 @@ private:
 	FThreadSafeBool bReset;
 
 	// Pumps audio queued from game thread
-	void PumpQueuedAudio();
+	ENGINE_API void PumpQueuedAudio();
 
 protected:
 
@@ -53,21 +53,21 @@ protected:
 	int32 NumSamplesToGeneratePerCallback;
 
 public:
-	USoundWaveProcedural(const FObjectInitializer& ObjectInitializer);
+	ENGINE_API USoundWaveProcedural(const FObjectInitializer& ObjectInitializer);
 
 	//~ Begin UObject Interface. 
-	virtual void Serialize( FArchive& Ar ) override;
-	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
+	ENGINE_API virtual void Serialize( FArchive& Ar ) override;
+	ENGINE_API virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 	//~ End UObject Interface. 
 
 	//~ Begin USoundWave Interface.
-	virtual int32 GeneratePCMData(uint8* PCMData, const int32 SamplesNeeded) override;
-	virtual bool HasCompressedData(FName Format, ITargetPlatform* TargetPlatform) const override;
-	virtual void BeginGetCompressedData(FName Format, const FPlatformAudioCookOverrides* CompressionOverrides) override;
-	virtual FByteBulkData* GetCompressedData(FName Format, const FPlatformAudioCookOverrides* CompressionOverrides = nullptr) override;
-	virtual void InitAudioResource( FByteBulkData& CompressedData ) override;
-	virtual bool InitAudioResource(FName Format) override;
-	virtual int32 GetResourceSizeForFormat(FName Format) override;
+	ENGINE_API virtual int32 GeneratePCMData(uint8* PCMData, const int32 SamplesNeeded) override;
+	ENGINE_API virtual bool HasCompressedData(FName Format, ITargetPlatform* TargetPlatform) const override;
+	ENGINE_API virtual void BeginGetCompressedData(FName Format, const FPlatformAudioCookOverrides* CompressionOverrides) override;
+	ENGINE_API virtual FByteBulkData* GetCompressedData(FName Format, const FPlatformAudioCookOverrides* CompressionOverrides = nullptr) override;
+	ENGINE_API virtual void InitAudioResource( FByteBulkData& CompressedData ) override;
+	ENGINE_API virtual bool InitAudioResource(FName Format) override;
+	ENGINE_API virtual int32 GetResourceSizeForFormat(FName Format) override;
 	//~ End USoundWave Interface.
 
 	// Virtual function to generate PCM audio from the audio render thread. 
@@ -75,13 +75,13 @@ public:
 	virtual int32 OnGeneratePCMAudio(TArray<uint8>& OutAudio, int32 NumSamples) { return 0; }
 
 	/** Add data to the FIFO that feeds the audio device. */
-	void QueueAudio(const uint8* AudioData, const int32 BufferSize);
+	ENGINE_API void QueueAudio(const uint8* AudioData, const int32 BufferSize);
 
 	/** Remove all queued data from the FIFO. This is only necessary if you want to start over, or GeneratePCMData() isn't going to be called, since that will eventually drain it. */
-	void ResetAudio();
+	ENGINE_API void ResetAudio();
 
 	/** Query bytes queued for playback */
-	int32 GetAvailableAudioByteCount();
+	ENGINE_API int32 GetAvailableAudioByteCount();
 
 	/** Called when GeneratePCMData is called but not enough data is available. Allows more data to be added, and will try again */
 	FOnSoundWaveProceduralUnderflow OnSoundWaveProceduralUnderflow;

@@ -65,8 +65,8 @@ struct FHLODInstancingKey
  * @see UStaticMesh
  */
 
-UCLASS(notplaceable, hidecategories = (Object, Collision, Display, Input, Blueprint, Transform, Physics))
-class ENGINE_API ALODActor : public AActor
+UCLASS(notplaceable, hidecategories = (Object, Collision, Display, Input, Blueprint, Transform, Physics), MinimalAPI)
+class ALODActor : public AActor
 {
 	GENERATED_UCLASS_BODY()
 
@@ -107,43 +107,43 @@ public:
 
 	//~ Begin AActor Interface
 #if WITH_EDITOR
-	virtual void CheckForErrors() override;
-	virtual void EditorApplyTranslation(const FVector& DeltaTranslation, bool bAltDown, bool bShiftDown, bool bCtrlDown) override;
-	virtual void EditorApplyRotation(const FRotator& DeltaRotation, bool bAltDown, bool bShiftDown, bool bCtrlDown) override;
-	virtual void EditorApplyScale(const FVector& DeltaScale, const FVector* PivotLocation, bool bAltDown, bool bShiftDown, bool bCtrlDown) override;
-	virtual void EditorApplyMirror(const FVector& MirrorScale, const FVector& PivotLocation) override;
+	ENGINE_API virtual void CheckForErrors() override;
+	ENGINE_API virtual void EditorApplyTranslation(const FVector& DeltaTranslation, bool bAltDown, bool bShiftDown, bool bCtrlDown) override;
+	ENGINE_API virtual void EditorApplyRotation(const FRotator& DeltaRotation, bool bAltDown, bool bShiftDown, bool bCtrlDown) override;
+	ENGINE_API virtual void EditorApplyScale(const FVector& DeltaScale, const FVector* PivotLocation, bool bAltDown, bool bShiftDown, bool bCtrlDown) override;
+	ENGINE_API virtual void EditorApplyMirror(const FVector& MirrorScale, const FVector& PivotLocation) override;
 #endif // WITH_EDITOR	
-	virtual FBox GetComponentsBoundingBox(bool bNonColliding = false, bool bIncludeFromChildActors = false) const override;
-	virtual void PostRegisterAllComponents() override;
-	virtual void Tick(float DeltaSeconds) override;	
+	ENGINE_API virtual FBox GetComponentsBoundingBox(bool bNonColliding = false, bool bIncludeFromChildActors = false) const override;
+	ENGINE_API virtual void PostRegisterAllComponents() override;
+	ENGINE_API virtual void Tick(float DeltaSeconds) override;	
 	virtual bool IsLevelBoundsRelevant() const override { return false; }
 	//~ End AActor Interface
 
 	/** Forces the mesh into view by setting the MinDrawDistance to zero (this pops the mesh into view, no fading)*/
-	void PauseDitherTransition();
+	ENGINE_API void PauseDitherTransition();
 	/** Makes the actor tickable and according to r.HLOD.DitherPauseTime sets the MinDrawDistance back to non-zero */
-	void StartDitherTransition();
+	ENGINE_API void StartDitherTransition();
 
 	/** Sets StaticMesh and IsPreviewActor to true if InStaticMesh equals nullptr */
-	void SetStaticMesh(UStaticMesh* InStaticMesh);
+	ENGINE_API void SetStaticMesh(UStaticMesh* InStaticMesh);
 
 	/** Add instances to this LODActor. */
-	void AddInstances(const UStaticMesh* InStaticMesh, const UMaterialInterface* InMaterial, const TArray<FTransform>& InTransforms);
-	void AddInstances(const UStaticMesh* InStaticMesh, const UMaterialInterface* InMaterial, const TArray<FTransform>& InTransforms, const TArray<FCustomPrimitiveData>& InCustomPrimitiveData);
+	ENGINE_API void AddInstances(const UStaticMesh* InStaticMesh, const UMaterialInterface* InMaterial, const TArray<FTransform>& InTransforms);
+	ENGINE_API void AddInstances(const UStaticMesh* InStaticMesh, const UMaterialInterface* InMaterial, const TArray<FTransform>& InTransforms, const TArray<FCustomPrimitiveData>& InCustomPrimitiveData);
 
 	UE_DEPRECATED(4.27, "Use AddInstances() instead. ")
-	void SetupImposters(const UMaterialInterface* InImposterMaterial, UStaticMesh* InStaticMesh, const TArray<FTransform>& InTransforms);
+	ENGINE_API void SetupImposters(const UMaterialInterface* InImposterMaterial, UStaticMesh* InStaticMesh, const TArray<FTransform>& InTransforms);
 
 	/** Clear all instances stored in this LODActor. */
-	void ClearInstances();
+	ENGINE_API void ClearInstances();
 
 	/** Sets the LOD draw distance and updates the Static Mesh Component's min drawing distance */
-	void SetDrawDistance(float InDistance);
+	ENGINE_API void SetDrawDistance(float InDistance);
 
 	/** Gets the LOD draw distance */
 	float GetDrawDistance() const { return LODDrawDistance; }
 	float GetLODDrawDistance() const { return LODDrawDistance; }
-	float GetLODDrawDistanceWithOverride() const;
+	ENGINE_API float GetLODDrawDistanceWithOverride() const;
 
 	/** 
 	 * Set LOD Parent component for all of our components, normally associated with an ALODActor. 
@@ -151,7 +151,7 @@ public:
 	 * @param InParentDrawDistance	Updates the MinDrawDistances of the LODParent
 	 * @param bInApplyToImposters	Whether this should be applied to imposters instanced static meshes components.
 	 */
-	void SetLODParent(UPrimitiveComponent* InLODParent, float InParentDrawDistance, bool bInApplyToImposters);
+	ENGINE_API void SetLODParent(UPrimitiveComponent* InLODParent, float InParentDrawDistance, bool bInApplyToImposters);
 
 #if WITH_EDITORONLY_DATA
 	/** 
@@ -177,72 +177,72 @@ public:
 	 * Check to see if this mesh is built 
 	 * @param	bInForce	Whether to force the recalculation of this actor's build flag. If this is false then the cached flag is used an only recalculated every so often.
 	 */
-	const bool IsBuilt(bool bInForce = false) const;
+	ENGINE_API const bool IsBuilt(bool bInForce = false) const;
 #endif
 
 	/** Returns whether or not this LODActor has valid SubActors and whether or not their contained Primitive Components are linked (LODParentPrimitive) to StaticMeshComponent*/
-	const bool HasValidLODChildren() const;
+	ENGINE_API const bool HasValidLODChildren() const;
 
 #if WITH_EDITOR
 	/** Force this actor to appear unbuilt (zeros-out key) */
-	void ForceUnbuilt();
+	ENGINE_API void ForceUnbuilt();
 
 	/**
 	* Adds InActor to the SubActors array and set its LODParent to this
 	* @param InActor - Actor to add
 	*/
-	void AddSubActor(AActor* InActor);
+	ENGINE_API void AddSubActor(AActor* InActor);
 
 	/**
 	* Append the provided actors to the SubActors array and properly setup their LODParent
 	* @param InActors - Array of actors to add
 	*/
-	void AddSubActors(const TArray<AActor*>& InActors);
+	ENGINE_API void AddSubActors(const TArray<AActor*>& InActors);
 
 	/**
 	* Removes InActor from the SubActors array and sets its LODParent to nullptr
 	* @param InActor - Actor to remove
 	*/
-	const bool RemoveSubActor(AActor* InActor);
+	ENGINE_API const bool RemoveSubActor(AActor* InActor);
 
 	/**
 	 * Determines whether or not this LODActor has valid SubActors and can be built
 	 * @return true if the subactor(s) contain at least two static mesh components
 	 */
-	const bool HasValidSubActors() const;
+	ENGINE_API const bool HasValidSubActors() const;
 
 	/**
 	 * Determines whether or not this LODActor has any SubActors
 	 * @return true if it contains any subactors
 	 */
-	const bool HasAnySubActors() const;
+	ENGINE_API const bool HasAnySubActors() const;
 
 	/** Toggles forcing the StaticMeshComponent drawing distance to 0 or LODDrawDistance */
-	void ToggleForceView();
+	ENGINE_API void ToggleForceView();
 
 	/** Sets forcing the StaticMeshComponent drawing distance to 0 or LODDrawDistance according to InState*/
-	void SetForcedView(const bool InState);
+	ENGINE_API void SetForcedView(const bool InState);
 
 	/** Sets the state of whether or not this LODActor is hidden from the Editor view, used for forcing a HLOD to show*/
-	void SetHiddenFromEditorView(const bool InState, const int32 ForceLODLevel);
+	ENGINE_API void SetHiddenFromEditorView(const bool InState, const int32 ForceLODLevel);
 
 	/** Returns the number of triangles this LODActor's SubActors contain */
-	const uint32 GetNumTrianglesInSubActors();
+	ENGINE_API const uint32 GetNumTrianglesInSubActors();
 
 	/** Returns the number of triangles this LODActor's SubActors contain */
-	const uint32 GetNumTrianglesInMergedMesh();
+	ENGINE_API const uint32 GetNumTrianglesInMergedMesh();
 	
 	/** Updates the LODParents for the SubActors (and the drawing distance)*/
-	void UpdateSubActorLODParents();
+	ENGINE_API void UpdateSubActorLODParents();
 
 	// This will determine the shadowing flags for the static mesh component according to all sub actors
-	void DetermineShadowingFlags();
+	ENGINE_API void DetermineShadowingFlags();
 
 	/** Cleans the SubActor array (removes all NULL entries) */
-	void CleanSubActorArray();
+	ENGINE_API void CleanSubActorArray();
 
 	/** Recalculates the drawing distance according to a fixed FOV of 90 and the transition screen size*/
-	void RecalculateDrawingDistance(const float TransitionScreenSize);
+	ENGINE_API void RecalculateDrawingDistance(const float TransitionScreenSize);
 
 	/** Get the proxy mesh we use to render */
 	UHLODProxy* GetProxy() const { return Proxy; }
@@ -254,25 +254,25 @@ public:
 	 * Update the proxy description that represent this LODActor
 	 * @return true if the description changed.
 	 */
-	bool UpdateProxyDesc();
+	ENGINE_API bool UpdateProxyDesc();
 
 	/** Returns true if this LODActor was constructed from an HLODProxyDesc */
 	bool WasBuiltFromHLODDesc() const { return bBuiltFromHLODDesc; }
 #endif // WITH_EDITOR
 
 	//~ Begin UObject Interface.
-	virtual FString GetDetailedInfoInternal() const override;
-	virtual void PostLoad() override;
-	virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual FString GetDetailedInfoInternal() const override;
+	ENGINE_API virtual void PostLoad() override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
 #if WITH_EDITOR
-	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
-	virtual void PreEditChange(FProperty* PropertyThatWillChange) override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual bool Modify(bool bAlwaysMarkDirty = true) override;
+	ENGINE_API virtual void PreEditChange(FProperty* PropertyThatWillChange) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS // Suppress compiler warning on override of deprecated function
 	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
-	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	ENGINE_API virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
+	ENGINE_API PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 #endif // WITH_EDITOR	
 
@@ -328,42 +328,42 @@ public:
 	TArray<UInstancedStaticMeshComponent*> GetImpostersStaticMeshComponents() const { return GetInstancedStaticMeshComponents(); }
 
 	/** Returns an array of distances that are used to override individual LOD actors min draw distances. */
-	static const TArray<float>& GetHLODDistanceOverride();
+	static ENGINE_API const TArray<float>& GetHLODDistanceOverride();
 
 private:
 	// Called when CVars are changed to check to see if the maximum HLOD level value has changed
-	static void OnCVarsChanged();
-	static void ParseOverrideDistancesCVar();	
-	static TArray<float> HLODDistances;
+	static ENGINE_API void OnCVarsChanged();
+	static ENGINE_API void ParseOverrideDistancesCVar();	
+	static ENGINE_API TArray<float> HLODDistances;
 
 	// Updates the transition distance according to values (if) set in r.HLOD.DistanceOverride
-	void UpdateOverrideTransitionDistance();
+	ENGINE_API void UpdateOverrideTransitionDistance();
 
 	// Called to make sure autoregistration/manual registration state matches based on the LOD override cvar and this actor's lod level
-	void UpdateRegistrationToMatchMaximumLODLevel();
+	ENGINE_API void UpdateRegistrationToMatchMaximumLODLevel();
 
 	// Setup a LOD static mesh component.
-	void SetupComponent(UStaticMeshComponent* InComponent);
+	ENGINE_API void SetupComponent(UStaticMeshComponent* InComponent);
 
 	// Utility methods to act on all static mesh components owned by this actor.
-	void SetComponentsMinDrawDistance(float InMinDrawDistance, bool bInMarkRenderStateDirty);
-	void RegisterMeshComponents();
-	void UnregisterMeshComponents();
+	ENGINE_API void SetComponentsMinDrawDistance(float InMinDrawDistance, bool bInMarkRenderStateDirty);
+	ENGINE_API void RegisterMeshComponents();
+	ENGINE_API void UnregisterMeshComponents();
 
 	UFUNCTION()
-	void OnSubActorEndPlay(AActor* Actor, EEndPlayReason::Type Reason);
+	ENGINE_API void OnSubActorEndPlay(AActor* Actor, EEndPlayReason::Type Reason);
 
 #if WITH_EDITOR
 	// Get/Create the LOD instanced static mesh component for a given imposter material.
-	UInstancedStaticMeshComponent* GetISMComponent(const FHLODInstancingKey& InstancingKey) const;
-	UInstancedStaticMeshComponent* GetOrCreateISMComponent(const FHLODInstancingKey& InstancingKey);
+	ENGINE_API UInstancedStaticMeshComponent* GetISMComponent(const FHLODInstancingKey& InstancingKey) const;
+	ENGINE_API UInstancedStaticMeshComponent* GetOrCreateISMComponent(const FHLODInstancingKey& InstancingKey);
 
 	// Get/Create the LOD static mesh component to use for a given actor.
-	UStaticMeshComponent* GetLODComponentForActor(const AActor* InActor, bool bFallbackToDefault = true) const;
-	UStaticMeshComponent* GetOrCreateLODComponentForActor(const AActor* InActor);
+	ENGINE_API UStaticMeshComponent* GetLODComponentForActor(const AActor* InActor, bool bFallbackToDefault = true) const;
+	ENGINE_API UStaticMeshComponent* GetOrCreateLODComponentForActor(const AActor* InActor);
 
 public:
-	static bool ShouldUseInstancing(const UStaticMeshComponent* InComponent);
+	static ENGINE_API bool ShouldUseInstancing(const UStaticMeshComponent* InComponent);
 #endif
 
 private:
@@ -393,7 +393,7 @@ private:
 	float ResetDrawDistanceTime;	
 
 	// Sink for when CVars are changed to check to see if the maximum HLOD level value has changed
-	static FAutoConsoleVariableSink CVarSink;
+	static ENGINE_API FAutoConsoleVariableSink CVarSink;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()

@@ -163,7 +163,7 @@ DECLARE_DELEGATE_SixParams(FGPUSortKeyGenDelegate, FRHICommandListImmediate&, in
  * The usecase involes registering a sort task through AddTask() and then initializing the sort data through the KeyGen callback.
  * The sort manager can be enabled or disabled through "fx.AllowGPUSorting"
  */
-class ENGINE_API FGPUSortManager : public FRefCountedObject
+class FGPUSortManager : public FRefCountedObject
 {
 public:
 
@@ -181,9 +181,9 @@ public:
 	};
 
 	/** A little helper to generate the batch element keys based on the number of elements in the batch and the sort precision. */
-	struct ENGINE_API FKeyGenInfo
+	struct FKeyGenInfo
 	{
-		FKeyGenInfo(uint32 NumElements, bool bHighPrecisionKeys);
+		ENGINE_API FKeyGenInfo(uint32 NumElements, bool bHighPrecisionKeys);
 
 		/**
 		 * ElementKey = (ElementIndex & EmitterKeyMask) << ElementKeyShift.
@@ -397,9 +397,9 @@ private:
 public:
 
 	/** Creates the sort manager, this is when the settings are configured. */
-	FGPUSortManager(ERHIFeatureLevel::Type InFeatureLevel);
+	ENGINE_API FGPUSortManager(ERHIFeatureLevel::Type InFeatureLevel);
 
-	~FGPUSortManager();
+	ENGINE_API ~FGPUSortManager();
 
 	/**
 	 * Register a client system into the sort manager. Client systems are systems that will call AddTask().
@@ -411,7 +411,7 @@ public:
 	 * @param UsedFlags - The possibly used flags for each of the client system tasks, used to perform some optimizations.
 	 * @param InName - A name defining this client system, used for GPU markers.
 	 */
-	void Register(const FGPUSortKeyGenDelegate& CallbackDelegate, EGPUSortFlags UsedFlags, const FName& InName);	
+	ENGINE_API void Register(const FGPUSortKeyGenDelegate& CallbackDelegate, EGPUSortFlags UsedFlags, const FName& InName);	
 
 	/**
 	 * Add a GPU sort task to process this frame. Tasks are expected to be created before OnPreRender() gets called.
@@ -422,7 +422,7 @@ public:
 	 * 
 	 * Return true if the task was added to a batch, false otherwise, could be because GPU sorting is disabled.
 	 */
-	bool AddTask(FAllocationInfo& OutInfo, int32 ValueCount, EGPUSortFlags TaskFlags);
+	ENGINE_API bool AddTask(FAllocationInfo& OutInfo, int32 ValueCount, EGPUSortFlags TaskFlags);
 
 
 	/**
@@ -434,7 +434,7 @@ public:
 	 *
 	 * @param RHICmdList - The command list to be used.
 	 */
-	void OnPreRender(class FRDGBuilder& GraphBuilder);
+	ENGINE_API void OnPreRender(class FRDGBuilder& GraphBuilder);
 
 	/**
 	 * Callback that needs to be called in the rendering loop, after calls to FFXSystemInterface::PostRenderOpaque() are issued.
@@ -443,7 +443,7 @@ public:
 	 *
 	 * @param RHICmdList - The command list to be used.
 	 */
-	void OnPostRenderOpaque(class FRDGBuilder& GraphBuilder);
+	ENGINE_API void OnPostRenderOpaque(class FRDGBuilder& GraphBuilder);
 
 	/**
 	 * Event to register and receive post-prerender notification.

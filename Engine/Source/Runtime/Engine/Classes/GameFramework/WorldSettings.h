@@ -229,7 +229,7 @@ struct FLightmassWorldInfoSettings
 
 /** stores information on a viewer that actors need to be checked against for relevancy */
 USTRUCT()
-struct ENGINE_API FNetViewer
+struct FNetViewer
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -261,10 +261,10 @@ struct ENGINE_API FNetViewer
 	{
 	}
 
-	FNetViewer(UNetConnection* InConnection, float DeltaSeconds);
+	ENGINE_API FNetViewer(UNetConnection* InConnection, float DeltaSeconds);
 
 	/** For use by replication graph, connection likely null */
-	FNetViewer(AController* InController);
+	ENGINE_API FNetViewer(AController* InController);
 };
 
 UENUM()
@@ -278,7 +278,7 @@ enum class EHierarchicalSimplificationMethod : uint8
 
 
 USTRUCT()
-struct ENGINE_API FHierarchicalSimplification
+struct FHierarchicalSimplification
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -354,14 +354,14 @@ struct ENGINE_API FHierarchicalSimplification
 	}
 
 #if WITH_EDITORONLY_DATA
-	bool Serialize(FArchive& Ar);
+	ENGINE_API bool Serialize(FArchive& Ar);
 
 	/** Handles deprecated properties */
-	void PostSerialize(const FArchive& Ar);
+	ENGINE_API void PostSerialize(const FArchive& Ar);
 #endif
 
 	/** Retrieve the correct material proxy settings based on the simplification method. */
-	FMaterialProxySettings* GetSimplificationMethodMaterialSettings();
+	ENGINE_API FMaterialProxySettings* GetSimplificationMethodMaterialSettings();
 };
 
 template<>
@@ -376,8 +376,8 @@ struct TStructOpsTypeTraits<FHierarchicalSimplification> : public TStructOpsType
 #endif
 };
 
-UCLASS(Blueprintable)
-class ENGINE_API UHierarchicalLODSetup : public UObject
+UCLASS(Blueprintable, MinimalAPI)
+class UHierarchicalLODSetup : public UObject
 {
 	GENERATED_BODY()
 public:
@@ -395,7 +395,7 @@ public:
 	TSoftObjectPtr<UMaterialInterface> OverrideBaseMaterial;
 
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 };
 
@@ -457,12 +457,12 @@ struct FBroadphaseSettings
 /**
  * Actor containing all script accessible world properties.
  */
-UCLASS(config=game, hidecategories=(Actor, Advanced, Display, Events, Object, Attachment, Info, Input, Blueprint, Layers, Tags, Replication), showcategories=(Rendering, WorldPartition, "Input|MouseInput", "Input|TouchInput"), notplaceable)
-class ENGINE_API AWorldSettings : public AInfo, public IInterface_AssetUserData
+UCLASS(config=game, hidecategories=(Actor, Advanced, Display, Events, Object, Attachment, Info, Input, Blueprint, Layers, Tags, Replication), showcategories=(Rendering, WorldPartition, "Input|MouseInput", "Input|TouchInput"), notplaceable, MinimalAPI)
+class AWorldSettings : public AInfo, public IInterface_AssetUserData
 {
 	GENERATED_UCLASS_BODY()
 
-	virtual void GetLifetimeReplicatedProps(TArray< FLifetimeProperty > & OutLifetimeProps) const override;
+	ENGINE_API virtual void GetLifetimeReplicatedProps(TArray< FLifetimeProperty > & OutLifetimeProps) const override;
 
 	/** PRECOMPUTED VISIBILITY SETTINGS **/
 
@@ -668,7 +668,7 @@ public:
 	float WorldGravityZ;
 
 	UFUNCTION()
-	virtual void OnRep_WorldGravityZ();
+	ENGINE_API virtual void OnRep_WorldGravityZ();
 
 	// optional level specific gravity override set by level designer
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Physics, meta=(editcondition = "bGlobalGravitySet"))
@@ -738,9 +738,9 @@ public:
 	FNaniteSettings NaniteSettings;
 
 	UFUNCTION()
-	virtual void OnRep_NaniteSettings();
+	ENGINE_API virtual void OnRep_NaniteSettings();
 
-	virtual void SetAllowMaskedMaterials(bool bState);
+	ENGINE_API virtual void SetAllowMaskedMaterials(bool bState);
 
 	/************************************/
 	/** AUDIO SETTINGS **/
@@ -849,39 +849,39 @@ protected:
 
 public:
 	//~ Begin UObject Interface.
-	virtual void PostLoad() override;
+	ENGINE_API virtual void PostLoad() override;
 #if WITH_EDITORONLY_DATA
-	static void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
+	static ENGINE_API void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
 #endif
 
 #if WITH_EDITOR
-	virtual bool CanEditChange(const FProperty* InProperty) const override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
+	ENGINE_API virtual bool CanEditChange(const FProperty* InProperty) const override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
 #endif // WITH_EDITOR
 	//~ End UObject Interface.
 
 
 	//~ Begin AActor Interface.
 #if WITH_EDITOR
-	virtual void CheckForErrors() override;
+	ENGINE_API virtual void CheckForErrors() override;
 	virtual bool IsSelectable() const override { return false; }
 	virtual bool SupportsExternalPackaging() const override { return false; }
 #endif // WITH_EDITOR
-	virtual void PostInitProperties() override;
-	virtual void PreInitializeComponents() override;
-	virtual void PostRegisterAllComponents() override;
+	ENGINE_API virtual void PostInitProperties() override;
+	ENGINE_API virtual void PreInitializeComponents() override;
+	ENGINE_API virtual void PostRegisterAllComponents() override;
 	//~ End AActor Interface.
 
-	UWorldPartition* GetWorldPartition() const;
+	ENGINE_API UWorldPartition* GetWorldPartition() const;
 	bool IsPartitionedWorld() const { return GetWorldPartition() != nullptr; }
-	void SetWorldPartition(UWorldPartition* InWorldPartition);
-	void ApplyWorldPartitionForcedSettings();
+	ENGINE_API void SetWorldPartition(UWorldPartition* InWorldPartition);
+	ENGINE_API void ApplyWorldPartitionForcedSettings();
 
 	virtual bool SupportsWorldPartitionStreaming() const { return true; }
 
 #if WITH_EDITOR
-	void SupportsWorldPartitionStreamingChanged();
+	ENGINE_API void SupportsWorldPartitionStreamingChanged();
 #endif
 
 	/**
@@ -890,7 +890,7 @@ public:
 	 *
 	 * @return Z component of current world gravity.
 	 */
-	virtual float GetGravityZ() const;
+	ENGINE_API virtual float GetGravityZ() const;
 
 	virtual float GetEffectiveTimeDilation() const
 	{
@@ -900,10 +900,10 @@ public:
 	/**
 	 * Returns the delta time to be used by the tick. Can be overridden if game specific logic is needed.
 	 */
-	virtual float FixupDeltaSeconds(float DeltaSeconds, float RealDeltaSeconds);
+	ENGINE_API virtual float FixupDeltaSeconds(float DeltaSeconds, float RealDeltaSeconds);
 
 	/** Sets the global time dilation value (subject to clamping). Returns the final value that was set. */
-	virtual float SetTimeDilation(float NewTimeDilation);
+	ENGINE_API virtual float SetTimeDilation(float NewTimeDilation);
 
 	/** @return configuration for NavigationSystem's creation. Null means 
 	 *	no navigation system will be created*/
@@ -913,13 +913,13 @@ public:
 	 * Sets a configuration override for NavigationSystem's creation. 
 	 * If set, GetNavigationSystemConfig will return this configuration instead NavigationSystemConfig. 
 	 */
-	void SetNavigationSystemConfigOverride(UNavigationSystemConfig* NewConfig);
+	ENGINE_API void SetNavigationSystemConfigOverride(UNavigationSystemConfig* NewConfig);
 
 	/** @return current configuration override for NavigationSystem's creation, if any. */
 	const UNavigationSystemConfig* GetNavigationSystemConfigOverride() const { return NavigationSystemConfigOverride; }
 
 	/** @return whether given world is configured to host any NavigationSystem */
-	bool IsNavigationSystemEnabled() const;
+	ENGINE_API bool IsNavigationSystemEnabled() const;
 
 	/** @return whether given world is configured to host an AISystem */
 	bool IsAISystemEnabled() const { return bEnableAISystem; }
@@ -930,52 +930,52 @@ public:
 	/**
 	 * Called from GameStateBase, calls BeginPlay on all actors
 	 */
-	virtual void NotifyBeginPlay();
+	ENGINE_API virtual void NotifyBeginPlay();
 
 	/** 
 	 * Called from GameStateBase, used to notify native classes of match startup (such as level scripting)
 	 */	
-	virtual void NotifyMatchStarted();
+	ENGINE_API virtual void NotifyMatchStarted();
 
 	//~ Begin IInterface_AssetUserData Interface
-	virtual void AddAssetUserData(UAssetUserData* InUserData) override;
-	virtual void RemoveUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
-	virtual UAssetUserData* GetAssetUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
-	virtual const TArray<UAssetUserData*>* GetAssetUserDataArray() const override;
+	ENGINE_API virtual void AddAssetUserData(UAssetUserData* InUserData) override;
+	ENGINE_API virtual void RemoveUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
+	ENGINE_API virtual UAssetUserData* GetAssetUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
+	ENGINE_API virtual const TArray<UAssetUserData*>* GetAssetUserDataArray() const override;
 	//~ End IInterface_AssetUserData Interface
 
 #if WITH_EDITOR
-	const TArray<struct FHierarchicalSimplification>& GetHierarchicalLODSetup() const;
-	TArray<struct FHierarchicalSimplification>& GetHierarchicalLODSetup();
-	int32 GetNumHierarchicalLODLevels() const;
-	UMaterialInterface* GetHierarchicalLODBaseMaterial() const;
-	void ResetHierarchicalLODSetup();
+	ENGINE_API const TArray<struct FHierarchicalSimplification>& GetHierarchicalLODSetup() const;
+	ENGINE_API TArray<struct FHierarchicalSimplification>& GetHierarchicalLODSetup();
+	ENGINE_API int32 GetNumHierarchicalLODLevels() const;
+	ENGINE_API UMaterialInterface* GetHierarchicalLODBaseMaterial() const;
+	ENGINE_API void ResetHierarchicalLODSetup();
 
-	void SaveDefaultWorldPartitionSettings();
-	void ResetDefaultWorldPartitionSettings();
-	const FWorldPartitionPerWorldSettings* GetDefaultWorldPartitionSettings() const;
+	ENGINE_API void SaveDefaultWorldPartitionSettings();
+	ENGINE_API void ResetDefaultWorldPartitionSettings();
+	ENGINE_API const FWorldPartitionPerWorldSettings* GetDefaultWorldPartitionSettings() const;
 #endif // WITH EDITOR
 
 	FORCEINLINE class APlayerState* GetPauserPlayerState() const { return PauserPlayerState; }
 	FORCEINLINE virtual void SetPauserPlayerState(class APlayerState* PlayerState) { PauserPlayerState = PlayerState; }
 
-	virtual void RewindForReplay() override;
+	ENGINE_API virtual void RewindForReplay() override;
 
 private:
 
 	// Hidden functions that don't make sense to use on this class.
 	HIDE_ACTOR_TRANSFORM_FUNCTIONS();
 
-	virtual void Serialize( FArchive& Ar ) override;
+	ENGINE_API virtual void Serialize( FArchive& Ar ) override;
 
 private:
-	void InternalPostPropertyChanged(FName PropertyName);
+	ENGINE_API void InternalPostPropertyChanged(FName PropertyName);
 
-	void AdjustNumberOfBookmarks();
-	void UpdateNumberOfBookmarks();
+	ENGINE_API void AdjustNumberOfBookmarks();
+	ENGINE_API void UpdateNumberOfBookmarks();
 
-	void SanitizeBookmarkClasses();
-	void UpdateBookmarkClass();
+	ENGINE_API void SanitizeBookmarkClasses();
+	ENGINE_API void UpdateBookmarkClass();
 
 	/**
 	 * Maximum number of bookmarks allowed.
@@ -1000,7 +1000,7 @@ private:
 	TSubclassOf<class UBookmarkBase> LastBookmarkClass;
 
 public:
-	virtual FSoftClassPath GetAISystemClassName() const;
+	ENGINE_API virtual FSoftClassPath GetAISystemClassName() const;
 
 	/**
 	 * The number of bookmarks that will have mapped keyboard shortcuts by default.
@@ -1009,14 +1009,14 @@ public:
 
 #if WITH_EDITOR
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnBookmarkClassChanged, AWorldSettings*);
-	static FOnBookmarkClassChanged OnBookmarkClassChanged;
+	static ENGINE_API FOnBookmarkClassChanged OnBookmarkClassChanged;
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnNumberOfBookmarksChanged, AWorldSettings*);
-	static FOnNumberOfBookmarksChanged OnNumberOfBoomarksChanged;
+	static ENGINE_API FOnNumberOfBookmarksChanged OnNumberOfBoomarksChanged;
 #endif
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnNaniteSettingsChanged, AWorldSettings*);
-	static FOnNaniteSettingsChanged OnNaniteSettingsChanged;
+	static ENGINE_API FOnNaniteSettingsChanged OnNaniteSettingsChanged;
 
 	const int32 GetMaxNumberOfBookmarks() const
 	{
@@ -1043,7 +1043,7 @@ public:
 	 * Note, this will not rearrange any valid Bookmarks inside the mapped range, but
 	 * may move bookmarks outside that range to fill up mapped bookmarks.
 	 */
-	void CompactBookmarks();
+	ENGINE_API void CompactBookmarks();
 
 	/**
 	 * Gets the bookmark at the specified index, creating it if a bookmark doesn't exist.
@@ -1055,7 +1055,7 @@ public:
 	 * @param bRecreateOnClassMismatch	Whether or not we should recreate an existing bookmark if it's class
 	 *									doesn't match the default bookmark class.
 	 */
-	class UBookmarkBase* GetOrAddBookmark(const uint32 BookmarkIndex, const bool bRecreateOnClassMismatch);
+	ENGINE_API class UBookmarkBase* GetOrAddBookmark(const uint32 BookmarkIndex, const bool bRecreateOnClassMismatch);
 
 	/**
 	 * Creates and adds a new bookmark of a different class.
@@ -1070,17 +1070,17 @@ public:
 	 * @return	The bookmark that was created.
 	 *			Will be nullptr on failure.
 	 */
-	class UBookmarkBase* AddBookmark(const TSubclassOf<UBookmarkBase> BookmarkClass, const bool bExpandIfNecessary);
+	ENGINE_API class UBookmarkBase* AddBookmark(const TSubclassOf<UBookmarkBase> BookmarkClass, const bool bExpandIfNecessary);
 
 	/**
 	 * Clears the reference to the bookmark from the specified index.
 	 */
-	void ClearBookmark(const uint32 BookmarkIndex);
+	ENGINE_API void ClearBookmark(const uint32 BookmarkIndex);
 
 	/**
 	 * Clears all references to current bookmarks.
 	 */
-	void ClearAllBookmarks();
+	ENGINE_API void ClearAllBookmarks();
 
 #if WITH_EDITORONLY_DATA
 private: //DEPRECATED

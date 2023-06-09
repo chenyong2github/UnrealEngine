@@ -10,7 +10,7 @@
 class UInputComponent;
 
 USTRUCT()
-struct ENGINE_API FBlueprintInputDelegateBinding
+struct FBlueprintInputDelegateBinding
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -31,8 +31,8 @@ struct ENGINE_API FBlueprintInputDelegateBinding
 	}
 };
 
-UCLASS(abstract)
-class ENGINE_API UInputDelegateBinding : public UDynamicBlueprintBinding
+UCLASS(abstract, MinimalAPI)
+class UInputDelegateBinding : public UDynamicBlueprintBinding
 {
 	GENERATED_UCLASS_BODY()
 
@@ -48,7 +48,7 @@ class ENGINE_API UInputDelegateBinding : public UDynamicBlueprintBinding
 	virtual void BindToInputComponent(UInputComponent* InputComponent, UObject* ObjectToBindTo) const { };
 
 	/** Returns true if the given class supports input binding delegates (i.e. it is a BP generated class) */
-	static bool SupportsInputDelegate(const UClass* InClass);
+	static ENGINE_API bool SupportsInputDelegate(const UClass* InClass);
 
 	/**
 	 * Calls BindToInputComponent for each dynamic binding object on the given Class if it supports input delegates.
@@ -57,14 +57,14 @@ class ENGINE_API UInputDelegateBinding : public UDynamicBlueprintBinding
 	 * @param InputComponent		The InputComponent to Bind a delegate to
 	 * @param ObjectToBindTo		The UObject that the binding should use. If this is null, the Owner of the input componet will be used.
 	 */
-	static void BindInputDelegates(const UClass* InClass, UInputComponent* InputComponent, UObject* ObjectToBindTo = nullptr);
+	static ENGINE_API void BindInputDelegates(const UClass* InClass, UInputComponent* InputComponent, UObject* ObjectToBindTo = nullptr);
 	
 	/**
 	 * Will bind input delegates for the given Actor and traverse it's subobjects attempting to bind
 	 * each of them
 	 */
-	static void BindInputDelegatesWithSubojects(AActor* InActor, UInputComponent* InputComponent);
+	static ENGINE_API void BindInputDelegatesWithSubojects(AActor* InActor, UInputComponent* InputComponent);
 
 protected:
-	static TSet<UClass*> InputBindingClasses;
+	static ENGINE_API TSet<UClass*> InputBindingClasses;
 };

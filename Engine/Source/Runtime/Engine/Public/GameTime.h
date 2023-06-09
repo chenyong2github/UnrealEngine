@@ -6,7 +6,7 @@
 #include "Misc/CoreMiscDefines.h"
 
 /** Contains all the timings of a gaming frame, to handle pause and time dilation (for instance bullet time) of the world. */
-struct ENGINE_API FGameTime
+struct FGameTime
 {
 	FORCEINLINE_DEBUGGABLE FGameTime()
 		: RealTimeSeconds(0.0)
@@ -19,7 +19,7 @@ struct ENGINE_API FGameTime
 	FGameTime& operator = (const FGameTime&) = default;
 
 	// Returns the game time since GStartTime.
-	static FGameTime GetTimeSinceAppStart();
+	static ENGINE_API FGameTime GetTimeSinceAppStart();
 
 	static FORCEINLINE_DEBUGGABLE FGameTime CreateUndilated(double InRealTimeSeconds, float InDeltaRealTimeSeconds)
 	{

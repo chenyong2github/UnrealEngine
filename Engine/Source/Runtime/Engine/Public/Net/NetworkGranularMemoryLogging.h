@@ -12,16 +12,16 @@
 
 namespace UE::Net::Private::GranularMemoryTracking
 {
-	struct ENGINE_API FScopeMarker
+	struct FScopeMarker
 	{
-		FScopeMarker(FArchive& InAr, FString&& InScopeName);
-		~FScopeMarker();
+		ENGINE_API FScopeMarker(FArchive& InAr, FString&& InScopeName);
+		ENGINE_API ~FScopeMarker();
 
-		void BeginWork();
+		ENGINE_API void BeginWork();
 
-		void EndWork(const FString& WorkName);
+		ENGINE_API void EndWork(const FString& WorkName);
 
-		void LogCustomWork(const FString& WorkName, const uint64 Bytes) const;
+		ENGINE_API void LogCustomWork(const FString& WorkName, const uint64 Bytes) const;
 
 		const bool IsEnabled() const
 		{

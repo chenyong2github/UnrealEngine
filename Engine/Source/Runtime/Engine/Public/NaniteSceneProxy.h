@@ -189,7 +189,7 @@ public:
 	};
 
 public:
-	ENGINE_API FSceneProxyBase(UPrimitiveComponent* Component)
+	FSceneProxyBase(UPrimitiveComponent* Component)
 	: FPrimitiveSceneProxy(Component)
 	{
 		bIsNaniteMesh  = true;
@@ -200,7 +200,7 @@ public:
 	#endif
 	}
 
-	ENGINE_API virtual ~FSceneProxyBase() = default;
+	virtual ~FSceneProxyBase() = default;
 
 #if WITH_EDITOR
 	ENGINE_API virtual HHitProxy* CreateHitProxies(UPrimitiveComponent* Component, TArray<TRefCountPtr<HHitProxy>>& OutHitProxies) override;
@@ -319,32 +319,32 @@ private:
 	uint32 RayTracingDataOffset = INDEX_NONE;
 };
 
-class ENGINE_API FSceneProxy : public FSceneProxyBase
+class FSceneProxy : public FSceneProxyBase
 {
 public:
 	using Super = FSceneProxyBase;
 
-	FSceneProxy(const FMaterialAudit& MaterialAudit, UStaticMeshComponent* Component);
-	FSceneProxy(const FMaterialAudit& MaterialAudit, UInstancedStaticMeshComponent* Component);
-	FSceneProxy(const FMaterialAudit& MaterialAudit, UHierarchicalInstancedStaticMeshComponent* Component);
+	ENGINE_API FSceneProxy(const FMaterialAudit& MaterialAudit, UStaticMeshComponent* Component);
+	ENGINE_API FSceneProxy(const FMaterialAudit& MaterialAudit, UInstancedStaticMeshComponent* Component);
+	ENGINE_API FSceneProxy(const FMaterialAudit& MaterialAudit, UHierarchicalInstancedStaticMeshComponent* Component);
 
-	virtual ~FSceneProxy();
+	ENGINE_API virtual ~FSceneProxy();
 
 public:
 	// FPrimitiveSceneProxy interface.
-	virtual SIZE_T GetTypeHash() const override;
-	virtual FPrimitiveViewRelevance	GetViewRelevance(const FSceneView* View) const override;
-	virtual void GetLightRelevance(const FLightSceneProxy* LightSceneProxy, bool& bDynamic, bool& bRelevant, bool& bLightMapped, bool& bShadowMapped) const override;
+	ENGINE_API virtual SIZE_T GetTypeHash() const override;
+	ENGINE_API virtual FPrimitiveViewRelevance	GetViewRelevance(const FSceneView* View) const override;
+	ENGINE_API virtual void GetLightRelevance(const FLightSceneProxy* LightSceneProxy, bool& bDynamic, bool& bRelevant, bool& bLightMapped, bool& bShadowMapped) const override;
 
 #if WITH_EDITOR
-	virtual HHitProxy* CreateHitProxies(UPrimitiveComponent* Component, TArray<TRefCountPtr<HHitProxy>>& OutHitProxies) override;
+	ENGINE_API virtual HHitProxy* CreateHitProxies(UPrimitiveComponent* Component, TArray<TRefCountPtr<HHitProxy>>& OutHitProxies) override;
 #endif
-	virtual void DrawStaticElements(FStaticPrimitiveDrawInterface* PDI) override;
-	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
+	ENGINE_API virtual void DrawStaticElements(FStaticPrimitiveDrawInterface* PDI) override;
+	ENGINE_API virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
 
 #if NANITE_ENABLE_DEBUG_RENDERING
 	/** Sets up a collision FMeshBatch for a specific LOD and element. */
-	virtual bool GetCollisionMeshElement(
+	ENGINE_API virtual bool GetCollisionMeshElement(
 		int32 LODIndex,
 		int32 BatchIndex,
 		int32 ElementIndex,
@@ -354,15 +354,15 @@ public:
 #endif
 
 #if RHI_RAYTRACING
-	virtual bool HasRayTracingRepresentation() const override;
+	ENGINE_API virtual bool HasRayTracingRepresentation() const override;
 	virtual bool IsRayTracingRelevant() const { return true; }
 	virtual bool IsRayTracingStaticRelevant() const { return true; }
-	virtual void GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<struct FRayTracingInstance>& OutRayTracingInstances) override;
-	virtual ERayTracingPrimitiveFlags GetCachedRayTracingInstance(FRayTracingInstance& RayTracingInstance) override;
+	ENGINE_API virtual void GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<struct FRayTracingInstance>& OutRayTracingInstances) override;
+	ENGINE_API virtual ERayTracingPrimitiveFlags GetCachedRayTracingInstance(FRayTracingInstance& RayTracingInstance) override;
 	virtual Nanite::CoarseMeshStreamingHandle GetCoarseMeshStreamingHandle() const override { return CoarseMeshStreamingHandle; }
 #endif
 
-	virtual uint32 GetMemoryFootprint() const override;
+	ENGINE_API virtual uint32 GetMemoryFootprint() const override;
 
 	virtual void GetLCIs(FLCIArray& LCIs) override
 	{
@@ -370,15 +370,15 @@ public:
 		LCIs.Add(LCI);
 	}
 
-	virtual void GetDistanceFieldAtlasData(const FDistanceFieldVolumeData*& OutDistanceFieldData, float& SelfShadowBias) const override;
-	virtual void GetDistanceFieldInstanceData(TArray<FRenderTransform>& InstanceLocalToPrimitiveTransforms) const override;
-	virtual bool HasDistanceFieldRepresentation() const override;
+	ENGINE_API virtual void GetDistanceFieldAtlasData(const FDistanceFieldVolumeData*& OutDistanceFieldData, float& SelfShadowBias) const override;
+	ENGINE_API virtual void GetDistanceFieldInstanceData(TArray<FRenderTransform>& InstanceLocalToPrimitiveTransforms) const override;
+	ENGINE_API virtual bool HasDistanceFieldRepresentation() const override;
 
-	virtual const FCardRepresentationData* GetMeshCardRepresentation() const override;
+	ENGINE_API virtual const FCardRepresentationData* GetMeshCardRepresentation() const override;
 
-	virtual int32 GetLightMapCoordinateIndex() const override;
+	ENGINE_API virtual int32 GetLightMapCoordinateIndex() const override;
 
-	virtual void OnTransformChanged() override;
+	ENGINE_API virtual void OnTransformChanged() override;
 
 	virtual void GetNaniteResourceInfo(uint32& OutResourceID, uint32& OutHierarchyOffset, uint32& OutImposterIndex) const override
 	{
@@ -392,12 +392,12 @@ public:
 		OutMaterialMask = NaniteMaterialMask;
 	}
 
-	virtual FResourceMeshInfo GetResourceMeshInfo() const override;
+	ENGINE_API virtual FResourceMeshInfo GetResourceMeshInfo() const override;
 
-	virtual bool GetInstanceDrawDistanceMinMax(FVector2f& OutCullRange) const override;
-	virtual bool GetInstanceWorldPositionOffsetDisableDistance(float& OutWPODisableDistance) const override;
+	ENGINE_API virtual bool GetInstanceDrawDistanceMinMax(FVector2f& OutCullRange) const override;
+	ENGINE_API virtual bool GetInstanceWorldPositionOffsetDisableDistance(float& OutWPODisableDistance) const override;
 
-	virtual void SetWorldPositionOffsetDisableDistance_GameThread(int32 NewValue) override;
+	ENGINE_API virtual void SetWorldPositionOffsetDisableDistance_GameThread(int32 NewValue) override;
 
 	const UStaticMesh* GetStaticMesh() const
 	{
@@ -405,9 +405,9 @@ public:
 	}
 
 protected:
-	virtual void CreateRenderThreadResources() override;
+	ENGINE_API virtual void CreateRenderThreadResources() override;
 
-	virtual void OnEvaluateWorldPositionOffsetChanged_RenderThread() override;
+	ENGINE_API virtual void OnEvaluateWorldPositionOffsetChanged_RenderThread() override;
 
 	class FMeshInfo : public FLightCacheInterface
 	{
@@ -421,16 +421,16 @@ protected:
 		TArray<FGuid> IrrelevantLights;
 	};
 
-	bool IsCollisionView(const FEngineShowFlags& EngineShowFlags, bool& bDrawSimpleCollision, bool& bDrawComplexCollision) const;
+	ENGINE_API bool IsCollisionView(const FEngineShowFlags& EngineShowFlags, bool& bDrawSimpleCollision, bool& bDrawComplexCollision) const;
 
 #if RHI_RAYTRACING
-	int32 GetFirstValidRaytracingGeometryLODIndex() const;
-	void SetupRayTracingMaterials(int32 LODIndex, TArray<FMeshBatch>& Materials, bool bUseNaniteVertexFactory) const;
+	ENGINE_API int32 GetFirstValidRaytracingGeometryLODIndex() const;
+	ENGINE_API void SetupRayTracingMaterials(int32 LODIndex, TArray<FMeshBatch>& Materials, bool bUseNaniteVertexFactory) const;
 #endif // RHI_RAYTRACING
 
 #if NANITE_ENABLE_DEBUG_RENDERING
 	/** Configures mesh batch vertex / index state. Returns the number of primitives used in the element. */
-	uint32 SetMeshElementGeometrySource(
+	ENGINE_API uint32 SetMeshElementGeometrySource(
 		int32 LODIndex,
 		int32 ElementIndex,
 		bool bWireframe,
@@ -438,7 +438,7 @@ protected:
 		const ::FVertexFactory* VertexFactory,
 		FMeshBatch& OutMeshElement) const;
 
-	bool IsReversedCullingNeeded(bool bUseReversedIndices) const;
+	ENGINE_API bool IsReversedCullingNeeded(bool bUseReversedIndices) const;
 #endif
 
 protected:

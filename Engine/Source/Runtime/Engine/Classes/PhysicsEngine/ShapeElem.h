@@ -87,28 +87,28 @@ struct FKShapeElem
 	ENGINE_API static EAggCollisionShape::Type StaticShapeType;
 
 	/** Get the user-defined name for this shape */
-	ENGINE_API const FName& GetName() const { return Name; }
+	const FName& GetName() const { return Name; }
 
 	/** Set the user-defined name for this shape */
-	ENGINE_API void SetName(const FName& InName) { Name = InName; }
+	void SetName(const FName& InName) { Name = InName; }
 
 	/** Get the type of this shape */
-	ENGINE_API EAggCollisionShape::Type GetShapeType() const { return ShapeType; }
+	EAggCollisionShape::Type GetShapeType() const { return ShapeType; }
 
 	/** Get whether this shape contributes to the mass of the body */
-	ENGINE_API bool GetContributeToMass() const { return bContributeToMass; }
+	bool GetContributeToMass() const { return bContributeToMass; }
 
 	/** Set whether this shape will contribute to the mass of the body */
-	ENGINE_API void SetContributeToMass(bool bInContributeToMass) { bContributeToMass = bInContributeToMass; }
+	void SetContributeToMass(bool bInContributeToMass) { bContributeToMass = bInContributeToMass; }
 
 	/** Set whether this shape should be considered for query or sim collision */
-	ENGINE_API void SetCollisionEnabled(ECollisionEnabled::Type InCollisionEnabled) { CollisionEnabled = InCollisionEnabled; }
+	void SetCollisionEnabled(ECollisionEnabled::Type InCollisionEnabled) { CollisionEnabled = InCollisionEnabled; }
 
 	/** Get whether this shape should be considered for query or sim collision */
-	ENGINE_API ECollisionEnabled::Type GetCollisionEnabled() const { return CollisionEnabled; }
+	ECollisionEnabled::Type GetCollisionEnabled() const { return CollisionEnabled; }
 
-	ENGINE_API virtual void DrawElemWire(class FPrimitiveDrawInterface* PDI, const FTransform& ElemTM, const float Scale, const FColor Color) const {}
-	ENGINE_API virtual void DrawElemSolid(class FPrimitiveDrawInterface* PDI, const FTransform& ElemTM, const float Scale, const class FMaterialRenderProxy* MaterialRenderProxy) const {}
+	virtual void DrawElemWire(class FPrimitiveDrawInterface* PDI, const FTransform& ElemTM, const float Scale, const FColor Color) const {}
+	virtual void DrawElemSolid(class FPrimitiveDrawInterface* PDI, const FTransform& ElemTM, const float Scale, const class FMaterialRenderProxy* MaterialRenderProxy) const {}
 
 	/** Offset used when generating contact points. This allows you to smooth out
 		the Minkowski sum by radius R. Useful for making objects slide smoothly

@@ -41,7 +41,7 @@ struct FExposedValueCopyRecord
 
 // An exposed value updater
 USTRUCT()
-struct ENGINE_API FExposedValueHandler
+struct FExposedValueHandler
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -68,11 +68,11 @@ struct ENGINE_API FExposedValueHandler
 	FName BoundFunction;
 
 	// Helper function to bind an array of handlers.
-	static void ClassInitialization(TArray<FExposedValueHandler>& Handlers, UClass* InClass);
+	static ENGINE_API void ClassInitialization(TArray<FExposedValueHandler>& Handlers, UClass* InClass);
 
 	// Bind copy records and cache UFunction if necessary
-	void Initialize(UClass* InClass, const FPropertyAccessLibrary& InPropertyAccessLibrary);
+	ENGINE_API void Initialize(UClass* InClass, const FPropertyAccessLibrary& InPropertyAccessLibrary);
 
 	// Execute the function and copy records
-	void Execute(const FAnimationBaseContext& Context) const;
+	ENGINE_API void Execute(const FAnimationBaseContext& Context) const;
 };

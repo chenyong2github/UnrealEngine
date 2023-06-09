@@ -5,7 +5,7 @@
 
 /** The struct for defining the properties used when determining attenuation for a force feedback effect */
 USTRUCT(BlueprintType)
-struct ENGINE_API FForceFeedbackAttenuationSettings : public FBaseAttenuationSettings
+struct FForceFeedbackAttenuationSettings : public FBaseAttenuationSettings
 {
 	GENERATED_BODY()
 

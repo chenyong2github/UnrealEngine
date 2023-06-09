@@ -17,8 +17,8 @@
 
 struct FParticleEmitterInstance;
 
-UCLASS(editinlinenew, hidecategories=Object, meta=(DisplayName = "Emitter Direct Location"))
-class ENGINE_API UParticleModuleLocationEmitterDirect : public UParticleModuleLocationBase
+UCLASS(editinlinenew, hidecategories=Object, meta=(DisplayName = "Emitter Direct Location"), MinimalAPI)
+class UParticleModuleLocationEmitterDirect : public UParticleModuleLocationBase
 {
 	GENERATED_UCLASS_BODY()
 
@@ -28,8 +28,8 @@ class ENGINE_API UParticleModuleLocationEmitterDirect : public UParticleModuleLo
 
 
 	//~ Begin UParticleModule Interface
-	virtual void	Spawn(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, FBaseParticle* ParticleBase) override;
-	virtual void	Update(FParticleEmitterInstance* Owner, int32 Offset, float DeltaTime) override;
+	ENGINE_API virtual void	Spawn(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, FBaseParticle* ParticleBase) override;
+	ENGINE_API virtual void	Update(FParticleEmitterInstance* Owner, int32 Offset, float DeltaTime) override;
 	//~ End UParticleModule Interface
 
 };

@@ -111,7 +111,7 @@ public:
 	};
 
 public:
-	ENGINE_API ISceneViewExtension() {}
+	ISceneViewExtension() {}
 	
 	virtual ~ISceneViewExtension() {}
 
@@ -236,26 +236,26 @@ class FAutoRegister
 
 
 /** Inherit from this class to make a view extension. */
-class ENGINE_API FSceneViewExtensionBase : public ISceneViewExtension, public TSharedFromThis<FSceneViewExtensionBase, ESPMode::ThreadSafe>
+class FSceneViewExtensionBase : public ISceneViewExtension, public TSharedFromThis<FSceneViewExtensionBase, ESPMode::ThreadSafe>
 {
 public:
 	FSceneViewExtensionBase(const FAutoRegister&) {}
-	virtual ~FSceneViewExtensionBase();
+	ENGINE_API virtual ~FSceneViewExtensionBase();
 
 	// Array of Functors that can be used to activate an extension for the current frame and given context.
 	TArray<FSceneViewExtensionIsActiveFunctor> IsActiveThisFrameFunctions;
 
 	// Determines if the extension should be active for the current frame and given context.
-	virtual bool IsActiveThisFrame(const FSceneViewExtensionContext& Context) const override final;
+	ENGINE_API virtual bool IsActiveThisFrame(const FSceneViewExtensionContext& Context) const override final;
 };
 
 /** Scene View Extension which is enabled for all Viewports/Scenes which have the same world. */
-class ENGINE_API FWorldSceneViewExtension : public FSceneViewExtensionBase
+class FWorldSceneViewExtension : public FSceneViewExtensionBase
 {
 public:
-	FWorldSceneViewExtension(const FAutoRegister& AutoReg, UWorld* InWorld);
+	ENGINE_API FWorldSceneViewExtension(const FAutoRegister& AutoReg, UWorld* InWorld);
 protected:
-	virtual bool IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const override;
+	ENGINE_API virtual bool IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const override;
 	UWorld* GetWorld() const { return World.Get(); }
 private:
 	/** The world of this view extension. */
@@ -263,14 +263,14 @@ private:
 };
 
 /** Scene View Extension which is enabled for all HMDs to unify IsActiveThisFrame_Internal. */
-class ENGINE_API FHMDSceneViewExtension : public FSceneViewExtensionBase
+class FHMDSceneViewExtension : public FSceneViewExtensionBase
 {
 public:
 	FHMDSceneViewExtension(const FAutoRegister& AutoReg) : FSceneViewExtensionBase(AutoReg)
 	{
 	}
 protected:
-	virtual bool IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const override;
+	ENGINE_API virtual bool IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const override;
 };
 
 using FSceneViewExtensionRef = TSharedRef<ISceneViewExtension, ESPMode::ThreadSafe>;
@@ -278,7 +278,7 @@ using FSceneViewExtensionRef = TSharedRef<ISceneViewExtension, ESPMode::ThreadSa
 /**
  * Repository of all registered scene view extensions.
  */
-class ENGINE_API FSceneViewExtensions
+class FSceneViewExtensions
 {
 	friend class FSceneViewExtensionBase;
 
@@ -297,7 +297,7 @@ public:
 	/**
 	 * Executes a function on each view extension which is active in a given context.
 	 */
-	static void ForEachActiveViewExtension(
+	static ENGINE_API void ForEachActiveViewExtension(
 		const TArray<TWeakPtr<ISceneViewExtension, ESPMode::ThreadSafe>>& InExtensions, 
 		const FSceneViewExtensionContext& InContext,
 		const TFunctionRef<void(const FSceneViewExtensionRef&)>& Func);
@@ -307,16 +307,16 @@ public:
 	 * The list is sorted by priority (@see ISceneViewExtension::GetPriority())
 	 */
 	UE_DEPRECATED(4.27, "Deprecated. Please use GatherActiveExtensions by passing an FSceneViewExtensionContext parameter")
-	const TArray<FSceneViewExtensionRef> GatherActiveExtensions(class FViewport* InViewport = nullptr) const;
+	ENGINE_API const TArray<FSceneViewExtensionRef> GatherActiveExtensions(class FViewport* InViewport = nullptr) const;
 
 	/**
      * Gathers all ViewExtensions that want to be active in a given context (@see ISceneViewExtension::IsActiveThisFrame()).
      * The list is sorted by priority (@see ISceneViewExtension::GetPriority())
      */
-	const TArray<FSceneViewExtensionRef> GatherActiveExtensions(const FSceneViewExtensionContext& InContext) const;
+	ENGINE_API const TArray<FSceneViewExtensionRef> GatherActiveExtensions(const FSceneViewExtensionContext& InContext) const;
 
 private:
-	static void RegisterExtension(const FSceneViewExtensionRef& RegisterMe);
+	static ENGINE_API void RegisterExtension(const FSceneViewExtensionRef& RegisterMe);
 	TArray< TWeakPtr<ISceneViewExtension, ESPMode::ThreadSafe> > KnownExtensions;
 };
 

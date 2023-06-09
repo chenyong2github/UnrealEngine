@@ -8,8 +8,8 @@
 class UDataLayerInstance;
 class UDataLayerAsset;
 
-UINTERFACE()
-class ENGINE_API UWorldPartitionCell : public UInterface
+UINTERFACE(MinimalAPI)
+class UWorldPartitionCell : public UInterface
 {
 	GENERATED_UINTERFACE_BODY()
 };

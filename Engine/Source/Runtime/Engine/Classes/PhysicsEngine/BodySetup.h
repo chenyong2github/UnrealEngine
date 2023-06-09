@@ -68,9 +68,9 @@ struct FBodySetupUVInfo
 };
 
 /** Helper struct to indicate which geometry needs to be cooked */
-struct ENGINE_API FCookBodySetupInfo
+struct FCookBodySetupInfo
 {
-	FCookBodySetupInfo();
+	ENGINE_API FCookBodySetupInfo();
 
 	/** Trimesh data for cooking */
 	FTriMeshCollisionData TriangleMeshDesc;

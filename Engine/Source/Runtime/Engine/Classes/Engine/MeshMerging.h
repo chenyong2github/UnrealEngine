@@ -670,11 +670,11 @@ struct FSectionInfo
 
 /** Mesh instance-replacement settings */
 USTRUCT(Blueprintable)
-struct ENGINE_API FMeshInstancingSettings
+struct FMeshInstancingSettings
 {
 	GENERATED_BODY()
 
-	FMeshInstancingSettings();
+	ENGINE_API FMeshInstancingSettings();
 
 	/** The actor class to attach new instance static mesh components to */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, NoClear, Category="Instancing")

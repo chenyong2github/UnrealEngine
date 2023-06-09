@@ -27,30 +27,30 @@ namespace EEvaluateCurveTableResult
     };
 }
 
-UCLASS()
-class ENGINE_API UDataTableFunctionLibrary : public UBlueprintFunctionLibrary
+UCLASS(MinimalAPI)
+class UDataTableFunctionLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_UCLASS_BODY()
 
 	UFUNCTION(BlueprintCallable, Category = "DataTable", meta = (ExpandEnumAsExecs="OutResult", DataTablePin="CurveTable"))
-	static void EvaluateCurveTableRow(UCurveTable* CurveTable, FName RowName, float InXY, TEnumAsByte<EEvaluateCurveTableResult::Type>& OutResult, float& OutXY,const FString& ContextString);
+	static ENGINE_API void EvaluateCurveTableRow(UCurveTable* CurveTable, FName RowName, float InXY, TEnumAsByte<EEvaluateCurveTableResult::Type>& OutResult, float& OutXY,const FString& ContextString);
     
 	// Returns whether or not Table contains a row named RowName
   	UFUNCTION(BlueprintCallable, Category = "DataTable")
- 	static bool DoesDataTableRowExist(UDataTable* Table, FName RowName);
+ 	static ENGINE_API bool DoesDataTableRowExist(UDataTable* Table, FName RowName);
     
 	UFUNCTION(BlueprintCallable, Category = "DataTable")
-	static void GetDataTableRowNames(UDataTable* Table, TArray<FName>& OutRowNames);
+	static ENGINE_API void GetDataTableRowNames(UDataTable* Table, TArray<FName>& OutRowNames);
 
 	/** Export from the DataTable all the row for one column. Export it as string. The row name is not included. */
 	UFUNCTION(BlueprintCallable, Category = "DataTable")
-	static TArray<FString> GetDataTableColumnAsString(const UDataTable* DataTable, FName PropertyName);
+	static ENGINE_API TArray<FString> GetDataTableColumnAsString(const UDataTable* DataTable, FName PropertyName);
 
     /** Get a Row from a DataTable given a RowName */
     UFUNCTION(BlueprintCallable, CustomThunk, Category = "DataTable", meta=(CustomStructureParam = "OutRow", BlueprintInternalUseOnly="true"))
-    static bool GetDataTableRowFromName(UDataTable* Table, FName RowName, FTableRowBase& OutRow);
+    static ENGINE_API bool GetDataTableRowFromName(UDataTable* Table, FName RowName, FTableRowBase& OutRow);
     
-	static bool Generic_GetDataTableRowFromName(const UDataTable* Table, FName RowName, void* OutRowPtr);
+	static ENGINE_API bool Generic_GetDataTableRowFromName(const UDataTable* Table, FName RowName, void* OutRowPtr);
 
     /** Based on UDataTableFunctionLibrary::GetDataTableRow */
     DECLARE_FUNCTION(execGetDataTableRowFromName)
@@ -113,7 +113,7 @@ class ENGINE_API UDataTableFunctionLibrary : public UBlueprintFunctionLibrary
 	 * @return	True if the operation succeeds, check the log for errors if it didn't succeed.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | DataTable", DisplayName="Fill Data Table from CSV String")
-	static bool FillDataTableFromCSVString(UDataTable* DataTable, const FString& CSVString);
+	static ENGINE_API bool FillDataTableFromCSVString(UDataTable* DataTable, const FString& CSVString);
 
 	/** 
 	 * Empty and fill a Data Table from CSV file.
@@ -121,7 +121,7 @@ class ENGINE_API UDataTableFunctionLibrary : public UBlueprintFunctionLibrary
 	 * @return	True if the operation succeeds, check the log for errors if it didn't succeed.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | DataTable", DisplayName = "Fill Data Table from CSV File")
-	static bool FillDataTableFromCSVFile(UDataTable* DataTable, const FString& CSVFilePath);
+	static ENGINE_API bool FillDataTableFromCSVFile(UDataTable* DataTable, const FString& CSVFilePath);
 
 	/** 
 	 * Empty and fill a Data Table from JSON string.
@@ -129,7 +129,7 @@ class ENGINE_API UDataTableFunctionLibrary : public UBlueprintFunctionLibrary
 	 * @return	True if the operation succeeds, check the log for errors if it didn't succeed.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | DataTable", DisplayName = "Fill Data Table from JSON String")
-	static bool FillDataTableFromJSONString(UDataTable* DataTable, const FString& JSONString);
+	static ENGINE_API bool FillDataTableFromJSONString(UDataTable* DataTable, const FString& JSONString);
 
 
 	/** 
@@ -138,11 +138,11 @@ class ENGINE_API UDataTableFunctionLibrary : public UBlueprintFunctionLibrary
 	 * @return	True if the operation succeeds, check the log for errors if it didn't succeed.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | DataTable", DisplayName = "Fill Data Table from JSON File")
-	static bool FillDataTableFromJSONFile(UDataTable* DataTable, const FString& JSONFilePath, UScriptStruct* ImportRowStruct = nullptr);
+	static ENGINE_API bool FillDataTableFromJSONFile(UDataTable* DataTable, const FString& JSONFilePath, UScriptStruct* ImportRowStruct = nullptr);
 
 	/** Add a row to a Data Table with the provided name and data. */
     UFUNCTION(BlueprintCallable, CustomThunk, Category = "Editor Scripting | DataTable", meta=(AutoCreateRefTerm="RowName", CustomStructureParam="RowData"))
-	static void AddDataTableRow(UDataTable* const DataTable, const FName& RowName, const FTableRowBase& RowData);
+	static ENGINE_API void AddDataTableRow(UDataTable* const DataTable, const FName& RowName, const FTableRowBase& RowData);
     DECLARE_FUNCTION(execAddDataTableRow);
 #endif //WITH_EDITOR
 };

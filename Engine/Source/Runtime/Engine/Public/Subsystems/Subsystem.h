@@ -43,13 +43,13 @@ class FSubsystemCollectionBase;
  *
  */
 
-UCLASS(Abstract)
-class ENGINE_API USubsystem : public UObject
+UCLASS(Abstract, MinimalAPI)
+class USubsystem : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	USubsystem();
+	ENGINE_API USubsystem();
 
 	/** Override to control if the Subsystem should be created at all.
 	 * For example you could only have your system created on servers.
@@ -67,7 +67,7 @@ public:
 	virtual void Deinitialize() {}
 
 	/** Overridden to check global network context */
-	virtual int32 GetFunctionCallspace(UFunction* Function, FFrame* Stack) override;
+	ENGINE_API virtual int32 GetFunctionCallspace(UFunction* Function, FFrame* Stack) override;
 
 private:
 	friend class FSubsystemCollectionBase;
@@ -83,11 +83,11 @@ private:
  * If instances of your subsystem aren't being created it maybe that the module they are in isn't being explicitly loaded,
  * make sure there is a LoadModule("ModuleName") to load the module.
  */
-UCLASS(Abstract)
-class ENGINE_API UDynamicSubsystem : public USubsystem
+UCLASS(Abstract, MinimalAPI)
+class UDynamicSubsystem : public USubsystem
 {
 	GENERATED_BODY()
 
 public:
-	UDynamicSubsystem();
+	ENGINE_API UDynamicSubsystem();
 };

@@ -2620,7 +2620,7 @@ public:
 
 #endif
 
-class ENGINE_API FNullDynamicParameterVertexBuffer : public FVertexBuffer
+class FNullDynamicParameterVertexBuffer : public FVertexBuffer
 {
 public:
 	/** 
@@ -2686,15 +2686,15 @@ enum class EParticleSystemInsignificanceReaction: uint8
 };
 
 /** Helper class to reset and recreate all PSCs with specific templates on their next tick. */
-class ENGINE_API FParticleResetContext
+class FParticleResetContext
 {
 public:
 
 	TArray<class UParticleSystem*, TInlineAllocator<32>> SystemsToReset;
-	void AddTemplate(class UParticleSystem* Template);
-	void AddTemplate(class UParticleModule* Module);
-	void AddTemplate(class UParticleEmitter* Emitter);
-	~FParticleResetContext();
+	ENGINE_API void AddTemplate(class UParticleSystem* Template);
+	ENGINE_API void AddTemplate(class UParticleModule* Module);
+	ENGINE_API void AddTemplate(class UParticleEmitter* Emitter);
+	ENGINE_API ~FParticleResetContext();
 };
 
 

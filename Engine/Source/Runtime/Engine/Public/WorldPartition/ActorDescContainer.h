@@ -13,8 +13,8 @@
 class FLinkerInstancingContext;
 class UWorldPartition;
 
-UCLASS()
-class ENGINE_API UActorDescContainer : public UObject, public FActorDescList
+UCLASS(MinimalAPI)
+class UActorDescContainer : public UObject, public FActorDescList
 {
 	GENERATED_UCLASS_BODY()
 
@@ -26,7 +26,7 @@ class ENGINE_API UActorDescContainer : public UObject, public FActorDescList
 
 public:
 	/* Struct of parameters passed to Initialize function. */
-	struct ENGINE_API FInitializeParams
+	struct FInitializeParams
 	{
 		FInitializeParams(UWorld* InWorld, FName InPackageName)
 			: World(InWorld)
@@ -44,16 +44,16 @@ public:
 	};
 
 	UE_DEPRECATED(5.1, "UActorDescContainer::Initialize is deprecated, UActorDescContainer::Initialize with UActorDescContainer::FInitializeParams should be used instead.")
-	void Initialize(UWorld* InWorld, FName InPackageName);
-	void Initialize(const FInitializeParams& InitParams);
-	void Update();
-	void Uninitialize();
+	ENGINE_API void Initialize(UWorld* InWorld, FName InPackageName);
+	ENGINE_API void Initialize(const FInitializeParams& InitParams);
+	ENGINE_API void Update();
+	ENGINE_API void Uninitialize();
 
 	bool IsInitialized() const { return bContainerInitialized; }
 
-	void OnObjectPreSave(UObject* Object, FObjectPreSaveContext SaveContext);
-	void OnPackageDeleted(UPackage* Package);
-	void OnObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewObjectMap);
+	ENGINE_API void OnObjectPreSave(UObject* Object, FObjectPreSaveContext SaveContext);
+	ENGINE_API void OnPackageDeleted(UPackage* Package);
+	ENGINE_API void OnObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewObjectMap);
 
 	FName GetContainerPackage() const { return ContainerPackageName; }
 	void SetContainerPackage(const FName& InContainerPackageName) { ContainerPackageName = InContainerPackageName; }
@@ -61,18 +61,18 @@ public:
 	FGuid GetContentBundleGuid() const { return ContentBundleGuid; }
 	void SetContentBundleGuid(const FGuid& InGetContentBundleGuid) { ContentBundleGuid = InGetContentBundleGuid; }
 
-	bool IsTemplateContainer() const;
-	bool IsMainPartitionContainer() const;
-	UWorldPartition* GetWorldPartition() const;
+	ENGINE_API bool IsTemplateContainer() const;
+	ENGINE_API bool IsMainPartitionContainer() const;
+	ENGINE_API UWorldPartition* GetWorldPartition() const;
 
-	FString GetExternalActorPath() const;
+	ENGINE_API FString GetExternalActorPath() const;
 
 	/** Removes an actor desc without the need to load a package */
-	bool RemoveActor(const FGuid& ActorGuid);
+	ENGINE_API bool RemoveActor(const FGuid& ActorGuid);
 
-	void LoadAllActors(TArray<FWorldPartitionReference>& OutReferences);
+	ENGINE_API void LoadAllActors(TArray<FWorldPartitionReference>& OutReferences);
 
-	bool IsActorDescHandled(const AActor* Actor) const;
+	ENGINE_API bool IsActorDescHandled(const AActor* Actor) const;
 
 	DECLARE_EVENT_OneParam(UWorldPartition, FActorDescAddedEvent, FWorldPartitionActorDesc*);
 	FActorDescAddedEvent OnActorDescAddedEvent;
@@ -81,27 +81,27 @@ public:
 	FActorDescRemovedEvent OnActorDescRemovedEvent;
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FActorDescContainerInitializeDelegate, UActorDescContainer*);
-	static FActorDescContainerInitializeDelegate OnActorDescContainerInitialized;
+	static ENGINE_API FActorDescContainerInitializeDelegate OnActorDescContainerInitialized;
 
-	const FLinkerInstancingContext* GetInstancingContext() const;
-	const FTransform& GetInstanceTransform() const;
+	ENGINE_API const FLinkerInstancingContext* GetInstancingContext() const;
+	ENGINE_API const FTransform& GetInstanceTransform() const;
 
 	bool HasInvalidActors() const { return InvalidActors.Num() > 0; }
 	const TArray<FAssetData>& GetInvalidActors() const { return InvalidActors; }
 	void ClearInvalidActors() { InvalidActors.Empty(); }
 
-	void RegisterActorDescriptor(FWorldPartitionActorDesc* ActorDesc, UWorld* InWorldContext);
-	void UnregisterActorDescriptor(FWorldPartitionActorDesc* ActorDesc);
+	ENGINE_API void RegisterActorDescriptor(FWorldPartitionActorDesc* ActorDesc, UWorld* InWorldContext);
+	ENGINE_API void UnregisterActorDescriptor(FWorldPartitionActorDesc* ActorDesc);
 
-	void OnActorDescAdded(FWorldPartitionActorDesc* NewActorDesc);
-	void OnActorDescRemoved(FWorldPartitionActorDesc* ActorDesc);
-	void OnActorDescUpdating(FWorldPartitionActorDesc* ActorDesc);
-	void OnActorDescUpdated(FWorldPartitionActorDesc* ActorDesc);
+	ENGINE_API void OnActorDescAdded(FWorldPartitionActorDesc* NewActorDesc);
+	ENGINE_API void OnActorDescRemoved(FWorldPartitionActorDesc* ActorDesc);
+	ENGINE_API void OnActorDescUpdating(FWorldPartitionActorDesc* ActorDesc);
+	ENGINE_API void OnActorDescUpdated(FWorldPartitionActorDesc* ActorDesc);
 
-	bool ShouldHandleActorEvent(const AActor* Actor);
+	ENGINE_API bool ShouldHandleActorEvent(const AActor* Actor);
 
-	const FWorldPartitionActorDesc* GetActorDescByName(const FString& ActorPath) const;
-	const FWorldPartitionActorDesc* GetActorDescByName(const FSoftObjectPath& InActorPath) const;
+	ENGINE_API const FWorldPartitionActorDesc* GetActorDescByName(const FString& ActorPath) const;
+	ENGINE_API const FWorldPartitionActorDesc* GetActorDescByName(const FSoftObjectPath& InActorPath) const;
 
 	bool bContainerInitialized;
 
@@ -114,15 +114,15 @@ protected:
 	FNameActorDescMap ActorsByName;
 
 	//~ Begin UObject Interface
-	virtual void BeginDestroy() override;
+	ENGINE_API virtual void BeginDestroy() override;
 	//~ End UObject Interface
 
 private:
 	// GetWorld() should never be called on an ActorDescContainer to avoid any confusion as it can be used as a template
 	virtual UWorld* GetWorld() const override { return nullptr; }
 
-	bool ShouldRegisterDelegates();
-	void RegisterEditorDelegates();
-	void UnregisterEditorDelegates();
+	ENGINE_API bool ShouldRegisterDelegates();
+	ENGINE_API void RegisterEditorDelegates();
+	ENGINE_API void UnregisterEditorDelegates();
 #endif
 };

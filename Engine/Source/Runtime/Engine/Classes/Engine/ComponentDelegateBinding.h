@@ -10,7 +10,7 @@
 
 /** Entry for a delegate to assign after a blueprint has been instanced */
 USTRUCT()
-struct ENGINE_API FBlueprintComponentDelegateBinding
+struct FBlueprintComponentDelegateBinding
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -34,8 +34,8 @@ struct ENGINE_API FBlueprintComponentDelegateBinding
 };
 
 
-UCLASS()
-class ENGINE_API UComponentDelegateBinding
+UCLASS(MinimalAPI)
+class UComponentDelegateBinding
 	: public UDynamicBlueprintBinding
 {
 	GENERATED_UCLASS_BODY()
@@ -44,8 +44,8 @@ class ENGINE_API UComponentDelegateBinding
 	TArray<FBlueprintComponentDelegateBinding> ComponentDelegateBindings;
 
 	//~ Begin DynamicBlueprintBinding Interface
-	virtual void BindDynamicDelegates(UObject* InInstance) const override;
-	virtual void UnbindDynamicDelegates(UObject* InInstance) const override;
-	virtual void UnbindDynamicDelegatesForProperty(UObject* InInstance, const FObjectProperty* InObjectProperty) const override;
+	ENGINE_API virtual void BindDynamicDelegates(UObject* InInstance) const override;
+	ENGINE_API virtual void UnbindDynamicDelegates(UObject* InInstance) const override;
+	ENGINE_API virtual void UnbindDynamicDelegatesForProperty(UObject* InInstance, const FObjectProperty* InObjectProperty) const override;
 	//~ End DynamicBlueprintBinding Interface
 };

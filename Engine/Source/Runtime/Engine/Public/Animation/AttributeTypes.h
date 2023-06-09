@@ -42,27 +42,27 @@ namespace UE
 			);
 		};
 
-		struct ENGINE_API AttributeTypes
+		struct AttributeTypes
 		{
 			DECLARE_MULTICAST_DELEGATE_TwoParams(FOnAttributeTypesChanged, const UScriptStruct*, bool /* bIsAdded */ );
 			
 		protected:
-			static TArray<TWeakObjectPtr<const UScriptStruct>> RegisteredTypes;
-			static TArray<TUniquePtr<IAttributeBlendOperator>> Operators;
-			static TArray<TWeakObjectPtr<const UScriptStruct>> InterpolatableTypes;
-			static std::atomic<bool> bInitialized;
-			static FOnAttributeTypesChanged OnAttributeTypesChangedDelegate;
+			static ENGINE_API TArray<TWeakObjectPtr<const UScriptStruct>> RegisteredTypes;
+			static ENGINE_API TArray<TUniquePtr<IAttributeBlendOperator>> Operators;
+			static ENGINE_API TArray<TWeakObjectPtr<const UScriptStruct>> InterpolatableTypes;
+			static ENGINE_API std::atomic<bool> bInitialized;
+			static ENGINE_API FOnAttributeTypesChanged OnAttributeTypesChangedDelegate;
 
-			static void Initialize();
+			static ENGINE_API void Initialize();
 
 			/** Register user defined structs as non-blendable animation attribute */
-			static bool RegisterNonBlendableType(const UScriptStruct* InScriptStruct);
+			static ENGINE_API bool RegisterNonBlendableType(const UScriptStruct* InScriptStruct);
 
 			/** Unregisters a specific attribute type and deletes its associated blend operator */
-			static void UnregisterType(const UScriptStruct* InScriptStruct);
+			static ENGINE_API void UnregisterType(const UScriptStruct* InScriptStruct);
 			
 		public:			
-			static void LazyInitialize();
+			static ENGINE_API void LazyInitialize();
 
 			static FOnAttributeTypesChanged& GetOnAttributeTypesChanged() { return OnAttributeTypesChangedDelegate; };
 			

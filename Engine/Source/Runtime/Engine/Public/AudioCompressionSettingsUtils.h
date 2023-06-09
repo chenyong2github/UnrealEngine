@@ -8,34 +8,34 @@
 
 struct FCachedAudioStreamingManagerParams;
 
-class ENGINE_API FPlatformCompressionUtilities
+class FPlatformCompressionUtilities
 {
 public:
 	// Returns the Duration Threshold for the current platform if it is overridden, -1.0f otherwise.
-	static float GetCompressionDurationForCurrentPlatform();
+	static ENGINE_API float GetCompressionDurationForCurrentPlatform();
 
 	// Returns the sample rate for a given platform,
-	static float GetTargetSampleRateForPlatform(ESoundwaveSampleRateSettings InSampleRateLevel = ESoundwaveSampleRateSettings::High);
+	static ENGINE_API float GetTargetSampleRateForPlatform(ESoundwaveSampleRateSettings InSampleRateLevel = ESoundwaveSampleRateSettings::High);
 
-	static int32 GetMaxPreloadedBranchesForCurrentPlatform();
+	static ENGINE_API int32 GetMaxPreloadedBranchesForCurrentPlatform();
 
-	static int32 GetQualityIndexOverrideForCurrentPlatform();
+	static ENGINE_API int32 GetQualityIndexOverrideForCurrentPlatform();
 
-	static void RecacheCookOverrides();
-
-	// null platformname means to use current platform
-	static const FPlatformAudioCookOverrides* GetCookOverrides(const TCHAR* PlatformName=nullptr, bool bForceRecache = false);
-
-	static bool IsCurrentPlatformUsingStreamCaching();
+	static ENGINE_API void RecacheCookOverrides();
 
 	// null platformname means to use current platform
-	static const FAudioStreamCachingSettings& GetStreamCachingSettingsForCurrentPlatform();
+	static ENGINE_API const FPlatformAudioCookOverrides* GetCookOverrides(const TCHAR* PlatformName=nullptr, bool bForceRecache = false);
+
+	static ENGINE_API bool IsCurrentPlatformUsingStreamCaching();
+
+	// null platformname means to use current platform
+	static ENGINE_API const FAudioStreamCachingSettings& GetStreamCachingSettingsForCurrentPlatform();
 
 	/** This is used at runtime to initialize FCachedAudioStreamingManager. */
-	static FCachedAudioStreamingManagerParams BuildCachedStreamingManagerParams();
+	static ENGINE_API FCachedAudioStreamingManagerParams BuildCachedStreamingManagerParams();
 
 	/** This is used at runtime in BuildCachedStreamingManagerParams, as well as cooktime in FStreamedAudioCacheDerivedDataWorker::BuildStreamedAudio to split compressed audio.  */
-	static uint32 GetMaxChunkSizeForCookOverrides(const FPlatformAudioCookOverrides* InCompressionOverrides);
+	static ENGINE_API uint32 GetMaxChunkSizeForCookOverrides(const FPlatformAudioCookOverrides* InCompressionOverrides);
 
 	template<typename HashType>
 	static void AppendHash(FString& OutString, const TCHAR* InName, const HashType& InValueToHash)
@@ -44,6 +44,6 @@ public:
 	}
 
 private:
-	static const FPlatformRuntimeAudioCompressionOverrides* GetRuntimeCompressionOverridesForCurrentPlatform();
+	static ENGINE_API const FPlatformRuntimeAudioCompressionOverrides* GetRuntimeCompressionOverridesForCurrentPlatform();
 	
 };

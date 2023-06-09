@@ -13,12 +13,12 @@ class UWorld;
  * FDataLayerEditorContext
  */
 
-struct ENGINE_API FDataLayerEditorContext
+struct FDataLayerEditorContext
 {
 public:
 	static const uint32 EmptyHash = 0;
 	FDataLayerEditorContext() : Hash(FDataLayerEditorContext::EmptyHash) {}
-	FDataLayerEditorContext(UWorld* InWorld, const TArray<FName>& InDataLayerInstances);
+	ENGINE_API FDataLayerEditorContext(UWorld* InWorld, const TArray<FName>& InDataLayerInstances);
 	FORCEINLINE bool IsEmpty() const { return (Hash == FDataLayerEditorContext::EmptyHash) && DataLayerInstances.IsEmpty(); }
 	FORCEINLINE uint32 GetHash() const { return Hash; }
 	FORCEINLINE const TArray<FName>& GetDataLayerInstanceNames() const { return DataLayerInstances; }

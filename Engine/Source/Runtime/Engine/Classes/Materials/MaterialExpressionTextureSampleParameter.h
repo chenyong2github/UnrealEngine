@@ -13,8 +13,8 @@
 class UTexture;
 struct FMaterialParameterInfo;
 
-UCLASS(collapsecategories, abstract, hidecategories=Object)
-class ENGINE_API UMaterialExpressionTextureSampleParameter : public UMaterialExpressionTextureSample
+UCLASS(collapsecategories, abstract, hidecategories=Object, MinimalAPI)
+class UMaterialExpressionTextureSampleParameter : public UMaterialExpressionTextureSample
 {
 	GENERATED_UCLASS_BODY()
 
@@ -38,18 +38,18 @@ class ENGINE_API UMaterialExpressionTextureSampleParameter : public UMaterialExp
 
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR
-	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
-	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
-	virtual bool MatchesSearchQuery(const TCHAR* SearchQuery) override;
+	ENGINE_API virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
+	ENGINE_API virtual void GetCaption(TArray<FString>& OutCaptions) const override;
+	ENGINE_API virtual bool MatchesSearchQuery(const TCHAR* SearchQuery) override;
 	virtual bool CanRenameNode() const override { return true; }
-	virtual FString GetEditableName() const override;
-	virtual void SetEditableName(const FString& NewName) override;
+	ENGINE_API virtual FString GetEditableName() const override;
+	ENGINE_API virtual void SetEditableName(const FString& NewName) override;
 
 	virtual bool HasAParameterName() const override { return true; }
 	virtual FName GetParameterName() const override { return ParameterName; }
 	virtual void SetParameterName(const FName& Name) override { ParameterName = Name; }
-	virtual void ValidateParameterName(const bool bAllowDuplicateName) override;
-	virtual bool GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression const*& OutExpression) const override;
+	ENGINE_API virtual void ValidateParameterName(const bool bAllowDuplicateName) override;
+	ENGINE_API virtual bool GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression const*& OutExpression) const override;
 	virtual bool GetParameterValue(FMaterialParameterMetadata& OutMeta) const override
 	{
 		OutMeta.Value = Texture;
@@ -81,9 +81,9 @@ class ENGINE_API UMaterialExpressionTextureSampleParameter : public UMaterialExp
 	//~ End UMaterialExpression Interface
 
 #if WITH_EDITOR
-	bool SetParameterValue(FName InParameterName, UTexture* InValue, EMaterialExpressionSetParameterValueFlags Flags = EMaterialExpressionSetParameterValueFlags::None);
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	void ApplyChannelNames();
+	ENGINE_API bool SetParameterValue(FName InParameterName, UTexture* InValue, EMaterialExpressionSetParameterValueFlags Flags = EMaterialExpressionSetParameterValueFlags::None);
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API void ApplyChannelNames();
 
 	/**
 	 * Return true if the texture is a movie texture
@@ -92,12 +92,12 @@ class ENGINE_API UMaterialExpressionTextureSampleParameter : public UMaterialExp
 	 * @param	OutMessage - if texture isn't valid, gives a description of the problem
 	 * @return	true/false
 	 */	
-	virtual bool TextureIsValid(UTexture* InTexture, FString& OutMessage);
+	ENGINE_API virtual bool TextureIsValid(UTexture* InTexture, FString& OutMessage);
 
 	/**
 	 *	Sets the default texture if none is set
 	 */
-	virtual void SetDefaultTexture();
+	ENGINE_API virtual void SetDefaultTexture();
 #endif // WITH_EDITOR
 
 	virtual FGuid& GetParameterExpressionId() override

@@ -12,8 +12,8 @@
 
 class UDataStreamManager;
 
-UCLASS(transient, customConstructor)
-class ENGINE_API UDataStreamChannel final : public UChannel
+UCLASS(transient, customConstructor, MinimalAPI)
+class UDataStreamChannel final : public UChannel
 {
 	GENERATED_BODY()
 
@@ -23,26 +23,26 @@ private:
 	static void AddReferencedObjects(UObject* Object, FReferenceCollector& Collector);
 
 	// UChannel interface
-	virtual void Init(UNetConnection* InConnection, int32 InChIndex, EChannelCreateFlags CreateFlags) override;
+	ENGINE_API virtual void Init(UNetConnection* InConnection, int32 InChIndex, EChannelCreateFlags CreateFlags) override;
 
-	virtual bool CleanUp(const bool bForDestroy, EChannelCloseReason CloseReason) override;
+	ENGINE_API virtual bool CleanUp(const bool bForDestroy, EChannelCloseReason CloseReason) override;
 
 	/**
 	 * Processes the in bound bunch to extract the data streams
 	 */
-	virtual void ReceivedBunch(FInBunch& Bunch) override;
+	ENGINE_API virtual void ReceivedBunch(FInBunch& Bunch) override;
 
-	virtual void Tick() override;
+	ENGINE_API virtual void Tick() override;
 
 	/** Always ticks */
-	virtual bool CanStopTicking() const override;
+	ENGINE_API virtual bool CanStopTicking() const override;
 
 	/** Human readable information about the channel */
-	virtual FString Describe() override;
+	ENGINE_API virtual FString Describe() override;
 
 	/** Packet delivery status handling */
-	virtual void ReceivedAck(int32 PacketId) override;
-	virtual void ReceivedNak(int32 PacketId) override;
+	ENGINE_API virtual void ReceivedAck(int32 PacketId) override;
+	ENGINE_API virtual void ReceivedNak(int32 PacketId) override;
 	
 private:
 	enum : uint32

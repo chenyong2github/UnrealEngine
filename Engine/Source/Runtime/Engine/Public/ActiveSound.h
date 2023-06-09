@@ -274,14 +274,14 @@ struct FSoundParseParameters
 	}
 };
 
-struct ENGINE_API FActiveSound : public ISoundModulatable
+struct FActiveSound : public ISoundModulatable
 {
 public:
 
-	FActiveSound();
-	~FActiveSound();
+	ENGINE_API FActiveSound();
+	ENGINE_API ~FActiveSound();
 
-	static FActiveSound* CreateVirtualCopy(const FActiveSound& ActiveSoundToCopy, FAudioDevice& AudioDevice);
+	static ENGINE_API FActiveSound* CreateVirtualCopy(const FActiveSound& ActiveSoundToCopy, FAudioDevice& AudioDevice);
 
 private:
 	TWeakObjectPtr<UWorld> World;
@@ -301,22 +301,22 @@ private:
 
 public:
 	uint32 GetObjectId() const override { return Sound ? Sound->GetUniqueID() : INDEX_NONE; }
-	int32 GetPlayCount() const override;
+	ENGINE_API int32 GetPlayCount() const override;
 	uint32 GetPlayOrder() const { return PlayOrder; }
 	bool IsPreviewSound() const override { return bIsPreviewSound; }
-	void Stop() override;
+	ENGINE_API void Stop() override;
 
 	/** Returns a unique identifier for this active sound object */
 	uint32 GetInstanceID() const { return PlayOrder; }
 
 	uint64 GetAudioComponentID() const { return AudioComponentID; }
 	FName GetAudioComponentUserID() const { return AudioComponentUserID; }
-	void ClearAudioComponent();
-	void SetAudioComponent(const FActiveSound& ActiveSound);
-	void SetAudioComponent(const UAudioComponent& Component);
-	void SetOwner(const AActor* Owner);
-	FString GetAudioComponentName() const;
-	FString GetOwnerName() const;
+	ENGINE_API void ClearAudioComponent();
+	ENGINE_API void SetAudioComponent(const FActiveSound& ActiveSound);
+	ENGINE_API void SetAudioComponent(const UAudioComponent& Component);
+	ENGINE_API void SetOwner(const AActor* Owner);
+	ENGINE_API FString GetAudioComponentName() const;
+	ENGINE_API FString GetOwnerName() const;
 
 	uint32 GetWorldID() const { return WorldID; }
 	TWeakObjectPtr<UWorld> GetWeakWorld() const { return World; }
@@ -324,24 +324,24 @@ public:
 	{
 		return World.Get();
 	}
-	void SetWorld(UWorld* World);
+	ENGINE_API void SetWorld(UWorld* World);
 
-	void SetPitch(float Value);
-	void SetVolume(float Value);
+	ENGINE_API void SetPitch(float Value);
+	ENGINE_API void SetVolume(float Value);
 
 	float GetPitch() const { return PitchMultiplier; }
 
 	/** Gets volume product all gain stages pertaining to active sound */
-	float GetVolume() const;
+	ENGINE_API float GetVolume() const;
 
 	USoundBase* GetSound() const { return Sound; }
-	void SetSound(USoundBase* InSound);
+	ENGINE_API void SetSound(USoundBase* InSound);
 
 	USoundEffectSourcePresetChain* GetSourceEffectChain() const { return SourceEffectChain ? ToRawPtr(SourceEffectChain) : ToRawPtr(Sound->SourceEffectChain); }
 	
-	void SetSourceEffectChain(USoundEffectSourcePresetChain* InSourceEffectChain);
+	ENGINE_API void SetSourceEffectChain(USoundEffectSourcePresetChain* InSourceEffectChain);
 
-	void SetSoundClass(USoundClass* SoundClass);
+	ENGINE_API void SetSoundClass(USoundClass* SoundClass);
 
 	void SetAudioDevice(FAudioDevice* InAudioDevice)
 	{
@@ -369,7 +369,7 @@ public:
 	bool IsPlayingAudio() const { return bIsPlayingAudio; }
 
 	/** Whether or not sound reference is valid and set to play when silent. */
-	bool IsPlayWhenSilent() const;
+	ENGINE_API bool IsPlayWhenSilent() const;
 
 	FAudioDevice* AudioDevice;
 
@@ -633,17 +633,17 @@ public:
 	FColor DebugColor;
 #endif // ENABLE_AUDIO_DEBUG
 
-	void UpdateInterfaceParameters(const TArray<FListener>& InListeners);
+	ENGINE_API void UpdateInterfaceParameters(const TArray<FListener>& InListeners);
 
 	// Updates the wave instances to be played.
-	void UpdateWaveInstances(TArray<FWaveInstance*> &OutWaveInstances, const float DeltaTime);
+	ENGINE_API void UpdateWaveInstances(TArray<FWaveInstance*> &OutWaveInstances, const float DeltaTime);
 
 	/**
 	 * Find an existing waveinstance attached to this audio component (if any)
 	 */
-	FWaveInstance* FindWaveInstance(const UPTRINT WaveInstanceHash);
+	ENGINE_API FWaveInstance* FindWaveInstance(const UPTRINT WaveInstanceHash);
 
-	void RemoveWaveInstance(const UPTRINT WaveInstanceHash);
+	ENGINE_API void RemoveWaveInstance(const UPTRINT WaveInstanceHash);
 
 	const TMap<UPTRINT, FWaveInstance*>& GetWaveInstances() const
 	{
@@ -653,109 +653,109 @@ public:
 	/**
 	 * Add newly created wave instance to active sound
 	 */
-	FWaveInstance& AddWaveInstance(const UPTRINT WaveInstanceHash);
+	ENGINE_API FWaveInstance& AddWaveInstance(const UPTRINT WaveInstanceHash);
 
 	/**
 	 * Check whether to apply the radio filter
 	 */
-	void ApplyRadioFilter(const FSoundParseParameters& ParseParams);
+	ENGINE_API void ApplyRadioFilter(const FSoundParseParameters& ParseParams);
 
 	/** Gets total concurrency gain stage based on all concurrency memberships of sound */
-	float GetTotalConcurrencyVolumeScale() const;
+	ENGINE_API float GetTotalConcurrencyVolumeScale() const;
 
-	void CollectAttenuationShapesForVisualization(TMultiMap<EAttenuationShape::Type, FBaseAttenuationSettings::AttenuationShapeDetails>& ShapeDetailsMap) const;
+	ENGINE_API void CollectAttenuationShapesForVisualization(TMultiMap<EAttenuationShape::Type, FBaseAttenuationSettings::AttenuationShapeDetails>& ShapeDetailsMap) const;
 
 	/**
 	 * Friend archive function used for serialization.
 	 */
 	friend FArchive& operator<<( FArchive& Ar, FActiveSound* ActiveSound );
 
-	void AddReferencedObjects( FReferenceCollector& Collector );
+	ENGINE_API void AddReferencedObjects( FReferenceCollector& Collector );
 
 	/**
 	 * Get the sound class to apply on this sound instance
 	 */
-	USoundClass* GetSoundClass() const;
+	ENGINE_API USoundClass* GetSoundClass() const;
 
 	/**
 	* Get the sound submix to use for this sound instance
 	*/
-	USoundSubmixBase* GetSoundSubmix() const;
+	ENGINE_API USoundSubmixBase* GetSoundSubmix() const;
 
 	/** Gets the sound submix sends to use for this sound instance. */
-	void GetSoundSubmixSends(TArray<FSoundSubmixSendInfo>& OutSends) const;
+	ENGINE_API void GetSoundSubmixSends(TArray<FSoundSubmixSendInfo>& OutSends) const;
 
 	/** Gets the sound source bus sends to use for this sound instance. */
-	void GetBusSends(EBusSendType BusSendType, TArray<FSoundSourceBusSendInfo>& OutSends) const;
+	ENGINE_API void GetBusSends(EBusSendType BusSendType, TArray<FSoundSourceBusSendInfo>& OutSends) const;
 
 	/**
 	 * Checks whether there are Source Bus Sends that have not yet been updated
 	 * @return true when there are new Source Bus Sends, false otherwise
 	 */
-	bool HasNewBusSends() const;
+	ENGINE_API bool HasNewBusSends() const;
 
 	/** Lets the audio thread know if additional Source Bus Send information has been added 
 	*
 	*  @return the array of Sound Bus Sends that have not yet been added to the render thread
 	*/
-	TArray< TTuple<EBusSendType, FSoundSourceBusSendInfo> > const & GetNewBusSends() const;
+	ENGINE_API TArray< TTuple<EBusSendType, FSoundSourceBusSendInfo> > const & GetNewBusSends() const;
 
 	/** Resets internal data of new Source Bus Sends */
-	void ResetNewBusSends();
+	ENGINE_API void ResetNewBusSends();
 
 	/* Gives new Modulation Routing settings to the Active Sound. */
-	void SetNewModulationRouting(const FSoundModulationDefaultRoutingSettings& NewRouting);
+	ENGINE_API void SetNewModulationRouting(const FSoundModulationDefaultRoutingSettings& NewRouting);
 
 	/* Determines which of the provided listeners is the closest to the sound */
-	int32 FindClosestListener( const TArray<struct FListener>& InListeners ) const;
+	ENGINE_API int32 FindClosestListener( const TArray<struct FListener>& InListeners ) const;
 
 	/* Determines which listener is the closest to the sound */
-	int32 FindClosestListener() const;
+	ENGINE_API int32 FindClosestListener() const;
 
 	/** Returns the unique ID of the active sound's owner if it exists. Returns 0 if the sound doesn't have an owner. */
 	FSoundOwnerObjectID GetOwnerID() const { return OwnerID; }
 
 	/** Gets the sound concurrency handles applicable to this sound instance*/
-	void GetConcurrencyHandles(TArray<FConcurrencyHandle>& OutConcurrencyHandles) const;
+	ENGINE_API void GetConcurrencyHandles(TArray<FConcurrencyHandle>& OutConcurrencyHandles) const;
 
-	bool GetConcurrencyFadeDuration(float& OutFadeDuration) const;
+	ENGINE_API bool GetConcurrencyFadeDuration(float& OutFadeDuration) const;
 
 	/** Delegate callback function when an async occlusion trace completes */
-	static void OcclusionTraceDone(const FTraceHandle& TraceHandle, FTraceDatum& TraceDatum);
+	static ENGINE_API void OcclusionTraceDone(const FTraceHandle& TraceHandle, FTraceDatum& TraceDatum);
 
 	/** Applies the active sound's attenuation settings to the input parse params using the given listener */
 	UE_DEPRECATED(4.25, "Use ParseAttenuation that passes a ListenerIndex instead")
-	void ParseAttenuation(FSoundParseParameters& OutParseParams, const FListener& InListener, const FSoundAttenuationSettings& InAttenuationSettings);
+	ENGINE_API void ParseAttenuation(FSoundParseParameters& OutParseParams, const FListener& InListener, const FSoundAttenuationSettings& InAttenuationSettings);
 
 	/** Applies the active sound's attenuation settings to the input parse params using the given listener */
-	void ParseAttenuation(FSoundParseParameters& OutParseParams, int32 ListenerIndex, const FSoundAttenuationSettings& InAttenuationSettings);
+	ENGINE_API void ParseAttenuation(FSoundParseParameters& OutParseParams, int32 ListenerIndex, const FSoundAttenuationSettings& InAttenuationSettings);
 
 	/** Returns whether or not sound or any active wave instances it manages are set to always play */
-	bool GetAlwaysPlay() const;
+	ENGINE_API bool GetAlwaysPlay() const;
 
 	/** Returns the highest effective priority of the child wave instances. If bIgnoreAlwaysPlay set to true, gives highest
 	  * priority disregarding always play priority override.
 	  */
-	float GetHighestPriority(bool bIgnoreAlwaysPlay = false) const;
+	ENGINE_API float GetHighestPriority(bool bIgnoreAlwaysPlay = false) const;
 
 	/** Sets the amount of audio from this active sound to send to the submix. */
-	void SetSubmixSend(const FSoundSubmixSendInfo& SubmixSendInfo);
+	ENGINE_API void SetSubmixSend(const FSoundSubmixSendInfo& SubmixSendInfo);
 
 	/** Sets the amount of audio from this active sound to send to the source bus. */
-	void SetSourceBusSend(EBusSendType BusSendType, const FSoundSourceBusSendInfo& SourceBusSendInfo);
+	ENGINE_API void SetSourceBusSend(EBusSendType BusSendType, const FSoundSourceBusSendInfo& SourceBusSendInfo);
 
 	/** Updates the active sound's attenuation settings to the input parse params using the given listener */
 	UE_DEPRECATED(4.25, "Use UpdateAttenuation that passes a ListenerIndex instead")
-	void UpdateAttenuation(float DeltaTime, FSoundParseParameters& ParseParams, const FListener& Listener, const FSoundAttenuationSettings* SettingsAttenuationNode = nullptr);
+	ENGINE_API void UpdateAttenuation(float DeltaTime, FSoundParseParameters& ParseParams, const FListener& Listener, const FSoundAttenuationSettings* SettingsAttenuationNode = nullptr);
 
 	/** Updates the active sound's attenuation settings to the input parse params using the given listener */
-	void UpdateAttenuation(float DeltaTime, FSoundParseParameters& ParseParams, int32 ListenerIndex, const FSoundAttenuationSettings* SettingsAttenuationNode = nullptr);
+	ENGINE_API void UpdateAttenuation(float DeltaTime, FSoundParseParameters& ParseParams, int32 ListenerIndex, const FSoundAttenuationSettings* SettingsAttenuationNode = nullptr);
 
 	/** Updates the provided focus data using the local */
-	void UpdateFocusData(float DeltaTime, const FAttenuationListenerData& ListenerData, FAttenuationFocusData* OutFocusData = nullptr);
+	ENGINE_API void UpdateFocusData(float DeltaTime, const FAttenuationListenerData& ListenerData, FAttenuationFocusData* OutFocusData = nullptr);
 
 	/** Apply the submix sends to our parse params as appropriate */
-	void AddVolumeSubmixSends(FSoundParseParameters& ParseParams, EAudioVolumeLocationState LocationState);
+	ENGINE_API void AddVolumeSubmixSends(FSoundParseParameters& ParseParams, EAudioVolumeLocationState LocationState);
 
 private:
 
@@ -765,9 +765,9 @@ private:
 		FActiveSound* ActiveSound;
 	};
 
-	static TMap<FTraceHandle, FAsyncTraceDetails> TraceToActiveSoundMap;
+	static ENGINE_API TMap<FTraceHandle, FAsyncTraceDetails> TraceToActiveSoundMap;
 
-	static FTraceDelegate ActiveSoundTraceDelegate;
+	static ENGINE_API FTraceDelegate ActiveSoundTraceDelegate;
 
 	/** Cached index to the closest listener. So we don't have to do the work to find it twice. */
 	int32 ClosestListenerIndex;
@@ -779,16 +779,16 @@ private:
 	  * Marks the active sound as pending delete and begins termination of internal resources.
 	  * Only to be called from the owning audio device.
 	  */
-	void MarkPendingDestroy (bool bDestroyNow);
+	ENGINE_API void MarkPendingDestroy (bool bDestroyNow);
 
 	/** Whether or not the active sound is stopping. */
 	bool IsStopping() const { return bIsStopping; }
 
 	/** Called when an active sound has been stopped but needs to update it's stopping sounds. Returns true when stopping sources have finished stopping. */
-	bool UpdateStoppingSources(uint64 CurrentTick, bool bEnsureStopped);
+	ENGINE_API bool UpdateStoppingSources(uint64 CurrentTick, bool bEnsureStopped);
 
 	/** Updates ramping concurrency volume scalars */
-	void UpdateConcurrencyVolumeScalars(const float DeltaTime);
+	ENGINE_API void UpdateConcurrencyVolumeScalars(const float DeltaTime);
 
 	/** if OcclusionCheckInterval > 0.0, checks if the sound has become (un)occluded during playback
 	 * and calls eventOcclusionChanged() if so
@@ -796,14 +796,14 @@ private:
 	 * CurrentLocation is the location of this component that will be used for playback
 	 * @param ListenerLocation location of the closest listener to the sound
 	 */
-	void CheckOcclusion(const FVector ListenerLocation, const FVector SoundLocation, const FSoundAttenuationSettings* AttenuationSettingsPtr);
+	ENGINE_API void CheckOcclusion(const FVector ListenerLocation, const FVector SoundLocation, const FSoundAttenuationSettings* AttenuationSettingsPtr);
 
 	/** Gather the interior settings needed for the sound */
-	void GatherInteriorData(FSoundParseParameters& ParseParams);
+	ENGINE_API void GatherInteriorData(FSoundParseParameters& ParseParams);
 
 	/** Apply the interior settings to the ambient sound as appropriate */
-	void HandleInteriorVolumes(FSoundParseParameters& ParseParams);
+	ENGINE_API void HandleInteriorVolumes(FSoundParseParameters& ParseParams);
 
 	/** Helper function which retrieves attenuation frequency value for HPF and LPF distance-based filtering. */
-	float GetAttenuationFrequency(const FSoundAttenuationSettings* InSettings, const FAttenuationListenerData& ListenerData, const FVector2D& FrequencyRange, const FRuntimeFloatCurve& CustomCurve);
+	ENGINE_API float GetAttenuationFrequency(const FSoundAttenuationSettings* InSettings, const FAttenuationListenerData& ListenerData, const FVector2D& FrequencyRange, const FRuntimeFloatCurve& CustomCurve);
 };

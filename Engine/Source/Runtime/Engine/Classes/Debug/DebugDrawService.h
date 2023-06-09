@@ -17,19 +17,19 @@ class UCanvas;
  */
 DECLARE_DELEGATE_TwoParams(FDebugDrawDelegate, UCanvas*, APlayerController*);
 
-UCLASS(config=Engine)
-class ENGINE_API UDebugDrawService : public UBlueprintFunctionLibrary
+UCLASS(config=Engine, MinimalAPI)
+class UDebugDrawService : public UBlueprintFunctionLibrary
 {
 	GENERATED_UCLASS_BODY()
 
-	static FDelegateHandle Register(const TCHAR* Name, const FDebugDrawDelegate& NewDelegate);
-	static void Unregister(FDelegateHandle HandleToRemove);
+	static ENGINE_API FDelegateHandle Register(const TCHAR* Name, const FDebugDrawDelegate& NewDelegate);
+	static ENGINE_API void Unregister(FDelegateHandle HandleToRemove);
 
 	/** Draws debug canvas that has already been initialized to a viewport */
-	static void Draw(const FEngineShowFlags Flags, UCanvas* Canvas);
+	static ENGINE_API void Draw(const FEngineShowFlags Flags, UCanvas* Canvas);
 
 	/** Initialize a debug canvas object then calls above draw. If CanvasObject is null it will find/create it for you */
-	static void Draw(const FEngineShowFlags Flags, FViewport* Viewport, FSceneView* View, FCanvas* Canvas, UCanvas* CanvasObject = nullptr);
+	static ENGINE_API void Draw(const FEngineShowFlags Flags, FViewport* Viewport, FSceneView* View, FCanvas* Canvas, UCanvas* CanvasObject = nullptr);
 
 private:
 

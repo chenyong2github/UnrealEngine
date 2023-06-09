@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -15,8 +15,8 @@ struct FBookmark2DJumpToSettings
 /**
  * Simple class to store 2D camera information.
  */
-UCLASS(hidecategories=Object)
-class ENGINE_API UBookMark2D : public UBookmarkBase
+UCLASS(hidecategories=Object, MinimalAPI)
+class UBookMark2D : public UBookmarkBase
 {
 	GENERATED_UCLASS_BODY()
 

@@ -21,8 +21,8 @@
  * @see https://docs.unrealengine.com/latest/INT/Engine/Blueprints/index.html
  * @see UBlueprint
  */
-UCLASS(notplaceable, meta=(ChildCanTick, KismetHideOverrides = "ReceiveAnyDamage,ReceivePointDamage,ReceiveRadialDamage,ReceiveActorBeginOverlap,ReceiveActorEndOverlap,ReceiveHit,ReceiveDestroyed,ReceiveActorBeginCursorOver,ReceiveActorEndCursorOver,ReceiveActorOnClicked,ReceiveActorOnReleased,ReceiveActorOnInputTouchBegin,ReceiveActorOnInputTouchEnd,ReceiveActorOnInputTouchEnter,ReceiveActorOnInputTouchLeave"), HideCategories=(Collision,Rendering,Transformation))
-class ENGINE_API ALevelScriptActor : public AActor
+UCLASS(notplaceable, meta=(ChildCanTick, KismetHideOverrides = "ReceiveAnyDamage,ReceivePointDamage,ReceiveRadialDamage,ReceiveActorBeginOverlap,ReceiveActorEndOverlap,ReceiveHit,ReceiveDestroyed,ReceiveActorBeginCursorOver,ReceiveActorEndCursorOver,ReceiveActorOnClicked,ReceiveActorOnReleased,ReceiveActorOnInputTouchBegin,ReceiveActorOnInputTouchEnd,ReceiveActorOnInputTouchEnter,ReceiveActorOnInputTouchLeave"), HideCategories=(Collision,Rendering,Transformation), MinimalAPI)
+class ALevelScriptActor : public AActor
 {
 	GENERATED_UCLASS_BODY()
 
@@ -30,7 +30,7 @@ class ENGINE_API ALevelScriptActor : public AActor
 	
 	/** Tries to find an event named "EventName" on all other levels, and calls it */
 	UFUNCTION(BlueprintCallable, meta=(BlueprintProtected = "true"), Category="Miscellaneous")
-	virtual bool RemoteEvent(FName EventName);
+	ENGINE_API virtual bool RemoteEvent(FName EventName);
 
 	/**
 	 * Sets the cinematic mode on all PlayerControllers
@@ -42,12 +42,12 @@ class ENGINE_API ALevelScriptActor : public AActor
 	 * @param	bAffectsTurning		specify true to disable turning in cinematic mode or enable it when leaving
 	 */
 	UFUNCTION(BlueprintCallable, meta=(BlueprintProtected = "true"), Category="Game|Cinematic")
-	virtual void SetCinematicMode(bool bCinematicMode, bool bHidePlayer = true, bool bAffectsHUD = true, bool bAffectsMovement = false, bool bAffectsTurning = false);
+	ENGINE_API virtual void SetCinematicMode(bool bCinematicMode, bool bHidePlayer = true, bool bAffectsHUD = true, bool bAffectsMovement = false, bool bAffectsTurning = false);
 
 	// --- Level State Functions ------------------------
 	/** @todo document */
 	UFUNCTION(BlueprintImplementableEvent, BlueprintAuthorityOnly)
-	void LevelReset();
+	ENGINE_API void LevelReset();
 
 	/**
 	 * Event called on world origin location changes
@@ -56,21 +56,21 @@ class ENGINE_API ALevelScriptActor : public AActor
 	 * @param	NewOriginLocation	New world origin location
 	 */
 	UFUNCTION(BlueprintImplementableEvent)
-	void WorldOriginLocationChanged(FIntVector OldOriginLocation, FIntVector NewOriginLocation);
+	ENGINE_API void WorldOriginLocationChanged(FIntVector OldOriginLocation, FIntVector NewOriginLocation);
 	
 	//~ Begin UObject Interface
-	virtual void PreInitializeComponents() override;
+	ENGINE_API virtual void PreInitializeComponents() override;
 	//~ End UObject Interface
 
 	//~ Begin AActor Interface
-	virtual void EnableInput(class APlayerController* PlayerController) override;
-	virtual void DisableInput(class APlayerController* PlayerController) override;
+	ENGINE_API virtual void EnableInput(class APlayerController* PlayerController) override;
+	ENGINE_API virtual void DisableInput(class APlayerController* PlayerController) override;
 
 #if WITH_EDITOR
 	virtual bool SupportsExternalPackaging() const override { return false; }
 
 	/** Utility function for finding a map corruption issue that can cause duplicate level scripting events */
-	TArray<ALevelScriptActor*> FindSiblingLevelScriptActors() const;
+	ENGINE_API TArray<ALevelScriptActor*> FindSiblingLevelScriptActors() const;
 #endif
 	//~ End AActor Interface
 

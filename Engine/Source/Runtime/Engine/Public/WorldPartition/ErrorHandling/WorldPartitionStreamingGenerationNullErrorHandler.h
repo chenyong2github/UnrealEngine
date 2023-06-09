@@ -4,7 +4,7 @@
 #if WITH_EDITOR
 #include "WorldPartition/ErrorHandling/WorldPartitionStreamingGenerationErrorHandler.h"
 
-class ENGINE_API FStreamingGenerationNullErrorHandler : public IStreamingGenerationErrorHandler
+class FStreamingGenerationNullErrorHandler : public IStreamingGenerationErrorHandler
 {
 public:
 	virtual void OnInvalidRuntimeGrid(const FWorldPartitionActorDescView& ActorDescView, FName GridName) override {}

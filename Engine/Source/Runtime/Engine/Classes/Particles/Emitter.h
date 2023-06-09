@@ -51,12 +51,12 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_SixParams( FParticleDeathSignature, FName, Ev
 	*/
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_NineParams( FParticleCollisionSignature, FName, EventName, float, EmitterTime, int32, ParticleTime, FVector, Location, FVector, Velocity, FVector, Direction, FVector, Normal, FName, BoneName, UPhysicalMaterial*, PhysMat);
 
-UCLASS(hideCategories=(Activation,"Components|Activation",Input,Collision,"Game|Damage"), ComponentWrapperClass)
-class ENGINE_API AEmitter : public AActor
+UCLASS(hideCategories=(Activation,"Components|Activation",Input,Collision,"Game|Damage"), ComponentWrapperClass, MinimalAPI)
+class AEmitter : public AActor
 {
 	GENERATED_UCLASS_BODY()
 
-	virtual void GetLifetimeReplicatedProps(TArray< FLifetimeProperty > & OutLifetimeProps) const override;
+	ENGINE_API virtual void GetLifetimeReplicatedProps(TArray< FLifetimeProperty > & OutLifetimeProps) const override;
 
 private:
 	UPROPERTY(Category = Emitter, VisibleAnywhere, BlueprintReadOnly, meta = (ExposeFunctionCategories = "Particles|Beam,Particles|Parameters,Particles,Effects|Components|ParticleSystem,Rendering,Activation,Components|Activation", AllowPrivateAccess = "true"))
@@ -98,56 +98,56 @@ public:
 #endif
 
 	UFUNCTION()
-	virtual void OnParticleSystemFinished(class UParticleSystemComponent* FinishedComponent);
+	ENGINE_API virtual void OnParticleSystemFinished(class UParticleSystemComponent* FinishedComponent);
 
 	/** Replication Notification Callbacks */
 	UFUNCTION()
-	virtual void OnRep_bCurrentlyActive();
+	ENGINE_API virtual void OnRep_bCurrentlyActive();
 
 	// BEGIN DEPRECATED (use component functions now in level script)
 	UFUNCTION(BlueprintCallable, Category=Particles, meta=(DeprecatedFunction))
-	void Activate();
+	ENGINE_API void Activate();
 	UFUNCTION(BlueprintCallable, Category=Particles, meta=(DeprecatedFunction))
-	void Deactivate();
+	ENGINE_API void Deactivate();
 	UFUNCTION(BlueprintCallable, Category=Particles, meta=(DeprecatedFunction))
-	void ToggleActive();
+	ENGINE_API void ToggleActive();
 	UFUNCTION(BlueprintCallable, Category=Particles, meta=(DeprecatedFunction))
-	bool IsActive() const;
+	ENGINE_API bool IsActive() const;
 	UFUNCTION(BlueprintCallable, Category=Particles, meta=(DeprecatedFunction))
-	virtual void SetTemplate(class UParticleSystem* NewTemplate);
+	ENGINE_API virtual void SetTemplate(class UParticleSystem* NewTemplate);
 	UFUNCTION(BlueprintCallable, Category="Particles|Parameters", meta=(DeprecatedFunction))
-	void SetFloatParameter(FName ParameterName, float Param);
+	ENGINE_API void SetFloatParameter(FName ParameterName, float Param);
 	UFUNCTION(BlueprintCallable, Category="Particles|Parameters", meta=(DeprecatedFunction))
-	void SetVectorParameter(FName ParameterName, FVector Param);
+	ENGINE_API void SetVectorParameter(FName ParameterName, FVector Param);
 	UFUNCTION(BlueprintCallable, Category="Particles|Parameters", meta=(DeprecatedFunction))
-	void SetColorParameter(FName ParameterName, FLinearColor Param);
+	ENGINE_API void SetColorParameter(FName ParameterName, FLinearColor Param);
 	UFUNCTION(BlueprintCallable, Category="Particles|Parameters", meta=(DeprecatedFunction))
-	void SetActorParameter(FName ParameterName, class AActor* Param);
+	ENGINE_API void SetActorParameter(FName ParameterName, class AActor* Param);
 	UFUNCTION(BlueprintCallable, Category="Particles|Parameters", meta=(DeprecatedFunction))
-	void SetMaterialParameter(FName ParameterName, class UMaterialInterface* Param);
+	ENGINE_API void SetMaterialParameter(FName ParameterName, class UMaterialInterface* Param);
 	// END DEPRECATED
 
 
-	void AutoPopulateInstanceProperties();
+	ENGINE_API void AutoPopulateInstanceProperties();
 
 	//~ Begin UObject Interface
-	virtual FString GetDetailedInfoInternal() const override;
+	ENGINE_API virtual FString GetDetailedInfoInternal() const override;
 	//~ End UObject Interface
 
 
 	//~ Begin AActor Interface
-	virtual void PostActorCreated() override;
-	virtual void PostInitializeComponents() override;
+	ENGINE_API virtual void PostActorCreated() override;
+	ENGINE_API virtual void PostInitializeComponents() override;
 #if WITH_EDITOR
-	virtual void CheckForErrors() override;
-	virtual bool GetReferencedContentObjects( TArray<UObject*>& Objects ) const override;
+	ENGINE_API virtual void CheckForErrors() override;
+	ENGINE_API virtual bool GetReferencedContentObjects( TArray<UObject*>& Objects ) const override;
 	//~ End AActor Interface
 
 	/**
 	 *	Called to reset the emitter actor in the level.
 	 *	Intended for use in editor only
 	 */
-	void ResetInLevel();
+	ENGINE_API void ResetInLevel();
 #endif
 
 public:

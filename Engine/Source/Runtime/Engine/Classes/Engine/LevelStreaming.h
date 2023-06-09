@@ -48,7 +48,7 @@ struct FNetLevelVisibilityState
 ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogLevelStreaming, Log, All);
 
 // Stream Level Action
-class ENGINE_API FStreamLevelAction : public FPendingLatentAction
+class FStreamLevelAction : public FPendingLatentAction
 {
 public:
 	bool			bLoading;
@@ -59,14 +59,14 @@ public:
 
 	FLatentActionInfo LatentInfo;
 
-	FStreamLevelAction(bool bIsLoading, const FName& InLevelName, bool bIsMakeVisibleAfterLoad, bool bShouldBlock, const FLatentActionInfo& InLatentInfo, UWorld* World);
+	ENGINE_API FStreamLevelAction(bool bIsLoading, const FName& InLevelName, bool bIsMakeVisibleAfterLoad, bool bShouldBlock, const FLatentActionInfo& InLatentInfo, UWorld* World);
 
 	/**
 	 * Given a level name, returns level name that will work with Play on Editor or Play on Console
 	 *
 	 * @param	InLevelName		Raw level name (no UEDPIE or UED<console> prefix)
 	 */
-	static FString MakeSafeLevelName( const FName& InLevelName, UWorld* InWorld );
+	static ENGINE_API FString MakeSafeLevelName( const FName& InLevelName, UWorld* InWorld );
 
 	/**
 	 * Helper function to potentially find a level streaming object by name and cache the result
@@ -74,14 +74,14 @@ public:
 	 * @param	LevelName							Name of level to search streaming object for in case Level is NULL
 	 * @return	level streaming object or NULL if none was found
 	 */
-	static ULevelStreaming* FindAndCacheLevelStreamingObject( const FName LevelName, UWorld* InWorld );
+	static ENGINE_API ULevelStreaming* FindAndCacheLevelStreamingObject( const FName LevelName, UWorld* InWorld );
 
 	/**
 	 * Handles "Activated" for single ULevelStreaming object.
 	 *
 	 * @param	LevelStreamingObject	LevelStreaming object to handle "Activated" for.
 	 */
-	void ActivateLevel( ULevelStreaming* LevelStreamingObject );
+	ENGINE_API void ActivateLevel( ULevelStreaming* LevelStreamingObject );
 	/**
 	 * Handles "UpdateOp" for single ULevelStreaming object.
 	 *
@@ -89,13 +89,13 @@ public:
 	 *
 	 * @return true if operation has completed, false if still in progress
 	 */
-	bool UpdateLevel( ULevelStreaming* LevelStreamingObject );
+	ENGINE_API bool UpdateLevel( ULevelStreaming* LevelStreamingObject );
 
-	virtual void UpdateOperation(FLatentResponse& Response) override;
+	ENGINE_API virtual void UpdateOperation(FLatentResponse& Response) override;
 
 #if WITH_EDITOR
 	// Returns a human readable description of the latent operation's current state
-	virtual FString GetDescription() const override;
+	ENGINE_API virtual FString GetDescription() const override;
 #endif
 };
 
@@ -132,8 +132,8 @@ ENGINE_API const TCHAR* EnumToString(ELevelStreamingTargetState InTargetState);
  * interface for when a level should be streamed in and out of memory.
  *
  */
-UCLASS(abstract, editinlinenew, BlueprintType, Within=World)
-class ENGINE_API ULevelStreaming : public UObject
+UCLASS(abstract, editinlinenew, BlueprintType, Within=World, MinimalAPI)
+class ULevelStreaming : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -149,7 +149,7 @@ class ENGINE_API ULevelStreaming : public UObject
 		LoadedVisible = (uint8)ELevelStreamingState::LoadedVisible,
 		MakingInvisible = (uint8)ELevelStreamingState::MakingInvisible
 	};
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
+ENGINE_API PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	static const TCHAR* EnumToString(ECurrentState InCurrentState);
 	friend bool operator==(ELevelStreamingState A, ECurrentState B)
 	{
@@ -167,10 +167,10 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	{
 		return (ELevelStreamingState)A != (ELevelStreamingState)B;
 	}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+ENGINE_API PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	static ULevelStreaming* FindStreamingLevel(const ULevel* Level);
-	static void RemoveLevelAnnotation(const ULevel* Level);
+	static ENGINE_API void RemoveLevelAnnotation(const ULevel* Level);
 
 	// Annotation for fast inverse lookup
 	struct FLevelAnnotation
@@ -186,7 +186,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		ULevelStreaming* LevelStreaming = nullptr;
 	};
 
-	static FUObjectAnnotationSparse<FLevelAnnotation, false> LevelAnnotations;
+	static ENGINE_API FUObjectAnnotationSparse<FLevelAnnotation, false> LevelAnnotations;
 
 
 #if WITH_EDITORONLY_DATA
@@ -331,14 +331,14 @@ public:
 #endif
 
 	//~ Begin UObject Interface
-	virtual void PostLoad() override;
-	virtual void Serialize( FArchive& Ar ) override;
+	ENGINE_API virtual void PostLoad() override;
+	ENGINE_API virtual void Serialize( FArchive& Ar ) override;
 	virtual const IWorldPartitionCell* GetWorldPartitionCell() const { return nullptr; }
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	
 	/** Remove duplicates in EditorStreamingVolumes list*/
-	void RemoveStreamingVolumeDuplicates();
+	ENGINE_API void RemoveStreamingVolumeDuplicates();
 #endif
 	//~ End UObject Interface
 
@@ -352,66 +352,66 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 protected:	
 	/** Updates the current state of the streaming level and notifies any observers. */
-	void SetCurrentState(ELevelStreamingState NewState);
+	ENGINE_API void SetCurrentState(ELevelStreamingState NewState);
 
 	/** 
 	 * Prepare the transition to the new state.
 	 * @return true if the state change can be performed, false otherwise.
 	 **/
-	virtual bool RequestVisibilityChange(bool bVisible);
+	ENGINE_API virtual bool RequestVisibilityChange(bool bVisible);
 
 	/** Returns whether the streaming level can make visible (can call AddToWorld). */
-	bool CanMakeVisible();
+	ENGINE_API bool CanMakeVisible();
 
 	/** Returns whether the streaming level can make invisible (can call RemoveFromWorld). */
-	bool CanMakeInvisible();
+	ENGINE_API bool CanMakeInvisible();
 
 private:
 
 	/** If true client will wait for acknowledgment from server before making streaming levels invisible */
-	bool ShouldClientUseMakingInvisibleTransactionRequest() const;
+	ENGINE_API bool ShouldClientUseMakingInvisibleTransactionRequest() const;
 	/** If true client will wait for acknowledgment from server before making streaming levels visible */
-	bool ShouldClientUseMakingVisibleTransactionRequest() const;
+	ENGINE_API bool ShouldClientUseMakingVisibleTransactionRequest() const;
 	/** Returns whether the streaming level should wait for the server ack before changing its visibility. */
-	bool ShouldWaitForServerAckBeforeChangingVisibilityState(ENetLevelVisibilityRequest InRequestType);
+	ENGINE_API bool ShouldWaitForServerAckBeforeChangingVisibilityState(ENetLevelVisibilityRequest InRequestType);
 	/** Ack a client instigated visibility/streaming transaction */
-	void AckNetVisibilityTransaction(FNetLevelVisibilityTransactionId AckedClientTransactionId, bool bClientAckCanMakeVisible);
+	ENGINE_API void AckNetVisibilityTransaction(FNetLevelVisibilityTransactionId AckedClientTransactionId, bool bClientAckCanMakeVisible);
 
 	/** Determine what the streaming level's target state should be. */
-	ELevelStreamingTargetState DetermineTargetState() const;
+	ENGINE_API ELevelStreamingTargetState DetermineTargetState() const;
 
 	/** Determines a new target state, fires delegates, returns true if the level should continue to be considered for streaming. */
-	bool UpdateTargetState();
+	ENGINE_API bool UpdateTargetState();
 
 	/** Update the load process of the streaming level. Out parameters instruct calling code how to proceed. */
-	void UpdateStreamingState(bool& bOutUpdateAgain, bool& bOutRedetermineTarget);
+	ENGINE_API void UpdateStreamingState(bool& bOutUpdateAgain, bool& bOutRedetermineTarget);
 
 	/** Update internal variables when the level is added from the streaming levels array */
-	void OnLevelAdded();
+	ENGINE_API void OnLevelAdded();
 
 	/** Update internal variables when the level is removed from the streaming levels array */
-	void OnLevelRemoved();
+	ENGINE_API void OnLevelRemoved();
 
 	/** Internal function for checking if the desired level is the currently loaded level */
-	bool IsDesiredLevelLoaded() const;
+	ENGINE_API bool IsDesiredLevelLoaded() const;
 
 public:
 
 	/** Begin a client instigated NetVisibility request */
-	void BeginClientNetVisibilityRequest(bool bInShouldBeVisible);
+	ENGINE_API void BeginClientNetVisibilityRequest(bool bInShouldBeVisible);
 
 	/** Check if we are waiting for a making visible or invisible streaming transaction */
-	bool IsWaitingForNetVisibilityTransactionAck(ENetLevelVisibilityRequest InRequestType = ENetLevelVisibilityRequest::MakingInvisible) const;
+	ENGINE_API bool IsWaitingForNetVisibilityTransactionAck(ENetLevelVisibilityRequest InRequestType = ENetLevelVisibilityRequest::MakingInvisible) const;
 
 	/** Set the current state of the current visibility/streaming transaction */
-	void UpdateNetVisibilityTransactionState(bool bInShouldBeVisible, FNetLevelVisibilityTransactionId TransactionId);
+	ENGINE_API void UpdateNetVisibilityTransactionState(bool bInShouldBeVisible, FNetLevelVisibilityTransactionId TransactionId);
 
 	/** Returns the value of bShouldBeVisible. Use ShouldBeVisible to query whether a streaming level should be visible based on its own criteria. */
 	bool GetShouldBeVisibleFlag() const { return bShouldBeVisible; }
 
 	/** Sets the should be visible flag and marks the streaming level as requiring consideration. */
 	UFUNCTION(BlueprintSetter)
-	void SetShouldBeVisible(bool bInShouldBeVisible);
+	ENGINE_API void SetShouldBeVisible(bool bInShouldBeVisible);
 
 	/** Returns whether level should start to render only when it will be fully added to the world or not. */
 	virtual bool ShouldRequireFullVisibilityToRender() const { return LODPackageNames.Num() > 0; }
@@ -424,21 +424,21 @@ public:
 	 * Doesn't do anything at the base level as should be loaded defaults to true 
 	 */
 	UFUNCTION(BlueprintSetter)
-	virtual void SetShouldBeLoaded(bool bInShouldBeLoaded);
+	ENGINE_API virtual void SetShouldBeLoaded(bool bInShouldBeLoaded);
 
 	/** Returns the world composition level LOD index. */
 	int32 GetLevelLODIndex() const { return LevelLODIndex; }
 
 	/** Sets the world composition level LOD index and marks the streaming level as requiring consideration. */
 	UFUNCTION(BlueprintSetter)
-	void SetLevelLODIndex(int32 LODIndex);
+	ENGINE_API void SetLevelLODIndex(int32 LODIndex);
 
 	/** Sets the relative priority of considering the streaming level. Changing the priority will not interrupt the currently considered level, but will affect the next time a level is being selected for evaluation. */
  	int32 GetPriority() const { return StreamingPriority; }
 
 	/** Sets the relative priority of considering the streaming level. Changing the priority will not interrupt the currently considered level, but will affect the next time a level is being selected for evaluation. */
 	UFUNCTION(BlueprintSetter)
-	void SetPriority(int32 NewPriority);
+	ENGINE_API void SetPriority(int32 NewPriority);
 
 	/** Returns whether the streaming level is in the loading state. */
 	bool HasLoadRequestPending() const { return CurrentState == ELevelStreamingState::Loading; }
@@ -455,7 +455,7 @@ public:
 
 	/** Sets if the streaming level should be unloaded and removed. */
 	UFUNCTION(BlueprintCallable, Category = LevelStreaming)
-	void SetIsRequestingUnloadAndRemoval(bool bInIsRequestingUnloadAndRemoval);
+	ENGINE_API void SetIsRequestingUnloadAndRemoval(bool bInIsRequestingUnloadAndRemoval);
 
 #if WITH_EDITORONLY_DATA
 	/** Returns if the streaming level should be visible in the editor. */
@@ -463,7 +463,7 @@ public:
 #endif
 #if WITH_EDITOR
 	/** Sets if the streaming level should be visible in the editor. */
-	void SetShouldBeVisibleInEditor(bool bInShouldBeVisibleInEditor);
+	ENGINE_API void SetShouldBeVisibleInEditor(bool bInShouldBeVisibleInEditor);
 
 	/** Returns if the streaming level is visible in LevelCollectionModel */
 	virtual bool ShowInLevelCollection() const { return true; }
@@ -476,20 +476,20 @@ public:
 	const TSoftObjectPtr<UWorld>& GetWorldAsset() const { return WorldAsset; }
 
 	/** Setter for WorldAsset. Use this instead of setting WorldAsset directly to update the cached package name. */
-	virtual void SetWorldAsset(const TSoftObjectPtr<UWorld>& NewWorldAsset);
+	ENGINE_API virtual void SetWorldAsset(const TSoftObjectPtr<UWorld>& NewWorldAsset);
 
 	/** Gets the package name for the world asset referred to by this level streaming */
-	FString GetWorldAssetPackageName() const;
+	ENGINE_API FString GetWorldAssetPackageName() const;
 
 	/** Gets the package name for the world asset referred to by this level streaming as an FName */
 	UFUNCTION(BlueprintCallable, Category = "Game")
-	virtual FName GetWorldAssetPackageFName() const;
+	ENGINE_API virtual FName GetWorldAssetPackageFName() const;
 
 	/** Sets the world asset based on the package name assuming it contains a world of the same name. */
-	void SetWorldAssetByPackageName(FName InPackageName);
+	ENGINE_API void SetWorldAssetByPackageName(FName InPackageName);
 
 	/** Rename package name to PIE appropriate name */
-	void RenameForPIE(int PIEInstanceID, bool bKeepWorldAssetName = false);
+	ENGINE_API void RenameForPIE(int PIEInstanceID, bool bKeepWorldAssetName = false);
 
 	/**
 	 * Return whether this level should be present in memory which in turn tells the 
@@ -509,14 +509,14 @@ public:
 	 * 
 	 * @return true if the level should be visible, false otherwise
 	 */
-	virtual bool ShouldBeVisible() const;
+	ENGINE_API virtual bool ShouldBeVisible() const;
 
 	virtual bool ShouldBlockOnUnload() const { return bShouldBlockOnUnload; }
 
 	virtual bool ShouldBeAlwaysLoaded() const { return false; }
 
 	/** Get a bounding box around the streaming volumes associated with this LevelStreaming object */
-	FBox GetStreamingVolumeBounds();
+	ENGINE_API FBox GetStreamingVolumeBounds();
 
 	/** Gets a pointer to the LoadedLevel value */
 	UFUNCTION(BlueprintCallable, Category="Game")
@@ -527,7 +527,7 @@ public:
 	
 #if WITH_EDITOR
 	/** Override Pre/PostEditUndo functions to handle editor transform */
-	virtual void PostEditUndo() override;
+	ENGINE_API virtual void PostEditUndo() override;
 #endif
 	
 	/** Matcher for searching streaming levels by PackageName */
@@ -546,14 +546,14 @@ public:
 		FName PackageName;
 	};
 
-	virtual UWorld* GetWorld() const override final;
+	ENGINE_API virtual UWorld* GetWorld() const override final;
 
 	/** Returns the UWorld that triggered the streaming of this streaming level. */
-	virtual UWorld* GetStreamingWorld() const;
+	ENGINE_API virtual UWorld* GetStreamingWorld() const;
 
 	/** Returns whether streaming level is visible */
 	UFUNCTION(BlueprintCallable, Category="Game")
-	bool IsLevelVisible() const;
+	ENGINE_API bool IsLevelVisible() const;
 
 	/** Returns whether streaming level is loaded */
 	UFUNCTION(BlueprintCallable, Category="Game")
@@ -561,39 +561,39 @@ public:
 
 	/** Returns whether level has streaming state change pending */
 	UFUNCTION(BlueprintCallable, Category="Game")
-	bool IsStreamingStatePending() const;
+	ENGINE_API bool IsStreamingStatePending() const;
 
 	/** Creates a new instance of this streaming level with a provided unique instance name */
 	UFUNCTION(BlueprintCallable, Category="Game")
-	ULevelStreaming* CreateInstance(const FString& UniqueInstanceName);
+	ENGINE_API ULevelStreaming* CreateInstance(const FString& UniqueInstanceName);
 
 	/** Returns the Level Script Actor of the level if the level is loaded and valid */
 	UFUNCTION(BlueprintPure, meta = (BlueprintInternalUseOnly = "true"))
-	ALevelScriptActor* GetLevelScriptActor();
+	ENGINE_API ALevelScriptActor* GetLevelScriptActor();
 
 	/** Returns false if the level package associated to that streaming level is invalid. */
-	bool IsValidStreamingLevel() const;
+	ENGINE_API bool IsValidStreamingLevel() const;
 
 	/** Used for debugging Level's status */
-	EStreamingStatus GetLevelStreamingStatus() const;
+	ENGINE_API EStreamingStatus GetLevelStreamingStatus() const;
 
 	/** Utility that gets a color for a particular level status */
-	static FColor GetLevelStreamingStatusColor(EStreamingStatus Status);
+	static ENGINE_API FColor GetLevelStreamingStatusColor(EStreamingStatus Status);
 
 	/** Utility that returns a string for a streaming level status */
-	static const TCHAR* GetLevelStreamingStatusDisplayName(EStreamingStatus Status);
+	static ENGINE_API const TCHAR* GetLevelStreamingStatusDisplayName(EStreamingStatus Status);
 
 	/** Utility that draws a legend of level streaming status */
-	static void DebugDrawLegend(const UWorld* World, class UCanvas* Canvas, const FVector2D& Offset);
+	static ENGINE_API void DebugDrawLegend(const UWorld* World, class UCanvas* Canvas, const FVector2D& Offset);
 
 #if WITH_EDITOR
 	/** Get the folder path for this level for use in the world browser. Only available in editor builds */
-	const FName& GetFolderPath() const;
+	ENGINE_API const FName& GetFolderPath() const;
 
 	/** Sets the folder path for this level in the world browser. Only available in editor builds */
-	void SetFolderPath(const FName& InFolderPath);
+	ENGINE_API void SetFolderPath(const FName& InFolderPath);
 
-	virtual TOptional<FFolder::FRootObject> GetFolderRootObject() const;
+	ENGINE_API virtual TOptional<FFolder::FRootObject> GetFolderRootObject() const;
 #endif	// WITH_EDITOR
 
 	//~==============================================================================================
@@ -616,16 +616,16 @@ public:
 	FLevelStreamingVisibilityStatus		OnLevelHidden;
 
 	/** Whether client should be using making invisible transaction requests to the server (default value). */
-	static bool DefaultAllowClientUseMakingInvisibleTransactionRequests();
+	static ENGINE_API bool DefaultAllowClientUseMakingInvisibleTransactionRequests();
 
 	/** Whether client should be using making visible transaction requests to the server (default value). */
-	static bool DefaultAllowClientUseMakingVisibleTransactionRequests();
+	static ENGINE_API bool DefaultAllowClientUseMakingVisibleTransactionRequests();
 
 	/** If true server will wait for client acknowledgment before making treating streaming levels as visible for the client */
-	static bool ShouldServerUseMakingVisibleTransactionRequest();
+	static ENGINE_API bool ShouldServerUseMakingVisibleTransactionRequest();
 
 	/** If true level streaming can reuse an unloaded level that wasn't GC'd yet. */
-	static bool ShouldReuseUnloadedButStillAroundLevels(const ULevel* InLevel);
+	static ENGINE_API bool ShouldReuseUnloadedButStillAroundLevels(const ULevel* InLevel);
 
 	/** 
 	 * Traverses all streaming level objects in the persistent world and in all inner worlds and calls appropriate delegate for streaming objects that refer specified level 
@@ -634,7 +634,7 @@ public:
 	 * @param LevelPackageName	Level which loaded status was changed
 	 * @param bLoaded			Whether level was loaded or unloaded
 	 */
-	static void BroadcastLevelLoadedStatus(UWorld* PersistentWorld, FName LevelPackageName, bool bLoaded);
+	static ENGINE_API void BroadcastLevelLoadedStatus(UWorld* PersistentWorld, FName LevelPackageName, bool bLoaded);
 	
 	/** 
 	 * Traverses all streaming level objects in the persistent world and in all inner worlds and calls appropriate delegate for streaming objects that refer specified level 
@@ -643,7 +643,7 @@ public:
 	 * @param LevelPackageName	Level which visibility status was changed
 	 * @param bVisible			Whether level become visible or not
 	 */
-	static void BroadcastLevelVisibleStatus(UWorld* PersistentWorld, FName LevelPackageName, bool bVisible);
+	static ENGINE_API void BroadcastLevelVisibleStatus(UWorld* PersistentWorld, FName LevelPackageName, bool bVisible);
 
 	enum EReqLevelBlock
 	{
@@ -657,8 +657,8 @@ public:
 
 #if WITH_EDITOR
 	// After a sub level is reloaded in the editor the cache state needs to be refreshed
-	void RemoveLevelFromCollectionForReload();
-	void AddLevelToCollectionAfterReload();
+	ENGINE_API void RemoveLevelFromCollectionForReload();
+	ENGINE_API void AddLevelToCollectionAfterReload();
 #endif
 
 protected:
@@ -670,22 +670,22 @@ protected:
 	 * @param	BlockPolicy				Whether loading operation should block
 	 * @return							true if the load request was issued or a package was already loaded
 	 */
-	virtual bool RequestLevel(UWorld* PersistentWorld, bool bAllowLevelLoadRequests, EReqLevelBlock BlockPolicy);
+	ENGINE_API virtual bool RequestLevel(UWorld* PersistentWorld, bool bAllowLevelLoadRequests, EReqLevelBlock BlockPolicy);
 
 	/** Sets loaded level, fixups for PIE, notifies level is loaded, apply necessary modifications on level once loaded. */
-	void PrepareLoadedLevel(ULevel* InLevel, UPackage* InLevelPackage, int32 InPIEInstanceID);
+	ENGINE_API void PrepareLoadedLevel(ULevel* InLevel, UPackage* InLevelPackage, int32 InPIEInstanceID);
 
 	/** Sets the value of LoadedLevel */
-	virtual void SetLoadedLevel(ULevel* Level);
+	ENGINE_API virtual void SetLoadedLevel(ULevel* Level);
 
 	/** Called by SetLoadedLevel */
 	virtual void OnLevelLoadedChanged(ULevel* Level) {}
 
-	void OnLoadingStarted();
-	void OnLoadingFinished();
+	ENGINE_API void OnLoadingStarted();
+	ENGINE_API void OnLoadingFinished();
 
 	/** @return Name of the level package that is currently loaded.																	*/
-	FName GetLoadedLevelPackageName() const;
+	ENGINE_API FName GetLoadedLevelPackageName() const;
 
 	/** Pointer to Level object if currently loaded/ streamed in.																*/
 	UPROPERTY(transient)
@@ -697,20 +697,20 @@ protected:
 
 private:
 	/** @return Name of the LOD level package used for loading.																		*/
-	FName GetLODPackageName() const;
+	ENGINE_API FName GetLODPackageName() const;
 
 	/** @return Name of the LOD package on disk to load to the new package named PackageName, Name_None otherwise					*/
-	FName GetLODPackageNameToLoad() const;
+	ENGINE_API FName GetLODPackageNameToLoad() const;
 
 	/** Hide and queue for unloading previously used level */
-	void DiscardPendingUnloadLevel(UWorld* PersistentWorld);
+	ENGINE_API void DiscardPendingUnloadLevel(UWorld* PersistentWorld);
 
 	/** 
 	 * Handler for level async loading completion 
 	 *
 	 * @param LevelPackage	Loaded level package
 	 */
-	void AsyncLevelLoadComplete(const FName& PackageName, UPackage* LevelPackage, EAsyncLoadingResult::Type Result);
+	ENGINE_API void AsyncLevelLoadComplete(const FName& PackageName, UPackage* LevelPackage, EAsyncLoadingResult::Type Result);
 
 #if WITH_EDITORONLY_DATA
 	/** The folder path for this level within the world browser. This is only available in editor builds. 
@@ -729,10 +729,10 @@ private:
 	FNetLevelVisibilityState NetVisibilityState;
 
 	/** Whether streaming level is concerned by net visibility transactions */
-	bool IsConcernedByNetVisibilityTransactionAck() const;
+	ENGINE_API bool IsConcernedByNetVisibilityTransactionAck() const;
 
 	/** Helper method that updates server level visibility for each player controller of streaming level world */
-	void ServerUpdateLevelVisibility(bool bIsVisible, bool bTryMakeVisible = false, FNetLevelVisibilityTransactionId TransactionId = FNetLevelVisibilityTransactionId());
+	ENGINE_API void ServerUpdateLevelVisibility(bool bIsVisible, bool bTryMakeVisible = false, FNetLevelVisibilityTransactionId TransactionId = FNetLevelVisibilityTransactionId());
 
 	friend struct FAckNetVisibilityTransaction;
 	friend struct FStreamingLevelPrivateAccessor;

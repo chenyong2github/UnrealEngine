@@ -32,7 +32,7 @@ public:
 		bool bInPreviousFrame);
 
 	/** Buffer SRVs from the cloth system. */
-	struct ENGINE_API FClothBuffers
+	struct FClothBuffers
 	{
 		int32 ClothInfluenceBufferOffset = 0;
 		FRHIShaderResourceView* ClothInfluenceBuffer = nullptr;

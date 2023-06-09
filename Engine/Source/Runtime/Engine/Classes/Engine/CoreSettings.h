@@ -13,14 +13,14 @@ struct FPropertyChangedEvent;
 /**
  * Streaming settings.
  */
-UCLASS(config=Engine, defaultconfig, meta=(DisplayName="Streaming"))
-class ENGINE_API UStreamingSettings : public UDeveloperSettings
+UCLASS(config=Engine, defaultconfig, meta=(DisplayName="Streaming"), MinimalAPI)
+class UStreamingSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
 
 public:
 
-	UStreamingSettings();
+	ENGINE_API UStreamingSettings();
 
 protected:
 
@@ -116,7 +116,7 @@ protected:
 		uint32 EventDrivenLoaderEnabled : 1;
 
 	//~ Begin UObject Interface
-	virtual void PostInitProperties() override;
+	ENGINE_API virtual void PostInitProperties() override;
 
 	//~ End UObject Interface
 };
@@ -161,14 +161,14 @@ extern ENGINE_API int32 GLevelStreamingLowMemoryPendingPurgeCount;
 /**
 * Implements the settings for garbage collection.
 */
-UCLASS(config = Engine, defaultconfig, meta = (DisplayName = "Garbage Collection"))
-class ENGINE_API UGarbageCollectionSettings : public UDeveloperSettings
+UCLASS(config = Engine, defaultconfig, meta = (DisplayName = "Garbage Collection"), MinimalAPI)
+class UGarbageCollectionSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
 
 public:
 
-	UGarbageCollectionSettings();
+	ENGINE_API UGarbageCollectionSettings();
 
 protected:
 
@@ -263,10 +263,10 @@ protected:
 	int32 MaxObjectsInEditor;
 
 	//~ Begin UObject Interface
-	virtual void PostInitProperties() override;
+	ENGINE_API virtual void PostInitProperties() override;
 
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 	//~ End UObject Interface
 };

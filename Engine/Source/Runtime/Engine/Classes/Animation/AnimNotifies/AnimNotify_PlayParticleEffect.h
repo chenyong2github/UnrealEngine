@@ -13,30 +13,30 @@ class UParticleSystem;
 class USkeletalMeshComponent;
 class UParticleSystemComponent;
 
-UCLASS(const, hidecategories=Object, collapsecategories, meta=(DisplayName="Play Particle Effect"))
-class ENGINE_API UAnimNotify_PlayParticleEffect : public UAnimNotify
+UCLASS(const, hidecategories=Object, collapsecategories, meta=(DisplayName="Play Particle Effect"), MinimalAPI)
+class UAnimNotify_PlayParticleEffect : public UAnimNotify
 {
 	GENERATED_BODY()
 
 public:
 
-	UAnimNotify_PlayParticleEffect();
+	ENGINE_API UAnimNotify_PlayParticleEffect();
 
 	// Begin UObject interface
-	virtual void PostLoad() override;
+	ENGINE_API virtual void PostLoad() override;
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 	// End UObject interface
 
 	// Begin UAnimNotify interface
-	virtual FString GetNotifyName_Implementation() const override;
+	ENGINE_API virtual FString GetNotifyName_Implementation() const override;
 
 	UE_DEPRECATED(5.0, "Please use the other Notify function instead")
-	virtual void Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation) override;
-	virtual void Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference) override;
+	ENGINE_API virtual void Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation) override;
+	ENGINE_API virtual void Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference) override;
 #if WITH_EDITOR
-	virtual void ValidateAssociatedAssets() override;
+	ENGINE_API virtual void ValidateAssociatedAssets() override;
 #endif
 	// End UAnimNotify interface
 
@@ -62,7 +62,7 @@ private:
 
 protected:
 	// Spawns the ParticleSystemComponent. Called from Notify.
-	virtual UParticleSystemComponent* SpawnParticleSystem(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation);
+	ENGINE_API virtual UParticleSystemComponent* SpawnParticleSystem(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation);
 
 public:
 

@@ -16,7 +16,7 @@ class FViewportClient;
 typedef TSharedPtr<FCanvas, ESPMode::ThreadSafe> FCanvasPtr;
 
 /** Widget wrapper that paints the debug canvas */
-class ENGINE_API SDebugCanvas : public SLeafWidget
+class SDebugCanvas : public SLeafWidget
 {
 	SLATE_BEGIN_ARGS(SDebugCanvas)
 	{
@@ -28,16 +28,16 @@ class ENGINE_API SDebugCanvas : public SLeafWidget
 	SLATE_END_ARGS()
 
 public:
-	SDebugCanvas();
+	ENGINE_API SDebugCanvas();
 
-	void Construct(const FArguments& InArgs);
+	ENGINE_API void Construct(const FArguments& InArgs);
 
 	/** SWidget interface */
-	int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
-	virtual FVector2D ComputeDesiredSize(float LayoutScaleMultiplier) const override;
+	ENGINE_API int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
+	ENGINE_API virtual FVector2D ComputeDesiredSize(float LayoutScaleMultiplier) const override;
 
 	/** Sets the scene viewport that owns the canvas to draw */
-	void SetSceneViewport(FSceneViewport* InSceneViewport);
+	ENGINE_API void SetSceneViewport(FSceneViewport* InSceneViewport);
 private:
 	/** Viewport used for canvas rendering */
 	TAttribute<FSceneViewport*> SceneViewport;

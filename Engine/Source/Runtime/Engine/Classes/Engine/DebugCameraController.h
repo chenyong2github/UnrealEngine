@@ -20,8 +20,8 @@ class ASpectatorPawn;
 * or use the "ToggleDebugCamera" console command. Check the debug camera bindings
 * in DefaultPawn.cpp for the camera controls.
 */
-UCLASS(config=Game)
-class ENGINE_API ADebugCameraController
+UCLASS(config=Game, MinimalAPI)
+class ADebugCameraController
 	: public APlayerController
 {
 	GENERATED_UCLASS_BODY()
@@ -64,112 +64,112 @@ class ENGINE_API ADebugCameraController
 	
 	/** Sets whether to show information about the selected actor on the debug camera HUD. */
 	UFUNCTION(exec)
-	virtual void ShowDebugSelectedInfo();
+	ENGINE_API virtual void ShowDebugSelectedInfo();
 
 	/** Selects the object the camera is aiming at. */
-	void SelectTargetedObject();
+	ENGINE_API void SelectTargetedObject();
 
 	/** Called when the user pressed the deselect key, just before the selected actor is cleared. */
-	void Unselect();
+	ENGINE_API void Unselect();
 
 	/** Speeds up camera movement */
-	void IncreaseCameraSpeed();
+	ENGINE_API void IncreaseCameraSpeed();
 
 	/** Slows down camera movement */
-	void DecreaseCameraSpeed();
+	ENGINE_API void DecreaseCameraSpeed();
 
 	/** Increases camera field of vision */
-	void IncreaseFOV();
+	ENGINE_API void IncreaseFOV();
 
 	/** Decreases camera field of vision */
-	void DecreaseFOV();
+	ENGINE_API void DecreaseFOV();
 
 	/** Toggles the display of debug info and input commands for the Debug Camera. */
 	UFUNCTION(BlueprintCallable, Category="Debug Camera")
-	void ToggleDisplay();
+	ENGINE_API void ToggleDisplay();
 
 	/** Sets display of debug info and input commands. */
-	void SetDisplay(bool bEnabled);
+	ENGINE_API void SetDisplay(bool bEnabled);
 
 	/** Returns whether debug info display is enabled */
-	bool IsDisplayEnabled();
+	ENGINE_API bool IsDisplayEnabled();
 
 	/**
 	 * function called from key bindings command to save information about
 	 * turning on/off FreezeRendering command.
 	 */
-	virtual void ToggleFreezeRendering();
+	ENGINE_API virtual void ToggleFreezeRendering();
 
 	/** Method called prior to processing input */
-	virtual void PreProcessInput(const float DeltaTime, const bool bGamePaused);
+	ENGINE_API virtual void PreProcessInput(const float DeltaTime, const bool bGamePaused);
 
 	/**
 	 * Updates the rotation of player, based on ControlRotation after RotationInput has been applied.
 	 * This may then be modified by the PlayerCamera, and is passed to Pawn->FaceRotation().
 	 */
-	virtual void UpdateRotation(float DeltaTime) override;
+	ENGINE_API virtual void UpdateRotation(float DeltaTime) override;
 
 	/** Pre process input when orbiting */
-	void PreProcessInputForOrbit(const float DeltaTime, const bool bGamePaused);
+	ENGINE_API void PreProcessInputForOrbit(const float DeltaTime, const bool bGamePaused);
 
 	/** Updates the rotation and location of player when orbiting */
-	void UpdateRotationForOrbit(float DeltaTime);
+	ENGINE_API void UpdateRotationForOrbit(float DeltaTime);
 
 	/** Gets pivot to use when orbiting */
-	bool GetPivotForOrbit(FVector& PivotLocation) const;
+	ENGINE_API bool GetPivotForOrbit(FVector& PivotLocation) const;
 
 	/** Toggles camera orbit */
-	void ToggleOrbit(bool bOrbitCenter);
+	ENGINE_API void ToggleOrbit(bool bOrbitCenter);
 
 	/** Toggles camera orbit center */
-	void ToggleOrbitCenter();
+	ENGINE_API void ToggleOrbitCenter();
 
 	/** Toggles camera orbit hitpoint */
-	void ToggleOrbitHitPoint();
+	ENGINE_API void ToggleOrbitHitPoint();
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
 	/** Whether buffer visualization option should be enabled */
-	static bool EnableDebugBuffers();
+	static ENGINE_API bool EnableDebugBuffers();
 
 	/** Whether cycle viewmode option should be enabled */
-	static bool EnableDebugViewmodes();
+	static ENGINE_API bool EnableDebugViewmodes();
 
 	/** Cycle view mode */
-	void CycleViewMode();
+	ENGINE_API void CycleViewMode();
 
 	/** Toggle buffer visualization overview */
-	void ToggleBufferVisualizationOverviewMode();
+	ENGINE_API void ToggleBufferVisualizationOverviewMode();
 
 	/** Buffer overview move up */
-	void BufferVisualizationMoveUp();
+	ENGINE_API void BufferVisualizationMoveUp();
 
 	/** Buffer overview move down */
-	void BufferVisualizationMoveDown();
+	ENGINE_API void BufferVisualizationMoveDown();
 
 	/** Buffer overview move right */
-	void BufferVisualizationMoveRight();
+	ENGINE_API void BufferVisualizationMoveRight();
 
 	/** Buffer overview move left */
-	void BufferVisualizationMoveLeft();
+	ENGINE_API void BufferVisualizationMoveLeft();
 
 	/** Ignores axis motion */
-	void ConsumeAxisMotion(float Val);
+	ENGINE_API void ConsumeAxisMotion(float Val);
 
 	/** Toggle buffer visualization full display */
-	void ToggleBufferVisualizationFullMode();
+	ENGINE_API void ToggleBufferVisualizationFullMode();
 
 	/** Set buffer visualization full mode */
-	void SetBufferVisualizationFullMode(bool bFullMode);
+	ENGINE_API void SetBufferVisualizationFullMode(bool bFullMode);
 
 	/** Update visualize buffer post processing settings */
-	void UpdateVisualizeBufferPostProcessing(FFinalPostProcessSettings& InOutPostProcessingSettings);
+	ENGINE_API void UpdateVisualizeBufferPostProcessing(FFinalPostProcessSettings& InOutPostProcessingSettings);
 
 	/** Get visualization buffer's material name used by post processing settings */
-	FString GetBufferMaterialName(const FString& InBuffer);
+	ENGINE_API FString GetBufferMaterialName(const FString& InBuffer);
 
 	/** Get current visualization buffer's material name */
-	FString GetSelectedBufferMaterialName();
+	ENGINE_API FString GetSelectedBufferMaterialName();
 
 
 #endif
@@ -182,7 +182,7 @@ public:
 
 	/** Returns the currently selected actor, or null if it is invalid or not set */
 	UFUNCTION(BlueprintCallable, Category="Debug Camera")
-	AActor* GetSelectedActor() const;
+	ENGINE_API AActor* GetSelectedActor() const;
 	
 	/** Currently selected component, may be invalid */
 	UPROPERTY()
@@ -206,7 +206,7 @@ public:
 	
 	/** Sets the pawn movement speed scale. */
 	UFUNCTION(BlueprintCallable, Category="Debug Camera")
-	void SetPawnMovementSpeedScale(float NewSpeedScale);
+	ENGINE_API void SetPawnMovementSpeedScale(float NewSpeedScale);
 	
 	/** Initial max speed of the spectator pawn when we start possession. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Debug Camera")
@@ -223,11 +223,11 @@ public:
 protected:
 
 	// Adjusts movement speed limits based on SpeedScale.
-	virtual void ApplySpeedScale();
-	virtual void SetupInputComponent() override;
+	ENGINE_API virtual void ApplySpeedScale();
+	ENGINE_API virtual void SetupInputComponent() override;
 
 	/** Sets up or clears input for buffer visualization overview */
-	void SetupBufferVisualizationOverviewInput();
+	ENGINE_API void SetupBufferVisualizationOverviewInput();
 
 public:
 
@@ -236,20 +236,20 @@ public:
 	* @param OriginalPC The active player controller before this debug camera controller was possessed by the player.
 	*/
 	UFUNCTION(BlueprintImplementableEvent, meta=(DisplayName = "OnActivate"))
-	void ReceiveOnActivate(class APlayerController* OriginalPC);
+	ENGINE_API void ReceiveOnActivate(class APlayerController* OriginalPC);
 
 	/** Function called on activation debug camera controller */
-	virtual void OnActivate(class APlayerController* OriginalPC);
+	ENGINE_API virtual void OnActivate(class APlayerController* OriginalPC);
 	
 	/** 
 	* Function called on deactivation of debug camera controller.
 	* @param RestoredPC The Player Controller that the player input is being returned to.
 	*/
 	UFUNCTION(BlueprintImplementableEvent, meta=(DisplayName = "OnDeactivate"))
-	void ReceiveOnDeactivate(class APlayerController* RestoredPC);
+	ENGINE_API void ReceiveOnDeactivate(class APlayerController* RestoredPC);
 
 	/** Function called on deactivation debug camera controller */
-	virtual void OnDeactivate(class APlayerController* RestoredPC);
+	ENGINE_API virtual void OnDeactivate(class APlayerController* RestoredPC);
 
 	/**
 	 * Builds a list of components that are hidden based upon gameplay
@@ -257,18 +257,18 @@ public:
 	 * @param ViewLocation the view point to hide/unhide from
 	 * @param HiddenComponents the list to add to/remove from
 	 */
-	virtual void UpdateHiddenComponents(const FVector& ViewLocation,TSet<FPrimitiveComponentId>& HiddenComponents) override;
+	ENGINE_API virtual void UpdateHiddenComponents(const FVector& ViewLocation,TSet<FPrimitiveComponentId>& HiddenComponents) override;
 
 public:
 
 	// APlayerController Interface
 
-	virtual void PostInitializeComponents() override;
-	virtual FString ConsoleCommand(const FString& Command, bool bWriteToLog = true) override;
-	virtual void AddCheats(bool bForce) override;
-	virtual void EndSpectatingState() override;
+	ENGINE_API virtual void PostInitializeComponents() override;
+	ENGINE_API virtual FString ConsoleCommand(const FString& Command, bool bWriteToLog = true) override;
+	ENGINE_API virtual void AddCheats(bool bForce) override;
+	ENGINE_API virtual void EndSpectatingState() override;
 	/** Custom spawn to spawn a default SpectatorPawn, to use as a spectator and initialize it. By default it is spawned at the PC's current location and rotation. */
-	virtual ASpectatorPawn* SpawnSpectatorPawn() override;
+	ENGINE_API virtual ASpectatorPawn* SpawnSpectatorPawn() override;
 
 protected:
 
@@ -281,26 +281,26 @@ protected:
 	 * @param SelectHitNormal The world-space surface normal of the New Selected Actor at the hit location.
 	 */
 	UFUNCTION(BlueprintImplementableEvent, Category="Debug Camera", meta=(DisplayName="OnActorSelected"))
-	void ReceiveOnActorSelected(AActor* NewSelectedActor, const FVector& SelectHitLocation, const FVector& SelectHitNormal, const FHitResult& Hit);
+	ENGINE_API void ReceiveOnActorSelected(AActor* NewSelectedActor, const FVector& SelectHitLocation, const FVector& SelectHitNormal, const FHitResult& Hit);
 	
 	/**
 	 * Called when an actor has been selected with the primary key (e.g. left mouse button).
 	 * @param Hit	Info struct for the selection point.
 	 */
-	virtual void Select( FHitResult const& Hit );
+	ENGINE_API virtual void Select( FHitResult const& Hit );
 
-	virtual void SetSpectatorPawn(class ASpectatorPawn* NewSpectatorPawn) override;
+	ENGINE_API virtual void SetSpectatorPawn(class ASpectatorPawn* NewSpectatorPawn) override;
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
 	/** Get buffer visualization overview targets based on console var */
-	TArray<FString> GetBufferVisualizationOverviewTargets();
+	ENGINE_API TArray<FString> GetBufferVisualizationOverviewTargets();
 
 	/** Get next buffer */
-	void GetNextBuffer(const TArray<FString>& OverviewBuffers, int32 Step = 1);
+	ENGINE_API void GetNextBuffer(const TArray<FString>& OverviewBuffers, int32 Step = 1);
 
 	/** Get next buffer */
-	void GetNextBuffer(int32 Step = 1);
+	ENGINE_API void GetNextBuffer(int32 Step = 1);
 
 #endif
 

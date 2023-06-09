@@ -5,11 +5,11 @@
 #include "Elements/Interfaces/TypedElementHierarchyInterface.h"
 #include "SMInstanceElementHierarchyInterface.generated.h"
 
-UCLASS()
-class ENGINE_API USMInstanceElementHierarchyInterface : public UObject, public ITypedElementHierarchyInterface
+UCLASS(MinimalAPI)
+class USMInstanceElementHierarchyInterface : public UObject, public ITypedElementHierarchyInterface
 {
 	GENERATED_BODY()
 
 public:
-	virtual FTypedElementHandle GetParentElement(const FTypedElementHandle& InElementHandle, const bool bAllowCreate = true) override;
+	ENGINE_API virtual FTypedElementHandle GetParentElement(const FTypedElementHandle& InElementHandle, const bool bAllowCreate = true) override;
 };

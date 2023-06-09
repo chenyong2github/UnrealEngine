@@ -13,16 +13,16 @@
 // that performs Nanite base pass material shading with compute shaders 
 // instead of vertex and pixel shaders. This will (likely) eventually replace
 // the Nanite::FVertexFactory at some point.
-class ENGINE_API FNaniteVertexFactory final : public FVertexFactory
+class FNaniteVertexFactory final : public FVertexFactory
 {
-	DECLARE_VERTEX_FACTORY_TYPE(FNaniteVertexFactory);
+	DECLARE_VERTEX_FACTORY_TYPE_API(FNaniteVertexFactory, ENGINE_API);
 
 public:
 	FNaniteVertexFactory(ERHIFeatureLevel::Type FeatureLevel);
-	~FNaniteVertexFactory();
+	ENGINE_API ~FNaniteVertexFactory();
 
-	virtual void InitRHI() override final;
+	ENGINE_API virtual void InitRHI() override final;
 
-	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
-	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
+	static ENGINE_API bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
+	static ENGINE_API void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 };

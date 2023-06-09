@@ -813,7 +813,7 @@ private:
 
 public:
 
-	ENGINE_API FName GetClientWorldPackageName() const { return ClientWorldPackageName; }
+	FName GetClientWorldPackageName() const { return ClientWorldPackageName; }
 
 	ENGINE_API void SetClientWorldPackageName(FName NewClientWorldPackageName);
 
@@ -827,7 +827,7 @@ public:
 	/** Called by PlayerController to tell connection about client level visibility change */
 	ENGINE_API void UpdateLevelVisibility(const struct FUpdateLevelVisibilityLevelInfo& LevelVisibility);
 
-	ENGINE_API const TSet<FName>& GetClientMakingVisibleLevelNames() const { return ClientMakingVisibleLevelNames; }
+	const TSet<FName>& GetClientMakingVisibleLevelNames() const { return ClientMakingVisibleLevelNames; }
 	
 #if DO_ENABLE_NET_TEST
 
@@ -1130,7 +1130,7 @@ public:
 	* Gets a unique ID for the connection, this ID depends on the underlying connection
 	* For IP connections this is an IP Address and port, for steam this is a SteamID
 	*/
-	ENGINE_API virtual FString RemoteAddressToString()
+	virtual FString RemoteAddressToString()
 	{
 		if (RemoteAddr.IsValid())
 		{
@@ -1293,7 +1293,7 @@ public:
 	ENGINE_API void SetPlayerOnlinePlatformName(const FName InPlayerOnlinePlatformName);
 
 	/** Returns the online platform name for the player on this connection. Only valid for client connections on servers. */
-	ENGINE_API FName GetPlayerOnlinePlatformName() const { return PlayerOnlinePlatformName; }
+	FName GetPlayerOnlinePlatformName() const { return PlayerOnlinePlatformName; }
 	
 	/** Sets whether we handle opening channels with an index that already exists, used by replays to fast forward the packet stream */
 	void SetAllowExistingChannelIndex(bool bAllow);
@@ -1423,7 +1423,7 @@ public:
 	}
 
 	/** Called when an actor channel is open and knows its NetGUID. */
-	ENGINE_API virtual void NotifyActorNetGUID(UActorChannel* Channel) {}
+	virtual void NotifyActorNetGUID(UActorChannel* Channel) {}
 
 	/**
 	 * Returns the current delinquency analytics and resets them.
@@ -1475,7 +1475,7 @@ public:
 	/**
 	 * Get the current number of sent packets for which we have received a delivery notification
 	 */
-	ENGINE_API uint32 GetOutTotalNotifiedPackets() const { return OutTotalNotifiedPackets; }
+	uint32 GetOutTotalNotifiedPackets() const { return OutTotalNotifiedPackets; }
 
 	/** Sends the NMT_Challenge message */
 	ENGINE_API void SendChallengeControlMessage();
@@ -1911,15 +1911,15 @@ struct FScopedNetConnectionSettings
 };
 
 /** A fake connection that will absorb traffic and auto ack every packet. Useful for testing scaling. Use net.SimulateConnections command to add at runtime. */
-UCLASS(transient, config=Engine)
-class ENGINE_API USimulatedClientNetConnection
+UCLASS(transient, config=Engine, MinimalAPI)
+class USimulatedClientNetConnection
 	: public UNetConnection
 {
 	GENERATED_UCLASS_BODY()
 public:
 
 	virtual void LowLevelSend(void* Data, int32 CountBits, FOutPacketTraits& Traits) override { }
-	void HandleClientPlayer( APlayerController* PC, UNetConnection* NetConnection ) override;
+	ENGINE_API void HandleClientPlayer( APlayerController* PC, UNetConnection* NetConnection ) override;
 	virtual FString LowLevelGetRemoteAddress(bool bAppendPort=false) override { return FString(); }
 	virtual bool ClientHasInitializedLevelFor(const AActor* TestActor) const { return true; }
 

@@ -38,7 +38,7 @@ public:
 #endif
 
 	/** Helper function to determine if the provider is valid. */
-	static ENGINE_API bool IsAvailable() { return Analytics.IsValid(); }
+	static bool IsAvailable() { return Analytics.IsValid(); }
 
 	/** Called to initialize the singleton. */
 	static ENGINE_API void Initialize();

@@ -7,16 +7,16 @@
 #include "Engine/DeveloperSettings.h"
 #include "MeshSimplificationSettings.generated.h"
 
-UCLASS(config=Engine, defaultconfig, meta=(DisplayName="Mesh Simplification"))
-class ENGINE_API UMeshSimplificationSettings : public UDeveloperSettings
+UCLASS(config=Engine, defaultconfig, meta=(DisplayName="Mesh Simplification"), MinimalAPI)
+class UMeshSimplificationSettings : public UDeveloperSettings
 {
 	GENERATED_UCLASS_BODY()
 
 public:
-	virtual FName GetContainerName() const override;
-	virtual FName GetCategoryName() const override;
+	ENGINE_API virtual FName GetContainerName() const override;
+	ENGINE_API virtual FName GetCategoryName() const override;
 
-	void SetMeshReductionModuleName(FName InMeshReductionModuleName);
+	ENGINE_API void SetMeshReductionModuleName(FName InMeshReductionModuleName);
 
 public:
 	/** Mesh reduction plugin to use when simplifying mesh geometry */
@@ -26,9 +26,9 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=General, meta=(DisplayName="Mesh Reduction Backward Compatible", ConfigRestartRequired = true))
 	bool bMeshReductionBackwardCompatible;
 
-	virtual void PostInitProperties() override;
+	ENGINE_API virtual void PostInitProperties() override;
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
 };

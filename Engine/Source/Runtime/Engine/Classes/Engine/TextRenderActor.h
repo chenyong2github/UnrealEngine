@@ -33,10 +33,10 @@ private:
 
 public:
 	/** Returns TextRender subobject **/
-	ENGINE_API class UTextRenderComponent* GetTextRender() const { return TextRender; }
+	class UTextRenderComponent* GetTextRender() const { return TextRender; }
 #if WITH_EDITORONLY_DATA
 	/** Returns SpriteComponent subobject **/
-	ENGINE_API UBillboardComponent* GetSpriteComponent() const { return SpriteComponent; }
+	UBillboardComponent* GetSpriteComponent() const { return SpriteComponent; }
 #endif
 };
 

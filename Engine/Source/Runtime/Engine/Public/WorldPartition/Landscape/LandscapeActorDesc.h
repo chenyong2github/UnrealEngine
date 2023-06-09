@@ -10,18 +10,18 @@
 /**
  * ActorDesc for LandscapeActors.
  */
-class ENGINE_API FLandscapeActorDesc : public FPartitionActorDesc
+class FLandscapeActorDesc : public FPartitionActorDesc
 {
 public:
-	virtual void Init(const AActor* InActor) override;
-	virtual bool Equals(const FWorldPartitionActorDesc* Other) const override;
-	virtual void Unload() override;
-	virtual const FGuid& GetSceneOutlinerParent() const override;
+	ENGINE_API virtual void Init(const AActor* InActor) override;
+	ENGINE_API virtual bool Equals(const FWorldPartitionActorDesc* Other) const override;
+	ENGINE_API virtual void Unload() override;
+	ENGINE_API virtual const FGuid& GetSceneOutlinerParent() const override;
 
 protected:
 	virtual uint32 GetSizeOf() const override { return sizeof(FLandscapeActorDesc); }
-	virtual void Serialize(FArchive& Ar) override;
-	virtual FBox GetEditorBounds() const override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual FBox GetEditorBounds() const override;
 
 private:
 	FGuid LandscapeActorGuid;

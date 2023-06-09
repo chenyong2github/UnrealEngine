@@ -11,74 +11,74 @@
 
 DECLARE_DYNAMIC_DELEGATE_RetVal_OneParam(FActorInstanceHandle, FOnActorReady, FActorInstanceHandle, InHandle);
 
-UCLASS(BlueprintType, Blueprintable, Experimental)
-class ENGINE_API ALightWeightInstanceStaticMeshManager : public ALightWeightInstanceManager, public ISMInstanceManager
+UCLASS(BlueprintType, Blueprintable, Experimental, MinimalAPI)
+class ALightWeightInstanceStaticMeshManager : public ALightWeightInstanceManager, public ISMInstanceManager
 {
 	GENERATED_UCLASS_BODY()
 
-	virtual void SetRepresentedClass(UClass* ActorClass) override;
+	ENGINE_API virtual void SetRepresentedClass(UClass* ActorClass) override;
 
 	// Sets the static mesh to use based on the info contained in InActor
-	virtual void SetStaticMeshFromActor(AActor* InActor);
+	ENGINE_API virtual void SetStaticMeshFromActor(AActor* InActor);
 
 	// Clears the static mesh used for rendering instances
-	void ClearStaticMesh();
+	ENGINE_API void ClearStaticMesh();
 
-	virtual int32 ConvertCollisionIndexToLightWeightIndex(int32 InIndex) const override;
+	ENGINE_API virtual int32 ConvertCollisionIndexToLightWeightIndex(int32 InIndex) const override;
 
-	virtual int32 ConvertLightWeightIndexToCollisionIndex(int32 InIndex) const override;
+	ENGINE_API virtual int32 ConvertLightWeightIndexToCollisionIndex(int32 InIndex) const override;
 
 protected:
-	virtual void AddNewInstanceAt(FLWIData* InitData, int32 Index) override;
-	virtual void RemoveInstance(int32 Index) override;
+	ENGINE_API virtual void AddNewInstanceAt(FLWIData* InitData, int32 Index) override;
+	ENGINE_API virtual void RemoveInstance(int32 Index) override;
 
-	void AddInstanceToRendering(int32 DataIndex);
-	void RemoveInstanceFromRendering(int32 DataIndex);
+	ENGINE_API void AddInstanceToRendering(int32 DataIndex);
+	ENGINE_API void RemoveInstanceFromRendering(int32 DataIndex);
 
-	void PostRemoveInstanceFromRendering();
+	ENGINE_API void PostRemoveInstanceFromRendering();
 
 	// sets the parameters on the instanced static mesh component
-	virtual void SetInstancedStaticMeshParams();
+	ENGINE_API virtual void SetInstancedStaticMeshParams();
 
 	// Called when we set the static mesh
-	void OnStaticMeshSet();
+	ENGINE_API void OnStaticMeshSet();
 
-	virtual void OnRep_Transforms() override;
+	ENGINE_API virtual void OnRep_Transforms() override;
 
-	virtual void PostActorSpawn(const FActorInstanceHandle& Handle) override;
+	ENGINE_API virtual void PostActorSpawn(const FActorInstanceHandle& Handle) override;
 
 public:
 
-	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	ENGINE_API virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 protected:
 
 	//~ ISMInstanceManager interface
-	virtual FText GetSMInstanceDisplayName(const FSMInstanceId& InstanceId) const override;
-	virtual FText GetSMInstanceTooltip(const FSMInstanceId& InstanceId) const override;
-	virtual bool CanEditSMInstance(const FSMInstanceId& InstanceId) const override;
-	virtual bool CanMoveSMInstance(const FSMInstanceId& InstanceId, const ETypedElementWorldType InWorldType) const override;
-	virtual bool GetSMInstanceTransform(const FSMInstanceId& InstanceId, FTransform& OutInstanceTransform, bool bWorldSpace = false) const override;
-	virtual bool SetSMInstanceTransform(const FSMInstanceId& InstanceId, const FTransform& InstanceTransform, bool bWorldSpace = false, bool bMarkRenderStateDirty = false, bool bTeleport = false) override;
-	virtual void NotifySMInstanceMovementStarted(const FSMInstanceId& InstanceId) override;
-	virtual void NotifySMInstanceMovementOngoing(const FSMInstanceId& InstanceId) override;
-	virtual void NotifySMInstanceMovementEnded(const FSMInstanceId& InstanceId) override;
-	virtual void NotifySMInstanceSelectionChanged(const FSMInstanceId& InstanceId, const bool bIsSelected) override;
-	virtual bool DeleteSMInstances(TArrayView<const FSMInstanceId> InstanceIds) override;
-	virtual bool DuplicateSMInstances(TArrayView<const FSMInstanceId> InstanceIds, TArray<FSMInstanceId>& OutNewInstanceIds) override;
+	ENGINE_API virtual FText GetSMInstanceDisplayName(const FSMInstanceId& InstanceId) const override;
+	ENGINE_API virtual FText GetSMInstanceTooltip(const FSMInstanceId& InstanceId) const override;
+	ENGINE_API virtual bool CanEditSMInstance(const FSMInstanceId& InstanceId) const override;
+	ENGINE_API virtual bool CanMoveSMInstance(const FSMInstanceId& InstanceId, const ETypedElementWorldType InWorldType) const override;
+	ENGINE_API virtual bool GetSMInstanceTransform(const FSMInstanceId& InstanceId, FTransform& OutInstanceTransform, bool bWorldSpace = false) const override;
+	ENGINE_API virtual bool SetSMInstanceTransform(const FSMInstanceId& InstanceId, const FTransform& InstanceTransform, bool bWorldSpace = false, bool bMarkRenderStateDirty = false, bool bTeleport = false) override;
+	ENGINE_API virtual void NotifySMInstanceMovementStarted(const FSMInstanceId& InstanceId) override;
+	ENGINE_API virtual void NotifySMInstanceMovementOngoing(const FSMInstanceId& InstanceId) override;
+	ENGINE_API virtual void NotifySMInstanceMovementEnded(const FSMInstanceId& InstanceId) override;
+	ENGINE_API virtual void NotifySMInstanceSelectionChanged(const FSMInstanceId& InstanceId, const bool bIsSelected) override;
+	ENGINE_API virtual bool DeleteSMInstances(TArrayView<const FSMInstanceId> InstanceIds) override;
+	ENGINE_API virtual bool DuplicateSMInstances(TArrayView<const FSMInstanceId> InstanceIds, TArray<FSMInstanceId>& OutNewInstanceIds) override;
 
-	virtual void DuplicateLWIInstances(TArrayView<const int32> DataIndices, TArray<int32>& OutNewDataIndices);
-	void GetLWIDataIndices(TArrayView<const FSMInstanceId> InstanceIds, TArray<int32>& OutDataIndices) const;
+	ENGINE_API virtual void DuplicateLWIInstances(TArrayView<const int32> DataIndices, TArray<int32>& OutNewDataIndices);
+	ENGINE_API void GetLWIDataIndices(TArrayView<const FSMInstanceId> InstanceIds, TArray<int32>& OutDataIndices) const;
 
-	virtual int32 ConvertInternalIndexToHandleIndex(int32 InternalIndex) const override;
-	virtual int32 ConvertHandleIndexToInternalIndex(int32 HandleIndex) const override;
+	ENGINE_API virtual int32 ConvertInternalIndexToHandleIndex(int32 InternalIndex) const override;
+	ENGINE_API virtual int32 ConvertHandleIndexToInternalIndex(int32 HandleIndex) const override;
 
 protected:
 
 	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = Debug, ReplicatedUsing = OnRep_StaticMesh)
 	TSoftObjectPtr<UStaticMesh> StaticMesh;
 	UFUNCTION()
-	void OnRep_StaticMesh();
+	ENGINE_API void OnRep_StaticMesh();
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Debug, AdvancedDisplay, meta = (BlueprintProtected = "true", AllowPrivateAccess = "true"))
 	TObjectPtr<class UHierarchicalInstancedStaticMeshComponent> InstancedStaticMeshComponent;

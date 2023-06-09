@@ -25,7 +25,7 @@ namespace ENavLinkDirection
 }
 
 USTRUCT(BlueprintType)
-struct ENGINE_API FNavigationLinkBase
+struct FNavigationLinkBase
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -150,29 +150,29 @@ struct ENGINE_API FNavigationLinkBase
 	UPROPERTY()
 	uint8 bCustomFlag7 : 1;
 
-	FNavigationLinkBase();
+	ENGINE_API FNavigationLinkBase();
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FNavigationLinkBase(const FNavigationLinkBase&) = default;
 	FNavigationLinkBase(FNavigationLinkBase&& Other) = default;
 	FNavigationLinkBase& operator=(const FNavigationLinkBase& Other) = default;
 	FNavigationLinkBase& operator=(FNavigationLinkBase&& Other) = default;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	ENGINE_API PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	void InitializeAreaClass(const bool bForceRefresh = false);
-	void SetAreaClass(UClass* InAreaClass);
-	UClass* GetAreaClass() const;
-	bool HasMetaArea() const;
+	ENGINE_API void SetAreaClass(UClass* InAreaClass);
+	ENGINE_API UClass* GetAreaClass() const;
+	ENGINE_API bool HasMetaArea() const;
 
 #if WITH_EDITORONLY_DATA
-	void PostSerialize(const FArchive& Ar);
+	ENGINE_API void PostSerialize(const FArchive& Ar);
 #endif
 
 #if WITH_EDITOR
 	/** set up bCustomFlagX properties and expose them for edit
 	  * @param NavLinkPropertiesOwnerClass - optional object holding FNavigationLinkBase structs, defaults to UNavLinkDefinition
 	  */
-	static void DescribeCustomFlags(const TArray<FString>& EditableFlagNames, UClass* NavLinkPropertiesOwnerClass = nullptr);
+	static ENGINE_API void DescribeCustomFlags(const TArray<FString>& EditableFlagNames, UClass* NavLinkPropertiesOwnerClass = nullptr);
 #endif // WITH_EDITOR
 
 private:
@@ -195,7 +195,7 @@ struct TStructOpsTypeTraits< FNavigationLinkBase > : public TStructOpsTypeTraits
 };
 
 USTRUCT(BlueprintType)
-struct ENGINE_API FNavigationLink : public FNavigationLinkBase
+struct FNavigationLink : public FNavigationLinkBase
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -248,7 +248,7 @@ struct TStructOpsTypeTraits< FNavigationLink > : public TStructOpsTypeTraits< FN
 };
 
 USTRUCT()
-struct ENGINE_API FNavigationSegmentLink : public FNavigationLinkBase
+struct FNavigationSegmentLink : public FNavigationLinkBase
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -301,8 +301,8 @@ struct TStructOpsTypeTraits< FNavigationSegmentLink > : public TStructOpsTypeTra
 };
 
 /** Class containing definition of a navigation area */
-UCLASS(abstract, Config=Engine, Blueprintable)
-class ENGINE_API UNavLinkDefinition : public UObject
+UCLASS(abstract, Config=Engine, Blueprintable, MinimalAPI)
+class UNavLinkDefinition : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -312,16 +312,16 @@ class ENGINE_API UNavLinkDefinition : public UObject
 	UPROPERTY(EditAnywhere, Category=OffMeshLinks)
 	TArray<FNavigationSegmentLink> SegmentLinks;
 
-	static const TArray<FNavigationLink>& GetLinksDefinition(class UClass* LinkDefinitionClass);
-	static const TArray<FNavigationSegmentLink>& GetSegmentLinksDefinition(class UClass* LinkDefinitionClass);
+	static ENGINE_API const TArray<FNavigationLink>& GetLinksDefinition(class UClass* LinkDefinitionClass);
+	static ENGINE_API const TArray<FNavigationSegmentLink>& GetSegmentLinksDefinition(class UClass* LinkDefinitionClass);
 
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
-	void InitializeAreaClass() const;
-	bool HasMetaAreaClass() const;
-	bool HasAdjustableLinks() const;
+	ENGINE_API void InitializeAreaClass() const;
+	ENGINE_API bool HasMetaAreaClass() const;
+	ENGINE_API bool HasAdjustableLinks() const;
 
 private:
 	uint32 bHasInitializedAreaClasses : 1;

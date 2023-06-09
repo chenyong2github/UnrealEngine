@@ -11,8 +11,8 @@
 struct FCollisionNotifyInfo;
 struct FRigidBodyCollisionInfo;
 
-UCLASS(hidecategories=(Object), Blueprintable)
-class ENGINE_API UPhysicsCollisionHandler : public UObject
+UCLASS(hidecategories=(Object), Blueprintable, MinimalAPI)
+class UPhysicsCollisionHandler : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -41,10 +41,10 @@ class ENGINE_API UPhysicsCollisionHandler : public UObject
 	}
 
 	/** Gives game-specific ability to handle and filter all physics collisions in one place. This is a good place to play sounds and spawn effects, as it does not require special object-specific code. */
-	virtual void HandlePhysicsCollisions_AssumesLocked(TArray<FCollisionNotifyInfo>& PendingCollisionNotifies);
+	ENGINE_API virtual void HandlePhysicsCollisions_AssumesLocked(TArray<FCollisionNotifyInfo>& PendingCollisionNotifies);
 
 	/** Handle a single */
-	void DefaultHandleCollision_AssumesLocked(const FRigidBodyCollisionInfo& MyInfo, const FRigidBodyCollisionInfo& OtherInfo, const FCollisionImpactData& RigidCollisionData);
+	ENGINE_API void DefaultHandleCollision_AssumesLocked(const FRigidBodyCollisionInfo& MyInfo, const FRigidBodyCollisionInfo& OtherInfo, const FCollisionImpactData& RigidCollisionData);
 
 	/** Called after collision handler is allocated for a world. GetWorld should be valid inside this function. */
 	virtual void InitCollisionHandler() {}

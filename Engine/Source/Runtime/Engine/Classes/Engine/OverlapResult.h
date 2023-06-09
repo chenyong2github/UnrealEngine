@@ -8,7 +8,7 @@
 
 /** Structure containing information about one hit of an overlap test */
 USTRUCT()
-struct ENGINE_API FOverlapResult
+struct FOverlapResult
 {
 	GENERATED_BODY()
 
@@ -25,10 +25,10 @@ struct ENGINE_API FOverlapResult
 	int32 ItemIndex;
 
 	/** Utility to return the Actor that owns the Component that was hit */
-	AActor* GetActor() const;
+	ENGINE_API AActor* GetActor() const;
 
 	/** Utility to return the Component that was hit */
-	UPrimitiveComponent* GetComponent() const;
+	ENGINE_API UPrimitiveComponent* GetComponent() const;
 
 	/** Indicates if this hit was requesting a block - if false, was requesting a touch instead */
 	UPROPERTY()

@@ -9,7 +9,7 @@ namespace UE
 {
 	namespace Anim
 	{	
-		struct ENGINE_API FAttributeBlendData
+		struct FAttributeBlendData
 		{
 			friend struct Attributes;
 
@@ -67,48 +67,48 @@ namespace UE
 			}
 		private:
 			// Blend constructor
-			FAttributeBlendData(const TArrayView<const FStackAttributeContainer> SourceAttributes, const TArrayView<const float> SourceWeights, const UScriptStruct* AttributeScriptStruct);
+			ENGINE_API FAttributeBlendData(const TArrayView<const FStackAttributeContainer> SourceAttributes, const TArrayView<const float> SourceWeights, const UScriptStruct* AttributeScriptStruct);
 						
 			// Blend-by-ptr constructor
-			FAttributeBlendData(const TArrayView<const FStackAttributeContainer* const> SourceAttributes, const TArrayView<const float> SourceWeights, const UScriptStruct* AttributeScriptStruct);
+			ENGINE_API FAttributeBlendData(const TArrayView<const FStackAttributeContainer* const> SourceAttributes, const TArrayView<const float> SourceWeights, const UScriptStruct* AttributeScriptStruct);
 
 			// Blend remapped weights constructor
-			FAttributeBlendData(const TArrayView<const FStackAttributeContainer> SourceAttributes, const TArrayView<const float> SourceWeights, const TArrayView<const int32> SourceWeightsIndices, const UScriptStruct* AttributeScriptStruct);
+			ENGINE_API FAttributeBlendData(const TArrayView<const FStackAttributeContainer> SourceAttributes, const TArrayView<const float> SourceWeights, const TArrayView<const int32> SourceWeightsIndices, const UScriptStruct* AttributeScriptStruct);
 
 			// Accumulate using a single weight
-			FAttributeBlendData(const TArrayView<const FStackAttributeContainer* const> SourceAttributes, const float InUniformWeight, const UScriptStruct* AttributeScriptStruct);
+			ENGINE_API FAttributeBlendData(const TArrayView<const FStackAttributeContainer* const> SourceAttributes, const float InUniformWeight, const UScriptStruct* AttributeScriptStruct);
 
 			// Additive accumulate using a single weight
-			FAttributeBlendData(const TArrayView<const FStackAttributeContainer* const> SourceAttributes, const float InUniformWeight, EAdditiveAnimationType InAdditiveType, const UScriptStruct* AttributeScriptStruct);
+			ENGINE_API FAttributeBlendData(const TArrayView<const FStackAttributeContainer* const> SourceAttributes, const float InUniformWeight, EAdditiveAnimationType InAdditiveType, const UScriptStruct* AttributeScriptStruct);
 
 			// Blend using per-bone blend weights
-			FAttributeBlendData(const TArrayView<const FStackAttributeContainer> SourceAttributes, const TArrayView<const FPerBoneBlendWeight> InPerBoneBlendWeights, const UScriptStruct* AttributeScriptStruct);
+			ENGINE_API FAttributeBlendData(const TArrayView<const FStackAttributeContainer> SourceAttributes, const TArrayView<const FPerBoneBlendWeight> InPerBoneBlendWeights, const UScriptStruct* AttributeScriptStruct);
 
 			// Blend using BlendSample (per-bone) weight data 
-			FAttributeBlendData(const TArrayView<const FStackAttributeContainer> SourceAttributes, TArrayView<const int32> InPerBoneInterpolationIndices, const TArrayView<const FBlendSampleData> InBlendSampleDataCache, const UScriptStruct* AttributeScriptStruct);
+			ENGINE_API FAttributeBlendData(const TArrayView<const FStackAttributeContainer> SourceAttributes, TArrayView<const int32> InPerBoneInterpolationIndices, const TArrayView<const FBlendSampleData> InBlendSampleDataCache, const UScriptStruct* AttributeScriptStruct);
 
 			// Blend using BlendSample (per-bone) remapped weight data 
-			FAttributeBlendData(const TArrayView<const FStackAttributeContainer> SourceAttributes, TArrayView<const int32> InPerBoneInterpolationIndices, const TArrayView<const FBlendSampleData> InBlendSampleDataCache, TArrayView<const int32> InBlendSampleDataCacheIndices, const UScriptStruct* AttributeScriptStruct);
+			ENGINE_API FAttributeBlendData(const TArrayView<const FStackAttributeContainer> SourceAttributes, TArrayView<const int32> InPerBoneInterpolationIndices, const TArrayView<const FBlendSampleData> InBlendSampleDataCache, TArrayView<const int32> InBlendSampleDataCacheIndices, const UScriptStruct* AttributeScriptStruct);
 
 			// Blend (per-bone filtered) using (per-bone) weight data 
-			FAttributeBlendData(const FStackAttributeContainer& BaseAttributes, const TArrayView<const FStackAttributeContainer> SourceAttributes, const TArrayView<const FPerBoneBlendWeight> InPerBoneBlendWeights, const UScriptStruct* AttributeScriptStruct);
+			ENGINE_API FAttributeBlendData(const FStackAttributeContainer& BaseAttributes, const TArrayView<const FStackAttributeContainer> SourceAttributes, const TArrayView<const FPerBoneBlendWeight> InPerBoneBlendWeights, const UScriptStruct* AttributeScriptStruct);
 
 			// Blend using (per-bone) weight data for one of the two inputs
-			FAttributeBlendData(const FStackAttributeContainer& SourceAttributes1, const FStackAttributeContainer& SourceAttributes2, const TArrayView<const float> WeightsOfSource2, const UScriptStruct* AttributeScriptStruct);
+			ENGINE_API FAttributeBlendData(const FStackAttributeContainer& SourceAttributes1, const FStackAttributeContainer& SourceAttributes2, const TArrayView<const float> WeightsOfSource2, const UScriptStruct* AttributeScriptStruct);
 
-			FAttributeBlendData();
+			ENGINE_API FAttributeBlendData();
 		private:
-			void ProcessAttributes(const FStackAttributeContainer& AttributeContainers, int32 SourceAttributesIndex, const UScriptStruct* AttributeScriptStruct);
+			ENGINE_API void ProcessAttributes(const FStackAttributeContainer& AttributeContainers, int32 SourceAttributesIndex, const UScriptStruct* AttributeScriptStruct);
 
 			/** Retrieves the weight on a top-level container basis */
-			float GetContainerWeight(int32 ContainerIndex) const;
+			ENGINE_API float GetContainerWeight(int32 ContainerIndex) const;
 
 			/* Retrieves the weight on a per-bone level basis according to the attribute and bone indices */
-			float GetBoneWeight(int32 AttributeIndex, int32 BoneIndex) const;
+			ENGINE_API float GetBoneWeight(int32 AttributeIndex, int32 BoneIndex) const;
 
 			/** Tests for different weight basis */
-			bool HasBoneWeights() const;
-			bool HasContainerWeights() const;
+			ENGINE_API bool HasBoneWeights() const;
+			ENGINE_API bool HasContainerWeights() const;
 		private:
 			/** Structure containing overlapping attributes */
 			struct FAttributeSet

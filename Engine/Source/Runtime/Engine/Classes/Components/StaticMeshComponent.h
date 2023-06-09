@@ -95,8 +95,8 @@ struct FPaintedVertex
  * @see https://docs.unrealengine.com/latest/INT/Engine/Content/Types/StaticMeshes/
  * @see UStaticMesh
  */
-UCLASS(Blueprintable, ClassGroup=(Rendering, Common), hidecategories=(Object,Activation,"Components|Activation"), ShowCategories=(Mobility), editinlinenew, meta=(BlueprintSpawnableComponent))
-class ENGINE_API UStaticMeshComponent : public UMeshComponent
+UCLASS(Blueprintable, ClassGroup=(Rendering, Common), hidecategories=(Object,Activation,"Components|Activation"), ShowCategories=(Mobility), editinlinenew, meta=(BlueprintSpawnableComponent), MinimalAPI)
+class UStaticMeshComponent : public UMeshComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -124,20 +124,20 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=StaticMesh, ReplicatedUsing=OnRep_StaticMesh, meta=(AllowPrivateAccess="true"))
 	TObjectPtr<class UStaticMesh> StaticMesh;
 
-	void SetStaticMeshInternal(UStaticMesh* StaticMesh);
+	ENGINE_API void SetStaticMeshInternal(UStaticMesh* StaticMesh);
 
 #if WITH_EDITOR
 	/** Used to track down when StaticMesh has been modified for notification purpose */
 	class UStaticMesh* KnownStaticMesh = nullptr;
 #endif
-	void NotifyIfStaticMeshChanged();
+	ENGINE_API void NotifyIfStaticMeshChanged();
 
 public:
 	/** Helper function to get the FName of the private static mesh member */
 	static const FName GetMemberNameChecked_StaticMesh() { return GET_MEMBER_NAME_CHECKED(UStaticMeshComponent, StaticMesh); }
 
 	UFUNCTION()
-	void OnRep_StaticMesh(class UStaticMesh *OldStaticMesh);
+	ENGINE_API void OnRep_StaticMesh(class UStaticMesh *OldStaticMesh);
 
 	/** Wireframe color to use if bOverrideWireframeColor is true */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Rendering, meta=(editcondition = "bOverrideWireframeColor"))
@@ -344,11 +344,11 @@ public:
 	UPROPERTY(EditAnywhere, Category=Lighting)
 	struct FLightmassPrimitiveSettings LightmassSettings;
 
-	virtual ~UStaticMeshComponent();
+	ENGINE_API virtual ~UStaticMeshComponent();
 
 	/** Change the StaticMesh used by this instance. */
 	UFUNCTION(BlueprintCallable, Category="Components|StaticMesh")
-	virtual bool SetStaticMesh(class UStaticMesh* NewMesh);
+	ENGINE_API virtual bool SetStaticMesh(class UStaticMesh* NewMesh);
 
 	/** Get the StaticMesh used by this instance. */
 	TObjectPtr<UStaticMesh> GetStaticMesh() const 
@@ -363,31 +363,31 @@ public:
 		return StaticMesh; 
 	}
 
-	virtual const Nanite::FResources* GetNaniteResources() const;
+	ENGINE_API virtual const Nanite::FResources* GetNaniteResources() const;
 
 	/**
 	 * Returns true if the component has valid Nanite render data.
 	 */
-	virtual bool HasValidNaniteData() const;
+	ENGINE_API virtual bool HasValidNaniteData() const;
 
 	/** Determines if we use the nanite overrides from any materials */
-	virtual bool UseNaniteOverrideMaterials() const override;
+	ENGINE_API virtual bool UseNaniteOverrideMaterials() const override;
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|LOD")
-	void SetForcedLodModel(int32 NewForcedLodModel);
+	ENGINE_API void SetForcedLodModel(int32 NewForcedLodModel);
 
 	/** Sets the component's DistanceFieldSelfShadowBias.  bOverrideDistanceFieldSelfShadowBias must be enabled for this to have an effect. */
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
-	void SetDistanceFieldSelfShadowBias(float NewValue);
+	ENGINE_API void SetDistanceFieldSelfShadowBias(float NewValue);
 
 	UFUNCTION(BlueprintCallable, Category=RayTracing)
-	void SetEvaluateWorldPositionOffsetInRayTracing(bool NewValue);
+	ENGINE_API void SetEvaluateWorldPositionOffsetInRayTracing(bool NewValue);
 
 	UFUNCTION(BlueprintCallable, Category = "Rendering|LOD")
-	void SetEvaluateWorldPositionOffset(bool NewValue);
+	ENGINE_API void SetEvaluateWorldPositionOffset(bool NewValue);
 
 	UFUNCTION(BlueprintCallable, Category = "Rendering|LOD")
-	void SetWorldPositionOffsetDisableDistance(int32 NewValue);
+	ENGINE_API void SetWorldPositionOffsetDisableDistance(int32 NewValue);
 
 	/** Get the initial value of bEvaluateWorldPositionOffset. This is the value when BeginPlay() was last called. */
 	UFUNCTION(BlueprintCallable, Category = "Rendering|LOD")
@@ -397,65 +397,65 @@ public:
 	 * Get Local bounds
 	 */
 	UFUNCTION(BlueprintCallable, Category="Components|StaticMesh")
-	void GetLocalBounds(FVector& Min, FVector& Max) const;
+	ENGINE_API void GetLocalBounds(FVector& Min, FVector& Max) const;
 
 	/** 
 	 * Set forced reverse culling
 	 */
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
-	void SetReverseCulling(bool ReverseCulling);
+	ENGINE_API void SetReverseCulling(bool ReverseCulling);
 
 	/** Force disabling of Nanite rendering. When true, Will swap to the the fallback mesh instead. */
 	UFUNCTION(BlueprintCallable, Category="Rendering")
-	void SetForceDisableNanite(bool bInForceDisableNanite);
+	ENGINE_API void SetForceDisableNanite(bool bInForceDisableNanite);
 
-	virtual void SetCollisionProfileName(FName InCollisionProfileName, bool bUpdateOverlaps=true) override;
+	ENGINE_API virtual void SetCollisionProfileName(FName InCollisionProfileName, bool bUpdateOverlaps=true) override;
 
 public:
 
 	//~ Begin UObject Interface.
-	virtual void BeginDestroy() override;
-	virtual void ExportCustomProperties(FOutputDevice& Out, uint32 Indent) override;
-	virtual void ImportCustomProperties(const TCHAR* SourceText, FFeedbackContext* Warn) override;	
-	virtual void Serialize(FArchive& Ar) override;
-	virtual void PostInitProperties() override;
-	virtual void PostReinitProperties() override;
-	virtual void PostApplyToComponent() override;
+	ENGINE_API virtual void BeginDestroy() override;
+	ENGINE_API virtual void ExportCustomProperties(FOutputDevice& Out, uint32 Indent) override;
+	ENGINE_API virtual void ImportCustomProperties(const TCHAR* SourceText, FFeedbackContext* Warn) override;	
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void PostInitProperties() override;
+	ENGINE_API virtual void PostReinitProperties() override;
+	ENGINE_API virtual void PostApplyToComponent() override;
 #if WITH_EDITOR
-	virtual void PostEditUndo() override;
-	virtual void PreEditUndo() override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual bool CanEditChange(const FProperty* InProperty) const override;
-	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
-	virtual bool IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform) override;
-	virtual void PostDuplicate(bool bDuplicateForPIE) override;
-	virtual void PostEditImport() override;
-	virtual void InitializeComponent() override;
-	virtual void UpdateBounds() override;
+	ENGINE_API virtual void PostEditUndo() override;
+	ENGINE_API virtual void PreEditUndo() override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual bool CanEditChange(const FProperty* InProperty) const override;
+	ENGINE_API virtual void BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
+	ENGINE_API virtual bool IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform) override;
+	ENGINE_API virtual void PostDuplicate(bool bDuplicateForPIE) override;
+	ENGINE_API virtual void PostEditImport() override;
+	ENGINE_API virtual void InitializeComponent() override;
+	ENGINE_API virtual void UpdateBounds() override;
 #endif // WITH_EDITOR
 #if WITH_EDITORONLY_DATA
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS // Suppress compiler warning on override of deprecated function
 	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
-	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	ENGINE_API virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
+	ENGINE_API PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 #endif // WITH_EDITORONLY_DATA
-	virtual void PostLoad() override;
-	virtual bool IsPostLoadThreadSafe() const override;
-	virtual bool AreNativePropertiesIdenticalTo( UObject* Other ) const override;
-	virtual FString GetDetailedInfoInternal() const override;
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	ENGINE_API virtual void PostLoad() override;
+	ENGINE_API virtual bool IsPostLoadThreadSafe() const override;
+	ENGINE_API virtual bool AreNativePropertiesIdenticalTo( UObject* Other ) const override;
+	ENGINE_API virtual FString GetDetailedInfoInternal() const override;
+	static ENGINE_API void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	//~ End UObject Interface.
 
 	//~ Begin USceneComponent Interface
 #if WITH_EDITOR
-	virtual bool GetMaterialPropertyPath(int32 ElementIndex, UObject*& OutOwner, FString& OutPropertyPath, FProperty*& OutProperty) override;
+	ENGINE_API virtual bool GetMaterialPropertyPath(int32 ElementIndex, UObject*& OutOwner, FString& OutPropertyPath, FProperty*& OutProperty) override;
 #endif // WITH_EDITOR
-	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
-	virtual bool HasAnySockets() const override;
-	virtual void QuerySupportedSockets(TArray<FComponentSocketDescription>& OutSockets) const override;
-	virtual FTransform GetSocketTransform(FName InSocketName, ERelativeTransformSpace TransformSpace = RTS_World) const override;
-	virtual bool DoesSocketExist(FName InSocketName) const override;
+	ENGINE_API virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
+	ENGINE_API virtual bool HasAnySockets() const override;
+	ENGINE_API virtual void QuerySupportedSockets(TArray<FComponentSocketDescription>& OutSockets) const override;
+	ENGINE_API virtual FTransform GetSocketTransform(FName InSocketName, ERelativeTransformSpace TransformSpace = RTS_World) const override;
+	ENGINE_API virtual bool DoesSocketExist(FName InSocketName) const override;
 	virtual bool ShouldCollideWhenPlacing() const override
 	{
 		// Current Method of collision does not work with non-capsule shapes, enable when it works with static meshes
@@ -463,7 +463,7 @@ public:
 		return false;
 	}
 #if WITH_EDITOR
-	virtual bool ShouldRenderSelected() const override;
+	ENGINE_API virtual bool ShouldRenderSelected() const override;
 #endif
 	//~ End USceneComponent Interface
 
@@ -471,87 +471,87 @@ public:
 
 	//~ Begin UActorComponent Interface.
 protected: 
-	virtual void OnRegister() override;
-	virtual void OnUnregister() override;
-	virtual void BeginPlay() override;
-	virtual bool RequiresGameThreadEndOfFrameRecreate() const override;
-	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
-	virtual void OnCreatePhysicsState() override;
-	virtual void OnDestroyPhysicsState() override;
-	virtual bool ShouldCreatePhysicsState() const override;
-	virtual bool ShouldCreateRenderState() const override;
+	ENGINE_API virtual void OnRegister() override;
+	ENGINE_API virtual void OnUnregister() override;
+	ENGINE_API virtual void BeginPlay() override;
+	ENGINE_API virtual bool RequiresGameThreadEndOfFrameRecreate() const override;
+	ENGINE_API virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
+	ENGINE_API virtual void OnCreatePhysicsState() override;
+	ENGINE_API virtual void OnDestroyPhysicsState() override;
+	ENGINE_API virtual bool ShouldCreatePhysicsState() const override;
+	ENGINE_API virtual bool ShouldCreateRenderState() const override;
 public:
-	virtual void InvalidateLightingCacheDetailed(bool bInvalidateBuildEnqueuedLighting, bool bTranslationOnly) override;
-	virtual UObject const* AdditionalStatObject() const override;
+	ENGINE_API virtual void InvalidateLightingCacheDetailed(bool bInvalidateBuildEnqueuedLighting, bool bTranslationOnly) override;
+	ENGINE_API virtual UObject const* AdditionalStatObject() const override;
 #if WITH_EDITOR
-	virtual void CheckForErrors() override;
-	virtual bool IsCompiling() const override;
+	ENGINE_API virtual void CheckForErrors() override;
+	ENGINE_API virtual bool IsCompiling() const override;
 #endif
-	virtual TStructOnScope<FActorComponentInstanceData> GetComponentInstanceData() const override;
-	virtual bool IsHLODRelevant() const override;
+	ENGINE_API virtual TStructOnScope<FActorComponentInstanceData> GetComponentInstanceData() const override;
+	ENGINE_API virtual bool IsHLODRelevant() const override;
 	//~ End UActorComponent Interface.
 
 	//~ Begin UPrimitiveComponent Interface.
-	virtual int32 GetNumMaterials() const override;
+	ENGINE_API virtual int32 GetNumMaterials() const override;
 #if WITH_EDITOR
-	virtual void GetStaticLightingInfo(FStaticLightingPrimitiveInfo& OutPrimitiveInfo,const TArray<ULightComponent*>& InRelevantLights,const FLightingBuildOptions& Options) override;
-	virtual void AddMapBuildDataGUIDs(TSet<FGuid>& InGUIDs) const override;
+	ENGINE_API virtual void GetStaticLightingInfo(FStaticLightingPrimitiveInfo& OutPrimitiveInfo,const TArray<ULightComponent*>& InRelevantLights,const FLightingBuildOptions& Options) override;
+	ENGINE_API virtual void AddMapBuildDataGUIDs(TSet<FGuid>& InGUIDs) const override;
 #endif
-	virtual float GetEmissiveBoost(int32 ElementIndex) const override;
-	virtual float GetDiffuseBoost(int32 ElementIndex) const override;
+	ENGINE_API virtual float GetEmissiveBoost(int32 ElementIndex) const override;
+	ENGINE_API virtual float GetDiffuseBoost(int32 ElementIndex) const override;
 	virtual bool GetShadowIndirectOnly() const override
 	{
 		return LightmassSettings.bShadowIndirectOnly;
 	}
-	virtual ELightMapInteractionType GetStaticLightingType() const override;
-	virtual bool IsPrecomputedLightingValid() const override;
+	ENGINE_API virtual ELightMapInteractionType GetStaticLightingType() const override;
+	ENGINE_API virtual bool IsPrecomputedLightingValid() const override;
 
 	/** Get the scale comming form the component, when computing StreamingTexture data. Used to support instanced meshes. */
-	virtual float GetTextureStreamingTransformScale() const;
+	ENGINE_API virtual float GetTextureStreamingTransformScale() const;
 	/** Get material, UV density and bounds for a given material index. */
-	virtual bool GetMaterialStreamingData(int32 MaterialIndex, FPrimitiveMaterialInfo& MaterialData) const override;
+	ENGINE_API virtual bool GetMaterialStreamingData(int32 MaterialIndex, FPrimitiveMaterialInfo& MaterialData) const override;
 	/** Build the data to compute accuracte StreaminTexture data. */
-	virtual bool BuildTextureStreamingDataImpl(ETextureStreamingBuildType BuildType, EMaterialQualityLevel::Type QualityLevel, ERHIFeatureLevel::Type FeatureLevel, TSet<FGuid>& DependentResources, bool& bOutSupportsBuildTextureStreamingData) override;
+	ENGINE_API virtual bool BuildTextureStreamingDataImpl(ETextureStreamingBuildType BuildType, EMaterialQualityLevel::Type QualityLevel, ERHIFeatureLevel::Type FeatureLevel, TSet<FGuid>& DependentResources, bool& bOutSupportsBuildTextureStreamingData) override;
 	/** Get the StreaminTexture data. */
-	virtual void GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const override;
+	ENGINE_API virtual void GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const override;
 #if WITH_EDITOR
-	virtual bool RemapActorTextureStreamingBuiltDataToLevel(const class UActorTextureStreamingBuildDataComponent* InActorTextureBuildData) override;
-	virtual uint32 ComputeHashTextureStreamingBuiltData() const override;
+	ENGINE_API virtual bool RemapActorTextureStreamingBuiltDataToLevel(const class UActorTextureStreamingBuildDataComponent* InActorTextureBuildData) override;
+	ENGINE_API virtual uint32 ComputeHashTextureStreamingBuiltData() const override;
 #endif 
 
-	virtual class UBodySetup* GetBodySetup() override;
-	virtual bool CanEditSimulatePhysics() override;
-	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
-	virtual bool ShouldRecreateProxyOnUpdateTransform() const override;
-	virtual bool UsesOnlyUnlitMaterials() const override;
-	virtual bool GetLightMapResolution( int32& Width, int32& Height ) const override;
-	virtual int32 GetStaticLightMapResolution() const override;
+	ENGINE_API virtual class UBodySetup* GetBodySetup() override;
+	ENGINE_API virtual bool CanEditSimulatePhysics() override;
+	ENGINE_API virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
+	ENGINE_API virtual bool ShouldRecreateProxyOnUpdateTransform() const override;
+	ENGINE_API virtual bool UsesOnlyUnlitMaterials() const override;
+	ENGINE_API virtual bool GetLightMapResolution( int32& Width, int32& Height ) const override;
+	ENGINE_API virtual int32 GetStaticLightMapResolution() const override;
 	/** Returns true if the component is static AND has the right static mesh setup to support lightmaps. */
-	virtual bool HasValidSettingsForStaticLighting(bool bOverlookInvalidComponents) const override;
+	ENGINE_API virtual bool HasValidSettingsForStaticLighting(bool bOverlookInvalidComponents) const override;
 
-	virtual void GetLightAndShadowMapMemoryUsage( int32& LightMapMemoryUsage, int32& ShadowMapMemoryUsage ) const override;
-	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override;
-	virtual UMaterialInterface* GetMaterial(int32 MaterialIndex) const override;
-	virtual UMaterialInterface* GetEditorMaterial(int32 MaterialIndex) const override;
-	virtual int32 GetMaterialIndex(FName MaterialSlotName) const override;
-	virtual UMaterialInterface* GetMaterialFromCollisionFaceIndex(int32 FaceIndex, int32& SectionIndex) const override;
-	virtual TArray<FName> GetMaterialSlotNames() const override;
-	virtual bool IsMaterialSlotNameValid(FName MaterialSlotName) const override;
+	ENGINE_API virtual void GetLightAndShadowMapMemoryUsage( int32& LightMapMemoryUsage, int32& ShadowMapMemoryUsage ) const override;
+	ENGINE_API virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override;
+	ENGINE_API virtual UMaterialInterface* GetMaterial(int32 MaterialIndex) const override;
+	ENGINE_API virtual UMaterialInterface* GetEditorMaterial(int32 MaterialIndex) const override;
+	ENGINE_API virtual int32 GetMaterialIndex(FName MaterialSlotName) const override;
+	ENGINE_API virtual UMaterialInterface* GetMaterialFromCollisionFaceIndex(int32 FaceIndex, int32& SectionIndex) const override;
+	ENGINE_API virtual TArray<FName> GetMaterialSlotNames() const override;
+	ENGINE_API virtual bool IsMaterialSlotNameValid(FName MaterialSlotName) const override;
 
-	virtual bool DoCustomNavigableGeometryExport(FNavigableGeometryExport& GeomExport) const override;
+	ENGINE_API virtual bool DoCustomNavigableGeometryExport(FNavigableGeometryExport& GeomExport) const override;
 
-	virtual bool IsShown(const FEngineShowFlags& ShowFlags) const override;
+	ENGINE_API virtual bool IsShown(const FEngineShowFlags& ShowFlags) const override;
 #if WITH_EDITOR
-	virtual void PostStaticMeshCompilation();
-	virtual bool ComponentIsTouchingSelectionBox(const FBox& InSelBBox, const bool bConsiderOnlyBSP, const bool bMustEncompassEntireComponent) const override;
-	virtual bool ComponentIsTouchingSelectionFrustum(const FConvexVolume& InSelBBox, const bool bConsiderOnlyBSP, const bool bMustEncompassEntireComponent) const override;
+	ENGINE_API virtual void PostStaticMeshCompilation();
+	ENGINE_API virtual bool ComponentIsTouchingSelectionBox(const FBox& InSelBBox, const bool bConsiderOnlyBSP, const bool bMustEncompassEntireComponent) const override;
+	ENGINE_API virtual bool ComponentIsTouchingSelectionFrustum(const FConvexVolume& InSelBBox, const bool bConsiderOnlyBSP, const bool bMustEncompassEntireComponent) const override;
 #endif
 	virtual float GetStreamingScale() const override { return GetComponentTransform().GetMaximumAxisScale(); }
 	//~ End UPrimitiveComponent Interface.
 
 	//~ Begin INavRelevantInterface Interface.
-	virtual bool IsNavigationRelevant() const override;
-	virtual void GetNavigationData(FNavigationRelevantData& Data) const override;
+	ENGINE_API virtual bool IsNavigationRelevant() const override;
+	ENGINE_API virtual void GetNavigationData(FNavigationRelevantData& Data) const override;
 	//~ End INavRelevantInterface Interface.
 	/**
 	 *	Returns true if the component uses texture lightmaps
@@ -561,12 +561,12 @@ public:
 	 *
 	 *	@return	bool				true if texture lightmaps are used, false if not
 	 */
-	virtual bool UsesTextureLightmaps(int32 InWidth, int32 InHeight) const;
+	ENGINE_API virtual bool UsesTextureLightmaps(int32 InWidth, int32 InHeight) const;
 
 	/**
 	 *	Returns true if the static mesh the component uses has valid lightmap texture coordinates
 	 */
-	virtual bool HasLightmapTextureCoordinates() const;
+	ENGINE_API virtual bool HasLightmapTextureCoordinates() const;
 
 	/**
 	 *	Get the memory used for texture-based light and shadow maps of the given width and height
@@ -576,7 +576,7 @@ public:
 	 *	@param	OutLightMapMemoryUsage		The resulting lightmap memory used
 	 *	@param	OutShadowMapMemoryUsage		The resulting shadowmap memory used
 	 */
-	virtual void GetTextureLightAndShadowMapMemoryUsage(int32 InWidth, int32 InHeight, int32& OutLightMapMemoryUsage, int32& OutShadowMapMemoryUsage) const;
+	ENGINE_API virtual void GetTextureLightAndShadowMapMemoryUsage(int32 InWidth, int32 InHeight, int32& OutLightMapMemoryUsage, int32& OutShadowMapMemoryUsage) const;
 
 	/**
 	 *	Returns the lightmap resolution used for this primitive instance in the case of it supporting texture light/ shadow maps.
@@ -585,7 +585,7 @@ public:
 	 *	@param Width	[out]	Width of light/shadow map
 	 *	@param Height	[out]	Height of light/shadow map
 	 */
-	virtual void GetEstimatedLightMapResolution(int32& Width, int32& Height) const;
+	ENGINE_API virtual void GetEstimatedLightMapResolution(int32& Width, int32& Height) const;
 
 
 	/**
@@ -603,7 +603,7 @@ public:
 	 *
 	 *	@return			bool							true if the mesh has static lighting; false if not
 	 */
-	virtual bool GetEstimatedLightAndShadowMapMemoryUsage(
+	ENGINE_API virtual bool GetEstimatedLightAndShadowMapMemoryUsage(
 		int32& TextureLightMapMemoryUsage, int32& TextureShadowMapMemoryUsage,
 		int32& VertexLightMapMemoryUsage, int32& VertexShadowMapMemoryUsage,
 		int32& StaticLightingResolution, bool& bIsUsingTextureMapping, bool& bHasLightmapTexCoords) const;
@@ -614,91 +614,91 @@ public:
 	 *
 	 * @return	true if any LODs require override vertex color fixups
 	 */
-	bool RequiresOverrideVertexColorsFixup();
+	ENGINE_API bool RequiresOverrideVertexColorsFixup();
 
 	/**
 	 * Update the vertex override colors if necessary (i.e. vertices from source mesh have changed from override colors)
 	 * @param bRebuildingStaticMesh	true if we are rebuilding the static mesh used by this component
 	 * @returns true if any fixup was performed.
 	 */
-	bool FixupOverrideColorsIfNecessary( bool bRebuildingStaticMesh = false );
+	ENGINE_API bool FixupOverrideColorsIfNecessary( bool bRebuildingStaticMesh = false );
 
 	/** Save off the data painted on to this mesh per LOD if necessary */
-	void CachePaintedDataIfNecessary();
+	ENGINE_API void CachePaintedDataIfNecessary();
 
 	/**
 	 * Copies instance vertex colors from the SourceComponent into this component
 	 * @param SourceComponent The component to copy vertex colors from
 	 */
-	void CopyInstanceVertexColorsIfCompatible( const UStaticMeshComponent* SourceComponent );
+	ENGINE_API void CopyInstanceVertexColorsIfCompatible( const UStaticMeshComponent* SourceComponent );
 #endif
 
 	/**
 	 * Removes instance vertex colors from the specified LOD
 	 * @param LODToRemoveColorsFrom Index of the LOD to remove instance colors from
 	 */
-	void RemoveInstanceVertexColorsFromLOD( int32 LODToRemoveColorsFrom );
+	ENGINE_API void RemoveInstanceVertexColorsFromLOD( int32 LODToRemoveColorsFrom );
 
 #if WITH_EDITORONLY_DATA
 	/**
 	 * Removes instance vertex colors from all LODs
 	 */
-	void RemoveInstanceVertexColors();
+	ENGINE_API void RemoveInstanceVertexColors();
 #endif
 
 	UE_DEPRECATED(4.27, "This function is no longer used")
-	void UpdatePreCulledData(int32 LODIndex, const TArray<uint32>& PreCulledData, const TArray<int32>& NumTrianglesPerSection);
+	ENGINE_API void UpdatePreCulledData(int32 LODIndex, const TArray<uint32>& PreCulledData, const TArray<int32>& NumTrianglesPerSection);
 
 #if WITH_EDITORONLY_DATA
 	/**
 	*	Sets the value of the SectionIndexPreview flag and reattaches the component as necessary.
 	*	@param	InSectionIndexPreview		New value of SectionIndexPreview.
 	*/
-	void SetSectionPreview(int32 InSectionIndexPreview);
+	ENGINE_API void SetSectionPreview(int32 InSectionIndexPreview);
 
 	/**
 	*	Sets the value of the MaterialIndexPreview flag and reattaches the component as necessary.
 	*	@param	InMaterialIndexPreview		New value of MaterialIndexPreview.
 	*/
-	void SetMaterialPreview(int32 InMaterialIndexPreview);
+	ENGINE_API void SetMaterialPreview(int32 InMaterialIndexPreview);
 #endif
 
 	/** Sets the BodyInstance to use the mesh's body setup for external collision information*/
-	void UpdateCollisionFromStaticMesh();
+	ENGINE_API void UpdateCollisionFromStaticMesh();
 
 	/** Whether or not the component supports default collision from its static mesh asset */
-	virtual bool SupportsDefaultCollision();
+	ENGINE_API virtual bool SupportsDefaultCollision();
 
 	/** Whether we can support dithered LOD transitions (default behavior checks all materials). Used for HISMC LOD. */
-	virtual bool SupportsDitheredLODTransitions(ERHIFeatureLevel::Type FeatureLevel);
+	ENGINE_API virtual bool SupportsDitheredLODTransitions(ERHIFeatureLevel::Type FeatureLevel);
 
-	UMaterialInterface* GetNaniteAuditMaterial(int32 MaterialIndex) const;
+	ENGINE_API UMaterialInterface* GetNaniteAuditMaterial(int32 MaterialIndex) const;
 
 private:
 	/** Initializes the resources used by the static mesh component. */
-	void InitResources();
+	ENGINE_API void InitResources();
 		
 #if WITH_EDITOR
 	/** Update the vertex override colors */
-	void PrivateFixupOverrideColors();
+	ENGINE_API void PrivateFixupOverrideColors();
 
 	/** Called when the StaticMesh property gets overwritten without us knowing about it */
-	void OutdatedKnownStaticMeshDetected() const;
+	ENGINE_API void OutdatedKnownStaticMeshDetected() const;
 
 	/** Clears texture streaming data. */
-	void ClearStreamingTextureData();
+	ENGINE_API void ClearStreamingTextureData();
 #endif
 
-	bool UseNaniteOverrideMaterials(bool bDoingMaterialAudit) const;
+	ENGINE_API bool UseNaniteOverrideMaterials(bool bDoingMaterialAudit) const;
 
-	UMaterialInterface* GetMaterial(int32 MaterialIndex, bool bDoingNaniteMaterialAudit) const;
+	ENGINE_API UMaterialInterface* GetMaterial(int32 MaterialIndex, bool bDoingNaniteMaterialAudit) const;
 
 protected:
 	/** Collect all the PSO precache data used by the static mesh component */
-	virtual void CollectPSOPrecacheData(const FPSOPrecacheParams& BasePrecachePSOParams, FComponentPSOPrecacheParamsList& OutParams) override;
+	ENGINE_API virtual void CollectPSOPrecacheData(const FPSOPrecacheParams& BasePrecachePSOParams, FComponentPSOPrecacheParamsList& OutParams) override;
 	/** Shared implementation for all StaticMesh derived components */
 	using GetPSOVertexElementsFn = TFunctionRef<void(const FStaticMeshLODResources& LODRenderData, int32 LODIndex, bool bSupportsManualVertexFetch, FVertexDeclarationElementList& Elements)>;
-	void CollectPSOPrecacheDataImpl(const FVertexFactoryType* VFType, const FPSOPrecacheParams& BasePrecachePSOParams, GetPSOVertexElementsFn GetVertexElements, FComponentPSOPrecacheParamsList& OutParams) const;
+	ENGINE_API void CollectPSOPrecacheDataImpl(const FVertexFactoryType* VFType, const FPSOPrecacheParams& BasePrecachePSOParams, GetPSOVertexElementsFn GetVertexElements, FComponentPSOPrecacheParamsList& OutParams) const;
 		
 	/** Whether the component type supports static lighting. */
 	virtual bool SupportsStaticLighting() const override
@@ -706,20 +706,20 @@ protected:
 		return true;
 	}
 
-	bool ShouldCreateNaniteProxy(Nanite::FMaterialAudit* OutNaniteMaterials = nullptr) const;
+	ENGINE_API bool ShouldCreateNaniteProxy(Nanite::FMaterialAudit* OutNaniteMaterials = nullptr) const;
 
 	// Overload this in child implementations that wish to extend Static Mesh or Nanite scene proxy implementations
-	virtual FPrimitiveSceneProxy* CreateStaticMeshSceneProxy(Nanite::FMaterialAudit& NaniteMaterials, bool bCreateNanite);
+	ENGINE_API virtual FPrimitiveSceneProxy* CreateStaticMeshSceneProxy(Nanite::FMaterialAudit& NaniteMaterials, bool bCreateNanite);
 
 public:
 
-	void ReleaseResources();
+	ENGINE_API void ReleaseResources();
 
 	/** Allocates an implementation of FStaticLightingMesh that will handle static lighting for this component */
-	virtual FStaticMeshStaticLightingMesh* AllocateStaticLightingMesh(int32 LODIndex, const TArray<ULightComponent*>& InRelevantLights);
+	ENGINE_API virtual FStaticMeshStaticLightingMesh* AllocateStaticLightingMesh(int32 LODIndex, const TArray<ULightComponent*>& InRelevantLights);
 
 	/** Add or remove elements to have the size in the specified range. Reconstructs elements if MaxSize<MinSize. Returns true if an element was added or removed. */
-	bool SetLODDataCount( const uint32 MinSize, const uint32 MaxSize );
+	ENGINE_API bool SetLODDataCount( const uint32 MinSize, const uint32 MaxSize );
 
 	/**
 	 *	Switches the static mesh component to use either Texture or Vertex static lighting.
@@ -731,26 +731,26 @@ public:
 	 *	@return	bool				true if successfully set; false if not
 	 *								If false, set it to use vertex light mapping.
 	 */
-	virtual bool SetStaticLightingMapping(bool bTextureMapping, int32 ResolutionToUse);
+	ENGINE_API virtual bool SetStaticLightingMapping(bool bTextureMapping, int32 ResolutionToUse);
 
 	/**
 	 * Returns the named socket on the static mesh component.
 	 *
 	 * @return UStaticMeshSocket of named socket on the static mesh component. None if not found.
 	 */
-	class UStaticMeshSocket const* GetSocketByName( FName InSocketName ) const;
+	ENGINE_API class UStaticMeshSocket const* GetSocketByName( FName InSocketName ) const;
 
 	/** Returns the wireframe color to use for this component. */
-	FColor GetWireframeColor() const;
+	ENGINE_API FColor GetWireframeColor() const;
 
 	/** Get this components index in its parents blueprint created components array (used for matching instance data) */
-	int32 GetBlueprintCreatedComponentIndex() const;
+	ENGINE_API int32 GetBlueprintCreatedComponentIndex() const;
 
-	void ApplyComponentInstanceData(struct FStaticMeshComponentInstanceData* ComponentInstanceData);
+	ENGINE_API void ApplyComponentInstanceData(struct FStaticMeshComponentInstanceData* ComponentInstanceData);
 
-	virtual void PropagateLightingScenarioChange() override;
+	ENGINE_API virtual void PropagateLightingScenarioChange() override;
 
-	const FMeshMapBuildData* GetMeshMapBuildData(const FStaticMeshComponentLODInfo& LODInfo, bool bCheckForResourceCluster = true) const;
+	ENGINE_API const FMeshMapBuildData* GetMeshMapBuildData(const FStaticMeshComponentLODInfo& LODInfo, bool bCheckForResourceCluster = true) const;
 
 	/** Called during scene proxy creation to get the Nanite resource data */
 	DECLARE_DELEGATE_RetVal(const Nanite::FResources*, FOnGetNaniteResources);

@@ -49,7 +49,7 @@ private:
 
 public:
 
-	ENGINE_API USoundWave* GetSoundWave() const { return SoundWave; }
+	USoundWave* GetSoundWave() const { return SoundWave; }
 	ENGINE_API void SetSoundWave(USoundWave* SoundWave);
 
 	//~ Begin UObject Interface

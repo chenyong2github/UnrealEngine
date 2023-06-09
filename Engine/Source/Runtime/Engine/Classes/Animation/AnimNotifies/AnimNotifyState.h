@@ -15,8 +15,8 @@ class USkeletalMeshComponent;
 struct FAnimNotifyEvent;
 struct FBranchingPointNotifyPayload;
 
-UCLASS(abstract, editinlinenew, Blueprintable, const, hidecategories=Object, collapsecategories, meta=(ShowWorldContextPin))
-class ENGINE_API UAnimNotifyState : public UObject
+UCLASS(abstract, editinlinenew, Blueprintable, const, hidecategories=Object, collapsecategories, meta=(ShowWorldContextPin), MinimalAPI)
+class UAnimNotifyState : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -24,16 +24,16 @@ class ENGINE_API UAnimNotifyState : public UObject
 	 * Implementable event to get a custom name for the notify
 	 */
 	UFUNCTION(BlueprintNativeEvent)
-	FString GetNotifyName() const;
+	ENGINE_API FString GetNotifyName() const;
 
 	UFUNCTION(BlueprintImplementableEvent, meta=(AutoCreateRefTerm="EventReference"))
-	bool Received_NotifyBegin(USkeletalMeshComponent * MeshComp, UAnimSequenceBase * Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference) const;
+	ENGINE_API bool Received_NotifyBegin(USkeletalMeshComponent * MeshComp, UAnimSequenceBase * Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference) const;
 	
 	UFUNCTION(BlueprintImplementableEvent, meta=(AutoCreateRefTerm="EventReference"))
-	bool Received_NotifyTick(USkeletalMeshComponent * MeshComp, UAnimSequenceBase * Animation, float FrameDeltaTime, const FAnimNotifyEventReference& EventReference) const;
+	ENGINE_API bool Received_NotifyTick(USkeletalMeshComponent * MeshComp, UAnimSequenceBase * Animation, float FrameDeltaTime, const FAnimNotifyEventReference& EventReference) const;
 
 	UFUNCTION(BlueprintImplementableEvent, meta=(AutoCreateRefTerm="EventReference"))
-	bool Received_NotifyEnd(USkeletalMeshComponent * MeshComp, UAnimSequenceBase * Animation, const FAnimNotifyEventReference& EventReference) const;
+	ENGINE_API bool Received_NotifyEnd(USkeletalMeshComponent * MeshComp, UAnimSequenceBase * Animation, const FAnimNotifyEventReference& EventReference) const;
 
 #if WITH_EDITORONLY_DATA
 	/** Color of Notify in editor */
@@ -55,19 +55,19 @@ class ENGINE_API UAnimNotifyState : public UObject
 #endif
 
 	UE_DEPRECATED(5.0, "This function is deprecated. Use the other NotifyBegin instead.")
-	virtual void NotifyBegin(USkeletalMeshComponent * MeshComp, UAnimSequenceBase * Animation, float TotalDuration);
+	ENGINE_API virtual void NotifyBegin(USkeletalMeshComponent * MeshComp, UAnimSequenceBase * Animation, float TotalDuration);
 	UE_DEPRECATED(5.0, "This function is deprecated. Use the other NotifyTick instead.")
-	virtual void NotifyTick(USkeletalMeshComponent * MeshComp, UAnimSequenceBase * Animation, float FrameDeltaTime);
+	ENGINE_API virtual void NotifyTick(USkeletalMeshComponent * MeshComp, UAnimSequenceBase * Animation, float FrameDeltaTime);
 	UE_DEPRECATED(5.0, "This function is deprecated. Use the other NotifyEnd instead.")
-	virtual void NotifyEnd(USkeletalMeshComponent * MeshComp, UAnimSequenceBase * Animation);
+	ENGINE_API virtual void NotifyEnd(USkeletalMeshComponent * MeshComp, UAnimSequenceBase * Animation);
 
-	virtual void NotifyBegin(USkeletalMeshComponent * MeshComp, UAnimSequenceBase * Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference);
-	virtual void NotifyTick(USkeletalMeshComponent * MeshComp, UAnimSequenceBase * Animation, float FrameDeltaTime, const FAnimNotifyEventReference& EventReference);
-	virtual void NotifyEnd(USkeletalMeshComponent * MeshComp, UAnimSequenceBase * Animation, const FAnimNotifyEventReference& EventReference);
+	ENGINE_API virtual void NotifyBegin(USkeletalMeshComponent * MeshComp, UAnimSequenceBase * Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference);
+	ENGINE_API virtual void NotifyTick(USkeletalMeshComponent * MeshComp, UAnimSequenceBase * Animation, float FrameDeltaTime, const FAnimNotifyEventReference& EventReference);
+	ENGINE_API virtual void NotifyEnd(USkeletalMeshComponent * MeshComp, UAnimSequenceBase * Animation, const FAnimNotifyEventReference& EventReference);
 	
-	virtual void BranchingPointNotifyBegin(FBranchingPointNotifyPayload& BranchingPointPayload);
-	virtual void BranchingPointNotifyTick(FBranchingPointNotifyPayload& BranchingPointPayload, float FrameDeltaTime);
-	virtual void BranchingPointNotifyEnd(FBranchingPointNotifyPayload& BranchingPointPayload);
+	ENGINE_API virtual void BranchingPointNotifyBegin(FBranchingPointNotifyPayload& BranchingPointPayload);
+	ENGINE_API virtual void BranchingPointNotifyTick(FBranchingPointNotifyPayload& BranchingPointPayload, float FrameDeltaTime);
+	ENGINE_API virtual void BranchingPointNotifyEnd(FBranchingPointNotifyPayload& BranchingPointPayload);
 
 	// @todo document 
 	virtual FString GetEditorComment() 
@@ -77,7 +77,7 @@ class ENGINE_API UAnimNotifyState : public UObject
 
 	/** TriggerWeightThreshold to use when creating notifies of this type */
 	UFUNCTION(BlueprintNativeEvent)
-	float GetDefaultTriggerWeightThreshold() const;
+	ENGINE_API float GetDefaultTriggerWeightThreshold() const;
 
 	// @todo document 
 	virtual FLinearColor GetEditorColor() 
@@ -90,15 +90,15 @@ class ENGINE_API UAnimNotifyState : public UObject
 	}
 
 	/** UObject Interface */
-	virtual void PostLoad() override;
-	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
+	ENGINE_API virtual void PostLoad() override;
+	ENGINE_API virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 	/** End UObject Interface */
 
 	/** This notify is always a branching point when used on Montages. */
 	bool bIsNativeBranchingPoint;
 
 protected:
-	UObject* GetContainingAsset() const;
+	ENGINE_API UObject* GetContainingAsset() const;
 };
 
 

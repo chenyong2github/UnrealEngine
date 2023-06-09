@@ -696,10 +696,10 @@ public:
 	 * Output to the log which materials and textures are used by this material.
 	 * @param Indent	Number of tabs to put before the log.
 	 */
-	ENGINE_API virtual void LogMaterialsAndTextures(FOutputDevice& Ar, int32 Indent) const {}
+	virtual void LogMaterialsAndTextures(FOutputDevice& Ar, int32 Indent) const {}
 #endif
 
-	ENGINE_API virtual void DumpDebugInfo(FOutputDevice& OutputDevice) const {}
+	virtual void DumpDebugInfo(FOutputDevice& OutputDevice) const {}
 
 private:
 	// might get called from game or render thread
@@ -979,10 +979,10 @@ public:
 	*
 	* @param CompileMode Controls whether or not we block on the shader compile results.
 	*/
-	ENGINE_API virtual void CacheShaders(EMaterialShaderPrecompileMode CompileMode = EMaterialShaderPrecompileMode::Default) {}
+	virtual void CacheShaders(EMaterialShaderPrecompileMode CompileMode = EMaterialShaderPrecompileMode::Default) {}
 
 #if WITH_EDITOR
-	ENGINE_API virtual void CacheGivenTypesForCooking(EShaderPlatform Platform, ERHIFeatureLevel::Type FeatureLevel, EMaterialQualityLevel::Type QualityLevel, const TArray<const FVertexFactoryType*>& VFTypes, const TArray<const FShaderPipelineType*> PipelineTypes, const TArray<const FShaderType*>& ShaderTypes) {}
+	virtual void CacheGivenTypesForCooking(EShaderPlatform Platform, ERHIFeatureLevel::Type FeatureLevel, EMaterialQualityLevel::Type QualityLevel, const TArray<const FVertexFactoryType*>& VFTypes, const TArray<const FShaderPipelineType*> PipelineTypes, const TArray<const FShaderType*>& ShaderTypes) {}
 #endif
 
 	/** @brief Checks to see if this material has all its shaders cached.
@@ -995,7 +995,7 @@ public:
 	* @see CacheShaders
 	* @note This function will return true if the resources are not cache for this material yet.
 	*/
-	ENGINE_API virtual bool IsComplete() const { return true; }
+	virtual bool IsComplete() const { return true; }
 
 	/** @brief Checks to see if this material has all its shaders cached and if not, will perform a synchronous compilation of those.
 	*
@@ -1010,7 +1010,7 @@ public:
 
 #if WITH_EDITOR
 	/** Clears the shader cache and recompiles the shader for rendering. */
-	ENGINE_API virtual void ForceRecompileForRendering() {}
+	virtual void ForceRecompileForRendering() {}
 #endif // WITH_EDITOR
 
 	/**
@@ -1039,13 +1039,13 @@ public:
 	ENGINE_API virtual int32 CompilePropertyEx( class FMaterialCompiler* Compiler, const FGuid& AttributeID );
 
 	/** True if this Material Interface should force a plane preview */
-	ENGINE_API virtual bool ShouldForcePlanePreview()
+	virtual bool ShouldForcePlanePreview()
 	{
 		return bShouldForcePlanePreview;
 	}
 	
 	/** Set whether or not this Material Interface should force a plane preview */
-	ENGINE_API void SetShouldForcePlanePreview(const bool bInShouldForcePlanePreview)
+	void SetShouldForcePlanePreview(const bool bInShouldForcePlanePreview)
 	{
 		bShouldForcePlanePreview = bInShouldForcePlanePreview;
 	};
@@ -1135,7 +1135,7 @@ public:
 	*	@param	OutShaderInfo	Array of results sorted by vertex factory type, and shader type.
 	*
 	*/
-	ENGINE_API virtual void GetShaderTypes(EShaderPlatform Platform, const ITargetPlatform* TargetPlatform, TArray<FDebugShaderTypeInfo>& OutShaderInfo) {};
+	virtual void GetShaderTypes(EShaderPlatform Platform, const ITargetPlatform* TargetPlatform, TArray<FDebugShaderTypeInfo>& OutShaderInfo) {};
 #endif // WITH_EDITOR
 
 protected:

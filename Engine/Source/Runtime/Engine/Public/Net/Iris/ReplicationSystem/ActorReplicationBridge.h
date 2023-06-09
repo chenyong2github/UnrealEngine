@@ -74,7 +74,7 @@ public:
 	ENGINE_API void EndReplicationForActorComponent(UActorComponent* ActorComponent, EEndReplicationFlags EndReplicationFlags = EEndReplicationFlags::None);
 	
 	/** Get object reference packagemap. Used in special cases where serialization hasn't been converted to use NetSerializers.  */
-	ENGINE_API UIrisObjectReferencePackageMap* GetObjectReferencePackageMap() const { return ObjectReferencePackageMap; }
+	UIrisObjectReferencePackageMap* GetObjectReferencePackageMap() const { return ObjectReferencePackageMap; }
 	
 	using UObjectReplicationBridge::EndReplication;
 

@@ -15,19 +15,19 @@ enum class ERendererStencilMask : uint8;
 /** Struct that holds the relevant properties that can help decide if instances of different 
 	StaticMeshComponents/InstancedStaticMeshComponents/HISM can be merged into a single component. */
 USTRUCT()
-struct ENGINE_API FISMComponentDescriptorBase
+struct FISMComponentDescriptorBase
 {
 	GENERATED_BODY()
 
-	FISMComponentDescriptorBase();
+	ENGINE_API FISMComponentDescriptorBase();
 	explicit FISMComponentDescriptorBase(ENoInit) {}
-	void InitFrom(const UStaticMeshComponent* Component, bool bInitBodyInstance = true);
+	ENGINE_API void InitFrom(const UStaticMeshComponent* Component, bool bInitBodyInstance = true);
 
-	uint32 ComputeHash() const;
-	void InitComponent(UInstancedStaticMeshComponent* ISMComponent) const;
+	ENGINE_API uint32 ComputeHash() const;
+	ENGINE_API void InitComponent(UInstancedStaticMeshComponent* ISMComponent) const;
 
-	bool operator!=(const FISMComponentDescriptorBase& Other) const;
-	bool operator==(const FISMComponentDescriptorBase& Other) const;
+	ENGINE_API bool operator!=(const FISMComponentDescriptorBase& Other) const;
+	ENGINE_API bool operator==(const FISMComponentDescriptorBase& Other) const;
 
 public:
 	UPROPERTY()
@@ -171,18 +171,18 @@ public:
 };
 
 USTRUCT()
-struct ENGINE_API FISMComponentDescriptor : public FISMComponentDescriptorBase
+struct FISMComponentDescriptor : public FISMComponentDescriptorBase
 {
 	GENERATED_USTRUCT_BODY()
 
-	FISMComponentDescriptor();
-	explicit FISMComponentDescriptor(const FSoftISMComponentDescriptor& Other);
-	static FISMComponentDescriptor CreateFrom(const TSubclassOf<UStaticMeshComponent>& ComponentClass);
-	void InitFrom(const UStaticMeshComponent* Component, bool bInitBodyInstance = true);
+	ENGINE_API FISMComponentDescriptor();
+	ENGINE_API explicit FISMComponentDescriptor(const FSoftISMComponentDescriptor& Other);
+	static ENGINE_API FISMComponentDescriptor CreateFrom(const TSubclassOf<UStaticMeshComponent>& ComponentClass);
+	ENGINE_API void InitFrom(const UStaticMeshComponent* Component, bool bInitBodyInstance = true);
 
-	uint32 ComputeHash() const;
-	UInstancedStaticMeshComponent* CreateComponent(UObject* Outer, FName Name = NAME_None, EObjectFlags ObjectFlags = EObjectFlags::RF_NoFlags) const;
-	void InitComponent(UInstancedStaticMeshComponent* ISMComponent) const;
+	ENGINE_API uint32 ComputeHash() const;
+	ENGINE_API UInstancedStaticMeshComponent* CreateComponent(UObject* Outer, FName Name = NAME_None, EObjectFlags ObjectFlags = EObjectFlags::RF_NoFlags) const;
+	ENGINE_API void InitComponent(UInstancedStaticMeshComponent* ISMComponent) const;
 
 	friend inline uint32 GetTypeHash(const FISMComponentDescriptor& Key)
 	{
@@ -193,8 +193,8 @@ struct ENGINE_API FISMComponentDescriptor : public FISMComponentDescriptorBase
 		return Key.Hash;
 	}
 
-	bool operator!=(const FISMComponentDescriptor& Other) const;
-	bool operator==(const FISMComponentDescriptor& Other) const;
+	ENGINE_API bool operator!=(const FISMComponentDescriptor& Other) const;
+	ENGINE_API bool operator==(const FISMComponentDescriptor& Other) const;
 
 	friend inline bool operator<(const FISMComponentDescriptor& Lhs, const FISMComponentDescriptor& Rhs)
 	{
@@ -216,18 +216,18 @@ public:
 };
 
 USTRUCT()
-struct ENGINE_API FSoftISMComponentDescriptor : public FISMComponentDescriptorBase
+struct FSoftISMComponentDescriptor : public FISMComponentDescriptorBase
 {
 	GENERATED_BODY()
 
-	FSoftISMComponentDescriptor();
-	explicit FSoftISMComponentDescriptor(const FISMComponentDescriptor& Other);
-	static FSoftISMComponentDescriptor CreateFrom(const TSubclassOf<UStaticMeshComponent>& ComponentClass);
-	void InitFrom(const UStaticMeshComponent* Component, bool bInitBodyInstance = true);
+	ENGINE_API FSoftISMComponentDescriptor();
+	ENGINE_API explicit FSoftISMComponentDescriptor(const FISMComponentDescriptor& Other);
+	static ENGINE_API FSoftISMComponentDescriptor CreateFrom(const TSubclassOf<UStaticMeshComponent>& ComponentClass);
+	ENGINE_API void InitFrom(const UStaticMeshComponent* Component, bool bInitBodyInstance = true);
 
-	uint32 ComputeHash() const;
-	UInstancedStaticMeshComponent* CreateComponent(UObject* Outer, FName Name = NAME_None, EObjectFlags ObjectFlags = EObjectFlags::RF_NoFlags) const;
-	void InitComponent(UInstancedStaticMeshComponent* ISMComponent) const;
+	ENGINE_API uint32 ComputeHash() const;
+	ENGINE_API UInstancedStaticMeshComponent* CreateComponent(UObject* Outer, FName Name = NAME_None, EObjectFlags ObjectFlags = EObjectFlags::RF_NoFlags) const;
+	ENGINE_API void InitComponent(UInstancedStaticMeshComponent* ISMComponent) const;
 
 	friend inline uint32 GetTypeHash(const FSoftISMComponentDescriptor& Key)
 	{
@@ -238,8 +238,8 @@ struct ENGINE_API FSoftISMComponentDescriptor : public FISMComponentDescriptorBa
 		return Key.Hash;
 	}
 
-	bool operator!=(const FSoftISMComponentDescriptor& Other) const;
-	bool operator==(const FSoftISMComponentDescriptor& Other) const;
+	ENGINE_API bool operator!=(const FSoftISMComponentDescriptor& Other) const;
+	ENGINE_API bool operator==(const FSoftISMComponentDescriptor& Other) const;
 
 	friend inline bool operator<(const FSoftISMComponentDescriptor& Lhs, const FSoftISMComponentDescriptor& Rhs)
 	{

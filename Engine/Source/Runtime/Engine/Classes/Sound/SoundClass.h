@@ -197,8 +197,8 @@ public:
 #endif
 
 
-UCLASS(config = Engine, hidecategories = Object, editinlinenew, BlueprintType)
-class ENGINE_API USoundClass : public UObject
+UCLASS(config = Engine, hidecategories = Object, editinlinenew, BlueprintType, MinimalAPI)
+class USoundClass : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -225,13 +225,13 @@ public:
 protected:
 
 	//~ Begin UObject Interface.
-	virtual void Serialize( FArchive& Ar ) override;
-	virtual FString GetDesc( void ) override;
-	virtual void BeginDestroy() override;
-	virtual void PostLoad() override;
+	ENGINE_API virtual void Serialize( FArchive& Ar ) override;
+	ENGINE_API virtual FString GetDesc( void ) override;
+	ENGINE_API virtual void BeginDestroy() override;
+	ENGINE_API virtual void PostLoad() override;
 #if WITH_EDITOR
-	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
+	ENGINE_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 	//~ End UObject Interface.
 
@@ -239,21 +239,21 @@ public:
 	/** 
 	 * Get the parameters for the sound mix.
 	 */
-	void Interpolate( float InterpValue, FSoundClassProperties& Current, const FSoundClassProperties& Start, const FSoundClassProperties& End );
+	ENGINE_API void Interpolate( float InterpValue, FSoundClassProperties& Current, const FSoundClassProperties& Start, const FSoundClassProperties& End );
 
 	// Sound Class Editor functionality
 #if WITH_EDITOR
 	/** 
 	 * @return true if the child sound class exists in the tree 
 	 */
-	bool RecurseCheckChild( USoundClass* ChildSoundClass );
+	ENGINE_API bool RecurseCheckChild( USoundClass* ChildSoundClass );
 
 	/**
 	 * Set the parent class of this SoundClass, removing it as a child from its previous owner
 	 *
 	 * @param	InParentClass	The New Parent Class of this
 	 */
-	void SetParentClass( USoundClass* InParentClass );
+	ENGINE_API void SetParentClass( USoundClass* InParentClass );
 
 	/**
 	 * Add Referenced objects
@@ -261,20 +261,20 @@ public:
 	 * @param	InThis SoundClass we are adding references from.
 	 * @param	Collector Reference Collector
 	 */
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	static ENGINE_API void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 
 	/**
 	 * Refresh all EdGraph representations of SoundClasses
 	 *
 	 * @param	bIgnoreThis	Whether to ignore this SoundClass if it's already up to date
 	 */
-	void RefreshAllGraphs(bool bIgnoreThis);
+	ENGINE_API void RefreshAllGraphs(bool bIgnoreThis);
 
 	/** Sets the sound cue graph editor implementation. */
-	static void SetSoundClassAudioEditor(TSharedPtr<ISoundClassAudioEditor> InSoundClassAudioEditor);
+	static ENGINE_API void SetSoundClassAudioEditor(TSharedPtr<ISoundClassAudioEditor> InSoundClassAudioEditor);
 
 	/** Gets the sound cue graph editor implementation. */
-	static TSharedPtr<ISoundClassAudioEditor> GetSoundClassAudioEditor();
+	static ENGINE_API TSharedPtr<ISoundClassAudioEditor> GetSoundClassAudioEditor();
 
 private:
 

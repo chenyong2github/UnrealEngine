@@ -25,8 +25,8 @@ enum ELocationEmitterSelectionMethod : int
 	ELESM_MAX,
 };
 
-UCLASS(editinlinenew, hidecategories=Object, meta=(DisplayName = "Emitter Initial Location"))
-class ENGINE_API UParticleModuleLocationEmitter : public UParticleModuleLocationBase
+UCLASS(editinlinenew, hidecategories=Object, meta=(DisplayName = "Emitter Initial Location"), MinimalAPI)
+class UParticleModuleLocationEmitter : public UParticleModuleLocationBase
 {
 	GENERATED_UCLASS_BODY()
 
@@ -66,8 +66,8 @@ class ENGINE_API UParticleModuleLocationEmitter : public UParticleModuleLocation
 
 
 	//~ Begin UParticleModule Interface
-	virtual void	Spawn(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, FBaseParticle* ParticleBase) override;
-	virtual uint32	RequiredBytesPerInstance() override;
+	ENGINE_API virtual void	Spawn(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, FBaseParticle* ParticleBase) override;
+	ENGINE_API virtual uint32	RequiredBytesPerInstance() override;
 	//~ End UParticleModule Interface
 };
 

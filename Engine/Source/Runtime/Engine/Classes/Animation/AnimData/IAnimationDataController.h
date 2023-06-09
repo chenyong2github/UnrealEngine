@@ -40,13 +40,13 @@ namespace Anim {
  * payload containing information relevant to the mutation. These notifies should be relied upon to update any dependent views 
  * or generated (derived) data.
  */
-UINTERFACE(BlueprintType, meta=(CannotImplementInterfaceInBlueprint))
-class ENGINE_API UAnimationDataController : public UInterface
+UINTERFACE(BlueprintType, meta=(CannotImplementInterfaceInBlueprint), MinimalAPI)
+class UAnimationDataController : public UInterface
 {
 	GENERATED_BODY()
 };
 
-class ENGINE_API IAnimationDataController
+class IAnimationDataController
 {
 public:
 	GENERATED_BODY()
@@ -845,7 +845,7 @@ public:
 		ReportMessage(ErrorObject, FText::Format(Fmt, Args...), ELogVerbosity::Error);
 	}
 
-	static void ReportMessage(const UObject* ErrorObject, const FText& InMessage, ELogVerbosity::Type LogVerbosity);	
+	static ENGINE_API void ReportMessage(const UObject* ErrorObject, const FText& InMessage, ELogVerbosity::Type LogVerbosity);	
 private:
 	friend class FAnimDataControllerTestBase;
 	friend UE::Anim::FOpenBracketAction;

@@ -47,8 +47,8 @@ static_assert(EDataLayerRuntimeState::Unloaded < EDataLayerRuntimeState::Loaded 
 static_assert(DATALAYER_TO_INSTANCE_RUNTIME_CONVERSION_ENABLED, "UDEPRECATED_DataLayer class is deprecated and needs to be deleted.");
 class UE_DEPRECATED(5.1, "Use UDataLayerInstance & UDataLayerAsset to create DataLayers") UDEPRECATED_DataLayer;
 
-UCLASS(Config = Engine, PerObjectConfig, Within = WorldDataLayers, BlueprintType, Deprecated)
-class ENGINE_API UDEPRECATED_DataLayer : public UObject
+UCLASS(Config = Engine, PerObjectConfig, Within = WorldDataLayers, BlueprintType, Deprecated, MinimalAPI)
+class UDEPRECATED_DataLayer : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -56,36 +56,36 @@ class ENGINE_API UDEPRECATED_DataLayer : public UObject
 
 public:
 #if WITH_EDITOR
-	virtual bool CanEditChange(const FProperty* Property) const;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual bool CanEditChange(const FProperty* Property) const;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
-	void SetVisible(bool bIsVisible);
-	void SetIsInitiallyVisible(bool bIsInitiallyVisible);
-	void SetIsRuntime(bool bIsRuntime);
-	void SetIsLoadedInEditor(bool bIsLoadedInEditor, bool bFromUserChange);
+	ENGINE_API void SetVisible(bool bIsVisible);
+	ENGINE_API void SetIsInitiallyVisible(bool bIsInitiallyVisible);
+	ENGINE_API void SetIsRuntime(bool bIsRuntime);
+	ENGINE_API void SetIsLoadedInEditor(bool bIsLoadedInEditor, bool bFromUserChange);
 	void SetIsLocked(bool bInIsLocked) { bIsLocked = bInIsLocked; }
 
-	bool IsLocked() const;
+	ENGINE_API bool IsLocked() const;
 	bool IsInitiallyLoadedInEditor() const { return bIsInitiallyLoadedInEditor; }
 	bool IsLoadedInEditor() const { return bIsLoadedInEditor; }
-	bool IsEffectiveLoadedInEditor() const;
+	ENGINE_API bool IsEffectiveLoadedInEditor() const;
 	bool IsLoadedInEditorChangedByUserOperation() const { return bIsLoadedInEditorChangedByUserOperation; }
 	void ClearLoadedInEditorChangedByUserOperation() { bIsLoadedInEditorChangedByUserOperation = false; }
 
-	bool CanParent(const UDEPRECATED_DataLayer* InParent) const;
-	void SetParent(UDEPRECATED_DataLayer* InParent);
-	void SetChildParent(UDEPRECATED_DataLayer* InParent);
+	ENGINE_API bool CanParent(const UDEPRECATED_DataLayer* InParent) const;
+	ENGINE_API void SetParent(UDEPRECATED_DataLayer* InParent);
+	ENGINE_API void SetChildParent(UDEPRECATED_DataLayer* InParent);
 
-	static FText GetDataLayerText(const UDEPRECATED_DataLayer* InDataLayer);
-	const TCHAR* GetDataLayerIconName() const;
+	static ENGINE_API FText GetDataLayerText(const UDEPRECATED_DataLayer* InDataLayer);
+	ENGINE_API const TCHAR* GetDataLayerIconName() const;
 #endif
 	const TArray<TObjectPtr<UDEPRECATED_DataLayer>>& GetChildren() const { return Children_DEPRECATED; }
-	void ForEachChild(TFunctionRef<bool(const UDEPRECATED_DataLayer*)> Operation) const;
+	ENGINE_API void ForEachChild(TFunctionRef<bool(const UDEPRECATED_DataLayer*)> Operation) const;
 
 	const UDEPRECATED_DataLayer* GetParent() const { return Parent_DEPRECATED; }
 	UDEPRECATED_DataLayer* GetParent() { return Parent_DEPRECATED; }
 
-	virtual void PostLoad() override;
+	ENGINE_API virtual void PostLoad() override;
 
 	UFUNCTION(Category = "Data Layer", BlueprintCallable)
 	bool Equals(const FActorDataLayer& ActorDataLayer) const { return ActorDataLayer.Name == GetFName(); }
@@ -94,13 +94,13 @@ public:
 	FName GetDataLayerLabel() const { return DataLayerLabel; }
 
 	UFUNCTION(Category = "Data Layer|Editor", BlueprintCallable)
-	bool IsInitiallyVisible() const;
+	ENGINE_API bool IsInitiallyVisible() const;
 
 	UFUNCTION(Category = "Data Layer|Editor", BlueprintCallable)
-	bool IsVisible() const;
+	ENGINE_API bool IsVisible() const;
 
 	UFUNCTION(Category = "Data Layer|Editor", BlueprintCallable)
-	bool IsEffectiveVisible() const;
+	ENGINE_API bool IsEffectiveVisible() const;
 
 	UFUNCTION(Category = "Data Layer|Editor", BlueprintCallable)
 	FColor GetDebugColor() const { return DebugColor; }
@@ -132,8 +132,8 @@ private:
 
 	void AddChild(UDEPRECATED_DataLayer* DataLayer);
 #if WITH_EDITOR
-	void RemoveChild(UDEPRECATED_DataLayer* DataLayer);
-	void PropagateIsRuntime();
+	ENGINE_API void RemoveChild(UDEPRECATED_DataLayer* DataLayer);
+	ENGINE_API void PropagateIsRuntime();
 #endif
 
 #if WITH_EDITORONLY_DATA

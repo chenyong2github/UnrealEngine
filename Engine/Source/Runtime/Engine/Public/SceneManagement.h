@@ -87,7 +87,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogMultiView, Log, All);
 /**
  * struct to hold the temporal LOD state within a view state
  */
-struct ENGINE_API FTemporalLODState
+struct FTemporalLODState
 {
 	/** The last two camera origin samples collected for stateless temporal LOD transitions */
 	FVector	TemporalLODViewOrigin[2];
@@ -113,7 +113,7 @@ struct ENGINE_API FTemporalLODState
 		return FMath::Clamp((LastRenderTime - TemporalLODLag - TemporalLODTime[0]) / (TemporalLODTime[1] - TemporalLODTime[0]), 0.0f, 1.0f);
 	}
 
-	void UpdateTemporalLODTransition(const FSceneView& View, float LastRenderTime);
+	ENGINE_API void UpdateTemporalLODTransition(const FSceneView& View, float LastRenderTime);
 };
 
 enum ESequencerState
@@ -286,11 +286,11 @@ private:
 	friend class FScene;
 };
 
-class ENGINE_API FFrozenSceneViewMatricesGuard
+class FFrozenSceneViewMatricesGuard
 {
 public:
-	FFrozenSceneViewMatricesGuard(FSceneView& SV);
-	~FFrozenSceneViewMatricesGuard();
+	ENGINE_API FFrozenSceneViewMatricesGuard(FSceneView& SV);
+	ENGINE_API ~FFrozenSceneViewMatricesGuard();
 
 private:
 	FSceneView& SceneView;
@@ -1008,7 +1008,7 @@ public:
 };
 
 /** A projected shadow transform. */
-class ENGINE_API FProjectedShadowInitializer
+class FProjectedShadowInitializer
 {
 public:
 
@@ -1043,14 +1043,14 @@ public:
 };
 
 /** Information needed to create a per-object projected shadow. */
-class ENGINE_API FPerObjectProjectedShadowInitializer : public FProjectedShadowInitializer
+class FPerObjectProjectedShadowInitializer : public FProjectedShadowInitializer
 {
 public:
 
 };
 
 /** Information needed to create a whole scene projected shadow. */
-class ENGINE_API FWholeSceneProjectedShadowInitializer : public FProjectedShadowInitializer
+class FWholeSceneProjectedShadowInitializer : public FProjectedShadowInitializer
 {
 public:
 	FShadowCascadeSettings CascadeSettings;
@@ -1116,14 +1116,14 @@ public:
 ENGINE_API extern TGlobalResource<FDefaultMobileReflectionCaptureUniformBuffer> GDefaultMobileReflectionCaptureUniformBuffer;
 
 /** Represents a USkyLightComponent to the rendering thread. */
-class ENGINE_API FSkyLightSceneProxy
+class FSkyLightSceneProxy
 {
 public:
 
 	/** Initialization constructor. */
-	FSkyLightSceneProxy(const class USkyLightComponent* InLightComponent);
+	ENGINE_API FSkyLightSceneProxy(const class USkyLightComponent* InLightComponent);
 
-	void Initialize(
+	ENGINE_API void Initialize(
 		float InBlendFraction, 
 		const FSHVectorRGB3* InIrradianceEnvironmentMap, 
 		const FSHVectorRGB3* BlendDestinationIrradianceEnvironmentMap,
@@ -1173,7 +1173,7 @@ public:
 	{
 		LightColor = InColor;
 	}
-	FLinearColor GetEffectiveLightColor() const;
+	ENGINE_API FLinearColor GetEffectiveLightColor() const;
 
 #if WITH_EDITOR
 	float SecondsToNextIncompleteCapture;
@@ -1190,13 +1190,13 @@ private:
 };
 
 /** Represents a USkyAtmosphereComponent to the rendering thread. */
-class ENGINE_API FSkyAtmosphereSceneProxy
+class FSkyAtmosphereSceneProxy
 {
 public:
 
 	// Initialization constructor.
-	FSkyAtmosphereSceneProxy(const USkyAtmosphereComponent* InComponent);
-	~FSkyAtmosphereSceneProxy();
+	ENGINE_API FSkyAtmosphereSceneProxy(const USkyAtmosphereComponent* InComponent);
+	ENGINE_API ~FSkyAtmosphereSceneProxy();
 
 	FLinearColor GetSkyLuminanceFactor() const { return SkyLuminanceFactor; }
 	float GetAerialPespectiveViewDistanceScale() const { return AerialPespectiveViewDistanceScale; }
@@ -1209,7 +1209,7 @@ public:
 	void UpdateTransform(const FTransform& ComponentTransform, uint8 TranformMode) { AtmosphereSetup.UpdateTransform(ComponentTransform, TranformMode); }
 	void ApplyWorldOffset(const FVector3f& InOffset) { AtmosphereSetup.ApplyWorldOffset((FVector)InOffset); }
 
-	FVector GetAtmosphereLightDirection(int32 AtmosphereLightIndex, const FVector& DefaultDirection) const;
+	ENGINE_API FVector GetAtmosphereLightDirection(int32 AtmosphereLightIndex, const FVector& DefaultDirection) const;
 
 	bool bStaticLightingBuilt;
 	FSkyAtmosphereRenderSceneInfo* RenderSceneInfo;
@@ -1360,24 +1360,24 @@ extern ENGINE_API void ComputeShadowCullingVolume(bool bReverseCulling, const FV
 
 
 /** Encapsulates the data which is used to render a decal parallel to the game thread. */
-class ENGINE_API FDeferredDecalProxy
+class FDeferredDecalProxy
 {
 public:
 	/** constructor */
-	FDeferredDecalProxy(const UDecalComponent* InComponent);
-	FDeferredDecalProxy(const USceneComponent* InComponent, UMaterialInterface* InMaterial);
+	ENGINE_API FDeferredDecalProxy(const UDecalComponent* InComponent);
+	ENGINE_API FDeferredDecalProxy(const USceneComponent* InComponent, UMaterialInterface* InMaterial);
 
 	/**
 	 * Updates the decal proxy's cached transform and bounds.
 	 * @param InComponentToWorldIncludingDecalSize - The new component-to-world transform including the DecalSize
 	 * @param InBounds - The new world-space bounds including the DecalSize
 	 */
-	void SetTransformIncludingDecalSize(const FTransform& InComponentToWorldIncludingDecalSize, const FBoxSphereBounds& InBounds);
+	ENGINE_API void SetTransformIncludingDecalSize(const FTransform& InComponentToWorldIncludingDecalSize, const FBoxSphereBounds& InBounds);
 
-	void InitializeFadingParameters(float AbsSpawnTime, float FadeDuration, float FadeStartDelay, float FadeInDuration, float FadeInStartDelay);
+	ENGINE_API void InitializeFadingParameters(float AbsSpawnTime, float FadeDuration, float FadeStartDelay, float FadeInDuration, float FadeInStartDelay);
 
 	/** @return True if the decal is visible in the given view. */
-	bool IsShown( const FSceneView* View ) const;
+	ENGINE_API bool IsShown( const FSceneView* View ) const;
 
 	inline const FBoxSphereBounds& GetBounds() const { return Bounds; }
 
@@ -1460,7 +1460,7 @@ namespace EReflectionCaptureShape
 }
 
 /** Represents a reflection capture to the renderer. */
-class ENGINE_API FReflectionCaptureProxy
+class FReflectionCaptureProxy
 {
 public:
 	const class UReflectionCaptureComponent* Component;
@@ -1494,14 +1494,14 @@ public:
 
 	bool bUsingPreviewCaptureData;
 
-	FReflectionCaptureProxy(const class UReflectionCaptureComponent* InComponent);
+	ENGINE_API FReflectionCaptureProxy(const class UReflectionCaptureComponent* InComponent);
 
-	void SetTransform(const FMatrix& InTransform);
-	void UpdateMobileUniformBuffer();
+	ENGINE_API void SetTransform(const FMatrix& InTransform);
+	ENGINE_API void UpdateMobileUniformBuffer();
 };
 
 /** Calculated wind data with support for accumulating other weighted wind data */
-class ENGINE_API FWindData
+class FWindData
 {
 public:
 	FWindData()
@@ -1512,9 +1512,9 @@ public:
 	{
 	}
 
-	void PrepareForAccumulate();
-	void AddWeighted(const FWindData& InWindData, float Weight);
-	void NormalizeByTotalWeight(float TotalWeight);
+	ENGINE_API void PrepareForAccumulate();
+	ENGINE_API void AddWeighted(const FWindData& InWindData, float Weight);
+	ENGINE_API void NormalizeByTotalWeight(float TotalWeight);
 
 	float Speed;
 	float MinGustAmt;
@@ -1523,7 +1523,7 @@ public:
 };
 
 /** Represents a wind source component to the scene manager in the rendering thread. */
-class ENGINE_API FWindSourceSceneProxy
+class FWindSourceSceneProxy
 {
 public:	
 
@@ -1551,9 +1551,9 @@ public:
 		  bIsPointSource(true)
 	  {}
 
-	  bool GetWindParameters(const FVector& EvaluatePosition, FWindData& WindData, float& Weight) const;
-	  bool GetDirectionalWindParameters(FWindData& WindData, float& Weight) const;
-	  void ApplyWorldOffset(FVector InOffset);
+	  ENGINE_API bool GetWindParameters(const FVector& EvaluatePosition, FWindData& WindData, float& Weight) const;
+	  ENGINE_API bool GetDirectionalWindParameters(FWindData& WindData, float& Weight) const;
+	  ENGINE_API void ApplyWorldOffset(FVector InOffset);
 
 private:
 
@@ -1662,7 +1662,7 @@ public:
 /**
  * An interface to a scene interaction.
  */
-class ENGINE_API FViewElementDrawer
+class FViewElementDrawer
 {
 public:
 
@@ -1695,17 +1695,17 @@ public:
 
 
 /** Primitive draw interface implementation used to store primitives requested to be drawn when gathering dynamic mesh elements. */
-class ENGINE_API FSimpleElementCollector : public FPrimitiveDrawInterface
+class FSimpleElementCollector : public FPrimitiveDrawInterface
 {
 public:
 
-	FSimpleElementCollector();
-	~FSimpleElementCollector();
+	ENGINE_API FSimpleElementCollector();
+	ENGINE_API ~FSimpleElementCollector();
 
-	virtual void SetHitProxy(HHitProxy* HitProxy) override;
+	ENGINE_API virtual void SetHitProxy(HHitProxy* HitProxy) override;
 	virtual void AddReserveLines(uint8 DepthPriorityGroup, int32 NumLines, bool bDepthBiased = false, bool bThickLines = false) override {}
 
-	virtual void DrawSprite(
+	ENGINE_API virtual void DrawSprite(
 		const FVector& Position,
 		float SizeX,
 		float SizeY,
@@ -1720,7 +1720,7 @@ public:
 		float OpacityMaskRevVal = .5f
 	) override;
 
-	virtual void DrawLine(
+	ENGINE_API virtual void DrawLine(
 		const FVector& Start,
 		const FVector& End,
 		const FLinearColor& Color,
@@ -1730,7 +1730,7 @@ public:
 		bool bScreenSpace = false
 		) override;
 
-	virtual void DrawTranslucentLine(
+	ENGINE_API virtual void DrawTranslucentLine(
 		const FVector& Start,
 		const FVector& End,
 		const FLinearColor& Color,
@@ -1740,14 +1740,14 @@ public:
 		bool bScreenSpace = false
 	) override;
 
-	virtual void DrawPoint(
+	ENGINE_API virtual void DrawPoint(
 		const FVector& Position,
 		const FLinearColor& Color,
 		float PointSize,
 		uint8 DepthPriorityGroup
 		) override;
 
-	virtual void RegisterDynamicResource(FDynamicPrimitiveResource* DynamicResource) override;
+	ENGINE_API virtual void RegisterDynamicResource(FDynamicPrimitiveResource* DynamicResource) override;
 
 	// Not supported
 	virtual bool IsHitTesting() override
@@ -1777,7 +1777,7 @@ public:
 		return 0;
 	}
 
-	void DrawBatchedElements(FRHICommandList& RHICmdList, const FMeshPassProcessorRenderState& DrawRenderState, const FSceneView& InView, EBlendModeFilter::Type Filter, ESceneDepthPriorityGroup DPG) const;
+	ENGINE_API void DrawBatchedElements(FRHICommandList& RHICmdList, const FMeshPassProcessorRenderState& DrawRenderState, const FSceneView& InView, EBlendModeFilter::Type Filter, ESceneDepthPriorityGroup DPG) const;
 
 	bool HasAnyPrimitives() const
 	{
@@ -1854,7 +1854,7 @@ public:
 /** 
  * Encapsulates the gathering of meshes from the various FPrimitiveSceneProxy classes. 
  */
-class ENGINE_API FMeshElementCollector
+class FMeshElementCollector
 {
 public:
 
@@ -1917,7 +1917,7 @@ public:
 	/** 
 	 * Adds a mesh batch to the collector for the specified view so that it can be rendered.
 	 */
-	void AddMesh(int32 ViewIndex, FMeshBatch& MeshBatch);
+	ENGINE_API void AddMesh(int32 ViewIndex, FMeshBatch& MeshBatch);
 
 	/** Add a material render proxy that will be cleaned up automatically */
 	void RegisterOneFrameMaterialProxy(FMaterialRenderProxy* Proxy)
@@ -1954,17 +1954,17 @@ public:
 
 protected:
 
-	FMeshElementCollector(ERHIFeatureLevel::Type InFeatureLevel, FSceneRenderingBulkObjectAllocator& InBulkAllocator);
+	ENGINE_API FMeshElementCollector(ERHIFeatureLevel::Type InFeatureLevel, FSceneRenderingBulkObjectAllocator& InBulkAllocator);
 
-	~FMeshElementCollector();
+	ENGINE_API ~FMeshElementCollector();
 
-	void DeleteTemporaryProxies();
+	ENGINE_API void DeleteTemporaryProxies();
 
-	void SetPrimitive(const FPrimitiveSceneProxy* InPrimitiveSceneProxy, FHitProxyId DefaultHitProxyId);
+	ENGINE_API void SetPrimitive(const FPrimitiveSceneProxy* InPrimitiveSceneProxy, FHitProxyId DefaultHitProxyId);
 
-	void ClearViewMeshArrays();
+	ENGINE_API void ClearViewMeshArrays();
 
-	void AddViewMeshArrays(
+	ENGINE_API void AddViewMeshArrays(
 		FSceneView* InView,
 		TArray<FMeshBatchAndRelevance, SceneRenderingAllocator>* ViewMeshes,
 		FSimpleElementCollector* ViewSimpleElementCollector,
@@ -2098,22 +2098,22 @@ struct FRayTracingMaterialGatheringContext
 	GraphBuilder(InGraphBuilder),
 	RayTracingMeshResourceCollector(InRayTracingMeshResourceCollector){}
 
-	ENGINE_API virtual ~FRayTracingMaterialGatheringContext() {}
-	ENGINE_API virtual FRayTracingMaskAndFlags BuildInstanceMaskAndFlags(const FRayTracingInstance& Instance, const FPrimitiveSceneProxy& ScenePrimitive) = 0;
+	virtual ~FRayTracingMaterialGatheringContext() {}
+	virtual FRayTracingMaskAndFlags BuildInstanceMaskAndFlags(const FRayTracingInstance& Instance, const FPrimitiveSceneProxy& ScenePrimitive) = 0;
 };
 #endif
 
-class ENGINE_API FDynamicPrimitiveUniformBuffer : public FOneFrameResource
+class FDynamicPrimitiveUniformBuffer : public FOneFrameResource
 {
 public:
-	FDynamicPrimitiveUniformBuffer();
+	ENGINE_API FDynamicPrimitiveUniformBuffer();
 	// FDynamicPrimitiveUniformBuffer is non-copyable
 	FDynamicPrimitiveUniformBuffer(const FDynamicPrimitiveUniformBuffer&) = delete;
-	virtual ~FDynamicPrimitiveUniformBuffer();
+	ENGINE_API virtual ~FDynamicPrimitiveUniformBuffer();
 
 	TUniformBuffer<FPrimitiveUniformShaderParameters> UniformBuffer;
 
-	void Set(
+	ENGINE_API void Set(
 		const FMatrix& LocalToWorld,
 		const FMatrix& PreviousLocalToWorld,
 		const FVector& ActorPositionWS, 
@@ -2125,7 +2125,7 @@ public:
 		bool bOutputVelocity,
 		const FCustomPrimitiveData* CustomPrimitiveData);
 
-	void Set(
+	ENGINE_API void Set(
 		const FMatrix& LocalToWorld,
 		const FMatrix& PreviousLocalToWorld,
 		const FBoxSphereBounds& WorldBounds,
@@ -2136,7 +2136,7 @@ public:
 		bool bOutputVelocity,
 		const FCustomPrimitiveData* CustomPrimitiveData);
 
-	void Set(
+	ENGINE_API void Set(
 		const FMatrix& LocalToWorld,
 		const FMatrix& PreviousLocalToWorld,
 		const FBoxSphereBounds& WorldBounds,
@@ -2147,7 +2147,7 @@ public:
 		bool bOutputVelocity);
 
 	/** Pass-through implementation which calls the overloaded Set function with LocalBounds for PreSkinnedLocalBounds. */
-	void Set(
+	ENGINE_API void Set(
 		const FMatrix& LocalToWorld,
 		const FMatrix& PreviousLocalToWorld,
 		const FBoxSphereBounds& WorldBounds,

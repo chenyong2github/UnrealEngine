@@ -95,7 +95,7 @@ protected:
 
 
 /* 'Tile' item can override size and UV . */
-class ENGINE_API FCanvasTileItem : public FCanvasItem
+class FCanvasTileItem : public FCanvasItem
 {
 public:
 	/** 
@@ -104,7 +104,7 @@ public:
 	 * @param	InPosition		Draw position
 	 * @param	InTexture		The texture
 	 */
-	FCanvasTileItem( const FVector2D& InPosition, const FTexture* InTexture, const FLinearColor& InColor );
+	ENGINE_API FCanvasTileItem( const FVector2D& InPosition, const FTexture* InTexture, const FLinearColor& InColor );
 
 	/** 
 	 * Tile item with texture using given size. 
@@ -113,7 +113,7 @@ public:
 	 * @param	InTexture		The texture
 	 * @param	InSize			The size to render
 	 */
-	FCanvasTileItem( const FVector2D& InPosition, const FTexture* InTexture, const FVector2D& InSize, const FLinearColor& InColor );
+	ENGINE_API FCanvasTileItem( const FVector2D& InPosition, const FTexture* InTexture, const FVector2D& InSize, const FLinearColor& InColor );
 
 	/** 
 	 * Tile item which uses the default white texture using given size. 
@@ -121,7 +121,7 @@ public:
 	 * @param	InPosition		Draw position
 	 * @param	InSize			The size to render
 	 */
-	FCanvasTileItem( const FVector2D& InPosition, const FVector2D& InSize, const FLinearColor& InColor );
+	ENGINE_API FCanvasTileItem( const FVector2D& InPosition, const FVector2D& InSize, const FLinearColor& InColor );
 
 	/** 
 	 * Tile item with texture using size from texture specific UVs. 
@@ -131,7 +131,7 @@ public:
 	 * @param	InUV0			UV coordinates (Normalized Top/Left)
 	 * @param	InUV1			UV coordinates (Normalized Bottom/Right)
 	 */
-	FCanvasTileItem( const FVector2D& InPosition, const FTexture* InTexture, const FVector2D& InUV0, const FVector2D& InUV1, const FLinearColor& InColor );
+	ENGINE_API FCanvasTileItem( const FVector2D& InPosition, const FTexture* InTexture, const FVector2D& InUV0, const FVector2D& InUV1, const FLinearColor& InColor );
 
 	/** 
 	 * Tile item with texture using given size and specific UVs.
@@ -142,7 +142,7 @@ public:
 	 * @param	InUV0			UV coordinates (Normalized Top/Left)
 	 * @param	InUV1			UV coordinates (Normalized Bottom/Right)
 	 */
-	FCanvasTileItem( const FVector2D& InPosition, const FTexture* InTexture, const FVector2D& InSize, const FVector2D& InUV0, const FVector2D& InUV1, const FLinearColor& InColor );
+	ENGINE_API FCanvasTileItem( const FVector2D& InPosition, const FTexture* InTexture, const FVector2D& InSize, const FVector2D& InUV0, const FVector2D& InUV1, const FLinearColor& InColor );
 
 	/** 
 	 * Tile item with FMaterialRenderProxy using given size. 
@@ -151,7 +151,7 @@ public:
 	 * @param	InMaterialRenderProxy	Material proxy for rendering
 	 * @param	InSize					The size to render
 	 */
-	FCanvasTileItem( const FVector2D& InPosition, const FMaterialRenderProxy* InMaterialRenderProxy, const FVector2D& InSize );
+	ENGINE_API FCanvasTileItem( const FVector2D& InPosition, const FMaterialRenderProxy* InMaterialRenderProxy, const FVector2D& InSize );
 
 	/** 
 	 * Tile item with FMaterialRenderProxy using given size and UVs.
@@ -162,14 +162,14 @@ public:
 	 * @param	InUV0					UV coordinates (Normalized Top/Left)
 	 * @param	InUV1					UV coordinates (Normalized Bottom/Right)
 	 */
-	FCanvasTileItem( const FVector2D& InPosition, const FMaterialRenderProxy* InMaterialRenderProxy, const FVector2D& InSize, const FVector2D& InUV0, const FVector2D& InUV1 );
+	ENGINE_API FCanvasTileItem( const FVector2D& InPosition, const FMaterialRenderProxy* InMaterialRenderProxy, const FVector2D& InSize, const FVector2D& InUV0, const FVector2D& InUV1 );
 
 	/** 
 	 * Draw the item at the given coordinates.
 	 *
 	 * @param	InPosition		Draw position.
 	 */
-	virtual void Draw( FCanvas* InCanvas ) override;
+	ENGINE_API virtual void Draw( FCanvas* InCanvas ) override;
 
 	/* Expose the functions defined in the base class. */
 	using FCanvasItem::Draw;
@@ -204,7 +204,7 @@ private:
 };
 
 /* Resizable 3x3 border item. */
-class ENGINE_API FCanvasBorderItem : public FCanvasItem
+class FCanvasBorderItem : public FCanvasItem
 {
 public:
 
@@ -247,7 +247,7 @@ public:
 	 *
 	 * @param	InPosition		Draw position.
 	 */
-	virtual void Draw( FCanvas* InCanvas ) override;
+	ENGINE_API virtual void Draw( FCanvas* InCanvas ) override;
 
 	virtual void SetColor(const FLinearColor& InColor) override final { FCanvasItem::SetColor(InColor); }
 
@@ -302,7 +302,7 @@ public:
 };
 
 /* Base item used for drawing text */
-class ENGINE_API FCanvasTextItemBase : public FCanvasItem
+class FCanvasTextItemBase : public FCanvasItem
 {
 public:
 	FCanvasTextItemBase( const FVector2D& InPosition, const FLinearColor& InColor )
@@ -351,7 +351,7 @@ public:
 	 *
 	 * @param	InCanvas		Canvas on which to draw
 	 */
-	virtual void Draw( FCanvas* InCanvas ) override;
+	ENGINE_API virtual void Draw( FCanvas* InCanvas ) override;
 
 	virtual void SetColor(const FLinearColor& InColor) override final { FCanvasItem::SetColor(InColor); }
 
@@ -434,7 +434,7 @@ protected:
 };
 
 /* Text item with misc optional items such as shadow, centering etc. */
-class ENGINE_API FCanvasTextItem : public FCanvasTextItemBase
+class FCanvasTextItem : public FCanvasTextItemBase
 {
 public:
 	/** 	 
@@ -469,6 +469,8 @@ public:
 		BlendMode = SE_BLEND_TranslucentAlphaOnly;
 	}
 	
+	ENGINE_API ~FCanvasTextItem();
+
 	/* The text to draw. */
 	FText Text;
 	
@@ -480,13 +482,13 @@ public:
 
 protected:
 	/** Get the type of font cache the UFont is using */
-	EFontCacheType GetFontCacheType() const;
+	ENGINE_API EFontCacheType GetFontCacheType() const;
 
 	//~ FCanvasTextItemBase overrides
-	virtual bool HasValidText() const override;
-	virtual ESimpleElementBlendMode GetTextBlendMode( const bool bHasShadow ) const override;
-	virtual FVector2D GetTextSize(float DPIScale) const override;
-	virtual void DrawStringInternal(FCanvas* InCanvas, const FVector2D& DrawPos, const FLinearColor& DrawColor, TArrayView<FTextEffect> TextEffects) override;
+	ENGINE_API virtual bool HasValidText() const override;
+	ENGINE_API virtual ESimpleElementBlendMode GetTextBlendMode( const bool bHasShadow ) const override;
+	ENGINE_API virtual FVector2D GetTextSize(float DPIScale) const override;
+	ENGINE_API virtual void DrawStringInternal(FCanvas* InCanvas, const FVector2D& DrawPos, const FLinearColor& DrawColor, TArrayView<FTextEffect> TextEffects) override;
 
 
 	/** 
@@ -494,12 +496,12 @@ protected:
 	 *
 	 * In a method to make it simpler to do effects like shadow, outline
 	 */
-	void DrawStringInternal_OfflineCache(FCanvas* InCanvas, const FVector2D& DrawPos, const FLinearColor& DrawColor, TArrayView<FTextEffect> TextEffects);
-	void DrawStringInternal_RuntimeCache(FCanvas* InCanvas, const FVector2D& DrawPos, const FLinearColor& DrawColor, TArrayView<FTextEffect> TextEffects);
+	ENGINE_API void DrawStringInternal_OfflineCache(FCanvas* InCanvas, const FVector2D& DrawPos, const FLinearColor& DrawColor, TArrayView<FTextEffect> TextEffects);
+	ENGINE_API void DrawStringInternal_RuntimeCache(FCanvas* InCanvas, const FVector2D& DrawPos, const FLinearColor& DrawColor, TArrayView<FTextEffect> TextEffects);
 };
 
 /* Text item which can handle complex shaped text. */
-class ENGINE_API FCanvasShapedTextItem : public FCanvasTextItemBase
+class FCanvasShapedTextItem : public FCanvasTextItemBase
 {
 public:
 	/** 	 
@@ -521,14 +523,14 @@ public:
 
 protected:
 	//~ FCanvasTextItemBase overrides
-	virtual bool HasValidText() const override;
-	virtual ESimpleElementBlendMode GetTextBlendMode( const bool bHasShadow ) const override;
-	virtual FVector2D GetTextSize(float DPIScale) const override;
-	virtual void DrawStringInternal(FCanvas* InCanvas, const FVector2D& DrawPos, const FLinearColor& DrawColor, TArrayView<FTextEffect> TextEffects) override;
+	ENGINE_API virtual bool HasValidText() const override;
+	ENGINE_API virtual ESimpleElementBlendMode GetTextBlendMode( const bool bHasShadow ) const override;
+	ENGINE_API virtual FVector2D GetTextSize(float DPIScale) const override;
+	ENGINE_API virtual void DrawStringInternal(FCanvas* InCanvas, const FVector2D& DrawPos, const FLinearColor& DrawColor, TArrayView<FTextEffect> TextEffects) override;
 };
 
 /* Line item. Note blend mode will be disregarded for these - only SE_BLEND_Opaque is currently supported. */
-class ENGINE_API FCanvasLineItem : public FCanvasItem
+class FCanvasLineItem : public FCanvasItem
 {
 public:
 	FCanvasLineItem()
@@ -579,7 +581,7 @@ public:
 	 *
 	 * @param	InCanvas		Canvas on which to draw
 	 */
-	virtual void Draw( FCanvas* InCanvas ) override;
+	ENGINE_API virtual void Draw( FCanvas* InCanvas ) override;
 	
 	/** 
 	 * Draw line at the given coordinates.
@@ -671,7 +673,7 @@ public:
 	float		LineThickness;
 };
 
-class ENGINE_API FCanvasBoxItem : public FCanvasItem
+class FCanvasBoxItem : public FCanvasItem
 {
 public:
 	FCanvasBoxItem( const FVector2D& InPosition, const FVector2D& InSize )
@@ -679,7 +681,7 @@ public:
 		, Size( InSize )
 		, LineThickness( 0.0f )	{};
 
-	virtual void Draw( FCanvas* InCanvas ) override;
+	ENGINE_API virtual void Draw( FCanvas* InCanvas ) override;
 
 	/* Expose the functions defined in the base class. */
 	using FCanvasItem::Draw;
@@ -690,12 +692,12 @@ public:
 	/* The thickness of the line. */
 	float		LineThickness;
 private:
-	void SetupBox();
+	ENGINE_API void SetupBox();
 	TArray< FVector > Corners;
 };
 
 
-class ENGINE_API FCanvasTriangleItem : public FCanvasItem
+class FCanvasTriangleItem : public FCanvasItem
 {
 public:	
 	/** 	 
@@ -803,13 +805,13 @@ public:
 		TriangleList[0].V2_Pos = InPointC;
 	}
 
-	virtual void Draw( FCanvas* InCanvas ) override;
+	ENGINE_API virtual void Draw( FCanvas* InCanvas ) override;
 		
 	/* Expose the functions defined in the base class. */
 	using FCanvasItem::Draw;
 
 	/* Set the Color of the item. */
-	virtual void SetColor( const FLinearColor& InColor ) override;
+	ENGINE_API virtual void SetColor( const FLinearColor& InColor ) override;
 
 	/* texture to use for triangle(s). */
 	const FTexture* Texture;
@@ -824,7 +826,7 @@ public:
 };
 
 
-class ENGINE_API FCanvasNGonItem :  public FCanvasItem
+class FCanvasNGonItem :  public FCanvasItem
 {
 public:	
 	/** 	 
@@ -855,13 +857,13 @@ public:
 	 * @param	InTexture	Texture to render
 	 * @param	InColor		Color to tint the texture with
 	 */
-	 FCanvasNGonItem( const FVector2D& InPosition, const FVector2D& InRadius, int32 InNumSides, const FLinearColor& InColor );
+	 ENGINE_API FCanvasNGonItem( const FVector2D& InPosition, const FVector2D& InRadius, int32 InNumSides, const FLinearColor& InColor );
 
 	 virtual ~FCanvasNGonItem()
 	 {
 		 delete TriListItem;
 	 }
-	 virtual void Draw( FCanvas* InCanvas ) override;
+	 ENGINE_API virtual void Draw( FCanvas* InCanvas ) override;
 
 	 /** 	 
 	 * Regenerates the tri list for the object with a new central point and radius
@@ -894,7 +896,7 @@ public:
 	 }
 
 	 /* Set the Color of the item. */
-	 virtual void SetColor( const FLinearColor& InColor ) override final;
+	 ENGINE_API virtual void SetColor( const FLinearColor& InColor ) override final;
 
 private:
 	
@@ -905,11 +907,11 @@ private:
 
 
 #if WITH_EDITOR
-class ENGINE_API FCanvasItemTestbed
+class FCanvasItemTestbed
 {
 public:
-	FCanvasItemTestbed();
-	void  Draw( class FViewport* Viewport, FCanvas* Canvas );
+	ENGINE_API FCanvasItemTestbed();
+	ENGINE_API void  Draw( class FViewport* Viewport, FCanvas* Canvas );
 	struct LineVars
 	{
 		LineVars()
@@ -928,14 +930,14 @@ public:
 		bool bTestSet;
 		float Testangle;
 	};
-	static LineVars TestLine;
-	static bool	bTestState;
-	static bool	bShowTestbed;
-	static bool bShowLines;
-	static bool bShowBoxes;
-	static bool bShowTris;
-	static bool bShowText;
-	static bool bShowTiles;
+	static ENGINE_API LineVars TestLine;
+	static ENGINE_API bool	bTestState;
+	static ENGINE_API bool	bShowTestbed;
+	static ENGINE_API bool bShowLines;
+	static ENGINE_API bool bShowBoxes;
+	static ENGINE_API bool bShowTris;
+	static ENGINE_API bool bShowText;
+	static ENGINE_API bool bShowTiles;
 
 	UMaterial* TestMaterial;
 	

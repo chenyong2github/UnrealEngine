@@ -39,8 +39,8 @@ public:
 	ENGINE_API virtual void PostPlacedNewNode() override;
 	ENGINE_API virtual void OnRenameNode(const FString& NewName) override;
 	ENGINE_API virtual TSharedPtr<class INameValidatorInterface> MakeNameValidator() const override;
-	ENGINE_API virtual FString GetDocumentationLink() const override { return Link; }
-	ENGINE_API virtual FString GetDocumentationExcerptName() const override { return Excerpt; }
+	virtual FString GetDocumentationLink() const override { return Link; }
+	virtual FString GetDocumentationExcerptName() const override { return Excerpt; }
 	ENGINE_API virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const override;
 	//~ End UEdGraphNode Interface
 

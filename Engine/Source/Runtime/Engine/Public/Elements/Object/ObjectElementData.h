@@ -10,7 +10,7 @@ struct FTypedElementHandle;
 /**
  * Element data that represents an Object.
  */
-struct ENGINE_API FObjectElementData
+struct FObjectElementData
 {
 	UE_DECLARE_TYPED_ELEMENT_DATA_RTTI(FObjectElementData);
 

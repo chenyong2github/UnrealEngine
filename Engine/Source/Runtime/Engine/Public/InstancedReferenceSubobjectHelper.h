@@ -96,7 +96,7 @@ struct FInstancedSubObjRef
  * Contains a set of utility functions useful for searching out and identifying
  * instanced sub-objects contained within a specific outer object.
  */
-class ENGINE_API FFindInstancedReferenceSubobjectHelper
+class FFindInstancedReferenceSubobjectHelper
 {
 public:
 	template<typename T>
@@ -114,7 +114,7 @@ public:
 		}
 	}
 
-	static void Duplicate(
+	static ENGINE_API void Duplicate(
 		UObject* OldObject, 
 		UObject* NewObject, 
 		TMap<UObject*, UObject*>& ReferenceReplacementMap, 

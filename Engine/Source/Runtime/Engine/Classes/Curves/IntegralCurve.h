@@ -33,7 +33,7 @@ public:
 
 /** An integral curve, which holds the key time and the key value */
 USTRUCT()
-struct ENGINE_API FIntegralCurve
+struct FIntegralCurve
 	: public FIndexedCurve
 {
 	GENERATED_USTRUCT_BODY()
@@ -57,7 +57,7 @@ public:
 	virtual FIndexedCurve* Duplicate() const final { return new FIntegralCurve(*this); }
 
 	/** Evaluates the value of an array of keys at a time */
-	int32 Evaluate(float Time, int32 InDefaultValue = 0) const;
+	ENGINE_API int32 Evaluate(float Time, int32 InDefaultValue = 0) const;
 
 	/**
 	 * Check whether this curve has any data or not
@@ -68,7 +68,7 @@ public:
 	}
 
 	/** Const iterator for the keys, so the indices and handles stay valid */
-	TArray<FIntegralKey>::TConstIterator GetKeyIterator() const;
+	ENGINE_API TArray<FIntegralKey>::TConstIterator GetKeyIterator() const;
 	
 	/**
 	  * Add a new key to the curve with the supplied Time and Value.
@@ -76,25 +76,25 @@ public:
 	  * @param KeyHandle Optionally can specify what handle this new key should have, otherwise, it'll make a new one
 	  * @return The handle of the new key
 	  */
-	FKeyHandle AddKey( float InTime, int32 InValue, FKeyHandle KeyHandle = FKeyHandle() );
+	ENGINE_API FKeyHandle AddKey( float InTime, int32 InValue, FKeyHandle KeyHandle = FKeyHandle() );
 	
 	/** Remove the specified key from the curve.*/
-	void DeleteKey(FKeyHandle KeyHandle);
+	ENGINE_API void DeleteKey(FKeyHandle KeyHandle);
 	
 	/** Finds the key at InTime, and updates its value. If it can't find the key within the KeyTimeTolerance, it adds one at that time */
-	FKeyHandle UpdateOrAddKey( float InTime, int32 Value, float KeyTimeTolerance = UE_KINDA_SMALL_NUMBER );
+	ENGINE_API FKeyHandle UpdateOrAddKey( float InTime, int32 Value, float KeyTimeTolerance = UE_KINDA_SMALL_NUMBER );
 	
 	/** Move a key to a new time. */
-	virtual void SetKeyTime(FKeyHandle KeyHandle, float NewTime) override final;
+	ENGINE_API virtual void SetKeyTime(FKeyHandle KeyHandle, float NewTime) override final;
 
 	/** Get the time for the Key with the specified index. */
-	virtual float GetKeyTime(FKeyHandle KeyHandle) const override final;
+	ENGINE_API virtual float GetKeyTime(FKeyHandle KeyHandle) const override final;
 
 	/** Set the value of the key with the specified index. */
-	void SetKeyValue(FKeyHandle KeyHandle, int32 NewValue);
+	ENGINE_API void SetKeyValue(FKeyHandle KeyHandle, int32 NewValue);
 
 	/** Get the value for the Key with the specified index. */
-	int32 GetKeyValue(FKeyHandle KeyHandle) const;
+	ENGINE_API int32 GetKeyValue(FKeyHandle KeyHandle) const;
 	
 	/** Set the default value for the curve */
 	void SetDefaultValue(int32 InDefaultValue) { DefaultValue = InDefaultValue; }
@@ -112,16 +112,16 @@ public:
 	bool GetUseDefaultValueBeforeFirstKey() const { return bUseDefaultValueBeforeFirstKey; }
 
 	/** Functions for getting keys based on handles */
-	FIntegralKey& GetKey(FKeyHandle KeyHandle);
-	FIntegralKey GetKey(FKeyHandle KeyHandle) const;
+	ENGINE_API FIntegralKey& GetKey(FKeyHandle KeyHandle);
+	ENGINE_API FIntegralKey GetKey(FKeyHandle KeyHandle) const;
 
-	FKeyHandle FindKey(float KeyTime, float KeyTimeTolerance = UE_KINDA_SMALL_NUMBER) const;
+	ENGINE_API FKeyHandle FindKey(float KeyTime, float KeyTimeTolerance = UE_KINDA_SMALL_NUMBER) const;
 
 	/** Gets the handle for the last key which is at or before the time requested.  If there are no keys at or before the requested time, an invalid handle is returned. */
-	FKeyHandle FindKeyBeforeOrAt(float KeyTime) const;
+	ENGINE_API FKeyHandle FindKeyBeforeOrAt(float KeyTime) const;
 
 	/** Tries to reduce the number of keys required for accurate evaluation (zero error threshold) */
-	void RemoveRedundantKeys();
+	ENGINE_API void RemoveRedundantKeys();
 private:
 
 	/** The keys, ordered by time */

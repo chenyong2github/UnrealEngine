@@ -161,8 +161,8 @@ struct UE_DEPRECATED(5.0, "FAudioComponentParam has been deprecated, use FAudioP
 /**
  *	Convenience class to get audio parameters set on an active sound's playback
  */
-UCLASS(BlueprintType)
-class ENGINE_API UInitialActiveSoundParams : public UObject
+UCLASS(BlueprintType, MinimalAPI)
+class UInitialActiveSoundParams : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -182,8 +182,8 @@ class ENGINE_API UInitialActiveSoundParams : public UObject
  * @see https://docs.unrealengine.com/WorkingWithAudio/Overview
  * @see USoundBase
  */
-UCLASS(ClassGroup=(Audio, Common), HideCategories=(Object, ActorComponent, Physics, Rendering, Mobility, LOD), ShowCategories=Trigger, meta=(BlueprintSpawnableComponent))
-class ENGINE_API UAudioComponent : public USceneComponent, public ISoundParameterControllerInterface, public FQuartzTickableObject
+UCLASS(ClassGroup=(Audio, Common), HideCategories=(Object, ActorComponent, Physics, Rendering, Mobility, LOD), ShowCategories=Trigger, meta=(BlueprintSpawnableComponent), MinimalAPI)
+class UAudioComponent : public USceneComponent, public ISoundParameterControllerInterface, public FQuartzTickableObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -482,7 +482,7 @@ public:
 
 	// Set what sound is played by this component
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
-	void SetSound(USoundBase* NewSound);
+	ENGINE_API void SetSound(USoundBase* NewSound);
 
 	/**
 	 * This function allows designers to call Play on an Audio Component instance while applying a volume curve over time. 
@@ -493,7 +493,7 @@ public:
 	 * @param FadeCurve The curve to use when interpolating between the old and new volume
 	 */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio", meta=(AdvancedDisplay = 1))
-	virtual void FadeIn(float FadeInDuration, float FadeVolumeLevel = 1.0f, float StartTime = 0.0f, const EAudioFaderCurve FadeCurve = EAudioFaderCurve::Linear);
+	ENGINE_API virtual void FadeIn(float FadeInDuration, float FadeVolumeLevel = 1.0f, float StartTime = 0.0f, const EAudioFaderCurve FadeCurve = EAudioFaderCurve::Linear);
 
 	/**
 	 * This function allows designers to call a delayed Stop on an Audio Component instance while applying a
@@ -504,17 +504,17 @@ public:
 	 * @param FadeCurve The curve to use when interpolating between the old and new volume
 	 */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio", meta = (AdvancedDisplay = 1))
-	virtual	void FadeOut(float FadeOutDuration, float FadeVolumeLevel, const EAudioFaderCurve FadeCurve = EAudioFaderCurve::Linear);
+	ENGINE_API virtual	void FadeOut(float FadeOutDuration, float FadeVolumeLevel, const EAudioFaderCurve FadeCurve = EAudioFaderCurve::Linear);
 
 	/** Begins playing the targeted Audio Component's sound at the designated Start Time, seeking into a sound.
 	 * @param StartTime The offset, in seconds, to begin reading the sound at
 	 */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
-	virtual void Play(float StartTime = 0.0f);
+	ENGINE_API virtual void Play(float StartTime = 0.0f);
 
 	/** Start a sound playing on an audio component on a given quantization boundary with the handle to an existing clock */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio", meta = (WorldContext = "WorldContextObject", AdvancedDisplay = "3", UnsafeDuringActorConstruction = "true", Keywords = "play", AutoCreateRefTerm = "InDelegate"))
-	virtual void PlayQuantized(
+	ENGINE_API virtual void PlayQuantized(
 		  const UObject* WorldContextObject
 		, UPARAM(ref) UQuartzClockHandle*& InClockHandle
 		, UPARAM(ref) FQuartzQuantizationBoundary& InQuantizationBoundary
@@ -546,12 +546,12 @@ public:
 		return ISoundParameterControllerInterface::SetFloatParameter(InName, InFloat);
 	}
 
-	virtual void ResetParameters() override;
+	ENGINE_API virtual void ResetParameters() override;
 
 
-	static uint64 AudioComponentIDCounter;
-	static TMap<uint64, UAudioComponent*> AudioIDToComponentMap;
-	static FCriticalSection AudioIDToComponentMapLock;
+	static ENGINE_API uint64 AudioComponentIDCounter;
+	static ENGINE_API TMap<uint64, UAudioComponent*> AudioIDToComponentMap;
+	static ENGINE_API FCriticalSection AudioIDToComponentMapLock;
 
 private:
 	// Data to hold pending quartz commands 
@@ -572,33 +572,33 @@ private:
 
 public:
 	//For if this is being played through a sound queued through Quartz
-	virtual void PlayQueuedQuantizedInternal(const UObject* WorldContextObject, FAudioComponentCommandInfo InCommandInfo);
+	ENGINE_API virtual void PlayQueuedQuantizedInternal(const UObject* WorldContextObject, FAudioComponentCommandInfo InCommandInfo);
 
 	/** Stop an audio component's sound, issue any delegates if needed */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
-	virtual void Stop();
+	ENGINE_API virtual void Stop();
 
 	/** Cues request to stop sound after the provided delay (in seconds), stopping immediately if delay is zero or negative */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
-	void StopDelayed(float DelayTime);
+	ENGINE_API void StopDelayed(float DelayTime);
 
 	/** Pause an audio component playing its sound cue, issue any delegates if needed */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
-	void SetPaused(bool bPause);
+	ENGINE_API void SetPaused(bool bPause);
 
 	/** Returns TRUE if the targeted Audio Component’s sound is playing.
 	 *  Doesn't indicate if the sound is paused or fading in/out. Use GetPlayState() to get the full play state.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
-	virtual bool IsPlaying() const override;
+	ENGINE_API virtual bool IsPlaying() const override;
 
 	/** Returns if the sound is virtualized. */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
-	bool IsVirtualized() const;
+	ENGINE_API bool IsVirtualized() const;
 
 	/** Returns the enumerated play states of the audio component. */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
-	EAudioComponentPlayState GetPlayState() const;
+	ENGINE_API EAudioComponentPlayState GetPlayState() const;
 
 	/** This function allows designers to trigger an adjustment to the sound instance’s playback Volume with options for smoothly applying a curve over time.
 	 * @param AdjustVolumeDuration The length of time in which to interpolate between the initial volume and the new volume.
@@ -606,7 +606,7 @@ public:
 	 * @param FadeCurve The curve used when interpolating between the old and new volume.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
-	void AdjustVolume(float AdjustVolumeDuration, float AdjustVolumeLevel, const EAudioFaderCurve FadeCurve = EAudioFaderCurve::Linear);
+	ENGINE_API void AdjustVolume(float AdjustVolumeDuration, float AdjustVolumeLevel, const EAudioFaderCurve FadeCurve = EAudioFaderCurve::Linear);
 
 	/** Sets the parameter matching the name indicated to the provided Wave. Provided for convenience/backward compatibility
 	 * with SoundCues (The parameter interface supports any object and is up to the system querying it to determine whether
@@ -615,29 +615,29 @@ public:
 	 * @param InWave The wave value to set.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Parameter")
-	void SetWaveParameter(FName InName, USoundWave* InWave);
+	ENGINE_API void SetWaveParameter(FName InName, USoundWave* InWave);
 
 	/** Set a new volume multiplier */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
-	void SetVolumeMultiplier(float NewVolumeMultiplier);
+	ENGINE_API void SetVolumeMultiplier(float NewVolumeMultiplier);
 
 	/** Set a new pitch multiplier */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
-	void SetPitchMultiplier(float NewPitchMultiplier);
+	ENGINE_API void SetPitchMultiplier(float NewPitchMultiplier);
 
 	/** Set whether sounds generated by this audio component should be considered UI sounds */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
-	void SetUISound(bool bInUISound);
+	ENGINE_API void SetUISound(bool bInUISound);
 
 	/** This function is used to modify the Attenuation Settings on the targeted Audio Component instance. It is worth noting that Attenuation Settings are only passed to new Active Sounds on start, so modified Attenuation data should be set before sound playback. */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
-	void AdjustAttenuation(const FSoundAttenuationSettings& InAttenuationSettings);
+	ENGINE_API void AdjustAttenuation(const FSoundAttenuationSettings& InAttenuationSettings);
 
 	/** Allows designers to target a specific Audio Component instance’s sound set the send level (volume of sound copied) to the indicated Submix.
 	 * @param Submix The Submix to send the signal to.
 	 * @param SendLevel The scalar used to alter the volume of the copied signal.*/
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
-	void SetSubmixSend(USoundSubmixBase* Submix, float SendLevel);
+	ENGINE_API void SetSubmixSend(USoundSubmixBase* Submix, float SendLevel);
 
 	/** Allows designers to target a specific Audio Component instance’s sound and set the send level (volume of sound copied)
 	 *  to the indicated Source Bus. If the Source Bus is not already part of the sound’s sends, the reference will be added to
@@ -646,7 +646,7 @@ public:
 	 * @param SourceBusSendLevel The scalar used to alter the volume of the copied signal.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
-	void SetSourceBusSendPreEffect(USoundSourceBus* SoundSourceBus, float SourceBusSendLevel);
+	ENGINE_API void SetSourceBusSendPreEffect(USoundSourceBus* SoundSourceBus, float SourceBusSendLevel);
 
 	/** Allows designers to target a specific Audio Component instance’s sound and set the send level (volume of sound copied)
 	 *  to the indicated Source Bus. If the Source Bus is not already part of the sound’s sends, the reference will be added to
@@ -655,7 +655,7 @@ public:
 	 * @param SourceBusSendLevel The scalar used to alter the volume of the copied signal
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
-	void SetSourceBusSendPostEffect(USoundSourceBus* SoundSourceBus, float SourceBusSendLevel);
+	ENGINE_API void SetSourceBusSendPostEffect(USoundSourceBus* SoundSourceBus, float SourceBusSendLevel);
 
 	/** Sets how much audio the sound should send to the given Audio Bus (PRE Source Effects).
 	 *  if the Bus Send doesn't already exist, it will be added to the overrides on the active sound. 
@@ -663,7 +663,7 @@ public:
 	 * @param AudioBusSendLevel The scalar used to alter the volume of the copied signal
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
-	void SetAudioBusSendPreEffect(UAudioBus* AudioBus, float AudioBusSendLevel);
+	ENGINE_API void SetAudioBusSendPreEffect(UAudioBus* AudioBus, float AudioBusSendLevel);
 
 	/** Sets how much audio the sound should send to the given Audio Bus (POST Source Effects).
 	 *  if the Audio Bus Send doesn't already exist, it will be added to the overrides on the active sound. 
@@ -671,32 +671,32 @@ public:
 	 * @param AudioBusSendLevel The scalar used to alter the volume of the copied signal
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
-	void SetAudioBusSendPostEffect(UAudioBus* AudioBus, float AudioBusSendLevel);
+	ENGINE_API void SetAudioBusSendPostEffect(UAudioBus* AudioBus, float AudioBusSendLevel);
 
 	/** When set to TRUE, enables an additional Low Pass Filter Frequency to be calculated in with the
 	 *  sound instance’s LPF total, allowing designers to set filter settings for the targeted Audio Component’s
 	 *  sound instance.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
-	void SetLowPassFilterEnabled(bool InLowPassFilterEnabled);
+	ENGINE_API void SetLowPassFilterEnabled(bool InLowPassFilterEnabled);
 
 	/** Sets a cutoff frequency, in Hz, for the targeted Audio Component’s sound’s Low Pass Filter calculation.
 	 *  The lowest cutoff frequency from all of the sound instance’s possible LPF calculations wins.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
-	void SetLowPassFilterFrequency(float InLowPassFilterFrequency);
+	ENGINE_API void SetLowPassFilterFrequency(float InLowPassFilterFrequency);
 
 	/** Sets whether or not to output the audio to bus only. */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
-	void SetOutputToBusOnly(bool bInOutputToBusOnly);
+	ENGINE_API void SetOutputToBusOnly(bool bInOutputToBusOnly);
 
 	/** Queries if the sound wave playing in this audio component has cooked FFT data, returns FALSE if none found.  */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
-	bool HasCookedFFTData() const;
+	ENGINE_API bool HasCookedFFTData() const;
 
 	/** Queries whether or not the targeted Audio Component instance’s sound has Amplitude Envelope Data, returns FALSE if none found. */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
-	bool HasCookedAmplitudeEnvelopeData() const;
+	ENGINE_API bool HasCookedAmplitudeEnvelopeData() const;
 
 	/**
 	* Retrieves the current-time cooked spectral data of the sounds playing on the audio component.
@@ -704,7 +704,7 @@ public:
 	* Returns true if there is data and the audio component is playing.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
-	bool GetCookedFFTData(const TArray<float>& FrequenciesToGet, TArray<FSoundWaveSpectralData>& OutSoundWaveSpectralData);
+	ENGINE_API bool GetCookedFFTData(const TArray<float>& FrequenciesToGet, TArray<FSoundWaveSpectralData>& OutSoundWaveSpectralData);
 
 	/**
 	* Retrieves the current-time cooked spectral data of the sounds playing on the audio component.
@@ -712,7 +712,7 @@ public:
 	* Returns true if there is data and the audio component is playing.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
-	bool GetCookedFFTDataForAllPlayingSounds(TArray<FSoundWaveSpectralDataPerSound>& OutSoundWaveSpectralData);
+	ENGINE_API bool GetCookedFFTDataForAllPlayingSounds(TArray<FSoundWaveSpectralDataPerSound>& OutSoundWaveSpectralData);
 
 	/**
 	 * Retrieves Cooked Amplitude Envelope Data at the current playback time. If there are multiple
@@ -720,7 +720,7 @@ public:
 	 * Returns FALSE if no data was found.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio", DisplayName = "Get Cooked Amplitude Envelope Data")
-	bool GetCookedEnvelopeData(float& OutEnvelopeData);
+	ENGINE_API bool GetCookedEnvelopeData(float& OutEnvelopeData);
 
 	/**
 	* Retrieves the current-time amplitude envelope data of the sounds playing on the audio component.
@@ -728,7 +728,7 @@ public:
 	* Returns true if there is data and the audio component is playing.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio", DisplayName="Get Cooked Amplitude Envelope Data For All Playing Sounds")
-	bool GetCookedEnvelopeDataForAllPlayingSounds(TArray<FSoundWaveEnvelopeDataPerSound>& OutEnvelopeData);
+	ENGINE_API bool GetCookedEnvelopeDataForAllPlayingSounds(TArray<FSoundWaveEnvelopeDataPerSound>& OutEnvelopeData);
 
 	/**
 	* Sets the routing for one of the given Audio component's Modulation Destinations.
@@ -737,7 +737,7 @@ public:
 	* @param RoutingMethod The routing method to use for the given modulator.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio", DisplayName = "Set Modulation Routing")
-	void SetModulationRouting(const TSet<USoundModulatorBase*>& Modulators, const EModulationDestination Destination, const EModulationRouting RoutingMethod = EModulationRouting::Inherit);
+	ENGINE_API void SetModulationRouting(const TSet<USoundModulatorBase*>& Modulators, const EModulationDestination Destination, const EModulationRouting RoutingMethod = EModulationRouting::Inherit);
 
 	/**
 	* Gets the set of currently active modulators for a given Modulation Destination.
@@ -745,100 +745,100 @@ public:
 	* @return The set of of Modulators applied to this component for the given Destination.
 	*/
 	UFUNCTION(BlueprintPure, Category = "Audio|Components|Audio", DisplayName = "Get Modulators")
-	UPARAM(DisplayName = "Modulators") TSet<USoundModulatorBase*> GetModulators(const EModulationDestination Destination);
+	ENGINE_API UPARAM(DisplayName = "ModENGINE_API ulators") TSet<USoundModulatorBase*> GetModulators(const EModulationDestination Destination);
 
-	static void PlaybackCompleted(uint64 AudioComponentID, bool bFailedToStart);
+	static ENGINE_API void PlaybackCompleted(uint64 AudioComponentID, bool bFailedToStart);
 
 	bool GetDisableParameterUpdatesWhilePlaying() const override { return static_cast<bool>(bDisableParameterUpdatesWhilePlaying); }
 
 private:
 	/** Called by the ActiveSound to inform the component that playback is finished */
-	void PlaybackCompleted(bool bFailedToStart);
+	ENGINE_API void PlaybackCompleted(bool bFailedToStart);
 
 	/** Whether or not the sound is audible. */
-	bool IsInAudibleRange(float* OutMaxDistance) const;
+	ENGINE_API bool IsInAudibleRange(float* OutMaxDistance) const;
 
-	void SetBusSendEffectInternal(USoundSourceBus* InSourceBus, UAudioBus* InAudioBus, float SendLevel, EBusSendType InBusSendType);
+	ENGINE_API void SetBusSendEffectInternal(USoundSourceBus* InSourceBus, UAudioBus* InAudioBus, float SendLevel, EBusSendType InBusSendType);
 
-	void BroadcastPlayState();
+	ENGINE_API void BroadcastPlayState();
 
 	/** Returns the owning world's "AudioTime" - affected by world pause, but not time dilation.  If no world exists, returns the application time */
-	float GetAudioTimeSeconds() const;
+	ENGINE_API float GetAudioTimeSeconds() const;
 
 public:
 	/** Set when the sound is finished with initial fading in */
-	void SetFadeInComplete();
+	ENGINE_API void SetFadeInComplete();
 
 	/** Sets whether or not sound instance is virtualized */
-	void SetIsVirtualized(bool bInIsVirtualized);
+	ENGINE_API void SetIsVirtualized(bool bInIsVirtualized);
 
 	/** Sets Source Buffer Listener */
-	void SetSourceBufferListener(const FSharedISourceBufferListenerPtr& InSourceBufferListener, bool bShouldZeroBufferAfter);
+	ENGINE_API void SetSourceBufferListener(const FSharedISourceBufferListenerPtr& InSourceBufferListener, bool bShouldZeroBufferAfter);
 	
 	/** Gets  Source Buffer Listener */
 	const FSharedISourceBufferListenerPtr& GetSourceBufferListener() const { return SourceBufferListener; }
 
 	//~ Begin UObject Interface.
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
-	virtual FString GetDetailedInfoInternal() const override;
-	virtual void PostLoad() override;
-	virtual void Serialize(FArchive& Ar) override;
-	virtual void BeginDestroy() override;
+	ENGINE_API virtual FString GetDetailedInfoInternal() const override;
+	ENGINE_API virtual void PostLoad() override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void BeginDestroy() override;
 	//~ End UObject Interface.
 
 	//~ Begin USceneComponent Interface
-	virtual void Activate(bool bReset=false) override;
-	virtual void Deactivate() override;
-	virtual void OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport = ETeleportType::None) override;
-	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
+	ENGINE_API virtual void Activate(bool bReset=false) override;
+	ENGINE_API virtual void Deactivate() override;
+	ENGINE_API virtual void OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport = ETeleportType::None) override;
+	ENGINE_API virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	//~ End USceneComponent Interface
 
 	//~ Begin ActorComponent Interface.
-	virtual void OnRegister() override;
-	virtual void OnUnregister() override;
-	virtual const UObject* AdditionalStatObject() const override;
-	virtual bool IsReadyForOwnerToAutoDestroy() const override;
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	ENGINE_API virtual void OnRegister() override;
+	ENGINE_API virtual void OnUnregister() override;
+	ENGINE_API virtual const UObject* AdditionalStatObject() const override;
+	ENGINE_API virtual bool IsReadyForOwnerToAutoDestroy() const override;
+	ENGINE_API virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	//~ End ActorComponent Interface.
 
-	void AdjustVolumeInternal(float AdjustVolumeDuration, float AdjustVolumeLevel, bool bIsFadeOut, EAudioFaderCurve FadeCurve);
+	ENGINE_API void AdjustVolumeInternal(float AdjustVolumeDuration, float AdjustVolumeLevel, bool bIsFadeOut, EAudioFaderCurve FadeCurve);
 
 	/** Returns a pointer to the attenuation settings to be used (if any) for this audio component dependent on the SoundAttenuation asset or overrides set. */
-	const FSoundAttenuationSettings* GetAttenuationSettingsToApply() const;
+	ENGINE_API const FSoundAttenuationSettings* GetAttenuationSettingsToApply() const;
 
 	/** Retrieves Attenuation Settings data on the targeted Audio Component. Returns FALSE if no settings were found. 
 	 *  Because the Attenuation Settings data structure is copied, FALSE returns will return default values. 
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio", meta = (DisplayName = "Get Attenuation Settings To Apply", ScriptName="GetAttenuationSettingsToApply"))
-	bool BP_GetAttenuationSettingsToApply(FSoundAttenuationSettings& OutAttenuationSettings);
+	ENGINE_API bool BP_GetAttenuationSettingsToApply(FSoundAttenuationSettings& OutAttenuationSettings);
 
 	/** Collects the various attenuation shapes that may be applied to the sound played by the audio component for visualization
 	 * in the editor or via the in game debug visualization. 
 	 */
-	void CollectAttenuationShapesForVisualization(TMultiMap<EAttenuationShape::Type, FBaseAttenuationSettings::AttenuationShapeDetails>& ShapeDetailsMap) const;
+	ENGINE_API void CollectAttenuationShapesForVisualization(TMultiMap<EAttenuationShape::Type, FBaseAttenuationSettings::AttenuationShapeDetails>& ShapeDetailsMap) const;
 
 	uint64 GetAudioComponentID() const { return AudioComponentID; }
 
 	FName GetAudioComponentUserID() const { return AudioComponentUserID; }
 
-	static UAudioComponent* GetAudioComponentFromID(uint64 AudioComponentID);
+	static ENGINE_API UAudioComponent* GetAudioComponentFromID(uint64 AudioComponentID);
 
 	// Sets the audio thread playback time as used by the active sound playing this audio component
 	// Will be set if the audio component is using baked FFT or envelope following data so as to be able to feed that data to BP based on playback time
-	void SetPlaybackTimes(const TMap<uint32, float>& InSoundWavePlaybackTimes);
+	ENGINE_API void SetPlaybackTimes(const TMap<uint32, float>& InSoundWavePlaybackTimes);
 
-	void SetSourceEffectChain(USoundEffectSourcePresetChain* InSourceEffectChain);
+	ENGINE_API void SetSourceEffectChain(USoundEffectSourcePresetChain* InSourceEffectChain);
 
 	/** SoundParameterControllerInterface Implementation */
-	FAudioDevice* GetAudioDevice() const override;
+	ENGINE_API FAudioDevice* GetAudioDevice() const override;
 	TArray<FAudioParameter>& GetInstanceParameters() override { return InstanceParameters; }
 	uint64 GetInstanceOwnerID() const override { return AudioComponentID; }
 	uint32 GetLastPlayOrder() const { return LastSoundPlayOrder; }
 	USoundBase* GetSound() override { return Sound; }
 
-	virtual FName GetFNameForStatID() const override;
+	ENGINE_API virtual FName GetFNameForStatID() const override;
 
 public:
 
@@ -911,7 +911,7 @@ private:
 	TMap<uint32, FSoundWavePlaybackTimeData> SoundWavePlaybackTimes;
 
 	/** Restore relative transform from auto attachment and optionally detach from parent (regardless of whether it was an auto attachment). */
-	void CancelAutoAttachment(bool bDetachFromParent, const UWorld* MyWorld);
+	ENGINE_API void CancelAutoAttachment(bool bDetachFromParent, const UWorld* MyWorld);
 	
 	/** Source Buffer Listener. */
 	FSharedISourceBufferListenerPtr SourceBufferListener;
@@ -920,18 +920,18 @@ private:
 protected:
 
 	/** Utility function called by Play and FadeIn to start a sound playing. */
-	void PlayInternal(const PlayInternalRequestData& InPlayRequestData, USoundBase * InSoundOverride = nullptr);
+	ENGINE_API void PlayInternal(const PlayInternalRequestData& InPlayRequestData, USoundBase * InSoundOverride = nullptr);
 
 #if WITH_EDITORONLY_DATA
 	/** Utility function that updates which texture is displayed on the sprite dependent on the properties of the Audio Component. */
-	void UpdateSpriteTexture();
+	ENGINE_API void UpdateSpriteTexture();
 #endif
 
 	// Used for processing queue commands
 	//~ Begin FQuartzTickableObject
-	virtual void ProcessCommand(const Audio::FQuartzQuantizedCommandDelegateData& Data) override;
+	ENGINE_API virtual void ProcessCommand(const Audio::FQuartzQuantizedCommandDelegateData& Data) override;
 	virtual void ProcessCommand(const Audio::FQuartzMetronomeDelegateData& Data) override {};
-	virtual void ProcessCommand(const Audio::FQuartzQueueCommandData& InQueueCommandData) override;
+	ENGINE_API virtual void ProcessCommand(const Audio::FQuartzQueueCommandData& InQueueCommandData) override;
 	//~ End FQuartzTickableObject
 
 	FRandomStream RandomStream;

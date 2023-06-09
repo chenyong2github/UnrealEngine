@@ -12,7 +12,7 @@
 class UTexture;
 
 USTRUCT()
-struct ENGINE_API FStreamableTexture
+struct FStreamableTexture
 {
 	GENERATED_BODY()
 
@@ -34,12 +34,12 @@ struct ENGINE_API FStreamableTexture
 #endif
 
 #if WITH_EDITOR
-	uint32 ComputeHash() const;
+	ENGINE_API uint32 ComputeHash() const;
 #endif
 };
 
-UCLASS()
-class ENGINE_API UActorTextureStreamingBuildDataComponent : public UActorComponent, public ITextureStreamingContainer
+UCLASS(MinimalAPI)
+class UActorTextureStreamingBuildDataComponent : public UActorComponent, public ITextureStreamingContainer
 {
 	GENERATED_BODY()
 
@@ -51,13 +51,13 @@ public:
 
 #if WITH_EDITOR
 	//~Begin ITextureStreamingContainer Interface.
-	virtual void InitializeTextureStreamingContainer(uint32 InPackedTextureStreamingQualityLevelFeatureLevel) override;
-	virtual uint16 RegisterStreamableTexture(UTexture* InTexture) override;
-	virtual bool GetStreamableTexture(uint16 InTextureIndex, FString& OutTextureName, FGuid& OutTextureGuid) const override;
+	ENGINE_API virtual void InitializeTextureStreamingContainer(uint32 InPackedTextureStreamingQualityLevelFeatureLevel) override;
+	ENGINE_API virtual uint16 RegisterStreamableTexture(UTexture* InTexture) override;
+	ENGINE_API virtual bool GetStreamableTexture(uint16 InTextureIndex, FString& OutTextureName, FGuid& OutTextureGuid) const override;
 	//~End ITextureStreamingContainer Interface.
 
 	uint32 GetPackedTextureStreamingQualityLevelFeatureLevel() const { return PackedTextureStreamingQualityLevelFeatureLevel; }
-	uint32 ComputeHash() const;
+	ENGINE_API uint32 ComputeHash() const;
 #endif
 
 private:

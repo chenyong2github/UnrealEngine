@@ -45,7 +45,7 @@ enum ReverbPreset : int
 
 /** Struct encapsulating settings for reverb effects. */
 USTRUCT(BlueprintType)
-struct ENGINE_API FReverbSettings
+struct FReverbSettings
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -87,11 +87,11 @@ struct ENGINE_API FReverbSettings
 	{
 	}
 
-	bool operator==(const FReverbSettings& Other) const;
+	ENGINE_API bool operator==(const FReverbSettings& Other) const;
 	bool operator!=(const FReverbSettings& Other) const { return !(*this == Other); }
 
 #if WITH_EDITORONLY_DATA
-	void PostSerialize(const FArchive& Ar);
+	ENGINE_API void PostSerialize(const FArchive& Ar);
 #endif // WITH_EDITORONLY_DATA
 };
 

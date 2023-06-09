@@ -466,7 +466,7 @@ public:
 	}
 
 	/** This can be used with the Sort() function on a TArray of FAnimTickRecord to sort from higher leader score */
-	ENGINE_API bool operator <(const FAnimTickRecord& Other) const { return LeaderScore > Other.LeaderScore; }
+	bool operator <(const FAnimTickRecord& Other) const { return LeaderScore > Other.LeaderScore; }
 };
 
 class FMarkerTickContext
@@ -653,7 +653,7 @@ public:
 	ENGINE_API void TestTickRecordForLeadership(EAnimGroupRole::Type MembershipType);
 
 	UE_DEPRECATED(5.0, "Use TestTickRecordForLeadership, as it now internally supports montages")
-	ENGINE_API void TestMontageTickRecordForLeadership() { TestTickRecordForLeadership(EAnimGroupRole::CanBeLeader); }
+	void TestMontageTickRecordForLeadership() { TestTickRecordForLeadership(EAnimGroupRole::CanBeLeader); }
 
 	// Called after leader has been ticked and decided
 	ENGINE_API void Finalize(const FAnimGroupInstance* PreviousGroup);
@@ -972,8 +972,8 @@ struct FAnimationGroupReference
 	}
 };
 
-UCLASS(abstract)
-class ENGINE_API UAnimationAsset : public UObject, public IInterface_AssetUserData, public IInterface_PreviewMeshProvider
+UCLASS(abstract, MinimalAPI)
+class UAnimationAsset : public UObject, public IInterface_AssetUserData, public IInterface_PreviewMeshProvider
 {
 	GENERATED_BODY()
 
@@ -1014,7 +1014,7 @@ public:
 	/** 
 	 * @todo : comment
 	 */
-	void ValidateParentAsset();
+	ENGINE_API void ValidateParentAsset();
 
 	/**
 	 * note this is transient as they're added as they're loaded
@@ -1055,22 +1055,22 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Animation", meta=(BlueprintThreadSafe))
 	virtual float GetPlayLength() const { return 0.f; };
 
-	void SetSkeleton(USkeleton* NewSkeleton);
+	ENGINE_API void SetSkeleton(USkeleton* NewSkeleton);
 	UE_DEPRECATED(5.2, "ResetSkeleton has been deprecated, use ReplaceSkeleton or SetSkeleton instead")
-	void ResetSkeleton(USkeleton* NewSkeleton);
-	virtual void PostLoad() override;
+	ENGINE_API void ResetSkeleton(USkeleton* NewSkeleton);
+	ENGINE_API virtual void PostLoad() override;
 
 	/** Validate our stored data against our skeleton and update accordingly */
-	void ValidateSkeleton();
+	ENGINE_API void ValidateSkeleton();
 
-	virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
 
 	/** Get available Metadata within the animation asset
 	 */
 	const TArray<UAnimMetaData*>& GetMetaData() const { return MetaData; }
 	
 	/** Returns the first metadata of the specified class */
-	UAnimMetaData* FindMetaDataByClass(const TSubclassOf<UAnimMetaData> MetaDataClass) const;
+	ENGINE_API UAnimMetaData* FindMetaDataByClass(const TSubclassOf<UAnimMetaData> MetaDataClass) const;
 
 	/** Templatized version of FindMetaDataByClass that handles casting for you */
 	template<class T>
@@ -1081,15 +1081,15 @@ public:
 		return (T*)FindMetaDataByClass(T::StaticClass());
 	}
 	
-	void AddMetaData(UAnimMetaData* MetaDataInstance); 
+	ENGINE_API void AddMetaData(UAnimMetaData* MetaDataInstance); 
 	void EmptyMetaData() { MetaData.Empty(); }	
-	void RemoveMetaData(UAnimMetaData* MetaDataInstance);
-	void RemoveMetaData(TArrayView<UAnimMetaData*> MetaDataInstances);
+	ENGINE_API void RemoveMetaData(UAnimMetaData* MetaDataInstance);
+	ENGINE_API void RemoveMetaData(TArrayView<UAnimMetaData*> MetaDataInstances);
 
 	/** IInterface_PreviewMeshProvider interface */
-	virtual void SetPreviewMesh(USkeletalMesh* PreviewMesh, bool bMarkAsDirty = true) override;
-	virtual USkeletalMesh* GetPreviewMesh(bool bFindIfNotSet = false) override;
-	virtual USkeletalMesh* GetPreviewMesh() const override;
+	ENGINE_API virtual void SetPreviewMesh(USkeletalMesh* PreviewMesh, bool bMarkAsDirty = true) override;
+	ENGINE_API virtual USkeletalMesh* GetPreviewMesh(bool bFindIfNotSet = false) override;
+	ENGINE_API virtual USkeletalMesh* GetPreviewMesh() const override;
 
 #if WITH_EDITOR
 	/** Sets or updates the preview skeletal mesh */
@@ -1100,39 +1100,39 @@ public:
 	 * 
 	 * @param NewSkeleton	NewSkeleton to change to 
 	 */
-	bool ReplaceSkeleton(USkeleton* NewSkeleton, bool bConvertSpaces=false);
+	ENGINE_API bool ReplaceSkeleton(USkeleton* NewSkeleton, bool bConvertSpaces=false);
 
 	virtual void OnSetSkeleton(USkeleton* NewSkeleton) {}
 
 	// Helper function for GetAllAnimationSequencesReferred, it adds itself first and call GetAllAnimationSEquencesReferred
-	void HandleAnimReferenceCollection(TArray<UAnimationAsset*>& AnimationAssets, bool bRecursive);
+	ENGINE_API void HandleAnimReferenceCollection(TArray<UAnimationAsset*>& AnimationAssets, bool bRecursive);
 
 protected:
 	/** Retrieve all animations that are used by this asset 
 	 * 
 	 * @param (out)		AnimationSequences 
 	 **/
-	virtual bool GetAllAnimationSequencesReferred(TArray<class UAnimationAsset*>& AnimationSequences, bool bRecursive = true);
+	ENGINE_API virtual bool GetAllAnimationSequencesReferred(TArray<class UAnimationAsset*>& AnimationSequences, bool bRecursive = true);
 
 public:
 	/** Replace this assets references to other animations based on ReplacementMap 
 	 * 
 	 * @param ReplacementMap	Mapping of original asset to new asset
 	 **/
-	virtual void ReplaceReferredAnimations(const TMap<UAnimationAsset*, UAnimationAsset*>& ReplacementMap);
+	ENGINE_API virtual void ReplaceReferredAnimations(const TMap<UAnimationAsset*, UAnimationAsset*>& ReplacementMap);
 
 	virtual int32 GetMarkerUpdateCounter() const { return 0; }
 
 	/** 
 	 * Parent Asset related function. Used by editor
 	 */
-	void SetParentAsset(UAnimationAsset* InParentAsset);
+	ENGINE_API void SetParentAsset(UAnimationAsset* InParentAsset);
 	bool HasParentAsset() const { return ParentAsset != nullptr; }
-	bool RemapAsset(UAnimationAsset* SourceAsset, UAnimationAsset* TargetAsset);
+	ENGINE_API bool RemapAsset(UAnimationAsset* SourceAsset, UAnimationAsset* TargetAsset);
 	// we have to update whenever we have anything loaded
-	void UpdateParentAsset();
+	ENGINE_API void UpdateParentAsset();
 protected:
-	virtual void RefreshParentAssetData();
+	ENGINE_API virtual void RefreshParentAssetData();
 #endif //WITH_EDITOR
 
 public:
@@ -1140,17 +1140,17 @@ public:
 	virtual TArray<FName>* GetUniqueMarkerNames() { return nullptr; }
 
 	//~ Begin IInterface_AssetUserData Interface
-	virtual void AddAssetUserData(UAssetUserData* InUserData) override;
-	virtual void RemoveUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
-	virtual UAssetUserData* GetAssetUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
-	virtual const TArray<UAssetUserData*>* GetAssetUserDataArray() const override;
+	ENGINE_API virtual void AddAssetUserData(UAssetUserData* InUserData) override;
+	ENGINE_API virtual void RemoveUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
+	ENGINE_API virtual UAssetUserData* GetAssetUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
+	ENGINE_API virtual const TArray<UAssetUserData*>* GetAssetUserDataArray() const override;
 	//~ End IInterface_AssetUserData Interface
 
 	//~ Begin UObject Interface.
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
-	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
+	ENGINE_API virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 #endif // WITH_EDITOR
 
 	/**
@@ -1177,7 +1177,7 @@ private:
 
 protected:
 #if WITH_EDITOR
-	virtual void RemapTracksToNewSkeleton(USkeleton* NewSkeleton, bool bConvertSpaces);
+	ENGINE_API virtual void RemapTracksToNewSkeleton(USkeleton* NewSkeleton, bool bConvertSpaces);
 #endif // WITH_EDITOR
 
 public:

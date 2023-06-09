@@ -10,8 +10,8 @@
 #include "Animation/AnimCurveCompressionCodec.h"
 #include "AnimCurveCompressionCodec_CompressedRichCurve.generated.h"
 
-UCLASS(meta = (DisplayName = "Compressed Rich Curves"))
-class ENGINE_API UAnimCurveCompressionCodec_CompressedRichCurve : public UAnimCurveCompressionCodec
+UCLASS(meta = (DisplayName = "Compressed Rich Curves"), MinimalAPI)
+class UAnimCurveCompressionCodec_CompressedRichCurve : public UAnimCurveCompressionCodec
 {
 	GENERATED_UCLASS_BODY()
 
@@ -33,10 +33,10 @@ class ENGINE_API UAnimCurveCompressionCodec_CompressedRichCurve : public UAnimCu
 
 #if WITH_EDITORONLY_DATA
 	// UAnimCurveCompressionCodec overrides
-	virtual bool Compress(const FCompressibleAnimData& AnimSeq, FAnimCurveCompressionResult& OutResult) override;
-	virtual void PopulateDDCKey(FArchive& Ar) override;
+	ENGINE_API virtual bool Compress(const FCompressibleAnimData& AnimSeq, FAnimCurveCompressionResult& OutResult) override;
+	ENGINE_API virtual void PopulateDDCKey(FArchive& Ar) override;
 #endif
 	
-	virtual void DecompressCurves(const FCompressedAnimSequence& AnimSeq, FBlendedCurve& Curves, float CurrentTime) const override;
-	virtual float DecompressCurve(const FCompressedAnimSequence& AnimSeq, FName CurveName, float CurrentTime) const override;
+	ENGINE_API virtual void DecompressCurves(const FCompressedAnimSequence& AnimSeq, FBlendedCurve& Curves, float CurrentTime) const override;
+	ENGINE_API virtual float DecompressCurve(const FCompressedAnimSequence& AnimSeq, FName CurveName, float CurrentTime) const override;
 };

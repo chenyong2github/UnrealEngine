@@ -63,8 +63,8 @@ struct FPrimaryAssetRulesCustomOverride
 };
 
 /** Settings for the Asset Management framework, which can be used to discover, load, and audit game-specific asset types */
-UCLASS(config = Game, defaultconfig, meta = (DisplayName = "Asset Manager"))
-class ENGINE_API UAssetManagerSettings : public UDeveloperSettings
+UCLASS(config = Game, defaultconfig, meta = (DisplayName = "Asset Manager"), MinimalAPI)
+class UAssetManagerSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
 
@@ -134,15 +134,15 @@ public:
 	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Asset Registry", DisplayName = "Metadata Tags For Asset Registry")
 	TSet<FName> MetaDataTagsForAssetRegistry;
 
-	virtual void PostReloadConfig(class FProperty* PropertyThatWasLoaded) override;
+	ENGINE_API virtual void PostReloadConfig(class FProperty* PropertyThatWasLoaded) override;
 
 #if WITH_EDITOR
-	virtual void PostInitProperties() override;
-	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostInitProperties() override;
+	ENGINE_API virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
 private:
-	void ApplyMetaDataTagsSettings();
-	void ClearMetaDataTagsSettings();
+	ENGINE_API void ApplyMetaDataTagsSettings();
+	ENGINE_API void ClearMetaDataTagsSettings();
 #endif
 };

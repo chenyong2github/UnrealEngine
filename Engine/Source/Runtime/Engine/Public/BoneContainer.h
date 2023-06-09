@@ -169,7 +169,7 @@ struct FCompactPoseBoneIndexReverseIterator
 * - BoneIndicesArray: Array of RequiredBoneIndices for Current Asset. In increasing order. Mapping to current Array of Transforms (Pose).
 * - BoneSwitchArray: Size of current Skeleton. true if Bone is contained in RequiredBones array, false otherwise.
 **/
-struct ENGINE_API FBoneContainer
+struct FBoneContainer
 {
 private:
 	/** Array of RequiredBonesIndices. In increasing order. */
@@ -232,20 +232,20 @@ private:
 
 public:
 
-	FBoneContainer();
+	ENGINE_API FBoneContainer();
 
-	FBoneContainer(const TArray<FBoneIndexType>& InRequiredBoneIndexArray, const UE::Anim::FCurveFilterSettings& InCurveFilterSettings, UObject& InAsset);
+	ENGINE_API FBoneContainer(const TArray<FBoneIndexType>& InRequiredBoneIndexArray, const UE::Anim::FCurveFilterSettings& InCurveFilterSettings, UObject& InAsset);
 	
-	void InitializeTo(const TArray<FBoneIndexType>& InRequiredBoneIndexArray, const UE::Anim::FCurveFilterSettings& InCurveFilterSettings, UObject& InAsset);
+	ENGINE_API void InitializeTo(const TArray<FBoneIndexType>& InRequiredBoneIndexArray, const UE::Anim::FCurveFilterSettings& InCurveFilterSettings, UObject& InAsset);
 	
 	UE_DEPRECATED(5.3, "Please use the constructor that takes a FCurveFilterSettings.")
-	FBoneContainer(const TArray<FBoneIndexType>& InRequiredBoneIndexArray, const FCurveEvaluationOption& CurveEvalOption, UObject& InAsset);
+	ENGINE_API FBoneContainer(const TArray<FBoneIndexType>& InRequiredBoneIndexArray, const FCurveEvaluationOption& CurveEvalOption, UObject& InAsset);
 
 	UE_DEPRECATED(5.3, "Please use InitializeTo that takes a FCurveFilterSettings.")
-	void InitializeTo(const TArray<FBoneIndexType>& InRequiredBoneIndexArray, const FCurveEvaluationOption& CurveEvalOption, UObject& InAsset);
+	ENGINE_API void InitializeTo(const TArray<FBoneIndexType>& InRequiredBoneIndexArray, const FCurveEvaluationOption& CurveEvalOption, UObject& InAsset);
 
 	/** Resets the container and reclaims all allocated memory but preserve the serial number. */
-	void Reset();
+	ENGINE_API void Reset();
 
 	/** Returns true if FBoneContainer is Valid. Needs an Asset, a RefPoseArray, and a RequiredBonesArray. */
 	const bool IsValid() const
@@ -409,22 +409,22 @@ public:
 	}
 
 	/** Get BoneIndex for BoneName for current Asset. */
-	int32 GetPoseBoneIndexForBoneName(const FName& BoneName) const;
+	ENGINE_API int32 GetPoseBoneIndexForBoneName(const FName& BoneName) const;
 
 	/** Get ParentBoneIndex for current Asset. */
-	int32 GetParentBoneIndex(const int32 BoneIndex) const;
+	ENGINE_API int32 GetParentBoneIndex(const int32 BoneIndex) const;
 
 	/** Get ParentBoneIndex for current Asset. */
-	FCompactPoseBoneIndex GetParentBoneIndex(const FCompactPoseBoneIndex& BoneIndex) const;
+	ENGINE_API FCompactPoseBoneIndex GetParentBoneIndex(const FCompactPoseBoneIndex& BoneIndex) const;
 
 	/** Get Depth between bones for current asset. */
-	int32 GetDepthBetweenBones(const int32 BoneIndex, const int32 ParentBoneIndex) const;
+	ENGINE_API int32 GetDepthBetweenBones(const int32 BoneIndex, const int32 ParentBoneIndex) const;
 
 	/** Returns true if bone is child of for current asset. */
-	bool BoneIsChildOf(const int32 BoneIndex, const int32 ParentBoneIndex) const;
+	ENGINE_API bool BoneIsChildOf(const int32 BoneIndex, const int32 ParentBoneIndex) const;
 
 	/** Returns true if bone is child of for current asset. */
-	bool BoneIsChildOf(const FCompactPoseBoneIndex& BoneIndex, const FCompactPoseBoneIndex& ParentBoneIndex) const;
+	ENGINE_API bool BoneIsChildOf(const FCompactPoseBoneIndex& BoneIndex, const FCompactPoseBoneIndex& ParentBoneIndex) const;
 
 	/** Get filter used for filtering by LOD/bone */
 	const UE::Anim::FCurveFilter& GetCurveFilter() const
@@ -439,10 +439,10 @@ public:
 	}
 
 	UE_DEPRECATED(5.3, "GetUIDToArrayLookupTable is deprecated, it is no longer used.")
-	TArray<uint16> const& GetUIDToArrayLookupTable() const;
+	ENGINE_API TArray<uint16> const& GetUIDToArrayLookupTable() const;
 
 	UE_DEPRECATED(5.3, "GetUIDToArrayIndexLookupTableValidCount is deprecated, it is no longer used.")
-	int32 GetUIDToArrayIndexLookupTableValidCount() const;
+	ENGINE_API int32 GetUIDToArrayIndexLookupTableValidCount() const;
 
 	UE_DEPRECATED(5.0, "GetUIDToNameLookupTable is deprecated, please access from the SmartNameMapping directly via GetSkeletonAsset()->GetSmartNameContainer(USkeleton::AnimCurveMappingName)")
 	TArray<FName> const& GetUIDToNameLookupTable() const
@@ -452,10 +452,10 @@ public:
 	}
 
 	UE_DEPRECATED(5.0, "GetUIDToCurveTypeLookupTable is deprecated, please access from the SmartNameMapping directly via GetSkeletonAsset()->GetSmartNameContainer(USkeleton::AnimCurveMappingName)")
-	TArray<FAnimCurveType> const& GetUIDToCurveTypeLookupTable() const;
+	ENGINE_API TArray<FAnimCurveType> const& GetUIDToCurveTypeLookupTable() const;
 
 	UE_DEPRECATED(5.3, "GetUIDToArrayLookupTableBackup is deprecated, it is no longer used.")
-	TArray<SmartName::UID_Type> const& GetUIDToArrayLookupTableBackup() const;
+	ENGINE_API TArray<SmartName::UID_Type> const& GetUIDToArrayLookupTableBackup() const;
 
 	/**
 	* Serializes the bones
@@ -657,10 +657,10 @@ public:
 	}
 
 	/** Cache required Anim Curves */
-	void CacheRequiredAnimCurves(const UE::Anim::FCurveFilterSettings& InCurveFilterSettings);
+	ENGINE_API void CacheRequiredAnimCurves(const UE::Anim::FCurveFilterSettings& InCurveFilterSettings);
 	
-	const FRetargetSourceCachedData& GetRetargetSourceCachedData(const FName& InRetargetSource) const;
-	const FRetargetSourceCachedData& GetRetargetSourceCachedData(const FName& InSourceName, const FSkeletonRemapping& InRemapping, const TArray<FTransform>& InRetargetTransforms) const;
+	ENGINE_API const FRetargetSourceCachedData& GetRetargetSourceCachedData(const FName& InRetargetSource) const;
+	ENGINE_API const FRetargetSourceCachedData& GetRetargetSourceCachedData(const FName& InSourceName, const FSkeletonRemapping& InRemapping, const TArray<FTransform>& InRetargetTransforms) const;
 
 #if DO_CHECK
 	/** Get the LOD that we calculated required bones when regenerated */
@@ -668,8 +668,8 @@ public:
 #endif
 	
 	// Curve remapping
-	const FCachedSkeletonCurveMapping& GetOrCreateCachedCurveMapping(const FSkeletonRemapping* SkeletonRemapping);
-	void MarkAllCachedCurveMappingsDirty();
+	ENGINE_API const FCachedSkeletonCurveMapping& GetOrCreateCachedCurveMapping(const FSkeletonRemapping* SkeletonRemapping);
+	ENGINE_API void MarkAllCachedCurveMappingsDirty();
 
 	// Get the serial number of this bone container. @see SerialNumber
 	uint16 GetSerialNumber() const { return SerialNumber; }
@@ -682,16 +682,16 @@ private:
 	mutable TMap<FName, FRetargetSourceCachedData> RetargetSourceCachedDataLUT;
 
 	/** Initialize FBoneContainer. */
-	void Initialize(const UE::Anim::FCurveFilterSettings& CurveFilterSettings);
+	ENGINE_API void Initialize(const UE::Anim::FCurveFilterSettings& CurveFilterSettings);
 
 	/** Cache remapping data if current Asset is a SkeletalMesh, with all compatible Skeletons. */
-	void RemapFromSkelMesh(USkeletalMesh const & SourceSkeletalMesh, USkeleton& TargetSkeleton);
+	ENGINE_API void RemapFromSkelMesh(USkeletalMesh const & SourceSkeletalMesh, USkeleton& TargetSkeleton);
 
 	/** Cache remapping data if current Asset is a Skeleton, with all compatible Skeletons. */
-	void RemapFromSkeleton(USkeleton const & SourceSkeleton);
+	ENGINE_API void RemapFromSkeleton(USkeleton const & SourceSkeleton);
 
 	// Regenerate the serial number after internal data is updated
-	void RegenerateSerialNumber();
+	ENGINE_API void RegenerateSerialNumber();
 };
 
 

@@ -19,8 +19,8 @@ namespace Audio
  * UAudioSubsystemCollectionRoot
  * Root UObject used to anchor UAudioEngineSubsystems to the FAudioDevice
  */
-UCLASS()
-class ENGINE_API UAudioSubsystemCollectionRoot final : public UObject
+UCLASS(MinimalAPI)
+class UAudioSubsystemCollectionRoot final : public UObject
 {
 	GENERATED_BODY()
 
@@ -41,14 +41,14 @@ protected:
  * UAudioEngineSubsystem
  * Base class for auto instanced and initialized systems that share the lifetime of the audio device
  */
-UCLASS(Abstract)
-class ENGINE_API UAudioEngineSubsystem : public UDynamicSubsystem
+UCLASS(Abstract, MinimalAPI)
+class UAudioEngineSubsystem : public UDynamicSubsystem
 {
 	GENERATED_BODY()
 
 public:
 
-	UAudioEngineSubsystem();
+	ENGINE_API UAudioEngineSubsystem();
 
 	/**
 	 * Override to get an update call during AudioDevice::Update
@@ -57,19 +57,19 @@ public:
 	virtual void Update() {}
 
 	/** Returns the owning audio device handle */
-	virtual FAudioDeviceHandle GetAudioDeviceHandle() const final;
+	ENGINE_API virtual FAudioDeviceHandle GetAudioDeviceHandle() const final;
 
 	/** Return a mutable version of the source manager associated with the owning device handle */
-	virtual Audio::FMixerSourceManager* GetMutableSourceManager() final;
+	ENGINE_API virtual Audio::FMixerSourceManager* GetMutableSourceManager() final;
 
 	/** Return the source manager associated with the owning device handle */
-	virtual const Audio::FMixerSourceManager* GetSourceManager() const final;
+	ENGINE_API virtual const Audio::FMixerSourceManager* GetSourceManager() const final;
 
 	/** Return a mutable version of the mixer device from the owning device handle */
-	virtual Audio::FMixerDevice* GetMutableMixerDevice() final;
+	ENGINE_API virtual Audio::FMixerDevice* GetMutableMixerDevice() final;
 
 	/** Return the mixer device from the owning device handle */
-	virtual const Audio::FMixerDevice* GetMixerDevice() const final;
+	ENGINE_API virtual const Audio::FMixerDevice* GetMixerDevice() const final;
 };
 
 /**

@@ -23,7 +23,7 @@ class IInterface_AsyncCompilation
 
 #if WITH_EDITOR
 	/**	Returns whether or not the asset is currently being compiled */
-	ENGINE_API virtual bool IsCompiling() const = 0;
+	virtual bool IsCompiling() const = 0;
 #endif
 };
 

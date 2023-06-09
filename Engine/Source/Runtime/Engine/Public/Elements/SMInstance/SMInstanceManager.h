@@ -15,12 +15,12 @@ enum class ETypedElementWorldType : uint8;
  * This exists so that actors that directly manage instances can inject custom logic around the manipulation of the underlying ISM component.
  * @note The static mesh instances given to this API must be valid and belong to this instance manager. The instance manager implementation is free to assert or crash if that contract is broken.
  */
-UINTERFACE()
-class ENGINE_API USMInstanceManager : public UInterface
+UINTERFACE(MinimalAPI)
+class USMInstanceManager : public UInterface
 {
 	GENERATED_BODY()
 };
-class ENGINE_API ISMInstanceManager
+class ISMInstanceManager
 {
 	GENERATED_BODY()
 
@@ -145,12 +145,12 @@ public:
  * This exists so that actors that indirectly manage instances can provide the correct underlying manager for the specific ISM component and instance.
  * @note The static mesh instances given to this API must be valid. The instance manager provider implementation is free to assert or crash if that contract is broken.
  */
-UINTERFACE()
-class ENGINE_API USMInstanceManagerProvider : public UInterface
+UINTERFACE(MinimalAPI)
+class USMInstanceManagerProvider : public UInterface
 {
 	GENERATED_BODY()
 };
-class ENGINE_API ISMInstanceManagerProvider
+class ISMInstanceManagerProvider
 {
 	GENERATED_BODY()
 
@@ -165,7 +165,7 @@ public:
 /**
  * A static mesh instance manager, tied to a given static mesh instance ID.
  */
-struct ENGINE_API FSMInstanceManager
+struct FSMInstanceManager
 {
 public:
 	FSMInstanceManager() = default;

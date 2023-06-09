@@ -14,12 +14,12 @@ class UAnimGraphNode_StateResult;
 // Root node of an state machine state (sink node).
 // We dont use AnimNode_Root to let us distinguish these nodes in the property list at link time.
 USTRUCT(BlueprintInternalUseOnly)
-struct ENGINE_API FAnimNode_StateResult : public FAnimNode_Root
+struct FAnimNode_StateResult : public FAnimNode_Root
 {
 	GENERATED_USTRUCT_BODY()
 
 	/** Used to upgrade old FAnimNode_Roots to FAnimNode_StateResult */
-	bool SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
+	ENGINE_API bool SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
 
 #if WITH_EDITORONLY_DATA
 protected:
@@ -34,19 +34,19 @@ public:
 	void SetStateIndex(int32 InStateIndex) { StateIndex = InStateIndex; }	
 #endif
 
-	int32 GetStateIndex() const;
+	ENGINE_API int32 GetStateIndex() const;
 	
 	/** Gets the anim node function called on state entry, state became the current state of its state machine */
-	const FAnimNodeFunctionRef& GetStateEntryFunction() const;
+	ENGINE_API const FAnimNodeFunctionRef& GetStateEntryFunction() const;
 
 	/** Gets the anim node function called on state fully blended in */
-	const FAnimNodeFunctionRef& GetStateFullyBlendedInFunction() const;
+	ENGINE_API const FAnimNodeFunctionRef& GetStateFullyBlendedInFunction() const;
 
 	/** Gets the anim node function called on state exit, state stopped being the current state of its state machine  */
-	const FAnimNodeFunctionRef& GetStateExitFunction() const;
+	ENGINE_API const FAnimNodeFunctionRef& GetStateExitFunction() const;
 
 	/** Gets the anim node function called on state fully blended out */
-	const FAnimNodeFunctionRef& GetStateFullyBlendedOutFunction() const;
+	ENGINE_API const FAnimNodeFunctionRef& GetStateFullyBlendedOutFunction() const;
 
 private:
 	friend struct FAnimNode_StateMachine;

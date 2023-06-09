@@ -19,8 +19,8 @@ class FDebugDisplayInfo;
  * being computed by the APlayerCameraManager (@see ModifyCamera). A CameraModifier
  * can be stateful, and is associated uniquely with a specific APlayerCameraManager.
  */
-UCLASS(BlueprintType, Blueprintable)
-class ENGINE_API UCameraModifier : public UObject
+UCLASS(BlueprintType, Blueprintable, MinimalAPI)
+class UCameraModifier : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -63,11 +63,11 @@ protected:
 	float Alpha;
 
 	UFUNCTION()
-	void OnCameraOwnerDestroyed(AActor* InOwner);
+	ENGINE_API void OnCameraOwnerDestroyed(AActor* InOwner);
 
 protected:
 	/** @return Returns the ideal blend alpha for this modifier. Interpolation will seek this value. */
-	virtual float GetTargetAlpha();
+	ENGINE_API virtual float GetTargetAlpha();
 
 public:
 
@@ -78,13 +78,13 @@ public:
 	 * @param YL - Vertical spacing.
 	 * @param YPos - Current vertical space to start writing.
 	 */
-	virtual void DisplayDebug(class UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos);
+	ENGINE_API virtual void DisplayDebug(class UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos);
 
 	/** 
 	 * Allows any custom initialization. Called immediately after creation.
 	 * @param Camera - The camera this modifier should be associated with.
 	 */
-	virtual void AddedToCamera( APlayerCameraManager* Camera );
+	ENGINE_API virtual void AddedToCamera( APlayerCameraManager* Camera );
 	
 	/**
 	 * Directly modifies variables in the owning camera
@@ -92,7 +92,7 @@ public:
 	 * @param	InOutPOV	Current Point of View, to be updated.
 	 * @return	bool		True if should STOP looping the chain, false otherwise
 	 */
-	virtual bool ModifyCamera(float DeltaTime, struct FMinimalViewInfo& InOutPOV);
+	ENGINE_API virtual bool ModifyCamera(float DeltaTime, struct FMinimalViewInfo& InOutPOV);
 
 	/** 
 	 * Called per tick that the modifier is active to allow Blueprinted modifiers to modify the camera's transform. 
@@ -106,7 +106,7 @@ public:
 	 * @param	NewFOV				(out) The modified camera FOV.
 	 */
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCosmetic)
-	void BlueprintModifyCamera(float DeltaTime, FVector ViewLocation, FRotator ViewRotation, float FOV, FVector& NewViewLocation, FRotator& NewViewRotation, float& NewFOV);
+	ENGINE_API void BlueprintModifyCamera(float DeltaTime, FVector ViewLocation, FRotator ViewRotation, float FOV, FVector& NewViewLocation, FRotator& NewViewRotation, float& NewFOV);
 
 	/**
 	 * Called per tick that the modifier is active to allow Blueprinted modifiers to modify the camera's postprocess effects.
@@ -116,29 +116,29 @@ public:
 	 * @param	PostProcessSettings		(out) Post process structure defining what settings and values to override.
 	 */
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCosmetic)
-	void BlueprintModifyPostProcess(float DeltaTime, float& PostProcessBlendWeight, FPostProcessSettings& PostProcessSettings);
+	ENGINE_API void BlueprintModifyPostProcess(float DeltaTime, float& PostProcessBlendWeight, FPostProcessSettings& PostProcessSettings);
 
 	/** @return Returns true if modifier is disabled, false otherwise. */
 	UFUNCTION(BlueprintCallable, Category = CameraModifier)
-	virtual bool IsDisabled() const;
+	ENGINE_API virtual bool IsDisabled() const;
 	
 	/** @return Returns the actor the camera is currently viewing. */
 	UFUNCTION(BlueprintCallable, Category = CameraModifier)
-	virtual AActor* GetViewTarget() const;
+	ENGINE_API virtual AActor* GetViewTarget() const;
 
 	/** 
 	 *  Disables this modifier.
 	 *  @param  bImmediate  - true to disable with no blend out, false (default) to allow blend out
 	 */
 	UFUNCTION(BlueprintCallable, Category=CameraModifier)
-	virtual void DisableModifier(bool bImmediate = false);
+	ENGINE_API virtual void DisableModifier(bool bImmediate = false);
 
 	/** Enables this modifier. */
 	UFUNCTION(BlueprintCallable, Category = CameraModifier)
-	virtual void EnableModifier();
+	ENGINE_API virtual void EnableModifier();
 
 	/** Toggled disabled/enabled state of this modifier. */
-	virtual void ToggleModifier();
+	ENGINE_API virtual void ToggleModifier();
 	
 	/**
 	 * Called to give modifiers a chance to adjust view rotation updates before they are applied.
@@ -150,7 +150,7 @@ public:
 	 * @param OutDeltaRot - In/out. How much the rotation changed this frame.
 	 * @return Return true to prevent subsequent (lower priority) modifiers to further adjust rotation, false otherwise.
 	 */
-	virtual bool ProcessViewRotation(class AActor* ViewTarget, float DeltaTime, FRotator& OutViewRotation, FRotator& OutDeltaRot);
+	ENGINE_API virtual bool ProcessViewRotation(class AActor* ViewTarget, float DeltaTime, FRotator& OutViewRotation, FRotator& OutDeltaRot);
 
 	/**
 	 * Responsible for updating alpha blend value.
@@ -158,15 +158,15 @@ public:
 	 * @param	Camera		- Camera that is being updated
 	 * @param	DeltaTime	- Amount of time since last update
 	 */
-	virtual void UpdateAlpha(float DeltaTime);
+	ENGINE_API virtual void UpdateAlpha(float DeltaTime);
 
 	/** @return Returns the appropriate world context for this object. */
-	UWorld* GetWorld() const;
+	ENGINE_API UWorld* GetWorld() const;
 
 protected:
 	/** Allows modifying the camera in native code. */
-	virtual void ModifyCamera(float DeltaTime, FVector ViewLocation, FRotator ViewRotation, float FOV, FVector& NewViewLocation, FRotator& NewViewRotation, float& NewFOV);
+	ENGINE_API virtual void ModifyCamera(float DeltaTime, FVector ViewLocation, FRotator ViewRotation, float FOV, FVector& NewViewLocation, FRotator& NewViewRotation, float& NewFOV);
 
 	/** Allows modifying the post process in native code. */
-	virtual void ModifyPostProcess(float DeltaTime, float& PostProcessBlendWeight, FPostProcessSettings& PostProcessSettings);
+	ENGINE_API virtual void ModifyPostProcess(float DeltaTime, float& PostProcessBlendWeight, FPostProcessSettings& PostProcessSettings);
 };

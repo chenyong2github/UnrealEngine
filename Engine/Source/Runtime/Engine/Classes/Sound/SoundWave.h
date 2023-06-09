@@ -109,7 +109,7 @@ public:
  * Platform-specific data used streaming audio at runtime.
  */
 USTRUCT()
-struct ENGINE_API FStreamedAudioPlatformData
+struct FStreamedAudioPlatformData
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -128,10 +128,10 @@ struct ENGINE_API FStreamedAudioPlatformData
 #endif // WITH_EDITORONLY_DATA
 
 	/** Default constructor. */
-	FStreamedAudioPlatformData();
+	ENGINE_API FStreamedAudioPlatformData();
 
 	/** Destructor. */
-	~FStreamedAudioPlatformData();
+	ENGINE_API ~FStreamedAudioPlatformData();
 
 	/**
 	 * Try to load audio chunk from the derived data cache or build it if it isn't there.
@@ -140,41 +140,41 @@ struct ENGINE_API FStreamedAudioPlatformData
 	 *						either be NULL or have enough space for the chunk
 	 * @returns if > 0, the size of the chunk in bytes. If 0, the chunk failed to load.
 	 */
-	int32 GetChunkFromDDC(int32 ChunkIndex, uint8** OutChunkData, bool bMakeSureChunkIsLoaded = false);
+	ENGINE_API int32 GetChunkFromDDC(int32 ChunkIndex, uint8** OutChunkData, bool bMakeSureChunkIsLoaded = false);
 
 	/** Get the chunks while making sure any async task are finished before returning. */
-	TIndirectArray<struct FStreamedAudioChunk>& GetChunks() const;
+	ENGINE_API TIndirectArray<struct FStreamedAudioChunk>& GetChunks() const;
 
 	/** Get the number of chunks while making sure any async task are finished before returning. */
-	int32 GetNumChunks() const;
+	ENGINE_API int32 GetNumChunks() const;
 
 	/** Get the audio format making sure any async task are finished before returning. */
-	FName GetAudioFormat() const;
+	ENGINE_API FName GetAudioFormat() const;
 
 	/** Serialization. */
-	void Serialize(FArchive& Ar, class USoundWave* Owner);
+	ENGINE_API void Serialize(FArchive& Ar, class USoundWave* Owner);
 
 #if WITH_EDITORONLY_DATA
-	void Cache(class USoundWave& InSoundWave, const FPlatformAudioCookOverrides* CompressionOverrides, FName AudioFormatName, uint32 InFlags);
-	void FinishCache();
-	bool IsFinishedCache() const;
-	bool IsAsyncWorkComplete() const;
-	bool IsCompiling() const;
-	bool TryInlineChunkData();
+	ENGINE_API void Cache(class USoundWave& InSoundWave, const FPlatformAudioCookOverrides* CompressionOverrides, FName AudioFormatName, uint32 InFlags);
+	ENGINE_API void FinishCache();
+	ENGINE_API bool IsFinishedCache() const;
+	ENGINE_API bool IsAsyncWorkComplete() const;
+	ENGINE_API bool IsCompiling() const;
+	ENGINE_API bool TryInlineChunkData();
 
 	UE_DEPRECATED(5.0, "Use AreDerivedChunksAvailable with the context instead.")
-	bool AreDerivedChunksAvailable() const;
+	ENGINE_API bool AreDerivedChunksAvailable() const;
 	
-	bool AreDerivedChunksAvailable(FStringView Context) const;
+	ENGINE_API bool AreDerivedChunksAvailable(FStringView Context) const;
 #endif // WITH_EDITORONLY_DATA
 
 private:
 #if WITH_EDITORONLY_DATA
 	friend class USoundWave;
 	/**  Utility function used internally to change task priority while maintaining thread-safety. */
-	bool RescheduleAsyncTask(FQueuedThreadPool* InThreadPool, EQueuedWorkPriority InPriority);
+	ENGINE_API bool RescheduleAsyncTask(FQueuedThreadPool* InThreadPool, EQueuedWorkPriority InPriority);
 	/**  Utility function used internally to wait or poll a task while maintaining thread-safety. */
-	bool WaitAsyncTaskWithTimeout(float InTimeoutInSeconds);
+	ENGINE_API bool WaitAsyncTaskWithTimeout(float InTimeoutInSeconds);
 #endif
 
 	/**
@@ -186,7 +186,7 @@ private:
 	 * @param OutChunkData is a pointer to a pointer to populate with the chunk itself, or if pointing to nullptr, returns an allocated buffer.
 	 * @returns the size of the chunk loaded in bytes, or zero if the chunk didn't load.
 	 */
-	int32 DeserializeChunkFromDDC(TArray<uint8> SerializedData, FStreamedAudioChunk &ChunkToDeserializeInto, int32 ChunkIndex, uint8** &OutChunkData);
+	ENGINE_API int32 DeserializeChunkFromDDC(TArray<uint8> SerializedData, FStreamedAudioChunk &ChunkToDeserializeInto, int32 ChunkIndex, uint8** &OutChunkData);
 };
 
 USTRUCT(BlueprintType)
@@ -404,8 +404,8 @@ struct ISoundWaveClient
 	virtual bool OnIsReadyForFinishDestroy(class USoundWave* Wave) const = 0;
 	virtual void OnFinishDestroy(class USoundWave* Wave) = 0;
 };
-UCLASS(hidecategories=Object, editinlinenew, BlueprintType, meta= (LoadBehavior = "LazyOnDemand"))
-class ENGINE_API USoundWave : public USoundBase, public IAudioProxyDataFactory, public IInterface_AsyncCompilation
+UCLASS(hidecategories=Object, editinlinenew, BlueprintType, meta= (LoadBehavior = "LazyOnDemand"), MinimalAPI)
+class USoundWave : public USoundBase, public IAudioProxyDataFactory, public IInterface_AsyncCompilation
 {
 	GENERATED_UCLASS_BODY()
 
@@ -469,25 +469,25 @@ public:
 
 	/** Returns the sound's asset compression type. */
 	UFUNCTION(BlueprintPure, Category = "Audio")
-	ESoundAssetCompressionType GetSoundAssetCompressionType() const;
+	ENGINE_API ESoundAssetCompressionType GetSoundAssetCompressionType() const;
 
 	/** will return the raw value, (i.e. does not resolve options such as "Project Defined" to the correct codec) */
-	ESoundAssetCompressionType GetSoundAssetCompressionTypeEnum() const;
+	ENGINE_API ESoundAssetCompressionType GetSoundAssetCompressionTypeEnum() const;
 
 	/** Procedurally set the compression type. */
 	UFUNCTION(BlueprintCallable, Category = "Audio")
-	void SetSoundAssetCompressionType(ESoundAssetCompressionType InSoundAssetCompressionType, bool bMarkDirty = true);
+	ENGINE_API void SetSoundAssetCompressionType(ESoundAssetCompressionType InSoundAssetCompressionType, bool bMarkDirty = true);
 
 	/** Filters for the cue points that are _not_ loop regions and returns those as a new array*/
 	UFUNCTION(BlueprintCallable, Category = "Audio")
-	TArray<FSoundWaveCuePoint> GetCuePoints() const;
+	ENGINE_API TArray<FSoundWaveCuePoint> GetCuePoints() const;
 
 	/** Filters for the cue points that _are_ loop regions and returns those as a new array */
 	UFUNCTION(BlueprintCallable, Category = "Audio")
-	TArray<FSoundWaveCuePoint> GetLoopRegions() const;
+	ENGINE_API TArray<FSoundWaveCuePoint> GetLoopRegions() const;
 
 	/** Returns the Runtime format of the wave */
-	FName GetRuntimeFormat() const;
+	ENGINE_API FName GetRuntimeFormat() const;
 
 private:
 	// cached proxy
@@ -563,50 +563,50 @@ public:
 	TArray<FSoundWaveEnvelopeTimeData> CookedEnvelopeTimeData;
 
 	/** Helper function to get interpolated cooked FFT data for a given time value. */
-	bool GetInterpolatedCookedFFTDataForTime(float InTime, uint32& InOutLastIndex, TArray<FSoundWaveSpectralData>& OutData, bool bLoop);
-	bool GetInterpolatedCookedEnvelopeDataForTime(float InTime, uint32& InOutLastIndex, float& OutAmplitude, bool bLoop);
+	ENGINE_API bool GetInterpolatedCookedFFTDataForTime(float InTime, uint32& InOutLastIndex, TArray<FSoundWaveSpectralData>& OutData, bool bLoop);
+	ENGINE_API bool GetInterpolatedCookedEnvelopeDataForTime(float InTime, uint32& InOutLastIndex, float& OutAmplitude, bool bLoop);
 
 	/** If stream caching is enabled, allows the user to retain a strong handle to the first chunk of audio in the cache.
 	 *  Please note that this USoundWave is NOT guaranteed to be still alive when OnLoadCompleted is called.
 	 */
-	void GetHandleForChunkOfAudio(TFunction<void(FAudioChunkHandle&&)> OnLoadCompleted, bool bForceSync = false, int32 ChunkIndex = 1, ENamedThreads::Type CallbackThread = ENamedThreads::GameThread);
+	ENGINE_API void GetHandleForChunkOfAudio(TFunction<void(FAudioChunkHandle&&)> OnLoadCompleted, bool bForceSync = false, int32 ChunkIndex = 1, ENamedThreads::Type CallbackThread = ENamedThreads::GameThread);
 
 	/** If stream caching is enabled, set this sound wave to retain a strong handle to its first chunk.
 	 *  If not called on the game thread, bForceSync must be true.
 	*/
-	void RetainCompressedAudio(bool bForceSync = false);
+	ENGINE_API void RetainCompressedAudio(bool bForceSync = false);
 
 	/** If stream caching is enabled and au.streamcache.KeepFirstChunkInMemory is 1, this will release this USoundWave's first chunk, allowing it to be deleted. */
-	void ReleaseCompressedAudio();
+	ENGINE_API void ReleaseCompressedAudio();
 
-	bool IsRetainingAudio();
+	ENGINE_API bool IsRetainingAudio();
 	/**
 	 * If Stream Caching is enabled, this can be used to override the default loading behavior of this USoundWave.
 	 * This can even be called on USoundWaves that still have the RF_NeedLoad flag, and won't be stomped by serialization.
 	 * NOTE: The new behavior will be ignored if it is less memory-aggressive than existing (even inherited) behavior
 	 */
-	void OverrideLoadingBehavior(ESoundWaveLoadingBehavior InLoadingBehavior);
+	ENGINE_API void OverrideLoadingBehavior(ESoundWaveLoadingBehavior InLoadingBehavior);
 
 	/** Returns the loading behavior we should use for this sound wave.
 	 *  If this is called within Serialize(), this should be called with bCheckSoundClasses = false,
 	 *  Since there is no guarantee that the deserialized USoundClasses have been resolved yet.
 	 */
-	ESoundWaveLoadingBehavior GetLoadingBehavior(bool bCheckSoundClasses = true) const;
+	ENGINE_API ESoundWaveLoadingBehavior GetLoadingBehavior(bool bCheckSoundClasses = true) const;
 
 	/** Use this to override how much audio data is loaded when this USoundWave is loaded. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Loading")
 	int32 InitialChunkSize;
 
 #if WITH_EDITOR
-	const FWaveTransformUObjectConfiguration& GetTransformationChainConfig() const;
-	const FWaveTransformUObjectConfiguration& UpdateTransformations();
+	ENGINE_API const FWaveTransformUObjectConfiguration& GetTransformationChainConfig() const;
+	ENGINE_API const FWaveTransformUObjectConfiguration& UpdateTransformations();
 #endif
 
 private:
 
 	/** Helper functions to search analysis data. Takes starting index to start query. Returns which data index the result was found at. Returns INDEX_NONE if not found. */
-	uint32 GetInterpolatedCookedFFTDataForTimeInternal(float InTime, uint32 StartingIndex, TArray<FSoundWaveSpectralData>& OutData, bool bLoop);
-	uint32 GetInterpolatedCookedEnvelopeDataForTimeInternal(float InTime, uint32 StartingIndex, float& OutAmplitude, bool bLoop);
+	ENGINE_API uint32 GetInterpolatedCookedFFTDataForTimeInternal(float InTime, uint32 StartingIndex, TArray<FSoundWaveSpectralData>& OutData, bool bLoop);
+	ENGINE_API uint32 GetInterpolatedCookedEnvelopeDataForTimeInternal(float InTime, uint32 StartingIndex, float& OutAmplitude, bool bLoop);
 
 	/** What state the precache decompressor is in. */
 	FThreadSafeCounter PrecacheState;
@@ -621,11 +621,11 @@ private:
 
 	// We cache a soundwave's loading behavior on the first call to USoundWave::GetLoadingBehaviorForWave(true);
 	// Caches resolved loading behavior from the SoundClass graph. Must be called on the game thread.
-	void CacheInheritedLoadingBehavior() const;
+	ENGINE_API void CacheInheritedLoadingBehavior() const;
 
 	// Called when we change any properties about the underlying audio asset
 #if WITH_EDITOR
-	void UpdateAsset(bool bMarkDirty = true);
+	ENGINE_API void UpdateAsset(bool bMarkDirty = true);
 #endif
 
 public:
@@ -759,12 +759,12 @@ protected:
 public:
 
 	// Returns the compression quality of the sound asset.
-	int32 GetCompressionQuality() const;
+	ENGINE_API int32 GetCompressionQuality() const;
 
 	/** Resource index to cross reference with buffers */
 	int32 ResourceID;
 
-	int32 GetResourceSize() const;
+	ENGINE_API int32 GetResourceSize() const;
 
 	/** Cache the total used memory recorded for this SoundWave to keep INC/DEC consistent */
 	int32 TrackedMemoryUsage;
@@ -816,7 +816,7 @@ public:
 	/**
 	* helper function for getting the cached name of the current platform.
 	*/
-	static ITargetPlatform* GetRunningPlatform();
+	static ENGINE_API ITargetPlatform* GetRunningPlatform();
 
 	/** Async worker that decompresses the audio data on a different thread */
 	typedef FAsyncTask< class FAsyncAudioDecompressWorker > FAsyncAudioDecompress;	// Forward declare typedef
@@ -837,7 +837,7 @@ public:
 	/** Memory containing the data copied from the compressed bulk data */
 
 public:
-	const uint8* GetResourceData() const;
+	ENGINE_API const uint8* GetResourceData() const;
 
 #if WITH_EDITORONLY_DATA
 	/** Uncompressed wav data 16 bit in mono or stereo - stereo not allowed for multichannel data */
@@ -862,70 +862,70 @@ public:
 	TSortedMap<FString, FStreamedAudioPlatformData*> CookedPlatformData;
 
 	//~ Begin UObject Interface.
-	virtual void Serialize(FArchive& Ar) override;
-	virtual void PostInitProperties() override;
-	virtual bool IsReadyForFinishDestroy() override;
-	virtual void FinishDestroy() override;
-	virtual void PostLoad() override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void PostInitProperties() override;
+	ENGINE_API virtual bool IsReadyForFinishDestroy() override;
+	ENGINE_API virtual void FinishDestroy() override;
+	ENGINE_API virtual void PostLoad() override;
 
 	// Returns true if the zeroth chunk is loaded, or attempts to load it if not already loaded,
 	// returning true if the load was successful. Can return false if either an error was encountered
 	// in attempting to load the chunk or if stream caching is not enabled for the given sound.
-	bool LoadZerothChunk();
+	ENGINE_API bool LoadZerothChunk();
 
 	// Returns the amount of chunks this soundwave contains if it's streaming,
 	// or zero if it is not a streaming source.
-	uint32 GetNumChunks() const;
+	ENGINE_API uint32 GetNumChunks() const;
 
-	uint32 GetSizeOfChunk(uint32 ChunkIndex);
+	ENGINE_API uint32 GetSizeOfChunk(uint32 ChunkIndex);
 
-	virtual void BeginDestroy() override;
+	ENGINE_API virtual void BeginDestroy() override;
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
 	/** IInterface_AsyncCompilation begin*/
-	virtual bool IsCompiling() const override;
+	ENGINE_API virtual bool IsCompiling() const override;
 	/** IInterface_AsyncCompilation end*/
 
-	bool IsAsyncWorkComplete() const;
+	ENGINE_API bool IsAsyncWorkComplete() const;
 
-	void PostImport();
+	ENGINE_API void PostImport();
 
 private:
 	friend class FSoundWaveCompilingManager;
 	/**  Utility function used internally to change task priority while maintaining thread-safety. */
-	bool RescheduleAsyncTask(FQueuedThreadPool* InThreadPool, EQueuedWorkPriority InPriority);
+	ENGINE_API bool RescheduleAsyncTask(FQueuedThreadPool* InThreadPool, EQueuedWorkPriority InPriority);
 	/**  Utility function used internally to wait or poll a task while maintaining thread-safety. */
-	bool WaitAsyncTaskWithTimeout(float InTimeoutInSeconds);
+	ENGINE_API bool WaitAsyncTaskWithTimeout(float InTimeoutInSeconds);
 
 public:
 #endif // WITH_EDITOR
 
 #if WITH_EDITORONLY_DATA
-	TArray<Audio::FTransformationPtr> CreateTransformations() const;
+	ENGINE_API TArray<Audio::FTransformationPtr> CreateTransformations() const;
 #endif // WITH_EDITORONLY_DATA
 	
-	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
-	virtual FName GetExporterName() override;
-	virtual FString GetDesc() override;
-	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
+	ENGINE_API virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
+	ENGINE_API virtual FName GetExporterName() override;
+	ENGINE_API virtual FString GetDesc() override;
+	ENGINE_API virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 	//~ End UObject Interface.
 
 	//~ Begin USoundBase Interface.
-	virtual bool IsPlayable() const override;
-	virtual void Parse(class FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanceHash, FActiveSound& ActiveSound, const FSoundParseParameters& ParseParams, TArray<FWaveInstance*>& WaveInstances) override;
-	virtual float GetDuration() const override;
-	virtual float GetSubtitlePriority() const override;
-	virtual bool SupportsSubtitles() const override;
-	virtual bool GetSoundWavesWithCookedAnalysisData(TArray<USoundWave*>& OutSoundWaves) override;
-	virtual bool HasCookedFFTData() const override;
-	virtual bool HasCookedAmplitudeEnvelopeData() const override;
+	ENGINE_API virtual bool IsPlayable() const override;
+	ENGINE_API virtual void Parse(class FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanceHash, FActiveSound& ActiveSound, const FSoundParseParameters& ParseParams, TArray<FWaveInstance*>& WaveInstances) override;
+	ENGINE_API virtual float GetDuration() const override;
+	ENGINE_API virtual float GetSubtitlePriority() const override;
+	ENGINE_API virtual bool SupportsSubtitles() const override;
+	ENGINE_API virtual bool GetSoundWavesWithCookedAnalysisData(TArray<USoundWave*>& OutSoundWaves) override;
+	ENGINE_API virtual bool HasCookedFFTData() const override;
+	ENGINE_API virtual bool HasCookedAmplitudeEnvelopeData() const override;
 	//~ End USoundBase Interface.
 
-	FSoundWaveProxyPtr CreateSoundWaveProxy();
+	ENGINE_API FSoundWaveProxyPtr CreateSoundWaveProxy();
 
 	//~Begin IAudioProxyDataFactory Interface.
-	virtual TSharedPtr<Audio::IProxyData> CreateProxyData(const Audio::FProxyDataInitParams& InitParams) override;
+	ENGINE_API virtual TSharedPtr<Audio::IProxyData> CreateProxyData(const Audio::FProxyDataInitParams& InitParams) override;
 	//~ End IAudioProxyDataFactory Interface.
 
 	// Called  when the procedural sound wave begins on the render thread. Only used in the audio mixer and when bProcedural is true.
@@ -935,8 +935,8 @@ public:
 	virtual void OnEndGenerate() {};
 	virtual void OnEndGenerate(ISoundGeneratorPtr Generator) {};
 
-	void AddPlayingSource(const FSoundWaveClientPtr& Source);
-	void RemovePlayingSource(const FSoundWaveClientPtr& Source);
+	ENGINE_API void AddPlayingSource(const FSoundWaveClientPtr& Source);
+	ENGINE_API void RemovePlayingSource(const FSoundWaveClientPtr& Source);
 
 	bool IsGeneratingAudio() const
 	{
@@ -955,8 +955,8 @@ public:
 	}
 
 #if WITH_EDITORONLY_DATA
-	void SetTimecodeInfo(const FSoundWaveTimecodeInfo& InTimecode);
-	TOptional<FSoundWaveTimecodeInfo> GetTimecodeInfo() const;
+	ENGINE_API void SetTimecodeInfo(const FSoundWaveTimecodeInfo& InTimecode);
+	ENGINE_API TOptional<FSoundWaveTimecodeInfo> GetTimecodeInfo() const;
 #endif //WITH_EDITORONLY_DATA	
 
 	/**
@@ -977,22 +977,22 @@ public:
 	 *
 	 *	@return		Sum of the size of waves referenced by this cue for the given platform.
 	 */
-	virtual int32 GetResourceSizeForFormat(FName Format);
+	ENGINE_API virtual int32 GetResourceSizeForFormat(FName Format);
 
 	/**
 	 * Frees up all the resources allocated in this class.
 	 * @param bStopSoundsUsingThisResource if false, will leave any playing audio alive.
 	 *        This occurs when we force a re-cook of audio while starting to play a sound.
 	 */
-	void FreeResources(bool bStopSoundsUsingThisResource = true);
+	ENGINE_API void FreeResources(bool bStopSoundsUsingThisResource = true);
 
 	/** Will clean up the decompressor task if the task has finished or force it finish. Returns true if the decompressor is cleaned up. */
-	bool CleanupDecompressor(bool bForceCleanup = false);
+	ENGINE_API bool CleanupDecompressor(bool bForceCleanup = false);
 
 	/**
 	 * Copy the compressed audio data from the bulk data
 	 */
-	virtual void InitAudioResource(FByteBulkData& CompressedData);
+	ENGINE_API virtual void InitAudioResource(FByteBulkData& CompressedData);
 
 	/**
 	 * Copy the compressed audio data from derived data cache
@@ -1000,17 +1000,17 @@ public:
 	 * @param Format to get the compressed audio in
 	 * @return true if the resource has been successfully initialized or it was already initialized.
 	 */
-	virtual bool InitAudioResource(FName Format);
+	ENGINE_API virtual bool InitAudioResource(FName Format);
 
 	/**
 	 * Remove the compressed audio data associated with the passed in wave
 	 */
-	void RemoveAudioResource();
+	ENGINE_API void RemoveAudioResource();
 
 	/**
 	 * Handle any special requirements when the sound starts (e.g. subtitles)
 	 */
-	FWaveInstance& HandleStart(FActiveSound& ActiveSound, const UPTRINT WaveInstanceHash) const;
+	ENGINE_API FWaveInstance& HandleStart(FActiveSound& ActiveSound, const UPTRINT WaveInstanceHash) const;
 
 	/**
 	 * This is only used for DTYPE_Procedural audio. It's recommended to use USynthComponent base class
@@ -1041,35 +1041,35 @@ public:
 		return Data ? Data->GetBulkDataSize() : 0;
 	}
 
-	virtual bool HasCompressedData(FName Format, ITargetPlatform* TargetPlatform = GetRunningPlatform()) const;
+	ENGINE_API virtual bool HasCompressedData(FName Format, ITargetPlatform* TargetPlatform = GetRunningPlatform()) const;
 
 #if WITH_EDITOR
 	/** Utility which returns imported PCM data and the parsed header for the file. Returns true if there was data, false if there wasn't. */
-	bool GetImportedSoundWaveData(TArray<uint8>& OutRawPCMData, uint32& OutSampleRate, uint16& OutNumChannels) const;
+	ENGINE_API bool GetImportedSoundWaveData(TArray<uint8>& OutRawPCMData, uint32& OutSampleRate, uint16& OutNumChannels) const;
 
 	/** Utility which returns imported PCM data and the parsed header for the file. Returns true if there was data, false if there wasn't. */
-	bool GetImportedSoundWaveData(TArray<uint8>& OutRawPCMData, uint32& OutSampleRate, TArray<EAudioSpeakers>& OutChannelOrder) const;
+	ENGINE_API bool GetImportedSoundWaveData(TArray<uint8>& OutRawPCMData, uint32& OutSampleRate, TArray<EAudioSpeakers>& OutChannelOrder) const;
 
 	/**
 	 * This function can be called before playing or using a SoundWave to check if any cook settings have been modified since this SoundWave was last cooked.
 	 */
-	void InvalidateSoundWaveIfNeccessary();
+	ENGINE_API void InvalidateSoundWaveIfNeccessary();
 
 #endif //WITH_EDITOR
 
 
-	static FName GetPlatformSpecificFormat(FName Format, const FPlatformAudioCookOverrides* CompressionOverrides);
+	static ENGINE_API FName GetPlatformSpecificFormat(FName Format, const FPlatformAudioCookOverrides* CompressionOverrides);
 
 private:
 #if WITH_EDITOR
 	// Removes any in-progress async loading data formats. 
-	void FlushAsyncLoadingDataFormats();
+	ENGINE_API void FlushAsyncLoadingDataFormats();
 
 	// Waits for audio rendering commands to execute
-	void FlushAudioRenderingCommands() const;
+	ENGINE_API void FlushAudioRenderingCommands() const;
 
-	void BakeFFTAnalysis();
-	void BakeEnvelopeAnalysis();
+	ENGINE_API void BakeFFTAnalysis();
+	ENGINE_API void BakeEnvelopeAnalysis();
 
 	FWaveTransformUObjectConfiguration TransformationChainConfig;
 #endif //WITH_EDITOR
@@ -1077,15 +1077,15 @@ private:
 public:
 
 #if WITH_EDITOR
-	void LogBakedData();
+	ENGINE_API void LogBakedData();
 
 	/** Returns if an async task for a certain platform has finished. */
-	bool IsCompressedDataReady(FName Format, const FPlatformAudioCookOverrides* CompressionOverrides) const;
+	ENGINE_API bool IsCompressedDataReady(FName Format, const FPlatformAudioCookOverrides* CompressionOverrides) const;
 
-	bool IsLoadedFromCookedData() const;
+	ENGINE_API bool IsLoadedFromCookedData() const;
 #endif //WITH_EDITOR
 
-	virtual void BeginGetCompressedData(FName Format, const FPlatformAudioCookOverrides* CompressionOverrides);
+	ENGINE_API virtual void BeginGetCompressedData(FName Format, const FPlatformAudioCookOverrides* CompressionOverrides);
 
 	/**
 	 * Gets the compressed data from derived data cache for the specified platform
@@ -1096,19 +1096,19 @@ public:
 	 * @param CompressionOverrides optional platform compression overrides
 	 * @return	compressed data, if it could be obtained
 	 */
-	virtual FByteBulkData* GetCompressedData(FName Format, const FPlatformAudioCookOverrides* CompressionOverrides = GetPlatformCompressionOverridesForCurrentPlatform());
+	ENGINE_API virtual FByteBulkData* GetCompressedData(FName Format, const FPlatformAudioCookOverrides* CompressionOverrides = GetPlatformCompressionOverridesForCurrentPlatform());
 
 	/**
 	 * Change the guid and flush all compressed data
 	 * @param bFreeResources if true, will delete any precached compressed data as well.
 	 */
-	void InvalidateCompressedData(bool bFreeResources = false, bool bRebuildStreamingChunks = true);
+	ENGINE_API void InvalidateCompressedData(bool bFreeResources = false, bool bRebuildStreamingChunks = true);
 
 	/** Returns curves associated with this sound wave */
 	virtual class UCurveTable* GetCurveData() const override { return Curves; }
 
 	// This function returns true if there are streamable chunks in this asset.
-	bool HasStreamingChunks();
+	ENGINE_API bool HasStreamingChunks();
 
 #if WITH_EDITOR
 	/** These functions are required for support for some custom details/editor functionality.*/
@@ -1131,53 +1131,53 @@ public:
 
 	/** Checks whether sound has been categorized as streaming. */
 public:
-	bool IsStreaming(const TCHAR* PlatformName = nullptr) const;
-	bool IsStreaming(const FPlatformAudioCookOverrides& Overrides) const;
+	ENGINE_API bool IsStreaming(const TCHAR* PlatformName = nullptr) const;
+	ENGINE_API bool IsStreaming(const FPlatformAudioCookOverrides& Overrides) const;
 
 	/** Returns whether the sound is seekable. */
-	virtual bool IsSeekable() const;
+	ENGINE_API virtual bool IsSeekable() const;
 
 	/**
 	 * Checks whether we should use the load on demand cache.
 	 */
 
-	bool ShouldUseStreamCaching() const;
+	ENGINE_API bool ShouldUseStreamCaching() const;
 
 	/**
 	 * This returns the initial chunk of compressed data for streaming data sources.
 	 */
-	TArrayView<const uint8> GetZerothChunk(bool bForImmediatePlayback = false);
+	ENGINE_API TArrayView<const uint8> GetZerothChunk(bool bForImmediatePlayback = false);
 
 	/**
 	 * Attempts to update the cached platform data after any changes that might affect it
 	 */
-	void UpdatePlatformData();
+	ENGINE_API void UpdatePlatformData();
 
-	void CleanupCachedRunningPlatformData();
+	ENGINE_API void CleanupCachedRunningPlatformData();
 
 	/**
 	 * Serializes cooked platform data.
 	 */
-	void SerializeCookedPlatformData(class FArchive& Ar);
+	ENGINE_API void SerializeCookedPlatformData(class FArchive& Ar);
 
 	/*
 	* Returns a sample rate if there is a specific sample rate override for this platform, -1.0 otherwise.
 	*/
-	float GetSampleRateForCurrentPlatform() const;
+	ENGINE_API float GetSampleRateForCurrentPlatform() const;
 
 	/**
 	* Return the platform compression overrides set for the current platform.
 	*/
-	static const FPlatformAudioCookOverrides* GetPlatformCompressionOverridesForCurrentPlatform();
+	static ENGINE_API const FPlatformAudioCookOverrides* GetPlatformCompressionOverridesForCurrentPlatform();
 
 	/*
 	* Returns a sample rate if there is a specific sample rate override for this platform, -1.0 otherwise.
 	*/
-	float GetSampleRateForCompressionOverrides(const FPlatformAudioCookOverrides* CompressionOverrides);
+	ENGINE_API float GetSampleRateForCompressionOverrides(const FPlatformAudioCookOverrides* CompressionOverrides);
 
-	void SetError(const TCHAR* InErrorMsg=nullptr);
-	void ResetError();
-	bool HasError() const;
+	ENGINE_API void SetError(const TCHAR* InErrorMsg=nullptr);
+	ENGINE_API void ResetError();
+	ENGINE_API bool HasError() const;
 
 #if WITH_EDITORONLY_DATA
 
@@ -1185,50 +1185,50 @@ public:
 	/*
 	* Returns a sample rate if there is a specific sample rate override for this platform, -1.0 otherwise.
 	*/
-	float GetSampleRateForTargetPlatform(const ITargetPlatform* TargetPlatform);
+	ENGINE_API float GetSampleRateForTargetPlatform(const ITargetPlatform* TargetPlatform);
 
 	/**
 	 * Begins caching platform data in the background for the platform requested
 	 */
-	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
+	ENGINE_API virtual void BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
 
-	virtual bool IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform) override;
+	ENGINE_API virtual bool IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform) override;
 
 	/**
 	 * Clear all the cached cooked platform data which we have accumulated with BeginCacheForCookedPlatformData calls
 	 * The data can still be cached again using BeginCacheForCookedPlatformData again
 	 */
-	virtual void ClearAllCachedCookedPlatformData() override;
+	ENGINE_API virtual void ClearAllCachedCookedPlatformData() override;
 
-	virtual void ClearCachedCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
+	ENGINE_API virtual void ClearCachedCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
 
-	virtual void WillNeverCacheCookedPlatformDataAgain() override;
+	ENGINE_API virtual void WillNeverCacheCookedPlatformDataAgain() override;
 
-	virtual bool GetRedrawThumbnail() const;
-	virtual void SetRedrawThumbnail(bool bInRedraw);
-	virtual bool CanVisualizeAsset() const;
+	ENGINE_API virtual bool GetRedrawThumbnail() const;
+	ENGINE_API virtual void SetRedrawThumbnail(bool bInRedraw);
+	ENGINE_API virtual bool CanVisualizeAsset() const;
 
 #endif // WITH_EDITOR
 
 	/**
 	 * Caches platform data for the sound.
 	 */
-	void CachePlatformData(bool bAsyncCache = false);
+	ENGINE_API void CachePlatformData(bool bAsyncCache = false);
 
 	/**
 	 * Begins caching platform data in the background.
 	 */
-	void BeginCachePlatformData();
+	ENGINE_API void BeginCachePlatformData();
 
 	/**
 	 * Blocks on async cache tasks and prepares platform data for use.
 	 */
-	void FinishCachePlatformData();
+	ENGINE_API void FinishCachePlatformData();
 
 	/**
 	 * Forces platform data to be rebuilt.
 	 */
-	void ForceRebuildPlatformData();
+	ENGINE_API void ForceRebuildPlatformData();
 #endif // WITH_EDITORONLY_DATA
 
 	/**
@@ -1236,7 +1236,7 @@ public:
 	 * @param ChunkIndex	The Chunk index to cache.
 	 * @param OutChunkData	Address of pointer that will store data.
 	 */
-	bool GetChunkData(int32 ChunkIndex, uint8** OutChunkData, bool bMakeSureChunkIsLoaded = false);
+	ENGINE_API bool GetChunkData(int32 ChunkIndex, uint8** OutChunkData, bool bMakeSureChunkIsLoaded = false);
 
 	void SetPrecacheState(ESoundWavePrecacheState InState)
 	{
@@ -1255,7 +1255,7 @@ private:
 };
 
 
-class ENGINE_API FSoundWaveData
+class FSoundWaveData
 {
 public:
 	UE_NONCOPYABLE(FSoundWaveData);
@@ -1281,12 +1281,12 @@ public:
 	}
 
 	// dtor
-	~FSoundWaveData();
+	ENGINE_API ~FSoundWaveData();
 
 	// non-const arg for internal call to FAudioDevice::GetRuntimeFormat
-	void InitializeDataFromSoundWave(USoundWave& InWave);
+	ENGINE_API void InitializeDataFromSoundWave(USoundWave& InWave);
 
-	void OverrideRuntimeFormat(const FName& InRuntimeFormat);
+	ENGINE_API void OverrideRuntimeFormat(const FName& InRuntimeFormat);
 
 	const FName& GetFName() const { return NameCached; }
 	const FName& GetPackageName() const { return PackageNameCached; }
@@ -1298,18 +1298,18 @@ public:
 	const TArray<FSoundWaveCuePoint>& GetCuePoints() const { return CuePoints; }
 	const TArray<FSoundWaveCuePoint>& GetLoopRegions() const { return LoopRegions; }
 
-	MaxChunkSizeResults GetMaxChunkSizeResults() const;
+	ENGINE_API MaxChunkSizeResults GetMaxChunkSizeResults() const;
 
-	uint32 GetNumChunks() const;
-	uint32 GetSizeOfChunk(uint32 ChunkIndex) const;
+	ENGINE_API uint32 GetNumChunks() const;
+	ENGINE_API uint32 GetSizeOfChunk(uint32 ChunkIndex) const;
 	int32 GetNumFrames() const { return NumFrames; }
 	float GetDuration() const { return Duration; }
 
-	void ReleaseCompressedAudio();
+	ENGINE_API void ReleaseCompressedAudio();
 
-	void SetError(const TCHAR* InErrorMsg=nullptr);  
-	bool HasError() const;
-	bool ResetError();
+	ENGINE_API void SetError(const TCHAR* InErrorMsg=nullptr);  
+	ENGINE_API bool HasError() const;
+	ENGINE_API bool ResetError();
 
 	bool IsStreaming() const { return bIsStreaming; }
 	ESoundAssetCompressionType GetSoundCompressionType() const { return SoundAssetCompressionType; }
@@ -1322,31 +1322,31 @@ public:
 
 	bool IsTemplate() const { return bIsTemplate; }
 
- 	bool HasCompressedData(FName Format, ITargetPlatform* TargetPlatform = USoundWave::GetRunningPlatform()) const;
- 	FByteBulkData* GetCompressedData(FName Format, const FPlatformAudioCookOverrides* CompressionOverrides = USoundWave::GetPlatformCompressionOverridesForCurrentPlatform());
+ 	ENGINE_API bool HasCompressedData(FName Format, ITargetPlatform* TargetPlatform = USoundWave::GetRunningPlatform()) const;
+ 	ENGINE_API FByteBulkData* GetCompressedData(FName Format, const FPlatformAudioCookOverrides* CompressionOverrides = USoundWave::GetPlatformCompressionOverridesForCurrentPlatform());
  
-	bool GetChunkData(int32 ChunkIndex, uint8** OutChunkData, bool bMakeSureChunkIsLoaded = false);
+	ENGINE_API bool GetChunkData(int32 ChunkIndex, uint8** OutChunkData, bool bMakeSureChunkIsLoaded = false);
  
- 	bool IsZerothChunkDataLoaded() const;
- 	const TArrayView<uint8> GetZerothChunkDataView() const;
+ 	ENGINE_API bool IsZerothChunkDataLoaded() const;
+ 	ENGINE_API const TArrayView<uint8> GetZerothChunkDataView() const;
 
-	bool HasChunkSeekTable(int32 InChunkIndex) const;
-	int32 FindChunkIndexForSeeking(uint32 InTimeInAudioFrames) const;
+	ENGINE_API bool HasChunkSeekTable(int32 InChunkIndex) const;
+	ENGINE_API int32 FindChunkIndexForSeeking(uint32 InTimeInAudioFrames) const;
 
 	// Returns true if the zeroth chunk is loaded, or attempts to load it if not already loaded,
 	// returning true if the load was successful. Can return false if either an error was encountered
 	// in attempting to load the chunk or if stream caching is not enabled for the given sound.
-	bool LoadZerothChunk();
+	ENGINE_API bool LoadZerothChunk();
  
  #if WITH_EDITOR
- 	int32 GetCurrentChunkRevision() const;
+ 	ENGINE_API int32 GetCurrentChunkRevision() const;
  #endif // #if WITH_EDITOR
  
- 	FStreamedAudioChunk& GetChunk(uint32 ChunkIndex);
- 	int32 GetChunkFromDDC(int32 ChunkIndex, uint8** OutChunkData, bool bMakeSureChunkIsLoaded);
+ 	ENGINE_API FStreamedAudioChunk& GetChunk(uint32 ChunkIndex);
+ 	ENGINE_API int32 GetChunkFromDDC(int32 ChunkIndex, uint8** OutChunkData, bool bMakeSureChunkIsLoaded);
 
 #if WITH_EDITORONLY_DATA
- 	FString GetDerivedDataKey() const;
+ 	ENGINE_API FString GetDerivedDataKey() const;
 #endif // #if WITH_EDITORONLY_DATA
 
 	int32 GetResourceSize() { return ResourceSize; }
@@ -1355,9 +1355,9 @@ public:
 
 
 private:
-	void DiscardZerothChunkData();
+	ENGINE_API void DiscardZerothChunkData();
 
-	FName FindRuntimeFormat(const USoundWave&) const;
+	ENGINE_API FName FindRuntimeFormat(const USoundWave&) const;
 
 	/** Zeroth Chunk of audio for sources that use Load On Demand. */
 	FBulkDataBuffer<uint8> ZerothChunkData;
@@ -1366,7 +1366,7 @@ private:
 #endif
 
 	/* Accessor to get the zeroth chunk which might perform additional work in editor to handle async tasks. */
-	FBulkDataBuffer<uint8>& GetZerothChunkData() const;
+	ENGINE_API FBulkDataBuffer<uint8>& GetZerothChunkData() const;
 
 	/** The streaming derived data for this sound on this platform. */
 	FStreamedAudioPlatformData RunningPlatformData;
@@ -1416,78 +1416,78 @@ private:
 }; // class FSoundWaveData
 
 using FSoundWaveProxyPtr = TSharedPtr<FSoundWaveProxy, ESPMode::ThreadSafe>;
-class ENGINE_API FSoundWaveProxy : public Audio::TProxyData<FSoundWaveProxy>
+class FSoundWaveProxy : public Audio::TProxyData<FSoundWaveProxy>
 {
 public:
 	IMPL_AUDIOPROXY_CLASS(FSoundWaveProxy);
 
-	explicit FSoundWaveProxy(USoundWave* InWave);
+	ENGINE_API explicit FSoundWaveProxy(USoundWave* InWave);
 
 	FSoundWaveProxy(const FSoundWaveProxy& Other) = default;
 
-	~FSoundWaveProxy();
+	ENGINE_API ~FSoundWaveProxy();
 
 	// USoundWave Interface
-	void ReleaseCompressedAudio();
+	ENGINE_API void ReleaseCompressedAudio();
 
 	// Returns true if the zeroth chunk is loaded, or attempts to load it if not already loaded,
 	// returning true if the load was successful. Can return false if either an error was encountered
 	// in attempting to load the chunk or if stream caching is not enabled for the given sound.
-	bool LoadZerothChunk();
-	bool GetChunkData(int32 ChunkIndex, uint8** OutChunkData, bool bMakeSureChunkIsLoaded = false);
+	ENGINE_API bool LoadZerothChunk();
+	ENGINE_API bool GetChunkData(int32 ChunkIndex, uint8** OutChunkData, bool bMakeSureChunkIsLoaded = false);
 
 	// Getters
-	const FName& GetFName() const;
-	const FName& GetPackageName() const;
-	const FName& GetRuntimeFormat() const;
-	const FObjectKey& GetFObjectKey() const;
+	ENGINE_API const FName& GetFName() const;
+	ENGINE_API const FName& GetPackageName() const;
+	ENGINE_API const FName& GetRuntimeFormat() const;
+	ENGINE_API const FObjectKey& GetFObjectKey() const;
 
-	float GetDuration() const;
-	float GetSampleRate() const;
+	ENGINE_API float GetDuration() const;
+	ENGINE_API float GetSampleRate() const;
 
-	int32 GetNumFrames() const;
-	uint32 GetNumChunks() const;
-	uint32 GetNumChannels() const;
-	uint32 GetSizeOfChunk(uint32 ChunkIndex) const;
-	const TArray<FSoundWaveCuePoint>& GetCuePoints() const;
-	const TArray<FSoundWaveCuePoint>& GetLoopRegions() const;
+	ENGINE_API int32 GetNumFrames() const;
+	ENGINE_API uint32 GetNumChunks() const;
+	ENGINE_API uint32 GetNumChannels() const;
+	ENGINE_API uint32 GetSizeOfChunk(uint32 ChunkIndex) const;
+	ENGINE_API const TArray<FSoundWaveCuePoint>& GetCuePoints() const;
+	ENGINE_API const TArray<FSoundWaveCuePoint>& GetLoopRegions() const;
 
-	FSoundWaveData::MaxChunkSizeResults GetMaxChunkSizeResults() const;
+	ENGINE_API FSoundWaveData::MaxChunkSizeResults GetMaxChunkSizeResults() const;
 
-	bool IsLooping() const;
-	bool IsTemplate() const;
-	bool IsStreaming() const;
-	bool IsRetainingAudio() const;
-	bool ShouldUseStreamCaching() const;
-	bool IsSeekable() const;
-	bool IsZerothChunkDataLoaded() const;
-	bool WasLoadingBehaviorOverridden() const;
-	bool HasCompressedData(FName Format, ITargetPlatform* TargetPlatform = USoundWave::GetRunningPlatform()) const;
+	ENGINE_API bool IsLooping() const;
+	ENGINE_API bool IsTemplate() const;
+	ENGINE_API bool IsStreaming() const;
+	ENGINE_API bool IsRetainingAudio() const;
+	ENGINE_API bool ShouldUseStreamCaching() const;
+	ENGINE_API bool IsSeekable() const;
+	ENGINE_API bool IsZerothChunkDataLoaded() const;
+	ENGINE_API bool WasLoadingBehaviorOverridden() const;
+	ENGINE_API bool HasCompressedData(FName Format, ITargetPlatform* TargetPlatform = USoundWave::GetRunningPlatform()) const;
 
-	ESoundWaveLoadingBehavior GetLoadingBehavior() const;
+	ENGINE_API ESoundWaveLoadingBehavior GetLoadingBehavior() const;
 
-	const TArrayView<uint8> GetZerothChunkDataView() const;
+	ENGINE_API const TArrayView<uint8> GetZerothChunkDataView() const;
 
-	FByteBulkData* GetCompressedData(FName Format, const FPlatformAudioCookOverrides* CompressionOverrides = USoundWave::GetPlatformCompressionOverridesForCurrentPlatform());
+	ENGINE_API FByteBulkData* GetCompressedData(FName Format, const FPlatformAudioCookOverrides* CompressionOverrides = USoundWave::GetPlatformCompressionOverridesForCurrentPlatform());
 
-	static TArrayView<const uint8> GetZerothChunk(const FSoundWaveProxyPtr& SoundWaveProxy, bool bForImmediatePlayback = false);
+	static ENGINE_API TArrayView<const uint8> GetZerothChunk(const FSoundWaveProxyPtr& SoundWaveProxy, bool bForImmediatePlayback = false);
 
 
 #if WITH_EDITOR
-	int32 GetCurrentChunkRevision() const;
+	ENGINE_API int32 GetCurrentChunkRevision() const;
 #endif // #if WITH_EDITOR
 
-	FStreamedAudioChunk& GetChunk(uint32 ChunkIndex);
-	int32 GetChunkFromDDC(int32 ChunkIndex, uint8** OutChunkData, bool bMakeSureChunkIsLoaded);
+	ENGINE_API FStreamedAudioChunk& GetChunk(uint32 ChunkIndex);
+	ENGINE_API int32 GetChunkFromDDC(int32 ChunkIndex, uint8** OutChunkData, bool bMakeSureChunkIsLoaded);
 
 #if WITH_EDITORONLY_DATA
-	FString GetDerivedDataKey() const;
+	ENGINE_API FString GetDerivedDataKey() const;
 #endif // #if WITH_EDITORONLY_DATA
 
-	int32 GetResourceSize() const;
-	const uint8* GetResourceData() const;
+	ENGINE_API int32 GetResourceSize() const;
+	ENGINE_API const uint8* GetResourceData() const;
 
-	const FSoundWavePtr GetSoundWaveData();
+	ENGINE_API const FSoundWavePtr GetSoundWaveData();
 
 private:
 	TSharedPtr<FSoundWaveData, ESPMode::ThreadSafe> SoundWaveDataPtr;

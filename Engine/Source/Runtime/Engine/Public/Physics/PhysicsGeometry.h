@@ -10,9 +10,9 @@ struct FKSphereElem;
 class UBodySetup;
 
 /** Helper struct for iterating over shapes in a body setup.*/
-struct ENGINE_API FBodySetupShapeIterator
+struct FBodySetupShapeIterator
 {
-	FBodySetupShapeIterator();
+	ENGINE_API FBodySetupShapeIterator();
 
 private:
 	FVector Scale3D;

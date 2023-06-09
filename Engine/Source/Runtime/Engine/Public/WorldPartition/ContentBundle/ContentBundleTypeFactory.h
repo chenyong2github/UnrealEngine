@@ -10,11 +10,11 @@
 class FContentBundleClient;
 class UContentBundleDescriptor;
 
-UCLASS()
-class ENGINE_API UContentBundleTypeFactory : public UObject
+UCLASS(MinimalAPI)
+class UContentBundleTypeFactory : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	virtual TSharedPtr<FContentBundleClient> CreateClient(const UContentBundleDescriptor* Descriptor, const FString& ClientDisplayName);
+	ENGINE_API virtual TSharedPtr<FContentBundleClient> CreateClient(const UContentBundleDescriptor* Descriptor, const FString& ClientDisplayName);
 };

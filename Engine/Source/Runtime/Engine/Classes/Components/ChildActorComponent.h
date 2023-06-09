@@ -25,19 +25,19 @@ struct FChildActorAttachedActorInfo
 };
 
 USTRUCT()
-struct ENGINE_API FChildActorComponentInstanceData : public FSceneComponentInstanceData
+struct FChildActorComponentInstanceData : public FSceneComponentInstanceData
 {
 	GENERATED_BODY()
 public:
 	FChildActorComponentInstanceData() = default;
-	FChildActorComponentInstanceData(const class UChildActorComponent* Component);
+	ENGINE_API FChildActorComponentInstanceData(const class UChildActorComponent* Component);
 
 	virtual ~FChildActorComponentInstanceData() = default;
 
-	virtual bool ContainsData() const override;
+	ENGINE_API virtual bool ContainsData() const override;
 
-	virtual void ApplyToComponent(UActorComponent* Component, const ECacheApplyPhase CacheApplyPhase) override;
-	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	ENGINE_API virtual void ApplyToComponent(UActorComponent* Component, const ECacheApplyPhase CacheApplyPhase) override;
+	ENGINE_API virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 
 	// The class of the child actor when the instance data cache was stored
 	UPROPERTY()
@@ -78,8 +78,8 @@ enum class EChildActorComponentTreeViewVisualizationMode : uint8
 #endif
 
 /** A component that spawns an Actor when registered, and destroys it when unregistered.*/
-UCLASS(ClassGroup=Utility, hidecategories=(Object,LOD,Physics,Lighting,TextureStreaming,Activation,"Components|Activation",Collision), meta=(BlueprintSpawnableComponent))
-class ENGINE_API UChildActorComponent : public USceneComponent
+UCLASS(ClassGroup=Utility, hidecategories=(Object,LOD,Physics,Lighting,TextureStreaming,Activation,"Components|Activation",Collision), meta=(BlueprintSpawnableComponent), MinimalAPI)
+class UChildActorComponent : public USceneComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -105,7 +105,7 @@ class ENGINE_API UChildActorComponent : public USceneComponent
 	 * @param InClass                 The Actor subclass to spawn as a child actor
 	 * @param NewChildActorTemplate   An Actor to use as the template when spawning a child actor using this component (per the rules listed above)
 	 */
-	void SetChildActorClass(TSubclassOf<AActor> InClass, AActor* NewChildActorTemplate);
+	ENGINE_API void SetChildActorClass(TSubclassOf<AActor> InClass, AActor* NewChildActorTemplate);
 
 	TSubclassOf<AActor> GetChildActorClass() const { return ChildActorClass; }
 
@@ -146,56 +146,56 @@ private:
 	uint8 bChildActorNameIsExact:1;
 
 #if WITH_EDITOR
-	virtual void SetPackageExternal(bool bExternal, bool bShouldDirty) override;
+	ENGINE_API virtual void SetPackageExternal(bool bExternal, bool bShouldDirty) override;
 #endif
 
 public:
 
 	//~ Begin Object Interface.
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
-	virtual void PostEditImport() override;
-	virtual void PostEditUndo() override;
-	virtual void PostLoad() override;
-	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditImport() override;
+	ENGINE_API virtual void PostEditUndo() override;
+	ENGINE_API virtual void PostLoad() override;
+	ENGINE_API virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 #endif
-	virtual void Serialize(FArchive& Ar) override;
-	virtual void BeginDestroy() override;
-	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
-	virtual void PostRepNotifies() override;
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void BeginDestroy() override;
+	ENGINE_API virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	ENGINE_API virtual void PostRepNotifies() override;
+	static ENGINE_API void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	//~ End Object Interface.
 
 	//~ Begin ActorComponent Interface.
-	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
-	virtual void OnRegister() override;
-	virtual void OnUnregister() override;
-	virtual TStructOnScope<FActorComponentInstanceData> GetComponentInstanceData() const override;
-	virtual void BeginPlay() override;
-	virtual bool IsHLODRelevant() const override;
+	ENGINE_API virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
+	ENGINE_API virtual void OnRegister() override;
+	ENGINE_API virtual void OnUnregister() override;
+	ENGINE_API virtual TStructOnScope<FActorComponentInstanceData> GetComponentInstanceData() const override;
+	ENGINE_API virtual void BeginPlay() override;
+	ENGINE_API virtual bool IsHLODRelevant() const override;
 #if WITH_EDITOR
-	virtual TSubclassOf<class UHLODBuilder> GetCustomHLODBuilderClass() const override;
+	ENGINE_API virtual TSubclassOf<class UHLODBuilder> GetCustomHLODBuilderClass() const override;
 #endif
 	//~ End ActorComponent Interface.
 
 	/** Apply the component instance data to the child actor component */
-	void ApplyComponentInstanceData(FChildActorComponentInstanceData* ComponentInstanceData, const ECacheApplyPhase CacheApplyPhase);
+	ENGINE_API void ApplyComponentInstanceData(FChildActorComponentInstanceData* ComponentInstanceData, const ECacheApplyPhase CacheApplyPhase);
 
 	/** Create the child actor */
-	virtual void CreateChildActor(TFunction<void(AActor*)> CustomizerFunc = nullptr);
+	ENGINE_API virtual void CreateChildActor(TFunction<void(AActor*)> CustomizerFunc = nullptr);
 
 	AActor* GetChildActor() const { return ChildActor; }
 	AActor* GetChildActorTemplate() const { return ChildActorTemplate; }
 
 	FName GetChildActorName() const { return ChildActorName; }
-	void SetChildActorName(const FName InName);
+	ENGINE_API void SetChildActorName(const FName InName);
 
 	/** When true, does not modify ChildActorName during spawn such as removing _UAID_ */
-	void SetChildActorNameIsExact(bool bInExact);
+	ENGINE_API void SetChildActorNameIsExact(bool bInExact);
 
 	/** Kill any currently present child actor */
-	void DestroyChildActor();
+	ENGINE_API void DestroyChildActor();
 
 #if WITH_EDITOR
 	EChildActorComponentTreeViewVisualizationMode GetEditorTreeViewVisualizationMode() const
@@ -203,22 +203,22 @@ public:
 		return EditorTreeViewVisualizationMode;
 	}
 
-	void SetEditorTreeViewVisualizationMode(EChildActorComponentTreeViewVisualizationMode InMode);
+	ENGINE_API void SetEditorTreeViewVisualizationMode(EChildActorComponentTreeViewVisualizationMode InMode);
 #endif
 
 #if UE_WITH_IRIS
 	/** Register all replication fragments */
-	virtual void RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Context, UE::Net::EFragmentRegistrationFlags RegistrationFlags) override;
+	ENGINE_API virtual void RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Context, UE::Net::EFragmentRegistrationFlags RegistrationFlags) override;
 #endif // UE_WITH_IRIS
 
 
 private:
-	bool IsChildActorReplicated() const;
+	ENGINE_API bool IsChildActorReplicated() const;
 
-	bool IsBeingRemovedFromLevel() const;
+	ENGINE_API bool IsBeingRemovedFromLevel() const;
 
 	UFUNCTION()
-	void OnChildActorDestroyed(AActor* DestroyedActor);
+	ENGINE_API void OnChildActorDestroyed(AActor* DestroyedActor);
 };
 
 struct FActorParentComponentSetter

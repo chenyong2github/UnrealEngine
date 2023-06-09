@@ -211,13 +211,13 @@ struct FParticleEmitterBuildInfo
 /*-----------------------------------------------------------------------------
 	FParticleEmitterInstance
 -----------------------------------------------------------------------------*/
-struct ENGINE_API FParticleEmitterInstance
+struct FParticleEmitterInstance
 {
 public:
 	/** The maximum DeltaTime allowed for updating PeakActiveParticle tracking.
 	 *	Any delta time > this value will not impact active particle tracking.
 	 */
-	static const float PeakActiveParticleUpdateDelta;
+	static ENGINE_API const float PeakActiveParticleUpdateDelta;
 
 	/** The template this instance is based on.							*/
 	UParticleEmitter* SpriteTemplate;
@@ -350,21 +350,21 @@ public:
 	TArray<class UPointLightComponent*> HighQualityLights;
 
 	/** Constructor	*/
-	FParticleEmitterInstance();
+	ENGINE_API FParticleEmitterInstance();
 
 	/** Destructor	*/
-	virtual ~FParticleEmitterInstance();
+	ENGINE_API virtual ~FParticleEmitterInstance();
 
 #if STATS
-	void PreDestructorCall();
+	ENGINE_API void PreDestructorCall();
 #endif
 
 	//
-	virtual void InitParameters(UParticleEmitter* InTemplate, UParticleSystemComponent* InComponent);
-	virtual void Init();
+	ENGINE_API virtual void InitParameters(UParticleEmitter* InTemplate, UParticleSystemComponent* InComponent);
+	ENGINE_API virtual void Init();
 
 	/** @return The world that the component that owns this instance is in */
-	UWorld* GetWorld() const;
+	ENGINE_API UWorld* GetWorld() const;
 
 	/**
 	 * Ensures enough memory is allocated for the requested number of particles.
@@ -373,13 +373,13 @@ public:
 	 * @param bSetMaxActiveCount		If true, update the peak active particles for this LOD.
 	 * @returns bool					true if memory is allocated for at least NewMaxActiveParticles.
 	 */
-	virtual bool Resize(int32 NewMaxActiveParticles, bool bSetMaxActiveCount = true);
+	ENGINE_API virtual bool Resize(int32 NewMaxActiveParticles, bool bSetMaxActiveCount = true);
 
-	virtual void Tick(float DeltaTime, bool bSuppressSpawning);
-	void CheckEmitterFinished();
+	ENGINE_API virtual void Tick(float DeltaTime, bool bSuppressSpawning);
+	ENGINE_API void CheckEmitterFinished();
 
 	/** Advances the bursts as though they were fired with out actually firing them. */
-	void FakeBursts();
+	ENGINE_API void FakeBursts();
 
 	/**
 	 *	Tick sub-function that handles EmitterTime setup, looping, etc.
@@ -389,7 +389,7 @@ public:
 	 *
 	 *	@return	float				The EmitterDelay
 	 */
-	virtual float Tick_EmitterTimeSetup(float DeltaTime, UParticleLODLevel* CurrentLODLevel);
+	ENGINE_API virtual float Tick_EmitterTimeSetup(float DeltaTime, UParticleLODLevel* CurrentLODLevel);
 	/**
 	 *	Tick sub-function that handles spawning of particles
 	 *
@@ -400,28 +400,28 @@ public:
 	 *
 	 *	@return	float				The SpawnFraction remaining
 	 */
-	virtual float Tick_SpawnParticles(float DeltaTime, UParticleLODLevel* CurrentLODLevel, bool bSuppressSpawning, bool bFirstTime);
+	ENGINE_API virtual float Tick_SpawnParticles(float DeltaTime, UParticleLODLevel* CurrentLODLevel, bool bSuppressSpawning, bool bFirstTime);
 	/**
 	 *	Tick sub-function that handles module updates
 	 *
 	 *	@param	DeltaTime			The current time slice
 	 *	@param	CurrentLODLevel		The current LOD level for the instance
 	 */
-	virtual void Tick_ModuleUpdate(float DeltaTime, UParticleLODLevel* CurrentLODLevel);
+	ENGINE_API virtual void Tick_ModuleUpdate(float DeltaTime, UParticleLODLevel* CurrentLODLevel);
 	/**
 	 *	Tick sub-function that handles module post updates
 	 *
 	 *	@param	DeltaTime			The current time slice
 	 *	@param	CurrentLODLevel		The current LOD level for the instance
 	 */
-	virtual void Tick_ModulePostUpdate(float DeltaTime, UParticleLODLevel* CurrentLODLevel);
+	ENGINE_API virtual void Tick_ModulePostUpdate(float DeltaTime, UParticleLODLevel* CurrentLODLevel);
 	/**
 	 *	Tick sub-function that handles module FINAL updates
 	 *
 	 *	@param	DeltaTime			The current time slice
 	 *	@param	CurrentLODLevel		The current LOD level for the instance
 	 */
-	virtual void Tick_ModuleFinalUpdate(float DeltaTime, UParticleLODLevel* CurrentLODLevel);
+	ENGINE_API virtual void Tick_ModuleFinalUpdate(float DeltaTime, UParticleLODLevel* CurrentLODLevel);
 
 	/**
 	 *	Set the LOD to the given index
@@ -429,36 +429,36 @@ public:
 	 *	@param	InLODIndex			The index of the LOD to set as current
 	 *	@param	bInFullyProcess		If true, process burst lists, etc.
 	 */
-	virtual void SetCurrentLODIndex(int32 InLODIndex, bool bInFullyProcess);
+	ENGINE_API virtual void SetCurrentLODIndex(int32 InLODIndex, bool bInFullyProcess);
 
-	virtual void Rewind();
-	virtual FBox GetBoundingBox();
-	virtual void UpdateBoundingBox(float DeltaTime);
-	virtual void ForceUpdateBoundingBox();
-	virtual uint32 RequiredBytes();
+	ENGINE_API virtual void Rewind();
+	ENGINE_API virtual FBox GetBoundingBox();
+	ENGINE_API virtual void UpdateBoundingBox(float DeltaTime);
+	ENGINE_API virtual void ForceUpdateBoundingBox();
+	ENGINE_API virtual uint32 RequiredBytes();
 	/** Get offset for particle payload data for a particular module */
-	uint32 GetModuleDataOffset(UParticleModule* Module);
+	ENGINE_API uint32 GetModuleDataOffset(UParticleModule* Module);
 	/** Get pointer to emitter instance payload data for a particular module */
-	uint8* GetModuleInstanceData(UParticleModule* Module);
+	ENGINE_API uint8* GetModuleInstanceData(UParticleModule* Module);
 	/** Get pointer to emitter instance random seed payload data for a particular module */
-	FParticleRandomSeedInstancePayload* GetModuleRandomSeedInstanceData(UParticleModule* Module);
-	virtual uint8* GetTypeDataModuleInstanceData();
-	virtual uint32 CalculateParticleStride(uint32 ParticleSize);
-	virtual void ResetBurstList();
-	virtual float GetCurrentBurstRateOffset(float& DeltaTime, int32& Burst);
-	virtual void ResetParticleParameters(float DeltaTime);
-	void CalculateOrbitOffset(FOrbitChainModuleInstancePayload& Payload, 
+	ENGINE_API FParticleRandomSeedInstancePayload* GetModuleRandomSeedInstanceData(UParticleModule* Module);
+	ENGINE_API virtual uint8* GetTypeDataModuleInstanceData();
+	ENGINE_API virtual uint32 CalculateParticleStride(uint32 ParticleSize);
+	ENGINE_API virtual void ResetBurstList();
+	ENGINE_API virtual float GetCurrentBurstRateOffset(float& DeltaTime, int32& Burst);
+	ENGINE_API virtual void ResetParticleParameters(float DeltaTime);
+	ENGINE_API void CalculateOrbitOffset(FOrbitChainModuleInstancePayload& Payload, 
 		FVector& AccumOffset, FVector& AccumRotation, FVector& AccumRotationRate, 
 		float DeltaTime, FVector& Result, FMatrix& RotationMat);
-	virtual void UpdateOrbitData(float DeltaTime);
-	virtual void ParticlePrefetch();
+	ENGINE_API virtual void UpdateOrbitData(float DeltaTime);
+	ENGINE_API virtual void ParticlePrefetch();
 
 	/**
 	 *	Spawn particles for this emitter instance
 	 *	@param	DeltaTime		The time slice to spawn over
 	 *	@return	float			The leftover fraction of spawning
 	 */
-	virtual float Spawn(float DeltaTime);
+	ENGINE_API virtual float Spawn(float DeltaTime);
 
 	/**
 	 * Spawn the indicated number of particles.
@@ -470,7 +470,7 @@ public:
 	 * @param InitialVelocity	The initial velocity of spawned particles.
 	 * @param EventPayload		Event generator payload if events should be triggered.
 	 */
-	void SpawnParticles( int32 Count, float StartTime, float Increment, const FVector& InitialLocation, const FVector& InitialVelocity, struct FParticleEventInstancePayload* EventPayload );
+	ENGINE_API void SpawnParticles( int32 Count, float StartTime, float Increment, const FVector& InitialLocation, const FVector& InitialVelocity, struct FParticleEventInstancePayload* EventPayload );
 
 	/**
 	 *	Spawn/burst the given particles...
@@ -482,8 +482,8 @@ public:
 	 *	@param	InVelocity		OPTIONAL velocity to have the particle inherit.
 	 *
 	 */
-	virtual void ForceSpawn(float DeltaTime, int32 InSpawnCount, int32 InBurstCount, FVector& InLocation, FVector& InVelocity);
-	void CheckSpawnCount(int32 InNewCount, int32 InMaxCount);
+	ENGINE_API virtual void ForceSpawn(float DeltaTime, int32 InSpawnCount, int32 InBurstCount, FVector& InLocation, FVector& InVelocity);
+	ENGINE_API void CheckSpawnCount(int32 InNewCount, int32 InMaxCount);
 
 	/**
 	 * Handle any pre-spawning actions required for particles
@@ -492,7 +492,7 @@ public:
 	 * @param InitialLocation	The initial location of the particle.
 	 * @param InitialVelocity	The initial velocity of the particle.
 	 */
-	virtual void PreSpawn(FBaseParticle* Particle, const FVector& InitialLocation, const FVector& InitialVelocity);
+	ENGINE_API virtual void PreSpawn(FBaseParticle* Particle, const FVector& InitialLocation, const FVector& InitialVelocity);
 
 	/**
 	 * Handle any post-spawning actions required by the instance
@@ -501,23 +501,23 @@ public:
 	 * @param	InterpolationPercentage		The percentage of the time slice it was spawned at
 	 * @param	SpawnTIme					The time it was spawned at
 	 */
-	virtual void PostSpawn(FBaseParticle* Particle, float InterpolationPercentage, float SpawnTime);
+	ENGINE_API virtual void PostSpawn(FBaseParticle* Particle, float InterpolationPercentage, float SpawnTime);
 
-	virtual bool HasCompleted();
-	virtual void KillParticles();
+	ENGINE_API virtual bool HasCompleted();
+	ENGINE_API virtual void KillParticles();
 	/**
 	 *	Kill the particle at the given instance
 	 *
 	 *	@param	Index		The index of the particle to kill.
 	 */
-	virtual void KillParticle(int32 Index);
+	ENGINE_API virtual void KillParticle(int32 Index);
 
 	/**
 	 *	Force kill all particles in the emitter.
 	 *
 	 *	@param	bFireEvents		If true, fire events for the particles being killed.
 	 */
-	virtual void KillParticlesForced(bool bFireEvents = false);
+	ENGINE_API virtual void KillParticlesForced(bool bFireEvents = false);
 
 	/** Set the HaltSpawning flag */
 	virtual void SetHaltSpawning(bool bInHaltSpawning)
@@ -537,12 +537,12 @@ public:
 	}
 
 	/** Get the offset of the orbit payload. */
-	int32 GetOrbitPayloadOffset();
+	ENGINE_API int32 GetOrbitPayloadOffset();
 
 	/** Get the position of the particle taking orbit in to account. */
-	FVector GetParticleLocationWithOrbitOffset(FBaseParticle* Particle);
+	ENGINE_API FVector GetParticleLocationWithOrbitOffset(FBaseParticle* Particle);
 
-	virtual FBaseParticle* GetParticle(int32 Index);
+	ENGINE_API virtual FBaseParticle* GetParticle(int32 Index);
 	/**
 	 *	Get the physical index of the particle at the given index
 	 *	(ie, the contents of ParticleIndices[InIndex])
@@ -566,12 +566,12 @@ public:
 	 *
 	 *	@return	FBaseParticle*		The particle, if valid index was given; NULL otherwise
 	 */
-	virtual FBaseParticle* GetParticleDirect(int32 InDirectIndex);
+	ENGINE_API virtual FBaseParticle* GetParticleDirect(int32 InDirectIndex);
 
 	/**
 	 *	Calculates the emitter duration for the instance.
 	 */
-	void SetupEmitterDuration();
+	ENGINE_API void SetupEmitterDuration();
 	
 	/**
 	 * Returns whether the system has any active particles.
@@ -588,7 +588,7 @@ public:
 	 *
 	 *	@return	bool		true if GetDynamicData should continue, false if it should return NULL
 	 */
-	virtual bool IsDynamicDataRequired(UParticleLODLevel* CurrentLODLevel);
+	ENGINE_API virtual bool IsDynamicDataRequired(UParticleLODLevel* CurrentLODLevel);
 
 	/**
 	 *	Retrieves the dynamic data for the emitter
@@ -628,7 +628,7 @@ public:
 	/**
 	 *	Process received events.
 	 */
-	virtual void ProcessParticleEvents(float DeltaTime, bool bSuppressSpawning);
+	ENGINE_API virtual void ProcessParticleEvents(float DeltaTime, bool bSuppressSpawning);
 
 	/**
 	 *	Called when the particle system is deactivating...
@@ -666,7 +666,7 @@ public:
 	 * @param OutMaterialRelevance - Pointer to where material relevance flags will be stored.
 	 * @param LODLevel - The LOD level for which to compute material relevance flags.
 	 */
-	virtual void GatherMaterialRelevance( FMaterialRelevance* OutMaterialRelevance, const UParticleLODLevel* LODLevel, ERHIFeatureLevel::Type InFeatureLevel ) const;
+	ENGINE_API virtual void GatherMaterialRelevance( FMaterialRelevance* OutMaterialRelevance, const UParticleLODLevel* LODLevel, ERHIFeatureLevel::Type InFeatureLevel ) const;
 
 	/**
 	 * When an emitter is killed, this will check other emitters and clean up anything pointing to this one
@@ -695,7 +695,7 @@ public:
 	virtual bool GetBeamTargetStrength(int32 TargetIndex, float& OutTargetStrength) const { return false; }
 	
 	// Called on world origin changes
-	virtual void ApplyWorldOffset(FVector InOffset, bool bWorldShift);
+	ENGINE_API virtual void ApplyWorldOffset(FVector InOffset, bool bWorldShift);
 		
 	virtual bool IsTrailEmitter()const{ return false; }
 
@@ -723,17 +723,17 @@ public:
 	Ticks the emitter's material overrides.
 	@return True if there were material overrides. Otherwise revert to default behaviour.
 	*/
-	virtual void Tick_MaterialOverrides(int32 EmitterIndex);
+	ENGINE_API virtual void Tick_MaterialOverrides(int32 EmitterIndex);
 
 	/**
 	* True if this emitter emits in local space
 	*/
-	bool UseLocalSpace();
+	ENGINE_API bool UseLocalSpace();
 
 	/**
 	* returns the screen alignment and scale of the component.
 	*/
-	void GetScreenAlignmentAndScale(int32& OutScreenAlign, FVector& OutScale);
+	ENGINE_API void GetScreenAlignmentAndScale(int32& OutScreenAlign, FVector& OutScale);
 
 protected:
 
@@ -744,28 +744,28 @@ protected:
 	 *
 	 * @return Returns true if successful
 	 */
-	virtual bool FillReplayData( FDynamicEmitterReplayDataBase& OutData );
+	ENGINE_API virtual bool FillReplayData( FDynamicEmitterReplayDataBase& OutData );
 
 	/**
 	 * Updates all internal transforms.
 	 */
-	void UpdateTransforms();
+	ENGINE_API void UpdateTransforms();
 
 	/**
 	* Retrieves the current LOD level and asserts that it is valid.
 	*/
-	class UParticleLODLevel* GetCurrentLODLevelChecked();
+	ENGINE_API class UParticleLODLevel* GetCurrentLODLevelChecked();
 
 	/**
 	 * Get the current material to render with.
 	 */
-	UMaterialInterface* GetCurrentMaterial();
+	ENGINE_API UMaterialInterface* GetCurrentMaterial();
 
 
 	/**
 	 * Fixup particle indices to only have valid entries.
 	 */
-	void FixupParticleIndices();
+	ENGINE_API void FixupParticleIndices();
 
 };
 
@@ -877,7 +877,7 @@ protected:
 /*-----------------------------------------------------------------------------
 	ParticleMeshEmitterInstance
 -----------------------------------------------------------------------------*/
-struct ENGINE_API FParticleMeshEmitterInstance : public FParticleEmitterInstance
+struct FParticleMeshEmitterInstance : public FParticleEmitterInstance
 {
 	UParticleModuleTypeDataMesh* MeshTypeData;
 	bool MeshRotationActive;
@@ -888,26 +888,26 @@ struct ENGINE_API FParticleMeshEmitterInstance : public FParticleEmitterInstance
 	TArray<UMaterialInterface*> CurrentMaterials;
 
 	/** Constructor	*/
-	FParticleMeshEmitterInstance();
+	ENGINE_API FParticleMeshEmitterInstance();
 
-	virtual void InitParameters(UParticleEmitter* InTemplate, UParticleSystemComponent* InComponent) override;
-	virtual void Init() override;
-	virtual bool Resize(int32 NewMaxActiveParticles, bool bSetMaxActiveCount = true) override;
-	virtual void Tick(float DeltaTime, bool bSuppressSpawning) override;
-	virtual void UpdateBoundingBox(float DeltaTime) override;
-	virtual uint32 RequiredBytes() override;
-	virtual void PostSpawn(FBaseParticle* Particle, float InterpolationPercentage, float SpawnTime) override;
-	virtual FDynamicEmitterDataBase* GetDynamicData(bool bSelected, ERHIFeatureLevel::Type InFeatureLevel) override;
-	virtual bool IsDynamicDataRequired(UParticleLODLevel* CurrentLODLevel) override;
+	ENGINE_API virtual void InitParameters(UParticleEmitter* InTemplate, UParticleSystemComponent* InComponent) override;
+	ENGINE_API virtual void Init() override;
+	ENGINE_API virtual bool Resize(int32 NewMaxActiveParticles, bool bSetMaxActiveCount = true) override;
+	ENGINE_API virtual void Tick(float DeltaTime, bool bSuppressSpawning) override;
+	ENGINE_API virtual void UpdateBoundingBox(float DeltaTime) override;
+	ENGINE_API virtual uint32 RequiredBytes() override;
+	ENGINE_API virtual void PostSpawn(FBaseParticle* Particle, float InterpolationPercentage, float SpawnTime) override;
+	ENGINE_API virtual FDynamicEmitterDataBase* GetDynamicData(bool bSelected, ERHIFeatureLevel::Type InFeatureLevel) override;
+	ENGINE_API virtual bool IsDynamicDataRequired(UParticleLODLevel* CurrentLODLevel) override;
 
-	virtual void Tick_MaterialOverrides(int32 EmitterIndex) override;
+	ENGINE_API virtual void Tick_MaterialOverrides(int32 EmitterIndex) override;
 
 	/**
 	 *	Retrieves replay data for the emitter
 	 *
 	 *	@return	The replay data, or NULL on failure
 	 */
-	virtual FDynamicEmitterReplayDataBase* GetReplayData() override;
+	ENGINE_API virtual FDynamicEmitterReplayDataBase* GetReplayData() override;
 
 	/**
 	 *	Retrieve the allocated size of this instance.
@@ -915,7 +915,7 @@ struct ENGINE_API FParticleMeshEmitterInstance : public FParticleEmitterInstance
 	 *	@param	OutNum			The size of this instance
 	 *	@param	OutMax			The maximum size of this instance
 	 */
-	virtual void GetAllocatedSize(int32& OutNum, int32& OutMax) override;
+	ENGINE_API virtual void GetAllocatedSize(int32& OutNum, int32& OutMax) override;
 
 	/**
 	 * Returns the size of the object/ resource for display to artists/ LDs in the Editor.
@@ -923,7 +923,7 @@ struct ENGINE_API FParticleMeshEmitterInstance : public FParticleEmitterInstance
 	 * @param	Mode	Specifies which resource size should be displayed. ( see EResourceSizeMode::Type )
 	 * @return  Size of resource as to be displayed to artists/ LDs in the Editor.
 	 */
-	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
+	ENGINE_API virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
 
 	/**
 	 * Returns the offset to the mesh rotation payload, if any.
@@ -945,19 +945,19 @@ struct ENGINE_API FParticleMeshEmitterInstance : public FParticleEmitterInstance
 	 * Sets the materials with which mesh particles should be rendered.
 	 * @param InMaterials - The materials.
 	 */
-	virtual void SetMeshMaterials( const TArray<UMaterialInterface*>& InMaterials ) override;
+	ENGINE_API virtual void SetMeshMaterials( const TArray<UMaterialInterface*>& InMaterials ) override;
 
 	/**
 	 * Gathers material relevance flags for this emitter instance.
 	 * @param OutMaterialRelevance - Pointer to where material relevance flags will be stored.
 	 * @param LODLevel - The LOD level for which to compute material relevance flags.
 	 */
-	virtual void GatherMaterialRelevance(FMaterialRelevance* OutMaterialRelevance, const UParticleLODLevel* LODLevel, ERHIFeatureLevel::Type InFeatureLevel) const override;
+	ENGINE_API virtual void GatherMaterialRelevance(FMaterialRelevance* OutMaterialRelevance, const UParticleLODLevel* LODLevel, ERHIFeatureLevel::Type InFeatureLevel) const override;
 
 	/**
 	 * Gets the materials applied to each section of a mesh.
 	 */
-	void GetMeshMaterials(TArray<UMaterialInterface*,TInlineAllocator<2> >& OutMaterials, const UParticleLODLevel* LODLevel, ERHIFeatureLevel::Type InFeatureLevel, bool bLogWarnings = false) const;
+	ENGINE_API void GetMeshMaterials(TArray<UMaterialInterface*,TInlineAllocator<2> >& OutMaterials, const UParticleLODLevel* LODLevel, ERHIFeatureLevel::Type InFeatureLevel, bool bLogWarnings = false) const;
 
 protected:
 
@@ -968,7 +968,7 @@ protected:
 	 *
 	 * @return Returns true if successful
 	 */
-	virtual bool FillReplayData( FDynamicEmitterReplayDataBase& OutData ) override;
+	ENGINE_API virtual bool FillReplayData( FDynamicEmitterReplayDataBase& OutData ) override;
 };
 
 /*-----------------------------------------------------------------------------

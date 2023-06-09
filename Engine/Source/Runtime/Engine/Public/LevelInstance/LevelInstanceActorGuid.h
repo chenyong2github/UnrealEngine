@@ -11,7 +11,7 @@ class AActor;
 /**
  * Helper struct that allows serializing the ActorGuid for runtime use.
  */
-struct ENGINE_API FLevelInstanceActorGuid
+struct FLevelInstanceActorGuid
 {
 	// Exists only to support 'FVTableHelper' Actor constructors
 	FLevelInstanceActorGuid() : FLevelInstanceActorGuid(nullptr) {}
@@ -19,11 +19,11 @@ struct ENGINE_API FLevelInstanceActorGuid
 	FLevelInstanceActorGuid(AActor* InActor) : Actor(InActor) {}
 
 #if !WITH_EDITOR
-	void AssignIfInvalid();
+	ENGINE_API void AssignIfInvalid();
 #endif
 
-	bool IsValid() const;
-	const FGuid& GetGuid() const;
+	ENGINE_API bool IsValid() const;
+	ENGINE_API const FGuid& GetGuid() const;
 
 	TObjectPtr<AActor> Actor = nullptr;
 	FGuid ActorGuid;
@@ -31,5 +31,5 @@ struct ENGINE_API FLevelInstanceActorGuid
 	ENGINE_API friend FArchive& operator<<(FArchive& Ar, FLevelInstanceActorGuid& LevelInstanceActorGuid);
 
 private:
-	const FGuid& GetGuid_Internal() const;
+	ENGINE_API const FGuid& GetGuid_Internal() const;
 };

@@ -43,8 +43,8 @@ struct FWorldPartitionPerWorldSettings
 #endif
 };
 
-UCLASS(config = EditorPerProjectUserSettings)
-class ENGINE_API UWorldPartitionEditorPerProjectUserSettings : public UObject
+UCLASS(config = EditorPerProjectUserSettings, MinimalAPI)
+class UWorldPartitionEditorPerProjectUserSettings : public UObject
 {
 	GENERATED_BODY()
 
@@ -64,11 +64,11 @@ public:
 	{}
 
 #if WITH_EDITOR
-	TArray<FBox> GetEditorLoadedRegions(UWorld* InWorld) const;
-	void SetEditorLoadedRegions(UWorld* InWorld, const TArray<FBox>& InEditorLoadedRegions);
+	ENGINE_API TArray<FBox> GetEditorLoadedRegions(UWorld* InWorld) const;
+	ENGINE_API void SetEditorLoadedRegions(UWorld* InWorld, const TArray<FBox>& InEditorLoadedRegions);
 
-	TArray<FName> GetEditorLoadedLocationVolumes(UWorld* InWorld) const;
-	void SetEditorLoadedLocationVolumes(UWorld* InWorld, const TArray<FName>& InEditorLoadedLocationVolumes);
+	ENGINE_API TArray<FName> GetEditorLoadedLocationVolumes(UWorld* InWorld) const;
+	ENGINE_API void SetEditorLoadedLocationVolumes(UWorld* InWorld, const TArray<FName>& InEditorLoadedLocationVolumes);
 
 	bool GetEnableLoadingOfLastLoadedRegions() const
 	{
@@ -103,13 +103,13 @@ public:
 		}
 	}
 
-	TArray<FName> GetWorldDataLayersNotLoadedInEditor(UWorld* InWorld) const;
-	TArray<FName> GetWorldDataLayersLoadedInEditor(UWorld* InWorld) const;
+	ENGINE_API TArray<FName> GetWorldDataLayersNotLoadedInEditor(UWorld* InWorld) const;
+	ENGINE_API TArray<FName> GetWorldDataLayersLoadedInEditor(UWorld* InWorld) const;
 	
-	void SetWorldDataLayersNonDefaultEditorLoadStates(UWorld* InWorld, const TArray<FName>& InDataLayersLoadedInEditor, const TArray<FName>& InDataLayersNotLoadedInEditor);
+	ENGINE_API void SetWorldDataLayersNonDefaultEditorLoadStates(UWorld* InWorld, const TArray<FName>& InDataLayersLoadedInEditor, const TArray<FName>& InDataLayersNotLoadedInEditor);
 
 private:
-	const FWorldPartitionPerWorldSettings* GetWorldPartitionPerWorldSettings(UWorld* InWorld) const;
+	ENGINE_API const FWorldPartitionPerWorldSettings* GetWorldPartitionPerWorldSettings(UWorld* InWorld) const;
 #endif
 
 #if WITH_EDITORONLY_DATA
@@ -143,7 +143,7 @@ public:
 	uint32 bHideLevelInstanceContent : 1;
 
 private:
-	bool ShouldSaveSettings(const UWorld* InWorld) const;
+	ENGINE_API bool ShouldSaveSettings(const UWorld* InWorld) const;
 
 	UPROPERTY(config)
 	uint32 bDisableLoadingOfLastLoadedRegions : 1;

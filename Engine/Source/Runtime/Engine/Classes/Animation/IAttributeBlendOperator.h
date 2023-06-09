@@ -12,7 +12,7 @@ namespace UE
 		struct FStackAttributeContainer;
 
 		/** Interface required to implement for user-defined blending behaviour of an animation attribute type. See TAttributeBlendOperator for an example implementation. */
-		class ENGINE_API IAttributeBlendOperator
+		class IAttributeBlendOperator
 		{
 		public:
 			virtual ~IAttributeBlendOperator() {}

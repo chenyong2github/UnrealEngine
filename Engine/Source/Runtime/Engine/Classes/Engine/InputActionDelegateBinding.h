@@ -11,7 +11,7 @@
 class UInputComponent;
 
 USTRUCT()
-struct ENGINE_API FBlueprintInputActionDelegateBinding : public FBlueprintInputDelegateBinding
+struct FBlueprintInputActionDelegateBinding : public FBlueprintInputDelegateBinding
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -33,8 +33,8 @@ struct ENGINE_API FBlueprintInputActionDelegateBinding : public FBlueprintInputD
 	}
 };
 
-UCLASS()
-class ENGINE_API UInputActionDelegateBinding : public UInputDelegateBinding
+UCLASS(MinimalAPI)
+class UInputActionDelegateBinding : public UInputDelegateBinding
 {
 	GENERATED_UCLASS_BODY()
 
@@ -42,6 +42,6 @@ class ENGINE_API UInputActionDelegateBinding : public UInputDelegateBinding
 	TArray<FBlueprintInputActionDelegateBinding> InputActionDelegateBindings;
 
 	//~ Begin UInputDelegateBinding Interface
-	virtual void BindToInputComponent(UInputComponent* InputComponent, UObject* ObjectToBindTo) const override;
+	ENGINE_API virtual void BindToInputComponent(UInputComponent* InputComponent, UObject* ObjectToBindTo) const override;
 	//~ End UInputDelegateBinding Interface
 };

@@ -30,9 +30,9 @@ public:
 	virtual ~FTexture2DResource();
 
 	// Dynamic cast methods.
-	ENGINE_API virtual FTexture2DResource* GetTexture2DResource() { return this; }
+	virtual FTexture2DResource* GetTexture2DResource() { return this; }
 	// Dynamic cast methods (const).
-	ENGINE_API virtual const FTexture2DResource* GetTexture2DResource() const { return this; }
+	virtual const FTexture2DResource* GetTexture2DResource() const { return this; }
 
 	/** Set the value of Filter, AddressU, AddressV, AddressW and MipBias from FStreamableTextureResource on the gamethread. */
 	void CacheSamplerStateInitializer(const UTexture2D* InOwner);

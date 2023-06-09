@@ -8,13 +8,13 @@
 #include "WorldPartition/WorldPartitionHandle.h"
 #include "WorldPartitionActorLoaderInterface.generated.h"
 
-UINTERFACE()
-class ENGINE_API UWorldPartitionActorLoaderInterface : public UInterface
+UINTERFACE(MinimalAPI)
+class UWorldPartitionActorLoaderInterface : public UInterface
 {
 	GENERATED_UINTERFACE_BODY()
 };
 
-class ENGINE_API IWorldPartitionActorLoaderInterface
+class IWorldPartitionActorLoaderInterface
 {
 	GENERATED_IINTERFACE_BODY()
 
@@ -25,15 +25,15 @@ class ENGINE_API IWorldPartitionActorLoaderInterface
 
 public:
 	/** Base class for actor loaders */
-	class ENGINE_API ILoaderAdapter
+	class ILoaderAdapter
 	{
 	public:
-		ILoaderAdapter(UWorld* InWorld);
-		virtual ~ILoaderAdapter();
+		ENGINE_API ILoaderAdapter(UWorld* InWorld);
+		ENGINE_API virtual ~ILoaderAdapter();
 
-		void Load();
-		void Unload();
-		bool IsLoaded() const;
+		ENGINE_API void Load();
+		ENGINE_API void Unload();
+		ENGINE_API bool IsLoaded() const;
 
 		UWorld* GetWorld() const { return World; }
 
@@ -45,30 +45,30 @@ public:
 		virtual TOptional<FString> GetLabel() const { return TOptional<FString>(); }
 		virtual TOptional<FColor> GetColor() const { return TOptional<FColor>(); }
 
-		void OnActorDescContainerInitialize(UActorDescContainer* Container);
-		void OnActorDescContainerUninitialize(UActorDescContainer* Container);
+		ENGINE_API void OnActorDescContainerInitialize(UActorDescContainer* Container);
+		ENGINE_API void OnActorDescContainerUninitialize(UActorDescContainer* Container);
 
 	protected:
 		// Private interface
 		virtual void ForEachActor(TFunctionRef<void(const FWorldPartitionHandle&)> InOperation) const =0;
 
-		bool ShouldActorBeLoaded(const FWorldPartitionHandle& Actor) const;
+		ENGINE_API bool ShouldActorBeLoaded(const FWorldPartitionHandle& Actor) const;
 
-		void RegisterDelegates();
-		void UnregisterDelegates();
+		ENGINE_API void RegisterDelegates();
+		ENGINE_API void UnregisterDelegates();
 
 		// Actors filtering
-		virtual bool PassActorDescFilter(const FWorldPartitionHandle& Actor) const;
-		void RefreshLoadedState();
+		ENGINE_API virtual bool PassActorDescFilter(const FWorldPartitionHandle& Actor) const;
+		ENGINE_API void RefreshLoadedState();
 
-		void PostLoadedStateChanged(int32 NumLoads, int32 NumUnloads, bool bClearTransactions);
-		void AddReferenceToActor(FWorldPartitionHandle& Actor);
-		void RemoveReferenceToActor(FWorldPartitionHandle& Actor);
-		void OnRefreshLoadedState(bool bFromUserOperation);
+		ENGINE_API void PostLoadedStateChanged(int32 NumLoads, int32 NumUnloads, bool bClearTransactions);
+		ENGINE_API void AddReferenceToActor(FWorldPartitionHandle& Actor);
+		ENGINE_API void RemoveReferenceToActor(FWorldPartitionHandle& Actor);
+		ENGINE_API void OnRefreshLoadedState(bool bFromUserOperation);
 
 		// Helpers
-		FActorReferenceMap& GetContainerReferences(UActorDescContainer* InContainer);
-		const FActorReferenceMap* GetContainerReferencesConst(UActorDescContainer* InContainer) const;
+		ENGINE_API FActorReferenceMap& GetContainerReferences(UActorDescContainer* InContainer);
+		ENGINE_API const FActorReferenceMap* GetContainerReferencesConst(UActorDescContainer* InContainer) const;
 
 	private:
 		UWorld* World;
@@ -92,15 +92,15 @@ public:
 		virtual FText* GetFilterReason() const = 0;
 	};
 		
-	static void RegisterActorDescFilter(const TSharedRef<FActorDescFilter>& InActorDescFilter);
+	static ENGINE_API void RegisterActorDescFilter(const TSharedRef<FActorDescFilter>& InActorDescFilter);
 
-	static void RefreshLoadedState(bool bIsFromUserChange);
+	static ENGINE_API void RefreshLoadedState(bool bIsFromUserChange);
 
 private:
 	DECLARE_EVENT_OneParam(IWorldPartitionActorLoaderInterface, FOnActorLoaderInterfaceRefreshState, bool /*bIsFromUserChange*/);
-	static FOnActorLoaderInterfaceRefreshState ActorLoaderInterfaceRefreshState;
+	static ENGINE_API FOnActorLoaderInterfaceRefreshState ActorLoaderInterfaceRefreshState;
 
-	static TArray<TSharedRef<FActorDescFilter>> ActorDescFilters;
+	static ENGINE_API TArray<TSharedRef<FActorDescFilter>> ActorDescFilters;
 	friend class ILoaderAdapter;
 #endif
 };

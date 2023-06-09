@@ -56,33 +56,33 @@ protected:
 };
 
 USTRUCT(BlueprintType)
-struct ENGINE_API FAttributeCurve : public FIndexedCurve
+struct FAttributeCurve : public FIndexedCurve
 {
 	GENERATED_USTRUCT_BODY()
 public:
 	FAttributeCurve() : ScriptStruct(nullptr), bShouldInterpolate(false), Operator(nullptr) {}
 	FAttributeCurve(UScriptStruct* InScriptStruct) : ScriptStructPath(InScriptStruct), ScriptStruct(InScriptStruct), bShouldInterpolate(false), Operator(nullptr) {}
 
-	FAttributeCurve(const FAttributeCurve& OtherCurve);
+	ENGINE_API FAttributeCurve(const FAttributeCurve& OtherCurve);
 
 	/** Virtual destructor. */
 	virtual ~FAttributeCurve() { }
 
-	bool Serialize(FArchive& Ar);
+	ENGINE_API bool Serialize(FArchive& Ar);
 
 	/** Begin FIndexedCurve overrides */
 	virtual int32 GetNumKeys() const override final { return Keys.Num(); }
 	virtual FAttributeCurve* Duplicate() const final { return new FAttributeCurve(*this); }
-	virtual void SetKeyTime(FKeyHandle KeyHandle, float NewTime) override final;
-	virtual float GetKeyTime(FKeyHandle KeyHandle) const override final;
+	ENGINE_API virtual void SetKeyTime(FKeyHandle KeyHandle, float NewTime) override final;
+	ENGINE_API virtual float GetKeyTime(FKeyHandle KeyHandle) const override final;
 	/** End FIndexedCurve overrides */
 	
 	/** Sets the underlying type for the curve, only possible when not containing any keys (see ::Reset) */
-	void SetScriptStruct(UScriptStruct* InScriptStruct);
+	ENGINE_API void SetScriptStruct(UScriptStruct* InScriptStruct);
 	const UScriptStruct* GetScriptStruct() const { return ScriptStruct; }
 
 	/** Whether or not the curve can be evaluated, based upon having a valid type and any keys */
-	bool CanEvaluate() const;
+	ENGINE_API bool CanEvaluate() const;
 
 	/** Evaluate the curve keys into a temporary value container */
 	template<typename AttributeType>
@@ -94,13 +94,13 @@ public:
 	}
 
 	/** Check whether this curve has any data or not */
-	bool HasAnyData() const;
+	ENGINE_API bool HasAnyData() const;
 
 	/** Removes all key data */
-	void Reset();
+	ENGINE_API void Reset();
 
 	/** Const iterator for the keys, so the indices and handles stay valid */
-	TArray<FAttributeKey>::TConstIterator GetKeyIterator() const;
+	ENGINE_API TArray<FAttributeKey>::TConstIterator GetKeyIterator() const;
 
 	/** Add a new typed key to the curve with the supplied Time and Value. */
 	template<typename AttributeType>
@@ -111,7 +111,7 @@ public:
 	}
 
 	/** Remove the specified key from the curve.*/
-	void DeleteKey(FKeyHandle KeyHandle);
+	ENGINE_API void DeleteKey(FKeyHandle KeyHandle);
 
 	/** Finds the key at InTime, and updates its typed value. If it can't find the key within the KeyTimeTolerance, it adds one at that time */
 	template<typename AttributeType>
@@ -129,18 +129,18 @@ public:
 	}
 			
 	/** Functions for getting keys based on handles */
-	FAttributeKey& GetKey(FKeyHandle KeyHandle);
-	const FAttributeKey& GetKey(FKeyHandle KeyHandle) const;
+	ENGINE_API FAttributeKey& GetKey(FKeyHandle KeyHandle);
+	ENGINE_API const FAttributeKey& GetKey(FKeyHandle KeyHandle) const;
 
 	/** Finds the key at KeyTime and returns its handle. If it can't find the key within the KeyTimeTolerance, it will return an invalid handle */
-	FKeyHandle FindKey(float KeyTime, float KeyTimeTolerance = UE_KINDA_SMALL_NUMBER) const;
+	ENGINE_API FKeyHandle FindKey(float KeyTime, float KeyTimeTolerance = UE_KINDA_SMALL_NUMBER) const;
 
 	/** Gets the handle for the last key which is at or before the time requested.  If there are no keys at or before the requested time, an invalid handle is returned. */
-	FKeyHandle FindKeyBeforeOrAt(float KeyTime) const;
+	ENGINE_API FKeyHandle FindKeyBeforeOrAt(float KeyTime) const;
 
 	/** Tries to reduce the number of keys required for accurate evaluation (zero error threshold) */
-	void RemoveRedundantKeys();
-	void SetKeys(TArrayView<const float> InTimes, TArrayView<const void*> InValues);
+	ENGINE_API void RemoveRedundantKeys();
+	ENGINE_API void SetKeys(TArrayView<const float> InTimes, TArrayView<const void*> InValues);
 
 	/** Populates OutKeys with typed value-ptrs */
 	template<typename AttributeType>
@@ -153,21 +153,21 @@ public:
 	}
 
 	/** Return copy of contained key-data */
-	TArray<FAttributeKey> GetCopyOfKeys() const;
-	const TArray<FAttributeKey>& GetConstRefOfKeys() const;
+	ENGINE_API TArray<FAttributeKey> GetCopyOfKeys() const;
+	ENGINE_API const TArray<FAttributeKey>& GetConstRefOfKeys() const;
 
 	/** Used for adjusting the internal key-data when owning object its playlength changes */
-	void ReadjustTimeRange(float NewMinTimeRange, float NewMaxTimeRange, bool bInsert/* whether insert or remove*/, float OldStartTime, float OldEndTime);
+	ENGINE_API void ReadjustTimeRange(float NewMinTimeRange, float NewMaxTimeRange, bool bInsert/* whether insert or remove*/, float OldStartTime, float OldEndTime);
 
 protected:
 	/** Evaluate the curve keys into the provided memory (should be appropriatedly sized) */
-	void EvaluateToPtr(const UScriptStruct* InScriptStruct, float Time, uint8* InOutDataPtr) const;
+	ENGINE_API void EvaluateToPtr(const UScriptStruct* InScriptStruct, float Time, uint8* InOutDataPtr) const;
 
 	/** Finds the key at InTime, and updates its typed value. If it can't find the key within the KeyTimeTolerance, it adds one at that time */
-	FKeyHandle UpdateOrAddKey(float InTime, const void* InValue, float KeyTimeTolerance = UE_KINDA_SMALL_NUMBER);
+	ENGINE_API FKeyHandle UpdateOrAddKey(float InTime, const void* InValue, float KeyTimeTolerance = UE_KINDA_SMALL_NUMBER);
 
 	/** Add a new raw memory key (should be appropriately sized) to the curve with the supplied Time and Value. */
-	FKeyHandle AddKey(float InTime, const void* InValue, FKeyHandle InKeyHandle = FKeyHandle());
+	ENGINE_API FKeyHandle AddKey(float InTime, const void* InValue, FKeyHandle InKeyHandle = FKeyHandle());
 protected:
 	/** The keys, ordered by time */
 	UPROPERTY(EditAnywhere, Category = "Custom Attributes")

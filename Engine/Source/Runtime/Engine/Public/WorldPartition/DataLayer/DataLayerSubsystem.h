@@ -23,13 +23,13 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnWorldDataLayersPreUnregister, AWorldDataL
 #endif
 
 /** This class is deprecated, it has been replaced by DataLayerManager. */
-UCLASS(Config = Engine)
-class ENGINE_API UDataLayerSubsystem : public UWorldSubsystem
+UCLASS(Config = Engine, MinimalAPI)
+class UDataLayerSubsystem : public UWorldSubsystem
 {
 	GENERATED_BODY()
 
 protected:
-	virtual bool DoesSupportWorldType(const EWorldType::Type WorldType) const override;
+	ENGINE_API virtual bool DoesSupportWorldType(const EWorldType::Type WorldType) const override;
 
 public:
 	//~ Begin Blueprint callable functions
@@ -37,20 +37,20 @@ public:
 	/** Find a Data Layer by its asset. */
 	UE_DEPRECATED(5.3, "Use UDataLayerManager::GetDataLayerInstanceFromAsset instead.")
 	UFUNCTION(BlueprintCallable, Category = DataLayers, meta = (DeprecatedFunction, DeprecationMessage = "DataLayerSubsystem is deprecated, use the equivalent function in DataLayerManager"))
-	UDataLayerInstance* GetDataLayerInstanceFromAsset(const UDataLayerAsset* InDataLayerAsset) const;
+	ENGINE_API UDataLayerInstance* GetDataLayerInstanceFromAsset(const UDataLayerAsset* InDataLayerAsset) const;
 
 	UE_DEPRECATED(5.3, "Use UDataLayerManager::GetDataLayerInstanceRuntimeState instead.")
 	UFUNCTION(BlueprintCallable, Category = DataLayers, meta = (DeprecatedFunction, DeprecationMessage = "DataLayerSubsystem is deprecated, use the equivalent function in DataLayerManager"))
-	EDataLayerRuntimeState GetDataLayerInstanceRuntimeState(const UDataLayerAsset* InDataLayerAsset) const;
+	ENGINE_API EDataLayerRuntimeState GetDataLayerInstanceRuntimeState(const UDataLayerAsset* InDataLayerAsset) const;
 
 	UE_DEPRECATED(5.3, "Use UDataLayerManager::GetDataLayerInstanceEffectiveRuntimeState instead.")
 	UFUNCTION(BlueprintCallable, Category = DataLayers, meta = (DeprecatedFunction, DeprecationMessage = "DataLayerSubsystem is deprecated, use the equivalent function in DataLayerManager"))
-	EDataLayerRuntimeState GetDataLayerInstanceEffectiveRuntimeState(const UDataLayerAsset* InDataLayerAsset) const;
+	ENGINE_API EDataLayerRuntimeState GetDataLayerInstanceEffectiveRuntimeState(const UDataLayerAsset* InDataLayerAsset) const;
 
 	/** Set the Data Layer state using its name. */
 	UE_DEPRECATED(5.3, "Use UDataLayerManager::SetDataLayerInstanceRuntimeState instead.")
 	UFUNCTION(BlueprintCallable, Category = DataLayers, BlueprintAuthorityOnly, meta = (DeprecatedFunction, DeprecationMessage = "DataLayerSubsystem is deprecated, use the equivalent function in DataLayerManager"))
-	void SetDataLayerInstanceRuntimeState(const UDataLayerAsset* InDataLayerAsset, EDataLayerRuntimeState InState, bool bInIsRecursive = false);
+	ENGINE_API void SetDataLayerInstanceRuntimeState(const UDataLayerAsset* InDataLayerAsset, EDataLayerRuntimeState InState, bool bInIsRecursive = false);
 
 	/** Called when a Data Layer changes state. */
 	UE_DEPRECATED(5.3, "Use UDataLayerManager::OnDataLayerInstanceRuntimeStateChanged instead.")
@@ -72,40 +72,40 @@ public:
 	TArray<FName> GetDataLayerInstanceNames(const TArray<T>& InDataLayerIdentifiers, const ULevel* InLevelContext = nullptr) const;
 
 	UE_DEPRECATED(5.3, "This function has been deprecated.")
-	const UDataLayerInstance* GetDataLayerInstanceFromAssetName(const FName& InDataLayerAssetFullName) const;
+	ENGINE_API const UDataLayerInstance* GetDataLayerInstanceFromAssetName(const FName& InDataLayerAssetFullName) const;
 
 	UE_DEPRECATED(5.3, "Use UDataLayerManager::SetDataLayerRuntimeState instead.")
-	void SetDataLayerRuntimeState(const UDataLayerInstance* InDataLayerInstance, EDataLayerRuntimeState InState, bool bInIsRecursive = false);
+	ENGINE_API void SetDataLayerRuntimeState(const UDataLayerInstance* InDataLayerInstance, EDataLayerRuntimeState InState, bool bInIsRecursive = false);
 
 	UE_DEPRECATED(5.3, "Use UDataLayerManager::GetDataLayerRuntimeState instead.")
-	EDataLayerRuntimeState GetDataLayerRuntimeState(const UDataLayerInstance* InDataLayer) const;
+	ENGINE_API EDataLayerRuntimeState GetDataLayerRuntimeState(const UDataLayerInstance* InDataLayer) const;
 
 	UE_DEPRECATED(5.3, "Use UDataLayerManager::GetDataLayerRuntimeStateByName instead.")
-	EDataLayerRuntimeState GetDataLayerRuntimeStateByName(const FName& InDataLayerName) const;
+	ENGINE_API EDataLayerRuntimeState GetDataLayerRuntimeStateByName(const FName& InDataLayerName) const;
 
 	UE_DEPRECATED(5.3, "Use UDataLayerManager::GetDataLayerEffectiveRuntimeState instead.")
-	EDataLayerRuntimeState GetDataLayerEffectiveRuntimeState(const UDataLayerInstance* InDataLayer) const;
+	ENGINE_API EDataLayerRuntimeState GetDataLayerEffectiveRuntimeState(const UDataLayerInstance* InDataLayer) const;
 
 	UE_DEPRECATED(5.3, "Use UDataLayerManager::GetDataLayerEffectiveRuntimeStateByName instead.")
-	EDataLayerRuntimeState GetDataLayerEffectiveRuntimeStateByName(const FName& InDataLayerName) const;
+	ENGINE_API EDataLayerRuntimeState GetDataLayerEffectiveRuntimeStateByName(const FName& InDataLayerName) const;
 
 	UE_DEPRECATED(5.3, "Use UDataLayerManager::IsAnyDataLayerInEffectiveRuntimeState instead.")
-	bool IsAnyDataLayerInEffectiveRuntimeState(const TArray<FName>& InDataLayerNames, EDataLayerRuntimeState InState) const;
+	ENGINE_API bool IsAnyDataLayerInEffectiveRuntimeState(const TArray<FName>& InDataLayerNames, EDataLayerRuntimeState InState) const;
 
 	UE_DEPRECATED(5.3, "Use UDataLayerManager::GetEffectiveActiveDataLayerNames instead.")
-	const TSet<FName>& GetEffectiveActiveDataLayerNames() const;
+	ENGINE_API const TSet<FName>& GetEffectiveActiveDataLayerNames() const;
 
 	UE_DEPRECATED(5.3, "Use UDataLayerManager::GetEffectiveLoadedDataLayerNames instead.")
-	const TSet<FName>& GetEffectiveLoadedDataLayerNames() const;
+	ENGINE_API const TSet<FName>& GetEffectiveLoadedDataLayerNames() const;
 
 	UE_DEPRECATED(5.3, "This function has been deprecated.")
 	void GetDataLayerDebugColors(TMap<FName, FColor>& OutMapping) const {}
 
 	UE_DEPRECATED(5.3, "This function has been deprecated.")
-	void DrawDataLayersStatus(UCanvas* Canvas, FVector2D& Offset) const;
+	ENGINE_API void DrawDataLayersStatus(UCanvas* Canvas, FVector2D& Offset) const;
 
 	UE_DEPRECATED(5.3, "This function has been deprecated.")
-	void DumpDataLayers(FOutputDevice& OutputDevice) const;
+	ENGINE_API void DumpDataLayers(FOutputDevice& OutputDevice) const;
 
 	UE_DEPRECATED(5.3, "This function has been deprecated.")
 	void RegisterWorldDataLayer(AWorldDataLayers* WorldDataLayers) {}
@@ -127,7 +127,7 @@ public:
 
 #if WITH_EDITOR
 	UE_DEPRECATED(5.3, "This function has been deprecated.")
-	static TArray<const UDataLayerInstance*> GetRuntimeDataLayerInstances(UWorld* InWorld, const TArray<FName>& InDataLayerInstanceNames);
+	static ENGINE_API TArray<const UDataLayerInstance*> GetRuntimeDataLayerInstances(UWorld* InWorld, const TArray<FName>& InDataLayerInstanceNames);
 
 	UE_DEPRECATED(5.3, "This function has been deprecated.")
 	bool ResolveIsLoadedInEditor(const TArray<FName>& InDataLayerInstanceNames) const { return false; }
@@ -199,39 +199,39 @@ public:
 
 	UE_DEPRECATED(5.1, "Use GetDataLayerInstanceFromAsset instead.")
 	UFUNCTION(BlueprintCallable, Category = DataLayers, meta = (DeprecatedFunction, DeprecationMessage = "DataLayerSubsystem is deprecated, use GetDataLayerInstanceFromAsset in DataLayerManager"))
-	UDataLayerInstance* GetDataLayer(const FActorDataLayer& InDataLayer) const;
+	ENGINE_API UDataLayerInstance* GetDataLayer(const FActorDataLayer& InDataLayer) const;
 
 	UE_DEPRECATED(5.1, "Use GetDataLayerInstanceFromAsset instead.")
 	UFUNCTION(BlueprintCallable, Category = DataLayers, meta = (DeprecatedFunction, DeprecationMessage = "DataLayerSubsystem is deprecated, use GetDataLayerInstanceFromAsset in DataLayerManager"))
-	UDataLayerInstance* GetDataLayerFromName(FName InDataLayerName) const;
+	ENGINE_API UDataLayerInstance* GetDataLayerFromName(FName InDataLayerName) const;
 
 	UE_DEPRECATED(5.1, "Use GetDataLayerInstanceFromAsset instead.")
 	UFUNCTION(BlueprintCallable, Category = DataLayers, meta = (DeprecatedFunction, DeprecationMessage = "DataLayerSubsystem is deprecated, use GetDataLayerInstanceFromAsset in DataLayerManager"))
-	UDataLayerInstance* GetDataLayerFromLabel(FName InDataLayerLabel) const;
+	ENGINE_API UDataLayerInstance* GetDataLayerFromLabel(FName InDataLayerLabel) const;
 
 	UE_DEPRECATED(5.1, "Use GetDataLayerInstanceRuntimeState instead.")
 	UFUNCTION(BlueprintCallable, Category = DataLayers, meta = (DeprecatedFunction, DeprecationMessage = "DataLayerSubsystem is deprecated, use GetDataLayerInstanceRuntimeState in DataLayerManager"))
-	EDataLayerRuntimeState GetDataLayerRuntimeState(const FActorDataLayer& InDataLayer) const;
+	ENGINE_API EDataLayerRuntimeState GetDataLayerRuntimeState(const FActorDataLayer& InDataLayer) const;
 
 	UE_DEPRECATED(5.1, "Use GetDataLayerInstanceRuntimeState instead.")
 	UFUNCTION(BlueprintCallable, Category = DataLayers, meta = (DeprecatedFunction, DeprecationMessage = "DataLayerSubsystem is deprecated, use GetDataLayerInstanceRuntimeState in DataLayerManager"))
-	EDataLayerRuntimeState GetDataLayerRuntimeStateByLabel(const FName& InDataLayerLabel) const;
+	ENGINE_API EDataLayerRuntimeState GetDataLayerRuntimeStateByLabel(const FName& InDataLayerLabel) const;
 
 	UE_DEPRECATED(5.1, "Use GetDataLayerInstanceEffectiveRuntimeState instead.")
 	UFUNCTION(BlueprintCallable, Category = DataLayers, meta = (DeprecatedFunction, DeprecationMessage = "DataLayerSubsystem is deprecated, use GetDataLayerInstanceEffectiveRuntimeState in DataLayerManager"))
-	EDataLayerRuntimeState GetDataLayerEffectiveRuntimeState(const FActorDataLayer& InDataLayer) const;
+	ENGINE_API EDataLayerRuntimeState GetDataLayerEffectiveRuntimeState(const FActorDataLayer& InDataLayer) const;
 
 	UE_DEPRECATED(5.1, "Use GetDataLayerInstanceEffectiveRuntimeState instead.")
 	UFUNCTION(BlueprintCallable, Category = DataLayers, meta = (DeprecatedFunction, DeprecationMessage = "DataLayerSubsystem is deprecated, use GetDataLayerInstanceEffectiveRuntimeState in DataLayerManager"))
-	EDataLayerRuntimeState GetDataLayerEffectiveRuntimeStateByLabel(const FName& InDataLayerLabel) const;
+	ENGINE_API EDataLayerRuntimeState GetDataLayerEffectiveRuntimeStateByLabel(const FName& InDataLayerLabel) const;
 
 	UE_DEPRECATED(5.1, "Use SetDataLayerRuntimeState() with UDataLayerAsset* overload instead.")
 	UFUNCTION(BlueprintCallable, Category = DataLayers, BlueprintAuthorityOnly)
-	void SetDataLayerRuntimeState(const FActorDataLayer& InDataLayer, EDataLayerRuntimeState InState, bool bInIsRecursive = false);
+	ENGINE_API void SetDataLayerRuntimeState(const FActorDataLayer& InDataLayer, EDataLayerRuntimeState InState, bool bInIsRecursive = false);
 
 	UE_DEPRECATED(5.1, "Use SetDataLayerInstanceRuntimeState instead.")
 	UFUNCTION(BlueprintCallable, Category = DataLayers, BlueprintAuthorityOnly)
-	void SetDataLayerRuntimeStateByLabel(const FName& InDataLayerLabel, EDataLayerRuntimeState InState, bool bInIsRecursive = false);
+	ENGINE_API void SetDataLayerRuntimeStateByLabel(const FName& InDataLayerLabel, EDataLayerRuntimeState InState, bool bInIsRecursive = false);
 
 private:
 	UE_DEPRECATED(5.3, "Use UDataLayerManager::DataLayerLoadingPolicyClass instead.")

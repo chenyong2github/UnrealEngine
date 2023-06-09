@@ -52,8 +52,8 @@ struct FTouchInputControl
 /**
  * Defines an interface by which touch input can be controlled using any number of buttons and virtual joysticks
  */
-UCLASS(Blueprintable, BlueprintType)
-class ENGINE_API UTouchInterface : public UObject
+UCLASS(Blueprintable, BlueprintType, MinimalAPI)
+class UTouchInterface : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -82,5 +82,5 @@ class ENGINE_API UTouchInterface : public UObject
 	float StartupDelay;
 
 	/** Make this the active set of touch controls */
-	virtual void Activate(TSharedPtr<SVirtualJoystick> VirtualJoystick);
+	ENGINE_API virtual void Activate(TSharedPtr<SVirtualJoystick> VirtualJoystick);
 };

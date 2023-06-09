@@ -8,8 +8,8 @@
 #include "Particles/ParticleModule.h"
 #include "ParticleModuleColorBase.generated.h"
 
-UCLASS(editinlinenew, hidecategories=Object, abstract, meta=(DisplayName = "Color"))
-class ENGINE_API UParticleModuleColorBase : public UParticleModule
+UCLASS(editinlinenew, hidecategories=Object, abstract, meta=(DisplayName = "Color"), MinimalAPI)
+class UParticleModuleColorBase : public UParticleModule
 {
 	GENERATED_UCLASS_BODY()
 

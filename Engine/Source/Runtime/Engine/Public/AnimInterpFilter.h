@@ -103,7 +103,7 @@ struct FFilterData
 };
 
 //======================================================================================================================
-struct ENGINE_API FFIRFilterTimeBased
+struct FFIRFilterTimeBased
 {
 public:
 	FFIRFilterTimeBased()
@@ -143,13 +143,13 @@ public:
 	}
 
 	// This adds Input to the stack representing an update of DeltaTime, and returns the new filtered value. 
-	float UpdateAndGetFilteredData(float Input, float DeltaTime);
+	ENGINE_API float UpdateAndGetFilteredData(float Input, float DeltaTime);
 
 	// Wraps the internal state by steps of Range so that it is as close as possible to Input
-	void WrapToValue(float Input, float Range);
+	ENGINE_API void WrapToValue(float Input, float Range);
 
 	// Sets internal state to the specified value
-	void SetToValue(float Input);
+	ENGINE_API void SetToValue(float Input);
 
 	// Filter is considered valid if the WindowDuration is > 0
 	bool IsValid() const { return WindowDuration > 0.f; }
@@ -180,8 +180,8 @@ private:
 	float CurrentTime;
 	TArray<FFilterData> FilterData;
 
-	float GetInterpolationCoefficient(const FFilterData& Data) const;
-	float CalculateFilteredOutput();
-	int32 GetSafeCurrentStackIndex();
-	void RefreshValidFilters();
+	ENGINE_API float GetInterpolationCoefficient(const FFilterData& Data) const;
+	ENGINE_API float CalculateFilteredOutput();
+	ENGINE_API int32 GetSafeCurrentStackIndex();
+	ENGINE_API void RefreshValidFilters();
 };

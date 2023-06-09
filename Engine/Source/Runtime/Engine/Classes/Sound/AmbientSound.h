@@ -8,8 +8,8 @@
 #include "AmbientSound.generated.h"
 
 /** A sound actor that can be placed in a level */
-UCLASS(AutoExpandCategories=Audio, ClassGroup=Sounds, hideCategories(Collision, Input, Game), showCategories=("Input|MouseInput", "Input|TouchInput", "Game|Damage"), ComponentWrapperClass)
-class ENGINE_API AAmbientSound : public AActor
+UCLASS(AutoExpandCategories=Audio, ClassGroup=Sounds, hideCategories(Collision, Input, Game), showCategories=("Input|MouseInput", "Input|TouchInput", "Game|Damage"), ComponentWrapperClass, MinimalAPI)
+class AAmbientSound : public AActor
 {
 	GENERATED_UCLASS_BODY()
 
@@ -19,27 +19,27 @@ private:
 	TObjectPtr<class UAudioComponent> AudioComponent;
 public:
 	
-	FString GetInternalSoundCueName();
+	ENGINE_API FString GetInternalSoundCueName();
 
 	//~ Begin AActor Interface.
 #if WITH_EDITOR
-	virtual void CheckForErrors() override;
-	virtual bool GetReferencedContentObjects( TArray<UObject*>& Objects ) const override;
+	ENGINE_API virtual void CheckForErrors() override;
+	ENGINE_API virtual bool GetReferencedContentObjects( TArray<UObject*>& Objects ) const override;
 #endif
-	virtual void PostRegisterAllComponents() override;
+	ENGINE_API virtual void PostRegisterAllComponents() override;
 	//~ End AActor Interface.
 
 	// BEGIN DEPRECATED (use component functions now in level script)
 	UFUNCTION(BlueprintCallable, Category="Audio", meta=(DeprecatedFunction))
-	void FadeIn(float FadeInDuration, float FadeVolumeLevel = 1.f);
+	ENGINE_API void FadeIn(float FadeInDuration, float FadeVolumeLevel = 1.f);
 	UFUNCTION(BlueprintCallable, Category="Audio", meta=(DeprecatedFunction))
-	void FadeOut(float FadeOutDuration, float FadeVolumeLevel);
+	ENGINE_API void FadeOut(float FadeOutDuration, float FadeVolumeLevel);
 	UFUNCTION(BlueprintCallable, Category="Audio", meta=(DeprecatedFunction))
-	void AdjustVolume(float AdjustVolumeDuration, float AdjustVolumeLevel);
+	ENGINE_API void AdjustVolume(float AdjustVolumeDuration, float AdjustVolumeLevel);
 	UFUNCTION(BlueprintCallable, Category="Audio", meta=(DeprecatedFunction))
-	void Play(float StartTime = 0.f);
+	ENGINE_API void Play(float StartTime = 0.f);
 	UFUNCTION(BlueprintCallable, Category="Audio", meta=(DeprecatedFunction))
-	void Stop();
+	ENGINE_API void Stop();
 	// END DEPRECATED
 
 public:

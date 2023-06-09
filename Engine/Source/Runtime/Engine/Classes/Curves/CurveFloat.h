@@ -9,7 +9,7 @@
 #include "CurveFloat.generated.h"
 
 USTRUCT(BlueprintType)
-struct ENGINE_API FRuntimeFloatCurve
+struct FRuntimeFloatCurve
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -19,15 +19,15 @@ struct ENGINE_API FRuntimeFloatCurve
 	UPROPERTY(EditAnywhere,Category=RuntimeFloatCurve)
 	TObjectPtr<class UCurveFloat> ExternalCurve;
 
-	FRuntimeFloatCurve();
+	ENGINE_API FRuntimeFloatCurve();
 
 	/** Get the current curve struct */
-	FRichCurve* GetRichCurve();
-	const FRichCurve* GetRichCurveConst() const;
+	ENGINE_API FRichCurve* GetRichCurve();
+	ENGINE_API const FRichCurve* GetRichCurveConst() const;
 };
 
-UCLASS(BlueprintType)
-class ENGINE_API UCurveFloat : public UCurveBase
+UCLASS(BlueprintType, MinimalAPI)
+class UCurveFloat : public UCurveBase
 {
 	GENERATED_UCLASS_BODY()
 
@@ -41,14 +41,14 @@ class ENGINE_API UCurveFloat : public UCurveBase
 
 	/** Evaluate this float curve at the specified time */
 	UFUNCTION(BlueprintCallable, Category="Math|Curves")
-	float GetFloatValue(float InTime) const;
+	ENGINE_API float GetFloatValue(float InTime) const;
 
 	// Begin FCurveOwnerInterface
-	virtual TArray<FRichCurveEditInfoConst> GetCurves() const override;
-	virtual TArray<FRichCurveEditInfo> GetCurves() override;
-	virtual bool IsValidCurve( FRichCurveEditInfo CurveInfo ) override;
+	ENGINE_API virtual TArray<FRichCurveEditInfoConst> GetCurves() const override;
+	ENGINE_API virtual TArray<FRichCurveEditInfo> GetCurves() override;
+	ENGINE_API virtual bool IsValidCurve( FRichCurveEditInfo CurveInfo ) override;
 
 	/** Determine if Curve is the same */
-	bool operator == (const UCurveFloat& Curve) const;
+	ENGINE_API bool operator == (const UCurveFloat& Curve) const;
 };
 

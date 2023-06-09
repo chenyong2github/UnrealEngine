@@ -29,7 +29,7 @@
  * More specifically they specify the "half-life" - or how it takes for the velocities to be decayed by half.
  */
 USTRUCT(Experimental, BlueprintInternalUseOnly)
-struct ENGINE_API FAnimNode_DeadBlending : public FAnimNode_Base, public IBoneReferenceSkeletonProvider
+struct FAnimNode_DeadBlending : public FAnimNode_Base, public IBoneReferenceSkeletonProvider
 {
 	GENERATED_BODY()
 
@@ -105,22 +105,22 @@ private:
 
 public: // FAnimNode_DeadBlending
 
-	FAnimNode_DeadBlending();
+	ENGINE_API FAnimNode_DeadBlending();
 
 	/**
 	 * Request to activate inertialization. If multiple requests are made on the same inertialization node, the request 
 	 * with the minimum blend time will be used.
 	 */
-	virtual void RequestInertialization(const FInertializationRequest& Request);
+	ENGINE_API virtual void RequestInertialization(const FInertializationRequest& Request);
 
 public: // FAnimNode_Base
 
-	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
-	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
-	virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
-	virtual void Evaluate_AnyThread(FPoseContext& Output) override;
+	ENGINE_API virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
+	ENGINE_API virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
+	ENGINE_API virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
+	ENGINE_API virtual void Evaluate_AnyThread(FPoseContext& Output) override;
 
-	virtual bool NeedsDynamicReset() const override;
+	ENGINE_API virtual bool NeedsDynamicReset() const override;
 
 private:
 	
@@ -147,7 +147,7 @@ private:
 	void ApplyTo(FCompactPose& InOutPose, FBlendedCurve& InOutCurves);
 
 public: // IBoneReferenceSkeletonProvider
-	class USkeleton* GetSkeleton(bool& bInvalidSkeletonIsError, const IPropertyHandle* PropertyHandle) override;
+	ENGINE_API class USkeleton* GetSkeleton(bool& bInvalidSkeletonIsError, const IPropertyHandle* PropertyHandle) override;
 
 private:
 

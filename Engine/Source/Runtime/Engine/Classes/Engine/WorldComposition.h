@@ -68,111 +68,111 @@ struct FDistanceVisibleLevel
  *	- Holds list of streaming level objects to stream in and out based on distance from current view point
  *  - Handles properly levels repositioning during level loading and saving
  */
-UCLASS(config=Engine)
-class ENGINE_API UWorldComposition : public UObject
+UCLASS(config=Engine, MinimalAPI)
+class UWorldComposition : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
 	typedef TArray<FWorldCompositionTile> FTilesList;
 
 	/** Adds or removes level streaming objects to world based on distance settings from players current view */
-	void UpdateStreamingState();
+	ENGINE_API void UpdateStreamingState();
 	
 	/** Adds or removes level streaming objects to world based on distance settings from current view point */
-	void UpdateStreamingState(const FVector& InLocation);
-	void UpdateStreamingState(const FVector* InLocation, int32 Num);
-	void UpdateStreamingStateCinematic(const FVector* InLocation, int32 Num);
+	ENGINE_API void UpdateStreamingState(const FVector& InLocation);
+	ENGINE_API void UpdateStreamingState(const FVector* InLocation, int32 Num);
+	ENGINE_API void UpdateStreamingStateCinematic(const FVector* InLocation, int32 Num);
 
 #if WITH_EDITOR
 	/** Simulates streaming in editor world, only visibility, no loading/unloading, no LOD sub-levels 
 	 *  @returns Whether streaming levels state was updated by this call
 	 */
-	bool UpdateEditorStreamingState(const FVector& InLocation);
+	ENGINE_API bool UpdateEditorStreamingState(const FVector& InLocation);
 
-	TArray<FWorldTileLayer> GetDistanceDependentLayers() const;
+	ENGINE_API TArray<FWorldTileLayer> GetDistanceDependentLayers() const;
 #endif// WITH_EDITOR
 
 	/**
 	 * Evaluates current world origin location against provided view location
 	 * Issues request for world origin rebasing in case location is far enough from current origin
 	 */
-	void EvaluateWorldOriginLocation(const FVector& ViewLocation);
+	ENGINE_API void EvaluateWorldOriginLocation(const FVector& ViewLocation);
 
 	/** Returns currently visible and hidden levels based on distance based streaming */
-	void GetDistanceVisibleLevels(const FVector& InLocation, TArray<FDistanceVisibleLevel>& OutVisibleLevels, TArray<FDistanceVisibleLevel>& OutHiddenLevels) const;
-	void GetDistanceVisibleLevels(const FVector* InLocations, int32 Num, TArray<FDistanceVisibleLevel>& OutVisibleLevels, TArray<FDistanceVisibleLevel>& OutHiddenLevels) const;
+	ENGINE_API void GetDistanceVisibleLevels(const FVector& InLocation, TArray<FDistanceVisibleLevel>& OutVisibleLevels, TArray<FDistanceVisibleLevel>& OutHiddenLevels) const;
+	ENGINE_API void GetDistanceVisibleLevels(const FVector* InLocations, int32 Num, TArray<FDistanceVisibleLevel>& OutVisibleLevels, TArray<FDistanceVisibleLevel>& OutHiddenLevels) const;
 
 	/** @returns Whether specified streaming level is distance dependent */
-	bool IsDistanceDependentLevel(FName PackageName) const;
+	ENGINE_API bool IsDistanceDependentLevel(FName PackageName) const;
 
 	/** @returns Currently opened world composition root folder (long PackageName)*/
-	FString GetWorldRoot() const;
+	ENGINE_API FString GetWorldRoot() const;
 	
 	/** @returns Currently managed world obejct */
-	UWorld* GetWorld() const override final;
+	ENGINE_API UWorld* GetWorld() const override final;
 	
 	/** Handles level OnPostLoad event*/
-	static void OnLevelPostLoad(ULevel* InLevel);
+	static ENGINE_API void OnLevelPostLoad(ULevel* InLevel);
 
 	/** Handles level just before it going to be saved to disk */
-	void OnLevelPreSave(ULevel* InLevel);
+	ENGINE_API void OnLevelPreSave(ULevel* InLevel);
 	
 	/** Handles level just after it was saved to disk */
-	void OnLevelPostSave(ULevel* InLevel);
+	ENGINE_API void OnLevelPostSave(ULevel* InLevel);
 	
 	/** Handles level is being added to world */
-	void OnLevelAddedToWorld(ULevel* InLevel);
+	ENGINE_API void OnLevelAddedToWorld(ULevel* InLevel);
 
 	/** Handles level is being removed from the world */
-	void OnLevelRemovedFromWorld(ULevel* InLevel);
+	ENGINE_API void OnLevelRemovedFromWorld(ULevel* InLevel);
 
 	/** @returns Level offset from current origin, with respect to parent levels */
-	FIntVector GetLevelOffset(ULevel* InLevel) const;
+	ENGINE_API FIntVector GetLevelOffset(ULevel* InLevel) const;
 
 	/** @returns Level bounding box in current shifted space */
-	FBox GetLevelBounds(ULevel* InLevel) const;
+	ENGINE_API FBox GetLevelBounds(ULevel* InLevel) const;
 
 	/** Scans world root folder for relevant packages and initializes world composition structures */
-	void Rescan();
+	ENGINE_API void Rescan();
 
 	/**  */
-	void ReinitializeForPIE();
+	ENGINE_API void ReinitializeForPIE();
 
 	/** @returns Whether specified tile package name is managed by world composition */
-	bool DoesTileExists(const FName& TilePackageName) const;
+	ENGINE_API bool DoesTileExists(const FName& TilePackageName) const;
 
 	/** @returns Tiles list in a world composition */
-	FTilesList& GetTilesList();
+	ENGINE_API FTilesList& GetTilesList();
 
 #if WITH_EDITOR
 	/** @returns FWorldTileInfo associated with specified package */
-	FWorldTileInfo GetTileInfo(const FName& InPackageName) const;
+	ENGINE_API FWorldTileInfo GetTileInfo(const FName& InPackageName) const;
 	
 	/** Notification from World browser about changes in tile info structure */
-	void OnTileInfoUpdated(const FName& InPackageName, const FWorldTileInfo& InInfo);
+	ENGINE_API void OnTileInfoUpdated(const FName& InPackageName, const FWorldTileInfo& InInfo);
 
 	/** Restores dirty tiles information after world composition being rescanned */
-	void RestoreDirtyTilesInfo(const FTilesList& TilesPrevState);
+	ENGINE_API void RestoreDirtyTilesInfo(const FTilesList& TilesPrevState);
 	
 	/** Collect tiles package names to cook  */
-	void CollectTilesToCook(TArray<FString>& PackageNames);
+	ENGINE_API void CollectTilesToCook(TArray<FString>& PackageNames);
 
 	// Event to enable/disable world composition in the world
 	DECLARE_DELEGATE_RetVal_TwoParams(bool, FEnableWorldCompositionEvent, UWorld*, bool);
-	static FEnableWorldCompositionEvent EnableWorldCompositionEvent;
+	static ENGINE_API FEnableWorldCompositionEvent EnableWorldCompositionEvent;
 	
 	// Event when world composition was successfully enabled/disabled in the world
 	DECLARE_MULTICAST_DELEGATE_OneParam(FWorldCompositionChangedEvent, UWorld*);
-	static FWorldCompositionChangedEvent WorldCompositionChangedEvent;
+	static ENGINE_API FWorldCompositionChangedEvent WorldCompositionChangedEvent;
 
 #endif //WITH_EDITOR
 
 private:
 	// UObject interface
-	virtual void PostInitProperties() override;
-	virtual void Serialize(FArchive& Ar) override;
-	virtual void PostDuplicate(bool bDuplicateForPIE) override;
-	virtual void PostLoad() override;
+	ENGINE_API virtual void PostInitProperties() override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void PostDuplicate(bool bDuplicateForPIE) override;
+	ENGINE_API virtual void PostLoad() override;
 	// UObject interface
 
 	/** Populate streaming level objects using tiles information */

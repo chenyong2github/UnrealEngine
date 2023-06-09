@@ -10,7 +10,7 @@ namespace UE
 namespace SVT
 {
 
-struct ENGINE_API FTextureDataCreateInfo
+struct FTextureDataCreateInfo
 {
 	FIntVector3 VirtualVolumeAABBMin = FIntVector3(INT32_MAX, INT32_MAX, INT32_MAX);
 	FIntVector3 VirtualVolumeAABBMax = FIntVector3(INT32_MIN, INT32_MIN, INT32_MIN);
@@ -18,7 +18,7 @@ struct ENGINE_API FTextureDataCreateInfo
 	TStaticArray<FVector4f, 2> FallbackValues = TStaticArray<FVector4f, 2>(InPlace, FVector4f(0.0f, 0.0f, 0.0f, 0.0f));
 };
 
-class ENGINE_API ITextureDataProvider
+class ITextureDataProvider
 {
 public:
 	virtual FTextureDataCreateInfo GetCreateInfo() const = 0;
@@ -26,7 +26,7 @@ public:
 	virtual ~ITextureDataProvider() = default;
 };
 
-struct ENGINE_API FTextureDataAddressingInfo
+struct FTextureDataAddressingInfo
 {
 	FIntVector3 VolumeResolution;
 	TextureAddress AddressX;
@@ -37,7 +37,7 @@ struct ENGINE_API FTextureDataAddressingInfo
 // Holds the data for a SparseVolumeTexture that is stored on disk. It only has a single mip after importing a source asset. The mip chain is built during cooking.
 // Tiles are addressed by a flat index; unlike the runtime representation, this one stores all tiles in a 1D array (per mip level) and doesn't have the concept of a 3D physical tile texture.
 // The page table itself is 3D though.
-struct ENGINE_API FTextureData
+struct FTextureData
 {
 	struct FMipMap
 	{
@@ -51,11 +51,11 @@ struct ENGINE_API FTextureData
 	TStaticArray<FVector4f, 2> FallbackValuesQuantized = TStaticArray<FVector4f, 2>(InPlace, FVector4f(0.0f, 0.0f, 0.0f, 0.0f));
 	TArray<FMipMap> MipMaps;
 
-	bool Create(const ITextureDataProvider& DataProvider);
-	bool CreateFromDense(const FTextureDataCreateInfo& CreateInfo, const TArrayView64<uint8>& VoxelDataA, const TArrayView64<uint8>& VoxelDataB);
-	void CreateDefault();
-	FVector4f Load(const FIntVector3& VolumeCoord, int32 MipLevel, int32 AttributesIdx, const FTextureDataAddressingInfo& AddressingInfo) const;
-	bool BuildDerivedData(const FTextureDataAddressingInfo& AddressingInfo, int32 NumMipLevels, bool bMoveMip0FromThis, FTextureData& OutDerivedData);
+	ENGINE_API bool Create(const ITextureDataProvider& DataProvider);
+	ENGINE_API bool CreateFromDense(const FTextureDataCreateInfo& CreateInfo, const TArrayView64<uint8>& VoxelDataA, const TArrayView64<uint8>& VoxelDataB);
+	ENGINE_API void CreateDefault();
+	ENGINE_API FVector4f Load(const FIntVector3& VolumeCoord, int32 MipLevel, int32 AttributesIdx, const FTextureDataAddressingInfo& AddressingInfo) const;
+	ENGINE_API bool BuildDerivedData(const FTextureDataAddressingInfo& AddressingInfo, int32 NumMipLevels, bool bMoveMip0FromThis, FTextureData& OutDerivedData);
 
 private:
 

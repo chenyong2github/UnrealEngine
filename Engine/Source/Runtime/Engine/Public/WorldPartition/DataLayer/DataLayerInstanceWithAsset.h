@@ -6,8 +6,8 @@
 
 #include "DataLayerInstanceWithAsset.generated.h"
 
-UCLASS(Config = Engine, PerObjectConfig, AutoCollapseCategories = ("Data Layer|Advanced"), AutoExpandCategories = ("Data Layer|Editor", "Data Layer|Advanced|Runtime"))
-class ENGINE_API UDataLayerInstanceWithAsset : public UDataLayerInstance
+UCLASS(Config = Engine, PerObjectConfig, AutoCollapseCategories = ("Data Layer|Advanced"), AutoExpandCategories = ("Data Layer|Editor", "Data Layer|Advanced|Runtime"), MinimalAPI)
+class UDataLayerInstanceWithAsset : public UDataLayerInstance
 {
 	GENERATED_UCLASS_BODY()
 
@@ -15,22 +15,22 @@ class ENGINE_API UDataLayerInstanceWithAsset : public UDataLayerInstance
 
 public:
 #if WITH_EDITOR
-	static FName MakeName(const UDataLayerAsset* DeprecatedDataLayer);
-	void OnCreated(const UDataLayerAsset* Asset);
+	static ENGINE_API FName MakeName(const UDataLayerAsset* DeprecatedDataLayer);
+	ENGINE_API void OnCreated(const UDataLayerAsset* Asset);
 
-	virtual bool CanEditChange(const FProperty* InProperty) const;
-	virtual void PreEditUndo() override;
-	virtual void PostEditUndo() override;
-	virtual bool IsLocked() const override;
-	virtual bool IsReadOnly() const override;
-	virtual bool CanAddActor(AActor* InActor) const override;
-	virtual bool CanRemoveActor(AActor* InActor) const override;
+	ENGINE_API virtual bool CanEditChange(const FProperty* InProperty) const;
+	ENGINE_API virtual void PreEditUndo() override;
+	ENGINE_API virtual void PostEditUndo() override;
+	ENGINE_API virtual bool IsLocked() const override;
+	ENGINE_API virtual bool IsReadOnly() const override;
+	ENGINE_API virtual bool CanAddActor(AActor* InActor) const override;
+	ENGINE_API virtual bool CanRemoveActor(AActor* InActor) const override;
 
-	virtual bool Validate(IStreamingGenerationErrorHandler* ErrorHandler) const override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual bool Validate(IStreamingGenerationErrorHandler* ErrorHandler) const override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
-	bool SupportsActorFilters() const;
-	bool IsIncludedInActorFilterDefault() const;
+	ENGINE_API bool SupportsActorFilters() const;
+	ENGINE_API bool IsIncludedInActorFilterDefault() const;
 #endif
 
 	const UDataLayerAsset* GetAsset() const override { return DataLayerAsset; }
@@ -46,8 +46,8 @@ public:
 
 protected:
 #if WITH_EDITOR
-	virtual bool PerformAddActor(AActor* InActor) const;
-	virtual bool PerformRemoveActor(AActor* InActor) const;
+	ENGINE_API virtual bool PerformAddActor(AActor* InActor) const;
+	ENGINE_API virtual bool PerformRemoveActor(AActor* InActor) const;
 #endif
 
 private:

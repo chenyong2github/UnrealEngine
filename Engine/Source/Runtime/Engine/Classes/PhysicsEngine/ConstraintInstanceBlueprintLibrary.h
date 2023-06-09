@@ -8,8 +8,8 @@
 
 #include "ConstraintInstanceBlueprintLibrary.generated.h"
 
-UCLASS()
-class ENGINE_API UConstraintInstanceBlueprintLibrary : public UBlueprintFunctionLibrary
+UCLASS(MinimalAPI)
+class UConstraintInstanceBlueprintLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 
@@ -26,7 +26,7 @@ public:
 	*	@param ChildBody	Child body name of the constraint
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "rigid body name name parent child"))
-		static void GetAttachedBodyNames(
+		static ENGINE_API void GetAttachedBodyNames(
 			UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 			FName& ParentBody,
 			FName& ChildBody
@@ -43,7 +43,7 @@ public:
 	*	@param bDisableCollision	true to disable collision between constrained bodies
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "disable enable collision"))
-	static void SetDisableCollision(
+	static ENGINE_API void SetDisableCollision(
 			UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 			bool bDisableCollision
 		);
@@ -52,7 +52,7 @@ public:
 	*	@param Accessor		Constraint accessor to query
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "disable enable collision"))
-	static bool GetDisableCollsion(UPARAM(ref) FConstraintInstanceAccessor& Accessor);
+	static ENGINE_API bool GetDisableCollsion(UPARAM(ref) FConstraintInstanceAccessor& Accessor);
 
 	/** Sets projection parameters of the constraint
 	*	@param Accessor					Constraint accessor to change
@@ -61,7 +61,7 @@ public:
 	*	@param ProjectionAngularAlpha	how much angular projection to apply in [0,1] range
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "enable linear angular"))
-	static void SetProjectionParams(
+	static ENGINE_API void SetProjectionParams(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 		bool bEnableProjection,
 		float ProjectionLinearAlpha,
@@ -75,7 +75,7 @@ public:
 	*	@param ProjectionAngularAlpha	how much angular projection to apply in [0,1] range
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "enable linear angular"))
-	static void GetProjectionParams(
+	static ENGINE_API void GetProjectionParams(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 		bool& bEnableProjection,
 		float& ProjectionLinearAlpha,
@@ -87,7 +87,7 @@ public:
 	*	@param bParentDominates		true to avoid the parent being affected by its child motion
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints")
-	static void SetParentDominates(
+	static ENGINE_API void SetParentDominates(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 		bool bParentDominates
 	);
@@ -96,13 +96,13 @@ public:
 	*	@param Accessor Constraint accessor to query
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints")
-	static bool GetParentDominates(UPARAM(ref) FConstraintInstanceAccessor& Accessor);
+	static ENGINE_API bool GetParentDominates(UPARAM(ref) FConstraintInstanceAccessor& Accessor);
 
 	/**
 	 * @brief Enable or disable mass conditioning for the constraint.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints")
-	static void SetMassConditioningEnabled(
+	static ENGINE_API void SetMassConditioningEnabled(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 		bool bEnableMassConditioning);
 
@@ -110,7 +110,7 @@ public:
 	 * @brief Gets whether mass conditioning is enabled for the constraint.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints")
-	static bool GetMassConditioningEnabled(UPARAM(ref) FConstraintInstanceAccessor& Accessor);
+	static ENGINE_API bool GetMassConditioningEnabled(UPARAM(ref) FConstraintInstanceAccessor& Accessor);
 
 
 	//---------------------------------------------------------------------------------------------------
@@ -127,7 +127,7 @@ public:
 	*	@param Limit	linear limit to apply to all axis
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "motion free limited locked linear angular"))
-	static void SetLinearLimits(
+	static ENGINE_API void SetLinearLimits(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 		TEnumAsByte<ELinearConstraintMotion> XMotion,
 		TEnumAsByte<ELinearConstraintMotion> YMotion,
@@ -143,7 +143,7 @@ public:
 	*	@param Limit	linear limit applied to all axis
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "motion free limited locked linear angular"))
-	static void GetLinearLimits(
+	static ENGINE_API void GetLinearLimits(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 		TEnumAsByte<ELinearConstraintMotion>& XMotion,
 		TEnumAsByte<ELinearConstraintMotion>& YMotion,
@@ -160,7 +160,7 @@ public:
 	*	@param LinearLimitContactDistance	Determines how close to the limit we have to get before turning the joint on. Larger value will be more expensive, but will do a better job not violating constraints. A smaller value will be more efficient, but easier to violate.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "soft stiffness damping restitution contact distance"))
-	static void SetLinearSoftLimitParams(
+	static ENGINE_API void SetLinearSoftLimitParams(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 		bool bSoftLinearLimit,
 		float LinearLimitStiffness,
@@ -178,7 +178,7 @@ public:
 	*	@param LinearLimitContactDistance	Determines how close to the limit we have to get before turning the joint on. Larger value will be more expensive, but will do a better job not violating constraints. A smaller value will be more efficient, but easier to violate.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "soft stiffness damping restitution contact distance"))
-	static void GetLinearSoftLimitParams(
+	static ENGINE_API void GetLinearSoftLimitParams(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 		bool& bSoftLinearLimit,
 		float& LinearLimitStiffness,
@@ -193,7 +193,7 @@ public:
 	*	@param LinearBreakThreshold	Force needed to break the joint
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints")
-	static void SetLinearBreakable(
+	static ENGINE_API void SetLinearBreakable(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor, 
 		bool bLinearBreakable, 
 		float LinearBreakThreshold
@@ -205,7 +205,7 @@ public:
 	*	@param LinearBreakThreshold	Force needed to break the joint
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints")
-	static void GetLinearBreakable(
+	static ENGINE_API void GetLinearBreakable(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 		bool& bLinearBreakable,
 		float& LinearBreakThreshold
@@ -218,7 +218,7 @@ public:
 	*	@param LinearPlasticityThreshold	Delta from target needed to reset the target joint
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints")
-		static void SetLinearPlasticity(
+		static ENGINE_API void SetLinearPlasticity(
 			UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 			bool bLinearPlasticity,
 			float LinearPlasticityThreshold,
@@ -231,7 +231,7 @@ public:
 	*	@param AngularPlasticityThreshold	Delta from target needed to reset the target joint
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints")
-		static void GetLinearPlasticity(
+		static ENGINE_API void GetLinearPlasticity(
 			UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 			bool& bLinearPlasticity,
 			float& LinearPlasticityThreshold,
@@ -249,7 +249,7 @@ public:
 	*	@param ContactTransferScale			Scale for transfer of child energy to parent.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints")
-		static void GetContactTransferScale(
+		static ENGINE_API void GetContactTransferScale(
 			UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 			float& ContactTransferScale
 		);
@@ -259,7 +259,7 @@ public:
 	*	@param ContactTransferScale			Set Contact Transfer Scale onto joints parent
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints")
-	static void SetContactTransferScale(
+	static ENGINE_API void SetContactTransferScale(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 		float ContactTransferScale
 	);
@@ -280,7 +280,7 @@ public:
 	*	@param TwistLimitAngle		Size of limit in degrees in [0, 180] range	
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "swing twist motion free limited locked"))
-	static void SetAngularLimits(
+	static ENGINE_API void SetAngularLimits(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor, 
 		TEnumAsByte<EAngularConstraintMotion> Swing1MotionType,
 		float Swing1LimitAngle, 
@@ -300,7 +300,7 @@ public:
 	*	@param TwistLimitAngle		Size of limit in degrees in [0, 180] range
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "swing twist motion free limited locked"))
-	static void GetAngularLimits(
+	static ENGINE_API void GetAngularLimits(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 		TEnumAsByte<EAngularConstraintMotion>& Swing1MotionType,
 		float& Swing1LimitAngle,
@@ -319,7 +319,7 @@ public:
 	*	@param SwingLimitContactDistance	Determines how close to the limit we have to get before turning the joint on. Larger value will be more expensive, but will do a better job not violating constraints. A smaller value will be more efficient, but easier to violate.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "soft stiffness damping restitution contact distance"))
-	static void SetAngularSoftSwingLimitParams(
+	static ENGINE_API void SetAngularSoftSwingLimitParams(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 		bool bSoftSwingLimit,
 		float SwingLimitStiffness,
@@ -337,7 +337,7 @@ public:
 	*	@param SwingLimitContactDistance	Determines how close to the limit we have to get before turning the joint on. Larger value will be more expensive, but will do a better job not violating constraints. A smaller value will be more efficient, but easier to violate.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "soft stiffness damping restitution contact distance"))
-	static void GetAngularSoftSwingLimitParams(
+	static ENGINE_API void GetAngularSoftSwingLimitParams(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 		bool& bSoftSwingLimit,
 		float& SwingLimitStiffness,
@@ -355,7 +355,7 @@ public:
 	*	@param TwistLimitContactDistance	Determines how close to the limit we have to get before turning the joint on. Larger value will be more expensive, but will do a better job not violating constraints. A smaller value will be more efficient, but easier to violate.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "soft stiffness damping restitution contact distance"))
-	static void SetAngularSoftTwistLimitParams(
+	static ENGINE_API void SetAngularSoftTwistLimitParams(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 		bool bSoftTwistLimit,
 		float TwistLimitStiffness,
@@ -373,7 +373,7 @@ public:
 	*	@param TwistLimitContactDistance	Determines how close to the limit we have to get before turning the joint on. Larger value will be more expensive, but will do a better job not violating constraints. A smaller value will be more efficient, but easier to violate.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "soft stiffness damping restitution contact distance"))
-		static void GetAngularSoftTwistLimitParams(
+		static ENGINE_API void GetAngularSoftTwistLimitParams(
 			UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 			bool& bSoftTwistLimit,
 			float& TwistLimitStiffness,
@@ -388,7 +388,7 @@ public:
 	*	@param AngularBreakThreshold	Torque needed to break the joint
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints")
-	static void SetAngularBreakable(
+	static ENGINE_API void SetAngularBreakable(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 		bool bAngularBreakable, 
 		float AngularBreakThreshold
@@ -400,7 +400,7 @@ public:
 	*	@param AngularBreakThreshold	Torque needed to break the joint
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints")
-	static void GetAngularBreakable(
+	static ENGINE_API void GetAngularBreakable(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 		bool& bAngularBreakable,
 		float& AngularBreakThreshold
@@ -412,7 +412,7 @@ public:
 	*	@param AngularPlasticityThreshold	Degrees needed to reset the rest state of the joint
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints")
-	static void SetAngularPlasticity(
+	static ENGINE_API void SetAngularPlasticity(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 		bool bAngularPlasticity, 
 		float AngularPlasticityThreshold
@@ -424,7 +424,7 @@ public:
 	*	@param AngularPlasticityThreshold	Degrees needed to reset the rest state of the joint
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints")
-	static void GetAngularPlasticity(
+	static ENGINE_API void GetAngularPlasticity(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 		bool& bAngularPlasticity,
 		float& AngularPlasticityThreshold
@@ -443,7 +443,7 @@ public:
 	*	@param bEnableDriveZ		Indicates whether the drive for the Z-Axis should be enabled
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "motor position target"))
-	static void SetLinearPositionDrive(
+	static ENGINE_API void SetLinearPositionDrive(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor, 
 		bool bEnableDriveX, 
 		bool bEnableDriveY, 
@@ -457,7 +457,7 @@ public:
 	*	@param bOutEnableDriveZ		Indicates whether the drive for the Z-Axis is enabled
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "motor position target"))
-	static void GetLinearPositionDrive(
+	static ENGINE_API void GetLinearPositionDrive(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 		bool& bOutEnableDriveX,
 		bool& bOutEnableDriveY,
@@ -471,7 +471,7 @@ public:
 	*	@param bEnableDriveZ		Indicates whether the drive for the Z-Axis should be enabled
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "motor velocity target"))
-	static void SetLinearVelocityDrive(
+	static ENGINE_API void SetLinearVelocityDrive(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 		bool bEnableDriveX, 
 		bool bEnableDriveY, 
@@ -485,7 +485,7 @@ public:
 	*	@param bOutEnableDriveZ		Indicates whether the drive for the Z-Axis is enabled
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "motor velocity target"))
-	static void GetLinearVelocityDrive(
+	static ENGINE_API void GetLinearVelocityDrive(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 		bool& bOutEnableDriveX,
 		bool& bOutEnableDriveY,
@@ -497,7 +497,7 @@ public:
 	*	@param InPosTarget			Target position
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "motor"))
-	static void SetLinearPositionTarget(
+	static ENGINE_API void SetLinearPositionTarget(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor, 
 		const FVector& InPosTarget
 	);
@@ -507,7 +507,7 @@ public:
 	*	@param OutPosTarget			Target position
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "motor"))
-	static void GetLinearPositionTarget(
+	static ENGINE_API void GetLinearPositionTarget(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 		FVector& OutPosTarget
 	);
@@ -517,7 +517,7 @@ public:
 	*	@param InVelTarget			Target velocity
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "motor"))
-	static void SetLinearVelocityTarget(
+	static ENGINE_API void SetLinearVelocityTarget(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor, 
 		const FVector& InVelTarget
 	);
@@ -527,7 +527,7 @@ public:
 	*	@param OutVelTarget			Target velocity
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "motor"))
-	static void GetLinearVelocityTarget(
+	static ENGINE_API void GetLinearVelocityTarget(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 		FVector& OutVelTarget
 	);
@@ -539,7 +539,7 @@ public:
 	*	@param InForceLimit			Max force applied by the drive
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "motor position velocity target strength max force"))
-	static void SetLinearDriveParams(
+	static ENGINE_API void SetLinearDriveParams(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 		float PositionStrength, 
 		float VelocityStrength, 
@@ -553,7 +553,7 @@ public:
 	*	@param OutForceLimit		Max force applied by the drive
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "motor position velocity target strength max force"))
-	static void GetLinearDriveParams(
+	static ENGINE_API void GetLinearDriveParams(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 		float& OutPositionStrength,
 		float& OutVelocityStrength,
@@ -572,7 +572,7 @@ public:
 	*	@param bEnableTwistDrive	Indicates whether the drive for the twist axis should be enabled. Only relevant if the AngularDriveMode is set to Twist and Swing
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "motor target"))
-	static void SetOrientationDriveTwistAndSwing(
+	static ENGINE_API void SetOrientationDriveTwistAndSwing(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor, 
 		bool bEnableTwistDrive, 
 		bool bEnableSwingDrive
@@ -584,7 +584,7 @@ public:
 	*	@param bOutEnableSwingDrive	Indicates whether the drive for the swing axis is enabled. Only relevant if the AngularDriveMode is set to Twist and Swing
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "motor target"))
-	static void GetOrientationDriveTwistAndSwing(
+	static ENGINE_API void GetOrientationDriveTwistAndSwing(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 		bool& bOutEnableTwistDrive,
 		bool& bOutEnableSwingDrive
@@ -595,7 +595,7 @@ public:
 	*	@param bEnableSLERP			Indicates whether the SLERP drive should be enabled. Only relevant if the AngularDriveMode is set to SLERP
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "motor target"))
-	static void SetOrientationDriveSLERP(
+	static ENGINE_API void SetOrientationDriveSLERP(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor, 
 		bool bEnableSLERP
 	);
@@ -605,7 +605,7 @@ public:
 	*	@param bOutEnableSLERP		Indicates whether the SLERP drive should be enabled. Only relevant if the AngularDriveMode is set to SLERP
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "motor target"))
-	static void GetOrientationDriveSLERP(
+	static ENGINE_API void GetOrientationDriveSLERP(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 		bool& bOutEnableSLERP
 	);
@@ -616,7 +616,7 @@ public:
 	*	@param bEnableSwingDrive	Indicates whether the drive for the swing axis should be enabled. Only relevant if the AngularDriveMode is set to Twist and Swing
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "motor target"))
-	static void SetAngularVelocityDriveTwistAndSwing(
+	static ENGINE_API void SetAngularVelocityDriveTwistAndSwing(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor, 
 		bool bEnableTwistDrive, 
 		bool bEnableSwingDrive
@@ -628,7 +628,7 @@ public:
 	*   @param bOutEnableSwingDrive	Indicates whether the drive for the swing axis should be enabled. Only relevant if the AngularDriveMode is set to Twist and Swing
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "motor target"))
-	static void GetAngularVelocityDriveTwistAndSwing(
+	static ENGINE_API void GetAngularVelocityDriveTwistAndSwing(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 		bool& bOutEnableTwistDrive,
 		bool& bOutEnableSwingDrive
@@ -639,7 +639,7 @@ public:
 	*	@param bEnableSLERP			Indicates whether the SLERP drive should be enabled. Only relevant if the AngularDriveMode is set to SLERP
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "motor target"))
-	static void SetAngularVelocityDriveSLERP(
+	static ENGINE_API void SetAngularVelocityDriveSLERP(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 		bool bEnableSLERP
 	);
@@ -649,7 +649,7 @@ public:
 	*	@param bOutEnableSLERP		Indicates whether the SLERP drive is enabled. Only relevant if the AngularDriveMode is set to SLERP
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "motor target"))
-	static void GetAngularVelocityDriveSLERP(
+	static ENGINE_API void GetAngularVelocityDriveSLERP(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 		bool& bOutEnableSLERP
 	);
@@ -659,7 +659,7 @@ public:
 	*	@param DriveMode	The angular drive mode to use. SLERP uses shortest spherical path, but will not work if any angular constraints are locked. Twist and Swing decomposes the path into the different angular degrees of freedom but may experience gimbal lock
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "motor"))
-	static void SetAngularDriveMode(
+	static ENGINE_API void SetAngularDriveMode(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 		EAngularDriveMode::Type DriveMode
 	);
@@ -669,7 +669,7 @@ public:
 	*	@param OutDriveMode	The angular drive mode to use. SLERP uses shortest spherical path, but will not work if any angular constraints are locked. Twist and Swing decomposes the path into the different angular degrees of freedom but may experience gimbal lock
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "motor"))
-	static void GetAngularDriveMode(
+	static ENGINE_API void GetAngularDriveMode(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 		TEnumAsByte<EAngularDriveMode::Type>& OutDriveMode
 	);
@@ -679,7 +679,7 @@ public:
 	*	@param InPosTarget			Target orientation
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "motor"))
-	static void SetAngularOrientationTarget(
+	static ENGINE_API void SetAngularOrientationTarget(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 		const FRotator& InPosTarget
 	);
@@ -689,7 +689,7 @@ public:
 	*	@param OutPosTarget			Target orientation
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "motor"))
-	static void GetAngularOrientationTarget(
+	static ENGINE_API void GetAngularOrientationTarget(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 		FRotator& OutPosTarget
 	);
@@ -699,7 +699,7 @@ public:
 	*	@param InVelTarget			Target velocity
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "motor"))
-	static void SetAngularVelocityTarget(
+	static ENGINE_API void SetAngularVelocityTarget(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 		const FVector& InVelTarget
 	);
@@ -709,7 +709,7 @@ public:
 	*	@param OutVelTarget			Target velocity
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "motor"))
-	static void GetAngularVelocityTarget(
+	static ENGINE_API void GetAngularVelocityTarget(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 		FVector& OutVelTarget
 	);
@@ -721,7 +721,7 @@ public:
 	*	@param InForceLimit			Max force applied by the drive
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "motor target orientation velocity strength max force"))
-	static void SetAngularDriveParams(
+	static ENGINE_API void SetAngularDriveParams(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 		float PositionStrength, 
 		float VelocityStrength, 
@@ -735,7 +735,7 @@ public:
 	*	@param OutForceLimit		Max force applied by the drive
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "motor target orientation velocity strength max force"))
-	static void GetAngularDriveParams(
+	static ENGINE_API void GetAngularDriveParams(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 		float& OutPositionStrength,
 		float& OutVelocityStrength,
@@ -749,7 +749,7 @@ public:
 	* @param bKeepRotation	Whether to keep original constraint rotations
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints")
-	static void CopyParams(
+	static ENGINE_API void CopyParams(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
 		UPARAM(ref) FConstraintInstanceAccessor& SourceAccessor,
 		bool bKeepPosition = true,

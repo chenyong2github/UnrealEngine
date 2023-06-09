@@ -7,7 +7,7 @@
 
 class ULevel;
 
-class ENGINE_API FTraceScreenshot
+class FTraceScreenshot
 {
 public:
 
@@ -19,7 +19,7 @@ public:
 	typedef FLogCategoryBase FLogCategoryAlias;
 #endif
 
-	static void RequestScreenshot(FString Name, bool bShowUI, const FLogCategoryAlias& LogCategory = LogCore);
+	static ENGINE_API void RequestScreenshot(FString Name, bool bShowUI, const FLogCategoryAlias& LogCategory = LogCore);
 
 	/* 
 	* Add the provided screenshot to the trace.
@@ -29,8 +29,8 @@ public:
 	* @param InScreenshotName - The name of the screenshot.
 	* @param DesiredX - Optionally resize the image to the desired width before tracing. Aspect ratio is preserved.
 	*/
-	static void TraceScreenshot(int32 InSizeX, int32 InSizeY, const TArray<FColor>& InImageData, const FString& InScreenshotName, int32 DesiredX = -1);
-	static void TraceScreenshot(int32 InSizeX, int32 InSizeY, const TArray<FLinearColor>& InImageData, const FString& InScreenshotName, int32 DesiredX = -1);
+	static ENGINE_API void TraceScreenshot(int32 InSizeX, int32 InSizeY, const TArray<FColor>& InImageData, const FString& InScreenshotName, int32 DesiredX = -1);
+	static ENGINE_API void TraceScreenshot(int32 InSizeX, int32 InSizeY, const TArray<FLinearColor>& InImageData, const FString& InScreenshotName, int32 DesiredX = -1);
 
 	/**
 	* Returns true if the screenshot should not be writted to a file.
@@ -40,16 +40,16 @@ public:
 	/**
 	* Reset the internal state of the TraceScreenshot system.
 	*/
-	static void Reset();
+	static ENGINE_API void Reset();
 
 private:
-	FTraceScreenshot();
+	ENGINE_API FTraceScreenshot();
 	FTraceScreenshot(const FTraceScreenshot& Other) {}
 	FTraceScreenshot(const FTraceScreenshot&& Other) {}
 	void operator =(const FTraceScreenshot& Other) {}
-	~FTraceScreenshot();
-	void Unbind();
+	ENGINE_API ~FTraceScreenshot();
+	ENGINE_API void Unbind();
 
 private:
-	static bool bSuppressWritingToFile;
+	static ENGINE_API bool bSuppressWritingToFile;
 };

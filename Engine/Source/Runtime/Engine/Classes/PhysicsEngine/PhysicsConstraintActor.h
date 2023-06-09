@@ -37,7 +37,7 @@ public:
 
 public:
 	/** Returns ConstraintComp subobject **/
-	ENGINE_API class UPhysicsConstraintComponent* GetConstraintComp() const { return ConstraintComp; }
+	class UPhysicsConstraintComponent* GetConstraintComp() const { return ConstraintComp; }
 };
 
 

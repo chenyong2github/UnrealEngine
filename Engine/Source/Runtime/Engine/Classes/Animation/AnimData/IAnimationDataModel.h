@@ -15,7 +15,7 @@ class IAnimationDataController;
 namespace UE::Anim::DataModel
 {
 	/** Structure used to supply necessary animation (pose) evaluation information */
-	struct ENGINE_API FEvaluationContext
+	struct FEvaluationContext
 	{
 		FEvaluationContext() = delete;
 		FEvaluationContext(double InTime, FFrameRate InSampleRate, FName InRetargetSource, const TArray<FTransform>& InRetargetTransforms, EAnimInterpolationType InInterpolationType = EAnimInterpolationType::Linear)
@@ -41,7 +41,7 @@ namespace UE::Anim::DataModel
 	};
 
 	/** Modular feature allowing plugins to provide an implementation of IAnimationDataModel */
-	class ENGINE_API IAnimationDataModels : public IModularFeature
+	class IAnimationDataModels : public IModularFeature
 	{
 	public:
 		virtual ~IAnimationDataModels() = default;
@@ -55,7 +55,7 @@ namespace UE::Anim::DataModel
 		/** Returns UClass (if possible) for the provided animation asset */
 		virtual UClass* GetModelClass(UAnimSequenceBase* OwningAnimationAsset) const = 0;
 		
-		static UClass* FindClassForAnimationAsset(UAnimSequenceBase* AnimSequenceBase);
+		static ENGINE_API UClass* FindClassForAnimationAsset(UAnimSequenceBase* AnimSequenceBase);
 	};
 }
 
@@ -63,7 +63,7 @@ namespace UE::Anim::DataModel
 * Structure encapsulating a single bone animation track.
 */
 USTRUCT(BlueprintType)
-struct ENGINE_API FBoneAnimationTrack
+struct FBoneAnimationTrack
 {
 	GENERATED_BODY()
 
@@ -84,7 +84,7 @@ struct ENGINE_API FBoneAnimationTrack
 * Structure encapsulating animated curve data. Currently only contains Float and Transform curves.
 */
 USTRUCT(BlueprintType)
-struct ENGINE_API FAnimationCurveData
+struct FAnimationCurveData
 {
 	GENERATED_BODY()
 
@@ -101,7 +101,7 @@ struct ENGINE_API FAnimationCurveData
 * Structure encapsulating animated (bone) attribute data.
 */
 USTRUCT(BlueprintType)
-struct ENGINE_API FAnimatedBoneAttribute
+struct FAnimatedBoneAttribute
 {
 	GENERATED_BODY()
 
@@ -117,13 +117,13 @@ struct ENGINE_API FAnimatedBoneAttribute
 struct FTrackToSkeletonMap;
 struct FAnimationCurveIdentifier;
 
-UINTERFACE(BlueprintType, meta=(CannotImplementInterfaceInBlueprint))
-class ENGINE_API UAnimationDataModel : public UInterface
+UINTERFACE(BlueprintType, meta=(CannotImplementInterfaceInBlueprint), MinimalAPI)
+class UAnimationDataModel : public UInterface
 {
 	GENERATED_BODY()
 };
 
-class ENGINE_API IAnimationDataModel
+class IAnimationDataModel
 {		
 public:
 	GENERATED_BODY()
@@ -358,7 +358,7 @@ public:
 	virtual bool HasBeenPopulated() const = 0;
 	virtual void IterateBoneKeys(const FName& BoneName, TFunction<bool(const FVector3f& Pos, const FQuat4f&, const FVector3f, const FFrameNumber&)> IterationFunction) const = 0;
 
-	struct ENGINE_API FEvaluationAndModificationLock
+	struct FEvaluationAndModificationLock
 	{
 		FEvaluationAndModificationLock(IAnimationDataModel& InModel) : Model(InModel) { InModel.LockEvaluationAndModification(); bLocked = true; }
 		FEvaluationAndModificationLock(IAnimationDataModel& InModel, const TFunction<bool()>& SpinFunc) : Model(InModel)

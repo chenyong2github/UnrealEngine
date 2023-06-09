@@ -209,22 +209,22 @@ struct FNetworkPhysicsCallback : public Chaos::IRewindCallback
 /**
  * Network physics manager to initialize datas required for rewind/resim
  */
-UCLASS()
-class ENGINE_API UNetworkPhysicsSystem : public UWorldSubsystem
+UCLASS(MinimalAPI)
+class UNetworkPhysicsSystem : public UWorldSubsystem
 {
 public:
 
 	GENERATED_BODY()
-	UNetworkPhysicsSystem();
+	ENGINE_API UNetworkPhysicsSystem();
 
 	friend struct FNetworkPhysicsCallback;
 
 	// Subsystem Init/Deinit
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-	virtual void Deinitialize() override;
+	ENGINE_API virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	ENGINE_API virtual void Deinitialize() override;
 
 	// Delegate at world init 
-	void OnWorldPostInit(UWorld* World, const UWorld::InitializationValues);
+	ENGINE_API void OnWorldPostInit(UWorld* World, const UWorld::InitializationValues);
 
 	// Register a component to be used by the callback 
 	void RegisterNetworkComponent(class UNetworkPhysicsComponent* NetworkComponent) {NetworkComponents.Add(NetworkComponent); }
@@ -280,62 +280,62 @@ struct FNetworkPhysicsDatas
 /**
  * Network physics component that will be attached to any player controller
  */
-UCLASS(BlueprintType)
-class ENGINE_API UNetworkPhysicsComponent : public UActorComponent
+UCLASS(BlueprintType, MinimalAPI)
+class UNetworkPhysicsComponent : public UActorComponent
 {
 	GENERATED_UCLASS_BODY()
 public:
-	UNetworkPhysicsComponent();
+	ENGINE_API UNetworkPhysicsComponent();
 
 	// Get the player controller on which the component is attached
-	virtual APlayerController* GetPlayerController() const;
+	ENGINE_API virtual APlayerController* GetPlayerController() const;
 
 	// Init the network physics component 
-	void InitPhysics();
+	ENGINE_API void InitPhysics();
 
 	// Server RPC to receive inputs from client
 	UFUNCTION(Server, unreliable, WithValidation)
-	void ServerReceiveInputsDatas(const TArray<uint8>& ClientInputs);
+	ENGINE_API void ServerReceiveInputsDatas(const TArray<uint8>& ClientInputs);
 
 	// Async physics tick component function per frame from the solver
-	virtual void AsyncPhysicsTickComponent(float DeltaTime, float SimTime) override;
+	ENGINE_API virtual void AsyncPhysicsTickComponent(float DeltaTime, float SimTime) override;
 
 	// Function to init the replicated properties
-	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifeTimeProps) const override;
+	ENGINE_API virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifeTimeProps) const override;
 
 	// Send the inputs replicated datas
-	void SendLocalInputsDatas();
+	ENGINE_API void SendLocalInputsDatas();
 
 	// Send the states replicated datas
-	void SendLocalStatesDatas();
+	ENGINE_API void SendLocalStatesDatas();
 
 	// Delegate linked to the physics rewind callback to send record local inputs/states
-	void OnPreProcessInputsInternal(const int32 PhysicsStep);
+	ENGINE_API void OnPreProcessInputsInternal(const int32 PhysicsStep);
 
 	// Delegate linked to the physics rewind callback to send record local inputs/states
-	void OnPostProcessInputsInternal(const int32 PhysicsStep);
+	ENGINE_API void OnPostProcessInputsInternal(const int32 PhysicsStep);
 
 	// Correct the player controller Server to local offset based on the received replicated states
-	void CorrectServerToLocalOffset(const int32 LocalToServerOffset);
+	ENGINE_API void CorrectServerToLocalOffset(const int32 LocalToServerOffset);
 
 	// Used to create any physics engine information for this component 
-	virtual void BeginPlay() override;
+	ENGINE_API virtual void BeginPlay() override;
 
 	// Register the component into the network manager
-	virtual void InitializeComponent() override;
+	ENGINE_API virtual void InitializeComponent() override;
 
 	// Unregister the component from the network manager
-	virtual void UninitializeComponent() override;
+	ENGINE_API virtual void UninitializeComponent() override;
 
 	// Register and create the states/inputs history
 	template<typename PhysicsTraits>
 	void CreateDatasHistory(UActorComponent* HistoryComponent);
 
 	// Remove states/inputs history from rewind datas
-	void RemoveDatasHistory();
+	ENGINE_API void RemoveDatasHistory();
 
 	// Add states/inputs history to rewind datas
-	void AddDatasHistory();
+	ENGINE_API void AddDatasHistory();
 
 	// Get the datas factory that will be used for net serialization
 	TSharedPtr<Chaos::FBaseRewindHistory>& GetStatesHistory() { return StatesHistory; }
@@ -344,23 +344,23 @@ public:
 	TSharedPtr<Chaos::FBaseRewindHistory>& GetInputsHistory() { return InputsHistory; }
 
 	// Check if the world is on server
-	bool HasServerWorld() const;
+	ENGINE_API bool HasServerWorld() const;
 
 	// Check if the player controller exists and is local
-	bool HasLocalController() const;
+	ENGINE_API bool HasLocalController() const;
 
 protected : 
 
 	// Update the histories packagemap for serialization 
-	void UpdatePackageMap();
+	ENGINE_API void UpdatePackageMap();
 
 	// repnotify for the inputs on the client
 	UFUNCTION()
-	void OnRep_SetReplicatedInputs();
+	ENGINE_API void OnRep_SetReplicatedInputs();
 
 	// repnotify for the states on the client
 	UFUNCTION()
-	void OnRep_SetReplicatedStates();
+	ENGINE_API void OnRep_SetReplicatedStates();
 
 	// replicated physics inputs
 	UPROPERTY(Transient, ReplicatedUsing = OnRep_SetReplicatedInputs)

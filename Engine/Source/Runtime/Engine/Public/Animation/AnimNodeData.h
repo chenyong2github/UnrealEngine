@@ -18,7 +18,7 @@ struct FAnimNodeData;
 namespace UE { namespace Anim {
 
 // Identifier used to access folded node data.
-struct ENGINE_API FNodeDataId
+struct FNodeDataId
 {
 	friend struct ::FAnimNodeData;
 	friend struct ::FAnimNode_Base;
@@ -46,7 +46,7 @@ struct ENGINE_API FNodeDataId
 	FNodeDataId() = default;
 	
 	// Construct from a property name and struct
-	FNodeDataId(FName InPropertyName, const FAnimNode_Base* InNode, const UScriptStruct* InNodeStruct);
+	ENGINE_API FNodeDataId(FName InPropertyName, const FAnimNode_Base* InNode, const UScriptStruct* InNodeStruct);
 	
 private:
 	// Name-based ID
@@ -87,7 +87,7 @@ ENUM_CLASS_FLAGS(EAnimNodeDataFlags);
 
 // Any constant/folded class data an anim node can be accessed via this struct
 USTRUCT(BlueprintInternalUseOnly)
-struct ENGINE_API FAnimNodeData
+struct FAnimNodeData
 {
 	GENERATED_BODY()
 
@@ -99,18 +99,18 @@ public:
 	 * @param	InCurrentObject		The object that the node is held on. This is optional as it can be recovered via the node where needed, but can accelerate the operation if supplied.
 	 * @return the raw data value, either held on sparse class data or on the instance 
 	 */
-	const void* GetData(UE::Anim::FNodeDataId InId, const FAnimNode_Base* InNode, const UObject* InCurrentObject = nullptr) const;
+	ENGINE_API const void* GetData(UE::Anim::FNodeDataId InId, const FAnimNode_Base* InNode, const UObject* InCurrentObject = nullptr) const;
 
 #if WITH_EDITORONLY_DATA
 	/**
 	 * Get the specified mutable data for the specified instance. The data may or may not reside on an anim instance itself as it may have been folded into constants.
 	 * Only available in editor to support patching constant data during compilation. Not for use at runtime. 
 	 */
-	void* GetMutableData(UE::Anim::FNodeDataId InId, FAnimNode_Base* InNode, UObject* InCurrentObject = nullptr) const;
+	ENGINE_API void* GetMutableData(UE::Anim::FNodeDataId InId, FAnimNode_Base* InNode, UObject* InCurrentObject = nullptr) const;
 #endif
 
 	/** Get the specified mutable data for the specified instance. If the data is not held on the instance this will return nullptr. */
-	void* GetInstanceData(UE::Anim::FNodeDataId InId, FAnimNode_Base* InNode, UObject* InCurrentObject = nullptr) const;
+	ENGINE_API void* GetInstanceData(UE::Anim::FNodeDataId InId, FAnimNode_Base* InNode, UObject* InCurrentObject = nullptr) const;
 	
 	/** The class we are part of */
 	const IAnimClassInterface& GetAnimClassInterface() const { check(AnimClassInterface); return *AnimClassInterface; }
@@ -156,23 +156,23 @@ private:
  * Used to map property name to editor-only property indices. This allows us to avoid TMap lookups at runtime.   
  */
 USTRUCT()
-struct ENGINE_API FAnimNodeStructData
+struct FAnimNodeStructData
 {
 	GENERATED_BODY()
 	
 	FAnimNodeStructData() = default;
 
-	FAnimNodeStructData(const UScriptStruct* InNodeType);
+	ENGINE_API FAnimNodeStructData(const UScriptStruct* InNodeType);
 
-	int32 GetPropertyIndex(FName InPropertyName) const;
+	ENGINE_API int32 GetPropertyIndex(FName InPropertyName) const;
 
-	int32 GetNumProperties() const;
+	ENGINE_API int32 GetNumProperties() const;
 
 #if WITH_EDITORONLY_DATA
 	// Verifies the layout of another struct data against this one
 	// Note: uses name + index, so not robust to type/size changes. This is OK however as tagged property serializaton
 	// will deal with those and names/indices are all we need to be consistent at this level (as we inderect by name/index)
-	bool DoesLayoutMatch(const FAnimNodeStructData& InOther) const;
+	ENGINE_API bool DoesLayoutMatch(const FAnimNodeStructData& InOther) const;
 #endif
 	
 private:

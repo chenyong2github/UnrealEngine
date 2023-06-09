@@ -14,25 +14,25 @@ class FSkeletalMeshObject;
 /**
  * A skeletal mesh component scene proxy.
  */
-class ENGINE_API FSkeletalMeshSceneProxy : public FPrimitiveSceneProxy
+class FSkeletalMeshSceneProxy : public FPrimitiveSceneProxy
 {
 public:
-	SIZE_T GetTypeHash() const override;
+	ENGINE_API SIZE_T GetTypeHash() const override;
 
 	/** 
 	 * Constructor. 
 	 * @param	Component - skeletal mesh primitive being added
 	 */
-	FSkeletalMeshSceneProxy(const USkinnedMeshComponent* Component, FSkeletalMeshRenderData* InSkelMeshRenderData);
+	ENGINE_API FSkeletalMeshSceneProxy(const USkinnedMeshComponent* Component, FSkeletalMeshRenderData* InSkelMeshRenderData);
 
 #if WITH_EDITOR
-	virtual HHitProxy* CreateHitProxies(UPrimitiveComponent* Component, TArray<TRefCountPtr<HHitProxy> >& OutHitProxies) override;
+	ENGINE_API virtual HHitProxy* CreateHitProxies(UPrimitiveComponent* Component, TArray<TRefCountPtr<HHitProxy> >& OutHitProxies) override;
 #endif
-	virtual void DrawStaticElements(FStaticPrimitiveDrawInterface* PDI) override;
-	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
+	ENGINE_API virtual void DrawStaticElements(FStaticPrimitiveDrawInterface* PDI) override;
+	ENGINE_API virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
 
 #if RHI_RAYTRACING
-	virtual bool HasRayTracingRepresentation() const override;
+	ENGINE_API virtual bool HasRayTracingRepresentation() const override;
 
 	virtual bool IsRayTracingRelevant() const override { return true; }
 
@@ -41,15 +41,15 @@ public:
 		return bRenderStatic;
 	}
 
-	virtual void GetDynamicRayTracingInstances(struct FRayTracingMaterialGatheringContext& Context, TArray<struct FRayTracingInstance>& OutRayTracingInstances) override;
+	ENGINE_API virtual void GetDynamicRayTracingInstances(struct FRayTracingMaterialGatheringContext& Context, TArray<struct FRayTracingInstance>& OutRayTracingInstances) override;
 #endif // RHI_RAYTRACING
 
-	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override;
-	virtual bool CanBeOccluded() const override;
-	virtual bool IsUsingDistanceCullFade() const override;
+	ENGINE_API virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override;
+	ENGINE_API virtual bool CanBeOccluded() const override;
+	ENGINE_API virtual bool IsUsingDistanceCullFade() const override;
 	
-	virtual bool HasDynamicIndirectShadowCasterRepresentation() const override;
-	virtual void GetShadowShapes(FVector PreViewTranslation, TArray<FCapsuleShape3f>& OutCapsuleShapes) const override;
+	ENGINE_API virtual bool HasDynamicIndirectShadowCasterRepresentation() const override;
+	ENGINE_API virtual void GetShadowShapes(FVector PreViewTranslation, TArray<FCapsuleShape3f>& OutCapsuleShapes) const override;
 
 	/** Return the bounds for the pre-skinned primitive in local space */
 	virtual void GetPreSkinnedLocalBounds(FBoxSphereBounds& OutBounds) const override { OutBounds = PreSkinnedLocalBounds; }
@@ -67,21 +67,21 @@ public:
 	 * 
 	 * @return true if out matrices are valid 
 	 */
-	bool GetWorldMatrices( FMatrix& OutLocalToWorld, FMatrix& OutWorldToLocal ) const;
+	ENGINE_API bool GetWorldMatrices( FMatrix& OutLocalToWorld, FMatrix& OutWorldToLocal ) const;
 
 	/** Util for getting LOD index currently used by this SceneProxy. */
-	int32 GetCurrentLODIndex();
+	ENGINE_API int32 GetCurrentLODIndex();
 
 	/** 
 	 * Render physics asset for debug display
 	 */
-	virtual void DebugDrawPhysicsAsset(int32 ViewIndex, FMeshElementCollector& Collector, const FEngineShowFlags& EngineShowFlags) const;
+	ENGINE_API virtual void DebugDrawPhysicsAsset(int32 ViewIndex, FMeshElementCollector& Collector, const FEngineShowFlags& EngineShowFlags) const;
 
 	/** Render the bones of the skeleton for debug display */ 
-	void DebugDrawSkeleton(int32 ViewIndex, FMeshElementCollector& Collector, const FEngineShowFlags& EngineShowFlags) const;
+	ENGINE_API void DebugDrawSkeleton(int32 ViewIndex, FMeshElementCollector& Collector, const FEngineShowFlags& EngineShowFlags) const;
 
 #if WITH_EDITOR
-	void DebugDrawPoseWatchSkeletons(int32 ViewIndex, FMeshElementCollector& Collector, const FEngineShowFlags& EngineShowFlags) const;
+	ENGINE_API void DebugDrawPoseWatchSkeletons(int32 ViewIndex, FMeshElementCollector& Collector, const FEngineShowFlags& EngineShowFlags) const;
 #endif
 
 	virtual uint32 GetMemoryFootprint( void ) const override { return( sizeof( *this ) + GetAllocatedSize() ); }
@@ -92,25 +92,25 @@ public:
 	*
 	* @param bNeedsMorphUsage - true if the materials used by this skeletal mesh need morph target usage
 	*/
-	void UpdateMorphMaterialUsage_GameThread(TArray<UMaterialInterface*>& MaterialUsingMorphTarget);
+	ENGINE_API void UpdateMorphMaterialUsage_GameThread(TArray<UMaterialInterface*>& MaterialUsingMorphTarget);
 
 
 #if WITH_EDITORONLY_DATA
-	virtual bool GetPrimitiveDistance(int32 LODIndex, int32 SectionIndex, const FVector& ViewOrigin, float& PrimitiveDistance) const override;
-	virtual bool GetMeshUVDensities(int32 LODIndex, int32 SectionIndex, FVector4& WorldUVDensities) const override;
-	virtual bool GetMaterialTextureScales(int32 LODIndex, int32 SectionIndex, const FMaterialRenderProxy* MaterialRenderProxy, FVector4f* OneOverScales, FIntVector4* UVChannelIndices) const override;
+	ENGINE_API virtual bool GetPrimitiveDistance(int32 LODIndex, int32 SectionIndex, const FVector& ViewOrigin, float& PrimitiveDistance) const override;
+	ENGINE_API virtual bool GetMeshUVDensities(int32 LODIndex, int32 SectionIndex, FVector4& WorldUVDensities) const override;
+	ENGINE_API virtual bool GetMaterialTextureScales(int32 LODIndex, int32 SectionIndex, const FMaterialRenderProxy* MaterialRenderProxy, FVector4f* OneOverScales, FIntVector4* UVChannelIndices) const override;
 #endif
 
 	friend class FSkeletalMeshSectionIter;
 
-	virtual void OnTransformChanged() override;
+	ENGINE_API virtual void OnTransformChanged() override;
 
 	virtual uint8 GetCurrentFirstLODIdx_RenderThread() const final override
 	{
 		return GetCurrentFirstLODIdx_Internal();
 	}
 
-	bool GetCachedGeometry(struct FCachedGeometry& OutCachedGeometry) const;
+	ENGINE_API bool GetCachedGeometry(struct FCachedGeometry& OutCachedGeometry) const;
 
 	const FSkeletalMeshObject* GetMeshObject() const { return MeshObject; }
 
@@ -205,16 +205,16 @@ protected:
 	float StreamingDistanceMultiplier;
 #endif
 
-	void GetDynamicElementsSection(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap,
+	ENGINE_API void GetDynamicElementsSection(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap,
 									const FSkeletalMeshLODRenderData& LODData, const int32 LODIndex, const int32 SectionIndex, bool bSectionSelected,
 								   const FSectionElementInfo& SectionElementInfo, bool bInSelectable, FMeshElementCollector& Collector) const;
 
-	void GetMeshElementsConditionallySelectable(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, bool bInSelectable, uint32 VisibilityMap, FMeshElementCollector& Collector) const;
+	ENGINE_API void GetMeshElementsConditionallySelectable(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, bool bInSelectable, uint32 VisibilityMap, FMeshElementCollector& Collector) const;
 
 	/** Only call on render thread timeline */
-	uint8 GetCurrentFirstLODIdx_Internal() const;
+	ENGINE_API uint8 GetCurrentFirstLODIdx_Internal() const;
 private:
-	void CreateBaseMeshBatch(const FSceneView* View, const FSkeletalMeshLODRenderData& LODData, const int32 LODIndex, const int32 SectionIndex, const FSectionElementInfo& SectionElementInfo, FMeshBatch& Mesh, ESkinVertexFactoryMode VFMode = ESkinVertexFactoryMode::Default) const;
+	ENGINE_API void CreateBaseMeshBatch(const FSceneView* View, const FSkeletalMeshLODRenderData& LODData, const int32 LODIndex, const int32 SectionIndex, const FSectionElementInfo& SectionElementInfo, FMeshBatch& Mesh, ESkinVertexFactoryMode VFMode = ESkinVertexFactoryMode::Default) const;
 
 public:
 #if WITH_EDITORONLY_DATA

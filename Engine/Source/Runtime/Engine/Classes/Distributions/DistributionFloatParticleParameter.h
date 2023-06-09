@@ -8,14 +8,14 @@
 #include "Distributions/DistributionFloatParameterBase.h"
 #include "DistributionFloatParticleParameter.generated.h"
 
-UCLASS(collapsecategories, hidecategories=Object, editinlinenew)
-class ENGINE_API UDistributionFloatParticleParameter : public UDistributionFloatParameterBase
+UCLASS(collapsecategories, hidecategories=Object, editinlinenew, MinimalAPI)
+class UDistributionFloatParticleParameter : public UDistributionFloatParameterBase
 {
 	GENERATED_UCLASS_BODY()
 
 
 	//~ Begin UDistributionFloatParameterBase Interface
-	virtual bool GetParamValue(UObject* Data, FName ParamName, float& OutFloat) const override;
+	ENGINE_API virtual bool GetParamValue(UObject* Data, FName ParamName, float& OutFloat) const override;
 	//~ End UDistributionFloatParameterBase Interface
 };
 

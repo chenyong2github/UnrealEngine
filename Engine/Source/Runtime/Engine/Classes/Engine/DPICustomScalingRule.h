@@ -11,8 +11,8 @@
  * Custom Scaling Rules for Slate and UMG Widgets can be implemented by sub-classing from this class
  * and setting this rule to be used in your project settings.
  */
-UCLASS(Abstract)
-class ENGINE_API UDPICustomScalingRule : public UObject
+UCLASS(Abstract, MinimalAPI)
+class UDPICustomScalingRule : public UObject
 {
 	GENERATED_BODY()
 
@@ -23,5 +23,5 @@ public:
 	 * @param Size The size of the viewport.
 	 * @return The Scale to apply to the entire UI.
 	 */
-	virtual float GetDPIScaleBasedOnSize(FIntPoint Size) const;
+	ENGINE_API virtual float GetDPIScaleBasedOnSize(FIntPoint Size) const;
 };

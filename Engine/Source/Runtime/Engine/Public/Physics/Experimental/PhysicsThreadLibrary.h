@@ -16,8 +16,8 @@
 #include "PhysicsEngine/BodyInstance.h"
 #include "PhysicsThreadLibrary.generated.h"
 
-UCLASS(meta = (ScriptName = "PhysicsThreadLibrary"))
-class ENGINE_API UPhysicsThreadLibrary : public UBlueprintFunctionLibrary
+UCLASS(meta = (ScriptName = "PhysicsThreadLibrary"), MinimalAPI)
+class UPhysicsThreadLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 

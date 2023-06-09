@@ -21,15 +21,15 @@ class UStaticMeshComponent;
  * DefaultPawn implements a simple Pawn with spherical collision and built-in flying movement.
  * @see UFloatingPawnMovement
  */
-UCLASS(config=Game, Blueprintable, BlueprintType)
-class ENGINE_API ADefaultPawn : public APawn
+UCLASS(config=Game, Blueprintable, BlueprintType, MinimalAPI)
+class ADefaultPawn : public APawn
 {
 	GENERATED_UCLASS_BODY()
 
 	// Begin Pawn overrides
-	virtual UPawnMovementComponent* GetMovementComponent() const override;
-	virtual void SetupPlayerInputComponent(UInputComponent* InInputComponent) override;
-	virtual void UpdateNavigationRelevance() override;
+	ENGINE_API virtual UPawnMovementComponent* GetMovementComponent() const override;
+	ENGINE_API virtual void SetupPlayerInputComponent(UInputComponent* InInputComponent) override;
+	ENGINE_API virtual void UpdateNavigationRelevance() override;
 	// End Pawn overrides
 
 	/**
@@ -38,7 +38,7 @@ class ENGINE_API ADefaultPawn : public APawn
 	 * @see APawn::AddMovementInput()
 	 */
 	UFUNCTION(BlueprintCallable, Category="Pawn")
-	virtual void MoveForward(float Val);
+	ENGINE_API virtual void MoveForward(float Val);
 
 	/**
 	 * Input callback to strafe right in local space (or left if Val is negative).
@@ -46,7 +46,7 @@ class ENGINE_API ADefaultPawn : public APawn
 	 * @see APawn::AddMovementInput()
 	 */
 	UFUNCTION(BlueprintCallable, Category="Pawn")
-	virtual void MoveRight(float Val);
+	ENGINE_API virtual void MoveRight(float Val);
 
 	/**
 	 * Input callback to move up in world space (or down if Val is negative).
@@ -54,21 +54,21 @@ class ENGINE_API ADefaultPawn : public APawn
 	 * @see APawn::AddMovementInput()
 	 */
 	UFUNCTION(BlueprintCallable, Category="Pawn")
-	virtual void MoveUp_World(float Val);
+	ENGINE_API virtual void MoveUp_World(float Val);
 
 	/**
 	 * Called via input to turn at a given rate.
 	 * @param Rate	This is a normalized rate, i.e. 1.0 means 100% of desired turn rate
 	 */
 	UFUNCTION(BlueprintCallable, Category="Pawn")
-	virtual void TurnAtRate(float Rate);
+	ENGINE_API virtual void TurnAtRate(float Rate);
 
 	/**
 	* Called via input to look up at a given rate (or down if Rate is negative).
 	* @param Rate	This is a normalized rate, i.e. 1.0 means 100% of desired turn rate
 	*/
 	UFUNCTION(BlueprintCallable, Category="Pawn")
-	virtual void LookUpAtRate(float Rate);
+	ENGINE_API virtual void LookUpAtRate(float Rate);
 	
 	/** Base turn rate, in deg/sec. Other scaling may affect final turn rate. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Pawn")
@@ -80,7 +80,7 @@ class ENGINE_API ADefaultPawn : public APawn
 
 public:
 	/** Name of the MovementComponent.  Use this name if you want to use a different class (with ObjectInitializer.SetDefaultSubobjectClass). */
-	static FName MovementComponentName;
+	static ENGINE_API FName MovementComponentName;
 
 protected:
 	/** DefaultPawn movement component */
@@ -89,7 +89,7 @@ protected:
 
 public:
 	/** Name of the CollisionComponent. */
-	static FName CollisionComponentName;
+	static ENGINE_API FName CollisionComponentName;
 
 private:
 	/** DefaultPawn collision component */
@@ -98,7 +98,7 @@ private:
 public:
 
 	/** Name of the MeshComponent. Use this name if you want to prevent creation of the component (with ObjectInitializer.DoNotCreateDefaultSubobject). */
-	static FName MeshComponentName;
+	static ENGINE_API FName MeshComponentName;
 
 private:
 	/** The mesh associated with this Pawn. */

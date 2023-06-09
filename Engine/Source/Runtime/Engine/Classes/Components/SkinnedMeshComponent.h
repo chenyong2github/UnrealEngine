@@ -137,7 +137,7 @@ struct FSkelMeshSkinWeightInfo
 
 /** LOD specific setup for the skeletal mesh component. */
 USTRUCT()
-struct ENGINE_API FSkelMeshComponentLODInfo
+struct FSkelMeshComponentLODInfo
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -154,19 +154,19 @@ struct ENGINE_API FSkelMeshComponentLODInfo
 	/** Vertex buffer used to override skin weights from one of the profiles */
 	FSkinWeightVertexBuffer* OverrideProfileSkinWeights;
 
-	FSkelMeshComponentLODInfo();
-	~FSkelMeshComponentLODInfo();
+	ENGINE_API FSkelMeshComponentLODInfo();
+	ENGINE_API ~FSkelMeshComponentLODInfo();
 
-	void ReleaseOverrideVertexColorsAndBlock();
-	bool BeginReleaseOverrideVertexColors();
-	void EndReleaseOverrideVertexColors();
+	ENGINE_API void ReleaseOverrideVertexColorsAndBlock();
+	ENGINE_API bool BeginReleaseOverrideVertexColors();
+	ENGINE_API void EndReleaseOverrideVertexColors();
 private:
 	void CleanUpOverrideVertexColors();
 
 public:
-	void ReleaseOverrideSkinWeightsAndBlock();
-	bool BeginReleaseOverrideSkinWeights();
-	void EndReleaseOverrideSkinWeights();
+	ENGINE_API void ReleaseOverrideSkinWeightsAndBlock();
+	ENGINE_API bool BeginReleaseOverrideSkinWeights();
+	ENGINE_API void EndReleaseOverrideSkinWeights();
 private:
 	void CleanUpOverrideSkinWeights();
 };
@@ -191,8 +191,8 @@ using FExternalMorphSets = TMap<int32, TSharedPtr<FExternalMorphSet>>;
  *
  * @see USkeletalMeshComponent
 */
-UCLASS(hidecategories=Object, config=Engine, editinlinenew, abstract)
-class ENGINE_API USkinnedMeshComponent : public UMeshComponent, public ILODSyncInterface
+UCLASS(hidecategories=Object, config=Engine, editinlinenew, abstract, MinimalAPI)
+class USkinnedMeshComponent : public UMeshComponent, public ILODSyncInterface
 {
 	GENERATED_UCLASS_BODY()
 
@@ -211,8 +211,8 @@ private:
 	TObjectPtr<class USkinnedAsset> SkinnedAsset;
 
 public:
-	USkinnedMeshComponent(FVTableHelper& Helper);
-	~USkinnedMeshComponent();
+	ENGINE_API USkinnedMeshComponent(FVTableHelper& Helper);
+	ENGINE_API ~USkinnedMeshComponent();
 
 	//
 	// LeaderPoseComponent.
@@ -247,10 +247,10 @@ protected:
 	TObjectPtr<UMeshDeformer> MeshDeformer;
 
 	/** Set the MeshDeformer and update the internal MeshDeformerInstance. */
-	void SetMeshDeformer(bool bInSetMeshDeformer, UMeshDeformer* InMeshDeformer);
+	ENGINE_API void SetMeshDeformer(bool bInSetMeshDeformer, UMeshDeformer* InMeshDeformer);
 
 	/** Get the currently active MeshDeformer. This may come from the SkeletalMesh default or the Component override. */
-	UMeshDeformer* GetActiveMeshDeformer() const;
+	ENGINE_API UMeshDeformer* GetActiveMeshDeformer() const;
 
 	/** Object containing instance settings for the bound MeshDeformer. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Instanced, Category = "Deformer", meta = (DisplayName = "Deformer Settings", EditCondition = "MeshDeformerInstanceSettings!=nullptr", ShowOnlyInnerProperties))
@@ -265,7 +265,7 @@ public:
 	UMeshDeformerInstance* GetMeshDeformerInstance() const { return MeshDeformerInstance; }
 
 	/** Max LOD at which to update or apply the MeshDeformer. */
-	int32 GetMeshDeformerMaxLOD() const;
+	ENGINE_API int32 GetMeshDeformerMaxLOD() const;
 
 	/** const getters for previous transform idea */
 	const TArray<uint8>& GetPreviousBoneVisibilityStates() const
@@ -285,13 +285,13 @@ public:
 	}
 
 	/* this update renderer with new revision number twice so to clear bone velocity for motion blur or temporal AA */
-	void ClearMotionVector();
+	ENGINE_API void ClearMotionVector();
 	
 	/* Forcibly update the renderer with a new revision number to assign the current bone velocity for motion blur or temporal AA */
-	void ForceMotionVector();
+	ENGINE_API void ForceMotionVector();
 
 private:
-	EPreviousBoneTransformUpdateMode UpdateBoneTransformRevisionNumber();
+	ENGINE_API EPreviousBoneTransformUpdateMode UpdateBoneTransformRevisionNumber();
 
 	enum class EBoneTransformUpdateMethod
 	{
@@ -400,10 +400,10 @@ public:
 	const TArray<int32>& GetMasterBoneMap() const { return GetLeaderBoneMap(); }
 
 	/** Get the weights in read-only mode for a given external morph target set at a specific LOD. */
-	const FExternalMorphWeightData& GetExternalMorphWeights(int32 LOD) const;
+	ENGINE_API const FExternalMorphWeightData& GetExternalMorphWeights(int32 LOD) const;
 
 	/** Get the weights for a given external morph target set at a specific LOD. */
-	FExternalMorphWeightData& GetExternalMorphWeights(int32 LOD);
+	ENGINE_API FExternalMorphWeightData& GetExternalMorphWeights(int32 LOD);
 
 	/**
 	 * Register an external set of GPU compressed morph targets.
@@ -413,19 +413,19 @@ public:
 	 * @param ID The unique ID for this set of morph targets.
 	 * @param MorphSet A shared pointer to a morph set, which basically contains a GPU friendly morph buffer. This buffer should be owned by an external system that calls this method.
 	 */
-	void AddExternalMorphSet(int32 LOD, int32 ID, TSharedPtr<FExternalMorphSet> MorphSet);
+	ENGINE_API void AddExternalMorphSet(int32 LOD, int32 ID, TSharedPtr<FExternalMorphSet> MorphSet);
 
 	/** Remove a given set of external GPU based morph targets. */
-	void RemoveExternalMorphSet(int32 LOD, int32 ID);
+	ENGINE_API void RemoveExternalMorphSet(int32 LOD, int32 ID);
 
 	/** Clear all externally registered morph target buffers. */
-	void ClearExternalMorphSets(int32 LOD);
+	ENGINE_API void ClearExternalMorphSets(int32 LOD);
 
 	/** Do we have a given set of external morph targets? */
-	bool HasExternalMorphSet(int32 LOD, int32 ID) const;
+	ENGINE_API bool HasExternalMorphSet(int32 LOD, int32 ID) const;
 
 	/** Check whether a given LOD index is valid for the external morph sets. */
-	bool IsValidExternalMorphSetLODIndex(int32 LOD) const;
+	ENGINE_API bool IsValidExternalMorphSetLODIndex(int32 LOD) const;
 
 	/** Get the external morph sets for a given LOD. */
 	const FExternalMorphSets& GetExternalMorphSets(int32 LOD) const { return ExternalMorphSets[LOD]; }
@@ -439,9 +439,9 @@ public:
 	 * @param	OutVertices		The skinned vertices
 	 * @param	InLODIndex		The LOD we want to export
 	 */
-	void GetCPUSkinnedVertices(TArray<struct FFinalSkinVertex>& OutVertices, int32 InLODIndex) const;
+	ENGINE_API void GetCPUSkinnedVertices(TArray<struct FFinalSkinVertex>& OutVertices, int32 InLODIndex) const;
 
-	void GetCPUSkinnedCachedFinalVertices(TArray<FFinalSkinVertex>& OutVertices) const;
+	ENGINE_API void GetCPUSkinnedCachedFinalVertices(TArray<FFinalSkinVertex>& OutVertices) const;
 
 #if UE_ENABLE_DEBUG_DRAWING
 	/** Get whether to draw this mesh's debug skeleton */
@@ -798,10 +798,10 @@ public:
 	void* MeshObjectFactoryUserData;
 
 	/** Gets the skeletal mesh resource used for rendering the component. */
-	FSkeletalMeshRenderData* GetSkeletalMeshRenderData() const;
+	ENGINE_API FSkeletalMeshRenderData* GetSkeletalMeshRenderData() const;
 
 	/** Override this function to pass on cloth simulation data (or any deformable using the cloth pipeline) to the skeletal renderer. */
-	virtual void GetUpdateClothSimulationData_AnyThread(TMap<int32, FClothSimulData>& OutClothSimulData, FMatrix& OutLocalToWorld, float& OutClothBlendWeight);
+	ENGINE_API virtual void GetUpdateClothSimulationData_AnyThread(TMap<int32, FClothSimulData>& OutClothSimulData, FMatrix& OutLocalToWorld, float& OutClothBlendWeight);
 
 	/** 
 	 * Override the Physics Asset of the mesh. It uses SkeletalMesh.PhysicsAsset, but if you'd like to override use this function
@@ -810,11 +810,11 @@ public:
 	 * @param	bForceReInit	Force reinitialize
 	 */
 	UFUNCTION(BlueprintCallable, Category="Components|SkinnedMesh")
-	virtual void SetPhysicsAsset(class UPhysicsAsset* NewPhysicsAsset, bool bForceReInit = false);
+	ENGINE_API virtual void SetPhysicsAsset(class UPhysicsAsset* NewPhysicsAsset, bool bForceReInit = false);
 
 	/** Get the number of LODs on this component */
 	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
-	int32 GetNumLODs() const;
+	ENGINE_API int32 GetNumLODs() const;
 
 	/**
 	 * Set MinLodModel of the mesh component
@@ -822,7 +822,7 @@ public:
 	 * @param	InNewMinLOD	Set new MinLodModel that make sure the LOD does not go below of this value. Range from [0, Max Number of LOD - 1]. This will affect in the next tick update. 
 	 */
 	UFUNCTION(BlueprintCallable, Category="Components|SkinnedMesh")
-	void SetMinLOD(int32 InNewMinLOD);
+	ENGINE_API void SetMinLOD(int32 InNewMinLOD);
 
 	/**
 	 * Set ForcedLodModel of the mesh component
@@ -830,11 +830,11 @@ public:
 	 * @param	InNewForcedLOD	Set new ForcedLODModel that forces to set the incoming LOD. Range from [1, Max Number of LOD]. This will affect in the next tick update. 
 	 */
 	UFUNCTION(BlueprintCallable, Category="Components|SkinnedMesh")
-	void SetForcedLOD(int32 InNewForcedLOD);
+	ENGINE_API void SetForcedLOD(int32 InNewForcedLOD);
 
 	/** Get ForcedLodModel of the mesh component. Note that the actual forced LOD level is the return value minus one and zero means no forced LOD */
 	UFUNCTION(BlueprintCallable, Category="Components|SkinnedMesh")
-	int32 GetForcedLOD() const;
+	ENGINE_API int32 GetForcedLOD() const;
 
 #if WITH_EDITOR
 	/**
@@ -842,23 +842,23 @@ public:
 	 *
 	 * @return	The LOD bias of this component. Derived classes can override this to ignore or override LOD bias settings.
 	 */
-	virtual int32 GetLODBias() const;
+	ENGINE_API virtual int32 GetLODBias() const;
 #endif
 
 	UFUNCTION(BlueprintCallable, Category="Lighting")
-	void SetCastCapsuleDirectShadow(bool bNewValue);
+	ENGINE_API void SetCastCapsuleDirectShadow(bool bNewValue);
 
 	UFUNCTION(BlueprintCallable, Category="Lighting")
-	void SetCastCapsuleIndirectShadow(bool bNewValue);
+	ENGINE_API void SetCastCapsuleIndirectShadow(bool bNewValue);
 
 	UFUNCTION(BlueprintCallable, Category="Lighting")
-	void SetCapsuleIndirectShadowMinVisibility(float NewValue);
+	ENGINE_API void SetCapsuleIndirectShadowMinVisibility(float NewValue);
 
 	/**
 	*  Returns the number of bones in the skeleton.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
-	int32 GetNumBones() const;
+	ENGINE_API int32 GetNumBones() const;
 
 	/**
 	 * Find the index of bone by name. Looks in the current SkeletalMesh being used by this SkeletalMeshComponent.
@@ -870,7 +870,7 @@ public:
 	 * @see USkeletalMesh::GetBoneIndex.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Components|SkinnedMesh")
-	int32 GetBoneIndex( FName BoneName ) const;
+	ENGINE_API int32 GetBoneIndex( FName BoneName ) const;
 
 	/** 
 	 * Get Bone Name from index
@@ -879,7 +879,7 @@ public:
 	 * @return the name of the bone at the specified index 
 	 */
 	UFUNCTION(BlueprintCallable, Category="Components|SkinnedMesh")
-	FName GetBoneName(int32 BoneIndex) const;
+	ENGINE_API FName GetBoneName(int32 BoneIndex) const;
 
 	/**
 	 * Returns bone name linked to a given named socket on the skeletal mesh component.
@@ -890,7 +890,7 @@ public:
 	 * @return	bone name
 	 */
 	UFUNCTION(BlueprintCallable, Category="Components|SkinnedMesh")
-	FName GetSocketBoneName(FName InSocketName) const;
+	ENGINE_API FName GetSocketBoneName(FName InSocketName) const;
 
 	/** 
 	 * Change the SkeletalMesh that is rendered for this Component. Will re-initialize the animation tree etc. 
@@ -899,7 +899,7 @@ public:
 	 * @param bReinitPose Whether we should keep current pose or reinitialize.
 	 */
 	UE_DEPRECATED(5.1, "Use USkeletalMeshComponent::SetSkeletalMesh() or SetSkinnedAssetAndUpdate() instead.")
-	virtual void SetSkeletalMesh(class USkeletalMesh* NewMesh, bool bReinitPose = true);
+	ENGINE_API virtual void SetSkeletalMesh(class USkeletalMesh* NewMesh, bool bReinitPose = true);
 
 	/**
 	 * Get the SkeletalMesh rendered for this mesh.
@@ -910,10 +910,10 @@ public:
 	 */
 	UE_DEPRECATED(5.1, "Use USkeletalMeshComponent::GetSkeletalMeshAsset() or GetSkinnedAsset() instead.")
 	UFUNCTION(BlueprintPure, Category = "Components|SkinnedMesh", DisplayName = "Get Skeletal Mesh", meta = (DeprecatedFunction, DeprecationMessage = "Use USkeletalMeshComponent::GetSkeletalMeshAsset() or GetSkinnedAsset() instead."))
-	class USkeletalMesh* GetSkeletalMesh_DEPRECATED() const;
+	ENGINE_API class USkeletalMesh* GetSkeletalMesh_DEPRECATED() const;
 
 	UE_DEPRECATED(5.1, "Use USkeletalMeshComponent::SetSkinnedAssetAndUpdate() instead.")
-	void SetSkeletalMesh_DEPRECATED(USkeletalMesh* NewMesh);
+	ENGINE_API void SetSkeletalMesh_DEPRECATED(USkeletalMesh* NewMesh);
 
 	/**
 	 * Change the SkinnedAsset that is rendered for this Component. Will re-initialize the animation tree etc.
@@ -922,14 +922,14 @@ public:
 	 * @param bReinitPose Whether we should keep current pose or reinitialize.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
-	virtual void SetSkinnedAssetAndUpdate(class USkinnedAsset* NewMesh, bool bReinitPose = true);
+	ENGINE_API virtual void SetSkinnedAssetAndUpdate(class USkinnedAsset* NewMesh, bool bReinitPose = true);
 
 	/**
 	 * Change the SkinnedAsset that is rendered without reinitializing this Component.
 	 *
 	 * @param InSkinnedAsset New mesh to set for this component
 	 */
-	void SetSkinnedAsset(class USkinnedAsset* InSkinnedAsset);
+	ENGINE_API void SetSkinnedAsset(class USkinnedAsset* InSkinnedAsset);
 
 	/**
 	 * Get the SkinnedAsset rendered for this mesh.
@@ -937,7 +937,7 @@ public:
 	 * @return the SkinnedAsset set to this mesh.
 	 */
 	UFUNCTION(BlueprintPure, Category = "Components|SkinnedMesh")
-	USkinnedAsset* GetSkinnedAsset() const;
+	ENGINE_API USkinnedAsset* GetSkinnedAsset() const;
 
 	/**
 	 * Change the MeshDeformer that is used for this Component.
@@ -945,7 +945,7 @@ public:
 	 * @param InMeshDeformer New mesh deformer to set for this component
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
-	void SetMeshDeformer(UMeshDeformer* InMeshDeformer);
+	ENGINE_API void SetMeshDeformer(UMeshDeformer* InMeshDeformer);
 
 	/**
 	 * Unset any MeshDeformer applied to this Component.
@@ -953,7 +953,7 @@ public:
 	 * @param InMeshDeformer New mesh deformer to set for this component
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
-	void UnsetMeshDeformer();
+	ENGINE_API void UnsetMeshDeformer();
 
 	/** 
 	 * Get Parent Bone of the input bone
@@ -963,7 +963,7 @@ public:
 	 * @return the name of the parent bone for the specified bone. Returns 'None' if the bone does not exist or it is the root bone 
 	 */
 	UFUNCTION(BlueprintCallable, Category="Components|SkinnedMesh")
-	FName GetParentBone(FName BoneName) const;
+	ENGINE_API FName GetParentBone(FName BoneName) const;
 
 	/**
 	* Get delta transform from reference pose based on BaseNode.
@@ -975,7 +975,7 @@ public:
 	* @return the delta transform from refpose in that given space (BaseName)
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
-	FTransform GetDeltaTransformFromRefPose(FName BoneName, FName BaseName = NAME_None) const;
+	ENGINE_API FTransform GetDeltaTransformFromRefPose(FName BoneName, FName BaseName = NAME_None) const;
 
 	/** 
 	 * Get Twist and Swing Angle in Degree of Delta Rotation from Reference Pose in Local space 
@@ -990,9 +990,9 @@ public:
 	 * @return true if succeed. False otherwise. Often due to incorrect bone name. 
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
-	bool GetTwistAndSwingAngleOfDeltaRotationFromRefPose(FName BoneName, float& OutTwistAngle, float& OutSwingAngle) const;
+	ENGINE_API bool GetTwistAndSwingAngleOfDeltaRotationFromRefPose(FName BoneName, float& OutTwistAngle, float& OutSwingAngle) const;
 
-	bool IsSkinCacheAllowed(int32 LodIdx) const;
+	ENGINE_API bool IsSkinCacheAllowed(int32 LodIdx) const;
 
 	bool HasMeshDeformer() const { return GetActiveMeshDeformer() != nullptr; }
 
@@ -1002,104 +1002,104 @@ public:
 	/**
 	 *	Compute SkeletalMesh MinLOD that will be used by this component
 	 */
-	int32 ComputeMinLOD() const;
+	ENGINE_API int32 ComputeMinLOD() const;
 
 public:
 	//~ Begin UObject Interface
-	virtual void BeginDestroy() override;
-	virtual void Serialize(FArchive& Ar) override;
-	virtual void PostLoad() override;
-	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
-	virtual FString GetDetailedInfoInternal() const override;
+	ENGINE_API virtual void BeginDestroy() override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void PostLoad() override;
+	ENGINE_API virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
+	ENGINE_API virtual FString GetDetailedInfoInternal() const override;
 #if WITH_EDITOR
-	virtual bool CanEditChange(const FProperty* InProperty) const override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual bool CanEditChange(const FProperty* InProperty) const override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 
 protected:
 	//~ Begin UActorComponent Interface
-	virtual void OnRegister() override;
-	virtual void OnUnregister() override;
-	virtual void BeginPlay() override;
-	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
-	virtual void SendRenderDynamicData_Concurrent() override;
-	virtual void DestroyRenderState_Concurrent() override;
-	virtual bool RequiresGameThreadEndOfFrameRecreate() const override;
-	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
-	virtual UObject const* AdditionalStatObject() const override;
+	ENGINE_API virtual void OnRegister() override;
+	ENGINE_API virtual void OnUnregister() override;
+	ENGINE_API virtual void BeginPlay() override;
+	ENGINE_API virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
+	ENGINE_API virtual void SendRenderDynamicData_Concurrent() override;
+	ENGINE_API virtual void DestroyRenderState_Concurrent() override;
+	ENGINE_API virtual bool RequiresGameThreadEndOfFrameRecreate() const override;
+	ENGINE_API virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
+	ENGINE_API virtual UObject const* AdditionalStatObject() const override;
 	//~ End UActorComponent Interface
 
 public:
 	//~ Begin USceneComponent Interface
 #if WITH_EDITOR
-	virtual bool GetMaterialPropertyPath(int32 ElementIndex, UObject*& OutOwner, FString& OutPropertyPath, FProperty*& OutProperty) override;
+	ENGINE_API virtual bool GetMaterialPropertyPath(int32 ElementIndex, UObject*& OutOwner, FString& OutPropertyPath, FProperty*& OutProperty) override;
 #endif // WITH_EDITOR
-	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
-	virtual void UpdateBounds() override;
-	virtual FTransform GetSocketTransform(FName InSocketName, ERelativeTransformSpace TransformSpace = RTS_World) const override;
-	virtual bool DoesSocketExist(FName InSocketName) const override;
-	virtual bool HasAnySockets() const override;
-	virtual void QuerySupportedSockets(TArray<FComponentSocketDescription>& OutSockets) const override;
-	virtual bool UpdateOverlapsImpl(const TOverlapArrayView* PendingOverlaps=NULL, bool bDoNotifies=true, const TOverlapArrayView* OverlapsAtEndLocation=NULL) override;
+	ENGINE_API virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
+	ENGINE_API virtual void UpdateBounds() override;
+	ENGINE_API virtual FTransform GetSocketTransform(FName InSocketName, ERelativeTransformSpace TransformSpace = RTS_World) const override;
+	ENGINE_API virtual bool DoesSocketExist(FName InSocketName) const override;
+	ENGINE_API virtual bool HasAnySockets() const override;
+	ENGINE_API virtual void QuerySupportedSockets(TArray<FComponentSocketDescription>& OutSockets) const override;
+	ENGINE_API virtual bool UpdateOverlapsImpl(const TOverlapArrayView* PendingOverlaps=NULL, bool bDoNotifies=true, const TOverlapArrayView* OverlapsAtEndLocation=NULL) override;
 	//~ End USceneComponent Interface
 
 	//~ Begin UPrimitiveComponent Interface
-	virtual UMaterialInterface* GetMaterial(int32 MaterialIndex) const override;
-	virtual int32 GetMaterialIndex(FName MaterialSlotName) const override;
-	virtual TArray<FName> GetMaterialSlotNames() const override;
-	virtual bool IsMaterialSlotNameValid(FName MaterialSlotName) const override;
-	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
-	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override;
-	virtual bool GetMaterialStreamingData(int32 MaterialIndex, FPrimitiveMaterialInfo& MaterialData) const override;
-	virtual void GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const override;
-	virtual int32 GetNumMaterials() const override;
+	ENGINE_API virtual UMaterialInterface* GetMaterial(int32 MaterialIndex) const override;
+	ENGINE_API virtual int32 GetMaterialIndex(FName MaterialSlotName) const override;
+	ENGINE_API virtual TArray<FName> GetMaterialSlotNames() const override;
+	ENGINE_API virtual bool IsMaterialSlotNameValid(FName MaterialSlotName) const override;
+	ENGINE_API virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
+	ENGINE_API virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override;
+	ENGINE_API virtual bool GetMaterialStreamingData(int32 MaterialIndex, FPrimitiveMaterialInfo& MaterialData) const override;
+	ENGINE_API virtual void GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const override;
+	ENGINE_API virtual int32 GetNumMaterials() const override;
 	virtual float GetStreamingScale() const override { return GetComponentTransform().GetMaximumAxisScale(); }
 	//~ End UPrimitiveComponent Interface
 
 	//~ Begin UMeshComponent Interface
-	virtual void RegisterLODStreamingCallback(FLODStreamingCallback&& Callback, int32 LODIdx, float TimeoutSecs, bool bOnStreamIn) override;
-	virtual void RegisterLODStreamingCallback(FLODStreamingCallback&& CallbackStreamingStart, FLODStreamingCallback&& CallbackStreamingDone, float TimeoutStartSecs, float TimeoutDoneSecs) override;
+	ENGINE_API virtual void RegisterLODStreamingCallback(FLODStreamingCallback&& Callback, int32 LODIdx, float TimeoutSecs, bool bOnStreamIn) override;
+	ENGINE_API virtual void RegisterLODStreamingCallback(FLODStreamingCallback&& CallbackStreamingStart, FLODStreamingCallback&& CallbackStreamingDone, float TimeoutStartSecs, float TimeoutDoneSecs) override;
 	//~ End UMeshComponent Interface
 
 	/** Get the pre-skinning local space bounds for this component. */
-	void GetPreSkinnedLocalBounds(FBoxSphereBounds& OutBounds) const;
+	ENGINE_API void GetPreSkinnedLocalBounds(FBoxSphereBounds& OutBounds) const;
 
 	/** Resize the morph target sets array to the number of LODs. */
-	void ResizeExternalMorphTargetSets();
+	ENGINE_API void ResizeExternalMorphTargetSets();
 
 	/** Refresh the external morph target weight buffers. This makes sure the amount of morph sets and number of weights are valid. */
-	void RefreshExternalMorphTargetWeights(bool bZeroOldWeights = true);
+	ENGINE_API void RefreshExternalMorphTargetWeights(bool bZeroOldWeights = true);
 
 	/**
 	 *	Sets the value of the bForceWireframe flag and reattaches the component as necessary.
 	 *
 	 *	@param	InForceWireframe		New value of bForceWireframe.
 	 */
-	void SetForceWireframe(bool InForceWireframe);
+	ENGINE_API void SetForceWireframe(bool InForceWireframe);
 
 	/** Precache all PSOs which can be used by the component */
-	virtual void CollectPSOPrecacheData(const FPSOPrecacheParams& BasePrecachePSOParams, FComponentPSOPrecacheParamsList& OutParams) override;
+	ENGINE_API virtual void CollectPSOPrecacheData(const FPSOPrecacheParams& BasePrecachePSOParams, FComponentPSOPrecacheParamsList& OutParams) override;
 	
 #if WITH_EDITOR
 	/** Return value of SectionIndexPreview  */
 	int32 GetSectionPreview() const { return SectionIndexPreview;  }
 	/** Sets the value of the SectionIndexPreview option. */
-	void SetSectionPreview(int32 InSectionIndexPreview);
+	ENGINE_API void SetSectionPreview(int32 InSectionIndexPreview);
 
 	/** Return value of MaterialIndexPreview  */
 	int32 GetMaterialPreview() const { return MaterialIndexPreview; }
 	/** Sets the value of the MaterialIndexPreview option. */
-	void SetMaterialPreview(int32 InMaterialIndexPreview);
+	ENGINE_API void SetMaterialPreview(int32 InMaterialIndexPreview);
 
 	/** Return value of SelectedEditorSection  */
 	int32 GetSelectedEditorSection() const { return SelectedEditorSection; }
 	/** Sets the value of the SelectedEditorSection option. */
-	void SetSelectedEditorSection(int32 NewSelectedEditorSection);
+	ENGINE_API void SetSelectedEditorSection(int32 NewSelectedEditorSection);
 
 	/** Return value of SelectedEditorMaterial  */
 	int32 GetSelectedEditorMaterial() const { return SelectedEditorMaterial; }
 	/** Sets the value of the SelectedEditorMaterial option. */
-	void SetSelectedEditorMaterial(int32 NewSelectedEditorMaterial);
+	ENGINE_API void SetSelectedEditorMaterial(int32 NewSelectedEditorMaterial);
 
 #endif // WITH_EDITOR
 	/**
@@ -1108,13 +1108,13 @@ public:
 	 *
 	 * @return true if should CPU skin. false otherwise
 	 */
-	virtual bool ShouldCPUSkin();
+	ENGINE_API virtual bool ShouldCPUSkin();
 
 	/**
 	 * Getter for bCPUSkinning member variable
 	 * May return a different value from ShouldCPUSkin()
 	 */
-	bool GetCPUSkinningEnabled() const;
+	ENGINE_API bool GetCPUSkinningEnabled() const;
 
 	/**
 	 * Set whether this component uses CPU skinning
@@ -1123,7 +1123,7 @@ public:
 	 * - Streaming cannot be (re)enabled as long as any component uses CPU skinning
 	 * - This function is expensive
 	 */
-	void SetCPUSkinningEnabled(bool bEnable, bool bRecreateRenderStateImmediately = false);
+	ENGINE_API void SetCPUSkinningEnabled(bool bEnable, bool bRecreateRenderStateImmediately = false);
 
 	/** 
 	 * Function to operate on mesh object after its created, 
@@ -1141,7 +1141,7 @@ public:
 	* @param SkinWeightBuffer The SkinWeightBuffer to use.
 	* @param CachedRefToLocals Cached RefToLocal matrices.
 	*/
-	static FVector3f GetSkinnedVertexPosition(USkinnedMeshComponent* Component, int32 VertexIndex, const FSkeletalMeshLODRenderData& LODDatal, FSkinWeightVertexBuffer& SkinWeightBuffer);
+	static ENGINE_API FVector3f GetSkinnedVertexPosition(USkinnedMeshComponent* Component, int32 VertexIndex, const FSkeletalMeshLODRenderData& LODDatal, FSkinWeightVertexBuffer& SkinWeightBuffer);
 
 	/**
 	 * Simple, CPU evaluation of a vertex's skinned position (returned in component space)
@@ -1151,7 +1151,7 @@ public:
 	 * @param SkinWeightBuffer The SkinWeightBuffer to use.
 	 * @param CachedRefToLocals Cached RefToLocal matrices.
 	*/
-	static FVector3f GetSkinnedVertexPosition(USkinnedMeshComponent* Component, int32 VertexIndex, const FSkeletalMeshLODRenderData& LODData, FSkinWeightVertexBuffer& SkinWeightBuffer, TArray<FMatrix44f>& CachedRefToLocals);
+	static ENGINE_API FVector3f GetSkinnedVertexPosition(USkinnedMeshComponent* Component, int32 VertexIndex, const FSkeletalMeshLODRenderData& LODData, FSkinWeightVertexBuffer& SkinWeightBuffer, TArray<FMatrix44f>& CachedRefToLocals);
 
 	/**
 	* CPU evaluation of the positions of all vertices (returned in component space)
@@ -1161,13 +1161,13 @@ public:
 	* @param Model The Model to use.
 	* @param SkinWeightBuffer The SkinWeightBuffer to use.
 	*/
-	static void ComputeSkinnedPositions(USkinnedMeshComponent* Component, TArray<FVector3f> & OutPositions, TArray<FMatrix44f>& CachedRefToLocals, const FSkeletalMeshLODRenderData& LODData, const FSkinWeightVertexBuffer& SkinWeightBuffer);
+	static ENGINE_API void ComputeSkinnedPositions(USkinnedMeshComponent* Component, TArray<FVector3f> & OutPositions, TArray<FMatrix44f>& CachedRefToLocals, const FSkeletalMeshLODRenderData& LODData, const FSkinWeightVertexBuffer& SkinWeightBuffer);
 
 	/** Caches the RefToLocal matrices. */
-	void CacheRefToLocalMatrices(TArray<FMatrix44f>& OutRefToLocal) const;
+	ENGINE_API void CacheRefToLocalMatrices(TArray<FMatrix44f>& OutRefToLocal) const;
 
 	/** Return the skinning matrices used for rendering. */
-	void GetCurrentRefToLocalMatrices(TArray<FMatrix44f>& OutRefToLocals, int32 InLodIdx) const;
+	ENGINE_API void GetCurrentRefToLocalMatrices(TArray<FMatrix44f>& OutRefToLocals, int32 InLodIdx) const;
 
 	FORCEINLINE	const USkinnedMeshComponent* GetBaseComponent()const
 	{
@@ -1179,45 +1179,45 @@ public:
 	*
 	* @param VertexIndex Vertex Index. If compressed, this will be slow.
 	*/
-	FColor GetVertexColor(int32 VertexIndex) const;
+	ENGINE_API FColor GetVertexColor(int32 VertexIndex) const;
 
 	/** Allow override of vertex colors on a per-component basis. */
-	void SetVertexColorOverride(int32 LODIndex, const TArray<FColor>& VertexColors);
+	ENGINE_API void SetVertexColorOverride(int32 LODIndex, const TArray<FColor>& VertexColors);
 
 	/** Allow override of vertex colors on a per-component basis, taking array of Blueprint-friendly LinearColors. */
 	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh", meta = (DisplayName = "Set Vertex Color Override"))
-	void SetVertexColorOverride_LinearColor(int32 LODIndex, const TArray<FLinearColor>& VertexColors);
+	ENGINE_API void SetVertexColorOverride_LinearColor(int32 LODIndex, const TArray<FLinearColor>& VertexColors);
 
 	/** Clear any applied vertex color override */
 	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
-	void ClearVertexColorOverride(int32 LODIndex);
+	ENGINE_API void ClearVertexColorOverride(int32 LODIndex);
 	/**
 	* Returns texture coordinates of the vertex.
 	*
 	* @param VertexIndex		Vertex Index. If compressed, this will be slow.
 	* @param TexCoordChannel	Texture coordinate channel Index.
 	*/
-	FVector2D GetVertexUV(int32 VertexIndex, uint32 UVChannel) const;
+	ENGINE_API FVector2D GetVertexUV(int32 VertexIndex, uint32 UVChannel) const;
 
 	/** Allow override of skin weights on a per-component basis. */
 	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
-	void SetSkinWeightOverride(int32 LODIndex, const TArray<FSkelMeshSkinWeightInfo>& SkinWeights);
+	ENGINE_API void SetSkinWeightOverride(int32 LODIndex, const TArray<FSkelMeshSkinWeightInfo>& SkinWeights);
 
 	/** Clear any applied skin weight override */
 	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
-	void ClearSkinWeightOverride(int32 LODIndex);
+	ENGINE_API void ClearSkinWeightOverride(int32 LODIndex);
 
 	/** Setup an override Skin Weight Profile for this component */
 	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
-	bool SetSkinWeightProfile(FName InProfileName);
+	ENGINE_API bool SetSkinWeightProfile(FName InProfileName);
 
 	/** Clear the Skin Weight Profile from this component, in case it is set */
 	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
-	void ClearSkinWeightProfile();
+	ENGINE_API void ClearSkinWeightProfile();
 
 	/** Unload a Skin Weight Profile's skin weight buffer (if created) */
 	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
-	void UnloadSkinWeightProfile(FName InProfileName);
+	ENGINE_API void UnloadSkinWeightProfile(FName InProfileName);
 
 	/** Return the name of the Skin Weight Profile that is currently set otherwise returns 'None' */
 	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
@@ -1247,23 +1247,23 @@ public:
 	bool IsSkinWeightProfilePending() const { return bSkinWeightProfilePending == 1; }
 
 	/** Queues an update of the Skin Weight Buffer used by the current MeshObject */
-	void UpdateSkinWeightOverrideBuffer();
+	ENGINE_API void UpdateSkinWeightOverrideBuffer();
 protected:	
 
 	/** Name of currently set up Skin Weight profile, otherwise is 'none' */
 	FName CurrentSkinWeightProfileName;
 public:
 	/** Returns skin weight vertex buffer to use for specific LOD (will look at override) */
-	FSkinWeightVertexBuffer* GetSkinWeightBuffer(int32 LODIndex) const;
+	ENGINE_API FSkinWeightVertexBuffer* GetSkinWeightBuffer(int32 LODIndex) const;
 
 	/** Apply an override for the current mesh ref pose */
-	virtual void SetRefPoseOverride(const TArray<FTransform>& NewRefPoseTransforms);
+	ENGINE_API virtual void SetRefPoseOverride(const TArray<FTransform>& NewRefPoseTransforms);
 
 	/** Accessor for RefPoseOverride */
 	virtual const TSharedPtr<FSkelMeshRefPoseOverride>& GetRefPoseOverride() const { return RefPoseOverride; }
 
 	/** Clear any applied ref pose override */
-	virtual void ClearRefPoseOverride();
+	ENGINE_API virtual void ClearRefPoseOverride();
 
 	/**
 	 * Update functions
@@ -1277,7 +1277,7 @@ public:
 	 * @param TickFunction Supplied as non null if we are running in a tick, allows us to create graph tasks for parallelism
 	 * 
 	 */
-	virtual void RefreshBoneTransforms(FActorComponentTickFunction* TickFunction = NULL) PURE_VIRTUAL(USkinnedMeshComponent::RefreshBoneTransforms, );
+	ENGINE_API virtual void RefreshBoneTransforms(FActorComponentTickFunction* TickFunction = NULL) PURE_VIRTUAL(USkinnedMeshComponent::RefreshBoneTransforms, );
 
 protected:
 	/** 
@@ -1291,7 +1291,7 @@ protected:
 	virtual void DispatchParallelTickPose(FActorComponentTickFunction* TickFunction) {}
 
 	/** Helper function for UpdateLODStatus, called with a valid index for InLeaderPoseComponentPredictedLODLevel when updating LOD status for follower components */
-	bool UpdateLODStatus_Internal(int32 InLeaderPoseComponentPredictedLODLevel, bool bRequestedByLeaderPoseComponent = false);
+	ENGINE_API bool UpdateLODStatus_Internal(int32 InLeaderPoseComponentPredictedLODLevel, bool bRequestedByLeaderPoseComponent = false);
 
 public:
 	/**
@@ -1302,7 +1302,7 @@ public:
 	 * @return	Return true if anything modified. Return false otherwise
 	 * @param bNeedsValidRootMotion - Networked games care more about this, but if false we can do less calculations
 	 */
-	virtual void TickPose(float DeltaTime, bool bNeedsValidRootMotion);
+	ENGINE_API virtual void TickPose(float DeltaTime, bool bNeedsValidRootMotion);
 
 	/**
 	 * Invoked at the beginning of TickPose before doing the bulk of the tick work
@@ -1313,7 +1313,7 @@ public:
 	 * Update Follower Component. This gets called when LeaderPoseComponent!=NULL
 	 * 
 	 */
-	virtual void UpdateFollowerComponent();
+	ENGINE_API virtual void UpdateFollowerComponent();
 
 	UE_DEPRECATED(5.1, "This method has been deprecated. Please use UpdateFollowerComponent instead.")
 	virtual void UpdateSlaveComponent() { UpdateFollowerComponent(); }
@@ -1323,7 +1323,7 @@ public:
 	 * 
 	 * @return true if LOD has been changed. false otherwise.
 	 */
-	virtual bool UpdateLODStatus();
+	ENGINE_API virtual bool UpdateLODStatus();
 
 	/** Get predicted LOD level. This value is usually calculated in UpdateLODStatus, but can be modified by skeletal mesh streaming. */
 	UFUNCTION(BlueprintPure, Category = "Components|SkinnedMesh")
@@ -1352,20 +1352,20 @@ public:
 	 * Finalize bone transform of this current tick
 	 * After this function, any query to bone transform should be latest of the data
 	 */
-	virtual void FinalizeBoneTransform();
+	ENGINE_API virtual void FinalizeBoneTransform();
 
 	/** Initialize the LOD entries for the component */
-	void InitLODInfos();
+	ENGINE_API void InitLODInfos();
 
 	/**
 	 * Rebuild BoneVisibilityStates array. Mostly refresh information of bones for BVS_HiddenByParent 
 	 */
-	void RebuildVisibilityArray();
+	ENGINE_API void RebuildVisibilityArray();
 
 	/**
 	 * Checks/updates material usage on proxy based on current morph target usage
 	 */
-	void UpdateMorphMaterialUsageOnProxy();
+	ENGINE_API void UpdateMorphMaterialUsageOnProxy();
 	
 
 	/** Access ComponentSpaceTransforms for reading */
@@ -1407,7 +1407,7 @@ public:
 		return BoneVisibilityStates[CurrentEditableComponentTransforms];
 	}
 
-	void SetComponentSpaceTransformsDoubleBuffering(bool bInDoubleBufferedComponentSpaceTransforms);
+	ENGINE_API void SetComponentSpaceTransformsDoubleBuffering(bool bInDoubleBufferedComponentSpaceTransforms);
 
 	FBoxSphereBounds GetCachedLocalBounds()  const
 	{ 
@@ -1429,26 +1429,26 @@ public:
 	*
 	* @return : return true if need transform update. false otherwise.
 	*/
-	virtual bool ShouldUpdateTransform(bool bLODHasChanged) const;
+	ENGINE_API virtual bool ShouldUpdateTransform(bool bLODHasChanged) const;
 
 protected:
 
 	/** Flip the editable space base buffer */
-	void FlipEditableSpaceBases();
+	ENGINE_API void FlipEditableSpaceBases();
 
 	/** 
 	 * Should tick  pose (by calling TickPose) in Tick
 	 * 
 	 * @return : return true if should Tick. false otherwise.
 	 */
-	virtual bool ShouldTickPose() const;
+	ENGINE_API virtual bool ShouldTickPose() const;
 
 	/**
 	 * Allocate Transform Data array including SpaceBases, BoneVisibilityStates 
 	 *
 	 */	
-	virtual bool AllocateTransformData();
-	virtual void DeallocateTransformData();
+	ENGINE_API virtual bool AllocateTransformData();
+	ENGINE_API virtual void DeallocateTransformData();
 
 	/** Bounds cached, so they're computed just once, either in local or worldspace depending on cvar 'a.CacheLocalSpaceBounds'. */
 	UPROPERTY(Transient)
@@ -1459,12 +1459,12 @@ protected:
 public:
 #if WITH_EDITOR
 	//~ Begin IInterface_AsyncCompilation Interface.
-	virtual bool IsCompiling() const override;
+	ENGINE_API virtual bool IsCompiling() const override;
 	//~ End IInterface_AsyncCompilation Interface.
 #endif
 
 	/** Invalidate Cached Bounds, when Mesh Component has been updated. */
-	void InvalidateCachedBounds();
+	ENGINE_API void InvalidateCachedBounds();
 
 protected:
 
@@ -1474,24 +1474,24 @@ protected:
 	 *						  If LeaderPoseComponent exists, it will applied to LeaderPoseComponent's bound
 	 * @param UsePhysicsAsset	: Whether or not to use PhysicsAsset for calculating bound of mesh
 	 */
-	FBoxSphereBounds CalcMeshBound(const FVector3f& RootOffset, bool UsePhysicsAsset, const FTransform& Transform) const;
+	ENGINE_API FBoxSphereBounds CalcMeshBound(const FVector3f& RootOffset, bool UsePhysicsAsset, const FTransform& Transform) const;
 
 	/**
 	 * return true if it needs update. Return false if not
 	 */
-	bool ShouldUpdateBoneVisibility() const;
+	ENGINE_API bool ShouldUpdateBoneVisibility() const;
 
 protected:
 
 	/** Removes update rate params and internal tracker data */
-	void ReleaseUpdateRateParams();
+	ENGINE_API void ReleaseUpdateRateParams();
 
 	/** Recreates update rate params and internal tracker data */
-	void RefreshUpdateRateParams();
+	ENGINE_API void RefreshUpdateRateParams();
 
 private:
 	/** Update Rate Optimization ticking. */
-	void TickUpdateRate(float DeltaTime, bool bNeedsValidRootMotion);
+	ENGINE_API void TickUpdateRate(float DeltaTime, bool bNeedsValidRootMotion);
 	
 public:
 	/**
@@ -1502,26 +1502,26 @@ public:
 	 * @param bInFollowerShouldTickPose If false, Follower components will not execute TickPose (default)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
-	void SetLeaderPoseComponent(USkinnedMeshComponent* NewLeaderBoneComponent, bool bForceUpdate = false, bool bInFollowerShouldTickPose = false);
+	ENGINE_API void SetLeaderPoseComponent(USkinnedMeshComponent* NewLeaderBoneComponent, bool bForceUpdate = false, bool bInFollowerShouldTickPose = false);
 
 	UE_DEPRECATED(5.1, "This method has been deprecated. Please use SetLeaderPoseComponent instead.")
 	void SetMasterPoseComponent(USkinnedMeshComponent* NewMasterBoneComponent, bool bForceUpdate = false) { SetLeaderPoseComponent(NewMasterBoneComponent, bForceUpdate); }
 
 	/** Return current active list of follower components */
-	const TArray< TWeakObjectPtr<USkinnedMeshComponent> >& GetFollowerPoseComponents() const;
+	ENGINE_API const TArray< TWeakObjectPtr<USkinnedMeshComponent> >& GetFollowerPoseComponents() const;
 
 	UE_DEPRECATED(5.1, "This method has been deprecated. Please use GetFollowerPoseComponents instead.")
 	const TArray< TWeakObjectPtr<USkinnedMeshComponent> >& GetSlavePoseComponents() const { return GetFollowerPoseComponents(); }
 
 protected:
 	/** Add a follower component to the FollowerPoseComponents array */
-	virtual void AddFollowerPoseComponent(USkinnedMeshComponent* SkinnedMeshComponent);
+	ENGINE_API virtual void AddFollowerPoseComponent(USkinnedMeshComponent* SkinnedMeshComponent);
 
 	UE_DEPRECATED(5.1, "This method has been deprecated. Please use AddFollowerPoseComponent instead.")
 	virtual void AddSlavePoseComponent(USkinnedMeshComponent* SkinnedMeshComponent) { AddFollowerPoseComponent(SkinnedMeshComponent); }
 
 	/** Remove a follower component from the FollowerPoseComponents array */
-	virtual void RemoveFollowerPoseComponent(USkinnedMeshComponent* SkinnedMeshComponent);
+	ENGINE_API virtual void RemoveFollowerPoseComponent(USkinnedMeshComponent* SkinnedMeshComponent);
 
 	UE_DEPRECATED(5.1, "This method has been deprecated. Please use RemoveFollowerPoseComponent instead.")
 	virtual void RemoveSlavePoseComponent(USkinnedMeshComponent* SkinnedMeshComponent) { RemoveFollowerPoseComponent(SkinnedMeshComponent); }
@@ -1532,7 +1532,7 @@ public:
 	 * 
 	 * This isn't necessary in any other case except in editor where you need to mark them as dirty for rendering
 	 */
-	void RefreshFollowerComponents();
+	ENGINE_API void RefreshFollowerComponents();
 
 	UE_DEPRECATED(5.1, "This method has been deprecated. Please use RefreshFollowerComponents instead.")
 	void RefreshSlaveComponents() { RefreshFollowerComponents(); }
@@ -1540,7 +1540,7 @@ public:
 	/**
 	 * Update LeaderBoneMap for LeaderPoseComponent and this component
 	 */
-	void UpdateLeaderBoneMap();
+	ENGINE_API void UpdateLeaderBoneMap();
 
 	UE_DEPRECATED(5.1, "This method has been deprecated. Please use UpdateLeaderBoneMap instead.")
 	void UpdateMasterBoneMap() { UpdateLeaderBoneMap(); }
@@ -1551,17 +1551,17 @@ public:
 	 * @param OutTransform	The socket local transform, or identity if the socket is not found.
 	 * @return SkeletalMeshSocket of named socket on the skeletal mesh component, or NULL if not found.
 	 */
-	class USkeletalMeshSocket const* GetSocketInfoByName(FName InSocketName, FTransform& OutTransform, int32& OutBoneIndex) const;
+	ENGINE_API class USkeletalMeshSocket const* GetSocketInfoByName(FName InSocketName, FTransform& OutTransform, int32& OutBoneIndex) const;
 
 	/**
 	 * @param InSocketName	The name of the socket to find
 	 * @return SkeletalMeshSocket of named socket on the skeletal mesh component, or NULL if not found.
 	 */
-	class USkeletalMeshSocket const* GetSocketByName( FName InSocketName ) const;
+	ENGINE_API class USkeletalMeshSocket const* GetSocketByName( FName InSocketName ) const;
 
-	void AddSocketOverride(FName SourceSocketName, FName OverrideSocketName, bool bWarnHasOverrided = true);
-	void RemoveSocketOverrides(FName SourceSocketName);
-	void RemoveAllSocketOverrides();
+	ENGINE_API void AddSocketOverride(FName SourceSocketName, FName OverrideSocketName, bool bWarnHasOverrided = true);
+	ENGINE_API void RemoveSocketOverrides(FName SourceSocketName);
+	ENGINE_API void RemoveAllSocketOverrides();
 
 	/** 
 	 * Get Bone Matrix from index
@@ -1570,7 +1570,7 @@ public:
 	 * 
 	 * @return the matrix of the bone at the specified index 
 	 */
-	FMatrix GetBoneMatrix( int32 BoneIndex ) const;
+	ENGINE_API FMatrix GetBoneMatrix( int32 BoneIndex ) const;
 
 	/** 
 	 * Get world space bone transform from bone index, also specifying the component transform to use
@@ -1579,7 +1579,7 @@ public:
 	 *
 	 * @return the transform of the bone at the specified index 
 	 */
-	FTransform GetBoneTransform( int32 BoneIndex, const FTransform& LocalToWorld ) const;
+	ENGINE_API FTransform GetBoneTransform( int32 BoneIndex, const FTransform& LocalToWorld ) const;
 
 	/** 
 	 * Get Bone Transform from index
@@ -1588,7 +1588,7 @@ public:
 	 *
 	 * @return the transform of the bone at the specified index 
 	 */
-	FTransform GetBoneTransform( int32 BoneIndex ) const;
+	ENGINE_API FTransform GetBoneTransform( int32 BoneIndex ) const;
 
 	/** Get Bone Rotation in Quaternion
 	 *
@@ -1597,7 +1597,7 @@ public:
 	 * 
 	 * @return Quaternion of the bone
 	 */
-	FQuat GetBoneQuaternion(FName BoneName, EBoneSpaces::Type Space = EBoneSpaces::WorldSpace) const;
+	ENGINE_API FQuat GetBoneQuaternion(FName BoneName, EBoneSpaces::Type Space = EBoneSpaces::WorldSpace) const;
 
 	/** Get Bone Location
 	 *
@@ -1606,14 +1606,14 @@ public:
 	 * 
 	 * @return Vector of the bone
 	 */
-	FVector GetBoneLocation( FName BoneName, EBoneSpaces::Type Space = EBoneSpaces::WorldSpace) const; 
+	ENGINE_API FVector GetBoneLocation( FName BoneName, EBoneSpaces::Type Space = EBoneSpaces::WorldSpace) const; 
 
 	/** 
 	 * Fills the given array with the names of all the bones in this component's current SkeletalMesh 
 	 * 
 	 * @param (out) Array to fill the names of the bones
 	 */
-	void GetBoneNames(TArray<FName>& BoneNames);
+	ENGINE_API void GetBoneNames(TArray<FName>& BoneNames);
 
 	/**
 	 * Tests if BoneName is child of (or equal to) ParentBoneName.
@@ -1625,7 +1625,7 @@ public:
 	 * Note - will return false if ChildBoneIndex is the same as ParentBoneIndex ie. must be strictly a child.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Components|SkinnedMesh")
-	bool BoneIsChildOf(FName BoneName, FName ParentBoneName) const;
+	ENGINE_API bool BoneIsChildOf(FName BoneName, FName ParentBoneName) const;
 
 	/** 
 	 * Gets the local-space position of a bone in the reference pose. 
@@ -1635,7 +1635,7 @@ public:
 	 * @return Local space reference position 
 	 */
 	UFUNCTION(BlueprintPure, Category = "Components|SkinnedMesh")
-	FVector GetRefPosePosition(int32 BoneIndex) const;
+	ENGINE_API FVector GetRefPosePosition(int32 BoneIndex) const;
 
 	/** 
 	 * Gets the local-space transform of a bone in the reference pose. 
@@ -1645,7 +1645,7 @@ public:
 	 * @return Local space reference transform 
 	 */
 	UFUNCTION(BlueprintPure, Category = "Components|SkinnedMesh")
-	FTransform GetRefPoseTransform(int32 BoneIndex) const;
+	ENGINE_API FTransform GetRefPoseTransform(int32 BoneIndex) const;
 
 	/** finds a vector pointing along the given axis of the given bone
 	 *
@@ -1654,7 +1654,7 @@ public:
 	 *
 	 * @return the direction of the specified axis, or (0,0,0) if the specified bone was not found
 	 */
-	FVector GetBoneAxis(FName BoneName, EAxis::Type Axis) const;
+	ENGINE_API FVector GetBoneAxis(FName BoneName, EAxis::Type Axis) const;
 
 	/**
 	 *	Transform a location/rotation from world space to bone relative space.
@@ -1667,7 +1667,7 @@ public:
 	 * @param OutRotation (out) Transformed rotation
 	 */
 	UFUNCTION(BlueprintCallable, Category="Components|SkinnedMesh")
-	void TransformToBoneSpace( FName BoneName, FVector InPosition, FRotator InRotation, FVector& OutPosition, FRotator& OutRotation ) const;
+	ENGINE_API void TransformToBoneSpace( FName BoneName, FVector InPosition, FRotator InRotation, FVector& OutPosition, FRotator& OutRotation ) const;
 
 	/**
 	 *	Transform a location/rotation in bone relative space to world space.
@@ -1679,7 +1679,7 @@ public:
 	 * @param OutRotation (out) Transformed rotation
 	 */
 	UFUNCTION(BlueprintCallable, Category="Components|SkinnedMesh")
-	void TransformFromBoneSpace( FName BoneName, FVector InPosition, FRotator InRotation, FVector& OutPosition, FRotator& OutRotation );
+	ENGINE_API void TransformFromBoneSpace( FName BoneName, FVector InPosition, FRotator InRotation, FVector& OutPosition, FRotator& OutRotation );
 
 	/** finds the closest bone to the given location
 	 *
@@ -1690,7 +1690,7 @@ public:
 	 *
 	 * @return the name of the bone that was found, or 'None' if no bone was found
 	 */
-	FName FindClosestBone(FVector TestLocation, FVector* BoneLocation = NULL, float IgnoreScale = 0.f, bool bRequirePhysicsAsset = false) const;
+	ENGINE_API FName FindClosestBone(FVector TestLocation, FVector* BoneLocation = NULL, float IgnoreScale = 0.f, bool bRequirePhysicsAsset = false) const;
 
 	/** finds the closest bone to the given location
 	*
@@ -1702,7 +1702,7 @@ public:
 	* @return the name of the bone that was found, or 'None' if no bone was found
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh", meta=(DisplayName="Find Closest Bone", AdvancedDisplay="bRequirePhysicsAsset"))
-	FName FindClosestBone_K2(FVector TestLocation, FVector& BoneLocation, float IgnoreScale = 0.f, bool bRequirePhysicsAsset = false) const;
+	ENGINE_API FName FindClosestBone_K2(FVector TestLocation, FVector& BoneLocation, float IgnoreScale = 0.f, bool bRequirePhysicsAsset = false) const;
 
 	/**
 	 * Find a named MorphTarget from the current SkeletalMesh
@@ -1711,7 +1711,7 @@ public:
 	 *
 	 * @return Pointer to found MorphTarget. Returns NULL if could not find target with that name.
 	 */
-	virtual class UMorphTarget* FindMorphTarget( FName MorphTargetName ) const;
+	ENGINE_API virtual class UMorphTarget* FindMorphTarget( FName MorphTargetName ) const;
 
 	/**
 	 *	Hides the specified bone. You can also set option for physics body.
@@ -1719,14 +1719,14 @@ public:
 	 *	@param	BoneIndex			Index of the bone
 	 *	@param	PhysBodyOption		Option for physics bodies that attach to the bones to be hidden
 	 */
-	virtual void HideBone( int32 BoneIndex, EPhysBodyOp PhysBodyOption );
+	ENGINE_API virtual void HideBone( int32 BoneIndex, EPhysBodyOp PhysBodyOption );
 
 	/**
 	 *	Unhides the specified bone.  
 	 *
 	 *	@param	BoneIndex			Index of the bone
 	 */
-	virtual void UnHideBone( int32 BoneIndex );
+	ENGINE_API virtual void UnHideBone( int32 BoneIndex );
 
 	/** 
 	 *	Determines if the specified bone is hidden. 
@@ -1735,7 +1735,7 @@ public:
 	 *
 	 *	@return true if hidden
 	 */
-	bool IsBoneHidden( int32 BoneIndex ) const;
+	ENGINE_API bool IsBoneHidden( int32 BoneIndex ) const;
 
 	/**
 	 *	Hides the specified bone with name.  Currently this just enforces a scale of 0 for the hidden bones.
@@ -1745,7 +1745,7 @@ public:
 	 *	@param	PhysBodyOption		Option for physics bodies that attach to the bones to be hidden
 	 */
 	UFUNCTION(BlueprintCallable, Category="Components|SkinnedMesh")
-	void HideBoneByName( FName BoneName, EPhysBodyOp PhysBodyOption );
+	ENGINE_API void HideBoneByName( FName BoneName, EPhysBodyOp PhysBodyOption );
 
 	/**
 	 *	UnHide the specified bone with name.  Currently this just enforces a scale of 0 for the hidden bones.
@@ -1753,7 +1753,7 @@ public:
 	 *	@param  BoneName            Name of bone to unhide
 	 */
 	UFUNCTION(BlueprintCallable, Category="Components|SkinnedMesh")
-	void UnHideBoneByName( FName BoneName );
+	ENGINE_API void UnHideBoneByName( FName BoneName );
 
 	/** 
 	 *	Determines if the specified bone is hidden. 
@@ -1763,7 +1763,7 @@ public:
 	 *	@return true if hidden
 	 */
 	UFUNCTION(BlueprintCallable, Category="Components|SkinnedMesh")
-	bool IsBoneHiddenByName( FName BoneName );
+	ENGINE_API bool IsBoneHiddenByName( FName BoneName );
 
 	/**
 	 *	Allows hiding of a particular material (by ID) on this instance of a SkeletalMesh.
@@ -1773,15 +1773,15 @@ public:
 	 * @param LODIndex - Index of the LOD to modify material visibility within
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
-	void ShowMaterialSection(int32 MaterialID, int32 SectionIndex, bool bShow, int32 LODIndex);
+	ENGINE_API void ShowMaterialSection(int32 MaterialID, int32 SectionIndex, bool bShow, int32 LODIndex);
 
 	/** Clear any material visibility modifications made by ShowMaterialSection */
 	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
-	void ShowAllMaterialSections(int32 LODIndex);
+	ENGINE_API void ShowAllMaterialSections(int32 LODIndex);
 
 	/** Returns whether a specific material section is currently hidden on this component (by using ShowMaterialSection) */
 	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
-	bool IsMaterialSectionShown(int32 MaterialID, int32 LODIndex);
+	ENGINE_API bool IsMaterialSectionShown(int32 MaterialID, int32 LODIndex);
 
 	/**
 	 * Set whether this skinned mesh should be rendered as static mesh in a reference pose
@@ -1789,7 +1789,7 @@ public:
 	 * @param	whether this skinned mesh should be rendered as static
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Components|SkinnedMesh")
-	void SetRenderStatic(bool bNewValue);
+	ENGINE_API void SetRenderStatic(bool bNewValue);
 
 	/** 
 	 * Return PhysicsAsset for this SkeletalMeshComponent
@@ -1797,7 +1797,7 @@ public:
 	 *
 	 * @return : PhysicsAsset that's used by this component
 	 */
-	class UPhysicsAsset* GetPhysicsAsset() const;
+	ENGINE_API class UPhysicsAsset* GetPhysicsAsset() const;
 
 private:
 	/**
@@ -1809,13 +1809,13 @@ private:
 	 * When bones are not resent in a leader mesh when using leader-pose, we call this to evaluate 
 	 * relative transforms.
 	 */
-	bool GetMissingLeaderBoneRelativeTransform(int32 InBoneIndex, FMissingLeaderBoneCacheEntry& OutInfo) const;
+	ENGINE_API bool GetMissingLeaderBoneRelativeTransform(int32 InBoneIndex, FMissingLeaderBoneCacheEntry& OutInfo) const;
 
 	// BEGIN ILODSyncComponent
-	virtual int32 GetDesiredSyncLOD() const override;
-	virtual void SetSyncLOD(int32 LODIndex) override;
-	virtual int32 GetNumSyncLODs() const override;
-	virtual int32 GetCurrentSyncLOD() const override;
+	ENGINE_API virtual int32 GetDesiredSyncLOD() const override;
+	ENGINE_API virtual void SetSyncLOD(int32 LODIndex) override;
+	ENGINE_API virtual int32 GetNumSyncLODs() const override;
+	ENGINE_API virtual int32 GetCurrentSyncLOD() const override;
 	// END ILODSyncComponent
 
 	// Animation update rate control.
@@ -1830,16 +1830,16 @@ public:
 	virtual bool IsPlayingNetworkedRootMotionMontage() const { return false; }
 	virtual bool IsPlayingRootMotionFromEverything() const { return false; }
 
-	bool ShouldUseUpdateRateOptimizations() const;
+	ENGINE_API bool ShouldUseUpdateRateOptimizations() const;
 
 	/** Release any rendering resources owned by this component */
-	void ReleaseResources();
+	ENGINE_API void ReleaseResources();
 
 #if WITH_EDITOR
 	/** Helpers allowing us to cache feature level */
-	static void BindWorldDelegates();
-	static void HandlePostWorldCreation(UWorld* InWorld);
-	static void HandleFeatureLevelChanged(ERHIFeatureLevel::Type InFeatureLevel, TWeakObjectPtr<UWorld> InWorld);
+	static ENGINE_API void BindWorldDelegates();
+	static ENGINE_API void HandlePostWorldCreation(UWorld* InWorld);
+	static ENGINE_API void HandleFeatureLevelChanged(ERHIFeatureLevel::Type InFeatureLevel, TWeakObjectPtr<UWorld> InWorld);
 #endif
 
 	friend class FRenderStateRecreator;

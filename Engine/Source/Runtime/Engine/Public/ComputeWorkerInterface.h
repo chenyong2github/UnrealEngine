@@ -14,7 +14,7 @@ namespace ERHIFeatureLevel { enum Type : int; }
  * Interface for a compute task worker.
  * Implementations will queue and schedule work per scene before the renderer submits at fixed points in the frame.
  */
-class ENGINE_API IComputeTaskWorker
+class IComputeTaskWorker
 {
 public:
 	virtual ~IComputeTaskWorker() {}
@@ -27,8 +27,8 @@ public:
 };
 
 /** Core execution group names for use in IComputeTaskWorker::SubmitWork(). */
-struct ENGINE_API ComputeTaskExecutionGroup
+struct ComputeTaskExecutionGroup
 {
-	static FName Immediate;
-	static FName EndOfFrameUpdate;
+	static ENGINE_API FName Immediate;
+	static ENGINE_API FName EndOfFrameUpdate;
 };

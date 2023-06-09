@@ -24,7 +24,7 @@ enum class ECustomAttributeBlendType : uint8
 };
 
 USTRUCT()
-struct ENGINE_API FCustomAttributeSetting
+struct FCustomAttributeSetting
 {
 	GENERATED_BODY()
 
@@ -41,7 +41,7 @@ struct ENGINE_API FCustomAttributeSetting
  * Settings that identify the names of custom attributes that represent the individual components of a timecode and a subframe along with a take name.
  */
 USTRUCT()
-struct ENGINE_API FTimecodeCustomAttributeNameSettings
+struct FTimecodeCustomAttributeNameSettings
 {
 	GENERATED_BODY()
 
@@ -79,7 +79,7 @@ struct ENGINE_API FTimecodeCustomAttributeNameSettings
 
 struct UE_DEPRECATED(5.0, "FCustomAttribute has been deprecated") FCustomAttribute;
 USTRUCT(Experimental)
-struct ENGINE_API FCustomAttribute
+struct FCustomAttribute
 {
 	GENERATED_BODY()
 
@@ -129,7 +129,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 struct UE_DEPRECATED(5.0, "FCustomAttributePerBoneData has been deprecated") FCustomAttributePerBoneData;
 
 USTRUCT(Experimental)
-struct ENGINE_API FCustomAttributePerBoneData
+struct FCustomAttributePerBoneData
 {
 	GENERATED_BODY()
 

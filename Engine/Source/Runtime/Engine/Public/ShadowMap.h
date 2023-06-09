@@ -207,7 +207,7 @@ public:
 /**
  * The abstract base class of 1D and 2D shadow-maps.
  */
-class ENGINE_API FShadowMap : private FDeferredCleanupInterface
+class FShadowMap : private FDeferredCleanupInterface
 {
 public:
 	enum
@@ -246,7 +246,7 @@ public:
 
 	// FShadowMap interface.
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) {}
-	virtual void Serialize(FArchive& Ar);
+	ENGINE_API virtual void Serialize(FArchive& Ar);
 	virtual FShadowMapInteraction GetInteraction() const = 0;
 
 	// Runtime type casting.
@@ -274,13 +274,13 @@ protected:
 	/**
 	 * Called when the light-map is no longer referenced.  Should release the lightmap's resources.
 	 */
-	virtual void Cleanup();
+	ENGINE_API virtual void Cleanup();
 
 private:
 	int32 NumRefs;
 };
 
-class ENGINE_API FShadowMap2D : public FShadowMap
+class FShadowMap2D : public FShadowMap
 {
 public:
 
@@ -289,14 +289,14 @@ public:
 	 * @param	InWorld				World in which the textures exist
 	 * @param	bLightingSuccessful	Whether the lighting build was successful or not.
 	 */
-	static void EncodeTextures(UWorld* InWorld, ULevel* LightingScenario, bool bLightingSuccessful, bool bMultithreadedEncode =false );
+	static ENGINE_API void EncodeTextures(UWorld* InWorld, ULevel* LightingScenario, bool bLightingSuccessful, bool bMultithreadedEncode =false );
 
 	/**
 	 * Constructs mip maps for a single shadowmap texture.
 	 */
-	static int32 EncodeSingleTexture(ULevel* LightingScenario, struct FShadowMapPendingTexture& PendingTexture, UShadowMapTexture2D* Texture, TArray< TArray<FFourDistanceFieldSamples>>& MipData);
+	static ENGINE_API int32 EncodeSingleTexture(ULevel* LightingScenario, struct FShadowMapPendingTexture& PendingTexture, UShadowMapTexture2D* Texture, TArray< TArray<FFourDistanceFieldSamples>>& MipData);
 
-	static TRefCountPtr<FShadowMap2D> AllocateShadowMap(
+	static ENGINE_API TRefCountPtr<FShadowMap2D> AllocateShadowMap(
 		UObject* LightMapOuter,
 		const TMap<ULightComponent*, FShadowMapData2D*>& ShadowMapData,
 		const FBoxSphereBounds& Bounds,
@@ -312,26 +312,26 @@ public:
 	 * @param	InPaddingType - the method for padding the shadowmap.
 	 * @param	ShadowmapFlags - flags that determine how the shadowmap is stored (e.g. streamed or not)
 	 */
-	static TRefCountPtr<FShadowMap2D> AllocateInstancedShadowMap(UObject* LightMapOuter, UInstancedStaticMeshComponent* Component, TArray<TMap<ULightComponent*, TUniquePtr<FShadowMapData2D>>>&& InstancedShadowMapData,
+	static ENGINE_API TRefCountPtr<FShadowMap2D> AllocateInstancedShadowMap(UObject* LightMapOuter, UInstancedStaticMeshComponent* Component, TArray<TMap<ULightComponent*, TUniquePtr<FShadowMapData2D>>>&& InstancedShadowMapData,
 		UMapBuildDataRegistry* Registry, FGuid MapBuildDataId, const FBoxSphereBounds& Bounds, ELightMapPaddingType PaddingType, EShadowMapFlags ShadowmapFlags);
 
-	FShadowMap2D();
+	ENGINE_API FShadowMap2D();
 
-	FShadowMap2D(const TMap<ULightComponent*, FShadowMapData2D*>& ShadowMapData);
-	FShadowMap2D(TArray<FGuid> LightGuids);
+	ENGINE_API FShadowMap2D(const TMap<ULightComponent*, FShadowMapData2D*>& ShadowMapData);
+	ENGINE_API FShadowMap2D(TArray<FGuid> LightGuids);
 
 	// Accessors.
-	UTexture2D* GetTexture();
-	const UTexture2D* GetTexture() const;
+	ENGINE_API UTexture2D* GetTexture();
+	ENGINE_API const UTexture2D* GetTexture() const;
 	const FVector2D& GetCoordinateScale() const { check(IsValid()); return CoordinateScale; }
 	const FVector2D& GetCoordinateBias() const { check(IsValid()); return CoordinateBias; }
 	bool IsValid() const { return Texture != NULL; }
 	bool IsShadowFactorTexture() const { return false; }
 
 	// FShadowMap interface.
-	virtual void AddReferencedObjects(FReferenceCollector& Collector);
-	virtual void Serialize(FArchive& Ar);
-	virtual FShadowMapInteraction GetInteraction() const;
+	ENGINE_API virtual void AddReferencedObjects(FReferenceCollector& Collector);
+	ENGINE_API virtual void Serialize(FArchive& Ar);
+	ENGINE_API virtual FShadowMapInteraction GetInteraction() const;
 
 	// Runtime type casting.
 	virtual FShadowMap2D* GetShadowMap2D() { return this; }
@@ -369,7 +369,7 @@ protected:
 
 #if WITH_EDITOR
 	/** If true, update the status when encoding light maps */
-	static bool bUpdateStatus;
+	static ENGINE_API bool bUpdateStatus;
 #endif
 };
 

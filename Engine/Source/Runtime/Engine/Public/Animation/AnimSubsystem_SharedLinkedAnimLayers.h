@@ -85,15 +85,15 @@ private:
 
 // Data for shared linked anim instances module
 USTRUCT()
-struct ENGINE_API FAnimSubsystem_SharedLinkedAnimLayers : public FAnimSubsystemInstance
+struct FAnimSubsystem_SharedLinkedAnimLayers : public FAnimSubsystemInstance
 {
 	GENERATED_BODY()
 
 	// Retrieve subsystem from skeletal mesh component
-	static FAnimSubsystem_SharedLinkedAnimLayers* GetFromMesh(USkeletalMeshComponent* SkelMesh);
+	static ENGINE_API FAnimSubsystem_SharedLinkedAnimLayers* GetFromMesh(USkeletalMeshComponent* SkelMesh);
 	
 	// Clear all linked layers data
-	void Reset();
+	ENGINE_API void Reset();
 
 	// Check if a given anim instance is shared
 	bool IsSharedInstance(const UAnimInstance* AnimInstance) { return FindInstanceData(AnimInstance) != nullptr; }
@@ -104,23 +104,23 @@ struct ENGINE_API FAnimSubsystem_SharedLinkedAnimLayers : public FAnimSubsystemI
 	void AddPersistentAnimLayerClass(TSubclassOf<UAnimInstance> AnimInstanceClass) { PersistentClasses.AddUnique(AnimInstanceClass); }
 
 	// Remove a class from the persistent class array. 
-	void RemovePersistentAnimLayerClass(TSubclassOf<UAnimInstance> AnimInstanceClass);
+	ENGINE_API void RemovePersistentAnimLayerClass(TSubclassOf<UAnimInstance> AnimInstanceClass);
 
 	// Add a linked function to be managed by a shared anim instance. Returns the instance to bind to the function
-	UAnimInstance* AddLinkedFunction(UAnimInstance* OwningInstance, TSubclassOf<UAnimInstance> AnimClass, FName Function, bool& bIsNewInstance);
+	ENGINE_API UAnimInstance* AddLinkedFunction(UAnimInstance* OwningInstance, TSubclassOf<UAnimInstance> AnimClass, FName Function, bool& bIsNewInstance);
 
 	// Remove a linked function, cleaning the instance if it's not used anymore and not persistent
-	void RemoveLinkedFunction(UAnimInstance* AnimInstance, FName Function);
+	ENGINE_API void RemoveLinkedFunction(UAnimInstance* AnimInstance, FName Function);
 
 private:
 	// Find instance data for given instance if it exists, returns nullptr otherwise
-	FLinkedAnimLayerInstanceData* FindInstanceData(const UAnimInstance* AnimInstance);
+	ENGINE_API FLinkedAnimLayerInstanceData* FindInstanceData(const UAnimInstance* AnimInstance);
 
 	// Find class data for given anim class if it exists, returns nullptr otherwise
-	FLinkedAnimLayerClassData* FindClassData(TSubclassOf<UAnimInstance> AnimClass);
+	ENGINE_API FLinkedAnimLayerClassData* FindClassData(TSubclassOf<UAnimInstance> AnimClass);
 
 	// Find or add ClassData for given AnimClass
-	FLinkedAnimLayerClassData& FindOrAddClassData(TSubclassOf<UAnimInstance> AnimClass);
+	ENGINE_API FLinkedAnimLayerClassData& FindOrAddClassData(TSubclassOf<UAnimInstance> AnimClass);
 
 	UPROPERTY(Transient)
 	TArray<FLinkedAnimLayerClassData> ClassesData;

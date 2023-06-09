@@ -15,7 +15,7 @@ class FSceneInterface;
 /**
  * Encapsulates a simple scene setup for preview or thumbnail rendering.
  */
-class ENGINE_API FPreviewScene : public FGCObject
+class FPreviewScene : public FGCObject
 {
 public:
 	struct ConstructionValues
@@ -68,22 +68,22 @@ public:
 	};
 
 	// for physical correct light computations we multiply diffuse and specular lights by PI (see LABEL_RealEnergy)
-	FPreviewScene(ConstructionValues CVS = ConstructionValues());
-	virtual ~FPreviewScene();
+	ENGINE_API FPreviewScene(ConstructionValues CVS = ConstructionValues());
+	ENGINE_API virtual ~FPreviewScene();
 
 	/**
 	 * Adds a component to the preview scene.  This attaches the component to the scene, and takes ownership of it.
 	 */
-	virtual void AddComponent(class UActorComponent* Component,const FTransform& LocalToWorld, bool bAttachToRoot=false);
+	ENGINE_API virtual void AddComponent(class UActorComponent* Component,const FTransform& LocalToWorld, bool bAttachToRoot=false);
 
 	/**
 	 * Removes a component from the preview scene.  This detaches the component from the scene, and returns ownership of it.
 	 */
-	virtual void RemoveComponent(class UActorComponent* Component);
+	ENGINE_API virtual void RemoveComponent(class UActorComponent* Component);
 
 	// Serializer.
-	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
-	virtual FString GetReferencerName() const override;
+	ENGINE_API virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
+	ENGINE_API virtual FString GetReferencerName() const override;
 
 	// Accessors.
 	UWorld* GetWorld() const { return PreviewWorld; }
@@ -92,25 +92,25 @@ public:
 	/** Access to line drawing */
 	class ULineBatchComponent* GetLineBatcher() const { return LineBatcher; }
 	/** Clean out the line batcher each frame */
-	void ClearLineBatcher();
+	ENGINE_API void ClearLineBatcher();
 
 	/** Update sky and reflection captures */
-	void UpdateCaptureContents();
+	ENGINE_API void UpdateCaptureContents();
 
-	FRotator GetLightDirection();
-	void SetLightDirection(const FRotator& InLightDir);
-	void SetLightBrightness(float LightBrightness);
-	void SetLightColor(const FColor& LightColor);
+	ENGINE_API FRotator GetLightDirection();
+	ENGINE_API void SetLightDirection(const FRotator& InLightDir);
+	ENGINE_API void SetLightBrightness(float LightBrightness);
+	ENGINE_API void SetLightColor(const FColor& LightColor);
 
-	void SetSkyBrightness(float SkyBrightness);
-	void SetSkyCubemap(class UTextureCube* Cubemap);
+	ENGINE_API void SetSkyBrightness(float SkyBrightness);
+	ENGINE_API void SetSkyCubemap(class UTextureCube* Cubemap);
 
 	/** Get the background color we use by default */
-	virtual FLinearColor GetBackgroundColor() const;
+	ENGINE_API virtual FLinearColor GetBackgroundColor() const;
 
 	/** Load/Save settings to the config, specifying the key */
-	void LoadSettings(const TCHAR* Section);
-	void SaveSettings(const TCHAR* Section);
+	ENGINE_API void LoadSettings(const TCHAR* Section);
+	ENGINE_API void SaveSettings(const TCHAR* Section);
 
 	class UDirectionalLightComponent* DirectionalLight;
 	class USkyLightComponent* SkyLight;

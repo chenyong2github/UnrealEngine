@@ -27,8 +27,8 @@ namespace PoseWatchUtil
 	template <typename TParent, typename TItem> FText FindUniqueNameInParent(TParent* InParent, const TItem* InItem);
 }
 
-UCLASS()
-class ENGINE_API UPoseWatchFolder
+UCLASS(MinimalAPI)
+class UPoseWatchFolder
 	: public UObject
 {
 	GENERATED_UCLASS_BODY()
@@ -36,69 +36,69 @@ class ENGINE_API UPoseWatchFolder
 public:
 #if WITH_EDITOR
 	/** Returns the slash delimited path of this folder (e.g. MyFolder/MyNestedFolder/MyPoseWatch)*/
-	const FText GetPath() const;
+	ENGINE_API const FText GetPath() const;
 
 	/** The default name given to all new folders */
-	FText GetDefaultLabel() const;
+	ENGINE_API FText GetDefaultLabel() const;
 
 	/** Returns the display label assigned to this pose watch folder */
-	FText GetLabel() const;
+	ENGINE_API FText GetLabel() const;
 
 	/** Returns the visibility of this pose watch folder */
-	bool GetIsVisible() const;
+	ENGINE_API bool GetIsVisible() const;
 
 	/** Returns the parent folder this folder belongs to, if any */
-	UPoseWatchFolder* GetParent() const;
+	ENGINE_API UPoseWatchFolder* GetParent() const;
 	
 	/**  Attempts to set this folder's parent, returns false if unsuccessful (if moving causes a name clash)
 	 *	 Using bForce may change the folder's label to ensure no name clashes
 	 */
-	bool SetParent(UPoseWatchFolder* Parent, bool bForce = false);
+	ENGINE_API bool SetParent(UPoseWatchFolder* Parent, bool bForce = false);
 
 	/** Alias of SetParent */
-	void MoveTo(UPoseWatchFolder* InFolder);
+	ENGINE_API void MoveTo(UPoseWatchFolder* InFolder);
 
 	/** Attempts to set the label, returns false if unsuccessful (if there's a name clash with another  folder in the current directory) */
-	bool SetLabel(const FText& InLabel);
+	ENGINE_API bool SetLabel(const FText& InLabel);
 
 	/** Sets the visibility of this folder, must contain at least one post watch descendant to become visible */
-	void SetIsVisible(bool bInIsVisible, bool bUpdateChildren=true);
+	ENGINE_API void SetIsVisible(bool bInIsVisible, bool bUpdateChildren=true);
 
 	/** Called before the pose watch folder is deleted to cleanup it's children and update it's parent */
-	void OnRemoved();
+	ENGINE_API void OnRemoved();
 
 	/** Returns true if InFolder is the parent of this */
-	bool IsIn(const UPoseWatchFolder* InFolder) const;
+	ENGINE_API bool IsIn(const UPoseWatchFolder* InFolder) const;
 
 	/** Returns true if this is a descendant of InFolder */
-	bool IsDescendantOf(const UPoseWatchFolder* InFolder) const;
+	ENGINE_API bool IsDescendantOf(const UPoseWatchFolder* InFolder) const;
 
 	/** Returns true if this folder is inside another folder */
-	bool IsAssignedFolder() const;
+	ENGINE_API bool IsAssignedFolder() const;
 
 	/** Returns true if there would be no name clashes when assigning the label InLabel */
-	bool ValidateLabelRename(const FText& InLabel, FText& OutErrorMessage);
+	ENGINE_API bool ValidateLabelRename(const FText& InLabel, FText& OutErrorMessage);
 
 	/** Returns true if InLabel is a unique folder label among the children of InFolder,  excluding this */
-	bool IsLabelUniqueInParent(const FText& InLabel, UPoseWatchFolder* InFolder) const;
+	ENGINE_API bool IsLabelUniqueInParent(const FText& InLabel, UPoseWatchFolder* InFolder) const;
 
 	/** Returns true if at least one UPoseWatch/UPoseWatchFolder has this as it's parent */
-	bool HasChildren() const;
+	ENGINE_API bool HasChildren() const;
 
 	/** Takes GetDefaultLabel() and generates unique labels to avoid name clashes (e.g. NewFolder1, NewFolder2, ...) */
-	void SetUniqueDefaultLabel();
+	ENGINE_API void SetUniqueDefaultLabel();
 
 	/** Called when a child is removed/added to a folder */
-	void UpdateVisibility();
+	ENGINE_API void UpdateVisibility();
 
 	/** Returns the anim blueprint this pose watch folder is stored inside */
-	UAnimBlueprint* GetAnimBlueprint() const;
+	ENGINE_API UAnimBlueprint* GetAnimBlueprint() const;
 
 	/** Set whether this should display its children in the pose watch manager window */
-	void SetIsExpanded(bool bInIsExpanded);
+	ENGINE_API void SetIsExpanded(bool bInIsExpanded);
 
 	/** Returns true if this should display its children in the pose watch manager window */
-	bool GetIsExpanded() const;
+	ENGINE_API bool GetIsExpanded() const;
 
 private:
 	/** Returns a unique name for a new folder placed within InParent */
@@ -127,8 +127,8 @@ protected:
 #endif // WITH_EDITORONLY_DATA
 };
 
-UCLASS()
-class ENGINE_API UPoseWatchElement
+UCLASS(MinimalAPI)
+class UPoseWatchElement
 	: public UObject
 {
 	GENERATED_BODY()
@@ -139,64 +139,64 @@ public:
 	virtual ~UPoseWatchElement() = default;
 
 	/** The default name given to all new pose watch elements */
-	FText GetDefaultLabel() const;
+	ENGINE_API FText GetDefaultLabel() const;
 
 	/** Returns the display label assigned to this pose watch */
-	FText GetLabel() const;
+	ENGINE_API FText GetLabel() const;
 
 	/** Returns the visibility of this pose watch */
-	bool GetIsVisible() const;
+	ENGINE_API bool GetIsVisible() const;
 
 	/** Returns true if the pose watch is able to draw anything in the viewport */
-	virtual bool GetIsEnabled() const;
+	ENGINE_API virtual bool GetIsEnabled() const;
 
 	/** Returns the parent pose watch this element belongs to. */
-	UPoseWatch* GetParent() const;
+	ENGINE_API UPoseWatch* GetParent() const;
 
 	/**  Sets this element's parent. */
-	void SetParent(UPoseWatch* InParent);
+	ENGINE_API void SetParent(UPoseWatch* InParent);
 
 	/** Attempts to set the label, returns false if unsuccessful (if there's a name clash with another pose watch in the current directory). */
-	bool SetLabel(const FText& InLabel);
+	ENGINE_API bool SetLabel(const FText& InLabel);
 
 	/** Sets whether or not to render this pose watch to the view port. */
-	virtual void SetIsVisible(bool bInIsVisible);
+	ENGINE_API virtual void SetIsVisible(bool bInIsVisible);
 
 	/** Returns true if there would be no name clashes when assigning the label InLabel. */
-	bool ValidateLabelRename(const FText& InLabel, FText& OutErrorMessage);
+	ENGINE_API bool ValidateLabelRename(const FText& InLabel, FText& OutErrorMessage);
 
 	/** Returns true if InLabel is a unique among the children of this elements parent, excluding this. */
-	bool IsLabelUniqueInParent(const FText& InLabel, UPoseWatch* InParent) const;
+	ENGINE_API bool IsLabelUniqueInParent(const FText& InLabel, UPoseWatch* InParent) const;
 
 	/** Takes GetDefaultLabel() and generates unique labels to avoid name clashes (e.g. PoseWatch1, PoseWatch2, ...). */
-	void SetUniqueDefaultLabel();
+	ENGINE_API void SetUniqueDefaultLabel();
 
 	/** Takes InLabel and generates unique labels to avoid name clashes (e.g. PoseWatch1, PoseWatch2, ...). */
-	void SetUniqueLabel(const FText& InLabel);
+	ENGINE_API void SetUniqueLabel(const FText& InLabel);
 
 	/** Returns the color to display the pose watch using. */
-	FColor GetColor() const;
+	ENGINE_API FColor GetColor() const;
 
 	/** Sets the display color of this pose watch in the UI and view port. */
-	virtual void SetColor(const FColor& InColor);
+	ENGINE_API virtual void SetColor(const FColor& InColor);
 
 	/** Returns true if it is possible to set the color of this element. */
-	bool HasColor() const;
+	ENGINE_API bool HasColor() const;
 
 	/** Set the can set the color flag. */
-	void SetHasColor(const bool bInHasColor);
+	ENGINE_API void SetHasColor(const bool bInHasColor);
 
 	/** Get the name of the icon used to represent this element. */
-	FName GetIconName() const;
+	ENGINE_API FName GetIconName() const;
 
 	/** Set the name of the icon used to represent this element. */
-	void SetIconName(const FName InIconName);
+	ENGINE_API void SetIconName(const FName InIconName);
 
 	/** Toggle's the pose watch's visibility */
-	void ToggleIsVisible();
+	ENGINE_API void ToggleIsVisible();
 
 private:
-	FText FindUniqueNameInParent(class UPoseWatch* InParent) const;
+	ENGINE_API FText FindUniqueNameInParent(class UPoseWatch* InParent) const;
 
 #endif // WITH_EDITOR
 
@@ -225,20 +225,20 @@ protected:
 #endif // WITH_EDITORONLY_DATA
 };
 
-UCLASS()
-class ENGINE_API UPoseWatchPoseElement : public UPoseWatchElement
+UCLASS(MinimalAPI)
+class UPoseWatchPoseElement : public UPoseWatchElement
 {
 	GENERATED_BODY()
 
 public:
 
-	UPoseWatchPoseElement(const class FObjectInitializer& PCIP);
+	ENGINE_API UPoseWatchPoseElement(const class FObjectInitializer& PCIP);
 
 #if WITH_EDITOR
 
-	virtual bool GetIsEnabled() const;
+	ENGINE_API virtual bool GetIsEnabled() const;
 
-	static FSlateIcon StaticGetIcon();
+	static ENGINE_API FSlateIcon StaticGetIcon();
 
 #endif // WITH_EDITOR
 
@@ -261,8 +261,8 @@ public:
 #endif // WITH_EDITORONLY_DATA
 };
 
-UCLASS()
-class ENGINE_API UPoseWatch
+UCLASS(MinimalAPI)
+class UPoseWatch
 	: public UObject
 {
 	GENERATED_UCLASS_BODY()
@@ -270,92 +270,92 @@ class ENGINE_API UPoseWatch
 public:
 #if WITH_EDITOR
 	/** Returns the slash delimited path of this pose watch */
-	const FText GetPath() const;
+	ENGINE_API const FText GetPath() const;
 
 	/** The default name given to all new pose watches */
-	FText GetDefaultLabel() const;
+	ENGINE_API FText GetDefaultLabel() const;
 
 	/** Returns the display label assigned to this pose watch */
-	FText GetLabel() const;
+	ENGINE_API FText GetLabel() const;
 
 	/** Returns the visibility of this pose watch */
-	bool GetIsVisible() const;
+	ENGINE_API bool GetIsVisible() const;
 
 	/** Returns true if any child element is enabled */
-	bool GetIsEnabled() const;
+	ENGINE_API bool GetIsEnabled() const;
 
 	/** Returns true if the this pose watch's node is active in its anim graph */
-	bool GetIsNodeEnabled() const;
+	ENGINE_API bool GetIsNodeEnabled() const;
 
 	/** Returns the color to display the pose watch using */
 	UE_DEPRECATED(5.1, "Node watches no longer have colors, use the color of its elements instead.")
-	FColor GetColor() const;
+	ENGINE_API FColor GetColor() const;
 
 	/** Set whether this should display its children in the pose watch manager window */
-	void SetIsExpanded(bool bInIsExpanded);
+	ENGINE_API void SetIsExpanded(bool bInIsExpanded);
 
 	/** Returns true if this should display its children in the pose watch manager window */
-	bool GetIsExpanded() const;
+	ENGINE_API bool GetIsExpanded() const;
 
 	/** Returns true if this pose watch should be deleted after the user has deselected its assigned node (Editor preference) */
-	bool GetShouldDeleteOnDeselect() const;
+	ENGINE_API bool GetShouldDeleteOnDeselect() const;
 
 	/** Returns the parent folder this pose watch belongs to, if any */
-	UPoseWatchFolder* GetParent() const;
+	ENGINE_API UPoseWatchFolder* GetParent() const;
 
 	/**  Attempts to set this pose watch's parent, returns false if unsuccessful (if moving causes a name clash)
 	 *	 Using bForce may change the pose watch's label to ensure no name clashes
 	 */
-	bool SetParent(UPoseWatchFolder* InParent, bool bForce=false);
+	ENGINE_API bool SetParent(UPoseWatchFolder* InParent, bool bForce=false);
 
 	/** If set, denotes the pose watch is able to be drawn to the viewport */
-	void SetIsNodeEnabled(const bool bInIsEnabled);
+	ENGINE_API void SetIsNodeEnabled(const bool bInIsEnabled);
 
 	/** Alias of SetParent */
-	void MoveTo(UPoseWatchFolder* InFolder);
+	ENGINE_API void MoveTo(UPoseWatchFolder* InFolder);
 
 	/** Attempts to set the label, returns false if unsuccessful (if there's a name clash with another pose watch in the current directory) */
-	bool SetLabel(const FText& InLabel);
+	ENGINE_API bool SetLabel(const FText& InLabel);
 
 	/** Sets whether or not to render this pose watch to the viewport */
-	void SetIsVisible(bool bInIsVisible);
+	ENGINE_API void SetIsVisible(bool bInIsVisible);
 
 	/** Sets the display color of this pose watch in the UI and viewport */
 	UE_DEPRECATED(5.1, "Node watches no longer have colors, use the color of its elements instead.")
-	void SetColor(const FColor& InColor);
+	ENGINE_API void SetColor(const FColor& InColor);
 
 	/** Sets whether this pose watch should delete after deselecting it's assigned node (Editor preference) */
-	void SetShouldDeleteOnDeselect(const bool bInDeleteOnDeselection);
+	ENGINE_API void SetShouldDeleteOnDeselect(const bool bInDeleteOnDeselection);
 
 	/** Called when a pose watch is deleted to update it's parent */
-	void OnRemoved();
+	ENGINE_API void OnRemoved();
 
 	/** Toggle's the pose watch's visibility */
-	void ToggleIsVisible();
+	ENGINE_API void ToggleIsVisible();
 
 	/** Returns true if this pose watch is inside InFolder */
-	bool IsIn(const UPoseWatchFolder* InFolder) const;
+	ENGINE_API bool IsIn(const UPoseWatchFolder* InFolder) const;
 
 	/** Returns true if this pose watch is inside some pose watch folder */
-	bool IsAssignedFolder() const;
+	ENGINE_API bool IsAssignedFolder() const;
 
 	/** Returns true if there would be no name clashes when assigning the label InLabel */
-	bool ValidateLabelRename(const FText& InLabel, FText& OutErrorMessage);
+	ENGINE_API bool ValidateLabelRename(const FText& InLabel, FText& OutErrorMessage);
 
 	/** Returns true if InLabel is a unique pose watch label among the children of InFolder, excluding this */
-	bool IsLabelUniqueInParent(const FText& InLabel, UPoseWatchFolder* InFolder) const;
+	ENGINE_API bool IsLabelUniqueInParent(const FText& InLabel, UPoseWatchFolder* InFolder) const;
 
 	/** Takes GetDefaultLabel() and generates unique labels to avoid name clashes (e.g. PoseWatch1, PoseWatch2, ...) */
-	void SetUniqueDefaultLabel();
+	ENGINE_API void SetUniqueDefaultLabel();
 
 	/** Called when a child element's visibility is changed */
-	void UpdateVisibility();
+	ENGINE_API void UpdateVisibility();
 
 	/** Returns the anim blueprint this pose watch is stored inside */
-	UAnimBlueprint* GetAnimBlueprint() const;
+	ENGINE_API UAnimBlueprint* GetAnimBlueprint() const;
 
 	/** Create a new element and add it to this pose watch */
-	TObjectPtr<UPoseWatchElement> AddElement(const FText InLabel, const FName IconName);
+	ENGINE_API TObjectPtr<UPoseWatchElement> AddElement(const FText InLabel, const FName IconName);
 
 	/** Create a new element of a specified type and add it to this pose watch */
 	template< class TElementType > TObjectPtr<TElementType> AddElement(const FText InLabel, const FName IconName);
@@ -364,10 +364,10 @@ public:
 	TArray<TObjectPtr<UPoseWatchElement>>& GetElements() { return Elements; }
 
 	/** Find an element with the supplied label. */
-	TObjectPtr<UPoseWatchElement> FindElement(const FText InLabel);
+	ENGINE_API TObjectPtr<UPoseWatchElement> FindElement(const FText InLabel);
 
 	/** Find and return and existing element with the supplied label or, if none exists, create a new element and add it to this pose watch. */
-	TObjectPtr<UPoseWatchElement> FindOrAddElement(const FText InLabel, const FName InIconName);
+	ENGINE_API TObjectPtr<UPoseWatchElement> FindOrAddElement(const FText InLabel, const FName InIconName);
 
 	/** Returns true if this pose watch contains the specified element */
 	bool Contains(const TObjectPtr<UPoseWatchElement> InElement) { return Elements.Contains(InElement); }
@@ -389,13 +389,13 @@ public:
 	
 private:
 	/** Returns a unique name for a new pose watch placed within InParent */
-	FText FindUniqueNameInParent(UPoseWatchFolder* InParent) const;
+	ENGINE_API FText FindUniqueNameInParent(UPoseWatchFolder* InParent) const;
 
 #endif // WITH_EDITOR
 
 #if WITH_EDITORONLY_DATA
 public:
-	virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
 
 	UPROPERTY()
 	TWeakObjectPtr<class UEdGraphNode> Node;

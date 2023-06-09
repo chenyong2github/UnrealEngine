@@ -27,22 +27,22 @@ struct FLayerActorStats
 	}
 };
  
-UCLASS()
-class ENGINE_API ULayer : public UObject
+UCLASS(MinimalAPI)
+class ULayer : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
 public:
-	void SetLayerName(FName InName);	
-	FName GetLayerName() const;
+	ENGINE_API void SetLayerName(FName InName);	
+	ENGINE_API FName GetLayerName() const;
 
-	void SetVisible(bool bIsVisible);
-	bool IsVisible() const;
+	ENGINE_API void SetVisible(bool bIsVisible);
+	ENGINE_API bool IsVisible() const;
 
-	const TArray<FLayerActorStats>& GetActorStats() const;
-	void ClearActorStats();
-	void AddToStats(AActor* Actor);
-	bool RemoveFromStats(AActor* Actor);
+	ENGINE_API const TArray<FLayerActorStats>& GetActorStats() const;
+	ENGINE_API void ClearActorStats();
+	ENGINE_API void AddToStats(AActor* Actor);
+	ENGINE_API bool RemoveFromStats(AActor* Actor);
 
 private:
 	/** The display name of the layer */

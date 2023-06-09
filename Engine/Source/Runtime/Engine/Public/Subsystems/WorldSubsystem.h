@@ -11,23 +11,23 @@
  * UWorldSubsystem
  * Base class for auto instanced and initialized systems that share the lifetime of a UWorld
  */
-UCLASS(Abstract)
-class ENGINE_API UWorldSubsystem : public USubsystem
+UCLASS(Abstract, MinimalAPI)
+class UWorldSubsystem : public USubsystem
 {
 	GENERATED_BODY()
 
 public:
-	UWorldSubsystem();
+	ENGINE_API UWorldSubsystem();
 
-	virtual UWorld* GetWorld() const override final;
+	ENGINE_API virtual UWorld* GetWorld() const override final;
 
 	/**
 	 * Returns a reference to the UWorld this subsystem is contained within.
 	 * @note This should not be called on default object since the method assumes a valid outer world.
 	 */
-	UWorld& GetWorldRef() const;
+	ENGINE_API UWorld& GetWorldRef() const;
 
-	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
+	ENGINE_API virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
 
 	/** Called once all UWorldSubsystems have been initialized */
 	virtual void PostInitialize() {}
@@ -42,32 +42,32 @@ public:
 	virtual void UpdateStreamingState() {}
 
 protected:
-	virtual bool DoesSupportWorldType(const EWorldType::Type WorldType) const;
+	ENGINE_API virtual bool DoesSupportWorldType(const EWorldType::Type WorldType) const;
 };
 
 /**
  * UTickableWorldSubsystem
  * Base class for auto instanced and initialized systems that share the lifetime of a UWorld and are ticking along with it
  */
-UCLASS(Abstract)
-class ENGINE_API UTickableWorldSubsystem : public UWorldSubsystem, public FTickableGameObject
+UCLASS(Abstract, MinimalAPI)
+class UTickableWorldSubsystem : public UWorldSubsystem, public FTickableGameObject
 {
 	GENERATED_BODY()
 
 public:
-	UTickableWorldSubsystem();
+	ENGINE_API UTickableWorldSubsystem();
 
 	// FTickableGameObject implementation Begin
 	virtual UWorld* GetTickableGameObjectWorld() const override { return GetWorld(); }
-	virtual ETickableTickType GetTickableTickType() const override;
-	virtual bool IsAllowedToTick() const override final;
-	virtual void Tick(float DeltaTime) override;
-	virtual TStatId GetStatId() const override PURE_VIRTUAL(UTickableWorldSubsystem::GetStatId, return TStatId(););
+	ENGINE_API virtual ETickableTickType GetTickableTickType() const override;
+	ENGINE_API virtual bool IsAllowedToTick() const override final;
+	ENGINE_API virtual void Tick(float DeltaTime) override;
+	ENGINE_API virtual TStatId GetStatId() const override PURE_VIRTUAL(UTickableWorldSubsystem::GetStatId, return TStatId(););
 	// FTickableGameObject implementation End
 
 	// USubsystem implementation Begin
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-	virtual void Deinitialize() override;
+	ENGINE_API virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	ENGINE_API virtual void Deinitialize() override;
 	// USubsystem implementation End
 
 	bool IsInitialized() const { return bInitialized; }

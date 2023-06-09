@@ -11,32 +11,32 @@ class FSlateFontMeasure;
 /** 
  * A shim around FSlateFontServices that provides access from the render thread (where FSlateApplication::Get() would assert)
  */
-class ENGINE_API FEngineFontServices
+class FEngineFontServices
 {
 public:
 	/** Create the singular instance of this class - must be called from the game thread */
-	static void Create();
+	static ENGINE_API void Create();
 
 	/** Destroy the singular instance of this class - must be called from the game thread */
-	static void Destroy();
+	static ENGINE_API void Destroy();
 
 	/** Check to see if the singular instance of this class is currently initialized and ready */
-	static bool IsInitialized();
+	static ENGINE_API bool IsInitialized();
 
 	/** Get the singular instance of this class */
-	static FEngineFontServices& Get();
+	static ENGINE_API FEngineFontServices& Get();
 
 	/** Get the font cache to use for the current thread */
-	TSharedPtr<FSlateFontCache> GetFontCache();
+	ENGINE_API TSharedPtr<FSlateFontCache> GetFontCache();
 
 	/** Get the font measure to use for the current thread */
-	TSharedPtr<FSlateFontMeasure> GetFontMeasure();
+	ENGINE_API TSharedPtr<FSlateFontMeasure> GetFontMeasure();
 
 	/** Update the cache for the current thread */
-	void UpdateCache();
+	ENGINE_API void UpdateCache();
 
 	/** Delegate called after releasing the rendering resources used by this font service */
-	FOnReleaseFontResources& OnReleaseResources();
+	ENGINE_API FOnReleaseFontResources& OnReleaseResources();
 
 private:
 	/** Constructor - must be called from the game thread */

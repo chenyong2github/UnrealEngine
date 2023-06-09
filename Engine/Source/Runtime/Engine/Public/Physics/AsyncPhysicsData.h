@@ -9,8 +9,8 @@
 	When no data is available (say due to massive latency or packet loss) we fall back on the default constructed data.
 	This means you should set the default values to something equivalent to no input (for example bPlayerWantsToJump should probably default to false)
 */
-UCLASS(BlueprintType, Blueprintable)
-class ENGINE_API UAsyncPhysicsData : public UObject
+UCLASS(BlueprintType, Blueprintable, MinimalAPI)
+class UAsyncPhysicsData : public UObject
 {
 	GENERATED_BODY()
 public:

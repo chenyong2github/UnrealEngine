@@ -10,8 +10,8 @@ class UNavigationSystemBase;
 class UWorld;
 
 
-UCLASS(config = Engine, defaultconfig, EditInlineNew, DisplayName = "Generic Navigation System Config", collapseCategories)
-class ENGINE_API UNavigationSystemConfig : public UObject
+UCLASS(config = Engine, defaultconfig, EditInlineNew, DisplayName = "Generic Navigation System Config", collapseCategories, MinimalAPI)
+class UNavigationSystemConfig : public UObject
 {
 	GENERATED_BODY()
 
@@ -37,17 +37,17 @@ protected:
 	uint32 bIsOverriden : 1; 
 	
 public:
-	UNavigationSystemConfig(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	ENGINE_API UNavigationSystemConfig(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	virtual UNavigationSystemBase* CreateAndConfigureNavigationSystem(UWorld& World) const;
+	ENGINE_API virtual UNavigationSystemBase* CreateAndConfigureNavigationSystem(UWorld& World) const;
 
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 
 	void SetIsOverriden(const bool bInNewValue) { bIsOverriden = bInNewValue; }
 
-	static TSubclassOf<UNavigationSystemConfig> GetDefaultConfigClass();
+	static ENGINE_API TSubclassOf<UNavigationSystemConfig> GetDefaultConfigClass();
 };
 
 UCLASS(MinimalAPI, HideCategories=Navigation)

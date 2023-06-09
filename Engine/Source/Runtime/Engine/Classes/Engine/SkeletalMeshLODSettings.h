@@ -156,7 +156,7 @@ public:
 	ENGINE_API const FSkeletalMeshLODGroupSettings& GetSettingsForLODLevel(const int32 LODIndex) const;
 
 	/** Returns whether or not valid settings were retrieved from the ini file */
-	ENGINE_API const bool HasValidSettings() const
+	const bool HasValidSettings() const
 	{
 		return LODGroups.Num() > 0;
 	}

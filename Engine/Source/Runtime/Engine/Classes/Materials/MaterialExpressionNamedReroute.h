@@ -7,8 +7,8 @@
 
 class UMaterialExpressionNamedRerouteDeclaration;
 
-UCLASS(abstract)
-class ENGINE_API UMaterialExpressionNamedRerouteBase : public UMaterialExpressionRerouteBase
+UCLASS(abstract, MinimalAPI)
+class UMaterialExpressionNamedRerouteBase : public UMaterialExpressionRerouteBase
 {
 	GENERATED_UCLASS_BODY()
 
@@ -27,11 +27,11 @@ protected:
 	 * @param	VariableGuid	The GUID of the variable to find
 	 * @return	null if not found
 	 */
-	UMaterialExpressionNamedRerouteDeclaration* FindDeclarationInMaterial(const FGuid& VariableGuid) const;
+	ENGINE_API UMaterialExpressionNamedRerouteDeclaration* FindDeclarationInMaterial(const FGuid& VariableGuid) const;
 };
 
-UCLASS(collapsecategories, hidecategories=Object, DisplayName = "Named Reroute Declaration")
-class ENGINE_API UMaterialExpressionNamedRerouteDeclaration : public UMaterialExpressionNamedRerouteBase
+UCLASS(collapsecategories, hidecategories=Object, DisplayName = "Named Reroute Declaration", MinimalAPI)
+class UMaterialExpressionNamedRerouteDeclaration : public UMaterialExpressionNamedRerouteBase
 {
 	GENERATED_UCLASS_BODY()
 
@@ -52,36 +52,36 @@ public:
 	FGuid VariableGuid;
 
 	//~ Begin UObject Interface
-	virtual void PostInitProperties() override;
-	virtual void PostLoad() override;
-	virtual void PostDuplicate(bool bDuplicateForPIE) override;
+	ENGINE_API virtual void PostInitProperties() override;
+	ENGINE_API virtual void PostLoad() override;
+	ENGINE_API virtual void PostDuplicate(bool bDuplicateForPIE) override;
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 	//~ End UObject Interface
 
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR
-	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
-	virtual int32 CompilePreview(FMaterialCompiler* Compiler, int32 OutputIndex) override;
-	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
+	ENGINE_API virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
+	ENGINE_API virtual int32 CompilePreview(FMaterialCompiler* Compiler, int32 OutputIndex) override;
+	ENGINE_API virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 
-	virtual FText GetCreationDescription() const override;
-	virtual FText GetCreationName() const override;
+	ENGINE_API virtual FText GetCreationDescription() const override;
+	ENGINE_API virtual FText GetCreationName() const override;
 	
-	virtual bool MatchesSearchQuery(const TCHAR* SearchQuery) override;
-	virtual bool CanRenameNode() const override;
-	virtual FString GetEditableName() const override;
-	virtual void SetEditableName(const FString& NewName) override;
+	ENGINE_API virtual bool MatchesSearchQuery(const TCHAR* SearchQuery) override;
+	ENGINE_API virtual bool CanRenameNode() const override;
+	ENGINE_API virtual FString GetEditableName() const override;
+	ENGINE_API virtual void SetEditableName(const FString& NewName) override;
 
-	virtual void PostCopyNode(const TArray<UMaterialExpression*>& CopiedExpressions) override;
-	virtual bool GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression const*& OutExpression) const override;
+	ENGINE_API virtual void PostCopyNode(const TArray<UMaterialExpression*>& CopiedExpressions) override;
+	ENGINE_API virtual bool GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression const*& OutExpression) const override;
 #endif // WITH_EDITOR
 	//~ End UMaterialExpression Interface
 
 protected:
 	//~ Begin UMaterialExpressionRerouteBase Interface
-	virtual bool GetRerouteInput(FExpressionInput& OutInput) const override;
+	ENGINE_API virtual bool GetRerouteInput(FExpressionInput& OutInput) const override;
 	//~ End UMaterialExpressionRerouteBase Interface
 
 private:
@@ -93,8 +93,8 @@ private:
 	void MakeNameUnique();
 };
 
-UCLASS(collapsecategories, hidecategories=Object, DisplayName = "Named Reroute Usage")
-class ENGINE_API UMaterialExpressionNamedRerouteUsage : public UMaterialExpressionNamedRerouteBase
+UCLASS(collapsecategories, hidecategories=Object, DisplayName = "Named Reroute Usage", MinimalAPI)
+class UMaterialExpressionNamedRerouteUsage : public UMaterialExpressionNamedRerouteBase
 {
 	GENERATED_UCLASS_BODY()
 
@@ -109,22 +109,22 @@ public:
 
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR
-	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
-	virtual int32 CompilePreview(FMaterialCompiler* Compiler, int32 OutputIndex) override;
+	ENGINE_API virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
+	ENGINE_API virtual int32 CompilePreview(FMaterialCompiler* Compiler, int32 OutputIndex) override;
 
-	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
-	virtual uint32 GetOutputType(int32 OutputIndex) override;
+	ENGINE_API virtual void GetCaption(TArray<FString>& OutCaptions) const override;
+	ENGINE_API virtual uint32 GetOutputType(int32 OutputIndex) override;
 	
-	virtual bool MatchesSearchQuery(const TCHAR* SearchQuery) override;
+	ENGINE_API virtual bool MatchesSearchQuery(const TCHAR* SearchQuery) override;
 	
-	virtual void PostCopyNode(const TArray<UMaterialExpression*>& CopiedExpressions) override;
-	virtual bool GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression const*& OutExpression) const override;
+	ENGINE_API virtual void PostCopyNode(const TArray<UMaterialExpression*>& CopiedExpressions) override;
+	ENGINE_API virtual bool GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression const*& OutExpression) const override;
 #endif // WITH_EDITOR
 	//~ End UMaterialExpression Interface
 
 protected:
 	//~ Begin UMaterialExpressionRerouteBase Interface
-	virtual bool GetRerouteInput(FExpressionInput& OutInput) const override;
+	ENGINE_API virtual bool GetRerouteInput(FExpressionInput& OutInput) const override;
 	//~ End UMaterialExpressionRerouteBase Interface
 
 private:

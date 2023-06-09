@@ -22,42 +22,42 @@ struct FWorldPartitionActorFilter;
 /**
  * FPackedLevelActorBuilder handles packing of ALevelInstance actors into APackedLevelActor actors and Blueprints.
  */
-class ENGINE_API FPackedLevelActorBuilder
+class FPackedLevelActorBuilder
 {
 public:
-	FPackedLevelActorBuilder();
+	ENGINE_API FPackedLevelActorBuilder();
 	
-	static TSharedPtr<FPackedLevelActorBuilder> CreateDefaultBuilder();
+	static ENGINE_API TSharedPtr<FPackedLevelActorBuilder> CreateDefaultBuilder();
 	
 	/* Packs InPackedLevelActor using InLevelInstanceToPack as its source level actor */
-	bool PackActor(APackedLevelActor* InPackedLevelActor, ALevelInstance* InLevelInstanceToPack);
+	ENGINE_API bool PackActor(APackedLevelActor* InPackedLevelActor, ALevelInstance* InLevelInstanceToPack);
 	/* Packs InPackedLevelActor using itself as the source level actor */
-	bool PackActor(APackedLevelActor* InPackedLevelActor);
+	ENGINE_API bool PackActor(APackedLevelActor* InPackedLevelActor);
 	/* Packs InPackedLevelActor using InWorldAsset as the source level */
-	bool PackActor(APackedLevelActor* InPackedLevelActor, TSoftObjectPtr<UWorld> InWorldAsset);
+	ENGINE_API bool PackActor(APackedLevelActor* InPackedLevelActor, TSoftObjectPtr<UWorld> InWorldAsset);
 
 	/* Creates/Updates a APackedLevelActor Blueprint from InLevelInstance (will overwrite existing asset or show a dialog if InBlueprintAsset is null) */
-	bool CreateOrUpdateBlueprint(ALevelInstance* InLevelInstance, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave = true, bool bPromptForSave = true);
+	ENGINE_API bool CreateOrUpdateBlueprint(ALevelInstance* InLevelInstance, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave = true, bool bPromptForSave = true);
 	/* Creates/Updates a APackedLeveInstance Blueprint from InWorldAsset (will overwrite existing asset or show a dialog if InBlueprintAsset is null) */
-	bool CreateOrUpdateBlueprint(TSoftObjectPtr<UWorld> InWorldAsset, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave = true, bool bPromptForSave = true);
+	ENGINE_API bool CreateOrUpdateBlueprint(TSoftObjectPtr<UWorld> InWorldAsset, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave = true, bool bPromptForSave = true);
 	/* Update existing Blueprint */
-	void UpdateBlueprint(UBlueprint* Blueprint, bool bCheckoutAndSave = true);
+	ENGINE_API void UpdateBlueprint(UBlueprint* Blueprint, bool bCheckoutAndSave = true);
 
-	static const FString& GetPackedBPPrefix();
+	static ENGINE_API const FString& GetPackedBPPrefix();
 	/* Creates a new APackedLevelActor Blueprint using InPackagePath/InAssetName as hint for path. Prompts the user to input the final asset name. */
-	static UBlueprint* CreatePackedLevelActorBlueprintWithDialog(TSoftObjectPtr<UBlueprint> InBlueprintAsset, TSoftObjectPtr<UWorld> InWorldAsset, bool bInCompile);
+	static ENGINE_API UBlueprint* CreatePackedLevelActorBlueprintWithDialog(TSoftObjectPtr<UBlueprint> InBlueprintAsset, TSoftObjectPtr<UWorld> InWorldAsset, bool bInCompile);
 	/* Creates a new APackedLevelActor Blueprint using InPackagePath/InAssetName */
-	static UBlueprint* CreatePackedLevelActorBlueprint(TSoftObjectPtr<UBlueprint> InBlueprintAsset, TSoftObjectPtr<UWorld> InWorldAsset, bool bInCompile);
+	static ENGINE_API UBlueprint* CreatePackedLevelActorBlueprint(TSoftObjectPtr<UBlueprint> InBlueprintAsset, TSoftObjectPtr<UWorld> InWorldAsset, bool bInCompile);
 	
 private:
-	bool PackActor(FPackedLevelActorBuilderContext& InContext);
+	ENGINE_API bool PackActor(FPackedLevelActorBuilderContext& InContext);
 
 	/* Create/Updates a APackedLevelActor Blueprint from InPackedActor (will overwrite existing asset or show a dialog if InBlueprintAsset is null) */
-	bool CreateOrUpdateBlueprintFromPacked(APackedLevelActor* InPackedActor, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave, bool bPromptForSave);
+	ENGINE_API bool CreateOrUpdateBlueprintFromPacked(APackedLevelActor* InPackedActor, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave, bool bPromptForSave);
 	/* Creates/Updates a APackedLevelActor Blueprint from InLevelInstance (will overwrite existing asset or show a dialog if InBlueprintAsset is null) */
-	bool CreateOrUpdateBlueprintFromUnpacked(ALevelInstance* InPackedActor, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave, bool bPromptForSave);
+	ENGINE_API bool CreateOrUpdateBlueprintFromUnpacked(ALevelInstance* InPackedActor, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave, bool bPromptForSave);
 	/* Creates and loads a ALevelInstance so it can be used for packing */
-	ALevelInstance* CreateTransientLevelInstanceForPacking(TSoftObjectPtr<UWorld> InWorldAsset, const FVector& InLocation, const FRotator& InRotator, const FWorldPartitionActorFilter& InFilter);
+	ENGINE_API ALevelInstance* CreateTransientLevelInstanceForPacking(TSoftObjectPtr<UWorld> InWorldAsset, const FVector& InLocation, const FRotator& InRotator, const FWorldPartitionActorFilter& InFilter);
 
 	FPackedLevelActorBuilder(const FPackedLevelActorBuilder&) = delete;
 	FPackedLevelActorBuilder& operator=(const FPackedLevelActorBuilder&) = delete;

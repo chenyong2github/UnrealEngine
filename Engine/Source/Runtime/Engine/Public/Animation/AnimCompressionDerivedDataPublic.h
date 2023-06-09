@@ -53,7 +53,7 @@ struct FQueuedAsyncCompressionWork
 //   tracks memory usage of async compression
 //   Gives API for blocking on compression
 class UE_DEPRECATED(5.2, "FAsyncCompressedAnimationsManagement has been deprecated") FAsyncCompressedAnimationsManagement;
-class ENGINE_API FAsyncCompressedAnimationsManagement
+class FAsyncCompressedAnimationsManagement
 {
 public:
 	static FAsyncCompressedAnimationsManagement& Get()

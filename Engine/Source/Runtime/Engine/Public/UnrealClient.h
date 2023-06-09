@@ -40,12 +40,12 @@ public:
 	/**
 	 * Default constructor
 	 */
-	ENGINE_API FRenderTarget() {};
+	FRenderTarget() {};
 
 	/**
 	 * Destructor
 	 */
-	ENGINE_API virtual ~FRenderTarget() {};
+	virtual ~FRenderTarget() {};
 
 	/**
 	* Accessor for the surface RHI when setting this render target
@@ -118,7 +118,7 @@ public:
 	/**
 	 * Returns the GPU nodes on which to render this rendertarget.
 	 **/
-	ENGINE_API virtual FRHIGPUMask GetGPUMask(FRHICommandListImmediate& RHICmdList) const { return FRHIGPUMask::GPU0(); }
+	virtual FRHIGPUMask GetGPUMask(FRHICommandListImmediate& RHICmdList) const { return FRHIGPUMask::GPU0(); }
 
 protected:
 
@@ -154,7 +154,7 @@ DECLARE_MULTICAST_DELEGATE(FOnScreenshotRequestProcessed);
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnScreenshotCaptured, int32 /*Width*/, int32 /*Height*/, const TArray<FColor>& /*Colors*/);
 
 
-struct ENGINE_API FScreenshotRequest
+struct FScreenshotRequest
 {
 	/**
 	 * Requests a new screenshot.  Screenshot can be read from memory by subscribing
@@ -162,7 +162,7 @@ struct ENGINE_API FScreenshotRequest
 	 *
 	 * @param bInShowUI				Whether or not to show Slate UI
 	 */
-	static void RequestScreenshot(bool bInShowUI);
+	static ENGINE_API void RequestScreenshot(bool bInShowUI);
 
 	/**
 	 * Requests a new screenshot with a specific filename
@@ -171,12 +171,12 @@ struct ENGINE_API FScreenshotRequest
 	 * @param bInShowUI				Whether or not to show Slate UI
 	 * @param bAddFilenameSuffix	Whether an auto-generated unique suffix should be added to the supplied filename
 	 */
-	static void RequestScreenshot(const FString& InFilename, bool bInShowUI, bool bAddFilenameSuffix, bool bHdrScreenshot=false);
+	static ENGINE_API void RequestScreenshot(const FString& InFilename, bool bInShowUI, bool bAddFilenameSuffix, bool bHdrScreenshot=false);
 
 	/**
 	 * Resets a screenshot request
 	 */
-	static void Reset();
+	static ENGINE_API void Reset();
 
 	/**
 	 * @return The filename of the next screenshot
@@ -196,17 +196,17 @@ struct ENGINE_API FScreenshotRequest
 	/**
 	 * Creates a new screenshot filename from the passed in filename template
 	 */
-	static void CreateViewportScreenShotFilename( FString& InOutFilename );
+	static ENGINE_API void CreateViewportScreenShotFilename( FString& InOutFilename );
 
 	/**
 	 * Access a temporary color array for storing the pixel colors for the highres screenshot mask
 	 */
-	static TArray<FColor>* GetHighresScreenshotMaskColorArray();
+	static ENGINE_API TArray<FColor>* GetHighresScreenshotMaskColorArray();
 
 	/**
 	 * Extents of array returned by function above
 	 */
-	static FIntPoint& GetHighresScreenshotMaskExtents();
+	static ENGINE_API FIntPoint& GetHighresScreenshotMaskExtents();
 
 	static FOnScreenshotRequestProcessed& OnScreenshotRequestProcessed()
 	{
@@ -219,14 +219,14 @@ struct ENGINE_API FScreenshotRequest
 	}
 
 private:
-	static FOnScreenshotRequestProcessed ScreenshotProcessedDelegate;
-	static FOnScreenshotCaptured ScreenshotCapturedDelegate;
-	static bool bIsScreenshotRequested;
-	static FString NextScreenshotName;
-	static FString Filename;
-	static bool bShowUI;
-	static TArray<FColor> HighresScreenshotMaskColorArray;
-	static FIntPoint HighresScreenshotMaskExtents;
+	static ENGINE_API FOnScreenshotRequestProcessed ScreenshotProcessedDelegate;
+	static ENGINE_API FOnScreenshotCaptured ScreenshotCapturedDelegate;
+	static ENGINE_API bool bIsScreenshotRequested;
+	static ENGINE_API FString NextScreenshotName;
+	static ENGINE_API FString Filename;
+	static ENGINE_API bool bShowUI;
+	static ENGINE_API TArray<FColor> HighresScreenshotMaskColorArray;
+	static ENGINE_API FIntPoint HighresScreenshotMaskExtents;
 };
 
 // @param bAutoType true: automatically choose GB/MB/KB/... false: always use MB for easier comparisons
@@ -583,7 +583,7 @@ public:
 	 * Returns whether rendering is globally enabled or disabled.
 	 * @return	true if rendering is globally enabled, otherwise false.
 	 **/
-	ENGINE_API static bool IsGameRenderingEnabled() { return bIsGameRenderingEnabled; }
+	static bool IsGameRenderingEnabled() { return bIsGameRenderingEnabled; }
 
 	/**
 	 * Handles freezing/unfreezing of rendering

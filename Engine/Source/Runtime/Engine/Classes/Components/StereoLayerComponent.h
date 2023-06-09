@@ -45,34 +45,34 @@ enum EStereoLayerShape : int
 	SLSH_MAX,
 };
 
-UCLASS(EditInlineNew, Abstract, BlueprintType, CollapseCategories)
-class ENGINE_API UStereoLayerShape : public UObject
+UCLASS(EditInlineNew, Abstract, BlueprintType, CollapseCategories, MinimalAPI)
+class UStereoLayerShape : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	virtual void ApplyShape(IStereoLayers::FLayerDesc& LayerDesc);
+	ENGINE_API virtual void ApplyShape(IStereoLayers::FLayerDesc& LayerDesc);
 #if WITH_EDITOR
-	virtual void DrawShapeVisualization(const class FSceneView* View, class FPrimitiveDrawInterface* PDI);
+	ENGINE_API virtual void DrawShapeVisualization(const class FSceneView* View, class FPrimitiveDrawInterface* PDI);
 #endif
 
 protected:
-	void MarkStereoLayerDirty();
+	ENGINE_API void MarkStereoLayerDirty();
 };
 
-UCLASS(meta = (DisplayName = "Quad Layer"))
-class ENGINE_API UStereoLayerShapeQuad : public UStereoLayerShape
+UCLASS(meta = (DisplayName = "Quad Layer"), MinimalAPI)
+class UStereoLayerShapeQuad : public UStereoLayerShape
 {
 	GENERATED_BODY()
 public:
-	virtual void ApplyShape(IStereoLayers::FLayerDesc& LayerDesc) override;
+	ENGINE_API virtual void ApplyShape(IStereoLayers::FLayerDesc& LayerDesc) override;
 #if WITH_EDITOR
-	virtual void DrawShapeVisualization(const class FSceneView* View, class FPrimitiveDrawInterface* PDI) override;
+	ENGINE_API virtual void DrawShapeVisualization(const class FSceneView* View, class FPrimitiveDrawInterface* PDI) override;
 #endif
 };
 
-UCLASS(meta = (DisplayName = "Cylinder Layer"))
-class ENGINE_API UStereoLayerShapeCylinder : public UStereoLayerShape
+UCLASS(meta = (DisplayName = "Cylinder Layer"), MinimalAPI)
+class UStereoLayerShapeCylinder : public UStereoLayerShape
 {
 	GENERATED_BODY()
 
@@ -96,24 +96,24 @@ public:
 	int Height;
 
 	UFUNCTION(BlueprintCallable, Category = "Components|Stereo Layer")
-	void SetRadius(float InRadius);
+	ENGINE_API void SetRadius(float InRadius);
 	UFUNCTION(BlueprintCallable, Category = "Components|Stereo Layer")
-	void SetOverlayArc(float InOverlayArc);
+	ENGINE_API void SetOverlayArc(float InOverlayArc);
 	UFUNCTION(BlueprintCallable, Category = "Components|Stereo Layer")
-	void SetHeight(int InHeight);
+	ENGINE_API void SetHeight(int InHeight);
 
-	virtual void ApplyShape(IStereoLayers::FLayerDesc& LayerDesc) override;
+	ENGINE_API virtual void ApplyShape(IStereoLayers::FLayerDesc& LayerDesc) override;
 #if WITH_EDITOR
-	virtual void DrawShapeVisualization(const class FSceneView* View, class FPrimitiveDrawInterface* PDI) override;
+	ENGINE_API virtual void DrawShapeVisualization(const class FSceneView* View, class FPrimitiveDrawInterface* PDI) override;
 #endif
 };
 
-UCLASS(meta = (DisplayName = "Cubemap Layer"))
-class ENGINE_API UStereoLayerShapeCubemap : public UStereoLayerShape
+UCLASS(meta = (DisplayName = "Cubemap Layer"), MinimalAPI)
+class UStereoLayerShapeCubemap : public UStereoLayerShape
 {
 	GENERATED_BODY()
 public:
-	virtual void ApplyShape(IStereoLayers::FLayerDesc& LayerDesc) override;
+	ENGINE_API virtual void ApplyShape(IStereoLayers::FLayerDesc& LayerDesc) override;
 };
 
 /** Properties for equirect layers */
@@ -191,8 +191,8 @@ public:
 };
 
 
-UCLASS(meta = (DisplayName = "Equirect Layer"))
-class ENGINE_API UStereoLayerShapeEquirect : public UStereoLayerShape
+UCLASS(meta = (DisplayName = "Equirect Layer"), MinimalAPI)
+class UStereoLayerShapeEquirect : public UStereoLayerShape
 {
 	GENERATED_BODY()
 
@@ -244,19 +244,19 @@ public:
 	 * @param	Radius: Sphere radius
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Components|Stereo Layer")
-	void SetEquirectProps(FEquirectProps InScaleBiases);
+	ENGINE_API void SetEquirectProps(FEquirectProps InScaleBiases);
 
-	virtual void ApplyShape(IStereoLayers::FLayerDesc& LayerDesc) override;
+	ENGINE_API virtual void ApplyShape(IStereoLayers::FLayerDesc& LayerDesc) override;
 #if WITH_EDITOR
-	virtual void DrawShapeVisualization(const class FSceneView* View, class FPrimitiveDrawInterface* PDI) override;
+	ENGINE_API virtual void DrawShapeVisualization(const class FSceneView* View, class FPrimitiveDrawInterface* PDI) override;
 #endif
 };
 
 /** 
  * A geometry layer within the stereo rendered viewport.
  */
-UCLASS(ClassGroup="HeadMountedDisplay", hidecategories=(Object,LOD,Lighting,TextureStreaming), editinlinenew, meta=(DisplayName="Stereo Layer", BlueprintSpawnableComponent))
-class ENGINE_API UStereoLayerComponent : public USceneComponent
+UCLASS(ClassGroup="HeadMountedDisplay", hidecategories=(Object,LOD,Lighting,TextureStreaming), editinlinenew, meta=(DisplayName="Stereo Layer", BlueprintSpawnableComponent), MinimalAPI)
+class UStereoLayerComponent : public USceneComponent
 {
 	GENERATED_UCLASS_BODY()
     friend class FStereoLayerComponentVisualizer;
@@ -264,13 +264,13 @@ class ENGINE_API UStereoLayerComponent : public USceneComponent
 public:
 
 	//~ Begin UObject Interface
-	virtual void OnUnregister() override;
-	virtual void Serialize(FArchive& Ar) override;
-	virtual void PostLoad() override;
+	ENGINE_API virtual void OnUnregister() override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void PostLoad() override;
 	//~ End UObject Interface
 
 	//~ Begin UActorComponent Interface
-	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
+	ENGINE_API virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 	//~ End UActorComponent Interface
 
 	/** 
@@ -280,14 +280,14 @@ public:
 	 * @param	InTexture: new Texture2D
 	 */
 	UFUNCTION(BlueprintCallable, Category="Components|Stereo Layer")
-	void SetTexture(UTexture* InTexture);
+	ENGINE_API void SetTexture(UTexture* InTexture);
 
 	/** 
 	 * Change the texture displayed on the stereo layer for left eye, if stereoscopic layer textures are supported on the platform.
 	 * @param	InTexture: new Texture2D
 	 */
 	UFUNCTION(BlueprintCallable, Category="Components|Stereo Layer")
-	void SetLeftTexture(UTexture* InTexture);
+	ENGINE_API void SetLeftTexture(UTexture* InTexture);
 
 	// @return the texture mapped to the stereo layer.
 	UFUNCTION(BlueprintCallable, Category="Components|Stereo Layer")
@@ -302,7 +302,7 @@ public:
 	 * @param	InQuadSize: new quad size.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Components|Stereo Layer")
-	void SetQuadSize(FVector2D InQuadSize);
+	ENGINE_API void SetQuadSize(FVector2D InQuadSize);
 
 	// @return the height and width of the rendered quad
 	UFUNCTION(BlueprintCallable, Category="Components|Stereo Layer")
@@ -313,7 +313,7 @@ public:
 	 * @param	InUVRect: Min and Max UV coordinates
 	 */
 	UFUNCTION(BlueprintCallable, Category="Components|Stereo Layer")
-	void SetUVRect(FBox2D InUVRect);
+	ENGINE_API void SetUVRect(FBox2D InUVRect);
 
 	// @return the UV coordinates mapped to the quad face
 	UFUNCTION(BlueprintCallable, Category="Components|Stereo Layer")
@@ -328,14 +328,14 @@ public:
 	 * @param	Radius: sphere radius
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Components|Stereo Layer", meta = (DeprecatedFunction, DeprecationMessage = "Use UStereoLayerShapeEquirect::SetEquirectProps() instead."))
-	void SetEquirectProps(FEquirectProps InEquirectProps);
+	ENGINE_API void SetEquirectProps(FEquirectProps InEquirectProps);
 
 	/** 
 	 * Change the layer's render priority, higher priorities render on top of lower priorities
 	 * @param	InPriority: Priority value
 	 */
 	UFUNCTION(BlueprintCallable, Category="Components|Stereo Layer")
-	void SetPriority(int32 InPriority);
+	ENGINE_API void SetPriority(int32 InPriority);
 
 	// @return the render priority
 	UFUNCTION(BlueprintCallable, Category="Components|Stereo Layer")
@@ -343,7 +343,7 @@ public:
 
 	// Manually mark the stereo layer texture for updating
 	UFUNCTION(BlueprintCallable, Category="Components|Stereo Layer")
-	void MarkTextureForUpdate();
+	ENGINE_API void MarkTextureForUpdate();
 
 	/** True if the stereo layer texture needs to update itself every frame(scene capture, video, etc.) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category= "StereoLayer")
@@ -357,7 +357,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category= "StereoLayer")
 	uint32 bNoAlphaChannel:1;
 
-	void MarkStereoLayerDirty();
+	ENGINE_API void MarkStereoLayerDirty();
 protected:
 	/** Texture displayed on the stereo layer (if stereoscopic textures are supported on the platform and more than one texture is provided, this will be the right eye) **/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category= "StereoLayer")

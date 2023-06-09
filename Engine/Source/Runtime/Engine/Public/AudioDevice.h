@@ -729,12 +729,12 @@ public:
 		return CurrentReverbEffect;
 	}
 
-	struct ENGINE_API FCreateComponentParams
+	struct FCreateComponentParams
 	{
-		FCreateComponentParams();
-		FCreateComponentParams(UWorld* World, AActor* Actor = nullptr);
-		FCreateComponentParams(AActor* Actor);
-		FCreateComponentParams(FAudioDevice* AudioDevice);
+		ENGINE_API FCreateComponentParams();
+		ENGINE_API FCreateComponentParams(UWorld* World, AActor* Actor = nullptr);
+		ENGINE_API FCreateComponentParams(AActor* Actor);
+		ENGINE_API FCreateComponentParams(FAudioDevice* AudioDevice);
 
 		USoundAttenuation* AttenuationSettings;
 		TSubclassOf<UAudioComponent> AudioComponentClass = UAudioComponent::StaticClass();
@@ -743,8 +743,8 @@ public:
 		bool bPlay;
 		bool bStopWhenOwnerDestroyed;
 
-		void SetLocation(FVector Location);
-		bool ShouldUseAttenuation() const;
+		ENGINE_API void SetLocation(FVector Location);
+		ENGINE_API bool ShouldUseAttenuation() const;
 
 	private:
 		UWorld* World;
@@ -754,7 +754,7 @@ public:
 		bool bLocationSet;
 		FVector Location;
 
-		void CommonInit();
+		ENGINE_API void CommonInit();
 
 		friend FAudioDevice;
 	};
@@ -2006,13 +2006,13 @@ public:
 	/** The handle for this audio device used in the audio device manager. */
 	Audio::FDeviceId DeviceID;
 
-	struct ENGINE_API FAudioSpatializationInterfaceInfo
+	struct FAudioSpatializationInterfaceInfo
 	{
 		// ctors
 		FAudioSpatializationInterfaceInfo() = default;
-		FAudioSpatializationInterfaceInfo(FName InPluginName, FAudioDevice* InAudioDevice, IAudioSpatializationFactory* InAudioSpatializationFactoryPtr);
+		ENGINE_API FAudioSpatializationInterfaceInfo(FName InPluginName, FAudioDevice* InAudioDevice, IAudioSpatializationFactory* InAudioSpatializationFactoryPtr);
 
-		bool IsValid() const;
+		ENGINE_API bool IsValid() const;
 
 		FName PluginName;
 		TAudioSpatializationPtr SpatializationPlugin = nullptr;

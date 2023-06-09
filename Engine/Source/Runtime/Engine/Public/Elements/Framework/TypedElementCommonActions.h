@@ -16,22 +16,22 @@ class UTypedElementSelectionSet;
 /**
  * Customization used to allow asset editors (such as the level editor) to override the base behavior of common actions.
  */
-class ENGINE_API FTypedElementCommonActionsCustomization
+class FTypedElementCommonActionsCustomization
 {
 public:
 	virtual ~FTypedElementCommonActionsCustomization() = default;
 
 	//~ See UTypedElementCommonActions for API docs
-	virtual bool DeleteElements(ITypedElementWorldInterface* InWorldInterface, TArrayView<const FTypedElementHandle> InElementHandles, UWorld* InWorld, UTypedElementSelectionSet* InSelectionSet, const FTypedElementDeletionOptions& InDeletionOptions);
-	virtual void DuplicateElements(ITypedElementWorldInterface* InWorldInterface, TArrayView<const FTypedElementHandle> InElementHandles, UWorld* InWorld, const FVector& InLocationOffset, TArray<FTypedElementHandle>& OutNewElements);
-	virtual void CopyElements(ITypedElementWorldInterface* InWorldInterface,TArrayView<const FTypedElementHandle> InElementHandles, FOutputDevice& Out);
-	virtual TSharedPtr<FWorldElementPasteImporter> GetPasteImporter(ITypedElementWorldInterface* InWorldInterface, const FTypedElementListConstPtr& InSelectedHandles, UWorld* InWorld);
+	ENGINE_API virtual bool DeleteElements(ITypedElementWorldInterface* InWorldInterface, TArrayView<const FTypedElementHandle> InElementHandles, UWorld* InWorld, UTypedElementSelectionSet* InSelectionSet, const FTypedElementDeletionOptions& InDeletionOptions);
+	ENGINE_API virtual void DuplicateElements(ITypedElementWorldInterface* InWorldInterface, TArrayView<const FTypedElementHandle> InElementHandles, UWorld* InWorld, const FVector& InLocationOffset, TArray<FTypedElementHandle>& OutNewElements);
+	ENGINE_API virtual void CopyElements(ITypedElementWorldInterface* InWorldInterface,TArrayView<const FTypedElementHandle> InElementHandles, FOutputDevice& Out);
+	ENGINE_API virtual TSharedPtr<FWorldElementPasteImporter> GetPasteImporter(ITypedElementWorldInterface* InWorldInterface, const FTypedElementListConstPtr& InSelectedHandles, UWorld* InWorld);
 };
 
 /**
  * Utility to hold a typed element handle and its associated world interface and common actions customization.
  */
-struct ENGINE_API FTypedElementCommonActionsElement
+struct FTypedElementCommonActionsElement
 {
 public:
 	FTypedElementCommonActionsElement() = default;
@@ -93,8 +93,8 @@ struct FTypedElementPasteOptions
  * A utility to handle higher-level common actions, but default via UTypedElementWorldInterface,
  * but asset editors can customize this behavior via FTypedElementCommonActionsCustomization.
  */
-UCLASS(Transient)
-class ENGINE_API UTypedElementCommonActions : public UObject, public TTypedElementInterfaceCustomizationRegistry<FTypedElementCommonActionsCustomization>
+UCLASS(Transient, MinimalAPI)
+class UTypedElementCommonActions : public UObject, public TTypedElementInterfaceCustomizationRegistry<FTypedElementCommonActionsCustomization>
 {
 	GENERATED_BODY()
 
@@ -104,57 +104,57 @@ public:
 	 * @note Internally this just calls DeleteNormalizedElements on the result of UTypedElementSelectionSet::GetNormalizedSelection.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|Common")
-	bool DeleteSelectedElements(UTypedElementSelectionSet* SelectionSet, UWorld* World, const FTypedElementDeletionOptions& DeletionOptions);
+	ENGINE_API bool DeleteSelectedElements(UTypedElementSelectionSet* SelectionSet, UWorld* World, const FTypedElementDeletionOptions& DeletionOptions);
 	
 	/**
 	 * Delete any elements from the given list that can be deleted.
 	 * @note This list should have been pre-normalized via UTypedElementSelectionSet::GetNormalizedSelection or UTypedElementSelectionSet::GetNormalizedElementList.
 	 */
-	bool DeleteNormalizedElements(const FTypedElementListConstPtr& ElementListPtr, UWorld* World, UTypedElementSelectionSet* InSelectionSet, const FTypedElementDeletionOptions& DeletionOptions);
+	ENGINE_API bool DeleteNormalizedElements(const FTypedElementListConstPtr& ElementListPtr, UWorld* World, UTypedElementSelectionSet* InSelectionSet, const FTypedElementDeletionOptions& DeletionOptions);
 
 	/**
 	 * Duplicate any elements from the given selection set that can be duplicated.
 	 * @note Internally this just calls DuplicateNormalizedElements on the result of UTypedElementSelectionSet::GetNormalizedSelection.
 	 */
-	TArray<FTypedElementHandle> DuplicateSelectedElements(const UTypedElementSelectionSet* SelectionSet, UWorld* World, const FVector& LocationOffset);
+	ENGINE_API TArray<FTypedElementHandle> DuplicateSelectedElements(const UTypedElementSelectionSet* SelectionSet, UWorld* World, const FVector& LocationOffset);
 	
 	/**
 	 * Duplicate any elements from the given list that can be duplicated.
 	 * @note This list should have been pre-normalized via UTypedElementSelectionSet::GetNormalizedSelection or UTypedElementSelectionSet::GetNormalizedElementList.
 	 */
-	virtual TArray<FTypedElementHandle> DuplicateNormalizedElements(const FTypedElementListConstPtr& ElementListPtr, UWorld* World, const FVector& LocationOffset);
+	ENGINE_API virtual TArray<FTypedElementHandle> DuplicateNormalizedElements(const FTypedElementListConstPtr& ElementListPtr, UWorld* World, const FVector& LocationOffset);
 
 	/**
 	 * Copy any elements from the given selection set that can be copied into the clipboard
 	 * @note Internally this just calls CopyNormalizedElements on the result of UTypedElementSelectionSet::GetNormalizedSelection.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "TypedElementFramework|Common")
-	bool CopySelectedElements(UTypedElementSelectionSet* SelectionSet);
+	ENGINE_API bool CopySelectedElements(UTypedElementSelectionSet* SelectionSet);
 
 	/**
 	 * Copy any elements from the given selection set that can be copied into the string
 	 * @note Internally this just calls CopyNormalizedElements on the result of UTypedElementSelectionSet::GetNormalizedSelection.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "TypedElementFramework|Common")
-	bool CopySelectedElementsToString(UTypedElementSelectionSet* SelectionSet, FString& OutputString);
+	ENGINE_API bool CopySelectedElementsToString(UTypedElementSelectionSet* SelectionSet, FString& OutputString);
 
 	/*
 	 * Copy any elements from the given selection set that can be copied into the clipboard.
 	 * @note This list should have been pre-normalized via UTypedElementSelectionSet::GetNormalizedSelection or UTypedElementSelectionSet::GetNormalizedElementList.
 	 */
-	virtual bool CopyNormalizedElements(const FTypedElementListConstPtr& ElementListPtr, FString* OptionalOutputString = nullptr);
+	ENGINE_API virtual bool CopyNormalizedElements(const FTypedElementListConstPtr& ElementListPtr, FString* OptionalOutputString = nullptr);
 
 	/**
 	 * Paste any elements from the given string or from the clipboard
 	 * @note Internally this just calls PasteNormalizedElements on the result of UTypedElementSelectionSet::GetNormalizedSelection.
 	 */
-	TArray<FTypedElementHandle> PasteElements(UTypedElementSelectionSet* SelectionSet, UWorld* World, const FTypedElementPasteOptions& PasteOption, const FString* OptionalInputString = nullptr);
+	ENGINE_API TArray<FTypedElementHandle> PasteElements(UTypedElementSelectionSet* SelectionSet, UWorld* World, const FTypedElementPasteOptions& PasteOption, const FString* OptionalInputString = nullptr);
 
 	/**
 	 * Paste any elements from the given string or from the clipboard
 	  * @note This list should have been pre-normalized via UTypedElementSelectionSet::GetNormalizedSelection or UTypedElementSelectionSet::GetNormalizedElementList.
 	 */
-	virtual TArray<FTypedElementHandle> PasteNormalizedElements(const FTypedElementListConstPtr& ElementListPtr, UWorld* World, const FTypedElementPasteOptions& PasteOptions, const FString* OptionalInputString = nullptr);
+	ENGINE_API virtual TArray<FTypedElementHandle> PasteNormalizedElements(const FTypedElementListConstPtr& ElementListPtr, UWorld* World, const FTypedElementPasteOptions& PasteOptions, const FString* OptionalInputString = nullptr);
 
 	/**
 	 * Script Api
@@ -165,63 +165,63 @@ public:
 	 * @note This list should have been pre-normalized via UTypedElementSelectionSet::GetNormalizedSelection or UTypedElementSelectionSet::GetNormalizedElementList.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|Common")
-	bool DeleteNormalizedElements(const FScriptTypedElementListProxy ElementList, UWorld* World, UTypedElementSelectionSet* InSelectionSet, const FTypedElementDeletionOptions& DeletionOptions);
+	ENGINE_API bool DeleteNormalizedElements(const FScriptTypedElementListProxy ElementList, UWorld* World, UTypedElementSelectionSet* InSelectionSet, const FTypedElementDeletionOptions& DeletionOptions);
 
 	/**
 	 * Duplicate any elements from the given selection set that can be duplicated.
 	 * @note Internally this just calls DuplicateNormalizedElements on the result of UTypedElementSelectionSet::GetNormalizedSelection.
 	 */
 	UFUNCTION(BlueprintCallable, DisplayName="Duplicate Selected Elements", Category = "TypedElementFramework|Common", meta=(ScriptName="DuplicateSelectedElements"))
-	TArray<FScriptTypedElementHandle> K2_DuplicateSelectedElements(const UTypedElementSelectionSet* SelectionSet, UWorld* World, const FVector& LocationOffset);
+	ENGINE_API TArray<FScriptTypedElementHandle> K2_DuplicateSelectedElements(const UTypedElementSelectionSet* SelectionSet, UWorld* World, const FVector& LocationOffset);
 	
 	/**
 	 * Duplicate any elements from the given list that can be duplicated.
 	 * @note This list should have been pre-normalized via UTypedElementSelectionSet::GetNormalizedSelection or UTypedElementSelectionSet::GetNormalizedElementList.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "TypedElementFramework|Common")
-	TArray<FScriptTypedElementHandle> DuplicateNormalizedElements(const FScriptTypedElementListProxy ElementList, UWorld* World, const FVector& LocationOffset);
+	ENGINE_API TArray<FScriptTypedElementHandle> DuplicateNormalizedElements(const FScriptTypedElementListProxy ElementList, UWorld* World, const FVector& LocationOffset);
 	
 	/*
 	 * Copy any elements from the given selection set that can be copied into the clipboard.
 	 * @note This list should have been pre-normalized via UTypedElementSelectionSet::GetNormalizedSelection or UTypedElementSelectionSet::GetNormalizedElementList.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "TypedElementFramework|Common")
-	bool CopyNormalizedElements(const FScriptTypedElementListProxy& ElementList);
+	ENGINE_API bool CopyNormalizedElements(const FScriptTypedElementListProxy& ElementList);
 
 	/*
 	 * Copy any elements from the given selection set that can be copied into the clipboard.
 	 * @note This list should have been pre-normalized via UTypedElementSelectionSet::GetNormalizedSelection or UTypedElementSelectionSet::GetNormalizedElementList.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "TypedElementFramework|Common")
-	bool CopyNormalizedElementsToString(const FScriptTypedElementListProxy& ElementList, FString& OutputString);
+	ENGINE_API bool CopyNormalizedElementsToString(const FScriptTypedElementListProxy& ElementList, FString& OutputString);
 
 	/**
 	 * Paste any elements from the clipboard
 	 * @note Internally this just calls PasteNormalizedElements on the result of UTypedElementSelectionSet::GetNormalizedSelection.
 	 */
 	UFUNCTION(BlueprintCallable, DisplayName="Paste Elements", Category = "TypedElementFramework|Common", meta=(ScriptName="PasteElements"))
-	TArray<FScriptTypedElementHandle> K2_PasteElements(UTypedElementSelectionSet* SelectionSet, UWorld* World, const FTypedElementPasteOptions& PasteOption);
+	ENGINE_API TArray<FScriptTypedElementHandle> K2_PasteElements(UTypedElementSelectionSet* SelectionSet, UWorld* World, const FTypedElementPasteOptions& PasteOption);
 
 	/**
 	 * Paste any elements from the given string
 	 * @note Internally this just calls PasteNormalizedElements on the result of UTypedElementSelectionSet::GetNormalizedSelection.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "TypedElementFramework|Common")
-	TArray<FScriptTypedElementHandle> PasteElementsFromString(UTypedElementSelectionSet* SelectionSet, UWorld* World, const FTypedElementPasteOptions& PasteOption, const FString& InputString);
+	ENGINE_API TArray<FScriptTypedElementHandle> PasteElementsFromString(UTypedElementSelectionSet* SelectionSet, UWorld* World, const FTypedElementPasteOptions& PasteOption, const FString& InputString);
 
 	/**
 	 * Paste any elements from the clipboard
 	  * @note This list should have been pre-normalized via UTypedElementSelectionSet::GetNormalizedSelection or UTypedElementSelectionSet::GetNormalizedElementList.
 	 */
 	UFUNCTION(BlueprintCallable, DisplayName="Paste Normalized Elements", Category = "TypedElementFramework|Common", meta=(ScriptName="PasteNormalizedElements"))
-	TArray<FScriptTypedElementHandle> K2_PasteNormalizedElements(const FScriptTypedElementListProxy& ElementList, UWorld* World, const FTypedElementPasteOptions& PasteOption);
+	ENGINE_API TArray<FScriptTypedElementHandle> K2_PasteNormalizedElements(const FScriptTypedElementListProxy& ElementList, UWorld* World, const FTypedElementPasteOptions& PasteOption);
 
 	/**
 	 * Paste any elements from the given string
 	  * @note This list should have been pre-normalized via UTypedElementSelectionSet::GetNormalizedSelection or UTypedElementSelectionSet::GetNormalizedElementList.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "TypedElementFramework|Common")
-	TArray<FScriptTypedElementHandle> PasteNormalizedElementsFromString(const FScriptTypedElementListProxy& ElementList, UWorld* World, const FTypedElementPasteOptions& PasteOption, const FString& InputString);
+	ENGINE_API TArray<FScriptTypedElementHandle> PasteNormalizedElementsFromString(const FScriptTypedElementListProxy& ElementList, UWorld* World, const FTypedElementPasteOptions& PasteOption, const FString& InputString);
 
 private:
 	/**

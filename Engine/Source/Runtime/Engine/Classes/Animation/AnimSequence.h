@@ -46,7 +46,7 @@ extern ENGINE_API int32 GPerformFrameStripping;
 // I wonder in the future, we change all compressed to be inside as well, so they all stay together
 // When remove tracks, it should be handled together 
 USTRUCT()
-struct ENGINE_API FAnimSequenceTrackContainer
+struct FAnimSequenceTrackContainer
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -84,7 +84,7 @@ struct ENGINE_API FAnimSequenceTrackContainer
  * Keyframe position data for one track.  Pos(i) occurs at Time(i).  Pos.Num() always equals Time.Num().
  */
 USTRUCT()
-struct ENGINE_API FTranslationTrack
+struct FTranslationTrack
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -99,7 +99,7 @@ struct ENGINE_API FTranslationTrack
  * Keyframe rotation data for one track.  Rot(i) occurs at Time(i).  Rot.Num() always equals Time.Num().
  */
 USTRUCT()
-struct ENGINE_API FRotationTrack
+struct FRotationTrack
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -114,7 +114,7 @@ struct ENGINE_API FRotationTrack
  * Keyframe scale data for one track.  Scale(i) occurs at Time(i).  Rot.Num() always equals Time.Num().
  */
 USTRUCT()
-struct ENGINE_API FScaleTrack
+struct FScaleTrack
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -132,7 +132,7 @@ struct ENGINE_API FScaleTrack
  * CurveWeights: List of weights for each frame
  */
 USTRUCT()
-struct ENGINE_API FCurveTrack
+struct FCurveTrack
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -143,16 +143,16 @@ struct ENGINE_API FCurveTrack
 	TArray<float> CurveWeights;
 
 	/** Returns true if valid curve weight exists in the array*/
-	bool IsValidCurveTrack();
+	ENGINE_API bool IsValidCurveTrack();
 	
 	/** This is very simple cut to 1 key method if all is same since I see so many redundant same value in every frame 
 	 *  Eventually this can get more complicated 
 	 *  Will return true if compressed to 1. Return false otherwise **/
-	bool CompressCurveWeights();
+	ENGINE_API bool CompressCurveWeights();
 };
 
 USTRUCT()
-struct ENGINE_API FCompressedTrack
+struct FCompressedTrack
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -185,7 +185,7 @@ struct ENGINE_API FCompressedTrack
 
 // Param structure for UAnimSequence::RequestAnimCompressionParams
 struct UE_DEPRECATED(5.2, "FRequestAnimCompressionParams has been deprecated") FRequestAnimCompressionParams;
-struct ENGINE_API FRequestAnimCompressionParams
+struct FRequestAnimCompressionParams
 {
 	// Is the compression to be performed Async
 	bool bAsyncCompression;
@@ -210,8 +210,8 @@ struct ENGINE_API FRequestAnimCompressionParams
 	const ITargetPlatform* TargetPlatform;
 };
 
-UCLASS(config=Engine, hidecategories=(UObject, Length), BlueprintType)
-class ENGINE_API UAnimSequence : public UAnimSequenceBase
+UCLASS(config=Engine, hidecategories=(UObject, Length), BlueprintType, MinimalAPI)
+class UAnimSequence : public UAnimSequenceBase
 {
 	GENERATED_UCLASS_BODY()
 
@@ -377,69 +377,69 @@ public:
 
 public:
 	//~ Begin UObject Interface
-	virtual void Serialize(FArchive& Ar) override;
-	virtual void PostInitProperties() override;
-	virtual void PostLoad() override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void PostInitProperties() override;
+	ENGINE_API virtual void PostLoad() override;
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS // Suppress compiler warning on override of deprecated function
 	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
-	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	ENGINE_API virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
+	ENGINE_API PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
-	virtual void GetPreloadDependencies(TArray<UObject*>& OutDeps) override;
+	ENGINE_API virtual void GetPreloadDependencies(TArray<UObject*>& OutDeps) override;
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
-	virtual bool IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform) override;
-	virtual void WillNeverCacheCookedPlatformDataAgain() override;
-	virtual void ClearAllCachedCookedPlatformData() override;
-	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
+	ENGINE_API virtual bool IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform) override;
+	ENGINE_API virtual void WillNeverCacheCookedPlatformDataAgain() override;
+	ENGINE_API virtual void ClearAllCachedCookedPlatformData() override;
+	ENGINE_API virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 #endif // WITH_EDITOR
-	virtual void BeginDestroy() override;
-	virtual bool IsReadyForFinishDestroy() override;
-	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
-	static void AddReferencedObjects(UObject* This, FReferenceCollector& Collector);
+	ENGINE_API virtual void BeginDestroy() override;
+	ENGINE_API virtual bool IsReadyForFinishDestroy() override;
+	ENGINE_API virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
+	static ENGINE_API void AddReferencedObjects(UObject* This, FReferenceCollector& Collector);
 	//~ End UObject Interface
 
 	//~ Begin UAnimationAsset Interface
-	virtual bool IsValidAdditive() const override;
+	ENGINE_API virtual bool IsValidAdditive() const override;
 	virtual TArray<FName>* GetUniqueMarkerNames() { return &UniqueMarkerNames; }
 #if WITH_EDITOR
-	virtual bool GetAllAnimationSequencesReferred(TArray<UAnimationAsset*>& AnimationAssets, bool bRecursive = true) override;
-	virtual void ReplaceReferredAnimations(const TMap<UAnimationAsset*, UAnimationAsset*>& ReplacementMap) override;
-	virtual void OnSetSkeleton(USkeleton* NewSkeleton) override;
+	ENGINE_API virtual bool GetAllAnimationSequencesReferred(TArray<UAnimationAsset*>& AnimationAssets, bool bRecursive = true) override;
+	ENGINE_API virtual void ReplaceReferredAnimations(const TMap<UAnimationAsset*, UAnimationAsset*>& ReplacementMap) override;
+	ENGINE_API virtual void OnSetSkeleton(USkeleton* NewSkeleton) override;
 #endif
 	//~ End UAnimationAsset Interface
 
 	//~ Begin UAnimSequenceBase Interface
-	virtual void HandleAssetPlayerTickedInternal(FAnimAssetTickContext &Context, const float PreviousTime, const float MoveDelta, const FAnimTickRecord &Instance, struct FAnimNotifyQueue& NotifyQueue) const override;
+	ENGINE_API virtual void HandleAssetPlayerTickedInternal(FAnimAssetTickContext &Context, const float PreviousTime, const float MoveDelta, const FAnimTickRecord &Instance, struct FAnimNotifyQueue& NotifyQueue) const override;
 	virtual bool HasRootMotion() const override { return bEnableRootMotion; }
-	virtual void RefreshCacheData() override;
+	ENGINE_API virtual void RefreshCacheData() override;
 	virtual EAdditiveAnimationType GetAdditiveAnimType() const override { return AdditiveAnimType; }
-	virtual int32 GetNumberOfSampledKeys() const override;
+	ENGINE_API virtual int32 GetNumberOfSampledKeys() const override;
 	virtual FFrameRate GetSamplingFrameRate() const override { return PlatformTargetFrameRate.Default; }
-	virtual void EvaluateCurveData(FBlendedCurve& OutCurve, float CurrentTime, bool bForceUseRawData = false) const override;
+	ENGINE_API virtual void EvaluateCurveData(FBlendedCurve& OutCurve, float CurrentTime, bool bForceUseRawData = false) const override;
 
 	UE_DEPRECATED(5.3, "Please use EvaluateCurveData that takes an FName.")
 	virtual float EvaluateCurveData(SmartName::UID_Type CurveUID, float CurrentTime, bool bForceUseRawData = false) const override { return 0.0f; }
-	virtual float EvaluateCurveData(FName CurveName, float CurrentTime, bool bForceUseRawData = false) const override;
+	ENGINE_API virtual float EvaluateCurveData(FName CurveName, float CurrentTime, bool bForceUseRawData = false) const override;
 
 	UE_DEPRECATED(5.3, "Please use HasCurveData that takes an FName.")
 	virtual bool HasCurveData(SmartName::UID_Type CurveUID, bool bForceUseRawData) const override { return false; }
-	virtual bool HasCurveData(FName CurveName, bool bForceUseRawData) const override;
+	ENGINE_API virtual bool HasCurveData(FName CurveName, bool bForceUseRawData) const override;
 
 	//~ End UAnimSequenceBase Interface
 
 	// Extract Root Motion transform from the animation
-	FTransform ExtractRootMotion(float StartTime, float DeltaTime, bool bAllowLooping) const override final;
+	ENGINE_API FTransform ExtractRootMotion(float StartTime, float DeltaTime, bool bAllowLooping) const override final;
 
 	// Extract Root Motion transform from a contiguous position range (no looping)
-	FTransform ExtractRootMotionFromRange(float StartTrackPosition, float EndTrackPosition) const override final;
+	ENGINE_API FTransform ExtractRootMotionFromRange(float StartTrackPosition, float EndTrackPosition) const override final;
 
 	// Extract the transform from the root track for the given animation position
-	FTransform ExtractRootTrackTransform(float Time, const FBoneContainer* RequiredBones) const override final;
+	ENGINE_API FTransform ExtractRootTrackTransform(float Time, const FBoneContainer* RequiredBones) const override final;
 
 	// Begin Transform related functions 
-	virtual void GetAnimationPose(FAnimationPoseData& OutAnimationPoseData, const FAnimExtractContext& ExtractionContext) const override;
+	ENGINE_API virtual void GetAnimationPose(FAnimationPoseData& OutAnimationPoseData, const FAnimExtractContext& ExtractionContext) const override;
 
 	/**
 	* Get Bone Transform of the animation for the Time given, relative to Parent for all RequiredBones
@@ -450,7 +450,7 @@ public:
 	* @param	bForceUseRawData	Override other settings and force raw data pose extraction
 	*/
 	UE_DEPRECATED(4.26, "Use other GetBonePose signature")
-	void GetBonePose(FCompactPose& OutPose, FBlendedCurve& OutCurve, const FAnimExtractContext& ExtractionContext, bool bForceUseRawData=false) const;
+	ENGINE_API void GetBonePose(FCompactPose& OutPose, FBlendedCurve& OutCurve, const FAnimExtractContext& ExtractionContext, bool bForceUseRawData=false) const;
 	
 	/**
 	* Get Bone Transform of the Time given, relative to Parent for all RequiredBones
@@ -459,32 +459,32 @@ public:
 	* @param	OutAnimationPoseData  [out] Animation Pose related data to populate
 	* @param	ExtractionContext	  Extraction Context (position, looping, root motion, etc.)
 	*/
-	void GetBonePose(struct FAnimationPoseData& OutAnimationPoseData, const FAnimExtractContext& ExtractionContext, bool bForceUseRawData = false) const;
+	ENGINE_API void GetBonePose(struct FAnimationPoseData& OutAnimationPoseData, const FAnimExtractContext& ExtractionContext, bool bForceUseRawData = false) const;
 
 	const TArray<FTrackToSkeletonMap>& GetCompressedTrackToSkeletonMapTable() const { return CompressedData.CompressedTrackToSkeletonMapTable; }
 
 	UE_DEPRECATED(5.3, "Please use GetCompressedCurveIndexedNames")
-	const TArray<struct FSmartName>& GetCompressedCurveNames() const;
+	ENGINE_API const TArray<struct FSmartName>& GetCompressedCurveNames() const;
 
 	const TArray<FAnimCompressedCurveIndexedName>& GetCompressedCurveIndexedNames() const { return CompressedData.IndexedCurveNames; }
 
 #if WITH_EDITORONLY_DATA
 protected:
-	void UpdateCompressedCurveName(const FName& OldCurveName, const FName& NewCurveName);
+	ENGINE_API void UpdateCompressedCurveName(const FName& OldCurveName, const FName& NewCurveName);
 	
 	UE_DEPRECATED(5.3, "Please use UpdateCompressedCurveName that takes FNames.")
 	void UpdateCompressedCurveName(SmartName::UID_Type CurveUID, const struct FSmartName& NewCurveName) {}
 private:
-	void UpdateRetargetSourceAsset();
+	ENGINE_API void UpdateRetargetSourceAsset();
 
 	/** Updates the stored sampling frame-rate using the sequence length and number of sampling keys */
 	UE_DEPRECATED(5.0, "UpdateFrameRate has been deprecated see UAnimDataController::SetFrameRate")
-	void UpdateFrameRate();
+	ENGINE_API void UpdateFrameRate();
 #endif
 	
 public:
-	const TArray<FTransform>& GetRetargetTransforms() const;
-	FName GetRetargetTransformsSourceName() const;
+	ENGINE_API const TArray<FTransform>& GetRetargetTransforms() const;
+	ENGINE_API FName GetRetargetTransformsSourceName() const;
 
 	/**
 	* Retarget a single bone transform, to apply right after extraction.
@@ -494,7 +494,7 @@ public:
 	* @param	BoneIndex			Bone Index in Bone Transform array.
 	* @param	RequiredBones		BoneContainer
 	*/
-	void RetargetBoneTransform(FTransform& BoneTransform, const int32 SkeletonBoneIndex, const FCompactPoseBoneIndex& BoneIndex, const FBoneContainer& RequiredBones, const bool bIsBakedAdditive) const;
+	ENGINE_API void RetargetBoneTransform(FTransform& BoneTransform, const int32 SkeletonBoneIndex, const FCompactPoseBoneIndex& BoneIndex, const FBoneContainer& RequiredBones, const bool bIsBakedAdditive) const;
 
 	/**
 	* Get Bone Transform of the additive animation for the Time given, relative to Parent for all RequiredBones
@@ -504,8 +504,8 @@ public:
 	* @param	ExtractionContext	Extraction Context (position, looping, root motion, etc.)
 	*/
 	UE_DEPRECATED(4.26, "Use other GetBonePose_Additive signature")
-	void GetBonePose_Additive(FCompactPose& OutPose, FBlendedCurve& OutCurve, const FAnimExtractContext& ExtractionContext) const;
-	void GetBonePose_Additive(FAnimationPoseData& OutAnimationPoseData, const FAnimExtractContext& ExtractionContext) const;
+	ENGINE_API void GetBonePose_Additive(FCompactPose& OutPose, FBlendedCurve& OutCurve, const FAnimExtractContext& ExtractionContext) const;
+	ENGINE_API void GetBonePose_Additive(FAnimationPoseData& OutAnimationPoseData, const FAnimExtractContext& ExtractionContext) const;
 
 	/**
 	* Get Bone Transform of the base (reference) pose of the additive animation for the Time given, relative to Parent for all RequiredBones
@@ -515,8 +515,8 @@ public:
 	* @param	ExtractionContext	Extraction Context (position, looping, root motion, etc.)
 	*/
 	UE_DEPRECATED(4.26, "Use other GetAdditiveBasePose signature")
-	void GetAdditiveBasePose(FCompactPose& OutPose, FBlendedCurve& OutCurve, const FAnimExtractContext& ExtractionContext) const;
-	void GetAdditiveBasePose(FAnimationPoseData& OutAnimationPoseData, const FAnimExtractContext& ExtractionContext) const;
+	ENGINE_API void GetAdditiveBasePose(FCompactPose& OutPose, FBlendedCurve& OutCurve, const FAnimExtractContext& ExtractionContext) const;
+	ENGINE_API void GetAdditiveBasePose(FAnimationPoseData& OutAnimationPoseData, const FAnimExtractContext& ExtractionContext) const;
 
 	/**
 	 * Get Bone Transform of the Time given, relative to Parent for the Track Given
@@ -528,7 +528,7 @@ public:
 	 */
 	UE_DEPRECATED(5.1, "Use other GetBoneTransform signature using double and skeleton index")
 	void GetBoneTransform(FTransform& OutAtom, int32 TrackIndex, float Time, bool bUseRawData) const {}
-	void GetBoneTransform(FTransform& OutAtom, FSkeletonPoseBoneIndex BoneIndex, double Time, bool bUseRawData) const;
+	ENGINE_API void GetBoneTransform(FTransform& OutAtom, FSkeletonPoseBoneIndex BoneIndex, double Time, bool bUseRawData) const;
 
 	/**
 	 * Get Bone Transform of the Time given, relative to Parent for the Track Given
@@ -538,7 +538,7 @@ public:
 	 * @param	DecompContext	Decompression context to use.
 	 * @param	bUseRawData		If true, use raw animation data instead of compressed data.
 	 */
-	void GetBoneTransform(FTransform& OutAtom, FSkeletonPoseBoneIndex BoneIndex, FAnimSequenceDecompressionContext& DecompContext, bool bUseRawData) const;
+	ENGINE_API void GetBoneTransform(FTransform& OutAtom, FSkeletonPoseBoneIndex BoneIndex, FAnimSequenceDecompressionContext& DecompContext, bool bUseRawData) const;
 	// End Transform related functions 
 
 	// Begin Memory related functions
@@ -546,36 +546,36 @@ public:
 	/** @return	estimate uncompressed raw size. This is *not* the real raw size. 
 				Here we estimate what it would be with no trivial compression. */
 #if WITH_EDITOR
-	int32 GetUncompressedRawSize() const;
+	ENGINE_API int32 GetUncompressedRawSize() const;
 
 	/**
 	 * @return		The approximate size of raw animation data.
 	 */
-	int64 GetApproxRawSize() const;
+	ENGINE_API int64 GetApproxRawSize() const;
 #endif // WITH_EDITOR
 
 	/**
 	 * @return		The approximate size of compressed animation data for only bones.
 	 */
-	int32 GetApproxBoneCompressedSize() const;
+	ENGINE_API int32 GetApproxBoneCompressedSize() const;
 	
 	/**
 	 * @return		The approximate size of compressed animation data.
 	 */
-	int32 GetApproxCompressedSize() const;
+	ENGINE_API int32 GetApproxCompressedSize() const;
 
 	// Get compressed data for this UAnimSequence. May be built directly or pulled from DDC
 #if WITH_EDITOR
 	UE_DEPRECATED(5.2, "Public access to ShouldPerformStripping has been deprecated")
-	bool ShouldPerformStripping(const bool bPerformFrameStripping, const bool bPerformStrippingOnOddFramedAnims) const;
+	ENGINE_API bool ShouldPerformStripping(const bool bPerformFrameStripping, const bool bPerformStrippingOnOddFramedAnims) const;
 
 	UE_DEPRECATED(5.2, "GetDDCCacheKeySuffix has been deprecated use CreateDerivedDataKeyHash instead")
-	FString GetDDCCacheKeySuffix(const bool bPerformStripping, const ITargetPlatform* TargetPlatform) const;
+	ENGINE_API FString GetDDCCacheKeySuffix(const bool bPerformStripping, const ITargetPlatform* TargetPlatform) const;
 
 	UE_DEPRECATED(5.2, "ApplyCompressedData has been deprecated")
 	void ApplyCompressedData(const FString& DataCacheKeySuffix, const bool bPerformFrameStripping, const TArray<uint8>& Data) {}
 
-	void WaitOnExistingCompression(const bool bWantResults=true);
+	ENGINE_API void WaitOnExistingCompression(const bool bWantResults=true);
 	
 	UE_DEPRECATED(5.2, "RequestAnimCompression has been deprecated use BeginCacheDerivedData or CacheDerivedData instead")
 	void RequestAnimCompression(
@@ -584,23 +584,23 @@ public:
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	UE_DEPRECATED(5.2, "RequestSyncAnimRecompression has been deprecated use CacheDerivedData instead")
-	void RequestSyncAnimRecompression(bool bOutput = false);
+	ENGINE_API void RequestSyncAnimRecompression(bool bOutput = false);
 
 	UE_DEPRECATED(5.2, "RequestSyncAnimRecompression has been deprecated use BeginCacheDerivedData instead")
-	void RequestAsyncAnimRecompression(bool bOutput = false);
+	ENGINE_API void RequestAsyncAnimRecompression(bool bOutput = false);
 #endif
 
 protected:
-    void ClearCompressedBoneData();
-    void ClearCompressedCurveData();
+    ENGINE_API void ClearCompressedBoneData();
+    ENGINE_API void ClearCompressedCurveData();
     // Write the compressed data to the supplied FArchive
-    void SerializeCompressedData(FArchive& Ar, bool bDDCData);
+    ENGINE_API void SerializeCompressedData(FArchive& Ar, bool bDDCData);
 #if WITH_EDITOR
-	virtual void OnAnimModelLoaded() override;
+	ENGINE_API virtual void OnAnimModelLoaded() override;
 #endif
 public:
-	bool IsCompressedDataValid() const;
-	bool IsCurveCompressedDataValid() const;
+	ENGINE_API bool IsCompressedDataValid() const;
+	ENGINE_API bool IsCurveCompressedDataValid() const;
 	// End Memory related functions
 
 	// Begin Utility functions
@@ -626,65 +626,65 @@ public:
 	/**
 	 * Add Key to Transform Curves
 	 */
-	void AddKeyToSequence(float Time, const FName& BoneName, const FTransform& AdditiveTransform);
+	ENGINE_API void AddKeyToSequence(float Time, const FName& BoneName, const FTransform& AdditiveTransform);
 
 	/**
 	* Return true if compressed data is out of date / missing and so animation needs to use raw data
 	*/
-	bool DoesNeedRecompress() const;
+	ENGINE_API bool DoesNeedRecompress() const;
 
 	/**
 	 * Create Animation Sequence from Reference Pose of the Mesh
 	 */
-	bool CreateAnimation(class USkeletalMesh* Mesh);
+	ENGINE_API bool CreateAnimation(class USkeletalMesh* Mesh);
 	/**
 	 * Create Animation Sequence from the Mesh Component's current bone transform
 	 */
-	bool CreateAnimation(class USkeletalMeshComponent* MeshComponent);
+	ENGINE_API bool CreateAnimation(class USkeletalMeshComponent* MeshComponent);
 	/**
 	 * Create Animation Sequence from the given animation
 	 */
-	bool CreateAnimation(class UAnimSequence* Sequence);
+	ENGINE_API bool CreateAnimation(class UAnimSequence* Sequence);
 
 	/** 
 	 * Add validation check to see if it's being ready to play or not
 	 */
-	virtual bool IsValidToPlay() const override;
+	ENGINE_API virtual bool IsValidToPlay() const override;
 
 	// Get a pointer to the data for a given Anim Notify
-	uint8* FindSyncMarkerPropertyData(int32 SyncMarkerIndex, FArrayProperty*& ArrayProperty);
+	ENGINE_API uint8* FindSyncMarkerPropertyData(int32 SyncMarkerIndex, FArrayProperty*& ArrayProperty);
 
 	virtual int32 GetMarkerUpdateCounter() const { return MarkerDataUpdateCounter; }
 #endif
 
 	/** Sort the sync markers array by time, earliest first. */
-	void SortSyncMarkers();
+	ENGINE_API void SortSyncMarkers();
 
 #if WITH_EDITOR
 	/** Remove all markers with the specified names */
-	bool RemoveSyncMarkers(const TArray<FName>& MarkersToRemove);
+	ENGINE_API bool RemoveSyncMarkers(const TArray<FName>& MarkersToRemove);
 
 	/** Rename the markers with the specified name */
-	bool RenameSyncMarkers(FName InOldName, FName InNewName);
+	ENGINE_API bool RenameSyncMarkers(FName InOldName, FName InNewName);
 #endif
 
 	// Advancing based on markers
-	float GetCurrentTimeFromMarkers(FMarkerPair& PrevMarker, FMarkerPair& NextMarker, float PositionBetweenMarkers) const;
-	virtual void AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, const TArray<FName>& ValidMarkerNames, float& CurrentTime, FMarkerPair& PrevMarker, FMarkerPair& NextMarker, TArray<FPassedMarker>& MarkersPassed, const UMirrorDataTable* MirrorTable) const;
-	virtual void AdvanceMarkerPhaseAsFollower(const FMarkerTickContext& Context, float DeltaRemaining, bool bLooping, float& CurrentTime, FMarkerPair& PreviousMarker, FMarkerPair& NextMarker, const UMirrorDataTable* MirrorTable) const;
-	virtual void GetMarkerIndicesForTime(float CurrentTime, bool bLooping, const TArray<FName>& ValidMarkerNames, FMarkerPair& OutPrevMarker, FMarkerPair& OutNextMarker) const;
+	ENGINE_API float GetCurrentTimeFromMarkers(FMarkerPair& PrevMarker, FMarkerPair& NextMarker, float PositionBetweenMarkers) const;
+	ENGINE_API virtual void AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, const TArray<FName>& ValidMarkerNames, float& CurrentTime, FMarkerPair& PrevMarker, FMarkerPair& NextMarker, TArray<FPassedMarker>& MarkersPassed, const UMirrorDataTable* MirrorTable) const;
+	ENGINE_API virtual void AdvanceMarkerPhaseAsFollower(const FMarkerTickContext& Context, float DeltaRemaining, bool bLooping, float& CurrentTime, FMarkerPair& PreviousMarker, FMarkerPair& NextMarker, const UMirrorDataTable* MirrorTable) const;
+	ENGINE_API virtual void GetMarkerIndicesForTime(float CurrentTime, bool bLooping, const TArray<FName>& ValidMarkerNames, FMarkerPair& OutPrevMarker, FMarkerPair& OutNextMarker) const;
 
 	UE_DEPRECATED(5.0, "Use other GetMarkerSyncPositionfromMarkerIndicies signature")
 	virtual FMarkerSyncAnimPosition GetMarkerSyncPositionfromMarkerIndicies(int32 PrevMarker, int32 NextMarker, float CurrentTime) const { return UAnimSequence::GetMarkerSyncPositionFromMarkerIndicies(PrevMarker, NextMarker, CurrentTime, nullptr); }
-	virtual FMarkerSyncAnimPosition GetMarkerSyncPositionFromMarkerIndicies(int32 PrevMarker, int32 NextMarker, float CurrentTime, const UMirrorDataTable* MirrorTable) const;
-	virtual void GetMarkerIndicesForPosition(const FMarkerSyncAnimPosition& SyncPosition, bool bLooping, FMarkerPair& OutPrevMarker, FMarkerPair& OutNextMarker, float& CurrentTime, const UMirrorDataTable* MirrorTable) const;
+	ENGINE_API virtual FMarkerSyncAnimPosition GetMarkerSyncPositionFromMarkerIndicies(int32 PrevMarker, int32 NextMarker, float CurrentTime, const UMirrorDataTable* MirrorTable) const;
+	ENGINE_API virtual void GetMarkerIndicesForPosition(const FMarkerSyncAnimPosition& SyncPosition, bool bLooping, FMarkerPair& OutPrevMarker, FMarkerPair& OutNextMarker, float& CurrentTime, const UMirrorDataTable* MirrorTable) const;
 	
-	virtual float GetFirstMatchingPosFromMarkerSyncPos(const FMarkerSyncAnimPosition& InMarkerSyncGroupPosition) const override;
-	virtual float GetNextMatchingPosFromMarkerSyncPos(const FMarkerSyncAnimPosition& InMarkerSyncGroupPosition, const float& StartingPosition) const override;
-	virtual float GetPrevMatchingPosFromMarkerSyncPos(const FMarkerSyncAnimPosition& InMarkerSyncGroupPosition, const float& StartingPosition) const override;
+	ENGINE_API virtual float GetFirstMatchingPosFromMarkerSyncPos(const FMarkerSyncAnimPosition& InMarkerSyncGroupPosition) const override;
+	ENGINE_API virtual float GetNextMatchingPosFromMarkerSyncPos(const FMarkerSyncAnimPosition& InMarkerSyncGroupPosition, const float& StartingPosition) const override;
+	ENGINE_API virtual float GetPrevMatchingPosFromMarkerSyncPos(const FMarkerSyncAnimPosition& InMarkerSyncGroupPosition, const float& StartingPosition) const override;
 
 	// to support anim sequence base to all montages
-	virtual void EnableRootMotionSettingFromMontage(bool bInEnableRootMotion, const ERootMotionRootLock::Type InRootMotionRootLock) override;
+	ENGINE_API virtual void EnableRootMotionSettingFromMontage(bool bInEnableRootMotion, const ERootMotionRootLock::Type InRootMotionRootLock) override;
 
 #if WITH_EDITOR
 	virtual class UAnimSequence* GetAdditiveBasePose() const override 
@@ -698,7 +698,7 @@ public:
 	}
 
 	// Is this animation valid for baking into additive
-	bool CanBakeAdditive() const;
+	ENGINE_API bool CanBakeAdditive() const;
 
 	// Bakes out track data for the skeletons virtual bones into the raw data
 	UE_DEPRECATED(5.2, "BakeOutVirtualBoneTracks has been deprecated")
@@ -713,17 +713,17 @@ public:
 	void BakeOutAdditiveIntoRawData(TArray<FRawAnimSequenceTrack>& NewRawTracks, TArray<FName>& NewAnimationTrackNames, TArray<FTrackToSkeletonMap>& NewTrackToSkeletonMapTable, TArray<FFloatCurve>& NewCurveTracks, TArray<FRawAnimSequenceTrack>& AdditiveBaseAnimationData) const {}
 
 	// Test whether at any point we will scale a bone to 0 (needed for validating additive anims)
-	bool DoesSequenceContainZeroScale() const;
+	ENGINE_API bool DoesSequenceContainZeroScale() const;
 
 	// Helper function to allow us to notify animations that depend on us that they need to update
-	void FlagDependentAnimationsAsRawDataOnly() const;
+	ENGINE_API void FlagDependentAnimationsAsRawDataOnly() const;
 
 	// Helper function to allow us to update streaming animations that depend on us with our data when we are updated
-	void UpdateDependentStreamingAnimations() const;
+	ENGINE_API void UpdateDependentStreamingAnimations() const;
 
 	// Generate a GUID from a hash of our own raw data
 	UE_DEPRECATED(5.1, "GenerateGuidFromRawData has been deprecated use IAnimationDataModel::GenerateGuid instead")
-	FGuid GenerateGuidFromRawData() const;
+	ENGINE_API FGuid GenerateGuidFromRawData() const;
 
 	// Should we be always using our raw data (i.e is our compressed data stale)
 	UE_DEPRECATED(5.2, "OnlyUseRawData has been deprecated")
@@ -751,7 +751,7 @@ public:
 	}
 
 	/** Resets Bone Animation, Curve data and Notify tracks **/
-	void ResetAnimation();
+	ENGINE_API void ResetAnimation();
 #endif
 
 private:
@@ -764,32 +764,32 @@ private:
 	* @param	ExtractionContext	Extraction Context (position, looping, root motion, etc.)
 	*/
 	UE_DEPRECATED(4.26, "Use GetBonePose_AdditiveMeshRotationOnly with other signature")
-	void GetBonePose_AdditiveMeshRotationOnly(FCompactPose& OutPose, FBlendedCurve& OutCurve, const FAnimExtractContext& ExtractionContext) const;
+	ENGINE_API void GetBonePose_AdditiveMeshRotationOnly(FCompactPose& OutPose, FBlendedCurve& OutCurve, const FAnimExtractContext& ExtractionContext) const;
 
-	void GetBonePose_AdditiveMeshRotationOnly(FAnimationPoseData& OutAnimationPoseData, const FAnimExtractContext& ExtractionContext) const;
+	ENGINE_API void GetBonePose_AdditiveMeshRotationOnly(FAnimationPoseData& OutAnimationPoseData, const FAnimExtractContext& ExtractionContext) const;
 
 	/** Returns whether or not evaluation of the raw (source) animation data is possible according to whether or not the (editor only) data has been stripped */
-	bool CanEvaluateRawAnimationData() const;
+	ENGINE_API bool CanEvaluateRawAnimationData() const;
 
 #if WITH_EDITOR
 	/**
 	 * Remap Tracks to New Skeleton
 	 */ 
-	virtual void RemapTracksToNewSkeleton( USkeleton* NewSkeleton, bool bConvertSpaces ) override;
+	ENGINE_API virtual void RemapTracksToNewSkeleton( USkeleton* NewSkeleton, bool bConvertSpaces ) override;
 
 	/** Retargeting functions */
-	bool ConvertAnimationDataToRiggingData(FAnimSequenceTrackContainer & RiggingAnimationData);
-	bool ConvertRiggingDataToAnimationData(FAnimSequenceTrackContainer & RiggingAnimationData);
-	int32 GetSpaceBasedAnimationData(TArray< TArray<FTransform> > & AnimationDataInComponentSpace, FAnimSequenceTrackContainer * RiggingAnimationData) const;
+	ENGINE_API bool ConvertAnimationDataToRiggingData(FAnimSequenceTrackContainer & RiggingAnimationData);
+	ENGINE_API bool ConvertRiggingDataToAnimationData(FAnimSequenceTrackContainer & RiggingAnimationData);
+	ENGINE_API int32 GetSpaceBasedAnimationData(TArray< TArray<FTransform> > & AnimationDataInComponentSpace, FAnimSequenceTrackContainer * RiggingAnimationData) const;
 #endif
 
 public:
 	/** Refresh sync marker data*/
-	void RefreshSyncMarkerDataFromAuthored();
+	ENGINE_API void RefreshSyncMarkerDataFromAuthored();
 
 	/** Take a set of marker positions and validates them against a requested start position, updating them as desired */
-	void ValidateCurrentPosition(const FMarkerSyncAnimPosition& Position, bool bPlayingForwards, bool bLooping, float&CurrentTime, FMarkerPair& PreviousMarker, FMarkerPair& NextMarker, const UMirrorDataTable* MirrorTable = nullptr) const;
-	bool UseRawDataForPoseExtraction(const FBoneContainer& RequiredBones) const;
+	ENGINE_API void ValidateCurrentPosition(const FMarkerSyncAnimPosition& Position, bool bPlayingForwards, bool bLooping, float&CurrentTime, FMarkerPair& PreviousMarker, FMarkerPair& NextMarker, const UMirrorDataTable* MirrorTable = nullptr) const;
+	ENGINE_API bool UseRawDataForPoseExtraction(const FBoneContainer& RequiredBones) const;
 
 	// Should we be always using our raw data (i.e is our compressed data stale)
 	UE_DEPRECATED(5.2, "bUseRawDataOnly public access will be deprecated")
@@ -807,56 +807,56 @@ public:
 #if WITH_EDITOR
 	UE_DEPRECATED(5.0, "AddBoneCustomAttribute has been deprecated see UAnimDataController::AddAttribute")
 	UFUNCTION(BlueprintCallable, Category=CustomAttributes, meta=(DeprecatedFunction, DeprecationMessage="AddBoneFloatCustomAttribute has been deprecated, use UAnimDataController::AddAttribute instead"))
-	void AddBoneFloatCustomAttribute(const FName& BoneName, const FName& AttributeName, const TArray<float>& TimeKeys, const TArray<float>& ValueKeys);
+	ENGINE_API void AddBoneFloatCustomAttribute(const FName& BoneName, const FName& AttributeName, const TArray<float>& TimeKeys, const TArray<float>& ValueKeys);
 
 	UE_DEPRECATED(5.0, "AddBoneCustomAttribute has been deprecated see UAnimDataController::AddAttribute")
 	UFUNCTION(BlueprintCallable, Category = CustomAttributes, meta=(DeprecatedFunction, DeprecationMessage="AddBoneIntegerCustomAttribute has been deprecated, use UAnimDataController::AddAttribute instead"))
-	void AddBoneIntegerCustomAttribute(const FName& BoneName, const FName& AttributeName, const TArray<float>& TimeKeys, const TArray<int32>& ValueKeys);
+	ENGINE_API void AddBoneIntegerCustomAttribute(const FName& BoneName, const FName& AttributeName, const TArray<float>& TimeKeys, const TArray<int32>& ValueKeys);
 
 	UE_DEPRECATED(5.0, "AddBoneStringCustomAttribute has been deprecated see UAnimDataController::AddAttribute")
 	UFUNCTION(BlueprintCallable, Category = CustomAttributes, meta=(DeprecatedFunction, DeprecationMessage="AddBoneStringCustomAttribute has been deprecated, use UAnimDataController::AddAttribute instead"))
-	void AddBoneStringCustomAttribute(const FName& BoneName, const FName& AttributeName, const TArray<float>& TimeKeys, const TArray<FString>& ValueKeys);
+	ENGINE_API void AddBoneStringCustomAttribute(const FName& BoneName, const FName& AttributeName, const TArray<float>& TimeKeys, const TArray<FString>& ValueKeys);
 
 	UE_DEPRECATED(5.0, "RemoveCustomAttribute has been deprecated see UAnimDataController::RemoveAttribute")
 	UFUNCTION(BlueprintCallable, Category = CustomAttributes, meta=(DeprecatedFunction, DeprecationMessage="RemoveCustomAttribute has been deprecated, use UAnimDataController::RemoveAttribute instead"))
-	void RemoveCustomAttribute(const FName& BoneName, const FName& AttributeName);
+	ENGINE_API void RemoveCustomAttribute(const FName& BoneName, const FName& AttributeName);
 
 	UE_DEPRECATED(5.0, "RemoveAllCustomAttributesForBone has been deprecated see UAnimDataController::RemoveAllAttributesForBone")
 	UFUNCTION(BlueprintCallable, Category = CustomAttributes, meta=(DeprecatedFunction, DeprecationMessage="RemoveAllCustomAttributesForBone has been deprecated, use UAnimDataController::RemoveAllAttributesForBone instead"))
-	void RemoveAllCustomAttributesForBone(const FName& BoneName);
+	ENGINE_API void RemoveAllCustomAttributesForBone(const FName& BoneName);
 
 	UE_DEPRECATED(5.0, "RemoveAllCustomAttributes has been deprecated see UAnimDataController::RemoveAllAttributes")
 	UFUNCTION(BlueprintCallable, Category = CustomAttributes, meta=(DeprecatedFunction, DeprecationMessage="RemoveAllCustomAttributes has been deprecated, use UAnimDataController::RemoveAllAttributes instead"))
-	void RemoveAllCustomAttributes();
+	ENGINE_API void RemoveAllCustomAttributes();
 #endif // WITH_EDITOR
 
-	void EvaluateAttributes(FAnimationPoseData& OutAnimationPoseData, const FAnimExtractContext& ExtractionContext, bool bUseRawData) const;	
+	ENGINE_API void EvaluateAttributes(FAnimationPoseData& OutAnimationPoseData, const FAnimExtractContext& ExtractionContext, bool bUseRawData) const;	
 protected:
 #if WITH_EDITOR
-	void SynchronousAnimatedBoneAttributesCompression();
-	void MoveAttributesToModel();
+	ENGINE_API void SynchronousAnimatedBoneAttributesCompression();
+	ENGINE_API void MoveAttributesToModel();
 #endif // WITH_EDITOR
 
 protected:
 #if WITH_EDITOR
 	// Begin UAnimSequenceBase virtual overrides
-	virtual void OnModelModified(const EAnimDataModelNotifyType& NotifyType, IAnimationDataModel* Model, const FAnimDataModelNotifPayload& Payload) override;
-	virtual void PopulateModel() override;
+	ENGINE_API virtual void OnModelModified(const EAnimDataModelNotifyType& NotifyType, IAnimationDataModel* Model, const FAnimDataModelNotifPayload& Payload) override;
+	ENGINE_API virtual void PopulateModel() override;
 	// End UAnimSequenceBase virtual overrides
 
-	void EnsureValidRawDataGuid();
+	ENGINE_API void EnsureValidRawDataGuid();
 	UE_DEPRECATED(5.2, "RecompressAnimationData has been deprecated")
-	void RecompressAnimationData();
+	ENGINE_API void RecompressAnimationData();
 	UE_DEPRECATED(5.2, "ResampleAnimationTrackData has been deprecated")
 	void ResampleAnimationTrackData() const {}
-	void CalculateNumberOfSampledKeys();
+	ENGINE_API void CalculateNumberOfSampledKeys();
 	UE_DEPRECATED(5.2, "ClearResampledAnimationTrackData has been deprecated")
 	void ClearResampledAnimationTrackData() {}
 
-	void DeleteBoneAnimationData();
-	void DeleteDeprecatedRawAnimationData();
+	ENGINE_API void DeleteBoneAnimationData();
+	ENGINE_API void DeleteDeprecatedRawAnimationData();
 public:
-	void DeleteNotifyTrackData();
+	ENGINE_API void DeleteNotifyTrackData();
 #endif // WITH_EDITOR
 
 protected:
@@ -887,29 +887,29 @@ protected:
 	TMap<FAnimationAttributeIdentifier, FAttributeCurve> AttributeCurves;
 
 #if WITH_EDITOR
-	FIoHash CreateDerivedDataKeyHash(const ITargetPlatform* TargetPlatform);
-	FIoHash BeginCacheDerivedData(const ITargetPlatform* TargetPlatform);
-	bool PollCacheDerivedData(const FIoHash& KeyHash) const;
-	void EndCacheDerivedData(const FIoHash& KeyHash);
+	ENGINE_API FIoHash CreateDerivedDataKeyHash(const ITargetPlatform* TargetPlatform);
+	ENGINE_API FIoHash BeginCacheDerivedData(const ITargetPlatform* TargetPlatform);
+	ENGINE_API bool PollCacheDerivedData(const FIoHash& KeyHash) const;
+	ENGINE_API void EndCacheDerivedData(const FIoHash& KeyHash);
 
 	FIoHash DataKeyHash;
 	TMap<FIoHash, TUniquePtr<FCompressedAnimSequence>> DataByPlatformKeyHash;
 	TMap<FIoHash, TPimplPtr<UE::Anim::FAnimationSequenceAsyncCacheTask>> CacheTasksByKeyHash;
 
 protected:
-	bool TryCancelAsyncTasks();
-	void FinishAsyncTasks();
-	void Reschedule(FQueuedThreadPool* InThreadPool, EQueuedWorkPriority InPriority);
-	bool IsAsyncTaskComplete() const;
-	bool IsCompiling() const;
+	ENGINE_API bool TryCancelAsyncTasks();
+	ENGINE_API void FinishAsyncTasks();
+	ENGINE_API void Reschedule(FQueuedThreadPool* InThreadPool, EQueuedWorkPriority InPriority);
+	ENGINE_API bool IsAsyncTaskComplete() const;
+	ENGINE_API bool IsCompiling() const;
 public:	
-	void BeginCacheDerivedDataForCurrentPlatform();
-	void CacheDerivedDataForCurrentPlatform();
+	ENGINE_API void BeginCacheDerivedDataForCurrentPlatform();
+	ENGINE_API void CacheDerivedDataForCurrentPlatform();
 	
 	// Synchronous caching of compressed animation data for provided target platform
-	FCompressedAnimSequence& CacheDerivedData(const ITargetPlatform* TargetPlatform);
+	ENGINE_API FCompressedAnimSequence& CacheDerivedData(const ITargetPlatform* TargetPlatform);
 
-	FFrameRate GetTargetSamplingFrameRate(const ITargetPlatform* InPlatform) const;
+	ENGINE_API FFrameRate GetTargetSamplingFrameRate(const ITargetPlatform* InPlatform) const;
 #endif
 
 public:

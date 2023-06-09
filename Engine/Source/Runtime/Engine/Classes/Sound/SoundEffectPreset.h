@@ -19,37 +19,37 @@ class FSoundEffectBase;
 class IToolkitHost;
 
 
-UCLASS(config = Engine, abstract, editinlinenew, BlueprintType)
-class ENGINE_API USoundEffectPreset : public UObject
+UCLASS(config = Engine, abstract, editinlinenew, BlueprintType, MinimalAPI)
+class USoundEffectPreset : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	USoundEffectPreset(const FObjectInitializer& ObjectInitializer);
+	ENGINE_API USoundEffectPreset(const FObjectInitializer& ObjectInitializer);
 	virtual ~USoundEffectPreset() = default;
 
 
 	virtual bool CanFilter() const { return true; }
-	virtual FText GetAssetActionName() const PURE_VIRTUAL(USoundEffectPreset::GetAssetActionName, return FText(););
-	virtual UClass* GetSupportedClass() const PURE_VIRTUAL(USoundEffectPreset::GetSupportedClass, return nullptr;);
-	virtual USoundEffectPreset* CreateNewPreset(UObject* InParent, FName Name, EObjectFlags Flags) const PURE_VIRTUAL(USoundEffectPreset::CreateNewPreset, return nullptr;);
-	virtual FSoundEffectBase* CreateNewEffect() const PURE_VIRTUAL(USoundEffectPreset::CreateNewEffect, return nullptr;);
+	ENGINE_API virtual FText GetAssetActionName() const PURE_VIRTUAL(USoundEffectPreset::GetAssetActionName, return FText(););
+	ENGINE_API virtual UClass* GetSupportedClass() const PURE_VIRTUAL(USoundEffectPreset::GetSupportedClass, return nullptr;);
+	ENGINE_API virtual USoundEffectPreset* CreateNewPreset(UObject* InParent, FName Name, EObjectFlags Flags) const PURE_VIRTUAL(USoundEffectPreset::CreateNewPreset, return nullptr;);
+	ENGINE_API virtual FSoundEffectBase* CreateNewEffect() const PURE_VIRTUAL(USoundEffectPreset::CreateNewEffect, return nullptr;);
 	virtual bool HasAssetActions() const { return false; }
-	virtual void Init() PURE_VIRTUAL(USoundEffectPreset::Init, );
+	ENGINE_API virtual void Init() PURE_VIRTUAL(USoundEffectPreset::Init, );
 	virtual void OnInit() {};
 	virtual FColor GetPresetColor() const { return FColor(200, 100, 100); }
 
-	void Update();
-	void AddEffectInstance(TSoundEffectPtr& InEffectPtr);
-	void RemoveEffectInstance(TSoundEffectPtr& InEffectPtr);
+	ENGINE_API void Update();
+	ENGINE_API void AddEffectInstance(TSoundEffectPtr& InEffectPtr);
+	ENGINE_API void RemoveEffectInstance(TSoundEffectPtr& InEffectPtr);
 
-	void AddReferencedEffects(FReferenceCollector& InCollector);
+	ENGINE_API void AddReferencedEffects(FReferenceCollector& InCollector);
 
-	virtual void BeginDestroy() override;
+	ENGINE_API virtual void BeginDestroy() override;
 
 protected:
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
 	using TSoundEffectWeakPtr = TWeakPtr<FSoundEffectBase, ESPMode::ThreadSafe>;
@@ -123,7 +123,7 @@ public:
 		return NewEffectPtr;
 	}
 
-	static void UnregisterInstance(TSoundEffectPtr InEffectPtr);
+	static ENGINE_API void UnregisterInstance(TSoundEffectPtr InEffectPtr);
 
-	static void RegisterInstance(USoundEffectPreset& InPreset, TSoundEffectPtr InEffectPtr);
+	static ENGINE_API void RegisterInstance(USoundEffectPreset& InPreset, TSoundEffectPtr InEffectPtr);
 };

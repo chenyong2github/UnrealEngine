@@ -26,8 +26,8 @@
  * An example of data is the source import data that get updated only when we reimport an asset, but is needed if the asset need to be build. If the ddc key is uptodate the data do not have to be loaded
  *
  */
-UCLASS(hidecategories=Object)
-class ENGINE_API USkeletalMeshEditorData : public UObject
+UCLASS(hidecategories=Object, MinimalAPI)
+class USkeletalMeshEditorData : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -38,21 +38,21 @@ class ENGINE_API USkeletalMeshEditorData : public UObject
  */
 public:
 
-	virtual void PostLoad() override;
+	ENGINE_API virtual void PostLoad() override;
 
 	/**
 	 * Return the imported source LOD data, create one if there is nothing.
 	 * Previous reference get by this function can be invalid if we have to add items
 	 */
-	FRawSkeletalMeshBulkData& GetLODImportedData(int32 LODIndex);
+	ENGINE_API FRawSkeletalMeshBulkData& GetLODImportedData(int32 LODIndex);
 
-	bool IsLODImportDataValid(int32 LODIndex);
+	ENGINE_API bool IsLODImportDataValid(int32 LODIndex);
 
-	bool RemoveLODImportedData(int32 LODIndex);
+	ENGINE_API bool RemoveLODImportedData(int32 LODIndex);
 
 	/* UObject overrides */
 
-	virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
 	
 	/* End of UObject overrides */
 

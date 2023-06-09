@@ -35,43 +35,43 @@ struct FNavigationQueryFilter;
 typedef TSharedPtr<FNavigationQueryFilter, ESPMode::ThreadSafe> FSharedNavQueryFilter;
 typedef TSharedPtr<const FNavigationQueryFilter, ESPMode::ThreadSafe> FSharedConstNavQueryFilter;
 
-struct ENGINE_API FNavigationQueryFilter : public TSharedFromThis<FNavigationQueryFilter, ESPMode::ThreadSafe>
+struct FNavigationQueryFilter : public TSharedFromThis<FNavigationQueryFilter, ESPMode::ThreadSafe>
 {
 	FNavigationQueryFilter() : QueryFilterImpl(NULL), MaxSearchNodes(DefaultMaxSearchNodes) {}
 private:
-	FNavigationQueryFilter(const FNavigationQueryFilter& Source);
-	FNavigationQueryFilter(const FNavigationQueryFilter* Source);
-	FNavigationQueryFilter(const FSharedNavQueryFilter Source);
-	FNavigationQueryFilter& operator=(const FNavigationQueryFilter& Source);
+	ENGINE_API FNavigationQueryFilter(const FNavigationQueryFilter& Source);
+	ENGINE_API FNavigationQueryFilter(const FNavigationQueryFilter* Source);
+	ENGINE_API FNavigationQueryFilter(const FSharedNavQueryFilter Source);
+	ENGINE_API FNavigationQueryFilter& operator=(const FNavigationQueryFilter& Source);
 public:
 
 	/** set travel cost for area */
-	void SetAreaCost(uint8 AreaType, float Cost);
+	ENGINE_API void SetAreaCost(uint8 AreaType, float Cost);
 
 	/** set entering cost for area */
-	void SetFixedAreaEnteringCost(uint8 AreaType, float Cost);
+	ENGINE_API void SetFixedAreaEnteringCost(uint8 AreaType, float Cost);
 
 	/** mark area as excluded from path finding */
-	void SetExcludedArea(uint8 AreaType);
+	ENGINE_API void SetExcludedArea(uint8 AreaType);
 
 	/** set travel cost for all areas */
-	void SetAllAreaCosts(const TArray<float>& CostArray);
-	void SetAllAreaCosts(const float* CostArray, const int32 Count);
+	ENGINE_API void SetAllAreaCosts(const TArray<float>& CostArray);
+	ENGINE_API void SetAllAreaCosts(const float* CostArray, const int32 Count);
 
 	/** get travel & entering costs for all areas */
-	void GetAllAreaCosts(float* CostArray, float* FixedCostArray, const int32 Count) const;
+	ENGINE_API void GetAllAreaCosts(float* CostArray, float* FixedCostArray, const int32 Count) const;
 
 	/** set required flags of navigation nodes */
-	void SetIncludeFlags(uint16 Flags);
+	ENGINE_API void SetIncludeFlags(uint16 Flags);
 
 	/** get required flags of navigation nodes */
-	uint16 GetIncludeFlags() const;
+	ENGINE_API uint16 GetIncludeFlags() const;
 
 	/** set forbidden flags of navigation nodes */
-	void SetExcludeFlags(uint16 Flags);
+	ENGINE_API void SetExcludeFlags(uint16 Flags);
 
 	/** get forbidden flags of navigation nodes */
-	uint16 GetExcludeFlags() const;
+	ENGINE_API uint16 GetExcludeFlags() const;
 
 	/** set node limit for A* loop */
 	void SetMaxSearchNodes(const uint32 MaxNodes) { MaxSearchNodes = MaxNodes; }
@@ -107,7 +107,7 @@ public:
 	FORCEINLINE INavigationQueryFilterInterface* GetImplementation() { return QueryFilterImpl.Get(); }
 	void Reset() { GetImplementation()->Reset(); }
 
-	FSharedNavQueryFilter GetCopy() const;
+	ENGINE_API FSharedNavQueryFilter GetCopy() const;
 
 	FORCEINLINE bool operator==(const FNavigationQueryFilter& Other) const
 	{
@@ -116,10 +116,10 @@ public:
 		return Impl0 && Impl1 && Impl0->IsEqual(Impl1);
 	}
 
-	static const uint32 DefaultMaxSearchNodes;
+	static ENGINE_API const uint32 DefaultMaxSearchNodes;
 
 protected:
-	void Assign(const FNavigationQueryFilter& Source);
+	ENGINE_API void Assign(const FNavigationQueryFilter& Source);
 
 	TSharedPtr<INavigationQueryFilterInterface, ESPMode::ThreadSafe> QueryFilterImpl;
 	uint32 MaxSearchNodes;

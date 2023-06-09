@@ -47,7 +47,7 @@ struct FForceFeedbackChannelDetails
 };
 
 USTRUCT()
-struct ENGINE_API FActiveForceFeedbackEffect
+struct FActiveForceFeedbackEffect
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -84,19 +84,19 @@ struct ENGINE_API FActiveForceFeedbackEffect
 	{
 	}
 
-	~FActiveForceFeedbackEffect();
+	ENGINE_API ~FActiveForceFeedbackEffect();
 
 	// Updates the final force feedback values based on this effect.  Returns true if the effect should continue playing, false if it is finished.
-	bool Update(float DeltaTime, FForceFeedbackValues& Values);
+	ENGINE_API bool Update(float DeltaTime, FForceFeedbackValues& Values);
 
 	// Activates all the device properties with the input device subsystem
-	void ActivateDeviceProperties();
+	ENGINE_API void ActivateDeviceProperties();
 
 	/** Reset any device properties that may need to be after the duration of this effect has ended. */
-	void ResetDeviceProperties();
+	ENGINE_API void ResetDeviceProperties();
 
 	// Gets the current values at the stored play time
-	void GetValues(FForceFeedbackValues& Values) const;
+	ENGINE_API void GetValues(FForceFeedbackValues& Values) const;
 };
 
 /** A wrapper struct for setting channel details on a per-platform basis */

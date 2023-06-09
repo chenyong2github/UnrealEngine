@@ -153,7 +153,7 @@ struct FMinimalViewInfo
 	ENGINE_API static void CalculateProjectionMatrixGivenViewRectangle(const FMinimalViewInfo& ViewInfo, TEnumAsByte<enum EAspectRatioAxisConstraint> AspectRatioAxisConstraint, const FIntRect& ConstrainedViewRectangle, FSceneViewProjectionData& InOutProjectionData);
 
 	/** The near plane distance of the perspective view (in world units). Returns the value of PerspectiveNearClipPlane if positive, and GNearClippingPlane otherwise */
-	ENGINE_API FORCEINLINE float GetFinalPerspectiveNearClipPlane() const
+	FORCEINLINE float GetFinalPerspectiveNearClipPlane() const
 	{
 		return PerspectiveNearClipPlane > 0.0f ? PerspectiveNearClipPlane : GNearClippingPlane;
 	}

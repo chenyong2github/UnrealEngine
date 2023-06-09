@@ -39,8 +39,8 @@ public:
 /**
  * A channel for exchanging connection control messages.
  */
-UCLASS(transient, customConstructor)
-class ENGINE_API UControlChannel
+UCLASS(transient, customConstructor, MinimalAPI)
+class UControlChannel
 	: public UChannel
 {
 	GENERATED_UCLASS_BODY()
@@ -72,10 +72,10 @@ class ENGINE_API UControlChannel
 	 *
 	 * @return true if the packet is good, false otherwise (closes socket)
 	 */
-	bool CheckEndianess(FInBunch& Bunch);
+	ENGINE_API bool CheckEndianess(FInBunch& Bunch);
 
 	/** adds the given bunch to the QueuedMessages list. Closes the connection if MAX_QUEUED_CONTROL_MESSAGES is exceeded */
-	void QueueMessage(const FOutBunch* Bunch);
+	ENGINE_API void QueueMessage(const FOutBunch* Bunch);
 
 	/**
 	 * Default constructor
@@ -86,12 +86,12 @@ class ENGINE_API UControlChannel
 		ChName = NAME_Control;
 	}
 
-	virtual void Init( UNetConnection* InConnection, int32 InChIndex, EChannelCreateFlags CreateFlags ) override;
+	ENGINE_API virtual void Init( UNetConnection* InConnection, int32 InChIndex, EChannelCreateFlags CreateFlags ) override;
 
 	//~ Begin UChannel Interface.
-	virtual FPacketIdRange SendBunch(FOutBunch* Bunch, bool Merge) override;
+	ENGINE_API virtual FPacketIdRange SendBunch(FOutBunch* Bunch, bool Merge) override;
 
-	virtual void Tick() override;
+	ENGINE_API virtual void Tick() override;
 
 	/** Always tick the control channel for now. */
 	virtual bool CanStopTicking() const override { return false; }
@@ -99,14 +99,14 @@ class ENGINE_API UControlChannel
 
 
 	/** Handle an incoming bunch. */
-	virtual void ReceivedBunch( FInBunch& Bunch ) override;
+	ENGINE_API virtual void ReceivedBunch( FInBunch& Bunch ) override;
 
 	/** Describe the text channel. */
-	virtual FString Describe() override;
+	ENGINE_API virtual FString Describe() override;
 
 	/** Sends a message to destroy a specific actor without creating an actor channel. */
-	int64 SendDestructionInfo(FActorDestructionInfo* DestructionInfo);
+	ENGINE_API int64 SendDestructionInfo(FActorDestructionInfo* DestructionInfo);
 
 	/** Handle receiving a destruction message for an actor outside of an actor channel. */
-	void ReceiveDestructionInfo(FInBunch& Bunch);
+	ENGINE_API void ReceiveDestructionInfo(FInBunch& Bunch);
 };

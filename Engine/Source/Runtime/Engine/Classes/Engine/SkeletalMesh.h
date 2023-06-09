@@ -197,11 +197,11 @@ struct FBoneMirrorExport
 
 /** Struct holding parameters needed when creating a new clothing asset or sub asset (LOD) */
 USTRUCT()
-struct ENGINE_API FSkeletalMeshClothBuildParams
+struct FSkeletalMeshClothBuildParams
 {
 	GENERATED_BODY()
 
-	FSkeletalMeshClothBuildParams();
+	ENGINE_API FSkeletalMeshClothBuildParams();
 
 	// Target asset when importing LODs
 	UPROPERTY(EditAnywhere, Category = Target)
@@ -416,14 +416,14 @@ namespace NSSkeletalMeshSourceFileLabels
  *
  * @see https://docs.unrealengine.com/latest/INT/Engine/Content/Types/SkeletalMeshes/
  */
-UCLASS(hidecategories=Object, BlueprintType)
-class ENGINE_API USkeletalMesh : public USkinnedAsset, public IInterface_CollisionDataProvider, public IInterface_AssetUserData, public INodeMappingProviderInterface
+UCLASS(hidecategories=Object, BlueprintType, MinimalAPI)
+class USkeletalMesh : public USkinnedAsset, public IInterface_CollisionDataProvider, public IInterface_AssetUserData, public INodeMappingProviderInterface
 {
 	GENERATED_UCLASS_BODY()
 
 	// This is declared so we can use TUniquePtr<FSkeletalMeshRenderData> with just a forward declare of that class
-	USkeletalMesh(FVTableHelper& Helper);
-	~USkeletalMesh();
+	ENGINE_API USkeletalMesh(FVTableHelper& Helper);
+	ENGINE_API ~USkeletalMesh();
 
 #if WITH_EDITOR
 	/** Notification when anything changed */
@@ -440,9 +440,9 @@ private:
 	UE_DEPRECATED(5.0, "This must be protected for async build, always use the accessors even internally.")
 	TUniquePtr<FSkeletalMeshRenderData> SkeletalMeshRenderData;
 
-	FSkeletalMeshRenderData* GetSkeletalMeshRenderData() const;
+	ENGINE_API FSkeletalMeshRenderData* GetSkeletalMeshRenderData() const;
 
-	void SetSkeletalMeshRenderData(TUniquePtr<FSkeletalMeshRenderData>&& InSkeletalMeshRenderData);
+	ENGINE_API void SetSkeletalMeshRenderData(TUniquePtr<FSkeletalMeshRenderData>&& InSkeletalMeshRenderData);
 
 #if WITH_EDITORONLY_DATA
 public:
@@ -475,7 +475,7 @@ private:
 	/*
 	 * Return a valid USkeletalMeshEditorData, if the MeshEditorDataPath is invalid it will create the USkeletalMeshEditorData and set the MeshEditorDataPath to point on it.
 	 */
-	USkeletalMeshEditorData& GetMeshEditorData() const;
+	ENGINE_API USkeletalMeshEditorData& GetMeshEditorData() const;
 
 	bool IsMeshEditorDataValid() const
 	{
@@ -499,42 +499,42 @@ public:
 	
 
 	/* Fill the OutMesh with the imported data */
-	void LoadLODImportedData(const int32 LODIndex, FSkeletalMeshImportData& OutMesh) const;
+	ENGINE_API void LoadLODImportedData(const int32 LODIndex, FSkeletalMeshImportData& OutMesh) const;
 
 	/* Fill the asset LOD entry with the InMesh. */
-	void SaveLODImportedData(const int32 LODIndex, FSkeletalMeshImportData& InMesh);
+	ENGINE_API void SaveLODImportedData(const int32 LODIndex, FSkeletalMeshImportData& InMesh);
 	
 	/* Return true if the imported data has all the necessary data to use the skeletalmesh builder. Return False otherwise.
 	 * Old asset before the refactor will not be able to be build until it get fully re-import.
 	 * This value is cache in the LODModel and update when we call SaveLODImportedData.
 	 */
-	bool IsLODImportedDataBuildAvailable(const int32 LODIndex) const;
+	ENGINE_API bool IsLODImportedDataBuildAvailable(const int32 LODIndex) const;
 	
 	/* Return true if the imported data is present. Return false otherwise.
 	 * Old asset before the split workflow will not have this data and will not support import geo only or skinning only.
 	 * This value is cache in the LODModel and update when we call SaveLODImportedData.
 	 */
-	bool IsLODImportedDataEmpty(const int32 LODIndex) const;
+	ENGINE_API bool IsLODImportedDataEmpty(const int32 LODIndex) const;
 
 	/* Get the Versions of the geo and skinning data. We use those versions to answer to IsLODImportedDataBuildAvailable function. */
-	void GetLODImportedDataVersions(const int32 LODIndex, ESkeletalMeshGeoImportVersions& OutGeoImportVersion, ESkeletalMeshSkinningImportVersions& OutSkinningImportVersion) const;
+	ENGINE_API void GetLODImportedDataVersions(const int32 LODIndex, ESkeletalMeshGeoImportVersions& OutGeoImportVersion, ESkeletalMeshSkinningImportVersions& OutSkinningImportVersion) const;
 
 	/* Set the Versions of the geo and skinning data. We use those versions to answer to IsLODImportedDataBuildAvailable function. */
-	void SetLODImportedDataVersions(const int32 LODIndex, const ESkeletalMeshGeoImportVersions& InGeoImportVersion, const ESkeletalMeshSkinningImportVersions& InSkinningImportVersion);
+	ENGINE_API void SetLODImportedDataVersions(const int32 LODIndex, const ESkeletalMeshGeoImportVersions& InGeoImportVersion, const ESkeletalMeshSkinningImportVersions& InSkinningImportVersion);
 
 	/* Static function that copy the LOD import data from a source s^keletal mesh to a destination skeletal mesh*/
-	static void CopyImportedData(int32 SrcLODIndex, USkeletalMesh* SrcSkeletalMesh, int32 DestLODIndex, USkeletalMesh* DestSkeletalMesh);
+	static ENGINE_API void CopyImportedData(int32 SrcLODIndex, USkeletalMesh* SrcSkeletalMesh, int32 DestLODIndex, USkeletalMesh* DestSkeletalMesh);
 
 	/* Allocate the space we need. Use this before calling this API in multithreaded. */
-	void ReserveLODImportData(int32 MaxLODIndex);
+	ENGINE_API void ReserveLODImportData(int32 MaxLODIndex);
 	
-	void ForceBulkDataResident(const int32 LODIndex);
+	ENGINE_API void ForceBulkDataResident(const int32 LODIndex);
 
 	/* Remove the import data for the specified LOD */
-	void EmptyLODImportData(const int32 LODIndex);
+	ENGINE_API void EmptyLODImportData(const int32 LODIndex);
 
 	/* Remove the import data for all the LODs */
-	void EmptyAllImportData();
+	ENGINE_API void EmptyAllImportData();
 
 	// End USkeletalMeshEditorData public skeletalmesh API
 	//////////////////////////////////////////////////////////////////////////
@@ -550,15 +550,15 @@ public:
 	};
 
 	/* Fills OutMeshDescription from the associated InLODIndex. */
-	void GetMeshDescription(const int32 InLODIndex, FMeshDescription& OutMeshDescription) const;
+	ENGINE_API void GetMeshDescription(const int32 InLODIndex, FMeshDescription& OutMeshDescription) const;
 
 	/* Sets InMeshDescription to the associated InLODIndex. */
-	void CommitMeshDescription(const int32 InLODIndex, const FMeshDescription& InMeshDescription,
+	ENGINE_API void CommitMeshDescription(const int32 InLODIndex, const FMeshDescription& InMeshDescription,
 		const FCommitMeshDescriptionParams& InParams = FCommitMeshDescriptionParams());
 
 	/** Get the number of imported vertices. This returns 0 if GetImportedModel() returns a nullptr.
 	  * This is the number of vertices as they appear in the source asset, for example 8 for a cube. */
-	int32 GetNumImportedVertices() const;
+	ENGINE_API int32 GetNumImportedVertices() const;
 
 	/** Get the imported data for this skeletal mesh. */
 	virtual FSkeletalMeshModel* GetImportedModel() const override
@@ -582,13 +582,13 @@ public:
 
 #if WITH_EDITOR
     /** Warn if the platform supports the minimal number of per vertex bone weights */
-	void ValidateBoneWeights(const ITargetPlatform* TargetPlatform);
-	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
-	virtual void ClearAllCachedCookedPlatformData() override;
+	ENGINE_API void ValidateBoneWeights(const ITargetPlatform* TargetPlatform);
+	ENGINE_API virtual void BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
+	ENGINE_API virtual void ClearAllCachedCookedPlatformData() override;
 #endif
 
 	/** Get the data to use for rendering. USkinnedAsset interface. */
-	virtual FSkeletalMeshRenderData* GetResourceForRendering() const override;
+	ENGINE_API virtual FSkeletalMeshRenderData* GetResourceForRendering() const override;
 
 	/** Skeleton of this skeletal mesh **/
 	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetSkeleton() or USkeletalMesh::SetSkeleton().")
@@ -693,17 +693,17 @@ protected:
 public:
 	/** Get the extended bounds of this mesh (imported bounds plus bounds extension). USkinnedAsset interface. */
 	UFUNCTION(BlueprintCallable, Category = Mesh)
-	virtual FBoxSphereBounds GetBounds() const override;
+	ENGINE_API virtual FBoxSphereBounds GetBounds() const override;
 
 	/** Get the original imported bounds of the skel mesh */
 	UFUNCTION(BlueprintCallable, Category = Mesh)
-	FBoxSphereBounds GetImportedBounds() const;
+	ENGINE_API FBoxSphereBounds GetImportedBounds() const;
 
 	/** Set the original imported bounds of the skel mesh, will recalculate extended bounds */
-	void SetImportedBounds(const FBoxSphereBounds& InBounds);
+	ENGINE_API void SetImportedBounds(const FBoxSphereBounds& InBounds);
 
 	/** Set bound extension values in the positive direction of XYZ, positive value increases bound size */
-	void SetPositiveBoundsExtension(const FVector& InExtension);
+	ENGINE_API void SetPositiveBoundsExtension(const FVector& InExtension);
 
 	/** Get bound extension values in the positive direction of XYZ **/
 	const FVector& GetPositiveBoundsExtension() const
@@ -715,7 +715,7 @@ public:
 	}
 
 	/** Set bound extension values in the negative direction of XYZ, positive value increases bound size */
-	void SetNegativeBoundsExtension(const FVector& InExtension);
+	ENGINE_API void SetNegativeBoundsExtension(const FVector& InExtension);
 
 	/** Get bound extension values in the negative direction of XYZ **/
 	const FVector& GetNegativeBoundsExtension() const
@@ -727,10 +727,10 @@ public:
 	}
 
 	/** Calculate the extended bounds based on the imported bounds and the extension values */
-	void CalculateExtendedBounds();
+	ENGINE_API void CalculateExtendedBounds();
 
 	/** Alters the bounds extension values to fit correctly into the current bounds (so negative values never extend the bounds etc.) */
-	void ValidateBoundsExtension();
+	ENGINE_API void ValidateBoundsExtension();
 
 #if WITH_EDITOR
 	/** This is a bit hacky. If you are inherriting from SkeletalMesh you can opt out of using the skeletal mesh actor factory. Note that this only works for one level of inherritence and is not a good long term solution */
@@ -746,13 +746,13 @@ public:
 	}
 
 	/* Return true if this skeletalmesh was never build since its creation. USkinnedAsset interface. */
-	virtual bool IsInitialBuildDone() const override;
+	ENGINE_API virtual bool IsInitialBuildDone() const override;
 
 	/* Return true if the reduction settings are setup to reduce a LOD*/
-	bool IsReductionActive(int32 LODIndex) const;
+	ENGINE_API bool IsReductionActive(int32 LODIndex) const;
 
 	/* Get a copy of the reduction settings for a specified LOD index. */
-	struct FSkeletalMeshOptimizationSettings GetReductionSettings(int32 LODIndex) const;
+	ENGINE_API struct FSkeletalMeshOptimizationSettings GetReductionSettings(int32 LODIndex) const;
 
 #endif
 
@@ -788,7 +788,7 @@ public:
 	}
 
 	UFUNCTION(BlueprintSetter)
-	void SetMaterials(const TArray<FSkeletalMaterial>& InMaterials);
+	ENGINE_API void SetMaterials(const TArray<FSkeletalMaterial>& InMaterials);
 
 #if WITH_EDITORONLY_DATA
 	/** List of bones that should be mirrored. */
@@ -869,18 +869,18 @@ public:
 	}
 
 	/** Check the QualitLevel property is enabled for MinLod. USkinnedAsset interface. */
-	virtual bool IsMinLodQualityLevelEnable() const override;
+	ENGINE_API virtual bool IsMinLodQualityLevelEnable() const override;
 
 	/** USkinnedAsset interface */
-	virtual int32 GetPlatformMinLODIdx(const ITargetPlatform* TargetPlatform) const override;
-	virtual void SetSkinWeightProfilesData(int32 LODIndex, FSkinWeightProfilesData& SkinWeightProfilesData) override;
+	ENGINE_API virtual int32 GetPlatformMinLODIdx(const ITargetPlatform* TargetPlatform) const override;
+	ENGINE_API virtual void SetSkinWeightProfilesData(int32 LODIndex, FSkinWeightProfilesData& SkinWeightProfilesData) override;
 
-	static void OnLodStrippingQualityLevelChanged(IConsoleVariable* Variable);
+	static ENGINE_API void OnLodStrippingQualityLevelChanged(IConsoleVariable* Variable);
 
 	/*Choose either PerPlatform or PerQuality override. Note: Enable PerQuality override in the Project Settings/ General Settings/ UseSkeletalMeshMinLODPerQualityLevels*/
-	virtual int32 GetMinLodIdx(bool bForceLowestLODIdx = false) const override;
-	virtual int32 GetDefaultMinLod() const override;
-	void SetMinLodIdx(int32 InMinLOD);
+	ENGINE_API virtual int32 GetMinLodIdx(bool bForceLowestLODIdx = false) const override;
+	ENGINE_API virtual int32 GetDefaultMinLod() const override;
+	ENGINE_API void SetMinLodIdx(int32 InMinLOD);
 
 	/** Minimum LOD to render. Can be overridden per component as well as set here for all mesh instances here */
 	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetMinLod() or USkeletalMesh::SetMinLod().")
@@ -1103,27 +1103,27 @@ public:
 	}
 
 	UFUNCTION(BlueprintSetter)
-	void SetLODSettings(USkeletalMeshLODSettings* InLODSettings);
+	ENGINE_API void SetLODSettings(USkeletalMeshLODSettings* InLODSettings);
 
 #if WITH_EDITOR
 	/** Get whether this mesh should use LOD streaming for the given platform. Do not use bSupportLODStreaming directly. Call this method instead. USkinnedAsset Interface. */
-	virtual bool GetEnableLODStreaming(const class ITargetPlatform* TargetPlatform) const override;
+	ENGINE_API virtual bool GetEnableLODStreaming(const class ITargetPlatform* TargetPlatform) const override;
 
 	/** Get the maximum number of LODs that can be streamed. Do not use MaxNumStreamedLODs directly. Call this method instead. USkinnedAsset Interface. */
-	virtual int32 GetMaxNumStreamedLODs(const class ITargetPlatform* TargetPlatform) const override;
+	ENGINE_API virtual int32 GetMaxNumStreamedLODs(const class ITargetPlatform* TargetPlatform) const override;
 
 	/** Get the maximum number of optional LODs. Do not use MaxNumOptionalLODs directly. Call this method instead. USkinnedAsset Interface. */
-	virtual int32 GetMaxNumOptionalLODs(const class ITargetPlatform* TargetPlatform) const override;
+	ENGINE_API virtual int32 GetMaxNumOptionalLODs(const class ITargetPlatform* TargetPlatform) const override;
 
 	/* Build a LOD model before creating its render data. USkinnedAsset Interface. */
-	virtual void BuildLODModel(const ITargetPlatform* TargetPlatform, int32 LODIndex) override;
+	ENGINE_API virtual void BuildLODModel(const ITargetPlatform* TargetPlatform, int32 LODIndex) override;
 #endif
 
 	UFUNCTION(BlueprintSetter)
-	void SetDefaultAnimatingRig(TSoftObjectPtr<UObject> InAnimatingRig);
+	ENGINE_API void SetDefaultAnimatingRig(TSoftObjectPtr<UObject> InAnimatingRig);
 
 	UFUNCTION(BlueprintGetter)
-	TSoftObjectPtr<UObject> GetDefaultAnimatingRig() const;
+	ENGINE_API TSoftObjectPtr<UObject> GetDefaultAnimatingRig() const;
 
 #if WITH_EDITORONLY_DATA
 	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetSkelMirrorAxis() or USkeletalMesh::SetSkelMirrorAxis().")
@@ -1418,7 +1418,7 @@ public:
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Animation")
-	class UNodeMappingContainer* GetNodeMappingContainer(class UBlueprint* SourceAsset) const;
+	ENGINE_API class UNodeMappingContainer* GetNodeMappingContainer(class UBlueprint* SourceAsset) const;
 
 #if WITH_EDITORONLY_DATA
 
@@ -1450,7 +1450,7 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
-	static FText GetSourceFileLabelFromIndex(int32 SourceFileIndex);
+	static ENGINE_API FText GetSourceFileLabelFromIndex(int32 SourceFileIndex);
 
 	/** Path to the resource used to construct this skeletal mesh */
 	UPROPERTY()
@@ -1833,7 +1833,7 @@ public:
 	 *  @return	The list of morph targets
 	 */
 	UFUNCTION(BlueprintPure, Category = Mesh, meta = (DisplayName = "Get All Morph Target Names", ScriptName = "GetAllMorphTargetNames", Keywords = "morph shape"))
-	TArray<FString> K2_GetAllMorphTargetNames() const;
+	ENGINE_API TArray<FString> K2_GetAllMorphTargetNames() const;
 
 	/** A fence which is used to keep track of the rendering thread releasing the static mesh resources. */
 	FRenderCommandFence ReleaseResourcesFence;
@@ -2040,9 +2040,9 @@ private:
 	int32 PostProcessAnimBPLODThreshold = INDEX_NONE;
 
 public:
-	int32 GetPostProcessAnimBPLODThreshold() const;
-	void SetPostProcessAnimBPLODThreshold(int32 InPostProcessAnimBPLODThreshold);
-	bool ShouldEvaluatePostProcessAnimBP(int32 LODLevel) const;
+	ENGINE_API int32 GetPostProcessAnimBPLODThreshold() const;
+	ENGINE_API void SetPostProcessAnimBPLODThreshold(int32 InPostProcessAnimBPLODThreshold);
+	ENGINE_API bool ShouldEvaluatePostProcessAnimBP(int32 LODLevel) const;
 
 	static FName GetPostProcessAnimBlueprintMemberName()
 	{
@@ -2069,7 +2069,7 @@ public:
 
 #if WITH_EDITOR
 	/** If the given section of the specified LOD has a clothing asset, unbind it's data and remove it from the asset array */
-	void RemoveClothingAsset(int32 InLodIndex, int32 InSectionIndex);
+	ENGINE_API void RemoveClothingAsset(int32 InLodIndex, int32 InSectionIndex);
 
 	/**
 	* Clothing used to require the original section to be hidden and duplicated to a new rendered
@@ -2077,15 +2077,15 @@ public:
 	* duplicated section allowed us not to destroy the original data. This method will undo this
 	* process and restore the mesh now that this is no longer necessary.
 	*/
-	void RemoveLegacyClothingSections();
+	ENGINE_API void RemoveLegacyClothingSections();
 
 	/*
 	* Handle some common preparation steps between async post load and async build. USkinnedAsset interface.
 	*/
-	virtual void PrepareForAsyncCompilation() override;
+	ENGINE_API virtual void PrepareForAsyncCompilation() override;
 
 	/** Returns false if there is currently an async task running. USkinnedAsset interface. */
-	virtual bool IsAsyncTaskComplete() const override;
+	ENGINE_API virtual bool IsAsyncTaskComplete() const override;
 
 #endif // WITH_EDITOR
 
@@ -2093,8 +2093,8 @@ public:
 	 * Given an LOD and section index, retrieve a clothing asset bound to that section.
 	 * If no clothing asset is in use, returns nullptr
 	 */
-	UClothingAssetBase* GetSectionClothingAsset(int32 InLodIndex, int32 InSectionIndex);
-	const UClothingAssetBase* GetSectionClothingAsset(int32 InLodIndex, int32 InSectionIndex) const;
+	ENGINE_API UClothingAssetBase* GetSectionClothingAsset(int32 InLodIndex, int32 InSectionIndex);
+	ENGINE_API const UClothingAssetBase* GetSectionClothingAsset(int32 InLodIndex, int32 InSectionIndex) const;
 
 	/**
 	 * Clothing assets imported to this mesh. May or may not be in use currently on the mesh.
@@ -2141,28 +2141,28 @@ public:
 
 
 	/** Get a clothing asset from its associated GUID (returns nullptr if no match is found) */
-	UClothingAssetBase* GetClothingAsset(const FGuid& InAssetGuid) const;
+	ENGINE_API UClothingAssetBase* GetClothingAsset(const FGuid& InAssetGuid) const;
 
 	/* Get the index in the clothing asset array for a given asset (INDEX_NONE if InAsset isn't in the array) */
-	int32 GetClothingAssetIndex(UClothingAssetBase* InAsset) const;
+	ENGINE_API int32 GetClothingAssetIndex(UClothingAssetBase* InAsset) const;
 
 	/* Get the index in the clothing asset array for a given asset GUID (INDEX_NONE if there is no match) */
-	int32 GetClothingAssetIndex(const FGuid& InAssetGuid) const;
+	ENGINE_API int32 GetClothingAssetIndex(const FGuid& InAssetGuid) const;
 
 	/* Get whether or not any bound clothing assets exist for this mesh **/
-	bool HasActiveClothingAssets() const;
+	ENGINE_API bool HasActiveClothingAssets() const;
 
 	/* Get whether or not any bound clothing assets exist for this mesh's given LOD**/
-	bool HasActiveClothingAssetsForLOD(int32 LODIndex) const;
+	ENGINE_API bool HasActiveClothingAssetsForLOD(int32 LODIndex) const;
 
 	/* Compute whether or not any bound clothing assets exist for this mesh **/
-	bool ComputeActiveClothingAssets() const;
+	ENGINE_API bool ComputeActiveClothingAssets() const;
 
 	/** Populates OutClothingAssets with all clothing assets that are mapped to sections in the mesh. */
-	void GetClothingAssetsInUse(TArray<UClothingAssetBase*>& OutClothingAssets) const;
+	ENGINE_API void GetClothingAssetsInUse(TArray<UClothingAssetBase*>& OutClothingAssets) const;
 
 	/** Adds an asset to this mesh with validation and event broadcast */
-	void AddClothingAsset(UClothingAssetBase* InNewAsset);
+	ENGINE_API void AddClothingAsset(UClothingAssetBase* InNewAsset);
 
 	static FName GetSamplingInfoMemberName()
 	{
@@ -2205,7 +2205,7 @@ public:
 	/** 
 	True if this mesh LOD needs to keep it's data on CPU. USkinnedAsset interface.
 	*/
-	virtual bool NeedCPUData(int32 LODIndex)const override;
+	ENGINE_API virtual bool NeedCPUData(int32 LODIndex)const override;
 
 protected:
 
@@ -2257,23 +2257,23 @@ public:
 	/**
 	* Initialize the mesh's render resources.
 	*/
-	void InitResources();
+	ENGINE_API void InitResources();
 
 	/**
 	* Releases the mesh's render resources.
 	*/
-	void ReleaseResources();
+	ENGINE_API void ReleaseResources();
 
 	/**
 	* Flush current render state
 	*/
-	void FlushRenderState();
+	ENGINE_API void FlushRenderState();
 
 	/** Release CPU access version of buffer */
-	void ReleaseCPUResources();
+	ENGINE_API void ReleaseCPUResources();
 
 	/** Allocate a new FSkeletalMeshRenderData and assign to SkeletalMeshRenderData member.  */
-	void AllocateResourceForRendering();
+	ENGINE_API void AllocateResourceForRendering();
 
 	/**
 	 * Returns the UV channel data for a given material index. Used by the texture streamer.
@@ -2282,7 +2282,7 @@ public:
 	 * @param MaterialIndex		the material index for which to get the data for.
 	 * @return the data, or null if none exists.
 	 */
-	virtual const FMeshUVChannelInfo* GetUVChannelData(int32 MaterialIndex) const override;
+	ENGINE_API virtual const FMeshUVChannelInfo* GetUVChannelData(int32 MaterialIndex) const override;
 
 	//~ Begin UObject Interface.
 #if WITH_EDITOR
@@ -2291,18 +2291,18 @@ private:
 
 	//When loading a legacy asset (saved before the skeletalmesh build refactor), we need to create the user sections data.
 	//This function should be call only in the PostLoad
-	void CreateUserSectionsDataForLegacyAssets();
+	ENGINE_API void CreateUserSectionsDataForLegacyAssets();
 
 
 	/*
 	 * This function will enforce the user section data is coherent with the sections.
 	 */
-	void PostLoadValidateUserSectionData();
+	ENGINE_API void PostLoadValidateUserSectionData();
 
 	/*
 	 * This function ensure skeletalmesh each non generated LOD has some imported data. If there is no import data it will create it from the LODModel data.
 	 */
-	void PostLoadEnsureImportDataExist();
+	ENGINE_API void PostLoadEnsureImportDataExist();
 
 	/*
 	 * This function will ensure we have valid tangent in all LODs. If we found an invalid tangent axis, we will try to set it with the cross product of the two other axis.
@@ -2310,13 +2310,13 @@ private:
 	 * It will validate tangents only for assets that do not have source build data. (This means assets imported before the build refactor that was done in UE 4.24.)
 	 * @note - If it finds a bad normal, it will LOG a warning to let the user know they have to re-import their mesh.
 	 */
-	void PostLoadVerifyAndFixBadTangent();
+	ENGINE_API void PostLoadVerifyAndFixBadTangent();
 
 public:
 	/*
 	 * This function will enforce valid material index in the sections and the LODMaterialMap of all LOD.
 	 */
-	void ValidateAllLodMaterialIndexes();
+	ENGINE_API void ValidateAllLodMaterialIndexes();
 
 	//We want to avoid calling post edit change multiple time during import and build process.
 
@@ -2324,13 +2324,13 @@ public:
 	 * This function will increment the PostEditChange stack counter.
 	 * It will return the stack counter value. (the value should be >= 1)
 	 */
-	int32 StackPostEditChange();
+	ENGINE_API int32 StackPostEditChange();
 	
 	/*
 	 * This function will decrement the stack counter.
 	 * It will return the stack counter value. (the value should be >= 0)
 	 */
-	int32 UnStackPostEditChange();
+	ENGINE_API int32 UnStackPostEditChange();
 
 	int32 GetPostEditChangeStackCounter() { return PostEditChangeStackCounter; }
 	void SetPostEditChangeStackCounter(int32 InPostEditChangeStackCounter)
@@ -2341,56 +2341,56 @@ public:
 	/**
 	* If derive data cache key do not match, regenerate derived data and re-create any render state based on that.
 	*/
-	void Build();
+	ENGINE_API void Build();
 
 	/**
 	* Lock the skeletalmesh properties until the caller trigger the Event parameter.
 	* 
 	* @Param Event - When the caller will trigger the event the skeletal mesh properties will be unlocked
 	*/
-	void LockPropertiesUntil(FEvent* Event);
+	ENGINE_API void LockPropertiesUntil(FEvent* Event);
 
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
-	virtual void PostEditUndo() override;
-	virtual void GetAssetRegistryTagMetadata(TMap<FName, FAssetRegistryTagMetadata>& OutMetadata) const override;
+	ENGINE_API virtual void PostEditUndo() override;
+	ENGINE_API virtual void GetAssetRegistryTagMetadata(TMap<FName, FAssetRegistryTagMetadata>& OutMetadata) const override;
 
-	void UpdateGenerateUpToData();
+	ENGINE_API void UpdateGenerateUpToData();
 
-	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
+	ENGINE_API virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 
 #endif // WITH_EDITOR
-	virtual void BeginDestroy() override;
-	virtual bool IsReadyForFinishDestroy() override;
+	ENGINE_API virtual void BeginDestroy() override;
+	ENGINE_API virtual bool IsReadyForFinishDestroy() override;
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS // Suppress compiler warning on override of deprecated function
 	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
-	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	ENGINE_API virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
+	ENGINE_API PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
-	virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
 #if WITH_EDITORONLY_DATA
-	static void DeclareCustomVersions(FArchive& Ar, const UClass* SpecificSubclass);
+	static ENGINE_API void DeclareCustomVersions(FArchive& Ar, const UClass* SpecificSubclass);
 #endif
-	virtual void PostInitProperties() override;
-	virtual void PostLoad() override;
+	ENGINE_API virtual void PostInitProperties() override;
+	ENGINE_API virtual void PostLoad() override;
 #if WITH_EDITORONLY_DATA
-	static void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
+	static ENGINE_API void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
 #endif
 
-	virtual bool IsPostLoadThreadSafe() const override;
-	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
-	virtual FString GetDesc() override;
-	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
-	virtual void GetPreloadDependencies(TArray<UObject*>& OutDeps) override;
+	ENGINE_API virtual bool IsPostLoadThreadSafe() const override;
+	ENGINE_API virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
+	ENGINE_API virtual FString GetDesc() override;
+	ENGINE_API virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
+	ENGINE_API virtual void GetPreloadDependencies(TArray<UObject*>& OutDeps) override;
 	//~ End UObject Interface.
 
 	//~ Begin UStreamableRenderAsset Interface.
-	virtual int32 CalcCumulativeLODSize(int32 NumLODs) const final override;
-	virtual FIoFilenameHash GetMipIoFilenameHash(const int32 MipIndex) const final override;
-	virtual bool DoesMipDataExist(const int32 MipIndex) const final override;
-	virtual bool StreamOut(int32 NewMipCount) final override;
-	virtual bool StreamIn(int32 NewMipCount, bool bHighPrio) final override;
-	virtual bool HasPendingRenderResourceInitialization() const;
+	ENGINE_API virtual int32 CalcCumulativeLODSize(int32 NumLODs) const final override;
+	ENGINE_API virtual FIoFilenameHash GetMipIoFilenameHash(const int32 MipIndex) const final override;
+	ENGINE_API virtual bool DoesMipDataExist(const int32 MipIndex) const final override;
+	ENGINE_API virtual bool StreamOut(int32 NewMipCount) final override;
+	ENGINE_API virtual bool StreamIn(int32 NewMipCount, bool bHighPrio) final override;
+	ENGINE_API virtual bool HasPendingRenderResourceInitialization() const;
 	virtual EStreamableRenderAssetType GetRenderAssetType() const final override { return EStreamableRenderAssetType::SkeletalMesh; }
 	//~ End UStreamableRenderAsset Interface.
 
@@ -2398,32 +2398,32 @@ public:
 	* Cancels any pending static mesh streaming actions if possible.
 	* Returns when no more async loading requests are in flight.
 	*/
-	static void CancelAllPendingStreamingActions();
+	static ENGINE_API void CancelAllPendingStreamingActions();
 
 
 	/** Setup-only routines - not concerned with the instance. */
 
-	void CalculateInvRefMatrices();
+	ENGINE_API void CalculateInvRefMatrices();
 
 #if WITH_EDITOR
 	/** Calculate the required bones for a Skeletal Mesh LOD, including possible extra influences */
-	static void CalculateRequiredBones(FSkeletalMeshLODModel& LODModel, const struct FReferenceSkeleton& RefSkeleton, const TMap<FBoneIndexType, FBoneIndexType> * BonesToRemove);
+	static ENGINE_API void CalculateRequiredBones(FSkeletalMeshLODModel& LODModel, const struct FReferenceSkeleton& RefSkeleton, const TMap<FBoneIndexType, FBoneIndexType> * BonesToRemove);
 
 	/** Recalculate Retarget Base Pose BoneTransform */
-	void ReallocateRetargetBasePose();
+	ENGINE_API void ReallocateRetargetBasePose();
 
 	/**
 	 *	Add a skeletal socket object to this SkeletalMesh, and optionally promotes it to USkeleton socket.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Animation")
-	void AddSocket(USkeletalMeshSocket* InSocket, bool bAddToSkeleton=false);
+	ENGINE_API void AddSocket(USkeletalMeshSocket* InSocket, bool bAddToSkeleton=false);
 #endif // WITH_EDITOR
 
 	/** 
 	 *	Find a socket object in this SkeletalMesh by name. 
 	 *	Entering NAME_None will return NULL. If there are multiple sockets with the same name, will return the first one.
 	 */
-	virtual USkeletalMeshSocket* FindSocket(FName InSocketName) const override;
+	ENGINE_API virtual USkeletalMeshSocket* FindSocket(FName InSocketName) const override;
 
 	/**
 	*	Find a socket object in this SkeletalMesh by name.
@@ -2431,7 +2431,7 @@ public:
 	*   Also returns the index for the socket allowing for future fast access via GetSocketByIndex()
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Animation")
-	USkeletalMeshSocket* FindSocketAndIndex(FName InSocketName, int32& OutIndex) const;
+	ENGINE_API USkeletalMeshSocket* FindSocketAndIndex(FName InSocketName, int32& OutIndex) const;
 
 	/**
 	*	Find a socket object and asscociated info in this SkeletalMesh by name.
@@ -2439,15 +2439,15 @@ public:
 	*	Also returns the index for the socket allowing for future fast access via GetSocketByIndex()
 	*	Also rteturns the socket loca transform and the bone index (if any)
 	*/
-	virtual USkeletalMeshSocket* FindSocketInfo(FName InSocketName, FTransform& OutTransform, int32& OutBoneIndex, int32& OutIndex) const override;
+	ENGINE_API virtual USkeletalMeshSocket* FindSocketInfo(FName InSocketName, FTransform& OutTransform, int32& OutBoneIndex, int32& OutIndex) const override;
 
 	/** Returns the number of sockets available. Both on this mesh and it's skeleton. */
 	UFUNCTION(BlueprintCallable, Category = "Animation")
-	int32 NumSockets() const;
+	ENGINE_API int32 NumSockets() const;
 
 	/** Returns a socket by index. Max index is NumSockets(). The meshes sockets are accessed first, then the skeletons.  */
 	UFUNCTION(BlueprintCallable, Category = "Animation")
-	USkeletalMeshSocket* GetSocketByIndex(int32 Index) const;
+	ENGINE_API USkeletalMeshSocket* GetSocketByIndex(int32 Index) const;
 
 	/**
 	 * Returns vertex color data by position.
@@ -2455,40 +2455,40 @@ public:
 	 *
 	 *	@return	VertexColorData		Returns a map of vertex position and their associated color.
 	 */
-	TMap<FVector3f, FColor> GetVertexColorData(const uint32 PaintingMeshLODIndex = 0) const;
+	ENGINE_API TMap<FVector3f, FColor> GetVertexColorData(const uint32 PaintingMeshLODIndex = 0) const;
 
 	/** Called to rebuild an out-of-date or invalid socket map */
-	void RebuildSocketMap();
+	ENGINE_API void RebuildSocketMap();
 
 	// @todo document
-	FMatrix GetRefPoseMatrix( int32 BoneIndex ) const;
+	ENGINE_API FMatrix GetRefPoseMatrix( int32 BoneIndex ) const;
 
 	/** 
 	 * Get the component orientation of a bone or socket. Transforms by parent bones.
 	 * USkinnedAsset interface.
 	 */
-	virtual FMatrix GetComposedRefPoseMatrix( FName InBoneName ) const override;
-	virtual FMatrix GetComposedRefPoseMatrix( int32 InBoneIndex ) const override;
+	ENGINE_API virtual FMatrix GetComposedRefPoseMatrix( FName InBoneName ) const override;
+	ENGINE_API virtual FMatrix GetComposedRefPoseMatrix( int32 InBoneIndex ) const override;
 
 
 	/**
 	 * Returns the mesh only socket list - this ignores any sockets in the skeleton
 	 * Return value is a non-const reference so the socket list can be changed
 	 */
-	TArray<TObjectPtr<USkeletalMeshSocket>>& GetMeshOnlySocketList();
+	ENGINE_API TArray<TObjectPtr<USkeletalMeshSocket>>& GetMeshOnlySocketList();
 
 	/**
 	 * Const version
 	 * Returns the mesh only socket list - this ignores any sockets in the skeleton
 	 * Return value is a non-const reference so the socket list can be changed
 	 */
-	const TArray<USkeletalMeshSocket*>& GetMeshOnlySocketList() const;
+	ENGINE_API const TArray<USkeletalMeshSocket*>& GetMeshOnlySocketList() const;
 
 	/**
 	* Returns the "active" socket list - all sockets from this mesh plus all non-duplicates from the skeleton
 	* Const ref return value as this cannot be modified externally. USkinnedAsset interface.
 	*/
-	virtual TArray<USkeletalMeshSocket*> GetActiveSocketList() const override;
+	ENGINE_API virtual TArray<USkeletalMeshSocket*> GetActiveSocketList() const override;
 
 #if WITH_EDITOR
 	/**
@@ -2496,7 +2496,7 @@ public:
 	*
 	* @return		NumberOfBrokenAssets
 	*/
-	int32 ValidatePreviewAttachedObjects();
+	ENGINE_API int32 ValidatePreviewAttachedObjects();
 
 	/**
 	 * Removes a specified section from the skeletal mesh, this is a destructive action
@@ -2504,14 +2504,14 @@ public:
 	 * @param InLodIndex Lod index to remove section from
 	 * @param InSectionIndex Section index to remove
 	 */
-	void RemoveMeshSection(int32 InLodIndex, int32 InSectionIndex);
+	ENGINE_API void RemoveMeshSection(int32 InLodIndex, int32 InSectionIndex);
 
 #endif // #if WITH_EDITOR
 
 	/**
 	* Verify SkeletalMeshLOD is set up correctly	
 	*/
-	void DebugVerifySkeletalMeshLOD();
+	ENGINE_API void DebugVerifySkeletalMeshLOD();
 
 	/**
 	 * Find a named MorphTarget from the MorphSets array in the SkinnedMeshComponent.
@@ -2521,21 +2521,21 @@ public:
 	 *
 	 * @return Pointer to found MorphTarget. Returns NULL if could not find target with that name.
 	 */
-	virtual UMorphTarget* FindMorphTarget(FName MorphTargetName) const override;
-	UMorphTarget* FindMorphTargetAndIndex(FName MorphTargetName, int32& OutIndex) const;
+	ENGINE_API virtual UMorphTarget* FindMorphTarget(FName MorphTargetName) const override;
+	ENGINE_API UMorphTarget* FindMorphTargetAndIndex(FName MorphTargetName, int32& OutIndex) const;
 
 	/* Initialize morph targets and rebuild the render data */
-	void InitMorphTargetsAndRebuildRenderData();
+	ENGINE_API void InitMorphTargetsAndRebuildRenderData();
 
 	/** if name conflicts, it will overwrite the reference */
-	bool RegisterMorphTarget(UMorphTarget* MorphTarget, bool bInvalidateRenderData = true);
+	ENGINE_API bool RegisterMorphTarget(UMorphTarget* MorphTarget, bool bInvalidateRenderData = true);
 
-	void UnregisterMorphTarget(UMorphTarget* MorphTarget);
+	ENGINE_API void UnregisterMorphTarget(UMorphTarget* MorphTarget);
 
-	void UnregisterAllMorphTarget();
+	ENGINE_API void UnregisterAllMorphTarget();
 
 	/** Initialize MorphSets look up table : MorphTargetIndexMap */
-	void InitMorphTargets();
+	ENGINE_API void InitMorphTargets();
 
 	/** 
 	 * Checks whether the provided section is using APEX cloth. if bCheckCorrespondingSections is true
@@ -2546,27 +2546,27 @@ public:
 	 * @param bCheckCorrespondingSections Whether to check corresponding sections for disabled sections
 	 */
 	UFUNCTION(BlueprintCallable, Category="Clothing Simulation")
-	bool IsSectionUsingCloth(int32 InSectionIndex, bool bCheckCorrespondingSections = true) const;
+	ENGINE_API bool IsSectionUsingCloth(int32 InSectionIndex, bool bCheckCorrespondingSections = true) const;
 
-	void CreateBodySetup();
+	ENGINE_API void CreateBodySetup();
 
 #if WITH_EDITOR
 	/** Trigger a physics build to ensure per poly collision is created */
-	void BuildPhysicsData();
-	void AddBoneToReductionSetting(int32 LODIndex, const TArray<FName>& BoneNames);
-	void AddBoneToReductionSetting(int32 LODIndex, FName BoneName);
+	ENGINE_API void BuildPhysicsData();
+	ENGINE_API void AddBoneToReductionSetting(int32 LODIndex, const TArray<FName>& BoneNames);
+	ENGINE_API void AddBoneToReductionSetting(int32 LODIndex, FName BoneName);
 #endif
 	
 #if WITH_EDITORONLY_DATA
 	/** Convert legacy screen size (based on fixed resolution) into screen size (diameter in screen units) */
-	void ConvertLegacyLODScreenSize();
+	ENGINE_API void ConvertLegacyLODScreenSize();
 #endif
 	
 
 	//~ Begin Interface_CollisionDataProvider Interface
-	virtual bool GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionData, bool InUseAllTriData) override;
-	virtual bool GetTriMeshSizeEstimates(struct FTriMeshCollisionDataEstimates& OutTriMeshEstimates, bool bInUseAllTriData) const override;
-	virtual bool ContainsPhysicsTriMeshData(bool InUseAllTriData) const override;
+	ENGINE_API virtual bool GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionData, bool InUseAllTriData) override;
+	ENGINE_API virtual bool GetTriMeshSizeEstimates(struct FTriMeshCollisionDataEstimates& OutTriMeshEstimates, bool bInUseAllTriData) const override;
+	ENGINE_API virtual bool ContainsPhysicsTriMeshData(bool InUseAllTriData) const override;
 	virtual bool WantsNegXTriMesh() override
 	{
 		return true;
@@ -2575,10 +2575,10 @@ public:
 	//~ End Interface_CollisionDataProvider Interface
 
 	//~ Begin IInterface_AssetUserData Interface
-	virtual void AddAssetUserData(UAssetUserData* InUserData) override;
-	virtual void RemoveUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
-	virtual UAssetUserData* GetAssetUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
-	virtual const TArray<UAssetUserData*>* GetAssetUserDataArray() const override;
+	ENGINE_API virtual void AddAssetUserData(UAssetUserData* InUserData) override;
+	ENGINE_API virtual void RemoveUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
+	ENGINE_API virtual UAssetUserData* GetAssetUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
+	ENGINE_API virtual const TArray<UAssetUserData*>* GetAssetUserDataArray() const override;
 	//~ End IInterface_AssetUserData Interface
 
 #if WITH_EDITOR
@@ -2595,79 +2595,79 @@ public:
 	* Use this when you change stuff not in the skeletal mesh ddc key, like the geometry (import, re-import)
 	* Every big data should not be in the ddc key and should use this function, because its slow to create a key with big data.
 	*/
-	void InvalidateDeriveDataCacheGUID();
+	ENGINE_API void InvalidateDeriveDataCacheGUID();
 
 	/** Generate the derived data key for the given platform. USkinnedAsset interface. */
-	virtual FString BuildDerivedDataKey(const ITargetPlatform* TargetPlatform) override;
+	ENGINE_API virtual FString BuildDerivedDataKey(const ITargetPlatform* TargetPlatform) override;
 
 	/** Generate the derived data key used to fetch derived data */
-	FString GetDerivedDataKey();
+	ENGINE_API FString GetDerivedDataKey();
 #endif 
 
 private:
 
 #if WITH_EDITOR
 	/** Generate SkeletalMeshRenderData from ImportedModel */
-	void CacheDerivedData(FSkinnedAssetCompilationContext* ContextPtr);
+	ENGINE_API void CacheDerivedData(FSkinnedAssetCompilationContext* ContextPtr);
 
 	/**
 	 * Initial step for the building process - Can't be done in parallel. USkinnedAsset Interface.
 	 */
-	virtual void BeginBuildInternal(FSkinnedAssetBuildContext& Context) override;
+	ENGINE_API virtual void BeginBuildInternal(FSkinnedAssetBuildContext& Context) override;
 
 	/**
 	 * Thread-safe part. USkinnedAsset Interface.
 	 */
-	virtual void ExecuteBuildInternal(FSkinnedAssetBuildContext& Context) override;
+	ENGINE_API virtual void ExecuteBuildInternal(FSkinnedAssetBuildContext& Context) override;
 
 	/**
 	 * Complete the building process - Can't be done in parallel. USkinnedAsset Interface.
 	 */
-	virtual void FinishBuildInternal(FSkinnedAssetBuildContext& Context) override;
+	ENGINE_API virtual void FinishBuildInternal(FSkinnedAssetBuildContext& Context) override;
 
 	/**
 	 * Copy build/load context result data to the skeletalmesh member on the game thread - Can't be done in parallel.
 	 */
-	void ApplyFinishBuildInternalData(FSkinnedAssetCompilationContext* ContextPtr);
+	ENGINE_API void ApplyFinishBuildInternalData(FSkinnedAssetCompilationContext* ContextPtr);
 
 
 
 	/**
 	 * Initial step for the building process - Can't be done in parallel. USkinnedAsset Interface.
 	 */
-	virtual void BeginAsyncTaskInternal(FSkinnedAsyncTaskContext& Context) override;
+	ENGINE_API virtual void BeginAsyncTaskInternal(FSkinnedAsyncTaskContext& Context) override;
 
 	/**
 	 * Thread-safe part. USkinnedAsset Interface.
 	 */
-	virtual void ExecuteAsyncTaskInternal(FSkinnedAsyncTaskContext& Context) override;
+	ENGINE_API virtual void ExecuteAsyncTaskInternal(FSkinnedAsyncTaskContext& Context) override;
 
 	/**
 	 * Complete the building process - Can't be done in parallel. USkinnedAsset Interface.
 	 */
-	virtual void FinishAsyncTaskInternal(FSkinnedAsyncTaskContext& Context) override;
+	ENGINE_API virtual void FinishAsyncTaskInternal(FSkinnedAsyncTaskContext& Context) override;
 
 #endif
 
 	/** Utility function to help with building the combined socket list */
-	bool IsSocketOnMesh( const FName& InSocketName ) const;
+	ENGINE_API bool IsSocketOnMesh( const FName& InSocketName ) const;
 
 	/**
 	* Create a new GUID for the source Model data, regenerate derived data and re-create any render state based on that.
 	*/
-	void InvalidateRenderData();
+	ENGINE_API void InvalidateRenderData();
 
 #if WITH_EDITORONLY_DATA
 	/**
 	* In older data, the bEnableShadowCasting flag was stored in LODInfo
 	* so it needs moving over to materials
 	*/
-	void MoveDeprecatedShadowFlagToMaterials();
+	ENGINE_API void MoveDeprecatedShadowFlagToMaterials();
 
 	/*
 	* Ask the reference skeleton to rebuild the NameToIndexMap array. This is use to load old package before this array was created.
 	*/
-	void RebuildRefSkeletonNameToIndexMap();
+	ENGINE_API void RebuildRefSkeletonNameToIndexMap();
 
 	/*
 	* In version prior to FEditorObjectVersion::RefactorMeshEditorMaterials
@@ -2675,21 +2675,21 @@ private:
 	* We move those flag to sections to allow artist to control those flag at section level
 	* since its a section flag.
 	*/
-	void MoveMaterialFlagsToSections();
+	ENGINE_API void MoveMaterialFlagsToSections();
 
 #endif // WITH_EDITORONLY_DATA
 
 	/**
 	* Test whether all the flags in an array are identical (could be moved to Array.h?)
 	*/
-	bool AreAllFlagsIdentical( const TArray<bool>& BoolArray ) const;
+	ENGINE_API bool AreAllFlagsIdentical( const TArray<bool>& BoolArray ) const;
 
 #if WITH_EDITOR
 public:
 	/** Delegates for asset editor events */
 
-	FDelegateHandle RegisterOnClothingChange(const FSimpleMulticastDelegate::FDelegate& InDelegate);
-	void UnregisterOnClothingChange(const FDelegateHandle& InHandle);
+	ENGINE_API FDelegateHandle RegisterOnClothingChange(const FSimpleMulticastDelegate::FDelegate& InDelegate);
+	ENGINE_API void UnregisterOnClothingChange(const FDelegateHandle& InHandle);
 
 private:
 
@@ -2697,16 +2697,16 @@ private:
 	FSimpleMulticastDelegate OnClothingChange;
 #endif // WITH_EDITOR
 	// INodeMappingProviderInterface
-	virtual void GetMappableNodeData(TArray<FName>& OutNames, TArray<FNodeItem>& OutTransforms) const override;
+	ENGINE_API virtual void GetMappableNodeData(TArray<FName>& OutNames, TArray<FNodeItem>& OutTransforms) const override;
 
 	/**
 	 * Wait for the asset to finish compilation to protect internal skinned asset data from race conditions during async build.
 	 * This should be called before accessing all async accessible properties.
 	 */
-	void WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties AsyncProperties, ESkinnedAssetAsyncPropertyLockType LockType = ESkinnedAssetAsyncPropertyLockType::ReadWrite) const;
+	ENGINE_API void WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties AsyncProperties, ESkinnedAssetAsyncPropertyLockType LockType = ESkinnedAssetAsyncPropertyLockType::ReadWrite) const;
 
 	/** Convert async property from enum value to string. USkinnedAsset interface. */
-	virtual FString GetAsyncPropertyName(uint64 Property) const override;
+	ENGINE_API virtual FString GetAsyncPropertyName(uint64 Property) const override;
 
 public:
 	/*
@@ -2717,7 +2717,7 @@ public:
 	 * If not, it will auto calculate based on what is previous LOD setting
 	 *
 	 */
-	FSkeletalMeshLODInfo& AddLODInfo();
+	ENGINE_API FSkeletalMeshLODInfo& AddLODInfo();
 	/*
 	 * Add New LOD info entry with entry
 	 * 
@@ -2725,17 +2725,17 @@ public:
 	 *
 	 * @param NewLODInfo : new LOD info to be added
 	 */
-	void AddLODInfo(const FSkeletalMeshLODInfo& NewLODInfo);
+	ENGINE_API void AddLODInfo(const FSkeletalMeshLODInfo& NewLODInfo);
 	
 	/* 
 	 * Remove LOD info of given index
 	 */
-	void RemoveLODInfo(int32 Index);
+	ENGINE_API void RemoveLODInfo(int32 Index);
 	
 	/*
 	 * Reset whole entry
 	 */
-	void ResetLODInfo();
+	ENGINE_API void ResetLODInfo();
 
 	static FName GetLODInfoMemberName()
 	{
@@ -2769,35 +2769,35 @@ public:
 	/* 
 	 * Get LODInfo of the given index non-const. USkinnedAsset interface.
 	 */
-	virtual FSkeletalMeshLODInfo* GetLODInfo(int32 Index) override;
+	ENGINE_API virtual FSkeletalMeshLODInfo* GetLODInfo(int32 Index) override;
 	
 	/* 
 	 * Get LODInfo of the given index const. USkinnedAsset interface.
 	 */	
-	virtual const FSkeletalMeshLODInfo* GetLODInfo(int32 Index) const override;
+	ENGINE_API virtual const FSkeletalMeshLODInfo* GetLODInfo(int32 Index) const override;
 
 	/**
 	 *	Get BakePose for the given LOD
 	 */
-	const UAnimSequence* GetBakePose(int32 LODIndex) const;
+	ENGINE_API const UAnimSequence* GetBakePose(int32 LODIndex) const;
 
 	/* 
 	 * Get Default LOD Setting of this mesh
 	 */
-	const USkeletalMeshLODSettings* GetDefaultLODSetting() const; 
+	ENGINE_API const USkeletalMeshLODSettings* GetDefaultLODSetting() const; 
 
 	/* 
 	 * Return true if given index's LOD is valid. USkinnedAsset interface.
 	 */
-	virtual bool IsValidLODIndex(int32 Index) const override;
+	ENGINE_API virtual bool IsValidLODIndex(int32 Index) const override;
 
 	/* 
 	 * Returns total number of LOD. USkinnedAsset interface.
 	 */
-	virtual int32 GetLODNum() const override;
+	ENGINE_API virtual int32 GetLODNum() const override;
 
 	/** USkinnedAsset interface. */
-	virtual bool IsMaterialUsed(int32 MaterialIndex) const override;
+	ENGINE_API virtual bool IsMaterialUsed(int32 MaterialIndex) const override;
 
 	const TArray<FSkinWeightProfileInfo>& GetSkinWeightProfiles() const 
 	{
@@ -2822,7 +2822,7 @@ public:
 		return SkinWeightProfiles; 
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
-	void AddSkinWeightProfile(const FSkinWeightProfileInfo& Profile);
+	ENGINE_API void AddSkinWeightProfile(const FSkinWeightProfileInfo& Profile);
 
 	int32 GetNumSkinWeightProfiles() const 
 	{ 
@@ -2833,7 +2833,7 @@ public:
 	}
 
 	/** Releases all allocated Skin Weight Profile resources, assumes none are currently in use */
-	void ReleaseSkinWeightProfileResources();
+	ENGINE_API void ReleaseSkinWeightProfileResources();
 
 #if WITH_EDITORONLY_DATA
 	/*Transient data use when we postload an old asset to use legacy ddc key, it is turn off so if the user change the asset it go back to the latest ddc code*/
@@ -2881,17 +2881,17 @@ private:
 	/**
 	 * Initial step for the Post Load process - Can't be done in parallel. USkinnedAsset Interface.
 	 */
-	virtual void BeginPostLoadInternal(FSkinnedAssetPostLoadContext& Context) override;
+	ENGINE_API virtual void BeginPostLoadInternal(FSkinnedAssetPostLoadContext& Context) override;
 
 	/**
 	 * Thread-safe part of the Post Load. USkinnedAsset interface.
 	 */
-	virtual void ExecutePostLoadInternal(FSkinnedAssetPostLoadContext& Context) override;
+	ENGINE_API virtual void ExecutePostLoadInternal(FSkinnedAssetPostLoadContext& Context) override;
 
 	/**
 	 * Complete the postload process - Can't be done in parallel. USkinnedAsset interface.
 	 */
-	virtual void FinishPostLoadInternal(FSkinnedAssetPostLoadContext& Context) override;
+	ENGINE_API virtual void FinishPostLoadInternal(FSkinnedAssetPostLoadContext& Context) override;
 };
 
 struct FSkeletalMeshBuildParameters

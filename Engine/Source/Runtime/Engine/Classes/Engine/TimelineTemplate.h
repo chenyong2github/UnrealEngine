@@ -58,12 +58,12 @@ public:
 
 	virtual ~FTTTrackBase() = default;
 
-	ENGINE_API FName GetTrackName() const { return TrackName; }
+	FName GetTrackName() const { return TrackName; }
 	ENGINE_API virtual void SetTrackName(FName NewTrackName, UTimelineTemplate* OwningTimeline);
 };
 
 USTRUCT()
-struct ENGINE_API FTTTrackId
+struct FTTTrackId
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -100,7 +100,7 @@ public:
 	/** Determine if Tracks are the same */
 	ENGINE_API bool operator == (const FTTEventTrack& T2) const;
 
-	ENGINE_API FName GetFunctionName() const { return FunctionName; }
+	FName GetFunctionName() const { return FunctionName; }
 	ENGINE_API virtual void SetTrackName(FName NewTrackName, UTimelineTemplate* OwningTimeline) override final;
 
 	FTTEventTrack()
@@ -114,7 +114,7 @@ struct FTTPropertyTrack : public FTTTrackBase
 {
 	GENERATED_USTRUCT_BODY()
 
-	ENGINE_API FName GetPropertyName() const { return PropertyName; }
+	FName GetPropertyName() const { return PropertyName; }
 	ENGINE_API virtual void SetTrackName(FName NewTrackName, UTimelineTemplate* OwningTimeline) override final;
 
 private:
@@ -254,10 +254,10 @@ class UTimelineTemplate : public UObject
 	ENGINE_API bool IsNewTrackNameValid(FName NewTrackName) const;
 	
 	/** Get the name of the function we expect to find in the owning actor that we will bind the update event to */
-	ENGINE_API FName GetUpdateFunctionName() const { return UpdateFunctionName; }
+	FName GetUpdateFunctionName() const { return UpdateFunctionName; }
 
 	/** Get the name of the function we expect to find in the owning actor that we will bind the finished event to */
-	ENGINE_API FName GetFinishedFunctionName() const { return FinishedFunctionName; }
+	FName GetFinishedFunctionName() const { return FinishedFunctionName; }
 
 	/** Get the name of the funcerion we expect to find in the owning actor that we will bind event track with index EvenTrackIndex to */
 	UE_DEPRECATED(4.22, "Access the event track function name directly from the EventTrack instead.")
@@ -276,10 +276,10 @@ class UTimelineTemplate : public UObject
 	ENGINE_API int32 FindMetaDataEntryIndexForKey(FName Key) const;
 
 	/** Returns the variable name for the timeline */
-	ENGINE_API FName GetVariableName() const { return VariableName; }
+	FName GetVariableName() const { return VariableName; }
 
 	/** Returns the property name for the timeline's direction pin */
-	ENGINE_API FName GetDirectionPropertyName() const { return DirectionPropertyName; }
+	FName GetDirectionPropertyName() const { return DirectionPropertyName; }
 
 	/* Create a new unique name for a curve */
 	ENGINE_API static FString MakeUniqueCurveName(UObject* Obj, UObject* InOuter);
@@ -336,7 +336,7 @@ public:
 /**
  *  Helper class that gives external implementations permission to update cached names.
  */
-struct ENGINE_API FUpdateTimelineCachedNames
+struct FUpdateTimelineCachedNames
 {
 private:
 	static void Execute(UTimelineTemplate* TimelineTemplate)

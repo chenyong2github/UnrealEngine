@@ -5,11 +5,11 @@
 #include "Elements/Interfaces/TypedElementObjectInterface.h"
 #include "ActorElementObjectInterface.generated.h"
 
-UCLASS()
-class ENGINE_API UActorElementObjectInterface : public UObject, public ITypedElementObjectInterface
+UCLASS(MinimalAPI)
+class UActorElementObjectInterface : public UObject, public ITypedElementObjectInterface
 {
 	GENERATED_BODY()
 
 public:
-	virtual UObject* GetObject(const FTypedElementHandle& InElementHandle) override;
+	ENGINE_API virtual UObject* GetObject(const FTypedElementHandle& InElementHandle) override;
 };

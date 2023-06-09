@@ -12,7 +12,7 @@ class UTexture;
 
 /** LOD settings for a single texture group. */
 USTRUCT()
-struct ENGINE_API FTextureLODGroup
+struct FTextureLODGroup
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -142,17 +142,17 @@ struct ENGINE_API FTextureLODGroup
 	UPROPERTY()
 	int32 MaxAniso;
 
-	void SetupGroup();
+	ENGINE_API void SetupGroup();
 
-	bool operator==(const FTextureLODGroup& Other) const;
+	ENGINE_API bool operator==(const FTextureLODGroup& Other) const;
 };
 
 /**
  * Structure containing all information related to an LOD group and providing helper functions to calculate
  * the LOD bias of a given group.
  */
-UCLASS(config=DeviceProfiles, perObjectConfig)
-class ENGINE_API UTextureLODSettings : public UObject
+UCLASS(config=DeviceProfiles, perObjectConfig, MinimalAPI)
+class UTextureLODSettings : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -166,7 +166,7 @@ public:
 	 * @param	bIncCinematicMips	If true, cinematic mips will also be included in consideration
 	 * @return	LOD bias
 	 */
-	int32 CalculateLODBias(const UTexture* Texture, bool bIncCinematicMips = true) const;
+	ENGINE_API int32 CalculateLODBias(const UTexture* Texture, bool bIncCinematicMips = true) const;
 
 	/**
 	 * Calculates and returns the LOD bias based on the information provided.
@@ -180,7 +180,7 @@ public:
 	 * @param	bVirtualTexture				If VT is enabled (in this case group's max LOD is ignored)
 	 * @return	LOD bias
 	 */
-	int32 CalculateLODBias( int32 Width, int32 Height, int32 MaxSize, int32 LODGroup, int32 LODBias, int32 NumCinematicMipLevels, TextureMipGenSettings MipGenSetting, bool bVirtualTexture ) const;
+	ENGINE_API int32 CalculateLODBias( int32 Width, int32 Height, int32 MaxSize, int32 LODGroup, int32 LODBias, int32 NumCinematicMipLevels, TextureMipGenSettings MipGenSetting, bool bVirtualTexture ) const;
 
 	/**
 	 * Calculate num optional mips
@@ -189,11 +189,11 @@ public:
 	 * @param	MipGenSetting				Mip generation setting
 	 * @return	Num optional mips counted from higest mip
 	 */
-	int32 CalculateNumOptionalMips(int32 LODGroup, const int32 Width, const int32 Height, const int32 NumMips, const int32 MinMipToInline, TextureMipGenSettings InMipGenSetting) const;
+	ENGINE_API int32 CalculateNumOptionalMips(int32 LODGroup, const int32 Width, const int32 Height, const int32 NumMips, const int32 MinMipToInline, TextureMipGenSettings InMipGenSetting) const;
 
 #if WITH_EDITORONLY_DATA
-	void GetMipGenSettings( const UTexture& Texture, TextureMipGenSettings& OutMipGenSettings, float& OutSharpen, uint32& OutKernelSize, bool& bOutDownsampleWithAverage, bool& bOutSharpenWithoutColorShift, bool &bOutBorderColorBlack ) const;
-	void GetDownscaleOptions(const UTexture& Texture, const ITargetPlatform& CurrentPlatform, float& Downscale, ETextureDownscaleOptions& DownscaleOptions) const;
+	ENGINE_API void GetMipGenSettings( const UTexture& Texture, TextureMipGenSettings& OutMipGenSettings, float& OutSharpen, uint32& OutKernelSize, bool& bOutDownsampleWithAverage, bool& bOutSharpenWithoutColorShift, bool &bOutBorderColorBlack ) const;
+	ENGINE_API void GetDownscaleOptions(const UTexture& Texture, const ITargetPlatform& CurrentPlatform, float& Downscale, ETextureDownscaleOptions& DownscaleOptions) const;
 #endif // #if WITH_EDITORONLY_DATA
 
 	/**
@@ -203,9 +203,9 @@ public:
 	 * @param	Texture		Texture to retrieve filter state for, must not be 0
 	 * @return	Filter sampler state for passed in texture
 	 */
-	ETextureSamplerFilter GetSamplerFilter(const UTexture* Texture) const;
+	ENGINE_API ETextureSamplerFilter GetSamplerFilter(const UTexture* Texture) const;
 
-	ETextureSamplerFilter GetSamplerFilter(int32 InLODGroup) const;
+	ENGINE_API ETextureSamplerFilter GetSamplerFilter(int32 InLODGroup) const;
 
 	/**
 	 * Returns the mip load options of a texture.
@@ -213,7 +213,7 @@ public:
 	 * @param	Texture		Texture to retrieve the mip load option, must not be 0
 	 * @return	The mip load option
 	 */
-	ETextureMipLoadOptions GetMipLoadOptions(const UTexture* Texture) const;
+	ENGINE_API ETextureMipLoadOptions GetMipLoadOptions(const UTexture* Texture) const;
 
 	/**
 	 * Returns the LODGroup mip gen settings
@@ -221,7 +221,7 @@ public:
 	 * @param	InLODGroup		The LOD Group ID 
 	 * @return	TextureMipGenSettings for lod group
 	 */
-	const TextureMipGenSettings GetTextureMipGenSettings( int32 InLODGroup ) const; 
+	ENGINE_API const TextureMipGenSettings GetTextureMipGenSettings( int32 InLODGroup ) const; 
 
 
 	/**
@@ -229,7 +229,7 @@ public:
 	 *
 	 * @return array of texture group names
 	 */
-	static TArray<FString> GetTextureGroupNames();
+	static ENGINE_API TArray<FString> GetTextureGroupNames();
 
 	/**
 	 * TextureLODGroups access with bounds check
@@ -237,7 +237,7 @@ public:
 	 * @param   GroupIndex      usually from Texture.LODGroup
 	 * @return                  A handle to the indexed LOD group. 
 	 */
-	FTextureLODGroup& GetTextureLODGroup(TextureGroup GroupIndex);
+	ENGINE_API FTextureLODGroup& GetTextureLODGroup(TextureGroup GroupIndex);
 
 	/**
 	* TextureLODGroups access with bounds check
@@ -245,10 +245,10 @@ public:
 	* @param   GroupIndex      usually from Texture.LODGroup
 	* @return                  A handle to the indexed LOD group.
 	*/
-	const FTextureLODGroup& GetTextureLODGroup(TextureGroup GroupIndex) const;
+	ENGINE_API const FTextureLODGroup& GetTextureLODGroup(TextureGroup GroupIndex) const;
 
 protected:
-	void SetupLODGroup(int32 GroupId);
+	ENGINE_API void SetupLODGroup(int32 GroupId);
 
 public:
 

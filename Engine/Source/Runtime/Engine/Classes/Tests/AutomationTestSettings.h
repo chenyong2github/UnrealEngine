@@ -336,8 +336,8 @@ struct FLaunchOnTestSettings
 /**
  * Implements the Editor's user settings.
  */
-UCLASS(config=Engine, defaultconfig)
-class ENGINE_API UAutomationTestSettings : public UObject
+UCLASS(config=Engine, defaultconfig, MinimalAPI)
+class UAutomationTestSettings : public UObject
 {
 	GENERATED_UCLASS_BODY()
 

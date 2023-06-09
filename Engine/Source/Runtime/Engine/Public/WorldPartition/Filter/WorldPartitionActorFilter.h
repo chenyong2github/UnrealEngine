@@ -19,27 +19,27 @@ enum class EWorldPartitionActorFilterType : uint8
 ENUM_CLASS_FLAGS(EWorldPartitionActorFilterType);
 
 USTRUCT()
-struct ENGINE_API FWorldPartitionActorFilter
+struct FWorldPartitionActorFilter
 {
 	GENERATED_USTRUCT_BODY()
 
 	FWorldPartitionActorFilter() {}
-	~FWorldPartitionActorFilter();
+	ENGINE_API ~FWorldPartitionActorFilter();
 
-	FWorldPartitionActorFilter(const FWorldPartitionActorFilter& Other);
-	FWorldPartitionActorFilter(FWorldPartitionActorFilter&& Other);
+	ENGINE_API FWorldPartitionActorFilter(const FWorldPartitionActorFilter& Other);
+	ENGINE_API FWorldPartitionActorFilter(FWorldPartitionActorFilter&& Other);
 
-	FWorldPartitionActorFilter& operator=(const FWorldPartitionActorFilter& Other);
-	FWorldPartitionActorFilter& operator=(FWorldPartitionActorFilter&& Other);
+	ENGINE_API FWorldPartitionActorFilter& operator=(const FWorldPartitionActorFilter& Other);
+	ENGINE_API FWorldPartitionActorFilter& operator=(FWorldPartitionActorFilter&& Other);
 
 #if WITH_EDITORONLY_DATA
 	FWorldPartitionActorFilter(const FString& InDisplayName) : DisplayName(InDisplayName) {}
 	
-	void AddChildFilter(const FGuid& InGuid, FWorldPartitionActorFilter* InChildFilter);
-	void RemoveChildFilter(const FGuid& InGuid);
-	void ClearChildFilters();
+	ENGINE_API void AddChildFilter(const FGuid& InGuid, FWorldPartitionActorFilter* InChildFilter);
+	ENGINE_API void RemoveChildFilter(const FGuid& InGuid);
+	ENGINE_API void ClearChildFilters();
 	
-	void Override(const FWorldPartitionActorFilter& Other);
+	ENGINE_API void Override(const FWorldPartitionActorFilter& Other);
 
 	const TMap<FGuid, FWorldPartitionActorFilter*>& GetChildFilters() const { return ChildFilters; }
 	FWorldPartitionActorFilter* GetParentFilter() const { return Parent; }
@@ -66,10 +66,10 @@ struct ENGINE_API FWorldPartitionActorFilter
 	TMap<FSoftObjectPath, FDataLayerFilter> DataLayerFilters;
 
 	friend FArchive& operator<<(FArchive& Ar, FWorldPartitionActorFilter& Filter);
-	bool Serialize(FArchive& Ar);
+	ENGINE_API bool Serialize(FArchive& Ar);
 
 	// Operators.
-	bool operator==(const FWorldPartitionActorFilter& Other) const;
+	ENGINE_API bool operator==(const FWorldPartitionActorFilter& Other) const;
 
 	bool operator!=(const FWorldPartitionActorFilter& Other) const
 	{
@@ -77,11 +77,11 @@ struct ENGINE_API FWorldPartitionActorFilter
 	}
 
 	// Needed for Copy/Paste/ResetToDefault
-	bool ExportTextItem(FString& ValueStr, FWorldPartitionActorFilter const& DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const;
-	bool ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText);
-	FString ToString() const;
+	ENGINE_API bool ExportTextItem(FString& ValueStr, FWorldPartitionActorFilter const& DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const;
+	ENGINE_API bool ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText);
+	ENGINE_API FString ToString() const;
 
-	static void RequestFilterRefresh(bool bIsFromUserChange);
+	static ENGINE_API void RequestFilterRefresh(bool bIsFromUserChange);
 
 	DECLARE_MULTICAST_DELEGATE(FOnWorldPartitionActorFilterChanged);
 	static FOnWorldPartitionActorFilterChanged& GetOnWorldPartitionActorFilterChanged() { return OnWorldPartitionActorFilterChanged; }
@@ -91,7 +91,7 @@ private:
 	// Map of FWorldPartitionActorFilters per Child Level Instance, recursive
 	TMap<FGuid, FWorldPartitionActorFilter*> ChildFilters;
 	// Static Event for when some filter changes
-	static FOnWorldPartitionActorFilterChanged OnWorldPartitionActorFilterChanged;
+	static ENGINE_API FOnWorldPartitionActorFilterChanged OnWorldPartitionActorFilterChanged;
 #endif
 };
 

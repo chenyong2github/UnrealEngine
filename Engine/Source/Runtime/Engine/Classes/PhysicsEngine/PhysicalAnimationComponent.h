@@ -14,7 +14,7 @@ class USkeletalMeshComponent;
 
 /** Stores info on the type of motor that will be used for a given bone */
 USTRUCT(BlueprintType)
-struct ENGINE_API FPhysicalAnimationData
+struct FPhysicalAnimationData
 {
 	GENERATED_BODY()
 
@@ -63,27 +63,27 @@ struct ENGINE_API FPhysicalAnimationData
 	float MaxAngularForce;
 };
 
-UCLASS(meta = (BlueprintSpawnableComponent), ClassGroup = Physics, Experimental)
-class ENGINE_API UPhysicalAnimationComponent : public UActorComponent
+UCLASS(meta = (BlueprintSpawnableComponent), ClassGroup = Physics, Experimental, MinimalAPI)
+class UPhysicalAnimationComponent : public UActorComponent
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 	/** Sets the skeletal mesh we are driving through physical animation. Will erase any existing physical animation data. */
 	UFUNCTION(BlueprintCallable, Category = PhysicalAnimation)
-	void SetSkeletalMeshComponent(USkeletalMeshComponent* InSkeletalMeshComponent);
+	ENGINE_API void SetSkeletalMeshComponent(USkeletalMeshComponent* InSkeletalMeshComponent);
 
 	/** Applies the physical animation settings to the body given.*/
 	UFUNCTION(BlueprintCallable, Category = PhysicalAnimation, meta = (UnsafeDuringActorConstruction))
-	void ApplyPhysicalAnimationSettings(FName BodyName, const FPhysicalAnimationData& PhysicalAnimationData);
+	ENGINE_API void ApplyPhysicalAnimationSettings(FName BodyName, const FPhysicalAnimationData& PhysicalAnimationData);
 
 	/** Applies the physical animation settings to the body given and all bodies below.*/
 	UFUNCTION(BlueprintCallable, Category = PhysicalAnimation, meta = (UnsafeDuringActorConstruction))
-	void ApplyPhysicalAnimationSettingsBelow(FName BodyName, const FPhysicalAnimationData& PhysicalAnimationData, bool bIncludeSelf = true);
+	ENGINE_API void ApplyPhysicalAnimationSettingsBelow(FName BodyName, const FPhysicalAnimationData& PhysicalAnimationData, bool bIncludeSelf = true);
 
 	/** Updates strength multiplyer and any active motors */
 	UFUNCTION(BlueprintCallable, Category = PhysicalAnimation)
-	void SetStrengthMultiplyer(float InStrengthMultiplyer);
+	ENGINE_API void SetStrengthMultiplyer(float InStrengthMultiplyer);
 	
 	/** Multiplies the strength of any active motors. (can blend from 0-1 for example)*/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = PhysicalAnimation, meta = (ClampMin = "0"))
@@ -97,20 +97,20 @@ public:
 	*  @param  bClearNotFound	If true, bodies without the given profile name will have any existing physical animation settings cleared. If false, bodies without the given profile name are left untouched.
 	*/
 	UFUNCTION(BlueprintCallable, Category = PhysicalAnimation, meta = (UnsafeDuringActorConstruction))
-	void ApplyPhysicalAnimationProfileBelow(FName BodyName, FName ProfileName, bool bIncludeSelf = true, bool bClearNotFound = false);
+	ENGINE_API void ApplyPhysicalAnimationProfileBelow(FName BodyName, FName ProfileName, bool bIncludeSelf = true, bool bClearNotFound = false);
 
 	/** 
 	 *	Returns the target transform for the given body. If physical animation component is not controlling this body, returns its current transform.
 	 */
 	UFUNCTION(BlueprintCallable, Category = PhysicalAnimation, meta = (UnsafeDuringActorConstruction))
-	FTransform GetBodyTargetTransform(FName BodyName) const;
+	ENGINE_API FTransform GetBodyTargetTransform(FName BodyName) const;
 
-	virtual void InitializeComponent() override;
-	virtual void BeginDestroy() override;
-	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
+	ENGINE_API virtual void InitializeComponent() override;
+	ENGINE_API virtual void BeginDestroy() override;
+	ENGINE_API virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 
 #if WITH_EDITOR
-	void DebugDraw(FPrimitiveDrawInterface* PDI) const;
+	ENGINE_API void DebugDraw(FPrimitiveDrawInterface* PDI) const;
 #endif
 
 	FORCEINLINE USkeletalMeshComponent* GetSkeletalMesh() const { return SkeletalMeshComponent; }
@@ -131,15 +131,15 @@ private:
 
 	FDelegateHandle OnTeleportDelegateHandle;
 
-	void UpdatePhysicsEngine();
-	void UpdatePhysicsEngineImp();
-	void ReleasePhysicsEngine();
-	void InitComponent();
+	ENGINE_API void UpdatePhysicsEngine();
+	ENGINE_API void UpdatePhysicsEngineImp();
+	ENGINE_API void ReleasePhysicsEngine();
+	ENGINE_API void InitComponent();
 
-	void OnTeleport();
-	void UpdateTargetActors(ETeleportType TeleportType);
+	ENGINE_API void OnTeleport();
+	ENGINE_API void UpdateTargetActors(ETeleportType TeleportType);
 
-	static const FConstraintProfileProperties PhysicalAnimationProfile;
+	static ENGINE_API const FConstraintProfileProperties PhysicalAnimationProfile;
 
 	bool bPhysicsEngineNeedsUpdating;
 };

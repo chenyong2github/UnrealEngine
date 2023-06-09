@@ -13,7 +13,7 @@ class UCurveLinearColor;
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnUpdateGradient, UCurveLinearColor* /*GradientAtlas*/);
 
 USTRUCT()
-struct ENGINE_API FRuntimeCurveLinearColor
+struct FRuntimeCurveLinearColor
 {
 	GENERATED_USTRUCT_BODY()
 public:
@@ -23,11 +23,11 @@ public:
 	UPROPERTY(EditAnywhere, Category = RuntimeFloatCurve)
 	TObjectPtr<class UCurveLinearColor> ExternalCurve = nullptr;
 
-	FLinearColor GetLinearColorValue(float InTime) const;
+	ENGINE_API FLinearColor GetLinearColorValue(float InTime) const;
 };
 
-UCLASS(BlueprintType, collapsecategories, hidecategories = (FilePath))
-class ENGINE_API UCurveLinearColor : public UCurveBase
+UCLASS(BlueprintType, collapsecategories, hidecategories = (FilePath), MinimalAPI)
+class UCurveLinearColor : public UCurveBase
 {
 	GENERATED_UCLASS_BODY()
 
@@ -36,43 +36,43 @@ class ENGINE_API UCurveLinearColor : public UCurveBase
 	FRichCurve FloatCurves[4];
 
 	// Begin FCurveOwnerInterface
-	virtual TArray<FRichCurveEditInfoConst> GetCurves() const override;
-	virtual TArray<FRichCurveEditInfo> GetCurves() override;
+	ENGINE_API virtual TArray<FRichCurveEditInfoConst> GetCurves() const override;
+	ENGINE_API virtual TArray<FRichCurveEditInfo> GetCurves() override;
 	virtual bool IsLinearColorCurve() const override { return true; }
 
 	UFUNCTION(BlueprintCallable, Category="Math|Curves")
-	virtual FLinearColor GetLinearColorValue(float InTime) const override;
+	ENGINE_API virtual FLinearColor GetLinearColorValue(float InTime) const override;
 
 	UFUNCTION(BlueprintCallable, Category = "Math|Curves")
-	virtual FLinearColor GetClampedLinearColorValue(float InTime) const override;
+	ENGINE_API virtual FLinearColor GetClampedLinearColorValue(float InTime) const override;
 
 	UFUNCTION(BlueprintCallable, Category = "Math|Curves")
-	FLinearColor GetUnadjustedLinearColorValue(float InTime) const;
+	ENGINE_API FLinearColor GetUnadjustedLinearColorValue(float InTime) const;
 
 	bool HasAnyAlphaKeys() const override { return FloatCurves[3].GetNumKeys() > 0; }
 
-	virtual bool IsValidCurve( FRichCurveEditInfo CurveInfo ) override;
+	ENGINE_API virtual bool IsValidCurve( FRichCurveEditInfo CurveInfo ) override;
 	// End FCurveOwnerInterface
 
 	/** Determine if Curve is the same */
-	bool operator == (const UCurveLinearColor& Curve) const;
+	ENGINE_API bool operator == (const UCurveLinearColor& Curve) const;
 
 public:
 #if WITH_EDITOR
 
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 
-	void DrawThumbnail(class FCanvas* Canvas, FVector2D StartXY, FVector2D SizeXY);
+	ENGINE_API void DrawThumbnail(class FCanvas* Canvas, FVector2D StartXY, FVector2D SizeXY);
 
-	void PushToSourceData(TArray<FFloat16Color> &SrcData, int32 StartXY, FVector2D SizeXY);
+	ENGINE_API void PushToSourceData(TArray<FFloat16Color> &SrcData, int32 StartXY, FVector2D SizeXY);
 
-	void PushUnadjustedToSourceData(TArray<FFloat16Color>& SrcData, int32 StartXY, FVector2D SizeXY);
+	ENGINE_API void PushUnadjustedToSourceData(TArray<FFloat16Color>& SrcData, int32 StartXY, FVector2D SizeXY);
 
-	virtual void OnCurveChanged(const TArray<FRichCurveEditInfo>& ChangedCurveEditInfos) override;
+	ENGINE_API virtual void OnCurveChanged(const TArray<FRichCurveEditInfo>& ChangedCurveEditInfos) override;
 #endif
-	virtual void PostLoad() override;
+	ENGINE_API virtual void PostLoad() override;
 
-	virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
 
 public:
 	// Properties for adjusting the color of the gradient
@@ -102,6 +102,6 @@ public:
 	FOnUpdateGradient OnUpdateGradient;
 #endif
 protected:
-	void WritePixel(uint8* Pixel, const FLinearColor& Color);
+	ENGINE_API void WritePixel(uint8* Pixel, const FLinearColor& Color);
 };
 

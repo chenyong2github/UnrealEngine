@@ -29,6 +29,6 @@ private:
 public:
 
 	/** Returns LocalHeightFogVolume subobject **/
-	ENGINE_API ULocalHeightFogComponent* GetComponent() const { return LocalHeightFogVolume; }
+	ULocalHeightFogComponent* GetComponent() const { return LocalHeightFogVolume; }
 };
 

@@ -6,37 +6,37 @@
 
 /** A handle to an active input device property that is being used by the InputDeviceSubsytem. */
 USTRUCT(BlueprintType)
-struct ENGINE_API FInputDevicePropertyHandle
+struct FInputDevicePropertyHandle
 {
 	friend class UInputDeviceSubsystem;
 
 	GENERATED_BODY()
 
-	FInputDevicePropertyHandle();
+	ENGINE_API FInputDevicePropertyHandle();
 	~FInputDevicePropertyHandle() = default;
 
 	/** Returns true if this handle is valid */
-	bool IsValid() const;
+	ENGINE_API bool IsValid() const;
 
 	/** An invalid Input Device Property handle */
-	static FInputDevicePropertyHandle InvalidHandle;
+	static ENGINE_API FInputDevicePropertyHandle InvalidHandle;
 
-	uint32 GetTypeHash() const;
+	ENGINE_API uint32 GetTypeHash() const;
 
 	ENGINE_API friend uint32 GetTypeHash(const FInputDevicePropertyHandle& InHandle);
 
-	bool operator==(const FInputDevicePropertyHandle& Other) const;
-	bool operator!=(const FInputDevicePropertyHandle& Other) const;
+	ENGINE_API bool operator==(const FInputDevicePropertyHandle& Other) const;
+	ENGINE_API bool operator!=(const FInputDevicePropertyHandle& Other) const;
 
-	FString ToString() const;
+	ENGINE_API FString ToString() const;
 
 private:
 
 	// Private constructor because we don't want any other users to make a valid device property handle.
-	FInputDevicePropertyHandle(uint32 InternalID);
+	ENGINE_API FInputDevicePropertyHandle(uint32 InternalID);
 
 	/** Static function to get a unique device handle. */
-	static FInputDevicePropertyHandle AcquireValidHandle();
+	static ENGINE_API FInputDevicePropertyHandle AcquireValidHandle();
 
 	/** The internal ID of this handle. Populated by the private constructor in AcquireValidHandle */
 	UPROPERTY()

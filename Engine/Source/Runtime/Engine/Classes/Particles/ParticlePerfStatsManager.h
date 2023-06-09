@@ -15,7 +15,7 @@ class FParticlePerfStatsListener_DebugRender;
 
 #define ACCUMULATED_PARTICLE_PERF_STAT_MAX_SAMPLES 10
 
-struct ENGINE_API FAccumulatedParticlePerfStats_GT
+struct FAccumulatedParticlePerfStats_GT
 {
 	uint32 NumFrames;
 	TArray<uint64, TInlineAllocator<ACCUMULATED_PARTICLE_PERF_STAT_MAX_SAMPLES>> MaxPerFrameTotalCycles;
@@ -23,9 +23,9 @@ struct ENGINE_API FAccumulatedParticlePerfStats_GT
 
 	FParticlePerfStats_GT AccumulatedStats;
 
-	FAccumulatedParticlePerfStats_GT();
-	void Reset();
-	void Tick(FParticlePerfStats& Stats);
+	ENGINE_API FAccumulatedParticlePerfStats_GT();
+	ENGINE_API void Reset();
+	ENGINE_API void Tick(FParticlePerfStats& Stats);
 
 	/** Returns the total cycles used by all GameThread stats. */
 	FORCEINLINE uint64 GetTotalCycles() const { return AccumulatedStats.GetTotalCycles(); }
@@ -51,7 +51,7 @@ struct ENGINE_API FAccumulatedParticlePerfStats_GT
 	FORCEINLINE float GetPerInstanceMax(int32 Index = 0) const { return float(FPlatformTime::ToMilliseconds64(GetPerInstanceMaxCycles(Index)) * 1000.0); }
 };
 
-struct ENGINE_API FAccumulatedParticlePerfStats_RT
+struct FAccumulatedParticlePerfStats_RT
 {
 	uint32 NumFrames;
 	FParticlePerfStats_RT AccumulatedStats;
@@ -59,9 +59,9 @@ struct ENGINE_API FAccumulatedParticlePerfStats_RT
 	TArray<uint64, TInlineAllocator<ACCUMULATED_PARTICLE_PERF_STAT_MAX_SAMPLES>>	MaxPerFrameTotalCycles;
 	TArray<uint64, TInlineAllocator<ACCUMULATED_PARTICLE_PERF_STAT_MAX_SAMPLES>>	MaxPerInstanceCycles;
 
-	FAccumulatedParticlePerfStats_RT();
-	void Reset();
-	void Tick(FParticlePerfStats& Stats);
+	ENGINE_API FAccumulatedParticlePerfStats_RT();
+	ENGINE_API void Reset();
+	ENGINE_API void Tick(FParticlePerfStats& Stats);
 
 	/** Returns the total cycles used by all RenderThread stats. */
 	FORCEINLINE uint64 GetTotalCycles() const { return AccumulatedStats.GetTotalCycles(); }
@@ -87,7 +87,7 @@ struct ENGINE_API FAccumulatedParticlePerfStats_RT
 	FORCEINLINE float GetPerInstanceMax(int32 Index = 0) const { return float(FPlatformTime::ToMilliseconds64(GetPerInstanceMaxCycles(Index)) * 1000.0); }
 };
 
-struct ENGINE_API FAccumulatedParticlePerfStats_GPU
+struct FAccumulatedParticlePerfStats_GPU
 {
 	uint32 NumFrames;
 	FParticlePerfStats_GPU AccumulatedStats;
@@ -95,9 +95,9 @@ struct ENGINE_API FAccumulatedParticlePerfStats_GPU
 	TArray<uint64, TInlineAllocator<ACCUMULATED_PARTICLE_PERF_STAT_MAX_SAMPLES>>	MaxPerFrameTotalMicroseconds;
 	TArray<uint64, TInlineAllocator<ACCUMULATED_PARTICLE_PERF_STAT_MAX_SAMPLES>>	MaxPerInstanceMicroseconds;
 
-	FAccumulatedParticlePerfStats_GPU();
-	void Reset();
-	void Tick(FParticlePerfStats& Stats);
+	ENGINE_API FAccumulatedParticlePerfStats_GPU();
+	ENGINE_API void Reset();
+	ENGINE_API void Tick(FParticlePerfStats& Stats);
 
 	/** Returns the total microseconds used by GPU. */
 	FORCEINLINE uint64 GetTotalMicroseconds() const { return AccumulatedStats.GetTotalMicroseconds(); }
@@ -110,22 +110,22 @@ struct ENGINE_API FAccumulatedParticlePerfStats_GPU
 };
 
 /** Utility class for accumulating many frames worth of stats data. */
-struct ENGINE_API FAccumulatedParticlePerfStats
+struct FAccumulatedParticlePerfStats
 {
-	FAccumulatedParticlePerfStats();
+	ENGINE_API FAccumulatedParticlePerfStats();
 
-	void Reset(bool bSyncWithRT);
-	void ResetGT();
-	void ResetRT();
-	void Tick(FParticlePerfStats& Stats);
-	void TickRT(FParticlePerfStats& Stats);
+	ENGINE_API void Reset(bool bSyncWithRT);
+	ENGINE_API void ResetGT();
+	ENGINE_API void ResetRT();
+	ENGINE_API void Tick(FParticlePerfStats& Stats);
+	ENGINE_API void TickRT(FParticlePerfStats& Stats);
 
 	FAccumulatedParticlePerfStats_GT GameThreadStats;
 	FAccumulatedParticlePerfStats_RT RenderThreadStats;
 	FAccumulatedParticlePerfStats_GPU GPUStats;
 
-	static void AddMax(TArray<uint64, TInlineAllocator<ACCUMULATED_PARTICLE_PERF_STAT_MAX_SAMPLES>>& MaxArray, int64 NewValue);
-	static void ResetMaxArray(TArray<uint64, TInlineAllocator<ACCUMULATED_PARTICLE_PERF_STAT_MAX_SAMPLES>>& MaxArray);
+	static ENGINE_API void AddMax(TArray<uint64, TInlineAllocator<ACCUMULATED_PARTICLE_PERF_STAT_MAX_SAMPLES>>& MaxArray, int64 NewValue);
+	static ENGINE_API void ResetMaxArray(TArray<uint64, TInlineAllocator<ACCUMULATED_PARTICLE_PERF_STAT_MAX_SAMPLES>>& MaxArray);
 
 	/** Returns the current Game Thread stats. */
 	FORCEINLINE FAccumulatedParticlePerfStats_GT& GetGameThreadStats()
@@ -168,7 +168,7 @@ struct ENGINE_API FAccumulatedParticlePerfStats
 	}
 };
 
-class ENGINE_API FParticlePerfStatsListener : public TSharedFromThis<FParticlePerfStatsListener, ESPMode::ThreadSafe>
+class FParticlePerfStatsListener : public TSharedFromThis<FParticlePerfStatsListener, ESPMode::ThreadSafe>
 {
 public:
 	virtual ~FParticlePerfStatsListener() {}
@@ -209,56 +209,56 @@ public:
 };
 
 typedef TSharedPtr<FParticlePerfStatsListener, ESPMode::ThreadSafe> FParticlePerfStatsListenerPtr;
-class ENGINE_API FParticlePerfStatsManager
+class FParticlePerfStatsManager
 {
 public:
-	static FDelegateHandle BeginFrameHandle;
+	static ENGINE_API FDelegateHandle BeginFrameHandle;
 #if CSV_PROFILER
-	static FDelegateHandle CSVStartHandle;
-	static FDelegateHandle CSVEndHandle;
+	static ENGINE_API FDelegateHandle CSVStartHandle;
+	static ENGINE_API FDelegateHandle CSVEndHandle;
 #endif
 
-	static int32 StatsEnabled;
-	static FCriticalSection WorldToPerfStatsGuard;
-	static TMap<TWeakObjectPtr<const UWorld>, TUniquePtr<FParticlePerfStats>> WorldToPerfStats;
-	static TArray<TUniquePtr<FParticlePerfStats>> FreeWorldStatsPool;
+	static ENGINE_API int32 StatsEnabled;
+	static ENGINE_API FCriticalSection WorldToPerfStatsGuard;
+	static ENGINE_API TMap<TWeakObjectPtr<const UWorld>, TUniquePtr<FParticlePerfStats>> WorldToPerfStats;
+	static ENGINE_API TArray<TUniquePtr<FParticlePerfStats>> FreeWorldStatsPool;
 	static const TMap<TWeakObjectPtr<const UWorld>, TUniquePtr<FParticlePerfStats>>& GetCurrentWorldStats() { return WorldToPerfStats; }
 
 #if WITH_PER_SYSTEM_PARTICLE_PERF_STATS
-	static FCriticalSection SystemToPerfStatsGuard;
-	static TMap<TWeakObjectPtr<const UFXSystemAsset>, TUniquePtr<FParticlePerfStats>> SystemToPerfStats;
-	static TArray<TUniquePtr<FParticlePerfStats>> FreeSystemStatsPool;
+	static ENGINE_API FCriticalSection SystemToPerfStatsGuard;
+	static ENGINE_API TMap<TWeakObjectPtr<const UFXSystemAsset>, TUniquePtr<FParticlePerfStats>> SystemToPerfStats;
+	static ENGINE_API TArray<TUniquePtr<FParticlePerfStats>> FreeSystemStatsPool;
 	static const TMap<TWeakObjectPtr<const UFXSystemAsset>, TUniquePtr<FParticlePerfStats>>& GetCurrentSystemStats() { return SystemToPerfStats; }
 #endif
 
 #if WITH_PER_COMPONENT_PARTICLE_PERF_STATS
-	static FCriticalSection ComponentToPerfStatsGuard;
-	static TMap<TWeakObjectPtr<const UFXSystemComponent>, TUniquePtr<FParticlePerfStats>> ComponentToPerfStats;
-	static TArray<TUniquePtr<FParticlePerfStats>> FreeComponentStatsPool;
+	static ENGINE_API FCriticalSection ComponentToPerfStatsGuard;
+	static ENGINE_API TMap<TWeakObjectPtr<const UFXSystemComponent>, TUniquePtr<FParticlePerfStats>> ComponentToPerfStats;
+	static ENGINE_API TArray<TUniquePtr<FParticlePerfStats>> FreeComponentStatsPool;
 	static const TMap<TWeakObjectPtr<const UFXSystemComponent>, TUniquePtr<FParticlePerfStats>>& GetCurrentComponentStats() { return ComponentToPerfStats; }
 #endif
 
-	static TArray<FParticlePerfStatsListenerPtr, TInlineAllocator<8>> Listeners;
-	static FParticlePerfStats* GetWorldPerfStats(const UWorld* World);
-	static FParticlePerfStats* GetSystemPerfStats(const UFXSystemAsset* FXAsset);
-	static FParticlePerfStats* GetComponentPerfStats(const UFXSystemComponent* FXComponent);
+	static ENGINE_API TArray<FParticlePerfStatsListenerPtr, TInlineAllocator<8>> Listeners;
+	static ENGINE_API FParticlePerfStats* GetWorldPerfStats(const UWorld* World);
+	static ENGINE_API FParticlePerfStats* GetSystemPerfStats(const UFXSystemAsset* FXAsset);
+	static ENGINE_API FParticlePerfStats* GetComponentPerfStats(const UFXSystemComponent* FXComponent);
 
-	static void OnStartup();
-	static void OnShutdown();
+	static ENGINE_API void OnStartup();
+	static ENGINE_API void OnShutdown();
 
-	static void TogglePerfStatsRender(UWorld* World);
-	static int32 RenderStats(UWorld* World, class FViewport* Viewport, class FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation);
+	static ENGINE_API void TogglePerfStatsRender(UWorld* World);
+	static ENGINE_API int32 RenderStats(UWorld* World, class FViewport* Viewport, class FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation);
 
-	static void Reset();
-	static void Tick();
+	static ENGINE_API void Reset();
+	static ENGINE_API void Tick();
 
-	static void AddListener(FParticlePerfStatsListenerPtr Listener, bool bReset = true);
-	static void RemoveListener(FParticlePerfStatsListener* Listener);
-	static void RemoveListener(FParticlePerfStatsListenerPtr Listener);
+	static ENGINE_API void AddListener(FParticlePerfStatsListenerPtr Listener, bool bReset = true);
+	static ENGINE_API void RemoveListener(FParticlePerfStatsListener* Listener);
+	static ENGINE_API void RemoveListener(FParticlePerfStatsListenerPtr Listener);
 
 #if ENABLE_PARTICLE_PERF_STATS_RENDER
 	/** Track active worlds needing to render stats. Though we only create one listener. TODO: Maybe better to track by viewport than world? */
-	static TMap<TWeakObjectPtr<UWorld>, TSharedPtr<FParticlePerfStatsListener_DebugRender ,ESPMode::ThreadSafe>> DebugRenderListenerUsers;
+	static ENGINE_API TMap<TWeakObjectPtr<UWorld>, TSharedPtr<FParticlePerfStatsListener_DebugRender ,ESPMode::ThreadSafe>> DebugRenderListenerUsers;
 #endif
 
 	/** Calls the supplied function for all tracked UWorld stats. */
@@ -300,7 +300,7 @@ public:
 };
 
 /** Base class for listeners that gather stats on all systems in the scene. */
-class ENGINE_API FParticlePerfStatsListener_GatherAll: public FParticlePerfStatsListener
+class FParticlePerfStatsListener_GatherAll: public FParticlePerfStatsListener
 {
 public:
 	FParticlePerfStatsListener_GatherAll(bool bNeedsWorldStats, bool bNeedsSystemStats, bool bNeedsComponentStats)
@@ -311,43 +311,43 @@ public:
 
 	virtual ~FParticlePerfStatsListener_GatherAll() {}
 
-	virtual void Begin() override;
-	virtual void End() override;
-	virtual bool Tick() override;
-	virtual void TickRT() override;
+	ENGINE_API virtual void Begin() override;
+	ENGINE_API virtual void End() override;
+	ENGINE_API virtual bool Tick() override;
+	ENGINE_API virtual void TickRT() override;
 
-	virtual void OnAddWorld(const TWeakObjectPtr<const UWorld>& NewWorld)override;
-	virtual void OnRemoveWorld(const TWeakObjectPtr<const UWorld>& World)override;
+	ENGINE_API virtual void OnAddWorld(const TWeakObjectPtr<const UWorld>& NewWorld)override;
+	ENGINE_API virtual void OnRemoveWorld(const TWeakObjectPtr<const UWorld>& World)override;
 
 	#if WITH_PER_SYSTEM_PARTICLE_PERF_STATS
-	virtual void OnAddSystem(const TWeakObjectPtr<const UFXSystemAsset>& NewSystem)override;
-	virtual void OnRemoveSystem(const TWeakObjectPtr<const UFXSystemAsset>& System)override;
+	ENGINE_API virtual void OnAddSystem(const TWeakObjectPtr<const UFXSystemAsset>& NewSystem)override;
+	ENGINE_API virtual void OnRemoveSystem(const TWeakObjectPtr<const UFXSystemAsset>& System)override;
 	#endif
 
 	#if WITH_PER_COMPONENT_PARTICLE_PERF_STATS
-	virtual void OnAddComponent(const TWeakObjectPtr<const UFXSystemComponent>& NewComponent)override;
-	virtual void OnRemoveComponent(const TWeakObjectPtr<const UFXSystemComponent>& Component)override;
+	ENGINE_API virtual void OnAddComponent(const TWeakObjectPtr<const UFXSystemComponent>& NewComponent)override;
+	ENGINE_API virtual void OnRemoveComponent(const TWeakObjectPtr<const UFXSystemComponent>& Component)override;
 	#endif
 
 	virtual bool NeedsWorldStats() const override { return bGatherWorldStats; }
 	virtual bool NeedsSystemStats() const override { return bGatherSystemStats; }
 	virtual bool NeedsComponentStats() const override { return bGatherComponentStats; }
 
-	void DumpStatsToDevice(FOutputDevice& Ar);
-	void DumpStatsToFile();
+	ENGINE_API void DumpStatsToDevice(FOutputDevice& Ar);
+	ENGINE_API void DumpStatsToFile();
 
 #if WITH_PARTICLE_PERF_STATS
-	FAccumulatedParticlePerfStats* GetStats(const UWorld* World);
+	ENGINE_API FAccumulatedParticlePerfStats* GetStats(const UWorld* World);
 #else
 	FAccumulatedParticlePerfStats* GetStats(const UWorld* World) { return nullptr; }
 #endif
 #if WITH_PER_SYSTEM_PARTICLE_PERF_STATS
-	FAccumulatedParticlePerfStats* GetStats(const UFXSystemAsset* System);
+	ENGINE_API FAccumulatedParticlePerfStats* GetStats(const UFXSystemAsset* System);
 #else
 	FAccumulatedParticlePerfStats* GetStats(const UFXSystemAsset* System){ return nullptr; }
 #endif
 #if WITH_PER_COMPONENT_PARTICLE_PERF_STATS
-	FAccumulatedParticlePerfStats* GetStats(const UFXSystemComponent* Component);
+	ENGINE_API FAccumulatedParticlePerfStats* GetStats(const UFXSystemComponent* Component);
 #else
 	FAccumulatedParticlePerfStats* GetStats(const UFXSystemComponent* Component){ return nullptr; }
 #endif
@@ -374,13 +374,13 @@ protected:
 };
 
 /** Simple stats listener that will gather stats on all systems for N frames and dump the results to a CSV and the Log. */
-class ENGINE_API FParticlePerfStatsListener_TimedTest : public FParticlePerfStatsListener_GatherAll
+class FParticlePerfStatsListener_TimedTest : public FParticlePerfStatsListener_GatherAll
 {
 public:
-	FParticlePerfStatsListener_TimedTest(int32 NumFrames, bool bInGatherWorldStats, bool bInGatherSystemStats, bool bInGatherComponentStats);
+	ENGINE_API FParticlePerfStatsListener_TimedTest(int32 NumFrames, bool bInGatherWorldStats, bool bInGatherSystemStats, bool bInGatherComponentStats);
 
-	virtual void End()override;
-	virtual bool Tick()override;
+	ENGINE_API virtual void End()override;
+	ENGINE_API virtual bool Tick()override;
 
 	virtual bool AllowOrphaned() const { return true; }
 
@@ -389,37 +389,37 @@ private:
 };
 
 /** Listener that hooks into the engine wide CSV Profiling systems. */
-class ENGINE_API FParticlePerfStatsListener_CSVProfiler : public FParticlePerfStatsListener_GatherAll
+class FParticlePerfStatsListener_CSVProfiler : public FParticlePerfStatsListener_GatherAll
 {
 public:
 	FParticlePerfStatsListener_CSVProfiler() : FParticlePerfStatsListener_GatherAll(false, true, false) {}
 
 #if WITH_PARTICLE_PERF_CSV_STATS
-	virtual bool Tick()override;
-	virtual void TickRT()override;
-	virtual void End()override;
+	ENGINE_API virtual bool Tick()override;
+	ENGINE_API virtual void TickRT()override;
+	ENGINE_API virtual void End()override;
 
-	static void OnCSVStart();
-	static void OnCSVEnd();
+	static ENGINE_API void OnCSVStart();
+	static ENGINE_API void OnCSVEnd();
 #endif
 
 private:
-	static FParticlePerfStatsListenerPtr CSVListener;
+	static ENGINE_API FParticlePerfStatsListenerPtr CSVListener;
 };
 
 /**
 This listener displays stats onto a debug canvas in a viewport.
 It does not sync with the Render Thread and so RT stats are one or more frames delayed.
 */
-class ENGINE_API FParticlePerfStatsListener_DebugRender : public FParticlePerfStatsListener_GatherAll
+class FParticlePerfStatsListener_DebugRender : public FParticlePerfStatsListener_GatherAll
 {
 public:
 	FParticlePerfStatsListener_DebugRender() : FParticlePerfStatsListener_GatherAll(false, true, false){}
-	int32 RenderStats(UWorld* World, class FViewport* Viewport, class FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation);
+	ENGINE_API int32 RenderStats(UWorld* World, class FViewport* Viewport, class FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation);
 };
 
 #else
 
-struct ENGINE_API FAccumulatedParticlePerfStats{};
+struct FAccumulatedParticlePerfStats{};
 
 #endif

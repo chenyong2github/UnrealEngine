@@ -17,8 +17,8 @@ class UStaticMesh;
   * Represents a camera viewpoint and settings, such as projection type, field of view, and post-process overrides.
   * The default behavior for an actor used as the camera view target is to look for an attached camera component and use its location, rotation, and settings.
   */
-UCLASS(HideCategories=(Mobility, Rendering, LOD), Blueprintable, ClassGroup=Camera, meta=(BlueprintSpawnableComponent))
-class ENGINE_API UCameraComponent : public USceneComponent
+UCLASS(HideCategories=(Mobility, Rendering, LOD), Blueprintable, ClassGroup=Camera, meta=(BlueprintSpawnableComponent), MinimalAPI)
+class UCameraComponent : public USceneComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -73,7 +73,7 @@ class ENGINE_API UCameraComponent : public USceneComponent
 #if WITH_EDITOR
 	// Returns the filmback text used for burnins on preview viewports
 	UFUNCTION()
-	virtual FText GetFilmbackText() const;
+	ENGINE_API virtual FText GetFilmbackText() const;
 #endif
 
 #if WITH_EDITORONLY_DATA
@@ -112,33 +112,33 @@ public:
 	void SetPostProcessBlendWeight(float InPostProcessBlendWeight) { PostProcessBlendWeight = InPostProcessBlendWeight; }
 
 	// UActorComponent interface
-	virtual void OnRegister() override;
-	virtual void OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport) override;
+	ENGINE_API virtual void OnRegister() override;
+	ENGINE_API virtual void OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport) override;
 #if WITH_EDITOR
-	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
-	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
-	virtual void CheckForErrors() override;
+	ENGINE_API virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+	ENGINE_API virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
+	ENGINE_API virtual void CheckForErrors() override;
 #endif
 	// End of UActorComponent interface
 
 	// USceneComponent interface
 #if WITH_EDITOR
-	virtual bool GetEditorPreviewInfo(float DeltaTime, FMinimalViewInfo& ViewOut) override;
+	ENGINE_API virtual bool GetEditorPreviewInfo(float DeltaTime, FMinimalViewInfo& ViewOut) override;
 #endif 
 	// End of USceneComponent interface
 
 	// UObject interface
 #if WITH_EDITORONLY_DATA
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
-	virtual void PostLoad() override;
-	virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	static ENGINE_API void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	ENGINE_API virtual void PostLoad() override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
 #endif
 	// End of UObject interface
 
 protected:
-	bool IsXRHeadTrackedCamera() const;
-	virtual void HandleXRCamera();
+	ENGINE_API bool IsXRHeadTrackedCamera() const;
+	ENGINE_API virtual void HandleXRCamera();
 
 public:
 	/**
@@ -146,7 +146,7 @@ public:
 	 * Called by Camera class. Subclass and postprocess to add any effects.
 	 */
 	UFUNCTION(BlueprintCallable, Category = Camera)
-	virtual void GetCameraView(float DeltaTime, FMinimalViewInfo& DesiredView);
+	ENGINE_API virtual void GetCameraView(float DeltaTime, FMinimalViewInfo& DesiredView);
 
 	/** Adds an Blendable (implements IBlendableInterface) to the array of Blendables (if it doesn't exist) and update the weight */
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
@@ -157,7 +157,7 @@ public:
 	void RemoveBlendable(TScriptInterface<IBlendableInterface> InBlendableObject) { PostProcessSettings.RemoveBlendable(InBlendableObject); }
 
 #if WITH_EDITORONLY_DATA
-	virtual void SetCameraMesh(UStaticMesh* Mesh);
+	ENGINE_API virtual void SetCameraMesh(UStaticMesh* Mesh);
 #endif 
 
 protected:
@@ -172,13 +172,13 @@ protected:
 	// The camera mesh to show visually where the camera is placed
 	TObjectPtr<class UStaticMeshComponent> ProxyMeshComponent;
 
-	virtual void ResetProxyMeshTransform();
+	ENGINE_API virtual void ResetProxyMeshTransform();
 
 	/** Ensure the proxy mesh is in the correct place */
-	void UpdateProxyMeshTransform();
+	ENGINE_API void UpdateProxyMeshTransform();
 
 	/* Update draw frustum values */
-	void UpdateDrawFrustum();
+	ENGINE_API void UpdateDrawFrustum();
 
 #endif	// WITH_EDITORONLY_DATA
 
@@ -186,7 +186,7 @@ protected:
 	* Internal function for updating the camera mesh visibility in PIE
 	*/
 	UFUNCTION(BlueprintSetter)
-	void OnCameraMeshHiddenChanged();
+	ENGINE_API void OnCameraMeshHiddenChanged();
 
 	/** An optional extra transform to adjust the final view without moving the component, in the camera's local space */
 	FTransform AdditiveOffset;
@@ -208,24 +208,24 @@ protected:
 public:
 
 	/** Applies the given additive offset, preserving any existing offset */
-	void AddAdditiveOffset(FTransform const& Transform, float FOV);
+	ENGINE_API void AddAdditiveOffset(FTransform const& Transform, float FOV);
 	/** Removes any additive offset. */
-	void ClearAdditiveOffset();
+	ENGINE_API void ClearAdditiveOffset();
 	/** Get the additive offset */
-	void GetAdditiveOffset(FTransform& OutAdditiveOffset, float& OutAdditiveFOVOffset) const;
+	ENGINE_API void GetAdditiveOffset(FTransform& OutAdditiveOffset, float& OutAdditiveFOVOffset) const;
 
 	/** Stores a given PP and weight to be later applied when the final PP is computed. Used for things like in-editor camera animation preview. */
-	void AddExtraPostProcessBlend(FPostProcessSettings const& PPSettings, float PPBlendWeight);
+	ENGINE_API void AddExtraPostProcessBlend(FPostProcessSettings const& PPSettings, float PPBlendWeight);
 	/** Removes any extra PP blends. */
-	void ClearExtraPostProcessBlends();
+	ENGINE_API void ClearExtraPostProcessBlends();
 	/** Returns any extra PP blends that were stored. */
-	void GetExtraPostProcessBlends(TArray<FPostProcessSettings>& OutSettings, TArray<float>& OutWeights) const;
+	ENGINE_API void GetExtraPostProcessBlends(TArray<FPostProcessSettings>& OutSettings, TArray<float>& OutWeights) const;
 
 	/** 
 	 * Can be called from external code to notify that this camera was cut to, so it can update 
 	 * things like interpolation if necessary.
 	 */
-	virtual void NotifyCameraCut();
+	ENGINE_API virtual void NotifyCameraCut();
 
 public:
 
@@ -235,10 +235,10 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	// Refreshes the visual components to match the component state
-	virtual void RefreshVisualRepresentation();
+	ENGINE_API virtual void RefreshVisualRepresentation();
 
-	void OverrideFrustumColor(FColor OverrideColor);
-	void RestoreFrustumColor();
+	ENGINE_API void OverrideFrustumColor(FColor OverrideColor);
+	ENGINE_API void RestoreFrustumColor();
 
 public:
 	/** DEPRECATED: use bUsePawnControlRotation instead */

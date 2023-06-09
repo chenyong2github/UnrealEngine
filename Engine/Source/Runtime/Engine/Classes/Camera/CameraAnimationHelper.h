@@ -18,7 +18,7 @@ struct FCameraAnimationHelperOffset
 /**
  * Helper class for applying animations to a camera.
  */
-class ENGINE_API FCameraAnimationHelper
+class FCameraAnimationHelper
 {
 public:
 
@@ -29,7 +29,7 @@ public:
 	 * @param InOffset	The offset to apply
 	 * @param OutResult	The world-space transform of the offset camera
 	 */
-	static void ApplyOffset(const FMinimalViewInfo& InPOV, const FCameraAnimationHelperOffset& InOffset, FVector& OutLocation, FRotator& OutRotation);
+	static ENGINE_API void ApplyOffset(const FMinimalViewInfo& InPOV, const FCameraAnimationHelperOffset& InOffset, FVector& OutLocation, FRotator& OutRotation);
 
 	/**
 	 * Apply an offset to a camera transform in the given space, and get the resulting world-space info.
@@ -39,6 +39,6 @@ public:
 	 * @param InOffset	The offset to apply
 	 * @param OutResult	The world-space transform of the offset camera
 	 */
-	static void ApplyOffset(const FMatrix& UserPlaySpaceMatrix, const FMinimalViewInfo& InPOV, const FCameraAnimationHelperOffset& InOffset, FVector& OutLocation, FRotator& OutRotation);
+	static ENGINE_API void ApplyOffset(const FMatrix& UserPlaySpaceMatrix, const FMinimalViewInfo& InPOV, const FCameraAnimationHelperOffset& InOffset, FVector& OutLocation, FRotator& OutRotation);
 };
 

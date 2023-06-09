@@ -17,29 +17,29 @@
 /**
  * Encapsulates a Texture2DRHIRef for use by a Slate rendering implementation                   
  */
-class ENGINE_API FSlateTexture2DRHIRef : public TSlateTexture<FTexture2DRHIRef>, public FSlateUpdatableTexture, public FDeferredCleanupInterface, public FRenderResource
+class FSlateTexture2DRHIRef : public TSlateTexture<FTexture2DRHIRef>, public FSlateUpdatableTexture, public FDeferredCleanupInterface, public FRenderResource
 {
 public:
-	FSlateTexture2DRHIRef( FTexture2DRHIRef InRef, uint32 InWidth, uint32 InHeight );
-	FSlateTexture2DRHIRef( uint32 InWidth, uint32 InHeight, EPixelFormat InPixelFormat, TSharedPtr<FSlateTextureData, ESPMode::ThreadSafe> InTextureData, ETextureCreateFlags InTexCreateFlags = TexCreate_None, bool bCreateEmptyTexture = false );
+	ENGINE_API FSlateTexture2DRHIRef( FTexture2DRHIRef InRef, uint32 InWidth, uint32 InHeight );
+	ENGINE_API FSlateTexture2DRHIRef( uint32 InWidth, uint32 InHeight, EPixelFormat InPixelFormat, TSharedPtr<FSlateTextureData, ESPMode::ThreadSafe> InTextureData, ETextureCreateFlags InTexCreateFlags = TexCreate_None, bool bCreateEmptyTexture = false );
 
-	virtual ~FSlateTexture2DRHIRef();
+	ENGINE_API virtual ~FSlateTexture2DRHIRef();
 
-	virtual void Cleanup() override;
+	ENGINE_API virtual void Cleanup() override;
 
 	virtual uint32 GetWidth() const override { return Width; }
 	virtual uint32 GetHeight() const override { return Height; }
 
 	/** FRenderResource Interface.  Called when render resources need to be initialized */
-	virtual void InitRHI() override;
+	ENGINE_API virtual void InitRHI() override;
 
 	/** FRenderResource Interface.  Called when render resources need to be released */
-	virtual void ReleaseRHI() override;
+	ENGINE_API virtual void ReleaseRHI() override;
 
 	/**
 	 * Resize the texture.  Can only be called on the render thread
 	 */
-	void Resize( uint32 Width, uint32 Height );
+	ENGINE_API void Resize( uint32 Width, uint32 Height );
 
 	/**
 	 * @return true if the texture is valid
@@ -49,7 +49,7 @@ public:
 	/** 
 	 *  Sets the RHI Ref to use. 
 	 */
-	void SetRHIRef( FTexture2DRHIRef InRenderTargetTexture, uint32 InWidth, uint32 InHeight );
+	ENGINE_API void SetRHIRef( FTexture2DRHIRef InRenderTargetTexture, uint32 InWidth, uint32 InHeight );
 
 	FTexture2DRHIRef GetRHIRef() const { return ShaderResource; }
 
@@ -58,7 +58,7 @@ public:
 	 *
 	 * @param NewTextureData	The new bulk data
 	 */
-	void SetTextureData( FSlateTextureDataPtr NewTextureData );
+	ENGINE_API void SetTextureData( FSlateTextureDataPtr NewTextureData );
 	
 	/**
 	 * Sets the bulk data for this texture and the format of the rendering resource
@@ -68,12 +68,12 @@ public:
 	 * @param InPixelFormat		The format of the texture data
 	 * @param InTexCreateFlags	Flags for creating the rendering resource  
 	 */
-	void SetTextureData( FSlateTextureDataPtr NewTextureData, EPixelFormat InPixelFormat, ETextureCreateFlags InTexCreateFlags );
+	ENGINE_API void SetTextureData( FSlateTextureDataPtr NewTextureData, EPixelFormat InPixelFormat, ETextureCreateFlags InTexCreateFlags );
 
 	/**
 	 * Clears texture data being used.  Can only be accessed on the render thread                   
 	 */
-	void ClearTextureData();
+	ENGINE_API void ClearTextureData();
 
 	/**
 	 * Returns the pixel format of this texture
@@ -83,11 +83,11 @@ public:
 	// FSlateUpdatableTexture interface
 	virtual FSlateShaderResource* GetSlateResource() override {return this;}
 	virtual FRenderResource* GetRenderResource() override {return this;}
-	virtual void ResizeTexture( uint32 Width, uint32 Height ) override;
-	virtual void UpdateTexture(const TArray<uint8>& Bytes) override;
-	virtual void UpdateTextureThreadSafe(const TArray<uint8>& Bytes) override;
-	virtual void UpdateTextureThreadSafeRaw(uint32 Width, uint32 Height, const void* Buffer, const FIntRect& Dirty) override;
-	virtual void UpdateTextureThreadSafeWithTextureData(FSlateTextureData* BulkData) override;
+	ENGINE_API virtual void ResizeTexture( uint32 Width, uint32 Height ) override;
+	ENGINE_API virtual void UpdateTexture(const TArray<uint8>& Bytes) override;
+	ENGINE_API virtual void UpdateTextureThreadSafe(const TArray<uint8>& Bytes) override;
+	ENGINE_API virtual void UpdateTextureThreadSafeRaw(uint32 Width, uint32 Height, const void* Buffer, const FIntRect& Dirty) override;
+	ENGINE_API virtual void UpdateTextureThreadSafeWithTextureData(FSlateTextureData* BulkData) override;
 	virtual void UpdateTextureThreadSafeWithKeyedTextureHandle(void* TextureHandle, int KeyLockVal, int KeyUnlockVal, const FIntRect& Dirty = FIntRect()) override {}
 protected:
 	/** Width of this texture */
@@ -95,7 +95,7 @@ protected:
 	/** Height of this texture */
 	uint32 Height;
 private:
-	void SetTextureData(const TArray<uint8>& Bytes);
+	ENGINE_API void SetTextureData(const TArray<uint8>& Bytes);
 
 	/** Texture creation flags for if this texture needs to be recreated dynamically */
 	ETextureCreateFlags TexCreateFlags;

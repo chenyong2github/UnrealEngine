@@ -99,8 +99,8 @@ struct FGraphLine
 	FString LineName;
 };
 
-UCLASS()
-class ENGINE_API UReporterGraph : public UReporterBase
+UCLASS(MinimalAPI)
+class UReporterGraph : public UReporterBase
 {
 	GENERATED_UCLASS_BODY()
 
@@ -123,18 +123,18 @@ public:
 	 * @param MinY The normalized minimum Y extent of the graph.
 	 * @param MaxY The normalized maximum Y extent of the graph.
 	 */
-	void SetGraphScreenSize(float MinX, float MaxX, float MinY, float MaxY);
+	ENGINE_API void SetGraphScreenSize(float MinX, float MaxX, float MinY, float MaxY);
 	
 	/** Set The size of the graph.
 	 * @param Min The normalized minimum extent of the graph.
 	 * @param Max The normalized maximum extent of the graph.
 	 */
-	void SetGraphScreenSize(const FVector2D& Min, const FVector2D& Max);
+	ENGINE_API void SetGraphScreenSize(const FVector2D& Min, const FVector2D& Max);
 
 	/** Main draw call for the Graph.
 	 * @param Canvas The canvas to draw this graph to.
 	 */
-	virtual void Draw(UCanvas* Canvas) override;
+	ENGINE_API virtual void Draw(UCanvas* Canvas) override;
 
 	/** Set the axis min and max data for both axes.
 	 * @param MinX The normalized minimum X data.
@@ -142,13 +142,13 @@ public:
 	 * @param MinY The normalized minimum Y data.
 	 * @param MaxY The normalized maximum Y data.
 	 */
-	void SetAxesMinMax(float MinX, float MaxX, float MinY, float MaxY);
+	ENGINE_API void SetAxesMinMax(float MinX, float MaxX, float MinY, float MaxY);
 
 	/** Set the axis min and max data for both axes.
 	 * @param MinX The normalized minimum X data.
 	 * @param MinY The normalized minimum Y data.
 	 */
-	void SetAxesMinMax(const FVector2D& Min, const FVector2D& Max);
+	ENGINE_API void SetAxesMinMax(const FVector2D& Min, const FVector2D& Max);
 
 	/** Set notches per axis.
 	 * @param NewNumXNotches The number of notches/divisions to display on the graph on the X axis.
@@ -159,34 +159,34 @@ public:
 	/** Set the number of graph lines.
 	 * @param NumDataLines The number of lines to plot on this graph.
 	 */
-	void SetNumGraphLines(int32 NumDataLines);
+	ENGINE_API void SetNumGraphLines(int32 NumDataLines);
 
 	/** Get a pointer to a graph line.
 	 * @param LineIndex Index of the graph line.
 	 * @return Pointer to the graph line. Do not cache. May return NULL.
 	 */
-	FGraphLine* GetGraphLine(int32 LineIndex);
+	ENGINE_API FGraphLine* GetGraphLine(int32 LineIndex);
 
 	/** Set the number of Thresholds to display on this graph.
 	 * @param NumThresholds The number of Thresholds.
 	 */
-	void SetNumThresholds(int32 NumThresholds);
+	ENGINE_API void SetNumThresholds(int32 NumThresholds);
 
 	/** Get a pointer to a threshold.
 	 * @param ThresholdIndex Index of the threshold.
 	 * @return Pointer to the threshold. Do not cache. May return NULL.
 	 */
-	FGraphThreshold* GetThreshold(int32 ThresholdIndex);
+	ENGINE_API FGraphThreshold* GetThreshold(int32 ThresholdIndex);
 
 	/** Sets background color.
 	 * @param Color Color to set as background.
 	 */
-	void SetBackgroundColor(FColor Color);
+	ENGINE_API void SetBackgroundColor(FColor Color);
 
 	/** Sets position where to draw legend.
 	 * @param Position Actual position for legend.
 	 */
-	void SetLegendPosition(ELegendPosition::Type Position);
+	ENGINE_API void SetLegendPosition(ELegendPosition::Type Position);
 
 	/** Enables small offset for data sets to make it easier to read.
 	 * @Param Enable - set to true to enable offsets.
@@ -210,17 +210,17 @@ public:
 	/** Draw background under graph.
 	* @param Canvas The canvas to draw on.
 	*/
-	void DrawBackground(UCanvas* Canvas);
+	ENGINE_API void DrawBackground(UCanvas* Canvas);
 
 	/** Draw the Legend.
 	 * @param Canvas The canvas to draw on.
 	 */
-	void DrawLegend(UCanvas* Canvas);
+	ENGINE_API void DrawLegend(UCanvas* Canvas);
 
 	/** Draw the Axes.
 	 * @param Canvas The canvas to draw on.
 	 */
-	void DrawAxes(UCanvas* Canvas);
+	ENGINE_API void DrawAxes(UCanvas* Canvas);
 
 	/** Draw an individual axis.
 	 * @param Canvas The canvas to draw on.
@@ -229,33 +229,33 @@ public:
 	 * @param NumNotches The number of notches to draw on this axis.
 	 * @param bIsVerticalAxis Is this the vertical axis of the graph?
 	 */
-	void DrawAxis(UCanvas* Canvas, FVector2D Start, FVector2D End, float NumNotches, bool bIsVerticalAxis);
+	ENGINE_API void DrawAxis(UCanvas* Canvas, FVector2D Start, FVector2D End, float NumNotches, bool bIsVerticalAxis);
 
 	/** Draw the thresholds.
 	 * @param Canvas The canvas to draw on.
 	 */
-	void DrawThresholds(UCanvas* Canvas);
+	ENGINE_API void DrawThresholds(UCanvas* Canvas);
 
 	/** Draw the data.
 	 * @param Canvas The canvas to draw on.
 	 */
-	void DrawData(UCanvas* Canvas);
+	ENGINE_API void DrawData(UCanvas* Canvas);
 
 	/** Helper to convert vectors from normalized into screen space.
 	 * @param InVector Normalized screen space coordinates to convert to screen space.
 	 * @param Canvas The canvas we wish to use during the conversion.
 	 * @return The screen space coordinates based on the size of the canvas.
 	 */
-	virtual FVector2D ToScreenSpace(const FVector2D& InVector, UCanvas* Canvas) override;
+	ENGINE_API virtual FVector2D ToScreenSpace(const FVector2D& InVector, UCanvas* Canvas) override;
 
 	/** Helper to convert data from raw data into screen space.
 	 * @param InVector 2D plot point in data space.
 	 * @return The data space coordinate converted to normalized screen coordinates.
 	*/
-	FVector2D DataToNormalized(const FVector2D& InVector);
+	ENGINE_API FVector2D DataToNormalized(const FVector2D& InVector);
 
 	/** Returns default font used to print texts. */
-	UFont* GetDefaultFont();
+	ENGINE_API UFont* GetDefaultFont();
 
 	/** The screen size of the graph. */
 	FRect GraphScreenSize;

@@ -7,10 +7,10 @@
 /**
  * A view on top of an actor desc, which reverts to the actor if its loaded and dirty.
  */
-class ENGINE_API FWorldPartitionActorViewProxy : public FWorldPartitionActorDescView
+class FWorldPartitionActorViewProxy : public FWorldPartitionActorDescView
 {
 public:
-	FWorldPartitionActorViewProxy(const FWorldPartitionActorDesc* InActorDesc);
+	ENGINE_API FWorldPartitionActorViewProxy(const FWorldPartitionActorDesc* InActorDesc);
 
 private:
 	TUniquePtr<FWorldPartitionActorDesc> CachedActorDesc;

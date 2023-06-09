@@ -438,7 +438,7 @@ struct FTextureSource
 	};
 
 	/** Structure that encapsulates the decompressed texture data and can be accessed per mip */
-	struct ENGINE_API FMipData
+	struct FMipData
 	{
 		/** Allow the copy constructor by rvalue*/
 		FMipData(FMipData&& Other)
@@ -456,7 +456,7 @@ struct FTextureSource
 		FMipData& operator=(FMipData&& Other) = delete;
 
 		/** Get a copy of a given texture mip, to be stored in OutMipData */
-		bool GetMipData(TArray64<uint8>& OutMipData, int32 BlockIndex, int32 LayerIndex, int32 MipIndex) const;
+		ENGINE_API bool GetMipData(TArray64<uint8>& OutMipData, int32 BlockIndex, int32 LayerIndex, int32 MipIndex) const;
 
 		/** 
 		 * Access the given texture mip in the form of a read only FSharedBuffer.
@@ -465,13 +465,13 @@ struct FTextureSource
 		 * allocation, so will remain valid even after the FMipData object has been 
 		 * destroyed.
 		 */
-		FSharedBuffer GetMipData(int32 BlockIndex, int32 LayerIndex, int32 MipIndex) const;
+		ENGINE_API FSharedBuffer GetMipData(int32 BlockIndex, int32 LayerIndex, int32 MipIndex) const;
 
 	private:
 		// We only want to allow FTextureSource to create FMipData objects
 		friend struct FTextureSource;
 
-		FMipData(const FTextureSource& InSource, FSharedBuffer InData);
+		ENGINE_API FMipData(const FTextureSource& InSource, FSharedBuffer InData);
 
 		const FTextureSource& TextureSource;
 		FSharedBuffer MipData;
@@ -481,17 +481,17 @@ struct FTextureSource
 	* FMipLock to encapsulate a locked mip
 	*  acquires the lock in construct and unlocks in destruct
 	*/
-	struct ENGINE_API FMipLock
+	struct FMipLock
 	{
 		// constructor locks the mip (can fail, pointer will be null)
-		FMipLock(ELockState InLockState,FTextureSource * InTextureSource,int32 InBlockIndex, int32 InLayerIndex, int32 InMipIndex);
-		FMipLock(ELockState InLockState,FTextureSource * InTextureSource,int32 InMipIndex);
+		ENGINE_API FMipLock(ELockState InLockState,FTextureSource * InTextureSource,int32 InBlockIndex, int32 InLayerIndex, int32 InMipIndex);
+		ENGINE_API FMipLock(ELockState InLockState,FTextureSource * InTextureSource,int32 InMipIndex);
 		
 		// move constructor
-		FMipLock(FMipLock&&);
+		ENGINE_API FMipLock(FMipLock&&);
 
 		// destructor unlocks
-		~FMipLock();
+		ENGINE_API ~FMipLock();
 		
 		ELockState LockState;
 		FTextureSource * TextureSource;
@@ -1504,12 +1504,12 @@ public:
 
 	/** Cache the combined LOD bias based on texture LOD group and LOD bias. */
 	UE_DEPRECATED(5.2, "UpdateCachedLODBias does nothing, remove call")
-	ENGINE_API void UpdateCachedLODBias()
+	void UpdateCachedLODBias()
 	{
 		// no longer cached, now does nothing
 	}
 	
-	ENGINE_API int32 GetCachedLODBias() const override
+	int32 GetCachedLODBias() const override
 	{
 		// this is the combined LOD Bias with cinematic bias
 		return CalculateLODBias(true);
@@ -1679,7 +1679,7 @@ public:
 	ENGINE_API void GetPlatformTextureFormatNamesWithPrefix(const class ITargetPlatform* TargetPlatform,TArray< TArray<FName> >& OutFormats) const;
 #endif // WITH_EDITOR
 
-	ENGINE_API EGammaSpace GetGammaSpace() const
+	EGammaSpace GetGammaSpace() const
 	{
 		// note: does not validate that the Format respects gamma (TextureSource::GetGammaSpace does)
 		

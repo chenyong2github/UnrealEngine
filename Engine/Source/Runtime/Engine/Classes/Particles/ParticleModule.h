@@ -144,8 +144,8 @@ struct FParticleRandomSeedInfo
 	
 };
 
-UCLASS(editinlinenew, hidecategories=Object, abstract, Within=ParticleSystem)
-class ENGINE_API UParticleModule : public UObject
+UCLASS(editinlinenew, hidecategories=Object, abstract, Within=ParticleSystem, MinimalAPI)
+class UParticleModule : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -221,9 +221,9 @@ class ENGINE_API UParticleModule : public UObject
 #endif // WITH_EDITORONLY_DATA
 
 	//~ Begin UObject Interface
-	virtual bool IsPostLoadThreadSafe() const override;
+	ENGINE_API virtual bool IsPostLoadThreadSafe() const override;
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR	
 	//~ End UObject Interface
 
@@ -231,7 +231,7 @@ class ENGINE_API UParticleModule : public UObject
 	 * Called once to compile the effects of this module on runtime simulation.
 	 * @param EmitterInfo - Information needed for runtime simulation.
 	 */
-	virtual void CompileModule( struct FParticleEmitterBuildInfo& EmitterInfo );
+	ENGINE_API virtual void CompileModule( struct FParticleEmitterBuildInfo& EmitterInfo );
 
 	/**
 	 *	Called on a particle that is freshly spawned by the emitter.
@@ -240,7 +240,7 @@ class ENGINE_API UParticleModule : public UObject
 	 *	@param	Offset		The modules offset into the data payload of the particle.
 	 *	@param	SpawnTime	The time of the spawn.
 	 */
-	virtual void	Spawn(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, FBaseParticle* ParticleBase);
+	ENGINE_API virtual void	Spawn(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, FBaseParticle* ParticleBase);
 	/**
 	 *	Called on a particle that is being updated by its emitter.
 	 *	
@@ -248,7 +248,7 @@ class ENGINE_API UParticleModule : public UObject
 	 *	@param	Offset		The modules offset into the data payload of the particle.
 	 *	@param	DeltaTime	The time since the last update.
 	 */
-	virtual void	Update(FParticleEmitterInstance* Owner, int32 Offset, float DeltaTime);
+	ENGINE_API virtual void	Update(FParticleEmitterInstance* Owner, int32 Offset, float DeltaTime);
 	/**
 	 *	Called on an emitter when all other update operations have taken place
 	 *	INCLUDING bounding box cacluations!
@@ -257,7 +257,7 @@ class ENGINE_API UParticleModule : public UObject
 	 *	@param	Offset		The modules offset into the data payload of the particle.
 	 *	@param	DeltaTime	The time since the last update.
 	 */
-	virtual void	FinalUpdate(FParticleEmitterInstance* Owner, int32 Offset, float DeltaTime);
+	ENGINE_API virtual void	FinalUpdate(FParticleEmitterInstance* Owner, int32 Offset, float DeltaTime);
 
 	/**
 	 *	Returns the number of bytes that the module requires in the particle payload block.
@@ -266,13 +266,13 @@ class ENGINE_API UParticleModule : public UObject
 	 *
 	 *	@return	uint32		The number of bytes the module needs per particle.
 	 */
-	virtual uint32	RequiredBytes(UParticleModuleTypeDataBase* TypeData);
+	ENGINE_API virtual uint32	RequiredBytes(UParticleModuleTypeDataBase* TypeData);
 	/**
 	 *	Returns the number of bytes the module requires in the emitters 'per-instance' data block.
 	 *	
 	 *	@return uint32		The number of bytes the module needs per emitter instance.
 	 */
-	virtual uint32	RequiredBytesPerInstance();
+	ENGINE_API virtual uint32	RequiredBytesPerInstance();
 
 	/**
 	 *	Allows the module to prep its 'per-instance' data block.
@@ -280,7 +280,7 @@ class ENGINE_API UParticleModule : public UObject
 	 *	@param	Owner		The FParticleEmitterInstance that 'owns' the particle.
 	 *	@param	InstData	Pointer to the data block for this module.
 	 */
-	virtual uint32	PrepPerInstanceBlock(FParticleEmitterInstance* Owner, void* InstData);
+	ENGINE_API virtual uint32	PrepPerInstanceBlock(FParticleEmitterInstance* Owner, void* InstData);
 
 	// For Cascade
 	/**
@@ -289,14 +289,14 @@ class ENGINE_API UParticleModule : public UObject
 	 *
 	 *	@param	Owner			The UParticleEmitter that the module is being added to.
 	 */
-	virtual void SetToSensibleDefaults(UParticleEmitter* Owner);
+	ENGINE_API virtual void SetToSensibleDefaults(UParticleEmitter* Owner);
 	
 	/** 
 	 *	Fill an array with each Object property that fulfills the FCurveEdInterface interface.
 	 *
 	 *	@param	OutCurve	The array that should be filled in.
 	 */
-	virtual void	GetCurveObjects(TArray<FParticleCurvePair>& OutCurves);
+	ENGINE_API virtual void	GetCurveObjects(TArray<FParticleCurvePair>& OutCurves);
 	/** 
 	 * Add all curve-editable Objects within this module to the curve editor.
 	 *
@@ -305,19 +305,19 @@ class ENGINE_API UParticleModule : public UObject
 	 *
 	 * @return	true, if new curves were added to the graph, otherwise they were already present
 	 */
-	virtual	bool	AddModuleCurvesToEditor(UInterpCurveEdSetup* EdSetup, TArray<const FCurveEdEntry*>& OutCurveEntries);
+	ENGINE_API virtual	bool	AddModuleCurvesToEditor(UInterpCurveEdSetup* EdSetup, TArray<const FCurveEdEntry*>& OutCurveEntries);
 	/** 
 	 *	Remove all curve-editable Objects within this module from the curve editor.
 	 *
 	 *	@param	EdSetup		The CurveEd setup to remove the curve from.
 	 */
-	void	RemoveModuleCurvesFromEditor(UInterpCurveEdSetup* EdSetup);
+	ENGINE_API void	RemoveModuleCurvesFromEditor(UInterpCurveEdSetup* EdSetup);
 	/** 
 	 *	Does the module contain curves?
 	 *
 	 *	@return	bool		true if it does, false if not.
 	 */
-	bool	ModuleHasCurves();
+	ENGINE_API bool	ModuleHasCurves();
 	/** 
 	 *	Are the modules curves displayed in the curve editor?
 	 *
@@ -325,14 +325,14 @@ class ENGINE_API UParticleModule : public UObject
 	 *
 	 *	@return	bool		true if they are, false if not.
 	 */
-	bool	IsDisplayedInCurveEd(UInterpCurveEdSetup* EdSetup);
+	ENGINE_API bool	IsDisplayedInCurveEd(UInterpCurveEdSetup* EdSetup);
 	/** 
 	 *	Helper function for updating the curve editor when the module editor color changes.
 	 *
 	 *	@param	Color		The new color the module is using.
 	 *	@param	EdSetup		The CurveEd setup for the module.
 	 */
-	void		ChangeEditorColor(FColor& Color, UInterpCurveEdSetup* EdSetup);
+	ENGINE_API void		ChangeEditorColor(FColor& Color, UInterpCurveEdSetup* EdSetup);
 
 	/** 
 	 *	Render the modules 3D visualization helper primitive.
@@ -356,7 +356,7 @@ class ENGINE_API UParticleModule : public UObject
 	 *
 	 *	@param	PSysComp		The particle system component to be populated.
 	 */
-	virtual void	AutoPopulateInstanceProperties(UParticleSystemComponent* PSysComp);
+	ENGINE_API virtual void	AutoPopulateInstanceProperties(UParticleSystemComponent* PSysComp);
 	
 	/**
 	 *	Helper function used by the editor to auto-generate LOD values from a source module
@@ -369,7 +369,7 @@ class ENGINE_API UParticleModule : public UObject
 	 *	@return	true	if successful
 	 *			false	if failed
 	 */
-	virtual bool	GenerateLODModuleValues(UParticleModule* SourceModule, float Percentage, UParticleLODLevel* LODLevel);
+	ENGINE_API virtual bool	GenerateLODModuleValues(UParticleModule* SourceModule, float Percentage, UParticleLODLevel* LODLevel);
 
 	/**
 	 *	Store the given percentage of the SourceFloat distribution in the FloatDist
@@ -380,7 +380,7 @@ class ENGINE_API UParticleModule : public UObject
 	 *
 	 *	@return	bool				true if successful, false if not.
 	 */
-	virtual bool	ConvertFloatDistribution(UDistributionFloat* FloatDist, UDistributionFloat* SourceFloatDist, float Percentage);
+	ENGINE_API virtual bool	ConvertFloatDistribution(UDistributionFloat* FloatDist, UDistributionFloat* SourceFloatDist, float Percentage);
 	/**
 	 *	Store the given percentage of the SourceVector distribution in the VectorDist
 	 *
@@ -390,7 +390,7 @@ class ENGINE_API UParticleModule : public UObject
 	 *
 	 *	@return	bool				true if successful, false if not.
 	 */
-	virtual bool	ConvertVectorDistribution(UDistributionVector* VectorDist, UDistributionVector* SourceVectorDist, float Percentage);
+	ENGINE_API virtual bool	ConvertVectorDistribution(UDistributionVector* VectorDist, UDistributionVector* SourceVectorDist, float Percentage);
 	/**
 	 *	Returns whether the module is SizeMultipleLife or not.
 	 *
@@ -438,7 +438,7 @@ class ENGINE_API UParticleModule : public UObject
 	 *
 	 *	@return	UParticleModule*	The generated module, or this if percentage == 100.
 	 */
-	virtual UParticleModule* GenerateLODModule(UParticleLODLevel* SourceLODLevel, UParticleLODLevel* DestLODLevel, float Percentage, 
+	ENGINE_API virtual UParticleModule* GenerateLODModule(UParticleLODLevel* SourceLODLevel, UParticleLODLevel* DestLODLevel, float Percentage, 
 		bool bGenerateModuleData, bool bForceModuleConstruction = false);
 
 	/**
@@ -472,21 +472,21 @@ class ENGINE_API UParticleModule : public UObject
 	 *
 	 *	@return	bool				true if the generated module is used, false if not.
 	 */
-	virtual bool IsUsedInLODLevel(int32 SourceLODIndex) const;
+	ENGINE_API virtual bool IsUsedInLODLevel(int32 SourceLODIndex) const;
 
 	/**
 	 *	Retrieve the ParticleSysParams associated with this module.
 	 *
 	 *	@param	ParticleSysParamList	The list of FParticleSysParams to add to
 	 */
-	virtual void GetParticleSysParamsUtilized(TArray<FString>& ParticleSysParamList);
+	ENGINE_API virtual void GetParticleSysParamsUtilized(TArray<FString>& ParticleSysParamList);
 
 	/**
 	 *	Retrieve the distributions that use ParticleParameters in this module.
 	 *
 	 *	@param	ParticleParameterList	The list of ParticleParameter distributions to add to
 	 */
-	virtual void GetParticleParametersUtilized(TArray<FString>& ParticleParameterList);
+	ENGINE_API virtual void GetParticleParametersUtilized(TArray<FString>& ParticleParameterList);
 	
 	/**
 	 *	Refresh the module...
@@ -508,7 +508,7 @@ class ENGINE_API UParticleModule : public UObject
 	 *
 	 *	@return	uint32					0xffffffff is failed
 	 */
-	virtual uint32	PrepRandomSeedInstancePayload(FParticleEmitterInstance* Owner, FParticleRandomSeedInstancePayload* InRandSeedPayload, const FParticleRandomSeedInfo& InRandSeedInfo);
+	ENGINE_API virtual uint32	PrepRandomSeedInstancePayload(FParticleEmitterInstance* Owner, FParticleRandomSeedInstancePayload* InRandSeedPayload, const FParticleRandomSeedInfo& InRandSeedInfo);
 
 	/**
 	 *	Retrieve the random seed info for this module.
@@ -528,7 +528,7 @@ class ENGINE_API UParticleModule : public UObject
 	 *
 	 *	@return	bool			true if successful; false if not (not found, etc.)
 	 */
-	virtual bool SetRandomSeedEntry(int32 InIndex, int32 InRandomSeed);
+	ENGINE_API virtual bool SetRandomSeedEntry(int32 InIndex, int32 InRandomSeed);
 
 	/** Return false if this emitter requires a game thread tick **/
 	virtual bool CanTickInAnyThread()
@@ -537,7 +537,7 @@ class ENGINE_API UParticleModule : public UObject
 	}
 
 	/** Returns whether this module is used in any GPU emitters. */
-	bool IsUsedInGPUEmitter()const;
+	ENGINE_API bool IsUsedInGPUEmitter()const;
 
 	/**
 	 * Retreive the random stream that should be used for the provided instance.
@@ -546,10 +546,10 @@ class ENGINE_API UParticleModule : public UObject
 	 *
 	 * @return FRandomStream&	The random stream to use for the provided instance.
 	 */
-	FRandomStream& GetRandomStream(FParticleEmitterInstance* Owner);
+	ENGINE_API FRandomStream& GetRandomStream(FParticleEmitterInstance* Owner);
 
 #if WITH_EDITOR
-	virtual void PostLoadSubobjects( FObjectInstancingGraph* OuterInstanceGraph ) override;
+	ENGINE_API virtual void PostLoadSubobjects( FObjectInstancingGraph* OuterInstanceGraph ) override;
 
 	/**
 	 *	Custom Cascade module menu entries support
@@ -589,7 +589,7 @@ class ENGINE_API UParticleModule : public UObject
 	/**
 	 *	Gets a list of the names of distributions not allowed on GPU emitters.
 	 */
-	static  void GetDistributionsRestrictedOnGPU(TArray<FString>& OutRestrictedDistributions);
+	static ENGINE_API  void GetDistributionsRestrictedOnGPU(TArray<FString>& OutRestrictedDistributions);
 		
 	/**
 	 *	Checks if a distribution is allowed on the GPU.
@@ -597,7 +597,7 @@ class ENGINE_API UParticleModule : public UObject
 	 *	@param	Distribution		The Distribution to test.
 	 *	@return	bool				true if allowed on the GPU, false if not.
 	 */
-	static bool IsDistributionAllowedOnGPU(const UDistribution* Distribution);
+	static ENGINE_API bool IsDistributionAllowedOnGPU(const UDistribution* Distribution);
 	
 	/**
 	 *	Generates the FText to display to the user informing them that a module is using a distribution that is not allowed on GPU emitters.
@@ -606,12 +606,12 @@ class ENGINE_API UParticleModule : public UObject
 	 *	@param	PropertyName	The name of the distribution's property.
 	 *	@return	FText			The generated FText.
 	 */
-	static FText GetDistributionNotAllowedOnGPUText(const FString& ModuleName, const FString& PropertyName);
+	static ENGINE_API FText GetDistributionNotAllowedOnGPUText(const FString& ModuleName, const FString& PropertyName);
 
 	/**
 	 *	Set the transaction flag on the module and any members which require it
 	 */
-	void SetTransactionFlag();
+	ENGINE_API void SetTransactionFlag();
 #endif
 };
 

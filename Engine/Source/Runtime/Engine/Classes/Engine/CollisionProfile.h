@@ -41,7 +41,7 @@ struct FCollisionProfileName
  * Structure for collision response templates.
  */
 USTRUCT()
-struct ENGINE_API FCollisionResponseTemplate
+struct FCollisionResponseTemplate
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -79,13 +79,13 @@ struct ENGINE_API FCollisionResponseTemplate
 #endif
 
 	/** This constructor */
-	FCollisionResponseTemplate();
+	ENGINE_API FCollisionResponseTemplate();
 
-	bool IsEqual(const TEnumAsByte<ECollisionEnabled::Type> InCollisionEnabled, 
+	ENGINE_API bool IsEqual(const TEnumAsByte<ECollisionEnabled::Type> InCollisionEnabled, 
 		const TEnumAsByte<enum ECollisionChannel> InCollisionObjectType, 
 		const struct FCollisionResponseContainer& InResponseToChannels);
 
-	void CreateCustomResponsesFromResponseContainers();
+	ENGINE_API void CreateCustomResponsesFromResponseContainers();
 };
 
 
@@ -139,7 +139,7 @@ struct FCustomChannelSetup
  * +Profiles=(Name=NameOfProfileYouLikeToOverwrite,....)
  */
 USTRUCT()
-struct ENGINE_API FCustomProfile
+struct FCustomProfile
 {
 	GENERATED_USTRUCT_BODY()
 	
@@ -317,7 +317,7 @@ private:
 	friend struct FCollisionProfilePrivateAccessor;
 };
 
-struct ENGINE_API FCollisionProfilePrivateAccessor
+struct FCollisionProfilePrivateAccessor
 {
-	static bool AddProfileTemplate(FCollisionResponseTemplate& NewProfileData);
+	static ENGINE_API bool AddProfileTemplate(FCollisionResponseTemplate& NewProfileData);
 };

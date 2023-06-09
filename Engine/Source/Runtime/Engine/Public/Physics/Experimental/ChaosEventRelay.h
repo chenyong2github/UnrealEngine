@@ -20,19 +20,19 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FCrumblingEventSignature, const TArr
 /**
 * An object managing events
 */
-UCLASS()
-class ENGINE_API UChaosEventRelay : public UObject
+UCLASS(MinimalAPI)
+class UChaosEventRelay : public UObject
 {
 	GENERATED_BODY()
 
 public:
 
-	UChaosEventRelay();
+	ENGINE_API UChaosEventRelay();
 
-	void DispatchPhysicsCollisionEvents(const TArray<FCollisionChaosEvent>& CollisionEvents);
-	void DispatchPhysicsBreakEvents(const TArray<FChaosBreakEvent>& BreakEvents);
-	void DispatchPhysicsRemovalEvents(const TArray<FChaosRemovalEvent>& RemovalEvents);
-	void DispatchPhysicsCrumblingEvents(const TArray<FChaosCrumblingEvent>& CrumblingEvents);
+	ENGINE_API void DispatchPhysicsCollisionEvents(const TArray<FCollisionChaosEvent>& CollisionEvents);
+	ENGINE_API void DispatchPhysicsBreakEvents(const TArray<FChaosBreakEvent>& BreakEvents);
+	ENGINE_API void DispatchPhysicsRemovalEvents(const TArray<FChaosRemovalEvent>& RemovalEvents);
+	ENGINE_API void DispatchPhysicsCrumblingEvents(const TArray<FChaosCrumblingEvent>& CrumblingEvents);
 
 	
 	UPROPERTY(BlueprintAssignable, Category = "Physics Events")

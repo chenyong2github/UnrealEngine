@@ -31,8 +31,8 @@ namespace MatchState
  * It has default behavior for picking spawn points and match state.
  * If you want a simpler base, inherit from GameModeBase instead.
  */
-UCLASS()
-class ENGINE_API AGameMode : public AGameModeBase
+UCLASS(MinimalAPI)
+class AGameMode : public AGameModeBase
 {
 	GENERATED_UCLASS_BODY()
 
@@ -44,23 +44,23 @@ class ENGINE_API AGameMode : public AGameModeBase
 
 	/** Returns true if the match state is InProgress or other gameplay state */
 	UFUNCTION(BlueprintCallable, Category="Game")
-	virtual bool IsMatchInProgress() const;
+	ENGINE_API virtual bool IsMatchInProgress() const;
 
 	/** Transition from WaitingToStart to InProgress. You can call this manually, will also get called if ReadyToStartMatch returns true */
 	UFUNCTION(BlueprintCallable, Category="Game")
-	virtual void StartMatch();
+	ENGINE_API virtual void StartMatch();
 
 	/** Transition from InProgress to WaitingPostMatch. You can call this manually, will also get called if ReadyToEndMatch returns true */
 	UFUNCTION(BlueprintCallable, Category="Game")
-	virtual void EndMatch();
+	ENGINE_API virtual void EndMatch();
 
 	/** Restart the game, by default travel to the current map */
 	UFUNCTION(BlueprintCallable, Category="Game")
-	virtual void RestartGame();
+	ENGINE_API virtual void RestartGame();
 
 	/** Report that a match has failed due to unrecoverable error */
 	UFUNCTION(BlueprintCallable, Category="Game")
-	virtual void AbortMatch();
+	ENGINE_API virtual void AbortMatch();
 
 protected:
 
@@ -69,39 +69,39 @@ protected:
 	FName MatchState;
 
 	/** Updates the match state and calls the appropriate transition functions */
-	virtual void SetMatchState(FName NewState);
+	ENGINE_API virtual void SetMatchState(FName NewState);
 
 	/** Overridable virtual function to dispatch the appropriate transition functions before GameState and Blueprints get SetMatchState calls. */
-	virtual void OnMatchStateSet();
+	ENGINE_API virtual void OnMatchStateSet();
 
 	/** Implementable event to respond to match state changes */
 	UFUNCTION(BlueprintImplementableEvent, Category="Game", meta=(DisplayName="OnSetMatchState", ScriptName="OnSetMatchState"))
-	void K2_OnSetMatchState(FName NewState);
+	ENGINE_API void K2_OnSetMatchState(FName NewState);
 
 	// Games should override these functions to deal with their game specific logic
 
 	/** Called when the state transitions to WaitingToStart */
-	virtual void HandleMatchIsWaitingToStart();
+	ENGINE_API virtual void HandleMatchIsWaitingToStart();
 
 	/** Returns true if ready to Start Match. Games should override this */
 	UFUNCTION(BlueprintNativeEvent, Category="Game")
-	bool ReadyToStartMatch();
+	ENGINE_API bool ReadyToStartMatch();
 
 	/** Called when the state transitions to InProgress */
-	virtual void HandleMatchHasStarted();
+	ENGINE_API virtual void HandleMatchHasStarted();
 
 	/** Returns true if ready to End Match. Games should override this */
 	UFUNCTION(BlueprintNativeEvent, Category="Game")
-	bool ReadyToEndMatch();
+	ENGINE_API bool ReadyToEndMatch();
 
 	/** Called when the map transitions to WaitingPostMatch */
-	virtual void HandleMatchHasEnded();
+	ENGINE_API virtual void HandleMatchHasEnded();
 
 	/** Called when the match transitions to LeavingMap */
-	virtual void HandleLeavingMap();
+	ENGINE_API virtual void HandleLeavingMap();
 
 	/** Called when the match transitions to Aborted */
-	virtual void HandleMatchAborted();
+	ENGINE_API virtual void HandleMatchAborted();
 
 public:
 
@@ -154,86 +154,86 @@ protected:
 public:
 
 	/** Get local address */
-	virtual FString GetNetworkNumber();
+	ENGINE_API virtual FString GetNetworkNumber();
 	
 	/** Will remove the controller from the correct count then add them to the spectator count. **/
-	void PlayerSwitchedToSpectatorOnly(APlayerController* PC);
+	ENGINE_API void PlayerSwitchedToSpectatorOnly(APlayerController* PC);
 
 	/** Removes the passed in player controller from the correct count for player/spectator/tranistioning **/
-	void RemovePlayerControllerFromPlayerCount(APlayerController* PC);
+	ENGINE_API void RemovePlayerControllerFromPlayerCount(APlayerController* PC);
 
 	/** Return true if we want to travel_absolute, used by RestartGame by default */
-	virtual bool GetTravelType();
+	ENGINE_API virtual bool GetTravelType();
 
 	/** Exec command to broadcast a string to all players */
 	UFUNCTION(Exec, BlueprintCallable, Category = AI)
-	virtual void Say(const FString& Msg);
+	ENGINE_API virtual void Say(const FString& Msg);
 
 	/** Broadcast a string to all players. */
-	virtual void Broadcast( AActor* Sender, const FString& Msg, FName Type = NAME_None );
+	ENGINE_API virtual void Broadcast( AActor* Sender, const FString& Msg, FName Type = NAME_None );
 
 	/**
 	 * Broadcast a localized message to all players.
 	 * Most message deal with 0 to 2 related PlayerStates.
 	 * The LocalMessage class defines how the PlayerState's and optional actor are used.
 	 */
-	virtual void BroadcastLocalized( AActor* Sender, TSubclassOf<ULocalMessage> Message, int32 Switch = 0, APlayerState* RelatedPlayerState_1 = NULL, APlayerState* RelatedPlayerState_2 = NULL, UObject* OptionalObject = NULL );
+	ENGINE_API virtual void BroadcastLocalized( AActor* Sender, TSubclassOf<ULocalMessage> Message, int32 Switch = 0, APlayerState* RelatedPlayerState_1 = NULL, APlayerState* RelatedPlayerState_2 = NULL, UObject* OptionalObject = NULL );
 
 	/** Add PlayerState to the inactive list, remove from the active list */
-	virtual void AddInactivePlayer(APlayerState* PlayerState, APlayerController* PC);
+	ENGINE_API virtual void AddInactivePlayer(APlayerState* PlayerState, APlayerController* PC);
 
 	/** Attempt to find and associate an inactive PlayerState with entering PC.  
 	  * @Returns true if a PlayerState was found and associated with PC. */
-	virtual bool FindInactivePlayer(APlayerController* PC);
+	ENGINE_API virtual bool FindInactivePlayer(APlayerController* PC);
 
 	/** Override PC's PlayerState with the values in OldPlayerState as part of the inactive player handling */
-	virtual void OverridePlayerState(APlayerController* PC, APlayerState* OldPlayerState);
+	ENGINE_API virtual void OverridePlayerState(APlayerController* PC, APlayerState* OldPlayerState);
 
 	/** SetViewTarget of player control on server change */
-	virtual void SetSeamlessTravelViewTarget(APlayerController* PC);
+	ENGINE_API virtual void SetSeamlessTravelViewTarget(APlayerController* PC);
 
 	/**
 	 * Called from CommitMapChange before unloading previous level. Used for asynchronous level streaming
 	 * @param PreviousMapName - Name of the previous persistent level
 	 * @param NextMapName - Name of the persistent level being streamed to
 	 */
-	virtual void PreCommitMapChange(const FString& PreviousMapName, const FString& NextMapName);
+	ENGINE_API virtual void PreCommitMapChange(const FString& PreviousMapName, const FString& NextMapName);
 
 	/** Called from CommitMapChange after unloading previous level and loading new level+sublevels. Used for asynchronous level streaming */
-	virtual void PostCommitMapChange();
+	ENGINE_API virtual void PostCommitMapChange();
 
 	/** 
 	 * Called when a connection closes before getting to PostLogin() 
 	 *
 	 * @param ConnectionUniqueId the unique id on the connection, if known (may be very early and impossible to know)
 	 */
-	virtual void NotifyPendingConnectionLost(const FUniqueNetIdRepl& ConnectionUniqueId);
+	ENGINE_API virtual void NotifyPendingConnectionLost(const FUniqueNetIdRepl& ConnectionUniqueId);
 
 	/** Handles when a player is disconnected, before the session does */
-	virtual void HandleDisconnect(UWorld* InWorld, UNetDriver* NetDriver);
+	ENGINE_API virtual void HandleDisconnect(UWorld* InWorld, UNetDriver* NetDriver);
 
 	//~ Begin AActor Interface
-	virtual void Tick(float DeltaSeconds) override;
+	ENGINE_API virtual void Tick(float DeltaSeconds) override;
 	//~ End AActor Interface
 
 	//~ Begin AGameModeBase Interface
-	virtual void InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage) override;
-	virtual void StartPlay() override;
-	virtual bool HasMatchStarted() const override;
+	ENGINE_API virtual void InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage) override;
+	ENGINE_API virtual void StartPlay() override;
+	ENGINE_API virtual bool HasMatchStarted() const override;
 	/** Returns true if the match state is WaitingPostMatch or later */
-	virtual bool HasMatchEnded() const override;
-	virtual void PostLogin(APlayerController* NewPlayer) override;
-	virtual void Logout(AController* Exiting) override;
-	virtual int32 GetNumPlayers() override;
-	virtual int32 GetNumSpectators() override;
-	virtual bool IsHandlingReplays() override;
-	virtual void HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer) override;
-	virtual bool PlayerCanRestart_Implementation(APlayerController* Player) override;
-	virtual void PostSeamlessTravel() override;
-	virtual void HandleSeamlessTravelPlayer(AController*& C) override;
-	virtual void InitSeamlessTravelPlayer(AController* NewController) override;
-	virtual bool CanServerTravel(const FString& URL, bool bAbsolute) override;
-	virtual void StartToLeaveMap() override;
-	virtual bool SpawnPlayerFromSimulate(const FVector& NewLocation, const FRotator& NewRotation) override;
+	ENGINE_API virtual bool HasMatchEnded() const override;
+	ENGINE_API virtual void PostLogin(APlayerController* NewPlayer) override;
+	ENGINE_API virtual void Logout(AController* Exiting) override;
+	ENGINE_API virtual int32 GetNumPlayers() override;
+	ENGINE_API virtual int32 GetNumSpectators() override;
+	ENGINE_API virtual bool IsHandlingReplays() override;
+	ENGINE_API virtual void HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer) override;
+	ENGINE_API virtual bool PlayerCanRestart_Implementation(APlayerController* Player) override;
+	ENGINE_API virtual void PostSeamlessTravel() override;
+	ENGINE_API virtual void HandleSeamlessTravelPlayer(AController*& C) override;
+	ENGINE_API virtual void InitSeamlessTravelPlayer(AController* NewController) override;
+	ENGINE_API virtual bool CanServerTravel(const FString& URL, bool bAbsolute) override;
+	ENGINE_API virtual void StartToLeaveMap() override;
+	ENGINE_API virtual bool SpawnPlayerFromSimulate(const FVector& NewLocation, const FRotator& NewRotation) override;
 	//~ End AGameModeBase Interface
 };

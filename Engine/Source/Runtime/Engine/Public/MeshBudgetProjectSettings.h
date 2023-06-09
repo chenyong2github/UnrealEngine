@@ -50,10 +50,10 @@ public:
 	TArray<FStaticMeshBudgetInfo> StaticMeshBudgetInfos;
 };
 
-class ENGINE_API FMeshBudgetProjectSettingsUtils
+class FMeshBudgetProjectSettingsUtils
 {
 public:
 #if WITH_EDITOR
-	static void SetLodGroupForStaticMesh(UStaticMesh* StaticMesh);
+	static ENGINE_API void SetLodGroupForStaticMesh(UStaticMesh* StaticMesh);
 #endif
 };

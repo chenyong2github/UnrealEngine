@@ -5,12 +5,12 @@
 #include "Elements/Interfaces/TypedElementHierarchyInterface.h"
 #include "ComponentElementHierarchyInterface.generated.h"
 
-UCLASS()
-class ENGINE_API UComponentElementHierarchyInterface : public UObject, public ITypedElementHierarchyInterface
+UCLASS(MinimalAPI)
+class UComponentElementHierarchyInterface : public UObject, public ITypedElementHierarchyInterface
 {
 	GENERATED_BODY()
 
 public:
-	virtual FTypedElementHandle GetParentElement(const FTypedElementHandle& InElementHandle, const bool bAllowCreate = true) override;
-	virtual void GetChildElements(const FTypedElementHandle& InElementHandle, TArray<FTypedElementHandle>& OutElementHandles, const bool bAllowCreate = true) override;
+	ENGINE_API virtual FTypedElementHandle GetParentElement(const FTypedElementHandle& InElementHandle, const bool bAllowCreate = true) override;
+	ENGINE_API virtual void GetChildElements(const FTypedElementHandle& InElementHandle, TArray<FTypedElementHandle>& OutElementHandles, const bool bAllowCreate = true) override;
 };

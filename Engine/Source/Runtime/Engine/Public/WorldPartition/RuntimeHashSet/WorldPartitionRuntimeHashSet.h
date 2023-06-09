@@ -75,46 +75,46 @@ public:
 	TUniquePtr<FStaticSpatialIndexType> SpatialIndex;
 };
 
-UCLASS(HideDropdown)
-class ENGINE_API UWorldPartitionRuntimeHashSet : public UWorldPartitionRuntimeHash
+UCLASS(HideDropdown, MinimalAPI)
+class UWorldPartitionRuntimeHashSet : public UWorldPartitionRuntimeHash
 {
 	GENERATED_UCLASS_BODY()
 
 	//~ Begin UObject Interface
-	virtual void Serialize(FArchive& Ar) override;
-	virtual void PostLoad() override;
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void PostLoad() override;
+	static ENGINE_API void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 #if WITH_EDITOR
-	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #endif
 	//~ End UObject Interface
 
 public:
 #if WITH_EDITOR
 	// Streaming generation interface
-	virtual void SetDefaultValues() override;
-	virtual bool SupportsHLODs() const override;
-	virtual bool GenerateStreaming(class UWorldPartitionStreamingPolicy* StreamingPolicy, const IStreamingGenerationContext* StreamingGenerationContext, TArray<FString>* OutPackagesToGenerate) override;
-	virtual void FlushStreaming() override;
-	virtual bool IsValidGrid(FName GridName) const;
-	virtual TArray<UWorldPartitionRuntimeCell*> GetAlwaysLoadedCells() const override;
-	virtual void DumpStateLog(FHierarchicalLogArchive& Ar) const override;
+	ENGINE_API virtual void SetDefaultValues() override;
+	ENGINE_API virtual bool SupportsHLODs() const override;
+	ENGINE_API virtual bool GenerateStreaming(class UWorldPartitionStreamingPolicy* StreamingPolicy, const IStreamingGenerationContext* StreamingGenerationContext, TArray<FString>* OutPackagesToGenerate) override;
+	ENGINE_API virtual void FlushStreaming() override;
+	ENGINE_API virtual bool IsValidGrid(FName GridName) const;
+	ENGINE_API virtual TArray<UWorldPartitionRuntimeCell*> GetAlwaysLoadedCells() const override;
+	ENGINE_API virtual void DumpStateLog(FHierarchicalLogArchive& Ar) const override;
 
 	// Helpers
-	static TArray<FName> ParseGridName(FName GridName);
+	static ENGINE_API TArray<FName> ParseGridName(FName GridName);
 #endif
 
 	// External streaming object interface
 #if WITH_EDITOR
-	virtual URuntimeHashExternalStreamingObjectBase* StoreToExternalStreamingObject(UObject* StreamingObjectOuter, FName StreamingObjectName) override;
+	ENGINE_API virtual URuntimeHashExternalStreamingObjectBase* StoreToExternalStreamingObject(UObject* StreamingObjectOuter, FName StreamingObjectName) override;
 #endif
-	virtual bool InjectExternalStreamingObject(URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject) override;
-	virtual bool RemoveExternalStreamingObject(URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject) override;
+	ENGINE_API virtual bool InjectExternalStreamingObject(URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject) override;
+	ENGINE_API virtual bool RemoveExternalStreamingObject(URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject) override;
 
 	// Streaming interface
-	virtual void ForEachStreamingCells(TFunctionRef<bool(const UWorldPartitionRuntimeCell*)> Func) const;
-	virtual void ForEachStreamingCellsQuery(const FWorldPartitionStreamingQuerySource& QuerySource, TFunctionRef<bool(const UWorldPartitionRuntimeCell*)> Func, FWorldPartitionQueryCache* QueryCache) const override;
-	virtual void ForEachStreamingCellsSources(const TArray<FWorldPartitionStreamingSource>& Sources, TFunctionRef<bool(const UWorldPartitionRuntimeCell*, EStreamingSourceTargetState)> Func) const override;
+	ENGINE_API virtual void ForEachStreamingCells(TFunctionRef<bool(const UWorldPartitionRuntimeCell*)> Func) const;
+	ENGINE_API virtual void ForEachStreamingCellsQuery(const FWorldPartitionStreamingQuerySource& QuerySource, TFunctionRef<bool(const UWorldPartitionRuntimeCell*)> Func, FWorldPartitionQueryCache* QueryCache) const override;
+	ENGINE_API virtual void ForEachStreamingCellsSources(const TArray<FWorldPartitionStreamingSource>& Sources, TFunctionRef<bool(const UWorldPartitionRuntimeCell*, EStreamingSourceTargetState)> Func) const override;
 
 private:
 #if WITH_EDITOR

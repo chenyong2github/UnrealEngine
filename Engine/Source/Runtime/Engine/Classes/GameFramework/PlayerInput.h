@@ -268,7 +268,7 @@ struct FInputAxisKeyMapping
  * @see https://docs.unrealengine.com/latest/INT/Gameplay/Input/index.html
  */
 USTRUCT( BlueprintType )
-struct ENGINE_API FInputActionSpeechMapping
+struct FInputActionSpeechMapping
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -326,7 +326,7 @@ public:
 
 
 /** Paramaters to be considered when calling UPlayerInput::InputKey. */
-struct ENGINE_API FInputKeyParams
+struct FInputKeyParams
 {
 	FInputKeyParams() = default;
 	
@@ -404,14 +404,14 @@ struct ENGINE_API FInputKeyParams
  *
  * @see https://docs.unrealengine.com/latest/INT/Gameplay/Input/index.html
  */
-UCLASS(config=Input, transient)
-class ENGINE_API UPlayerInput : public UObject
+UCLASS(config=Input, transient, MinimalAPI)
+class UPlayerInput : public UObject
 {
 	GENERATED_BODY()
 
 public:
 
-	UPlayerInput();
+	ENGINE_API UPlayerInput();
 
 	// NOTE: These touch vectors are calculated and set directly, they do not go through the .ini Bindings
 	// Touch locations, from 0..1 (0,0 is top left, 1,1 is bottom right), the Z component is > 0 if the touch is currently held down
@@ -450,13 +450,13 @@ public:
 	TArray<FName> InvertedAxis;
 
 	/** Gets the axis properties for a given AxisKey.  Returns if true if AxisKey was found in the AxisConfig array. */
-	bool GetAxisProperties(const FKey AxisKey, FInputAxisProperties& AxisProperties);
+	ENGINE_API bool GetAxisProperties(const FKey AxisKey, FInputAxisProperties& AxisProperties);
 
 	/** Gets the axis properties for a given AxisKey.  Returns if true if AxisKey was found in the AxisConfig array. */
-	void SetAxisProperties(const FKey AxisKey, const FInputAxisProperties& AxisProperties);
+	ENGINE_API void SetAxisProperties(const FKey AxisKey, const FInputAxisProperties& AxisProperties);
 
 	/** Exec function to change the mouse sensitivity */
-	void SetMouseSensitivity(const float SensitivityX, const float SensitivityY);
+	ENGINE_API void SetMouseSensitivity(const float SensitivityX, const float SensitivityY);
 
 	/** Sets both X and Y axis sensitivity to the supplied value. */
 	UFUNCTION(exec)
@@ -464,65 +464,65 @@ public:
 
 	/** Exec function to add a debug exec command */
 	UFUNCTION(exec)
-	void SetBind(FName BindName, const FString& Command);
+	ENGINE_API void SetBind(FName BindName, const FString& Command);
 
 	/** Returns the mouse sensitivity along the X-axis, or the Y-axis, or 1.0 if none are known. */
-	float GetMouseSensitivityX();
+	ENGINE_API float GetMouseSensitivityX();
 
 	/** Returns the mouse sensitivity along the Y-axis, or 1.0 if none are known. */
-	float GetMouseSensitivityY();
+	ENGINE_API float GetMouseSensitivityY();
 
 	UE_DEPRECATED(4.21, "Call axis specific GetMouseSensitivityX or GetMouseSensitivityY instead.")
 	float GetMouseSensitivity() { return GetMouseSensitivityX(); }
 
 	/** Returns whether an Axis Key is inverted */
-	bool GetInvertAxisKey(const FKey AxisKey);
+	ENGINE_API bool GetInvertAxisKey(const FKey AxisKey);
 
 	/** Returns whether an Axis Mapping is inverted */
-	bool GetInvertAxis(const FName AxisName);
+	ENGINE_API bool GetInvertAxis(const FName AxisName);
 
 	/** Exec function to invert an axis key */
 	UFUNCTION(exec)
-	void InvertAxisKey(const FKey AxisKey);
+	ENGINE_API void InvertAxisKey(const FKey AxisKey);
 
 	/** Exec function to invert an axis mapping */
 	UFUNCTION(exec)
-	void InvertAxis(const FName AxisName);
+	ENGINE_API void InvertAxis(const FName AxisName);
 
 	/** Exec function to reset mouse smoothing values */
 	UFUNCTION(exec)
-	void ClearSmoothing();
+	ENGINE_API void ClearSmoothing();
 
 	/** Add a player specific action mapping. */
-	void AddActionMapping(const FInputActionKeyMapping& KeyMapping);
+	ENGINE_API void AddActionMapping(const FInputActionKeyMapping& KeyMapping);
 
 	/** Remove a player specific action mapping. */
-	void RemoveActionMapping(const FInputActionKeyMapping& KeyMapping);
+	ENGINE_API void RemoveActionMapping(const FInputActionKeyMapping& KeyMapping);
 
 	/** Add a player specific axis mapping. */
-	void AddAxisMapping(const FInputAxisKeyMapping& KeyMapping);
+	ENGINE_API void AddAxisMapping(const FInputAxisKeyMapping& KeyMapping);
 
 	/** Remove a player specific axis mapping. */
-	void RemoveAxisMapping(const FInputAxisKeyMapping& KeyMapping);
+	ENGINE_API void RemoveAxisMapping(const FInputAxisKeyMapping& KeyMapping);
 
 	/** Add an engine defined action mapping that cannot be remapped. */
-	static void AddEngineDefinedActionMapping(const FInputActionKeyMapping& ActionMapping);
+	static ENGINE_API void AddEngineDefinedActionMapping(const FInputActionKeyMapping& ActionMapping);
 
 	/** Add an engine defined axis mapping that cannot be remapped. */
-	static void AddEngineDefinedAxisMapping(const FInputAxisKeyMapping& AxisMapping);
+	static ENGINE_API void AddEngineDefinedAxisMapping(const FInputAxisKeyMapping& AxisMapping);
 
 	/** Clear the current cached key maps and rebuild from the source arrays. */
-	void ForceRebuildingKeyMaps(const bool bRestoreDefaults = false);
+	ENGINE_API void ForceRebuildingKeyMaps(const bool bRestoreDefaults = false);
 
 	/** Return's this object casted to a player controller. This can be null if there is no player controller. */
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Input")
-	APlayerController* GetOuterAPlayerController() const;
+	ENGINE_API APlayerController* GetOuterAPlayerController() const;
 
 	/**
 	* Returns the owning local player of this Input Object. This will only be valid if there is a 
 	* current outer player controller.
 	*/
-	ULocalPlayer* GetOwningLocalPlayer() const;
+	ENGINE_API ULocalPlayer* GetOwningLocalPlayer() const;
 	
 private:
 
@@ -570,29 +570,29 @@ private:
 public:
 	
 	//~ Begin UObject Interface
-	virtual void PostInitProperties() override;
-	virtual UWorld* GetWorld() const override;
+	ENGINE_API virtual void PostInitProperties() override;
+	ENGINE_API virtual UWorld* GetWorld() const override;
 	//~ End UObject Interface
 
 	/** Flushes the current key state. */
-	virtual void FlushPressedKeys();
+	ENGINE_API virtual void FlushPressedKeys();
 
 	/** Flushes the current key state of the keys associated with the action name passed in */
-	void FlushPressedActionBindingKeys(FName ActionName);
+	ENGINE_API void FlushPressedActionBindingKeys(FName ActionName);
 
 	/** Handles a key input event.  Returns true if there is an action that handles the specified key. */
 	UE_DEPRECATED(5.0, "This version of InputKey has been deprecated, please use that which takes in FInputKeyParams")
-	virtual bool InputKey(FKey Key, enum EInputEvent Event, float AmountDepressed, bool bGamepad);
+	ENGINE_API virtual bool InputKey(FKey Key, enum EInputEvent Event, float AmountDepressed, bool bGamepad);
 
 	/** Handles a key input event.  Returns true if there is an action that handles the specified key. */
-	virtual bool InputKey(const FInputKeyParams& Params);
+	ENGINE_API virtual bool InputKey(const FInputKeyParams& Params);
 	
 	/** Handles an axis input event.  Returns true if a legacy key bind handled the input, otherwise false. */
 	UE_DEPRECATED(5.0, "InputAxis has been deprecated, please use the version of InputKey which takes in FInputKeyParams")
-	bool InputAxis(FKey Key, float Delta, float DeltaTime, int32 NumSamples, bool bGamepad);
+	ENGINE_API bool InputAxis(FKey Key, float Delta, float DeltaTime, int32 NumSamples, bool bGamepad);
 
 	/** Handles a touch input event.  Returns true. */
-	bool InputTouch(uint32 Handle, ETouchType::Type Type, const FVector2D& TouchLocation, float Force, FDateTime DeviceTimestamp, uint32 TouchpadIndex);
+	ENGINE_API bool InputTouch(uint32 Handle, ETouchType::Type Type, const FVector2D& TouchLocation, float Force, FDateTime DeviceTimestamp, uint32 TouchpadIndex);
 
 	UE_DEPRECATED(4.20, "InputTouch now takes a Force")
 	bool InputTouch(uint32 Handle, ETouchType::Type Type, const FVector2D& TouchLocation, FDateTime DeviceTimestamp, uint32 TouchpadIndex)
@@ -601,22 +601,22 @@ public:
 	}
 
 	/** Handles a motion input event.  Returns true. */
-	bool InputMotion(const FVector& Tilt, const FVector& RotationRate, const FVector& Gravity, const FVector& Acceleration);
+	ENGINE_API bool InputMotion(const FVector& Tilt, const FVector& RotationRate, const FVector& Gravity, const FVector& Acceleration);
 
 	/** Handles a gesture input event.  Returns true. */
-	bool InputGesture(const FKey Gesture, const EInputEvent Event, const float Value);
+	ENGINE_API bool InputGesture(const FKey Gesture, const EInputEvent Event, const float Value);
 
 	/** Manually update the GestureRecognizer AnchorDistance using the current locations of the touches */
-	void UpdatePinchStartDistance();
+	ENGINE_API void UpdatePinchStartDistance();
 
 	/** Per frame tick function. Primarily for gesture recognition */
-	void Tick(float DeltaTime);
+	ENGINE_API void Tick(float DeltaTime);
 
 	/** Process the frame's input events given the current input component stack. */
-	virtual void ProcessInputStack(const TArray<UInputComponent*>& InputComponentStack, const float DeltaTime, const bool bGamePaused);
+	ENGINE_API virtual void ProcessInputStack(const TArray<UInputComponent*>& InputComponentStack, const float DeltaTime, const bool bGamePaused);
 
 	/** Rather than processing input, consume it and discard without doing anything useful with it.  Like calling ProcessInputStack() and ignoring all results. */
-	void DiscardPlayerInput();
+	ENGINE_API void DiscardPlayerInput();
 
 	/** 
 	Smooth mouse movement, because mouse sampling doesn't match up with tick time.
@@ -627,7 +627,7 @@ public:
 	 * @param: Index is 0 for X axis, 1 for Y axis
 	 * @return the smoothed mouse axis movement
 	 */
-	virtual float SmoothMouse(float aMouse, uint8& SampleCount, int32 Index);
+	ENGINE_API virtual float SmoothMouse(float aMouse, uint8& SampleCount, int32 Index);
 
 	/**
 	 * Draw important PlayerInput variables on canvas.  HUD will call DisplayDebug() on the current ViewTarget when the ShowDebug exec is used
@@ -637,35 +637,35 @@ public:
 	 * @param YL - Height of the current font
 	 * @param YPos - Y position on Canvas. YPos += YL, gives position to draw text for next debug line.
 	 */
-	virtual void DisplayDebug(class UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos);
+	ENGINE_API virtual void DisplayDebug(class UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos);
 
 	/** @return key state of the InKey */
 	FKeyState* GetKeyState(FKey InKey) { return KeyStateMap.Find(InKey); }
 	const FKeyState* GetKeyState(FKey InKey) const { return KeyStateMap.Find(InKey); }
 
 	/** @return true if InKey is currently held */
-	bool IsPressed( FKey InKey ) const;
+	ENGINE_API bool IsPressed( FKey InKey ) const;
 	
 	/** @return true if InKey went from up to down since player input was last processed. */
-	bool WasJustPressed( FKey InKey ) const;
+	ENGINE_API bool WasJustPressed( FKey InKey ) const;
 
 	/** return true if InKey went from down to up since player input was last processed. */
-	bool WasJustReleased( FKey InKey ) const;
+	ENGINE_API bool WasJustReleased( FKey InKey ) const;
 
 	/** @return how long the key has been held down, or 0.f if not down. */
-	float GetTimeDown( FKey InKey ) const;
+	ENGINE_API float GetTimeDown( FKey InKey ) const;
 
 	/** @return current state of the InKey */
-	float GetKeyValue( FKey InKey ) const;
+	ENGINE_API float GetKeyValue( FKey InKey ) const;
 
 	/** @return current state of the InKey */
-	float GetRawKeyValue( FKey InKey ) const;
+	ENGINE_API float GetRawKeyValue( FKey InKey ) const;
 
 	/** @return processed value of the InKey */
-	FVector GetProcessedVectorKeyValue(FKey InKey) const;
+	ENGINE_API FVector GetProcessedVectorKeyValue(FKey InKey) const;
 
 	/** @return raw value of the InKey */
-	FVector GetRawVectorKeyValue(FKey InKey) const;
+	ENGINE_API FVector GetRawVectorKeyValue(FKey InKey) const;
 
 	UE_DEPRECATED(4.21, "Use GetProcessedVectorKeyValue or GetRawVectorKeyValue instead. GetRawVectorKeyValue will have the same result as GetVectorKeyValue previously.")
 	FVector GetVectorKeyValue(FKey InKey) const
@@ -674,16 +674,16 @@ public:
 	}
 
 	/** @return true if alt key is pressed */
-	bool IsAltPressed() const;
+	ENGINE_API bool IsAltPressed() const;
 
 	/** @return true if ctrl key is pressed */
-	bool IsCtrlPressed() const;
+	ENGINE_API bool IsCtrlPressed() const;
 
 	/** @return true if shift key is pressed */
-	bool IsShiftPressed() const;
+	ENGINE_API bool IsShiftPressed() const;
 
 	/** @return true if cmd key is pressed */
-	bool IsCmdPressed() const;
+	ENGINE_API bool IsCmdPressed() const;
 
 	uint32 GetKeyMapBuildIndex() const { return KeyMapBuildIndex; }
 
@@ -691,23 +691,23 @@ public:
 	/**
 	 * Exec handler
 	 */
-	bool Exec(UWorld* UInWorld, const TCHAR* Cmd,FOutputDevice& Ar);
+	ENGINE_API bool Exec(UWorld* UInWorld, const TCHAR* Cmd,FOutputDevice& Ar);
 
 	/** Returns the command for a given key in the legacy binding system */
-	FString GetBind(FKey Key);
+	ENGINE_API FString GetBind(FKey Key);
 
 	/** Get the legacy Exec key binding for the given command. */
-	FKeyBind GetExecBind(FString const& ExecCommand);
+	ENGINE_API FKeyBind GetExecBind(FString const& ExecCommand);
 
 	/** Execute input commands within the legacy key binding system. */
-	bool ExecInputCommands( UWorld* InWorld, const TCHAR* Cmd, class FOutputDevice& Ar);
+	ENGINE_API bool ExecInputCommands( UWorld* InWorld, const TCHAR* Cmd, class FOutputDevice& Ar);
 #endif
 
 	/** Returns the list of keys mapped to the specified Action Name */
-	const TArray<FInputActionKeyMapping>& GetKeysForAction(const FName ActionName) const;
+	ENGINE_API const TArray<FInputActionKeyMapping>& GetKeysForAction(const FName ActionName) const;
 
 	/** Returns the list of keys mapped to the specified Axis Name */
-	const TArray<FInputAxisKeyMapping>& GetKeysForAxis(const FName AxisName) const;
+	ENGINE_API const TArray<FInputAxisKeyMapping>& GetKeysForAxis(const FName AxisName) const;
 
 	static const TArray<FInputActionKeyMapping>& GetEngineDefinedActionMappings() { return EngineDefinedActionMappings; }
 	static const TArray<FInputAxisKeyMapping>& GetEngineDefinedAxisMappings() { return EngineDefinedAxisMappings; }
@@ -720,28 +720,28 @@ protected:
 	* Given raw keystate value of a vector axis, returns the "massaged" value. Override for any custom behavior,
 	* such as input changes dependent on a particular game state.
 	*/
-	virtual FVector MassageVectorAxisInput(FKey Key, FVector RawValue);
+	ENGINE_API virtual FVector MassageVectorAxisInput(FKey Key, FVector RawValue);
 
 	/**
 	* Given raw keystate value, returns the "massaged" value. Override for any custom behavior,
 	* such as input changes dependent on a particular game state.
 	*/
-	virtual float MassageAxisInput(FKey Key, float RawValue);
+	ENGINE_API virtual float MassageAxisInput(FKey Key, float RawValue);
 
 private:
 
 	/** Process non-axes keystates */
-	void ProcessNonAxesKeys(FKey Inkey, FKeyState* KeyState);
+	ENGINE_API void ProcessNonAxesKeys(FKey Inkey, FKeyState* KeyState);
 	
 	// finished processing input for this frame, clean up for next update
-	void FinishProcessingPlayerInput();
+	ENGINE_API void FinishProcessingPlayerInput();
 
 	/** key event processing
 	 * @param Key - name of key causing event
 	 * @param Event - types of event, includes IE_Pressed
 	 * @return true if just pressed
 	 */
-	bool KeyEventOccurred(FKey Key, EInputEvent Event, TArray<uint32>& EventIndices, const FKeyState* KeyState = nullptr) const;
+	ENGINE_API bool KeyEventOccurred(FKey Key, EInputEvent Event, TArray<uint32>& EventIndices, const FKeyState* KeyState = nullptr) const;
 
 	/* Collects the chords and the delegates they invoke for an action binding
 	 * @param ActionBinding - the action to determine whether it occurred
@@ -749,7 +749,7 @@ private:
 	 * @param FoundChords - the list of chord/delegate pairs to add to
 	 * @param KeysToConsume - array to collect the keys associated with this binding that should be consumed
 	 */
-	void GetChordsForAction(const FInputActionBinding& ActionBinding, const bool bGamePaused, TArray<struct FDelegateDispatchDetails>& FoundChords, TArray<FKey>& KeysToConsume);
+	ENGINE_API void GetChordsForAction(const FInputActionBinding& ActionBinding, const bool bGamePaused, TArray<struct FDelegateDispatchDetails>& FoundChords, TArray<FKey>& KeysToConsume);
 
 	/* Helper function for GetChordsForAction to examine each keymapping that belongs to the ActionBinding
 	 * @param KeyMapping - the key mapping to determine whether it occured
@@ -758,7 +758,7 @@ private:
 	 * @param FoundChords - the list of chord/delegate pairs to add to
 	 * @param KeysToConsume - array to collect the keys associated with this binding that should be consumed
 	 */
-	void GetChordsForKeyMapping(const FInputActionKeyMapping& KeyMapping, const FInputActionBinding& ActionBinding, const bool bGamePaused, TArray<FDelegateDispatchDetails>& FoundChords, TArray<FKey>& KeysToConsume, const FKeyState* KeyState = nullptr);
+	ENGINE_API void GetChordsForKeyMapping(const FInputActionKeyMapping& KeyMapping, const FInputActionBinding& ActionBinding, const bool bGamePaused, TArray<FDelegateDispatchDetails>& FoundChords, TArray<FKey>& KeysToConsume, const FKeyState* KeyState = nullptr);
 
 	/* Collects the chords and the delegates they invoke for a key binding
 	 * @param KeyBinding - the key to determine whether it occurred
@@ -766,13 +766,13 @@ private:
 	 * @param FoundChords - the list of chord/delegate pairs to add to
 	 * @param KeysToConsume - array to collect the keys associated with this binding that should be consumed
 	 */
-	void GetChordForKey(const FInputKeyBinding& KeyBinding, const bool bGamePaused, TArray<struct FDelegateDispatchDetails>& FoundChords, TArray<FKey>& KeysToConsume, const FKeyState* KeyState = nullptr);
+	ENGINE_API void GetChordForKey(const FInputKeyBinding& KeyBinding, const bool bGamePaused, TArray<struct FDelegateDispatchDetails>& FoundChords, TArray<FKey>& KeysToConsume, const FKeyState* KeyState = nullptr);
 
 	/* Returns the summed values of all the components of this axis this frame
 	 * @param AxisBinding - the action to determine if it ocurred
 	 * @param KeysToConsume - array to collect the keys associated with this binding that should be consumed
 	 */
-	float DetermineAxisValue(const FInputAxisBinding& AxisBinding, const bool bGamePaused, TArray<FKey>& KeysToConsume);
+	ENGINE_API float DetermineAxisValue(const FInputAxisBinding& AxisBinding, const bool bGamePaused, TArray<FKey>& KeysToConsume);
 
 	/** Utility function to ensure the key mapping cache maps are built */
 	FORCEINLINE void ConditionalBuildKeyMappings() const
@@ -783,21 +783,21 @@ private:
 		}
 	}
 
-	virtual void ConditionalBuildKeyMappings_Internal() const;
+	ENGINE_API virtual void ConditionalBuildKeyMappings_Internal() const;
 
 	/** Set the Key consumed for the frame so that subsequent input components will not be notified they were pressed */
-	void ConsumeKey(FKey Key);
+	ENGINE_API void ConsumeKey(FKey Key);
 
 	/** @return true if InKey is being consumed */
-	bool IsKeyConsumed(FKey Key, const FKeyState* KeyState = nullptr) const;
+	ENGINE_API bool IsKeyConsumed(FKey Key, const FKeyState* KeyState = nullptr) const;
 
 protected:
 
 	/** Initialized axis properties (i.e deadzone values) if needed */
-	void ConditionalInitAxisProperties();
+	ENGINE_API void ConditionalInitAxisProperties();
 
 	/** @return True if a key is handled by an action binding */
-	virtual bool IsKeyHandledByAction(FKey Key) const;
+	ENGINE_API virtual bool IsKeyHandledByAction(FKey Key) const;
 
 private:
 
@@ -807,16 +807,16 @@ private:
 	friend FGestureRecognizer;
 
 	/** Static empty array to be able to return from GetKeysFromAction when there are no keys mapped to the requested action name */
-	static const TArray<FInputActionKeyMapping> NoKeyMappings;
+	static ENGINE_API const TArray<FInputActionKeyMapping> NoKeyMappings;
 
 	/** Static empty array to be able to return from GetKeysFromAxis when there are no axis mapped to the requested axis name */
-	static const TArray<FInputAxisKeyMapping> NoAxisMappings;
+	static ENGINE_API const TArray<FInputAxisKeyMapping> NoAxisMappings;
 
 	/** Action Mappings defined by engine systems that cannot be remapped by users */
-	static TArray<FInputActionKeyMapping> EngineDefinedActionMappings;
+	static ENGINE_API TArray<FInputActionKeyMapping> EngineDefinedActionMappings;
 
 	/** Axis Mappings defined by engine systems that cannot be remapped by users */
-	static TArray<FInputAxisKeyMapping> EngineDefinedAxisMappings;
+	static ENGINE_API TArray<FInputAxisKeyMapping> EngineDefinedAxisMappings;
 
 	// Temporary array used as part of input processing
 	TArray<uint32> EventIndices;

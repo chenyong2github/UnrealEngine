@@ -315,7 +315,7 @@ template <> struct TIsPODType<SkeletalMeshImportData::FVertInfluence> { enum { V
 /**
 * Container and importer for skeletal mesh (FBX file) data
 **/
-class ENGINE_API FSkeletalMeshImportData
+class FSkeletalMeshImportData
 {
 public:
 	TArray <SkeletalMeshImportData::FMaterial> Materials;
@@ -363,13 +363,13 @@ public:
 	/*
 	 * Copy only unnecessary array data from the structure to build the morph target (this will save a lot of memory)
 	 */
-	void CopyDataNeedByMorphTargetImport(FSkeletalMeshImportData& Other) const;
+	ENGINE_API void CopyDataNeedByMorphTargetImport(FSkeletalMeshImportData& Other) const;
 
 	/*
 	 * Remove all unnecessary array data from the structure (this will save a lot of memory)
 	 * We only need Points, Influences and RefBonesBinary arrays
 	 */
-	void KeepAlternateSkinningBuildDataOnly();
+	ENGINE_API void KeepAlternateSkinningBuildDataOnly();
 
 	/**
 	* Copy mesh data for importing a single LOD
@@ -379,14 +379,14 @@ public:
 	* @param LODFaces - triangle/ face data to static LOD level.
 	* @param LODInfluences - weights/ influences to static LOD level.
 	*/
-	void CopyLODImportData(
+	ENGINE_API void CopyLODImportData(
 		TArray<FVector3f>& LODPoints,
 		TArray<SkeletalMeshImportData::FMeshWedge>& LODWedges,
 		TArray<SkeletalMeshImportData::FMeshFace>& LODFaces,
 		TArray<SkeletalMeshImportData::FVertInfluence>& LODInfluences,
 		TArray<int32>& LODPointToRawMap) const;
 
-	static FString FixupBoneName(FString InBoneName);
+	static ENGINE_API FString FixupBoneName(FString InBoneName);
 
 	/**
 	* Removes all import data
@@ -403,32 +403,32 @@ public:
 		MeshInfos.Empty();
 	}
 
-	static bool ReplaceSkeletalMeshGeometryImportData(const USkeletalMesh* SkeletalMesh, FSkeletalMeshImportData* ImportData, int32 LodIndex);
-	static bool ReplaceSkeletalMeshRigImportData(const USkeletalMesh* SkeletalMesh, FSkeletalMeshImportData* ImportData, int32 LodIndex);
+	static ENGINE_API bool ReplaceSkeletalMeshGeometryImportData(const USkeletalMesh* SkeletalMesh, FSkeletalMeshImportData* ImportData, int32 LodIndex);
+	static ENGINE_API bool ReplaceSkeletalMeshRigImportData(const USkeletalMesh* SkeletalMesh, FSkeletalMeshImportData* ImportData, int32 LodIndex);
 
 	//Fit another rig data on this one
-	bool ApplyRigToGeo(FSkeletalMeshImportData& Other);
+	ENGINE_API bool ApplyRigToGeo(FSkeletalMeshImportData& Other);
 
 	/*
 	 * Use the faces corner normals to create the face smooth groups data
 	 */
-	void ComputeSmoothGroupFromNormals();
+	ENGINE_API void ComputeSmoothGroupFromNormals();
 
 	/**
 	 * Returns a mesh description from the import data
 	 */
-	bool GetMeshDescription(FMeshDescription &OutMeshDescription) const;
+	ENGINE_API bool GetMeshDescription(FMeshDescription &OutMeshDescription) const;
 
 	/**
 	 * @note MeshDescription always contains color, normal and tangent data by default. Therefore, while iterating
 	 * over the vertices, we check if at least one normal/tangent vector is not a zero vector and the color is
 	 * not white, then we set the corresponding bHasNormals/bHasTangent/bHasVertexColors flags to true.
 	 */
-	static FSkeletalMeshImportData CreateFromMeshDescription(const FMeshDescription &InMeshDescription);
+	static ENGINE_API FSkeletalMeshImportData CreateFromMeshDescription(const FMeshDescription &InMeshDescription);
 
 private:
-	void CleanUpUnusedMaterials();
-	void SplitVerticesBySmoothingGroups();
+	ENGINE_API void CleanUpUnusedMaterials();
+	ENGINE_API void SplitVerticesBySmoothingGroups();
 };
 
 /**
@@ -472,10 +472,10 @@ public:
 	/** Return the number of vertices and triangles store in this bulk data. */
 	ENGINE_API void GetGeometryInfo(uint32& LODVertexNumber, uint32& LODTriNumber, UObject* Owner);
 
-	ENGINE_API FByteBulkData& GetBulkData() { return BulkData; }
+	FByteBulkData& GetBulkData() { return BulkData; }
 
 	/** Empty the bulk data. */
-	ENGINE_API void EmptyBulkData() { BulkData.RemoveBulkData(); }
+	void EmptyBulkData() { BulkData.RemoveBulkData(); }
 
 	/** Returns true if no bulk data is available for this mesh. */
 	FORCEINLINE bool IsEmpty() const { return BulkData.GetBulkDataSize() == 0; }
@@ -565,7 +565,7 @@ public:
 	ENGINE_API const FByteBulkData& GetBulkData() const;
 	
 	/** Empty the bulk data. */
-	ENGINE_API void EmptyBulkData()
+	void EmptyBulkData()
 	{
 		//Clear all the data
 		BulkData.RemoveBulkData();
@@ -581,7 +581,7 @@ public:
 	FORCEINLINE bool IsEmpty() const { return BulkData.GetBulkDataSize() == 0; }
 
 	/** Returns true if the last import version is enough to use the new build system. WE cannot rebuild asset if we did not previously store the data*/
-	ENGINE_API bool IsBuildDataAvailable() const
+	bool IsBuildDataAvailable() const
 	{
 		return GeoImportVersion >= ESkeletalMeshGeoImportVersions::SkeletalMeshBuildRefactor &&
 			SkinningImportVersion >= ESkeletalMeshSkinningImportVersions::SkeletalMeshBuildRefactor;

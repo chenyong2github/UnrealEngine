@@ -20,32 +20,32 @@ class USoundBase;
 class USoundWave;
 struct FPropertyChangedChainEvent;
 
-struct ENGINE_API FDialogueConstants
+struct FDialogueConstants
 {
-	static const FString DialogueNamespace;
-	static const FString DialogueNotesNamespace;
-	static const FString SubtitleKeySuffix;
+	static ENGINE_API const FString DialogueNamespace;
+	static ENGINE_API const FString DialogueNotesNamespace;
+	static ENGINE_API const FString SubtitleKeySuffix;
 #if WITH_EDITORONLY_DATA
-	static const FString ActingDirectionKeySuffix;
-	static const FString PropertyName_AudioFile;
-	static const FString PropertyName_VoiceActorDirection;
-	static const FString PropertyName_Speaker;
-	static const FString PropertyName_Targets;
-	static const FString PropertyName_GrammaticalGender;
-	static const FString PropertyName_GrammaticalPlurality;
-	static const FString PropertyName_TargetGrammaticalGender;
-	static const FString PropertyName_TargetGrammaticalNumber;
-	static const FString PropertyName_DialogueContext;
-	static const FString PropertyName_IsMature;
+	static ENGINE_API const FString ActingDirectionKeySuffix;
+	static ENGINE_API const FString PropertyName_AudioFile;
+	static ENGINE_API const FString PropertyName_VoiceActorDirection;
+	static ENGINE_API const FString PropertyName_Speaker;
+	static ENGINE_API const FString PropertyName_Targets;
+	static ENGINE_API const FString PropertyName_GrammaticalGender;
+	static ENGINE_API const FString PropertyName_GrammaticalPlurality;
+	static ENGINE_API const FString PropertyName_TargetGrammaticalGender;
+	static ENGINE_API const FString PropertyName_TargetGrammaticalNumber;
+	static ENGINE_API const FString PropertyName_DialogueContext;
+	static ENGINE_API const FString PropertyName_IsMature;
 #endif //WITH_EDITORONLY_DATA
 };
 
 USTRUCT()
-struct ENGINE_API FDialogueContextMapping
+struct FDialogueContextMapping
 {
 	GENERATED_USTRUCT_BODY()
 
-	FDialogueContextMapping();
+	ENGINE_API FDialogueContextMapping();
 
 	/** The context of the dialogue. */
 	UPROPERTY(EditAnywhere, Category=DialogueContextMapping )
@@ -68,8 +68,8 @@ struct ENGINE_API FDialogueContextMapping
 	TObjectPtr<UDialogueSoundWaveProxy> Proxy;
 
 	/** Gets the localization key to use for this context mapping */
-	FString GetLocalizationKey() const;
-	FString GetLocalizationKey(const FString& InOwnerDialogueWaveKey) const;
+	ENGINE_API FString GetLocalizationKey() const;
+	ENGINE_API FString GetLocalizationKey(const FString& InOwnerDialogueWaveKey) const;
 };
 
 ENGINE_API bool operator==(const FDialogueContextMapping& LHS, const FDialogueContextMapping& RHS);

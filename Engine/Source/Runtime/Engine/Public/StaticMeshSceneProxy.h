@@ -20,15 +20,15 @@ using FStaticMeshVertexFactoriesArray = TArray<FStaticMeshVertexFactories>;
 /**
  * A static mesh component scene proxy.
  */
-class ENGINE_API FStaticMeshSceneProxy : public FPrimitiveSceneProxy
+class FStaticMeshSceneProxy : public FPrimitiveSceneProxy
 {
 public:
-	SIZE_T GetTypeHash() const override;
+	ENGINE_API SIZE_T GetTypeHash() const override;
 
 	/** Initialization constructor. */
-	FStaticMeshSceneProxy(UStaticMeshComponent* Component, bool bForceLODsShareStaticLighting);
+	ENGINE_API FStaticMeshSceneProxy(UStaticMeshComponent* Component, bool bForceLODsShareStaticLighting);
 
-	virtual ~FStaticMeshSceneProxy();
+	ENGINE_API virtual ~FStaticMeshSceneProxy();
 
 	/** Gets the number of mesh batches required to represent the proxy, aside from section needs. */
 	virtual int32 GetNumMeshBatches() const
@@ -37,10 +37,10 @@ public:
 	}
 
 	/** Sets up a shadow FMeshBatch for a specific LOD. */
-	virtual bool GetShadowMeshElement(int32 LODIndex, int32 BatchIndex, uint8 InDepthPriorityGroup, FMeshBatch& OutMeshBatch, bool bDitheredLODTransition) const;
+	ENGINE_API virtual bool GetShadowMeshElement(int32 LODIndex, int32 BatchIndex, uint8 InDepthPriorityGroup, FMeshBatch& OutMeshBatch, bool bDitheredLODTransition) const;
 
 	/** Sets up a FMeshBatch for a specific LOD and element. */
-	virtual bool GetMeshElement(
+	ENGINE_API virtual bool GetMeshElement(
 		int32 LODIndex, 
 		int32 BatchIndex, 
 		int32 ElementIndex, 
@@ -49,15 +49,15 @@ public:
 		bool bAllowPreCulledIndices,
 		FMeshBatch& OutMeshBatch) const;
 
-	virtual void CreateRenderThreadResources() override;
+	ENGINE_API virtual void CreateRenderThreadResources() override;
 
-	virtual void DestroyRenderThreadResources() override;
+	ENGINE_API virtual void DestroyRenderThreadResources() override;
 
 	/** Sets up a wireframe FMeshBatch for a specific LOD. */
-	virtual bool GetWireframeMeshElement(int32 LODIndex, int32 BatchIndex, const FMaterialRenderProxy* WireframeRenderProxy, uint8 InDepthPriorityGroup, bool bAllowPreCulledIndices, FMeshBatch& OutMeshBatch) const;
+	ENGINE_API virtual bool GetWireframeMeshElement(int32 LODIndex, int32 BatchIndex, const FMaterialRenderProxy* WireframeRenderProxy, uint8 InDepthPriorityGroup, bool bAllowPreCulledIndices, FMeshBatch& OutMeshBatch) const;
 
 	/** Sets up a collision FMeshBatch for a specific LOD and element. */
-	virtual bool GetCollisionMeshElement(
+	ENGINE_API virtual bool GetCollisionMeshElement(
 		int32 LODIndex,
 		int32 BatchIndex,
 		int32 ElementIndex,
@@ -65,20 +65,20 @@ public:
 		const FMaterialRenderProxy* RenderProxy,
 		FMeshBatch& OutMeshBatch) const;
 
-	virtual void SetEvaluateWorldPositionOffsetInRayTracing(bool NewValue);
+	ENGINE_API virtual void SetEvaluateWorldPositionOffsetInRayTracing(bool NewValue);
 
 	virtual uint8 GetCurrentFirstLODIdx_RenderThread() const final override
 	{
 		return GetCurrentFirstLODIdx_Internal();
 	}
 
-	virtual int32 GetLightMapCoordinateIndex() const override;
+	ENGINE_API virtual int32 GetLightMapCoordinateIndex() const override;
 
-	virtual bool GetInstanceWorldPositionOffsetDisableDistance(float& OutWPODisableDistance) const override;
+	ENGINE_API virtual bool GetInstanceWorldPositionOffsetDisableDistance(float& OutWPODisableDistance) const override;
 
 protected:
 	/** Configures mesh batch vertex / index state. Returns the number of primitives used in the element. */
-	uint32 SetMeshElementGeometrySource(
+	ENGINE_API uint32 SetMeshElementGeometrySource(
 		int32 LODIndex,
 		int32 ElementIndex,
 		bool bWireframe,
@@ -88,49 +88,49 @@ protected:
 		FMeshBatch& OutMeshElement) const;
 
 	/** Sets the screen size on a mesh element. */
-	void SetMeshElementScreenSize(int32 LODIndex, bool bDitheredLODTransition, FMeshBatch& OutMeshBatch) const;
+	ENGINE_API void SetMeshElementScreenSize(int32 LODIndex, bool bDitheredLODTransition, FMeshBatch& OutMeshBatch) const;
 
 	/** Returns whether this mesh should render back-faces instead of front-faces - either with reversed indices or reversed cull mode */
-	bool ShouldRenderBackFaces() const;
+	ENGINE_API bool ShouldRenderBackFaces() const;
 
 	/** Returns whether this mesh needs reverse culling when using reversed indices. */
-	bool IsReversedCullingNeeded(bool bUseReversedIndices) const;
+	ENGINE_API bool IsReversedCullingNeeded(bool bUseReversedIndices) const;
 
-	bool IsCollisionView(const FEngineShowFlags& EngineShowFlags, bool& bDrawSimpleCollision, bool& bDrawComplexCollision) const;
+	ENGINE_API bool IsCollisionView(const FEngineShowFlags& EngineShowFlags, bool& bDrawSimpleCollision, bool& bDrawComplexCollision) const;
 
 	/** Only call on render thread timeline */
-	uint8 GetCurrentFirstLODIdx_Internal() const;
+	ENGINE_API uint8 GetCurrentFirstLODIdx_Internal() const;
 
-	virtual void OnEvaluateWorldPositionOffsetChanged_RenderThread() override;
+	ENGINE_API virtual void OnEvaluateWorldPositionOffsetChanged_RenderThread() override;
 
 public:
 	// FPrimitiveSceneProxy interface.
 #if WITH_EDITOR
-	virtual HHitProxy* CreateHitProxies(UPrimitiveComponent* Component, TArray<TRefCountPtr<HHitProxy> >& OutHitProxies) override;
+	ENGINE_API virtual HHitProxy* CreateHitProxies(UPrimitiveComponent* Component, TArray<TRefCountPtr<HHitProxy> >& OutHitProxies) override;
 #endif
-	virtual void DrawStaticElements(FStaticPrimitiveDrawInterface* PDI) override;
-	virtual int32 GetLOD(const FSceneView* View) const override;
-	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override;
-	virtual bool CanBeOccluded() const override;
-	virtual bool IsUsingDistanceCullFade() const override;
-	virtual void GetLightRelevance(const FLightSceneProxy* LightSceneProxy, bool& bDynamic, bool& bRelevant, bool& bLightMapped, bool& bShadowMapped) const override;
-	virtual void GetDistanceFieldAtlasData(const FDistanceFieldVolumeData*& OutDistanceFieldData, float& SelfShadowBias) const override;
-	virtual void GetDistanceFieldInstanceData(TArray<FRenderTransform>& InstanceLocalToPrimitiveTransforms) const override;
-	virtual bool HasDistanceFieldRepresentation() const override;
-	virtual bool StaticMeshHasPendingStreaming() const override;
-	virtual bool HasDynamicIndirectShadowCasterRepresentation() const override;
+	ENGINE_API virtual void DrawStaticElements(FStaticPrimitiveDrawInterface* PDI) override;
+	ENGINE_API virtual int32 GetLOD(const FSceneView* View) const override;
+	ENGINE_API virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override;
+	ENGINE_API virtual bool CanBeOccluded() const override;
+	ENGINE_API virtual bool IsUsingDistanceCullFade() const override;
+	ENGINE_API virtual void GetLightRelevance(const FLightSceneProxy* LightSceneProxy, bool& bDynamic, bool& bRelevant, bool& bLightMapped, bool& bShadowMapped) const override;
+	ENGINE_API virtual void GetDistanceFieldAtlasData(const FDistanceFieldVolumeData*& OutDistanceFieldData, float& SelfShadowBias) const override;
+	ENGINE_API virtual void GetDistanceFieldInstanceData(TArray<FRenderTransform>& InstanceLocalToPrimitiveTransforms) const override;
+	ENGINE_API virtual bool HasDistanceFieldRepresentation() const override;
+	ENGINE_API virtual bool StaticMeshHasPendingStreaming() const override;
+	ENGINE_API virtual bool HasDynamicIndirectShadowCasterRepresentation() const override;
 	virtual uint32 GetMemoryFootprint( void ) const override { return( sizeof( *this ) + GetAllocatedSize() ); }
 	SIZE_T GetAllocatedSize( void ) const { return( FPrimitiveSceneProxy::GetAllocatedSize() + LODs.GetAllocatedSize() ); }
 
-	virtual void GetMeshDescription(int32 LODIndex, TArray<FMeshBatch>& OutMeshElements) const override;
+	ENGINE_API virtual void GetMeshDescription(int32 LODIndex, TArray<FMeshBatch>& OutMeshElements) const override;
 
-	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
+	ENGINE_API virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
 
-	virtual const FCardRepresentationData* GetMeshCardRepresentation() const override;
+	ENGINE_API virtual const FCardRepresentationData* GetMeshCardRepresentation() const override;
 
 #if RHI_RAYTRACING
-	virtual void GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances) override;
-	virtual bool HasRayTracingRepresentation() const override;
+	ENGINE_API virtual void GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances) override;
+	ENGINE_API virtual bool HasRayTracingRepresentation() const override;
 	virtual bool IsRayTracingRelevant() const override { return true; }
 	virtual bool IsRayTracingStaticRelevant() const override 
 	{ 
@@ -140,12 +140,12 @@ public:
 	}
 #endif // RHI_RAYTRACING
 
-	virtual void GetLCIs(FLCIArray& LCIs) override;
+	ENGINE_API virtual void GetLCIs(FLCIArray& LCIs) override;
 
 #if WITH_EDITORONLY_DATA
-	virtual bool GetPrimitiveDistance(int32 LODIndex, int32 SectionIndex, const FVector& ViewOrigin, float& PrimitiveDistance) const override;
-	virtual bool GetMeshUVDensities(int32 LODIndex, int32 SectionIndex, FVector4& WorldUVDensities) const override;
-	virtual bool GetMaterialTextureScales(int32 LODIndex, int32 SectionIndex, const FMaterialRenderProxy* MaterialRenderProxy, FVector4f* OneOverScales, FIntVector4* UVChannelIndices) const override;
+	ENGINE_API virtual bool GetPrimitiveDistance(int32 LODIndex, int32 SectionIndex, const FVector& ViewOrigin, float& PrimitiveDistance) const override;
+	ENGINE_API virtual bool GetMeshUVDensities(int32 LODIndex, int32 SectionIndex, FVector4& WorldUVDensities) const override;
+	ENGINE_API virtual bool GetMaterialTextureScales(int32 LODIndex, int32 SectionIndex, const FMaterialRenderProxy* MaterialRenderProxy, FVector4f* OneOverScales, FIntVector4* UVChannelIndices) const override;
 #endif
 
 #if STATICMESH_ENABLE_DEBUG_RENDERING
@@ -208,7 +208,7 @@ protected:
 		bool UsesMeshModifyingMaterials() const { return bUsesMeshModifyingMaterials; }
 
 		// FLightCacheInterface.
-		virtual FLightInteraction GetInteraction(const FLightSceneProxy* LightSceneProxy) const override;
+		ENGINE_API virtual FLightInteraction GetInteraction(const FLightSceneProxy* LightSceneProxy) const override;
 
 	private:
 		TArray<FGuid> IrrelevantLights;
@@ -228,8 +228,8 @@ protected:
 	float OverlayMaterialMaxDrawDistance;
 
 #if RHI_RAYTRACING
-	void CreateDynamicRayTracingGeometries();
-	void ReleaseDynamicRayTracingGeometries();
+	ENGINE_API void CreateDynamicRayTracingGeometries();
+	ENGINE_API void ReleaseDynamicRayTracingGeometries();
 
 	bool bSupportRayTracing : 1;
 	bool bDynamicRayTracingGeometry : 1;
@@ -308,14 +308,14 @@ public:
 	 *
 	 * @Param LODIndex - The LOD to get the display factor for
 	 */
-	float GetScreenSize(int32 LODIndex) const;
+	ENGINE_API float GetScreenSize(int32 LODIndex) const;
 
 	/**
 	 * Returns the LOD mask for a view, this is like the ordinary LOD but can return two values for dither fading
 	 */
-	FLODMask GetLODMask(const FSceneView* View) const;
+	ENGINE_API FLODMask GetLODMask(const FSceneView* View) const;
 
 private:
-	void AddSpeedTreeWind();
-	void RemoveSpeedTreeWind();
+	ENGINE_API void AddSpeedTreeWind();
+	ENGINE_API void RemoveSpeedTreeWind();
 };

@@ -162,13 +162,13 @@ static_assert(EWorldPartitionRuntimeCellState::Unloaded < EWorldPartitionRuntime
 /**
  * Represents a PIE/Game streaming cell which points to external actor/data chunk packages
  */
-UCLASS(Abstract)
-class ENGINE_API UWorldPartitionRuntimeCell : public UObject, public IWorldPartitionCell
+UCLASS(Abstract, MinimalAPI)
+class UWorldPartitionRuntimeCell : public UObject, public IWorldPartitionCell
 {
 	GENERATED_UCLASS_BODY()
 
 #if WITH_EDITOR
-	virtual void PostDuplicate(bool bDuplicateForPIE) override;
+	ENGINE_API virtual void PostDuplicate(bool bDuplicateForPIE) override;
 #endif
 
 	template<class T>
@@ -179,53 +179,53 @@ class ENGINE_API UWorldPartitionRuntimeCell : public UObject, public IWorldParti
 		return Super::GetTypedOuter<T>();
 	}
 
-	virtual void Load() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::Load,);
-	virtual void Unload() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::Unload,);
-	virtual bool CanUnload() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::CanUnload, return true;);
-	virtual void Activate() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::Activate,);
-	virtual void Deactivate() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::Deactivate,);
-	virtual bool IsAddedToWorld() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::IsAddedToWorld, return false;);
-	virtual bool CanAddToWorld() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::CanAddToWorld, return false;);
-	virtual ULevel* GetLevel() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::GetLevel, return nullptr;);
-	virtual EWorldPartitionRuntimeCellState GetCurrentState() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::GetCurrentState, return EWorldPartitionRuntimeCellState::Unloaded;);
+	ENGINE_API virtual void Load() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::Load,);
+	ENGINE_API virtual void Unload() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::Unload,);
+	ENGINE_API virtual bool CanUnload() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::CanUnload, return true;);
+	ENGINE_API virtual void Activate() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::Activate,);
+	ENGINE_API virtual void Deactivate() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::Deactivate,);
+	ENGINE_API virtual bool IsAddedToWorld() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::IsAddedToWorld, return false;);
+	ENGINE_API virtual bool CanAddToWorld() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::CanAddToWorld, return false;);
+	ENGINE_API virtual ULevel* GetLevel() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::GetLevel, return nullptr;);
+	ENGINE_API virtual EWorldPartitionRuntimeCellState GetCurrentState() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::GetCurrentState, return EWorldPartitionRuntimeCellState::Unloaded;);
 	virtual FLinearColor GetDebugColor(EWorldPartitionRuntimeCellVisualizeMode VisualizeMode) const { static const FLinearColor DefaultColor = FLinearColor::Black.CopyWithNewOpacity(0.25f); return DefaultColor; }
 	virtual bool IsAlwaysLoaded() const { return bIsAlwaysLoaded; }
 	virtual void SetIsAlwaysLoaded(bool bInIsAlwaysLoaded) { bIsAlwaysLoaded = bInIsAlwaysLoaded; }
 	virtual void SetPriority(int32 InPriority) { Priority = InPriority; }
-	virtual void SetStreamingPriority(int32 InStreamingPriority) const PURE_VIRTUAL(UWorldPartitionRuntimeCell::SetStreamingPriority,);
+	ENGINE_API virtual void SetStreamingPriority(int32 InStreamingPriority) const PURE_VIRTUAL(UWorldPartitionRuntimeCell::SetStreamingPriority,);
 	virtual EStreamingStatus GetStreamingStatus() const { return LEVEL_Unloaded; }
 	UE_DEPRECATED(5.3, "IsLoading is deprecated.")
 	virtual bool IsLoading() const { return false; }
 	void SetClientOnlyVisible(bool bInClientOnlyVisible) { bClientOnlyVisible = bInClientOnlyVisible; }
 	bool GetClientOnlyVisible() const { return bClientOnlyVisible; }
 	virtual FGuid const& GetContentBundleID() const { return ContentBundleID; }
-	virtual TArray<FName> GetActors() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::GetActors, return TArray<FName>(););
+	ENGINE_API virtual TArray<FName> GetActors() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::GetActors, return TArray<FName>(););
 
 	//~Begin IWorldPartitionCell Interface
-	virtual TArray<const UDataLayerInstance*> GetDataLayerInstances() const override;
-	virtual bool ContainsDataLayer(const UDataLayerAsset* DataLayerAsset) const override;
-	virtual bool ContainsDataLayer(const UDataLayerInstance* DataLayerInstance) const override;
+	ENGINE_API virtual TArray<const UDataLayerInstance*> GetDataLayerInstances() const override;
+	ENGINE_API virtual bool ContainsDataLayer(const UDataLayerAsset* DataLayerAsset) const override;
+	ENGINE_API virtual bool ContainsDataLayer(const UDataLayerInstance* DataLayerInstance) const override;
 	virtual const TArray<FName>& GetDataLayers() const override  { return DataLayers; }
 	virtual bool HasAnyDataLayer(const TSet<FName>& InDataLayers) const override
 	{
 		return Algo::AnyOf(DataLayers, [&InDataLayers](const FName& DataLayer) { return InDataLayers.Contains(DataLayer); });
 	}
-	virtual FName GetLevelPackageName() const override;
-	virtual FString GetDebugName() const override;
-	virtual UWorld* GetOwningWorld() const override;
-	virtual UWorld* GetOuterWorld() const override;
+	ENGINE_API virtual FName GetLevelPackageName() const override;
+	ENGINE_API virtual FString GetDebugName() const override;
+	ENGINE_API virtual UWorld* GetOwningWorld() const override;
+	ENGINE_API virtual UWorld* GetOuterWorld() const override;
 	//~End IWorldPartitionCell Interface
 
 	inline bool HasDataLayers() const { return !DataLayers.IsEmpty(); }
 
-	UDataLayerManager* GetDataLayerManager() const;
-	bool HasAnyDataLayerInEffectiveRuntimeState(EDataLayerRuntimeState InState) const;
+	ENGINE_API UDataLayerManager* GetDataLayerManager() const;
+	ENGINE_API bool HasAnyDataLayerInEffectiveRuntimeState(EDataLayerRuntimeState InState) const;
 
 	void SetBlockOnSlowLoading(bool bInBlockOnSlowLoading) { bBlockOnSlowLoading = bInBlockOnSlowLoading; }
 	bool GetBlockOnSlowLoading() const { return bBlockOnSlowLoading; }
 #if WITH_EDITOR
-	bool NeedsActorToCellRemapping() const;
-	void SetDataLayers(const TArray<const UDataLayerInstance*>& InDataLayerInstances);
+	ENGINE_API bool NeedsActorToCellRemapping() const;
+	ENGINE_API void SetDataLayers(const TArray<const UDataLayerInstance*>& InDataLayerInstances);
 	void SetContentBundleUID(const FGuid& InContentBundleID) { ContentBundleID = InContentBundleID; }
 	void SetLevelPackageName(const FName& InLevelPackageName) { LevelPackageName = InLevelPackageName; }
 	
@@ -233,17 +233,17 @@ class ENGINE_API UWorldPartitionRuntimeCell : public UObject, public IWorldParti
 	virtual TSet<FName> GetActorPackageNames() const override { return TSet<FName>(); }
 	//~End IWorldPartitionCell Interface
 
-	virtual void AddActorToCell(const FWorldPartitionActorDescView& ActorDescView, const FActorContainerID& InContainerID, const FTransform& InContainerTransform, const UActorDescContainer* InContainer) PURE_VIRTUAL(UWorldPartitionRuntimeCell::AddActorToCell,);
-	virtual void Fixup() PURE_VIRTUAL(UWorldPartitionRuntimeCell::Fixup, );
-	virtual int32 GetActorCount() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::GetActorCount, return 0;);
+	ENGINE_API virtual void AddActorToCell(const FWorldPartitionActorDescView& ActorDescView, const FActorContainerID& InContainerID, const FTransform& InContainerTransform, const UActorDescContainer* InContainer) PURE_VIRTUAL(UWorldPartitionRuntimeCell::AddActorToCell,);
+	ENGINE_API virtual void Fixup() PURE_VIRTUAL(UWorldPartitionRuntimeCell::Fixup, );
+	ENGINE_API virtual int32 GetActorCount() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::GetActorCount, return 0;);
 
 	// Cook methods
 	virtual bool PrepareCellForCook(UPackage* InPackage) { return false; }
-	virtual bool PopulateGeneratorPackageForCook(TArray<UPackage*>& OutModifiedPackages) PURE_VIRTUAL(UWorldPartitionRuntimeCell::PopulateGeneratorPackageForCook, return false;);
-	virtual bool PopulateGeneratedPackageForCook(UPackage* InPackage, TArray<UPackage*>& OutModifiedPackages) PURE_VIRTUAL(UWorldPartitionRuntimeCell::PopulateGeneratedPackageForCook, return false;);
-	virtual FString GetPackageNameToCreate() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::GetPackageNameToCreate, return FString(""););
+	ENGINE_API virtual bool PopulateGeneratorPackageForCook(TArray<UPackage*>& OutModifiedPackages) PURE_VIRTUAL(UWorldPartitionRuntimeCell::PopulateGeneratorPackageForCook, return false;);
+	ENGINE_API virtual bool PopulateGeneratedPackageForCook(UPackage* InPackage, TArray<UPackage*>& OutModifiedPackages) PURE_VIRTUAL(UWorldPartitionRuntimeCell::PopulateGeneratedPackageForCook, return false;);
+	ENGINE_API virtual FString GetPackageNameToCreate() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::GetPackageNameToCreate, return FString(""););
 
-	virtual void DumpStateLog(FHierarchicalLogArchive& Ar) const;
+	ENGINE_API virtual void DumpStateLog(FHierarchicalLogArchive& Ar) const;
 #endif
 
 	void SetIsHLOD(bool bInIsHLOD) { bIsHLOD = bInIsHLOD; }
@@ -265,7 +265,7 @@ class ENGINE_API UWorldPartitionRuntimeCell : public UObject, public IWorldParti
 #endif
 
 protected:
-	FLinearColor GetDebugStreamingPriorityColor() const;
+	ENGINE_API FLinearColor GetDebugStreamingPriorityColor() const;
 
 	UPROPERTY()
 	bool bIsAlwaysLoaded;
@@ -313,10 +313,10 @@ public:
 	inline void ResetStreamingSourceInfo() const { RuntimeCellData->ResetStreamingSourceInfo(); }
 	inline void AppendStreamingSourceInfo(const FWorldPartitionStreamingSource& Source, const FSphericalSector& SourceShape) const { RuntimeCellData->AppendStreamingSourceInfo(Source, SourceShape); }
 	inline void MergeStreamingSourceInfo() const { RuntimeCellData->MergeStreamingSourceInfo(); }
-	int32 SortCompare(const UWorldPartitionRuntimeCell* Other, bool bCanUseSortingCache = true) const;
+	ENGINE_API int32 SortCompare(const UWorldPartitionRuntimeCell* Other, bool bCanUseSortingCache = true) const;
 	inline const FBox& GetContentBounds() const { return RuntimeCellData->GetContentBounds(); }
 	inline FBox GetCellBounds() const { return RuntimeCellData->GetCellBounds(); }
-	virtual bool IsDebugShown() const;
+	ENGINE_API virtual bool IsDebugShown() const;
 	//~End UWorldPartitionRuntimeCellData Proxy
 
 	UPROPERTY()

@@ -159,7 +159,7 @@ public:
 	ENGINE_API virtual void DiscardVertexData();
 
 	/** Return true if this morph target uses engine built-in compression */
-	ENGINE_API virtual bool UsesBuiltinMorphTargetCompression() const { return true; }
+	virtual bool UsesBuiltinMorphTargetCompression() const { return true; }
 
 #if WITH_EDITOR
 	/** Populates the given morph target LOD model with the provided deltas */

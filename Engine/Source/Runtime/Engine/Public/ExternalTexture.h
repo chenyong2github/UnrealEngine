@@ -10,7 +10,7 @@
 /**
  * Stores a registry of external textures mapped to their GUIDs.
  */
-class ENGINE_API FExternalTextureRegistry
+class FExternalTextureRegistry
 {
 	/**
 	 * Registry singleton instance.
@@ -59,7 +59,7 @@ public:
 	 * @param InCoordinateOffset Texture coordinate offset (optional; packed into color value).
 	 * @see GetExternalTexture, UnregisterExternalTexture
 	 */
-	void RegisterExternalTexture(const FGuid& InGuid, FTextureRHIRef& InTextureRHI, FSamplerStateRHIRef& InSamplerStateRHI, const FLinearColor& InCoordinateScaleRotation = FLinearColor(1, 0, 0, 1), const FLinearColor& InCoordinateOffset = FLinearColor(0, 0, 0, 0));
+	ENGINE_API void RegisterExternalTexture(const FGuid& InGuid, FTextureRHIRef& InTextureRHI, FSamplerStateRHIRef& InSamplerStateRHI, const FLinearColor& InCoordinateScaleRotation = FLinearColor(1, 0, 0, 1), const FLinearColor& InCoordinateOffset = FLinearColor(0, 0, 0, 0));
 
 	/**
 	 * Removes an external texture given a GUID.
@@ -67,7 +67,7 @@ public:
 	 * @param InGuid The unique identifier of the texture to unregister.
 	 * @see RegisterExternalTexture
 	 */
-	void UnregisterExternalTexture(const FGuid& InGuid);
+	ENGINE_API void UnregisterExternalTexture(const FGuid& InGuid);
 
 	/**
 	 * Removes the specified MaterialRenderProxy from the list of those using an external texture.
@@ -75,7 +75,7 @@ public:
 	 * @param MaterialRenderProxy The material render proxy to remove.
 	 * @see GetExternalTexture, RegisterExternalTexture, UnregisterExternalTexture
 	 */
-	void RemoveMaterialRenderProxyReference(const FMaterialRenderProxy* MaterialRenderProxy);
+	ENGINE_API void RemoveMaterialRenderProxyReference(const FMaterialRenderProxy* MaterialRenderProxy);
 
 	/**
 	 * Get the external texture with the specified identifier.
@@ -87,7 +87,7 @@ public:
 	 * @return true on success, false if the identifier was not found.
 	 * @see RegisterExternalTexture, UnregisterExternalTexture
 	 */
-	bool GetExternalTexture(const FMaterialRenderProxy* MaterialRenderProxy, const FGuid& InGuid, FTextureRHIRef& OutTextureRHI, FSamplerStateRHIRef& OutSamplerStateRHI);
+	ENGINE_API bool GetExternalTexture(const FMaterialRenderProxy* MaterialRenderProxy, const FGuid& InGuid, FTextureRHIRef& OutTextureRHI, FSamplerStateRHIRef& OutSamplerStateRHI);
 
 	/**
 	 * Looks up an external texture's coordinate scale rotation.
@@ -97,7 +97,7 @@ public:
 	 * @return true on success, false if the identifier was not found.
 	 * @see GetExternalTextureCoordinateOffset
 	 */
-	bool GetExternalTextureCoordinateScaleRotation(const FGuid& InGuid, FLinearColor& OutCoordinateScaleRotation);
+	ENGINE_API bool GetExternalTextureCoordinateScaleRotation(const FGuid& InGuid, FLinearColor& OutCoordinateScaleRotation);
 
 	/**
 	 * Looks up an texture coordinate offset for given a given GUID.
@@ -107,7 +107,7 @@ public:
 	 * @return true on success, false if the identifier was not found.
 	 * @see GetExternalTextureCoordinateScaleRotation
 	 */
-	bool GetExternalTextureCoordinateOffset(const FGuid& InGuid, FLinearColor& OutCoordinateOffset);
+	ENGINE_API bool GetExternalTextureCoordinateOffset(const FGuid& InGuid, FLinearColor& OutCoordinateOffset);
 
 public:
 
@@ -116,5 +116,5 @@ public:
 	 *
 	 * @return External texture registry.
 	 */
-	static FExternalTextureRegistry& Get();
+	static ENGINE_API FExternalTextureRegistry& Get();
 };

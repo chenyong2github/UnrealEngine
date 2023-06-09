@@ -6,11 +6,11 @@
 
 #include "ActorElementAssetDataInterface.generated.h"
 
-UCLASS()
-class ENGINE_API UActorElementAssetDataInterface : public UObject, public ITypedElementAssetDataInterface
+UCLASS(MinimalAPI)
+class UActorElementAssetDataInterface : public UObject, public ITypedElementAssetDataInterface
 {
 	GENERATED_BODY()
 
 public:
-	virtual FAssetData GetAssetData(const FTypedElementHandle& InElementHandle) override;
+	ENGINE_API virtual FAssetData GetAssetData(const FTypedElementHandle& InElementHandle) override;
 };

@@ -186,16 +186,16 @@ private:
 	FName AnimName;
 };
 
-class ENGINE_API FCompressionMemorySummary
+class FCompressionMemorySummary
 {
 public:
-	FCompressionMemorySummary(bool bInEnabled);
+	ENGINE_API FCompressionMemorySummary(bool bInEnabled);
 
-	void GatherPreCompressionStats(int32 RawSize, int32 PreviousCompressionSize);
+	ENGINE_API void GatherPreCompressionStats(int32 RawSize, int32 PreviousCompressionSize);
 
-	void GatherPostCompressionStats(const FCompressedAnimSequence& CompressedData, const TArray<FBoneData>& BoneData, const FName AnimFName, double CompressionTime, bool bInPerformedCompression);
+	ENGINE_API void GatherPostCompressionStats(const FCompressedAnimSequence& CompressedData, const TArray<FBoneData>& BoneData, const FName AnimFName, double CompressionTime, bool bInPerformedCompression);
 
-	~FCompressionMemorySummary();
+	ENGINE_API ~FCompressionMemorySummary();
 
 private:
 	bool bEnabled;
@@ -226,7 +226,7 @@ private:
 // animation compression
 
 struct UE_DEPRECATED(5.2, "FAnimCompressContext has been deprecated") FAnimCompressContext;
-struct ENGINE_API FAnimCompressContext
+struct FAnimCompressContext
 {
 private:
 	FCompressionMemorySummary	CompressionSummary;
@@ -274,7 +274,7 @@ namespace UE
 			// return it here. Ex.
 			static FString AnimationCompressionVersionString = TEXT("75162A70E2074707ACF3DB9CC1B19597");
 			
-			struct ENGINE_API FAnimationCompressionMemorySummaryScope
+			struct FAnimationCompressionMemorySummaryScope
 			{
 				FAnimationCompressionMemorySummaryScope()
 				{
@@ -301,8 +301,8 @@ namespace UE
 					return *CompressionSummary.Get();
 				}
 
-				static std::atomic<bool> ScopeExists;
-				static TUniquePtr<FCompressionMemorySummary> CompressionSummary;
+				static ENGINE_API std::atomic<bool> ScopeExists;
+				static ENGINE_API TUniquePtr<FCompressionMemorySummary> CompressionSummary;
 			};
 		}
 	}

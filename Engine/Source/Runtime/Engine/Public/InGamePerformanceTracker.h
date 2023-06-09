@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "HAL/PlatformTime.h"
 
-struct ENGINE_API FInGameCycleHistory
+struct FInGameCycleHistory
 {
 	FInGameCycleHistory()
 	{
@@ -54,14 +54,14 @@ struct ENGINE_API FInGameCycleHistory
 	}
 
 	/** Places the current data on the history and advances to the next frame index. Not thread safe.*/
-	void NextFrame();
+	ENGINE_API void NextFrame();
 };
 
 /**
 Helper class to track code timings.
 Similar to stats but much more minimal as they're intended to be used at InGame. Though it's still not free so use wisely.
 */
-class ENGINE_API FInGamePerformanceTracker
+class FInGamePerformanceTracker
 {
 private:
 
@@ -75,10 +75,10 @@ private:
 	
 public:
 
-	FInGamePerformanceTracker();
-	FInGamePerformanceTracker(uint32 FrameHistorySize);
+	ENGINE_API FInGamePerformanceTracker();
+	ENGINE_API FInGamePerformanceTracker(uint32 FrameHistorySize);
 
-	void Tick();
+	ENGINE_API void Tick();
 
 	/** Adds cycles collected from an external helper object. */
 	FORCEINLINE void AddCycles(uint32 Cycles)
@@ -92,14 +92,14 @@ public:
 	}
 	
 	/** Enters a timed section of code. Can be re-entrant and will take the first entry point time. Only callable from game thread. */
-	void EnterTimedSection();
+	ENGINE_API void EnterTimedSection();
 
 	/** Enters a timed section of code. Can be re-entrant and will take the final exit point time. Only callable from game thread. */
-	void ExitTimedSection();
+	ENGINE_API void ExitTimedSection();
 	
-	static class IConsoleVariable* Enabled;
-	static int32 CachedEnabled;
-	static class IConsoleVariable* HistorySize;
+	static ENGINE_API class IConsoleVariable* Enabled;
+	static ENGINE_API int32 CachedEnabled;
+	static ENGINE_API class IConsoleVariable* HistorySize;
 };
 
 class FInGameCycleCounter

@@ -42,7 +42,7 @@ namespace EEvaluatorMode
  * Can be set to supply either the animation data from the transition source (From State) or the transition destination (To State).
 */
 USTRUCT(BlueprintInternalUseOnly)
-struct ENGINE_API FAnimNode_TransitionPoseEvaluator : public FAnimNode_Base
+struct FAnimNode_TransitionPoseEvaluator : public FAnimNode_Base
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -64,18 +64,18 @@ struct ENGINE_API FAnimNode_TransitionPoseEvaluator : public FAnimNode_Base
 	FGraphTraversalCounter CachedBonesCounter;
 
 public:	
-	FAnimNode_TransitionPoseEvaluator();
-	void SetupCacheFrames();
+	ENGINE_API FAnimNode_TransitionPoseEvaluator();
+	ENGINE_API void SetupCacheFrames();
 
 	// FAnimNode_Base interface
-	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
-	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
-	virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
-	virtual void Evaluate_AnyThread(FPoseContext& Output) override;
-	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
+	ENGINE_API virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
+	ENGINE_API virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
+	ENGINE_API virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
+	ENGINE_API virtual void Evaluate_AnyThread(FPoseContext& Output) override;
+	ENGINE_API virtual void GatherDebugData(FNodeDebugData& DebugData) override;
 	// End of FAnimNode_Base interface
 
-	bool InputNodeNeedsUpdate(const FAnimationUpdateContext& Context) const;
-	bool InputNodeNeedsEvaluate() const;
-	void CachePose(const FPoseContext& PoseToCache);
+	ENGINE_API bool InputNodeNeedsUpdate(const FAnimationUpdateContext& Context) const;
+	ENGINE_API bool InputNodeNeedsEvaluate() const;
+	ENGINE_API void CachePose(const FPoseContext& PoseToCache);
 };

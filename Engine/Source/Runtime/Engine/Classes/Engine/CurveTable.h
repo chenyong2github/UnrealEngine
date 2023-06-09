@@ -187,7 +187,7 @@ public:
 
 	/** Output entire contents of table as JSON. bAsArray true will write is as a JSON array, false will write it as a series of named objects*/
 	template <typename CharType = TCHAR>
-	ENGINE_API bool WriteTableAsJSON(const TSharedRef< TJsonWriter<CharType, TPrettyJsonPrintPolicy<CharType> > >& JsonWriter,bool bAsArray = true) const;
+	bool WriteTableAsJSON(const TSharedRef< TJsonWriter<CharType, TPrettyJsonPrintPolicy<CharType> > >& JsonWriter,bool bAsArray = true) const;
 
 	/** 
 	 *	Create table from CSV style comma-separated string. 
@@ -218,7 +218,7 @@ public:
 
 	ENGINE_API static void InvalidateAllCachedCurves();
 
-	ENGINE_API static int32 GetGlobalCachedCurveID()
+	static int32 GetGlobalCachedCurveID()
 	{
 		return GlobalCachedCurveID;
 	}
@@ -252,7 +252,7 @@ protected:
  * Handle to a particular row in a table.
  */
 USTRUCT(BlueprintType)
-struct ENGINE_API FCurveTableRowHandle
+struct FCurveTableRowHandle
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -282,13 +282,13 @@ struct ENGINE_API FCurveTableRowHandle
 	}
 
 	/** Get the curve straight from the row handle */
-	FRealCurve* GetCurve(const FString& ContextString, bool bWarnIfNotFound=true) const;
+	ENGINE_API FRealCurve* GetCurve(const FString& ContextString, bool bWarnIfNotFound=true) const;
 
 	/** Get the rich curve straight from the row handle */
-	FRichCurve* GetRichCurve(const FString& ContextString, bool bWarnIfNotFound=true) const;
+	ENGINE_API FRichCurve* GetRichCurve(const FString& ContextString, bool bWarnIfNotFound=true) const;
 
 	/** Get the simple curve straight from the row handle */
-	FSimpleCurve* GetSimpleCurve(const FString& ContextString, bool bWarnIfNotFound = true) const;
+	ENGINE_API FSimpleCurve* GetSimpleCurve(const FString& ContextString, bool bWarnIfNotFound = true) const;
 
 	/** Evaluate the curve if it is valid
 	 * @param XValue The input X value to the curve
@@ -308,11 +308,11 @@ struct ENGINE_API FCurveTableRowHandle
 	 * @param ContextString A string to provide context for where this operation is being carried out
 	 * @return True if it filled out YValue with a valid number, false otherwise
 	 */
-	bool Eval(float XValue, float* YValue,const FString& ContextString) const;
+	ENGINE_API bool Eval(float XValue, float* YValue,const FString& ContextString) const;
 
-	bool operator==(const FCurveTableRowHandle& Other) const;
-	bool operator!=(const FCurveTableRowHandle& Other) const;
-	void PostSerialize(const FArchive& Ar);
+	ENGINE_API bool operator==(const FCurveTableRowHandle& Other) const;
+	ENGINE_API bool operator!=(const FCurveTableRowHandle& Other) const;
+	ENGINE_API void PostSerialize(const FArchive& Ar);
 
 	/** Used so we can have a TMap of this struct */
 	FORCEINLINE friend uint32 GetTypeHash(const FCurveTableRowHandle& Handle)

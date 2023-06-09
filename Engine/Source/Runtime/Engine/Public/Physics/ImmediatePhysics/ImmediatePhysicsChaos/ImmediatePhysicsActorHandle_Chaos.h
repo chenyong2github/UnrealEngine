@@ -10,23 +10,23 @@
 namespace ImmediatePhysics_Chaos
 {
 	/** handle associated with a physics actor. This is the proper way to read/write to the physics simulation */
-	struct ENGINE_API FActorHandle
+	struct FActorHandle
 	{
 	public:
-		~FActorHandle();
+		ENGINE_API ~FActorHandle();
 
 		void SetName(const FName& InName) { Name = InName; }
 		const FName& GetName() const { return Name; }
 
-		bool GetEnabled() const;
+		ENGINE_API bool GetEnabled() const;
 
-		void SetEnabled(bool bEnabled);
+		ENGINE_API void SetEnabled(bool bEnabled);
 
 		/** Sets the world transform, zeroes velocity, etc.*/
-		void InitWorldTransform(const FTransform& WorldTM);
+		ENGINE_API void InitWorldTransform(const FTransform& WorldTM);
 
 		/** Sets the world transform, maintains velocity etc.*/
-		void SetWorldTransform(const FTransform& WorldTM);
+		ENGINE_API void SetWorldTransform(const FTransform& WorldTM);
 
 		/** 
 		 * Normally used to modify a EParticleType::Rigid between kinematic and dynamic. Returns true if that 
@@ -34,118 +34,118 @@ namespace ImmediatePhysics_Chaos
 		 * ParticleHandle, or if the particle type was not EParticleType::Rigid (unless the current type was
 		 * EParticleType::Kinematic and bKinematic was true)
 		 */
-		bool SetIsKinematic(bool bKinematic);
+		ENGINE_API bool SetIsKinematic(bool bKinematic);
 
 		/** Is the actor kinematic */
-		bool GetIsKinematic() const;
+		ENGINE_API bool GetIsKinematic() const;
 
 		/** Gets the kinematic target (next transform) for the actor if one is set (check HasKinematicTarget() to see if a target is available) */
-		const FKinematicTarget& GetKinematicTarget() const;
+		ENGINE_API const FKinematicTarget& GetKinematicTarget() const;
 
 		/** Sets the kinematic target. This will affect velocities as expected*/
-		void SetKinematicTarget(const FTransform& WorldTM);
+		ENGINE_API void SetKinematicTarget(const FTransform& WorldTM);
 
 		/** Does this actor have a kinematic target (next kinematic transform to be applied) */
-		bool HasKinematicTarget() const;
+		ENGINE_API bool HasKinematicTarget() const;
 
 		/** Returns true if the world gravity applies to this actor */
-		bool IsGravityEnabled() const;
+		ENGINE_API bool IsGravityEnabled() const;
 
 		/** Whether the body is static */
-		bool IsStatic() const;
+		ENGINE_API bool IsStatic() const;
 
 		/** Sets whether world gravity should apply to this actor, assuming it is dynamic */
-		void SetGravityEnabled(bool bEnable);
+		ENGINE_API void SetGravityEnabled(bool bEnable);
 
 		/** Whether the body is simulating */
-		bool IsSimulated() const;
+		ENGINE_API bool IsSimulated() const;
 
 		/** Get the world transform */
-		FTransform GetWorldTransform() const;
+		ENGINE_API FTransform GetWorldTransform() const;
 
 		/** Set the linear velocity */
-		void SetLinearVelocity(const FVector& NewLinearVelocity);
+		ENGINE_API void SetLinearVelocity(const FVector& NewLinearVelocity);
 
 		/** Get the linear velocity */
-		FVector GetLinearVelocity() const;
+		ENGINE_API FVector GetLinearVelocity() const;
 
 		/** Set the angular velocity */
-		void SetAngularVelocity(const FVector& NewAngularVelocity);
+		ENGINE_API void SetAngularVelocity(const FVector& NewAngularVelocity);
 
 		/** Get the angular velocity */
-		FVector GetAngularVelocity() const;
+		ENGINE_API FVector GetAngularVelocity() const;
 
-		void AddForce(const FVector& Force);
+		ENGINE_API void AddForce(const FVector& Force);
 
-		void AddTorque(const FVector& Torque);
+		ENGINE_API void AddTorque(const FVector& Torque);
 
-		void AddRadialForce(const FVector& Origin, FReal Strength, FReal Radius, ERadialImpulseFalloff Falloff, EForceType ForceType);
+		ENGINE_API void AddRadialForce(const FVector& Origin, FReal Strength, FReal Radius, ERadialImpulseFalloff Falloff, EForceType ForceType);
 
-		void AddImpulseAtLocation(FVector Impulse, FVector Location);
+		ENGINE_API void AddImpulseAtLocation(FVector Impulse, FVector Location);
 
 		/** Set the linear damping*/
-		void SetLinearDamping(FReal NewLinearDamping);
+		ENGINE_API void SetLinearDamping(FReal NewLinearDamping);
 
 		/** Get the linear damping*/
-		FReal GetLinearDamping() const;
+		ENGINE_API FReal GetLinearDamping() const;
 
 		/** Set the angular damping*/
-		void SetAngularDamping(FReal NewAngularDamping);
+		ENGINE_API void SetAngularDamping(FReal NewAngularDamping);
 
 		/** Get the angular damping*/
-		FReal GetAngularDamping() const;
+		ENGINE_API FReal GetAngularDamping() const;
 
 		/** Set the max linear velocity squared*/
-		void SetMaxLinearVelocitySquared(FReal NewMaxLinearVelocitySquared);
+		ENGINE_API void SetMaxLinearVelocitySquared(FReal NewMaxLinearVelocitySquared);
 
 		/** Get the max linear velocity squared*/
-		FReal GetMaxLinearVelocitySquared() const;
+		ENGINE_API FReal GetMaxLinearVelocitySquared() const;
 
 		/** Set the max angular velocity squared*/
-		void SetMaxAngularVelocitySquared(FReal NewMaxAngularVelocitySquared);
+		ENGINE_API void SetMaxAngularVelocitySquared(FReal NewMaxAngularVelocitySquared);
 
 		/** Get the max angular velocity squared*/
-		FReal GetMaxAngularVelocitySquared() const;
+		ENGINE_API FReal GetMaxAngularVelocitySquared() const;
 
 		/** Set the inverse mass. 0 indicates kinematic object */
-		void SetInverseMass(FReal NewInverseMass);
+		ENGINE_API void SetInverseMass(FReal NewInverseMass);
 
 		/** Get the inverse mass. */
-		FReal GetInverseMass() const;
-		FReal GetMass() const;
+		ENGINE_API FReal GetInverseMass() const;
+		ENGINE_API FReal GetMass() const;
 
 		/** Set the inverse inertia. Mass-space inverse inertia diagonal vector */
-		void SetInverseInertia(const FVector& NewInverseInertia);
+		ENGINE_API void SetInverseInertia(const FVector& NewInverseInertia);
 
 		/** Get the inverse inertia. Mass-space inverse inertia diagonal vector */
-		FVector GetInverseInertia() const;
-		FVector GetInertia() const;
+		ENGINE_API FVector GetInverseInertia() const;
+		ENGINE_API FVector GetInertia() const;
 
 		/** Set the max depenetration velocity*/
-		void SetMaxDepenetrationVelocity(FReal NewMaxDepenetrationVelocity);
+		ENGINE_API void SetMaxDepenetrationVelocity(FReal NewMaxDepenetrationVelocity);
 
 		/** Get the max depenetration velocity*/
-		FReal GetMaxDepenetrationVelocity() const;
+		ENGINE_API FReal GetMaxDepenetrationVelocity() const;
 
 		/** Set the max contact impulse*/
-		void SetMaxContactImpulse(FReal NewMaxContactImpulse);
+		ENGINE_API void SetMaxContactImpulse(FReal NewMaxContactImpulse);
 
 		/** Get the max contact impulse*/
-		FReal GetMaxContactImpulse() const;
+		ENGINE_API FReal GetMaxContactImpulse() const;
 
 		/** Get the actor-space centre of mass offset */
-		FTransform GetLocalCoMTransform() const;
+		ENGINE_API FTransform GetLocalCoMTransform() const;
 
-		Chaos::FGeometryParticleHandle* GetParticle();
-		const Chaos::FGeometryParticleHandle* GetParticle() const;
+		ENGINE_API Chaos::FGeometryParticleHandle* GetParticle();
+		ENGINE_API const Chaos::FGeometryParticleHandle* GetParticle() const;
 
-		int32 GetLevel() const;
-		void SetLevel(int32 InLevel);
+		ENGINE_API int32 GetLevel() const;
+		ENGINE_API void SetLevel(int32 InLevel);
 
 	private:
-		FKinematicTarget& GetKinematicTarget();
+		ENGINE_API FKinematicTarget& GetKinematicTarget();
 
-		void CreateParticleHandle(
+		ENGINE_API void CreateParticleHandle(
 			FBodyInstance*                 BodyInstance,
 			const EActorType               ActorType,
 			const FTransform&              WorldTransform,
@@ -156,7 +156,7 @@ namespace ImmediatePhysics_Chaos
 		friend struct FSimulation;
 		friend struct FJointHandle;
 
-		FActorHandle(
+		ENGINE_API FActorHandle(
 			Chaos::FPBDRigidsSOAs& InParticles,
 			Chaos::TArrayCollectionArray<Chaos::FVec3>& InParticlePrevXs,
 			Chaos::TArrayCollectionArray<Chaos::FRotation3>& InParticlePrevRs,
@@ -165,7 +165,7 @@ namespace ImmediatePhysics_Chaos
 			const FTransform& Transform);
 
 
-		Chaos::FGenericParticleHandle Handle() const;
+		ENGINE_API Chaos::FGenericParticleHandle Handle() const;
 
 		FName Name;
 		Chaos::FPBDRigidsSOAs& Particles;

@@ -16,102 +16,102 @@ struct FSmartName;
 
 // DEPRECATED - smart names and their mappings are no longer used
 USTRUCT()
-struct ENGINE_API FSmartNameMapping
+struct FSmartNameMapping
 {
 	friend struct FSmartNameMappingIterator;
 	friend class USkeleton;
 	
 	GENERATED_USTRUCT_BODY();
 
-	FSmartNameMapping();
+	ENGINE_API FSmartNameMapping();
 	
 	UE_DEPRECATED(5.3, "FSmartNameMapping functions are no longer used.")
-	FSmartName AddName(FName InName);
+	ENGINE_API FSmartName AddName(FName InName);
 
 	UE_DEPRECATED(5.3, "FSmartNameMapping functions are no longer used.")
-	bool GetName(const SmartName::UID_Type& Uid, FName& OutName) const;
+	ENGINE_API bool GetName(const SmartName::UID_Type& Uid, FName& OutName) const;
 	
 	UE_DEPRECATED(5.3, "FSmartNameMapping functions are no longer used.")
-	void FillUidArray(TArray<SmartName::UID_Type>& Array) const;
+	ENGINE_API void FillUidArray(TArray<SmartName::UID_Type>& Array) const;
 
 	UE_DEPRECATED(5.3, "FSmartNameMapping functions are no longer used.")
-	void FillNameArray(TArray<FName>& Array) const;
+	ENGINE_API void FillNameArray(TArray<FName>& Array) const;
 
 	UE_DEPRECATED(5.3, "FSmartNameMapping functions are no longer used.")
-	void FillUIDToNameArray(TArray<FName>& Array) const;
+	ENGINE_API void FillUIDToNameArray(TArray<FName>& Array) const;
 
 	UE_DEPRECATED(5.3, "FSmartNameMapping functions are no longer used.")
-	void FillCurveTypeArray(TArray<FAnimCurveType>& Array) const;
+	ENGINE_API void FillCurveTypeArray(TArray<FAnimCurveType>& Array) const;
 
 	UE_DEPRECATED(5.3, "FSmartNameMapping functions are no longer used.")
-	void FillUIDToCurveTypeArray(TArray<FAnimCurveType>& Array) const;
+	ENGINE_API void FillUIDToCurveTypeArray(TArray<FAnimCurveType>& Array) const;
 
 #if WITH_EDITOR
 	UE_DEPRECATED(5.3, "FSmartNameMapping functions are no longer used.")
-	bool Rename(const SmartName::UID_Type& Uid, FName NewName);
+	ENGINE_API bool Rename(const SmartName::UID_Type& Uid, FName NewName);
 
 	UE_DEPRECATED(5.3, "FSmartNameMapping functions are no longer used.")
-	bool Remove(const SmartName::UID_Type& Uid);
+	ENGINE_API bool Remove(const SmartName::UID_Type& Uid);
 
 	UE_DEPRECATED(5.3, "FSmartNameMapping functions are no longer used.")
-	bool Remove(const FName& Name);
+	ENGINE_API bool Remove(const FName& Name);
 #endif
 
 	UE_DEPRECATED(5.3, "FSmartNameMapping functions are no longer used.")
-	SmartName::UID_Type FindUID(const FName& Name) const;
+	ENGINE_API SmartName::UID_Type FindUID(const FName& Name) const;
 
 	UE_DEPRECATED(5.3, "FSmartNameMapping functions are no longer used.")
-	bool Exists(const SmartName::UID_Type& Uid) const;
+	ENGINE_API bool Exists(const SmartName::UID_Type& Uid) const;
 
 	UE_DEPRECATED(5.3, "FSmartNameMapping functions are no longer used.")
-	bool Exists(const FName& Name) const;
+	ENGINE_API bool Exists(const FName& Name) const;
 
 	UE_DEPRECATED(5.3, "FSmartNameMapping functions are no longer used.")
-	bool FindSmartName(FName Name, FSmartName& OutName) const;
+	ENGINE_API bool FindSmartName(FName Name, FSmartName& OutName) const;
 
 	UE_DEPRECATED(5.3, "FSmartNameMapping functions are no longer used.")
-	bool FindSmartNameByUID(SmartName::UID_Type UID, FSmartName& OutName) const;
+	ENGINE_API bool FindSmartNameByUID(SmartName::UID_Type UID, FSmartName& OutName) const;
 
 	UE_DEPRECATED(5.3, "FSmartNameMapping functions are no longer used.")
-	FCurveMetaData* GetCurveMetaData(FName CurveName);
+	ENGINE_API FCurveMetaData* GetCurveMetaData(FName CurveName);
 	
 	UE_DEPRECATED(5.3, "FSmartNameMapping functions are no longer used.")
-	const FCurveMetaData* GetCurveMetaData(FName CurveName) const;
+	ENGINE_API const FCurveMetaData* GetCurveMetaData(FName CurveName) const;
 	
 #if !WITH_EDITOR
 	UE_DEPRECATED(5.3, "FSmartNameMapping functions are no longer used.")
-	const FCurveMetaData& GetCurveMetaData(SmartName::UID_Type CurveUID) const;
+	ENGINE_API const FCurveMetaData& GetCurveMetaData(SmartName::UID_Type CurveUID) const;
 #endif
 	
 	UE_DEPRECATED(5.3, "FSmartNameMapping functions are no longer used.")
-	void Serialize(FArchive& Ar);
+	ENGINE_API void Serialize(FArchive& Ar);
 	
 	friend FArchive& operator<<(FArchive& Ar, FSmartNameMapping& Elem);
 	
 	UE_DEPRECATED(5.3, "FSmartNameMapping functions are no longer used.")
-	void InitializeCurveMetaData(class USkeleton* Skeleton);
+	ENGINE_API void InitializeCurveMetaData(class USkeleton* Skeleton);
 	
 	UE_DEPRECATED(5.3, "FSmartNameMapping functions are no longer used.")
 	SmartName::UID_Type GetMaxUID() const { return (SmartName::UID_Type)(CurveNameList.Num() - 1); }
 	
 	UE_DEPRECATED(5.3, "FSmartNameMapping functions are no longer used.")
-	void Iterate(TFunction<void(const struct FSmartNameMappingIterator& Iterator)> Callback) const;
+	ENGINE_API void Iterate(TFunction<void(const struct FSmartNameMappingIterator& Iterator)> Callback) const;
 
 private:
 	/*Internal no lock function to prevent re-entrant locking, see API function GetName for documentation.*/
-	bool GetName_NoLock(const SmartName::UID_Type& Uid, FName& OutName) const;
+	ENGINE_API bool GetName_NoLock(const SmartName::UID_Type& Uid, FName& OutName) const;
 
 	/*Internal no lock function to prevent re-entrant locking, see API function Exists for documentation.*/
-	bool Exists_NoLock(const SmartName::UID_Type& Uid) const;
+	ENGINE_API bool Exists_NoLock(const SmartName::UID_Type& Uid) const;
 	
 	/*Internal no lock function to prevent re-entrant locking, see API function Exists for documentation.*/
-	bool Exists_NoLock(const FName& Name) const;
+	ENGINE_API bool Exists_NoLock(const FName& Name) const;
 
 	/*Internal no lock function to prevent re-entrant locking, see API function FindUID for documentation.*/
-	SmartName::UID_Type FindUID_NoLock(const FName& Name) const;
+	ENGINE_API SmartName::UID_Type FindUID_NoLock(const FName& Name) const;
 	
 	/*Internal no lock function to prevent re-entrant locking, see API function GetCurveMetaData for documentation.*/
-	const FCurveMetaData* GetCurveMetaData_NoLock(FName CurveName) const;
+	ENGINE_API const FCurveMetaData* GetCurveMetaData_NoLock(FName CurveName) const;
 
 	// List of curve names, indexed by UID
 	TArray<FName> CurveNameList;
@@ -125,7 +125,7 @@ private:
 };
 
 // Struct for providing access to SmartNameMapping data within FSmartNameMapping::Iterate callback functions
-struct ENGINE_API FSmartNameMappingIterator
+struct FSmartNameMappingIterator
 {
 	public:
 		friend struct FSmartNameMapping;
@@ -164,29 +164,29 @@ struct ENGINE_API FSmartNameMappingIterator
 };
 
 USTRUCT()
-struct ENGINE_API FSmartNameContainer
+struct FSmartNameContainer
 {
 	GENERATED_USTRUCT_BODY();
 
 	UE_DEPRECATED(5.3, "FSmartNameContainer functions are no longer used.")
-	FSmartNameMapping* AddContainer(FName NewContainerName);
+	ENGINE_API FSmartNameMapping* AddContainer(FName NewContainerName);
 
 	UE_DEPRECATED(5.3, "FSmartNameContainer functions are no longer used.")
-	const FSmartNameMapping* GetContainer(FName ContainerName) const;
+	ENGINE_API const FSmartNameMapping* GetContainer(FName ContainerName) const;
 
 	UE_DEPRECATED(5.3, "FSmartNameContainer functions are no longer used.")
-	void Serialize(FArchive& Ar, bool bIsTemplate);
+	ENGINE_API void Serialize(FArchive& Ar, bool bIsTemplate);
 
 	UE_DEPRECATED(5.3, "FSmartNameContainer functions are no longer used.")
-	void PostLoad();
+	ENGINE_API void PostLoad();
 
 	friend FArchive& operator<<(FArchive& Ar, FSmartNameContainer& Elem);
 
 	/** Only restricted classes can access the protected interface */
 	friend class USkeleton;
 protected:
-	FSmartNameMapping* GetContainerInternal(const FName& ContainerName);
-	const FSmartNameMapping* GetContainerInternal(const FName& ContainerName) const;
+	ENGINE_API FSmartNameMapping* GetContainerInternal(const FName& ContainerName);
+	ENGINE_API const FSmartNameMapping* GetContainerInternal(const FName& ContainerName) const;
 
 private:
 	TMap<FName, FSmartNameMapping> NameMappings;	// List of smartname mappings
@@ -207,7 +207,7 @@ struct TStructOpsTypeTraits<FSmartNameContainer> : public TStructOpsTypeTraitsBa
 };
 
 USTRUCT()
-struct ENGINE_API FSmartName
+struct FSmartName
 {
 	GENERATED_USTRUCT_BODY();
 
@@ -239,7 +239,7 @@ struct ENGINE_API FSmartName
 		return !(*this == Other);
 	}
 
-	bool Serialize(FArchive& Ar);
+	ENGINE_API bool Serialize(FArchive& Ar);
 
 	friend FArchive& operator<<(FArchive& Ar, FSmartName& P)
 	{

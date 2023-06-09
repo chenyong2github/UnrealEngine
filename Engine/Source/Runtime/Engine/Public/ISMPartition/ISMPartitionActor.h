@@ -16,86 +16,86 @@ DECLARE_LOG_CATEGORY_EXTERN(LogISMPartition, Log, All);
 
 /** Actor base class for instance containers placed on a grid.
 	See UActorPartitionSubsystem. */
-UCLASS(Abstract)
-class ENGINE_API AISMPartitionActor : public APartitionActor, public ISMInstanceManager, public ISMInstanceManagerProvider
+UCLASS(Abstract, MinimalAPI)
+class AISMPartitionActor : public APartitionActor, public ISMInstanceManager, public ISMInstanceManagerProvider
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 #if WITH_EDITOR	
 	//~ Begin AActor Interface
-	virtual void PreEditUndo() override;
-	virtual void PostEditUndo() override;
+	ENGINE_API virtual void PreEditUndo() override;
+	ENGINE_API virtual void PostEditUndo() override;
 	//~ End AActor Interface	
 
-	FISMClientHandle RegisterClient(const FGuid& ClientGuid);
-	void UnregisterClient(FISMClientHandle& ClientHandle);
+	ENGINE_API FISMClientHandle RegisterClient(const FGuid& ClientGuid);
+	ENGINE_API void UnregisterClient(FISMClientHandle& ClientHandle);
 
-	void RegisterClientInstanceManager(const FISMClientHandle& Handle, IISMPartitionInstanceManager* ClientInstanceManager);
-	void RegisterClientInstanceManagerProvider(const FISMClientHandle& Handle, IISMPartitionInstanceManagerProvider* ClientInstanceManagerProvider);
+	ENGINE_API void RegisterClientInstanceManager(const FISMClientHandle& Handle, IISMPartitionInstanceManager* ClientInstanceManager);
+	ENGINE_API void RegisterClientInstanceManagerProvider(const FISMClientHandle& Handle, IISMPartitionInstanceManagerProvider* ClientInstanceManagerProvider);
 
-	int32 RegisterISMComponentDescriptor(const FISMComponentDescriptor& Descriptor);
+	ENGINE_API int32 RegisterISMComponentDescriptor(const FISMComponentDescriptor& Descriptor);
 	const FISMComponentDescriptor& GetISMComponentDescriptor(int32 DescriptorIndex) const { return Descriptors[DescriptorIndex]; }
 
-	TArray<FSMInstanceId> AddISMInstance(const FISMClientHandle& Handle, const FTransform& InstanceTransform, const TSortedMap<int32, TArray<FTransform>>& InstanceDefinition);
-	void RemoveISMInstance(const FISMClientHandle& Handle, int32 InstanceIndex, bool* bOutIsEmpty = nullptr);
-	void RemoveISMInstances(const FISMClientHandle& Handle);
-	void SelectISMInstances(const FISMClientHandle& Handle, bool bSelect, const TSet<int32>& Indices);
-	void SetISMInstanceTransform(const FISMClientHandle& Handle, int32 InstanceIndex, const FTransform& NewTransform, bool bTeleport, const TSortedMap<int32, TArray<FTransform>>& InstanceDefinition);
-	int32 GetISMInstanceIndex(const FISMClientHandle& Handle, const UInstancedStaticMeshComponent* ISMComponent, int32 ComponentIndex) const;
-	FBox GetISMInstanceBounds(const FISMClientHandle& Handle, const TSet<int32>& Indices) const;
-	void ReserveISMInstances(const FISMClientHandle& Handle, int32 AddedInstanceCount, const TSortedMap<int32, TArray<FTransform>>& InstanceDefinition);
+	ENGINE_API TArray<FSMInstanceId> AddISMInstance(const FISMClientHandle& Handle, const FTransform& InstanceTransform, const TSortedMap<int32, TArray<FTransform>>& InstanceDefinition);
+	ENGINE_API void RemoveISMInstance(const FISMClientHandle& Handle, int32 InstanceIndex, bool* bOutIsEmpty = nullptr);
+	ENGINE_API void RemoveISMInstances(const FISMClientHandle& Handle);
+	ENGINE_API void SelectISMInstances(const FISMClientHandle& Handle, bool bSelect, const TSet<int32>& Indices);
+	ENGINE_API void SetISMInstanceTransform(const FISMClientHandle& Handle, int32 InstanceIndex, const FTransform& NewTransform, bool bTeleport, const TSortedMap<int32, TArray<FTransform>>& InstanceDefinition);
+	ENGINE_API int32 GetISMInstanceIndex(const FISMClientHandle& Handle, const UInstancedStaticMeshComponent* ISMComponent, int32 ComponentIndex) const;
+	ENGINE_API FBox GetISMInstanceBounds(const FISMClientHandle& Handle, const TSet<int32>& Indices) const;
+	ENGINE_API void ReserveISMInstances(const FISMClientHandle& Handle, int32 AddedInstanceCount, const TSortedMap<int32, TArray<FTransform>>& InstanceDefinition);
 
-	bool IsISMComponent(const UPrimitiveComponent* Component) const;
-	void BeginUpdate();
-	void EndUpdate();
-	void UpdateHISMTrees(bool bAsync, bool bForce);
-	void ForEachClientComponent(const FISMClientHandle& Handle, TFunctionRef<bool(UInstancedStaticMeshComponent*)> Callback) const;
-	void ForEachClientSMInstance(const FISMClientHandle& Handle, TFunctionRef<bool(FSMInstanceId)> Callback) const;
-	void ForEachClientSMInstance(const FISMClientHandle& Handle, int32 InstanceIndex, TFunctionRef<bool(FSMInstanceId)> Callback) const;
-	void OutputStats() const;
+	ENGINE_API bool IsISMComponent(const UPrimitiveComponent* Component) const;
+	ENGINE_API void BeginUpdate();
+	ENGINE_API void EndUpdate();
+	ENGINE_API void UpdateHISMTrees(bool bAsync, bool bForce);
+	ENGINE_API void ForEachClientComponent(const FISMClientHandle& Handle, TFunctionRef<bool(UInstancedStaticMeshComponent*)> Callback) const;
+	ENGINE_API void ForEachClientSMInstance(const FISMClientHandle& Handle, TFunctionRef<bool(FSMInstanceId)> Callback) const;
+	ENGINE_API void ForEachClientSMInstance(const FISMClientHandle& Handle, int32 InstanceIndex, TFunctionRef<bool(FSMInstanceId)> Callback) const;
+	ENGINE_API void OutputStats() const;
 
 protected:
 
 private:
-	void RemoveISMInstancesInternal(FISMComponentData& ComponentData, FISMClientData& OwnerData, int32 InstanceIndex);
+	ENGINE_API void RemoveISMInstancesInternal(FISMComponentData& ComponentData, FISMClientData& OwnerData, int32 InstanceIndex);
 
-	void InvalidateComponentLightingCache(FISMComponentData& ComponentData);
-	int32 AddInstanceToComponent(FISMComponentData& ComponentData, const FTransform& WorldTransform);
-	void UpdateInstanceTransform(FISMComponentData& ComponentData, int32 ComponentInstanceIndex, const FTransform& WorldTransform, bool bTeleport);
-	void RemoveInstanceFromComponent(FISMComponentData& ComponentData, int32 ComponentInstanceIndex);
-	bool DestroyComponentIfEmpty(FISMComponentDescriptor& Descriptor, FISMComponentData& ComponentData);
-	void ModifyComponent(FISMComponentData& ComponentData);
-	void CreateComponent(const FISMComponentDescriptor& Descriptor, FISMComponentData& ComponentData);
-	void ModifyActor();
+	ENGINE_API void InvalidateComponentLightingCache(FISMComponentData& ComponentData);
+	ENGINE_API int32 AddInstanceToComponent(FISMComponentData& ComponentData, const FTransform& WorldTransform);
+	ENGINE_API void UpdateInstanceTransform(FISMComponentData& ComponentData, int32 ComponentInstanceIndex, const FTransform& WorldTransform, bool bTeleport);
+	ENGINE_API void RemoveInstanceFromComponent(FISMComponentData& ComponentData, int32 ComponentInstanceIndex);
+	ENGINE_API bool DestroyComponentIfEmpty(FISMComponentDescriptor& Descriptor, FISMComponentData& ComponentData);
+	ENGINE_API void ModifyComponent(FISMComponentData& ComponentData);
+	ENGINE_API void CreateComponent(const FISMComponentDescriptor& Descriptor, FISMComponentData& ComponentData);
+	ENGINE_API void ModifyActor();
 #endif
 
 private:
 	//~ ISMInstanceManager interface
-	virtual FText GetSMInstanceDisplayName(const FSMInstanceId& InstanceId) const override final;
-	virtual FText GetSMInstanceTooltip(const FSMInstanceId& InstanceId) const override final;
-	virtual bool CanEditSMInstance(const FSMInstanceId& InstanceId) const override final;
-	virtual bool CanMoveSMInstance(const FSMInstanceId& InstanceId, const ETypedElementWorldType WorldType) const override final;
-	virtual bool GetSMInstanceTransform(const FSMInstanceId& InstanceId, FTransform& OutInstanceTransform, bool bWorldSpace = false) const override final;
-	virtual bool SetSMInstanceTransform(const FSMInstanceId& InstanceId, const FTransform& InstanceTransform, bool bWorldSpace = false, bool bMarkRenderStateDirty = false, bool bTeleport = false) override final;
-	virtual void NotifySMInstanceMovementStarted(const FSMInstanceId& InstanceId) override final;
-	virtual void NotifySMInstanceMovementOngoing(const FSMInstanceId& InstanceId) override final;
-	virtual void NotifySMInstanceMovementEnded(const FSMInstanceId& InstanceId) override final;
-	virtual void NotifySMInstanceSelectionChanged(const FSMInstanceId& InstanceId, const bool bIsSelected) override final;
-	virtual void ForEachSMInstanceInSelectionGroup(const FSMInstanceId& InstanceId, TFunctionRef<bool(FSMInstanceId)> Callback) override final;
-	virtual bool CanDeleteSMInstance(const FSMInstanceId& InstanceId) const override final;
-	virtual bool DeleteSMInstances(TArrayView<const FSMInstanceId> InstanceIds) override final;
-	virtual bool CanDuplicateSMInstance(const FSMInstanceId& InstanceId) const override final;
-	virtual bool DuplicateSMInstances(TArrayView<const FSMInstanceId> InstanceIds, TArray<FSMInstanceId>& OutNewInstanceIds) override final;
+	ENGINE_API virtual FText GetSMInstanceDisplayName(const FSMInstanceId& InstanceId) const override final;
+	ENGINE_API virtual FText GetSMInstanceTooltip(const FSMInstanceId& InstanceId) const override final;
+	ENGINE_API virtual bool CanEditSMInstance(const FSMInstanceId& InstanceId) const override final;
+	ENGINE_API virtual bool CanMoveSMInstance(const FSMInstanceId& InstanceId, const ETypedElementWorldType WorldType) const override final;
+	ENGINE_API virtual bool GetSMInstanceTransform(const FSMInstanceId& InstanceId, FTransform& OutInstanceTransform, bool bWorldSpace = false) const override final;
+	ENGINE_API virtual bool SetSMInstanceTransform(const FSMInstanceId& InstanceId, const FTransform& InstanceTransform, bool bWorldSpace = false, bool bMarkRenderStateDirty = false, bool bTeleport = false) override final;
+	ENGINE_API virtual void NotifySMInstanceMovementStarted(const FSMInstanceId& InstanceId) override final;
+	ENGINE_API virtual void NotifySMInstanceMovementOngoing(const FSMInstanceId& InstanceId) override final;
+	ENGINE_API virtual void NotifySMInstanceMovementEnded(const FSMInstanceId& InstanceId) override final;
+	ENGINE_API virtual void NotifySMInstanceSelectionChanged(const FSMInstanceId& InstanceId, const bool bIsSelected) override final;
+	ENGINE_API virtual void ForEachSMInstanceInSelectionGroup(const FSMInstanceId& InstanceId, TFunctionRef<bool(FSMInstanceId)> Callback) override final;
+	ENGINE_API virtual bool CanDeleteSMInstance(const FSMInstanceId& InstanceId) const override final;
+	ENGINE_API virtual bool DeleteSMInstances(TArrayView<const FSMInstanceId> InstanceIds) override final;
+	ENGINE_API virtual bool CanDuplicateSMInstance(const FSMInstanceId& InstanceId) const override final;
+	ENGINE_API virtual bool DuplicateSMInstances(TArrayView<const FSMInstanceId> InstanceIds, TArray<FSMInstanceId>& OutNewInstanceIds) override final;
 
 #if WITH_EDITOR
-	FISMPartitionInstanceManager GetISMPartitionInstanceManager(const FSMInstanceId& InstanceId) const;
-	FISMPartitionInstanceManager GetISMPartitionInstanceManagerChecked(const FSMInstanceId& InstanceId) const;
+	ENGINE_API FISMPartitionInstanceManager GetISMPartitionInstanceManager(const FSMInstanceId& InstanceId) const;
+	ENGINE_API FISMPartitionInstanceManager GetISMPartitionInstanceManagerChecked(const FSMInstanceId& InstanceId) const;
 #endif
 
 protected:
 	//~ ISMInstanceManagerProvider interface
-	virtual ISMInstanceManager* GetSMInstanceManager(const FSMInstanceId& InstanceId) override /*final*/; // Note: This should also be final and private, but AInstancedFoliageActor needs to override it to support ISMC foliage
+	ENGINE_API virtual ISMInstanceManager* GetSMInstanceManager(const FSMInstanceId& InstanceId) override /*final*/; // Note: This should also be final and private, but AInstancedFoliageActor needs to override it to support ISMC foliage
 
 private:
 #if WITH_EDITORONLY_DATA

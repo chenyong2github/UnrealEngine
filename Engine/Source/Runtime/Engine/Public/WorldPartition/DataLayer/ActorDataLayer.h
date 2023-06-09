@@ -12,7 +12,7 @@
 // Instead of using FActorDatalayer, directly save the DataLayerInstance FName if the DataLayer not exposed in data.
 // If the DataLayer is exposed in Data, then use DataLayerAssets.
 USTRUCT(BlueprintType)
-struct ENGINE_API FActorDataLayer
+struct FActorDataLayer
 {
 	GENERATED_USTRUCT_BODY()
 

@@ -10,8 +10,8 @@
 /**
  * Contains data for a group of assets to export
  */ 
-UCLASS(Transient, BlueprintType)
-class ENGINE_API UAssetExportTask : public UObject
+UCLASS(Transient, BlueprintType, MinimalAPI)
+class UAssetExportTask : public UObject
 {
 	GENERATED_BODY()
 

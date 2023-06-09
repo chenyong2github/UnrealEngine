@@ -13,8 +13,8 @@
 
 class AActor;
 
-UCLASS(BlueprintType, editinlinenew)
-class ENGINE_API UDataLayerAsset : public UObject
+UCLASS(BlueprintType, editinlinenew, MinimalAPI)
+class UDataLayerAsset : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -22,8 +22,8 @@ class ENGINE_API UDataLayerAsset : public UObject
 
 #if WITH_EDITOR
 	//~ Begin UObject Interface
-	virtual void PostLoad() override;
-	virtual bool CanEditChange(const FProperty* InProperty) const override;
+	ENGINE_API virtual void PostLoad() override;
+	ENGINE_API virtual bool CanEditChange(const FProperty* InProperty) const override;
 	//~ End UObject Interface
 
 public:
@@ -33,10 +33,10 @@ public:
 		DataLayerType = Type; 
 	}
 	void SetDebugColor(FColor InDebugColor) { DebugColor = InDebugColor; }
-	bool CanBeReferencedByActor(AActor* InActor) const;
-	static bool CanBeReferencedByActor(const TSoftObjectPtr<UDataLayerAsset>& InDataLayerAsset, AActor* InActor);
+	ENGINE_API bool CanBeReferencedByActor(AActor* InActor) const;
+	static ENGINE_API bool CanBeReferencedByActor(const TSoftObjectPtr<UDataLayerAsset>& InDataLayerAsset, AActor* InActor);
 #endif
-	bool IsPrivate() const;
+	ENGINE_API bool IsPrivate() const;
 
 	UFUNCTION(Category = "Data Layer", BlueprintCallable)
 	EDataLayerType GetType() const { return DataLayerType; }

@@ -80,20 +80,20 @@ enum class AnimPhysCollisionType : uint8
 	OuterSphere UMETA(ToolTip="Use the smallest sphere that wholely contains the body extents to collide with planes.")
 };
 
-struct ENGINE_API FAnimPhysShape
+struct FAnimPhysShape
 {
 	/** Makes a box with the given extents
 	 *  @param Extents Extents of the resulting box
 	 */
-	static FAnimPhysShape MakeBox(const FVector& Extents);
+	static ENGINE_API FAnimPhysShape MakeBox(const FVector& Extents);
 
-	FAnimPhysShape();
-	FAnimPhysShape(TArray<FVector>& InVertices, TArray<FIntVector>& InTriangles);
+	ENGINE_API FAnimPhysShape();
+	ENGINE_API FAnimPhysShape(TArray<FVector>& InVertices, TArray<FIntVector>& InTriangles);
 
 	/** Transforms each vertex in the shape
 	 *  @param InTransform Transform to apply to the verts
 	 */
-	void TransformVerts(FTransform& InTransform);
+	ENGINE_API void TransformVerts(FTransform& InTransform);
 
 	// Vertex positions defining the shape
 	TArray<FVector> Vertices;
@@ -161,11 +161,11 @@ struct FAnimPhysPose
 /**
   * Defines a single closed, convex shape within the rigid body
   */
-class ENGINE_API FAnimPhysState
+class FAnimPhysState
 {
   public:
-	FAnimPhysState();
-	FAnimPhysState(const FVector& InPosition, const FQuat& InOrient, const FVector& InLinearMomentum, const FVector& InAngularMomentum);
+	ENGINE_API FAnimPhysState();
+	ENGINE_API FAnimPhysState(const FVector& InPosition, const FQuat& InOrient, const FVector& InLinearMomentum, const FVector& InAngularMomentum);
 
 	FAnimPhysPose Pose;
 
@@ -200,14 +200,14 @@ struct FAnimPhysWindData
 /**
   * A collection of shapes grouped for simulation as a rigid body
   */
-class ENGINE_API FAnimPhysRigidBody : public FAnimPhysState
+class FAnimPhysRigidBody : public FAnimPhysState
 {
   public:
 
-	FAnimPhysRigidBody(TArray<FAnimPhysShape>& InShapes, const FVector& InPosition);
+	ENGINE_API FAnimPhysRigidBody(TArray<FAnimPhysShape>& InShapes, const FVector& InPosition);
 
 	// Spin / Omega for the body
-	FVector Spin();
+	ENGINE_API FVector Spin();
 
 	// Mass of this body
 	float				Mass;
@@ -271,18 +271,18 @@ class ENGINE_API FAnimPhysRigidBody : public FAnimPhysState
 /**
   * Base class for constraint limits
   */
-class ENGINE_API FAnimPhysLimit
+class FAnimPhysLimit
 {
 public:
 	FAnimPhysRigidBody* Bodies[2];
 
-	FAnimPhysLimit(FAnimPhysRigidBody* InFirstBody, FAnimPhysRigidBody* InSecondBody);
+	ENGINE_API FAnimPhysLimit(FAnimPhysRigidBody* InFirstBody, FAnimPhysRigidBody* InSecondBody);
 };
 
 /**
   * Angular limit, keeps angular torque around an axis within a defined range
   */
-class ENGINE_API FAnimPhysAngularLimit : public FAnimPhysLimit
+class FAnimPhysAngularLimit : public FAnimPhysLimit
 {
 public:
 
@@ -304,21 +304,21 @@ public:
 	// Cached spin to torque value that is independant of iterations
 	float CachedSpinToTorque;
 
-	FAnimPhysAngularLimit();
-	FAnimPhysAngularLimit(FAnimPhysRigidBody* InFirstBody, FAnimPhysRigidBody* InSecondBody, const FVector& InWorldSpaceAxis, float InTargetSpin = 0, float InMinimumTorque = -MAX_flt, float InMaximumTorque = MAX_flt);	
+	ENGINE_API FAnimPhysAngularLimit();
+	ENGINE_API FAnimPhysAngularLimit(FAnimPhysRigidBody* InFirstBody, FAnimPhysRigidBody* InSecondBody, const FVector& InWorldSpaceAxis, float InTargetSpin = 0, float InMinimumTorque = -MAX_flt, float InMaximumTorque = MAX_flt);	
 
 	/** Remove bias added to solve the limit
 	 */
-	void RemoveBias();
+	ENGINE_API void RemoveBias();
 
 	/** Solve the limit
 	 */
-	void Iter(float DeltaTime);
+	ENGINE_API void Iter(float DeltaTime);
 
-	void UpdateCachedData();
+	ENGINE_API void UpdateCachedData();
 };
 
-class ENGINE_API FAnimPhysLinearLimit : public FAnimPhysLimit
+class FAnimPhysLinearLimit : public FAnimPhysLimit
 {
  public:
 
@@ -355,22 +355,22 @@ class ENGINE_API FAnimPhysLinearLimit : public FAnimPhysLimit
 	// Cached world space position on body 1
 	FVector WorldSpacePosition1;
 
-	FAnimPhysLinearLimit();
-	FAnimPhysLinearLimit(FAnimPhysRigidBody* InFirstBody, FAnimPhysRigidBody* InSecondBody, const FVector& InFirstPosition, const FVector& InSecondPosition,
+	ENGINE_API FAnimPhysLinearLimit();
+	ENGINE_API FAnimPhysLinearLimit(FAnimPhysRigidBody* InFirstBody, FAnimPhysRigidBody* InSecondBody, const FVector& InFirstPosition, const FVector& InSecondPosition,
 		const FVector& InNormal = FVector(0.0f, 0.0f, 1.0f), float InTargetSpeed = 0.0f, float InTargetSpeedWithoutBias = 0.0f, const FVector2D& InForceRange = FVector2D(-MAX_flt, MAX_flt));
 
 	/** Remove bias added to solve the limit
 	*/
-	void RemoveBias();
+	ENGINE_API void RemoveBias();
 
 	/** Solve the limit
 	*/
-	void Iter(float DetlaTime);
+	ENGINE_API void Iter(float DetlaTime);
 
-	void UpdateCachedData();
+	ENGINE_API void UpdateCachedData();
 };
 
-struct ENGINE_API FAnimPhysSpring
+struct FAnimPhysSpring
 {
 	// Bodies connected by the spring (Or nullptr for world)
 	FAnimPhysRigidBody* Body0;
@@ -403,67 +403,67 @@ struct ENGINE_API FAnimPhysSpring
 
 	/** Applies forces to the bound bodies
 	 */
-	void ApplyForces(float DeltaTime);
+	ENGINE_API void ApplyForces(float DeltaTime);
 };
 
 /**
   * Lightweight rigid body motion solver (no collision) used for cosmetic secondary motion in an animation graph
   * without invoking something heavier like using PhysX to simulate constraints which could be cost prohibitive
   */
-class ENGINE_API FAnimPhys
+class FAnimPhys
 {
 public:
 
 	// Runtime cvar toggle for detailed/verbose profiling
-	static bool bEnableDetailedStats;
+	static ENGINE_API bool bEnableDetailedStats;
 
 	/** Calculates the volume of a shape
 	 *  @param InVertices Verts in the shape
 	 *  @param InTriangles Triangles represented in InVertices
 	 */
-	static float CalculateVolume(const TArray<FVector>& InVertices, const TArray<FIntVector>& InTriangles);
+	static ENGINE_API float CalculateVolume(const TArray<FVector>& InVertices, const TArray<FIntVector>& InTriangles);
 	
 	/** Calculates the volume of a collection of shapes
 	 *  @param InShapes Collection of shapes to use
 	 */
-	static float CalculateVolume(const TArray<FAnimPhysShape>& InShapes);
+	static ENGINE_API float CalculateVolume(const TArray<FAnimPhysShape>& InShapes);
 
 	/** Calculates the center of mass of a shape
 	 *  @param InVertices Verts in the shape
 	 *  @param InTriangles Triangles represented in InVertices
 	 */
-	static FVector CalculateCenterOfMass(const TArray<FVector>& InVertices, const TArray<FIntVector>& InTriangles);
+	static ENGINE_API FVector CalculateCenterOfMass(const TArray<FVector>& InVertices, const TArray<FIntVector>& InTriangles);
 	
 	/** Calculates the centre of mass of a collection of shapes
 	 *  @param InShapes Collection of shapes to use
 	 */
-	static FVector CalculateCenterOfMass(const TArray<FAnimPhysShape>& InShapes);
+	static ENGINE_API FVector CalculateCenterOfMass(const TArray<FAnimPhysShape>& InShapes);
 
 	/** Calculate the inertia tensor of a shape
 	 *  @param InVertices Verts in the shape
 	 *  @param InTriangles Triangles represented in InVertices
 	 *  @param InCenterOfMass Center of mass of the shape
 	 */
-	static FMatrix CalculateInertia(const TArray<FVector>& InVertices, const TArray<FIntVector>& InTriangles, const FVector& InCenterOfMass);
+	static ENGINE_API FMatrix CalculateInertia(const TArray<FVector>& InVertices, const TArray<FIntVector>& InTriangles, const FVector& InCenterOfMass);
 
 	/** Calculate the inertia tensor of a collection of shapes
 	 *  @param InShapes Shapes to use
 	 *  @param InCenterOfMass Center of mass of the collection
 	 */
-	static FMatrix CalculateInertia(const TArray<FAnimPhysShape>& InShapes, const FVector& InCenterOfMass);
+	static ENGINE_API FMatrix CalculateInertia(const TArray<FAnimPhysShape>& InShapes, const FVector& InCenterOfMass);
 
 	/** Scale the mass and inertia properties of a rigid body
 	 *  @param InOutRigidBody Body to modify
 	 *  @param Scale Scale to use
 	 */
-	static void ScaleRigidBodyMass(FAnimPhysRigidBody* InOutRigidBody, float Scale);  // scales the mass and all relevant inertial properties by multiplier s
+	static ENGINE_API void ScaleRigidBodyMass(FAnimPhysRigidBody* InOutRigidBody, float Scale);  // scales the mass and all relevant inertial properties by multiplier s
 
 	/** Apply an impulse to a body
 	 *  @param InOutRigidBody Body to apply the impulse to
 	 *  @param InWorldOrientedImpactPoint Location of the impulse
 	 *  @param InImpulse Impulse to apply
 	 */
-	static void ApplyImpulse(FAnimPhysRigidBody* InOutRigidBody, const FVector& InWorldOrientedImpactPoint, const FVector& InImpulse);
+	static ENGINE_API void ApplyImpulse(FAnimPhysRigidBody* InOutRigidBody, const FVector& InWorldOrientedImpactPoint, const FVector& InImpulse);
 
 	
 	/** Performs a physics update on the provided state objects
@@ -475,7 +475,7 @@ public:
 	*  @param NumPreIterations Number of times to iterate the limits before performing the integration
 	*  @param NumPostIterations Number of times to iterae the limits after performing the integration
 	*/
-	static void PhysicsUpdate(float DeltaTime, TArray<FAnimPhysRigidBody*>& Bodies, TArray<FAnimPhysLinearLimit>& LinearLimits, TArray<FAnimPhysAngularLimit>& AngularLimits, TArray<FAnimPhysSpring>& Springs, const FVector& GravityDirection, const FVector& ExternalForce, const FVector& ExternalLinearAcc, int32 NumPreIterations = 8, int32 NumPostIterations = 2);
+	static ENGINE_API void PhysicsUpdate(float DeltaTime, TArray<FAnimPhysRigidBody*>& Bodies, TArray<FAnimPhysLinearLimit>& LinearLimits, TArray<FAnimPhysAngularLimit>& AngularLimits, TArray<FAnimPhysSpring>& Springs, const FVector& GravityDirection, const FVector& ExternalForce, const FVector& ExternalLinearAcc, int32 NumPreIterations = 8, int32 NumPostIterations = 2);
 
 	//////////////////////////////////////////////////////////////////////////
 	// Constraint functions
@@ -491,7 +491,7 @@ public:
 	 *  @param MinimumForce Minimum force that can be applied to satisfy the maximum limit (default -MAX_flt)
 	 *  @param MaximumForce Maximum force that can be applied to satisfy the minimum limit (default MAX_flt)
 	 */
-	static void ConstrainAlongDirection(float DeltaTime, TArray<FAnimPhysLinearLimit>& LimitContainer, FAnimPhysRigidBody *FirstBody, const FVector& FirstPosition, FAnimPhysRigidBody *SecondBody, const FVector& SecondPosition, const FVector& AxisToConstrain, const FVector2D Limits, float MinimumForce = -MAX_flt, float MaximumForce = MAX_flt);
+	static ENGINE_API void ConstrainAlongDirection(float DeltaTime, TArray<FAnimPhysLinearLimit>& LimitContainer, FAnimPhysRigidBody *FirstBody, const FVector& FirstPosition, FAnimPhysRigidBody *SecondBody, const FVector& SecondPosition, const FVector& AxisToConstrain, const FVector2D Limits, float MinimumForce = -MAX_flt, float MaximumForce = MAX_flt);
 
 	/** Constrain bodies together as if fixed or nailed (linear only, bodies can still rotate)
 	 *  @param LimitContainer Container to add limits to
@@ -500,7 +500,7 @@ public:
 	 *  @param SecondBody Second body in constraint
 	 *  @param SecondPosition Local position on second body to apply constraint
 	 */
-	static void ConstrainPositionNailed(float DeltaTime, TArray<FAnimPhysLinearLimit>& LimitContainer, FAnimPhysRigidBody *FirstBody, const FVector& FirstPosition, FAnimPhysRigidBody *SecondBody, const FVector& SecondPosition);
+	static ENGINE_API void ConstrainPositionNailed(float DeltaTime, TArray<FAnimPhysLinearLimit>& LimitContainer, FAnimPhysRigidBody *FirstBody, const FVector& FirstPosition, FAnimPhysRigidBody *SecondBody, const FVector& SecondPosition);
 
 	/** Constrain bodies together with linear limits forming a box or prism around the constraint
 	 *  @param LimitContainer Container to add limits to
@@ -512,7 +512,7 @@ public:
 	 *  @param LimitsMin Minimum limits along axes
 	 *  @param LimitsMax Maximum limits along axes
 	 */
-	static void ConstrainPositionPrismatic(float DeltaTime, TArray<FAnimPhysLinearLimit>& LimitContainer, FAnimPhysRigidBody* FirstBody, const FVector& FirstPosition, FAnimPhysRigidBody* SecondBody, const FVector& SecondPosition, const FQuat& PrismRotation, const FVector& LimitsMin, const FVector& LimitsMax);
+	static ENGINE_API void ConstrainPositionPrismatic(float DeltaTime, TArray<FAnimPhysLinearLimit>& LimitContainer, FAnimPhysRigidBody* FirstBody, const FVector& FirstPosition, FAnimPhysRigidBody* SecondBody, const FVector& SecondPosition, const FQuat& PrismRotation, const FVector& LimitsMin, const FVector& LimitsMax);
 
 	/** Constraint two bodies together with angular limits, limiting the relative rotation between them.
 	 *  Note that this allows TWO axes to rotate, the twist axis will always be locked
@@ -525,7 +525,7 @@ public:
 	 *  @param JointLimitMax Maximum limits along each axis (twist axis ignored)
 	 *  @param InJointBias Bias towards second body's forces (1.0f = 100%)
 	 */
-	static void ConstrainAngularRange(float DeltaTime, TArray<FAnimPhysAngularLimit>& LimitContainer, FAnimPhysRigidBody *FirstBody, FAnimPhysRigidBody *SecondBody, const FQuat& JointFrame, AnimPhysTwistAxis TwistAxis, const FVector& JointLimitMin, const FVector& JointLimitMax, float InJointBias);
+	static ENGINE_API void ConstrainAngularRange(float DeltaTime, TArray<FAnimPhysAngularLimit>& LimitContainer, FAnimPhysRigidBody *FirstBody, FAnimPhysRigidBody *SecondBody, const FQuat& JointFrame, AnimPhysTwistAxis TwistAxis, const FVector& JointLimitMin, const FVector& JointLimitMax, float InJointBias);
 
 	/** Constraints the rotation between two bodies into a cone
 	 *  @param LimitContainer Container to add limits to
@@ -536,24 +536,24 @@ public:
 	 *  @param LimitAngle Angle to limit the cone to
 	 *  @param InJointBias Bias towards second body's forces (1.0f = 100%)
 	 */
-	static void ConstrainConeAngle(float DeltaTime, TArray<FAnimPhysAngularLimit>& LimitContainer, FAnimPhysRigidBody* FirstBody, const FVector& Normal0, FAnimPhysRigidBody* SecondBody, const FVector& Normal1, float LimitAngle, float InJointBias);  // a hinge is a cone with 0 limitangle
+	static ENGINE_API void ConstrainConeAngle(float DeltaTime, TArray<FAnimPhysAngularLimit>& LimitContainer, FAnimPhysRigidBody* FirstBody, const FVector& Normal0, FAnimPhysRigidBody* SecondBody, const FVector& Normal1, float LimitAngle, float InJointBias);  // a hinge is a cone with 0 limitangle
 
 	/** Constrains the position of a body to one side of a plane placed at PlaneTransform (plane normal is Z axis)
 	*  @param LimitContainer Container to add limits to
 	*  @param Body The body to constrain to the plane
 	*  @param PlaneTransform Transform of the plane, with the normal facing along the Z axis of the orientation
 	*/
-	static void ConstrainPlanar(float DeltaTime, TArray<FAnimPhysLinearLimit>& LimitContainer, FAnimPhysRigidBody* Body, const FTransform& PlaneTransform);
+	static ENGINE_API void ConstrainPlanar(float DeltaTime, TArray<FAnimPhysLinearLimit>& LimitContainer, FAnimPhysRigidBody* Body, const FTransform& PlaneTransform);
 
 	/** Constrains the position of a body within the requested sphere */
-	static void ConstrainSphericalInner(float DeltaTime, TArray<FAnimPhysLinearLimit>& LimitContainer, FAnimPhysRigidBody* Body, const FTransform& SphereTransform, float SphereRadius);
+	static ENGINE_API void ConstrainSphericalInner(float DeltaTime, TArray<FAnimPhysLinearLimit>& LimitContainer, FAnimPhysRigidBody* Body, const FTransform& SphereTransform, float SphereRadius);
 
 	/** Constrains the position of a body outside of the requested sphere */
-	static void ConstrainSphericalOuter(float DeltaTime, TArray<FAnimPhysLinearLimit>& LimitContainer, FAnimPhysRigidBody* Body, const FTransform& SphereTransform, float SphereRadius);
+	static ENGINE_API void ConstrainSphericalOuter(float DeltaTime, TArray<FAnimPhysLinearLimit>& LimitContainer, FAnimPhysRigidBody* Body, const FTransform& SphereTransform, float SphereRadius);
 
 	//////////////////////////////////////////////////////////////////////////
 	// Spring creation methods
-	static void CreateSpring(TArray<FAnimPhysSpring>& SpringContainer, FAnimPhysRigidBody* Body0, FVector Position0, FAnimPhysRigidBody* Body1, FVector Position1);
+	static ENGINE_API void CreateSpring(TArray<FAnimPhysSpring>& SpringContainer, FAnimPhysRigidBody* Body0, FVector Position0, FAnimPhysRigidBody* Body1, FVector Position1);
 
 private:
 

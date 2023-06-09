@@ -12,7 +12,7 @@ class UDamageType;
 
 /** Event used by AActor::TakeDamage and related functions */
 USTRUCT(BlueprintType)
-struct ENGINE_API FDamageEvent
+struct FDamageEvent
 {
 	GENERATED_BODY()
 
@@ -41,12 +41,12 @@ public:
 	virtual bool IsOfType(int32 InID) const { return FDamageEvent::ClassID == InID; };
 
 	/** This is for compatibility with old-style functions which want a unified set of hit data regardless of type of hit.  Ideally this will go away over time. */
-	virtual void GetBestHitInfo(AActor const* HitActor, AActor const* HitInstigator, FHitResult& OutHitInfo, FVector& OutImpulseDir) const;
+	ENGINE_API virtual void GetBestHitInfo(AActor const* HitActor, AActor const* HitInstigator, FHitResult& OutHitInfo, FVector& OutImpulseDir) const;
 };
 
 /** Damage subclass that handles damage with a single impact location and source direction */
 USTRUCT()
-struct ENGINE_API FPointDamageEvent : public FDamageEvent
+struct FPointDamageEvent : public FDamageEvent
 {
 	GENERATED_BODY()
 
@@ -74,12 +74,12 @@ struct ENGINE_API FPointDamageEvent : public FDamageEvent
 	virtual bool IsOfType(int32 InID) const override { return (FPointDamageEvent::ClassID == InID) || FDamageEvent::IsOfType(InID); };
 
 	/** Simple API for common cases where we are happy to assume a single hit is expected, even though damage event may have multiple hits. */
-	virtual void GetBestHitInfo(AActor const* HitActor, AActor const* HitInstigator, FHitResult& OutHitInfo, FVector& OutImpulseDir) const override;
+	ENGINE_API virtual void GetBestHitInfo(AActor const* HitActor, AActor const* HitInstigator, FHitResult& OutHitInfo, FVector& OutImpulseDir) const override;
 };
 
 /** Parameters used to compute radial damage */
 USTRUCT(BlueprintType)
-struct ENGINE_API FRadialDamageParams
+struct FRadialDamageParams
 {
 	GENERATED_BODY()
 
@@ -117,7 +117,7 @@ struct ENGINE_API FRadialDamageParams
 	{}
 
 	/** Returns damage done at a certain distance */
-	float GetDamageScale(float DistanceFromEpicenter) const;
+	ENGINE_API float GetDamageScale(float DistanceFromEpicenter) const;
 
 	/** Return outermost radius of the damage area. Protects against malformed data. */
 	float GetMaxRadius() const { return FMath::Max( FMath::Max(InnerRadius, OuterRadius), 0.f ); }
@@ -125,7 +125,7 @@ struct ENGINE_API FRadialDamageParams
 
 /** Damage subclass that handles damage with a source location and falloff radius */
 USTRUCT()
-struct ENGINE_API FRadialDamageEvent : public FDamageEvent
+struct FRadialDamageEvent : public FDamageEvent
 {
 	GENERATED_BODY()
 
@@ -148,7 +148,7 @@ struct ENGINE_API FRadialDamageEvent : public FDamageEvent
 	virtual bool IsOfType(int32 InID) const override { return (FRadialDamageEvent::ClassID == InID) || FDamageEvent::IsOfType(InID); };
 
 	/** Simple API for common cases where we are happy to assume a single hit is expected, even though damage event may have multiple hits. */
-	virtual void GetBestHitInfo(AActor const* HitActor, AActor const* HitInstigator, FHitResult& OutHitInfo, FVector& OutImpulseDir) const override;
+	ENGINE_API virtual void GetBestHitInfo(AActor const* HitActor, AActor const* HitInstigator, FHitResult& OutHitInfo, FVector& OutImpulseDir) const override;
 
 	FRadialDamageEvent()
 		: Origin(ForceInitToZero)

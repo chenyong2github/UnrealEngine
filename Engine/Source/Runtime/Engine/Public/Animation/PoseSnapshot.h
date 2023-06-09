@@ -7,7 +7,7 @@
 
 /** A pose for a skeletal mesh */
 USTRUCT(BlueprintType)
-struct ENGINE_API FPoseSnapshot
+struct FPoseSnapshot
 {
 	GENERATED_BODY()
 

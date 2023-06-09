@@ -496,6 +496,11 @@ extern RENDERCORE_API FVertexFactoryType* FindVertexFactoryType(const FHashedNam
 	static FVertexFactoryType StaticType; \
 	virtual FVertexFactoryType* GetType() const override;
 
+#define DECLARE_VERTEX_FACTORY_TYPE_API(FactoryClass, ModuleApi) \
+	public: \
+	ModuleApi static FVertexFactoryType StaticType; \
+	ModuleApi virtual FVertexFactoryType* GetType() const override;
+
 #if WITH_EDITOR
 	#define IMPLEMENT_VERTEX_FACTORY_EDITOR_VTABLE(FactoryClass) \
 		, FactoryClass::ModifyCompilationEnvironment \

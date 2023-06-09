@@ -152,23 +152,23 @@ struct FTimerData
 /** 
  * Class to globally manage timers.
  */
-class ENGINE_API FTimerManager : public FNoncopyable
+class FTimerManager : public FNoncopyable
 {
 public:
 
-	void Tick(float DeltaTime);
-	TStatId GetStatId() const;
+	ENGINE_API void Tick(float DeltaTime);
+	ENGINE_API TStatId GetStatId() const;
 
 	// ----------------------------------
 	// Timer API
 
-	explicit FTimerManager(UGameInstance* GameInstance = nullptr);
-	virtual ~FTimerManager();
+	ENGINE_API explicit FTimerManager(UGameInstance* GameInstance = nullptr);
+	ENGINE_API virtual ~FTimerManager();
 
 	/**
 	 * Called from crash handler to provide more debug information.
 	 */
-	virtual void OnCrash();
+	ENGINE_API virtual void OnCrash();
 
 	/**
 	 * Sets a timer to call the given native function at a set interval.  If a timer is already set
@@ -275,14 +275,14 @@ public:
 	 *
 	 * @param InHandle The handle of the timer to pause.
 	 */
-	void PauseTimer(FTimerHandle InHandle);
+	ENGINE_API void PauseTimer(FTimerHandle InHandle);
 
 	/**
 	 * Unpauses a previously set timer
 	 *
 	 * @param InHandle The handle of the timer to unpause.
 	 */
-	void UnPauseTimer(FTimerHandle InHandle);
+	ENGINE_API void UnPauseTimer(FTimerHandle InHandle);
 
 	/**
 	 * Gets the current rate (time between activations) for the specified timer.
@@ -380,18 +380,18 @@ public:
 	 *
 	 * @return A handle to the found timer - !IsValid() if no such timer was found.
 	 */
-	FTimerHandle K2_FindDynamicTimerHandle(FTimerDynamicDelegate InDynamicDelegate) const;
+	ENGINE_API FTimerHandle K2_FindDynamicTimerHandle(FTimerDynamicDelegate InDynamicDelegate) const;
 
 	/** Debug command to output info on all timers currently set to the log. */
-	void ListTimers() const;
+	ENGINE_API void ListTimers() const;
 
 private:
-	void SetGameInstance(UGameInstance* InGameInstance);
+	ENGINE_API void SetGameInstance(UGameInstance* InGameInstance);
 
 // This should be private, but needs to be public for testing.
 public:
 	/** Generates a handle for a timer at a given index */
-	FTimerHandle GenerateHandle(int32 Index);
+	ENGINE_API FTimerHandle GenerateHandle(int32 Index);
 
 // These should be private, but need to be protected so IMPLEMENT_GET_PROTECTED_FUNC works for testing.
 protected:
@@ -400,29 +400,29 @@ protected:
 	{
 		return const_cast<FTimerManager*>(this)->FindTimer(InHandle);
 	}
-	FTimerData* FindTimer( FTimerHandle const& InHandle );
+	ENGINE_API FTimerData* FindTimer( FTimerHandle const& InHandle );
 
 private:
-	void InternalSetTimer( FTimerHandle& InOutHandle, FTimerUnifiedDelegate&& InDelegate, float InRate, bool InbLoop, float InFirstDelay );
-	FTimerHandle InternalSetTimerForNextTick( FTimerUnifiedDelegate&& InDelegate );
-	void InternalClearTimer( FTimerHandle InDelegate );
-	void InternalClearAllTimers( void const* Object );
-	float InternalGetTimerRate( FTimerData const* const TimerData ) const;
-	float InternalGetTimerElapsed( FTimerData const* const TimerData ) const;
-	float InternalGetTimerRemaining( FTimerData const* const TimerData ) const;
+	ENGINE_API void InternalSetTimer( FTimerHandle& InOutHandle, FTimerUnifiedDelegate&& InDelegate, float InRate, bool InbLoop, float InFirstDelay );
+	ENGINE_API FTimerHandle InternalSetTimerForNextTick( FTimerUnifiedDelegate&& InDelegate );
+	ENGINE_API void InternalClearTimer( FTimerHandle InDelegate );
+	ENGINE_API void InternalClearAllTimers( void const* Object );
+	ENGINE_API float InternalGetTimerRate( FTimerData const* const TimerData ) const;
+	ENGINE_API float InternalGetTimerElapsed( FTimerData const* const TimerData ) const;
+	ENGINE_API float InternalGetTimerRemaining( FTimerData const* const TimerData ) const;
 
 	/** Will get a timer in the active, paused, or pending list.  Expected to be given a valid, non-stale handle */
 	FORCEINLINE const FTimerData& GetTimer(const FTimerHandle& InHandle) const
 	{
 		return const_cast<FTimerManager*>(this)->GetTimer(InHandle);
 	}
-	FTimerData& GetTimer(FTimerHandle const& InHandle);
+	ENGINE_API FTimerData& GetTimer(FTimerHandle const& InHandle);
 
 	/** Adds a timer from the Timers list, also updating the TimerIndicesByObject map.  Returns the insertion index. */
-	FTimerHandle AddTimer(FTimerData&& TimerData);
+	ENGINE_API FTimerHandle AddTimer(FTimerData&& TimerData);
 	/** Removes a timer from the Timers list at the given index, also cleaning up the TimerIndicesByObject map */
-	void RemoveTimer(FTimerHandle Handle);
-	bool WillRemoveTimerAssert(FTimerHandle Handle) const;
+	ENGINE_API void RemoveTimer(FTimerHandle Handle);
+	ENGINE_API bool WillRemoveTimerAssert(FTimerHandle Handle) const;
 
 	/** The array of timers - all other arrays will index into this */
 	TSparseArray<FTimerData> Timers;
@@ -445,7 +445,7 @@ private:
 	uint64 LastTickedFrame;
 
 	/** The last serial number we assigned from this timer manager */
-	static uint64 LastAssignedSerialNumber;
+	static ENGINE_API uint64 LastAssignedSerialNumber;
 
 	/** The game instance that created this timer manager. May be null if this timer manager wasn't created by a game instance. */
 	UGameInstance* OwningGameInstance;

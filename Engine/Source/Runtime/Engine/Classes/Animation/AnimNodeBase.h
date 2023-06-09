@@ -273,10 +273,10 @@ public:
 	}
 
 	// Get the current node Id, set when we recurse into graph traversal functions from pose links
-	ENGINE_API int32 GetCurrentNodeId() const { return CurrentNodeId; }
+	int32 GetCurrentNodeId() const { return CurrentNodeId; }
 
 	// Get the previous node Id, set when we recurse into graph traversal functions from pose links
-	ENGINE_API int32 GetPreviousNodeId() const { return PreviousNodeId; }
+	int32 GetPreviousNodeId() const { return PreviousNodeId; }
 
 protected:
 	// The current node ID, set when we recurse into graph traversal functions from pose links
@@ -591,7 +591,7 @@ public:
 #define ANIM_NODE_DEBUG_MAX_CHILDREN 12
 #define ANIM_NODE_DEBUG_MAX_CACHEPOSE 20
 
-struct ENGINE_API FNodeDebugData
+struct FNodeDebugData
 {
 private:
 	struct DebugItem
@@ -649,9 +649,9 @@ public:
 		, AnimInstance(InAnimInstance) 
 	{}
 
-	void AddDebugItem(FString DebugData, bool bPoseSource = false);
-	FNodeDebugData& BranchFlow(float BranchWeight, FString InNodeDescription = FString());
-	FNodeDebugData* GetCachePoseDebugData(float GlobalWeight);
+	ENGINE_API void AddDebugItem(FString DebugData, bool bPoseSource = false);
+	ENGINE_API FNodeDebugData& BranchFlow(float BranchWeight, FString InNodeDescription = FString());
+	ENGINE_API FNodeDebugData* GetCachePoseDebugData(float GlobalWeight);
 
 	template<class Type>
 	FString GetNodeName(Type* Node)
@@ -661,7 +661,7 @@ public:
 		return FinalString;
 	}
 
-	void GetFlattenedDebugData(TArray<FFlattenedDebugData>& FlattenedDebugData, int32 Indent, int32& ChainID);
+	ENGINE_API void GetFlattenedDebugData(TArray<FFlattenedDebugData>& FlattenedDebugData, int32 Indent, int32& ChainID);
 
 	TArray<FFlattenedDebugData> GetFlattenedDebugData()
 	{
@@ -699,7 +699,7 @@ namespace EPinHidingMode
 
 /** A pose link to another node */
 USTRUCT(BlueprintInternalUseOnly)
-struct ENGINE_API FPoseLinkBase
+struct FPoseLinkBase
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -746,35 +746,35 @@ public:
 
 	// Interface
 
-	void Initialize(const FAnimationInitializeContext& Context);
-	void CacheBones(const FAnimationCacheBonesContext& Context);
-	void Update(const FAnimationUpdateContext& Context);
-	void GatherDebugData(FNodeDebugData& DebugData);
+	ENGINE_API void Initialize(const FAnimationInitializeContext& Context);
+	ENGINE_API void CacheBones(const FAnimationCacheBonesContext& Context);
+	ENGINE_API void Update(const FAnimationUpdateContext& Context);
+	ENGINE_API void GatherDebugData(FNodeDebugData& DebugData);
 
 	/** Try to re-establish the linked node pointer. */
-	void AttemptRelink(const FAnimationBaseContext& Context);
+	ENGINE_API void AttemptRelink(const FAnimationBaseContext& Context);
 
 	/** This only used by custom handlers, and it is advanced feature. */
-	void SetLinkNode(FAnimNode_Base* NewLinkNode);
+	ENGINE_API void SetLinkNode(FAnimNode_Base* NewLinkNode);
 
 	/** This only used when dynamic linking other graphs to this one. */
-	void SetDynamicLinkNode(struct FPoseLinkBase* InPoseLink);
+	ENGINE_API void SetDynamicLinkNode(struct FPoseLinkBase* InPoseLink);
 
 	/** This only used by custom handlers, and it is advanced feature. */
-	FAnimNode_Base* GetLinkNode();
+	ENGINE_API FAnimNode_Base* GetLinkNode();
 };
 
 #define ENABLE_ANIMNODE_POSE_DEBUG 0
 
 /** A local-space pose link to another node */
 USTRUCT(BlueprintInternalUseOnly)
-struct ENGINE_API FPoseLink : public FPoseLinkBase
+struct FPoseLink : public FPoseLinkBase
 {
 	GENERATED_USTRUCT_BODY()
 
 public:
 	// Interface
-	void Evaluate(FPoseContext& Output);
+	ENGINE_API void Evaluate(FPoseContext& Output);
 
 #if ENABLE_ANIMNODE_POSE_DEBUG
 private:
@@ -785,13 +785,13 @@ private:
 
 /** A component-space pose link to another node */
 USTRUCT(BlueprintInternalUseOnly)
-struct ENGINE_API FComponentSpacePoseLink : public FPoseLinkBase
+struct FComponentSpacePoseLink : public FPoseLinkBase
 {
 	GENERATED_USTRUCT_BODY()
 
 public:
 	// Interface
-	void EvaluateComponentSpace(FComponentSpacePoseContext& Output);
+	ENGINE_API void EvaluateComponentSpace(FComponentSpacePoseContext& Output);
 };
 
 /**
@@ -802,7 +802,7 @@ public:
  *   Create a class derived from UAnimGraphNode_Base, containing an instance of your runtime node as a member - this is your visual/editor-only node
  */
 USTRUCT()
-struct ENGINE_API FAnimNode_Base
+struct FAnimNode_Base
 {
 	GENERATED_BODY()
 
@@ -811,7 +811,7 @@ struct ENGINE_API FAnimNode_Base
 	 * This can be called on any thread.
 	 * @param	Context		Context structure providing access to relevant data
 	 */
-	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context);
+	ENGINE_API virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context);
 
 	/** 
 	 * Called to cache any bones that this node needs to track (e.g. in a FBoneReference). 
@@ -819,7 +819,7 @@ struct ENGINE_API FAnimNode_Base
 	 * This can be called on any thread.
 	 * @param	Context		Context structure providing access to relevant data
 	 */
-	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context);
+	ENGINE_API virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context);
 
 	/** 
 	 * Called to update the state of the graph relative to this node.
@@ -828,7 +828,7 @@ struct ENGINE_API FAnimNode_Base
 	 * This can be called on any thread.
 	 * @param	Context		Context structure providing access to relevant data
 	 */
-	virtual void Update_AnyThread(const FAnimationUpdateContext& Context);
+	ENGINE_API virtual void Update_AnyThread(const FAnimationUpdateContext& Context);
 
 	/** 
 	 * Called to evaluate local-space bones transforms according to the weights set up in Update().
@@ -836,7 +836,7 @@ struct ENGINE_API FAnimNode_Base
 	 * This can be called on any thread.
 	 * @param	Output		Output structure to write pose or curve data to. Also provides access to relevant data as a context.
 	 */
-	virtual void Evaluate_AnyThread(FPoseContext& Output);
+	ENGINE_API virtual void Evaluate_AnyThread(FPoseContext& Output);
 
 	/** 
 	 * Called to evaluate component-space bone transforms according to the weights set up in Update().
@@ -844,7 +844,7 @@ struct ENGINE_API FAnimNode_Base
 	 * This can be called on any thread.
 	 * @param	Output		Output structure to write pose or curve data to. Also provides access to relevant data as a context.
 	 */	
-	virtual void EvaluateComponentSpace_AnyThread(FComponentSpacePoseContext& Output);
+	ENGINE_API virtual void EvaluateComponentSpace_AnyThread(FComponentSpacePoseContext& Output);
 
 	/**
 	 * Called to gather on-screen debug data. 
@@ -883,7 +883,7 @@ struct ENGINE_API FAnimNode_Base
 	virtual bool NeedsDynamicReset() const { return false; }
 
 	/** Called to help dynamics-based updates to recover correctly from large movements/teleports */
-	virtual void ResetDynamics(ETeleportType InTeleportType);
+	ENGINE_API virtual void ResetDynamics(ETeleportType InTeleportType);
 
 	/** Called after compilation */
 	virtual void PostCompile(const class USkeleton* InSkeleton) {}
@@ -908,7 +908,7 @@ struct ENGINE_API FAnimNode_Base
 	virtual void OverrideAsset(class UAnimationAsset* NewAsset) {}
 	
 	// The default handler for graph-exposed inputs:
-	const FExposedValueHandler& GetEvaluateGraphExposedInputs() const;
+	ENGINE_API const FExposedValueHandler& GetEvaluateGraphExposedInputs() const;
 
 	// Initialization function for the default handler for graph-exposed inputs, used only by instancing code:
 	UE_DEPRECATED(5.0, "Exposed value handlers are now accessed via FAnimNodeConstantData")
@@ -988,21 +988,21 @@ protected:
 	
 protected:
 	/** return true if enabled, otherwise, return false. This is utility function that can be used per node level */
-	bool IsLODEnabled(FAnimInstanceProxy* AnimInstanceProxy);
+	ENGINE_API bool IsLODEnabled(FAnimInstanceProxy* AnimInstanceProxy);
 
 	/** Get the LOD threshold at which this node is enabled. Node is enabled if the current LOD >= threshold. */
 	virtual int32 GetLODThreshold() const { return INDEX_NONE; }
 
 	/** Called once, from game thread as the parent anim instance is created */
-	virtual void OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance);
+	ENGINE_API virtual void OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance);
 
 	friend struct FAnimInstanceProxy;
 
 private:
 	// Access functions
-	const FAnimNodeFunctionRef& GetInitialUpdateFunction() const;
-	const FAnimNodeFunctionRef& GetBecomeRelevantFunction() const;
-	const FAnimNodeFunctionRef& GetUpdateFunction() const;
+	ENGINE_API const FAnimNodeFunctionRef& GetInitialUpdateFunction() const;
+	ENGINE_API const FAnimNodeFunctionRef& GetBecomeRelevantFunction() const;
+	ENGINE_API const FAnimNodeFunctionRef& GetUpdateFunction() const;
 	
 private:
 	friend class IAnimClassInterface;

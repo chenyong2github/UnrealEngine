@@ -41,8 +41,8 @@ public:
 	{}
 };
 
-UCLASS(abstract, Blueprintable, const, hidecategories=Object, collapsecategories)
-class ENGINE_API UAnimNotify : public UObject
+UCLASS(abstract, Blueprintable, const, hidecategories=Object, collapsecategories, MinimalAPI)
+class UAnimNotify : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -50,10 +50,10 @@ class ENGINE_API UAnimNotify : public UObject
 	 * Implementable event to get a custom name for the notify
 	 */
 	UFUNCTION(BlueprintNativeEvent)
-	FString GetNotifyName() const;
+	ENGINE_API FString GetNotifyName() const;
 
 	UFUNCTION(BlueprintImplementableEvent, meta=(AutoCreateRefTerm="EventReference"))
-	bool Received_Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference) const;
+	ENGINE_API bool Received_Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference) const;
 
 #if WITH_EDITORONLY_DATA
 	/** Color of Notify in editor */
@@ -75,9 +75,9 @@ class ENGINE_API UAnimNotify : public UObject
 #endif
 
 	UE_DEPRECATED(5.0, "Please use the other Notify function instead")
-	virtual void Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation);
-	virtual void Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference);
-	virtual void BranchingPointNotify(FBranchingPointNotifyPayload& BranchingPointPayload);
+	ENGINE_API virtual void Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation);
+	ENGINE_API virtual void Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference);
+	ENGINE_API virtual void BranchingPointNotify(FBranchingPointNotifyPayload& BranchingPointPayload);
 
 	// @todo document 
 	virtual FString GetEditorComment() 
@@ -87,7 +87,7 @@ class ENGINE_API UAnimNotify : public UObject
 
 	/** TriggerWeightThreshold to use when creating notifies of this type */
 	UFUNCTION(BlueprintNativeEvent)
-	float GetDefaultTriggerWeightThreshold() const;
+	ENGINE_API float GetDefaultTriggerWeightThreshold() const;
 
 	// @todo document 
 	virtual FLinearColor GetEditorColor() 
@@ -106,14 +106,14 @@ class ENGINE_API UAnimNotify : public UObject
 	 * 
 	 * @return NULL if this isn't in the middle of a Received_Notify(), otherwise it's the world belonging to the Mesh passed to Received_Notify()
 	 */
-	virtual class UWorld* GetWorld() const override;
+	ENGINE_API virtual class UWorld* GetWorld() const override;
 
 	/** UObject Interface */
-	virtual void PostLoad() override;
+	ENGINE_API virtual void PostLoad() override;
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS // Suppress compiler warning on override of deprecated function
 	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
-	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	ENGINE_API virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
+	ENGINE_API PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 	/** End UObject Interface */
 
@@ -121,7 +121,7 @@ class ENGINE_API UAnimNotify : public UObject
 	bool bIsNativeBranchingPoint;
 
 protected:
-	UObject* GetContainingAsset() const;
+	ENGINE_API UObject* GetContainingAsset() const;
 
 private:
 	/* The mesh we're currently triggering a UAnimNotify for (so we can retrieve per instance information) */

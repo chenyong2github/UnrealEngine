@@ -18,8 +18,8 @@ namespace UE::Anim::Compression { struct FAnimDDCKeyArgs; }
  * This object is used to wrap a bone compression codec. It allows a clean integration in the editor by avoiding the need
  * to create asset types and factory wrappers for every codec.
  */
-UCLASS(hidecategories = Object)
-class ENGINE_API UAnimBoneCompressionSettings : public UObject
+UCLASS(hidecategories = Object, MinimalAPI)
+class UAnimBoneCompressionSettings : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -38,32 +38,32 @@ class ENGINE_API UAnimBoneCompressionSettings : public UObject
 #endif
 
 	/** Allow us to convert DDC serialized path back into codec object */
-	UAnimBoneCompressionCodec* GetCodec(const FString& DDCHandle);
+	ENGINE_API UAnimBoneCompressionCodec* GetCodec(const FString& DDCHandle);
 
 	//////////////////////////////////////////////////////////////////////////
 
 #if WITH_EDITORONLY_DATA
 	// UObject overrides
-	virtual void GetPreloadDependencies(TArray<UObject*>& OutDeps) override;
+	ENGINE_API virtual void GetPreloadDependencies(TArray<UObject*>& OutDeps) override;
 
 	/** Returns whether or not we can use these settings to compress. */
-	bool AreSettingsValid() const;
+	ENGINE_API bool AreSettingsValid() const;
 
 	/*
 	 * Compresses the animation bones inside the supplied sequence.
 	 * The resultant compressed data is applied to the OutCompressedData structure.
 	 */
-	bool Compress(const FCompressibleAnimData& AnimSeq, FCompressibleAnimDataResult& OutCompressedData) const;
+	ENGINE_API bool Compress(const FCompressibleAnimData& AnimSeq, FCompressibleAnimDataResult& OutCompressedData) const;
 
 	/** Generates a DDC key that takes into account the current settings, selected codec, input anim sequence and TargetPlatform */
-	void PopulateDDCKey(const UE::Anim::Compression::FAnimDDCKeyArgs& KeyArgs, FArchive& Ar);
+	ENGINE_API void PopulateDDCKey(const UE::Anim::Compression::FAnimDDCKeyArgs& KeyArgs, FArchive& Ar);
 
 	/** Generates a DDC key that takes into account the current settings, selected codec, and input anim sequence. */
 	UE_DEPRECATED(5.2, "This function has been deprecated. Override the one above instead.")
-	void PopulateDDCKey(const UAnimSequenceBase& AnimSeq, FArchive& Ar);
+	ENGINE_API void PopulateDDCKey(const UAnimSequenceBase& AnimSeq, FArchive& Ar);
 
 	/** Generates a DDC key that takes into account the current settings and selected codec. */
 	UE_DEPRECATED(5.1, "This function has been deprecated. Override the one above instead.")
-	void PopulateDDCKey(FArchive& Ar);
+	ENGINE_API void PopulateDDCKey(FArchive& Ar);
 #endif
 };

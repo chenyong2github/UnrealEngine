@@ -10,8 +10,8 @@
 #include "Modules/ModuleInterface.h"
 #include "AISystemBase.generated.h"
 
-UCLASS(abstract, config = Engine, defaultconfig)
-class ENGINE_API UAISystemBase : public UObject
+UCLASS(abstract, config = Engine, defaultconfig, MinimalAPI)
+class UAISystemBase : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -21,7 +21,7 @@ class ENGINE_API UAISystemBase : public UObject
 	 * Called when world initializes all actors and prepares them to start gameplay
 	 * @param bTimeGotReset whether the WorldSettings's TimeSeconds are reset to zero
 	 */
-	virtual void InitializeActorsForPlay(bool bTimeGotReset) PURE_VIRTUAL(UAISystemBase::InitializeActorsForPlay, );
+	ENGINE_API virtual void InitializeActorsForPlay(bool bTimeGotReset) PURE_VIRTUAL(UAISystemBase::InitializeActorsForPlay, );
 
 	/**
 	 * Event called on world origin location changes
@@ -29,27 +29,27 @@ class ENGINE_API UAISystemBase : public UObject
 	 * @param	OldOriginLocation			Previous world origin location
 	 * @param	NewOriginLocation			New world origin location
 	 */
-	virtual void WorldOriginLocationChanged(FIntVector OldOriginLocation, FIntVector NewOriginLocation) PURE_VIRTUAL(UAISystemBase::WorldOriginLocationChanged, );
+	ENGINE_API virtual void WorldOriginLocationChanged(FIntVector OldOriginLocation, FIntVector NewOriginLocation) PURE_VIRTUAL(UAISystemBase::WorldOriginLocationChanged, );
 
 	/**
 	 * Called by UWorld::CleanupWorld.
 	 * Should be called by overriding functions.
 	 * @param bSessionEnded whether to notify the viewport that the game session has ended
 	 */
-	virtual void CleanupWorld(bool bSessionEnded = true, bool bCleanupResources = true);
+	ENGINE_API virtual void CleanupWorld(bool bSessionEnded = true, bool bCleanupResources = true);
 	UE_DEPRECATED(5.1, "NewWorld was unused and not always calculated correctly and we expect it is not needed; let us know on UDN if it is necessary.")
-	virtual void CleanupWorld(bool bSessionEnded, bool bCleanupResources, UWorld* NewWorld);
+	ENGINE_API virtual void CleanupWorld(bool bSessionEnded, bool bCleanupResources, UWorld* NewWorld);
 	
 	/** 
 	 * Called by UWorld::BeginPlay to indicate the gameplay has started.
 	 * Should be called by overriding functions.
 	 */
-	virtual void StartPlay();
+	ENGINE_API virtual void StartPlay();
 
 	/**
 	 * Handles FGameModeEvents::OnGameModeMatchStateSetEvent().Broadcast(MatchState);
 	 */
-	virtual void OnMatchStateSet(FName NewMatchState);
+	ENGINE_API virtual void OnMatchStateSet(FName NewMatchState);
 
 private:
 	/** List of specific AI system class to create, can be game-specific */
@@ -67,9 +67,9 @@ private:
 	bool bInstantiateAISystemOnClient;
 	
 public:
-	static FSoftClassPath GetAISystemClassName();
-	static FName GetAISystemModuleName();
-	static bool ShouldInstantiateInNetMode(ENetMode NetMode);
+	static ENGINE_API FSoftClassPath GetAISystemClassName();
+	static ENGINE_API FName GetAISystemModuleName();
+	static ENGINE_API bool ShouldInstantiateInNetMode(ENetMode NetMode);
 };
 
 class IAISystemModule : public IModuleInterface

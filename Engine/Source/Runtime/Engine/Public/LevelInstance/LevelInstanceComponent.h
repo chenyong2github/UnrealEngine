@@ -20,36 +20,36 @@
  *
  * Avoiding those Level Actors from being part of the Transaction system allows us to unload that level without clearing the transaction buffer. It also allows BP Reinstancing without having to update attachements.
  */
-UCLASS()
-class ENGINE_API ULevelInstanceComponent : public USceneComponent
+UCLASS(MinimalAPI)
+class ULevelInstanceComponent : public USceneComponent
 {
 	GENERATED_UCLASS_BODY()
 public:
 #if WITH_EDITORONLY_DATA
-	virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
 #endif
 #if WITH_EDITOR
 	// Those are the methods that need overriding to be able to properly update the AttachComponent
-	virtual void OnRegister() override;
-	virtual void PreEditUndo() override;
-	virtual void PostEditUndo() override;
-	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport) override;
+	ENGINE_API virtual void OnRegister() override;
+	ENGINE_API virtual void PreEditUndo() override;
+	ENGINE_API virtual void PostEditUndo() override;
+	ENGINE_API virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport) override;
 
-	void UpdateEditorInstanceActor();
-	void OnEdit();
-	void OnCommit();
+	ENGINE_API void UpdateEditorInstanceActor();
+	ENGINE_API void OnEdit();
+	ENGINE_API void OnCommit();
 
 	const FWorldPartitionActorFilter& GetFilter() const { return IsEditFilter() ? EditFilter : Filter; }
-	void SetFilter(const FWorldPartitionActorFilter& InFilter);
-	const TMap<FActorContainerID, TSet<FGuid>>& GetFilteredActorsPerContainer() const;
-	void UpdateEditFilter();
+	ENGINE_API void SetFilter(const FWorldPartitionActorFilter& InFilter);
+	ENGINE_API const TMap<FActorContainerID, TSet<FGuid>>& GetFilteredActorsPerContainer() const;
+	ENGINE_API void UpdateEditFilter();
 private:
-	bool ShouldShowSpriteComponent() const;
-	void OnFilterChanged();
-	void SetActiveFilter(const FWorldPartitionActorFilter& InFilter);
-	bool IsEditFilter() const;
+	ENGINE_API bool ShouldShowSpriteComponent() const;
+	ENGINE_API void OnFilterChanged();
+	ENGINE_API void SetActiveFilter(const FWorldPartitionActorFilter& InFilter);
+	ENGINE_API bool IsEditFilter() const;
 
 	TWeakObjectPtr<AActor> CachedEditorInstanceActorPtr;
 #endif

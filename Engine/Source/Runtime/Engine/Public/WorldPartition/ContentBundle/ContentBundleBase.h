@@ -9,34 +9,34 @@ class UContentBundleDescriptor;
 class FContentBundleClient;
 class IWorldPartitionCookPackageContext;
 
-class ENGINE_API FContentBundleBase
+class FContentBundleBase
 {
 public:
-	FContentBundleBase(TSharedPtr<FContentBundleClient>& InClient, UWorld* InWorld);
-	virtual ~FContentBundleBase();
+	ENGINE_API FContentBundleBase(TSharedPtr<FContentBundleClient>& InClient, UWorld* InWorld);
+	ENGINE_API virtual ~FContentBundleBase();
 
-	void Initialize();
-	void Uninitialize();
+	ENGINE_API void Initialize();
+	ENGINE_API void Uninitialize();
 
-	void InjectContent();
-	void RemoveContent();
+	ENGINE_API void InjectContent();
+	ENGINE_API void RemoveContent();
 
-	virtual void AddReferencedObjects(FReferenceCollector& Collector);
+	ENGINE_API virtual void AddReferencedObjects(FReferenceCollector& Collector);
 
 	virtual bool IsValid() const = 0;
 
-	UWorld* GetInjectedWorld() const;
-	const FString& GetDisplayName() const;
-	const FColor& GetDebugColor() const;
-	const TWeakPtr<FContentBundleClient>& GetClient() const;
-	const UContentBundleDescriptor* GetDescriptor() const;
+	ENGINE_API UWorld* GetInjectedWorld() const;
+	ENGINE_API const FString& GetDisplayName() const;
+	ENGINE_API const FColor& GetDebugColor() const;
+	ENGINE_API const TWeakPtr<FContentBundleClient>& GetClient() const;
+	ENGINE_API const UContentBundleDescriptor* GetDescriptor() const;
 	EContentBundleStatus GetStatus() const { return Status; }
-	FString GetExternalStreamingObjectPackageName() const;
-	FString GetExternalStreamingObjectPackagePath() const;
-	FString GetExternalStreamingObjectName() const;
+	ENGINE_API FString GetExternalStreamingObjectPackageName() const;
+	ENGINE_API FString GetExternalStreamingObjectPackagePath() const;
+	ENGINE_API FString GetExternalStreamingObjectName() const;
 
 protected:
-	void SetStatus(EContentBundleStatus NewStatus);
+	ENGINE_API void SetStatus(EContentBundleStatus NewStatus);
 
 	virtual void DoInitialize() = 0;
 	virtual void DoUninitialize() = 0;

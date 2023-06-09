@@ -116,21 +116,21 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FActorComponentGlobalDestroyPhysicsSignature
  * @see USceneComponent
  * @see UPrimitiveComponent
  */
-UCLASS(DefaultToInstanced, BlueprintType, abstract, meta=(ShortTooltip="An ActorComponent is a reusable component that can be added to any actor."), config=Engine)
-class ENGINE_API UActorComponent : public UObject, public IInterface_AssetUserData
+UCLASS(DefaultToInstanced, BlueprintType, abstract, meta=(ShortTooltip="An ActorComponent is a reusable component that can be added to any actor."), config=Engine, MinimalAPI)
+class UActorComponent : public UObject, public IInterface_AssetUserData
 {
 	GENERATED_BODY()
 
 public:
 	/** Create component physics state global delegate.*/
-	static FActorComponentGlobalCreatePhysicsSignature GlobalCreatePhysicsDelegate;
+	static ENGINE_API FActorComponentGlobalCreatePhysicsSignature GlobalCreatePhysicsDelegate;
 	/** Destroy component physics state global delegate.*/
-	static FActorComponentGlobalDestroyPhysicsSignature GlobalDestroyPhysicsDelegate;
+	static ENGINE_API FActorComponentGlobalDestroyPhysicsSignature GlobalDestroyPhysicsDelegate;
 
 	/**
 	 * Default UObject constructor that takes an optional ObjectInitializer.
 	 */
-	UActorComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	ENGINE_API UActorComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	/** Main tick function for the Component */
 	UPROPERTY(EditDefaultsOnly, Category="ComponentTick")
@@ -330,7 +330,7 @@ public:
 
 private:
 	/** Calculate the UCS serialization index for a component that was saved before we started saving this data */
-	void DetermineUCSSerializationIndexForLegacyComponent();
+	ENGINE_API void DetermineUCSSerializationIndexForLegacyComponent();
 
 public:
 
@@ -341,19 +341,19 @@ public:
 	uint32 GetMarkedForPreEndOfFrameSync() const { return bMarkedForPreEndOfFrameSync; }
 
 	/** Initializes the list of properties that are modified by the UserConstructionScript */
-	void DetermineUCSModifiedProperties();
+	ENGINE_API void DetermineUCSModifiedProperties();
 
 	/** Returns the list of properties that are modified by the UserConstructionScript */
-	void GetUCSModifiedProperties(TSet<const FProperty*>& ModifiedProperties) const;
+	ENGINE_API void GetUCSModifiedProperties(TSet<const FProperty*>& ModifiedProperties) const;
 
 	/** Removes specified properties from the list of UCS-modified properties */
-	void RemoveUCSModifiedProperties(const TArray<FProperty*>& Properties);
+	ENGINE_API void RemoveUCSModifiedProperties(const TArray<FProperty*>& Properties);
 
 	/** Clears the component's UCS modified properties */
-	void ClearUCSModifiedProperties();
+	ENGINE_API void ClearUCSModifiedProperties();
 
 	/** True if this component can be modified when it was inherited from a parent actor class */
-	bool IsEditableWhenInherited() const;
+	ENGINE_API bool IsEditableWhenInherited() const;
 
 	/** Indicates that OnCreatedComponent has been called, but OnDestroyedComponent has not yet */
 	bool HasBeenCreated() const { return bHasBeenCreated; }
@@ -377,19 +377,19 @@ public:
 	}
 
 	/** Returns true if instances of this component are created by either the user or simple construction script */
-	bool IsCreatedByConstructionScript() const;
+	ENGINE_API bool IsCreatedByConstructionScript() const;
 
 	/** Handles replication of active state, handles ticking by default but should be overridden as needed */
 	UFUNCTION()
-	virtual void OnRep_IsActive();
+	ENGINE_API virtual void OnRep_IsActive();
 
 private:
-	AActor* GetActorOwnerNoninline() const;
+	ENGINE_API AActor* GetActorOwnerNoninline() const;
 
 public:
 	/** Follow the Outer chain to get the  AActor  that 'Owns' this component */
 	UFUNCTION(BlueprintCallable, Category="Components", meta=(Keywords = "Actor Owning Parent"))
-	AActor* GetOwner() const;
+	ENGINE_API AActor* GetOwner() const;
 
 	/** Templated version of GetOwner(), will return nullptr if cast fails */
 	template< class T >
@@ -403,7 +403,7 @@ public:
 
 	/** See if this component contains the supplied tag */
 	UFUNCTION(BlueprintCallable, Category="Components")
-	bool ComponentHasTag(FName Tag) const;
+	ENGINE_API bool ComponentHasTag(FName Tag) const;
 
 
 	// Activation System
@@ -422,8 +422,8 @@ private:
 	TArray<FSimpleMemberReference> UCSModifiedProperties_DEPRECATED;
 #endif
 
-	static FRWLock AllUCSModifiedPropertiesLock;
-	static TMap<UActorComponent*, TArray<FSimpleMemberReference>> AllUCSModifiedProperties;
+	static ENGINE_API FRWLock AllUCSModifiedPropertiesLock;
+	static ENGINE_API TMap<UActorComponent*, TArray<FSimpleMemberReference>> AllUCSModifiedProperties;
 
 public:
 	/**
@@ -431,13 +431,13 @@ public:
 	 * @param bReset - Whether the activation should happen even if ShouldActivate returns false.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Components|Activation", meta=(UnsafeDuringActorConstruction="true"))
-	virtual void Activate(bool bReset=false);
+	ENGINE_API virtual void Activate(bool bReset=false);
 	
 	/**
 	 * Deactivates the SceneComponent.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Components|Activation", meta=(UnsafeDuringActorConstruction="true"))
-	virtual void Deactivate();
+	ENGINE_API virtual void Deactivate();
 
 	/**
 	 * Sets whether the component is active or not
@@ -445,13 +445,13 @@ public:
 	 * @param bReset - Whether the activation should happen even if ShouldActivate returns false.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Components|Activation", meta=(UnsafeDuringActorConstruction="true"))
-	virtual void SetActive(bool bNewActive, bool bReset=false);
+	ENGINE_API virtual void SetActive(bool bNewActive, bool bReset=false);
 
 	/**
 	 * Toggles the active state of the component
 	 */
 	UFUNCTION(BlueprintCallable, Category="Components|Activation", meta=(UnsafeDuringActorConstruction="true"))
-	virtual void ToggleActive();
+	ENGINE_API virtual void ToggleActive();
 
 	/**
 	 * Returns whether the component is active or not
@@ -465,27 +465,27 @@ public:
 	 * @param bNewAutoActivate - The new auto activate state of the component
 	 */
 	UFUNCTION(BlueprintCallable, Category="Components|Activation")
-	virtual void SetAutoActivate(bool bNewAutoActivate);
+	ENGINE_API virtual void SetAutoActivate(bool bNewAutoActivate);
 
 	/** Sets whether this component can tick when paused. */
 	UFUNCTION(BlueprintCallable, Category="Components|Tick")
-	void SetTickableWhenPaused(bool bTickableWhenPaused);
+	ENGINE_API void SetTickableWhenPaused(bool bTickableWhenPaused);
 
 	/** Create any physics engine information for this component */
-	void CreatePhysicsState(bool bAllowDeferral = false);
+	ENGINE_API void CreatePhysicsState(bool bAllowDeferral = false);
 
 	/** Shut down any physics engine structure for this component */
-	void DestroyPhysicsState();
+	ENGINE_API void DestroyPhysicsState();
 
 
 	// Networking
 
 	/** This signifies the component can be ID'd by name over the network. This only needs to be called by engine code when constructing blueprint components. */
-	void SetNetAddressable();
+	ENGINE_API void SetNetAddressable();
 
 	/** Enable or disable replication. This is the equivalent of RemoteRole for actors (only a bool is required for components) */
 	UFUNCTION(BlueprintCallable, Category="Components")
-	void SetIsReplicated(bool ShouldReplicate);
+	ENGINE_API void SetIsReplicated(bool ShouldReplicate);
 
 	/** Returns whether replication is enabled or not. */
 	FORCEINLINE bool GetIsReplicated() const
@@ -499,7 +499,7 @@ public:
 	* This method is used only when bReplicateUsingRegisteredSubObjectList is false.
 	* Otherwise this function is not called and only the ReplicatedSubObjects list is used.
 	*/
-	virtual bool ReplicateSubobjects(class UActorChannel *Channel, class FOutBunch *Bunch, FReplicationFlags *RepFlags);
+	ENGINE_API virtual bool ReplicateSubobjects(class UActorChannel *Channel, class FOutBunch *Bunch, FReplicationFlags *RepFlags);
 
 	/** 
 	* Returns if this component is replicating subobjects via the registration list or via the virtual ReplicateSubObjects method.
@@ -514,7 +514,7 @@ public:
 	virtual void PreReplication(IRepChangedPropertyTracker & ChangedPropertyTracker) {}
 
 	/** Returns true if this type of component can ever replicate, override to disable the default behavior */
-	virtual bool GetComponentClassCanReplicate() const;
+	ENGINE_API virtual bool GetComponentClassCanReplicate() const;
 
 	/**
 	* Register a SubObject that will get replicated along with the actor component.
@@ -522,7 +522,7 @@ public:
 	* @param SubObject The subobject to replicate
 	* @param NetCondition Optional condition to select which type of connection we will replicate the object to.
 	*/
-	void AddReplicatedSubObject(UObject* SubObject, ELifetimeCondition NetCondition = COND_None);
+	ENGINE_API void AddReplicatedSubObject(UObject* SubObject, ELifetimeCondition NetCondition = COND_None);
 
 	/**
 	* Unregister a SubObject to stop replicating it's properties to clients.
@@ -531,7 +531,7 @@ public:
 	* If you want to immediately remove it from client use the DestroyReplicatedSubObjectOnRemotePeers or TearOffReplicatedSubObject functions instead of this one.
 	* @param SubObject The SubObject to remove
 	*/
-	void RemoveReplicatedSubObject(UObject* SubObject);
+	ENGINE_API void RemoveReplicatedSubObject(UObject* SubObject);
 
 	/**
 	* Stop replicating a subobject and tell actor channels to delete the replica of this subobject next time the Actor gets replicated
@@ -540,7 +540,7 @@ public:
 	* subobject doesn't get replicated there either.
 	* @param SubObject THe SubObject to delete
 	*/
-	void DestroyReplicatedSubObjectOnRemotePeers(UObject* SubObject);
+	ENGINE_API void DestroyReplicatedSubObjectOnRemotePeers(UObject* SubObject);
 
 	/**
 	* Stop replicating a subobject and tell actor channels who spawned a replica of this subobject to release ownership over it.
@@ -550,12 +550,12 @@ public:
 	* subobject doesn't get replicated there either.
 	* @param SubObject The SubObject to tear off
 	*/
-	void TearOffReplicatedSubObjectOnRemotePeers(UObject* SubObject);
+	ENGINE_API void TearOffReplicatedSubObjectOnRemotePeers(UObject* SubObject);
 
 	/**
 	* Tells if the object is registered to be replicated by this actor component.
 	*/
-	bool IsReplicatedSubObjectRegistered(const UObject* SubObject) const;
+	ENGINE_API bool IsReplicatedSubObjectRegistered(const UObject* SubObject) const;
 
 #if WITH_EDITORONLY_DATA
 	/** Returns whether this component is an editor-only object or not */
@@ -585,23 +585,23 @@ public:
 #endif
 
 	/** Returns true if we are replicating and this client is not authoritative */
-	bool IsNetSimulating() const;
+	ENGINE_API bool IsNetSimulating() const;
 
 	/** Get the network role of the Owner, or ROLE_None if there is no owner. */
-	ENetRole GetOwnerRole() const;
+	ENGINE_API ENetRole GetOwnerRole() const;
 
 	/**
 	 * Get the network mode (dedicated server, client, standalone, etc) for this component.
 	 * @see IsNetMode()
 	 */
-	ENetMode GetNetMode() const;
+	ENGINE_API ENetMode GetNetMode() const;
 
 	/**
 	* Test whether net mode is the given mode.
 	* In optimized non-editor builds this can be more efficient than GetNetMode()
 	* because it can check the static build flags without considering PIE.
 	*/
-	bool IsNetMode(ENetMode Mode) const;
+	ENGINE_API bool IsNetMode(ENetMode Mode) const;
 
 	/** Returns true if this component was owned by a net startup actor during level load. */
 	bool IsNetStartupComponent() const { return bIsNetStartupComponent; }
@@ -617,13 +617,13 @@ public:
 
 #if UE_WITH_IRIS
 	/** Register all replication fragments */
-	virtual void RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Context, UE::Net::EFragmentRegistrationFlags RegistrationFlags) override;
+	ENGINE_API virtual void RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Context, UE::Net::EFragmentRegistrationFlags RegistrationFlags) override;
 	
 	/** Called when we want to start replicating this component */
-	virtual void BeginReplication();
+	ENGINE_API virtual void BeginReplication();
 
 	/** Tell component to end replication */
-	virtual void EndReplication();
+	ENGINE_API virtual void EndReplication();
 #endif // UE_WITH_IRIS
 
 private:
@@ -637,35 +637,35 @@ private:
 	UWorld* WorldPrivate;
 
 	/** If WorldPrivate isn't set this will determine the world from outers */
-	UWorld* GetWorld_Uncached() const;
+	ENGINE_API UWorld* GetWorld_Uncached() const;
 
 	/** Private version without inlining that does *not* check Dedicated server build flags (which should already have been done). */
-	ENetMode InternalGetNetMode() const;
+	ENGINE_API ENetMode InternalGetNetMode() const;
 
 protected:
 	/** Return true if this component is in a state where it can be activated normally. */
-	virtual bool ShouldActivate() const;
+	ENGINE_API virtual bool ShouldActivate() const;
 
 private:
 	/** Calls OnUnregister, DestroyRenderState_Concurrent and OnDestroyPhysicsState. */
-	void ExecuteUnregisterEvents();
+	ENGINE_API void ExecuteUnregisterEvents();
 
 	/** Calls OnRegister, CreateRenderState_Concurrent and OnCreatePhysicsState. */
-	void ExecuteRegisterEvents(FRegisterComponentContext* Context = nullptr);
+	ENGINE_API void ExecuteRegisterEvents(FRegisterComponentContext* Context = nullptr);
 
 	/** Utility function for each of the PostEditChange variations to call for the same behavior */
-	void ConsolidatedPostEditChange(const FPropertyChangedEvent& PropertyChangedEvent);
+	ENGINE_API void ConsolidatedPostEditChange(const FPropertyChangedEvent& PropertyChangedEvent);
 protected:
 
 	/**
 	 * Called when a component is registered, after Scene is set, but before CreateRenderState_Concurrent or OnCreatePhysicsState are called.
 	 */
-	virtual void OnRegister();
+	ENGINE_API virtual void OnRegister();
 
 	/**
 	 * Called when a component is unregistered. Called after DestroyRenderState_Concurrent and OnDestroyPhysicsState are called.
 	 */
-	virtual void OnUnregister();
+	ENGINE_API virtual void OnUnregister();
 
 	/** Return true if CreateRenderState() should be called */
 	virtual bool ShouldCreateRenderState() const 
@@ -677,31 +677,31 @@ protected:
 	 * Used to create any rendering thread information for this component
 	 * @warning This is called concurrently on multiple threads (but never the same component concurrently)
 	 */
-	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context);
+	ENGINE_API virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context);
 
 	/** 
 	 * Called to send a transform update for this component to the rendering thread
 	 * @warning This is called concurrently on multiple threads (but never the same component concurrently)
 	 */
-	virtual void SendRenderTransform_Concurrent();
+	ENGINE_API virtual void SendRenderTransform_Concurrent();
 
 	/** Called to send dynamic data for this component to the rendering thread */
-	virtual void SendRenderDynamicData_Concurrent();
+	ENGINE_API virtual void SendRenderDynamicData_Concurrent();
 
 	/** Called to send instance data for this component to the rendering thread */
-	virtual void SendRenderInstanceData_Concurrent();
+	ENGINE_API virtual void SendRenderInstanceData_Concurrent();
 
 	/** 
 	 * Used to shut down any rendering thread structure for this component
 	 * @warning This is called concurrently on multiple threads (but never the same component concurrently)
 	 */
-	virtual void DestroyRenderState_Concurrent();
+	ENGINE_API virtual void DestroyRenderState_Concurrent();
 
 	/** Used to create any physics engine information for this component */
-	virtual void OnCreatePhysicsState();
+	ENGINE_API virtual void OnCreatePhysicsState();
 
 	/** Used to shut down and physics engine structure for this component */
-	virtual void OnDestroyPhysicsState();
+	ENGINE_API virtual void OnDestroyPhysicsState();
 
 	/** Return true if CreatePhysicsState() should be called.
 	    Ideally CreatePhysicsState() should always succeed if this returns true, but this isn't currently the case */
@@ -714,7 +714,7 @@ protected:
 	 * Virtual call chain to register all tick functions
 	 * @param bRegister - true to register, false, to unregister
 	 */
-	virtual void RegisterComponentTickFunctions(bool bRegister);
+	ENGINE_API virtual void RegisterComponentTickFunctions(bool bRegister);
 
 public:
 	/**
@@ -722,7 +722,7 @@ public:
 	 * All Components in the level will be Initialized on load before any Actor/Component gets BeginPlay
 	 * Requires component to be registered, and bWantsInitializeComponent to be true.
 	 */
-	virtual void InitializeComponent();
+	ENGINE_API virtual void InitializeComponent();
 
 	/**
 	 * ReadyForReplication gets called on replicated components when their owning actor is officially ready for replication.
@@ -731,7 +731,7 @@ public:
 	 * A component can get replicated before HasBegunPlay() is true if inside a tick or in BeginPlay() an RPC is called on it.
 	 * Requires component to be registered, initialized and set to replicate.
 	 */
-	virtual void ReadyForReplication();
+	ENGINE_API virtual void ReadyForReplication();
 
 	/**
 	 * Begins Play for the component. 
@@ -739,37 +739,37 @@ public:
 	 * Actor BeginPlay normally happens right after PostInitializeComponents but can be delayed for networked or child actors.
 	 * Requires component to be registered and initialized.
 	 */
-	virtual void BeginPlay();
+	ENGINE_API virtual void BeginPlay();
 
 	/** 
 	 * Blueprint implementable event for when the component is beginning play, called before its owning actor's BeginPlay
 	 * or when the component is dynamically created if the Actor has already BegunPlay. 
 	 */
 	UFUNCTION(BlueprintImplementableEvent, meta=(DisplayName = "Begin Play"))
-	void ReceiveBeginPlay();
+	ENGINE_API void ReceiveBeginPlay();
 
 	/**
 	 * Ends gameplay for this component.
 	 * Called from AActor::EndPlay only if bHasBegunPlay is true
 	 */
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason);
+	ENGINE_API virtual void EndPlay(const EEndPlayReason::Type EndPlayReason);
 
 	/**
 	 * Handle this component being Uninitialized.
 	 * Called from AActor::EndPlay only if bHasBeenInitialized is true
 	 */
-	virtual void UninitializeComponent();
+	ENGINE_API virtual void UninitializeComponent();
 
 	/** Blueprint implementable event for when the component ends play, generally via destruction or its Actor's EndPlay. */
 	UFUNCTION(BlueprintImplementableEvent, meta=(Keywords = "delete", DisplayName = "End Play"))
-	void ReceiveEndPlay(EEndPlayReason::Type EndPlayReason);
+	ENGINE_API void ReceiveEndPlay(EEndPlayReason::Type EndPlayReason);
 	
 	/**
 	 * When called, will call the virtual call chain to register all of the tick functions
 	 * Do not override this function or make it virtual
 	 * @param bRegister - true to register, false, to unregister
 	 */
-	void RegisterAllComponentTickFunctions(bool bRegister);
+	ENGINE_API void RegisterAllComponentTickFunctions(bool bRegister);
 
 	/**
 	 * Function called every frame on this ActorComponent. Override this function to implement custom logic to be executed every frame.
@@ -779,7 +779,7 @@ public:
 	 * @param TickType - The kind of tick this is, for example, are we paused, or 'simulating' in the editor
 	 * @param ThisTickFunction - Internal tick function struct that caused this to run
 	 */
-	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction);
+	ENGINE_API virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction);
 
 	/**
 	 * Override this function to implement custom logic to be executed every physics step.
@@ -797,7 +797,7 @@ public:
 	 * @param	TickFunction - structure holding the specific tick function
 	 * @return  true if this component met the criteria for actually being ticked.
 	 */
-	bool SetupActorComponentTickFunction(struct FTickFunction* TickFunction);
+	ENGINE_API bool SetupActorComponentTickFunction(struct FTickFunction* TickFunction);
 
 	/** 
 	 * Set this component's tick functions to be enabled or disabled. Only has an effect if the function is registered
@@ -805,49 +805,49 @@ public:
 	 * @param	bEnabled - Whether it should be enabled or not
 	 */
 	UFUNCTION(BlueprintCallable, Category="Components|Tick")
-	virtual void SetComponentTickEnabled(bool bEnabled);
+	ENGINE_API virtual void SetComponentTickEnabled(bool bEnabled);
 
 	/** 
 	 * Spawns a task on GameThread that will call SetComponentTickEnabled
 	 * @param	bEnabled - Whether it should be enabled or not
 	 */
-	virtual void SetComponentTickEnabledAsync(bool bEnabled);
+	ENGINE_API virtual void SetComponentTickEnabledAsync(bool bEnabled);
 	
 	/** 
 	 * Returns whether this component has tick enabled or not
 	 */
 	UFUNCTION(BlueprintCallable, Category="Components|Tick")
-	virtual bool IsComponentTickEnabled() const;
+	ENGINE_API virtual bool IsComponentTickEnabled() const;
 
 	/** 
 	* Sets the tick interval for this component's primary tick function. Does not enable the tick interval. Takes effect on next tick.
 	* @param TickInterval	The duration between ticks for this component's primary tick function
 	*/
 	UFUNCTION(BlueprintCallable, Category="Components|Tick")
-	void SetComponentTickInterval(float TickInterval);
+	ENGINE_API void SetComponentTickInterval(float TickInterval);
 
 	/**
 	* Sets the tick interval for this component's primary tick function. Does not enable the tick interval. Takes effect imediately.
 	* @param TickInterval	The duration between ticks for this component's primary tick function
 	*/
 	UFUNCTION(BlueprintCallable, Category="Components|Tick")
-	void SetComponentTickIntervalAndCooldown(float TickInterval);
+	ENGINE_API void SetComponentTickIntervalAndCooldown(float TickInterval);
 
 	/** Returns the tick interval for this component's primary tick function, which is the frequency in seconds at which it will be executed */
 	UFUNCTION(BlueprintCallable, Category="Components|Tick")
-	float GetComponentTickInterval() const;
+	ENGINE_API float GetComponentTickInterval() const;
 
 	/**
 	 * Registers a component with a specific world, which creates any visual/physical state
 	 * @param InWorld - The world to register the component with.
 	 */
-	void RegisterComponentWithWorld(UWorld* InWorld, FRegisterComponentContext* Context = nullptr);
+	ENGINE_API void RegisterComponentWithWorld(UWorld* InWorld, FRegisterComponentContext* Context = nullptr);
 
 	/** Overridable check for a component to indicate to its Owner that it should prevent the Actor from auto destroying when finished */
 	virtual bool IsReadyForOwnerToAutoDestroy() const { return true; }
 
 	/** Returns whether the component's owner is selected in the editor */
-	bool IsOwnerSelected() const;
+	ENGINE_API bool IsOwnerSelected() const;
 
 	/** Is this component's transform in need of sending to the renderer? */
 	inline bool IsRenderTransformDirty() const { return bRenderTransformDirty; }
@@ -875,7 +875,7 @@ public:
 	 * for any potential errors and register them with map check dialog.
 	 * @note Derived class implementations should call up to their parents.
 	 */
-	virtual void CheckForErrors();
+	ENGINE_API virtual void CheckForErrors();
 
 	/** 
 	 * Supplies the editor with a view specific to this component (think a view 
@@ -913,49 +913,49 @@ public:
 	 *
 	 * @warning This is called concurrently on multiple threads (but never the same component concurrently)
 	 */
-	void DoDeferredRenderUpdates_Concurrent();
+	ENGINE_API void DoDeferredRenderUpdates_Concurrent();
 
 	/** Recalculate the value of our component to world transform */
 	virtual void UpdateComponentToWorld(EUpdateTransformFlags UpdateTransformFlags = EUpdateTransformFlags::None, ETeleportType Teleport = ETeleportType::None){}
 
 	/** Mark the render state as dirty - will be sent to the render thread at the end of the frame. */
-	void MarkRenderStateDirty();
+	ENGINE_API void MarkRenderStateDirty();
 
 	/** Indicate that dynamic data for this component needs to be sent at the end of the frame. */
-	void MarkRenderDynamicDataDirty();
+	ENGINE_API void MarkRenderDynamicDataDirty();
 
 	/** Marks the transform as dirty - will be sent to the render thread at the end of the frame*/
-	void MarkRenderTransformDirty();
+	ENGINE_API void MarkRenderTransformDirty();
 
 	/** Marks the instances as dirty - changes to instance transforms/custom data will be sent to the render thread at the end of the frame*/
-	void MarkRenderInstancesDirty();
+	ENGINE_API void MarkRenderInstancesDirty();
 
 	/** If we belong to a world, mark this for a deferred update, otherwise do it now. */
-	void MarkForNeededEndOfFrameUpdate();
+	ENGINE_API void MarkForNeededEndOfFrameUpdate();
 
 	/** If we belong to a world, mark this for a deferred update, otherwise do it now. */
-	void MarkForNeededEndOfFrameRecreate();
+	ENGINE_API void MarkForNeededEndOfFrameRecreate();
 
 	/** If we belong to a world, clear the request to do a deferred update. */
-	void ClearNeedEndOfFrameUpdate();
+	ENGINE_API void ClearNeedEndOfFrameUpdate();
 
 	/** return true if this component requires end of frame updates to happen from the game thread. */
-	virtual bool RequiresGameThreadEndOfFrameUpdates() const;
+	ENGINE_API virtual bool RequiresGameThreadEndOfFrameUpdates() const;
 
 	/** return true if this component requires end of frame recreates to happen from the game thread. */
-	virtual bool RequiresGameThreadEndOfFrameRecreate() const;
+	ENGINE_API virtual bool RequiresGameThreadEndOfFrameRecreate() const;
 
 	/** return true if this component needs to sync to tasks before end of frame updates are executed */
-	virtual bool RequiresPreEndOfFrameSync() const;
+	ENGINE_API virtual bool RequiresPreEndOfFrameSync() const;
 
 	/** 
 	 * Recreate the render state right away. Generally you always want to call MarkRenderStateDirty instead. 
 	 * @warning This is called concurrently on multiple threads (but never the same component concurrently)
 	 */
-	void RecreateRenderState_Concurrent();
+	ENGINE_API void RecreateRenderState_Concurrent();
 
 	/** Recreate the physics state right way. */
-	void RecreatePhysicsState();
+	ENGINE_API void RecreatePhysicsState();
 
 	/** Returns true if the render 'state' (e.g. scene proxy) is created for this component */
 	bool IsRenderStateCreated() const
@@ -970,16 +970,16 @@ public:
 	}
 
 	/** Returns the rendering scene associated with this component */
-	class FSceneInterface* GetScene() const;
+	ENGINE_API class FSceneInterface* GetScene() const;
 
 	/** Return the ULevel that this Component is part of. */
-	ULevel* GetComponentLevel() const;
+	ENGINE_API ULevel* GetComponentLevel() const;
 
 	/** Returns true if this actor is contained by TestLevel. */
-	bool ComponentIsInLevel(const class ULevel *TestLevel) const;
+	ENGINE_API bool ComponentIsInLevel(const class ULevel *TestLevel) const;
 
 	/** See if this component is in the persistent level */
-	bool ComponentIsInPersistentLevel(bool bIncludeLevelStreamingPersistent) const;
+	ENGINE_API bool ComponentIsInPersistentLevel(bool bIncludeLevelStreamingPersistent) const;
 
 	/** Called on each component when the Actor's bEnableCollisionChanged flag changes */
 	virtual void OnActorEnableCollisionChanged() {}
@@ -988,7 +988,7 @@ public:
 	 * Returns a readable name for this component, including the asset name if applicable 
 	 * By default this appends a space plus AdditionalStatObject()
 	 */
-	virtual FString GetReadableName() const;
+	ENGINE_API virtual FString GetReadableName() const;
 
 	/** Give a readable name for this component, including asset name if applicable */
 	virtual UObject const* AdditionalStatObject() const
@@ -997,10 +997,10 @@ public:
 	}
 
 	/** Called before we throw away components during RerunConstructionScripts, to cache any data we wish to persist across that operation */
-	virtual TStructOnScope<FActorComponentInstanceData> GetComponentInstanceData() const;
+	ENGINE_API virtual TStructOnScope<FActorComponentInstanceData> GetComponentInstanceData() const;
 
 	/** Called after ApplyToComponent has run. */
-	virtual void PostApplyToComponent();
+	ENGINE_API virtual void PostApplyToComponent();
 
 	/**
 	 * Get the logical child elements of this component, if any.
@@ -1009,30 +1009,30 @@ public:
 	virtual void GetComponentChildElements(TArray<FTypedElementHandle>& OutElementHandles, const bool bAllowCreate = true) {}
 
 	//~ Begin UObject Interface.
-	virtual void BeginDestroy() override;
-	virtual bool NeedsLoadForClient() const override;
-	virtual bool NeedsLoadForServer() const override;
-	virtual bool NeedsLoadForEditorGame() const override;
-	virtual bool IsNameStableForNetworking() const override;
-	virtual bool IsSupportedForNetworking() const override;
-	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
-	virtual int32 GetFunctionCallspace( UFunction* Function, FFrame* Stack ) override;
-	virtual bool CallRemoteFunction( UFunction* Function, void* Parameters, FOutParmRec* OutParms, FFrame* Stack ) override;
-	virtual void PostInitProperties() override;
-	virtual void PostLoad() override;
-	virtual bool Rename( const TCHAR* NewName=NULL, UObject* NewOuter=NULL, ERenameFlags Flags=REN_None ) override;
-	virtual void PostRename(UObject* OldOuter, const FName OldName) override;
-	virtual void Serialize(FArchive& Ar) override;
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	ENGINE_API virtual void BeginDestroy() override;
+	ENGINE_API virtual bool NeedsLoadForClient() const override;
+	ENGINE_API virtual bool NeedsLoadForServer() const override;
+	ENGINE_API virtual bool NeedsLoadForEditorGame() const override;
+	ENGINE_API virtual bool IsNameStableForNetworking() const override;
+	ENGINE_API virtual bool IsSupportedForNetworking() const override;
+	ENGINE_API virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	ENGINE_API virtual int32 GetFunctionCallspace( UFunction* Function, FFrame* Stack ) override;
+	ENGINE_API virtual bool CallRemoteFunction( UFunction* Function, void* Parameters, FOutParmRec* OutParms, FFrame* Stack ) override;
+	ENGINE_API virtual void PostInitProperties() override;
+	ENGINE_API virtual void PostLoad() override;
+	ENGINE_API virtual bool Rename( const TCHAR* NewName=NULL, UObject* NewOuter=NULL, ERenameFlags Flags=REN_None ) override;
+	ENGINE_API virtual void PostRename(UObject* OldOuter, const FName OldName) override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
+	static ENGINE_API void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 #if WITH_EDITOR
-	virtual bool Modify( bool bAlwaysMarkDirty = true ) override;
-	virtual bool CanEditChange(const FProperty* InProperty) const override;
-	virtual void PreEditChange(FProperty* PropertyThatWillChange) override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PostEditChangeChainProperty( FPropertyChangedChainEvent& PropertyChangedEvent ) override;
-	virtual void PreEditUndo() override;
-	virtual void PostEditUndo() override;
-	virtual bool IsSelectedInEditor() const override;
+	ENGINE_API virtual bool Modify( bool bAlwaysMarkDirty = true ) override;
+	ENGINE_API virtual bool CanEditChange(const FProperty* InProperty) const override;
+	ENGINE_API virtual void PreEditChange(FProperty* PropertyThatWillChange) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeChainProperty( FPropertyChangedChainEvent& PropertyChangedEvent ) override;
+	ENGINE_API virtual void PreEditUndo() override;
+	ENGINE_API virtual void PostEditUndo() override;
+	ENGINE_API virtual bool IsSelectedInEditor() const override;
 	virtual void SetPackageExternal(bool bExternal, bool bShouldDirty) {}
 	virtual FBox GetStreamingBounds() const { return FBox(ForceInit); }
 	virtual bool ForceActorNonSpatiallyLoaded() const { return false; }
@@ -1040,19 +1040,19 @@ public:
 	//~ End UObject Interface.
 
 	//~ Begin IInterface_AssetUserData Interface
-	virtual void AddAssetUserData(UAssetUserData* InUserData) override;
-	virtual void RemoveUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
-	virtual UAssetUserData* GetAssetUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
+	ENGINE_API virtual void AddAssetUserData(UAssetUserData* InUserData) override;
+	ENGINE_API virtual void RemoveUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
+	ENGINE_API virtual UAssetUserData* GetAssetUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
 	//~ End IInterface_AssetUserData Interface
 
 	//~ Begin IInterface_ActorSubobject Interface
 	// We're using the same API as IInterface_ActorSubobject, but not using it directly as a size and performance optimization
-	void OnCreatedFromReplication();
-	void OnDestroyedFromReplication();
+	ENGINE_API void OnCreatedFromReplication();
+	ENGINE_API void OnDestroyedFromReplication();
 	//~ End IInterface_ActorSubobject Interface
 
 	/** See if the owning Actor is currently running the UCS */
-	bool IsOwnerRunningUserConstructionScript() const;
+	ENGINE_API bool IsOwnerRunningUserConstructionScript() const;
 
 	/** See if this component is currently registered */
 	FORCEINLINE bool IsRegistered() const { return bRegistered; }
@@ -1061,60 +1061,60 @@ public:
 	FORCEINLINE bool AllowReregistration() const { return bAllowReregistration; }
 
 	/** Register this component, creating any rendering/physics state. Will also add itself to the outer Actor's Components array, if not already present. */
-	void RegisterComponent();
+	ENGINE_API void RegisterComponent();
 
 	/** Unregister this component, destroying any rendering/physics state. */
-	void UnregisterComponent();
+	ENGINE_API void UnregisterComponent();
 
 	/** Unregister the component, remove it from its outer Actor's Components array and mark for pending kill. */
-	virtual void DestroyComponent(bool bPromoteChildren = false);
+	ENGINE_API virtual void DestroyComponent(bool bPromoteChildren = false);
 
 	/** Called when a component is created (not loaded). This can happen in the editor or during gameplay */
-	virtual void OnComponentCreated();
+	ENGINE_API virtual void OnComponentCreated();
 
 	/** 
 	 * Called when a component is destroyed
 	 * 
 	 * @param	bDestroyingHierarchy  - True if the entire component hierarchy is being torn down, allows avoiding expensive operations
 	 */
-	virtual void OnComponentDestroyed(bool bDestroyingHierarchy);
+	ENGINE_API virtual void OnComponentDestroyed(bool bDestroyingHierarchy);
 
 	/**
 	 * Unregister and mark for pending kill a component.  This may not be used to destroy a component that is owned by an actor unless the owning actor is calling the function.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Components", meta=(Keywords = "Delete", HidePin="Object", DefaultToSelf="Object", DisplayName = "Destroy Component", ScriptName = "DestroyComponent"))
-	void K2_DestroyComponent(UObject* Object);
+	ENGINE_API void K2_DestroyComponent(UObject* Object);
 
 	/** Unregisters and immediately re-registers component. */
-	void ReregisterComponent();
+	ENGINE_API void ReregisterComponent();
 
 	/** Changes the ticking group for this component */
 	UFUNCTION(BlueprintCallable, Category="Components|Tick", meta=(Keywords = "dependency"))
-	void SetTickGroup(ETickingGroup NewTickGroup);
+	ENGINE_API void SetTickGroup(ETickingGroup NewTickGroup);
 
 	/** Make this component tick after PrerequisiteActor */
 	UFUNCTION(BlueprintCallable, Category="Components|Tick", meta=(Keywords = "dependency"))
-	virtual void AddTickPrerequisiteActor(AActor* PrerequisiteActor);
+	ENGINE_API virtual void AddTickPrerequisiteActor(AActor* PrerequisiteActor);
 
 	/** Make this component tick after PrerequisiteComponent. */
 	UFUNCTION(BlueprintCallable, Category="Components|Tick", meta=(Keywords = "dependency"))
-	virtual void AddTickPrerequisiteComponent(UActorComponent* PrerequisiteComponent);
+	ENGINE_API virtual void AddTickPrerequisiteComponent(UActorComponent* PrerequisiteComponent);
 
 	/** Remove tick dependency on PrerequisiteActor. */
 	UFUNCTION(BlueprintCallable, Category="Components|Tick", meta=(Keywords = "dependency"))
-	virtual void RemoveTickPrerequisiteActor(AActor* PrerequisiteActor);
+	ENGINE_API virtual void RemoveTickPrerequisiteActor(AActor* PrerequisiteActor);
 
 	/** Remove tick dependency on PrerequisiteComponent. */
 	UFUNCTION(BlueprintCallable, Category="Components|Tick", meta=(Keywords = "dependency"))
-	virtual void RemoveTickPrerequisiteComponent(UActorComponent* PrerequisiteComponent);
+	ENGINE_API virtual void RemoveTickPrerequisiteComponent(UActorComponent* PrerequisiteComponent);
 
 	/** Event called every frame if tick is enabled */
 	UFUNCTION(BlueprintImplementableEvent, meta=(DisplayName = "Tick"))
-	void ReceiveTick(float DeltaSeconds);
+	ENGINE_API void ReceiveTick(float DeltaSeconds);
 
 	/** Event called every async physics tick if bAsyncPhysicsTickEnabled is true */
 	UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "Async Physics Tick"))
-	void ReceiveAsyncPhysicsTick(float DeltaSeconds, float SimSeconds);
+	ENGINE_API void ReceiveAsyncPhysicsTick(float DeltaSeconds, float SimSeconds);
 	
 	/** 
 	 *  Called by owner actor on position shifting
@@ -1126,10 +1126,10 @@ public:
 	virtual void ApplyWorldOffset(const FVector& InOffset, bool bWorldShift) {};
 
 	/** Can this component potentially influence navigation */
-	bool CanEverAffectNavigation() const;
+	ENGINE_API bool CanEverAffectNavigation() const;
 
 	/** set value of bCanEverAffectNavigation flag and update navigation octree if needed */
-	void SetCanEverAffectNavigation(bool bRelevant);
+	ENGINE_API void SetCanEverAffectNavigation(bool bRelevant);
 
 	/** Override to specify that a component is relevant to the navigation system */
 	virtual bool IsNavigationRelevant() const { return false; }
@@ -1138,26 +1138,26 @@ public:
 	virtual bool IsHLODRelevant() const { return false; }
 
 	/** Suffix used to identify template component instances */
-	static const FString ComponentTemplateNameSuffix;
+	static ENGINE_API const FString ComponentTemplateNameSuffix;
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnMarkRenderStateDirty, UActorComponent&);
 
 	/** Called When render state is marked dirty */
-	static FOnMarkRenderStateDirty MarkRenderStateDirtyEvent;
+	static ENGINE_API FOnMarkRenderStateDirty MarkRenderStateDirtyEvent;
 
 protected:
 	/** Makes sure navigation system has up to date information regarding component's navigation relevancy 
 	 *	and if it can affect navigation at all 
 	 *	@param bForceUpdate by default updating navigation system will take place only if the component has
 	 *		already been registered. Setting bForceUpdate to true overrides that check */
-	void HandleCanEverAffectNavigationChange(bool bForceUpdate = false);
+	ENGINE_API void HandleCanEverAffectNavigationChange(bool bForceUpdate = false);
 
 	/** Sets bAsyncPhysicsTickEnabled which determines whether to use use the async physics tick with this component. */
-	void SetAsyncPhysicsTickEnabled(bool bEnabled);
+	ENGINE_API void SetAsyncPhysicsTickEnabled(bool bEnabled);
 
 	/** Defers the call to SetAsyncPhysicsTickEnabled(false) to the next async tick. This allows you to remove the
 	 *  async physics tick callback within the async physics tick safely. */
-	void DeferRemoveAsyncPhysicsTick();
+	ENGINE_API void DeferRemoveAsyncPhysicsTick();
 
 private:
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -1165,9 +1165,9 @@ private:
 	virtual void Tick( float DeltaTime ) final { check(0); }
 #endif
 
-	void ClearNeedEndOfFrameUpdate_Internal();
+	ENGINE_API void ClearNeedEndOfFrameUpdate_Internal();
 
-	void RegisterAsyncPhysicsTickEnabled(bool bRegister);
+	ENGINE_API void RegisterAsyncPhysicsTickEnabled(bool bRegister);
 
 	friend struct FMarkComponentEndOfFrameUpdateState;
 	friend struct FSetUCSSerializationIndex;
@@ -1186,7 +1186,7 @@ protected:
 	 * This method exists only to allow code to directly modify bReplicates to maintain existing
 	 * behavior.
 	 */
-	void SetIsReplicatedByDefault(const bool bNewReplicates);
+	ENGINE_API void SetIsReplicatedByDefault(const bool bNewReplicates);
 
 	/**
 	 * Gets the property name for bReplicates.
@@ -1206,17 +1206,17 @@ public:
 	 *
 	 * Activate, Deactivate, and SetActive are preferred in most cases because they respect virtual behavior.
 	 */
-	void SetActiveFlag(const bool bNewIsActive);
+	ENGINE_API void SetActiveFlag(const bool bNewIsActive);
 
 	//~ End Methods for Replicated Members.
 
 protected:
 
 	/** Convenience method for testing whether or not our owner is still being constructed / initialized. */
-	bool OwnerNeedsInitialization() const;
+	ENGINE_API bool OwnerNeedsInitialization() const;
 
 	/** Convenience method for testing whether or not we are still be constructed / initialized. */
-	bool NeedsInitialization() const;
+	ENGINE_API bool NeedsInitialization() const;
 };
 
 //////////////////////////////////////////////////////////////////////////

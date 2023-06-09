@@ -14,8 +14,8 @@ class UUserDefinedStruct;
 /**
  *
  */
-UCLASS(DisplayName = "DataDrivenCVars")
-class ENGINE_API UDataDrivenCVarEngineSubsystem : public UEngineSubsystem
+UCLASS(DisplayName = "DataDrivenCVars", MinimalAPI)
+class UDataDrivenCVarEngineSubsystem : public UEngineSubsystem
 {
 	GENERATED_BODY()
 
@@ -41,12 +41,12 @@ enum class FDataDrivenCVarType : uint8
 };
 
 USTRUCT(BlueprintType)
-struct ENGINE_API FDataDrivenConsoleVariable
+struct FDataDrivenConsoleVariable
 {
 	GENERATED_BODY()
 
 	FDataDrivenConsoleVariable() {}
-	~FDataDrivenConsoleVariable();
+	ENGINE_API ~FDataDrivenConsoleVariable();
 
 	UPROPERTY(EditAnywhere, config, Category = "DataDrivenCVar", meta = (InlineCategoryProperty))
 	FDataDrivenCVarType Type = FDataDrivenCVarType::CVarInt;
@@ -67,11 +67,11 @@ struct ENGINE_API FDataDrivenConsoleVariable
 	bool DefaultValueBool = false;
 
 #if WITH_EDITOR
-	void Refresh();
+	ENGINE_API void Refresh();
 #endif
 
-	void Register();
-	void UnRegister(bool bUseShadowName = false);
+	ENGINE_API void Register();
+	ENGINE_API void UnRegister(bool bUseShadowName = false);
 
 	FString ShadowName;
 	FDataDrivenCVarType ShadowType;
@@ -80,8 +80,8 @@ struct ENGINE_API FDataDrivenConsoleVariable
 /**
  * 
  */
-UCLASS(config = Engine, defaultconfig, meta = (DisplayName = "Data Driven CVars"))
-class ENGINE_API UDataDrivenConsoleVariableSettings : public UDeveloperSettings
+UCLASS(config = Engine, defaultconfig, meta = (DisplayName = "Data Driven CVars"), MinimalAPI)
+class UDataDrivenConsoleVariableSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
 
@@ -93,16 +93,16 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = "DataDrivenCVar")
 	TArray<FDataDrivenConsoleVariable> CVarsArray;
 
-	static void OnDataDrivenChange(IConsoleVariable* CVar);
+	static ENGINE_API void OnDataDrivenChange(IConsoleVariable* CVar);
 
 	//~ Begin UObject Interface
-	virtual void PostInitProperties() override;
+	ENGINE_API virtual void PostInitProperties() override;
 
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
-	virtual FName GetCategoryName() const;
+	ENGINE_API virtual FName GetCategoryName() const;
 
 protected:
 

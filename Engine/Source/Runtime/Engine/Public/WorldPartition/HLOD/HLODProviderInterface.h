@@ -10,14 +10,14 @@
 class AWorldPartitionHLOD;
 
 
-UINTERFACE()
-class ENGINE_API UWorldPartitionHLODProvider : public UInterface
+UINTERFACE(MinimalAPI)
+class UWorldPartitionHLODProvider : public UInterface
 {
 	GENERATED_UINTERFACE_BODY()
 };
 
 
-class ENGINE_API IWorldPartitionHLODProvider
+class IWorldPartitionHLODProvider
 {
 	GENERATED_IINTERFACE_BODY()
 

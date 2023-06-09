@@ -10,8 +10,8 @@
 
 struct FParticleEmitterInstance;
 
-UCLASS(editinlinenew, hidecategories=Object, meta=(DisplayName = "Initial Location (Seed)"))
-class ENGINE_API UParticleModuleLocation_Seeded : public UParticleModuleLocation
+UCLASS(editinlinenew, hidecategories=Object, meta=(DisplayName = "Initial Location (Seed)"), MinimalAPI)
+class UParticleModuleLocation_Seeded : public UParticleModuleLocation
 {
 	GENERATED_UCLASS_BODY()
 
@@ -25,7 +25,7 @@ class ENGINE_API UParticleModuleLocation_Seeded : public UParticleModuleLocation
 	{
 		return &RandomSeedInfo;
 	}
-	virtual void EmitterLoopingNotify(FParticleEmitterInstance* Owner) override;
+	ENGINE_API virtual void EmitterLoopingNotify(FParticleEmitterInstance* Owner) override;
 	//End UParticleModule Interface
 };
 

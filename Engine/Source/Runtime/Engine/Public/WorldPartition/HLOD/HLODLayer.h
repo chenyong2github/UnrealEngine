@@ -35,22 +35,22 @@ enum class EHLODLayerType : uint8
 	Custom					UMETA(DisplayName = "Custom"),
 };
 
-UCLASS(Blueprintable)
-class ENGINE_API UHLODLayer : public UObject
+UCLASS(Blueprintable, MinimalAPI)
+class UHLODLayer : public UObject
 {
 	GENERATED_UCLASS_BODY()
 	
 #if WITH_EDITOR
 public:
-	static UHLODLayer* GetHLODLayer(const AActor* InActor);
-	static UHLODLayer* GetHLODLayer(const FWorldPartitionActorDesc& InActorDesc, const UWorldPartition* InWorldPartition);
-	static UHLODLayer* GetHLODLayer(const FWorldPartitionActorDescView& InActorDescView, const UWorldPartition* InWorldPartition);
+	static ENGINE_API UHLODLayer* GetHLODLayer(const AActor* InActor);
+	static ENGINE_API UHLODLayer* GetHLODLayer(const FWorldPartitionActorDesc& InActorDesc, const UWorldPartition* InWorldPartition);
+	static ENGINE_API UHLODLayer* GetHLODLayer(const FWorldPartitionActorDescView& InActorDescView, const UWorldPartition* InWorldPartition);
 
 	/** Get the default engine HLOD layers setup */
-	static UHLODLayer* GetEngineDefaultHLODLayersSetup();
+	static ENGINE_API UHLODLayer* GetEngineDefaultHLODLayersSetup();
 
 	/** Duplicate the provided HLOD layers setup */
-	static UHLODLayer* DuplicateHLODLayersSetup(UHLODLayer* HLODLayer, const FString& DestinationPath, const FString& Prefix);
+	static ENGINE_API UHLODLayer* DuplicateHLODLayersSetup(UHLODLayer* HLODLayer, const FString& DestinationPath, const FString& Prefix);
 
 	EHLODLayerType GetLayerType() const { return LayerType; }
 	void SetLayerType(EHLODLayerType InLayerType) { LayerType = InLayerType; }
@@ -58,7 +58,7 @@ public:
 	const UHLODBuilderSettings* GetHLODBuilderSettings() const { return HLODBuilderSettings; }
 	const TSubclassOf<AWorldPartitionHLOD> GetHLODActorClass() const { return HLODActorClass; }
 	const TSubclassOf<UWorldPartitionHLODModifier> GetHLODModifierClass() const { return HLODModifierClass; }
-	FName GetRuntimeGrid(uint32 InHLODLevel) const;
+	ENGINE_API FName GetRuntimeGrid(uint32 InHLODLevel) const;
 	int32 GetCellSize() const { return !bIsSpatiallyLoaded ? 0 : CellSize; }
 	double GetLoadingRange() const { return !bIsSpatiallyLoaded ? WORLD_MAX : LoadingRange; }
 	UHLODLayer* GetParentLayer() const { return !bIsSpatiallyLoaded ? nullptr : ParentLayer; }
@@ -66,17 +66,17 @@ public:
 	bool IsSpatiallyLoaded() const { return bIsSpatiallyLoaded; }
 	void SetIsSpatiallyLoaded(bool bInIsSpatiallyLoaded) { bIsSpatiallyLoaded = bInIsSpatiallyLoaded; }
 
-	bool DoesRequireWarmup() const;
+	ENGINE_API bool DoesRequireWarmup() const;
 
-	static FName GetRuntimeGridName(uint32 InLODLevel, int32 InCellSize, double InLoadingRange);
+	static ENGINE_API FName GetRuntimeGridName(uint32 InLODLevel, int32 InCellSize, double InLoadingRange);
 
 private:
 	//~ Begin UObject Interface.
-	virtual void PostLoad() override;
+	ENGINE_API virtual void PostLoad() override;
 #if WITH_EDITORONLY_DATA
-	static void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
+	static ENGINE_API void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
 #endif
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	//~ End UObject Interface.
 #endif
 

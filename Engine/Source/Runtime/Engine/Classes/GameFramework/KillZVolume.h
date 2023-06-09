@@ -13,13 +13,13 @@
 * @see FellOutOfWorld
 */
 
-UCLASS()
-class ENGINE_API AKillZVolume : public APhysicsVolume
+UCLASS(MinimalAPI)
+class AKillZVolume : public APhysicsVolume
 {
 	GENERATED_UCLASS_BODY()
 	
 	//Begin PhysicsVolume Interface
-	virtual void ActorEnteredVolume(class AActor* Other) override;
+	ENGINE_API virtual void ActorEnteredVolume(class AActor* Other) override;
 	//End PhysicsVolume Interface
 };
 

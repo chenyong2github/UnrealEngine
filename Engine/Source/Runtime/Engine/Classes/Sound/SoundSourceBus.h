@@ -22,8 +22,8 @@ enum class ESourceBusChannels : uint8
 };
 
 // A source bus is a type of USoundBase and can be "played" like any sound.
-UCLASS(hidecategories= (Compression, SoundWave, Streaming, Subtitles, Analysis, Format, Loading, Info, ImportSettings), ClassGroup = Sound, meta = (BlueprintSpawnableComponent))
-class ENGINE_API USoundSourceBus : public USoundWave
+UCLASS(hidecategories= (Compression, SoundWave, Streaming, Subtitles, Analysis, Format, Loading, Info, ImportSettings), ClassGroup = Sound, meta = (BlueprintSpawnableComponent), MinimalAPI)
+class USoundSourceBus : public USoundWave
 {
 	GENERATED_UCLASS_BODY()
 
@@ -46,22 +46,22 @@ public:
 	uint32 bAutoDeactivateWhenSilent:1;
 
 	//~ Begin UObject Interface.
-	virtual void PostLoad() override;
+	ENGINE_API virtual void PostLoad() override;
 #if WITH_EDITOR
 	virtual bool CanVisualizeAsset() const override
 	{
 		return false;
 	}
 
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 	//~ End UObject Interface.
 
 	//~ Begin USoundBase Interface.
-	virtual bool IsPlayable() const override;
-	virtual float GetDuration() const override;
+	ENGINE_API virtual bool IsPlayable() const override;
+	ENGINE_API virtual float GetDuration() const override;
 	//~ End USoundBase Interface.
 
 protected:
-	void Init();
+	ENGINE_API void Init();
 };

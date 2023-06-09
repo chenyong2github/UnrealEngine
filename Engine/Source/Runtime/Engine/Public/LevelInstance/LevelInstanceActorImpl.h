@@ -16,7 +16,7 @@
  *
  * @see ILevelInstanceInterface, ALevelInstance
  */
-class ENGINE_API FLevelInstanceActorImpl
+class FLevelInstanceActorImpl
 {
 private:
 	ILevelInstanceInterface* LevelInstance;
@@ -51,20 +51,20 @@ public:
 	{
 	}
 
-	virtual void RegisterLevelInstance();
-	virtual void UnregisterLevelInstance();
+	ENGINE_API virtual void RegisterLevelInstance();
+	ENGINE_API virtual void UnregisterLevelInstance();
 
 	/**
 	 * Begin ILevelInstanceInterface Implementaion 
 	 * 
 	 */
-	const FLevelInstanceID& GetLevelInstanceID() const;
-	bool HasValidLevelInstanceID() const;
-	virtual bool IsLoadingEnabled() const;
-	virtual void OnLevelInstanceLoaded();
+	ENGINE_API const FLevelInstanceID& GetLevelInstanceID() const;
+	ENGINE_API bool HasValidLevelInstanceID() const;
+	ENGINE_API virtual bool IsLoadingEnabled() const;
+	ENGINE_API virtual void OnLevelInstanceLoaded();
 
 #if WITH_EDITOR
-	virtual bool SupportsPartialEditorLoading() const;
+	ENGINE_API virtual bool SupportsPartialEditorLoading() const;
 #endif
 
 	/**
@@ -75,24 +75,24 @@ public:
 	 * @see ALevelInstance as an example
 	 */
 #if WITH_EDITOR
-	virtual void PreEditUndo(TFunctionRef<void()> SuperCall);
-	virtual void PostEditUndo(TFunctionRef<void()> SuperCall);
-	virtual void PostEditUndo(TSharedPtr<ITransactionObjectAnnotation> TransactionAnnotation, TFunctionRef<void(TSharedPtr<ITransactionObjectAnnotation> TransactionAnnotation)> SuperCall);
-	virtual void PostEditImport(TFunctionRef<void()> SuperCall);
-	virtual bool CanEditChange(const FProperty* Property) const;
-	virtual void PreEditChange(FProperty* Property, bool bWorldAssetChange, TFunctionRef<void(FProperty*)> SuperCall);
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent, bool bWorldAssetChange, TFunction<void(FPropertyChangedEvent&)> SuperCall);
-	virtual bool CanDeleteSelectedActor(FText& OutReason) const;
-	virtual void SetIsTemporarilyHiddenInEditor(bool bIsHidden, TFunctionRef<void(bool)> SuperCall);
-	virtual bool SetIsHiddenEdLayer(bool bIsHiddenEdLayer, TFunctionRef<bool(bool)> SuperCall);
-	virtual void EditorGetUnderlyingActors(TSet<AActor*>& OutUnderlyingActors) const;
-	virtual bool IsLockLocation() const;
-	virtual bool GetBounds(FBox& OutBounds) const;
-	virtual void PushSelectionToProxies();
-	virtual void PushLevelInstanceEditingStateToProxies(bool bInEditingState);
-	virtual void CheckForErrors();
+	ENGINE_API virtual void PreEditUndo(TFunctionRef<void()> SuperCall);
+	ENGINE_API virtual void PostEditUndo(TFunctionRef<void()> SuperCall);
+	ENGINE_API virtual void PostEditUndo(TSharedPtr<ITransactionObjectAnnotation> TransactionAnnotation, TFunctionRef<void(TSharedPtr<ITransactionObjectAnnotation> TransactionAnnotation)> SuperCall);
+	ENGINE_API virtual void PostEditImport(TFunctionRef<void()> SuperCall);
+	ENGINE_API virtual bool CanEditChange(const FProperty* Property) const;
+	ENGINE_API virtual void PreEditChange(FProperty* Property, bool bWorldAssetChange, TFunctionRef<void(FProperty*)> SuperCall);
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent, bool bWorldAssetChange, TFunction<void(FPropertyChangedEvent&)> SuperCall);
+	ENGINE_API virtual bool CanDeleteSelectedActor(FText& OutReason) const;
+	ENGINE_API virtual void SetIsTemporarilyHiddenInEditor(bool bIsHidden, TFunctionRef<void(bool)> SuperCall);
+	ENGINE_API virtual bool SetIsHiddenEdLayer(bool bIsHiddenEdLayer, TFunctionRef<bool(bool)> SuperCall);
+	ENGINE_API virtual void EditorGetUnderlyingActors(TSet<AActor*>& OutUnderlyingActors) const;
+	ENGINE_API virtual bool IsLockLocation() const;
+	ENGINE_API virtual bool GetBounds(FBox& OutBounds) const;
+	ENGINE_API virtual void PushSelectionToProxies();
+	ENGINE_API virtual void PushLevelInstanceEditingStateToProxies(bool bInEditingState);
+	ENGINE_API virtual void CheckForErrors();
 	// End AActor Implementation
 private:
-	virtual void PostEditUndoInternal();
+	ENGINE_API virtual void PostEditUndoInternal();
 #endif
 };

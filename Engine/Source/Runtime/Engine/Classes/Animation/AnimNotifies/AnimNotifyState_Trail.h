@@ -15,8 +15,8 @@ class UAnimSequenceBase;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogAnimTrails, Log, All);
 
-UCLASS(editinlinenew, Blueprintable, const, hidecategories = Object, collapsecategories, meta = (ShowWorldContextPin, DisplayName = "Trail"))
-class ENGINE_API UAnimNotifyState_Trail : public UAnimNotifyState
+UCLASS(editinlinenew, Blueprintable, const, hidecategories = Object, collapsecategories, meta = (ShowWorldContextPin, DisplayName = "Trail"), MinimalAPI)
+class UAnimNotifyState_Trail : public UAnimNotifyState
 {
 	GENERATED_UCLASS_BODY()
 	
@@ -25,11 +25,11 @@ class ENGINE_API UAnimNotifyState_Trail : public UAnimNotifyState
 	TObjectPtr<UParticleSystem> PSTemplate;
 
 	UFUNCTION(BlueprintImplementableEvent)
-	UParticleSystem* OverridePSTemplate(USkeletalMeshComponent* MeshComp, class UAnimSequenceBase* Animation) const;
+	ENGINE_API UParticleSystem* OverridePSTemplate(USkeletalMeshComponent* MeshComp, class UAnimSequenceBase* Animation) const;
 
-	virtual UParticleSystem* GetOverridenPSTemplate(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation) const;
+	ENGINE_API virtual UParticleSystem* GetOverridenPSTemplate(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation) const;
 
-	virtual float GetCurveWidth(USkeletalMeshComponent* MeshComp) const;
+	ENGINE_API virtual float GetCurveWidth(USkeletalMeshComponent* MeshComp) const;
 
 	/** Name of the first socket defining this trail. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Trail)
@@ -74,20 +74,20 @@ class ENGINE_API UAnimNotifyState_Trail : public UAnimNotifyState
 #endif // WITH_EDITORONLY_DATA
 
 	/** Helper function for outside code to get PSC that we are using */
-	UParticleSystemComponent* GetParticleSystemComponent(USkeletalMeshComponent* MeshComp) const;
+	ENGINE_API UParticleSystemComponent* GetParticleSystemComponent(USkeletalMeshComponent* MeshComp) const;
 
 	UE_DEPRECATED(5.0, "Please use the other NotifyBegin function instead")
-	virtual void NotifyBegin(class USkeletalMeshComponent * MeshComp, class UAnimSequenceBase * Animation, float TotalDuration) override;
+	ENGINE_API virtual void NotifyBegin(class USkeletalMeshComponent * MeshComp, class UAnimSequenceBase * Animation, float TotalDuration) override;
 	UE_DEPRECATED(5.0, "Please use the other NotifyTick function instead")
-	virtual void NotifyTick(class USkeletalMeshComponent * MeshComp, class UAnimSequenceBase * Animation, float FrameDeltaTime) override;
+	ENGINE_API virtual void NotifyTick(class USkeletalMeshComponent * MeshComp, class UAnimSequenceBase * Animation, float FrameDeltaTime) override;
 	UE_DEPRECATED(5.0, "Please use the other NotifyEnd function instead")
-	virtual void NotifyEnd(class USkeletalMeshComponent * MeshComp, class UAnimSequenceBase * Animation) override;
+	ENGINE_API virtual void NotifyEnd(class USkeletalMeshComponent * MeshComp, class UAnimSequenceBase * Animation) override;
 
-	virtual void NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference) override;
-	virtual void NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float FrameDeltaTime, const FAnimNotifyEventReference& EventReference) override;
-	virtual void NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference) override;
+	ENGINE_API virtual void NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference) override;
+	ENGINE_API virtual void NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float FrameDeltaTime, const FAnimNotifyEventReference& EventReference) override;
+	ENGINE_API virtual void NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference) override;
 
-	bool ValidateInput(USkeletalMeshComponent* MeshComp, bool bReportErrors = false);
+	ENGINE_API bool ValidateInput(USkeletalMeshComponent* MeshComp, bool bReportErrors = false);
 };
 
 

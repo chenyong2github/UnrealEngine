@@ -10,57 +10,57 @@
 
 class UActorDescContainer;
 
-class ENGINE_API FWorldPartitionClassDescRegistry : public FActorDescList
+class FWorldPartitionClassDescRegistry : public FActorDescList
 {
 	using FNameClassDescMap = TMap<FTopLevelAssetPath, TUniquePtr<FWorldPartitionActorDesc>*>;
 	using FParentClassMap = TMap<FTopLevelAssetPath, FTopLevelAssetPath>;
 	using FRedirectClassMap = TMap<FTopLevelAssetPath, FTopLevelAssetPath>;
 
 public:
-	static FWorldPartitionClassDescRegistry& Get();
-	static void TearDown();
+	static ENGINE_API FWorldPartitionClassDescRegistry& Get();
+	static ENGINE_API void TearDown();
 
-	void Initialize();
-	void Uninitialize();
+	ENGINE_API void Initialize();
+	ENGINE_API void Uninitialize();
 	
-	bool IsInitialized() const;
+	ENGINE_API bool IsInitialized() const;
 
-	void PrefetchClassDescs(const TArray<FTopLevelAssetPath>& InClassPaths);
+	ENGINE_API void PrefetchClassDescs(const TArray<FTopLevelAssetPath>& InClassPaths);
 
-	bool IsRegisteredClass(const FTopLevelAssetPath& InClassPath) const;
+	ENGINE_API bool IsRegisteredClass(const FTopLevelAssetPath& InClassPath) const;
 
 	const FParentClassMap& GetParentClassMap() const { check(IsInitialized()); return ParentClassMap; }
 
 private:
-	void PrefetchClassDesc(UClass* InClass);
+	ENGINE_API void PrefetchClassDesc(UClass* InClass);
 
-	void RegisterClassDescriptor(FWorldPartitionActorDesc* InClassDesc);
-	void UnregisterClassDescriptor(FWorldPartitionActorDesc* InClassDesc);
+	ENGINE_API void RegisterClassDescriptor(FWorldPartitionActorDesc* InClassDesc);
+	ENGINE_API void UnregisterClassDescriptor(FWorldPartitionActorDesc* InClassDesc);
 
-	void RegisterClassDescriptorFromAssetData(const FAssetData& InAssetData);
-	void RegisterClassDescriptorFromActorClass(const UClass* InActorClass);
+	ENGINE_API void RegisterClassDescriptorFromAssetData(const FAssetData& InAssetData);
+	ENGINE_API void RegisterClassDescriptorFromActorClass(const UClass* InActorClass);
 
 	friend class FActorDescArchive;
-	const FWorldPartitionActorDesc* GetClassDescDefault(const FTopLevelAssetPath& InClassPath) const;
-	const FWorldPartitionActorDesc* GetClassDescDefaultForActor(const FTopLevelAssetPath& InClassPath) const;
-	const FWorldPartitionActorDesc* GetClassDescDefaultForClass(const FTopLevelAssetPath& InClassPath) const;
+	ENGINE_API const FWorldPartitionActorDesc* GetClassDescDefault(const FTopLevelAssetPath& InClassPath) const;
+	ENGINE_API const FWorldPartitionActorDesc* GetClassDescDefaultForActor(const FTopLevelAssetPath& InClassPath) const;
+	ENGINE_API const FWorldPartitionActorDesc* GetClassDescDefaultForClass(const FTopLevelAssetPath& InClassPath) const;
 
-	void OnObjectPreSave(UObject* InObject, FObjectPreSaveContext InSaveContext);
-	void OnObjectPropertyChanged(UObject* InObject, FPropertyChangedEvent& InPropertyChangedEvent);
+	ENGINE_API void OnObjectPreSave(UObject* InObject, FObjectPreSaveContext InSaveContext);
+	ENGINE_API void OnObjectPropertyChanged(UObject* InObject, FPropertyChangedEvent& InPropertyChangedEvent);
 
-	void OnPluginLoadingPhaseComplete(ELoadingPhase::Type InLoadingPhase, bool bInPhaseSuccessful);
+	ENGINE_API void OnPluginLoadingPhaseComplete(ELoadingPhase::Type InLoadingPhase, bool bInPhaseSuccessful);
 
-	void OnAssetRemoved(const FAssetData& InAssetData);
-	void OnAssetRenamed(const FAssetData& InAssetData, const FString& InOldObjectPath);
+	ENGINE_API void OnAssetRemoved(const FAssetData& InAssetData);
+	ENGINE_API void OnAssetRenamed(const FAssetData& InAssetData, const FString& InOldObjectPath);
 
-	void RegisterClass(UClass* Class);
-	void RegisterClasses();
+	ENGINE_API void RegisterClass(UClass* Class);
+	ENGINE_API void RegisterClasses();
 
-	void UpdateClassDescriptor(UObject* InObject, bool bOnlyIfExists);
+	ENGINE_API void UpdateClassDescriptor(UObject* InObject, bool bOnlyIfExists);
 
-	void ValidateInternalState();
+	ENGINE_API void ValidateInternalState();
 
-	FTopLevelAssetPath RedirectClassPath(const FTopLevelAssetPath& InClassPath) const;
+	ENGINE_API FTopLevelAssetPath RedirectClassPath(const FTopLevelAssetPath& InClassPath) const;
 
 	FNameClassDescMap ClassByPath;
 	FParentClassMap ParentClassMap;

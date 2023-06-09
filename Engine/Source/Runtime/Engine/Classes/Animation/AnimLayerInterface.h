@@ -8,13 +8,13 @@
 #include "AnimLayerInterface.generated.h"
 
 /** An interface used to specify the inputs and outputs of an animation blueprint */
-UINTERFACE()
-class ENGINE_API UAnimLayerInterface : public UInterface
+UINTERFACE(MinimalAPI)
+class UAnimLayerInterface : public UInterface
 {
 	GENERATED_BODY()
 };
 
-class ENGINE_API IAnimLayerInterface
+class IAnimLayerInterface
 {
 	GENERATED_BODY()
 };

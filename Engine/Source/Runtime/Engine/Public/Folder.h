@@ -14,7 +14,7 @@ class ULevel;
 class UActorFolder;
 class UWorld;
 
-struct ENGINE_API FFolder
+struct FFolder
 {
 #if WITH_EDITOR
 	typedef FObjectKey FRootObject;
@@ -141,18 +141,18 @@ struct ENGINE_API FFolder
 		return Ar << Folder.bPathInitialized << Folder.Path << Folder.RootObject << Folder.ActorFolderGuid;
 	}
 
-	const FName GetPath() const;
-	FFolder GetParent() const;
-	UActorFolder* GetActorFolder() const;
+	ENGINE_API const FName GetPath() const;
+	ENGINE_API FFolder GetParent() const;
+	ENGINE_API UActorFolder* GetActorFolder() const;
 
 	// Helpers methods
-	static const FFolder& GetInvalidFolder();
-	static const FRootObject& GetInvalidRootObject();
-	static bool IsRootObjectPersistentLevel(const FRootObject& Key);
-	static TOptional<FRootObject> GetOptionalFolderRootObject(const ULevel* InLevel);
-	static ULevel* GetRootObjectAssociatedLevel(const FRootObject& Key);
-	static FFolder GetWorldRootFolder(UWorld* InWorld);
-	static bool GetFolderPathsAndCommonRootObject(const TArray<FFolder>& InFolders, TArray<FName>& OutFolders, FRootObject& OutCommonRootObject);
+	static ENGINE_API const FFolder& GetInvalidFolder();
+	static ENGINE_API const FRootObject& GetInvalidRootObject();
+	static ENGINE_API bool IsRootObjectPersistentLevel(const FRootObject& Key);
+	static ENGINE_API TOptional<FRootObject> GetOptionalFolderRootObject(const ULevel* InLevel);
+	static ENGINE_API ULevel* GetRootObjectAssociatedLevel(const FRootObject& Key);
+	static ENGINE_API FFolder GetWorldRootFolder(UWorld* InWorld);
+	static ENGINE_API bool GetFolderPathsAndCommonRootObject(const TArray<FFolder>& InFolders, TArray<FName>& OutFolders, FRootObject& OutCommonRootObject);
 
 private:
 	bool PathIsChildOf(const FString& InPotentialChild, const FString& InParent) const

@@ -47,66 +47,66 @@ private:
  * UWorldPartitionSubsystem
  */
 
-UCLASS()
-class ENGINE_API UWorldPartitionSubsystem : public UTickableWorldSubsystem
+UCLASS(MinimalAPI)
+class UWorldPartitionSubsystem : public UTickableWorldSubsystem
 {
 	GENERATED_BODY()
 
 public:
-	UWorldPartitionSubsystem();
+	ENGINE_API UWorldPartitionSubsystem();
 
 	//~ Begin UObject Interface
 #if WITH_EDITOR
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	static ENGINE_API void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 #endif
 	//~ End UObject Interface
 
 	//~ Begin USubsystem Interface.
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-	virtual void Deinitialize() override;
+	ENGINE_API virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	ENGINE_API virtual void Deinitialize() override;
 	//~ End USubsystem Interface.
 
 	//~ Begin UWorldSubsystem Interface.
-	virtual void UpdateStreamingState() override;
+	ENGINE_API virtual void UpdateStreamingState() override;
 	//~ End UWorldSubsystem Interface.
 
 	//~ Begin FTickableGameObject
-	virtual void Tick(float DeltaSeconds) override;
+	ENGINE_API virtual void Tick(float DeltaSeconds) override;
 	virtual bool IsTickableInEditor() const override { return true; }
-	virtual ETickableTickType GetTickableTickType() const override;
-	virtual TStatId GetStatId() const override;
+	ENGINE_API virtual ETickableTickType GetTickableTickType() const override;
+	ENGINE_API virtual TStatId GetStatId() const override;
 	//~End FTickableGameObject
 
 	UFUNCTION(BlueprintCallable, Category = Streaming)
-	bool IsStreamingCompleted(EWorldPartitionRuntimeCellState QueryState, const TArray<FWorldPartitionStreamingQuerySource>& QuerySources, bool bExactState) const;
+	ENGINE_API bool IsStreamingCompleted(EWorldPartitionRuntimeCellState QueryState, const TArray<FWorldPartitionStreamingQuerySource>& QuerySources, bool bExactState) const;
 
 	/** Returns true if world partition is done streaming levels, adding them to the world or removing them from the world. */
 	UFUNCTION(BlueprintCallable, Category = Streaming)
-	bool IsAllStreamingCompleted();
+	ENGINE_API bool IsAllStreamingCompleted();
 
 	/*
 	 * Returns true if world partition is done streaming levels, adding them to the world or removing them from the world. 
 	 * When provided, the test is reduced to streaming levels affected by the optional streaming source provider.
 	 */
-	bool IsStreamingCompleted(const IWorldPartitionStreamingSourceProvider* InStreamingSourceProvider = nullptr) const;
+	ENGINE_API bool IsStreamingCompleted(const IWorldPartitionStreamingSourceProvider* InStreamingSourceProvider = nullptr) const;
 
-	void DumpStreamingSources(FOutputDevice& OutputDevice) const;
+	ENGINE_API void DumpStreamingSources(FOutputDevice& OutputDevice) const;
 
-	TSet<IWorldPartitionStreamingSourceProvider*> GetStreamingSourceProviders() const;
-	void RegisterStreamingSourceProvider(IWorldPartitionStreamingSourceProvider* StreamingSource);
-	bool IsStreamingSourceProviderRegistered(IWorldPartitionStreamingSourceProvider* StreamingSource) const;
-	bool UnregisterStreamingSourceProvider(IWorldPartitionStreamingSourceProvider* StreamingSource);
+	ENGINE_API TSet<IWorldPartitionStreamingSourceProvider*> GetStreamingSourceProviders() const;
+	ENGINE_API void RegisterStreamingSourceProvider(IWorldPartitionStreamingSourceProvider* StreamingSource);
+	ENGINE_API bool IsStreamingSourceProviderRegistered(IWorldPartitionStreamingSourceProvider* StreamingSource) const;
+	ENGINE_API bool UnregisterStreamingSourceProvider(IWorldPartitionStreamingSourceProvider* StreamingSource);
 
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FWorldPartitionStreamingSourceProviderFilter, const IWorldPartitionStreamingSourceProvider*);
 	FWorldPartitionStreamingSourceProviderFilter& OnIsStreamingSourceProviderFiltered() { return IsStreamingSourceProviderFiltered; }
 
-	void ForEachWorldPartition(TFunctionRef<bool(UWorldPartition*)> Func);
+	ENGINE_API void ForEachWorldPartition(TFunctionRef<bool(UWorldPartition*)> Func);
 
 #if WITH_EDITOR
-	FWorldPartitionActorFilter GetWorldPartitionActorFilter(const FString& InWorldPackage, EWorldPartitionActorFilterType InFilterTypes = EWorldPartitionActorFilterType::Loading) const;
-	TMap<FActorContainerID, TSet<FGuid>> GetFilteredActorsPerContainer(const FActorContainerID& InContainerID, const FString& InWorldPackage, const FWorldPartitionActorFilter& InActorFilter, EWorldPartitionActorFilterType InFilterTypes = EWorldPartitionActorFilterType::Loading);
+	ENGINE_API FWorldPartitionActorFilter GetWorldPartitionActorFilter(const FString& InWorldPackage, EWorldPartitionActorFilterType InFilterTypes = EWorldPartitionActorFilterType::Loading) const;
+	ENGINE_API TMap<FActorContainerID, TSet<FGuid>> GetFilteredActorsPerContainer(const FActorContainerID& InContainerID, const FString& InWorldPackage, const FWorldPartitionActorFilter& InActorFilter, EWorldPartitionActorFilterType InFilterTypes = EWorldPartitionActorFilterType::Loading);
 
-	static bool IsRunningConvertWorldPartitionCommandlet();
+	static ENGINE_API bool IsRunningConvertWorldPartitionCommandlet();
 
 	UActorDescContainer* RegisterContainer(FName PackageName) { return ActorDescContainerInstanceManager.RegisterContainer(PackageName, GetWorld()); }
 	void UnregisterContainer(UActorDescContainer* Container) { ActorDescContainerInstanceManager.UnregisterContainer(Container); }
@@ -148,37 +148,37 @@ public:
 		TMap<FName, FActorDescContainerInstance> ActorDescContainers;
 	};
 private:
-	FWorldPartitionActorFilter GetWorldPartitionActorFilterInternal(const FString& InWorldPackage, EWorldPartitionActorFilterType InFilterTypes, TSet<FString>& InOutVisitedPackages) const;
+	ENGINE_API FWorldPartitionActorFilter GetWorldPartitionActorFilterInternal(const FString& InWorldPackage, EWorldPartitionActorFilterType InFilterTypes, TSet<FString>& InOutVisitedPackages) const;
 #endif
 
 protected:
 	//~ Begin USubsystem Interface.
-	virtual bool DoesSupportWorldType(const EWorldType::Type WorldType) const override;
+	ENGINE_API virtual bool DoesSupportWorldType(const EWorldType::Type WorldType) const override;
 	//~ End USubsystem Interface.
 
 private:
 
 	// Streaming Sources
-	void UpdateStreamingSources();
-	void GetStreamingSources(const UWorldPartition* InWorldPartition, TArray<FWorldPartitionStreamingSource>& OutStreamingSources) const;
+	ENGINE_API void UpdateStreamingSources();
+	ENGINE_API void GetStreamingSources(const UWorldPartition* InWorldPartition, TArray<FWorldPartitionStreamingSource>& OutStreamingSources) const;
 	uint32 GetStreamingSourcesHash() const { return StreamingSourcesHash; }
 
-	void OnWorldPartitionInitialized(UWorldPartition* InWorldPartition);
-	void OnWorldPartitionUninitialized(UWorldPartition* InWorldPartition);
-	void OnLevelStreamingTargetStateChanged(UWorld* InWorld, const ULevelStreaming* InStreamingLevel, ULevel* InLevelIfLoaded, ELevelStreamingState InCurrentState, ELevelStreamingTargetState InPrevTarget, ELevelStreamingTargetState InNewTarget);
-	void OnLevelBeginMakingVisible(UWorld* InWorld, const ULevelStreaming* InStreamingLevel, ULevel* InLoadedLevel);
-	void OnLevelBeginMakingInvisible(UWorld* InWorld, const ULevelStreaming* InStreamingLevel, ULevel* InLoadedLevel);
+	ENGINE_API void OnWorldPartitionInitialized(UWorldPartition* InWorldPartition);
+	ENGINE_API void OnWorldPartitionUninitialized(UWorldPartition* InWorldPartition);
+	ENGINE_API void OnLevelStreamingTargetStateChanged(UWorld* InWorld, const ULevelStreaming* InStreamingLevel, ULevel* InLevelIfLoaded, ELevelStreamingState InCurrentState, ELevelStreamingTargetState InPrevTarget, ELevelStreamingTargetState InNewTarget);
+	ENGINE_API void OnLevelBeginMakingVisible(UWorld* InWorld, const ULevelStreaming* InStreamingLevel, ULevel* InLoadedLevel);
+	ENGINE_API void OnLevelBeginMakingInvisible(UWorld* InWorld, const ULevelStreaming* InStreamingLevel, ULevel* InLoadedLevel);
 
-	static void UpdateStreamingStateInternal(const UWorld* InWorld, const TArray<TObjectPtr<UWorldPartition>>& InWorldPartitions);
+	static ENGINE_API void UpdateStreamingStateInternal(const UWorld* InWorld, const TArray<TObjectPtr<UWorldPartition>>& InWorldPartitions);
 
-	bool IsServer() const;
-	bool HasAnyWorldPartitionServerStreamingEnabled() const;
+	ENGINE_API bool IsServer() const;
+	ENGINE_API bool HasAnyWorldPartitionServerStreamingEnabled() const;
 
-	UWorldPartition* GetWorldPartition();
-	const UWorldPartition* GetWorldPartition() const;
-	bool CanDebugDraw() const;
-	void Draw(class UCanvas* Canvas, class APlayerController* PC);
-	void DrawStreamingStatusLegend(class UCanvas* Canvas, FVector2D& Offset, const UWorldPartition* InWorldPartition);
+	ENGINE_API UWorldPartition* GetWorldPartition();
+	ENGINE_API const UWorldPartition* GetWorldPartition() const;
+	ENGINE_API bool CanDebugDraw() const;
+	ENGINE_API void Draw(class UCanvas* Canvas, class APlayerController* PC);
+	ENGINE_API void DrawStreamingStatusLegend(class UCanvas* Canvas, FVector2D& Offset, const UWorldPartition* InWorldPartition);
 	friend class UWorldPartition;
 	friend class UWorldPartitionStreamingPolicy;
 

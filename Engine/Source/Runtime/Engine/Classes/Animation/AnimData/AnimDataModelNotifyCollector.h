@@ -15,7 +15,7 @@ namespace Anim {
 
 /** Helper structure for keeping track of which notifies of type EAnimDataModelNotifyType are broadcasted
 between top-level EAnimDataModelNotifyType::BracketOpened and EAnimDataModelNotifyType::BracketClosed notifies */
-struct ENGINE_API FAnimDataModelNotifyCollector
+struct FAnimDataModelNotifyCollector
 {
 	FAnimDataModelNotifyCollector() : BracketDepth(0), bDataModified(false) {}
 

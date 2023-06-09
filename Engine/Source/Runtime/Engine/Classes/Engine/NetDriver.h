@@ -424,7 +424,7 @@ DECLARE_DELEGATE_RetVal(bool, FShouldSkipRepNotifies);
 
 /** Holds the packet simulation settings in one place */
 USTRUCT()
-struct ENGINE_API FPacketSimulationSettings
+struct FPacketSimulationSettings
 {
 	GENERATED_BODY()
 
@@ -536,24 +536,24 @@ struct ENGINE_API FPacketSimulationSettings
 	/** reads in settings from the .ini file 
 	 * @note: overwrites all previous settings
 	 */
-	void LoadConfig(const TCHAR* OptionalQualifier = nullptr);
+	ENGINE_API void LoadConfig(const TCHAR* OptionalQualifier = nullptr);
 	
 	/** 
 	 * Load a preconfigured emulation profile from the .ini
 	 * Returns true if the given profile existed
 	 */
-	bool LoadEmulationProfile(const TCHAR* ProfileName);
+	ENGINE_API bool LoadEmulationProfile(const TCHAR* ProfileName);
 
 	/**
 	 * Force new emulation settings and ignore config or cmdline values
 	 */
-	void ApplySettings(const FPacketSimulationSettings& NewSettings);
+	ENGINE_API void ApplySettings(const FPacketSimulationSettings& NewSettings);
 
 	/**
 	 * Ensure that settings have proper values
 	 */
-	void ValidateSettings();
-	void ResetSettings();
+	ENGINE_API void ValidateSettings();
+	ENGINE_API void ResetSettings();
 
 	/**
 	* Tells if a packet fits the size settings to potentially be dropped
@@ -571,15 +571,15 @@ struct ENGINE_API FPacketSimulationSettings
 	 * @param Stream the string to read the settings from
 	 * @Param OptionalQualifier: optional string to prepend to Pkt* settings. E.g, "GameNetDriverPktLoss=50"
 	 */
-	bool ParseSettings(const TCHAR* Stream, const TCHAR* OptionalQualifier=nullptr);
+	ENGINE_API bool ParseSettings(const TCHAR* Stream, const TCHAR* OptionalQualifier=nullptr);
 
-	bool ParseHelper(const TCHAR* Cmd, const TCHAR* Name, int32& Value, const TCHAR* OptionalQualifier);
+	ENGINE_API bool ParseHelper(const TCHAR* Cmd, const TCHAR* Name, int32& Value, const TCHAR* OptionalQualifier);
 
-	bool ConfigHelperInt(const TCHAR* Name, int32& Value, const TCHAR* OptionalQualifier);
-	bool ConfigHelperBool(const TCHAR* Name, bool& Value, const TCHAR* OptionalQualifier);
+	ENGINE_API bool ConfigHelperInt(const TCHAR* Name, int32& Value, const TCHAR* OptionalQualifier);
+	ENGINE_API bool ConfigHelperBool(const TCHAR* Name, bool& Value, const TCHAR* OptionalQualifier);
 };
 
-struct ENGINE_API FActorDestructionInfo
+struct FActorDestructionInfo
 {
 public:
 	FActorDestructionInfo()
@@ -653,7 +653,7 @@ struct FCompareFActorPriority
 
 /** Used to specify properties of a channel type */
 USTRUCT()
-struct ENGINE_API FChannelDefinition
+struct FChannelDefinition
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -1406,7 +1406,7 @@ public:
 	ENGINE_API virtual FString LowLevelGetNetworkNumber();
 
 	/* @return local addr of this machine if set */
-	ENGINE_API virtual TSharedPtr<const FInternetAddr> GetLocalAddr() { return LocalAddr; }
+	virtual TSharedPtr<const FInternetAddr> GetLocalAddr() { return LocalAddr; }
 
 	/** Make sure this connection is in a reasonable state. */
 	ENGINE_API virtual void AssertValid();
@@ -1663,7 +1663,7 @@ public:
 	/**
 	 * Get the world associated with this net driver
 	 */
-	ENGINE_API virtual class UWorld* GetWorld() const override final { return World; }
+	virtual class UWorld* GetWorld() const override final { return World; }
 
 	class UPackage* GetWorldPackage() const { return WorldPackage; }
 
@@ -1688,31 +1688,31 @@ public:
 	TSharedPtr<FRepChangedPropertyTracker> FindRepChangedPropertyTracker(UObject* Obj);
 
 	/** Returns true if the client should destroy immediately any actor that becomes torn-off */
-	ENGINE_API virtual bool ShouldClientDestroyTearOffActors() const { return false; }
+	virtual bool ShouldClientDestroyTearOffActors() const { return false; }
 
 	/** Returns whether or not properties that are replicating using this driver should not call RepNotify functions. */
 	ENGINE_API virtual bool ShouldSkipRepNotifies() const;
 
 	/** Returns true if actor channels with InGUID should queue up bunches, even if they wouldn't otherwise be queued. */
-	ENGINE_API virtual bool ShouldQueueBunchesForActorGUID(FNetworkGUID InGUID) const { return false; }
+	virtual bool ShouldQueueBunchesForActorGUID(FNetworkGUID InGUID) const { return false; }
 
 	/** Returns whether or not RPCs processed by this driver should be ignored. */
-	ENGINE_API virtual bool ShouldIgnoreRPCs() const { return false; }
+	virtual bool ShouldIgnoreRPCs() const { return false; }
 
 	/** Returns the existing FNetworkGUID of InActor, if it has one. */
-	ENGINE_API virtual FNetworkGUID GetGUIDForActor(const AActor* InActor) const { return FNetworkGUID(); }
+	virtual FNetworkGUID GetGUIDForActor(const AActor* InActor) const { return FNetworkGUID(); }
 
 	/** Returns the actor that corresponds to InGUID, if one can be found. */
-	ENGINE_API virtual AActor* GetActorForGUID(FNetworkGUID InGUID) const { return nullptr; }
+	virtual AActor* GetActorForGUID(FNetworkGUID InGUID) const { return nullptr; }
 
 	/** Returns true if RepNotifies should be checked and generated when receiving properties for the given object. */
-	ENGINE_API virtual bool ShouldReceiveRepNotifiesForObject(UObject* Object) const { return true; }
+	virtual bool ShouldReceiveRepNotifiesForObject(UObject* Object) const { return true; }
 
 	/** Returns the object that manages the list of replicated UObjects. */
-	ENGINE_API FNetworkObjectList& GetNetworkObjectList() { return *NetworkObjects; }
+	FNetworkObjectList& GetNetworkObjectList() { return *NetworkObjects; }
 
 	/** Returns the object that manages the list of replicated UObjects. */
-	ENGINE_API const FNetworkObjectList& GetNetworkObjectList() const { return *NetworkObjects; }
+	const FNetworkObjectList& GetNetworkObjectList() const { return *NetworkObjects; }
 
 	/**
      *	Get the network object matching the given Actor.
@@ -1726,7 +1726,7 @@ public:
 	ENGINE_API FNetworkObjectInfo* FindNetworkObjectInfo(const AActor* InActor);
 
 	UE_DEPRECATED(5.3, "Will be made private in a future release")
-	ENGINE_API const FNetworkObjectInfo* FindNetworkObjectInfo(const AActor* InActor) const
+	const FNetworkObjectInfo* FindNetworkObjectInfo(const AActor* InActor) const
 	{
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return const_cast<UNetDriver*>(this)->FindNetworkObjectInfo(InActor);
@@ -1756,15 +1756,15 @@ public:
 	ENGINE_API bool IsPendingNetUpdate(const AActor* InActor) const;
 
 	/** Returns the level ID/PIE instance ID for this netdriver to use. */
-	ENGINE_API int32 GetDuplicateLevelID() const { return DuplicateLevelID; }
+	int32 GetDuplicateLevelID() const { return DuplicateLevelID; }
 
 	/** Sets the level ID/PIE instance ID for this netdriver to use. */
-	ENGINE_API void SetDuplicateLevelID(const int32 InDuplicateLevelID) { DuplicateLevelID = InDuplicateLevelID; }
+	void SetDuplicateLevelID(const int32 InDuplicateLevelID) { DuplicateLevelID = InDuplicateLevelID; }
 
 	/** Explicitly sets the ReplicationDriver instance (you instantiate it and initialize it). Shouldn't be done during gameplay: ok to do in GameMode startup or via console commands for testing. Existing ReplicationDriver (if set) is destroyed when this is called.  */
 	ENGINE_API void SetReplicationDriver(UReplicationDriver* NewReplicationManager);
 
-	ENGINE_API UReplicationDriver* GetReplicationDriver() const { return ReplicationDriver; }
+	UReplicationDriver* GetReplicationDriver() const { return ReplicationDriver; }
 
 	/** Returns if this netdriver is initialized to replicate using the Iris replication system or the Legacy replication system. */
 	FORCEINLINE bool IsUsingIrisReplication() const
@@ -1924,7 +1924,7 @@ public:
 	/**
 	 * Get the current number of sent packets for which we have received a delivery notification
 	 */
-	ENGINE_API uint32 GetOutTotalNotifiedPackets() const { return OutTotalNotifiedPackets; }
+	uint32 GetOutTotalNotifiedPackets() const { return OutTotalNotifiedPackets; }
 
 	/**
 	 * Increase the current number of sent packets for which we have received a delivery notification
@@ -2021,7 +2021,7 @@ public:
 	 *
 	 * @return		Whether or not this NetDriver supports encryption.
 	 */
-	ENGINE_API virtual bool DoesSupportEncryption() const
+	virtual bool DoesSupportEncryption() const
 	{
 		return true;
 	}

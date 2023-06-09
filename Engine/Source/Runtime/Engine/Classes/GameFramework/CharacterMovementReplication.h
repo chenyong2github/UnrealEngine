@@ -40,7 +40,7 @@ struct FRootMotionSourceGroup;
  * This is basically an array of bits that is packed/unpacked via NetSerialize into custom data structs on the sending and receiving ends.
  */
 USTRUCT()
-struct ENGINE_API FCharacterNetworkSerializationPackedBits
+struct FCharacterNetworkSerializationPackedBits
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -49,7 +49,7 @@ struct ENGINE_API FCharacterNetworkSerializationPackedBits
 	{
 	}
 
-	bool NetSerialize(FArchive& Ar, UPackageMap* PackageMap, bool& bOutSuccess);
+	ENGINE_API bool NetSerialize(FArchive& Ar, UPackageMap* PackageMap, bool& bOutSuccess);
 	UPackageMap* GetPackageMap() const { return SavedPackageMap; }
 
 	//------------------------------------------------------------------------
@@ -90,7 +90,7 @@ struct TStructOpsTypeTraits<FCharacterNetworkSerializationPackedBits> : public T
  * @see FCharacterNetworkMoveDataContainer
  */
 
-struct ENGINE_API FCharacterNetworkMoveData
+struct FCharacterNetworkMoveData
 {
 public:
 
@@ -123,14 +123,14 @@ public:
 	 * Note that the instance of the FSavedMove_Character is likely a custom struct of a derived struct of your own, if you have added your own saved move data.
 	 * @see UCharacterMovementComponent::AllocateNewMove()
 	 */
-	virtual void ClientFillNetworkMoveData(const FSavedMove_Character& ClientMove, ENetworkMoveType MoveType);
+	ENGINE_API virtual void ClientFillNetworkMoveData(const FSavedMove_Character& ClientMove, ENetworkMoveType MoveType);
 
 	/**
 	 * Serialize the data in this struct to or from the given FArchive. This packs or unpacks the data in to a variable-sized data stream that is sent over the
 	 * network from client to server.
 	 * @see UCharacterMovementComponent::CallServerMovePacked
 	 */
-	virtual bool Serialize(UCharacterMovementComponent& CharacterMovement, FArchive& Ar, UPackageMap* PackageMap, ENetworkMoveType MoveType);
+	ENGINE_API virtual bool Serialize(UCharacterMovementComponent& CharacterMovement, FArchive& Ar, UPackageMap* PackageMap, ENetworkMoveType MoveType);
 
 	// Indicates whether this was the latest new move, a pending/dual move, or old important move.
 	ENetworkMoveType NetworkMoveType;
@@ -160,7 +160,7 @@ public:
  * 
  * @see UCharacterMovementComponent::SetNetworkMoveDataContainer()
  */
-struct ENGINE_API FCharacterNetworkMoveDataContainer
+struct FCharacterNetworkMoveDataContainer
 {
 public:
 
@@ -185,12 +185,12 @@ public:
 	/**
 	 * Passes through calls to ClientFillNetworkMoveData on each FCharacterNetworkMoveData matching the client moves. Note that ClientNewMove will never be null, but others may be.
 	 */
-	virtual void ClientFillNetworkMoveData(const FSavedMove_Character* ClientNewMove, const FSavedMove_Character* ClientPendingMove, const FSavedMove_Character* ClientOldMove);
+	ENGINE_API virtual void ClientFillNetworkMoveData(const FSavedMove_Character* ClientNewMove, const FSavedMove_Character* ClientPendingMove, const FSavedMove_Character* ClientOldMove);
 
 	/**
 	 * Serialize movement data. Passes Serialize calls to each FCharacterNetworkMoveData as applicable, based on bHasPendingMove and bHasOldMove.
 	 */
-	virtual bool Serialize(UCharacterMovementComponent& CharacterMovement, FArchive& Ar, UPackageMap* PackageMap);
+	ENGINE_API virtual bool Serialize(UCharacterMovementComponent& CharacterMovement, FArchive& Ar, UPackageMap* PackageMap);
 
 	//------------------------------------------------------------------------
 	// Basic movement data. NewMoveData is the most recent move, PendingMoveData is a move right before it (dual move). OldMoveData is an "important" move not yet acknowledged.
@@ -227,7 +227,7 @@ private:
  * Structure used internally to handle serialization of FCharacterNetworkMoveDataContainer over the network.
  */
 USTRUCT()
-struct ENGINE_API FCharacterServerMovePackedBits : public FCharacterNetworkSerializationPackedBits
+struct FCharacterServerMovePackedBits : public FCharacterNetworkSerializationPackedBits
 {
 	GENERATED_USTRUCT_BODY()
 	FCharacterServerMovePackedBits() {}
@@ -248,7 +248,7 @@ struct TStructOpsTypeTraits<FCharacterServerMovePackedBits> : public TStructOpsT
 //////////////////////////////////////////////////////////////////////////
 
 // ClientAdjustPosition replication (event called at end of frame by server)
-struct ENGINE_API FClientAdjustment
+struct FClientAdjustment
 {
 public:
 
@@ -290,7 +290,7 @@ public:
  * setting a few relevant flags about the response and serializing the response to and from an FArchive for handling the variable-size
  * payload over the network.
  */
-struct ENGINE_API FCharacterMoveResponseDataContainer
+struct FCharacterMoveResponseDataContainer
 {
 public:
 
@@ -311,17 +311,17 @@ public:
 	/**
 	 * Copy the FClientAdjustment and set a few flags relevant to that data.
 	 */
-	virtual void ServerFillResponseData(const UCharacterMovementComponent& CharacterMovement, const FClientAdjustment& PendingAdjustment);
+	ENGINE_API virtual void ServerFillResponseData(const UCharacterMovementComponent& CharacterMovement, const FClientAdjustment& PendingAdjustment);
 
 	/**
 	 * Serialize the FClientAdjustment data and other internal flags.
 	 */
-	virtual bool Serialize(UCharacterMovementComponent& CharacterMovement, FArchive& Ar, UPackageMap* PackageMap);
+	ENGINE_API virtual bool Serialize(UCharacterMovementComponent& CharacterMovement, FArchive& Ar, UPackageMap* PackageMap);
 
 	bool IsGoodMove() const		{ return ClientAdjustment.bAckGoodMove;}
 	bool IsCorrection() const	{ return !IsGoodMove(); }
 
-	FRootMotionSourceGroup* GetRootMotionSourceGroup(UCharacterMovementComponent& CharacterMovement) const;
+	ENGINE_API FRootMotionSourceGroup* GetRootMotionSourceGroup(UCharacterMovementComponent& CharacterMovement) const;
 
 	bool bHasBase;
 	bool bHasRotation; // By default ClientAdjustment.NewRot is not serialized. Set this to true after base ServerFillResponseData if you want Rotation to be serialized.
@@ -340,7 +340,7 @@ public:
  * Structure used internally to handle serialization of FCharacterMoveResponseDataContainer over the network.
  */
 USTRUCT()
-struct ENGINE_API FCharacterMoveResponsePackedBits : public FCharacterNetworkSerializationPackedBits
+struct FCharacterMoveResponsePackedBits : public FCharacterNetworkSerializationPackedBits
 {
 	GENERATED_USTRUCT_BODY()
 	FCharacterMoveResponsePackedBits() {}

@@ -18,7 +18,7 @@ class UNetworkPredictionInterface : public UInterface
 	GENERATED_UINTERFACE_BODY()
 };
 
-class ENGINE_API INetworkPredictionInterface
+class INetworkPredictionInterface
 {
 	GENERATED_IINTERFACE_BODY()
 
@@ -27,44 +27,44 @@ class ENGINE_API INetworkPredictionInterface
 	//--------------------------------
 
 	/** (Server) Send position to client if necessary, or just ack good moves. */
-	virtual void SendClientAdjustment()					PURE_VIRTUAL(INetworkPredictionInterface::SendClientAdjustment,);
+	ENGINE_API virtual void SendClientAdjustment()					PURE_VIRTUAL(INetworkPredictionInterface::SendClientAdjustment,);
 
 	/** (Server) Trigger a position update on clients, if the server hasn't heard from them in a while. @return Whether movement is performed. */
-	virtual bool ForcePositionUpdate(float DeltaTime)	PURE_VIRTUAL(INetworkPredictionInterface::ForcePositionUpdate, return false;);
+	ENGINE_API virtual bool ForcePositionUpdate(float DeltaTime)	PURE_VIRTUAL(INetworkPredictionInterface::ForcePositionUpdate, return false;);
 
 	//--------------------------------
 	// Client hooks
 	//--------------------------------
 
 	/** (Client) After receiving a network update of position, allow some custom smoothing, given the old transform before the correction and new transform from the update. */
-	virtual void SmoothCorrection(const FVector& OldLocation, const FQuat& OldRotation, const FVector& NewLocation, const FQuat& NewRotation) PURE_VIRTUAL(INetworkPredictionInterface::SmoothCorrection,);
+	ENGINE_API virtual void SmoothCorrection(const FVector& OldLocation, const FQuat& OldRotation, const FVector& NewLocation, const FQuat& NewRotation) PURE_VIRTUAL(INetworkPredictionInterface::SmoothCorrection,);
 
 	//--------------------------------
 	// Other
 	//--------------------------------
 
 	/** @return FNetworkPredictionData_Client instance used for network prediction. */
-	virtual class FNetworkPredictionData_Client* GetPredictionData_Client() const PURE_VIRTUAL(INetworkPredictionInterface::GetPredictionData_Client, return NULL;);
+	ENGINE_API virtual class FNetworkPredictionData_Client* GetPredictionData_Client() const PURE_VIRTUAL(INetworkPredictionInterface::GetPredictionData_Client, return NULL;);
 	
 	/** @return FNetworkPredictionData_Server instance used for network prediction. */
-	virtual class FNetworkPredictionData_Server* GetPredictionData_Server() const PURE_VIRTUAL(INetworkPredictionInterface::GetPredictionData_Server, return NULL;);
+	ENGINE_API virtual class FNetworkPredictionData_Server* GetPredictionData_Server() const PURE_VIRTUAL(INetworkPredictionInterface::GetPredictionData_Server, return NULL;);
 
 	/** Accessor to check if there is already client data, without potentially allocating it on demand.*/
-	virtual bool HasPredictionData_Client() const PURE_VIRTUAL(INetworkPredictionInterface::HasPredictionData_Client, return false;);
+	ENGINE_API virtual bool HasPredictionData_Client() const PURE_VIRTUAL(INetworkPredictionInterface::HasPredictionData_Client, return false;);
 
 	/** Accessor to check if there is already server data, without potentially allocating it on demand.*/
-	virtual bool HasPredictionData_Server() const PURE_VIRTUAL(INetworkPredictionInterface::HasPredictionData_Server, return false;);
+	ENGINE_API virtual bool HasPredictionData_Server() const PURE_VIRTUAL(INetworkPredictionInterface::HasPredictionData_Server, return false;);
 
 	/** Resets client prediction data. */
-	virtual void ResetPredictionData_Client() PURE_VIRTUAL(INetworkPredictionInterface::ResetPredictionData_Client,);
+	ENGINE_API virtual void ResetPredictionData_Client() PURE_VIRTUAL(INetworkPredictionInterface::ResetPredictionData_Client,);
 
 	/** Resets server prediction data. */
-	virtual void ResetPredictionData_Server() PURE_VIRTUAL(INetworkPredictionInterface::ResetPredictionData_Server,);
+	ENGINE_API virtual void ResetPredictionData_Server() PURE_VIRTUAL(INetworkPredictionInterface::ResetPredictionData_Server,);
 };
 
 
 // Network data representation on the client
-class ENGINE_API FNetworkPredictionData_Client
+class FNetworkPredictionData_Client
 {
 public:
 
@@ -80,7 +80,7 @@ public:
 
 
 // Network data representation on the server
-class ENGINE_API FNetworkPredictionData_Server
+class FNetworkPredictionData_Server
 {
 public:
 

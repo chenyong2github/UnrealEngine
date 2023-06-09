@@ -46,10 +46,10 @@ public:
 
 public:
 	/** Returns ForceComponent subobject **/
-	ENGINE_API class URadialForceComponent* GetForceComponent() const { return ForceComponent; }
+	class URadialForceComponent* GetForceComponent() const { return ForceComponent; }
 #if WITH_EDITORONLY_DATA
 	/** Returns SpriteComponent subobject **/
-	ENGINE_API UBillboardComponent* GetSpriteComponent() const { return SpriteComponent; }
+	UBillboardComponent* GetSpriteComponent() const { return SpriteComponent; }
 #endif
 };
 

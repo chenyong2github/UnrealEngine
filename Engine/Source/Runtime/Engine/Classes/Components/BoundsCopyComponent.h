@@ -8,8 +8,8 @@
 #include "BoundsCopyComponent.generated.h"
 
 /** Component used to copy the bounds of another Actor. */
-UCLASS(ClassGroup = Rendering, HideCategories = (Activation, AssetUserData, Collision, Cooking, Tags))
-class ENGINE_API UBoundsCopyComponent : public UActorComponent
+UCLASS(ClassGroup = Rendering, HideCategories = (Activation, AssetUserData, Collision, Cooking, Tags), MinimalAPI)
+class UBoundsCopyComponent : public UActorComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -49,10 +49,10 @@ public:
 #if WITH_EDITOR
 	/** Copy the rotation from BoundsSourceActor to this component */
 	UFUNCTION(BlueprintCallable, Category = TransformFromBounds, meta = (DisplayName = "Copy Rotation"))
-	void SetRotation();
+	ENGINE_API void SetRotation();
 
 	/** Set this component transform to include the BoundsSourceActor bounds */
 	UFUNCTION(BlueprintCallable, Category = TransformFromBounds, meta = (DisplayName = "Copy Bounds"))
-	void SetTransformToBounds();
+	ENGINE_API void SetTransformToBounds();
 #endif
 };

@@ -11,7 +11,7 @@ struct FTypedElementHandle;
 /**
  * Element data that represents an Actor Component.
  */
-struct ENGINE_API FComponentElementData
+struct FComponentElementData
 {
 	UE_DECLARE_TYPED_ELEMENT_DATA_RTTI(FComponentElementData);
 

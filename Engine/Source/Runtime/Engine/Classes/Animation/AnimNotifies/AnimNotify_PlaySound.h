@@ -12,22 +12,22 @@ class UAnimSequenceBase;
 class USkeletalMeshComponent;
 class USoundBase;
 
-UCLASS(const, hidecategories=Object, collapsecategories, Config = Game, meta=(DisplayName="Play Sound"))
-class ENGINE_API UAnimNotify_PlaySound : public UAnimNotify
+UCLASS(const, hidecategories=Object, collapsecategories, Config = Game, meta=(DisplayName="Play Sound"), MinimalAPI)
+class UAnimNotify_PlaySound : public UAnimNotify
 {
 	GENERATED_BODY()
 
 public:
 
-	UAnimNotify_PlaySound();
+	ENGINE_API UAnimNotify_PlaySound();
 
 	// Begin UAnimNotify interface
-	virtual FString GetNotifyName_Implementation() const override;
+	ENGINE_API virtual FString GetNotifyName_Implementation() const override;
 	UE_DEPRECATED(5.0, "Please use the other Notify function instead")
-	virtual void Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation) override;
-	virtual void Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference) override;
+	ENGINE_API virtual void Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation) override;
+	ENGINE_API virtual void Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference) override;
 #if WITH_EDITOR
-	virtual void ValidateAssociatedAssets() override;
+	ENGINE_API virtual void ValidateAssociatedAssets() override;
 #endif
 	// End UAnimNotify interface
 

@@ -24,7 +24,7 @@ class FVertexFactoryType;
 struct FMeshPassProcessorRenderState;
 struct FMaterialShaderTypes;
 
-class ENGINE_API FDebugViewModeInterface
+class FDebugViewModeInterface
 {
 public:
 
@@ -47,7 +47,7 @@ public:
 		const FVertexFactoryType* InVertexFactoryType,
 		FMaterialShaderTypes& OutShaderTypes) const = 0;
 
-	virtual void SetDrawRenderState(EDebugViewShaderMode DebugViewMode, EBlendMode BlendMode, FRenderState& DrawRenderState, bool bHasDepthPrepassForMaskedMaterial) const;
+	ENGINE_API virtual void SetDrawRenderState(EDebugViewShaderMode DebugViewMode, EBlendMode BlendMode, FRenderState& DrawRenderState, bool bHasDepthPrepassForMaskedMaterial) const;
 
 	virtual void GetDebugViewModeShaderBindings(
 		const FDebugViewModePS& Shader,
@@ -73,15 +73,15 @@ public:
 	}
 
 	/** Return the interface object for the given viewmode. */
-	static void SetInterface(FDebugViewModeInterface* Interface);
+	static ENGINE_API void SetInterface(FDebugViewModeInterface* Interface);
 	
 	/** Whether this material can be substituted by the default material. */
-	static bool AllowFallbackToDefaultMaterial(const FMaterial* InMaterial);
-	static bool AllowFallbackToDefaultMaterial(bool bHasVertexPositionOffsetConnected, bool bHasPixelDepthOffsetConnected);
+	static ENGINE_API bool AllowFallbackToDefaultMaterial(const FMaterial* InMaterial);
+	static ENGINE_API bool AllowFallbackToDefaultMaterial(bool bHasVertexPositionOffsetConnected, bool bHasPixelDepthOffsetConnected);
 
 private:
 	
-	static FDebugViewModeInterface* Singleton;
+	static ENGINE_API FDebugViewModeInterface* Singleton;
 };
 
 #endif // ENABLE_DRAW_DEBUG

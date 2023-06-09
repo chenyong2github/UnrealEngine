@@ -20,7 +20,7 @@ enum class EAnimNodeReferenceConversionResult : uint8
 
 // A reference to an anim node. Does not persist, only valid for the call in which it was retrieved.
 USTRUCT(BlueprintType)
-struct ENGINE_API FAnimNodeReference
+struct FAnimNodeReference
 {
 	GENERATED_BODY()
 
@@ -29,9 +29,9 @@ public:
 		
 	FAnimNodeReference() = default;
 
-	FAnimNodeReference(UAnimInstance* InAnimInstance, FAnimNode_Base& InNode);
+	ENGINE_API FAnimNodeReference(UAnimInstance* InAnimInstance, FAnimNode_Base& InNode);
 
-	FAnimNodeReference(UAnimInstance* InAnimInstance, int32 InIndex);
+	ENGINE_API FAnimNodeReference(UAnimInstance* InAnimInstance, int32 InIndex);
 	
 	// Get the node we wrap. If the context is invalid or the node is not of the specified type then this will return nullptr.
 	template<typename NodeType>

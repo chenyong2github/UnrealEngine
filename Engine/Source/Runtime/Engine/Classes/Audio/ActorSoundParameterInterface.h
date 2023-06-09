@@ -14,25 +14,25 @@ class AActor;
 class UActorComponent;
 
 /** Interface used to allow an actor to automatically populate any sounds with parameters */
-class ENGINE_API IActorSoundParameterInterface : public IInterface
+class IActorSoundParameterInterface : public IInterface
 {
 	GENERATED_BODY()
 
 public:
 	// Overrides logic for gathering AudioParameters to set by default when an AudioComponent/ActiveSound plays with a given actor as its Owner.
 	UFUNCTION(BlueprintNativeEvent, Category = "Audio|Parameters", meta = (DisplayName = "Get Actor Audio Parameters"))
-	void GetActorSoundParams(TArray<FAudioParameter>& Params) const;
+	ENGINE_API void GetActorSoundParams(TArray<FAudioParameter>& Params) const;
 	virtual void GetActorSoundParams_Implementation(TArray<FAudioParameter>& Params) const = 0;
 };
 
-UINTERFACE(BlueprintType)
-class ENGINE_API UActorSoundParameterInterface : public UInterface
+UINTERFACE(BlueprintType, MinimalAPI)
+class UActorSoundParameterInterface : public UInterface
 {
 	GENERATED_BODY()
 
 public:
 
-	static void Fill(const AActor* OwningActor, TArray<FAudioParameter>& OutParams);
+	static ENGINE_API void Fill(const AActor* OwningActor, TArray<FAudioParameter>& OutParams);
 
 private:
 

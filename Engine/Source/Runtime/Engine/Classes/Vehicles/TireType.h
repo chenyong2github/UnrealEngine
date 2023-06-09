@@ -8,8 +8,8 @@
 #include "TireType.generated.h"
 
 /** DEPRECATED - Only used to allow conversion to new TireConfig in PhysXVehicles plugin */
-UCLASS()
-class ENGINE_API UTireType : public UDataAsset
+UCLASS(MinimalAPI)
+class UTireType : public UDataAsset
 {
 	GENERATED_UCLASS_BODY()
 

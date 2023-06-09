@@ -14,8 +14,8 @@ class FLightSceneProxy;
 /**
  * A light component that has parallel rays. Will provide a uniform lighting across any affected surface (eg. The Sun). This will affect all objects in the defined light-mass importance volume.
  */
-UCLASS(Blueprintable, ClassGroup=Lights, hidecategories=(Object, LightProfiles), editinlinenew, meta=(BlueprintSpawnableComponent))
-class ENGINE_API UDirectionalLightComponent : public ULightComponent
+UCLASS(Blueprintable, ClassGroup=Lights, hidecategories=(Object, LightProfiles), editinlinenew, meta=(BlueprintSpawnableComponent), MinimalAPI)
+class UDirectionalLightComponent : public ULightComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -262,70 +262,70 @@ class ENGINE_API UDirectionalLightComponent : public ULightComponent
 	float ShadowAmount;
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
-	void SetDynamicShadowDistanceMovableLight(float NewValue);
+	ENGINE_API void SetDynamicShadowDistanceMovableLight(float NewValue);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
-	void SetDynamicShadowDistanceStationaryLight(float NewValue);
+	ENGINE_API void SetDynamicShadowDistanceStationaryLight(float NewValue);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
-	void SetDynamicShadowCascades(int32 NewValue);
+	ENGINE_API void SetDynamicShadowCascades(int32 NewValue);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
-	void SetCascadeDistributionExponent(float NewValue);
+	ENGINE_API void SetCascadeDistributionExponent(float NewValue);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
-	void SetCascadeTransitionFraction(float NewValue);
+	ENGINE_API void SetCascadeTransitionFraction(float NewValue);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
-	void SetShadowDistanceFadeoutFraction(float NewValue);
+	ENGINE_API void SetShadowDistanceFadeoutFraction(float NewValue);
 
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Lighting")
-	void SetShadowCascadeBiasDistribution(float NewValue);
+	ENGINE_API void SetShadowCascadeBiasDistribution(float NewValue);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
-	void SetEnableLightShaftOcclusion(bool bNewValue);
+	ENGINE_API void SetEnableLightShaftOcclusion(bool bNewValue);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
-	void SetOcclusionMaskDarkness(float NewValue);
+	ENGINE_API void SetOcclusionMaskDarkness(float NewValue);
 
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Lighting")
-	void SetOcclusionDepthRange(float NewValue);
+	ENGINE_API void SetOcclusionDepthRange(float NewValue);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
-	void SetLightShaftOverrideDirection(FVector NewValue);
+	ENGINE_API void SetLightShaftOverrideDirection(FVector NewValue);
 
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Lighting")
-	void SetLightSourceAngle(float NewValue);
+	ENGINE_API void SetLightSourceAngle(float NewValue);
 
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Lighting")
-	void SetLightSourceSoftAngle(float NewValue);
+	ENGINE_API void SetLightSourceSoftAngle(float NewValue);
 
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Lighting")
-	void SetShadowSourceAngleFactor(float NewValue);
+	ENGINE_API void SetShadowSourceAngleFactor(float NewValue);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
-	void SetShadowAmount(float NewValue);
+	ENGINE_API void SetShadowAmount(float NewValue);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
-	void SetAtmosphereSunLight(bool bNewValue);
+	ENGINE_API void SetAtmosphereSunLight(bool bNewValue);
 
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Lighting")
-	void SetAtmosphereSunLightIndex(int32 NewValue);
+	ENGINE_API void SetAtmosphereSunLightIndex(int32 NewValue);
 
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Lighting")
-	void SetForwardShadingPriority(int32 NewValue);
+	ENGINE_API void SetForwardShadingPriority(int32 NewValue);
 
 	//~ Begin ULightComponent Interface
-	virtual FVector4 GetLightPosition() const override;
-	virtual ELightComponentType GetLightType() const override;
+	ENGINE_API virtual FVector4 GetLightPosition() const override;
+	ENGINE_API virtual ELightComponentType GetLightType() const override;
 	virtual FLightmassLightSettings GetLightmassSettings() const override
 	{
 		return LightmassSettings;
 	}
 
-	virtual float GetUniformPenumbraSize() const override;
+	ENGINE_API virtual float GetUniformPenumbraSize() const override;
 
-	virtual FLightSceneProxy* CreateSceneProxy() const override;
+	ENGINE_API virtual FLightSceneProxy* CreateSceneProxy() const override;
 	virtual bool IsUsedAsAtmosphereSunLight() const override
 	{
 		return bAtmosphereSunLight; 
@@ -338,19 +338,19 @@ class ENGINE_API UDirectionalLightComponent : public ULightComponent
 	{
 		return AtmosphereSunDiskColorScale;
 	}
-	virtual ELightUnits GetLightUnits() const;
+	ENGINE_API virtual ELightUnits GetLightUnits() const;
 	//~ End ULightComponent Interface
 
 	//~ Begin UObject Interface
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual bool CanEditChange(const FProperty* InProperty) const override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual bool CanEditChange(const FProperty* InProperty) const override;
 	virtual bool ForceActorNonSpatiallyLoaded() const override { return true; }
 #endif // WITH_EDITOR
-	virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
 	//~ Begin UObject Interface
 
-	virtual void InvalidateLightingCacheDetailed(bool bInvalidateBuildEnqueuedLighting, bool bTranslationOnly) override;
+	ENGINE_API virtual void InvalidateLightingCacheDetailed(bool bInvalidateBuildEnqueuedLighting, bool bTranslationOnly) override;
 };
 
 

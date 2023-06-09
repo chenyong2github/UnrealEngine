@@ -374,8 +374,8 @@ struct FFXSystemSpawnParameters
 	bool bIsPlayerEffect = false;
 };
 
-UCLASS(Abstract)
-class ENGINE_API UFXSystemComponent : public UPrimitiveComponent
+UCLASS(Abstract, MinimalAPI)
+class UFXSystemComponent : public UPrimitiveComponent
 {
 	GENERATED_UCLASS_BODY()
 public:
@@ -467,22 +467,22 @@ public:
 	virtual void DeactivateImmediate() {}
 
 	/** Returns true if we have crossed LWC tiles to the point that we may introduce artifacts. */
-	static bool RequiresLWCTileRecache(const FVector3f CurrentTile, const FVector CurrentLocation);
+	static ENGINE_API bool RequiresLWCTileRecache(const FVector3f CurrentTile, const FVector CurrentLocation);
 
 #if WITH_PER_COMPONENT_PARTICLE_PERF_STATS
 	mutable FParticlePerfStats* ParticlePerfStats = nullptr;
 #endif
 
 protected:
-	void PrecacheAssetPSOs(UFXSystemAsset* FXSystemAsset);
+	ENGINE_API void PrecacheAssetPSOs(UFXSystemAsset* FXSystemAsset);
 };
 
 
 /** 
  * A particle emitter.
  */
-UCLASS(ClassGroup=(Rendering), hidecategories=Object, hidecategories=Physics, hidecategories=Collision, showcategories=Trigger, editinlinenew, meta=(BlueprintSpawnableComponent, DisplayName = "Cascade Particle System Component"))
-class ENGINE_API UParticleSystemComponent : public UFXSystemComponent
+UCLASS(ClassGroup=(Rendering), hidecategories=Object, hidecategories=Physics, hidecategories=Collision, showcategories=Trigger, editinlinenew, meta=(BlueprintSpawnableComponent, DisplayName = "Cascade Particle System Component"), MinimalAPI)
+class UParticleSystemComponent : public UFXSystemComponent
 {
 	friend class FParticleSystemWorldManager;
 
@@ -612,7 +612,7 @@ private:
 	volatile bool bAsyncWorkOutstanding;
 	
 	/** Restore relative transform from auto attachment and optionally detach from parent (regardless of whether it was an auto attachment). */
-	void CancelAutoAttachment(bool bDetachFromParent, const UWorld* MyWorld);
+	ENGINE_API void CancelAutoAttachment(bool bDetachFromParent, const UWorld* MyWorld);
 
 	/** Handle into the FParticleSystemWorldManager. INDEX_NONE if this component does not have managed ticks. */
 	int32 ManagerHandle : 30;
@@ -626,7 +626,7 @@ public:
 #if WITH_EDITOR
 	virtual bool Editor_CanBeTickManaged()const { return true; }
 #endif
-	bool ShouldBeTickManaged()const;
+	ENGINE_API bool ShouldBeTickManaged()const;
 
 	FORCEINLINE bool IsTickManaged()const { return ManagerHandle != INDEX_NONE && !IsPendingManagerRemove(); }
 	FORCEINLINE int32 GetManagerHandle()const { return ManagerHandle; }
@@ -637,8 +637,8 @@ public:
 	FORCEINLINE int32 IsPendingManagerRemove()const { return bPendingManagerRemove; }
 	FORCEINLINE void SetPendingManagerRemove(bool bValue) { bPendingManagerRemove = bValue; }
 
-	FPSCTickData& GetManagerTickData();
-	FParticleSystemWorldManager* GetWorldManager()const;
+	ENGINE_API FPSCTickData& GetManagerTickData();
+	ENGINE_API FParticleSystemWorldManager* GetWorldManager()const;
 
 
 	/** If this PSC is pooling. */
@@ -837,7 +837,7 @@ public:
 	 * @see bAutoManageAttachment, AutoAttachParent, AutoAttachSocketName, AutoAttachLocationType
 	 */
 	UFUNCTION(BlueprintCallable, Category="Effects|Components|ParticleSystem", meta=(DeprecatedFunction, DeprecationMessage="Please use Set Auto Attachment Parameters"))
-	void SetAutoAttachParams(USceneComponent* Parent, FName SocketName = NAME_None, EAttachLocation::Type LocationType = EAttachLocation::KeepRelativeOffset);
+	ENGINE_API void SetAutoAttachParams(USceneComponent* Parent, FName SocketName = NAME_None, EAttachLocation::Type LocationType = EAttachLocation::KeepRelativeOffset);
 
 	/**
 	 * Set AutoAttachParent, AutoAttachSocketName, AutoAttachLocationRule, AutoAttachRotationRule, AutoAttachScaleRule to the specified parameters. Does not change bAutoManageAttachment; that must be set separately.
@@ -848,7 +848,7 @@ public:
 	 * @param  ScaleRule		Option for how we handle our scale when we attach to Parent.
 	 * @see bAutoManageAttachment, AutoAttachParent, AutoAttachSocketName, AutoAttachLocationRule, AutoAttachRotationRule, AutoAttachScaleRule
 	 */
-	void SetAutoAttachmentParameters(USceneComponent* Parent, FName SocketName, EAttachmentRule LocationRule, EAttachmentRule RotationRule, EAttachmentRule ScaleRule) override;
+	ENGINE_API void SetAutoAttachmentParameters(USceneComponent* Parent, FName SocketName, EAttachmentRule LocationRule, EAttachmentRule RotationRule, EAttachmentRule ScaleRule) override;
 
 	virtual void SetUseAutoManageAttachment(bool bAutoManage) override { bAutoManageAttachment = bAutoManage; }
 
@@ -882,11 +882,11 @@ private:
 public:
 
 	/** Called from game code when the significance required for a component changes. */
-	void SetRequiredSignificance(EParticleSignificanceLevel NewRequiredSignificance);
+	ENGINE_API void SetRequiredSignificance(EParticleSignificanceLevel NewRequiredSignificance);
 	/** Whether this component should have it's significance managed by game code. */
-	bool ShouldManageSignificance()const;
+	ENGINE_API bool ShouldManageSignificance()const;
 	/** When the overall significance for the component is changed. */
-	void OnSignificanceChanged(bool bSignificant, bool bApplyToEmitters, bool bAsync=false);
+	ENGINE_API void OnSignificanceChanged(bool bSignificant, bool bApplyToEmitters, bool bAsync=false);
 
 	/** Called from game code when the component begins having it's significance managed. */
 	FORCEINLINE void SetManagingSignificance(bool bManageSignificance)
@@ -898,17 +898,17 @@ public:
 	FORCEINLINE const FVector3f& GetLWCTile() const { return LWCTile;  }
 	
 	/** Returns the approximate distance squared from this component to the passed location. */
-	float GetApproxDistanceSquared(FVector Point)const;
+	ENGINE_API float GetApproxDistanceSquared(FVector Point)const;
 	
 	/** True if this component can be considered invisible and potentially culled. */
-	bool CanConsiderInvisible()const;
+	ENGINE_API bool CanConsiderInvisible()const;
 
-	bool CanSkipTickDueToVisibility();
+	ENGINE_API bool CanSkipTickDueToVisibility();
 
 	/** true if this component can be occluded. */
-	bool CanBeOccluded()const;
+	ENGINE_API bool CanBeOccluded()const;
 
-	void Complete();
+	ENGINE_API void Complete();
 	
 	FORCEINLINE const FTransform& GetAsyncComponentToWorld()
 	{
@@ -971,7 +971,7 @@ public:
 	 *	@param	NewEndPoint			The value to set it to
 	 */
 	UFUNCTION(BlueprintCallable, Category="Effects|Components|ParticleSystem")
-	virtual void SetBeamEndPoint(int32 EmitterIndex, FVector NewEndPoint);
+	ENGINE_API virtual void SetBeamEndPoint(int32 EmitterIndex, FVector NewEndPoint);
 
 	/**
 	 *	Set the beam source point
@@ -981,7 +981,7 @@ public:
 	 *	@param	SourceIndex			Which beam within the emitter to set it on
 	 */
 	UFUNCTION(BlueprintCallable, Category="Effects|Components|ParticleSystem")
-	virtual void SetBeamSourcePoint(int32 EmitterIndex, FVector NewSourcePoint, int32 SourceIndex);
+	ENGINE_API virtual void SetBeamSourcePoint(int32 EmitterIndex, FVector NewSourcePoint, int32 SourceIndex);
 
 	/**
 	 *	Set the beam source tangent
@@ -991,7 +991,7 @@ public:
 	 *	@param	SourceIndex			Which beam within the emitter to set it on
 	 */
 	UFUNCTION(BlueprintCallable, Category="Effects|Components|ParticleSystem")
-	virtual void SetBeamSourceTangent(int32 EmitterIndex, FVector NewTangentPoint, int32 SourceIndex);
+	ENGINE_API virtual void SetBeamSourceTangent(int32 EmitterIndex, FVector NewTangentPoint, int32 SourceIndex);
 
 	/**
 	 *	Set the beam source strength
@@ -1001,7 +1001,7 @@ public:
 	 *	@param	SourceIndex			Which beam within the emitter to set it on
 	 */
 	UFUNCTION(BlueprintCallable, Category="Effects|Components|ParticleSystem")
-	virtual void SetBeamSourceStrength(int32 EmitterIndex, float NewSourceStrength, int32 SourceIndex);
+	ENGINE_API virtual void SetBeamSourceStrength(int32 EmitterIndex, float NewSourceStrength, int32 SourceIndex);
 
 	/**
 	 *	Set the beam target point
@@ -1011,7 +1011,7 @@ public:
 	 *	@param	TargetIndex			Which beam within the emitter to set it on
 	 */
 	UFUNCTION(BlueprintCallable, Category="Effects|Components|ParticleSystem")
-	virtual void SetBeamTargetPoint(int32 EmitterIndex, FVector NewTargetPoint, int32 TargetIndex);
+	ENGINE_API virtual void SetBeamTargetPoint(int32 EmitterIndex, FVector NewTargetPoint, int32 TargetIndex);
 
 	/**
 	 *	Set the beam target tangent
@@ -1021,7 +1021,7 @@ public:
 	 *	@param	TargetIndex			Which beam within the emitter to set it on
 	 */
 	UFUNCTION(BlueprintCallable, Category="Effects|Components|ParticleSystem")
-	virtual void SetBeamTargetTangent(int32 EmitterIndex, FVector NewTangentPoint, int32 TargetIndex);
+	ENGINE_API virtual void SetBeamTargetTangent(int32 EmitterIndex, FVector NewTangentPoint, int32 TargetIndex);
 
 	/**
 	 *	Set the beam target strength
@@ -1031,7 +1031,7 @@ public:
 	 *	@param	TargetIndex			Which beam within the emitter to set it on
 	 */
 	UFUNCTION(BlueprintCallable, Category="Effects|Components|ParticleSystem")
-	virtual void SetBeamTargetStrength(int32 EmitterIndex, float NewTargetStrength, int32 TargetIndex);
+	ENGINE_API virtual void SetBeamTargetStrength(int32 EmitterIndex, float NewTargetStrength, int32 TargetIndex);
 
 	/**
 	*	Get the beam end point
@@ -1042,7 +1042,7 @@ public:
 	*			false		EmitterIndex invalid or End point is not set - OutEndPoint is invalid
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Effects|Components|ParticleSystem")
-	virtual bool GetBeamEndPoint(int32 EmitterIndex, FVector& OutEndPoint) const;
+	ENGINE_API virtual bool GetBeamEndPoint(int32 EmitterIndex, FVector& OutEndPoint) const;
 	
 	/**
 	*	Get the beam source point
@@ -1055,7 +1055,7 @@ public:
 	*			false		EmitterIndex or SourceIndex is invalid - OutSourcePoint is invalid
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Effects|Components|ParticleSystem")
-	virtual bool GetBeamSourcePoint(int32 EmitterIndex, int32 SourceIndex, FVector& OutSourcePoint) const;
+	ENGINE_API virtual bool GetBeamSourcePoint(int32 EmitterIndex, int32 SourceIndex, FVector& OutSourcePoint) const;
 
 	/**
 	*	Get the beam source tangent
@@ -1068,7 +1068,7 @@ public:
 	*			false		EmitterIndex or SourceIndex is invalid - OutTangentPoint is invalid
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Effects|Components|ParticleSystem")
-	virtual bool GetBeamSourceTangent(int32 EmitterIndex, int32 SourceIndex, FVector& OutTangentPoint) const;
+	ENGINE_API virtual bool GetBeamSourceTangent(int32 EmitterIndex, int32 SourceIndex, FVector& OutTangentPoint) const;
 
 	/**
 	*	Get the beam source strength
@@ -1081,7 +1081,7 @@ public:
 	*			false		EmitterIndex or SourceIndex is invalid - OutSourceStrength is invalid
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Effects|Components|ParticleSystem")
-	virtual bool GetBeamSourceStrength(int32 EmitterIndex, int32 SourceIndex, float& OutSourceStrength) const;
+	ENGINE_API virtual bool GetBeamSourceStrength(int32 EmitterIndex, int32 SourceIndex, float& OutSourceStrength) const;
 
 	/**
 	*	Get the beam target point
@@ -1094,7 +1094,7 @@ public:
 	*			false		EmitterIndex or TargetIndex is invalid - OutTargetPoint is invalid
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Effects|Components|ParticleSystem")
-	virtual bool GetBeamTargetPoint(int32 EmitterIndex, int32 TargetIndex, FVector& OutTargetPoint) const;
+	ENGINE_API virtual bool GetBeamTargetPoint(int32 EmitterIndex, int32 TargetIndex, FVector& OutTargetPoint) const;
 
 	/**
 	*	Get the beam target tangent
@@ -1107,7 +1107,7 @@ public:
 	*			false		EmitterIndex or TargetIndex is invalid - OutTangentPoint is invalid
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Effects|Components|ParticleSystem")
-	virtual bool GetBeamTargetTangent(int32 EmitterIndex, int32 TargetIndex, FVector& OutTangentPoint) const;
+	ENGINE_API virtual bool GetBeamTargetTangent(int32 EmitterIndex, int32 TargetIndex, FVector& OutTangentPoint) const;
 	
 	/**
 	*	Get the beam target strength
@@ -1120,7 +1120,7 @@ public:
 	*			false		EmitterIndex or TargetIndex is invalid - OutTargetStrength is invalid
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Effects|Components|ParticleSystem")
-	virtual bool GetBeamTargetStrength(int32 EmitterIndex, int32 TargetIndex, float& OutTargetStrength) const;
+	ENGINE_API virtual bool GetBeamTargetStrength(int32 EmitterIndex, int32 TargetIndex, float& OutTargetStrength) const;
 	
 	/**
 	 *	Enables/Disables a sub-emitter
@@ -1128,7 +1128,7 @@ public:
 	 *	@param	EmitterName			The name of the sub-emitter to set it on
 	 *	@param	bNewEnableState		The value to set it to
 	 */
-	void SetEmitterEnable(FName EmitterName, bool bNewEnableState) override;
+	ENGINE_API void SetEmitterEnable(FName EmitterName, bool bNewEnableState) override;
 
 
 	/**
@@ -1136,35 +1136,35 @@ public:
 	 *	This is for function parity with the VFX Marshaller. The bool is converted
 	 *  and then set to a float.
 	 */
-	void SetBoolParameter(FName ParameterName, bool Param) override;
+	ENGINE_API void SetBoolParameter(FName ParameterName, bool Param) override;
 
 	/**
 	 *	Set a named float instance parameter on this ParticleSystemComponent.
 	 *	This is for function parity with the VFX Marshaller. The int is converted
 	 *  and then set to a float.
 	 */
-	void SetIntParameter(FName ParameterName, int Param) override;
+	ENGINE_API void SetIntParameter(FName ParameterName, int Param) override;
 
 	/** Change a named float parameter */
-	void SetFloatParameter(FName ParameterName, float Param) override;
+	ENGINE_API void SetFloatParameter(FName ParameterName, float Param) override;
 
 	/** 
 	 *	Set a named vector instance parameter on this ParticleSystemComponent. 
 	 *	Updates the parameter if it already exists, or creates a new entry if not. 
 	 */
-	void SetVectorParameter(FName ParameterName, FVector Param) override;
+	ENGINE_API void SetVectorParameter(FName ParameterName, FVector Param) override;
 
 	/** 
 	 *	Set a named color instance parameter on this ParticleSystemComponent. 
 	 *	Updates the parameter if it already exists, or creates a new entry if not. 
 	 */
-	void SetColorParameter(FName ParameterName, FLinearColor Param) override;
+	ENGINE_API void SetColorParameter(FName ParameterName, FLinearColor Param) override;
 
 	/** 
 	 *	Set a named actor instance parameter on this ParticleSystemComponent. 
 	 *	Updates the parameter if it already exists, or creates a new entry if not. 
 	 */
-	void SetActorParameter(FName ParameterName, class AActor* Param) override;
+	ENGINE_API void SetActorParameter(FName ParameterName, class AActor* Param) override;
 
 	/**
 	 * Get the referenced FXSystem asset.
@@ -1176,7 +1176,7 @@ public:
 	 *	Updates the parameter if it already exists, or creates a new entry if not. 
 	 */
 	UFUNCTION(BlueprintCallable, Category="Effects|Components|ParticleSystem")
-	void SetMaterialParameter(FName ParameterName, class UMaterialInterface* Param);
+	ENGINE_API void SetMaterialParameter(FName ParameterName, class UMaterialInterface* Param);
 
 	/**
 	 *	Retrieve the Float parameter value for the given name.
@@ -1187,7 +1187,7 @@ public:
 	 *	@return	true		Parameter was found - OutFloat is valid
 	 *			false		Parameter was not found - OutFloat is invalid
 	 */
-	virtual bool GetFloatParameter(const FName InName, float& OutFloat);
+	ENGINE_API virtual bool GetFloatParameter(const FName InName, float& OutFloat);
 
 	/**
 	 *	Retrieve the Vector parameter value for the given name.
@@ -1198,7 +1198,7 @@ public:
 	 *	@return	true		Parameter was found - OutVector is valid
 	 *			false		Parameter was not found - OutVector is invalid
 	 */
-	virtual bool GetVectorParameter(const FName InName, FVector& OutVector);
+	ENGINE_API virtual bool GetVectorParameter(const FName InName, FVector& OutVector);
 
 	/**
 	 *	Retrieve the Vector parameter value for the given name...also looks for colors and floats and returns those
@@ -1209,7 +1209,7 @@ public:
 	 *	@return	true		Parameter was found - OutVector is valid
 	 *			false		Parameter was not found - OutVector is invalid
 	 */
-	virtual bool GetAnyVectorParameter(const FName InName, FVector& OutVector);
+	ENGINE_API virtual bool GetAnyVectorParameter(const FName InName, FVector& OutVector);
 
 	/**
 	 *	Retrieve the Color parameter value for the given name.
@@ -1220,7 +1220,7 @@ public:
 	 *	@return	true		Parameter was found - OutColor is valid
 	 *			false		Parameter was not found - OutColor is invalid
 	 */
-	virtual bool GetColorParameter(const FName InName, FLinearColor& OutColor);
+	ENGINE_API virtual bool GetColorParameter(const FName InName, FLinearColor& OutColor);
 
 	/**
 	 *	Retrieve the Actor parameter value for the given name.
@@ -1231,7 +1231,7 @@ public:
 	 *	@return	true		Parameter was found - OutActor is valid
 	 *			false		Parameter was not found - OutActor is invalid
 	 */
-	virtual bool GetActorParameter(const FName InName, class AActor*& OutActor);
+	ENGINE_API virtual bool GetActorParameter(const FName InName, class AActor*& OutActor);
 
 	/**
 	 *	Retrieve the Material parameter value for the given name.
@@ -1242,21 +1242,21 @@ public:
 	 *	@return	true		Parameter was found - OutMaterial is valid
 	 *			false		Parameter was not found - OutMaterial is invalid
 	 */
-	virtual bool GetMaterialParameter(const FName InName, class UMaterialInterface*& OutMaterial);
+	ENGINE_API virtual bool GetMaterialParameter(const FName InName, class UMaterialInterface*& OutMaterial);
 
 	/** clears the specified parameter, returning it to the default value set in the template
 	 * @param ParameterName name of parameter to remove
 	 * @param ParameterType type of parameter to remove; if omitted or PSPT_None is specified, all parameters with the given name are removed
 	 */
-	void ClearParameter(FName ParameterName, enum EParticleSysParamType ParameterType = EParticleSysParamType(0));
+	ENGINE_API void ClearParameter(FName ParameterName, enum EParticleSysParamType ParameterType = EParticleSysParamType(0));
 
 	/** Change the ParticleSystem used by this ParticleSystemComponent */
 	UFUNCTION(BlueprintCallable, Category="Effects|Components|ParticleSystem")
-	void SetTemplate(class UParticleSystem* NewTemplate);
+	ENGINE_API void SetTemplate(class UParticleSystem* NewTemplate);
 
 	/** Get the current number of active particles in this system */
 	UFUNCTION(BlueprintCallable, Category="Effects|Components|ParticleSystem")
-	int32 GetNumActiveParticles() const;
+	ENGINE_API int32 GetNumActiveParticles() const;
 
 
 	/** Array of trail emitters. */
@@ -1268,7 +1268,7 @@ public:
 	* @param InOwner			The object that triggered this trail. Can be NULL if no assosiation was set by the owner. Not to be confused with the result of GetOwner().
 	* @param bSetOwner			If true, all trail emitters will be set as owned by InOwner.
 	*/
-	virtual void GetOwnedTrailEmitters(TrailEmitterArray& OutTrailEmitters, const void* InOwner, bool bSetOwner = false);
+	ENGINE_API virtual void GetOwnedTrailEmitters(TrailEmitterArray& OutTrailEmitters, const void* InOwner, bool bSetOwner = false);
 	
 	/**
 	* Begins all trail emitters in this component.
@@ -1279,15 +1279,15 @@ public:
 	* @param	InWidth				The width of the trail.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Effects|Particles|Trails")
-	void BeginTrails(FName InFirstSocketName, FName InSecondSocketName, ETrailWidthMode InWidthMode, float InWidth);
+	ENGINE_API void BeginTrails(FName InFirstSocketName, FName InSecondSocketName, ETrailWidthMode InWidthMode, float InWidth);
 
 	/**
 	* Ends all trail emitters in this component.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Effects|Particles|Trails")
-	void EndTrails();
+	ENGINE_API void EndTrails();
 
-	void ReleaseToPool() override;
+	ENGINE_API void ReleaseToPool() override;
 
 	/**
 	* Sets the defining data for all trails in this component.
@@ -1298,7 +1298,7 @@ public:
 	* @param	InWidth				The width of the trail.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Effects|Particles|Trails")
-	void SetTrailSourceData(FName InFirstSocketName, FName InSecondSocketName, ETrailWidthMode InWidthMode, float InWidth);
+	ENGINE_API void SetTrailSourceData(FName InFirstSocketName, FName InSecondSocketName, ETrailWidthMode InWidthMode, float InWidth);
 
 public:
 	/** Command fence used to shut down properly */
@@ -1307,7 +1307,7 @@ public:
 	TArray<struct FParticleEmitterInstance*> EmitterInstances;
 
 	/** Static delegate called for all systems on an activation change. */
-	static FOnSystemPreActivationChange OnSystemPreActivationChange;
+	static ENGINE_API FOnSystemPreActivationChange OnSystemPreActivationChange;
 
 	/** Stream of random values to use with this component */
 	FRandomStream RandomStream;
@@ -1335,29 +1335,29 @@ public:
 
 	//~ Begin UActorComponent Interface.
 #if WITH_EDITOR
-	virtual void CheckForErrors() override;
+	ENGINE_API virtual void CheckForErrors() override;
 #endif
-	virtual bool IsReadyForOwnerToAutoDestroy() const override;
-	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
+	ENGINE_API virtual bool IsReadyForOwnerToAutoDestroy() const override;
+	ENGINE_API virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 	virtual UObject const* AdditionalStatObject() const override
 	{
 		return Template;
 	}
-	virtual void SetComponentTickEnabled(bool bEnabled)override;
-	virtual bool IsComponentTickEnabled() const override;
+	ENGINE_API virtual void SetComponentTickEnabled(bool bEnabled)override;
+	ENGINE_API virtual bool IsComponentTickEnabled() const override;
 
-	virtual void OnAttachmentChanged()override;
-	virtual void OnChildAttached(USceneComponent* ChildComponent)override;
-	virtual void OnChildDetached(USceneComponent* ChildComponent)override;
+	ENGINE_API virtual void OnAttachmentChanged()override;
+	ENGINE_API virtual void OnChildAttached(USceneComponent* ChildComponent)override;
+	ENGINE_API virtual void OnChildDetached(USceneComponent* ChildComponent)override;
 
-	virtual void OnEndOfFrameUpdateDuringTick() override;
+	ENGINE_API virtual void OnEndOfFrameUpdateDuringTick() override;
 protected:
-	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
-	virtual void SendRenderTransform_Concurrent() override;
-	virtual void DestroyRenderState_Concurrent() override;
-	virtual void OnRegister() override;
-	virtual void OnUnregister()  override;
-	virtual void SendRenderDynamicData_Concurrent() override;
+	ENGINE_API virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
+	ENGINE_API virtual void SendRenderTransform_Concurrent() override;
+	ENGINE_API virtual void DestroyRenderState_Concurrent() override;
+	ENGINE_API virtual void OnRegister() override;
+	ENGINE_API virtual void OnUnregister()  override;
+	ENGINE_API virtual void SendRenderDynamicData_Concurrent() override;
 public:
 	//~ End UActorComponent Interface.
 
@@ -1392,70 +1392,70 @@ public:
 	  * Decide which detail mode should be applied to this particle system. If we have an editor
 	  * override specified, use that. Otherwise use the global cached value 
 	  */
-	int32 GetCurrentDetailMode() const;
+	ENGINE_API int32 GetCurrentDetailMode() const;
 
 	/** Possibly parallel phase of TickComponent **/
-	void ComputeTickComponent_Concurrent();
+	ENGINE_API void ComputeTickComponent_Concurrent();
 
 	/** After the possibly parallel phase of TickComponent, we fire events, etc **/
-	void FinalizeTickComponent();
+	ENGINE_API void FinalizeTickComponent();
 
-	void ForceReset();
+	ENGINE_API void ForceReset();
 
-	void MarshalParamsForAsyncTick();
+	ENGINE_API void MarshalParamsForAsyncTick();
 private:
 	/** Wait on the async task and call finalize on the tick **/
-	void WaitForAsyncAndFinalize(EForceAsyncWorkCompletion Behavior, bool bDefinitelyGameThread = true) const;
+	ENGINE_API void WaitForAsyncAndFinalize(EForceAsyncWorkCompletion Behavior, bool bDefinitelyGameThread = true) const;
 
 	/** Cache view relevance flags. */
-	void CacheViewRelevanceFlags(class UParticleSystem* TemplateToCache);
+	ENGINE_API void CacheViewRelevanceFlags(class UParticleSystem* TemplateToCache);
 
 public:
 
 	//~ Begin UObject Interface.
-	virtual void PostLoad() override;
-	virtual void BeginDestroy() override;
-	virtual void FinishDestroy() override;
+	ENGINE_API virtual void PostLoad() override;
+	ENGINE_API virtual void BeginDestroy() override;
+	ENGINE_API virtual void FinishDestroy() override;
 #if WITH_EDITOR
-	virtual void PreEditChange(FProperty* PropertyThatWillChange) override;
-	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PreEditChange(FProperty* PropertyThatWillChange) override;
+	ENGINE_API virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
-	virtual void Serialize(FArchive& Ar) override;
-	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
-	virtual FString GetDetailedInfoInternal() const override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
+	ENGINE_API virtual FString GetDetailedInfoInternal() const override;
 	//~ End UObject Interface.
 
 	//Begin UPrimitiveComponent Interface
-	virtual int32 GetNumMaterials() const override;
-	virtual UMaterialInterface* GetMaterial(int32 ElementIndex) const override;
-	virtual void SetMaterial(int32 ElementIndex, UMaterialInterface* Material) override;
-	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
-	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
-	virtual void GetUsedMaterials( TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false ) const override;
-	virtual void GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const override;
-	virtual FBodyInstance* GetBodyInstance(FName BoneName = NAME_None, bool bGetWelded = true, int32 Index = INDEX_NONE) const override;
+	ENGINE_API virtual int32 GetNumMaterials() const override;
+	ENGINE_API virtual UMaterialInterface* GetMaterial(int32 ElementIndex) const override;
+	ENGINE_API virtual void SetMaterial(int32 ElementIndex, UMaterialInterface* Material) override;
+	ENGINE_API virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
+	ENGINE_API virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
+	ENGINE_API virtual void GetUsedMaterials( TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false ) const override;
+	ENGINE_API virtual void GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const override;
+	ENGINE_API virtual FBodyInstance* GetBodyInstance(FName BoneName = NAME_None, bool bGetWelded = true, int32 Index = INDEX_NONE) const override;
 	//End UPrimitiveComponent Interface
 
 	//~ Begin USceneComonent Interface
 protected:
-	virtual bool ShouldActivate() const override;
+	ENGINE_API virtual bool ShouldActivate() const override;
 
 public:
 #if WITH_EDITOR
-	virtual bool GetMaterialPropertyPath(int32 ElementIndex, UObject*& OutOwner, FString& OutPropertyPath, FProperty*& OutProperty) override;
+	ENGINE_API virtual bool GetMaterialPropertyPath(int32 ElementIndex, UObject*& OutOwner, FString& OutPropertyPath, FProperty*& OutProperty) override;
 #endif // WITH_EDITOR
-	virtual void Activate(bool bReset=false) override;
-	virtual void Deactivate() override;
-	virtual void DeactivateImmediate() override;
-	virtual void ApplyWorldOffset(const FVector& InOffset, bool bWorldShift) override;
+	ENGINE_API virtual void Activate(bool bReset=false) override;
+	ENGINE_API virtual void Deactivate() override;
+	ENGINE_API virtual void DeactivateImmediate() override;
+	ENGINE_API virtual void ApplyWorldOffset(const FVector& InOffset, bool bWorldShift) override;
 	//~ End USceneComponent Interface
 
 	/** Activate the system */
-	virtual void ActivateSystem(bool bFlagAsJustAttached = false) override;
+	ENGINE_API virtual void ActivateSystem(bool bFlagAsJustAttached = false) override;
 	/** Deactivate the system */
-	void DeactivateSystem();
+	ENGINE_API void DeactivateSystem();
 	// Collision Handling...
-	virtual bool ParticleLineCheck(FHitResult& Hit, AActor* SourceActor, const FVector& End, const FVector& Start, const FVector& HalfExtent, const FCollisionObjectQueryParams& ObjectParams);
+	ENGINE_API virtual bool ParticleLineCheck(FHitResult& Hit, AActor* SourceActor, const FVector& End, const FVector& Start, const FVector& HalfExtent, const FCollisionObjectQueryParams& ObjectParams);
 
 	/** return true if this psys can tick in any thread */
 	FORCEINLINE bool CanTickInAnyThread()
@@ -1467,34 +1467,34 @@ public:
 		return bIsElligibleForAsyncTick;
 	}
 	/** Decide if this psys can tick in any thread, and set bIsElligibleForAsyncTick */
-	void ComputeCanTickInAnyThread();
+	ENGINE_API void ComputeCanTickInAnyThread();
 
 	/**
 	* Creates a Dynamic Material Instance for the specified named material override, optionally from the supplied material.
 	* @param Name - The slot name of the material to replace.  If invalid, the material is unchanged and NULL is returned.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Material")
-	virtual class UMaterialInstanceDynamic* CreateNamedDynamicMaterialInstance(FName InName, class UMaterialInterface* SourceMaterial = NULL);
+	ENGINE_API virtual class UMaterialInstanceDynamic* CreateNamedDynamicMaterialInstance(FName InName, class UMaterialInterface* SourceMaterial = NULL);
 
-	virtual void SetMaterialByName(FName MaterialSlotName, class UMaterialInterface* SourceMaterial) override;
+	ENGINE_API virtual void SetMaterialByName(FName MaterialSlotName, class UMaterialInterface* SourceMaterial) override;
 
 	/** Returns a named material. If this named material is not found, returns NULL. */
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Material")
-	virtual class UMaterialInterface* GetNamedMaterial(FName InName) const;
+	ENGINE_API virtual class UMaterialInterface* GetNamedMaterial(FName InName) const;
 
 	/** Returns the index into the EmitterMaterials array for this named. If there are no named material slots or this material is not found, INDEX_NONE is returned. */
-	virtual int32 GetNamedMaterialIndex(FName InName) const;
+	ENGINE_API virtual int32 GetNamedMaterialIndex(FName InName) const;
 
 	/** returns the name associated with the passed in material, returns NAME_None if it is not found */
-	virtual FName GetNameForMaterial(UMaterialInterface* InMaterial) const;
+	ENGINE_API virtual FName GetNameForMaterial(UMaterialInterface* InMaterial) const;
 
 	/** Returns an approximate memory usage value for this component. */
-	uint32 GetApproxMemoryUsage() const override;
+	ENGINE_API uint32 GetApproxMemoryUsage() const override;
 
 protected:
 
 	// @todo document
-	virtual void UpdateLODInformation();
+	ENGINE_API virtual void UpdateLODInformation();
 
 	/**
 	 * Static: Supplied with a chunk of replay data, this method will create dynamic emitter data that can
@@ -1507,7 +1507,7 @@ protected:
 	 *
 	 * @return	The newly created dynamic data, or NULL on failure
 	 */
-	static FDynamicEmitterDataBase* CreateDynamicDataFromReplay( FParticleEmitterInstance* EmitterInstance, const FDynamicEmitterReplayDataBase* EmitterReplayData, bool bSelected, ERHIFeatureLevel::Type InFeatureLevel );
+	static ENGINE_API FDynamicEmitterDataBase* CreateDynamicDataFromReplay( FParticleEmitterInstance* EmitterInstance, const FDynamicEmitterReplayDataBase* EmitterReplayData, bool bSelected, ERHIFeatureLevel::Type InFeatureLevel );
 
 	/**
 	 * Creates dynamic particle data for rendering the particle system this frame.  This function
@@ -1516,16 +1516,16 @@ protected:
      * @param InFeatureLevel - The relevant shader feature level.
 	 * @return	Returns the dynamic data to render this frame
 	 */
-	FParticleDynamicData* CreateDynamicData(ERHIFeatureLevel::Type InFeatureLevel);
+	ENGINE_API FParticleDynamicData* CreateDynamicData(ERHIFeatureLevel::Type InFeatureLevel);
 
 	/** Orients the Z axis of the ParticleSystemComponent toward the camera while preserving the X axis direction */
-	void OrientZAxisTowardCamera();
+	ENGINE_API void OrientZAxisTowardCamera();
 
 	/** Clears dynamic data on the rendering thread. */
-	void ClearDynamicData();
+	ENGINE_API void ClearDynamicData();
 
 	// @todo document
-	virtual void UpdateDynamicData();
+	ENGINE_API virtual void UpdateDynamicData();
 
 public:
 	FORCEINLINE int32 GetCurrentLODIndex() const
@@ -1534,27 +1534,27 @@ public:
 	}
 
 	// If particles have not already been initialised (ie. EmitterInstances created) do it now.
-	virtual void InitParticles();
+	ENGINE_API virtual void InitParticles();
 
 
 	// @todo document
-	void ResetParticles(bool bEmptyInstances = false);
+	ENGINE_API void ResetParticles(bool bEmptyInstances = false);
 
 
 	// @todo document
-	void ResetBurstLists();
+	ENGINE_API void ResetBurstLists();
 
 
 	// @todo document
-	void UpdateInstances(bool bEmptyInstances = false);
+	ENGINE_API void UpdateInstances(bool bEmptyInstances = false);
 
 
 	// @todo document
-	bool HasCompleted();
+	ENGINE_API bool HasCompleted();
 
 
 	// @todo document
-	void InitializeSystem();
+	ENGINE_API void InitializeSystem();
 
 	/**
 	 *	Cache the view-relevance for each emitter at each LOD level if needed.
@@ -1562,10 +1562,10 @@ public:
 	 *	@param	NewTemplate		The UParticleSystem* to use as the template.
 	 *							If NULL, use the currently set template.
 	 */
-	void ConditionalCacheViewRelevanceFlags(class UParticleSystem* NewTemplate = NULL);
+	ENGINE_API void ConditionalCacheViewRelevanceFlags(class UParticleSystem* NewTemplate = NULL);
 
 	/** Auto-populate the instance parameters based on contained modules. */
-	void	AutoPopulateInstanceProperties();
+	ENGINE_API void	AutoPopulateInstanceProperties();
 
 	/** Event reporting... */
 	/**
@@ -1577,7 +1577,7 @@ public:
 	 *	@param	InVelocity			The velocity of the particle when the event fired.
 	 *  @param  InEventData         Gamespecific event data payload
 	 */
-	void ReportEventSpawn(const FName InEventName, const float InEmitterTime,
+	ENGINE_API void ReportEventSpawn(const FName InEventName, const float InEmitterTime,
 		const FVector InLocation, const FVector InVelocity, const TArray<class UParticleModuleEventSendToGame*>& InEventData);
 
 	/**
@@ -1590,7 +1590,7 @@ public:
 	 *  @param  InEventData         Gamespecific event data payload
 	 *	@param	InParticleTime		The relative life of the particle when the event fired.
 	 */
-	void ReportEventDeath(const FName InEventName, const float InEmitterTime,
+	ENGINE_API void ReportEventDeath(const FName InEventName, const float InEmitterTime,
 		const FVector InLocation, const FVector InVelocity, const TArray<class UParticleModuleEventSendToGame*>& InEventData, const float InParticleTime);
 
 	/**
@@ -1608,7 +1608,7 @@ public:
 	 *	@param	InItem			Primitive data item which was hit, INDEX_NONE=none.
 	 *	@param	InBoneName		Name of bone we hit (for skeletal meshes).
 	 */
-	void ReportEventCollision(const FName InEventName, const float InEmitterTime, const FVector InLocation,
+	ENGINE_API void ReportEventCollision(const FName InEventName, const float InEmitterTime, const FVector InLocation,
 		const FVector InDirection, const FVector InVelocity, const TArray<class UParticleModuleEventSendToGame*>& InEventData, 
 		const float InParticleTime, const FVector InNormal, const float InTime, const int32 InItem, const FName InBoneName, UPhysicalMaterial* PhysMat);
 
@@ -1620,7 +1620,7 @@ public:
 	 *  @param  InParticleCount     The number of particles spawned in the burst
 	 *	@param	InLocation			The location of the particle emitter when the event fired.
 	 */
-	void ReportEventBurst(const FName InEventName, const float InEmitterTime, const int32 ParticleCount,
+	ENGINE_API void ReportEventBurst(const FName InEventName, const float InEmitterTime, const int32 ParticleCount,
 		const FVector InLocation, const TArray<class UParticleModuleEventSendToGame*>& InEventData);
 
 	/**
@@ -1633,7 +1633,7 @@ public:
 	 *	@param	InNormal				Normal vector of the collision in coordinate system of the returner. Zero=none.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Effects|Components|ParticleSystem")
-	void GenerateParticleEvent(const FName InEventName, const float InEmitterTime,
+	ENGINE_API void GenerateParticleEvent(const FName InEventName, const float InEmitterTime,
 		const FVector InLocation, const FVector InDirection, const FVector InVelocity);
 
 
@@ -1642,16 +1642,16 @@ public:
 	 *
 	 * @return Returns the replay clip or NULL if none
 	 */
-	UParticleSystemReplay* FindReplayClipForIDNumber( const int32 InClipIDNumber );
+	ENGINE_API UParticleSystemReplay* FindReplayClipForIDNumber( const int32 InClipIDNumber );
 
 	// @todo document
-	void KillParticlesForced();
+	ENGINE_API void KillParticlesForced();
 	
 	/** 
 	 *	Set a named random vector instance parameter on this ParticleSystemComponent. 
 	 *	Updates the parameter if it already exists, or creates a new entry if not. 
 	 */
-	void SetVectorRandParameter(FName ParameterName, const FVector& Param, const FVector& ParamLow);
+	ENGINE_API void SetVectorRandParameter(FName ParameterName, const FVector& Param, const FVector& ParamLow);
 
 
 
@@ -1659,22 +1659,22 @@ public:
 	 *	Set a named random unit vector instance parameter on this ParticleSystemComponent.
 	 *	Updates the parameter if it already exists, or creates a new entry if not.
 	 */
-	void SetVectorUnitRandParameter(FName ParameterName, const FVector& Param, const FVector& ParamLow);
+	ENGINE_API void SetVectorUnitRandParameter(FName ParameterName, const FVector& Param, const FVector& ParamLow);
 
 	/** 
 	 *	Set a named random float instance parameter on this ParticleSystemComponent. 
 	 *	Updates the parameter if it already exists, or creates a new entry if not. 
 	 */
-	void SetFloatRandParameter(FName ParameterName, float Param, float ParamLow);
+	ENGINE_API void SetFloatRandParameter(FName ParameterName, float Param, float ParamLow);
 
 	/**
 	 * Force the component to update its bounding box.
 	 */
-	void ForceUpdateBounds();	
+	ENGINE_API void ForceUpdateBounds();	
 	
 
 	// @todo document
-	virtual void RewindEmitterInstances();
+	ENGINE_API virtual void RewindEmitterInstances();
 	
 	/**
 	 * This will determine which LOD to use based off the specific ParticleSystem passed in
@@ -1682,23 +1682,23 @@ public:
 	 *
 	 * @note:  This is distance based LOD not perf based.  Perf and distance are orthogonal concepts.
 	 */
-	virtual int32 DetermineLODLevelForLocation(const FVector& EffectLocation);
+	ENGINE_API virtual int32 DetermineLODLevelForLocation(const FVector& EffectLocation);
 	
 	/** Set the LOD level of the particle system */
-	virtual void SetLODLevel(int32 InLODLevel);
+	ENGINE_API virtual void SetLODLevel(int32 InLODLevel);
 	
 	/** Get the LOD level of the particle system */
-	virtual int32 GetLODLevel();
+	ENGINE_API virtual int32 GetLODLevel();
 	
 	/** stops the emitter, unregisters the component, and resets the component's properties to the values of its template */
-	void ResetToDefaults();
+	ENGINE_API void ResetToDefaults();
 
 private:
 	/** 
 	 * Returns true if this component can and should compute it's LOD without
 	 * visibility information from the renderer.
 	 */
-	bool ShouldComputeLODFromGameThread();
+	ENGINE_API bool ShouldComputeLODFromGameThread();
 
 public:
 	FORCEINLINE FParticlePerfStatsContext GetPerfStatsContext(){ return FParticlePerfStatsContext(GetWorld(), Template, this); }

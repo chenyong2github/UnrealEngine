@@ -15,8 +15,8 @@ class AActor;
  * PawnNoiseEmitterComponent tracks noise event data used by SensingComponents to hear a Pawn.
  * This component is intended to exist on either a Pawn or its Controller. It does nothing on network clients.
  */
-UCLASS(ClassGroup=AI, meta=(BlueprintSpawnableComponent))
-class ENGINE_API UPawnNoiseEmitterComponent : public UActorComponent
+UCLASS(ClassGroup=AI, meta=(BlueprintSpawnableComponent), MinimalAPI)
+class UPawnNoiseEmitterComponent : public UActorComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -41,10 +41,10 @@ public:
 	  *  @param NoiseLocation - is the position of the noise
 	  */
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category="Audio|Components|PawnNoiseEmitter")
-	virtual void MakeNoise(AActor* NoiseMaker, float Loudness, const FVector& NoiseLocation);
+	ENGINE_API virtual void MakeNoise(AActor* NoiseMaker, float Loudness, const FVector& NoiseLocation);
 
-	float GetLastNoiseVolume(bool bSourceWithinNoiseEmitter) const;
-	float GetLastNoiseTime(bool bSourceWithinNoiseEmitter) const;
+	ENGINE_API float GetLastNoiseVolume(bool bSourceWithinNoiseEmitter) const;
+	ENGINE_API float GetLastNoiseTime(bool bSourceWithinNoiseEmitter) const;
 
 private:
 		// Most recent volume of noise made by this pawn not at its own location

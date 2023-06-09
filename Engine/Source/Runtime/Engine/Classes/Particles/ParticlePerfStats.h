@@ -35,7 +35,7 @@ class UFXSystemComponent;
 #if WITH_PARTICLE_PERF_STATS
 
 /** Stats gathered on the game thread or game thread spawned tasks. */
-struct ENGINE_API FParticlePerfStats_GT
+struct FParticlePerfStats_GT
 {
 	uint64 NumInstances;
 	uint64 TickGameThreadCycles;
@@ -99,7 +99,7 @@ struct ENGINE_API FParticlePerfStats_GT
 };
 
 /** Stats gathered on the render thread. */
-struct ENGINE_API FParticlePerfStats_RT
+struct FParticlePerfStats_RT
 {
 	uint64 NumInstances = 0;
 	uint64 RenderUpdateCycles = 0;
@@ -117,7 +117,7 @@ struct ENGINE_API FParticlePerfStats_RT
 };
 
 /** Stats gathered from the GPU */
-struct ENGINE_API FParticlePerfStats_GPU
+struct FParticlePerfStats_GPU
 {
 	uint64 NumInstances = 0;
 	uint64 TotalMicroseconds = 0;
@@ -133,15 +133,15 @@ struct ENGINE_API FParticlePerfStats_GPU
 	}
 };
 
-struct ENGINE_API FParticlePerfStats
+struct FParticlePerfStats
 {
-	FParticlePerfStats();
+	ENGINE_API FParticlePerfStats();
 
-	void Reset(bool bSyncWithRT);
-	void ResetGT();
-	void ResetRT();
-	void Tick();
-	void TickRT();
+	ENGINE_API void Reset(bool bSyncWithRT);
+	ENGINE_API void ResetGT();
+	ENGINE_API void ResetRT();
+	ENGINE_API void Tick();
+	ENGINE_API void TickRT();
 
 	FORCEINLINE static bool GetCSVStatsEnabled() { return bCSVStatsEnabled.Load(EMemoryOrder::Relaxed); }
 	FORCEINLINE static bool GetStatsEnabled() { return bStatsEnabled.Load(EMemoryOrder::Relaxed); }
@@ -202,12 +202,12 @@ struct ENGINE_API FParticlePerfStats
 		return nullptr;
 	}
 
-	static TAtomic<bool>	bStatsEnabled;
-	static TAtomic<int32>	WorldStatsReaders;
-	static TAtomic<int32>	SystemStatsReaders;
-	static TAtomic<int32>	ComponentStatsReaders;
+	static ENGINE_API TAtomic<bool>	bStatsEnabled;
+	static ENGINE_API TAtomic<int32>	WorldStatsReaders;
+	static ENGINE_API TAtomic<int32>	SystemStatsReaders;
+	static ENGINE_API TAtomic<int32>	ComponentStatsReaders;
 
-	static TAtomic<bool>	bCSVStatsEnabled;
+	static ENGINE_API TAtomic<bool>	bCSVStatsEnabled;
 
 	/** Stats on GT and GT spawned concurrent work. */
 	FParticlePerfStats_GT GameThreadStats;
@@ -237,9 +237,9 @@ struct ENGINE_API FParticlePerfStats
 	}
 
 private:
-	static FParticlePerfStats* GetWorldPerfStats(const UWorld* World);
-	static FParticlePerfStats* GetSystemPerfStats(const UFXSystemAsset* FXAsset);
-	static FParticlePerfStats* GetComponentPerfStats(const UFXSystemComponent* FXComponent);
+	static ENGINE_API FParticlePerfStats* GetWorldPerfStats(const UWorld* World);
+	static ENGINE_API FParticlePerfStats* GetSystemPerfStats(const UFXSystemAsset* FXAsset);
+	static ENGINE_API FParticlePerfStats* GetComponentPerfStats(const UFXSystemComponent* FXComponent);
 
 };
 

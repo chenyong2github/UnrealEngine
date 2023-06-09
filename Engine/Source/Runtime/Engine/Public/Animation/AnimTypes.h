@@ -519,9 +519,9 @@ struct FAnimSyncMarker
 #endif
 
 	/** This can be used with the Sort() function on a TArray of FAnimSyncMarker to sort the notifies array by time, earliest first. */
-	ENGINE_API bool operator <(const FAnimSyncMarker& Other) const { return Time < Other.Time; }
+	bool operator <(const FAnimSyncMarker& Other) const { return Time < Other.Time; }
 
-	ENGINE_API bool operator ==(const FAnimSyncMarker& Other) const
+	bool operator ==(const FAnimSyncMarker& Other) const
 	{
 		return MarkerName == Other.MarkerName &&
 #if WITH_EDITORONLY_DATA
@@ -825,7 +825,7 @@ namespace EComponentType
 
 // @note We have a plan to support skeletal hierarchy. When that happens, we'd like to keep skeleton indexing.
 USTRUCT()
-struct ENGINE_API FTrackToSkeletonMap
+struct FTrackToSkeletonMap
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -856,7 +856,7 @@ struct ENGINE_API FTrackToSkeletonMap
 * reduced to 1 key that is constant over the entire sequence.
 */
 USTRUCT(BlueprintType)
-struct ENGINE_API FRawAnimSequenceTrack
+struct FRawAnimSequenceTrack
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -937,8 +937,8 @@ template<> struct TStructOpsTypeTraits<FRawAnimSequenceTrack> : public TStructOp
 	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 
-UCLASS()
-class ENGINE_API URawAnimSequenceTrackExtensions : public UBlueprintFunctionLibrary
+UCLASS(MinimalAPI)
+class URawAnimSequenceTrackExtensions : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 public:

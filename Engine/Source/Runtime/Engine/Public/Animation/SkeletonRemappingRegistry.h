@@ -17,19 +17,19 @@ struct FSkeletonRemappingRegistryPrivate;
 // Global registry of skeleton remappings
 // Remappings are created on-demand when calling GetRemapping.
 // Calling public functions from multiple threads is expected. Data races are guarded by a FRWLock.
-class ENGINE_API FSkeletonRemappingRegistry
+class FSkeletonRemappingRegistry
 {
 public:
 	// Access the global registry
-	static FSkeletonRemappingRegistry& Get();
+	static ENGINE_API FSkeletonRemappingRegistry& Get();
 
 	// Get a mapping between a source and target skeleton, built on demand
 	// Remapping is only valid locally to this call and could be free'd later (they are stored as shared ptrs)
 	// Do not assume ownership of the mapping after this call. 
-	const FSkeletonRemapping& GetRemapping(const USkeleton* InSourceSkeleton, const USkeleton* InTargetSkeleton);
+	ENGINE_API const FSkeletonRemapping& GetRemapping(const USkeleton* InSourceSkeleton, const USkeleton* InTargetSkeleton);
 
 	// Refresh any existing mappings that the supplied skeleton is used with
-	void RefreshMappings(USkeleton* InSkeleton);
+	ENGINE_API void RefreshMappings(USkeleton* InSkeleton);
 
 private:
 	friend FSkeletonRemappingRegistryPrivate;
@@ -37,10 +37,10 @@ private:
 	
 private:
 	// Initialize the global registry
-	static void Init();
+	static ENGINE_API void Init();
 
 	// Shutdown the global registry
-	static void Destroy();
+	static ENGINE_API void Destroy();
 	
 	// Mappings map is guarded with a RW lock
 	FRWLock MappingsLock;

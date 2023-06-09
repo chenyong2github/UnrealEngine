@@ -8,18 +8,18 @@
 
 #if WITH_EDITOR
 
-struct ENGINE_API FActorFolderDesc
+struct FActorFolderDesc
 {
 public:
-	FActorFolderDesc();
+	ENGINE_API FActorFolderDesc();
 	const FGuid& GetParentFolderGuid() const { return ParentFolderGuid; }
 	const FGuid& GetFolderGuid() const { return FolderGuid; }
 	const FString& GetFolderLabel() const { return FolderLabel; }
 	bool IsFolderInitiallyExpanded() const { return bFolderInitiallyExpanded; }
 	bool IsFolderDeleted() const { return bFolderIsDeleted; }
 	FString GetOuterPackageName() const { return OuterPackageName; }
-	FString GetDisplayName() const;
-	FString GetPath() const;
+	ENGINE_API FString GetDisplayName() const;
+	ENGINE_API FString GetPath() const;
 
 private:
 	FGuid ParentFolderGuid;

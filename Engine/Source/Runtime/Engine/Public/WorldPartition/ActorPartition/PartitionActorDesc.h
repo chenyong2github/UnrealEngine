@@ -8,7 +8,7 @@
 #include "Containers/Map.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 
-class ENGINE_API FPartitionActorDesc : public FWorldPartitionActorDesc
+class FPartitionActorDesc : public FWorldPartitionActorDesc
 {
 	friend class FPartitionActorDescFactory;
 
@@ -19,13 +19,13 @@ public:
 	int64 GridIndexZ;
 	FGuid GridGuid;
 
-	FPartitionActorDesc();
+	ENGINE_API FPartitionActorDesc();
 protected:
-	virtual void Init(const AActor* InActor) override;
-	virtual bool Equals(const FWorldPartitionActorDesc* Other) const override;
+	ENGINE_API virtual void Init(const AActor* InActor) override;
+	ENGINE_API virtual bool Equals(const FWorldPartitionActorDesc* Other) const override;
 	virtual uint32 GetSizeOf() const override { return sizeof(FPartitionActorDesc); }
-	virtual void Serialize(FArchive& Ar) override;
-	virtual FBox GetEditorBounds() const override;
-	virtual void TransferWorldData(const FWorldPartitionActorDesc* From) override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual FBox GetEditorBounds() const override;
+	ENGINE_API virtual void TransferWorldData(const FWorldPartitionActorDesc* From) override;
 };
 #endif

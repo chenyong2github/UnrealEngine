@@ -4,13 +4,13 @@
 #include "UObject/Interface.h"
 #include "DestructibleInterface.generated.h"
 
-UINTERFACE()
-class ENGINE_API UDestructibleInterface : public UInterface
+UINTERFACE(MinimalAPI)
+class UDestructibleInterface : public UInterface
 {
 	GENERATED_UINTERFACE_BODY()
 };
 
-class ENGINE_API IDestructibleInterface
+class IDestructibleInterface
 {
 	GENERATED_IINTERFACE_BODY()
 public:

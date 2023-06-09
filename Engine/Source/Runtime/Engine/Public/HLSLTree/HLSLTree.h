@@ -136,7 +136,7 @@ private:
  * This is especially useful when dealing with struct types, which are internally represented as a flattened list of components of all fields.  In many cases only certain fields of a struct type will be relevant, which can be tracked by
  * setting the bits associated with those fields.
  */
-class ENGINE_API FRequestedType
+class FRequestedType
 {
 public:
 	FRequestedType() = default;
@@ -145,13 +145,13 @@ public:
 	FRequestedType& operator=(FRequestedType&&) = default;
 	FRequestedType& operator=(const FRequestedType&) = default;
 
-	FRequestedType(const Shader::FType& InType, bool bDefaultRequest = true);
-	FRequestedType(const FRequestedType& InType, bool bDefaultRequest);
+	ENGINE_API FRequestedType(const Shader::FType& InType, bool bDefaultRequest = true);
+	ENGINE_API FRequestedType(const FRequestedType& InType, bool bDefaultRequest);
 	FRequestedType(Shader::EValueType InType, bool bDefaultRequest = true) : FRequestedType(Shader::FType(InType), bDefaultRequest) {}
 	FRequestedType(const Shader::FStructType* InType, bool bDefaultRequest = true) : FRequestedType(Shader::FType(InType), bDefaultRequest) {}
 	FRequestedType(const FName& InType, bool bDefaultRequest = true) : FRequestedType(Shader::FType(InType), bDefaultRequest) {}
 
-	Shader::EValueComponentType GetValueComponentType() const;
+	ENGINE_API Shader::EValueComponentType GetValueComponentType() const;
 
 	bool IsComponentRequested(int32 Index) const
 	{
@@ -172,20 +172,20 @@ public:
 	/** No requested components */
 	bool IsEmpty() const { return !Type.IsAny() && !RequestedComponents.Contains(true); }
 
-	void SetComponentRequest(int32 Index, bool bRequest = true);
+	ENGINE_API void SetComponentRequest(int32 Index, bool bRequest = true);
 
 	/** Marks the given field as requested (or not) */
-	void SetFieldRequested(const Shader::FStructField* Field, bool bRequest = true);
+	ENGINE_API void SetFieldRequested(const Shader::FStructField* Field, bool bRequest = true);
 	void ClearFieldRequested(const Shader::FStructField* Field)
 	{
 		SetFieldRequested(Field, false);
 	}
 
 	/** Marks the given field as requested, based on the input request type (which should match the field type) */
-	void SetFieldRequested(const Shader::FStructField* Field, const FRequestedType& InRequest);
+	ENGINE_API void SetFieldRequested(const Shader::FStructField* Field, const FRequestedType& InRequest);
 
 	/** Returns the requested type of the given field */
-	FRequestedType GetField(const Shader::FStructField* Field) const;
+	ENGINE_API FRequestedType GetField(const Shader::FStructField* Field) const;
 
 	/**
 	 * The actual type that was requested.  Specific componets of this type are requested by setting RequestedComponents

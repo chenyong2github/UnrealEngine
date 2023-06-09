@@ -13,8 +13,8 @@ class FLightSceneProxy;
 /**
  * A light component which emits light from a single point equally in all directions.
  */
-UCLASS(abstract, ClassGroup=(Lights,Common), hidecategories=(Object, LightShafts), editinlinenew, meta=(BlueprintSpawnableComponent))
-class ENGINE_API ULocalLightComponent : public ULightComponent
+UCLASS(abstract, ClassGroup=(Lights,Common), hidecategories=(Object, LightShafts), editinlinenew, meta=(BlueprintSpawnableComponent), MinimalAPI)
+class ULocalLightComponent : public ULightComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -49,26 +49,26 @@ class ENGINE_API ULocalLightComponent : public ULightComponent
 	struct FLightmassPointLightSettings LightmassSettings;
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
-	void SetAttenuationRadius(float NewRadius);
+	ENGINE_API void SetAttenuationRadius(float NewRadius);
 
 	/** Set the units used for the intensity of the light */
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|Light")
-	void SetIntensityUnits(ELightUnits NewIntensityUnits);
+	ENGINE_API void SetIntensityUnits(ELightUnits NewIntensityUnits);
 
 	UFUNCTION(BlueprintPure, Category="Rendering|Lighting")
-	static float GetUnitsConversionFactor(ELightUnits SrcUnits, ELightUnits TargetUnits, float CosHalfConeAngle = -1);
+	static ENGINE_API float GetUnitsConversionFactor(ELightUnits SrcUnits, ELightUnits TargetUnits, float CosHalfConeAngle = -1);
 
 protected:
 	//~ Begin UActorComponent Interface
-	virtual void SendRenderTransform_Concurrent() override;
+	ENGINE_API virtual void SendRenderTransform_Concurrent() override;
 	//~ End UActorComponent Interface
 
 public:
 	//~ Begin ULightComponent Interface.
-	virtual bool AffectsBounds(const FBoxSphereBounds& InBounds) const override;
-	virtual FVector4 GetLightPosition() const override;
-	virtual FBox GetBoundingBox() const override;
-	virtual FSphere GetBoundingSphere() const override;
+	ENGINE_API virtual bool AffectsBounds(const FBoxSphereBounds& InBounds) const override;
+	ENGINE_API virtual FVector4 GetLightPosition() const override;
+	ENGINE_API virtual FBox GetBoundingBox() const override;
+	ENGINE_API virtual FSphere GetBoundingSphere() const override;
 	virtual FLightmassLightSettings GetLightmassSettings() const override
 	{
 		return LightmassSettings;
@@ -76,17 +76,17 @@ public:
 	virtual ELightUnits GetLightUnits() const { return IntensityUnits; }
 
 	//~ Begin UObject Interface
-	virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
 #if WITH_EDITOR
-	virtual bool CanEditChange(const FProperty* InProperty) const override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual bool CanEditChange(const FProperty* InProperty) const override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 	//~ End UObject Interface
 
 private:
 
 	/** Pushes the value of radius to the rendering thread. */
-	void PushRadiusToRenderThread();
+	ENGINE_API void PushRadiusToRenderThread();
 };
 
 

@@ -76,13 +76,13 @@ enum class EAttachmentRule : uint8
 };
 
 /** Rules for attaching components */
-struct ENGINE_API FAttachmentTransformRules
+struct FAttachmentTransformRules
 {
 	/** Various preset attachment rules. Note that these default rules do NOT by default weld simulated bodies */
-	static FAttachmentTransformRules KeepRelativeTransform;
-	static FAttachmentTransformRules KeepWorldTransform;
-	static FAttachmentTransformRules SnapToTargetNotIncludingScale;
-	static FAttachmentTransformRules SnapToTargetIncludingScale;
+	static ENGINE_API FAttachmentTransformRules KeepRelativeTransform;
+	static ENGINE_API FAttachmentTransformRules KeepWorldTransform;
+	static ENGINE_API FAttachmentTransformRules SnapToTargetNotIncludingScale;
+	static ENGINE_API FAttachmentTransformRules SnapToTargetIncludingScale;
 
 	FAttachmentTransformRules(EAttachmentRule InRule, bool bInWeldSimulatedBodies)
 		: LocationRule(InRule)
@@ -123,11 +123,11 @@ enum class EDetachmentRule : uint8
 };
 
 /** Rules for detaching components */
-struct ENGINE_API FDetachmentTransformRules
+struct FDetachmentTransformRules
 {
 	/** Various preset detachment rules */
-	static FDetachmentTransformRules KeepRelativeTransform;
-	static FDetachmentTransformRules KeepWorldTransform;
+	static ENGINE_API FDetachmentTransformRules KeepRelativeTransform;
+	static ENGINE_API FDetachmentTransformRules KeepWorldTransform;
 
 	FDetachmentTransformRules(EDetachmentRule InRule, bool bInCallModify)
 		: LocationRule(InRule)
@@ -646,7 +646,7 @@ static_assert(MSM_NUM <= 16, "Do not exceed 16 shading models without expanding 
 
 /** Wrapper for a bitfield of shading models. A material contains one of these to describe what possible shading models can be used by that material. */
 USTRUCT()
-struct ENGINE_API FMaterialShadingModelField
+struct FMaterialShadingModelField
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -716,7 +716,7 @@ static_assert(SSM_NUM <= 16, "Do not exceed 16 shading models without expanding 
 
 /** Gather information from the Substrate material graph to setup material for runtime. */
 USTRUCT()
-struct ENGINE_API FStrataMaterialInfo
+struct FStrataMaterialInfo
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -724,8 +724,8 @@ public:
 	FStrataMaterialInfo() {}
 	FStrataMaterialInfo(EStrataShadingModel InShadingModel) { AddShadingModel(InShadingModel); }
 
-	bool Serialize(FArchive& Ar);
-	void PostSerialize(const FArchive& Ar);
+	ENGINE_API bool Serialize(FArchive& Ar);
+	ENGINE_API void PostSerialize(const FArchive& Ar);
 
 	// Shading model
 	void AddShadingModel(EStrataShadingModel InShadingModel) { check(InShadingModel < SSM_NUM); ShadingModelField |= (uint16)(1 << (uint16)InShadingModel); }
@@ -1219,7 +1219,7 @@ struct FResponseChannel
  *	Container for indicating a set of collision channels that this object will collide with.
  */
 USTRUCT(BlueprintType)
-struct ENGINE_API FCollisionResponseContainer
+struct FCollisionResponseContainer
 {
 	GENERATED_BODY()
 
@@ -1395,27 +1395,27 @@ struct ENGINE_API FCollisionResponseContainer
 	};
 
 	/** This constructor will set all channels to ECR_Block */
-	FCollisionResponseContainer();
-	FCollisionResponseContainer(ECollisionResponse DefaultResponse);
+	ENGINE_API FCollisionResponseContainer();
+	ENGINE_API FCollisionResponseContainer(ECollisionResponse DefaultResponse);
 
 	/** Set the response of a particular channel in the structure. */
-	bool SetResponse(ECollisionChannel Channel, ECollisionResponse NewResponse);
+	ENGINE_API bool SetResponse(ECollisionChannel Channel, ECollisionResponse NewResponse);
 
 	/** Set all channels to the specified response */
-	bool SetAllChannels(ECollisionResponse NewResponse);
+	ENGINE_API bool SetAllChannels(ECollisionResponse NewResponse);
 
 	/** Replace the channels matching the old response with the new response */
-	bool ReplaceChannels(ECollisionResponse OldResponse, ECollisionResponse NewResponse);
+	ENGINE_API bool ReplaceChannels(ECollisionResponse OldResponse, ECollisionResponse NewResponse);
 
 	/** Returns the response set on the specified channel */
 	FORCEINLINE_DEBUGGABLE ECollisionResponse GetResponse(ECollisionChannel Channel) const { return (ECollisionResponse)EnumArray[Channel]; }
 
 	/** Set all channels from ChannelResponse Array **/
-	void UpdateResponsesFromArray(TArray<FResponseChannel> & ChannelResponses);
-	int32 FillArrayFromResponses(TArray<FResponseChannel> & ChannelResponses);
+	ENGINE_API void UpdateResponsesFromArray(TArray<FResponseChannel> & ChannelResponses);
+	ENGINE_API int32 FillArrayFromResponses(TArray<FResponseChannel> & ChannelResponses);
 
 	/** Take two response containers and create a new container where each element is the 'min' of the two inputs (ie Ignore and Block results in Ignore) */
-	static FCollisionResponseContainer CreateMinContainer(const FCollisionResponseContainer& A, const FCollisionResponseContainer& B);
+	static ENGINE_API FCollisionResponseContainer CreateMinContainer(const FCollisionResponseContainer& A, const FCollisionResponseContainer& B);
 
 	/** Returns the game-wide default collision response */
 	static const struct FCollisionResponseContainer& GetDefaultResponseContainer() { return DefaultResponseContainer; }
@@ -1432,7 +1432,7 @@ struct ENGINE_API FCollisionResponseContainer
 private:
 
 	/** static variable for default data to be used without reconstructing everytime **/
-	static FCollisionResponseContainer DefaultResponseContainer;
+	static ENGINE_API FCollisionResponseContainer DefaultResponseContainer;
 
 	friend class UCollisionProfile;
 };
@@ -1474,19 +1474,19 @@ namespace ECollisionEnabled
 	}; 
 } 
 
-struct ENGINE_API FCollisionEnabledMask
+struct FCollisionEnabledMask
 {
 	int8 Bits;
 
-	FCollisionEnabledMask(int8 InBits = 0);
-	FCollisionEnabledMask(ECollisionEnabled::Type CollisionEnabled);
+	ENGINE_API FCollisionEnabledMask(int8 InBits = 0);
+	ENGINE_API FCollisionEnabledMask(ECollisionEnabled::Type CollisionEnabled);
 
-	operator int8() const;
-	operator bool() const;
-	FCollisionEnabledMask operator&(const FCollisionEnabledMask Other) const;
-	FCollisionEnabledMask operator&(const ECollisionEnabled::Type Other) const;
-	FCollisionEnabledMask operator|(const FCollisionEnabledMask Other) const;
-	FCollisionEnabledMask operator|(const ECollisionEnabled::Type Other) const;
+	ENGINE_API operator int8() const;
+	ENGINE_API operator bool() const;
+	ENGINE_API FCollisionEnabledMask operator&(const FCollisionEnabledMask Other) const;
+	ENGINE_API FCollisionEnabledMask operator&(const ECollisionEnabled::Type Other) const;
+	ENGINE_API FCollisionEnabledMask operator|(const FCollisionEnabledMask Other) const;
+	ENGINE_API FCollisionEnabledMask operator|(const ECollisionEnabled::Type Other) const;
 };
 
 extern FCollisionEnabledMask ENGINE_API operator&(const ECollisionEnabled::Type A, const ECollisionEnabled::Type B);
@@ -1650,7 +1650,7 @@ struct FRigidBodyErrorCorrection
  * Information about one contact between a pair of rigid bodies.
  */
 USTRUCT()
-struct ENGINE_API FRigidBodyContactInfo
+struct FRigidBodyContactInfo
 {
 	GENERATED_BODY()
 
@@ -1703,7 +1703,7 @@ struct ENGINE_API FRigidBodyContactInfo
 	}
 
 	/** Swap the order of info in this info  */
-	void SwapOrder();
+	ENGINE_API void SwapOrder();
 };
 
 
@@ -1711,7 +1711,7 @@ struct ENGINE_API FRigidBodyContactInfo
  * Information about an overall collision, including contacts.
  */
 USTRUCT()
-struct ENGINE_API FCollisionImpactData
+struct FCollisionImpactData
 {
 	GENERATED_BODY()
 
@@ -1737,7 +1737,7 @@ struct ENGINE_API FCollisionImpactData
 	{}
 
 	/** Iterate over ContactInfos array and swap order of information */
-	void SwapContactOrders();
+	ENGINE_API void SwapContactOrders();
 };
 
 /** Struct used to hold effects for destructible damage events */
@@ -1762,7 +1762,7 @@ struct FFractureEffect
 
 /**	Struct for handling positions relative to a base actor, which is potentially moving */
 USTRUCT(BlueprintType)
-struct ENGINE_API FBasedPosition
+struct FBasedPosition
 {
 	GENERATED_BODY()
 
@@ -1783,23 +1783,23 @@ struct ENGINE_API FBasedPosition
 	UPROPERTY()
 	mutable FVector CachedTransPosition;
 
-	FBasedPosition();
-	explicit FBasedPosition( class AActor *InBase, const FVector& InPosition );
+	ENGINE_API FBasedPosition();
+	ENGINE_API explicit FBasedPosition( class AActor *InBase, const FVector& InPosition );
 
 	/** Retrieve world location of this position */
-	FVector operator*() const;
+	ENGINE_API FVector operator*() const;
 
 	/** Updates base/position */
-	void Set( class AActor* InBase, const FVector& InPosition );
+	ENGINE_API void Set( class AActor* InBase, const FVector& InPosition );
 
 	/** Clear base/position */
-	void Clear();
+	ENGINE_API void Clear();
 
 	friend FArchive& operator<<( FArchive& Ar, FBasedPosition& T );
 };
 
 /** Struct for caching Quat<->Rotator conversions. */
-struct ENGINE_API FRotationConversionCache
+struct FRotationConversionCache
 {
 	FRotationConversionCache()
 		: CachedQuat(FQuat::Identity)
@@ -2210,7 +2210,7 @@ FORCEINLINE bool TeleportEnumToFlag(ETeleportType Teleport) { return ETeleportTy
 
 /** Structure containing information about minimum translation direction (MTD) */
 USTRUCT()
-struct ENGINE_API FMTDResult
+struct FMTDResult
 {
 	GENERATED_BODY()
 
@@ -2909,7 +2909,7 @@ struct FMeshNaniteSettings
 };
 
 USTRUCT(BlueprintType)
-struct ENGINE_API FDisplacementScaling
+struct FDisplacementScaling
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -3262,7 +3262,7 @@ struct FConstrainComponentPropName
  *	Base class for the hard/soft component reference structs 
  */
 USTRUCT(BlueprintType)
-struct ENGINE_API FBaseComponentReference
+struct FBaseComponentReference
 {
 	GENERATED_BODY()
 
@@ -3280,7 +3280,7 @@ struct ENGINE_API FBaseComponentReference
 	TWeakObjectPtr<class UActorComponent> OverrideComponent;
 
 	/** Extract the actual component pointer from this reference given a search actor */
-	class UActorComponent* ExtractComponent(AActor* SearchActor) const;
+	ENGINE_API class UActorComponent* ExtractComponent(AActor* SearchActor) const;
 
 	/** FBaseComponentReference == operator */
 	bool operator== (const FBaseComponentReference& Other) const
@@ -3294,7 +3294,7 @@ struct ENGINE_API FBaseComponentReference
  *	If just an Actor is specified, will return RootComponent of that Actor.
  */
 USTRUCT(BlueprintType)
-struct ENGINE_API FComponentReference : public FBaseComponentReference
+struct FComponentReference : public FBaseComponentReference
 {
 	GENERATED_BODY()
 
@@ -3308,7 +3308,7 @@ struct ENGINE_API FComponentReference : public FBaseComponentReference
 	TWeakObjectPtr<AActor> OtherActor;
 
 	/** Get the actual component pointer from this reference */
-	class UActorComponent* GetComponent(AActor* OwningActor) const;
+	ENGINE_API class UActorComponent* GetComponent(AActor* OwningActor) const;
 
 	/** FComponentReference == operator */
 	bool operator== (const FComponentReference& Other) const
@@ -3322,7 +3322,7 @@ struct ENGINE_API FComponentReference : public FBaseComponentReference
  *	If just an Actor is specified, will return RootComponent of that Actor.
  */
 USTRUCT(BlueprintType)
-struct ENGINE_API FSoftComponentReference : public FBaseComponentReference
+struct FSoftComponentReference : public FBaseComponentReference
 {
 	GENERATED_BODY()
 
@@ -3336,7 +3336,7 @@ struct ENGINE_API FSoftComponentReference : public FBaseComponentReference
 	TSoftObjectPtr<AActor> OtherActor;
 
 	/** Get the actual component pointer from this reference */
-	class UActorComponent* GetComponent(AActor* OwningActor) const;
+	ENGINE_API class UActorComponent* GetComponent(AActor* OwningActor) const;
 
 	/** FSoftComponentReference == operator */
 	bool operator== (const FSoftComponentReference& Other) const
@@ -3344,7 +3344,7 @@ struct ENGINE_API FSoftComponentReference : public FBaseComponentReference
 		return (OtherActor == Other.OtherActor) && (FBaseComponentReference::operator==(Other));
 	}
 
-	bool SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
+	ENGINE_API bool SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
 };
 
 template<>
@@ -3408,23 +3408,23 @@ namespace EComponentMobility
 }
 
 /** Utility class for engine types */
-UCLASS(abstract, config=Engine)
-class ENGINE_API UEngineTypes : public UObject
+UCLASS(abstract, config=Engine, MinimalAPI)
+class UEngineTypes : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 	/** Convert a trace type to a collision channel. */
-	static ECollisionChannel ConvertToCollisionChannel(ETraceTypeQuery TraceType);
+	static ENGINE_API ECollisionChannel ConvertToCollisionChannel(ETraceTypeQuery TraceType);
 
 	/** Convert an object type to a collision channel. */
-	static ECollisionChannel ConvertToCollisionChannel(EObjectTypeQuery ObjectType);
+	static ENGINE_API ECollisionChannel ConvertToCollisionChannel(EObjectTypeQuery ObjectType);
 
 	/** Convert a collision channel to an object type. Note: performs a search of object types. */
-	static EObjectTypeQuery ConvertToObjectType(ECollisionChannel CollisionChannel);
+	static ENGINE_API EObjectTypeQuery ConvertToObjectType(ECollisionChannel CollisionChannel);
 
 	/** Convert a collision channel to a trace type. Note: performs a search of trace types. */
-	static ETraceTypeQuery ConvertToTraceType(ECollisionChannel CollisionChannel);
+	static ENGINE_API ETraceTypeQuery ConvertToTraceType(ECollisionChannel CollisionChannel);
 };
 
 /** Type of a socket on a scene component. */
@@ -3493,7 +3493,7 @@ struct FCollectionReference
  * This is used for better UI in the editor
  */
 USTRUCT()
-struct ENGINE_API FRedirector
+struct FRedirector
 {
 	GENERATED_BODY()
 

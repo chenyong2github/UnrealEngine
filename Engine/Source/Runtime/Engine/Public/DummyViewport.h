@@ -8,12 +8,12 @@
  * Minimal viewport for assisting with taking screenshots (also used within a plugin)
  * @todo: This should be refactored
  */
-class ENGINE_API FDummyViewport : public FViewport
+class FDummyViewport : public FViewport
 {
 public:
-	FDummyViewport(FViewportClient* InViewportClient);
+	ENGINE_API FDummyViewport(FViewportClient* InViewportClient);
 
-	virtual ~FDummyViewport();
+	ENGINE_API virtual ~FDummyViewport();
 
 	//~ Begin FViewport Interface
 	virtual void BeginRenderFrame(FRHICommandListImmediate& RHICmdList) override
@@ -50,13 +50,13 @@ public:
 	virtual void DeferInvalidateHitProxy() override { }
 	virtual FViewportFrame* GetViewportFrame() override { return 0; }
 	virtual FCanvas* GetDebugCanvas() override { return DebugCanvas; }
-	virtual EDisplayColorGamut GetDisplayColorGamut() const;
-	virtual EDisplayOutputFormat GetDisplayOutputFormat() const;
-	virtual bool GetSceneHDREnabled() const;
+	ENGINE_API virtual EDisplayColorGamut GetDisplayColorGamut() const;
+	ENGINE_API virtual EDisplayOutputFormat GetDisplayOutputFormat() const;
+	ENGINE_API virtual bool GetSceneHDREnabled() const;
 	//~ End FViewport Interface
 
 	//~ Begin FRenderResource Interface
-	virtual void InitRHI() override;
+	ENGINE_API virtual void InitRHI() override;
 
 	// @todo DLL: Without these functions we get unresolved linker errors with FRenderResource
 	virtual void ReleaseRHI() override{}

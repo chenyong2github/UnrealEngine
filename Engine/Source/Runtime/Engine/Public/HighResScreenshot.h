@@ -11,10 +11,10 @@ class IImageWriteQueue;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogHighResScreenshot, Log, All);
 
-struct ENGINE_API FHighResScreenshotConfig
+struct FHighResScreenshotConfig
 {
-	static const float MinResolutionMultipler;
-	static const float MaxResolutionMultipler;
+	static ENGINE_API const float MinResolutionMultipler;
+	static ENGINE_API const float MaxResolutionMultipler;
 
 	FIntRect UnscaledCaptureRegion;
 	FIntRect CaptureRegion;
@@ -37,40 +37,40 @@ struct ENGINE_API FHighResScreenshotConfig
 	/** Pointer to the image write queue to use for async image writes */
 	IImageWriteQueue* ImageWriteQueue;
 
-	FHighResScreenshotConfig();
+	ENGINE_API FHighResScreenshotConfig();
 
 	/** Initialize the Image write queue necessary for asynchronously saving screenshots **/
-	void Init();
+	ENGINE_API void Init();
 
 	/** Populate the specified task with parameters from the current high-res screenshot request */
-	void PopulateImageTaskParams(FImageWriteTask& InOutTask);
+	ENGINE_API void PopulateImageTaskParams(FImageWriteTask& InOutTask);
 
 	/** Point the screenshot UI at a different viewport **/
-	void ChangeViewport(TWeakPtr<FSceneViewport> InViewport);
+	ENGINE_API void ChangeViewport(TWeakPtr<FSceneViewport> InViewport);
 
 	/** Parse screenshot parameters from the supplied console command line **/
-	bool ParseConsoleCommand(const FString& InCmd, FOutputDevice& Ar);
+	ENGINE_API bool ParseConsoleCommand(const FString& InCmd, FOutputDevice& Ar);
 
 	/** Utility function for merging the mask buffer into the alpha channel of the supplied bitmap, if masking is enabled.
 	  * Returns true if the mask was written, and false otherwise.
 	**/
-	bool MergeMaskIntoAlpha(TArray<FColor>& InBitmap, const FIntRect& ViewRect);
-	bool MergeMaskIntoAlpha(TArray<FLinearColor>& InBitmap, const FIntRect& ViewRect);
+	ENGINE_API bool MergeMaskIntoAlpha(TArray<FColor>& InBitmap, const FIntRect& ViewRect);
+	ENGINE_API bool MergeMaskIntoAlpha(TArray<FLinearColor>& InBitmap, const FIntRect& ViewRect);
 
 	/** Enable/disable HDR capable captures **/
-	void SetHDRCapture(bool bCaptureHDRIN);
+	ENGINE_API void SetHDRCapture(bool bCaptureHDRIN);
 
 	/** Enable/disable forcing 128-bit rendering pipeline for capture **/
-	void SetForce128BitRendering(bool bForce);
+	ENGINE_API void SetForce128BitRendering(bool bForce);
 
 	/** Configure taking a high res screenshot */
-	bool SetResolution(uint32 ResolutionX, uint32 ResolutionY, float ResolutionScale = 1.0f);
+	ENGINE_API bool SetResolution(uint32 ResolutionX, uint32 ResolutionY, float ResolutionScale = 1.0f);
 
 	/** Configure screenshot filename */
-	void SetFilename(FString Filename);
+	ENGINE_API void SetFilename(FString Filename);
 
 	/** Configure screenshot mask is enabled */
-	void SetMaskEnabled(bool bShouldMaskBeEnabled);
+	ENGINE_API void SetMaskEnabled(bool bShouldMaskBeEnabled);
 };
 
 ENGINE_API FHighResScreenshotConfig& GetHighResScreenshotConfig();

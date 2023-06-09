@@ -13,8 +13,8 @@ class USkeletalMeshComponent;
 // Timed Particle Effect Notify
 // Allows a looping particle effect to be played in an animation that will activate
 // at the beginning of the notify and deactivate at the end.
-UCLASS(Blueprintable, meta = (DisplayName = "Timed Particle Effect"))
-class ENGINE_API UAnimNotifyState_TimedParticleEffect : public UAnimNotifyState
+UCLASS(Blueprintable, meta = (DisplayName = "Timed Particle Effect"), MinimalAPI)
+class UAnimNotifyState_TimedParticleEffect : public UAnimNotifyState
 {
 	GENERATED_UCLASS_BODY()
 
@@ -54,23 +54,23 @@ class ENGINE_API UAnimNotifyState_TimedParticleEffect : public UAnimNotifyState
 #endif
 
 #if WITH_EDITOR
-	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
+	ENGINE_API virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
 #endif
 
 	UE_DEPRECATED(5.0, "Please use the other NotifyBegin function instead")
-	virtual void NotifyBegin(class USkeletalMeshComponent * MeshComp, class UAnimSequenceBase * Animation, float TotalDuration) override;
+	ENGINE_API virtual void NotifyBegin(class USkeletalMeshComponent * MeshComp, class UAnimSequenceBase * Animation, float TotalDuration) override;
 	UE_DEPRECATED(5.0, "Please use the other NotifyTick function instead")
-	virtual void NotifyTick(class USkeletalMeshComponent * MeshComp, class UAnimSequenceBase * Animation, float FrameDeltaTime) override;
+	ENGINE_API virtual void NotifyTick(class USkeletalMeshComponent * MeshComp, class UAnimSequenceBase * Animation, float FrameDeltaTime) override;
 	UE_DEPRECATED(5.0, "Please use the other NotifyEnd function instead")
-	virtual void NotifyEnd(class USkeletalMeshComponent * MeshComp, class UAnimSequenceBase * Animation) override;
+	ENGINE_API virtual void NotifyEnd(class USkeletalMeshComponent * MeshComp, class UAnimSequenceBase * Animation) override;
 	
-	virtual void NotifyBegin(class USkeletalMeshComponent * MeshComp, class UAnimSequenceBase * Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference) override;
-	virtual void NotifyTick(class USkeletalMeshComponent * MeshComp, class UAnimSequenceBase * Animation, float FrameDeltaTime, const FAnimNotifyEventReference& EventReference) override;
-	virtual void NotifyEnd(class USkeletalMeshComponent * MeshComp, class UAnimSequenceBase * Animation, const FAnimNotifyEventReference& EventReference) override;
+	ENGINE_API virtual void NotifyBegin(class USkeletalMeshComponent * MeshComp, class UAnimSequenceBase * Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference) override;
+	ENGINE_API virtual void NotifyTick(class USkeletalMeshComponent * MeshComp, class UAnimSequenceBase * Animation, float FrameDeltaTime, const FAnimNotifyEventReference& EventReference) override;
+	ENGINE_API virtual void NotifyEnd(class USkeletalMeshComponent * MeshComp, class UAnimSequenceBase * Animation, const FAnimNotifyEventReference& EventReference) override;
 
 	// Overridden from UAnimNotifyState to provide custom notify name.
-	FString GetNotifyName_Implementation() const override;
+	ENGINE_API FString GetNotifyName_Implementation() const override;
 
 protected:
-	bool ValidateParameters(USkeletalMeshComponent* MeshComp);
+	ENGINE_API bool ValidateParameters(USkeletalMeshComponent* MeshComp);
 };

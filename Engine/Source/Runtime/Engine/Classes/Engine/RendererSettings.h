@@ -283,8 +283,8 @@ namespace EWorkingColorSpace
 /**
  * Rendering settings.
  */
-UCLASS(config=Engine, defaultconfig, meta=(DisplayName="Rendering"))
-class ENGINE_API URendererSettings : public UDeveloperSettings
+UCLASS(config=Engine, defaultconfig, meta=(DisplayName="Rendering"), MinimalAPI)
+class URendererSettings : public UDeveloperSettings
 {
 	GENERATED_UCLASS_BODY()
 
@@ -1160,12 +1160,12 @@ public:
 
 	//~ Begin UObject Interface
 
-	virtual void PostInitProperties() override;
+	ENGINE_API virtual void PostInitProperties() override;
 
 #if WITH_EDITOR
-	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual bool CanEditChange(const FProperty* InProperty) const override;
+	ENGINE_API virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual bool CanEditChange(const FProperty* InProperty) const override;
 #endif
 
 	//~ End UObject Interface
@@ -1186,8 +1186,8 @@ private:
 	void UpdateWorkingColorSpaceAndChromaticities();
 };
 
-UCLASS(config = Engine, projectuserconfig, meta = (DisplayName = "Rendering Overrides (Local)"))
-class ENGINE_API URendererOverrideSettings : public UDeveloperSettings
+UCLASS(config = Engine, projectuserconfig, meta = (DisplayName = "Rendering Overrides (Local)"), MinimalAPI)
+class URendererOverrideSettings : public UDeveloperSettings
 {
 	GENERATED_UCLASS_BODY()
 
@@ -1203,9 +1203,9 @@ public:
 
 	//~ Begin UObject Interface
 
-	virtual void PostInitProperties() override;
+	ENGINE_API virtual void PostInitProperties() override;
 
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 };

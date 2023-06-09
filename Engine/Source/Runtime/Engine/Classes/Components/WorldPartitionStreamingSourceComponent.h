@@ -12,16 +12,16 @@
 class FSceneView;
 class FPrimitiveDrawInterface;
 
-UCLASS(Meta = (BlueprintSpawnableComponent), HideCategories = (Tags, Sockets, ComponentTick, ComponentReplication, Activation, Cooking, Events, AssetUserData, Collision))
-class ENGINE_API UWorldPartitionStreamingSourceComponent : public UActorComponent, public IWorldPartitionStreamingSourceProvider
+UCLASS(Meta = (BlueprintSpawnableComponent), HideCategories = (Tags, Sockets, ComponentTick, ComponentReplication, Activation, Cooking, Events, AssetUserData, Collision), MinimalAPI)
+class UWorldPartitionStreamingSourceComponent : public UActorComponent, public IWorldPartitionStreamingSourceProvider
 {
 	GENERATED_UCLASS_BODY()
 
-	virtual void OnRegister() override;
-	virtual void OnUnregister() override;
+	ENGINE_API virtual void OnRegister() override;
+	ENGINE_API virtual void OnUnregister() override;
 
-	virtual void Serialize(FArchive& Ar) override;
-	virtual void PostLoad() override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void PostLoad() override;
 
 	/** Enable the component */
 	UFUNCTION(BlueprintCallable, Category = "Streaming")
@@ -36,15 +36,15 @@ class ENGINE_API UWorldPartitionStreamingSourceComponent : public UActorComponen
 	bool IsStreamingSourceEnabled() const { return bStreamingSourceEnabled; }
 
 	// IWorldPartitionStreamingSourceProvider interface
-	virtual bool GetStreamingSource(FWorldPartitionStreamingSource& OutStreamingSource) const override;
+	ENGINE_API virtual bool GetStreamingSource(FWorldPartitionStreamingSource& OutStreamingSource) const override;
 	virtual const UObject* GetStreamingSourceOwner() const override { return this; }
 
 	/** Returns true if streaming is completed for this streaming source component. */
 	UFUNCTION(BlueprintCallable, Category = "Streaming")
-	bool IsStreamingCompleted() const;
+	ENGINE_API bool IsStreamingCompleted() const;
 
 	/** Displays a debug visualizer of the streaming source. Useful when using Shapes. */
-	void DrawVisualization(const FSceneView* View, FPrimitiveDrawInterface* PDI) const;
+	ENGINE_API void DrawVisualization(const FSceneView* View, FPrimitiveDrawInterface* PDI) const;
 
 #if WITH_EDITORONLY_DATA
 	/** Value used by debug visualizer when grid loading range is chosen. */

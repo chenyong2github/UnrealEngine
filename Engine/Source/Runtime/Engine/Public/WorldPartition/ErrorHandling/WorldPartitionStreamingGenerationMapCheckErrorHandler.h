@@ -4,9 +4,9 @@
 #if WITH_EDITOR
 #include "WorldPartition/ErrorHandling/WorldPartitionStreamingGenerationTokenizedMessageErrorHandler.h"
 
-class ENGINE_API FStreamingGenerationMapCheckErrorHandler : public ITokenizedMessageErrorHandler
+class FStreamingGenerationMapCheckErrorHandler : public ITokenizedMessageErrorHandler
 {
 protected:
-	virtual void HandleTokenizedMessage(TSharedRef<FTokenizedMessage>&& ErrorMessage) override;
+	ENGINE_API virtual void HandleTokenizedMessage(TSharedRef<FTokenizedMessage>&& ErrorMessage) override;
 };
 #endif

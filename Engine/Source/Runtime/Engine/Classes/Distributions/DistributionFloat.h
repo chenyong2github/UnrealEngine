@@ -24,7 +24,7 @@ struct FFloatDistribution
 #endif
 
 USTRUCT()
-struct ENGINE_API FRawDistributionFloat : public FRawDistribution
+struct FRawDistributionFloat : public FRawDistribution
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -48,36 +48,36 @@ public:
 	}
 
 	/** Whether the distribution data has been cooked or the object itself is available */
-	bool IsCreated();
+	ENGINE_API bool IsCreated();
 
 #if WITH_EDITOR
 	/**`
 		* Initialize a raw distribution from the original Unreal distribution
 		*/
-	void Initialize();
+	ENGINE_API void Initialize();
 #endif
 			 
 	/**
 		* Gets a pointer to the raw distribution if you can just call FRawDistribution::GetValue1 on it, otherwise NULL 
 		*/
-	const FRawDistribution* GetFastRawDistribution();
+	ENGINE_API const FRawDistribution* GetFastRawDistribution();
 
 	/**
 		* Get the value at the specified F
 		*/
-	float GetValue(float F=0.0f, UObject* Data=NULL, struct FRandomStream* InRandomStream = NULL);
+	ENGINE_API float GetValue(float F=0.0f, UObject* Data=NULL, struct FRandomStream* InRandomStream = NULL);
 
 	/**
 		* Get the min and max values
 		*/
-	void GetOutRange(float& MinOut, float& MaxOut);
+	ENGINE_API void GetOutRange(float& MinOut, float& MaxOut);
 
 	/**
 		* Is this distribution a uniform type? (ie, does it have two values per entry?)
 		*/
 	inline bool IsUniform() { return LookupTable.SubEntryStride != 0; }
 
-	void InitLookupTable();
+	ENGINE_API void InitLookupTable();
 
 	FORCEINLINE bool HasLookupTable(bool bInitializeIfNeeded = true)
 	{
@@ -98,8 +98,8 @@ public:
 	}
 };
 
-UCLASS(abstract, customconstructor)
-class ENGINE_API UDistributionFloat : public UDistribution
+UCLASS(abstract, customconstructor, MinimalAPI)
+class UDistributionFloat : public UDistribution
 {
 	GENERATED_UCLASS_BODY()
 
@@ -116,7 +116,7 @@ protected:
 public:
 
 	/** Script-accessible way to query a float distribution */
-	virtual float GetFloatValue(float F = 0);
+	ENGINE_API virtual float GetFloatValue(float F = 0);
 
 
 	UDistributionFloat(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get())
@@ -144,14 +144,14 @@ public:
 	 * @param Values An array of values to be filled out, guaranteed to be big enough for 4 values
 	 * @return The number of elements (values) set in the array
 	 */
-	virtual uint32 InitializeRawEntry(float Time, float* Values) const;
+	ENGINE_API virtual uint32 InitializeRawEntry(float Time, float* Values) const;
 
 	/** @todo document */
-	virtual float GetValue( float F = 0.f, UObject* Data = NULL, struct FRandomStream* InRandomStream = NULL ) const;
+	ENGINE_API virtual float GetValue( float F = 0.f, UObject* Data = NULL, struct FRandomStream* InRandomStream = NULL ) const;
 
 	//~ Begin FCurveEdInterface Interface
-	virtual void GetInRange(float& MinIn, float& MaxIn) const override;
-	virtual void GetOutRange(float& MinOut, float& MaxOut) const override;
+	ENGINE_API virtual void GetInRange(float& MinIn, float& MaxIn) const override;
+	ENGINE_API virtual void GetOutRange(float& MinOut, float& MaxOut) const override;
 	//~ End FCurveEdInterface Interface
 	
 	/** @return true of this distribution can be baked into a FRawDistribution lookup table, otherwise false */
@@ -175,12 +175,12 @@ public:
 
 	/** Begin UObject interface */
 #if	WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif	// WITH_EDITOR
-	virtual bool NeedsLoadForClient() const override;
-	virtual bool NeedsLoadForServer() const override;
-	virtual bool NeedsLoadForEditorGame() const override;
-	virtual void Serialize(FStructuredArchive::FRecord Record) override;
+	ENGINE_API virtual bool NeedsLoadForClient() const override;
+	ENGINE_API virtual bool NeedsLoadForServer() const override;
+	ENGINE_API virtual bool NeedsLoadForEditorGame() const override;
+	ENGINE_API virtual void Serialize(FStructuredArchive::FRecord Record) override;
 	/** End UObject interface */
 };
 

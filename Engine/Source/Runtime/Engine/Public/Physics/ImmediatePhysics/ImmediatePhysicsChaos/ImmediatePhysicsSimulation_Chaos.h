@@ -16,41 +16,41 @@ namespace Chaos
 namespace ImmediatePhysics_Chaos
 {
 	/** Owns all the data associated with the simulation. Can be considered a single scene or world */
-	struct ENGINE_API FSimulation
+	struct FSimulation
 	{
 	public:
-		FSimulation();
-		~FSimulation();
+		ENGINE_API FSimulation();
+		ENGINE_API ~FSimulation();
 
-		int32 NumActors() const;
+		ENGINE_API int32 NumActors() const;
 
-		FActorHandle* GetActorHandle(int32 ActorHandleIndex);
-		const FActorHandle* GetActorHandle(int32 ActorHandleIndex) const;
+		ENGINE_API FActorHandle* GetActorHandle(int32 ActorHandleIndex);
+		ENGINE_API const FActorHandle* GetActorHandle(int32 ActorHandleIndex) const;
 
 		/** Create a static body and add it to the simulation */
-		FActorHandle* CreateStaticActor(FBodyInstance* BodyInstance);
+		ENGINE_API FActorHandle* CreateStaticActor(FBodyInstance* BodyInstance);
 
 		/** Create a kinematic body and add it to the simulation */
-		FActorHandle* CreateKinematicActor(FBodyInstance* BodyInstance, const FTransform& Transform);
+		ENGINE_API FActorHandle* CreateKinematicActor(FBodyInstance* BodyInstance, const FTransform& Transform);
 
 		/** Create a dynamic body and add it to the simulation */
-		FActorHandle* CreateDynamicActor(FBodyInstance* BodyInstance, const FTransform& Transform);
+		ENGINE_API FActorHandle* CreateDynamicActor(FBodyInstance* BodyInstance, const FTransform& Transform);
 
-		FActorHandle* CreateActor(EActorType ActorType, FBodyInstance* BodyInstance, const FTransform& Transform);
-		void DestroyActor(FActorHandle* ActorHandle);
+		ENGINE_API FActorHandle* CreateActor(EActorType ActorType, FBodyInstance* BodyInstance, const FTransform& Transform);
+		ENGINE_API void DestroyActor(FActorHandle* ActorHandle);
 
-		void DestroyActorCollisions(FActorHandle* ActorHandle);
-
-		/** Create a physical joint and add it to the simulation */
-		FJointHandle* CreateJoint(FConstraintInstance* ConstraintInstance, FActorHandle* Body1, FActorHandle* Body2);
+		ENGINE_API void DestroyActorCollisions(FActorHandle* ActorHandle);
 
 		/** Create a physical joint and add it to the simulation */
-		FJointHandle* CreateJoint(const Chaos::FPBDJointSettings& ConstraintSettings, FActorHandle* const Body1, FActorHandle* const Body2);
+		ENGINE_API FJointHandle* CreateJoint(FConstraintInstance* ConstraintInstance, FActorHandle* Body1, FActorHandle* Body2);
 
-		void DestroyJoint(FJointHandle* JointHandle);
+		/** Create a physical joint and add it to the simulation */
+		ENGINE_API FJointHandle* CreateJoint(const Chaos::FPBDJointSettings& ConstraintSettings, FActorHandle* const Body1, FActorHandle* const Body2);
+
+		ENGINE_API void DestroyJoint(FJointHandle* JointHandle);
 
 		/** Sets the number of active bodies. This number is reset any time a new simulated body is created */
-		void SetNumActiveBodies(int32 NumActiveBodies, TArray<int32> ActiveBodyIndices);
+		ENGINE_API void SetNumActiveBodies(int32 NumActiveBodies, TArray<int32> ActiveBodyIndices);
 
 		/** An array of actors to ignore. */
 		struct FIgnorePair
@@ -60,34 +60,34 @@ namespace ImmediatePhysics_Chaos
 		};
 
 		/** Set pair of bodies to ignore collision for */
-		void SetIgnoreCollisionPairTable(const TArray<FIgnorePair>& InIgnoreCollisionPairTable);
+		ENGINE_API void SetIgnoreCollisionPairTable(const TArray<FIgnorePair>& InIgnoreCollisionPairTable);
 
 		/** Set bodies that require no collision */
-		void SetIgnoreCollisionActors(const TArray<FActorHandle*>& InIgnoreCollisionActors);
+		ENGINE_API void SetIgnoreCollisionActors(const TArray<FActorHandle*>& InIgnoreCollisionActors);
 
 		/** Set up potential collisions between the actor and all other dynamic actors */
-		void AddToCollidingPairs(FActorHandle* ActorHandle);
+		ENGINE_API void AddToCollidingPairs(FActorHandle* ActorHandle);
 
 		/** Advance the simulation by DeltaTime */
-		void Simulate(FReal DeltaTime, FReal MaxStepTime, int32 MaxSubSteps, const FVector& InGravity);
+		ENGINE_API void Simulate(FReal DeltaTime, FReal MaxStepTime, int32 MaxSubSteps, const FVector& InGravity);
 		void Simulate_AssumesLocked(FReal DeltaTime, FReal MaxStepTime, int32 MaxSubSteps, const FVector& InGravity) { Simulate(DeltaTime, MaxStepTime, MaxSubSteps, InGravity); }
 
-		void InitSimulationSpace(
+		ENGINE_API void InitSimulationSpace(
 			const FTransform& Transform);
 
-		void UpdateSimulationSpace(
+		ENGINE_API void UpdateSimulationSpace(
 			const FTransform& Transform,
 			const FVector& LinearVel,
 			const FVector& AngularVel,
 			const FVector& LinearAcc,
 			const FVector& AngularAcc);
 
-		void SetSimulationSpaceSettings(
+		ENGINE_API void SetSimulationSpaceSettings(
 			const FReal Alpha, 
 			const FVector& ExternalLinearEtherDrag);
 
 		/** Set settings. Invalid (negative) values with leave that value unchanged from defaults */
-		void SetSolverSettings(
+		ENGINE_API void SetSolverSettings(
 			const FReal FixedDt,
 			const FReal CullDistance,
 			const FReal MaxDepenetrationVelocity,
@@ -97,22 +97,22 @@ namespace ImmediatePhysics_Chaos
 			const int32 ProjectionIts);
 
 		/** Explicit debug draw path if the use case needs it to happen at a point outside of the simulation **/
-		void DebugDraw();
+		ENGINE_API void DebugDraw();
 
 	private:
-		void RemoveFromCollidingPairs(FActorHandle* ActorHandle);
-		void UpdateInertiaConditioning(const FVector& Gravity);
-		void PackCollidingPairs();
-		void UpdateActivePotentiallyCollidingPairs();
-		void EnableDisableJoints();
-		FReal UpdateStepTime(const FReal DeltaTime, const FReal MaxStepTime);
+		ENGINE_API void RemoveFromCollidingPairs(FActorHandle* ActorHandle);
+		ENGINE_API void UpdateInertiaConditioning(const FVector& Gravity);
+		ENGINE_API void PackCollidingPairs();
+		ENGINE_API void UpdateActivePotentiallyCollidingPairs();
+		ENGINE_API void EnableDisableJoints();
+		ENGINE_API FReal UpdateStepTime(const FReal DeltaTime, const FReal MaxStepTime);
 
-		void UpdateStatCounters();
-		void DebugDrawStaticParticles();
-		void DebugDrawKinematicParticles();
-		void DebugDrawDynamicParticles();
-		void DebugDrawConstraints();
-		void DebugDrawSimulationSpace();
+		ENGINE_API void UpdateStatCounters();
+		ENGINE_API void DebugDrawStaticParticles();
+		ENGINE_API void DebugDrawKinematicParticles();
+		ENGINE_API void DebugDrawDynamicParticles();
+		ENGINE_API void DebugDrawConstraints();
+		ENGINE_API void DebugDrawSimulationSpace();
 
 		struct FImplementation;
 		TUniquePtr<FImplementation> Implementation;

@@ -14,14 +14,14 @@ struct FSeqSample;
 class FNetworkTrafficAnalyzer;
 class FNetworkCongestionControl;
 
-struct ENGINE_API FSeqSample
+struct FSeqSample
 {
 	double Timestamp;
 	int32 Seq;
 	int32 PacketSize;
 };
 
-struct ENGINE_API FAckSample
+struct FAckSample
 {
 	double Timestamp;
 	int32 Ack;
@@ -34,13 +34,13 @@ struct ENGINE_API FAckSample
  * ack mechanism to track packet and use timestamp and packet size to
  * calculate RTT and bandwidth.
  */
-class ENGINE_API FNetworkTrafficAnalyzer
+class FNetworkTrafficAnalyzer
 {
 public:
-	FNetworkTrafficAnalyzer(FNetworkCongestionControl* InTrafficControlModule);
+	ENGINE_API FNetworkTrafficAnalyzer(FNetworkCongestionControl* InTrafficControlModule);
 
-	void OnAck(const FAckSample& AckSample);
-	void OnSend(const FSeqSample& SeqSample);
+	ENGINE_API void OnAck(const FAckSample& AckSample);
+	ENGINE_API void OnSend(const FSeqSample& SeqSample);
 
 	double GetLatestRTT() const { return LatestRTT; }
 	uint32 GetBytesInFlight() const { return BytesInFlight; }
@@ -75,14 +75,14 @@ private:
  *  and the estimated uplink bandwidth and propagation round-trip time. The idea is to
  *  keep the bytes in flight under the BDP(bandwidth round trip time product).
  */
-class ENGINE_API FNetworkCongestionControl
+class FNetworkCongestionControl
 {
 public:
-	FNetworkCongestionControl(double ConfiguredNetSpeed, uint32 MaxPackets);
+	ENGINE_API FNetworkCongestionControl(double ConfiguredNetSpeed, uint32 MaxPackets);
 
-	void OnAck(const FAckSample& AckSample);
-	bool IsReadyToSend(double Timestamp);
-	void OnSend(const FSeqSample& SeqSample);
+	ENGINE_API void OnAck(const FAckSample& AckSample);
+	ENGINE_API bool IsReadyToSend(double Timestamp);
+	ENGINE_API void OnSend(const FSeqSample& SeqSample);
 
 private:
 	FNetworkTrafficAnalyzer Analyzer;

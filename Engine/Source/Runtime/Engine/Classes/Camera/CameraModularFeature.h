@@ -12,13 +12,13 @@
 /**
 * A modular feature interface for cameras.
 */
-class ENGINE_API ICameraModularFeature : public IModularFeature
+class ICameraModularFeature : public IModularFeature
 {
 public:
 	/**
 	 * Gets the name of the camera module
 	 */
-	static FName GetModularFeatureName();
+	static ENGINE_API FName GetModularFeatureName();
 
 	/**
 	 * Get the list of registered default camera modifiers.

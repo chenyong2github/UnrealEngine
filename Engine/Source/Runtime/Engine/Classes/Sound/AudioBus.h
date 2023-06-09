@@ -22,12 +22,12 @@ enum class EAudioBusChannels : uint8
 class FAudioBusProxy;
 
 using FAudioBusProxyPtr = TSharedPtr<FAudioBusProxy, ESPMode::ThreadSafe>;
-class ENGINE_API FAudioBusProxy final : public Audio::TProxyData<FAudioBusProxy>
+class FAudioBusProxy final : public Audio::TProxyData<FAudioBusProxy>
 {
 public:
 	IMPL_AUDIOPROXY_CLASS(FAudioBusProxy);
 
-	explicit FAudioBusProxy(UAudioBus* InAudioBus);
+	ENGINE_API explicit FAudioBusProxy(UAudioBus* InAudioBus);
 
 	FAudioBusProxy(const FAudioBusProxy& Other) = default;
 
@@ -42,8 +42,8 @@ public:
 
 // An audio bus is an object which represents an audio patch cord. Audio can be sent to it. It can be sonified using USoundSourceBuses.
 // Instances of the audio bus are created in the audio engine. 
-UCLASS(ClassGroup = Sound, meta = (BlueprintSpawnableComponent))
-class ENGINE_API UAudioBus : public UObject, public IAudioProxyDataFactory
+UCLASS(ClassGroup = Sound, meta = (BlueprintSpawnableComponent), MinimalAPI)
+class UAudioBus : public UObject, public IAudioProxyDataFactory
 {
 	GENERATED_UCLASS_BODY()
 
@@ -54,7 +54,7 @@ public:
 	EAudioBusChannels AudioBusChannels = EAudioBusChannels::Mono;
 
 	//~ Begin UObject
-	virtual void BeginDestroy() override;
+	ENGINE_API virtual void BeginDestroy() override;
 	//~ End UObject
 
 	// Returns the number of channels of the audio bus in integer format
@@ -62,11 +62,11 @@ public:
 
 	//~ Begin UObject Interface.
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 	//~ End UObject Interface.
 
 	//~ Begin IAudioProxy Interface
-	virtual TSharedPtr<Audio::IProxyData> CreateProxyData(const Audio::FProxyDataInitParams& InitParams) override;
+	ENGINE_API virtual TSharedPtr<Audio::IProxyData> CreateProxyData(const Audio::FProxyDataInitParams& InitParams) override;
 	//~ End IAudioProxy Interface
 };

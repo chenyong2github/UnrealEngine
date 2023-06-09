@@ -19,8 +19,8 @@ class FTextureMipDataProvider;
 * Usecases include dynamic textures that need to be driven by the texture streaming or textures that 
 * get they data over the network.
 */
-UCLASS(abstract, hidecategories=Object)
-class ENGINE_API UTextureMipDataProviderFactory : public UAssetUserData
+UCLASS(abstract, hidecategories=Object, MinimalAPI)
+class UTextureMipDataProviderFactory : public UAssetUserData
 {
 	GENERATED_UCLASS_BODY()
 

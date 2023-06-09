@@ -70,8 +70,8 @@ struct FViewportDisplayDelegate
 *		});
 *	}
 */
-UCLASS(Category = "Viewport Stats Subsystem")
-class ENGINE_API UViewportStatsSubsystem : public UWorldSubsystem
+UCLASS(Category = "Viewport Stats Subsystem", MinimalAPI)
+class UViewportStatsSubsystem : public UWorldSubsystem
 {
 	GENERATED_BODY()
 
@@ -80,7 +80,7 @@ public:
 	/**
 	* Draw the messages in this subsystem to the given viewport
 	*/
-	void Draw(FViewport* Viewport, FCanvas* Canvas, UCanvas* CanvasObject, float MessageStartY);
+	ENGINE_API void Draw(FViewport* Viewport, FCanvas* Canvas, UCanvas* CanvasObject, float MessageStartY);
 
 	/**
 	* Add a message to be displayed on the viewport of this world
@@ -91,7 +91,7 @@ public:
 	* @param DisplayOffset	A position offset that the message should use when displayed. 
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Viewport Stats Subsystem", meta = (AutoCreateRefTerm = "DisplayOffset"))
-	void AddTimedDisplay(FText Text, FLinearColor Color = FLinearColor::White, float Duration = 0.0f, const FVector2D& DisplayOffset = FVector2D::ZeroVector);
+	ENGINE_API void AddTimedDisplay(FText Text, FLinearColor Color = FLinearColor::White, float Duration = 0.0f, const FVector2D& DisplayOffset = FVector2D::ZeroVector);
 
 	/**
 	* Add a dynamic delegate to the display subsystem.
@@ -100,7 +100,7 @@ public:
 	*					Signature of callbacks should be: bool(FText& OutTest, FLinearColor& OutColor)
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Viewport Stats Subsystem")
-	int32 AddDisplayDelegate(FViewportDisplayCallback const& Delegate);
+	ENGINE_API int32 AddDisplayDelegate(FViewportDisplayCallback const& Delegate);
 
 	/**
 	* Add a callback function to the display subsystem.
@@ -108,7 +108,7 @@ public:
 	* @param Callback	The callback the subsystem will use to determine if a message should be displayed or not
 	*					Signature of callbacks should be: bool(FText& OutTest, FLinearColor& OutColor)
 	*/
-	int32 AddDisplayDelegate(FShouldDisplayFunc&& Callback);
+	ENGINE_API int32 AddDisplayDelegate(FShouldDisplayFunc&& Callback);
 
 	/**
 	* Remove a callback function from the display subsystem
@@ -117,12 +117,12 @@ public:
 	*						This is the value returned from AddDisplayDelegate.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Viewport Stats Subsystem")
-	void RemoveDisplayDelegate(const int32 IndexToRemove);
+	ENGINE_API void RemoveDisplayDelegate(const int32 IndexToRemove);
 	
 protected:
 
 	//~USubsystem interface
-	void Deinitialize() override;
+	ENGINE_API void Deinitialize() override;
 	//~End of USubsystem interface
 
 	struct FUniqueDisplayData

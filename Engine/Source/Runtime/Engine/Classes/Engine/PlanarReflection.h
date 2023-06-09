@@ -45,14 +45,14 @@ public:
 	void OnInterpToggle(bool bEnable);
 
 	/** Returns subobject **/
-	ENGINE_API class UPlanarReflectionComponent* GetPlanarReflectionComponent() const
+	class UPlanarReflectionComponent* GetPlanarReflectionComponent() const
 	{
 		return PlanarReflectionComponent;
 	}
 
 #if WITH_EDITORONLY_DATA
 	/** Returns SpriteComponent subobject **/
-	ENGINE_API UBillboardComponent* GetSpriteComponent() const { return SpriteComponent; }
+	UBillboardComponent* GetSpriteComponent() const { return SpriteComponent; }
 #endif
 };
 

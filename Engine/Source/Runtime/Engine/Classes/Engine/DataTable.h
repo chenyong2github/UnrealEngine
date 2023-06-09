@@ -68,7 +68,7 @@ class UDataTable
 {
 	GENERATED_UCLASS_BODY()
 
-	ENGINE_API virtual ~UDataTable() {};
+	virtual ~UDataTable() {};
 
 	DECLARE_MULTICAST_DELEGATE(FOnDataTableChanged);
 	DECLARE_MULTICAST_DELEGATE(FOnDataTableImport);
@@ -329,15 +329,15 @@ public:
 
 	/** Output entire contents of table as JSON */
 	template<typename CharType = TCHAR>
-	ENGINE_API bool WriteTableAsJSON(const TSharedRef< TJsonWriter<CharType, TPrettyJsonPrintPolicy<CharType> > >& JsonWriter, const EDataTableExportFlags InDTExportFlags = EDataTableExportFlags::None) const;
+	bool WriteTableAsJSON(const TSharedRef< TJsonWriter<CharType, TPrettyJsonPrintPolicy<CharType> > >& JsonWriter, const EDataTableExportFlags InDTExportFlags = EDataTableExportFlags::None) const;
 
 	/** Output entire contents of table as a JSON Object*/
 	template<typename CharType = TCHAR>
-	ENGINE_API bool WriteTableAsJSONObject(const TSharedRef< TJsonWriter<CharType, TPrettyJsonPrintPolicy<CharType> > >& JsonWriter, const EDataTableExportFlags InDTExportFlags = EDataTableExportFlags::None) const;
+	bool WriteTableAsJSONObject(const TSharedRef< TJsonWriter<CharType, TPrettyJsonPrintPolicy<CharType> > >& JsonWriter, const EDataTableExportFlags InDTExportFlags = EDataTableExportFlags::None) const;
 
 	/** Output the fields from a particular row (use RowMap to get RowData) to an existing JsonWriter */
 	template<typename CharType = TCHAR>
-	ENGINE_API bool WriteRowAsJSON(const TSharedRef< TJsonWriter<CharType, TPrettyJsonPrintPolicy<CharType> > >& JsonWriter, const void* RowData, const EDataTableExportFlags InDTExportFlags = EDataTableExportFlags::None) const;
+	bool WriteRowAsJSON(const TSharedRef< TJsonWriter<CharType, TPrettyJsonPrintPolicy<CharType> > >& JsonWriter, const void* RowData, const EDataTableExportFlags InDTExportFlags = EDataTableExportFlags::None) const;
 
 	/** Copies all the import options from another table, this does not copy row dawta */
 	ENGINE_API bool CopyImportOptions(UDataTable* SourceTable);
@@ -415,7 +415,7 @@ protected:
 
 /** Handle to a particular row in a table*/
 USTRUCT(BlueprintType)
-struct ENGINE_API FDataTableRowHandle
+struct FDataTableRowHandle
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -472,9 +472,9 @@ struct ENGINE_API FDataTableRowHandle
 		return FString::Printf(TEXT("Table: %s, Row: %s"), bUseFullPath ? *DataTable->GetPathName() : *DataTable->GetName(), *RowName.ToString());
 	}
 
-	bool operator==(FDataTableRowHandle const& Other) const;
-	bool operator!=(FDataTableRowHandle const& Other) const;
-	void PostSerialize(const FArchive& Ar);
+	ENGINE_API bool operator==(FDataTableRowHandle const& Other) const;
+	ENGINE_API bool operator!=(FDataTableRowHandle const& Other) const;
+	ENGINE_API void PostSerialize(const FArchive& Ar);
 };
 
 template<>
@@ -488,7 +488,7 @@ struct TStructOpsTypeTraits< FDataTableRowHandle > : public TStructOpsTypeTraits
 
 /** Handle to a particular set of rows in a table */
 USTRUCT(BlueprintType)
-struct ENGINE_API FDataTableCategoryHandle
+struct FDataTableCategoryHandle
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -565,8 +565,8 @@ struct ENGINE_API FDataTableCategoryHandle
 		return;
 	}
 
-	bool operator==(FDataTableCategoryHandle const& Other) const;
-	bool operator!=(FDataTableCategoryHandle const& Other) const;
+	ENGINE_API bool operator==(FDataTableCategoryHandle const& Other) const;
+	ENGINE_API bool operator!=(FDataTableCategoryHandle const& Other) const;
 };
 
 

@@ -25,8 +25,8 @@ enum class ETemperatureSeverityType : uint8
 static_assert((int)ETemperatureSeverityType::NumSeverities == (int)FCoreDelegates::ETemperatureSeverity::NumSeverities, "TemperatureSeverity enums are out of sync");
 
 /** Component to handle receiving notifications from the OS about application state (activated, suspended, termination, etc). */
-UCLASS(ClassGroup=Utility, HideCategories=(Activation, "Components|Activation", Collision), meta=(BlueprintSpawnableComponent))
-class ENGINE_API UApplicationLifecycleComponent : public UActorComponent
+UCLASS(ClassGroup=Utility, HideCategories=(Activation, "Components|Activation", Collision), meta=(BlueprintSpawnableComponent), MinimalAPI)
+class UApplicationLifecycleComponent : public UActorComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -79,8 +79,8 @@ class ENGINE_API UApplicationLifecycleComponent : public UActorComponent
 	FOnLowPowerModeDelegate OnLowPowerModeDelegate;
 
 public:
-	void OnRegister() override;
-	void OnUnregister() override;
+	ENGINE_API void OnRegister() override;
+	ENGINE_API void OnUnregister() override;
 
 private:
 	/** Native handlers that get registered with the actual FCoreDelegates, and then proceed to broadcast to the delegates above */

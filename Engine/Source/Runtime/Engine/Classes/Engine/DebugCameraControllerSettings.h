@@ -12,7 +12,7 @@
 #include "DebugCameraControllerSettings.generated.h"
 
 USTRUCT()
-struct ENGINE_API FDebugCameraControllerSettingsViewModeIndex
+struct FDebugCameraControllerSettingsViewModeIndex
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -28,8 +28,8 @@ struct ENGINE_API FDebugCameraControllerSettingsViewModeIndex
 /**
  * Default debug camera controller settings.
  */
-UCLASS(config=Engine, defaultconfig, meta=(DisplayName="Debug Camera Controller"))
-class ENGINE_API UDebugCameraControllerSettings : public UDeveloperSettings
+UCLASS(config=Engine, defaultconfig, meta=(DisplayName="Debug Camera Controller"), MinimalAPI)
+class UDebugCameraControllerSettings : public UDeveloperSettings
 {
 	GENERATED_UCLASS_BODY()
 
@@ -40,16 +40,16 @@ public:
 #if WITH_EDITOR
 
 	// UObject interface.
-	virtual void PostLoad() override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostLoad() override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
 protected:
-	void RemoveInvalidViewModes();
+	ENGINE_API void RemoveInvalidViewModes();
 
 #endif // WITH_EDITOR
 
 public:
-	TArray<EViewModeIndex> GetCycleViewModes();
+	ENGINE_API TArray<EViewModeIndex> GetCycleViewModes();
 
 	static UDebugCameraControllerSettings * Get() { return CastChecked<UDebugCameraControllerSettings>(UDebugCameraControllerSettings::StaticClass()->GetDefaultObject()); }
 };

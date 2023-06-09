@@ -6,7 +6,7 @@
 
 /** This structure is used to to identify NetLevelVisibility transactions between server and client */
 USTRUCT()
-struct ENGINE_API FNetLevelVisibilityTransactionId
+struct FNetLevelVisibilityTransactionId
 {
 	GENERATED_BODY()
 
@@ -18,7 +18,7 @@ struct ENGINE_API FNetLevelVisibilityTransactionId
 		ValueMask = ~IsClientTransactionMask,
 	};
 
-	FNetLevelVisibilityTransactionId();
+	ENGINE_API FNetLevelVisibilityTransactionId();
 
 	bool IsClientTransaction() const { return Data & IsClientTransactionMask; }
 	bool IsValid() const { return Data != InvalidTransactionId; }
@@ -26,12 +26,12 @@ struct ENGINE_API FNetLevelVisibilityTransactionId
 	uint32 GetTransactionIndex() const { return Data & ValueMask; }
 	void SetTransactionIndex(uint32 TransactionIndex) { Data = (Data & IsClientTransactionMask) | (TransactionIndex & ValueMask); }
 
-	uint32 IncrementTransactionIndex();
+	ENGINE_API uint32 IncrementTransactionIndex();
 	bool operator==(const FNetLevelVisibilityTransactionId& Other) const { return Data == Other.Data; }
-	bool NetSerialize(FArchive& Ar, UPackageMap* PackageMap, bool& bOutSuccess);
+	ENGINE_API bool NetSerialize(FArchive& Ar, UPackageMap* PackageMap, bool& bOutSuccess);
 
 private:
-	FNetLevelVisibilityTransactionId(uint32 LevelVisibilityTransactionIndex, bool bIsClientInstigator);
+	ENGINE_API FNetLevelVisibilityTransactionId(uint32 LevelVisibilityTransactionIndex, bool bIsClientInstigator);
 
 	UPROPERTY()
 	uint32 Data;
@@ -48,7 +48,7 @@ struct TStructOpsTypeTraits<FNetLevelVisibilityTransactionId> : public TStructOp
 
 /** This structure is used to pass arguments to ServerUpdateLevelVisibilty() and ServerUpdateMultipleLevelsVisibility() server RPC functions */
 USTRUCT()
-struct ENGINE_API FUpdateLevelVisibilityLevelInfo
+struct FUpdateLevelVisibilityLevelInfo
 {
 	GENERATED_BODY();
 
@@ -66,7 +66,7 @@ struct ENGINE_API FUpdateLevelVisibilityLevelInfo
 	 * @param bInIsVisible		Default value for bIsVisible.
 	 * @param bInTryMakeVisible	Whether the level is trying to be made visible or not.
 	 */
-	FUpdateLevelVisibilityLevelInfo(const class ULevel* const Level, const bool bInIsVisible, const bool bInTryMakeVisible = false);
+	ENGINE_API FUpdateLevelVisibilityLevelInfo(const class ULevel* const Level, const bool bInIsVisible, const bool bInTryMakeVisible = false);
 
 	/** The name of the package for the level whose status changed. */
 	UPROPERTY()
@@ -92,7 +92,7 @@ struct ENGINE_API FUpdateLevelVisibilityLevelInfo
 	UPROPERTY(NotReplicated)
 	uint32 bSkipCloseOnError : 1;
 
-	bool NetSerialize(FArchive& Ar, UPackageMap* PackageMap, bool& bOutSuccess);
+	ENGINE_API bool NetSerialize(FArchive& Ar, UPackageMap* PackageMap, bool& bOutSuccess);
 };
 
 template<>

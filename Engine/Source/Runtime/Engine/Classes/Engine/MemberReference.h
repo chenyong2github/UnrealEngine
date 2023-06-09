@@ -207,7 +207,7 @@ public:
 
 #if WITH_EDITOR
 	/** Reset the member name only. Intended for use primarily as a helper method for rename operations. */
-	ENGINE_API void SetMemberName(FName NewName)
+	void SetMemberName(FName NewName)
 	{
 		MemberName = NewName;
 	}

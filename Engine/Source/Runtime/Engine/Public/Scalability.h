@@ -24,7 +24,7 @@ namespace Scalability
 	 * Structure for holding the state of the engine scalability groups
 	 * Actual engine state you can get though GetQualityLevels().
 	**/
-	struct ENGINE_API FQualityLevels
+	struct FQualityLevels
 	{
 		float ResolutionQuality;
 		int32 ViewDistanceQuality;
@@ -92,63 +92,63 @@ namespace Scalability
 
 		// Sets all other settings based on an overall value
 		// @param Value 0:low, 1:medium, 2:high, 3:epic, 4:cinematic (gets clamped if needed)
-		void SetFromSingleQualityLevel(int32 Value);
+		ENGINE_API void SetFromSingleQualityLevel(int32 Value);
 
 		// Sets all other settings based on an overall value, but relative to the maximum.
 		// @param Value 0: maximum level, 1: maximumlevel -1, etc
-		void SetFromSingleQualityLevelRelativeToMax(int32 Value);
+		ENGINE_API void SetFromSingleQualityLevelRelativeToMax(int32 Value);
 
 		// Returns the overall value if all settings are set to the same thing
 		// @param Value -1:custom, 0:low, 1:medium, 2:high, 3:epic, 4:cinematic
-		int32 GetSingleQualityLevel() const;
+		ENGINE_API int32 GetSingleQualityLevel() const;
 
 		// Returns the minimum set quality level from all settings
 		// @param Value -1:custom, 0:low, 1:medium, 2:high, 3:epic, 4:cinematic
-		int32 GetMinQualityLevel() const;
+		ENGINE_API int32 GetMinQualityLevel() const;
 
 		// Sets view distance quality
 		// @param Value 0:low, 1:medium, 2:high, 3:epic, 4:cinematic (gets clamped if needed)
-		void SetViewDistanceQuality(int32 Value);
+		ENGINE_API void SetViewDistanceQuality(int32 Value);
 
 		// Sets anti-aliasing quality
 		// @param Value 0:low, 1:medium, 2:high, 3:epic, 4:cinematic (gets clamped if needed)
-		void SetAntiAliasingQuality(int32 Value);
+		ENGINE_API void SetAntiAliasingQuality(int32 Value);
 
 		// Sets shadow quality
 		// @param Value 0:low, 1:medium, 2:high, 3:epic, 4:cinematic (gets clamped if needed)
-		void SetShadowQuality(int32 Value);
+		ENGINE_API void SetShadowQuality(int32 Value);
 
 		// Sets shadow quality
 		// @param Value 0:low, 1:medium, 2:high, 3:epic, 4:cinematic (gets clamped if needed)
-		void SetGlobalIlluminationQuality(int32 Value);
+		ENGINE_API void SetGlobalIlluminationQuality(int32 Value);
 
 		// Sets shadow quality
 		// @param Value 0:low, 1:medium, 2:high, 3:epic, 4:cinematic (gets clamped if needed)
-		void SetReflectionQuality(int32 Value);
+		ENGINE_API void SetReflectionQuality(int32 Value);
 
 		// Sets the post-processing quality
 		// @param Value 0:low, 1:medium, 2:high, 3:epic, 4:cinematic (gets clamped if needed)
-		void SetPostProcessQuality(int32 Value);
+		ENGINE_API void SetPostProcessQuality(int32 Value);
 
 		// Sets the texture quality
 		// @param Value 0:low, 1:medium, 2:high, 3:epic, 4:cinematic (gets clamped if needed)
-		void SetTextureQuality(int32 Value);
+		ENGINE_API void SetTextureQuality(int32 Value);
 
 		// Sets the visual effects quality
 		// @param Value 0:low, 1:medium, 2:high, 3:epic, 4:cinematic (gets clamped if needed)
-		void SetEffectsQuality(int32 Value);
+		ENGINE_API void SetEffectsQuality(int32 Value);
 
 		// Sets the foliage quality
 		// @param Value 0:low, 1:medium, 2:high, 3:epic, 4:cinematic (gets clamped if needed)
-		void SetFoliageQuality(int32 Value);
+		ENGINE_API void SetFoliageQuality(int32 Value);
 
 		// Sets the sharing quality
 		// @param Value 0:low, 1:medium, 2:high, 3:epic, 4:cinematic (gets clamped if needed)
-		void SetShadingQuality(int32 Value);
+		ENGINE_API void SetShadingQuality(int32 Value);
 
-		void SetBenchmarkFallback();
+		ENGINE_API void SetBenchmarkFallback();
 
-		void SetDefaults();
+		ENGINE_API void SetDefaults();
 	};
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnScalabilitySettingsChanged, const Scalability::FQualityLevels&);

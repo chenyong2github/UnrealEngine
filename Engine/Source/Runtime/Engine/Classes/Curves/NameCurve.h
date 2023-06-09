@@ -13,7 +13,7 @@
  * One key in a curve of FNames.
  */
 USTRUCT()
-struct ENGINE_API FNameCurveKey
+struct FNameCurveKey
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -41,9 +41,9 @@ public:
 
 	// TStructOpsTypeTraits interface
 
-	bool operator==(const FNameCurveKey& Other) const;
-	bool operator!=(const FNameCurveKey& Other) const;
-	bool Serialize(FArchive& Ar);
+	ENGINE_API bool operator==(const FNameCurveKey& Other) const;
+	ENGINE_API bool operator!=(const FNameCurveKey& Other) const;
+	ENGINE_API bool Serialize(FArchive& Ar);
 
 	/** Serializes a name curve key from or into an archive. */
 	friend FArchive& operator<<(FArchive& Ar, FNameCurveKey& Key)
@@ -79,7 +79,7 @@ struct TStructOpsTypeTraits<FNameCurveKey>
  * Implements a curve of FNames.
  */
 USTRUCT()
-struct ENGINE_API FNameCurve
+struct FNameCurve
 	: public FIndexedCurve
 {
 	GENERATED_USTRUCT_BODY()
@@ -96,14 +96,14 @@ public:
 	  * @param InValue The value of the key.
 	  * @param KeyHandle Optional handle for the new key.
 	  */
-	FKeyHandle AddKey(float InTime, const FName& InValue, FKeyHandle KeyHandle = FKeyHandle());
+	ENGINE_API FKeyHandle AddKey(float InTime, const FName& InValue, FKeyHandle KeyHandle = FKeyHandle());
 
 	/**
 	 * Remove the specified key from the curve.
 	 *
 	 * @param KeyHandle Handle to the key to remove.
 	 */
-	void DeleteKey(FKeyHandle KeyHandle);
+	ENGINE_API void DeleteKey(FKeyHandle KeyHandle);
 
 	/**
 	 * Finds a key a the specified time.
@@ -112,7 +112,7 @@ public:
 	 * @param KeyTimeTolerance The key time tolerance to use for equality.
 	 * @return A handle to the key, or invalid key handle if not found.
 	 */
-	FKeyHandle FindKey(float KeyTime, float KeyTimeTolerance = UE_KINDA_SMALL_NUMBER) const;
+	ENGINE_API FKeyHandle FindKey(float KeyTime, float KeyTimeTolerance = UE_KINDA_SMALL_NUMBER) const;
 
 	/**
 	 * Get a key.
@@ -120,8 +120,8 @@ public:
 	 * @param KeyHandle The handle of the key to get.
 	 * @return The key.
 	 */
-	FNameCurveKey& GetKey(FKeyHandle KeyHandle);
-	FNameCurveKey GetKey(FKeyHandle KeyHandle) const;
+	ENGINE_API FNameCurveKey& GetKey(FKeyHandle KeyHandle);
+	ENGINE_API FNameCurveKey GetKey(FKeyHandle KeyHandle) const;
 
 	/**
 	 * Read-only access to the key collection.
@@ -139,7 +139,7 @@ public:
 	 * @param KeyHandle Handle to the key whose time to get.
 	 * @return The key's time.
 	 */
-	virtual float GetKeyTime(FKeyHandle KeyHandle) const override final;
+	ENGINE_API virtual float GetKeyTime(FKeyHandle KeyHandle) const override final;
 
 	/**
 	 * Move a key to a new time.
@@ -147,7 +147,7 @@ public:
 	 * @param KeyHandle The handle of the key to change.
 	 * @param NewTime The new time to set on the key.
 	 */
-	virtual void SetKeyTime(FKeyHandle KeyHandle, float NewTime) override final;
+	ENGINE_API virtual void SetKeyTime(FKeyHandle KeyHandle, float NewTime) override final;
 
 	/**
 	 * Finds the key at InTime, and updates its value. If it can't find the key within the KeyTimeTolerance, it adds one at that time.
@@ -156,7 +156,7 @@ public:
 	 * @param InValue The value of the key.
 	 * @param KeyTimeTolerance The tolerance used for key time equality.
 	 */
-	FKeyHandle UpdateOrAddKey(float InTime, const FName& InValue, float KeyTimeTolerance = UE_KINDA_SMALL_NUMBER);
+	ENGINE_API FKeyHandle UpdateOrAddKey(float InTime, const FName& InValue, float KeyTimeTolerance = UE_KINDA_SMALL_NUMBER);
 
 public:
 

@@ -44,7 +44,7 @@ ENUM_CLASS_FLAGS(EConstraintTransformComponentFlags);
 
 /** Container for properties of a physics constraint that can be easily swapped at runtime. This is useful for switching different setups when going from ragdoll to standup for example */
 USTRUCT()
-struct ENGINE_API FConstraintProfileProperties
+struct FConstraintProfileProperties
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -170,36 +170,36 @@ struct ENGINE_API FConstraintProfileProperties
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Linear)
 	TEnumAsByte<enum EConstraintPlasticityType> LinearPlasticityType;
 
-	FConstraintProfileProperties();
+	ENGINE_API FConstraintProfileProperties();
 
 	/** Updates physx joint properties from unreal properties (limits, drives, flags, etc...) */
-	void Update_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, float AverageMass, float UseScale, bool InInitialize = false) const;
+	ENGINE_API void Update_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, float AverageMass, float UseScale, bool InInitialize = false) const;
 
 	/** Updates joint breakable properties (threshold, etc...)*/
-	void UpdateBreakable_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef) const;
+	ENGINE_API void UpdateBreakable_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef) const;
 
 	/** Updates joint breakable properties (threshold, etc...)*/
-	void UpdatePlasticity_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef) const;
+	ENGINE_API void UpdatePlasticity_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef) const;
 
 	/** Updates joint linear mass scales.*/
-	void UpdateContactTransferScale_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef) const;
+	ENGINE_API void UpdateContactTransferScale_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef) const;
 
 	/** Updates joint flag based on profile properties */
-	void UpdateConstraintFlags_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef) const;
+	ENGINE_API void UpdateConstraintFlags_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef) const;
 
 #if WITH_EDITOR
-	void SyncChangedConstraintProperties(struct FPropertyChangedChainEvent& PropertyChangedEvent);
+	ENGINE_API void SyncChangedConstraintProperties(struct FPropertyChangedChainEvent& PropertyChangedEvent);
 #endif
 };
 
 USTRUCT()
-struct ENGINE_API FConstraintInstanceBase
+struct FConstraintInstanceBase
 {
 	GENERATED_USTRUCT_BODY()
 
 	/** Constructor **/
-	FConstraintInstanceBase();
-	void Reset();
+	ENGINE_API FConstraintInstanceBase();
+	ENGINE_API void Reset();
 
 
 	/** Indicates position of this constraint within the array in SkeletalMeshComponent. */
@@ -215,10 +215,10 @@ struct ENGINE_API FConstraintInstanceBase
 	const FPhysScene* GetPhysicsScene() const { return PhysScene; }
 
 	/** Set the constraint broken delegate. */
-	void SetConstraintBrokenDelegate(FOnConstraintBroken InConstraintBrokenDelegate);
+	ENGINE_API void SetConstraintBrokenDelegate(FOnConstraintBroken InConstraintBrokenDelegate);
 
 	/** Set the plastic deformation delegate. */
-	void SetPlasticDeformationDelegate(FOnPlasticDeformation InPlasticDeformationDelegate);
+	ENGINE_API void SetPlasticDeformationDelegate(FOnPlasticDeformation InPlasticDeformationDelegate);
 
 	protected:
 
@@ -233,7 +233,7 @@ struct ENGINE_API FConstraintInstanceBase
 
 /** Container for a physics representation of an object. */
 USTRUCT()
-struct ENGINE_API FConstraintInstance : public FConstraintInstanceBase
+struct FConstraintInstance : public FConstraintInstanceBase
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -308,15 +308,15 @@ public:
 
 public:
 	/** Copies behavior properties from the given profile. Automatically updates the physx representation if it's been created */
-	void CopyProfilePropertiesFrom(const FConstraintProfileProperties& FromProperties);
+	ENGINE_API void CopyProfilePropertiesFrom(const FConstraintProfileProperties& FromProperties);
 
 	/** Get underlying physics engine constraint */
-	const FPhysicsConstraintHandle& GetPhysicsConstraintRef() const;
+	ENGINE_API const FPhysicsConstraintHandle& GetPhysicsConstraintRef() const;
 
 	FChaosUserData UserData;
 
 	/** Constructor **/
-	FConstraintInstance();
+	ENGINE_API FConstraintInstance();
 
 	/** Get the child bone name */
 	const FName& GetChildBoneName() const { return ConstraintBone1; }
@@ -414,7 +414,7 @@ public:
 	}
 
 	// The current swing1 of the constraint
-	float GetCurrentSwing1() const;
+	ENGINE_API float GetCurrentSwing1() const;
 
 	/** Gets the cone limit swing1 angle in degrees */
 	float GetAngularSwing1Limit() const
@@ -446,7 +446,7 @@ public:
 	}
 
 	// The current swing2 of the constraint
-	float GetCurrentSwing2() const;
+	ENGINE_API float GetCurrentSwing2() const;
 
 	/** Gets the cone limit swing2 angle in degrees */
 	float GetAngularSwing2Limit() const
@@ -478,7 +478,7 @@ public:
 	}
 
 	// The current twist of the constraint
-	float GetCurrentTwist() const;
+	ENGINE_API float GetCurrentTwist() const;
 
 	/** Gets the twist limit angle in degrees */
 	float GetAngularTwistLimit() const
@@ -689,22 +689,22 @@ public:
 	}
 
 	// @todo document
-	void CopyConstraintGeometryFrom(const FConstraintInstance* FromInstance);
+	ENGINE_API void CopyConstraintGeometryFrom(const FConstraintInstance* FromInstance);
 
 	// @todo document
-	void CopyConstraintParamsFrom(const FConstraintInstance* FromInstance);
+	ENGINE_API void CopyConstraintParamsFrom(const FConstraintInstance* FromInstance);
 
 	/** Copies non-identifying properties from another constraint instance */
-	void CopyConstraintPhysicalPropertiesFrom(const FConstraintInstance* FromInstance, bool bKeepPosition, bool bKeepRotation);
+	ENGINE_API void CopyConstraintPhysicalPropertiesFrom(const FConstraintInstance* FromInstance, bool bKeepPosition, bool bKeepRotation);
 
 	// Retrieve the constraint force most recently applied to maintain this constraint. Returns 0 forces if the constraint is not initialized or broken.
-	void GetConstraintForce(FVector& OutLinearForce, FVector& OutAngularForce);
+	ENGINE_API void GetConstraintForce(FVector& OutLinearForce, FVector& OutAngularForce);
 
 	// Retrieve the status of constraint being broken.
-	bool IsBroken();
+	ENGINE_API bool IsBroken();
 
 	/** Set which linear position drives are enabled */
-	void SetLinearPositionDrive(bool bEnableXDrive, bool bEnableYDrive, bool bEnableZDrive);
+	ENGINE_API void SetLinearPositionDrive(bool bEnableXDrive, bool bEnableYDrive, bool bEnableZDrive);
 
 	/** Get which linear position drives is enabled on XAxis */
 	bool IsLinearPositionDriveXEnabled() const
@@ -731,7 +731,7 @@ public:
 	}
 
 	/** Set the linear drive's target position position */
-	void SetLinearPositionTarget(const FVector& InPosTarget);
+	ENGINE_API void SetLinearPositionTarget(const FVector& InPosTarget);
 
 	/** Get the linear drive's target position position */
 	const FVector& GetLinearPositionTarget()
@@ -740,7 +740,7 @@ public:
 	}
 
 	/** Set which linear velocity drives are enabled */
-	void SetLinearVelocityDrive(bool bEnableXDrive, bool bEnableYDrive, bool bEnableZDrive);
+	ENGINE_API void SetLinearVelocityDrive(bool bEnableXDrive, bool bEnableYDrive, bool bEnableZDrive);
 
 	/** Get which linear position drives is enabled on XAxis */
 	bool IsLinearVelocityDriveXEnabled() const
@@ -767,7 +767,7 @@ public:
 	}
 
 	/** Set the linear drive's target velocity */
-	void SetLinearVelocityTarget(const FVector& InVelTarget);
+	ENGINE_API void SetLinearVelocityTarget(const FVector& InVelTarget);
 
 	/** Get the linear drive's target velocity */
 	const FVector& GetLinearVelocityTarget()
@@ -776,25 +776,25 @@ public:
 	}
 
 	/** Set the linear drive's strength parameters */
-	void SetLinearDriveParams(float InPositionStrength, float InVelocityStrength, float InForceLimit);
+	ENGINE_API void SetLinearDriveParams(float InPositionStrength, float InVelocityStrength, float InForceLimit);
 
 	/** Set the linear drive's strength parameters per-axis */
-	void SetLinearDriveParams(const FVector& InPositionStrength, const FVector& InVelocityStrength, const FVector& InForceLimit);
+	ENGINE_API void SetLinearDriveParams(const FVector& InPositionStrength, const FVector& InVelocityStrength, const FVector& InForceLimit);
 
 	/** Get the linear drive's strength parameters. Assumes all axes are the same so only returns the X values */
-	void GetLinearDriveParams(float& OutPositionStrength, float& OutVelocityStrength, float& OutForceLimit);
+	ENGINE_API void GetLinearDriveParams(float& OutPositionStrength, float& OutVelocityStrength, float& OutForceLimit);
 
 	/** Get the linear drive's strength parameters. */
-	void GetLinearDriveParams(FVector& OutPositionStrength, FVector& OutVelocityStrength, FVector& OutForceLimit);
+	ENGINE_API void GetLinearDriveParams(FVector& OutPositionStrength, FVector& OutVelocityStrength, FVector& OutForceLimit);
 
 	/** Set which twist and swing orientation drives are enabled. Only applicable when Twist And Swing drive mode is used */
-	void SetOrientationDriveTwistAndSwing(bool bInEnableTwistDrive, bool bInEnableSwingDrive);
+	ENGINE_API void SetOrientationDriveTwistAndSwing(bool bInEnableTwistDrive, bool bInEnableSwingDrive);
 
 	/** Get which twist and swing orientation drives are enabled. Only applicable when Twist And Swing drive mode is used */
-	void GetOrientationDriveTwistAndSwing(bool& bOutEnableTwistDrive, bool& bOutEnableSwingDrive);
+	ENGINE_API void GetOrientationDriveTwistAndSwing(bool& bOutEnableTwistDrive, bool& bOutEnableSwingDrive);
 
 	/** Set whether the SLERP angular position drive is enabled. Only applicable when SLERP drive mode is used */
-	void SetOrientationDriveSLERP(bool bInEnableSLERP);
+	ENGINE_API void SetOrientationDriveSLERP(bool bInEnableSLERP);
 
 	/** Get whether the SLERP angular position drive is enabled. Only applicable when SLERP drive mode is used */
 	bool GetOrientationDriveSLERP()
@@ -809,7 +809,7 @@ public:
 	}
 	
 	/** Set the angular drive's orientation target*/
-	void SetAngularOrientationTarget(const FQuat& InPosTarget);
+	ENGINE_API void SetAngularOrientationTarget(const FQuat& InPosTarget);
 
 	/** Get the angular drive's orientation target*/
 	const FRotator& GetAngularOrientationTarget() const
@@ -818,13 +818,13 @@ public:
 	}
 
 	/** Set which twist and swing angular velocity drives are enabled. Only applicable when Twist And Swing drive mode is used */
-	void SetAngularVelocityDriveTwistAndSwing(bool bInEnableTwistDrive, bool bInEnableSwingDrive);
+	ENGINE_API void SetAngularVelocityDriveTwistAndSwing(bool bInEnableTwistDrive, bool bInEnableSwingDrive);
 
 	/** Get which twist and swing angular velocity drives are enabled. Only applicable when Twist And Swing drive mode is used */
-	void GetAngularVelocityDriveTwistAndSwing(bool& bOutEnableTwistDrive, bool& bOutEnableSwingDrive);
+	ENGINE_API void GetAngularVelocityDriveTwistAndSwing(bool& bOutEnableTwistDrive, bool& bOutEnableSwingDrive);
 
 	/** Set whether the SLERP angular velocity drive is enabled. Only applicable when SLERP drive mode is used */
-	void SetAngularVelocityDriveSLERP(bool bInEnableSLERP);
+	ENGINE_API void SetAngularVelocityDriveSLERP(bool bInEnableSLERP);
 
 	/** Get whether the SLERP angular velocity drive is enabled. Only applicable when SLERP drive mode is used */
 	bool GetAngularVelocityDriveSLERP()
@@ -839,7 +839,7 @@ public:
 	}
 	
 	/** Set the angular drive's angular velocity target (in revolutions per second)*/
-	void SetAngularVelocityTarget(const FVector& InVelTarget);
+	ENGINE_API void SetAngularVelocityTarget(const FVector& InVelTarget);
 
 	/** Get the angular drive's angular velocity target*/
 	const FVector& GetAngularVelocityTarget() const
@@ -848,13 +848,13 @@ public:
 	}
 
 	/** Set the angular drive's strength parameters*/
-	void SetAngularDriveParams(float InSpring, float InDamping, float InForceLimit);
+	ENGINE_API void SetAngularDriveParams(float InSpring, float InDamping, float InForceLimit);
 
 	/** Get the angular drive's strength parameters*/
-	void GetAngularDriveParams(float& OutSpring, float& OutDamping, float& OutForceLimit) const;
+	ENGINE_API void GetAngularDriveParams(float& OutSpring, float& OutDamping, float& OutForceLimit) const;
 
 	/** Set the angular drive mode */
-	void SetAngularDriveMode(EAngularDriveMode::Type DriveMode);
+	ENGINE_API void SetAngularDriveMode(EAngularDriveMode::Type DriveMode);
 
 	/** Set the angular drive mode */
 	EAngularDriveMode::Type GetAngularDriveMode()
@@ -863,48 +863,48 @@ public:
 	}
 
 	/** Refreshes the physics engine joint's linear limits. Only applicable if the joint has been created already.*/
-	void UpdateLinearLimit();
+	ENGINE_API void UpdateLinearLimit();
 
 	/** Refreshes the physics engine joint's angular limits. Only applicable if the joint has been created already.*/
-	void UpdateAngularLimit();
+	ENGINE_API void UpdateAngularLimit();
 
 	/** Scale Angular Limit Constraints (as defined in RB_ConstraintSetup). This only affects the physics engine and does not update the unreal side so you can do things like a LERP of the scale values. */
-	void SetAngularDOFLimitScale(float InSwing1LimitScale, float InSwing2LimitScale, float InTwistLimitScale);
+	ENGINE_API void SetAngularDOFLimitScale(float InSwing1LimitScale, float InSwing2LimitScale, float InTwistLimitScale);
 
 	/** Allows you to dynamically change the size of the linear limit 'sphere'. */
-	void SetLinearLimitSize(float NewLimitSize);
+	ENGINE_API void SetLinearLimitSize(float NewLimitSize);
 
 	/** Create physics engine constraint. */
-	void InitConstraint(FBodyInstance* Body1, FBodyInstance* Body2, float Scale, UObject* DebugOwner, FOnConstraintBroken InConstraintBrokenDelegate = FOnConstraintBroken(), FOnPlasticDeformation InPlasticDeformationDelegate = FOnPlasticDeformation());
-	void InitConstraint(Chaos::FPhysicsObject* Body1, Chaos::FPhysicsObject* Body2, float Scale, UObject* DebugOwner, FOnConstraintBroken InConstraintBrokenDelegate = FOnConstraintBroken(), FOnPlasticDeformation InPlasticDeformationDelegate = FOnPlasticDeformation());
+	ENGINE_API void InitConstraint(FBodyInstance* Body1, FBodyInstance* Body2, float Scale, UObject* DebugOwner, FOnConstraintBroken InConstraintBrokenDelegate = FOnConstraintBroken(), FOnPlasticDeformation InPlasticDeformationDelegate = FOnPlasticDeformation());
+	ENGINE_API void InitConstraint(Chaos::FPhysicsObject* Body1, Chaos::FPhysicsObject* Body2, float Scale, UObject* DebugOwner, FOnConstraintBroken InConstraintBrokenDelegate = FOnConstraintBroken(), FOnPlasticDeformation InPlasticDeformationDelegate = FOnPlasticDeformation());
 
 	/** Create physics engine constraint using physx actors. */
-	void InitConstraint_AssumesLocked(const FPhysicsActorHandle& ActorRef1, const FPhysicsActorHandle& ActorRef2, float InScale, FOnConstraintBroken InConstraintBrokenDelegate = FOnConstraintBroken(), FOnPlasticDeformation InPlasticDeformationDelegate = FOnPlasticDeformation());
-	void InitConstraint_AssumesLocked(Chaos::FPhysicsObject* Body1, Chaos::FPhysicsObject* Body2, float InScale, FOnConstraintBroken InConstraintBrokenDelegate = FOnConstraintBroken(), FOnPlasticDeformation InPlasticDeformationDelegate = FOnPlasticDeformation());
+	ENGINE_API void InitConstraint_AssumesLocked(const FPhysicsActorHandle& ActorRef1, const FPhysicsActorHandle& ActorRef2, float InScale, FOnConstraintBroken InConstraintBrokenDelegate = FOnConstraintBroken(), FOnPlasticDeformation InPlasticDeformationDelegate = FOnPlasticDeformation());
+	ENGINE_API void InitConstraint_AssumesLocked(Chaos::FPhysicsObject* Body1, Chaos::FPhysicsObject* Body2, float InScale, FOnConstraintBroken InConstraintBrokenDelegate = FOnConstraintBroken(), FOnPlasticDeformation InPlasticDeformationDelegate = FOnPlasticDeformation());
 
 	/** Terminate physics engine constraint */
-	void TermConstraint();
+	ENGINE_API void TermConstraint();
 
 	/** Whether the physics engine constraint has been terminated */
-	bool IsTerminated() const;
+	ENGINE_API bool IsTerminated() const;
 
 	/** See if this constraint is valid. */
-	bool IsValidConstraintInstance() const;
+	ENGINE_API bool IsValidConstraintInstance() const;
 
 	// Get component ref frame
-	FTransform GetRefFrame(EConstraintFrame::Type Frame) const;
+	ENGINE_API FTransform GetRefFrame(EConstraintFrame::Type Frame) const;
 
 	// Pass in reference frame in. If the constraint is currently active, this will set its active local pose. Otherwise the change will take affect in InitConstraint. 
-	void SetRefFrame(EConstraintFrame::Type Frame, const FTransform& RefFrame);
+	ENGINE_API void SetRefFrame(EConstraintFrame::Type Frame, const FTransform& RefFrame);
 
 	/** Get the position of this constraint in world space. */
-	FVector GetConstraintLocation();
+	ENGINE_API FVector GetConstraintLocation();
 
 	// Pass in reference position in (maintains reference orientation). If the constraint is currently active, this will set its active local pose. Otherwise the change will take affect in InitConstraint.
-	void SetRefPosition(EConstraintFrame::Type Frame, const FVector& RefPosition);
+	ENGINE_API void SetRefPosition(EConstraintFrame::Type Frame, const FVector& RefPosition);
 
 	// Pass in reference orientation in (maintains reference position). If the constraint is currently active, this will set its active local pose. Otherwise the change will take affect in InitConstraint.
-	void SetRefOrientation(EConstraintFrame::Type Frame, const FVector& PriAxis, const FVector& SecAxis);
+	ENGINE_API void SetRefOrientation(EConstraintFrame::Type Frame, const FVector& PriAxis, const FVector& SecAxis);
 
 	/** Whether collision is currently disabled */
 	bool IsCollisionDisabled() const
@@ -913,7 +913,7 @@ public:
 	}
 
 	/** Set whether jointed actors can collide with each other */
-	void SetDisableCollision(bool InDisableCollision);
+	ENGINE_API void SetDisableCollision(bool InDisableCollision);
 
 	// @todo document
 	void DrawConstraint(int32 ViewIndex, class FMeshElementCollector& Collector,
@@ -930,11 +930,11 @@ public:
 		DrawConstraintImp(FPDIOrCollector(PDI), Scale, LimitDrawScale, bDrawLimits, bDrawSelected, Con1Frame, Con2Frame, bDrawAsPoint);
 	}
 
-	void GetUsedMaterials(TArray<UMaterialInterface*>& Materials);
+	ENGINE_API void GetUsedMaterials(TArray<UMaterialInterface*>& Materials);
 
-	bool Serialize(FArchive& Ar);
+	ENGINE_API bool Serialize(FArchive& Ar);
 #if WITH_EDITORONLY_DATA
-	void PostSerialize(const FArchive& Ar);
+	ENGINE_API void PostSerialize(const FArchive& Ar);
 #endif
 
 	/** Whether projection is enabled for this constraint */
@@ -944,22 +944,22 @@ public:
 	}
 
 	/** Turn on linear and angular projection */
-	void EnableProjection();
+	ENGINE_API void EnableProjection();
 
 	/** Turn off linear and angular projection */
-	void DisableProjection();
+	ENGINE_API void DisableProjection();
 
 	/** Set projection parameters */
-	void SetProjectionParams(bool bEnableProjection, float ProjectionLinearAlpha, float ProjectionAngularAlpha, float ProjectionLinearTolerance, float ProjectionAngularTolerance);
+	ENGINE_API void SetProjectionParams(bool bEnableProjection, float ProjectionLinearAlpha, float ProjectionAngularAlpha, float ProjectionLinearTolerance, float ProjectionAngularTolerance);
 
 	/** Get projection parameters */
-	void GetProjectionParams(float& ProjectionLinearAlpha, float& ProjectionAngularAlpha, float& ProjectionLinearTolerance, float& ProjectionAngularTolerance) const;
+	ENGINE_API void GetProjectionParams(float& ProjectionLinearAlpha, float& ProjectionAngularAlpha, float& ProjectionLinearTolerance, float& ProjectionAngularTolerance) const;
 
 	/** Set the shock propagation amount [0, 1] */
-	void SetShockPropagationParams(bool bEnableShockPropagation, float ShockPropagationAlpha);
+	ENGINE_API void SetShockPropagationParams(bool bEnableShockPropagation, float ShockPropagationAlpha);
 
 	/** Get the shock propagation amount [0, 1] */
-	float GetShockPropagationAlpha() const;
+	ENGINE_API float GetShockPropagationAlpha() const;
 
 	/** Whether parent domination is enabled (meaning the parent body cannot be be affected at all by a child) */
 	bool IsParentDominatesEnabled() const
@@ -968,8 +968,8 @@ public:
 	}
 
 	/** Enable/Disable parent dominates (meaning the parent body cannot be be affected at all by a child) */
-	void EnableParentDominates();
-	void DisableParentDominates();
+	ENGINE_API void EnableParentDominates();
+	ENGINE_API void DisableParentDominates();
 
 	/** Whether mass conditioning is enabled. @see FConstraintProfileProperties::bEnableMassConditioning */
 	bool IsMassConditioningEnabled() const
@@ -980,23 +980,23 @@ public:
 	/**
 	 * Enable maxx conditioning. @see FConstraintProfileProperties::bEnableMassConditioning
 	*/
-	void EnableMassConditioning();
+	ENGINE_API void EnableMassConditioning();
 
 	/**
 	 * Disable maxx conditioning. @see FConstraintProfileProperties::bEnableMassConditioning
 	*/
-	void DisableMassConditioning();
+	ENGINE_API void DisableMassConditioning();
 
 	float GetLastKnownScale() const { return LastKnownScale; }
 
 	//Hacks to easily get zeroed memory for special case when we don't use GC
-	static void Free(FConstraintInstance * Ptr);
-	static FConstraintInstance * Alloc();
+	static ENGINE_API void Free(FConstraintInstance * Ptr);
+	static ENGINE_API FConstraintInstance * Alloc();
 
 private:
 
-	bool CreateJoint_AssumesLocked(Chaos::FPhysicsObject* Body1, Chaos::FPhysicsObject* Body2);
-	void UpdateAverageMass_AssumesLocked(Chaos::FPhysicsObject* Body1, Chaos::FPhysicsObject* Body2);
+	ENGINE_API bool CreateJoint_AssumesLocked(Chaos::FPhysicsObject* Body1, Chaos::FPhysicsObject* Body2);
+	ENGINE_API void UpdateAverageMass_AssumesLocked(Chaos::FPhysicsObject* Body1, Chaos::FPhysicsObject* Body2);
 
 	struct FPDIOrCollector
 	{
@@ -1031,27 +1031,27 @@ private:
 
 	};
 
-	void DrawConstraintImp(const FPDIOrCollector& PDIOrCollector,
+	ENGINE_API void DrawConstraintImp(const FPDIOrCollector& PDIOrCollector,
 		float Scale, float LimitDrawScale, bool bDrawLimits, bool bDrawSelected,
 		const FTransform& Con1Frame, const FTransform& Con2Frame, bool bDrawAsPoint) const;
 
-	void UpdateBreakable();
-	void UpdatePlasticity();
-	void UpdateContactTransferScale();
-	void UpdateDriveTarget();
+	ENGINE_API void UpdateBreakable();
+	ENGINE_API void UpdatePlasticity();
+	ENGINE_API void UpdateContactTransferScale();
+	ENGINE_API void UpdateDriveTarget();
 
 public:
 
 #if WITH_EDITORONLY_DATA
 
 	/** Returns this constraint's default transform relative to its parent bone. */
-	FTransform CalculateDefaultParentTransform(const UPhysicsAsset* const PhysicsAsset) const;
+	ENGINE_API FTransform CalculateDefaultParentTransform(const UPhysicsAsset* const PhysicsAsset) const;
 
 	/** Returns this constraint's default transform relative to its child bone. */
-	FTransform CalculateDefaultChildTransform() const;
+	ENGINE_API FTransform CalculateDefaultChildTransform() const;
 
 	/** Set the constraint transform components specified by the SnapFlags to their default values (derived from the parent and child bone transforms). */
-	void SnapTransformsToDefault(const EConstraintTransformComponentFlags SnapFlags, const UPhysicsAsset* const PhysicsAsset);
+	ENGINE_API void SnapTransformsToDefault(const EConstraintTransformComponentFlags SnapFlags, const UPhysicsAsset* const PhysicsAsset);
 #endif // WITH_EDITORONLY_DATA
 
 	///////////////////////////// DEPRECATED
@@ -1191,7 +1191,7 @@ struct TStructOpsTypeTraits<FConstraintInstance> : public TStructOpsTypeTraitsBa
 
 // Wrapping type around instance pointer to be returned per value in Blueprints
 USTRUCT(BlueprintType)
-struct ENGINE_API FConstraintInstanceAccessor
+struct FConstraintInstanceAccessor
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -1219,10 +1219,10 @@ public:
 	}
 #endif
 
-	FConstraintInstance* Get() const;
+	ENGINE_API FConstraintInstance* Get() const;
 
 	/** Calls modify on the owner object to make sure the constraint is dirtied */
-	void Modify();
+	ENGINE_API void Modify();
 
 private:
 	UPROPERTY()

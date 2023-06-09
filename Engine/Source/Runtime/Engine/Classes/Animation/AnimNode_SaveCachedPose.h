@@ -16,7 +16,7 @@ namespace UE { namespace Anim {
 // Event that can be subscribed to receive skipped updates when a cached pose is run.
 // When a cached pose update call executes the link with the maximum weight, this event receives information about
 // the other links with lesser weights
-class ENGINE_API FCachedPoseSkippedUpdateHandler : public IGraphMessage
+class FCachedPoseSkippedUpdateHandler : public IGraphMessage
 {
 	DECLARE_ANIMGRAPH_MESSAGE(FCachedPoseSkippedUpdateHandler);
 
@@ -43,7 +43,7 @@ struct FCachedPoseScope
 }}	// namespace UE::Anim
 
 USTRUCT(BlueprintInternalUseOnly)
-struct ENGINE_API FAnimNode_SaveCachedPose : public FAnimNode_Base
+struct FAnimNode_SaveCachedPose : public FAnimNode_Base
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -71,15 +71,15 @@ protected:
 	FGraphTraversalCounter EvaluationCounter;
 
 public:	
-	FAnimNode_SaveCachedPose();
+	ENGINE_API FAnimNode_SaveCachedPose();
 
 	// FAnimNode_Base interface
-	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
-	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
-	virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
-	virtual void Evaluate_AnyThread(FPoseContext& Output) override;
-	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
+	ENGINE_API virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
+	ENGINE_API virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
+	ENGINE_API virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
+	ENGINE_API virtual void Evaluate_AnyThread(FPoseContext& Output) override;
+	ENGINE_API virtual void GatherDebugData(FNodeDebugData& DebugData) override;
 	// End of FAnimNode_Base interface
 
-	void PostGraphUpdate();
+	ENGINE_API void PostGraphUpdate();
 };

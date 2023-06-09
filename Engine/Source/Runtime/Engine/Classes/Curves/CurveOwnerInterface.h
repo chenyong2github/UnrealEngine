@@ -9,7 +9,7 @@
 /**
  * Interface you implement if you want the CurveEditor to be able to edit curves on you.
  */
-class ENGINE_API FCurveOwnerInterface
+class FCurveOwnerInterface
 {
 public:
 
@@ -70,7 +70,7 @@ public:
 	virtual bool IsValidCurve(FRichCurveEditInfo CurveInfo) = 0;
 
 	/** @return Color for this curve */
-	virtual FLinearColor GetCurveColor(FRichCurveEditInfo CurveInfo) const;
+	ENGINE_API virtual FLinearColor GetCurveColor(FRichCurveEditInfo CurveInfo) const;
 
 	/** Called during package reload to repoint a curve interface asset */
 	virtual bool RepointCurveOwner(const FPackageReloadedEvent& InPackageReloadedEvent, FCurveOwnerInterface*& OutNewCurveOwner) const

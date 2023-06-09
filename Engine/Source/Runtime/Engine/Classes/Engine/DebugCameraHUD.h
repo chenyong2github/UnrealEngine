@@ -10,17 +10,17 @@
 /**
  * HUD that displays info for the DebugCameraController view.
  */
-UCLASS(config = Game, hidedropdown)
-class ENGINE_API ADebugCameraHUD
+UCLASS(config = Game, hidedropdown, MinimalAPI)
+class ADebugCameraHUD
 	: public AHUD
 {
 	GENERATED_UCLASS_BODY()
 
 	/** @todo document */
-	virtual bool DisplayMaterials( float X, float& Y, float DY, class UMeshComponent* MeshComp );
+	ENGINE_API virtual bool DisplayMaterials( float X, float& Y, float DY, class UMeshComponent* MeshComp );
 	
 	//~ Begin AActor Interface
-	virtual void PostRender() override;
+	ENGINE_API virtual void PostRender() override;
 	//~ End AActor Interface
 
 };

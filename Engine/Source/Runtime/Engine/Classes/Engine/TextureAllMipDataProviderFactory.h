@@ -21,8 +21,8 @@ class FTextureMipDataProvider;
 * Use cases include custom texture compression.
 */
 
-UCLASS(abstract, hidecategories=Object)
-class ENGINE_API UTextureAllMipDataProviderFactory : public UTextureMipDataProviderFactory
+UCLASS(abstract, hidecategories=Object, MinimalAPI)
+class UTextureAllMipDataProviderFactory : public UTextureMipDataProviderFactory
 {
 	GENERATED_UCLASS_BODY()
 
@@ -44,12 +44,12 @@ public:
 	 * @param DebugContext - A string used for debug tracking and logging. Usually Texture->GetPathName()
 	 * @returns true if the requested mip data has been successfully returned.
 	 */
-	virtual bool GetInitialMipData(int32 FirstMipToLoad, TArrayView<void*> OutMipData, TArrayView<int64> OutMipSize, FStringView DebugContext)
+	ENGINE_API virtual bool GetInitialMipData(int32 FirstMipToLoad, TArrayView<void*> OutMipData, TArrayView<int64> OutMipSize, FStringView DebugContext)
 		PURE_VIRTUAL(UTextureAllMipDataProviderFactory::GetInitialMipData, return false;);
 
 	/**
 	  * Get the initial streaming state (after texture is first loaded)
 	  */
-	virtual FStreamableRenderResourceState GetResourcePostInitState(const UTexture* Owner, bool bAllowStreaming)
+	ENGINE_API virtual FStreamableRenderResourceState GetResourcePostInitState(const UTexture* Owner, bool bAllowStreaming)
 		PURE_VIRTUAL(UTextureAllMipDataProviderFactory::GetResourcePostInitState, return FStreamableRenderResourceState(););
 };

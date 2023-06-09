@@ -21,8 +21,8 @@ class UCapsuleComponent;
 /**
  * NavMovementComponent defines base functionality for MovementComponents that move any 'agent' that may be involved in AI pathfinding.
  */
-UCLASS(abstract, config=Engine)
-class ENGINE_API UNavMovementComponent : public UMovementComponent
+UCLASS(abstract, config=Engine, MinimalAPI)
+class UNavMovementComponent : public UMovementComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -64,54 +64,54 @@ private:
 public:
 	/** Stops applying further movement (usually zeros acceleration). */
 	UFUNCTION(BlueprintCallable, Category="Pawn|Components|PawnMovement")
-	virtual void StopActiveMovement();
+	ENGINE_API virtual void StopActiveMovement();
 
 	/** Stops movement immediately (reset velocity) but keeps following current path */
 	UFUNCTION(BlueprintCallable, Category="Components|Movement")
-	void StopMovementKeepPathing();
+	ENGINE_API void StopMovementKeepPathing();
 
 	// Overridden to also call StopActiveMovement().
-	virtual void StopMovementImmediately() override;
+	ENGINE_API virtual void StopMovementImmediately() override;
 
-	void SetUpdateNavAgentWithOwnersCollisions(bool bUpdateWithOwner);
+	ENGINE_API void SetUpdateNavAgentWithOwnersCollisions(bool bUpdateWithOwner);
 	FORCEINLINE bool ShouldUpdateNavAgentWithOwnersCollision() const { return bUpdateNavAgentWithOwnersCollision != 0; }
 	
-	void UpdateNavAgent(const AActor& InOwner);
-	void UpdateNavAgent(const UCapsuleComponent& CapsuleComponent);
+	ENGINE_API void UpdateNavAgent(const AActor& InOwner);
+	ENGINE_API void UpdateNavAgent(const UCapsuleComponent& CapsuleComponent);
 
 	/** Returns location of controlled actor - meaning center of collision bounding box */
 	FORCEINLINE FVector GetActorLocation() const { return UpdatedComponent ? UpdatedComponent->GetComponentLocation() : FVector(FLT_MAX); }
 	/** Returns location of controlled actor's "feet" meaning center of bottom of collision bounding box */
 	virtual FVector GetActorFeetLocation() const { return UpdatedComponent ? (UpdatedComponent->GetComponentLocation() - FVector(0,0,UpdatedComponent->Bounds.BoxExtent.Z)) : FNavigationSystem::InvalidLocation; }
 	/** Returns based location of controlled actor */
-	virtual FBasedPosition GetActorFeetLocationBased() const;
+	ENGINE_API virtual FBasedPosition GetActorFeetLocationBased() const;
 	/** Returns navigation location of controlled actor */
 	FORCEINLINE FVector GetActorNavLocation() const { INavAgentInterface* MyOwner = Cast<INavAgentInterface>(GetOwner()); return MyOwner ? MyOwner->GetNavAgentLocation() : FNavigationSystem::InvalidLocation; }
 	/** Returns the full world-coordinates transform of the associated scene component (the UpdatedComponent) */
 	FORCEINLINE FTransform GetActorTransform() const { return UpdatedComponent ? UpdatedComponent->GetComponentTransform() : FTransform(); }
 
 	/** path following: request new velocity */
-	virtual void RequestDirectMove(const FVector& MoveVelocity, bool bForceMaxSpeed);
+	ENGINE_API virtual void RequestDirectMove(const FVector& MoveVelocity, bool bForceMaxSpeed);
 
 	/** path following: request new move input (normal vector = full strength) */
-	virtual void RequestPathMove(const FVector& MoveInput);
+	ENGINE_API virtual void RequestPathMove(const FVector& MoveInput);
 
 	/** check if current move target can be reached right now if positions are matching
 	 *  (e.g. performing scripted move and can't stop) */
-	virtual bool CanStopPathFollowing() const;
+	ENGINE_API virtual bool CanStopPathFollowing() const;
 
 	/** Returns braking distance for acceleration driven path following */
-	virtual float GetPathFollowingBrakingDistance(float MaxSpeed) const;
+	ENGINE_API virtual float GetPathFollowingBrakingDistance(float MaxSpeed) const;
 
 	void SetPathFollowingAgent(IPathFollowingAgentInterface* InPathFollowingAgent) { PathFollowingComp = Cast<UObject>(InPathFollowingAgent); }
 	IPathFollowingAgentInterface* GetPathFollowingAgent() { return Cast<IPathFollowingAgentInterface>(PathFollowingComp); }
 	const IPathFollowingAgentInterface* GetPathFollowingAgent() const { return Cast<const IPathFollowingAgentInterface>(PathFollowingComp); }
 
 	/** set fixed braking distance */
-	void SetFixedBrakingDistance(float DistanceToEndOfPath);
+	ENGINE_API void SetFixedBrakingDistance(float DistanceToEndOfPath);
 
 	/** clears fixed braking distance */
-	void ClearFixedBrakingDistance();
+	ENGINE_API void ClearFixedBrakingDistance();
 
 	FORCEINLINE bool UseAccelerationForPathFollowing() const { return bUseAccelerationForPaths; }
 
@@ -149,23 +149,23 @@ public:
 
 	/** Returns true if currently crouching */ 
 	UFUNCTION(BlueprintCallable, Category="AI|Components|NavMovement")
-	virtual bool IsCrouching() const;
+	ENGINE_API virtual bool IsCrouching() const;
 
 	/** Returns true if currently falling (not flying, in a non-fluid volume, and not on the ground) */ 
 	UFUNCTION(BlueprintCallable, Category="AI|Components|NavMovement")
-	virtual bool IsFalling() const;
+	ENGINE_API virtual bool IsFalling() const;
 
 	/** Returns true if currently moving on the ground (e.g. walking or driving) */ 
 	UFUNCTION(BlueprintCallable, Category="AI|Components|NavMovement")
-	virtual bool IsMovingOnGround() const;
+	ENGINE_API virtual bool IsMovingOnGround() const;
 	
 	/** Returns true if currently swimming (moving through a fluid volume) */
 	UFUNCTION(BlueprintCallable, Category="AI|Components|NavMovement")
-	virtual bool IsSwimming() const;
+	ENGINE_API virtual bool IsSwimming() const;
 
 	/** Returns true if currently flying (moving through a non-fluid volume without resting on the ground) */
 	UFUNCTION(BlueprintCallable, Category="AI|Components|NavMovement")
-	virtual bool IsFlying() const;
+	ENGINE_API virtual bool IsFlying() const;
 };
 
 

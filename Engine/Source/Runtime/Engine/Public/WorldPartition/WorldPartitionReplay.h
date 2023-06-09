@@ -44,26 +44,26 @@ struct FWorldPartitionReplaySample
 /**
  * Actor used to record world partition replay data (streaming sources for now)
  */
-UCLASS(notplaceable, transient)
-class ENGINE_API AWorldPartitionReplay : public AActor
+UCLASS(notplaceable, transient, MinimalAPI)
+class AWorldPartitionReplay : public AActor
 {
 	GENERATED_UCLASS_BODY()
 
 public:
-	static void Initialize(UWorld* World);
-	static void Uninitialize(UWorld* World);
-	static bool IsPlaybackEnabled(UWorld* World);
-	static bool IsRecordingEnabled(UWorld* World);
+	static ENGINE_API void Initialize(UWorld* World);
+	static ENGINE_API void Uninitialize(UWorld* World);
+	static ENGINE_API bool IsPlaybackEnabled(UWorld* World);
+	static ENGINE_API bool IsRecordingEnabled(UWorld* World);
 
-	virtual void RewindForReplay() override;
-	virtual void PreReplication(IRepChangedPropertyTracker& ChangedPropertyTracker) override;
+	ENGINE_API virtual void RewindForReplay() override;
+	ENGINE_API virtual void PreReplication(IRepChangedPropertyTracker& ChangedPropertyTracker) override;
 		
-	bool GetReplayStreamingSources(TArray<FWorldPartitionStreamingSource>& OutStreamingSources);
+	ENGINE_API bool GetReplayStreamingSources(TArray<FWorldPartitionStreamingSource>& OutStreamingSources);
 		
 private:
 	friend FArchive& operator<<(FArchive& Ar, FWorldPartitionReplaySample& StreamingSource);
 	friend struct FWorldPartitionReplaySample;
-	TArray<FWorldPartitionStreamingSource> GetRecordingStreamingSources() const;
+	ENGINE_API TArray<FWorldPartitionStreamingSource> GetRecordingStreamingSources() const;
 
 	UPROPERTY(Transient, Replicated)
 	TArray<FName> StreamingSourceNames;

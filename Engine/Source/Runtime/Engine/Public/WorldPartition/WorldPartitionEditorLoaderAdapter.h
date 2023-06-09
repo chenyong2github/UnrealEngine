@@ -7,8 +7,8 @@
 #include "WorldPartition/WorldPartitionActorLoaderInterface.h"
 #include "WorldPartitionEditorLoaderAdapter.generated.h"
 
-UCLASS()
-class ENGINE_API UWorldPartitionEditorLoaderAdapter : public UObject, public IWorldPartitionActorLoaderInterface
+UCLASS(MinimalAPI)
+class UWorldPartitionEditorLoaderAdapter : public UObject, public IWorldPartitionActorLoaderInterface
 {
 public:
 	GENERATED_BODY()

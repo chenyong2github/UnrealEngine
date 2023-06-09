@@ -63,22 +63,22 @@ protected:
  *  reverse lookup tables that can be used during heavy scene updates
  *  of async asset compilation.
  */
-class ENGINE_API FObjectCacheContext
+class FObjectCacheContext
 {
 public:
-	TObjectCacheIterator<UPrimitiveComponent>   GetPrimitiveComponents();
-	TObjectCacheIterator<UStaticMeshComponent>  GetStaticMeshComponents();
-	TObjectCacheIterator<USkinnedMeshComponent> GetSkinnedMeshComponents();
-	TObjectCacheIterator<USkinnedMeshComponent> GetSkinnedMeshComponents(USkinnedAsset* InSkinnedAsset);
-	TObjectCacheIterator<UStaticMeshComponent>  GetStaticMeshComponents(UStaticMesh* InStaticMesh);
-	TObjectCacheIterator<UMaterialInterface>    GetMaterialsAffectedByTexture(UTexture* InTexture);
-	TObjectCacheIterator<UPrimitiveComponent>   GetPrimitivesAffectedByMaterial(UMaterialInterface* InMaterial);
-	TObjectCacheIterator<UPrimitiveComponent>   GetPrimitivesAffectedByMaterials(TArrayView<UMaterialInterface*> InMaterials);
-	TObjectCacheIterator<UTexture>              GetUsedTextures(UMaterialInterface* InMaterial);
-	TObjectCacheIterator<UMaterialInterface>    GetUsedMaterials(UPrimitiveComponent* InComponent);
-	TObjectCacheIterator<UMaterialInterface>    GetMaterialsAffectedByMaterials(TArrayView<UMaterialInterface*> InMaterials);
+	ENGINE_API TObjectCacheIterator<UPrimitiveComponent>   GetPrimitiveComponents();
+	ENGINE_API TObjectCacheIterator<UStaticMeshComponent>  GetStaticMeshComponents();
+	ENGINE_API TObjectCacheIterator<USkinnedMeshComponent> GetSkinnedMeshComponents();
+	ENGINE_API TObjectCacheIterator<USkinnedMeshComponent> GetSkinnedMeshComponents(USkinnedAsset* InSkinnedAsset);
+	ENGINE_API TObjectCacheIterator<UStaticMeshComponent>  GetStaticMeshComponents(UStaticMesh* InStaticMesh);
+	ENGINE_API TObjectCacheIterator<UMaterialInterface>    GetMaterialsAffectedByTexture(UTexture* InTexture);
+	ENGINE_API TObjectCacheIterator<UPrimitiveComponent>   GetPrimitivesAffectedByMaterial(UMaterialInterface* InMaterial);
+	ENGINE_API TObjectCacheIterator<UPrimitiveComponent>   GetPrimitivesAffectedByMaterials(TArrayView<UMaterialInterface*> InMaterials);
+	ENGINE_API TObjectCacheIterator<UTexture>              GetUsedTextures(UMaterialInterface* InMaterial);
+	ENGINE_API TObjectCacheIterator<UMaterialInterface>    GetUsedMaterials(UPrimitiveComponent* InComponent);
+	ENGINE_API TObjectCacheIterator<UMaterialInterface>    GetMaterialsAffectedByMaterials(TArrayView<UMaterialInterface*> InMaterials);
 #if WITH_EDITOR
-	TObjectCacheIterator<UTexture>              GetTexturesAffectedByTexture(UTexture* InTexture);
+	ENGINE_API TObjectCacheIterator<UTexture>              GetTexturesAffectedByTexture(UTexture* InTexture);
 #endif
 
 private:

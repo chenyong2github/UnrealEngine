@@ -72,8 +72,8 @@ struct FGeomSelection
 };
 
 
-UCLASS(hidecategories=(Object, Collision, Display, Rendering, Physics, Input, Blueprint), showcategories=("Input|MouseInput", "Input|TouchInput"), NotBlueprintable, ConversionRoot)
-class ENGINE_API ABrush
+UCLASS(hidecategories=(Object, Collision, Display, Rendering, Physics, Input, Blueprint), showcategories=("Input|MouseInput", "Input|TouchInput"), NotBlueprintable, ConversionRoot, MinimalAPI)
+class ABrush
 	: public AActor
 {
 	GENERATED_UCLASS_BODY()
@@ -149,12 +149,12 @@ public:
 	
 	// UObject interface.
 #if WITH_EDITOR
-	virtual void PostLoad() override;
-	virtual void PostEditMove(bool bFinished) override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
-	virtual FName GetCustomIconName() const override;
-	virtual bool Modify(bool bAlwaysMarkDirty = false) override;
+	ENGINE_API virtual void PostLoad() override;
+	ENGINE_API virtual void PostEditMove(bool bFinished) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual FName GetCustomIconName() const override;
+	ENGINE_API virtual bool Modify(bool bAlwaysMarkDirty = false) override;
 #endif // WITH_EDITOR
 
 	virtual bool NeedsLoadForClient() const override
@@ -170,34 +170,34 @@ public:
 public:
 	
 	// AActor interface
-	virtual bool IsLevelBoundsRelevant() const override;
-	virtual void RebuildNavigationData();
+	ENGINE_API virtual bool IsLevelBoundsRelevant() const override;
+	ENGINE_API virtual void RebuildNavigationData();
 
 #if WITH_EDITOR
-	virtual void Destroyed() override;
-	virtual void PostRegisterAllComponents() override;
-	virtual void CheckForErrors() override;
-	virtual void SetIsTemporarilyHiddenInEditor( bool bIsHidden ) override;
-	virtual bool SetIsHiddenEdLayer(bool bIsHiddenEdLayer) override;
-	virtual bool SupportsLayers() const override;
-	virtual bool SupportsExternalPackaging() const override;
+	ENGINE_API virtual void Destroyed() override;
+	ENGINE_API virtual void PostRegisterAllComponents() override;
+	ENGINE_API virtual void CheckForErrors() override;
+	ENGINE_API virtual void SetIsTemporarilyHiddenInEditor( bool bIsHidden ) override;
+	ENGINE_API virtual bool SetIsHiddenEdLayer(bool bIsHiddenEdLayer) override;
+	ENGINE_API virtual bool SupportsLayers() const override;
+	ENGINE_API virtual bool SupportsExternalPackaging() const override;
 public:
 
-	virtual void InitPosRotScale();
-	virtual void CopyPosRotScaleFrom( ABrush* Other );
+	ENGINE_API virtual void InitPosRotScale();
+	ENGINE_API virtual void CopyPosRotScaleFrom( ABrush* Other );
 
 	static void SetSuppressBSPRegeneration(bool bSuppress) { bSuppressBSPRegeneration = bSuppress; }
 
 private:
 
 	/** An array to keep track of all the levels that need rebuilding. This is checked via NeedsRebuild() in the editor tick and triggers a csg rebuild. */
-	static TArray< TWeakObjectPtr< ULevel > > LevelsToRebuild;
+	static ENGINE_API TArray< TWeakObjectPtr< ULevel > > LevelsToRebuild;
 
 	/** Delegate called when PostRegisterAllComponents is called for a Brush */
-	static FOnBrushRegistered OnBrushRegistered;
+	static ENGINE_API FOnBrushRegistered OnBrushRegistered;
 
 	/** Global bool to suppress automatic BSP regeneration */
-	static bool bSuppressBSPRegeneration;
+	static ENGINE_API bool bSuppressBSPRegeneration;
 
 public:
 
@@ -207,7 +207,7 @@ public:
 	 * @param	OutLevels if specified, provides a copy of the levels array
 	 * @return	true if the csg needs to be rebuilt on the next editor tick.	
 	 */
-	static bool NeedsRebuild(TArray< TWeakObjectPtr< ULevel > >* OutLevels = nullptr);
+	static ENGINE_API bool NeedsRebuild(TArray< TWeakObjectPtr< ULevel > >* OutLevels = nullptr);
 
 	/**
 	 * Called upon finishing the csg rebuild to clear the rebuild bool.
@@ -222,11 +222,11 @@ public:
 	 *
 	 * @param	InLevel The level that needs rebuilding
 	 */
-	static void SetNeedRebuild(ULevel* InLevel);
+	static ENGINE_API void SetNeedRebuild(ULevel* InLevel);
 #endif//WITH_EDITOR
 
 	/** @return true if this is a static brush */
-	virtual bool IsStaticBrush() const;
+	ENGINE_API virtual bool IsStaticBrush() const;
 
 	/** @return false */
 	virtual bool IsVolumeBrush() const { return false; }
@@ -237,7 +237,7 @@ public:
 	// ABrush interface.
 
 	/** Figures out the best color to use for this brushes wireframe drawing.	*/
-	virtual FColor GetWireColor() const;
+	ENGINE_API virtual FColor GetWireColor() const;
 
 	/**
 	 * Return if true if this brush is not used for gameplay (i.e. builder brush)
@@ -272,6 +272,6 @@ public:
 
 #if WITH_EDITOR
 	/** Debug purposes only; an attempt to catch the cause of UE-36265 */
-	static const TCHAR* GGeometryRebuildCause;
+	static ENGINE_API const TCHAR* GGeometryRebuildCause;
 #endif
 };

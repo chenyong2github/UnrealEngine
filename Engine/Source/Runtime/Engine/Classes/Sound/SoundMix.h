@@ -14,7 +14,7 @@ class USoundClass;
 struct FPropertyChangedEvent;
 
 USTRUCT()
-struct ENGINE_API FAudioEffectParameters
+struct FAudioEffectParameters
 {
 	GENERATED_USTRUCT_BODY()
 

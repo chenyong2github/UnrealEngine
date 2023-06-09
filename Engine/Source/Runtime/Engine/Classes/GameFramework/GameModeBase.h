@@ -42,8 +42,8 @@ DECLARE_DELEGATE_RetVal(bool, FCanUnpause);
  *
  * @see https://docs.unrealengine.com/latest/INT/Gameplay/Framework/GameMode/index.html
  */
-UCLASS(config = Game, notplaceable, BlueprintType, Blueprintable, Transient, hideCategories = (Info, Rendering, MovementReplication, Replication, Actor), meta = (ShortTooltip = "Game Mode Base defines the game being played, its rules, scoring, and other facets of the game type."))
-class ENGINE_API AGameModeBase : public AInfo
+UCLASS(config = Game, notplaceable, BlueprintType, Blueprintable, Transient, hideCategories = (Info, Rendering, MovementReplication, Replication, Actor), meta = (ShortTooltip = "Game Mode Base defines the game being played, its rules, scoring, and other facets of the game type."), MinimalAPI)
+class AGameModeBase : public AInfo
 {
 	GENERATED_UCLASS_BODY()
 
@@ -58,14 +58,14 @@ public:
 	 * and is used by the GameMode to initialize parameters and spawn its helper classes.
 	 * @warning: this is called before actors' PreInitializeComponents.
 	 */
-	virtual void InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage);
+	ENGINE_API virtual void InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage);
 
 	/**
 	 * Initialize the GameState actor with default settings
 	 * called during PreInitializeComponents() of the GameMode after a GameState has been spawned
 	 * as well as during Reset()
 	 */
-	virtual void InitGameState();
+	ENGINE_API virtual void InitGameState();
 
 	/** Save options string and parse it when needed */
 	UPROPERTY(BlueprintReadOnly, Category=GameMode)
@@ -76,11 +76,11 @@ public:
 	// Accessors for classes spawned by game
 
 	/** Return GameSession class to use for this game  */
-	virtual TSubclassOf<AGameSession> GetGameSessionClass() const;
+	ENGINE_API virtual TSubclassOf<AGameSession> GetGameSessionClass() const;
 
 	/** Returns default pawn class for given controller */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category=Classes)
-	UClass* GetDefaultPawnClassForController(AController* InController);
+	ENGINE_API UClass* GetDefaultPawnClassForController(AController* InController);
 
 	/** Class of GameSession, which handles login approval and online game interface */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Classes)
@@ -140,11 +140,11 @@ public:
 
 	/** Returns number of active human players, excluding spectators */
 	UFUNCTION(BlueprintCallable, Category=Game)
-	virtual int32 GetNumPlayers();
+	ENGINE_API virtual int32 GetNumPlayers();
 
 	/** Returns number of human players currently spectating */
 	UFUNCTION(BlueprintCallable, Category=Game)
-	virtual int32 GetNumSpectators();
+	ENGINE_API virtual int32 GetNumSpectators();
 
 
 	//~=============================================================================
@@ -152,15 +152,15 @@ public:
 
 	/** Transitions to calls BeginPlay on actors. */
 	UFUNCTION(BlueprintCallable, Category=Game)
-	virtual void StartPlay();
+	ENGINE_API virtual void StartPlay();
 
 	/** Returns true if the match start callbacks have been called */
 	UFUNCTION(BlueprintCallable, Category=Game)
-	virtual bool HasMatchStarted() const;
+	ENGINE_API virtual bool HasMatchStarted() const;
 
 	/** Returns true if the match can be considered ended */
 	UFUNCTION(BlueprintCallable, Category=Game)
-	virtual bool HasMatchEnded() const;
+	ENGINE_API virtual bool HasMatchEnded() const;
 
 	/**
 	 * Adds the delegate to the list if the player Controller has the right to pause
@@ -169,7 +169,7 @@ public:
 	 * @param PC the player Controller to check for admin privs
 	 * @param CanUnpauseDelegate the delegate to query when checking for unpause
 	 */
-	virtual bool SetPause(APlayerController* PC, FCanUnpause CanUnpauseDelegate = FCanUnpause());
+	ENGINE_API virtual bool SetPause(APlayerController* PC, FCanUnpause CanUnpauseDelegate = FCanUnpause());
 
 	/**
 	 * Checks the list of delegates to determine if the pausing can be cleared. If
@@ -177,7 +177,7 @@ public:
 	 * and the rest are checked. The game is considered unpaused when the list is
 	 * empty.
 	 */
-	virtual bool ClearPause();
+	ENGINE_API virtual bool ClearPause();
 
 	/**
 	 * Forcibly removes an object's CanUnpause delegates from the list of pausers.  If any of the object's CanUnpause delegate
@@ -186,13 +186,13 @@ public:
 	 * Called when the player controller is being destroyed to prevent the game from being stuck in a paused state when a PC that
 	 * paused the game is destroyed before the game is unpaused.
 	 */
-	void ForceClearUnpauseDelegates(AActor* PauseActor);
+	ENGINE_API void ForceClearUnpauseDelegates(AActor* PauseActor);
 
 	/** Returns true if the player is allowed to pause the game */
-	virtual bool AllowPausing(APlayerController* PC = nullptr);
+	ENGINE_API virtual bool AllowPausing(APlayerController* PC = nullptr);
 
 	/** Returns true if the game is paused */
-	virtual bool IsPaused() const;
+	ENGINE_API virtual bool IsPaused() const;
 
 	/**
 	 * Overridable function to determine whether an Actor should have Reset called when the game has Reset called on it.
@@ -202,24 +202,24 @@ public:
 	 *		   false if the GameMode will manually reset it or if the actor does not need to be reset
 	 */
 	UFUNCTION(BlueprintNativeEvent, Category=Game)
-	bool ShouldReset(AActor* ActorToReset);
+	ENGINE_API bool ShouldReset(AActor* ActorToReset);
 
 	/**
 	 * Overridable function called when resetting level. This is used to reset the game state while staying in the same map
 	 * Default implementation calls Reset() on all actors except GameMode and Controllers
 	 */
 	UFUNCTION(BlueprintCallable, Category=Game)
-	virtual void ResetLevel();
+	ENGINE_API virtual void ResetLevel();
 
 	/** Return to main menu, and disconnect any players */
 	UFUNCTION(BlueprintCallable, Category=Game)
-	virtual void ReturnToMainMenuHost();
+	ENGINE_API virtual void ReturnToMainMenuHost();
 
 	/** Returns true if allowed to server travel */
-	virtual bool CanServerTravel(const FString& URL, bool bAbsolute);
+	ENGINE_API virtual bool CanServerTravel(const FString& URL, bool bAbsolute);
 
 	/** Handles request for server to travel to a new URL, with all players */
-	virtual void ProcessServerTravel(const FString& URL, bool bAbsolute = false);
+	ENGINE_API virtual void ProcessServerTravel(const FString& URL, bool bAbsolute = false);
 
 	/** 
 	 * called on server during seamless level transitions to get the list of Actors that should be moved into the new level
@@ -232,7 +232,7 @@ public:
 	 * @param bToTransition true if we are going from old level to transition map, false if we are going from transition map to new level
 	 * @param ActorList (out) list of actors to maintain
 	 */
-	virtual void GetSeamlessTravelActorList(bool bToTransition, TArray<AActor*>& ActorList);
+	ENGINE_API virtual void GetSeamlessTravelActorList(bool bToTransition, TArray<AActor*>& ActorList);
 
 	/**
 	 * Used to swap a viewport/connection's PlayerControllers when seamless traveling and the new GameMode's
@@ -241,30 +241,30 @@ public:
 	 * @param OldPC - the old PC that should be discarded
 	 * @param NewPC - the new PC that should be used for the player
 	 */
-	virtual void SwapPlayerControllers(APlayerController* OldPC, APlayerController* NewPC);
+	ENGINE_API virtual void SwapPlayerControllers(APlayerController* OldPC, APlayerController* NewPC);
 
 	/**
 	 * Gets the class that should be used for spawning a player controller during seamless travel
 	 * @param PreviousPlayerController The player controller from the prior level
 	 * @return The class that should be used for spawning the player controller
 	 */
-	virtual TSubclassOf<APlayerController> GetPlayerControllerClassToSpawnForSeamlessTravel(APlayerController* PreviousPlayerController);
+	ENGINE_API virtual TSubclassOf<APlayerController> GetPlayerControllerClassToSpawnForSeamlessTravel(APlayerController* PreviousPlayerController);
 
 	/**
 	 * Handles reinitializing players that remained through a seamless level transition
 	 * called from C++ for players that finished loading after the server
 	 * @param C the Controller to handle
 	 */
-	virtual void HandleSeamlessTravelPlayer(AController*& C);
+	ENGINE_API virtual void HandleSeamlessTravelPlayer(AController*& C);
 
 	/**
 	 * Called after a seamless level transition has been completed on the *new* GameMode.
 	 * Used to reinitialize players already in the game as they won't have *Login() called on them
 	 */
-	virtual void PostSeamlessTravel();
+	ENGINE_API virtual void PostSeamlessTravel();
 
 	/** Start the transition out of the current map. Called at start of seamless travel, or right before map change for hard travel. */
-	virtual void StartToLeaveMap();
+	ENGINE_API virtual void StartToLeaveMap();
 
 
 	//~=============================================================================
@@ -275,7 +275,7 @@ public:
 	 * (for example required DLC)
 	 * the out string RedirectURL is built in and send automatically if only a simple URL is needed
 	 */
-	virtual void GameWelcomePlayer(UNetConnection* Connection, FString& RedirectURL);
+	ENGINE_API virtual void GameWelcomePlayer(UNetConnection* Connection, FString& RedirectURL);
 
 	/**
 	 * Accept or reject a player attempting to join the server.  Fails login if you set the ErrorMessage to a non-empty string.
@@ -286,7 +286,7 @@ public:
 	 * @param	UniqueId				The unique id the player has passed to the server
 	 * @param	ErrorMessage			When set to a non-empty value, the player will be rejected using the error message set
 	 */
-	virtual void PreLogin(const FString& Options, const FString& Address, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage);
+	ENGINE_API virtual void PreLogin(const FString& Options, const FString& Address, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage);
 
 	/**
 	 * Called to login new players by creating a player controller, overridable by the game
@@ -306,13 +306,13 @@ public:
 	 *
 	 * @return a new player controller for the logged in player, NULL if login failed for any reason
 	 */
-	virtual APlayerController* Login(UPlayer* NewPlayer, ENetRole InRemoteRole, const FString& Portal, const FString& Options, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage);
+	ENGINE_API virtual APlayerController* Login(UPlayer* NewPlayer, ENetRole InRemoteRole, const FString& Portal, const FString& Options, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage);
 
 	/** Called after a successful login.  This is the first place it is safe to call replicated functions on the PlayerController. */
-	virtual void PostLogin(APlayerController* NewPlayer);
+	ENGINE_API virtual void PostLogin(APlayerController* NewPlayer);
 
 	/** Called as part of the PostLogin process.  This is the last step before we spawn a new player. */
-	void DispatchPostLogin(AController* NewPlayer);
+	ENGINE_API void DispatchPostLogin(AController* NewPlayer);
 
 protected:
 	/** Called as part of DispatchPostLogin */
@@ -321,14 +321,14 @@ protected:
 public:
 	/** Notification that a player has successfully logged in, and has been given a player controller */
 	UFUNCTION(BlueprintImplementableEvent, Category=Game, meta = (DisplayName = "OnPostLogin", ScriptName = "OnPostLogin"))
-	void K2_PostLogin(APlayerController* NewPlayer);
+	ENGINE_API void K2_PostLogin(APlayerController* NewPlayer);
 
 	/** Called when a Controller with a PlayerState leaves the game or is destroyed */
-	virtual void Logout(AController* Exiting);
+	ENGINE_API virtual void Logout(AController* Exiting);
 
 	/** Implementable event when a Controller with a PlayerState leaves the game. */
 	UFUNCTION(BlueprintImplementableEvent, Category=Game, meta = (DisplayName = "OnLogout", ScriptName = "OnLogout"))
-	void K2_OnLogout(AController* ExitingController);
+	ENGINE_API void K2_OnLogout(AController* ExitingController);
 
 	/**
 	 * Spawns the appropriate PlayerController for the given options; split out from Login() for easier overriding.
@@ -339,25 +339,25 @@ public:
 	 *
 	 * @return PlayerController for the player, NULL if there is any reason this player shouldn't exist or due to some error
 	 */
-	virtual APlayerController* SpawnPlayerController(ENetRole InRemoteRole, const FString& Options);
+	ENGINE_API virtual APlayerController* SpawnPlayerController(ENetRole InRemoteRole, const FString& Options);
 
 	UE_DEPRECATED(4.20, "SpawnPlayerController with Location and Rotation is deprecated, call or override the version that takes an Option string instead")
-	virtual APlayerController* SpawnPlayerController(ENetRole InRemoteRole, FVector const& SpawnLocation, FRotator const& SpawnRotation);
+	ENGINE_API virtual APlayerController* SpawnPlayerController(ENetRole InRemoteRole, FVector const& SpawnLocation, FRotator const& SpawnRotation);
 	UE_DEPRECATED(4.20, "SpawnReplayPlayerController is deprecated, replay controller spawning is handled inside the new version of the SpawnPlayerController function")
-	virtual APlayerController* SpawnReplayPlayerController(ENetRole InRemoteRole, FVector const& SpawnLocation, FRotator const& SpawnRotation);
+	ENGINE_API virtual APlayerController* SpawnReplayPlayerController(ENetRole InRemoteRole, FVector const& SpawnLocation, FRotator const& SpawnRotation);
 
 
 	/** Signals that a player is ready to enter the game, which may start it up */
 	UFUNCTION(BlueprintNativeEvent, Category=Game)
-	void HandleStartingNewPlayer(APlayerController* NewPlayer);
+	ENGINE_API void HandleStartingNewPlayer(APlayerController* NewPlayer);
 
 	/** Returns true if NewPlayerController may only join the server as a spectator. */
 	UFUNCTION(BlueprintNativeEvent, Category=Game)
-	bool MustSpectate(APlayerController* NewPlayerController) const;
+	ENGINE_API bool MustSpectate(APlayerController* NewPlayerController) const;
 
 	/** Return whether Viewer is allowed to spectate from the point of view of ViewTarget. */
 	UFUNCTION(BlueprintNativeEvent, Category=Game)
-	bool CanSpectate(APlayerController* Viewer, APlayerState* ViewTarget);
+	ENGINE_API bool CanSpectate(APlayerController* Viewer, APlayerState* ViewTarget);
 
 	/** The default player name assigned to players that join with no name specified. */
 	UPROPERTY(EditAnywhere, Category=Game)
@@ -370,7 +370,7 @@ public:
 	 * @param bNameChange	Whether the name is changing or if this is the first time it has been set
 	 */
 	UFUNCTION(BlueprintCallable, Category=Game)
-	virtual void ChangeName(AController* Controller, const FString& NewName, bool bNameChange);
+	ENGINE_API virtual void ChangeName(AController* Controller, const FString& NewName, bool bNameChange);
 
 	/** 
 	 * Overridable event for GameMode blueprint to respond to a change name call
@@ -379,7 +379,7 @@ public:
 	 * @param bNameChange	Whether the name is changing or if this is the first time it has been set
 	 */
 	UFUNCTION(BlueprintImplementableEvent,Category=Game,meta=(DisplayName="OnChangeName", ScriptName="OnChangeName"))
-	void K2_OnChangeName(AController* Other, const FString& NewName, bool bNameChange);
+	ENGINE_API void K2_OnChangeName(AController* Other, const FString& NewName, bool bNameChange);
 
 
 	//~=============================================================================
@@ -393,7 +393,7 @@ public:
 	 * @returns AActor chosen as player start (usually a PlayerStart)
 	 */
 	UFUNCTION(BlueprintNativeEvent, Category=Game)
-	AActor* ChoosePlayerStart(AController* Player);
+	ENGINE_API AActor* ChoosePlayerStart(AController* Player);
 
 	/**
 	 * Return the specific player start actor that should be used for the next spawn
@@ -404,7 +404,7 @@ public:
 	 * @returns Actor chosen as player start (usually a PlayerStart)
 	 */
 	UFUNCTION(BlueprintNativeEvent, Category=Game)
-	AActor* FindPlayerStart(AController* Player, const FString& IncomingName = TEXT(""));
+	ENGINE_API AActor* FindPlayerStart(AController* Player, const FString& IncomingName = TEXT(""));
 
 	/**
 	 * Return the specific player start actor that should be used for the next spawn
@@ -415,23 +415,23 @@ public:
 	 * @returns Actor chosen as player start (usually a PlayerStart)
 	 */
 	UFUNCTION(BlueprintPure, Category=Game, meta = (DisplayName = "FindPlayerStart"))
-	AActor* K2_FindPlayerStart(AController* Player, const FString& IncomingName = TEXT(""));
+	ENGINE_API AActor* K2_FindPlayerStart(AController* Player, const FString& IncomingName = TEXT(""));
 
 	/** Returns true if it's valid to call RestartPlayer. By default will call Player->CanRestartPlayer */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category=Game)
-	bool PlayerCanRestart(APlayerController* Player);
+	ENGINE_API bool PlayerCanRestart(APlayerController* Player);
 
 	/** Tries to spawn the player's pawn, at the location returned by FindPlayerStart */
 	UFUNCTION(BlueprintCallable, Category=Game)
-	virtual void RestartPlayer(AController* NewPlayer);
+	ENGINE_API virtual void RestartPlayer(AController* NewPlayer);
 
 	/** Tries to spawn the player's pawn at the specified actor's location */
 	UFUNCTION(BlueprintCallable, Category=Game)
-	virtual void RestartPlayerAtPlayerStart(AController* NewPlayer, AActor* StartSpot);
+	ENGINE_API virtual void RestartPlayerAtPlayerStart(AController* NewPlayer, AActor* StartSpot);
 
 	/** Tries to spawn the player's pawn at a specific location */
 	UFUNCTION(BlueprintCallable, Category=Game)
-	virtual void RestartPlayerAtTransform(AController* NewPlayer, const FTransform& SpawnTransform);
+	ENGINE_API virtual void RestartPlayerAtTransform(AController* NewPlayer, const FTransform& SpawnTransform);
 
 	/**
 	 * Called during RestartPlayer to actually spawn the player's pawn, when using a start spot
@@ -440,7 +440,7 @@ public:
 	 * @return	a pawn of the default pawn class
 	 */
 	UFUNCTION(BlueprintNativeEvent, Category=Game)
-	APawn* SpawnDefaultPawnFor(AController* NewPlayer, AActor* StartSpot);
+	ENGINE_API APawn* SpawnDefaultPawnFor(AController* NewPlayer, AActor* StartSpot);
 
 	/**
 	 * Called during RestartPlayer to actually spawn the player's pawn, when using a transform
@@ -449,35 +449,35 @@ public:
 	 * @return	a pawn of the default pawn class
 	 */
 	UFUNCTION(BlueprintNativeEvent, Category=Game)
-	APawn* SpawnDefaultPawnAtTransform(AController* NewPlayer, const FTransform& SpawnTransform);
+	ENGINE_API APawn* SpawnDefaultPawnAtTransform(AController* NewPlayer, const FTransform& SpawnTransform);
 
 	/** Called from RestartPlayerAtPlayerStart, can be used to initialize the start spawn actor */
 	UFUNCTION(BlueprintNativeEvent, Category=Game)
-	void InitStartSpot(AActor* StartSpot, AController* NewPlayer);
+	ENGINE_API void InitStartSpot(AActor* StartSpot, AController* NewPlayer);
 
 	/** Implementable event called at the end of RestartPlayer */
 	UFUNCTION(BlueprintImplementableEvent, Category=Game, meta = (DisplayName = "OnRestartPlayer", ScriptName = "OnRestartPlayer"))
-	void K2_OnRestartPlayer(AController* NewPlayer);
+	ENGINE_API void K2_OnRestartPlayer(AController* NewPlayer);
 
 	/** Initializes player pawn back to starting values, called from RestartPlayer */
-	virtual void SetPlayerDefaults(APawn* PlayerPawn);
+	ENGINE_API virtual void SetPlayerDefaults(APawn* PlayerPawn);
 
 
 	//~=============================================================================
 	// Engine hooks
 
 	/** Return true if player should be allowed to use cheats by default */
-	virtual bool AllowCheats(APlayerController* P);
+	ENGINE_API virtual bool AllowCheats(APlayerController* P);
 
 	/** Returns true if replays will start/stop during gameplay starting/stopping */
-	virtual bool IsHandlingReplays();
+	ENGINE_API virtual bool IsHandlingReplays();
 
 	/** Used in the editor to spawn a PIE player after the game has already started */
-	virtual bool SpawnPlayerFromSimulate(const FVector& NewLocation, const FRotator& NewRotation);
+	ENGINE_API virtual bool SpawnPlayerFromSimulate(const FVector& NewLocation, const FRotator& NewRotation);
 
 	//~ Begin AActor Interface
-	virtual void PreInitializeComponents() override;
-	virtual void Reset() override;
+	ENGINE_API virtual void PreInitializeComponents() override;
+	ENGINE_API virtual void Reset() override;
 	//~ End AActor Interface
 
 protected:
@@ -487,7 +487,7 @@ protected:
 	 *	@param	OutErrorMessage		Any error messages.
 	 *	@return	bool	true if we updated the start spot, otherwise false.
 	 */
-	virtual bool UpdatePlayerStartSpot(AController* Player, const FString& Portal, FString& OutErrorMessage);
+	ENGINE_API virtual bool UpdatePlayerStartSpot(AController* Player, const FString& Portal, FString& OutErrorMessage);
 
 	/**
 	 *	Check to see if we should start in cinematic mode 
@@ -498,7 +498,7 @@ protected:
 	 *	@return	bool			true if we should turn on cinematic mode, 
 	 *							false if if we should not.
 	 */
-	virtual bool ShouldStartInCinematicMode(APlayerController* Player, bool& OutHidePlayer, bool& OutHideHud, bool& OutDisableMovement, bool& OutDisableTurning);
+	ENGINE_API virtual bool ShouldStartInCinematicMode(APlayerController* Player, bool& OutHidePlayer, bool& OutHideHud, bool& OutDisableMovement, bool& OutDisableTurning);
 
 	/**
 	 * Used to notify the game type that it is ok to update a player's gameplay
@@ -508,7 +508,7 @@ protected:
 	 *
 	 * @param aPlayer the playercontroller that is ready for updates
 	 */
-	virtual void UpdateGameplayMuteList(APlayerController* aPlayer);
+	ENGINE_API virtual void UpdateGameplayMuteList(APlayerController* aPlayer);
 
 	/**
 	 * Customize incoming player based on URL options
@@ -518,32 +518,32 @@ protected:
 	 * @param Options URL options that came at login
 	 *
 	 */
-	virtual FString InitNewPlayer(APlayerController* NewPlayerController, const FUniqueNetIdRepl& UniqueId, const FString& Options, const FString& Portal = TEXT(""));
+	ENGINE_API virtual FString InitNewPlayer(APlayerController* NewPlayerController, const FUniqueNetIdRepl& UniqueId, const FString& Options, const FString& Portal = TEXT(""));
 
 	/** Initialize the AHUD object for a player. Games can override this to do something different */
 	UFUNCTION(BlueprintNativeEvent, Category=Game)
-	void InitializeHUDForPlayer(APlayerController* NewPlayer);
+	ENGINE_API void InitializeHUDForPlayer(APlayerController* NewPlayer);
 
 	/**
 	 * Handles all player initialization that is shared between the travel methods
 	 * (i.e. called from both PostLogin() and HandleSeamlessTravelPlayer())
 	 */
-	virtual void GenericPlayerInitialization(AController* C);
+	ENGINE_API virtual void GenericPlayerInitialization(AController* C);
 
 	/** Replicates the current level streaming status to the given PlayerController */
-	virtual void ReplicateStreamingStatus(APlayerController* PC);
+	ENGINE_API virtual void ReplicateStreamingStatus(APlayerController* PC);
 
 	/** Return true if FindPlayerStart should use the StartSpot stored on Player instead of calling ChoosePlayerStart */
-	virtual bool ShouldSpawnAtStartSpot(AController* Player);
+	ENGINE_API virtual bool ShouldSpawnAtStartSpot(AController* Player);
 
 	/** Handles second half of RestartPlayer */
-	virtual void FinishRestartPlayer(AController* NewPlayer, const FRotator& StartRotation);
+	ENGINE_API virtual void FinishRestartPlayer(AController* NewPlayer, const FRotator& StartRotation);
 
 	/**
 	 * Called in the event that we fail to spawn a controller's pawn, which maybe it didn't have one or maybe it tried
 	 * to spawn and was destroyed due to collision.
 	 */
-	virtual void FailedToRestartPlayer(AController* NewPlayer);
+	ENGINE_API virtual void FailedToRestartPlayer(AController* NewPlayer);
 
 	/**
 	 * Notifies all clients to travel to the specified URL.
@@ -552,7 +552,7 @@ protected:
 	 * @param	bSeamless		indicates whether the travel should use seamless travel or not.
 	 * @param	bAbsolute		indicates which type of travel the server will perform (i.e. TRAVEL_Relative or TRAVEL_Absolute)
 	 */
-	virtual APlayerController* ProcessClientTravel(FString& URL, bool bSeamless, bool bAbsolute);
+	ENGINE_API virtual APlayerController* ProcessClientTravel(FString& URL, bool bSeamless, bool bAbsolute);
 
 	UE_DEPRECATED(4.27, "UPackage::Guid has not been used by the engine for a long time. Please use ProcessClientTravel without a NextMapGuid.")
 	virtual APlayerController* ProcessClientTravel(FString& URL, FGuid NextMapGuid, bool bSeamless, bool bAbsolute)
@@ -561,14 +561,14 @@ protected:
 	}
 
 	/** Handles initializing a seamless travel player, handles logic similar to InitNewPlayer */
-	virtual void InitSeamlessTravelPlayer(AController* NewController);
+	ENGINE_API virtual void InitSeamlessTravelPlayer(AController* NewController);
 
 	/** Called when a PlayerController is swapped to a new one during seamless travel */
 	UFUNCTION(BlueprintImplementableEvent, Category=Game, meta=(DisplayName="OnSwapPlayerControllers", ScriptName="OnSwapPlayerControllers"))
-	void K2_OnSwapPlayerControllers(APlayerController* OldPC, APlayerController* NewPC);
+	ENGINE_API void K2_OnSwapPlayerControllers(APlayerController* OldPC, APlayerController* NewPC);
 
 	/** Does the work of spawning a player controller of the given class at the given transform. */
-	virtual APlayerController* SpawnPlayerControllerCommon(ENetRole InRemoteRole, FVector const& SpawnLocation, FRotator const& SpawnRotation, TSubclassOf<APlayerController> InPlayerControllerClass);
+	ENGINE_API virtual APlayerController* SpawnPlayerControllerCommon(ENetRole InRemoteRole, FVector const& SpawnLocation, FRotator const& SpawnRotation, TSubclassOf<APlayerController> InPlayerControllerClass);
 
 public:
 	/** Whether the game perform map travels using SeamlessTravel() which loads in the background and doesn't disconnect clients */
@@ -593,7 +593,7 @@ private:
 };
 
 /** GameModeBase events, particularly for use by plugins */
-class ENGINE_API FGameModeEvents
+class FGameModeEvents
 {
 public:
 
@@ -645,11 +645,11 @@ public:
 	static FGameModeLogoutEvent& OnGameModeLogoutEvent() { return GameModeLogoutEvent; }
 	static FGameModeMatchStateSetEvent& OnGameModeMatchStateSetEvent() { return GameModeMatchStateSetEvent; }
 
-	static FGameModeInitializedEvent GameModeInitializedEvent;
-	static FGameModePreLoginEvent GameModePreLoginEvent;
-	static FGameModePostLoginEvent GameModePostLoginEvent;
-	static FGameModeLogoutEvent GameModeLogoutEvent;
-	static FGameModeMatchStateSetEvent GameModeMatchStateSetEvent;
+	static ENGINE_API FGameModeInitializedEvent GameModeInitializedEvent;
+	static ENGINE_API FGameModePreLoginEvent GameModePreLoginEvent;
+	static ENGINE_API FGameModePostLoginEvent GameModePostLoginEvent;
+	static ENGINE_API FGameModeLogoutEvent GameModeLogoutEvent;
+	static ENGINE_API FGameModeMatchStateSetEvent GameModeMatchStateSetEvent;
 };
 
 

@@ -268,8 +268,8 @@ public:
 
 	friend		FArchive&						operator<<(FArchive& Ar, FSpeedTreeWind& Wind);
 
-	ENGINE_API	void							SetNeedsReload(bool bReload = true) { m_bNeedsReload = bReload; }
-	ENGINE_API	bool							NeedsReload(void) { return m_bNeedsReload; }
+	void							SetNeedsReload(bool bReload = true) { m_bNeedsReload = bReload; }
+	bool							NeedsReload(void) { return m_bNeedsReload; }
 	
 
 protected:

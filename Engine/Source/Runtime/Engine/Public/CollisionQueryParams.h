@@ -38,7 +38,7 @@ enum class EQueryMobilityType
 #define SCENE_QUERY_STAT(QueryName) SCENE_QUERY_STAT_NAME_ONLY(QueryName), SCENE_QUERY_STAT_ONLY(QueryName)
 
 /** Structure that defines parameters passed into collision function */
-struct ENGINE_API FCollisionQueryParams
+struct FCollisionQueryParams
 {
 	/** Tag used to provide extra information or filtering for debugging of the trace (e.g. Collision Analyzer) */
 	FName TraceTag;
@@ -105,12 +105,12 @@ private:
 	/** Set of actors to ignore during the trace */
 	IgnoreActorsArrayType IgnoreActors;
 
-	void Internal_AddIgnoredComponent(const UPrimitiveComponent* InIgnoreComponent);
+	ENGINE_API void Internal_AddIgnoredComponent(const UPrimitiveComponent* InIgnoreComponent);
 
 public:
 
 	/** Returns set of unique components to ignore during the trace. Elements are guaranteed to be unique (they are made so internally if they are not already). */
-	const IgnoreComponentsArrayType& GetIgnoredComponents() const;
+	ENGINE_API const IgnoreComponentsArrayType& GetIgnoredComponents() const;
 
 	/** Returns set of actors to ignore during the trace. Note that elements are NOT guaranteed to be unique. This is less important for actors since it's less likely that duplicates are added.*/
 	const IgnoreActorsArrayType& GetIgnoredActors() const
@@ -135,7 +135,7 @@ public:
 	 * Set the number of ignored components in the list. Uniqueness is not changed, it operates on the current state (unique or not).
 	 * Useful for temporarily adding some, then restoring to a previous size. NewNum must be <= number of current components for there to be any effect.
 	 */
-	void SetNumIgnoredComponents(int32 NewNum);
+	ENGINE_API void SetNumIgnoredComponents(int32 NewNum);
 
 	// Constructors
 #if !FIND_UNKNOWN_SCENE_QUERIES
@@ -167,37 +167,37 @@ public:
 	}
 #endif
 
-	FCollisionQueryParams(FName InTraceTag, const TStatId& InStatId, bool bInTraceComplex = false, const AActor* InIgnoreActor = NULL);
+	ENGINE_API FCollisionQueryParams(FName InTraceTag, const TStatId& InStatId, bool bInTraceComplex = false, const AActor* InIgnoreActor = NULL);
 
 	// Utils
 
 	/** Add an actor for this trace to ignore */
-	void AddIgnoredActor(const AActor* InIgnoreActor);
+	ENGINE_API void AddIgnoredActor(const AActor* InIgnoreActor);
 
 	/** Add an actor by ID for this trace to ignore */
-	void AddIgnoredActor(const uint32 InIgnoreActorID);
+	ENGINE_API void AddIgnoredActor(const uint32 InIgnoreActorID);
 
 	/** Add a collection of actors for this trace to ignore */
-	void AddIgnoredActors(const TArray<AActor*>& InIgnoreActors);
-	void AddIgnoredActors(const TArray<const AActor*>& InIgnoreActors);
+	ENGINE_API void AddIgnoredActors(const TArray<AActor*>& InIgnoreActors);
+	ENGINE_API void AddIgnoredActors(const TArray<const AActor*>& InIgnoreActors);
 
 	/** Variant that uses an array of TWeakObjectPtrs */
-	void AddIgnoredActors(const TArray<TWeakObjectPtr<const AActor> >& InIgnoreActors);
+	ENGINE_API void AddIgnoredActors(const TArray<TWeakObjectPtr<const AActor> >& InIgnoreActors);
 
 	/** Add a component for this trace to ignore */
-	void AddIgnoredComponent(const UPrimitiveComponent* InIgnoreComponent);
+	ENGINE_API void AddIgnoredComponent(const UPrimitiveComponent* InIgnoreComponent);
 
 	/** Add a collection of components for this trace to ignore */
-	void AddIgnoredComponents(const TArray<UPrimitiveComponent*>& InIgnoreComponents);
+	ENGINE_API void AddIgnoredComponents(const TArray<UPrimitiveComponent*>& InIgnoreComponents);
 	
 	/** Variant that uses an array of TWeakObjectPtrs */
-	void AddIgnoredComponents(const TArray<TWeakObjectPtr<UPrimitiveComponent>>& InIgnoreComponents);
+	ENGINE_API void AddIgnoredComponents(const TArray<TWeakObjectPtr<UPrimitiveComponent>>& InIgnoreComponents);
 
 	/**
 	 * Special variant that hints that we are likely adding a duplicate of the root component or first ignored component.
 	 * Helps avoid invalidating the potential uniquess of the IgnoreComponents array.
 	 */
-	void AddIgnoredComponent_LikelyDuplicatedRoot(const UPrimitiveComponent* InIgnoreComponent);
+	ENGINE_API void AddIgnoredComponent_LikelyDuplicatedRoot(const UPrimitiveComponent* InIgnoreComponent);
 
 	FString ToString() const
 	{
@@ -205,11 +205,11 @@ public:
 	}
 
 	/** static variable for default data to be used without reconstructing everytime **/
-	static FCollisionQueryParams DefaultQueryParam;
+	static ENGINE_API FCollisionQueryParams DefaultQueryParam;
 };
 
 /** Structure when performing a collision query using a component's geometry */
-struct ENGINE_API FComponentQueryParams : public FCollisionQueryParams
+struct FComponentQueryParams : public FCollisionQueryParams
 {
 #if !FIND_UNKNOWN_SCENE_QUERIES
 	FComponentQueryParams()
@@ -232,11 +232,11 @@ struct ENGINE_API FComponentQueryParams : public FCollisionQueryParams
 	FCollisionEnabledMask ShapeCollisionMask;
 
 	/** static variable for default data to be used without reconstructing everytime **/
-	static FComponentQueryParams DefaultComponentQueryParams;
+	static ENGINE_API FComponentQueryParams DefaultComponentQueryParams;
 };
 
 /** Structure that defines response container for the query. Advanced option. */
-struct ENGINE_API FCollisionResponseParams
+struct FCollisionResponseParams
 {
 	/** 
 	 *	Collision Response container for trace filtering. If you'd like to ignore certain channel for this trace, use this struct.
@@ -254,13 +254,13 @@ struct ENGINE_API FCollisionResponseParams
 		CollisionResponse = ResponseContainer;
 	}
 	/** static variable for default data to be used without reconstructing everytime **/
-	static FCollisionResponseParams DefaultResponseParam;
+	static ENGINE_API FCollisionResponseParams DefaultResponseParam;
 };
 
 // If ECollisionChannel entry has metadata of "TraceType = 1", they will be excluded by Collision Profile
 // Any custom channel with bTraceType=true also will be excluded
 // By default everything is object type
-struct ENGINE_API FCollisionQueryFlag
+struct FCollisionQueryFlag
 {
 private:
 	int32 AllObjectQueryFlag;
@@ -273,7 +273,7 @@ private:
 	}
 
 public:
-	static FCollisionQueryFlag& Get();
+	static ENGINE_API FCollisionQueryFlag& Get();
 
 	int32 GetAllObjectsQueryFlag()
 	{
@@ -342,7 +342,7 @@ public:
 };
 
 /** Structure that contains list of object types the query is intersted in.  */
-struct ENGINE_API FCollisionObjectQueryParams
+struct FCollisionObjectQueryParams
 {
 	enum InitType
 	{
@@ -451,6 +451,6 @@ struct ENGINE_API FCollisionObjectQueryParams
 		static FCollisionObjectQueryParams::InitType ConvertMap[3] = { FCollisionObjectQueryParams::InitType::AllObjects, FCollisionObjectQueryParams::InitType::AllDynamicObjects, FCollisionObjectQueryParams::InitType::AllStaticObjects };
 		return ConvertMap[Filter];
 	}
-	static FCollisionObjectQueryParams DefaultObjectQueryParam;
+	static ENGINE_API FCollisionObjectQueryParams DefaultObjectQueryParam;
 };
 

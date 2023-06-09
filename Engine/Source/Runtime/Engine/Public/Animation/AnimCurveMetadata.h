@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -13,7 +13,7 @@
  * These are not saved in asset but per skeleton. 
  */
 USTRUCT()
-struct ENGINE_API FAnimCurveType
+struct FAnimCurveType
 {
 	GENERATED_BODY()
 
@@ -35,7 +35,7 @@ struct ENGINE_API FAnimCurveType
  * We only add this if anything changed, by default, it is attribute curve
  */
 USTRUCT()
-struct ENGINE_API FCurveMetaData
+struct FCurveMetaData
 {
 	GENERATED_BODY()
 
@@ -53,9 +53,9 @@ struct ENGINE_API FCurveMetaData
 
 	friend FArchive& operator<<(FArchive& Ar, FCurveMetaData& B);
 
-	bool Serialize(FArchive& Ar);
+	ENGINE_API bool Serialize(FArchive& Ar);
 
-	FCurveMetaData();
+	ENGINE_API FCurveMetaData();
 };
 
 UINTERFACE()

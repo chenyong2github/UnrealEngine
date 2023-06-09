@@ -13,7 +13,7 @@ class ULevelStreaming;
 class UPackage;
 class UWorld;
 
-class ENGINE_API FWorldPartitionConverter
+class FWorldPartitionConverter
 {
 public:
 	struct FParameters
@@ -37,7 +37,7 @@ public:
 		TSubclassOf<UWorldPartitionRuntimeHash> RuntimeHashClass;
 	};
 
-	static bool Convert(UWorld* InWorld, const FWorldPartitionConverter::FParameters& InParameters);
+	static ENGINE_API bool Convert(UWorld* InWorld, const FWorldPartitionConverter::FParameters& InParameters);
 
 private:
 

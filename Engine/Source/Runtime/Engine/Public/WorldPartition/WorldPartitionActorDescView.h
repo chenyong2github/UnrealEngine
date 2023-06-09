@@ -19,73 +19,73 @@ enum class EWorldPartitionActorFilterType : uint8;
  * A view on top of an actor desc, used to cache information that can be (potentially) different than the actor desc
  * itself due to streaming generation logic, etc.
  */
-class ENGINE_API FWorldPartitionActorDescView
+class FWorldPartitionActorDescView
 {
 	friend class UWorldPartitionRuntimeHash;
 
 public:
-	FWorldPartitionActorDescView();
-	FWorldPartitionActorDescView(const FWorldPartitionActorDesc* InActorDesc);
+	ENGINE_API FWorldPartitionActorDescView();
+	ENGINE_API FWorldPartitionActorDescView(const FWorldPartitionActorDesc* InActorDesc);
 
-	const FGuid& GetGuid() const;
-	FTopLevelAssetPath GetBaseClass() const;
-	FTopLevelAssetPath GetNativeClass() const;
-	UClass* GetActorNativeClass() const;
+	ENGINE_API const FGuid& GetGuid() const;
+	ENGINE_API FTopLevelAssetPath GetBaseClass() const;
+	ENGINE_API FTopLevelAssetPath GetNativeClass() const;
+	ENGINE_API UClass* GetActorNativeClass() const;
 	UE_DEPRECATED(5.2, "GetOrigin is deprecated.")
-	FVector GetOrigin() const;
-	FName GetRuntimeGrid() const;
-	bool GetIsSpatiallyLoaded() const;
-	bool GetActorIsEditorOnly() const;
-	bool GetActorIsRuntimeOnly() const;
-	bool GetActorIsHLODRelevant() const;
-	FSoftObjectPath GetHLODLayer() const;
-	const TArray<FName>& GetDataLayerInstanceNames() const;
-	const TArray<FName>& GetRuntimeDataLayerInstanceNames() const;
-	const TArray<FName>& GetTags() const;
-	FName GetActorPackage() const;
+	ENGINE_API FVector GetOrigin() const;
+	ENGINE_API FName GetRuntimeGrid() const;
+	ENGINE_API bool GetIsSpatiallyLoaded() const;
+	ENGINE_API bool GetActorIsEditorOnly() const;
+	ENGINE_API bool GetActorIsRuntimeOnly() const;
+	ENGINE_API bool GetActorIsHLODRelevant() const;
+	ENGINE_API FSoftObjectPath GetHLODLayer() const;
+	ENGINE_API const TArray<FName>& GetDataLayerInstanceNames() const;
+	ENGINE_API const TArray<FName>& GetRuntimeDataLayerInstanceNames() const;
+	ENGINE_API const TArray<FName>& GetTags() const;
+	ENGINE_API FName GetActorPackage() const;
 	
-	FSoftObjectPath GetActorSoftPath() const;
-	FName GetActorLabel() const;
+	ENGINE_API FSoftObjectPath GetActorSoftPath() const;
+	ENGINE_API FName GetActorLabel() const;
 
 	UE_DEPRECATED(5.2, "GetBounds is deprecated, GetEditorBounds or GetRuntimeBounds should be used instead.")
-	FBox GetBounds() const;
+	ENGINE_API FBox GetBounds() const;
 
-	FBox GetEditorBounds() const;
-	FBox GetRuntimeBounds() const;
+	ENGINE_API FBox GetEditorBounds() const;
+	ENGINE_API FBox GetRuntimeBounds() const;
 
-	const TArray<FGuid>& GetReferences() const;
-	const TArray<FGuid>& GetEditorReferences() const;
-	FString ToString() const;
-	const FGuid& GetParentActor() const;
-	FName GetActorName() const;
-	const FGuid& GetFolderGuid() const;
+	ENGINE_API const TArray<FGuid>& GetReferences() const;
+	ENGINE_API const TArray<FGuid>& GetEditorReferences() const;
+	ENGINE_API FString ToString() const;
+	ENGINE_API const FGuid& GetParentActor() const;
+	ENGINE_API FName GetActorName() const;
+	ENGINE_API const FGuid& GetFolderGuid() const;
 
-	FGuid GetContentBundleGuid() const;
-	FName GetContainerPackage() const;
-	bool IsContainerInstance() const;
-	bool GetContainerInstance(FWorldPartitionActorDesc::FContainerInstance& OutContainerInstance) const;
-	EWorldPartitionActorFilterType GetContainerFilterType() const;
-	const FWorldPartitionActorFilter* GetContainerFilter() const;
+	ENGINE_API FGuid GetContentBundleGuid() const;
+	ENGINE_API FName GetContainerPackage() const;
+	ENGINE_API bool IsContainerInstance() const;
+	ENGINE_API bool GetContainerInstance(FWorldPartitionActorDesc::FContainerInstance& OutContainerInstance) const;
+	ENGINE_API EWorldPartitionActorFilterType GetContainerFilterType() const;
+	ENGINE_API const FWorldPartitionActorFilter* GetContainerFilter() const;
 	
 	UE_DEPRECATED(5.3, "GetLevelPackage is deprecated use GetContainerPackage instead.")
 	FName GetLevelPackage() const { return GetContainerPackage(); }
 
-	void CheckForErrors(IStreamingGenerationErrorHandler* ErrorHandler) const;
+	ENGINE_API void CheckForErrors(IStreamingGenerationErrorHandler* ErrorHandler) const;
 
-	FName GetActorLabelOrName() const;
+	ENGINE_API FName GetActorLabelOrName() const;
 
 	UE_DEPRECATED(5.2, "ShouldValidateRuntimeGrid is deprecated and should not be used.")
-	bool ShouldValidateRuntimeGrid() const;
+	ENGINE_API bool ShouldValidateRuntimeGrid() const;
 
-	void SetForcedNonSpatiallyLoaded();
-	void SetForcedNoRuntimeGrid();
-	void SetInvalidDataLayers();
-	void SetRuntimeDataLayerInstanceNames(const TArray<FName>& InRuntimeDataLayerInstanceNames);
-	void SetRuntimeReferences(const TArray<FGuid>& InRuntimeReferences);
-	void SetEditorReferences(const TArray<FGuid>& InEditorReferences);
-	void SetDataLayerInstanceNames(const TArray<FName>& InDataLayerInstanceNames);
+	ENGINE_API void SetForcedNonSpatiallyLoaded();
+	ENGINE_API void SetForcedNoRuntimeGrid();
+	ENGINE_API void SetInvalidDataLayers();
+	ENGINE_API void SetRuntimeDataLayerInstanceNames(const TArray<FName>& InRuntimeDataLayerInstanceNames);
+	ENGINE_API void SetRuntimeReferences(const TArray<FGuid>& InRuntimeReferences);
+	ENGINE_API void SetEditorReferences(const TArray<FGuid>& InEditorReferences);
+	ENGINE_API void SetDataLayerInstanceNames(const TArray<FName>& InDataLayerInstanceNames);
 
-	AActor* GetActor() const;
+	ENGINE_API AActor* GetActor() const;
 
 	bool operator==(const FWorldPartitionActorDescView& Other) const
 	{
@@ -99,10 +99,10 @@ public:
 
 	const FWorldPartitionActorDesc* GetActorDesc() const { return ActorDesc; }
 
-	bool IsEditorOnlyReference(const FGuid& ReferenceGuid) const;
+	ENGINE_API bool IsEditorOnlyReference(const FGuid& ReferenceGuid) const;
 
-	bool GetProperty(FName PropertyName, FName* PropertyValue) const;
-	bool HasProperty(FName PropertyName) const;
+	ENGINE_API bool GetProperty(FName PropertyName, FName* PropertyValue) const;
+	ENGINE_API bool HasProperty(FName PropertyName) const;
 
 protected:
 	const FWorldPartitionActorDesc* ActorDesc;

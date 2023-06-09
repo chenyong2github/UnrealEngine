@@ -63,7 +63,7 @@ class UMaterialExpressionParameter : public UMaterialExpression
 #endif
 	//~ End UMaterialExpression Interface
 
-	ENGINE_API virtual FGuid& GetParameterExpressionId() override
+	virtual FGuid& GetParameterExpressionId() override
 	{
 		return ExpressionGUID;
 	}

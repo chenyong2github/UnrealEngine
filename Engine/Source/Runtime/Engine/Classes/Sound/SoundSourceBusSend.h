@@ -23,7 +23,7 @@ enum class ESourceBusSendLevelControlMethod : uint8
 };
 
 USTRUCT(BlueprintType)
-struct ENGINE_API FSoundSourceBusSendInfo
+struct FSoundSourceBusSendInfo
 {
 	GENERATED_USTRUCT_BODY()
 

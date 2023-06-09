@@ -68,7 +68,7 @@ enum class EDefaultAudioCompressionType : uint8
 
 
 USTRUCT()
-struct ENGINE_API FAudioQualitySettings
+struct FAudioQualitySettings
 {
 	GENERATED_BODY()
 
@@ -87,7 +87,7 @@ struct ENGINE_API FAudioQualitySettings
 };
 
 USTRUCT()
-struct ENGINE_API FSoundDebugEntry
+struct FSoundDebugEntry
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -101,7 +101,7 @@ struct ENGINE_API FSoundDebugEntry
 };
 
 USTRUCT()
-struct ENGINE_API FDefaultAudioBusSettings
+struct FDefaultAudioBusSettings
 {
 	GENERATED_BODY()
 
@@ -113,14 +113,14 @@ struct ENGINE_API FDefaultAudioBusSettings
 /**
  * Audio settings.
  */
-UCLASS(config=Engine, defaultconfig, meta=(DisplayName="Audio"))
-class ENGINE_API UAudioSettings : public UDeveloperSettings
+UCLASS(config=Engine, defaultconfig, meta=(DisplayName="Audio"), MinimalAPI)
+class UAudioSettings : public UDeveloperSettings
 {
 	GENERATED_UCLASS_BODY()
 
 #if WITH_EDITOR
-	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
-	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
+	ENGINE_API virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 
 	/** Event to listen for when settings reflected properties are changed. */
 	DECLARE_EVENT(UAudioSettings, FAudioSettingsChanged)
@@ -262,31 +262,31 @@ private:
 
 public:
 	// Loads default object instances from soft object path properties
-	void LoadDefaultObjects();
+	ENGINE_API void LoadDefaultObjects();
 
-	USoundClass* GetDefaultSoundClass() const;
-	USoundClass* GetDefaultMediaSoundClass() const;
-	USoundConcurrency* GetDefaultSoundConcurrency() const;
+	ENGINE_API USoundClass* GetDefaultSoundClass() const;
+	ENGINE_API USoundClass* GetDefaultMediaSoundClass() const;
+	ENGINE_API USoundConcurrency* GetDefaultSoundConcurrency() const;
 
 	// Registers Parameter Interfaces defined by the engine module.
 	// Called on engine start-up. Can be called when engine is not
 	// initialized as well by consuming plugins (ex. on cook by plugins
 	// requiring interface system to be loaded).
-	void RegisterParameterInterfaces();
+	ENGINE_API void RegisterParameterInterfaces();
 
 	// Get the quality level settings at the provided level index
-	const FAudioQualitySettings& GetQualityLevelSettings(int32 QualityLevel) const;
+	ENGINE_API const FAudioQualitySettings& GetQualityLevelSettings(int32 QualityLevel) const;
 
-	int32 GetDefaultCompressionQuality() const;
+	ENGINE_API int32 GetDefaultCompressionQuality() const;
 	
 	// Get the quality name level for a given index
-	FString FindQualityNameByIndex(int32 Index) const;
+	ENGINE_API FString FindQualityNameByIndex(int32 Index) const;
 
 	// Get the total number of quality level settings
-	int32 GetQualityLevelSettingsNum() const;
+	ENGINE_API int32 GetQualityLevelSettingsNum() const;
 
 	/** Returns the highest value for MaxChannels among all quality levels */
-	int32 GetHighestMaxChannels() const;
+	ENGINE_API int32 GetHighestMaxChannels() const;
 
 #if WITH_EDITOR
 	/** Returns event to be bound to if caller wants to know when audio settings are modified */
@@ -301,7 +301,7 @@ private:
 	FSoftObjectPath CachedSoundClass;
 #endif // WITH_EDITOR
 
-	void AddDefaultSettings();
+	ENGINE_API void AddDefaultSettings();
 
 	bool bParameterInterfacesRegistered;
 };

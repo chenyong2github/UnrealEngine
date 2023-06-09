@@ -10,7 +10,7 @@
 
 /* Base class for any asset playing anim node */
 USTRUCT(BlueprintInternalUseOnly)
-struct ENGINE_API FAnimNode_AssetPlayerBase : public FAnimNode_AssetPlayerRelevancyBase
+struct FAnimNode_AssetPlayerBase : public FAnimNode_AssetPlayerRelevancyBase
 {
 	GENERATED_BODY()
 
@@ -19,18 +19,18 @@ struct ENGINE_API FAnimNode_AssetPlayerBase : public FAnimNode_AssetPlayerReleva
 	FAnimNode_AssetPlayerBase() = default;
 
 	/** Initialize function for setup purposes */
-	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
+	ENGINE_API virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
 
 	/** Update the node, marked final so we can always handle blendweight caching.
 	 *  Derived classes should implement UpdateAssetPlayer
 	 */
-	virtual void Update_AnyThread(const FAnimationUpdateContext& Context) final override;
+	ENGINE_API virtual void Update_AnyThread(const FAnimationUpdateContext& Context) final override;
 
 	/** Update method for the asset player, to be implemented by derived classes */
 	virtual void UpdateAssetPlayer(const FAnimationUpdateContext& Context) {};
 
 	// Create a tick record for this node
-	void CreateTickRecordForNode(const FAnimationUpdateContext& Context, UAnimSequenceBase* Sequence, bool bLooping, float PlayRate, bool bIsEvaluator);
+	ENGINE_API void CreateTickRecordForNode(const FAnimationUpdateContext& Context, UAnimSequenceBase* Sequence, bool bLooping, float PlayRate, bool bIsEvaluator);
 
 	// Get the sync group name we are using
 	virtual FName GetGroupName() const { return NAME_None; }
@@ -51,12 +51,12 @@ struct ENGINE_API FAnimNode_AssetPlayerBase : public FAnimNode_AssetPlayerReleva
 	virtual bool SetGroupMethod(EAnimSyncMethod InMethod) { return false; }
 
 	// --- FAnimNode_RelevantAssetPlayerBase ---
-	virtual float GetAccumulatedTime() const override;
-	virtual void SetAccumulatedTime(float NewTime) override;
-	virtual float GetCachedBlendWeight() const override;
-	virtual void ClearCachedBlendWeight() override;
-	virtual float GetCurrentAssetTimePlayRateAdjusted() const override;
-	virtual const FDeltaTimeRecord* GetDeltaTimeRecord() const override;
+	ENGINE_API virtual float GetAccumulatedTime() const override;
+	ENGINE_API virtual void SetAccumulatedTime(float NewTime) override;
+	ENGINE_API virtual float GetCachedBlendWeight() const override;
+	ENGINE_API virtual void ClearCachedBlendWeight() override;
+	ENGINE_API virtual float GetCurrentAssetTimePlayRateAdjusted() const override;
+	ENGINE_API virtual const FDeltaTimeRecord* GetDeltaTimeRecord() const override;
 	// --- End of FAnimNode_RelevantAssetPlayerBase ---
 
 private:

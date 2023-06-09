@@ -16,7 +16,7 @@
  */
 
 /** Defines the interface to platform's save game system (or a generic file based one) */
-class ENGINE_API ISaveGameSystem
+class ISaveGameSystem
 {
 public:
 
@@ -75,36 +75,36 @@ public:
 
 
 	/* Asyncronously checks if the named savegame exists. Default implementation runs blocking version on a background thread */
-	virtual void DoesSaveGameExistAsync(const TCHAR* Name, FPlatformUserId PlatformUserId, FSaveGameAsyncExistsCallback Callback);
+	ENGINE_API virtual void DoesSaveGameExistAsync(const TCHAR* Name, FPlatformUserId PlatformUserId, FSaveGameAsyncExistsCallback Callback);
 
 	/* Saves the named savegame asyncronously. Default implementation runs blocking version on a background thread */
-	virtual void SaveGameAsync(bool bAttemptToUseUI, const TCHAR* Name, FPlatformUserId PlatformUserId, TSharedRef<const TArray<uint8>> Data, FSaveGameAsyncOpCompleteCallback Callback);
+	ENGINE_API virtual void SaveGameAsync(bool bAttemptToUseUI, const TCHAR* Name, FPlatformUserId PlatformUserId, TSharedRef<const TArray<uint8>> Data, FSaveGameAsyncOpCompleteCallback Callback);
 
 	/* Load the named savegame asyncronously. Default implementation runs blocking version on a background thread */
-	virtual void LoadGameAsync(bool bAttemptToUseUI, const TCHAR* Name, FPlatformUserId PlatformUserId, FSaveGameAsyncLoadCompleteCallback Callback);
+	ENGINE_API virtual void LoadGameAsync(bool bAttemptToUseUI, const TCHAR* Name, FPlatformUserId PlatformUserId, FSaveGameAsyncLoadCompleteCallback Callback);
 
 	/* Delete the named savegame asyncronously. Default implementation runs blocking version on a background thread */
-	virtual void DeleteGameAsync(bool bAttemptToUseUI, const TCHAR* Name, FPlatformUserId PlatformUserId, FSaveGameAsyncOpCompleteCallback Callback);
+	ENGINE_API virtual void DeleteGameAsync(bool bAttemptToUseUI, const TCHAR* Name, FPlatformUserId PlatformUserId, FSaveGameAsyncOpCompleteCallback Callback);
 
 	/* Gets a list of all known saves if the platform supports it. Default implementatino runs blocking version on a background thread */
-	virtual void GetSaveGameNamesAsync(FPlatformUserId PlatformUserId, FSaveGameAsyncGetNamesCallback Callback);
+	ENGINE_API virtual void GetSaveGameNamesAsync(FPlatformUserId PlatformUserId, FSaveGameAsyncGetNamesCallback Callback);
 
 	/* (Optional) initialise the save system for the given user. Useful if the platform may display UI on first use - this can be called as part of the user login flow, for example. 
 	   If this is not used, any UI may be displayed on the first use of the other save api functions */
-	virtual void InitAsync(bool bAttemptToUseUI, FPlatformUserId PlatformUserId, FSaveGameAsyncInitCompleteCallback Callback);
+	ENGINE_API virtual void InitAsync(bool bAttemptToUseUI, FPlatformUserId PlatformUserId, FSaveGameAsyncInitCompleteCallback Callback);
 
 protected:
 
 	// save task pipe prevents multiple async save operations happening in parallel. note that the order is not guaranteed
-	static UE::Tasks::FPipe AsyncTaskPipe;
+	static ENGINE_API UE::Tasks::FPipe AsyncTaskPipe;
 
 	// helper function for calling back to the game thread when an async save operation has completed
-	void OnAsyncComplete(TFunction<void()> Callback);
+	ENGINE_API void OnAsyncComplete(TFunction<void()> Callback);
 };
 
 
 /** A generic save game system that just uses IFileManager to save/load with normal files */
-class ENGINE_API FGenericSaveGameSystem : public ISaveGameSystem
+class FGenericSaveGameSystem : public ISaveGameSystem
 {
 public:
 	virtual bool PlatformHasNativeUI() override
@@ -172,7 +172,7 @@ protected:
 
 
 /** helper base class for async-compatible save games */
-class ENGINE_API FBaseAsyncSaveGameSystem : public ISaveGameSystem
+class FBaseAsyncSaveGameSystem : public ISaveGameSystem
 {
 public:
 
@@ -182,18 +182,18 @@ public:
 	}
 
 	// syncronous save functions
-	virtual ESaveExistsResult DoesSaveGameExistWithResult(const TCHAR* Name, const int32 UserIndex) override;
-	virtual bool GetSaveGameNames(TArray<FString>& FoundSaves, const int32 UserIndex) override;
-	virtual bool SaveGame(bool bAttemptToUseUI, const TCHAR* Name, const int32 UserIndex, const TArray<uint8>& Data) override;
-	virtual bool LoadGame(bool bAttemptToUseUI, const TCHAR* Name, const int32 UserIndex, TArray<uint8>& Data) override;
-	virtual bool DeleteGame(bool bAttemptToUseUI, const TCHAR* Name, const int32 UserIndex) override;
+	ENGINE_API virtual ESaveExistsResult DoesSaveGameExistWithResult(const TCHAR* Name, const int32 UserIndex) override;
+	ENGINE_API virtual bool GetSaveGameNames(TArray<FString>& FoundSaves, const int32 UserIndex) override;
+	ENGINE_API virtual bool SaveGame(bool bAttemptToUseUI, const TCHAR* Name, const int32 UserIndex, const TArray<uint8>& Data) override;
+	ENGINE_API virtual bool LoadGame(bool bAttemptToUseUI, const TCHAR* Name, const int32 UserIndex, TArray<uint8>& Data) override;
+	ENGINE_API virtual bool DeleteGame(bool bAttemptToUseUI, const TCHAR* Name, const int32 UserIndex) override;
 
 	// asyncronous save functions
-	virtual void DoesSaveGameExistAsync(const TCHAR* Name, FPlatformUserId PlatformUserId, FSaveGameAsyncExistsCallback Callback) override;
-	virtual void SaveGameAsync(bool bAttemptToUseUI, const TCHAR* Name, FPlatformUserId PlatformUserId, TSharedRef<const TArray<uint8>> Data, FSaveGameAsyncOpCompleteCallback Callback) override;
-	virtual void LoadGameAsync(bool bAttemptToUseUI, const TCHAR* Name, FPlatformUserId PlatformUserId, FSaveGameAsyncLoadCompleteCallback Callback) override;
-	virtual void DeleteGameAsync(bool bAttemptToUseUI, const TCHAR* Name, FPlatformUserId PlatformUserId, FSaveGameAsyncOpCompleteCallback Callback) override;
-	virtual void GetSaveGameNamesAsync(FPlatformUserId PlatformUserId, FSaveGameAsyncGetNamesCallback Callback) override;
+	ENGINE_API virtual void DoesSaveGameExistAsync(const TCHAR* Name, FPlatformUserId PlatformUserId, FSaveGameAsyncExistsCallback Callback) override;
+	ENGINE_API virtual void SaveGameAsync(bool bAttemptToUseUI, const TCHAR* Name, FPlatformUserId PlatformUserId, TSharedRef<const TArray<uint8>> Data, FSaveGameAsyncOpCompleteCallback Callback) override;
+	ENGINE_API virtual void LoadGameAsync(bool bAttemptToUseUI, const TCHAR* Name, FPlatformUserId PlatformUserId, FSaveGameAsyncLoadCompleteCallback Callback) override;
+	ENGINE_API virtual void DeleteGameAsync(bool bAttemptToUseUI, const TCHAR* Name, FPlatformUserId PlatformUserId, FSaveGameAsyncOpCompleteCallback Callback) override;
+	ENGINE_API virtual void GetSaveGameNamesAsync(FPlatformUserId PlatformUserId, FSaveGameAsyncGetNamesCallback Callback) override;
 
 protected:
 	// internal async helpers that require implementation. NB. OutResult will be null for async calls
@@ -204,7 +204,7 @@ protected:
 	virtual UE::Tasks::FTask InternalGetSaveGameNamesAsync(FPlatformUserId PlatformUserId, TSharedRef<TArray<FString>> FoundSaves, FSaveGameAsyncGetNamesCallback Callback, TSharedPtr<bool> OutResult = nullptr) = 0;
 
 	// specializations can override this
-	virtual void WaitForAsyncTask(UE::Tasks::FTask AsyncSaveTask);
+	ENGINE_API virtual void WaitForAsyncTask(UE::Tasks::FTask AsyncSaveTask);
 
 };
 

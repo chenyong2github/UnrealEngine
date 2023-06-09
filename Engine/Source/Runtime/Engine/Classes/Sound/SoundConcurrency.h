@@ -70,7 +70,7 @@ enum class EConcurrencyVolumeScaleMode
 };
 
 USTRUCT(BlueprintType)
-struct ENGINE_API FSoundConcurrencySettings
+struct FSoundConcurrencySettings
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -148,13 +148,13 @@ public:
 	/**
 	 * Retrieves the volume scale
 	 */
-	float GetVolumeScale() const;
+	ENGINE_API float GetVolumeScale() const;
 
 	/** Whether or not ResolutionRule supports eviction, wherein eviction is the ability to keep a sound
 	  * from playing prior to start and culling is the requirement of a sound to initialize and actively parse
 	  * prior to being removed from a concurrency group.
 	  */
-	bool IsEvictionSupported() const;
+	ENGINE_API bool IsEvictionSupported() const;
 };
 
 UCLASS(BlueprintType, hidecategories=Object, editinlinenew, MinimalAPI)

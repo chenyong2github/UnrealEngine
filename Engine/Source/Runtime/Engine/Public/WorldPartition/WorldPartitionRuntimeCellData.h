@@ -9,31 +9,31 @@
 class UActorContainer;
 
 /** Caches information on streaming source that will be used later on to sort cell. */
-UCLASS()
-class ENGINE_API UWorldPartitionRuntimeCellData : public UObject
+UCLASS(MinimalAPI)
+class UWorldPartitionRuntimeCellData : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
 	virtual ~UWorldPartitionRuntimeCellData() {}
 
 	//~Begin UObject Interface
-	void Serialize(FArchive& Ar);
+	ENGINE_API void Serialize(FArchive& Ar);
 	//~End UObject Interface
 
 	inline bool ShouldResetStreamingSourceInfo() const { return CachedSourceInfoEpoch != StreamingSourceCacheEpoch; }
 
-	virtual void ResetStreamingSourceInfo() const;
-	virtual void AppendStreamingSourceInfo(const FWorldPartitionStreamingSource& Source, const FSphericalSector& SourceShape) const;
-	virtual void MergeStreamingSourceInfo() const;
-	virtual int32 SortCompare(const UWorldPartitionRuntimeCellData* InOther, bool bCanUseSortingCache = true) const;
+	ENGINE_API virtual void ResetStreamingSourceInfo() const;
+	ENGINE_API virtual void AppendStreamingSourceInfo(const FWorldPartitionStreamingSource& Source, const FSphericalSector& SourceShape) const;
+	ENGINE_API virtual void MergeStreamingSourceInfo() const;
+	ENGINE_API virtual int32 SortCompare(const UWorldPartitionRuntimeCellData* InOther, bool bCanUseSortingCache = true) const;
 
-	virtual const FBox& GetContentBounds() const;
-	virtual FBox GetCellBounds() const;
+	ENGINE_API virtual const FBox& GetContentBounds() const;
+	ENGINE_API virtual FBox GetCellBounds() const;
 
 	virtual bool IsDebugShown() const { return true; }
-	virtual FString GetDebugName() const;
+	ENGINE_API virtual FString GetDebugName() const;
 
-	static int32 StreamingSourceCacheEpoch;
+	static ENGINE_API int32 StreamingSourceCacheEpoch;
 	static inline void DirtyStreamingSourceCacheEpoch() { ++StreamingSourceCacheEpoch; }
 
 	// Source Priority

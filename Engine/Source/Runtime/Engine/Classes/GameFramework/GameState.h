@@ -12,8 +12,8 @@
  * GameState is a subclass of GameStateBase that behaves like a multiplayer match-based game.
  * It is tied to functionality in GameMode.
  */
-UCLASS()
-class ENGINE_API AGameState : public AGameStateBase
+UCLASS(MinimalAPI)
+class AGameState : public AGameStateBase
 {
 	GENERATED_UCLASS_BODY()
 
@@ -23,10 +23,10 @@ class ENGINE_API AGameState : public AGameStateBase
 	FName GetMatchState() const { return MatchState; }
 
 	/** Returns true if we're in progress */
-	virtual bool IsMatchInProgress() const;
+	ENGINE_API virtual bool IsMatchInProgress() const;
 
 	/** Updates the match state and calls the appropriate transition functions, only valid on server */
-	void SetMatchState(FName NewState);
+	ENGINE_API void SetMatchState(FName NewState);
 
 protected:
 
@@ -39,16 +39,16 @@ protected:
 	FName PreviousMatchState;
 
 	/** Called when the state transitions to WaitingToStart */
-	virtual void HandleMatchIsWaitingToStart();
+	ENGINE_API virtual void HandleMatchIsWaitingToStart();
 
 	/** Called when the state transitions to InProgress */
-	virtual void HandleMatchHasStarted();
+	ENGINE_API virtual void HandleMatchHasStarted();
 
 	/** Called when the map transitions to WaitingPostMatch */
-	virtual void HandleMatchHasEnded();
+	ENGINE_API virtual void HandleMatchHasEnded();
 
 	/** Called when the match transitions to LeavingMap */
-	virtual void HandleLeavingMap();
+	ENGINE_API virtual void HandleLeavingMap();
 
 public:
 
@@ -58,27 +58,27 @@ public:
 
 	/** Match state has changed */
 	UFUNCTION()
-	virtual void OnRep_MatchState();
+	ENGINE_API virtual void OnRep_MatchState();
 
 	/** Gives clients the chance to do something when time gets updates */
 	UFUNCTION()
-	virtual void OnRep_ElapsedTime();
+	ENGINE_API virtual void OnRep_ElapsedTime();
 
 	/** Called periodically, overridden by subclasses */
-	virtual void DefaultTimer();
+	ENGINE_API virtual void DefaultTimer();
 
 	//~ Begin AActor Interface
-	virtual void PostInitializeComponents() override;
+	ENGINE_API virtual void PostInitializeComponents() override;
 	//~ End AActor Interface
 
 	//~ Begin AGameStateBase Interface
-	virtual void ReceivedGameModeClass() override;
-	virtual bool HasMatchStarted() const override;
+	ENGINE_API virtual void ReceivedGameModeClass() override;
+	ENGINE_API virtual bool HasMatchStarted() const override;
 	/** Returns true if match is WaitingPostMatch or later */
-	virtual bool HasMatchEnded() const override;
-	virtual void HandleBeginPlay() override;
-	virtual float GetPlayerStartTime(class AController* Controller) const override;
-	virtual float GetPlayerRespawnDelay(class AController* Controller) const override;
+	ENGINE_API virtual bool HasMatchEnded() const override;
+	ENGINE_API virtual void HandleBeginPlay() override;
+	ENGINE_API virtual float GetPlayerStartTime(class AController* Controller) const override;
+	ENGINE_API virtual float GetPlayerRespawnDelay(class AController* Controller) const override;
 	//~ End AGameStateBase Interface
 
 protected:

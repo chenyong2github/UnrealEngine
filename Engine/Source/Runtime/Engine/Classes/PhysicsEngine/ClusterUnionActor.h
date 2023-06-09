@@ -10,12 +10,12 @@ class UClusterUnionComponent;
 /**
  * A lightweight actor that can be used to own a cluster union component.
  */
-UCLASS()
-class ENGINE_API AClusterUnionActor : public AActor
+UCLASS(MinimalAPI)
+class AClusterUnionActor : public AActor
 {
 	GENERATED_BODY()
 public:
-	AClusterUnionActor(const FObjectInitializer& ObjectInitializer);
+	ENGINE_API AClusterUnionActor(const FObjectInitializer& ObjectInitializer);
 
 	UFUNCTION()
 	UClusterUnionComponent* GetClusterUnionComponent() const { return ClusterUnion; }

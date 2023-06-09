@@ -18,8 +18,8 @@
 class UParticleModuleTypeDataBase;
 struct FParticleEmitterInstance;
 
-UCLASS(editinlinenew, hidecategories=Object, meta=(DisplayName = "Direct Location"))
-class ENGINE_API UParticleModuleLocationDirect : public UParticleModuleLocationBase
+UCLASS(editinlinenew, hidecategories=Object, meta=(DisplayName = "Direct Location"), MinimalAPI)
+class UParticleModuleLocationDirect : public UParticleModuleLocationBase
 {
 	GENERATED_UCLASS_BODY()
 
@@ -49,19 +49,19 @@ class ENGINE_API UParticleModuleLocationDirect : public UParticleModuleLocationB
 	struct FRawDistributionVector Direction;
 
 	/** Initializes the default values for this property */
-	void InitializeDefaults();
+	ENGINE_API void InitializeDefaults();
 
 	//~ Begin UObject Interface
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
-	virtual void	PostInitProperties() override;
+	ENGINE_API virtual void	PostInitProperties() override;
 	//~ End UObject Interface
 
 	//~ Begin UParticleModule Interface
-	virtual void	Spawn(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, FBaseParticle* ParticleBase) override;
-	virtual void	Update(FParticleEmitterInstance* Owner, int32 Offset, float DeltaTime) override;
-	virtual uint32	RequiredBytes(UParticleModuleTypeDataBase* TypeData) override;
+	ENGINE_API virtual void	Spawn(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, FBaseParticle* ParticleBase) override;
+	ENGINE_API virtual void	Update(FParticleEmitterInstance* Owner, int32 Offset, float DeltaTime) override;
+	ENGINE_API virtual uint32	RequiredBytes(UParticleModuleTypeDataBase* TypeData) override;
 	//~ End UParticleModule Interface
 };
 

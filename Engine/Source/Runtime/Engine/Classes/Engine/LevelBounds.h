@@ -24,8 +24,8 @@ class FEditorTickableLevelBounds
  * Updates bounding box automatically based on actors transformation changes or holds fixed user defined bounding box
  * Uses only actors where AActor::IsLevelBoundsRelevant() == true
  */
-UCLASS(hidecategories=(Advanced, Collision, Display, Rendering, Physics, Input), showcategories=("Input|MouseInput", "Input|TouchInput"))
-class ENGINE_API ALevelBounds
+UCLASS(hidecategories=(Advanced, Collision, Display, Rendering, Physics, Input), showcategories=("Input|MouseInput", "Input|TouchInput"), MinimalAPI)
+class ALevelBounds
 	: public AActor
 	, public FEditorTickableLevelBounds 
 {
@@ -40,61 +40,61 @@ class ENGINE_API ALevelBounds
 	bool bAutoUpdateBounds;
 
 	//~ Begin UObject Interface
-	virtual void PostLoad() override;
+	ENGINE_API virtual void PostLoad() override;
 	//~ End UObject Interface
 	
 	//~ Begin AActor Interface.
-	virtual FBox GetComponentsBoundingBox(bool bNonColliding = false, bool bIncludeFromChildActors = false) const override;
+	ENGINE_API virtual FBox GetComponentsBoundingBox(bool bNonColliding = false, bool bIncludeFromChildActors = false) const override;
 	virtual bool IsLevelBoundsRelevant() const override { return false; }
 	//~ End AActor Interface.
 
 	/** @return Bounding box which includes all relevant actors bounding boxes belonging to specified level */
-	static FBox CalculateLevelBounds(const ULevel* InLevel);
+	static ENGINE_API FBox CalculateLevelBounds(const ULevel* InLevel);
 
 #if WITH_EDITOR
-	virtual void PostEditUndo() override;
-	virtual void PostEditMove(bool bFinished) override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PostRegisterAllComponents() override;
-	virtual void PostUnregisterAllComponents() override;
+	ENGINE_API virtual void PostEditUndo() override;
+	ENGINE_API virtual void PostEditMove(bool bFinished) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostRegisterAllComponents() override;
+	ENGINE_API virtual void PostUnregisterAllComponents() override;
 	
 	/** Marks level bounds as dirty so they will be recalculated on next tick */
-	void MarkLevelBoundsDirty();
+	ENGINE_API void MarkLevelBoundsDirty();
 
 	/** @return True if there were no actors contributing to bounds and we are currently using the default bounds */
-	bool IsUsingDefaultBounds() const;
+	ENGINE_API bool IsUsingDefaultBounds() const;
 
 	/** Update level bounds immediately so the bounds are accurate when returning. Use only when needed because updating the bounds is slow */
-	void UpdateLevelBoundsImmediately();
+	ENGINE_API void UpdateLevelBoundsImmediately();
 
 	virtual bool CanChangeIsSpatiallyLoadedFlag() const override { return false; }
 	
 protected:
 	/** FTickableGameObject interface */
-	virtual void Tick(float DeltaTime) override;
+	ENGINE_API virtual void Tick(float DeltaTime) override;
 	virtual UWorld* GetTickableGameObjectWorld() const override { return GetWorld(); }
-	virtual TStatId GetStatId() const override;
-	virtual ETickableTickType GetTickableTickType() const override;
-	virtual bool IsTickable() const override;
-	virtual bool IsTickableInEditor() const override;
+	ENGINE_API virtual TStatId GetStatId() const override;
+	ENGINE_API virtual ETickableTickType GetTickableTickType() const override;
+	ENGINE_API virtual bool IsTickable() const override;
+	ENGINE_API virtual bool IsTickableInEditor() const override;
 	
 	/** Updates this actor bounding box by summing all level actors bounding boxes  */
-	void UpdateLevelBounds();
+	ENGINE_API void UpdateLevelBounds();
 
 	/** Broadcasts LevelBoundsActorUpdatedEvent in case this actor acts as a level bounds */
-	void BroadcastLevelBoundsUpdated();
+	ENGINE_API void BroadcastLevelBoundsUpdated();
 
 	/** Called whenever any actor moved  */
-	void OnLevelActorMoved(AActor* InActor);
+	ENGINE_API void OnLevelActorMoved(AActor* InActor);
 	
 	/** Called whenever any actor added or removed  */
-	void OnLevelActorAddedRemoved(AActor* InActor);
+	ENGINE_API void OnLevelActorAddedRemoved(AActor* InActor);
 
 	/** Subscribes for actors transformation events */
-	void SubscribeToUpdateEvents();
+	ENGINE_API void SubscribeToUpdateEvents();
 	
 	/** Unsubscribes from actors transformation events */
-	void UnsubscribeFromUpdateEvents();
+	ENGINE_API void UnsubscribeFromUpdateEvents();
 	
 	/** Whether currently level bounds is dirty and needs to be updated  */
 	bool bLevelBoundsDirty;

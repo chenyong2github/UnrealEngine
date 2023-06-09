@@ -17,13 +17,13 @@ class UMaterialInterface;
 
 
 /** Represents a UVolumetricCloudComponent to the rendering thread, created game side from the component. */
-class ENGINE_API FVolumetricCloudSceneProxy
+class FVolumetricCloudSceneProxy
 {
 public:
 
 	// Initialization constructor.
-	FVolumetricCloudSceneProxy(const UVolumetricCloudComponent* InComponent);
-	~FVolumetricCloudSceneProxy();
+	ENGINE_API FVolumetricCloudSceneProxy(const UVolumetricCloudComponent* InComponent);
+	ENGINE_API ~FVolumetricCloudSceneProxy();
 
 	UMaterialInterface* GetCloudVolumeMaterial() const { return CloudVolumeMaterial; }
 

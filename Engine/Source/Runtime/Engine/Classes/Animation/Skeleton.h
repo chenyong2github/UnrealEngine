@@ -460,7 +460,7 @@ public:
 	UE_DEPRECATED(5.3, "This function is no longer used")
 	const TArray<uint16>& GetDefaultCurveUIDList() const;
 
-	ENGINE_API const TArray<TSoftObjectPtr<USkeleton>>& GetCompatibleSkeletons() const { return CompatibleSkeletons; }
+	const TArray<TSoftObjectPtr<USkeleton>>& GetCompatibleSkeletons() const { return CompatibleSkeletons; }
 
 	UE_DEPRECATED(5.2, "Please use UE::Anim::FSkeletonRemappingRegistry::GetRemapping.")
 	ENGINE_API const FSkeletonRemapping* GetSkeletonRemapping(const USkeleton* SourceSkeleton) const;
@@ -554,35 +554,35 @@ public:
 
 #if WITH_EDITOR
 	UE_DEPRECATED(5.3, "Please use AddCurveMetaData.")
-	ENGINE_API bool AddSmartNameAndModify(FName ContainerName, FName NewDisplayName, FSmartName& NewName) { return false; }
+	bool AddSmartNameAndModify(FName ContainerName, FName NewDisplayName, FSmartName& NewName) { return false; }
 
 	UE_DEPRECATED(5.3, "Please use RenameCurveMetaData.")
-	ENGINE_API bool RenameSmartnameAndModify(FName ContainerName, SmartName::UID_Type Uid, FName NewName) { return false; }
+	bool RenameSmartnameAndModify(FName ContainerName, SmartName::UID_Type Uid, FName NewName) { return false; }
 	
 	UE_DEPRECATED(5.3, "Please use RemoveCurveMetaData.")
-	ENGINE_API void RemoveSmartnameAndModify(FName ContainerName, SmartName::UID_Type Uid) {}
+	void RemoveSmartnameAndModify(FName ContainerName, SmartName::UID_Type Uid) {}
 
 	UE_DEPRECATED(5.3, "Please use RemoveCurveMetaData.")
-	ENGINE_API void RemoveSmartnamesAndModify(FName ContainerName, const TArray<FName>& Names) {}
+	void RemoveSmartnamesAndModify(FName ContainerName, const TArray<FName>& Names) {}
 #endif// WITH_EDITOR
 
 	UE_DEPRECATED(5.3, "This function is no longer used")
-	ENGINE_API SmartName::UID_Type GetUIDByName(const FName& ContainerName, const FName& Name) const { return 0; }
+	SmartName::UID_Type GetUIDByName(const FName& ContainerName, const FName& Name) const { return 0; }
 
 	UE_DEPRECATED(5.3, "This function is no longer used")
-	ENGINE_API bool GetSmartNameByUID(const FName& ContainerName, SmartName::UID_Type UID, FSmartName& OutSmartName) const { return false; }
+	bool GetSmartNameByUID(const FName& ContainerName, SmartName::UID_Type UID, FSmartName& OutSmartName) const { return false; }
 	
 	UE_DEPRECATED(5.3, "This function is no longer used")
-	ENGINE_API bool GetSmartNameByName(const FName& ContainerName, const FName& InName, FSmartName& OutSmartName) const { return false; }
+	bool GetSmartNameByName(const FName& ContainerName, const FName& InName, FSmartName& OutSmartName) const { return false; }
 
 	UE_DEPRECATED(5.3, "This function is no longer used")
-	ENGINE_API const FSmartNameMapping* GetSmartNameContainer(const FName& ContainerName) const { return nullptr; }
+	const FSmartNameMapping* GetSmartNameContainer(const FName& ContainerName) const { return nullptr; }
 
 	UE_DEPRECATED(5.3, "This function is no longer used")
-	ENGINE_API void VerifySmartName(const FName&  ContainerName, FSmartName& InOutSmartName) {}
+	void VerifySmartName(const FName&  ContainerName, FSmartName& InOutSmartName) {}
 	
 	UE_DEPRECATED(5.3, "This function is no longer used")
-	ENGINE_API void VerifySmartNames(const FName&  ContainerName, TArray<FSmartName>& InOutSmartNames) {}
+	void VerifySmartNames(const FName&  ContainerName, TArray<FSmartName>& InOutSmartNames) {}
 
 #if WITH_EDITORONLY_DATA
 private:

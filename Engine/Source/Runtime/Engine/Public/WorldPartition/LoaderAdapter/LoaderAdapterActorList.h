@@ -6,23 +6,23 @@
 #include "WorldPartition/LoaderAdapter/LoaderAdapterList.h"
 
 /** Loader adapter that contains an actor list. */
-class ENGINE_API FLoaderAdapterActorList: public FLoaderAdapterList
+class FLoaderAdapterActorList: public FLoaderAdapterList
 {
 public:
-	FLoaderAdapterActorList(UWorld* InWorld);
+	ENGINE_API FLoaderAdapterActorList(UWorld* InWorld);
 
-	void AddActors(const TArray<FGuid>& ActorGuids);
-	void AddActors(const TArray<FWorldPartitionHandle>& ActorHandles);
+	ENGINE_API void AddActors(const TArray<FGuid>& ActorGuids);
+	ENGINE_API void AddActors(const TArray<FWorldPartitionHandle>& ActorHandles);
 
-	void RemoveActors(const TArray<FGuid>& ActorGuids);
-	void RemoveActors(const TArray<FWorldPartitionHandle>& ActorHandles);
+	ENGINE_API void RemoveActors(const TArray<FGuid>& ActorGuids);
+	ENGINE_API void RemoveActors(const TArray<FWorldPartitionHandle>& ActorHandles);
 
-	bool ContainsActor(const FGuid& ActorGuid) const;
-	bool ContainsActor(const FWorldPartitionHandle& ActorHandle) const;
+	ENGINE_API bool ContainsActor(const FGuid& ActorGuid) const;
+	ENGINE_API bool ContainsActor(const FWorldPartitionHandle& ActorHandle) const;
 
 protected:
 	//~ Begin IWorldPartitionActorLoaderInterface::ILoaderAdapterList interface
-	virtual bool PassActorDescFilter(const FWorldPartitionHandle& ActorHandle) const override;
+	ENGINE_API virtual bool PassActorDescFilter(const FWorldPartitionHandle& ActorHandle) const override;
 	//~ End IWorldPartitionActorLoaderInterface::ILoaderAdapterList interface
 
 	TSet<FWorldPartitionHandle> ActorsToRemove;

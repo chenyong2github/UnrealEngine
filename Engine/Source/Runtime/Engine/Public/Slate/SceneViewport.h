@@ -31,43 +31,43 @@ extern const FName NAME_SceneViewport;
 /**
  * A viewport for use with Slate SViewport widgets.
  */
-class ENGINE_API FSceneViewport : public FViewportFrame, public FViewport, public ISlateViewport, public IViewportRenderTargetProvider
+class FSceneViewport : public FViewportFrame, public FViewport, public ISlateViewport, public IViewportRenderTargetProvider
 {
 public:
-	FSceneViewport( FViewportClient* InViewportClient, TSharedPtr<SViewport> InViewportWidget );
-	~FSceneViewport();
+	ENGINE_API FSceneViewport( FViewportClient* InViewportClient, TSharedPtr<SViewport> InViewportWidget );
+	ENGINE_API ~FSceneViewport();
 
 	virtual void* GetWindow() override { return NULL; }
 
 	/** FViewport interface */
 	virtual void MoveWindow(int32 NewPosX, int32 NewPosY, int32 NewSizeX, int32 NewSizeY) override {}
-	virtual bool HasMouseCapture() const override;
-	virtual bool HasFocus() const override;
-	virtual bool IsForegroundWindow() const override;
-	virtual void CaptureMouse( bool bCapture ) override;
-	virtual void LockMouseToViewport( bool bLock ) override;
-	virtual void ShowCursor( bool bVisible ) override;
-	virtual void SetPreCaptureMousePosFromSlateCursor() override;
+	ENGINE_API virtual bool HasMouseCapture() const override;
+	ENGINE_API virtual bool HasFocus() const override;
+	ENGINE_API virtual bool IsForegroundWindow() const override;
+	ENGINE_API virtual void CaptureMouse( bool bCapture ) override;
+	ENGINE_API virtual void LockMouseToViewport( bool bLock ) override;
+	ENGINE_API virtual void ShowCursor( bool bVisible ) override;
+	ENGINE_API virtual void SetPreCaptureMousePosFromSlateCursor() override;
 	virtual bool IsCursorVisible() const override { return bIsCursorVisible; }
 	virtual void ShowSoftwareCursor( bool bVisible ) override { bIsSoftwareCursorVisible = bVisible; }
 	virtual void SetSoftwareCursorPosition( FVector2D Position ) override { SoftwareCursorPosition = Position; }
 	virtual bool IsSoftwareCursorVisible() const override { return bIsSoftwareCursorVisible; }
 	virtual FVector2D GetSoftwareCursorPosition() const override { return SoftwareCursorPosition; }
-	virtual FCanvas* GetDebugCanvas() override;
-	virtual float GetDisplayGamma() const override;
-	virtual void EnqueueEndRenderFrame(const bool bLockToVsync, const bool bShouldPresent) override;
+	ENGINE_API virtual FCanvas* GetDebugCanvas() override;
+	ENGINE_API virtual float GetDisplayGamma() const override;
+	ENGINE_API virtual void EnqueueEndRenderFrame(const bool bLockToVsync, const bool bShouldPresent) override;
 
 	/** Gets the proper RenderTarget based on the current thread*/
-	virtual const FTexture2DRHIRef& GetRenderTargetTexture() const;
+	ENGINE_API virtual const FTexture2DRHIRef& GetRenderTargetTexture() const;
 
-	virtual void SetRenderTargetTextureRenderThread(FTexture2DRHIRef& RT);
+	ENGINE_API virtual void SetRenderTargetTextureRenderThread(FTexture2DRHIRef& RT);
 
 	/**
 	 * Captures or uncaptures the joystick
 	 *
 	 * @param Capture	true if we should capture, false if we should uncapture
 	 */
-	virtual bool SetUserFocus(bool bFocus) override;
+	ENGINE_API virtual bool SetUserFocus(bool bFocus) override;
 
 	/**
 	 * Returns the state of the provided key. 
@@ -76,17 +76,17 @@ public:
 	 *
 	 * @return true if the key is pressed, false otherwise
 	 */
-	virtual bool KeyState(FKey Key) const override;
+	ENGINE_API virtual bool KeyState(FKey Key) const override;
 
 	/**
 	 * @return The current X position of the mouse (in local space, relative to the viewports geometry)                 
 	 */
-	virtual int32 GetMouseX() const override;
+	ENGINE_API virtual int32 GetMouseX() const override;
 
 	/**
 	 * @return The current Y position of the mouse (in local space, relative to the viewports geometry)                 
 	 */
-	virtual int32 GetMouseY() const override;
+	ENGINE_API virtual int32 GetMouseY() const override;
 
 	/**
 	 * Sets MousePosition to the current mouse position 
@@ -94,30 +94,30 @@ public:
 	 * @param MousePosition	Populated with the current mouse position     
 	 * @param bLocalPosition Indicates whether the mouse position returned should be in local or absolute space
 	 */
-	virtual void GetMousePos( FIntPoint& MousePosition, const bool bLocalPosition = true) override;
+	ENGINE_API virtual void GetMousePos( FIntPoint& MousePosition, const bool bLocalPosition = true) override;
 
 	/**
 	 * Not implemented                   
 	 */
-	virtual void SetMouse( int32 X, int32 Y ) override;
+	ENGINE_API virtual void SetMouse( int32 X, int32 Y ) override;
 
 	/**
 	 * Additional input processing that happens every frame                   
 	 */
-	virtual void ProcessInput( float DeltaTime ) override;
+	ENGINE_API virtual void ProcessInput( float DeltaTime ) override;
 	
-	virtual FVector2D VirtualDesktopPixelToViewport(FIntPoint VirtualDesktopPointPx) const override;
-	virtual FIntPoint ViewportToVirtualDesktopPixel(FVector2D ViewportCoordinate) const override;
+	ENGINE_API virtual FVector2D VirtualDesktopPixelToViewport(FIntPoint VirtualDesktopPointPx) const override;
+	ENGINE_API virtual FIntPoint ViewportToVirtualDesktopPixel(FVector2D ViewportCoordinate) const override;
 
 	/**
 	 * Called when the viewport should be invalidated and redrawn                   
 	 */
-	virtual void InvalidateDisplay() override;
+	ENGINE_API virtual void InvalidateDisplay() override;
 
 	/**
 	 * Invalidates the viewport's cached hit proxies at the end of the frame.
 	 */
-	virtual void DeferInvalidateHitProxy() override;
+	ENGINE_API virtual void DeferInvalidateHitProxy() override;
 
 	/** FViewportFrame interface */
 	virtual FViewport* GetViewport() override { return this; }
@@ -127,10 +127,10 @@ public:
 	TWeakPtr<SViewport> GetViewportWidget() const { return ViewportWidget; }
 
 	/** Called before BeginRenderFrame is enqueued */
-	virtual void EnqueueBeginRenderFrame(const bool bShouldPresent) override;
+	ENGINE_API virtual void EnqueueBeginRenderFrame(const bool bShouldPresent) override;
 
 	/** Called when a frame starts to render */
-	virtual void BeginRenderFrame(FRHICommandListImmediate& RHICmdList) override;
+	ENGINE_API virtual void BeginRenderFrame(FRHICommandListImmediate& RHICmdList) override;
 
 	/** 
 	 * Called when a frame is done rendering
@@ -138,26 +138,26 @@ public:
 	 * @param bPresent	Not used in Slate viewports
 	 * @param bLockToVsync	Not used in Slate viewports
 	 */
-	virtual void EndRenderFrame(FRHICommandListImmediate& RHICmdList, bool bPresent, bool bLockToVsync) override;
+	ENGINE_API virtual void EndRenderFrame(FRHICommandListImmediate& RHICmdList, bool bPresent, bool bLockToVsync) override;
 
 	/**
 	 * Ticks the viewport
 	 */
-	virtual void Tick( const FGeometry& AllottedGeometry, double InCurrentTime, float InDeltaTime ) override;
+	ENGINE_API virtual void Tick( const FGeometry& AllottedGeometry, double InCurrentTime, float InDeltaTime ) override;
 
 	/**
 	 * Performs a resize when in swapping viewports while viewing the play world.
 	 *
 	 * @param OtherViewport	The previously active viewport
 	 */
-	void OnPlayWorldViewportSwapped( const FSceneViewport& OtherViewport );
+	ENGINE_API void OnPlayWorldViewportSwapped( const FSceneViewport& OtherViewport );
 
 	/**
 	 * Swaps the active stats with another viewports
 	 *
 	 * @param OtherViewport	The previously active viewport
 	 */
-	void SwapStatCommands(const FSceneViewport& OtherViewport);
+	ENGINE_API void SwapStatCommands(const FSceneViewport& OtherViewport);
 
 	/**
 	 * Indicate that the viewport should be block for vsync.
@@ -176,7 +176,7 @@ public:
 	 * @param NewSizeY		The new height of the viewport
 	 * @param NewWindowMode	 What window mode should the viewport be resized to
 	 */
-	virtual void ResizeFrame(uint32 NewSizeX,uint32 NewSizeY,EWindowMode::Type NewWindowMode) override;
+	ENGINE_API virtual void ResizeFrame(uint32 NewSizeX,uint32 NewSizeY,EWindowMode::Type NewWindowMode) override;
 
 	/**
 	 *	Sets the Viewport resize delegate.
@@ -205,62 +205,62 @@ public:
 	}
 
 	/** Updates the viewport RHI with a new size and fullscreen flag */
-	virtual void UpdateViewportRHI(bool bDestroyed, uint32 NewSizeX, uint32 NewSizeY, EWindowMode::Type NewWindowMode, EPixelFormat PreferredPixelFormat) override;
+	ENGINE_API virtual void UpdateViewportRHI(bool bDestroyed, uint32 NewSizeX, uint32 NewSizeY, EWindowMode::Type NewWindowMode, EPixelFormat PreferredPixelFormat) override;
 
 	/** ISlateViewport interface */
-	virtual FSlateShaderResource* GetViewportRenderTargetTexture() const override;
-	virtual void OnDrawViewport( const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) override;
-	virtual FCursorReply OnCursorQuery( const FGeometry& MyGeometry, const FPointerEvent& CursorEvent ) override;
-	virtual TOptional<TSharedRef<SWidget>> OnMapCursor(const FCursorReply& CursorReply) override;
-	virtual FReply OnMouseButtonDown( const FGeometry& InGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnMouseButtonUp( const FGeometry& InGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual void OnMouseEnter( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual void OnMouseLeave( const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnMouseMove( const FGeometry& InGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnMouseWheel( const FGeometry& InGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnMouseButtonDoubleClick( const FGeometry& InGeometry, const FPointerEvent& InMouseEvent ) override;
-	virtual FReply OnTouchStarted( const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent ) override;
-	virtual FReply OnTouchMoved( const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent ) override;
-	virtual FReply OnTouchEnded( const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent ) override;
-	virtual FReply OnTouchForceChanged(const FGeometry& MyGeometry, const FPointerEvent& TouchEvent) override;
-	virtual FReply OnTouchFirstMove(const FGeometry& MyGeometry, const FPointerEvent& TouchEvent) override;
-	virtual FReply OnTouchGesture(const FGeometry& MyGeometry, const FPointerEvent& InGestureEvent) override;
-	virtual FReply OnMotionDetected( const FGeometry& MyGeometry, const FMotionEvent& InMotionEvent ) override;
-	virtual FPopupMethodReply OnQueryPopupMethod() const override;
-	virtual bool HandleNavigation(const uint32 InUserIndex, TSharedPtr<SWidget> InDestination) override;
-	virtual TOptional<bool> OnQueryShowFocus(const EFocusCause InFocusCause) const override;
-	virtual void OnFinishedPointerInput() override;
-	virtual FReply OnKeyDown( const FGeometry& InGeometry, const FKeyEvent& InKeyEvent ) override;
-	virtual FReply OnKeyUp( const FGeometry& InGeometry, const FKeyEvent& InKeyEvent ) override;
-	virtual FReply OnAnalogValueChanged( const FGeometry& MyGeometry, const FAnalogInputEvent& InAnalogInputEvent ) override;
-	virtual FReply OnKeyChar( const FGeometry& InGeometry, const FCharacterEvent& InCharacterEvent ) override;
-	virtual FReply OnFocusReceived( const FFocusEvent& InFocusEvent ) override;
-	virtual void OnFocusLost( const FFocusEvent& InFocusEvent ) override;
-	virtual void OnViewportClosed() override;
-	virtual FReply OnRequestWindowClose() override;
-	virtual TWeakPtr<SWidget> GetWidget() override;
-	virtual FReply OnViewportActivated(const FWindowActivateEvent& InActivateEvent) override;
-	virtual void OnViewportDeactivated(const FWindowActivateEvent& InActivateEvent) override;
+	ENGINE_API virtual FSlateShaderResource* GetViewportRenderTargetTexture() const override;
+	ENGINE_API virtual void OnDrawViewport( const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) override;
+	ENGINE_API virtual FCursorReply OnCursorQuery( const FGeometry& MyGeometry, const FPointerEvent& CursorEvent ) override;
+	ENGINE_API virtual TOptional<TSharedRef<SWidget>> OnMapCursor(const FCursorReply& CursorReply) override;
+	ENGINE_API virtual FReply OnMouseButtonDown( const FGeometry& InGeometry, const FPointerEvent& MouseEvent ) override;
+	ENGINE_API virtual FReply OnMouseButtonUp( const FGeometry& InGeometry, const FPointerEvent& MouseEvent ) override;
+	ENGINE_API virtual void OnMouseEnter( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	ENGINE_API virtual void OnMouseLeave( const FPointerEvent& MouseEvent ) override;
+	ENGINE_API virtual FReply OnMouseMove( const FGeometry& InGeometry, const FPointerEvent& MouseEvent ) override;
+	ENGINE_API virtual FReply OnMouseWheel( const FGeometry& InGeometry, const FPointerEvent& MouseEvent ) override;
+	ENGINE_API virtual FReply OnMouseButtonDoubleClick( const FGeometry& InGeometry, const FPointerEvent& InMouseEvent ) override;
+	ENGINE_API virtual FReply OnTouchStarted( const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent ) override;
+	ENGINE_API virtual FReply OnTouchMoved( const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent ) override;
+	ENGINE_API virtual FReply OnTouchEnded( const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent ) override;
+	ENGINE_API virtual FReply OnTouchForceChanged(const FGeometry& MyGeometry, const FPointerEvent& TouchEvent) override;
+	ENGINE_API virtual FReply OnTouchFirstMove(const FGeometry& MyGeometry, const FPointerEvent& TouchEvent) override;
+	ENGINE_API virtual FReply OnTouchGesture(const FGeometry& MyGeometry, const FPointerEvent& InGestureEvent) override;
+	ENGINE_API virtual FReply OnMotionDetected( const FGeometry& MyGeometry, const FMotionEvent& InMotionEvent ) override;
+	ENGINE_API virtual FPopupMethodReply OnQueryPopupMethod() const override;
+	ENGINE_API virtual bool HandleNavigation(const uint32 InUserIndex, TSharedPtr<SWidget> InDestination) override;
+	ENGINE_API virtual TOptional<bool> OnQueryShowFocus(const EFocusCause InFocusCause) const override;
+	ENGINE_API virtual void OnFinishedPointerInput() override;
+	ENGINE_API virtual FReply OnKeyDown( const FGeometry& InGeometry, const FKeyEvent& InKeyEvent ) override;
+	ENGINE_API virtual FReply OnKeyUp( const FGeometry& InGeometry, const FKeyEvent& InKeyEvent ) override;
+	ENGINE_API virtual FReply OnAnalogValueChanged( const FGeometry& MyGeometry, const FAnalogInputEvent& InAnalogInputEvent ) override;
+	ENGINE_API virtual FReply OnKeyChar( const FGeometry& InGeometry, const FCharacterEvent& InCharacterEvent ) override;
+	ENGINE_API virtual FReply OnFocusReceived( const FFocusEvent& InFocusEvent ) override;
+	ENGINE_API virtual void OnFocusLost( const FFocusEvent& InFocusEvent ) override;
+	ENGINE_API virtual void OnViewportClosed() override;
+	ENGINE_API virtual FReply OnRequestWindowClose() override;
+	ENGINE_API virtual TWeakPtr<SWidget> GetWidget() override;
+	ENGINE_API virtual FReply OnViewportActivated(const FWindowActivateEvent& InActivateEvent) override;
+	ENGINE_API virtual void OnViewportDeactivated(const FWindowActivateEvent& InActivateEvent) override;
 	virtual FIntPoint GetSize() const override { return GetSizeXY(); }
-	virtual EDisplayColorGamut GetDisplayColorGamut() const override;
-	virtual EDisplayOutputFormat GetDisplayOutputFormat() const override;
-	virtual bool GetSceneHDREnabled() const override;
+	ENGINE_API virtual EDisplayColorGamut GetDisplayColorGamut() const override;
+	ENGINE_API virtual EDisplayOutputFormat GetDisplayOutputFormat() const override;
+	ENGINE_API virtual bool GetSceneHDREnabled() const override;
 
-	void SetViewportSize(uint32 NewSizeX,uint32 NewSizeY);
-	void SetFixedViewportSize(uint32 NewSizeX, uint32 NewSizeY);
+	ENGINE_API void SetViewportSize(uint32 NewSizeX,uint32 NewSizeY);
+	ENGINE_API void SetFixedViewportSize(uint32 NewSizeX, uint32 NewSizeY);
 
 	/** Does the viewport has a fixed size */
-	bool HasFixedSize() const;
+	ENGINE_API bool HasFixedSize() const;
 
-	TSharedPtr<SWindow> FindWindow();
+	ENGINE_API TSharedPtr<SWindow> FindWindow();
 
 	/** Should return true, if stereo rendering is allowed in this viewport */
-	virtual bool IsStereoRenderingAllowed() const override;
+	ENGINE_API virtual bool IsStereoRenderingAllowed() const override;
 
 	/** Returns dimensions of RenderTarget texture. Can be called on a game thread. */
 	virtual FIntPoint GetRenderTargetTextureSizeXY() const { return (RTTSize.X != 0) ? RTTSize : GetSizeXY(); }
 
-	virtual FSlateShaderResource* GetViewportRenderTargetTexture() override;
+	ENGINE_API virtual FSlateShaderResource* GetViewportRenderTargetTexture() override;
 
 	/** Get the cached viewport geometry. */
 	const FGeometry& GetCachedGeometry() const { return CachedGeometry; }
@@ -272,20 +272,20 @@ public:
 	};
 
 	/** Sets the debug canvas used to display FCanvas on top of this viewport */
-	void SetDebugCanvas(TSharedPtr<class SDebugCanvas> InDebugCanvas);
+	ENGINE_API void SetDebugCanvas(TSharedPtr<class SDebugCanvas> InDebugCanvas);
 
 	/** Adds a draw element for the debug canvas.  Called externally by a widget that manages where the debug canvas draws */
-	void PaintDebugCanvas(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32 LayerId) const;
+	ENGINE_API void PaintDebugCanvas(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32 LayerId) const;
 
 private:
 	/**
 	 * Called when this viewport is destroyed
 	 */
-	void Destroy() override;
+	ENGINE_API void Destroy() override;
 
 	// FRenderResource interface.
-	virtual void InitRHI() override;
-	virtual void ReleaseRHI() override;
+	ENGINE_API virtual void InitRHI() override;
+	ENGINE_API virtual void ReleaseRHI() override;
 
 	// @todo DLL: Without these functions we get unresolved linker errors with FRenderResource
 	virtual void InitResource() override { FViewport::InitResource(); }
@@ -299,12 +299,12 @@ private:
 	 * @param NewSizeY		 The new height of the viewport
 	 * @param NewWindowMode	 What window mode should the viewport be resized to
 	 */
-	virtual void ResizeViewport( uint32 NewSizeX,uint32 NewSizeY,EWindowMode::Type NewWindowMode );
+	ENGINE_API virtual void ResizeViewport( uint32 NewSizeX,uint32 NewSizeY,EWindowMode::Type NewWindowMode );
 
 	/**
 	 * Called from slate when input is finished for this frame, and we should process any accumulated mouse data.
 	 */
-	void ProcessAccumulatedPointerInput();
+	ENGINE_API void ProcessAccumulatedPointerInput();
 
 	/**
 	 * Updates the cached mouse position from a mouse event
@@ -312,7 +312,7 @@ private:
 	 * @param InGeometry	The geometry of the viewport to convert to local space
 	 * @param InMouseEvent	The mouse event containing the position of the mouse in absolute space
 	 */
-	void UpdateCachedCursorPos( const FGeometry& InGeometry, const FPointerEvent& InMouseEvent );
+	ENGINE_API void UpdateCachedCursorPos( const FGeometry& InGeometry, const FPointerEvent& InMouseEvent );
 
 	/**
 	 * Updates the cached viewport geometry
@@ -320,7 +320,7 @@ private:
 	 * @param InGeometry	The geometry of the viewport to convert to local space
 	 * @param InMouseEvent	The mouse event containing the position of the mouse in absolute space
 	 */
-	void UpdateCachedGeometry( const FGeometry& InGeometry );
+	ENGINE_API void UpdateCachedGeometry( const FGeometry& InGeometry );
 
 	/**
 	 * Updates the KeyStateMap via the modifier keys from a mouse event.
@@ -328,7 +328,7 @@ private:
 	 *
 	 * @param InMouseEvent	The mouse event containing the current state of modifier keys.
 	 */
-	void UpdateModifierKeys( const FPointerEvent& InMouseEvent );
+	ENGINE_API void UpdateModifierKeys( const FPointerEvent& InMouseEvent );
 
 	/**
 	 * Calls InputKey on the ViewportClient via the modifier keys.
@@ -336,15 +336,15 @@ private:
 	 *
 	 * @param InKeysState	The key state containing the states of the modifier keys
 	 */
-	void ApplyModifierKeys( const FModifierKeysState& InKeysState );
+	ENGINE_API void ApplyModifierKeys( const FModifierKeysState& InKeysState );
 
 	/** Utility function to create an FReply that properly gets Focus and capture based on the settings*/
-	FReply AcquireFocusAndCapture(FIntPoint MousePosition, EFocusCause FocusCause = EFocusCause::SetDirectly);
+	ENGINE_API FReply AcquireFocusAndCapture(FIntPoint MousePosition, EFocusCause FocusCause = EFocusCause::SetDirectly);
 
 	/** Utility function to figure out if we are currently a game viewport */
-	bool IsCurrentlyGameViewport();
+	ENGINE_API bool IsCurrentlyGameViewport();
 
-	void WindowRenderTargetUpdate(FSlateRenderer* Renderer, SWindow* Window);
+	ENGINE_API void WindowRenderTargetUpdate(FSlateRenderer* Renderer, SWindow* Window);
 
 	/** @return Returns true if we should always render to a separate render target (rather than rendering directly to the
 	    viewport backbuffer, taking into account any temporary requirements of head-mounted displays */
@@ -356,22 +356,22 @@ private:
 	/**
 	 * Called right before a slate window is destroyed so we can free up the backbuffer resource before the window backing it is destroyed
 	 */
-	void OnWindowBackBufferResourceDestroyed(void* Backbuffer);
+	ENGINE_API void OnWindowBackBufferResourceDestroyed(void* Backbuffer);
 
 	/** 
 	 * Called right before a backbuffer is resized. If this viewport is using this backbuffer 
 	 * it will release its resource here
 	 */
-	void OnPreResizeWindowBackbuffer(void* Backbuffer);
+	ENGINE_API void OnPreResizeWindowBackbuffer(void* Backbuffer);
 
 	/** 
 	 * Called right after a backbuffer is resized. This viewport will reaquire its backbuffer handle if needed
 	 */
-	void OnPostResizeWindowBackbuffer(void* Backbuffer);
+	ENGINE_API void OnPostResizeWindowBackbuffer(void* Backbuffer);
 
 
 	/** @return Returns true if the viewport needs permanent capture. */
-	bool IsInPermanentCapture();
+	ENGINE_API bool IsInPermanentCapture();
 
 private:
 	/** An intermediate reply state that is reset whenever an input event is generated */

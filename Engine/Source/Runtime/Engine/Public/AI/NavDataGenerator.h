@@ -6,7 +6,7 @@
 #include "AI/Navigation/NavigationTypes.h"
 #include "EngineDefines.h"
 
-class ENGINE_API FNavDataGenerator : public TSharedFromThis<FNavDataGenerator, ESPMode::ThreadSafe>
+class FNavDataGenerator : public TSharedFromThis<FNavDataGenerator, ESPMode::ThreadSafe>
 {
 public:
 	virtual ~FNavDataGenerator() {}

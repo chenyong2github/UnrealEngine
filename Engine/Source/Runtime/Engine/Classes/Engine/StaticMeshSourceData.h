@@ -19,13 +19,13 @@ class UStaticMeshDescription;
 /**
  * UObject wrapper for FMeshDescriptionBulkData
  */
-UCLASS()
-class ENGINE_API UStaticMeshDescriptionBulkData : public UMeshDescriptionBaseBulkData
+UCLASS(MinimalAPI)
+class UStaticMeshDescriptionBulkData : public UMeshDescriptionBaseBulkData
 {
 	GENERATED_BODY()
 
 public:
-	UStaticMeshDescriptionBulkData();
+	ENGINE_API UStaticMeshDescriptionBulkData();
 };
 
 

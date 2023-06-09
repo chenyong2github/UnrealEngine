@@ -33,17 +33,17 @@
  * UCLASS() declaration
  */
 
-UCLASS(config=RuntimeOptions, BlueprintType, Abstract)
-class ENGINE_API URuntimeOptionsBase : public UObject
+UCLASS(config=RuntimeOptions, BlueprintType, Abstract, MinimalAPI)
+class URuntimeOptionsBase : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	URuntimeOptionsBase();
+	ENGINE_API URuntimeOptionsBase();
 
 	//~UObject interface
-	virtual void PostInitProperties() override;
-	virtual void PostReloadConfig(FProperty* PropertyThatWasLoaded) override;
+	ENGINE_API virtual void PostInitProperties() override;
+	ENGINE_API virtual void PostReloadConfig(FProperty* PropertyThatWasLoaded) override;
 	//~End of UObject interface
 
 	// Returns the runtime options for the specified type, typically you will make a non-templated overload of Get in your subclass
@@ -59,7 +59,7 @@ protected:
 
 protected:
 	// Applies overrides from the command line
-	void ApplyCommandlineOverrides();
-	void RegisterSupportedConsoleVariables(bool bDuringReload);
-	void InitializeRuntimeOptions();
+	ENGINE_API void ApplyCommandlineOverrides();
+	ENGINE_API void RegisterSupportedConsoleVariables(bool bDuringReload);
+	ENGINE_API void InitializeRuntimeOptions();
 };

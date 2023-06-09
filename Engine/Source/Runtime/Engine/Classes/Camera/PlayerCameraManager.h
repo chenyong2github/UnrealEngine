@@ -74,7 +74,7 @@ public:
 
 /** A ViewTarget is the primary actor the camera is associated with. */
 USTRUCT(BlueprintType)
-struct ENGINE_API FTViewTarget
+struct FTViewTarget
 {
 	GENERATED_USTRUCT_BODY()
 public:
@@ -95,11 +95,11 @@ protected:
 public:
 	class APlayerState* GetPlayerState() const { return PlayerState; }
 	
-	void SetNewTarget(AActor* NewTarget);
+	ENGINE_API void SetNewTarget(AActor* NewTarget);
 
-	class APawn* GetTargetPawn() const;
+	ENGINE_API class APawn* GetTargetPawn() const;
 
-	bool Equal(const FTViewTarget& OtherTarget) const;
+	ENGINE_API bool Equal(const FTViewTarget& OtherTarget) const;
 
 	FTViewTarget()
 		: Target(nullptr)
@@ -107,7 +107,7 @@ public:
 	{}
 
 	/** Make sure ViewTarget is valid */
-	void CheckViewTarget(APlayerController* OwningController);
+	ENGINE_API void CheckViewTarget(APlayerController* OwningController);
 };
 
 /** A set of parameters to describe how to transition between view targets. */
@@ -181,13 +181,13 @@ public:
  *
  * @see https://docs.unrealengine.com/latest/INT/Gameplay/Framework/Camera/
  */
-UCLASS(notplaceable, transient, BlueprintType, Blueprintable, Config=Engine)
-class ENGINE_API APlayerCameraManager : public AActor
+UCLASS(notplaceable, transient, BlueprintType, Blueprintable, Config=Engine, MinimalAPI)
+class APlayerCameraManager : public AActor
 {
 	GENERATED_UCLASS_BODY()
 
 	// destructor for handling property deprecation, please remove after all deprecated properties are gone
-	virtual ~APlayerCameraManager();
+	ENGINE_API virtual ~APlayerCameraManager();
 
 	/** PlayerController that owns this Camera actor */
 	UPROPERTY(transient)
@@ -322,24 +322,24 @@ public:
 	float FadeTimeRemaining;
 
 	/** Sets value of CameraCachePrivate.POV */
-	virtual void SetCameraCachePOV(const FMinimalViewInfo& InPOV);
+	ENGINE_API virtual void SetCameraCachePOV(const FMinimalViewInfo& InPOV);
 	
 	/** Sets value of LastFrameCameraCachePrivate.POV */
-	virtual void SetLastFrameCameraCachePOV(const FMinimalViewInfo& InPOV);
+	ENGINE_API virtual void SetLastFrameCameraCachePOV(const FMinimalViewInfo& InPOV);
 
 	/** Gets value of CameraCachePrivate.POV */
-	virtual const FMinimalViewInfo& GetCameraCacheView() const;
+	ENGINE_API virtual const FMinimalViewInfo& GetCameraCacheView() const;
 
 	/** Gets value of LastFrameCameraCachePrivate.POV */
-	virtual const FMinimalViewInfo& GetLastFrameCameraCacheView() const;
+	ENGINE_API virtual const FMinimalViewInfo& GetLastFrameCameraCacheView() const;
 
 	/** Gets value of CameraCachePrivate.POV */
 	UE_DEPRECATED(5.0, "APlayerCameraManager::GetCameraCacheView is favored now, and this function forwards to that one.")
-	virtual FMinimalViewInfo GetCameraCachePOV() const;
+	ENGINE_API virtual FMinimalViewInfo GetCameraCachePOV() const;
 
 	/** Gets value of LastFrameCameraCachePrivate.POV */
 	UE_DEPRECATED(5.0, "APlayerCameraManager::GetLastFrameCameraCacheView is favored now, and this function forwards to that one.")
-	virtual FMinimalViewInfo GetLastFrameCameraCachePOV() const;
+	ENGINE_API virtual FMinimalViewInfo GetLastFrameCameraCachePOV() const;
 
 	/** Get value of CameraCachePrivate.Time  */
 	float GetCameraCacheTime() const { return CameraCachePrivate.TimeStamp; }
@@ -380,17 +380,17 @@ protected:
 
 public:
 	/** Adds a postprocess effect at the given weight. */
-	void AddCachedPPBlend(struct FPostProcessSettings& PPSettings, float BlendWeight, EViewTargetBlendOrder BlendOrder = VTBlendOrder_Base);
+	ENGINE_API void AddCachedPPBlend(struct FPostProcessSettings& PPSettings, float BlendWeight, EViewTargetBlendOrder BlendOrder = VTBlendOrder_Base);
 
 	/** Returns active post process info. */
-	void GetCachedPostProcessBlends(TArray<struct FPostProcessSettings> const*& OutPPSettings, TArray<float> const*& OutBlendWeights) const;
+	ENGINE_API void GetCachedPostProcessBlends(TArray<struct FPostProcessSettings> const*& OutPPSettings, TArray<float> const*& OutBlendWeights) const;
 
 	/** Returns active post process info. */
-	void GetCachedPostProcessBlends(TArray<struct FPostProcessSettings> const*& OutPPSettings, TArray<float> const*& OutBlendWeights, TArray<EViewTargetBlendOrder> const*& OutBlendOrders) const;
+	ENGINE_API void GetCachedPostProcessBlends(TArray<struct FPostProcessSettings> const*& OutPPSettings, TArray<float> const*& OutBlendWeights, TArray<EViewTargetBlendOrder> const*& OutBlendOrders) const;
 
 protected:
 	/** Removes all postprocess effects. */
-	void ClearCachedPPBlends();
+	ENGINE_API void ClearCachedPPBlends();
 
 protected:
 	/** Internal. Receives the output of individual camera animations. */
@@ -490,21 +490,21 @@ public:
 	* Return ResultCameraLocation as modified according to your constraints.
 	*/
 	UFUNCTION(BlueprintNativeEvent, BlueprintCosmetic, Category = "Photography")
-	void PhotographyCameraModify(const FVector NewCameraLocation, const FVector PreviousCameraLocation, const FVector OriginalCameraLocation, FVector& ResultCameraLocation);
+	ENGINE_API void PhotographyCameraModify(const FVector NewCameraLocation, const FVector PreviousCameraLocation, const FVector OriginalCameraLocation, FVector& ResultCameraLocation);
 
 	/**
 	* Event triggered upon entering Photography mode (before pausing, if
 	* r.Photography.AutoPause is 1).
 	*/
 	UFUNCTION(BlueprintNativeEvent, BlueprintCosmetic, Category = "Photography")
-	void OnPhotographySessionStart();
+	ENGINE_API void OnPhotographySessionStart();
 
 	/**
 	* Event triggered upon leaving Photography mode (after unpausing, if
 	* r.Photography.AutoPause is 1).
 	*/
 	UFUNCTION(BlueprintNativeEvent, BlueprintCosmetic, Category = "Photography")
-	void OnPhotographySessionEnd();
+	ENGINE_API void OnPhotographySessionEnd();
 
 	/**
 	* Event triggered upon the start of a multi-part photograph capture (i.e. a
@@ -514,7 +514,7 @@ public:
 	* r.Photography.AutoPostprocess is 1).
 	*/
 	UFUNCTION(BlueprintNativeEvent, BlueprintCosmetic, Category = "Photography")
-	void OnPhotographyMultiPartCaptureStart();
+	ENGINE_API void OnPhotographyMultiPartCaptureStart();
 
 	/**
 	* Event triggered upon the end of a multi-part photograph capture, when manual
@@ -523,7 +523,7 @@ public:
 	* OnPhotographyMultiPartCaptureStart.
 	*/
 	UFUNCTION(BlueprintNativeEvent, BlueprintCosmetic, Category = "Photography")
-	void OnPhotographyMultiPartCaptureEnd();
+	ENGINE_API void OnPhotographyMultiPartCaptureEnd();
 
 	/** 
 	 * Blueprint hook to allow blueprints to override existing camera behavior or implement custom cameras.
@@ -531,29 +531,29 @@ public:
 	 * final camera POV. 
 	 */
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCosmetic)
-	bool BlueprintUpdateCamera(AActor* CameraTarget, FVector& NewCameraLocation, FRotator& NewCameraRotation, float& NewCameraFOV);
+	ENGINE_API bool BlueprintUpdateCamera(AActor* CameraTarget, FVector& NewCameraLocation, FRotator& NewCameraRotation, float& NewCameraFOV);
 
 	/** Returns the PlayerController that owns this camera. */
 	UFUNCTION(BlueprintCallable, Category="Game|Player")
-	virtual APlayerController* GetOwningPlayerController() const;
+	ENGINE_API virtual APlayerController* GetOwningPlayerController() const;
 
-	virtual void AssignViewTarget(AActor* NewTarget, FTViewTarget& VT, struct FViewTargetTransitionParams TransitionParams=FViewTargetTransitionParams());
+	ENGINE_API virtual void AssignViewTarget(AActor* NewTarget, FTViewTarget& VT, struct FViewTargetTransitionParams TransitionParams=FViewTargetTransitionParams());
 
 	friend struct FTViewTarget;
 public:
 	/** Returns the current ViewTarget. */
-	AActor* GetViewTarget() const;
+	ENGINE_API AActor* GetViewTarget() const;
 
 	/** Returns the ViewTarget if it is an APawn, or nullptr otherwise */
-	class APawn* GetViewTargetPawn() const;
+	ENGINE_API class APawn* GetViewTargetPawn() const;
 
 	//~ Begin AActor Interface
-	virtual bool ShouldTickIfViewportsOnly() const override;
-	virtual void PostInitializeComponents() override;
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-	virtual void Destroyed() override;
-	virtual void DisplayDebug(class UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos) override;
-	virtual void ApplyWorldOffset(const FVector& InOffset, bool bWorldShift) override;
+	ENGINE_API virtual bool ShouldTickIfViewportsOnly() const override;
+	ENGINE_API virtual void PostInitializeComponents() override;
+	ENGINE_API virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	ENGINE_API virtual void Destroyed() override;
+	ENGINE_API virtual void DisplayDebug(class UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos) override;
+	ENGINE_API virtual void ApplyWorldOffset(const FVector& InOffset, bool bWorldShift) override;
 	//~ End AActor Interface
 
 	/** Static.  Plays an in-world camera shake that affects all nearby players, with radial distance-based attenuation.
@@ -565,14 +565,14 @@ public:
 	 * @param Falloff - Exponent that describes the shake intensity falloff curve between InnerRadius and OuterRadius. 1.0 is linear.
 	 * @param bOrientShakeTowardsEpicenter - Changes the rotation of shake to point towards epicenter instead of forward. Useful for things like directional hits.
 	 */
-	static void PlayWorldCameraShake(UWorld* InWorld, TSubclassOf<UCameraShakeBase> Shake, FVector Epicenter, float InnerRadius, float OuterRadius, float Falloff, bool bOrientShakeTowardsEpicenter = false);
+	static ENGINE_API void PlayWorldCameraShake(UWorld* InWorld, TSubclassOf<UCameraShakeBase> Shake, FVector Epicenter, float InnerRadius, float OuterRadius, float Falloff, bool bOrientShakeTowardsEpicenter = false);
 
 protected:
 	/** 
 	 * Internal. Calculates shake scale for a particular camera.
 	 * @return Returns the intensity scalar in the range [0..1] for a shake originating at Epicenter. 
 	 */
-	static float CalcRadialShakeScale(class APlayerCameraManager* Cam, FVector Epicenter, float InnerRadius, float OuterRadius, float Falloff);
+	static ENGINE_API float CalcRadialShakeScale(class APlayerCameraManager* Cam, FVector Epicenter, float InnerRadius, float OuterRadius, float Falloff);
 
 private:
 	/**
@@ -592,12 +592,12 @@ public:
 	 * Performs per-tick camera update. Called once per tick after all other actors have been ticked.
 	 * Non-local players replicate the POV if bUseClientSideCameraUpdates is true.
 	 */
-	virtual void UpdateCamera(float DeltaTime);
+	ENGINE_API virtual void UpdateCamera(float DeltaTime);
 
 	/**
 	* Performs a photography camera tick even when the camera wouldn't normally be ticking.
 	*/
-	virtual void UpdateCameraPhotographyOnly();
+	ENGINE_API virtual void UpdateCameraPhotographyOnly();
 
 	/** 
 	 * Creates and initializes a new camera modifier of the specified class. 
@@ -605,27 +605,27 @@ public:
 	 * @return Returns the newly created camera modifier.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Game|Player")
-	virtual UCameraModifier* AddNewCameraModifier(TSubclassOf<UCameraModifier> ModifierClass);
+	ENGINE_API virtual UCameraModifier* AddNewCameraModifier(TSubclassOf<UCameraModifier> ModifierClass);
 
 	/** 
 	 * Returns camera modifier for this camera of the given class, if it exists. 
 	 * Exact class match only. If there are multiple modifiers of the same class, the first one is returned.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Game|Player")
-	virtual UCameraModifier* FindCameraModifierByClass(TSubclassOf<UCameraModifier> ModifierClass);
+	ENGINE_API virtual UCameraModifier* FindCameraModifierByClass(TSubclassOf<UCameraModifier> ModifierClass);
 
 	/** 
 	 * Removes the given camera modifier from this camera (if it's on the camera in the first place) and discards it. 
 	 * @return True if successfully removed, false otherwise.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Game|Player")
-	virtual bool RemoveCameraModifier(UCameraModifier* ModifierToRemove);
+	ENGINE_API virtual bool RemoveCameraModifier(UCameraModifier* ModifierToRemove);
 
 protected:
 	/** Internal. Places the given modifier in the ModifierList at the appropriate priority. */
-	virtual bool AddCameraModifierToList(UCameraModifier* NewModifier);
+	ENGINE_API virtual bool AddCameraModifierToList(UCameraModifier* NewModifier);
 
-	virtual void CleanUpAnimCamera(const bool bDestroy);
+	ENGINE_API virtual void CleanUpAnimCamera(const bool bDestroy);
 
 public:	
 	/**
@@ -633,42 +633,42 @@ public:
 	 * @param	DeltaTime	Time in seconds since last update
 	 * @param	InOutPOV	Point of View
 	 */
-	virtual void ApplyCameraModifiers(float DeltaTime, FMinimalViewInfo& InOutPOV);
+	ENGINE_API virtual void ApplyCameraModifiers(float DeltaTime, FMinimalViewInfo& InOutPOV);
 	
 	/**
 	 * Initialize this PlayerCameraManager for the given associated PlayerController.
 	 * @param PC	PlayerController associated with this Camera.
 	 */
-	virtual void InitializeFor(class APlayerController* PC);
+	ENGINE_API virtual void InitializeFor(class APlayerController* PC);
 	
 	/** Returns the camera's current full FOV angle, in degrees. */
 	UFUNCTION(BlueprintCallable, Category = "Camera")
-	virtual float GetFOVAngle() const;
+	ENGINE_API virtual float GetFOVAngle() const;
 	
 	/** 
 	 * Locks the FOV to the given value.  Unlock with UnlockFOV.
 	 * @param NewFOV - New full FOV angle to use, in degrees.
 	 */
-	virtual void SetFOV(float NewFOV);
+	ENGINE_API virtual void SetFOV(float NewFOV);
 
 	/** Unlocks the FOV. */
-	virtual void UnlockFOV();
+	ENGINE_API virtual void UnlockFOV();
 
 	/** Returns true if this camera is using an orthographic perspective. */
-	virtual bool IsOrthographic() const;
+	ENGINE_API virtual bool IsOrthographic() const;
 
 	/** Returns the current orthographic width for the camera. */
-	virtual float GetOrthoWidth() const;
+	ENGINE_API virtual float GetOrthoWidth() const;
 
 	/** 
 	 * Sets and locks the current orthographic width for the camera. Unlock with UnlockOrthoWidth. 
 	 * Only used if IsOrthographic returns true.
 	 * @param OrthoWidth - New orthographic width.
 	 */
-	virtual void SetOrthoWidth(float OrthoWidth);
+	ENGINE_API virtual void SetOrthoWidth(float OrthoWidth);
 
 	/** Unlocks OrthoWidth value */
-	virtual void UnlockOrthoWidth();
+	ENGINE_API virtual void UnlockOrthoWidth();
 
 	/**
 	 * Primary function to retrieve Camera's actual view point.
@@ -677,40 +677,40 @@ public:
 	 * @param	OutCamLoc	Returned camera location
 	 * @param	OutCamRot	Returned camera rotation
 	 */
-	virtual void GetCameraViewPoint(FVector& OutCamLoc, FRotator& OutCamRot) const;
+	ENGINE_API virtual void GetCameraViewPoint(FVector& OutCamLoc, FRotator& OutCamRot) const;
 	
 	/** Returns camera's current rotation. */
 	UFUNCTION(BlueprintCallable, Category = "Camera", meta=(Keywords="View Direction"))
-	virtual FRotator GetCameraRotation() const;
+	ENGINE_API virtual FRotator GetCameraRotation() const;
 
 	/** Returns camera's current location. */
 	UFUNCTION(BlueprintCallable, Category = "Camera", meta=(Keywords="View Position"))
-	virtual FVector GetCameraLocation() const;
+	ENGINE_API virtual FVector GetCameraLocation() const;
 	
 	/** 
 	 * Sets the new desired color scale, enables color scaling, and enables color scale interpolation. 
 	 * @param NewColorScale - new color scale to use
 	 * @param InterpTime - duration of the interpolation from old to new, in seconds.
 	 */
-	virtual void SetDesiredColorScale(FVector NewColorScale, float InterpTime);
+	ENGINE_API virtual void SetDesiredColorScale(FVector NewColorScale, float InterpTime);
 	
 protected:
 	/** Internal function conditionally called from UpdateCamera to do the actual work of updating the camera. */
-	virtual void DoUpdateCamera(float DeltaTime);
+	ENGINE_API virtual void DoUpdateCamera(float DeltaTime);
 
 	/** Updates the photography camera. Return true if a cut occurred */
-	virtual bool UpdatePhotographyCamera(FMinimalViewInfo& NewPOV);
+	ENGINE_API virtual bool UpdatePhotographyCamera(FMinimalViewInfo& NewPOV);
 
 public:
 	/** Allows the photography system to override postprocessing */
-	virtual void UpdatePhotographyPostProcessing(FPostProcessSettings& InOutPostProcessing);
+	ENGINE_API virtual void UpdatePhotographyPostProcessing(FPostProcessSettings& InOutPostProcessing);
 
 protected:
 	/** Whether or not we allow photography mode */
-	virtual bool AllowPhotographyMode() const;
+	ENGINE_API virtual bool AllowPhotographyMode() const;
 	/** Internal. Applies appropriate audio fading to the audio system. */
-	virtual void ApplyAudioFade();
-	virtual void StopAudioFade();
+	ENGINE_API virtual void ApplyAudioFade();
+	ENGINE_API virtual void StopAudioFade();
 	
 	/**
 	 * Internal helper to blend two viewtargets.
@@ -719,11 +719,11 @@ protected:
 	 * @param	B		destination view target
 	 * @param	Alpha	% of blend from A to B.
 	 */
-	FPOV BlendViewTargets(const FTViewTarget& A, const FTViewTarget& B, float Alpha);
+	ENGINE_API FPOV BlendViewTargets(const FTViewTarget& A, const FTViewTarget& B, float Alpha);
 	
 public:
 	/** Caches given final POV info for efficient access from other game code. */
-	void FillCameraCache(const FMinimalViewInfo& NewInfo);
+	ENGINE_API void FillCameraCache(const FMinimalViewInfo& NewInfo);
 	
 protected:
 	/**
@@ -731,10 +731,10 @@ protected:
 	 * @param	OutVT		ViewTarget to update.
 	 * @param	DeltaTime	Delta Time since last camera update (in seconds).
 	 */
-	virtual void UpdateViewTarget(FTViewTarget& OutVT, float DeltaTime);
+	ENGINE_API virtual void UpdateViewTarget(FTViewTarget& OutVT, float DeltaTime);
 
 	/** Update any attached camera lens effects **/
-	virtual void UpdateCameraLensEffects( const FTViewTarget& OutVT );
+	ENGINE_API virtual void UpdateCameraLensEffects( const FTViewTarget& OutVT );
 
 public:
 	/** 
@@ -742,7 +742,7 @@ public:
 	 * @param NewViewTarget - New viewtarget actor.
 	 * @param TransitionParams - Optional parameters to define the interpolation from the old viewtarget to the new. Transition will be instant by default.
 	 */
-	virtual void SetViewTarget(class AActor* NewViewTarget, FViewTargetTransitionParams TransitionParams = FViewTargetTransitionParams());
+	ENGINE_API virtual void SetViewTarget(class AActor* NewViewTarget, FViewTargetTransitionParams TransitionParams = FViewTargetTransitionParams());
 	
 	/** 
 	 * Called to give PlayerCameraManager a chance to adjust view rotation updates before they are applied. 
@@ -751,14 +751,14 @@ public:
 	 * @param OutViewRotation - In/out. The view rotation to modify.
 	 * @param OutDeltaRot - In/out. How much the rotation changed this frame.
 	 */
-	virtual void ProcessViewRotation(float DeltaTime, FRotator& OutViewRotation, FRotator& OutDeltaRot);
+	ENGINE_API virtual void ProcessViewRotation(float DeltaTime, FRotator& OutViewRotation, FRotator& OutDeltaRot);
 
 	//
 	// Camera Lens Effects
 	//
 	
 	/** Returns first instance of a lens effect of the given class. */
-	virtual TScriptInterface<class ICameraLensEffectInterface> FindGenericCameraLensEffect(UPARAM(meta=(MustImplement = "CameraLensEffectInterface")) TSubclassOf<AActor> LensEffectEmitterClass);
+	ENGINE_API virtual TScriptInterface<class ICameraLensEffectInterface> FindGenericCameraLensEffect(UPARAM(meta=(MustImplement = "CameraLensEffectInterface")) TSubclassOf<AActor> LensEffectEmitterClass);
 	
 	/** 
 	 * Creates a camera lens effect of the given class on this camera. 
@@ -766,31 +766,31 @@ public:
 	 * @return Returns the new emitter actor.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Camera")
-	virtual TScriptInterface<class ICameraLensEffectInterface> AddGenericCameraLensEffect(UPARAM(meta=(MustImplement = "CameraLensEffectInterface")) TSubclassOf<AActor> LensEffectEmitterClass);
+	ENGINE_API virtual TScriptInterface<class ICameraLensEffectInterface> AddGenericCameraLensEffect(UPARAM(meta=(MustImplement = "CameraLensEffectInterface")) TSubclassOf<AActor> LensEffectEmitterClass);
 	
 	/** 
 	 * Removes the given lens effect from the camera. 
 	 * @param Emitter - the emitter actor to remove from the camera
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Camera")
-	virtual void RemoveGenericCameraLensEffect(TScriptInterface<class ICameraLensEffectInterface> Emitter);
+	ENGINE_API virtual void RemoveGenericCameraLensEffect(TScriptInterface<class ICameraLensEffectInterface> Emitter);
 	
 	/** Removes all camera lens effects. */
 	UFUNCTION(BlueprintCallable, Category = "Camera")
-	virtual void ClearCameraLensEffects();
+	ENGINE_API virtual void ClearCameraLensEffects();
 
 	//
 	// Legacy Camera Lens Effect Functions
 	//
 
 	UE_DEPRECATED(5.0, "APlayerCameraManager::FindGenericCameraLensEffect is favored now, and this function forwards to that one.")
-	virtual AEmitterCameraLensEffectBase* FindCameraLensEffect(TSubclassOf<AEmitterCameraLensEffectBase> LensEffectEmitterClass);
+	ENGINE_API virtual AEmitterCameraLensEffectBase* FindCameraLensEffect(TSubclassOf<AEmitterCameraLensEffectBase> LensEffectEmitterClass);
 
 	UFUNCTION(meta = (DeprecatedFunction, DeprecationMessage = "APlayerCameraManager::AddGenericCameraLensEffect is favored now, and this function forwards to that one."))
-	virtual AEmitterCameraLensEffectBase* AddCameraLensEffect(TSubclassOf<AEmitterCameraLensEffectBase> LensEffectEmitterClass);
+	ENGINE_API virtual AEmitterCameraLensEffectBase* AddCameraLensEffect(TSubclassOf<AEmitterCameraLensEffectBase> LensEffectEmitterClass);
 
 	UFUNCTION(meta = (DeprecatedFunction, DeprecationMessage = "APlayerCameraManager::RemoveGenericCameraLensEffect is favored now, and this function forwards to that one."))
-	virtual void RemoveCameraLensEffect(AEmitterCameraLensEffectBase* Emitter);
+	ENGINE_API virtual void RemoveCameraLensEffect(AEmitterCameraLensEffectBase* Emitter);
 
 	//
 	// Camera Shakes.
@@ -804,7 +804,7 @@ public:
 	 * @param UserPlaySpaceRot - Coordinate system to play shake when PlaySpace == CAPS_UserDefined.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Camera Shakes")
-	virtual UCameraShakeBase* StartCameraShake(TSubclassOf<UCameraShakeBase> ShakeClass, float Scale=1.f, ECameraShakePlaySpace PlaySpace = ECameraShakePlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
+	ENGINE_API virtual UCameraShakeBase* StartCameraShake(TSubclassOf<UCameraShakeBase> ShakeClass, float Scale=1.f, ECameraShakePlaySpace PlaySpace = ECameraShakePlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
 
 	/** 
 	 * Plays a camera shake on this camera.
@@ -815,27 +815,27 @@ public:
 	 * @param UserPlaySpaceRot - Coordinate system to play shake when PlaySpace == CAPS_UserDefined.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Camera Shakes")
-	virtual UCameraShakeBase* StartCameraShakeFromSource(TSubclassOf<UCameraShakeBase> ShakeClass, UCameraShakeSourceComponent* SourceComponent, float Scale=1.f, ECameraShakePlaySpace PlaySpace = ECameraShakePlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
+	ENGINE_API virtual UCameraShakeBase* StartCameraShakeFromSource(TSubclassOf<UCameraShakeBase> ShakeClass, UCameraShakeSourceComponent* SourceComponent, float Scale=1.f, ECameraShakePlaySpace PlaySpace = ECameraShakePlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
 
 	/** Immediately stops the given shake instance and invalidates it. */
 	UFUNCTION(BlueprintCallable, Category = "Camera Shakes")
-	virtual void StopCameraShake(UCameraShakeBase* ShakeInstance, bool bImmediately = true);
+	ENGINE_API virtual void StopCameraShake(UCameraShakeBase* ShakeInstance, bool bImmediately = true);
 
 	/** Stops playing all shakes of the given class. */
 	UFUNCTION(BlueprintCallable, Category = "Camera Shakes")
-	virtual void StopAllInstancesOfCameraShake(TSubclassOf<UCameraShakeBase> Shake, bool bImmediately = true);
+	ENGINE_API virtual void StopAllInstancesOfCameraShake(TSubclassOf<UCameraShakeBase> Shake, bool bImmediately = true);
 
 	/** Stops all active camera shakes on this camera. */
 	UFUNCTION(BlueprintCallable, Category = "Camera Shakes")
-	virtual void StopAllCameraShakes(bool bImmediately = true);
+	ENGINE_API virtual void StopAllCameraShakes(bool bImmediately = true);
 
 	/** Stops playing all shakes of the given class originating from the given source. */
 	UFUNCTION(BlueprintCallable, Category = "Camera Shakes")
-	virtual void StopAllInstancesOfCameraShakeFromSource(TSubclassOf<UCameraShakeBase> Shake, UCameraShakeSourceComponent* SourceComponent, bool bImmediately = true);
+	ENGINE_API virtual void StopAllInstancesOfCameraShakeFromSource(TSubclassOf<UCameraShakeBase> Shake, UCameraShakeSourceComponent* SourceComponent, bool bImmediately = true);
 
 	/** Stops playing all shakes originating from the given source. */
 	UFUNCTION(BlueprintCallable, Category = "Camera Shakes")
-	virtual void StopAllCameraShakesFromSource(UCameraShakeSourceComponent* SourceComponent, bool bImmediately = true);
+	ENGINE_API virtual void StopAllCameraShakesFromSource(UCameraShakeSourceComponent* SourceComponent, bool bImmediately = true);
 
 	//
 	//  Camera fades.
@@ -851,20 +851,20 @@ public:
 	 * @param bHoldWhenFinished - True for fade to hold at the ToAlpha until explicitly stopped (e.g. with StopCameraFade)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Camera Fades")
-	virtual void StartCameraFade(float FromAlpha, float ToAlpha, float Duration, FLinearColor Color, bool bShouldFadeAudio = false, bool bHoldWhenFinished = false);
+	ENGINE_API virtual void StartCameraFade(float FromAlpha, float ToAlpha, float Duration, FLinearColor Color, bool bShouldFadeAudio = false, bool bHoldWhenFinished = false);
 
 	/** 
 	 * Stops camera fading.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Camera Fades")
-	virtual void StopCameraFade();
+	ENGINE_API virtual void StopCameraFade();
 
 	/** 
 	 * Turns on camera fading at the given opacity. Does not auto-animate, allowing user to animate themselves.
 	 * Call StopCameraFade to turn fading back off.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Camera Fades")
-	virtual void SetManualCameraFade(float InFadeAmount, FLinearColor Color, bool bInFadeAudio);
+	ENGINE_API virtual void SetManualCameraFade(float InFadeAmount, FLinearColor Color, bool bInFadeAudio);
 
 
 	/** Sets the bGameCameraCutThisFrame flag to true (indicating we did a camera cut this frame; useful for game code to call, e.g., when performing a teleport that should be seamless) */
@@ -878,7 +878,7 @@ public:
 	 * @param InViewPitchMin - Minimum view pitch, in degrees.
 	 * @param InViewPitchMax - Maximum view pitch, in degrees.
 	 */
-	virtual void LimitViewPitch(FRotator& ViewRotation, float InViewPitchMin, float InViewPitchMax);
+	ENGINE_API virtual void LimitViewPitch(FRotator& ViewRotation, float InViewPitchMin, float InViewPitchMax);
 
 	/** 
 	 * Limit the player's view roll. 
@@ -886,7 +886,7 @@ public:
 	 * @param InViewRollMin - Minimum view roll, in degrees.
 	 * @param InViewRollMax - Maximum view roll, in degrees.
 	 */
-	virtual void LimitViewRoll(FRotator& ViewRotation, float InViewRollMin, float InViewRollMax);
+	ENGINE_API virtual void LimitViewRoll(FRotator& ViewRotation, float InViewRollMin, float InViewRollMax);
 
 	/** 
 	 * Limit the player's view yaw. 
@@ -894,7 +894,7 @@ public:
 	 * @param InViewYawMin - Minimum view yaw, in degrees.
 	 * @param InViewYawMax - Maximum view yaw, in degrees.
 	 */
-	virtual void LimitViewYaw(FRotator& ViewRotation, float InViewYawMin, float InViewYawMax);
+	ENGINE_API virtual void LimitViewYaw(FRotator& ViewRotation, float InViewYawMin, float InViewYawMax);
 
 protected:
 	/**
@@ -905,11 +905,11 @@ protected:
 	 * @param	OutVT		ViewTarget to use.
 	 * @param	DeltaTime	Delta Time since last camera update (in seconds).
 	 */
-	virtual void UpdateViewTargetInternal(FTViewTarget& OutVT, float DeltaTime);
+	ENGINE_API virtual void UpdateViewTargetInternal(FTViewTarget& OutVT, float DeltaTime);
 
 	// ClientSide camera updates prevents DoUpdateCamera from swapping PendingViewTarget in when the blend is complete, just use a timer to swap
 	UFUNCTION()
-	void SwapPendingViewTargetWhenUsingClientSideCameraUpdates();
+	ENGINE_API void SwapPendingViewTargetWhenUsingClientSideCameraUpdates();
 
 	FTimerHandle SwapPendingViewTargetWhenUsingClientSideCameraUpdatesTimerHandle;
 

@@ -105,7 +105,7 @@ struct FSceneTexturesConfigInitSettings
  *  SceneTexturesConfig structure in the FViewFamilyInfo.  A global singleton instance is maintained manually with static Set / Get
  *  functions, but will soon be deprecated, in preference of using the structure from the FViewFamilyInfo.
  */
-struct ENGINE_API FSceneTexturesConfig
+struct FSceneTexturesConfig
 {
 	// Sets the persistent global config instance.
 	static void Set(const FSceneTexturesConfig& Config)
@@ -129,10 +129,10 @@ struct ENGINE_API FSceneTexturesConfig
 		, bSupportsXRTargetManagerDepthAlloc{}
 	{}
 
-	void Init(const FSceneTexturesConfigInitSettings& InitSettings);
-    void BuildSceneColorAndDepthFlags();
-	uint32 GetGBufferRenderTargetsInfo(FGraphicsPipelineRenderTargetsInfo& RenderTargetsInfo, EGBufferLayout Layout = GBL_Default) const;
-	void SetupMobileGBufferFlags(bool bRequiresMultiPass);
+	ENGINE_API void Init(const FSceneTexturesConfigInitSettings& InitSettings);
+    ENGINE_API void BuildSceneColorAndDepthFlags();
+	ENGINE_API uint32 GetGBufferRenderTargetsInfo(FGraphicsPipelineRenderTargetsInfo& RenderTargetsInfo, EGBufferLayout Layout = GBL_Default) const;
+	ENGINE_API void SetupMobileGBufferFlags(bool bRequiresMultiPass);
 
 	FORCEINLINE bool IsValid() const
 	{
@@ -206,5 +206,5 @@ struct ENGINE_API FSceneTexturesConfig
     bool bRequiresAlphaChannel = false;
 
 private:
-	static FSceneTexturesConfig GlobalInstance;
+	static ENGINE_API FSceneTexturesConfig GlobalInstance;
 };

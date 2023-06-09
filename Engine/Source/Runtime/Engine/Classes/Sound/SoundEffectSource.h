@@ -15,14 +15,14 @@ class FSoundEffectSource;
 class FSoundEffectBase;
 
 /** Preset of a source effect that can be shared between chains. */
-UCLASS(config = Engine, abstract, editinlinenew, BlueprintType)
-class ENGINE_API USoundEffectSourcePreset : public USoundEffectPreset
+UCLASS(config = Engine, abstract, editinlinenew, BlueprintType, MinimalAPI)
+class USoundEffectSourcePreset : public USoundEffectPreset
 {
 	GENERATED_BODY()
 };
 
 USTRUCT(BlueprintType)
-struct ENGINE_API FSourceEffectChainEntry
+struct FSourceEffectChainEntry
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -39,8 +39,8 @@ struct ENGINE_API FSourceEffectChainEntry
 };
 
 /** Chain of source effect presets that can be shared between referencing sounds. */
-UCLASS(BlueprintType)
-class ENGINE_API USoundEffectSourcePresetChain : public UObject
+UCLASS(BlueprintType, MinimalAPI)
+class USoundEffectSourcePresetChain : public UObject
 {
 	GENERATED_BODY()
 
@@ -54,12 +54,12 @@ public:
 	UPROPERTY(EditAnywhere, Category = Effects)
 	uint32 bPlayEffectChainTails : 1;
 
-	void AddReferencedEffects(FReferenceCollector& Collector);
+	ENGINE_API void AddReferencedEffects(FReferenceCollector& Collector);
 
 protected:
 
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
 };
@@ -105,7 +105,7 @@ struct FSoundEffectSourceInputData
 	}
 };
 
-class ENGINE_API FSoundEffectSource : public FSoundEffectBase
+class FSoundEffectSource : public FSoundEffectBase
 {
 public:
 	virtual ~FSoundEffectSource() = default;

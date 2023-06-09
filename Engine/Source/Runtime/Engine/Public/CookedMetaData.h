@@ -10,14 +10,14 @@
  * Cooked meta-data for a UObject.
  */
 USTRUCT()
-struct ENGINE_API FObjectCookedMetaDataStore
+struct FObjectCookedMetaDataStore
 {
 public:
 	GENERATED_BODY()
 
-	bool HasMetaData() const;
-	void CacheMetaData(const UObject* SourceObject);
-	void ApplyMetaData(UObject* TargetObject) const;
+	ENGINE_API bool HasMetaData() const;
+	ENGINE_API void CacheMetaData(const UObject* SourceObject);
+	ENGINE_API void ApplyMetaData(UObject* TargetObject) const;
 
 private:
 	UPROPERTY()
@@ -28,14 +28,14 @@ private:
  * Cooked meta-data for a FField.
  */
 USTRUCT()
-struct ENGINE_API FFieldCookedMetaDataStore
+struct FFieldCookedMetaDataStore
 {
 public:
 	GENERATED_BODY()
 
-	bool HasMetaData() const;
-	void CacheMetaData(const FField* SourceField);
-	void ApplyMetaData(FField* TargetField) const;
+	ENGINE_API bool HasMetaData() const;
+	ENGINE_API void CacheMetaData(const FField* SourceField);
+	ENGINE_API void ApplyMetaData(FField* TargetField) const;
 
 private:
 	UPROPERTY()
@@ -46,14 +46,14 @@ private:
  * Cooked meta-data for a UStruct, including its nested FProperty data.
  */
 USTRUCT()
-struct ENGINE_API FStructCookedMetaDataStore
+struct FStructCookedMetaDataStore
 {
 public:
 	GENERATED_BODY()
 
-	bool HasMetaData() const;
-	void CacheMetaData(const UStruct* SourceStruct);
-	void ApplyMetaData(UStruct* TargetStruct) const;
+	ENGINE_API bool HasMetaData() const;
+	ENGINE_API void CacheMetaData(const UStruct* SourceStruct);
+	ENGINE_API void ApplyMetaData(UStruct* TargetStruct) const;
 
 private:
 	UPROPERTY()
@@ -66,17 +66,17 @@ private:
 /**
  * Cooked meta-data for a UEnum.
  */
-UCLASS(Optional, Within=Enum)
-class ENGINE_API UEnumCookedMetaData : public UObject
+UCLASS(Optional, Within=Enum, MinimalAPI)
+class UEnumCookedMetaData : public UObject
 {
 public:
 	GENERATED_BODY()
 
-	virtual void PostLoad() override;
+	ENGINE_API virtual void PostLoad() override;
 	
-	virtual bool HasMetaData() const;
-	virtual void CacheMetaData(const UEnum* SourceEnum);
-	virtual void ApplyMetaData(UEnum* TargetEnum) const;
+	ENGINE_API virtual bool HasMetaData() const;
+	ENGINE_API virtual void CacheMetaData(const UEnum* SourceEnum);
+	ENGINE_API virtual void ApplyMetaData(UEnum* TargetEnum) const;
 
 protected:
 	UPROPERTY()
@@ -86,17 +86,17 @@ protected:
 /**
  * Cooked meta-data for a UScriptStruct, including its nested FProperty data.
  */
-UCLASS(Optional, Within=ScriptStruct)
-class ENGINE_API UStructCookedMetaData : public UObject
+UCLASS(Optional, Within=ScriptStruct, MinimalAPI)
+class UStructCookedMetaData : public UObject
 {
 public:
 	GENERATED_BODY()
 
-	virtual void PostLoad() override;
+	ENGINE_API virtual void PostLoad() override;
 	
-	virtual bool HasMetaData() const;
-	virtual void CacheMetaData(const UScriptStruct* SourceStruct);
-	virtual void ApplyMetaData(UScriptStruct* TargetStruct) const;
+	ENGINE_API virtual bool HasMetaData() const;
+	ENGINE_API virtual void CacheMetaData(const UScriptStruct* SourceStruct);
+	ENGINE_API virtual void ApplyMetaData(UScriptStruct* TargetStruct) const;
 
 protected:
 	UPROPERTY()
@@ -106,17 +106,17 @@ protected:
 /**
  * Cooked meta-data for a UClass, including its nested FProperty and UFunction data.
  */
-UCLASS(Optional, Within=Class)
-class ENGINE_API UClassCookedMetaData : public UObject
+UCLASS(Optional, Within=Class, MinimalAPI)
+class UClassCookedMetaData : public UObject
 {
 public:
 	GENERATED_BODY()
 
-	virtual void PostLoad() override;
+	ENGINE_API virtual void PostLoad() override;
 	
-	virtual bool HasMetaData() const;
-	virtual void CacheMetaData(const UClass* SourceClass);
-	virtual void ApplyMetaData(UClass* TargetClass) const;
+	ENGINE_API virtual bool HasMetaData() const;
+	ENGINE_API virtual void CacheMetaData(const UClass* SourceClass);
+	ENGINE_API virtual void ApplyMetaData(UClass* TargetClass) const;
 
 protected:
 	UPROPERTY()

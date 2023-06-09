@@ -11,7 +11,7 @@
 class UInputComponent;
 
 USTRUCT()
-struct ENGINE_API FBlueprintInputTouchDelegateBinding : public FBlueprintInputDelegateBinding
+struct FBlueprintInputTouchDelegateBinding : public FBlueprintInputDelegateBinding
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -30,8 +30,8 @@ struct ENGINE_API FBlueprintInputTouchDelegateBinding : public FBlueprintInputDe
 };
 
 
-UCLASS()
-class ENGINE_API UInputTouchDelegateBinding : public UInputDelegateBinding
+UCLASS(MinimalAPI)
+class UInputTouchDelegateBinding : public UInputDelegateBinding
 {
 	GENERATED_UCLASS_BODY()
 
@@ -39,6 +39,6 @@ class ENGINE_API UInputTouchDelegateBinding : public UInputDelegateBinding
 	TArray<FBlueprintInputTouchDelegateBinding> InputTouchDelegateBindings;
 
 	//~ Begin UInputDelegateBinding Interface
-	virtual void BindToInputComponent(UInputComponent* InputComponent, UObject* ObjectToBindTo) const override;
+	ENGINE_API virtual void BindToInputComponent(UInputComponent* InputComponent, UObject* ObjectToBindTo) const override;
 	//~ End UInputDelegateBinding Interface
 };

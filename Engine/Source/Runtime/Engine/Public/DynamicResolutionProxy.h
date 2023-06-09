@@ -7,33 +7,33 @@
 #include "Engine/EngineTypes.h"
 
 /** Render thread proxy that holds the heuristic for dynamic resolution. */
-class ENGINE_API FDynamicResolutionHeuristicProxy
+class FDynamicResolutionHeuristicProxy
 {
 public:
 	static constexpr uint64 kInvalidEntryId = ~uint64(0);
 
-	FDynamicResolutionHeuristicProxy();
-	~FDynamicResolutionHeuristicProxy();
+	ENGINE_API FDynamicResolutionHeuristicProxy();
+	ENGINE_API ~FDynamicResolutionHeuristicProxy();
 
 	/** Resets the proxy. */
-	void Reset_RenderThread();
+	ENGINE_API void Reset_RenderThread();
 
 	/** Create a new previous frame and feeds its timings and returns history's unique id. */
-	uint64 CreateNewPreviousFrameTimings_RenderThread(float FrameTime, float GameThreadTimeMs, float RenderThreadTimeMs, float RHIThreadTime);
+	ENGINE_API uint64 CreateNewPreviousFrameTimings_RenderThread(float FrameTime, float GameThreadTimeMs, float RenderThreadTimeMs, float RHIThreadTime);
 	FORCEINLINE uint64 CreateNewPreviousFrameTimings_RenderThread(float GameThreadTimeMs, float RenderThreadTimeMs)
 	{
 		return CreateNewPreviousFrameTimings_RenderThread(/* FrameTime = */ 0.0f, GameThreadTimeMs, RenderThreadTimeMs, /* RHIThreadTime = */ 0.0f);
 	}
 
 	/** Commit GPU busy times */
-	void CommitPreviousFrameGPUTimings_RenderThread(
+	ENGINE_API void CommitPreviousFrameGPUTimings_RenderThread(
 		uint64 HistoryFrameId,
 		float TotalFrameGPUBusyTimeMs,
 		float DynamicResolutionGPUBusyTimeMs,
 		const DynamicRenderScaling::TMap<float>& BudgetTimingMs);
 
 	/** Refresh resolution fraction's from history. */
-	void RefreshCurrentFrameResolutionFraction_RenderThread();
+	ENGINE_API void RefreshCurrentFrameResolutionFraction_RenderThread();
 
 	/** Returns the view fraction that should be used for current frame. */
 	FORCEINLINE DynamicRenderScaling::TMap<float> QueryCurrentFrameResolutionFractions() const
@@ -50,10 +50,10 @@ public:
 	}
 
 	/** Returns the view fraction upper bound. */
-	DynamicRenderScaling::TMap<float> GetResolutionFractionUpperBounds() const;
+	ENGINE_API DynamicRenderScaling::TMap<float> GetResolutionFractionUpperBounds() const;
 
 	/** Creates a default dynamic resolution state using this proxy that queries GPU timing from the RHI. */
-	static TSharedPtr<class IDynamicResolutionState> CreateDefaultState();
+	static ENGINE_API TSharedPtr<class IDynamicResolutionState> CreateDefaultState();
 
 private:
 	struct FrameHistoryEntry
@@ -125,14 +125,14 @@ private:
 		return History[(History.Num() + PreviousFrameIndex - BrowsingFrameId) % History.Num()];
 	}
 
-	DynamicRenderScaling::TMap<float> QueryCurrentFrameResolutionFractions_Internal() const;
+	ENGINE_API DynamicRenderScaling::TMap<float> QueryCurrentFrameResolutionFractions_Internal() const;
 
-	void RefreshCurrentFrameResolutionFractionUpperBound_RenderThread();
+	ENGINE_API void RefreshCurrentFrameResolutionFractionUpperBound_RenderThread();
 
-	void RefreshHeuristicStats_RenderThread();
+	ENGINE_API void RefreshHeuristicStats_RenderThread();
 
-	void ResetInternal();
+	ENGINE_API void ResetInternal();
 
-	void ResizeHistoryIfNeeded();
+	ENGINE_API void ResizeHistoryIfNeeded();
 };
 

@@ -5,36 +5,36 @@
 #include "CoreMinimal.h"
 
 
-struct ENGINE_API FWorldPartitionHLODStats
+struct FWorldPartitionHLODStats
 {
 	// Input
-	static const FName InputActorCount;
-	static const FName InputTriangleCount;
-	static const FName InputVertexCount;
+	static ENGINE_API const FName InputActorCount;
+	static ENGINE_API const FName InputTriangleCount;
+	static ENGINE_API const FName InputVertexCount;
 
 	// Mesh
-	static const FName MeshInstanceCount;
-	static const FName MeshNaniteTriangleCount;
-	static const FName MeshNaniteVertexCount;
-	static const FName MeshTriangleCount;
-	static const FName MeshVertexCount;
-	static const FName MeshUVChannelCount;
+	static ENGINE_API const FName MeshInstanceCount;
+	static ENGINE_API const FName MeshNaniteTriangleCount;
+	static ENGINE_API const FName MeshNaniteVertexCount;
+	static ENGINE_API const FName MeshTriangleCount;
+	static ENGINE_API const FName MeshVertexCount;
+	static ENGINE_API const FName MeshUVChannelCount;
 
 	// Material
-	static const FName MaterialBaseColorTextureSize;
-	static const FName MaterialNormalTextureSize;
-	static const FName MaterialEmissiveTextureSize;
-	static const FName MaterialMetallicTextureSize;
-	static const FName MaterialRoughnessTextureSize;
-	static const FName MaterialSpecularTextureSize;
+	static ENGINE_API const FName MaterialBaseColorTextureSize;
+	static ENGINE_API const FName MaterialNormalTextureSize;
+	static ENGINE_API const FName MaterialEmissiveTextureSize;
+	static ENGINE_API const FName MaterialMetallicTextureSize;
+	static ENGINE_API const FName MaterialRoughnessTextureSize;
+	static ENGINE_API const FName MaterialSpecularTextureSize;
 	
 	// Memory
-	static const FName MemoryMeshResourceSizeBytes;
-	static const FName MemoryTexturesResourceSizeBytes;
-	static const FName MemoryDiskSizeBytes;
+	static ENGINE_API const FName MemoryMeshResourceSizeBytes;
+	static ENGINE_API const FName MemoryTexturesResourceSizeBytes;
+	static ENGINE_API const FName MemoryDiskSizeBytes;
 
 	// Build
-	static const FName BuildTimeLoadMilliseconds;
-	static const FName BuildTimeBuildMilliseconds;
-	static const FName BuildTimeTotalMilliseconds;
+	static ENGINE_API const FName BuildTimeLoadMilliseconds;
+	static ENGINE_API const FName BuildTimeBuildMilliseconds;
+	static ENGINE_API const FName BuildTimeTotalMilliseconds;
 };

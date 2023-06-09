@@ -7,8 +7,8 @@
 #include "UObject/Object.h"
 #include "DynamicBlueprintBinding.generated.h"
 
-UCLASS(abstract)
-class ENGINE_API UDynamicBlueprintBinding
+UCLASS(abstract, MinimalAPI)
+class UDynamicBlueprintBinding
 	: public UObject
 {
 	GENERATED_UCLASS_BODY()

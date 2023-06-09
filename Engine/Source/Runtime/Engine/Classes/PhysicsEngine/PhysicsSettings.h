@@ -48,11 +48,11 @@ struct FPhysicalSurfaceName
   * See: IChaosSettingsProvider
   */
 USTRUCT()
-struct ENGINE_API FChaosPhysicsSettings
+struct FChaosPhysicsSettings
 {
 	GENERATED_BODY()
 
-	FChaosPhysicsSettings();
+	ENGINE_API FChaosPhysicsSettings();
 
 	/** Default threading model to use on module initialisation. Can be switched at runtime using p.Chaos.ThreadingModel */
 	UPROPERTY(EditAnywhere, Category = ChaosPhysics)
@@ -66,7 +66,7 @@ struct ENGINE_API FChaosPhysicsSettings
 	UPROPERTY(EditAnywhere, Category = Framerate)
 	EChaosBufferMode DedicatedThreadBufferMode;
 
-	void OnSettingsUpdated();
+	ENGINE_API void OnSettingsUpdated();
 };
 
 UENUM()
@@ -136,8 +136,8 @@ namespace ESettingsLockedAxis
 /**
  * Default physics settings.
  */
-UCLASS(config=Engine, defaultconfig, meta=(DisplayName="Physics"))
-class ENGINE_API UPhysicsSettings : public UPhysicsSettingsCore
+UCLASS(config=Engine, defaultconfig, meta=(DisplayName="Physics"), MinimalAPI)
+class UPhysicsSettings : public UPhysicsSettingsCore
 {
 	GENERATED_UCLASS_BODY()
 
@@ -261,15 +261,15 @@ public:
 		return FMath::CeilToInt(1.f / AsyncFixedTimeStepSize) * (PhysicsPrediction.MaxSupportedLatencyPrediction / 1000.f);
 	}
 
-	virtual void PostInitProperties() override;
+	ENGINE_API virtual void PostInitProperties() override;
 
 #if WITH_EDITOR
-	virtual bool CanEditChange( const FProperty* Property ) const override;
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual bool CanEditChange( const FProperty* Property ) const override;
+	ENGINE_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 
 	/** Load Material Type data from INI file **/
 	/** this changes displayname meta data. That means we won't need it outside of editor*/
-	void LoadSurfaceType();
+	ENGINE_API void LoadSurfaceType();
 
 #endif // WITH_EDITOR
 };

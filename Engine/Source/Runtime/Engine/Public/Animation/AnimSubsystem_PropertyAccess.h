@@ -28,20 +28,20 @@ enum class EAnimPropertyAccessCallSite
 };
 
 USTRUCT()
-struct ENGINE_API FAnimSubsystem_PropertyAccess : public FAnimSubsystem
+struct FAnimSubsystem_PropertyAccess : public FAnimSubsystem
 {
 	GENERATED_BODY()
 
 	friend class UAnimBlueprintExtension_PropertyAccess;
 
 	/** FAnimSubsystem interface */
-	virtual void OnPreUpdate_GameThread(FAnimSubsystemUpdateContext& InContext) const override;
-	virtual void OnPostUpdate_GameThread(FAnimSubsystemUpdateContext& InContext) const override;
-	virtual void OnPreUpdate_WorkerThread(FAnimSubsystemParallelUpdateContext& InContext) const override;
-	virtual void OnPostUpdate_WorkerThread(FAnimSubsystemParallelUpdateContext& InContext) const override;
-	virtual void OnPostLoad(FAnimSubsystemPostLoadContext& InContext) override;
+	ENGINE_API virtual void OnPreUpdate_GameThread(FAnimSubsystemUpdateContext& InContext) const override;
+	ENGINE_API virtual void OnPostUpdate_GameThread(FAnimSubsystemUpdateContext& InContext) const override;
+	ENGINE_API virtual void OnPreUpdate_WorkerThread(FAnimSubsystemParallelUpdateContext& InContext) const override;
+	ENGINE_API virtual void OnPostUpdate_WorkerThread(FAnimSubsystemParallelUpdateContext& InContext) const override;
+	ENGINE_API virtual void OnPostLoad(FAnimSubsystemPostLoadContext& InContext) override;
 #if WITH_EDITORONLY_DATA
-	virtual void OnLink(FAnimSubsystemLinkContext& InContext) override;
+	ENGINE_API virtual void OnLink(FAnimSubsystemLinkContext& InContext) override;
 #endif
 
 	/** Access the property access library */

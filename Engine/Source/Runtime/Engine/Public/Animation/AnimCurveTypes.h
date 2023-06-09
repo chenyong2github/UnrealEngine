@@ -66,7 +66,7 @@ ENUM_RANGE_BY_FIRST_AND_LAST(EAnimAssetCurveFlags, AACF_DriveMorphTarget_DEPRECA
 
 /** DEPRECATED - no longer used */
 USTRUCT()
-struct ENGINE_API FAnimCurveParam
+struct FAnimCurveParam
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -93,7 +93,7 @@ struct ENGINE_API FAnimCurveParam
  * Float curve data for one track
  */
 USTRUCT(BlueprintType)
-struct ENGINE_API FAnimCurveBase
+struct FAnimCurveBase
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -149,35 +149,35 @@ public:
 	}
 
 	// This allows loading data that was saved between VER_UE4_SKELETON_ADD_SMARTNAMES and FFrameworkObjectVersion::SmartNameRefactor
-	void PostSerializeFixup(FArchive& Ar);
+	ENGINE_API void PostSerializeFixup(FArchive& Ar);
 
-	bool Serialize(FArchive& Ar);
-	void PostSerialize(const FArchive& Ar);
+	ENGINE_API bool Serialize(FArchive& Ar);
+	ENGINE_API void PostSerialize(const FArchive& Ar);
 
 	/**
 	 * Set InFlag to bValue
 	 */
-	void SetCurveTypeFlag(EAnimAssetCurveFlags InFlag, bool bValue);
+	ENGINE_API void SetCurveTypeFlag(EAnimAssetCurveFlags InFlag, bool bValue);
 
 	/**
 	 * Toggle the value of the specified flag
 	 */
-	void ToggleCurveTypeFlag(EAnimAssetCurveFlags InFlag);
+	ENGINE_API void ToggleCurveTypeFlag(EAnimAssetCurveFlags InFlag);
 
 	/**
 	 * Return true if InFlag is set, false otherwise 
 	 */
-	bool GetCurveTypeFlag(EAnimAssetCurveFlags InFlag) const;
+	ENGINE_API bool GetCurveTypeFlag(EAnimAssetCurveFlags InFlag) const;
 
 	/**
 	 * Set CurveTypeFlags to NewCurveTypeFlags
 	 * This just overwrites CurveTypeFlags
 	 */
-	void SetCurveTypeFlags(int32 NewCurveTypeFlags);
+	ENGINE_API void SetCurveTypeFlags(int32 NewCurveTypeFlags);
 	/** 
 	 * returns CurveTypeFlags
 	 */
-	int32 GetCurveTypeFlags() const;
+	ENGINE_API int32 GetCurveTypeFlags() const;
 
 	/** Get the name of this curve */
 	FName GetName() const
@@ -197,7 +197,7 @@ public:
 
 private:
 	/** Make an initial color */
-	FLinearColor MakeColor();
+	ENGINE_API FLinearColor MakeColor();
 #endif
 };
 
@@ -212,7 +212,7 @@ struct TStructOpsTypeTraits<FAnimCurveBase> : public TStructOpsTypeTraitsBase2<F
 };
 
 USTRUCT(BlueprintType)
-struct ENGINE_API FFloatCurve : public FAnimCurveBase
+struct FFloatCurve : public FAnimCurveBase
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -223,7 +223,7 @@ struct ENGINE_API FFloatCurve : public FAnimCurveBase
 	FFloatCurve(){}
 
 	UE_DEPRECATED(5.3, "Please use the constructor that takes an FName.")
-	FFloatCurve(FSmartName InName, int32 InCurveTypeFlags)
+	ENGINE_API FFloatCurve(FSmartName InName, int32 InCurveTypeFlags)
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: FAnimCurveBase(InName, InCurveTypeFlags)
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -236,11 +236,11 @@ struct ENGINE_API FFloatCurve : public FAnimCurveBase
 	}
 	
 	// we don't want to have = operator. This only copies curves, but leaving naming and everything else intact. 
-	void CopyCurve(const FFloatCurve& SourceCurve);
-	float Evaluate(float CurrentTime) const;
-	void UpdateOrAddKey(float NewKey, float CurrentTime);
-	void GetKeys(TArray<float>& OutTimes, TArray<float>& OutValues) const;
-	void Resize(float NewLength, bool bInsert/* whether insert or remove*/, float OldStartTime, float OldEndTime);
+	ENGINE_API void CopyCurve(const FFloatCurve& SourceCurve);
+	ENGINE_API float Evaluate(float CurrentTime) const;
+	ENGINE_API void UpdateOrAddKey(float NewKey, float CurrentTime);
+	ENGINE_API void GetKeys(TArray<float>& OutTimes, TArray<float>& OutValues) const;
+	ENGINE_API void Resize(float NewLength, bool bInsert/* whether insert or remove*/, float OldStartTime, float OldEndTime);
 };
 
 template<>
@@ -254,7 +254,7 @@ struct TStructOpsTypeTraits<FFloatCurve> : public TStructOpsTypeTraitsBase2<FFlo
 };
 
 USTRUCT()
-struct ENGINE_API FVectorCurve : public FAnimCurveBase
+struct FVectorCurve : public FAnimCurveBase
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -273,7 +273,7 @@ struct ENGINE_API FVectorCurve : public FAnimCurveBase
 	FVectorCurve(){}
 
 	UE_DEPRECATED(5.3, "Please use the constructor that takes an FName.")
-	FVectorCurve(FSmartName InName, int32 InCurveTypeFlags)
+	ENGINE_API FVectorCurve(FSmartName InName, int32 InCurveTypeFlags)
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: FAnimCurveBase(InName, InCurveTypeFlags)
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -287,12 +287,12 @@ struct ENGINE_API FVectorCurve : public FAnimCurveBase
 
 	// we don't want to have = operator. This only copies curves, but leaving naming and everything else intact. 
 	void CopyCurve(const FVectorCurve& SourceCurve);
-	FVector Evaluate(float CurrentTime, float BlendWeight) const;
-	void UpdateOrAddKey(const FVector& NewKey, float CurrentTime);
-	void GetKeys(TArray<float>& OutTimes, TArray<FVector>& OutValues) const;
+	ENGINE_API FVector Evaluate(float CurrentTime, float BlendWeight) const;
+	ENGINE_API void UpdateOrAddKey(const FVector& NewKey, float CurrentTime);
+	ENGINE_API void GetKeys(TArray<float>& OutTimes, TArray<FVector>& OutValues) const;
 	bool DoesContainKey() const { return (FloatCurves[0].GetNumKeys() > 0 || FloatCurves[1].GetNumKeys() > 0 || FloatCurves[2].GetNumKeys() > 0);}
-	void Resize(float NewLength, bool bInsert/* whether insert or remove*/, float OldStartTime, float OldEndTime);
-	int32 GetNumKeys() const;
+	ENGINE_API void Resize(float NewLength, bool bInsert/* whether insert or remove*/, float OldStartTime, float OldEndTime);
+	ENGINE_API int32 GetNumKeys() const;
 };
 
 template<>
@@ -306,7 +306,7 @@ struct TStructOpsTypeTraits<FVectorCurve> : public TStructOpsTypeTraitsBase2<FVe
 };
 
 USTRUCT(BlueprintType)
-struct ENGINE_API FTransformCurve: public FAnimCurveBase
+struct FTransformCurve: public FAnimCurveBase
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -327,7 +327,7 @@ struct ENGINE_API FTransformCurve: public FAnimCurveBase
 	FTransformCurve(){}
 
 	UE_DEPRECATED(5.3, "Please use the constructor that takes an FName.")
-	FTransformCurve(FSmartName InName, int32 InCurveTypeFlags)
+	ENGINE_API FTransformCurve(FSmartName InName, int32 InCurveTypeFlags)
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: FAnimCurveBase(InName, InCurveTypeFlags)
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -340,14 +340,14 @@ struct ENGINE_API FTransformCurve: public FAnimCurveBase
 	}
 
 	// we don't want to have = operator. This only copies curves, but leaving naming and everything else intact. 
-	void CopyCurve(const FTransformCurve& SourceCurve);
-	FTransform Evaluate(float CurrentTime, float BlendWeight) const;
-	void UpdateOrAddKey(const FTransform& NewKey, float CurrentTime);
-	void GetKeys(TArray<float>& OutTimes, TArray<FTransform>& OutValues) const;
-	void Resize(float NewLength, bool bInsert/* whether insert or remove*/, float OldStartTime, float OldEndTime);
+	ENGINE_API void CopyCurve(const FTransformCurve& SourceCurve);
+	ENGINE_API FTransform Evaluate(float CurrentTime, float BlendWeight) const;
+	ENGINE_API void UpdateOrAddKey(const FTransform& NewKey, float CurrentTime);
+	ENGINE_API void GetKeys(TArray<float>& OutTimes, TArray<FTransform>& OutValues) const;
+	ENGINE_API void Resize(float NewLength, bool bInsert/* whether insert or remove*/, float OldStartTime, float OldEndTime);
 	
-	const FVectorCurve* GetVectorCurveByIndex(int32 Index) const;
-	FVectorCurve* GetVectorCurveByIndex(int32 Index);
+	ENGINE_API const FVectorCurve* GetVectorCurveByIndex(int32 Index) const;
+	ENGINE_API FVectorCurve* GetVectorCurveByIndex(int32 Index);
 };
 
 template<>
@@ -361,7 +361,7 @@ struct TStructOpsTypeTraits<FTransformCurve> : public TStructOpsTypeTraitsBase2<
 };
 
 USTRUCT(BlueprintType)
-struct ENGINE_API FCachedFloatCurve
+struct FCachedFloatCurve
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -371,9 +371,9 @@ public:
 
 public:
 
-	bool IsValid(const UAnimSequenceBase* InAnimSequence) const;
-	float GetValueAtPosition(const UAnimSequenceBase* InAnimSequence, const float& InPosition) const;
-	const FFloatCurve* GetFloatCurve(const UAnimSequenceBase* InAnimSequence) const;
+	ENGINE_API bool IsValid(const UAnimSequenceBase* InAnimSequence) const;
+	ENGINE_API float GetValueAtPosition(const UAnimSequenceBase* InAnimSequence, const float& InPosition) const;
+	ENGINE_API const FFloatCurve* GetFloatCurve(const UAnimSequenceBase* InAnimSequence) const;
 
 protected:
 	UE_DEPRECATED(5.3, "Please just use CurveName.")
@@ -461,22 +461,22 @@ struct FCurveElementIndexed : public UE::Anim::FCurveElement
 
 // Deprecated base for TBaseBlendedCurve for legacy support
 // We need to use this non-templated base to avoid the deprecated (and now static) members taking up per-instance memory
-struct ENGINE_API FBaseBlendedCurve_DEPRECATED
+struct FBaseBlendedCurve_DEPRECATED
 {
 	UE_DEPRECATED(5.3, "Direct access to CurveWeights is no longer allowed as it is no longer used.")
-	static TArray<float> CurveWeights;
+	static ENGINE_API TArray<float> CurveWeights;
 	
 	UE_DEPRECATED(5.3, "Direct access to ValidCurveWeights is no longer allowed as it is no longer used.")
-	static TBitArray<> ValidCurveWeights;
+	static ENGINE_API TBitArray<> ValidCurveWeights;
 	
 	UE_DEPRECATED(5.3, "Direct access to UIDToArrayIndexLUT is no longer allowed as it is no longer used.")
-	static TArray<uint16> const * UIDToArrayIndexLUT;
+	static ENGINE_API TArray<uint16> const * UIDToArrayIndexLUT;
 	
 	UE_DEPRECATED(5.3, "Direct access to NumValidCurveCount is no longer allowed as it is no longer used.")
-	static uint16 NumValidCurveCount;
+	static ENGINE_API uint16 NumValidCurveCount;
 	
 	UE_DEPRECATED(5.3, "Direct access to bInitialized is no longer allowed.")
-	static bool bInitialized;
+	static ENGINE_API bool bInitialized;
 };
 
 }
@@ -1009,20 +1009,20 @@ struct UE_DEPRECATED(5.3, "FBaseBlendedCurve was renamed to TBaseBlendedCurve.")
 {
 };
 
-struct ENGINE_API FBlendedCurve : public TBaseBlendedCurve<FAnimStackAllocator>
+struct FBlendedCurve : public TBaseBlendedCurve<FAnimStackAllocator>
 {
 	using TBaseBlendedCurve<FAnimStackAllocator>::InitFrom; 
 	
 	/** Initialize from bone container's filtered curves */
-	void InitFrom(const FBoneContainer& InBoneContainer);
+	ENGINE_API void InitFrom(const FBoneContainer& InBoneContainer);
 };
 
-struct ENGINE_API FBlendedHeapCurve : public TBaseBlendedCurve<FDefaultAllocator>
+struct FBlendedHeapCurve : public TBaseBlendedCurve<FDefaultAllocator>
 {
 	using TBaseBlendedCurve<FDefaultAllocator>::InitFrom;
 	
 	/** Initialize from bone container's filtered curves */
-	void InitFrom(const FBoneContainer& InBoneContainer);
+	ENGINE_API void InitFrom(const FBoneContainer& InBoneContainer);
 };
 
 UENUM(BlueprintType)
@@ -1131,7 +1131,7 @@ struct FRawCurveTracks
 	bool DuplicateCurveData(const FSmartName& CurveToCopy, const FSmartName& NewCurve, ERawCurveTrackTypes SupportedCurveType = ERawCurveTrackTypes::RCT_Float) { return DuplicateCurveData(CurveToCopy.DisplayName, NewCurve.DisplayName, SupportedCurveType); }
 	
 	UE_DEPRECATED(5.3, "This function is no longer used")
-	ENGINE_API void RefreshName(const FSmartNameMapping* NameMapping, ERawCurveTrackTypes SupportedCurveType = ERawCurveTrackTypes::RCT_Float) {}
+	void RefreshName(const FSmartNameMapping* NameMapping, ERawCurveTrackTypes SupportedCurveType = ERawCurveTrackTypes::RCT_Float) {}
 
 	// This allows loading data that was saved between VER_UE4_SKELETON_ADD_SMARTNAMES and FFrameworkObjectVersion::SmartNameRefactor
 	void PostSerializeFixup(FArchive& Ar);

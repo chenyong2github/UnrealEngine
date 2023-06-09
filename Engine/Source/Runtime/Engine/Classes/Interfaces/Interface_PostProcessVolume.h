@@ -32,9 +32,9 @@ class IInterface_PostProcessVolume
 {
 	GENERATED_IINTERFACE_BODY()
 
-	ENGINE_API virtual bool EncompassesPoint(FVector Point, float SphereRadius/*=0.f*/, float* OutDistanceToPoint) = 0;
-	ENGINE_API virtual FPostProcessVolumeProperties GetProperties() const = 0;
+	virtual bool EncompassesPoint(FVector Point, float SphereRadius/*=0.f*/, float* OutDistanceToPoint) = 0;
+	virtual FPostProcessVolumeProperties GetProperties() const = 0;
 #if DEBUG_POST_PROCESS_VOLUME_ENABLE
-	ENGINE_API virtual FString GetDebugName() const = 0;
+	virtual FString GetDebugName() const = 0;
 #endif
 };

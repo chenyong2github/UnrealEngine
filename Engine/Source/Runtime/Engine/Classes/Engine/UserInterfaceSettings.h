@@ -101,8 +101,8 @@ struct FHardwareCursorReference
 /**
  * User Interface settings that control Slate and UMG.
  */
-UCLASS(config=Engine, defaultconfig, meta=(DisplayName="User Interface"))
-class ENGINE_API UUserInterfaceSettings : public UDeveloperSettings
+UCLASS(config=Engine, defaultconfig, meta=(DisplayName="User Interface"), MinimalAPI)
+class UUserInterfaceSettings : public UDeveloperSettings
 {
 	GENERATED_UCLASS_BODY()
 
@@ -203,16 +203,16 @@ public:
 
 public:
 
-	virtual void PostInitProperties() override;
+	ENGINE_API virtual void PostInitProperties() override;
 
 	/** Loads assets, if bForceLoadEverything is true it will load despite environment */
-	void ForceLoadResources(bool bForceLoadEverything = false);
+	ENGINE_API void ForceLoadResources(bool bForceLoadEverything = false);
 
 	/** Gets the current scale of the UI based on the size of a viewport */
-	float GetDPIScaleBasedOnSize(FIntPoint Size) const;
+	ENGINE_API float GetDPIScaleBasedOnSize(FIntPoint Size) const;
 
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
 private:

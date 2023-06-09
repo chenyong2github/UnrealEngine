@@ -7,7 +7,7 @@
 class UPrimitiveComponent;
 struct FRigidBodyState;
 
-class ENGINE_API IPhysicsReplication
+class IPhysicsReplication
 {
 public:
 	virtual ~IPhysicsReplication() { }

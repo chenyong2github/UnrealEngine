@@ -29,11 +29,11 @@ private:
 
 public:
 	/** Returns CollisionComponent subobject **/
-	ENGINE_API UShapeComponent* GetCollisionComponent() const { return CollisionComponent; }
+	UShapeComponent* GetCollisionComponent() const { return CollisionComponent; }
 
 #if WITH_EDITORONLY_DATA
 	/** Returns SpriteComponent subobject **/
-	ENGINE_API UBillboardComponent* GetSpriteComponent() const { return SpriteComponent; }
+	UBillboardComponent* GetSpriteComponent() const { return SpriteComponent; }
 #endif
 };
 

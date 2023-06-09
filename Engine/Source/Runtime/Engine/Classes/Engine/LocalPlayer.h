@@ -39,33 +39,33 @@ struct FMinimalViewInfo;
 struct FSceneViewProjectionData;
 
 /** A context object that binds to a LocalPlayer. Useful for UI or other things that need to pass around player references */
-struct ENGINE_API FLocalPlayerContext
+struct FLocalPlayerContext
 {
-	FLocalPlayerContext();
-	FLocalPlayerContext(const class ULocalPlayer* InLocalPlayer, UWorld* InWorld = nullptr);
-	FLocalPlayerContext(const class APlayerController* InPlayerController);
+	ENGINE_API FLocalPlayerContext();
+	ENGINE_API FLocalPlayerContext(const class ULocalPlayer* InLocalPlayer, UWorld* InWorld = nullptr);
+	ENGINE_API FLocalPlayerContext(const class APlayerController* InPlayerController);
 
 	/** Is this context initialized and still valid? */
-	bool IsValid() const;
+	ENGINE_API bool IsValid() const;
 
 	/** Is this context initialized */
-	bool IsInitialized() const;
+	ENGINE_API bool IsInitialized() const;
 
 	/** This function tests if the given Actor is connected to the Local Player in any way. 
 		It tests against the APlayerController, APlayerState, and APawn. */
-	bool IsFromLocalPlayer(const AActor* ActorToTest) const;
+	ENGINE_API bool IsFromLocalPlayer(const AActor* ActorToTest) const;
 
 	/** Returns the world context. */
-	UWorld* GetWorld() const;
+	ENGINE_API UWorld* GetWorld() const;
 
 	/** Returns the game instance */
-	UGameInstance* GetGameInstance() const;
+	ENGINE_API UGameInstance* GetGameInstance() const;
 
 	/** Returns the local player. */
-	class ULocalPlayer* GetLocalPlayer() const;
+	ENGINE_API class ULocalPlayer* GetLocalPlayer() const;
 
 	/** Returns the player controller. */
-	class APlayerController* GetPlayerController() const;
+	ENGINE_API class APlayerController* GetPlayerController() const;
 
 	/** Templated version of GetPlayerController() */
 	template<class T>
@@ -82,7 +82,7 @@ struct ENGINE_API FLocalPlayerContext
 	}
 
 	/** Getter for the Game State Base */
-	class AGameStateBase* GetGameState() const;
+	ENGINE_API class AGameStateBase* GetGameState() const;
 
 	/** Templated Getter for the Game State */
 	template<class T>
@@ -99,7 +99,7 @@ struct ENGINE_API FLocalPlayerContext
 	}
 
 	/** Getter for the Player State */
-	class APlayerState* GetPlayerState() const;
+	ENGINE_API class APlayerState* GetPlayerState() const;
 
 	/** Templated Getter for the Player State */
 	template<class T>
@@ -116,7 +116,7 @@ struct ENGINE_API FLocalPlayerContext
 	}
 
 	/** Getter for this player's HUD */
-	class AHUD* GetHUD() const;
+	ENGINE_API class AHUD* GetHUD() const;
 
 	/** Templated Getter for the HUD */
 	template<class T>
@@ -133,7 +133,7 @@ struct ENGINE_API FLocalPlayerContext
 	}
 
 	/** Getter for the base pawn of this player */
-	class APawn* GetPawn() const;
+	ENGINE_API class APawn* GetPawn() const;
 
 	/** Templated getter for the player's pawn */
 	template<class T>
@@ -152,10 +152,10 @@ struct ENGINE_API FLocalPlayerContext
 private:	
 
 	/* Set the local player. */
-	void SetLocalPlayer( const class ULocalPlayer* InLocalPlayer );
+	ENGINE_API void SetLocalPlayer( const class ULocalPlayer* InLocalPlayer );
 
 	/* Set the local player via a player controller. */
-	void SetPlayerController( const class APlayerController* InPlayerController );
+	ENGINE_API void SetPlayerController( const class APlayerController* InPlayerController );
 
 	TWeakObjectPtr<class ULocalPlayer>		LocalPlayer;
 
@@ -167,8 +167,8 @@ private:
  *	It stays active across maps, and there may be several spawned in the case of splitscreen/coop.
  *	There will be 0 spawned on dedicated servers.
  */
-UCLASS(Within=Engine, config=Engine, transient)
-class ENGINE_API ULocalPlayer : public UPlayer
+UCLASS(Within=Engine, config=Engine, transient, MinimalAPI)
+class ULocalPlayer : public UPlayer
 {
 	GENERATED_UCLASS_BODY()
 
@@ -238,21 +238,21 @@ private:
 
 public:
 	// UObject interface
-	virtual void FinishDestroy() override;
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	ENGINE_API virtual void FinishDestroy() override;
+	static ENGINE_API void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	// End of UObject interface
 
 	// Begin UPlayer interface
-	virtual void ReceivedPlayerController(APlayerController* NewController) override;
+	ENGINE_API virtual void ReceivedPlayerController(APlayerController* NewController) override;
 	// End UPlayer interface
 	
 	// FExec interface
 public:
 #if UE_ALLOW_EXEC_COMMANDS
-	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd,FOutputDevice& Ar) override;
+	ENGINE_API virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd,FOutputDevice& Ar) override;
 #endif
 protected:
-	virtual bool Exec_Editor(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
+	ENGINE_API virtual bool Exec_Editor(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 	// End of FExec interface
 
 public:
@@ -260,27 +260,27 @@ public:
 	 * Exec command handlers
 	 */
 
-	bool HandleDNCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleExitCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleListMoveBodyCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleListAwakeBodiesCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleListSimBodiesCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleMoveComponentTimesCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleListSkelMeshesCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleListPawnComponentsCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleExecCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleToggleDrawEventsCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleToggleStreamingVolumesCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleDNCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleExitCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleListMoveBodyCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleListAwakeBodiesCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleListSimBodiesCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleMoveComponentTimesCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleListSkelMeshesCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleListPawnComponentsCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleExecCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleToggleDrawEventsCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleToggleStreamingVolumesCommand( const TCHAR* Cmd, FOutputDevice& Ar );
 	
 protected:
 	/**
 	 * Retrieve the viewpoint of this player.
 	 * @param OutViewInfo - Upon return contains the view information for the player.
 	 */
-	virtual void GetViewPoint(FMinimalViewInfo& OutViewInfo) const;
+	ENGINE_API virtual void GetViewPoint(FMinimalViewInfo& OutViewInfo) const;
 
 	/** @todo document */
-	void ExecMacro( const TCHAR* Filename, FOutputDevice& Ar );
+	ENGINE_API void ExecMacro( const TCHAR* Filename, FOutputDevice& Ar );
 
 	/** FReply used to defer some slate operations. */
 	FReply SlateOperations;
@@ -294,29 +294,29 @@ public:
 	const FReply& GetSlateOperations() const { return SlateOperations; }
 
 	/** Get the SlateUser that this LocalPlayer corresponds to */
-	virtual TSharedPtr<FSlateUser> GetSlateUser();
-	virtual TSharedPtr<const FSlateUser> GetSlateUser() const;
+	ENGINE_API virtual TSharedPtr<FSlateUser> GetSlateUser();
+	ENGINE_API virtual TSharedPtr<const FSlateUser> GetSlateUser() const;
 
 	/**
 	 * Get the world the players actor belongs to
 	 *
 	 * @return  Returns the world of the LocalPlayer's PlayerController. NULL if the LocalPlayer does not have a PlayerController
 	 */
-	virtual UWorld* GetWorld() const override;
+	ENGINE_API virtual UWorld* GetWorld() const override;
 
 	/**
 	 * Get the game instance associated with this local player
 	 * 
 	 * @return GameInstance related to local player
 	 */
-	UGameInstance* GetGameInstance() const;
+	ENGINE_API UGameInstance* GetGameInstance() const;
 
 	/**
 	 * Returns the index of this player in the Game instances local players array
 	 *
 	 * @return Index in array, will be >= 0 if this is a fully registered player
 	 */
-	int32 GetIndexInGameInstance() const;
+	ENGINE_API int32 GetIndexInGameInstance() const;
 
 	/**
 	 * Get a Subsystem of specified type
@@ -369,7 +369,7 @@ public:
 	* @param	StereoViewIndex - index of the view when using stereoscopy
 	* @return	true if the view options were filled in. false in various fail conditions.
 	*/
-	virtual bool CalcSceneViewInitOptions(
+	ENGINE_API virtual bool CalcSceneViewInitOptions(
 		struct FSceneViewInitOptions& OutInitOptions,
 		FViewport* Viewport,
 		class FViewElementDrawer* ViewDrawer = NULL,
@@ -385,7 +385,7 @@ public:
 	 * @param	ViewDrawer - optional drawing in the view
 	 * @param	StereoViewIndex - index of the view when using stereoscopy
 	 */
-	virtual FSceneView* CalcSceneView(class FSceneViewFamily* ViewFamily,
+	ENGINE_API virtual FSceneView* CalcSceneView(class FSceneViewFamily* ViewFamily,
 		FVector& OutViewLocation,
 		FRotator& OutViewRotation,
 		FViewport* Viewport,
@@ -395,22 +395,22 @@ public:
 	/**
 	 * Called at creation time for internal setup
 	 */
-	virtual void PlayerAdded(class UGameViewportClient* InViewportClient, int32 InControllerID);
+	ENGINE_API virtual void PlayerAdded(class UGameViewportClient* InViewportClient, int32 InControllerID);
 
 	/**
 	 * Called at creation time for internal setup
 	 */
-	virtual void PlayerAdded(class UGameViewportClient* InViewportClient, FPlatformUserId InUserId);
+	ENGINE_API virtual void PlayerAdded(class UGameViewportClient* InViewportClient, FPlatformUserId InUserId);
 
 	/**
 	 * Called to initialize the online delegates
 	 */
-	virtual void InitOnlineSession();
+	ENGINE_API virtual void InitOnlineSession();
 
 	/**
 	 * Called when the player is removed from the viewport client
 	 */
-	virtual void PlayerRemoved();
+	ENGINE_API virtual void PlayerRemoved();
 
 	/**
 	 * Create an actor for this player.
@@ -419,7 +419,7 @@ public:
 	 * @param InWorld - World in which to spawn the play actor
 	 * @return False if an error occurred, true if the play actor was successfully spawned.	 
 	 */
-	virtual bool SpawnPlayActor(const FString& URL,FString& OutError, UWorld* InWorld);
+	ENGINE_API virtual bool SpawnPlayActor(const FString& URL,FString& OutError, UWorld* InWorld);
 	
 	/** Send a splitscreen join command to the server to allow a splitscreen player to connect to the game
 	 * the client must already be connected to a server for this function to work
@@ -429,7 +429,7 @@ public:
 	 *
 	 * @param	Options		array of URL options to append.
 	 */
-	virtual void SendSplitJoin(TArray<FString>& Options);
+	ENGINE_API virtual void SendSplitJoin(TArray<FString>& Options);
 	
 	/**
 	 * Change the physical ControllerId for this player; if the specified ControllerId is already taken by another player, changes the ControllerId
@@ -437,7 +437,7 @@ public:
 	 *
 	 * @param	NewControllerId		the ControllerId to assign to this player.
 	 */
-	virtual void SetControllerId(int32 NewControllerId);
+	ENGINE_API virtual void SetControllerId(int32 NewControllerId);
 
 	/**
 	 * Returns the controller ID for the player.
@@ -449,7 +449,7 @@ public:
 	/**
 	 * Changes the platform user that is assigned to this player
 	 */
-	virtual void SetPlatformUserId(FPlatformUserId InPlatformUserId);
+	ENGINE_API virtual void SetPlatformUserId(FPlatformUserId InPlatformUserId);
 
 	/**
 	 * Returns the platform user that is assigned to this player
@@ -460,14 +460,14 @@ public:
 	 * Converts the platform user id to an index where 0 is the first logged in user.
 	 * This index is used for platform functions like save games, user selection, and slate input.
 	 */
-	virtual int32 GetPlatformUserIndex() const;
+	ENGINE_API virtual int32 GetPlatformUserIndex() const;
 
 	/**
 	 * Returns the logical local player index where 0 is the first LocalPlayer that was created.
 	 * By default, this uses index in the game instance array.
 	 * This index is used for gameplay purposes but will not be correct for platform functions.
 	 */
-	virtual int32 GetLocalPlayerIndex() const;
+	ENGINE_API virtual int32 GetLocalPlayerIndex() const;
 
 	/** 
 	 * Retrieves this player's name/tag from the online subsystem
@@ -476,7 +476,7 @@ public:
 	 * 
 	 * @return Name of player if specified (by onlinesubsystem or otherwise), Empty string otherwise
 	 */
-	virtual FString GetNickname() const;
+	ENGINE_API virtual FString GetNickname() const;
 
 	/** 
 	 * Retrieves any game-specific login options for this player
@@ -490,40 +490,40 @@ public:
 
 	// This should be deprecated when engine code has been changed to expect FPlatformUserId
 	// UE_DEPRECATED(5.x, "Use GetUniqueNetIdForPlatformUser instead")
-	FUniqueNetIdRepl GetUniqueNetIdFromCachedControllerId() const;
+	ENGINE_API FUniqueNetIdRepl GetUniqueNetIdFromCachedControllerId() const;
 
 	/**
 	 * Retrieves this player's unique net ID from the online subsystem using the platform user Id
 	 *
 	 * @return unique Id associated with this player
 	 */
-	virtual FUniqueNetIdRepl GetUniqueNetIdForPlatformUser() const;
+	ENGINE_API virtual FUniqueNetIdRepl GetUniqueNetIdForPlatformUser() const;
 
 	/** 
 	 * Retrieves this player's unique net ID that was previously cached
 	 *
 	 * @return unique Id associated with this player
 	 */
-	FUniqueNetIdRepl GetCachedUniqueNetId() const;
+	ENGINE_API FUniqueNetIdRepl GetCachedUniqueNetId() const;
 
 	/** Sets the players current cached unique net id */
 	UE_DEPRECATED(5.0, "Use SetCachedUniqueNetId with FUniqueNetIdRepl")
-	void SetCachedUniqueNetId(FUniqueNetIdPtr NewUniqueNetId);
+	ENGINE_API void SetCachedUniqueNetId(FUniqueNetIdPtr NewUniqueNetId);
 	/** Sets the players current cached unique net id */
 	UE_DEPRECATED(5.0, "Use SetCachedUniqueNetId with FUniqueNetIdRepl")
-	void SetCachedUniqueNetId(TYPE_OF_NULLPTR);
+	ENGINE_API void SetCachedUniqueNetId(TYPE_OF_NULLPTR);
 	/** Sets the players current cached unique net id */
-	void SetCachedUniqueNetId(const FUniqueNetIdRepl& NewUniqueNetId);
+	ENGINE_API void SetCachedUniqueNetId(const FUniqueNetIdRepl& NewUniqueNetId);
 
 	/** 
 	 * Retrieves the preferred unique net id. This is for backwards compatibility for games that don't use the cached unique net id logic
 	 *
 	 * @return unique Id associated with this player
 	 */
-	virtual FUniqueNetIdRepl GetPreferredUniqueNetId() const;
+	ENGINE_API virtual FUniqueNetIdRepl GetPreferredUniqueNetId() const;
 
 	UE_DEPRECATED(5.0, "Platform User Id now has priority over ControllerId, these are not expected to be the same")
-	bool IsCachedUniqueNetIdPairedWithControllerId() const;
+	ENGINE_API bool IsCachedUniqueNetIdPairedWithControllerId() const;
 
 	struct FOptionalAllottedSize
 	{
@@ -544,13 +544,13 @@ public:
 	 * @param	OutUpperRight	The Upper Right corner of the pixel space box
 	 * @return  False if there is no viewport, or if the box is behind the camera completely
 	 */
-	bool GetPixelBoundingBox(const FBox& ActorBox, FVector2D& OutLowerLeft, FVector2D& OutUpperRight, const FVector2f* OptionalAllotedSize = nullptr);
-	static bool GetPixelBoundingBox(const FSceneViewProjectionData& ProjectionData, const FBox& ActorBox, FVector2D& OutLowerLeft, FVector2D& OutUpperRight, const FVector2f* OptionalAllotedSize = nullptr);
+	ENGINE_API bool GetPixelBoundingBox(const FBox& ActorBox, FVector2D& OutLowerLeft, FVector2D& OutUpperRight, const FVector2f* OptionalAllotedSize = nullptr);
+	static ENGINE_API bool GetPixelBoundingBox(const FSceneViewProjectionData& ProjectionData, const FBox& ActorBox, FVector2D& OutLowerLeft, FVector2D& OutUpperRight, const FVector2f* OptionalAllotedSize = nullptr);
 
 	UE_DEPRECATED(5.2, "Please use const FVector2f* directly")
-	bool GetPixelBoundingBox(const FBox& ActorBox, FVector2D& OutLowerLeft, FVector2D& OutUpperRight, FOptionalAllottedSize OptionalAllotedSize);
+	ENGINE_API bool GetPixelBoundingBox(const FBox& ActorBox, FVector2D& OutLowerLeft, FVector2D& OutUpperRight, FOptionalAllottedSize OptionalAllotedSize);
 	UE_DEPRECATED(5.2, "Please use const FVector2f* directly")
-	static bool GetPixelBoundingBox(const FSceneViewProjectionData& ProjectionData, const FBox& ActorBox, FVector2D& OutLowerLeft, FVector2D& OutUpperRight, FOptionalAllottedSize OptionalAllotedSize);
+	static ENGINE_API bool GetPixelBoundingBox(const FSceneViewProjectionData& ProjectionData, const FBox& ActorBox, FVector2D& OutLowerLeft, FVector2D& OutUpperRight, FOptionalAllottedSize OptionalAllotedSize);
 
 	/**
 	 * This function will give you a point in Pixel Space from a World Space position
@@ -559,13 +559,13 @@ public:
 	 * @param	OutPoint	The point in pixel space
 	 * @return  False if there is no viewport, or if the box is behind the camera completely
 	 */
-	bool GetPixelPoint(const FVector& InPoint, FVector2D& OutPoint, const FVector2f* OptionalAllotedSize = nullptr);
-	static bool GetPixelPoint(const FSceneViewProjectionData& ProjectionData, const FVector& InPoint, FVector2D& OutPoint, const FVector2f* OptionalAllotedSize = nullptr);
+	ENGINE_API bool GetPixelPoint(const FVector& InPoint, FVector2D& OutPoint, const FVector2f* OptionalAllotedSize = nullptr);
+	static ENGINE_API bool GetPixelPoint(const FSceneViewProjectionData& ProjectionData, const FVector& InPoint, FVector2D& OutPoint, const FVector2f* OptionalAllotedSize = nullptr);
 
 	UE_DEPRECATED(5.2, "Please use const FVector2f* directly")
-	bool GetPixelPoint(const FVector& InPoint, FVector2D& OutPoint, FOptionalAllottedSize OptionalAllotedSize);
+	ENGINE_API bool GetPixelPoint(const FVector& InPoint, FVector2D& OutPoint, FOptionalAllottedSize OptionalAllotedSize);
 	UE_DEPRECATED(5.2, "Please use const FVector2f* directly")
-	static bool GetPixelPoint(const FSceneViewProjectionData& ProjectionData, const FVector& InPoint, FVector2D& OutPoint, FOptionalAllottedSize OptionalAllotedSize);
+	static ENGINE_API bool GetPixelPoint(const FSceneViewProjectionData& ProjectionData, const FVector& InPoint, FVector2D& OutPoint, FOptionalAllottedSize OptionalAllotedSize);
 
 	/**
 	 * Helper function for deriving various bits of data needed for projection
@@ -575,18 +575,18 @@ public:
      * @param	StereoViewIndex		    The index of the view when using stereoscopy
 	 * @return  False if there is no viewport, or if the Actor is null
 	 */
-	virtual bool GetProjectionData(FViewport* Viewport, FSceneViewProjectionData& ProjectionData, int32 StereoViewIndex = INDEX_NONE) const;
+	ENGINE_API virtual bool GetProjectionData(FViewport* Viewport, FSceneViewProjectionData& ProjectionData, int32 StereoViewIndex = INDEX_NONE) const;
 
 	/**
 	 * Determines whether this player is the first and primary player on their machine.
 	 * @return	true if this player is not using splitscreen, or is the first player in the split-screen layout.
 	 */
-	bool IsPrimaryPlayer() const;
+	ENGINE_API bool IsPrimaryPlayer() const;
 	 
 	/**
 	 * Clear cached view state.  Suitable for calling when cleaning up the world but the view state has some references objects (usually mids) owned by the world (thus preventing GC) 
 	 */
-	virtual void CleanupViewState(FStringView MidParentRootPath = {});
+	ENGINE_API virtual void CleanupViewState(FStringView MidParentRootPath = {});
 
 	/** Locked view state needs access to GetViewPoint. */
 	friend class FLockedViewState;

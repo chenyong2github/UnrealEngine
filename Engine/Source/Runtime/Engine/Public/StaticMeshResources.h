@@ -245,11 +245,11 @@ struct FStaticMeshSection
 struct FStaticMeshLODResources;
 
 /** Creates distribution for uniformly sampling a mesh section. */
-struct ENGINE_API FStaticMeshSectionAreaWeightedTriangleSampler : FWeightedRandomSampler
+struct FStaticMeshSectionAreaWeightedTriangleSampler : FWeightedRandomSampler
 {
-	FStaticMeshSectionAreaWeightedTriangleSampler();
-	void Init(FStaticMeshLODResources* InOwner, int32 InSectionIdx);
-	virtual float GetWeights(TArray<float>& OutWeights) override;
+	ENGINE_API FStaticMeshSectionAreaWeightedTriangleSampler();
+	ENGINE_API void Init(FStaticMeshLODResources* InOwner, int32 InSectionIdx);
+	ENGINE_API virtual float GetWeights(TArray<float>& OutWeights) override;
 
 protected:
 
@@ -257,14 +257,14 @@ protected:
 	int32 SectionIdx;
 };
 
-struct ENGINE_API FStaticMeshAreaWeightedSectionSampler : FWeightedRandomSampler
+struct FStaticMeshAreaWeightedSectionSampler : FWeightedRandomSampler
 {
-	FStaticMeshAreaWeightedSectionSampler();
-	void Init(const FStaticMeshLODResources* InOwner);
+	ENGINE_API FStaticMeshAreaWeightedSectionSampler();
+	ENGINE_API void Init(const FStaticMeshLODResources* InOwner);
 
 protected:
 
-	virtual float GetWeights(TArray<float>& OutWeights)override;
+	ENGINE_API virtual float GetWeights(TArray<float>& OutWeights)override;
 
 	TRefCountPtr<const FStaticMeshLODResources> Owner;
 };
@@ -279,15 +279,15 @@ public:
 	ENGINE_API FStaticMeshSectionAreaWeightedTriangleSamplerBuffer();
 	ENGINE_API ~FStaticMeshSectionAreaWeightedTriangleSamplerBuffer();
 
-	ENGINE_API void Init(FStaticMeshSectionAreaWeightedTriangleSamplerArray* SamplerToUpload) { Samplers = SamplerToUpload; }
+	void Init(FStaticMeshSectionAreaWeightedTriangleSamplerArray* SamplerToUpload) { Samplers = SamplerToUpload; }
 
 	// FRenderResource interface.
 	ENGINE_API virtual void InitRHI() override;
 	ENGINE_API virtual void ReleaseRHI() override;
 	virtual FString GetFriendlyName() const override { return TEXT("FStaticMeshSectionAreaWeightedTriangleSamplerBuffer"); }
 
-	ENGINE_API const FBufferRHIRef& GetBufferRHI() const { return BufferSectionTriangleRHI; }
-	ENGINE_API const FShaderResourceViewRHIRef& GetBufferSRV() const { return BufferSectionTriangleSRV; }
+	const FBufferRHIRef& GetBufferRHI() const { return BufferSectionTriangleRHI; }
+	const FShaderResourceViewRHIRef& GetBufferSRV() const { return BufferSectionTriangleSRV; }
 
 private:
 	struct SectionTriangleInfo
@@ -580,7 +580,7 @@ private:
 	friend class FStaticMeshStreamOut;
 };
 
-struct ENGINE_API FStaticMeshVertexFactories
+struct FStaticMeshVertexFactories
 {
 	FStaticMeshVertexFactories(ERHIFeatureLevel::Type InFeatureLevel)
 		: VertexFactory(InFeatureLevel, "FStaticMeshVertexFactories")
@@ -592,7 +592,7 @@ struct ENGINE_API FStaticMeshVertexFactories
 		check(InFeatureLevel < ERHIFeatureLevel::Num);
 	}
 
-	~FStaticMeshVertexFactories();
+	ENGINE_API ~FStaticMeshVertexFactories();
 
 	/** The vertex factory used when rendering this mesh. */
 	FLocalVertexFactory VertexFactory;
@@ -611,13 +611,13 @@ struct ENGINE_API FStaticMeshVertexFactories
 	* @param	InParentMesh					Parent static mesh
 	* @param	bInOverrideColorVertexBuffer	If true, make a vertex factory ready for per-instance colors
 	*/
-	void InitVertexFactory(const FStaticMeshLODResources& LodResources, FLocalVertexFactory& InOutVertexFactory, uint32 LODIndex, const UStaticMesh* InParentMesh, bool bInOverrideColorVertexBuffer);
+	ENGINE_API void InitVertexFactory(const FStaticMeshLODResources& LodResources, FLocalVertexFactory& InOutVertexFactory, uint32 LODIndex, const UStaticMesh* InParentMesh, bool bInOverrideColorVertexBuffer);
 
 	/** Initializes all rendering resources. */
-	void InitResources(const FStaticMeshLODResources& LodResources, uint32 LODIndex, const UStaticMesh* Parent);
+	ENGINE_API void InitResources(const FStaticMeshLODResources& LodResources, uint32 LODIndex, const UStaticMesh* Parent);
 
 	/** Releases all rendering resources. */
-	void ReleaseResources();
+	ENGINE_API void ReleaseResources();
 };
 
 using FStaticMeshLODResourcesArray = TIndirectArray<FStaticMeshLODResources>;
@@ -769,15 +769,15 @@ private:
  * recreates them when it goes out of scope. Used to ensure stale rendering data isn't kept around in the components when importing
  * over or rebuilding an existing static mesh.
  */
-class ENGINE_API FStaticMeshComponentRecreateRenderStateContext
+class FStaticMeshComponentRecreateRenderStateContext
 {
 public:
 
 	/** Initialization constructor. */
-	FStaticMeshComponentRecreateRenderStateContext(UStaticMesh* InStaticMesh, bool InUnbuildLighting = true, bool InRefreshBounds = false);
+	ENGINE_API FStaticMeshComponentRecreateRenderStateContext(UStaticMesh* InStaticMesh, bool InUnbuildLighting = true, bool InRefreshBounds = false);
 
 	/** Initialization constructor. */
-	FStaticMeshComponentRecreateRenderStateContext(const TArray<UStaticMesh*>& InStaticMeshes, bool InUnbuildLighting = true, bool InRefreshBounds = false);
+	ENGINE_API FStaticMeshComponentRecreateRenderStateContext(const TArray<UStaticMesh*>& InStaticMeshes, bool InUnbuildLighting = true, bool InRefreshBounds = false);
 
 	/**
 	 * Get all static mesh components that are using the provided static mesh.
@@ -785,10 +785,10 @@ public:
 	 * @return An reference to an array of static mesh components that are using this mesh.
 	 * @note Will only work using the static meshes provided at construction.
 	 */
-	const TArray<UStaticMeshComponent*>& GetComponentsUsingMesh(UStaticMesh* StaticMesh) const;
+	ENGINE_API const TArray<UStaticMeshComponent*>& GetComponentsUsingMesh(UStaticMesh* StaticMesh) const;
 
 	/** Destructor: recreates render state for all components that had their render states destroyed in the constructor. */
-	~FStaticMeshComponentRecreateRenderStateContext();
+	ENGINE_API ~FStaticMeshComponentRecreateRenderStateContext();
 
 private:
 
@@ -816,20 +816,20 @@ enum class EBulkReregister
 	RenderState			// Updating render state only -- limits reregistration to components with bRenderStateDirty set, and skips ReleasePrimitive
 };
 
-class ENGINE_API FStaticMeshComponentBulkReregisterContext
+class FStaticMeshComponentBulkReregisterContext
 {
 public:
 	/**
 	  * Initialization constructor.  Note that it's OK to pass things that aren't static meshes.  This class will filter those out.
 	  */
-	FStaticMeshComponentBulkReregisterContext(FSceneInterface* InScene, TArrayView<UActorComponent*> InComponents, EBulkReregister ReregisterType = EBulkReregister::Component);
-	~FStaticMeshComponentBulkReregisterContext();
+	ENGINE_API FStaticMeshComponentBulkReregisterContext(FSceneInterface* InScene, TArrayView<UActorComponent*> InComponents, EBulkReregister ReregisterType = EBulkReregister::Component);
+	ENGINE_API ~FStaticMeshComponentBulkReregisterContext();
 
-	void AddSimpleConstructionScript(USimpleConstructionScript* SCS);
+	ENGINE_API void AddSimpleConstructionScript(USimpleConstructionScript* SCS);
 
 private:
 	/** Called by USCS_Node (child of USimpleConstructionScript) to track re-created components */
-	void AddConstructedComponent(USceneComponent* SceneComp);
+	ENGINE_API void AddConstructedComponent(USceneComponent* SceneComp);
 	friend class USCS_Node;
 
 	FSceneInterface* Scene;

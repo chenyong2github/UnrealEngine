@@ -22,17 +22,17 @@
  *  Source - AnimInstance's copy properties that is used to store the data 
  */
 USTRUCT()
-struct ENGINE_API FAnimNode_CustomProperty : public FAnimNode_Base
+struct FAnimNode_CustomProperty : public FAnimNode_Base
 {
 	GENERATED_BODY()
 
 public:
 
-	FAnimNode_CustomProperty();
-	~FAnimNode_CustomProperty();
+	ENGINE_API FAnimNode_CustomProperty();
+	ENGINE_API ~FAnimNode_CustomProperty();
 
 	/* Set Target Instance */
-	void SetTargetInstance(UObject* InInstance);
+	ENGINE_API void SetTargetInstance(UObject* InInstance);
 
 	/* Get Target Instance by type for convenience */
 	template<class T>
@@ -50,7 +50,7 @@ public:
 	// override these methods in editor at the moment
 #if WITH_EDITOR	
 	// FAnimNode_Base interface
-	virtual void OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance) override;
+	ENGINE_API virtual void OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance) override;
 	virtual bool NeedsOnInitializeAnimInstance() const override { return true; }
 #endif
 	
@@ -75,13 +75,13 @@ protected:
 	
 	/* Initialize property links from the source instance, in this case AnimInstance 
 	 * Compiler creates those properties during compile time */
-	virtual void InitializeProperties(const UObject* InSourceInstance, UClass* InTargetClass);
+	ENGINE_API virtual void InitializeProperties(const UObject* InSourceInstance, UClass* InTargetClass);
 
 	/* Propagate the Source Instances' properties to Target Instance*/
-	virtual void PropagateInputProperties(const UObject* InSourceInstance);
+	ENGINE_API virtual void PropagateInputProperties(const UObject* InSourceInstance);
 
 	/** Get Target Class */
-	virtual UClass* GetTargetClass() const PURE_VIRTUAL(FAnimNode_CustomProperty::GetTargetClass, return nullptr;);
+	ENGINE_API virtual UClass* GetTargetClass() const PURE_VIRTUAL(FAnimNode_CustomProperty::GetTargetClass, return nullptr;);
 
 #if WITH_EDITOR
 	/**
@@ -90,11 +90,11 @@ protected:
 	 * replacement, so we cannot handle replacement until later. This call is made on the first PreUpdate after object
 	 * replacement.
 	 */
-	virtual void HandleObjectsReinstanced_Impl(UObject* InSourceObject, UObject* InTargetObject, const TMap<UObject*, UObject*>& OldToNewInstanceMap);
+	ENGINE_API virtual void HandleObjectsReinstanced_Impl(UObject* InSourceObject, UObject* InTargetObject, const TMap<UObject*, UObject*>& OldToNewInstanceMap);
 	
 private:
 	// Handle object reinstancing in editor
-	void HandleObjectsReinstanced(const TMap<UObject*, UObject*>& OldToNewInstanceMap);
+	ENGINE_API void HandleObjectsReinstanced(const TMap<UObject*, UObject*>& OldToNewInstanceMap);
 #endif // WITH_EDITOR
 
 #if WITH_EDITORONLY_DATA

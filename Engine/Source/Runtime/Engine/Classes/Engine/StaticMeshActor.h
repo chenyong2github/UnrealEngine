@@ -16,8 +16,8 @@
  * @see https://docs.unrealengine.com/latest/INT/Engine/Actors/StaticMeshActor/
  * @see UStaticMesh
  */
-UCLASS(hidecategories=(Input), showcategories=("Input|MouseInput", "Input|TouchInput"), ConversionRoot, ComponentWrapperClass, meta=(ChildCanTick))
-class ENGINE_API AStaticMeshActor : public AActor
+UCLASS(hidecategories=(Input), showcategories=("Input|MouseInput", "Input|TouchInput"), ConversionRoot, ComponentWrapperClass, meta=(ChildCanTick), MinimalAPI)
+class AStaticMeshActor : public AActor
 {
 	GENERATED_UCLASS_BODY()
 
@@ -26,7 +26,7 @@ private:
 	TObjectPtr<class UStaticMeshComponent> StaticMeshComponent;
 
 protected:
-	virtual void BeginPlay() override;
+	ENGINE_API virtual void BeginPlay() override;
 
 public:
 	/** This static mesh should replicate movement. Automatically sets the RemoteRole and bReplicateMovement flags. Meant to be edited on placed actors (those other two properties are not) */
@@ -43,15 +43,15 @@ public:
 
 	/** Function to change mobility type */
 	UFUNCTION(BlueprintCallable, Category = Mobility)
-	void SetMobility(EComponentMobility::Type InMobility);
+	ENGINE_API void SetMobility(EComponentMobility::Type InMobility);
 
 	//~ Begin AActor Interface
 #if WITH_EDITOR
-	virtual void CheckForErrors() override;
-	virtual bool GetReferencedContentObjects( TArray<UObject*>& Objects ) const override;
-	virtual void PostLoad() override;	
+	ENGINE_API virtual void CheckForErrors() override;
+	ENGINE_API virtual bool GetReferencedContentObjects( TArray<UObject*>& Objects ) const override;
+	ENGINE_API virtual void PostLoad() override;	
 #endif // WITH_EDITOR
-	virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
 	//~ End AActor Interface
 
 	// INavRelevantInterface begin
@@ -60,10 +60,10 @@ public:
 
 protected:
 	//~ Begin UObject Interface.
-	virtual FString GetDetailedInfoInternal() const override;
+	ENGINE_API virtual FString GetDetailedInfoInternal() const override;
 #if WITH_EDITOR
-	virtual void LoadedFromAnotherClass(const FName& OldClassName) override;
-	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void LoadedFromAnotherClass(const FName& OldClassName) override;
+	ENGINE_API virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR	
 	//~ End UObject Interface.
 	
@@ -72,7 +72,7 @@ public:
 	class UStaticMeshComponent* GetStaticMeshComponent() const { return StaticMeshComponent; }
 
 	/** Name of the StaticMeshComponent.  Use this name if you want to use a different class (with ObjectInitializer.SetDefaultSubobjectClass). */
-	static FName StaticMeshComponentName;
+	static ENGINE_API FName StaticMeshComponentName;
 };
 
 

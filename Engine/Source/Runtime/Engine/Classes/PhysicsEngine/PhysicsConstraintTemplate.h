@@ -72,7 +72,7 @@ class UPhysicsConstraintTemplate : public UObject
 #endif
 
 	/** Find profile with given name and apply it to constraint instance. Note we cannot return a pointer to the constraint profile as it's in a TArray by value and could be resized leading to an unsafe API */
-	ENGINE_API void ApplyConstraintProfile(FName ProfileName, FConstraintInstance& CI, bool bDefaultIfNotFound) const
+	void ApplyConstraintProfile(FName ProfileName, FConstraintInstance& CI, bool bDefaultIfNotFound) const
 	{
 		bool bFound = false;
 		if (ProfileName == NAME_None)
@@ -103,7 +103,7 @@ class UPhysicsConstraintTemplate : public UObject
 	 * Returns the properties associated with the named constraint profile. If the profile isn't found 
 	 * it returns the default profile properties.
 	 */
-	ENGINE_API const FConstraintProfileProperties& GetConstraintProfilePropertiesOrDefault(FName ProfileName) const
+	const FConstraintProfileProperties& GetConstraintProfilePropertiesOrDefault(FName ProfileName) const
 	{
 		if (ProfileName != NAME_None)
 		{
@@ -120,7 +120,7 @@ class UPhysicsConstraintTemplate : public UObject
 
 #if WITH_EDITOR
 	/** Copy constraint instance into default profile.*/
-	ENGINE_API void SetDefaultProfile(FConstraintInstance& CI)
+	void SetDefaultProfile(FConstraintInstance& CI)
 	{
 		DefaultProfile = CI.ProfileInstance;
 	}

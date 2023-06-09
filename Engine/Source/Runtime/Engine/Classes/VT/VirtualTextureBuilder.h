@@ -42,12 +42,12 @@ struct FVirtualTextureBuildDesc
  * This has a simple BuildTexture() interface but we may want to extend in the future to support partial builds
  * or other more blueprint driven approaches for data generation.
  */
-UCLASS(ClassGroup = Rendering, BlueprintType)
-class ENGINE_API UVirtualTextureBuilder : public UObject
+UCLASS(ClassGroup = Rendering, BlueprintType, MinimalAPI)
+class UVirtualTextureBuilder : public UObject
 {
 public:
 	GENERATED_UCLASS_BODY()
-	~UVirtualTextureBuilder();
+	ENGINE_API ~UVirtualTextureBuilder();
 
 	/** The UTexture object. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Texture)
@@ -62,7 +62,7 @@ public:
 	uint64 BuildHash;
 
 	/** Virtual texture for a specific shading path */
-	UVirtualTexture2D* GetVirtualTexture(EShadingPath ShadingPath) const;
+	ENGINE_API UVirtualTexture2D* GetVirtualTexture(EShadingPath ShadingPath) const;
 
 	/** Whether to use a separate texture for Mobile rendering. A separate texure will be built using mobile preview editor mode */
 	UPROPERTY(EditAnywhere, Category = Texture)
@@ -70,12 +70,12 @@ public:
 
 #if WITH_EDITOR
 	/** Creates a new UVirtualTexture2D and stores it in the contained Texture. */
-	void BuildTexture(EShadingPath ShadingPath, FVirtualTextureBuildDesc const& BuildDesc);
+	ENGINE_API void BuildTexture(EShadingPath ShadingPath, FVirtualTextureBuildDesc const& BuildDesc);
 #endif
 
 protected:
 	//~ Begin UObject Interface
-	virtual void Serialize(FArchive& Ar) override;
-	virtual void PostLoad() override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void PostLoad() override;
 	//~ End UObject Interface
 };

@@ -71,8 +71,8 @@ struct FModuleLocationVertSurfaceParticlePayload
 };
 
 
-UCLASS(editinlinenew, hidecategories=Object, meta=(DisplayName = "Skel Vert/Surf Location"))
-class ENGINE_API UParticleModuleLocationSkelVertSurface : public UParticleModuleLocationBase
+UCLASS(editinlinenew, hidecategories=Object, meta=(DisplayName = "Skel Vert/Surf Location"), MinimalAPI)
+class UParticleModuleLocationSkelVertSurface : public UParticleModuleLocationBase
 {
 	GENERATED_UCLASS_BODY()
 
@@ -158,30 +158,30 @@ class ENGINE_API UParticleModuleLocationSkelVertSurface : public UParticleModule
 	uint32 InheritUVChannel;
 
 	//~ Begin UObject Interface
-	virtual void PostLoad() override;
+	ENGINE_API virtual void PostLoad() override;
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 	//~ End UObject Interface
 
 	//Begin UParticleModule Interface
-	virtual void Spawn(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, FBaseParticle* ParticleBase) override;
-	virtual void Update(FParticleEmitterInstance* Owner, int32 Offset, float DeltaTime) override;
-	virtual void FinalUpdate(FParticleEmitterInstance* Owner, int32 Offset, float DeltaTime) override;
-	virtual uint32	PrepPerInstanceBlock(FParticleEmitterInstance* Owner, void* InstData) override;
-	virtual uint32	RequiredBytes(UParticleModuleTypeDataBase* TypeData) override;
-	virtual uint32	RequiredBytesPerInstance() override;
+	ENGINE_API virtual void Spawn(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, FBaseParticle* ParticleBase) override;
+	ENGINE_API virtual void Update(FParticleEmitterInstance* Owner, int32 Offset, float DeltaTime) override;
+	ENGINE_API virtual void FinalUpdate(FParticleEmitterInstance* Owner, int32 Offset, float DeltaTime) override;
+	ENGINE_API virtual uint32	PrepPerInstanceBlock(FParticleEmitterInstance* Owner, void* InstData) override;
+	ENGINE_API virtual uint32	RequiredBytes(UParticleModuleTypeDataBase* TypeData) override;
+	ENGINE_API virtual uint32	RequiredBytesPerInstance() override;
 	virtual bool	TouchesMeshRotation() const override { return true; }
-	virtual void	AutoPopulateInstanceProperties(UParticleSystemComponent* PSysComp) override;
+	ENGINE_API virtual void	AutoPopulateInstanceProperties(UParticleSystemComponent* PSysComp) override;
 	virtual bool CanTickInAnyThread() override
 	{
 		return false;
 	}
 #if WITH_EDITOR
-	virtual int32 GetNumberOfCustomMenuOptions() const override;
-	virtual bool GetCustomMenuEntryDisplayString(int32 InEntryIndex, FString& OutDisplayString) const override;
-	virtual bool PerformCustomMenuEntry(int32 InEntryIndex) override;
-	virtual bool IsValidForLODLevel(UParticleLODLevel* LODLevel, FString& OutErrorString) override;
+	ENGINE_API virtual int32 GetNumberOfCustomMenuOptions() const override;
+	ENGINE_API virtual bool GetCustomMenuEntryDisplayString(int32 InEntryIndex, FString& OutDisplayString) const override;
+	ENGINE_API virtual bool PerformCustomMenuEntry(int32 InEntryIndex) override;
+	ENGINE_API virtual bool IsValidForLODLevel(UParticleLODLevel* LODLevel, FString& OutErrorString) override;
 #endif
 	//End UParticleModule Interface
 
@@ -192,7 +192,7 @@ class ENGINE_API UParticleModuleLocationSkelVertSurface : public UParticleModule
 	 *	@param	Owner						The payload data that is being setup.
 	 *
 	 */
-	void GetSkeletalMeshComponentSource(FParticleEmitterInstance* Owner, FModuleLocationVertSurfaceInstancePayload* InstancePayload);
+	ENGINE_API void GetSkeletalMeshComponentSource(FParticleEmitterInstance* Owner, FModuleLocationVertSurfaceInstancePayload* InstancePayload);
 
 	/**
 	 *	Retrieve the position for the given socket index.
@@ -206,7 +206,7 @@ class ENGINE_API UParticleModuleLocationSkelVertSurface : public UParticleModule
 	 *	
 	 *	@return	bool					true if successful, false if not
 	 */
-	bool GetParticleLocation(FParticleEmitterInstance* Owner, FModuleLocationVertSurfaceInstancePayload* InstPayload, USkeletalMeshComponent* InSkelMeshComponent, int32 InPrimaryVertexIndex, FVector& OutPosition, FQuat& OutRotation, bool bSpawning = false);
+	ENGINE_API bool GetParticleLocation(FParticleEmitterInstance* Owner, FModuleLocationVertSurfaceInstancePayload* InstPayload, USkeletalMeshComponent* InSkelMeshComponent, int32 InPrimaryVertexIndex, FVector& OutPosition, FQuat& OutRotation, bool bSpawning = false);
 
 	/**
 	 *  Check to see if the vert is influenced by a bone on our approved list.
@@ -218,16 +218,16 @@ class ENGINE_API UParticleModuleLocationSkelVertSurface : public UParticleModule
 	 *
 	 *  @return bool					true if it is influenced by an approved bone, false otherwise.
 	 */
-	bool VertInfluencedByActiveBone(FParticleEmitterInstance* Owner, FModuleLocationVertSurfaceInstancePayload* InstPayload, USkeletalMeshComponent* InSkelMeshComponent, int32 InVertexIndex, int32* OutBoneIndex = NULL);
+	ENGINE_API bool VertInfluencedByActiveBone(FParticleEmitterInstance* Owner, FModuleLocationVertSurfaceInstancePayload* InstPayload, USkeletalMeshComponent* InSkelMeshComponent, int32 InVertexIndex, int32* OutBoneIndex = NULL);
 
 	/**
 	 *	Updates the indices list with the bone index for each named bone in the editor exposed values.
 	 *	
 	 *	@param	Owner		The FParticleEmitterInstance that 'owns' the particle.
 	 */
-	void UpdateBoneIndicesList(FParticleEmitterInstance* Owner);
+	ENGINE_API void UpdateBoneIndicesList(FParticleEmitterInstance* Owner);
 
 private:
 	/** Helper function for concrete types. */
-	bool VertInfluencedByActiveBoneTyped(FSkeletalMeshLODRenderData& LODData, int32 LODIndex, const FSkelMeshRenderSection& Section, int32 VertIndex, USkeletalMeshComponent* InSkelMeshComponent, FModuleLocationVertSurfaceInstancePayload* InstancePayload, int32* OutBoneIndex);
+	ENGINE_API bool VertInfluencedByActiveBoneTyped(FSkeletalMeshLODRenderData& LODData, int32 LODIndex, const FSkelMeshRenderSection& Section, int32 VertIndex, USkeletalMeshComponent* InSkelMeshComponent, FModuleLocationVertSurfaceInstancePayload* InstancePayload, int32* OutBoneIndex);
 };

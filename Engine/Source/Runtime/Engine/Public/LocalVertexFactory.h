@@ -44,9 +44,9 @@ extern ENGINE_API TUniformBufferRef<FLocalVertexFactoryUniformShaderParameters> 
 /**
  * A vertex factory which simply transforms explicit vertex attributes from local to world space.
  */
-class ENGINE_API FLocalVertexFactory : public FVertexFactory
+class FLocalVertexFactory : public FVertexFactory
 {
-	DECLARE_VERTEX_FACTORY_TYPE(FLocalVertexFactory);
+	DECLARE_VERTEX_FACTORY_TYPE_API(FLocalVertexFactory, ENGINE_API);
 public:
 
 	FLocalVertexFactory(ERHIFeatureLevel::Type InFeatureLevel, const char* InDebugName)
@@ -69,32 +69,32 @@ public:
 	/**
 	 * Should we cache the material's shadertype on this platform with this vertex factory? 
 	 */
-	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
-	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
-	static void ValidateCompiledResult(const FVertexFactoryType* Type, EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutErrors);
+	static ENGINE_API bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
+	static ENGINE_API void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
+	static ENGINE_API void ValidateCompiledResult(const FVertexFactoryType* Type, EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutErrors);
 
-	static void GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements);
-	static void GetVertexElements(ERHIFeatureLevel::Type FeatureLevel, EVertexInputStreamType InputStreamType, bool bSupportsManualVertexFetch, FDataType& Data, FVertexDeclarationElementList& Elements);
+	static ENGINE_API void GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements);
+	static ENGINE_API void GetVertexElements(ERHIFeatureLevel::Type FeatureLevel, EVertexInputStreamType InputStreamType, bool bSupportsManualVertexFetch, FDataType& Data, FVertexDeclarationElementList& Elements);
 
 	/** 
 	 * Does the platform support GPUSkinPassthrough permutations.
 	 * This knowledge can be used to indicate if we need to create SRV for index/vertex buffers.
 	 */
-	static bool IsGPUSkinPassThroughSupported(EShaderPlatform Platform);
+	static ENGINE_API bool IsGPUSkinPassThroughSupported(EShaderPlatform Platform);
 
 	/**
 	 * An implementation of the interface used by TSynchronizedResource to update the resource with new data from the game thread.
 	 */
-	void SetData(const FDataType& InData);
+	ENGINE_API void SetData(const FDataType& InData);
 
 	/**
 	* Copy the data from another vertex factory
 	* @param Other - factory to copy from
 	*/
-	void Copy(const FLocalVertexFactory& Other);
+	ENGINE_API void Copy(const FLocalVertexFactory& Other);
 
 	// FRenderResource interface.
-	virtual void InitRHI() override;
+	ENGINE_API virtual void InitRHI() override;
 	virtual void ReleaseRHI() override
 	{
 		UniformBuffer.SafeRelease();
@@ -174,7 +174,7 @@ protected:
 
 	const FDataType& GetData() const { return Data; }
 	
-	static void GetVertexElements(
+	static ENGINE_API void GetVertexElements(
 		ERHIFeatureLevel::Type FeatureLevel, 
 		EVertexInputStreamType InputStreamType, 
 		bool bSupportsManualVertexFetch,

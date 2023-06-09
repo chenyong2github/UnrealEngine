@@ -10,13 +10,13 @@
 #include "DeformableInterface.generated.h"
 
 
-UINTERFACE()
-class ENGINE_API UDeformableInterface : public UInterface
+UINTERFACE(MinimalAPI)
+class UDeformableInterface : public UInterface
 {
 	GENERATED_UINTERFACE_BODY()
 };
 
-class ENGINE_API IDeformableInterface
+class IDeformableInterface
 {
 	GENERATED_IINTERFACE_BODY()
 

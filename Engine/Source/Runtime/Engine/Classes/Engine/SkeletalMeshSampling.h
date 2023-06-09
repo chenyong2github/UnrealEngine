@@ -9,11 +9,11 @@
 class USkeletalMesh;
 
 /** Allows area weighted sampling of triangles on a skeletal mesh. */
-struct ENGINE_API FSkeletalMeshAreaWeightedTriangleSampler : public FWeightedRandomSampler
+struct FSkeletalMeshAreaWeightedTriangleSampler : public FWeightedRandomSampler
 {
-	FSkeletalMeshAreaWeightedTriangleSampler();
-	void Init(USkeletalMesh* InOwner, int32 LODIndex, TArray<int32>* InTriangleIndices);
-	virtual float GetWeights(TArray<float>& OutWeights)override;
+	ENGINE_API FSkeletalMeshAreaWeightedTriangleSampler();
+	ENGINE_API void Init(USkeletalMesh* InOwner, int32 LODIndex, TArray<int32>* InTriangleIndices);
+	ENGINE_API virtual float GetWeights(TArray<float>& OutWeights)override;
 
 protected:
 	//Data used in initialization of the sampler. Not serialized.
@@ -24,7 +24,7 @@ protected:
 
 /** Built data for sampling a single region of a skeletal mesh. */
 USTRUCT()
-struct ENGINE_API FSkeletalMeshSamplingRegionBuiltData
+struct FSkeletalMeshSamplingRegionBuiltData
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -40,7 +40,7 @@ struct ENGINE_API FSkeletalMeshSamplingRegionBuiltData
 	/** Provides random area weighted sampling of the TriangleIndices array. */
 	FSkeletalMeshAreaWeightedTriangleSampler AreaWeightedSampler;
 
-	bool Serialize(FArchive& Ar);
+	ENGINE_API bool Serialize(FArchive& Ar);
 
 	friend FArchive& operator<<(FArchive& Ar, FSkeletalMeshSamplingRegionBuiltData& A)
 	{
@@ -57,14 +57,14 @@ template<> struct TStructOpsTypeTraits<FSkeletalMeshSamplingRegionBuiltData> : p
 
 /** Built data for sampling a the whole mesh at a particular LOD. */
 USTRUCT()
-struct ENGINE_API FSkeletalMeshSamplingLODBuiltData
+struct FSkeletalMeshSamplingLODBuiltData
 {
 	GENERATED_USTRUCT_BODY()
 
 	/** Area weighted sampler for the whole mesh at this LOD.*/
 	FSkeletalMeshAreaWeightedTriangleSampler AreaWeightedTriangleSampler;
 
-	bool Serialize(FArchive& Ar);
+	ENGINE_API bool Serialize(FArchive& Ar);
 
 	friend FArchive& operator<<(FArchive& Ar, FSkeletalMeshSamplingLODBuiltData& A)
 	{
@@ -80,7 +80,7 @@ template<> struct TStructOpsTypeTraits<FSkeletalMeshSamplingLODBuiltData> : publ
 };
 
 USTRUCT()
-struct ENGINE_API FSkeletalMeshSamplingBuiltData
+struct FSkeletalMeshSamplingBuiltData
 {
 	GENERATED_USTRUCT_BODY()
 		
@@ -125,11 +125,11 @@ struct FSkeletalMeshSamplingRegionMaterialFilter
 
 /** Defined a named region on a mesh that will have associated triangles and bones for fast sampling at each enabled LOD. */
 USTRUCT()
-struct ENGINE_API FSkeletalMeshSamplingRegion
+struct FSkeletalMeshSamplingRegion
 {
 	GENERATED_USTRUCT_BODY()
 		
-	FSkeletalMeshSamplingRegion();
+	ENGINE_API FSkeletalMeshSamplingRegion();
 
 	/** Name of this region that users will reference. */
 	UPROPERTY(EditAnywhere, Category = "Region")
@@ -162,12 +162,12 @@ struct ENGINE_API FSkeletalMeshSamplingRegion
 // 	UPROPERTY()
 // 	TArray<int32> PaintedBones;
 	
-	void GetFilteredBones(struct FReferenceSkeleton& RefSkel, TArray<int32>& OutIncludedBoneIndices, TArray<int32>& OutExcludedBoneIndices);
-	bool IsMaterialAllowed(FName MaterialName);
+	ENGINE_API void GetFilteredBones(struct FReferenceSkeleton& RefSkel, TArray<int32>& OutIncludedBoneIndices, TArray<int32>& OutExcludedBoneIndices);
+	ENGINE_API bool IsMaterialAllowed(FName MaterialName);
 };
 
 USTRUCT()
-struct ENGINE_API FSkeletalMeshSamplingInfo
+struct FSkeletalMeshSamplingInfo
 {
 	GENERATED_USTRUCT_BODY()
 			
@@ -177,12 +177,12 @@ struct ENGINE_API FSkeletalMeshSamplingInfo
 
 #if WITH_EDITORONLY_DATA
 	/** Rebuilds all data required for sampling. */
-	void BuildRegions(USkeletalMesh* SkeletalMesh);
-	void BuildWholeMesh(USkeletalMesh* SkeletalMesh);
+	ENGINE_API void BuildRegions(USkeletalMesh* SkeletalMesh);
+	ENGINE_API void BuildWholeMesh(USkeletalMesh* SkeletalMesh);
 #endif
 
 	/** True if this LOD is enabled for the whole mesh or a named region. */
-	bool IsSamplingEnabled(const USkeletalMesh* OwnerMesh, int32 LODIndex)const;
+	ENGINE_API bool IsSamplingEnabled(const USkeletalMesh* OwnerMesh, int32 LODIndex)const;
 
 	FORCEINLINE const FSkeletalMeshSamplingLODBuiltData& GetWholeMeshLODBuiltData(int32 LODIndex)const
 	{

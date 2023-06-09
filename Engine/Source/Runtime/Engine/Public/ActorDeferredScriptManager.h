@@ -26,7 +26,7 @@ public:
 	/**
 	 * empty implementation since deferred actor scripts are not actually async
 	 */
-	ENGINE_API void FinishAllCompilation() override
+	void FinishAllCompilation() override
 	{
 		ProcessAsyncTasks(false);
 	}

@@ -19,15 +19,15 @@ namespace UE::ReplaySubsystem
 	ENUM_CLASS_FLAGS(EStopReplayFlags);
 };
 
-UCLASS(DisplayName = "Replay Subsystem")
-class ENGINE_API UReplaySubsystem : public UGameInstanceSubsystem
+UCLASS(DisplayName = "Replay Subsystem", MinimalAPI)
+class UReplaySubsystem : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
 
 public:
 	/* UGameInstanceSubsystem */
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-	virtual void Deinitialize() override;
+	ENGINE_API virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	ENGINE_API virtual void Deinitialize() override;
 
 	/**
 	 * Begin replay recording
@@ -37,7 +37,7 @@ public:
 	 * @param AdditionalOptions Additional options values, if any, such as a replay streamer override
 	 * @param AnalyticsProvider Any analytics provider interface in case the replay subsystem/streamer has events to report
 	 */
-	void RecordReplay(const FString& Name, const FString& FriendlyName, const TArray<FString>& AdditionalOptions, TSharedPtr<IAnalyticsProvider> AnalyticsProvider);
+	ENGINE_API void RecordReplay(const FString& Name, const FString& FriendlyName, const TArray<FString>& AdditionalOptions, TSharedPtr<IAnalyticsProvider> AnalyticsProvider);
 
 	/**
 	 * Begin replay playback
@@ -46,12 +46,12 @@ public:
 	 * @param WorldOverride world overridef for playing back on specific UWorld
 	 * @param AdditionalOptions addition options values, if any, such as a replay streamer override
 	 */
-	bool PlayReplay(const FString& Name, UWorld* WorldOverride, const TArray<FString>& AdditionalOptions);
+	ENGINE_API bool PlayReplay(const FString& Name, UWorld* WorldOverride, const TArray<FString>& AdditionalOptions);
 
 	/**
 	 * Stop replay recording/playback
 	 */
-	void StopReplay();
+	ENGINE_API void StopReplay();
 
 	/**
 	 * Get current recording/playing replay name
@@ -59,7 +59,7 @@ public:
 	 * @return FString Name of relpay (session id, file name, etc)
 	 */
 	UFUNCTION(BlueprintCallable, Category=Replay)
-	FString GetActiveReplayName() const;
+	ENGINE_API FString GetActiveReplayName() const;
 
 	/**
 	 * Get current recording/playing replay time
@@ -67,22 +67,22 @@ public:
 	 * @return float Current recording/playback time in seconds
 	 */
 	UFUNCTION(BlueprintCallable, Category=Replay)
-	float GetReplayCurrentTime() const;
+	ENGINE_API float GetReplayCurrentTime() const;
 
 	/**
 	 * Add a user to be associated with the replay (legacy)
 	 *
 	 * @param UserString String representing user (platform specific id, user name, etc)
 	 */
-	void AddUserToReplay(const FString& UserString);
+	ENGINE_API void AddUserToReplay(const FString& UserString);
 
 	UFUNCTION(BlueprintCallable, Category=Replay)
-	bool IsRecording() const;
+	ENGINE_API bool IsRecording() const;
 	
 	UFUNCTION(BlueprintCallable, Category=Replay)
-	bool IsPlaying() const;
+	ENGINE_API bool IsPlaying() const;
 	
-	bool IsSavingCheckpoint() const;
+	ENGINE_API bool IsSavingCheckpoint() const;
 
 	/**
 	 * Add an event to the currently recording replay, associated with the current time
@@ -91,7 +91,7 @@ public:
 	 * @param Meta Metadata associated with the event
 	 * @param Data Buffer of bytes representing the event payload
 	 */
-	void AddEvent(const FString& Group, const FString& Meta, const TArray<uint8>& Data);
+	ENGINE_API void AddEvent(const FString& Group, const FString& Meta, const TArray<uint8>& Data);
 
 	/**
 	 * Add or update an existing event in the recording replay, see AddEvent as well
@@ -101,21 +101,21 @@ public:
 	 * @param Meta Metadata associated with the event
 	 * @param Data Buffer of bytes representing the event payload
 	 */
-	void AddOrUpdateEvent(const FString& EventName, const FString& Group, const FString& Meta, const TArray<uint8>& Data);
+	ENGINE_API void AddOrUpdateEvent(const FString& EventName, const FString& Group, const FString& Meta, const TArray<uint8>& Data);
 
 	/**
 	 * Set per frame limit spent recording checkpoint data
 	 *
 	 * @param InCheckpointSaveMaxMSPerFrame Time in milliseconds
 	 */
-	void SetCheckpointSaveMaxMSPerFrame(const float InCheckpointSaveMaxMSPerFrame);
+	ENGINE_API void SetCheckpointSaveMaxMSPerFrame(const float InCheckpointSaveMaxMSPerFrame);
 
 	/**
 	 * Request a checkpoint write, if currently recording.
 	 *
 	*/
 	UFUNCTION(BlueprintCallable, Category=Replay)
-	void RequestCheckpoint();
+	ENGINE_API void RequestCheckpoint();
 
 	/**
 	 * Add external data associated with an object to the recording replay
@@ -124,7 +124,7 @@ public:
 	 * @param Src Pointer to the external data buffer
 	 * @param NumBits Number of bits to store from Src
 	 */
-	void SetExternalDataForObject(UObject* OwningObject, const uint8* Src, const int32 NumBits);
+	ENGINE_API void SetExternalDataForObject(UObject* OwningObject, const uint8* Src, const int32 NumBits);
 
 	/**
 	 * Whether to reload the default map when StopReplay is called.

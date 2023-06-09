@@ -32,13 +32,13 @@ enum class EAlphaBlendOption : uint8
  * Alpha Blend construction arguments. Used for creation of an AlphaBlend.
  */
 USTRUCT(BlueprintType)
-struct ENGINE_API FAlphaBlendArgs
+struct FAlphaBlendArgs
 {
 	GENERATED_BODY()
 
-	FAlphaBlendArgs();
-	FAlphaBlendArgs(float InBlendTime);
-	FAlphaBlendArgs(const struct FAlphaBlend& InAlphaBlend);
+	ENGINE_API FAlphaBlendArgs();
+	ENGINE_API FAlphaBlendArgs(float InBlendTime);
+	ENGINE_API FAlphaBlendArgs(const struct FAlphaBlend& InAlphaBlend);
 
 	/** If you're using Custom BlendOption, you can specify curve */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Blend", meta=(DisplayAfter="BlendOption"))
@@ -57,7 +57,7 @@ struct ENGINE_API FAlphaBlendArgs
  * Alpha Blend class that supports different blend options as well as custom curves
  */
 USTRUCT(BlueprintType)
-struct ENGINE_API FAlphaBlend
+struct FAlphaBlend
 {
 	GENERATED_BODY()
 private:
@@ -72,19 +72,19 @@ private:
 
 public:
 	/* Constructor */
-	FAlphaBlend(float NewBlendTime = 0.2f);
+	ENGINE_API FAlphaBlend(float NewBlendTime = 0.2f);
 
 	/* Constructor */
-	FAlphaBlend(const FAlphaBlend& Other, float NewBlendTime);
+	ENGINE_API FAlphaBlend(const FAlphaBlend& Other, float NewBlendTime);
 
 	/* Constructor */
-	explicit FAlphaBlend(const FAlphaBlendArgs& InArgs);
+	ENGINE_API explicit FAlphaBlend(const FAlphaBlendArgs& InArgs);
 
 	/** Setters - need to refresh cached value */
-	void SetBlendOption(EAlphaBlendOption InBlendOption);
-	void SetCustomCurve(UCurveFloat* InCustomCurve);
+	ENGINE_API void SetBlendOption(EAlphaBlendOption InBlendOption);
+	ENGINE_API void SetCustomCurve(UCurveFloat* InCustomCurve);
 	/** Update transition blend time. This new value will be applied in the next Update. */
-	void SetBlendTime(float InBlendTime);
+	ENGINE_API void SetBlendTime(float InBlendTime);
 
 	/** Sets the range of values to map to the interpolation
 	 *
@@ -93,23 +93,23 @@ public:
 	 *
 	 * This can be (0, 1) if you'd like to increase, or it can be (1, 0) if you'd like to get to 0
 	 */
-	void SetValueRange(float Begin, float Desired);
+	ENGINE_API void SetValueRange(float Begin, float Desired);
 
 	/** Sets the final desired value for the blended value */
-	void SetDesiredValue(float InDesired);
+	ENGINE_API void SetDesiredValue(float InDesired);
 
 	/** Sets the Lerp alpha value directly. PLEASE NOTE that this modifies the Blended Value right away.  */
-	void SetAlpha(float InAlpha);
+	ENGINE_API void SetAlpha(float InAlpha);
 
 	/** Update interpolation, has to be called once every frame.
 	 *
 	 * @return How much time remains after the blend completed if applicable
 	 * e.g. if we have 0.01s left on the blend and update at 30Hz (~0.033s) we would return ~0.023s
 	 */
-	float Update(float InDeltaTime);
+	ENGINE_API float Update(float InDeltaTime);
 
 	/** Gets whether or not the blend is complete */
-	bool IsComplete() const;
+	ENGINE_API bool IsComplete() const;
 
 	/** Gets the current 0..1 alpha value. Changed to AlphaLerp to match with SetAlpha function */
 	float GetAlpha() const { return AlphaLerp; }
@@ -134,7 +134,7 @@ public:
 	 *  @param InBlendOption The type of blend to use
 	 *  @param InCustomCurve The curve to use when blend option is set to custom
 	 */
-	static float AlphaToBlendOption(float InAlpha, EAlphaBlendOption InBlendOption, UCurveFloat* InCustomCurve = nullptr);
+	static ENGINE_API float AlphaToBlendOption(float InAlpha, EAlphaBlendOption InBlendOption, UCurveFloat* InCustomCurve = nullptr);
 
 private:
 	/** Blend Time */
@@ -184,17 +184,17 @@ private:
 
 public:
 	/** Reset to zero / restart the blend. This resets whole thing.  */
-	void Reset();
+	ENGINE_API void Reset();
 
 	/** Reset alpha, this keeps current BlendedValue but modify Alpha to keep the blending state.  */
-	void ResetAlpha();
+	ENGINE_API void ResetAlpha();
 
 private:
 	/* Reset Blend Time, this modifies BlendTimeRemaining and possibly Weight when BlendTimeRemaining <= 0.f */
-	void ResetBlendTime();
+	ENGINE_API void ResetBlendTime();
 
 	/** Converts internal lerped alpha into the output alpha type */
-	float AlphaToBlendOption();
+	ENGINE_API float AlphaToBlendOption();
 
 	/** 
 	* Please note that changing this variable would get applied in the NEXT UPDATE. 

@@ -114,7 +114,7 @@ struct FRigidBodyState
   * and velocity.Z is commonly zero (most position replications are for walking pawns). 
   */
 USTRUCT()
-struct ENGINE_API FRepMovement
+struct FRepMovement
 {
 	GENERATED_BODY()
 
@@ -162,11 +162,11 @@ struct ENGINE_API FRepMovement
 	UPROPERTY(EditDefaultsOnly, Category=Replication, AdvancedDisplay)
 	ERotatorQuantization RotationQuantizationLevel;
 
-	FRepMovement();
+	ENGINE_API FRepMovement();
 
-	bool SerializeQuantizedVector(FArchive& Ar, FVector& Vector, EVectorQuantization QuantizationLevel);
+	ENGINE_API bool SerializeQuantizedVector(FArchive& Ar, FVector& Vector, EVectorQuantization QuantizationLevel);
 
-	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess);
+	ENGINE_API bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess);
 
 	void FillFrom(const FRigidBodyState& RBState, const AActor* const Actor = nullptr, int32 InServerFrame = 0)
 	{
@@ -229,25 +229,25 @@ struct ENGINE_API FRepMovement
 	}
 
 	/** True if multiplayer rebasing is enabled, corresponds to p.EnableMultiplayerWorldOriginRebasing console variable */
-	static int32 EnableMultiplayerWorldOriginRebasing;
+	static ENGINE_API int32 EnableMultiplayerWorldOriginRebasing;
 
 	/** Rebase zero-origin position onto local world origin value. */
-	static FVector RebaseOntoLocalOrigin(const FVector& Location, const FIntVector& LocalOrigin);
+	static ENGINE_API FVector RebaseOntoLocalOrigin(const FVector& Location, const FIntVector& LocalOrigin);
 
 	/** Rebase local-origin position onto zero world origin value. */
-	static FVector RebaseOntoZeroOrigin(const FVector& Location, const FIntVector& LocalOrigin);
+	static ENGINE_API FVector RebaseOntoZeroOrigin(const FVector& Location, const FIntVector& LocalOrigin);
 
 	/** Rebase zero-origin position onto an Actor's local world origin. */
-	static FVector RebaseOntoLocalOrigin(const FVector& Location, const AActor* const WorldContextActor);
+	static ENGINE_API FVector RebaseOntoLocalOrigin(const FVector& Location, const AActor* const WorldContextActor);
 
 	/** Rebase an Actor's local-origin position onto zero world origin value. */
-	static FVector RebaseOntoZeroOrigin(const FVector& Location, const AActor* const WorldContextActor);
+	static ENGINE_API FVector RebaseOntoZeroOrigin(const FVector& Location, const AActor* const WorldContextActor);
 
 	/** Rebase zero-origin position onto local world origin value based on an actor component's world. */
-	static FVector RebaseOntoLocalOrigin(const FVector& Location, const class UActorComponent* const WorldContextActorComponent);
+	static ENGINE_API FVector RebaseOntoLocalOrigin(const FVector& Location, const class UActorComponent* const WorldContextActorComponent);
 
 	/** Rebase local-origin position onto zero world origin value based on an actor component's world.*/
-	static FVector RebaseOntoZeroOrigin(const FVector& Location, const class UActorComponent* const WorldContextActorComponent);
+	static ENGINE_API FVector RebaseOntoZeroOrigin(const FVector& Location, const class UActorComponent* const WorldContextActorComponent);
 };
 
 template<>

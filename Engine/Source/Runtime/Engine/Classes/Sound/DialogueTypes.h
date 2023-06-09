@@ -40,11 +40,11 @@ class UDialogueVoice;
 class UDialogueWave;
 
 USTRUCT(BlueprintType)
-struct ENGINE_API FDialogueContext
+struct FDialogueContext
 {
 	GENERATED_USTRUCT_BODY()
 
-	FDialogueContext();
+	ENGINE_API FDialogueContext();
 
 	/** The person speaking the dialogue. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=DialogueContext )
@@ -55,18 +55,18 @@ struct ENGINE_API FDialogueContext
 	TArray<TObjectPtr<UDialogueVoice>> Targets;
 
 	/** Gets a generated hash created from the source and targets. */
-	FString GetContextHash() const;
+	ENGINE_API FString GetContextHash() const;
 
 	friend ENGINE_API bool operator==(const FDialogueContext& LHS, const FDialogueContext& RHS);
 	friend ENGINE_API bool operator!=(const FDialogueContext& LHS, const FDialogueContext& RHS);
 };
 
 USTRUCT()
-struct ENGINE_API FDialogueWaveParameter
+struct FDialogueWaveParameter
 {
 	GENERATED_USTRUCT_BODY()
 
-	FDialogueWaveParameter();
+	ENGINE_API FDialogueWaveParameter();
 
 	/** The dialogue wave to play. */
 	UPROPERTY(EditAnywhere, Category=DialogueWaveParameter )

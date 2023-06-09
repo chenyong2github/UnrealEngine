@@ -36,8 +36,8 @@ enum class ETimecodeProviderSynchronizationState
  * Note, FApp::GetTimecode and FApp::GetTimecodeFramerate should be used to retrieve
  * the current system Timecode and Framerate.
  */
-UCLASS(abstract)
-class ENGINE_API UTimecodeProvider : public UObject
+UCLASS(abstract, MinimalAPI)
+class UTimecodeProvider : public UObject
 {
 	GENERATED_BODY()
 
@@ -68,22 +68,22 @@ public:
 	 * Since it may be called several times per frame, it is suggested to return a cached value.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Provider")
-	virtual FQualifiedFrameTime GetQualifiedFrameTime() const PURE_VIRTUAL(UTimecodeProvider::GetQualifiedFrameTime, return FQualifiedFrameTime(););
+	ENGINE_API virtual FQualifiedFrameTime GetQualifiedFrameTime() const PURE_VIRTUAL(UTimecodeProvider::GetQualifiedFrameTime, return FQualifiedFrameTime(););
 
 	/**
 	 * Return current frame time with FrameDelay applied.
 	 * Only assume valid when GetSynchronizationState() returns Synchronized.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Provider")
-	FQualifiedFrameTime GetDelayedQualifiedFrameTime() const;
+	ENGINE_API FQualifiedFrameTime GetDelayedQualifiedFrameTime() const;
 
 	/** Return the frame time converted into a timecode value. */
 	UFUNCTION(BlueprintCallable, Category = "Provider")
-	FTimecode GetTimecode() const;
+	ENGINE_API FTimecode GetTimecode() const;
 
 	/** Return the delayed frame time converted into a timecode value. */
 	UFUNCTION(BlueprintCallable, Category = "Provider")
-	FTimecode GetDelayedTimecode() const;
+	ENGINE_API FTimecode GetDelayedTimecode() const;
 	
 	/** Return the frame rate of the frame time. */
 	UFUNCTION(BlueprintCallable, Category = "Provider")
@@ -91,14 +91,14 @@ public:
 
 	/** The state of the TimecodeProvider and if it's currently synchronized and the Timecode and FrameRate getters are valid. */
 	UFUNCTION(BlueprintCallable, Category = "Provider")
-	virtual ETimecodeProviderSynchronizationState GetSynchronizationState() const PURE_VIRTUAL(UTimecodeProvider::IsSynchronized, return ETimecodeProviderSynchronizationState::Closed;);
+	ENGINE_API virtual ETimecodeProviderSynchronizationState GetSynchronizationState() const PURE_VIRTUAL(UTimecodeProvider::IsSynchronized, return ETimecodeProviderSynchronizationState::Closed;);
 
 public:
 	/** This Provider became the Engine's Provider. */
-	virtual bool Initialize(class UEngine* InEngine) PURE_VIRTUAL(UTimecodeProvider::Initialize, return false;);
+	ENGINE_API virtual bool Initialize(class UEngine* InEngine) PURE_VIRTUAL(UTimecodeProvider::Initialize, return false;);
 
 	/** This Provider stopped being the Engine's Provider. */
-	virtual void Shutdown(class UEngine* InEngine) PURE_VIRTUAL(UTimecodeProvider::Shutdown, );
+	ENGINE_API virtual void Shutdown(class UEngine* InEngine) PURE_VIRTUAL(UTimecodeProvider::Shutdown, );
 
 	/** Whether this provider supports format autodetection. */
 	virtual bool SupportsAutoDetected() const

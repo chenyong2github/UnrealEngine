@@ -194,7 +194,7 @@ public:
 	void ReleaseCPUResources(bool bForStreaming = false);
 
 	/** Constructor (default) */
-	ENGINE_API FSkeletalMeshLODRenderData(bool bAddRef = true)
+	FSkeletalMeshLODRenderData(bool bAddRef = true)
 		: BuffersSize(0)
 		, bStreamedDataInlined(true)
 		, bIsLODOptional(false)

@@ -7,7 +7,7 @@
 
 #if WITH_EDITOR
 
-class ENGINE_API IWorldPartitionHLODUtilitiesModule : public IModuleInterface
+class IWorldPartitionHLODUtilitiesModule : public IModuleInterface
 {
 public:
 	virtual IWorldPartitionHLODUtilities* GetUtilities() = 0;

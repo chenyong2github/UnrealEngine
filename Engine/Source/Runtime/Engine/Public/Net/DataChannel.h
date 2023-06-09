@@ -34,7 +34,7 @@ template<uint8 MessageType> class FNetControlMessage
 {
 };
 /** contains info about a message type retrievable without static binding (e.g. whether it's a valid type, friendly name string, etc) */
-class ENGINE_API FNetControlMessageInfo
+class FNetControlMessageInfo
 {
 public:
 	static inline const TCHAR* GetName(uint8 MessageIndex)
@@ -88,7 +88,7 @@ private:
 	}
 	
 	static constexpr int MaxNames = TNumericLimits<uint8>::Max() + 1;
-	static const TCHAR* Names[MaxNames];
+	static ENGINE_API const TCHAR* Names[MaxNames];
 };
 
 #define DEFINE_CONTROL_CHANNEL_MESSAGE(Name, Index, ...) \

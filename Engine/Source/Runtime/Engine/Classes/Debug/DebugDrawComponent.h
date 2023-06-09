@@ -45,20 +45,20 @@
  *					FMyDelegateHelper MyDelegateHelper;
  *			}
  */
-UCLASS(Abstract, HideCategories = (Activation, AssetUserData, Collision, Cooking, HLOD, Lighting, LOD, Mobile, Navigation, Physics, RayTracing, Rendering, Tags, TextureStreaming))
-class ENGINE_API UDebugDrawComponent : public UPrimitiveComponent
+UCLASS(Abstract, HideCategories = (Activation, AssetUserData, Collision, Cooking, HLOD, Lighting, LOD, Mobile, Navigation, Physics, RayTracing, Rendering, Tags, TextureStreaming), MinimalAPI)
+class UDebugDrawComponent : public UPrimitiveComponent
 {
 	GENERATED_BODY()
 
 protected:
 	/* Method overriden and marked as final since derived class should override `CreateDebugSceneProxy` */
-	virtual FPrimitiveSceneProxy* CreateSceneProxy() override final;
+	ENGINE_API virtual FPrimitiveSceneProxy* CreateSceneProxy() override final;
 
 	/* Method that derived class should override to create the scene proxy and customize a custom delegate helper (if any) */
 	virtual FDebugRenderSceneProxy* CreateDebugSceneProxy() { return nullptr; }
 
-	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
-	virtual void DestroyRenderState_Concurrent() override;
+	ENGINE_API virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
+	ENGINE_API virtual void DestroyRenderState_Concurrent() override;
 
 	/** Method that should be overriden when subclass uses a custom delegate helper. */
 	virtual FDebugDrawDelegateHelper& GetDebugDrawDelegateHelper() { return DebugDrawDelegateHelper; }

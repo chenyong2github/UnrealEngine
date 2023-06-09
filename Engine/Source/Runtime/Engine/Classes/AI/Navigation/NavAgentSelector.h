@@ -1,11 +1,11 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "NavAgentSelector.generated.h"
 
 USTRUCT()
-struct ENGINE_API FNavAgentSelector
+struct FNavAgentSelector
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -56,7 +56,7 @@ struct ENGINE_API FNavAgentSelector
 	};
 #endif
 
-	explicit FNavAgentSelector(const uint32 InBits = AllAgentsMask);
+	ENGINE_API explicit FNavAgentSelector(const uint32 InBits = AllAgentsMask);
 
 	FORCEINLINE bool Contains(int32 AgentIndex) const
 	{
@@ -97,7 +97,7 @@ struct ENGINE_API FNavAgentSelector
 		return (~InitializedBit & PackedBits) == (~InitializedBit & Other.PackedBits);
 	}
 
-	bool Serialize(FArchive& Ar);
+	ENGINE_API bool Serialize(FArchive& Ar);
 
 	uint32 GetAgentBits() const 
 	{

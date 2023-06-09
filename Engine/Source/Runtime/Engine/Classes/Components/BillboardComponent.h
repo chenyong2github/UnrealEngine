@@ -15,8 +15,8 @@ struct FEngineShowFlags;
 /** 
  * A 2d texture that will be rendered always facing the camera.
  */
-UCLASS(ClassGroup=Rendering, collapsecategories, hidecategories=(Object,Activation,"Components|Activation",Physics,Collision,Lighting,Mesh,PhysicsVolume), editinlinenew, meta=(BlueprintSpawnableComponent))
-class ENGINE_API UBillboardComponent : public UPrimitiveComponent
+UCLASS(ClassGroup=Rendering, collapsecategories, hidecategories=(Object,Activation,"Components|Activation",Physics,Collision,Lighting,Mesh,PhysicsVolume), editinlinenew, meta=(BlueprintSpawnableComponent), MinimalAPI)
+class UBillboardComponent : public UPrimitiveComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -63,37 +63,37 @@ class ENGINE_API UBillboardComponent : public UPrimitiveComponent
 #endif // WITH_EDITORONLY_DATA
 	/** Change the sprite texture used by this component */
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|Sprite")
-	virtual void SetSprite(class UTexture2D* NewSprite);
+	ENGINE_API virtual void SetSprite(class UTexture2D* NewSprite);
 
 	/** Change the sprite's UVs */
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|Sprite")
-	virtual void SetUV(int32 NewU, int32 NewUL, int32 NewV, int32 NewVL);
+	ENGINE_API virtual void SetUV(int32 NewU, int32 NewUL, int32 NewV, int32 NewVL);
 
 	/** Change the sprite texture and the UV's used by this component */
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|Sprite")
-	virtual void SetSpriteAndUV(class UTexture2D* NewSprite, int32 NewU, int32 NewUL, int32 NewV, int32 NewVL);
+	ENGINE_API virtual void SetSpriteAndUV(class UTexture2D* NewSprite, int32 NewU, int32 NewUL, int32 NewV, int32 NewVL);
 
 	/** Changed the opacity masked used by this component */
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Sprite")
-	void SetOpacityMaskRefVal(float RefVal);
+	ENGINE_API void SetOpacityMaskRefVal(float RefVal);
 
 	//~ Begin UPrimitiveComponent Interface
-	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
-	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
+	ENGINE_API virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
+	ENGINE_API virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 
-	virtual bool IsShown(const FEngineShowFlags& ShowFlags) const override;
+	ENGINE_API virtual bool IsShown(const FEngineShowFlags& ShowFlags) const override;
 #if WITH_EDITOR
-	virtual bool ComponentIsTouchingSelectionBox(const FBox& InSelBBox, const bool bConsiderOnlyBSP, const bool bMustEncompassEntireComponent) const override;
-	virtual bool ComponentIsTouchingSelectionFrustum(const FConvexVolume& InFrustum, const bool bConsiderOnlyBSP, const bool bMustEncompassEntireComponent) const override;
+	ENGINE_API virtual bool ComponentIsTouchingSelectionBox(const FBox& InSelBBox, const bool bConsiderOnlyBSP, const bool bMustEncompassEntireComponent) const override;
+	ENGINE_API virtual bool ComponentIsTouchingSelectionFrustum(const FConvexVolume& InFrustum, const bool bConsiderOnlyBSP, const bool bMustEncompassEntireComponent) const override;
 #endif
 	//~ End UPrimitiveComponent Interface
 
 #if WITH_EDITORONLY_DATA
 	/** Set the scale that we use when rendering in-editor */
-	static void SetEditorScale(float InEditorScale);
+	static ENGINE_API void SetEditorScale(float InEditorScale);
 
 	/** The scale we use when rendering in-editor */
-	static float EditorScale;
+	static ENGINE_API float EditorScale;
 #endif
 };
 

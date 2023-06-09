@@ -178,14 +178,14 @@ public:
 	* @param InNumTexCoords - The number of texture coordinate to store in the buffer.
 	* @param bNeedsCPUAccess - Whether the vertex data needs to be accessed by the CPU after creation (default true)
 	*/
-	ENGINE_API void Init(const FConstMeshBuildVertexView& InVertices, bool bNeedsCPUAccess = true)
+	void Init(const FConstMeshBuildVertexView& InVertices, bool bNeedsCPUAccess = true)
 	{
 		FStaticMeshVertexBufferFlags Flags;
 		Flags.bNeedsCPUAccess = bNeedsCPUAccess;
 		Init(InVertices, Flags);
 	}
 
-	ENGINE_API void Init(const TArray<FStaticMeshBuildVertex>& InVertices, uint32 InNumTexCoords, bool bNeedsCPUAccess = true)
+	void Init(const TArray<FStaticMeshBuildVertex>& InVertices, uint32 InNumTexCoords, bool bNeedsCPUAccess = true)
 	{
 		FConstMeshBuildVertexView VertexView = MakeConstMeshBuildVertexView(InVertices);
 		FStaticMeshVertexBufferFlags Flags;

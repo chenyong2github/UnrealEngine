@@ -5,20 +5,20 @@
 #include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
 
-class ENGINE_API FUserActivityTracking : FNoncopyable
+class FUserActivityTracking : FNoncopyable
 {
 public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnActivityChanged, const FUserActivity&);
 
-	static void SetContextFilter(EUserActivityContext InContext);
-	static void SetActivity(const FUserActivity& InUserActivity);
+	static ENGINE_API void SetContextFilter(EUserActivityContext InContext);
+	static ENGINE_API void SetActivity(const FUserActivity& InUserActivity);
 	static const FUserActivity& GetUserActivity() { return UserActivity; }
 
 	// Called when the UserActivity changes
-	static FOnActivityChanged OnActivityChanged;
+	static ENGINE_API FOnActivityChanged OnActivityChanged;
 
 private:
-	static FUserActivity UserActivity;
-	static EUserActivityContext ContextFilter;
+	static ENGINE_API FUserActivity UserActivity;
+	static ENGINE_API EUserActivityContext ContextFilter;
 };
 

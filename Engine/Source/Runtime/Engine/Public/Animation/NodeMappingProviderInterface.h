@@ -29,8 +29,8 @@ struct FNodeItem
 	}
 };
 
-UINTERFACE(meta = (CannotImplementInterfaceInBlueprint))
-class ENGINE_API UNodeMappingProviderInterface : public UInterface
+UINTERFACE(meta = (CannotImplementInterfaceInBlueprint), MinimalAPI)
+class UNodeMappingProviderInterface : public UInterface
 {
 	GENERATED_UINTERFACE_BODY()
 };
@@ -42,7 +42,7 @@ class ENGINE_API UNodeMappingProviderInterface : public UInterface
  * Implemented by Rig, ControlRig, SkeletalMesh (not Skeleton yet because Skeleton doesn't have retarget base pose)
  */
 
-class ENGINE_API INodeMappingProviderInterface
+class INodeMappingProviderInterface
 {
 	GENERATED_IINTERFACE_BODY()
 

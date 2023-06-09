@@ -60,8 +60,8 @@ enum class EBoneSocketSourceIndexMode : uint8
 	Direct,//Module has no source locations and no bone tracking requirement so can simply access the mesh via direct indices to the bones/sockets.
 };
 
-UCLASS(editinlinenew, hidecategories=Object, meta=(DisplayName = "Bone/Socket Location"))
-class ENGINE_API UParticleModuleLocationBoneSocket : public UParticleModuleLocationBase
+UCLASS(editinlinenew, hidecategories=Object, meta=(DisplayName = "Bone/Socket Location"), MinimalAPI)
+class UParticleModuleLocationBoneSocket : public UParticleModuleLocationBase
 {
 	GENERATED_UCLASS_BODY()
 
@@ -131,24 +131,24 @@ class ENGINE_API UParticleModuleLocationBoneSocket : public UParticleModuleLocat
 	EBoneSocketSourceIndexMode SourceIndexMode;
 
 	//~ Begin UParticleModule Interface
-	virtual void	PostLoad() override;
-	virtual void	Spawn(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, FBaseParticle* ParticleBase) override;
-	virtual void	Update(FParticleEmitterInstance* Owner, int32 Offset, float DeltaTime) override;
-	virtual void	FinalUpdate(FParticleEmitterInstance* Owner, int32 Offset, float DeltaTime) override;
-	virtual uint32	RequiredBytes(UParticleModuleTypeDataBase* TypeData) override;
-	virtual uint32	RequiredBytesPerInstance() override;
-	virtual uint32	PrepPerInstanceBlock(FParticleEmitterInstance* Owner, void* InstData) override;
+	ENGINE_API virtual void	PostLoad() override;
+	ENGINE_API virtual void	Spawn(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, FBaseParticle* ParticleBase) override;
+	ENGINE_API virtual void	Update(FParticleEmitterInstance* Owner, int32 Offset, float DeltaTime) override;
+	ENGINE_API virtual void	FinalUpdate(FParticleEmitterInstance* Owner, int32 Offset, float DeltaTime) override;
+	ENGINE_API virtual uint32	RequiredBytes(UParticleModuleTypeDataBase* TypeData) override;
+	ENGINE_API virtual uint32	RequiredBytesPerInstance() override;
+	ENGINE_API virtual uint32	PrepPerInstanceBlock(FParticleEmitterInstance* Owner, void* InstData) override;
 	virtual bool	TouchesMeshRotation() const override { return true; }
-	virtual void	AutoPopulateInstanceProperties(UParticleSystemComponent* PSysComp) override;
+	ENGINE_API virtual void	AutoPopulateInstanceProperties(UParticleSystemComponent* PSysComp) override;
 	virtual bool CanTickInAnyThread() override
 	{
 		return true;
 	}
 #if WITH_EDITOR
-	virtual int32 GetNumberOfCustomMenuOptions() const override;
-	virtual bool GetCustomMenuEntryDisplayString(int32 InEntryIndex, FString& OutDisplayString) const override;
-	virtual bool PerformCustomMenuEntry(int32 InEntryIndex) override; 
-	virtual void	PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)override;
+	ENGINE_API virtual int32 GetNumberOfCustomMenuOptions() const override;
+	ENGINE_API virtual bool GetCustomMenuEntryDisplayString(int32 InEntryIndex, FString& OutDisplayString) const override;
+	ENGINE_API virtual bool PerformCustomMenuEntry(int32 InEntryIndex) override; 
+	ENGINE_API virtual void	PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)override;
 #endif
 	//~ End UParticleModule Interface
 
@@ -159,7 +159,7 @@ class ENGINE_API UParticleModuleLocationBoneSocket : public UParticleModuleLocat
 	 *
 	 *	@return	USkeletalMeshComponent*		The skeletal mesh component to use as the source
 	 */
-	void GetSkeletalMeshComponentSource(FParticleEmitterInstance* Owner, FModuleLocationBoneSocketInstancePayload* InstancePayload);
+	ENGINE_API void GetSkeletalMeshComponentSource(FParticleEmitterInstance* Owner, FModuleLocationBoneSocketInstancePayload* InstancePayload);
 
 	/**
 	 *	Retrieve the position for the given socket index.
@@ -172,25 +172,25 @@ class ENGINE_API UParticleModuleLocationBoneSocket : public UParticleModuleLocat
 	 *	
 	 *	@return	bool					true if successful, false if not
 	 */
-	bool GetParticleLocation(FModuleLocationBoneSocketInstancePayload* InstancePayload, FParticleEmitterInstance* Owner, USkeletalMeshComponent* InSkelMeshComponent, int32 InBoneSocketIndex, FVector& OutPosition, FQuat* OutRotation);
+	ENGINE_API bool GetParticleLocation(FModuleLocationBoneSocketInstancePayload* InstancePayload, FParticleEmitterInstance* Owner, USkeletalMeshComponent* InSkelMeshComponent, int32 InBoneSocketIndex, FVector& OutPosition, FQuat* OutRotation);
 
-	int32 GetMaxSourceIndex(FModuleLocationBoneSocketInstancePayload* Payload, USkeletalMeshComponent* SourceComponent)const;
-	bool GetSocketInfoForSourceIndex(FModuleLocationBoneSocketInstancePayload* InstancePayload, USkeletalMeshComponent* SourceComponent, int32 SourceIndex, USkeletalMeshSocket*& OutSocket, FVector& OutOffset)const;
-	bool GetBoneInfoForSourceIndex(FModuleLocationBoneSocketInstancePayload* InstancePayload, USkeletalMeshComponent* SourceComponent, int32 SourceIndex, FMatrix& OutBoneMatrix, FVector& OutOffset)const;
+	ENGINE_API int32 GetMaxSourceIndex(FModuleLocationBoneSocketInstancePayload* Payload, USkeletalMeshComponent* SourceComponent)const;
+	ENGINE_API bool GetSocketInfoForSourceIndex(FModuleLocationBoneSocketInstancePayload* InstancePayload, USkeletalMeshComponent* SourceComponent, int32 SourceIndex, USkeletalMeshSocket*& OutSocket, FVector& OutOffset)const;
+	ENGINE_API bool GetBoneInfoForSourceIndex(FModuleLocationBoneSocketInstancePayload* InstancePayload, USkeletalMeshComponent* SourceComponent, int32 SourceIndex, FMatrix& OutBoneMatrix, FVector& OutOffset)const;
 	
 	/** Selects the next socket or bone index to spawn from. */
-	int32 SelectNextSpawnIndex(FModuleLocationBoneSocketInstancePayload* InstancePayload, USkeletalMeshComponent* SourceComponent, FRandomStream& InRandomStream);
-	void RegeneratePreSelectedIndices(FModuleLocationBoneSocketInstancePayload* InstancePayload, USkeletalMeshComponent* SourceComponent, FRandomStream& InRandomStream);
+	ENGINE_API int32 SelectNextSpawnIndex(FModuleLocationBoneSocketInstancePayload* InstancePayload, USkeletalMeshComponent* SourceComponent, FRandomStream& InRandomStream);
+	ENGINE_API void RegeneratePreSelectedIndices(FModuleLocationBoneSocketInstancePayload* InstancePayload, USkeletalMeshComponent* SourceComponent, FRandomStream& InRandomStream);
 
-	void UpdatePrevBoneLocationsAndVelocities(FModuleLocationBoneSocketInstancePayload* InstancePayload, USkeletalMeshComponent* SourceComponent, float DeltaTime);
+	ENGINE_API void UpdatePrevBoneLocationsAndVelocities(FModuleLocationBoneSocketInstancePayload* InstancePayload, USkeletalMeshComponent* SourceComponent, float DeltaTime);
 
 	//If we're updating our position each frame, there's no point in inheriting bone velocity
 	FORCEINLINE bool InheritingBoneVelocity()const { return bInheritBoneVelocity && !bUpdatePositionEachFrame; }
 
-	void SetSourceIndexMode();
+	ENGINE_API void SetSourceIndexMode();
 
 	/** Validate that all LOD levels will not have issues with indexing into SourceLocations */
-	static void ValidateLODLevels(UParticleEmitter* Emitter, int32 iModule);
+	static ENGINE_API void ValidateLODLevels(UParticleEmitter* Emitter, int32 iModule);
 };
 
 /** ModuleLocationBoneSocket instance payload */

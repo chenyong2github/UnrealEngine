@@ -7,7 +7,7 @@
 #include "UObject/Interface.h"
 #include "NavEdgeProviderInterface.generated.h"
 
-struct ENGINE_API FNavEdgeSegment
+struct FNavEdgeSegment
 {
 	FVector P0, P1;
 };

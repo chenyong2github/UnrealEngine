@@ -75,73 +75,73 @@ public:
 /**
  * Material property to attribute data mappings
  */
-class ENGINE_API FMaterialAttributeDefinitionMap
+class FMaterialAttributeDefinitionMap
 {
 public:
-	FMaterialAttributeDefinitionMap();
+	ENGINE_API FMaterialAttributeDefinitionMap();
 
 	/** Compiles the default expression for a material attribute */
-	static int32 CompileDefaultExpression(FMaterialCompiler* Compiler, EMaterialProperty Property);
+	static ENGINE_API int32 CompileDefaultExpression(FMaterialCompiler* Compiler, EMaterialProperty Property);
 
 	/** Compiles the default expression for a material attribute */
-	static int32 CompileDefaultExpression(FMaterialCompiler* Compiler, const FGuid& AttributeID);
+	static ENGINE_API int32 CompileDefaultExpression(FMaterialCompiler* Compiler, const FGuid& AttributeID);
 
 	/** Returns the display name of a material attribute */
-	static const FString& GetAttributeName(EMaterialProperty Property);
+	static ENGINE_API const FString& GetAttributeName(EMaterialProperty Property);
 
 	/** Returns the display name of a material attribute */
-	static const FString& GetAttributeName(const FGuid& AttributeID);
+	static ENGINE_API const FString& GetAttributeName(const FGuid& AttributeID);
 
 	/** Returns the display name of a material attribute, accounting for overrides based on properties of a given material */
-	static FText GetDisplayNameForMaterial(EMaterialProperty Property, UMaterial* Material);
+	static ENGINE_API FText GetDisplayNameForMaterial(EMaterialProperty Property, UMaterial* Material);
 
 	/** Returns the display name of a material attribute, accounting for overrides based on properties of a given material */
-	static FText GetDisplayNameForMaterial(const FGuid& AttributeID, UMaterial* Material);
+	static ENGINE_API FText GetDisplayNameForMaterial(const FGuid& AttributeID, UMaterial* Material);
 
 	/** Returns the value type of a material attribute */
-	static EMaterialValueType GetValueType(EMaterialProperty Property);
+	static ENGINE_API EMaterialValueType GetValueType(EMaterialProperty Property);
 
 	/** Returns the value type of a material attribute */
-	static EMaterialValueType GetValueType(const FGuid& AttributeID);
+	static ENGINE_API EMaterialValueType GetValueType(const FGuid& AttributeID);
 
 	/** Returns the default value of a material property */
-	static FVector4f GetDefaultValue(EMaterialProperty Property);
+	static ENGINE_API FVector4f GetDefaultValue(EMaterialProperty Property);
 
 	/** Returns the default value of a material attribute */
-	static FVector4f GetDefaultValue(const FGuid& AttributeID);
+	static ENGINE_API FVector4f GetDefaultValue(const FGuid& AttributeID);
 
 	/** Returns the shader frequency of a material attribute */
-	static EShaderFrequency GetShaderFrequency(EMaterialProperty Property);
+	static ENGINE_API EShaderFrequency GetShaderFrequency(EMaterialProperty Property);
 
 	/** Returns the shader frequency of a material attribute */
-	static EShaderFrequency GetShaderFrequency(const FGuid& AttributeID);
+	static ENGINE_API EShaderFrequency GetShaderFrequency(const FGuid& AttributeID);
 
 	/** Returns the attribute ID for a matching material property */
-	static FGuid GetID(EMaterialProperty Property);
+	static ENGINE_API FGuid GetID(EMaterialProperty Property);
 
 	/** Returns a the material property matching the specified attribute AttributeID */
-	static EMaterialProperty GetProperty(const FGuid& AttributeID);
+	static ENGINE_API EMaterialProperty GetProperty(const FGuid& AttributeID);
 
 	/** Returns the custom blend function of a material attribute */
-	static MaterialAttributeBlendFunction GetBlendFunction(const FGuid& AttributeID);
+	static ENGINE_API MaterialAttributeBlendFunction GetBlendFunction(const FGuid& AttributeID);
 
 	/** Returns a default attribute AttributeID */
-	static FGuid GetDefaultID();
+	static ENGINE_API FGuid GetDefaultID();
 
 	/** Appends a hash of the property map intended for use with the DDC key */
-	static void AppendDDCKeyString(FString& String);
+	static ENGINE_API void AppendDDCKeyString(FString& String);
 
 	/** Appends a new attribute definition to the custom output list */
-	static void AddCustomAttribute(const FGuid& AttributeID, const FString& AttributeName, const FString& FunctionName, EMaterialValueType ValueType, const FVector4& DefaultValue, MaterialAttributeBlendFunction BlendFunction = nullptr);
+	static ENGINE_API void AddCustomAttribute(const FGuid& AttributeID, const FString& AttributeName, const FString& FunctionName, EMaterialValueType ValueType, const FVector4& DefaultValue, MaterialAttributeBlendFunction BlendFunction = nullptr);
 
 	/** Returns the first custom attribute ID that has the specificed attribute name */
-	static FGuid GetCustomAttributeID(const FString& AttributeName);
+	static ENGINE_API FGuid GetCustomAttributeID(const FString& AttributeName);
 
 	/** Returns the first custom attribute definition that has the specificed attribute name */
-	static const FMaterialCustomOutputAttributeDefintion* GetCustomAttribute(const FString& AttributeName);
+	static ENGINE_API const FMaterialCustomOutputAttributeDefintion* GetCustomAttribute(const FString& AttributeName);
 
 	/** Returns a list of registered custom attributes */
-	static void GetCustomAttributeList(TArray<FMaterialCustomOutputAttributeDefintion>& CustomAttributeList);
+	static ENGINE_API void GetCustomAttributeList(TArray<FMaterialCustomOutputAttributeDefintion>& CustomAttributeList);
 
 	static const TArray<FGuid>& GetOrderedVisibleAttributeList()
 	{
@@ -153,23 +153,23 @@ private:
 	friend class FMaterialAttributePropertyDetails;
 
 	/** Returns a list of display names and their associated GUIDs for material properties */
-	static void GetAttributeNameToIDList(TArray<TPair<FString, FGuid>>& NameToIDList);
+	static ENGINE_API void GetAttributeNameToIDList(TArray<TPair<FString, FGuid>>& NameToIDList);
 
 	// Internal map management
-	void InitializeAttributeMap();
+	ENGINE_API void InitializeAttributeMap();
 
-	void Add(const FGuid& AttributeID, const FString& AttributeName, EMaterialProperty Property,
+	ENGINE_API void Add(const FGuid& AttributeID, const FString& AttributeName, EMaterialProperty Property,
 		EMaterialValueType ValueType, const FVector4& DefaultValue, EShaderFrequency ShaderFrequency,
 		int32 TexCoordIndex = INDEX_NONE, bool bIsHidden = false, MaterialAttributeBlendFunction BlendFunction = nullptr);
 
-	FMaterialAttributeDefintion* Find(const FGuid& AttributeID);
-	FMaterialAttributeDefintion* Find(EMaterialProperty Property);
+	ENGINE_API FMaterialAttributeDefintion* Find(const FGuid& AttributeID);
+	ENGINE_API FMaterialAttributeDefintion* Find(EMaterialProperty Property);
 
 	// Helper functions to determine display name based on shader model, material domain, etc.
-	static FText GetAttributeOverrideForMaterial(const FGuid& AttributeID, UMaterial* Material);
-	static FString GetPinNameFromShadingModelField(FMaterialShadingModelField InShadingModels, const TArray<TKeyValuePair<EMaterialShadingModel, FString>>& InCustomShadingModelPinNames, const FString& InDefaultPinName);
+	static ENGINE_API FText GetAttributeOverrideForMaterial(const FGuid& AttributeID, UMaterial* Material);
+	static ENGINE_API FString GetPinNameFromShadingModelField(FMaterialShadingModelField InShadingModels, const TArray<TKeyValuePair<EMaterialShadingModel, FString>>& InCustomShadingModelPinNames, const FString& InDefaultPinName);
 
-	static FMaterialAttributeDefinitionMap GMaterialPropertyAttributesMap;
+	static ENGINE_API FMaterialAttributeDefinitionMap GMaterialPropertyAttributesMap;
 
 	TMap<EMaterialProperty, FMaterialAttributeDefintion>	AttributeMap; // Fixed map of compile-time definitions
 	TArray<FMaterialCustomOutputAttributeDefintion>			CustomAttributes; // Array of custom output definitions

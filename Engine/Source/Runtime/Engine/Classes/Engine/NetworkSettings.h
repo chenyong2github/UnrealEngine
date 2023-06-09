@@ -24,8 +24,8 @@ struct FNetworkEmulationProfileDescription
 /**
  * Network settings.
  */
-UCLASS(config=Engine, defaultconfig, meta=(DisplayName="Network"))
-class ENGINE_API UNetworkSettings : public UDeveloperSettings
+UCLASS(config=Engine, defaultconfig, meta=(DisplayName="Network"), MinimalAPI)
+class UNetworkSettings : public UDeveloperSettings
 {
 	GENERATED_UCLASS_BODY()
 
@@ -53,9 +53,9 @@ public:
 
 	//~ Begin UObject Interface
 
-	virtual void PostInitProperties() override;
+	ENGINE_API virtual void PostInitProperties() override;
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
 	//~ End UObject Interface

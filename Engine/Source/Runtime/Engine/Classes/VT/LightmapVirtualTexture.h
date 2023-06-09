@@ -17,16 +17,16 @@ enum class ELightMapVirtualTextureType
 	Count,
 };
 
-UCLASS(ClassGroup = Rendering)
-class ENGINE_API ULightMapVirtualTexture2D : public UTexture2D
+UCLASS(ClassGroup = Rendering, MinimalAPI)
+class ULightMapVirtualTexture2D : public UTexture2D
 {
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY(EditAnywhere, Category = VirtualTexture)
 	TArray<int8> TypeToLayer;
 
-	void SetLayerForType(ELightMapVirtualTextureType InType, uint8 InLayer);
-	uint32 GetLayerForType(ELightMapVirtualTextureType InType) const;
+	ENGINE_API void SetLayerForType(ELightMapVirtualTextureType InType, uint8 InLayer);
+	ENGINE_API uint32 GetLayerForType(ELightMapVirtualTextureType InType) const;
 
 	inline bool HasLayerForType(ELightMapVirtualTextureType InType) const { return GetLayerForType(InType) != ~0u; }
 

@@ -100,7 +100,7 @@ public:
 	/** Returns the volume of this element */
 	FVector::FReal GetScaledVolume(const FVector& Scale3D) const;
 
-	ENGINE_API const auto& GetChaosConvexMesh() const
+	const auto& GetChaosConvexMesh() const
 	{
 		return ChaosConvex;
 	}

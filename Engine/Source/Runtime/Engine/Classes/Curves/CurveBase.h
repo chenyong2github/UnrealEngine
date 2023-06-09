@@ -13,8 +13,8 @@
 /**
  * Defines a curve of interpolated points to evaluate over a given range
  */
-UCLASS(abstract, BlueprintType)
-class ENGINE_API UCurveBase
+UCLASS(abstract, BlueprintType, MinimalAPI)
+class UCurveBase
 	: public UObject
 	, public FCurveOwnerInterface
 {
@@ -22,20 +22,20 @@ class ENGINE_API UCurveBase
 
 	/** Get the time range across all curves */
 	UFUNCTION(BlueprintCallable, Category="Math|Curves")
-	void GetTimeRange(float& MinTime, float& MaxTime) const;
-	void GetTimeRange(double& MinTime, double& MaxTime) const;		// LWC_TODO: Native workaround for FVector2D components
+	ENGINE_API void GetTimeRange(float& MinTime, float& MaxTime) const;
+	ENGINE_API void GetTimeRange(double& MinTime, double& MaxTime) const;		// LWC_TODO: Native workaround for FVector2D components
 
 	/** Get the value range across all curves */
 	UFUNCTION(BlueprintCallable, Category="Math|Curves")
-	void GetValueRange(float& MinValue, float& MaxValue) const;
-	void GetValueRange(double& MinValue, double& MaxValue) const;		// LWC_TODO: Native workaround for FVector2D components
+	ENGINE_API void GetValueRange(float& MinValue, float& MaxValue) const;
+	ENGINE_API void GetValueRange(double& MinValue, double& MaxValue) const;		// LWC_TODO: Native workaround for FVector2D components
 	/** 
 	 *	Create curve from CSV style comma-separated string.
 	 *
 	 * @param InString The input string to parse.
 	 *	@return	Set of problems encountered while processing input
 	 */
-	TArray<FString> CreateCurveFromCSVString(const FString& InString);
+	ENGINE_API TArray<FString> CreateCurveFromCSVString(const FString& InString);
 
 	/** 
 	 * Imports the curve data from a JSON string.
@@ -43,17 +43,17 @@ class ENGINE_API UCurveBase
 	 * @param InString The input string to parse.
 	 * @param OutProblems Set of problems encountered while processing input
 	 */
-	virtual void ImportFromJSONString(const FString& InString, TArray<FString>& OutProblems);
+	ENGINE_API virtual void ImportFromJSONString(const FString& InString, TArray<FString>& OutProblems);
 	
 	/**
 	 * Exports the curve as a JSON string
 	 *
 	 * @return The curve data as a JSON string
 	 */
-	FString ExportAsJSONString() const;
+	ENGINE_API FString ExportAsJSONString() const;
 	
 	/** Reset all curve data */
-	void ResetCurve();
+	ENGINE_API void ResetCurve();
 
 public:
 
@@ -71,10 +71,10 @@ public:
 		return Curves;
 	}
 
-	virtual void ModifyOwner() override;
-	virtual TArray<const UObject*> GetOwners() const override;
-	virtual void MakeTransactional() override;
-	virtual void OnCurveChanged(const TArray<FRichCurveEditInfo>& ChangedCurveEditInfos) override;
+	ENGINE_API virtual void ModifyOwner() override;
+	ENGINE_API virtual TArray<const UObject*> GetOwners() const override;
+	ENGINE_API virtual void MakeTransactional() override;
+	ENGINE_API virtual void OnCurveChanged(const TArray<FRichCurveEditInfo>& ChangedCurveEditInfos) override;
 	
 	virtual bool RepointCurveOwner(const FPackageReloadedEvent& InPackageReloadedEvent, FCurveOwnerInterface*& OutNewCurveOwner) const override
 	{
@@ -93,12 +93,12 @@ public:
 #if WITH_EDITORONLY_DATA
 
 	/** Override to ensure we write out the asset import data */
-	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
-	virtual void PostInitProperties() override;
-	virtual void PostLoad() override;
+	ENGINE_API virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
+	ENGINE_API virtual void PostInitProperties() override;
+	ENGINE_API virtual void PostLoad() override;
 
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
 	UPROPERTY(VisibleAnywhere, Instanced, Category=ImportSettings)

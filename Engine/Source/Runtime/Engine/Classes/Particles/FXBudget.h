@@ -22,43 +22,43 @@ struct FFXTimeData
 };
 
 #if WITH_GLOBAL_RUNTIME_FX_BUDGET
-class ENGINE_API FFXBudget
+class FFXBudget
 {
 public:
 	/** Returns the global FX time in ms. */
-	static FFXTimeData GetTime();
+	static ENGINE_API FFXTimeData GetTime();
 	/** Returns the global FX budgets in ms. */
-	static FFXTimeData GetBudget();
+	static ENGINE_API FFXTimeData GetBudget();
 	/** Returns the global FX time / budget ratio. */
-	static FFXTimeData GetUsage();
+	static ENGINE_API FFXTimeData GetUsage();
 	/** 
 	 * Returns the global FX time / budget ratio but adjusted in various ways better drive FX scaling. 
 	 * e.g. Usage goes up in line with the real usage but can fall only at a set rate. Useful to avoid FX flipping on/off if their cost is tipping the usage over the budget.
 * 	 * Other adjustments may be made in future.
 	 **/
-	static FFXTimeData GetAdjustedUsage();
+	static ENGINE_API FFXTimeData GetAdjustedUsage();
 	/** Returns the highest single adjusted usage value. */
 	FORCEINLINE static float GetWorstAdjustedUsage() { return WorstAdjustedUsage; }
 	FORCEINLINE static void SetWorstAdjustedUsage(float NewAdjustedUsage){ WorstAdjustedUsage = NewAdjustedUsage; }
 
-	static void Reset();
+	static ENGINE_API void Reset();
 
-	static TSharedPtr<FParticlePerfStatsListener_FXBudget, ESPMode::ThreadSafe> StatsListener;
+	static ENGINE_API TSharedPtr<FParticlePerfStatsListener_FXBudget, ESPMode::ThreadSafe> StatsListener;
 
-	static void OnEnabledCVarChanged(IConsoleVariable* CVar);
+	static ENGINE_API void OnEnabledCVarChanged(IConsoleVariable* CVar);
 	FORCEINLINE static bool Enabled(){ return bEnabled; }
-	static void SetEnabled(bool bInEnabled);
+	static ENGINE_API void SetEnabled(bool bInEnabled);
 
-	static bool bEnabled;
+	static ENGINE_API bool bEnabled;
 
-	static FFXTimeData AdjustedUsage;
-	static float WorstAdjustedUsage;
+	static ENGINE_API FFXTimeData AdjustedUsage;
+	static ENGINE_API float WorstAdjustedUsage;
 
 private:
-	static void OnEnabledChangedInternal();
+	static ENGINE_API void OnEnabledChangedInternal();
 };
 #else
-class ENGINE_API FFXBudget
+class FFXBudget
 {
 public:
 	FORCEINLINE static FFXTimeData GetTime(){ return FFXTimeData(); }

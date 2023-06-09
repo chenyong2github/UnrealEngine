@@ -30,7 +30,7 @@ enum EMaterialMergeType : int
 };
 
 USTRUCT(Blueprintable)
-struct ENGINE_API FMaterialProxySettings
+struct FMaterialProxySettings
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -181,18 +181,18 @@ struct ENGINE_API FMaterialProxySettings
 	UPROPERTY(Category = Material, BlueprintReadWrite, AdvancedDisplay, EditAnywhere, meta = (ClampMin = "1", UIMin = "1"))
 	FIntPoint AmbientOcclusionTextureSize;
 
-	FMaterialProxySettings();
+	ENGINE_API FMaterialProxySettings();
 
-	bool operator == (const FMaterialProxySettings& Other) const;
-	bool operator != (const FMaterialProxySettings& Other) const;
+	ENGINE_API bool operator == (const FMaterialProxySettings& Other) const;
+	ENGINE_API bool operator != (const FMaterialProxySettings& Other) const;
 
-	FIntPoint GetMaxTextureSize() const;
+	ENGINE_API FIntPoint GetMaxTextureSize() const;
 
 #if WITH_EDITOR
-	bool ResolveTexelDensity(const TArray<class UPrimitiveComponent*>& InComponents);
-	bool ResolveTexelDensity(const TArray<class UPrimitiveComponent*>& InComponents, float& OutTexelDensity) const;
+	ENGINE_API bool ResolveTexelDensity(const TArray<class UPrimitiveComponent*>& InComponents);
+	ENGINE_API bool ResolveTexelDensity(const TArray<class UPrimitiveComponent*>& InComponents, float& OutTexelDensity) const;
 
-	void ResolveTextureSize(const FMeshDescription& InMesh);
-	void ResolveTextureSize(const float InWorldSpaceRadius, const double InWorldSpaceArea, const double InUVSpaceArea = 1.0);
+	ENGINE_API void ResolveTextureSize(const FMeshDescription& InMesh);
+	ENGINE_API void ResolveTextureSize(const float InWorldSpaceRadius, const double InWorldSpaceArea, const double InUVSpaceArea = 1.0);
 #endif
 };

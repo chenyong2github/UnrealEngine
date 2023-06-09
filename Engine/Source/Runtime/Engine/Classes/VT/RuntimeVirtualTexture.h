@@ -11,11 +11,11 @@
 namespace UE { namespace Shader	{ enum class EValueType : uint8; } }
 
 /** Runtime virtual texture UObject */
-UCLASS(ClassGroup = Rendering, BlueprintType)
-class ENGINE_API URuntimeVirtualTexture : public UObject
+UCLASS(ClassGroup = Rendering, BlueprintType, MinimalAPI)
+class URuntimeVirtualTexture : public UObject
 {
 	GENERATED_UCLASS_BODY()
-	~URuntimeVirtualTexture();
+	ENGINE_API ~URuntimeVirtualTexture();
 
 protected:
 	/** 
@@ -91,7 +91,7 @@ public:
 	UFUNCTION(BlueprintGetter)
 	int32 GetTileCount() const { return GetClampedTileCount(TileCount, bAdaptive); }
 	static int32 GetClampedTileCount(int32 InTileCount, bool InAdaptive) { return 1 << FMath::Clamp(InTileCount, 0, GetMaxTileCountLog2(InAdaptive)); }
-	static int32 GetMaxTileCountLog2(bool InAdaptive);
+	static ENGINE_API int32 GetMaxTileCountLog2(bool InAdaptive);
 	/** Public getter for virtual texture tile size */
 	UFUNCTION(BlueprintGetter)
 	int32 GetTileSize() const { return GetClampedTileSize(TileSize); }
@@ -105,7 +105,7 @@ public:
 	int32 GetSize() const { return GetTileCount() * GetTileSize(); }
 	/** Public getter for virtual texture page table size. This is only different from GetTileCount() when using an adaptive page table.  */
 	UFUNCTION(BlueprintPure, Category = Size)
-	int32 GetPageTableSize() const;
+	ENGINE_API int32 GetPageTableSize() const;
 
 	/** Get if this virtual texture uses compressed texture formats. */
 	bool GetCompressTextures() const { return bCompressTextures; }
@@ -134,46 +134,46 @@ public:
 	};
 
 	/** Get virtual texture description based on the properties of this object and the passed in volume transform. */
-	void GetProducerDescription(FVTProducerDescription& OutDesc, FInitSettings const& InitSettings, FTransform const& VolumeToWorld) const;
+	ENGINE_API void GetProducerDescription(FVTProducerDescription& OutDesc, FInitSettings const& InitSettings, FTransform const& VolumeToWorld) const;
 
 	/** Returns number of texture layers in the virtual texture */
-	int32 GetLayerCount() const;
+	ENGINE_API int32 GetLayerCount() const;
 	/** Returns number of texture layers in the virtual texture of a given material type */
-	static int32 GetLayerCount(ERuntimeVirtualTextureMaterialType InMaterialType);
+	static ENGINE_API int32 GetLayerCount(ERuntimeVirtualTextureMaterialType InMaterialType);
 	/** Returns the texture format for the virtual texture layer */
-	EPixelFormat GetLayerFormat(int32 LayerIndex) const;
+	ENGINE_API EPixelFormat GetLayerFormat(int32 LayerIndex) const;
 	/** Return true if the virtual texture layer should be sampled as sRGB */
-	bool IsLayerSRGB(int32 LayerIndex) const;
+	ENGINE_API bool IsLayerSRGB(int32 LayerIndex) const;
 	/** Return true if the virtual texture layer should be sampled as YCoCg */
-	bool IsLayerYCoCg(int32 LayerIndex) const;
+	ENGINE_API bool IsLayerYCoCg(int32 LayerIndex) const;
 
 	/** (Re)Initialize this object. Call this whenever we modify the producer or transform. */
-	void Initialize(IVirtualTexture* InProducer, FVTProducerDescription const& InProducerDesc, FTransform const& InVolumeToWorld, FBox const& InWorldBounds);
+	ENGINE_API void Initialize(IVirtualTexture* InProducer, FVTProducerDescription const& InProducerDesc, FTransform const& InVolumeToWorld, FBox const& InWorldBounds);
 
 	/** Release the resources for this object This will need to be called if our producer becomes stale and we aren't doing a full reinit with a new producer. */
-	void Release();
+	ENGINE_API void Release();
 
 	/** Getter for the associated virtual texture producer. Call on render thread only. */
-	FVirtualTextureProducerHandle GetProducerHandle() const;
+	ENGINE_API FVirtualTextureProducerHandle GetProducerHandle() const;
 	/** Getter for the associated virtual texture allocation. Call on render thread only. */
-	IAllocatedVirtualTexture* GetAllocatedVirtualTexture() const;
+	ENGINE_API IAllocatedVirtualTexture* GetAllocatedVirtualTexture() const;
 
 	/** Getter for the shader uniform parameters. */
-	FVector4 GetUniformParameter(int32 Index) const;
+	ENGINE_API FVector4 GetUniformParameter(int32 Index) const;
 	/** Getter for the shader uniform parameter type. */
-	static UE::Shader::EValueType GetUniformParameterType(int32 Index);
+	static ENGINE_API UE::Shader::EValueType GetUniformParameterType(int32 Index);
 
 protected:
 	/** Initialize the render resources. This kicks off render thread work. */
-	void InitResource(IVirtualTexture* InProducer, FVTProducerDescription const& InProducerDesc);
+	ENGINE_API void InitResource(IVirtualTexture* InProducer, FVTProducerDescription const& InProducerDesc);
 	/** Initialize the render resources with a null producer. This kicks off render thread work. */
-	void InitNullResource();
+	ENGINE_API void InitNullResource();
 
 	//~ Begin UObject Interface.
-	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
-	virtual void PostLoad() override;
+	ENGINE_API virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
+	ENGINE_API virtual void PostLoad() override;
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 	//~ End UObject Interface.
 

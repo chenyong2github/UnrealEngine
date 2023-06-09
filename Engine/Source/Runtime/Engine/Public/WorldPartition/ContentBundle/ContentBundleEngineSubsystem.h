@@ -14,22 +14,22 @@ class UContentBundleDescriptor;
 class UContentBundleTypeFactory;
 class URuntimeHashExternalStreamingObjectBase;
 
-UCLASS(Config = Engine)
-class ENGINE_API UContentBundleEngineSubsystem : public UEngineSubsystem
+UCLASS(Config = Engine, MinimalAPI)
+class UContentBundleEngineSubsystem : public UEngineSubsystem
 {
 	GENERATED_BODY()
 
 public:
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-	virtual void Deinitialize() override;
+	ENGINE_API virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	ENGINE_API virtual void Deinitialize() override;
 
-	TSharedPtr<FContentBundleClient> RegisterContentBundle(const UContentBundleDescriptor* Descriptor, const FString& ClientDisplayName);
-	void UnregisterContentBundle(FContentBundleClient& Client);
+	ENGINE_API TSharedPtr<FContentBundleClient> RegisterContentBundle(const UContentBundleDescriptor* Descriptor, const FString& ClientDisplayName);
+	ENGINE_API void UnregisterContentBundle(FContentBundleClient& Client);
 
-	void RequestContentInjection(FContentBundleClient& Client);
-	void RequestContentRemoval(FContentBundleClient& Client);
+	ENGINE_API void RequestContentInjection(FContentBundleClient& Client);
+	ENGINE_API void RequestContentRemoval(FContentBundleClient& Client);
 
-	const UContentBundleDescriptor* GetContentBundleDescriptor(const FGuid& ContentBundleGuid) const;
+	ENGINE_API const UContentBundleDescriptor* GetContentBundleDescriptor(const FGuid& ContentBundleGuid) const;
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FContentBundleRegisterDelegate, TSharedPtr<FContentBundleClient>&);
 	FContentBundleRegisterDelegate OnContentBundleClientRegistered;
@@ -41,14 +41,14 @@ public:
 
 	TArrayView<TSharedPtr<FContentBundleClient>> GetContentBundleClients() { return MakeArrayView(ContentBundleClients); }
 
-	static UContentBundleEngineSubsystem* Get();
+	static ENGINE_API UContentBundleEngineSubsystem* Get();
 
 private:
-	void OnPreWorldInitialization(UWorld* World, const UWorld::InitializationValues IVS);
-	void OnWorldPostCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources);
+	ENGINE_API void OnPreWorldInitialization(UWorld* World, const UWorld::InitializationValues IVS);
+	ENGINE_API void OnWorldPostCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources);
 
-	TSharedPtr<FContentBundleClient>* FindRegisteredClient(const UContentBundleDescriptor* Descriptor);
-	TSharedPtr<FContentBundleClient>* FindRegisteredClient(FContentBundleClient& InClient);
+	ENGINE_API TSharedPtr<FContentBundleClient>* FindRegisteredClient(const UContentBundleDescriptor* Descriptor);
+	ENGINE_API TSharedPtr<FContentBundleClient>* FindRegisteredClient(FContentBundleClient& InClient);
 
 	TArray<TSharedPtr<FContentBundleClient>> ContentBundleClients;
 

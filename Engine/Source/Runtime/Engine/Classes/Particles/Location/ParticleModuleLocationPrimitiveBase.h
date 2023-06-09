@@ -16,8 +16,8 @@
 
 struct FParticleEmitterInstance;
 
-UCLASS(editinlinenew, hidecategories=Object)
-class ENGINE_API UParticleModuleLocationPrimitiveBase : public UParticleModuleLocationBase
+UCLASS(editinlinenew, hidecategories=Object, MinimalAPI)
+class UParticleModuleLocationPrimitiveBase : public UParticleModuleLocationBase
 {
 	GENERATED_UCLASS_BODY()
 
@@ -62,17 +62,17 @@ class ENGINE_API UParticleModuleLocationPrimitiveBase : public UParticleModuleLo
 	struct FRawDistributionVector StartLocation;
 
 	/** Initializes the default values for this property */
-	void InitializeDefaults();
+	ENGINE_API void InitializeDefaults();
 
 	//Begin UObject Interface
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
-	virtual void PostInitProperties() override;
+	ENGINE_API virtual void PostInitProperties() override;
 	//End UObject Interface
 
 	//@todo document
-	virtual void	DetermineUnitDirection(FParticleEmitterInstance* Owner, FVector& vUnitDir, struct FRandomStream* InRandomStream);
+	ENGINE_API virtual void	DetermineUnitDirection(FParticleEmitterInstance* Owner, FVector& vUnitDir, struct FRandomStream* InRandomStream);
 };
 
 

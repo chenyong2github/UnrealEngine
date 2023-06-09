@@ -18,8 +18,8 @@ class UMaterialInterface;
  * @see https://docs.unrealengine.com/latest/INT/Engine/Actors/DecalActor
  * @see UDecalActor
  */
-UCLASS(Blueprintable, editinlinenew, hidecategories=(Collision, Object, Physics, SceneComponent, Activation, "Components|Activation", Mobility), ClassGroup=Rendering, meta=(BlueprintSpawnableComponent))
-class ENGINE_API UDecalComponent : public USceneComponent
+UCLASS(Blueprintable, editinlinenew, hidecategories=(Collision, Object, Physics, SceneComponent, Activation, "Components|Activation", Mobility), ClassGroup=Rendering, meta=(BlueprintSpawnableComponent), MinimalAPI)
+class UDecalComponent : public USceneComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -64,16 +64,16 @@ public:
 	uint8 bDestroyOwnerAfterFade : 1;
 
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Decal")
-	float GetFadeStartDelay() const;
+	ENGINE_API float GetFadeStartDelay() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Decal")
-	float GetFadeDuration() const;
+	ENGINE_API float GetFadeDuration() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Decal")
-	float GetFadeInStartDelay() const;
+	ENGINE_API float GetFadeInStartDelay() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Decal")
-	float GetFadeInDuration() const;
+	ENGINE_API float GetFadeInDuration() const;
 
 	/** Decal size in local space (does not include the component scale), technically redundant but there for convenience */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Decal, meta=(AllowPreserveRatio = "true"))
@@ -93,34 +93,34 @@ public:
 	* @param DestroyOwnerAfterFade - Should the owning actor automatically be destroyed after it is completely faded out.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Decal")
-	void SetFadeOut(float StartDelay, float Duration, bool DestroyOwnerAfterFade = true);
+	ENGINE_API void SetFadeOut(float StartDelay, float Duration, bool DestroyOwnerAfterFade = true);
 
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Decal")
-	void SetFadeIn(float StartDelay, float Duration);
+	ENGINE_API void SetFadeIn(float StartDelay, float Duration);
 
 	/** Set the FadeScreenSize for this decal component */
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Decal")
-	void SetFadeScreenSize(float NewFadeScreenSize);
+	ENGINE_API void SetFadeScreenSize(float NewFadeScreenSize);
 
 	/** Sets the sort order for the decal component. Higher values draw later (on top). This will force the decal to reattach */
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Decal")
-	void SetSortOrder(int32 Value);
+	ENGINE_API void SetSortOrder(int32 Value);
 
 	/** Sets the decal color. */
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Decal")
-	void SetDecalColor(const FLinearColor& Color);
+	ENGINE_API void SetDecalColor(const FLinearColor& Color);
 
 	/** setting decal material on decal component. This will force the decal to reattach */
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|Decal")
-	void SetDecalMaterial(class UMaterialInterface* NewDecalMaterial);
+	ENGINE_API void SetDecalMaterial(class UMaterialInterface* NewDecalMaterial);
 
 	/** Accessor for decal material */
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|Decal")
-	class UMaterialInterface* GetDecalMaterial() const;
+	ENGINE_API class UMaterialInterface* GetDecalMaterial() const;
 
 	/** Utility to allocate a new Dynamic Material Instance, set its parent to the currently applied material, and assign it */
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|Decal")
-	virtual class UMaterialInstanceDynamic* CreateDynamicMaterialInstance();
+	ENGINE_API virtual class UMaterialInstanceDynamic* CreateDynamicMaterialInstance();
 
 
 public:
@@ -130,27 +130,27 @@ public:
 	/**
 	 * Pushes new selection state to the render thread primitive proxy
 	 */
-	void PushSelectionToProxy();
+	ENGINE_API void PushSelectionToProxy();
 
 protected:
 	/** Handle for efficient management of DestroyDecalComponent timer */
 	FTimerHandle TimerHandle_DestroyDecalComponent;
 
 	/** Called when the life span of the decal has been exceeded */
-	virtual void LifeSpanCallback();
+	ENGINE_API virtual void LifeSpanCallback();
 
 public:
 	
-	void SetLifeSpan(const float LifeSpan);
+	ENGINE_API void SetLifeSpan(const float LifeSpan);
 
 	/**
 	 * Retrieves the materials used in this component
 	 *
 	 * @param OutMaterials	The list of used materials.
 	 */
-	virtual void GetUsedMaterials( TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false ) const;
+	ENGINE_API virtual void GetUsedMaterials( TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false ) const;
 	
-	virtual FDeferredDecalProxy* CreateSceneProxy();
+	ENGINE_API virtual FDeferredDecalProxy* CreateSceneProxy();
 	virtual int32 GetNumMaterials() const
 	{
 		return 1; // DecalMaterial
@@ -170,23 +170,23 @@ public:
 
 	
 	//~ Begin UActorComponent Interface
-	virtual void BeginPlay() override;
-	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
-	virtual void DestroyRenderState_Concurrent() override;
-	virtual void SendRenderTransform_Concurrent() override;
-	virtual const UObject* AdditionalStatObject() const override;
+	ENGINE_API virtual void BeginPlay() override;
+	ENGINE_API virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
+	ENGINE_API virtual void DestroyRenderState_Concurrent() override;
+	ENGINE_API virtual void SendRenderTransform_Concurrent() override;
+	ENGINE_API virtual const UObject* AdditionalStatObject() const override;
 	//~ End UActorComponent Interface
 	
 	//~ Begin UObject Interface. 
-	virtual void Serialize(FArchive& Ar) override;
-	virtual bool IsPostLoadThreadSafe() const override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual bool IsPostLoadThreadSafe() const override;
 	//~ End UObject Interface
 
 	//~ Begin USceneComponent Interface
 #if WITH_EDITOR
-	virtual bool GetMaterialPropertyPath(int32 ElementIndex, UObject*& OutOwner, FString& OutPropertyPath, FProperty*& OutProperty) override;
+	ENGINE_API virtual bool GetMaterialPropertyPath(int32 ElementIndex, UObject*& OutOwner, FString& OutPropertyPath, FProperty*& OutProperty) override;
 #endif // WITH_EDITOR
-	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
+	ENGINE_API virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	//~ End USceneComponent Interface
 
 	FTransform GetTransformIncludingDecalSize() const

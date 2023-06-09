@@ -18,7 +18,7 @@ struct FAnimBlueprintFunction;
 class IAnimClassInterface;
 
 USTRUCT(BlueprintInternalUseOnly)
-struct ENGINE_API FAnimNode_LinkedAnimLayer : public FAnimNode_LinkedAnimGraph
+struct FAnimNode_LinkedAnimLayer : public FAnimNode_LinkedAnimGraph
 {
 	GENERATED_BODY()
 
@@ -35,19 +35,19 @@ public:
 	FName Layer;
 
 	/** Set the layer's 'overlay' externally managed linked instance. */
-	void SetLinkedLayerInstance(const UAnimInstance* InOwningAnimInstance, UAnimInstance* InNewLinkedInstance);
+	ENGINE_API void SetLinkedLayerInstance(const UAnimInstance* InOwningAnimInstance, UAnimInstance* InNewLinkedInstance);
 
 	/** FAnimNode_Base interface */
-	virtual void OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance) override;
+	ENGINE_API virtual void OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance) override;
 	virtual bool NeedsOnInitializeAnimInstance() const override { return true; }
-	void OnUninitializeAnimInstance(UAnimInstance* InAnimInstance);
+	ENGINE_API void OnUninitializeAnimInstance(UAnimInstance* InAnimInstance);
 
 	/** FAnimNode_CustomProperty interface */
-	virtual void InitializeProperties(const UObject* InSourceInstance, UClass* InTargetClass) override;
+	ENGINE_API virtual void InitializeProperties(const UObject* InSourceInstance, UClass* InTargetClass) override;
 	
 	/** FAnimNode_LinkedAnimGraph interface */
-	virtual FName GetDynamicLinkFunctionName() const override;
-	virtual UAnimInstance* GetDynamicLinkTarget(UAnimInstance* InOwningAnimInstance) const override;
+	ENGINE_API virtual FName GetDynamicLinkFunctionName() const override;
+	ENGINE_API virtual UAnimInstance* GetDynamicLinkTarget(UAnimInstance* InOwningAnimInstance) const override;
 	virtual UClass* GetTargetClass() const override 
 	{
 		return *Interface;
@@ -56,19 +56,19 @@ public:
 #if WITH_EDITOR
 	// Event fired when the instance we are running has changed
 	FSimpleMulticastDelegate& OnInstanceChanged() { return OnInstanceChangedEvent; }
-	virtual void HandleObjectsReinstanced_Impl(UObject* InSourceObject, UObject* InTargetObject, const TMap<UObject*, UObject*>& OldToNewInstanceMap) override;
+	ENGINE_API virtual void HandleObjectsReinstanced_Impl(UObject* InSourceObject, UObject* InTargetObject, const TMap<UObject*, UObject*>& OldToNewInstanceMap) override;
 #endif
 
 protected:
-	void InitializeSelfLayer(const UAnimInstance* SelfAnimInstance);
+	ENGINE_API void InitializeSelfLayer(const UAnimInstance* SelfAnimInstance);
 
 	// Initialize the source properties to copy from
-	void InitializeSourceProperties(const UAnimInstance* InAnimInstance);
+	ENGINE_API void InitializeSourceProperties(const UAnimInstance* InAnimInstance);
 
-	virtual bool CanTeardownLinkedInstance(const UAnimInstance* LinkedInstance) const override;
+	ENGINE_API virtual bool CanTeardownLinkedInstance(const UAnimInstance* LinkedInstance) const override;
 
 	// Cleanup Shared LinkedLayers Data associated with InPreviousTargetInstance
-	void CleanupSharedLinkedLayersData(const UAnimInstance* InOwningAnimInstance, UAnimInstance* InPreviousTargetInstance);
+	ENGINE_API void CleanupSharedLinkedLayersData(const UAnimInstance* InOwningAnimInstance, UAnimInstance* InPreviousTargetInstance);
 	
 #if WITH_EDITOR
 	// Event fired when the instance we are running has changed
@@ -77,7 +77,7 @@ protected:
 
     // stats
 #if ANIMNODE_STATS_VERBOSE
-	virtual void InitializeStatID() override;
+	ENGINE_API virtual void InitializeStatID() override;
 #endif
 };
 

@@ -25,7 +25,7 @@ enum EShrinkCapsuleExtent
 
 /** Data about the floor for walking movement, used by CharacterMovementComponent. */
 USTRUCT(BlueprintType)
-struct ENGINE_API FFindFloorResult
+struct FFindFloorResult
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -92,8 +92,8 @@ public:
 		return bLineTrace ? LineDist : FloorDist;
 	}
 
-	void SetFromSweep(const FHitResult& InHit, const float InSweepFloorDist, const bool bIsWalkableFloor);
-	void SetFromLineTrace(const FHitResult& InHit, const float InSweepFloorDist, const float InLineDist, const bool bIsWalkableFloor);
+	ENGINE_API void SetFromSweep(const FHitResult& InHit, const float InSweepFloorDist, const bool bIsWalkableFloor);
+	ENGINE_API void SetFromLineTrace(const FHitResult& InHit, const float InSweepFloorDist, const float InLineDist, const bool bIsWalkableFloor);
 };
 
 
@@ -300,7 +300,7 @@ struct FRootMotionAsyncData
 };
 
 // Data and implementation that lives on movement component's character owner
-struct ENGINE_API FCharacterAsyncInput
+struct FCharacterAsyncInput
 {
 	virtual ~FCharacterAsyncInput() {}
 
@@ -316,38 +316,38 @@ struct ENGINE_API FCharacterAsyncInput
 	bool bUseControllerRotationRoll;
 	FRotator ControllerDesiredRotation;
 
-	virtual void FaceRotation(FRotator NewControlRotation, float DeltaTime, const FCharacterMovementComponentAsyncInput& Input, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual void CheckJumpInput(float DeltaSeconds, const FCharacterMovementComponentAsyncInput& Input, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual void ClearJumpInput(float DeltaSeconds, const FCharacterMovementComponentAsyncInput& Input, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual bool CanJump(const FCharacterMovementComponentAsyncInput& Input, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual void ResetJumpState(const FCharacterMovementComponentAsyncInput& Input, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual void OnMovementModeChanged(EMovementMode PrevMovementMode, const FCharacterMovementComponentAsyncInput& Input, FCharacterMovementComponentAsyncOutput& Output, uint8 PreviousCustomMode = 0);
+	ENGINE_API virtual void FaceRotation(FRotator NewControlRotation, float DeltaTime, const FCharacterMovementComponentAsyncInput& Input, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual void CheckJumpInput(float DeltaSeconds, const FCharacterMovementComponentAsyncInput& Input, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual void ClearJumpInput(float DeltaSeconds, const FCharacterMovementComponentAsyncInput& Input, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual bool CanJump(const FCharacterMovementComponentAsyncInput& Input, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual void ResetJumpState(const FCharacterMovementComponentAsyncInput& Input, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual void OnMovementModeChanged(EMovementMode PrevMovementMode, const FCharacterMovementComponentAsyncInput& Input, FCharacterMovementComponentAsyncOutput& Output, uint8 PreviousCustomMode = 0);
 };
 
 // Represents the UpdatedComponent's state and implementation
-struct ENGINE_API FUpdatedComponentAsyncInput
+struct FUpdatedComponentAsyncInput
 {
 	virtual ~FUpdatedComponentAsyncInput() {}
 
 	// base Implementation from PrimitiveComponent, this will be wrong if UpdatedComponent is SceneComponent.
-	virtual bool MoveComponent(const FVector& Delta, const FQuat& NewRotationQuat, bool bSweep, FHitResult* OutHit, EMoveComponentFlags MoveFlags, ETeleportType Teleport, const FCharacterMovementComponentAsyncInput& Input, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual bool AreSymmetricRotations(const FQuat& A, const FQuat& B, const FVector& Scale3D) const;
+	ENGINE_API virtual bool MoveComponent(const FVector& Delta, const FQuat& NewRotationQuat, bool bSweep, FHitResult* OutHit, EMoveComponentFlags MoveFlags, ETeleportType Teleport, const FCharacterMovementComponentAsyncInput& Input, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual bool AreSymmetricRotations(const FQuat& A, const FQuat& B, const FVector& Scale3D) const;
 
 	// TODO Dedupe with PrimitiveComponent where possible
-	static void PullBackHit(FHitResult& Hit, const FVector& Start, const FVector& End, const float Dist);
-	static bool ShouldCheckOverlapFlagToQueueOverlaps(const UPrimitiveComponent& ThisComponent);
-	static bool ShouldIgnoreHitResult(const UWorld* InWorld, FHitResult const& TestHit, FVector const& MovementDirDenormalized, const AActor* MovingActor, EMoveComponentFlags MoveFlags);
-	static bool ShouldIgnoreOverlapResult(const UWorld* World, const AActor* ThisActor, const UPrimitiveComponent& ThisComponent, const AActor* OtherActor, const UPrimitiveComponent& OtherComponent);
+	static ENGINE_API void PullBackHit(FHitResult& Hit, const FVector& Start, const FVector& End, const float Dist);
+	static ENGINE_API bool ShouldCheckOverlapFlagToQueueOverlaps(const UPrimitiveComponent& ThisComponent);
+	static ENGINE_API bool ShouldIgnoreHitResult(const UWorld* InWorld, FHitResult const& TestHit, FVector const& MovementDirDenormalized, const AActor* MovingActor, EMoveComponentFlags MoveFlags);
+	static ENGINE_API bool ShouldIgnoreOverlapResult(const UWorld* World, const AActor* ThisActor, const UPrimitiveComponent& ThisComponent, const AActor* OtherActor, const UPrimitiveComponent& OtherComponent);
 
 	FVector GetForwardVector() const { return GetRotation().GetAxisX(); }
 	FVector GetRightVector() const { return GetRotation().GetAxisY(); }
 	FVector GetUpVector() const { return GetRotation().GetAxisZ(); }
 
 	// Async API, physics thread only.
-	void SetPosition(const FVector& Position) const;
-	FVector GetPosition() const;
-	void SetRotation(const FQuat& Rotation) const;
-	FQuat GetRotation() const;
+	ENGINE_API void SetPosition(const FVector& Position) const;
+	ENGINE_API FVector GetPosition() const;
+	ENGINE_API void SetRotation(const FQuat& Rotation) const;
+	ENGINE_API FQuat GetRotation() const;
 
 	bool bIsQueryCollisionEnabled;
 	bool bIsSimulatingPhysics;
@@ -394,7 +394,7 @@ struct FCharacterMovementGTInputs
 * Contains 'CharacterInput' and 'UpdatedComponentInput' represent data/impl of Character and our UpdatedComponent.
 * All input is const, non-const data goes in output. 'AsyncSimState' points to non-const sim state.
 */
-struct ENGINE_API FCharacterMovementComponentAsyncInput : public Chaos::FSimCallbackInput
+struct FCharacterMovementComponentAsyncInput : public Chaos::FSimCallbackInput
 {
 	using FCharacterInput = FCharacterAsyncInput;
 	using FUpdatedComponentInput = FUpdatedComponentAsyncInput;
@@ -511,110 +511,110 @@ struct ENGINE_API FCharacterMovementComponentAsyncInput : public Chaos::FSimCall
 	}
 
 	// Entry point of async tick
-	void Simulate(const float DeltaSeconds, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API void Simulate(const float DeltaSeconds, FCharacterMovementComponentAsyncOutput& Output) const;
 
 	// TODO organize these
-	virtual void ControlledCharacterMove(const float DeltaSeconds, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual void PerformMovement(float DeltaSeconds, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual void MaybeUpdateBasedMovement(float DeltaSeconds, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual void UpdateBasedMovement(float DeltaSeconds, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual void StartNewPhysics(float deltaTime, int32 Iterations, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual void PhysWalking(float deltaTime, int32 Iterations, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual void PhysFalling(float deltaTime, int32 Iterations, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual void PhysicsRotation(float DeltaTime, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual void MoveAlongFloor(const FVector& InVelocity, float DeltaSeconds, FStepDownResult* OutStepDownResult, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual FVector ComputeGroundMovementDelta(const FVector& Delta, const FHitResult& RampHit, const bool bHitFromLineTrace, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual bool CanCrouchInCurrentState(FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual FVector ConstrainInputAcceleration(FVector InputAcceleration, const FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual FVector ScaleInputAcceleration(FVector InputAcceleration, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual float ComputeAnalogInputModifier(FVector Acceleration) const;
-	virtual FVector ConstrainLocationToPlane(FVector Location) const;
-	virtual FVector ConstrainDirectionToPlane(FVector Direction) const;
-	virtual FVector ConstrainNormalToPlane(FVector Normal) const;
-	virtual void MaintainHorizontalGroundVelocity(FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual bool MoveUpdatedComponent(const FVector& Delta, const FQuat& NewRotation, bool bSweep, FCharacterMovementComponentAsyncOutput& Output, FHitResult* OutHitResult = nullptr, ETeleportType TeleportType = ETeleportType::None) const;
-	virtual bool SafeMoveUpdatedComponent(const FVector& Delta, const FQuat& NewRotation, bool bSweep, FHitResult& OutHit, FCharacterMovementComponentAsyncOutput& Output, ETeleportType Teleport = ETeleportType::None) const;
-	virtual void ApplyAccumulatedForces(float DeltaSeconds, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual void ClearAccumulatedForces(FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual void SetMovementMode(EMovementMode NewMovementMode, FCharacterMovementComponentAsyncOutput& Output, uint8 NewCustomMode = 0) const;
-	virtual void OnMovementModeChanged(EMovementMode PreviousMovementMode, uint8 PreviousCustomMode, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual void FindFloor(const FVector& CapsuleLocation, FFindFloorResult& OutFloorResult, bool bCanUseCachedLocation, FCharacterMovementComponentAsyncOutput& Output, const FHitResult* DownwardSweepResult = nullptr) const;
-	virtual void ComputeFloorDist(const FVector& CapsuleLocation, float LineDistance, float SweepDistance, FFindFloorResult& OutFloorResult, float SweepRadius, FCharacterMovementComponentAsyncOutput& Output, const FHitResult* DownwardSweepResult = nullptr) const;
-	virtual bool FloorSweepTest(struct FHitResult& OutHit, const FVector& Start, const FVector& End, ECollisionChannel TraceChannel, const struct FCollisionShape& CollisionShape, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParam, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual bool IsWithinEdgeTolerance(const FVector& CapsuleLocation, const FVector& TestImpactPoint, const float CapsuleRadius) const;
-	virtual bool IsWalkable(const FHitResult& Hit) const;
-	virtual void UpdateCharacterStateAfterMovement(float DeltaSeconds, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual float GetSimulationTimeStep(float RemainingTime, int32 Iterations) const;
-	virtual void CalcVelocity(float DeltaTime, float Friction, bool bFluid, float BrakingDeceleration, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual bool ApplyRequestedMove(float DeltaTime, float MaxAccel, float MaxSpeed, float Friction, float BrakingDeceleration, FVector& OutAcceleration, float& OutRequestedSpeed, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual bool ShouldComputeAccelerationToReachRequestedVelocity(const float RequestedSpeed, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual float GetMinAnalogSpeed(FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual float GetMaxBrakingDeceleration(FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual void ApplyVelocityBraking(float DeltaTime, float Friction, float BrakingDeceleration, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual FVector GetPenetrationAdjustment(FHitResult& HitResult) const;
-	virtual bool ResolvePenetration(const FVector& Adjustment, const FHitResult& Hit, const FQuat& NewRotation, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual void HandleImpact(const FHitResult& Impact, FCharacterMovementComponentAsyncOutput& Output, float TimeSlice = 0.0f, const FVector& MoveDelta = FVector::ZeroVector) const;
-	virtual float SlideAlongSurface(const FVector& Delta, float Time, const FVector& InNormal, FHitResult& Hit, bool bHandleImpact, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual FVector ComputeSlideVector(const FVector& Delta, const float Time, const FVector& Normal, const FHitResult& Hit, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual FVector HandleSlopeBoosting(const FVector& SlideResult, const FVector& Delta, const float Time, const FVector& Normal, const FHitResult& Hit, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual void OnCharacterStuckInGeometry(const FHitResult* Hit, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual bool CanStepUp(const FHitResult& Hit, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual bool StepUp(const FVector& GravDir, const FVector& Delta, const FHitResult& Hit, FCharacterMovementComponentAsyncOutput& Output, FStepDownResult* OutStepDownResult = nullptr) const;
-	virtual bool CanWalkOffLedges(FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual FVector GetLedgeMove(const FVector& OldLocation, const FVector& Delta, const FVector& GravDir, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual bool CheckLedgeDirection(const FVector& OldLocation, const FVector& SideStep, const FVector& GravDir, FCharacterMovementComponentAsyncOutput& Output) const;
-	FVector GetPawnCapsuleExtent(const EShrinkCapsuleExtent ShrinkMode, const float CustomShrinkAmount, FCharacterMovementComponentAsyncOutput& Output) const;
-	FCollisionShape GetPawnCapsuleCollisionShape(const EShrinkCapsuleExtent ShrinkMode, FCharacterMovementComponentAsyncOutput& Output, const float CustomShrinkAmount = 0.0f) const;
-	void TwoWallAdjust(FVector& OutDelta, const FHitResult& Hit, const FVector& OldHitNormal, FCharacterMovementComponentAsyncOutput& Output) const;
-	void RevertMove(const FVector& OldLocation, UPrimitiveComponent* OldBase, const FVector& PreviousBaseLocation, const FFindFloorResult& OldFloor, bool bFailMove, FCharacterMovementComponentAsyncOutput& Output) const;
-	ETeleportType GetTeleportType(FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual void HandleWalkingOffLedge(const FVector& PreviousFloorImpactNormal, const FVector& PreviousFloorContactNormal, const FVector& PreviousLocation, float TimeDelta) const;
-	virtual bool ShouldCatchAir(const FFindFloorResult& OldFloor, const FFindFloorResult& NewFloor) const;
-	virtual void StartFalling(int32 Iterations, float remainingTime, float timeTick, const FVector& Delta, const FVector& subLoc, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual void AdjustFloorHeight(FCharacterMovementComponentAsyncOutput& Output) const;
-	void SetBaseFromFloor(const FFindFloorResult& FloorResult, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual bool ShouldComputePerchResult(const FHitResult& InHit, FCharacterMovementComponentAsyncOutput& Output, bool bCheckRadius = true) const;
-	virtual bool ComputePerchResult(const float TestRadius, const FHitResult& InHit, const float InMaxFloorDist, FFindFloorResult& OutPerchFloorResult, FCharacterMovementComponentAsyncOutput& Output) const;
-	float GetPerchRadiusThreshold() const;
-	virtual float GetValidPerchRadius(const FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual bool CheckFall(const FFindFloorResult& OldFloor, const FHitResult& Hit, const FVector& Delta, const FVector& OldLocation, float remainingTime, float timeTick, int32 Iterations, bool bMustJump, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual FVector GetFallingLateralAcceleration(float DeltaTime, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual FVector GetAirControl(float DeltaTime, float TickAirControl, const FVector& FallAcceleration, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual float BoostAirControl(float DeltaTime, float TickAirControl, const FVector& FallAcceleration, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual bool ShouldLimitAirControl(float DeltaTime, const FVector& FallAcceleration, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual FVector LimitAirControl(float DeltaTime, const FVector& FallAcceleration, const FHitResult& HitResult, bool bCheckForValidLandingSpot, FCharacterMovementComponentAsyncOutput& Output) const;
-	void RestorePreAdditiveRootMotionVelocity(FCharacterMovementComponentAsyncOutput& Output) const;
-	void ApplyRootMotionToVelocity(float deltaTime, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual FVector NewFallVelocity(const FVector& InitialVelocity, const FVector& Gravity, float DeltaTime, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual bool IsValidLandingSpot(const FVector& CapsuleLocation, const FHitResult& Hit, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual void ProcessLanded(const FHitResult& Hit, float remainingTime, int32 Iterations, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual void SetPostLandedPhysics(const FHitResult& Hit, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual void SetDefaultMovementMode(FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual bool ShouldCheckForValidLandingSpot(float DeltaTime, const FVector& Delta, const FHitResult& Hit, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual FRotator ComputeOrientToMovementRotation(const FRotator& CurrentRotation, float DeltaTime, FRotator& DeltaRotation, FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual bool ShouldRemainVertical(FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual bool CanAttemptJump(FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual bool DoJump(bool bReplayingMoves, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual void ControlledCharacterMove(const float DeltaSeconds, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual void PerformMovement(float DeltaSeconds, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual void MaybeUpdateBasedMovement(float DeltaSeconds, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual void UpdateBasedMovement(float DeltaSeconds, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual void StartNewPhysics(float deltaTime, int32 Iterations, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual void PhysWalking(float deltaTime, int32 Iterations, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual void PhysFalling(float deltaTime, int32 Iterations, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual void PhysicsRotation(float DeltaTime, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual void MoveAlongFloor(const FVector& InVelocity, float DeltaSeconds, FStepDownResult* OutStepDownResult, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual FVector ComputeGroundMovementDelta(const FVector& Delta, const FHitResult& RampHit, const bool bHitFromLineTrace, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual bool CanCrouchInCurrentState(FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual FVector ConstrainInputAcceleration(FVector InputAcceleration, const FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual FVector ScaleInputAcceleration(FVector InputAcceleration, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual float ComputeAnalogInputModifier(FVector Acceleration) const;
+	ENGINE_API virtual FVector ConstrainLocationToPlane(FVector Location) const;
+	ENGINE_API virtual FVector ConstrainDirectionToPlane(FVector Direction) const;
+	ENGINE_API virtual FVector ConstrainNormalToPlane(FVector Normal) const;
+	ENGINE_API virtual void MaintainHorizontalGroundVelocity(FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual bool MoveUpdatedComponent(const FVector& Delta, const FQuat& NewRotation, bool bSweep, FCharacterMovementComponentAsyncOutput& Output, FHitResult* OutHitResult = nullptr, ETeleportType TeleportType = ETeleportType::None) const;
+	ENGINE_API virtual bool SafeMoveUpdatedComponent(const FVector& Delta, const FQuat& NewRotation, bool bSweep, FHitResult& OutHit, FCharacterMovementComponentAsyncOutput& Output, ETeleportType Teleport = ETeleportType::None) const;
+	ENGINE_API virtual void ApplyAccumulatedForces(float DeltaSeconds, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual void ClearAccumulatedForces(FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual void SetMovementMode(EMovementMode NewMovementMode, FCharacterMovementComponentAsyncOutput& Output, uint8 NewCustomMode = 0) const;
+	ENGINE_API virtual void OnMovementModeChanged(EMovementMode PreviousMovementMode, uint8 PreviousCustomMode, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual void FindFloor(const FVector& CapsuleLocation, FFindFloorResult& OutFloorResult, bool bCanUseCachedLocation, FCharacterMovementComponentAsyncOutput& Output, const FHitResult* DownwardSweepResult = nullptr) const;
+	ENGINE_API virtual void ComputeFloorDist(const FVector& CapsuleLocation, float LineDistance, float SweepDistance, FFindFloorResult& OutFloorResult, float SweepRadius, FCharacterMovementComponentAsyncOutput& Output, const FHitResult* DownwardSweepResult = nullptr) const;
+	ENGINE_API virtual bool FloorSweepTest(struct FHitResult& OutHit, const FVector& Start, const FVector& End, ECollisionChannel TraceChannel, const struct FCollisionShape& CollisionShape, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParam, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual bool IsWithinEdgeTolerance(const FVector& CapsuleLocation, const FVector& TestImpactPoint, const float CapsuleRadius) const;
+	ENGINE_API virtual bool IsWalkable(const FHitResult& Hit) const;
+	ENGINE_API virtual void UpdateCharacterStateAfterMovement(float DeltaSeconds, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual float GetSimulationTimeStep(float RemainingTime, int32 Iterations) const;
+	ENGINE_API virtual void CalcVelocity(float DeltaTime, float Friction, bool bFluid, float BrakingDeceleration, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual bool ApplyRequestedMove(float DeltaTime, float MaxAccel, float MaxSpeed, float Friction, float BrakingDeceleration, FVector& OutAcceleration, float& OutRequestedSpeed, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual bool ShouldComputeAccelerationToReachRequestedVelocity(const float RequestedSpeed, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual float GetMinAnalogSpeed(FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual float GetMaxBrakingDeceleration(FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual void ApplyVelocityBraking(float DeltaTime, float Friction, float BrakingDeceleration, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual FVector GetPenetrationAdjustment(FHitResult& HitResult) const;
+	ENGINE_API virtual bool ResolvePenetration(const FVector& Adjustment, const FHitResult& Hit, const FQuat& NewRotation, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual void HandleImpact(const FHitResult& Impact, FCharacterMovementComponentAsyncOutput& Output, float TimeSlice = 0.0f, const FVector& MoveDelta = FVector::ZeroVector) const;
+	ENGINE_API virtual float SlideAlongSurface(const FVector& Delta, float Time, const FVector& InNormal, FHitResult& Hit, bool bHandleImpact, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual FVector ComputeSlideVector(const FVector& Delta, const float Time, const FVector& Normal, const FHitResult& Hit, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual FVector HandleSlopeBoosting(const FVector& SlideResult, const FVector& Delta, const float Time, const FVector& Normal, const FHitResult& Hit, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual void OnCharacterStuckInGeometry(const FHitResult* Hit, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual bool CanStepUp(const FHitResult& Hit, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual bool StepUp(const FVector& GravDir, const FVector& Delta, const FHitResult& Hit, FCharacterMovementComponentAsyncOutput& Output, FStepDownResult* OutStepDownResult = nullptr) const;
+	ENGINE_API virtual bool CanWalkOffLedges(FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual FVector GetLedgeMove(const FVector& OldLocation, const FVector& Delta, const FVector& GravDir, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual bool CheckLedgeDirection(const FVector& OldLocation, const FVector& SideStep, const FVector& GravDir, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API FVector GetPawnCapsuleExtent(const EShrinkCapsuleExtent ShrinkMode, const float CustomShrinkAmount, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API FCollisionShape GetPawnCapsuleCollisionShape(const EShrinkCapsuleExtent ShrinkMode, FCharacterMovementComponentAsyncOutput& Output, const float CustomShrinkAmount = 0.0f) const;
+	ENGINE_API void TwoWallAdjust(FVector& OutDelta, const FHitResult& Hit, const FVector& OldHitNormal, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API void RevertMove(const FVector& OldLocation, UPrimitiveComponent* OldBase, const FVector& PreviousBaseLocation, const FFindFloorResult& OldFloor, bool bFailMove, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API ETeleportType GetTeleportType(FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual void HandleWalkingOffLedge(const FVector& PreviousFloorImpactNormal, const FVector& PreviousFloorContactNormal, const FVector& PreviousLocation, float TimeDelta) const;
+	ENGINE_API virtual bool ShouldCatchAir(const FFindFloorResult& OldFloor, const FFindFloorResult& NewFloor) const;
+	ENGINE_API virtual void StartFalling(int32 Iterations, float remainingTime, float timeTick, const FVector& Delta, const FVector& subLoc, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual void AdjustFloorHeight(FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API void SetBaseFromFloor(const FFindFloorResult& FloorResult, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual bool ShouldComputePerchResult(const FHitResult& InHit, FCharacterMovementComponentAsyncOutput& Output, bool bCheckRadius = true) const;
+	ENGINE_API virtual bool ComputePerchResult(const float TestRadius, const FHitResult& InHit, const float InMaxFloorDist, FFindFloorResult& OutPerchFloorResult, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API float GetPerchRadiusThreshold() const;
+	ENGINE_API virtual float GetValidPerchRadius(const FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual bool CheckFall(const FFindFloorResult& OldFloor, const FHitResult& Hit, const FVector& Delta, const FVector& OldLocation, float remainingTime, float timeTick, int32 Iterations, bool bMustJump, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual FVector GetFallingLateralAcceleration(float DeltaTime, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual FVector GetAirControl(float DeltaTime, float TickAirControl, const FVector& FallAcceleration, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual float BoostAirControl(float DeltaTime, float TickAirControl, const FVector& FallAcceleration, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual bool ShouldLimitAirControl(float DeltaTime, const FVector& FallAcceleration, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual FVector LimitAirControl(float DeltaTime, const FVector& FallAcceleration, const FHitResult& HitResult, bool bCheckForValidLandingSpot, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API void RestorePreAdditiveRootMotionVelocity(FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API void ApplyRootMotionToVelocity(float deltaTime, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual FVector NewFallVelocity(const FVector& InitialVelocity, const FVector& Gravity, float DeltaTime, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual bool IsValidLandingSpot(const FVector& CapsuleLocation, const FHitResult& Hit, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual void ProcessLanded(const FHitResult& Hit, float remainingTime, int32 Iterations, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual void SetPostLandedPhysics(const FHitResult& Hit, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual void SetDefaultMovementMode(FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual bool ShouldCheckForValidLandingSpot(float DeltaTime, const FVector& Delta, const FHitResult& Hit, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual FRotator ComputeOrientToMovementRotation(const FRotator& CurrentRotation, float DeltaTime, FRotator& DeltaRotation, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual bool ShouldRemainVertical(FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual bool CanAttemptJump(FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual bool DoJump(bool bReplayingMoves, FCharacterMovementComponentAsyncOutput& Output) const;
 
 	// UNavMovementComponent (super class) impl
-	bool IsJumpAllowed() const;
+	ENGINE_API bool IsJumpAllowed() const;
 
-	virtual float GetMaxSpeed(FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual bool IsCrouching(const FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual bool IsFalling(const FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual bool IsFlying(const FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual bool IsMovingOnGround(const FCharacterMovementComponentAsyncOutput& Output) const;
-	virtual bool IsExceedingMaxSpeed(float MaxSpeed, const FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual float GetMaxSpeed(FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual bool IsCrouching(const FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual bool IsFalling(const FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual bool IsFlying(const FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual bool IsMovingOnGround(const FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API virtual bool IsExceedingMaxSpeed(float MaxSpeed, const FCharacterMovementComponentAsyncOutput& Output) const;
 
 	// More from UMovementComponent, this is not impl ported from CharacterMovementComponent, but super class, so we can call Super:: in CMC impl.
 	// TODO rename or re-organize this.
-	FVector MoveComponent_GetPenetrationAdjustment(FHitResult& HitResult) const;
-	float MoveComponent_SlideAlongSurface(const FVector& Delta, float Time, const FVector& Normal, FHitResult& Hit, FCharacterMovementComponentAsyncOutput& Output, bool bHandleImpact = false) const;
-	FVector MoveComponent_ComputeSlideVector(const FVector& Delta, const float Time, const FVector& Normal, const FHitResult& Hit, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API FVector MoveComponent_GetPenetrationAdjustment(FHitResult& HitResult) const;
+	ENGINE_API float MoveComponent_SlideAlongSurface(const FVector& Delta, float Time, const FVector& Normal, FHitResult& Hit, FCharacterMovementComponentAsyncOutput& Output, bool bHandleImpact = false) const;
+	ENGINE_API FVector MoveComponent_ComputeSlideVector(const FVector& Delta, const float Time, const FVector& Normal, const FHitResult& Hit, FCharacterMovementComponentAsyncOutput& Output) const;
 
 	// Root Motion Stuff
-	FVector ConstrainAnimRootMotionVelocity(const FVector& RootMotionVelocity, const FVector& CurrentVelocity, FCharacterMovementComponentAsyncOutput& Output) const;
-	FVector CalcAnimRootMotionVelocity(const FVector& RootMotionDeltaMove, float DeltaSeconds, const FVector& CurrentVelocity) const;
+	ENGINE_API FVector ConstrainAnimRootMotionVelocity(const FVector& RootMotionVelocity, const FVector& CurrentVelocity, FCharacterMovementComponentAsyncOutput& Output) const;
+	ENGINE_API FVector CalcAnimRootMotionVelocity(const FVector& RootMotionDeltaMove, float DeltaSeconds, const FVector& CurrentVelocity) const;
 
 	const FRotator& GetRotationRate(const FCharacterMovementComponentAsyncOutput& Output) const { return Output.bUsingModifiedRotationRate ? Output.ModifiedRotationRate : RotationRate; }
 };

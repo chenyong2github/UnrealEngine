@@ -308,20 +308,20 @@ DECLARE_DELEGATE_TwoParams( FOnSwitchWorldForPIE, bool, UWorld* );
  * When created, switches global context to a PIE world
  * When destroyed, resets the GWorld back to what it was before
  */
-class ENGINE_API FScopedConditionalWorldSwitcher
+class FScopedConditionalWorldSwitcher
 {
 public:
 	/** Use the viewport to figure out what world to set temporarily */
-	FScopedConditionalWorldSwitcher( class FViewportClient* InViewportClient );
+	ENGINE_API FScopedConditionalWorldSwitcher( class FViewportClient* InViewportClient );
 
 	/** Explicitly set to the specific world */
-	FScopedConditionalWorldSwitcher( UWorld* InWorld );
+	ENGINE_API FScopedConditionalWorldSwitcher( UWorld* InWorld );
 
 	/** Resets back to initial world */
-	~FScopedConditionalWorldSwitcher();
+	ENGINE_API ~FScopedConditionalWorldSwitcher();
 
 	/** Delegate to call to switch worlds for PIE viewports.  Is not called when simulating (non-gameviewportclient) */
-	static FOnSwitchWorldForPIE SwitchWorldForPIEDelegate;
+	static ENGINE_API FOnSwitchWorldForPIE SwitchWorldForPIEDelegate;
 private:
 	/** Called by constructors to do actual switch */
 	void ConditionalSwitchWorld( class FViewportClient* InViewportClient, UWorld* InWorld );
@@ -334,7 +334,7 @@ private:
 };
 #else
 // does nothing outside of the editor
-class ENGINE_API FScopedConditionalWorldSwitcher
+class FScopedConditionalWorldSwitcher
 {
 public:
 	FScopedConditionalWorldSwitcher( class FViewportClient* InViewportClient ) {}
@@ -461,7 +461,7 @@ ENGINE_API bool AllowHighQualityLightmaps(const FStaticFeatureLevel FeatureLevel
 
 ENGINE_API const FCachedSystemScalabilityCVars& GetCachedScalabilityCVars();
 
-struct ENGINE_API FSystemResolution
+struct FSystemResolution
 {
 	int32 ResX;
 	int32 ResY;
@@ -471,7 +471,7 @@ struct ENGINE_API FSystemResolution
 	// Helper function for changing system resolution via the r.setres console command
 	// This function will set r.setres, which will trigger a resolution change later on
 	// when the console variable sinks are called
-	static void RequestResolutionChange(int32 InResX, int32 InResY, EWindowMode::Type InWindowMode);
+	static ENGINE_API void RequestResolutionChange(int32 InResX, int32 InResY, EWindowMode::Type InWindowMode);
 
 	FSystemResolution()
 		: ResX(0)
@@ -499,11 +499,11 @@ ENGINE_API void UpdatePlayInEditorWorldDebugString(const FWorldContext* WorldCon
 ENGINE_API FString GetDebugStringForWorld(const UWorld* World);
 
 // Used to temporarily override GPlayInEditorID, correctly updating the debug string and other state as necessary
-struct ENGINE_API FTemporaryPlayInEditorIDOverride
+struct FTemporaryPlayInEditorIDOverride
 {
 public:
-	FTemporaryPlayInEditorIDOverride(int32 NewOverrideID);
-	~FTemporaryPlayInEditorIDOverride();
+	ENGINE_API FTemporaryPlayInEditorIDOverride(int32 NewOverrideID);
+	ENGINE_API ~FTemporaryPlayInEditorIDOverride();
 
 private:
 	int32 PreviousID;

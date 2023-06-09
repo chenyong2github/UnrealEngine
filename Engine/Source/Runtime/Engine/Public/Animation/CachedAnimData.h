@@ -13,7 +13,7 @@ class UAnimInstance;
  */
 
 USTRUCT(BlueprintType)
-struct ENGINE_API FCachedAnimStateData
+struct FCachedAnimStateData
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -32,27 +32,27 @@ struct ENGINE_API FCachedAnimStateData
 	FName StateName;
 
 	/** Did it find a matching StateMachine and State in the AnimGraph? */
-	bool IsValid(UAnimInstance& InAnimInstance) const;
+	ENGINE_API bool IsValid(UAnimInstance& InAnimInstance) const;
 	
 	/** Is the State Machine relevant? (Has any weight) */
-	float IsMachineRelevant(UAnimInstance& InAnimInstance) const;
+	ENGINE_API float IsMachineRelevant(UAnimInstance& InAnimInstance) const;
 	
 	/** Global weight of state in AnimGraph */
-	float GetGlobalWeight(UAnimInstance& InAnimInstance) const;
+	ENGINE_API float GetGlobalWeight(UAnimInstance& InAnimInstance) const;
 
 	/** Local weight of state inside of state machine. */
-	float GetWeight(UAnimInstance& InAnimInstance) const;
+	ENGINE_API float GetWeight(UAnimInstance& InAnimInstance) const;
 
 	/** Is State Full Weight? */
-	bool IsFullWeight(UAnimInstance& InAnimInstance) const;
+	ENGINE_API bool IsFullWeight(UAnimInstance& InAnimInstance) const;
 
 	/** Is State relevant? */
-	bool IsRelevant(UAnimInstance& InAnimInstance) const;
+	ENGINE_API bool IsRelevant(UAnimInstance& InAnimInstance) const;
 
 	/** Is State active? */
-	bool IsActiveState(class UAnimInstance& InAnimInstance) const;
+	ENGINE_API bool IsActiveState(class UAnimInstance& InAnimInstance) const;
 
-	bool WasAnimNotifyStateActive(UAnimInstance& InAnimInstance, TSubclassOf<UAnimNotifyState> AnimNotifyStateType) const;
+	ENGINE_API bool WasAnimNotifyStateActive(UAnimInstance& InAnimInstance, TSubclassOf<UAnimNotifyState> AnimNotifyStateType) const;
 		
 private:
 	mutable int32 MachineIndex;
@@ -61,7 +61,7 @@ private:
 };
 
 USTRUCT(BlueprintType)
-struct ENGINE_API FCachedAnimStateArray
+struct FCachedAnimStateArray
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -76,19 +76,19 @@ struct ENGINE_API FCachedAnimStateArray
 	TArray<FCachedAnimStateData> States;
 
 	/** Returns the total local weight of all states. If the definition contains more than on state machine, the result can be larger than 1 */
-	float GetTotalWeight(UAnimInstance& InAnimInstance) const;
-	bool IsFullWeight(UAnimInstance& InAnimInstance) const;
-	bool IsRelevant(UAnimInstance& InAnimInstance) const;
+	ENGINE_API float GetTotalWeight(UAnimInstance& InAnimInstance) const;
+	ENGINE_API bool IsFullWeight(UAnimInstance& InAnimInstance) const;
+	ENGINE_API bool IsRelevant(UAnimInstance& InAnimInstance) const;
 
 private:
-	bool IsValid(UAnimInstance& InAnimInstance) const;
+	ENGINE_API bool IsValid(UAnimInstance& InAnimInstance) const;
 	mutable bool bCheckedValidity;
 	mutable bool bCachedIsValid;
 	mutable bool bHasMultipleStateMachineEntries;
 };
 
 USTRUCT(BlueprintType)
-struct ENGINE_API FCachedAnimAssetPlayerData
+struct FCachedAnimAssetPlayerData
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -105,19 +105,19 @@ struct ENGINE_API FCachedAnimAssetPlayerData
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "State Machine")
 	FName StateName;
 
-	float GetAssetPlayerTime(UAnimInstance& InAnimInstance) const;
+	ENGINE_API float GetAssetPlayerTime(UAnimInstance& InAnimInstance) const;
 
-	float GetAssetPlayerTimeRatio(UAnimInstance& InAnimInstance) const;
+	ENGINE_API float GetAssetPlayerTimeRatio(UAnimInstance& InAnimInstance) const;
 
 private:
-	void CacheIndices(UAnimInstance& InAnimInstance) const;
+	ENGINE_API void CacheIndices(UAnimInstance& InAnimInstance) const;
 
 	mutable int32 Index;
 	mutable bool bInitialized;
 };
 
 USTRUCT(BlueprintType)
-struct ENGINE_API FCachedAnimRelevancyData
+struct FCachedAnimRelevancyData
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -135,12 +135,12 @@ struct ENGINE_API FCachedAnimRelevancyData
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "State Machine")
 	FName StateName;
 
-	float GetRelevantAnimTime(UAnimInstance& InAnimInstance) const;
-	float GetRelevantAnimTimeRemaining(UAnimInstance& InAnimInstance) const;
-	float GetRelevantAnimTimeRemainingFraction(UAnimInstance& InAnimInstance) const;
+	ENGINE_API float GetRelevantAnimTime(UAnimInstance& InAnimInstance) const;
+	ENGINE_API float GetRelevantAnimTimeRemaining(UAnimInstance& InAnimInstance) const;
+	ENGINE_API float GetRelevantAnimTimeRemainingFraction(UAnimInstance& InAnimInstance) const;
 
 private:
-	void CacheIndices(UAnimInstance& InAnimInstance) const;
+	ENGINE_API void CacheIndices(UAnimInstance& InAnimInstance) const;
 
 private:
 	mutable int32 MachineIndex;
@@ -149,7 +149,7 @@ private:
 };
 
 USTRUCT(BlueprintType)
-struct ENGINE_API FCachedAnimTransitionData
+struct FCachedAnimTransitionData
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -171,10 +171,10 @@ struct ENGINE_API FCachedAnimTransitionData
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "State Machine")
 	FName ToStateName;
 
-	float GetCrossfadeDuration(UAnimInstance& InAnimInstance) const;
+	ENGINE_API float GetCrossfadeDuration(UAnimInstance& InAnimInstance) const;
 
 private:
-	void CacheIndices(UAnimInstance& InAnimInstance) const;
+	ENGINE_API void CacheIndices(UAnimInstance& InAnimInstance) const;
 
 private:
 	mutable int32 MachineIndex;

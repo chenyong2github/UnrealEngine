@@ -14,12 +14,12 @@
 #include "Misc/PackagePath.h"
 #include "Delegates/DelegateCombinations.h"
 
-class ENGINE_API FExternalPackageHelper
+class FExternalPackageHelper
 {
 public:
 
 	DECLARE_EVENT_TwoParams(FExternalPackageHelper, FOnObjectPackagingModeChanged, UObject*, bool /* bExternal */);
-	static FOnObjectPackagingModeChanged OnObjectPackagingModeChanged;
+	static ENGINE_API FOnObjectPackagingModeChanged OnObjectPackagingModeChanged;
 
 	/**
 	 * Create an external package
@@ -28,7 +28,7 @@ public:
 	 * @param InFlags the package flags to apply
 	 * @return the created package
 	 */
-	static UPackage* CreateExternalPackage(UObject* InObjectOuter, const FString& InObjectPath, EPackageFlags InFlags);
+	static ENGINE_API UPackage* CreateExternalPackage(UObject* InObjectOuter, const FString& InObjectPath, EPackageFlags InFlags);
 
 	/**
 	 * Set the object packaging mode.
@@ -38,7 +38,7 @@ public:
 	 * @param bInShouldDirty should dirty or not the object's outer package
 	 * @param InExternalPackageFlags the flags to apply to the external package if bInIsPackageExternal is true
 	 */
-	static void SetPackagingMode(UObject* InObject, UObject* InObjectOuter, bool bInIsPackageExternal, bool bInShouldDirty, EPackageFlags InExternalPackageFlags);
+	static ENGINE_API void SetPackagingMode(UObject* InObject, UObject* InObjectOuter, bool bInIsPackageExternal, bool bInShouldDirty, EPackageFlags InExternalPackageFlags);
 
 	/**
 	 * Get the path containing the external objects for this path
@@ -46,7 +46,7 @@ public:
 	 * @param InPackageShortName Optional short name to use instead of the package short name
 	 * @return the path
 	 */
-	static FString GetExternalObjectsPath(const FString& InOuterPackageName, const FString& InPackageShortName = FString());
+	static ENGINE_API FString GetExternalObjectsPath(const FString& InOuterPackageName, const FString& InPackageShortName = FString());
 
 	/**
 	 * Get the path containing the external objects for this Outer
@@ -54,7 +54,7 @@ public:
 	 * @param InPackageShortName Optional short name to use instead of the package short name
 	 * @return the path
 	 */
-	static FString GetExternalObjectsPath(UPackage* InPackage, const FString& InPackageShortName = FString(), bool bTryUsingPackageLoadedPath = false);
+	static ENGINE_API FString GetExternalObjectsPath(UPackage* InPackage, const FString& InPackageShortName = FString(), bool bTryUsingPackageLoadedPath = false);
 
 
 	/**
@@ -63,7 +63,7 @@ public:
 	 * @param InObjectPath the fully qualified object path, in the format: 'Outermost.Outer.Name'
 	 * @return the package name
 	 */
-	static FString GetExternalPackageName(const FString& InOuterPackageName, const FString& InObjectPath);
+	static ENGINE_API FString GetExternalPackageName(const FString& InOuterPackageName, const FString& InObjectPath);
 
 	/**
 	 * Loads objects from an external package
@@ -76,11 +76,11 @@ public:
 	 * @param InOuter		The external object's outer
 	 * @param OutObjects	The objects that should be saved
 	 */
-	static void GetExternalSaveableObjects(UObject* InOuter, TArray<UObject*>& OutObjects);
+	static ENGINE_API void GetExternalSaveableObjects(UObject* InOuter, TArray<UObject*>& OutObjects);
 	
 private:
 	/** Get the external object package instance name. */
-	static FString GetExternalObjectPackageInstanceName(const FString& OuterPackageName, const FString& ObjectPackageName);
+	static ENGINE_API FString GetExternalObjectPackageInstanceName(const FString& OuterPackageName, const FString& ObjectPackageName);
 };
 
 template<typename T>

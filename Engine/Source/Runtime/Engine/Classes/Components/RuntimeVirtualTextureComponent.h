@@ -14,8 +14,8 @@ class UVirtualTextureBuilder;
 enum class EShadingPath;
 
 /** Component used to place a URuntimeVirtualTexture in the world. */
-UCLASS(Blueprintable, ClassGroup = Rendering, HideCategories = (Activation, Collision, Cooking, Mobility, LOD, Object, Physics, Rendering))
-class ENGINE_API URuntimeVirtualTextureComponent : public USceneComponent
+UCLASS(Blueprintable, ClassGroup = Rendering, HideCategories = (Activation, Collision, Cooking, Mobility, LOD, Object, Physics, Rendering), MinimalAPI)
+class URuntimeVirtualTextureComponent : public USceneComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -94,10 +94,10 @@ public:
 	 * @param WorldBounds : The world space bounds of the pages to invalidate.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "VirtualTexture")
-	void Invalidate(FBoxSphereBounds const& WorldBounds);
+	ENGINE_API void Invalidate(FBoxSphereBounds const& WorldBounds);
 
 	/** Set the runtime virtual texture object on this component. */
-	void SetVirtualTexture(URuntimeVirtualTexture* InVirtualTexture);
+	ENGINE_API void SetVirtualTexture(URuntimeVirtualTexture* InVirtualTexture);
 
 	/** Get the runtime virtual texture object on this component. */
 	URuntimeVirtualTexture* GetVirtualTexture() const { return VirtualTexture; }
@@ -112,7 +112,7 @@ public:
 	FGetHidePrimitivesDelegate& GetHidePrimitivesDelegate() { return HidePrimitivesDelegate; }
 
 	/** Get the full hide primitive state including the evaluating the GetHidePrimitivesDelegate delegate. */
-	void GetHidePrimitiveSettings(bool& OutHidePrimitiveEditor, bool& OutHidePrimitiveGame) const;
+	ENGINE_API void GetHidePrimitiveSettings(bool& OutHidePrimitiveEditor, bool& OutHidePrimitiveGame) const;
 
 	/** Get the streaming virtual texture object on this component. */
 	UVirtualTextureBuilder* GetStreamingTexture() const { return StreamingTexture; }
@@ -121,7 +121,7 @@ public:
 	int32 NumStreamingMips() const { return FMath::Clamp(StreamLowMips, 0, 12); }
 
 	/** Get if we want to use any streaming low mips on this component. */
-	bool IsStreamingLowMips(EShadingPath ShadingPath) const;
+	ENGINE_API bool IsStreamingLowMips(EShadingPath ShadingPath) const;
 
 	/** Public getter for debug streaming mips flag. */
 	bool IsBuildDebugStreamingMips() { return bBuildDebugStreamingMips; }
@@ -130,62 +130,62 @@ public:
 	TEnumAsByte<ETextureLossyCompressionAmount> GetLossyCompressionAmount() const { return LossyCompressionAmount; }
 
 	/** Returns true if there are StreamingTexure contents but they are not valid for use. */
-	bool IsStreamingTextureInvalid(EShadingPath ShadingPath) const;
+	ENGINE_API bool IsStreamingTextureInvalid(EShadingPath ShadingPath) const;
 
 #if WITH_EDITOR
 	/** Returns true if there are StreamingTexure contents but they are not valid for use, taking into account all rendering modes */
-	bool IsStreamingTextureInvalid() const;
+	ENGINE_API bool IsStreamingTextureInvalid() const;
 	/** Set a new asset to hold the low mip streaming texture. This should only be called directly before setting data to the new asset. */
 	void SetStreamingTexture(UVirtualTextureBuilder* InTexture) { StreamingTexture = InTexture; }
 	/** Initialize the low mip streaming texture with the passed in size and data. */
-	void InitializeStreamingTexture(EShadingPath ShadingPath, uint32 InSizeX, uint32 InSizeY, uint8* InData);
+	ENGINE_API void InitializeStreamingTexture(EShadingPath ShadingPath, uint32 InSizeX, uint32 InSizeY, uint8* InData);
 #endif
 
 #if WITH_EDITOR
 	/** Get the BoundsAlignActor on this component. */
-	void SetBoundsAlignActor(AActor* InActor);
+	ENGINE_API void SetBoundsAlignActor(AActor* InActor);
 	/** Get the BoundsAlignActor on this component. */
 	TSoftObjectPtr<AActor>& GetBoundsAlignActor() { return BoundsAlignActor; }
 	/** Get if SnapBoundsToLandscape is set on this component. */
 	bool GetSnapBoundsToLandscape() const { return bSnapBoundsToLandscape; }
 #endif
 	/** Get a translation to account for any vertex sample offset from the use of bSnapBoundsToLandscape. */
-	FTransform GetTexelSnapTransform() const;
+	ENGINE_API FTransform GetTexelSnapTransform() const;
 
 protected:
 	//~ Begin UObject Interface
-	virtual void BeginDestroy() override;
-	virtual bool IsReadyForFinishDestroy() override;
+	ENGINE_API virtual void BeginDestroy() override;
+	ENGINE_API virtual bool IsReadyForFinishDestroy() override;
 #if WITH_EDITOR
-	virtual bool CanEditChange(const FProperty* InProperty) const override;
+	ENGINE_API virtual bool CanEditChange(const FProperty* InProperty) const override;
 #endif
-	virtual void ApplyWorldOffset(const FVector& InOffset, bool bWorldShift) override;
+	ENGINE_API virtual void ApplyWorldOffset(const FVector& InOffset, bool bWorldShift) override;
 	//~ End UObject Interface
 
 	//~ Begin UActorComponent Interface
-	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
-	virtual void SendRenderTransform_Concurrent() override;
-	virtual void DestroyRenderState_Concurrent() override;
+	ENGINE_API virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
+	ENGINE_API virtual void SendRenderTransform_Concurrent() override;
+	ENGINE_API virtual void DestroyRenderState_Concurrent() override;
 #if WITH_EDITOR
-	virtual void CheckForErrors() override;
+	ENGINE_API virtual void CheckForErrors() override;
 #endif
 	//~ End UActorComponent Interface
 
 	//~ Begin USceneComponent Interface
 #if WITH_EDITOR
-	virtual void OnRegister() override;
-	virtual void OnUnregister() override;
+	ENGINE_API virtual void OnRegister() override;
+	ENGINE_API virtual void OnUnregister() override;
 #endif
-	virtual bool IsVisible() const override;
-	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
+	ENGINE_API virtual bool IsVisible() const override;
+	ENGINE_API virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	//~ End USceneComponent Interface
 
 protected:
 	/** Calculate a hash used to determine if the StreamingTexture contents are valid for use. The hash doesn't include whether the contents are up to date. */
-	uint64 CalculateStreamingTextureSettingsHash() const;
+	ENGINE_API uint64 CalculateStreamingTextureSettingsHash() const;
 
 	/** @return true if the owning World is one where URuntimeVirtualTextureComponent should actually do anything (avoids updating RVT for non-game/PIE/editor world types) */
-	bool IsActiveInWorld() const;
+	ENGINE_API bool IsActiveInWorld() const;
 
 public:
 	/** Scene proxy object. Managed by the scene but stored here. */

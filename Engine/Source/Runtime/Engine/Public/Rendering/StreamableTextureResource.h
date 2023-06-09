@@ -23,9 +23,9 @@ public:
 	FStreamableTextureResource(UTexture* InOwner, const FTexturePlatformData* InPlatformData, const FStreamableRenderResourceState& InPostInitState, bool bAllowPartiallyResidentMips);
 
 	// Dynamic cast methods.
-	ENGINE_API virtual FStreamableTextureResource* GetStreamableTextureResource() { return this; }
+	virtual FStreamableTextureResource* GetStreamableTextureResource() { return this; }
 	// Dynamic cast methods (const).
-	ENGINE_API virtual const FStreamableTextureResource* GetStreamableTextureResource() const { return this; }
+	virtual const FStreamableTextureResource* GetStreamableTextureResource() const { return this; }
 
 	virtual uint32 GetSizeX() const final override { return SizeX; }
 	virtual uint32 GetSizeY() const final override { return SizeY; }

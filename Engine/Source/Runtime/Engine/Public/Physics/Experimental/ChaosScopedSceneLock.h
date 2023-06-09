@@ -19,31 +19,31 @@ namespace Chaos
 	class FPBDRigidsSolver;
 }
 
-struct ENGINE_API FScopedSceneLock_Chaos
+struct FScopedSceneLock_Chaos
 {
-	FScopedSceneLock_Chaos(FPhysicsActorHandle const* InActorHandle, EPhysicsInterfaceScopedLockType InLockType);
-	FScopedSceneLock_Chaos(FPhysicsActorHandle const* InActorHandleA, FPhysicsActorHandle const* InActorHandleB, EPhysicsInterfaceScopedLockType InLockType);
-	FScopedSceneLock_Chaos(FPhysicsConstraintHandle const* InConstraintHandle, EPhysicsInterfaceScopedLockType InLockType);
-	FScopedSceneLock_Chaos(USkeletalMeshComponent* InSkelMeshComp, EPhysicsInterfaceScopedLockType InLockType);
-	FScopedSceneLock_Chaos(Chaos::FPhysicsObjectHandle InObjectA, Chaos::FPhysicsObjectHandle InObjectB, EPhysicsInterfaceScopedLockType InLockType);
-	FScopedSceneLock_Chaos(FChaosScene* InScene, EPhysicsInterfaceScopedLockType InLockType);
-	~FScopedSceneLock_Chaos();
+	ENGINE_API FScopedSceneLock_Chaos(FPhysicsActorHandle const* InActorHandle, EPhysicsInterfaceScopedLockType InLockType);
+	ENGINE_API FScopedSceneLock_Chaos(FPhysicsActorHandle const* InActorHandleA, FPhysicsActorHandle const* InActorHandleB, EPhysicsInterfaceScopedLockType InLockType);
+	ENGINE_API FScopedSceneLock_Chaos(FPhysicsConstraintHandle const* InConstraintHandle, EPhysicsInterfaceScopedLockType InLockType);
+	ENGINE_API FScopedSceneLock_Chaos(USkeletalMeshComponent* InSkelMeshComp, EPhysicsInterfaceScopedLockType InLockType);
+	ENGINE_API FScopedSceneLock_Chaos(Chaos::FPhysicsObjectHandle InObjectA, Chaos::FPhysicsObjectHandle InObjectB, EPhysicsInterfaceScopedLockType InLockType);
+	ENGINE_API FScopedSceneLock_Chaos(FChaosScene* InScene, EPhysicsInterfaceScopedLockType InLockType);
+	ENGINE_API ~FScopedSceneLock_Chaos();
 
 	FScopedSceneLock_Chaos(FScopedSceneLock_Chaos& Other) = delete;
 	FScopedSceneLock_Chaos& operator=(FScopedSceneLock_Chaos& Other) = delete;
 
-	FScopedSceneLock_Chaos(FScopedSceneLock_Chaos&& Other);
-	FScopedSceneLock_Chaos& operator=(FScopedSceneLock_Chaos&& Other);
+	ENGINE_API FScopedSceneLock_Chaos(FScopedSceneLock_Chaos&& Other);
+	ENGINE_API FScopedSceneLock_Chaos& operator=(FScopedSceneLock_Chaos&& Other);
 
-	void Release();
+	ENGINE_API void Release();
 
 private:
 
-	void LockScene();
-	void UnlockScene();
+	ENGINE_API void LockScene();
+	ENGINE_API void UnlockScene();
 
-	FChaosScene* GetSceneForActor(FPhysicsActorHandle const* InActorHandle);
-	FChaosScene* GetSceneForActor(FPhysicsConstraintHandle const* InConstraintHandle);
+	ENGINE_API FChaosScene* GetSceneForActor(FPhysicsActorHandle const* InActorHandle);
+	ENGINE_API FChaosScene* GetSceneForActor(FPhysicsConstraintHandle const* InConstraintHandle);
 
 	bool bHasLock = false;
 	Chaos::FPBDRigidsSolver* Solver;

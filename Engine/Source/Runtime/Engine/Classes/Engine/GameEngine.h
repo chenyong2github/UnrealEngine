@@ -20,8 +20,8 @@ class UNetDriver;
 /**
  * Engine that manages core systems that enable a game.
  */
-UCLASS(config=Engine, transient)
-class ENGINE_API UGameEngine
+UCLASS(config=Engine, transient, MinimalAPI)
+class UGameEngine
 	: public UEngine
 {
 	GENERATED_UCLASS_BODY()
@@ -52,7 +52,7 @@ public:
 	 * @param GameViewportClient	The viewport client to use in the game
 	 * @param MovieCapture			Optional Movie capture implementation for this viewport
 	 */
-	void CreateGameViewportWidget( UGameViewportClient* GameViewportClient );
+	ENGINE_API void CreateGameViewportWidget( UGameViewportClient* GameViewportClient );
 
 	/**
 	 * Creates the game viewport
@@ -60,21 +60,21 @@ public:
 	 * @param GameViewportClient	The viewport client to use in the game
 	 * @param MovieCapture			Optional Movie capture implementation for this viewport
 	 */
-	void CreateGameViewport( UGameViewportClient* GameViewportClient );
+	ENGINE_API void CreateGameViewport( UGameViewportClient* GameViewportClient );
 	
 	/**
 	 * Creates the game window
 	 */
-	static TSharedRef<SWindow> CreateGameWindow();
+	static ENGINE_API TSharedRef<SWindow> CreateGameWindow();
 
-	static void SafeFrameChanged();
+	static ENGINE_API void SafeFrameChanged();
 
 	/** 
 	 * Enables/disables game window resolution setting overrides specified on the command line (true by default) 
 	 * @note Does not trigger a refresh of the game window based on the newly effective settings
 	 * @note Not thread-safe; must be called from the main thread
 	 */
-	static void EnableGameWindowSettingsOverride(bool bEnabled);
+	static ENGINE_API void EnableGameWindowSettingsOverride(bool bEnabled);
 
 	/**
 	 * Modifies the game window resolution settings if any overrides have been specified on the command line
@@ -84,7 +84,7 @@ public:
 	 * @param ResolutionY	[in/out] Height of the game window, in pixels
 	 * @param WindowMode	[in/out] What window mode the game should be in
 	 */
-	static void ConditionallyOverrideSettings( int32& ResolutionX, int32& ResolutionY, EWindowMode::Type& WindowMode );
+	static ENGINE_API void ConditionallyOverrideSettings( int32& ResolutionX, int32& ResolutionY, EWindowMode::Type& WindowMode );
 	
 	/**
 	 * Determines the resolution of the game window, ensuring that the requested size is never bigger than the available desktop size
@@ -94,70 +94,70 @@ public:
 	 * @param WindowMode	[in/out] What window mode the game should be in
 	 * @param bUseWorkArea	[in] Should we find a resolution that fits within the desktop work area for the windowed mode instead of monitor's full resolution
 	 */
-	static void DetermineGameWindowResolution( int32& ResolutionX, int32& ResolutionY, EWindowMode::Type& WindowMode, bool bUseWorkAreaForWindowed = false );
+	static ENGINE_API void DetermineGameWindowResolution( int32& ResolutionX, int32& ResolutionY, EWindowMode::Type& WindowMode, bool bUseWorkAreaForWindowed = false );
 
 	/**
 	 * Changes the game window to use the game viewport instead of any loading screen
 	 * or movie that might be using it instead
 	 */
-	void SwitchGameWindowToUseGameViewport();
+	ENGINE_API void SwitchGameWindowToUseGameViewport();
 
 	/**
 	 * Called when the game window closes (ends the game)
 	 */
-	void OnGameWindowClosed( const TSharedRef<SWindow>& WindowBeingClosed );
+	ENGINE_API void OnGameWindowClosed( const TSharedRef<SWindow>& WindowBeingClosed );
 	
 	/**
 	 * Called when the game window is moved
 	 */
-	void OnGameWindowMoved( const TSharedRef<SWindow>& WindowBeingMoved );
+	ENGINE_API void OnGameWindowMoved( const TSharedRef<SWindow>& WindowBeingMoved );
 
 	/**
 	 * Redraws all viewports.
 	 * @param	bShouldPresent	Whether we want this frame to be presented
 	 */
-	virtual void RedrawViewports( bool bShouldPresent = true ) override;
+	ENGINE_API virtual void RedrawViewports( bool bShouldPresent = true ) override;
 
-	void OnViewportResized(FViewport* Viewport, uint32 Unused);
+	ENGINE_API void OnViewportResized(FViewport* Viewport, uint32 Unused);
 
 public:
 
 	// UObject interface
 
-	virtual void FinishDestroy() override;
+	ENGINE_API virtual void FinishDestroy() override;
 
 public:
 
 	// UEngine interface
 
-	virtual void Init(class IEngineLoop* InEngineLoop) override;
-	virtual void Start() override;
-	virtual void PreExit() override;
-	virtual void Tick( float DeltaSeconds, bool bIdleMode ) override;
-	virtual float GetMaxTickRate( float DeltaTime, bool bAllowFrameRateSmoothing = true ) const override;
-	virtual void ProcessToggleFreezeCommand( UWorld* InWorld ) override;
-	virtual void ProcessToggleFreezeStreamingCommand( UWorld* InWorld ) override;
-	virtual bool NetworkRemapPath(UNetConnection* Connection, FString& Str, bool bReading = true) override;
-	virtual bool ShouldDoAsyncEndOfFrameTasks() const override;
+	ENGINE_API virtual void Init(class IEngineLoop* InEngineLoop) override;
+	ENGINE_API virtual void Start() override;
+	ENGINE_API virtual void PreExit() override;
+	ENGINE_API virtual void Tick( float DeltaSeconds, bool bIdleMode ) override;
+	ENGINE_API virtual float GetMaxTickRate( float DeltaTime, bool bAllowFrameRateSmoothing = true ) const override;
+	ENGINE_API virtual void ProcessToggleFreezeCommand( UWorld* InWorld ) override;
+	ENGINE_API virtual void ProcessToggleFreezeStreamingCommand( UWorld* InWorld ) override;
+	ENGINE_API virtual bool NetworkRemapPath(UNetConnection* Connection, FString& Str, bool bReading = true) override;
+	ENGINE_API virtual bool ShouldDoAsyncEndOfFrameTasks() const override;
 
 public:
 
 	// FExec interface
 #if UE_ALLOW_EXEC_COMMANDS
-	virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar=*GLog ) override;
+	ENGINE_API virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar=*GLog ) override;
 #endif
 
 public:
 
 	// Exec command handlers
-	bool HandleCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleExitCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleMinimizeCommand( const TCHAR *Cmd, FOutputDevice &Ar );
-	bool HandleGetMaxTickRateCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleCancelCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );
+	ENGINE_API bool HandleCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleExitCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleMinimizeCommand( const TCHAR *Cmd, FOutputDevice &Ar );
+	ENGINE_API bool HandleGetMaxTickRateCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleCancelCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );
 
 #if !UE_BUILD_SHIPPING
-	bool HandleApplyUserSettingsCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleApplyUserSettingsCommand( const TCHAR* Cmd, FOutputDevice& Ar );
 #endif // !UE_BUILD_SHIPPING
 
 	/** Returns the GameViewport widget */
@@ -171,21 +171,21 @@ public:
 	 * It should never be used in gamecode - instead use the appropriate world context function 
 	 * in order to properly support multiple concurrent UWorlds.
 	 */
-	UWorld* GetGameWorld();
+	ENGINE_API UWorld* GetGameWorld();
 
 protected:
 
-	FSceneViewport* GetGameSceneViewport(UGameViewportClient* ViewportClient) const;
+	ENGINE_API FSceneViewport* GetGameSceneViewport(UGameViewportClient* ViewportClient) const;
 
 	/** Handle to a movie capture implementation to create on startup */
 	FMovieSceneCaptureHandle StartupMovieCaptureHandle;
 
-	virtual void HandleBrowseToDefaultMapFailure(FWorldContext& Context, const FString& TextURL, const FString& Error) override;
+	ENGINE_API virtual void HandleBrowseToDefaultMapFailure(FWorldContext& Context, const FString& TextURL, const FString& Error) override;
 
 private:
 
-	virtual void HandleNetworkFailure_NotifyGameInstance(UWorld* World, UNetDriver* NetDriver, ENetworkFailure::Type FailureType) override;
-	virtual void HandleTravelFailure_NotifyGameInstance(UWorld* World, ETravelFailure::Type FailureType) override;
+	ENGINE_API virtual void HandleNetworkFailure_NotifyGameInstance(UWorld* World, UNetDriver* NetDriver, ENetworkFailure::Type FailureType) override;
+	ENGINE_API virtual void HandleTravelFailure_NotifyGameInstance(UWorld* World, ETravelFailure::Type FailureType) override;
 
 	/** Last time the logs have been flushed. */
 	double LastTimeLogsFlushed;

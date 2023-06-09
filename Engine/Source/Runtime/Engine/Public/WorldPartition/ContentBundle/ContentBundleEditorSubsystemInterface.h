@@ -6,7 +6,7 @@
 class FContentBundleEditor;
 
 #if WITH_EDITOR
-class ENGINE_API IContentBundleEditorSubsystemInterface
+class IContentBundleEditorSubsystemInterface
 {
 public:
 	static IContentBundleEditorSubsystemInterface* Get() { return Instance; }
@@ -26,7 +26,7 @@ public:
 	virtual void PopContentBundleEditing() = 0;
 
 protected:
-	static void SetInstance(IContentBundleEditorSubsystemInterface* InInstance);
-	static IContentBundleEditorSubsystemInterface* Instance;
+	static ENGINE_API void SetInstance(IContentBundleEditorSubsystemInterface* InInstance);
+	static ENGINE_API IContentBundleEditorSubsystemInterface* Instance;
 };
 #endif

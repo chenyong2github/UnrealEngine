@@ -17,8 +17,8 @@ struct FPropertyChangedEvent;
 DECLARE_DELEGATE(FOnCVarsUpdated);
 
 
-UCLASS(config=DeviceProfiles, perObjectConfig)
-class ENGINE_API UDeviceProfile : public UTextureLODSettings
+UCLASS(config=DeviceProfiles, perObjectConfig, MinimalAPI)
+class UDeviceProfile : public UTextureLODSettings
 {
 	GENERATED_UCLASS_BODY()
 
@@ -76,7 +76,7 @@ public:
 	 *
 	 * @param CVarInformation - The list of inherited CVars in the format of<key:CVarName,value:CVarCompleteString>
 	 */
-	void GatherParentCVarInformationRecursively(OUT TMap<FString, FString>& CVarInformation) const;
+	ENGINE_API void GatherParentCVarInformationRecursively(OUT TMap<FString, FString>& CVarInformation) const;
 
 	/** 
 	 * Accessor to the delegate object fired when there has been any changes to the console variables 
@@ -91,23 +91,23 @@ public:
 	 * @param FragmentTag the name of the tag to find
 	 * @return FSelectedFragmentProperties ptr or null if FragmentTag not found.
 	 */	
-	const FSelectedFragmentProperties* GetFragmentByTag(FName& FragmentTag) const;
+	ENGINE_API const FSelectedFragmentProperties* GetFragmentByTag(FName& FragmentTag) const;
 
 	bool IsVisibleForAssets()const { return bIsVisibleForAssets; }
 public:
 	/** 
 	 * Access to the device profiles Texture LOD Settings
 	 */
-	UTextureLODSettings* GetTextureLODSettings() const;
+	ENGINE_API UTextureLODSettings* GetTextureLODSettings() const;
 
 	/**
 	 * Returns the parent device profile, optionally including the default object
 	 */
-	UDeviceProfile* GetParentProfile(bool bIncludeDefaultObject = false) const;
+	ENGINE_API UDeviceProfile* GetParentProfile(bool bIncludeDefaultObject = false) const;
 	
 private:
 	// Make sure our TextureLODGroups array is sorted correctly and complete
-	void ValidateTextureLODGroups();
+	ENGINE_API void ValidateTextureLODGroups();
 	/** Delegate object fired when there has been any changes to the console variables */
 	FOnCVarsUpdated CVarsUpdatedDelegate;
 
@@ -118,24 +118,24 @@ public:
 	/* ValidateProfile()
 	* Validate the Profile after changes by loading it's config (.ini)
 	*/
-	void ValidateProfile();
+	ENGINE_API void ValidateProfile();
 
 	//~ Begin UObject Interface
-	virtual void BeginDestroy() override;
+	ENGINE_API virtual void BeginDestroy() override;
 	//~ End UObject Interface
 
 #if WITH_EDITOR
 	//~ Begin UObject Interface
-	virtual void PostEditChangeProperty( FPropertyChangedEvent& PropertyChangedEvent ) override;
+	ENGINE_API virtual void PostEditChangeProperty( FPropertyChangedEvent& PropertyChangedEvent ) override;
 	//~ End UObject Interface
 
-	bool ModifyCVarValue(const FString& CVarName, const FString& CVarValue, bool bAddIfNonExistant = false);
-	FString GetCVarValue(const FString& CVarName) const;
+	ENGINE_API bool ModifyCVarValue(const FString& CVarName, const FString& CVarValue, bool bAddIfNonExistant = false);
+	ENGINE_API FString GetCVarValue(const FString& CVarName) const;
 
 	/** Lazily generate a consolidated list of CVars, recursing up the device profile hierarchy 
 	 *  This will not include any cvars from the device's selected fragments.
 	*/
-	const TMap<FString, FString>& GetConsolidatedCVars() const;
+	ENGINE_API const TMap<FString, FString>& GetConsolidatedCVars() const;
 
 	/** 
 	 * Get the string value of a CVar that is held in this device profile, or in any parent device profile.
@@ -144,7 +144,7 @@ public:
 	 * @param	bCheckDefaults	Whether to also check the IConsoleManager for the global default value for the CVar
 	 * @return true if the CVar was found in this device profile
 	 */
-	bool GetConsolidatedCVarValue(const TCHAR* CVarName, FString& OutString, bool bCheckDefaults = false) const;
+	ENGINE_API bool GetConsolidatedCVarValue(const TCHAR* CVarName, FString& OutString, bool bCheckDefaults = false) const;
 
 	/** 
 	 * Get the int32 value of a CVar that is held in this device profile, or in any parent device profile.
@@ -153,7 +153,7 @@ public:
 	 * @param	bCheckDefaults	Whether to also check the IConsoleManager for the global default value for the CVar
 	 * @return true if the CVar was found in this device profile
 	 */
-	bool GetConsolidatedCVarValue(const TCHAR* CVarName, int32& OutValue, bool bCheckDefaults = false) const;
+	ENGINE_API bool GetConsolidatedCVarValue(const TCHAR* CVarName, int32& OutValue, bool bCheckDefaults = false) const;
 
 	/** 
 	 * Get the float value of a CVar that is held in this device profile, or in any parent device profile.
@@ -162,11 +162,11 @@ public:
 	 * @param	bCheckDefaults	Whether to also check the IConsoleManager for the global default value for the CVar
 	 * @return true if the CVar was found in this device profile
 	 */
-	bool GetConsolidatedCVarValue(const TCHAR* CVarName, float& OutValue, bool bCheckDefaults = false) const;
+	ENGINE_API bool GetConsolidatedCVarValue(const TCHAR* CVarName, float& OutValue, bool bCheckDefaults = false) const;
 
 private:
 	/** Helper function to broadcast when CVars change and clear consolidated map */
-	void HandleCVarsChanged();
+	ENGINE_API void HandleCVarsChanged();
 
 private:
 	/** Consolidated CVars, lazy initialized - access via GetConsolidatedCVars */
@@ -176,17 +176,17 @@ private:
 
 #if ALLOW_OTHER_PLATFORM_CONFIG
 public:
-	const TMap<FString, FString>& GetAllExpandedCVars();
-	const TMap<FString, FString>& GetAllPreviewCVars();
-	void ClearAllExpandedCVars();
+	ENGINE_API const TMap<FString, FString>& GetAllExpandedCVars();
+	ENGINE_API const TMap<FString, FString>& GetAllPreviewCVars();
+	ENGINE_API void ClearAllExpandedCVars();
 	/** Set the memory size bucket to be used when previewing this DP, changing this will reset the expanded cvars. */
-	void SetPreviewMemorySizeBucket(EPlatformMemorySizeBucket PreviewMemorySizeBucketIn);
-	EPlatformMemorySizeBucket GetPreviewMemorySizeBucket() const;
+	ENGINE_API void SetPreviewMemorySizeBucket(EPlatformMemorySizeBucket PreviewMemorySizeBucketIn);
+	ENGINE_API EPlatformMemorySizeBucket GetPreviewMemorySizeBucket() const;
 
 private:
 	
 	// calculate the cvars for another platform's deviceprofile
-	void ExpandDeviceProfileCVars();
+	ENGINE_API void ExpandDeviceProfileCVars();
 		
 	/** Resolved CVars, including expanded scalability cvars used to properly emulate one platform on another */
 	TMap<FString, FString> AllExpandedCVars;

@@ -38,7 +38,7 @@ enum ESoundGroup : int
 };
 
 USTRUCT()
-struct ENGINE_API FSoundGroup
+struct FSoundGroup
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -71,14 +71,14 @@ struct ENGINE_API FSoundGroup
 };
 
 // This class is a singleton initialized from the ini
-UCLASS(config=Engine, abstract)
-class ENGINE_API USoundGroups : public UObject
+UCLASS(config=Engine, abstract, MinimalAPI)
+class USoundGroups : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
-	void Initialize() const;
+	ENGINE_API void Initialize() const;
 
-	const FSoundGroup& GetSoundGroup(const ESoundGroup SoundGroup) const;
+	ENGINE_API const FSoundGroup& GetSoundGroup(const ESoundGroup SoundGroup) const;
 
 private:
 

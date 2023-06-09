@@ -11,8 +11,8 @@ class UTexture2D;
 /**
  * A mini map to preview the world in world partition window. (editor-only)
  */
-UCLASS(hidecategories = (Actor, Advanced, Display, Events, Object, Attachment, Info, Input, Blueprint, Layers, Tags, Replication, Physics, Cooking), notplaceable)
-class ENGINE_API AWorldPartitionMiniMap : public AInfo
+UCLASS(hidecategories = (Actor, Advanced, Display, Events, Object, Attachment, Info, Input, Blueprint, Layers, Tags, Replication, Physics, Cooking), notplaceable, MinimalAPI)
+class AWorldPartitionMiniMap : public AInfo
 {
 	GENERATED_BODY()
 
@@ -23,17 +23,17 @@ private:
 #endif
 
 public:
-	AWorldPartitionMiniMap(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	ENGINE_API AWorldPartitionMiniMap(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	virtual bool IsEditorOnly() const final { return true; }
-	virtual void PostLoad() override;
+	ENGINE_API virtual void PostLoad() override;
 
 #if WITH_EDITOR
 	virtual bool IsLockLocation() const { return true; }
 	virtual bool IsUserManaged() const final { return false; }
-	virtual void CheckForErrors() override;
-	FBox GetMiniMapWorldBounds() const;
-	void GetMiniMapResolution(int32& OutMinimapImageSizeX, int32& OutMinimapImageSizeY, int32& OutWorldUnitsPerPixel) const;
+	ENGINE_API virtual void CheckForErrors() override;
+	ENGINE_API FBox GetMiniMapWorldBounds() const;
+	ENGINE_API void GetMiniMapResolution(int32& OutMinimapImageSizeX, int32& OutMinimapImageSizeY, int32& OutWorldUnitsPerPixel) const;
 #endif
 
 	/* WorldBounds for MinMapTexture */

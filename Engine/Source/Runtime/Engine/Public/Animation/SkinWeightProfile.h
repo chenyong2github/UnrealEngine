@@ -125,61 +125,61 @@ struct FSkinweightReadbackData
 };
 
 /** Runtime structure for keeping track of skin weight profile(s) and the associated buffer */
-struct ENGINE_API FSkinWeightProfilesData
+struct FSkinWeightProfilesData
 {
 	FSkinWeightProfilesData() : BaseBuffer(nullptr), DefaultOverrideSkinWeightBuffer(nullptr), bDefaultOverriden(false), bStaticOverriden(false), DefaultProfileName(NAME_None) {}
-	void Init(FSkinWeightVertexBuffer* InBaseBuffer);
+	ENGINE_API void Init(FSkinWeightVertexBuffer* InBaseBuffer);
 
-	~FSkinWeightProfilesData();
+	ENGINE_API ~FSkinWeightProfilesData();
 	
 	DECLARE_DELEGATE_RetVal_ThreeParams(int32 /** Index into Profiles ArrayView */, FOnPickOverrideSkinWeightProfile, const USkeletalMesh* /** Skeletal Mesh to pick the profile for */, const TArrayView<const FSkinWeightProfileInfo> /** Available skin weight profiles to pick from */, int32 /** LOD Index */);
-	static FOnPickOverrideSkinWeightProfile OnPickOverrideSkinWeightProfile;
+	static ENGINE_API FOnPickOverrideSkinWeightProfile OnPickOverrideSkinWeightProfile;
 
 #if !WITH_EDITOR
 	// Mark this as non-editor only to prevent mishaps from users
-	void OverrideBaseBufferSkinWeightData(USkeletalMesh* Mesh, int32 LODIndex);
+	ENGINE_API void OverrideBaseBufferSkinWeightData(USkeletalMesh* Mesh, int32 LODIndex);
 #endif 
-	void SetDynamicDefaultSkinWeightProfile(USkeletalMesh* Mesh, int32 LODIndex, bool bSerialization = false);	
-	void ClearDynamicDefaultSkinWeightProfile(USkeletalMesh* Mesh, int32 LODIndex);
-	void SetupDynamicDefaultSkinweightProfile();
+	ENGINE_API void SetDynamicDefaultSkinWeightProfile(USkeletalMesh* Mesh, int32 LODIndex, bool bSerialization = false);	
+	ENGINE_API void ClearDynamicDefaultSkinWeightProfile(USkeletalMesh* Mesh, int32 LODIndex);
+	ENGINE_API void SetupDynamicDefaultSkinweightProfile();
 	FSkinWeightVertexBuffer* GetDefaultOverrideBuffer() const { return DefaultOverrideSkinWeightBuffer; }
 
-	bool ContainsProfile(const FName& ProfileName) const;
-	FSkinWeightVertexBuffer* GetOverrideBuffer(const FName& ProfileName) const;
-	bool ContainsOverrideBuffer(const FName& ProfileName) const;
+	ENGINE_API bool ContainsProfile(const FName& ProfileName) const;
+	ENGINE_API FSkinWeightVertexBuffer* GetOverrideBuffer(const FName& ProfileName) const;
+	ENGINE_API bool ContainsOverrideBuffer(const FName& ProfileName) const;
 	
-	const FRuntimeSkinWeightProfileData* GetOverrideData(const FName& ProfileName) const;
-	FRuntimeSkinWeightProfileData& AddOverrideData(const FName& ProfileName);
+	ENGINE_API const FRuntimeSkinWeightProfileData* GetOverrideData(const FName& ProfileName) const;
+	ENGINE_API FRuntimeSkinWeightProfileData& AddOverrideData(const FName& ProfileName);
 	
-	void ReleaseBuffer(const FName& ProfileName, bool bForceRelease = false);
-	void ReleaseResources();
+	ENGINE_API void ReleaseBuffer(const FName& ProfileName, bool bForceRelease = false);
+	ENGINE_API void ReleaseResources();
 
-	SIZE_T GetResourcesSize() const;
-	SIZE_T GetCPUAccessMemoryOverhead() const;
+	ENGINE_API SIZE_T GetResourcesSize() const;
+	ENGINE_API SIZE_T GetCPUAccessMemoryOverhead() const;
 
 	friend FArchive& operator<<(FArchive& Ar, FSkinWeightProfilesData& OverrideData);
 
-	void SerializeMetaData(FArchive& Ar);
+	ENGINE_API void SerializeMetaData(FArchive& Ar);
 
-	void ReleaseCPUResources();
+	ENGINE_API void ReleaseCPUResources();
 
-	void CreateRHIBuffers_RenderThread(TArray<TPair<FName, FSkinWeightRHIInfo>>& OutBuffers);
-	void CreateRHIBuffers_Async(TArray<TPair<FName, FSkinWeightRHIInfo>>& OutBuffers);
+	ENGINE_API void CreateRHIBuffers_RenderThread(TArray<TPair<FName, FSkinWeightRHIInfo>>& OutBuffers);
+	ENGINE_API void CreateRHIBuffers_Async(TArray<TPair<FName, FSkinWeightRHIInfo>>& OutBuffers);
 
-	void InitRHIForStreaming(const TArray<TPair<FName, FSkinWeightRHIInfo>>& IntermediateBuffers, FRHIResourceUpdateBatcher& Batcher);
-	void ReleaseRHIForStreaming(FRHIResourceUpdateBatcher& Batcher);
+	ENGINE_API void InitRHIForStreaming(const TArray<TPair<FName, FSkinWeightRHIInfo>>& IntermediateBuffers, FRHIResourceUpdateBatcher& Batcher);
+	ENGINE_API void ReleaseRHIForStreaming(FRHIResourceUpdateBatcher& Batcher);
 
-	bool IsPendingReadback() const;
-	void EnqueueGPUReadback();
-	bool IsGPUReadbackFinished() const;
-	void EnqueueDataReadback();
-	bool IsDataReadbackPending() const;
-	bool IsDataReadbackFinished() const;
-	void ResetGPUReadback();
-	void InitialiseProfileBuffer(const FName& ProfileName);
+	ENGINE_API bool IsPendingReadback() const;
+	ENGINE_API void EnqueueGPUReadback();
+	ENGINE_API bool IsGPUReadbackFinished() const;
+	ENGINE_API void EnqueueDataReadback();
+	ENGINE_API bool IsDataReadbackPending() const;
+	ENGINE_API bool IsDataReadbackFinished() const;
+	ENGINE_API void ResetGPUReadback();
+	ENGINE_API void InitialiseProfileBuffer(const FName& ProfileName);
 
 protected:
-	void ApplyOverrideProfile(FSkinWeightVertexBuffer* OverrideBuffer, const FName& ProfileName);
+	ENGINE_API void ApplyOverrideProfile(FSkinWeightVertexBuffer* OverrideBuffer, const FName& ProfileName);
 
 	template <bool bRenderThread>
 	void CreateRHIBuffers_Internal(TArray<TPair<FName, FSkinWeightRHIInfo>>& OutBuffers);

@@ -11,8 +11,8 @@
 
 struct FParticleEmitterInstance;
 
-UCLASS(editinlinenew, hidecategories=Object, meta=(DisplayName = "Source Movement"))
-class ENGINE_API UParticleModuleSourceMovement : public UParticleModuleLocationBase
+UCLASS(editinlinenew, hidecategories=Object, meta=(DisplayName = "Source Movement"), MinimalAPI)
+class UParticleModuleSourceMovement : public UParticleModuleLocationBase
 {
 	GENERATED_UCLASS_BODY()
 
@@ -25,18 +25,18 @@ class ENGINE_API UParticleModuleSourceMovement : public UParticleModuleLocationB
 
 	//Begin UObject Interface
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
-	virtual void PostInitProperties() override;
+	ENGINE_API virtual void PostInitProperties() override;
 	//End UObject Interface
 
 	//Begin UParticleModule Interface
-	virtual void FinalUpdate(FParticleEmitterInstance* Owner, int32 Offset, float DeltaTime) override;
-	virtual bool CanTickInAnyThread() override;
+	ENGINE_API virtual void FinalUpdate(FParticleEmitterInstance* Owner, int32 Offset, float DeltaTime) override;
+	ENGINE_API virtual bool CanTickInAnyThread() override;
 	//End UParticleModule Interface
 
 	/** Initializes the default values for this property */
-	void InitializeDefaults();
+	ENGINE_API void InitializeDefaults();
 };
 
 

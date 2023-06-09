@@ -75,8 +75,8 @@ enum class EPreviewAnimationBlueprintApplicationMethod : uint8
  * It can perform blending of animations, directly control the bones of the skeleton, and output a final pose
  * for a Skeletal Mesh each frame.
  */
-UCLASS(BlueprintType)
-class ENGINE_API UAnimBlueprint : public UBlueprint, public IInterface_PreviewMeshProvider
+UCLASS(BlueprintType, MinimalAPI)
+class UAnimBlueprint : public UBlueprint, public IInterface_PreviewMeshProvider
 {
 	GENERATED_UCLASS_BODY()
 
@@ -119,26 +119,26 @@ class ENGINE_API UAnimBlueprint : public UBlueprint, public IInterface_PreviewMe
 	uint8 bEnableLinkedAnimLayerInstanceSharing : 1;
 
 	// @todo document
-	class UAnimBlueprintGeneratedClass* GetAnimBlueprintGeneratedClass() const;
+	ENGINE_API class UAnimBlueprintGeneratedClass* GetAnimBlueprintGeneratedClass() const;
 
 	// @todo document
-	class UAnimBlueprintGeneratedClass* GetAnimBlueprintSkeletonClass() const;
+	ENGINE_API class UAnimBlueprintGeneratedClass* GetAnimBlueprintSkeletonClass() const;
 
-	virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
 
 #if WITH_EDITOR
 
-	virtual UClass* GetBlueprintClass() const override;
+	ENGINE_API virtual UClass* GetBlueprintClass() const override;
 
 	// Inspects the hierarchy and looks for an override for the requested node GUID
 	// @param NodeGuid - Guid of the node to search for
 	// @param bIgnoreSelf - Ignore this blueprint and only search parents, handy for finding parent overrides
-	FAnimParentNodeAssetOverride* GetAssetOverrideForNode(FGuid NodeGuid, bool bIgnoreSelf = false) const ;
+	ENGINE_API FAnimParentNodeAssetOverride* GetAssetOverrideForNode(FGuid NodeGuid, bool bIgnoreSelf = false) const ;
 
 	// Inspects the hierarchy and builds a list of all asset overrides for this blueprint
 	// @param OutOverrides - Array to fill with overrides
 	// @return bool - Whether any overrides were found
-	bool GetAssetOverrides(TArray<FAnimParentNodeAssetOverride*>& OutOverrides);
+	ENGINE_API bool GetAssetOverrides(TArray<FAnimParentNodeAssetOverride*>& OutOverrides);
 
 	// UBlueprint interface
 	virtual bool SupportedByDefaultBlueprintFactory() const override
@@ -147,17 +147,17 @@ class ENGINE_API UAnimBlueprint : public UBlueprint, public IInterface_PreviewMe
 	}
 
 	virtual bool IsValidForBytecodeOnlyRecompile() const override { return false; }
-	virtual bool CanAlwaysRecompileWhilePlayingInEditor() const override;
+	ENGINE_API virtual bool CanAlwaysRecompileWhilePlayingInEditor() const override;
 	// End of UBlueprint interface
 
 	// Finds the index of the specified group, or creates a new entry for it (unless the name is NAME_None, which will return INDEX_NONE)
-	int32 FindOrAddGroup(FName GroupName);
+	ENGINE_API int32 FindOrAddGroup(FName GroupName);
 
 	/** Returns the most base anim blueprint for a given blueprint (if it is inherited from another anim blueprint, returning null if only native / non-anim BP classes are it's parent) */
-	static UAnimBlueprint* FindRootAnimBlueprint(const UAnimBlueprint* DerivedBlueprint);
+	static ENGINE_API UAnimBlueprint* FindRootAnimBlueprint(const UAnimBlueprint* DerivedBlueprint);
 
 	/** Returns the parent anim blueprint for a given blueprint (if it is inherited from another anim blueprint, returning null if only native / non-anim BP classes are it's parent) */
-	static UAnimBlueprint* GetParentAnimBlueprint(const UAnimBlueprint* DerivedBlueprint);
+	static ENGINE_API UAnimBlueprint* GetParentAnimBlueprint(const UAnimBlueprint* DerivedBlueprint);
 	
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnOverrideChangedMulticaster, FGuid, UAnimationAsset*);
 
@@ -178,16 +178,16 @@ class ENGINE_API UAnimBlueprint : public UBlueprint, public IInterface_PreviewMe
 		OnOverrideChanged.Broadcast(Override.ParentNodeGuid, Override.NewAsset);
 	}
 
-	virtual void PostLoad() override;
-	virtual bool FindDiffs(const UBlueprint* OtherBlueprint, FDiffResults& Results) const override;
-	virtual void SetObjectBeingDebugged(UObject* NewObject) override;
-	virtual bool SupportsAnimLayers() const override;
-	virtual bool SupportsEventGraphs() const override;
-	virtual bool SupportsDelegates() const override;
-	virtual bool SupportsMacros() const override;
-	virtual bool SupportsInputEvents() const override;
-	virtual bool AllowFunctionOverride(const UFunction* const InFunction) const override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostLoad() override;
+	ENGINE_API virtual bool FindDiffs(const UBlueprint* OtherBlueprint, FDiffResults& Results) const override;
+	ENGINE_API virtual void SetObjectBeingDebugged(UObject* NewObject) override;
+	ENGINE_API virtual bool SupportsAnimLayers() const override;
+	ENGINE_API virtual bool SupportsEventGraphs() const override;
+	ENGINE_API virtual bool SupportsDelegates() const override;
+	ENGINE_API virtual bool SupportsMacros() const override;
+	ENGINE_API virtual bool SupportsInputEvents() const override;
+	ENGINE_API virtual bool AllowFunctionOverride(const UFunction* const InFunction) const override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	
 protected:
 	// Broadcast when an override is changed, allowing derived blueprints to be updated
@@ -196,26 +196,26 @@ protected:
 
 public:
 	/** IInterface_PreviewMeshProvider interface */
-	virtual void SetPreviewMesh(USkeletalMesh* PreviewMesh, bool bMarkAsDirty = true) override;
-	virtual USkeletalMesh* GetPreviewMesh(bool bFindIfNotSet = false) override;
-	virtual USkeletalMesh* GetPreviewMesh() const override;
+	ENGINE_API virtual void SetPreviewMesh(USkeletalMesh* PreviewMesh, bool bMarkAsDirty = true) override;
+	ENGINE_API virtual USkeletalMesh* GetPreviewMesh(bool bFindIfNotSet = false) override;
+	ENGINE_API virtual USkeletalMesh* GetPreviewMesh() const override;
 
 	/** Preview anim blueprint support */
-	void SetPreviewAnimationBlueprint(UAnimBlueprint* InPreviewAnimationBlueprint);
-	UAnimBlueprint* GetPreviewAnimationBlueprint() const;
+	ENGINE_API void SetPreviewAnimationBlueprint(UAnimBlueprint* InPreviewAnimationBlueprint);
+	ENGINE_API UAnimBlueprint* GetPreviewAnimationBlueprint() const;
 
-	void SetPreviewAnimationBlueprintApplicationMethod(EPreviewAnimationBlueprintApplicationMethod InMethod);
-	EPreviewAnimationBlueprintApplicationMethod GetPreviewAnimationBlueprintApplicationMethod() const;
+	ENGINE_API void SetPreviewAnimationBlueprintApplicationMethod(EPreviewAnimationBlueprintApplicationMethod InMethod);
+	ENGINE_API EPreviewAnimationBlueprintApplicationMethod GetPreviewAnimationBlueprintApplicationMethod() const;
 
-	void SetPreviewAnimationBlueprintTag(FName InTag);
-	FName GetPreviewAnimationBlueprintTag() const;
+	ENGINE_API void SetPreviewAnimationBlueprintTag(FName InTag);
+	ENGINE_API FName GetPreviewAnimationBlueprintTag() const;
 
 public:
 	/** Check if the anim instance is the active debug object for this anim BP */
-	bool IsObjectBeingDebugged(const UObject* AnimInstance) const;
+	ENGINE_API bool IsObjectBeingDebugged(const UObject* AnimInstance) const;
 
 	/** Get the debug data for this anim BP */
-	FAnimBlueprintDebugData* GetDebugData() const;
+	ENGINE_API FAnimBlueprintDebugData* GetDebugData() const;
 
 #if WITH_EDITORONLY_DATA
 public:
@@ -228,14 +228,14 @@ public:
 	// Note compatibility is directional - e.g. template anim BPs can be instanced within any 'regular' anim BP, but not
 	// vice versa
 	// @param	InAnimBlueprint		The anim blueprint to check for compatibility
-	bool IsCompatible(const UAnimBlueprint* InAnimBlueprint) const;
+	ENGINE_API bool IsCompatible(const UAnimBlueprint* InAnimBlueprint) const;
 	
 	// Check if the asset path of a skeleton, template and interface flags are compatible with this anim blueprint
 	// (for linked instancing)
 	// @param	InSkeletonAsset		The asset path of the skeleton asset used by the anim blueprint
 	// @param	bInIsTemplate		Whether the anim blueprint to check is a template
 	// @param	bInIsInterface		Whether the anim blueprint to check is an interface
-	bool IsCompatibleByAssetString(const FString& InSkeletonAsset, bool bInIsTemplate, bool bInIsInterface) const;
+	ENGINE_API bool IsCompatibleByAssetString(const FString& InSkeletonAsset, bool bInIsTemplate, bool bInIsInterface) const;
 	
 public:
 	// Array of overrides to asset containing nodes in the parent that have been overridden

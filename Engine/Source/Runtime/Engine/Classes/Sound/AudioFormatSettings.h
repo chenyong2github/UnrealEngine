@@ -10,20 +10,20 @@ class USoundWave;
 
 namespace Audio
 {
-	class ENGINE_API FAudioFormatSettings
+	class FAudioFormatSettings
 	{
 	public:
-		FAudioFormatSettings(FConfigCacheIni* InConfigSystem, const FString& InConfigFilename, const FString& InPlatformIdentifierForLogging);
+		ENGINE_API FAudioFormatSettings(FConfigCacheIni* InConfigSystem, const FString& InConfigFilename, const FString& InPlatformIdentifierForLogging);
 		~FAudioFormatSettings() = default;
 
-		FName GetWaveFormat(const USoundWave* Wave) const;
-		void GetAllWaveFormats(TArray<FName>& OutFormats) const;
-		void GetWaveFormatModuleHints(TArray<FName>& OutHints) const;
+		ENGINE_API FName GetWaveFormat(const USoundWave* Wave) const;
+		ENGINE_API void GetAllWaveFormats(TArray<FName>& OutFormats) const;
+		ENGINE_API void GetWaveFormatModuleHints(TArray<FName>& OutHints) const;
 
 		FName GetFallbackFormat() const { return FallbackFormat; }
 
 	private:
-		void ReadConfiguration(FConfigCacheIni*, const FString& InConfigFilename, const FString& InPlatformIdentifierForLogging);
+		ENGINE_API void ReadConfiguration(FConfigCacheIni*, const FString& InConfigFilename, const FString& InPlatformIdentifierForLogging);
 
 		TArray<FName> AllWaveFormats;
 		TArray<FName> WaveFormatModuleHints;

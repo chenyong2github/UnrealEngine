@@ -12,8 +12,8 @@
 /**
  *	Used to emit a radial force or impulse that can affect physics objects and or destructible objects.
  */
-UCLASS(hidecategories = (Object, Mobility, LOD, Physics), ClassGroup = Physics, showcategories = Trigger, meta = (BlueprintSpawnableComponent))
-class ENGINE_API URadialForceComponent : public USceneComponent
+UCLASS(hidecategories = (Object, Mobility, LOD, Physics), ClassGroup = Physics, showcategories = Trigger, meta = (BlueprintSpawnableComponent), MinimalAPI)
+class URadialForceComponent : public USceneComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -47,18 +47,18 @@ class ENGINE_API URadialForceComponent : public USceneComponent
 
 	/** Fire a single impulse */
 	UFUNCTION(BlueprintCallable, Category="Physics|Components|RadialForce")
-	virtual void FireImpulse();
+	ENGINE_API virtual void FireImpulse();
 
 	/** Add an object type for this radial force to affect */
 	UFUNCTION(BlueprintCallable, Category="Physics|Components|RadialForce")
-	virtual void AddObjectTypeToAffect(TEnumAsByte<enum EObjectTypeQuery> ObjectType);
+	ENGINE_API virtual void AddObjectTypeToAffect(TEnumAsByte<enum EObjectTypeQuery> ObjectType);
 
 	/** Remove an object type that is affected by this radial force */
 	UFUNCTION(BlueprintCallable, Category="Physics|Components|RadialForce")
-	virtual void RemoveObjectTypeToAffect(TEnumAsByte<enum EObjectTypeQuery> ObjectType);
+	ENGINE_API virtual void RemoveObjectTypeToAffect(TEnumAsByte<enum EObjectTypeQuery> ObjectType);
 
 	/** Add a collision channel for this radial force to affect */
-	void AddCollisionChannelToAffect(enum ECollisionChannel CollisionChannel);
+	ENGINE_API void AddCollisionChannelToAffect(enum ECollisionChannel CollisionChannel);
 
 protected:
 	/** The object types that are affected by this radial force */
@@ -70,20 +70,20 @@ protected:
 
 protected:
 	//~ Begin UActorComponent Interface.
-	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
+	ENGINE_API virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 	
-	virtual void BeginPlay() override;
+	ENGINE_API virtual void BeginPlay() override;
 	//~ End UActorComponent Interface.
 
 	//~ Begin UObject Interface.
-	virtual void PostLoad() override;
+	ENGINE_API virtual void PostLoad() override;
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 	//~ End UObject Interface.
 
 	/** Update CollisionObjectQueryParams from ObjectTypesToAffect */
-	void UpdateCollisionObjectQueryParams();
+	ENGINE_API void UpdateCollisionObjectQueryParams();
 };
 
 

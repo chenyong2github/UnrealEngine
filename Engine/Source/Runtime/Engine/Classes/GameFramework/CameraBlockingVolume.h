@@ -10,8 +10,8 @@
 /**
  * A volume which blocks the Camera channel by default.
  */
-UCLASS()
-class ENGINE_API ACameraBlockingVolume : public AVolume
+UCLASS(MinimalAPI)
+class ACameraBlockingVolume : public AVolume
 {
 	GENERATED_UCLASS_BODY()
 };

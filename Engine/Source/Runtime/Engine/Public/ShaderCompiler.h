@@ -482,7 +482,7 @@ public:
 
 	ENGINE_API void RegisterCookedShaders(uint32 NumCooked, float CompileTime, EShaderPlatform Platform, const FString MaterialPath, FString PermutationString = FString(""));
 	ENGINE_API void RegisterCompiledShaders(uint32 NumPermutations, EShaderPlatform Platform, const FString MaterialPath, FString PermutationString = FString(""));
-	ENGINE_API const TSparseArray<ShaderCompilerStats>& GetShaderCompilerStats() { return CompileStats; }
+	const TSparseArray<ShaderCompilerStats>& GetShaderCompilerStats() { return CompileStats; }
 	ENGINE_API void WriteStats(class FOutputDevice* Ar = nullptr);
 	ENGINE_API void WriteStatSummary();
 	ENGINE_API uint32 GetTotalShadersCompiled();
@@ -1075,7 +1075,7 @@ struct FODSCRequestPayload
 	/** A hash of the above information to uniquely identify a Request. */
 	FString RequestHash;
 
-	ENGINE_API FODSCRequestPayload() {};
+	FODSCRequestPayload() {};
 	ENGINE_API FODSCRequestPayload(
 		EShaderPlatform InShaderPlatform,
 		ERHIFeatureLevel::Type InFeatureLevel,
@@ -1143,7 +1143,7 @@ struct FShaderRecompileData
 	TArray<FODSCRequestPayload> ShadersToRecompile;
 
 	/** Default constructor. */
-	ENGINE_API FShaderRecompileData() {};
+	FShaderRecompileData() {};
 
 	/** Recompile all the changed shaders for the current platform. */
 	ENGINE_API FShaderRecompileData(const FString& InPlatformName, TArray<FString>* OutModifiedFiles, TArray<uint8>* OutMeshMaterialMaps, TArray<uint8>* OutGlobalShaderMap);

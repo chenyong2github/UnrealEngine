@@ -105,35 +105,35 @@ struct FStreamingViewInfo
  * This structure allows audio chunk data to be accessed, and guarantees that the chunk in question will not be deleted
  * during it's lifecycle.
  */
-class ENGINE_API FAudioChunkHandle
+class FAudioChunkHandle
 {
 public:
-	FAudioChunkHandle();
-	FAudioChunkHandle(const FAudioChunkHandle& Other);
-	FAudioChunkHandle(FAudioChunkHandle&& Other);
+	ENGINE_API FAudioChunkHandle();
+	ENGINE_API FAudioChunkHandle(const FAudioChunkHandle& Other);
+	ENGINE_API FAudioChunkHandle(FAudioChunkHandle&& Other);
 
-	FAudioChunkHandle& operator=(const FAudioChunkHandle& Other);
-	FAudioChunkHandle& operator=(FAudioChunkHandle&& Other);
+	ENGINE_API FAudioChunkHandle& operator=(const FAudioChunkHandle& Other);
+	ENGINE_API FAudioChunkHandle& operator=(FAudioChunkHandle&& Other);
 
-	~FAudioChunkHandle();
+	ENGINE_API ~FAudioChunkHandle();
 
 	// gets a pointer to the compressed chunk.
-	const uint8* GetData() const;
+	ENGINE_API const uint8* GetData() const;
 
 	// Returns the num bytes pointed to by GetData().
-	uint32 Num() const;
+	ENGINE_API uint32 Num() const;
 
 	// Checks whether this points to a valid compressed chunk.
-	bool IsValid() const;
+	ENGINE_API bool IsValid() const;
 
 #if WITH_EDITOR
 	// If the soundwave has been recompressed, the compressed audio retained by this handle will not be up to date, and this will return true. 
-	bool IsStale() const;
+	ENGINE_API bool IsStale() const;
 #endif
 
 private:
 	// This constructor should only be called by an implementation of IAudioStreamingManager.
-	FAudioChunkHandle(const uint8* InData, uint32 NumBytes, const FSoundWaveProxyPtr&  InSoundWave, const FName& SoundWaveName, uint32 InChunkIndex, uint64 InCacheLookupID);
+	ENGINE_API FAudioChunkHandle(const uint8* InData, uint32 NumBytes, const FSoundWaveProxyPtr&  InSoundWave, const FName& SoundWaveName, uint32 InChunkIndex, uint64 InCacheLookupID);
 
 	const uint8*  CachedData;
 	int32 CachedDataNumBytes;
@@ -255,7 +255,7 @@ struct IStreamingManager
 	ENGINE_API void AddViewLocation(const FVector& Location, float BoostFactor = 1.0f, bool bOverrideLocation = false, float Duration = 0.0f);
 
 	UE_DEPRECATED(5.1, "This is deprecated to follow inclusive naming rules. Use AddViewLocation() instead.")
-	ENGINE_API void AddViewSlaveLocation(const FVector& Location, float BoostFactor = 1.0f, bool bOverrideLocation = false, float Duration = 0.0f)
+	void AddViewSlaveLocation(const FVector& Location, float BoostFactor = 1.0f, bool bOverrideLocation = false, float Duration = 0.0f)
 	{
 		AddViewLocation(Location, BoostFactor, bOverrideLocation, Duration);
 	}
@@ -308,13 +308,13 @@ struct IStreamingManager
 	}
 
 	/** Returns the number of view infos. */
-	ENGINE_API int32 GetNumViews() const
+	int32 GetNumViews() const
 	{
 		return CurrentViewInfos.Num();
 	}
 
 	/** Returns the view info by the specified index. */
-	ENGINE_API const FStreamingViewInfo& GetViewInformation(int32 ViewIndex) const
+	const FStreamingViewInfo& GetViewInformation(int32 ViewIndex) const
 	{
 		return CurrentViewInfos[ViewIndex];
 	}
@@ -342,7 +342,7 @@ struct IStreamingManager
 	}
 
 #if WITH_EDITOR
-	ENGINE_API virtual void OnAudioStreamingParamsChanged() {};
+	virtual void OnAudioStreamingParamsChanged() {};
 #endif
 
 protected:
@@ -481,10 +481,10 @@ struct IRenderAssetStreamingManager : public IStreamingManager
 	virtual void PauseRenderAssetStreaming(bool bInShouldPause) = 0;
 
 	/** Return all bounds related to the ref object */
-	ENGINE_API virtual void GetObjectReferenceBounds(const UObject* RefObject, TArray<FBox>& AssetBoxes) = 0;
+	virtual void GetObjectReferenceBounds(const UObject* RefObject, TArray<FBox>& AssetBoxes) = 0;
 
 	/** Return all components referencing the asset */
-	ENGINE_API virtual void GetAssetComponents(
+	virtual void GetAssetComponents(
 		const UStreamableRenderAsset* RenderAsset,
 		TArray<const UPrimitiveComponent*>& OutComps,
 		TFunction<bool(const UPrimitiveComponent*)> ShouldChoose = [](const UPrimitiveComponent*) { return true; }) = 0;
@@ -500,7 +500,7 @@ struct IRenderAssetStreamingManager : public IStreamingManager
 	/** Notify the streamer that the mounted state of a file needs to be re-evaluated. */
 	virtual void MarkMountedStateDirty(FIoFilenameHash FilenameHash) = 0;
 
-	ENGINE_API virtual void AddRenderedTextureStats(TMap<FString, FRenderedTextureStats>& InOutRenderedTextureAssets) = 0;
+	virtual void AddRenderedTextureStats(TMap<FString, FRenderedTextureStats>& InOutRenderedTextureAssets) = 0;
 };
 
 enum class EAudioChunkLoadResult : uint8

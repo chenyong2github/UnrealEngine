@@ -16,18 +16,18 @@ class UTexture2DDynamic;
 class FTexture2DDynamicResource;
 
 
-UCLASS(Abstract, HideCategories=(Tags, Sockets, ComponentTick, ComponentReplication, Activation, Cooking, Events, AssetUserData, Collision))
-class ENGINE_API UWorldPartitionDestructibleHLODComponent : public USceneComponent
+UCLASS(Abstract, HideCategories=(Tags, Sockets, ComponentTick, ComponentReplication, Activation, Cooking, Events, AssetUserData, Collision), MinimalAPI)
+class UWorldPartitionDestructibleHLODComponent : public USceneComponent
 {
 	GENERATED_UCLASS_BODY()
 
 public:
-	virtual void DestroyActor(int32 ActorIndex) PURE_VIRTUAL(UWorldPartitionDestructibleHLODComponent::DestroyActor, );
-	virtual void DamageActor(int32 ActorIndex, float DamagePercent) PURE_VIRTUAL(UWorldPartitionDestructibleHLODComponent::DamageActor, );
-	virtual void OnDestructionStateUpdated() PURE_VIRTUAL(UWorldPartitionDestructibleHLODComponent::OnDestructionStateUpdated, );
+	ENGINE_API virtual void DestroyActor(int32 ActorIndex) PURE_VIRTUAL(UWorldPartitionDestructibleHLODComponent::DestroyActor, );
+	ENGINE_API virtual void DamageActor(int32 ActorIndex, float DamagePercent) PURE_VIRTUAL(UWorldPartitionDestructibleHLODComponent::DamageActor, );
+	ENGINE_API virtual void OnDestructionStateUpdated() PURE_VIRTUAL(UWorldPartitionDestructibleHLODComponent::OnDestructionStateUpdated, );
 
-	const TArray<FName>& GetDestructibleActors() const;
-	void SetDestructibleActors(const TArray<FName>& InDestructibleActors);
+	ENGINE_API const TArray<FName>& GetDestructibleActors() const;
+	ENGINE_API void SetDestructibleActors(const TArray<FName>& InDestructibleActors);
 
 protected:
 	// Name of the destructible actors from the source cell.
@@ -119,20 +119,20 @@ template<> struct TStructOpsTypeTraits<FWorldPartitionDestructibleHLODState> : p
 };
 
 
-UCLASS()
-class ENGINE_API UWorldPartitionDestructibleHLODMeshComponent : public UWorldPartitionDestructibleHLODComponent
+UCLASS(MinimalAPI)
+class UWorldPartitionDestructibleHLODMeshComponent : public UWorldPartitionDestructibleHLODComponent
 {
 	GENERATED_UCLASS_BODY()
 
 public:
-	void SetDestructibleHLODMaterial(UMaterialInterface* InDestructibleMaterial);
+	ENGINE_API void SetDestructibleHLODMaterial(UMaterialInterface* InDestructibleMaterial);
 
-	virtual void DestroyActor(int32 ActorIndex) override;
-	virtual void DamageActor(int32 ActorIndex, float DamagePercent) override;
-	virtual void OnDestructionStateUpdated() override;
+	ENGINE_API virtual void DestroyActor(int32 ActorIndex) override;
+	ENGINE_API virtual void DamageActor(int32 ActorIndex, float DamagePercent) override;
+	ENGINE_API virtual void OnDestructionStateUpdated() override;
 
 private:
-	virtual void BeginPlay() override;
+	ENGINE_API virtual void BeginPlay() override;
 
 	void SetupVisibilityTexture();
 	void UpdateVisibilityTexture();

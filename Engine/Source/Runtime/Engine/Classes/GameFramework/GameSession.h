@@ -23,8 +23,8 @@ ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogGameSession, Log, All);
 Acts as a game-specific wrapper around the session interface. The game code makes calls to this when it needs to interact with the session interface.
 A game session exists only the server, while running an online game.
 */
-UCLASS(config=Game, notplaceable)
-class ENGINE_API AGameSession : public AInfo
+UCLASS(config=Game, notplaceable, MinimalAPI)
+class AGameSession : public AInfo
 {
 	GENERATED_UCLASS_BODY()
 
@@ -53,10 +53,10 @@ class ENGINE_API AGameSession : public AInfo
 	FName SessionName;
 
 	/** Initialize options based on passed in options string */
-	virtual void InitOptions(const FString& Options);
+	ENGINE_API virtual void InitOptions(const FString& Options);
 
 	/** @return A new unique player ID */
-	int32 GetNextPlayerID();
+	ENGINE_API int32 GetNextPlayerID();
 
 	//=================================================================================
 	// LOGIN
@@ -65,17 +65,17 @@ class ENGINE_API AGameSession : public AInfo
 	 * Allow an online service to process a login if specified on the commandline with -auth_login/-auth_password
 	 * @return true if login is in progress, false otherwise
 	 */
-	virtual bool ProcessAutoLogin();
+	ENGINE_API virtual bool ProcessAutoLogin();
 
     /** Delegate triggered on auto login completion */
-	virtual void OnAutoLoginComplete(int32 LocalUserNum, bool bWasSuccessful, const FString& Error);
+	ENGINE_API virtual void OnAutoLoginComplete(int32 LocalUserNum, bool bWasSuccessful, const FString& Error);
 
 	/** 
 	 * Called from GameMode.PreLogin() and Login().
 	 * @param	Options	The URL options (e.g. name/spectator) the player has passed
 	 * @return	Non-empty Error String if player not approved
 	 */
-	virtual FString ApproveLogin(const FString& Options);
+	ENGINE_API virtual FString ApproveLogin(const FString& Options);
 
 	/**
 	 * Register a player with the online service session
@@ -84,7 +84,7 @@ class ENGINE_API AGameSession : public AInfo
 	 * @param bWasFromInvite was this from an invite
 	 */
 	UE_DEPRECATED(5.0, "Use RegisterPlayer with FUniqueNetIdRepl")
-	virtual void RegisterPlayer(APlayerController* NewPlayer, const FUniqueNetIdPtr& UniqueId, bool bWasFromInvite);
+	ENGINE_API virtual void RegisterPlayer(APlayerController* NewPlayer, const FUniqueNetIdPtr& UniqueId, bool bWasFromInvite);
 
 	/**
 	 * Register a player with the online service session
@@ -92,17 +92,17 @@ class ENGINE_API AGameSession : public AInfo
 	 * @param UniqueId uniqueId they sent over on Login
 	 * @param bWasFromInvite was this from an invite
 	 */
-	virtual void RegisterPlayer(APlayerController* NewPlayer, const FUniqueNetIdRepl& UniqueId, bool bWasFromInvite);
+	ENGINE_API virtual void RegisterPlayer(APlayerController* NewPlayer, const FUniqueNetIdRepl& UniqueId, bool bWasFromInvite);
 
 	/**
 	 * Called by GameMode::PostLogin to give session code chance to do work after PostLogin
 	 *
 	 * @param NewPlayer player logging in
 	 */
-	virtual void PostLogin(APlayerController* NewPlayer);
+	ENGINE_API virtual void PostLogin(APlayerController* NewPlayer);
 
 	/** @return true if there is no room on the server for an additional player */
-	virtual bool AtCapacity(bool bSpectator);
+	ENGINE_API virtual bool AtCapacity(bool bSpectator);
 
 	//=================================================================================
 	// LOGOUT
@@ -112,7 +112,7 @@ class ENGINE_API AGameSession : public AInfo
 	 *
 	 * @param PC player controller currently logging out 
 	 */
-	virtual void NotifyLogout(const APlayerController* PC);
+	ENGINE_API virtual void NotifyLogout(const APlayerController* PC);
 
 	/**
 	 * Called when a player logs out of game.
@@ -120,7 +120,7 @@ class ENGINE_API AGameSession : public AInfo
 	 * @param SessionName session related to the log out
 	 * @param UniqueId unique id of the player logging out
 	 */
-	virtual void NotifyLogout(FName InSessionName, const FUniqueNetIdRepl& UniqueId);
+	ENGINE_API virtual void NotifyLogout(FName InSessionName, const FUniqueNetIdRepl& UniqueId);
 
 	/**
 	 * Unregister a player from the online service session
@@ -128,7 +128,7 @@ class ENGINE_API AGameSession : public AInfo
 	 * @param SessionName name of session to unregister from
 	 * @param UniqueId id of the player to unregister
 	 */
-	virtual void UnregisterPlayer(FName InSessionName, const FUniqueNetIdRepl& UniqueId);
+	ENGINE_API virtual void UnregisterPlayer(FName InSessionName, const FUniqueNetIdRepl& UniqueId);
 
 	/**
 	 * Unregister players from the online service session
@@ -137,29 +137,29 @@ class ENGINE_API AGameSession : public AInfo
 	 * @param Players ids of the players to unregister
 	 */
 	UE_DEPRECATED(5.0, "Use UnregisterPlayers with FUniqueNetIdRepl")
-	virtual void UnregisterPlayers(FName InSessionName, const TArray< FUniqueNetIdRef >& Players);
-	virtual void UnregisterPlayers(FName InSessionName, const TArray< FUniqueNetIdRepl >& Players);
+	ENGINE_API virtual void UnregisterPlayers(FName InSessionName, const TArray< FUniqueNetIdRef >& Players);
+	ENGINE_API virtual void UnregisterPlayers(FName InSessionName, const TArray< FUniqueNetIdRepl >& Players);
 	
 	/**
 	 * Unregister a player from the online service session
 	 *
 	 * @param ExitingPlayer the player to unregister
 	 */
-	virtual void UnregisterPlayer(const APlayerController* ExitingPlayer);
+	ENGINE_API virtual void UnregisterPlayer(const APlayerController* ExitingPlayer);
 
 	/**
 	 * Add a player to the admin list of this session
 	 *
 	 * @param AdminPlayer player to add to the list
 	 */
-	virtual void AddAdmin(APlayerController* AdminPlayer);
+	ENGINE_API virtual void AddAdmin(APlayerController* AdminPlayer);
 
 	/**
 	 * Remove a player from the admin list of this session
 	 *
 	 * @param AdminPlayer player to remove from the list
 	 */
-	virtual void RemoveAdmin(APlayerController* AdminPlayer);
+	ENGINE_API virtual void RemoveAdmin(APlayerController* AdminPlayer);
 
 	/** 
 	 * Forcibly remove player from the server
@@ -169,7 +169,7 @@ class ENGINE_API AGameSession : public AInfo
 	 *
 	 * @return true if player was able to be kicked, false otherwise
 	 */
-	virtual bool KickPlayer(APlayerController* KickedPlayer, const FText& KickReason);
+	ENGINE_API virtual bool KickPlayer(APlayerController* KickedPlayer, const FText& KickReason);
 
 	/**
 	 * Forcibly remove player from the server and ban them permanently
@@ -179,16 +179,16 @@ class ENGINE_API AGameSession : public AInfo
 	 *
 	 * @return true if player was able to be banned, false otherwise
 	 */
-	virtual bool BanPlayer(APlayerController* BannedPlayer, const FText& BanReason);
+	ENGINE_API virtual bool BanPlayer(APlayerController* BannedPlayer, const FText& BanReason);
 
 	/** Gracefully tell all clients then local players to return to lobby */
-	virtual void ReturnToMainMenuHost();
+	ENGINE_API virtual void ReturnToMainMenuHost();
 
 	/** 
 	 * called after a seamless level transition has been completed on the *new* GameMode
 	 * used to reinitialize players already in the game as they won't have *Login() called on them
 	 */
-	virtual void PostSeamlessTravel();
+	ENGINE_API virtual void PostSeamlessTravel();
 
 	//=================================================================================
 	// SESSION INFORMATION
@@ -197,10 +197,10 @@ class ENGINE_API AGameSession : public AInfo
 	virtual void Restart() {}
 
 	/** Allow a dedicated server a chance to register itself with an online service */
-	virtual void RegisterServer();
+	ENGINE_API virtual void RegisterServer();
 
 	/** Callback when autologin was expected but failed */
-	virtual void RegisterServerFailed();
+	ENGINE_API virtual void RegisterServerFailed();
 
 	/**
 	 * Get the current joinability settings for a given session
@@ -210,7 +210,7 @@ class ENGINE_API AGameSession : public AInfo
 	 * 
 	 * @return true if session exists and data is valid, false otherwise
 	 */
-	virtual bool GetSessionJoinability(FName InSessionName, FJoinabilitySettings& OutSettings);
+	ENGINE_API virtual bool GetSessionJoinability(FName InSessionName, FJoinabilitySettings& OutSettings);
 
 	/**
 	 * Update session join parameters
@@ -221,7 +221,7 @@ class ENGINE_API AGameSession : public AInfo
 	 * @param bJoinViaPresence anyone who can see you can join the game
 	 * @param bJoinViaPresenceFriendsOnly can only friends actively join your game 
 	 */
-	virtual void UpdateSessionJoinability(FName InSessionName, bool bPublicSearchable, bool bAllowInvites, bool bJoinViaPresence, bool bJoinViaPresenceFriendsOnly);
+	ENGINE_API virtual void UpdateSessionJoinability(FName InSessionName, bool bPublicSearchable, bool bAllowInvites, bool bJoinViaPresence, bool bJoinViaPresenceFriendsOnly);
 
     /**
      * Does the session require push to talk
@@ -230,25 +230,25 @@ class ENGINE_API AGameSession : public AInfo
 	virtual bool RequiresPushToTalk() const { return bRequiresPushToTalk; }
 
 	/** Dump session info to log for debugging.	  */
-	virtual void DumpSessionState();
+	ENGINE_API virtual void DumpSessionState();
 
 	//=================================================================================
 	// MATCH INTERFACE
 
 	/** @RETURNS true if GameSession handled the request, in case it wants to stall for some reason. Otherwise, game mode will start immediately */
-	virtual bool HandleStartMatchRequest();
+	ENGINE_API virtual bool HandleStartMatchRequest();
 
 	/** Handle when the match enters waiting to start */
-	virtual void HandleMatchIsWaitingToStart();
+	ENGINE_API virtual void HandleMatchIsWaitingToStart();
 
 	/** Handle when the match has started */
-	virtual void HandleMatchHasStarted();
+	ENGINE_API virtual void HandleMatchHasStarted();
 
 	/** Handle when the match has completed */
-	virtual void HandleMatchHasEnded();
+	ENGINE_API virtual void HandleMatchHasEnded();
 
 	/** Called from GameMode.RestartGame(). */
-	virtual bool CanRestartGame();
+	ENGINE_API virtual bool CanRestartGame();
 
 private:
 	// Hidden functions that don't make sense to use on this class.
@@ -261,7 +261,7 @@ protected:
 	 * @param InSessionName name of session involved
 	 * @param bWasSuccessful true if the call was successful, false otherwise
 	 */
-	virtual void OnStartSessionComplete(FName InSessionName, bool bWasSuccessful);
+	ENGINE_API virtual void OnStartSessionComplete(FName InSessionName, bool bWasSuccessful);
 
 	/**
 	 * Delegate called when EndSession has completed
@@ -269,7 +269,7 @@ protected:
 	 * @param InSessionName name of session involved
 	 * @param bWasSuccessful true if the call was successful, false otherwise
 	 */
-	virtual void OnEndSessionComplete(FName InSessionName, bool bWasSuccessful);
+	ENGINE_API virtual void OnEndSessionComplete(FName InSessionName, bool bWasSuccessful);
 
 };
 

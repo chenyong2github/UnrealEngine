@@ -9,15 +9,15 @@
 // Encoding can either use the "Final" or "Fast" speeds, for supported encoders (e.g. Oodle)
 // Encode speed settings have no effect on encoders that don't support encode speed, currently limited to Oodle.
 //
-UCLASS(config = Engine, defaultconfig, meta = (DisplayName = "Texture Encoding"))
-class ENGINE_API UTextureEncodingProjectSettings : public UDeveloperSettings
+UCLASS(config = Engine, defaultconfig, meta = (DisplayName = "Texture Encoding"), MinimalAPI)
+class UTextureEncodingProjectSettings : public UDeveloperSettings
 {
 	//
 	// Anything added here should be added to FResolvedTextureEncodingSettings!
 	//
 	GENERATED_UCLASS_BODY()
 
-	virtual void PostInitProperties() override;
+	ENGINE_API virtual void PostInitProperties() override;
 
 	// If true, platforms that want to take a linearly encoded texture and then tile them
 	// will try to reuse the linear texture rather than encode it for every platform. This can result in
@@ -122,15 +122,15 @@ class ENGINE_API UTextureEncodingProjectSettings : public UDeveloperSettings
 	ETextureEncodeSpeed EditorUsesSpeed;
 };
 
-UCLASS(config = EditorPerProjectUserSettings, defaultconfig, meta = (DisplayName = "Texture Encoding"))
-class ENGINE_API UTextureEncodingUserSettings : public UDeveloperSettings
+UCLASS(config = EditorPerProjectUserSettings, defaultconfig, meta = (DisplayName = "Texture Encoding"), MinimalAPI)
+class UTextureEncodingUserSettings : public UDeveloperSettings
 {
 	//
 	// Anything added here should be added to FResolvedTextureEncodingSettings!
 	//
 	GENERATED_UCLASS_BODY()
 
-	virtual void PostInitProperties() override;
+	ENGINE_API virtual void PostInitProperties() override;
 
 	// Local machine/project setting to force an encode speed, if desired.
 	// See the Engine "Texture Encoding" section for details.

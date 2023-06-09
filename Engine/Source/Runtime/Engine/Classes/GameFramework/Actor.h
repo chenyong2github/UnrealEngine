@@ -205,28 +205,28 @@ public:
  * @see https://docs.unrealengine.com/Programming/UnrealArchitecture/Actors/ActorLifecycle
  * @see UActorComponent
  */
-UCLASS(BlueprintType, Blueprintable, config=Engine, meta=(ShortTooltip="An Actor is an object that can be placed or spawned in the world."))
-class ENGINE_API AActor : public UObject
+UCLASS(BlueprintType, Blueprintable, config=Engine, meta=(ShortTooltip="An Actor is an object that can be placed or spawned in the world."), MinimalAPI)
+class AActor : public UObject
 {
 	GENERATED_BODY()
 
 public:
 	/** Default constructor for AActor */
-	AActor();
+	ENGINE_API AActor();
 
 	/** Constructor for AActor that takes an ObjectInitializer for backward compatibility */
-	AActor(const FObjectInitializer& ObjectInitializer);
+	ENGINE_API AActor(const FObjectInitializer& ObjectInitializer);
 
 private:
 	/** Called from the constructor to initialize the class to its default settings */
-	void InitializeDefaults();
+	ENGINE_API void InitializeDefaults();
 
 public:
 	/** Returns the properties used for network replication, this needs to be overridden by all actor classes with native replicated properties */
-	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	ENGINE_API virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	/** Called when this actor begins replicating to initialize the state of custom property conditions */
-	virtual void GetReplicatedCustomConditionState(FCustomPropertyConditionState& OutActiveState) const override;
+	ENGINE_API virtual void GetReplicatedCustomConditionState(FCustomPropertyConditionState& OutActiveState) const override;
 
 	/**
 	 * Primary Actor tick function, which calls TickActor().
@@ -254,7 +254,7 @@ public:
 
 	/** Called on client when updated bReplicateMovement value is received for this actor. */
 	UFUNCTION()
-	virtual void OnRep_ReplicateMovement();
+	ENGINE_API virtual void OnRep_ReplicateMovement();
 
 private:
 	/**
@@ -302,17 +302,17 @@ private:
 #endif
 
 	/** If true, PreReplication will be called on this actor before each potential replication. */
-	bool ShouldCallPreReplication() const;
+	ENGINE_API bool ShouldCallPreReplication() const;
 
 	/** If true, PreReplicationForReplay will be called on this actor before each potential replication. */
-	bool ShouldCallPreReplicationForReplay() const;
+	ENGINE_API bool ShouldCallPreReplicationForReplay() const;
 
 public:
 	/** Set whether or not we should make calls to PreReplication. */
-	void SetCallPreReplication(bool bCall);
+	ENGINE_API void SetCallPreReplication(bool bCall);
 
 	/** Set whether or not we should make calls to PreReplicationForReplay. */
-	void SetCallPreReplicationForReplay(bool bCall);
+	ENGINE_API void SetCallPreReplicationForReplay(bool bCall);
 
 	/** If true, this actor is no longer replicated to new clients, and is "torn off" (becomes a ROLE_Authority) on clients to which it was being replicated. */
 	bool GetTearOff() const
@@ -330,7 +330,7 @@ public:
 
 	/** Networking - Server - TearOff this actor to stop replication to clients. Will set bTearOff to true. */
 	UFUNCTION(BlueprintCallable, Category=Networking)
-	virtual void TearOff();
+	ENGINE_API virtual void TearOff();
 
 	/**
 	 * Whether we have already exchanged Role/RemoteRole on the client, as when removing then re-adding a streaming level.
@@ -429,19 +429,19 @@ public:
 	 *
 	 * @return true if this actor can call RPCs or false if no such owner chain exists
 	 */
-	virtual bool HasNetOwner() const;
+	ENGINE_API virtual bool HasNetOwner() const;
 
 	/**
 	 * Does this actor have a locally controlled owner responsible for replication? (APlayerController typically)
 	 *
 	 * @return true if this actor can call RPCs or false if no such owner chain exists
 	 */
-	virtual bool HasLocalNetOwner() const;
+	ENGINE_API virtual bool HasLocalNetOwner() const;
 
 	bool GetAutoDestroyWhenFinished() const { return bAutoDestroyWhenFinished; }
 
 	UFUNCTION(BlueprintSetter)
-	void SetAutoDestroyWhenFinished(bool bVal);
+	ENGINE_API void SetAutoDestroyWhenFinished(bool bVal);
 
 protected:
 	/**
@@ -456,7 +456,7 @@ protected:
 
 	/** Called when owner changes, does nothing by default but can be overridden */
 	UFUNCTION()
-	virtual void OnRep_Owner();
+	ENGINE_API virtual void OnRep_Owner();
 
 	/** If true, this actor can be put inside of a GC Cluster to improve Garbage Collection performance */
 	UPROPERTY(Category=Actor, EditAnywhere, AdvancedDisplay)
@@ -537,7 +537,7 @@ private:
 	/** Set while actor is being constructed. Used to ensure that construction is not re-entrant. */
 	uint8 bActorIsBeingConstructed : 1;
 
-	static uint32 BeginPlayCallDepth;
+	static ENGINE_API uint32 BeginPlayCallDepth;
 
 protected:
 		
@@ -565,7 +565,7 @@ protected:
 public:
 
 	/** Get the method used to UpdateOverlaps() when loaded via level streaming. Resolves the 'UseConfigDefault' option to the class default specified in config. */
-	EActorUpdateOverlapsMethod GetUpdateOverlapsMethodDuringLevelStreaming() const;
+	ENGINE_API EActorUpdateOverlapsMethod GetUpdateOverlapsMethodDuringLevelStreaming() const;
 
 private:
 
@@ -588,7 +588,7 @@ private:
 	EActorUpdateOverlapsMethod DefaultUpdateOverlapsMethodDuringLevelStreaming;
 
 	/** Internal helper to update Overlaps during Actor initialization/BeginPlay correctly based on the UpdateOverlapsMethodDuringLevelStreaming and bGenerateOverlapEventsDuringLevelStreaming settings. */
-	void UpdateInitialOverlaps(bool bFromLevelStreaming);
+	ENGINE_API void UpdateInitialOverlaps(bool bFromLevelStreaming);
 
 public:
 	/**
@@ -599,20 +599,20 @@ public:
 	 * @see https://docs.unrealengine.com/InteractiveExperiences/Networking/Actors
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category=Networking)
-	void SetReplicates(bool bInReplicates);
+	ENGINE_API void SetReplicates(bool bInReplicates);
 
 	/**
 	 * Set whether this actor's movement replicates to network clients.
 	 * @param bInReplicateMovement Whether this Actor's movement replicates to clients.
 	 */
 	UFUNCTION(BlueprintCallable, Category=Networking)
-	virtual void SetReplicateMovement(bool bInReplicateMovement);
+	ENGINE_API virtual void SetReplicateMovement(bool bInReplicateMovement);
 
 	/** Sets whether or not this Actor is an autonomous proxy, which is an actor on a network client that is controlled by a user on that client. */
-	void SetAutonomousProxy(const bool bInAutonomousProxy, const bool bAllowForcePropertyCompare=true);
+	ENGINE_API void SetAutonomousProxy(const bool bInAutonomousProxy, const bool bAllowForcePropertyCompare=true);
 	
 	/** Copies RemoteRole from another Actor and adds this actor to the list of network actors if necessary. */
-	void CopyRemoteRoleFrom(const AActor* CopyFromActor);
+	ENGINE_API void CopyRemoteRoleFrom(const AActor* CopyFromActor);
 
 	/** Returns how much control the local machine has over this actor. */
 	UFUNCTION(BlueprintCallable, Category=Networking)
@@ -620,13 +620,13 @@ public:
 
 	/** Returns how much control the remote machine has over this actor. */
 	UFUNCTION(BlueprintCallable, Category=Networking)
-	ENetRole GetRemoteRole() const;
+	ENGINE_API ENetRole GetRemoteRole() const;
 
 	/**
 	 * Allows this actor to be net-addressable by full path name, even if the actor was spawned after map load.
 	 * @note: The caller is required to ensure that this actor's name is stable between server/client. Must be called before FinishSpawning
 	 */
-	void SetNetAddressable();
+	ENGINE_API void SetNetAddressable();
 
 public:
 	/** How long this Actor lives before dying, 0=forever. Note this is the INITIAL value and should not be modified once play has begun. */
@@ -700,7 +700,7 @@ public:
 
 	/** Called on client when updated AttachmentReplication value is received for this actor. */
 	UFUNCTION()
-	virtual void OnRep_AttachmentReplication();
+	ENGINE_API virtual void OnRep_AttachmentReplication();
 
 private:
 	/** Describes how much control the local machine has over the actor. */
@@ -714,11 +714,11 @@ public:
 
 	/** Gives the actor a chance to pause replication to a player represented by the passed in actor - only called on server */
 	UE_DEPRECATED(5.3, "Replication pausing is deprecated.")
-	virtual bool IsReplicationPausedForConnection(const FNetViewer& ConnectionOwnerNetViewer);
+	ENGINE_API virtual bool IsReplicationPausedForConnection(const FNetViewer& ConnectionOwnerNetViewer);
 
 	/** Called on the client when the replication paused value is changed */
 	UE_DEPRECATED(5.3, "Replication pausing is deprecated.")
-	virtual void OnReplicationPausedChanged(bool bIsReplicationPaused);
+	ENGINE_API virtual void OnReplicationPausedChanged(bool bIsReplicationPaused);
 
 	/** Controls how to handle spawning this actor in a situation where it's colliding with something else. "Default" means AlwaysSpawn here. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Actor)
@@ -770,19 +770,19 @@ private:
 public:
 	/** Set the physics replication mode of this body, via EPhysicsReplicationMode */
 	UFUNCTION(BlueprintCallable, Category = Replication)
-	void SetPhysicsReplicationMode(const EPhysicsReplicationMode ReplicationMode);
+	ENGINE_API void SetPhysicsReplicationMode(const EPhysicsReplicationMode ReplicationMode);
 
 	/** Get the physics replication mode of this body, via EPhysicsReplicationMode */
 	UFUNCTION(BlueprintCallable, Category = Replication)
-	EPhysicsReplicationMode GetPhysicsReplicationMode();
+	ENGINE_API EPhysicsReplicationMode GetPhysicsReplicationMode();
 
 	/** Can this body trigger a resimulation when Physics Prediction is enabled */
 	UFUNCTION(BlueprintCallable, Category = Physics)
-	bool CanTriggerResimulation() const;
+	ENGINE_API bool CanTriggerResimulation() const;
 
 	/** Get the error threshold in centimeters before this object should enforce a resimulation to trigger. */
 	UFUNCTION(BlueprintCallable, Category = Physics)
-	float GetResimulationThreshold() const;
+	ENGINE_API float GetResimulationThreshold() const;
 
 private:
 	/**
@@ -799,7 +799,7 @@ public:
 	 * Set the name of the net driver associated with this actor.  Will move the actor out of the list of network actors from the old net driver and add it to the new list
 	 * @param NewNetDriverName name of the new net driver association
 	 */
-	void SetNetDriverName(FName NewNetDriverName);
+	ENGINE_API void SetNetDriverName(FName NewNetDriverName);
 
 	/** Returns name of the net driver associated with this actor (all RPCs will go out via this connection) */
 	FName GetNetDriverName() const { return NetDriverName; }
@@ -816,34 +816,34 @@ public:
 	* This method is used only when bReplicateUsingRegisteredSubObjectList is false.
 	* Otherwise this function is not called and only the ReplicatedSubObjects list is used.
 	*/
-	virtual bool ReplicateSubobjects(class UActorChannel *Channel, class FOutBunch *Bunch, FReplicationFlags *RepFlags);
+	ENGINE_API virtual bool ReplicateSubobjects(class UActorChannel *Channel, class FOutBunch *Bunch, FReplicationFlags *RepFlags);
 
 	/** Called on the actor when a new subobject is dynamically created via replication */
-	virtual void OnSubobjectCreatedFromReplication(UObject *NewSubobject);
+	ENGINE_API virtual void OnSubobjectCreatedFromReplication(UObject *NewSubobject);
 
 	/** Called on the actor when a subobject is dynamically destroyed via replication */
-	virtual void OnSubobjectDestroyFromReplication(UObject *Subobject);
+	ENGINE_API virtual void OnSubobjectDestroyFromReplication(UObject *Subobject);
 
 	/**
 	 * Called on the actor right before replication occurs. 
 	 * Only called on Server, and for autonomous proxies if recording a Client Replay.
 	 */
-	virtual void PreReplication(IRepChangedPropertyTracker & ChangedPropertyTracker);
+	ENGINE_API virtual void PreReplication(IRepChangedPropertyTracker & ChangedPropertyTracker);
 
 	/**
 	 * Called on the actor right before replication occurs.
 	 * Called for everyone when recording a Client Replay, including Simulated Proxies.
 	 */
-	virtual void PreReplicationForReplay(IRepChangedPropertyTracker & ChangedPropertyTracker);
+	ENGINE_API virtual void PreReplicationForReplay(IRepChangedPropertyTracker & ChangedPropertyTracker);
 
 	/**
 	 * Called on the actor before checkpoint data is applied during a replay.
 	 * Only called if bReplayRewindable is set.
 	 */
-	virtual void RewindForReplay();
+	ENGINE_API virtual void RewindForReplay();
 
 	/** Called by the networking system to call PreReplication on this actor and its components using the given NetDriver to find or create RepChangedPropertyTrackers. */
-	void CallPreReplication(UNetDriver* NetDriver);	
+	ENGINE_API void CallPreReplication(UNetDriver* NetDriver);	
 
 private:
 	/** Pawn responsible for damage and other gameplay events caused by this actor. */
@@ -853,7 +853,7 @@ private:
 public:
 	/** Called on clients when Instigator is replicated. */
 	UFUNCTION()
-	virtual void OnRep_Instigator();
+	ENGINE_API virtual void OnRep_Instigator();
 
 	/** Array of all Actors whose Owner is this actor, these are not necessarily spawned by UChildActorComponent */
 	UPROPERTY(Transient)
@@ -876,10 +876,10 @@ protected:
 public:
 #if WITH_EDITOR
 	/** Return the HLOD layer that should include this actor. */
-	class UHLODLayer* GetHLODLayer() const;
+	ENGINE_API class UHLODLayer* GetHLODLayer() const;
 
 	/** Specify in which HLOD layer this actor should be included. */
-	void SetHLODLayer(class UHLODLayer* InHLODLayer);
+	ENGINE_API void SetHLODLayer(class UHLODLayer* InHLODLayer);
 
 	/** Gets the property name for HLODLayer. */
 	static const FName GetHLODLayerPropertyName() { return GET_MEMBER_NAME_CHECKED(AActor, HLODLayer); }
@@ -887,11 +887,11 @@ public:
 
 	/** Specify a RayTracingGroupId for this actors. Components with invalid RayTracingGroupId will inherit the actors. */
 	UFUNCTION(BlueprintCallable, Category = RayTracing)
-	void SetRayTracingGroupId(int32 InRaytracingGroupId);
+	ENGINE_API void SetRayTracingGroupId(int32 InRaytracingGroupId);
 	
 	/** Return the RayTracingGroupId for this actor. */
 	UFUNCTION(BlueprintCallable, Category = RayTracing)
-	int32 GetRayTracingGroupId() const;
+	ENGINE_API int32 GetRayTracingGroupId() const;
 
 private:
 #if WITH_EDITORONLY_DATA
@@ -979,7 +979,7 @@ public:
 	 * @param bExternal will set the actor packaging mode to external if true, to internal otherwise
 	 * @param bShouldDirty should dirty or not the level package
 	 */
-	void SetPackageExternal(bool bExternal, bool bShouldDirty = true);
+	ENGINE_API void SetPackageExternal(bool bExternal, bool bShouldDirty = true);
 
 	/**
 	 * Determine how this actor should be referenced by the level when external (saved in its own package).
@@ -991,7 +991,7 @@ public:
 	 * Whether this actor should be ignored when it is not loaded as part of the Main World (Persistent Level).
 	 * eg. Will not be loaded through Level Instances.
 	 */
-	bool IsMainWorldOnly() const;
+	ENGINE_API bool IsMainWorldOnly() const;
 
 	FActorOnPackagingModeChanged OnPackagingModeChanged;
 
@@ -1020,30 +1020,30 @@ public:
 	void SetLockLocation(bool bInLockLocation) { bLockLocation = bInLockLocation; }
 
 	/** Called on actor which initiated the PIE session */
-	virtual void OnPlayFromHere();
+	ENGINE_API virtual void OnPlayFromHere();
 
 	bool CanPlayFromHere() const { return bCanPlayFromHere; }
 
 	/**
 	 * Creates an uninitialized actor descriptor from this actor. Meant to be called on the class CDO.
 	 */
-	virtual TUniquePtr<class FWorldPartitionActorDesc> CreateClassActorDesc() const;
+	ENGINE_API virtual TUniquePtr<class FWorldPartitionActorDesc> CreateClassActorDesc() const;
 
 public:
 	/**
 	 * Creates an initialized actor descriptor from this actor.
 	 */
-	TUniquePtr<class FWorldPartitionActorDesc> CreateActorDesc() const;
+	ENGINE_API TUniquePtr<class FWorldPartitionActorDesc> CreateActorDesc() const;
 
 	/**
 	 * Add properties to the actor desc.
 	 */
-	virtual void GetActorDescProperties(FPropertyPairsMap& PropertyPairsMap) const;
+	ENGINE_API virtual void GetActorDescProperties(FPropertyPairsMap& PropertyPairsMap) const;
 
 	/**
 	 * Creates an uninitialized actor descriptor from a specific class.
 	 */
-	static TUniquePtr<class FWorldPartitionActorDesc> StaticCreateClassActorDesc(const TSubclassOf<AActor>& ActorClass);
+	static ENGINE_API TUniquePtr<class FWorldPartitionActorDesc> StaticCreateClassActorDesc(const TSubclassOf<AActor>& ActorClass);
 #endif // WITH_EDITOR
 
 private:
@@ -1232,37 +1232,37 @@ public:
 	 * @param PlayerController The PlayerController whose input events we want to receive.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Input")
-	virtual void EnableInput(class APlayerController* PlayerController);
+	ENGINE_API virtual void EnableInput(class APlayerController* PlayerController);
 
 	/** 
 	 * Creates an input component from the input component passed in
 	 * @param InputComponentToCreate The UInputComponent to create.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Input")
-	virtual void CreateInputComponent(TSubclassOf<UInputComponent> InputComponentToCreate);
+	ENGINE_API virtual void CreateInputComponent(TSubclassOf<UInputComponent> InputComponentToCreate);
 
 	/** 
 	 * Removes this actor from the stack of input being handled by a PlayerController.
 	 * @param PlayerController The PlayerController whose input events we no longer want to receive. If null, this actor will stop receiving input from all PlayerControllers.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Input")
-	virtual void DisableInput(class APlayerController* PlayerController);
+	ENGINE_API virtual void DisableInput(class APlayerController* PlayerController);
 
 	/** Gets the value of the input axis if input is enabled for this actor. */
 	UFUNCTION(BlueprintCallable, meta=(BlueprintInternalUseOnly="true", HideSelfPin="true", HidePin="InputAxisName"))
-	float GetInputAxisValue(const FName InputAxisName) const;
+	ENGINE_API float GetInputAxisValue(const FName InputAxisName) const;
 
 	/** Gets the value of the input axis key if input is enabled for this actor. */
 	UFUNCTION(BlueprintCallable, meta=(BlueprintInternalUseOnly="true", HideSelfPin="true", HidePin="InputAxisKey"))
-	float GetInputAxisKeyValue(const FKey InputAxisKey) const;
+	ENGINE_API float GetInputAxisKeyValue(const FKey InputAxisKey) const;
 
 	/** Gets the value of the input axis key if input is enabled for this actor. */
 	UFUNCTION(BlueprintCallable, meta=(BlueprintInternalUseOnly="true", HideSelfPin="true", HidePin="InputAxisKey"))
-	FVector GetInputVectorAxisValue(const FKey InputAxisKey) const;
+	ENGINE_API FVector GetInputVectorAxisValue(const FKey InputAxisKey) const;
 
 	/** Returns the instigator for this actor, or nullptr if there is none. */
 	UFUNCTION(BlueprintCallable, meta=(BlueprintProtected = "true"), Category="Game")
-	APawn* GetInstigator() const;
+	ENGINE_API APawn* GetInstigator() const;
 
 	/**
 	 * Get the instigator, cast as a specific class.
@@ -1276,7 +1276,7 @@ public:
 
 	/** Returns the instigator's controller for this actor, or nullptr if there is none. */
 	UFUNCTION(BlueprintCallable, meta=(BlueprintProtected = "true"), Category="Game")
-	AController* GetInstigatorController() const;
+	ENGINE_API AController* GetInstigatorController() const;
 
 	/** 
 	 * Returns the instigator's controller, cast as a specific class.
@@ -1294,36 +1294,36 @@ public:
 private:
 	virtual bool IsDataLayerTypeSupported(TSubclassOf<UDataLayerInstance> DataLayerType) const { return true; }
 	virtual bool ActorTypeIsMainWorldOnly() const { return false; }
-	TArray<const UDataLayerAsset*> ResolveDataLayerAssets(const TArray<TSoftObjectPtr<UDataLayerAsset>>& InDataLayerAssets) const;
+	ENGINE_API TArray<const UDataLayerAsset*> ResolveDataLayerAssets(const TArray<TSoftObjectPtr<UDataLayerAsset>>& InDataLayerAssets) const;
 public:
-	bool AddDataLayer(const UDataLayerInstance* DataLayerInstance);
-	bool RemoveDataLayer(const UDataLayerInstance* DataLayerInstance);
-	TArray<const UDataLayerInstance*> RemoveAllDataLayers();
-	bool SupportsDataLayerType(TSubclassOf<UDataLayerInstance> DataLayerType) const;
+	ENGINE_API bool AddDataLayer(const UDataLayerInstance* DataLayerInstance);
+	ENGINE_API bool RemoveDataLayer(const UDataLayerInstance* DataLayerInstance);
+	ENGINE_API TArray<const UDataLayerInstance*> RemoveAllDataLayers();
+	ENGINE_API bool SupportsDataLayerType(TSubclassOf<UDataLayerInstance> DataLayerType) const;
 	
-	TArray<const UDataLayerInstance*> GetDataLayerInstancesForLevel() const;
-	TArray<FName> GetDataLayerInstanceNames() const;
-	bool IsPropertyChangedAffectingDataLayers(FPropertyChangedEvent& PropertyChangedEvent) const;
-	void FixupDataLayers(bool bRevertChangesOnLockedDataLayer = false);
+	ENGINE_API TArray<const UDataLayerInstance*> GetDataLayerInstancesForLevel() const;
+	ENGINE_API TArray<FName> GetDataLayerInstanceNames() const;
+	ENGINE_API bool IsPropertyChangedAffectingDataLayers(FPropertyChangedEvent& PropertyChangedEvent) const;
+	ENGINE_API void FixupDataLayers(bool bRevertChangesOnLockedDataLayer = false);
 	static const FName GetDataLayerAssetsPropertyName() { return GET_MEMBER_NAME_CHECKED(AActor, DataLayerAssets); }
 	static const FName GetDataLayerPropertyName() { return GET_MEMBER_NAME_CHECKED(AActor, DataLayers); }
 
-	TArray<const UDataLayerAsset*> GetDataLayerAssets() const;
+	ENGINE_API TArray<const UDataLayerAsset*> GetDataLayerAssets() const;
 
 	//~ Begin Deprecated
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 	UE_DEPRECATED(5.1, "Convert DataLayer using UDataLayerToAssetCommandlet and use AddDataLayer(UDataLayerInstance*)")
-	bool AddDataLayer(const UDEPRECATED_DataLayer* DataLayer);
+	ENGINE_API bool AddDataLayer(const UDEPRECATED_DataLayer* DataLayer);
 
 	UE_DEPRECATED(5.1, "Convert DataLayer using UDataLayerToAssetCommandlet and use RemoveDataLayer(UDataLayerInstance*)")
-	bool RemoveDataLayer(const UDEPRECATED_DataLayer* DataLayer);
+	ENGINE_API bool RemoveDataLayer(const UDEPRECATED_DataLayer* DataLayer);
 
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	UE_DEPRECATED(5.3, "Use AActor::SupportsDataLayerType(TSubclassOf<UDataLayerInstance>) instead.")
-	bool SupportsDataLayer() const;
+	ENGINE_API bool SupportsDataLayer() const;
 
 	UE_DEPRECATED(5.3, "Use AActor::IsDataLayerTypeSupported(TSubclassOf<UDataLayerInstance>) instead.")
 	virtual bool ActorTypeSupportsDataLayer() const { return true; }
@@ -1335,13 +1335,13 @@ public:
 	bool RemoveDataLayer(const UDataLayerAsset* DataLayerAsset) { return false; }
 
 	UE_DEPRECATED(5.1, "Convert DataLayer using UDataLayerToAssetCommandlet and use AddDataLayer(UDataLayerAsset*)")
-	bool AddDataLayer(const FActorDataLayer& ActorDataLayer);
+	ENGINE_API bool AddDataLayer(const FActorDataLayer& ActorDataLayer);
 
 	UE_DEPRECATED(5.1, "Convert DataLayer using UDataLayerToAssetCommandlet and use RemoveDataLayer(UDataLayerAsset*)")
-	bool RemoveDataLayer(const FActorDataLayer& ActorDataLayer);
+	ENGINE_API bool RemoveDataLayer(const FActorDataLayer& ActorDataLayer);
 
 	UE_DEPRECATED(5.1, "Convert DataLayer using UDataLayerToAssetCommandlet and use ContainsDataLayer(const UDataLayerAsset*)")
-	bool ContainsDataLayer(const FActorDataLayer& ActorDataLayer) const;
+	ENGINE_API bool ContainsDataLayer(const FActorDataLayer& ActorDataLayer) const;
 
 	UE_DEPRECATED(5.1, "Convert DataLayer using UDataLayerToAssetCommandlet and use GetDataLayerAssets() instead")
 	TArray<FActorDataLayer> const& GetActorDataLayers() const { return DataLayers; }
@@ -1355,15 +1355,15 @@ public:
 	//~ End Deprecated
 #endif
 
-	TArray<const UDataLayerInstance*> GetDataLayerInstances() const;
+	ENGINE_API TArray<const UDataLayerInstance*> GetDataLayerInstances() const;
 
-	bool ContainsDataLayer(const UDataLayerAsset* DataLayerAsset) const;
-	bool ContainsDataLayer(const UDataLayerInstance* DataLayerInstance) const;
-	bool HasDataLayers() const;
+	ENGINE_API bool ContainsDataLayer(const UDataLayerAsset* DataLayerAsset) const;
+	ENGINE_API bool ContainsDataLayer(const UDataLayerInstance* DataLayerInstance) const;
+	ENGINE_API bool HasDataLayers() const;
 
 private:
-	TArray<const UDataLayerInstance*> GetDataLayerInstancesInternal(bool bUseLevelContext, bool bIncludeParentDataLayers = true) const;
-	bool UseWorldPartitionRuntimeCellDataLayers() const;
+	ENGINE_API TArray<const UDataLayerInstance*> GetDataLayerInstancesInternal(bool bUseLevelContext, bool bIncludeParentDataLayers = true) const;
+	ENGINE_API bool UseWorldPartitionRuntimeCellDataLayers() const;
 
 	//~=============================================================================
 	// General functions.
@@ -1386,7 +1386,7 @@ public:
 
 	/** Returns the location of the RootComponent of this Actor */
 	UFUNCTION(BlueprintCallable, meta=(DisplayName = "Get Actor Location", ScriptName = "GetActorLocation", Keywords="position"), Category="Transformation")
-	FVector K2_GetActorLocation() const;
+	ENGINE_API FVector K2_GetActorLocation() const;
 
 	/** 
 	 * Move the Actor to the specified location.
@@ -1401,23 +1401,23 @@ public:
 	 * @return	Whether the location was successfully set (if not swept), or whether movement occurred at all (if swept).
 	 */
 	UFUNCTION(BlueprintCallable, meta=(DisplayName = "Set Actor Location", ScriptName = "SetActorLocation", Keywords="position"), Category="Transformation")
-	bool K2_SetActorLocation(FVector NewLocation, bool bSweep, FHitResult& SweepHitResult, bool bTeleport);
+	ENGINE_API bool K2_SetActorLocation(FVector NewLocation, bool bSweep, FHitResult& SweepHitResult, bool bTeleport);
 
 	/** Returns rotation of the RootComponent of this Actor. */
 	UFUNCTION(BlueprintCallable, meta=(DisplayName = "Get Actor Rotation", ScriptName = "GetActorRotation"), Category="Transformation")
-	FRotator K2_GetActorRotation() const;
+	ENGINE_API FRotator K2_GetActorRotation() const;
 
 	/** Get the forward (X) vector (length 1.0) from this Actor, in world space.  */
 	UFUNCTION(BlueprintCallable, Category = "Transformation")
-	FVector GetActorForwardVector() const;
+	ENGINE_API FVector GetActorForwardVector() const;
 
 	/** Get the up (Z) vector (length 1.0) from this Actor, in world space.  */
 	UFUNCTION(BlueprintCallable, Category = "Transformation")
-	FVector GetActorUpVector() const;
+	ENGINE_API FVector GetActorUpVector() const;
 
 	/** Get the right (Y) vector (length 1.0) from this Actor, in world space.  */
 	UFUNCTION(BlueprintCallable, Category = "Transformation")
-	FVector GetActorRightVector() const;
+	ENGINE_API FVector GetActorRightVector() const;
 
 	/**
 	 * Returns the bounding box of all components that make up this Actor (excluding ChildActorComponents).
@@ -1427,15 +1427,15 @@ public:
 	 * @param	bIncludeFromChildActors		If true then recurse in to ChildActor components 
 	 */
 	UFUNCTION(BlueprintCallable, Category="Collision", meta=(DisplayName = "Get Actor Bounds"))
-	virtual void GetActorBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors = false) const;
+	ENGINE_API virtual void GetActorBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors = false) const;
 
 	/** Returns the RootComponent of this Actor */
 	UFUNCTION(BlueprintGetter)
-	USceneComponent* K2_GetRootComponent() const;
+	ENGINE_API USceneComponent* K2_GetRootComponent() const;
 
 	/** Returns velocity (in cm/s (Unreal Units/second) of the rootcomponent if it is either using physics or has an associated MovementComponent */
 	UFUNCTION(BlueprintCallable, Category="Transformation")
-	virtual FVector GetVelocity() const;
+	ENGINE_API virtual FVector GetVelocity() const;
 
 	/** 
 	 * Move the actor instantly to the specified location. 
@@ -1450,7 +1450,7 @@ public:
 	 * @param OutSweepHitResult The hit result from the move if swept.
 	 * @return	Whether the location was successfully set if not swept, or whether movement occurred if swept.
 	 */
-	bool SetActorLocation(const FVector& NewLocation, bool bSweep=false, FHitResult* OutSweepHitResult=nullptr, ETeleportType Teleport = ETeleportType::None);
+	ENGINE_API bool SetActorLocation(const FVector& NewLocation, bool bSweep=false, FHitResult* OutSweepHitResult=nullptr, ETeleportType Teleport = ETeleportType::None);
 
 	/** 
 	 * Set the Actor's rotation instantly to the specified rotation.
@@ -1462,7 +1462,7 @@ public:
 	 * @return	Whether the rotation was successfully set.
 	 */
 	UFUNCTION(BlueprintCallable, meta=(DisplayName = "Set Actor Rotation", ScriptName = "SetActorRotation"), Category="Transformation")
-	bool K2_SetActorRotation(FRotator NewRotation, bool bTeleportPhysics);
+	ENGINE_API bool K2_SetActorRotation(FRotator NewRotation, bool bTeleportPhysics);
 	
 	/**
 	 * Set the Actor's rotation instantly to the specified rotation.
@@ -1473,8 +1473,8 @@ public:
 	 *						If equal to ETeleportType::None, physics velocity is updated based on the change in position (affecting ragdoll parts).
 	 * @return	Whether the rotation was successfully set.
 	 */
-	bool SetActorRotation(FRotator NewRotation, ETeleportType Teleport = ETeleportType::None);
-	bool SetActorRotation(const FQuat& NewRotation, ETeleportType Teleport = ETeleportType::None);
+	ENGINE_API bool SetActorRotation(FRotator NewRotation, ETeleportType Teleport = ETeleportType::None);
+	ENGINE_API bool SetActorRotation(const FQuat& NewRotation, ETeleportType Teleport = ETeleportType::None);
 
 	/** 
 	 * Move the actor instantly to the specified location and rotation.
@@ -1491,7 +1491,7 @@ public:
 	 * @return	Whether the rotation was successfully set.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Transformation", meta=(DisplayName="Set Actor Location And Rotation", ScriptName="SetActorLocationAndRotation"))
-	bool K2_SetActorLocationAndRotation(FVector NewLocation, FRotator NewRotation, bool bSweep, FHitResult& SweepHitResult, bool bTeleport);
+	ENGINE_API bool K2_SetActorLocationAndRotation(FVector NewLocation, FRotator NewRotation, bool bSweep, FHitResult& SweepHitResult, bool bTeleport);
 	
 	/** 
 	 * Move the actor instantly to the specified location and rotation.
@@ -1507,44 +1507,44 @@ public:
 	 * @param OutSweepHitResult	The hit result from the move if swept.
 	 * @return	Whether the rotation was successfully set.
 	 */
-	bool SetActorLocationAndRotation(FVector NewLocation, FRotator NewRotation, bool bSweep=false, FHitResult* OutSweepHitResult=nullptr, ETeleportType Teleport = ETeleportType::None);
-	bool SetActorLocationAndRotation(FVector NewLocation, const FQuat& NewRotation, bool bSweep=false, FHitResult* OutSweepHitResult=nullptr, ETeleportType Teleport = ETeleportType::None);
+	ENGINE_API bool SetActorLocationAndRotation(FVector NewLocation, FRotator NewRotation, bool bSweep=false, FHitResult* OutSweepHitResult=nullptr, ETeleportType Teleport = ETeleportType::None);
+	ENGINE_API bool SetActorLocationAndRotation(FVector NewLocation, const FQuat& NewRotation, bool bSweep=false, FHitResult* OutSweepHitResult=nullptr, ETeleportType Teleport = ETeleportType::None);
 
 	/** Set the Actor's world-space scale. */
 	UFUNCTION(BlueprintCallable, Category="Transformation")
-	void SetActorScale3D(FVector NewScale3D);
+	ENGINE_API void SetActorScale3D(FVector NewScale3D);
 
 	/** Returns the Actor's world-space scale. */
 	UFUNCTION(BlueprintCallable, Category="Transformation")
-	FVector GetActorScale3D() const;
+	ENGINE_API FVector GetActorScale3D() const;
 
 	/** Returns the distance from this Actor to OtherActor. */
 	UFUNCTION(BlueprintCallable, Category = "Transformation")
-	float GetDistanceTo(const AActor* OtherActor) const;
+	ENGINE_API float GetDistanceTo(const AActor* OtherActor) const;
 
 	/** Returns the squared distance from this Actor to OtherActor. */
 	UFUNCTION(BlueprintCallable, Category = "Transformation")
-	float GetSquaredDistanceTo(const AActor* OtherActor) const;
+	ENGINE_API float GetSquaredDistanceTo(const AActor* OtherActor) const;
 
 	/** Returns the distance from this Actor to OtherActor, ignoring Z. */
 	UFUNCTION(BlueprintCallable, Category = "Transformation")
-	float GetHorizontalDistanceTo(const AActor* OtherActor) const;
+	ENGINE_API float GetHorizontalDistanceTo(const AActor* OtherActor) const;
 
 	/** Returns the squared distance from this Actor to OtherActor, ignoring Z. */
 	UFUNCTION(BlueprintCallable, Category = "Transformation")
-	float GetSquaredHorizontalDistanceTo(const AActor* OtherActor) const;
+	ENGINE_API float GetSquaredHorizontalDistanceTo(const AActor* OtherActor) const;
 
 	/** Returns the distance from this Actor to OtherActor, ignoring XY. */
 	UFUNCTION(BlueprintCallable, Category = "Transformation")
-	float GetVerticalDistanceTo(const AActor* OtherActor) const;
+	ENGINE_API float GetVerticalDistanceTo(const AActor* OtherActor) const;
 
 	/** Returns the dot product from this Actor to OtherActor. Returns -2.0 on failure. Returns 0.0 for coincidental actors. */
 	UFUNCTION(BlueprintCallable, Category = "Transformation")
-	float GetDotProductTo(const AActor* OtherActor) const;
+	ENGINE_API float GetDotProductTo(const AActor* OtherActor) const;
 
 	/** Returns the dot product from this Actor to OtherActor, ignoring Z. Returns -2.0 on failure. Returns 0.0 for coincidental actors. */
 	UFUNCTION(BlueprintCallable, Category = "Transformation")
-	float GetHorizontalDotProductTo(const AActor* OtherActor) const;
+	ENGINE_API float GetHorizontalDotProductTo(const AActor* OtherActor) const;
 
 	/**
 	 * Adds a delta to the location of this actor in world space.
@@ -1559,8 +1559,8 @@ public:
 	 * @param SweepHitResult	The hit result from the move if swept.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Transformation", meta=(DisplayName="Add Actor World Offset", ScriptName="AddActorWorldOffset", Keywords="location position"))
-	void K2_AddActorWorldOffset(FVector DeltaLocation, bool bSweep, FHitResult& SweepHitResult, bool bTeleport);
-	void AddActorWorldOffset(FVector DeltaLocation, bool bSweep=false, FHitResult* OutSweepHitResult=nullptr, ETeleportType Teleport = ETeleportType::None);
+	ENGINE_API void K2_AddActorWorldOffset(FVector DeltaLocation, bool bSweep, FHitResult& SweepHitResult, bool bTeleport);
+	ENGINE_API void AddActorWorldOffset(FVector DeltaLocation, bool bSweep=false, FHitResult* OutSweepHitResult=nullptr, ETeleportType Teleport = ETeleportType::None);
 
 	/**
 	 * Adds a delta to the rotation of this actor in world space.
@@ -1574,19 +1574,19 @@ public:
 	 * @param SweepHitResult	The hit result from the move if swept.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Transformation", meta=(DisplayName="Add Actor World Rotation", ScriptName="AddActorWorldRotation", AdvancedDisplay="bSweep,SweepHitResult,bTeleport"))
-	void K2_AddActorWorldRotation(FRotator DeltaRotation, bool bSweep, FHitResult& SweepHitResult, bool bTeleport);
-	void AddActorWorldRotation(FRotator DeltaRotation, bool bSweep=false, FHitResult* OutSweepHitResult=nullptr, ETeleportType Teleport = ETeleportType::None);
-	void AddActorWorldRotation(const FQuat& DeltaRotation, bool bSweep=false, FHitResult* OutSweepHitResult=nullptr, ETeleportType Teleport = ETeleportType::None);
+	ENGINE_API void K2_AddActorWorldRotation(FRotator DeltaRotation, bool bSweep, FHitResult& SweepHitResult, bool bTeleport);
+	ENGINE_API void AddActorWorldRotation(FRotator DeltaRotation, bool bSweep=false, FHitResult* OutSweepHitResult=nullptr, ETeleportType Teleport = ETeleportType::None);
+	ENGINE_API void AddActorWorldRotation(const FQuat& DeltaRotation, bool bSweep=false, FHitResult* OutSweepHitResult=nullptr, ETeleportType Teleport = ETeleportType::None);
 
 	/** Adds a delta to the transform of this actor in world space. Ignores scale and sets it to (1,1,1). */
 	UFUNCTION(BlueprintCallable, Category="Transformation", meta=(DisplayName="Add Actor World Transform", ScriptName="AddActorWorldTransform"))
-	void K2_AddActorWorldTransform(const FTransform& DeltaTransform, bool bSweep, FHitResult& SweepHitResult, bool bTeleport);
-	void AddActorWorldTransform(const FTransform& DeltaTransform, bool bSweep=false, FHitResult* OutSweepHitResult=nullptr, ETeleportType Teleport = ETeleportType::None);
+	ENGINE_API void K2_AddActorWorldTransform(const FTransform& DeltaTransform, bool bSweep, FHitResult& SweepHitResult, bool bTeleport);
+	ENGINE_API void AddActorWorldTransform(const FTransform& DeltaTransform, bool bSweep=false, FHitResult* OutSweepHitResult=nullptr, ETeleportType Teleport = ETeleportType::None);
 
 	/** Adds a delta to the transform of this actor in world space. Scale is unchanged. */
 	UFUNCTION(BlueprintCallable, Category = "Transformation", meta = (DisplayName = "Add Actor World Transform Keep Scale", ScriptName = "AddActorWorldTransformKeepScale"))
-	void K2_AddActorWorldTransformKeepScale(const FTransform& DeltaTransform, bool bSweep, FHitResult& SweepHitResult, bool bTeleport);
-	void AddActorWorldTransformKeepScale(const FTransform& DeltaTransform, bool bSweep = false, FHitResult* OutSweepHitResult = nullptr, ETeleportType Teleport = ETeleportType::None);
+	ENGINE_API void K2_AddActorWorldTransformKeepScale(const FTransform& DeltaTransform, bool bSweep, FHitResult& SweepHitResult, bool bTeleport);
+	ENGINE_API void AddActorWorldTransformKeepScale(const FTransform& DeltaTransform, bool bSweep = false, FHitResult* OutSweepHitResult = nullptr, ETeleportType Teleport = ETeleportType::None);
 
 	/** 
 	 * Set the Actors transform to the specified one.
@@ -1599,8 +1599,8 @@ public:
 	 *							If CCD is on and not teleporting, this will affect objects along the entire swept volume.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Transformation", meta=(DisplayName="Set Actor Transform", ScriptName="SetActorTransform"))
-	bool K2_SetActorTransform(const FTransform& NewTransform, bool bSweep, FHitResult& SweepHitResult, bool bTeleport);
-	bool SetActorTransform(const FTransform& NewTransform, bool bSweep=false, FHitResult* OutSweepHitResult=nullptr, ETeleportType Teleport = ETeleportType::None);
+	ENGINE_API bool K2_SetActorTransform(const FTransform& NewTransform, bool bSweep, FHitResult& SweepHitResult, bool bTeleport);
+	ENGINE_API bool SetActorTransform(const FTransform& NewTransform, bool bSweep=false, FHitResult* OutSweepHitResult=nullptr, ETeleportType Teleport = ETeleportType::None);
 
 	/** 
 	 * Adds a delta to the location of this component in its local reference frame.
@@ -1613,8 +1613,8 @@ public:
 	 *							If CCD is on and not teleporting, this will affect objects along the entire swept volume.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Transformation", meta=(DisplayName="Add Actor Local Offset", ScriptName="AddActorLocalOffset", Keywords="location position"))
-	void K2_AddActorLocalOffset(FVector DeltaLocation, bool bSweep, FHitResult& SweepHitResult, bool bTeleport);
-	void AddActorLocalOffset(FVector DeltaLocation, bool bSweep=false, FHitResult* OutSweepHitResult=nullptr, ETeleportType Teleport = ETeleportType::None);
+	ENGINE_API void K2_AddActorLocalOffset(FVector DeltaLocation, bool bSweep, FHitResult& SweepHitResult, bool bTeleport);
+	ENGINE_API void AddActorLocalOffset(FVector DeltaLocation, bool bSweep=false, FHitResult* OutSweepHitResult=nullptr, ETeleportType Teleport = ETeleportType::None);
 
 	/**
 	 * Adds a delta to the rotation of this component in its local reference frame
@@ -1627,9 +1627,9 @@ public:
 	 *							If CCD is on and not teleporting, this will affect objects along the entire swept volume.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Transformation", meta=(DisplayName="Add Actor Local Rotation", ScriptName="AddActorLocalRotation", AdvancedDisplay="bSweep,SweepHitResult,bTeleport"))
-	void K2_AddActorLocalRotation(FRotator DeltaRotation, bool bSweep, FHitResult& SweepHitResult, bool bTeleport);
-	void AddActorLocalRotation(FRotator DeltaRotation, bool bSweep=false, FHitResult* OutSweepHitResult=nullptr, ETeleportType Teleport = ETeleportType::None);
-	void AddActorLocalRotation(const FQuat& DeltaRotation, bool bSweep=false, FHitResult* OutSweepHitResult=nullptr, ETeleportType Teleport = ETeleportType::None);
+	ENGINE_API void K2_AddActorLocalRotation(FRotator DeltaRotation, bool bSweep, FHitResult& SweepHitResult, bool bTeleport);
+	ENGINE_API void AddActorLocalRotation(FRotator DeltaRotation, bool bSweep=false, FHitResult* OutSweepHitResult=nullptr, ETeleportType Teleport = ETeleportType::None);
+	ENGINE_API void AddActorLocalRotation(const FQuat& DeltaRotation, bool bSweep=false, FHitResult* OutSweepHitResult=nullptr, ETeleportType Teleport = ETeleportType::None);
 
 	/**
 	 * Adds a delta to the transform of this component in its local reference frame
@@ -1642,8 +1642,8 @@ public:
 	 *							If CCD is on and not teleporting, this will affect objects along the entire swept volume.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Transformation", meta=(DisplayName="Add Actor Local Transform", ScriptName="AddActorLocalTransform"))
-	void K2_AddActorLocalTransform(const FTransform& NewTransform, bool bSweep, FHitResult& SweepHitResult, bool bTeleport);
-	void AddActorLocalTransform(const FTransform& NewTransform, bool bSweep=false, FHitResult* OutSweepHitResult=nullptr, ETeleportType Teleport = ETeleportType::None);
+	ENGINE_API void K2_AddActorLocalTransform(const FTransform& NewTransform, bool bSweep, FHitResult& SweepHitResult, bool bTeleport);
+	ENGINE_API void AddActorLocalTransform(const FTransform& NewTransform, bool bSweep=false, FHitResult* OutSweepHitResult=nullptr, ETeleportType Teleport = ETeleportType::None);
 
 	/**
 	 * Set the actor's RootComponent to the specified relative location.
@@ -1656,8 +1656,8 @@ public:
 	 *								If CCD is on and not teleporting, this will affect objects along the entire swept volume.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Transformation", meta=(DisplayName="Set Actor Relative Location", ScriptName="SetActorRelativeLocation"))
-	void K2_SetActorRelativeLocation(FVector NewRelativeLocation, bool bSweep, FHitResult& SweepHitResult, bool bTeleport);
-	void SetActorRelativeLocation(FVector NewRelativeLocation, bool bSweep=false, FHitResult* OutSweepHitResult=nullptr, ETeleportType Teleport = ETeleportType::None);
+	ENGINE_API void K2_SetActorRelativeLocation(FVector NewRelativeLocation, bool bSweep, FHitResult& SweepHitResult, bool bTeleport);
+	ENGINE_API void SetActorRelativeLocation(FVector NewRelativeLocation, bool bSweep=false, FHitResult* OutSweepHitResult=nullptr, ETeleportType Teleport = ETeleportType::None);
 
 	/**
 	 * Set the actor's RootComponent to the specified relative rotation
@@ -1670,9 +1670,9 @@ public:
 	 *								If CCD is on and not teleporting, this will affect objects along the entire swept volume.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Transformation", meta=(DisplayName="Set Actor Relative Rotation", ScriptName="SetActorRelativeRotation", AdvancedDisplay="bSweep,SweepHitResult,bTeleport"))
-	void K2_SetActorRelativeRotation(FRotator NewRelativeRotation, bool bSweep, FHitResult& SweepHitResult, bool bTeleport);
-	void SetActorRelativeRotation(FRotator NewRelativeRotation, bool bSweep=false, FHitResult* OutSweepHitResult=nullptr, ETeleportType Teleport = ETeleportType::None);
-	void SetActorRelativeRotation(const FQuat& NewRelativeRotation, bool bSweep=false, FHitResult* OutSweepHitResult=nullptr, ETeleportType Teleport = ETeleportType::None);
+	ENGINE_API void K2_SetActorRelativeRotation(FRotator NewRelativeRotation, bool bSweep, FHitResult& SweepHitResult, bool bTeleport);
+	ENGINE_API void SetActorRelativeRotation(FRotator NewRelativeRotation, bool bSweep=false, FHitResult* OutSweepHitResult=nullptr, ETeleportType Teleport = ETeleportType::None);
+	ENGINE_API void SetActorRelativeRotation(const FQuat& NewRelativeRotation, bool bSweep=false, FHitResult* OutSweepHitResult=nullptr, ETeleportType Teleport = ETeleportType::None);
 
 	/**
 	 * Set the actor's RootComponent to the specified relative transform
@@ -1685,42 +1685,42 @@ public:
 	 *							If CCD is on and not teleporting, this will affect objects along the entire swept volume.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Transformation", meta=(DisplayName="Set Actor Relative Transform", ScriptName="SetActorRelativeTransform"))
-	void K2_SetActorRelativeTransform(const FTransform& NewRelativeTransform, bool bSweep, FHitResult& SweepHitResult, bool bTeleport);
-	void SetActorRelativeTransform(const FTransform& NewRelativeTransform, bool bSweep=false, FHitResult* OutSweepHitResult=nullptr, ETeleportType Teleport = ETeleportType::None);
+	ENGINE_API void K2_SetActorRelativeTransform(const FTransform& NewRelativeTransform, bool bSweep, FHitResult& SweepHitResult, bool bTeleport);
+	ENGINE_API void SetActorRelativeTransform(const FTransform& NewRelativeTransform, bool bSweep=false, FHitResult* OutSweepHitResult=nullptr, ETeleportType Teleport = ETeleportType::None);
 
 	/**
 	 * Set the actor's RootComponent to the specified relative scale 3d
 	 * @param NewRelativeScale	New scale to set the actor's RootComponent to
 	 */
 	UFUNCTION(BlueprintCallable, Category="Transformation")
-	void SetActorRelativeScale3D(FVector NewRelativeScale);
+	ENGINE_API void SetActorRelativeScale3D(FVector NewRelativeScale);
 
 	/** Return the actor's relative scale 3d */
 	UFUNCTION(BlueprintCallable, Category="Transformation")
-	FVector GetActorRelativeScale3D() const;
+	ENGINE_API FVector GetActorRelativeScale3D() const;
 
 	/**
 	 *	Sets the actor to be hidden in the game
 	 *	@param	bNewHidden	Whether or not to hide the actor and all its components
 	 */
 	UFUNCTION(BlueprintCallable, Category="Rendering", meta=( DisplayName = "Set Actor Hidden In Game", Keywords = "Visible Hidden Show Hide" ))
-	virtual void SetActorHiddenInGame(bool bNewHidden);
+	ENGINE_API virtual void SetActorHiddenInGame(bool bNewHidden);
 
 	/** Allows enabling/disabling collision for the whole actor */
 	UFUNCTION(BlueprintCallable, Category="Collision")
-	void SetActorEnableCollision(bool bNewActorEnableCollision);
+	ENGINE_API void SetActorEnableCollision(bool bNewActorEnableCollision);
 
 	/** Get current state of collision for the whole actor */
 	UFUNCTION(BlueprintPure, Category="Collision")
-	bool GetActorEnableCollision() const;
+	ENGINE_API bool GetActorEnableCollision() const;
 
 	/** Destroy the actor */
 	UFUNCTION(BlueprintCallable, Category="Actor", meta=(Keywords = "Delete", DisplayName = "Destroy Actor", ScriptName = "DestroyActor"))
-	virtual void K2_DestroyActor();
+	ENGINE_API virtual void K2_DestroyActor();
 
 	/** Returns whether this actor has network authority */
 	UFUNCTION(BlueprintCallable, Category="Networking")
-	bool HasAuthority() const;
+	ENGINE_API bool HasAuthority() const;
 
 	/** 
 	 * Creates a new component and assigns ownership to the Actor this is 
@@ -1739,7 +1739,7 @@ public:
 	 * @param bDeferredFinish				Whether or not to immediately complete the creation and registration process for this component. Will be false if there are expose on spawn properties being set
 	 */
 	UFUNCTION(BlueprintCallable, meta=(ScriptNoExport, BlueprintInternalUseOnly = "true", DefaultToSelf="ComponentTemplateContext", InternalUseParam="ComponentTemplateContext,bDeferredFinish"))
-	UActorComponent* AddComponent(FName TemplateName, bool bManualAttachment, const FTransform& RelativeTransform, const UObject* ComponentTemplateContext, bool bDeferredFinish = false);
+	ENGINE_API UActorComponent* AddComponent(FName TemplateName, bool bManualAttachment, const FTransform& RelativeTransform, const UObject* ComponentTemplateContext, bool bDeferredFinish = false);
 
 	/**
 	 * Creates a new component and assigns ownership to the Actor this is
@@ -1757,7 +1757,7 @@ public:
 	 * @param bDeferredFinish				Whether or not to immediately complete the creation and registration process for this component. Will be false if there are expose on spawn properties being set
 	 */
 	UFUNCTION(BlueprintCallable, meta=(ScriptNoExport, BlueprintInternalUseOnly = "true", InternalUseParam="bDeferredFinish"))
-	UActorComponent* AddComponentByClass(UPARAM(meta = (AllowAbstract = "false")) TSubclassOf<UActorComponent> Class, bool bManualAttachment, const FTransform& RelativeTransform, bool bDeferredFinish);
+	ENGINE_API UActorComponent* AddComponentByClass(UPARAM(meta = (AllowAbstract = "false")) TSubclassOf<UActorComponent> Class, bool bManualAttachment, const FTransform& RelativeTransform, bool bDeferredFinish);
 
 	/** 
 	 * Completes the creation of a new actor component. Called either from blueprint after
@@ -1770,12 +1770,12 @@ public:
 	 * @param RelativeTransform				The relative transform between the new component and its attach parent (automatic only)
 	 */
 	UFUNCTION(BlueprintCallable, meta=(BlueprintInternalUseOnly="true"))
-	void FinishAddComponent(UActorComponent* Component, bool bManualAttachment, const FTransform& RelativeTransform);
+	ENGINE_API void FinishAddComponent(UActorComponent* Component, bool bManualAttachment, const FTransform& RelativeTransform);
 
 	/** DEPRECATED - Use AttachToComponent() instead */
 	UE_DEPRECATED(4.17, "Use AttachToComponent() instead.")
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "AttachRootComponentTo (Deprecated)", ScriptNoExport, AttachLocationType = "KeepRelativeOffset"), Category = "Transformation")
-	void K2_AttachRootComponentTo(USceneComponent* InParent, FName InSocketName = NAME_None, EAttachLocation::Type AttachLocationType = EAttachLocation::KeepRelativeOffset, bool bWeldSimulatedBodies = true);
+	ENGINE_API void K2_AttachRootComponentTo(USceneComponent* InParent, FName InSocketName = NAME_None, EAttachLocation::Type AttachLocationType = EAttachLocation::KeepRelativeOffset, bool bWeldSimulatedBodies = true);
 
 	/**
 	 * Attaches the RootComponent of this Actor to the supplied component, optionally at a named socket. It is not valid to call this on components that are not Registered.
@@ -1788,7 +1788,7 @@ public:
 	 * @return							Whether the attachment was successful or not
 	 */
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Attach Actor To Component", ScriptName = "AttachToComponent", bWeldSimulatedBodies = true), Category = "Transformation")
-	bool K2_AttachToComponent(USceneComponent* Parent, FName SocketName, EAttachmentRule LocationRule, EAttachmentRule RotationRule, EAttachmentRule ScaleRule, bool bWeldSimulatedBodies);
+	ENGINE_API bool K2_AttachToComponent(USceneComponent* Parent, FName SocketName, EAttachmentRule LocationRule, EAttachmentRule RotationRule, EAttachmentRule ScaleRule, bool bWeldSimulatedBodies);
 
 	/**
 	 * Attaches the RootComponent of this Actor to the supplied component, optionally at a named socket. It is not valid to call this on components that are not Registered.
@@ -1797,12 +1797,12 @@ public:
 	 * @param  SocketName				Optional socket to attach to on the parent.
 	 * @return							Whether the attachment was successful or not
 	 */
-	bool AttachToComponent(USceneComponent* Parent, const FAttachmentTransformRules& AttachmentRules, FName SocketName = NAME_None);
+	ENGINE_API bool AttachToComponent(USceneComponent* Parent, const FAttachmentTransformRules& AttachmentRules, FName SocketName = NAME_None);
 
 	/** DEPRECATED - Use AttachToActor() instead */
 	UE_DEPRECATED(4.17, "Use AttachToActor() instead.")
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "AttachRootComponentToActor (Deprecated)", ScriptNoExport, AttachLocationType = "KeepRelativeOffset"), Category = "Transformation")
-	void K2_AttachRootComponentToActor(AActor* InParentActor, FName InSocketName = NAME_None, EAttachLocation::Type AttachLocationType = EAttachLocation::KeepRelativeOffset, bool bWeldSimulatedBodies = true);
+	ENGINE_API void K2_AttachRootComponentToActor(AActor* InParentActor, FName InSocketName = NAME_None, EAttachLocation::Type AttachLocationType = EAttachLocation::KeepRelativeOffset, bool bWeldSimulatedBodies = true);
 
 	/**
 	 * Attaches the RootComponent of this Actor to the RootComponent of the supplied actor, optionally at a named socket.
@@ -1811,7 +1811,7 @@ public:
 	 * @param SocketName				Socket name to attach to, if any
 	 * @return							Whether the attachment was successful or not
 	 */
-	bool AttachToActor(AActor* ParentActor, const FAttachmentTransformRules& AttachmentRules, FName SocketName = NAME_None);
+	ENGINE_API bool AttachToActor(AActor* ParentActor, const FAttachmentTransformRules& AttachmentRules, FName SocketName = NAME_None);
 
 	/**
 	 * Attaches the RootComponent of this Actor to the supplied actor, optionally at a named socket.
@@ -1824,12 +1824,12 @@ public:
 	 * @return							Whether the attachment was successful or not
 	 */
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Attach Actor To Actor", ScriptName = "AttachToActor", bWeldSimulatedBodies=true), Category = "Transformation")
-	bool K2_AttachToActor(AActor* ParentActor, FName SocketName, EAttachmentRule LocationRule, EAttachmentRule RotationRule, EAttachmentRule ScaleRule, bool bWeldSimulatedBodies);
+	ENGINE_API bool K2_AttachToActor(AActor* ParentActor, FName SocketName, EAttachmentRule LocationRule, EAttachmentRule RotationRule, EAttachmentRule ScaleRule, bool bWeldSimulatedBodies);
 
 	/** DEPRECATED - Use DetachFromActor() instead */
 	UE_DEPRECATED(4.17, "Use DetachFromActor() instead")
 	UFUNCTION(BlueprintCallable, meta=(DisplayName = "DetachActorFromActor (Deprecated)", ScriptNoExport), Category="Transformation")
-	void DetachRootComponentFromParent(bool bMaintainWorldPosition = true);
+	ENGINE_API void DetachRootComponentFromParent(bool bMaintainWorldPosition = true);
 
 	/** 
 	 * Detaches the RootComponent of this Actor from any SceneComponent it is currently attached to. 
@@ -1838,24 +1838,24 @@ public:
 	 * @param  ScaleRule				How to handle scale when detaching.
 	 */
 	UFUNCTION(BlueprintCallable, meta=(DisplayName = "Detach From Actor", ScriptName = "DetachFromActor"), Category="Transformation")
-	void K2_DetachFromActor(EDetachmentRule LocationRule = EDetachmentRule::KeepRelative, EDetachmentRule RotationRule = EDetachmentRule::KeepRelative, EDetachmentRule ScaleRule = EDetachmentRule::KeepRelative);
+	ENGINE_API void K2_DetachFromActor(EDetachmentRule LocationRule = EDetachmentRule::KeepRelative, EDetachmentRule RotationRule = EDetachmentRule::KeepRelative, EDetachmentRule ScaleRule = EDetachmentRule::KeepRelative);
 
 	/** 
 	 * Detaches the RootComponent of this Actor from any SceneComponent it is currently attached to. 
 	 * @param  DetachmentRules			How to handle transforms when detaching.
 	 */
-	void DetachFromActor(const FDetachmentTransformRules& DetachmentRules);
+	ENGINE_API void DetachFromActor(const FDetachmentTransformRules& DetachmentRules);
 
 	/**
 	 *	Detaches all SceneComponents in this Actor from the supplied parent SceneComponent.
 	 *	@param InParentComponent		SceneComponent to detach this actor's components from
 	 *	@param DetachmentRules			Rules to apply when detaching components
 	 */
-	void DetachAllSceneComponents(class USceneComponent* InParentComponent, const FDetachmentTransformRules& DetachmentRules);
+	ENGINE_API void DetachAllSceneComponents(class USceneComponent* InParentComponent, const FDetachmentTransformRules& DetachmentRules);
 
 	/** See if this actor's Tags array contains the supplied name tag */
 	UFUNCTION(BlueprintCallable, Category="Actor")
-	bool ActorHasTag(FName Tag) const;
+	ENGINE_API bool ActorHasTag(FName Tag) const;
 
 
 	//~==============================================================================
@@ -1866,59 +1866,59 @@ public:
 	 * We don't want to scale input globally because input can be used for UI, which do not care for TimeDilation.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Actor")
-	float GetActorTimeDilation() const;
+	ENGINE_API float GetActorTimeDilation() const;
 
 	/**
 	 * More efficient version that takes the Actor's current world.
 	 */
-	float GetActorTimeDilation(const UWorld& ActorWorld) const;
+	ENGINE_API float GetActorTimeDilation(const UWorld& ActorWorld) const;
 
 	/** Make this actor tick after PrerequisiteActor. This only applies to this actor's tick function; dependencies for owned components must be set up separately if desired. */
 	UFUNCTION(BlueprintCallable, Category="Actor|Tick", meta=(Keywords = "dependency"))
-	virtual void AddTickPrerequisiteActor(AActor* PrerequisiteActor);
+	ENGINE_API virtual void AddTickPrerequisiteActor(AActor* PrerequisiteActor);
 
 	/** Make this actor tick after PrerequisiteComponent. This only applies to this actor's tick function; dependencies for owned components must be set up separately if desired. */
 	UFUNCTION(BlueprintCallable, Category="Actor|Tick", meta=(Keywords = "dependency"))
-	virtual void AddTickPrerequisiteComponent(UActorComponent* PrerequisiteComponent);
+	ENGINE_API virtual void AddTickPrerequisiteComponent(UActorComponent* PrerequisiteComponent);
 
 	/** Remove tick dependency on PrerequisiteActor. */
 	UFUNCTION(BlueprintCallable, Category="Actor|Tick", meta=(Keywords = "dependency"))
-	virtual void RemoveTickPrerequisiteActor(AActor* PrerequisiteActor);
+	ENGINE_API virtual void RemoveTickPrerequisiteActor(AActor* PrerequisiteActor);
 
 	/** Remove tick dependency on PrerequisiteComponent. */
 	UFUNCTION(BlueprintCallable, Category="Actor|Tick", meta=(Keywords = "dependency"))
-	virtual void RemoveTickPrerequisiteComponent(UActorComponent* PrerequisiteComponent);
+	ENGINE_API virtual void RemoveTickPrerequisiteComponent(UActorComponent* PrerequisiteComponent);
 	
 	/** Gets whether this actor can tick when paused. */
 	UFUNCTION(BlueprintCallable, Category="Actor|Tick")
-	bool GetTickableWhenPaused();
+	ENGINE_API bool GetTickableWhenPaused();
 
 	/** Sets whether this actor can tick when paused. */
 	UFUNCTION(BlueprintCallable, Category="Actor|Tick")
-	void SetTickableWhenPaused(bool bTickableWhenPaused);
+	ENGINE_API void SetTickableWhenPaused(bool bTickableWhenPaused);
 
 	/** The number of seconds (in game time) since this Actor was created, relative to Get Game Time In Seconds. */
 	UFUNCTION(BlueprintPure, Category=Actor)
-	float GetGameTimeSinceCreation() const;
+	ENGINE_API float GetGameTimeSinceCreation() const;
 
 protected:
 	/** Event when play begins for this actor. */
 	UFUNCTION(BlueprintImplementableEvent, meta=(DisplayName = "BeginPlay"))
-	void ReceiveBeginPlay();
+	ENGINE_API void ReceiveBeginPlay();
 
 	/** Overridable native event for when play begins for this actor. */
-	virtual void BeginPlay();
+	ENGINE_API virtual void BeginPlay();
 
 	/** Event to notify blueprints this actor is being deleted or removed from a level. */
 	UFUNCTION(BlueprintImplementableEvent, meta=(Keywords = "delete", DisplayName = "End Play"))
-	void ReceiveEndPlay(EEndPlayReason::Type EndPlayReason);
+	ENGINE_API void ReceiveEndPlay(EEndPlayReason::Type EndPlayReason);
 
 	/** Overridable function called whenever this actor is being removed from a level */
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason);
+	ENGINE_API virtual void EndPlay(const EEndPlayReason::Type EndPlayReason);
 
 public:
 	/** Initiate a begin play call on this Actor, will handle calling in the correct order. */
-	void DispatchBeginPlay(bool bFromLevelStreaming = false);
+	ENGINE_API void DispatchBeginPlay(bool bFromLevelStreaming = false);
 
 	/** Returns whether an actor has been initialized for gameplay */
 	bool IsActorInitialized() const { return bActorInitialized; }
@@ -1950,97 +1950,97 @@ public:
 
 	/** Event when this actor takes ANY damage */
 	UFUNCTION(BlueprintImplementableEvent, BlueprintAuthorityOnly, meta=(DisplayName = "AnyDamage"), Category="Game|Damage")
-	void ReceiveAnyDamage(float Damage, const class UDamageType* DamageType, class AController* InstigatedBy, AActor* DamageCauser);
+	ENGINE_API void ReceiveAnyDamage(float Damage, const class UDamageType* DamageType, class AController* InstigatedBy, AActor* DamageCauser);
 	
 	/** Event when this actor takes RADIAL damage */
 	UFUNCTION(BlueprintImplementableEvent, BlueprintAuthorityOnly, meta=(DisplayName = "RadialDamage"), Category="Game|Damage")
-	void ReceiveRadialDamage(float DamageReceived, const class UDamageType* DamageType, FVector Origin, const struct FHitResult& HitInfo, class AController* InstigatedBy, AActor* DamageCauser);
+	ENGINE_API void ReceiveRadialDamage(float DamageReceived, const class UDamageType* DamageType, FVector Origin, const struct FHitResult& HitInfo, class AController* InstigatedBy, AActor* DamageCauser);
 
 	/** Event when this actor takes POINT damage */
 	UFUNCTION(BlueprintImplementableEvent, BlueprintAuthorityOnly, meta=(DisplayName = "PointDamage"), Category="Game|Damage")
-	void ReceivePointDamage(float Damage, const class UDamageType* DamageType, FVector HitLocation, FVector HitNormal, class UPrimitiveComponent* HitComponent, FName BoneName, FVector ShotFromDirection, class AController* InstigatedBy, AActor* DamageCauser, const FHitResult& HitInfo);
+	ENGINE_API void ReceivePointDamage(float Damage, const class UDamageType* DamageType, FVector HitLocation, FVector HitNormal, class UPrimitiveComponent* HitComponent, FName BoneName, FVector ShotFromDirection, class AController* InstigatedBy, AActor* DamageCauser, const FHitResult& HitInfo);
 
 	/** Event called every frame, if ticking is enabled */
 	UFUNCTION(BlueprintImplementableEvent, meta=(DisplayName = "Tick"))
-	void ReceiveTick(float DeltaSeconds);
+	ENGINE_API void ReceiveTick(float DeltaSeconds);
 
 	/** Event called every physics tick if bAsyncPhysicsTickEnabled is true */
 	UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "Async Physics Tick"))
-	void ReceiveAsyncPhysicsTick(float DeltaSeconds, float SimSeconds);
+	ENGINE_API void ReceiveAsyncPhysicsTick(float DeltaSeconds, float SimSeconds);
 
 	/** 
 	 *	Event when this actor overlaps another actor, for example a player walking into a trigger.
 	 *	For events when objects have a blocking collision, for example a player hitting a wall, see 'Hit' events.
 	 *	@note Components on both this and the other Actor must have bGenerateOverlapEvents set to true to generate overlap events.
 	 */
-	virtual void NotifyActorBeginOverlap(AActor* OtherActor);
+	ENGINE_API virtual void NotifyActorBeginOverlap(AActor* OtherActor);
 	/** 
 	 *	Event when this actor overlaps another actor, for example a player walking into a trigger.
 	 *	For events when objects have a blocking collision, for example a player hitting a wall, see 'Hit' events.
 	 *	@note Components on both this and the other Actor must have bGenerateOverlapEvents set to true to generate overlap events.
 	 */
 	UFUNCTION(BlueprintImplementableEvent, meta=(DisplayName = "ActorBeginOverlap"), Category="Collision")
-	void ReceiveActorBeginOverlap(AActor* OtherActor);
+	ENGINE_API void ReceiveActorBeginOverlap(AActor* OtherActor);
 
 	/** 
 	 *	Event when an actor no longer overlaps another actor, and they have separated. 
 	 *	@note Components on both this and the other Actor must have bGenerateOverlapEvents set to true to generate overlap events.
 	 */
-	virtual void NotifyActorEndOverlap(AActor* OtherActor);
+	ENGINE_API virtual void NotifyActorEndOverlap(AActor* OtherActor);
 	/** 
 	 *	Event when an actor no longer overlaps another actor, and they have separated. 
 	 *	@note Components on both this and the other Actor must have bGenerateOverlapEvents set to true to generate overlap events.
 	 */
 	UFUNCTION(BlueprintImplementableEvent, meta=(DisplayName = "ActorEndOverlap"), Category="Collision")
-	void ReceiveActorEndOverlap(AActor* OtherActor);
+	ENGINE_API void ReceiveActorEndOverlap(AActor* OtherActor);
 
 	/** Event when this actor has the mouse moved over it with the clickable interface. */
-	virtual void NotifyActorBeginCursorOver();
+	ENGINE_API virtual void NotifyActorBeginCursorOver();
 	/** Event when this actor has the mouse moved over it with the clickable interface. */
 	UFUNCTION(BlueprintImplementableEvent, meta=(DisplayName = "ActorBeginCursorOver"), Category="Mouse Input")
-	void ReceiveActorBeginCursorOver();
+	ENGINE_API void ReceiveActorBeginCursorOver();
 
 	/** Event when this actor has the mouse moved off of it with the clickable interface. */
-	virtual void NotifyActorEndCursorOver();
+	ENGINE_API virtual void NotifyActorEndCursorOver();
 	/** Event when this actor has the mouse moved off of it with the clickable interface. */
 	UFUNCTION(BlueprintImplementableEvent, meta=(DisplayName = "ActorEndCursorOver"), Category="Mouse Input")
-	void ReceiveActorEndCursorOver();
+	ENGINE_API void ReceiveActorEndCursorOver();
 
 	/** Event when this actor is clicked by the mouse when using the clickable interface. */
-	virtual void NotifyActorOnClicked(FKey ButtonPressed = EKeys::LeftMouseButton);
+	ENGINE_API virtual void NotifyActorOnClicked(FKey ButtonPressed = EKeys::LeftMouseButton);
 	/** Event when this actor is clicked by the mouse when using the clickable interface. */
 	UFUNCTION(BlueprintImplementableEvent, meta=(DisplayName = "ActorOnClicked"), Category="Mouse Input")
-	void ReceiveActorOnClicked(FKey ButtonPressed = EKeys::LeftMouseButton);
+	ENGINE_API void ReceiveActorOnClicked(FKey ButtonPressed = EKeys::LeftMouseButton);
 
 	/** Event when this actor is under the mouse when left mouse button is released while using the clickable interface. */
-	virtual void NotifyActorOnReleased(FKey ButtonReleased = EKeys::LeftMouseButton);
+	ENGINE_API virtual void NotifyActorOnReleased(FKey ButtonReleased = EKeys::LeftMouseButton);
 	/** Event when this actor is under the mouse when left mouse button is released while using the clickable interface. */
 	UFUNCTION(BlueprintImplementableEvent, meta=(DisplayName = "ActorOnReleased"), Category="Mouse Input")
-	void ReceiveActorOnReleased(FKey ButtonReleased = EKeys::LeftMouseButton);
+	ENGINE_API void ReceiveActorOnReleased(FKey ButtonReleased = EKeys::LeftMouseButton);
 
 	/** Event when this actor is touched when click events are enabled. */
-	virtual void NotifyActorOnInputTouchBegin(const ETouchIndex::Type FingerIndex);
+	ENGINE_API virtual void NotifyActorOnInputTouchBegin(const ETouchIndex::Type FingerIndex);
 	/** Event when this actor is touched when click events are enabled. */
 	UFUNCTION(BlueprintImplementableEvent, meta=(DisplayName = "BeginInputTouch"), Category="Touch Input")
-	void ReceiveActorOnInputTouchBegin(const ETouchIndex::Type FingerIndex);
+	ENGINE_API void ReceiveActorOnInputTouchBegin(const ETouchIndex::Type FingerIndex);
 
 	/** Event when this actor is under the finger when untouched when click events are enabled. */
-	virtual void NotifyActorOnInputTouchEnd(const ETouchIndex::Type FingerIndex);
+	ENGINE_API virtual void NotifyActorOnInputTouchEnd(const ETouchIndex::Type FingerIndex);
 	/** Event when this actor is under the finger when untouched when click events are enabled. */
 	UFUNCTION(BlueprintImplementableEvent, meta=(DisplayName = "EndInputTouch"), Category="Touch Input")
-	void ReceiveActorOnInputTouchEnd(const ETouchIndex::Type FingerIndex);
+	ENGINE_API void ReceiveActorOnInputTouchEnd(const ETouchIndex::Type FingerIndex);
 
 	/** Event when this actor has a finger moved over it with the clickable interface. */
-	virtual void NotifyActorOnInputTouchEnter(const ETouchIndex::Type FingerIndex);
+	ENGINE_API virtual void NotifyActorOnInputTouchEnter(const ETouchIndex::Type FingerIndex);
 	/** Event when this actor has a finger moved over it with the clickable interface. */
 	UFUNCTION(BlueprintImplementableEvent, meta=(DisplayName = "TouchEnter"), Category="Touch Input")
-	void ReceiveActorOnInputTouchEnter(const ETouchIndex::Type FingerIndex);
+	ENGINE_API void ReceiveActorOnInputTouchEnter(const ETouchIndex::Type FingerIndex);
 
 	/** Event when this actor has a finger moved off of it with the clickable interface. */
-	virtual void NotifyActorOnInputTouchLeave(const ETouchIndex::Type FingerIndex);
+	ENGINE_API virtual void NotifyActorOnInputTouchLeave(const ETouchIndex::Type FingerIndex);
 	/** Event when this actor has a finger moved off of it with the clickable interface. */
 	UFUNCTION(BlueprintImplementableEvent, meta=(DisplayName = "TouchLeave"), Category="Touch Input")
-	void ReceiveActorOnInputTouchLeave(const ETouchIndex::Type FingerIndex);
+	ENGINE_API void ReceiveActorOnInputTouchLeave(const ETouchIndex::Type FingerIndex);
 
 	/** 
 	 * Returns list of actors this actor is overlapping (any component overlapping any component). Does not return itself.
@@ -2048,21 +2048,21 @@ public:
 	 * @param ClassFilter			[optional] If set, only returns actors of this class or subclasses
 	 */
 	UFUNCTION(BlueprintCallable, Category="Collision", meta=(UnsafeDuringActorConstruction="true"))
-	void GetOverlappingActors(TArray<AActor*>& OverlappingActors, TSubclassOf<AActor> ClassFilter=nullptr) const;
+	ENGINE_API void GetOverlappingActors(TArray<AActor*>& OverlappingActors, TSubclassOf<AActor> ClassFilter=nullptr) const;
 
 	/** 
 	 * Returns set of actors this actor is overlapping (any component overlapping any component). Does not return itself.
 	 * @param OverlappingActors		[out] Returned list of overlapping actors
 	 * @param ClassFilter			[optional] If set, only returns actors of this class or subclasses
 	 */
-	void GetOverlappingActors(TSet<AActor*>& OverlappingActors, TSubclassOf<AActor> ClassFilter=nullptr) const;
+	ENGINE_API void GetOverlappingActors(TSet<AActor*>& OverlappingActors, TSubclassOf<AActor> ClassFilter=nullptr) const;
 
 	/** Returns list of components this actor is overlapping. */
 	UFUNCTION(BlueprintCallable, Category="Collision", meta=(UnsafeDuringActorConstruction="true"))
-	void GetOverlappingComponents(TArray<UPrimitiveComponent*>& OverlappingComponents) const;
+	ENGINE_API void GetOverlappingComponents(TArray<UPrimitiveComponent*>& OverlappingComponents) const;
 
 	/** Returns set of components this actor is overlapping. */
-	void GetOverlappingComponents(TSet<UPrimitiveComponent*>& OverlappingComponents) const;
+	ENGINE_API void GetOverlappingComponents(TSet<UPrimitiveComponent*>& OverlappingComponents) const;
 
 	/** 
 	 * Event when this actor bumps into a blocking object, or blocks another actor that bumps into it.
@@ -2073,7 +2073,7 @@ public:
 	 * @note When receiving a hit from another object's movement (bSelfMoved is false), the directions of 'Hit.Normal' and 'Hit.ImpactNormal'
 	 * will be adjusted to indicate force from the other object against this object.
 	 */
-	virtual void NotifyHit(class UPrimitiveComponent* MyComp, AActor* Other, class UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit);
+	ENGINE_API virtual void NotifyHit(class UPrimitiveComponent* MyComp, AActor* Other, class UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit);
 	/** 
 	 * Event when this actor bumps into a blocking object, or blocks another actor that bumps into it.
 	 * This could happen due to things like Character movement, using Set Location with 'sweep' enabled, or physics simulation.
@@ -2085,22 +2085,22 @@ public:
 	 * @note NormalImpulse will be filled in for physics-simulating bodies, but will be zero for swept-component blocking collisions.
 	 */
 	UFUNCTION(BlueprintImplementableEvent, meta=(DisplayName = "Hit"), Category="Collision")
-	void ReceiveHit(class UPrimitiveComponent* MyComp, AActor* Other, class UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit);
+	ENGINE_API void ReceiveHit(class UPrimitiveComponent* MyComp, AActor* Other, class UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit);
 
 	/** Set the lifespan of this actor. When it expires the object will be destroyed. If requested lifespan is 0, the timer is cleared and the actor will not be destroyed. */
 	UFUNCTION(BlueprintCallable, Category="Actor", meta=(Keywords = "delete destroy"))
-	virtual void SetLifeSpan( float InLifespan );
+	ENGINE_API virtual void SetLifeSpan( float InLifespan );
 
 	/** Get the remaining lifespan of this actor. If zero is returned the actor lives forever. */
 	UFUNCTION(BlueprintCallable, Category="Actor", meta=(Keywords = "delete destroy"))
-	virtual float GetLifeSpan() const;
+	ENGINE_API virtual float GetLifeSpan() const;
 
 	/**
 	 * Construction script, the place to spawn components and do other setup.
 	 * @note Name used in CreateBlueprint function
 	 */
 	UFUNCTION(BlueprintImplementableEvent, meta=(BlueprintInternalUseOnly = "true", DisplayName = "Construction Script"))
-	void UserConstructionScript();
+	ENGINE_API void UserConstructionScript();
 
 	/**
 	 * Destroy this actor. Returns true the actor is destroyed or already marked for destruction, false if indestructible.
@@ -2109,11 +2109,11 @@ public:
 	 * @param	bShouldModifyLevel		[opt] If true, Modify() the level before removing the actor.  Default is true.	
 	 * @returns	true if destroyed or already marked for destruction, false if indestructible.
 	 */
-	bool Destroy(bool bNetForce = false, bool bShouldModifyLevel = true );
+	ENGINE_API bool Destroy(bool bNetForce = false, bool bShouldModifyLevel = true );
 
 	/** Called when the actor has been explicitly destroyed. */
 	UFUNCTION(BlueprintImplementableEvent, meta = (Keywords = "delete", DisplayName = "Destroyed"))
-	void ReceiveDestroyed();
+	ENGINE_API void ReceiveDestroyed();
 
 	/** Event triggered when the actor has been explicitly destroyed. */
 	UPROPERTY(BlueprintAssignable, Category="Game")
@@ -2124,56 +2124,56 @@ public:
 	FActorEndPlaySignature OnEndPlay;
 	
 	//~ Begin UObject Interface
-	virtual bool CheckDefaultSubobjectsInternal() const override;
-	virtual void PostInitProperties() override;
-	virtual void ProcessEvent( UFunction* Function, void* Parameters ) override;
-	virtual int32 GetFunctionCallspace( UFunction* Function, FFrame* Stack ) override;
-	virtual bool CallRemoteFunction( UFunction* Function, void* Parameters, FOutParmRec* OutParms, FFrame* Stack ) override;
-	virtual void Serialize(FArchive& Ar) override;
-	virtual void PostLoad() override;
-	virtual void PostLoadSubobjects( FObjectInstancingGraph* OuterInstanceGraph ) override;
-	virtual void BeginDestroy() override;
+	ENGINE_API virtual bool CheckDefaultSubobjectsInternal() const override;
+	ENGINE_API virtual void PostInitProperties() override;
+	ENGINE_API virtual void ProcessEvent( UFunction* Function, void* Parameters ) override;
+	ENGINE_API virtual int32 GetFunctionCallspace( UFunction* Function, FFrame* Stack ) override;
+	ENGINE_API virtual bool CallRemoteFunction( UFunction* Function, void* Parameters, FOutParmRec* OutParms, FFrame* Stack ) override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void PostLoad() override;
+	ENGINE_API virtual void PostLoadSubobjects( FObjectInstancingGraph* OuterInstanceGraph ) override;
+	ENGINE_API virtual void BeginDestroy() override;
 #if !UE_STRIP_DEPRECATED_PROPERTIES
-	virtual bool IsReadyForFinishDestroy() override;
+	ENGINE_API virtual bool IsReadyForFinishDestroy() override;
 #endif
-	virtual bool Rename( const TCHAR* NewName=nullptr, UObject* NewOuter=nullptr, ERenameFlags Flags=REN_None ) override;
-	virtual void PostRename( UObject* OldOuter, const FName OldName ) override;
-	virtual bool CanBeInCluster() const override;
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
-	virtual bool IsEditorOnly() const override;
+	ENGINE_API virtual bool Rename( const TCHAR* NewName=nullptr, UObject* NewOuter=nullptr, ERenameFlags Flags=REN_None ) override;
+	ENGINE_API virtual void PostRename( UObject* OldOuter, const FName OldName ) override;
+	ENGINE_API virtual bool CanBeInCluster() const override;
+	static ENGINE_API void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	ENGINE_API virtual bool IsEditorOnly() const override;
 	virtual bool IsRuntimeOnly() const { return false; }
-	virtual bool IsAsset() const override;
+	ENGINE_API virtual bool IsAsset() const override;
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS // Suppress compiler warning on override of deprecated function
 	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveRootContext instead.")
-	virtual bool PreSaveRoot(const TCHAR* InFilename) override;
+	ENGINE_API virtual bool PreSaveRoot(const TCHAR* InFilename) override;
 	UE_DEPRECATED(5.0, "Use version that takes FObjectPostSaveRootContext instead.")
-	virtual void PostSaveRoot(bool bCleanupIsRequired) override;
+	ENGINE_API virtual void PostSaveRoot(bool bCleanupIsRequired) override;
 	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
-	virtual void PreSave(const ITargetPlatform* TargetPlatform) override;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	ENGINE_API virtual void PreSave(const ITargetPlatform* TargetPlatform) override;
+	ENGINE_API PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual void PreSaveRoot(FObjectPreSaveRootContext ObjectSaveContext) override;
-	virtual void PostSaveRoot(FObjectPostSaveRootContext ObjectSaveContext) override;
-	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
+	ENGINE_API virtual void PostSaveRoot(FObjectPostSaveRootContext ObjectSaveContext) override;
+	ENGINE_API virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 
 	/** Used to check if Actor is the main actor of a package (currently Child Actors are not) */
-	bool IsMainPackageActor() const;
+	ENGINE_API bool IsMainPackageActor() const;
 
-	static AActor* FindActorInPackage(UPackage* InPackage);
+	static ENGINE_API AActor* FindActorInPackage(UPackage* InPackage);
 
 #if WITH_EDITOR
-	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
-	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
-	virtual void GetExtendedAssetRegistryTagsForSave(const ITargetPlatform* TargetPlatform, TArray<FAssetRegistryTag>& OutTags) const override;
-	virtual bool NeedsLoadForTargetPlatform(const ITargetPlatform* TargetPlatform) const;
-	virtual void PreEditChange(FProperty* PropertyThatWillChange) override;
-	virtual bool CanEditChange(const FProperty* InProperty) const;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PreEditUndo() override;
-	virtual void PostEditUndo() override;
-	virtual void PostEditImport() override;
-	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
-	virtual bool IsSelectedInEditor() const override;
+	ENGINE_API virtual bool Modify(bool bAlwaysMarkDirty = true) override;
+	ENGINE_API virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
+	ENGINE_API virtual void GetExtendedAssetRegistryTagsForSave(const ITargetPlatform* TargetPlatform, TArray<FAssetRegistryTag>& OutTags) const override;
+	ENGINE_API virtual bool NeedsLoadForTargetPlatform(const ITargetPlatform* TargetPlatform) const;
+	ENGINE_API virtual void PreEditChange(FProperty* PropertyThatWillChange) override;
+	ENGINE_API virtual bool CanEditChange(const FProperty* InProperty) const;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PreEditUndo() override;
+	ENGINE_API virtual void PostEditUndo() override;
+	ENGINE_API virtual void PostEditImport() override;
+	ENGINE_API virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
+	ENGINE_API virtual bool IsSelectedInEditor() const override;
 
 	/** Defines if preview should be shown when you select an actor, but none of its children */
 	virtual bool IsDefaultPreviewEnabled() const
@@ -2185,10 +2185,10 @@ public:
 	virtual bool IsUserManaged() const { return true; }
 
 	/** When selected can this actor be deleted? */
-	virtual bool CanDeleteSelectedActor(FText& OutReason) const;
+	ENGINE_API virtual bool CanDeleteSelectedActor(FText& OutReason) const;
 
 	/** Does this actor supports external packaging? */
-	virtual bool SupportsExternalPackaging() const;
+	ENGINE_API virtual bool SupportsExternalPackaging() const;
 
 	/** Called when the we detach the actor from the external package. Temporary fix to allow the actor to fixup and rename any objects outered to the external package. */
 	virtual void OnDetachExternalPackage() {}
@@ -2200,14 +2200,14 @@ public:
 	/** Cached pointer to the transaction annotation data from PostEditUndo to be used in the next RerunConstructionScript */
 	TSharedPtr<FActorTransactionAnnotation> CurrentTransactionAnnotation;
 
-	virtual TSharedPtr<ITransactionObjectAnnotation> FactoryTransactionAnnotation(const ETransactionAnnotationCreationMode InCreationMode) const override;
-	virtual void PostEditUndo(TSharedPtr<ITransactionObjectAnnotation> TransactionAnnotation) override;
+	ENGINE_API virtual TSharedPtr<ITransactionObjectAnnotation> FactoryTransactionAnnotation(const ETransactionAnnotationCreationMode InCreationMode) const override;
+	ENGINE_API virtual void PostEditUndo(TSharedPtr<ITransactionObjectAnnotation> TransactionAnnotation) override;
 
 	/** Returns true if the component is allowed to re-register its components when modified. False for CDOs or PIE instances. */
-	bool ReregisterComponentsWhenModified() const;
+	ENGINE_API bool ReregisterComponentsWhenModified() const;
 
 	/** Called after an actor has been moved in the editor */
-	virtual void PostEditMove(bool bFinished);
+	ENGINE_API virtual void PostEditMove(bool bFinished);
 #endif // WITH_EDITOR
 	//~ End UObject Interface
 
@@ -2219,7 +2219,7 @@ public:
 	// Property Replication
 
 	/** Fills ReplicatedMovement property */
-	virtual void GatherCurrentMovement();
+	ENGINE_API virtual void GatherCurrentMovement();
 
 	/** See if this actor is owned by TestOwner. */
 	inline bool IsOwnedBy( const AActor* TestOwner ) const
@@ -2245,7 +2245,7 @@ public:
 	 * Sets root component to be the specified component.  NewRootComponent's owner should be this actor.
 	 * @return true if successful
 	 */
-	bool SetRootComponent(USceneComponent* NewRootComponent);
+	ENGINE_API bool SetRootComponent(USceneComponent* NewRootComponent);
 
 	/** Returns the transform of the RootComponent of this Actor*/ 
 	FORCEINLINE const FTransform& GetActorTransform() const
@@ -2298,7 +2298,7 @@ public:
 	 *
 	 * @see GetActorBounds()
 	 */
-	virtual FBox GetStreamingBounds() const;
+	ENGINE_API virtual FBox GetStreamingBounds() const;
 #endif
 
 
@@ -2311,54 +2311,54 @@ public:
 	 * @param InOffset		Offset vector to shift actor location
 	 * @param bWorldShift	Whether this call is part of whole world shifting
 	 */
-	virtual void ApplyWorldOffset(const FVector& InOffset, bool bWorldShift);
+	ENGINE_API virtual void ApplyWorldOffset(const FVector& InOffset, bool bWorldShift);
 
 	/** Indicates whether this actor should participate in level bounds calculations */
 	virtual bool IsLevelBoundsRelevant() const { return bRelevantForLevelBounds; }
 
 	/** Indicates whether this actor contributes to the HLOD generation. */
-	virtual bool IsHLODRelevant() const;
+	ENGINE_API virtual bool IsHLODRelevant() const;
 
 	/** Indicates whether this actor can provide HLOD relevant components. */
-	virtual bool HasHLODRelevantComponents() const;
+	ENGINE_API virtual bool HasHLODRelevantComponents() const;
 
 	/** Return the list of components to use when building the HLOD representation of this actor. */
-	virtual TArray<UActorComponent*> GetHLODRelevantComponents() const;
+	ENGINE_API virtual TArray<UActorComponent*> GetHLODRelevantComponents() const;
 
 	/** 
 	 * Set LOD Parent component for all of our components, normally associated with an ALODActor. 
 	 * @param InLODParent			This component used to compute visibility when hierarchical LOD is enabled. 
 	 * @param InParentDrawDistance	Updates the MinDrawDistances of the LODParent
 	 */
-	void SetLODParent(class UPrimitiveComponent* InLODParent, float InParentDrawDistance);
+	ENGINE_API void SetLODParent(class UPrimitiveComponent* InLODParent, float InParentDrawDistance);
 
 #if WITH_EDITOR
 	/** @todo: Remove this flag once it is decided that additive interactive scaling is what we want */
-	static bool bUsePercentageBasedScaling;
+	static ENGINE_API bool bUsePercentageBasedScaling;
 
 	/**
 	 * Called by ApplyDeltaToActor to perform an actor class-specific operation based on widget manipulation.
 	 * The default implementation is simply to translate the actor's location.
 	 */
-	virtual void EditorApplyTranslation(const FVector& DeltaTranslation, bool bAltDown, bool bShiftDown, bool bCtrlDown);
+	ENGINE_API virtual void EditorApplyTranslation(const FVector& DeltaTranslation, bool bAltDown, bool bShiftDown, bool bCtrlDown);
 
 	/**
 	 * Called by ApplyDeltaToActor to perform an actor class-specific operation based on widget manipulation.
 	 * The default implementation is simply to modify the actor's rotation.
 	 */
-	virtual void EditorApplyRotation(const FRotator& DeltaRotation, bool bAltDown, bool bShiftDown, bool bCtrlDown);
+	ENGINE_API virtual void EditorApplyRotation(const FRotator& DeltaRotation, bool bAltDown, bool bShiftDown, bool bCtrlDown);
 
 	/**
 	 * Called by ApplyDeltaToActor to perform an actor class-specific operation based on widget manipulation.
 	 * The default implementation is simply to modify the actor's draw scale.
 	 */
-	virtual void EditorApplyScale(const FVector& DeltaScale, const FVector* PivotLocation, bool bAltDown, bool bShiftDown, bool bCtrlDown);
+	ENGINE_API virtual void EditorApplyScale(const FVector& DeltaScale, const FVector* PivotLocation, bool bAltDown, bool bShiftDown, bool bCtrlDown);
 
 	/** Called by MirrorActors to perform a mirroring operation on the actor */
-	virtual void EditorApplyMirror(const FVector& MirrorScale, const FVector& PivotLocation);	
+	ENGINE_API virtual void EditorApplyMirror(const FVector& MirrorScale, const FVector& PivotLocation);	
 
 	/** Get underlying actors */
-	virtual void EditorGetUnderlyingActors(TSet<AActor*>& OutUnderlyingActors) const;
+	ENGINE_API virtual void EditorGetUnderlyingActors(TSet<AActor*>& OutUnderlyingActors) const;
 
 	/** Returns true if the actor is hidden upon editor startup/by default, false if it is not */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Actor Editing")
@@ -2369,23 +2369,23 @@ public:
 
 	/** Returns true if this actor is hidden in the editor viewports, also checking temporary flags. */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Actor Editing")
-	virtual bool IsHiddenEd() const;
+	ENGINE_API virtual bool IsHiddenEd() const;
 
 	/**
 	 * Explicitly sets whether or not this actor is hidden in the editor for the duration of the current editor session
 	 * @param bIsHidden	True if the actor is hidden
 	 */
 	UFUNCTION(BlueprintCallable, Category="Editor Scripting | Actor Editing")
-	virtual void SetIsTemporarilyHiddenInEditor( bool bIsHidden );
+	ENGINE_API virtual void SetIsTemporarilyHiddenInEditor( bool bIsHidden );
 
 	/** Changes bHiddenEdLayer flag and returns true if flag changed. */
-	virtual bool SetIsHiddenEdLayer(bool bIsHiddenEdLayer);
+	ENGINE_API virtual bool SetIsHiddenEdLayer(bool bIsHiddenEdLayer);
 
 	/** Returns true if the actor supports modifications to its Layers property */
-	virtual bool SupportsLayers() const;
+	ENGINE_API virtual bool SupportsLayers() const;
 
 	/** Returns if level should keep a reference to the external actor for PIE (used for always loaded actors). */
-	bool IsForceExternalActorLevelReferenceForPIE() const;
+	ENGINE_API bool IsForceExternalActorLevelReferenceForPIE() const;
 
 	void SetForceExternalActorLevelReferenceForPIE(bool bValue)
 	{
@@ -2396,7 +2396,7 @@ public:
 	}
 
 	/** Returns true if this actor is spatially loaded. */
-	bool GetIsSpatiallyLoaded() const;
+	ENGINE_API bool GetIsSpatiallyLoaded() const;
 	
 	/** Set if this actor should be spatially loaded or not. */
 	void SetIsSpatiallyLoaded(bool bInIsSpatiallyLoaded)
@@ -2409,7 +2409,7 @@ public:
 	}
 
 	/** Returns true if this actor allows changing the spatially loaded flag.  */
-	virtual bool CanChangeIsSpatiallyLoadedFlag() const;
+	ENGINE_API virtual bool CanChangeIsSpatiallyLoadedFlag() const;
 
 	/** Gets the property name for bIsSpatiallyLoaded. */
 	static const FName GetIsSpatiallyLoadedPropertyName() { return GET_MEMBER_NAME_CHECKED(AActor, bIsSpatiallyLoaded); }
@@ -2419,27 +2419,27 @@ public:
 	 * @param bIncludeParent - Whether to recurse up child actor hierarchy or not
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Actor Editing")
-	bool IsTemporarilyHiddenInEditor(bool bIncludeParent = false) const;
+	ENGINE_API bool IsTemporarilyHiddenInEditor(bool bIncludeParent = false) const;
 
 	/** Returns true if this actor is allowed to be displayed, selected and manipulated by the editor. */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Actor Editing")
-	bool IsEditable() const;
+	ENGINE_API bool IsEditable() const;
 
 	/** Returns true if this actor can EVER be selected in a level in the editor.  Can be overridden by specific actors to make them unselectable. */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Actor Editing")
-	virtual bool IsSelectable() const;
+	ENGINE_API virtual bool IsSelectable() const;
 
 	/** Returns true if this actor should be shown in the scene outliner */
-	virtual bool IsListedInSceneOutliner() const;
+	ENGINE_API virtual bool IsListedInSceneOutliner() const;
 
 	/** Returns true if this actor is allowed to be attached to the given actor */
-	virtual bool EditorCanAttachTo(const AActor* InParent, FText& OutReason) const;
+	ENGINE_API virtual bool EditorCanAttachTo(const AActor* InParent, FText& OutReason) const;
 
 	/** Returns true if this actor is allowed to be attached from the given actor */
-	virtual bool EditorCanAttachFrom(const AActor* InChild, FText& OutReason) const;
+	ENGINE_API virtual bool EditorCanAttachFrom(const AActor* InChild, FText& OutReason) const;
 
 	/** Returns the actor attachement parent that should be used in editor */
-	virtual AActor* GetSceneOutlinerParent() const;
+	ENGINE_API virtual AActor* GetSceneOutlinerParent() const;
 
 	/** Called before editor copy, true allow export */
 	virtual bool ShouldExport() { return true; }
@@ -2455,27 +2455,27 @@ public:
 	virtual void EditorKeyPressed(FKey Key, EInputEvent Event) {}
 
 	/** Called by ReplaceSelectedActors to allow a new actor to copy properties from an old actor when it is replaced */
-	virtual void EditorReplacedActor(AActor* OldActor);
+	ENGINE_API virtual void EditorReplacedActor(AActor* OldActor);
 
 	/**
 	 * Function that gets called from within Map_Check to allow this actor to check itself
 	 * for any potential errors and register them with map check dialog.
 	 */
-	virtual void CheckForErrors();
+	ENGINE_API virtual void CheckForErrors();
 
 	/**
 	 * Function that gets called from within Map_Check to allow this actor to check itself
 	 * for any potential errors and register them with map check dialog.
 	 */
-	virtual void CheckForDeprecated();
+	ENGINE_API virtual void CheckForDeprecated();
 
 	/** Returns this actor's default label (does not include any numeric suffix).  Actor labels are only available in development builds. */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Actor Editing", meta = (KeyWords = "Display Name"))
-	virtual FString GetDefaultActorLabel() const;
+	ENGINE_API virtual FString GetDefaultActorLabel() const;
 
 	/** Returns this actor's current label.  Actor labels are only available in development builds. */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Actor Editing", meta = (KeyWords = "Display Name"))
-	const FString& GetActorLabel(bool bCreateIfNone = true) const;
+	ENGINE_API const FString& GetActorLabel(bool bCreateIfNone = true) const;
 
 	/**
 	 * Assigns a new label to this actor.  Actor labels are only available in development builds.
@@ -2483,67 +2483,67 @@ public:
 	 * @param	bMarkDirty		If true the actor's package will be marked dirty for saving.  Otherwise it will not be.  You should pass false for this parameter if dirtying is not allowed (like during loads)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Actor Editing", meta = (KeyWords = "Display Name"))
-	void SetActorLabel( const FString& NewActorLabel, bool bMarkDirty = true );
+	ENGINE_API void SetActorLabel( const FString& NewActorLabel, bool bMarkDirty = true );
 
 	/** Advanced - clear the actor label. */
-	void ClearActorLabel();
+	ENGINE_API void ClearActorLabel();
 
 	/**
 	 * Returns if this actor's current label is editable.  Actor labels are only available in development builds.
 	 * @return	The editable status of the actor's label
 	 */
-	bool IsActorLabelEditable() const;
+	ENGINE_API bool IsActorLabelEditable() const;
 
 	/** Returns this actor's folder path. Actor folder paths are only available in development builds. */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Actor Editing")
-	FName GetFolderPath() const;
+	ENGINE_API FName GetFolderPath() const;
 
 	/*
 	 * Returns actor folder guid. If level is not using actor folder objects, returns an invalid guid. 
 	 * @param bDirectAccess If true, returns the raw value without testing if level uses Actor Folders.
 	 */
-	FGuid GetFolderGuid(bool bDirectAccess = false) const;
+	ENGINE_API FGuid GetFolderGuid(bool bDirectAccess = false) const;
 
 	/** Returns the actor's folder root object. Null, is interpreted as the actor's world. */
-	FFolder::FRootObject GetFolderRootObject() const;
+	ENGINE_API FFolder::FRootObject GetFolderRootObject() const;
 	
 	/** Detects and fixes invalid actor folder */
-	void FixupActorFolder();
+	ENGINE_API void FixupActorFolder();
 
 	/** Creates or updates actor's folder object if necessary. Returns false if an error occured while creating folder. */
-	bool CreateOrUpdateActorFolder();
+	ENGINE_API bool CreateOrUpdateActorFolder();
 
 	/** Returns a FFolder that contains the actor  folder path and its folder root object. */
-	FFolder GetFolder() const;
+	ENGINE_API FFolder GetFolder() const;
 
 	/**
 	 * Assigns a new folder to this actor. Actor folder paths are only available in development builds.
 	 * @param	NewFolderPath		The new folder to assign to the actor.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Actor Editing")
-	void SetFolderPath(const FName& NewFolderPath);
+	ENGINE_API void SetFolderPath(const FName& NewFolderPath);
 
 	/**
 	 * Assigns a new folder to this actor and any attached children. Actor folder paths are only available in development builds.
 	 * @param	NewFolderPath		The new folder to assign to the actors.
 	 */
-	void SetFolderPath_Recursively(const FName& NewFolderPath);
+	ENGINE_API void SetFolderPath_Recursively(const FName& NewFolderPath);
 
 	/**
 	 * Used by the "Sync to Content Browser" right-click menu option in the editor.
 	 * @param	Objects	Array to add content object references to.
 	 * @return	Whether the object references content (all overrides of this function should return true)
 	 */
-	virtual bool GetReferencedContentObjects( TArray<UObject*>& Objects ) const;
+	ENGINE_API virtual bool GetReferencedContentObjects( TArray<UObject*>& Objects ) const;
 
 	/** Similar to GetReferencedContentObjects, but for soft referenced objects */
-	virtual bool GetSoftReferencedContentObjects(TArray<FSoftObjectPath>& SoftObjects) const;
+	ENGINE_API virtual bool GetSoftReferencedContentObjects(TArray<FSoftObjectPath>& SoftObjects) const;
 
 	/** Used to allow actor classes to open an actor specific editor */
 	virtual bool OpenAssetEditor() { return false; }
 
 	/** Returns NumUncachedStaticLightingInteractions for this actor */
-	const int32 GetNumUncachedStaticLightingInteractions() const;
+	ENGINE_API const int32 GetNumUncachedStaticLightingInteractions() const;
 
 	/** Returns a custom brush icon name to use in place of the automatic class icon where actors are represented via 2d icons in the editor (e.g scene outliner and menus) */
 	virtual FName GetCustomIconName() const { return NAME_None; }
@@ -2555,9 +2555,9 @@ public:
 	}
 
 	/** Sets metadata on the Actor that allows it to point to a different asset than its source when browsing in the Content Browser */
-	void SetBrowseToAssetOverride(const FString& PackageName);
+	ENGINE_API void SetBrowseToAssetOverride(const FString& PackageName);
 	/** Gets metadata on the Actor that says which package to show in the Content Browser when browsing to it, or an empty string if there is no override */
-	const FString& GetBrowseToAssetOverride() const;
+	ENGINE_API const FString& GetBrowseToAssetOverride() const;
 #endif		// WITH_EDITOR
 
 	/**
@@ -2571,7 +2571,7 @@ public:
 	 * @param bLowBandwidth True if low bandwidth of viewer
 	 * @return				Priority of this actor for replication, higher is more important
 	 */
-	virtual float GetNetPriority(const FVector& ViewPos, const FVector& ViewDir, class AActor* Viewer, AActor* ViewTarget, UActorChannel* InChannel, float Time, bool bLowBandwidth);
+	ENGINE_API virtual float GetNetPriority(const FVector& ViewPos, const FVector& ViewDir, class AActor* Viewer, AActor* ViewTarget, UActorChannel* InChannel, float Time, bool bLowBandwidth);
 
 	/**
 	 * Similar to GetNetPriority, but will only be used for prioritizing actors while recording a replay.
@@ -2583,10 +2583,10 @@ public:
 	 * @param Time			Time since actor was last replicated
 	 * @return				Priority of this actor for replays, higher is more important
 	 */
-	virtual float GetReplayPriority(const FVector& ViewPos, const FVector& ViewDir, class AActor* Viewer, AActor* ViewTarget, UActorChannel* const InChannel, float Time);
+	ENGINE_API virtual float GetReplayPriority(const FVector& ViewPos, const FVector& ViewDir, class AActor* Viewer, AActor* ViewTarget, UActorChannel* const InChannel, float Time);
 
 	/** Returns true if the actor should be dormant for a specific net connection. Only checked for DORM_DormantPartial */
-	virtual bool GetNetDormancy(const FVector& ViewPos, const FVector& ViewDir, class AActor* Viewer, AActor* ViewTarget, UActorChannel* InChannel, float Time, bool bLowBandwidth);
+	ENGINE_API virtual bool GetNetDormancy(const FVector& ViewPos, const FVector& ViewDir, class AActor* Viewer, AActor* ViewTarget, UActorChannel* InChannel, float Time, bool bLowBandwidth);
 
 	/** 
 	 * Allows for a specific response from the actor when the actor channel is opened (client side)
@@ -2615,10 +2615,10 @@ public:
 	virtual void OnNetCleanup(class UNetConnection* Connection) {};
 
 	/** Swaps Role and RemoteRole if client */
-	void ExchangeNetRoles(bool bRemoteOwner);
+	ENGINE_API void ExchangeNetRoles(bool bRemoteOwner);
 
 	/** Calls this to swap the Role and RemoteRole.  Only call this if you know what you're doing! */
-	void SwapRoles();
+	ENGINE_API void SwapRoles();
 
 	/**
 	 * When called, will call the virtual call chain to register all of the tick functions for both the actor and optionally all components
@@ -2626,7 +2626,7 @@ public:
 	 * @param bRegister - true to register, false, to unregister
 	 * @param bDoComponents - true to also apply the change to all components
 	 */
-	void RegisterAllActorTickFunctions(bool bRegister, bool bDoComponents);
+	ENGINE_API void RegisterAllActorTickFunctions(bool bRegister, bool bDoComponents);
 
 	/** 
 	 * Set this actor's tick functions to be enabled or disabled. Only has an effect if the function is registered
@@ -2634,22 +2634,22 @@ public:
 	 * @param	bEnabled	Whether it should be enabled or not
 	 */
 	UFUNCTION(BlueprintCallable, Category="Actor|Tick")
-	virtual void SetActorTickEnabled(bool bEnabled);
+	ENGINE_API virtual void SetActorTickEnabled(bool bEnabled);
 
 	/**  Returns whether this actor has tick enabled or not	 */
 	UFUNCTION(BlueprintCallable, Category="Actor|Tick")
-	bool IsActorTickEnabled() const;
+	ENGINE_API bool IsActorTickEnabled() const;
 
 	/** 
 	 * Sets the tick interval of this actor's primary tick function. Will not enable a disabled tick function. Takes effect on next tick. 
 	 * @param TickInterval	The rate at which this actor should be ticking
 	 */
 	UFUNCTION(BlueprintCallable, Category="Actor|Tick")
-	void SetActorTickInterval(float TickInterval);
+	ENGINE_API void SetActorTickInterval(float TickInterval);
 
 	/**  Returns the tick interval of this actor's primary tick function */
 	UFUNCTION(BlueprintCallable, Category="Actor|Tick")
-	float GetActorTickInterval() const;
+	ENGINE_API float GetActorTickInterval() const;
 
 	/**
 	 * Dispatches the once-per frame Tick() function for this actor
@@ -2657,7 +2657,7 @@ public:
 	 * @param	TickType			The type of tick that is happening
 	 * @param	ThisTickFunction	The tick function that is firing, useful for getting the completion handle
 	 */
-	virtual void TickActor( float DeltaTime, enum ELevelTick TickType, FActorTickFunction& ThisTickFunction );
+	ENGINE_API virtual void TickActor( float DeltaTime, enum ELevelTick TickType, FActorTickFunction& ThisTickFunction );
 
 	/**
 	 * Override this function to implement custom logic to be executed every physics step.
@@ -2673,48 +2673,48 @@ public:
 	 * For actors with a root component, the location and rotation will have already been set.
 	 * This is called before calling construction scripts, but after native components have been created
 	 */
-	virtual void PostActorCreated();
+	ENGINE_API virtual void PostActorCreated();
 
 	/** Called when the lifespan of an actor expires (if it has one). */
-	virtual void LifeSpanExpired();
+	ENGINE_API virtual void LifeSpanExpired();
 
 	/** Always called immediately before properties are received from the remote. */
-	virtual void PreNetReceive() override;
+	ENGINE_API virtual void PreNetReceive() override;
 	
 	/** Always called immediately after properties are received from the remote. */
-	virtual void PostNetReceive() override;
+	ENGINE_API virtual void PostNetReceive() override;
 
 	/** Always called immediately after a new Role is received from the remote. */
-	virtual void PostNetReceiveRole();
+	ENGINE_API virtual void PostNetReceiveRole();
 
 	/** IsNameStableForNetworking means an object can be referred to its path name (relative to outer) over the network */
-	virtual bool IsNameStableForNetworking() const override;
+	ENGINE_API virtual bool IsNameStableForNetworking() const override;
 
 	/** IsSupportedForNetworking means an object can be referenced over the network */
-	virtual bool IsSupportedForNetworking() const override;
+	ENGINE_API virtual bool IsSupportedForNetworking() const override;
 
 	/** Returns a list of sub-objects that have stable names for networking */
-	virtual void GetSubobjectsWithStableNamesForNetworking(TArray<UObject*> &ObjList) override;
+	ENGINE_API virtual void GetSubobjectsWithStableNamesForNetworking(TArray<UObject*> &ObjList) override;
 
 	/** Always called immediately after spawning and reading in replicated properties */
-	virtual void PostNetInit();
+	ENGINE_API virtual void PostNetInit();
 
 	/** ReplicatedMovement struct replication event */
 	UFUNCTION()
-	virtual void OnRep_ReplicatedMovement();
+	ENGINE_API virtual void OnRep_ReplicatedMovement();
 
 	/** Update location and rotation from ReplicatedMovement. Not called for simulated physics! */
-	virtual void PostNetReceiveLocationAndRotation();
+	ENGINE_API virtual void PostNetReceiveLocationAndRotation();
 
 	/** Update velocity - typically from ReplicatedMovement, not called for simulated physics! */
-	virtual void PostNetReceiveVelocity(const FVector& NewVelocity);
+	ENGINE_API virtual void PostNetReceiveVelocity(const FVector& NewVelocity);
 
 	/** Update and smooth simulated physic state, replaces PostNetReceiveLocation() and PostNetReceiveVelocity() */
-	virtual void PostNetReceivePhysicState();
+	ENGINE_API virtual void PostNetReceivePhysicState();
 
 protected:
 	/** Sync IsSimulatingPhysics() with ReplicatedMovement.bRepPhysics */
-	void SyncReplicatedPhysicsSimulation();
+	ENGINE_API void SyncReplicatedPhysicsSimulation();
 
 public:
 	/** 
@@ -2722,11 +2722,11 @@ public:
 	 * @param NewOwner	The Actor who takes over ownership of this Actor
 	 */
 	UFUNCTION(BlueprintCallable, Category=Actor)
-	virtual void SetOwner( AActor* NewOwner );
+	ENGINE_API virtual void SetOwner( AActor* NewOwner );
 
 	/** Get the owner of this Actor, used primarily for network replication. */
 	UFUNCTION(BlueprintCallable, Category=Actor)
-	AActor* GetOwner() const;
+	ENGINE_API AActor* GetOwner() const;
 
 	/** Templated version of GetOwner(), will return nullptr if cast fails */
 	template< class T >
@@ -2739,11 +2739,11 @@ public:
 	 * This will check to see if the Actor is still in the world.  It will check things like
 	 * the KillZ, outside world bounds, etc. and handle the situation.
 	 */
-	virtual bool CheckStillInWorld();
+	ENGINE_API virtual bool CheckStillInWorld();
 
 #if WITH_EDITOR
 	/** Returns Valid if this object has data validation rules set up for it and the data for this object is valid. Returns Invalid if it does not pass the rules. Returns NotValidated if no rules are set for this object. */
-	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
+	ENGINE_API virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 #endif // WITH_EDITOR
 
 
@@ -2754,13 +2754,13 @@ public:
 	 * Dispatch all EndOverlap for all of the Actor's PrimitiveComponents. 
 	 * Generally used when removing the Actor from the world.
 	 */
-	void ClearComponentOverlaps();
+	ENGINE_API void ClearComponentOverlaps();
 
 	/** 
 	 * Queries world and updates overlap detection state for this actor.
 	 * @param bDoNotifies		True to dispatch being/end overlap notifications when these events occur.
 	 */
-	void UpdateOverlaps(bool bDoNotifies=true);
+	ENGINE_API void UpdateOverlaps(bool bDoNotifies=true);
 	
 	/** 
 	 * Check whether any component of this Actor is overlapping any component of another Actor.
@@ -2768,19 +2768,19 @@ public:
 	 * @return Whether any component of this Actor is overlapping any component of another Actor.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Collision", meta=(UnsafeDuringActorConstruction="true"))
-	bool IsOverlappingActor(const AActor* Other) const;
+	ENGINE_API bool IsOverlappingActor(const AActor* Other) const;
 
 	/** See if the root component has ModifyFrequency of MF_Static */
-	bool IsRootComponentStatic() const;
+	ENGINE_API bool IsRootComponentStatic() const;
 
 	/** See if the root component has Mobility of EComponentMobility::Stationary */
-	bool IsRootComponentStationary() const;
+	ENGINE_API bool IsRootComponentStationary() const;
 
 	/** See if the root component has Mobility of EComponentMobility::Movable */
-	bool IsRootComponentMovable() const;
+	ENGINE_API bool IsRootComponentMovable() const;
 
 	/** Get the physics volume that is currently applied to this Actor (there can only ever be one) */
-	virtual APhysicsVolume* GetPhysicsVolume() const;
+	ENGINE_API virtual APhysicsVolume* GetPhysicsVolume() const;
 
 	//~=============================================================================
 	// Actor ticking
@@ -2794,10 +2794,10 @@ public:
 	 *
 	 *	@param	DeltaSeconds	Game time elapsed during last frame modified by the time dilation
 	 */
-	virtual void Tick( float DeltaSeconds );
+	ENGINE_API virtual void Tick( float DeltaSeconds );
 
 	/** If true, actor is ticked even if TickType==LEVELTICK_ViewportsOnly	 */
-	virtual bool ShouldTickIfViewportsOnly() const;
+	ENGINE_API virtual bool ShouldTickIfViewportsOnly() const;
 
 
 	//~=============================================================================
@@ -2811,7 +2811,7 @@ protected:
 	 * @param SrcLocation	Location to test against.
 	 * @return True if the actor is within net relevancy distance, false otherwise.
 	 */
-	bool IsWithinNetRelevancyDistance(const FVector& SrcLocation) const;
+	ENGINE_API bool IsWithinNetRelevancyDistance(const FVector& SrcLocation) const;
 	
 public:	
 	/** 
@@ -2823,7 +2823,7 @@ public:
 	 *
 	 * @return bool - true if this actor is network relevant to the client associated with RealViewer 
 	 */
-	virtual bool IsNetRelevantFor(const AActor* RealViewer, const AActor* ViewTarget, const FVector& SrcLocation) const;
+	ENGINE_API virtual bool IsNetRelevantFor(const AActor* RealViewer, const AActor* ViewTarget, const FVector& SrcLocation) const;
 
 	/**
 	 * Checks to see if this actor is relevant for a recorded replay
@@ -2834,7 +2834,7 @@ public:
 	 *
 	 * @return bool - true if this actor is replay relevant to the client associated with RealViewer
 	 */
-	virtual bool IsReplayRelevantFor(const AActor* RealViewer, const AActor* ViewTarget, const FVector& SrcLocation, const float CullDistanceSquared) const;
+	ENGINE_API virtual bool IsReplayRelevantFor(const AActor* RealViewer, const AActor* ViewTarget, const FVector& SrcLocation, const float CullDistanceSquared) const;
 
 	/**
 	 * Check if this actor is the owner when doing relevancy checks for actors marked bOnlyRelevantToOwner
@@ -2845,39 +2845,39 @@ public:
 	 *
 	 * @return bool - true if this actor should be considered the owner
 	 */
-	virtual bool IsRelevancyOwnerFor(const AActor* ReplicatedActor, const AActor* ActorOwner, const AActor* ConnectionActor) const;
+	ENGINE_API virtual bool IsRelevancyOwnerFor(const AActor* ReplicatedActor, const AActor* ActorOwner, const AActor* ConnectionActor) const;
 
 	/** Called after the actor is spawned in the world.  Responsible for setting up actor for play. */
-	void PostSpawnInitialize(FTransform const& SpawnTransform, AActor* InOwner, APawn* InInstigator, bool bRemoteOwned, bool bNoFail, bool bDeferConstruction, ESpawnActorScaleMethod TransformScaleMethod = ESpawnActorScaleMethod::MultiplyWithRoot);
+	ENGINE_API void PostSpawnInitialize(FTransform const& SpawnTransform, AActor* InOwner, APawn* InInstigator, bool bRemoteOwned, bool bNoFail, bool bDeferConstruction, ESpawnActorScaleMethod TransformScaleMethod = ESpawnActorScaleMethod::MultiplyWithRoot);
 
 	/** Called to finish the spawning process, generally in the case of deferred spawning */
-	void FinishSpawning(const FTransform& Transform, bool bIsDefaultTransform = false, const FComponentInstanceDataCache* InstanceDataCache = nullptr, ESpawnActorScaleMethod TransformScaleMethod = ESpawnActorScaleMethod::OverrideRootScale);
+	ENGINE_API void FinishSpawning(const FTransform& Transform, bool bIsDefaultTransform = false, const FComponentInstanceDataCache* InstanceDataCache = nullptr, ESpawnActorScaleMethod TransformScaleMethod = ESpawnActorScaleMethod::OverrideRootScale);
 
 	/** Called after the actor has run its construction. Responsible for finishing the actor spawn process. */
-	void PostActorConstruction();
+	ENGINE_API void PostActorConstruction();
 
 public:
 	/** Called right before components are initialized, only called during gameplay */
-	virtual void PreInitializeComponents();
+	ENGINE_API virtual void PreInitializeComponents();
 
 	/** Allow actors to initialize themselves on the C++ side after all of their components have been initialized, only called during gameplay */
-	virtual void PostInitializeComponents();
+	ENGINE_API virtual void PostInitializeComponents();
 
 
 	/** Dispatches ReceiveHit virtual and OnComponentHit delegate */
-	virtual void DispatchPhysicsCollisionHit(const struct FRigidBodyCollisionInfo& MyInfo, const struct FRigidBodyCollisionInfo& OtherInfo, const FCollisionImpactData& RigidCollisionData);
+	ENGINE_API virtual void DispatchPhysicsCollisionHit(const struct FRigidBodyCollisionInfo& MyInfo, const struct FRigidBodyCollisionInfo& OtherInfo, const FCollisionImpactData& RigidCollisionData);
 	
 	/** Return the actor responsible for replication, if any. Typically the player controller */
-	virtual const AActor* GetNetOwner() const;
+	ENGINE_API virtual const AActor* GetNetOwner() const;
 
 	/** Return the owning UPlayer (if any) of this actor. This will be a local player, a net connection, or nullptr. */
-	virtual class UPlayer* GetNetOwningPlayer();
+	ENGINE_API virtual class UPlayer* GetNetOwningPlayer();
 
 	/**
 	 * Get the owning connection used for communicating between client/server 
 	 * @return NetConnection to the client or server for this actor
 	 */
-	virtual class UNetConnection* GetNetConnection() const;
+	ENGINE_API virtual class UNetConnection* GetNetConnection() const;
 
 	/**
 	 * Called by DestroyActor(), gives actors a chance to op out of actor destruction
@@ -2885,60 +2885,60 @@ public:
 	 *
 	 * @return true if DestroyActor() should not continue with actor destruction, false otherwise
 	 */
-	virtual bool DestroyNetworkActorHandled();
+	ENGINE_API virtual bool DestroyNetworkActorHandled();
 
 	/**
 	 * Get the network mode (dedicated server, client, standalone, etc) for this actor.
 	 * @see IsNetMode()
 	 */
-	ENetMode GetNetMode() const;
+	ENGINE_API ENetMode GetNetMode() const;
 
 	/**
 	 * Test whether net mode is the given mode.
 	 * In optimized non-editor builds this can be more efficient than GetNetMode()
 	 * because it can check the static build flags without considering PIE.
 	 */
-	bool IsNetMode(ENetMode Mode) const;
+	ENGINE_API bool IsNetMode(ENetMode Mode) const;
 
 	/** Returns the net driver that this actor is bound to, may be null */
-	class UNetDriver* GetNetDriver() const;
+	ENGINE_API class UNetDriver* GetNetDriver() const;
 
 	/** Puts actor in dormant networking state */
 	UFUNCTION(BlueprintAuthorityOnly, BlueprintCallable, Category = "Networking")
-	void SetNetDormancy(ENetDormancy NewDormancy);
+	ENGINE_API void SetNetDormancy(ENetDormancy NewDormancy);
 
 	/** Forces dormant actor to replicate but doesn't change NetDormancy state (i.e., they will go dormant again if left dormant) */
 	UFUNCTION(BlueprintAuthorityOnly, BlueprintCallable, Category="Networking")
-	void FlushNetDormancy();
+	ENGINE_API void FlushNetDormancy();
 
 	/** Forces properties on this actor to do a compare for one frame (rather than share shadow state) */
-	void ForcePropertyCompare();
+	ENGINE_API void ForcePropertyCompare();
 
 	/** Returns whether this Actor was spawned by a child actor component */
 	UFUNCTION(BlueprintCallable, Category="Actor")
-	bool IsChildActor() const;
+	ENGINE_API bool IsChildActor() const;
 
 	/** Returns whether this actor can select its attached actors */
-	virtual bool IsSelectionParentOfAttachedActors() const;
+	ENGINE_API virtual bool IsSelectionParentOfAttachedActors() const;
 
 	/** Returns whether this Actor is part of another's actor selection */
-	virtual bool IsSelectionChild() const;
+	ENGINE_API virtual bool IsSelectionChild() const;
 
 	/** Returns immediate selection parent */
-	virtual AActor* GetSelectionParent() const;
+	ENGINE_API virtual AActor* GetSelectionParent() const;
 
 	/** Returns top most selection parent */
-	virtual AActor* GetRootSelectionParent() const;
+	ENGINE_API virtual AActor* GetRootSelectionParent() const;
 
 	/** Returns if actor or selection parent is selected */
-	bool IsActorOrSelectionParentSelected() const;
+	ENGINE_API bool IsActorOrSelectionParentSelected() const;
 
 	/** Push Selection to actor */
-	virtual void PushSelectionToProxies();
+	ENGINE_API virtual void PushSelectionToProxies();
 
 #if WITH_EDITOR
 	/** Push Foundation Editing state to primitive scene proxy */
-	virtual void PushLevelInstanceEditingStateToProxies(bool bInEditingState);
+	ENGINE_API virtual void PushLevelInstanceEditingStateToProxies(bool bInEditingState);
 #endif
 
 	/** 
@@ -2946,48 +2946,48 @@ public:
 	 * This does not return the contents of the Children array
 	 */
 	UFUNCTION(BlueprintCallable, Category="Actor")
-	void GetAllChildActors(TArray<AActor*>& ChildActors, bool bIncludeDescendants = true) const;
+	ENGINE_API void GetAllChildActors(TArray<AActor*>& ChildActors, bool bIncludeDescendants = true) const;
 
 	/** If this Actor was created by a Child Actor Component returns that Child Actor Component  */
 	UFUNCTION(BlueprintCallable, Category="Actor")
-	UChildActorComponent* GetParentComponent() const;
+	ENGINE_API UChildActorComponent* GetParentComponent() const;
 
 	/** If this Actor was created by a Child Actor Component returns the Actor that owns that Child Actor Component  */
 	UFUNCTION(BlueprintCallable, Category="Actor")
-	AActor* GetParentActor() const;
+	ENGINE_API AActor* GetParentActor() const;
 
 	/** Ensure that all the components in the Components array are registered */
-	virtual void RegisterAllComponents();
+	ENGINE_API virtual void RegisterAllComponents();
 
 	/** Called before all the components in the Components array are registered, called both in editor and during gameplay */
-	virtual void PreRegisterAllComponents();
+	ENGINE_API virtual void PreRegisterAllComponents();
 
 	/** 
 	 * Called after all the components in the Components array are registered, called both in editor and during gameplay.
 	 * bHasRegisteredAllComponents must be set true prior to calling this function.
 	 */
-	virtual void PostRegisterAllComponents();
+	ENGINE_API virtual void PostRegisterAllComponents();
 
 	/** Returns true if Actor has deferred the RegisterAllComponents() call at spawn time (e.g. pending Blueprint SCS execution to set up a scene root component). */
 	FORCEINLINE bool HasDeferredComponentRegistration() const { return bHasDeferredComponentRegistration; }
 
 	/** Returns true if Actor has a registered root component */
-	bool HasValidRootComponent();
+	ENGINE_API bool HasValidRootComponent();
 
 	/** 
 	 * Unregister all currently registered components
 	 * @param bForReregister If true, RegisterAllComponents will be called immediately after this so some slow operations can be avoided
 	 */
-	virtual void UnregisterAllComponents(bool bForReregister = false);
+	ENGINE_API virtual void UnregisterAllComponents(bool bForReregister = false);
 
 	/** Called after all currently registered components are cleared */
-	virtual void PostUnregisterAllComponents();
+	ENGINE_API virtual void PostUnregisterAllComponents();
 
 	/** Will reregister all components on this actor. Does a lot of work - should only really be used in editor, generally use UpdateComponentTransforms or MarkComponentsRenderStateDirty. */
-	virtual void ReregisterAllComponents();
+	ENGINE_API virtual void ReregisterAllComponents();
 
 	/** Finish initializing the component and register tick functions and beginplay if it's the proper time to do so. */
-	void HandleRegisterComponentWithWorld(UActorComponent* Component);
+	ENGINE_API void HandleRegisterComponentWithWorld(UActorComponent* Component);
 
 	/**
 	 * Incrementally registers components associated with this actor, used during level streaming
@@ -2995,22 +2995,22 @@ public:
 	 * @param NumComponentsToRegister  Number of components to register in this run, 0 for all
 	 * @return true when all components were registered for this actor
 	 */
-	bool IncrementalRegisterComponents(int32 NumComponentsToRegister, FRegisterComponentContext* Context = nullptr);
+	ENGINE_API bool IncrementalRegisterComponents(int32 NumComponentsToRegister, FRegisterComponentContext* Context = nullptr);
 
 	/** Flags all component's render state as dirty	 */
-	void MarkComponentsRenderStateDirty();
+	ENGINE_API void MarkComponentsRenderStateDirty();
 
 	/** Update all components transforms */
-	void UpdateComponentTransforms();
+	ENGINE_API void UpdateComponentTransforms();
 
 	/** Iterate over components array and call InitializeComponent, which happens once per actor */
-	void InitializeComponents();
+	ENGINE_API void InitializeComponents();
 
 	/** Iterate over components array and call UninitializeComponent, called when the actor is ending play */
-	void UninitializeComponents();
+	ENGINE_API void UninitializeComponents();
 
 	/** Debug rendering to visualize the component tree for this actor. */
-	void DrawDebugComponents(FColor const& BaseColor=FColor::White) const;
+	ENGINE_API void DrawDebugComponents(FColor const& BaseColor=FColor::White) const;
 
 	
 	UE_DEPRECATED(5.3, "Use MarkComponentsAsGarbage instead.")
@@ -3020,7 +3020,7 @@ public:
 	 *
 	 *  @param bModify if True, Modify will be called on actor before marking components
 	 */
-	virtual void MarkComponentsAsGarbage(bool bModify = true);
+	ENGINE_API virtual void MarkComponentsAsGarbage(bool bModify = true);
 	
 	/**
 	 * Returns true if this actor has begun the destruction process.
@@ -3042,7 +3042,7 @@ public:
 	}
 
 	/** Invalidates anything produced by the last lighting build. */
-	virtual void InvalidateLightingCacheDetailed(bool bTranslationOnly);
+	ENGINE_API virtual void InvalidateLightingCacheDetailed(bool bTranslationOnly);
 
 	/**
 	 * Used for adding actors to levels or teleporting them to a new location.
@@ -3055,7 +3055,7 @@ public:
 	 * @param bNoCheck is true if we should skip checking for encroachment in the world or other actors
 	 * @return true if the actor has been successfully moved, or false if it couldn't fit.
 	 */
-	virtual bool TeleportTo( const FVector& DestLocation, const FRotator& DestRotation, bool bIsATest=false, bool bNoCheck=false );
+	ENGINE_API virtual bool TeleportTo( const FVector& DestLocation, const FRotator& DestRotation, bool bIsATest=false, bool bNoCheck=false );
 
 	/**
 	 * Teleport this actor to a new location. If the actor doesn't fit exactly at the location specified, tries to slightly move it out of walls and such.
@@ -3065,7 +3065,7 @@ public:
 	 * @return true if the actor has been successfully moved, or false if it couldn't fit.
 	 */
 	UFUNCTION(BlueprintCallable, meta=( DisplayName="Teleport", ScriptName="Teleport", Keywords = "Move Position" ), Category="Transformation")
-	bool K2_TeleportTo( FVector DestLocation, FRotator DestRotation );
+	ENGINE_API bool K2_TeleportTo( FVector DestLocation, FRotator DestRotation );
 
 	/** Called from TeleportTo() when teleport succeeds */
 	virtual void TeleportSucceeded(bool bIsATest) {}
@@ -3079,7 +3079,7 @@ public:
 	 * @param  Params          Additional parameters used for the trace
 	 * @return TRUE if a blocking hit is found
 	 */
-	bool ActorLineTraceSingle(struct FHitResult& OutHit, const FVector& Start, const FVector& End, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params) const;
+	ENGINE_API bool ActorLineTraceSingle(struct FHitResult& OutHit, const FVector& Start, const FVector& End, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params) const;
 
 	/** 
 	 * returns Distance to closest Body Instance surface. 
@@ -3093,41 +3093,41 @@ public:
 	 * @return		Success if returns > 0.f, if returns 0.f, it is either not convex or inside of the point
 	 *				If returns < 0.f, this Actor does not have any primitive with collision
 	 */
-	float ActorGetDistanceToCollision(const FVector& Point, ECollisionChannel TraceChannel, FVector& ClosestPointOnCollision, UPrimitiveComponent** OutPrimitiveComponent = nullptr) const;
+	ENGINE_API float ActorGetDistanceToCollision(const FVector& Point, ECollisionChannel TraceChannel, FVector& ClosestPointOnCollision, UPrimitiveComponent** OutPrimitiveComponent = nullptr) const;
 
 	/** Returns true if this actor is contained by TestLevel. */
-	bool IsInLevel(const class ULevel *TestLevel) const;
+	ENGINE_API bool IsInLevel(const class ULevel *TestLevel) const;
 
 	/** Return the ULevel that this Actor is part of. */
 	UFUNCTION(BlueprintCallable, Category=Level)
-	ULevel* GetLevel() const;
+	ENGINE_API ULevel* GetLevel() const;
 
 	/** Return the FTransform of the level this actor is a part of. */
 	UFUNCTION(BlueprintCallable, Category=Level)
-	FTransform GetLevelTransform() const;
+	ENGINE_API FTransform GetLevelTransform() const;
 
 	/**	Do anything needed to clear out cross level references; Called from ULevel::PreSave	 */
-	virtual void ClearCrossLevelReferences();
+	ENGINE_API virtual void ClearCrossLevelReferences();
 	
 	/** Non-virtual function to evaluate which portions of the EndPlay process should be dispatched for each actor */
-	void RouteEndPlay(const EEndPlayReason::Type EndPlayReason);
+	ENGINE_API void RouteEndPlay(const EEndPlayReason::Type EndPlayReason);
 
 	/**
 	 * Iterates up the movement base chain to see whether or not this Actor is based on the given Actor, defaults to checking attachment
 	 * @param Other the Actor to test for
 	 * @return true if this Actor is based on Other Actor
 	 */
-	virtual bool IsBasedOnActor(const AActor* Other) const;
+	ENGINE_API virtual bool IsBasedOnActor(const AActor* Other) const;
 	
 	/**
 	 * Iterates up the attachment chain to see whether or not this Actor is attached to the given Actor
 	 * @param Other the Actor to test for
 	 * @return true if this Actor is attached on Other Actor
 	 */
-	virtual bool IsAttachedTo( const AActor* Other ) const;
+	ENGINE_API virtual bool IsAttachedTo( const AActor* Other ) const;
 
 	/** Get the extent used when placing this actor in the editor, used for 'pulling back' hit. */
-	FVector GetPlacementExtent() const;
+	ENGINE_API FVector GetPlacementExtent() const;
 
 
 	//~=============================================================================
@@ -3135,18 +3135,18 @@ public:
 
 #if WITH_EDITOR
 	/** Find all FRandomStream structs in this Actor and generate new random seeds for them. */
-	void SeedAllRandomStreams();
+	ENGINE_API void SeedAllRandomStreams();
 #endif // WITH_EDITOR
 
 	/** Reset private properties to defaults, and all FRandomStream structs in this Actor, so they will start their sequence of random numbers again. */
-	void ResetPropertiesForConstruction();
+	ENGINE_API void ResetPropertiesForConstruction();
 
 	/** Returns true if the actor's class has a non trivial user construction script. */
-	bool HasNonTrivialUserConstructionScript() const;
+	ENGINE_API bool HasNonTrivialUserConstructionScript() const;
 
 #if WITH_EDITOR
 	/** Rerun construction scripts, destroying all autogenerated components; will attempt to preserve the root component location. */
-	virtual void RerunConstructionScripts();
+	ENGINE_API virtual void RerunConstructionScripts();
 #endif
 
 	/** 
@@ -3154,10 +3154,10 @@ public:
 	 * @param Info			Optional String to display at top of info
 	 * @param bShowPosition	If true, will display component's position in world space
 	 */
-	void DebugShowComponentHierarchy( const TCHAR* Info, bool bShowPosition  = true);
+	ENGINE_API void DebugShowComponentHierarchy( const TCHAR* Info, bool bShowPosition  = true);
 	
 	/** Debug helper for showing the component hierarchy of one component */
-	void DebugShowOneComponentHierarchy( USceneComponent* SceneComp, int32& NestLevel, bool bShowPosition );
+	ENGINE_API void DebugShowOneComponentHierarchy( USceneComponent* SceneComp, int32& NestLevel, bool bShowPosition );
 
 	/**
 	 * Run any construction script for this Actor. Will call OnConstruction.
@@ -3168,7 +3168,7 @@ public:
 	 *
 	 * @return Returns false if the hierarchy was not error free and we've put the Actor is disaster recovery mode
 	 */
-	bool ExecuteConstruction(const FTransform& Transform, const struct FRotationConversionCache* TransformRotationCache, const class FComponentInstanceDataCache* InstanceDataCache, bool bIsDefaultTransform = false, ESpawnActorScaleMethod TransformScaleMethod = ESpawnActorScaleMethod::OverrideRootScale);
+	ENGINE_API bool ExecuteConstruction(const FTransform& Transform, const struct FRotationConversionCache* TransformRotationCache, const class FComponentInstanceDataCache* InstanceDataCache, bool bIsDefaultTransform = false, ESpawnActorScaleMethod TransformScaleMethod = ESpawnActorScaleMethod::OverrideRootScale);
 
 	/**
 	 * Called when an instance of this class is placed (in editor) or spawned.
@@ -3180,144 +3180,144 @@ public:
 	 * Helper function to register the specified component, and add it to the serialized components array
 	 * @param	Component	Component to be finalized
 	 */
-	void FinishAndRegisterComponent(UActorComponent* Component);
+	ENGINE_API void FinishAndRegisterComponent(UActorComponent* Component);
 
 	/**  Util to create a component based on a template	 */
-	UActorComponent* CreateComponentFromTemplate(UActorComponent* Template, const FName InName = NAME_None );
-	UActorComponent* CreateComponentFromTemplateData(const struct FBlueprintCookedComponentInstancingData* TemplateData, const FName InName = NAME_None);
+	ENGINE_API UActorComponent* CreateComponentFromTemplate(UActorComponent* Template, const FName InName = NAME_None );
+	ENGINE_API UActorComponent* CreateComponentFromTemplateData(const struct FBlueprintCookedComponentInstancingData* TemplateData, const FName InName = NAME_None);
 
 	/** Destroys the constructed components. */
-	void DestroyConstructedComponents();
+	ENGINE_API void DestroyConstructedComponents();
 
 #if UE_WITH_IRIS
-	virtual void RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Context, UE::Net::EFragmentRegistrationFlags RegistrationFlags) override;
+	ENGINE_API virtual void RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Context, UE::Net::EFragmentRegistrationFlags RegistrationFlags) override;
 
 	/**
 	 * Called for all Actors set to replicate during BeginPlay, It will also be called if SetReplicates(true) is called and the object is not already replicating
 	 */
-	virtual void BeginReplication();
+	ENGINE_API virtual void BeginReplication();
 
 	/**
 	 * Called when we want to end replication for this actor, typically called from EndPlay() for actors that should be replicated during their lifespan
 	 */
-	virtual void EndReplication(EEndPlayReason::Type EndPlayReason);
+	ENGINE_API virtual void EndReplication(EEndPlayReason::Type EndPlayReason);
 protected:
 	/**
 	 * Pushes the owning NetConnection for the actor and all of its children to the replication system.
 	 * This information decides whether properties with owner conditionals are replicated or not.
 	 */
-	void UpdateOwningNetConnection() const;
+	ENGINE_API void UpdateOwningNetConnection() const;
 
 	/**
 	 * Helper to BeginReplication passing on additional parameters to the ReplicationSystem, typically called from code overriding normal BeginReplication()
 	 * @param Params Additional parameters we want to pass on
 	 */
-	void BeginReplication(const FActorBeginReplicationParams& Params);
+	ENGINE_API void BeginReplication(const FActorBeginReplicationParams& Params);
 #endif // UE_WITH_IRIS
 
 	/**
 	 * Updates the ReplicatePhysics condition. That information needs to be pushed to the ReplicationSystem.
 	 */
-	void UpdateReplicatePhysicsCondition();
+	ENGINE_API void UpdateReplicatePhysicsCondition();
 	
 protected:
 	/**
 	 * Virtual call chain to register all tick functions for the actor class hierarchy
 	 * @param bRegister - true to register, false, to unregister
 	 */
-	virtual void RegisterActorTickFunctions(bool bRegister);
+	ENGINE_API virtual void RegisterActorTickFunctions(bool bRegister);
 
 	/** Runs UserConstructionScript, delays component registration until it's complete. */
-	void ProcessUserConstructionScript();
+	ENGINE_API void ProcessUserConstructionScript();
 
 	/** Checks components for validity, implemented in AActor */
-	bool CheckActorComponents() const;
+	ENGINE_API bool CheckActorComponents() const;
 
 	/** Called after instancing a new Blueprint Component from either a template or cooked data. */
-	void PostCreateBlueprintComponent(UActorComponent* NewActorComp);
+	ENGINE_API void PostCreateBlueprintComponent(UActorComponent* NewActorComp);
 
 public:
 	/** Checks for and resolve any name conflicts prior to instancing a new Blueprint Component. */
-	void CheckComponentInstanceName(const FName InName);
+	ENGINE_API void CheckComponentInstanceName(const FName InName);
 
 	/** Walk up the attachment chain from RootComponent until we encounter a different actor, and return it. If we are not attached to a component in a different actor, returns nullptr */
 	UFUNCTION(BlueprintPure, Category = "Actor")
-	AActor* GetAttachParentActor() const;
+	ENGINE_API AActor* GetAttachParentActor() const;
 
 	/** Walk up the attachment chain from RootComponent until we encounter a different actor, and return the socket name in the component. If we are not attached to a component in a different actor, returns NAME_None */
 	UFUNCTION(BlueprintPure, Category = "Actor")
-	FName GetAttachParentSocketName() const;
+	ENGINE_API FName GetAttachParentSocketName() const;
 
 	/** Call a functor for Actors which are attached directly to a component in this actor. Functor should return true to carry on, false to abort. */
-	void ForEachAttachedActors(TFunctionRef<bool(class AActor*)> Functor) const;
+	ENGINE_API void ForEachAttachedActors(TFunctionRef<bool(class AActor*)> Functor) const;
 	
 	/** Find all Actors which are attached directly to a component in this actor */
 	UFUNCTION(BlueprintPure, Category = "Actor")
-	void GetAttachedActors(TArray<AActor*>& OutActors, bool bResetArray = true, bool bRecursivelyIncludeAttachedActors = false) const;
+	ENGINE_API void GetAttachedActors(TArray<AActor*>& OutActors, bool bResetArray = true, bool bRecursivelyIncludeAttachedActors = false) const;
 
 	/**
 	 * Sets the ticking group for this actor.
 	 * @param NewTickGroup the new value to assign
 	 */
 	UFUNCTION(BlueprintCallable, Category="Actor|Tick", meta=(Keywords = "dependency"))
-	void SetTickGroup(ETickingGroup NewTickGroup);
+	ENGINE_API void SetTickGroup(ETickingGroup NewTickGroup);
 
 	/** Called when this actor is explicitly being destroyed during gameplay or in the editor, not called during level streaming or gameplay ending */
-	virtual void Destroyed();
+	ENGINE_API virtual void Destroyed();
 
 	/** Call ReceiveHit, as well as delegates on Actor and Component */
-	void DispatchBlockingHit(UPrimitiveComponent* MyComp, UPrimitiveComponent* OtherComp, bool bSelfMoved, FHitResult const& Hit);
+	ENGINE_API void DispatchBlockingHit(UPrimitiveComponent* MyComp, UPrimitiveComponent* OtherComp, bool bSelfMoved, FHitResult const& Hit);
 
 	/** Called when the actor falls out of the world 'safely' (below KillZ and such) */
-	virtual void FellOutOfWorld(const class UDamageType& dmgType);
+	ENGINE_API virtual void FellOutOfWorld(const class UDamageType& dmgType);
 
 	/** Called when the Actor is outside the hard limit on world bounds */
-	virtual void OutsideWorldBounds();
+	ENGINE_API virtual void OutsideWorldBounds();
 
 	/** 
 	 * Returns the world space bounding box of all components in this Actor.
 	 * @param bNonColliding Indicates that you want to include non-colliding components in the bounding box
 	 * @param bIncludeFromChildActors If true then recurse in to ChildActor components and find components of the appropriate type in those Actors as well
 	 */
-	virtual FBox GetComponentsBoundingBox(bool bNonColliding = false, bool bIncludeFromChildActors = false) const;
+	ENGINE_API virtual FBox GetComponentsBoundingBox(bool bNonColliding = false, bool bIncludeFromChildActors = false) const;
 
 	/** 
 	 * Calculates the actor space bounding box of all components in this Actor.  This is slower than GetComponentsBoundingBox(), because the local bounds of the components are not cached -- they are recalculated every time this function is called.
 	 * @param bNonColliding Indicates that you want to include non-colliding components in the bounding box
 	 * @param bIncludeFromChildActors If true then recurse in to ChildActor components and find components of the appropriate type in those Actors as well
 	 */
-	virtual FBox CalculateComponentsBoundingBoxInLocalSpace(bool bNonColliding = false, bool bIncludeFromChildActors = false) const;
+	ENGINE_API virtual FBox CalculateComponentsBoundingBoxInLocalSpace(bool bNonColliding = false, bool bIncludeFromChildActors = false) const;
 
 	/** 
 	 * Get half-height/radius of a big axis-aligned cylinder around this actors registered colliding components, or all registered components if bNonColliding is false. 
 	 * @param bNonColliding Indicates that you want to include non-colliding components in the bounding cylinder
 	 * @param bIncludeFromChildActors If true then recurse in to ChildActor components and find components of the appropriate type in those Actors as well
 	*/
-	virtual void GetComponentsBoundingCylinder(float& CollisionRadius, float& CollisionHalfHeight, bool bNonColliding = false, bool bIncludeFromChildActors = false) const;
+	ENGINE_API virtual void GetComponentsBoundingCylinder(float& CollisionRadius, float& CollisionHalfHeight, bool bNonColliding = false, bool bIncludeFromChildActors = false) const;
 
 	/**
 	 * Get axis-aligned cylinder around this actor, used for simple collision checks (ie Pawns reaching a destination).
 	 * If IsRootComponentCollisionRegistered() returns true, just returns its bounding cylinder, otherwise falls back to GetComponentsBoundingCylinder.
 	 */
-	virtual void GetSimpleCollisionCylinder(float& CollisionRadius, float& CollisionHalfHeight) const;
+	ENGINE_API virtual void GetSimpleCollisionCylinder(float& CollisionRadius, float& CollisionHalfHeight) const;
 
 	/** Returns the radius of the collision cylinder from GetSimpleCollisionCylinder(). */
-	float GetSimpleCollisionRadius() const;
+	ENGINE_API float GetSimpleCollisionRadius() const;
 
 	/** Returns the half height of the collision cylinder from GetSimpleCollisionCylinder(). */
-	float GetSimpleCollisionHalfHeight() const;
+	ENGINE_API float GetSimpleCollisionHalfHeight() const;
 
 	/** Returns collision extents vector for this Actor, based on GetSimpleCollisionCylinder(). */
-	FVector GetSimpleCollisionCylinderExtent() const;
+	ENGINE_API FVector GetSimpleCollisionCylinderExtent() const;
 
 	/** Returns true if the root component is registered and has collision enabled.  */
-	virtual bool IsRootComponentCollisionRegistered() const;
+	ENGINE_API virtual bool IsRootComponentCollisionRegistered() const;
 
 	/**
 	 * Networking - called on client when actor is torn off (bTearOff==true), meaning it's no longer replicated to clients.
 	 * @see bTearOff
 	 */
-	virtual void TornOff();
+	ENGINE_API virtual void TornOff();
 
 
 	//~=============================================================================
@@ -3328,22 +3328,22 @@ public:
 	 * It returns Max of state - i.e. if Component A overlaps, but if Component B blocks, it will return block as response
 	 * if Component A ignores, but if Component B overlaps, it will return overlap
 	 */
-	virtual ECollisionResponse GetComponentsCollisionResponseToChannel(ECollisionChannel Channel) const;
+	ENGINE_API virtual ECollisionResponse GetComponentsCollisionResponseToChannel(ECollisionChannel Channel) const;
 
 	/** Stop all simulation from all components in this actor */
-	void DisableComponentsSimulatePhysics();
+	ENGINE_API void DisableComponentsSimulatePhysics();
 
 	/**
 	 * Returns the WorldSettings for the World the actor is in
 	 * If you'd like to know what UWorld this placed actor (not dynamic spawned actor) belong to, use GetTypedOuter<UWorld>()
 	 */
-	class AWorldSettings* GetWorldSettings() const;
+	ENGINE_API class AWorldSettings* GetWorldSettings() const;
 
 	/**
 	 * Return true if the given Pawn can be "based" on this actor (ie walk on it).
 	 * @param Pawn - The pawn that wants to be based on this actor
 	 */
-	virtual bool CanBeBaseForCharacter(class APawn* Pawn) const;
+	ENGINE_API virtual bool CanBeBaseForCharacter(class APawn* Pawn) const;
 
 	/**
 	 * Apply damage to this actor.
@@ -3354,26 +3354,26 @@ public:
 	 * @param DamageCauser		The Actor that directly caused the damage (e.g. the projectile that exploded, the rock that landed on you)
 	 * @return					The amount of damage actually applied.
 	 */
-	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser);
+	ENGINE_API virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser);
 
 protected:
-	virtual float InternalTakeRadialDamage(float Damage, struct FRadialDamageEvent const& RadialDamageEvent, class AController* EventInstigator, AActor* DamageCauser);
-	virtual float InternalTakePointDamage(float Damage, struct FPointDamageEvent const& PointDamageEvent, class AController* EventInstigator, AActor* DamageCauser);
+	ENGINE_API virtual float InternalTakeRadialDamage(float Damage, struct FRadialDamageEvent const& RadialDamageEvent, class AController* EventInstigator, AActor* DamageCauser);
+	ENGINE_API virtual float InternalTakePointDamage(float Damage, struct FPointDamageEvent const& PointDamageEvent, class AController* EventInstigator, AActor* DamageCauser);
 
 public:
 	/** Called when this actor becomes the given PlayerController's ViewTarget. Triggers the Blueprint event K2_OnBecomeViewTarget. */
-	virtual void BecomeViewTarget( class APlayerController* PC );
+	ENGINE_API virtual void BecomeViewTarget( class APlayerController* PC );
 
 	/** Called when this actor is no longer the given PlayerController's ViewTarget. Also triggers the Blueprint event K2_OnEndViewTarget. */
-	virtual void EndViewTarget( class APlayerController* PC );
+	ENGINE_API virtual void EndViewTarget( class APlayerController* PC );
 
 	/** Event called when this Actor becomes the view target for the given PlayerController. */
 	UFUNCTION(BlueprintImplementableEvent, meta=(DisplayName="OnBecomeViewTarget", ScriptName="OnBecomeViewTarget", Keywords="Activate Camera"), Category=Actor)
-	void K2_OnBecomeViewTarget( class APlayerController* PC );
+	ENGINE_API void K2_OnBecomeViewTarget( class APlayerController* PC );
 
 	/** Event called when this Actor is no longer the view target for the given PlayerController. */
 	UFUNCTION(BlueprintImplementableEvent, meta=(DisplayName="OnEndViewTarget", ScriptName="OnEndViewTarget", Keywords="Deactivate Camera"), Category=Actor)
-	void K2_OnEndViewTarget( class APlayerController* PC );
+	ENGINE_API void K2_OnEndViewTarget( class APlayerController* PC );
 
 	/**
 	 * Calculate camera view point, when viewing this actor.
@@ -3381,23 +3381,23 @@ public:
 	 * @param	DeltaTime	Delta time seconds since last update
 	 * @param	OutResult	Camera configuration
 	 */
-	virtual void CalcCamera(float DeltaTime, struct FMinimalViewInfo& OutResult);
+	ENGINE_API virtual void CalcCamera(float DeltaTime, struct FMinimalViewInfo& OutResult);
 
 	/** Returns true if the actor contains an active camera component */
-	virtual bool HasActiveCameraComponent() const;
+	ENGINE_API virtual bool HasActiveCameraComponent() const;
 
 	/** Returns true if the actor contains an active locked to HMD camera component */
-	virtual bool HasActivePawnControlCameraComponent() const;
+	ENGINE_API virtual bool HasActivePawnControlCameraComponent() const;
 
 	/** Returns the human readable string representation of an object. */
-	virtual FString GetHumanReadableName() const;
+	ENGINE_API virtual FString GetHumanReadableName() const;
 
 	/** Reset actor to initial state - used when restarting level without reloading. */
-	virtual void Reset();
+	ENGINE_API virtual void Reset();
 
 	/** Event called when this Actor is reset to its initial state - used when restarting level without reloading. */
 	UFUNCTION(BlueprintImplementableEvent, Category=Actor, meta=(DisplayName="OnReset", ScriptName="OnReset"))
-	void K2_OnReset();
+	ENGINE_API void K2_OnReset();
 
 	/**
 	 * Returns true if this actor has been rendered "recently", with a tolerance in seconds to define what "recent" means. 
@@ -3407,17 +3407,17 @@ public:
 	 * @return Whether this actor was recently rendered.
 	 */
 	UFUNCTION(Category="Rendering", BlueprintCallable, meta=(DisplayName="Was Actor Recently Rendered", Keywords="scene visible"))
-	bool WasRecentlyRendered(float Tolerance = 0.2f) const;
+	ENGINE_API bool WasRecentlyRendered(float Tolerance = 0.2f) const;
 
 	/** Returns the most recent time any of this actor's components were rendered */
-	virtual float GetLastRenderTime() const;
+	ENGINE_API virtual float GetLastRenderTime() const;
 
 	/** Forces this actor to be net relevant if it is not already by default	 */
-	virtual void ForceNetRelevant();
+	ENGINE_API virtual void ForceNetRelevant();
 
 	/** Force actor to be updated to clients/demo net drivers */
 	UFUNCTION( BlueprintCallable, Category="Networking")
-	virtual void ForceNetUpdate();
+	ENGINE_API virtual void ForceNetUpdate();
 
 	/**
 	 * Calls PrestreamTextures() for all the actor's meshcomponents.
@@ -3426,7 +3426,7 @@ public:
 	 * @param CinematicTextureGroups - Bitfield indicating which texture groups that use extra high-resolution mips
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
-	virtual void PrestreamTextures( float Seconds, bool bEnableStreaming, int32 CinematicTextureGroups = 0 );
+	ENGINE_API virtual void PrestreamTextures( float Seconds, bool bEnableStreaming, int32 CinematicTextureGroups = 0 );
 
 	/**
 	 * Returns the point of view of the actor.
@@ -3439,13 +3439,13 @@ public:
 	 * @param	OutRotation - view rotation of actor.
 	 */
 	UFUNCTION(BlueprintCallable, Category = Actor)
-	virtual void GetActorEyesViewPoint( FVector& OutLocation, FRotator& OutRotation ) const;
+	ENGINE_API virtual void GetActorEyesViewPoint( FVector& OutLocation, FRotator& OutRotation ) const;
 
 	/**
 	 * Returns the optimal location to fire weapons at this actor
 	 * @param RequestedBy - the Actor requesting the target location
 	 */
-	virtual FVector GetTargetLocation(AActor* RequestedBy = nullptr) const;
+	ENGINE_API virtual FVector GetTargetLocation(AActor* RequestedBy = nullptr) const;
 
 	/**
 	 * Hook to allow actors to render HUD overlays for themselves.  Called from AHUD::DrawActorOverlays(). 
@@ -3454,19 +3454,19 @@ public:
 	 * @param CameraPosition Position of Camera
 	 * @param CameraDir direction camera is pointing in.
 	 */
-	virtual void PostRenderFor(class APlayerController* PC, class UCanvas* Canvas, FVector CameraPosition, FVector CameraDir);
+	ENGINE_API virtual void PostRenderFor(class APlayerController* PC, class UCanvas* Canvas, FVector CameraPosition, FVector CameraDir);
 
 	/** Returns whether this Actor is in the persistent level, i.e. not a sublevel */
-	bool IsInPersistentLevel(bool bIncludeLevelStreamingPersistent = false) const;
+	ENGINE_API bool IsInPersistentLevel(bool bIncludeLevelStreamingPersistent = false) const;
 
 	/** Getter for the cached world pointer, will return null if the actor is not actually spawned in a level */
-	virtual UWorld* GetWorld() const override final;
+	ENGINE_API virtual UWorld* GetWorld() const override final;
 
 	/** Get the timer instance from the actors world */
-	class FTimerManager& GetWorldTimerManager() const;
+	ENGINE_API class FTimerManager& GetWorldTimerManager() const;
 
 	/** Gets the GameInstance that ultimately contains this actor. */
-	class UGameInstance* GetGameInstance() const;
+	ENGINE_API class UGameInstance* GetGameInstance() const;
 	
 	/** 
 	 * Gets the GameInstance that ultimately contains this actor cast to the template type.
@@ -3479,14 +3479,14 @@ public:
 	}
 
 	/** Returns true if this is a replicated actor that was placed in the map */
-	bool IsNetStartupActor() const;
+	ENGINE_API bool IsNetStartupActor() const;
 
 	/** Searches components array and returns first encountered component of the specified class, native version of GetComponentByClass */
-	virtual UActorComponent* FindComponentByClass(const TSubclassOf<UActorComponent> ComponentClass) const;
+	ENGINE_API virtual UActorComponent* FindComponentByClass(const TSubclassOf<UActorComponent> ComponentClass) const;
 	
 	/** Searches components array and returns first encountered component of the specified class */
 	UFUNCTION(BlueprintCallable, Category = "Actor", meta = (ComponentClass = "/Script/Engine.ActorComponent"), meta = (DeterminesOutputType = "ComponentClass"))
-	UActorComponent* GetComponentByClass(TSubclassOf<UActorComponent> ComponentClass) const;
+	ENGINE_API UActorComponent* GetComponentByClass(TSubclassOf<UActorComponent> ComponentClass) const;
 
 	/** Templated version of GetComponentByClass */
 	template<class T>
@@ -3501,18 +3501,18 @@ public:
 	 * This intended to only be used by blueprints. Use GetComponents() in C++.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Actor", meta = (ComponentClass = "/Script/Engine.ActorComponent", DisplayName = "Get Components By Class", ScriptName = "GetComponentsByClass", DeterminesOutputType = "ComponentClass"))
-	TArray<UActorComponent*> K2_GetComponentsByClass(TSubclassOf<UActorComponent> ComponentClass) const;
+	ENGINE_API TArray<UActorComponent*> K2_GetComponentsByClass(TSubclassOf<UActorComponent> ComponentClass) const;
 
 	/** Gets all the components that inherit from the given class with a given tag. */
 	UFUNCTION(BlueprintCallable, Category = "Actor", meta = (ComponentClass = "/Script/Engine.ActorComponent"), meta = (DeterminesOutputType = "ComponentClass"))
-	TArray<UActorComponent*> GetComponentsByTag(TSubclassOf<UActorComponent> ComponentClass, FName Tag) const;
+	ENGINE_API TArray<UActorComponent*> GetComponentsByTag(TSubclassOf<UActorComponent> ComponentClass, FName Tag) const;
 
 	/** Searches components array and returns first encountered component that implements the given interface. */
-	virtual UActorComponent* FindComponentByInterface(const TSubclassOf<UInterface> Interface) const;
+	ENGINE_API virtual UActorComponent* FindComponentByInterface(const TSubclassOf<UInterface> Interface) const;
 	
 	/** Gets all the components that implements the given interface. */
 	UFUNCTION(BlueprintCallable, Category = "Actor")
-	TArray<UActorComponent*> GetComponentsByInterface(TSubclassOf<UInterface> Interface) const;
+	ENGINE_API TArray<UActorComponent*> GetComponentsByInterface(TSubclassOf<UInterface> Interface) const;
 
 	/** Templatized version of FindComponentByClass that handles casting for you */
 	template<class T>
@@ -3764,30 +3764,30 @@ public:
 	 * The Component must be owned by the Actor or else it will assert
 	 * In general this should not need to be called directly by anything other than UActorComponent functions
 	 */
-	void AddOwnedComponent(UActorComponent* Component);
+	ENGINE_API void AddOwnedComponent(UActorComponent* Component);
 
 	/**
 	 * Removes a component from the OwnedComponents array of the Actor.
 	 * In general this should not need to be called directly by anything other than UActorComponent functions
 	 */
-	void RemoveOwnedComponent(UActorComponent* Component);
+	ENGINE_API void RemoveOwnedComponent(UActorComponent* Component);
 
 #if DO_CHECK || USING_CODE_ANALYSIS
 	/** Utility function for validating that a component is correctly in its Owner's OwnedComponents array */
-	bool OwnsComponent(UActorComponent* Component) const;
+	ENGINE_API bool OwnsComponent(UActorComponent* Component) const;
 #endif
 
 	/**
 	 * Force the Actor to clear and rebuild its OwnedComponents array by evaluating all children (recursively) and locating components
 	 * In general this should not need to be called directly, but can sometimes be necessary as part of undo/redo code paths.
 	 */
-	void ResetOwnedComponents();
+	ENGINE_API void ResetOwnedComponents();
 
 	/** Called when the replicated state of a component changes to update the Actor's cached ReplicatedComponents array */
-	void UpdateReplicatedComponent(UActorComponent* Component);
+	ENGINE_API void UpdateReplicatedComponent(UActorComponent* Component);
 
 	/** Completely synchronizes the replicated components array so that it contains exactly the number of replicated components currently owned */
-	void UpdateAllReplicatedComponents();
+	ENGINE_API void UpdateAllReplicatedComponents();
 
 	/** 
 	* Allows classes to control if a replicated component can actually be replicated or not in a specific actor class. 
@@ -3797,13 +3797,13 @@ public:
 	* @param ComponentToReplicate The replicated component added to the actor.
 	* @return Return COND_None if this component should be replicated to everyone, COND_Never if it should not be replicated at all or any other conditions for specific filtering.
 	*/
-	virtual ELifetimeCondition AllowActorComponentToReplicate(const UActorComponent* ComponentToReplicate) const;
+	ENGINE_API virtual ELifetimeCondition AllowActorComponentToReplicate(const UActorComponent* ComponentToReplicate) const;
 
 	/** 
 	* Change the network condition of a replicated component but only after BeginPlay. 
 	* Using a network condition can allow you to filter to which client the component gets replicated to. 
 	*/
-	void SetReplicatedComponentNetCondition(const UActorComponent* ReplicatedComponent, ELifetimeCondition NetCondition);
+	ENGINE_API void SetReplicatedComponentNetCondition(const UActorComponent* ReplicatedComponent, ELifetimeCondition NetCondition);
 
 	/** Returns whether replication is enabled or not. */
 	FORCEINLINE bool GetIsReplicated() const
@@ -3823,7 +3823,7 @@ public:
 	* @param SubObject The SubObject to replicate
 	* @param NetCondition Optional condition to select which type of connection we will replicate the object to.
 	*/
-	void AddReplicatedSubObject(UObject* SubObject, ELifetimeCondition NetCondition = COND_None);
+	ENGINE_API void AddReplicatedSubObject(UObject* SubObject, ELifetimeCondition NetCondition = COND_None);
 
 	/**
 	* Unregister a SubObject to stop replicating it's properties to clients.
@@ -3832,7 +3832,7 @@ public:
 	* If you want to immediately remove it from client use the DestroyReplicatedSubObjectOnRemotePeers or TearOffReplicatedSubObject functions instead of this one.
 	* @param SubObject The SubObject to remove
 	*/
-	void RemoveReplicatedSubObject(UObject* SubObject);
+	ENGINE_API void RemoveReplicatedSubObject(UObject* SubObject);
 
 	/**
 	* Stop replicating a subobject and tell actor channels to delete the replica of this subobject next time the Actor gets replicated.
@@ -3841,10 +3841,10 @@ public:
 	* subobject doesn't get replicated there either.
 	* @param SubObject THe SubObject to delete
 	*/
-	void DestroyReplicatedSubObjectOnRemotePeers(UObject* SubObject);
+	ENGINE_API void DestroyReplicatedSubObjectOnRemotePeers(UObject* SubObject);
 
 	/** Similar to the other destroy function but for subobjects owned by an ActorComponent */
-	void DestroyReplicatedSubObjectOnRemotePeers(UActorComponent* OwnerComponent, UObject* SubObject);
+	ENGINE_API void DestroyReplicatedSubObjectOnRemotePeers(UActorComponent* OwnerComponent, UObject* SubObject);
 
 	/**
 	* Stop replicating a subobject and tell actor channels who spawned a replica of this subobject to release ownership over it.
@@ -3855,10 +3855,10 @@ public:
 	* subobject doesn't get replicated there either.
 	* @param SubObject The SubObject to tear off
 	*/
-	void TearOffReplicatedSubObjectOnRemotePeers(UObject* SubObject);
+	ENGINE_API void TearOffReplicatedSubObjectOnRemotePeers(UObject* SubObject);
 
 	/** Similar to the other tear off function but for subobjects owned by an ActorComponent */
-	void TearOffReplicatedSubObjectOnRemotePeers(UActorComponent* OwnerComponent, UObject* SubObject);
+	ENGINE_API void TearOffReplicatedSubObjectOnRemotePeers(UActorComponent* OwnerComponent, UObject* SubObject);
 
 	/**
 	* Register a SubObject that will get replicated along with the actor component owning it.
@@ -3866,22 +3866,22 @@ public:
 	* @param SubObject The SubObject to replicate
 	* @param NetCondition Optional condition to select which type of connection we will replicate the object to.
 	*/
-	void AddActorComponentReplicatedSubObject(UActorComponent* OwnerComponent, UObject* SubObject, ELifetimeCondition NetCondition = COND_None);
+	ENGINE_API void AddActorComponentReplicatedSubObject(UActorComponent* OwnerComponent, UObject* SubObject, ELifetimeCondition NetCondition = COND_None);
 
 	/**
 	* Unregister a SubObject owned by an ActorComponent so it stops being replicated.
 	* @param SubObject The SubObject to remove
 	*/
-	void RemoveActorComponentReplicatedSubObject(UActorComponent* OwnerComponent, UObject* SubObject);
+	ENGINE_API void RemoveActorComponentReplicatedSubObject(UActorComponent* OwnerComponent, UObject* SubObject);
 
 	/** Tells if the object has been registered as a replicated subobject of this actor */
-	bool IsReplicatedSubObjectRegistered(const UObject* SubObject) const;
+	ENGINE_API bool IsReplicatedSubObjectRegistered(const UObject* SubObject) const;
 
 	/** Tells if the component has been registered as a replicated component */
-	bool IsReplicatedActorComponentRegistered(const UActorComponent* ReplicatedComponent) const;
+	ENGINE_API bool IsReplicatedActorComponentRegistered(const UActorComponent* ReplicatedComponent) const;
 
 	/** Tells if an object owned by a component has been registered as a replicated subobject of the component */
-	bool IsActorComponentReplicatedSubObjectRegistered(const UActorComponent* OwnerComponent, const UObject* SubObject) const;
+	ENGINE_API bool IsActorComponentReplicatedSubObjectRegistered(const UActorComponent* OwnerComponent, const UObject* SubObject) const;
 
 
 	/**
@@ -3890,7 +3890,7 @@ public:
 	* @param InComponentClass	Only retrieve components of this type.
 	* @param OutComponents this is where the found components will end up. Note that the preexisting contents of OutComponents will get overridden.
 	*/
-	static void GetActorClassDefaultComponents(const TSubclassOf<AActor>& InActorClass, const TSubclassOf<UActorComponent>& InComponentClass, TArray<const UActorComponent*>& OutComponents);
+	static ENGINE_API void GetActorClassDefaultComponents(const TSubclassOf<AActor>& InActorClass, const TSubclassOf<UActorComponent>& InComponentClass, TArray<const UActorComponent*>& OutComponents);
 
 	/**
 	* Fetches the first component of ActorClass's CDO which match the requested component class. Will include the components added via the BP editor (which AActor.GetComponents fails to do for CDOs).
@@ -3898,7 +3898,7 @@ public:
 	* @param InComponentClass	Only retrieve components of this type.
 	* @param OutComponents this is where the found components will end up. Note that the preexisting contents of OutComponents will get overridden.
 	*/
-	static const UActorComponent* GetActorClassDefaultComponent(const TSubclassOf<AActor>& InActorClass, const TSubclassOf<UActorComponent>& InComponentClass);
+	static ENGINE_API const UActorComponent* GetActorClassDefaultComponent(const TSubclassOf<AActor>& InActorClass, const TSubclassOf<UActorComponent>& InComponentClass);
 
 	/**
 	* Get the component of ActorClass's CDO that matches the given object name. Will consider all components, including the ones added via the BP editor (which AActor.GetComponents fails to do for CDOs).
@@ -3906,7 +3906,7 @@ public:
 	* @param InComponentClass	Only consider components of this type.
 	* @param OutComponents this is where the found components will end up. Note that the preexisting contents of OutComponents will get overridden.
 	*/
-	static const UActorComponent* GetActorClassDefaultComponentByName(const TSubclassOf<AActor>& InActorClass, const TSubclassOf<UActorComponent>& InComponentClass, FName InComponentName);
+	static ENGINE_API const UActorComponent* GetActorClassDefaultComponentByName(const TSubclassOf<AActor>& InActorClass, const TSubclassOf<UActorComponent>& InComponentClass, FName InComponentName);
 
 	/**
 	* Iterate over the components of ActorClass's CDO, including the ones added via the BP editor (which AActor.GetComponents fails to return).
@@ -3914,7 +3914,7 @@ public:
 	* @param InComponentClass	Only consider components of this type.
 	* @param InFunc				Code that will be executed for each component. Must return true to continue iteration, or false to stop.
 	*/
-	static void ForEachComponentOfActorClassDefault(const TSubclassOf<AActor>& InActorClass, const TSubclassOf<UActorComponent>& InComponentClass, TFunctionRef<bool(const UActorComponent*)> InFunc);
+	static ENGINE_API void ForEachComponentOfActorClassDefault(const TSubclassOf<AActor>& InActorClass, const TSubclassOf<UActorComponent>& InComponentClass, TFunctionRef<bool(const UActorComponent*)> InFunc);
 
 	/**
 	* Templated version of GetActorClassDefaultComponents()
@@ -3972,19 +3972,19 @@ private:
 	TArray<UE::Net::FReplicatedComponentInfo> ReplicatedComponentsInfo;
 
 	/** Remove the subobject from the registry list. Returns true if the object was found and removed from the list. */
-	bool RemoveReplicatedSubObjectFromList(UObject* SubObject);
+	ENGINE_API bool RemoveReplicatedSubObjectFromList(UObject* SubObject);
 
 	/** Remove the subobject from a component's registry list. Returns true if the object was found and removed from the list. */
-	bool RemoveActorComponentReplicatedSubObjectFromList(UActorComponent* OwnerComponent, UObject* SubObject);
+	ENGINE_API bool RemoveActorComponentReplicatedSubObjectFromList(UActorComponent* OwnerComponent, UObject* SubObject);
 
 	/** Check if a new component is replicated by the actor and must be registered in the list */
-	void AddComponentForReplication(UActorComponent* Component);
+	ENGINE_API void AddComponentForReplication(UActorComponent* Component);
 
 	/** Remove a component from the replicated list */
-	void RemoveReplicatedComponent(UActorComponent* Component);
+	ENGINE_API void RemoveReplicatedComponent(UActorComponent* Component);
 
 	/** Constructs the list of replicated components and their netcondition */
-	void BuildReplicatedComponentsInfo();
+	ENGINE_API void BuildReplicatedComponentsInfo();
 
 protected:
 	/** Set of replicated components, stored as an array to save space as this is generally not very large */
@@ -4012,16 +4012,16 @@ public:
 	TArray<TObjectPtr<UActorComponent>> BlueprintCreatedComponents;
 
 	/** Adds a component to the instance components array */
-	void AddInstanceComponent(UActorComponent* Component);
+	ENGINE_API void AddInstanceComponent(UActorComponent* Component);
 
 	/** Removes a component from the instance components array */
-	void RemoveInstanceComponent(UActorComponent* Component);
+	ENGINE_API void RemoveInstanceComponent(UActorComponent* Component);
 
 	/** Clears the instance components array */
-	void ClearInstanceComponents(bool bDestroyComponents);
+	ENGINE_API void ClearInstanceComponents(bool bDestroyComponents);
 
 	/** Returns the instance components array */
-	const TArray<UActorComponent*>& GetInstanceComponents() const;
+	ENGINE_API const TArray<UActorComponent*>& GetInstanceComponents() const;
 
 	//~=============================================================================
 	// Navigation/AI related functions
@@ -4038,13 +4038,13 @@ public:
 	 * @param Tag Identifier for the noise.
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category="AI", meta=(BlueprintProtected = "true"))
-	void MakeNoise(float Loudness=1.f, APawn* NoiseInstigator=nullptr, FVector NoiseLocation=FVector::ZeroVector, float MaxRange = 0.f, FName Tag = NAME_None);
+	ENGINE_API void MakeNoise(float Loudness=1.f, APawn* NoiseInstigator=nullptr, FVector NoiseLocation=FVector::ZeroVector, float MaxRange = 0.f, FName Tag = NAME_None);
 
 	/** Default Implementation of MakeNoise */
-	static void MakeNoiseImpl(AActor* NoiseMaker, float Loudness, APawn* NoiseInstigator, const FVector& NoiseLocation, float MaxRange, FName Tag);
+	static ENGINE_API void MakeNoiseImpl(AActor* NoiseMaker, float Loudness, APawn* NoiseInstigator, const FVector& NoiseLocation, float MaxRange, FName Tag);
 
 	/** Modifies the global delegate used for handling MakeNoise */
-	static void SetMakeNoiseDelegate(const FMakeNoiseDelegate& NewDelegate);
+	static ENGINE_API void SetMakeNoiseDelegate(const FMakeNoiseDelegate& NewDelegate);
 
 	/**
 	 * Check if owned component should be relevant for navigation
@@ -4053,7 +4053,7 @@ public:
 	virtual bool IsComponentRelevantForNavigation(UActorComponent* Component) const { return true; }
 
 private:
-	static FMakeNoiseDelegate MakeNoiseDelegate;
+	static ENGINE_API FMakeNoiseDelegate MakeNoiseDelegate;
 
 
 public:
@@ -4073,14 +4073,14 @@ public:
 	 * @param YPos				[in]	Y position on Canvas for the previously drawn line. YPos += YL, gives position to draw text for next debug line.
 	 *							[out]	Y position on Canvas for the last line drawn by this function.
 	 */
-	virtual void DisplayDebug(class UCanvas* Canvas, const class FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos);
+	ENGINE_API virtual void DisplayDebug(class UCanvas* Canvas, const class FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos);
 
 	/** Retrieves actor's name used for logging, or string "NULL" if Actor is null */
 	static FString GetDebugName(const AActor* Actor) { return Actor ? Actor->GetName() : TEXT("NULL"); }
 
 #if !UE_BUILD_SHIPPING
 	/** Delegate for globally hooking ProccessEvent calls - used by a non-public testing plugin */
-	static FOnProcessEvent ProcessEventDelegate;
+	static ENGINE_API FOnProcessEvent ProcessEventDelegate;
 #endif
 
 #if !UE_STRIP_DEPRECATED_PROPERTIES
@@ -4091,22 +4091,22 @@ public:
 
 private:
 	/** Helper that already assumes the Hit info is reversed, and avoids creating a temp FHitResult if possible. */
-	void InternalDispatchBlockingHit(UPrimitiveComponent* MyComp, UPrimitiveComponent* OtherComp, bool bSelfMoved, FHitResult const& Hit);
+	ENGINE_API void InternalDispatchBlockingHit(UPrimitiveComponent* MyComp, UPrimitiveComponent* OtherComp, bool bSelfMoved, FHitResult const& Hit);
 
 	/** Private version without inlining that does *not* check Dedicated server build flags (which should already have been done). */
-	ENetMode InternalGetNetMode() const;
+	ENGINE_API ENetMode InternalGetNetMode() const;
 
 	/** Unified implementation function to be called from the two implementations of PostEditUndo for the AActor specific elements that need to happen. */
-	bool InternalPostEditUndo();
+	ENGINE_API bool InternalPostEditUndo();
 
 	friend struct FMarkActorIsBeingDestroyed;
 	friend struct FActorParentComponentSetter;
 	friend struct FSetActorWantsDestroyDuringBeginPlay;
 #if WITH_EDITOR
-	bool IsActorFolderValid() const;
-	void SetFolderPathInternal(const FName& InNewFolderPath, bool bInBroadcastChange = true);
-	void SetFolderGuidInternal(const FGuid& InFolderGuid, bool bInBroadcastChange = true);
-	UActorFolder* GetActorFolder(bool bSkipDeleted = true) const;
+	ENGINE_API bool IsActorFolderValid() const;
+	ENGINE_API void SetFolderPathInternal(const FName& InNewFolderPath, bool bInBroadcastChange = true);
+	ENGINE_API void SetFolderGuidInternal(const FGuid& InFolderGuid, bool bInBroadcastChange = true);
+	ENGINE_API UActorFolder* GetActorFolder(bool bSkipDeleted = true) const;
 
 	friend struct FSetActorHiddenInSceneOutliner;
 	friend struct FSetActorGuid;
@@ -4198,7 +4198,7 @@ public:
 	 *
 	 * SetActorHiddenInGame is preferred preferred in most cases because it respects virtual behavior.
 	 */
-	void SetHidden(const bool bInHidden);
+	ENGINE_API void SetHidden(const bool bInHidden);
 
 	/**
 	 * Gets the property name for bReplicateMovement.
@@ -4222,7 +4222,7 @@ public:
 	}
 
 	/** Sets the value of bReplicateMovement without causing other side effects to this instance. */
-	void SetReplicatingMovement(bool bInReplicateMovement);
+	ENGINE_API void SetReplicatingMovement(bool bInReplicateMovement);
 
 	/**
 	 * Gets the property name for bCanBeDamaged.
@@ -4246,7 +4246,7 @@ public:
 	}
 
 	/** Sets the value of bCanBeDamaged without causing other side effects to this instance. */
-	void SetCanBeDamaged(bool bInCanBeDamaged);
+	ENGINE_API void SetCanBeDamaged(bool bInCanBeDamaged);
 
 	/**
 	 * Gets the property name for Role.
@@ -4261,7 +4261,7 @@ public:
 	/**
 	 * Sets the value of Role without causing other side effects to this instance.
 	 */
-	void SetRole(ENetRole InRole);
+	ENGINE_API void SetRole(ENetRole InRole);
 	
 	/**
 	 * Gets the literal value of ReplicatedMovement.
@@ -4280,10 +4280,10 @@ public:
 	 * This exists so subclasses don't need to have direct access to the ReplicatedMovement property
 	 * so it can be made private later.
 	 */
-	FRepMovement& GetReplicatedMovement_Mutable();
+	ENGINE_API FRepMovement& GetReplicatedMovement_Mutable();
 
 	/** Sets the value of ReplicatedMovement without causing other side effects to this instance. */
-	void SetReplicatedMovement(const FRepMovement& InReplicatedMovement);
+	ENGINE_API void SetReplicatedMovement(const FRepMovement& InReplicatedMovement);
 
 	/**
 	 * Gets the property name for Instigator.
@@ -4296,7 +4296,7 @@ public:
 	}
 
 	/** Sets the value of Instigator without causing other side effects to this instance. */
-	void SetInstigator(APawn* InInstigator);
+	ENGINE_API void SetInstigator(APawn* InInstigator);
 
 	//~ End Methods for Replicated Members.
 };

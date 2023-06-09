@@ -66,7 +66,7 @@ inline bool CompareUnsortedArrays(const TArray<FName>& Array1, const TArray<FNam
 /**
  * Represents a potentially unloaded actor (editor-only)
  */
-class ENGINE_API FWorldPartitionActorDesc
+class FWorldPartitionActorDesc
 {
 	friend class AActor;
 	friend class UWorldPartition;
@@ -115,7 +115,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	inline FSoftObjectPath GetHLODLayer() const { return HLODLayer; }
 	inline const TArray<FName>& GetDataLayers() const { return DataLayers; }
 	inline bool HasResolvedDataLayerInstanceNames() const { return ResolvedDataLayerInstanceNames.IsSet(); }
-	const TArray<FName>& GetDataLayerInstanceNames() const;
+	ENGINE_API const TArray<FName>& GetDataLayerInstanceNames() const;
 	inline const TArray<FName>& GetTags() const { return Tags; }
 	inline void SetDataLayerInstanceNames(const TArray<FName>& InDataLayerInstanceNames) { ResolvedDataLayerInstanceNames = InDataLayerInstanceNames; }
 	inline FName GetActorPackage() const { return ActorPackage; }
@@ -127,9 +127,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	UE_DEPRECATED(5.2, "GetBounds is deprecated, GetEditorBounds or GetRuntimeBounds should be used instead.")
 	FBox GetBounds() const { return GetEditorBounds(); }
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+ENGINE_API PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual FBox GetEditorBounds() const;
-	FBox GetRuntimeBounds() const;
+	ENGINE_API FBox GetRuntimeBounds() const;
 
 	inline const FGuid& GetParentActor() const { return ParentActor; }
 	inline bool IsUsingDataLayerAsset() const { return bIsUsingDataLayerAsset; }
@@ -137,9 +137,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	inline bool GetProperty(FName PropertyName, FName* PropertyValue) const { return Properties.GetProperty(PropertyName, PropertyValue); }
 	inline bool HasProperty(FName PropertyName) const { return Properties.HasProperty(PropertyName); }
 
-	FName GetActorName() const;
-	FName GetActorLabelOrName() const;
-	FName GetDisplayClassName() const;
+	ENGINE_API FName GetActorName() const;
+	ENGINE_API FName GetActorLabelOrName() const;
+	ENGINE_API FName GetDisplayClassName() const;
 
 	inline bool IsDefaultActorDesc() const { return bIsDefaultActorDesc; }
 
@@ -150,13 +150,13 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual const FWorldPartitionActorFilter* GetContainerFilter() const { return nullptr; }
 	virtual bool GetContainerInstance(FContainerInstance& OutContainerInstance) const { return false; }
 
-	FGuid GetContentBundleGuid() const;
+	ENGINE_API FGuid GetContentBundleGuid() const;
 
 	virtual const FGuid& GetSceneOutlinerParent() const { return GetParentActor(); }
 	virtual bool IsResaveNeeded() const { return false; }
-	virtual bool IsRuntimeRelevant(const FActorContainerID& InContainerID) const;
-	virtual bool IsEditorRelevant() const;
-	virtual void CheckForErrors(IStreamingGenerationErrorHandler* ErrorHandler) const;
+	ENGINE_API virtual bool IsRuntimeRelevant(const FActorContainerID& InContainerID) const;
+	ENGINE_API virtual bool IsEditorRelevant() const;
+	ENGINE_API virtual void CheckForErrors(IStreamingGenerationErrorHandler* ErrorHandler) const;
 
 	UE_DEPRECATED(5.2, "ShouldValidateRuntimeGrid is deprecated and should not be used.")
 	virtual bool ShouldValidateRuntimeGrid() const { return true; }
@@ -174,7 +174,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return GetTypeHash(Key.Guid);
 	}
 
-	const FText& GetUnloadedReason() const;
+	ENGINE_API const FText& GetUnloadedReason() const;
 
 	void SetUnloadedReason(FText* InUnloadedReason)
 	{
@@ -243,36 +243,36 @@ public:
 		Full
 	};
 
-	FString ToString(EToStringMode Mode = EToStringMode::Compact) const;
+	ENGINE_API FString ToString(EToStringMode Mode = EToStringMode::Compact) const;
 
-	bool IsLoaded(bool bEvenIfPendingKill=false) const;
-	AActor* GetActor(bool bEvenIfPendingKill=true, bool bEvenIfUnreachable=false) const;
-	AActor* Load() const;
-	virtual void Unload();
+	ENGINE_API bool IsLoaded(bool bEvenIfPendingKill=false) const;
+	ENGINE_API AActor* GetActor(bool bEvenIfPendingKill=true, bool bEvenIfUnreachable=false) const;
+	ENGINE_API AActor* Load() const;
+	ENGINE_API virtual void Unload();
 
-	virtual void Init(const AActor* InActor);
-	virtual void Init(const FWorldPartitionActorDescInitData& DescData);
+	ENGINE_API virtual void Init(const AActor* InActor);
+	ENGINE_API virtual void Init(const FWorldPartitionActorDescInitData& DescData);
 
-	virtual bool Equals(const FWorldPartitionActorDesc* Other) const;
+	ENGINE_API virtual bool Equals(const FWorldPartitionActorDesc* Other) const;
 
 	/**
 	 * Returns true if resaving this actor will have an impact on streaming generation. Before class descriptors, properties changed on a Blueprint 
 	 * that would affect streaming generation weren't taken into account until the actors affected by the change were resaved.
 	 */
-	virtual bool ShouldResave(const FWorldPartitionActorDesc* Other) const;
+	ENGINE_API virtual bool ShouldResave(const FWorldPartitionActorDesc* Other) const;
 
-	void SerializeTo(TArray<uint8>& OutData);
+	ENGINE_API void SerializeTo(TArray<uint8>& OutData);
 
-	void TransformInstance(const FString& From, const FString& To);
+	ENGINE_API void TransformInstance(const FString& From, const FString& To);
 
 	using FActorDescDeprecator = TFunction<void(FArchive&, FWorldPartitionActorDesc*)>;
-	static void RegisterActorDescDeprecator(TSubclassOf<AActor> ActorClass, const FActorDescDeprecator& Deprecator);
+	static ENGINE_API void RegisterActorDescDeprecator(TSubclassOf<AActor> ActorClass, const FActorDescDeprecator& Deprecator);
 
-	bool IsMainWorldOnly() const;
+	ENGINE_API bool IsMainWorldOnly() const;
 protected:
-	FWorldPartitionActorDesc();
+	ENGINE_API FWorldPartitionActorDesc();
 
-	virtual void TransferFrom(const FWorldPartitionActorDesc* From);
+	ENGINE_API virtual void TransferFrom(const FWorldPartitionActorDesc* From);
 
 	virtual void TransferWorldData(const FWorldPartitionActorDesc* From)
 	{
@@ -282,7 +282,7 @@ protected:
 
 	virtual uint32 GetSizeOf() const { return sizeof(FWorldPartitionActorDesc); }
 
-	virtual void Serialize(FArchive& Ar);
+	ENGINE_API virtual void Serialize(FArchive& Ar);
 
 	// Persistent
 	FGuid							Guid;
@@ -323,7 +323,7 @@ protected:
 	bool							bIsDefaultActorDesc;
 	mutable FText*					UnloadedReason;
 
-	static TMap<TSubclassOf<AActor>, FActorDescDeprecator> Deprecators;
+	static ENGINE_API TMap<TSubclassOf<AActor>, FActorDescDeprecator> Deprecators;
 
 #if DO_CHECK
 public:

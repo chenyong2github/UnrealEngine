@@ -8,7 +8,7 @@
 #include "AnimNode_UseCachedPose.generated.h"
 
 USTRUCT()
-struct ENGINE_API FAnimNode_UseCachedPose : public FAnimNode_Base
+struct FAnimNode_UseCachedPose : public FAnimNode_Base
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -21,13 +21,13 @@ struct ENGINE_API FAnimNode_UseCachedPose : public FAnimNode_Base
 	FName CachePoseName;
 
 public:	
-	FAnimNode_UseCachedPose();
+	ENGINE_API FAnimNode_UseCachedPose();
 
 	// FAnimNode_Base interface
-	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
-	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
-	virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
-	virtual void Evaluate_AnyThread(FPoseContext& Output) override;
-	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
+	ENGINE_API virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
+	ENGINE_API virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
+	ENGINE_API virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
+	ENGINE_API virtual void Evaluate_AnyThread(FPoseContext& Output) override;
+	ENGINE_API virtual void GatherDebugData(FNodeDebugData& DebugData) override;
 	// End of FAnimNode_Base interface
 };

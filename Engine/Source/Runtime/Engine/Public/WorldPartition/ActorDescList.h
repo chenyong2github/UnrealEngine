@@ -6,7 +6,7 @@
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionActorDescType.h"
 
-class ENGINE_API FActorDescList
+class FActorDescList
 {
 #if WITH_EDITOR
 	friend struct FWorldPartitionImplBase;
@@ -29,18 +29,18 @@ public:
 	FActorDescList(const FActorDescList&) = delete;
 	FActorDescList& operator=(const FActorDescList&) = delete;
 
-	FWorldPartitionActorDesc* AddActor(const AActor* InActor);
+	ENGINE_API FWorldPartitionActorDesc* AddActor(const AActor* InActor);
 
-	FWorldPartitionActorDesc* GetActorDesc(const FGuid& Guid);
-	const FWorldPartitionActorDesc* GetActorDesc(const FGuid& Guid) const;
+	ENGINE_API FWorldPartitionActorDesc* GetActorDesc(const FGuid& Guid);
+	ENGINE_API const FWorldPartitionActorDesc* GetActorDesc(const FGuid& Guid) const;
 
-	FWorldPartitionActorDesc& GetActorDescChecked(const FGuid& Guid);
-	const FWorldPartitionActorDesc& GetActorDescChecked(const FGuid& Guid) const;
+	ENGINE_API FWorldPartitionActorDesc& GetActorDescChecked(const FGuid& Guid);
+	ENGINE_API const FWorldPartitionActorDesc& GetActorDescChecked(const FGuid& Guid) const;
 
 	int32 GetActorDescCount() const { return ActorsByGuid.Num(); }
 
 	bool IsEmpty() const { return GetActorDescCount() == 0; }
-	void Empty();
+	ENGINE_API void Empty();
 
 	template<bool bConst, class ActorType>
 	class TBaseIterator
@@ -158,12 +158,12 @@ public:
 		{}
 	};
 
-	void AddActorDescriptor(FWorldPartitionActorDesc* ActorDesc);
-	void RemoveActorDescriptor(FWorldPartitionActorDesc* ActorDesc);
+	ENGINE_API void AddActorDescriptor(FWorldPartitionActorDesc* ActorDesc);
+	ENGINE_API void RemoveActorDescriptor(FWorldPartitionActorDesc* ActorDesc);
 
 protected:
 
-	TUniquePtr<FWorldPartitionActorDesc>* GetActorDescriptor(const FGuid& ActorGuid);
+	ENGINE_API TUniquePtr<FWorldPartitionActorDesc>* GetActorDescriptor(const FGuid& ActorGuid);
 
 	TChunkedArray<TUniquePtr<FWorldPartitionActorDesc>> ActorDescList;
 

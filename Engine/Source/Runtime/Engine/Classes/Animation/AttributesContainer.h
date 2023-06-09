@@ -23,7 +23,7 @@ namespace UE
 	{
 		static FName BoneAttributeNamespace("bone");
 		/** Runtime identifier for an attribute */
-		struct ENGINE_API FAttributeId
+		struct FAttributeId
 		{
 			FAttributeId(const FName& InName, const FCompactPoseBoneIndex& InCompactBoneIndex) : Namespace(BoneAttributeNamespace), Name(InName), Index(InCompactBoneIndex.GetInt()) {}
 			FAttributeId(const FName& InName, int32 InIndex, const FName& InNamespace) : Namespace(InNamespace), Name(InName), Index(InIndex) {}

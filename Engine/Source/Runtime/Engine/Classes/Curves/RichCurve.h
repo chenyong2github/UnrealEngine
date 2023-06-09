@@ -76,7 +76,7 @@ enum ERichCurveKeyTimeCompressionFormat : int
 
 /** One key in a rich, editable float curve */
 USTRUCT(BlueprintType)
-struct ENGINE_API FRichCurveKey
+struct FRichCurveKey
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -153,15 +153,15 @@ struct ENGINE_API FRichCurveKey
 	{ }
 
 	/** Conversion constructor */
-	FRichCurveKey(const FInterpCurvePoint<float>& InPoint);
-	FRichCurveKey(const FInterpCurvePoint<FVector2D>& InPoint, int32 ComponentIndex);
-	FRichCurveKey(const FInterpCurvePoint<FVector>& InPoint, int32 ComponentIndex);
-	FRichCurveKey(const FInterpCurvePoint<FTwoVectors>& InPoint, int32 ComponentIndex);
+	ENGINE_API FRichCurveKey(const FInterpCurvePoint<float>& InPoint);
+	ENGINE_API FRichCurveKey(const FInterpCurvePoint<FVector2D>& InPoint, int32 ComponentIndex);
+	ENGINE_API FRichCurveKey(const FInterpCurvePoint<FVector>& InPoint, int32 ComponentIndex);
+	ENGINE_API FRichCurveKey(const FInterpCurvePoint<FTwoVectors>& InPoint, int32 ComponentIndex);
 
 	/** ICPPStructOps interface */
-	bool Serialize(FArchive& Ar);
-	bool operator==(const FRichCurveKey& Other) const;
-	bool operator!=(const FRichCurveKey& Other) const;
+	ENGINE_API bool Serialize(FArchive& Ar);
+	ENGINE_API bool operator==(const FRichCurveKey& Other) const;
+	ENGINE_API bool operator!=(const FRichCurveKey& Other) const;
 
 	friend FArchive& operator<<(FArchive& Ar, FRichCurveKey& P)
 	{
@@ -194,7 +194,7 @@ struct TStructOpsTypeTraits<FRichCurveKey>
 
 /** A rich, editable float curve */
 USTRUCT()
-struct ENGINE_API FRichCurve
+struct FRichCurve
 	: public FRealCurve
 {
 	GENERATED_USTRUCT_BODY()
@@ -202,25 +202,25 @@ struct ENGINE_API FRichCurve
 public:
 
 	/** Gets a copy of the keys, so indices and handles can't be meddled with */
-	TArray<FRichCurveKey> GetCopyOfKeys() const;
+	ENGINE_API TArray<FRichCurveKey> GetCopyOfKeys() const;
 
 	/** Gets a const reference of the keys, so indices and handles can't be meddled with */
-	const TArray<FRichCurveKey>& GetConstRefOfKeys() const;
+	ENGINE_API const TArray<FRichCurveKey>& GetConstRefOfKeys() const;
 
 	/** Const iterator for the keys, so the indices and handles stay valid */
-	TArray<FRichCurveKey>::TConstIterator GetKeyIterator() const;
+	ENGINE_API TArray<FRichCurveKey>::TConstIterator GetKeyIterator() const;
 	
 	/** Functions for getting keys based on handles */
-	FRichCurveKey& GetKey(FKeyHandle KeyHandle);
-	FRichCurveKey GetKey(FKeyHandle KeyHandle) const;
-	const FRichCurveKey& GetKeyRef(FKeyHandle KeyHandle) const;
+	ENGINE_API FRichCurveKey& GetKey(FKeyHandle KeyHandle);
+	ENGINE_API FRichCurveKey GetKey(FKeyHandle KeyHandle) const;
+	ENGINE_API const FRichCurveKey& GetKeyRef(FKeyHandle KeyHandle) const;
 	
 	/** Quick accessors for the first and last keys */
-	FRichCurveKey GetFirstKey() const;
-	FRichCurveKey GetLastKey() const;
+	ENGINE_API FRichCurveKey GetFirstKey() const;
+	ENGINE_API FRichCurveKey GetLastKey() const;
 
 	/** Get the first key that matches any of the given key handles. */
-	FRichCurveKey* GetFirstMatchingKey(const TArray<FKeyHandle>& KeyHandles);
+	ENGINE_API FRichCurveKey* GetFirstMatchingKey(const TArray<FKeyHandle>& KeyHandles);
 
 	/**
 	  * Add a new key to the curve with the supplied Time and Value. Returns the handle of the new key.
@@ -228,14 +228,14 @@ public:
 	  * @param	bUnwindRotation		When true, the value will be treated like a rotation value in degrees, and will automatically be unwound to prevent flipping 360 degrees from the previous key 
 	  * @param  KeyHandle			Optionally can specify what handle this new key should have, otherwise, it'll make a new one
 	  */
-	virtual FKeyHandle AddKey(float InTime, float InValue, const bool bUnwindRotation = false, FKeyHandle KeyHandle = FKeyHandle()) final override;
+	ENGINE_API virtual FKeyHandle AddKey(float InTime, float InValue, const bool bUnwindRotation = false, FKeyHandle KeyHandle = FKeyHandle()) final override;
 
 	/**
 	* Reserves keys to be added by AddKey.
 	* 
 	* @see AddKey
 	*/
-	void ReserveKeys(const int32 Number);
+	ENGINE_API void ReserveKeys(const int32 Number);
 
 	/**
 	 * Sets the keys with the keys.
@@ -244,7 +244,7 @@ public:
 	 *
 	 * @see AddKey, DeleteKey
 	 */
-	void SetKeys(const TArray<FRichCurveKey>& InKeys);
+	ENGINE_API void SetKeys(const TArray<FRichCurveKey>& InKeys);
 
 	/**
 	 *  Remove the specified key from the curve.
@@ -252,96 +252,96 @@ public:
 	 * @param KeyHandle The handle of the key to remove.
 	 * @see AddKey, SetKeys
 	 */
-	void DeleteKey(FKeyHandle KeyHandle) final override;
+	ENGINE_API void DeleteKey(FKeyHandle KeyHandle) final override;
 
 	/** Finds the key at InTime, and updates its value. If it can't find the key within the KeyTimeTolerance, it adds one at that time */
-	virtual FKeyHandle UpdateOrAddKey(float InTime, float InValue, const bool bUnwindRotation = false, float KeyTimeTolerance = UE_KINDA_SMALL_NUMBER) final override;
+	ENGINE_API virtual FKeyHandle UpdateOrAddKey(float InTime, float InValue, const bool bUnwindRotation = false, float KeyTimeTolerance = UE_KINDA_SMALL_NUMBER) final override;
 
 	/** Move a key to a new time. */
-	virtual void SetKeyTime(FKeyHandle KeyHandle, float NewTime) final override;
+	ENGINE_API virtual void SetKeyTime(FKeyHandle KeyHandle, float NewTime) final override;
 
 	/** Get the time for the Key with the specified index. */
-	virtual float GetKeyTime(FKeyHandle KeyHandle) const final override;
+	ENGINE_API virtual float GetKeyTime(FKeyHandle KeyHandle) const final override;
 
 	/** Set the value of the specified key */
-	virtual void SetKeyValue(FKeyHandle KeyHandle, float NewValue, bool bAutoSetTangents = true) final override;
+	ENGINE_API virtual void SetKeyValue(FKeyHandle KeyHandle, float NewValue, bool bAutoSetTangents = true) final override;
 
 	/** Returns the value of the specified key */
-	virtual float GetKeyValue(FKeyHandle KeyHandle) const final override;
+	ENGINE_API virtual float GetKeyValue(FKeyHandle KeyHandle) const final override;
 
 	/** Returns a <Time, Value> pair for the specified key */
-	virtual TPair<float, float> GetKeyTimeValuePair(FKeyHandle KeyHandle) const final override;
+	ENGINE_API virtual TPair<float, float> GetKeyTimeValuePair(FKeyHandle KeyHandle) const final override;
 
 	/** Returns whether the curve is constant or not */
-	bool IsConstant(float Tolerance = UE_SMALL_NUMBER) const;
+	ENGINE_API bool IsConstant(float Tolerance = UE_SMALL_NUMBER) const;
 
 	/** Returns whether the curve is empty or not */
 	bool IsEmpty() const { return Keys.Num() == 0; }
 
 	/** Set the interp mode of the specified key */
-	virtual void SetKeyInterpMode(FKeyHandle KeyHandle, ERichCurveInterpMode NewInterpMode) final override;
-	void SetKeyInterpMode(FKeyHandle KeyHandle, ERichCurveInterpMode NewInterpMode, bool bAutoSetTangents);
+	ENGINE_API virtual void SetKeyInterpMode(FKeyHandle KeyHandle, ERichCurveInterpMode NewInterpMode) final override;
+	ENGINE_API void SetKeyInterpMode(FKeyHandle KeyHandle, ERichCurveInterpMode NewInterpMode, bool bAutoSetTangents);
 
 	/** Set the tangent mode of the specified key */
-	void SetKeyTangentMode(FKeyHandle KeyHandle, ERichCurveTangentMode NewTangentMode, bool bAutoSetTangents = true);
+	ENGINE_API void SetKeyTangentMode(FKeyHandle KeyHandle, ERichCurveTangentMode NewTangentMode, bool bAutoSetTangents = true);
 
 	/** Set the tangent weight mode of the specified key */
-	void SetKeyTangentWeightMode(FKeyHandle KeyHandle, ERichCurveTangentWeightMode NewTangentWeightMode, bool bAutoSetTangents = true);
+	ENGINE_API void SetKeyTangentWeightMode(FKeyHandle KeyHandle, ERichCurveTangentWeightMode NewTangentWeightMode, bool bAutoSetTangents = true);
 
 	/** Get the interp mode of the specified key */
-	virtual ERichCurveInterpMode GetKeyInterpMode(FKeyHandle KeyHandle) const final override;
+	ENGINE_API virtual ERichCurveInterpMode GetKeyInterpMode(FKeyHandle KeyHandle) const final override;
 
 	/** Get the tangent mode of the specified key */
-	ERichCurveTangentMode GetKeyTangentMode(FKeyHandle KeyHandle) const;
+	ENGINE_API ERichCurveTangentMode GetKeyTangentMode(FKeyHandle KeyHandle) const;
 
 	/** Get range of input time values. Outside this region curve continues constantly the start/end values. */
-	virtual void GetTimeRange(float& MinTime, float& MaxTime) const final override;
+	ENGINE_API virtual void GetTimeRange(float& MinTime, float& MaxTime) const final override;
 
 	/** Get range of output values. */
-	virtual void GetValueRange(float& MinValue, float& MaxValue) const final override;
+	ENGINE_API virtual void GetValueRange(float& MinValue, float& MaxValue) const final override;
 
 	/** Clear all keys. */
-	virtual void Reset() final override;
+	ENGINE_API virtual void Reset() final override;
 
 	/** Remap InTime based on pre and post infinity extrapolation values */
-	virtual void RemapTimeValue(float& InTime, float& CycleValueOffset) const final override;
+	ENGINE_API virtual void RemapTimeValue(float& InTime, float& CycleValueOffset) const final override;
 
 	/** Evaluate this rich curve at the specified time */
-	virtual float Eval(float InTime, float InDefaultValue = 0.0f) const final override;
+	ENGINE_API virtual float Eval(float InTime, float InDefaultValue = 0.0f) const final override;
 
 	/** Auto set tangents for any 'auto' keys in curve */
-	void AutoSetTangents(float Tension = 0.f);
+	ENGINE_API void AutoSetTangents(float Tension = 0.f);
 
 	/** Resize curve length to the [MinTimeRange, MaxTimeRange] */
-	virtual void ReadjustTimeRange(float NewMinTimeRange, float NewMaxTimeRange, bool bInsert/* whether insert or remove*/, float OldStartTime, float OldEndTime) final override;
+	ENGINE_API virtual void ReadjustTimeRange(float NewMinTimeRange, float NewMaxTimeRange, bool bInsert/* whether insert or remove*/, float OldStartTime, float OldEndTime) final override;
 
 	/** Determine if two RichCurves are the same */
-	bool operator == (const FRichCurve& Curve) const;
+	ENGINE_API bool operator == (const FRichCurve& Curve) const;
 
 	/** Bake curve given the sample rate */
-	virtual void BakeCurve(float SampleRate) final override;
-	virtual void BakeCurve(float SampleRate, float FirstKeyTime, float LastKeyTime) final override;
+	ENGINE_API virtual void BakeCurve(float SampleRate) final override;
+	ENGINE_API virtual void BakeCurve(float SampleRate, float FirstKeyTime, float LastKeyTime) final override;
 
 	/** Remove redundant keys, comparing against Tolerance */
 	UE_DEPRECATED(5.1, "FRichCurve::RemoveRedundantKeys is deprecated, use signature with additional SampleRate or RemoveRedundantAutoTangentKeys instead")
 	void RemoveRedundantKeys(float Tolerance) { RemoveRedundantAutoTangentKeys(Tolerance); }
-	void RemoveRedundantAutoTangentKeys(float Tolerance);
-	virtual void RemoveRedundantKeys(float Tolerance, FFrameRate SampleRate) final override;
+	ENGINE_API void RemoveRedundantAutoTangentKeys(float Tolerance);
+	ENGINE_API virtual void RemoveRedundantKeys(float Tolerance, FFrameRate SampleRate) final override;
 
 	UE_DEPRECATED(5.1, "FRichCurve::RemoveRedundantKeys is deprecated, use signature with additional SampleRate or RemoveRedundantAutoTangentKeys instead")
 	void RemoveRedundantKeys(float Tolerance, float FirstKeyTime, float LastKeyTime) { RemoveRedundantAutoTangentKeys(Tolerance, FirstKeyTime, LastKeyTime); }
-	void RemoveRedundantAutoTangentKeys(float Tolerance, float FirstKeyTime, float LastKeyTime);
-	virtual void RemoveRedundantKeys(float Tolerance, float FirstKeyTime, float LastKeyTime, FFrameRate SampleRate) final override;
+	ENGINE_API void RemoveRedundantAutoTangentKeys(float Tolerance, float FirstKeyTime, float LastKeyTime);
+	ENGINE_API virtual void RemoveRedundantKeys(float Tolerance, float FirstKeyTime, float LastKeyTime, FFrameRate SampleRate) final override;
 
 	/** Compresses a rich curve for efficient runtime storage and evaluation */
-	void CompressCurve(struct FCompressedRichCurve& OutCurve, float ErrorThreshold = 0.0001f, float SampleRate = 120.0) const;
+	ENGINE_API void CompressCurve(struct FCompressedRichCurve& OutCurve, float ErrorThreshold = 0.0001f, float SampleRate = 120.0) const;
 
 	/** Allocates a duplicate of the curve */
 	virtual FIndexedCurve* Duplicate() const final { return new FRichCurve(*this); }
 
 private:
-	void RemoveRedundantKeysInternal(float Tolerance, int32 InStartKeepKey, int32 InEndKeepKey, FFrameRate SampleRate);
-	virtual int32 GetKeyIndex(float KeyTime, float KeyTimeTolerance) const override final;
+	ENGINE_API void RemoveRedundantKeysInternal(float Tolerance, int32 InStartKeepKey, int32 InEndKeepKey, FFrameRate SampleRate);
+	ENGINE_API virtual int32 GetKeyIndex(float KeyTime, float KeyTimeTolerance) const override final;
 
 public:
 
@@ -360,7 +360,7 @@ public:
  * A runtime optimized representation of a FRichCurve. It consumes less memory and evaluates faster.
  */
 USTRUCT()
-struct ENGINE_API FCompressedRichCurve
+struct FCompressedRichCurve
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -404,17 +404,17 @@ struct ENGINE_API FCompressedRichCurve
 	{}
 
 	/** Evaluate this rich curve at the specified time */
-	float Eval(float InTime, float InDefaultValue = 0.0f) const;
+	ENGINE_API float Eval(float InTime, float InDefaultValue = 0.0f) const;
 
 	/** Populate RichCurve with decompressed key-data */
-	void PopulateCurve(FRichCurve& OutCurve) const;
+	ENGINE_API void PopulateCurve(FRichCurve& OutCurve) const;
 
 	/** Evaluate this rich curve at the specified time */
-	static float StaticEval(ERichCurveCompressionFormat CompressionFormat, ERichCurveKeyTimeCompressionFormat KeyTimeCompressionFormat, ERichCurveExtrapolation PreInfinityExtrap, ERichCurveExtrapolation PostInfinityExtrap, TConstantValueNumKeys ConstantValueNumKeys, const uint8* CompressedKeys, float InTime, float InDefaultValue = 0.0f);
+	static ENGINE_API float StaticEval(ERichCurveCompressionFormat CompressionFormat, ERichCurveKeyTimeCompressionFormat KeyTimeCompressionFormat, ERichCurveExtrapolation PreInfinityExtrap, ERichCurveExtrapolation PostInfinityExtrap, TConstantValueNumKeys ConstantValueNumKeys, const uint8* CompressedKeys, float InTime, float InDefaultValue = 0.0f);
 
 	/** ICPPStructOps interface */
-	bool Serialize(FArchive& Ar);
-	bool operator==(const FCompressedRichCurve& Other) const;
+	ENGINE_API bool Serialize(FArchive& Ar);
+	ENGINE_API bool operator==(const FCompressedRichCurve& Other) const;
 	bool operator!=(const FCompressedRichCurve& Other) const { return !(*this == Other); }
 
 	friend FArchive& operator<<(FArchive& Ar, FCompressedRichCurve& Curve)

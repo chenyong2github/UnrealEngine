@@ -9,7 +9,7 @@
 #include "CurveVector.generated.h"
 
 USTRUCT(BlueprintType)
-struct ENGINE_API FRuntimeVectorCurve
+struct FRuntimeVectorCurve
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -19,11 +19,11 @@ struct ENGINE_API FRuntimeVectorCurve
 	UPROPERTY(EditAnywhere, Category = RuntimeFloatCurve)
 	TObjectPtr<class UCurveVector> ExternalCurve = nullptr;
 
-	FVector GetValue(float InTime) const;
+	ENGINE_API FVector GetValue(float InTime) const;
 	
 	/** Get the current curve struct */
-    FRichCurve* GetRichCurve(int32 Index);
-	const FRichCurve* GetRichCurveConst(int32 Index) const;
+    ENGINE_API FRichCurve* GetRichCurve(int32 Index);
+	ENGINE_API const FRichCurve* GetRichCurveConst(int32 Index) const;
 };
 
 UCLASS(BlueprintType, MinimalAPI)

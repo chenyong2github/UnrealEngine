@@ -14,13 +14,13 @@ class USceneComponent;
 class UWorld;
 
 
-UCLASS()
-class ENGINE_API ACameraShakeSourceActor : public AActor
+UCLASS(MinimalAPI)
+class ACameraShakeSourceActor : public AActor
 {
 	GENERATED_BODY()
 
 public:
-	ACameraShakeSourceActor(const FObjectInitializer& ObjectInitializer);
+	ENGINE_API ACameraShakeSourceActor(const FObjectInitializer& ObjectInitializer);
 
 	UCameraShakeSourceComponent* GetCameraShakeSourceComponent() const { return CameraShakeSourceComponent; }
 

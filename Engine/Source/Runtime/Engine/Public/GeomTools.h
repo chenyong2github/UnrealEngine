@@ -7,7 +7,7 @@
 class UStaticMesh;
 
 /** An edge in 3D space, used by these utility functions. */
-struct ENGINE_API FUtilEdge3D
+struct FUtilEdge3D
 {
 	/** Start of edge in 3D space. */
 	FVector3f V0;
@@ -16,7 +16,7 @@ struct ENGINE_API FUtilEdge3D
 };
 
 /** An edge in 2D space, used by these utility functions. */
-struct ENGINE_API FUtilEdge2D
+struct FUtilEdge2D
 {
 	/** Start of edge in 2D space. */
 	FVector2D V0;
@@ -25,7 +25,7 @@ struct ENGINE_API FUtilEdge2D
 };
 
 /** A triangle vertex in 2D space, with UV information. */
-struct ENGINE_API FUtilVertex2D
+struct FUtilVertex2D
 {
 	FVector2D Pos;
 	FColor Color;
@@ -44,27 +44,27 @@ struct ENGINE_API FUtilVertex2D
 };
 
 /** A polygon in 2D space, used by utility function. */
-struct ENGINE_API FUtilPoly2D
+struct FUtilPoly2D
 {
 	/** Set of verts, in order, for polygon. */
 	TArray<FUtilVertex2D> Verts;
 };
 
 /** A set of 2D polygons, along with a transform for going into world space. */
-struct ENGINE_API FUtilPoly2DSet
+struct FUtilPoly2DSet
 {
 	TArray<FUtilPoly2D>	Polys;
 	FMatrix PolyToWorld;
 };
 
 /** Triangle in 2D space. */
-struct ENGINE_API FUtilTri2D
+struct FUtilTri2D
 {
 	FUtilVertex2D Verts[3];
 };
 
 /** Temp vertex struct for one vert of a static mesh triangle. */
-struct ENGINE_API FClipSMVertex
+struct FClipSMVertex
 {
 	FVector3f Pos;
 	FVector3f TangentX;
@@ -75,7 +75,7 @@ struct ENGINE_API FClipSMVertex
 };
 
 /** Properties of a clipped static mesh face. */
-struct ENGINE_API FClipSMFace
+struct FClipSMFace
 {
 	int32 MaterialIndex;
 	uint32 SmoothingMask;
@@ -97,12 +97,12 @@ struct ENGINE_API FClipSMFace
 };
 
 /** Properties of a clipped static mesh triangle. */
-struct ENGINE_API FClipSMTriangle : FClipSMFace
+struct FClipSMTriangle : FClipSMFace
 {
 	FClipSMVertex Vertices[3];
 
 	/** Compute the triangle's normal, and the gradients of the triangle's vertex attributes over XYZ. */
-	void ComputeGradientsAndNormal();
+	ENGINE_API void ComputeGradientsAndNormal();
 
 	FClipSMTriangle(int32 Init)
 	{
@@ -111,7 +111,7 @@ struct ENGINE_API FClipSMTriangle : FClipSMFace
 };
 
 /** Properties of a clipped static mesh polygon. */
-struct ENGINE_API FClipSMPolygon : FClipSMFace
+struct FClipSMPolygon : FClipSMFace
 {
 	TArray<FClipSMVertex> Vertices;
 
@@ -164,39 +164,39 @@ namespace FGeomTools
 };
 
 
-class ENGINE_API FGeomTools2D
+class FGeomTools2D
 {
 public:
 	// Corrects the polygon winding to match bNegativeWinding
 	// Ie. If the vertex order doesn't match the winding, it is reversed
 	// Returns empty array of points if num points < 3
-	static void CorrectPolygonWinding(TArray<FVector2D>& OutVertices, const TArray<FVector2D>& Vertices, const bool bNegativeWinding);
+	static ENGINE_API void CorrectPolygonWinding(TArray<FVector2D>& OutVertices, const TArray<FVector2D>& Vertices, const bool bNegativeWinding);
 
 	// Returns true if the points forming a polygon have CCW winding
 	// Returns true if the polygon isn't valid
-	static bool IsPolygonWindingCCW(const TArray<FVector2D>& Points);
-	static bool IsPolygonWindingCCW(const TArray<FIntPoint>& Points);
+	static ENGINE_API bool IsPolygonWindingCCW(const TArray<FVector2D>& Points);
+	static ENGINE_API bool IsPolygonWindingCCW(const TArray<FIntPoint>& Points);
 
 	// Checks that these polygons can be successfully triangulated	
-	static bool ArePolygonsValid(const TArray<TArray<FVector2D>>& Polygons);
+	static ENGINE_API bool ArePolygonsValid(const TArray<TArray<FVector2D>>& Polygons);
 
 	// Merge additive and subtractive polygons, split them up into additive polygons
 	// Assumes all polygons and overlapping polygons are valid, and the windings match the setting on the polygon
-	static TArray<TArray<FVector2D>> ReducePolygons(const TArray<TArray<FVector2D>>& Polygons, const TArray<bool>& PolygonNegativeWinding);
+	static ENGINE_API TArray<TArray<FVector2D>> ReducePolygons(const TArray<TArray<FVector2D>>& Polygons, const TArray<bool>& PolygonNegativeWinding);
 
 	// Triangulate a polygon. Check notes in implementation
-	static bool TriangulatePoly(TArray<FVector2D>& OutTris, const TArray<FVector2D>& PolygonVertices, bool bKeepColinearVertices = false);
+	static ENGINE_API bool TriangulatePoly(TArray<FVector2D>& OutTris, const TArray<FVector2D>& PolygonVertices, bool bKeepColinearVertices = false);
 
 	// 2D version of RemoveRedundantTriangles from GeomTools
-	static void RemoveRedundantTriangles(TArray<FVector2D>& OutTriangles, const TArray<FVector2D>& InTriangles);
+	static ENGINE_API void RemoveRedundantTriangles(TArray<FVector2D>& OutTriangles, const TArray<FVector2D>& InTriangles);
 
 	// Generate convex shapes
-	static void GenerateConvexPolygonsFromTriangles(TArray<TArray<FVector2D>>& OutPolygons, const TArray<FVector2D>& InTriangles);
+	static ENGINE_API void GenerateConvexPolygonsFromTriangles(TArray<TArray<FVector2D>>& OutPolygons, const TArray<FVector2D>& InTriangles);
 
 	// Generate convex hull from points
-	static void GenerateConvexHullFromPoints(TArray<FVector2D>& OutConvexHull, TArray<FVector2D>& Points);
+	static ENGINE_API void GenerateConvexHullFromPoints(TArray<FVector2D>& OutConvexHull, TArray<FVector2D>& Points);
 
 	// Returns true if TestPoint is inside the polygon defined by PolygonPoints
-	static bool IsPointInPolygon(const FVector2D& TestPoint, const TArray<FVector2D>& PolygonPoints);
+	static ENGINE_API bool IsPointInPolygon(const FVector2D& TestPoint, const TArray<FVector2D>& PolygonPoints);
 };
 

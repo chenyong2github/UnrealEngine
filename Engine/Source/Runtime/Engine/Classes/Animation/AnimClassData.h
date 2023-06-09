@@ -38,8 +38,8 @@ struct UE_DEPRECATED(5.0, "This type is no longer in use and will be removed.") 
 
 // @todo: BP2CPP_remove
 class UE_DEPRECATED(5.0, "This type is no longer in use and will be removed.") UAnimClassData;
-UCLASS()
-class ENGINE_API UAnimClassData : public UObject, public IAnimClassInterface
+UCLASS(MinimalAPI)
+class UAnimClassData : public UObject, public IAnimClassInterface
 {
 	GENERATED_BODY()
 public:
@@ -147,7 +147,7 @@ private:
 	virtual const FAnimBlueprintMutableData* GetMutableNodeData(const UObject* InObject) const override { return nullptr; }
 	virtual FAnimBlueprintMutableData* GetMutableNodeData(UObject* InObject) const override { return nullptr; }
 	virtual const void* GetConstantNodeData() const override { return nullptr; }
-	virtual TArrayView<const FAnimNodeData> GetNodeData() const override;
+	ENGINE_API virtual TArrayView<const FAnimNodeData> GetNodeData() const override;
 	virtual int32 GetAnimNodePropertyIndex(const UScriptStruct* InNodeType, FName InPropertyName) const override { return INDEX_NONE; }
 	virtual int32 GetAnimNodePropertyCount(const UScriptStruct* InNodeType) const override { return 0; }
 	
@@ -162,6 +162,6 @@ private:
 public:
 #if WITH_EDITOR
 	// Copy data from an existing BP generated class to this class data
-	void CopyFrom(UAnimBlueprintGeneratedClass* AnimClass);
+	ENGINE_API void CopyFrom(UAnimBlueprintGeneratedClass* AnimClass);
 #endif // WITH_EDITOR
 };

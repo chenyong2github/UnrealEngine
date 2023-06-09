@@ -13,7 +13,7 @@ template<typename TConcrete> class TWeightedLatticeImplicitObject;
 }
 
 USTRUCT()
-struct ENGINE_API FKSkinnedLevelSetElem : public FKShapeElem
+struct FKSkinnedLevelSetElem : public FKShapeElem
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -32,20 +32,20 @@ struct ENGINE_API FKSkinnedLevelSetElem : public FKShapeElem
 		return *this;
 	}
 
-	void SetWeightedLevelSet(TUniquePtr< Chaos::TWeightedLatticeImplicitObject<Chaos::FLevelSet>>&& InWeightedLevelSet);
+	ENGINE_API void SetWeightedLevelSet(TUniquePtr< Chaos::TWeightedLatticeImplicitObject<Chaos::FLevelSet>>&& InWeightedLevelSet);
 
-	FTransform GetTransform() const;
+	ENGINE_API FTransform GetTransform() const;
 
 	// Draw functions
-	virtual void DrawElemWire(class FPrimitiveDrawInterface* PDI, const FTransform& ElemTM, const float Scale, const FColor Color) const override;
-	virtual void DrawElemSolid(class FPrimitiveDrawInterface* PDI, const FTransform& ElemTM, const float Scale, const FMaterialRenderProxy* MaterialRenderProxy) const override;
-	void GetElemSolid(const FTransform& ElemTM, const FVector& Scale3D, const FMaterialRenderProxy* MaterialRenderProxy, int32 ViewIndex, class FMeshElementCollector& Collector) const;
+	ENGINE_API virtual void DrawElemWire(class FPrimitiveDrawInterface* PDI, const FTransform& ElemTM, const float Scale, const FColor Color) const override;
+	ENGINE_API virtual void DrawElemSolid(class FPrimitiveDrawInterface* PDI, const FTransform& ElemTM, const float Scale, const FMaterialRenderProxy* MaterialRenderProxy) const override;
+	ENGINE_API void GetElemSolid(const FTransform& ElemTM, const FVector& Scale3D, const FMaterialRenderProxy* MaterialRenderProxy, int32 ViewIndex, class FMeshElementCollector& Collector) const;
 
-	FBox CalcAABB(const FTransform& BoneTM, const FVector& Scale3D) const;
-	FIntVector3 LevelSetGridResolution() const;
-	FIntVector3 LatticeGridResolution() const;
+	ENGINE_API FBox CalcAABB(const FTransform& BoneTM, const FVector& Scale3D) const;
+	ENGINE_API FIntVector3 LevelSetGridResolution() const;
+	ENGINE_API FIntVector3 LatticeGridResolution() const;
 
-	bool Serialize(FArchive& Ar);
+	ENGINE_API bool Serialize(FArchive& Ar);
 
 	const TSharedPtr<Chaos::TWeightedLatticeImplicitObject<Chaos::FLevelSet>>& GetWeightedLevelSet() const
 	{
@@ -57,7 +57,7 @@ private:
 	TSharedPtr<Chaos::TWeightedLatticeImplicitObject<Chaos::FLevelSet>, ESPMode::ThreadSafe> WeightedLevelSet;
 
 	/** Helper function to safely copy instances of this shape*/
-	 void CloneElem(const FKSkinnedLevelSetElem& Other);
+	 ENGINE_API void CloneElem(const FKSkinnedLevelSetElem& Other);
 };
 
 /* Enable our own serialization function to handle FKSkinnedLevelSetElem */

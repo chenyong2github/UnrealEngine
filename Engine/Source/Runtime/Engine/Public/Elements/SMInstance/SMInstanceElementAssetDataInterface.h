@@ -6,11 +6,11 @@
 
 #include "SMInstanceElementAssetDataInterface.generated.h"
 
-UCLASS()
-class ENGINE_API USMInstanceElementAssetDataInterface : public UObject, public ITypedElementAssetDataInterface
+UCLASS(MinimalAPI)
+class USMInstanceElementAssetDataInterface : public UObject, public ITypedElementAssetDataInterface
 {
 	GENERATED_BODY()
 
 public:
-	virtual FAssetData GetAssetData(const FTypedElementHandle& InElementHandle) override;
+	ENGINE_API virtual FAssetData GetAssetData(const FTypedElementHandle& InElementHandle) override;
 };

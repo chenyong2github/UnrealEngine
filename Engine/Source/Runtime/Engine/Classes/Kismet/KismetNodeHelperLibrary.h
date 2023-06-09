@@ -12,8 +12,8 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "KismetNodeHelperLibrary.generated.h"
 
-UCLASS(meta=(BlueprintThreadSafe))
-class ENGINE_API UKismetNodeHelperLibrary : public UBlueprintFunctionLibrary
+UCLASS(meta=(BlueprintThreadSafe), MinimalAPI)
+class UKismetNodeHelperLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_UCLASS_BODY()
 
@@ -27,7 +27,7 @@ class ENGINE_API UKismetNodeHelperLibrary : public UBlueprintFunctionLibrary
 	 * @return  - Whether the bit at index "Index" is set or not
 	 */
 	 UFUNCTION(BlueprintCallable, meta=(BlueprintInternalUseOnly = "TRUE"))
-	static bool BitIsMarked(int32 Data, int32 Index);
+	static ENGINE_API bool BitIsMarked(int32 Data, int32 Index);
 
 	/**
 	 * Sets the bit at index "Index" in the data
@@ -36,7 +36,7 @@ class ENGINE_API UKismetNodeHelperLibrary : public UBlueprintFunctionLibrary
 	 * @param Index - The bit index into the Data that we are setting
 	 */
 	UFUNCTION(BlueprintCallable, meta=(BlueprintInternalUseOnly = "TRUE"))
-	static void MarkBit(int32& Data, int32 Index);
+	static ENGINE_API void MarkBit(int32& Data, int32 Index);
 
 	/**
 	 * Clears the bit at index "Index" in the data
@@ -45,7 +45,7 @@ class ENGINE_API UKismetNodeHelperLibrary : public UBlueprintFunctionLibrary
 	 * @param Index - The bit index into the Data that we are clearing
 	 */
 	UFUNCTION(BlueprintCallable, meta=(BlueprintInternalUseOnly = "TRUE"))
-	static void ClearBit(int32& Data, int32 Index);
+	static ENGINE_API void ClearBit(int32& Data, int32 Index);
 
 	/**
 	 * Clears all of the bit in the data
@@ -53,7 +53,7 @@ class ENGINE_API UKismetNodeHelperLibrary : public UBlueprintFunctionLibrary
 	 * @param Data - The integer containing the bits that are being cleared
 	 */
 	UFUNCTION(BlueprintCallable, meta=(BlueprintInternalUseOnly = "TRUE"))
-	static void ClearAllBits(int32& Data);
+	static ENGINE_API void ClearAllBits(int32& Data);
 
 	/**
 	 * Returns whether there exists an unmarked bit in the data
@@ -63,7 +63,7 @@ class ENGINE_API UKismetNodeHelperLibrary : public UBlueprintFunctionLibrary
 	 * @return - Whether there is a bit not marked in the data
 	 */
 	UFUNCTION(BlueprintCallable, meta=(BlueprintInternalUseOnly = "TRUE"))
-	static bool HasUnmarkedBit(int32 Data, int32 NumBits);
+	static ENGINE_API bool HasUnmarkedBit(int32 Data, int32 NumBits);
 
 	/**
 	 * Returns whether there exists a marked bit in the data
@@ -73,7 +73,7 @@ class ENGINE_API UKismetNodeHelperLibrary : public UBlueprintFunctionLibrary
 	 * @return - Whether there is a bit marked in the data
 	 */
 	UFUNCTION(BlueprintCallable, meta=(BlueprintInternalUseOnly = "TRUE"))
-	static bool HasMarkedBit(int32 Data, int32 NumBits);
+	static ENGINE_API bool HasMarkedBit(int32 Data, int32 NumBits);
 
 	/**
 	 * Gets an already unmarked bit and returns the bit index selected
@@ -85,7 +85,7 @@ class ENGINE_API UKismetNodeHelperLibrary : public UBlueprintFunctionLibrary
 	 * @return - The index that was selected (returns INDEX_NONE if there was no unmarked bits to choose from)
 	 */
 	UFUNCTION(BlueprintCallable, meta=(BlueprintInternalUseOnly = "TRUE", NotBlueprintThreadSafe))
-	static int32 GetUnmarkedBit(int32 Data, int32 StartIdx, int32 NumBits, bool bRandom);
+	static ENGINE_API int32 GetUnmarkedBit(int32 Data, int32 StartIdx, int32 NumBits, bool bRandom);
 
 	/**
 	 * Gets a random not already marked bit and returns the bit index selected
@@ -95,7 +95,7 @@ class ENGINE_API UKismetNodeHelperLibrary : public UBlueprintFunctionLibrary
 	 * @return - The index that was selected (returns INDEX_NONE if there was no unmarked bits to choose from)
 	 */
 	UFUNCTION(BlueprintCallable, meta=(BlueprintInternalUseOnly = "TRUE", NotBlueprintThreadSafe))
-	static int32 GetRandomUnmarkedBit(int32 Data, int32 StartIdx, int32 NumBits);
+	static ENGINE_API int32 GetRandomUnmarkedBit(int32 Data, int32 StartIdx, int32 NumBits);
 
 	/**
 	 * Gets the first index not already marked starting from a specific index and returns the bit index selected
@@ -106,7 +106,7 @@ class ENGINE_API UKismetNodeHelperLibrary : public UBlueprintFunctionLibrary
 	 * @return - The index that was selected (returns INDEX_NONE if there was no unmarked bits to choose from)
 	 */
 	UFUNCTION(BlueprintCallable, meta=(BlueprintInternalUseOnly = "TRUE"))
-	static int32 GetFirstUnmarkedBit(int32 Data, int32 StartIdx, int32 NumBits);
+	static ENGINE_API int32 GetFirstUnmarkedBit(int32 Data, int32 StartIdx, int32 NumBits);
 
 	// --- Functions for handling Enumerators ------------------------------
 
@@ -118,7 +118,7 @@ class ENGINE_API UKismetNodeHelperLibrary : public UBlueprintFunctionLibrary
 	 * @return - name of the searched enumerator, or NAME_None
 	 */
 	UFUNCTION(BlueprintPure, meta=(BlueprintInternalUseOnly = "TRUE"))
-	static FName GetEnumeratorName(const UEnum* Enum, uint8 EnumeratorValue);
+	static ENGINE_API FName GetEnumeratorName(const UEnum* Enum, uint8 EnumeratorValue);
 
 	/**
 	 * Gets enumerator name as FString. Use DeisplayName when possible.
@@ -128,7 +128,7 @@ class ENGINE_API UKismetNodeHelperLibrary : public UBlueprintFunctionLibrary
 	 * @return - name of the searched enumerator, or NAME_None
 	 */
 	UFUNCTION(BlueprintPure, meta=(BlueprintInternalUseOnly = "TRUE"))
-	static FString GetEnumeratorUserFriendlyName(const UEnum* Enum, uint8 EnumeratorValue);
+	static ENGINE_API FString GetEnumeratorUserFriendlyName(const UEnum* Enum, uint8 EnumeratorValue);
 
 	/**
 	 * @param Enum - Enumeration
@@ -136,7 +136,7 @@ class ENGINE_API UKismetNodeHelperLibrary : public UBlueprintFunctionLibrary
 	 * @return - if EnumeratorIndex is valid return EnumeratorIndex, otherwise return MAX value of Enum
 	 */
 	UFUNCTION(BlueprintPure, meta=(BlueprintInternalUseOnly = "TRUE"))
-	static uint8 GetValidValue(const UEnum* Enum, uint8 EnumeratorValue);
+	static ENGINE_API uint8 GetValidValue(const UEnum* Enum, uint8 EnumeratorValue);
 
 	/**
 	 * @param Enum - Enumeration
@@ -144,5 +144,5 @@ class ENGINE_API UKismetNodeHelperLibrary : public UBlueprintFunctionLibrary
 	 * @return - The value of the enumerator, or INDEX_NONE
 	 */
 	UFUNCTION(BlueprintPure, meta=(BlueprintInternalUseOnly = "TRUE"))
-	static uint8 GetEnumeratorValueFromIndex(const UEnum* Enum, uint8 EnumeratorIndex);
+	static ENGINE_API uint8 GetEnumeratorValueFromIndex(const UEnum* Enum, uint8 EnumeratorIndex);
 };

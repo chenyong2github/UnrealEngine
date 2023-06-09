@@ -17,14 +17,14 @@ enum EShaderPlatform : uint16;
  * Modules that inherit from this need to be loaded before shader compilation starts (PostConfigInit)
  * so that the correct vertex factories can be created.
  */
-class ENGINE_API IMeshDeformerProvider : public IModularFeature
+class IMeshDeformerProvider : public IModularFeature
 {
 public:
 	virtual ~IMeshDeformerProvider() {}
 
-	static const FName ModularFeatureName; // "MeshDeformer"
-	static bool IsAvailable();
-	static IMeshDeformerProvider* Get();
+	static ENGINE_API const FName ModularFeatureName; // "MeshDeformer"
+	static ENGINE_API bool IsAvailable();
+	static ENGINE_API IMeshDeformerProvider* Get();
 
 	/** Returns true if the platform is supported. */
 	virtual bool IsSupported(EShaderPlatform Platform) const = 0;

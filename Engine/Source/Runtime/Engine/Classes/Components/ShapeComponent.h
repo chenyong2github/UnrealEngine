@@ -20,8 +20,8 @@ namespace physx
 /**
  * ShapeComponent is a PrimitiveComponent that is represented by a simple geometrical shape (sphere, capsule, box, etc).
  */
-UCLASS(abstract, hidecategories=(Object,LOD,Lighting,TextureStreaming,Activation,"Components|Activation"), editinlinenew, meta=(BlueprintSpawnableComponent), showcategories=(Mobility))
-class ENGINE_API UShapeComponent : public UPrimitiveComponent
+UCLASS(abstract, hidecategories=(Object,LOD,Lighting,TextureStreaming,Activation,"Components|Activation"), editinlinenew, meta=(BlueprintSpawnableComponent), showcategories=(Mobility), MinimalAPI)
+class UShapeComponent : public UPrimitiveComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -90,18 +90,18 @@ protected:
 public:
 
 	//~ Begin UPrimitiveComponent Interface.
-	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
-	virtual class UBodySetup* GetBodySetup() override;
-	virtual bool DoCustomNavigableGeometryExport(FNavigableGeometryExport& GeomExport) const override;
-	virtual void GetNavigationData(FNavigationRelevantData& Data) const override;
+	ENGINE_API virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
+	ENGINE_API virtual class UBodySetup* GetBodySetup() override;
+	ENGINE_API virtual bool DoCustomNavigableGeometryExport(FNavigableGeometryExport& GeomExport) const override;
+	ENGINE_API virtual void GetNavigationData(FNavigationRelevantData& Data) const override;
 	//~ End UPrimitiveComponent Interface.
 
 	//~ Begin INavRelevantInterface Interface
-	virtual bool IsNavigationRelevant() const override;
+	ENGINE_API virtual bool IsNavigationRelevant() const override;
 	//~ End INavRelevantInterface Interface
 
 	//~ Begin USceneComponent Interface
-	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
+	ENGINE_API virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	virtual bool ShouldCollideWhenPlacing() const override
 	{
 		return bShouldCollideWhenPlacing || IsCollisionEnabled();
@@ -109,23 +109,23 @@ public:
 	//~ End USceneComponent Interface
 
 	//~ Begin UObject Interface.
-	virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
 	virtual bool GetIgnoreBoundsForEditorFocus() const override { return true; }
 #if WITH_EDITORONLY_DATA
-	static void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
+	static ENGINE_API void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
 #endif
 
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 	//~ End UObject Interface.
 
 	/** Update the body setup parameters based on shape information*/
-	virtual void UpdateBodySetup();
+	ENGINE_API virtual void UpdateBodySetup();
 
-	TSubclassOf<class UNavAreaBase> GetDesiredAreaClass() const;
-	void SetAreaClassOverride(TSubclassOf<class UNavAreaBase> InAreaClassOverride);
-	void SetUseSystemDefaultObstacleAreaClass();
+	ENGINE_API TSubclassOf<class UNavAreaBase> GetDesiredAreaClass() const;
+	ENGINE_API void SetAreaClassOverride(TSubclassOf<class UNavAreaBase> InAreaClassOverride);
+	ENGINE_API void SetUseSystemDefaultObstacleAreaClass();
 };
 
 enum class EShapeBodySetupHelper

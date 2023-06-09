@@ -18,7 +18,7 @@ class UMirrorDataTable;
  * Cant be used outside of this context as it has no graph node counterpart 
  */
 USTRUCT(BlueprintInternalUseOnly)
-struct ENGINE_API FAnimNode_SingleNode : public FAnimNode_Base
+struct FAnimNode_SingleNode : public FAnimNode_Base
 {
 	friend struct FAnimSingleNodeInstanceProxy;
 
@@ -31,8 +31,8 @@ struct ENGINE_API FAnimNode_SingleNode : public FAnimNode_Base
 	FName ActiveMontageSlot;
 
 	// FAnimNode_Base interface
-	virtual void Evaluate_AnyThread(FPoseContext& Output) override;
-	virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
+	ENGINE_API virtual void Evaluate_AnyThread(FPoseContext& Output) override;
+	ENGINE_API virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
 	// End of FAnimNode_Base interface
 
 private:
@@ -42,7 +42,7 @@ private:
 
 /** Proxy override for this UAnimInstance-derived class */
 USTRUCT()
-struct ENGINE_API FAnimSingleNodeInstanceProxy : public FAnimInstanceProxy
+struct FAnimSingleNodeInstanceProxy : public FAnimInstanceProxy
 {
 	friend struct FAnimNode_SingleNode;
 
@@ -78,15 +78,15 @@ public:
 #endif
 	}
 
-	virtual ~FAnimSingleNodeInstanceProxy();
+	ENGINE_API virtual ~FAnimSingleNodeInstanceProxy();
 
-	virtual void Initialize(UAnimInstance* InAnimInstance) override;
-	virtual bool Evaluate(FPoseContext& Output) override;
-	virtual void UpdateAnimationNode(const FAnimationUpdateContext& InContext) override;
-	virtual void PostUpdate(UAnimInstance* InAnimInstance) const override;
-	virtual void PreUpdate(UAnimInstance* InAnimInstance, float DeltaSeconds) override;
-	virtual void InitializeObjects(UAnimInstance* InAnimInstance) override;
-	virtual void ClearObjects() override;
+	ENGINE_API virtual void Initialize(UAnimInstance* InAnimInstance) override;
+	ENGINE_API virtual bool Evaluate(FPoseContext& Output) override;
+	ENGINE_API virtual void UpdateAnimationNode(const FAnimationUpdateContext& InContext) override;
+	ENGINE_API virtual void PostUpdate(UAnimInstance* InAnimInstance) const override;
+	ENGINE_API virtual void PreUpdate(UAnimInstance* InAnimInstance, float DeltaSeconds) override;
+	ENGINE_API virtual void InitializeObjects(UAnimInstance* InAnimInstance) override;
+	ENGINE_API virtual void ClearObjects() override;
 
 	void SetPlaying(bool bIsPlaying)
 	{
@@ -118,9 +118,9 @@ public:
 		WeightInfo.Reset();
 	}
 
-	virtual void SetAnimationAsset(UAnimationAsset* NewAsset, USkeletalMeshComponent* MeshComponent, bool bIsLooping, float InPlayRate);
+	ENGINE_API virtual void SetAnimationAsset(UAnimationAsset* NewAsset, USkeletalMeshComponent* MeshComponent, bool bIsLooping, float InPlayRate);
 
-	void UpdateBlendspaceSamples(FVector InBlendInput);
+	ENGINE_API void UpdateBlendspaceSamples(FVector InBlendInput);
 
 	void SetCurrentTime(float InCurrentTime)
 	{
@@ -153,21 +153,21 @@ public:
 		return BlendFilter.GetFilterLastOutput();
 	}
 
-	void SetReverse(bool bInReverse);
+	ENGINE_API void SetReverse(bool bInReverse);
 
 	/** Sets the target blend space position */
-	void SetBlendSpacePosition(const FVector& InPosition);
+	ENGINE_API void SetBlendSpacePosition(const FVector& InPosition);
 
 	/**
 	 * Returns the current target/requested blend space position, and the filtered (smoothed) position.
 	 */
-	void GetBlendSpaceState(FVector& OutPosition, FVector& OutFilteredPosition) const;
+	ENGINE_API void GetBlendSpaceState(FVector& OutPosition, FVector& OutFilteredPosition) const;
 
 	/** 
 	* Returns the length (seconds), not including any rate multipliers, calculated by 
 	* weighting the currently active samples 
 	*/
-	float GetBlendSpaceLength() const;
+	ENGINE_API float GetBlendSpaceLength() const;
 
 #if WITH_EDITOR
 	bool CanProcessAdditiveAnimations() const
@@ -176,24 +176,24 @@ public:
 	}
 #endif
 
-	void SetMirrorDataTable(const UMirrorDataTable* InMirrorDataTable);
+	ENGINE_API void SetMirrorDataTable(const UMirrorDataTable* InMirrorDataTable);
 
-	const UMirrorDataTable* GetMirrorDataTable();
+	ENGINE_API const UMirrorDataTable* GetMirrorDataTable();
 
 #if WITH_EDITORONLY_DATA
-	void PropagatePreviewCurve(FPoseContext& Output);
+	ENGINE_API void PropagatePreviewCurve(FPoseContext& Output);
 #endif // WITH_EDITORONLY_DATA
 
-	void SetPreviewCurveOverride(const FName& PoseName, float Value, bool bRemoveIfZero);
+	ENGINE_API void SetPreviewCurveOverride(const FName& PoseName, float Value, bool bRemoveIfZero);
 
 	// Update internal weight structures for supplied slot name
-	void UpdateMontageWeightForSlot(const FName CurrentSlotNodeName, float InGlobalNodeWeight);
+	ENGINE_API void UpdateMontageWeightForSlot(const FName CurrentSlotNodeName, float InGlobalNodeWeight);
 
 	// Set the montage slot to preview
-	void SetMontagePreviewSlot(FName PreviewSlot);
+	ENGINE_API void SetMontagePreviewSlot(FName PreviewSlot);
 
 private:
-	void InternalBlendSpaceEvaluatePose(class UBlendSpace* BlendSpace, TArray<FBlendSampleData>& BlendSampleDataCache, FPoseContext& OutContext);
+	ENGINE_API void InternalBlendSpaceEvaluatePose(class UBlendSpace* BlendSpace, TArray<FBlendSampleData>& BlendSampleDataCache, FPoseContext& OutContext);
 
 protected:
 #if WITH_EDITOR

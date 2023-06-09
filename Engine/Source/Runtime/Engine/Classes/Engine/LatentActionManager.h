@@ -10,7 +10,7 @@ class FPendingLatentAction;
 
 // Latent action info
 USTRUCT(BlueprintInternalUseOnly)
-struct ENGINE_API FLatentActionInfo
+struct FLatentActionInfo
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -60,7 +60,7 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FOnLatentActionsChanged, UObject*, ELatentA
 
 // The latent action manager handles all pending latent actions for a single world
 USTRUCT()
-struct ENGINE_API FLatentActionManager
+struct FLatentActionManager
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -90,7 +90,7 @@ public:
 	 * @param		DeltaTime	Delta time.
 	 *
 	 */
-	void ProcessLatentActions(UObject* InObject, float DeltaTime);
+	ENGINE_API void ProcessLatentActions(UObject* InObject, float DeltaTime);
 
 	/** 
 	 * Finds the action instance for the supplied UUID, or will return NULL if one does not already exist.
@@ -144,18 +144,18 @@ public:
 	 *
 	 * @param		InOject		Specific object
 	 */	
-	void RemoveActionsForObject(TWeakObjectPtr<UObject> InObject);
+	ENGINE_API void RemoveActionsForObject(TWeakObjectPtr<UObject> InObject);
 
 	/** 
 	 * Adds a new action to the action list under a given UUID 
 	 */
-	void AddNewAction(UObject* InActionObject, int32 UUID, FPendingLatentAction* NewAction);
+	ENGINE_API void AddNewAction(UObject* InActionObject, int32 UUID, FPendingLatentAction* NewAction);
 
 	/** Resets the list of objects we have processed the latent action list for.	 */	
-	void BeginFrame();
+	ENGINE_API void BeginFrame();
 
 	/** Returns the number of actions for a given object */
-	int32 GetNumActionsForObject(TWeakObjectPtr<UObject> InObject);
+	ENGINE_API int32 GetNumActionsForObject(TWeakObjectPtr<UObject> InObject);
 
 #if WITH_EDITOR
 	/** 
@@ -165,7 +165,7 @@ public:
 	 * @param	UUIDList	Array to add the UUID of each pending latent action to.
 	 *
 	 */
-	void GetActiveUUIDs(UObject* InObject, TSet<int32>& UUIDList) const;
+	ENGINE_API void GetActiveUUIDs(UObject* InObject, TSet<int32>& UUIDList) const;
 
 	/** 
 	 * Gets the description string of a pending latent action with the specified UUID for a given object, or the empty string if it's an invalid UUID
@@ -174,10 +174,10 @@ public:
 	  * @param		UUIDList	Array to add UUID to.
 	 *
 	 */
-	FString GetDescription(UObject* InObject, int32 UUID) const;
+	ENGINE_API FString GetDescription(UObject* InObject, int32 UUID) const;
 #endif
 
-	~FLatentActionManager();
+	ENGINE_API ~FLatentActionManager();
 
 protected:
 	/** 
@@ -212,7 +212,7 @@ protected:
 	  * @param		InObject			the object itself.
 	  *
 	  */
-	void TickLatentActionForObject(float DeltaTime, FActionList& ObjectActionList, UObject* InObject);
+	ENGINE_API void TickLatentActionForObject(float DeltaTime, FActionList& ObjectActionList, UObject* InObject);
 
 protected:
 	/**List of actions that will be unconditionally removed at the begin of next tick */
@@ -222,7 +222,7 @@ protected:
 	FActionsForObject ActionsToRemoveMap;
 
 	/** Delegate called when a latent action is added or removed */
-	static FOnLatentActionsChanged LatentActionsChangedDelegate;
+	static ENGINE_API FOnLatentActionsChanged LatentActionsChangedDelegate;
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

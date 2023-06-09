@@ -7,7 +7,7 @@
 
 // Handle to a unique object. This may specify a full weigh actor or it may only specify the light weight instance that represents the same object.
 USTRUCT(BlueprintType)
-struct ENGINE_API FActorInstanceHandle
+struct FActorInstanceHandle
 {
 	GENERATED_BODY()
 
@@ -15,37 +15,37 @@ struct ENGINE_API FActorInstanceHandle
 	friend class ALightWeightInstanceManager;
 	friend class UActorInstanceHandleInterface;
 
-	FActorInstanceHandle();
+	ENGINE_API FActorInstanceHandle();
 
-	explicit FActorInstanceHandle(AActor* InActor);
-	explicit FActorInstanceHandle(class ALightWeightInstanceManager* Manager, int32 InInstanceIndex);
+	ENGINE_API explicit FActorInstanceHandle(AActor* InActor);
+	ENGINE_API explicit FActorInstanceHandle(class ALightWeightInstanceManager* Manager, int32 InInstanceIndex);
 
-	FActorInstanceHandle(const FActorInstanceHandle& Other);
+	ENGINE_API FActorInstanceHandle(const FActorInstanceHandle& Other);
 
-	bool IsValid() const;
+	ENGINE_API bool IsValid() const;
 
-	bool DoesRepresentClass(const UClass* OtherClass) const;
+	ENGINE_API bool DoesRepresentClass(const UClass* OtherClass) const;
 
 	template<typename T>
 	bool DoesRepresent() const;
 
-	UClass* GetRepresentedClass() const;
+	ENGINE_API UClass* GetRepresentedClass() const;
 
-	FVector GetLocation() const;
-	FRotator GetRotation() const;
-	FTransform GetTransform() const;
+	ENGINE_API FVector GetLocation() const;
+	ENGINE_API FRotator GetRotation() const;
+	ENGINE_API FTransform GetTransform() const;
 
-	FName GetFName() const;
-	FString GetName() const;
+	ENGINE_API FName GetFName() const;
+	ENGINE_API FString GetName() const;
 
 	/** If this handle has a valid actor, return it; otherwise return the actor responsible for managing the instances. */
-	AActor* GetManagingActor() const;
+	ENGINE_API AActor* GetManagingActor() const;
 
 	/** Returns either the actor's root component or the root component for the manager associated with the handle */
-	USceneComponent* GetRootComponent() const;
+	ENGINE_API USceneComponent* GetRootComponent() const;
 
 	/** Returns the actor specified by this handle. This may require loading and creating the actor object. */
-	AActor* FetchActor() const;
+	ENGINE_API AActor* FetchActor() const;
 	template <typename T>
 	T* FetchActor() const;
 
@@ -53,17 +53,17 @@ struct ENGINE_API FActorInstanceHandle
 	FORCEINLINE int32 GetInstanceIndex() const { return InstanceIndex; }
 
 	/* Returns the index used by rendering and collision */
-	int32 GetRenderingInstanceIndex() const;
+	ENGINE_API int32 GetRenderingInstanceIndex() const;
 
 	FActorInstanceHandle& operator=(const FActorInstanceHandle& Other) = default;
 	FActorInstanceHandle& operator=(FActorInstanceHandle&& Other) = default;
-	FActorInstanceHandle& operator=(AActor* OtherActor);
+	ENGINE_API FActorInstanceHandle& operator=(AActor* OtherActor);
 
-	bool operator==(const FActorInstanceHandle& Other) const;
-	bool operator!=(const FActorInstanceHandle& Other) const;
+	ENGINE_API bool operator==(const FActorInstanceHandle& Other) const;
+	ENGINE_API bool operator!=(const FActorInstanceHandle& Other) const;
 
-	bool operator==(const AActor* OtherActor) const;
-	bool operator!=(const AActor* OtherActor) const;
+	ENGINE_API bool operator==(const AActor* OtherActor) const;
+	ENGINE_API bool operator!=(const AActor* OtherActor) const;
 
 	friend ENGINE_API uint32 GetTypeHash(const FActorInstanceHandle& Handle);
 
@@ -76,11 +76,11 @@ private:
 	 * helper functions that let us treat the actor pointer as a UObject in templated functions
 	 * these do NOT fetch the actor so they will return nullptr if we don't have a full actor representation
 	 */
-	UObject* GetActorAsUObject();
-	const UObject* GetActorAsUObject() const;
+	ENGINE_API UObject* GetActorAsUObject();
+	ENGINE_API const UObject* GetActorAsUObject() const;
 
 	/** Returns true if Actor is not null and not pending kill */
-	bool IsActorValid() const;
+	ENGINE_API bool IsActorValid() const;
 
 	/** this is cached here for convenience */
 	UPROPERTY()

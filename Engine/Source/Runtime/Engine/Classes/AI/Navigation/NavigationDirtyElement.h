@@ -7,7 +7,7 @@
 
 class INavRelevantInterface;
 
-struct ENGINE_API FNavigationDirtyElement
+struct FNavigationDirtyElement
 {
 	/** object owning this element */
 	FWeakObjectPtr Owner;
@@ -46,7 +46,7 @@ struct ENGINE_API FNavigationDirtyElement
 	{
 	}
 
-	FNavigationDirtyElement(UObject* InOwner, INavRelevantInterface* InNavInterface, int32 InFlagsOverride = 0, const bool bUseWorldPartitionedDynamicMode = false);
+	ENGINE_API FNavigationDirtyElement(UObject* InOwner, INavRelevantInterface* InNavInterface, int32 InFlagsOverride = 0, const bool bUseWorldPartitionedDynamicMode = false);
 
 	bool operator==(const FNavigationDirtyElement& Other) const 
 	{ 

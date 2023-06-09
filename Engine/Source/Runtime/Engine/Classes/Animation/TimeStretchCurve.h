@@ -193,7 +193,7 @@ struct FTimeStretchCurveMarker
 */
 
 USTRUCT()
-struct ENGINE_API FTimeStretchCurve
+struct FTimeStretchCurve
 {
 	GENERATED_USTRUCT_BODY();
 
@@ -209,9 +209,9 @@ public:
 		Sum_dT_i_by_C_i[(uint8)ETimeStretchCurveMapping::T_TargetMax] = 0.0f;
 	}
 
-	bool IsValid() const;
-	void Reset();
-	void BakeFromFloatCurve(const FFloatCurve& TimeStretchCurve, float InSequenceLength);
+	ENGINE_API bool IsValid() const;
+	ENGINE_API void Reset();
+	ENGINE_API void BakeFromFloatCurve(const FFloatCurve& TimeStretchCurve, float InSequenceLength);
 
 private:
 	/**
@@ -240,7 +240,7 @@ private:
 };
 
 USTRUCT()
-struct ENGINE_API FTimeStretchCurveInstance
+struct FTimeStretchCurveInstance
 {
 	GENERATED_USTRUCT_BODY();
 
@@ -249,43 +249,43 @@ public:
 		: bHasValidData(false)
 	{}
 
-	void InitializeFromPlayRate(float InPlayRate, const FTimeStretchCurve& TimeStretchCurve);
+	ENGINE_API void InitializeFromPlayRate(float InPlayRate, const FTimeStretchCurve& TimeStretchCurve);
 	bool HasValidData() const { return bHasValidData; }
 
 	/**
 		Updates InOutMarkerIndex as needed based on 'InPosition' in 'InMarkerPositions'
 		So that InOutMarkerIndex satisfies 'IsValidMarkerForPosition'
 	*/
-	void UpdateMarkerIndexForPosition(int32& InOutMarkerIndex, float InPosition, const TArray<float>& InMarkerPositions) const;
+	ENGINE_API void UpdateMarkerIndexForPosition(int32& InOutMarkerIndex, float InPosition, const TArray<float>& InMarkerPositions) const;
 
 	/** Validates that the supplied marker index correctly bookends supplied position. */
-	bool IsValidMarkerForPosition(int32 InMarkerIndex, float InPosition, const TArray<float>& InMarkerPositions) const;
+	ENGINE_API bool IsValidMarkerForPosition(int32 InMarkerIndex, float InPosition, const TArray<float>& InMarkerPositions) const;
 
 	/** Validates that the supplied marker positions bookend supplied position. */
-	bool AreValidMarkerBookendsForPosition(float InPosition, float InP_CurrMarker, float InP_NextMarker) const;
+	ENGINE_API bool AreValidMarkerBookendsForPosition(float InPosition, float InP_CurrMarker, float InP_NextMarker) const;
 
 	/**
 		Find marker index that bookends supplied position, using supplied markers,
 		doing a binary search to find match. Most steps taken are Log2(N).
 	*/
-	int32 BinarySearchMarkerIndex(float InPosition, const TArray<float>& InMarkerPositions) const;
+	ENGINE_API int32 BinarySearchMarkerIndex(float InPosition, const TArray<float>& InMarkerPositions) const;
 
 	/**
 		Converts a Position from Original Space to Target Space.
 		This requires a Marker Index that satisfies 'IsValidMarkerForPosition'
 		for the supplied position.
 	*/
-	float Convert_P_Original_To_Target(int32 InMarkerIndex, float In_P_Original) const;
+	ENGINE_API float Convert_P_Original_To_Target(int32 InMarkerIndex, float In_P_Original) const;
 
 	/**
 		Converts a Position from Target Space to Original Space.
 		This requires a Marker Index that satisfies 'IsValidMarkerForPosition'
 		for the supplied position.
 	*/
-	float Convert_P_Target_To_Original(int32 InMarkerIndex, float In_P_Target) const;
+	ENGINE_API float Convert_P_Target_To_Original(int32 InMarkerIndex, float In_P_Target) const;
 
 	/** Make sure In_P_Target stays in valid marker range. */
-	float Clamp_P_Target(float In_P_Target) const;
+	ENGINE_API float Clamp_P_Target(float In_P_Target) const;
 
 	/** Read access to markers in original space. */
 	const TArray<float>& GetMarkers_Original() const { return P_Marker_Original; }

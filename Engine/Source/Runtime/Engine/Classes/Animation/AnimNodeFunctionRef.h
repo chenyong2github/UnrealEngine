@@ -21,22 +21,22 @@ struct FAnimInstanceProxy;
  * Cached function name/ptr that is resolved at init time
  */
 USTRUCT()
-struct ENGINE_API FAnimNodeFunctionRef
+struct FAnimNodeFunctionRef
 {
 	GENERATED_BODY()
 
 public:
 	// Cache the function ptr from the name
-	void Initialize(const UClass* InClass);
+	ENGINE_API void Initialize(const UClass* InClass);
 	
 	// Call the function
-	void Call(UObject* InObject, void* InParameters = nullptr) const;
+	ENGINE_API void Call(UObject* InObject, void* InParameters = nullptr) const;
 
 	// Set the function via name
 	void SetFromFunctionName(FName InName) { FunctionName = InName; ClassName = NAME_None; }
 
 	// Set the function via a function
-	void SetFromFunction(UFunction* InFunction);
+	ENGINE_API void SetFromFunction(UFunction* InFunction);
 	
 	// Get the function name
 	FName GetFunctionName() const { return FunctionName; }

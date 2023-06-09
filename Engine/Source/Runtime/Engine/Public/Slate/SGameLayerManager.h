@@ -86,7 +86,7 @@ public:
 /**
  * 
  */
-class ENGINE_API SGameLayerManager : public SCompoundWidget, public IGameLayerManager
+class SGameLayerManager : public SCompoundWidget, public IGameLayerManager
 {
 public:
 
@@ -113,49 +113,49 @@ public:
 		// Add others with an increment of 100 to have enough space for injecting new layers in-between
 	};
 
-	SGameLayerManager();
+	ENGINE_API SGameLayerManager();
 
-	virtual ~SGameLayerManager();
+	ENGINE_API virtual ~SGameLayerManager();
 
 	/**
 	 * Construct this widget
 	 *
 	 * @param	InArgs	The declaration data for this widget
 	 */
-	void Construct( const FArguments& InArgs );
+	ENGINE_API void Construct( const FArguments& InArgs );
 
 	// Begin IGameLayerManager
-	virtual void SetSceneViewport(FSceneViewport* InSceneViewport) override;
-	virtual FGeometry GetViewportWidgetHostGeometry() const override;
-	virtual FGeometry GetPlayerWidgetHostGeometry(ULocalPlayer* Player) const override;
+	ENGINE_API virtual void SetSceneViewport(FSceneViewport* InSceneViewport) override;
+	ENGINE_API virtual FGeometry GetViewportWidgetHostGeometry() const override;
+	ENGINE_API virtual FGeometry GetPlayerWidgetHostGeometry(ULocalPlayer* Player) const override;
 
-	virtual void NotifyPlayerAdded(int32 PlayerIndex, ULocalPlayer* AddedPlayer) override;
-	virtual void NotifyPlayerRemoved(int32 PlayerIndex, ULocalPlayer* RemovedPlayer) override;
+	ENGINE_API virtual void NotifyPlayerAdded(int32 PlayerIndex, ULocalPlayer* AddedPlayer) override;
+	ENGINE_API virtual void NotifyPlayerRemoved(int32 PlayerIndex, ULocalPlayer* RemovedPlayer) override;
 
-	virtual void AddWidgetForPlayer(ULocalPlayer* Player, TSharedRef<SWidget> ViewportContent, int32 ZOrder) override;
-	virtual void RemoveWidgetForPlayer(ULocalPlayer* Player, TSharedRef<SWidget> ViewportContent) override;
-	virtual void ClearWidgetsForPlayer(ULocalPlayer* Player) override;
+	ENGINE_API virtual void AddWidgetForPlayer(ULocalPlayer* Player, TSharedRef<SWidget> ViewportContent, int32 ZOrder) override;
+	ENGINE_API virtual void RemoveWidgetForPlayer(ULocalPlayer* Player, TSharedRef<SWidget> ViewportContent) override;
+	ENGINE_API virtual void ClearWidgetsForPlayer(ULocalPlayer* Player) override;
 
-	virtual TSharedPtr<IGameLayer> FindLayerForPlayer(ULocalPlayer* Player, const FName& LayerName) override;
-	virtual bool AddLayerForPlayer(ULocalPlayer* Player, const FName& LayerName, TSharedRef<IGameLayer> Layer, int32 ZOrder) override;
+	ENGINE_API virtual TSharedPtr<IGameLayer> FindLayerForPlayer(ULocalPlayer* Player, const FName& LayerName) override;
+	ENGINE_API virtual bool AddLayerForPlayer(ULocalPlayer* Player, const FName& LayerName, TSharedRef<IGameLayer> Layer, int32 ZOrder) override;
 
-	virtual void ClearWidgets() override;
+	ENGINE_API virtual void ClearWidgets() override;
 
-	virtual void AddGameLayer(TSharedRef<SWidget> ViewportContent, int32 ZOrder) override;
-	virtual void RemoveGameLayer(TSharedRef<SWidget> ViewportContent) override;
+	ENGINE_API virtual void AddGameLayer(TSharedRef<SWidget> ViewportContent, int32 ZOrder) override;
+	ENGINE_API virtual void RemoveGameLayer(TSharedRef<SWidget> ViewportContent) override;
 
-	virtual void SetDefaultWindowTitleBarHeight(float Height);
-	virtual void SetWindowTitleBarState(const TSharedPtr<SWidget>& TitleBarContent, EWindowTitleBarMode Mode, bool bTitleBarDragEnabled, bool bWindowButtonsVisible, bool bTitleBarVisible);
-	virtual void RestorePreviousWindowTitleBarState();
-	virtual void SetWindowTitleBarVisibility(bool bIsVisible);
+	ENGINE_API virtual void SetDefaultWindowTitleBarHeight(float Height);
+	ENGINE_API virtual void SetWindowTitleBarState(const TSharedPtr<SWidget>& TitleBarContent, EWindowTitleBarMode Mode, bool bTitleBarDragEnabled, bool bWindowButtonsVisible, bool bTitleBarVisible);
+	ENGINE_API virtual void RestorePreviousWindowTitleBarState();
+	ENGINE_API virtual void SetWindowTitleBarVisibility(bool bIsVisible);
 	// End IGameLayerManager
 
 public:
 
 	//~ Begin SWidget overrides
-	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
-	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
-	virtual bool OnVisualizeTooltip(const TSharedPtr<SWidget>& TooltipContent) override;
+	ENGINE_API virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+	ENGINE_API virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
+	ENGINE_API virtual bool OnVisualizeTooltip(const TSharedPtr<SWidget>& TooltipContent) override;
 	//~ End SWidget overrides
 
 	/**
@@ -163,8 +163,8 @@ public:
 	 * After the DPI will be retrieved it will be scaled down with the ratio between the actual viewport size and the provided one.
 	 * Check GetGameViewportDPIScale() for more information.
 	 */
-	void SetUseFixedDPIValue(const bool bUseFixedDPI, const FIntPoint RefViewportSize = FIntPoint());
-	bool IsUsingFixedDPIValue() const;
+	ENGINE_API void SetUseFixedDPIValue(const bool bUseFixedDPI, const FIntPoint RefViewportSize = FIntPoint());
+	ENGINE_API bool IsUsingFixedDPIValue() const;
 
 private:
 	float GetGameViewportDPIScale() const;

@@ -111,7 +111,7 @@ struct FAnimBlueprintFunction
 
 /** Wrapper struct as we dont support nested containers */
 USTRUCT()
-struct ENGINE_API FCachedPoseIndices
+struct FCachedPoseIndices
 {
 	GENERATED_BODY()
 
@@ -181,15 +181,15 @@ enum class EAnimSubsystemEnumeration
 	Continue
 };
 
-UINTERFACE()
-class ENGINE_API UAnimClassInterface : public UInterface
+UINTERFACE(MinimalAPI)
+class UAnimClassInterface : public UInterface
 {
 	GENERATED_BODY()
 };
 
 typedef TFieldPath<FStructProperty> FStructPropertyPath;
 
-class ENGINE_API IAnimClassInterface
+class IAnimClassInterface
 {
 	GENERATED_BODY()
 public:
@@ -207,7 +207,7 @@ public:
 	virtual const TArray<FStructProperty*>& GetStateMachineNodeProperties() const = 0;
 	virtual const TArray<FStructProperty*>& GetInitializationNodeProperties() const = 0;
 	UE_DEPRECATED(5.0, "Please use GetSubsystem<FAnimSubsystem_Base>")
-	virtual const TArray<FExposedValueHandler>& GetExposedValueHandlers() const;
+	ENGINE_API virtual const TArray<FExposedValueHandler>& GetExposedValueHandlers() const;
 	virtual const TArray<FName>& GetSyncGroupNames() const = 0;
 	virtual const TMap<FName, FCachedPoseIndices>& GetOrderedSavedPoseNodeIndicesMap() const = 0;
 	virtual const TArray<FAnimBlueprintFunction>& GetAnimBlueprintFunctions() const = 0;
@@ -216,7 +216,7 @@ public:
 	virtual USkeleton* GetTargetSkeleton() const = 0;
 	virtual int32 GetSyncGroupIndex(FName SyncGroupName) const = 0;
 	UE_DEPRECATED(5.0, "Please use GetSubsystem<FAnimSubsystem_PropertyAccess>")
-	virtual const FPropertyAccessLibrary& GetPropertyAccessLibrary() const;
+	ENGINE_API virtual const FPropertyAccessLibrary& GetPropertyAccessLibrary() const;
 
 	// Iterate over each subsystem for this class, supplying both the constant (FAnimSubsystem) and mutable (FAnimSubsystemInstance) data
 	virtual void ForEachSubsystem(TFunctionRef<EAnimSubsystemEnumeration(const FAnimSubsystemContext&)> InFunction) const  = 0;
@@ -244,7 +244,7 @@ public:
 	}
 
 	// Check whether a node at the specified index has the specified flags
-	static bool HasNodeAnyFlags(IAnimClassInterface* InAnimClassInterface, int32 InNodeIndex, EAnimNodeDataFlags InNodeDataFlags);
+	static ENGINE_API bool HasNodeAnyFlags(IAnimClassInterface* InAnimClassInterface, int32 InNodeIndex, EAnimNodeDataFlags InNodeDataFlags);
 
 protected:
 	// These direct accessors are here to allow internal access that doesnt redirect to the root class
@@ -255,7 +255,7 @@ protected:
 	virtual const TMap<FName, FGraphAssetPlayerInformation>& GetGraphAssetPlayerInformation_Direct() const = 0;
 	virtual const TMap<FName, FAnimGraphBlendOptions>& GetGraphBlendOptions_Direct() const = 0;
 	UE_DEPRECATED(5.0, "Please use GetSubsystem<FAnimSubsystem_PropertyAccess>")
-	virtual const FPropertyAccessLibrary& GetPropertyAccessLibrary_Direct() const;
+	ENGINE_API virtual const FPropertyAccessLibrary& GetPropertyAccessLibrary_Direct() const;
 
 protected:
 	friend class UAnimBlueprintGeneratedClass;
@@ -293,17 +293,17 @@ public:
 	// Some properties that are derived from the compiled anim graph are routed to the 'Root' class
 	// as child classes don't get fully compiled. Instead they just override various asset players leaving the
 	// full compilation up to the base class. 
-	const IAnimClassInterface* GetRootClass() const;
+	ENGINE_API const IAnimClassInterface* GetRootClass() const;
 
-	static IAnimClassInterface* GetFromClass(UClass* InClass);
+	static ENGINE_API IAnimClassInterface* GetFromClass(UClass* InClass);
 
-	static const IAnimClassInterface* GetFromClass(const UClass* InClass);
+	static ENGINE_API const IAnimClassInterface* GetFromClass(const UClass* InClass);
 
-	static UClass* GetActualAnimClass(IAnimClassInterface* AnimClassInterface);
+	static ENGINE_API UClass* GetActualAnimClass(IAnimClassInterface* AnimClassInterface);
 
-	static const UClass* GetActualAnimClass(const IAnimClassInterface* AnimClassInterface);
+	static ENGINE_API const UClass* GetActualAnimClass(const IAnimClassInterface* AnimClassInterface);
 
-	static const FAnimBlueprintFunction* FindAnimBlueprintFunction(IAnimClassInterface* AnimClassInterface, const FName& InFunctionName);
+	static ENGINE_API const FAnimBlueprintFunction* FindAnimBlueprintFunction(IAnimClassInterface* AnimClassInterface, const FName& InFunctionName);
 
 	/**
 	 * Check if a function is an anim function on this class
@@ -311,15 +311,15 @@ public:
 	 * @param	InFunction				The function to check
 	 * @return true if the supplied function is an anim function on the specified class
 	 */
-	static bool IsAnimBlueprintFunction(IAnimClassInterface* InAnimClassInterface, const UFunction* InFunction);
+	static ENGINE_API bool IsAnimBlueprintFunction(IAnimClassInterface* InAnimClassInterface, const UFunction* InFunction);
 
 	// Get the object ptr given an anim node
-	static const UObject* GetObjectPtrFromAnimNode(const IAnimClassInterface* InAnimClassInterface, const FAnimNode_Base* InNode);
+	static ENGINE_API const UObject* GetObjectPtrFromAnimNode(const IAnimClassInterface* InAnimClassInterface, const FAnimNode_Base* InNode);
 
 	// Get an anim node of the specified type given the object & node index
 	// Asserts if InObject is nullptr
 	// @return nullptr if the node index was out of bounds or the incorrect type
-	static const FAnimNode_Base* GetAnimNodeFromObjectPtr(const UObject* InObject, int32 InNodeIndex, UScriptStruct* InNodeType);
+	static ENGINE_API const FAnimNode_Base* GetAnimNodeFromObjectPtr(const UObject* InObject, int32 InNodeIndex, UScriptStruct* InNodeType);
 
 	// Get an anim node of the specified type given the object & node index
 	// Asserts if InObject is nullptr, the node index is out of bounds or the node is the incorrect type

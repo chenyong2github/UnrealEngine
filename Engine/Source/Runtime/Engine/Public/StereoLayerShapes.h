@@ -10,11 +10,11 @@
 
 #define STEREO_LAYER_SHAPE_BOILERPLATE(ClassName) \
 public: \
-	static const FName ShapeName; \
+	ENGINE_API static const FName ShapeName; \
 	virtual FName GetShapeName() override { return ShapeName; } \
 	virtual IStereoLayerShape* Clone() const override { return new ClassName(*this); }
 
-class ENGINE_API IStereoLayerShape
+class IStereoLayerShape
 {
 public:
 	/** Shape name is used to identify the shape type. */
@@ -24,13 +24,13 @@ public:
 };
 
 /** Quad layer is the default layer shape and contains no additional settings */
-class ENGINE_API FQuadLayer : public IStereoLayerShape
+class FQuadLayer : public IStereoLayerShape
 {
 	STEREO_LAYER_SHAPE_BOILERPLATE(FQuadLayer)
 };
 
 /** Class describing additional settings for cylinder layers. Currently only supported by Oculus. */
-class ENGINE_API FCylinderLayer : public IStereoLayerShape
+class FCylinderLayer : public IStereoLayerShape
 {
 	STEREO_LAYER_SHAPE_BOILERPLATE(FCylinderLayer)
 public:
@@ -48,13 +48,13 @@ public:
 };
 
 /** Class describing additional settings for cube map layers. Currently only supported by Oculus. */
-class ENGINE_API FCubemapLayer : public IStereoLayerShape
+class FCubemapLayer : public IStereoLayerShape
 {
 	STEREO_LAYER_SHAPE_BOILERPLATE(FCubemapLayer)
 };
 
 /** Class describing additional settings for equirect layers. Currently only supported by Oculus. */
-class ENGINE_API FEquirectLayer : public IStereoLayerShape
+class FEquirectLayer : public IStereoLayerShape
 {
 	STEREO_LAYER_SHAPE_BOILERPLATE(FEquirectLayer)
 public:

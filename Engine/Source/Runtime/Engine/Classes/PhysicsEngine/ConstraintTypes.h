@@ -10,7 +10,7 @@
 #include "ConstraintTypes.generated.h"
 
 USTRUCT()
-struct ENGINE_API FConstraintBaseParams
+struct FConstraintBaseParams
 {
 	GENERATED_BODY()
 	
@@ -34,12 +34,12 @@ struct ENGINE_API FConstraintBaseParams
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Constraint)
 	uint8 bSoftConstraint : 1;
 
-	FConstraintBaseParams();
+	ENGINE_API FConstraintBaseParams();
 };
 
 /** Distance constraint */
 USTRUCT()
-struct ENGINE_API FLinearConstraint : public FConstraintBaseParams
+struct FLinearConstraint : public FConstraintBaseParams
 {
 	GENERATED_BODY()
 
@@ -59,16 +59,16 @@ struct ENGINE_API FLinearConstraint : public FConstraintBaseParams
 	UPROPERTY(EditAnywhere, Category = Linear, meta = (DisplayName= "Z Motion"))
 	TEnumAsByte<enum ELinearConstraintMotion> ZMotion;
 
-	FLinearConstraint();
+	ENGINE_API FLinearConstraint();
 
 	/** Updates physx linear constraint from unreal data. */
-	void UpdateLinearLimit_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, float AverageMass, float Scale) const;
+	ENGINE_API void UpdateLinearLimit_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, float AverageMass, float Scale) const;
 };
 
 
 /** Cone constraint */
 USTRUCT()
-struct ENGINE_API FConeConstraint : public FConstraintBaseParams
+struct FConeConstraint : public FConstraintBaseParams
 {
 	GENERATED_BODY()
 
@@ -88,15 +88,15 @@ struct ENGINE_API FConeConstraint : public FConstraintBaseParams
 	UPROPERTY(EditAnywhere, Category = Angular, meta = (DisplayName= "Swing 2 Motion"))
 	TEnumAsByte<enum EAngularConstraintMotion> Swing2Motion;
 
-	FConeConstraint();
+	ENGINE_API FConeConstraint();
 
 	/** Updates cone limit from unreal data. */
-	void UpdateConeLimit_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, float AverageMass) const;
+	ENGINE_API void UpdateConeLimit_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, float AverageMass) const;
 };
 
 /** Angular roll constraint */
 USTRUCT()
-struct ENGINE_API FTwistConstraint : public FConstraintBaseParams
+struct FTwistConstraint : public FConstraintBaseParams
 {
 	GENERATED_BODY()
 
@@ -108,10 +108,10 @@ struct ENGINE_API FTwistConstraint : public FConstraintBaseParams
 	UPROPERTY(EditAnywhere, Category = Angular)
 	TEnumAsByte<enum EAngularConstraintMotion> TwistMotion;
 
-	FTwistConstraint();
+	ENGINE_API FTwistConstraint();
 
 	/** Updates twist limit from unreal data. */
-	void UpdateTwistLimit_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, float AverageMass) const;
+	ENGINE_API void UpdateTwistLimit_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, float AverageMass) const;
 };
 
 #define		RB_MinSizeToLockDOF				(0.1)

@@ -24,7 +24,7 @@ class APlayerState;
 
 /** Handles the many pieces of data passed into Client Receive */
 USTRUCT()
-struct ENGINE_API FClientReceiveData
+struct FClientReceiveData
 {
 	//always need to be here
 	GENERATED_USTRUCT_BODY()
@@ -50,15 +50,15 @@ struct ENGINE_API FClientReceiveData
 	UPROPERTY()
 	TObjectPtr<UObject> OptionalObject;
 
-	FClientReceiveData();
+	ENGINE_API FClientReceiveData();
 };
 
-UCLASS(abstract)
-class ENGINE_API ULocalMessage : public UObject
+UCLASS(abstract, MinimalAPI)
+class ULocalMessage : public UObject
 {
 	GENERATED_UCLASS_BODY()
 	/** send message to client */
-	virtual void ClientReceive(const FClientReceiveData& ClientData) const PURE_VIRTUAL(ULocalMessage::ClientReceive,);
+	ENGINE_API virtual void ClientReceive(const FClientReceiveData& ClientData) const PURE_VIRTUAL(ULocalMessage::ClientReceive,);
 };
 
 

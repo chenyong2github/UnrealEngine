@@ -10,19 +10,19 @@
 /**
  * Singleton for the material expression settings and permissions
  */
-class ENGINE_API FMaterialExpressionSettings
+class FMaterialExpressionSettings
 {
 public:
 	/** Gets singleton instance */
-	static FMaterialExpressionSettings* Get();
+	static ENGINE_API FMaterialExpressionSettings* Get();
 
 	/** Delegate to filter class paths from permissions lists */
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnIsClassPathAllowed, const FTopLevelAssetPath& /*InClassPath*/);
 
-	void RegisterIsClassPathAllowedDelegate(const FName OwnerName, FOnIsClassPathAllowed Delegate);
-	void UnregisterIsClassPathAllowedDelegate(const FName OwnerName);
-	bool IsClassPathAllowed(const FTopLevelAssetPath& InClassPath) const;
-	bool HasClassPathFiltering() const;
+	ENGINE_API void RegisterIsClassPathAllowedDelegate(const FName OwnerName, FOnIsClassPathAllowed Delegate);
+	ENGINE_API void UnregisterIsClassPathAllowedDelegate(const FName OwnerName);
+	ENGINE_API bool IsClassPathAllowed(const FTopLevelAssetPath& InClassPath) const;
+	ENGINE_API bool HasClassPathFiltering() const;
 
 private:
 	FMaterialExpressionSettings() = default;

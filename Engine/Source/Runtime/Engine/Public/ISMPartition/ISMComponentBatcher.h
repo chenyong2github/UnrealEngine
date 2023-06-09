@@ -9,21 +9,21 @@
 
 
 /** Struct that allows batching of transforms and custom data of multiple (possibly instanced) static mesh components */
-struct ENGINE_API FISMComponentBatcher
+struct FISMComponentBatcher
 {
 public:
 	/**
 	 * Add a single component to be batched
 	 * @param	InActorComponent	Component to be batched
 	 */
-	void Add(const UActorComponent* InActorComponent);
+	ENGINE_API void Add(const UActorComponent* InActorComponent);
 
 	/**
 	 * Add a single component to be batched
 	 * @param	InActorComponent	Component to be batched
 	 * @param	InTransformFunc		Function that takes the world space transform of an instance and modifies it. Must return a world space transform.
 	 */
-	void Add(const UActorComponent* InActorComponent, TFunctionRef<FTransform(const FTransform&)> InTransformFunc);
+	ENGINE_API void Add(const UActorComponent* InActorComponent, TFunctionRef<FTransform(const FTransform&)> InTransformFunc);
 	
 	/**
 	 * Add an array of component to be batched
@@ -61,10 +61,10 @@ public:
 	 * Initialize the instances of the provided ISM component using the batched data stored in this class.
 	 * @param	ISMComponent	Instanced static mesh component which will be modified.
 	 */
-	void InitComponent(UInstancedStaticMeshComponent* ISMComponent) const;
+	ENGINE_API void InitComponent(UInstancedStaticMeshComponent* ISMComponent) const;
 
 private:
-	void AddInternal(const UActorComponent* InComponent, TOptional<TFunctionRef<FTransform(const FTransform&)>> InTransformFunc);
+	ENGINE_API void AddInternal(const UActorComponent* InComponent, TOptional<TFunctionRef<FTransform(const FTransform&)>> InTransformFunc);
 
 	int32 NumInstances = 0;
 	int32 NumCustomDataFloats = 0;

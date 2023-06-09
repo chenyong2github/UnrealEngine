@@ -43,7 +43,7 @@ enum class EModulationRouting : uint8
 
 /** Parameter destination settings allowing modulation control override for parameter destinations opting in to the Modulation System. */
 USTRUCT(BlueprintType)
-struct ENGINE_API FSoundModulationDestinationSettings
+struct FSoundModulationDestinationSettings
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -67,7 +67,7 @@ struct ENGINE_API FSoundModulationDestinationSettings
 
 #if WITH_EDITORONLY_DATA
 	/** Versioning utility function to upgrade single modulator field to set of modulators */
-	void VersionModulators();
+	ENGINE_API void VersionModulators();
 #endif // WITH_EDITORONLY_DATA
 
 	// We need to explicitly disable warnings on these constructors/operators for clang to be happy with deprecated variables
@@ -84,11 +84,11 @@ struct ENGINE_API FSoundModulationDestinationSettings
 
 /** Default parameter destination settings for source audio object. */
 USTRUCT(BlueprintType)
-struct ENGINE_API FSoundModulationDefaultSettings
+struct FSoundModulationDefaultSettings
 {
 	GENERATED_USTRUCT_BODY()
 
-	FSoundModulationDefaultSettings();
+	ENGINE_API FSoundModulationDefaultSettings();
 
 	/** Volume modulation */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Modulation", meta = (DisplayName = "Volume", AudioParam = "Volume", AudioParamClass = "SoundModulationParameterVolume"))
@@ -107,17 +107,17 @@ struct ENGINE_API FSoundModulationDefaultSettings
 	FSoundModulationDestinationSettings LowpassModulationDestination;
 
 #if WITH_EDITORONLY_DATA
-	void VersionModulators();
+	ENGINE_API void VersionModulators();
 #endif // WITH_EDITORONLY_DATA
 };
 
 /** Default parameter destination settings for source audio object. */
 USTRUCT(BlueprintType)
-struct ENGINE_API FSoundModulationDefaultRoutingSettings : public FSoundModulationDefaultSettings
+struct FSoundModulationDefaultRoutingSettings : public FSoundModulationDefaultSettings
 {
 	GENERATED_USTRUCT_BODY()
 
-	FSoundModulationDefaultRoutingSettings();
+	ENGINE_API FSoundModulationDefaultRoutingSettings();
 
 	/** What volume modulation settings to use */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Modulation")
@@ -138,23 +138,23 @@ struct ENGINE_API FSoundModulationDefaultRoutingSettings : public FSoundModulati
 
 namespace Audio
 {
-	struct ENGINE_API FModulationDestination
+	struct FModulationDestination
 	{
 		public:
 			FModulationDestination() = default;
 
-			FModulationDestination(const FModulationDestination& InModulationDestination);
-			FModulationDestination(FModulationDestination&& InModulationDestination);
+			ENGINE_API FModulationDestination(const FModulationDestination& InModulationDestination);
+			ENGINE_API FModulationDestination(FModulationDestination&& InModulationDestination);
 
-			FModulationDestination& operator=(const FModulationDestination& InModulationDestination);
-			FModulationDestination& operator=(FModulationDestination&& InModulationDestination);
+			ENGINE_API FModulationDestination& operator=(const FModulationDestination& InModulationDestination);
+			ENGINE_API FModulationDestination& operator=(FModulationDestination&& InModulationDestination);
 
 			/** Initializes the modulation destination
 			 * InDeviceId - DeviceId associated with modulation plugin instance
 			 * bInIsBuffered - Whether or not to run destination in "buffered mode," which manages an internal buffer to smooth modulation value between process calls
 			 * bInValueNormalized - Whether or not to keep the output value in normalized, unitless [0.0f, 1.0f] space
 			 */
-			void Init(FDeviceId InDeviceId, bool bInIsBuffered = false, bool bInValueNormalized = false);
+			ENGINE_API void Init(FDeviceId InDeviceId, bool bInIsBuffered = false, bool bInValueNormalized = false);
 
 			/** Initializes the modulation destination
 			 * InDeviceId - DeviceId associated with modulation plugin instance
@@ -162,28 +162,28 @@ namespace Audio
 			 * bInIsBuffered - Whether or not to run destination in "buffered mode," which manages an internal buffer to smooth modulation value between process calls
 			 * bInValueNormalized - Whether or not to keep the output value in normalized, unitless [0.0f, 1.0f] space
 			 */
-			void Init(FDeviceId InDeviceId, FName InParameterName, bool bInIsBuffered = false, bool bInValueNormalized = false);
+			ENGINE_API void Init(FDeviceId InDeviceId, FName InParameterName, bool bInIsBuffered = false, bool bInValueNormalized = false);
 
 			/** returns whether or not destination references an active modulator */
-			bool IsActive();
+			ENGINE_API bool IsActive();
 
 			/* Updates internal value (or buffer if set to bIsBuffered) to current modulated result using the provided value as the base carrier value to modulate.
 			 * Returns true if value was updated.
 			 */
-			bool ProcessControl(float InValueUnitBase, int32 InNumSamples = 0);
+			ENGINE_API bool ProcessControl(float InValueUnitBase, int32 InNumSamples = 0);
 
 
 			UE_DEPRECATED(5.1, "Deprecated in favor of supporting multiple modulators per destination. Use 'UpdateModulators' instead.")
-			void UpdateModulator(const USoundModulatorBase* InModulator);
+			ENGINE_API void UpdateModulator(const USoundModulatorBase* InModulator);
 
-			void UpdateModulators(const TSet<TObjectPtr<USoundModulatorBase>>& InModulators);
-			void UpdateModulators(const TSet<USoundModulatorBase*>& InModulators);
-			void UpdateModulators(const TSet<const USoundModulatorBase*>& InModulators);
+			ENGINE_API void UpdateModulators(const TSet<TObjectPtr<USoundModulatorBase>>& InModulators);
+			ENGINE_API void UpdateModulators(const TSet<USoundModulatorBase*>& InModulators);
+			ENGINE_API void UpdateModulators(const TSet<const USoundModulatorBase*>& InModulators);
 	
 	private:
-			void UpdateModulatorsInternal(TArray<TUniquePtr<Audio::IModulatorSettings>>&& ProxySettings);
+			ENGINE_API void UpdateModulatorsInternal(TArray<TUniquePtr<Audio::IModulatorSettings>>&& ProxySettings);
 
-			void ResetHandles();
+			ENGINE_API void ResetHandles();
 
 			FDeviceId DeviceId = INDEX_NONE;
 

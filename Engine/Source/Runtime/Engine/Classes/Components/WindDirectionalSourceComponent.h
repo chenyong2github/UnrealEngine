@@ -19,8 +19,8 @@ class FWindData;
 class FWindSourceSceneProxy;
 
 /** Component that provides a directional wind source. Only affects SpeedTree assets. */
-UCLASS(collapsecategories, hidecategories=(Object, Mobility), editinlinenew)
-class ENGINE_API UWindDirectionalSourceComponent : public USceneComponent
+UCLASS(collapsecategories, hidecategories=(Object, Mobility), editinlinenew, MinimalAPI)
+class UWindDirectionalSourceComponent : public USceneComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -54,39 +54,39 @@ public:
 
 	/** Sets the strength of the generated wind */
 	UFUNCTION(BlueprintCallable, Category = Wind)
-	void SetStrength(float InNewStrength);
+	ENGINE_API void SetStrength(float InNewStrength);
 
 	/** Sets the windspeed of the generated wind */
 	UFUNCTION(BlueprintCallable, Category = Wind)
-	void SetSpeed(float InNewSpeed);
+	ENGINE_API void SetSpeed(float InNewSpeed);
 
 	/** Set minimum deviation for wind gusts */
 	UFUNCTION(BlueprintCallable, Category = Wind)
-	void SetMinimumGustAmount(float InNewMinGust);
+	ENGINE_API void SetMinimumGustAmount(float InNewMinGust);
 
 	/** Set maximum deviation for wind gusts */
 	UFUNCTION(BlueprintCallable, Category = Wind)
-	void SetMaximumGustAmount(float InNewMaxGust);
+	ENGINE_API void SetMaximumGustAmount(float InNewMaxGust);
 
 	/** Set the effect radius for point wind */
 	UFUNCTION(BlueprintCallable, Category = Wind)
-	void SetRadius(float InNewRadius);
+	ENGINE_API void SetRadius(float InNewRadius);
 
 	/** Set the type of wind generator to use */
 	UFUNCTION(BlueprintCallable, Category = Wind)
-	void SetWindType(EWindSourceType InNewType);
+	ENGINE_API void SetWindType(EWindSourceType InNewType);
 
 	/** Calculate wind parameters from the data on this component, safe to call on game thread */
-	bool GetWindParameters(const FVector& EvaluatePosition, FWindData& OutData, float& Weight) const;
+	ENGINE_API bool GetWindParameters(const FVector& EvaluatePosition, FWindData& OutData, float& Weight) const;
 
 protected:
 	//~ Begin UActorComponent Interface.
-	virtual void Activate(bool bReset) override;
-	virtual void Deactivate() override;
-	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
-	virtual void SendRenderTransform_Concurrent() override;
-	virtual void SendRenderDynamicData_Concurrent() override;
-	virtual void DestroyRenderState_Concurrent() override;
+	ENGINE_API virtual void Activate(bool bReset) override;
+	ENGINE_API virtual void Deactivate() override;
+	ENGINE_API virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
+	ENGINE_API virtual void SendRenderTransform_Concurrent() override;
+	ENGINE_API virtual void SendRenderDynamicData_Concurrent() override;
+	ENGINE_API virtual void DestroyRenderState_Concurrent() override;
 	//~ End UActorComponent Interface.
 
 public:
@@ -94,5 +94,5 @@ public:
 	 * Creates a proxy to represent the primitive to the scene manager in the rendering thread.
 	 * @return The proxy object.
 	 */
-	virtual FWindSourceSceneProxy* CreateSceneProxy() const;
+	ENGINE_API virtual FWindSourceSceneProxy* CreateSceneProxy() const;
 };

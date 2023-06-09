@@ -18,8 +18,8 @@
 #include "PostProcessVolume.generated.h"
 
 	// for FPostprocessSettings
-UCLASS(autoexpandcategories=PostProcessVolume, hidecategories=(Advanced, Collision, Volume, Brush, Attachment))
-class ENGINE_API APostProcessVolume : public AVolume, public IInterface_PostProcessVolume
+UCLASS(autoexpandcategories=PostProcessVolume, hidecategories=(Advanced, Collision, Volume, Brush, Attachment), MinimalAPI)
+class APostProcessVolume : public AVolume, public IInterface_PostProcessVolume
 {
 	GENERATED_UCLASS_BODY()
 
@@ -51,7 +51,7 @@ class ENGINE_API APostProcessVolume : public AVolume, public IInterface_PostProc
 	uint32 bUnbound:1;
 
 	//~ Begin IInterface_PostProcessVolume Interface
-	virtual bool EncompassesPoint(FVector Point, float SphereRadius/*=0.f*/, float* OutDistanceToPoint) override;
+	ENGINE_API virtual bool EncompassesPoint(FVector Point, float SphereRadius/*=0.f*/, float* OutDistanceToPoint) override;
 	virtual FPostProcessVolumeProperties GetProperties() const override
 	{
 		FPostProcessVolumeProperties Ret;
@@ -73,25 +73,25 @@ class ENGINE_API APostProcessVolume : public AVolume, public IInterface_PostProc
 
 
 	//~ Begin AActor Interface
-	virtual void PostUnregisterAllComponents( void ) override;
+	ENGINE_API virtual void PostUnregisterAllComponents( void ) override;
 
 #if WITH_EDITOR
 	virtual bool CanChangeIsSpatiallyLoadedFlag() const override { return bUnbound ? false : Super::CanChangeIsSpatiallyLoadedFlag(); }
 #endif
 
 protected:
-	virtual void PostRegisterAllComponents() override;
+	ENGINE_API virtual void PostRegisterAllComponents() override;
 	//~ End AActor Interface
 
-	bool IsPPVEnabled() const;
+	ENGINE_API bool IsPPVEnabled() const;
 public:
 	
 	//~ Begin UObject Interface
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual bool CanEditChange(const FProperty* InProperty) const override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual bool CanEditChange(const FProperty* InProperty) const override;
 #endif // WITH_EDITOR
-	virtual void Serialize(FArchive& Ar);
+	ENGINE_API virtual void Serialize(FArchive& Ar);
 	//~ End UObject Interface
 
 	/** Adds an Blendable (implements IBlendableInterface) to the array of Blendables (if it doesn't exist) and update the weight */

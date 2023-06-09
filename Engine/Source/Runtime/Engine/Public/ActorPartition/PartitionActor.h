@@ -12,22 +12,22 @@ struct FActorPartitionIdentifier;
 
 // Actor base class for instance containers placed on a grid.
 // See UActorPartitionSubsystem.
-UCLASS(Abstract)
-class ENGINE_API APartitionActor: public AActor
+UCLASS(Abstract, MinimalAPI)
+class APartitionActor: public AActor
 {
 	GENERATED_BODY()
 
 public:
-	APartitionActor(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	ENGINE_API APartitionActor(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	//~ Begin AActor Interface
 #if WITH_EDITOR	
 	virtual bool CanChangeIsSpatiallyLoadedFlag() const override { return false; }
-	virtual TUniquePtr<class FWorldPartitionActorDesc> CreateClassActorDesc() const override;
-	virtual uint32 GetDefaultGridSize(UWorld* InWorld) const PURE_VIRTUAL(APartitionActor, return 0;)
-	virtual bool ShouldIncludeGridSizeInName(UWorld * InWorld, const FActorPartitionIdentifier& InIdentifier) const;
+	ENGINE_API virtual TUniquePtr<class FWorldPartitionActorDesc> CreateClassActorDesc() const override;
+	ENGINE_API virtual uint32 GetDefaultGridSize(UWorld* InWorld) const PURE_VIRTUAL(APartitionActor, return 0;)
+	ENGINE_API virtual bool ShouldIncludeGridSizeInName(UWorld * InWorld, const FActorPartitionIdentifier& InIdentifier) const;
 	virtual FGuid GetGridGuid() const { return FGuid(); }
-	virtual bool IsUserManaged() const override;
+	ENGINE_API virtual bool IsUserManaged() const override;
 #endif
 	//~ End AActor Interface	
 
@@ -36,7 +36,7 @@ public:
 	UPROPERTY()
 	uint32 GridSize;
 
-	static FString GetActorName(UWorld* World, const UClass* Class, const FGuid& GridGuid, const FActorPartitionIdentifier& ActorPartitionId, uint32 GridSize, int32 CellCoordsX, int32 CellCoordsY, int32 CellCoordsZ, uint32 DataLayerEditorContext);
+	static ENGINE_API FString GetActorName(UWorld* World, const UClass* Class, const FGuid& GridGuid, const FActorPartitionIdentifier& ActorPartitionId, uint32 GridSize, int32 CellCoordsX, int32 CellCoordsY, int32 CellCoordsZ, uint32 DataLayerEditorContext);
 #endif
 };
 

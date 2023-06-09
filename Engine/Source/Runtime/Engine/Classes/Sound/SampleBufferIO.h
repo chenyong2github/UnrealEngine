@@ -23,21 +23,21 @@ namespace Audio
 	/* and call Update on every tick until it returns true, at which point  */
 	/* you may call GetSampleBuffer to get the decoded audio.               */
 	/************************************************************************/
-	class ENGINE_API FSoundWavePCMLoader : public FGCObject
+	class FSoundWavePCMLoader : public FGCObject
 	{
 	public:
-		FSoundWavePCMLoader();
+		ENGINE_API FSoundWavePCMLoader();
 
 		// Loads a USoundWave, call on game thread. Unless called with bSynchnous set to true, this class will require Update() to be called on the game thread.
-		void LoadSoundWave(USoundWave* InSoundWave, TFunction<void(const USoundWave* SoundWave, const Audio::FSampleBuffer& OutSampleBuffer)> OnLoaded, bool bSynchrounous = false);
+		ENGINE_API void LoadSoundWave(USoundWave* InSoundWave, TFunction<void(const USoundWave* SoundWave, const Audio::FSampleBuffer& OutSampleBuffer)> OnLoaded, bool bSynchrounous = false);
 
 
 		// Update the loading state, should be called on the game thread. 
-		void Update();
+		ENGINE_API void Update();
 
 		//~ GCObject Interface
-		virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-		virtual FString GetReferencerName() const override;
+		ENGINE_API virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+		ENGINE_API virtual FString GetReferencerName() const override;
 		//~ GCObject Interface
 
 	private:
@@ -105,7 +105,7 @@ namespace Audio
 	/* FAsyncSoundWavePCMWriteWorker                                        */
 	/* This class is used by FSoundWavePCMWriter to handle async writing.   */
 	/************************************************************************/
-	class ENGINE_API FAsyncSoundWavePCMWriteWorker : public FNonAbandonableTask
+	class FAsyncSoundWavePCMWriteWorker : public FNonAbandonableTask
 	{
 	protected:
 		class FSoundWavePCMWriter* Writer;
@@ -117,20 +117,20 @@ namespace Audio
 
 	public:
 		
-		FAsyncSoundWavePCMWriteWorker(FSoundWavePCMWriter* InWriter, ESoundWavePCMWriteTaskType InTaskType, TFunction<void(const USoundWave*)> OnSuccess);
-		~FAsyncSoundWavePCMWriteWorker();
+		ENGINE_API FAsyncSoundWavePCMWriteWorker(FSoundWavePCMWriter* InWriter, ESoundWavePCMWriteTaskType InTaskType, TFunction<void(const USoundWave*)> OnSuccess);
+		ENGINE_API ~FAsyncSoundWavePCMWriteWorker();
 
 		/**
 		* Performs write operations async.
 		*/
-		void DoWork();
+		ENGINE_API void DoWork();
 
 		bool CanAbandon() 
 		{ 
 			return true;
 		}
 
-		void Abandon();
+		ENGINE_API void Abandon();
 
 		FORCEINLINE TStatId GetStatId() const
 		{
@@ -151,55 +151,55 @@ namespace Audio
 	/* BeginWriteToSoundWave, or BeginWriteToWavFile on the game thread.    */
 	/* This class uses an async task to generate and write the file to disk.*/
 	/************************************************************************/
-	class ENGINE_API FSoundWavePCMWriter
+	class FSoundWavePCMWriter
 	{
 	public:
 		friend class FAsyncSoundWavePCMWriteWorker;
 
-		FSoundWavePCMWriter(int32 InChunkSize = WriterDefaultChunkSize);
-		~FSoundWavePCMWriter();
+		ENGINE_API FSoundWavePCMWriter(int32 InChunkSize = WriterDefaultChunkSize);
+		ENGINE_API ~FSoundWavePCMWriter();
 
 		// This kicks off an operation to write InSampleBuffer to SoundWaveToSaveTo.
 		// If InSoundWave is not nullptr, the audio will be written directly into
 		// Returns true on a successful start, false otherwise.
-		bool BeginGeneratingSoundWaveFromBuffer(const TSampleBuffer<>& InSampleBuffer, USoundWave* InSoundWave = nullptr, TFunction<void(const USoundWave*)> OnSuccess = [](const USoundWave* ResultingWave){});
+		ENGINE_API bool BeginGeneratingSoundWaveFromBuffer(const TSampleBuffer<>& InSampleBuffer, USoundWave* InSoundWave = nullptr, TFunction<void(const USoundWave*)> OnSuccess = [](const USoundWave* ResultingWave){});
 
 		// This kicks off an operation to write InSampleBuffer to a USoundWave asset
 		// at the specified file path relative to the project directory.
 		// This function should only be used in the editor.
 		// If a USoundWave asset already exists 
-		bool BeginWriteToSoundWave(const FString& FileName, const TSampleBuffer<>& InSampleBuffer, FString InPath, TFunction<void(const USoundWave*)> OnSuccess = [](const USoundWave* ResultingWave) {});
+		ENGINE_API bool BeginWriteToSoundWave(const FString& FileName, const TSampleBuffer<>& InSampleBuffer, FString InPath, TFunction<void(const USoundWave*)> OnSuccess = [](const USoundWave* ResultingWave) {});
 	
 		// This writes out the InSampleBuffer as a wav file at the path specified by FilePath and FileName.
 		// If FilePath is a relative path, it will be relative to the /Saved/BouncedWavFiles folder, otherwise specified absolute path will be used.
 		// FileName should not contain the extension. This can be used in non-editor builds.
-		bool BeginWriteToWavFile(const TSampleBuffer<>& InSampleBuffer, const FString& FileName, FString& FilePath, TFunction<void()> OnSuccess = []() {});
+		ENGINE_API bool BeginWriteToWavFile(const TSampleBuffer<>& InSampleBuffer, const FString& FileName, FString& FilePath, TFunction<void()> OnSuccess = []() {});
 
 		// This is a blocking call that will return the SoundWave generated from InSampleBuffer.
 		// Optionally, if you're using the editor, you can also write the resulting soundwave out to the content browser using the FileName and FilePath parameters.
-		USoundWave* SynchronouslyWriteSoundWave(const TSampleBuffer<>& InSampleBuffer, const FString* FileName = nullptr, const FString* FilePath = nullptr);
+		ENGINE_API USoundWave* SynchronouslyWriteSoundWave(const TSampleBuffer<>& InSampleBuffer, const FString* FileName = nullptr, const FString* FilePath = nullptr);
 
 		// Call this on the game thread to continue the write operation. Optionally provide a pointer
 		// to an ESoundWavePCMWriterState which will be written to with the current state of the write operation.
 		// Returns a float value from 0 to 1 indicating how complete the write operation is.
-		float CheckStatus(ESoundWavePCMWriterState* OutCurrentState = nullptr);
+		ENGINE_API float CheckStatus(ESoundWavePCMWriterState* OutCurrentState = nullptr);
 
 		// Aborts the current write operation.
-		void CancelWrite();
+		ENGINE_API void CancelWrite();
 
 		// Whether we have finished the write operation, by either succeeding, failing, or being cancelled.
-		bool IsDone();
+		ENGINE_API bool IsDone();
 
 		// Clean up all resources used.
-		void Reset();
+		ENGINE_API void Reset();
 
 		// Used to grab the a handle to the soundwave. 
-		USoundWave* GetFinishedSoundWave();
+		ENGINE_API USoundWave* GetFinishedSoundWave();
 
 		// This function can be used after generating a USoundWave by calling BeginGeneratingSoundWaveFromBuffer
 		// to save the generated soundwave to an asset.
 		// This is handy if you'd like to preview or edit the USoundWave before saving it to disk.
-		void SaveFinishedSoundWaveToPath(const FString& FileName, FString InPath = FPaths::EngineContentDir());
+		ENGINE_API void SaveFinishedSoundWaveToPath(const FString& FileName, FString InPath = FPaths::EngineContentDir());
 
 	private:
 		// Current pending buffer.
@@ -231,16 +231,16 @@ namespace Audio
 	private:
 
 		//  This is used to emplace CurrentBuffer in CurrentSoundWave.
-		void ApplyBufferToSoundWave();
+		ENGINE_API void ApplyBufferToSoundWave();
 
 		// This is used to save CurrentSoundWave within CurrentPackage.
-		void SerializeSoundWaveToAsset();
+		ENGINE_API void SerializeSoundWaveToAsset();
 
 		// This is used to write a WavFile in disk.
-		void SerializeBufferToWavFile();
+		ENGINE_API void SerializeBufferToWavFile();
 
 		// This checks to see if a directory exists and, if it does not, recursively adds the directory.
-		bool CreateDirectoryIfNeeded(FString& DirectoryPath);
+		ENGINE_API bool CreateDirectoryIfNeeded(FString& DirectoryPath);
 	};
 
 	/************************************************************************/

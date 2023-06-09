@@ -12,8 +12,8 @@ namespace UE::Anim::Compression { struct FAnimDDCKeyArgs; }
 * This is a wrapper for the Variable frame stripping Codec.
 * It allows for the mass changing of settings on animation sequences in an editor accessible way.
 */
-UCLASS(hidecategories = Object)
-class ENGINE_API UVariableFrameStrippingSettings : public UObject
+UCLASS(hidecategories = Object, MinimalAPI)
+class UVariableFrameStrippingSettings : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -34,7 +34,7 @@ class ENGINE_API UVariableFrameStrippingSettings : public UObject
 
 #if WITH_EDITORONLY_DATA
 	/** Generates a DDC key that takes into account the current settings, selected codec, input anim sequence and TargetPlatform */
-	void PopulateDDCKey(const UE::Anim::Compression::FAnimDDCKeyArgs& KeyArgs, FArchive& Ar);
+	ENGINE_API void PopulateDDCKey(const UE::Anim::Compression::FAnimDDCKeyArgs& KeyArgs, FArchive& Ar);
 
 #endif
 };

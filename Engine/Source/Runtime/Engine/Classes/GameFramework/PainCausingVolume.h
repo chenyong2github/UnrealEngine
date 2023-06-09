@@ -18,8 +18,8 @@
 /**
  * Volume that causes damage over time to any Actor that overlaps its collision.
  */
-UCLASS()
-class ENGINE_API APainCausingVolume : public APhysicsVolume
+UCLASS(MinimalAPI)
+class APainCausingVolume : public APhysicsVolume
 {
 	GENERATED_UCLASS_BODY()
 
@@ -52,29 +52,29 @@ class ENGINE_API APainCausingVolume : public APhysicsVolume
 	TObjectPtr<class AController> DamageInstigator;
 
 	/** Damage overlapping actors if pain-causing. */
-	virtual void PainTimer();
+	ENGINE_API virtual void PainTimer();
 
 #if WITH_EDITOR
 	//Begin AVolume Interface
-	virtual void CheckForErrors() override;
+	ENGINE_API virtual void CheckForErrors() override;
 	//End AVolume Interface
 #endif
 
 	//Begin AActor Interface
-	virtual void PostInitializeComponents() override;
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	ENGINE_API virtual void PostInitializeComponents() override;
+	ENGINE_API virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	/* reset actor to initial state - used when restarting level without reloading. */
-	virtual void Reset() override;
+	ENGINE_API virtual void Reset() override;
 	//End AActor Interface
 
 	//Being PhysicsVolume Interface
 	/** If bEntryPain is true, call CausePainTo() on entering actor. */
-	virtual void ActorEnteredVolume(class AActor* Other) override;
+	ENGINE_API virtual void ActorEnteredVolume(class AActor* Other) override;
 	//End PhysicsVolume Interface
 
 	/** damage overlapping actors if pain causing. */
-	virtual void CausePainTo(class AActor* Other);
+	ENGINE_API virtual void CausePainTo(class AActor* Other);
 
 protected:
 

@@ -17,8 +17,8 @@ struct FAnimInstanceProxy;
 
 DECLARE_DYNAMIC_DELEGATE(FPostEvaluateAnimEvent);
 
-UCLASS(transient, NotBlueprintable)
-class ENGINE_API UAnimSingleNodeInstance : public UAnimInstance
+UCLASS(transient, NotBlueprintable, MinimalAPI)
+class UAnimSingleNodeInstance : public UAnimInstance
 {
 	GENERATED_UCLASS_BODY()
 
@@ -35,91 +35,91 @@ class ENGINE_API UAnimSingleNodeInstance : public UAnimInstance
 	FPostEvaluateAnimEvent PostEvaluateAnimEvent;
 
 	//~ Begin UAnimInstance Interface
-	virtual void NativeInitializeAnimation() override;
-	virtual void NativePostEvaluateAnimation() override;
-	virtual void OnMontageInstanceStopped(FAnimMontageInstance& StoppedMontageInstance) override;
+	ENGINE_API virtual void NativeInitializeAnimation() override;
+	ENGINE_API virtual void NativePostEvaluateAnimation() override;
+	ENGINE_API virtual void OnMontageInstanceStopped(FAnimMontageInstance& StoppedMontageInstance) override;
 
 protected:
-	virtual void Montage_Advance(float DeltaTime) override;
+	ENGINE_API virtual void Montage_Advance(float DeltaTime) override;
 	//~ End UAnimInstance Interface
 public:
 	UFUNCTION(BlueprintCallable, Category="Animation")
-    void SetMirrorDataTable(const UMirrorDataTable* MirrorDataTable);
+    ENGINE_API void SetMirrorDataTable(const UMirrorDataTable* MirrorDataTable);
 	UFUNCTION(BlueprintCallable, Category="Animation")
-	const UMirrorDataTable* GetMirrorDataTable();
+	ENGINE_API const UMirrorDataTable* GetMirrorDataTable();
 	UFUNCTION(BlueprintCallable, Category="Animation")
-	void SetLooping(bool bIsLooping);
+	ENGINE_API void SetLooping(bool bIsLooping);
 	UFUNCTION(BlueprintCallable, Category="Animation")
-	void SetPlayRate(float InPlayRate);
+	ENGINE_API void SetPlayRate(float InPlayRate);
 	UFUNCTION(BlueprintCallable, Category="Animation")
-	void SetReverse(bool bInReverse);
+	ENGINE_API void SetReverse(bool bInReverse);
 	UFUNCTION(BlueprintCallable, Category="Animation")
-	void SetPosition(float InPosition, bool bFireNotifies=true);
+	ENGINE_API void SetPosition(float InPosition, bool bFireNotifies=true);
 	UFUNCTION(BlueprintCallable, Category="Animation")
-	void SetPositionWithPreviousTime(float InPosition, float InPreviousTime, bool bFireNotifies=true);
+	ENGINE_API void SetPositionWithPreviousTime(float InPosition, float InPreviousTime, bool bFireNotifies=true);
 	UFUNCTION(BlueprintCallable, Category="Animation")
-	void SetBlendSpacePosition(const FVector& InPosition);
+	ENGINE_API void SetBlendSpacePosition(const FVector& InPosition);
 	UFUNCTION(BlueprintCallable, Category="Animation")
-	void SetPlaying(bool bIsPlaying);
+	ENGINE_API void SetPlaying(bool bIsPlaying);
 	UFUNCTION(BlueprintCallable, Category="Animation")
-	float GetLength();
+	ENGINE_API float GetLength();
 	/* For AnimSequence specific **/
 	UFUNCTION(BlueprintCallable, Category="Animation")
-	void PlayAnim(bool bIsLooping=false, float InPlayRate=1.f, float InStartPosition=0.f);
+	ENGINE_API void PlayAnim(bool bIsLooping=false, float InPlayRate=1.f, float InStartPosition=0.f);
 	UFUNCTION(BlueprintCallable, Category="Animation")
-	void StopAnim();
+	ENGINE_API void StopAnim();
 	/** Set New Asset - calls InitializeAnimation, for now we need MeshComponent **/
 	UFUNCTION(BlueprintCallable, Category="Animation")
-	virtual void SetAnimationAsset(UAnimationAsset* NewAsset, bool bIsLooping=true, float InPlayRate=1.f);
+	ENGINE_API virtual void SetAnimationAsset(UAnimationAsset* NewAsset, bool bIsLooping=true, float InPlayRate=1.f);
 	/** Get the currently used asset */
 	UFUNCTION(BlueprintCallable, Category = "Animation")
-	virtual UAnimationAsset* GetAnimationAsset() const;
+	ENGINE_API virtual UAnimationAsset* GetAnimationAsset() const;
 	/** Set pose value */
  	UFUNCTION(BlueprintCallable, Category = "Animation")
- 	void SetPreviewCurveOverride(const FName& PoseName, float Value, bool bRemoveIfZero);
+ 	ENGINE_API void SetPreviewCurveOverride(const FName& PoseName, float Value, bool bRemoveIfZero);
 public:
 	/** Gets the current state of any BlendSpace */
-	void GetBlendSpaceState(FVector& OutPosition, FVector& OutFilteredPosition) const;
+	ENGINE_API void GetBlendSpaceState(FVector& OutPosition, FVector& OutFilteredPosition) const;
 
 	/** AnimSequence specific **/
-	void StepForward();
-	void StepBackward();
+	ENGINE_API void StepForward();
+	ENGINE_API void StepBackward();
 
 	/** custom evaluate pose **/
-	virtual void RestartMontage(UAnimMontage * Montage, FName FromSection = FName());
-	void SetMontageLoop(UAnimMontage* Montage, bool bIsLooping, FName StartingSection = FName());
+	ENGINE_API virtual void RestartMontage(UAnimMontage * Montage, FName FromSection = FName());
+	ENGINE_API void SetMontageLoop(UAnimMontage* Montage, bool bIsLooping, FName StartingSection = FName());
 
 	/** Set the montage slot to preview */
-	void SetMontagePreviewSlot(FName PreviewSlot);
+	ENGINE_API void SetMontagePreviewSlot(FName PreviewSlot);
 
 	/** Updates montage weights based on a jump in time (as this wont be handled by SetPosition) */
-	void UpdateMontageWeightForTimeSkip(float TimeDifference);
+	ENGINE_API void UpdateMontageWeightForTimeSkip(float TimeDifference);
 
 	/** Updates the blendspace samples list in the case of our asset being a blendspace */
-	void UpdateBlendspaceSamples(FVector InBlendInput);
+	ENGINE_API void UpdateBlendspaceSamples(FVector InBlendInput);
 
 	/** Check whether we are currently playing */
-	bool IsPlaying() const;
+	ENGINE_API bool IsPlaying() const;
 
 	/** Check whether we are currently playing in reverse */
-	bool IsReverse() const;
+	ENGINE_API bool IsReverse() const;
 
 	/** Check whether we are currently looping */
-	bool IsLooping() const;
+	ENGINE_API bool IsLooping() const;
 
 	/** Get the current playback time */
-	float GetCurrentTime() const;
+	ENGINE_API float GetCurrentTime() const;
 
 	/** Get the current play rate multiplier */
-	float GetPlayRate() const;
+	ENGINE_API float GetPlayRate() const;
 
 	/** Get the currently playing asset. Can return NULL */
-	UAnimationAsset* GetCurrentAsset();
+	ENGINE_API UAnimationAsset* GetCurrentAsset();
 
 	/** Get the last filter output */
-	FVector GetFilterLastOutput();
+	ENGINE_API FVector GetFilterLastOutput();
 protected:
-	virtual FAnimInstanceProxy* CreateAnimInstanceProxy() override;
+	ENGINE_API virtual FAnimInstanceProxy* CreateAnimInstanceProxy() override;
 };
 
 

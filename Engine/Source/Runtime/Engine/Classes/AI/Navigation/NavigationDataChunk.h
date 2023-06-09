@@ -10,8 +10,8 @@
 /** 
  * 
  */
-UCLASS(NotBlueprintable, abstract)
-class ENGINE_API UNavigationDataChunk : public UObject
+UCLASS(NotBlueprintable, abstract, MinimalAPI)
+class UNavigationDataChunk : public UObject
 {
 	GENERATED_UCLASS_BODY()
 

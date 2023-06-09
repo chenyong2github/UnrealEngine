@@ -68,205 +68,205 @@ struct FAudioDeviceParams
 };
 
 // List of delegates for the audio device manager.
-class ENGINE_API FAudioDeviceManagerDelegates
+class FAudioDeviceManagerDelegates
 {
 public:
 	// This delegate is called whenever an entirely new audio device is created.
 	DECLARE_TS_MULTICAST_DELEGATE_OneParam(FOnAudioDeviceCreated, Audio::FDeviceId /* AudioDeviceId*/);
-	static FOnAudioDeviceCreated OnAudioDeviceCreated;
+	static ENGINE_API FOnAudioDeviceCreated OnAudioDeviceCreated;
 
 	// This delegate is called whenever an audio device is destroyed.
 	DECLARE_TS_MULTICAST_DELEGATE_OneParam(FOnAudioDeviceDestroyed, Audio::FDeviceId /* AudioDeviceId*/);
-	static FOnAudioDeviceDestroyed OnAudioDeviceDestroyed;
+	static ENGINE_API FOnAudioDeviceDestroyed OnAudioDeviceDestroyed;
 };
 
 /**
 * Class for managing multiple audio devices.
 */
-class ENGINE_API FAudioDeviceManager
+class FAudioDeviceManager
 {
 public:
 
 	/**
 	* Constructor
 	*/
-	FAudioDeviceManager();
+	ENGINE_API FAudioDeviceManager();
 
 	/**
 	* Destructor
 	*/
-	~FAudioDeviceManager();
+	ENGINE_API ~FAudioDeviceManager();
 
 	/** Returns the handle to the main audio device. */
 	const FAudioDeviceHandle & GetMainAudioDeviceHandle() const { return MainAudioDeviceHandle; }
 	FAudioDevice* GetMainAudioDeviceRaw() const { return MainAudioDeviceHandle.GetAudioDevice(); }
 	Audio::FDeviceId GetMainAudioDeviceID() const { return MainAudioDeviceHandle.GetDeviceID(); }
 
-	static FAudioDevice* GetAudioDeviceFromWorldContext(const UObject* WorldContextObject);
-	static Audio::FMixerDevice* GetAudioMixerDeviceFromWorldContext(const UObject* WorldContextObject);
+	static ENGINE_API FAudioDevice* GetAudioDeviceFromWorldContext(const UObject* WorldContextObject);
+	static ENGINE_API Audio::FMixerDevice* GetAudioMixerDeviceFromWorldContext(const UObject* WorldContextObject);
 
 	/**
 	 * returns the currently used audio device module for this platform.
 	 * returns nullptr if Initialize() has not been called yet.
 	 */
-	IAudioDeviceModule* GetAudioDeviceModule();
+	ENGINE_API IAudioDeviceModule* GetAudioDeviceModule();
 
-	FAudioDeviceParams GetDefaultParamsForNewWorld();
+	ENGINE_API FAudioDeviceParams GetDefaultParamsForNewWorld();
 
 	/**
 	* Creates or requests an audio device instance internally and returns a
 	* handle to the audio device.
 	* This audio device is guaranteed to be alive as long as the returned handle is in scope.
 	*/
-	FAudioDeviceHandle RequestAudioDevice(const FAudioDeviceParams& InParams);
+	ENGINE_API FAudioDeviceHandle RequestAudioDevice(const FAudioDeviceParams& InParams);
 
 	/**
 	* Returns whether the audio device handle is valid (i.e. points to
 	* an actual audio device instance)
 	*/
-	bool IsValidAudioDevice(Audio::FDeviceId DeviceID) const;
+	ENGINE_API bool IsValidAudioDevice(Audio::FDeviceId DeviceID) const;
 
 	/**
 	 * Returns a strong handle to the audio device associated with the given device ID.
 	 * if the device ID is invalid returns an invalid, zeroed handle.
 	 */
-	FAudioDeviceHandle GetAudioDevice(Audio::FDeviceId InDeviceID);
+	ENGINE_API FAudioDeviceHandle GetAudioDevice(Audio::FDeviceId InDeviceID);
 
 	/**
 	 * Returns a raw ptr to the audio device associated with the handle. If the
 	 * handle is invalid then a NULL device ptr will be returned.
 	 */
-	FAudioDevice* GetAudioDeviceRaw(Audio::FDeviceId InDeviceID);
-	const FAudioDevice* GetAudioDeviceRaw(Audio::FDeviceId InDeviceID) const;
+	ENGINE_API FAudioDevice* GetAudioDeviceRaw(Audio::FDeviceId InDeviceID);
+	ENGINE_API const FAudioDevice* GetAudioDeviceRaw(Audio::FDeviceId InDeviceID) const;
 
 	/**
 	  Sets the device associated with the given world.
 	  */
-	void SetAudioDevice(UWorld& InWorld, Audio::FDeviceId InDeviceID);
+	ENGINE_API void SetAudioDevice(UWorld& InWorld, Audio::FDeviceId InDeviceID);
 
 	/**
 	* Initialize the audio device manager.
 	* Return true if successfully initialized.
 	**/
-	static bool Initialize();
-	static FAudioDeviceManager* Get();
-	static void Shutdown();
+	static ENGINE_API bool Initialize();
+	static ENGINE_API FAudioDeviceManager* Get();
+	static ENGINE_API void Shutdown();
 
 	/** Creates the main audio device. */
-	bool CreateMainAudioDevice();
+	ENGINE_API bool CreateMainAudioDevice();
 
 	/**
 	* Returns a ptr to the active audio device. If there is no active
 	* device then it will return the main audio device.
 	*/
-	FAudioDeviceHandle GetActiveAudioDevice();
+	ENGINE_API FAudioDeviceHandle GetActiveAudioDevice();
 
 	/** Returns the current number of active audio devices. */
-	uint8 GetNumActiveAudioDevices() const;
+	ENGINE_API uint8 GetNumActiveAudioDevices() const;
 
 	/** Returns the number of worlds (e.g. PIE viewports) using the main audio device. */
-	uint8 GetNumMainAudioDeviceWorlds() const;
+	ENGINE_API uint8 GetNumMainAudioDeviceWorlds() const;
 
 	/** Updates all active audio devices */
-	void UpdateActiveAudioDevices(bool bGameTicking);
+	ENGINE_API void UpdateActiveAudioDevices(bool bGameTicking);
 
 	/** Iterates over all managed audio devices */
-	void IterateOverAllDevices(TUniqueFunction<void(Audio::FDeviceId, FAudioDevice*)> ForEachDevice);
-	void IterateOverAllDevices(TUniqueFunction<void(Audio::FDeviceId, const FAudioDevice*)> ForEachDevice) const;
+	ENGINE_API void IterateOverAllDevices(TUniqueFunction<void(Audio::FDeviceId, FAudioDevice*)> ForEachDevice);
+	ENGINE_API void IterateOverAllDevices(TUniqueFunction<void(Audio::FDeviceId, const FAudioDevice*)> ForEachDevice) const;
 
 	/** Tracks objects in the active audio devices. */
-	void AddReferencedObjects(FReferenceCollector& Collector);
+	ENGINE_API void AddReferencedObjects(FReferenceCollector& Collector);
 
 	/** Stops sounds using the given resource on all audio devices. */
-	void StopSoundsUsingResource(class USoundWave* InSoundWave, TArray<UAudioComponent*>* StoppedComponents = nullptr);
+	ENGINE_API void StopSoundsUsingResource(class USoundWave* InSoundWave, TArray<UAudioComponent*>* StoppedComponents = nullptr);
 
 	/** Registers the Sound Class for all active devices. */
-	void RegisterSoundClass(USoundClass* SoundClass);
+	ENGINE_API void RegisterSoundClass(USoundClass* SoundClass);
 
 	/** Unregisters the Sound Class for all active devices. */
-	void UnregisterSoundClass(USoundClass* SoundClass);
+	ENGINE_API void UnregisterSoundClass(USoundClass* SoundClass);
 
 	/** Registers the world with the provided device Id */
-	void RegisterWorld(UWorld* InWorld, Audio::FDeviceId DeviceId);
+	ENGINE_API void RegisterWorld(UWorld* InWorld, Audio::FDeviceId DeviceId);
 
 	/** Unregisters the world from the provided device Id */
-	void UnregisterWorld(UWorld* InWorld, Audio::FDeviceId DeviceId);
+	ENGINE_API void UnregisterWorld(UWorld* InWorld, Audio::FDeviceId DeviceId);
 
 	/** Initializes the sound class for all active devices. */
-	void InitSoundClasses();
+	ENGINE_API void InitSoundClasses();
 
 	/** Registers the Sound Mix for all active devices. */
-	void RegisterSoundSubmix(USoundSubmixBase* SoundSubmix);
+	ENGINE_API void RegisterSoundSubmix(USoundSubmixBase* SoundSubmix);
 
 	/** Registers the Sound Mix for all active devices. */
-	void UnregisterSoundSubmix(const USoundSubmixBase* SoundSubmix);
+	ENGINE_API void UnregisterSoundSubmix(const USoundSubmixBase* SoundSubmix);
 
 	/** Initializes the sound mixes for all active devices. */
-	void InitSoundSubmixes();
+	ENGINE_API void InitSoundSubmixes();
 
 	/** Initialize all sound effect presets. */
-	void InitSoundEffectPresets();
+	ENGINE_API void InitSoundEffectPresets();
 
 	/** Updates source effect chain on all sources currently using the source effect chain. */
-	void UpdateSourceEffectChain(const uint32 SourceEffectChainId, const TArray<FSourceEffectChainEntry>& SourceEffectChain, const bool bPlayEffectChainTails);
+	ENGINE_API void UpdateSourceEffectChain(const uint32 SourceEffectChainId, const TArray<FSourceEffectChainEntry>& SourceEffectChain, const bool bPlayEffectChainTails);
 
 	/** Updates this submix for any changes made. Broadcasts to all submix instances. */
-	void UpdateSubmix(USoundSubmixBase* SoundSubmix);
+	ENGINE_API void UpdateSubmix(USoundSubmixBase* SoundSubmix);
 
 	/** Sets which audio device is the active audio device. */
-	void SetActiveDevice(uint32 InAudioDeviceHandle);
+	ENGINE_API void SetActiveDevice(uint32 InAudioDeviceHandle);
 
 	/** Sets an audio device to be solo'd */
-	void SetSoloDevice(Audio::FDeviceId InAudioDeviceHandle);
+	ENGINE_API void SetSoloDevice(Audio::FDeviceId InAudioDeviceHandle);
 
 	/** Links up the resource data indices for looking up and cleaning up. */
-	void TrackResource(USoundWave* SoundWave, FSoundBuffer* Buffer);
+	ENGINE_API void TrackResource(USoundWave* SoundWave, FSoundBuffer* Buffer);
 
 	/** Frees the given sound wave resource from the device manager */
-	void FreeResource(USoundWave* SoundWave);
+	ENGINE_API void FreeResource(USoundWave* SoundWave);
 
 	/** Frees the sound buffer from the device manager. */
-	void FreeBufferResource(FSoundBuffer* SoundBuffer);
+	ENGINE_API void FreeBufferResource(FSoundBuffer* SoundBuffer);
 
 	/** Stops using the given sound buffer. Called before freeing the buffer */
-	void StopSourcesUsingBuffer(FSoundBuffer* Buffer);
+	ENGINE_API void StopSourcesUsingBuffer(FSoundBuffer* Buffer);
 
 	/** Retrieves the sound buffer for the given resource id */
-	FSoundBuffer* GetSoundBufferForResourceID(uint32 ResourceID);
+	ENGINE_API FSoundBuffer* GetSoundBufferForResourceID(uint32 ResourceID);
 
 	/** Removes the sound buffer for the given resource id */
-	void RemoveSoundBufferForResourceID(uint32 ResourceID);
+	ENGINE_API void RemoveSoundBufferForResourceID(uint32 ResourceID);
 
 	/** Removes sound mix from all audio devices */
-	void RemoveSoundMix(USoundMix* SoundMix);
+	ENGINE_API void RemoveSoundMix(USoundMix* SoundMix);
 
 	/** Toggles playing audio for all active PIE sessions (and all devices). */
-	void TogglePlayAllDeviceAudio();
+	ENGINE_API void TogglePlayAllDeviceAudio();
 
 	/** Gets whether or not all devices should play their audio. */
 	bool IsPlayAllDeviceAudio() const { return bPlayAllDeviceAudio; }
 
 	/** Gets whether or not non-realtime devices should play their audio. */
-	bool IsAlwaysPlayNonRealtimeDeviceAudio() const;
+	ENGINE_API bool IsAlwaysPlayNonRealtimeDeviceAudio() const;
 
 	/** Is debug visualization of 3d sounds enabled */
-	bool IsVisualizeDebug3dEnabled() const;
+	ENGINE_API bool IsVisualizeDebug3dEnabled() const;
 
 	/** Toggles 3d visualization of 3d sounds on/off */
-	void ToggleVisualize3dDebug();
+	ENGINE_API void ToggleVisualize3dDebug();
 
 	/** Reset all sound cue trims */
-	void ResetAllDynamicSoundVolumes();
+	ENGINE_API void ResetAllDynamicSoundVolumes();
 
 	/** Get, reset, or set a sound cue trim */
-	float GetDynamicSoundVolume(ESoundType SoundType,  const FName& SoundName) const;
-	void ResetDynamicSoundVolume(ESoundType SoundType, const FName& SoundName);
-	void SetDynamicSoundVolume(ESoundType SoundType, const FName& SoundName, float Volume);
+	ENGINE_API float GetDynamicSoundVolume(ESoundType SoundType,  const FName& SoundName) const;
+	ENGINE_API void ResetDynamicSoundVolume(ESoundType SoundType, const FName& SoundName);
+	ENGINE_API void SetDynamicSoundVolume(ESoundType SoundType, const FName& SoundName, float Volume);
 
 #if ENABLE_AUDIO_DEBUG
 	/** Get the audio debugger instance */
-	Audio::FAudioDebugger& GetDebugger();
-	const Audio::FAudioDebugger& GetDebugger() const;
+	ENGINE_API Audio::FAudioDebugger& GetDebugger();
+	ENGINE_API const Audio::FAudioDebugger& GetDebugger() const;
 #endif // ENABLE_AUDIO_DEBUG
 
 public:
@@ -278,18 +278,18 @@ public:
 	TMap<int32, FSoundBuffer*>	WaveBufferMap;
 
 	/** Returns all the audio devices managed by device manager. */
-	TArray<FAudioDevice*> GetAudioDevices() const;
+	ENGINE_API TArray<FAudioDevice*> GetAudioDevices() const;
 
-	TArray<UWorld*> GetWorldsUsingAudioDevice(const Audio::FDeviceId& InID) const;
+	ENGINE_API TArray<UWorld*> GetWorldsUsingAudioDevice(const Audio::FDeviceId& InID) const;
 
 #if INSTRUMENT_AUDIODEVICE_HANDLES
-	void AddStackWalkForContainer(Audio::FDeviceId InId, uint32 StackWalkID, FString&& InStackWalk);
-	void RemoveStackWalkForContainer(Audio::FDeviceId InId, uint32 StackWalkID);
+	ENGINE_API void AddStackWalkForContainer(Audio::FDeviceId InId, uint32 StackWalkID, FString&& InStackWalk);
+	ENGINE_API void RemoveStackWalkForContainer(Audio::FDeviceId InId, uint32 StackWalkID);
 #endif
 
-	void LogListOfAudioDevices();
+	ENGINE_API void LogListOfAudioDevices();
 
-	Audio::FAudioFormatSettings& GetAudioFormatSettings() const;
+	ENGINE_API Audio::FAudioFormatSettings& GetAudioFormatSettings() const;
 
 private:
 
@@ -301,26 +301,26 @@ private:
 	TPimplPtr<Audio::FAudioFormatSettings> AudioFormatSettings;
 	TArray<TPimplPtr<FSimpleAudioInfoFactory>> EngineFormats;
 
-	bool InitializeManager();
+	ENGINE_API bool InitializeManager();
 
 	/** Creates a handle given the index and a generation value. */
-	uint32 GetNewDeviceID();
+	ENGINE_API uint32 GetNewDeviceID();
 
 	/** Load audio device module. */
-	bool LoadDefaultAudioDeviceModule();
+	ENGINE_API bool LoadDefaultAudioDeviceModule();
 
-	FAudioDeviceHandle CreateNewDevice(const FAudioDeviceParams& InParams);
+	ENGINE_API FAudioDeviceHandle CreateNewDevice(const FAudioDeviceParams& InParams);
 
 	// Called exclusively by the FAudioDeviceHandle copy constructor and assignment operators:
-	void IncrementDevice(Audio::FDeviceId DeviceID);
+	ENGINE_API void IncrementDevice(Audio::FDeviceId DeviceID);
 
 	// Called exclusively by the FAudioDeviceHandle dtor.
-	void DecrementDevice(Audio::FDeviceId DeviceID, UWorld* InWorld);
+	ENGINE_API void DecrementDevice(Audio::FDeviceId DeviceID, UWorld* InWorld);
 
 	/** Application enters background handler */
-	void AppWillEnterBackground();
+	ENGINE_API void AppWillEnterBackground();
 	
-	void RegisterAudioInfoFactories();
+	ENGINE_API void RegisterAudioInfoFactories();
 
 	/** Audio device module which creates audio devices. */
 	IAudioDeviceModule* AudioDeviceModule;
@@ -372,15 +372,15 @@ private:
 		FAudioDeviceContainer();
 	};
 
-	FAudioDeviceHandle BuildNewHandle(FAudioDeviceContainer&Container, Audio::FDeviceId DeviceID, const FAudioDeviceParams &InParams);
+	ENGINE_API FAudioDeviceHandle BuildNewHandle(FAudioDeviceContainer&Container, Audio::FDeviceId DeviceID, const FAudioDeviceParams &InParams);
 
 	/**
 	 * This function is used to check if we can use an existing audio device.
 	 */
-	static bool CanUseAudioDevice(const FAudioDeviceParams& InParams, const FAudioDeviceContainer& InContainer);
+	static ENGINE_API bool CanUseAudioDevice(const FAudioDeviceParams& InParams, const FAudioDeviceContainer& InContainer);
 
 #if INSTRUMENT_AUDIODEVICE_HANDLES
-	static uint32 CreateUniqueStackWalkID();
+	static ENGINE_API uint32 CreateUniqueStackWalkID();
 #endif
 
 	/**
@@ -412,5 +412,5 @@ private:
 
 	friend class FAudioDeviceHandle;
 
-	static FAudioDeviceManager* Singleton;
+	static ENGINE_API FAudioDeviceManager* Singleton;
 };

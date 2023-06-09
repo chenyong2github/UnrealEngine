@@ -13,27 +13,27 @@ class UInstancedPlacementClientSettings;
 /**
  * The base class used by any editor placement of instanced objects, which holds any relevant runtime data for the placed instances.
  */
-UCLASS()
-class ENGINE_API AInstancedPlacementPartitionActor : public AISMPartitionActor
+UCLASS(MinimalAPI)
+class AInstancedPlacementPartitionActor : public AISMPartitionActor
 {
 	GENERATED_UCLASS_BODY()
 
 public:
-	virtual void Serialize(FArchive& Ar) override;
-	virtual void PostLoad() override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void PostLoad() override;
 
 #if WITH_EDITOR	
-	virtual void PreEditUndo() override;
-	virtual void PostEditUndo() override;
-	virtual uint32 GetDefaultGridSize(UWorld* InWorld) const override;
-	virtual FGuid GetGridGuid() const override;
+	ENGINE_API virtual void PreEditUndo() override;
+	ENGINE_API virtual void PostEditUndo() override;
+	ENGINE_API virtual uint32 GetDefaultGridSize(UWorld* InWorld) const override;
+	ENGINE_API virtual FGuid GetGridGuid() const override;
 
-	void SetGridGuid(const FGuid& InGuid);
+	ENGINE_API void SetGridGuid(const FGuid& InGuid);
 
 	using FClientDescriptorFunc = FClientPlacementInfo::FClientDescriptorFunc;
-	FClientPlacementInfo* PreAddClientInstances(const FGuid& ClientGuid, const FString& InClientDisplayString, FClientDescriptorFunc RegisterDefinitionFunc);
-	void PostAddClientInstances();
-	void NotifySettingsObjectChanged(UInstancedPlacementClientSettings* InSettingsObject);
+	ENGINE_API FClientPlacementInfo* PreAddClientInstances(const FGuid& ClientGuid, const FString& InClientDisplayString, FClientDescriptorFunc RegisterDefinitionFunc);
+	ENGINE_API void PostAddClientInstances();
+	ENGINE_API void NotifySettingsObjectChanged(UInstancedPlacementClientSettings* InSettingsObject);
 #endif
 
 protected:

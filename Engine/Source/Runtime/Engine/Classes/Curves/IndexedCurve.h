@@ -14,7 +14,7 @@
  * @todo sequencer: Some heavy refactoring can be done here. Much more stuff can go in this base class.
  */
 USTRUCT()
-struct ENGINE_API FIndexedCurve
+struct FIndexedCurve
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -28,7 +28,7 @@ public:
 public:
 
 	/** Gets the index of a handle, checks if the key handle is valid first. */
-	int32 GetIndexSafe(FKeyHandle KeyHandle) const;
+	ENGINE_API int32 GetIndexSafe(FKeyHandle KeyHandle) const;
 
 	/** Const iterator for the handles. */
 	TArray<FKeyHandle>::TConstIterator GetKeyHandleIterator() const
@@ -38,19 +38,19 @@ public:
 	}
 
 	/** Get number of keys in curve. */
-	virtual int32 GetNumKeys() const PURE_VIRTUAL(FIndexedCurve::GetNumKeys, return 0;);
+	ENGINE_API virtual int32 GetNumKeys() const PURE_VIRTUAL(FIndexedCurve::GetNumKeys, return 0;);
 
 	/** Move a key to a new time. This may change the index of the key, so the new key index is returned. */
-	virtual void SetKeyTime(FKeyHandle KeyHandle, float NewTime) PURE_VIRTUAL(FIndexedCurve::SetKeyTime, );
+	ENGINE_API virtual void SetKeyTime(FKeyHandle KeyHandle, float NewTime) PURE_VIRTUAL(FIndexedCurve::SetKeyTime, );
 
 	/** Get the time for the Key with the specified index. */
-	virtual float GetKeyTime(FKeyHandle KeyHandle) const PURE_VIRTUAL(FIndexedCurve::GetKeyTime, return 0.f;);
+	ENGINE_API virtual float GetKeyTime(FKeyHandle KeyHandle) const PURE_VIRTUAL(FIndexedCurve::GetKeyTime, return 0.f;);
 	
 	/** Allocates a duplicate of the curve */
-	virtual FIndexedCurve* Duplicate() const PURE_VIRTUAL(FIndexedCurve::Duplicate, return nullptr;);
+	ENGINE_API virtual FIndexedCurve* Duplicate() const PURE_VIRTUAL(FIndexedCurve::Duplicate, return nullptr;);
 
 	/** Checks to see if the key handle is valid for this curve. */
-	bool IsKeyHandleValid(FKeyHandle KeyHandle) const;
+	ENGINE_API bool IsKeyHandleValid(FKeyHandle KeyHandle) const;
 
 	/** Gets the key handle for the first key in the curve */
 	FKeyHandle GetFirstKeyHandle() const { return (GetNumKeys() > 0 ? GetKeyHandle(0) : FKeyHandle::Invalid()); }
@@ -59,18 +59,18 @@ public:
 	FKeyHandle GetLastKeyHandle() const { const int32 NumKeys = GetNumKeys(); return (NumKeys > 0 ? GetKeyHandle(NumKeys-1) : FKeyHandle::Invalid()); }
 
 	/** Get the next key given the key handle */
-	FKeyHandle GetNextKey(FKeyHandle KeyHandle) const;
+	ENGINE_API FKeyHandle GetNextKey(FKeyHandle KeyHandle) const;
 
 	/** Get the previous key given the key handle */
-	FKeyHandle GetPreviousKey(FKeyHandle KeyHandle) const;
+	ENGINE_API FKeyHandle GetPreviousKey(FKeyHandle KeyHandle) const;
 
 	/** Shifts all keys forwards or backwards in time by an even amount, preserving order */
-	void ShiftCurve(float DeltaTime);
-	void ShiftCurve(float DeltaTime, const TSet<FKeyHandle>& KeyHandles);
+	ENGINE_API void ShiftCurve(float DeltaTime);
+	ENGINE_API void ShiftCurve(float DeltaTime, const TSet<FKeyHandle>& KeyHandles);
 
 	/** Scales all keys about an origin, preserving order */
-	void ScaleCurve(float ScaleOrigin, float ScaleFactor);
-	void ScaleCurve(float ScaleOrigin, float ScaleFactor, const TSet<FKeyHandle>& KeyHandles);
+	ENGINE_API void ScaleCurve(float ScaleOrigin, float ScaleFactor);
+	ENGINE_API void ScaleCurve(float ScaleOrigin, float ScaleFactor, const TSet<FKeyHandle>& KeyHandles);
 
 protected:
 
@@ -79,7 +79,7 @@ protected:
 	void EnsureIndexHasAHandle(int32 KeyIndex) const { KeyHandlesToIndices.EnsureIndexHasAHandle(KeyIndex); }
 
 private:
-	void EnsureAllIndicesHaveHandles_Internal(int32 NumKeys) const;
+	ENGINE_API void EnsureAllIndicesHaveHandles_Internal(int32 NumKeys) const;
 
 protected:
 
@@ -87,10 +87,10 @@ protected:
 	const int32* FindIndex(FKeyHandle KeyHandle) const { return KeyHandlesToIndices.Find(KeyHandle); }
 
 	/** Gets the index of a handle. */
-	int32 GetIndex(FKeyHandle KeyHandle) const;
+	ENGINE_API int32 GetIndex(FKeyHandle KeyHandle) const;
 
 	/** Internal tool to get a handle from an index. */
-	FKeyHandle GetKeyHandle(int32 KeyIndex) const;
+	ENGINE_API FKeyHandle GetKeyHandle(int32 KeyIndex) const;
 
 protected:
 

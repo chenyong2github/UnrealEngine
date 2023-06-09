@@ -9,7 +9,7 @@
 
 // Root node of an animation tree (sink)
 USTRUCT(BlueprintInternalUseOnly)
-struct ENGINE_API FAnimNode_Root : public FAnimNode_Base
+struct FAnimNode_Root : public FAnimNode_Base
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -28,14 +28,14 @@ protected:
 #endif
 
 public:	
-	FAnimNode_Root();
+	ENGINE_API FAnimNode_Root();
 
 	// FAnimNode_Base interface
-	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
-	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
-	virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
-	virtual void Evaluate_AnyThread(FPoseContext& Output) override;
-	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
+	ENGINE_API virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
+	ENGINE_API virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
+	ENGINE_API virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
+	ENGINE_API virtual void Evaluate_AnyThread(FPoseContext& Output) override;
+	ENGINE_API virtual void GatherDebugData(FNodeDebugData& DebugData) override;
 	// End of FAnimNode_Base interface
 
 #if WITH_EDITORONLY_DATA
@@ -47,8 +47,8 @@ public:
 #endif
 
 	/** Get the name of this root node, used to identify the output of this graph */
-	FName GetName() const;
+	ENGINE_API FName GetName() const;
 
 	/** Get the group of this root node, used to group this output with others when used in a layer. */
-	FName GetGroup() const;
+	ENGINE_API FName GetGroup() const;
 };

@@ -37,15 +37,15 @@ DECLARE_DELEGATE_ThreeParams(FOnPIELoginComplete, int32 /*LocalUserNum*/, bool /
  *
  * Adding code here is discouraged, there is probably a better way, talk to the OGS team
  */
-UCLASS(config = Engine)
-class ENGINE_API UOnlineEngineInterface : public UObject
+UCLASS(config = Engine, MinimalAPI)
+class UOnlineEngineInterface : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 
 	/** @return the singleton accessor of the engine / OnlineSubsystem interface */
-	static UOnlineEngineInterface* Get();
+	static ENGINE_API UOnlineEngineInterface* Get();
 
 	/**
 	 * Subsystem
@@ -293,5 +293,5 @@ public:
 private:
 
 	/** One and only instance of this class, should handle normal and PIE operations by disambiguating in the function calls themselves */
-	static UOnlineEngineInterface* Singleton;
+	static ENGINE_API UOnlineEngineInterface* Singleton;
 };

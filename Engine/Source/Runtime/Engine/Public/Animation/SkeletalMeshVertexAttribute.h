@@ -25,7 +25,7 @@ enum class ESkeletalMeshVertexAttributeDataType
 
 /** A structure to store user-controllable settings for attributes */  
 USTRUCT()
-struct ENGINE_API FSkeletalMeshVertexAttributeInfo
+struct FSkeletalMeshVertexAttributeInfo
 {
 	GENERATED_BODY()
 
@@ -42,10 +42,10 @@ struct ENGINE_API FSkeletalMeshVertexAttributeInfo
 	ESkeletalMeshVertexAttributeDataType DataType = ESkeletalMeshVertexAttributeDataType::Float;
 
 	/** Returns the name to use for this attribute when */ 
-	FName GetRequirementName() const;
+	ENGINE_API FName GetRequirementName() const;
 
 	/** Returns true if this attribute is enabled for rendering on this platform */
-	bool IsEnabledForRender() const;
+	ENGINE_API bool IsEnabledForRender() const;
 };
 
 #if WITH_EDITORONLY_DATA
@@ -69,11 +69,11 @@ struct FSkeletalMeshModelVertexAttribute
 #endif
 
 
-struct ENGINE_API FSkeletalMeshVertexAttributeRenderData
+struct FSkeletalMeshVertexAttributeRenderData
 {
-	~FSkeletalMeshVertexAttributeRenderData();
+	ENGINE_API ~FSkeletalMeshVertexAttributeRenderData();
 	
-	bool AddAttribute(
+	ENGINE_API bool AddAttribute(
 		const FName InName,
 		const ESkeletalMeshVertexAttributeDataType InDataType,
 		const int32 InNumVertices,
@@ -81,15 +81,15 @@ struct ENGINE_API FSkeletalMeshVertexAttributeRenderData
 		const TArray<float>& InValues
 		);
 
-	FSkeletalMeshAttributeVertexBuffer* GetAttributeBuffer(FName InName) const; 
+	ENGINE_API FSkeletalMeshAttributeVertexBuffer* GetAttributeBuffer(FName InName) const; 
 
-	void InitResources();
-	void ReleaseResources();
-	void CleanUp();
-	int32 GetResourceSize() const;
+	ENGINE_API void InitResources();
+	ENGINE_API void ReleaseResources();
+	ENGINE_API void CleanUp();
+	ENGINE_API int32 GetResourceSize() const;
 
 	// void SerializeMetaData(FArchive& Ar);
-	void Serialize(FArchive& Ar);
+	ENGINE_API void Serialize(FArchive& Ar);
 
 	friend FArchive& operator<<(FArchive& Ar, FSkeletalMeshVertexAttributeRenderData& RenderData)
 	{

@@ -92,7 +92,7 @@ EQuartzCommandQuantization ENGINE_API TimeSignatureQuantizationToCommandQuantiza
 
 // Allows the user to specify non-uniform beat durations in odd meters
 USTRUCT(BlueprintType)
-struct ENGINE_API FQuartzPulseOverrideStep
+struct FQuartzPulseOverrideStep
 {
 	GENERATED_BODY()
 
@@ -108,7 +108,7 @@ struct ENGINE_API FQuartzPulseOverrideStep
 
 // Quartz Time Signature
 USTRUCT(BlueprintType)
-struct ENGINE_API FQuartzTimeSignature
+struct FQuartzTimeSignature
 {
 	GENERATED_BODY()
 
@@ -129,18 +129,18 @@ struct ENGINE_API FQuartzTimeSignature
 
 
 	// copy ctor
-	FQuartzTimeSignature(const FQuartzTimeSignature& Other);
+	ENGINE_API FQuartzTimeSignature(const FQuartzTimeSignature& Other);
 
 	// assignment
-	FQuartzTimeSignature& operator=(const FQuartzTimeSignature& Other);
+	ENGINE_API FQuartzTimeSignature& operator=(const FQuartzTimeSignature& Other);
 
 	// comparison
-	bool operator==(const FQuartzTimeSignature& Other) const;
+	ENGINE_API bool operator==(const FQuartzTimeSignature& Other) const;
 };
 
 // Transport Time stamp, used for tracking the musical time stamp on a clock
 USTRUCT(BlueprintType)
-struct ENGINE_API FQuartzTransportTimeStamp
+struct FQuartzTransportTimeStamp
 {
 	GENERATED_BODY()
 
@@ -160,9 +160,9 @@ struct ENGINE_API FQuartzTransportTimeStamp
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Quantized Audio TimeStamp")
 	float Seconds{ 0.f };
 
-	bool IsZero() const;
+	ENGINE_API bool IsZero() const;
 
-	void Reset();
+	ENGINE_API void Reset();
 };
 
 
@@ -225,7 +225,7 @@ DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnQuartzCommandEventBP, EQuartzCommandDelega
 
 // UStruct version of settings struct used to initialized a clock
 USTRUCT(BlueprintType)
-struct ENGINE_API FQuartzClockSettings
+struct FQuartzClockSettings
 {
 	GENERATED_BODY()
 
@@ -243,18 +243,18 @@ struct ENGINE_API FQuartzClockSettings
 
 // Class to track latency trends
 // will lazily calculate running average on the correct thread
-class ENGINE_API FQuartLatencyTracker
+class FQuartLatencyTracker
 {
 public:
-	FQuartLatencyTracker();
+	ENGINE_API FQuartLatencyTracker();
 
-	void PushLatencyTrackerResult(const double& InResult);
+	ENGINE_API void PushLatencyTrackerResult(const double& InResult);
 
-	float GetLifetimeAverageLatency();
+	ENGINE_API float GetLifetimeAverageLatency();
 
-	float GetMinLatency();
+	ENGINE_API float GetMinLatency();
 
-	float GetMaxLatency();
+	ENGINE_API float GetMaxLatency();
 
 private:
 	void PushSingleResult(const double& InResult);
@@ -281,25 +281,25 @@ namespace Audio
 	// In this context "Tick Rate" refers to the duration of smallest temporal resolution we may care about
 	// in musical time, this is locked to a 1/32nd note
 
-	struct ENGINE_API FQuartzClockTickRate
+	struct FQuartzClockTickRate
 	{
 
 	public:
 		// ctor
-		FQuartzClockTickRate();
+		ENGINE_API FQuartzClockTickRate();
 
 		// Setters
-		void SetFramesPerTick(int32 InNewFramesPerTick);
+		ENGINE_API void SetFramesPerTick(int32 InNewFramesPerTick);
 
-		void SetMillisecondsPerTick(double InNewMillisecondsPerTick);
+		ENGINE_API void SetMillisecondsPerTick(double InNewMillisecondsPerTick);
 
-		void SetSecondsPerTick(double InNewSecondsPerTick);
+		ENGINE_API void SetSecondsPerTick(double InNewSecondsPerTick);
 
-		void SetThirtySecondNotesPerMinute(double InNewThirtySecondNotesPerMinute);
+		ENGINE_API void SetThirtySecondNotesPerMinute(double InNewThirtySecondNotesPerMinute);
 
-		void SetBeatsPerMinute(double InNewBeatsPerMinute);
+		ENGINE_API void SetBeatsPerMinute(double InNewBeatsPerMinute);
 
-		void SetSampleRate(double InNewSampleRate);
+		ENGINE_API void SetSampleRate(double InNewSampleRate);
 
 		// Getters
 		double GetFramesPerTick() const { return FramesPerTick; }
@@ -314,13 +314,13 @@ namespace Audio
 
 		double GetSampleRate() const { return SampleRate; }
 
-		double GetFramesPerDuration(EQuartzCommandQuantization InDuration) const;
+		ENGINE_API double GetFramesPerDuration(EQuartzCommandQuantization InDuration) const;
 
-		double GetFramesPerDuration(EQuartzTimeSignatureQuantization InDuration) const;
+		ENGINE_API double GetFramesPerDuration(EQuartzTimeSignatureQuantization InDuration) const;
 
-		bool IsValid(int32 InEventResolutionThreshold = 1) const;
+		ENGINE_API bool IsValid(int32 InEventResolutionThreshold = 1) const;
 
-		bool IsSameTickRate(const FQuartzClockTickRate& Other, bool bAccountForDifferentSampleRates = true) const;
+		ENGINE_API bool IsSameTickRate(const FQuartzClockTickRate& Other, bool bAccountForDifferentSampleRates = true) const;
 
 
 
@@ -334,43 +334,43 @@ namespace Audio
 		double BeatsPerMinute{ 0.0 };
 		double SampleRate{ 44100.0 };
 
-		void RecalculateDurationsBasedOnFramesPerTick();
+		ENGINE_API void RecalculateDurationsBasedOnFramesPerTick();
 
 	}; // class FAudioMixerClockTickRate
 
 	// Simple class to track latency as a request/action propagates from GT to ART (or vice versa)
-	class ENGINE_API FQuartzLatencyTimer
+	class FQuartzLatencyTimer
 	{
 	public:
 		// ctor
-		FQuartzLatencyTimer();
+		ENGINE_API FQuartzLatencyTimer();
 
 		// record the start time
-		void StartTimer();
+		ENGINE_API void StartTimer();
 
 		// reset the start time
-		void ResetTimer();
+		ENGINE_API void ResetTimer();
 
 		// stop the timer
-		void StopTimer();
+		ENGINE_API void StopTimer();
 
 		// get the current value of a running timer
-		double GetCurrentTimePassedMs();
+		ENGINE_API double GetCurrentTimePassedMs();
 
 		// get the final time of a stopped timer
-		double GetResultsMilliseconds();
+		ENGINE_API double GetResultsMilliseconds();
 
 		// returns true if the Timer was started (could be running or stopped)
-		bool HasTimerStarted();
+		ENGINE_API bool HasTimerStarted();
 
 		// returns true if the timer has been run and stopped
-		bool HasTimerStopped();
+		ENGINE_API bool HasTimerStopped();
 
 		// returns true if the timer is running
-		bool IsTimerRunning();
+		ENGINE_API bool IsTimerRunning();
 
 		// returns true if the timer has completed (we can get the results)
-		bool HasTimerRun();
+		ENGINE_API bool HasTimerRun();
 
 	private:
 		int64 JourneyStartCycles;
@@ -379,44 +379,44 @@ namespace Audio
 	};
 
 	// class to track time a QuartzMessage takes to get from one thread to another
-	class ENGINE_API FQuartzCrossThreadMessage : public FQuartzLatencyTimer
+	class FQuartzCrossThreadMessage : public FQuartzLatencyTimer
 	{
 	public:
-		FQuartzCrossThreadMessage(bool bAutoStartTimer = true);
+		ENGINE_API FQuartzCrossThreadMessage(bool bAutoStartTimer = true);
 
-		void RequestSent();
+		ENGINE_API void RequestSent();
 
-		double RequestRecieved() const;
+		ENGINE_API double RequestRecieved() const;
 
-		double GetResultsMilliseconds() const;
+		ENGINE_API double GetResultsMilliseconds() const;
 
-		double GetCurrentTimeMilliseconds() const;
+		ENGINE_API double GetCurrentTimeMilliseconds() const;
 
 	private:
 		mutable FQuartzLatencyTimer Timer;
 	};
 
-	struct ENGINE_API FQuartzOffset
+	struct FQuartzOffset
 	{
 	public:
 		// ctor
-		FQuartzOffset(double InOffsetInMilliseconds = 0.0);
-		FQuartzOffset(EQuartzCommandQuantization InDuration, double InMultiplier);
+		ENGINE_API FQuartzOffset(double InOffsetInMilliseconds = 0.0);
+		ENGINE_API FQuartzOffset(EQuartzCommandQuantization InDuration, double InMultiplier);
 
 		// offset get/set
-		void SetOffsetInMilliseconds(double InMilliseconds);
+		ENGINE_API void SetOffsetInMilliseconds(double InMilliseconds);
 
-		void SetOffsetMusical(EQuartzCommandQuantization Duration, double Multiplier);
+		ENGINE_API void SetOffsetMusical(EQuartzCommandQuantization Duration, double Multiplier);
 
 		bool IsSet() const { return IsSetAsMilliseconds() || IsSetAsMusicalDuration(); }
 
-		bool IsSetAsMilliseconds() const;
+		ENGINE_API bool IsSetAsMilliseconds() const;
 
-		bool IsSetAsMusicalDuration() const;
+		ENGINE_API bool IsSetAsMusicalDuration() const;
 
-		int32 GetOffsetInAudioFrames(const FQuartzClockTickRate& InTickRate);
+		ENGINE_API int32 GetOffsetInAudioFrames(const FQuartzClockTickRate& InTickRate);
 
-		bool operator==(const FQuartzOffset& Other) const;
+		ENGINE_API bool operator==(const FQuartzOffset& Other) const;
 
 	private:
 		// only one of these optionals will be valid at a time
@@ -430,7 +430,7 @@ namespace Audio
 	using FQuartzGameThreadCommandQueue = Audio::TQuartzShareableCommandQueue<FQuartzTickableObject>;
 	using FQuartzGameThreadCommandQueuePtr = TSharedPtr<FQuartzGameThreadCommandQueue, ESPMode::ThreadSafe>;
 
-	struct ENGINE_API FQuartzGameThreadSubscriber
+	struct FQuartzGameThreadSubscriber
 	{
 		FQuartzGameThreadSubscriber() = default;
 
@@ -453,20 +453,20 @@ namespace Audio
 		bool HasBeenNotifiedOfAboutToStart() const { return bHasBeenNotifiedOfAboutToStart; }
 
 		// comparison
-		bool operator==(const FQuartzGameThreadSubscriber& Other) const;
+		ENGINE_API bool operator==(const FQuartzGameThreadSubscriber& Other) const;
 
 		// todo: templatize to match teh underlying TQUartzShareableCommandQueue
 		// notify
-		void PushEvent(const FQuartzQuantizedCommandDelegateData& Data);
-		void PushEvent(const FQuartzMetronomeDelegateData& Data);
-		void PushEvent(const FQuartzQueueCommandData& Data);
+		ENGINE_API void PushEvent(const FQuartzQuantizedCommandDelegateData& Data);
+		ENGINE_API void PushEvent(const FQuartzMetronomeDelegateData& Data);
+		ENGINE_API void PushEvent(const FQuartzQueueCommandData& Data);
 
 		// allow implicit casting to the underlying queue
 		operator FQuartzGameThreadCommandQueuePtr() const { return Queue; }
 
 		// positive: anticipatory amount, negative:
-		int32 FinalizeOffset(const FQuartzClockTickRate& TickRate);
-		int32 GetOffsetAsAudioFrames() const;
+		ENGINE_API int32 FinalizeOffset(const FQuartzClockTickRate& TickRate);
+		ENGINE_API int32 GetOffsetAsAudioFrames() const;
 
 
 
@@ -482,7 +482,7 @@ namespace Audio
 
 // struct used to specify the quantization boundary of an event
 USTRUCT(BlueprintType)
-struct ENGINE_API FQuartzQuantizationBoundary
+struct FQuartzQuantizationBoundary
 {
 	GENERATED_BODY()
 
@@ -528,7 +528,7 @@ struct ENGINE_API FQuartzQuantizationBoundary
 		, bFireOnClockStart(bInFireOnClockStart)
 	{}
 
-	FString ToString() const;
+	ENGINE_API FString ToString() const;
 }; // struct FQuartzQuantizationBoundary
 
 
@@ -536,7 +536,7 @@ namespace Audio
 {
 	// data that is gathered by the AudioThread to get passed from FActiveSound->FMixerSourceVoice
 	// eventually converted to IQuartzQuantizedCommand for the Quantized Command itself
-	struct ENGINE_API FQuartzQuantizedRequestData
+	struct FQuartzQuantizedRequestData
 	{
 		// shared with FQuartzQuantizedCommandInitInfo:
 		FName ClockName;
@@ -550,12 +550,12 @@ namespace Audio
 
 	// data that is passed into IQuartzQuantizedCommand::OnQueued
 	// info that derived classes need can be added here
-	struct ENGINE_API FQuartzQuantizedCommandInitInfo
+	struct FQuartzQuantizedCommandInitInfo
 	{
 		FQuartzQuantizedCommandInitInfo() {}
 
 		// conversion ctor from FQuartzQuantizedRequestData
-		FQuartzQuantizedCommandInitInfo(const FQuartzQuantizedRequestData& RHS, int32 InSourceID = INDEX_NONE);
+		ENGINE_API FQuartzQuantizedCommandInitInfo(const FQuartzQuantizedRequestData& RHS, int32 InSourceID = INDEX_NONE);
 
 		void SetOwningClockPtr(TSharedPtr<Audio::FQuartzClock> InClockPointer)
 		{
@@ -580,7 +580,7 @@ namespace Audio
 	};
 
 	// base class for quantized commands. Virtual methods called by owning clock.
-	class ENGINE_API IQuartzQuantizedCommand : public FQuartzCrossThreadMessage
+	class IQuartzQuantizedCommand : public FQuartzCrossThreadMessage
 	{
 	public:
 
@@ -591,38 +591,38 @@ namespace Audio
 		virtual ~IQuartzQuantizedCommand() {};
 
 		// allocate a copy of the derived class
-		virtual TSharedPtr<IQuartzQuantizedCommand> GetDeepCopyOfDerivedObject() const;
+		ENGINE_API virtual TSharedPtr<IQuartzQuantizedCommand> GetDeepCopyOfDerivedObject() const;
 
-		void AddSubscriber(FQuartzGameThreadSubscriber InSubscriber);
+		ENGINE_API void AddSubscriber(FQuartzGameThreadSubscriber InSubscriber);
 
 		// Command has reached the AudioRenderThread
-		void OnQueued(const FQuartzQuantizedCommandInitInfo& InCommandInitInfo);
+		ENGINE_API void OnQueued(const FQuartzQuantizedCommandInitInfo& InCommandInitInfo);
 
 		// scheduled (finalize subscriber offsets) - called by FQuartzClock
-		void OnScheduled(const FQuartzClockTickRate& InTickRate);
+		ENGINE_API void OnScheduled(const FQuartzClockTickRate& InTickRate);
 
 		// called during FQuartzClock::Tick() to let us call AboutToStart
 		// at different times for different subscribers
-		void Update(int32 NumFramesUntilDeadline);
+		ENGINE_API void Update(int32 NumFramesUntilDeadline);
 
 		// Perhaps the associated sound failed concurrency and will not be playing
-		void FailedToQueue(FQuartzQuantizedRequestData& InGameThreadData);
+		ENGINE_API void FailedToQueue(FQuartzQuantizedRequestData& InGameThreadData);
 
 		// Called 2x Assumed thread latency before OnFinalCallback()
-		void AboutToStart();
+		ENGINE_API void AboutToStart();
 
 		// Called on the final callback of this event boundary.
 		// InNumFramesLeft is the number of frames into the callback the exact quantized event should take place
-		void OnFinalCallback(int32 InNumFramesLeft);
+		ENGINE_API void OnFinalCallback(int32 InNumFramesLeft);
 
 		// Called if the owning clock gets stopped
-		void OnClockPaused();
+		ENGINE_API void OnClockPaused();
 
 		// Called if the owning clock gets started
-		void OnClockStarted();
+		ENGINE_API void OnClockStarted();
 
 		// Called if the event is cancelled before OnFinalCallback() is called
-		void Cancel();
+		ENGINE_API void Cancel();
 
 
 		//Called if the event type uses an altered amount of frames
@@ -654,21 +654,21 @@ namespace Audio
 
 	// Audio Render Thread Handle to a queued command
 	// Used by AudioMixerSourceVoices to access a pending associated command
-	struct ENGINE_API FQuartzQuantizedCommandHandle
+	struct FQuartzQuantizedCommandHandle
 	{
 		FName OwningClockName;
 		TSharedPtr<IQuartzQuantizedCommand> CommandPtr{ nullptr };
 		FMixerDevice* MixerDevice{ nullptr };
 
 		// Attempts to cancel the command. Returns true if the cancellation was successful.
-		bool Cancel();
+		ENGINE_API bool Cancel();
 
 		// Resets the handle to initial state.
-		void Reset();
+		ENGINE_API void Reset();
 	};
 } // namespace Audio
 
-struct ENGINE_API FAudioComponentCommandInfo
+struct FAudioComponentCommandInfo
 {
 	FAudioComponentCommandInfo() {}
 

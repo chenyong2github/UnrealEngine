@@ -20,19 +20,19 @@ class AActor;
  *     foreach( Object in a set of objects)
  *         Exporter->ExportObjectInner( Context, Object ); 
  */
-class ENGINE_API FExportObjectInnerContext
+class FExportObjectInnerContext
 {
 public:
 	/**
 	 * Creates the map from objects to their direct inners.
 	 */
-	FExportObjectInnerContext();
+	ENGINE_API FExportObjectInnerContext();
 
 	/**
 	 * Creates the map from objects to their direct inners.
 	 * @param	ObjsToIgnore	An array of objects that should NOT be put in the list
 	 */
-	FExportObjectInnerContext(const TArray<UObject*>& ObjsToIgnore);
+	ENGINE_API FExportObjectInnerContext(const TArray<UObject*>& ObjsToIgnore);
 
 	/**Empty Constructor for derived export contexts */
 	FExportObjectInnerContext(const bool bIgnoredValue) {};
@@ -63,21 +63,21 @@ public:
 	/**
 	 * Should the given object be considered selected by the current export?
 	 */
-	virtual bool IsObjectSelected(const UObject* InObj) const;
+	ENGINE_API virtual bool IsObjectSelected(const UObject* InObj) const;
 };
 
 #if WITH_EDITOR
-class ENGINE_API FSelectedActorExportObjectInnerContext : public FExportObjectInnerContext
+class FSelectedActorExportObjectInnerContext : public FExportObjectInnerContext
 {
 public:
-	FSelectedActorExportObjectInnerContext();
-	explicit FSelectedActorExportObjectInnerContext(const TArray<AActor*> InSelectedActors);
+	ENGINE_API FSelectedActorExportObjectInnerContext();
+	ENGINE_API explicit FSelectedActorExportObjectInnerContext(const TArray<AActor*> InSelectedActors);
 
-	virtual bool IsObjectSelected(const UObject* InObj) const override;
+	ENGINE_API virtual bool IsObjectSelected(const UObject* InObj) const override;
 	virtual int32 GetObjectNumber() const override { return SelectedActors.Num(); }
 
 private:
-	void AddSelectedActor(const AActor* InActor);
+	ENGINE_API void AddSelectedActor(const AActor* InActor);
 
 	TSet<const AActor*> SelectedActors;
 };

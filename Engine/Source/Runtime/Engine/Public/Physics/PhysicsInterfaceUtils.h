@@ -33,12 +33,12 @@ struct FConstraintBrokenDelegateData
 class FPhysicsReplication;
 
 /** Interface for the creation of customized physics replication.*/
-class ENGINE_API IPhysicsReplicationFactory
+class IPhysicsReplicationFactory
 {
 public:
 
 	// NOTE: Once the old Create/Destroy methods are deprecated, remove the default implementation!
-	virtual TUniquePtr<IPhysicsReplication> CreatePhysicsReplication(FPhysScene* OwningPhysScene);
+	ENGINE_API virtual TUniquePtr<IPhysicsReplication> CreatePhysicsReplication(FPhysScene* OwningPhysScene);
 
 	UE_DEPRECATED(5.3, "Use CreatePhysicsReplication (which gives a replication interface) instead")
 	virtual FPhysicsReplication* Create(FPhysScene* OwningPhysScene) { return nullptr; }

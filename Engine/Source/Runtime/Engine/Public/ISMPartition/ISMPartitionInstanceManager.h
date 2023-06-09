@@ -15,12 +15,12 @@ enum class ETypedElementWorldType : uint8;
  * This exists so that clients can inject custom logic around the manipulation of the underlying ISM instance.
  * @note The client ISM instances given to this API must be valid and belong to this instance manager. The instance manager implementation is free to assert or crash if that contract is broken.
  */
-UINTERFACE()
-class ENGINE_API UISMPartitionInstanceManager : public UInterface
+UINTERFACE(MinimalAPI)
+class UISMPartitionInstanceManager : public UInterface
 {
 	GENERATED_BODY()
 };
-class ENGINE_API IISMPartitionInstanceManager
+class IISMPartitionInstanceManager
 {
 	GENERATED_BODY()
 
@@ -126,12 +126,12 @@ public:
  * An interface for actors that can provide a manager for ISM instances within a partition actor.
  * This exists so that objects that indirectly manage clients can provide the correct underlying manager for the specific client.
  */
-UINTERFACE()
-class ENGINE_API UISMPartitionInstanceManagerProvider : public UInterface
+UINTERFACE(MinimalAPI)
+class UISMPartitionInstanceManagerProvider : public UInterface
 {
 	GENERATED_BODY()
 };
-class ENGINE_API IISMPartitionInstanceManagerProvider
+class IISMPartitionInstanceManagerProvider
 {
 	GENERATED_BODY()
 
@@ -146,7 +146,7 @@ public:
 /**
  * An ISM partition instance manager, tied to a given client instance ID.
  */
-struct ENGINE_API FISMPartitionInstanceManager
+struct FISMPartitionInstanceManager
 {
 public:
 	FISMPartitionInstanceManager() = default;

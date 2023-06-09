@@ -82,7 +82,7 @@ public:
  * contains slot name, and animation data 
  */
 USTRUCT()
-struct ENGINE_API FSlotAnimationTrack
+struct FSlotAnimationTrack
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -92,7 +92,7 @@ struct ENGINE_API FSlotAnimationTrack
 	UPROPERTY(EditAnywhere, Category=Slot)
 	FAnimTrack AnimTrack;
 
-	FSlotAnimationTrack();
+	ENGINE_API FSlotAnimationTrack();
 };
 
 /** 
@@ -302,13 +302,13 @@ private:
 * Montage blend settings. Can be used to overwrite default Montage settings on Play/Stop
 */
 USTRUCT(BlueprintType)
-struct ENGINE_API FMontageBlendSettings
+struct FMontageBlendSettings
 {
 	GENERATED_BODY()
 
-	FMontageBlendSettings();
-	FMontageBlendSettings(float BlendTime);
-	FMontageBlendSettings(const FAlphaBlendArgs& BlendArgs);
+	ENGINE_API FMontageBlendSettings();
+	ENGINE_API FMontageBlendSettings(float BlendTime);
+	ENGINE_API FMontageBlendSettings(const FAlphaBlendArgs& BlendArgs);
 
 	/** Blend Profile to use for this blend */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Blend", meta = (DisplayAfter = "Blend"))
@@ -324,7 +324,7 @@ struct ENGINE_API FMontageBlendSettings
 };
 
 USTRUCT()
-struct ENGINE_API FAnimMontageInstance
+struct FAnimMontageInstance
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -433,15 +433,15 @@ public:
 	 * If Follower gets ticked after Leader, then synchronization will be exact and support more complex cases (i.e. timeline jumps).
 	 *		This can be enforced by setting up tick pre-requisites if desired.
 	 */
-	void MontageSync_Follow(struct FAnimMontageInstance* NewLeaderMontageInstance);
+	ENGINE_API void MontageSync_Follow(struct FAnimMontageInstance* NewLeaderMontageInstance);
 	/** Stop leading, release all followers. */
-	void MontageSync_StopLeading();
+	ENGINE_API void MontageSync_StopLeading();
 	/** Stop following our leader */
-	void MontageSync_StopFollowing();
+	ENGINE_API void MontageSync_StopFollowing();
 	/** PreUpdate - Sync if updated before Leader. */
-	void MontageSync_PreUpdate();
+	ENGINE_API void MontageSync_PreUpdate();
 	/** PostUpdate - Sync if updated after Leader. */
-	void MontageSync_PostUpdate();
+	ENGINE_API void MontageSync_PostUpdate();
 
 	/** Get Weight */
 	float GetWeight() const { return Blend.GetBlendedValue(); }
@@ -468,41 +468,41 @@ private:
 	uint32 MontageSyncUpdateFrameCounter;
 
 	/** true if montage has been updated this frame */
-	bool MontageSync_HasBeenUpdatedThisFrame() const;
+	ENGINE_API bool MontageSync_HasBeenUpdatedThisFrame() const;
 	/** This frame's counter, to track which Montages have been updated */
-	uint32 MontageSync_GetFrameCounter() const;
+	ENGINE_API uint32 MontageSync_GetFrameCounter() const;
 	/** Synchronize ourselves to our leader */
-	void MontageSync_PerformSyncToLeader();
+	ENGINE_API void MontageSync_PerformSyncToLeader();
 
 	/** Initialize Blend Setup from Montage */
-	void InitializeBlend(const FAlphaBlend& InAlphaBlend);
+	ENGINE_API void InitializeBlend(const FAlphaBlend& InAlphaBlend);
 
 	/**  Notify may invalidate current montage instance. Inputs should be memory not belonging to calling FAnimMontageInstance.*/
-	static bool ValidateInstanceAfterNotifyState(const TWeakObjectPtr<UAnimInstance>& InAnimInstance, const UAnimNotifyState* InNotifyStateClass);
+	static ENGINE_API bool ValidateInstanceAfterNotifyState(const TWeakObjectPtr<UAnimInstance>& InAnimInstance, const UAnimNotifyState* InNotifyStateClass);
 
 public:
-	FAnimMontageInstance();
+	ENGINE_API FAnimMontageInstance();
 
-	FAnimMontageInstance(UAnimInstance * InAnimInstance);
+	ENGINE_API FAnimMontageInstance(UAnimInstance * InAnimInstance);
 
 	//~ Begin montage instance Interfaces
 
 	// Blend in with the supplied play rate. Other blend settings will come from the Montage asset.
-	void Play(float InPlayRate = 1.f);
+	ENGINE_API void Play(float InPlayRate = 1.f);
 	// Blend in with the supplied blend settings
-	void Play(float InPlayRate, const FMontageBlendSettings& BlendInSettings);
+	ENGINE_API void Play(float InPlayRate, const FMontageBlendSettings& BlendInSettings);
 
 	// Blend out with the supplied FAlphaBlend. Other blend settings will come from the Montage asset.
-	void Stop(const FAlphaBlend& InBlendOut, bool bInterrupt=true);
+	ENGINE_API void Stop(const FAlphaBlend& InBlendOut, bool bInterrupt=true);
 	// Blend out with the supplied blend settings
-	void Stop(const FMontageBlendSettings& InBlendOutSettings, bool bInterrupt=true);
+	ENGINE_API void Stop(const FMontageBlendSettings& InBlendOutSettings, bool bInterrupt=true);
 
-	void Pause();
-	void Initialize(class UAnimMontage * InMontage);
+	ENGINE_API void Pause();
+	ENGINE_API void Initialize(class UAnimMontage * InMontage);
 
-	bool JumpToSectionName(FName const & SectionName, bool bEndOfSection = false);
-	bool SetNextSectionName(FName const & SectionName, FName const & NewNextSectionName);
-	bool SetNextSectionID(int32 const & SectionID, int32 const & NewNextSectionID);
+	ENGINE_API bool JumpToSectionName(FName const & SectionName, bool bEndOfSection = false);
+	ENGINE_API bool SetNextSectionName(FName const & SectionName, FName const & NewNextSectionName);
+	ENGINE_API bool SetNextSectionID(int32 const & SectionID, int32 const & NewNextSectionID);
 
 	bool IsValid() const { return (Montage!=nullptr); }
 	bool IsPlaying() const { return IsValid() && bPlaying; }
@@ -512,10 +512,10 @@ public:
 	/** Returns true if this montage is active (valid and not blending out) */
 	bool IsActive() const { return (IsValid() && !IsStopped()); }
 
-	void Terminate();
+	ENGINE_API void Terminate();
 
 	/** return true if it can use marker sync */
-	bool CanUseMarkerSync() const;
+	ENGINE_API bool CanUseMarkerSync() const;
 
 	/**
 	 *  Getters
@@ -556,48 +556,48 @@ public:
 	 * second is normal tick. This tick has to happen later when all node ticks
 	 * to accumulate and update curve data/notifies/branching points
 	 */
-	void UpdateWeight(float DeltaTime);
+	ENGINE_API void UpdateWeight(float DeltaTime);
 
 #if WITH_EDITOR	
-	void EditorOnly_PreAdvance();
+	ENGINE_API void EditorOnly_PreAdvance();
 #endif
 
 	/** Simulate is same as Advance, but without calling any events or touching any of the instance data. So it performs a simulation of advancing the timeline. */
-	bool SimulateAdvance(float DeltaTime, float& InOutPosition, struct FRootMotionMovementParams & OutRootMotionParams) const;
-	void Advance(float DeltaTime, struct FRootMotionMovementParams * OutRootMotionParams, bool bBlendRootMotion);
+	ENGINE_API bool SimulateAdvance(float DeltaTime, float& InOutPosition, struct FRootMotionMovementParams & OutRootMotionParams) const;
+	ENGINE_API void Advance(float DeltaTime, struct FRootMotionMovementParams * OutRootMotionParams, bool bBlendRootMotion);
 
-	FName GetCurrentSection() const;
-	FName GetNextSection() const;
-	int32 GetNextSectionID(int32 const & CurrentSectionID) const;
-	FName GetSectionNameFromID(int32 const & SectionID) const;
+	ENGINE_API FName GetCurrentSection() const;
+	ENGINE_API FName GetNextSection() const;
+	ENGINE_API int32 GetNextSectionID(int32 const & CurrentSectionID) const;
+	ENGINE_API FName GetSectionNameFromID(int32 const & SectionID) const;
 
 	// reference has to be managed manually
-	void AddReferencedObjects( FReferenceCollector& Collector );
+	ENGINE_API void AddReferencedObjects( FReferenceCollector& Collector );
 
 	/** Delegate function handlers
 	 */
-	void HandleEvents(float PreviousTrackPos, float CurrentTrackPos, const FBranchingPointMarker* BranchingPointMarker);
+	ENGINE_API void HandleEvents(float PreviousTrackPos, float CurrentTrackPos, const FBranchingPointMarker* BranchingPointMarker);
 
 private:
 	/** Called by blueprint functions that modify the montages current position. */
-	void OnMontagePositionChanged(FName const & ToSectionName);
+	ENGINE_API void OnMontagePositionChanged(FName const & ToSectionName);
 	
 	/** Updates ActiveStateBranchingPoints array and triggers Begin/End notifications based on CurrentTrackPosition */
 	/** Returns false if montage instance was destroyed during branching point update*/
-	bool UpdateActiveStateBranchingPoints(float CurrentTrackPosition);
+	ENGINE_API bool UpdateActiveStateBranchingPoints(float CurrentTrackPosition);
 
 	/** Trigger associated events when Montage ticking reaches given FBranchingPointMarker */
-	void BranchingPointEventHandler(const FBranchingPointMarker* BranchingPointMarker);
-	void RefreshNextPrevSections();
+	ENGINE_API void BranchingPointEventHandler(const FBranchingPointMarker* BranchingPointMarker);
+	ENGINE_API void RefreshNextPrevSections();
 
-	float GetRemainingPlayTimeToSectionEnd(const FMontageSubStepper& MontageSubStepper) const;
+	ENGINE_API float GetRemainingPlayTimeToSectionEnd(const FMontageSubStepper& MontageSubStepper) const;
 
 public:
 	/** static functions that are used by sequencer montage support*/
-	static UAnimMontage* SetSequencerMontagePosition(FName SlotName, USkeletalMeshComponent* SkeletalMeshComponent, int32& InOutInstanceId, UAnimSequenceBase* InAnimSequence, float InFromPosition, float InToPosition, float Weight, bool bLooping, bool bPlaying);
-	static UAnimMontage* PreviewSequencerMontagePosition(FName SlotName, USkeletalMeshComponent* SkeletalMeshComponent, int32& InOutInstanceId, UAnimSequenceBase* InAnimSequence, float InFromPosition, float InToPosition, float Weight, bool bLooping, bool bFireNotifies, bool bPlaying);
-	static UAnimMontage* SetSequencerMontagePosition(FName SlotName, UAnimInstance* AnimInstance, int32& InOutInstanceId, UAnimSequenceBase* InAnimSequence, float InFromPosition, float InToPosition, float Weight, bool bLooping, bool bPlaying);
-	static UAnimMontage* PreviewSequencerMontagePosition(FName SlotName, USkeletalMeshComponent* SkeletalMeshComponent, UAnimInstance* AnimInstance, int32& InOutInstanceId, UAnimSequenceBase* InAnimSequence, float InFromPosition, float InToPosition, float Weight, bool bLooping, bool bFireNotifies, bool bPlaying);
+	static ENGINE_API UAnimMontage* SetSequencerMontagePosition(FName SlotName, USkeletalMeshComponent* SkeletalMeshComponent, int32& InOutInstanceId, UAnimSequenceBase* InAnimSequence, float InFromPosition, float InToPosition, float Weight, bool bLooping, bool bPlaying);
+	static ENGINE_API UAnimMontage* PreviewSequencerMontagePosition(FName SlotName, USkeletalMeshComponent* SkeletalMeshComponent, int32& InOutInstanceId, UAnimSequenceBase* InAnimSequence, float InFromPosition, float InToPosition, float Weight, bool bLooping, bool bFireNotifies, bool bPlaying);
+	static ENGINE_API UAnimMontage* SetSequencerMontagePosition(FName SlotName, UAnimInstance* AnimInstance, int32& InOutInstanceId, UAnimSequenceBase* InAnimSequence, float InFromPosition, float InToPosition, float Weight, bool bLooping, bool bPlaying);
+	static ENGINE_API UAnimMontage* PreviewSequencerMontagePosition(FName SlotName, USkeletalMeshComponent* SkeletalMeshComponent, UAnimInstance* AnimInstance, int32& InOutInstanceId, UAnimSequenceBase* InAnimSequence, float InFromPosition, float InToPosition, float Weight, bool bLooping, bool bFireNotifies, bool bPlaying);
 };
 
 /**
@@ -796,7 +796,7 @@ public:
 
 	/** Returns the number of sections this montage has */
 	UFUNCTION(BlueprintPure, Category = "Montage")
-	ENGINE_API int32 GetNumSections() const { return CompositeSections.Num(); }
+	int32 GetNumSections() const { return CompositeSections.Num(); }
 
 	/** @return true if valid section */
 	UFUNCTION(BlueprintCallable, Category = "Montage")

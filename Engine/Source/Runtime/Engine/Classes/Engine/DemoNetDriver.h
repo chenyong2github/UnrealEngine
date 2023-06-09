@@ -107,14 +107,14 @@ struct FRollbackNetStartupActorInfo
 	}
 };
 
-struct ENGINE_API FDemoSavedRepObjectState
+struct FDemoSavedRepObjectState
 {
-	FDemoSavedRepObjectState(
+	ENGINE_API FDemoSavedRepObjectState(
 		const TWeakObjectPtr<const UObject>& InObject,
 		const TSharedRef<const FRepLayout>& InRepLayout,
 		FRepStateStaticBuffer&& InPropertyData);
 
-	~FDemoSavedRepObjectState();
+	ENGINE_API ~FDemoSavedRepObjectState();
 
 	TWeakObjectPtr<const UObject> Object;
 	TSharedPtr<const FRepLayout> RepLayout;
@@ -149,17 +149,17 @@ struct FMulticastRecordOptions
 /**
  * Simulated network driver for recording and playing back game sessions.
  */
-UCLASS(transient, config=Engine)
-class ENGINE_API UDemoNetDriver : public UNetDriver
+UCLASS(transient, config=Engine, MinimalAPI)
+class UDemoNetDriver : public UNetDriver
 {
 	GENERATED_BODY()
 
 public:
-	UDemoNetDriver(const FObjectInitializer& ObjectInitializer);
-	UDemoNetDriver(FVTableHelper& Helper);
-	~UDemoNetDriver();
+	ENGINE_API UDemoNetDriver(const FObjectInitializer& ObjectInitializer);
+	ENGINE_API UDemoNetDriver(FVTableHelper& Helper);
+	ENGINE_API ~UDemoNetDriver();
 
-	virtual void SetWorld(class UWorld* InWorld) override;
+	ENGINE_API virtual void SetWorld(class UWorld* InWorld) override;
 
 	/** Current record/playback frame number */
 	int32 GetDemoFrameNum() const { return ReplayHelper.DemoFrameNum; }
@@ -210,14 +210,14 @@ public:
 		ReplayHelper.LastCheckpointTime = CheckpointTime;
 	}
 
-	void RespawnNecessaryNetStartupActors(TArray<AActor*>& SpawnedActors, ULevel* Level = nullptr);
+	ENGINE_API void RespawnNecessaryNetStartupActors(TArray<AActor*>& SpawnedActors, ULevel* Level = nullptr);
 
 private:
-	void RestoreComponentState(UActorComponent* ActorComp, FRollbackNetStartupActorInfo& RollbackActor);
+	ENGINE_API void RestoreComponentState(UActorComponent* ActorComp, FRollbackNetStartupActorInfo& RollbackActor);
 
-	void InitDefaults();
+	ENGINE_API void InitDefaults();
 
-	bool LoadCheckpoint(const FGotoResult& GotoResult);
+	ENGINE_API bool LoadCheckpoint(const FGotoResult& GotoResult);
 	
 	TArray<TUniquePtr<FDeltaCheckpointData>> PlaybackDeltaCheckpointData;
 	
@@ -230,20 +230,20 @@ public:
 		PlaylistTracker = InPlaylistTracker;
 	}
 
-	virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
 
 	/** Returns true if we're in the process of saving a checkpoint. */
-	bool IsSavingCheckpoint() const;
+	ENGINE_API bool IsSavingCheckpoint() const;
 	bool IsLoadingCheckpoint() const { return ReplayHelper.bIsLoadingCheckpoint; }
 	
-	bool IsPlayingClientReplay() const;
+	ENGINE_API bool IsPlayingClientReplay() const;
 
 	/** PlaybackPackets are used to buffer packets up when we read a demo frame, which we can then process when the time is right */
 	TArray<FPlaybackPacket> PlaybackPackets;
 
 	bool IsRecordingMapChanges() const { return ReplayHelper.bRecordMapChanges; }
 
-	void RequestCheckpoint();
+	ENGINE_API void RequestCheckpoint();
 
 private:
 	struct FDemoActorPriority
@@ -307,13 +307,13 @@ private:
 	TArray<FDemoActorPriority> PrioritizedActors;
 
 	/** Does the actual work of TickFlush, either on the main thread or in a task thread in parallel with Slate. */
-	void TickFlushInternal(float DeltaSeconds);
+	ENGINE_API void TickFlushInternal(float DeltaSeconds);
 
 	/** Returns the last checkpoint time in integer milliseconds. */
 	uint32 GetLastCheckpointTimeInMS() const { return ReplayHelper.GetLastCheckpointTimeInMS(); }
 
 	/** Called during a normal demoFrame*/
-	void TickDemoRecordFrame(float DeltaSeconds);
+	ENGINE_API void TickDemoRecordFrame(float DeltaSeconds);
 
 	/** Config data for multicast RPCs we might want to skip recording. */
 	UPROPERTY(config)
@@ -323,46 +323,46 @@ public:
 
 	// UNetDriver interface.
 
-	virtual bool InitBase(bool bInitAsClient, FNetworkNotify* InNotify, const FURL& URL, bool bReuseAddressAndPort, FString& Error) override;
-	virtual void FinishDestroy() override;
-	virtual FString LowLevelGetNetworkNumber() override;
-	virtual bool InitConnect(FNetworkNotify* InNotify, const FURL& ConnectURL, FString& Error) override;
-	virtual bool InitListen(FNetworkNotify* InNotify, FURL& ListenURL, bool bReuseAddressAndPort, FString& Error) override;
-	virtual void TickFlush(float DeltaSeconds) override;
-	virtual void PostTickFlush() override;
-	virtual void TickDispatch(float DeltaSeconds) override;
-	virtual void ProcessRemoteFunction(class AActor* Actor, class UFunction* Function, void* Parameters, struct FOutParmRec* OutParms, struct FFrame* Stack, class UObject* SubObject = nullptr) override;
+	ENGINE_API virtual bool InitBase(bool bInitAsClient, FNetworkNotify* InNotify, const FURL& URL, bool bReuseAddressAndPort, FString& Error) override;
+	ENGINE_API virtual void FinishDestroy() override;
+	ENGINE_API virtual FString LowLevelGetNetworkNumber() override;
+	ENGINE_API virtual bool InitConnect(FNetworkNotify* InNotify, const FURL& ConnectURL, FString& Error) override;
+	ENGINE_API virtual bool InitListen(FNetworkNotify* InNotify, FURL& ListenURL, bool bReuseAddressAndPort, FString& Error) override;
+	ENGINE_API virtual void TickFlush(float DeltaSeconds) override;
+	ENGINE_API virtual void PostTickFlush() override;
+	ENGINE_API virtual void TickDispatch(float DeltaSeconds) override;
+	ENGINE_API virtual void ProcessRemoteFunction(class AActor* Actor, class UFunction* Function, void* Parameters, struct FOutParmRec* OutParms, struct FFrame* Stack, class UObject* SubObject = nullptr) override;
 	virtual bool IsAvailable() const override { return true; }
-	void SkipTime(const float InTimeToSkip);
+	ENGINE_API void SkipTime(const float InTimeToSkip);
 	
 	UE_DEPRECATED(5.3, "Internal call will be made private in the future.")
-	void SkipTimeInternal(const float SecondsToSkip, const bool InFastForward, const bool InIsForCheckpoint);
+	ENGINE_API void SkipTimeInternal(const float SecondsToSkip, const bool InFastForward, const bool InIsForCheckpoint);
 	UE_DEPRECATED(5.3, "Internal call will be made private in the future.")
-	bool InitConnectInternal(FString& Error);
+	ENGINE_API bool InitConnectInternal(FString& Error);
 
-	virtual bool ShouldClientDestroyTearOffActors() const override;
-	virtual bool ShouldSkipRepNotifies() const override;
-	virtual bool ShouldQueueBunchesForActorGUID(FNetworkGUID InGUID) const override;
-	virtual bool ShouldIgnoreRPCs() const override;
-	virtual FNetworkGUID GetGUIDForActor(const AActor* InActor) const override;
-	virtual AActor* GetActorForGUID(FNetworkGUID InGUID) const override;
-	virtual bool ShouldReceiveRepNotifiesForObject(UObject* Object) const override;
-	virtual void ForceNetUpdate(AActor* Actor) override;
-	virtual bool IsServer() const override;
-	virtual bool ShouldReplicateFunction(AActor* Actor, UFunction* Function) const override;
-	virtual bool ShouldReplicateActor(AActor* Actor) const override;
-	virtual bool ShouldForwardFunction(AActor* Actor, UFunction* Function, void* Parms) const override;
-	virtual void NotifyActorChannelOpen(UActorChannel* Channel, AActor* Actor) override;
-	virtual void NotifyActorChannelCleanedUp(UActorChannel* Channel, EChannelCloseReason CloseReason) override;
-	virtual void NotifyActorClientDormancyChanged(AActor* Actor, ENetDormancy OldDormancyState) override;
-	virtual void NotifyActorTornOff(AActor* Actor) override;
+	ENGINE_API virtual bool ShouldClientDestroyTearOffActors() const override;
+	ENGINE_API virtual bool ShouldSkipRepNotifies() const override;
+	ENGINE_API virtual bool ShouldQueueBunchesForActorGUID(FNetworkGUID InGUID) const override;
+	ENGINE_API virtual bool ShouldIgnoreRPCs() const override;
+	ENGINE_API virtual FNetworkGUID GetGUIDForActor(const AActor* InActor) const override;
+	ENGINE_API virtual AActor* GetActorForGUID(FNetworkGUID InGUID) const override;
+	ENGINE_API virtual bool ShouldReceiveRepNotifiesForObject(UObject* Object) const override;
+	ENGINE_API virtual void ForceNetUpdate(AActor* Actor) override;
+	ENGINE_API virtual bool IsServer() const override;
+	ENGINE_API virtual bool ShouldReplicateFunction(AActor* Actor, UFunction* Function) const override;
+	ENGINE_API virtual bool ShouldReplicateActor(AActor* Actor) const override;
+	ENGINE_API virtual bool ShouldForwardFunction(AActor* Actor, UFunction* Function, void* Parms) const override;
+	ENGINE_API virtual void NotifyActorChannelOpen(UActorChannel* Channel, AActor* Actor) override;
+	ENGINE_API virtual void NotifyActorChannelCleanedUp(UActorChannel* Channel, EChannelCloseReason CloseReason) override;
+	ENGINE_API virtual void NotifyActorClientDormancyChanged(AActor* Actor, ENetDormancy OldDormancyState) override;
+	ENGINE_API virtual void NotifyActorTornOff(AActor* Actor) override;
 
 	virtual void ProcessLocalServerPackets() override {}
 	virtual void ProcessLocalClientPackets() override {}
 
-	virtual void InitDestroyedStartupActors() override;
+	ENGINE_API virtual void InitDestroyedStartupActors() override;
 
-	virtual void SetAnalyticsProvider(TSharedPtr<IAnalyticsProvider> InProvider) override;
+	ENGINE_API virtual void SetAnalyticsProvider(TSharedPtr<IAnalyticsProvider> InProvider) override;
 
 	virtual void LowLevelSend(TSharedPtr<const FInternetAddr> Address, void* Data, int32 CountBits, FOutPacketTraits& Traits) override {}
 	virtual class ISocketSubsystem* GetSocketSubsystem() override { return nullptr; }
@@ -370,11 +370,11 @@ public:
 	virtual bool DoesSupportEncryption() const override { return false; }
 
 protected:
-	virtual UChannel* InternalCreateChannelByName(const FName& ChName) override;
+	ENGINE_API virtual UChannel* InternalCreateChannelByName(const FName& ChName) override;
 
 public:
 	/** Called when we are already recording but have traveled to a new map to start recording again */
-	bool ContinueListen(FURL& ListenURL);
+	ENGINE_API bool ContinueListen(FURL& ListenURL);
 
 	/** 
 	 * Scrubs playback to the given time. 
@@ -382,10 +382,10 @@ public:
 	 * @param TimeInSeconds
 	 * @param InOnGotoTimeDelegate		Delegate to call when finished. Will be called only once at most.
 	*/
-	void GotoTimeInSeconds(const float TimeInSeconds, const FOnGotoTimeDelegate& InOnGotoTimeDelegate = FOnGotoTimeDelegate());
+	ENGINE_API void GotoTimeInSeconds(const float TimeInSeconds, const FOnGotoTimeDelegate& InOnGotoTimeDelegate = FOnGotoTimeDelegate());
 
-	bool IsRecording() const;
-	bool IsPlaying() const;
+	ENGINE_API bool IsRecording() const;
+	ENGINE_API bool IsPlaying() const;
 
 	/** Total time of demo in seconds */
 	float GetDemoTotalTime() const { return ReplayHelper.DemoTotalTime; }
@@ -426,46 +426,46 @@ public:
 	}
 
 	/** Called by a task thread if the engine is doing async end of frame tasks in parallel with Slate. */
-	void TickFlushAsyncEndOfFrame(float DeltaSeconds);
+	ENGINE_API void TickFlushAsyncEndOfFrame(float DeltaSeconds);
 
-	const TArray<FLevelNameAndTime>& GetLevelNameAndTimeList();
+	ENGINE_API const TArray<FLevelNameAndTime>& GetLevelNameAndTimeList();
 
 	/** Returns the replicated state of every object on a current actor channel. Use the result to compare in DiffReplicatedProperties. */
-	FDemoSavedPropertyState SavePropertyState() const;
+	ENGINE_API FDemoSavedPropertyState SavePropertyState() const;
 
 	/** Compares the values of replicated properties stored in State with the current values of the object replicators. Logs and returns true if there were any differences. */
-	bool ComparePropertyState(const FDemoSavedPropertyState& State) const;
+	ENGINE_API bool ComparePropertyState(const FDemoSavedPropertyState& State) const;
 
 public:
 	/** @return true if the net resource is valid or false if it should not be used */
 	virtual bool IsNetResourceValid(void) override { return true; }
 
-	void TickDemoRecord(float DeltaSeconds);
-	void PauseChannels(const bool bPause);
-	void PauseRecording(const bool bInPauseRecording);
-	bool IsRecordingPaused() const;
+	ENGINE_API void TickDemoRecord(float DeltaSeconds);
+	ENGINE_API void PauseChannels(const bool bPause);
+	ENGINE_API void PauseRecording(const bool bInPauseRecording);
+	ENGINE_API bool IsRecordingPaused() const;
 
-	bool ConditionallyProcessPlaybackPackets();
-	void ProcessAllPlaybackPackets();
+	ENGINE_API bool ConditionallyProcessPlaybackPackets();
+	ENGINE_API void ProcessAllPlaybackPackets();
 
-	bool ConditionallyReadDemoFrameIntoPlaybackPackets(FArchive& Ar);
+	ENGINE_API bool ConditionallyReadDemoFrameIntoPlaybackPackets(FArchive& Ar);
 
-	bool ProcessPacket(const uint8* Data, int32 Count);
+	ENGINE_API bool ProcessPacket(const uint8* Data, int32 Count);
 	bool ProcessPacket(const FPlaybackPacket& PlaybackPacket)
 	{
 		return ShouldSkipPlaybackPacket(PlaybackPacket) ||
 				ProcessPacket(PlaybackPacket.Data.GetData(), PlaybackPacket.Data.Num());
 	}
 	
-	void WriteDemoFrameFromQueuedDemoPackets(FArchive& Ar, TArray<FQueuedDemoPacket>& QueuedPackets, float FrameTime, EWriteDemoFrameFlags Flags);
+	ENGINE_API void WriteDemoFrameFromQueuedDemoPackets(FArchive& Ar, TArray<FQueuedDemoPacket>& QueuedPackets, float FrameTime, EWriteDemoFrameFlags Flags);
 
-	void WritePacket(FArchive& Ar, uint8* Data, int32 Count);
+	ENGINE_API void WritePacket(FArchive& Ar, uint8* Data, int32 Count);
 
-	void TickDemoPlayback(float DeltaSeconds);
+	ENGINE_API void TickDemoPlayback(float DeltaSeconds);
 	
-	void FinalizeFastForward(const double StartTime);
+	ENGINE_API void FinalizeFastForward(const double StartTime);
 	
-	void SpawnDemoRecSpectator( UNetConnection* Connection, const FURL& ListenURL);
+	ENGINE_API void SpawnDemoRecSpectator( UNetConnection* Connection, const FURL& ListenURL);
 
 	/**
 	 * Restores the given player controller so that it properly points to the given NetConnection
@@ -474,14 +474,14 @@ public:
 	 * @param PC			The PlayerController to set up the given NetConnection for
 	 * @param NetConnection	The NetConnection to be assigned to the player controller.
 	 */
-	void RestoreConnectionPostScrub(APlayerController* PC, UNetConnection* NetConnection);
+	ENGINE_API void RestoreConnectionPostScrub(APlayerController* PC, UNetConnection* NetConnection);
 
 	/**
 	 * Sets the main spectator controller to be used and adds them to the spectator control array
 	 *
 	 * @param PC			The PlayerController to set the main controller param to.
 	 */
-	void SetSpectatorController(APlayerController* PC);
+	ENGINE_API void SetSpectatorController(APlayerController* PC);
 	
 	// Splitscreen demo handling
 
@@ -493,7 +493,7 @@ public:
 	 *
 	 * @return If the viewer was able to be created or not.
 	 */
-	bool SpawnSplitscreenViewer(ULocalPlayer* NewPlayer, UWorld* InWorld);
+	ENGINE_API bool SpawnSplitscreenViewer(ULocalPlayer* NewPlayer, UWorld* InWorld);
 
 	/**
 	 * Removes a splitscreen demo viewer and cleans up its connection.
@@ -503,7 +503,7 @@ public:
 	 *
 	 * @return If the player was successfully removed from the replay.
 	 */
-	bool RemoveSplitscreenViewer(APlayerController* RemovePlayer, bool bMarkOwnerForDeletion=false);
+	ENGINE_API bool RemoveSplitscreenViewer(APlayerController* RemovePlayer, bool bMarkOwnerForDeletion=false);
 
 private:
 	// Internal splitscreen management
@@ -521,42 +521,42 @@ private:
 	 *
 	 * @return The number of splitscreen connections cleaned up.
 	 */
-	int32 CleanUpSplitscreenConnections(bool bDeleteOwner);
+	ENGINE_API int32 CleanUpSplitscreenConnections(bool bDeleteOwner);
 
 public:
 
-	void ResetDemoState();
-	void JumpToEndOfLiveReplay();
-	void AddEvent(const FString& Group, const FString& Meta, const TArray<uint8>& Data);
-	void AddOrUpdateEvent(const FString& EventName, const FString& Group, const FString& Meta, const TArray<uint8>& Data);
+	ENGINE_API void ResetDemoState();
+	ENGINE_API void JumpToEndOfLiveReplay();
+	ENGINE_API void AddEvent(const FString& Group, const FString& Meta, const TArray<uint8>& Data);
+	ENGINE_API void AddOrUpdateEvent(const FString& EventName, const FString& Group, const FString& Meta, const TArray<uint8>& Data);
 
-	void EnumerateEvents(const FString& Group, const FEnumerateEventsCallback& Delegate);
+	ENGINE_API void EnumerateEvents(const FString& Group, const FEnumerateEventsCallback& Delegate);
 
 	// In most cases, this is desirable over EnumerateEvents because it will explicitly use ActiveReplayName
 	// instead of letting the streamer decide.
-	void EnumerateEventsForActiveReplay(const FString& Group, const FEnumerateEventsCallback& Delegate);
-	void EnumerateEventsForActiveReplay(const FString& Group, const int32 UserIndex, const FEnumerateEventsCallback& Delegate);
+	ENGINE_API void EnumerateEventsForActiveReplay(const FString& Group, const FEnumerateEventsCallback& Delegate);
+	ENGINE_API void EnumerateEventsForActiveReplay(const FString& Group, const int32 UserIndex, const FEnumerateEventsCallback& Delegate);
 
-	void RequestEventData(const FString& EventID, const FRequestEventDataCallback& Delegate);
+	ENGINE_API void RequestEventData(const FString& EventID, const FRequestEventDataCallback& Delegate);
 
 	// In most cases, this is desirable over RequestEventData because it will explicitly use ActiveReplayName
 	// instead of letting the streamer decide.
-	void RequestEventDataForActiveReplay(const FString& EventID, const FRequestEventDataCallback& Delegate);
-	void RequestEventDataForActiveReplay(const FString& EventID, const int32 UserIndex, const FRequestEventDataCallback& Delegate);
+	ENGINE_API void RequestEventDataForActiveReplay(const FString& EventID, const FRequestEventDataCallback& Delegate);
+	ENGINE_API void RequestEventDataForActiveReplay(const FString& EventID, const int32 UserIndex, const FRequestEventDataCallback& Delegate);
 
 	/** Retrieve data for all events matching the requested group, and call the passed in delegate on completion. */
-	void RequestEventGroupDataForActiveReplay(const FString& Group, const FRequestEventGroupDataCallback& Delegate);
-	void RequestEventGroupDataForActiveReplay(const FString& Group, const int32 UserIndex, const FRequestEventGroupDataCallback& Delegate);
+	ENGINE_API void RequestEventGroupDataForActiveReplay(const FString& Group, const FRequestEventGroupDataCallback& Delegate);
+	ENGINE_API void RequestEventGroupDataForActiveReplay(const FString& Group, const int32 UserIndex, const FRequestEventGroupDataCallback& Delegate);
 
 	bool IsFastForwarding() const { return bIsFastForwarding; }
 	bool IsFinalizingFastForward() const { return bIsFinalizingFastForward; }
 	bool IsRestoringStartupActors() const { return bIsRestoringStartupActors; }
 
-	FReplayExternalDataArray* GetExternalDataArrayForObject(UObject* Object);
+	ENGINE_API FReplayExternalDataArray* GetExternalDataArrayForObject(UObject* Object);
 
-	bool SetExternalDataForObject(UObject* OwningObject, const uint8* Src, const int32 NumBits);
+	ENGINE_API bool SetExternalDataForObject(UObject* OwningObject, const uint8* Src, const int32 NumBits);
 
-	bool ReadDemoFrameIntoPlaybackPackets(FArchive& Ar, TArray<FPlaybackPacket>& Packets, const bool bForLevelFastForward, float* OutTime);
+	ENGINE_API bool ReadDemoFrameIntoPlaybackPackets(FArchive& Ar, TArray<FPlaybackPacket>& Packets, const bool bForLevelFastForward, float* OutTime);
 	bool ReadDemoFrameIntoPlaybackPackets(FArchive& Ar) { return ReadDemoFrameIntoPlaybackPackets(Ar, PlaybackPackets, false, nullptr); }
 
 	/**
@@ -564,44 +564,44 @@ public:
 	 *
 	 * @param UserString a string that uniquely identifies the user, usually their FUniqueNetId
 	 */
-	void AddUserToReplay(const FString& UserString);
+	ENGINE_API void AddUserToReplay(const FString& UserString);
 
-	void StopDemo();
+	ENGINE_API void StopDemo();
 
-	void ReplayStreamingReady(const FStartStreamingResult& Result);
+	ENGINE_API void ReplayStreamingReady(const FStartStreamingResult& Result);
 
-	void AddReplayTask(FQueuedReplayTask* NewTask);
-	bool IsAnyTaskPending() const;
-	void ClearReplayTasks();
-	bool ProcessReplayTasks();
-	bool IsNamedTaskInQueue(const FName& Name) const;
-	FName GetNextQueuedTaskName() const;
+	ENGINE_API void AddReplayTask(FQueuedReplayTask* NewTask);
+	ENGINE_API bool IsAnyTaskPending() const;
+	ENGINE_API void ClearReplayTasks();
+	ENGINE_API bool ProcessReplayTasks();
+	ENGINE_API bool IsNamedTaskInQueue(const FName& Name) const;
+	ENGINE_API FName GetNextQueuedTaskName() const;
 
 	/** If a channel is associated with Actor, adds the channel's GUID to the list of GUIDs excluded from queuing bunches during scrubbing. */
-	void AddNonQueuedActorForScrubbing(AActor const* Actor);
+	ENGINE_API void AddNonQueuedActorForScrubbing(AActor const* Actor);
 	/** Adds the channel's GUID to the list of GUIDs excluded from queuing bunches during scrubbing. */
-	void AddNonQueuedGUIDForScrubbing(FNetworkGUID InGUID);
+	ENGINE_API void AddNonQueuedGUIDForScrubbing(FNetworkGUID InGUID);
 
-	virtual bool IsLevelInitializedForActor(const AActor* InActor, const UNetConnection* InConnection) const override;
+	ENGINE_API virtual bool IsLevelInitializedForActor(const AActor* InActor, const UNetConnection* InConnection) const override;
 
 	/** Called when a "go to time" operation is completed. */
-	void NotifyGotoTimeFinished(bool bWasSuccessful);
+	ENGINE_API void NotifyGotoTimeFinished(bool bWasSuccessful);
 
-	virtual void NotifyActorDestroyed(AActor* ThisActor, bool IsSeamlessTravel=false) override;
-	virtual void NotifyActorLevelUnloaded(AActor* Actor) override;
-	virtual void NotifyStreamingLevelUnload(ULevel* InLevel) override;
+	ENGINE_API virtual void NotifyActorDestroyed(AActor* ThisActor, bool IsSeamlessTravel=false) override;
+	ENGINE_API virtual void NotifyActorLevelUnloaded(AActor* Actor) override;
+	ENGINE_API virtual void NotifyStreamingLevelUnload(ULevel* InLevel) override;
 
 	/** Call this function during playback to track net startup actors that need a hard reset when scrubbing, which is done by destroying and then re-spawning */
-	virtual void QueueNetStartupActorForRollbackViaDeletion(AActor* Actor);
+	ENGINE_API virtual void QueueNetStartupActorForRollbackViaDeletion(AActor* Actor);
 
 	/** Called when seamless travel begins when recording a replay. */
-	void OnSeamlessTravelStartDuringRecording(const FString& LevelName);
+	ENGINE_API void OnSeamlessTravelStartDuringRecording(const FString& LevelName);
 
 	/** @return the unique identifier for the lifetime of this object. */
 	const FString& GetDemoSessionID() const { return DemoSessionID; }
 
 	/** Returns true if TickFlush can be called in parallel with the Slate tick. */
-	bool ShouldTickFlushAsyncEndOfFrame() const;
+	ENGINE_API bool ShouldTickFlushAsyncEndOfFrame() const;
 
 	/** Returns whether or not this replay was recorded / is playing with Level Streaming fixes. */
 	bool HasLevelStreamingFixes() const
@@ -647,7 +647,7 @@ public:
 
 	uint32 GetPlaybackCustomVersionVersion(const FGuid& VersionGuid) const { return ReplayHelper.PlaybackDemoHeader.GetCustomVersion(VersionGuid); }
 
-	FString GetDemoPath() const;
+	ENGINE_API FString GetDemoPath() const;
 
 private:
 
@@ -661,12 +661,12 @@ private:
 
 	TArray<FLevelnterval> LevelIntervals;
 
-	void BuildSortedLevelPriorityOnLevels(const TArray<FDemoActorPriority>& PrioritizedActorList, TArray<FLevelnterval>& OutLevelIntervals);
+	ENGINE_API void BuildSortedLevelPriorityOnLevels(const TArray<FDemoActorPriority>& PrioritizedActorList, TArray<FLevelnterval>& OutLevelIntervals);
 
 	/** Called when the downloading header request from the replay streamer completes. */
-	void OnRefreshHeaderCompletePrivate(const FDownloadHeaderResult& Result, int32 LevelIndex);
+	ENGINE_API void OnRefreshHeaderCompletePrivate(const FDownloadHeaderResult& Result, int32 LevelIndex);
 
-	void CleanupOutstandingRewindActors();
+	ENGINE_API void CleanupOutstandingRewindActors();
 
 	// Tracks actors that will need to be rewound during scrubbing.
 	// This list should always be empty outside of scrubbing.
@@ -679,7 +679,7 @@ private:
 	int32 PlaybackPacketIndex;
 
 	// Determines whether or not a packet should be skipped, based on it's level association.
-	bool ShouldSkipPlaybackPacket(const FPlaybackPacket& Packet);
+	ENGINE_API bool ShouldSkipPlaybackPacket(const FPlaybackPacket& Packet);
 
 	/**
 	 * Replicates the given prioritized actors, so their packets can be captured for recording.
@@ -691,40 +691,40 @@ private:
 	 *
 	 * @return True if there is time remaining to replicate more actors. False otherwise.
 	 */
-	bool ReplicatePrioritizedActors(const FDemoActorPriority* ActorsToReplicate, uint32 Count, class FRepActorsParams& Params);
-	bool ReplicatePrioritizedActor(const FActorPriority& ActorPriority, class FRepActorsParams& Params);
+	ENGINE_API bool ReplicatePrioritizedActors(const FDemoActorPriority* ActorsToReplicate, uint32 Count, class FRepActorsParams& Params);
+	ENGINE_API bool ReplicatePrioritizedActor(const FActorPriority& ActorPriority, class FRepActorsParams& Params);
 
 	friend class FPendingTaskHelper;
 
 	// Manages basic setup of newly visible levels, and queuing a FastForward task if necessary.
-	void PrepFastForwardLevels();
+	ENGINE_API void PrepFastForwardLevels();
 
 	// Performs the logic for actually fast-forwarding a level.
-	bool FastForwardLevels(const FGotoResult& GotoResult);
+	ENGINE_API bool FastForwardLevels(const FGotoResult& GotoResult);
 
-	void OnPostLoadMapWithWorld(UWorld* World);
+	ENGINE_API void OnPostLoadMapWithWorld(UWorld* World);
 
 	// Diff Actor plus it's Components and Subobjects from given ActorChannel
-	void DiffActorProperties(UActorChannel* const ActorChannel);
+	ENGINE_API void DiffActorProperties(UActorChannel* const ActorChannel);
 
 	// Callback sent just before an actor has destroy called on itself.
-	void OnActorPreDestroy(AActor* DestroyedActor);
+	ENGINE_API void OnActorPreDestroy(AActor* DestroyedActor);
 
 	FDelegateHandle DelegateHandleActorPreDestroy;
 
 protected:
 
-	void ProcessSeamlessTravel(int32 LevelIndex);
+	ENGINE_API void ProcessSeamlessTravel(int32 LevelIndex);
 
-	bool DemoReplicateActor(AActor* Actor, UNetConnection* Connection, bool bMustReplicate);
+	ENGINE_API bool DemoReplicateActor(AActor* Actor, UNetConnection* Connection, bool bMustReplicate);
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	UE_DEPRECATED(5.1, "Please use NotifyDemoPlaybackError instead")
-	void NotifyDemoPlaybackFailure(EDemoPlayFailure::Type FailureType);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	ENGINE_API void NotifyDemoPlaybackFailure(EDemoPlayFailure::Type FailureType);
+	ENGINE_API PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	
 	void NotifyDemoPlaybackError(const UE::Net::TNetResult<EReplayResult>& Result);
-	void NotifyDemoRecordFailure(const UE::Net::TNetResult<EReplayResult>& Result);
+	ENGINE_API void NotifyDemoRecordFailure(const UE::Net::TNetResult<EReplayResult>& Result);
 
 	TArray<FQueuedDemoPacket> QueuedPacketsBeforeTravel;
 
@@ -739,10 +739,10 @@ private:
 	// Max percent of time to spend replicating prioritized destruction infos. Only used if MaxDesiredRecordTimeMS > 0.
 	float RecordDestructionInfoReplicationTimeSlice;
 
-	void AdjustConsiderTime(const float ReplicatedPercent);
+	ENGINE_API void AdjustConsiderTime(const float ReplicatedPercent);
 
-	bool ProcessFastForwardPackets(TArrayView<FPlaybackPacket> Packets, const TSet<int32>& LevelIndices);
-	void ProcessPlaybackPackets(TArrayView<FPlaybackPacket> Packets);
+	ENGINE_API bool ProcessFastForwardPackets(TArrayView<FPlaybackPacket> Packets, const TSet<int32>& LevelIndices);
+	ENGINE_API void ProcessPlaybackPackets(TArrayView<FPlaybackPacket> Packets);
 
 	virtual ECreateReplicationChangelistMgrFlags GetCreateReplicationChangelistMgrFlags() const override
 	{

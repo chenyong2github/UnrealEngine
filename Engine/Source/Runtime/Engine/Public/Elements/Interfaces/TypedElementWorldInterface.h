@@ -75,7 +75,7 @@ class UTypedElementWorldInterface : public UInterface
 	GENERATED_BODY()
 };
 
-class ENGINE_API ITypedElementWorldInterface
+class ITypedElementWorldInterface
 {
 	GENERATED_BODY()
 
@@ -267,25 +267,25 @@ public:
 	 * Return true if the element is in the volume
 	 * Note: This should only be use for editor tools since it doesn't use the physics system and the performance would probably be to slow for a runtime application.
 	 */
-	virtual bool IsElementInConvexVolume(const FTypedElementHandle& Handle, const FConvexVolume& InVolume, bool bMustEncompassEntireElement = false);
+	ENGINE_API virtual bool IsElementInConvexVolume(const FTypedElementHandle& Handle, const FConvexVolume& InVolume, bool bMustEncompassEntireElement = false);
 
 	/**
 	 * Return true if the element is in the Box
 	 * Note: This should only be use for editor tools since it doesn't use the physics system and the performance would probably be to slow for a runtime application.
 	 */
-	virtual bool IsElementInBox(const FTypedElementHandle& Handle, const FBox& InBox, bool bMustEncompassEntireElement = false);
+	ENGINE_API virtual bool IsElementInBox(const FTypedElementHandle& Handle, const FBox& InBox, bool bMustEncompassEntireElement = false);
 
 	/**
 	 * Get the selectable elements from this element that are inside the the convex volume
 	 */
-	TArray<FTypedElementHandle> GetSelectionElementsInConvexVolume(const FTypedElementHandle& Handle, const FConvexVolume& InVolume, const FWorldSelectionElementArgs& SelectionArgs);
+	ENGINE_API TArray<FTypedElementHandle> GetSelectionElementsInConvexVolume(const FTypedElementHandle& Handle, const FConvexVolume& InVolume, const FWorldSelectionElementArgs& SelectionArgs);
 
 	/**
 	 * Get the selectable elements from this element that are inside the the convex volume
 	 */
-	TArray<FTypedElementHandle> GetSelectionElementsInBox(const FTypedElementHandle& Handle, const FBox& InBox, const FWorldSelectionElementArgs& SelectionArgs);
+	ENGINE_API TArray<FTypedElementHandle> GetSelectionElementsInBox(const FTypedElementHandle& Handle, const FBox& InBox, const FWorldSelectionElementArgs& SelectionArgs);
 
-	virtual TArray<FTypedElementHandle> GetSelectionElementsFromSelectionFunction(
+	ENGINE_API virtual TArray<FTypedElementHandle> GetSelectionElementsFromSelectionFunction(
 		const FTypedElementHandle& Handle,
 		const FWorldSelectionElementArgs& SelectionArgs,
 		const TFunction<bool(const FTypedElementHandle& /*ElementHandle*/, const FWorldSelectionElementArgs& /*SelectionArgs*/)>& SelectionFunction
@@ -300,117 +300,117 @@ public:
 	 * Is this element considered a template within its world (eg, a CDO or archetype).
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
-	virtual bool IsTemplateElement(const FScriptTypedElementHandle& InElementHandle);
+	ENGINE_API virtual bool IsTemplateElement(const FScriptTypedElementHandle& InElementHandle);
 
 	/**
 	 * Can this element actually be edited in the world?
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
-	virtual bool CanEditElement(const FScriptTypedElementHandle& InElementHandle);
+	ENGINE_API virtual bool CanEditElement(const FScriptTypedElementHandle& InElementHandle);
 
 	/**
 	 * Get the owner level associated with this element, if any.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
-	virtual ULevel* GetOwnerLevel(const FScriptTypedElementHandle& InElementHandle);
+	ENGINE_API virtual ULevel* GetOwnerLevel(const FScriptTypedElementHandle& InElementHandle);
 
 	/**
 	 * Get the owner world associated with this element, if any.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
-	virtual UWorld* GetOwnerWorld(const FScriptTypedElementHandle& InElementHandle);
+	ENGINE_API virtual UWorld* GetOwnerWorld(const FScriptTypedElementHandle& InElementHandle);
 
 	/**
 	 * Get the bounds of this element, if any.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
-	virtual bool GetBounds(const FScriptTypedElementHandle& InElementHandle, FBoxSphereBounds& OutBounds);
+	ENGINE_API virtual bool GetBounds(const FScriptTypedElementHandle& InElementHandle, FBoxSphereBounds& OutBounds);
 
 	/**
 	 * Can the given element be moved within the world?
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
-	virtual bool CanMoveElement(const FScriptTypedElementHandle& InElementHandle, const ETypedElementWorldType InWorldType);
+	ENGINE_API virtual bool CanMoveElement(const FScriptTypedElementHandle& InElementHandle, const ETypedElementWorldType InWorldType);
 
 	/**
 	 * Get the transform of this element within its owner world, if any.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
-	virtual bool GetWorldTransform(const FScriptTypedElementHandle& InElementHandle, FTransform& OutTransform);
+	ENGINE_API virtual bool GetWorldTransform(const FScriptTypedElementHandle& InElementHandle, FTransform& OutTransform);
 	
 	/**
 	 * Attempt to set the transform of this element within its owner world.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
-	virtual bool SetWorldTransform(const FScriptTypedElementHandle& InElementHandle, const FTransform& InTransform);
+	ENGINE_API virtual bool SetWorldTransform(const FScriptTypedElementHandle& InElementHandle, const FTransform& InTransform);
 
 	/**
 	 * Get the transform of this element relative to its parent, if any.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
-	virtual bool GetRelativeTransform(const FScriptTypedElementHandle& InElementHandle, FTransform& OutTransform);
+	ENGINE_API virtual bool GetRelativeTransform(const FScriptTypedElementHandle& InElementHandle, FTransform& OutTransform);
 	
 	/**
 	 * Attempt to set the transform of this element relative to its parent.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
-	virtual bool SetRelativeTransform(const FScriptTypedElementHandle& InElementHandle, const FTransform& InTransform);
+	ENGINE_API virtual bool SetRelativeTransform(const FScriptTypedElementHandle& InElementHandle, const FTransform& InTransform);
 
 	/**
 	 * Get the local space offset of this element that should be added to its pivot location, if any.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
-	virtual bool GetPivotOffset(const FScriptTypedElementHandle& InElementHandle, FVector& OutPivotOffset);
+	ENGINE_API virtual bool GetPivotOffset(const FScriptTypedElementHandle& InElementHandle, FVector& OutPivotOffset);
 
 	/**
 	 * Attempt to set the local space offset of this element that should be added to its pivot location.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
-	virtual bool SetPivotOffset(const FScriptTypedElementHandle& InElementHandle, const FVector& InPivotOffset);
+	ENGINE_API virtual bool SetPivotOffset(const FScriptTypedElementHandle& InElementHandle, const FVector& InPivotOffset);
 
 	/**
 	 * Notify that this element is about to be moved.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
-	virtual void NotifyMovementStarted(const FScriptTypedElementHandle& InElementHandle);
+	ENGINE_API virtual void NotifyMovementStarted(const FScriptTypedElementHandle& InElementHandle);
 
 	/**
 	 * Notify that this element is currently being moved.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
-	virtual void NotifyMovementOngoing(const FScriptTypedElementHandle& InElementHandle);
+	ENGINE_API virtual void NotifyMovementOngoing(const FScriptTypedElementHandle& InElementHandle);
 
 	/**
 	 * Notify that this element is done being moved.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
-	virtual void NotifyMovementEnded(const FScriptTypedElementHandle& InElementHandle);
+	ENGINE_API virtual void NotifyMovementEnded(const FScriptTypedElementHandle& InElementHandle);
 
 	/**
 	 * Can the given element be deleted?
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
-	virtual bool CanDeleteElement(const FScriptTypedElementHandle& InElementHandle);
+	ENGINE_API virtual bool CanDeleteElement(const FScriptTypedElementHandle& InElementHandle);
 
 	/**
 	 * Delete the given element.
 	 * @note Default version calls DeleteElements with a single element.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
-	virtual bool DeleteElement(const FScriptTypedElementHandle& InElementHandle, UWorld* InWorld, UTypedElementSelectionSet* InSelectionSet, const FTypedElementDeletionOptions& InDeletionOptions);
+	ENGINE_API virtual bool DeleteElement(const FScriptTypedElementHandle& InElementHandle, UWorld* InWorld, UTypedElementSelectionSet* InSelectionSet, const FTypedElementDeletionOptions& InDeletionOptions);
 
 	/**
 	 * Can the given element be duplicated?
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
-	virtual bool CanDuplicateElement(const FScriptTypedElementHandle& InElementHandle);
+	ENGINE_API virtual bool CanDuplicateElement(const FScriptTypedElementHandle& InElementHandle);
 
 	/**
 	 * Duplicate the given element.
 	 * @note Default version calls DuplicateElements with a single element.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
-	virtual FScriptTypedElementHandle DuplicateElement(const FScriptTypedElementHandle& InElementHandle, UWorld* InWorld, const FVector& InLocationOffset);
+	ENGINE_API virtual FScriptTypedElementHandle DuplicateElement(const FScriptTypedElementHandle& InElementHandle, UWorld* InWorld, const FVector& InLocationOffset);
 
 	/**
 	 * Can the element be promoted
@@ -418,7 +418,7 @@ public:
 	 * Like an instance for example.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
-	virtual bool CanPromoteElement(const FScriptTypedElementHandle& InElementHandle);
+	ENGINE_API virtual bool CanPromoteElement(const FScriptTypedElementHandle& InElementHandle);
 
 	/**
 	 * Promote an element when possible
@@ -428,13 +428,13 @@ public:
 	 * @param OverrideWorld Override the world in which the promotion might create new elements. Leave it to null to use the world from the handle.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
-	virtual FScriptTypedElementHandle PromoteElement(const FScriptTypedElementHandle& InElementHandle, UWorld* OverrideWorld = nullptr);
+	ENGINE_API virtual FScriptTypedElementHandle PromoteElement(const FScriptTypedElementHandle& InElementHandle, UWorld* OverrideWorld = nullptr);
 
 protected:
 	/**
 	 * Return the registry associated with this interface implementation
 	 */
-	virtual class UTypedElementRegistry& GetRegistry() const;
+	ENGINE_API virtual class UTypedElementRegistry& GetRegistry() const;
 };
 
 template <>

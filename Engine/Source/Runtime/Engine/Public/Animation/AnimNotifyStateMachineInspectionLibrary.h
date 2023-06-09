@@ -12,8 +12,8 @@ class USkeletalMeshComponent;
 /**
 *	A library of commonly used functionality for Notifies related to state machines, exposed to blueprint.
 */
-UCLASS(meta = (ScriptName = "UAnimNotifyStateMachineInspectionLibrary"))
-class ENGINE_API UAnimNotifyStateMachineInspectionLibrary : public UBlueprintFunctionLibrary
+UCLASS(meta = (ScriptName = "UAnimNotifyStateMachineInspectionLibrary"), MinimalAPI)
+class UAnimNotifyStateMachineInspectionLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 public:
@@ -24,7 +24,7 @@ public:
     * @param StateMachineName	The Name of a state machine to test
     */
 	UFUNCTION(BlueprintPure, Category = "Utilities|Animation|Notifies")
-    static bool IsTriggeredByStateMachine(const FAnimNotifyEventReference& EventReference,UAnimInstance* AnimInstance, FName StateMachineName);
+    static ENGINE_API bool IsTriggeredByStateMachine(const FAnimNotifyEventReference& EventReference,UAnimInstance* AnimInstance, FName StateMachineName);
 	
 	/** Get whether a particular state in a specific state machine triggered the notify
 	*
@@ -34,7 +34,7 @@ public:
 	* @param StateName			The name of a state to test
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Animation|Notifies")
-	static bool IsTriggeredByStateInStateMachine(const FAnimNotifyEventReference& EventReference, UAnimInstance* AnimInstance, FName StateMachineName, FName StateName);
+	static ENGINE_API bool IsTriggeredByStateInStateMachine(const FAnimNotifyEventReference& EventReference, UAnimInstance* AnimInstance, FName StateMachineName, FName StateName);
 
 	/** Get whether a state with the given name in any state machine triggered the notify
 	*
@@ -43,14 +43,14 @@ public:
 	* @param StateName			The name of a state to test
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities|Animation|Notifies")
-    static bool IsTriggeredByState(const FAnimNotifyEventReference& EventReference, UAnimInstance* AnimInstance, FName StateName);
+    static ENGINE_API bool IsTriggeredByState(const FAnimNotifyEventReference& EventReference, UAnimInstance* AnimInstance, FName StateName);
     
 	/** Get whether the Reference ContextData has the given machine index in a UAnimNotifyStateMachineContext.  This function should not be exposed to blueprint
 	*
 	* @param Reference		The event to inspect
 	* @param StateMachineIndex	The MachineIndex as defined in UAnimInstance
 	*/
-	static bool IsStateMachineInEventContext(const FAnimNotifyEventReference& Reference, int32 StateMachineIndex);
+	static ENGINE_API bool IsStateMachineInEventContext(const FAnimNotifyEventReference& Reference, int32 StateMachineIndex);
 
 	/** Get whether the Reference ContextData has the given state and machine index in a UAnimNotifyStateMachineContext.
 	*	
@@ -58,5 +58,5 @@ public:
 	* @param StateIndex			Index of a state inside a state machine as defined in UAnimInstance
 	* @param StateMachineIndex	The MachineIndex as defined in UAnimInstance
 	*/
-	static bool IsStateInStateMachineInEventContext(const FAnimNotifyEventReference& Reference, int32 StateMachineIndex, int32 StateIndex); 
+	static ENGINE_API bool IsStateInStateMachineInEventContext(const FAnimNotifyEventReference& Reference, int32 StateMachineIndex, int32 StateIndex); 
 };

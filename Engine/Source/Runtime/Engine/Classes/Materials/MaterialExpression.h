@@ -154,15 +154,15 @@ enum class EMaterialExpressionSetParameterValueFlags : uint32
 ENUM_CLASS_FLAGS(EMaterialExpressionSetParameterValueFlags);
 
 USTRUCT()
-struct ENGINE_API FMaterialExpressionCollection
+struct FMaterialExpressionCollection
 {
 	GENERATED_BODY()
 
-	void AddExpression(UMaterialExpression* InExpression);
-	void RemoveExpression(UMaterialExpression* InExpression);
-	void AddComment(UMaterialExpressionComment* InExpression);
-	void RemoveComment(UMaterialExpressionComment* InExpression);
-	void Empty();
+	ENGINE_API void AddExpression(UMaterialExpression* InExpression);
+	ENGINE_API void RemoveExpression(UMaterialExpression* InExpression);
+	ENGINE_API void AddComment(UMaterialExpressionComment* InExpression);
+	ENGINE_API void RemoveComment(UMaterialExpressionComment* InExpression);
+	ENGINE_API void Empty();
 
 	/** Array of material expressions, excluding Comments.  Used by the material editor. */
 	UPROPERTY()
@@ -180,15 +180,15 @@ struct ENGINE_API FMaterialExpressionCollection
 	TObjectPtr<UMaterialExpressionExecEnd> ExpressionExecEnd = nullptr;
 };
 
-UCLASS(abstract, Optional, BlueprintType, hidecategories=Object)
-class ENGINE_API UMaterialExpression : public UObject
+UCLASS(abstract, Optional, BlueprintType, hidecategories=Object, MinimalAPI)
+class UMaterialExpression : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
 	static constexpr int32 CompileExecutionOutputIndex = -2;
 
 #if WITH_EDITOR
-	static void InitializeNumExecutionInputs(TArrayView<UMaterialExpression*> Expressions);
+	static ENGINE_API void InitializeNumExecutionInputs(TArrayView<UMaterialExpression*> Expressions);
 #endif
 
 	UPROPERTY(BlueprintReadWrite, Category = MaterialEditing)
@@ -286,21 +286,21 @@ class ENGINE_API UMaterialExpression : public UObject
 	TArray<FExpressionOutput> Outputs;
 
 	//~ Begin UObject Interface.
-	virtual void PostInitProperties() override;
-	virtual void PostLoad() override;
-	virtual void PostDuplicate(bool bDuplicateForPIE) override;
+	ENGINE_API virtual void PostInitProperties() override;
+	ENGINE_API virtual void PostLoad() override;
+	ENGINE_API virtual void PostDuplicate(bool bDuplicateForPIE) override;
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PostEditImport() override;
-	virtual bool CanEditChange( const FProperty* InProperty ) const override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditImport() override;
+	ENGINE_API virtual bool CanEditChange( const FProperty* InProperty ) const override;
 	
-	virtual bool Modify( bool bAlwaysMarkDirty=true ) override;
+	ENGINE_API virtual bool Modify( bool bAlwaysMarkDirty=true ) override;
 #endif // WITH_EDITOR
-	virtual void Serialize( FStructuredArchive::FRecord Record ) override;
+	ENGINE_API virtual void Serialize( FStructuredArchive::FRecord Record ) override;
 	//~ End UObject Interface.
 
-	UObject* GetAssetOwner() const;
-	FString GetAssetPathName() const;
+	ENGINE_API UObject* GetAssetOwner() const;
+	ENGINE_API FString GetAssetPathName() const;
 
 #if WITH_EDITOR
 	/**
@@ -318,10 +318,10 @@ class ENGINE_API UMaterialExpression : public UObject
 	 * For example, a for-loop expression might generate a statement for the execution input, but also generate an expression to access the loop index
 	 * These methods replace the Compile() method; once we switch over to the new system, Compile() will be removed
 	 */
-	virtual bool GenerateHLSLStatements(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope) const;
-	virtual bool GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression const*& OutExpression) const;
+	ENGINE_API virtual bool GenerateHLSLStatements(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope) const;
+	ENGINE_API virtual bool GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression const*& OutExpression) const;
 
-	bool IsUsingNewHLSLGenerator() const;
+	ENGINE_API bool IsUsingNewHLSLGenerator() const;
 
 #endif // WITH_EDITOR
 
@@ -345,70 +345,70 @@ class ENGINE_API UMaterialExpression : public UObject
 	 *
 	 *	@param	Outputs		The TArray of outputs to fill in.
 	 */
-	virtual TArray<FExpressionOutput>& GetOutputs();
+	ENGINE_API virtual TArray<FExpressionOutput>& GetOutputs();
 	
 	/** Get the expression inputs supported by this expression (Note: property inputs NOT included). */
-	virtual TArrayView<FExpressionInput*> GetInputsView();
+	ENGINE_API virtual TArrayView<FExpressionInput*> GetInputsView();
 	
 	UE_DEPRECATED(5.3, "Use GetInputsView() instead.")
 	const TArray<FExpressionInput*> GetInputs() { return TArray<FExpressionInput*>{ GetInputsView() }; }
 
-	virtual FExpressionInput* GetInput(int32 InputIndex);
-	virtual FName GetInputName(int32 InputIndex) const;
-	virtual bool IsInputConnectionRequired(int32 InputIndex) const;
+	ENGINE_API virtual FExpressionInput* GetInput(int32 InputIndex);
+	ENGINE_API virtual FName GetInputName(int32 InputIndex) const;
+	ENGINE_API virtual bool IsInputConnectionRequired(int32 InputIndex) const;
 	virtual bool CanUserDeleteExpression() const
 	{
 		return true;
 	};
 
 	/** Find the property that is associated with the input pin. */
-	virtual TArray<FProperty*> GetInputPinProperty(int32 PinIndex);
-	virtual FName GetInputPinSubCategory(int32 PinIndex);
-	virtual UObject* GetInputPinSubCategoryObject(int32 PinIndex);
-	virtual void PinDefaultValueChanged(int32 PinIndex, const FString& DefaultValue);
-	virtual FString GetInputPinDefaultValue(int32 PinIndex);
-	virtual TArray<FProperty*> GetPropertyInputs() const;
+	ENGINE_API virtual TArray<FProperty*> GetInputPinProperty(int32 PinIndex);
+	ENGINE_API virtual FName GetInputPinSubCategory(int32 PinIndex);
+	ENGINE_API virtual UObject* GetInputPinSubCategoryObject(int32 PinIndex);
+	ENGINE_API virtual void PinDefaultValueChanged(int32 PinIndex, const FString& DefaultValue);
+	ENGINE_API virtual FString GetInputPinDefaultValue(int32 PinIndex);
+	ENGINE_API virtual TArray<FProperty*> GetPropertyInputs() const;
 
-	virtual uint32 GetInputType(int32 InputIndex);
-	virtual uint32 GetOutputType(int32 OutputIndex);
+	ENGINE_API virtual uint32 GetInputType(int32 InputIndex);
+	ENGINE_API virtual uint32 GetOutputType(int32 OutputIndex);
 
-	virtual void GetExecOutputs(TArray<FExpressionExecOutputEntry>& Outputs);
+	ENGINE_API virtual void GetExecOutputs(TArray<FExpressionExecOutputEntry>& Outputs);
 
-	virtual bool HasExecInput();
+	ENGINE_API virtual bool HasExecInput();
 
-	virtual FText GetCreationDescription() const;
-	virtual FText GetCreationName() const;
+	ENGINE_API virtual FText GetCreationDescription() const;
+	ENGINE_API virtual FText GetCreationName() const;
 
 	/**
 	 *	Get the width required by this expression (in the material editor).
 	 *
 	 *	@return	int32			The width in pixels.
 	 */
-	virtual int32 GetWidth() const;
-	virtual int32 GetHeight() const;
-	virtual bool UsesLeftGutter() const;
-	virtual bool UsesRightGutter() const;
+	ENGINE_API virtual int32 GetWidth() const;
+	ENGINE_API virtual int32 GetHeight() const;
+	ENGINE_API virtual bool UsesLeftGutter() const;
+	ENGINE_API virtual bool UsesRightGutter() const;
 
 	/**
 	 *	Returns the text to display on the material expression (in the material editor).
 	 *
 	 *	@return	FString		The text to display.
 	 */
-	virtual void GetCaption(TArray<FString>& OutCaptions) const;
+	ENGINE_API virtual void GetCaption(TArray<FString>& OutCaptions) const;
 	/** Get a single line description of the material expression (used for lists) */
-	virtual FString GetDescription() const;
+	ENGINE_API virtual FString GetDescription() const;
 	/** Get a tooltip for the specified connector. */
-	virtual void GetConnectorToolTip(int32 InputIndex, int32 OutputIndex, TArray<FString>& OutToolTip);
+	ENGINE_API virtual void GetConnectorToolTip(int32 InputIndex, int32 OutputIndex, TArray<FString>& OutToolTip);
 
 	/** Get a tooltip for the expression itself. */
-	virtual void GetExpressionToolTip(TArray<FString>& OutToolTip);
+	ENGINE_API virtual void GetExpressionToolTip(TArray<FString>& OutToolTip);
 	/**
 	 *	Returns the amount of padding to use for the label.
 	 *
 	 *	@return int32			The padding (in pixels).
 	 */
 	virtual int GetLabelPadding() { return 0; }
-	virtual int32 CompilerError(class FMaterialCompiler* Compiler, const TCHAR* pcMessage);
+	ENGINE_API virtual int32 CompilerError(class FMaterialCompiler* Compiler, const TCHAR* pcMessage);
 #endif // WITH_EDITOR
 
 	/**
@@ -427,13 +427,13 @@ class ENGINE_API UMaterialExpression : public UObject
 	 * @param SearchQuery - User's search query (never blank)
 	 * @return true if the expression matches the search query
 	 */
-	virtual bool MatchesSearchQuery( const TCHAR* SearchQuery );
+	ENGINE_API virtual bool MatchesSearchQuery( const TCHAR* SearchQuery );
 
 	/**
 	 * Copy the SrcExpressions into the specified material, preserving internal references.
 	 * New material expressions are created within the specified material.
 	 */
-	static void CopyMaterialExpressions(const TArray<class UMaterialExpression*>& SrcExpressions, const TArray<class UMaterialExpressionComment*>& SrcExpressionComments, 
+	static ENGINE_API void CopyMaterialExpressions(const TArray<class UMaterialExpression*>& SrcExpressions, const TArray<class UMaterialExpressionComment*>& SrcExpressionComments, 
 		class UMaterial* Material, class UMaterialFunction* Function, TArray<class UMaterialExpression*>& OutNewExpressions, TArray<class UMaterialExpression*>& OutNewComments);
 
 	/**
@@ -456,7 +456,7 @@ class ENGINE_API UMaterialExpression : public UObject
 	 * This recursively parse nodes outputing strata material in order to gather the maximum distance to any leaves. 
 	 * This is used to drive the bottom up order processing of those nodes.
 	 */
-	virtual FStrataOperator* StrataGenerateMaterialTopologyTree(class FMaterialCompiler* Compiler, class UMaterialExpression* Parent, int32 OutputIndex);
+	ENGINE_API virtual FStrataOperator* StrataGenerateMaterialTopologyTree(class FMaterialCompiler* Compiler, class UMaterialExpression* Parent, int32 OutputIndex);
 
 	/**
 	 * If true, discards the output index when caching this expression which allows more cases to re-use the output instead of adding a separate instruction
@@ -466,19 +466,19 @@ class ENGINE_API UMaterialExpression : public UObject
 	/**
 	 * Connects the specified output to the passed material for previewing. 
 	 */
-	void ConnectToPreviewMaterial(UMaterial* InMaterial, int32 OutputIndex);
+	ENGINE_API void ConnectToPreviewMaterial(UMaterial* InMaterial, int32 OutputIndex);
 #endif // WITH_EDITOR
 
 #if WITH_EDITOR
 	/**
 	 * Check if input exppresion is directly connected to the material.
 	 */
-	virtual bool IsExpressionConnected(FExpressionInput* Input, int32 OutputIndex);
+	ENGINE_API virtual bool IsExpressionConnected(FExpressionInput* Input, int32 OutputIndex);
 
 	/**
 	 * Connects the specified input expression to the specified output of this expression.
 	 */
-	virtual void ConnectExpression(FExpressionInput* Input, int32 OutputIndex);
+	ENGINE_API virtual void ConnectExpression(FExpressionInput* Input, int32 OutputIndex);
 #endif // WITH_EDITOR
 
 	/** 
@@ -486,7 +486,7 @@ class ENGINE_API UMaterialExpression : public UObject
 	*
 	* @param bForceGeneration	Whether we should generate a GUID even if it is already valid.
 	*/
-	void UpdateParameterGuid(bool bForceGeneration, bool bAllowMarkingPackageDirty);
+	ENGINE_API void UpdateParameterGuid(bool bForceGeneration, bool bAllowMarkingPackageDirty);
 
 	/** Callback to access derived classes' parameter expression id. */
 	virtual FGuid& GetParameterExpressionId()
@@ -501,7 +501,7 @@ class ENGINE_API UMaterialExpression : public UObject
 	*
 	* @param bForceGeneration	Whether we should generate a GUID even if it is already valid.
 	*/
-	void UpdateMaterialExpressionGuid(bool bForceGeneration, bool bAllowMarkingPackageDirty);
+	ENGINE_API void UpdateMaterialExpressionGuid(bool bForceGeneration, bool bAllowMarkingPackageDirty);
 	
 	/** Return the material expression guid. */
 	virtual FGuid& GetMaterialExpressionId()
@@ -515,7 +515,7 @@ class ENGINE_API UMaterialExpression : public UObject
 	}
 
 	/** Asserts if the expression is not contained by its Material or Function's expressions array. */
-	void ValidateState();
+	ENGINE_API void ValidateState();
 
 #if WITH_EDITOR
 	/** Returns the keywords that should be used when searching for this expression */
@@ -529,33 +529,33 @@ class ENGINE_API UMaterialExpression : public UObject
 	 *
 	 * @return Whether a repeat was found while getting expressions
 	 */
-	bool GetAllInputExpressions(TArray<UMaterialExpression*>& InputExpressions);
+	ENGINE_API bool GetAllInputExpressions(TArray<UMaterialExpression*>& InputExpressions);
 
 	/**
 	 * Can this node be renamed?
 	 */
-	virtual bool CanRenameNode() const;
+	ENGINE_API virtual bool CanRenameNode() const;
 
 	/**
 	 * Returns the current 'name' of the node (typically a parameter name).
 	 * Only valid to call on a node that previously returned CanRenameNode() = true.
 	 */
-	virtual FString GetEditableName() const;
+	ENGINE_API virtual FString GetEditableName() const;
 
 	/**
 	 * Sets the current 'name' of the node (typically a parameter name)
 	 * Only valid to call on a node that previously returned CanRenameNode() = true.
 	 */
-	virtual void SetEditableName(const FString& NewName);
+	ENGINE_API virtual void SetEditableName(const FString& NewName);
 
 	/** 
 	* Parameter Name functions, this is requires as multiple class have ParameterName
 	* but are not UMaterialExpressionParameter due to class hierarchy. */
 	virtual bool HasAParameterName() const { return false; }
-	virtual void ValidateParameterName(const bool bAllowDuplicateName = true);
-	virtual bool HasClassAndNameCollision(UMaterialExpression* OtherExpression) const;
+	ENGINE_API virtual void ValidateParameterName(const bool bAllowDuplicateName = true);
+	ENGINE_API virtual bool HasClassAndNameCollision(UMaterialExpression* OtherExpression) const;
 
-	EMaterialParameterType GetParameterType() const;
+	ENGINE_API EMaterialParameterType GetParameterType() const;
 
 	virtual FName GetParameterName() const { return NAME_None; }
 	virtual void SetParameterName(const FName& Name) {}
@@ -570,13 +570,13 @@ class ENGINE_API UMaterialExpression : public UObject
 	 */
 	virtual void PostCopyNode(const TArray<UMaterialExpression*>& CopiedExpressions) {}
 
-	virtual bool HasConnectedOutputs() const;
+	ENGINE_API virtual bool HasConnectedOutputs() const;
 
 	/** Checks whether any inputs to this expression create a loop */
-	bool ContainsInputLoop(const bool bStopOnFunctionCall = true);
+	ENGINE_API bool ContainsInputLoop(const bool bStopOnFunctionCall = true);
 
 	/** This overload accepts the set of visited expressions to avoid visiting them again when checking at once whether multiple expressions contain a loop. */
-	bool ContainsInputLoop(TSet<UMaterialExpression*>& VisitedExpressions, const bool bStopOnFunctionCall = true);
+	ENGINE_API bool ContainsInputLoop(TSet<UMaterialExpression*>& VisitedExpressions, const bool bStopOnFunctionCall = true);
 
 protected:
 	/** Caches the list of expression inputs this expression has. */
@@ -596,7 +596,7 @@ private:
 	 * @param ExpressionStack    Stack of expressions that have been checked already
 	 * @param VisitedExpressions List of all expression keys that have been visited
 	 */
-	bool ContainsInputLoopInternal(const FContainsInputLoopInternalExpressionStack& ExpressionStack, TSet<UMaterialExpression*>& VisitedExpressions, const bool bStopOnFunctionCall);
+	ENGINE_API bool ContainsInputLoopInternal(const FContainsInputLoopInternalExpressionStack& ExpressionStack, TSet<UMaterialExpression*>& VisitedExpressions, const bool bStopOnFunctionCall);
 
 	UE_DEPRECATED(5.3, "Use the other, more efficient ContainsInputLoopInternal() implementation.")
 	bool ContainsInputLoopInternal(TArray<FMaterialExpressionKey>& ExpressionStack, TSet<FMaterialExpressionKey>& VisitedExpressions, const bool bStopOnFunctionCall);

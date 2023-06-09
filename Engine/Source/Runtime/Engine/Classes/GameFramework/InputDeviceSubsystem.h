@@ -15,11 +15,11 @@ class UInputDeviceProperty;
 
 /** Parameters for the UInputDeviceSubsystem::ActivateDeviceProperty function */
 USTRUCT(BlueprintType)
-struct ENGINE_API FActivateDevicePropertyParams
+struct FActivateDevicePropertyParams
 {
 	GENERATED_BODY()
 
-	FActivateDevicePropertyParams();
+	ENGINE_API FActivateDevicePropertyParams();
 	
 	/** The Platform User whose device's should receive the device property */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Activation Options")
@@ -52,19 +52,19 @@ struct ENGINE_API FActivateDevicePropertyParams
 
 /** Contains a pointer to an active device property and keeps track of how long it has been evaluated for */
 USTRUCT()
-struct ENGINE_API FActiveDeviceProperty
+struct FActiveDeviceProperty
 {
 	GENERATED_BODY()
 
-	FActiveDeviceProperty();
+	ENGINE_API FActiveDeviceProperty();
 	
 	/** Active properties can just use the hash of their FInputDevicePropertyHandle for a fast and unique lookup */
 	ENGINE_API friend uint32 GetTypeHash(const FActiveDeviceProperty& InProp);
 	ENGINE_API friend bool operator==(const FActiveDeviceProperty& ActiveProp, const FInputDevicePropertyHandle& Handle);
 	ENGINE_API friend bool operator!=(const FActiveDeviceProperty& ActiveProp, const FInputDevicePropertyHandle& Handle);
 
-	bool operator==(const FActiveDeviceProperty& Other) const;
-	bool operator!=(const FActiveDeviceProperty& Other) const;
+	ENGINE_API bool operator==(const FActiveDeviceProperty& Other) const;
+	ENGINE_API bool operator!=(const FActiveDeviceProperty& Other) const;
 
 	/** The active device property */
 	UPROPERTY()
@@ -115,8 +115,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FHardwareInputDeviceChanged, const 
 * The input device subsystem provides an interface to allow users to set Input Device Properties
 * on any Platform User. 
 */
-UCLASS(BlueprintType)
-class ENGINE_API UInputDeviceSubsystem : public UEngineSubsystem, public FTickableGameObject
+UCLASS(BlueprintType, MinimalAPI)
+class UInputDeviceSubsystem : public UEngineSubsystem, public FTickableGameObject
 {
 	friend class FInputDeviceSubsystemProcessor;
 	friend class FInputDeviceDebugTools;
@@ -130,21 +130,21 @@ public:
 	 * NOTE: This may be null if the bEnableInputDeviceSubsystem flag in UInputSettings
 	 * is set to false!
 	 */
-	static UInputDeviceSubsystem* Get();
+	static ENGINE_API UInputDeviceSubsystem* Get();
 
 	//~ Begin UEngineSubsystem interface
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-	virtual void Deinitialize() override;
-	virtual bool ShouldCreateSubsystem(UObject* Outer) const;
+	ENGINE_API virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	ENGINE_API virtual void Deinitialize() override;
+	ENGINE_API virtual bool ShouldCreateSubsystem(UObject* Outer) const;
 	//~ End UEngineSubsystem interface
 	
 	//~ Begin FTickableGameObject interface	
-	virtual UWorld* GetTickableGameObjectWorld() const override;
-	virtual ETickableTickType GetTickableTickType() const override;
-	virtual bool IsAllowedToTick() const override;
-	virtual bool IsTickableInEditor() const override;
-	virtual TStatId GetStatId() const override;
-	virtual void Tick(float InDeltaTime) override;
+	ENGINE_API virtual UWorld* GetTickableGameObjectWorld() const override;
+	ENGINE_API virtual ETickableTickType GetTickableTickType() const override;
+	ENGINE_API virtual bool IsAllowedToTick() const override;
+	ENGINE_API virtual bool IsTickableInEditor() const override;
+	ENGINE_API virtual TStatId GetStatId() const override;
+	ENGINE_API virtual void Tick(float InDeltaTime) override;
 	//~ End FTickableGameObject interface
 	
 	/**
@@ -153,19 +153,19 @@ public:
 	 * NOTE: This does NOT make a new instance of the given property. If you pass in the same object before it is completely
 	 * evaluated, then you see undesired effects.
 	 */
-	FInputDevicePropertyHandle ActivateDeviceProperty(UInputDeviceProperty* Property, const FActivateDevicePropertyParams& Params);
+	ENGINE_API FInputDevicePropertyHandle ActivateDeviceProperty(UInputDeviceProperty* Property, const FActivateDevicePropertyParams& Params);
 
 	/** Spawn a new instance of the given device property class and activate it. */
 	UFUNCTION(BlueprintCallable, Category = "Input Devices", meta = (AutoCreateRefTerm = "Params", ReturnDisplayName = "Device Property Handle"))
-	FInputDevicePropertyHandle ActivateDevicePropertyOfClass(TSubclassOf<UInputDeviceProperty> PropertyClass, const FActivateDevicePropertyParams& Params);
+	ENGINE_API FInputDevicePropertyHandle ActivateDevicePropertyOfClass(TSubclassOf<UInputDeviceProperty> PropertyClass, const FActivateDevicePropertyParams& Params);
 	
 	/** Returns a pointer to the active input device property with the given handle. Returns null if the property doesn't exist */
 	UFUNCTION(BlueprintCallable, Category = "Input Devices", meta=(ReturnDisplayName="Device Property"))
-	UInputDeviceProperty* GetActiveDeviceProperty(const FInputDevicePropertyHandle Handle) const;
+	ENGINE_API UInputDeviceProperty* GetActiveDeviceProperty(const FInputDevicePropertyHandle Handle) const;
 	
 	/** Returns true if the property associated with the given handle is currently active, and it is not pending removal */
 	UFUNCTION(BlueprintCallable, Category = "Input Devices", meta = (ReturnDisplayName = "Is Active"))
-	bool IsPropertyActive(const FInputDevicePropertyHandle Handle) const;	
+	ENGINE_API bool IsPropertyActive(const FInputDevicePropertyHandle Handle) const;	
 
 	/**
 	* Remove a single device property based on it's handle
@@ -175,7 +175,7 @@ public:
 	* @return								The number of removed device properties.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Input Devices")
-	void RemoveDevicePropertyByHandle(const FInputDevicePropertyHandle HandleToRemove);
+	ENGINE_API void RemoveDevicePropertyByHandle(const FInputDevicePropertyHandle HandleToRemove);
 
 	/**
 	* Remove a set of device properties based on their handles. 
@@ -185,18 +185,18 @@ public:
 	* @return					The number of removed device properties
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Input Devices")
-	void RemoveDevicePropertyHandles(const TSet<FInputDevicePropertyHandle>& HandlesToRemove);
+	ENGINE_API void RemoveDevicePropertyHandles(const TSet<FInputDevicePropertyHandle>& HandlesToRemove);
 
 	/** Removes all the current Input Device Properties that are active, regardless of the Platform User */
 	UFUNCTION(BlueprintCallable, Category = "Input Devices")
-	void RemoveAllDeviceProperties();
+	ENGINE_API void RemoveAllDeviceProperties();
 
 	/** Gets the most recently used hardware input device for the given platform user */
 	UFUNCTION(BlueprintCallable, Category = "Input Devices")
-	FHardwareDeviceIdentifier GetMostRecentlyUsedHardwareDevice(const FPlatformUserId InUserId) const;
+	ENGINE_API FHardwareDeviceIdentifier GetMostRecentlyUsedHardwareDevice(const FPlatformUserId InUserId) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Input Devices")
-	FHardwareDeviceIdentifier GetInputDeviceHardwareIdentifier(const FInputDeviceId InputDevice) const;
+	ENGINE_API FHardwareDeviceIdentifier GetInputDeviceHardwareIdentifier(const FInputDeviceId InputDevice) const;
 
 	/** A delegate that is fired when a platform user changes what Hardware Input device they are using */
 	UPROPERTY(BlueprintAssignable, Category = "Input Devices")
@@ -205,15 +205,15 @@ public:
 protected:
 
 	/** Set the most recently used hardware device from the input processor */
-	void SetMostRecentlyUsedHardwareDevice(const FInputDeviceId InDeviceId, const FHardwareDeviceIdentifier& InHardwareId);
+	ENGINE_API void SetMostRecentlyUsedHardwareDevice(const FInputDeviceId InDeviceId, const FHardwareDeviceIdentifier& InHardwareId);
 
 	// Callbacks for when PIE is started/stopped. We will likely want to pause/resume input device properties
 	// when this happens, or just remove all active properties when PIE stops. This will make designer iteration a little easier
 #if WITH_EDITOR
-	void OnPrePIEStarted(bool bSimulating);
-	void OnPIEPaused(bool bSimulating);
-	void OnPIEResumed(bool bSimulating);
-	void OnPIEStopped(bool bSimulating);
+	ENGINE_API void OnPrePIEStarted(bool bSimulating);
+	ENGINE_API void OnPIEPaused(bool bSimulating);
+	ENGINE_API void OnPIEResumed(bool bSimulating);
+	ENGINE_API void OnPIEStopped(bool bSimulating);
 
 	bool bIsPIEPlaying = false;
 

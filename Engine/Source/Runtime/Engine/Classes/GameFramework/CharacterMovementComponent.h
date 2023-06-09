@@ -131,8 +131,8 @@ typedef TSharedPtr<class FSavedMove_Character> FSavedMovePtr;
  * @see https://docs.unrealengine.com/latest/INT/Gameplay/Framework/Pawn/Character/
  */
 
-UCLASS()
-class ENGINE_API UCharacterMovementComponent : public UPawnMovementComponent, public IRVOAvoidanceInterface, public INetworkPredictionInterface
+UCLASS(MinimalAPI)
+class UCharacterMovementComponent : public UPawnMovementComponent, public IRVOAvoidanceInterface, public INetworkPredictionInterface
 {
 	GENERATED_BODY()
 public:
@@ -140,7 +140,7 @@ public:
 	/**
 	 * Default UObject constructor.
 	 */
-	UCharacterMovementComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	ENGINE_API UCharacterMovementComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 protected:
 
@@ -237,7 +237,7 @@ public:
 	uint8 CustomMovementMode;
 
 	/** The default direction that gravity points for movement simulation.  */
-	static const FVector DefaultGravityDirection;
+	static ENGINE_API const FVector DefaultGravityDirection;
 
 	/** Smoothing mode for simulated proxies in network game. */
 	UPROPERTY(Category="Character Movement (Networking)", EditAnywhere, BlueprintReadOnly)
@@ -673,7 +673,7 @@ protected:
 	float AnalogInputModifier;
 
 	/** Computes the analog input modifier based on current input vector and/or acceleration. */
-	virtual float ComputeAnalogInputModifier() const;
+	ENGINE_API virtual float ComputeAnalogInputModifier() const;
 
 	/** Used for throttling "stuck in geometry" logging. */
 	float LastStuckWarningTime;
@@ -716,7 +716,7 @@ public:
 	 * @return The remaining time step to use for the next sub-step of iteration.
 	 * @see MaxSimulationTimeStep, MaxSimulationIterations
 	 */
-	float GetSimulationTimeStep(float RemainingTime, int32 Iterations) const;
+	ENGINE_API float GetSimulationTimeStep(float RemainingTime, int32 Iterations) const;
 
 	/**
 	 * Max time delta for each discrete simulation step.
@@ -1112,7 +1112,7 @@ public:
 
 	/** Returns velocity requested by path following */
 	UFUNCTION(BlueprintCallable, Category="Pawn|Components|CharacterMovement", meta=(Keywords="Velocity RequestedVelocity"))
-	FVector GetLastUpdateRequestedVelocity() const;
+	ENGINE_API FVector GetLastUpdateRequestedVelocity() const;
 
 	/** No default value, for now it's assumed to be valid if GetAvoidanceManager() returns non-NULL. */
 	UPROPERTY(Category="Character Movement: Avoidance", VisibleAnywhere, BlueprintReadOnly, AdvancedDisplay)
@@ -1123,30 +1123,30 @@ public:
 	FNavAvoidanceMask AvoidanceGroup;
 
 	UFUNCTION(BlueprintCallable, Category="Pawn|Components|CharacterMovement", meta=(DeprecatedFunction, DeprecationMessage="Please use SetAvoidanceGroupMask function instead."))
-	void SetAvoidanceGroup(int32 GroupFlags);
+	ENGINE_API void SetAvoidanceGroup(int32 GroupFlags);
 
 	UFUNCTION(BlueprintCallable, Category = "Pawn|Components|CharacterMovement")
-	void SetAvoidanceGroupMask(const FNavAvoidanceMask& GroupMask);
+	ENGINE_API void SetAvoidanceGroupMask(const FNavAvoidanceMask& GroupMask);
 
 	/** Will avoid other agents if they are in one of specified groups */
 	UPROPERTY(Category="Character Movement: Avoidance", EditAnywhere, BlueprintReadOnly, AdvancedDisplay)
 	FNavAvoidanceMask GroupsToAvoid;
 
 	UFUNCTION(BlueprintCallable, Category="Pawn|Components|CharacterMovement", meta = (DeprecatedFunction, DeprecationMessage = "Please use SetGroupsToAvoidMask function instead."))
-	void SetGroupsToAvoid(int32 GroupFlags);
+	ENGINE_API void SetGroupsToAvoid(int32 GroupFlags);
 
 	UFUNCTION(BlueprintCallable, Category = "Pawn|Components|CharacterMovement")
-	void SetGroupsToAvoidMask(const FNavAvoidanceMask& GroupMask);
+	ENGINE_API void SetGroupsToAvoidMask(const FNavAvoidanceMask& GroupMask);
 
 	/** Will NOT avoid other agents if they are in one of specified groups, higher priority than GroupsToAvoid */
 	UPROPERTY(Category="Character Movement: Avoidance", EditAnywhere, BlueprintReadOnly, AdvancedDisplay)
 	FNavAvoidanceMask GroupsToIgnore;
 
 	UFUNCTION(BlueprintCallable, Category="Pawn|Components|CharacterMovement", meta = (DeprecatedFunction, DeprecationMessage = "Please use SetGroupsToIgnoreMask function instead."))
-	void SetGroupsToIgnore(int32 GroupFlags);
+	ENGINE_API void SetGroupsToIgnore(int32 GroupFlags);
 
 	UFUNCTION(BlueprintCallable, Category = "Pawn|Components|CharacterMovement")
-	void SetGroupsToIgnoreMask(const FNavAvoidanceMask& GroupMask);
+	ENGINE_API void SetGroupsToIgnoreMask(const FNavAvoidanceMask& GroupMask);
 
 	/** De facto default value 0.5 (due to that being the default in the avoidance registration function), indicates RVO behavior. */
 	UPROPERTY(Category="Character Movement: Avoidance", EditAnywhere, BlueprintReadOnly)
@@ -1217,11 +1217,11 @@ public:
 
 	/** Change avoidance state and registers in RVO manager if needed */
 	UFUNCTION(BlueprintCallable, Category="Pawn|Components|CharacterMovement", meta = (UnsafeDuringActorConstruction = "true"))
-	void SetAvoidanceEnabled(bool bEnable);
+	ENGINE_API void SetAvoidanceEnabled(bool bEnable);
 
 	/** Get the Character that owns UpdatedComponent. */
 	UFUNCTION(BlueprintCallable, Category="Pawn|Components|CharacterMovement")
-	ACharacter* GetCharacterOwner() const;
+	ENGINE_API ACharacter* GetCharacterOwner() const;
 
 	/**
 	 * Change movement mode.
@@ -1230,7 +1230,7 @@ public:
 	 * @param NewCustomMode		The new custom sub-mode, only applicable if NewMovementMode is Custom.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Pawn|Components|CharacterMovement")
-	virtual void SetMovementMode(EMovementMode NewMovementMode, uint8 NewCustomMode = 0);
+	ENGINE_API virtual void SetMovementMode(EMovementMode NewMovementMode, uint8 NewCustomMode = 0);
 
 	/**
 	 * Set movement mode to use when returning to walking movement (either MOVE_Walking or MOVE_NavWalking).
@@ -1240,7 +1240,7 @@ public:
 	 * @param  NewGroundMovementMode New ground movement mode. Must be either MOVE_Walking or MOVE_NavWalking, other values are ignored.
 	 * @see GroundMovementMode
 	 */
-	 void SetGroundMovementMode(EMovementMode NewGroundMovementMode);
+	 ENGINE_API void SetGroundMovementMode(EMovementMode NewGroundMovementMode);
 
 	/**
 	 * Get current GroundMovementMode value.
@@ -1252,46 +1252,46 @@ public:
 protected:
 
 	/** Called after MovementMode has changed. Base implementation does special handling for starting certain modes, then notifies the CharacterOwner. */
-	virtual void OnMovementModeChanged(EMovementMode PreviousMovementMode, uint8 PreviousCustomMode);
+	ENGINE_API virtual void OnMovementModeChanged(EMovementMode PreviousMovementMode, uint8 PreviousCustomMode);
 
 public:
 
-	virtual uint8 PackNetworkMovementMode() const;
-	virtual void UnpackNetworkMovementMode(const uint8 ReceivedMode, TEnumAsByte<EMovementMode>& OutMode, uint8& OutCustomMode, TEnumAsByte<EMovementMode>& OutGroundMode) const;
-	virtual void ApplyNetworkMovementMode(const uint8 ReceivedMode);
+	ENGINE_API virtual uint8 PackNetworkMovementMode() const;
+	ENGINE_API virtual void UnpackNetworkMovementMode(const uint8 ReceivedMode, TEnumAsByte<EMovementMode>& OutMode, uint8& OutCustomMode, TEnumAsByte<EMovementMode>& OutGroundMode) const;
+	ENGINE_API virtual void ApplyNetworkMovementMode(const uint8 ReceivedMode);
 
 	// Begin UObject Interface
-	virtual void Serialize(FArchive& Archive) override;
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	ENGINE_API virtual void Serialize(FArchive& Archive) override;
+	static ENGINE_API void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	// End UObject Interface
 
 	//Begin UActorComponent Interface
-	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
-	virtual void OnRegister() override;
-	virtual void BeginDestroy() override;
-	virtual void BeginPlay() override;
-	virtual void PostLoad() override;
-	virtual void Deactivate() override;
-	virtual void RegisterComponentTickFunctions(bool bRegister) override;
-	virtual void ApplyWorldOffset(const FVector& InOffset, bool bWorldShift) override;
+	ENGINE_API virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
+	ENGINE_API virtual void OnRegister() override;
+	ENGINE_API virtual void BeginDestroy() override;
+	ENGINE_API virtual void BeginPlay() override;
+	ENGINE_API virtual void PostLoad() override;
+	ENGINE_API virtual void Deactivate() override;
+	ENGINE_API virtual void RegisterComponentTickFunctions(bool bRegister) override;
+	ENGINE_API virtual void ApplyWorldOffset(const FVector& InOffset, bool bWorldShift) override;
 	//End UActorComponent Interface
 
 	//BEGIN UMovementComponent Interface
-	virtual float GetMaxSpeed() const override;
-	virtual void StopActiveMovement() override;
-	virtual bool IsCrouching() const override;
-	virtual bool IsFalling() const override;
-	virtual bool IsMovingOnGround() const override;
-	virtual bool IsSwimming() const override;
-	virtual bool IsFlying() const override;
-	virtual float GetGravityZ() const override;
-	virtual void AddRadialForce(const FVector& Origin, float Radius, float Strength, enum ERadialImpulseFalloff Falloff) override;
-	virtual void AddRadialImpulse(const FVector& Origin, float Radius, float Strength, enum ERadialImpulseFalloff Falloff, bool bVelChange) override;
+	ENGINE_API virtual float GetMaxSpeed() const override;
+	ENGINE_API virtual void StopActiveMovement() override;
+	ENGINE_API virtual bool IsCrouching() const override;
+	ENGINE_API virtual bool IsFalling() const override;
+	ENGINE_API virtual bool IsMovingOnGround() const override;
+	ENGINE_API virtual bool IsSwimming() const override;
+	ENGINE_API virtual bool IsFlying() const override;
+	ENGINE_API virtual float GetGravityZ() const override;
+	ENGINE_API virtual void AddRadialForce(const FVector& Origin, float Radius, float Strength, enum ERadialImpulseFalloff Falloff) override;
+	ENGINE_API virtual void AddRadialImpulse(const FVector& Origin, float Radius, float Strength, enum ERadialImpulseFalloff Falloff, bool bVelChange) override;
 	//END UMovementComponent Interface
 
 	/** Returns true if the character is in the 'Walking' movement mode. */
 	UFUNCTION(BlueprintCallable, Category="Pawn|Components|CharacterMovement")
-	bool IsWalking() const;
+	ENGINE_API bool IsWalking() const;
 
 	/**
 	 * Returns true if currently performing a movement update.
@@ -1300,27 +1300,27 @@ public:
 	bool IsMovementInProgress() const { return bMovementInProgress; }
 
 	//BEGIN UNavMovementComponent Interface
-	virtual void RequestDirectMove(const FVector& MoveVelocity, bool bForceMaxSpeed) override;
-	virtual void RequestPathMove(const FVector& MoveInput) override;
-	virtual bool CanStartPathFollowing() const override;
-	virtual bool CanStopPathFollowing() const override;
-	virtual float GetPathFollowingBrakingDistance(float MaxSpeed) const override;
+	ENGINE_API virtual void RequestDirectMove(const FVector& MoveVelocity, bool bForceMaxSpeed) override;
+	ENGINE_API virtual void RequestPathMove(const FVector& MoveInput) override;
+	ENGINE_API virtual bool CanStartPathFollowing() const override;
+	ENGINE_API virtual bool CanStopPathFollowing() const override;
+	ENGINE_API virtual float GetPathFollowingBrakingDistance(float MaxSpeed) const override;
 	//END UNaVMovementComponent Interface
 
 	//Begin UPawnMovementComponent Interface
-	virtual void NotifyBumpedPawn(APawn* BumpedPawn) override;
+	ENGINE_API virtual void NotifyBumpedPawn(APawn* BumpedPawn) override;
 	//End UPawnMovementComponent Interface
 
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 
 	/** Make movement impossible (sets movement mode to MOVE_None). */
 	UFUNCTION(BlueprintCallable, Category="Pawn|Components|CharacterMovement")
-	virtual void DisableMovement();
+	ENGINE_API virtual void DisableMovement();
 
 	/** Return true if we have a valid CharacterOwner and UpdatedComponent. */
-	virtual bool HasValidData() const;
+	ENGINE_API virtual bool HasValidData() const;
 
 	/**
 	 * If ShouldPerformAirControlForPathFollowing() returns true, it will update Velocity and Acceleration to air control in the desired Direction for character using path following.
@@ -1328,53 +1328,53 @@ public:
 	 * @param ZDiff is the height difference between the destination and the Pawn's current position
 	 * @see RequestDirectMove()
 	*/
-	virtual void PerformAirControlForPathFollowing(FVector Direction, float ZDiff);
+	ENGINE_API virtual void PerformAirControlForPathFollowing(FVector Direction, float ZDiff);
 
 	/**
 	 * Whether Character should perform air control via PerformAirControlForPathFollowing when falling and following a path at the same time
 	 * Default implementation always returns true during MOVE_Falling.
 	 */
-	virtual bool ShouldPerformAirControlForPathFollowing() const;
+	ENGINE_API virtual bool ShouldPerformAirControlForPathFollowing() const;
 
 	/** Transition from walking to falling */
-	virtual void StartFalling(int32 Iterations, float remainingTime, float timeTick, const FVector& Delta, const FVector& subLoc);
+	ENGINE_API virtual void StartFalling(int32 Iterations, float remainingTime, float timeTick, const FVector& Delta, const FVector& subLoc);
 
 	/**
 	 * Whether Character should go into falling mode when walking and changing position, based on an old and new floor result (both of which are considered walkable).
 	 * Default implementation always returns false.
 	 * @return true if Character should start falling
 	 */
-	virtual bool ShouldCatchAir(const FFindFloorResult& OldFloor, const FFindFloorResult& NewFloor);
+	ENGINE_API virtual bool ShouldCatchAir(const FFindFloorResult& OldFloor, const FFindFloorResult& NewFloor);
 
 	/**
 	 * Trigger OnWalkingOffLedge event on CharacterOwner.
 	 */
-	virtual void HandleWalkingOffLedge(const FVector& PreviousFloorImpactNormal, const FVector& PreviousFloorContactNormal, const FVector& PreviousLocation, float TimeDelta);
+	ENGINE_API virtual void HandleWalkingOffLedge(const FVector& PreviousFloorImpactNormal, const FVector& PreviousFloorContactNormal, const FVector& PreviousLocation, float TimeDelta);
 
 	/** Adjust distance from floor, trying to maintain a slight offset from the floor when walking (based on CurrentFloor). */
-	virtual void AdjustFloorHeight();
+	ENGINE_API virtual void AdjustFloorHeight();
 
 	/** Return PrimitiveComponent we are based on (standing and walking on). */
 	UFUNCTION(BlueprintCallable, Category="Pawn|Components|CharacterMovement")
-	UPrimitiveComponent* GetMovementBase() const;
+	ENGINE_API UPrimitiveComponent* GetMovementBase() const;
 
 	/** Update or defer updating of position based on Base movement */
-	virtual void MaybeUpdateBasedMovement(float DeltaSeconds);
+	ENGINE_API virtual void MaybeUpdateBasedMovement(float DeltaSeconds);
 
 	/** Update position based on Base movement */
-	virtual void UpdateBasedMovement(float DeltaSeconds);
+	ENGINE_API virtual void UpdateBasedMovement(float DeltaSeconds);
 
 	/** Update controller's view rotation as pawn's base rotates */
-	virtual void UpdateBasedRotation(FRotator& FinalRotation, const FRotator& ReducedRotation);
+	ENGINE_API virtual void UpdateBasedRotation(FRotator& FinalRotation, const FRotator& ReducedRotation);
 
 	/** Call SaveBaseLocation() if not deferring updates (bDeferUpdateBasedMovement is false). */
-	virtual void MaybeSaveBaseLocation();
+	ENGINE_API virtual void MaybeSaveBaseLocation();
 
 	/** Update OldBaseLocation and OldBaseQuat if there is a valid movement base, and store the relative location/rotation if necessary. Ignores bDeferUpdateBasedMovement and forces the update. */
-	virtual void SaveBaseLocation();
+	ENGINE_API virtual void SaveBaseLocation();
 
 	/** changes physics based on MovementMode */
-	virtual void StartNewPhysics(float deltaTime, int32 Iterations);
+	ENGINE_API virtual void StartNewPhysics(float deltaTime, int32 Iterations);
 	
 	/**
 	 * Perform jump. Called by Character when a jump has been detected because Character->bPressedJump was true. Checks Character->CanJump().
@@ -1382,44 +1382,44 @@ public:
 	 * @param	bReplayingMoves: true if this is being done as part of replaying moves on a locally controlled client after a server correction.
 	 * @return	True if the jump was triggered successfully.
 	 */
-	virtual bool DoJump(bool bReplayingMoves);
+	ENGINE_API virtual bool DoJump(bool bReplayingMoves);
 
 	/**
 	 * Returns true if current movement state allows an attempt at jumping. Used by Character::CanJump().
 	 */
-	virtual bool CanAttemptJump() const;
+	ENGINE_API virtual bool CanAttemptJump() const;
 
 	/** Queue a pending launch with velocity LaunchVel. */
-	virtual void Launch(FVector const& LaunchVel);
+	ENGINE_API virtual void Launch(FVector const& LaunchVel);
 
 	/** Handle a pending launch during an update. Returns true if the launch was triggered. */
-	virtual bool HandlePendingLaunch();
+	ENGINE_API virtual bool HandlePendingLaunch();
 
 	/**
 	 * If we have a movement base, get the velocity that should be imparted by that base, usually when jumping off of it.
 	 * Only applies the components of the velocity enabled by bImpartBaseVelocityX, bImpartBaseVelocityY, bImpartBaseVelocityZ.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Pawn|Components|CharacterMovement")
-	virtual FVector GetImpartedMovementBaseVelocity() const;
+	ENGINE_API virtual FVector GetImpartedMovementBaseVelocity() const;
 
 	/** Force this pawn to bounce off its current base, which isn't an acceptable base for it. */
-	virtual void JumpOff(AActor* MovementBaseActor);
+	ENGINE_API virtual void JumpOff(AActor* MovementBaseActor);
 
 	/** Can be overridden to choose to jump based on character velocity, base actor dimensions, etc. */
-	virtual FVector GetBestDirectionOffActor(AActor* BaseActor) const; // Calculates the best direction to go to "jump off" an actor.
+	ENGINE_API virtual FVector GetBestDirectionOffActor(AActor* BaseActor) const; // Calculates the best direction to go to "jump off" an actor.
 
 	/** 
 	 * Determine whether the Character should jump when exiting water.
 	 * @param	JumpDir is the desired direction to jump out of water
 	 * @return	true if Pawn should jump out of water
 	 */
-	virtual bool ShouldJumpOutOfWater(FVector& JumpDir);
+	ENGINE_API virtual bool ShouldJumpOutOfWater(FVector& JumpDir);
 
 	/** Jump onto shore from water */
-	virtual void JumpOutOfWater(FVector WallNormal);
+	ENGINE_API virtual void JumpOutOfWater(FVector WallNormal);
 
 	/** Returns how far to rotate character during the time interval DeltaTime. */
-	virtual FRotator GetDeltaRotation(float DeltaTime) const;
+	ENGINE_API virtual FRotator GetDeltaRotation(float DeltaTime) const;
 
 	/**
 	  * Compute a target rotation based on current movement. Used by PhysicsRotation() when bOrientRotationToMovement is true.
@@ -1431,7 +1431,7 @@ public:
 	  *
 	  * @return The target rotation given current movement.
 	  */
-	virtual FRotator ComputeOrientToMovementRotation(const FRotator& CurrentRotation, float DeltaTime, FRotator& DeltaRotation) const;
+	ENGINE_API virtual FRotator ComputeOrientToMovementRotation(const FRotator& CurrentRotation, float DeltaTime, FRotator& DeltaRotation) const;
 
 	/**
 	 * Use velocity requested by path following to compute a requested acceleration and speed.
@@ -1447,20 +1447,20 @@ public:
 	 * @param OutRequestedSpeed		Speed of resulting velocity request, which can affect the max speed allowed by movement.
 	 * @return Whether there is a requested velocity and acceleration, resulting in valid OutAcceleration and OutRequestedSpeed values.
 	 */
-	virtual bool ApplyRequestedMove(float DeltaTime, float MaxAccel, float MaxSpeed, float Friction, float BrakingDeceleration, FVector& OutAcceleration, float& OutRequestedSpeed);
+	ENGINE_API virtual bool ApplyRequestedMove(float DeltaTime, float MaxAccel, float MaxSpeed, float Friction, float BrakingDeceleration, FVector& OutAcceleration, float& OutRequestedSpeed);
 
 	/** Called if bNotifyApex is true and character has just passed the apex of its jump. */
-	virtual void NotifyJumpApex();
+	ENGINE_API virtual void NotifyJumpApex();
 
 	/**
 	 * Compute new falling velocity from given velocity and gravity. Applies the limits of the current Physics Volume's TerminalVelocity.
 	 */
-	virtual FVector NewFallVelocity(const FVector& InitialVelocity, const FVector& Gravity, float DeltaTime) const;
+	ENGINE_API virtual FVector NewFallVelocity(const FVector& InitialVelocity, const FVector& Gravity, float DeltaTime) const;
 
 	/* Determine how deep in water the character is immersed.
 	 * @return float in range 0.0 = not in water, 1.0 = fully immersed
 	 */
-	virtual float ImmersionDepth() const;
+	ENGINE_API virtual float ImmersionDepth() const;
 
 	/** 
 	 * Updates Velocity and Acceleration based on the current state, applying the effects of friction and acceleration or deceleration. Does not apply gravity.
@@ -1472,44 +1472,44 @@ public:
 	 * @param	BrakingDeceleration				deceleration applied when not accelerating, or when exceeding max velocity.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Pawn|Components|CharacterMovement")
-	virtual void CalcVelocity(float DeltaTime, float Friction, bool bFluid, float BrakingDeceleration);
+	ENGINE_API virtual void CalcVelocity(float DeltaTime, float Friction, bool bFluid, float BrakingDeceleration);
 	
 	/**
 	 *	Compute the max jump height based on the JumpZVelocity velocity and gravity.
 	 *	This does not take into account the CharacterOwner's MaxJumpHoldTime.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Pawn|Components|CharacterMovement")
-	virtual float GetMaxJumpHeight() const;
+	ENGINE_API virtual float GetMaxJumpHeight() const;
 
 	/**
 	 *	Compute the max jump height based on the JumpZVelocity velocity and gravity.
 	 *	This does take into account the CharacterOwner's MaxJumpHoldTime.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Pawn|Components|CharacterMovement")
-	virtual float GetMaxJumpHeightWithJumpTime() const;
+	ENGINE_API virtual float GetMaxJumpHeightWithJumpTime() const;
 
 	/** Returns maximum acceleration for the current state. */
 	UFUNCTION(BlueprintCallable, Category = "Pawn|Components|CharacterMovement")
-	virtual float GetMinAnalogSpeed() const;
+	ENGINE_API virtual float GetMinAnalogSpeed() const;
 	
 	/** Returns maximum acceleration for the current state. */
 	UFUNCTION(BlueprintCallable, Category="Pawn|Components|CharacterMovement")
-	virtual float GetMaxAcceleration() const;
+	ENGINE_API virtual float GetMaxAcceleration() const;
 
 	/** Returns maximum deceleration for the current state when braking (ie when there is no acceleration). */
 	UFUNCTION(BlueprintCallable, Category="Pawn|Components|CharacterMovement")
-	virtual float GetMaxBrakingDeceleration() const;
+	ENGINE_API virtual float GetMaxBrakingDeceleration() const;
 
 	/** Returns current acceleration, computed from input vector each update. */
 	UFUNCTION(BlueprintCallable, Category="Pawn|Components|CharacterMovement", meta=(Keywords="Acceleration GetAcceleration"))
-	FVector GetCurrentAcceleration() const;
+	ENGINE_API FVector GetCurrentAcceleration() const;
 
 	/** Returns modifier [0..1] based on the magnitude of the last input vector, which is used to modify the acceleration and max speed during movement. */
 	UFUNCTION(BlueprintCallable, Category="Pawn|Components|CharacterMovement")
-	float GetAnalogInputModifier() const;
+	ENGINE_API float GetAnalogInputModifier() const;
 	
 	/** Returns true if we can step up on the actor in the given FHitResult. */
-	virtual bool CanStepUp(const FHitResult& Hit) const;
+	ENGINE_API virtual bool CanStepUp(const FHitResult& Hit) const;
 
 	/** 
 	 * Move up steps or slope. Does nothing and returns false if CanStepUp(Hit) returns false.
@@ -1520,37 +1520,37 @@ public:
 	 * @param OutStepDownResult	[Out] If non-null, a floor check will be performed if possible as part of the final step down, and it will be updated to reflect this result.
 	 * @return true if the step up was successful.
 	 */
-	virtual bool StepUp(const FVector& GravDir, const FVector& Delta, const FHitResult &Hit, FStepDownResult* OutStepDownResult = NULL);
+	ENGINE_API virtual bool StepUp(const FVector& GravDir, const FVector& Delta, const FHitResult &Hit, FStepDownResult* OutStepDownResult = NULL);
 
 	/** Update the base of the character, which is the PrimitiveComponent we are standing on. */
-	virtual void SetBase(UPrimitiveComponent* NewBase, const FName BoneName = NAME_None, bool bNotifyActor=true);
+	ENGINE_API virtual void SetBase(UPrimitiveComponent* NewBase, const FName BoneName = NAME_None, bool bNotifyActor=true);
 
 	/**
 	 * Update the base of the character, using the given floor result if it is walkable, or null if not. Calls SetBase().
 	 */
-	void SetBaseFromFloor(const FFindFloorResult& FloorResult);
+	ENGINE_API void SetBaseFromFloor(const FFindFloorResult& FloorResult);
 
 	/**
 	 * Applies downward force when walking on top of physics objects.
 	 * @param DeltaSeconds Time elapsed since last frame.
 	 */
-	virtual void ApplyDownwardForce(float DeltaSeconds);
+	ENGINE_API virtual void ApplyDownwardForce(float DeltaSeconds);
 
 	/** Applies repulsion force to all touched components. */
-	virtual void ApplyRepulsionForce(float DeltaSeconds);
+	ENGINE_API virtual void ApplyRepulsionForce(float DeltaSeconds);
 	
 	/** Applies momentum accumulated through AddImpulse() and AddForce(), then clears those forces. Does *not* use ClearAccumulatedForces() since that would clear pending launch velocity as well. */
-	virtual void ApplyAccumulatedForces(float DeltaSeconds);
+	ENGINE_API virtual void ApplyAccumulatedForces(float DeltaSeconds);
 
 	/** Clears forces accumulated through AddImpulse() and AddForce(), and also pending launch velocity. */
 	UFUNCTION(BlueprintCallable, Category="Pawn|Components|CharacterMovement")
-	virtual void ClearAccumulatedForces();
+	ENGINE_API virtual void ClearAccumulatedForces();
 
 	/** Update the character state in PerformMovement right before doing the actual position change */
-	virtual void UpdateCharacterStateBeforeMovement(float DeltaSeconds);
+	ENGINE_API virtual void UpdateCharacterStateBeforeMovement(float DeltaSeconds);
 
 	/** Update the character state in PerformMovement after the position change. Some rotation updates happen after this. */
-	virtual void UpdateCharacterStateAfterMovement(float DeltaSeconds);
+	ENGINE_API virtual void UpdateCharacterStateAfterMovement(float DeltaSeconds);
 
 	/** 
 	 * Handle start swimming functionality
@@ -1560,16 +1560,16 @@ public:
 	 * @param remainingTime - DeltaTime to complete transition to swimming
 	 * @param Iterations - physics iteration count
 	 */
-	virtual void StartSwimming(FVector OldLocation, FVector OldVelocity, float timeTick, float remainingTime, int32 Iterations);
+	ENGINE_API virtual void StartSwimming(FVector OldLocation, FVector OldVelocity, float timeTick, float remainingTime, int32 Iterations);
 
 	/* Swimming uses gravity - but scaled by (1.f - buoyancy) */
-	float Swim(FVector Delta, FHitResult& Hit);
+	ENGINE_API float Swim(FVector Delta, FHitResult& Hit);
 
 	/** Get as close to waterline as possible, staying on same side as currently. */
-	FVector FindWaterLine(FVector Start, FVector End);
+	ENGINE_API FVector FindWaterLine(FVector Start, FVector End);
 
 	/** Handle falling movement. */
-	virtual void PhysFalling(float deltaTime, int32 Iterations);
+	ENGINE_API virtual void PhysFalling(float deltaTime, int32 Iterations);
 
 	// Helpers for PhysFalling
 
@@ -1582,7 +1582,7 @@ public:
 	 * @param DeltaTime Time step for the current update.
 	 * @return Acceleration to use during falling movement.
 	 */
-	virtual FVector GetFallingLateralAcceleration(float DeltaTime);
+	ENGINE_API virtual FVector GetFallingLateralAcceleration(float DeltaTime);
 	
 	/**
 	 * Returns true if falling movement should limit air control. Limiting air control prevents input acceleration during falling movement
@@ -1590,7 +1590,7 @@ public:
 	 *
 	 * @see GetFallingLateralAcceleration(), BoostAirControl(), GetAirControl(), LimitAirControl()
 	 */
-	virtual bool ShouldLimitAirControl(float DeltaTime, const FVector& FallAcceleration) const;
+	ENGINE_API virtual bool ShouldLimitAirControl(float DeltaTime, const FVector& FallAcceleration) const;
 
 	/**
 	 * Get the air control to use during falling movement.
@@ -1603,7 +1603,7 @@ public:
 	 * @return Air control to use during falling movement.
 	 * @see AirControl, BoostAirControl(), LimitAirControl(), GetFallingLateralAcceleration()
 	 */
-	virtual FVector GetAirControl(float DeltaTime, float TickAirControl, const FVector& FallAcceleration);
+	ENGINE_API virtual FVector GetAirControl(float DeltaTime, float TickAirControl, const FVector& FallAcceleration);
 
 	// Gravity Direction
 
@@ -1616,7 +1616,7 @@ public:
 	 * from gravity relative space.
 	 * @param GravityDir		A non-zero vector representing the new gravity direction. The vector will be normalized.
 	 */
-	virtual void SetGravityDirection(const FVector& GravityDir);
+	ENGINE_API virtual void SetGravityDirection(const FVector& GravityDir);
 
 	/** Whether the gravity direction is different from UCharacterMovementComponent::DefaultGravityDirection. */
 	bool HasCustomGravity() const { return bHasCustomGravity; }
@@ -1648,7 +1648,7 @@ protected:
 	 * @return Modified air control to use during falling movement
 	 * @see GetAirControl()
 	 */
-	virtual float BoostAirControl(float DeltaTime, float TickAirControl, const FVector& FallAcceleration);
+	ENGINE_API virtual float BoostAirControl(float DeltaTime, float TickAirControl, const FVector& FallAcceleration);
 
 	/**
 	 * Limits the air control to use during falling movement, given an impact while falling.
@@ -1661,25 +1661,25 @@ protected:
 	 * @return Modified air control acceleration to use during falling movement.
 	 * @see PhysFalling()
 	 */
-	virtual FVector LimitAirControl(float DeltaTime, const FVector& FallAcceleration, const FHitResult& HitResult, bool bCheckForValidLandingSpot);
+	ENGINE_API virtual FVector LimitAirControl(float DeltaTime, const FVector& FallAcceleration, const FHitResult& HitResult, bool bCheckForValidLandingSpot);
 	
 
 	/** Handle landing against Hit surface over remaingTime and iterations, calling SetPostLandedPhysics() and starting the new movement mode. */
-	virtual void ProcessLanded(const FHitResult& Hit, float remainingTime, int32 Iterations);
+	ENGINE_API virtual void ProcessLanded(const FHitResult& Hit, float remainingTime, int32 Iterations);
 
 	/** Use new physics after landing. Defaults to swimming if in water, walking otherwise. */
-	virtual void SetPostLandedPhysics(const FHitResult& Hit);
+	ENGINE_API virtual void SetPostLandedPhysics(const FHitResult& Hit);
 
 	/** Updates acceleration and perform movement, called from the TickComponent on the authoritative side for controlled characters, 
 	 *	or on the client for characters without a controller when either playing root motion or bRunPhysicsWithNoController is true.
 	 */
-	virtual void ControlledCharacterMove(const FVector& InputVector, float DeltaSeconds);
+	ENGINE_API virtual void ControlledCharacterMove(const FVector& InputVector, float DeltaSeconds);
 
 	/** Switch collision settings for NavWalking mode (ignore world collisions) */
-	virtual void SetNavWalkingPhysics(bool bEnable);
+	ENGINE_API virtual void SetNavWalkingPhysics(bool bEnable);
 
 	/** Get Navigation data for the Character. Returns null if there is no associated nav data. */
-	const class INavigationDataInterface* GetNavData() const;
+	ENGINE_API const class INavigationDataInterface* GetNavData() const;
 
 	/** 
 	 * Checks to see if the current location is not encroaching blocking geometry so the character can leave NavWalking.
@@ -1687,81 +1687,81 @@ protected:
 	 * If it's not possible, MovementMode change will be delayed until character reach collision free spot.
 	 * @return True if movement mode was successfully changed
 	 */
-	virtual bool TryToLeaveNavWalking();
+	ENGINE_API virtual bool TryToLeaveNavWalking();
 
 	/** 
 	 * Attempts to better align navmesh walking characters with underlying geometry (sometimes 
 	 * navmesh can differ quite significantly from geometry).
 	 * Updates CachedProjectedNavMeshHitResult, access this for more info about hits.
 	 */
-	virtual FVector ProjectLocationFromNavMesh(float DeltaSeconds, const FVector& CurrentFeetLocation, const FVector& TargetNavLocation, float UpOffset, float DownOffset);
+	ENGINE_API virtual FVector ProjectLocationFromNavMesh(float DeltaSeconds, const FVector& CurrentFeetLocation, const FVector& TargetNavLocation, float UpOffset, float DownOffset);
 
 	/** Performs trace for ProjectLocationFromNavMesh */
-	virtual void FindBestNavMeshLocation(const FVector& TraceStart, const FVector& TraceEnd, const FVector& CurrentFeetLocation, const FVector& TargetNavLocation, FHitResult& OutHitResult) const;
+	ENGINE_API virtual void FindBestNavMeshLocation(const FVector& TraceStart, const FVector& TraceEnd, const FVector& CurrentFeetLocation, const FVector& TargetNavLocation, FHitResult& OutHitResult) const;
 
 	/** 
 	 * When a character requests a velocity (like when following a path), this method returns true if when we should compute the 
 	 * acceleration toward requested velocity (including friction). If it returns false, it will snap instantly to requested velocity.
 	 */
-	virtual bool ShouldComputeAccelerationToReachRequestedVelocity(const float RequestedSpeed) const;
+	ENGINE_API virtual bool ShouldComputeAccelerationToReachRequestedVelocity(const float RequestedSpeed) const;
 public:
 
 	/** Called by owning Character upon successful teleport from AActor::TeleportTo(). */
-	virtual void OnTeleported() override;
+	ENGINE_API virtual void OnTeleported() override;
 
 	/**
 	 * Checks if new capsule size fits (no encroachment), and call CharacterOwner->OnStartCrouch() if successful.
 	 * In general you should set bWantsToCrouch instead to have the crouch persist during movement, or just use the crouch functions on the owning Character.
 	 * @param	bClientSimulation	true when called when bIsCrouched is replicated to non owned clients, to update collision cylinder and offset.
 	 */
-	virtual void Crouch(bool bClientSimulation = false);
+	ENGINE_API virtual void Crouch(bool bClientSimulation = false);
 	
 	/**
 	 * Checks if default capsule size fits (no encroachment), and trigger OnEndCrouch() on the owner if successful.
 	 * @param	bClientSimulation	true when called when bIsCrouched is replicated to non owned clients, to update collision cylinder and offset.
 	 */
-	virtual void UnCrouch(bool bClientSimulation = false);
+	ENGINE_API virtual void UnCrouch(bool bClientSimulation = false);
 
 	/** Returns true if the character is allowed to crouch in the current state. By default it is allowed when walking or falling, if CanEverCrouch() is true. */
-	virtual bool CanCrouchInCurrentState() const;
+	ENGINE_API virtual bool CanCrouchInCurrentState() const;
 
 	/** Sets collision half-height when crouching and updates dependent computations */
 	UFUNCTION(BlueprintSetter)
-	void SetCrouchedHalfHeight(const float NewValue);
+	ENGINE_API void SetCrouchedHalfHeight(const float NewValue);
 
 	/** Returns the collision half-height when crouching (component scale is applied separately) */
 	UFUNCTION(BlueprintGetter)
-	float GetCrouchedHalfHeight() const;
+	ENGINE_API float GetCrouchedHalfHeight() const;
 
 	/** Returns true if there is a suitable floor SideStep from current position. */
-	virtual bool CheckLedgeDirection(const FVector& OldLocation, const FVector& SideStep, const FVector& GravDir) const;
+	ENGINE_API virtual bool CheckLedgeDirection(const FVector& OldLocation, const FVector& SideStep, const FVector& GravDir) const;
 
 	/** 
 	 * @param Delta is the current move delta (which ended up going over a ledge).
 	 * @return new delta which moves along the ledge
 	 */
-	virtual FVector GetLedgeMove(const FVector& OldLocation, const FVector& Delta, const FVector& GravDir) const;
+	ENGINE_API virtual FVector GetLedgeMove(const FVector& OldLocation, const FVector& Delta, const FVector& GravDir) const;
 
 	/** Check if pawn is falling */
-	virtual bool CheckFall(const FFindFloorResult& OldFloor, const FHitResult& Hit, const FVector& Delta, const FVector& OldLocation, float remainingTime, float timeTick, int32 Iterations, bool bMustJump);
+	ENGINE_API virtual bool CheckFall(const FFindFloorResult& OldFloor, const FHitResult& Hit, const FVector& Delta, const FVector& OldLocation, float remainingTime, float timeTick, int32 Iterations, bool bMustJump);
 	
 	/** 
 	 *  Revert to previous position OldLocation, return to being based on OldBase.
 	 *  if bFailMove, stop movement and notify controller
 	 */	
-	void RevertMove(const FVector& OldLocation, UPrimitiveComponent* OldBase, const FVector& InOldBaseLocation, const FFindFloorResult& OldFloor, bool bFailMove);
+	ENGINE_API void RevertMove(const FVector& OldLocation, UPrimitiveComponent* OldBase, const FVector& InOldBaseLocation, const FFindFloorResult& OldFloor, bool bFailMove);
 
 	/** Perform rotation over deltaTime */
-	virtual void PhysicsRotation(float DeltaTime);
+	ENGINE_API virtual void PhysicsRotation(float DeltaTime);
 
 	/** if true, DesiredRotation will be restricted to only Yaw component in PhysicsRotation() */
-	virtual bool ShouldRemainVertical() const;
+	ENGINE_API virtual bool ShouldRemainVertical() const;
 
 	/** Delegate when PhysicsVolume of UpdatedComponent has been changed **/
-	virtual void PhysicsVolumeChanged(class APhysicsVolume* NewVolume) override;
+	ENGINE_API virtual void PhysicsVolumeChanged(class APhysicsVolume* NewVolume) override;
 
 	/** Set movement mode to the default based on the current physics volume. */
-	virtual void SetDefaultMovementMode();
+	ENGINE_API virtual void SetDefaultMovementMode();
 
 	/**
 	 * Moves along the given movement direction using simple movement rules based on the current movement mode (usually used by simulated proxies).
@@ -1770,19 +1770,19 @@ public:
 	 * @param DeltaSeconds:			Time over which movement occurs
 	 * @param OutStepDownResult:	[Out] If non-null, and a floor check is performed, this will be updated to reflect that result.
 	 */
-	virtual void MoveSmooth(const FVector& InVelocity, const float DeltaSeconds, FStepDownResult* OutStepDownResult = NULL );
+	ENGINE_API virtual void MoveSmooth(const FVector& InVelocity, const float DeltaSeconds, FStepDownResult* OutStepDownResult = NULL );
 
 	/**
 	 * Used during SimulateMovement for proxies, this computes a new value for Acceleration before running proxy simulation.
 	 * The base implementation simply derives a value from the normalized Velocity value, which may help animations that want some indication of the direction of movement.
 	 * Proxies don't implement predictive acceleration by default so this value is not used for the actual simulation.
 	 */
-	virtual void UpdateProxyAcceleration();
+	ENGINE_API virtual void UpdateProxyAcceleration();
 	
-	virtual void SetUpdatedComponent(USceneComponent* NewUpdatedComponent) override;
+	ENGINE_API virtual void SetUpdatedComponent(USceneComponent* NewUpdatedComponent) override;
 	
 	/** Returns MovementMode string */
-	virtual FString GetMovementName() const;
+	ENGINE_API virtual FString GetMovementName() const;
 
 	/** 
 	 * Add impulse to character. Impulses are accumulated each tick and applied together
@@ -1795,7 +1795,7 @@ public:
 	 * @param	bVelocityChange		Whether or not the impulse is relative to mass.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Pawn|Components|CharacterMovement")
-	virtual void AddImpulse( FVector Impulse, bool bVelocityChange = false );
+	ENGINE_API virtual void AddImpulse( FVector Impulse, bool bVelocityChange = false );
 
 	/** 
 	 * Add force to character. Forces are accumulated each tick and applied together
@@ -1808,7 +1808,7 @@ public:
 	 * @param	Force			Force to apply.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Pawn|Components|CharacterMovement")
-	virtual void AddForce( FVector Force );
+	ENGINE_API virtual void AddForce( FVector Force );
 
 	/**
 	 * Draw important variables on canvas.  Character will call DisplayDebug() on the current ViewTarget when the ShowDebug exec is used
@@ -1818,87 +1818,87 @@ public:
 	 * @param YL - Height of the current font
 	 * @param YPos - Y position on Canvas. YPos += YL, gives position to draw text for next debug line.
 	 */
-	virtual void DisplayDebug(class UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos);
+	ENGINE_API virtual void DisplayDebug(class UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos);
 
 	/**
 	 * Draw in-world debug information for character movement (called with p.VisualizeMovement > 0).
 	 */
-	virtual float VisualizeMovement() const;
+	ENGINE_API virtual float VisualizeMovement() const;
 
 	/** Check if swimming pawn just ran into edge of the pool and should jump out. */
-	virtual bool CheckWaterJump(FVector CheckPoint, FVector& WallNormal);
+	ENGINE_API virtual bool CheckWaterJump(FVector CheckPoint, FVector& WallNormal);
 
 	/** Returns whether this pawn is currently allowed to walk off ledges */
-	virtual bool CanWalkOffLedges() const;
+	ENGINE_API virtual bool CanWalkOffLedges() const;
 
 	/** Returns The distance from the edge of the capsule within which we don't allow the character to perch on the edge of a surface. */
 	UFUNCTION(BlueprintCallable, Category="Pawn|Components|CharacterMovement")
-	float GetPerchRadiusThreshold() const;
+	ENGINE_API float GetPerchRadiusThreshold() const;
 
 	/**
 	 * Returns the radius within which we can stand on the edge of a surface without falling (if this is a walkable surface).
 	 * Simply computed as the capsule radius minus the result of GetPerchRadiusThreshold().
 	 */
 	UFUNCTION(BlueprintCallable, Category="Pawn|Components|CharacterMovement")
-	float GetValidPerchRadius() const;
+	ENGINE_API float GetValidPerchRadius() const;
 
 	/** Return true if the hit result should be considered a walkable surface for the character. */
 	UFUNCTION(BlueprintCallable, Category="Pawn|Components|CharacterMovement")
-	virtual bool IsWalkable(const FHitResult& Hit) const;
+	ENGINE_API virtual bool IsWalkable(const FHitResult& Hit) const;
 
 	/** Get the max angle in degrees of a walkable surface for the character. */
 	FORCEINLINE float GetWalkableFloorAngle() const { return WalkableFloorAngle; }
 
 	/** Get the max angle in degrees of a walkable surface for the character. */
 	UFUNCTION(BlueprintCallable, Category="Pawn|Components|CharacterMovement", meta=(DisplayName = "GetWalkableFloorAngle", ScriptName = "GetWalkableFloorAngle"))
-	float K2_GetWalkableFloorAngle() const;
+	ENGINE_API float K2_GetWalkableFloorAngle() const;
 
 	/** Set the max angle in degrees of a walkable surface for the character. Also computes WalkableFloorZ. */
 	UFUNCTION(BlueprintCallable, Category="Pawn|Components|CharacterMovement")
-	void SetWalkableFloorAngle(float InWalkableFloorAngle);
+	ENGINE_API void SetWalkableFloorAngle(float InWalkableFloorAngle);
 
 	/** Get the Z component of the normal of the steepest walkable surface for the character. Any lower than this and it is not walkable. */
 	FORCEINLINE float GetWalkableFloorZ() const { return WalkableFloorZ; }
 
 	/** Get the Z component of the normal of the steepest walkable surface for the character. Any lower than this and it is not walkable. */
 	UFUNCTION(BlueprintCallable, Category="Pawn|Components|CharacterMovement", meta=(DisplayName = "GetWalkableFloorZ", ScriptName = "GetWalkableFloorZ"))
-	float K2_GetWalkableFloorZ() const;
+	ENGINE_API float K2_GetWalkableFloorZ() const;
 
 	/** Set the Z component of the normal of the steepest walkable surface for the character. Also computes WalkableFloorAngle. */
 	UFUNCTION(BlueprintCallable, Category="Pawn|Components|CharacterMovement")
-	void SetWalkableFloorZ(float InWalkableFloorZ);
+	ENGINE_API void SetWalkableFloorZ(float InWalkableFloorZ);
 	
 	/** Pre-physics tick function for this character */
 	struct FCharacterMovementComponentPrePhysicsTickFunction PrePhysicsTickFunction;
 
 	/** Tick function called before physics */
-	virtual void PrePhysicsTickComponent(float DeltaTime, FCharacterMovementComponentPrePhysicsTickFunction& ThisTickFunction);
+	ENGINE_API virtual void PrePhysicsTickComponent(float DeltaTime, FCharacterMovementComponentPrePhysicsTickFunction& ThisTickFunction);
 
 	/** Post-physics tick function for this character */
 	UPROPERTY()
 	struct FCharacterMovementComponentPostPhysicsTickFunction PostPhysicsTickFunction;
 
 	/** Tick function called after physics (sync scene) has finished simulation, before cloth */
-	virtual void PostPhysicsTickComponent(float DeltaTime, FCharacterMovementComponentPostPhysicsTickFunction& ThisTickFunction);
+	ENGINE_API virtual void PostPhysicsTickComponent(float DeltaTime, FCharacterMovementComponentPostPhysicsTickFunction& ThisTickFunction);
 
 protected:
 	/** @note Movement update functions should only be called through StartNewPhysics()*/
-	virtual void PhysWalking(float deltaTime, int32 Iterations);
+	ENGINE_API virtual void PhysWalking(float deltaTime, int32 Iterations);
 
 	/** @note Movement update functions should only be called through StartNewPhysics()*/
-	virtual void PhysNavWalking(float deltaTime, int32 Iterations);
+	ENGINE_API virtual void PhysNavWalking(float deltaTime, int32 Iterations);
 
 	/** @note Movement update functions should only be called through StartNewPhysics()*/
-	virtual void PhysFlying(float deltaTime, int32 Iterations);
+	ENGINE_API virtual void PhysFlying(float deltaTime, int32 Iterations);
 
 	/** @note Movement update functions should only be called through StartNewPhysics()*/
-	virtual void PhysSwimming(float deltaTime, int32 Iterations);
+	ENGINE_API virtual void PhysSwimming(float deltaTime, int32 Iterations);
 
 	/** @note Movement update functions should only be called through StartNewPhysics()*/
-	virtual void PhysCustom(float deltaTime, int32 Iterations);
+	ENGINE_API virtual void PhysCustom(float deltaTime, int32 Iterations);
 
 	/* Allow custom handling when character hits a wall while swimming. */
-	virtual void HandleSwimmingWallHit(const FHitResult& Hit, float DeltaTime);
+	ENGINE_API virtual void HandleSwimmingWallHit(const FHitResult& Hit, float DeltaTime);
 
 	/**
 	 * Compute a vector of movement, given a delta and a hit result of the surface we are on.
@@ -1910,7 +1910,7 @@ protected:
 	 * @return If on a walkable surface, this returns a vector that moves parallel to the surface. The magnitude may be scaled if bMaintainHorizontalGroundVelocity is true.
 	 * If a ramp vector can't be computed, this will just return Delta.
 	 */
-	virtual FVector ComputeGroundMovementDelta(const FVector& Delta, const FHitResult& RampHit, const bool bHitFromLineTrace) const;
+	ENGINE_API virtual FVector ComputeGroundMovementDelta(const FVector& Delta, const FHitResult& RampHit, const bool bHitFromLineTrace) const;
 
 	/**
 	 * Move along the floor, using CurrentFloor and ComputeGroundMovementDelta() to get a movement direction.
@@ -1920,25 +1920,25 @@ protected:
 	 * @param DeltaSeconds:			Time over which movement occurs
 	 * @param OutStepDownResult:	[Out] If non-null, and a floor check is performed, this will be updated to reflect that result.
 	 */
-	virtual void MoveAlongFloor(const FVector& InVelocity, float DeltaSeconds, FStepDownResult* OutStepDownResult = NULL);
+	ENGINE_API virtual void MoveAlongFloor(const FVector& InVelocity, float DeltaSeconds, FStepDownResult* OutStepDownResult = NULL);
 
 	/** Notification that the character is stuck in geometry.  Only called during walking movement. */
-	virtual void OnCharacterStuckInGeometry(const FHitResult* Hit);
+	ENGINE_API virtual void OnCharacterStuckInGeometry(const FHitResult* Hit);
 
 	/**
 	 * Adjusts velocity when walking so that Z velocity is zero.
 	 * When bMaintainHorizontalGroundVelocity is false, also rescales the velocity vector to maintain the original magnitude, but in the horizontal direction.
 	 */
-	virtual void MaintainHorizontalGroundVelocity();
+	ENGINE_API virtual void MaintainHorizontalGroundVelocity();
 
 	/** Overridden to enforce max distances based on hit geometry. */
-	virtual FVector GetPenetrationAdjustment(const FHitResult& Hit) const override;
+	ENGINE_API virtual FVector GetPenetrationAdjustment(const FHitResult& Hit) const override;
 
 	/** Overridden to set bJustTeleported to true, so we don't make incorrect velocity calculations based on adjusted movement. */
-	virtual bool ResolvePenetrationImpl(const FVector& Adjustment, const FHitResult& Hit, const FQuat& NewRotation) override;
+	ENGINE_API virtual bool ResolvePenetrationImpl(const FVector& Adjustment, const FHitResult& Hit, const FQuat& NewRotation) override;
 
 	/** Handle a blocking impact. Calls ApplyImpactPhysicsForces for the hit, if bEnablePhysicsInteraction is true. */
-	virtual void HandleImpact(const FHitResult& Hit, float TimeSlice=0.f, const FVector& MoveDelta = FVector::ZeroVector) override;
+	ENGINE_API virtual void HandleImpact(const FHitResult& Hit, float TimeSlice=0.f, const FVector& MoveDelta = FVector::ZeroVector) override;
 
 	/**
 	 * Apply physics forces to the impacted component, if bEnablePhysicsInteraction is true.
@@ -1946,13 +1946,13 @@ protected:
 	 * @param ImpactAcceleration	Acceleration of the character at the time of impact
 	 * @param ImpactVelocity		Velocity of the character at the time of impact
 	 */
-	virtual void ApplyImpactPhysicsForces(const FHitResult& Impact, const FVector& ImpactAcceleration, const FVector& ImpactVelocity);
+	ENGINE_API virtual void ApplyImpactPhysicsForces(const FHitResult& Impact, const FVector& ImpactAcceleration, const FVector& ImpactVelocity);
 
 	/** Custom version of SlideAlongSurface that handles different movement modes separately; namely during walking physics we might not want to slide up slopes. */
-	virtual float SlideAlongSurface(const FVector& Delta, float Time, const FVector& Normal, FHitResult& Hit, bool bHandleImpact) override;
+	ENGINE_API virtual float SlideAlongSurface(const FVector& Delta, float Time, const FVector& Normal, FHitResult& Hit, bool bHandleImpact) override;
 
 	/** Custom version that allows upwards slides when walking if the surface is walkable. */
-	virtual void TwoWallAdjust(FVector& WorldSpaceDelta, const FHitResult& Hit, const FVector& OldHitNormal) const override;
+	ENGINE_API virtual void TwoWallAdjust(FVector& WorldSpaceDelta, const FHitResult& Hit, const FVector& OldHitNormal) const override;
 
 	/**
 	 * Calculate slide vector along a surface.
@@ -1964,7 +1964,7 @@ protected:
 	 * @param Hit:		HitResult of the move that resulted in the slide.
 	 * @return			New deflected vector of movement.
 	 */
-	virtual FVector ComputeSlideVector(const FVector& Delta, const float Time, const FVector& Normal, const FHitResult& Hit) const override;
+	ENGINE_API virtual FVector ComputeSlideVector(const FVector& Delta, const float Time, const FVector& Normal, const FHitResult& Hit) const override;
 
 	/** 
 	 * Limit the slide vector when falling if the resulting slide might boost the character faster upwards.
@@ -1975,10 +1975,10 @@ protected:
 	 * @param Hit:			HitResult of the move that resulted in the slide.
 	 * @return:				New slide result.
 	 */
-	virtual FVector HandleSlopeBoosting(const FVector& SlideResult, const FVector& Delta, const float Time, const FVector& Normal, const FHitResult& Hit) const;
+	ENGINE_API virtual FVector HandleSlopeBoosting(const FVector& SlideResult, const FVector& Delta, const float Time, const FVector& Normal, const FHitResult& Hit) const;
 
 	/** Slows towards stop. */
-	virtual void ApplyVelocityBraking(float DeltaTime, float Friction, float BrakingDeceleration);
+	ENGINE_API virtual void ApplyVelocityBraking(float DeltaTime, float Friction, float BrakingDeceleration);
 
 
 public:
@@ -1987,7 +1987,7 @@ public:
 	 * Return true if the 2D distance to the impact point is inside the edge tolerance (CapsuleRadius minus a small rejection threshold).
 	 * Useful for rejecting adjacent hits when finding a floor or landing spot.
 	 */
-	virtual bool IsWithinEdgeTolerance(const FVector& CapsuleLocation, const FVector& TestImpactPoint, const float CapsuleRadius) const;
+	ENGINE_API virtual bool IsWithinEdgeTolerance(const FVector& CapsuleLocation, const FVector& TestImpactPoint, const float CapsuleRadius) const;
 
 	/**
 	 * Sweeps a vertical trace to find the floor for the capsule at the given location. Will attempt to perch if ShouldComputePerchResult() returns true for the downward sweep result.
@@ -1998,7 +1998,7 @@ public:
 	 * @param bCanUseCachedLocation If true, may use a cached value (can be used to avoid unnecessary floor tests, if for example the capsule was not moving since the last test).
 	 * @param DownwardSweepResult	If non-null and it contains valid blocking hit info, this will be used as the result of a downward sweep test instead of doing it as part of the update.
 	 */
-	virtual void FindFloor(const FVector& CapsuleLocation, FFindFloorResult& OutFloorResult, bool bCanUseCachedLocation, const FHitResult* DownwardSweepResult = NULL) const;
+	ENGINE_API virtual void FindFloor(const FVector& CapsuleLocation, FFindFloorResult& OutFloorResult, bool bCanUseCachedLocation, const FHitResult* DownwardSweepResult = NULL) const;
 
 	/**
 	* Sweeps a vertical trace to find the floor for the capsule at the given location. Will attempt to perch if ShouldComputePerchResult() returns true for the downward sweep result.
@@ -2008,7 +2008,7 @@ public:
 	* @param FloorResult			Result of the floor check
 	*/
 	UFUNCTION(BlueprintCallable, Category="Pawn|Components|CharacterMovement", meta=(DisplayName="FindFloor", ScriptName="FindFloor"))
-	virtual void K2_FindFloor(FVector CapsuleLocation, FFindFloorResult& FloorResult) const;
+	ENGINE_API virtual void K2_FindFloor(FVector CapsuleLocation, FFindFloorResult& FloorResult) const;
 
 	/**
 	 * Compute distance to the floor from bottom sphere of capsule and store the result in OutFloorResult.
@@ -2023,7 +2023,7 @@ public:
 	 * @param SweepRadius:		The radius to use for sweep tests. Should be <= capsule radius.
 	 * @param DownwardSweepResult:	If non-null and it contains valid blocking hit info, this will be used as the result of a downward sweep test instead of doing it as part of the update.
 	 */
-	virtual void ComputeFloorDist(const FVector& CapsuleLocation, float LineDistance, float SweepDistance, FFindFloorResult& OutFloorResult, float SweepRadius, const FHitResult* DownwardSweepResult = NULL) const;
+	ENGINE_API virtual void ComputeFloorDist(const FVector& CapsuleLocation, float LineDistance, float SweepDistance, FFindFloorResult& OutFloorResult, float SweepRadius, const FHitResult* DownwardSweepResult = NULL) const;
 
 	/**
 	* Compute distance to the floor from bottom sphere of capsule and store the result in FloorResult.
@@ -2037,7 +2037,7 @@ public:
 	* @param FloorResult			Result of the floor check
 	*/
 	UFUNCTION(BlueprintCallable, Category="Pawn|Components|CharacterMovement", meta=(DisplayName="ComputeFloorDistance", ScriptName="ComputeFloorDistance"))
-	virtual void K2_ComputeFloorDist(FVector CapsuleLocation, float LineDistance, float SweepDistance, float SweepRadius, FFindFloorResult& FloorResult) const;
+	ENGINE_API virtual void K2_ComputeFloorDist(FVector CapsuleLocation, float LineDistance, float SweepDistance, float SweepRadius, FFindFloorResult& FloorResult) const;
 
 	/**
 	 * Sweep against the world and return the first blocking hit.
@@ -2052,7 +2052,7 @@ public:
 	 * @param ResponseParam		ResponseContainer to be used for this trace.
 	 * @return True if OutHit contains a blocking hit entry.
 	 */
-	virtual bool FloorSweepTest(
+	ENGINE_API virtual bool FloorSweepTest(
 		struct FHitResult& OutHit,
 		const FVector& Start,
 		const FVector& End,
@@ -2063,13 +2063,13 @@ public:
 		) const;
 
 	/** Verify that the supplied hit result is a valid landing spot when falling. */
-	virtual bool IsValidLandingSpot(const FVector& CapsuleLocation, const FHitResult& Hit) const;
+	ENGINE_API virtual bool IsValidLandingSpot(const FVector& CapsuleLocation, const FHitResult& Hit) const;
 
 	/**
 	 * Determine whether we should try to find a valid landing spot after an impact with an invalid one (based on the Hit result).
 	 * For example, landing on the lower portion of the capsule on the edge of geometry may be a walkable surface, but could have reported an unwalkable impact normal.
 	 */
-	virtual bool ShouldCheckForValidLandingSpot(float DeltaTime, const FVector& Delta, const FHitResult& Hit) const;
+	ENGINE_API virtual bool ShouldCheckForValidLandingSpot(float DeltaTime, const FVector& Delta, const FHitResult& Hit) const;
 
 	/**
 	 * Check if the result of a sweep test (passed in InHit) might be a valid location to perch, in which case we should use ComputePerchResult to validate the location.
@@ -2078,7 +2078,7 @@ public:
 	 * @param bCheckRadius:		If true, only allow the perch test if the impact point is outside the radius returned by GetValidPerchRadius().
 	 * @return Whether perching may be possible, such that ComputePerchResult can return a valid result.
 	 */
-	virtual bool ShouldComputePerchResult(const FHitResult& InHit, bool bCheckRadius = true) const;
+	ENGINE_API virtual bool ShouldComputePerchResult(const FHitResult& InHit, bool bCheckRadius = true) const;
 
 	/**
 	 * Compute the sweep result of the smaller capsule with radius specified by GetValidPerchRadius(),
@@ -2092,14 +2092,14 @@ public:
 	 * @param OutPerchFloorResult:	Contains the result of the perch floor test.
 	 * @return True if the current location is a valid spot at which to perch.
 	 */
-	virtual bool ComputePerchResult(const float TestRadius, const FHitResult& InHit, const float InMaxFloorDist, FFindFloorResult& OutPerchFloorResult) const;
+	ENGINE_API virtual bool ComputePerchResult(const float TestRadius, const FHitResult& InHit, const float InMaxFloorDist, FFindFloorResult& OutPerchFloorResult) const;
 
 
 protected:
 
 	/** Called when the collision capsule touches another primitive component */
 	UFUNCTION()
-	virtual void CapsuleTouched(UPrimitiveComponent* OverlappedComp, AActor* Other, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+	ENGINE_API virtual void CapsuleTouched(UPrimitiveComponent* OverlappedComp, AActor* Other, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
 
 	/** Get the capsule extent for the Pawn owner, possibly reduced in size depending on ShrinkMode.
@@ -2107,34 +2107,34 @@ protected:
 	 * @param CustomShrinkAmount	The amount to shrink the capsule, used only for ShrinkModes that specify custom.
 	 * @return The capsule extent of the Pawn owner, possibly reduced in size depending on ShrinkMode.
 	 */
-	FVector GetPawnCapsuleExtent(const EShrinkCapsuleExtent ShrinkMode, const float CustomShrinkAmount = 0.f) const;
+	ENGINE_API FVector GetPawnCapsuleExtent(const EShrinkCapsuleExtent ShrinkMode, const float CustomShrinkAmount = 0.f) const;
 	
 	/** Get the collision shape for the Pawn owner, possibly reduced in size depending on ShrinkMode.
 	 * @param ShrinkMode			Controls the way the capsule is resized.
 	 * @param CustomShrinkAmount	The amount to shrink the capsule, used only for ShrinkModes that specify custom.
 	 * @return The capsule extent of the Pawn owner, possibly reduced in size depending on ShrinkMode.
 	 */
-	FCollisionShape GetPawnCapsuleCollisionShape(const EShrinkCapsuleExtent ShrinkMode, const float CustomShrinkAmount = 0.f) const;
+	ENGINE_API FCollisionShape GetPawnCapsuleCollisionShape(const EShrinkCapsuleExtent ShrinkMode, const float CustomShrinkAmount = 0.f) const;
 
 	/** Adjust the size of the capsule on simulated proxies, to avoid overlaps due to replication rounding.
 	  * Changes to the capsule size on the proxy should set bShrinkProxyCapsule=true and possibly call AdjustProxyCapsuleSize() immediately if applicable.
 	  */
-	virtual void AdjustProxyCapsuleSize();
+	ENGINE_API virtual void AdjustProxyCapsuleSize();
 
 	/** Enforce constraints on input given current state. For instance, don't move upwards if walking and looking up. */
-	virtual FVector ConstrainInputAcceleration(const FVector& InputAcceleration) const;
+	ENGINE_API virtual FVector ConstrainInputAcceleration(const FVector& InputAcceleration) const;
 
 	/** Scale input acceleration, based on movement acceleration rate. */
-	virtual FVector ScaleInputAcceleration(const FVector& InputAcceleration) const;
+	ENGINE_API virtual FVector ScaleInputAcceleration(const FVector& InputAcceleration) const;
 
 	/**
 	 * Event triggered at the end of a movement update. If scoped movement updates are enabled (bEnableScopedMovementUpdates), this is within such a scope.
 	 * If that is not desired, bind to the CharacterOwner's OnMovementUpdated event instead, as that is triggered after the scoped movement update.
 	 */
-	virtual void OnMovementUpdated(float DeltaSeconds, const FVector& OldLocation, const FVector& OldVelocity);
+	ENGINE_API virtual void OnMovementUpdated(float DeltaSeconds, const FVector& OldLocation, const FVector& OldVelocity);
 
 	/** Internal function to call OnMovementUpdated delegate on CharacterOwner. */
-	virtual void CallMovementUpdateDelegate(float DeltaSeconds, const FVector& OldLocation, const FVector& OldVelocity);
+	ENGINE_API virtual void CallMovementUpdateDelegate(float DeltaSeconds, const FVector& OldLocation, const FVector& OldVelocity);
 
 	/**
 	 * Event triggered when we are moving on a base but we are not able to move the full DeltaPosition because something has blocked us.
@@ -2143,23 +2143,23 @@ protected:
 	 * @param OldLocation		Location before we tried to move with the base.
 	 * @param MoveOnBaseHit		Hit result for the object we hit when trying to move with the base.
 	 */
-	virtual void OnUnableToFollowBaseMove(const FVector& DeltaPosition, const FVector& OldLocation, const FHitResult& MoveOnBaseHit);
+	ENGINE_API virtual void OnUnableToFollowBaseMove(const FVector& DeltaPosition, const FVector& OldLocation, const FHitResult& MoveOnBaseHit);
 
 
 protected:
 	/* Prepare root motion to be passed on to physics thread */
-	virtual void AccumulateRootMotionForAsync(float DeltaSeconds, FRootMotionAsyncData& RootMotion);
+	ENGINE_API virtual void AccumulateRootMotionForAsync(float DeltaSeconds, FRootMotionAsyncData& RootMotion);
 	/* Prepare inputs for asynchronous simulation on physics thread */ 
-	virtual void FillAsyncInput(const FVector& InputVector, FCharacterMovementComponentAsyncInput& AsyncInput);
-	virtual void BuildAsyncInput();
-	virtual void PostBuildAsyncInput();
+	ENGINE_API virtual void FillAsyncInput(const FVector& InputVector, FCharacterMovementComponentAsyncInput& AsyncInput);
+	ENGINE_API virtual void BuildAsyncInput();
+	ENGINE_API virtual void PostBuildAsyncInput();
 	/* Apply outputs from async sim. */
-	virtual void ApplyAsyncOutput(FCharacterMovementComponentAsyncOutput& Output);
-	virtual void ProcessAsyncOutput();
+	ENGINE_API virtual void ApplyAsyncOutput(FCharacterMovementComponentAsyncOutput& Output);
+	ENGINE_API virtual void ProcessAsyncOutput();
 	
 	/* Register async callback with physics system. */
-	virtual void RegisterAsyncCallback();
-	virtual bool IsAsyncCallbackRegistered() const;
+	ENGINE_API virtual void RegisterAsyncCallback();
+	ENGINE_API virtual bool IsAsyncCallbackRegistered() const;
 	
 public:
 
@@ -2169,7 +2169,7 @@ public:
 	 * @param NavFloorLocation	Location on navmesh
 	 * @return True if projection was performed (successfully or not)
 	 */
-	virtual bool FindNavFloor(const FVector& TestLocation, FNavLocation& NavFloorLocation) const;
+	ENGINE_API virtual bool FindNavFloor(const FVector& TestLocation, FNavLocation& NavFloorLocation) const;
 
 protected:
 
@@ -2179,13 +2179,13 @@ protected:
 	//
 
 	/** Perform movement on an autonomous client */
-	virtual void PerformMovement(float DeltaTime);
+	ENGINE_API virtual void PerformMovement(float DeltaTime);
 
 	/** Special Tick for Simulated Proxies */
-	virtual void SimulatedTick(float DeltaSeconds);
+	ENGINE_API virtual void SimulatedTick(float DeltaSeconds);
 
 	/** Simulate movement on a non-owning client. Called by SimulatedTick(). */
-	virtual void SimulateMovement(float DeltaTime);
+	ENGINE_API virtual void SimulateMovement(float DeltaTime);
 
 	/** Special Tick to allow custom server-side functionality on Autonomous Proxies. 
 	 * Called for all remote APs, including APs controlled on Listen Servers such as the hosting player's Character.
@@ -2196,20 +2196,20 @@ protected:
 public:
 
 	/** Force a client update by making it appear on the server that the client hasn't updated in a long time. */
-	virtual void ForceReplicationUpdate();
+	ENGINE_API virtual void ForceReplicationUpdate();
 
 	/** Force a client adjustment. Resets ServerLastClientAdjustmentTime. */
-	void ForceClientAdjustment();
+	ENGINE_API void ForceClientAdjustment();
 	
 	/**
 	 * Generate a random angle in degrees that is approximately equal between client and server.
 	 * Note that in networked games this result changes with low frequency and has a low period,
 	 * so should not be used for frequent randomization.
 	 */
-	virtual float GetNetworkSafeRandomAngleDegrees() const;
+	ENGINE_API virtual float GetNetworkSafeRandomAngleDegrees() const;
 
 	/** Round acceleration, for better consistency and lower bandwidth in networked games. */
-	virtual FVector RoundAcceleration(FVector InAccel) const;
+	ENGINE_API virtual FVector RoundAcceleration(FVector InAccel) const;
 
 	//--------------------------------
 	// INetworkPredictionInterface implementation
@@ -2217,8 +2217,8 @@ public:
 	//--------------------------------
 	// Server hook
 	//--------------------------------
-	virtual void SendClientAdjustment() override;
-	virtual bool ForcePositionUpdate(float DeltaTime) override;
+	ENGINE_API virtual void SendClientAdjustment() override;
+	ENGINE_API virtual bool ForcePositionUpdate(float DeltaTime) override;
 
 	//--------------------------------
 	// Client hook
@@ -2228,23 +2228,23 @@ public:
 	 * React to new transform from network update. Sets bNetworkSmoothingComplete to false to ensure future smoothing updates.
 	 * IMPORTANT: It is expected that this function triggers any movement/transform updates to match the network update if desired.
 	 */
-	virtual void SmoothCorrection(const FVector& OldLocation, const FQuat& OldRotation, const FVector& NewLocation, const FQuat& NewRotation) override;
+	ENGINE_API virtual void SmoothCorrection(const FVector& OldLocation, const FQuat& OldRotation, const FVector& NewLocation, const FQuat& NewRotation) override;
 
 	/** Get prediction data for a client game. Should not be used if not running as a client. Allocates the data on demand and can be overridden to allocate a custom override if desired. Result must be a FNetworkPredictionData_Client_Character. */
-	virtual class FNetworkPredictionData_Client* GetPredictionData_Client() const override;
+	ENGINE_API virtual class FNetworkPredictionData_Client* GetPredictionData_Client() const override;
 	/** Get prediction data for a server game. Should not be used if not running as a server. Allocates the data on demand and can be overridden to allocate a custom override if desired. Result must be a FNetworkPredictionData_Server_Character. */
-	virtual class FNetworkPredictionData_Server* GetPredictionData_Server() const override;
+	ENGINE_API virtual class FNetworkPredictionData_Server* GetPredictionData_Server() const override;
 
-	class FNetworkPredictionData_Client_Character* GetPredictionData_Client_Character() const;
-	class FNetworkPredictionData_Server_Character* GetPredictionData_Server_Character() const;
+	ENGINE_API class FNetworkPredictionData_Client_Character* GetPredictionData_Client_Character() const;
+	ENGINE_API class FNetworkPredictionData_Server_Character* GetPredictionData_Server_Character() const;
 
-	virtual bool HasPredictionData_Client() const override;
-	virtual bool HasPredictionData_Server() const override;
+	ENGINE_API virtual bool HasPredictionData_Client() const override;
+	ENGINE_API virtual bool HasPredictionData_Server() const override;
 
-	virtual void ResetPredictionData_Client() override;
-	virtual void ResetPredictionData_Server() override;
+	ENGINE_API virtual void ResetPredictionData_Client() override;
+	ENGINE_API virtual void ResetPredictionData_Server() override;
 
-	static uint32 PackYawAndPitchTo32(const float Yaw, const float Pitch);
+	static ENGINE_API uint32 PackYawAndPitchTo32(const float Yaw, const float Pitch);
 
 protected:
 	class FNetworkPredictionData_Client_Character* ClientPredictionData;
@@ -2258,16 +2258,16 @@ protected:
 	 * This function is not called when bNetworkSmoothingComplete is true.
 	 * @param DeltaSeconds Time since last update.
 	 */
-	virtual void SmoothClientPosition(float DeltaSeconds);
+	ENGINE_API virtual void SmoothClientPosition(float DeltaSeconds);
 
 	/**
 	 * Update interpolation values for client smoothing. Does not change actual mesh location.
 	 * Sets bNetworkSmoothingComplete to true when the interpolation reaches the target.
 	 */
-	void SmoothClientPosition_Interpolate(float DeltaSeconds);
+	ENGINE_API void SmoothClientPosition_Interpolate(float DeltaSeconds);
 
 	/** Update mesh location based on interpolated values. */
-	void SmoothClientPosition_UpdateVisuals();
+	ENGINE_API void SmoothClientPosition_UpdateVisuals();
 
 	/*
 	========================================================================
@@ -2293,20 +2293,20 @@ protected:
 	*/
 
 	/** Perform local movement and send the move to the server. */
-	virtual void ReplicateMoveToServer(float DeltaTime, const FVector& NewAcceleration);
+	ENGINE_API virtual void ReplicateMoveToServer(float DeltaTime, const FVector& NewAcceleration);
 
 	/** If bUpdatePosition is true, then replay any unacked moves. Returns whether any moves were actually replayed. */
-	virtual bool ClientUpdatePositionAfterServerUpdate();
+	ENGINE_API virtual bool ClientUpdatePositionAfterServerUpdate();
 
 	/** Call the appropriate replicated ServerMove() function to send a client player move to the server. */
 	DEPRECATED_CHARACTER_MOVEMENT_RPC(CallServerMove, CallServerMovePacked)
-	virtual void CallServerMove(const FSavedMove_Character* NewMove, const FSavedMove_Character* OldMove);
+	ENGINE_API virtual void CallServerMove(const FSavedMove_Character* NewMove, const FSavedMove_Character* OldMove);
 
 	/**
 	 * On the client, calls the ServerMovePacked_ClientSend() function with packed movement data.
 	 * First the FCharacterNetworkMoveDataContainer from GetNetworkMoveDataContainer() is updated with ClientFillNetworkMoveData(), then serialized into a data stream to send client player moves to the server.
 	 */
-	virtual void CallServerMovePacked(const FSavedMove_Character* NewMove, const FSavedMove_Character* PendingMove, const FSavedMove_Character* OldMove);
+	ENGINE_API virtual void CallServerMovePacked(const FSavedMove_Character* NewMove, const FSavedMove_Character* PendingMove, const FSavedMove_Character* OldMove);
 
 	/**
 	 * Have the server check if the client is outside an error tolerance, and queue a client adjustment if so.
@@ -2314,46 +2314,46 @@ protected:
 	 * RelativeClientLocation will be a relative location if MovementBaseUtility::UseRelativePosition(ClientMovementBase) is true, or a world location if false.
 	 * @see ServerCheckClientError()
 	 */
-	virtual void ServerMoveHandleClientError(float ClientTimeStamp, float DeltaTime, const FVector& Accel, const FVector& RelativeClientLocation, UPrimitiveComponent* ClientMovementBase, FName ClientBaseBoneName, uint8 ClientMovementMode);
+	ENGINE_API virtual void ServerMoveHandleClientError(float ClientTimeStamp, float DeltaTime, const FVector& Accel, const FVector& RelativeClientLocation, UPrimitiveComponent* ClientMovementBase, FName ClientBaseBoneName, uint8 ClientMovementMode);
 
 	/**
 	 * Check for Server-Client disagreement in position or other movement state important enough to trigger a client correction.
 	 * @see ServerMoveHandleClientError()
 	 */
-	virtual bool ServerCheckClientError(float ClientTimeStamp, float DeltaTime, const FVector& Accel, const FVector& ClientWorldLocation, const FVector& RelativeClientLocation, UPrimitiveComponent* ClientMovementBase, FName ClientBaseBoneName, uint8 ClientMovementMode);
+	ENGINE_API virtual bool ServerCheckClientError(float ClientTimeStamp, float DeltaTime, const FVector& Accel, const FVector& ClientWorldLocation, const FVector& RelativeClientLocation, UPrimitiveComponent* ClientMovementBase, FName ClientBaseBoneName, uint8 ClientMovementMode);
 
 	/**
 	 * Check position error within ServerCheckClientError(). Set bNetworkLargeClientCorrection to true if the correction should be prioritized (delayed less in SendClientAdjustment).
 	 */
-	virtual bool ServerExceedsAllowablePositionError(float ClientTimeStamp, float DeltaTime, const FVector& Accel, const FVector& ClientWorldLocation, const FVector& RelativeClientLocation, UPrimitiveComponent* ClientMovementBase, FName ClientBaseBoneName, uint8 ClientMovementMode);
+	ENGINE_API virtual bool ServerExceedsAllowablePositionError(float ClientTimeStamp, float DeltaTime, const FVector& Accel, const FVector& ClientWorldLocation, const FVector& RelativeClientLocation, UPrimitiveComponent* ClientMovementBase, FName ClientBaseBoneName, uint8 ClientMovementMode);
 
 	/**
 	 * If ServerCheckClientError() does not find an error, this determines if the server should also copy the client's movement params rather than keep the server sim result.
 	 */
-	virtual bool ServerShouldUseAuthoritativePosition(float ClientTimeStamp, float DeltaTime, const FVector& Accel, const FVector& ClientWorldLocation, const FVector& RelativeClientLocation, UPrimitiveComponent* ClientMovementBase, FName ClientBaseBoneName, uint8 ClientMovementMode);
+	ENGINE_API virtual bool ServerShouldUseAuthoritativePosition(float ClientTimeStamp, float DeltaTime, const FVector& Accel, const FVector& ClientWorldLocation, const FVector& RelativeClientLocation, UPrimitiveComponent* ClientMovementBase, FName ClientBaseBoneName, uint8 ClientMovementMode);
 
 	/* Process a move at the given time stamp, given the compressed flags representing various events that occurred (ie jump). */
-	virtual void MoveAutonomous( float ClientTimeStamp, float DeltaTime, uint8 CompressedFlags, const FVector& NewAccel);
+	ENGINE_API virtual void MoveAutonomous( float ClientTimeStamp, float DeltaTime, uint8 CompressedFlags, const FVector& NewAccel);
 
 	/** Unpack compressed flags from a saved move and set state accordingly. See FSavedMove_Character. */
-	virtual void UpdateFromCompressedFlags(uint8 Flags);
+	ENGINE_API virtual void UpdateFromCompressedFlags(uint8 Flags);
 
 	/** Return true if it is OK to delay sending this player movement to the server, in order to conserve bandwidth. */
-	virtual bool CanDelaySendingMove(const FSavedMovePtr& NewMove);
+	ENGINE_API virtual bool CanDelaySendingMove(const FSavedMovePtr& NewMove);
 
 	/** Determine minimum delay between sending client updates to the server. If updates occur more frequently this than this time, moves may be combined delayed. */
-	virtual float GetClientNetSendDeltaTime(const APlayerController* PC, const FNetworkPredictionData_Client_Character* ClientData, const FSavedMovePtr& NewMove) const;
+	ENGINE_API virtual float GetClientNetSendDeltaTime(const APlayerController* PC, const FNetworkPredictionData_Client_Character* ClientData, const FSavedMovePtr& NewMove) const;
 
 	/** Ticks the characters pose and accumulates root motion */
-	virtual void TickCharacterPose(float DeltaTime);
+	ENGINE_API virtual void TickCharacterPose(float DeltaTime);
 
 	/** On the server if we know we are having our replication rate throttled, this method checks if important replicated properties have changed that should cause us to return to the normal replication rate. */
-	virtual bool ShouldCancelAdaptiveReplication() const;
+	ENGINE_API virtual bool ShouldCancelAdaptiveReplication() const;
 
 public:
 
 	/** React to instantaneous change in position. Invalidates cached floor recomputes it if possible if there is a current movement base. */
-	virtual void UpdateFloorFromAdjustment();
+	ENGINE_API virtual void UpdateFloorFromAdjustment();
 
 	/** Minimum time between client TimeStamp resets.
 	 !! This has to be large enough so that we don't confuse the server if the client can stall or timeout.
@@ -2367,7 +2367,7 @@ public:
 		It will also handle TimeStamp resets if it detects a gap larger than MinTimeBetweenTimeStampResets / 2.f
 		!! ServerData.CurrentClientTimeStamp can be reset !!
 		@returns true if TimeStamp is valid, or false if it has expired. */
-	virtual bool VerifyClientTimeStamp(float TimeStamp, FNetworkPredictionData_Server_Character & ServerData);
+	ENGINE_API virtual bool VerifyClientTimeStamp(float TimeStamp, FNetworkPredictionData_Server_Character & ServerData);
 
 protected:
 
@@ -2376,16 +2376,16 @@ protected:
 
 	/** Internal const check for client timestamp validity without side-effects. 
 	  * @see VerifyClientTimeStamp */
-	bool IsClientTimeStampValid(float TimeStamp, const FNetworkPredictionData_Server_Character& ServerData, bool& bTimeStampResetDetected) const;
+	ENGINE_API bool IsClientTimeStampValid(float TimeStamp, const FNetworkPredictionData_Server_Character& ServerData, bool& bTimeStampResetDetected) const;
 
 	/** Called by UCharacterMovementComponent::VerifyClientTimeStamp() when a client timestamp reset has been detected and is valid. */
-	virtual void OnClientTimeStampResetDetected();
+	ENGINE_API virtual void OnClientTimeStampResetDetected();
 
 	/** 
 	 * Processes client timestamps from ServerMoves, detects and protects against time discrepancy between client-reported times and server time
 	 * Called by UCharacterMovementComponent::VerifyClientTimeStamp() for valid timestamps.
 	 */
-	virtual void ProcessClientTimeStampForTimeDiscrepancy(float ClientTimeStamp, FNetworkPredictionData_Server_Character& ServerData);
+	ENGINE_API virtual void ProcessClientTimeStampForTimeDiscrepancy(float ClientTimeStamp, FNetworkPredictionData_Server_Character& ServerData);
 
 	/** 
 	 * Called by UCharacterMovementComponent::ProcessClientTimeStampForTimeDiscrepancy() (on server) when the time from client moves 
@@ -2405,7 +2405,7 @@ protected:
 	 * @param CurrentMoveError				Time difference between client ServerMove and how much time has passed on the server for the
 	 *										current move that has caused TimeDiscrepancy to accumulate enough to trigger detection.
 	 */
-	virtual void OnTimeDiscrepancyDetected(float CurrentTimeDiscrepancy, float LifetimeRawTimeDiscrepancy, float Lifetime, float CurrentMoveError);
+	ENGINE_API virtual void OnTimeDiscrepancyDetected(float CurrentTimeDiscrepancy, float LifetimeRawTimeDiscrepancy, float Lifetime, float CurrentMoveError);
 
 public:
 
@@ -2424,59 +2424,59 @@ public:
 	 * Wrapper to send packed move data to the server, through the Character.
 	 * @see CallServerMovePacked()
 	 */
-	void ServerMovePacked_ClientSend(const FCharacterServerMovePackedBits& PackedBits);
+	ENGINE_API void ServerMovePacked_ClientSend(const FCharacterServerMovePackedBits& PackedBits);
 
 	/**
 	 * On the server, receives packed move data from the Character RPC, unpacks them into the FCharacterNetworkMoveDataContainer returned from GetNetworkMoveDataContainer(),
 	 * and passes the data container to ServerMove_HandleMoveData().
 	 */
-	void ServerMovePacked_ServerReceive(const FCharacterServerMovePackedBits& PackedBits);
+	ENGINE_API void ServerMovePacked_ServerReceive(const FCharacterServerMovePackedBits& PackedBits);
 
 	/**
 	 * Determines whether to use packed movement RPCs with variable length payloads, or legacy code which has multiple functions required for different situations.
 	 * The default implementation checks the console variable "p.NetUsePackedMovementRPCs" and returns true if it is non-zero.
 	 */
-	virtual bool ShouldUsePackedMovementRPCs() const;
+	ENGINE_API virtual bool ShouldUsePackedMovementRPCs() const;
 
 	/* Sends a move response from the server to the client (through character to avoid component RPC overhead), eventually calling MoveResponsePacked_ClientReceive() on the client. */
-	void MoveResponsePacked_ServerSend(const FCharacterMoveResponsePackedBits& PackedBits);
+	ENGINE_API void MoveResponsePacked_ServerSend(const FCharacterMoveResponsePackedBits& PackedBits);
 
 	/* On the client, receives a packed move response from the server, unpacks it by serializing into the MoveResponseContainer from GetMoveResponseDataContainer(), and passes the data container to ClientHandleMoveResponse(). */
-	void MoveResponsePacked_ClientReceive(const FCharacterMoveResponsePackedBits& PackedBits);
+	ENGINE_API void MoveResponsePacked_ClientReceive(const FCharacterMoveResponsePackedBits& PackedBits);
 
 	/* If no client adjustment is needed after processing received ServerMove(), ack the good move so client can remove it from SavedMoves */
-	virtual void ClientAckGoodMove_Implementation(float TimeStamp);
+	ENGINE_API virtual void ClientAckGoodMove_Implementation(float TimeStamp);
 
 	/* Replicate position correction to client, associated with a timestamped servermove.  Client will replay subsequent moves after applying adjustment. */
-	virtual void ClientAdjustPosition_Implementation(float TimeStamp, FVector NewLoc, FVector NewVel, UPrimitiveComponent* NewBase, FName NewBaseBoneName, bool bHasBase, bool bBaseRelativePosition, uint8 ServerMovementMode, TOptional<FRotator> OptionalRotation = TOptional<FRotator>());
+	ENGINE_API virtual void ClientAdjustPosition_Implementation(float TimeStamp, FVector NewLoc, FVector NewVel, UPrimitiveComponent* NewBase, FName NewBaseBoneName, bool bHasBase, bool bBaseRelativePosition, uint8 ServerMovementMode, TOptional<FRotator> OptionalRotation = TOptional<FRotator>());
 
 	/* Bandwidth saving version, when velocity is zeroed */
-	virtual void ClientVeryShortAdjustPosition_Implementation(float TimeStamp, FVector NewLoc, UPrimitiveComponent* NewBase, FName NewBaseBoneName, bool bHasBase, bool bBaseRelativePosition, uint8 ServerMovementMode);
+	ENGINE_API virtual void ClientVeryShortAdjustPosition_Implementation(float TimeStamp, FVector NewLoc, UPrimitiveComponent* NewBase, FName NewBaseBoneName, bool bHasBase, bool bBaseRelativePosition, uint8 ServerMovementMode);
 
 	/* Replicate position correction to client when using root motion for movement. (animation root motion specific) */
-	virtual void ClientAdjustRootMotionPosition_Implementation(float TimeStamp, float ServerMontageTrackPosition, FVector ServerLoc, FVector_NetQuantizeNormal ServerRotation, float ServerVelZ, UPrimitiveComponent* ServerBase, FName ServerBoneName, bool bHasBase, bool bBaseRelativePosition, uint8 ServerMovementMode);
+	ENGINE_API virtual void ClientAdjustRootMotionPosition_Implementation(float TimeStamp, float ServerMontageTrackPosition, FVector ServerLoc, FVector_NetQuantizeNormal ServerRotation, float ServerVelZ, UPrimitiveComponent* ServerBase, FName ServerBoneName, bool bHasBase, bool bBaseRelativePosition, uint8 ServerMovementMode);
 
 	/* Replicate root motion source correction to client when using root motion for movement. */
-	virtual void ClientAdjustRootMotionSourcePosition_Implementation(float TimeStamp, FRootMotionSourceGroup ServerRootMotion, bool bHasAnimRootMotion, float ServerMontageTrackPosition, FVector ServerLoc, FVector_NetQuantizeNormal ServerRotation, float ServerVelZ, UPrimitiveComponent* ServerBase, FName ServerBoneName, bool bHasBase, bool bBaseRelativePosition, uint8 ServerMovementMode);
+	ENGINE_API virtual void ClientAdjustRootMotionSourcePosition_Implementation(float TimeStamp, FRootMotionSourceGroup ServerRootMotion, bool bHasAnimRootMotion, float ServerMontageTrackPosition, FVector ServerLoc, FVector_NetQuantizeNormal ServerRotation, float ServerVelZ, UPrimitiveComponent* ServerBase, FName ServerBoneName, bool bHasBase, bool bBaseRelativePosition, uint8 ServerMovementMode);
 
 	/**
 	 * Handle movement data after it's unpacked from the ServerMovePacked_ServerReceive() call.
 	 * Default implementation passes through to ServerMove_PerformMovement(), which may be called twice in the case of a "dual move", and one additional time for an "old important move".
 	 */
-	virtual void ServerMove_HandleMoveData(const FCharacterNetworkMoveDataContainer& MoveDataContainer);
+	ENGINE_API virtual void ServerMove_HandleMoveData(const FCharacterNetworkMoveDataContainer& MoveDataContainer);
 
 	/**
 	 * Check timestamps, generate a delta time, and pass through movement params to MoveAutonomous. Error checking is optionally done on the final location, compared to 'ClientLoc'.
 	 * The FCharacterNetworkMoveData parameter to this function is also the same returned by GetCurrentNetworkMoveData(), to assist in migration of code that may want to access the data without changing function signatures.
 	 * (Note: this is similar to "ServerMove_Implementation" in legacy versions).
 	 */
-	virtual void ServerMove_PerformMovement(const FCharacterNetworkMoveData& MoveData);
+	ENGINE_API virtual void ServerMove_PerformMovement(const FCharacterNetworkMoveData& MoveData);
 
 	/**
 	 * On the server, sends a packed move response to the client. First the FCharacterMoveResponseDataContainer from GetMoveResponseDataContainer() is filled in with ServerFillResponseData().
 	 * Then this data is serialized to a bit stream that is sent to the client via MoveResponsePacked_ServerSend().
 	 */
-	void ServerSendMoveResponse(const FClientAdjustment& PendingAdjustment);
+	ENGINE_API void ServerSendMoveResponse(const FClientAdjustment& PendingAdjustment);
 
 	/**
 	 * On the client, handles the move response from the server after it has been received and unpacked in MoveResponsePacked_ClientReceive.
@@ -2484,7 +2484,7 @@ public:
 	 * Otherwise dispatches a call to one of ClientAdjustRootMotionSourcePosition_Implementation, ClientAdjustRootMotionPosition_Implementation,
 	 * or ClientAdjustPosition_Implementation depending on the payload.
 	 */
-	virtual void ClientHandleMoveResponse(const FCharacterMoveResponseDataContainer& MoveResponse);
+	ENGINE_API virtual void ClientHandleMoveResponse(const FCharacterMoveResponseDataContainer& MoveResponse);
 
 
 public:
@@ -2498,54 +2498,54 @@ public:
 	 * Calls either CharacterOwner->ServerMove() or CharacterOwner->ServerMoveNoBase() depending on whehter ClientMovementBase is null.
 	 */
 	DEPRECATED_CHARACTER_MOVEMENT_RPC(ServerMove, ServerMovePacked_ClientSend)
-	virtual void ServerMove(float TimeStamp, FVector_NetQuantize10 InAccel, FVector_NetQuantize100 ClientLoc, uint8 CompressedMoveFlags, uint8 ClientRoll, uint32 View, UPrimitiveComponent* ClientMovementBase, FName ClientBaseBoneName, uint8 ClientMovementMode);
+	ENGINE_API virtual void ServerMove(float TimeStamp, FVector_NetQuantize10 InAccel, FVector_NetQuantize100 ClientLoc, uint8 CompressedMoveFlags, uint8 ClientRoll, uint32 View, UPrimitiveComponent* ClientMovementBase, FName ClientBaseBoneName, uint8 ClientMovementMode);
 	DEPRECATED_CHARACTER_MOVEMENT_RPC(ServerMove_Implementation, ServerMove_PerformMovement)
-	virtual void ServerMove_Implementation(float TimeStamp, FVector_NetQuantize10 InAccel, FVector_NetQuantize100 ClientLoc, uint8 CompressedMoveFlags, uint8 ClientRoll, uint32 View, UPrimitiveComponent* ClientMovementBase, FName ClientBaseBoneName, uint8 ClientMovementMode);
-	virtual bool ServerMove_Validate(float TimeStamp, FVector_NetQuantize10 InAccel, FVector_NetQuantize100 ClientLoc, uint8 CompressedMoveFlags, uint8 ClientRoll, uint32 View, UPrimitiveComponent* ClientMovementBase, FName ClientBaseBoneName, uint8 ClientMovementMode);
+	ENGINE_API virtual void ServerMove_Implementation(float TimeStamp, FVector_NetQuantize10 InAccel, FVector_NetQuantize100 ClientLoc, uint8 CompressedMoveFlags, uint8 ClientRoll, uint32 View, UPrimitiveComponent* ClientMovementBase, FName ClientBaseBoneName, uint8 ClientMovementMode);
+	ENGINE_API virtual bool ServerMove_Validate(float TimeStamp, FVector_NetQuantize10 InAccel, FVector_NetQuantize100 ClientLoc, uint8 CompressedMoveFlags, uint8 ClientRoll, uint32 View, UPrimitiveComponent* ClientMovementBase, FName ClientBaseBoneName, uint8 ClientMovementMode);
 
 	/**
 	 * Replicated function sent by client to server - contains client movement and view info for two moves.
 	 * Calls either CharacterOwner->ServerMoveDual() or CharacterOwner->ServerMoveDualNoBase() depending on whehter ClientMovementBase is null.
 	 */
 	DEPRECATED_CHARACTER_MOVEMENT_RPC(ServerMoveDual, ServerMovePacked_ClientSend)
-	virtual void ServerMoveDual(float TimeStamp0, FVector_NetQuantize10 InAccel0, uint8 PendingFlags, uint32 View0, float TimeStamp, FVector_NetQuantize10 InAccel, FVector_NetQuantize100 ClientLoc, uint8 NewFlags, uint8 ClientRoll, uint32 View, UPrimitiveComponent* ClientMovementBase, FName ClientBaseBoneName, uint8 ClientMovementMode);
+	ENGINE_API virtual void ServerMoveDual(float TimeStamp0, FVector_NetQuantize10 InAccel0, uint8 PendingFlags, uint32 View0, float TimeStamp, FVector_NetQuantize10 InAccel, FVector_NetQuantize100 ClientLoc, uint8 NewFlags, uint8 ClientRoll, uint32 View, UPrimitiveComponent* ClientMovementBase, FName ClientBaseBoneName, uint8 ClientMovementMode);
 	DEPRECATED_CHARACTER_MOVEMENT_RPC(ServerMoveDual_Implementation, ServerMove_PerformMovement)
-	virtual void ServerMoveDual_Implementation(float TimeStamp0, FVector_NetQuantize10 InAccel0, uint8 PendingFlags, uint32 View0, float TimeStamp, FVector_NetQuantize10 InAccel, FVector_NetQuantize100 ClientLoc, uint8 NewFlags, uint8 ClientRoll, uint32 View, UPrimitiveComponent* ClientMovementBase, FName ClientBaseBoneName, uint8 ClientMovementMode);
-	virtual bool ServerMoveDual_Validate(float TimeStamp0, FVector_NetQuantize10 InAccel0, uint8 PendingFlags, uint32 View0, float TimeStamp, FVector_NetQuantize10 InAccel, FVector_NetQuantize100 ClientLoc, uint8 NewFlags, uint8 ClientRoll, uint32 View, UPrimitiveComponent* ClientMovementBase, FName ClientBaseBoneName, uint8 ClientMovementMode);
+	ENGINE_API virtual void ServerMoveDual_Implementation(float TimeStamp0, FVector_NetQuantize10 InAccel0, uint8 PendingFlags, uint32 View0, float TimeStamp, FVector_NetQuantize10 InAccel, FVector_NetQuantize100 ClientLoc, uint8 NewFlags, uint8 ClientRoll, uint32 View, UPrimitiveComponent* ClientMovementBase, FName ClientBaseBoneName, uint8 ClientMovementMode);
+	ENGINE_API virtual bool ServerMoveDual_Validate(float TimeStamp0, FVector_NetQuantize10 InAccel0, uint8 PendingFlags, uint32 View0, float TimeStamp, FVector_NetQuantize10 InAccel, FVector_NetQuantize100 ClientLoc, uint8 NewFlags, uint8 ClientRoll, uint32 View, UPrimitiveComponent* ClientMovementBase, FName ClientBaseBoneName, uint8 ClientMovementMode);
 
 	/** Replicated function sent by client to server - contains client movement and view info for two moves. First move is non root motion, second is root motion. */
 	DEPRECATED_CHARACTER_MOVEMENT_RPC(ServerMoveDualHybridRootMotion, ServerMovePacked_ClientSend)
-	virtual void ServerMoveDualHybridRootMotion(float TimeStamp0, FVector_NetQuantize10 InAccel0, uint8 PendingFlags, uint32 View0, float TimeStamp, FVector_NetQuantize10 InAccel, FVector_NetQuantize100 ClientLoc, uint8 NewFlags, uint8 ClientRoll, uint32 View, UPrimitiveComponent* ClientMovementBase, FName ClientBaseBoneName, uint8 ClientMovementMode);
+	ENGINE_API virtual void ServerMoveDualHybridRootMotion(float TimeStamp0, FVector_NetQuantize10 InAccel0, uint8 PendingFlags, uint32 View0, float TimeStamp, FVector_NetQuantize10 InAccel, FVector_NetQuantize100 ClientLoc, uint8 NewFlags, uint8 ClientRoll, uint32 View, UPrimitiveComponent* ClientMovementBase, FName ClientBaseBoneName, uint8 ClientMovementMode);
 	DEPRECATED_CHARACTER_MOVEMENT_RPC(ServerMoveDualHybridRootMotion_Implementation, ServerMove_PerformMovement)
-	virtual void ServerMoveDualHybridRootMotion_Implementation(float TimeStamp0, FVector_NetQuantize10 InAccel0, uint8 PendingFlags, uint32 View0, float TimeStamp, FVector_NetQuantize10 InAccel, FVector_NetQuantize100 ClientLoc, uint8 NewFlags, uint8 ClientRoll, uint32 View, UPrimitiveComponent* ClientMovementBase, FName ClientBaseBoneName, uint8 ClientMovementMode);
-	virtual bool ServerMoveDualHybridRootMotion_Validate(float TimeStamp0, FVector_NetQuantize10 InAccel0, uint8 PendingFlags, uint32 View0, float TimeStamp, FVector_NetQuantize10 InAccel, FVector_NetQuantize100 ClientLoc, uint8 NewFlags, uint8 ClientRoll, uint32 View, UPrimitiveComponent* ClientMovementBase, FName ClientBaseBoneName, uint8 ClientMovementMode);
+	ENGINE_API virtual void ServerMoveDualHybridRootMotion_Implementation(float TimeStamp0, FVector_NetQuantize10 InAccel0, uint8 PendingFlags, uint32 View0, float TimeStamp, FVector_NetQuantize10 InAccel, FVector_NetQuantize100 ClientLoc, uint8 NewFlags, uint8 ClientRoll, uint32 View, UPrimitiveComponent* ClientMovementBase, FName ClientBaseBoneName, uint8 ClientMovementMode);
+	ENGINE_API virtual bool ServerMoveDualHybridRootMotion_Validate(float TimeStamp0, FVector_NetQuantize10 InAccel0, uint8 PendingFlags, uint32 View0, float TimeStamp, FVector_NetQuantize10 InAccel, FVector_NetQuantize100 ClientLoc, uint8 NewFlags, uint8 ClientRoll, uint32 View, UPrimitiveComponent* ClientMovementBase, FName ClientBaseBoneName, uint8 ClientMovementMode);
 
 	/* Resending an (important) old move. Process it if not already processed. */
 	DEPRECATED_CHARACTER_MOVEMENT_RPC(ServerMoveOld, ServerMovePacked_ClientSend)
-	virtual void ServerMoveOld(float OldTimeStamp, FVector_NetQuantize10 OldAccel, uint8 OldMoveFlags);
+	ENGINE_API virtual void ServerMoveOld(float OldTimeStamp, FVector_NetQuantize10 OldAccel, uint8 OldMoveFlags);
 	DEPRECATED_CHARACTER_MOVEMENT_RPC(ServerMoveOld_Implementation, ServerMove_PerformMovement)
-	virtual void ServerMoveOld_Implementation(float OldTimeStamp, FVector_NetQuantize10 OldAccel, uint8 OldMoveFlags);
-	virtual bool ServerMoveOld_Validate(float OldTimeStamp, FVector_NetQuantize10 OldAccel, uint8 OldMoveFlags);
+	ENGINE_API virtual void ServerMoveOld_Implementation(float OldTimeStamp, FVector_NetQuantize10 OldAccel, uint8 OldMoveFlags);
+	ENGINE_API virtual bool ServerMoveOld_Validate(float OldTimeStamp, FVector_NetQuantize10 OldAccel, uint8 OldMoveFlags);
 	
 	/** If no client adjustment is needed after processing received ServerMove(), ack the good move so client can remove it from SavedMoves */
 	DEPRECATED_CHARACTER_MOVEMENT_RPC(ClientAckGoodMove, ClientHandleMoveResponse)
-	virtual void ClientAckGoodMove(float TimeStamp);
+	ENGINE_API virtual void ClientAckGoodMove(float TimeStamp);
 
 	/** Replicate position correction to client, associated with a timestamped servermove.  Client will replay subsequent moves after applying adjustment.  */
 	DEPRECATED_CHARACTER_MOVEMENT_RPC(ClientAdjustPosition, ClientHandleMoveResponse)
-	virtual void ClientAdjustPosition(float TimeStamp, FVector NewLoc, FVector NewVel, UPrimitiveComponent* NewBase, FName NewBaseBoneName, bool bHasBase, bool bBaseRelativePosition, uint8 ServerMovementMode);
+	ENGINE_API virtual void ClientAdjustPosition(float TimeStamp, FVector NewLoc, FVector NewVel, UPrimitiveComponent* NewBase, FName NewBaseBoneName, bool bHasBase, bool bBaseRelativePosition, uint8 ServerMovementMode);
 
 	/* Bandwidth saving version, when velocity is zeroed */
 	DEPRECATED_CHARACTER_MOVEMENT_RPC(ClientVeryShortAdjustPosition, ClientHandleMoveResponse)
-	virtual void ClientVeryShortAdjustPosition(float TimeStamp, FVector NewLoc, UPrimitiveComponent* NewBase, FName NewBaseBoneName, bool bHasBase, bool bBaseRelativePosition, uint8 ServerMovementMode);
+	ENGINE_API virtual void ClientVeryShortAdjustPosition(float TimeStamp, FVector NewLoc, UPrimitiveComponent* NewBase, FName NewBaseBoneName, bool bHasBase, bool bBaseRelativePosition, uint8 ServerMovementMode);
 	
 	/** Replicate position correction to client when using root motion for movement. (animation root motion specific) */
 	DEPRECATED_CHARACTER_MOVEMENT_RPC(ClientAdjustRootMotionPosition, ClientHandleMoveResponse)
-	virtual void ClientAdjustRootMotionPosition(float TimeStamp, float ServerMontageTrackPosition, FVector ServerLoc, FVector_NetQuantizeNormal ServerRotation, float ServerVelZ, UPrimitiveComponent* ServerBase, FName ServerBoneName, bool bHasBase, bool bBaseRelativePosition, uint8 ServerMovementMode);
+	ENGINE_API virtual void ClientAdjustRootMotionPosition(float TimeStamp, float ServerMontageTrackPosition, FVector ServerLoc, FVector_NetQuantizeNormal ServerRotation, float ServerVelZ, UPrimitiveComponent* ServerBase, FName ServerBoneName, bool bHasBase, bool bBaseRelativePosition, uint8 ServerMovementMode);
 
 	/** Replicate root motion source correction to client when using root motion for movement. */
 	DEPRECATED_CHARACTER_MOVEMENT_RPC(ClientAdjustRootMotionSourcePosition, ClientHandleMoveResponse)
-	virtual void ClientAdjustRootMotionSourcePosition(float TimeStamp, FRootMotionSourceGroup ServerRootMotion, bool bHasAnimRootMotion, float ServerMontageTrackPosition, FVector ServerLoc, FVector_NetQuantizeNormal ServerRotation, float ServerVelZ, UPrimitiveComponent* ServerBase, FName ServerBoneName, bool bHasBase, bool bBaseRelativePosition, uint8 ServerMovementMode);
+	ENGINE_API virtual void ClientAdjustRootMotionSourcePosition(float TimeStamp, FRootMotionSourceGroup ServerRootMotion, bool bHasAnimRootMotion, float ServerMontageTrackPosition, FVector ServerLoc, FVector_NetQuantizeNormal ServerRotation, float ServerVelZ, UPrimitiveComponent* ServerBase, FName ServerBoneName, bool bHasBase, bool bBaseRelativePosition, uint8 ServerMovementMode);
 
 	/////////////////////////////////////////////////////////////////////////////////////
 	// END DEPRECATED movement RPCs
@@ -2554,7 +2554,7 @@ public:
 protected:
 
 	/** Event notification when client receives correction data from the server, before applying the data. Base implementation logs relevant data and draws debug info if "p.NetShowCorrections" is not equal to 0. */
-	virtual void OnClientCorrectionReceived(class FNetworkPredictionData_Client_Character& ClientData, float TimeStamp, FVector NewLocation, FVector NewVelocity, UPrimitiveComponent* NewBase, FName NewBaseBoneName, bool bHasBase, bool bBaseRelativePosition, uint8 ServerMovementMode, FVector ServerGravityDirection);
+	ENGINE_API virtual void OnClientCorrectionReceived(class FNetworkPredictionData_Client_Character& ClientData, float TimeStamp, FVector NewLocation, FVector NewVelocity, UPrimitiveComponent* NewBase, FName NewBaseBoneName, bool bHasBase, bool bBaseRelativePosition, uint8 ServerMovementMode, FVector ServerGravityDirection);
 
 	/**
 	 * Set custom struct used for client to server move RPC serialization.
@@ -2662,31 +2662,31 @@ public:
 	FRootMotionAsyncData AsyncRootMotion;
 
 	/** Returns true if we have Root Motion from any source to use in PerformMovement() physics. */
-	bool HasRootMotionSources() const;
+	ENGINE_API bool HasRootMotionSources() const;
 
 	/** Apply a RootMotionSource to current root motion 
 	 *  @return LocalID for this Root Motion Source */
-	uint16 ApplyRootMotionSource(TSharedPtr<FRootMotionSource> SourcePtr);
+	ENGINE_API uint16 ApplyRootMotionSource(TSharedPtr<FRootMotionSource> SourcePtr);
 	UE_DEPRECATED(4.26, "ApplyRootMotionSource no longer takes raw pointers. Pass in a TSharedPtr instead.")
-	uint16 ApplyRootMotionSource(FRootMotionSource* SourcePtr);
+	ENGINE_API uint16 ApplyRootMotionSource(FRootMotionSource* SourcePtr);
 
 	/** Called during ApplyRootMotionSource call, useful for project-specific alerts for "something is about to be altering our movement" */
-	virtual void OnRootMotionSourceBeingApplied(const FRootMotionSource* Source);
+	ENGINE_API virtual void OnRootMotionSourceBeingApplied(const FRootMotionSource* Source);
 
 	/** Get a RootMotionSource from current root motion by name */
-	TSharedPtr<FRootMotionSource> GetRootMotionSource(FName InstanceName);
+	ENGINE_API TSharedPtr<FRootMotionSource> GetRootMotionSource(FName InstanceName);
 
 	/** Get a RootMotionSource from current root motion by ID */
-	TSharedPtr<FRootMotionSource> GetRootMotionSourceByID(uint16 RootMotionSourceID);
+	ENGINE_API TSharedPtr<FRootMotionSource> GetRootMotionSourceByID(uint16 RootMotionSourceID);
 
 	/** Remove a RootMotionSource from current root motion by name */
-	void RemoveRootMotionSource(FName InstanceName);
+	ENGINE_API void RemoveRootMotionSource(FName InstanceName);
 
 	/** Remove a RootMotionSource from current root motion by ID */
-	void RemoveRootMotionSourceByID(uint16 RootMotionSourceID);
+	ENGINE_API void RemoveRootMotionSourceByID(uint16 RootMotionSourceID);
 
 	/** Converts received server IDs in a root motion group to local IDs  */
-	void ConvertRootMotionServerIDsToLocalIDs(const FRootMotionSourceGroup& LocalRootMotionToMatchWith, FRootMotionSourceGroup& InOutServerRootMotion, float TimeStamp);
+	ENGINE_API void ConvertRootMotionServerIDsToLocalIDs(const FRootMotionSourceGroup& LocalRootMotionToMatchWith, FRootMotionSourceGroup& InOutServerRootMotion, float TimeStamp);
 
 	/** Collection of the most recent ID mappings */
 	enum class ERootMotionMapping : uint32 { MapSize = 16 };
@@ -2694,13 +2694,13 @@ public:
 
 protected:
 	/** Restores Velocity to LastPreAdditiveVelocity during Root Motion Phys*() function calls */
-	void RestorePreAdditiveRootMotionVelocity();
+	ENGINE_API void RestorePreAdditiveRootMotionVelocity();
 
 	/** Applies root motion from root motion sources to velocity (override and additive) */
-	virtual void ApplyRootMotionToVelocity(float deltaTime);
+	ENGINE_API virtual void ApplyRootMotionToVelocity(float deltaTime);
 
 	/** Reduces former base velocity according to FormerBaseVelocityDecayHalfLife */
-	void DecayFormerBaseVelocity(float deltaTime);
+	ENGINE_API void DecayFormerBaseVelocity(float deltaTime);
 
 public:
 
@@ -2725,7 +2725,7 @@ public:
 	}
 
 	// Takes component space root motion and converts it to world space
-	FTransform ConvertLocalRootMotionToWorld(const FTransform& InLocalRootMotion, float DeltaSeconds);
+	ENGINE_API FTransform ConvertLocalRootMotionToWorld(const FTransform& InLocalRootMotion, float DeltaSeconds);
 
 	// Delegate for modifying root motion pre conversion from component space to world space.
 	FOnProcessRootMotion ProcessRootMotionPreConvertToWorld;
@@ -2734,7 +2734,7 @@ public:
 	FOnProcessRootMotion ProcessRootMotionPostConvertToWorld;
 
 	/** Simulate Root Motion physics on Simulated Proxies */
-	void SimulateRootMotion(float DeltaSeconds, const FTransform& LocalRootMotionTransform);
+	ENGINE_API void SimulateRootMotion(float DeltaSeconds, const FTransform& LocalRootMotionTransform);
 
 	/**
 	 * Calculate velocity from anim root motion.
@@ -2743,54 +2743,54 @@ public:
 	 * @param CurrentVelocity		Non-root motion velocity at current time, used for components of result that may ignore root motion.
 	 * @see ConstrainAnimRootMotionVelocity
 	 */
-	virtual FVector CalcAnimRootMotionVelocity(const FVector& RootMotionDeltaMove, float DeltaSeconds, const FVector& CurrentVelocity) const;
+	ENGINE_API virtual FVector CalcAnimRootMotionVelocity(const FVector& RootMotionDeltaMove, float DeltaSeconds, const FVector& CurrentVelocity) const;
 
 	/**
 	 * Constrain components of root motion velocity that may not be appropriate given the current movement mode (e.g. when falling Z may be ignored).
 	 */
-	virtual FVector ConstrainAnimRootMotionVelocity(const FVector& RootMotionVelocity, const FVector& CurrentVelocity) const;
+	ENGINE_API virtual FVector ConstrainAnimRootMotionVelocity(const FVector& RootMotionVelocity, const FVector& CurrentVelocity) const;
 
 	// RVO Avoidance
 
 	/** calculate RVO avoidance and apply it to current velocity */
-	virtual void CalcAvoidanceVelocity(float DeltaTime);
+	ENGINE_API virtual void CalcAvoidanceVelocity(float DeltaTime);
 
 	/** allows modifing avoidance velocity, called when bUseRVOPostProcess is set */
-	virtual void PostProcessAvoidanceVelocity(FVector& NewVelocity);
+	ENGINE_API virtual void PostProcessAvoidanceVelocity(FVector& NewVelocity);
 
-	virtual void FlushServerMoves();
+	ENGINE_API virtual void FlushServerMoves();
 
 	/** 
 	 * When moving the character, we should inform physics as to whether we are teleporting.
 	 * This allows physics to avoid injecting forces into simulations from client corrections (etc.)
 	 */
-	ETeleportType GetTeleportType() const;
+	ENGINE_API ETeleportType GetTeleportType() const;
 
 protected:
 
 	/** called in Tick to update data in RVO avoidance manager */
-	void UpdateDefaultAvoidance();
+	ENGINE_API void UpdateDefaultAvoidance();
 
 public:
 	/** lock avoidance velocity */
-	void SetAvoidanceVelocityLock(class UAvoidanceManager* Avoidance, float Duration);
+	ENGINE_API void SetAvoidanceVelocityLock(class UAvoidanceManager* Avoidance, float Duration);
 
 	/** BEGIN IRVOAvoidanceInterface */
-	virtual void SetRVOAvoidanceUID(int32 UID) override;
-	virtual int32 GetRVOAvoidanceUID() override;
-	virtual void SetRVOAvoidanceWeight(float Weight) override;
-	virtual float GetRVOAvoidanceWeight() override;
-	virtual FVector GetRVOAvoidanceOrigin() override;
-	virtual float GetRVOAvoidanceRadius() override;
-	virtual float GetRVOAvoidanceHeight() override;
-	virtual float GetRVOAvoidanceConsiderationRadius() override;
-	virtual FVector GetVelocityForRVOConsideration() override;
-	virtual void SetAvoidanceGroupMask(int32 GroupFlags) override;
-	virtual int32 GetAvoidanceGroupMask() override;
-	virtual void SetGroupsToAvoidMask(int32 GroupFlags) override;
-	virtual int32 GetGroupsToAvoidMask() override;
-	virtual void SetGroupsToIgnoreMask(int32 GroupFlags) override;
-	virtual int32 GetGroupsToIgnoreMask() override;
+	ENGINE_API virtual void SetRVOAvoidanceUID(int32 UID) override;
+	ENGINE_API virtual int32 GetRVOAvoidanceUID() override;
+	ENGINE_API virtual void SetRVOAvoidanceWeight(float Weight) override;
+	ENGINE_API virtual float GetRVOAvoidanceWeight() override;
+	ENGINE_API virtual FVector GetRVOAvoidanceOrigin() override;
+	ENGINE_API virtual float GetRVOAvoidanceRadius() override;
+	ENGINE_API virtual float GetRVOAvoidanceHeight() override;
+	ENGINE_API virtual float GetRVOAvoidanceConsiderationRadius() override;
+	ENGINE_API virtual FVector GetVelocityForRVOConsideration() override;
+	ENGINE_API virtual void SetAvoidanceGroupMask(int32 GroupFlags) override;
+	ENGINE_API virtual int32 GetAvoidanceGroupMask() override;
+	ENGINE_API virtual void SetGroupsToAvoidMask(int32 GroupFlags) override;
+	ENGINE_API virtual int32 GetGroupsToAvoidMask() override;
+	ENGINE_API virtual void SetGroupsToIgnoreMask(int32 GroupFlags) override;
+	ENGINE_API virtual int32 GetGroupsToIgnoreMask() override;
 	/** END IRVOAvoidanceInterface */
 
 	/** a shortcut function to be called instead of GetRVOAvoidanceUID when
@@ -2800,19 +2800,19 @@ public:
 public:
 
 	/** Minimum delta time considered when ticking. Delta times below this are not considered. This is a very small non-zero value to avoid potential divide-by-zero in simulation code. */
-	static const float MIN_TICK_TIME;
+	static ENGINE_API const float MIN_TICK_TIME;
 
 	/** Minimum acceptable distance for Character capsule to float above floor when walking. */
-	static const float MIN_FLOOR_DIST;
+	static ENGINE_API const float MIN_FLOOR_DIST;
 
 	/** Maximum acceptable distance for Character capsule to float above floor when walking. */
-	static const float MAX_FLOOR_DIST;
+	static ENGINE_API const float MAX_FLOOR_DIST;
 
 	/** Reject sweep impacts that are this close to the edge of the vertical portion of the capsule when performing vertical sweeps, and try again with a smaller capsule. */
-	static const float SWEEP_EDGE_REJECT_DISTANCE;
+	static ENGINE_API const float SWEEP_EDGE_REJECT_DISTANCE;
 
 	/** Stop completely when braking and velocity magnitude is lower than this. */
-	static const float BRAKE_TO_STOP_VELOCITY;
+	static ENGINE_API const float BRAKE_TO_STOP_VELOCITY;
 };
 
 
@@ -2836,17 +2836,17 @@ FORCEINLINE uint32 UCharacterMovementComponent::PackYawAndPitchTo32(const float 
 
 
 /** FSavedMove_Character represents a saved move on the client that has been sent to the server and might need to be played back. */
-class ENGINE_API FSavedMove_Character
+class FSavedMove_Character
 {
 public:
-	FSavedMove_Character();
-	virtual ~FSavedMove_Character();
+	ENGINE_API FSavedMove_Character();
+	ENGINE_API virtual ~FSavedMove_Character();
 
 	// UE_DEPRECATED_FORGAME(4.20)
-	FSavedMove_Character(const FSavedMove_Character&);
-	FSavedMove_Character(FSavedMove_Character&&);
-	FSavedMove_Character& operator=(const FSavedMove_Character&);
-	FSavedMove_Character& operator=(FSavedMove_Character&&);
+	ENGINE_API FSavedMove_Character(const FSavedMove_Character&);
+	ENGINE_API FSavedMove_Character(FSavedMove_Character&&);
+	ENGINE_API FSavedMove_Character& operator=(const FSavedMove_Character&);
+	ENGINE_API FSavedMove_Character& operator=(FSavedMove_Character&&);
 
 	ACharacter* CharacterOwner;
 
@@ -2935,19 +2935,19 @@ public:
 	float MaxSpeedThresholdCombine;
 	
 	/** Clear saved move properties, so it can be re-used. */
-	virtual void Clear();
+	ENGINE_API virtual void Clear();
 
 	/** Called to set up this saved move (when initially created) to make a predictive correction. */
-	virtual void SetMoveFor(ACharacter* C, float InDeltaTime, FVector const& NewAccel, class FNetworkPredictionData_Client_Character & ClientData);
+	ENGINE_API virtual void SetMoveFor(ACharacter* C, float InDeltaTime, FVector const& NewAccel, class FNetworkPredictionData_Client_Character & ClientData);
 
 	/** Set the properties describing the position, etc. of the moved pawn at the start of the move. */
-	virtual void SetInitialPosition(ACharacter* C);
+	ENGINE_API virtual void SetInitialPosition(ACharacter* C);
 
 	/** Returns true if this move is an "important" move that should be sent again if not acked by the server */
-	virtual bool IsImportantMove(const FSavedMovePtr& LastAckedMove) const;
+	ENGINE_API virtual bool IsImportantMove(const FSavedMovePtr& LastAckedMove) const;
 	
 	/** Returns starting position if we were to revert the move, either absolute StartLocation, or StartRelativeLocation offset from MovementBase's current location (since we want to try to move forward at this time). */
-	virtual FVector GetRevertedLocation() const;
+	ENGINE_API virtual FVector GetRevertedLocation() const;
 
 	enum EPostUpdateMode
 	{
@@ -2956,28 +2956,28 @@ public:
 	};
 
 	/** Set the properties describing the final position, etc. of the moved pawn. */
-	virtual void PostUpdate(ACharacter* C, EPostUpdateMode PostUpdateMode);
+	ENGINE_API virtual void PostUpdate(ACharacter* C, EPostUpdateMode PostUpdateMode);
 	
 	/** Returns true if this move can be combined with NewMove for replication without changing any behavior */
-	virtual bool CanCombineWith(const FSavedMovePtr& NewMove, ACharacter* InCharacter, float MaxDelta) const;
+	ENGINE_API virtual bool CanCombineWith(const FSavedMovePtr& NewMove, ACharacter* InCharacter, float MaxDelta) const;
 
 	/** Combine this move with an older move and update relevant state. */
-	virtual void CombineWith(const FSavedMove_Character* OldMove, ACharacter* InCharacter, APlayerController* PC, const FVector& OldStartLocation);
+	ENGINE_API virtual void CombineWith(const FSavedMove_Character* OldMove, ACharacter* InCharacter, APlayerController* PC, const FVector& OldStartLocation);
 	
 	/** Called before ClientUpdatePosition uses this SavedMove to make a predictive correction	 */
-	virtual void PrepMoveFor(ACharacter* C);
+	ENGINE_API virtual void PrepMoveFor(ACharacter* C);
 
 	/** Returns a byte containing encoded special movement information (jumping, crouching, etc.)	 */
-	virtual uint8 GetCompressedFlags() const;
+	ENGINE_API virtual uint8 GetCompressedFlags() const;
 
 	/** Compare current control rotation with stored starting data */
-	virtual bool IsMatchingStartControlRotation(const APlayerController* PC) const;
+	ENGINE_API virtual bool IsMatchingStartControlRotation(const APlayerController* PC) const;
 
 	/** Packs control rotation for network transport */
-	virtual void GetPackedAngles(uint32& YawAndPitchPack, uint8& RollPack) const;
+	ENGINE_API virtual void GetPackedAngles(uint32& YawAndPitchPack, uint8& RollPack) const;
 
 	/** Allows references to be considered during GC */
-	virtual void AddStructReferencedObjects(FReferenceCollector& Collector) const;
+	ENGINE_API virtual void AddStructReferencedObjects(FReferenceCollector& Collector) const;
 
 	// Bit masks used by GetCompressedFlags() to encode movement information.
 	enum CompressedFlags
@@ -3020,17 +3020,17 @@ public:
 	float			Time;					// This represents time since replay started
 };
 
-class ENGINE_API FNetworkPredictionData_Client_Character : public FNetworkPredictionData_Client, protected FNoncopyable
+class FNetworkPredictionData_Client_Character : public FNetworkPredictionData_Client, protected FNoncopyable
 {
 	using Super = FNetworkPredictionData_Client;
 
 public:
 
-	FNetworkPredictionData_Client_Character(const UCharacterMovementComponent& ClientMovement);
-	virtual ~FNetworkPredictionData_Client_Character();
+	ENGINE_API FNetworkPredictionData_Client_Character(const UCharacterMovementComponent& ClientMovement);
+	ENGINE_API virtual ~FNetworkPredictionData_Client_Character();
 
 	/** Allows references to be considered during GC */
-	void AddStructReferencedObjects(FReferenceCollector& Collector) const override;
+	ENGINE_API void AddStructReferencedObjects(FReferenceCollector& Collector) const override;
 
 	/** Timestamp of last time it sent a servermove() to the server. This is an increasing timestamp from the owning UWorld (undilated, real time seconds). Used for holding off on sending movement updates to save bandwidth. */
 	float ClientUpdateRealTime;
@@ -3122,37 +3122,37 @@ public:
 	TArray< FCharacterReplaySample > ReplaySamples;
 
 	/** Finds SavedMove index for given TimeStamp. Returns INDEX_NONE if not found (move has been already Acked or cleared). */
-	int32 GetSavedMoveIndex(float TimeStamp) const;
+	ENGINE_API int32 GetSavedMoveIndex(float TimeStamp) const;
 
 	/** Ack a given move. This move will become LastAckedMove, SavedMoves will be adjusted to only contain unAcked moves. */
-	void AckMove(int32 AckedMoveIndex, UCharacterMovementComponent& CharacterMovementComponent);
+	ENGINE_API void AckMove(int32 AckedMoveIndex, UCharacterMovementComponent& CharacterMovementComponent);
 
 	/** Allocate a new saved move. Subclasses should override this if they want to use a custom move class. */
-	virtual FSavedMovePtr AllocateNewMove();
+	ENGINE_API virtual FSavedMovePtr AllocateNewMove();
 
 	/** Return a move to the free move pool. Assumes that 'Move' will no longer be referenced by anything but possibly the FreeMoves list. Clears PendingMove if 'Move' is PendingMove. */
-	virtual void FreeMove(const FSavedMovePtr& Move);
+	ENGINE_API virtual void FreeMove(const FSavedMovePtr& Move);
 
 	/** Tries to pull a pooled move off the free move list, otherwise allocates a new move. Returns NULL if the limit on saves moves is hit. */
-	virtual FSavedMovePtr CreateSavedMove();
+	ENGINE_API virtual FSavedMovePtr CreateSavedMove();
 
 	/** Update CurentTimeStamp from passed in DeltaTime.
 		It will measure the accuracy between passed in DeltaTime and how Server will calculate its DeltaTime.
 		If inaccuracy is too high, it will reset CurrentTimeStamp to maintain a high level of accuracy.
 		@return DeltaTime to use for Client's physics simulation prior to replicate move to server. */
-	float UpdateTimeStampAndDeltaTime(float DeltaTime, ACharacter & CharacterOwner, class UCharacterMovementComponent & CharacterMovementComponent);
+	ENGINE_API float UpdateTimeStampAndDeltaTime(float DeltaTime, ACharacter & CharacterOwner, class UCharacterMovementComponent & CharacterMovementComponent);
 
 	/** Used for simulated packet loss in development builds. */
 	float DebugForcedPacketLossTimerStart;
 };
 
 
-class ENGINE_API FNetworkPredictionData_Server_Character : public FNetworkPredictionData_Server, protected FNoncopyable
+class FNetworkPredictionData_Server_Character : public FNetworkPredictionData_Server, protected FNoncopyable
 {
 public:
 
-	FNetworkPredictionData_Server_Character(const UCharacterMovementComponent& ServerMovement);
-	virtual ~FNetworkPredictionData_Server_Character();
+	ENGINE_API FNetworkPredictionData_Server_Character(const UCharacterMovementComponent& ServerMovement);
+	ENGINE_API virtual ~FNetworkPredictionData_Server_Character();
 
 	FClientAdjustment PendingAdjustment;
 
@@ -3214,10 +3214,10 @@ public:
 	float WorldCreationTime;
 
 	/** Returns time delta to use for the current ServerMove(). Takes into account time discrepancy resolution if active. */
-	float GetServerMoveDeltaTime(float ClientTimeStamp, float ActorTimeDilation) const;
+	ENGINE_API float GetServerMoveDeltaTime(float ClientTimeStamp, float ActorTimeDilation) const;
 
 	/** Returns base time delta to use for a ServerMove, default calculation (no time discrepancy resolution) */
-	float GetBaseServerMoveDeltaTime(float ClientTimeStamp, float ActorTimeDilation) const;
+	ENGINE_API float GetBaseServerMoveDeltaTime(float ClientTimeStamp, float ActorTimeDilation) const;
 
 };
 

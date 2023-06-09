@@ -53,8 +53,8 @@ struct FActiveSound;
 			Payload = &ActiveSound.SoundNodeData[Offset];										\
 		}
 
-UCLASS(abstract, hidecategories=Object, editinlinenew)
-class ENGINE_API USoundNode : public UObject
+UCLASS(abstract, hidecategories=Object, editinlinenew, MinimalAPI)
+class USoundNode : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -68,7 +68,7 @@ class ENGINE_API USoundNode : public UObject
 	UPROPERTY()
 	TObjectPtr<UEdGraphNode>	GraphNode;
 
-	class UEdGraphNode* GetGraphNode() const;
+	ENGINE_API class UEdGraphNode* GetGraphNode() const;
 #endif
 
 	/** Stream of random numbers to be used by this instance of USoundNode */
@@ -79,14 +79,14 @@ class ENGINE_API USoundNode : public UObject
 public:
 	//~ Begin UObject Interface
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PostLoad() override;
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostLoad() override;
+	static ENGINE_API void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 #endif //WITH_EDITOR
-	virtual void Serialize(FArchive& Ar) override;
-	virtual bool CanBeClusterRoot() const override;
-	virtual bool CanBeInCluster() const override;
-	virtual void BeginDestroy() override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual bool CanBeClusterRoot() const override;
+	ENGINE_API virtual bool CanBeInCluster() const override;
+	ENGINE_API virtual void BeginDestroy() override;
 	//~ End UObject Interface
 
 	//
@@ -106,7 +106,7 @@ public:
 	/**
 	 * Returns the maximum distance this sound can be heard from.
 	 */
-	virtual float GetMaxDistance() const;
+	ENGINE_API virtual float GetMaxDistance() const;
 
 	/** Returns if this node has been set to be allowed virtual. Only the sound node wave player implements this. */
 	virtual bool SupportsSubtitles() const
@@ -119,23 +119,23 @@ public:
 	 *
 	 * @return	float of number of seconds this sound will play for. INDEFINITELY_LOOPING_DURATION means its looping.
 	 */
-	virtual float GetDuration();
+	ENGINE_API virtual float GetDuration();
 
 	/** Returns whether the sound cue has a delay node. */
-	virtual bool HasDelayNode() const;
+	ENGINE_API virtual bool HasDelayNode() const;
 
 	/** Returns whether the sound has a sequencer node. */
-	virtual bool HasConcatenatorNode() const;
+	ENGINE_API virtual bool HasConcatenatorNode() const;
 
 	/** Returns true if the sound node is set to play when silent. */
-	virtual bool IsPlayWhenSilent() const;
+	ENGINE_API virtual bool IsPlayWhenSilent() const;
 
-	virtual void ParseNodes( FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanceHash, FActiveSound& ActiveSound, const struct FSoundParseParameters& ParseParams, TArray<FWaveInstance*>& WaveInstances );
+	ENGINE_API virtual void ParseNodes( FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanceHash, FActiveSound& ActiveSound, const struct FSoundParseParameters& ParseParams, TArray<FWaveInstance*>& WaveInstances );
 
 	/**
 	 * Returns an array of all (not just active) nodes.
 	 */
-	virtual void GetAllNodes( TArray<USoundNode*>& SoundNodes );
+	ENGINE_API virtual void GetAllNodes( TArray<USoundNode*>& SoundNodes );
 
 	/**
 	 * Returns the maximum number of child nodes this node can possibly have
@@ -152,7 +152,7 @@ public:
 	}
 
 	/** Returns the number of simultaneous sounds this node instance plays back. */
-	virtual int32 GetNumSounds(const UPTRINT NodeWaveInstanceHash, FActiveSound& ActiveSound) const;
+	ENGINE_API virtual int32 GetNumSounds(const UPTRINT NodeWaveInstanceHash, FActiveSound& ActiveSound) const;
 
 
 	/**
@@ -163,15 +163,15 @@ public:
 	 * Called by the Sound Cue Editor for nodes which allow children.  The default behaviour is to
 	 * attach a single connector. Dervied classes can override to eg add multiple connectors.
 	 */
-	virtual void CreateStartingConnectors( void );
-	virtual void InsertChildNode( int32 Index );
-	virtual void RemoveChildNode( int32 Index );
+	ENGINE_API virtual void CreateStartingConnectors( void );
+	ENGINE_API virtual void InsertChildNode( int32 Index );
+	ENGINE_API virtual void RemoveChildNode( int32 Index );
 #if WITH_EDITOR
 	/**
 	 * Set the entire Child Node array directly, allows GraphNodes to fully control node layout.
 	 * Can be overwritten to set up additional parameters that are tied to children.
 	 */
-	virtual void SetChildNodes(TArray<USoundNode*>& InChildNodes);
+	ENGINE_API virtual void SetChildNodes(TArray<USoundNode*>& InChildNodes);
 
 	/** Get the name of a specific input pin */
 	virtual FText GetInputPinName(int32 PinIndex) const { return FText::GetEmpty(); }
@@ -179,7 +179,7 @@ public:
 	virtual FText GetTitle() const { return GetClass()->GetDisplayNameText(); }
 
 	/** Helper function to set the position of a sound node on a grid */
-	void PlaceNode(int32 NodeColumn, int32 NodeRow, int32 RowCount );
+	ENGINE_API void PlaceNode(int32 NodeColumn, int32 NodeRow, int32 RowCount );
 
 	/** Called as PIE begins */
 	virtual void OnBeginPIE(const bool bIsSimulating) {};
@@ -191,8 +191,8 @@ public:
 	/**
 	 * Used to create a unique string to identify unique nodes
 	 */
-	static UPTRINT GetNodeWaveInstanceHash(const UPTRINT ParentWaveInstanceHash, const USoundNode* ChildNode, const uint32 ChildIndex);
-	static UPTRINT GetNodeWaveInstanceHash(const UPTRINT ParentWaveInstanceHash, const UPTRINT ChildNodeHash, const uint32 ChildIndex);
+	static ENGINE_API UPTRINT GetNodeWaveInstanceHash(const UPTRINT ParentWaveInstanceHash, const USoundNode* ChildNode, const uint32 ChildIndex);
+	static ENGINE_API UPTRINT GetNodeWaveInstanceHash(const UPTRINT ParentWaveInstanceHash, const UPTRINT ChildNodeHash, const uint32 ChildIndex);
 
 
 	/**
@@ -202,7 +202,7 @@ public:
 	 *
 	 * @param bRecurse when true, this will cause all children of child nodes to be primed as well.
 	 */
-	virtual void PrimeChildWavePlayers(bool bRecurse);
+	ENGINE_API virtual void PrimeChildWavePlayers(bool bRecurse);
 
 	/**
 	 * When this is called and stream caching is enabled,
@@ -211,7 +211,7 @@ public:
 	 *
 	 * @param bRecurse when true, this will cause all children of child nodes to be primed as well.
 	 */
-	virtual void RetainChildWavePlayers(bool bRecurse);
+	ENGINE_API virtual void RetainChildWavePlayers(bool bRecurse);
 
 	/**
 	 * When this is called and stream caching is enabled,
@@ -222,15 +222,15 @@ public:
 	 *
 	 * @param bRecurse when true, this will cause all children of child nodes to be overridden as well.
 	 */
-	virtual void OverrideLoadingBehaviorOnChildWaves(const bool bRecurse, const ESoundWaveLoadingBehavior InLoadingBehavior);
+	ENGINE_API virtual void OverrideLoadingBehaviorOnChildWaves(const bool bRecurse, const ESoundWaveLoadingBehavior InLoadingBehavior);
 
-	virtual void ReleaseRetainerOnChildWavePlayers(bool bRecurse);
+	ENGINE_API virtual void ReleaseRetainerOnChildWavePlayers(bool bRecurse);
 
 	/**
 	 * When called, this will find any child wave players connected to this node
 	 * and null out their associated USoundWave, allowing the USoundWave to be garbage collected.
 	 * This should only be called by USoundNodeQualityLevel::PostLoad when au.CullSoundWaveHardReferences is 1.
 	 */
-	virtual void RemoveSoundWaveOnChildWavePlayers();
+	ENGINE_API virtual void RemoveSoundWaveOnChildWavePlayers();
 };
 

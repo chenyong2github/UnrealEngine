@@ -10,17 +10,17 @@
 #include "SoundSubmixWidgetInterface.generated.h"
 
 
-UINTERFACE(Blueprintable)
-class ENGINE_API USoundSubmixWidgetInterface : public UInterface
+UINTERFACE(Blueprintable, MinimalAPI)
+class USoundSubmixWidgetInterface : public UInterface
 {
 	GENERATED_BODY()
 };
 
-class ENGINE_API ISoundSubmixWidgetInterface
+class ISoundSubmixWidgetInterface
 {
 	GENERATED_BODY()
 
 public:
 	UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "On SoundSubmix Widget Constructed"))
-	void OnConstructed(USoundSubmixBase* SoundSubmix);
+	ENGINE_API void OnConstructed(USoundSubmixBase* SoundSubmix);
 };

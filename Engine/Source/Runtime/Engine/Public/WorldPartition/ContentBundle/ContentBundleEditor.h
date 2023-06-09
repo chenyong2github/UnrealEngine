@@ -21,71 +21,71 @@ class AActor;
 class URuntimeHashExternalStreamingObjectBase;
 class UWorldPartitionRuntimeCell;
 
-class ENGINE_API FContentBundleEditor : public FContentBundleBase, IWorldPartitionCookPackageGenerator
+class FContentBundleEditor : public FContentBundleBase, IWorldPartitionCookPackageGenerator
 {
 	friend class UContentBundleUnsavedActorMonitor;
 
 public:
-	FContentBundleEditor(TSharedPtr<FContentBundleClient>& InClient, UWorld* InWorld);
+	ENGINE_API FContentBundleEditor(TSharedPtr<FContentBundleClient>& InClient, UWorld* InWorld);
 
 	//~ Begin IContentBundle Interface
-	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	ENGINE_API virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 
-	virtual bool IsValid() const override;
+	ENGINE_API virtual bool IsValid() const override;
 	//~ End IContentBundle Interface
 
 	const FGuid& GetTreeItemID() const { return TreeItemID; }
 
-	void StartEditing();
-	void StopEditing();
+	ENGINE_API void StartEditing();
+	ENGINE_API void StopEditing();
 	bool IsBeingEdited() const { return bIsBeingEdited; }
 
-	void InjectBaseContent();
+	ENGINE_API void InjectBaseContent();
 
-	bool AddActor(AActor* InActor);
-	bool ContainsActor(const AActor* InActor) const;
-	bool GetActors(TArray<AActor*>& Actors);
-	bool HasUserPlacedActors() const;
-	uint32 GetActorCount() const;
-	uint32 GetUnsavedActorAcount() const;
+	ENGINE_API bool AddActor(AActor* InActor);
+	ENGINE_API bool ContainsActor(const AActor* InActor) const;
+	ENGINE_API bool GetActors(TArray<AActor*>& Actors);
+	ENGINE_API bool HasUserPlacedActors() const;
+	ENGINE_API uint32 GetActorCount() const;
+	ENGINE_API uint32 GetUnsavedActorAcount() const;
 
-	void ReferenceAllActors();
-	void UnreferenceAllActors();
+	ENGINE_API void ReferenceAllActors();
+	ENGINE_API void UnreferenceAllActors();
 
-	void GenerateStreaming(TArray<FString>* OutPackageToGenerate, bool bIsPIE);
+	ENGINE_API void GenerateStreaming(TArray<FString>* OutPackageToGenerate, bool bIsPIE);
 
 	URuntimeHashExternalStreamingObjectBase* GetStreamingObject() const { return ExternalStreamingObject; }
 
 	// Cooking
-	void OnBeginCook(IWorldPartitionCookPackageContext& CookContext);
+	ENGINE_API void OnBeginCook(IWorldPartitionCookPackageContext& CookContext);
 	bool HasCookedContent() const { return ExternalStreamingObject != nullptr; }
 	//~Begin IWorldPartitionCookPackageGenerator
-	virtual bool GatherPackagesToCook(class IWorldPartitionCookPackageContext& CookContext) override;
-	virtual bool PopulateGeneratorPackageForCook(class IWorldPartitionCookPackageContext& CookContext, const TArray<FWorldPartitionCookPackage*>& PackagesToCook, TArray<UPackage*>& OutModifiedPackages) override;
-	virtual bool PopulateGeneratedPackageForCook(class IWorldPartitionCookPackageContext& CookContext, const FWorldPartitionCookPackage& PackageToCook, TArray<UPackage*>& OutModifiedPackages) override;
-	virtual UWorldPartitionRuntimeCell* GetCellForPackage(const FWorldPartitionCookPackage& PackageToCook) const override;
+	ENGINE_API virtual bool GatherPackagesToCook(class IWorldPartitionCookPackageContext& CookContext) override;
+	ENGINE_API virtual bool PopulateGeneratorPackageForCook(class IWorldPartitionCookPackageContext& CookContext, const TArray<FWorldPartitionCookPackage*>& PackagesToCook, TArray<UPackage*>& OutModifiedPackages) override;
+	ENGINE_API virtual bool PopulateGeneratedPackageForCook(class IWorldPartitionCookPackageContext& CookContext, const FWorldPartitionCookPackage& PackageToCook, TArray<UPackage*>& OutModifiedPackages) override;
+	ENGINE_API virtual UWorldPartitionRuntimeCell* GetCellForPackage(const FWorldPartitionCookPackage& PackageToCook) const override;
 	//~End IWorldPartitionCookPackageGenerator
 
 protected:
 	//~ Begin IContentBundle Interface
-	virtual void DoInitialize() override;
-	virtual void DoUninitialize() override;
-	virtual void DoInjectContent() override;
-	virtual void DoRemoveContent() override;
+	ENGINE_API virtual void DoInitialize() override;
+	ENGINE_API virtual void DoUninitialize() override;
+	ENGINE_API virtual void DoInjectContent() override;
+	ENGINE_API virtual void DoRemoveContent() override;
 	//~ End IContentBundle Interface
 
 private:
-	void OnUnsavedActorDeleted(AActor* Actor);
+	ENGINE_API void OnUnsavedActorDeleted(AActor* Actor);
 
-	void BroadcastChanged();
-	UPackage* CreateActorPackage(const FName& ActorName) const;
-	FName BuildWorlDataLayersName() const;
+	ENGINE_API void BroadcastChanged();
+	ENGINE_API UPackage* CreateActorPackage(const FName& ActorName) const;
+	ENGINE_API FName BuildWorlDataLayersName() const;
 
-	void RegisterDelegates();
-	void UnregisterDelegates();
+	ENGINE_API void RegisterDelegates();
+	ENGINE_API void UnregisterDelegates();
 	
-	void OnActorDescAdded(FWorldPartitionActorDesc* ActorDesc);
-	void OnActorDescRemoved(FWorldPartitionActorDesc* ActorDesc);
+	ENGINE_API void OnActorDescAdded(FWorldPartitionActorDesc* ActorDesc);
+	ENGINE_API void OnActorDescRemoved(FWorldPartitionActorDesc* ActorDesc);
 
 	TObjectPtr<class UContentBundleUnsavedActorMonitor> UnsavedActorMonitor;
 

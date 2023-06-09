@@ -707,8 +707,8 @@ enum class EGarbageCollectionType
  * Abstract base class of all Engine classes, responsible for management of systems critical to editor or game systems.
  * Also defines default classes for certain engine systems.
  */
-UCLASS(abstract, config=Engine, defaultconfig, transient)
-class ENGINE_API UEngine
+UCLASS(abstract, config=Engine, defaultconfig, transient, MinimalAPI)
+class UEngine
 	: public UObject
 	, public FExec
 {
@@ -1729,11 +1729,11 @@ public:
 	float SelectionHighlightIntensityBillboards;
 
 	/** Delegate handling when streaming pause begins. Set initially in FStreamingPauseRenderingModule::StartupModule() but can then be overridden by games. */
-	void RegisterBeginStreamingPauseRenderingDelegate( FBeginStreamingPauseDelegate* InDelegate );
+	ENGINE_API void RegisterBeginStreamingPauseRenderingDelegate( FBeginStreamingPauseDelegate* InDelegate );
 	FBeginStreamingPauseDelegate* BeginStreamingPauseDelegate;
 
 	/** Delegate handling when streaming pause ends. Set initially in FStreamingPauseRenderingModule::StartupModule() but can then be overridden by games. */
-	void RegisterEndStreamingPauseRenderingDelegate( FEndStreamingPauseDelegate* InDelegate );
+	ENGINE_API void RegisterEndStreamingPauseRenderingDelegate( FEndStreamingPauseDelegate* InDelegate );
 	FEndStreamingPauseDelegate* EndStreamingPauseDelegate;
 
 private:
@@ -1832,18 +1832,18 @@ public:
 	 *
 	 * @param OverrideColor	The override color to use
 	 */
-	void OverrideSelectedMaterialColor( const FLinearColor& OverrideColor );
+	ENGINE_API void OverrideSelectedMaterialColor( const FLinearColor& OverrideColor );
 
 	/**
 	 * Restores the selected material color back to the user setting
 	 */
-	void RestoreSelectedMaterialColor();
+	ENGINE_API void RestoreSelectedMaterialColor();
 
 	/** Queries informations about the current state dynamic resolution. */
-	void GetDynamicResolutionCurrentStateInfos(FDynamicResolutionStateInfos& OutInfos) const;
+	ENGINE_API void GetDynamicResolutionCurrentStateInfos(FDynamicResolutionStateInfos& OutInfos) const;
 
 	/** Pause dynamic resolution for this frame. */
-	void PauseDynamicResolution();
+	ENGINE_API void PauseDynamicResolution();
 
 	/** Resume dynamic resolution for this frame. */
 	FORCEINLINE void ResumeDynamicResolution()
@@ -1855,7 +1855,7 @@ public:
 	}
 
 	/** Emit an event for dynamic resolution if not already done. */
-	void EmitDynamicResolutionEvent(EDynamicResolutionStateEvent Event);
+	ENGINE_API void EmitDynamicResolutionEvent(EDynamicResolutionStateEvent Event);
 
 	/** Get's global dynamic resolution state */
 	FORCEINLINE class IDynamicResolutionState* GetDynamicResolutionState()
@@ -1872,7 +1872,7 @@ public:
 	/** Override dynamic resolution state for next frame.
 	 * Old dynamic resolution state will be disabled, and the new one will be enabled automatically at next frame.
 	 */
-	void ChangeDynamicResolutionStateAtNextFrame(TSharedPtr< class IDynamicResolutionState > NewState);
+	ENGINE_API void ChangeDynamicResolutionStateAtNextFrame(TSharedPtr< class IDynamicResolutionState > NewState);
 
 	/** Get the user setting for dynamic resolution. */
 	FORCEINLINE bool GetDynamicResolutionUserSetting() const
@@ -1896,23 +1896,23 @@ public:
 	/** Delay loading this texture until it is needed by the renderer.
 	* The texture is uncompressed and contains no mips so it can't be streamed.
 	*/
-	void LoadDefaultBloomTexture();
+	ENGINE_API void LoadDefaultBloomTexture();
 
 	/** Delay loading this texture until it is needed by the renderer.
 	* The texture is uncompressed and contains no mips so it can't be streamed.
 	*/
-	void LoadBlueNoiseTexture();
+	ENGINE_API void LoadBlueNoiseTexture();
 
 	/** Delay loading this texture until it is needed by the renderer. */
-	void LoadDefaultFilmGrainTexture();
+	ENGINE_API void LoadDefaultFilmGrainTexture();
 
 	/** Conditionally load this texture for a platform. Always loaded in Editor */
-	void ConditionallyLoadPreIntegratedSkinBRDFTexture();
+	ENGINE_API void ConditionallyLoadPreIntegratedSkinBRDFTexture();
 
 	/** Delay loading the glint texture until it is needed by the renderer.
 	* This texture is not going to be streamed to be available right away.
 	*/
-	void LoadGlintTextures();
+	ENGINE_API void LoadGlintTextures();
 
 private:
 	#if WITH_DYNAMIC_RESOLUTION
@@ -1932,10 +1932,10 @@ private:
 		bool bDynamicResolutionEnableUserSetting;
 
 		/** Returns whether should be enabled or not. */
-		bool ShouldEnableDynamicResolutionState() const;
+		ENGINE_API bool ShouldEnableDynamicResolutionState() const;
 
 		/** Enable/Disable dynamic resolution state according to ShouldEnableDynamicResolutionState(). */
-		void UpdateDynamicResolutionStatus();
+		ENGINE_API void UpdateDynamicResolutionStatus();
 	#endif
 
 protected:
@@ -1954,22 +1954,22 @@ private:
 	TMap<int32, FScreenMessageString> ScreenMessages;
 
 public:
-	float DrawOnscreenDebugMessages(UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanvas* CanvasObject, float MessageX, float MessageY);
+	ENGINE_API float DrawOnscreenDebugMessages(UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanvas* CanvasObject, float MessageX, float MessageY);
 
 	/** Add a FString to the On-screen debug message system. bNewerOnTop only works with Key == INDEX_NONE */
-	void AddOnScreenDebugMessage(uint64 Key, float TimeToDisplay, FColor DisplayColor, const FString& DebugMessage, bool bNewerOnTop = true, const FVector2D& TextScale = FVector2D::UnitVector);
+	ENGINE_API void AddOnScreenDebugMessage(uint64 Key, float TimeToDisplay, FColor DisplayColor, const FString& DebugMessage, bool bNewerOnTop = true, const FVector2D& TextScale = FVector2D::UnitVector);
 
 	/** Add a FString to the On-screen debug message system. bNewerOnTop only works with Key == INDEX_NONE */
-	void AddOnScreenDebugMessage(int32 Key, float TimeToDisplay, FColor DisplayColor, const FString& DebugMessage, bool bNewerOnTop = true, const FVector2D& TextScale = FVector2D::UnitVector);
+	ENGINE_API void AddOnScreenDebugMessage(int32 Key, float TimeToDisplay, FColor DisplayColor, const FString& DebugMessage, bool bNewerOnTop = true, const FVector2D& TextScale = FVector2D::UnitVector);
 
 	/** Retrieve the message for the given key */
-	bool OnScreenDebugMessageExists(uint64 Key);
+	ENGINE_API bool OnScreenDebugMessageExists(uint64 Key);
 
 	/** Clear any existing debug messages */
-	void ClearOnScreenDebugMessages();
+	ENGINE_API void ClearOnScreenDebugMessages();
 
 	//Remove the message for the given key
-	void RemoveOnScreenDebugMessage(uint64 Key);
+	ENGINE_API void RemoveOnScreenDebugMessage(uint64 Key);
 
 	/** Reference to the stereoscopic rendering interface, if any */
 	TSharedPtr< class IStereoRendering, ESPMode::ThreadSafe > StereoRenderingDevice;
@@ -1996,19 +1996,19 @@ public:
 	FWorldDestroyedEvent&	OnWorldDestroyed() { return WorldDestroyedEvent; }
 	
 	/** Needs to be called when a world is added to broadcast messages. */	
-	virtual void			WorldAdded( UWorld* World );
+	ENGINE_API virtual void			WorldAdded( UWorld* World );
 	
 	/** Needs to be called when a world is destroyed to broadcast messages. */	
-	virtual void			WorldDestroyed( UWorld* InWorld );
+	ENGINE_API virtual void			WorldDestroyed( UWorld* InWorld );
 
 	virtual bool IsInitialized() const { return bIsInitialized; }
 
 	/** The feature used to create new worlds, by default. Overridden for feature level preview in the editor */
-	virtual ERHIFeatureLevel::Type GetDefaultWorldFeatureLevel() const;
+	ENGINE_API virtual ERHIFeatureLevel::Type GetDefaultWorldFeatureLevel() const;
 
 #if WITH_EDITOR
 	/** Return the ini platform name the current preview platform, or false if there is no preview platform. */
-	virtual bool GetPreviewPlatformName(FName& PlatformName) const;
+	ENGINE_API virtual bool GetPreviewPlatformName(FName& PlatformName) const;
 
 	/** Editor-only event triggered when the actor list of the world has changed */
 	DECLARE_EVENT( UEngine, FLevelActorListChangedEvent );
@@ -2151,7 +2151,7 @@ public:
 	/** Event triggered after a network failure of any kind has occurred */
 	FOnNetworkFailure& OnNetworkFailure() { return NetworkFailureEvent; }
 	/** Called by internal engine systems after a network failure has occurred */
-	void BroadcastNetworkFailure(UWorld * World, UNetDriver *NetDriver, ENetworkFailure::Type FailureType, const FString& ErrorString = TEXT(""));
+	ENGINE_API void BroadcastNetworkFailure(UWorld * World, UNetDriver *NetDriver, ENetworkFailure::Type FailureType, const FString& ErrorString = TEXT(""));
 
 	/** Event triggered after network lag is being experienced or lag has ended */
 	FOnNetworkLagStateChanged& OnNetworkLagStateChanged() { return NetworkLagStateChangedEvent; }
@@ -2170,167 +2170,167 @@ public:
 	}
 
 	//~ Begin UObject Interface.
-	virtual void FinishDestroy() override;
-	virtual void Serialize(FArchive& Ar) override;
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	ENGINE_API virtual void FinishDestroy() override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
+	static ENGINE_API void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 	//~ End UObject Interface.
 
 	/** Initialize the game engine. */
-	virtual void Init(IEngineLoop* InEngineLoop);
+	ENGINE_API virtual void Init(IEngineLoop* InEngineLoop);
 
 	/** Start the game, separate from the initialize call to allow for post initialize configuration before the game starts. */
-	virtual void Start();
+	ENGINE_API virtual void Start();
 
 	/** Called at shutdown, just before the exit purge.	 */
-	virtual void PreExit();
-	virtual void ReleaseAudioDeviceManager();
+	ENGINE_API virtual void PreExit();
+	ENGINE_API virtual void ReleaseAudioDeviceManager();
 	
-	void ShutdownHMD();
+	ENGINE_API void ShutdownHMD();
 
 	/** Called at startup, in the middle of FEngineLoop::Init.	 */
-	void ParseCommandline();
+	ENGINE_API void ParseCommandline();
 
 	//~ Begin FExec Interface
 public:
 #if UE_ALLOW_EXEC_COMMANDS
-	virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Out=*GLog ) override;
+	ENGINE_API virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Out=*GLog ) override;
 #endif
 
 protected:
-	virtual bool Exec_Dev( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Out=*GLog ) override;
-	virtual bool Exec_Editor(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Out = *GLog) override;
+	ENGINE_API virtual bool Exec_Dev( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Out=*GLog ) override;
+	ENGINE_API virtual bool Exec_Editor(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Out = *GLog) override;
 	//~ End FExec Interface
 
 public:
 	/** 
 	 * Exec command handlers
 	 */
-	bool HandleFlushLogCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleGameVerCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleStatCommand( UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleStopMovieCaptureCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleCrackURLCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleDeferCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleFlushLogCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleGameVerCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleStatCommand( UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleStopMovieCaptureCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleCrackURLCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleDeferCommand( const TCHAR* Cmd, FOutputDevice& Ar );
 
-	bool HandleCeCommand( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleDumpTicksCommand( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleGammaCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleCeCommand( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleDumpTicksCommand( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleGammaCommand( const TCHAR* Cmd, FOutputDevice& Ar );
 
-	bool HandleShowLogCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleShowLogCommand( const TCHAR* Cmd, FOutputDevice& Ar );
 
 	// Only compile in when STATS is set
 #if STATS
-	bool HandleDumpParticleMemCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleDumpParticleMemCommand( const TCHAR* Cmd, FOutputDevice& Ar );
 #endif
 
 #if WITH_PROFILEGPU
-	bool HandleProfileGPUCommand( const TCHAR* Cmd, FOutputDevice& Ar );	
+	ENGINE_API bool HandleProfileGPUCommand( const TCHAR* Cmd, FOutputDevice& Ar );	
 #endif
 
 #if WITH_DUMPGPU
-	bool HandleDumpGPUCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleDumpGPUCommand( const TCHAR* Cmd, FOutputDevice& Ar );
 #endif
 
 	// Compile in Debug or Development
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST) && WITH_HOT_RELOAD
-	bool HandleHotReloadCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleHotReloadCommand( const TCHAR* Cmd, FOutputDevice& Ar );
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST) && WITH_HOT_RELOAD
 
 	// Compile in Debug, Development, and Test
 #if !UE_BUILD_SHIPPING
-	bool HandleDumpConsoleCommandsCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );
-	bool HandleDumpAvailableResolutionsCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleAnimSeqStatsCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleCountDisabledParticleItemsCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleViewnamesCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleFreezeStreamingCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );		// Smedis
-	bool HandleFreezeAllCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );			// Smedis
+	ENGINE_API bool HandleDumpConsoleCommandsCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );
+	ENGINE_API bool HandleDumpAvailableResolutionsCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleAnimSeqStatsCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleCountDisabledParticleItemsCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleViewnamesCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleFreezeStreamingCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );		// Smedis
+	ENGINE_API bool HandleFreezeAllCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );			// Smedis
 
-	bool HandleToggleRenderingThreadCommand( const TCHAR* Cmd, FOutputDevice& Ar );	
-	bool HandleToggleAsyncComputeCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleRecompileShadersCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleRecompileGlobalShadersCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleDumpShaderStatsCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleDumpMaterialStatsCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleToggleRenderingThreadCommand( const TCHAR* Cmd, FOutputDevice& Ar );	
+	ENGINE_API bool HandleToggleAsyncComputeCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleRecompileShadersCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleRecompileGlobalShadersCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleDumpShaderStatsCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleDumpMaterialStatsCommand( const TCHAR* Cmd, FOutputDevice& Ar );
 #if WITH_EDITOR
-	bool HandleDumpShaderCompileStatsCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleDumpShaderCompileStatsCommand( const TCHAR* Cmd, FOutputDevice& Ar );
 #endif
-	bool HandleProfileCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleProfileGPUHitchesCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleShaderComplexityCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleFreezeRenderingCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );
-	bool HandleStartFPSChartCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleStopFPSChartCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );
-	bool HandleDumpLevelScriptActorsCommand( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleKismetEventCommand( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleListTexturesCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleListStaticMeshesCommand(const TCHAR* Cmd, FOutputDevice& Ar);
-	bool HandleListSkeletalMeshesCommand(const TCHAR* Cmd, FOutputDevice& Ar);
-	bool HandleListAnimsCommand(const TCHAR* Cmd, FOutputDevice& Ar);
-	bool HandleRemoteTextureStatsCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleListParticleSystemsCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleListSpawnedActorsCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );
-	bool HandleLogoutStatLevelsCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );
-	bool HandleMemReportCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );
-	bool HandleMemReportDeferredCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );
-	bool HandleSkeletalMeshReportCommand(const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld);
-	bool HandleParticleMeshUsageCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleDumpParticleCountsCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleListLoadedPackagesCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleMemCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleDebugCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleMergeMeshCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );
-	bool HandleContentComparisonCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleTogglegtPsysLODCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleTestslateGameUICommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleDirCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleTrackParticleRenderingStatsCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleDumpAllocatorStats( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleHeapCheckCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleToggleOnscreenDebugMessageDisplayCommand( const TCHAR* Cmd, FOutputDevice& Ar );
-	bool HandleToggleOnscreenDebugMessageSystemCommand( const TCHAR* Cmd, FOutputDevice& Ar );	
-	bool HandleDisableAllScreenMessagesCommand( const TCHAR* Cmd, FOutputDevice& Ar );			
-	bool HandleEnableAllScreenMessagesCommand( const TCHAR* Cmd, FOutputDevice& Ar );			
-	bool HandleToggleAllScreenMessagesCommand( const TCHAR* Cmd, FOutputDevice& Ar );			
-	bool HandleConfigHashCommand( const TCHAR* Cmd, FOutputDevice& Ar );						
-	bool HandleConfigMemCommand( const TCHAR* Cmd, FOutputDevice& Ar );	
-	bool HandleGetIniCommand(const TCHAR* Cmd, FOutputDevice& Ar);
+	ENGINE_API bool HandleProfileCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleProfileGPUHitchesCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleShaderComplexityCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleFreezeRenderingCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );
+	ENGINE_API bool HandleStartFPSChartCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleStopFPSChartCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );
+	ENGINE_API bool HandleDumpLevelScriptActorsCommand( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleKismetEventCommand( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleListTexturesCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleListStaticMeshesCommand(const TCHAR* Cmd, FOutputDevice& Ar);
+	ENGINE_API bool HandleListSkeletalMeshesCommand(const TCHAR* Cmd, FOutputDevice& Ar);
+	ENGINE_API bool HandleListAnimsCommand(const TCHAR* Cmd, FOutputDevice& Ar);
+	ENGINE_API bool HandleRemoteTextureStatsCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleListParticleSystemsCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleListSpawnedActorsCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );
+	ENGINE_API bool HandleLogoutStatLevelsCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );
+	ENGINE_API bool HandleMemReportCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );
+	ENGINE_API bool HandleMemReportDeferredCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );
+	ENGINE_API bool HandleSkeletalMeshReportCommand(const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld);
+	ENGINE_API bool HandleParticleMeshUsageCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleDumpParticleCountsCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleListLoadedPackagesCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleMemCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleDebugCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleMergeMeshCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );
+	ENGINE_API bool HandleContentComparisonCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleTogglegtPsysLODCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleTestslateGameUICommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleDirCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleTrackParticleRenderingStatsCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleDumpAllocatorStats( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleHeapCheckCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleToggleOnscreenDebugMessageDisplayCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	ENGINE_API bool HandleToggleOnscreenDebugMessageSystemCommand( const TCHAR* Cmd, FOutputDevice& Ar );	
+	ENGINE_API bool HandleDisableAllScreenMessagesCommand( const TCHAR* Cmd, FOutputDevice& Ar );			
+	ENGINE_API bool HandleEnableAllScreenMessagesCommand( const TCHAR* Cmd, FOutputDevice& Ar );			
+	ENGINE_API bool HandleToggleAllScreenMessagesCommand( const TCHAR* Cmd, FOutputDevice& Ar );			
+	ENGINE_API bool HandleConfigHashCommand( const TCHAR* Cmd, FOutputDevice& Ar );						
+	ENGINE_API bool HandleConfigMemCommand( const TCHAR* Cmd, FOutputDevice& Ar );	
+	ENGINE_API bool HandleGetIniCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 #endif // !UE_BUILD_SHIPPING
 
 	/** Update everything. */
-	virtual void Tick( float DeltaSeconds, bool bIdleMode ) PURE_VIRTUAL(UEngine::Tick,);
+	ENGINE_API virtual void Tick( float DeltaSeconds, bool bIdleMode ) PURE_VIRTUAL(UEngine::Tick,);
 
 	/**
 	 * Update FApp::CurrentTime / FApp::DeltaTime while taking into account max tick rate.
 	 */
-	virtual void UpdateTimeAndHandleMaxTickRate();
+	ENGINE_API virtual void UpdateTimeAndHandleMaxTickRate();
 
-	static void SetInputSampleLatencyMarker(uint64 FrameNumber);
+	static ENGINE_API void SetInputSampleLatencyMarker(uint64 FrameNumber);
 
-	static void SetSimulationLatencyMarkerStart(uint64 FrameNumber);
-	static void SetSimulationLatencyMarkerEnd(uint64 FrameNumber);
+	static ENGINE_API void SetSimulationLatencyMarkerStart(uint64 FrameNumber);
+	static ENGINE_API void SetSimulationLatencyMarkerEnd(uint64 FrameNumber);
 
-	static void SetPresentLatencyMarkerStart(uint64 FrameNumber);
-	static void SetPresentLatencyMarkerEnd(uint64 FrameNumber);
+	static ENGINE_API void SetPresentLatencyMarkerStart(uint64 FrameNumber);
+	static ENGINE_API void SetPresentLatencyMarkerEnd(uint64 FrameNumber);
 
-	static void SetRenderSubmitLatencyMarkerStart(uint64 FrameNumber);
-	static void SetRenderSubmitLatencyMarkerEnd(uint64 FrameNumber);
+	static ENGINE_API void SetRenderSubmitLatencyMarkerStart(uint64 FrameNumber);
+	static ENGINE_API void SetRenderSubmitLatencyMarkerEnd(uint64 FrameNumber);
 
-	static void SetFlashIndicatorLatencyMarker(uint64 FrameNumber);
+	static ENGINE_API void SetFlashIndicatorLatencyMarker(uint64 FrameNumber);
 
 	/**
 	 * Allows games to correct the negative delta
 	 *
 	 * @return new delta
 	 */
-	virtual double CorrectNegativeTimeDelta(double DeltaRealTime);
+	ENGINE_API virtual double CorrectNegativeTimeDelta(double DeltaRealTime);
 
 	/** Causes the current custom time step to be shut down and then reinitialized. */
-	void ReinitializeCustomTimeStep();
+	ENGINE_API void ReinitializeCustomTimeStep();
 
 	/**
 	 * Set the custom time step that will control the Engine Framerate/Timestep.
@@ -2339,7 +2339,7 @@ public:
 	 *
 	 * @return	the result of the custom time step initialization.
 	 */
-	bool SetCustomTimeStep(UEngineCustomTimeStep* InCustomTimeStep);
+	ENGINE_API bool SetCustomTimeStep(UEngineCustomTimeStep* InCustomTimeStep);
 
 	/** Get the custom time step that control the Engine Framerate/Timestep */
 	UEngineCustomTimeStep* GetCustomTimeStep() const { return CustomTimeStep; };
@@ -2348,31 +2348,31 @@ public:
 	FSimpleMulticastDelegate& OnCustomTimeStepChanged() { return CustomTimeStepChangedEvent; }
 
 	/** Executes the deferred commands */
-	void TickDeferredCommands();
+	ENGINE_API void TickDeferredCommands();
 
 	/** Get tick rate limiter. */
-	virtual float GetMaxTickRate(float DeltaTime, bool bAllowFrameRateSmoothing = true) const;
+	ENGINE_API virtual float GetMaxTickRate(float DeltaTime, bool bAllowFrameRateSmoothing = true) const;
 
 	/** Get max fps. */
-	virtual float GetMaxFPS() const;
+	ENGINE_API virtual float GetMaxFPS() const;
 
 	/** Set max fps. Overrides console variable. */
-	virtual void SetMaxFPS(const float MaxFPS);
+	ENGINE_API virtual void SetMaxFPS(const float MaxFPS);
 
 	/** Updates the running average delta time */
-	virtual void UpdateRunningAverageDeltaTime(float DeltaTime, bool bAllowFrameRateSmoothing = true);
+	ENGINE_API virtual void UpdateRunningAverageDeltaTime(float DeltaTime, bool bAllowFrameRateSmoothing = true);
 
 	/** Whether we're allowed to do frame rate smoothing */
-	virtual bool IsAllowedFramerateSmoothing() const;
+	ENGINE_API virtual bool IsAllowedFramerateSmoothing() const;
 
 	/** Whether the application should avoid rendering anything to give GPU resources to other applications */
 	virtual bool IsRenderingSuspended() const { return false; }
 
 	/** Update FApp::Timecode. */
-	void UpdateTimecode();
+	ENGINE_API void UpdateTimecode();
 
 	/** Causes the current timecode provider to be shut down and then reinitialized. */
-	void ReinitializeTimecodeProvider();
+	ENGINE_API void ReinitializeTimecodeProvider();
 
 	/**
 	 * Set the timecode provider that will control the Engine's timecode.
@@ -2381,7 +2381,7 @@ public:
 	 *
 	 * @return	the result value of the new timecode provider initialization.
 	 */
-	bool SetTimecodeProvider(UTimecodeProvider* InTimecodeProvider);
+	ENGINE_API bool SetTimecodeProvider(UTimecodeProvider* InTimecodeProvider);
 
 	/** Get the TimecodeProvider that control the Engine's Timecode. */
 	UTimecodeProvider* GetTimecodeProvider() const { return TimecodeProvider; };
@@ -2395,44 +2395,44 @@ public:
 	 * Pauses / un-pauses the game-play when focus of the game's window gets lost / gained.
 	 * @param EnablePause true to pause; false to unpause the game
 	 */
-	virtual void OnLostFocusPause( bool EnablePause );
+	ENGINE_API virtual void OnLostFocusPause( bool EnablePause );
 
 	/** 
 	 * Returns the average game/render/gpu/total time since this function was last called
 	 */
-	void GetAverageUnitTimes( TArray<float>& AverageTimes );
+	ENGINE_API void GetAverageUnitTimes( TArray<float>& AverageTimes );
 
 	/**
 	 * Updates the values used to calculate the average game/render/gpu/total time
 	 */
-	void SetAverageUnitTimes(float FrameTime, float RenderThreadTime, float GameThreadTime, float GPUFrameTime, float RHITFrameTime);
+	ENGINE_API void SetAverageUnitTimes(float FrameTime, float RenderThreadTime, float GameThreadTime, float GPUFrameTime, float RHITFrameTime);
 
 	/**
 	 * Returns the display color for a given frame time (based on t.TargetFrameTimeThreshold and t.UnacceptableFrameTimeThreshold)
 	 */
-	FColor GetFrameTimeDisplayColor(float FrameTimeMS) const;
+	ENGINE_API FColor GetFrameTimeDisplayColor(float FrameTimeMS) const;
 
 	/**
 	 * @return true to throttle CPU usage based on current state (usually editor minimized or not in foreground)
 	 */
-	virtual bool ShouldThrottleCPUUsage() const;
+	ENGINE_API virtual bool ShouldThrottleCPUUsage() const;
 
 public:
 	/** 
 	 * Return a reference to the GamePlayers array. 
 	 */
 
-	TArray<class ULocalPlayer*>::TConstIterator	GetLocalPlayerIterator(UWorld *World);
-	TArray<class ULocalPlayer*>::TConstIterator GetLocalPlayerIterator(const UGameViewportClient *Viewport);
+	ENGINE_API TArray<class ULocalPlayer*>::TConstIterator	GetLocalPlayerIterator(UWorld *World);
+	ENGINE_API TArray<class ULocalPlayer*>::TConstIterator GetLocalPlayerIterator(const UGameViewportClient *Viewport);
 
-	const TArray<class ULocalPlayer*>& GetGamePlayers(UWorld *World) const;
-	const TArray<class ULocalPlayer*>& GetGamePlayers(const UGameViewportClient *Viewport) const;
+	ENGINE_API const TArray<class ULocalPlayer*>& GetGamePlayers(UWorld *World) const;
+	ENGINE_API const TArray<class ULocalPlayer*>& GetGamePlayers(const UGameViewportClient *Viewport) const;
 
 	/**
 	 *	Returns the first ULocalPlayer that matches the given ControllerId. 
 	 *  This will search across all world contexts.
 	 */
-	ULocalPlayer* FindFirstLocalPlayerFromControllerId(int32 ControllerId) const;
+	ENGINE_API ULocalPlayer* FindFirstLocalPlayerFromControllerId(int32 ControllerId) const;
 
 	/** 
 	 * If true, we're running in a backward compatible mode where FPlatformUserId and ControllerId are the same.
@@ -2444,7 +2444,7 @@ public:
 	 * Returns the first ULocalPlayer that matches the given platform user id, or the first player if the id is invalid
 	 * This will search across all world contexts.
 	 */
-	ULocalPlayer* FindFirstLocalPlayerFromPlatformUserId(FPlatformUserId PlatformUserId) const;
+	ENGINE_API ULocalPlayer* FindFirstLocalPlayerFromPlatformUserId(FPlatformUserId PlatformUserId) const;
 
 	/**
 	 * Returns the first LocalPlayer that matches the given platform user id
@@ -2452,13 +2452,13 @@ public:
 	 * @param	PlatformUserId	Platform user id to search for
 	 * @return	The player that has the PlatformUserId specified, or nullptr if no players have that PlatformUserId
 	 */
-	ULocalPlayer* GetLocalPlayerFromPlatformUserId(UWorld* InWorld, const FPlatformUserId PlatformUserId) const;
+	ENGINE_API ULocalPlayer* GetLocalPlayerFromPlatformUserId(UWorld* InWorld, const FPlatformUserId PlatformUserId) const;
 
 	/**
 	 * return the number of entries in the GamePlayers array
 	 */
-	int32 GetNumGamePlayers(UWorld *InWorld);
-	int32 GetNumGamePlayers(const UGameViewportClient *InViewport);
+	ENGINE_API int32 GetNumGamePlayers(UWorld *InWorld);
+	ENGINE_API int32 GetNumGamePlayers(const UGameViewportClient *InViewport);
 
 	/**
 	 * return the ULocalPlayer with the given index.
@@ -2467,17 +2467,17 @@ public:
 	 *
 	 * @returns	pointer to the LocalPlayer with the given index
 	 */
-	ULocalPlayer* GetGamePlayer( UWorld * InWorld, int32 InPlayer );
-	ULocalPlayer* GetGamePlayer( const UGameViewportClient* InViewport, int32 InPlayer );
+	ENGINE_API ULocalPlayer* GetGamePlayer( UWorld * InWorld, int32 InPlayer );
+	ENGINE_API ULocalPlayer* GetGamePlayer( const UGameViewportClient* InViewport, int32 InPlayer );
 	
 	/**
 	 * return the first ULocalPlayer in the GamePlayers array.
 	 *
 	 * @returns	first ULocalPlayer or nullptr if the array is empty
 	 */
-	ULocalPlayer* GetFirstGamePlayer( UWorld *InWorld );
-	ULocalPlayer* GetFirstGamePlayer(const UGameViewportClient *InViewport );
-	ULocalPlayer* GetFirstGamePlayer( UPendingNetGame *PendingNetGame );
+	ENGINE_API ULocalPlayer* GetFirstGamePlayer( UWorld *InWorld );
+	ENGINE_API ULocalPlayer* GetFirstGamePlayer(const UGameViewportClient *InViewport );
+	ENGINE_API ULocalPlayer* GetFirstGamePlayer( UPendingNetGame *PendingNetGame );
 
 	/**
 	 * returns the first ULocalPlayer that should be used for debug purposes.
@@ -2487,10 +2487,10 @@ public:
 	 *
 	 * @returns the first ULocalPlayer
 	 */
-	ULocalPlayer* GetDebugLocalPlayer();
+	ENGINE_API ULocalPlayer* GetDebugLocalPlayer();
 
 	/** Clean up the GameViewport */
-	void CleanupGameViewport();
+	ENGINE_API void CleanupGameViewport();
 
 	/** Allows the editor to accept or reject the drawing of wire frame brush shapes based on mode and tool. */
 	virtual bool ShouldDrawBrushWireframe( class AActor* InActor ) { return true; }
@@ -2523,10 +2523,10 @@ public:
 	 * @param	OutColor	[out] The returned color.
 	 * @return				true if a color was successfully set on OutColor, false otherwise.
 	 */
-	virtual bool GetPropertyColorationColor(class UObject* Object, FColor& OutColor);
+	ENGINE_API virtual bool GetPropertyColorationColor(class UObject* Object, FColor& OutColor);
 
 	/** Uses StatColorMappings to find a color for this stat's value. */
-	bool GetStatValueColoration(const FString& StatName, float Value, FColor& OutColor);
+	ENGINE_API bool GetStatValueColoration(const FString& StatName, float Value, FColor& OutColor);
 
 	/** @return true if selection of translucent objects in perspective view ports is allowed */
 	virtual bool AllowSelectTranslucent() const
@@ -2555,7 +2555,7 @@ public:
 	 *
 	 * @param bEnable	If true the enable the screen saver, if false disable it.
 	 */
-	void EnableScreenSaver( bool bEnable );
+	ENGINE_API void EnableScreenSaver( bool bEnable );
 	
 	/**
 	 * Get the index of the provided sprite category
@@ -2574,27 +2574,27 @@ public:
 	 * This may require loading the header of the package in question and is therefore slow.
 	 */
 	UE_DEPRECATED(4.27, "UPackage::Guid has not been used by the engine for a long time and UEngine::GetPackageGuid will be removed.")
-	static FGuid GetPackageGuid(FName PackageName, bool bForPIE);
+	static ENGINE_API FGuid GetPackageGuid(FName PackageName, bool bForPIE);
 
-	static void PreGarbageCollect();
+	static ENGINE_API void PreGarbageCollect();
 
 	/**
 	 *  Collect garbage once per frame driven by World ticks
 	 */
-	void ConditionalCollectGarbage();
+	ENGINE_API void ConditionalCollectGarbage();
 
 	/**
 	 *  Interface to allow WorldSettings to request immediate garbage collection
 	 */
-	void PerformGarbageCollectionAndCleanupActors();
+	ENGINE_API void PerformGarbageCollectionAndCleanupActors();
 
 	/** Updates the timer between garbage collection such that at the next opportunity garbage collection will be run. */
-	void ForceGarbageCollection(bool bFullPurge = false);
+	ENGINE_API void ForceGarbageCollection(bool bFullPurge = false);
 
 	/**
 	 *  Requests a one frame delay of Garbage Collection
 	 */
-	void DelayGarbageCollection();
+	ENGINE_API void DelayGarbageCollection();
 
 	/**
 	 * Updates the timer (as a one-off) that is used to trigger garbage collection; this should only be used for things
@@ -2602,25 +2602,25 @@ public:
 	 *
 	 * Note: Things that force a GC will still force a GC after using this method (and they will also reset the timer)
 	 */
-	void SetTimeUntilNextGarbageCollection(float MinTimeUntilNextPass);
+	ENGINE_API void SetTimeUntilNextGarbageCollection(float MinTimeUntilNextPass);
 
 	/**
 	 * Returns the current desired time between garbage collection passes (not the time remaining)
 	 */
-	float GetTimeBetweenGarbageCollectionPasses() const;
+	ENGINE_API float GetTimeBetweenGarbageCollectionPasses() const;
 
 #if !UE_BUILD_SHIPPING
 	/** 
 	 * Capture screenshots and performance metrics
 	 * @param EventTime time of the Sequencer event
 	 */
-	void PerformanceCapture(UWorld* World, const FString& MapName, const FString& SequenceName, float EventTime);
+	ENGINE_API void PerformanceCapture(UWorld* World, const FString& MapName, const FString& SequenceName, float EventTime);
 
 	/**
 	 * Logs performance capture for use in automation analytics
 	 * @param EventTime time of the Sequencer event
 	 */
-	void LogPerformanceCapture(UWorld* World, const FString& MapName, const FString& SequenceName, float EventTime);
+	ENGINE_API void LogPerformanceCapture(UWorld* World, const FString& MapName, const FString& SequenceName, float EventTime);
 #endif	// UE_BUILD_SHIPPING
 
 	/**
@@ -2629,31 +2629,31 @@ public:
 	 * @param	Label		Label for this run
 	 * @param	bRecordPerFrameTimes	Should we record per-frame times (potentially unbounded memory growth; used when triggered via the console but not when triggered by game code)
 	 */
-	virtual void StartFPSChart(const FString& Label, bool bRecordPerFrameTimes);
+	ENGINE_API virtual void StartFPSChart(const FString& Label, bool bRecordPerFrameTimes);
 
 	/**
 	 * Stops the FPS chart data capture (if no run is active then this command is ignored).
 	 */
-	virtual void StopFPSChart(const FString& MapName);
+	ENGINE_API virtual void StopFPSChart(const FString& MapName);
 
 	/**
 	* Attempts to reclaim any idle memory by performing a garbage collection and broadcasting FCoreDelegates::OnMemoryTrim. Pending rendering commands are first flushed. This is called
 	* between level loads and may be called at other times, but is expensive and should be used sparingly. Do
 	*/
-	static void TrimMemory();
+	static ENGINE_API void TrimMemory();
 
 	/**
 	 * Calculates information about the previous frame and passes it to all active performance data consumers.
 	 *
 	 * @param DeltaSeconds	Time in seconds passed since last tick.
 	 */
-	void TickPerformanceMonitoring(float DeltaSeconds);
+	ENGINE_API void TickPerformanceMonitoring(float DeltaSeconds);
 
 	/** Register a performance data consumer with the engine; it will be passed performance information each frame */
-	void AddPerformanceDataConsumer(TSharedPtr<IPerformanceDataConsumer> Consumer);
+	ENGINE_API void AddPerformanceDataConsumer(TSharedPtr<IPerformanceDataConsumer> Consumer);
 
 	/** Remove a previously registered performance data consumer */
-	void RemovePerformanceDataConsumer(TSharedPtr<IPerformanceDataConsumer> Consumer);
+	ENGINE_API void RemovePerformanceDataConsumer(TSharedPtr<IPerformanceDataConsumer> Consumer);
 
 public:
 	/** Delegate called when FPS charting detects a hitch (it is not triggered if there are no active performance data consumers). */
@@ -2666,12 +2666,12 @@ private:
 	 *
 	 * @param bInIsOpening			true if the UI is opening, false if it is being closed.
 	*/
-	void OnExternalUIChange(bool bInIsOpening);
+	ENGINE_API void OnExternalUIChange(bool bInIsOpening);
 
 protected:
 
 	/** Returns GetTimeBetweenGarbageCollectionPasses but tweaked if its an idle server or not */
-	virtual float GetTimeBetweenGarbageCollectionPasses(bool bHasPlayersConnected) const;
+	ENGINE_API virtual float GetTimeBetweenGarbageCollectionPasses(bool bHasPlayersConnected) const;
 
 	/**
 	 * Handles freezing/unfreezing of rendering 
@@ -2695,12 +2695,12 @@ protected:
 	 *
 	 * @param Cmd			Error to perform. See implementation for options
 	 */
-	 bool PerformError(const TCHAR* Cmd, FOutputDevice& Out = *GLog);
+	 ENGINE_API bool PerformError(const TCHAR* Cmd, FOutputDevice& Out = *GLog);
 
 	 /**
 	  * Dispatches EndOfFrameUpdates for all UWorlds
 	  */
-	 static void SendWorldEndOfFrameUpdates();
+	 static ENGINE_API void SendWorldEndOfFrameUpdates();
 
 	 /**
 	  * Allows derived classes to force garbage collection based on various factors (low on available UObject slots / other resources)
@@ -2712,30 +2712,30 @@ protected:
 
 public:
 	/** @return the GIsEditor flag setting */
-	bool IsEditor();
+	ENGINE_API bool IsEditor();
 
 	/** @return the audio device manager of the UEngine, this allows the creation and management of multiple audio devices. */
-	FAudioDeviceManager* GetAudioDeviceManager();
+	ENGINE_API FAudioDeviceManager* GetAudioDeviceManager();
 
 	/** @return the main audio device handle used by the engine. */
-	uint32 GetMainAudioDeviceID() const;
+	ENGINE_API uint32 GetMainAudioDeviceID() const;
 
 	/** @return the main audio device. */
-	FAudioDeviceHandle GetMainAudioDevice();
-	class FAudioDevice* GetMainAudioDeviceRaw();
+	ENGINE_API FAudioDeviceHandle GetMainAudioDevice();
+	ENGINE_API class FAudioDevice* GetMainAudioDeviceRaw();
 
 	/** @return the currently active audio device */
-	FAudioDeviceHandle GetActiveAudioDevice();
+	ENGINE_API FAudioDeviceHandle GetActiveAudioDevice();
 
 	/** @return whether we currently have more than one local player */
 	UE_DEPRECATED(5.0, "IsSplitScreen was only ever checking if there are more than one local player. Use HasMultipleLocalPlayers instead.")
-	virtual bool IsSplitScreen(UWorld *InWorld);
+	ENGINE_API virtual bool IsSplitScreen(UWorld *InWorld);
 
 	/** @returns whether there are currently multiple local players in the given world */
-	virtual bool HasMultipleLocalPlayers(UWorld* InWorld);
+	ENGINE_API virtual bool HasMultipleLocalPlayers(UWorld* InWorld);
 
 	/** @return whether we're currently running with stereoscopic 3D enabled for the specified viewport (or globally, if viewport is nullptr) */
-	bool IsStereoscopic3D(FViewport* InViewport = nullptr);
+	ENGINE_API bool IsStereoscopic3D(FViewport* InViewport = nullptr);
 
 	/**
 	 * Adds a world location as a secondary view location for purposes of texture streaming.
@@ -2746,7 +2746,7 @@ public:
 	 * @param bOverrideLocation		Whether this is an override location, which forces the streaming system to ignore all other locations
 	 * @param OverrideDuration		How long the streaming system should keep checking this location if bOverrideLocation is true, in seconds. 0 means just for the next Tick.
 	 */
-	void AddTextureStreamingLoc(FVector InLoc, float BoostFactor, bool bOverrideLocation, float OverrideDuration);
+	ENGINE_API void AddTextureStreamingLoc(FVector InLoc, float BoostFactor, bool bOverrideLocation, float OverrideDuration);
 
 	UE_DEPRECATED(5.1, "This is deprecated to follow inclusive naming rules. Use AddTextureStreamingLoc() instead.")
 	void AddTextureStreamingSlaveLoc(FVector InLoc, float BoostFactor, bool bOverrideLocation, float OverrideDuration)
@@ -2761,7 +2761,7 @@ public:
 	 * @param ErrorMode		Controls what happens if the Object cannot be found
 	 * @return				The world to which the object belongs or nullptr if it cannot be found.
 	 */
-	UWorld* GetWorldFromContextObject(const UObject* Object, EGetWorldErrorMode ErrorMode) const;
+	ENGINE_API UWorld* GetWorldFromContextObject(const UObject* Object, EGetWorldErrorMode ErrorMode) const;
 
 	/** 
 	 * Obtain a world object pointer from an object with has a world context.
@@ -2786,27 +2786,27 @@ public:
 	 * @param	ControllerId	the game pad index of the player to search for
 	 * @return	The player that has the ControllerId specified, or nullptr if no players have that ControllerId
 	 */
-	ULocalPlayer* GetLocalPlayerFromControllerId( const UGameViewportClient* InViewport, const int32 ControllerId ) const;
-	ULocalPlayer* GetLocalPlayerFromControllerId( UWorld * InWorld, const int32 ControllerId ) const;
+	ENGINE_API ULocalPlayer* GetLocalPlayerFromControllerId( const UGameViewportClient* InViewport, const int32 ControllerId ) const;
+	ENGINE_API ULocalPlayer* GetLocalPlayerFromControllerId( UWorld * InWorld, const int32 ControllerId ) const;
 
-	ULocalPlayer* GetLocalPlayerFromInputDevice(const UGameViewportClient* InViewport, const FInputDeviceId InputDevice) const;
-	ULocalPlayer* GetLocalPlayerFromInputDevice(UWorld * InWorld, const FInputDeviceId InputDevice) const;
+	ENGINE_API ULocalPlayer* GetLocalPlayerFromInputDevice(const UGameViewportClient* InViewport, const FInputDeviceId InputDevice) const;
+	ENGINE_API ULocalPlayer* GetLocalPlayerFromInputDevice(UWorld * InWorld, const FInputDeviceId InputDevice) const;
 
-	void SwapControllerId(ULocalPlayer *NewPlayer, const int32 CurrentControllerId, const int32 NewControllerID) const;
+	ENGINE_API void SwapControllerId(ULocalPlayer *NewPlayer, const int32 CurrentControllerId, const int32 NewControllerID) const;
 	
-	void SwapPlatformUserId(ULocalPlayer *NewPlayer, const FPlatformUserId CurrentUserId, const FPlatformUserId NewUserID) const;
+	ENGINE_API void SwapPlatformUserId(ULocalPlayer *NewPlayer, const FPlatformUserId CurrentUserId, const FPlatformUserId NewUserID) const;
 
 	/** 
 	 * Find a Local Player Controller, which may not exist at all if this is a server.
 	 * @return first found LocalPlayerController. Fine for single player, in split screen, one will be picked. 
 	 */
-	class APlayerController* GetFirstLocalPlayerController(const UWorld* InWorld);
+	ENGINE_API class APlayerController* GetFirstLocalPlayerController(const UWorld* InWorld);
 
 	/** Gets all local players associated with the engine. 
 	 *	This function should only be used in rare cases where no UWorld* is available to get a player list associated with the world.
 	 *  E.g, - use GetFirstLocalPlayerController(UWorld *InWorld) when possible!
 	 */
-	void GetAllLocalPlayerControllers(TArray<APlayerController*>& PlayerList);
+	ENGINE_API void GetAllLocalPlayerControllers(TArray<APlayerController*>& PlayerList);
 
 	/** Returns the GameViewport widget */
 	virtual TSharedPtr<class SViewport> GetGameViewportWidget() const
@@ -2867,42 +2867,42 @@ public:
 	 *
 	 * @return Tiny font.
 	 */
-	static class UFont* GetTinyFont();
+	static ENGINE_API class UFont* GetTinyFont();
 
 	/**
 	 * Gets the engine's default small font
 	 *
 	 * @return Small font.
 	 */
-	static class UFont* GetSmallFont();
+	static ENGINE_API class UFont* GetSmallFont();
 
 	/**
 	 * Gets the engine's default medium font.
 	 *
 	 * @return Medium font.
 	 */
-	static class UFont* GetMediumFont();
+	static ENGINE_API class UFont* GetMediumFont();
 
 	/**
 	 * Gets the engine's default large font.
 	 *
 	 * @return Large font.
 	 */
-	static class UFont* GetLargeFont();
+	static ENGINE_API class UFont* GetLargeFont();
 
 	/**
 	 * Gets the engine's default subtitle font.
 	 *
 	 * @return Subtitle font.
 	 */
-	static class UFont* GetSubtitleFont();
+	static ENGINE_API class UFont* GetSubtitleFont();
 
 	/**
 	 * Gets the specified additional font.
 	 *
 	 * @param AdditionalFontIndex - Index into the AddtionalFonts array.
 	 */
-	static class UFont* GetAdditionalFont(int32 AdditionalFontIndex);
+	static ENGINE_API class UFont* GetAdditionalFont(int32 AdditionalFontIndex);
 
 	/** Makes a strong effort to copy everything possible from and old object to a new object of a different class, used for blueprint to update things after a recompile. */
 	struct FCopyPropertiesForUnrelatedObjectsParams
@@ -2928,10 +2928,10 @@ public:
 		ENGINE_API FCopyPropertiesForUnrelatedObjectsParams();
 		ENGINE_API FCopyPropertiesForUnrelatedObjectsParams(const FCopyPropertiesForUnrelatedObjectsParams&);
 	};
-	static void CopyPropertiesForUnrelatedObjects(UObject* OldObject, UObject* NewObject, FCopyPropertiesForUnrelatedObjectsParams Params = FCopyPropertiesForUnrelatedObjectsParams());
+	static ENGINE_API void CopyPropertiesForUnrelatedObjects(UObject* OldObject, UObject* NewObject, FCopyPropertiesForUnrelatedObjectsParams Params = FCopyPropertiesForUnrelatedObjectsParams());
 	virtual void NotifyToolsOfObjectReplacement(const TMap<UObject*, UObject*>& OldToNewInstanceMap) { }
 
-	virtual bool UseSound() const;
+	ENGINE_API virtual bool UseSound() const;
 
 	// This should only ever be called for a EditorEngine
 	virtual UWorld* CreatePIEWorldByDuplication(FWorldContext &Context, UWorld* InWorld, FString &PlayWorldMapName) { check(false); return nullptr; }
@@ -2949,33 +2949,33 @@ protected:
 	/**
 	 *	Initialize the audio device manager
 	 */
-	virtual void InitializeAudioDeviceManager();
+	ENGINE_API virtual void InitializeAudioDeviceManager();
 
 	/**
 	 *	Detects and initializes any attached HMD devices
 	 *
 	 *	@return true if there is an initialized device, false otherwise
 	 */
-	virtual bool InitializeHMDDevice();
+	ENGINE_API virtual bool InitializeHMDDevice();
 
 	/**
 	 *	Detects and initializes any attached eye-tracking devices
 	 *
 	 *	@return true if there is an initialized device, false otherwise
 	 */
-	virtual bool InitializeEyeTrackingDevice();
+	ENGINE_API virtual bool InitializeEyeTrackingDevice();
 
 	/**	Record EngineAnalytics information for attached HMD devices. */
-	virtual void RecordHMDAnalytics();
+	ENGINE_API virtual void RecordHMDAnalytics();
 
 	/** Loads all Engine object references from their corresponding config entries. */
-	virtual void InitializeObjectReferences();
+	ENGINE_API virtual void InitializeObjectReferences();
 
 	/** Initialize Portal services. */
-	virtual void InitializePortalServices();
+	ENGINE_API virtual void InitializePortalServices();
 
 	/** Initializes the running average delta to some good initial framerate. */
-	virtual void InitializeRunningAverageDeltaTime();
+	ENGINE_API virtual void InitializeRunningAverageDeltaTime();
 
 	float RunningAverageDeltaTime;
 
@@ -3086,7 +3086,7 @@ public:
 	float NetErrorLogInterval;
 
 	/** Spawns all of the registered server actors */
-	virtual void SpawnServerActors(UWorld *World);
+	ENGINE_API virtual void SpawnServerActors(UWorld *World);
 
 	/**
 	 * Notification of network error messages, allows the engine to handle the failure
@@ -3096,7 +3096,7 @@ public:
 	 * @param	FailureType	the type of error
 	 * @param	ErrorString	additional string detailing the error
 	 */
-	virtual void HandleNetworkFailure(UWorld *World, UNetDriver *NetDriver, ENetworkFailure::Type FailureType, const FString& ErrorString);
+	ENGINE_API virtual void HandleNetworkFailure(UWorld *World, UNetDriver *NetDriver, ENetworkFailure::Type FailureType, const FString& ErrorString);
 
 	/**
 	 * Notification of server travel error messages, generally network connection related (package verification, client server handshaking, etc) 
@@ -3106,7 +3106,7 @@ public:
 	 * @param	FailureType	the type of error
 	 * @param	ErrorString	additional string detailing the error
 	 */
-	virtual void HandleTravelFailure(UWorld* InWorld, ETravelFailure::Type FailureType, const FString& ErrorString);
+	ENGINE_API virtual void HandleTravelFailure(UWorld* InWorld, ETravelFailure::Type FailureType, const FString& ErrorString);
 
 	
 	/**
@@ -3116,14 +3116,14 @@ public:
 	 * @param	NetDriver associated with the lag
 	 * @param	LagType	Whether we started lagging or we are no longer lagging
 	 */
-	virtual void HandleNetworkLagStateChanged(UWorld* World, UNetDriver* NetDriver, ENetworkLagState::Type LagType);
+	ENGINE_API virtual void HandleNetworkLagStateChanged(UWorld* World, UNetDriver* NetDriver, ENetworkLagState::Type LagType);
 
 	/**
 	 * Shutdown any relevant net drivers
 	 */
-	void ShutdownWorldNetDriver(UWorld*);
+	ENGINE_API void ShutdownWorldNetDriver(UWorld*);
 
-	void ShutdownAllNetDrivers();
+	ENGINE_API void ShutdownAllNetDrivers();
 
 	/**
 	 * Finds a UNetDriver based on its name.
@@ -3132,8 +3132,8 @@ public:
 	 *
 	 * @return A pointer to the UNetDriver that was found, or nullptr if it wasn't found.
 	 */
-	UNetDriver* FindNamedNetDriver(const UWorld* InWorld, FName NetDriverName);
-	UNetDriver* FindNamedNetDriver(const UPendingNetGame* InPendingNetGame, FName NetDriverName);
+	ENGINE_API UNetDriver* FindNamedNetDriver(const UWorld* InWorld, FName NetDriverName);
+	ENGINE_API UNetDriver* FindNamedNetDriver(const UPendingNetGame* InPendingNetGame, FName NetDriverName);
 
 	/**
 	 * Returns the current netmode
@@ -3143,7 +3143,7 @@ public:
 	 * Note: if there is no valid net driver, returns NM_StandAlone
 	 */
 	//virtual ENetMode GetNetMode(FName NetDriverName = NAME_GameNetDriver) const;
-	ENetMode GetNetMode(const UWorld *World) const;
+	ENGINE_API ENetMode GetNetMode(const UWorld *World) const;
 
 	/**
 	 * Creates a UNetDriver with an engine assigned name
@@ -3153,7 +3153,7 @@ public:
 	 *
 	 * @return new netdriver if successful, nullptr otherwise
 	 */
-	UNetDriver* CreateNetDriver(UWorld *InWorld, FName NetDriverDefinition);
+	ENGINE_API UNetDriver* CreateNetDriver(UWorld *InWorld, FName NetDriverDefinition);
 
 	/**
 	 * Creates a UNetDriver and associates a name with it.
@@ -3164,7 +3164,7 @@ public:
 	 *
 	 * @return True if the driver was created successfully, false if there was an error.
 	 */
-	bool CreateNamedNetDriver(UWorld *InWorld, FName NetDriverName, FName NetDriverDefinition);
+	ENGINE_API bool CreateNamedNetDriver(UWorld *InWorld, FName NetDriverName, FName NetDriverDefinition);
 
 	/**
 	 * Creates a UNetDriver and associates a name with it.
@@ -3175,32 +3175,32 @@ public:
 	 *
 	 * @return True if the driver was created successfully, false if there was an error.
 	 */
-	bool CreateNamedNetDriver(UPendingNetGame *PendingNetGame, FName NetDriverName, FName NetDriverDefinition);
+	ENGINE_API bool CreateNamedNetDriver(UPendingNetGame *PendingNetGame, FName NetDriverName, FName NetDriverDefinition);
 	
 	/**
 	 * Destroys a UNetDriver based on its name.
 	 *
 	 * @param NetDriverName The name associated with the driver to destroy.
 	 */
-	void DestroyNamedNetDriver(UWorld *InWorld, FName NetDriverName);
-	void DestroyNamedNetDriver(UPendingNetGame *PendingNetGame, FName NetDriverName);
+	ENGINE_API void DestroyNamedNetDriver(UWorld *InWorld, FName NetDriverName);
+	ENGINE_API void DestroyNamedNetDriver(UPendingNetGame *PendingNetGame, FName NetDriverName);
 
 	virtual bool NetworkRemapPath(UNetConnection* Connection, FString& Str, bool bReading=true) { return false; }
 	virtual bool NetworkRemapPath(UPendingNetGame *PendingNetGame, FString &Str, bool bReading=true) { return false; }
 
-	virtual bool HandleOpenCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld * InWorld );
+	ENGINE_API virtual bool HandleOpenCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld * InWorld );
 
-	virtual bool HandleTravelCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );
+	ENGINE_API virtual bool HandleTravelCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );
 	
-	virtual bool HandleStreamMapCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld *InWorld );
+	ENGINE_API virtual bool HandleStreamMapCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld *InWorld );
 
 #if WITH_SERVER_CODE
-	virtual bool HandleServerTravelCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );
+	ENGINE_API virtual bool HandleServerTravelCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld );
 #endif
 
-	virtual bool HandleDisconnectCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld *InWorld );
+	ENGINE_API virtual bool HandleDisconnectCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld *InWorld );
 
-	virtual bool HandleReconnectCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld *InWorld );
+	ENGINE_API virtual bool HandleReconnectCommand( const TCHAR* Cmd, FOutputDevice& Ar, UWorld *InWorld );
 
 	
 	/**
@@ -3210,7 +3210,7 @@ public:
 	 * @param NetDriver The net driver being disconnect (will be InWorld's net driver if there is a world)
 	 *	
 	 */
-	void HandleDisconnect( UWorld *InWorld, UNetDriver *NetDriver );
+	ENGINE_API void HandleDisconnect( UWorld *InWorld, UNetDriver *NetDriver );
 
 	/**
 	 * Makes sure map name is a long package name.
@@ -3218,22 +3218,22 @@ public:
 	 * @param InOutMapName Map name. In non-final builds code will attempt to convert to long package name if short name is provided.
 	 * @param true if the map name was valid, false otherwise.
 	 */
-	bool MakeSureMapNameIsValid(FString& InOutMapName);
+	ENGINE_API bool MakeSureMapNameIsValid(FString& InOutMapName);
 
-	void SetClientTravel( UWorld *InWorld, const TCHAR* NextURL, ETravelType InTravelType );
+	ENGINE_API void SetClientTravel( UWorld *InWorld, const TCHAR* NextURL, ETravelType InTravelType );
 
-	void SetClientTravel( UPendingNetGame *PendingNetGame, const TCHAR* NextURL, ETravelType InTravelType );
+	ENGINE_API void SetClientTravel( UPendingNetGame *PendingNetGame, const TCHAR* NextURL, ETravelType InTravelType );
 
-	void SetClientTravelFromPendingGameNetDriver( UNetDriver *PendingGameNetDriverGame, const TCHAR* NextURL, ETravelType InTravelType );
+	ENGINE_API void SetClientTravelFromPendingGameNetDriver( UNetDriver *PendingGameNetDriverGame, const TCHAR* NextURL, ETravelType InTravelType );
 
 	/** Browse to a specified URL, relative to the current one. */
-	virtual EBrowseReturnVal::Type Browse( FWorldContext& WorldContext, FURL URL, FString& Error );
+	ENGINE_API virtual EBrowseReturnVal::Type Browse( FWorldContext& WorldContext, FURL URL, FString& Error );
 
-	virtual void TickWorldTravel(FWorldContext& WorldContext, float DeltaSeconds);
+	ENGINE_API virtual void TickWorldTravel(FWorldContext& WorldContext, float DeltaSeconds);
 
-	void BrowseToDefaultMap( FWorldContext& WorldContext );
+	ENGINE_API void BrowseToDefaultMap( FWorldContext& WorldContext );
 
-	virtual bool LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetGame* Pending, FString& Error );
+	ENGINE_API virtual bool LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetGame* Pending, FString& Error );
 
 	virtual void RedrawViewports( bool bShouldPresent = true ) { }
 
@@ -3245,7 +3245,7 @@ public:
 	 *
 	 * @param InWorld Target world
 	 */
-	void BlockTillLevelStreamingCompleted(UWorld* InWorld);
+	ENGINE_API void BlockTillLevelStreamingCompleted(UWorld* InWorld);
 
 	/**
 	 * true if the loading movie was started during LoadMap().
@@ -3259,7 +3259,7 @@ public:
 	 * @param FullyLoadType When to load the packages (based on map, GameMode, etc)
 	 * @param Tag Name of the map/game to cleanup packages for
 	 */
-	void CleanupPackagesToFullyLoad(FWorldContext &Context, EFullyLoadPackageType FullyLoadType, const FString& Tag);
+	ENGINE_API void CleanupPackagesToFullyLoad(FWorldContext &Context, EFullyLoadPackageType FullyLoadType, const FString& Tag);
 
 	/**
 	 * Called to allow overloading by child engines
@@ -3269,7 +3269,7 @@ public:
 		RedrawViewports(false);
 	}
 
-	void ClearDebugDisplayProperties();
+	ENGINE_API void ClearDebugDisplayProperties();
 
 	/**
 	 * Loads the PerMapPackages for the given map, and adds them to the RootSet
@@ -3277,46 +3277,46 @@ public:
 	 * @param FullyLoadType When to load the packages (based on map, GameMode, etc)
 	 * @param Tag Name of the map/game to load packages for
 	 */
-	void LoadPackagesFully(UWorld * InWorld, EFullyLoadPackageType FullyLoadType, const FString& Tag);
+	ENGINE_API void LoadPackagesFully(UWorld * InWorld, EFullyLoadPackageType FullyLoadType, const FString& Tag);
 
-	void UpdateTransitionType(UWorld *CurrentWorld);
+	ENGINE_API void UpdateTransitionType(UWorld *CurrentWorld);
 
-	UPendingNetGame* PendingNetGameFromWorld( UWorld* InWorld );
+	ENGINE_API UPendingNetGame* PendingNetGameFromWorld( UWorld* InWorld );
 
 	/** Cancel pending level. */
-	virtual void CancelAllPending();
+	ENGINE_API virtual void CancelAllPending();
 
-	virtual void CancelPending(UWorld *InWorld, UPendingNetGame *NewPendingNetGame=nullptr );
+	ENGINE_API virtual void CancelPending(UWorld *InWorld, UPendingNetGame *NewPendingNetGame=nullptr );
 
-	virtual bool WorldIsPIEInNewViewport(UWorld *InWorld);
+	ENGINE_API virtual bool WorldIsPIEInNewViewport(UWorld *InWorld);
 
-	FWorldContext* GetWorldContextFromWorld(const UWorld* InWorld);
-	FWorldContext* GetWorldContextFromGameViewport(const UGameViewportClient *InViewport);
-	FWorldContext* GetWorldContextFromPendingNetGame(const UPendingNetGame *InPendingNetGame);	
-	FWorldContext* GetWorldContextFromPendingNetGameNetDriver(const UNetDriver *InPendingNetGame);	
-	FWorldContext* GetWorldContextFromHandle(const FName WorldContextHandle);
-	FWorldContext* GetWorldContextFromPIEInstance(const int32 PIEInstance);
+	ENGINE_API FWorldContext* GetWorldContextFromWorld(const UWorld* InWorld);
+	ENGINE_API FWorldContext* GetWorldContextFromGameViewport(const UGameViewportClient *InViewport);
+	ENGINE_API FWorldContext* GetWorldContextFromPendingNetGame(const UPendingNetGame *InPendingNetGame);	
+	ENGINE_API FWorldContext* GetWorldContextFromPendingNetGameNetDriver(const UNetDriver *InPendingNetGame);	
+	ENGINE_API FWorldContext* GetWorldContextFromHandle(const FName WorldContextHandle);
+	ENGINE_API FWorldContext* GetWorldContextFromPIEInstance(const int32 PIEInstance);
 
-	const FWorldContext* GetWorldContextFromWorld(const UWorld* InWorld) const;
-	const FWorldContext* GetWorldContextFromGameViewport(const UGameViewportClient *InViewport) const;
-	const FWorldContext* GetWorldContextFromPendingNetGame(const UPendingNetGame *InPendingNetGame) const;	
-	const FWorldContext* GetWorldContextFromPendingNetGameNetDriver(const UNetDriver *InPendingNetGame) const;	
-	const FWorldContext* GetWorldContextFromHandle(const FName WorldContextHandle) const;
-	const FWorldContext* GetWorldContextFromPIEInstance(const int32 PIEInstance) const;
+	ENGINE_API const FWorldContext* GetWorldContextFromWorld(const UWorld* InWorld) const;
+	ENGINE_API const FWorldContext* GetWorldContextFromGameViewport(const UGameViewportClient *InViewport) const;
+	ENGINE_API const FWorldContext* GetWorldContextFromPendingNetGame(const UPendingNetGame *InPendingNetGame) const;	
+	ENGINE_API const FWorldContext* GetWorldContextFromPendingNetGameNetDriver(const UNetDriver *InPendingNetGame) const;	
+	ENGINE_API const FWorldContext* GetWorldContextFromHandle(const FName WorldContextHandle) const;
+	ENGINE_API const FWorldContext* GetWorldContextFromPIEInstance(const int32 PIEInstance) const;
 
-	FWorldContext& GetWorldContextFromWorldChecked(const UWorld * InWorld);
-	FWorldContext& GetWorldContextFromGameViewportChecked(const UGameViewportClient *InViewport);
-	FWorldContext& GetWorldContextFromPendingNetGameChecked(const UPendingNetGame *InPendingNetGame);	
-	FWorldContext& GetWorldContextFromPendingNetGameNetDriverChecked(const UNetDriver *InPendingNetGame);	
-	FWorldContext& GetWorldContextFromHandleChecked(const FName WorldContextHandle);
-	FWorldContext& GetWorldContextFromPIEInstanceChecked(const int32 PIEInstance);
+	ENGINE_API FWorldContext& GetWorldContextFromWorldChecked(const UWorld * InWorld);
+	ENGINE_API FWorldContext& GetWorldContextFromGameViewportChecked(const UGameViewportClient *InViewport);
+	ENGINE_API FWorldContext& GetWorldContextFromPendingNetGameChecked(const UPendingNetGame *InPendingNetGame);	
+	ENGINE_API FWorldContext& GetWorldContextFromPendingNetGameNetDriverChecked(const UNetDriver *InPendingNetGame);	
+	ENGINE_API FWorldContext& GetWorldContextFromHandleChecked(const FName WorldContextHandle);
+	ENGINE_API FWorldContext& GetWorldContextFromPIEInstanceChecked(const int32 PIEInstance);
 
-	const FWorldContext& GetWorldContextFromWorldChecked(const UWorld * InWorld) const;
-	const FWorldContext& GetWorldContextFromGameViewportChecked(const UGameViewportClient *InViewport) const;
-	const FWorldContext& GetWorldContextFromPendingNetGameChecked(const UPendingNetGame *InPendingNetGame) const;	
-	const FWorldContext& GetWorldContextFromPendingNetGameNetDriverChecked(const UNetDriver *InPendingNetGame) const;	
-	const FWorldContext& GetWorldContextFromHandleChecked(const FName WorldContextHandle) const;
-	const FWorldContext& GetWorldContextFromPIEInstanceChecked(const int32 PIEInstance) const;
+	ENGINE_API const FWorldContext& GetWorldContextFromWorldChecked(const UWorld * InWorld) const;
+	ENGINE_API const FWorldContext& GetWorldContextFromGameViewportChecked(const UGameViewportClient *InViewport) const;
+	ENGINE_API const FWorldContext& GetWorldContextFromPendingNetGameChecked(const UPendingNetGame *InPendingNetGame) const;	
+	ENGINE_API const FWorldContext& GetWorldContextFromPendingNetGameNetDriverChecked(const UNetDriver *InPendingNetGame) const;	
+	ENGINE_API const FWorldContext& GetWorldContextFromHandleChecked(const FName WorldContextHandle) const;
+	ENGINE_API const FWorldContext& GetWorldContextFromPIEInstanceChecked(const int32 PIEInstance) const;
 
 	const TIndirectArray<FWorldContext>& GetWorldContexts() const { return WorldList;	}
 
@@ -3327,14 +3327,14 @@ public:
 	 * @param PossiblePlayWorld If set, this will be checked first and returned if valid. If this is not the active play world, null will be returned due to ambiguity
 	 * @return either nullptr or a World that is guaranteed to be of type Game or PIE
 	 */
-	UWorld* GetCurrentPlayWorld(UWorld* PossiblePlayWorld = nullptr) const;
+	ENGINE_API UWorld* GetCurrentPlayWorld(UWorld* PossiblePlayWorld = nullptr) const;
 
 	/**
 	 * Finds any World(s) and related objects that are still referenced after being destroyed by ::LoadMap and logs which objects are holding the references.
 	 * May rename packages for the dangling objects to allow the world to be reloaded without conflicting with the existing one.
 	 * @param InWorldContext The optional world context for which we want to check references to additional "must-destroy" objects.
 	 */
-	virtual void CheckAndHandleStaleWorldObjectReferences(FWorldContext* InWorldContext = nullptr);
+	ENGINE_API virtual void CheckAndHandleStaleWorldObjectReferences(FWorldContext* InWorldContext = nullptr);
 
 	/**
 	 * Attempts to find what is referencing a world that should have been garbage collected
@@ -3342,7 +3342,7 @@ public:
 	 * @param Verbosity Verbosity (can be fatal or non-fatal) with which to print the error message with
 	 */
 	UE_DEPRECATED(5.1, "Please use FReferenceChainSearch::FindAndPrintStaleReferencesToObject")
-	static void FindAndPrintStaleReferencesToObject(UObject* ObjectToFindReferencesTo, ELogVerbosity::Type Verbosity);
+	static ENGINE_API void FindAndPrintStaleReferencesToObject(UObject* ObjectToFindReferencesTo, ELogVerbosity::Type Verbosity);
 
 	/**
 	 * Attempts to find a reference chain leading to a world that should have been garbage collected
@@ -3350,13 +3350,13 @@ public:
 	 * @param Options Determines how the stale references messages should be logged
 	 */
 	UE_DEPRECATED(5.3, "Please use FReferenceChainSearch::FindAndPrintStaleReferencesToObject")
-	static FString FindAndPrintStaleReferencesToObject(UObject* ObjectToFindReferencesTo, EPrintStaleReferencesOptions Options);
+	static ENGINE_API FString FindAndPrintStaleReferencesToObject(UObject* ObjectToFindReferencesTo, EPrintStaleReferencesOptions Options);
 	UE_DEPRECATED(5.3, "Please use FReferenceChainSearch::FindAndPrintStaleReferencesToObjects")
-	static TArray<FString> FindAndPrintStaleReferencesToObjects(TConstArrayView<UObject*> ObjectsToFindReferencesTo, EPrintStaleReferencesOptions Options);
+	static ENGINE_API TArray<FString> FindAndPrintStaleReferencesToObjects(TConstArrayView<UObject*> ObjectsToFindReferencesTo, EPrintStaleReferencesOptions Options);
 
-	FWorldContext& CreateNewWorldContext(EWorldType::Type WorldType);
+	ENGINE_API FWorldContext& CreateNewWorldContext(EWorldType::Type WorldType);
 
-	virtual void DestroyWorldContext(UWorld * InWorld);
+	ENGINE_API virtual void DestroyWorldContext(UWorld * InWorld);
 
 #if WITH_EDITOR
 	/** Triggered when a world context is destroyed. */
@@ -3382,21 +3382,21 @@ public:
 	 * @param	FunctionTarget	Object this function will be called on, if not null this may be used to determine context
 	 * @param	Stack			Function call stack, if not null this may be used to determine context
 	 */
-	int32 GetGlobalFunctionCallspace(UFunction* Function, UObject* FunctionTarget, FFrame* Stack);
+	ENGINE_API int32 GetGlobalFunctionCallspace(UFunction* Function, UObject* FunctionTarget, FFrame* Stack);
 
 	/** 
 	 * Returns true if the global context is client-only and authority only events should always be ignored. 
 	 * This will return false if it is unknown, use GetCurrentPlayWorld if you have a possible world.
 	 */
-	bool ShouldAbsorbAuthorityOnlyEvent();
+	ENGINE_API bool ShouldAbsorbAuthorityOnlyEvent();
 
 	/** 
 	 * Returns true if the global context is dedicated server and cosmetic only events should always be ignored. 
 	 * This will return false if it is unknown, use GetCurrentPlayWorld if you have a possible world.
 	 */
-	bool ShouldAbsorbCosmeticOnlyEvent();
+	ENGINE_API bool ShouldAbsorbCosmeticOnlyEvent();
 
-	UGameViewportClient* GameViewportForWorld(const UWorld *InWorld) const;
+	ENGINE_API UGameViewportClient* GameViewportForWorld(const UWorld *InWorld) const;
 
 	/** @return true if editor analytics are enabled */
 	virtual bool AreEditorAnalyticsEnabled() const { return false; }
@@ -3410,7 +3410,7 @@ public:
 	bool IsVanillaProduct() const { return bIsVanillaProduct; }
 
 protected:
-	void SetIsVanillaProduct(bool bInIsVanillaProduct);
+	ENGINE_API void SetIsVanillaProduct(bool bInIsVanillaProduct);
 
 private:
 	bool bIsVanillaProduct;
@@ -3423,11 +3423,11 @@ protected:
 	int32	NextWorldContextHandle;
 
 
-	virtual void CancelPending(FWorldContext& WorldContext);
+	ENGINE_API virtual void CancelPending(FWorldContext& WorldContext);
 
-	virtual void CancelPending(UNetDriver* PendingNetGameDriver);
+	ENGINE_API virtual void CancelPending(UNetDriver* PendingNetGameDriver);
 
-	virtual void MovePendingLevel(FWorldContext &Context);
+	ENGINE_API virtual void MovePendingLevel(FWorldContext &Context);
 
 	/**
 	 *	Returns true if BROWSE should shuts down the current network driver.
@@ -3437,20 +3437,20 @@ protected:
 		return true;
 	}
 
-	bool WorldHasValidContext(UWorld *InWorld);
+	ENGINE_API bool WorldHasValidContext(UWorld *InWorld);
 
 	/**
 	 * Attempts to gracefully handle a failure to travel to the default map.
 	 *
 	 * @param Error the error string result from the LoadMap call that attempted to load the default map.
 	 */
-	virtual void HandleBrowseToDefaultMapFailure(FWorldContext& Context, const FString& TextURL, const FString& Error);
+	ENGINE_API virtual void HandleBrowseToDefaultMapFailure(FWorldContext& Context, const FString& TextURL, const FString& Error);
 
 	/**
 	 * Helper function that returns true if InWorld is the outer of a level in a collection of type DynamicDuplicatedLevels.
 	 * For internal engine use.
 	 */
-	bool IsWorldDuplicate(const UWorld* const InWorld);
+	ENGINE_API bool IsWorldDuplicate(const UWorld* const InWorld);
 
 protected:
 
@@ -3463,21 +3463,21 @@ protected:
 	 * @return	true if successful, false if there were errors (use GetMapChangeFailureDescription 
 	 *			for error description)
 	 */
-	bool CommitMapChange( FWorldContext &Context);
+	ENGINE_API bool CommitMapChange( FWorldContext &Context);
 
 	/**
 	 * Returns whether the prepared map change is ready for commit having called.
 	 *
 	 * @return true if we're ready to commit the map change, false otherwise
 	 */
-	bool IsReadyForMapChange(FWorldContext &Context);
+	ENGINE_API bool IsReadyForMapChange(FWorldContext &Context);
 
 	/**
 	 * Returns whether we are currently preparing for a map change or not.
 	 *
 	 * @return true if we are preparing for a map change, false otherwise
 	 */
-	bool IsPreparingMapChange(FWorldContext &Context);
+	ENGINE_API bool IsPreparingMapChange(FWorldContext &Context);
 
 	/**
 	 * Prepares the engine for a map change by pre-loading level packages in the background.
@@ -3489,20 +3489,20 @@ protected:
 	 *			false otherwise. false as a return value also indicates that the code has given
 	 *			up.
 	 */
-	bool PrepareMapChange(FWorldContext &WorldContext, const TArray<FName>& LevelNames);
+	ENGINE_API bool PrepareMapChange(FWorldContext &WorldContext, const TArray<FName>& LevelNames);
 
 	/**
 	 * Returns the failure description in case of a failed map change request.
 	 *
 	 * @return	Human readable failure description in case of failure, empty string otherwise
 	 */
-	FString GetMapChangeFailureDescription(FWorldContext &Context);
+	ENGINE_API FString GetMapChangeFailureDescription(FWorldContext &Context);
 
 	/** Commit map change if requested and map change is pending. Called every frame.	 */
-	void ConditionalCommitMapChange(FWorldContext &WorldContext);
+	ENGINE_API void ConditionalCommitMapChange(FWorldContext &WorldContext);
 
 	/** Cancels pending map change.	 */
-	void CancelPendingMapChange(FWorldContext &Context);
+	ENGINE_API void CancelPendingMapChange(FWorldContext &Context);
 
 public:
 
@@ -3519,29 +3519,29 @@ public:
 	/** Cancels pending map change.	 */
 	void CancelPendingMapChange(UWorld *InWorld) { return CancelPendingMapChange(GetWorldContextFromWorldChecked(InWorld)); }
 
-	void AddNewPendingStreamingLevel(UWorld *InWorld, FName PackageName, bool bNewShouldBeLoaded, bool bNewShouldBeVisible, int32 LODIndex);
+	ENGINE_API void AddNewPendingStreamingLevel(UWorld *InWorld, FName PackageName, bool bNewShouldBeLoaded, bool bNewShouldBeVisible, int32 LODIndex);
 
-	bool ShouldCommitPendingMapChange(const UWorld *InWorld) const;
-	void SetShouldCommitPendingMapChange(UWorld *InWorld, bool NewShouldCommitPendingMapChange);
+	ENGINE_API bool ShouldCommitPendingMapChange(const UWorld *InWorld) const;
+	ENGINE_API void SetShouldCommitPendingMapChange(UWorld *InWorld, bool NewShouldCommitPendingMapChange);
 
-	FSeamlessTravelHandler&	SeamlessTravelHandlerForWorld(UWorld *World);
+	ENGINE_API FSeamlessTravelHandler&	SeamlessTravelHandlerForWorld(UWorld *World);
 
-	FURL & LastURLFromWorld(UWorld *World);
+	ENGINE_API FURL & LastURLFromWorld(UWorld *World);
 
 	/**
 	 * Returns the global instance of the game user settings class.
 	 */
-	const UGameUserSettings* GetGameUserSettings() const;
-	UGameUserSettings* GetGameUserSettings();
+	ENGINE_API const UGameUserSettings* GetGameUserSettings() const;
+	ENGINE_API UGameUserSettings* GetGameUserSettings();
 
 private:
-	void CreateGameUserSettings();
+	ENGINE_API void CreateGameUserSettings();
 
 	/** Allows subclasses to pass the failure to a UGameInstance if possible (mainly for blueprints) */
-	virtual void HandleNetworkFailure_NotifyGameInstance(UWorld* World, UNetDriver* NetDriver, ENetworkFailure::Type FailureType);
+	ENGINE_API virtual void HandleNetworkFailure_NotifyGameInstance(UWorld* World, UNetDriver* NetDriver, ENetworkFailure::Type FailureType);
 
 	/** Allows subclasses to pass the failure to a UGameInstance if possible (mainly for blueprints) */
-	virtual void HandleTravelFailure_NotifyGameInstance(UWorld* World, ETravelFailure::Type FailureType);
+	ENGINE_API virtual void HandleTravelFailure_NotifyGameInstance(UWorld* World, ETravelFailure::Type FailureType);
 
 public:
 #if WITH_EDITOR
@@ -3593,7 +3593,7 @@ public:
 	 * @param FText The description of the new stat.
 	 */
 	DECLARE_EVENT_ThreeParams(UEngine, FOnNewStatRegistered, const FName&, const FName&, const FText&);
-	static FOnNewStatRegistered NewStatDelegate;
+	static ENGINE_API FOnNewStatRegistered NewStatDelegate;
 	
 	/**
 	 * Wrapper for firing a simple stat exec.
@@ -3602,7 +3602,7 @@ public:
 	 * @param ViewportClient The viewport to apply the exec to.
 	 * @param InName The exec string.
 	 */
-	void ExecEngineStat(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* InName);
+	ENGINE_API void ExecEngineStat(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* InName);
 
 	/**
 	 * Check to see if the specified stat name is a simple stat.
@@ -3610,7 +3610,7 @@ public:
 	 * @param InName The name of the stat we're checking.
 	 * @returns true if the stat is a registered simple stat.
 	 */
-	bool IsEngineStat(const FString& InName);
+	ENGINE_API bool IsEngineStat(const FString& InName);
 
 	/**
 	 * Set the state of the specified stat.
@@ -3620,7 +3620,7 @@ public:
 	 * @param InName The stat name.
 	 * @param bShow The state we would like the stat to be in.
 	 */
-	void SetEngineStat(UWorld* World, FCommonViewportClient* ViewportClient, const FString& InName, const bool bShow);
+	ENGINE_API void SetEngineStat(UWorld* World, FCommonViewportClient* ViewportClient, const FString& InName, const bool bShow);
 
 	/**
 	 * Set the state of the specified stats (note: array processed in reverse order when !bShow).
@@ -3630,7 +3630,7 @@ public:
 	 * @param InNames The stat names.
 	 * @param bShow The state we would like the stat to be in.
 	 */
-	void SetEngineStats(UWorld* World, FCommonViewportClient* ViewportClient, const TArray<FString>& InNames, const bool bShow);
+	ENGINE_API void SetEngineStats(UWorld* World, FCommonViewportClient* ViewportClient, const TArray<FString>& InNames, const bool bShow);
 
 	/**
 	 * Function to render all the simple stats
@@ -3645,7 +3645,7 @@ public:
 	 * @param ViewLocation The world space view location.
 	 * @param ViewRotation The world space view rotation.
 	 */
-	void RenderEngineStats(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 LHSX, int32& InOutLHSY, int32 RHSX, int32& InOutRHSY, const FVector* ViewLocation, const FRotator* ViewRotation);
+	ENGINE_API void RenderEngineStats(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 LHSX, int32& InOutLHSY, int32 RHSX, int32& InOutRHSY, const FVector* ViewLocation, const FRotator* ViewRotation);
 
 	/**
 	 * Function to render text indicating whether named events are enabled.
@@ -3655,7 +3655,7 @@ public:
 	 * @param Y The Y position to start drawing from.
 	 * @return The ending Y position to continue rendering stats at.
 	 */
-	int32 RenderNamedEventsEnabled(FCanvas* Canvas, int32 X, int32 Y);
+	ENGINE_API int32 RenderNamedEventsEnabled(FCanvas* Canvas, int32 X, int32 Y);
 
 	/**
 	 * Function definition for those stats which have their own toggle functions (or toggle other stats).
@@ -3683,9 +3683,9 @@ public:
 
 	/** Allows external systems to add a new simple engine stat function. 
 	*/
-	void AddEngineStat(const FName& InCommandName, const FName& InCategoryName, const FText& InDescriptionString, FEngineStatRender InRenderFunc = nullptr, FEngineStatToggle InToggleFunc = nullptr, const bool bInIsRHS = false);
+	ENGINE_API void AddEngineStat(const FName& InCommandName, const FName& InCategoryName, const FText& InDescriptionString, FEngineStatRender InRenderFunc = nullptr, FEngineStatToggle InToggleFunc = nullptr, const bool bInIsRHS = false);
 
-	void RemoveEngineStat(const FName& InCommandName);
+	ENGINE_API void RemoveEngineStat(const FName& InCommandName);
 private:
 
 	/** Struct for keeping track off all the info regarding a specific simple stat exec */
@@ -3745,20 +3745,20 @@ private:
 	 * @param ViewportClient The viewport being drawn to.
 	 * @param Stream The remaining characters from the Exec call (optional).
 	 */
-	bool ToggleStatFPS(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream = nullptr);
-	bool ToggleStatDetailed(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream = nullptr);
-	bool ToggleStatHitches(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream = nullptr);
-	bool ToggleStatNamedEvents(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream = nullptr);
-	bool ToggleStatVerboseNamedEvents(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream = nullptr);
-	bool ToggleStatUnit(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream = nullptr);
+	ENGINE_API bool ToggleStatFPS(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream = nullptr);
+	ENGINE_API bool ToggleStatDetailed(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream = nullptr);
+	ENGINE_API bool ToggleStatHitches(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream = nullptr);
+	ENGINE_API bool ToggleStatNamedEvents(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream = nullptr);
+	ENGINE_API bool ToggleStatVerboseNamedEvents(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream = nullptr);
+	ENGINE_API bool ToggleStatUnit(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream = nullptr);
 #if !UE_BUILD_SHIPPING
-	bool PostStatSoundModulatorHelp(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream = nullptr);
-	bool ToggleStatUnitMax(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream = nullptr);
-	bool ToggleStatUnitGraph(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream = nullptr);
-	bool ToggleStatUnitTime(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream = nullptr);
-	bool ToggleStatRaw(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream = nullptr);
-	bool ToggleStatParticlePerf(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream = nullptr);
-	bool ToggleStatTSR(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream = nullptr);
+	ENGINE_API bool PostStatSoundModulatorHelp(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream = nullptr);
+	ENGINE_API bool ToggleStatUnitMax(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream = nullptr);
+	ENGINE_API bool ToggleStatUnitGraph(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream = nullptr);
+	ENGINE_API bool ToggleStatUnitTime(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream = nullptr);
+	ENGINE_API bool ToggleStatRaw(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream = nullptr);
+	ENGINE_API bool ToggleStatParticlePerf(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream = nullptr);
+	ENGINE_API bool ToggleStatTSR(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream = nullptr);
 #endif
 
 	/**
@@ -3773,38 +3773,38 @@ private:
 	 * @param ViewRotation The world space view rotation.
 	 */
 #if !UE_BUILD_SHIPPING
-	int32 RenderStatVersion(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
+	ENGINE_API int32 RenderStatVersion(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
 #endif // !UE_BUILD_SHIPPING
-	int32 RenderStatFPS(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
-	int32 RenderStatHitches(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
-	int32 RenderStatSummary(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
-	int32 RenderStatColorList(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
-	int32 RenderStatLevels(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
-	int32 RenderStatLevelMap(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
-	int32 RenderStatUnit(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
-	int32 RenderStatDrawCount(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
+	ENGINE_API int32 RenderStatFPS(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
+	ENGINE_API int32 RenderStatHitches(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
+	ENGINE_API int32 RenderStatSummary(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
+	ENGINE_API int32 RenderStatColorList(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
+	ENGINE_API int32 RenderStatLevels(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
+	ENGINE_API int32 RenderStatLevelMap(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
+	ENGINE_API int32 RenderStatUnit(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
+	ENGINE_API int32 RenderStatDrawCount(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
 #if !UE_BUILD_SHIPPING
-	int32 RenderStatSoundReverb(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
- 	int32 RenderStatSoundMixes(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
-	int32 RenderStatSoundModulators(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
-	int32 RenderStatSoundWaves(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
-	int32 RenderStatAudioStreaming(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
-	int32 RenderStatSoundCues(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
-	int32 RenderStatSounds(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
-	int32 RenderStatParticlePerf(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
+	ENGINE_API int32 RenderStatSoundReverb(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
+ 	ENGINE_API int32 RenderStatSoundMixes(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
+	ENGINE_API int32 RenderStatSoundModulators(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
+	ENGINE_API int32 RenderStatSoundWaves(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
+	ENGINE_API int32 RenderStatAudioStreaming(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
+	ENGINE_API int32 RenderStatSoundCues(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
+	ENGINE_API int32 RenderStatSounds(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
+	ENGINE_API int32 RenderStatParticlePerf(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
 #endif // !UE_BUILD_SHIPPING
-	int32 RenderStatAI(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
-	int32 RenderStatTimecode(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
-	int32 RenderStatFrameCounter(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
+	ENGINE_API int32 RenderStatAI(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
+	ENGINE_API int32 RenderStatTimecode(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
+	ENGINE_API int32 RenderStatFrameCounter(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
 #if STATS
-	int32 RenderStatSlateBatches(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
+	ENGINE_API int32 RenderStatSlateBatches(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
 #endif
 
 	FDelegateHandle HandleScreenshotCapturedDelegateHandle;
 
 public:
 	/** Set priority and affinity on game thread either from ini file or from FPlatformAffinity::GetGameThreadPriority()*/
-	void SetPriorityAndAffinityOnGameThread();
+	ENGINE_API void SetPriorityAndAffinityOnGameThread();
 };
 
 /** Global engine pointer. Can be 0 so don't use without checking. */

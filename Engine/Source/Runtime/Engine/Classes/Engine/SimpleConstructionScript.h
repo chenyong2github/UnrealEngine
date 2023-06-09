@@ -63,7 +63,7 @@ class USimpleConstructionScript : public UObject
 	ENGINE_API USceneComponent* GetSceneRootComponentTemplate(bool bShouldUseDefaultRoot = false, USCS_Node** OutSCSNode = nullptr) const;
 
 	UE_DEPRECATED(4.25, "Use version that specifies whether the default scene root should be used")
-	ENGINE_API USceneComponent* GetSceneRootComponentTemplate(USCS_Node** OutSCSNode) const
+	USceneComponent* GetSceneRootComponentTemplate(USCS_Node** OutSCSNode) const
 	{
 		return GetSceneRootComponentTemplate(false, OutSCSNode);
 	}
@@ -82,23 +82,23 @@ class USimpleConstructionScript : public UObject
 	/** Return all nodes in tree as a flat list */
 	ENGINE_API const TArray<USCS_Node*>& GetAllNodes() const;
 #else
-	ENGINE_API const TArray<USCS_Node*>& GetAllNodes() const { return AllNodes; }
+	const TArray<USCS_Node*>& GetAllNodes() const { return AllNodes; }
 #endif	
 
 	/** Return immutable references to nodes in tree as a flat list */
 	UE_DEPRECATED(4.27, "GetAllNodesConst is being removed as it provides no unique functionality that GetAllNodes cannot be used for.")
-	ENGINE_API TArray<const USCS_Node*> GetAllNodesConst() const
+	TArray<const USCS_Node*> GetAllNodesConst() const
 	{
 		return TArray<const USCS_Node*>(GetAllNodes());
 	}
 
 	/** Provides read-only access to the root node set */
-	const ENGINE_API TArray<USCS_Node*>& GetRootNodes() const { return RootNodes; }
+	const TArray<USCS_Node*>& GetRootNodes() const { return RootNodes; }
 
 	/** Provides read-only access to the default scene root node */
-	const ENGINE_API class USCS_Node* GetDefaultSceneRootNode() const { return DefaultSceneRootNode; }
+	const class USCS_Node* GetDefaultSceneRootNode() const { return DefaultSceneRootNode; }
 
-	ENGINE_API class USCS_Node* GetDefaultSceneRootNode() { return DefaultSceneRootNode; }
+	class USCS_Node* GetDefaultSceneRootNode() { return DefaultSceneRootNode; }
 
 	/** Adds this node to the root set */
 	ENGINE_API void AddNode(USCS_Node* Node);
@@ -198,19 +198,19 @@ public:
 	ENGINE_API void EndEditorComponentConstruction();
 
 	/** Find out whether or not we're constructing components in the SCS editor */
-	ENGINE_API bool IsConstructingEditorComponents() const
+	bool IsConstructingEditorComponents() const
 	{
 		return bIsConstructingEditorComponents;
 	}
 
 	/** Called by the SCS editor to set the actor instance for component editing */
-	ENGINE_API void SetComponentEditorActorInstance(class AActor* InActor)
+	void SetComponentEditorActorInstance(class AActor* InActor)
 	{
 		EditorActorInstancePtr = InActor;
 	}
 
 	/** Gets the SCS editor actor instance that's being used for component editing */
-	ENGINE_API class AActor* GetComponentEditorActorInstance() const
+	class AActor* GetComponentEditorActorInstance() const
 	{
 		return EditorActorInstancePtr.Get();
 	}

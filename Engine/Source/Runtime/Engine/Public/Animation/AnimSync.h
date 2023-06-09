@@ -28,35 +28,35 @@ struct FAnimSyncParams
 };
 
 // Wraps up functionality for ticking and syncing animations according to group (via normalized time) or marker
-struct ENGINE_API FAnimSync
+struct FAnimSync
 {
-	static const FName Attribute;
+	static ENGINE_API const FName Attribute;
 
 	using FSyncGroupMap = TMap<FName, FAnimGroupInstance>;
 
 	// Reset internal buffers ready for writing
-	void Reset();
+	ENGINE_API void Reset();
 
 	// Completely reset the sync system back to its starting state
-	void ResetAll();
+	ENGINE_API void ResetAll();
 	
 	// Adds a tick record in the list for the correct group or the ungrouped array.
-	void AddTickRecord(const FAnimTickRecord& InTickRecord, const FAnimSyncParams& InSyncParams = FAnimSyncParams());
+	ENGINE_API void AddTickRecord(const FAnimTickRecord& InTickRecord, const FAnimSyncParams& InSyncParams = FAnimSyncParams());
 
-	void SetMirror(const UMirrorDataTable* MirrorTable);
+	ENGINE_API void SetMirror(const UMirrorDataTable* MirrorTable);
 
 	// Tick all of the asset player tick records that are registered with us
-	void TickAssetPlayerInstances(FAnimInstanceProxy& InProxy, float InDeltaSeconds);
+	ENGINE_API void TickAssetPlayerInstances(FAnimInstanceProxy& InProxy, float InDeltaSeconds);
 
-	bool GetTimeToClosestMarker(FName SyncGroup, FName MarkerName, float& OutMarkerTime) const;
+	ENGINE_API bool GetTimeToClosestMarker(FName SyncGroup, FName MarkerName, float& OutMarkerTime) const;
 
-	bool HasMarkerBeenHitThisFrame(FName SyncGroup, FName MarkerName) const;
+	ENGINE_API bool HasMarkerBeenHitThisFrame(FName SyncGroup, FName MarkerName) const;
 
-	bool IsSyncGroupBetweenMarkers(FName InSyncGroupName, FName PreviousMarker, FName NextMarker, bool bRespectMarkerOrder = true) const;
+	ENGINE_API bool IsSyncGroupBetweenMarkers(FName InSyncGroupName, FName PreviousMarker, FName NextMarker, bool bRespectMarkerOrder = true) const;
 
-	FMarkerSyncAnimPosition GetSyncGroupPosition(FName InSyncGroupName) const;
+	ENGINE_API FMarkerSyncAnimPosition GetSyncGroupPosition(FName InSyncGroupName) const;
 
-	bool IsSyncGroupValid(FName InSyncGroupName) const;
+	ENGINE_API bool IsSyncGroupValid(FName InSyncGroupName) const;
 
 	// flip sync group read/write indices
 	void TickSyncGroupWriteIndex()
@@ -89,13 +89,13 @@ struct ENGINE_API FAnimSync
 	}
 
 	UE_DEPRECATED(5.0, "Legacy API support - do not use")
-	FAnimTickRecord& CreateUninitializedTickRecord(FAnimGroupInstance*& OutSyncGroupPtr, FName GroupName);
+	ENGINE_API FAnimTickRecord& CreateUninitializedTickRecord(FAnimGroupInstance*& OutSyncGroupPtr, FName GroupName);
 
 	UE_DEPRECATED(5.0, "Legacy API support - do not use")
-	FAnimTickRecord& CreateUninitializedTickRecordInScope(FAnimInstanceProxy& InProxy, FAnimGroupInstance*& OutSyncGroupPtr, FName GroupName, EAnimSyncGroupScope Scope);
+	ENGINE_API FAnimTickRecord& CreateUninitializedTickRecordInScope(FAnimInstanceProxy& InProxy, FAnimGroupInstance*& OutSyncGroupPtr, FName GroupName, EAnimSyncGroupScope Scope);
 
 	// GC support
-	void AddReferencedObjects(UAnimInstance* InAnimInstance, FReferenceCollector& Collector);
+	ENGINE_API void AddReferencedObjects(UAnimInstance* InAnimInstance, FReferenceCollector& Collector);
 
 private:
 	/** The list of animation assets which are going to be evaluated this frame and need to be ticked (ungrouped) */

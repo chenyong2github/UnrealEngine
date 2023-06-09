@@ -71,30 +71,30 @@ struct FVoiceSettings
 };
 
 
-UCLASS(Blueprintable, BlueprintType, ClassGroup = VOIP, meta = (BlueprintSpawnableComponent, ShortTooltip = "A VOIPTalker is a component that can be used to control the audio characteristics of a player's voice."))
-class ENGINE_API UVOIPTalker : public UActorComponent
+UCLASS(Blueprintable, BlueprintType, ClassGroup = VOIP, meta = (BlueprintSpawnableComponent, ShortTooltip = "A VOIPTalker is a component that can be used to control the audio characteristics of a player's voice."), MinimalAPI)
+class UVOIPTalker : public UActorComponent
 {
 	GENERATED_BODY()
 
 public:
 	// Constructor and destructor.
-	UVOIPTalker(const FObjectInitializer& ObjectInitializer);
-	virtual ~UVOIPTalker();
+	ENGINE_API UVOIPTalker(const FObjectInitializer& ObjectInitializer);
+	ENGINE_API virtual ~UVOIPTalker();
 
 	// function for creating and registering a UVOIPTalker.
 	UFUNCTION(BlueprintCallable, Category = "Audio|Voice|Notification")
-	static UVOIPTalker* CreateTalkerForPlayer(APlayerState* OwningState);
+	static ENGINE_API UVOIPTalker* CreateTalkerForPlayer(APlayerState* OwningState);
 
 	// This function sets up this talker with a specific player.
 	// It is necessary to use this to properly control a specific player's voice
 	// and receive events.
 	UFUNCTION(BlueprintCallable, Category = "Audio|Voice|Notification")
-	void RegisterWithPlayerState(APlayerState* OwningState);
+	ENGINE_API void RegisterWithPlayerState(APlayerState* OwningState);
 	
 	// Get the current level of how loud this player is speaking. Will return 0.0
 	// if player is not talking.
 	UFUNCTION(BlueprintCallable, Category = "Audio|Voice|Notification")
-	float GetVoiceLevel();
+	ENGINE_API float GetVoiceLevel();
 
 	// Override this function to implement custom functionality when this player begins talking.
 	virtual void OnTalkingBegin(UAudioComponent* AudioComponent) { BPOnTalkingBegin(AudioComponent); };
@@ -104,23 +104,23 @@ public:
 
 	// This is used by the VoiceEngineImpl to notify this VOIPTalker what the voice audio component's current level is.
 	// This should not be called outside of the voice engine.
-	void OnAudioComponentEnvelopeValue(const UAudioComponent* InAudioComponent, const float EnvelopeValue);
+	ENGINE_API void OnAudioComponentEnvelopeValue(const UAudioComponent* InAudioComponent, const float EnvelopeValue);
 
 	// Overridden to ensure that instances of UVOIPTalker unregister themselves from the static VoiceTalkerMap.
-	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
+	ENGINE_API virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
 
 protected:
 	// Blueprint native event for when this player starts speaking.
 	UFUNCTION(BlueprintNativeEvent, meta = (DisplayName = "Begin Talking"), Category = "Audio|Voice|Notification")
-	void BPOnTalkingBegin(UAudioComponent* AudioComponent);
+	ENGINE_API void BPOnTalkingBegin(UAudioComponent* AudioComponent);
 
 	// Blueprint native event for when this player stops speaking.
 	UFUNCTION(BlueprintNativeEvent, meta = (DisplayName = "End Talking"), Category = "Audio|Voice|Notification")
-	void BPOnTalkingEnd();
+	ENGINE_API void BPOnTalkingEnd();
 
 private:
 	// This function removes this player component from the VoiceTalkerMap.
-	void UnregisterFromVoiceTalkerMap();
+	ENGINE_API void UnregisterFromVoiceTalkerMap();
 
 public:
 	// Configurable settings for this player's voice. When set, this will update the next time the player speaks.
@@ -140,59 +140,59 @@ private:
 
 
 
-UCLASS()
-class ENGINE_API UVOIPStatics : public UBlueprintFunctionLibrary
+UCLASS(MinimalAPI)
+class UVOIPStatics : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 
 public:
 	// Returns the voice sample rate specified in Audio Settings.
-	static int32 GetVoiceSampleRate();
-	static int32 GetVoiceNumChannels();
+	static ENGINE_API int32 GetVoiceSampleRate();
+	static ENGINE_API int32 GetVoiceNumChannels();
 
 	// Returns the max voice data size per packet, uncompressed, and compressed based on the voice sample rate specified in Audio Settings.
-	static uint32 GetMaxVoiceDataSize();
-	static uint32 GetMaxUncompressedVoiceDataSizePerChannel();
-	static uint32 GetMaxCompressedVoiceDataSize();
+	static ENGINE_API uint32 GetMaxVoiceDataSize();
+	static ENGINE_API uint32 GetMaxUncompressedVoiceDataSizePerChannel();
+	static ENGINE_API uint32 GetMaxCompressedVoiceDataSize();
 
 	// Returns the amount of time that must pass since a VOIP talker has been updated before it's queued data is reset.
-	static float GetRemoteTalkerTimeoutDuration();
+	static ENGINE_API float GetRemoteTalkerTimeoutDuration();
 
 	// Returns the desired encoding type. Currently not exposed as a configured settings.
-	static EAudioEncodeHint GetAudioEncodingHint();
+	static ENGINE_API EAudioEncodeHint GetAudioEncodingHint();
 
 	// Returns the amount of seconds to spend buffering specified by AudioSettings.
-	static float GetBufferingDelay();
+	static ENGINE_API float GetBufferingDelay();
 
 	// Returns the noise gate threshold we use for incoming audio.
-	static float GetVoiceNoiseGateLevel();
+	static ENGINE_API float GetVoiceNoiseGateLevel();
 
 	// returns the amount of packets to allocate memory for based on the buffering delay.
-	static int32 GetNumBufferedPackets();
+	static ENGINE_API int32 GetNumBufferedPackets();
 
 	// returns pointer to a player state
-	static APlayerState* GetPlayerStateFromUniqueNetId(UWorld* InWorld, const FUniqueNetIdWrapper& InPlayerId);
+	static ENGINE_API APlayerState* GetPlayerStateFromUniqueNetId(UWorld* InWorld, const FUniqueNetIdWrapper& InPlayerId);
 
 	// This function sets the Mic threshold for VOIP chat.
 	UFUNCTION(BlueprintCallable, Category = "Audio|Voice|Mic")
-	static void SetMicThreshold(float InThreshold);
+	static ENGINE_API void SetMicThreshold(float InThreshold);
 
 	// Sets up a VOIP talker to be accessed for a specific player when they are talking.
-	static void SetVOIPTalkerForPlayer(const FUniqueNetIdWrapper& InPlayerId, UVOIPTalker* InTalker);
+	static ENGINE_API void SetVOIPTalkerForPlayer(const FUniqueNetIdWrapper& InPlayerId, UVOIPTalker* InTalker);
 
 	// These functions retrieve a pointer to a VOIPTalker associated with a specific player, if there is one available.
-	static UVOIPTalker* GetVOIPTalkerForPlayer(const FUniqueNetIdWrapper& InUniqueId,  FVoiceSettings& OutSettings, UWorld* InWorld = nullptr, APlayerState** OutPlayerState = nullptr);
-	static UVOIPTalker* GetVOIPTalkerForPlayer(const FUniqueNetIdWrapper& InPlayerId);
+	static ENGINE_API UVOIPTalker* GetVOIPTalkerForPlayer(const FUniqueNetIdWrapper& InUniqueId,  FVoiceSettings& OutSettings, UWorld* InWorld = nullptr, APlayerState** OutPlayerState = nullptr);
+	static ENGINE_API UVOIPTalker* GetVOIPTalkerForPlayer(const FUniqueNetIdWrapper& InPlayerId);
 
 	// This is used to check whether a VOIPTalker has been removed from the TalkerMap before using it.
-	static bool IsVOIPTalkerStillAlive(UVOIPTalker* InTalker);
+	static ENGINE_API bool IsVOIPTalkerStillAlive(UVOIPTalker* InTalker);
 	
 	// Removes a player's voice talker. This is done by a UVOIPTalker on destruction.
-	static void ResetPlayerVoiceTalker(APlayerState* InPlayerState);
-	static void ResetPlayerVoiceTalker(const FUniqueNetIdWrapper& InPlayerId);
+	static ENGINE_API void ResetPlayerVoiceTalker(APlayerState* InPlayerState);
+	static ENGINE_API void ResetPlayerVoiceTalker(const FUniqueNetIdWrapper& InPlayerId);
 
 	//Clear all pointers to VOIPTalkers.
-	static void ClearAllSettings();
+	static ENGINE_API void ClearAllSettings();
 
 private:
 

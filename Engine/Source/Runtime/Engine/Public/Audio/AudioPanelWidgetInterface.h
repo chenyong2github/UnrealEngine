@@ -10,20 +10,20 @@
 #include "AudioPanelWidgetInterface.generated.h"
 
 
-UINTERFACE()
-class ENGINE_API UAudioPanelWidgetInterface : public UInterface
+UINTERFACE(MinimalAPI)
+class UAudioPanelWidgetInterface : public UInterface
 {
 	GENERATED_BODY()
 };
 
-class ENGINE_API IAudioPanelWidgetInterface
+class IAudioPanelWidgetInterface
 {
 	GENERATED_BODY()
 
 public:
 	UFUNCTION(BlueprintImplementableEvent)
-	FText GetEditorName();
+	ENGINE_API FText GetEditorName();
 
 	UFUNCTION(BlueprintImplementableEvent)
-	FName GetIconBrushName();
+	ENGINE_API FName GetIconBrushName();
 };

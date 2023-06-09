@@ -160,12 +160,12 @@ public:
 	/**
 	 * Gamethread callback when destroy gets called, allows to clean up references.
 	 */
-	ENGINE_API virtual void OnDestroy() { bIsPendingKill = true; }
+	virtual void OnDestroy() { bIsPendingKill = true; }
 
 	/**
 	 * Gamethread callback when destroy gets called, allows to clean up references.
 	 */
-	ENGINE_API virtual void DestroyGPUSimulation() { }
+	virtual void DestroyGPUSimulation() { }
 
 
 	/**
@@ -292,7 +292,7 @@ protected:
 	friend class FFXSystemSet;
 
 	/** By making the destructor protected, an instance must be destroyed via FFXSystemInterface::Destroy. */
-	ENGINE_API virtual ~FFXSystemInterface() {}
+	virtual ~FFXSystemInterface() {}
 
 private:
 

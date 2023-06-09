@@ -14,20 +14,20 @@
 class UAnimInstance;
 class USkeletalMesh;
 
-UINTERFACE(meta = (CannotImplementInterfaceInBlueprint))
-class ENGINE_API UPreviewCollectionInterface : public UInterface
+UINTERFACE(meta = (CannotImplementInterfaceInBlueprint), MinimalAPI)
+class UPreviewCollectionInterface : public UInterface
 {
 	GENERATED_UINTERFACE_BODY()
 };
 
 /** Preview Collection options. If you have native UDataAsset class that implements this, you can preview all in the animation editor using Additional Mesh section  */
-class ENGINE_API IPreviewCollectionInterface
+class IPreviewCollectionInterface
 {
 	GENERATED_IINTERFACE_BODY()
 
 	/** Returns nodes that needs for them to map */
 	UE_DEPRECATED(4.21, "This interface no longer used. Use GetPreviewSkeletalMeshes(TArray<USkeletalMesh*>& OutList, TArray<TSubclassOf<UAnimInstance>>& OutAnimBP).")
-	virtual void GetPreviewSkeletalMeshes(TArray<USkeletalMesh*>& OutList) const;
+	ENGINE_API virtual void GetPreviewSkeletalMeshes(TArray<USkeletalMesh*>& OutList) const;
 
 	/** If you want this to set base mesh also, please use this interface. If this returns nullptr, it will just use whatever set up right now */
 	virtual USkeletalMesh* GetPreviewBaseMesh() const { return nullptr; }

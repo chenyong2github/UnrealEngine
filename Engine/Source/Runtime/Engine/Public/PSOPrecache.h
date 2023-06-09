@@ -254,7 +254,7 @@ typedef IPSOCollector* (*PSOCollectorCreateFunction)(ERHIFeatureLevel::Type InFe
 /**
  * Manages all create functions of the globally defined IPSOCollectors
  */
-class ENGINE_API FPSOCollectorCreateManager
+class FPSOCollectorCreateManager
 {
 public:
 
@@ -270,14 +270,14 @@ public:
 private:
 
 	// Have to used fixed size array instead of TArray because of order of initialization of static member variables
-	static PSOCollectorCreateFunction JumpTable[(uint32)EShadingPath::Num][MaxPSOCollectorCount];
+	static ENGINE_API PSOCollectorCreateFunction JumpTable[(uint32)EShadingPath::Num][MaxPSOCollectorCount];
 	friend class FRegisterPSOCollectorCreateFunction;
 };
 
 /**
  * Helper class used to register/unregister the IPSOCollector to the manager at static startup time
  */
-class ENGINE_API FRegisterPSOCollectorCreateFunction
+class FRegisterPSOCollectorCreateFunction
 {
 public:
 	FRegisterPSOCollectorCreateFunction(PSOCollectorCreateFunction InCreateFunction, EShadingPath InShadingPath, uint32 InIndex)
@@ -383,7 +383,7 @@ namespace PSOCollectorStats
 	 * Track a PSO precache stat's total count, and optionally also track the counts at
 	 * the mesh pass type and vertex factory type granularity.
 	 */
-	class ENGINE_API FPrecacheUsageData
+	class FPrecacheUsageData
 	{
 	public:
 		FPrecacheUsageData(FName StatFName = FName())
@@ -397,9 +397,9 @@ namespace PSOCollectorStats
 			return FPlatformAtomics::AtomicRead(&Count);
 		}
 
-		void Empty();
+		ENGINE_API void Empty();
 
-		void UpdateStats(uint32 MeshPassType, const FVertexFactoryType* VFType);
+		ENGINE_API void UpdateStats(uint32 MeshPassType, const FVertexFactoryType* VFType);
 
 	private:
 		bool ShouldRecordFullStats(uint32 MeshPassType, const FVertexFactoryType* VFType) const 
@@ -423,7 +423,7 @@ namespace PSOCollectorStats
 	/**
 	 * Collect stats for different cache hit states
 	 */
-	struct ENGINE_API FPrecacheStats
+	struct FPrecacheStats
 	{
 		FPrecacheStats(FName UntrackedStatFName = FName(), FName MissStatFName = FName(), FName HitStatFName = FName(), FName UsedStatFName = FName(), FName TooLateStatFName = FName())
 			: UsageData(UsedStatFName)
@@ -452,7 +452,7 @@ namespace PSOCollectorStats
 		FPrecacheUsageData UntrackedData;		//< PSOs which are used during rendering but are currently not precached because for example the MeshPassProcessor or VertexFactory type don't support PSO precaching yet
 	};
 
-	class ENGINE_API FPrecacheStatsCollector
+	class FPrecacheStatsCollector
 	{
 	public:
 		FPrecacheStatsCollector(FName UntrackedStatFName = FName(), FName MissStatFName = FName(), FName HitStatFName = FName(), FName UsedStatFName = FName(), FName TooLateStatFName = FName())
@@ -522,9 +522,9 @@ namespace PSOCollectorStats
 		}
 
 	private:
-		bool IsStateTracked(uint32 MeshPassType, const FVertexFactoryType* VertexFactoryType) const;
+		ENGINE_API bool IsStateTracked(uint32 MeshPassType, const FVertexFactoryType* VertexFactoryType) const;
 
-		void UpdatePrecacheStats(uint64 PrecacheHash, uint32 MeshPassType, const FVertexFactoryType* VertexFactoryType, bool bTracked, EPSOPrecacheResult PrecacheResult);
+		ENGINE_API void UpdatePrecacheStats(uint64 PrecacheHash, uint32 MeshPassType, const FVertexFactoryType* VertexFactoryType, bool bTracked, EPSOPrecacheResult PrecacheResult);
 
 		FPrecacheStats Stats;
 

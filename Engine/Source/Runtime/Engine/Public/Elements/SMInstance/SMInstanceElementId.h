@@ -102,12 +102,12 @@ struct FSMInstanceElementIdMapEntry
  * Mapping between the instance ID used by typed elements and the corresponding instance index on the ISM components.
  * This mapping will be kept up-to-date via the add/remove operations of the ISM components, as well as undo/redo.
  */
-class ENGINE_API FSMInstanceElementIdMap : public FGCObject
+class FSMInstanceElementIdMap : public FGCObject
 {
 public:
-	static FSMInstanceElementIdMap& Get();
+	static ENGINE_API FSMInstanceElementIdMap& Get();
 
-	~FSMInstanceElementIdMap();
+	ENGINE_API ~FSMInstanceElementIdMap();
 
 	/**
 	 * Delegate called when a static mesh instance has been relocated within the instances array on its component (eg, because another instance was removed or added to the array).
@@ -140,46 +140,46 @@ public:
 	/**
 	 * Given a FSMInstanceElementId, attempt to convert it into a FSMInstanceId.
 	 */
-	FSMInstanceId GetSMInstanceIdFromSMInstanceElementId(const FSMInstanceElementId& InSMInstanceElementId);
+	ENGINE_API FSMInstanceId GetSMInstanceIdFromSMInstanceElementId(const FSMInstanceElementId& InSMInstanceElementId);
 
 	/**
 	 * Given a FSMInstanceId, attempt to convert it into a FSMInstanceElementId.
 	 */
-	FSMInstanceElementId GetSMInstanceElementIdFromSMInstanceId(const FSMInstanceId& InSMInstanceId, const bool bAllowCreate = true);
+	ENGINE_API FSMInstanceElementId GetSMInstanceElementIdFromSMInstanceId(const FSMInstanceId& InSMInstanceId, const bool bAllowCreate = true);
 
 	/**
 	 * Given an ISM component, get all FSMInstanceElementId values that are currently mapped for it.
 	 */
-	TArray<FSMInstanceElementId> GetSMInstanceElementIdsForComponent(UInstancedStaticMeshComponent* InComponent) const;
+	ENGINE_API TArray<FSMInstanceElementId> GetSMInstanceElementIdsForComponent(UInstancedStaticMeshComponent* InComponent) const;
 
 	/**
 	 * Called when one ISM component is replaced with another, and attempts to copy the ID mapping of the old component to the new.
 	 */
-	void OnComponentReplaced(UInstancedStaticMeshComponent* InOldComponent, UInstancedStaticMeshComponent* InNewComponent);
+	ENGINE_API void OnComponentReplaced(UInstancedStaticMeshComponent* InOldComponent, UInstancedStaticMeshComponent* InNewComponent);
 
 public:
 	//~ FGCObject interface
-	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	ENGINE_API virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	virtual FString GetReferencerName() const override
 	{
 		return TEXT("FSMInstanceElementIdMap");
 	}
 
 public:
-	void SerializeIdMappings(FSMInstanceElementIdMapEntry* InEntry, FArchive& Ar);
+	ENGINE_API void SerializeIdMappings(FSMInstanceElementIdMapEntry* InEntry, FArchive& Ar);
 
 private:
-	void OnInstanceIndexUpdated(UInstancedStaticMeshComponent* InComponent, TArrayView<const FInstancedStaticMeshDelegates::FInstanceIndexUpdateData> InIndexUpdates);
+	ENGINE_API void OnInstanceIndexUpdated(UInstancedStaticMeshComponent* InComponent, TArrayView<const FInstancedStaticMeshDelegates::FInstanceIndexUpdateData> InIndexUpdates);
 
-	void ClearInstanceData_NoLock(UInstancedStaticMeshComponent* InComponent, FSMInstanceElementIdMapEntry& InEntry);
+	ENGINE_API void ClearInstanceData_NoLock(UInstancedStaticMeshComponent* InComponent, FSMInstanceElementIdMapEntry& InEntry);
 
 #if WITH_EDITOR
-	void OnObjectModified(UObject* InObject);
+	ENGINE_API void OnObjectModified(UObject* InObject);
 #endif	// WITH_EDITOR
 
-	void RegisterCallbacks();
+	ENGINE_API void RegisterCallbacks();
 
-	void UnregisterCallbacks();
+	ENGINE_API void UnregisterCallbacks();
 
 	mutable FCriticalSection ISMComponentsCS;
 	TMap<UInstancedStaticMeshComponent*, TSharedPtr<FSMInstanceElementIdMapEntry>> ISMComponents;

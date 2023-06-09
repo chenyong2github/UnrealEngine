@@ -53,7 +53,7 @@ enum class ENaturalSoundFalloffMode : uint8
 * Base class for attenuation settings.
 */
 USTRUCT(BlueprintType)
-struct ENGINE_API FBaseAttenuationSettings
+struct FBaseAttenuationSettings
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -106,7 +106,7 @@ struct ENGINE_API FBaseAttenuationSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category= AttenuationDistance)
 	FRuntimeFloatCurve CustomAttenuationCurve;
 
-	FBaseAttenuationSettings();
+	ENGINE_API FBaseAttenuationSettings();
 
 	struct AttenuationShapeDetails
 	{
@@ -117,15 +117,15 @@ struct ENGINE_API FBaseAttenuationSettings
 		float ConeSphereFalloff;
 	};
 
-	virtual void CollectAttenuationShapesForVisualization(TMultiMap<EAttenuationShape::Type, AttenuationShapeDetails>& ShapeDetailsMap) const;
-	float GetMaxDimension() const;
+	ENGINE_API virtual void CollectAttenuationShapesForVisualization(TMultiMap<EAttenuationShape::Type, AttenuationShapeDetails>& ShapeDetailsMap) const;
+	ENGINE_API float GetMaxDimension() const;
 
-	float GetMaxFalloffDistance() const;
+	ENGINE_API float GetMaxFalloffDistance() const;
 
-	float Evaluate(const FTransform& Origin, FVector Location, float DistanceScale = 1.f) const;
+	ENGINE_API float Evaluate(const FTransform& Origin, FVector Location, float DistanceScale = 1.f) const;
 
-	float AttenuationEval(float Distance, float Falloff, float DistanceScale = 1.f) const;
-	float AttenuationEvalBox(const FTransform& Origin, FVector Location, float DistanceScale = 1.f) const;
-	float AttenuationEvalCapsule(const FTransform& Origin, FVector Location, float DistanceScale = 1.f) const;
-	float AttenuationEvalCone(const FTransform& Origin, FVector Location, float DistanceScale = 1.f) const;
+	ENGINE_API float AttenuationEval(float Distance, float Falloff, float DistanceScale = 1.f) const;
+	ENGINE_API float AttenuationEvalBox(const FTransform& Origin, FVector Location, float DistanceScale = 1.f) const;
+	ENGINE_API float AttenuationEvalCapsule(const FTransform& Origin, FVector Location, float DistanceScale = 1.f) const;
+	ENGINE_API float AttenuationEvalCone(const FTransform& Origin, FVector Location, float DistanceScale = 1.f) const;
 };

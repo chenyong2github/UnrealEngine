@@ -52,7 +52,7 @@ public:
 public:
 #if WITH_EDITORONLY_DATA
 	/** Returns ArrowComponent subobject **/
-	ENGINE_API class UArrowComponent* GetArrowComponent() const { return ArrowComponent; }
+	class UArrowComponent* GetArrowComponent() const { return ArrowComponent; }
 #endif
 };
 

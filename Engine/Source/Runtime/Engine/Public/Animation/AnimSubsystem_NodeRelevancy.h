@@ -11,35 +11,35 @@ struct FAnimNode_Base;
 class UAnimInstance;
 
 // Relevancy status of a animation node tracked by this subsystem
-struct ENGINE_API FAnimNodeRelevancyStatus
+struct FAnimNodeRelevancyStatus
 {
 public:
 	// Get the current weight
-	float GetCurrentWeight() const;
+	ENGINE_API float GetCurrentWeight() const;
 
 	// Get the previous weight
-	float GetPreviousWeight() const;
+	ENGINE_API float GetPreviousWeight() const;
 	
 	// Node has zero weight
-	bool HasFullyBlendedOut() const;
+	ENGINE_API bool HasFullyBlendedOut() const;
 
 	// Node has just become relevant
 	bool HasJustBecomeRelevant() const { return IsStartingBlendingIn(); }
 	
 	// Node has weight and had zero weight last update
-	bool IsStartingBlendingIn() const;
+	ENGINE_API bool IsStartingBlendingIn() const;
 
 	// Node has full weight and had non-full weight last update
-	bool IsFinishingBlendingIn() const;
+	ENGINE_API bool IsFinishingBlendingIn() const;
 
 	// Node has full weight and had full weight last update
-	bool HasFullyBlendedIn() const;
+	ENGINE_API bool HasFullyBlendedIn() const;
 
 	// Node has non-full weight and had full weight last update
-	bool IsStartingBlendingOut() const;
+	ENGINE_API bool IsStartingBlendingOut() const;
 
 	// Node has zero weight and had non-zero weight last update
-	bool IsFinishingBlendingOut() const;
+	ENGINE_API bool IsFinishingBlendingOut() const;
 
 private:
 	friend struct FAnimSubsystemInstance_NodeRelevancy;
@@ -63,24 +63,24 @@ enum class EAnimNodeInitializationStatus
 
 /** Allows anim node's relevancy (when they receive and lose weight in the graph) to be tracked */
 USTRUCT()
-struct ENGINE_API FAnimSubsystemInstance_NodeRelevancy : public FAnimSubsystemInstance
+struct FAnimSubsystemInstance_NodeRelevancy : public FAnimSubsystemInstance
 {
 	GENERATED_BODY()
 
 	// FAnimSubsystemInstance interface
-	virtual void Initialize_WorkerThread() override;
+	ENGINE_API virtual void Initialize_WorkerThread() override;
 	
 	// Update the relevancy of the passed-in node using the supplied context
-	FAnimNodeRelevancyStatus UpdateNodeRelevancy(const FAnimationUpdateContext& InContext, const FAnimNode_Base& InNode);
+	ENGINE_API FAnimNodeRelevancyStatus UpdateNodeRelevancy(const FAnimationUpdateContext& InContext, const FAnimNode_Base& InNode);
 
 	// Get the tracked relevancy of the passed-in node. If the node is not tracked the relevancy will be default (zero weighted).
-	FAnimNodeRelevancyStatus GetNodeRelevancy(const FAnimNode_Base& InNode) const;
+	ENGINE_API FAnimNodeRelevancyStatus GetNodeRelevancy(const FAnimNode_Base& InNode) const;
 
 	// Update the initialization state of the passed-in node using the supplied context
-	EAnimNodeInitializationStatus UpdateNodeInitializationStatus(const FAnimationUpdateContext& InContext, const FAnimNode_Base& InNode);
+	ENGINE_API EAnimNodeInitializationStatus UpdateNodeInitializationStatus(const FAnimationUpdateContext& InContext, const FAnimNode_Base& InNode);
 
 	// Get the tracked initialization state of the passed-in node. If the node is not tracked the initialization state will be default (NotUpdated)
-	EAnimNodeInitializationStatus GetNodeInitializationStatus(const FAnimNode_Base& InNode) const;
+	ENGINE_API EAnimNodeInitializationStatus GetNodeInitializationStatus(const FAnimNode_Base& InNode) const;
 	
 private:
 	// Tracks the relevancy of a node

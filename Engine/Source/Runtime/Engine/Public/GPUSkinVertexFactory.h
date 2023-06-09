@@ -443,7 +443,7 @@ private:
 
 /** Vertex factory with vertex stream components for GPU skinned vertices */
 template<GPUSkinBoneInfluenceType BoneInfluenceType>
-class ENGINE_API TGPUSkinVertexFactory : public FGPUBaseSkinVertexFactory
+class TGPUSkinVertexFactory : public FGPUBaseSkinVertexFactory
 {
 	DECLARE_VERTEX_FACTORY_TYPE(TGPUSkinVertexFactory<BoneInfluenceType>);
 

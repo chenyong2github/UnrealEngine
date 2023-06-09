@@ -37,7 +37,7 @@ LLM_DECLARE_TAG_API(GuidCache, ENGINE_API);
 class UNetConnection;
 class UNetDriver;
 
-class ENGINE_API FNetFieldExport
+class FNetFieldExport
 {
 public:
 	FNetFieldExport() : Handle( 0 ), CompatibleChecksum( 0 ), bExported( false ), bDirtyForReplay( true ), bIncompatible( false )
@@ -56,7 +56,7 @@ public:
 
 	friend FArchive& operator<<(FArchive& Ar, FNetFieldExport& C);
 
-	void CountBytes(FArchive& Ar) const;
+	ENGINE_API void CountBytes(FArchive& Ar) const;
 
 	uint32			Handle;
 	uint32			CompatibleChecksum;
@@ -68,7 +68,7 @@ public:
 	mutable bool	bIncompatible;		// If true, we've already determined that this property isn't compatible. We use this to curb warning spam.
 };
 
-class ENGINE_API FNetFieldExportGroup
+class FNetFieldExportGroup
 {
 public:
 	FNetFieldExportGroup() : PathNameIndex( 0 ), bDirtyForReplay( true ) { }
@@ -93,7 +93,7 @@ public:
 		return INDEX_NONE;
 	}
 
-	void CountBytes(FArchive& Ar) const;
+	ENGINE_API void CountBytes(FArchive& Ar) const;
 };
 
 /** Stores an object with path associated with FNetworkGUID */
@@ -146,10 +146,10 @@ private:
 	TObjectPtr<UObject> Object;
 };
 
-class ENGINE_API FNetGUIDCache
+class FNetGUIDCache
 {
 public:
-	FNetGUIDCache( UNetDriver * InDriver );
+	ENGINE_API FNetGUIDCache( UNetDriver * InDriver );
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FNetGUIDCache(FNetGUIDCache&&) = default;
@@ -172,50 +172,50 @@ public:
 		ForceEnable		= 2,		// Force enable async loading
 	};
 
-	void			CleanReferences();
-	bool			SupportsObject( const UObject* Object, const TWeakObjectPtr<UObject>* WeakObjectPtr=nullptr /** Optional: pass in existing weakptr to prevent this function from constructing one internally */ ) const;
-	bool			IsDynamicObject( const UObject* Object );
-	bool			IsNetGUIDAuthority() const;
-	FNetworkGUID	GetOrAssignNetGUID( UObject* Object, const TWeakObjectPtr<UObject>* WeakObjectPtr=nullptr /** Optional: pass in existing weakptr to prevent this function from constructing one internally */ );
-	FNetworkGUID	GetNetGUID( const UObject* Object ) const;
-	FNetworkGUID	GetOuterNetGUID( const FNetworkGUID& NetGUID ) const;
-	FNetworkGUID	AssignNewNetGUID_Server( UObject* Object );
-	FNetworkGUID	AssignNewNetGUIDFromPath_Server( const FString& PathName, UObject* ObjOuter, UClass* ObjClass );
-	void			RegisterNetGUID_Internal( const FNetworkGUID& NetGUID, const FNetGuidCacheObject& CacheObject );
-	void			RegisterNetGUID_Server( const FNetworkGUID& NetGUID, UObject* Object );
-	void			RegisterNetGUID_Client( const FNetworkGUID& NetGUID, const UObject* Object );
-	void			RegisterNetGUIDFromPath_Client( const FNetworkGUID& NetGUID, const FString& PathName, const FNetworkGUID& OuterGUID, const uint32 NetworkChecksum, const bool bNoLoad, const bool bIgnoreWhenMissing );
-	void			RegisterNetGUIDFromPath_Server( const FNetworkGUID& NetGUID, const FString& PathName, const FNetworkGUID& OuterGUID, const uint32 NetworkChecksum, const bool bNoLoad, const bool bIgnoreWhenMissing );
-	UObject *		GetObjectFromNetGUID( const FNetworkGUID& NetGUID, const bool bIgnoreMustBeMapped );
-	bool			ShouldIgnoreWhenMissing( const FNetworkGUID& NetGUID ) const;
-	FNetGuidCacheObject const * const GetCacheObject(const FNetworkGUID& NetGUID) const;
-	bool			IsGUIDRegistered( const FNetworkGUID& NetGUID ) const;
-	bool			IsGUIDLoaded( const FNetworkGUID& NetGUID ) const;
-	bool			IsGUIDBroken( const FNetworkGUID& NetGUID, const bool bMustBeRegistered ) const;
-	bool			IsGUIDNoLoad( const FNetworkGUID& NetGUID ) const;
-	bool			IsGUIDPending( const FNetworkGUID& NetGUID ) const;
-	FString			FullNetGUIDPath( const FNetworkGUID& NetGUID ) const;
-	void			GenerateFullNetGUIDPath_r( const FNetworkGUID& NetGUID, FString& FullPath ) const;
-	uint32			GetClassNetworkChecksum( UClass* Class );
-	uint32			GetNetworkChecksum( UObject* Obj );
-	void			SetNetworkChecksumMode( const ENetworkChecksumMode NewMode );
-	void			SetAsyncLoadMode( const EAsyncLoadMode NewMode );
-	bool			ShouldAsyncLoad() const;
-	bool			CanClientLoadObject( const UObject* Object, const FNetworkGUID& NetGUID ) const;
-	FString			Describe(const FNetworkGUID& NetGUID) const;
+	ENGINE_API void			CleanReferences();
+	ENGINE_API bool			SupportsObject( const UObject* Object, const TWeakObjectPtr<UObject>* WeakObjectPtr=nullptr /** Optional: pass in existing weakptr to prevent this function from constructing one internally */ ) const;
+	ENGINE_API bool			IsDynamicObject( const UObject* Object );
+	ENGINE_API bool			IsNetGUIDAuthority() const;
+	ENGINE_API FNetworkGUID	GetOrAssignNetGUID( UObject* Object, const TWeakObjectPtr<UObject>* WeakObjectPtr=nullptr /** Optional: pass in existing weakptr to prevent this function from constructing one internally */ );
+	ENGINE_API FNetworkGUID	GetNetGUID( const UObject* Object ) const;
+	ENGINE_API FNetworkGUID	GetOuterNetGUID( const FNetworkGUID& NetGUID ) const;
+	ENGINE_API FNetworkGUID	AssignNewNetGUID_Server( UObject* Object );
+	ENGINE_API FNetworkGUID	AssignNewNetGUIDFromPath_Server( const FString& PathName, UObject* ObjOuter, UClass* ObjClass );
+	ENGINE_API void			RegisterNetGUID_Internal( const FNetworkGUID& NetGUID, const FNetGuidCacheObject& CacheObject );
+	ENGINE_API void			RegisterNetGUID_Server( const FNetworkGUID& NetGUID, UObject* Object );
+	ENGINE_API void			RegisterNetGUID_Client( const FNetworkGUID& NetGUID, const UObject* Object );
+	ENGINE_API void			RegisterNetGUIDFromPath_Client( const FNetworkGUID& NetGUID, const FString& PathName, const FNetworkGUID& OuterGUID, const uint32 NetworkChecksum, const bool bNoLoad, const bool bIgnoreWhenMissing );
+	ENGINE_API void			RegisterNetGUIDFromPath_Server( const FNetworkGUID& NetGUID, const FString& PathName, const FNetworkGUID& OuterGUID, const uint32 NetworkChecksum, const bool bNoLoad, const bool bIgnoreWhenMissing );
+	ENGINE_API UObject *		GetObjectFromNetGUID( const FNetworkGUID& NetGUID, const bool bIgnoreMustBeMapped );
+	ENGINE_API bool			ShouldIgnoreWhenMissing( const FNetworkGUID& NetGUID ) const;
+	ENGINE_API FNetGuidCacheObject const * const GetCacheObject(const FNetworkGUID& NetGUID) const;
+	ENGINE_API bool			IsGUIDRegistered( const FNetworkGUID& NetGUID ) const;
+	ENGINE_API bool			IsGUIDLoaded( const FNetworkGUID& NetGUID ) const;
+	ENGINE_API bool			IsGUIDBroken( const FNetworkGUID& NetGUID, const bool bMustBeRegistered ) const;
+	ENGINE_API bool			IsGUIDNoLoad( const FNetworkGUID& NetGUID ) const;
+	ENGINE_API bool			IsGUIDPending( const FNetworkGUID& NetGUID ) const;
+	ENGINE_API FString			FullNetGUIDPath( const FNetworkGUID& NetGUID ) const;
+	ENGINE_API void			GenerateFullNetGUIDPath_r( const FNetworkGUID& NetGUID, FString& FullPath ) const;
+	ENGINE_API uint32			GetClassNetworkChecksum( UClass* Class );
+	ENGINE_API uint32			GetNetworkChecksum( UObject* Obj );
+	ENGINE_API void			SetNetworkChecksumMode( const ENetworkChecksumMode NewMode );
+	ENGINE_API void			SetAsyncLoadMode( const EAsyncLoadMode NewMode );
+	ENGINE_API bool			ShouldAsyncLoad() const;
+	ENGINE_API bool			CanClientLoadObject( const UObject* Object, const FNetworkGUID& NetGUID ) const;
+	ENGINE_API FString			Describe(const FNetworkGUID& NetGUID) const;
 
-	void			AsyncPackageCallback(const FName& PackageName, UPackage * Package, EAsyncLoadingResult::Type Result);
+	ENGINE_API void			AsyncPackageCallback(const FName& PackageName, UPackage * Package, EAsyncLoadingResult::Type Result);
 
-	void			ResetCacheForDemo();
+	ENGINE_API void			ResetCacheForDemo();
 
-	void			CountBytes(FArchive& Ar) const;
+	ENGINE_API void			CountBytes(FArchive& Ar) const;
 
-	void ConsumeAsyncLoadDelinquencyAnalytics(FNetAsyncLoadDelinquencyAnalytics& Out);
-	const FNetAsyncLoadDelinquencyAnalytics& GetAsyncLoadDelinquencyAnalytics() const;
-	void ResetAsyncLoadDelinquencyAnalytics();
+	ENGINE_API void ConsumeAsyncLoadDelinquencyAnalytics(FNetAsyncLoadDelinquencyAnalytics& Out);
+	ENGINE_API const FNetAsyncLoadDelinquencyAnalytics& GetAsyncLoadDelinquencyAnalytics() const;
+	ENGINE_API void ResetAsyncLoadDelinquencyAnalytics();
 
-	void CollectReferences(class FReferenceCollector& ReferenceCollector);
-	TSharedRef<FQueuedBunchObjectReference> TrackQueuedBunchObjectReference(const FNetworkGUID InNetGUID, UObject* InObject);
+	ENGINE_API void CollectReferences(class FReferenceCollector& ReferenceCollector);
+	ENGINE_API TSharedRef<FQueuedBunchObjectReference> TrackQueuedBunchObjectReference(const FNetworkGUID InNetGUID, UObject* InObject);
 
 	bool WasGUIDSyncLoaded(FNetworkGUID NetGUID) const { return SyncLoadedGUIDs.Contains(NetGUID); }
 	void ClearSyncLoadedGUID(FNetworkGUID NetGUID) { SyncLoadedGUIDs.Remove(NetGUID); }
@@ -224,9 +224,9 @@ public:
 	 * If LogNetSyncLoads is enabled, log all objects that caused a sync load that haven't been otherwise reported
 	 * by the package map yet, and clear that list.
 	 */
-	void ReportSyncLoadedGUIDs();
+	ENGINE_API void ReportSyncLoadedGUIDs();
 
-	void ResetReplayDirtyTracking();
+	ENGINE_API void ResetReplayDirtyTracking();
 
 	TMap< FNetworkGUID, FNetGuidCacheObject >		ObjectLookup;
 	TMap< TWeakObjectPtr< UObject >, FNetworkGUID >	NetGUIDLookup;
@@ -270,7 +270,7 @@ private:
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 public:
 
-	static const bool IsHistoryEnabled();
+	static ENGINE_API const bool IsHistoryEnabled();
 
 	// History for debugging entries in the guid cache
 	TMap<FNetworkGUID, FString>						History;
@@ -317,10 +317,10 @@ private:
 
 	FNetAsyncLoadDelinquencyAnalytics DelinquentAsyncLoads;
 
-	void StartAsyncLoadingPackage(FNetGuidCacheObject& Object, const FNetworkGUID ObjectGUID, const bool bWasAlreadyAsyncLoading);
-	void ValidateAsyncLoadingPackage(FNetGuidCacheObject& Object, const FNetworkGUID ObjectGUID);
+	ENGINE_API void StartAsyncLoadingPackage(FNetGuidCacheObject& Object, const FNetworkGUID ObjectGUID, const bool bWasAlreadyAsyncLoading);
+	ENGINE_API void ValidateAsyncLoadingPackage(FNetGuidCacheObject& Object, const FNetworkGUID ObjectGUID);
 
-	void UpdateQueuedBunchObjectReference(const FNetworkGUID NetGUID, UObject* NewObject);
+	ENGINE_API void UpdateQueuedBunchObjectReference(const FNetworkGUID NetGUID, UObject* NewObject);
 
 	/**
 	 * Set of all current Objects that we've been requested to be referenced while channels
@@ -333,7 +333,7 @@ private:
 #if CSV_PROFILER
 public:
 
-	bool IsTrackingOwnerOrPawn() const;
+	ENGINE_API bool IsTrackingOwnerOrPawn() const;
 
 	struct FIsOwnerOrPawnHelper
 	{
@@ -378,7 +378,7 @@ private:
 #endif
 };
 
-class ENGINE_API FPackageMapAckState
+class FPackageMapAckState
 {
 public:
 	TMap< FNetworkGUID, int32 >	NetGUIDAckStatus;				// Map that represents the ack state of each net guid for this connection
@@ -392,16 +392,16 @@ public:
 		NetFieldExportAcked.Empty();
 	}
 
-	void CountBytes(FArchive& Ar) const;
+	ENGINE_API void CountBytes(FArchive& Ar) const;
 };
 
-UCLASS(transient)
-class ENGINE_API UPackageMapClient : public UPackageMap
+UCLASS(transient, MinimalAPI)
+class UPackageMapClient : public UPackageMap
 {
 public:
 	GENERATED_BODY()
 
-	UPackageMapClient(const FObjectInitializer & ObjectInitializer = FObjectInitializer::Get());
+	ENGINE_API UPackageMapClient(const FObjectInitializer & ObjectInitializer = FObjectInitializer::Get());
 
 	void Initialize(UNetConnection * InConnection, TSharedPtr<FNetGUIDCache> InNetGUIDCache)
 	{
@@ -422,78 +422,78 @@ public:
 
 	
 	// UPackageMap Interface
-	virtual bool SerializeObject( FArchive& Ar, UClass* InClass, UObject*& Obj, FNetworkGUID *OutNetGUID = NULL ) override;
-	virtual bool SerializeNewActor( FArchive& Ar, class UActorChannel *Channel, class AActor*& Actor) override;
+	ENGINE_API virtual bool SerializeObject( FArchive& Ar, UClass* InClass, UObject*& Obj, FNetworkGUID *OutNetGUID = NULL ) override;
+	ENGINE_API virtual bool SerializeNewActor( FArchive& Ar, class UActorChannel *Channel, class AActor*& Actor) override;
 	
-	virtual bool WriteObject( FArchive& Ar, UObject* InOuter, FNetworkGUID NetGUID, FString ObjName ) override;
+	ENGINE_API virtual bool WriteObject( FArchive& Ar, UObject* InOuter, FNetworkGUID NetGUID, FString ObjName ) override;
 
 	// UPackageMapClient Connection specific methods
 
-	bool NetGUIDHasBeenAckd(FNetworkGUID NetGUID);
+	ENGINE_API bool NetGUIDHasBeenAckd(FNetworkGUID NetGUID);
 
-	virtual void ReceivedNak( const int32 NakPacketId ) override;
-	virtual void ReceivedAck( const int32 AckPacketId ) override;
-	virtual void NotifyBunchCommit( const int32 OutPacketId, const FOutBunch* OutBunch ) override;
-	virtual void GetNetGUIDStats(int32 &AckCount, int32 &UnAckCount, int32 &PendingCount) override;
+	ENGINE_API virtual void ReceivedNak( const int32 NakPacketId ) override;
+	ENGINE_API virtual void ReceivedAck( const int32 AckPacketId ) override;
+	ENGINE_API virtual void NotifyBunchCommit( const int32 OutPacketId, const FOutBunch* OutBunch ) override;
+	ENGINE_API virtual void GetNetGUIDStats(int32 &AckCount, int32 &UnAckCount, int32 &PendingCount) override;
 
-	void ReceiveNetGUIDBunch( FInBunch &InBunch );
-	void AppendExportBunches(TArray<FOutBunch *>& OutgoingBunches);
-	int32 GetNumExportBunches() const;
+	ENGINE_API void ReceiveNetGUIDBunch( FInBunch &InBunch );
+	ENGINE_API void AppendExportBunches(TArray<FOutBunch *>& OutgoingBunches);
+	ENGINE_API int32 GetNumExportBunches() const;
 
-	void AppendExportData(FArchive& Archive);
-	void ReceiveExportData(FArchive& Archive);
+	ENGINE_API void AppendExportData(FArchive& Archive);
+	ENGINE_API void ReceiveExportData(FArchive& Archive);
 
 	TMap<FNetworkGUID, int32>	NetGUIDExportCountMap;	// How many times we've exported each NetGUID on this connection. Public for ListNetGUIDExports 
 
-	void HandleUnAssignedObject( UObject* Obj );
+	ENGINE_API void HandleUnAssignedObject( UObject* Obj );
 
-	static void	AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	static ENGINE_API void	AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 
-	virtual void NotifyStreamingLevelUnload(UObject* UnloadedLevel) override;
+	ENGINE_API virtual void NotifyStreamingLevelUnload(UObject* UnloadedLevel) override;
 
-	virtual bool PrintExportBatch() override;
+	ENGINE_API virtual bool PrintExportBatch() override;
 
 	virtual void ResetTrackedSyncLoadedGuids() override { TrackedSyncLoadedGUIDs.Reset(); }
-	virtual void ReportSyncLoadsForProperty(const FProperty* Property, const UObject* Object) override;
+	ENGINE_API virtual void ReportSyncLoadsForProperty(const FProperty* Property, const UObject* Object) override;
 
-	virtual void			LogDebugInfo( FOutputDevice & Ar) override;
-	virtual UObject *		GetObjectFromNetGUID( const FNetworkGUID& NetGUID, const bool bIgnoreMustBeMapped ) override;
-	virtual FNetworkGUID	GetNetGUIDFromObject( const UObject* InObject) const override;
+	ENGINE_API virtual void			LogDebugInfo( FOutputDevice & Ar) override;
+	ENGINE_API virtual UObject *		GetObjectFromNetGUID( const FNetworkGUID& NetGUID, const bool bIgnoreMustBeMapped ) override;
+	ENGINE_API virtual FNetworkGUID	GetNetGUIDFromObject( const UObject* InObject) const override;
 	virtual bool			IsGUIDBroken( const FNetworkGUID& NetGUID, const bool bMustBeRegistered ) const override { return GuidCache->IsGUIDBroken( NetGUID, bMustBeRegistered ); }
 
 	/** Returns true if this guid is directly pending, or depends on another guid that is pending */
-	virtual bool			IsGUIDPending( const FNetworkGUID& NetGUID ) const;
+	ENGINE_API virtual bool			IsGUIDPending( const FNetworkGUID& NetGUID ) const;
 
 	/** Set rather this actor is associated with a channel with queued bunches */
-	virtual void			SetHasQueuedBunches( const FNetworkGUID& NetGUID, bool bHasQueuedBunches );
+	ENGINE_API virtual void			SetHasQueuedBunches( const FNetworkGUID& NetGUID, bool bHasQueuedBunches );
 
 	TArray< FNetworkGUID > & GetMustBeMappedGuidsInLastBunch() { return MustBeMappedGuidsInLastBunch; }
 
 	class UNetConnection* GetConnection() { return Connection; }
 
-	void SyncPackageMapExportAckStatus( const UPackageMapClient* Source );
+	ENGINE_API void SyncPackageMapExportAckStatus( const UPackageMapClient* Source );
 
-	void SavePackageMapExportAckStatus( FPackageMapAckState& OutState );
-	void RestorePackageMapExportAckStatus( const FPackageMapAckState& InState );
-	void OverridePackageMapExportAckStatus( FPackageMapAckState* NewState );
+	ENGINE_API void SavePackageMapExportAckStatus( FPackageMapAckState& OutState );
+	ENGINE_API void RestorePackageMapExportAckStatus( const FPackageMapAckState& InState );
+	ENGINE_API void OverridePackageMapExportAckStatus( FPackageMapAckState* NewState );
 
 	/** Resets the AckState and empties the PendingAckGuids, not meant to reset the OverrideAckState. */
-	void ResetAckState();
+	ENGINE_API void ResetAckState();
 
 	/** Functions to help with exporting/importing net field info */
-	TSharedPtr< FNetFieldExportGroup >	GetNetFieldExportGroup( const FString& PathName );
-	void								AddNetFieldExportGroup( const FString& PathName, TSharedPtr< FNetFieldExportGroup > NewNetFieldExportGroup );
-	void								TrackNetFieldExport( FNetFieldExportGroup* NetFieldExportGroup, const int32 NetFieldExportHandle );
-	TSharedPtr< FNetFieldExportGroup >	GetNetFieldExportGroupChecked( const FString& PathName ) const;
-	void								SerializeNetFieldExportGroupMap( FArchive& Ar, bool bClearPendingExports=true );
-	void								SerializeNetFieldExportDelta(FArchive& Ar);
+	ENGINE_API TSharedPtr< FNetFieldExportGroup >	GetNetFieldExportGroup( const FString& PathName );
+	ENGINE_API void								AddNetFieldExportGroup( const FString& PathName, TSharedPtr< FNetFieldExportGroup > NewNetFieldExportGroup );
+	ENGINE_API void								TrackNetFieldExport( FNetFieldExportGroup* NetFieldExportGroup, const int32 NetFieldExportHandle );
+	ENGINE_API TSharedPtr< FNetFieldExportGroup >	GetNetFieldExportGroupChecked( const FString& PathName ) const;
+	ENGINE_API void								SerializeNetFieldExportGroupMap( FArchive& Ar, bool bClearPendingExports=true );
+	ENGINE_API void								SerializeNetFieldExportDelta(FArchive& Ar);
 
 	TUniquePtr<TGuardValue<bool>> ScopedIgnoreReceivedExportGUIDs()
 	{
 		return MakeUnique<TGuardValue<bool>>(bIgnoreReceivedExportGUIDs, true);
 	}
 
-	virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
 
 	FString GetFullNetGUIDPath(const FNetworkGUID& NetGUID) const
 	{
@@ -510,30 +510,30 @@ public:
 protected:
 
 	/** Functions to help with exporting/importing net field export info */
-	void AppendNetFieldExports( FArchive& Archive );
-	void ReceiveNetFieldExports( FArchive& Archive );
+	ENGINE_API void AppendNetFieldExports( FArchive& Archive );
+	ENGINE_API void ReceiveNetFieldExports( FArchive& Archive );
 
-	void AppendNetFieldExportsInternal( FArchive& Archive, const TSet<uint64>& InNetFieldExports, EAppendNetExportFlags Flags );
+	ENGINE_API void AppendNetFieldExportsInternal( FArchive& Archive, const TSet<uint64>& InNetFieldExports, EAppendNetExportFlags Flags );
 
-	void AppendNetExportGUIDs( FArchive& Archive );
-	void ReceiveNetExportGUIDs( FArchive& Archive );
+	ENGINE_API void AppendNetExportGUIDs( FArchive& Archive );
+	ENGINE_API void ReceiveNetExportGUIDs( FArchive& Archive );
 
-	bool ExportNetGUIDForReplay( FNetworkGUID&, UObject* Object, FString& PathName, UObject* ObjOuter );
-	bool ExportNetGUID( FNetworkGUID NetGUID, UObject* Object, FString PathName, UObject* ObjOuter );
-	void ExportNetGUIDHeader();
+	ENGINE_API bool ExportNetGUIDForReplay( FNetworkGUID&, UObject* Object, FString& PathName, UObject* ObjOuter );
+	ENGINE_API bool ExportNetGUID( FNetworkGUID NetGUID, UObject* Object, FString PathName, UObject* ObjOuter );
+	ENGINE_API void ExportNetGUIDHeader();
 
-	void			InternalWriteObject( FArchive& Ar, FNetworkGUID NetGUID, UObject* Object, FString ObjectPathName, UObject* ObjectOuter );	
-	FNetworkGUID	InternalLoadObject( FArchive & Ar, UObject *& Object, const int32 InternalLoadObjectRecursionCount );
+	ENGINE_API void			InternalWriteObject( FArchive& Ar, FNetworkGUID NetGUID, UObject* Object, FString ObjectPathName, UObject* ObjectOuter );	
+	ENGINE_API FNetworkGUID	InternalLoadObject( FArchive & Ar, UObject *& Object, const int32 InternalLoadObjectRecursionCount );
 
-	virtual UObject* ResolvePathAndAssignNetGUID( const FNetworkGUID& NetGUID, const FString& PathName ) override;
+	ENGINE_API virtual UObject* ResolvePathAndAssignNetGUID( const FNetworkGUID& NetGUID, const FString& PathName ) override;
 
-	bool	ShouldSendFullPath(const UObject* Object, const FNetworkGUID &NetGUID);
+	ENGINE_API bool	ShouldSendFullPath(const UObject* Object, const FNetworkGUID &NetGUID);
 	
-	bool IsNetGUIDAuthority() const;
+	ENGINE_API bool IsNetGUIDAuthority() const;
 
 	class UNetConnection* Connection;
 
-	bool ObjectLevelHasFinishedLoading(UObject* Obj) const;
+	ENGINE_API bool ObjectLevelHasFinishedLoading(UObject* Obj) const;
 
 	TArray<TArray<uint8>>				ExportGUIDArchives;
 	TSet< FNetworkGUID >				CurrentExportNetGUIDs;				// Current list of NetGUIDs being written to the Export Bunch.
@@ -560,19 +560,19 @@ protected:
 	TSet< uint64 >						NetFieldExports;
 
 private:
-	void ReceiveNetFieldExportsCompat(FInBunch& InBunch);
+	ENGINE_API void ReceiveNetFieldExportsCompat(FInBunch& InBunch);
 
 	/** Used by SerializeNewActor to report sync loads with LogNetSyncLoads */
-	void ReportSyncLoadsForActorSpawn(const AActor* Actor);
+	ENGINE_API void ReportSyncLoadsForActorSpawn(const AActor* Actor);
 
 	bool bIgnoreReceivedExportGUIDs;
 
 public:
 
-	int32 GetNumQueuedBunchNetGUIDs() const;
-	void ConsumeQueuedActorDelinquencyAnalytics(FNetQueuedActorDelinquencyAnalytics& Out);
-	const FNetQueuedActorDelinquencyAnalytics& GetQueuedActorDelinquencyAnalytics() const;
-	void ResetQueuedActorDelinquencyAnalytics();
+	ENGINE_API int32 GetNumQueuedBunchNetGUIDs() const;
+	ENGINE_API void ConsumeQueuedActorDelinquencyAnalytics(FNetQueuedActorDelinquencyAnalytics& Out);
+	ENGINE_API const FNetQueuedActorDelinquencyAnalytics& GetQueuedActorDelinquencyAnalytics() const;
+	ENGINE_API void ResetQueuedActorDelinquencyAnalytics();
 
 private:
 

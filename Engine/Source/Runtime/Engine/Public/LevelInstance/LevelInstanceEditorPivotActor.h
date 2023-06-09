@@ -9,17 +9,17 @@
 #include "LevelInstance/LevelInstanceEditorPivotInterface.h"
 #include "LevelInstanceEditorPivotActor.generated.h"
 
-UCLASS(transient, notplaceable, hidecategories=(Rendering,Replication,Collision,Partition,Input,HLOD,Actor,Cooking))
-class ENGINE_API ALevelInstancePivot : public AActor, public ILevelInstanceEditorPivotInterface
+UCLASS(transient, notplaceable, hidecategories=(Rendering,Replication,Collision,Partition,Input,HLOD,Actor,Cooking), MinimalAPI)
+class ALevelInstancePivot : public AActor, public ILevelInstanceEditorPivotInterface
 {
 	GENERATED_UCLASS_BODY()
 
 #if WITH_EDITOR
 public:
 	virtual bool CanDeleteSelectedActor(FText& OutReason) const override { return false; }
-	virtual void PostEditMove(bool bFinished) override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PostEditUndo() override;
+	ENGINE_API virtual void PostEditMove(bool bFinished) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditUndo() override;
 	virtual bool ShouldExport() override { return false; }
 private:
 	virtual bool IsDataLayerTypeSupported(TSubclassOf<UDataLayerInstance> DataLayerType) const override { return false; }

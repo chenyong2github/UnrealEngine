@@ -9,14 +9,14 @@
 
 class USkeletalMesh;
 
-UINTERFACE(meta = (CannotImplementInterfaceInBlueprint))
-class ENGINE_API UInterface_PreviewMeshProvider : public UInterface
+UINTERFACE(meta = (CannotImplementInterfaceInBlueprint), MinimalAPI)
+class UInterface_PreviewMeshProvider : public UInterface
 {
 	GENERATED_UINTERFACE_BODY()
 };
 
 /** An asset that can provide a preview skeletal mesh (for editing) */
-class ENGINE_API IInterface_PreviewMeshProvider
+class IInterface_PreviewMeshProvider
 {
 	GENERATED_IINTERFACE_BODY()
 

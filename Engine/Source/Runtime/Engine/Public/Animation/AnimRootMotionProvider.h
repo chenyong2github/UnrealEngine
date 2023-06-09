@@ -16,16 +16,16 @@ namespace UE { namespace Anim {
 struct FStackAttributeContainer;
 
 // Modular feature interface for AnimationWarping
-class ENGINE_API IAnimRootMotionProvider : public IModularFeature
+class IAnimRootMotionProvider : public IModularFeature
 {
 public:
-	static const FName ModularFeatureName; // "AnimationWarping"
-	static const FName AttributeName;
+	static ENGINE_API const FName ModularFeatureName; // "AnimationWarping"
+	static ENGINE_API const FName AttributeName;
 
 	virtual ~IAnimRootMotionProvider() {}
 
-	static bool IsAvailable();
-	static const IAnimRootMotionProvider* Get();
+	static ENGINE_API bool IsAvailable();
+	static ENGINE_API const IAnimRootMotionProvider* Get();
 	
 	// Given the specified time range, sequence, and looping behavior, sample a root motion delta and store it in the specified attribute container
 	virtual void SampleRootMotion(const FDeltaTimeRecord& SampleRange, const UAnimSequence& Sequence, bool bLoopingSequence, FStackAttributeContainer& OutAttributes) const = 0;

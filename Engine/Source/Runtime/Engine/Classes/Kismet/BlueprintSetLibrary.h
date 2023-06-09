@@ -10,8 +10,8 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "BlueprintSetLibrary.generated.h"
 
-UCLASS(meta=(BlueprintThreadSafe))
-class ENGINE_API UBlueprintSetLibrary : public UBlueprintFunctionLibrary
+UCLASS(meta=(BlueprintThreadSafe), MinimalAPI)
+class UBlueprintSetLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 
@@ -23,7 +23,7 @@ public:
 	 * @param	NewItem			The item to add to the set
 	 */
 	UFUNCTION(BlueprintCallable, CustomThunk, meta=(DisplayName = "Add", CompactNodeTitle = "ADD", SetParam = "TargetSet|NewItem", AutoCreateRefTerm = "NewItem"), Category="Utilities|Set")
-	static void Set_Add(const TSet<int32>& TargetSet, const int32& NewItem);
+	static ENGINE_API void Set_Add(const TSet<int32>& TargetSet, const int32& NewItem);
 	
 	/**
 	 * Adds all elements from an Array to a Set
@@ -32,7 +32,7 @@ public:
 	 * @param	NewItems		The items to add to the set
 	 */
 	UFUNCTION(BlueprintCallable, CustomThunk, meta=(DisplayName = "Add Items", CompactNodeTitle = "ADD ITEMS", SetParam = "TargetSet|NewItems", AutoCreateRefTerm = "NewItems"), Category="Utilities|Set")
-	static void Set_AddItems(const TSet<int32>& TargetSet, const TArray<int32>& NewItems);
+	static ENGINE_API void Set_AddItems(const TSet<int32>& TargetSet, const TArray<int32>& NewItems);
 
 	/**
 	 * Remove item from set. Output value indicates if something was actually removed. False
@@ -43,7 +43,7 @@ public:
 	 * @return	True if an item was removed (False indicates no equivalent item was present)
 	 */
 	UFUNCTION(BlueprintCallable, CustomThunk, meta=(DisplayName = "Remove", CompactNodeTitle = "REMOVE", SetParam = "TargetSet|Item", AutoCreateRefTerm = "Item"), Category="Utilities|Set")
-	static bool Set_Remove(const TSet<int32>& TargetSet, const int32& Item);
+	static ENGINE_API bool Set_Remove(const TSet<int32>& TargetSet, const int32& Item);
 	
 	/**
 	 * Check if the set is empty
@@ -52,7 +52,7 @@ public:
 	 * @return	A boolean indicating if the array is empty
 	 */
 	UFUNCTION(BlueprintPure, CustomThunk, meta = (DisplayName = "Is Empty", CompactNodeTitle = "IS EMPTY", SetParam = "TargetSet"), Category = "Utilities|Set")
-	static bool Set_IsEmpty(const TSet<int32>& TargetSet);
+	static ENGINE_API bool Set_IsEmpty(const TSet<int32>& TargetSet);
 
 	/**
 	 * Check if the set has any elements
@@ -61,7 +61,7 @@ public:
 	 * @return	A boolean indicating if the array has any elements
 	 */
 	UFUNCTION(BlueprintPure, CustomThunk, meta = (DisplayName = "Is Not Empty", CompactNodeTitle = "IS NOT EMPTY", SetParam = "TargetSet"), Category = "Utilities|Set")
-	static bool Set_IsNotEmpty(const TSet<int32>& TargetSet);
+	static ENGINE_API bool Set_IsNotEmpty(const TSet<int32>& TargetSet);
 
 	/**
 	 * Removes all elements in an Array from a set.
@@ -70,7 +70,7 @@ public:
 	 * @param	Items			The items to remove from the set
 	 */
 	UFUNCTION(BlueprintCallable, CustomThunk, meta=(DisplayName = "Remove Items", CompactNodeTitle = "REMOVE ITEMS", SetParam = "TargetSet|Items", AutoCreateRefTerm = "Items"), Category="Utilities|Set")
-	static void Set_RemoveItems(const TSet<int32>& TargetSet, const  TArray<int32>& Items);
+	static ENGINE_API void Set_RemoveItems(const TSet<int32>& TargetSet, const  TArray<int32>& Items);
 
 	/**
 	 * Outputs an Array containing copies of the entries of a Set.
@@ -79,7 +79,7 @@ public:
 	 * @param		Result	Array
 	 */
 	UFUNCTION(BlueprintCallable, CustomThunk, meta = (DisplayName = "To Array", CompactNodeTitle = "TO ARRAY", SetParam = "A|Result"), Category = "Utilities|Set")
-	static void Set_ToArray(const TSet<int32>& A, TArray<int32>& Result);
+	static ENGINE_API void Set_ToArray(const TSet<int32>& A, TArray<int32>& Result);
 
 	/**
 	 * Clear a set, removes all content.
@@ -87,7 +87,7 @@ public:
 	 * @param	TargetSet		The set to clear
 	 */
 	UFUNCTION(BlueprintCallable, CustomThunk, meta=(DisplayName = "Clear", CompactNodeTitle = "CLEAR", Keywords = "empty", SetParam = "TargetSet"), Category="Utilities|Set")
-	static void Set_Clear(const TSet<int32>& TargetSet);
+	static ENGINE_API void Set_Clear(const TSet<int32>& TargetSet);
 
 	/**
 	 * Get the number of items in a set.
@@ -96,7 +96,7 @@ public:
 	 * @return	The length of the set
 	 */
 	UFUNCTION(BlueprintPure, CustomThunk, meta=(DisplayName = "Length", CompactNodeTitle = "LENGTH", SetParam = "TargetSet", Keywords = "num size count", BlueprintThreadSafe), Category="Utilities|Set")
-	static int32 Set_Length(const TSet<int32>& TargetSet);
+	static ENGINE_API int32 Set_Length(const TSet<int32>& TargetSet);
 
 	/**
 	 * Returns true if the set contains the given item.
@@ -106,7 +106,7 @@ public:
 	 * @return	True if the item was found within the set
 	 */
 	UFUNCTION(BlueprintPure, CustomThunk, meta=(DisplayName = "Contains Item", CompactNodeTitle = "CONTAINS", SetParam = "TargetSet|ItemToFind", AutoCreateRefTerm = "ItemToFind", BlueprintThreadSafe), Category="Utilities|Set")
-	static bool Set_Contains(const TSet<int32>& TargetSet, const int32& ItemToFind);
+	static ENGINE_API bool Set_Contains(const TSet<int32>& TargetSet, const int32& ItemToFind);
 
 	/**
 	 * Assigns Result to the intersection of Set A and Set B. That is, Result will contain
@@ -118,7 +118,7 @@ public:
 	 * @param		Result	Set to store results in
 	 */
 	UFUNCTION(BlueprintCallable, CustomThunk, meta=(DisplayName = "Intersection", CompactNodeTitle = "INTERSECTION", SetParam = "A|B|Result"), Category="Utilities|Set")
-	static void Set_Intersection(const TSet<int32>& A, const TSet<int32>& B, TSet<int32>& Result );
+	static ENGINE_API void Set_Intersection(const TSet<int32>& A, const TSet<int32>& B, TSet<int32>& Result );
 
 	/**
 	 * Assigns Result to the union of two sets, A and B. That is, Result will contain
@@ -130,7 +130,7 @@ public:
 	 * @param		Result	Set to store results in
 	 */
 	UFUNCTION(BlueprintCallable, CustomThunk, meta = (DisplayName = "Union", CompactNodeTitle = "UNION", SetParam = "A|B|Result"), Category = "Utilities|Set")
-	static void Set_Union(const TSet<int32>& A, const TSet<int32>& B, TSet<int32>& Result );
+	static ENGINE_API void Set_Union(const TSet<int32>& A, const TSet<int32>& B, TSet<int32>& Result );
 
 	/**
 	 * Assigns Result to the relative difference of two sets, A and B. That is, Result will 
@@ -143,13 +143,13 @@ public:
 	 * @param		Result	Set containing all elements in A that are not found in B
 	 */
 	UFUNCTION(BlueprintCallable, CustomThunk, meta = (DisplayName = "Difference", CompactNodeTitle = "DIFFERENCE", SetParam = "A|B|Result"), Category = "Utilities|Set")
-	static void Set_Difference(const TSet<int32>& A, const TSet<int32>& B, TSet<int32>& Result );
+	static ENGINE_API void Set_Difference(const TSet<int32>& A, const TSet<int32>& B, TSet<int32>& Result );
 
 	/** 
 	 * Not exposed to users. Supports setting a set property on an object by name.
 	 */
 	UFUNCTION(BlueprintCallable, CustomThunk, meta=(BlueprintInternalUseOnly = "true", SetParam = "Value"))
-	static void SetSetPropertyByName(UObject* Object, FName PropertyName, const TSet<int32>& Value);
+	static ENGINE_API void SetSetPropertyByName(UObject* Object, FName PropertyName, const TSet<int32>& Value);
 
 	DECLARE_FUNCTION(execSet_Add)
 	{
@@ -545,20 +545,20 @@ public:
 		P_NATIVE_END;
 	}
 
-	static void GenericSet_Add(const void* TargetSet, const FSetProperty* SetProperty, const void* ItemPtr);
-	static void GenericSet_AddItems(const void* TargetSet, const FSetProperty* SetProperty, const void* TargetArray, const FArrayProperty* ArrayProperty);
-	static bool GenericSet_Remove(const void* TargetSet, const FSetProperty* SetProperty, const void* ItemPtr);
-	static void GenericSet_RemoveItems(const void* TargetSet, const FSetProperty* SetProperty, const void* TargetArray, const FArrayProperty* ArrayProperty);
-	static void GenericSet_ToArray(const void* TargetSet, const FSetProperty* SetProperty, void* TargetArray, const FArrayProperty* ArrayProperty);
-	static void GenericSet_Clear(const void* TargetSet, const FSetProperty* SetProperty);
-	static int32 GenericSet_Length(const void* TargetSet, const FSetProperty* SetProperty);
-	static bool GenericSet_Contains(const void* TargetSet, const FSetProperty* SetProperty, const void* ItemToFind);
-	static bool GenericSet_IsEmpty(const void* TargetSet, const FSetProperty* SetProperty);
-	static bool GenericSet_IsNotEmpty(const void* TargetSet, const FSetProperty* SetProperty);
-	static void GenericSet_Intersect(const void* SetA, const FSetProperty* SetPropertyA, const void* SetB, const FSetProperty* SetPropertyB, const void* SetResult, const FSetProperty* SetPropertyResult);
-	static void GenericSet_Union(const void* SetA, const FSetProperty* SetPropertyA, const void* SetB, const FSetProperty* SetPropertyB, const void* SetResult, const FSetProperty* SetPropertyResult);
-	static void GenericSet_Difference(const void* SetA, const FSetProperty* SetPropertyA, const void* SetB, const FSetProperty* SetPropertyB, const void* SetResult, const FSetProperty* SetPropertyResult);
-	static void GenericSet_SetSetPropertyByName(UObject* OwnerObject, FName SetPropertyName, const void* SrcSetAddr);
+	static ENGINE_API void GenericSet_Add(const void* TargetSet, const FSetProperty* SetProperty, const void* ItemPtr);
+	static ENGINE_API void GenericSet_AddItems(const void* TargetSet, const FSetProperty* SetProperty, const void* TargetArray, const FArrayProperty* ArrayProperty);
+	static ENGINE_API bool GenericSet_Remove(const void* TargetSet, const FSetProperty* SetProperty, const void* ItemPtr);
+	static ENGINE_API void GenericSet_RemoveItems(const void* TargetSet, const FSetProperty* SetProperty, const void* TargetArray, const FArrayProperty* ArrayProperty);
+	static ENGINE_API void GenericSet_ToArray(const void* TargetSet, const FSetProperty* SetProperty, void* TargetArray, const FArrayProperty* ArrayProperty);
+	static ENGINE_API void GenericSet_Clear(const void* TargetSet, const FSetProperty* SetProperty);
+	static ENGINE_API int32 GenericSet_Length(const void* TargetSet, const FSetProperty* SetProperty);
+	static ENGINE_API bool GenericSet_Contains(const void* TargetSet, const FSetProperty* SetProperty, const void* ItemToFind);
+	static ENGINE_API bool GenericSet_IsEmpty(const void* TargetSet, const FSetProperty* SetProperty);
+	static ENGINE_API bool GenericSet_IsNotEmpty(const void* TargetSet, const FSetProperty* SetProperty);
+	static ENGINE_API void GenericSet_Intersect(const void* SetA, const FSetProperty* SetPropertyA, const void* SetB, const FSetProperty* SetPropertyB, const void* SetResult, const FSetProperty* SetPropertyResult);
+	static ENGINE_API void GenericSet_Union(const void* SetA, const FSetProperty* SetPropertyA, const void* SetB, const FSetProperty* SetPropertyB, const void* SetResult, const FSetProperty* SetPropertyResult);
+	static ENGINE_API void GenericSet_Difference(const void* SetA, const FSetProperty* SetPropertyA, const void* SetB, const FSetProperty* SetPropertyB, const void* SetResult, const FSetProperty* SetPropertyResult);
+	static ENGINE_API void GenericSet_SetSetPropertyByName(UObject* OwnerObject, FName SetPropertyName, const void* SrcSetAddr);
 
 private:
 	static constexpr int32 MaxSupportedSetSize = TNumericLimits<int32>::Max();

@@ -11,7 +11,7 @@
 #include "DeviceProfileMatching.generated.h"
 
 USTRUCT()
-struct ENGINE_API FSelectedFragmentProperties
+struct FSelectedFragmentProperties
 {
 	GENERATED_USTRUCT_BODY()
 

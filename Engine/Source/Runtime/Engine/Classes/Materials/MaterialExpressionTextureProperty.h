@@ -24,8 +24,8 @@ enum EMaterialExposedTextureProperty : int
 	TMTM_MAX,
 };
 
-UCLASS(collapsecategories, hidecategories=Object)
-class ENGINE_API UMaterialExpressionTextureProperty : public UMaterialExpression
+UCLASS(collapsecategories, hidecategories=Object, MinimalAPI)
+class UMaterialExpressionTextureProperty : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
 
@@ -38,11 +38,11 @@ class ENGINE_API UMaterialExpressionTextureProperty : public UMaterialExpression
 	
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR
-	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
-	virtual void GetTexturesForceMaterialRecompile(TArray<UTexture *> &Textures) const override;
-	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
-	virtual uint32 GetInputType(int32 InputIndex) override;
-	virtual bool MatchesSearchQuery(const TCHAR* SearchQuery) override;
+	ENGINE_API virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
+	ENGINE_API virtual void GetTexturesForceMaterialRecompile(TArray<UTexture *> &Textures) const override;
+	ENGINE_API virtual void GetCaption(TArray<FString>& OutCaptions) const override;
+	ENGINE_API virtual uint32 GetInputType(int32 InputIndex) override;
+	ENGINE_API virtual bool MatchesSearchQuery(const TCHAR* SearchQuery) override;
 #endif //WITH_EDITOR
 	//~ End UMaterialExpression Interface
 };

@@ -7,8 +7,8 @@
 #include "LevelInstance/LevelInstanceTypes.h"
 #include "LevelInstanceEditorPivotInterface.generated.h"
 
-UINTERFACE()
-class ENGINE_API ULevelInstanceEditorPivotInterface : public UInterface
+UINTERFACE(MinimalAPI)
+class ULevelInstanceEditorPivotInterface : public UInterface
 {
 	GENERATED_UINTERFACE_BODY()
 };
@@ -16,7 +16,7 @@ class ENGINE_API ULevelInstanceEditorPivotInterface : public UInterface
 /**
  * Interface to be implemented by Actor classes to implement support for LevelInstance Editor Pivot
  */
-class ENGINE_API ILevelInstanceEditorPivotInterface
+class ILevelInstanceEditorPivotInterface
 {
 	GENERATED_IINTERFACE_BODY()
 #if WITH_EDITOR
@@ -31,7 +31,7 @@ public:
 	void SetInitState(const FInitState& InInitState) { InitState = InInitState; }
 	const FLevelInstanceID& GetLevelInstanceID() const { return InitState.LevelInstanceID; }
 
-	virtual void UpdateOffset();
+	ENGINE_API virtual void UpdateOffset();
 protected:
 	FInitState InitState;
 #endif

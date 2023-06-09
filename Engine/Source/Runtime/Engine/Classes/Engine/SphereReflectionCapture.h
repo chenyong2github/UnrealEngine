@@ -32,7 +32,7 @@ public:
 #endif
 
 	/** Returns DrawCaptureRadius subobject **/
-	ENGINE_API UDrawSphereComponent* GetDrawCaptureRadius() const { return DrawCaptureRadius; }
+	UDrawSphereComponent* GetDrawCaptureRadius() const { return DrawCaptureRadius; }
 };
 
 

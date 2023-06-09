@@ -139,7 +139,7 @@ struct FNetworkObjectKeyFuncs : BaseKeyFuncs<TSharedPtr<FNetworkObjectInfo>, AAc
 /**
  * Stores the list of replicated actors for a given UNetDriver.
  */
-class ENGINE_API FNetworkObjectList
+class FNetworkObjectList
 {
 public:
 	typedef TSet<TSharedPtr<FNetworkObjectInfo>, FNetworkObjectKeyFuncs> FNetworkObjectSet;
@@ -152,7 +152,7 @@ public:
 	 * @param World The world from which actors are added.
 	 * @param NetDriver The net driver to which this object list belongs.
 	 */
-	void AddInitialObjects(UWorld* const World, UNetDriver* NetDriver);
+	ENGINE_API void AddInitialObjects(UWorld* const World, UNetDriver* NetDriver);
 
 	/**
 	 * Attempts to find the Actor's FNetworkObjectInfo.
@@ -163,51 +163,51 @@ public:
 	 *
 	 * If info cannot be found or created, nullptr will be returned.
 	 */
-	TSharedPtr<FNetworkObjectInfo>* FindOrAdd(AActor* const Actor, UNetDriver* NetDriver, bool* OutWasAdded=nullptr);
+	ENGINE_API TSharedPtr<FNetworkObjectInfo>* FindOrAdd(AActor* const Actor, UNetDriver* NetDriver, bool* OutWasAdded=nullptr);
 
 	/**
 	 * Attempts to find the Actor's FNetworkObjectInfo.
 	 *
 	 * If info is not found (or the Actor is in an invalid state) an invalid TSharedPtr is returned.
 	 */
-	TSharedPtr<FNetworkObjectInfo> Find(AActor* const Actor);
+	ENGINE_API TSharedPtr<FNetworkObjectInfo> Find(AActor* const Actor);
 	const TSharedPtr<FNetworkObjectInfo> Find(const AActor* const Actor) const
 	{
 		return const_cast<FNetworkObjectList*>(this)->Find(const_cast<AActor* const>(Actor));
 	}
 
 	/** Removes actor from the internal list, and any cleanup that is necessary (i.e. resetting dormancy state) */
-	void Remove(AActor* const Actor);
+	ENGINE_API void Remove(AActor* const Actor);
 
 	/** Marks this object as dormant for the passed in connection */
-	void MarkDormant(AActor* const Actor, UNetConnection* const Connection, const int32 NumConnections, UNetDriver* NetDriver);
+	ENGINE_API void MarkDormant(AActor* const Actor, UNetConnection* const Connection, const int32 NumConnections, UNetDriver* NetDriver);
 
 	/** Marks this object as active for the passed in connection */
-	bool MarkActive(AActor* const Actor, UNetConnection* const Connection, UNetDriver* NetDriver);
+	ENGINE_API bool MarkActive(AActor* const Actor, UNetConnection* const Connection, UNetDriver* NetDriver);
 
 	/** Marks this object dirty for replays using delta checkpoints */
-	void MarkDirtyForReplay(AActor* const Actor);
+	ENGINE_API void MarkDirtyForReplay(AActor* const Actor);
 
-	void ResetReplayDirtyTracking();
+	ENGINE_API void ResetReplayDirtyTracking();
 
 	/** Removes the recently dormant status from the passed in connection */
-	void ClearRecentlyDormantConnection(AActor* const Actor, UNetConnection* const Connection, UNetDriver* NetDriver);
+	ENGINE_API void ClearRecentlyDormantConnection(AActor* const Actor, UNetConnection* const Connection, UNetDriver* NetDriver);
 
 	/** Called when a replicated actor is about to be carried from one world to another */
-	void OnActorIsTraveling(AActor* TravelingAtor);
+	ENGINE_API void OnActorIsTraveling(AActor* TravelingAtor);
 
 	/** Called when seamless traveling is almost done just before we initialize the new world */
-	void OnPostSeamlessTravel();
+	ENGINE_API void OnPostSeamlessTravel();
 
 	/** 
 	 *	Does the necessary house keeping when a new connection is added 
 	 *	When a new connection is added, we must add all objects back to the active list so the new connection will process it
 	 *	Once the objects is dormant on that connection, it will then be removed from the active list again
 	*/
-	void HandleConnectionAdded();
+	ENGINE_API void HandleConnectionAdded();
 
 	/** Clears all state related to dormancy */
-	void ResetDormancyState();
+	ENGINE_API void ResetDormancyState();
 
 	/** Returns a const reference to the entire set of tracked actors. */
 	const FNetworkObjectSet& GetAllObjects() const { return AllNetworkObjects; }
@@ -218,51 +218,51 @@ public:
 	/** Returns a const reference to the entire set of dormant actors. */
 	const FNetworkObjectSet& GetDormantObjectsOnAllConnections() const { return ObjectsDormantOnAllConnections; }
 
-	int32 GetNumDormantActorsForConnection( UNetConnection* const Connection ) const;
+	ENGINE_API int32 GetNumDormantActorsForConnection( UNetConnection* const Connection ) const;
 
 	/** Force this actor to be relevant for at least one update */
-	void ForceActorRelevantNextUpdate(AActor* const Actor, UNetDriver* NetDriver);
+	ENGINE_API void ForceActorRelevantNextUpdate(AActor* const Actor, UNetDriver* NetDriver);
 		
-	void Reset();
+	ENGINE_API void Reset();
 
-	void CountBytes(FArchive& Ar) const;
+	ENGINE_API void CountBytes(FArchive& Ar) const;
 
 	/** Marks any actors in the given package/level active if they were fully dormant or dormant for the passed in connection */
-	void FlushDormantActors(UNetConnection* const Connection, const FName& PackageName);
+	ENGINE_API void FlushDormantActors(UNetConnection* const Connection, const FName& PackageName);
 
 	/** Called when the netdriver gets notified that an actor is destroyed */
-	void OnActorDestroyed(AActor* DestroyedActor);
+	ENGINE_API void OnActorDestroyed(AActor* DestroyedActor);
 
 #if UE_REPLICATED_OBJECT_REFCOUNTING
 
 	/** Set the subobject to be flagged for deletion */
-	void SetSubObjectForDeletion(AActor* Actor, UObject* SubObject);
+	ENGINE_API void SetSubObjectForDeletion(AActor* Actor, UObject* SubObject);
 
 	/** Set the subobject to be flagged for tear off */
-	void SetSubObjectForTearOff(AActor* Actor, UObject* SubObject);
+	ENGINE_API void SetSubObjectForTearOff(AActor* Actor, UObject* SubObject);
 
 	/**
 	* Called when a channel starts replicating a subobject for the first time.
 	* Used to keep track of the number of channels having an active reference to a specific subobject
 	*/
-	void AddSubObjectChannelReference(AActor* OwnerActor, UObject* ReplicatedSubObject, UObject* ReferenceOwner);
+	ENGINE_API void AddSubObjectChannelReference(AActor* OwnerActor, UObject* ReplicatedSubObject, UObject* ReferenceOwner);
 
 	/** Called when a channel stops replicating a subobject. */
-	void RemoveSubObjectChannelReference(AActor* OwnerActor, const TWeakObjectPtr<UObject>& ReplicatedSubObject, UObject* ReferenceOwner);
+	ENGINE_API void RemoveSubObjectChannelReference(AActor* OwnerActor, const TWeakObjectPtr<UObject>& ReplicatedSubObject, UObject* ReferenceOwner);
 
 	/** Called when multiple subobjects need to remove their reference from either the active or inactive list */
-	void RemoveMultipleSubObjectChannelReference(FObjectKey OwnerActorKey, const TArrayView<TWeakObjectPtr<UObject>>& SubObjectsToRemove, UObject* ReferenceOwner);
+	ENGINE_API void RemoveMultipleSubObjectChannelReference(FObjectKey OwnerActorKey, const TArrayView<TWeakObjectPtr<UObject>>& SubObjectsToRemove, UObject* ReferenceOwner);
 
 	/** Called when multiple subobjects that were flagged torn off or delete have removed their channel reference */
-	void RemoveMultipleInvalidSubObjectChannelReference(FObjectKey OwnerActorKey, const TArrayView<TWeakObjectPtr<UObject>>& SubObjectsToRemove, UObject* ReferenceOwner);
+	ENGINE_API void RemoveMultipleInvalidSubObjectChannelReference(FObjectKey OwnerActorKey, const TArrayView<TWeakObjectPtr<UObject>>& SubObjectsToRemove, UObject* ReferenceOwner);
 
 	/** Called when multiple subobjects that were still considered active have removed their channel reference */
-	void RemoveMultipleActiveSubObjectChannelReference(FObjectKey OwnerActorKey, const TArrayView<TWeakObjectPtr<UObject>>& SubObjectsToRemove, UObject* ReferenceOwner);
+	ENGINE_API void RemoveMultipleActiveSubObjectChannelReference(FObjectKey OwnerActorKey, const TArrayView<TWeakObjectPtr<UObject>>& SubObjectsToRemove, UObject* ReferenceOwner);
 
 	struct FActorInvalidSubObjectView;
 
 	/** Returns a struct holding the dirty count and a possible list of invalid subobjects who still have references to specific connections.*/
-	FNetworkObjectList::FActorInvalidSubObjectView FindActorInvalidSubObjects(AActor* OwnerActor) const;
+	ENGINE_API FNetworkObjectList::FActorInvalidSubObjectView FindActorInvalidSubObjects(AActor* OwnerActor) const;
 
 	/** 
 	* Keep track of the transfer of ownership from the channel to the connection when the actor becomes dormant.
@@ -270,26 +270,26 @@ public:
 	* No actual logic is modified here.
 	*/
 #if DO_REPLICATED_OBJECT_CHANNELREF_CHECKS
-	void SwapMultipleReferencesForDormancy(AActor* OwnerActor, const TArrayView<TWeakObjectPtr<UObject>>& SubObjectsToSwap, UActorChannel* PreviousChannelRefOwner, UNetConnection* NewConnectionRefOwner);
-	void SwapReferenceForDormancy(AActor* OwnerActor, UObject* ReplicatedSubObject, UNetConnection* PreviousConnectionRefOwner, UActorChannel* NewChannelRefOwner);
+	ENGINE_API void SwapMultipleReferencesForDormancy(AActor* OwnerActor, const TArrayView<TWeakObjectPtr<UObject>>& SubObjectsToSwap, UActorChannel* PreviousChannelRefOwner, UNetConnection* NewConnectionRefOwner);
+	ENGINE_API void SwapReferenceForDormancy(AActor* OwnerActor, UObject* ReplicatedSubObject, UNetConnection* PreviousConnectionRefOwner, UActorChannel* NewChannelRefOwner);
 #endif 
 
 #endif //#if UE_REPLICATED_OBJECT_REFCOUNTING
 
 private:
-	bool MarkActiveInternal(const TSharedPtr<FNetworkObjectInfo>& ObjectInfo, UNetConnection* const Connection, UNetDriver* NetDriver);
+	ENGINE_API bool MarkActiveInternal(const TSharedPtr<FNetworkObjectInfo>& ObjectInfo, UNetConnection* const Connection, UNetDriver* NetDriver);
 
 #if UE_REPLICATED_OBJECT_REFCOUNTING
-	void InvalidateSubObject(AActor* Actor, UObject* SubObject, ENetSubObjectStatus InvalidStatus);
+	ENGINE_API void InvalidateSubObject(AActor* Actor, UObject* SubObject, ENetSubObjectStatus InvalidStatus);
 
 	struct FActorSubObjectReferences;
-	void HandleRemoveAnySubObjectChannelRef(FActorSubObjectReferences& SubObjectsRefInfo, const TWeakObjectPtr<UObject>& ReplicatedSubObject, UObject* ReferenceOwner);
-	bool HandleRemoveActiveSubObjectRef(FActorSubObjectReferences& SubObjectsRefInfo, const TWeakObjectPtr<UObject>& ReplicatedSubObject, UObject* ReferenceOwner);
-	bool HandleRemoveInvalidSubObjectRef(FActorSubObjectReferences& SubObjectsRefInfo, const TWeakObjectPtr<UObject>& ReplicatedSubObject, UObject* ReferenceOwner);
+	ENGINE_API void HandleRemoveAnySubObjectChannelRef(FActorSubObjectReferences& SubObjectsRefInfo, const TWeakObjectPtr<UObject>& ReplicatedSubObject, UObject* ReferenceOwner);
+	ENGINE_API bool HandleRemoveActiveSubObjectRef(FActorSubObjectReferences& SubObjectsRefInfo, const TWeakObjectPtr<UObject>& ReplicatedSubObject, UObject* ReferenceOwner);
+	ENGINE_API bool HandleRemoveInvalidSubObjectRef(FActorSubObjectReferences& SubObjectsRefInfo, const TWeakObjectPtr<UObject>& ReplicatedSubObject, UObject* ReferenceOwner);
 #endif
 
 #if DO_REPLICATED_OBJECT_CHANNELREF_CHECKS
-	void HandleSwapReferenceForDormancy(FActorSubObjectReferences* ActorNetInfo, const TWeakObjectPtr<UObject>& SubObjectPtr, UObject* PreviousRefOwner, UObject* NewRefOwner);
+	ENGINE_API void HandleSwapReferenceForDormancy(FActorSubObjectReferences* ActorNetInfo, const TWeakObjectPtr<UObject>& SubObjectPtr, UObject* PreviousRefOwner, UObject* NewRefOwner);
 #endif
 
 	FNetworkObjectSet AllNetworkObjects;

@@ -55,7 +55,7 @@ enum class EVisualLoggerShapeElement : uint8
 };
 
 #if ENABLE_VISUAL_LOG
-struct ENGINE_API FVisualLogEventBase
+struct FVisualLogEventBase
 {
 	const FString Name;
 	const FString FriendlyDesc;
@@ -67,7 +67,7 @@ struct ENGINE_API FVisualLogEventBase
 	}
 };
 
-struct ENGINE_API FVisualLogEvent
+struct FVisualLogEvent
 {
 	FString Name;
 	FString UserFriendlyDesc;
@@ -78,8 +78,8 @@ struct ENGINE_API FVisualLogEvent
 	FName TagName;
 
 	FVisualLogEvent() : Counter(1) { /* Empty */ }
-	FVisualLogEvent(const FVisualLogEventBase& Event);
-	FVisualLogEvent& operator=(const FVisualLogEventBase& Event);
+	ENGINE_API FVisualLogEvent(const FVisualLogEventBase& Event);
+	ENGINE_API FVisualLogEvent& operator=(const FVisualLogEventBase& Event);
 
 	friend inline bool operator==(const FVisualLogEvent& Left, const FVisualLogEvent& Right) 
 	{ 
@@ -87,7 +87,7 @@ struct ENGINE_API FVisualLogEvent
 	}
 };
 
-struct ENGINE_API FVisualLogLine
+struct FVisualLogLine
 {
 	FString Line;
 	FName Category;
@@ -97,29 +97,29 @@ struct ENGINE_API FVisualLogLine
 	FName TagName;
 
 	FVisualLogLine() { /* Empty */ }
-	FVisualLogLine(const FName& InCategory, ELogVerbosity::Type InVerbosity, const FString& InLine);
-	FVisualLogLine(const FName& InCategory, ELogVerbosity::Type InVerbosity, const FString& InLine, int64 InUserData);
+	ENGINE_API FVisualLogLine(const FName& InCategory, ELogVerbosity::Type InVerbosity, const FString& InLine);
+	ENGINE_API FVisualLogLine(const FName& InCategory, ELogVerbosity::Type InVerbosity, const FString& InLine, int64 InUserData);
 };
 
-struct ENGINE_API FVisualLogStatusCategory
+struct FVisualLogStatusCategory
 {
 	TArray<FString> Data;
 	FString Category;
 	int32 UniqueId;
 	TArray<FVisualLogStatusCategory> Children;
 
-	FVisualLogStatusCategory();
+	ENGINE_API FVisualLogStatusCategory();
 	explicit FVisualLogStatusCategory(const FString& InCategory/* = TEXT("")*/)
 		: Category(InCategory)
 	{
 	}
 
-	void Add(const FString& Key, const FString& Value);
-	bool GetDesc(int32 Index, FString& Key, FString& Value) const;
-	void AddChild(const FVisualLogStatusCategory& Child);
+	ENGINE_API void Add(const FString& Key, const FString& Value);
+	ENGINE_API bool GetDesc(int32 Index, FString& Key, FString& Value) const;
+	ENGINE_API void AddChild(const FVisualLogStatusCategory& Child);
 };
 
-struct ENGINE_API FVisualLogShapeElement
+struct FVisualLogShapeElement
 {
 	FString Description;
 	FName Category;
@@ -135,15 +135,15 @@ struct ENGINE_API FVisualLogShapeElement
 		uint16 Radius;
 	};
 
-	FVisualLogShapeElement(EVisualLoggerShapeElement InType = EVisualLoggerShapeElement::Invalid);
-	FVisualLogShapeElement(const FString& InDescription, const FColor& InColor, uint16 InThickness, const FName& InCategory);
-	void SetColor(const FColor& InColor);
-	EVisualLoggerShapeElement GetType() const;
-	void SetType(EVisualLoggerShapeElement InType);
-	FColor GetFColor() const;
+	ENGINE_API FVisualLogShapeElement(EVisualLoggerShapeElement InType = EVisualLoggerShapeElement::Invalid);
+	ENGINE_API FVisualLogShapeElement(const FString& InDescription, const FColor& InColor, uint16 InThickness, const FName& InCategory);
+	ENGINE_API void SetColor(const FColor& InColor);
+	ENGINE_API EVisualLoggerShapeElement GetType() const;
+	ENGINE_API void SetType(EVisualLoggerShapeElement InType);
+	ENGINE_API FColor GetFColor() const;
 };
 
-struct ENGINE_API FVisualLogHistogramSample
+struct FVisualLogHistogramSample
 {
 	FName Category;
 	TEnumAsByte<ELogVerbosity::Type> Verbosity;
@@ -153,7 +153,7 @@ struct ENGINE_API FVisualLogHistogramSample
 	int32 UniqueId;
 };
 
-struct ENGINE_API FVisualLogDataBlock
+struct FVisualLogDataBlock
 {
 	FName TagName;
 	FName Category;
@@ -163,7 +163,7 @@ struct ENGINE_API FVisualLogDataBlock
 };
 #endif  //ENABLE_VISUAL_LOG
 
-struct ENGINE_API FVisualLogEntry
+struct FVisualLogEntry
 {
 #if ENABLE_VISUAL_LOG
 	double TimeStamp;
@@ -182,8 +182,8 @@ struct ENGINE_API FVisualLogEntry
 	TArray<FVisualLogDataBlock>	DataBlocks;
 
 	FVisualLogEntry() { Reset(); }
-	FVisualLogEntry(const AActor* InActor, TArray<TWeakObjectPtr<UObject> >* Children);
-	FVisualLogEntry(double InTimeStamp, FVector InLocation, const UObject* Object, TArray<TWeakObjectPtr<UObject> >* Children);
+	ENGINE_API FVisualLogEntry(const AActor* InActor, TArray<TWeakObjectPtr<UObject> >* Children);
+	ENGINE_API FVisualLogEntry(double InTimeStamp, FVector InLocation, const UObject* Object, TArray<TWeakObjectPtr<UObject> >* Children);
 
 	bool ShouldLog(const ECreateIfNeeded ShouldCreate) const
 	{
@@ -198,52 +198,52 @@ struct ENGINE_API FVisualLogEntry
 		return bIsInitialized && InTimeStamp > TimeStamp;
 	}
 
-	void InitializeEntry( const double InTimeStamp );
-	void Reset();
-	void SetPassedObjectAllowList(const bool bPassed);
-	void UpdateAllowedToLog();
+	ENGINE_API void InitializeEntry( const double InTimeStamp );
+	ENGINE_API void Reset();
+	ENGINE_API void SetPassedObjectAllowList(const bool bPassed);
+	ENGINE_API void UpdateAllowedToLog();
 
-	void AddText(const FString& TextLine, const FName& CategoryName, ELogVerbosity::Type Verbosity);
+	ENGINE_API void AddText(const FString& TextLine, const FName& CategoryName, ELogVerbosity::Type Verbosity);
 	// path
-	void AddElement(const TArray<FVector>& Points, const FName& CategoryName, ELogVerbosity::Type Verbosity, const FColor& Color = FColor::White, const FString& Description = TEXT(""), uint16 Thickness = 0);
+	ENGINE_API void AddElement(const TArray<FVector>& Points, const FName& CategoryName, ELogVerbosity::Type Verbosity, const FColor& Color = FColor::White, const FString& Description = TEXT(""), uint16 Thickness = 0);
 	// location
-	void AddElement(const FVector& Point, const FName& CategoryName, ELogVerbosity::Type Verbosity, const FColor& Color = FColor::White, const FString& Description = TEXT(""), uint16 Thickness = 0);
+	ENGINE_API void AddElement(const FVector& Point, const FName& CategoryName, ELogVerbosity::Type Verbosity, const FColor& Color = FColor::White, const FString& Description = TEXT(""), uint16 Thickness = 0);
 	// segment
-	void AddElement(const FVector& Start, const FVector& End, const FName& CategoryName, ELogVerbosity::Type Verbosity, const FColor& Color = FColor::White, const FString& Description = TEXT(""), uint16 Thickness = 0);
+	ENGINE_API void AddElement(const FVector& Start, const FVector& End, const FName& CategoryName, ELogVerbosity::Type Verbosity, const FColor& Color = FColor::White, const FString& Description = TEXT(""), uint16 Thickness = 0);
 	// box
-	void AddElement(const FBox& Box, const FMatrix& Matrix, const FName& CategoryName, ELogVerbosity::Type Verbosity, const FColor& Color = FColor::White, const FString& Description = TEXT(""), uint16 Thickness = 0);
+	ENGINE_API void AddElement(const FBox& Box, const FMatrix& Matrix, const FName& CategoryName, ELogVerbosity::Type Verbosity, const FColor& Color = FColor::White, const FString& Description = TEXT(""), uint16 Thickness = 0);
 	// Cone
-	void AddElement(const FVector& Orgin, const FVector& Direction, float Length, float AngleWidth, float AngleHeight, const FName& CategoryName, ELogVerbosity::Type Verbosity, const FColor& Color = FColor::White, const FString& Description = TEXT(""), uint16 Thickness = 0);
+	ENGINE_API void AddElement(const FVector& Orgin, const FVector& Direction, float Length, float AngleWidth, float AngleHeight, const FName& CategoryName, ELogVerbosity::Type Verbosity, const FColor& Color = FColor::White, const FString& Description = TEXT(""), uint16 Thickness = 0);
 	// Cylinder
-	void AddElement(const FVector& Start, const FVector& End, float Radius, const FName& CategoryName, ELogVerbosity::Type Verbosity, const FColor& Color = FColor::White, const FString& Description = TEXT(""), uint16 Thickness = 0);
+	ENGINE_API void AddElement(const FVector& Start, const FVector& End, float Radius, const FName& CategoryName, ELogVerbosity::Type Verbosity, const FColor& Color = FColor::White, const FString& Description = TEXT(""), uint16 Thickness = 0);
 	// capsule
-	void AddElement(const FVector& Center, float HalfHeight, float Radius, const FQuat & Rotation, const FName& CategoryName, ELogVerbosity::Type Verbosity, const FColor& Color = FColor::White, const FString& Description = TEXT(""));
+	ENGINE_API void AddElement(const FVector& Center, float HalfHeight, float Radius, const FQuat & Rotation, const FName& CategoryName, ELogVerbosity::Type Verbosity, const FColor& Color = FColor::White, const FString& Description = TEXT(""));
 	// custom element
-	void AddElement(const FVisualLogShapeElement& Element);
+	ENGINE_API void AddElement(const FVisualLogShapeElement& Element);
 	// NavAreaMesh
-	void AddElement(const TArray<FVector>& ConvexPoints, FVector::FReal MinZ, FVector::FReal MaxZ, const FName& CategoryName, ELogVerbosity::Type Verbosity, const FColor& Color = FColor::White, const FString& Description = TEXT(""));
+	ENGINE_API void AddElement(const TArray<FVector>& ConvexPoints, FVector::FReal MinZ, FVector::FReal MaxZ, const FName& CategoryName, ELogVerbosity::Type Verbosity, const FColor& Color = FColor::White, const FString& Description = TEXT(""));
 	// 3d Mesh
-	void AddElement(const TArray<FVector>& Vertices, const TArray<int32>& Indices, const FName& CategoryName, ELogVerbosity::Type Verbosity, const FColor& Color = FColor::White, const FString& Description = TEXT(""));
+	ENGINE_API void AddElement(const TArray<FVector>& Vertices, const TArray<int32>& Indices, const FName& CategoryName, ELogVerbosity::Type Verbosity, const FColor& Color = FColor::White, const FString& Description = TEXT(""));
 	// 2d convex
-	void AddConvexElement(const TArray<FVector>& Points, const FName& CategoryName, ELogVerbosity::Type Verbosity, const FColor& Color = FColor::White, const FString& Description = TEXT(""));
+	ENGINE_API void AddConvexElement(const TArray<FVector>& Points, const FName& CategoryName, ELogVerbosity::Type Verbosity, const FColor& Color = FColor::White, const FString& Description = TEXT(""));
 	// histogram sample
-	void AddHistogramData(const FVector2D& DataSample, const FName& CategoryName, ELogVerbosity::Type Verbosity, const FName& GraphName, const FName& DataName);
+	ENGINE_API void AddHistogramData(const FVector2D& DataSample, const FName& CategoryName, ELogVerbosity::Type Verbosity, const FName& GraphName, const FName& DataName);
 	// arrow
-	void AddArrow(const FVector& Start, const FVector& End, const FName& CategoryName, ELogVerbosity::Type Verbosity, const FColor& Color = FColor::White, const FString& Description = TEXT(""));
+	ENGINE_API void AddArrow(const FVector& Start, const FVector& End, const FName& CategoryName, ELogVerbosity::Type Verbosity, const FColor& Color = FColor::White, const FString& Description = TEXT(""));
 	// boxes
-	void AddBoxes(const TArray<FBox>& Boxes, const FName& CategoryName, ELogVerbosity::Type Verbosity, const FColor& Color = FColor::White);
+	ENGINE_API void AddBoxes(const TArray<FBox>& Boxes, const FName& CategoryName, ELogVerbosity::Type Verbosity, const FColor& Color = FColor::White);
 	// circle
-	void AddCircle(const FVector& Center, const FVector& UpAxis, const float Radius, const FName& CategoryName, ELogVerbosity::Type Verbosity, const FColor& Color, const FString& Description = TEXT(""), uint16 Thickness = 0);
+	ENGINE_API void AddCircle(const FVector& Center, const FVector& UpAxis, const float Radius, const FName& CategoryName, ELogVerbosity::Type Verbosity, const FColor& Color, const FString& Description = TEXT(""), uint16 Thickness = 0);
 
 	// Custom data block
-	FVisualLogDataBlock& AddDataBlock(const FString& TagName, const TArray<uint8>& BlobDataArray, const FName& CategoryName, ELogVerbosity::Type Verbosity);
+	ENGINE_API FVisualLogDataBlock& AddDataBlock(const FString& TagName, const TArray<uint8>& BlobDataArray, const FName& CategoryName, ELogVerbosity::Type Verbosity);
 	// Event
-	int32 AddEvent(const FVisualLogEventBase& Event);
+	ENGINE_API int32 AddEvent(const FVisualLogEventBase& Event);
 	// find index of status category
-	int32 FindStatusIndex(const FString& CategoryName);
+	ENGINE_API int32 FindStatusIndex(const FString& CategoryName);
 
 	// Moves all content to provided entry and reseting our content.
-	void MoveTo(FVisualLogEntry& Other);
+	ENGINE_API void MoveTo(FVisualLogEntry& Other);
 
 #endif // ENABLE_VISUAL_LOG
 };
@@ -253,7 +253,7 @@ struct ENGINE_API FVisualLogEntry
 /**
  * Interface for Visual Logger Device
  */
-class ENGINE_API FVisualLogDevice
+class FVisualLogDevice
 {
 public:
 	struct FVisualLogEntryItem
@@ -285,7 +285,7 @@ protected:
 	FGuid SessionGUID;
 };
 
-struct ENGINE_API FVisualLoggerCategoryVerbosityPair
+struct FVisualLoggerCategoryVerbosityPair
 {
 	FVisualLoggerCategoryVerbosityPair(FName Category, ELogVerbosity::Type InVerbosity) : CategoryName(Category), Verbosity(InVerbosity) {}
 
@@ -299,14 +299,14 @@ struct ENGINE_API FVisualLoggerCategoryVerbosityPair
 	}
 };
 
-struct ENGINE_API FVisualLoggerHelpers
+struct FVisualLoggerHelpers
 {
-	static FString GenerateTemporaryFilename(const FString& FileExt);
-	static FString GenerateFilename(const FString& TempFileName, const FString& Prefix, double StartRecordingTime, double EndTimeStamp);
-	static FArchive& Serialize(FArchive& Ar, FName& Name);
-	static FArchive& Serialize(FArchive& Ar, TArray<FVisualLogDevice::FVisualLogEntryItem>& RecordedLogs);
-	static void GetCategories(const FVisualLogEntry& RecordedLogs, TArray<FVisualLoggerCategoryVerbosityPair>& OutCategories);
-	static void GetHistogramCategories(const FVisualLogEntry& RecordedLogs, TMap<FString, TArray<FString> >& OutCategories);
+	static ENGINE_API FString GenerateTemporaryFilename(const FString& FileExt);
+	static ENGINE_API FString GenerateFilename(const FString& TempFileName, const FString& Prefix, double StartRecordingTime, double EndTimeStamp);
+	static ENGINE_API FArchive& Serialize(FArchive& Ar, FName& Name);
+	static ENGINE_API FArchive& Serialize(FArchive& Ar, TArray<FVisualLogDevice::FVisualLogEntryItem>& RecordedLogs);
+	static ENGINE_API void GetCategories(const FVisualLogEntry& RecordedLogs, TArray<FVisualLoggerCategoryVerbosityPair>& OutCategories);
+	static ENGINE_API void GetHistogramCategories(const FVisualLogEntry& RecordedLogs, TMap<FString, TArray<FString> >& OutCategories);
 };
 
 struct IVisualLoggerEditorInterface

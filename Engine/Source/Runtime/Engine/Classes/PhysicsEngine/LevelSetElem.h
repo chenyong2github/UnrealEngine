@@ -17,16 +17,16 @@ struct FKLevelSetElem : public FKShapeElem
 {
 	GENERATED_USTRUCT_BODY()
 
-	ENGINE_API FKLevelSetElem() :
+	FKLevelSetElem() :
 		FKShapeElem(EAggCollisionShape::LevelSet)
 	{}
 
-	ENGINE_API FKLevelSetElem(const FKLevelSetElem& Other)
+	FKLevelSetElem(const FKLevelSetElem& Other)
 	{
 		CloneElem(Other);
 	}
 
-	ENGINE_API const FKLevelSetElem& operator=(const FKLevelSetElem& Other)
+	const FKLevelSetElem& operator=(const FKLevelSetElem& Other)
 	{
 		CloneElem(Other);
 		return *this;
@@ -36,12 +36,12 @@ struct FKLevelSetElem : public FKShapeElem
 
 	ENGINE_API void GetLevelSetData(FTransform& OutGridTransform, TArray<double>& OutGridValues, FIntVector& OutGridDims, float& OutGridCellSize) const;
 
-	ENGINE_API FTransform GetTransform() const
+	FTransform GetTransform() const
 	{
 		return Transform;
 	};
 
-	ENGINE_API void SetTransform(const FTransform& InTransform)
+	void SetTransform(const FTransform& InTransform)
 	{
 		ensure(InTransform.IsValid());
 		Transform = InTransform;

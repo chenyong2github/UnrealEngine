@@ -23,23 +23,23 @@ namespace EDocumentationActorType
 }
 
 
-UCLASS(hidecategories = (Sprite, MaterialSprite, Actor, Transform, Tags, Materials, Rendering, Components, Blueprint, bject, Collision, Display, Rendering, Physics, Input, Lighting, Layers))
-class ENGINE_API ADocumentationActor
+UCLASS(hidecategories = (Sprite, MaterialSprite, Actor, Transform, Tags, Materials, Rendering, Components, Blueprint, bject, Collision, Display, Rendering, Physics, Input, Lighting, Layers), MinimalAPI)
+class ADocumentationActor
 	: public AActor
 {
 	GENERATED_UCLASS_BODY()
 
 	/* Open the document link this actor relates to */
-	bool OpenDocumentLink() const;
+	ENGINE_API bool OpenDocumentLink() const;
 	
 	/* Is the document link this actor has valid */
-	bool HasValidDocumentLink() const;
+	ENGINE_API bool HasValidDocumentLink() const;
 
 	// Actor interface
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
-	virtual void PostLoad() override;
+	ENGINE_API virtual void PostLoad() override;
 #endif
 	// End of Actor interface
 
@@ -56,12 +56,12 @@ private:
 public:
 
 	/** Determine the type of link contained in the DocumentLink member */
-	EDocumentationActorType::Type GetLinkType() const;
+	ENGINE_API EDocumentationActorType::Type GetLinkType() const;
 	
 private:
 
 	/** Update the member variable that days what type of link we have */
-	void UpdateLinkType();
+	ENGINE_API void UpdateLinkType();
 
 	EDocumentationActorType::Type	LinkType;
 

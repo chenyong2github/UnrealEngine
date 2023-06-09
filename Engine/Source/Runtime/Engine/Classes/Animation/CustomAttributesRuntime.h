@@ -12,7 +12,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 UE_STATIC_DEPRECATE(5.0, true, "CustomAttributesRuntime.h has been deprecated - please include and use AttributesRuntime.h instead.");
 
-struct ENGINE_API FCustomAttributesRuntime
+struct FCustomAttributesRuntime
 {
 #if WITH_EDITOR
 	/** Editor functionality to retrieve custom attribute values from the raw data */

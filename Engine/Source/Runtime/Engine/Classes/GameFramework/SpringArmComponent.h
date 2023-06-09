@@ -15,8 +15,8 @@
  * Example: Use as a 'camera boom' or 'selfie stick' to keep the follow camera for a player from colliding into the world.
  */
 
-UCLASS(ClassGroup=Camera, meta=(BlueprintSpawnableComponent), hideCategories=(Mobility))
-class ENGINE_API USpringArmComponent : public USceneComponent
+UCLASS(ClassGroup=Camera, meta=(BlueprintSpawnableComponent), hideCategories=(Mobility), MinimalAPI)
+class USpringArmComponent : public USceneComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -121,15 +121,15 @@ class ENGINE_API USpringArmComponent : public USceneComponent
 	 * This is derived from attachment to our parent and considering the UsePawnControlRotation and absolute rotation flags.
 	 */
 	UFUNCTION(BlueprintCallable, Category=SpringArm)
-	FRotator GetTargetRotation() const;
+	ENGINE_API FRotator GetTargetRotation() const;
 
 	/** Get the position where the camera should be without applying the Collision Test displacement */
 	UFUNCTION(BlueprintCallable, Category=CameraCollision)
-	FVector GetUnfixedCameraPosition() const;
+	ENGINE_API FVector GetUnfixedCameraPosition() const;
 
 	/** Is the Collision Test displacement being applied? */
 	UFUNCTION(BlueprintCallable, Category = CameraCollision)
-	bool IsCollisionFixApplied() const;
+	ENGINE_API bool IsCollisionFixApplied() const;
 
 	/** Temporary variables when applying Collision Test displacement to notify if its being applied and by how much */
 	bool bIsCameraFixed = false;
@@ -142,23 +142,23 @@ class ENGINE_API USpringArmComponent : public USceneComponent
 	FRotator PreviousDesiredRot;
 
 	// UActorComponent interface
-	virtual void OnRegister() override;
-	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
-	virtual void PostLoad() override;
-	virtual void ApplyWorldOffset(const FVector& InOffset, bool bWorldShift) override;
+	ENGINE_API virtual void OnRegister() override;
+	ENGINE_API virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+	ENGINE_API virtual void PostLoad() override;
+	ENGINE_API virtual void ApplyWorldOffset(const FVector& InOffset, bool bWorldShift) override;
 	// End of UActorComponent interface
 
 	// USceneComponent interface
-	virtual bool HasAnySockets() const override;
-	virtual FTransform GetSocketTransform(FName InSocketName, ERelativeTransformSpace TransformSpace = RTS_World) const override;
-	virtual void QuerySupportedSockets(TArray<FComponentSocketDescription>& OutSockets) const override;
+	ENGINE_API virtual bool HasAnySockets() const override;
+	ENGINE_API virtual FTransform GetSocketTransform(FName InSocketName, ERelativeTransformSpace TransformSpace = RTS_World) const override;
+	ENGINE_API virtual void QuerySupportedSockets(TArray<FComponentSocketDescription>& OutSockets) const override;
 	// End of USceneComponent interface
 
 	/** The name of the socket at the end of the spring arm (looking back towards the spring arm origin) */
-	static const FName SocketName;
+	static ENGINE_API const FName SocketName;
 
 	/** Returns the desired rotation for the spring arm, before the rotation constraints such as bInheritPitch etc are enforced. */
-	virtual FRotator GetDesiredRotation() const;
+	ENGINE_API virtual FRotator GetDesiredRotation() const;
 
 protected:
 	/** Cached component-space socket location */
@@ -168,11 +168,11 @@ protected:
 
 protected:
 	/** Updates the desired arm location, calling BlendLocations to do the actual blending if a trace is done */
-	virtual void UpdateDesiredArmLocation(bool bDoTrace, bool bDoLocationLag, bool bDoRotationLag, float DeltaTime);
+	ENGINE_API virtual void UpdateDesiredArmLocation(bool bDoTrace, bool bDoLocationLag, bool bDoRotationLag, float DeltaTime);
 
 	/**
 	 * This function allows subclasses to blend the trace hit location with the desired arm location;
 	 * by default it returns bHitSomething ? TraceHitLocation : DesiredArmLocation
 	 */
-	virtual FVector BlendLocations(const FVector& DesiredArmLocation, const FVector& TraceHitLocation, bool bHitSomething, float DeltaTime);
+	ENGINE_API virtual FVector BlendLocations(const FVector& DesiredArmLocation, const FVector& TraceHitLocation, bool bHitSomething, float DeltaTime);
 };

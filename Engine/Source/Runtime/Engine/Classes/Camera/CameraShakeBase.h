@@ -19,7 +19,7 @@ class UCameraShakePattern;
  * Parameters for starting a camera shake.
  */
 USTRUCT(BlueprintType)
-struct ENGINE_API FCameraShakeStartParams
+struct FCameraShakeStartParams
 {
 	GENERATED_BODY()
 	
@@ -31,7 +31,7 @@ struct ENGINE_API FCameraShakeStartParams
  * Parameters for updating a camera shake.
  */
 USTRUCT(BlueprintType)
-struct ENGINE_API FCameraShakeUpdateParams
+struct FCameraShakeUpdateParams
 {
 	GENERATED_BODY()
 
@@ -68,7 +68,7 @@ struct ENGINE_API FCameraShakeUpdateParams
  * Parameters for scrubbing a camera shake.
  */
 USTRUCT(BlueprintType)
-struct ENGINE_API FCameraShakeScrubParams
+struct FCameraShakeScrubParams
 {
 	GENERATED_BODY()
 
@@ -80,7 +80,7 @@ struct ENGINE_API FCameraShakeScrubParams
 	{}
 
 	/** Convert this to an update parameter struct where the delta time is from 0 to the AbsoluteTime. */
-	FCameraShakeUpdateParams ToUpdateParams() const;
+	ENGINE_API FCameraShakeUpdateParams ToUpdateParams() const;
 
 	/** The time to scrub to */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
@@ -126,7 +126,7 @@ ENUM_CLASS_FLAGS(ECameraShakeUpdateResultFlags);
  * The result of a camera shake update.
  */
 USTRUCT(BlueprintType)
-struct ENGINE_API FCameraShakeUpdateResult
+struct FCameraShakeUpdateResult
 {
 	GENERATED_BODY()
 
@@ -154,14 +154,14 @@ struct ENGINE_API FCameraShakeUpdateResult
 	ECameraShakeUpdateResultFlags Flags;
 
 	/** Apply the given scale to the result (only if it is "relative") */
-	void ApplyScale(float InScale);
+	ENGINE_API void ApplyScale(float InScale);
 };
 
 /**
  * Parameters for stopping a camera shake.
  */
 USTRUCT(BlueprintType)
-struct ENGINE_API FCameraShakeStopParams
+struct FCameraShakeStopParams
 {
 	GENERATED_BODY()
 	
@@ -187,7 +187,7 @@ enum class ECameraShakeDurationType : uint8
  * Camera shake duration.
  */
 USTRUCT(BlueprintType)
-struct ENGINE_API FCameraShakeDuration
+struct FCameraShakeDuration
 {
 	GENERATED_BODY()
 
@@ -229,7 +229,7 @@ private:
  * Information about a camera shake class.
  */
 USTRUCT(BlueprintType)
-struct ENGINE_API FCameraShakeInfo
+struct FCameraShakeInfo
 {
 	GENERATED_BODY()
 
@@ -249,7 +249,7 @@ struct ENGINE_API FCameraShakeInfo
 /**
  * Parameter structure for appling scale and playspace to a camera shake result.
  */
-struct ENGINE_API FCameraShakeApplyResultParams
+struct FCameraShakeApplyResultParams
 {
 	/** The scale to apply to the result */
 	float Scale = 1.f;
@@ -265,22 +265,22 @@ struct ENGINE_API FCameraShakeApplyResultParams
 /**
  * Transitive state of a shake or shake pattern.
  */
-struct ENGINE_API FCameraShakeState
+struct FCameraShakeState
 {
 	/**
 	 * Create a new camera shake state
 	 */
-	FCameraShakeState();
+	ENGINE_API FCameraShakeState();
 
 	/**
 	 * Initialize the state with a shake's info and start playing.
 	 */
-	void Start(const FCameraShakeInfo& InShakeInfo);
+	ENGINE_API void Start(const FCameraShakeInfo& InShakeInfo);
 	
 	/**
 	 * Initialize the state with a shake's info and start playing.
 	 */
-	void Start(const UCameraShakePattern* InShakePattern);
+	ENGINE_API void Start(const UCameraShakePattern* InShakePattern);
 
 	/**
 	 * Updates the state with a delta time.
@@ -294,7 +294,7 @@ struct ENGINE_API FCameraShakeState
 	 * @param DeltaTime The elapsed time since last update
 	 * @return The evaluated blending weight (if any) for the new time
 	 */
-	float Update(float DeltaTime);
+	ENGINE_API float Update(float DeltaTime);
 
 	/**
 	 * Scrub the state to the given absolute time.
@@ -308,7 +308,7 @@ struct ENGINE_API FCameraShakeState
 	 * @param AbsoluteTime The time to scrub to
 	 * @return The evaluated blending weight (if any) for the scrub time
 	 */
-	float Scrub(float AbsoluteTime);
+	ENGINE_API float Scrub(float AbsoluteTime);
 
 	/**
 	 * Marks the shake has having been stopped.
@@ -318,7 +318,7 @@ struct ENGINE_API FCameraShakeState
 	 * the shake duration is "Custom"), stopping non-immediately does nothing: the sub-class is expected
 	 * to handle it.
 	 */
-	void Stop(bool bImmediately);
+	ENGINE_API void Stop(bool bImmediately);
 
 	/** Returns whether the shake is playing */
 	bool IsPlaying() const { return bIsPlaying; }
@@ -360,7 +360,7 @@ public:
 
 private:
 
-	void InitializePlaying();
+	ENGINE_API void InitializePlaying();
 
 private:
 
@@ -389,15 +389,15 @@ private:
  * separate makes it possible to completely change how a shake works without having to create
  * a completely different asset.
  */
-UCLASS(Abstract, Blueprintable, EditInlineNew)
-class ENGINE_API UCameraShakeBase : public UObject
+UCLASS(Abstract, Blueprintable, EditInlineNew, MinimalAPI)
+class UCameraShakeBase : public UObject
 {
 	GENERATED_BODY()
 
 public:
 
 	/** Create a new instance of a camera shake */
-	UCameraShakeBase(const FObjectInitializer& ObjectInitializer);
+	ENGINE_API UCameraShakeBase(const FObjectInitializer& ObjectInitializer);
 	
 public:
 
@@ -407,14 +407,14 @@ public:
 	 * The value could be 0 or negative if the shake uses the oscillator, meaning, respectively,
 	 * no oscillation, or indefinite oscillation.
 	 */
-	FCameraShakeDuration GetCameraShakeDuration() const;
+	ENGINE_API FCameraShakeDuration GetCameraShakeDuration() const;
 
 	/**
 	 * Gets the duration of this camera shake's blend in and out.
 	 *
 	 * The values could be 0 or negative if there's no blend in and/or out.
 	 */
-	void GetCameraShakeBlendTimes(float& OutBlendIn, float& OutBlendOut) const;
+	ENGINE_API void GetCameraShakeBlendTimes(float& OutBlendIn, float& OutBlendOut) const;
 
 	/**
 	 * Gets the default duration for camera shakes of the given class.
@@ -458,23 +458,23 @@ public:
 	}
 
 	/** Uses the given result parameters to apply the given result to the given input view info */
-	static void ApplyResult(const FCameraShakeApplyResultParams& ApplyParams, const FCameraShakeUpdateResult& InResult, FMinimalViewInfo& InOutPOV);
+	static ENGINE_API void ApplyResult(const FCameraShakeApplyResultParams& ApplyParams, const FCameraShakeUpdateResult& InResult, FMinimalViewInfo& InOutPOV);
 
 	/** Applies all the appropriate auto-scaling to the current shake offset (only if the result is "relative") */
-	static void ApplyScale(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& InOutResult);
+	static ENGINE_API void ApplyScale(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& InOutResult);
 
 	/** Applies the given scale to the current shake offset (only if the result is "relative") */
-	static void ApplyScale(float Scale, FCameraShakeUpdateResult& InOutResult);
+	static ENGINE_API void ApplyScale(float Scale, FCameraShakeUpdateResult& InOutResult);
 
 	/** Applies any appropriate system-wide limits */
-	static void ApplyLimits(const FMinimalViewInfo& InPOV, FCameraShakeUpdateResult& InOutResult);
+	static ENGINE_API void ApplyLimits(const FMinimalViewInfo& InPOV, FCameraShakeUpdateResult& InOutResult);
 
 	/**
 	 * Modifies the current shake offset to be oriented in the current shake's play space (only if the result is "relative")
 	 *
 	 * Note that this modifies the result and makes it "absolute".
 	 */
-	static void ApplyPlaySpace(ECameraShakePlaySpace PlaySpace, FMatrix UserPlaySpaceMatrix, const FMinimalViewInfo& InPOV, FCameraShakeUpdateResult& InOutResult);
+	static ENGINE_API void ApplyPlaySpace(ECameraShakePlaySpace PlaySpace, FMatrix UserPlaySpaceMatrix, const FMinimalViewInfo& InPOV, FCameraShakeUpdateResult& InOutResult);
 
 public:
 
@@ -495,7 +495,7 @@ public:
 
 	/** Sets the root pattern of this camera shake */
 	UFUNCTION(BlueprintCallable, Category="CameraShake")
-	void SetRootShakePattern(UCameraShakePattern* InPattern);
+	ENGINE_API void SetRootShakePattern(UCameraShakePattern* InPattern);
 
 	/** Creates a new pattern of the given type and sets it as the root one on this shake */
 	template<typename ShakePatternType>
@@ -509,7 +509,7 @@ public:
 public:
 
 	/** Gets some infromation about this specific camera shake */
-	void GetShakeInfo(FCameraShakeInfo& OutInfo) const;
+	ENGINE_API void GetShakeInfo(FCameraShakeInfo& OutInfo) const;
 
 	/**
 	 * Returns whether this shake is active.
@@ -519,22 +519,22 @@ public:
 	bool IsActive() const { return bIsActive; }
 
 	/** Starts this camera shake with the given parameters */
-	void StartShake(APlayerCameraManager* Camera, float Scale, ECameraShakePlaySpace InPlaySpace, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
+	ENGINE_API void StartShake(APlayerCameraManager* Camera, float Scale, ECameraShakePlaySpace InPlaySpace, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
 
 	/** Returns whether this camera shake is finished */
-	bool IsFinished() const;
+	ENGINE_API bool IsFinished() const;
 
 	/** Updates this camera shake and applies its effect to the given view */
-	void UpdateAndApplyCameraShake(float DeltaTime, float Alpha, FMinimalViewInfo& InOutPOV);
+	ENGINE_API void UpdateAndApplyCameraShake(float DeltaTime, float Alpha, FMinimalViewInfo& InOutPOV);
 
 	/** Scrubs this camera shake to the given time and applies its effect to the given view */
-	void ScrubAndApplyCameraShake(float AbsoluteTime, float Alpha, FMinimalViewInfo& InOutPOV);
+	ENGINE_API void ScrubAndApplyCameraShake(float AbsoluteTime, float Alpha, FMinimalViewInfo& InOutPOV);
 
 	/** Stops this camera shake */
-	void StopShake(bool bImmediately = true);
+	ENGINE_API void StopShake(bool bImmediately = true);
 
 	/** Tears down this camera shake before destruction or recycling */
-	void TeardownShake();
+	ENGINE_API void TeardownShake();
 
 	UE_DEPRECATED(5.3, "Elapsed time doesn't exist anymore, get the information from the root shake pattern")
 	float GetElapsedTime() const { return 0.f; }
@@ -558,7 +558,7 @@ protected:
 	 *
 	 * Note that this modifies the result and makes it "absolute".
 	 */
-	void ApplyPlaySpace(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& InOutResult) const;
+	ENGINE_API void ApplyPlaySpace(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& InOutResult) const;
 
 private:
 
@@ -585,35 +585,35 @@ private:
  * are sinewave oscillation, perlin noise, or FBX animation.
  *
  */
-UCLASS(Abstract, EditInlineNew)
-class ENGINE_API UCameraShakePattern : public UObject
+UCLASS(Abstract, EditInlineNew, MinimalAPI)
+class UCameraShakePattern : public UObject
 {
 	GENERATED_BODY()
 
 public:
 
 	/** Constructor for a shake pattern */
-	UCameraShakePattern(const FObjectInitializer& ObjectInitializer);
+	ENGINE_API UCameraShakePattern(const FObjectInitializer& ObjectInitializer);
 
 	/** Gets information about this shake pattern */
-	void GetShakePatternInfo(FCameraShakeInfo& OutInfo) const;
+	ENGINE_API void GetShakePatternInfo(FCameraShakeInfo& OutInfo) const;
 	/** Called when the shake pattern starts */
-	void StartShakePattern(const FCameraShakeStartParams& Params);
+	ENGINE_API void StartShakePattern(const FCameraShakeStartParams& Params);
 	/** Updates the shake pattern, which should add its generated offset to the given result */
-	void UpdateShakePattern(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult);
+	ENGINE_API void UpdateShakePattern(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult);
 	/** Scrubs the shake pattern to the given time, and apply the generated offset to the given result */
-	void ScrubShakePattern(const FCameraShakeScrubParams& Params, FCameraShakeUpdateResult& OutResult);
+	ENGINE_API void ScrubShakePattern(const FCameraShakeScrubParams& Params, FCameraShakeUpdateResult& OutResult);
 	/** Returns whether this shake pattern is finished */
-	bool IsFinished() const;
+	ENGINE_API bool IsFinished() const;
 	/** Called when the shake pattern is manually stopped */
-	void StopShakePattern(const FCameraShakeStopParams& Params);
+	ENGINE_API void StopShakePattern(const FCameraShakeStopParams& Params);
 	/** Call when the shake pattern is discard, either after naturally finishing or being stopped manually */
-	void TeardownShakePattern();
+	ENGINE_API void TeardownShakePattern();
 
 protected:
 
 	/** Gets the shake pattern's parent shake */
-	UCameraShakeBase* GetShakeInstance() const;
+	ENGINE_API UCameraShakeBase* GetShakeInstance() const;
 
 	/** Gets the shake pattern's parent shake */
 	template<typename InstanceType>

@@ -5,8 +5,8 @@
 #include "Elements/Interfaces/TypedElementSelectionInterface.h"
 #include "ComponentElementSelectionInterface.generated.h"
 
-UCLASS()
-class ENGINE_API UComponentElementSelectionInterface : public UObject, public ITypedElementSelectionInterface
+UCLASS(MinimalAPI)
+class UComponentElementSelectionInterface : public UObject, public ITypedElementSelectionInterface
 {
 	GENERATED_BODY()
 };

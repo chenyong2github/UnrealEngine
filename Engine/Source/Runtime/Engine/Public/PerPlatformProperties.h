@@ -117,7 +117,7 @@ namespace PerPlatformProperty::Private
  *  backwards-compatible loading code for properties converted from simple types.
  */
 template<typename _StructType, typename _ValueType, EName _BasePropertyName>
-struct ENGINE_API TPerPlatformProperty
+struct TPerPlatformProperty
 {
 	typedef _ValueType ValueType;
 	typedef _StructType StructType;
@@ -208,7 +208,7 @@ struct FFreezablePerPlatformInt;
 
 /** FPerPlatformInt - int32 property with per-platform overrides */
 USTRUCT()
-struct ENGINE_API FPerPlatformInt
+struct FPerPlatformInt
 #if CPP
 :	public TPerPlatformProperty<FPerPlatformInt, int32, NAME_IntProperty>
 #endif
@@ -233,14 +233,14 @@ struct ENGINE_API FPerPlatformInt
 	{
 	}
 
-	FString ToString() const;
+	ENGINE_API FString ToString() const;
 
-	FPerPlatformInt(const FFreezablePerPlatformInt& Other);
+	ENGINE_API FPerPlatformInt(const FFreezablePerPlatformInt& Other);
 
 };
 
 USTRUCT()
-struct ENGINE_API FFreezablePerPlatformInt
+struct FFreezablePerPlatformInt
 #if CPP
 	: public TPerPlatformProperty<FFreezablePerPlatformInt, int32, NAME_IntProperty>
 #endif
@@ -269,7 +269,7 @@ public:
 #endif
 	}
 
-	FString ToString() const;
+	ENGINE_API FString ToString() const;
 };
 
 inline FPerPlatformInt::FPerPlatformInt(const FFreezablePerPlatformInt& Other)
@@ -302,7 +302,7 @@ struct FFreezablePerPlatformFloat;
 
 /** FPerPlatformFloat - float property with per-platform overrides */
 USTRUCT(meta = (CanFlattenStruct))
-struct ENGINE_API FPerPlatformFloat
+struct FPerPlatformFloat
 #if CPP
 :	public TPerPlatformProperty<FPerPlatformFloat, float, NAME_FloatProperty>
 #endif
@@ -327,11 +327,11 @@ struct ENGINE_API FPerPlatformFloat
 	{
 	}
 
-	FPerPlatformFloat(const FFreezablePerPlatformFloat& Other);
+	ENGINE_API FPerPlatformFloat(const FFreezablePerPlatformFloat& Other);
 };
 extern template ENGINE_API FArchive& operator<<(FArchive&, TPerPlatformProperty<FPerPlatformFloat, float, NAME_FloatProperty>&);
 
-struct ENGINE_API FFreezablePerPlatformFloat
+struct FFreezablePerPlatformFloat
 #if CPP
 	: public TPerPlatformProperty<FFreezablePerPlatformFloat, float, NAME_FloatProperty>
 #endif
@@ -382,7 +382,7 @@ struct TStructOpsTypeTraits<FPerPlatformFloat>
 
 /** FPerPlatformBool - bool property with per-platform overrides */
 USTRUCT()
-struct ENGINE_API FPerPlatformBool
+struct FPerPlatformBool
 #if CPP
 :	public TPerPlatformProperty<FPerPlatformBool, bool, NAME_BoolProperty>
 #endif
@@ -423,7 +423,7 @@ struct TStructOpsTypeTraits<FPerPlatformBool>
 
 /** FPerPlatformFrameRate - FFrameRate property with per-platform overrides */
 USTRUCT(BlueprintType)
-struct ENGINE_API FPerPlatformFrameRate
+struct FPerPlatformFrameRate
 #if CPP
 :	public TPerPlatformProperty<FPerPlatformFrameRate, FFrameRate, NAME_FrameRate>
 #endif

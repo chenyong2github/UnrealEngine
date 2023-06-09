@@ -13,8 +13,8 @@
  * This saves source items, and target items, and mapping between
  * Used by Retargeting, Control Rig mapping. Will need to improve interface better
  */
-UCLASS(hidecategories = Object, ClassGroup = "Animation", BlueprintType, Experimental)
-class ENGINE_API UNodeMappingContainer : public UObject
+UCLASS(hidecategories = Object, ClassGroup = "Animation", BlueprintType, Experimental, MinimalAPI)
+class UNodeMappingContainer : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -44,38 +44,38 @@ public:
 	const TSoftObjectPtr<UObject>& GetTargetAssetSoftObjectPtr() const { return TargetAsset; }
 
 #if WITH_EDITOR
-	FString GetDisplayName() const;
+	ENGINE_API FString GetDisplayName() const;
 
 	// Item getters
 	const TMap<FName, FNodeItem>& GetSourceItems() const { return SourceItems; }
 	const TMap<FName, FNodeItem>& GetTargetItems() const { return TargetItems; }
 
 	// update data from assets
-	void RefreshDataFromAssets();
+	ENGINE_API void RefreshDataFromAssets();
 
 	// Asset setters
-	void SetSourceAsset(UObject* InSourceAsset);
-	void SetTargetAsset(UObject* InTargetAsset);
+	ENGINE_API void SetSourceAsset(UObject* InSourceAsset);
+	ENGINE_API void SetTargetAsset(UObject* InTargetAsset);
 
 	// Asset getters
-	UObject* GetSourceAsset();
-	UObject* GetTargetAsset();
+	ENGINE_API UObject* GetSourceAsset();
+	ENGINE_API UObject* GetTargetAsset();
 
 	// Add/delete mapping
-	void AddMapping(const FName& InSourceNode, const FName& InTargetNode);
-	void DeleteMapping(const FName& InSourceNode);
+	ENGINE_API void AddMapping(const FName& InSourceNode, const FName& InTargetNode);
+	ENGINE_API void DeleteMapping(const FName& InSourceNode);
 
 	// getting node mapping table { source, target }
 	const TMap<FName, FName>& GetNodeMappingTable() const { return SourceToTarget;  }
 
 	// this just maps between source to target by name if same
 	// note this will override source setting if exists before
-	void AddDefaultMapping();
+	ENGINE_API void AddDefaultMapping();
 
 #endif// WITH_EDITOR
 
 	// get reverse node mapping table { target, source }
-	void GetTargetToSourceMappingTable(TMap<FName, FName>& OutMappingTable) const;
+	ENGINE_API void GetTargetToSourceMappingTable(TMap<FName, FName>& OutMappingTable) const;
 
 	// return true if source name is mapped
 	bool DoesContainMapping(const FName& SourceNode) const
@@ -105,8 +105,8 @@ public:
 private:
 #if WITH_EDITOR
 	// internal utility function set OutItems by InAsset
-	void SetAsset(UObject* InAsset, TMap<FName, FNodeItem>& OutItems);
+	ENGINE_API void SetAsset(UObject* InAsset, TMap<FName, FNodeItem>& OutItems);
 	// Validate SourceToTarget mapping is still valid with SourceItems and TargetItems
-	void ValidateMapping();
+	ENGINE_API void ValidateMapping();
 #endif // WITH_EDITOR
 };

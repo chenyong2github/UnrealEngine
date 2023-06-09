@@ -9,19 +9,19 @@
 
 class AActor;
 
-UCLASS(Hidden, NotPlaceable)
-class ENGINE_API UHLODTemplatedInstancedStaticMeshComponent : public UInstancedStaticMeshComponent
+UCLASS(Hidden, NotPlaceable, MinimalAPI)
+class UHLODTemplatedInstancedStaticMeshComponent : public UInstancedStaticMeshComponent
 {
 	GENERATED_UCLASS_BODY()
 
 public: 
 	//~ Begin UObject Interface.
-	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
-	virtual void PostLoad() override;
+	ENGINE_API virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
+	ENGINE_API virtual void PostLoad() override;
 	//~ End UObject Interface.
 	
-	void SetTemplateActorClass(const TSubclassOf<AActor>& InTemplateActorClass);
-	void SetTemplateComponentName(const FName& InTemplateComponentName);
+	ENGINE_API void SetTemplateActorClass(const TSubclassOf<AActor>& InTemplateActorClass);
+	ENGINE_API void SetTemplateComponentName(const FName& InTemplateComponentName);
 	
 private:
 	void RestoreAssetsFromActorTemplate();

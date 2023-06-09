@@ -40,7 +40,7 @@ struct FHLODCreationParams
 /**
  * Tools for building HLODs in WorldPartition
  */
-class ENGINE_API IWorldPartitionHLODUtilities
+class IWorldPartitionHLODUtilities
 {
 public:
 	virtual ~IWorldPartitionHLODUtilities() {}

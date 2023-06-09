@@ -10,14 +10,14 @@ class UMaterialInstanceDynamic;
 struct FSpatialHashRuntimeGrid;
 
 USTRUCT()
-struct ENGINE_API FWorldPartitionRuntimeSpatialHashGridPreviewer
+struct FWorldPartitionRuntimeSpatialHashGridPreviewer
 {
 	GENERATED_USTRUCT_BODY()
 
-	FWorldPartitionRuntimeSpatialHashGridPreviewer();
+	ENGINE_API FWorldPartitionRuntimeSpatialHashGridPreviewer();
 
 #if WITH_EDITOR
-	void Draw(UWorld* World, const TArray<FSpatialHashRuntimeGrid>& Grids, bool bEnabled, int32 PreviewGridLevel);
+	ENGINE_API void Draw(UWorld* World, const TArray<FSpatialHashRuntimeGrid>& Grids, bool bEnabled, int32 PreviewGridLevel);
 #endif
 
 #if WITH_EDITORONLY_DATA

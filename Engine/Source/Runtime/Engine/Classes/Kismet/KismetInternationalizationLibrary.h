@@ -11,8 +11,8 @@
 enum class ELocalizationLoadFlags : uint8;
 enum class ELocalizedTextSourceCategory : uint8;
 
-UCLASS(meta=(BlueprintThreadSafe, ScriptName="InternationalizationLibrary"))
-class ENGINE_API UKismetInternationalizationLibrary : public UBlueprintFunctionLibrary
+UCLASS(meta=(BlueprintThreadSafe, ScriptName="InternationalizationLibrary"), MinimalAPI)
+class UKismetInternationalizationLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 
@@ -25,7 +25,7 @@ public:
 	 * @return True if the culture was set, false otherwise.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Utilities|Internationalization", meta=(AdvancedDisplay="1"))
-	static bool SetCurrentCulture(const FString& Culture, const bool SaveToConfig = false);
+	static ENGINE_API bool SetCurrentCulture(const FString& Culture, const bool SaveToConfig = false);
 
 	/**
 	 * Get the current culture as an IETF language tag:
@@ -36,7 +36,7 @@ public:
 	 * @return The culture as an IETF language tag (eg, "zh-Hans-CN").
 	 */
 	UFUNCTION(BlueprintPure, Category="Utilities|Internationalization")
-	static FString GetCurrentCulture();
+	static ENGINE_API FString GetCurrentCulture();
 
 	/**
 	 * Set *only* the current language (for localization).
@@ -46,7 +46,7 @@ public:
 	 * @return True if the language was set, false otherwise.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Utilities|Internationalization", meta=(AdvancedDisplay="1"))
-	static bool SetCurrentLanguage(const FString& Culture, const bool SaveToConfig = false);
+	static ENGINE_API bool SetCurrentLanguage(const FString& Culture, const bool SaveToConfig = false);
 
 	/**
 	 * Get the current language (for localization) as an IETF language tag:
@@ -56,7 +56,7 @@ public:
 	 * @return The language as an IETF language tag (eg, "zh-Hans-CN").
 	 */
 	UFUNCTION(BlueprintPure, Category="Utilities|Internationalization")
-	static FString GetCurrentLanguage();
+	static ENGINE_API FString GetCurrentLanguage();
 
 	/**
 	 * Set *only* the current locale (for internationalization).
@@ -66,7 +66,7 @@ public:
 	 * @return True if the locale was set, false otherwise.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Utilities|Internationalization", meta=(AdvancedDisplay="1"))
-	static bool SetCurrentLocale(const FString& Culture, const bool SaveToConfig = false);
+	static ENGINE_API bool SetCurrentLocale(const FString& Culture, const bool SaveToConfig = false);
 
 	/**
 	 * Get the current locale (for internationalization) as an IETF language tag:
@@ -76,7 +76,7 @@ public:
 	 * @return The locale as an IETF language tag (eg, "zh-Hans-CN").
 	 */
 	UFUNCTION(BlueprintPure, Category="Utilities|Internationalization")
-	static FString GetCurrentLocale();
+	static ENGINE_API FString GetCurrentLocale();
 
 	/**
 	 * Set the current language (for localization) and locale (for internationalization).
@@ -85,7 +85,7 @@ public:
 	 * @return True if the language and locale were set, false otherwise.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Utilities|Internationalization", meta=(AdvancedDisplay="1"))
-	static bool SetCurrentLanguageAndLocale(const FString& Culture, const bool SaveToConfig = false);
+	static ENGINE_API bool SetCurrentLanguageAndLocale(const FString& Culture, const bool SaveToConfig = false);
 
 	/**
 	 * Set the given asset group category culture from an IETF language tag (eg, "zh-Hans-CN").
@@ -95,7 +95,7 @@ public:
 	 * @return True if the culture was set, false otherwise.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Utilities|Internationalization", meta=(AdvancedDisplay="2"))
-	static bool SetCurrentAssetGroupCulture(const FName AssetGroup, const FString& Culture, const bool SaveToConfig = false);
+	static ENGINE_API bool SetCurrentAssetGroupCulture(const FName AssetGroup, const FString& Culture, const bool SaveToConfig = false);
 
 	/**
 	 * Get the given asset group category culture.
@@ -104,7 +104,7 @@ public:
 	 * @return The culture as an IETF language tag (eg, "zh-Hans-CN").
 	 */
 	UFUNCTION(BlueprintPure, Category="Utilities|Internationalization")
-	static FString GetCurrentAssetGroupCulture(const FName AssetGroup);
+	static ENGINE_API FString GetCurrentAssetGroupCulture(const FName AssetGroup);
 
 	/**
 	 * Clear the given asset group category culture.
@@ -112,7 +112,7 @@ public:
 	 * @param SaveToConfig If true, save the new setting to the users' "GameUserSettings" config so that it persists after a reload.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Utilities|Internationalization", meta=(AdvancedDisplay="1"))
-	static void ClearCurrentAssetGroupCulture(const FName AssetGroup, const bool SaveToConfig = false);
+	static ENGINE_API void ClearCurrentAssetGroupCulture(const FName AssetGroup, const bool SaveToConfig = false);
 
 	/**
 	 * Get the native culture for the given localization category.
@@ -120,7 +120,7 @@ public:
 	 * @return The culture as an IETF language tag (eg, "zh-Hans-CN").
 	 */
 	UFUNCTION(BlueprintPure, Category="Utilities|Internationalization")
-	static FString GetNativeCulture(const ELocalizedTextSourceCategory TextCategory);
+	static ENGINE_API FString GetNativeCulture(const ELocalizedTextSourceCategory TextCategory);
 
 	/**
 	 * Get the list of cultures that have localization data available for them.
@@ -131,14 +131,14 @@ public:
 	 * @return The list of cultures as IETF language tags (eg, "zh-Hans-CN").
 	 */
 	UFUNCTION(BlueprintPure, Category="Utilities|Internationalization")
-	static TArray<FString> GetLocalizedCultures(const bool IncludeGame = true, const bool IncludeEngine = false, const bool IncludeEditor = false, const bool IncludeAdditional = false);
+	static ENGINE_API TArray<FString> GetLocalizedCultures(const bool IncludeGame = true, const bool IncludeEngine = false, const bool IncludeEditor = false, const bool IncludeAdditional = false);
 
 	/**
 	 * Get the list of cultures that have localization data available for them.
 	 * @param LoadFlags Controls which resource groups should be checked.
 	 * @return The list of cultures as IETF language tags (eg, "zh-Hans-CN").
 	 */
-	static TArray<FString> GetLocalizedCultures(const ELocalizationLoadFlags LoadFlags);
+	static ENGINE_API TArray<FString> GetLocalizedCultures(const ELocalizationLoadFlags LoadFlags);
 
 	/**
 	 * Given a list of available cultures, try and find the most suitable culture from the list based on culture prioritization.
@@ -150,7 +150,7 @@ public:
 	 * @return The culture as an IETF language tag (eg, "zh-Hans-CN").
 	 */
 	UFUNCTION(BlueprintPure, Category="Utilities|Internationalization")
-	static FString GetSuitableCulture(const TArray<FString>& AvailableCultures, const FString& CultureToMatch, const FString& FallbackCulture = TEXT("en"));
+	static ENGINE_API FString GetSuitableCulture(const TArray<FString>& AvailableCultures, const FString& CultureToMatch, const FString& FallbackCulture = TEXT("en"));
 
 	/**
 	 * Get the display name of the given culture.
@@ -159,5 +159,5 @@ public:
 	 * @return The display name of the culture, or the given culture code on failure.
 	 */
 	UFUNCTION(BlueprintPure, Category="Utilities|Internationalization", meta=(AdvancedDisplay="1"))
-	static FString GetCultureDisplayName(const FString& Culture, const bool Localized = true);
+	static ENGINE_API FString GetCultureDisplayName(const FString& Culture, const bool Localized = true);
 };

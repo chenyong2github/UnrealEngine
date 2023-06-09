@@ -32,7 +32,7 @@ public:
 
 	/** Returns MeshComp subobject **/
 	UE_DEPRECATED(4.22, "SceneCapture's mesh and frustum components should now be accessed through the SceneCaptureComponent instead of the Actor")
-	ENGINE_API class UStaticMeshComponent* GetMeshComp() const
+	class UStaticMeshComponent* GetMeshComp() const
 	{
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return MeshComp_DEPRECATED;

@@ -8,8 +8,8 @@
 
 class FPerformanceTrackingChart;
 
-UCLASS()
-class ENGINE_API UHealthSnapshotBlueprintLibrary : public UBlueprintFunctionLibrary
+UCLASS(MinimalAPI)
+class UHealthSnapshotBlueprintLibrary : public UBlueprintFunctionLibrary
 {
 
 	GENERATED_UCLASS_BODY()
@@ -19,13 +19,13 @@ class ENGINE_API UHealthSnapshotBlueprintLibrary : public UBlueprintFunctionLibr
 	*
 	*/
 	UFUNCTION(Exec, BlueprintCallable, Category = "Performance | HealthSnapshot")
-	static void StartPerformanceSnapshots();
+	static ENGINE_API void StartPerformanceSnapshots();
 
 	/**
 	* Stops capturing FPS charts only if StartHealthSnapshotChart has first been called. Does nothing if FPS charts are not running. HealthSnapshots captured after this is called will not include performance stats.
 	*/
 	UFUNCTION(Exec, BlueprintCallable, Category = "Performance | HealthSnapshot")
-	static void StopPerformanceSnapshots();
+	static ENGINE_API void StopPerformanceSnapshots();
 
 
 	/**
@@ -34,10 +34,10 @@ class ENGINE_API UHealthSnapshotBlueprintLibrary : public UBlueprintFunctionLibr
 	* @param	SnapshotTitle			The name to be given to the new HealthSnapshot.
 	*/
 	UFUNCTION(Exec, BlueprintCallable, Category = "Performance | HealthSnapshot")
-	static void LogPerformanceSnapshot(const FString SnapshotTitle, bool bResetStats=true);
+	static ENGINE_API void LogPerformanceSnapshot(const FString SnapshotTitle, bool bResetStats=true);
 
 	/* The performance chart we register with the engine for tracking */
-	static TSharedPtr<FPerformanceTrackingChart> PerformanceChart;
+	static ENGINE_API TSharedPtr<FPerformanceTrackingChart> PerformanceChart;
 };
 
 /**
@@ -50,7 +50,7 @@ class ENGINE_API UHealthSnapshotBlueprintLibrary : public UBlueprintFunctionLibr
 
 	Snapshots can be dumped to logs or any other FOutputDevice.
 */
-class ENGINE_API FHealthSnapshot
+class FHealthSnapshot
 {
 public:
 
@@ -59,7 +59,7 @@ public:
 	*
 	* @param: Title The name of the new snapshot.
 	*/
-	FHealthSnapshot(const TCHAR* Title);
+	ENGINE_API FHealthSnapshot(const TCHAR* Title);
 
 	/**
 	* Create a snapshot of the current game health. Captures both memory and performance stats.
@@ -67,7 +67,7 @@ public:
 	* @param: Title The name of the new snapshot.
 	* @param: GameplayFPSChart The chart which has been updated with performance stats to be included in the snapshot.
 	*/
-	FHealthSnapshot(const TCHAR* Title, const FPerformanceTrackingChart* GameplayFPSChart);
+	ENGINE_API FHealthSnapshot(const TCHAR* Title, const FPerformanceTrackingChart* GameplayFPSChart);
 
 	virtual ~FHealthSnapshot() {}
 
@@ -77,18 +77,18 @@ public:
 	* @param: Ar The output device that will print the snapshot text blob. Use *GLog to simply write to the log.
 	* @return: void
 	*/
-	void Dump(FOutputDevice& Ar);
+	ENGINE_API void Dump(FOutputDevice& Ar);
 
 protected:
 
 	/** Snapshots current memory stats */
-	virtual void CaptureMemoryStats();
+	ENGINE_API virtual void CaptureMemoryStats();
 
 	/** Snapshots performance stats if the given tracking chart is filled with FPS charting data (MeasuredPerfTime > 0)*/
-	virtual void CapturePerformanceStats(const FPerformanceTrackingChart* GameplayFPSChart);
+	ENGINE_API virtual void CapturePerformanceStats(const FPerformanceTrackingChart* GameplayFPSChart);
 
 	/* Dump a text blob describing all stats captured by the snapshot to the given output device with the given log category. */
-	virtual void DumpStats(FOutputDevice& Ar, FName CategoryName);
+	ENGINE_API virtual void DumpStats(FOutputDevice& Ar, FName CategoryName);
 
 public:
 

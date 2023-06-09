@@ -43,5 +43,5 @@ public:
 	//End AActor Interface
 
 	/** Returns Component subobject **/
-	ENGINE_API class UExponentialHeightFogComponent* GetComponent() const { return Component; }
+	class UExponentialHeightFogComponent* GetComponent() const { return Component; }
 };

@@ -43,8 +43,8 @@ struct FExponentialHeightFogData
 /**
  *	Used to create fogging effects such as clouds but with a density that is related to the height of the fog.
  */
-UCLASS(ClassGroup=Rendering, collapsecategories, hidecategories=(Object, Mobility), editinlinenew, meta=(BlueprintSpawnableComponent))
-class ENGINE_API UExponentialHeightFogComponent : public USceneComponent
+UCLASS(ClassGroup=Rendering, collapsecategories, hidecategories=(Object, Mobility), editinlinenew, meta=(BlueprintSpawnableComponent), MinimalAPI)
+class UExponentialHeightFogComponent : public USceneComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -202,93 +202,93 @@ class ENGINE_API UExponentialHeightFogComponent : public USceneComponent
 
 public:
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|ExponentialHeightFog")
-	void SetFogDensity(float Value);
+	ENGINE_API void SetFogDensity(float Value);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|ExponentialHeightFog")
-	void SetSecondFogDensity(float Value);
+	ENGINE_API void SetSecondFogDensity(float Value);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|ExponentialHeightFog")
-	void SetFogInscatteringColor(FLinearColor Value);
+	ENGINE_API void SetFogInscatteringColor(FLinearColor Value);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|ExponentialHeightFog")
-	void SetInscatteringColorCubemap(UTextureCube* Value);
+	ENGINE_API void SetInscatteringColorCubemap(UTextureCube* Value);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|ExponentialHeightFog")
-	void SetInscatteringColorCubemapAngle(float Value);
+	ENGINE_API void SetInscatteringColorCubemapAngle(float Value);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|ExponentialHeightFog")
-	void SetFullyDirectionalInscatteringColorDistance(float Value);
+	ENGINE_API void SetFullyDirectionalInscatteringColorDistance(float Value);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|ExponentialHeightFog")
-	void SetNonDirectionalInscatteringColorDistance(float Value);
+	ENGINE_API void SetNonDirectionalInscatteringColorDistance(float Value);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|ExponentialHeightFog")
-	void SetInscatteringTextureTint(FLinearColor Value);
+	ENGINE_API void SetInscatteringTextureTint(FLinearColor Value);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|ExponentialHeightFog")
-	void SetDirectionalInscatteringExponent(float Value);
+	ENGINE_API void SetDirectionalInscatteringExponent(float Value);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|ExponentialHeightFog")
-	void SetDirectionalInscatteringStartDistance(float Value);
+	ENGINE_API void SetDirectionalInscatteringStartDistance(float Value);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|ExponentialHeightFog")
-	void SetDirectionalInscatteringColor(FLinearColor Value);
+	ENGINE_API void SetDirectionalInscatteringColor(FLinearColor Value);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|ExponentialHeightFog")
-	void SetSecondFogHeightOffset(float Value);
+	ENGINE_API void SetSecondFogHeightOffset(float Value);
 	
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|ExponentialHeightFog")
-	void SetFogHeightFalloff(float Value);
+	ENGINE_API void SetFogHeightFalloff(float Value);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|ExponentialHeightFog")
-	void SetSecondFogHeightFalloff(float Value);
+	ENGINE_API void SetSecondFogHeightFalloff(float Value);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|ExponentialHeightFog")
-	void SetFogMaxOpacity(float Value);
+	ENGINE_API void SetFogMaxOpacity(float Value);
 	
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|ExponentialHeightFog")
-	void SetStartDistance(float Value);
+	ENGINE_API void SetStartDistance(float Value);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|ExponentialHeightFog")
-	void SetFogCutoffDistance(float Value);
+	ENGINE_API void SetFogCutoffDistance(float Value);
 	
 	UFUNCTION(BlueprintCallable, Category="Rendering|VolumetricFog")
-	void SetVolumetricFog(bool bNewValue);
+	ENGINE_API void SetVolumetricFog(bool bNewValue);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|VolumetricFog")
-	void SetVolumetricFogScatteringDistribution(float NewValue);
+	ENGINE_API void SetVolumetricFogScatteringDistribution(float NewValue);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|VolumetricFog")
-	void SetVolumetricFogExtinctionScale(float NewValue);
+	ENGINE_API void SetVolumetricFogExtinctionScale(float NewValue);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|VolumetricFog")
-	void SetVolumetricFogAlbedo(FColor NewValue);
+	ENGINE_API void SetVolumetricFogAlbedo(FColor NewValue);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|VolumetricFog")
-	void SetVolumetricFogEmissive(FLinearColor NewValue);
+	ENGINE_API void SetVolumetricFogEmissive(FLinearColor NewValue);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|VolumetricFog")
-	void SetVolumetricFogDistance(float NewValue);
+	ENGINE_API void SetVolumetricFogDistance(float NewValue);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|VolumetricFog")
-	void SetSecondFogData(FExponentialHeightFogData NewValue);
+	ENGINE_API void SetSecondFogData(FExponentialHeightFogData NewValue);
 
 protected:
 	//~ Begin UActorComponent Interface.
-	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
-	virtual void SendRenderTransform_Concurrent() override;
-	virtual void DestroyRenderState_Concurrent() override;
+	ENGINE_API virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
+	ENGINE_API virtual void SendRenderTransform_Concurrent() override;
+	ENGINE_API virtual void DestroyRenderState_Concurrent() override;
 	//~ End UActorComponent Interface.
 
-	void AddFogIfNeeded();
+	ENGINE_API void AddFogIfNeeded();
 
 public:
 	//~ Begin UObject Interface
 #if WITH_EDITOR
-	virtual bool CanEditChange(const FProperty* InProperty) const override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual bool CanEditChange(const FProperty* InProperty) const override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
-	virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
 	//~ End UObject Interface
 };
 

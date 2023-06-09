@@ -39,7 +39,7 @@ namespace Net
  * To add fault handling for custom netcode (e.g. new NetConnection's or PacketHandler components),
  * create a new fault handler (with its own custom TNetResult etc.) added to FaultManager.
  */
-class ENGINE_API FNetConnectionFaultRecovery final : public FNetConnectionFaultRecoveryBase
+class FNetConnectionFaultRecovery final : public FNetConnectionFaultRecoveryBase
 {
 	friend UNetConnection;
 
@@ -50,7 +50,7 @@ private:
 	 * @param InConfigContext	The context to use for altering this objects configuration (NetDriver name)
 	 * @param InConnection		The connection which owns this fault handler
 	 */
-	void InitDefaults(FString InConfigContext, UNetConnection* InConnection);
+	ENGINE_API void InitDefaults(FString InConfigContext, UNetConnection* InConnection);
 
 	/**
 	 * Ticks fault recovery
@@ -58,18 +58,18 @@ private:
 	 *
 	 * @param TimeSeconds	The approximate current time
 	 */
-	void TickRealtime(double TimeSeconds);
+	ENGINE_API void TickRealtime(double TimeSeconds);
 
 	/**
 	 * Whether or not calls to Tick are presently required
 	 *
 	 * @return	Whether Tick is required
 	 */
-	bool DoesRequireTick() const;
+	ENGINE_API bool DoesRequireTick() const;
 
-	virtual void InitEscalationManager() override;
+	ENGINE_API virtual void InitEscalationManager() override;
 
-	void NotifySeverityUpdate(const FEscalationState& OldState, const FEscalationState& NewState, ESeverityUpdate UpdateType);
+	ENGINE_API void NotifySeverityUpdate(const FEscalationState& OldState, const FEscalationState& NewState, ESeverityUpdate UpdateType);
 
 
 private:

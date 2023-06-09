@@ -18,8 +18,8 @@ class UDecalComponent;
 * @see https://docs.unrealengine.com/latest/INT/Engine/Actors/DecalActor
 * @see UDecalComponent
 */
-UCLASS(hideCategories=(Collision, Attachment, Actor, Input, Replication), showCategories=("Input|MouseInput", "Input|TouchInput"), ComponentWrapperClass)
-class ENGINE_API ADecalActor
+UCLASS(hideCategories=(Collision, Attachment, Actor, Input, Replication), showCategories=("Input|MouseInput", "Input|TouchInput"), ComponentWrapperClass, MinimalAPI)
+class ADecalActor
 	: public AActor
 {
 	GENERATED_UCLASS_BODY()
@@ -47,29 +47,29 @@ public:
 
 	// BEGIN DEPRECATED (use component functions now in level script)
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|Decal", meta=(DeprecatedFunction))
-	void SetDecalMaterial(class UMaterialInterface* NewDecalMaterial);
+	ENGINE_API void SetDecalMaterial(class UMaterialInterface* NewDecalMaterial);
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|Decal", meta=(DeprecatedFunction))
-	class UMaterialInterface* GetDecalMaterial() const;
+	ENGINE_API class UMaterialInterface* GetDecalMaterial() const;
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|Decal", meta=(DeprecatedFunction))
-	virtual class UMaterialInstanceDynamic* CreateDynamicMaterialInstance();
+	ENGINE_API virtual class UMaterialInstanceDynamic* CreateDynamicMaterialInstance();
 	// END DEPRECATED
 
 	
 #if WITH_EDITOR
 	//~ Begin UObject Interface
-	virtual void PostEditMove(bool bFinished) override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditMove(bool bFinished) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	//~ End UObject Interface
 
 	//~ Begin AActor Interface.
-	virtual void EditorApplyScale(const FVector& DeltaScale, const FVector* PivotLocation, bool bAltDown, bool bShiftDown, bool bCtrlDown) override;
-	virtual bool GetReferencedContentObjects(TArray<UObject*>& Objects) const override;
+	ENGINE_API virtual void EditorApplyScale(const FVector& DeltaScale, const FVector* PivotLocation, bool bAltDown, bool bShiftDown, bool bCtrlDown) override;
+	ENGINE_API virtual bool GetReferencedContentObjects(TArray<UObject*>& Objects) const override;
 	//~ End AActor Interface.
 #endif // WITH_EDITOR
 
 	
-	virtual void Serialize(FArchive& Ar) override;
-	virtual void PostLoad() override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void PostLoad() override;
 
 public:
 

@@ -30,7 +30,7 @@ public:
 
 private:
 #if WITH_EDITOR
-	ENGINE_API virtual bool IsDataLayerTypeSupported(TSubclassOf<UDataLayerInstance> DataLayerType) const override { return false; }
+	virtual bool IsDataLayerTypeSupported(TSubclassOf<UDataLayerInstance> DataLayerType) const override { return false; }
 #endif
 
 #if WITH_EDITORONLY_DATA

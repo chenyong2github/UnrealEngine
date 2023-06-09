@@ -99,7 +99,7 @@ public:
 	ENGINE_API virtual bool ReadCompressedData(uint8* Destination, bool bLooping, uint32 BufferSize);
 	ENGINE_API virtual void SeekToTime(const float SeekTime);
 	ENGINE_API virtual void ExpandFile(uint8* DstBuffer, struct FSoundQualityInfo* QualityInfo);
-	ENGINE_API virtual void EnableHalfRate(bool HalfRate) {};
+	virtual void EnableHalfRate(bool HalfRate) {};
 	virtual uint32 GetSourceBufferSize() const { return SrcBufferDataSize; }
 	virtual bool UsesVorbisChannelOrdering() const { return false; }
 	virtual int GetStreamBufferSize() const;

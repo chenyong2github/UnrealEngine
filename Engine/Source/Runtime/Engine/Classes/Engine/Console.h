@@ -58,8 +58,8 @@ struct FAutoCompleteNode
 /**
  * A basic command line console that accepts most commands.
  */
-UCLASS(Within=GameViewportClient, config=Input, transient)
-class ENGINE_API UConsole
+UCLASS(Within=GameViewportClient, config=Input, transient, MinimalAPI)
+class UConsole
 	: public UObject
 	, public FOutputDevice
 {
@@ -136,27 +136,27 @@ class ENGINE_API UConsole
 	/** Current list of matching commands for auto-complete, @see UpdateCompleteIndices() */
 	TArray<FAutoCompleteCommand> AutoComplete;
 
-	~UConsole();
+	ENGINE_API ~UConsole();
 
 	// UObject Interface
-	virtual void PostInitProperties() override;
+	ENGINE_API virtual void PostInitProperties() override;
 
 	/** Set the input to text */
-	virtual void SetInputText( const FString& Text );
+	ENGINE_API virtual void SetInputText( const FString& Text );
 
 	/** Set cursor position for typing text */
-	virtual void SetCursorPos( int32 Position );
+	ENGINE_API virtual void SetCursorPos( int32 Position );
 	
 	/**
 	 * Executes a console command.
 	 * @param Command The command to execute.
 	 */
-	virtual void ConsoleCommand(const FString& Command);
+	ENGINE_API virtual void ConsoleCommand(const FString& Command);
 	
 	/**
 	 * Clears the console output buffer.
 	 */
-	virtual void ClearOutput();
+	ENGINE_API virtual void ClearOutput();
 	
 	/**
 	 * Prints a (potentially multi-line) FString of text to the console.
@@ -164,37 +164,37 @@ class ENGINE_API UConsole
 	 *
 	 * @param Text Text to display on the console.
 	 */
-	virtual void OutputText(const FString& Text);
+	ENGINE_API virtual void OutputText(const FString& Text);
 	
 	/**
 	 * Opens the typing bar with text already entered.
 	 *
 	 * @param Text The text to enter in the typing bar.
 	 */
-	virtual void StartTyping(const FString& Text);
+	ENGINE_API virtual void StartTyping(const FString& Text);
 	
 	/**
 	 * Clears out all pressed keys from the player's input object.
 	 */
-	virtual void FlushPlayerInput();
+	ENGINE_API virtual void FlushPlayerInput();
 	
 	/** looks for Control key presses and the copy/paste combination that apply to both the console bar and the full open console */
-	virtual bool ProcessControlKey(FKey Key, EInputEvent Event);
+	ENGINE_API virtual bool ProcessControlKey(FKey Key, EInputEvent Event);
 
 	/** looks for Shift key presses */
-	virtual bool ProcessShiftKey(FKey Key, EInputEvent Event);
+	ENGINE_API virtual bool ProcessShiftKey(FKey Key, EInputEvent Event);
 	
 	/** appends the specified text to the string of typed text */
-	virtual void AppendInputText(const FString& Text);
+	ENGINE_API virtual void AppendInputText(const FString& Text);
 	
 	/** Build the list of auto complete console commands */
-	virtual void BuildRuntimeAutoCompleteList(bool bForce = false);
+	ENGINE_API virtual void BuildRuntimeAutoCompleteList(bool bForce = false);
 
 	/** Virtual function to allow subclasses of UConsole to add additional commands */
-	virtual void AugmentRuntimeAutoCompleteList(TArray<FAutoCompleteCommand>& List);
+	ENGINE_API virtual void AugmentRuntimeAutoCompleteList(TArray<FAutoCompleteCommand>& List);
 	
 	/** Update the auto complete indices from the typed string */
-	virtual void UpdateCompleteIndices();
+	ENGINE_API virtual void UpdateCompleteIndices();
 	
 	/**
 	 * Process a character input event (typing) routed through unrealscript from another object. This method is assigned as the value for the
@@ -206,7 +206,7 @@ class ENGINE_API UConsole
 	 * @return	True to consume the character, false to pass it on.
 	 */
 	UE_DEPRECATED(5.1, "This version of InputChar_Typing is deprecated. Please use the version that takes a DeviceId instead.")
-	virtual bool InputChar_Typing( int32 ControllerId, const FString& Unicode );
+	ENGINE_API virtual bool InputChar_Typing( int32 ControllerId, const FString& Unicode );
 
 	/**
 	 * Process a character input event (typing) routed through unrealscript from another object. This method is assigned as the value for the
@@ -217,29 +217,29 @@ class ENGINE_API UConsole
 	 *
 	 * @return	True to consume the character, false to pass it on.
 	 */
-	virtual bool InputChar_Typing(FInputDeviceId DeviceId, const FString& Unicode);
+	ENGINE_API virtual bool InputChar_Typing(FInputDeviceId DeviceId, const FString& Unicode);
 	
 	/**
 	 * perform rendering of the console on the canvas
 	 */
-	virtual void PostRender_Console_Typing(class UCanvas* Canvas);
+	ENGINE_API virtual void PostRender_Console_Typing(class UCanvas* Canvas);
 	
 	/** Perform actions on transition to Typing state */
-	virtual void BeginState_Typing(FName PreviousStateName);
+	ENGINE_API virtual void BeginState_Typing(FName PreviousStateName);
 
 	/** Perform actions on transition from Typing state */
-	virtual void EndState_Typing( FName NextStateName );
+	ENGINE_API virtual void EndState_Typing( FName NextStateName );
 	
 	/**
 	 * This state is used when the console is open.
 	 */
 	UE_DEPRECATED(5.1, "This version of InputChar_Open has been deprecated. Please use the version that takes a DeviceId instead.")
-	virtual bool InputChar_Open( int32 ControllerId, const FString& Unicode );
+	ENGINE_API virtual bool InputChar_Open( int32 ControllerId, const FString& Unicode );
 
 	/**
 	 * This state is used when the console is open.
 	 */
-	virtual bool InputChar_Open( FInputDeviceId DeviceId, const FString& Unicode );
+	ENGINE_API virtual bool InputChar_Open( FInputDeviceId DeviceId, const FString& Unicode );
 	
 	/**
 	 * Process an input key event routed through unrealscript from another object. This method is assigned as the value for the
@@ -253,7 +253,7 @@ class ENGINE_API UConsole
 	 * @return	true to consume the key event, false to pass it on.
 	 */
 	UE_DEPRECATED(5.1, "This version of InputKey_Open has been deprecated. Please use the version that takes a DeviceId instead.")
-	virtual bool InputKey_Open( int32 ControllerId, FKey Key, EInputEvent Event, float AmountDepressed = 1.f, bool bGamepad = false );
+	ENGINE_API virtual bool InputKey_Open( int32 ControllerId, FKey Key, EInputEvent Event, float AmountDepressed = 1.f, bool bGamepad = false );
 
 	/**
 	 * Process an input key event routed through unrealscript from another object. This method is assigned as the value for the
@@ -266,26 +266,26 @@ class ENGINE_API UConsole
 	 *
 	 * @return	true to consume the key event, false to pass it on.
 	 */
-	virtual bool InputKey_Open(FInputDeviceId DeviceId, FKey Key, EInputEvent Event, float AmountDepressed = 1.f, bool bGamepad = false);
+	ENGINE_API virtual bool InputKey_Open(FInputDeviceId DeviceId, FKey Key, EInputEvent Event, float AmountDepressed = 1.f, bool bGamepad = false);
 	
 	/** 
 	 * perform rendering of the console on the canvas
 	 */
-	virtual void PostRender_Console_Open(class UCanvas* Canvas);
+	ENGINE_API virtual void PostRender_Console_Open(class UCanvas* Canvas);
 
 	/** Perform actions on transition to the Open state */
-	virtual void BeginState_Open(FName PreviousStateName);
+	ENGINE_API virtual void BeginState_Open(FName PreviousStateName);
 
 	/** Perform actions on transition from Open state */
-	virtual void EndState_Open(FName NextStateName);
+	ENGINE_API virtual void EndState_Open(FName NextStateName);
 
 	UE_DEPRECATED(5.1, "This version of InputChar has been deprecated. Please use the version that takes an FInputDeviceId instead")
-	virtual bool InputChar(int32 ControllerId, const FString& Unicode);
-	virtual bool InputChar(FInputDeviceId DeviceId, const FString& Unicode);
+	ENGINE_API virtual bool InputChar(int32 ControllerId, const FString& Unicode);
+	ENGINE_API virtual bool InputChar(FInputDeviceId DeviceId, const FString& Unicode);
 	
 	UE_DEPRECATED(5.1, "This version of InputKey has been deprecated. Please use the version that takes an FInputDeviceId instead")
-	virtual bool InputKey(int32 ControllerId, FKey Key, EInputEvent Event, float AmountDepressed=1.f, bool bGamepad=false);
-	virtual bool InputKey(FInputDeviceId DeviceId, FKey Key, EInputEvent Event, float AmountDepressed=1.f, bool bGamepad=false);
+	ENGINE_API virtual bool InputKey(int32 ControllerId, FKey Key, EInputEvent Event, float AmountDepressed=1.f, bool bGamepad=false);
+	ENGINE_API virtual bool InputKey(FInputDeviceId DeviceId, FKey Key, EInputEvent Event, float AmountDepressed=1.f, bool bGamepad=false);
 
 	UE_DEPRECATED(5.1, "This version of InputAxis has been deprecated. Please use the version that takes an FInputDeviceId instead")
 	virtual bool InputAxis(int32 ControllerId, FKey Key, float Delta, float DeltaTime, int32 NumSamples=1, bool bGamepad=false) { return false; };
@@ -296,29 +296,29 @@ class ENGINE_API UConsole
 	virtual bool InputTouch(FInputDeviceId DevideId, uint32 Handle, ETouchType::Type Type, const FVector2D& TouchLocation, float Force, FDateTime DeviceTimestamp, uint32 TouchpadIndex) { return false; }
 
 	/** render to the canvas based on the console state */
-	virtual void PostRender_Console(class UCanvas* Canvas);
+	ENGINE_API virtual void PostRender_Console(class UCanvas* Canvas);
 
 	/** controls state transitions for the console */
-	virtual void FakeGotoState(FName NextStateName);
+	ENGINE_API virtual void FakeGotoState(FName NextStateName);
 
-	virtual bool ConsoleActive() const;
+	ENGINE_API virtual bool ConsoleActive() const;
 
-	void InvalidateAutocomplete();
+	ENGINE_API void InvalidateAutocomplete();
 
 	/** Delegate for registering hot-reloaded classes that have been added  */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FRegisterConsoleAutoCompleteEntries, TArray<FAutoCompleteCommand>&);
-	static FRegisterConsoleAutoCompleteEntries RegisterConsoleAutoCompleteEntries;
+	static ENGINE_API FRegisterConsoleAutoCompleteEntries RegisterConsoleAutoCompleteEntries;
 
 	/** Deletate for when the console is activated or deactivated */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnConsoleActivationStateChanged, bool);
-	static FOnConsoleActivationStateChanged OnConsoleActivationStateChanged;
+	static ENGINE_API FOnConsoleActivationStateChanged OnConsoleActivationStateChanged;
 
 private:
 
-	bool InputKey_InputLine(FInputDeviceId DeviceId, FKey Key, EInputEvent Event, float AmountDepressed = 1.f, bool bGamepad = false);
+	ENGINE_API bool InputKey_InputLine(FInputDeviceId DeviceId, FKey Key, EInputEvent Event, float AmountDepressed = 1.f, bool bGamepad = false);
 
 	// interface FOutputDevice
-	virtual void Serialize( const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category ) override;
+	ENGINE_API virtual void Serialize( const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category ) override;
 	// expose the base class other Serialize function (clang will give "error : 'UConsole::Serialize' hides overloaded virtual function" without this)
 	using UObject::Serialize; 
 
@@ -326,17 +326,17 @@ private:
 	 * Prints a single line of text to the console.
 	 * @param Text - A line of text to display on the console.
 	 */
-	void OutputTextLine(const FString& Text);
+	ENGINE_API void OutputTextLine(const FString& Text);
 
-	void PostRender_InputLine(class UCanvas* Canvas, FIntPoint UserInputLinePos);
+	ENGINE_API void PostRender_InputLine(class UCanvas* Canvas, FIntPoint UserInputLinePos);
 
-	void SetAutoCompleteFromHistory();
+	ENGINE_API void SetAutoCompleteFromHistory();
 
-	void SetInputLineFromAutoComplete();
+	ENGINE_API void SetInputLineFromAutoComplete();
 
-	void UpdatePrecompletedInputLine();
+	ENGINE_API void UpdatePrecompletedInputLine();
 
-	void NormalizeHistoryBuffer();
+	ENGINE_API void NormalizeHistoryBuffer();
 
 	// Console settings from BaseInput.ini
 	const UConsoleSettings* ConsoleSettings;

@@ -12,14 +12,14 @@ class UGameInstance;
  * UGameInstanceSubsystem
  * Base class for auto instanced and initialized systems that share the lifetime of the game instance
  */
-UCLASS(Abstract, Within = GameInstance)
-class ENGINE_API UGameInstanceSubsystem : public USubsystem
+UCLASS(Abstract, Within = GameInstance, MinimalAPI)
+class UGameInstanceSubsystem : public USubsystem
 {
 	GENERATED_BODY()
 
 public:
-	UGameInstanceSubsystem();
+	ENGINE_API UGameInstanceSubsystem();
 
-	UGameInstance* GetGameInstance() const;
+	ENGINE_API UGameInstance* GetGameInstance() const;
 
 };

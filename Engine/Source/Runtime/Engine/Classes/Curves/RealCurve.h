@@ -111,7 +111,7 @@ private:
 
 /** A rich, editable float curve */
 USTRUCT()
-struct ENGINE_API FRealCurve
+struct FRealCurve
 	: public FIndexedCurve
 {
 	GENERATED_USTRUCT_BODY()
@@ -139,7 +139,7 @@ public:
 	  * @param	bUnwindRotation		When true, the value will be treated like a rotation value in degrees, and will automatically be unwound to prevent flipping 360 degrees from the previous key 
 	  * @param  KeyHandle			Optionally can specify what handle this new key should have, otherwise, it'll make a new one
 	  */
-	virtual FKeyHandle AddKey(float InTime, float InValue, const bool bUnwindRotation = false, FKeyHandle KeyHandle = FKeyHandle()) PURE_VIRTUAL(FRealCurve::AddKey, return FKeyHandle::Invalid(););
+	ENGINE_API virtual FKeyHandle AddKey(float InTime, float InValue, const bool bUnwindRotation = false, FKeyHandle KeyHandle = FKeyHandle()) PURE_VIRTUAL(FRealCurve::AddKey, return FKeyHandle::Invalid(););
 
 	/**
 	 *  Remove the specified key from the curve.
@@ -147,27 +147,27 @@ public:
 	 * @param KeyHandle The handle of the key to remove.
 	 * @see AddKey, SetKeys
 	 */
-	virtual void DeleteKey(FKeyHandle KeyHandle) PURE_VIRTUAL(FRealCurve::DeleteKey,);
+	ENGINE_API virtual void DeleteKey(FKeyHandle KeyHandle) PURE_VIRTUAL(FRealCurve::DeleteKey,);
 
 	/** Finds the key at InTime, and updates its value. If it can't find the key within the KeyTimeTolerance, it adds one at that time */
-	virtual FKeyHandle UpdateOrAddKey(float InTime, float InValue, const bool bUnwindRotation = false, float KeyTimeTolerance = UE_KINDA_SMALL_NUMBER) PURE_VIRTUAL(FRealCurve::UpdateOrAddKey, return FKeyHandle::Invalid(););
+	ENGINE_API virtual FKeyHandle UpdateOrAddKey(float InTime, float InValue, const bool bUnwindRotation = false, float KeyTimeTolerance = UE_KINDA_SMALL_NUMBER) PURE_VIRTUAL(FRealCurve::UpdateOrAddKey, return FKeyHandle::Invalid(););
 
 	/** Finds a key a the specified time */
-	FKeyHandle FindKey(float KeyTime, float KeyTimeTolerance = UE_KINDA_SMALL_NUMBER) const;
+	ENGINE_API FKeyHandle FindKey(float KeyTime, float KeyTimeTolerance = UE_KINDA_SMALL_NUMBER) const;
 
 	/** True if a key exists already, false otherwise */
-	bool KeyExistsAtTime(float KeyTime, float KeyTimeTolerance = UE_KINDA_SMALL_NUMBER) const;
+	ENGINE_API bool KeyExistsAtTime(float KeyTime, float KeyTimeTolerance = UE_KINDA_SMALL_NUMBER) const;
 
 	/** Set the value of the specified key */
-	virtual void SetKeyValue(FKeyHandle KeyHandle, float NewValue, bool bAutoSetTangents = true) PURE_VIRTUAL(FRealCurve::SetKeyValue,);
+	ENGINE_API virtual void SetKeyValue(FKeyHandle KeyHandle, float NewValue, bool bAutoSetTangents = true) PURE_VIRTUAL(FRealCurve::SetKeyValue,);
 
 	/** Returns the value of the specified key */
-	virtual float GetKeyValue(FKeyHandle KeyHandle) const PURE_VIRTUAL(FRealCurve::GetKeyValue, return 0.f;);
+	ENGINE_API virtual float GetKeyValue(FKeyHandle KeyHandle) const PURE_VIRTUAL(FRealCurve::GetKeyValue, return 0.f;);
 
 	/** Returns a <Time, Value> pair for the specified key */
-	virtual TPair<float, float> GetKeyTimeValuePair(FKeyHandle KeyHandle) const PURE_VIRTUAL(FRealCurve::GetKeyTimeValuePair, return (TPair<float,float>(0.f,0.f)););
+	ENGINE_API virtual TPair<float, float> GetKeyTimeValuePair(FKeyHandle KeyHandle) const PURE_VIRTUAL(FRealCurve::GetKeyTimeValuePair, return (TPair<float,float>(0.f,0.f)););
 
-	virtual void SetKeyInterpMode(FKeyHandle KeyHandle, ERichCurveInterpMode NewInterpMode) PURE_VIRTUAL(FRealCurve::SetKeyInterpMode,);
+	ENGINE_API virtual void SetKeyInterpMode(FKeyHandle KeyHandle, ERichCurveInterpMode NewInterpMode) PURE_VIRTUAL(FRealCurve::SetKeyInterpMode,);
 
 	/** Set the default value of the curve */
 	void SetDefaultValue(float InDefaultValue) { DefaultValue = InDefaultValue; }
@@ -178,37 +178,37 @@ public:
 	/** Removes the default value for this curve. */
 	void ClearDefaultValue() { DefaultValue = MAX_flt; }
 
-	virtual ERichCurveInterpMode GetKeyInterpMode(FKeyHandle KeyHandle) const PURE_VIRTUAL(FRealCurve::GetTimeRange, return RCIM_None; );
+	ENGINE_API virtual ERichCurveInterpMode GetKeyInterpMode(FKeyHandle KeyHandle) const PURE_VIRTUAL(FRealCurve::GetTimeRange, return RCIM_None; );
 
 	/** Get range of input time values. Outside this region curve continues constantly the start/end values. */
-	virtual void GetTimeRange(float& MinTime, float& MaxTime) const PURE_VIRTUAL(FRealCurve::GetTimeRange, );
+	ENGINE_API virtual void GetTimeRange(float& MinTime, float& MaxTime) const PURE_VIRTUAL(FRealCurve::GetTimeRange, );
 
 	/** Get range of output values. */
-	virtual void GetValueRange(float& MinValue, float& MaxValue) const PURE_VIRTUAL(FRealCurve::GetValueRange, );
+	ENGINE_API virtual void GetValueRange(float& MinValue, float& MaxValue) const PURE_VIRTUAL(FRealCurve::GetValueRange, );
 
 	/** Clear all keys. */
-	virtual void Reset() PURE_VIRTUAL(FRealCurve::Reset, );
+	ENGINE_API virtual void Reset() PURE_VIRTUAL(FRealCurve::Reset, );
 
 	/** Remap InTime based on pre and post infinity extrapolation values */
-	virtual void RemapTimeValue(float& InTime, float& CycleValueOffset) const PURE_VIRTUAL(FRealCurve::RemapTimeValue, );
+	ENGINE_API virtual void RemapTimeValue(float& InTime, float& CycleValueOffset) const PURE_VIRTUAL(FRealCurve::RemapTimeValue, );
 
 	/** Evaluate this curve at the specified time */
-	virtual float Eval(float InTime, float InDefaultValue = 0.0f) const PURE_VIRTUAL(FRealCurve::Eval, return 0.f;);
+	ENGINE_API virtual float Eval(float InTime, float InDefaultValue = 0.0f) const PURE_VIRTUAL(FRealCurve::Eval, return 0.f;);
 
 	/** Resize curve length to the [MinTimeRange, MaxTimeRange] */
-	virtual void ReadjustTimeRange(float NewMinTimeRange, float NewMaxTimeRange, bool bInsert/* whether insert or remove*/, float OldStartTime, float OldEndTime) PURE_VIRTUAL(FRealCurve::ReadjustTimeRange, );
+	ENGINE_API virtual void ReadjustTimeRange(float NewMinTimeRange, float NewMaxTimeRange, bool bInsert/* whether insert or remove*/, float OldStartTime, float OldEndTime) PURE_VIRTUAL(FRealCurve::ReadjustTimeRange, );
 
 	/** Bake curve given the sample rate */
-	virtual void BakeCurve(float SampleRate) PURE_VIRTUAL(FRealCurve::BakeCurve, );
-	virtual void BakeCurve(float SampleRate, float FirstKeyTime, float LastKeyTime) PURE_VIRTUAL(FRealCurve::BakeCurve, );
+	ENGINE_API virtual void BakeCurve(float SampleRate) PURE_VIRTUAL(FRealCurve::BakeCurve, );
+	ENGINE_API virtual void BakeCurve(float SampleRate, float FirstKeyTime, float LastKeyTime) PURE_VIRTUAL(FRealCurve::BakeCurve, );
 
 	/** Remove redundant keys, comparing against Tolerance (and optional use of sample-rate for additional testing) */
-	virtual void RemoveRedundantKeys(float Tolerance, FFrameRate SampleRate = FFrameRate(0,0)) PURE_VIRTUAL(FRealCurve::RemoveRedundantKeys, );
-	virtual void RemoveRedundantKeys(float Tolerance, float FirstKeyTime, float LastKeyTime, FFrameRate SampleRate = FFrameRate(0,0)) PURE_VIRTUAL(FRealCurve::RemoveRedundantKeys, );
+	ENGINE_API virtual void RemoveRedundantKeys(float Tolerance, FFrameRate SampleRate = FFrameRate(0,0)) PURE_VIRTUAL(FRealCurve::RemoveRedundantKeys, );
+	ENGINE_API virtual void RemoveRedundantKeys(float Tolerance, float FirstKeyTime, float LastKeyTime, FFrameRate SampleRate = FFrameRate(0,0)) PURE_VIRTUAL(FRealCurve::RemoveRedundantKeys, );
 
 protected:
-	static void CycleTime(float MinTime, float MaxTime, float& InTime, int& CycleCount);
-	virtual int32 GetKeyIndex(float KeyTime, float KeyTimeTolerance) const PURE_VIRTUAL(FRealCurve::GetKeyIndex, return INDEX_NONE;);
+	static ENGINE_API void CycleTime(float MinTime, float MaxTime, float& InTime, int& CycleCount);
+	ENGINE_API virtual int32 GetKeyIndex(float KeyTime, float KeyTimeTolerance) const PURE_VIRTUAL(FRealCurve::GetKeyIndex, return INDEX_NONE;);
 
 public:
 

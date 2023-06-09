@@ -13,8 +13,8 @@
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAsyncHandleSaveGame, USaveGame*, SaveGame, bool, bSuccess);
 
 /** Async action to handle async load/save of a USaveGame. This can be subclassed by a specific game */
-UCLASS()
-class ENGINE_API UAsyncActionHandleSaveGame : public UBlueprintAsyncActionBase
+UCLASS(MinimalAPI)
+class UAsyncActionHandleSaveGame : public UBlueprintAsyncActionBase
 {
 	GENERATED_BODY()
 public:
@@ -29,7 +29,7 @@ public:
 	 * @param UserIndex			The platform user index that identifies the user doing the saving, ignored on some platforms.
 	 */
 	UFUNCTION(BlueprintCallable, meta=(BlueprintInternalUseOnly="true", Category = "SaveGame",  WorldContext = "WorldContextObject"))
-	static UAsyncActionHandleSaveGame* AsyncSaveGameToSlot(UObject* WorldContextObject, USaveGame* SaveGameObject, const FString& SlotName, const int32 UserIndex);
+	static ENGINE_API UAsyncActionHandleSaveGame* AsyncSaveGameToSlot(UObject* WorldContextObject, USaveGame* SaveGameObject, const FString& SlotName, const int32 UserIndex);
 
 	/**
 	 * Schedule an async load of a specific slot. UGameplayStatics::AsyncLoadGameFromSlot is the native version of this.
@@ -40,14 +40,14 @@ public:
 	 * @param UserIndex			The platform user index that identifies the user doing the saving, ignored on some platforms.
 	 */
 	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true", Category = "SaveGame", WorldContext = "WorldContextObject"))
-	static UAsyncActionHandleSaveGame* AsyncLoadGameFromSlot(UObject* WorldContextObject, const FString& SlotName, const int32 UserIndex);
+	static ENGINE_API UAsyncActionHandleSaveGame* AsyncLoadGameFromSlot(UObject* WorldContextObject, const FString& SlotName, const int32 UserIndex);
 
 	/** Delegate called when the save/load completes */
 	UPROPERTY(BlueprintAssignable)
 	FOnAsyncHandleSaveGame Completed;
 
 	/** Execute the actual operation */
-	virtual void Activate() override;
+	ENGINE_API virtual void Activate() override;
 
 protected:
 	enum class ESaveGameOperation : uint8
@@ -68,9 +68,9 @@ protected:
 	TObjectPtr<USaveGame> SaveGameObject;
 	
 	/** Function callbacks for load/save */
-	virtual void HandleAsyncSave(const FString& SlotName, const int32 UserIndex, bool bSuccess);
-	virtual void HandleAsyncLoad(const FString& SlotName, const int32 UserIndex, USaveGame* LoadedSave);
+	ENGINE_API virtual void HandleAsyncSave(const FString& SlotName, const int32 UserIndex, bool bSuccess);
+	ENGINE_API virtual void HandleAsyncLoad(const FString& SlotName, const int32 UserIndex, USaveGame* LoadedSave);
 	
 	/** Called at completion of save/load to execute delegate */
-	virtual void ExecuteCompleted(bool bSuccess);
+	ENGINE_API virtual void ExecuteCompleted(bool bSuccess);
 };

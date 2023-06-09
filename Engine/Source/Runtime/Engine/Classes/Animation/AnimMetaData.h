@@ -14,8 +14,8 @@
 #include "UObject/Object.h"
 #include "AnimMetaData.generated.h"
 
-UCLASS(Blueprintable, abstract, editinlinenew, hidecategories=Object, collapsecategories)
-class ENGINE_API UAnimMetaData : public UObject
+UCLASS(Blueprintable, abstract, editinlinenew, hidecategories=Object, collapsecategories, MinimalAPI)
+class UAnimMetaData : public UObject
 {
 	GENERATED_UCLASS_BODY()
 };

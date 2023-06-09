@@ -17,7 +17,7 @@ class FMaterialRenderProxy;
 
 /** Container for an aggregate of collision shapes */
 USTRUCT()
-struct ENGINE_API FKAggregateGeom
+struct FKAggregateGeom
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -67,7 +67,7 @@ struct ENGINE_API FKAggregateGeom
 		return SphereElems.Num() + SphylElems.Num() + BoxElems.Num() + ConvexElems.Num() + TaperedCapsuleElems.Num() + LevelSetElems.Num() + SkinnedLevelSetElems.Num();
 	}
 
-	int32 GetElementCount(EAggCollisionShape::Type Type) const;
+	ENGINE_API int32 GetElementCount(EAggCollisionShape::Type Type) const;
 
 	SIZE_T GetAllocatedSize() const { return SphereElems.GetAllocatedSize() + SphylElems.GetAllocatedSize() + BoxElems.GetAllocatedSize() + ConvexElems.GetAllocatedSize() + TaperedCapsuleElems.GetAllocatedSize() + LevelSetElems.GetAllocatedSize() + SkinnedLevelSetElems.GetAllocatedSize(); }
 
@@ -149,15 +149,15 @@ struct ENGINE_API FKAggregateGeom
 	}
 
 #if WITH_EDITORONLY_DATA
-	void FixupDeprecated(FArchive& Ar);
+	ENGINE_API void FixupDeprecated(FArchive& Ar);
 #endif
 
-	void GetAggGeom(const FTransform& Transform, const FColor Color, const FMaterialRenderProxy* MatInst, bool bPerHullColor, bool bDrawSolid, bool bOutputVelocity, int32 ViewIndex, class FMeshElementCollector& Collector) const;
+	ENGINE_API void GetAggGeom(const FTransform& Transform, const FColor Color, const FMaterialRenderProxy* MatInst, bool bPerHullColor, bool bDrawSolid, bool bOutputVelocity, int32 ViewIndex, class FMeshElementCollector& Collector) const;
 
 	/** Release the RenderInfo (if its there) and safely clean up any resources. Call on the game thread. */
-	void FreeRenderInfo();
+	ENGINE_API void FreeRenderInfo();
 
-	FBox CalcAABB(const FTransform& Transform) const;
+	ENGINE_API FBox CalcAABB(const FTransform& Transform) const;
 
 	/**
 	* Calculates a tight box-sphere bounds for the aggregate geometry; this is more expensive than CalcAABB
@@ -166,16 +166,16 @@ struct ENGINE_API FKAggregateGeom
 	* @param Output The output box-sphere bounds calculated for this set of aggregate geometry
 	*	@param LocalToWorld Transform
 	*/
-	void CalcBoxSphereBounds(FBoxSphereBounds& Output, const FTransform& LocalToWorld) const;
+	ENGINE_API void CalcBoxSphereBounds(FBoxSphereBounds& Output, const FTransform& LocalToWorld) const;
 
 	/** Returns the volume of this element */
 	UE_DEPRECATED(5.1, "Changed to GetScaledVolume. Note that Volume calculation now includes non-uniform scale so values may have changed")
-	FVector::FReal GetVolume(const FVector& Scale3D) const;
+	ENGINE_API FVector::FReal GetVolume(const FVector& Scale3D) const;
 
 	/** Returns the volume of this element */
-	FVector::FReal GetScaledVolume(const FVector& Scale3D) const;
+	ENGINE_API FVector::FReal GetScaledVolume(const FVector& Scale3D) const;
 
-	FGuid MakeDDCKey() const;
+	ENGINE_API FGuid MakeDDCKey() const;
 
 private:
 

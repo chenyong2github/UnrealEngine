@@ -26,11 +26,11 @@ struct FSoundGeneratorInitParams
 	FString GraphName;
 };
 
-class ENGINE_API ISoundGenerator
+class ISoundGenerator
 {
 public:
-	ISoundGenerator();
-	virtual ~ISoundGenerator();
+	ENGINE_API ISoundGenerator();
+	ENGINE_API virtual ~ISoundGenerator();
 
 	// Called when a new buffer is required. 
 	virtual int32 OnGenerateAudio(float* OutAudio, int32 NumSamples) = 0;
@@ -48,7 +48,7 @@ public:
 	virtual bool IsFinished() const { return false; }
 
 	// Retrieves the next buffer of audio from the generator, called from the audio mixer
-	int32 GetNextBuffer(float* OutAudio, int32 NumSamples, bool bRequireNumberSamples = false);
+	ENGINE_API int32 GetNextBuffer(float* OutAudio, int32 NumSamples, bool bRequireNumberSamples = false);
 
 	virtual Audio::AudioTaskQueueId GetSynchronizedRenderQueueId() const { return 0; }
 
@@ -56,11 +56,11 @@ protected:
 
 	// Protected method to execute lambda in audio render thread
 	// Used for conveying parameter changes or events to the generator thread.
-	void SynthCommand(TUniqueFunction<void()> Command);
+	ENGINE_API void SynthCommand(TUniqueFunction<void()> Command);
 
 private:
 
-	void PumpPendingMessages();
+	ENGINE_API void PumpPendingMessages();
 
 	// The command queue used to convey commands from game thread to generator thread 
 	TQueue<TUniqueFunction<void()>> CommandQueue;
@@ -69,7 +69,7 @@ private:
 };
 
 // Null implementation of ISoundGenerator which no-ops audio generation
-class ENGINE_API FSoundGeneratorNull : public ISoundGenerator
+class FSoundGeneratorNull : public ISoundGenerator
 {
 public:
 	virtual int32 OnGenerateAudio(float* OutAudio, int32 NumSamples) override

@@ -16,8 +16,8 @@ class FLightSceneProxy;
 /**
  * A light component which emits light from a rectangle.
  */
-UCLASS(Blueprintable, ClassGroup=(Lights), hidecategories=(Object, LightShafts), editinlinenew, meta=(BlueprintSpawnableComponent))
-class ENGINE_API URectLightComponent : public ULocalLightComponent
+UCLASS(Blueprintable, ClassGroup=(Lights), hidecategories=(Object, LightShafts), editinlinenew, meta=(BlueprintSpawnableComponent), MinimalAPI)
+class URectLightComponent : public ULocalLightComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -52,41 +52,41 @@ class ENGINE_API URectLightComponent : public ULocalLightComponent
 	TObjectPtr<class UTexture> SourceTexture;
 
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Lighting")
-	void SetSourceTexture(UTexture* NewValue);
+	ENGINE_API void SetSourceTexture(UTexture* NewValue);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
-	void SetSourceWidth(float NewValue);
+	ENGINE_API void SetSourceWidth(float NewValue);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
-	void SetSourceHeight(float NewValue);
+	ENGINE_API void SetSourceHeight(float NewValue);
 
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Lighting")
-	void SetBarnDoorAngle(float NewValue);
+	ENGINE_API void SetBarnDoorAngle(float NewValue);
 	
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Lighting")
-	void SetBarnDoorLength(float NewValue);
+	ENGINE_API void SetBarnDoorLength(float NewValue);
 
 public:
 
-	virtual float ComputeLightBrightness() const override;
+	ENGINE_API virtual float ComputeLightBrightness() const override;
 #if WITH_EDITOR
-	virtual void SetLightBrightness(float InBrightness) override;
+	ENGINE_API virtual void SetLightBrightness(float InBrightness) override;
 #endif
 
 	//~ Begin ULightComponent Interface.
-	virtual ELightComponentType GetLightType() const override;
-	virtual float GetUniformPenumbraSize() const override;
-	virtual FLightSceneProxy* CreateSceneProxy() const override;
+	ENGINE_API virtual ELightComponentType GetLightType() const override;
+	ENGINE_API virtual float GetUniformPenumbraSize() const override;
+	ENGINE_API virtual FLightSceneProxy* CreateSceneProxy() const override;
 
-	virtual void BeginDestroy() override;
+	ENGINE_API virtual void BeginDestroy() override;
 	//~ Begin UObject Interface
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 	//~ End UObject Interface
 
 private:
-	void UpdateRayTracingData();
+	ENGINE_API void UpdateRayTracingData();
 	friend class FRectLightSceneProxy;
 	struct FRectLightRayTracingData* RayTracingData;
 };

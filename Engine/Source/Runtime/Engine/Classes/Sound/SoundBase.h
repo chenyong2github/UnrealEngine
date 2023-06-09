@@ -83,8 +83,8 @@ enum class EVirtualizationMode : uint8
 /**
  * The base class for a playable sound object
  */
-UCLASS(config=Engine, hidecategories=Object, abstract, editinlinenew, BlueprintType)
-class ENGINE_API USoundBase : public UObject, public IInterface_AssetUserData
+UCLASS(config=Engine, hidecategories=Object, abstract, editinlinenew, BlueprintType, MinimalAPI)
+class USoundBase : public UObject, public IInterface_AssetUserData
 {
 	GENERATED_UCLASS_BODY()
 
@@ -225,53 +225,53 @@ private:
 public:
 	//~ Begin UObject Interface.
 #if WITH_EDITORONLY_DATA
-	virtual void PostLoad() override;
+	ENGINE_API virtual void PostLoad() override;
 #endif
-	virtual bool CanBeClusterRoot() const override;
-	virtual bool CanBeInCluster() const override;
-	virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual bool CanBeClusterRoot() const override;
+	ENGINE_API virtual bool CanBeInCluster() const override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
 
 	//~ End UObject interface.
 
 	/** Returns whether the sound base is set up in a playable manner */
-	virtual bool IsPlayable() const;
+	ENGINE_API virtual bool IsPlayable() const;
 
 	/** Returns whether sound supports subtitles. */
-	virtual bool SupportsSubtitles() const;
+	ENGINE_API virtual bool SupportsSubtitles() const;
 
 	/** Returns whether or not this sound base has an attenuation node. */
-	virtual bool HasAttenuationNode() const;
+	ENGINE_API virtual bool HasAttenuationNode() const;
 
 	/** Returns a pointer to the attenuation settings that are to be applied for this node */
-	virtual const FSoundAttenuationSettings* GetAttenuationSettingsToApply() const;
+	ENGINE_API virtual const FSoundAttenuationSettings* GetAttenuationSettingsToApply() const;
 
 	/**
 	 * Returns the farthest distance at which the sound could be heard
 	 */
-	virtual float GetMaxDistance() const;
+	ENGINE_API virtual float GetMaxDistance() const;
 
 	/**
 	 * Returns the length of the sound
 	 */
-	virtual float GetDuration() const;
+	ENGINE_API virtual float GetDuration() const;
 
 	/** Returns whether or not this sound has a delay node, which means it's possible for the sound to not generate audio for a while. */
-	bool HasDelayNode() const;
+	ENGINE_API bool HasDelayNode() const;
 
 	/** Returns whether or not this sound has a sequencer node, which means it's possible for the owning active sound to persist even though it's not generating audio. */
-	bool HasConcatenatorNode() const;
+	ENGINE_API bool HasConcatenatorNode() const;
 
 	/** Returns true if any of the sounds in the sound have "play when silent" enabled. */
-	virtual bool IsPlayWhenSilent() const;
+	ENGINE_API virtual bool IsPlayWhenSilent() const;
 
-	virtual float GetVolumeMultiplier();
-	virtual float GetPitchMultiplier();
+	ENGINE_API virtual float GetVolumeMultiplier();
+	ENGINE_API virtual float GetPitchMultiplier();
 
 	/** Returns the subtitle priority */
 	virtual float GetSubtitlePriority() const { return DEFAULT_SUBTITLE_PRIORITY; };
 
 	/** Returns whether or not any part of this sound wants interior volumes applied to it */
-	virtual bool ShouldApplyInteriorVolumes();
+	ENGINE_API virtual bool ShouldApplyInteriorVolumes();
 
 	/** Returns curves associated with this sound if it has any. By default returns nullptr, but types
 	*	supporting curves can return a corresponding curve table.
@@ -279,47 +279,47 @@ public:
 	virtual class UCurveTable* GetCurveData() const { return nullptr; }
 
 	/** Returns whether or not this sound is looping. TODO: Deprecate this to only use IsOneshot() in a MetaSound world. */
-	virtual bool IsLooping() const;
+	ENGINE_API virtual bool IsLooping() const;
 
 	/** Query if it's one shot. One shot is defined as a sound which is intended to have a fixed duration. */
-	virtual bool IsOneShot() const;
+	ENGINE_API virtual bool IsOneShot() const;
 
 	/** Parses the Sound to generate the WaveInstances to play. */
 	virtual void Parse( class FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanceHash, FActiveSound& ActiveSound, const FSoundParseParameters& ParseParams, TArray<FWaveInstance*>& WaveInstances ) { }
 
 	/** Returns the SoundClass used for this sound. */
-	virtual USoundClass* GetSoundClass() const;
+	ENGINE_API virtual USoundClass* GetSoundClass() const;
 
 	/** Returns the SoundSubmix used for this sound. */
-	virtual USoundSubmixBase* GetSoundSubmix() const;
+	ENGINE_API virtual USoundSubmixBase* GetSoundSubmix() const;
 
 	/** Returns the sound submix sends for this sound. */
-	void GetSoundSubmixSends(TArray<FSoundSubmixSendInfo>& OutSends) const;
+	ENGINE_API void GetSoundSubmixSends(TArray<FSoundSubmixSendInfo>& OutSends) const;
 
 	/** Returns the sound source sends for this sound. */
-	void GetSoundSourceBusSends(EBusSendType BusSendType, TArray<FSoundSourceBusSendInfo>& OutSends) const;
+	ENGINE_API void GetSoundSourceBusSends(EBusSendType BusSendType, TArray<FSoundSourceBusSendInfo>& OutSends) const;
 
 	/** Returns an array of FSoundConcurrencySettings handles. */
-	void GetConcurrencyHandles(TArray<FConcurrencyHandle>& OutConcurrencyHandles) const;
+	ENGINE_API void GetConcurrencyHandles(TArray<FConcurrencyHandle>& OutConcurrencyHandles) const;
 
 	/** Returns the priority to use when evaluating concurrency. */
-	float GetPriority() const;
+	ENGINE_API float GetPriority() const;
 	/** Returns whether the sound has cooked analysis data (e.g. FFT or envelope following data) and returns sound waves which have cooked data. */
-	virtual bool GetSoundWavesWithCookedAnalysisData(TArray<USoundWave*>& OutSoundWaves);
+	ENGINE_API virtual bool GetSoundWavesWithCookedAnalysisData(TArray<USoundWave*>& OutSoundWaves);
 
 	/** Queries if the sound has cooked FFT or envelope data. */
 	virtual bool HasCookedFFTData() const { return false; }
 	virtual bool HasCookedAmplitudeEnvelopeData() const { return false; }
 
 	//~ Begin IInterface_AssetUserData Interface
-	virtual void AddAssetUserData(UAssetUserData* InUserData) override;
-	virtual void RemoveUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
-	virtual UAssetUserData* GetAssetUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
-	virtual const TArray<UAssetUserData*>* GetAssetUserDataArray() const override;
+	ENGINE_API virtual void AddAssetUserData(UAssetUserData* InUserData) override;
+	ENGINE_API virtual void RemoveUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
+	ENGINE_API virtual UAssetUserData* GetAssetUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
+	ENGINE_API virtual const TArray<UAssetUserData*>* GetAssetUserDataArray() const override;
 	//~ End IInterface_AssetUserData Interface
 
 	/** Called from the Game Thread prior to attempting to pass parameters to the ParameterTransmitter. */
-	virtual void InitParameters(TArray<FAudioParameter>& ParametersToInit, FName InFeatureName = NAME_None);
+	ENGINE_API virtual void InitParameters(TArray<FAudioParameter>& ParametersToInit, FName InFeatureName = NAME_None);
 
 	/** Called from the Game Thread prior to attempting to initialize a sound instance. */
 	virtual void InitResources() { }
@@ -334,10 +334,10 @@ public:
 	virtual ISoundGeneratorPtr CreateSoundGenerator(const FSoundGeneratorInitParams& InParams, TArray<FAudioParameter>&& InDefaultParameters) { return CreateSoundGenerator(InParams); }
 
 	/** Creates a parameter transmitter for communicating with active sound instances. */
-	virtual TSharedPtr<Audio::IParameterTransmitter> CreateParameterTransmitter(Audio::FParameterTransmitterInitParams&& InParams) const;
+	ENGINE_API virtual TSharedPtr<Audio::IParameterTransmitter> CreateParameterTransmitter(Audio::FParameterTransmitterInitParams&& InParams) const;
 
 	/** Returns whether parameter is valid input for the given sound */
-	virtual bool IsParameterValid(const FAudioParameter& InParameter) const;
+	ENGINE_API virtual bool IsParameterValid(const FAudioParameter& InParameter) const;
 
 	/** Gets all the default parameters for this Asset.  */
 	virtual bool GetAllDefaultParameters(TArray<FAudioParameter>& OutParameters) const { return false; }
@@ -350,7 +350,7 @@ public:
 	virtual bool IsAttenuationSettingsEditable() const { return true; }
 
 #if WITH_EDITORONLY_DATA
-	void SetTimecodeOffset(const FSoundTimecodeOffset& InTimecodeOffset);
-	TOptional<FSoundTimecodeOffset> GetTimecodeOffset() const;
+	ENGINE_API void SetTimecodeOffset(const FSoundTimecodeOffset& InTimecodeOffset);
+	ENGINE_API TOptional<FSoundTimecodeOffset> GetTimecodeOffset() const;
 #endif //WITH_EDITORONLY_DATA
 };

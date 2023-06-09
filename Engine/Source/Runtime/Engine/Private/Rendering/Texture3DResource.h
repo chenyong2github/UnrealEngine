@@ -76,9 +76,9 @@ public:
 	FTexture3DResource(UVolumeTexture* InOwner, const FTexture3DResource* InProxiedResource);
 
 	// Dynamic cast methods.
-	ENGINE_API virtual FTexture3DResource* GetTexture3DResource() override { return this; }
+	virtual FTexture3DResource* GetTexture3DResource() override { return this; }
 	// Dynamic cast methods (const).
-	ENGINE_API virtual const FTexture3DResource* GetTexture3DResource() const override { return this; }
+	virtual const FTexture3DResource* GetTexture3DResource() const override { return this; }
 
 	/** Returns the platform mip size for the given mip count. */
 	virtual uint64 GetPlatformMipsSize(uint32 NumMips) const override;

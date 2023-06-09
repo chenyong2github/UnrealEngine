@@ -69,7 +69,7 @@ public:
 };
 
 // A pending latent action
-class ENGINE_API FPendingLatentAction
+class FPendingLatentAction
 {
 public:
 	FPendingLatentAction()
@@ -96,6 +96,6 @@ public:
 	virtual void NotifyActionAborted() {}
 #if WITH_EDITOR
 	// Returns a human readable description of the latent operation's current state
-	virtual FString GetDescription() const;
+	ENGINE_API virtual FString GetDescription() const;
 #endif
 };

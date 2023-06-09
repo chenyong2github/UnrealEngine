@@ -52,7 +52,7 @@ namespace ENavigationLockReason
 	};
 }
 
-class ENGINE_API FNavigationLockContext
+class FNavigationLockContext
 {
 public:
 	FNavigationLockContext(ENavigationLockReason::Type Reason = ENavigationLockReason::Unknown, bool bApplyLock = true)
@@ -84,8 +84,8 @@ private:
 	uint8 bSingleWorld : 1;
 	uint8 bIsLocked : 1;
 
-	void LockUpdates();
-	void UnlockUpdates();
+	ENGINE_API void LockUpdates();
+	ENGINE_API void UnlockUpdates();
 };
 
 namespace FNavigationSystem
@@ -214,19 +214,19 @@ namespace FNavigationSystem
 }
 
 
-UCLASS(Abstract, config = Engine, defaultconfig, Transient)
-class ENGINE_API UNavigationSystemBase : public UObject
+UCLASS(Abstract, config = Engine, defaultconfig, Transient, MinimalAPI)
+class UNavigationSystemBase : public UObject
 {
 	GENERATED_BODY()
 
 public:
 	virtual ~UNavigationSystemBase(){}
 
-	virtual void Tick(float DeltaSeconds) PURE_VIRTUAL(UNavigationSystemBase::Tick, );
-	virtual void CleanUp(const FNavigationSystem::ECleanupMode Mode) PURE_VIRTUAL(UNavigationSystemBase::CleanUp, );
-	virtual void Configure(const UNavigationSystemConfig& Config) PURE_VIRTUAL(UNavigationSystemBase::Configure, );
+	ENGINE_API virtual void Tick(float DeltaSeconds) PURE_VIRTUAL(UNavigationSystemBase::Tick, );
+	ENGINE_API virtual void CleanUp(const FNavigationSystem::ECleanupMode Mode) PURE_VIRTUAL(UNavigationSystemBase::CleanUp, );
+	ENGINE_API virtual void Configure(const UNavigationSystemConfig& Config) PURE_VIRTUAL(UNavigationSystemBase::Configure, );
 	/** Called when there's a need to extend current navigation system's config with information in NewConfig */
-	virtual void AppendConfig(const UNavigationSystemConfig& NewConfig) PURE_VIRTUAL(UNavigationSystemBase::AppendConfig, );
+	ENGINE_API virtual void AppendConfig(const UNavigationSystemConfig& NewConfig) PURE_VIRTUAL(UNavigationSystemBase::AppendConfig, );
 
 	/**
 	*	Called when owner-UWorld initializes actors
@@ -235,9 +235,9 @@ public:
 
 	virtual bool IsNavigationBuilt(const AWorldSettings* Settings) const { return false; }
 
-	virtual void ApplyWorldOffset(const FVector& InOffset, bool bWorldShift) PURE_VIRTUAL(UNavigationSystemBase::ApplyWorldOffset, );
+	ENGINE_API virtual void ApplyWorldOffset(const FVector& InOffset, bool bWorldShift) PURE_VIRTUAL(UNavigationSystemBase::ApplyWorldOffset, );
 
-	virtual void InitializeForWorld(UWorld& World, FNavigationSystemRunMode Mode) PURE_VIRTUAL(UNavigationSystemBase::InitializeForWorld, );
+	ENGINE_API virtual void InitializeForWorld(UWorld& World, FNavigationSystemRunMode Mode) PURE_VIRTUAL(UNavigationSystemBase::InitializeForWorld, );
 
 	/** 
 	 *	If you're using NavigationSysstem module consider calling 
@@ -246,72 +246,72 @@ public:
 	 */
 	virtual INavigationDataInterface* GetMainNavData() const { return nullptr; }
 
-	virtual void SetBuildBounds(const FBox& Bounds) PURE_VIRTUAL(UNavigationSystemBase::SetBuildBounds, );
+	ENGINE_API virtual void SetBuildBounds(const FBox& Bounds) PURE_VIRTUAL(UNavigationSystemBase::SetBuildBounds, );
 
-	virtual FBox GetNavigableWorldBounds() const PURE_VIRTUAL(UNavigationSystemBase::GetNavigableWorldBounds, return FBox(ForceInit););
+	ENGINE_API virtual FBox GetNavigableWorldBounds() const PURE_VIRTUAL(UNavigationSystemBase::GetNavigableWorldBounds, return FBox(ForceInit););
 	
-	virtual bool ContainsNavData(const FBox& Bounds) const PURE_VIRTUAL(UNavigationSystemBase::ContainsNavData, return false;);
-	virtual FBox ComputeNavDataBounds() const PURE_VIRTUAL(UNavigationSystemBase::GetNavigableWorldBounds, return FBox(ForceInit););
+	ENGINE_API virtual bool ContainsNavData(const FBox& Bounds) const PURE_VIRTUAL(UNavigationSystemBase::ContainsNavData, return false;);
+	ENGINE_API virtual FBox ComputeNavDataBounds() const PURE_VIRTUAL(UNavigationSystemBase::GetNavigableWorldBounds, return FBox(ForceInit););
 	
 	virtual void AddNavigationDataChunk(class ANavigationDataChunkActor& DataChunkActor) {}
 	virtual void RemoveNavigationDataChunk(class ANavigationDataChunkActor& DataChunkActor) {}
 	virtual void FillNavigationDataChunkActor(const FBox& QueryBounds, class ANavigationDataChunkActor& DataChunkActor, FBox& OutTilesBounds) {}
 
-	virtual bool IsWorldInitDone() const PURE_VIRTUAL(UNavigationSystemBase::IsWorldInitDone, return false;);
+	ENGINE_API virtual bool IsWorldInitDone() const PURE_VIRTUAL(UNavigationSystemBase::IsWorldInitDone, return false;);
 
-	static FNavigationSystem::FOnNavigationInitSignature& OnNavigationInitStartStaticDelegate();
-	static FNavigationSystem::FOnNavigationInitSignature& OnNavigationInitDoneStaticDelegate();
-	static FNavigationSystem::FOnNavAreaGenericEvent& OnNavAreaRegisteredDelegate();
-	static FNavigationSystem::FOnNavAreaGenericEvent& OnNavAreaUnregisteredDelegate();
+	static ENGINE_API FNavigationSystem::FOnNavigationInitSignature& OnNavigationInitStartStaticDelegate();
+	static ENGINE_API FNavigationSystem::FOnNavigationInitSignature& OnNavigationInitDoneStaticDelegate();
+	static ENGINE_API FNavigationSystem::FOnNavAreaGenericEvent& OnNavAreaRegisteredDelegate();
+	static ENGINE_API FNavigationSystem::FOnNavAreaGenericEvent& OnNavAreaUnregisteredDelegate();
 
 protected:
 	/**	Sets the Transform the Navigation System will use when converting from FromCoordType
 	 *	to ToCoordType
 	 *	@param bAddInverse if true (default) will also set coord transform in 
 	 *		the reverse order using Transform.Inverse() */
-	static void SetCoordTransform(const ENavigationCoordSystem::Type FromCoordType, const ENavigationCoordSystem::Type ToCoordType, const FTransform& Transform, bool bAddInverse = true);
-	static void SetWantsComponentChangeNotifies(const bool bEnable);
-	static void SetDefaultWalkableArea(TSubclassOf<UNavAreaBase> InAreaClass);
-	static void SetDefaultObstacleArea(TSubclassOf<UNavAreaBase> InAreaClass);
+	static ENGINE_API void SetCoordTransform(const ENavigationCoordSystem::Type FromCoordType, const ENavigationCoordSystem::Type ToCoordType, const FTransform& Transform, bool bAddInverse = true);
+	static ENGINE_API void SetWantsComponentChangeNotifies(const bool bEnable);
+	static ENGINE_API void SetDefaultWalkableArea(TSubclassOf<UNavAreaBase> InAreaClass);
+	static ENGINE_API void SetDefaultObstacleArea(TSubclassOf<UNavAreaBase> InAreaClass);
 
-	static void ResetEventDelegates();
-	static FNavigationSystem::FActorBasedSignature& UpdateActorDataDelegate();
-	static FNavigationSystem::FActorComponentBasedSignature& UpdateComponentDataDelegate();
-	static FNavigationSystem::FSceneComponentBasedSignature& UpdateComponentDataAfterMoveDelegate();
-	static FNavigationSystem::FActorBasedSignature& OnActorBoundsChangedDelegate();
-	static FNavigationSystem::FActorBasedSignature& OnPostEditActorMoveDelegate();
-	static FNavigationSystem::FSceneComponentBasedSignature& OnComponentTransformChangedDelegate();
-	static FNavigationSystem::FActorBasedSignature& OnActorRegisteredDelegate();
-	static FNavigationSystem::FActorBasedSignature& OnActorUnregisteredDelegate();
-	static FNavigationSystem::FActorComponentBasedSignature& OnComponentRegisteredDelegate();
-	static FNavigationSystem::FActorComponentBasedSignature& OnComponentUnregisteredDelegate();
-	static FNavigationSystem::FActorComponentBasedSignature& RegisterComponentDelegate();
-	static FNavigationSystem::FActorComponentBasedSignature& UnregisterComponentDelegate();
-	static FNavigationSystem::FActorBasedSignature& RemoveActorDataDelegate();
-	static FNavigationSystem::FBoolActorComponentBasedSignature& HasComponentDataDelegate();
-	static FNavigationSystem::FNavDataConfigBasedSignature& GetDefaultSupportedAgentDelegate();
-	static FNavigationSystem::FNavDataConfigAndWorldSignature& GetBiggestSupportedAgentDelegate();
-	static FNavigationSystem::FActorBooleBasedSignature& UpdateActorAndComponentDataDelegate();
-	static FNavigationSystem::FComponentBoundsChangeSignature& OnComponentBoundsChangedDelegate();
-	static FNavigationSystem::FNavDataForActorSignature& GetNavDataForActorDelegate();
-	static FNavigationSystem::FNavDataClassFetchSignature& GetDefaultNavDataClassDelegate();
-	static FNavigationSystem::FWorldBoolBasedSignature& VerifyNavigationRenderingComponentsDelegate();
-	static FNavigationSystem::FWorldBasedSignature& BuildDelegate();
+	static ENGINE_API void ResetEventDelegates();
+	static ENGINE_API FNavigationSystem::FActorBasedSignature& UpdateActorDataDelegate();
+	static ENGINE_API FNavigationSystem::FActorComponentBasedSignature& UpdateComponentDataDelegate();
+	static ENGINE_API FNavigationSystem::FSceneComponentBasedSignature& UpdateComponentDataAfterMoveDelegate();
+	static ENGINE_API FNavigationSystem::FActorBasedSignature& OnActorBoundsChangedDelegate();
+	static ENGINE_API FNavigationSystem::FActorBasedSignature& OnPostEditActorMoveDelegate();
+	static ENGINE_API FNavigationSystem::FSceneComponentBasedSignature& OnComponentTransformChangedDelegate();
+	static ENGINE_API FNavigationSystem::FActorBasedSignature& OnActorRegisteredDelegate();
+	static ENGINE_API FNavigationSystem::FActorBasedSignature& OnActorUnregisteredDelegate();
+	static ENGINE_API FNavigationSystem::FActorComponentBasedSignature& OnComponentRegisteredDelegate();
+	static ENGINE_API FNavigationSystem::FActorComponentBasedSignature& OnComponentUnregisteredDelegate();
+	static ENGINE_API FNavigationSystem::FActorComponentBasedSignature& RegisterComponentDelegate();
+	static ENGINE_API FNavigationSystem::FActorComponentBasedSignature& UnregisterComponentDelegate();
+	static ENGINE_API FNavigationSystem::FActorBasedSignature& RemoveActorDataDelegate();
+	static ENGINE_API FNavigationSystem::FBoolActorComponentBasedSignature& HasComponentDataDelegate();
+	static ENGINE_API FNavigationSystem::FNavDataConfigBasedSignature& GetDefaultSupportedAgentDelegate();
+	static ENGINE_API FNavigationSystem::FNavDataConfigAndWorldSignature& GetBiggestSupportedAgentDelegate();
+	static ENGINE_API FNavigationSystem::FActorBooleBasedSignature& UpdateActorAndComponentDataDelegate();
+	static ENGINE_API FNavigationSystem::FComponentBoundsChangeSignature& OnComponentBoundsChangedDelegate();
+	static ENGINE_API FNavigationSystem::FNavDataForActorSignature& GetNavDataForActorDelegate();
+	static ENGINE_API FNavigationSystem::FNavDataClassFetchSignature& GetDefaultNavDataClassDelegate();
+	static ENGINE_API FNavigationSystem::FWorldBoolBasedSignature& VerifyNavigationRenderingComponentsDelegate();
+	static ENGINE_API FNavigationSystem::FWorldBasedSignature& BuildDelegate();
 #if WITH_EDITOR
-	static FNavigationSystem::FWorldBasedSignature& OnPIEStartDelegate();
-	static FNavigationSystem::FWorldBasedSignature& OnPIEEndDelegate();
-	static FNavigationSystem::FLevelBasedSignature& UpdateLevelCollisionDelegate();
-	static FNavigationSystem::FNavigationAutoUpdateEnableSignature& SetNavigationAutoUpdateEnableDelegate();
-	static FNavigationSystem::FWorldByteBasedSignature& AddNavigationUpdateLockDelegate();
-	static FNavigationSystem::FWorldByteBasedSignature& RemoveNavigationUpdateLockDelegate();
-	static FNavigationSystem::FDoubleWorldBasedSignature& GetWorldPartitionNavigationDataBuilderOverlapDelegate();
+	static ENGINE_API FNavigationSystem::FWorldBasedSignature& OnPIEStartDelegate();
+	static ENGINE_API FNavigationSystem::FWorldBasedSignature& OnPIEEndDelegate();
+	static ENGINE_API FNavigationSystem::FLevelBasedSignature& UpdateLevelCollisionDelegate();
+	static ENGINE_API FNavigationSystem::FNavigationAutoUpdateEnableSignature& SetNavigationAutoUpdateEnableDelegate();
+	static ENGINE_API FNavigationSystem::FWorldByteBasedSignature& AddNavigationUpdateLockDelegate();
+	static ENGINE_API FNavigationSystem::FWorldByteBasedSignature& RemoveNavigationUpdateLockDelegate();
+	static ENGINE_API FNavigationSystem::FDoubleWorldBasedSignature& GetWorldPartitionNavigationDataBuilderOverlapDelegate();
 #endif // WITH_EDITOR
 };
 
 
-class ENGINE_API IPathFollowingManagerInterface
+class IPathFollowingManagerInterface
 {
 protected:
-	static FNavigationSystem::FControllerBasedSignature& StopMovementDelegate();
-	static FNavigationSystem::FBoolControllerBasedSignature& IsFollowingAPathDelegate();
+	static ENGINE_API FNavigationSystem::FControllerBasedSignature& StopMovementDelegate();
+	static ENGINE_API FNavigationSystem::FBoolControllerBasedSignature& IsFollowingAPathDelegate();
 };

@@ -13,7 +13,7 @@
  * One key in a curve of FStrings.
  */
 USTRUCT()
-struct ENGINE_API FStringCurveKey
+struct FStringCurveKey
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -40,9 +40,9 @@ public:
 
 	//~ TStructOpsTypeTraits interface
 
-	bool operator==(const FStringCurveKey& Other) const;
-	bool operator!=(const FStringCurveKey& Other) const;
-	bool Serialize(FArchive& Ar);
+	ENGINE_API bool operator==(const FStringCurveKey& Other) const;
+	ENGINE_API bool operator!=(const FStringCurveKey& Other) const;
+	ENGINE_API bool Serialize(FArchive& Ar);
 
 	/** Serializes a name curve key from or into an archive. */
 	friend FArchive& operator<<(FArchive& Ar, FStringCurveKey& Key)
@@ -71,7 +71,7 @@ struct TStructOpsTypeTraits<FStringCurveKey>
  * Implements a curve of FStrings.
  */
 USTRUCT()
-struct ENGINE_API FStringCurve
+struct FStringCurve
 	: public FIndexedCurve
 {
 	GENERATED_USTRUCT_BODY()
@@ -96,14 +96,14 @@ public:
 	  * @param InValue The value of the key.
 	  * @param KeyHandle Optional handle for the new key.
 	  */
-	FKeyHandle AddKey(float InTime, const FString& InValue, FKeyHandle KeyHandle = FKeyHandle());
+	ENGINE_API FKeyHandle AddKey(float InTime, const FString& InValue, FKeyHandle KeyHandle = FKeyHandle());
 
 	/**
 	 * Remove the specified key from the curve.
 	 *
 	 * @param KeyHandle Handle to the key to remove.
 	 */
-	void DeleteKey(FKeyHandle KeyHandle);
+	ENGINE_API void DeleteKey(FKeyHandle KeyHandle);
 
 	/**
 	 * Evaluate the curve at the specified time.
@@ -112,7 +112,7 @@ public:
 	 * @param InDefaultValue The default value if no key exists.
 	 * @return The evaluated string.
 	 */
-	FString Eval(float Time, const FString& InDefaultValue) const;
+	ENGINE_API FString Eval(float Time, const FString& InDefaultValue) const;
 
 	/**
 	 * Finds a key a the specified time.
@@ -121,7 +121,7 @@ public:
 	 * @param KeyTimeTolerance The key time tolerance to use for equality.
 	 * @return A handle to the key, or invalid key handle if not found.
 	 */
-	FKeyHandle FindKey(float KeyTime, float KeyTimeTolerance = UE_KINDA_SMALL_NUMBER) const;
+	ENGINE_API FKeyHandle FindKey(float KeyTime, float KeyTimeTolerance = UE_KINDA_SMALL_NUMBER) const;
 
 	/** Get the default value for the curve */
 	FString GetDefaultValue() const
@@ -135,8 +135,8 @@ public:
 	 * @param KeyHandle The handle of the key to get.
 	 * @return The key.
 	 */
-	FStringCurveKey& GetKey(FKeyHandle KeyHandle);
-	FStringCurveKey GetKey(FKeyHandle KeyHandle) const;
+	ENGINE_API FStringCurveKey& GetKey(FKeyHandle KeyHandle);
+	ENGINE_API FStringCurveKey GetKey(FKeyHandle KeyHandle) const;
 
 	/**
 	 * Read-only access to the key collection.
@@ -154,7 +154,7 @@ public:
 	 * @param KeyHandle Handle to the key whose time to get.
 	 * @return The key's time.
 	 */
-	virtual float GetKeyTime(FKeyHandle KeyHandle) const override final;
+	ENGINE_API virtual float GetKeyTime(FKeyHandle KeyHandle) const override final;
 
 	/**
 	* Get the value for the Key with the specified index.
@@ -162,7 +162,7 @@ public:
 	* @param KeyHandle Handle to the key whose value to get.
 	* @return The key's value.
 	*/
-	FString GetKeyValue(FKeyHandle KeyHandle) const;
+	ENGINE_API FString GetKeyValue(FKeyHandle KeyHandle) const;
 
 	/**
 	 * Set the default value of the curve.
@@ -188,7 +188,7 @@ public:
 	 * @param KeyHandle The handle of the key to change.
 	 * @param NewTime The new time to set on the key.
 	 */
-	virtual void SetKeyTime(FKeyHandle KeyHandle, float NewTime) override final;
+	ENGINE_API virtual void SetKeyTime(FKeyHandle KeyHandle, float NewTime) override final;
 
 	/**
 	* Assign a new value to a key.
@@ -196,7 +196,7 @@ public:
 	* @param KeyHandle The handle of the key to change.
 	* @param NewTime The new value to set on the key.
 	*/
-	void SetKeyValue(FKeyHandle KeyHandle, FString NewValue);
+	ENGINE_API void SetKeyValue(FKeyHandle KeyHandle, FString NewValue);
 
 	/**
 	 * Finds the key at InTime, and updates its value. If it can't find the key within the KeyTimeTolerance, it adds one at that time.
@@ -205,10 +205,10 @@ public:
 	 * @param InValue The value of the key.
 	 * @param KeyTimeTolerance The tolerance used for key time equality.
 	 */
-	FKeyHandle UpdateOrAddKey(float InTime, const FString& InValue, float KeyTimeTolerance = UE_KINDA_SMALL_NUMBER);
+	ENGINE_API FKeyHandle UpdateOrAddKey(float InTime, const FString& InValue, float KeyTimeTolerance = UE_KINDA_SMALL_NUMBER);
 
 	/** Tries to reduce the number of keys required for accurate evaluation (removing duplicates) */
-	void RemoveRedundantKeys();
+	ENGINE_API void RemoveRedundantKeys();
 public:
 
 	//~ FIndexedCurve interface

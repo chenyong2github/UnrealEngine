@@ -21,8 +21,8 @@ struct FAudioEffectParameters;
 
 
 /** Preset of a submix effect that can be shared between sounds. */
-UCLASS(config = Engine, hidecategories = Object, abstract, editinlinenew, BlueprintType)
-class ENGINE_API USoundEffectSubmixPreset : public USoundEffectPreset
+UCLASS(config = Engine, hidecategories = Object, abstract, editinlinenew, BlueprintType, MinimalAPI)
+class USoundEffectSubmixPreset : public USoundEffectPreset
 {
 	GENERATED_UCLASS_BODY()
 
@@ -82,7 +82,7 @@ struct FSoundEffectSubmixOutputData
 	int32 NumChannels;
 };
 
-class ENGINE_API FSoundEffectSubmix : public FSoundEffectBase
+class FSoundEffectSubmix : public FSoundEffectBase
 {
 public:
 	virtual ~FSoundEffectSubmix() = default;
@@ -127,7 +127,7 @@ public:
 	// Processes audio in the submix effect.
 	//
 	// If the audio cannot be processed, this function will return false and OutData will not be altered. 
-	bool ProcessAudio(FSoundEffectSubmixInputData& InData, FSoundEffectSubmixOutputData& OutData);
+	ENGINE_API bool ProcessAudio(FSoundEffectSubmixInputData& InData, FSoundEffectSubmixOutputData& OutData);
 
 	friend class USoundEffectPreset;
 

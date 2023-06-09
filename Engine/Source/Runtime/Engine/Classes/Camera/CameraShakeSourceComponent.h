@@ -18,22 +18,22 @@ enum class ECameraShakeAttenuation : uint8
 	Quadratic
 };
 
-UCLASS(Blueprintable, meta = (BlueprintSpawnableComponent))
-class ENGINE_API UCameraShakeSourceComponent : public USceneComponent
+UCLASS(Blueprintable, meta = (BlueprintSpawnableComponent), MinimalAPI)
+class UCameraShakeSourceComponent : public USceneComponent
 {
 	GENERATED_BODY()
 
 public:
-	UCameraShakeSourceComponent(const FObjectInitializer& ObjectInitializer);
+	ENGINE_API UCameraShakeSourceComponent(const FObjectInitializer& ObjectInitializer);
 
-	virtual void BeginPlay() override;
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	ENGINE_API virtual void BeginPlay() override;
+	ENGINE_API virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	virtual void OnRegister() override;
+	ENGINE_API virtual void OnRegister() override;
 
 #if WITH_EDITOR
-    virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
-	virtual void PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent) override;
+    ENGINE_API virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
+	ENGINE_API virtual void PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
 private:
@@ -74,21 +74,21 @@ public:
 
 public:
 	UFUNCTION(BlueprintCallable, Category = CameraShake)
-	void Start();
+	ENGINE_API void Start();
 
 	/** Starts a new camera shake originating from this source, and apply it on all player controllers */
 	UFUNCTION(BlueprintCallable, Category = CameraShake)
-	void StartCameraShake(TSubclassOf<UCameraShakeBase> InCameraShake, float Scale=1.f, ECameraShakePlaySpace PlaySpace = ECameraShakePlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
+	ENGINE_API void StartCameraShake(TSubclassOf<UCameraShakeBase> InCameraShake, float Scale=1.f, ECameraShakePlaySpace PlaySpace = ECameraShakePlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
 
 	/** Stops a camera shake originating from this source */
 	UFUNCTION(BlueprintCallable, Category = CameraShake)
-	void StopAllCameraShakesOfType(TSubclassOf<UCameraShakeBase> InCameraShake, bool bImmediately = true);
+	ENGINE_API void StopAllCameraShakesOfType(TSubclassOf<UCameraShakeBase> InCameraShake, bool bImmediately = true);
 
 	/** Stops all currently active camera shakes that are originating from this source from all player controllers */
 	UFUNCTION(BlueprintCallable, Category = CameraShake)
-	void StopAllCameraShakes(bool bImmediately = true);
+	ENGINE_API void StopAllCameraShakes(bool bImmediately = true);
 
 	/** Computes an attenuation factor from this source */
 	UFUNCTION(BlueprintCallable, Category = CameraShake)
-	float GetAttenuationFactor(const FVector& Location) const;
+	ENGINE_API float GetAttenuationFactor(const FVector& Location) const;
 };

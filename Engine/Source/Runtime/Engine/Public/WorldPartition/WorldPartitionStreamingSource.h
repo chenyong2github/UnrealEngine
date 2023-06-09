@@ -352,7 +352,7 @@ enum class EStreamingSourcePriority : uint8
 /**
  * Structure containing all properties required to stream from a source
  */
-struct ENGINE_API FWorldPartitionStreamingSource
+struct FWorldPartitionStreamingSource
 {
 	FWorldPartitionStreamingSource()
 		: Name(NAME_None)
@@ -427,7 +427,7 @@ struct ENGINE_API FWorldPartitionStreamingSource
 		return FColor(DebugColor.R, DebugColor.G, DebugColor.B, 255);
 	}
 
-	void UpdateHash();
+	ENGINE_API void UpdateHash();
 	uint32 GetHash(bool bInclude3DInformation = true) const { return bInclude3DInformation ? Hash3D : Hash2D; }
 
 	/** Source unique name. */
@@ -511,10 +511,10 @@ struct ENGINE_API FWorldPartitionStreamingSource
 	static int32 GetRotationQuantization() { return RotationQuantization; }
 
 private:
-	static int32 LocationQuantization;
-	static int32 RotationQuantization;
-	static FAutoConsoleVariableRef CVarLocationQuantization;
-	static FAutoConsoleVariableRef CVarRotationQuantization;
+	static ENGINE_API int32 LocationQuantization;
+	static ENGINE_API int32 RotationQuantization;
+	static ENGINE_API FAutoConsoleVariableRef CVarLocationQuantization;
+	static ENGINE_API FAutoConsoleVariableRef CVarRotationQuantization;
 
 	/** Hash of streaming source (used to detect changes) */
 	uint32 Hash2D;
@@ -528,7 +528,7 @@ private:
 /**
  * Interface for world partition streaming sources
  */
-struct ENGINE_API IWorldPartitionStreamingSourceProvider
+struct IWorldPartitionStreamingSourceProvider
 {
 	virtual bool GetStreamingSource(FWorldPartitionStreamingSource& StreamingSource) const
 	{

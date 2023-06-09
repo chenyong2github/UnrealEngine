@@ -7,10 +7,10 @@
 
 class USkeleton;
 
-struct ENGINE_API FSkeletonRemapping
+struct FSkeletonRemapping
 {
 	FSkeletonRemapping() = default;
-	FSkeletonRemapping(const USkeleton* InSourceSkeleton, const USkeleton* InTargetSkeleton);
+	ENGINE_API FSkeletonRemapping(const USkeleton* InSourceSkeleton, const USkeleton* InTargetSkeleton);
 
 	const TWeakObjectPtr<const USkeleton>& GetSourceSkeleton() const { return SourceSkeleton; }
 	const TWeakObjectPtr<const USkeleton>& GetTargetSkeleton() const { return TargetSkeleton; }
@@ -22,7 +22,7 @@ struct ENGINE_API FSkeletonRemapping
 	 *
 	 * @param	OtherSkeletonRemapping		Skeleton remapping to compose into this remapping
 	 */
-	void ComposeWith(const FSkeletonRemapping& OtherSkeletonRemapping);
+	ENGINE_API void ComposeWith(const FSkeletonRemapping& OtherSkeletonRemapping);
 
 	/**
 	 * Get the target skeleton bone index that corresponds to the specified bone on the source skeleton
@@ -143,10 +143,10 @@ struct ENGINE_API FSkeletonRemapping
 	}
 
 	UE_DEPRECATED(5.3, "This function is no longer used")
-	const TArray<SmartName::UID_Type>& GetSourceToTargetCurveMapping() const;
+	ENGINE_API const TArray<SmartName::UID_Type>& GetSourceToTargetCurveMapping() const;
 
 	/** Refreshes the mapping. Empties mapping arrays and regenerates them against the stored skeletons. */
-	void RegenerateMapping();
+	ENGINE_API void RegenerateMapping();
 	
 	UE_DEPRECATED(5.3, "This function is no longer used")
 	void GenerateCurveMapping() {}
@@ -165,7 +165,7 @@ struct ENGINE_API FSkeletonRemapping
 
 private:
 	/** Internal helper function - performs mapping generation */
-	void GenerateMapping();
+	ENGINE_API void GenerateMapping();
 	
 private:
 	TWeakObjectPtr<const USkeleton> SourceSkeleton;

@@ -151,8 +151,8 @@ public:
 /**
  * A drawing canvas.
  */
-UCLASS(transient, BlueprintType)
-class ENGINE_API UCanvas
+UCLASS(transient, BlueprintType, MinimalAPI)
+class UCanvas
 	: public UObject
 {
 	GENERATED_UCLASS_BODY()
@@ -224,25 +224,25 @@ public:
 	// UCanvas interface.
 	
 	/** Initializes the canvas. */
-	void Init(int32 InSizeX, int32 InSizeY, FSceneView* InSceneView, FCanvas* InCanvas);
+	ENGINE_API void Init(int32 InSizeX, int32 InSizeY, FSceneView* InSceneView, FCanvas* InCanvas);
 
-	virtual void BeginDestroy() override;
+	ENGINE_API virtual void BeginDestroy() override;
 
 	/** Changes the view for the canvas. */
-	void SetView(FSceneView* InView);
+	ENGINE_API void SetView(FSceneView* InView);
 
 	/** Updates the canvas. */
-	void Update();
+	ENGINE_API void Update();
 
 	/* Applies the current Platform's safe zone to the current Canvas position. Automatically called by Update. */
-	void ApplySafeZoneTransform();
-	void PopSafeZoneTransform();
+	ENGINE_API void ApplySafeZoneTransform();
+	ENGINE_API void PopSafeZoneTransform();
 
 	/* Updates cached SafeZone data from the device.  Call when main device is resized. */
-	void UpdateSafeZoneData();
+	ENGINE_API void UpdateSafeZoneData();
 
 	/* Function to go through all constructed canvas items and update their safe zone data. */
-	static void UpdateAllCanvasSafeZoneData();
+	static ENGINE_API void UpdateAllCanvasSafeZoneData();
 
 	/** 
 	 * Draw arbitrary aligned rectangle.
@@ -259,7 +259,7 @@ public:
 	 * @param ClipTile true to clip tile.
 	 * @param BlendMode Blending mode of texture.
 	 */
-	void DrawTile(UTexture* Tex, float X, float Y, float XL, float YL, float U, float V, float UL, float VL, EBlendMode BlendMode=BLEND_Translucent);
+	ENGINE_API void DrawTile(UTexture* Tex, float X, float Y, float XL, float YL, float U, float V, float UL, float VL, EBlendMode BlendMode=BLEND_Translucent);
 
 	/**
 	 * Calculate the length of a string.
@@ -271,17 +271,17 @@ public:
 	 * @param YL out Vertical length of string.
 	 * @param Text String to calculate for.
 	 */
-	static void ClippedStrLen(const UFont* Font, float ScaleX, float ScaleY, int32& XL, int32& YL, const TCHAR* Text);
+	static ENGINE_API void ClippedStrLen(const UFont* Font, float ScaleX, float ScaleY, int32& XL, int32& YL, const TCHAR* Text);
 
 	/**	
 	 * Calculate the size of a string built from a font, word wrapped to a specified region.
 	 */
-	void VARARGS WrappedStrLenf(const UFont* Font, float ScaleX, float ScaleY, int32& XL, int32& YL, const TCHAR* Fmt, ...);
+	ENGINE_API void VARARGS WrappedStrLenf(const UFont* Font, float ScaleX, float ScaleY, int32& XL, int32& YL, const TCHAR* Fmt, ...);
 		
 	/**
 	 * Compute size and optionally print text with word wrap.
 	 */
-	int32 WrappedPrint(bool Draw, float X, float Y, int32& out_XL, int32& out_YL, const UFont* Font, float ScaleX, float ScaleY, bool bCenterTextX, bool bCenterTextY, const TCHAR* Text, const FFontRenderInfo& RenderInfo) ;
+	ENGINE_API int32 WrappedPrint(bool Draw, float X, float Y, int32& out_XL, int32& out_YL, const UFont* Font, float ScaleX, float ScaleY, bool bCenterTextX, bool bCenterTextY, const TCHAR* Text, const FFontRenderInfo& RenderInfo) ;
 	
 	/**
 	 * Draws a string of text to the screen.
@@ -295,9 +295,9 @@ public:
 	 * @param RenderInfo Optional. The FontRenderInfo to use when drawing the text.
 	 * @return The Y extent of the rendered text.
 	 */
-	float DrawText(const UFont* InFont, const FString& InText, float X, float Y, float XScale = 1.f, float YScale = 1.f, const FFontRenderInfo& RenderInfo = FFontRenderInfo());
+	ENGINE_API float DrawText(const UFont* InFont, const FString& InText, float X, float Y, float XScale = 1.f, float YScale = 1.f, const FFontRenderInfo& RenderInfo = FFontRenderInfo());
 
-	float DrawText(const UFont* InFont, const FText& InText, float X, float Y, float XScale = 1.f, float YScale = 1.f, const FFontRenderInfo& RenderInfo = FFontRenderInfo());
+	ENGINE_API float DrawText(const UFont* InFont, const FText& InText, float X, float Y, float XScale = 1.f, float YScale = 1.f, const FFontRenderInfo& RenderInfo = FFontRenderInfo());
 
 	enum ELastCharacterIndexFormat
 	{
@@ -324,7 +324,7 @@ public:
 	 * @param	OutCharacterIndex  The index of the last character processed (used with StopAfterHorizontalOffset)
 	 *
 	 */
-	static void MeasureStringInternal( FTextSizingParameters& Parameters, const TCHAR* const pText, const int32 TextLength, const int32 StopAfterHorizontalOffset, const ELastCharacterIndexFormat CharIndexFormat, int32& OutLastCharacterIndex );
+	static ENGINE_API void MeasureStringInternal( FTextSizingParameters& Parameters, const TCHAR* const pText, const int32 TextLength, const int32 StopAfterHorizontalOffset, const ELastCharacterIndexFormat CharIndexFormat, int32& OutLastCharacterIndex );
 
 	/**
 	 * Calculates the size of the specified string.
@@ -336,7 +336,7 @@ public:
 	 *							Scale:		[in] specifies the amount of scaling to apply to the string
 	 * @param	pText		the string to calculate the size for
 	 */
-	static void CanvasStringSize( FTextSizingParameters& Parameters, const TCHAR* pText );
+	static ENGINE_API void CanvasStringSize( FTextSizingParameters& Parameters, const TCHAR* pText );
 
 	/**
 	 * Parses a single string into an array of strings that will fit inside the specified bounding region.
@@ -359,9 +359,9 @@ public:
 	 *							not clear the array first.
 	 * @param	OutWrappedLineData An optional array to fill with the indices from the source string marking the begin and end points of the wrapped lines
 	 */
-	static void WrapString( FCanvasWordWrapper& Wrapper, FTextSizingParameters& Parameters, const float InCurX, const TCHAR* const pText, TArray<FWrappedStringElement>& out_Lines, FCanvasWordWrapper::FWrappedLineData* const OutWrappedLineData = nullptr);
+	static ENGINE_API void WrapString( FCanvasWordWrapper& Wrapper, FTextSizingParameters& Parameters, const float InCurX, const TCHAR* const pText, TArray<FWrappedStringElement>& out_Lines, FCanvasWordWrapper::FWrappedLineData* const OutWrappedLineData = nullptr);
 
-	void WrapString( FTextSizingParameters& Parameters, const float InCurX, const TCHAR* const pText, TArray<FWrappedStringElement>& out_Lines, FCanvasWordWrapper::FWrappedLineData* const OutWrappedLineData = nullptr);
+	ENGINE_API void WrapString( FTextSizingParameters& Parameters, const float InCurX, const TCHAR* const pText, TArray<FWrappedStringElement>& out_Lines, FCanvasWordWrapper::FWrappedLineData* const OutWrappedLineData = nullptr);
 
 	/**
 	 * Transforms a 3D world-space vector into 2D screen coordinates.
@@ -370,7 +370,7 @@ public:
 	 * @param bClampToZeroPlane	If true, 2D screen coordinates behind the viewing plane (-Z) will have Z set to 0 (leaving X and Y alone)
 	 * @return The transformed vector.
 	 */
-	FVector Project(FVector Location, bool bClampToZeroPlane = true) const;
+	ENGINE_API FVector Project(FVector Location, bool bClampToZeroPlane = true) const;
 
 	/** 
 	 * Transforms 2D screen coordinates into a 3D world-space origin and direction.
@@ -379,7 +379,7 @@ public:
 	 * @param WorldOrigin (out) World-space origin vector.
 	 * @param WorldDirection (out) World-space direction vector.
 	 */
-	void Deproject(FVector2D ScreenPos, /*out*/ FVector& WorldOrigin, /*out*/ FVector& WorldDirection) const;
+	ENGINE_API void Deproject(FVector2D ScreenPos, /*out*/ FVector& WorldOrigin, /*out*/ FVector& WorldDirection) const;
 
 	/**
 	 * Calculate the length of a string, taking text wrapping into account.
@@ -391,8 +391,8 @@ public:
 	 * @param bDPIAware If true measures text considering the current DPI scale factor of the canvas.  Defaults to false for backwards compatibility
 	 * @param Canvas Canvas state object
 	 */
-	static void StrLen(const UFont* InFont, const FString& InText, float& XL, float& YL, bool bDPIAware, FCanvas* InCanvas);
-	static void StrLen(const UFont* InFont, const FString& InText, double& XL, double& YL, bool bDPIAware, FCanvas* InCanvas);
+	static ENGINE_API void StrLen(const UFont* InFont, const FString& InText, float& XL, float& YL, bool bDPIAware, FCanvas* InCanvas);
+	static ENGINE_API void StrLen(const UFont* InFont, const FString& InText, double& XL, double& YL, bool bDPIAware, FCanvas* InCanvas);
 
 	/**
 	 * Calculate the length of a string, taking text wrapping into account.
@@ -403,8 +403,8 @@ public:
 	 * @param YL out Vertical length of string.
 	 * @param bDPIAware If true measures text considering the current DPI scale factor of the canvas.  Defaults to false for backwards compatibility
 	 */
-	void StrLen(const UFont* InFont, const FString& InText, float& XL, float& YL, bool bDPIAware = false);
-	void StrLen(const UFont* InFont, const FString& InText, double& XL, double& YL, bool bDPIAware = false);
+	ENGINE_API void StrLen(const UFont* InFont, const FString& InText, float& XL, float& YL, bool bDPIAware = false);
+	ENGINE_API void StrLen(const UFont* InFont, const FString& InText, double& XL, double& YL, bool bDPIAware = false);
 
 	/** 
 	 * Calculates the horizontal and vertical size of a given string. This is used for clipped text as it does not take wrapping into account.
@@ -416,39 +416,39 @@ public:
 	 * @param ScaleX Scale that the string is expected to draw at horizontally.
 	 * @param ScaleY Scale that the string is expected to draw at vertically.
 	 */
-	void TextSize( const UFont* InFont, const FString& InText, float& XL, float& YL, float ScaleX=1.f, float ScaleY=1.f);
-	void TextSize( const UFont* InFont, const FString& InText, double& XL, double& YL, double ScaleX=1.f, double ScaleY=1.f);
+	ENGINE_API void TextSize( const UFont* InFont, const FString& InText, float& XL, float& YL, float ScaleX=1.f, float ScaleY=1.f);
+	ENGINE_API void TextSize( const UFont* InFont, const FString& InText, double& XL, double& YL, double ScaleX=1.f, double ScaleY=1.f);
 
 	/** Set DrawColor with a FLinearColor and optional opacity override */
-	void SetLinearDrawColor(FLinearColor InColor, float OpacityOverride=-1.f);
+	ENGINE_API void SetLinearDrawColor(FLinearColor InColor, float OpacityOverride=-1.f);
 
 	/** Set draw color. (R,G,B,A) */
-	void SetDrawColor(uint8 R, uint8 G, uint8 B, uint8 A = 255);
+	ENGINE_API void SetDrawColor(uint8 R, uint8 G, uint8 B, uint8 A = 255);
 
 	/** Set draw color. (FColor) */
-	void SetDrawColor(FColor const& C);
+	ENGINE_API void SetDrawColor(FColor const& C);
 
 	/** constructor for FontRenderInfo */
-	FFontRenderInfo CreateFontRenderInfo(bool bClipText = false, bool bEnableShadow = false, FLinearColor GlowColor = FLinearColor(), FVector2D GlowOuterRadius = FVector2D(), FVector2D GlowInnerRadius = FVector2D());
+	ENGINE_API FFontRenderInfo CreateFontRenderInfo(bool bClipText = false, bool bEnableShadow = false, FLinearColor GlowColor = FLinearColor(), FVector2D GlowOuterRadius = FVector2D(), FVector2D GlowInnerRadius = FVector2D());
 	
 	/** reset canvas parameters, optionally do not change the origin */
-	virtual void Reset(bool bKeepOrigin = false);
+	ENGINE_API virtual void Reset(bool bKeepOrigin = false);
 
 	/** Sets the position of the lower-left corner of the clipping region of the Canvas */
-	void SetClip(float X, float Y);
+	ENGINE_API void SetClip(float X, float Y);
 
 	/** Return X,Y for center of the draw region. */
-	void GetCenter(float& outX, float& outY) const;
-	void GetCenter(double& outX, double& outY) const;
+	ENGINE_API void GetCenter(float& outX, float& outY) const;
+	ENGINE_API void GetCenter(double& outX, double& outY) const;
 	
 	/** Fake CanvasIcon constructor.	 */
-	static FCanvasIcon MakeIcon(class UTexture* Texture, float U = 0.f, float V = 0.f, float UL = 0.f, float VL = 0.f);
+	static ENGINE_API FCanvasIcon MakeIcon(class UTexture* Texture, float U = 0.f, float V = 0.f, float UL = 0.f, float VL = 0.f);
 
 	/** Draw a scaled CanvasIcon at the desired canvas position. */
-	void DrawScaledIcon(FCanvasIcon Icon, float X, float Y, FVector Scale);
+	ENGINE_API void DrawScaledIcon(FCanvasIcon Icon, float X, float Y, FVector Scale);
 	
 	/** Draw a CanvasIcon at the desired canvas position.	 */
-	void DrawIcon(FCanvasIcon Icon, float X, float Y, float Scale = 0.f);
+	ENGINE_API void DrawIcon(FCanvasIcon Icon, float X, float Y, float Scale = 0.f);
 
 	/**
 	 * Draws a graph comparing 2 variables.  Useful for visual debugging and tweaking.
@@ -463,14 +463,14 @@ public:
 	 * @param RangeX	Range of values expressed by the X axis of the graph
 	 * @param RangeY	Range of values expressed by the Y axis of the graph
 	 */
-	virtual void DrawDebugGraph(const FString& Title, float ValueX, float ValueY, float UL_X, float UL_Y, float W, float H, FVector2D RangeX, FVector2D RangeY);
+	ENGINE_API virtual void DrawDebugGraph(const FString& Title, float ValueX, float ValueY, float UL_X, float UL_Y, float W, float H, FVector2D RangeX, FVector2D RangeY);
 
 	/** 
 	 * Draw a CanvasItem
 	 *
 	 * @param Item			Item to draw
 	 */
-	void DrawItem( FCanvasItem& Item );
+	ENGINE_API void DrawItem( FCanvasItem& Item );
 
 	/** 
 	 * Draw a CanvasItem at the given coordinates
@@ -478,7 +478,7 @@ public:
 	 * @param Item			Item to draw
 	 * @param InPosition	Position to draw item
 	 */
-	void DrawItem( FCanvasItem& Item, const FVector2D& InPosition );
+	ENGINE_API void DrawItem( FCanvasItem& Item, const FVector2D& InPosition );
 	
 	/** 
 	 * Draw a CanvasItem at the given coordinates
@@ -487,10 +487,10 @@ public:
 	 * @param X				X Position to draw item
 	 * @param Y				Y Position to draw item
 	 */
-	void DrawItem( FCanvasItem& Item, float X, float Y );
+	ENGINE_API void DrawItem( FCanvasItem& Item, float X, float Y );
 
 	/** Creates if necessary and returns ReporterGraph instance for 2d graph canvas drawing */
-	TWeakObjectPtr<class UReporterGraph>  GetReporterGraph();
+	ENGINE_API TWeakObjectPtr<class UReporterGraph>  GetReporterGraph();
 
 	/** @return the current DPI scale being applied to all canvas draw elements */
 	float GetDPIScale() const { return Canvas->GetDPIScale(); }
@@ -504,7 +504,7 @@ public:
 	 * @param RenderColor			Color to render the line.
 	 */
 	UFUNCTION(BlueprintCallable, Category=Canvas, meta=(DisplayName="Draw Line", ScriptName="DrawLine"))
-	void K2_DrawLine(FVector2D ScreenPositionA=FVector2D::ZeroVector, FVector2D ScreenPositionB=FVector2D::ZeroVector, float Thickness=1.0f, FLinearColor RenderColor=FLinearColor::White);
+	ENGINE_API void K2_DrawLine(FVector2D ScreenPositionA=FVector2D::ZeroVector, FVector2D ScreenPositionB=FVector2D::ZeroVector, float Thickness=1.0f, FLinearColor RenderColor=FLinearColor::White);
 
 	/**
 	 * Draws a texture on the Canvas.
@@ -520,7 +520,7 @@ public:
 	 * @param PivotPoint				Normalized pivot point to use when rotating the texture.
 	 */
 	UFUNCTION(BlueprintCallable, Category=Canvas, meta=(DisplayName="Draw Texture", ScriptName="DrawTexture"))
-	void K2_DrawTexture(UTexture* RenderTexture, FVector2D ScreenPosition, FVector2D ScreenSize, FVector2D CoordinatePosition, FVector2D CoordinateSize=FVector2D::UnitVector, FLinearColor RenderColor=FLinearColor::White, EBlendMode BlendMode=BLEND_Translucent, float Rotation=0.f, FVector2D PivotPoint=FVector2D(0.5f,0.5f));
+	ENGINE_API void K2_DrawTexture(UTexture* RenderTexture, FVector2D ScreenPosition, FVector2D ScreenSize, FVector2D CoordinatePosition, FVector2D CoordinateSize=FVector2D::UnitVector, FLinearColor RenderColor=FLinearColor::White, EBlendMode BlendMode=BLEND_Translucent, float Rotation=0.f, FVector2D PivotPoint=FVector2D(0.5f,0.5f));
 
 	/**
 	 * Draws a material on the Canvas.
@@ -534,7 +534,7 @@ public:
 	 * @param PivotPoint				Normalized pivot point to use when rotating the texture.
 	 */
 	UFUNCTION(BlueprintCallable, Category=Canvas, meta=(DisplayName="Draw Material", ScriptName="DrawMaterial"))
-	void K2_DrawMaterial(UMaterialInterface* RenderMaterial, FVector2D ScreenPosition, FVector2D ScreenSize, FVector2D CoordinatePosition, FVector2D CoordinateSize=FVector2D::UnitVector, float Rotation=0.f, FVector2D PivotPoint=FVector2D(0.5f,0.5f));
+	ENGINE_API void K2_DrawMaterial(UMaterialInterface* RenderMaterial, FVector2D ScreenPosition, FVector2D ScreenSize, FVector2D CoordinatePosition, FVector2D CoordinateSize=FVector2D::UnitVector, float Rotation=0.f, FVector2D PivotPoint=FVector2D(0.5f,0.5f));
 
 	/**
 	 * Draws text on the Canvas.
@@ -552,7 +552,7 @@ public:
 	 * @param OutlineColor				Color to render the outline for the text.
 	 */	
 	UFUNCTION(BlueprintCallable, Category=Canvas, meta=(DisplayName="Draw Text", ScriptName="DrawText"))
-	void K2_DrawText(UFont* RenderFont, const FString& RenderText, FVector2D ScreenPosition, FVector2D Scale=FVector2D(1.0f,1.0f), FLinearColor RenderColor=FLinearColor::White, float Kerning=0.0f, FLinearColor ShadowColor=FLinearColor::Black, FVector2D ShadowOffset=FVector2D::UnitVector, bool bCentreX=false, bool bCentreY=false, bool bOutlined=false, FLinearColor OutlineColor=FLinearColor::Black);
+	ENGINE_API void K2_DrawText(UFont* RenderFont, const FString& RenderText, FVector2D ScreenPosition, FVector2D Scale=FVector2D(1.0f,1.0f), FLinearColor RenderColor=FLinearColor::White, float Kerning=0.0f, FLinearColor ShadowColor=FLinearColor::Black, FVector2D ShadowOffset=FVector2D::UnitVector, bool bCentreX=false, bool bCentreY=false, bool bOutlined=false, FLinearColor OutlineColor=FLinearColor::Black);
 	
 	/**
 	 * Draws a 3x3 grid border with tiled frame and tiled interior on the Canvas.
@@ -575,7 +575,7 @@ public:
 	 * @param CornerSize				Frame corner size in percent of frame texture (should be < 0.5f).
 	 */
 	UFUNCTION(BlueprintCallable, Category=Canvas, meta=(DisplayName="Draw Border", ScriptName="DrawBorder"))
-	void K2_DrawBorder(UTexture* BorderTexture, UTexture* BackgroundTexture, UTexture* LeftBorderTexture, UTexture* RightBorderTexture, UTexture* TopBorderTexture, UTexture* BottomBorderTexture, FVector2D ScreenPosition, FVector2D ScreenSize, FVector2D CoordinatePosition, FVector2D CoordinateSize=FVector2D::UnitVector, FLinearColor RenderColor=FLinearColor::White, FVector2D BorderScale=FVector2D(0.1f,0.1f), FVector2D BackgroundScale=FVector2D(0.1f,0.1f), float Rotation=0.0f, FVector2D PivotPoint=FVector2D(0.5f,0.5f), FVector2D CornerSize=FVector2D::ZeroVector);
+	ENGINE_API void K2_DrawBorder(UTexture* BorderTexture, UTexture* BackgroundTexture, UTexture* LeftBorderTexture, UTexture* RightBorderTexture, UTexture* TopBorderTexture, UTexture* BottomBorderTexture, FVector2D ScreenPosition, FVector2D ScreenSize, FVector2D CoordinatePosition, FVector2D CoordinateSize=FVector2D::UnitVector, FLinearColor RenderColor=FLinearColor::White, FVector2D BorderScale=FVector2D(0.1f,0.1f), FVector2D BackgroundScale=FVector2D(0.1f,0.1f), float Rotation=0.0f, FVector2D PivotPoint=FVector2D(0.5f,0.5f), FVector2D CornerSize=FVector2D::ZeroVector);
 
 	/**
 	 * Draws an unfilled box on the Canvas.
@@ -585,7 +585,7 @@ public:
 	 * @param Thickness					How many pixels thick the box lines should be.
 	 */
 	UFUNCTION(BlueprintCallable, Category=Canvas, meta=(DisplayName="Draw Box", ScriptName="DrawBox"))
-	void K2_DrawBox(FVector2D ScreenPosition, FVector2D ScreenSize, float Thickness=1.0f, FLinearColor RenderColor=FLinearColor::White);
+	ENGINE_API void K2_DrawBox(FVector2D ScreenPosition, FVector2D ScreenSize, float Thickness=1.0f, FLinearColor RenderColor=FLinearColor::White);
 
 	/**
 	 * Draws a set of triangles on the Canvas.
@@ -594,7 +594,7 @@ public:
 	 * @param Triangles					Triangles to render.
 	 */
 	UFUNCTION(BlueprintCallable, Category=Canvas, meta=(DisplayName="Draw Triangles", ScriptName="DrawTriangles"))
-	void K2_DrawTriangle(UTexture* RenderTexture, TArray<FCanvasUVTri> Triangles);
+	ENGINE_API void K2_DrawTriangle(UTexture* RenderTexture, TArray<FCanvasUVTri> Triangles);
 
 	/**
 	 * Draws a set of triangles on the Canvas.
@@ -603,7 +603,7 @@ public:
 	 * @param Triangles					Triangles to render.
 	 */
 	UFUNCTION(BlueprintCallable, Category = Canvas, meta = (DisplayName = "Draw Material Triangles", ScriptName = "DrawMaterialTriangles"))
-	void K2_DrawMaterialTriangle(UMaterialInterface* RenderMaterial, TArray<FCanvasUVTri> Triangles);
+	ENGINE_API void K2_DrawMaterialTriangle(UMaterialInterface* RenderMaterial, TArray<FCanvasUVTri> Triangles);
 	/**
 	 * Draws a polygon on the Canvas.
 	 *
@@ -614,7 +614,7 @@ public:
 	 * @param RenderColor				Color to tint the polygon.
 	 */
 	UFUNCTION(BlueprintCallable, Category=Canvas, meta=(DisplayName="Draw Polygon", ScriptName="DrawPolygon"))
-	void K2_DrawPolygon(UTexture* RenderTexture, FVector2D ScreenPosition, FVector2D Radius=FVector2D::UnitVector, int32 NumberOfSides=3, FLinearColor RenderColor=FLinearColor::White);
+	ENGINE_API void K2_DrawPolygon(UTexture* RenderTexture, FVector2D ScreenPosition, FVector2D Radius=FVector2D::UnitVector, int32 NumberOfSides=3, FLinearColor RenderColor=FLinearColor::White);
 
 	/**
 	 * Performs a projection of a world space coordinates using the projection matrix set up for the Canvas.
@@ -623,7 +623,7 @@ public:
 	 * @return							Returns a vector where X, Y defines a screen space position representing the world space location.
 	 */
 	UFUNCTION(BlueprintCallable, Category=Canvas, meta=(DisplayName="Project", ScriptName="Project"))
-	FVector K2_Project(FVector WorldLocation);
+	ENGINE_API FVector K2_Project(FVector WorldLocation);
 
 	/**
 	 * Performs a deprojection of a screen space coordinate using the projection matrix set up for the Canvas.
@@ -633,7 +633,7 @@ public:
 	 * @param WorldDirection			Vector which can be used in a trace to determine what is "behind" the screen space position. Useful for object picking.
 	 */
 	UFUNCTION(BlueprintCallable, Category=Canvas, meta=(DisplayName="Deproject", ScriptName="Deproject"))
-	void K2_Deproject(FVector2D ScreenPosition, FVector& WorldOrigin, FVector& WorldDirection);
+	ENGINE_API void K2_Deproject(FVector2D ScreenPosition, FVector& WorldOrigin, FVector& WorldDirection);
 
 	/**
 	 * Returns the wrapped text size in screen space coordinates.
@@ -643,7 +643,7 @@ public:
 	 * @return							Returns the screen space size of the text.
 	 */
 	UFUNCTION(BlueprintCallable, Category=Canvas, meta=(DisplayName="Wrapped Text Size", ScriptName="WrappedTextSize"))
-	FVector2D K2_StrLen(UFont* RenderFont, const FString& RenderText);
+	ENGINE_API FVector2D K2_StrLen(UFont* RenderFont, const FString& RenderText);
 
 	/**
 	 * Returns the clipped text size in screen space coordinates.
@@ -654,5 +654,5 @@ public:
 	 * @return							Returns the screen space size of the text.
 	 */
 	UFUNCTION(BlueprintCallable, Category=Canvas, meta=(DisplayName="Clipped Text Size", ScriptName="ClippedTextSize"))
-	FVector2D K2_TextSize(UFont* RenderFont, const FString& RenderText, FVector2D Scale=FVector2D::UnitVector);
+	ENGINE_API FVector2D K2_TextSize(UFont* RenderFont, const FString& RenderText, FVector2D Scale=FVector2D::UnitVector);
 };

@@ -18,7 +18,7 @@ class USkeletalMeshComponent;
 struct FAnimInstanceProxy;
 
 USTRUCT()
-struct ENGINE_API FSocketReference
+struct FSocketReference
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -48,8 +48,8 @@ public:
 	{
 	}
 
-	void InitializeSocketInfo(const FAnimInstanceProxy* InAnimInstanceProxy);
-	void InitialzeCompactBoneIndex(const FBoneContainer& RequiredBones);
+	ENGINE_API void InitializeSocketInfo(const FAnimInstanceProxy* InAnimInstanceProxy);
+	ENGINE_API void InitialzeCompactBoneIndex(const FBoneContainer& RequiredBones);
 	/* There are subtle difference between this two IsValid function
 	 * First one says the configuration had a valid socket as mesh index is valid
 	 * Second one says the current bonecontainer doesn't contain it, meaning the current LOD is missing the joint that is required to evaluate 
@@ -90,7 +90,7 @@ public:
 };
 
 USTRUCT()
-struct ENGINE_API  FBoneSocketTarget
+struct  FBoneSocketTarget
 {
 	GENERATED_USTRUCT_BODY()
 

@@ -63,12 +63,12 @@ DECLARE_MULTICAST_DELEGATE_ThreeParams(FViewTargetChangedDelegate, class APlayer
 	private: DelegateType DelegateVariable;
 
 /** Class to set and get game callbacks */
-class ENGINE_API FGameDelegates
+class FGameDelegates
 {
 public:
 
 	/** Return a single FGameDelegates object */
-	static FGameDelegates& Get();
+	static ENGINE_API FGameDelegates& Get();
 
 	// Called when an exit command is received
 	DEFINE_GAME_DELEGATE_TYPED(ExitCommandDelegate, FSimpleMulticastDelegate);

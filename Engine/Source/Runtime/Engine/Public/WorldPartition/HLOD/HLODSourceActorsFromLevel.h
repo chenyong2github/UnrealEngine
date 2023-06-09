@@ -6,18 +6,18 @@
 #include "HLODSourceActorsFromLevel.generated.h"
 
 
-UCLASS()
-class ENGINE_API UWorldPartitionHLODSourceActorsFromLevel : public UWorldPartitionHLODSourceActors
+UCLASS(MinimalAPI)
+class UWorldPartitionHLODSourceActorsFromLevel : public UWorldPartitionHLODSourceActors
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 #if WITH_EDITOR
-	virtual ULevelStreaming* LoadSourceActors(bool& bOutDirty) const override;
-	virtual uint32 GetHLODHash() const override;
+	ENGINE_API virtual ULevelStreaming* LoadSourceActors(bool& bOutDirty) const override;
+	ENGINE_API virtual uint32 GetHLODHash() const override;
 
-	void SetSourceLevel(const UWorld* InSourceLevel);
-	const TSoftObjectPtr<UWorld>& GetSourceLevel() const;
+	ENGINE_API void SetSourceLevel(const UWorld* InSourceLevel);
+	ENGINE_API const TSoftObjectPtr<UWorld>& GetSourceLevel() const;
 #endif
 
 private:

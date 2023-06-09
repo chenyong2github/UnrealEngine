@@ -31,7 +31,7 @@ namespace SVT
 struct FTextureData;
 class FStreamingManager;
 
-struct ENGINE_API FHeader
+struct FHeader
 {
 	FIntVector3 VirtualVolumeResolution = FIntVector3(0, 0, 0);
 	FIntVector3 VirtualVolumeAABBMin = FIntVector3(INT32_MAX, INT32_MAX, INT32_MAX);
@@ -43,7 +43,7 @@ struct ENGINE_API FHeader
 	TStaticArray<FVector4f, 2> FallbackValues = TStaticArray<FVector4f, 2>(InPlace, FVector4f(0.0f, 0.0f, 0.0f, 0.0f));
 
 	FHeader() = default;
-	FHeader(const FIntVector3& AABBMin, const FIntVector3& AABBMax, EPixelFormat FormatA, EPixelFormat FormatB, const FVector4f& FallbackValueA, const FVector4f& FallbackValueB);
+	ENGINE_API FHeader(const FIntVector3& AABBMin, const FIntVector3& AABBMax, EPixelFormat FormatA, EPixelFormat FormatB, const FVector4f& FallbackValueA, const FVector4f& FallbackValueB);
 };
 
 // Describes a mip level of a SVT frame in terms of the sizes and offsets of the data in the built bulk data.
@@ -119,7 +119,7 @@ private:
 };
 
 // Encapsulates RHI resources needed to render a SparseVolumeTexture.
-class ENGINE_API FTextureRenderResources : public ::FRenderResource
+class FTextureRenderResources : public ::FRenderResource
 {
 	friend class FStreamingManager;
 public:
@@ -131,13 +131,13 @@ public:
 	FRHITextureReference* GetPhysicalTileDataATexture() const	{ check(IsInParallelRenderingThread()); return PhysicalTileDataATextureReferenceRHI.GetReference(); }
 	FRHITextureReference* GetPhysicalTileDataBTexture() const	{ check(IsInParallelRenderingThread()); return PhysicalTileDataBTextureReferenceRHI.GetReference(); }
 	FRHIShaderResourceView* GetStreamingInfoBufferSRV() const	{ check(IsInParallelRenderingThread()); return StreamingInfoBufferSRVRHI.GetReference(); }
-	void GetPackedUniforms(FUintVector4& OutPacked0, FUintVector4& OutPacked1) const;
+	ENGINE_API void GetPackedUniforms(FUintVector4& OutPacked0, FUintVector4& OutPacked1) const;
 	// Updates the GlobalVolumeResolution member in a thread-safe way.
-	void SetGlobalVolumeResolution_GameThread(const FIntVector3& GlobalVolumeResolution);
+	ENGINE_API void SetGlobalVolumeResolution_GameThread(const FIntVector3& GlobalVolumeResolution);
 
 	//~ Begin FRenderResource Interface.
-	virtual void InitRHI() override;
-	virtual void ReleaseRHI() override;
+	ENGINE_API virtual void InitRHI() override;
+	ENGINE_API virtual void ReleaseRHI() override;
 	//~ End FRenderResource Interface.
 
 private:
@@ -167,14 +167,14 @@ enum ESparseVolumeTextureShaderUniform
 };
 
 // SparseVolumeTexture base interface to communicate with material graph and shader bindings.
-UCLASS(ClassGroup = Rendering, BlueprintType)
-class ENGINE_API USparseVolumeTexture : public UObject
+UCLASS(ClassGroup = Rendering, BlueprintType, MinimalAPI)
+class USparseVolumeTexture : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 
-	USparseVolumeTexture();
+	ENGINE_API USparseVolumeTexture();
 	virtual ~USparseVolumeTexture() = default;
 
 	UFUNCTION(BlueprintCallable, Category = "Texture")
@@ -204,7 +204,7 @@ public:
 	FVector4 GetUniformParameter(int32 Index) const { return FVector4(ForceInitToZero); } // SVT_TODO: This mechanism is no longer needed and can be removed
 
 	/** Getter for the shader uniform parameter type with index as ESparseVolumeTextureShaderUniform. */
-	static UE::Shader::EValueType GetUniformParameterType(int32 Index);
+	static ENGINE_API UE::Shader::EValueType GetUniformParameterType(int32 Index);
 
 #if WITH_EDITOR
 	enum class ENotifyMaterialsEffectOnShaders
@@ -214,13 +214,13 @@ public:
 	};
 
 	/** Notify any loaded material instances that the texture has changed. */
-	void NotifyMaterials(const ENotifyMaterialsEffectOnShaders EffectOnShaders = ENotifyMaterialsEffectOnShaders::Default);
+	ENGINE_API void NotifyMaterials(const ENotifyMaterialsEffectOnShaders EffectOnShaders = ENotifyMaterialsEffectOnShaders::Default);
 #endif // WITH_EDITOR
 };
 
 // Represents a frame in a SparseVolumeTexture sequence and owns the actual data needed for rendering. Is owned by a UStreamableSparseVolumeTexture object.
-UCLASS(ClassGroup = Rendering, BlueprintType)
-class ENGINE_API USparseVolumeTextureFrame : public USparseVolumeTexture
+UCLASS(ClassGroup = Rendering, BlueprintType, MinimalAPI)
+class USparseVolumeTextureFrame : public USparseVolumeTexture
 {
 	GENERATED_UCLASS_BODY()
 
@@ -229,7 +229,7 @@ class ENGINE_API USparseVolumeTextureFrame : public USparseVolumeTexture
 
 public:
 
-	USparseVolumeTextureFrame();
+	ENGINE_API USparseVolumeTextureFrame();
 	virtual ~USparseVolumeTextureFrame() = default;
 
 	// Retrieves a frame from the given SparseVolumeTexture and also issues a streaming request for it. 
@@ -237,31 +237,31 @@ public:
 	// MipLevel is the lowest mip level that the caller intends to use but does not guarantee that the mip is actually resident.
 	// If bBlocking is true, DDC streaming requests will block on completion, guaranteeing that the requested frame will have been streamed in after the next streaming system update.
 	// If streaming cooked data from disk, the highest priority will be used, but no guarantee is given.
-	static USparseVolumeTextureFrame* GetFrameAndIssueStreamingRequest(USparseVolumeTexture* SparseVolumeTexture, float FrameIndex, int32 MipLevel, bool bBlocking = false);
+	static ENGINE_API USparseVolumeTextureFrame* GetFrameAndIssueStreamingRequest(USparseVolumeTexture* SparseVolumeTexture, float FrameIndex, int32 MipLevel, bool bBlocking = false);
 
-	bool Initialize(USparseVolumeTexture* InOwner, int32 InFrameIndex, UE::SVT::FTextureData& UncookedFrame);
+	ENGINE_API bool Initialize(USparseVolumeTexture* InOwner, int32 InFrameIndex, UE::SVT::FTextureData& UncookedFrame);
 	int32 GetFrameIndex() const { return FrameIndex; }
 	UE::SVT::FResources* GetResources() { return &Resources; }
 	// Creates TextureRenderResources if they don't already exist. Returns false if they already existed.
-	bool CreateTextureRenderResources();
+	ENGINE_API bool CreateTextureRenderResources();
 
 #if WITH_EDITORONLY_DATA
 	// Caches the derived data (FResources) of this frame to/from DDC and ensures that FTextureRenderResources exists.
-	void Cache(bool bSkipDDCAndSetResourcesToDefault);
+	ENGINE_API void Cache(bool bSkipDDCAndSetResourcesToDefault);
 #endif
 
 	//~ Begin UObject Interface.
-	virtual void PostLoad() override;
-	virtual void FinishDestroy() override;
-	virtual void BeginDestroy() override;
-	virtual void Serialize(FArchive& Ar) override;
-	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
+	ENGINE_API virtual void PostLoad() override;
+	ENGINE_API virtual void FinishDestroy() override;
+	ENGINE_API virtual void BeginDestroy() override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
 #if WITH_EDITOR
-	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
-	virtual bool IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform) override;
-	virtual void WillNeverCacheCookedPlatformDataAgain() override;
-	virtual void ClearCachedCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
-	virtual void ClearAllCachedCookedPlatformData() override;
+	ENGINE_API virtual void BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
+	ENGINE_API virtual bool IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform) override;
+	ENGINE_API virtual void WillNeverCacheCookedPlatformDataAgain() override;
+	ENGINE_API virtual void ClearCachedCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
+	ENGINE_API virtual void ClearAllCachedCookedPlatformData() override;
 #endif
 	//~ End UObject Interface.
 
@@ -407,19 +407,19 @@ protected:
 };
 
 // Represents a streamable SparseVolumeTexture asset with a single frame. Although there is only a single frame, it is still recommended to use USparseVolumeTextureFrame::GetFrameAndIssueStreamingRequest().
-UCLASS(ClassGroup = Rendering, BlueprintType)//, hidecategories = (Object))
-class ENGINE_API UStaticSparseVolumeTexture : public UStreamableSparseVolumeTexture
+UCLASS(MinimalAPI, ClassGroup = Rendering, BlueprintType)//, hidecategories = (Object), MinimalAPI)
+class UStaticSparseVolumeTexture : public UStreamableSparseVolumeTexture
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 
-	UStaticSparseVolumeTexture();
+	ENGINE_API UStaticSparseVolumeTexture();
 	virtual ~UStaticSparseVolumeTexture() = default;
 
 	//~ Begin UStreamableSparseVolumeTexture Interface.
 	// Override AppendFrame() to ensure that there is never more than a single frame in a static SVT
-	virtual bool AppendFrame(UE::SVT::FTextureData& UncookedFrame) override;
+	ENGINE_API virtual bool AppendFrame(UE::SVT::FTextureData& UncookedFrame) override;
 	//~ End UStreamableSparseVolumeTexture Interface.
 
 	//~ Begin USparseVolumeTexture Interface.
@@ -430,14 +430,14 @@ private:
 };
 
 // Represents a streamable SparseVolumeTexture with one or more frames. Use USparseVolumeTextureFrame::GetFrameAndIssueStreamingRequest() to bind extract a particular frame to be used for rendering.
-UCLASS(ClassGroup = Rendering, BlueprintType)//, hidecategories = (Object))
-class ENGINE_API UAnimatedSparseVolumeTexture : public UStreamableSparseVolumeTexture
+UCLASS(MinimalAPI, ClassGroup = Rendering, BlueprintType)//, hidecategories = (Object), MinimalAPI)
+class UAnimatedSparseVolumeTexture : public UStreamableSparseVolumeTexture
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 
-	UAnimatedSparseVolumeTexture();
+	ENGINE_API UAnimatedSparseVolumeTexture();
 	virtual ~UAnimatedSparseVolumeTexture() = default;
 
 	//~ Begin USparseVolumeTexture Interface.
@@ -449,8 +449,8 @@ private:
 };
 
 // Utility (blueprint) class for controlling SparseVolumeTexture playback.
-UCLASS(ClassGroup = Rendering, BlueprintType)//, hidecategories = (Object))
-class ENGINE_API UAnimatedSparseVolumeTextureController : public UObject
+UCLASS(ClassGroup = Rendering, BlueprintType)//, hidecategories = (Object), MinimalAPI)
+class UAnimatedSparseVolumeTextureController : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -471,33 +471,33 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "Rendering")
 	int32 MipLevel = 0;
 
-	UAnimatedSparseVolumeTextureController();
+	ENGINE_API UAnimatedSparseVolumeTextureController();
 	virtual ~UAnimatedSparseVolumeTextureController() = default;
 
 	UFUNCTION(BlueprintCallable, Category = "Animation")
-	void Play();
+	ENGINE_API void Play();
 
 	UFUNCTION(BlueprintCallable, Category = "Animation")
-	void Pause();
+	ENGINE_API void Pause();
 
 	UFUNCTION(BlueprintCallable, Category = "Animation")
-	void Stop();
+	ENGINE_API void Stop();
 
 	UFUNCTION(BlueprintCallable, Category = "Animation")
-	void Update(float DeltaTime);
+	ENGINE_API void Update(float DeltaTime);
 
 	UFUNCTION(BlueprintCallable, Category = "Animation")
-	float GetFractionalFrameIndex();
+	ENGINE_API float GetFractionalFrameIndex();
 
 	UFUNCTION(BlueprintCallable, Category = "Animation")
-	USparseVolumeTextureFrame* GetFrameByIndex(int32 FrameIndex);
+	ENGINE_API USparseVolumeTextureFrame* GetFrameByIndex(int32 FrameIndex);
 
 	UFUNCTION(BlueprintCallable, Category = "Animation")
-	USparseVolumeTextureFrame* GetCurrentFrame();
+	ENGINE_API USparseVolumeTextureFrame* GetCurrentFrame();
 
 	UFUNCTION(BlueprintCallable, Category = "Animation")
-	void GetCurrentFramesForInterpolation(USparseVolumeTextureFrame*& Frame0, USparseVolumeTextureFrame*& Frame1, float& LerpAlpha);
+	ENGINE_API void GetCurrentFramesForInterpolation(USparseVolumeTextureFrame*& Frame0, USparseVolumeTextureFrame*& Frame1, float& LerpAlpha);
 
 	UFUNCTION(BlueprintCallable, Category = "Animation")
-	float GetDuration();
+	ENGINE_API float GetDuration();
 };

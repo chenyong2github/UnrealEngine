@@ -48,7 +48,7 @@ public:
 	inline bool IsTracking() const { return bIsTracking; }
 
 	// Gives child classes an opportunity to clean up after a report is produced.
-	ENGINE_API virtual void PostReport() { }
+	virtual void PostReport() { }
 
 	// Access to tuning values set by cvars for other systems
 	/* Returns the squared distance (e.g. from world partition cell bounds) at which a level is considered to have streamed in too late. */
@@ -70,7 +70,7 @@ protected:
 	 * @param PreviousState The last state recorded for the level.
 	 * @param NewState The new state for the level.
 	 */
-	ENGINE_API virtual void UpdateTrackingData(
+	virtual void UpdateTrackingData(
 		int32 TrackingIndex, 
 		FLevelStats& BaseStats,
 		const ULevelStreaming* StreamingLevel, 
@@ -82,7 +82,7 @@ protected:
 	 * They should prepend anything they append with \t and separate each field they add with \t.
 	 * @param Builder String builder to write to.
 	 */
-	ENGINE_API virtual void AugmentReportHeader(FUtf8StringBuilderBase& Builder) {}
+	virtual void AugmentReportHeader(FUtf8StringBuilderBase& Builder) {}
 
 	/** 
 	 * Gives child classes an opportunity to add additional data to the final report.
@@ -90,7 +90,7 @@ protected:
 	 * @param Builder String builder to write to.
 	 * @param TrackingIndex The tracking index from a previous call to UpdateTrackingData to append data for.
 	 */
-	ENGINE_API virtual void AugmentReportRow(FUtf8StringBuilderBase& Builder, int32 TrackingIndex) {}
+	virtual void AugmentReportRow(FUtf8StringBuilderBase& Builder, int32 TrackingIndex) {}
 
 	ENGINE_API static const TCHAR* EnumToString(ULevelStreamingProfilingSubsystem::ELevelState State);
 

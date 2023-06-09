@@ -109,7 +109,7 @@ static const uint16 InvalidRegisteredStreamableTexture = (uint16)INDEX_NONE;
 /**
  * Interface for texture streaming container
  */
-struct ENGINE_API ITextureStreamingContainer
+struct ITextureStreamingContainer
 {
 #if WITH_EDITOR
 	virtual void InitializeTextureStreamingContainer(uint32 InPackedTextureStreamingQualityLevelFeatureLevel) = 0;
@@ -219,7 +219,7 @@ enum ETextureStreamingBuildType
  * This requires the logic to not submit a streaming entry for precomputed data, as well as submit fallback data for 
  * texture that were referenced in the texture streaming build.
  */
-class ENGINE_API FStreamingTextureLevelContext
+class FStreamingTextureLevelContext
 {
 	/** Reversed lookup for ULevel::StreamingTextureGuids. */
 	const TMap<FGuid, int32>* TextureGuidToLevelIndex;
@@ -260,21 +260,21 @@ class ENGINE_API FStreamingTextureLevelContext
 	ERHIFeatureLevel::Type FeatureLevel;
 	bool bIsBuiltDataValid;
 
-	int32* GetBuildDataIndexRef(UTexture* Texture, bool bForceUpdate = false);
-	void UpdateQualityAndFeatureLevel(EMaterialQualityLevel::Type InQualityLevel, ERHIFeatureLevel::Type InFeatureLevel, const ULevel* InLevel = nullptr);
+	ENGINE_API int32* GetBuildDataIndexRef(UTexture* Texture, bool bForceUpdate = false);
+	ENGINE_API void UpdateQualityAndFeatureLevel(EMaterialQualityLevel::Type InQualityLevel, ERHIFeatureLevel::Type InFeatureLevel, const ULevel* InLevel = nullptr);
 
 public:
 
 	// Needs InLevel to use precomputed data from 
-	FStreamingTextureLevelContext(EMaterialQualityLevel::Type InQualityLevel, const ULevel* InLevel = nullptr, const TMap<FGuid, int32>* InTextureGuidToLevelIndex = nullptr);
-	FStreamingTextureLevelContext(EMaterialQualityLevel::Type InQualityLevel, ERHIFeatureLevel::Type InFeatureLevel, bool InUseRelativeBoxes);
-	FStreamingTextureLevelContext(EMaterialQualityLevel::Type InQualityLevel, const UPrimitiveComponent* Primitive);
-	~FStreamingTextureLevelContext();
+	ENGINE_API FStreamingTextureLevelContext(EMaterialQualityLevel::Type InQualityLevel, const ULevel* InLevel = nullptr, const TMap<FGuid, int32>* InTextureGuidToLevelIndex = nullptr);
+	ENGINE_API FStreamingTextureLevelContext(EMaterialQualityLevel::Type InQualityLevel, ERHIFeatureLevel::Type InFeatureLevel, bool InUseRelativeBoxes);
+	ENGINE_API FStreamingTextureLevelContext(EMaterialQualityLevel::Type InQualityLevel, const UPrimitiveComponent* Primitive);
+	ENGINE_API ~FStreamingTextureLevelContext();
 
-	void UpdateContext(EMaterialQualityLevel::Type InQualityLevel, const ULevel* InLevel, const TMap<FGuid, int32>* InTextureGuidToLevelIndex);
-	void BindBuildData(const TArray<FStreamingTextureBuildInfo>* PreBuiltData);
-	void ProcessMaterial(const FBoxSphereBounds& ComponentBounds, const FPrimitiveMaterialInfo& MaterialData, float ComponentScaling, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingTextures, bool bIsComponentBuildDataValid = false, const UPrimitiveComponent* DebugComponent = nullptr);
-	bool CanUseTextureStreamingBuiltData() const;
+	ENGINE_API void UpdateContext(EMaterialQualityLevel::Type InQualityLevel, const ULevel* InLevel, const TMap<FGuid, int32>* InTextureGuidToLevelIndex);
+	ENGINE_API void BindBuildData(const TArray<FStreamingTextureBuildInfo>* PreBuiltData);
+	ENGINE_API void ProcessMaterial(const FBoxSphereBounds& ComponentBounds, const FPrimitiveMaterialInfo& MaterialData, float ComponentScaling, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingTextures, bool bIsComponentBuildDataValid = false, const UPrimitiveComponent* DebugComponent = nullptr);
+	ENGINE_API bool CanUseTextureStreamingBuiltData() const;
 
 	EMaterialQualityLevel::Type GetQualityLevel() { return QualityLevel; }
 	ERHIFeatureLevel::Type GetFeatureLevel() { return FeatureLevel; }

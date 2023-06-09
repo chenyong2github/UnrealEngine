@@ -10,8 +10,8 @@
 /**
  * StereoLayer Extensions Function Library
  */
-UCLASS()
-class ENGINE_API UStereoLayerFunctionLibrary : public UBlueprintFunctionLibrary
+UCLASS(MinimalAPI)
+class UStereoLayerFunctionLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_UCLASS_BODY()
 
@@ -25,19 +25,19 @@ public:
 	* @param ShowLoadingMovie	(in) Whether the splash screen presents loading movies.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "VR", meta=(DeprecatedFunction, DeprecationMessage="Please use Add Loading Screen Splash instead."))
-		static void SetSplashScreen(class UTexture* Texture, FVector2D Scale = FVector2D(1.0f, 1.0f), FVector Offset = FVector(0.0f, 0.0f, 0.0f), bool bShowLoadingMovie = false, bool bShowOnSet = false);
+		static ENGINE_API void SetSplashScreen(class UTexture* Texture, FVector2D Scale = FVector2D(1.0f, 1.0f), FVector Offset = FVector(0.0f, 0.0f, 0.0f), bool bShowLoadingMovie = false, bool bShowOnSet = false);
 
 	/**
 	* Show the splash screen and override the VR display
 	*/
 	UFUNCTION(BlueprintCallable, Category = "VR", meta = (DeprecatedFunction, DeprecationMessage = "Please use Show Loading Screen instead."))
-	static void ShowSplashScreen();
+	static ENGINE_API void ShowSplashScreen();
 
 	/**
 	* Hide the splash screen and return to normal display.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "VR", meta = (DeprecatedFunction, DeprecationMessage = "Please use Hide Loading Screen instead."))
-	static void HideSplashScreen();
+	static ENGINE_API void HideSplashScreen();
 
 	/**
 	 * Enables/disables splash screen to be automatically shown when LoadMap is called.
@@ -46,5 +46,5 @@ public:
 	 */
 	UE_DEPRECATED(5.3, "We don't recommend using Auto Show Loading Screen any longer, and it will be removed in a future update.")
 	UFUNCTION(BlueprintCallable, Category = "VR", meta = (DeprecatedFunction, DeprecationMessage = "We don't recommend using Auto Show Loading Screen any longer, and it will be removed in a future update."))
-	static void EnableAutoLoadingSplashScreen(bool InAutoShowEnabled);
+	static ENGINE_API void EnableAutoLoadingSplashScreen(bool InAutoShowEnabled);
 };

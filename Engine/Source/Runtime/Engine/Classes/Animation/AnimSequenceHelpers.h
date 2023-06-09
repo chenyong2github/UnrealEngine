@@ -222,11 +222,11 @@ namespace Anim {
 
 #if WITH_EDITOR
 		// RAII helper to temporarily block Animation compression requests for specified AnimationSequence
-		struct ENGINE_API FScopedCompressionGuard
+		struct FScopedCompressionGuard
 		{
 			FScopedCompressionGuard() = delete;
-			FScopedCompressionGuard(UAnimSequence* InAnimSequence);
-			~FScopedCompressionGuard();
+			ENGINE_API FScopedCompressionGuard(UAnimSequence* InAnimSequence);
+			ENGINE_API ~FScopedCompressionGuard();
 		protected:
 			TObjectPtr<UAnimSequence> AnimSequence;
 		};
@@ -236,7 +236,7 @@ namespace Anim {
 	namespace DataModel { struct FEvaluationContext; }
 	namespace Retargeting
 	{
-		struct ENGINE_API FRetargetTracking
+		struct FRetargetTracking
 		{
 			const FCompactPoseBoneIndex PoseBoneIndex;
 			const int32 SkeletonBoneIndex;
@@ -244,12 +244,12 @@ namespace Anim {
 			FRetargetTracking(const FCompactPoseBoneIndex InPoseBoneIndex, const int32 InSkeletonBoneIndex) : PoseBoneIndex(InPoseBoneIndex), SkeletonBoneIndex(InSkeletonBoneIndex) {}
 		};
 
-		struct ENGINE_API FRetargetingScope
+		struct FRetargetingScope
 		{
-			FRetargetingScope(const USkeleton* InSourceSkeleton, FCompactPose& ToRetargetPose, const DataModel::FEvaluationContext& InEvaluationContext);
-			~FRetargetingScope();
+			ENGINE_API FRetargetingScope(const USkeleton* InSourceSkeleton, FCompactPose& ToRetargetPose, const DataModel::FEvaluationContext& InEvaluationContext);
+			ENGINE_API ~FRetargetingScope();
 			
-			void AddTrackedBone(FCompactPoseBoneIndex CompactBoneIndex, int32 SkeletonBoneIndex) const;
+			ENGINE_API void AddTrackedBone(FCompactPoseBoneIndex CompactBoneIndex, int32 SkeletonBoneIndex) const;
 		private:
 			const USkeleton* SourceSkeleton;
 			FCompactPose& RetargetPose;
@@ -269,7 +269,7 @@ namespace Anim {
 		ENGINE_API void RetargetPose(FCompactPose& InOutPose, const FName& RetargetSource, const TArray<FTransform>& RetargetTransforms);
 	}
 
-	struct ENGINE_API FBuildRawPoseScratchArea : public TThreadSingleton<FBuildRawPoseScratchArea>
+	struct FBuildRawPoseScratchArea : public TThreadSingleton<FBuildRawPoseScratchArea>
 	{
 		TArray<Retargeting::FRetargetTracking> RetargetTracking;
 		TArray<FVirtualBoneCompactPoseData> VirtualBoneCompactPoseData;

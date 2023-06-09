@@ -102,7 +102,7 @@ public:
 	 * @param InBrush The brush to change shape, or nullptr to specify the builder brush
 	 * @return true if the brush shape was updated.
 	 */
-	ENGINE_API virtual bool Build( UWorld* InWorld, ABrush* InBrush = nullptr )
+	virtual bool Build( UWorld* InWorld, ABrush* InBrush = nullptr )
 	{
 		return false;
 	}

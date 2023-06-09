@@ -20,15 +20,15 @@ struct FActorSpawnParameters;
 //DECLARE_DYNAMIC_DELEGATE_RetVal_OneParam(FActorInstanceHandle, FOnActorReady, FActorInstanceHandle, InHandle);
 
 // Used for initializing light weight instances.
-struct ENGINE_API FLWIData
+struct FLWIData
 {
 	FTransform Transform;
 };
 
 
 // Base class for interfaces for each handle
-UCLASS(Experimental)
-class ENGINE_API UActorInstanceHandleInterface : public UObject
+UCLASS(Experimental, MinimalAPI)
+class UActorInstanceHandleInterface : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -49,8 +49,8 @@ protected:
 
 
 
-UCLASS(BlueprintType, Blueprintable, Experimental)
-class ENGINE_API ALightWeightInstanceManager : public AActor
+UCLASS(BlueprintType, Blueprintable, Experimental, MinimalAPI)
+class ALightWeightInstanceManager : public AActor
 {
 	GENERATED_UCLASS_BODY()
 
@@ -59,60 +59,60 @@ class ENGINE_API ALightWeightInstanceManager : public AActor
 	friend class ULightWeightInstanceBlueprintFunctionLibrary;
 
 public:
-	virtual ~ALightWeightInstanceManager();
+	ENGINE_API virtual ~ALightWeightInstanceManager();
 
-	virtual void Tick(float DeltaSeconds);
+	ENGINE_API virtual void Tick(float DeltaSeconds);
 
 	// Returns the location of the instance specified by Handle
-	FVector GetLocation(const FActorInstanceHandle& Handle) const;
+	ENGINE_API FVector GetLocation(const FActorInstanceHandle& Handle) const;
 
 	// Returns the rotation of the instance specified by Handle
-	FRotator GetRotation(const FActorInstanceHandle& Handle) const;
+	ENGINE_API FRotator GetRotation(const FActorInstanceHandle& Handle) const;
 
 	// Returns the transform of the instance specified by Handle
-	FTransform GetTransform(const FActorInstanceHandle& Handle) const;
+	ENGINE_API FTransform GetTransform(const FActorInstanceHandle& Handle) const;
 
 	// Returns the name of the instance specified by Handle
-	FString GetName(const FActorInstanceHandle& Handle) const;
+	ENGINE_API FString GetName(const FActorInstanceHandle& Handle) const;
 
 	// Returns true if this manager stores instances that can be turned into full weight objects of class OtherClass
-	bool DoesRepresentClass(const UClass* OtherClass) const;
+	ENGINE_API bool DoesRepresentClass(const UClass* OtherClass) const;
 
 	// Returns true if this manager is capable of representing objects of type OtherClass
-	bool DoesAcceptClass(const UClass* OtherClass) const;
+	ENGINE_API bool DoesAcceptClass(const UClass* OtherClass) const;
 
 	// Returns the specific class that this manages
-	UClass* GetRepresentedClass() const;
+	ENGINE_API UClass* GetRepresentedClass() const;
 
 	// Returns the base class of types that this can manage
-	UClass* GetAcceptedClass() const;
+	ENGINE_API UClass* GetAcceptedClass() const;
 
 	// Sets the specific class that this manages
-	virtual void SetRepresentedClass(UClass* ActorClass);
+	ENGINE_API virtual void SetRepresentedClass(UClass* ActorClass);
 
 	// Returns the actor associated with Handle if one exists
-	AActor* FetchActorFromHandle(const FActorInstanceHandle& Handle);
+	ENGINE_API AActor* FetchActorFromHandle(const FActorInstanceHandle& Handle);
 
 	// Returns the index of the light weight instance associated with InActor if one exists; otherwise we return INDEX_NONE
-	int32 FindIndexForActor(const AActor* InActor) const;
+	ENGINE_API int32 FindIndexForActor(const AActor* InActor) const;
 
 	// Returns a handle to a light weight instance representing the same object as InActor and calls destroy on InActor if successful.
-	FActorInstanceHandle ConvertActorToLightWeightInstance(AActor* InActor);
+	ENGINE_API FActorInstanceHandle ConvertActorToLightWeightInstance(AActor* InActor);
 
 	// Returns the index used internally by the light weight instance manager that is associated with the instance referred to by InIndex used by collision and rendering
-	virtual int32 ConvertCollisionIndexToLightWeightIndex(int32 InIndex) const;
+	ENGINE_API virtual int32 ConvertCollisionIndexToLightWeightIndex(int32 InIndex) const;
 
 	// Returns the index used by collision and rendering that is associated with the instance referred to by InIndex
-	virtual int32 ConvertLightWeightIndexToCollisionIndex(int32 InIndex) const;
+	ENGINE_API virtual int32 ConvertLightWeightIndexToCollisionIndex(int32 InIndex) const;
 
 	// LWI grid size to use for this manager.
-	virtual int32 GetGridSize() const;
+	ENGINE_API virtual int32 GetGridSize() const;
 
 	// Helper that converts a position (world space) into a coordinate for the LWI grid.
-	FInt32Vector3 ConvertPositionToCoord(const FVector& InPosition) const;
+	ENGINE_API FInt32Vector3 ConvertPositionToCoord(const FVector& InPosition) const;
 
 	// Helper that retrieve the world space bounds of the LWI grid cell encompassing the provided coordinate.
-	FBox ConvertPositionToGridBounds(const FVector& InPosition) const;
+	ENGINE_API FBox ConvertPositionToGridBounds(const FVector& InPosition) const;
 
 	template<typename U>
 	bool IsInterfaceSupported() const
@@ -141,44 +141,44 @@ public:
 		return Cast<I>(FetchActorFromHandle(Handle));
 	}
 
-	AActor* FindActorForInstanceIndex(const int32 InstanceIndex);
+	ENGINE_API AActor* FindActorForInstanceIndex(const int32 InstanceIndex);
 
-	bool HasAnyValidInstancesOrManagedActors() const;
+	ENGINE_API bool HasAnyValidInstancesOrManagedActors() const;
 
 protected:
 	// Creates an actor to replace the instance specified by Handle
-	AActor* ConvertInstanceToActor(const FActorInstanceHandle& Handle);
+	ENGINE_API AActor* ConvertInstanceToActor(const FActorInstanceHandle& Handle);
 
 	// Takes a polymorphic struct to set the initial data for a new instance
-	int32 AddNewInstance(FLWIData* InitData);
+	ENGINE_API int32 AddNewInstance(FLWIData* InitData);
 
 	// Adds a new instance at the specified index. This function should only be called by AddNewInstance.
 	// Provided to allow subclasses to update their per instance data
-	virtual void AddNewInstanceAt(FLWIData* InitData, int32 Index);
+	ENGINE_API virtual void AddNewInstanceAt(FLWIData* InitData, int32 Index);
 
 	// Removes the instance
-	virtual void RemoveInstance(int32 Index);
+	ENGINE_API virtual void RemoveInstance(int32 Index);
 
 	// Returns true if we have current information for an instance at Index
-	bool IsIndexValid(int32 Index) const;
+	ENGINE_API bool IsIndexValid(int32 Index) const;
 
 	// Checks if we already have an actor for this handle. If an actor already exists we set the Actor variable on Handle and return true.
-	bool FindActorForHandle(const FActorInstanceHandle& Handle) const;
+	ENGINE_API bool FindActorForHandle(const FActorInstanceHandle& Handle) const;
 
 	// Sets the parameters for actor spawning.
-	virtual void SetSpawnParameters(FActorSpawnParameters& SpawnParams);
+	ENGINE_API virtual void SetSpawnParameters(FActorSpawnParameters& SpawnParams);
 
 	// Returns the class to use when spawning a new actor
-	virtual UClass* GetActorClassToSpawn(const FActorInstanceHandle& Handle) const;
+	ENGINE_API virtual UClass* GetActorClassToSpawn(const FActorInstanceHandle& Handle) const;
 
 	// Called after actor construction but before other systems see this actor spawn
-	virtual void PreSpawnInitalization(const FActorInstanceHandle& Handle, AActor* SpawnedActor);
+	ENGINE_API virtual void PreSpawnInitalization(const FActorInstanceHandle& Handle, AActor* SpawnedActor);
 
 	// Called after spawning a new actor from a light weight instance
-	virtual void PostActorSpawn(const FActorInstanceHandle& Handle);
+	ENGINE_API virtual void PostActorSpawn(const FActorInstanceHandle& Handle);
 
 	// Called after a spawned actor is destroyed
-	virtual void OnSpawnedActorDestroyed(AActor* DestroyedActor, const int32 DestroyedActorInstanceIndex);
+	ENGINE_API virtual void OnSpawnedActorDestroyed(AActor* DestroyedActor, const int32 DestroyedActorInstanceIndex);
 
 	// Create an object that implements interfaces for the light weight instance specified by Handle
 	UObject* CreateInterfaceObject(const FActorInstanceHandle& Handle)
@@ -190,7 +190,7 @@ protected:
 	}
 
 	// Gets the class that implements interfaces for light weight instances owned by this manager
-	virtual UClass* GetInterfaceClass() const;
+	ENGINE_API virtual UClass* GetInterfaceClass() const;
 
 	// Helper functions for converting between our internal storage indices and the indices used by external bookkeeping
 	virtual int32 ConvertInternalIndexToHandleIndex(int32 InInternalIndex) const { return InInternalIndex; }
@@ -202,11 +202,11 @@ protected:
 
 public:
 
-	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	ENGINE_API virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 private:
 	UFUNCTION()
-	void OnSpawnedActorDestroyed(AActor* DestroyedActor);
+	ENGINE_API void OnSpawnedActorDestroyed(AActor* DestroyedActor);
 
 protected:
 
@@ -227,23 +227,23 @@ protected:
 	UPROPERTY(ReplicatedUsing=OnRep_Transforms, EditInstanceOnly, Category=LightWeightInstance)
 	TArray<FTransform> InstanceTransforms;
 	UFUNCTION()
-	virtual void OnRep_Transforms();
+	ENGINE_API virtual void OnRep_Transforms();
 
 	//
 	// Subclasses should override the following functions if they need to store any additional data 
 	//
 
 	// Increases the size of all of our data arrays to NewSize
-	virtual void GrowDataArrays();
+	ENGINE_API virtual void GrowDataArrays();
 
 	// Populates the data array entries at Index with the data stored in InData;
-	virtual void UpdateDataAtIndex(FLWIData* InData, int32 Index);
+	ENGINE_API virtual void UpdateDataAtIndex(FLWIData* InData, int32 Index);
 
 	// Allocates the appropriate subclass of FLWIData to initialize instances for this manager. The caller is responsible for freeing the memory when they are finished.
-	virtual FLWIData* AllocateInitData() const;
+	ENGINE_API virtual FLWIData* AllocateInitData() const;
 
 	// Gathers info from InActor and stores it in InData. Returns true if the relevant data was successfully copied.
-	virtual bool SetDataFromActor(FLWIData* InData, AActor* InActor) const;
+	ENGINE_API virtual bool SetDataFromActor(FLWIData* InData, AActor* InActor) const;
 
 	//
 	// Bookkeeping info
@@ -267,7 +267,7 @@ protected:
 	// Editor functions
 	//
 protected:
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;	
+	ENGINE_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;	
 #endif // WITH_EDITOR
 
 #if !UE_BUILD_SHIPPING

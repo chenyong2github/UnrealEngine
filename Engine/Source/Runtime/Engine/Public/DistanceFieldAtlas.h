@@ -57,7 +57,7 @@ namespace DistanceField
 	inline constexpr uint32 MaxIndirectionDimension = 1024;
 };
 
-class ENGINE_API FLandscapeTextureAtlas : public FRenderResource
+class FLandscapeTextureAtlas : public FRenderResource
 {
 public:
 	enum ESubAllocType
@@ -67,26 +67,26 @@ public:
 		SAT_Num
 	};
 
-	FLandscapeTextureAtlas(ESubAllocType InSubAllocType);
+	ENGINE_API FLandscapeTextureAtlas(ESubAllocType InSubAllocType);
 
-	void InitializeIfNeeded();
+	ENGINE_API void InitializeIfNeeded();
 
-	void AddAllocation(UTexture2D* Texture, uint32 VisibilityChannel = 0);
+	ENGINE_API void AddAllocation(UTexture2D* Texture, uint32 VisibilityChannel = 0);
 
-	void RemoveAllocation(UTexture2D* Texture);
+	ENGINE_API void RemoveAllocation(UTexture2D* Texture);
 
-	void UpdateAllocations(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type InFeatureLevel);
+	ENGINE_API void UpdateAllocations(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type InFeatureLevel);
 
 	UE_DEPRECATED(5.0, "This method has been refactored to use an FRDGBuilder instead.")
-	void UpdateAllocations(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type InFeatureLevel);
+	ENGINE_API void UpdateAllocations(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type InFeatureLevel);
 
-	uint32 GetAllocationHandle(UTexture2D* Texture) const;
+	ENGINE_API uint32 GetAllocationHandle(UTexture2D* Texture) const;
 
-	FVector4f GetAllocationScaleBias(uint32 Handle) const;
+	ENGINE_API FVector4f GetAllocationScaleBias(uint32 Handle) const;
 
 	bool HasAtlasTexture() const { return AtlasTextureRHI.IsValid(); }
 
-	FRDGTexture* GetAtlasTexture(FRDGBuilder& GraphBuilder) const;
+	ENGINE_API FRDGTexture* GetAtlasTexture(FRDGBuilder& GraphBuilder) const;
 
 	uint32 GetSizeX() const
 	{
@@ -104,7 +104,7 @@ public:
 	}
 
 private:
-	uint32 CalculateDownSampleLevel(uint32 SizeX, uint32 SizeY) const;
+	ENGINE_API uint32 CalculateDownSampleLevel(uint32 SizeX, uint32 SizeY) const;
 
 	class FSubAllocator
 	{
@@ -245,7 +245,7 @@ public:
 };
 
 /** Distance field data payload and output of the mesh build process. */
-class ENGINE_API FDistanceFieldVolumeData : public FDeferredCleanupInterface
+class FDistanceFieldVolumeData : public FDeferredCleanupInterface
 {
 public:
 
@@ -270,7 +270,7 @@ public:
 	// For stats
 	FName AssetName;
 
-	FDistanceFieldVolumeData();
+	ENGINE_API FDistanceFieldVolumeData();
 
 	void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) const
 	{
@@ -298,11 +298,11 @@ public:
 
 #if WITH_EDITORONLY_DATA
 
-	void CacheDerivedData(const FString& InStaticMeshDerivedDataKey, const ITargetPlatform* TargetPlatform, UStaticMesh* Mesh, class FStaticMeshRenderData& RenderData, UStaticMesh* GenerateSource, float DistanceFieldResolutionScale, bool bGenerateDistanceFieldAsIfTwoSided);
+	ENGINE_API void CacheDerivedData(const FString& InStaticMeshDerivedDataKey, const ITargetPlatform* TargetPlatform, UStaticMesh* Mesh, class FStaticMeshRenderData& RenderData, UStaticMesh* GenerateSource, float DistanceFieldResolutionScale, bool bGenerateDistanceFieldAsIfTwoSided);
 
 #endif
 
-	void Serialize(FArchive& Ar, UObject* Owner);
+	ENGINE_API void Serialize(FArchive& Ar, UObject* Owner);
 
 	uint64 GetId() const { return Id; }
 };

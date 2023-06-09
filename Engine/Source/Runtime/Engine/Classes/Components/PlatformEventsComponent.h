@@ -10,8 +10,8 @@
 /**
  * Component to handle receiving notifications from the OS about platform events.
  */
-UCLASS(ClassGroup=Utility, HideCategories=(Activation, "Components|Activation", Collision), meta=(BlueprintSpawnableComponent))
-class ENGINE_API UPlatformEventsComponent
+UCLASS(ClassGroup=Utility, HideCategories=(Activation, "Components|Activation", Collision), meta=(BlueprintSpawnableComponent), MinimalAPI)
+class UPlatformEventsComponent
 	: public UActorComponent
 {
 	GENERATED_UCLASS_BODY()
@@ -23,7 +23,7 @@ class ENGINE_API UPlatformEventsComponent
 	 * @see IsInTabletMode, SupportsConvertibleLaptops
 	 */
 	UFUNCTION(BlueprintCallable, Category="Components|Activation")
-	bool IsInLaptopMode();
+	ENGINE_API bool IsInLaptopMode();
 
 	/**
 	 * Check whether a convertible laptop is laptop mode.
@@ -32,7 +32,7 @@ class ENGINE_API UPlatformEventsComponent
 	 * @see IsInLaptopMode, SupportsConvertibleLaptops
 	 */
 	UFUNCTION(BlueprintCallable, Category="Components|Activation")
-	bool IsInTabletMode();
+	ENGINE_API bool IsInTabletMode();
 
 	/**
 	 * Check whether the platform supports convertible laptops.
@@ -45,7 +45,7 @@ class ENGINE_API UPlatformEventsComponent
 	 * @see IsInLaptopMode, IsInTabletMode
 	 */
 	UFUNCTION(BlueprintCallable, Category="Components|Activation")
-	bool SupportsConvertibleLaptops();
+	ENGINE_API bool SupportsConvertibleLaptops();
 
 public:
 
@@ -63,8 +63,8 @@ public:
 
 	// UActorComponent overrides
 
-	virtual void OnRegister() override;
-	virtual void OnUnregister() override;
+	ENGINE_API virtual void OnRegister() override;
+	ENGINE_API virtual void OnUnregister() override;
 
 private:
 

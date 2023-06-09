@@ -48,7 +48,7 @@ extern ENGINE_API bool IsTexelDebuggingEnabled();
 /**
  * The abstract base class of 1D and 2D light-maps.
  */
-class ENGINE_API FLightMap : private FDeferredCleanupInterface
+class FLightMap : private FDeferredCleanupInterface
 {
 public:
 	enum
@@ -62,7 +62,7 @@ public:
 	TArray<FGuid> LightGuids;
 
 	/** Default constructor. */
-	FLightMap();
+	ENGINE_API FLightMap();
 
 	/** Destructor. */
 	virtual ~FLightMap() { check(NumRefs == 0); }
@@ -79,7 +79,7 @@ public:
 
 	// FLightMap interface.
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) {}
-	virtual void Serialize(FArchive& Ar);
+	ENGINE_API virtual void Serialize(FArchive& Ar);
 	virtual FLightMapInteraction GetInteraction(ERHIFeatureLevel::Type InFeatureLevel) const = 0;
 	virtual FShadowMapInteraction GetShadowInteraction(ERHIFeatureLevel::Type InFeatureLevel) const { return FShadowMapInteraction::None(); }
 
@@ -119,7 +119,7 @@ protected:
 	/**
 	 * Called when the light-map is no longer referenced.  Should release the lightmap's resources.
 	 */
-	virtual void Cleanup();
+	ENGINE_API virtual void Cleanup();
 
 private:
 	int32 NumRefs;
@@ -197,12 +197,12 @@ private:
 /**
  * A 2D array of incident lighting data.
  */
-class ENGINE_API FLightMap2D : public FLightMap
+class FLightMap2D : public FLightMap
 {
 public:
 
-	FLightMap2D();
-	FLightMap2D(bool InAllowHighQualityLightMaps);
+	ENGINE_API FLightMap2D();
+	ENGINE_API FLightMap2D(bool InAllowHighQualityLightMaps);
 
 	// FLightMap2D interface.
 
@@ -211,8 +211,8 @@ public:
 	 * @param	BasisIndex - The basis index.
 	 * @return	The RGB coefficient texture.
 	 */
-	const UTexture2D* GetTexture(uint32 BasisIndex) const;
-	UTexture2D* GetTexture(uint32 BasisIndex);
+	ENGINE_API const UTexture2D* GetTexture(uint32 BasisIndex) const;
+	ENGINE_API UTexture2D* GetTexture(uint32 BasisIndex);
 
 	void GetReferencedTextures(TArray<UTexture2D*>& OutTextures) const
 	{
@@ -239,30 +239,30 @@ public:
 	 * Returns SkyOcclusionTexture.
 	 * @return	The SkyOcclusionTexture.
 	 */
-	UTexture2D* GetSkyOcclusionTexture() const;
+	ENGINE_API UTexture2D* GetSkyOcclusionTexture() const;
 
-	UTexture2D* GetAOMaterialMaskTexture() const;
+	ENGINE_API UTexture2D* GetAOMaterialMaskTexture() const;
 
 	ULightMapVirtualTexture2D* GetVirtualTexture(uint32 BasisIndex) const { return VirtualTextures[BasisIndex]; }
 
-	bool IsVirtualTextureValid() const;
+	ENGINE_API bool IsVirtualTextureValid() const;
 
 	/**
 	 * Returns whether the specified basis has a valid lightmap texture or not.
 	 * @param	BasisIndex - The basis index.
 	 * @return	true if the specified basis has a valid lightmap texture, otherwise false
 	 */
-	bool IsValid(uint32 BasisIndex) const;
+	ENGINE_API bool IsValid(uint32 BasisIndex) const;
 
 	const FVector2D& GetCoordinateScale() const { return CoordinateScale; }
 	const FVector2D& GetCoordinateBias() const { return CoordinateBias; }
 
 	// FLightMap interface.
-	virtual void AddReferencedObjects( FReferenceCollector& Collector );
+	ENGINE_API virtual void AddReferencedObjects( FReferenceCollector& Collector );
 
-	virtual void Serialize(FArchive& Ar);
-	virtual FLightMapInteraction GetInteraction(ERHIFeatureLevel::Type InFeatureLevel) const;
-	virtual FShadowMapInteraction GetShadowInteraction(ERHIFeatureLevel::Type InFeatureLevel) const;
+	ENGINE_API virtual void Serialize(FArchive& Ar);
+	ENGINE_API virtual FLightMapInteraction GetInteraction(ERHIFeatureLevel::Type InFeatureLevel) const;
+	ENGINE_API virtual FShadowMapInteraction GetShadowInteraction(ERHIFeatureLevel::Type InFeatureLevel) const;
 
 	// Runtime type casting.
 	virtual const FLightMap2D* GetLightMap2D() const { return this; }
@@ -279,7 +279,7 @@ public:
 	 * @param	InPaddingType - the method for padding the lightmap.
 	 * @param	LightmapFlags - flags that determine how the lightmap is stored (e.g. streamed or not)
 	 */
-	static TRefCountPtr<FLightMap2D> AllocateLightMap(UObject* LightMapOuter,
+	static ENGINE_API TRefCountPtr<FLightMap2D> AllocateLightMap(UObject* LightMapOuter,
 		FQuantizedLightmapData*& SourceQuantizedData,
 		const TMap<ULightComponent*, FShadowMapData2D*>& SourceShadowMapData,
 		const FBoxSphereBounds& Bounds, ELightMapPaddingType InPaddingType, ELightMapFlags InLightmapFlags );
@@ -294,7 +294,7 @@ public:
 	 * @param	InPaddingType - the method for padding the lightmap.
 	 * @param	LightmapFlags - flags that determine how the lightmap is stored (e.g. streamed or not)
 	 */
-	static TRefCountPtr<FLightMap2D> AllocateInstancedLightMap(UObject* LightMapOuter, UInstancedStaticMeshComponent* Component,
+	static ENGINE_API TRefCountPtr<FLightMap2D> AllocateInstancedLightMap(UObject* LightMapOuter, UInstancedStaticMeshComponent* Component,
 		TArray<TUniquePtr<FQuantizedLightmapData>> SourceQuantizedData,
 		TArray<TMap<ULightComponent*, TUniquePtr<FShadowMapData2D>>>&& InstancedShadowMapData,
 		UMapBuildDataRegistry* Registry, FGuid MapBuildDataId, const FBoxSphereBounds& Bounds, ELightMapPaddingType InPaddingType, ELightMapFlags LightmapFlags);
@@ -304,13 +304,13 @@ public:
 	 * @param	bLightingSuccessful	Whether the lighting build was successful or not.
 	 * @param	bForceCompletion	Force all encoding to be fully completed (they may be asynchronous).
 	 */
-	static void EncodeTextures( UWorld* InWorld, ULevel* LightingScenario, bool bLightingSuccessful, bool bMultithreadedEncode = false );
+	static ENGINE_API void EncodeTextures( UWorld* InWorld, ULevel* LightingScenario, bool bLightingSuccessful, bool bMultithreadedEncode = false );
 
 #if WITH_EDITOR
 	/**
 	 * Constructs mip maps for a single shadowmap texture.
 	 */
-	static int32 EncodeShadowTexture(ULevel* LightingScenario, struct FLightMapPendingTexture& PendingTexture, TArray<TArray<FFourDistanceFieldSamples>>& MipData);
+	static ENGINE_API int32 EncodeShadowTexture(ULevel* LightingScenario, struct FLightMapPendingTexture& PendingTexture, TArray<TArray<FFourDistanceFieldSamples>>& MipData);
 #endif // WITH_EDITOR
 
 	/** Call to enable/disable status update of LightMap encoding */
@@ -355,10 +355,10 @@ public:
 	bool bShadowChannelValid[4];
 
 protected:
-	FLightMap2D(const TArray<FGuid>& InLightGuids);
+	ENGINE_API FLightMap2D(const TArray<FGuid>& InLightGuids);
 
 	/** If true, update the status when encoding light maps */
-	static bool bUpdateStatus;
+	static ENGINE_API bool bUpdateStatus;
 };
 
 struct FLegacyQuantizedDirectionalLightSample
@@ -605,28 +605,28 @@ void CropUnmappedTexels( const TMappingData& MappingData, int32 SizeX, int32 Siz
 /** 
  * A bundle of lightmap resources which are referenced by multiple components. 
  */
-class ENGINE_API FLightmapResourceCluster : public FRenderResource
+class FLightmapResourceCluster : public FRenderResource
 {
 public:
 	FLightmapResourceCluster() : AllocatedVT(nullptr) {}
-	virtual ~FLightmapResourceCluster();
+	ENGINE_API virtual ~FLightmapResourceCluster();
 
-	virtual void InitRHI();
-	virtual void ReleaseRHI();
+	ENGINE_API virtual void InitRHI();
+	ENGINE_API virtual void ReleaseRHI();
 
-	void SetFeatureLevelAndInitialize(const FStaticFeatureLevel InFeatureLevel);
-	void TryInitializeUniformBuffer();
-	void UpdateUniformBuffer();
+	ENGINE_API void SetFeatureLevelAndInitialize(const FStaticFeatureLevel InFeatureLevel);
+	ENGINE_API void TryInitializeUniformBuffer();
+	ENGINE_API void UpdateUniformBuffer();
 	
 	/**
 	 * Allocates virtual texture on demand and returns it, may return nullptr if not using virtual texture
 	 * 'const' method setting 'mutable' member is not amazing, but this is required to work around ordering of render commands submitted from main thread,
 	 * it's possible for commands that want to access AllocatedVT from here execute before this has a chance to run InitRHI()
 	 */
-	const IAllocatedVirtualTexture* GetAllocatedVT() const;
-	void ConditionalCreateAllocatedVT();
-	void ReleaseAllocatedVT();
-	bool GetUseVirtualTexturing() const;
+	ENGINE_API const IAllocatedVirtualTexture* GetAllocatedVT() const;
+	ENGINE_API void ConditionalCreateAllocatedVT();
+	ENGINE_API void ReleaseAllocatedVT();
+	ENGINE_API bool GetUseVirtualTexturing() const;
 
 	FLightmapClusterResourceInput Input;
 	mutable IAllocatedVirtualTexture* AllocatedVT;

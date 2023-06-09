@@ -36,30 +36,30 @@ struct FActorPlacementDataLayers
 /**
  * Actor containing data layers instances within a world.
  */
-UCLASS(hidecategories = (Actor, HLOD, Cooking, Transform, Advanced, Display, Events, Object, Physics, Attachment, Info, Input, Blueprint, Layers, Tags, Replication), notplaceable)
-class ENGINE_API AWorldDataLayers : public AInfo
+UCLASS(hidecategories = (Actor, HLOD, Cooking, Transform, Advanced, Display, Events, Object, Physics, Attachment, Info, Input, Blueprint, Layers, Tags, Replication), notplaceable, MinimalAPI)
+class AWorldDataLayers : public AInfo
 {
 	GENERATED_UCLASS_BODY()
 
 	friend class UDataLayerToAssetCommandlet;
 
 public:
-	virtual void PostLoad() override;
-	virtual void RewindForReplay() override;
-	virtual void BeginPlay() override;
+	ENGINE_API virtual void PostLoad() override;
+	ENGINE_API virtual void RewindForReplay() override;
+	ENGINE_API virtual void BeginPlay() override;
 
 #if WITH_EDITOR
-	virtual void PreEditUndo() override;
-	virtual void PostEditUndo() override;
+	ENGINE_API virtual void PreEditUndo() override;
+	ENGINE_API virtual void PostEditUndo() override;
 	virtual bool ShouldLevelKeepRefIfExternal() const override { return true; }
 	virtual bool ShouldImport(FStringView ActorPropString, bool IsMovingLevel) override { return false; }
 	virtual bool IsLockLocation() const { return true; }
 	virtual bool IsUserManaged() const override { return false; }
 	virtual bool IsDataLayerTypeSupported(TSubclassOf<UDataLayerInstance> DataLayerType) const { return false; }
-	virtual TUniquePtr<class FWorldPartitionActorDesc> CreateClassActorDesc() const override;
+	ENGINE_API virtual TUniquePtr<class FWorldPartitionActorDesc> CreateClassActorDesc() const override;
 
-	static AWorldDataLayers* Create(UWorld* World, FName InWorldDataLayerName = NAME_None);
-	static AWorldDataLayers* Create(const FActorSpawnParameters& SpawnParameters);
+	static ENGINE_API AWorldDataLayers* Create(UWorld* World, FName InWorldDataLayerName = NAME_None);
+	static ENGINE_API AWorldDataLayers* Create(const FActorSpawnParameters& SpawnParameters);
 
 	bool IsEmpty() const { return DataLayerInstances.IsEmpty(); }
 	bool HasDeprecatedDataLayers() const { return bHasDeprecatedDataLayers; }
@@ -67,53 +67,53 @@ public:
 	template<class DataLayerInstanceType, typename ...CreationsArgs>
 	DataLayerInstanceType* CreateDataLayer(CreationsArgs... InCreationArgs);
 
-	bool RemoveDataLayer(const UDataLayerInstance* InDataLayer);
-	int32 RemoveDataLayers(const TArray<UDataLayerInstance*>& InDataLayerInstances);
-	void SetAllowRuntimeDataLayerEditing(bool bInAllowRuntimeDataLayerEditing);
+	ENGINE_API bool RemoveDataLayer(const UDataLayerInstance* InDataLayer);
+	ENGINE_API int32 RemoveDataLayers(const TArray<UDataLayerInstance*>& InDataLayerInstances);
+	ENGINE_API void SetAllowRuntimeDataLayerEditing(bool bInAllowRuntimeDataLayerEditing);
 	bool GetAllowRuntimeDataLayerEditing() const { return bAllowRuntimeDataLayerEditing; }
 
-	bool IsInActorEditorContext(const UDataLayerInstance* InDataLayerInstance) const;
-	bool AddToActorEditorContext(UDataLayerInstance* InDataLayerInstance);
-	bool RemoveFromActorEditorContext(UDataLayerInstance* InDataLayerInstance);
-	void PushActorEditorContext(int32 InContextID);
-	void PopActorEditorContext(int32 InContextID);
-	TArray<UDataLayerInstance*> GetActorEditorContextDataLayers() const;
+	ENGINE_API bool IsInActorEditorContext(const UDataLayerInstance* InDataLayerInstance) const;
+	ENGINE_API bool AddToActorEditorContext(UDataLayerInstance* InDataLayerInstance);
+	ENGINE_API bool RemoveFromActorEditorContext(UDataLayerInstance* InDataLayerInstance);
+	ENGINE_API void PushActorEditorContext(int32 InContextID);
+	ENGINE_API void PopActorEditorContext(int32 InContextID);
+	ENGINE_API TArray<UDataLayerInstance*> GetActorEditorContextDataLayers() const;
 
 	//~ Begin Helper Functions
-	TArray<const UDataLayerInstance*> GetDataLayerInstances(const TArray<UDataLayerAsset*>& InDataLayersAssets) const;
-	TArray<const UDataLayerInstance*> GetDataLayerInstances(const TArray<const UDataLayerAsset*>& InDataLayersAssets) const;
-	TArray<FName> GetDataLayerInstanceNames(const TArray<const UDataLayerAsset*>& InDataLayersAssets) const;
+	ENGINE_API TArray<const UDataLayerInstance*> GetDataLayerInstances(const TArray<UDataLayerAsset*>& InDataLayersAssets) const;
+	ENGINE_API TArray<const UDataLayerInstance*> GetDataLayerInstances(const TArray<const UDataLayerAsset*>& InDataLayersAssets) const;
+	ENGINE_API TArray<FName> GetDataLayerInstanceNames(const TArray<const UDataLayerAsset*>& InDataLayersAssets) const;
 	//~ End Helper Functions
 
 	// Allows overriding of DataLayers with PlayFromHere
 	template<class T>
 	void OverwriteDataLayerRuntimeStates(const TArray<T>* InActiveDataLayers, const TArray<T>* InLoadedDataLayers );
 
-	bool IsReadOnly() const;
-	bool IsSubWorldDataLayers() const;
-	bool IsRuntimeRelevant() const;
+	ENGINE_API bool IsReadOnly() const;
+	ENGINE_API bool IsSubWorldDataLayers() const;
+	ENGINE_API bool IsRuntimeRelevant() const;
 #endif
 
 	static FName GetWorldPartionWorldDataLayersName() { return FName(TEXT("WorldDataLayers")); } // reserved for ULevel::WorldDataLayers
 	
-	void DumpDataLayers(FOutputDevice& OutputDevice) const;
-	bool ContainsDataLayer(const UDataLayerInstance* InDataLayer) const;
-	const UDataLayerInstance* GetDataLayerInstance(const FName& InDataLayerInstanceName) const;
-	const UDataLayerInstance* GetDataLayerInstance(const UDataLayerAsset* InDataLayerAsset) const;
-	const UDataLayerInstance* GetDataLayerInstanceFromAssetName(const FName& InDataLayerAssetFullName) const;
-	void ForEachDataLayer(TFunctionRef<bool(UDataLayerInstance*)> Func);
-	void ForEachDataLayer(TFunctionRef<bool(UDataLayerInstance*)> Func) const;
+	ENGINE_API void DumpDataLayers(FOutputDevice& OutputDevice) const;
+	ENGINE_API bool ContainsDataLayer(const UDataLayerInstance* InDataLayer) const;
+	ENGINE_API const UDataLayerInstance* GetDataLayerInstance(const FName& InDataLayerInstanceName) const;
+	ENGINE_API const UDataLayerInstance* GetDataLayerInstance(const UDataLayerAsset* InDataLayerAsset) const;
+	ENGINE_API const UDataLayerInstance* GetDataLayerInstanceFromAssetName(const FName& InDataLayerAssetFullName) const;
+	ENGINE_API void ForEachDataLayer(TFunctionRef<bool(UDataLayerInstance*)> Func);
+	ENGINE_API void ForEachDataLayer(TFunctionRef<bool(UDataLayerInstance*)> Func) const;
 
-	TArray<const UDataLayerInstance*> GetDataLayerInstances(const TArray<FName>& InDataLayerInstanceNames) const;
+	ENGINE_API TArray<const UDataLayerInstance*> GetDataLayerInstances(const TArray<FName>& InDataLayerInstanceNames) const;
 
 	// DataLayer Runtime State
-	void SetDataLayerRuntimeState(const UDataLayerInstance* InDataLayerInstance, EDataLayerRuntimeState InState, bool bIsRecursive = false);
-	EDataLayerRuntimeState GetDataLayerRuntimeStateByName(FName InDataLayerName) const;
-	EDataLayerRuntimeState GetDataLayerEffectiveRuntimeStateByName(FName InDataLAyerName) const;
+	ENGINE_API void SetDataLayerRuntimeState(const UDataLayerInstance* InDataLayerInstance, EDataLayerRuntimeState InState, bool bIsRecursive = false);
+	ENGINE_API EDataLayerRuntimeState GetDataLayerRuntimeStateByName(FName InDataLayerName) const;
+	ENGINE_API EDataLayerRuntimeState GetDataLayerEffectiveRuntimeStateByName(FName InDataLAyerName) const;
 	const TSet<FName>& GetEffectiveActiveDataLayerNames() const { return EffectiveActiveDataLayerNames; }
 	const TSet<FName>& GetEffectiveLoadedDataLayerNames() const { return EffectiveLoadedDataLayerNames; }
 	UFUNCTION(NetMulticast, Reliable)
-	void OnDataLayerRuntimeStateChanged(const UDataLayerInstance* InDataLayer, EDataLayerRuntimeState InState);
+	ENGINE_API void OnDataLayerRuntimeStateChanged(const UDataLayerInstance* InDataLayer, EDataLayerRuntimeState InState);
 	static int32 GetDataLayersStateEpoch() { return DataLayersStateEpoch; }
 
 	//~ Begin Deprecated
@@ -134,25 +134,25 @@ public:
 
 #if WITH_EDITOR
 	UE_DEPRECATED(5.1, "Convert DataLayer using UDataLayerToAssetCommandlet and use UDataLayerInstance* overload instead.")
-	bool RemoveDataLayer(const UDEPRECATED_DataLayer* InDataLayer);
+	ENGINE_API bool RemoveDataLayer(const UDEPRECATED_DataLayer* InDataLayer);
 #endif
 
 	UE_DEPRECATED(5.1, "Convert DataLayer using UDataLayerToAssetCommandlet and use UDataLayerInstance* overload instead.")
-	bool ContainsDataLayer(const UDEPRECATED_DataLayer* InDataLayer) const;
+	ENGINE_API bool ContainsDataLayer(const UDEPRECATED_DataLayer* InDataLayer) const;
 
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	UE_DEPRECATED(5.1, "Use GetDataLayerInstance with FName or UDataLayerAsset instead")
-	const UDataLayerInstance* GetDataLayerInstance(const FActorDataLayer& InActorDataLayer) const;
+	ENGINE_API const UDataLayerInstance* GetDataLayerInstance(const FActorDataLayer& InActorDataLayer) const;
 
 	UE_DEPRECATED(5.1, "Use GetDataLayerInstanceNames with UDataLayerAsset instead")
-	TArray<FName> GetDataLayerInstanceNames(const TArray<FActorDataLayer>& InActorDataLayers) const;
+	ENGINE_API TArray<FName> GetDataLayerInstanceNames(const TArray<FActorDataLayer>& InActorDataLayers) const;
 
 	UE_DEPRECATED(5.1, "Use GetDataLayerInstances with FName or UDataLayerAsset instead")
-	TArray<const UDataLayerInstance*> GetDataLayerInstances(const TArray<FActorDataLayer>& InActorDataLayers) const;
+	ENGINE_API TArray<const UDataLayerInstance*> GetDataLayerInstances(const TArray<FActorDataLayer>& InActorDataLayers) const;
 
 	UE_DEPRECATED(5.1, "Convert UDataLayers to UDataLayerAsset and UDataLayerInstance using DataLayerToAssetCommandLet")
-	const UDataLayerInstance* GetDataLayerFromLabel(const FName& InDataLayerLabel) const;
+	ENGINE_API const UDataLayerInstance* GetDataLayerFromLabel(const FName& InDataLayerLabel) const;
 
 	UE_DEPRECATED(5.3, "This function has been deprecated.")
 	void GetUserLoadedInEditorStates(TArray<FName>& OutDataLayersLoadedInEditor, TArray<FName>& OutDataLayersNotLoadedInEditor) const {}
@@ -160,31 +160,31 @@ public:
 	//~ End Deprecated
 
 protected:
-	void InitializeDataLayerRuntimeStates();
-	void ResetDataLayerRuntimeStates();
+	ENGINE_API void InitializeDataLayerRuntimeStates();
+	ENGINE_API void ResetDataLayerRuntimeStates();
 
 	UFUNCTION()
-	void OnRep_ActiveDataLayerNames();
+	ENGINE_API void OnRep_ActiveDataLayerNames();
 
 	UFUNCTION()
-	void OnRep_LoadedDataLayerNames();
+	ENGINE_API void OnRep_LoadedDataLayerNames();
 
 	UFUNCTION()
-	void OnRep_EffectiveActiveDataLayerNames();
+	ENGINE_API void OnRep_EffectiveActiveDataLayerNames();
 
 	UFUNCTION()
-	void OnRep_EffectiveLoadedDataLayerNames();
+	ENGINE_API void OnRep_EffectiveLoadedDataLayerNames();
 
 private:
-	void ResolveEffectiveRuntimeState(const UDataLayerInstance* InDataLayer, bool bInNotifyChange = true);
-	void DumpDataLayerRecursively(const UDataLayerInstance* DataLayer, FString Prefix, FOutputDevice& OutputDevice) const;
+	ENGINE_API void ResolveEffectiveRuntimeState(const UDataLayerInstance* InDataLayer, bool bInNotifyChange = true);
+	ENGINE_API void DumpDataLayerRecursively(const UDataLayerInstance* DataLayer, FString Prefix, FOutputDevice& OutputDevice) const;
 
 #if WITH_EDITOR
 	virtual bool ActorTypeIsMainWorldOnly() const override { return true; }
 
-	void ConvertDataLayerToInstancces();
-	void UpdateContainsDeprecatedDataLayers();
-	void ResolveActorDescContainers();
+	ENGINE_API void ConvertDataLayerToInstancces();
+	ENGINE_API void UpdateContainsDeprecatedDataLayers();
+	ENGINE_API void ResolveActorDescContainers();
 	friend class UDataLayerInstanceWithAsset;
 
 	// Used to compare state pre/post undo
@@ -239,7 +239,7 @@ private:
 	TSet<FName> EffectiveActiveDataLayerNames;
 	TSet<FName> EffectiveLoadedDataLayerNames;
 
-	static int32 DataLayersStateEpoch;
+	static ENGINE_API int32 DataLayersStateEpoch;
 
 	static_assert(DATALAYER_TO_INSTANCE_RUNTIME_CONVERSION_ENABLED, "bHasDeprecatedDataLayers is deprecated and needs to be deleted.");
 	bool bHasDeprecatedDataLayers;

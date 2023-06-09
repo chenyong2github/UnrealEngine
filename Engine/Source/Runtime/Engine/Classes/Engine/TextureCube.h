@@ -38,7 +38,7 @@ public:
 
 	/** Destructor */
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	ENGINE_API virtual ~UTextureCube() {};
+	virtual ~UTextureCube() {};
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	//~ Begin UObject Interface.

@@ -16,7 +16,7 @@ struct FPostProcessSettings;
 /**
 * The public interface of the CameraPhotographyModule
 */
-class ENGINE_API ICameraPhotographyModule : public IModuleInterface, public IModularFeature
+class ICameraPhotographyModule : public IModuleInterface, public IModularFeature
 {
 public:
 	static FName GetModularFeatureName()
@@ -58,7 +58,7 @@ public:
 	virtual TSharedPtr< class ICameraPhotography > CreateCameraPhotography() = 0;
 };
 
-class ENGINE_API ICameraPhotography
+class ICameraPhotography
 {
 public:
 	ICameraPhotography() {};

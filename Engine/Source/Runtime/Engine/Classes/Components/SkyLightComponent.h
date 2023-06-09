@@ -19,7 +19,7 @@ class UTextureCube;
 /** 
  * A cubemap texture resource that knows how to upload the capture data from a sky capture. 
  */
-class ENGINE_API FSkyTextureCubeResource : public FTexture, private FDeferredCleanupInterface
+class FSkyTextureCubeResource : public FTexture, private FDeferredCleanupInterface
 {
 	// @todo - support compression
 
@@ -42,7 +42,7 @@ public:
 		Format = InFormat;
 	}
 
-	virtual void InitRHI() override;
+	ENGINE_API virtual void InitRHI() override;
 
 	virtual void ReleaseRHI() override
 	{
@@ -69,7 +69,7 @@ public:
 		NumRefs++;
 	}
 
-	void Release();
+	ENGINE_API void Release();
 private:
 
 	int32 Size;
@@ -96,8 +96,8 @@ enum class ESkyLightCaptureStatus
 	SLCS_CapturedAndComplete,
 };
 
-UCLASS(Blueprintable, ClassGroup=Lights, HideCategories=(Trigger,Activation,"Components|Activation",Physics), meta=(BlueprintSpawnableComponent))
-class ENGINE_API USkyLightComponent : public ULightComponentBase
+UCLASS(Blueprintable, ClassGroup=Lights, HideCategories=(Trigger,Activation,"Components|Activation",Physics), meta=(BlueprintSpawnableComponent), MinimalAPI)
+class USkyLightComponent : public ULightComponentBase
 {
 	GENERATED_UCLASS_BODY()
 
@@ -211,51 +211,51 @@ class ENGINE_API USkyLightComponent : public ULightComponentBase
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Visualization)
 	uint32 bShowIlluminanceMeter : 1;
 		
-	class FSkyLightSceneProxy* CreateSceneProxy() const;
+	ENGINE_API class FSkyLightSceneProxy* CreateSceneProxy() const;
 
 	//~ Begin UObject Interface
-	virtual void PostInitProperties() override;
-	virtual void PostLoad() override;
+	ENGINE_API virtual void PostInitProperties() override;
+	ENGINE_API virtual void PostLoad() override;
 #if WITH_EDITOR
-	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual bool CanEditChange(const FProperty* InProperty) const override;
-	virtual void CheckForErrors() override;
+	ENGINE_API virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual bool CanEditChange(const FProperty* InProperty) const override;
+	ENGINE_API virtual void CheckForErrors() override;
 #endif // WITH_EDITOR
-	virtual void BeginDestroy() override;
-	virtual bool IsReadyForFinishDestroy() override;
+	ENGINE_API virtual void BeginDestroy() override;
+	ENGINE_API virtual bool IsReadyForFinishDestroy() override;
 	//~ End UObject Interface
 
-	virtual TStructOnScope<FActorComponentInstanceData> GetComponentInstanceData() const override;
-	void ApplyComponentInstanceData(struct FPrecomputedSkyLightInstanceData* ComponentInstanceData);
+	ENGINE_API virtual TStructOnScope<FActorComponentInstanceData> GetComponentInstanceData() const override;
+	ENGINE_API void ApplyComponentInstanceData(struct FPrecomputedSkyLightInstanceData* ComponentInstanceData);
 
 	/** Called each tick to recapture and queued sky captures. */
-	static void UpdateSkyCaptureContents(UWorld* WorldToUpdate);
-	static void UpdateSkyCaptureContentsArray(UWorld* WorldToUpdate, TArray<USkyLightComponent*>& ComponentArray, bool bBlendSources);
+	static ENGINE_API void UpdateSkyCaptureContents(UWorld* WorldToUpdate);
+	static ENGINE_API void UpdateSkyCaptureContentsArray(UWorld* WorldToUpdate, TArray<USkyLightComponent*>& ComponentArray, bool bBlendSources);
 
 	/** Computes a radiance map using only emissive contribution from the sky light. */
-	void CaptureEmissiveRadianceEnvironmentCubeMap(FSHVectorRGB3& OutIrradianceMap, TArray<FFloat16Color>& OutRadianceMap) const;
+	ENGINE_API void CaptureEmissiveRadianceEnvironmentCubeMap(FSHVectorRGB3& OutIrradianceMap, TArray<FFloat16Color>& OutRadianceMap) const;
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|SkyLight")
-	void SetIntensity(float NewIntensity);
+	ENGINE_API void SetIntensity(float NewIntensity);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|Light")
-	void SetIndirectLightingIntensity(float NewIntensity);
+	ENGINE_API void SetIndirectLightingIntensity(float NewIntensity);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|Light")
-	void SetVolumetricScatteringIntensity(float NewIntensity);
+	ENGINE_API void SetVolumetricScatteringIntensity(float NewIntensity);
 
 	/** Set color of the light */
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|SkyLight")
-	void SetLightColor(FLinearColor NewLightColor);
+	ENGINE_API void SetLightColor(FLinearColor NewLightColor);
 
 	/** Sets the cubemap used when SourceType is set to SpecifiedCubemap, and causes a skylight update on the next tick. */
 	UFUNCTION(BlueprintCallable, Category="SkyLight")
-	void SetCubemap(UTextureCube* NewCubemap);
+	ENGINE_API void SetCubemap(UTextureCube* NewCubemap);
 
 	/** Sets the angle of the cubemap used when SourceType is set to SpecifiedCubemap and it is non static. It will cause the skylight to update on the next tick. */
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|SkyLight")
-	void SetSourceCubemapAngle(float NewValue);
+	ENGINE_API void SetSourceCubemapAngle(float NewValue);
 
 	/** 
 	 * Creates sky lighting from a blend between two cubemaps, which is only valid when SourceType is set to SpecifiedCubemap. 
@@ -264,38 +264,38 @@ class ENGINE_API USkyLightComponent : public ULightComponentBase
 	 * The caller is responsible for avoiding pops due to changing the source or destination.
 	 */
 	UFUNCTION(BlueprintCallable, Category="SkyLight")
-	void SetCubemapBlend(UTextureCube* SourceCubemap, UTextureCube* DestinationCubemap, float InBlendFraction);
+	ENGINE_API void SetCubemapBlend(UTextureCube* SourceCubemap, UTextureCube* DestinationCubemap, float InBlendFraction);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|SkyLight")
-	void SetLowerHemisphereColor(const FLinearColor& InLowerHemisphereColor);
+	ENGINE_API void SetLowerHemisphereColor(const FLinearColor& InLowerHemisphereColor);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|SkyLight")
-	void SetOcclusionTint(const FColor& InTint);
+	ENGINE_API void SetOcclusionTint(const FColor& InTint);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|SkyLight")
-	void SetOcclusionContrast(float InOcclusionContrast);
+	ENGINE_API void SetOcclusionContrast(float InOcclusionContrast);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|SkyLight")
-	void SetOcclusionExponent(float InOcclusionExponent);
+	ENGINE_API void SetOcclusionExponent(float InOcclusionExponent);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|SkyLight")
-	void SetMinOcclusion(float InMinOcclusion);
+	ENGINE_API void SetMinOcclusion(float InMinOcclusion);
 
 protected:
-	virtual void OnVisibilityChanged() override;
+	ENGINE_API virtual void OnVisibilityChanged() override;
 
 public:
 
 	/** Indicates that the capture needs to recapture the scene, adds it to the recapture queue. */
-	void SetCaptureIsDirty();
-	void SetBlendDestinationCaptureIsDirty();
-	void SanitizeCubemapSize();
+	ENGINE_API void SetCaptureIsDirty();
+	ENGINE_API void SetBlendDestinationCaptureIsDirty();
+	ENGINE_API void SanitizeCubemapSize();
 
 	/** Whether sky occlusion is supported by current feature level */
-	bool IsOcclusionSupported() const;
+	ENGINE_API bool IsOcclusionSupported() const;
 
-	void SetRealTimeCaptureEnabled(bool bNewRealTimeCaptureEnabled);
-	bool IsRealTimeCaptureEnabled() const;
+	ENGINE_API void SetRealTimeCaptureEnabled(bool bNewRealTimeCaptureEnabled);
+	ENGINE_API bool IsRealTimeCaptureEnabled() const;
 
 	/** 
 	 * Recaptures the scene for the skylight. 
@@ -303,9 +303,9 @@ public:
 	 * Warning: this is very costly and will definitely cause a hitch.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|SkyLight")
-	void RecaptureSky();
+	ENGINE_API void RecaptureSky();
 
-	virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
 
 	const FTexture* GetProcessedSkyTexture() const { return ProcessedSkyTexture; }
 	FSHVectorRGB3 GetIrradianceEnvironmentMap() { return IrradianceEnvironmentMap; }
@@ -356,18 +356,18 @@ protected:
 	 * These have to be queued because we can only render the scene to update captures at certain points, after the level has loaded.
 	 * This queue should be in the UWorld or the FSceneInterface, but those are not available yet in PostLoad.
 	 */
-	static TArray<USkyLightComponent*> SkyCapturesToUpdate;
-	static TArray<USkyLightComponent*> SkyCapturesToUpdateBlendDestinations;
-	static FCriticalSection SkyCapturesToUpdateLock;
+	static ENGINE_API TArray<USkyLightComponent*> SkyCapturesToUpdate;
+	static ENGINE_API TArray<USkyLightComponent*> SkyCapturesToUpdateBlendDestinations;
+	static ENGINE_API FCriticalSection SkyCapturesToUpdateLock;
 
 	//~ Begin UActorComponent Interface
-	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
-	virtual void DestroyRenderState_Concurrent() override;
-	virtual void SendRenderTransform_Concurrent() override;
+	ENGINE_API virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
+	ENGINE_API virtual void DestroyRenderState_Concurrent() override;
+	ENGINE_API virtual void SendRenderTransform_Concurrent() override;
 	//~ Begin UActorComponent Interface
 
-	void UpdateLimitedRenderingStateFast();
-	void UpdateOcclusionRenderingStateFast();
+	ENGINE_API void UpdateLimitedRenderingStateFast();
+	ENGINE_API void UpdateOcclusionRenderingStateFast();
 
 	friend class FSkyLightSceneProxy;
 };

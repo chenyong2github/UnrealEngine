@@ -40,10 +40,10 @@ namespace Audio
 		ENGINE_API extern const FName LongSoundNames;
 	}
 
-	class ENGINE_API FAudioDebugger
+	class FAudioDebugger
 	{
 	public:
-		FAudioDebugger();
+		ENGINE_API FAudioDebugger();
 
 		/** Struct which contains debug names for run-time debugging of sounds. */
 		struct FDebugNames
@@ -64,45 +64,45 @@ namespace Audio
 			{}
 		};
 
-		static void DrawDebugInfo(const FSoundSource& SoundSource);
-		static void DrawDebugInfo(const FActiveSound& ActiveSound, const TArray<FWaveInstance*>& ThisSoundsWaveInstances, const float DeltaTime);
-		static void DrawDebugInfo(UWorld& World, const TArray<FListener>& Listeners);
-		static void DrawDebugInfo(const FAudioVirtualLoop& VirtualLoop);
-		static int32 DrawDebugStats(UWorld& World, FViewport* Viewport, FCanvas* Canvas, int32 Y);
-		static bool DrawDebugStatsEnabled();
-		static bool PostStatModulatorHelp(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream);
-		static int32 RenderStatCues(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y);
-		static int32 RenderStatMixes(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y);
-		static int32 RenderStatModulators(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation);
-		static int32 RenderStatReverb(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y);
-		static int32 RenderStatSounds(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y);
-		static int32 RenderStatWaves(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y);
-		static int32 RenderStatStreaming(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation);
-		static void RemoveDevice(const FAudioDevice& AudioDevice);
-		static void ResolveDesiredStats(FViewportClient* ViewportClient);
-		static void SendUpdateResultsToGameThread(const FAudioDevice& AudioDevice, const int32 FirstActiveIndex);
-		static void UpdateAudibleInactiveSounds(const uint32 FirstIndex, const TArray<FWaveInstance*>& WaveInstances);
-		static void LogSubtitle(const TCHAR* InCmd, USoundWave& InSoundWave);
-		static void ClearStats(const FName StatsToToggle, UWorld* InWorld);
-		static void SetStats(const TSet<FName>& StatsToToggle, UWorld* InWorld);
+		static ENGINE_API void DrawDebugInfo(const FSoundSource& SoundSource);
+		static ENGINE_API void DrawDebugInfo(const FActiveSound& ActiveSound, const TArray<FWaveInstance*>& ThisSoundsWaveInstances, const float DeltaTime);
+		static ENGINE_API void DrawDebugInfo(UWorld& World, const TArray<FListener>& Listeners);
+		static ENGINE_API void DrawDebugInfo(const FAudioVirtualLoop& VirtualLoop);
+		static ENGINE_API int32 DrawDebugStats(UWorld& World, FViewport* Viewport, FCanvas* Canvas, int32 Y);
+		static ENGINE_API bool DrawDebugStatsEnabled();
+		static ENGINE_API bool PostStatModulatorHelp(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream);
+		static ENGINE_API int32 RenderStatCues(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y);
+		static ENGINE_API int32 RenderStatMixes(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y);
+		static ENGINE_API int32 RenderStatModulators(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation);
+		static ENGINE_API int32 RenderStatReverb(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y);
+		static ENGINE_API int32 RenderStatSounds(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y);
+		static ENGINE_API int32 RenderStatWaves(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y);
+		static ENGINE_API int32 RenderStatStreaming(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation);
+		static ENGINE_API void RemoveDevice(const FAudioDevice& AudioDevice);
+		static ENGINE_API void ResolveDesiredStats(FViewportClient* ViewportClient);
+		static ENGINE_API void SendUpdateResultsToGameThread(const FAudioDevice& AudioDevice, const int32 FirstActiveIndex);
+		static ENGINE_API void UpdateAudibleInactiveSounds(const uint32 FirstIndex, const TArray<FWaveInstance*>& WaveInstances);
+		static ENGINE_API void LogSubtitle(const TCHAR* InCmd, USoundWave& InSoundWave);
+		static ENGINE_API void ClearStats(const FName StatsToToggle, UWorld* InWorld);
+		static ENGINE_API void SetStats(const TSet<FName>& StatsToToggle, UWorld* InWorld);
 
-		static bool IsVirtualLoopVisualizeEnabled();
+		static ENGINE_API bool IsVirtualLoopVisualizeEnabled();
 
-		void ClearMutesAndSolos();
-		void DumpActiveSounds() const;
+		ENGINE_API void ClearMutesAndSolos();
+		ENGINE_API void DumpActiveSounds() const;
 
-		bool IsVisualizeDebug3dEnabled() const;
-		void ToggleVisualizeDebug3dEnabled();
+		ENGINE_API bool IsVisualizeDebug3dEnabled() const;
+		ENGINE_API void ToggleVisualizeDebug3dEnabled();
 
 #if WITH_EDITOR
-		static void OnBeginPIE();
-		static void OnEndPIE();
+		static ENGINE_API void OnBeginPIE();
+		static ENGINE_API void OnEndPIE();
 #endif // WITH_EDITOR
 
 		// Evaluate Mute/Solos
-		void QuerySoloMuteSoundClass(const FString& Name, bool& bOutIsSoloed, bool& bOutIsMuted, FString& OutReason) const;
-		void QuerySoloMuteSoundWave(const FString& Name, bool& bOutIsSoloed, bool& bOutIsMuted, FString& OutReason) const;
-		void QuerySoloMuteSoundCue(const FString& Name, bool& bOutIsSoloed, bool& bOutIsMuted, FString& OutReason) const;
+		ENGINE_API void QuerySoloMuteSoundClass(const FString& Name, bool& bOutIsSoloed, bool& bOutIsMuted, FString& OutReason) const;
+		ENGINE_API void QuerySoloMuteSoundWave(const FString& Name, bool& bOutIsSoloed, bool& bOutIsMuted, FString& OutReason) const;
+		ENGINE_API void QuerySoloMuteSoundCue(const FString& Name, bool& bOutIsSoloed, bool& bOutIsMuted, FString& OutReason) const;
 
 		// Is Mute/Solos. (only audio thread).
 		bool IsSoloSoundClass(FName InName) const { return DebugNames.SoloSoundClass.Contains(InName); }
@@ -126,28 +126,28 @@ namespace Audio
 		void SetSoloSoundCue(FName InName, bool bInOnOff) { SetNameArray(InName, DebugNames.SoloSoundCue, bInOnOff); }
 		void SetSoloSoundWave(FName InName, bool bInOnOff) { SetNameArray(InName, DebugNames.SoloSoundWave, bInOnOff); }
 
-		void SetAudioMixerDebugSound(const TCHAR* SoundName);
-		void SetAudioDebugSound(const TCHAR* SoundName);
+		ENGINE_API void SetAudioMixerDebugSound(const TCHAR* SoundName);
+		ENGINE_API void SetAudioDebugSound(const TCHAR* SoundName);
 
-		const FString& GetAudioMixerDebugSoundName() const;
-		bool GetAudioDebugSound(FString& OutDebugSound);
+		ENGINE_API const FString& GetAudioMixerDebugSoundName() const;
+		ENGINE_API bool GetAudioDebugSound(FString& OutDebugSound);
 
 	private:
-		static int32 DrawDebugStatsInternal(UWorld& World, FViewport& Viewport, FCanvas* Canvas, int32 InY);
-		void SetNameArray(FName InName, TArray<FName>& InNameArray, bool bOnOff);
-		void ToggleNameArray(FName InName, TArray<FName>& NameArray, bool bExclusive);
-		void ExecuteCmdOnAudioThread(TFunction<void()> Cmd);
+		static ENGINE_API int32 DrawDebugStatsInternal(UWorld& World, FViewport& Viewport, FCanvas* Canvas, int32 InY);
+		ENGINE_API void SetNameArray(FName InName, TArray<FName>& InNameArray, bool bOnOff);
+		ENGINE_API void ToggleNameArray(FName InName, TArray<FName>& NameArray, bool bExclusive);
+		ENGINE_API void ExecuteCmdOnAudioThread(TFunction<void()> Cmd);
 
-		void GetDebugSoloMuteStateX(
+		ENGINE_API void GetDebugSoloMuteStateX(
 			const FString& Name, const TArray<FName>& Solos, const TArray<FName>& Mutes,
 			bool& bOutIsSoloed, bool& bOutIsMuted, FString& OutReason) const;
 
-		void ClearStats(FDeviceId DeviceId, FName StatsToClear);
+		ENGINE_API void ClearStats(FDeviceId DeviceId, FName StatsToClear);
 
-		void SetStats(FDeviceId DeviceId, const TSet<FName>& StatsToSet);
+		ENGINE_API void SetStats(FDeviceId DeviceId, const TSet<FName>& StatsToSet);
 
-		static bool ToggleStats(UWorld* World, const TSet<FName>& StatToToggle);
-		void ToggleStats(FDeviceId DeviceId, const TSet<FName>& StatsToToggle);
+		static ENGINE_API bool ToggleStats(UWorld* World, const TSet<FName>& StatToToggle);
+		ENGINE_API void ToggleStats(FDeviceId DeviceId, const TSet<FName>& StatsToToggle);
 
 		FDelegateHandle WorldRegisteredWithDeviceHandle;
 

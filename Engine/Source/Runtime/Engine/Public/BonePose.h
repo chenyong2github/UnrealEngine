@@ -343,22 +343,22 @@ protected:
 	const FBoneContainer* BoneContainer;
 };
 
-struct ENGINE_API FCompactPose : public FBaseCompactPose<FAnimStackAllocator>
+struct FCompactPose : public FBaseCompactPose<FAnimStackAllocator>
 {
 	// Sets every bone transform to Identity
-	void ResetToAdditiveIdentity();
+	ENGINE_API void ResetToAdditiveIdentity();
 
 	// Normalizes all rotations in this pose
-	void NormalizeRotations();
+	ENGINE_API void NormalizeRotations();
 };
 
-struct ENGINE_API FCompactHeapPose : public FBaseCompactPose<FDefaultAllocator>
+struct FCompactHeapPose : public FBaseCompactPose<FDefaultAllocator>
 {
 	// Sets every bone transform to Identity
-	void ResetToAdditiveIdentity();
+	ENGINE_API void ResetToAdditiveIdentity();
 
 	// Normalizes all rotations in this pose
-	void NormalizeRotations();
+	ENGINE_API void NormalizeRotations();
 };
 
 struct FMeshPose : public FBasePose<FMeshPoseBoneIndex, FDefaultAllocator>

@@ -21,39 +21,39 @@ class URuntimeHashExternalStreamingObjectBase;
 class UContentBundleDuplicateForPIEHelper;
 #endif
 
-UCLASS()
-class ENGINE_API UContentBundleManager : public UObject
+UCLASS(MinimalAPI)
+class UContentBundleManager : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	UContentBundleManager();
+	ENGINE_API UContentBundleManager();
 
-	void Initialize();
-	void Deinitialize();
+	ENGINE_API void Initialize();
+	ENGINE_API void Deinitialize();
 
-	bool CanInject() const;
+	ENGINE_API bool CanInject() const;
 
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	static ENGINE_API void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 
 #if WITH_EDITOR
-	bool GetEditorContentBundle(TArray<TSharedPtr<FContentBundleEditor>>& OutContentBundles);
-	TSharedPtr<FContentBundleEditor> GetEditorContentBundle(const UContentBundleDescriptor* Descriptor, const UWorld* ContentBundleWorld) const;
-	TSharedPtr<FContentBundleEditor> GetEditorContentBundle(const FGuid& ContentBundleGuid) const;
+	ENGINE_API bool GetEditorContentBundle(TArray<TSharedPtr<FContentBundleEditor>>& OutContentBundles);
+	ENGINE_API TSharedPtr<FContentBundleEditor> GetEditorContentBundle(const UContentBundleDescriptor* Descriptor, const UWorld* ContentBundleWorld) const;
+	ENGINE_API TSharedPtr<FContentBundleEditor> GetEditorContentBundle(const FGuid& ContentBundleGuid) const;
 
 	UContentBundleDuplicateForPIEHelper* GetPIEDuplicateHelper() const { return PIEDuplicateHelper; }
 #endif
 
-	const FContentBundleBase* GetContentBundle(const UWorld* InWorld, const FGuid& Guid) const;
-	void DrawContentBundlesStatus(const UWorld* InWorld, UCanvas* Canvas, FVector2D& Offset) const;
+	ENGINE_API const FContentBundleBase* GetContentBundle(const UWorld* InWorld, const FGuid& Guid) const;
+	ENGINE_API void DrawContentBundlesStatus(const UWorld* InWorld, UCanvas* Canvas, FVector2D& Offset) const;
 
 private:
-	uint32 GetContentBundleContainerIndex(const UWorld* InjectedWorld) const;
-	const TUniquePtr<FContentBundleContainer>* GetContentBundleContainer(const UWorld* InjectedWorld) const;
-	TUniquePtr<FContentBundleContainer>* GetContentBundleContainer(const UWorld* InjectedWorld);
+	ENGINE_API uint32 GetContentBundleContainerIndex(const UWorld* InjectedWorld) const;
+	ENGINE_API const TUniquePtr<FContentBundleContainer>* GetContentBundleContainer(const UWorld* InjectedWorld) const;
+	ENGINE_API TUniquePtr<FContentBundleContainer>* GetContentBundleContainer(const UWorld* InjectedWorld);
 
-	void OnWorldPartitionInitialized(UWorldPartition* WorldPartition);
-	void OnWorldPartitionUninitialized(UWorldPartition* WorldPartition);
+	ENGINE_API void OnWorldPartitionInitialized(UWorldPartition* WorldPartition);
+	ENGINE_API void OnWorldPartitionUninitialized(UWorldPartition* WorldPartition);
 
 	TArray<TUniquePtr<FContentBundleContainer>> ContentBundleContainers;
 

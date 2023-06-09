@@ -9,12 +9,12 @@
 
 class UInputComponent;
 
-UCLASS()
-class ENGINE_API UInputVectorAxisDelegateBinding : public UInputAxisKeyDelegateBinding
+UCLASS(MinimalAPI)
+class UInputVectorAxisDelegateBinding : public UInputAxisKeyDelegateBinding
 {
 	GENERATED_UCLASS_BODY()
 
 	//~ Begin UInputDelegateBinding Interface
-	virtual void BindToInputComponent(UInputComponent* InputComponent, UObject* ObjectToBindTo) const override;
+	ENGINE_API virtual void BindToInputComponent(UInputComponent* InputComponent, UObject* ObjectToBindTo) const override;
 	//~ End UInputDelegateBinding Interface
 };

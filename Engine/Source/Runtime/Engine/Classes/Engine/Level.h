@@ -42,13 +42,13 @@ class UWorldPartitionRuntimeCell;
 struct FFolder;
 
 #if WITH_EDITOR
-struct ENGINE_API FLevelActorFoldersHelper
+struct FLevelActorFoldersHelper
 {
 private:
-	static void SetUseActorFolders(ULevel* InLevel, bool bInEnabled);
-	static void AddActorFolder(ULevel* InLevel, UActorFolder* InActorFolder, bool bInShouldDirtyLevel, bool bInShouldBroadcast = true);
-	static void RenameFolder(ULevel* InLevel, const FFolder& InOldFolder, const FFolder& InNewFolder);
-	static void DeleteFolder(ULevel* InLevel, const FFolder& InFolder);
+	static ENGINE_API void SetUseActorFolders(ULevel* InLevel, bool bInEnabled);
+	static ENGINE_API void AddActorFolder(ULevel* InLevel, UActorFolder* InActorFolder, bool bInShouldDirtyLevel, bool bInShouldBroadcast = true);
+	static ENGINE_API void RenameFolder(ULevel* InLevel, const FFolder& InOldFolder, const FFolder& InNewFolder);
+	static ENGINE_API void DeleteFolder(ULevel* InLevel, const FFolder& InFolder);
 
 	friend class UWorld;
 	friend class ULevel;
@@ -73,13 +73,13 @@ public:
 };
 
 USTRUCT()
-struct ENGINE_API FActorFolderSet
+struct FActorFolderSet
 {
 	GENERATED_BODY()
 
 public:
 
-	void Add(UActorFolder* InActorFolder);
+	ENGINE_API void Add(UActorFolder* InActorFolder);
 	int32 Remove(UActorFolder* InActorFolder) { return ActorFolders.Remove(InActorFolder); }
 	bool IsEmpty() const { return ActorFolders.IsEmpty(); }
 	const TSet<TObjectPtr<UActorFolder>>& GetActorFolders() const { return ActorFolders; }
@@ -95,7 +95,7 @@ private:
  * size of an object/ texture instance.
  */
 USTRUCT()
-struct ENGINE_API FStreamableTextureInstance
+struct FStreamableTextureInstance
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -124,7 +124,7 @@ struct ENGINE_API FStreamableTextureInstance
  * Serialized ULevel information about dynamic texture instances
  */
 USTRUCT()
-struct ENGINE_API FDynamicTextureInstance : public FStreamableTextureInstance
+struct FDynamicTextureInstance : public FStreamableTextureInstance
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -315,7 +315,7 @@ private:
 };
 
 USTRUCT()
-struct ENGINE_API FLevelSimplificationDetails
+struct FLevelSimplificationDetails
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -350,8 +350,8 @@ struct ENGINE_API FLevelSimplificationDetails
 	UPROPERTY(Category=Landscape, EditAnywhere)
 	bool bBakeGrassToLandscape;
 
-	FLevelSimplificationDetails();
-	bool operator == (const FLevelSimplificationDetails& Other) const;
+	ENGINE_API FLevelSimplificationDetails();
+	ENGINE_API bool operator == (const FLevelSimplificationDetails& Other) const;
 };
 
 /**
@@ -1049,7 +1049,7 @@ public:
 	 *
 	 * @return		The cell associated with the level.
 	 */
-	ENGINE_API bool IsWorldPartitionRuntimeCell() const { return !WorldPartitionRuntimeCell.GetUniqueID().IsNull(); }
+	bool IsWorldPartitionRuntimeCell() const { return !WorldPartitionRuntimeCell.GetUniqueID().IsNull(); }
 
 	/**
 	 * Returns the UWorldPartition for this level.
@@ -1179,7 +1179,7 @@ public:
 	ENGINE_API bool ShouldCreateNewExternalActors() const;
 
 	/** Returns the level's actor packaging scheme */
-	ENGINE_API EActorPackagingScheme GetActorPackagingScheme() const { return ActorPackagingScheme; }
+	EActorPackagingScheme GetActorPackagingScheme() const { return ActorPackagingScheme; }
 
 	/** 
 	 * Convert this level actors to the specified loading strategy
@@ -1268,7 +1268,7 @@ public:
 #endif
 
 	/** @todo document */
-	ENGINE_API TArray<FVector> const* GetStaticNavigableGeometry() const { return &StaticNavigableGeometry;}
+	TArray<FVector> const* GetStaticNavigableGeometry() const { return &StaticNavigableGeometry;}
 
 	/** 
 	* Is this the persistent level 

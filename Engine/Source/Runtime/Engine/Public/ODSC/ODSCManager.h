@@ -14,7 +14,7 @@ class FODSCThread;
  * Responsible for processing shader compile responses from the ODSC Thread.
  * Interface for submitting shader compile requests to the ODSC Thread.
  */
-class ENGINE_API FODSCManager
+class FODSCManager
 	: public FTSTickerObjectBase
 {
 public:
@@ -24,12 +24,12 @@ public:
 	/**
 	 * Constructor
 	 */
-	FODSCManager();
+	ENGINE_API FODSCManager();
 
 	/**
 	 * Destructor
 	 */
-	virtual ~FODSCManager();
+	ENGINE_API virtual ~FODSCManager();
 
 	// FTSTickerObjectBase
 
@@ -40,7 +40,7 @@ public:
 	 *
 	 * @return false if no longer needs ticking
 	 */
-	bool Tick(float DeltaSeconds) override;
+	ENGINE_API bool Tick(float DeltaSeconds) override;
 
 	/**
 	 * Add a request to compile a shader.  The results are submitted and processed in an async manner.
@@ -51,7 +51,7 @@ public:
 	 *
 	 * @return false if no longer needs ticking
 	 */
-	void AddThreadedRequest(const TArray<FString>& MaterialsToCompile, const FString& ShaderTypesToLoad, EShaderPlatform ShaderPlatform, ERHIFeatureLevel::Type FeatureLevel, EMaterialQualityLevel::Type QualityLevel, ODSCRecompileCommand RecompileCommandType);
+	ENGINE_API void AddThreadedRequest(const TArray<FString>& MaterialsToCompile, const FString& ShaderTypesToLoad, EShaderPlatform ShaderPlatform, ERHIFeatureLevel::Type FeatureLevel, EMaterialQualityLevel::Type QualityLevel, ODSCRecompileCommand RecompileCommandType);
 
 	/**
 	 * Add a request to compile a pipeline of shaders.  The results are submitted and processed in an async manner.
@@ -67,7 +67,7 @@ public:
 	 *
 	 * @return false if no longer needs ticking
 	 */
-	void AddThreadedShaderPipelineRequest(
+	ENGINE_API void AddThreadedShaderPipelineRequest(
 		EShaderPlatform ShaderPlatform,
 		ERHIFeatureLevel::Type FeatureLevel,
 		EMaterialQualityLevel::Type QualityLevel,
@@ -83,8 +83,8 @@ public:
 
 private:
 
-	void OnEnginePreExit();
-	void StopThread();
+	ENGINE_API void OnEnginePreExit();
+	ENGINE_API void StopThread();
 
 	/** Handles communicating directly with the cook on the fly server. */
 	FODSCThread* Thread = nullptr;

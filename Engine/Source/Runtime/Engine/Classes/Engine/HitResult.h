@@ -16,7 +16,7 @@ class UPrimitiveComponent;
  * Structure containing information about one hit of a trace, such as point of impact and surface normal at that point.
  */
 USTRUCT(BlueprintType, meta = (HasNativeBreak = "/Script/Engine.GameplayStatics.BreakHitResult", HasNativeMake = "/Script/Engine.GameplayStatics.MakeHitResult"))
-struct ENGINE_API FHitResult
+struct FHitResult
 {
 	GENERATED_BODY()
 
@@ -184,7 +184,7 @@ struct ENGINE_API FHitResult
 	}
 
 	/** Ctor for easily creating "fake" hits from limited data. */
-	FHitResult(AActor* InActor, UPrimitiveComponent* InComponent, FVector const& HitLoc, FVector const& HitNorm);
+	ENGINE_API FHitResult(AActor* InActor, UPrimitiveComponent* InComponent, FVector const& HitLoc, FVector const& HitNorm);
  
 	/** Reset hit result while optionally saving TraceStart and TraceEnd. */
 	FORCEINLINE void Reset(float InTime = 1.f, bool bPreserveTraceData = true)
@@ -223,7 +223,7 @@ struct ENGINE_API FHitResult
 	}
 
 	/** Optimized serialize function */
-	bool NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSuccess);
+	ENGINE_API bool NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSuccess);
 
 	/** Return true if there was a blocking hit that was not caused by starting in penetration. */
 	FORCEINLINE bool IsValidBlockingHit() const
@@ -284,7 +284,7 @@ struct ENGINE_API FHitResult
 		return Result;
 	}
 
-	FString ToString() const;
+	ENGINE_API FString ToString() const;
 };
 
 // All members of FHitResult are PODs.

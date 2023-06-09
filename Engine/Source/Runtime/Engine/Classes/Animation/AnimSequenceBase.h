@@ -32,8 +32,8 @@ class UAnimDataModel;
 class IAnimationDataModel;
 enum class EAnimDataModelNotifyType : uint8;
 
-UCLASS(abstract, BlueprintType)
-class ENGINE_API UAnimSequenceBase : public UAnimationAsset
+UCLASS(abstract, BlueprintType, MinimalAPI)
+class UAnimSequenceBase : public UAnimationAsset
 {
 	GENERATED_UCLASS_BODY()
 
@@ -73,30 +73,30 @@ public:
 #endif // WITH_EDITORONLY_DATA
 
 	//~ Begin UObject Interface
-	virtual void PostLoad() override;
-	virtual bool IsPostLoadThreadSafe() const override;
-	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
+	ENGINE_API virtual void PostLoad() override;
+	ENGINE_API virtual bool IsPostLoadThreadSafe() const override;
+	ENGINE_API virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
 #if WITH_EDITORONLY_DATA
-	static void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
+	static ENGINE_API void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
 #endif
-	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
+	ENGINE_API virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
 	//~ End UObject Interface
 
 	/** Returns the total play length of the montage, if played back with a speed of 1.0. */
-	virtual float GetPlayLength() const override;
+	ENGINE_API virtual float GetPlayLength() const override;
 
 	/** Sort the Notifies array by time, earliest first. */
-	void SortNotifies();	
+	ENGINE_API void SortNotifies();	
 
 	/** Remove the notifies specified */
-	bool RemoveNotifies(const TArray<FName>& NotifiesToRemove);
+	ENGINE_API bool RemoveNotifies(const TArray<FName>& NotifiesToRemove);
 	
 	/** Remove all notifies */
-	void RemoveNotifies();
+	ENGINE_API void RemoveNotifies();
 
 #if WITH_EDITOR
 	/** Renames all named notifies with InOldName to InNewName */
-	void RenameNotifies(FName InOldName, FName InNewName);
+	ENGINE_API void RenameNotifies(FName InOldName, FName InNewName);
 #endif
 	
 	/** 
@@ -106,10 +106,10 @@ public:
 	 * Returns notifies between StartTime (exclusive) and StartTime+DeltaTime (inclusive)
 	 */
 	UE_DEPRECATED(4.19, "Use the GetAnimNotifies that takes FAnimNotifyEventReferences instead")
-	void GetAnimNotifies(const float& StartTime, const float& DeltaTime, const bool bAllowLooping, TArray<const FAnimNotifyEvent *>& OutActiveNotifies) const;
+	ENGINE_API void GetAnimNotifies(const float& StartTime, const float& DeltaTime, const bool bAllowLooping, TArray<const FAnimNotifyEvent *>& OutActiveNotifies) const;
 
 	UE_DEPRECATED(5.0, "Use the other GetAnimNotifies that takes FAnimNotifyContext instead")
-	void GetAnimNotifies(const float& StartTime, const float& DeltaTime, const bool bAllowLooping, TArray<FAnimNotifyEventReference>& OutActiveNotifies) const;
+	ENGINE_API void GetAnimNotifies(const float& StartTime, const float& DeltaTime, const bool bAllowLooping, TArray<FAnimNotifyEventReference>& OutActiveNotifies) const;
 
 	/**
 	* Retrieves AnimNotifies given a StartTime and a DeltaTime.
@@ -117,7 +117,7 @@ public:
 	* Supports playing backwards (DeltaTime<0).
 	* Returns notifies between StartTime (exclusive) and StartTime+DeltaTime (inclusive)
 	*/
-	void GetAnimNotifies(const float& StartTime, const float& DeltaTime, FAnimNotifyContext& NotifyContext) const;
+	ENGINE_API void GetAnimNotifies(const float& StartTime, const float& DeltaTime, FAnimNotifyContext& NotifyContext) const;
 
 	/** 
 	 * Retrieves AnimNotifies between two time positions. ]PreviousPosition, CurrentPosition]
@@ -126,80 +126,80 @@ public:
 	 * Only supports contiguous range, does NOT support looping and wrapping over.
 	 */
 	UE_DEPRECATED(4.19, "Use the GetAnimNotifiesFromDeltaPositions that takes FAnimNotifyEventReferences instead")
-	void GetAnimNotifiesFromDeltaPositions(const float& PreviousPosition, const float & CurrentPosition, TArray<const FAnimNotifyEvent *>& OutActiveNotifies) const;
+	ENGINE_API void GetAnimNotifiesFromDeltaPositions(const float& PreviousPosition, const float & CurrentPosition, TArray<const FAnimNotifyEvent *>& OutActiveNotifies) const;
 
 	UE_DEPRECATED(5.0, "Use the other GetAnimNotifiesFromDeltaPositions that takes FAnimNotifyContext instead")
-	virtual void GetAnimNotifiesFromDeltaPositions(const float& PreviousPosition, const float & CurrentPosition, TArray<FAnimNotifyEventReference>& OutActiveNotifies) const;
+	ENGINE_API virtual void GetAnimNotifiesFromDeltaPositions(const float& PreviousPosition, const float & CurrentPosition, TArray<FAnimNotifyEventReference>& OutActiveNotifies) const;
 	/**
 	* Retrieves AnimNotifies between two time positions. ]PreviousPosition, CurrentPosition]
 	* Between PreviousPosition (exclusive) and CurrentPosition (inclusive).
 	* Supports playing backwards (CurrentPosition<PreviousPosition).
 	* Only supports contiguous range, does NOT support looping and wrapping over.
 	*/
-	virtual void GetAnimNotifiesFromDeltaPositions(const float& PreviousPosition, const float & CurrentPosition, FAnimNotifyContext& NotifyContext) const;
+	ENGINE_API virtual void GetAnimNotifiesFromDeltaPositions(const float& PreviousPosition, const float & CurrentPosition, FAnimNotifyContext& NotifyContext) const;
 
 	/** Evaluate curve data to Instance at the time of CurrentTime **/
-	virtual void EvaluateCurveData(FBlendedCurve& OutCurve, float CurrentTime, bool bForceUseRawData = false) const;
+	ENGINE_API virtual void EvaluateCurveData(FBlendedCurve& OutCurve, float CurrentTime, bool bForceUseRawData = false) const;
 
 	UE_DEPRECATED(5.3, "Please use EvaluateCurveData that takes a FName.")
 	virtual float EvaluateCurveData(SmartName::UID_Type CurveUID, float CurrentTime, bool bForceUseRawData = false) const { return 0.0f; }
 	
-	virtual float EvaluateCurveData(FName CurveName, float CurrentTime, bool bForceUseRawData = false) const;
+	ENGINE_API virtual float EvaluateCurveData(FName CurveName, float CurrentTime, bool bForceUseRawData = false) const;
 	
-	virtual const FRawCurveTracks& GetCurveData() const;
+	ENGINE_API virtual const FRawCurveTracks& GetCurveData() const;
 	
 	UE_DEPRECATED(5.3, "Please use HasCurveData that takes a FName.")
 	virtual bool HasCurveData(SmartName::UID_Type CurveUID, bool bForceUseRawData = false) const { return false; }
 	
-	virtual bool HasCurveData(FName CurveName, bool bForceUseRawData = false) const;
+	ENGINE_API virtual bool HasCurveData(FName CurveName, bool bForceUseRawData = false) const;
 
 	/** Return Number of Keys **/
 	UE_DEPRECATED(4.19, "Use GetNumberOfSampledKeys instead")
-	virtual int32 GetNumberOfFrames() const;
+	ENGINE_API virtual int32 GetNumberOfFrames() const;
 
 	/** Return the total number of keys sampled for this animation, including the T0 key **/
-	virtual int32 GetNumberOfSampledKeys() const;
+	ENGINE_API virtual int32 GetNumberOfSampledKeys() const;
 
 	/** Return rate at which the animation is sampled **/
-	virtual FFrameRate GetSamplingFrameRate() const;
+	ENGINE_API virtual FFrameRate GetSamplingFrameRate() const;
 
 #if WITH_EDITOR
 	/** Get the frame number for the provided time */
-	virtual int32 GetFrameAtTime(const float Time) const;
+	ENGINE_API virtual int32 GetFrameAtTime(const float Time) const;
 
 	/** Get the time at the given frame */
-	virtual float GetTimeAtFrame(const int32 Frame) const;
+	ENGINE_API virtual float GetTimeAtFrame(const int32 Frame) const;
 	
 	// @todo document
-	void InitializeNotifyTrack();
+	ENGINE_API void InitializeNotifyTrack();
 
 	/** Fix up any notifies that are positioned beyond the end of the sequence */
-	void ClampNotifiesAtEndOfSequence();
+	ENGINE_API void ClampNotifiesAtEndOfSequence();
 
 	/** Calculates what (if any) offset should be applied to the trigger time of a notify given its display time */ 
-	virtual EAnimEventTriggerOffsets::Type CalculateOffsetForNotify(float NotifyDisplayTime) const;
+	ENGINE_API virtual EAnimEventTriggerOffsets::Type CalculateOffsetForNotify(float NotifyDisplayTime) const;
 
-	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
+	ENGINE_API virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 	
 	// Get a pointer to the data for a given Anim Notify
-	uint8* FindNotifyPropertyData(int32 NotifyIndex, FArrayProperty*& ArrayProperty);
+	ENGINE_API uint8* FindNotifyPropertyData(int32 NotifyIndex, FArrayProperty*& ArrayProperty);
 
 	// Get a pointer to the data for a given array property item
-	uint8* FindArrayProperty(const TCHAR* PropName, FArrayProperty*& ArrayProperty, int32 ArrayIndex);
+	ENGINE_API uint8* FindArrayProperty(const TCHAR* PropName, FArrayProperty*& ArrayProperty, int32 ArrayIndex);
 
 protected:
-	virtual void RefreshParentAssetData() override;
+	ENGINE_API virtual void RefreshParentAssetData() override;
 #endif	//WITH_EDITORONLY_DATA
 public: 
 	// update cache data (notify tracks, sync markers)
-	virtual void RefreshCacheData();
+	ENGINE_API virtual void RefreshCacheData();
 
 	//~ Begin UAnimationAsset Interface
-	virtual void TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNotifyQueue& NotifyQueue, FAnimAssetTickContext& Context) const override;
+	ENGINE_API virtual void TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNotifyQueue& NotifyQueue, FAnimAssetTickContext& Context) const override;
 	//~ End UAnimationAsset Interface
 	
-	void TickByMarkerAsFollower(FMarkerTickRecord &Instance, FMarkerTickContext &MarkerContext, float& CurrentTime, float& OutPreviousTime, const float MoveDelta, const bool bLooping, const UMirrorDataTable* MirrorTable = nullptr) const;
-	void TickByMarkerAsLeader(FMarkerTickRecord& Instance, FMarkerTickContext& MarkerContext, float& CurrentTime, float& OutPreviousTime, const float MoveDelta, const bool bLooping, const UMirrorDataTable* MirrorTable = nullptr) const;
+	ENGINE_API void TickByMarkerAsFollower(FMarkerTickRecord &Instance, FMarkerTickContext &MarkerContext, float& CurrentTime, float& OutPreviousTime, const float MoveDelta, const bool bLooping, const UMirrorDataTable* MirrorTable = nullptr) const;
+	ENGINE_API void TickByMarkerAsLeader(FMarkerTickRecord& Instance, FMarkerTickContext& MarkerContext, float& CurrentTime, float& OutPreviousTime, const float MoveDelta, const bool bLooping, const UMirrorDataTable* MirrorTable = nullptr) const;
 
 	/**
 	* Get Bone Transform of the Time given, relative to Parent for all RequiredBones
@@ -210,12 +210,12 @@ public:
 	* @param	ExtractionContext	Extraction Context (position, looping, root motion, etc.)
 	*/
 	UE_DEPRECATED(4.26, "Use other GetAnimationPose signature")
-	virtual void GetAnimationPose(struct FCompactPose& OutPose, FBlendedCurve& OutCurve, const FAnimExtractContext& ExtractionContext) const;
+	ENGINE_API virtual void GetAnimationPose(struct FCompactPose& OutPose, FBlendedCurve& OutCurve, const FAnimExtractContext& ExtractionContext) const;
 	
-	virtual void GetAnimationPose(FAnimationPoseData& OutPoseData, const FAnimExtractContext& ExtractionContext) const
+	ENGINE_API virtual void GetAnimationPose(FAnimationPoseData& OutPoseData, const FAnimExtractContext& ExtractionContext) const
 		PURE_VIRTUAL(UAnimSequenceBase::GetAnimationPose, );
 	
-	virtual void HandleAssetPlayerTickedInternal(FAnimAssetTickContext &Context, const float PreviousTime, const float MoveDelta, const FAnimTickRecord &Instance, struct FAnimNotifyQueue& NotifyQueue) const;
+	ENGINE_API virtual void HandleAssetPlayerTickedInternal(FAnimAssetTickContext &Context, const float PreviousTime, const float MoveDelta, const FAnimTickRecord &Instance, struct FAnimNotifyQueue& NotifyQueue) const;
 
 	virtual bool HasRootMotion() const { return false; }
 
@@ -228,7 +228,7 @@ public:
 	// Extract the transform from the root track for the given animation position
 	virtual FTransform ExtractRootTrackTransform(float Time, const FBoneContainer* RequiredBones) const { return {}; }
 
-	virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
 
 	UE_DEPRECATED(5.0, "Use other AdvanceMarkerPhaseAsLeader signature")
 	virtual void AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, const TArray<FName>& ValidMarkerNames, float& CurrentTime, FMarkerPair& PrevMarker, FMarkerPair& NextMarker, TArray<FPassedMarker>& MarkersPassed) const {AdvanceMarkerPhaseAsLeader(bLooping, MoveDelta, ValidMarkerNames, CurrentTime, PrevMarker, NextMarker, MarkersPassed, nullptr); }
@@ -268,50 +268,50 @@ public:
 	typedef FOnNotifyChangedMulticaster::FDelegate FOnNotifyChanged;
 
 	/** Registers a delegate to be called after notification has changed*/
-	void RegisterOnNotifyChanged(const FOnNotifyChanged& Delegate);
-	void UnregisterOnNotifyChanged(void* Unregister);
+	ENGINE_API void RegisterOnNotifyChanged(const FOnNotifyChanged& Delegate);
+	ENGINE_API void UnregisterOnNotifyChanged(void* Unregister);
 	virtual bool IsValidToPlay() const { return true; }
 	// ideally this would be animsequcnebase, but we might have some issue with that. For now, just allow AnimSequence
 	virtual class UAnimSequence* GetAdditiveBasePose() const { return nullptr; }
 #endif
 
 	// return true if anim notify is available 
-	virtual bool IsNotifyAvailable() const;
+	ENGINE_API virtual bool IsNotifyAvailable() const;
 
 #if WITH_EDITOR
-	void OnEndLoadPackage(const FEndLoadPackageContext& Context);
-	virtual void OnAnimModelLoaded();
+	ENGINE_API void OnEndLoadPackage(const FEndLoadPackageContext& Context);
+	ENGINE_API virtual void OnAnimModelLoaded();
 public:
 	/** Returns the IAnimationDataModel object embedded in this UAnimSequenceBase */
-	IAnimationDataModel* GetDataModel() const;
+	ENGINE_API IAnimationDataModel* GetDataModel() const;
 
 	/** Returns the IAnimationDataModel as a script-interface, provides access to UObject and Interface */
-	TScriptInterface<IAnimationDataModel> GetDataModelInterface() const;
+	ENGINE_API TScriptInterface<IAnimationDataModel> GetDataModelInterface() const;
 
 	/** Returns the transient UAnimDataController set to operate on DataModel */
-	IAnimationDataController& GetController();
+	ENGINE_API IAnimationDataController& GetController();
 protected:
 	/** Populates the UAnimDataModel object according to any pre-existing data. (overrides expect to populate the model according to their data) */
-	virtual void PopulateModel();
-	virtual void PopulateWithExistingModel(TScriptInterface<IAnimationDataModel> ExistingDataModel);
+	ENGINE_API virtual void PopulateModel();
+	ENGINE_API virtual void PopulateWithExistingModel(TScriptInterface<IAnimationDataModel> ExistingDataModel);
 
 	/** Callback registered to UAnimDatModel::GetModifiedEvent for the embedded object */
-	virtual void OnModelModified(const EAnimDataModelNotifyType& NotifyType, IAnimationDataModel* Model, const FAnimDataModelNotifPayload& Payload);
+	ENGINE_API virtual void OnModelModified(const EAnimDataModelNotifyType& NotifyType, IAnimationDataModel* Model, const FAnimDataModelNotifPayload& Payload);
 
 	/** Validates that DataModel contains a valid UAnimDataModel object */
-	void ValidateModel() const;
+	ENGINE_API void ValidateModel() const;
 	
 	/** Binds to DataModel its modification delegate */
-	void BindToModelModificationEvent();
+	ENGINE_API void BindToModelModificationEvent();
 
 	/** Replaces the current DataModel, if any, with the provided one */
-	void CopyDataModel(const TScriptInterface<IAnimationDataModel>& ModelToDuplicate);
+	ENGINE_API void CopyDataModel(const TScriptInterface<IAnimationDataModel>& ModelToDuplicate);
 private:
 	/** Creates a new UAnimDataModel instance and sets DataModel accordingly */
-	void CreateModel();
+	ENGINE_API void CreateModel();
 
 public:
-	bool ShouldDataModelBeValid() const;
+	ENGINE_API bool ShouldDataModelBeValid() const;
 	bool IsDataModelValid() const
 	{
 		if(ShouldDataModelBeValid())

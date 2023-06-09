@@ -11,9 +11,9 @@ struct FTypedElementHandle;
 /**
  * Element data that represents a specific instance within an ISM.
  */
-struct ENGINE_API FSMInstanceElementData
+struct FSMInstanceElementData
 {
-	UE_DECLARE_TYPED_ELEMENT_DATA_RTTI(FSMInstanceElementData);
+	ENGINE_API UE_DECLARE_TYPED_ELEMENT_DATA_RTTI(FSMInstanceElementData);
 
 	FSMInstanceElementId InstanceElementId;
 };

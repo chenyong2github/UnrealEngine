@@ -94,7 +94,7 @@ private:
 
 /** This structure represents a context dependent action, with sufficient information for the schema to perform it. */
 USTRUCT()
-struct ENGINE_API FEdGraphSchemaAction
+struct FEdGraphSchemaAction
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -195,9 +195,9 @@ public:
 
 	// Updates the category of the *action* and refreshes the search text; does not change the persistent backing item
 	// (e.g., it will not actually move a user added variable or function to a new category)
-	void CosmeticUpdateCategory(FText NewCategory);
+	ENGINE_API void CosmeticUpdateCategory(FText NewCategory);
 
-	void UpdateSearchData(FText NewMenuDescription, FText NewToolTipDescription, FText NewCategory, FText NewKeywords);
+	ENGINE_API void UpdateSearchData(FText NewMenuDescription, FText NewToolTipDescription, FText NewCategory, FText NewKeywords);
 
 	int32 GetSectionID() const
 	{
@@ -318,12 +318,12 @@ public:
 	virtual FText GetPaletteToolTip() const { return FText(); }
 
 private:
-	void UpdateSearchText();
+	ENGINE_API void UpdateSearchText();
 };
 
 /** Action to add a node to the graph */
 USTRUCT()
-struct ENGINE_API FEdGraphSchemaAction_NewNode : public FEdGraphSchemaAction
+struct FEdGraphSchemaAction_NewNode : public FEdGraphSchemaAction
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -347,9 +347,9 @@ struct ENGINE_API FEdGraphSchemaAction_NewNode : public FEdGraphSchemaAction
 	{}
 
 	// FEdGraphSchemaAction interface
-	virtual UEdGraphNode* PerformAction(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
-	virtual UEdGraphNode* PerformAction(class UEdGraph* ParentGraph, TArray<UEdGraphPin*>& FromPins, const FVector2D Location, bool bSelectNewNode = true) override;
-	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	ENGINE_API virtual UEdGraphNode* PerformAction(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
+	ENGINE_API virtual UEdGraphNode* PerformAction(class UEdGraph* ParentGraph, TArray<UEdGraphPin*>& FromPins, const FVector2D Location, bool bSelectNewNode = true) override;
+	ENGINE_API virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	// End of FEdGraphSchemaAction interface
 
 	template <typename NodeType>
@@ -361,7 +361,7 @@ struct ENGINE_API FEdGraphSchemaAction_NewNode : public FEdGraphSchemaAction
 		return Cast<NodeType>(Action.PerformAction(ParentGraph, nullptr, Location, bSelectNewNode));
 	}
 
-	static UEdGraphNode* CreateNode(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, class UEdGraphNode* InNodeTemplate);
+	static ENGINE_API UEdGraphNode* CreateNode(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, class UEdGraphNode* InNodeTemplate);
 };
 
 /** Dummy action, useful for putting messages in the menu */
@@ -489,25 +489,25 @@ public:
 		/**
 		 * Returns a the string that should be used when searching for matching actions. Looks only at the first action.
 		 */
-		ENGINE_API const FString& GetSearchTextForFirstAction() const { return Actions[0]->GetFullSearchText(); }
+		const FString& GetSearchTextForFirstAction() const { return Actions[0]->GetFullSearchText(); }
 
 		/** Returns the SearchKeywordsArray */
-		ENGINE_API const TArray<FString>& GetSearchKeywordsArrayForFirstAction() const { return Actions[0]->GetSearchKeywordsArray(); }
+		const TArray<FString>& GetSearchKeywordsArrayForFirstAction() const { return Actions[0]->GetSearchKeywordsArray(); }
 		/** Returns the MenuDescriptionArray */
-		ENGINE_API const TArray<FString>& GetMenuDescriptionArrayForFirstAction() const { return Actions[0]->GetMenuDescriptionArray(); }
+		const TArray<FString>& GetMenuDescriptionArrayForFirstAction() const { return Actions[0]->GetMenuDescriptionArray(); }
 		/** Returns the SearchTitleArray */
-		ENGINE_API const TArray<FString>& GetSearchTitleArrayForFirstAction() const { return Actions[0]->GetSearchTitleArray(); }
+		const TArray<FString>& GetSearchTitleArrayForFirstAction() const { return Actions[0]->GetSearchTitleArray(); }
 		/** Returns the SearchCategoryArray */
-		ENGINE_API const TArray<FString>& GetSearchCategoryArrayForFirstAction() const { return Actions[0]->GetSearchCategoryArray(); }
+		const TArray<FString>& GetSearchCategoryArrayForFirstAction() const { return Actions[0]->GetSearchCategoryArray(); }
 
 		/** Returns the localized SearchKeywordsArray */
-		ENGINE_API const TArray<FString>& GetLocalizedSearchKeywordsArrayForFirstAction() const { return Actions[0]->GetLocalizedSearchKeywordsArray(); }
+		const TArray<FString>& GetLocalizedSearchKeywordsArrayForFirstAction() const { return Actions[0]->GetLocalizedSearchKeywordsArray(); }
 		/** Returns the localized MenuDescriptionArray */
-		ENGINE_API const TArray<FString>& GetLocalizedMenuDescriptionArrayForFirstAction() const { return Actions[0]->GetLocalizedMenuDescriptionArray(); }
+		const TArray<FString>& GetLocalizedMenuDescriptionArrayForFirstAction() const { return Actions[0]->GetLocalizedMenuDescriptionArray(); }
 		/** Returns the localized SearchTitleArray */
-		ENGINE_API const TArray<FString>& GetLocalizedSearchTitleArrayForFirstAction() const { return Actions[0]->GetLocalizedSearchTitleArray(); }
+		const TArray<FString>& GetLocalizedSearchTitleArrayForFirstAction() const { return Actions[0]->GetLocalizedSearchTitleArray(); }
 		/** Returns the localized SearchCategoryArray */
-		ENGINE_API const TArray<FString>& GetLocalizedSearchCategoryArrayForFirstAction() const { return Actions[0]->GetLocalizedSearchCategoryArray(); }
+		const TArray<FString>& GetLocalizedSearchCategoryArrayForFirstAction() const { return Actions[0]->GetLocalizedSearchCategoryArray(); }
 
 		/** All of the actions this entry contains */
 		TArray< TSharedPtr<FEdGraphSchemaAction> > Actions;
@@ -599,7 +599,7 @@ struct FGraphActionMenuBuilder : public FGraphActionListBuilderBase
 public:
 	const UEdGraphPin* FromPin;
 public:
-	ENGINE_API FGraphActionMenuBuilder() : FromPin(nullptr) {}
+	FGraphActionMenuBuilder() : FromPin(nullptr) {}
 };
 
 // This context is used when building a list of actions that can be done in the current context
@@ -683,8 +683,8 @@ struct FGraphSchemaSearchTextDebugInfo
 };
 #endif // WITH_EDITORONLY_DATA
 
-UCLASS(abstract)
-class ENGINE_API UEdGraphSchema : public UObject
+UCLASS(abstract, MinimalAPI)
+class UEdGraphSchema : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -694,16 +694,16 @@ class ENGINE_API UEdGraphSchema : public UObject
 	 *
 	 * @param [in,out]	ContextMenuBuilder	The context (graph, dragged pin, etc...) and output menu builder.
 	 */
-	 virtual void GetGraphContextActions(FGraphContextMenuBuilder& ContextMenuBuilder) const;
+	 ENGINE_API virtual void GetGraphContextActions(FGraphContextMenuBuilder& ContextMenuBuilder) const;
 
 	/** Returns context menu name */
-	FName GetContextMenuName() const;
+	ENGINE_API FName GetContextMenuName() const;
 
 	/** Returns parent context menu name */
-	virtual FName GetParentContextMenuName() const;
+	ENGINE_API virtual FName GetParentContextMenuName() const;
 
 	/** Returns context menu name for a given class */
-	static FName GetContextMenuName(UClass* InClass);
+	static ENGINE_API FName GetContextMenuName(UClass* InClass);
 
 	/**
 	 * Gets actions that should be added to the right-click context menu for a node or pin
@@ -711,7 +711,7 @@ class ENGINE_API UEdGraphSchema : public UObject
 	 * @param	Menu				The menu to append actions to.
 	 * @param	Context				The menu's context.
 	 */
-	virtual void GetContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const;
+	ENGINE_API virtual void GetContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const;
 	
 	/**
 	 * Determine if a connection can be created between two pins.
@@ -774,10 +774,10 @@ class ENGINE_API UEdGraphSchema : public UObject
 	 *
 	 * @return	True if a connection was made/broken (graph was modified); false if the connection failed and had no side effects.
 	 */
-	virtual bool TryCreateConnection(UEdGraphPin* A, UEdGraphPin* B) const;
+	ENGINE_API virtual bool TryCreateConnection(UEdGraphPin* A, UEdGraphPin* B) const;
 
 	/** Is this schema supporting connection relinking for the given pin? */
-	virtual bool IsConnectionRelinkingAllowed(UEdGraphPin* InPin) const;
+	ENGINE_API virtual bool IsConnectionRelinkingAllowed(UEdGraphPin* InPin) const;
 
 	/**
 	 * Determine if a connection can be relinked to the given pin.
@@ -785,10 +785,10 @@ class ENGINE_API UEdGraphSchema : public UObject
 	 * @param[in] TargetPinCandidate The target pin of the relink.
 	 * @return A message describing if the operation can succeed or why the relink operation would fail.
 	 */
-	virtual const FPinConnectionResponse CanRelinkConnectionToPin(const UEdGraphPin* OldSourcePin, const UEdGraphPin* TargetPinCandidate) const;
+	ENGINE_API virtual const FPinConnectionResponse CanRelinkConnectionToPin(const UEdGraphPin* OldSourcePin, const UEdGraphPin* TargetPinCandidate) const;
 
 	/** Try relinking the connection starting at the old source and target pins and relink it to the new target pin. */
-	virtual bool TryRelinkConnectionTarget(UEdGraphPin* SourcePin, UEdGraphPin* OldTargetPin, UEdGraphPin* NewTargetPin, const TArray<UEdGraphNode*>& InSelectedGraphNodes) const;
+	ENGINE_API virtual bool TryRelinkConnectionTarget(UEdGraphPin* SourcePin, UEdGraphPin* OldTargetPin, UEdGraphPin* NewTargetPin, const TArray<UEdGraphNode*>& InSelectedGraphNodes) const;
 
 	/**
 	 * Try to create an automatic cast or other conversion node node to facilitate a connection between two pins.
@@ -801,7 +801,7 @@ class ENGINE_API UEdGraphSchema : public UObject
 	 *
 	 * @return	True if a cast node and connection were made; false if the connection failed and had no side effects.
 	 */
-	virtual bool CreateAutomaticConversionNodeAndConnections(UEdGraphPin* A, UEdGraphPin* B) const;
+	ENGINE_API virtual bool CreateAutomaticConversionNodeAndConnections(UEdGraphPin* A, UEdGraphPin* B) const;
 
 	/**
 	* Try to create a promotion from one type to another in order to make a connection between two pins.
@@ -811,7 +811,7 @@ class ENGINE_API UEdGraphSchema : public UObject
 	*
 	* @return	True if the promotion and connection were successful; False if the connection failed.
 	*/
-	virtual bool CreatePromotedConnection(UEdGraphPin* A, UEdGraphPin* B) const;
+	ENGINE_API virtual bool CreatePromotedConnection(UEdGraphPin* A, UEdGraphPin* B) const;
 
 	/**
 	 * Determine if the supplied pin default values would be valid.
@@ -826,7 +826,7 @@ class ENGINE_API UEdGraphSchema : public UObject
 	 *	Determine whether the current pin default values are valid
 	 *	@see IsPinDefaultValid
 	 */
-	FString IsCurrentPinDefaultValid(const UEdGraphPin* Pin) const;
+	ENGINE_API FString IsCurrentPinDefaultValid(const UEdGraphPin* Pin) const;
 
 	/**
 	 * An easy way to check to see if the current graph system supports pin watching.
@@ -866,19 +866,19 @@ class ENGINE_API UEdGraphSchema : public UObject
 	 * @param	NewDefaultValue	The new default value.
 	 * @param   bMarkAsModified Marks the container of the value as modified
 	 */
-	virtual void TrySetDefaultValue(UEdGraphPin& Pin, const FString& NewDefaultValue, bool bMarkAsModified = true) const;
+	ENGINE_API virtual void TrySetDefaultValue(UEdGraphPin& Pin, const FString& NewDefaultValue, bool bMarkAsModified = true) const;
 
 	/** Sets the object to the specified pin */
-	virtual void TrySetDefaultObject(UEdGraphPin& Pin, UObject* NewDefaultObject, bool bMarkAsModified = true) const;
+	ENGINE_API virtual void TrySetDefaultObject(UEdGraphPin& Pin, UObject* NewDefaultObject, bool bMarkAsModified = true) const;
 
 	/** Sets the text to the specified pin */
-	virtual void TrySetDefaultText(UEdGraphPin& InPin, const FText& InNewDefaultText, bool bMarkAsModified = true) const;
+	ENGINE_API virtual void TrySetDefaultText(UEdGraphPin& InPin, const FText& InNewDefaultText, bool bMarkAsModified = true) const;
 
 	/** Returns if the pin's value matches the given value */
-	virtual bool DoesDefaultValueMatch(const UEdGraphPin& InPin, const FString& InValue) const;
+	ENGINE_API virtual bool DoesDefaultValueMatch(const UEdGraphPin& InPin, const FString& InValue) const;
 
 	/** Returns if the pin's value matches what the true (autogenerated) default value for that pin would be */
-	virtual bool DoesDefaultValueMatchAutogenerated(const UEdGraphPin& InPin) const;
+	ENGINE_API virtual bool DoesDefaultValueMatchAutogenerated(const UEdGraphPin& InPin) const;
 
 	/** Resets a pin back to it's autogenerated default value, optionally calling the default value change callbacks */
 	virtual void ResetPinToAutogeneratedDefaultValue(UEdGraphPin* Pin, bool bCallModifyCallbacks = true) const { }
@@ -908,7 +908,7 @@ class ENGINE_API UEdGraphSchema : public UObject
 
 #if WITH_EDITORONLY_DATA
 	/** Get the name to show in the editor */
-	virtual FText GetPinDisplayName(const UEdGraphPin* Pin) const;
+	ENGINE_API virtual FText GetPinDisplayName(const UEdGraphPin* Pin) const;
 
 	/**
 	 * Calculate the weight priority of a given action for the context menu. 
@@ -918,10 +918,10 @@ class ENGINE_API UEdGraphSchema : public UObject
 	 * @param InSanitizedFilterTerms		Sanitized search filters in all caps with no symbols or spaces
 	 * @param DraggedFromPins				Any pins that this action was dragged off of
 	 */
-	virtual float GetActionFilteredWeight(const FGraphActionListBuilderBase::ActionGroup& InCurrentAction, const TArray<FString>& InFilterTerms, const TArray<FString>& InSanitizedFilterTerms, const TArray<UEdGraphPin*>& DraggedFromPins) const;
+	ENGINE_API virtual float GetActionFilteredWeight(const FGraphActionListBuilderBase::ActionGroup& InCurrentAction, const TArray<FString>& InFilterTerms, const TArray<FString>& InSanitizedFilterTerms, const TArray<UEdGraphPin*>& DraggedFromPins) const;
 
 	/** Get the weight modifiers from the console variable settings */
-	virtual FGraphSchemaSearchWeightModifiers GetSearchWeightModifiers() const;
+	ENGINE_API virtual FGraphSchemaSearchWeightModifiers GetSearchWeightModifiers() const;
 #endif // WITH_EDITORONLY_DATA
 
 	/**
@@ -933,7 +933,7 @@ class ENGINE_API UEdGraphSchema : public UObject
 	 * @param   PinDescription	A detailed description, describing the pin's purpose
 	 * @param   TooltipOut		The constructed tool-tip (out)
 	 */
-	virtual void ConstructBasicPinTooltip(UEdGraphPin const& Pin, FText const& PinDescription, FString& TooltipOut) const;
+	ENGINE_API virtual void ConstructBasicPinTooltip(UEdGraphPin const& Pin, FText const& PinDescription, FString& TooltipOut) const;
 
 	/** @return     The type of graph (function vs. ubergraph) that this that TestEdGraph is. */
 	//@TODO: This is too K2-specific to be included in EdGraphSchema and should be refactored
@@ -953,10 +953,10 @@ class ENGINE_API UEdGraphSchema : public UObject
 	 *
 	 * @param	TargetNode	The node to break links on
 	 */
-	virtual void BreakNodeLinks(UEdGraphNode& TargetNode) const;
+	ENGINE_API virtual void BreakNodeLinks(UEdGraphNode& TargetNode) const;
 
 	/** */
-	static bool SetNodeMetaData(UEdGraphNode* Node, FName const& KeyValue);
+	static ENGINE_API bool SetNodeMetaData(UEdGraphNode* Node, FName const& KeyValue);
 
 	/**
 	 * Breaks all links from/to a single pin
@@ -964,7 +964,7 @@ class ENGINE_API UEdGraphSchema : public UObject
 	 * @param	TargetPin	The pin to break links on
 	 * @param	bSendsNodeNotifcation	whether to send a notification to the node post pin connection change
 	 */
-	virtual void BreakPinLinks(UEdGraphPin& TargetPin, bool bSendsNodeNotifcation) const;
+	ENGINE_API virtual void BreakPinLinks(UEdGraphPin& TargetPin, bool bSendsNodeNotifcation) const;
 
 	/**
 	 * Breaks the link between two nodes.
@@ -972,7 +972,7 @@ class ENGINE_API UEdGraphSchema : public UObject
 	 * @param	SourcePin	The pin where the link begins.
 	 * @param	TargetLink	The pin where the link ends.
 	 */
-	virtual void BreakSinglePinLink(UEdGraphPin* SourcePin, UEdGraphPin* TargetPin) const;
+	ENGINE_API virtual void BreakSinglePinLink(UEdGraphPin* SourcePin, UEdGraphPin* TargetPin) const;
 
 	/** Split a pin in to subelements */
 	virtual void SplitPin(UEdGraphPin* Pin, bool bNotify = true) const { };
@@ -991,10 +991,10 @@ class ENGINE_API UEdGraphSchema : public UObject
 	 * @param	bIsIntermediateMove	Allows linking to transient pins, should only be true when called from utility functions
 	 * @param	bNotifyLinkedNodes	If true, it will notify linked nodes if it fails to move connection, this allows type fixup
 	 */
-	virtual FPinConnectionResponse MovePinLinks(UEdGraphPin& MoveFromPin, UEdGraphPin& MoveToPin, bool bIsIntermediateMove = false, bool bNotifyLinkedNodes = false) const;
+	ENGINE_API virtual FPinConnectionResponse MovePinLinks(UEdGraphPin& MoveFromPin, UEdGraphPin& MoveToPin, bool bIsIntermediateMove = false, bool bNotifyLinkedNodes = false) const;
 	 
 	/** Copies pin links from one pin to another without breaking the original links */
-	virtual FPinConnectionResponse CopyPinLinks(UEdGraphPin& CopyFromPin, UEdGraphPin& CopyToPin, bool bIsIntermediateCopy = false) const;
+	ENGINE_API virtual FPinConnectionResponse CopyPinLinks(UEdGraphPin& CopyFromPin, UEdGraphPin& CopyToPin, bool bIsIntermediateCopy = false) const;
 
 	/** Is self pin type? */
 	virtual bool IsSelfPin(const UEdGraphPin& Pin) const   {return false;}
@@ -1016,7 +1016,7 @@ class ENGINE_API UEdGraphSchema : public UObject
 	 * @param	TargetNode	The node to reconstruct
 	 * @param	bIsBatchRequest	If true, this reconstruct node is part of a batch.  Allows subclasses to defer marking classes as dirty until they are all done
 	 */
-	virtual void ReconstructNode(UEdGraphNode& TargetNode, bool bIsBatchRequest=false) const;
+	ENGINE_API virtual void ReconstructNode(UEdGraphNode& TargetNode, bool bIsBatchRequest=false) const;
 
 	/**
 	 * Attempts to construct a substitute node that is unique within its graph. If this call returns non-null node, it is expected for the caller to destroy the node that was passed in.
@@ -1035,7 +1035,7 @@ class ENGINE_API UEdGraphSchema : public UObject
 	 * @param	Node			The node to set
 	 * @param	Position		The target position
 	 */
-	virtual void SetNodePosition(UEdGraphNode* Node, const FVector2D& Position) const;
+	ENGINE_API virtual void SetNodePosition(UEdGraphNode* Node, const FVector2D& Position) const;
 
 	/**
 	 * Returns the currently selected graph node count
@@ -1099,7 +1099,7 @@ class ENGINE_API UEdGraphSchema : public UObject
 	 * @param	Graph				Graph to get information on
 	 * @param	[out] DisplayInfo	Appropriate display info for Graph
 	 */
-	virtual void GetGraphDisplayInformation(const UEdGraph& Graph, /*out*/ FGraphDisplayInfo& DisplayInfo) const;
+	ENGINE_API virtual void GetGraphDisplayInformation(const UEdGraph& Graph, /*out*/ FGraphDisplayInfo& DisplayInfo) const;
 
 	/**
 	 * Returns an optional category for a graph
@@ -1341,9 +1341,9 @@ class ENGINE_API UEdGraphSchema : public UObject
 #if WITH_EDITORONLY_DATA
 protected:
 	/** Build an array containing all search types, return the index of the first non-localized entry. */
-	int32 CollectSearchTextWeightInfo(const FGraphActionListBuilderBase::ActionGroup& InCurrentAction, const FGraphSchemaSearchWeightModifiers& InWeightModifiers,
+	ENGINE_API int32 CollectSearchTextWeightInfo(const FGraphActionListBuilderBase::ActionGroup& InCurrentAction, const FGraphSchemaSearchWeightModifiers& InWeightModifiers,
 		TArray<FGraphSchemaSearchTextWeightInfo>& OutWeightedArrayList, FGraphSchemaSearchTextDebugInfo* InDebugInfo) const;
 
-	void PrintSearchTextDebugInfo(const TArray<FString>& InFilterTerms, const FGraphActionListBuilderBase::ActionGroup& InCurrentAction, const FGraphSchemaSearchTextDebugInfo* InDebugInfo) const;
+	ENGINE_API void PrintSearchTextDebugInfo(const TArray<FString>& InFilterTerms, const FGraphActionListBuilderBase::ActionGroup& InCurrentAction, const FGraphSchemaSearchTextDebugInfo* InDebugInfo) const;
 #endif // WITH_EDITORONLY_DATA
 };

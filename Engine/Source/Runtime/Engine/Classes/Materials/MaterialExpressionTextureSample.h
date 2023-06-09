@@ -13,8 +13,8 @@ struct FPropertyChangedEvent;
 enum ETextureMipValueMode : int;
 enum ESamplerSourceMode : int;
 
-UCLASS(collapsecategories, hidecategories=Object)
-class ENGINE_API UMaterialExpressionTextureSample : public UMaterialExpressionTextureBase
+UCLASS(collapsecategories, hidecategories=Object, MinimalAPI)
+class UMaterialExpressionTextureSample : public UMaterialExpressionTextureBase
 {
 	GENERATED_UCLASS_BODY()
 
@@ -65,7 +65,7 @@ protected:
 	uint8 bShowTextureInputPin : 1;
 
 #if WITH_EDITOR
-	bool GenerateHLSLExpressionBase(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, const UE::HLSLTree::FExpression* TextureExpression, UE::HLSLTree::FExpression const*& OutExpression) const;
+	ENGINE_API bool GenerateHLSLExpressionBase(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, const UE::HLSLTree::FExpression* TextureExpression, UE::HLSLTree::FExpression const*& OutExpression) const;
 #endif
 
 public:
@@ -80,33 +80,33 @@ public:
 
 	//~ Begin UObject Interface
 #if WITH_EDITOR
-	virtual bool CanEditChange(const FProperty* InProperty) const override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PostLoad() override;
+	ENGINE_API virtual bool CanEditChange(const FProperty* InProperty) const override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostLoad() override;
 #endif // WITH_EDITOR
 	//~ End UObject Interface
 
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR
-	virtual TArrayView<FExpressionInput*> GetInputsView() override;
-	virtual FExpressionInput* GetInput(int32 InputIndex) override;
-	virtual FName GetInputName(int32 InputIndex) const override;
-	virtual int32 GetWidth() const override;
-	virtual void GetConnectorToolTip(int32 InputIndex, int32 OutputIndex, TArray<FString>& OutToolTip) override;
+	ENGINE_API virtual TArrayView<FExpressionInput*> GetInputsView() override;
+	ENGINE_API virtual FExpressionInput* GetInput(int32 InputIndex) override;
+	ENGINE_API virtual FName GetInputName(int32 InputIndex) const override;
+	ENGINE_API virtual int32 GetWidth() const override;
+	ENGINE_API virtual void GetConnectorToolTip(int32 InputIndex, int32 OutputIndex, TArray<FString>& OutToolTip) override;
 	virtual int32 GetLabelPadding() override { return 8; }
-	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
-	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
-	virtual bool MatchesSearchQuery( const TCHAR* SearchQuery ) override;
-	virtual uint32 GetInputType(int32 InputIndex) override;
+	ENGINE_API virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
+	ENGINE_API virtual void GetCaption(TArray<FString>& OutCaptions) const override;
+	ENGINE_API virtual bool MatchesSearchQuery( const TCHAR* SearchQuery ) override;
+	ENGINE_API virtual uint32 GetInputType(int32 InputIndex) override;
 	virtual bool CanIgnoreOutputIndex() { return true; }
-	virtual bool GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression const*& OutExpression) const override;
+	ENGINE_API virtual bool GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression const*& OutExpression) const override;
 #endif // WITH_EDITOR
 	//~ End UMaterialExpression Interface
 
-	void UpdateTextureResource(class UTexture* InTexture);
+	ENGINE_API void UpdateTextureResource(class UTexture* InTexture);
 	
 #if WITH_EDITOR
-	int32 CompileMipValue0(class FMaterialCompiler* Compiler);
-	int32 CompileMipValue1(class FMaterialCompiler* Compiler);
+	ENGINE_API int32 CompileMipValue0(class FMaterialCompiler* Compiler);
+	ENGINE_API int32 CompileMipValue1(class FMaterialCompiler* Compiler);
 #endif // WITH_EDITOR
 };

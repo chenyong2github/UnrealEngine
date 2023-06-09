@@ -33,7 +33,7 @@ enum class EDynamicResolutionStateEvent : uint8
 
 
 /** Interface between the engine and state of dynamic resolution that can be overriden to implement a custom heurstic. */
-class ENGINE_API IDynamicResolutionState
+class IDynamicResolutionState
 {
 public:
 	virtual ~IDynamicResolutionState() { };

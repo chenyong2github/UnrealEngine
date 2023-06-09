@@ -63,7 +63,7 @@ DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Simulated Cloth Verts"), STAT_NumClothVe
 extern ENGINE_API class FPhysCommandHandler* GPhysCommandHandler;
 
 /** Information about a specific object involved in a rigid body collision */
-struct ENGINE_API FRigidBodyCollisionInfo
+struct FRigidBodyCollisionInfo
 {
 	/** Actor involved in the collision */
 	TWeakObjectPtr<AActor>					Actor;
@@ -86,13 +86,13 @@ struct ENGINE_API FRigidBodyCollisionInfo
 	{}
 
 	/** Utility to set up the body collision info from an FBodyInstance */
-	void SetFrom(const FBodyInstance* BodyInst, const FVector& InDeltaVelocity = FVector::ZeroVector);
+	ENGINE_API void SetFrom(const FBodyInstance* BodyInst, const FVector& InDeltaVelocity = FVector::ZeroVector);
 	/** Get body instance */
-	FBodyInstance* GetBodyInstance() const;
+	ENGINE_API FBodyInstance* GetBodyInstance() const;
 };
 
 /** One entry in the array of collision notifications pending execution at the end of the physics engine run. */
-struct ENGINE_API FCollisionNotifyInfo
+struct FCollisionNotifyInfo
 {
 	/** If this notification should be called for the Actor in Info0. */
 	bool							bCallEvent0;
@@ -118,7 +118,7 @@ struct ENGINE_API FCollisionNotifyInfo
 	{}
 
 	/** Check that is is valid to call a notification for this entry. Looks at the IsValid() flags on both Actors. */
-	bool IsValidForNotify() const;
+	ENGINE_API bool IsValidForNotify() const;
 };
 
 namespace PhysCommand
@@ -250,19 +250,19 @@ FTransform FindBodyTransform(AActor* Actor, FName BoneName);
 FBox	FindBodyBox(AActor* Actor, FName BoneName);
 
 /** Set of delegates to allowing hooking different parts of the physics engine */
-class ENGINE_API FPhysicsDelegates : public FPhysicsDelegatesCore
+class FPhysicsDelegates : public FPhysicsDelegatesCore
 {
 public:
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPhysicsAssetChanged, const UPhysicsAsset*);
-	static FOnPhysicsAssetChanged OnPhysicsAssetChanged;
+	static ENGINE_API FOnPhysicsAssetChanged OnPhysicsAssetChanged;
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPhysSceneInit, FPhysScene*);
-	static FOnPhysSceneInit OnPhysSceneInit;
+	static ENGINE_API FOnPhysSceneInit OnPhysSceneInit;
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPhysSceneTerm, FPhysScene*);
-	static FOnPhysSceneTerm OnPhysSceneTerm;
+	static ENGINE_API FOnPhysSceneTerm OnPhysSceneTerm;
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPhysDispatchNotifications, FPhysScene*);
-	static FOnPhysDispatchNotifications OnPhysDispatchNotifications;
+	static ENGINE_API FOnPhysDispatchNotifications OnPhysDispatchNotifications;
 };

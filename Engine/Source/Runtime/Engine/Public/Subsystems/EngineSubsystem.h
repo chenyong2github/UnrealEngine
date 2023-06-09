@@ -17,12 +17,12 @@
  * collection initialization time.
  */
 
-UCLASS(Abstract)
-class ENGINE_API UEngineSubsystem : public UDynamicSubsystem
+UCLASS(Abstract, MinimalAPI)
+class UEngineSubsystem : public UDynamicSubsystem
 {
 	GENERATED_BODY()
 
 public:
-	UEngineSubsystem();
+	ENGINE_API UEngineSubsystem();
 
 };

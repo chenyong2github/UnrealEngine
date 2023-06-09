@@ -6,13 +6,13 @@
 /** Simple class that wraps the math involved with interpolating a parameter
   * over time based on audio device update time.
   */
-class ENGINE_API FDynamicParameter
+class FDynamicParameter
 {
 public:
-	explicit FDynamicParameter(float Value);
+	ENGINE_API explicit FDynamicParameter(float Value);
 
-	void Set(float Value, float InDuration);
-	void Update(float DeltaTime);
+	ENGINE_API void Set(float Value, float InDuration);
+	ENGINE_API void Update(float DeltaTime);
 
 	bool IsDone() const
 	{

@@ -354,6 +354,8 @@ FBodyInstance::FBodyInstance()
 	MaxAngularVelocity = UPhysicsSettings::Get()->MaxAngularVelocity;
 }
 
+FBodyInstance::~FBodyInstance() = default;
+
 const FPhysicsActorHandle& FBodyInstance::GetActorReferenceWithWelding() const
 {
 	return WeldParent ? WeldParent->ActorHandle : ActorHandle;

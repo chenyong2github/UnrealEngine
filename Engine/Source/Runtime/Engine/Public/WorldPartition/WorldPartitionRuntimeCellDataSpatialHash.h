@@ -8,18 +8,18 @@
 class UActorContainer;
 class UWorldPartitionRuntimeCell;
 
-UCLASS(Within = WorldPartitionRuntimeCell)
-class ENGINE_API UWorldPartitionRuntimeCellDataSpatialHash : public UWorldPartitionRuntimeCellData
+UCLASS(Within = WorldPartitionRuntimeCell, MinimalAPI)
+class UWorldPartitionRuntimeCellDataSpatialHash : public UWorldPartitionRuntimeCellData
 {
 	GENERATED_UCLASS_BODY()
 
 	//~Begin UWorldPartitionRuntimeCellData
-	virtual void ResetStreamingSourceInfo() const override;
-	virtual void AppendStreamingSourceInfo(const FWorldPartitionStreamingSource& Source, const FSphericalSector& SourceShape) const override;
-	virtual void MergeStreamingSourceInfo() const override;
-	virtual int32 SortCompare(const UWorldPartitionRuntimeCellData* InOther, bool bCanUseSortingCache = true) const override;
-	virtual FBox GetCellBounds() const override;
-	virtual bool IsDebugShown() const override;
+	ENGINE_API virtual void ResetStreamingSourceInfo() const override;
+	ENGINE_API virtual void AppendStreamingSourceInfo(const FWorldPartitionStreamingSource& Source, const FSphericalSector& SourceShape) const override;
+	ENGINE_API virtual void MergeStreamingSourceInfo() const override;
+	ENGINE_API virtual int32 SortCompare(const UWorldPartitionRuntimeCellData* InOther, bool bCanUseSortingCache = true) const override;
+	ENGINE_API virtual FBox GetCellBounds() const override;
+	ENGINE_API virtual bool IsDebugShown() const override;
 	//~End UWorldPartitionRuntimeCellData
 
 	bool IsBlockingSource() const { return bCachedIsBlockingSource; }
@@ -38,7 +38,7 @@ class ENGINE_API UWorldPartitionRuntimeCellDataSpatialHash : public UWorldPartit
 	FName GridName;
 
 private:
-	float ComputeSourceToCellAngleFactor(const FSphericalSector& SourceShape) const;
+	ENGINE_API float ComputeSourceToCellAngleFactor(const FSphericalSector& SourceShape) const;
 
 	// Used to determine if cell was requested by blocking source
 	mutable bool bCachedIsBlockingSource;

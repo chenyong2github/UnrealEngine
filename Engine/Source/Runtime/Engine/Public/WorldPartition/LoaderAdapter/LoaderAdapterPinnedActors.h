@@ -8,18 +8,18 @@
 class AActor;
 class FWorldPartitionActorDesc;
 
-class ENGINE_API FLoaderAdapterPinnedActors : public FLoaderAdapterActorList
+class FLoaderAdapterPinnedActors : public FLoaderAdapterActorList
 {
 public:
 	FLoaderAdapterPinnedActors(UWorld* InWorld)
 		: FLoaderAdapterActorList(InWorld)
 	{}
 
-	static bool SupportsPinning(FWorldPartitionActorDesc* InActorDesc);
-	static bool SupportsPinning(AActor* InActor);
+	static ENGINE_API bool SupportsPinning(FWorldPartitionActorDesc* InActorDesc);
+	static ENGINE_API bool SupportsPinning(AActor* InActor);
 
 protected:
-	virtual bool PassActorDescFilter(const FWorldPartitionHandle& ActorHandle) const override;
+	ENGINE_API virtual bool PassActorDescFilter(const FWorldPartitionHandle& ActorHandle) const override;
 };
 
 #endif

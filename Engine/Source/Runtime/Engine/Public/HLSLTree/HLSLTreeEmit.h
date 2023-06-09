@@ -312,15 +312,15 @@ inline bool operator!=(const FConnectionKey& Lhs, const FConnectionKey& Rhs)
 }
 
 /** Tracks shared state while emitting HLSL code */
-class ENGINE_API FEmitContext
+class FEmitContext
 {
 public:
-	explicit FEmitContext(FMemStackBase& InAllocator,
+	ENGINE_API explicit FEmitContext(FMemStackBase& InAllocator,
 		const FTargetParameters& InTargetParameters,
 		FErrorHandlerInterface& InErrors,
 		const Shader::FStructTypeRegistry& InTypeRegistry);
 
-	~FEmitContext();
+	ENGINE_API ~FEmitContext();
 
 	template<typename StringType>
 	inline bool Error(const StringType& InError)
@@ -368,29 +368,29 @@ public:
 		return Wrapper->Data;
 	}
 
-	void EmitDeclarationsCode(FStringBuilderBase& OutCode);
+	ENGINE_API void EmitDeclarationsCode(FStringBuilderBase& OutCode);
 
-	const FPreparedType& GetPreparedType(const FExpression* Expression) const;
-	FRequestedType GetRequestedType(const FExpression* Expression) const;
-	Shader::FType GetType(const FExpression* Expression) const;
-	EExpressionEvaluation GetEvaluation(const FExpression* Expression, const FEmitScope& Scope, const FRequestedType& RequestedType) const;
+	ENGINE_API const FPreparedType& GetPreparedType(const FExpression* Expression) const;
+	ENGINE_API FRequestedType GetRequestedType(const FExpression* Expression) const;
+	ENGINE_API Shader::FType GetType(const FExpression* Expression) const;
+	ENGINE_API EExpressionEvaluation GetEvaluation(const FExpression* Expression, const FEmitScope& Scope, const FRequestedType& RequestedType) const;
 
-	FPreparedType PrepareExpression(const FExpression* InExpression, FEmitScope& Scope, const FRequestedType& RequestedType);
-	void MarkInputType(const FExpression* InExpression, const Shader::FType& Type);
+	ENGINE_API FPreparedType PrepareExpression(const FExpression* InExpression, FEmitScope& Scope, const FRequestedType& RequestedType);
+	ENGINE_API void MarkInputType(const FExpression* InExpression, const Shader::FType& Type);
 
-	FEmitScope* InternalPrepareScope(FScope* Scope, FScope* ParentScope);
-	FEmitScope* PrepareScope(FScope* Scope);
-	FEmitScope* PrepareScopeWithParent(FScope* Scope, FScope* ParentScope);
-	void MarkScopeEvaluation(FEmitScope& EmitParentScope, FScope* Scope, EExpressionEvaluation Evaluation);
-	void MarkScopeDead(FEmitScope& EmitParentScope, FScope* Scope);
+	ENGINE_API FEmitScope* InternalPrepareScope(FScope* Scope, FScope* ParentScope);
+	ENGINE_API FEmitScope* PrepareScope(FScope* Scope);
+	ENGINE_API FEmitScope* PrepareScopeWithParent(FScope* Scope, FScope* ParentScope);
+	ENGINE_API void MarkScopeEvaluation(FEmitScope& EmitParentScope, FScope* Scope, EExpressionEvaluation Evaluation);
+	ENGINE_API void MarkScopeDead(FEmitScope& EmitParentScope, FScope* Scope);
 
-	void EmitPreshaderScope(const FScope* Scope, const FRequestedType& RequestedType, TArrayView<const FEmitPreshaderScope> PreshaderScopes, Shader::FPreshaderData& OutPreshader);
-	void EmitPreshaderScope(FEmitScope& EmitScope, const FRequestedType& RequestedType, TArrayView<const FEmitPreshaderScope> PreshaderScopes, Shader::FPreshaderData& OutPreshader);
+	ENGINE_API void EmitPreshaderScope(const FScope* Scope, const FRequestedType& RequestedType, TArrayView<const FEmitPreshaderScope> PreshaderScopes, Shader::FPreshaderData& OutPreshader);
+	ENGINE_API void EmitPreshaderScope(FEmitScope& EmitScope, const FRequestedType& RequestedType, TArrayView<const FEmitPreshaderScope> PreshaderScopes, Shader::FPreshaderData& OutPreshader);
 
-	FEmitScope* AcquireEmitScopeWithParent(const FScope* Scope, FEmitScope* EmitParentScope);
-	FEmitScope* AcquireEmitScope(const FScope* Scope);
-	FEmitScope* FindEmitScope(const FScope* Scope);
-	FEmitScope* InternalEmitScope(const FScope* Scope);
+	ENGINE_API FEmitScope* AcquireEmitScopeWithParent(const FScope* Scope, FEmitScope* EmitParentScope);
+	ENGINE_API FEmitScope* AcquireEmitScope(const FScope* Scope);
+	ENGINE_API FEmitScope* FindEmitScope(const FScope* Scope);
+	ENGINE_API FEmitScope* InternalEmitScope(const FScope* Scope);
 
 	template<typename T>
 	static TArrayView<FEmitShaderNode*> MakeDependencies(T*& Dependency)
@@ -398,9 +398,9 @@ public:
 		return Dependency ? TArrayView<FEmitShaderNode*>(&Dependency, 1) : TArrayView<FEmitShaderNode*>();
 	}
 
-	void Finalize();
+	ENGINE_API void Finalize();
 
-	FEmitShaderExpression* InternalEmitExpression(FEmitScope& Scope, TArrayView<FEmitShaderNode*> Dependencies, bool bInline, const Shader::FType& Type, FStringView Code);
+	ENGINE_API FEmitShaderExpression* InternalEmitExpression(FEmitScope& Scope, TArrayView<FEmitShaderNode*> Dependencies, bool bInline, const Shader::FType& Type, FStringView Code);
 
 	/**
 	 * Generate a snippit of HLSL code, strings with identical contents will be deduplicated, and their dependencies will be merged
@@ -452,7 +452,7 @@ public:
 		return EmitInlineExpressionWithDependencies(Scope, TArrayView<FEmitShaderNode*>(), Type, Format, Forward<Types>(Args)...);
 	}
 
-	FEmitShaderStatement* InternalEmitStatement(FEmitScope& Scope, TArrayView<FEmitShaderNode*> Dependencies, EEmitScopeFormat ScopeFormat, FEmitScope* NestedScope0, FEmitScope* NestedScope1, FStringView Code0, FStringView Code1);
+	ENGINE_API FEmitShaderStatement* InternalEmitStatement(FEmitScope& Scope, TArrayView<FEmitShaderNode*> Dependencies, EEmitScopeFormat ScopeFormat, FEmitScope* NestedScope0, FEmitScope* NestedScope1, FStringView Code0, FStringView Code1);
 
 	template<typename FormatType0, typename FormatType1, typename... Types>
 	FEmitShaderStatement* EmitFormatStatementInternal(FEmitScope& Scope,
@@ -545,12 +545,12 @@ public:
 		return nullptr;
 	}
 
-	FEmitShaderExpression* EmitPreshaderOrConstant(FEmitScope& Scope, const FRequestedType& RequestedType, const Shader::FType& ResultType, const FExpression* Expression);
-	FEmitShaderExpression* EmitConstantZero(FEmitScope& Scope, const Shader::FType& Type);
-	FEmitShaderExpression* EmitCast(FEmitScope& Scope, FEmitShaderExpression* ShaderValue, const Shader::FType& DestType, EEmitCastFlags Flags = EEmitCastFlags::None);
+	ENGINE_API FEmitShaderExpression* EmitPreshaderOrConstant(FEmitScope& Scope, const FRequestedType& RequestedType, const Shader::FType& ResultType, const FExpression* Expression);
+	ENGINE_API FEmitShaderExpression* EmitConstantZero(FEmitScope& Scope, const Shader::FType& Type);
+	ENGINE_API FEmitShaderExpression* EmitCast(FEmitScope& Scope, FEmitShaderExpression* ShaderValue, const Shader::FType& DestType, EEmitCastFlags Flags = EEmitCastFlags::None);
 
 	/** FStringViews passed to this method are expected to reference persistent memory */
-	FEmitShaderExpression* EmitCustomHLSL(FEmitScope& Scope, FStringView DeclarationCode, FStringView FunctionCode, TConstArrayView<FCustomHLSLInput> Inputs, const Shader::FStructType* OutputType);
+	ENGINE_API FEmitShaderExpression* EmitCustomHLSL(FEmitScope& Scope, FStringView DeclarationCode, FStringView FunctionCode, TConstArrayView<FCustomHLSLInput> Inputs, const Shader::FStructType* OutputType);
 
 	class FCustomDataWrapper
 	{
@@ -565,9 +565,9 @@ public:
 		T Data;
 	};
 
-	bool InternalError(FStringView ErrorMessage);
-	void InternalRegisterData(FXxHash64 Hash, FCustomDataWrapper* Data);
-	FCustomDataWrapper* InternalFindData(FXxHash64 Hash) const;
+	ENGINE_API bool InternalError(FStringView ErrorMessage);
+	ENGINE_API void InternalRegisterData(FXxHash64 Hash, FCustomDataWrapper* Data);
+	ENGINE_API FCustomDataWrapper* InternalFindData(FXxHash64 Hash) const;
 
 	FMemStackBase* Allocator = nullptr;
 	FErrorHandlerInterface* Errors = nullptr;

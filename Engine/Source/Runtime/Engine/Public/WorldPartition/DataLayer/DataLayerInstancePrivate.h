@@ -6,19 +6,19 @@
 
 #include "DataLayerInstancePrivate.generated.h"
 
-UCLASS(Config = Engine, PerObjectConfig, Within = WorldDataLayers, AutoExpandCategories = ("Data Layer|Editor"))
-class ENGINE_API UDataLayerInstancePrivate : public UDataLayerInstance
+UCLASS(Config = Engine, PerObjectConfig, Within = WorldDataLayers, AutoExpandCategories = ("Data Layer|Editor"), MinimalAPI)
+class UDataLayerInstancePrivate : public UDataLayerInstance
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 #if WITH_EDITOR
-	static FName MakeName();
-	void OnCreated();
+	static ENGINE_API FName MakeName();
+	ENGINE_API void OnCreated();
 
-	virtual bool CanEditChange(const FProperty* InProperty) const;
-	virtual bool IsLocked() const override;
-	virtual bool IsReadOnly() const override;
+	ENGINE_API virtual bool CanEditChange(const FProperty* InProperty) const;
+	ENGINE_API virtual bool IsLocked() const override;
+	ENGINE_API virtual bool IsReadOnly() const override;
 		
 	virtual bool SupportsActorFilters() const override { return GetAsset()->SupportsActorFilters(); }
 	virtual bool IsIncludedInActorFilterDefault() const override { return bIsIncludedInActorFilterDefault; }
@@ -35,8 +35,8 @@ public:
 	virtual FString GetDataLayerFullName() const override { return DataLayerAsset->GetPathName(); }
 protected:
 #if WITH_EDITOR
-	virtual bool PerformAddActor(AActor* InActor) const override;
-	virtual bool PerformRemoveActor(AActor* InActor) const override;
+	ENGINE_API virtual bool PerformAddActor(AActor* InActor) const override;
+	ENGINE_API virtual bool PerformRemoveActor(AActor* InActor) const override;
 	virtual void PerformSetDataLayerShortName(const FString& InNewShortName) override { ShortName = InNewShortName; }
 #endif
 

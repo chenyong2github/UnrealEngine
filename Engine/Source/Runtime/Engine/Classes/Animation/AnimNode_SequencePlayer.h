@@ -12,7 +12,7 @@
 
 // Sequence player node. Not instantiated directly, use FAnimNode_SequencePlayer or FAnimNode_SequencePlayer_Standalone
 USTRUCT(BlueprintInternalUseOnly)
-struct ENGINE_API FAnimNode_SequencePlayerBase : public FAnimNode_AssetPlayerBase
+struct FAnimNode_SequencePlayerBase : public FAnimNode_AssetPlayerBase
 {
 	GENERATED_BODY()
 
@@ -23,23 +23,23 @@ protected:
 
 public:
 	// FAnimNode_AssetPlayerBase interface
-	virtual float GetCurrentAssetTime() const override;
-	virtual float GetCurrentAssetTimePlayRateAdjusted() const override;
-	virtual float GetCurrentAssetLength() const override;
+	ENGINE_API virtual float GetCurrentAssetTime() const override;
+	ENGINE_API virtual float GetCurrentAssetTimePlayRateAdjusted() const override;
+	ENGINE_API virtual float GetCurrentAssetLength() const override;
 	virtual UAnimationAsset* GetAnimAsset() const override { return GetSequence(); }
 	// End of FAnimNode_AssetPlayerBase interface
 
 	// FAnimNode_Base interface
-	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
-	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
-	virtual void UpdateAssetPlayer(const FAnimationUpdateContext& Context) override;
-	virtual void Evaluate_AnyThread(FPoseContext& Output) override;
-	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
+	ENGINE_API virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
+	ENGINE_API virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
+	ENGINE_API virtual void UpdateAssetPlayer(const FAnimationUpdateContext& Context) override;
+	ENGINE_API virtual void Evaluate_AnyThread(FPoseContext& Output) override;
+	ENGINE_API virtual void GatherDebugData(FNodeDebugData& DebugData) override;
 	// End of FAnimNode_Base interface
 
-	float GetTimeFromEnd(float CurrentNodeTime) const;
+	ENGINE_API float GetTimeFromEnd(float CurrentNodeTime) const;
 	UE_DEPRECATED(5.1, "GetEffectiveStartPosition is no longer supported. Please use GetStartPosition instead")
-	float GetEffectiveStartPosition(const FAnimationBaseContext& Context) const;
+	ENGINE_API float GetEffectiveStartPosition(const FAnimationBaseContext& Context) const;
 
 	// The animation sequence asset to play
 	virtual UAnimSequenceBase* GetSequence() const { return nullptr; }
@@ -83,7 +83,7 @@ protected:
 
 // Sequence player node that can be used with constant folding
 USTRUCT(BlueprintInternalUseOnly)
-struct ENGINE_API FAnimNode_SequencePlayer : public FAnimNode_SequencePlayerBase
+struct FAnimNode_SequencePlayer : public FAnimNode_SequencePlayerBase
 {
 	GENERATED_BODY()
 
@@ -145,32 +145,32 @@ protected:
 
 public:
 	// FAnimNode_SequencePlayerBase interface
-	virtual bool SetSequence(UAnimSequenceBase* InSequence) override;
-	virtual bool SetLoopAnimation(bool bInLoopAnimation) override;
-	virtual UAnimSequenceBase* GetSequence() const override;
-	virtual float GetPlayRateBasis() const override;
-	virtual float GetPlayRate() const override;
-	virtual const FInputScaleBiasClampConstants& GetPlayRateScaleBiasClampConstants() const override;
-	virtual float GetStartPosition() const override;
-	virtual bool GetStartFromMatchingPose() const override;
-	virtual bool SetStartPosition(float InStartPosition) override;
-	virtual bool SetPlayRate(float InPlayRate) override;
+	ENGINE_API virtual bool SetSequence(UAnimSequenceBase* InSequence) override;
+	ENGINE_API virtual bool SetLoopAnimation(bool bInLoopAnimation) override;
+	ENGINE_API virtual UAnimSequenceBase* GetSequence() const override;
+	ENGINE_API virtual float GetPlayRateBasis() const override;
+	ENGINE_API virtual float GetPlayRate() const override;
+	ENGINE_API virtual const FInputScaleBiasClampConstants& GetPlayRateScaleBiasClampConstants() const override;
+	ENGINE_API virtual float GetStartPosition() const override;
+	ENGINE_API virtual bool GetStartFromMatchingPose() const override;
+	ENGINE_API virtual bool SetStartPosition(float InStartPosition) override;
+	ENGINE_API virtual bool SetPlayRate(float InPlayRate) override;
 
 	// FAnimNode_AssetPlayerBase interface
-	virtual FName GetGroupName() const override;
-	virtual EAnimGroupRole::Type GetGroupRole() const override;
-	virtual EAnimSyncMethod GetGroupMethod() const override;
-	virtual bool IsLooping() const override;
-	virtual bool GetIgnoreForRelevancyTest() const override;
-	virtual bool SetGroupName(FName InGroupName) override;
-	virtual bool SetGroupRole(EAnimGroupRole::Type InRole) override;
-	virtual bool SetGroupMethod(EAnimSyncMethod InMethod) override;
-	virtual bool SetIgnoreForRelevancyTest(bool bInIgnoreForRelevancyTest) override;
+	ENGINE_API virtual FName GetGroupName() const override;
+	ENGINE_API virtual EAnimGroupRole::Type GetGroupRole() const override;
+	ENGINE_API virtual EAnimSyncMethod GetGroupMethod() const override;
+	ENGINE_API virtual bool IsLooping() const override;
+	ENGINE_API virtual bool GetIgnoreForRelevancyTest() const override;
+	ENGINE_API virtual bool SetGroupName(FName InGroupName) override;
+	ENGINE_API virtual bool SetGroupRole(EAnimGroupRole::Type InRole) override;
+	ENGINE_API virtual bool SetGroupMethod(EAnimSyncMethod InMethod) override;
+	ENGINE_API virtual bool SetIgnoreForRelevancyTest(bool bInIgnoreForRelevancyTest) override;
 };
 
 // Sequence player node that can be used standalone (without constant folding)
 USTRUCT(BlueprintInternalUseOnly)
-struct ENGINE_API FAnimNode_SequencePlayer_Standalone : public FAnimNode_SequencePlayerBase
+struct FAnimNode_SequencePlayer_Standalone : public FAnimNode_SequencePlayerBase
 {	
 	GENERATED_BODY()
 

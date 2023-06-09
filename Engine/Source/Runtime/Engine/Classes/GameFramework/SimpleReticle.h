@@ -9,7 +9,7 @@
  *
  * @see AHUD
  */
-class ENGINE_API FSimpleReticle
+class FSimpleReticle
 {
 public:
 	FSimpleReticle()
@@ -24,7 +24,7 @@ public:
 		VerticalOffsetMin.Set( 0.0f, InnerSize);
 		VerticalOffsetMax.Set( 0.0f, InnerSize + Length );
 	}
-	void Draw( class UCanvas* InCanvas, FLinearColor InColor );
+	ENGINE_API void Draw( class UCanvas* InCanvas, FLinearColor InColor );
 private:
 	FVector2D HorizontalOffsetMin;
 	FVector2D HorizontalOffsetMax;

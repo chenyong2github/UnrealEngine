@@ -12,13 +12,13 @@ class ILevelInstanceInterface;
 class ULevelStreaming;
 class AActor;
 
-class ENGINE_API FLevelInstanceEditorPivotHelper
+class FLevelInstanceEditorPivotHelper
 {
 public:
-	static ILevelInstanceEditorPivotInterface* Create(ILevelInstanceInterface* LevelInstance, ULevelStreaming* LevelStreaming);
-	static void SetPivot(ILevelInstanceEditorPivotInterface* PivotInterface, ELevelInstancePivotType PivotType, AActor* PivotToActor);
-	static FVector GetPivot(ILevelInstanceEditorPivotInterface* PivotInterface, ELevelInstancePivotType PivotType, AActor* PivotToActor);
-	static void ShowPivotLocation(const FVector& PivotLocation);
+	static ENGINE_API ILevelInstanceEditorPivotInterface* Create(ILevelInstanceInterface* LevelInstance, ULevelStreaming* LevelStreaming);
+	static ENGINE_API void SetPivot(ILevelInstanceEditorPivotInterface* PivotInterface, ELevelInstancePivotType PivotType, AActor* PivotToActor);
+	static ENGINE_API FVector GetPivot(ILevelInstanceEditorPivotInterface* PivotInterface, ELevelInstancePivotType PivotType, AActor* PivotToActor);
+	static ENGINE_API void ShowPivotLocation(const FVector& PivotLocation);
 };
 
 #endif

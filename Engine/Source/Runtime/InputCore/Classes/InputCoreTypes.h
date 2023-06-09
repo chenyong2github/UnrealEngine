@@ -46,7 +46,7 @@ enum class EPairedAxis : uint8
 };
 
 USTRUCT(BlueprintType,Blueprintable)
-struct INPUTCORE_API FKey
+struct FKey
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -69,38 +69,38 @@ struct INPUTCORE_API FKey
 	{
 	}
 
-	bool IsValid() const;
-	bool IsModifierKey() const;
-	bool IsGamepadKey() const;
-	bool IsTouch() const;
-	bool IsMouseButton() const;
-	bool IsButtonAxis() const;
-	bool IsAxis1D() const;
-	bool IsAxis2D() const;
-	bool IsAxis3D() const;
+	INPUTCORE_API bool IsValid() const;
+	INPUTCORE_API bool IsModifierKey() const;
+	INPUTCORE_API bool IsGamepadKey() const;
+	INPUTCORE_API bool IsTouch() const;
+	INPUTCORE_API bool IsMouseButton() const;
+	INPUTCORE_API bool IsButtonAxis() const;
+	INPUTCORE_API bool IsAxis1D() const;
+	INPUTCORE_API bool IsAxis2D() const;
+	INPUTCORE_API bool IsAxis3D() const;
 	UE_DEPRECATED(4.26, "Please use IsAxis1D instead.")
-	bool IsFloatAxis() const;
+	INPUTCORE_API bool IsFloatAxis() const;
 	UE_DEPRECATED(4.26, "Please use IsAxis2D/IsAxis3D instead.")
-	bool IsVectorAxis() const;
-	bool IsDigital() const;
-	bool IsAnalog() const;
-	bool IsBindableInBlueprints() const;
-	bool ShouldUpdateAxisWithoutSamples() const;
-	bool IsBindableToActions() const;
-	bool IsDeprecated() const;
-	bool IsGesture() const;
-	FText GetDisplayName(bool bLongDisplayName = true) const;
-	FString ToString() const;
-	FName GetFName() const;
-	FName GetMenuCategory() const;
-	EPairedAxis GetPairedAxis() const;
-	FKey GetPairedAxisKey() const;
+	INPUTCORE_API bool IsVectorAxis() const;
+	INPUTCORE_API bool IsDigital() const;
+	INPUTCORE_API bool IsAnalog() const;
+	INPUTCORE_API bool IsBindableInBlueprints() const;
+	INPUTCORE_API bool ShouldUpdateAxisWithoutSamples() const;
+	INPUTCORE_API bool IsBindableToActions() const;
+	INPUTCORE_API bool IsDeprecated() const;
+	INPUTCORE_API bool IsGesture() const;
+	INPUTCORE_API FText GetDisplayName(bool bLongDisplayName = true) const;
+	INPUTCORE_API FString ToString() const;
+	INPUTCORE_API FName GetFName() const;
+	INPUTCORE_API FName GetMenuCategory() const;
+	INPUTCORE_API EPairedAxis GetPairedAxis() const;
+	INPUTCORE_API FKey GetPairedAxisKey() const;
 
-	bool SerializeFromMismatchedTag(struct FPropertyTag const& Tag, FStructuredArchive::FSlot Slot);
-	bool ExportTextItem(FString& ValueStr, FKey const& DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const;
-	bool ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText);
-	void PostSerialize(const FArchive& Ar);
-	void PostScriptConstruct();
+	INPUTCORE_API bool SerializeFromMismatchedTag(struct FPropertyTag const& Tag, FStructuredArchive::FSlot Slot);
+	INPUTCORE_API bool ExportTextItem(FString& ValueStr, FKey const& DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const;
+	INPUTCORE_API bool ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText);
+	INPUTCORE_API void PostSerialize(const FArchive& Ar);
+	INPUTCORE_API void PostScriptConstruct();
 
 	friend bool operator==(const FKey& KeyA, const FKey& KeyB) { return KeyA.KeyName == KeyB.KeyName; }
 	friend bool operator!=(const FKey& KeyA, const FKey& KeyB) { return KeyA.KeyName != KeyB.KeyName; }
@@ -109,7 +109,7 @@ struct INPUTCORE_API FKey
 
 	friend struct EKeys;
 
-	static const TCHAR* SyntheticCharPrefix;
+	INPUTCORE_API static const TCHAR* SyntheticCharPrefix;
 
 private:
 

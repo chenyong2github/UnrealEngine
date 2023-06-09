@@ -16,8 +16,8 @@ class UTexture;
 struct FPropertyChangedEvent;
 enum EMaterialSamplerType : int;
 
-UCLASS(abstract, hidecategories=Object)
-class ENGINE_API UMaterialExpressionTextureBase : public UMaterialExpression 
+UCLASS(abstract, hidecategories=Object, MinimalAPI)
+class UMaterialExpressionTextureBase : public UMaterialExpression 
 {
 	GENERATED_UCLASS_BODY()
 
@@ -33,15 +33,15 @@ class ENGINE_API UMaterialExpressionTextureBase : public UMaterialExpression
 	
 	//~ Begin UObject Interface
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 	//~ End UObject Interface
 
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR
-	virtual FString GetDescription() const override;
+	ENGINE_API virtual FString GetDescription() const override;
 
-	virtual FText GetPreviewOverlayText() const override;
+	ENGINE_API virtual FText GetPreviewOverlayText() const override;
 #endif
 	//~ End UMaterialExpression Interface
 
@@ -50,21 +50,21 @@ class ENGINE_API UMaterialExpressionTextureBase : public UMaterialExpression
 	 * This is used to link the compiled uniform expressions with their default texture values. 
 	 * Any UMaterialExpression whose compilation creates a texture uniform expression (eg Compiler->Texture, Compiler->TextureParameter) must implement this.
 	 */
-	virtual UObject* GetReferencedTexture() const override;
+	ENGINE_API virtual UObject* GetReferencedTexture() const override;
 	virtual bool CanReferenceTexture() const override { return true; }
 
 #if WITH_EDITOR
 	/**
 	 * Automatically determines and set the sampler type for the current texture.
 	 */
-	void AutoSetSampleType();
+	ENGINE_API void AutoSetSampleType();
 
 	/**
 	 * Returns the default sampler type for the specified texture.
 	 * @param Texture - The texture for which the default sampler type will be returned.
 	 * @returns the default sampler type for the specified texture.
 	 */
-	static EMaterialSamplerType GetSamplerTypeForTexture( const UTexture* Texture, bool ForceNoVT = false );
+	static ENGINE_API EMaterialSamplerType GetSamplerTypeForTexture( const UTexture* Texture, bool ForceNoVT = false );
 
 	/**
 	 * Verify that the texture and sampler type. Generates a compiler waring if
@@ -73,7 +73,7 @@ class ENGINE_API UMaterialExpressionTextureBase : public UMaterialExpression
 	 * @param SamplerType - The sampler type to verify.
 	 * @param OutErrorMessage - If 'false' is returned, will contain a message describing the error
 	 */
-	static bool VerifySamplerType(
+	static ENGINE_API bool VerifySamplerType(
 		ERHIFeatureLevel::Type FeatureLevel,
 		const ITargetPlatform* TargetPlatform,
 		const UTexture* Texture,

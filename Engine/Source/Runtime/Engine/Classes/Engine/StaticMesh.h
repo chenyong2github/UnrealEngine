@@ -594,7 +594,7 @@ private:
 
 public:
 #if WITH_EDITOR
-	ENGINE_API bool IsCompiling() const override { return AsyncTask != nullptr || LockedProperties.load(std::memory_order_relaxed) != 0; }
+	bool IsCompiling() const override { return AsyncTask != nullptr || LockedProperties.load(std::memory_order_relaxed) != 0; }
 #else
 	FORCEINLINE bool IsCompiling() const { return false; }
 #endif

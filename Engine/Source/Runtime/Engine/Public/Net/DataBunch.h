@@ -19,7 +19,7 @@ extern const int32 MAX_BUNCH_SIZE;
 //
 // A bunch of data to send.
 //
-class ENGINE_API FOutBunch : public FNetBitWriter
+class FOutBunch : public FNetBitWriter
 {
 public:
 	// Variables.
@@ -69,17 +69,17 @@ public:
 #endif
 
 	// Functions.
-	FOutBunch();
-	explicit FOutBunch(int64 InMaxBits);
-	FOutBunch( class UChannel* InChannel, bool bClose );
-	FOutBunch( UPackageMap * PackageMap, int64 InMaxBits = 1024 );
+	ENGINE_API FOutBunch();
+	ENGINE_API explicit FOutBunch(int64 InMaxBits);
+	ENGINE_API FOutBunch( class UChannel* InChannel, bool bClose );
+	ENGINE_API FOutBunch( UPackageMap * PackageMap, int64 InMaxBits = 1024 );
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FOutBunch(FOutBunch&&) = default;
 	FOutBunch(const FOutBunch&) = default;
 	FOutBunch& operator=(FOutBunch&&) = default;
 	FOutBunch& operator=(const FOutBunch&) = default;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	ENGINE_API PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	virtual ~FOutBunch();
 
@@ -111,13 +111,13 @@ public:
 		return Str;
 	}
 
-	virtual void CountMemory(FArchive& Ar) const override;
+	ENGINE_API virtual void CountMemory(FArchive& Ar) const override;
 };
 
 //
 // A bunch of data received from a channel.
 //
-class ENGINE_API FInBunch : public FNetBitReader
+class FInBunch : public FNetBitReader
 {
 public:
 	// Variables.
@@ -171,15 +171,15 @@ public:
 	}
  
 	// Functions.
-	FInBunch( UNetConnection* InConnection, uint8* Src=NULL, int64 CountBits=0 );
-	FInBunch( FInBunch &InBunch, bool CopyBuffer );
+	ENGINE_API FInBunch( UNetConnection* InConnection, uint8* Src=NULL, int64 CountBits=0 );
+	ENGINE_API FInBunch( FInBunch &InBunch, bool CopyBuffer );
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FInBunch(FInBunch&&) = default;
 	FInBunch(const FInBunch&) = default;
 	FInBunch& operator=(FInBunch&&) = default;
 	FInBunch& operator=(const FInBunch&) = default;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	ENGINE_API PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	virtual void CountMemory(FArchive& Ar) const override;
 };

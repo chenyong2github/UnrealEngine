@@ -13,7 +13,7 @@ class AActor;
 class UActorComponent;
 class FPackedLevelActorBuilderContext;
 
-class ENGINE_API IPackedLevelActorBuilder
+class IPackedLevelActorBuilder
 {
 public:
 	IPackedLevelActorBuilder() {}

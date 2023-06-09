@@ -29,10 +29,10 @@ private:
 
 public:
 	/** Returns VectorFieldComponent subobject **/
-	ENGINE_API class UVectorFieldComponent* GetVectorFieldComponent() const { return VectorFieldComponent; }
+	class UVectorFieldComponent* GetVectorFieldComponent() const { return VectorFieldComponent; }
 #if WITH_EDITORONLY_DATA
 	/** Returns SpriteComponent subobject **/
-	ENGINE_API UBillboardComponent* GetSpriteComponent() const { return SpriteComponent; }
+	UBillboardComponent* GetSpriteComponent() const { return SpriteComponent; }
 #endif
 };
 

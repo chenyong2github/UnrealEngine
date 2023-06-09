@@ -12,8 +12,8 @@
  * Rotation can optionally be offset around a pivot point.
  * Collision testing is not performed during movement.
  */
-UCLASS(ClassGroup=Movement, meta=(BlueprintSpawnableComponent), HideCategories=(Velocity))
-class ENGINE_API URotatingMovementComponent : public UMovementComponent
+UCLASS(ClassGroup=Movement, meta=(BlueprintSpawnableComponent), HideCategories=(Velocity), MinimalAPI)
+class URotatingMovementComponent : public UMovementComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -36,7 +36,7 @@ class ENGINE_API URotatingMovementComponent : public UMovementComponent
 
 	//Begin UActorComponent Interface
 	/** Applies rotation to UpdatedComponent. */
-	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
+	ENGINE_API virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 	//End UActorComponent Interface
 };
 

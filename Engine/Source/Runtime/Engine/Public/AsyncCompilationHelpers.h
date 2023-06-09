@@ -10,7 +10,7 @@
 
 DECLARE_LOG_CATEGORY_EXTERN(LogAsyncCompilation, Log, All);
 
-class ENGINE_API FAsyncCompilationNotification
+class FAsyncCompilationNotification
 {
 public:
 	FAsyncCompilationNotification(FTextFormat InAssetNameFormat)
@@ -18,7 +18,7 @@ public:
 	{
 	}
 
-	void Update(int32 NumJobs);
+	ENGINE_API void Update(int32 NumJobs);
 private:
 	FProgressNotificationHandle NotificationHandle;
 	/** The number of jobs when the notification began */
@@ -32,7 +32,7 @@ class FQueuedThreadPoolWrapper;
 
 namespace AsyncCompilationHelpers
 {
-	class ENGINE_API FAsyncCompilationStandardCVars
+	class FAsyncCompilationStandardCVars
 	{
 	public:
 		TAutoConsoleVariable<int32> AsyncCompilation;
@@ -40,7 +40,7 @@ namespace AsyncCompilationHelpers
 		FAutoConsoleCommand         AsyncCompilationFinishAll;
 		TAutoConsoleVariable<int32> AsyncCompilationResume;
 
-		FAsyncCompilationStandardCVars(const TCHAR* AssetType, const TCHAR* AssetTypePluralLowerCase, const FConsoleCommandDelegate& FinishAllCommand);
+		ENGINE_API FAsyncCompilationStandardCVars(const TCHAR* AssetType, const TCHAR* AssetTypePluralLowerCase, const FConsoleCommandDelegate& FinishAllCommand);
 	};
 
 	class ICompilable

@@ -67,16 +67,16 @@ struct FCurveAtlasColorAdjustments
 /**
 *  Manages gradient LUT textures for registered actors and assigns them to the corresponding materials on the actor
 */
-UCLASS()
-class ENGINE_API UCurveLinearColorAtlas : public UTexture2D
+UCLASS(MinimalAPI)
+class UCurveLinearColorAtlas : public UTexture2D
 {
 	GENERATED_UCLASS_BODY()
 
 #if WITH_EDITOR
 
-	virtual bool CanEditChange(const FProperty* InProperty) const override;
+	ENGINE_API virtual bool CanEditChange(const FProperty* InProperty) const override;
 
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 
 	// How many slots are available per texture
 	FORCEINLINE uint32 MaxSlotsPerTexture()
@@ -85,18 +85,18 @@ class ENGINE_API UCurveLinearColorAtlas : public UTexture2D
 	}
 
 	// Immediately render a new material to the specified slot index(SlotIndex must be within this section's range)
-	void OnCurveUpdated(UCurveBase* Curve, EPropertyChangeType::Type ChangeType);
+	ENGINE_API void OnCurveUpdated(UCurveBase* Curve, EPropertyChangeType::Type ChangeType);
 
 	// Re-render all texture groups
-	void UpdateTextures();
+	ENGINE_API void UpdateTextures();
 #endif
 
-	virtual void PostLoad() override;
+	ENGINE_API virtual void PostLoad() override;
 
-	bool GetCurveIndex(UCurveLinearColor* InCurve, int32& Index);
+	ENGINE_API bool GetCurveIndex(UCurveLinearColor* InCurve, int32& Index);
 
 	UFUNCTION(BlueprintCallable, Category = "Math|Curves")
-	bool GetCurvePosition(UCurveLinearColor* InCurve, float& Position);
+	ENGINE_API bool GetCurvePosition(UCurveLinearColor* InCurve, float& Position);
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
@@ -135,8 +135,8 @@ class ENGINE_API UCurveLinearColorAtlas : public UTexture2D
 protected:
 
 #if WITH_EDITOR
-	void CacheAndResetColorAdjustments();
-	void RestoreCachedColorAdjustments();
+	ENGINE_API void CacheAndResetColorAdjustments();
+	ENGINE_API void RestoreCachedColorAdjustments();
 #endif
 
 #if WITH_EDITORONLY_DATA

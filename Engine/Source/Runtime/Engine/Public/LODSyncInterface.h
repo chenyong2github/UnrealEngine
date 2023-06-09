@@ -8,8 +8,8 @@
 #include "UObject/Interface.h"
 #include "LODSyncInterface.generated.h"
 
-UINTERFACE(meta = (CannotImplementInterfaceInBlueprint))
-class ENGINE_API ULODSyncInterface : public UInterface
+UINTERFACE(meta = (CannotImplementInterfaceInBlueprint), MinimalAPI)
+class ULODSyncInterface : public UInterface
 {
 	GENERATED_UINTERFACE_BODY()
 };
@@ -20,7 +20,7 @@ class ENGINE_API ULODSyncInterface : public UInterface
  * Implemented by SkeletalMeshComponent, GroomComponent
  */
 
-class ENGINE_API ILODSyncInterface
+class ILODSyncInterface
 {
 	GENERATED_IINTERFACE_BODY()
 

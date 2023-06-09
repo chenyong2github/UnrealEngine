@@ -11,56 +11,56 @@
 
 class UWorld;
 
-UCLASS()
-class ENGINE_API UWorldPartitionRuntimeLevelStreamingCell : public UWorldPartitionRuntimeCell
+UCLASS(MinimalAPI)
+class UWorldPartitionRuntimeLevelStreamingCell : public UWorldPartitionRuntimeCell
 {
 	GENERATED_UCLASS_BODY()
 
 	//~Begin UWorldPartitionRuntimeCell Interface
-	virtual void Load() const override;
-	virtual void Unload() const override;
-	virtual bool CanUnload() const override;
-	virtual void Activate() const override;
-	virtual void Deactivate() const override;
-	virtual bool IsAddedToWorld() const override;
-	virtual bool CanAddToWorld() const override;
-	virtual ULevel* GetLevel() const override;
-	virtual EWorldPartitionRuntimeCellState GetCurrentState() const override;
-	virtual FLinearColor GetDebugColor(EWorldPartitionRuntimeCellVisualizeMode VisualizeMode) const override;
-	virtual void SetIsAlwaysLoaded(bool bInIsAlwaysLoaded) override;
-	virtual EStreamingStatus GetStreamingStatus() const override;
+	ENGINE_API virtual void Load() const override;
+	ENGINE_API virtual void Unload() const override;
+	ENGINE_API virtual bool CanUnload() const override;
+	ENGINE_API virtual void Activate() const override;
+	ENGINE_API virtual void Deactivate() const override;
+	ENGINE_API virtual bool IsAddedToWorld() const override;
+	ENGINE_API virtual bool CanAddToWorld() const override;
+	ENGINE_API virtual ULevel* GetLevel() const override;
+	ENGINE_API virtual EWorldPartitionRuntimeCellState GetCurrentState() const override;
+	ENGINE_API virtual FLinearColor GetDebugColor(EWorldPartitionRuntimeCellVisualizeMode VisualizeMode) const override;
+	ENGINE_API virtual void SetIsAlwaysLoaded(bool bInIsAlwaysLoaded) override;
+	ENGINE_API virtual EStreamingStatus GetStreamingStatus() const override;
 	//~End UWorldPartitionRuntimeCell Interface
 
 	//~Begin IWorldPartitionCell Interface
-	FName GetLevelPackageName() const override;
+	ENGINE_API FName GetLevelPackageName() const override;
 	//~End IWorldPartitionCell Interface
 
-	virtual void SetStreamingPriority(int32 InStreamingPriority) const override;
-	class UWorldPartitionLevelStreamingDynamic* GetLevelStreaming() const;
+	ENGINE_API virtual void SetStreamingPriority(int32 InStreamingPriority) const override;
+	ENGINE_API class UWorldPartitionLevelStreamingDynamic* GetLevelStreaming() const;
 
-	bool HasActors() const;
-	virtual TArray<FName> GetActors() const override;
+	ENGINE_API bool HasActors() const;
+	ENGINE_API virtual TArray<FName> GetActors() const override;
 
-	void CreateAndSetLevelStreaming(const FString& InPackageName);
-	bool CreateAndSetLevelStreaming(const TSoftObjectPtr<UWorld>& InWorldAsset, const FTransform& InInstanceTransform) const;
-	class UWorldPartitionLevelStreamingDynamic* CreateLevelStreaming(const FString& InPackageName = FString()) const;
+	ENGINE_API void CreateAndSetLevelStreaming(const FString& InPackageName);
+	ENGINE_API bool CreateAndSetLevelStreaming(const TSoftObjectPtr<UWorld>& InWorldAsset, const FTransform& InInstanceTransform) const;
+	ENGINE_API class UWorldPartitionLevelStreamingDynamic* CreateLevelStreaming(const FString& InPackageName = FString()) const;
 	
 
 #if WITH_EDITOR
 	//~Begin UWorldPartitionRuntimeCell Interface
-	virtual void AddActorToCell(const FWorldPartitionActorDescView& ActorDescView, const FActorContainerID& InContainerID, const FTransform& InContainerTransform, const UActorDescContainer* InContainer) override;
-	virtual void Fixup() override;
-	virtual int32 GetActorCount() const override;
-	virtual void DumpStateLog(FHierarchicalLogArchive& Ar) const override;
+	ENGINE_API virtual void AddActorToCell(const FWorldPartitionActorDescView& ActorDescView, const FActorContainerID& InContainerID, const FTransform& InContainerTransform, const UActorDescContainer* InContainer) override;
+	ENGINE_API virtual void Fixup() override;
+	ENGINE_API virtual int32 GetActorCount() const override;
+	ENGINE_API virtual void DumpStateLog(FHierarchicalLogArchive& Ar) const override;
 	// Cook methods
-	virtual bool PrepareCellForCook(UPackage* InPackage) override;
-	virtual bool PopulateGeneratorPackageForCook(TArray<UPackage*>& OutModifiedPackages) override;
-	virtual bool PopulateGeneratedPackageForCook(UPackage* InPackage, TArray<UPackage*>& OutModifiedPackages) override;
-	virtual FString GetPackageNameToCreate() const override;
+	ENGINE_API virtual bool PrepareCellForCook(UPackage* InPackage) override;
+	ENGINE_API virtual bool PopulateGeneratorPackageForCook(TArray<UPackage*>& OutModifiedPackages) override;
+	ENGINE_API virtual bool PopulateGeneratedPackageForCook(UPackage* InPackage, TArray<UPackage*>& OutModifiedPackages) override;
+	ENGINE_API virtual FString GetPackageNameToCreate() const override;
 	//~End UWorldPartitionRuntimeCell Interface
 
 	//~Begin IWorldPartitionCell Interface
-	virtual TSet<FName> GetActorPackageNames() const override;
+	ENGINE_API virtual TSet<FName> GetActorPackageNames() const override;
 	//~End IWorldPartitionCell Interface
 
 	const TArray<FWorldPartitionRuntimeCellObjectMapping>& GetPackages() const { return Packages; }
@@ -68,18 +68,18 @@ class ENGINE_API UWorldPartitionRuntimeLevelStreamingCell : public UWorldPartiti
 
 protected:
 	// Called when cell is shown
-	virtual void OnCellShown() const;
+	ENGINE_API virtual void OnCellShown() const;
 	// Called when cell is hidden
-	virtual void OnCellHidden() const;
+	ENGINE_API virtual void OnCellHidden() const;
 
 private:
 	UFUNCTION()
-	void OnLevelShown();
+	ENGINE_API void OnLevelShown();
 	
 	UFUNCTION()
-	void OnLevelHidden();
+	ENGINE_API void OnLevelHidden();
 
-	class UWorldPartitionLevelStreamingDynamic* GetOrCreateLevelStreaming() const;
+	ENGINE_API class UWorldPartitionLevelStreamingDynamic* GetOrCreateLevelStreaming() const;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()

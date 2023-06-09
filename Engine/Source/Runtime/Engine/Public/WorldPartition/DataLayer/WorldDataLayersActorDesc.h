@@ -7,11 +7,11 @@
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/DataLayer/DataLayerType.h"
 
-class ENGINE_API FDataLayerInstanceDesc
+class FDataLayerInstanceDesc
 {
 public:
-	FDataLayerInstanceDesc();
-	void Init(class UDataLayerInstance* DataLayerInstance);
+	ENGINE_API FDataLayerInstanceDesc();
+	ENGINE_API void Init(class UDataLayerInstance* DataLayerInstance);
 	friend FArchive& operator<<(FArchive& Ar, FDataLayerInstanceDesc& DataLayerInstanceDesc);
 	friend bool operator == (const FDataLayerInstanceDesc& Lhs, const FDataLayerInstanceDesc& Rhs);
 	friend bool operator < (const FDataLayerInstanceDesc& Lhs, const FDataLayerInstanceDesc& Rhs);
@@ -20,13 +20,13 @@ public:
 	FName GetParentName() const { return ParentName; }
 	bool IsUsingAsset() const { return bIsUsingAsset; }
 	FName GetAssetPath() const { return AssetPath; }
-	EDataLayerType GetDataLayerType() const;
-	FString GetShortName() const;
+	ENGINE_API EDataLayerType GetDataLayerType() const;
+	ENGINE_API FString GetShortName() const;
 	bool IsIncludedInActorFilterDefault() const { return bIsIncludedInActorFilterDefault; }
-	bool SupportsActorFilters() const;
+	ENGINE_API bool SupportsActorFilters() const;
 
 private:
-	class UDataLayerAsset* GetAsset() const;
+	ENGINE_API class UDataLayerAsset* GetAsset() const;
 
 	// DataLayerInstance Name
 	FName Name;
@@ -58,21 +58,21 @@ private:
 /**
  * ActorDesc for AWorldDataLayers actors.
  */
-class ENGINE_API FWorldDataLayersActorDesc : public FWorldPartitionActorDesc
+class FWorldDataLayersActorDesc : public FWorldPartitionActorDesc
 {
 public:
-	FWorldDataLayersActorDesc();
+	ENGINE_API FWorldDataLayersActorDesc();
 	bool IsValid() const { return bIsValid; }
 	const TArray<FDataLayerInstanceDesc>& GetDataLayerInstances() const { return DataLayerInstances; }
-	const FDataLayerInstanceDesc* GetDataLayerInstanceFromInstanceName(FName InDataLayerInstanceName) const;
-	const FDataLayerInstanceDesc* GetDataLayerInstanceFromAssetPath(FName InDataLayerAssetPath) const;
+	ENGINE_API const FDataLayerInstanceDesc* GetDataLayerInstanceFromInstanceName(FName InDataLayerInstanceName) const;
+	ENGINE_API const FDataLayerInstanceDesc* GetDataLayerInstanceFromAssetPath(FName InDataLayerAssetPath) const;
 
 protected:
 	//~ Begin FWorldPartitionActorDesc Interface.
-	virtual void Init(const AActor* InActor) override;
-	virtual bool Equals(const FWorldPartitionActorDesc* Other) const override;
+	ENGINE_API virtual void Init(const AActor* InActor) override;
+	ENGINE_API virtual bool Equals(const FWorldPartitionActorDesc* Other) const override;
 	virtual uint32 GetSizeOf() const override { return sizeof(FWorldDataLayersActorDesc); }
-	virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
 	virtual bool IsResaveNeeded() const override { return !IsValid(); }
 	//~ End FWorldPartitionActorDesc Interface.
 

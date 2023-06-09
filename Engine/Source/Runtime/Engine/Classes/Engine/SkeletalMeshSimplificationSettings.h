@@ -10,25 +10,25 @@
 /**
 * Controls the selection of the system used to simplify skeletal meshes.
 */
-UCLASS(config = Engine, defaultconfig, meta = (DisplayName = "Skeletal Mesh Simplification"))
-class ENGINE_API USkeletalMeshSimplificationSettings : public UDeveloperSettings
+UCLASS(config = Engine, defaultconfig, meta = (DisplayName = "Skeletal Mesh Simplification"), MinimalAPI)
+class USkeletalMeshSimplificationSettings : public UDeveloperSettings
 {
 	GENERATED_UCLASS_BODY()
 
 public:
-	virtual FName GetContainerName() const override;
-	virtual FName GetCategoryName() const override;
+	ENGINE_API virtual FName GetContainerName() const override;
+	ENGINE_API virtual FName GetCategoryName() const override;
 
-	void SetSkeletalMeshReductionModuleName(FName InSkeletalMeshReductionModuleName);
+	ENGINE_API void SetSkeletalMeshReductionModuleName(FName InSkeletalMeshReductionModuleName);
 
 public:
 	/** Mesh reduction plugin to use when simplifying skeletal meshes */
 	UPROPERTY(config, EditAnywhere, Category = General, meta = (ConsoleVariable = "r.SkeletalMeshReductionModule", DisplayName = "Skeletal Mesh Reduction Plugin", ConfigRestartRequired = true))
 	FName SkeletalMeshReductionModuleName;
 
-	virtual void PostInitProperties() override;
+	ENGINE_API virtual void PostInitProperties() override;
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
 };

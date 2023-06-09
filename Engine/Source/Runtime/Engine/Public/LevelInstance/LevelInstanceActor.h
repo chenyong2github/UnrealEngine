@@ -13,13 +13,13 @@
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "LevelInstanceActor.generated.h"
 
-UCLASS()
-class ENGINE_API ALevelInstance : public AActor, public ILevelInstanceInterface
+UCLASS(MinimalAPI)
+class ALevelInstance : public AActor, public ILevelInstanceInterface
 {
 	GENERATED_BODY()
 
 public:
-	ALevelInstance();
+	ENGINE_API ALevelInstance();
 
 protected:
 #if WITH_EDITORONLY_DATA
@@ -46,67 +46,67 @@ public:
 #endif
 
 	// Begin ILevelInstanceInterface
-	const FLevelInstanceID& GetLevelInstanceID() const override;
-	bool HasValidLevelInstanceID() const override;
-	virtual const FGuid& GetLevelInstanceGuid() const override;
-	virtual const TSoftObjectPtr<UWorld>& GetWorldAsset() const override;
+	ENGINE_API const FLevelInstanceID& GetLevelInstanceID() const override;
+	ENGINE_API bool HasValidLevelInstanceID() const override;
+	ENGINE_API virtual const FGuid& GetLevelInstanceGuid() const override;
+	ENGINE_API virtual const TSoftObjectPtr<UWorld>& GetWorldAsset() const override;
 	
-	virtual void OnLevelInstanceLoaded() override;
-	virtual bool IsLoadingEnabled() const override;
+	ENGINE_API virtual void OnLevelInstanceLoaded() override;
+	ENGINE_API virtual bool IsLoadingEnabled() const override;
 	// End ILevelInstanceInterface
 			
-	virtual void PostRegisterAllComponents() override;
-	virtual void PostUnregisterAllComponents() override;
-	virtual void Serialize(FArchive& Ar) override;
-	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	ENGINE_API virtual void PostRegisterAllComponents() override;
+	ENGINE_API virtual void PostUnregisterAllComponents() override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 		
 	UFUNCTION()
-	void OnRep_LevelInstanceSpawnGuid();
+	ENGINE_API void OnRep_LevelInstanceSpawnGuid();
 
 #if WITH_EDITOR
 	// Begin ILevelInstanceInterface
-	virtual ULevelInstanceComponent* GetLevelInstanceComponent() const override;
-	virtual bool SetWorldAsset(TSoftObjectPtr<UWorld> WorldAsset) override;
+	ENGINE_API virtual ULevelInstanceComponent* GetLevelInstanceComponent() const override;
+	ENGINE_API virtual bool SetWorldAsset(TSoftObjectPtr<UWorld> WorldAsset) override;
 	virtual ELevelInstanceRuntimeBehavior GetDesiredRuntimeBehavior() const override { return DesiredRuntimeBehavior; }
 	virtual ELevelInstanceRuntimeBehavior GetDefaultRuntimeBehavior() const override { return ELevelInstanceRuntimeBehavior::Partitioned; }
-	virtual TSubclassOf<AActor> GetEditorPivotClass() const override;
-	virtual bool SupportsPartialEditorLoading() const override;
+	ENGINE_API virtual TSubclassOf<AActor> GetEditorPivotClass() const override;
+	ENGINE_API virtual bool SupportsPartialEditorLoading() const override;
 	// End ILevelInstanceInterface
 			
 	// UObject overrides
-	virtual void PreEditUndo() override;
-	virtual void PostEditUndo() override;
-	virtual void PostEditUndo(TSharedPtr<ITransactionObjectAnnotation> TransactionAnnotation) override;
-	virtual void PostLoad() override;
-	virtual bool CanEditChange(const FProperty* InProperty) const override;
-	virtual void PreEditChange(FProperty* PropertyThatWillChange) override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PostEditImport() override;
+	ENGINE_API virtual void PreEditUndo() override;
+	ENGINE_API virtual void PostEditUndo() override;
+	ENGINE_API virtual void PostEditUndo(TSharedPtr<ITransactionObjectAnnotation> TransactionAnnotation) override;
+	ENGINE_API virtual void PostLoad() override;
+	ENGINE_API virtual bool CanEditChange(const FProperty* InProperty) const override;
+	ENGINE_API virtual void PreEditChange(FProperty* PropertyThatWillChange) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditImport() override;
 
 	// AActor overrides
-	virtual void CheckForErrors() override;
-	virtual TUniquePtr<class FWorldPartitionActorDesc> CreateClassActorDesc() const override;
-	virtual bool CanDeleteSelectedActor(FText& OutReason) const override;
-	virtual void SetIsTemporarilyHiddenInEditor(bool bIsHidden) override;
-	virtual bool SetIsHiddenEdLayer(bool bIsHiddenEdLayer) override;
-	virtual void EditorGetUnderlyingActors(TSet<AActor*>& OutUnderlyingActors) const override;
-	virtual void PushSelectionToProxies() override;
-	virtual void PushLevelInstanceEditingStateToProxies(bool bInEditingState) override;
-	virtual FBox GetComponentsBoundingBox(bool bNonColliding = false, bool bIncludeFromChildActors = false) const override;
-	virtual FBox GetStreamingBounds() const override;
-	virtual bool IsLockLocation() const override;
-	virtual bool GetReferencedContentObjects(TArray<UObject*>& Objects) const override;
-	virtual bool GetSoftReferencedContentObjects(TArray<FSoftObjectPath>& SoftObjects) const override;
-	virtual bool OpenAssetEditor() override;
-	virtual bool EditorCanAttachFrom(const AActor* InChild, FText& OutReason) const override;
+	ENGINE_API virtual void CheckForErrors() override;
+	ENGINE_API virtual TUniquePtr<class FWorldPartitionActorDesc> CreateClassActorDesc() const override;
+	ENGINE_API virtual bool CanDeleteSelectedActor(FText& OutReason) const override;
+	ENGINE_API virtual void SetIsTemporarilyHiddenInEditor(bool bIsHidden) override;
+	ENGINE_API virtual bool SetIsHiddenEdLayer(bool bIsHiddenEdLayer) override;
+	ENGINE_API virtual void EditorGetUnderlyingActors(TSet<AActor*>& OutUnderlyingActors) const override;
+	ENGINE_API virtual void PushSelectionToProxies() override;
+	ENGINE_API virtual void PushLevelInstanceEditingStateToProxies(bool bInEditingState) override;
+	ENGINE_API virtual FBox GetComponentsBoundingBox(bool bNonColliding = false, bool bIncludeFromChildActors = false) const override;
+	ENGINE_API virtual FBox GetStreamingBounds() const override;
+	ENGINE_API virtual bool IsLockLocation() const override;
+	ENGINE_API virtual bool GetReferencedContentObjects(TArray<UObject*>& Objects) const override;
+	ENGINE_API virtual bool GetSoftReferencedContentObjects(TArray<FSoftObjectPath>& SoftObjects) const override;
+	ENGINE_API virtual bool OpenAssetEditor() override;
+	ENGINE_API virtual bool EditorCanAttachFrom(const AActor* InChild, FText& OutReason) const override;
 	// End of AActor interface
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnLevelInstanceActorPostLoad, ALevelInstance*);
-	static FOnLevelInstanceActorPostLoad OnLevelInstanceActorPostLoad;
+	static ENGINE_API FOnLevelInstanceActorPostLoad OnLevelInstanceActorPostLoad;
 
 private:
-	void UpdateCookedAsset();
-	void ResetUnsupportedWorldAsset();
+	ENGINE_API void UpdateCookedAsset();
+	ENGINE_API void ResetUnsupportedWorldAsset();
 #endif
 };
 

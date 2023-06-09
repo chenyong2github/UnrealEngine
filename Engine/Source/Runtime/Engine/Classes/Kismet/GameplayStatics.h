@@ -45,38 +45,38 @@ DECLARE_DELEGATE_ThreeParams(FAsyncSaveGameToSlotDelegate, const FString&, const
 DECLARE_DELEGATE_ThreeParams(FAsyncLoadGameFromSlotDelegate, const FString&, const int32, USaveGame*);
 
 /** Static class with useful gameplay utility functions that can be called from both Blueprint and C++ */
-UCLASS()
-class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
+UCLASS(MinimalAPI)
+class UGameplayStatics : public UBlueprintFunctionLibrary
 {
 	GENERATED_UCLASS_BODY()
 
 	// --- Create Object
 	UFUNCTION(BlueprintCallable, Category = "Spawning", meta = (BlueprintInternalUseOnly = "true", DefaultToSelf = "Outer"))
-	static UObject* SpawnObject(TSubclassOf<UObject> ObjectClass, UObject* Outer);
+	static ENGINE_API UObject* SpawnObject(TSubclassOf<UObject> ObjectClass, UObject* Outer);
 
 	// --- Spawning functions ------------------------------
 
 	/** Spawns an instance of a blueprint, but does not automatically run its construction script.  */
 	UFUNCTION(BlueprintCallable, Category="Spawning", meta=(WorldContext="WorldContextObject", UnsafeDuringActorConstruction = "true", BlueprintInternalUseOnly = "true", DeprecatedFunction, DeprecationMessage="Use BeginSpawningActorFromClass"))
-	static class AActor* BeginSpawningActorFromBlueprint(const UObject* WorldContextObject, const class UBlueprint* Blueprint, const FTransform& SpawnTransform, bool bNoCollisionFail);
+	static ENGINE_API class AActor* BeginSpawningActorFromBlueprint(const UObject* WorldContextObject, const class UBlueprint* Blueprint, const FTransform& SpawnTransform, bool bNoCollisionFail);
 
 	/** Spawns an instance of an actor class, but does not automatically run its construction script.  */
 	UFUNCTION(BlueprintCallable, Category = "Spawning", meta = (WorldContext = "WorldContextObject", UnsafeDuringActorConstruction = "true", BlueprintInternalUseOnly = "true"))
-	static class AActor* BeginDeferredActorSpawnFromClass(const UObject* WorldContextObject, TSubclassOf<AActor> ActorClass, const FTransform& SpawnTransform, ESpawnActorCollisionHandlingMethod CollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::Undefined, AActor* Owner = nullptr, ESpawnActorScaleMethod TransformScaleMethod = ESpawnActorScaleMethod::MultiplyWithRoot);
+	static ENGINE_API class AActor* BeginDeferredActorSpawnFromClass(const UObject* WorldContextObject, TSubclassOf<AActor> ActorClass, const FTransform& SpawnTransform, ESpawnActorCollisionHandlingMethod CollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::Undefined, AActor* Owner = nullptr, ESpawnActorScaleMethod TransformScaleMethod = ESpawnActorScaleMethod::MultiplyWithRoot);
 
 	/** 'Finish' spawning an actor.  This will run the construction script. */
 	UFUNCTION(BlueprintCallable, Category="Spawning", meta=(UnsafeDuringActorConstruction = "true", BlueprintInternalUseOnly = "true"))
-	static class AActor* FinishSpawningActor(class AActor* Actor, const FTransform& SpawnTransform, ESpawnActorScaleMethod TransformScaleMethod = ESpawnActorScaleMethod::MultiplyWithRoot);
+	static ENGINE_API class AActor* FinishSpawningActor(class AActor* Actor, const FTransform& SpawnTransform, ESpawnActorScaleMethod TransformScaleMethod = ESpawnActorScaleMethod::MultiplyWithRoot);
 
 	// --- Actor functions ------------------------------
 
 	/** Find the average location (centroid) of an array of Actors */
 	UFUNCTION(BlueprintCallable, Category="Transformation")
-	static FVector GetActorArrayAverageLocation(const TArray<AActor*>& Actors);
+	static ENGINE_API FVector GetActorArrayAverageLocation(const TArray<AActor*>& Actors);
 
 	/** Bind the bounds of an array of Actors */
 	UFUNCTION(BlueprintCallable, Category="Collision")
-	static void GetActorArrayBounds(const TArray<AActor*>& Actors, bool bOnlyCollidingComponents, FVector& Center, FVector& BoxExtent);
+	static ENGINE_API void GetActorArrayBounds(const TArray<AActor*>& Actors, bool bOnlyCollidingComponents, FVector& Center, FVector& BoxExtent);
 	
 	/** 
 	 *	Find the first Actor in the world of the specified class. 
@@ -85,7 +85,7 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	 *	@return				Actor of the specified class.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Actor", meta=(WorldContext="WorldContextObject", DeterminesOutputType="ActorClass"))
-	static class AActor* GetActorOfClass(const UObject* WorldContextObject, TSubclassOf<AActor> ActorClass);
+	static ENGINE_API class AActor* GetActorOfClass(const UObject* WorldContextObject, TSubclassOf<AActor> ActorClass);
 
 	/** 
 	 *	Find all Actors in the world of the specified class. 
@@ -94,7 +94,7 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	 *	@param	OutActors	Output array of Actors of the specified class.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Actor",  meta=(WorldContext="WorldContextObject", DeterminesOutputType="ActorClass", DynamicOutputParam="OutActors"))
-	static void GetAllActorsOfClass(const UObject* WorldContextObject, TSubclassOf<AActor> ActorClass, TArray<AActor*>& OutActors);
+	static ENGINE_API void GetAllActorsOfClass(const UObject* WorldContextObject, TSubclassOf<AActor> ActorClass, TArray<AActor*>& OutActors);
 
 	/** 
 	 *	Find all Actors in the world with the specified interface.
@@ -103,7 +103,7 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	 *	@param	OutActors	Output array of Actors of the specified interface.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Actor",  meta=(WorldContext="WorldContextObject", DeterminesOutputType="Interface", DynamicOutputParam="OutActors"))
-	static void GetAllActorsWithInterface(const UObject* WorldContextObject, TSubclassOf<UInterface> Interface, TArray<AActor*>& OutActors);
+	static ENGINE_API void GetAllActorsWithInterface(const UObject* WorldContextObject, TSubclassOf<UInterface> Interface, TArray<AActor*>& OutActors);
 
 	/**
 	 *	Find all Actors in the world with the specified tag.
@@ -112,7 +112,7 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	 *	@param	OutActors	Output array of Actors of the specified tag.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Actor",  meta=(WorldContext="WorldContextObject"))
-	static void GetAllActorsWithTag(const UObject* WorldContextObject, FName Tag, TArray<AActor*>& OutActors);
+	static ENGINE_API void GetAllActorsWithTag(const UObject* WorldContextObject, FName Tag, TArray<AActor*>& OutActors);
 
 	/**
 	 *	Find all Actors in the world of the specified class with the specified tag.
@@ -122,7 +122,7 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	 *	@param	OutActors	Output array of Actors of the specified tag.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Actor", meta = (WorldContext="WorldContextObject", DeterminesOutputType="ActorClass", DynamicOutputParam="OutActors"))
-	static void GetAllActorsOfClassWithTag(const UObject* WorldContextObject, TSubclassOf<AActor> ActorClass, FName Tag, TArray<AActor*>& OutActors);
+	static ENGINE_API void GetAllActorsOfClassWithTag(const UObject* WorldContextObject, TSubclassOf<AActor> ActorClass, FName Tag, TArray<AActor*>& OutActors);
 
 	/**
 	 *	Returns an Actor nearest to Origin from ActorsToCheck array.
@@ -132,20 +132,20 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	 *	@return				Nearest Actor.
 	 */
 	UFUNCTION(BlueprintPure, Category = "Actor")
-	static AActor* FindNearestActor(FVector Origin, const TArray<AActor*>& ActorsToCheck, float& Distance);
+	static ENGINE_API AActor* FindNearestActor(FVector Origin, const TArray<AActor*>& ActorsToCheck, float& Distance);
 
 	// --- Player functions ------------------------------
 
 	/** Returns the game instance object  */
 	UFUNCTION(BlueprintPure, Category="Game", meta=(WorldContext="WorldContextObject"))
-	static class UGameInstance* GetGameInstance(const UObject* WorldContextObject);
+	static ENGINE_API class UGameInstance* GetGameInstance(const UObject* WorldContextObject);
 
 	/**
 	 * Returns the number of active player states, there is one player state for every connected player even if they are a remote client.
 	 * Indexes up to this can be use as PlayerStateIndex parameters for other functions.
 	 */
 	UFUNCTION(BlueprintPure, Category="Game", meta = (WorldContext="WorldContextObject", UnsafeDuringActorConstruction="true"))
-	static int32 GetNumPlayerStates(const UObject* WorldContextObject);
+	static ENGINE_API int32 GetNumPlayerStates(const UObject* WorldContextObject);
 
 	/**
 	 * Returns the player state at the given index in the game state's PlayerArray. 
@@ -155,7 +155,7 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	 * @param PlayerStateIndex	Index into the game state's PlayerArray
 	 */
 	UFUNCTION(BlueprintPure, Category = "Game", meta = (WorldContext = "WorldContextObject", UnsafeDuringActorConstruction = "true"))
-	static class APlayerState* GetPlayerState(const UObject* WorldContextObject, int32 PlayerStateIndex);
+	static ENGINE_API class APlayerState* GetPlayerState(const UObject* WorldContextObject, int32 PlayerStateIndex);
 
 	/**
 	 * Returns the player state that matches the passed in online id, or null for an invalid one.
@@ -164,21 +164,21 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	 * @param UniqueId	The player's unique net/online id
 	 */
 	UFUNCTION(BlueprintPure, Category = "Game", meta = (WorldContext = "WorldContextObject", UnsafeDuringActorConstruction = "true"))
-	static class APlayerState* GetPlayerStateFromUniqueNetId(const UObject* WorldContextObject, const FUniqueNetIdRepl& UniqueId);
+	static ENGINE_API class APlayerState* GetPlayerStateFromUniqueNetId(const UObject* WorldContextObject, const FUniqueNetIdRepl& UniqueId);
 
 	/**
 	 * Returns the total number of available player controllers, including remote players when called on a server.
 	 * Indexes up to this can be used as PlayerIndex parameters for the following functions.
 	 */
 	UFUNCTION(BlueprintPure, Category = "Game", meta = (WorldContext = "WorldContextObject", UnsafeDuringActorConstruction = "true"))
-	static int32 GetNumPlayerControllers(const UObject* WorldContextObject);
+	static ENGINE_API int32 GetNumPlayerControllers(const UObject* WorldContextObject);
 
 	/**
 	 * Returns the number of fully initialized local players, this will be 0 on dedicated servers.
 	 * Indexes up to this can be used as PlayerIndex parameters for the following functions, and you are guaranteed to get a local player controller.
 	 */
 	UFUNCTION(BlueprintPure, Category = "Game", meta = (WorldContext = "WorldContextObject", UnsafeDuringActorConstruction = "true"))
-	static int32 GetNumLocalPlayerControllers(const UObject* WorldContextObject);
+	static ENGINE_API int32 GetNumLocalPlayerControllers(const UObject* WorldContextObject);
 
 	/** 
 	 * Returns the player controller found while iterating through the local and available remote player controllers.
@@ -188,7 +188,7 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	 * @param PlayerIndex	Index in the player controller list, starting first with local players and then available remote ones
 	 */
 	UFUNCTION(BlueprintPure, Category="Game", meta=(WorldContext="WorldContextObject", UnsafeDuringActorConstruction="true"))
-	static class APlayerController* GetPlayerController(const UObject* WorldContextObject, int32 PlayerIndex);
+	static ENGINE_API class APlayerController* GetPlayerController(const UObject* WorldContextObject, int32 PlayerIndex);
 
 	/**
 	 * Returns the pawn for the player controller at the specified player index.
@@ -197,7 +197,7 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	 * @param PlayerIndex	Index in the player controller list, starting first with local players and then available remote ones
 	 */
 	UFUNCTION(BlueprintPure, Category="Game", meta=(WorldContext="WorldContextObject", UnsafeDuringActorConstruction="true"))
-	static class APawn* GetPlayerPawn(const UObject* WorldContextObject, int32 PlayerIndex);
+	static ENGINE_API class APawn* GetPlayerPawn(const UObject* WorldContextObject, int32 PlayerIndex);
 
 	/**
 	 * Returns the pawn for the player controller at the specified player index, will return null if the pawn is not a character.
@@ -206,7 +206,7 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	 * @param PlayerIndex	Index in the player controller list, starting first with local players and then available remote ones
 	 */
 	UFUNCTION(BlueprintPure, Category="Game", meta=(WorldContext="WorldContextObject", UnsafeDuringActorConstruction="true"))
-	static class ACharacter* GetPlayerCharacter(const UObject* WorldContextObject, int32 PlayerIndex);
+	static ENGINE_API class ACharacter* GetPlayerCharacter(const UObject* WorldContextObject, int32 PlayerIndex);
 
 	/**
 	 * Returns the camera manager for the Player Controller at the specified player index.
@@ -215,7 +215,7 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	 * @param PlayerIndex	Index in the player controller list, starting first with local players and then available remote ones
 	 */
 	UFUNCTION(BlueprintPure, Category="Game", meta=(WorldContext="WorldContextObject", UnsafeDuringActorConstruction="true"))
-	static class APlayerCameraManager* GetPlayerCameraManager(const UObject* WorldContextObject, int32 PlayerIndex);
+	static ENGINE_API class APlayerCameraManager* GetPlayerCameraManager(const UObject* WorldContextObject, int32 PlayerIndex);
 
 	/** 
 	 * Determines if any local player controller's camera is within range of the specified location.
@@ -224,7 +224,7 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	 * @note This will always return false on dedicated servers.
 	 */
 	UFUNCTION(BlueprintPure, BlueprintCosmetic, Category="Game", meta=(WorldContext="WorldContextObject"))
-	static bool IsAnyLocalPlayerCameraWithinRange(const UObject* WorldContextObject, const FVector& Location, float MaximumRange);
+	static ENGINE_API bool IsAnyLocalPlayerCameraWithinRange(const UObject* WorldContextObject, const FVector& Location, float MaximumRange);
 
 	/** 
 	 * Returns the player controller with the specified physical controller ID. This only works for local players.
@@ -232,7 +232,7 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	 * @param ControllerID	Physical controller ID, the same value returned from Get Player Controller ID
 	 */
 	UFUNCTION(BlueprintPure, Category="Game", meta=(DisplayName="Get Local Player Controller From ID", WorldContext="WorldContextObject", UnsafeDuringActorConstruction="true"))
-	static class APlayerController* GetPlayerControllerFromID(const UObject* WorldContextObject, int32 ControllerID);
+	static ENGINE_API class APlayerController* GetPlayerControllerFromID(const UObject* WorldContextObject, int32 ControllerID);
 
 	/** 
 	 * Returns the player controller with the specified physical controller ID. This only works for local players.
@@ -240,7 +240,7 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	 * @param ControllerID	Physical controller ID, the same value returned from Get Player Controller ID
 	 */
 	UFUNCTION(BlueprintPure, Category="Game", meta=(DisplayName="Get Local Player Controller From Platform User", WorldContext="WorldContextObject", UnsafeDuringActorConstruction="true"))
-	static APlayerController* GetPlayerControllerFromPlatformUser(const UObject* WorldContextObject, FPlatformUserId UserId);
+	static ENGINE_API APlayerController* GetPlayerControllerFromPlatformUser(const UObject* WorldContextObject, FPlatformUserId UserId);
 
 	/** 
 	 * Create a new local player for this game, for cases like local multiplayer.
@@ -250,7 +250,7 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	 * @return                         The created player controller if one is created.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Game", meta = (DisplayName="Create Local Player", WorldContext = "WorldContextObject", AdvancedDisplay = "2", UnsafeDuringActorConstruction = "true"))
-	static class APlayerController* CreatePlayer(const UObject* WorldContextObject, int32 ControllerId = -1, bool bSpawnPlayerController = true);
+	static ENGINE_API class APlayerController* CreatePlayer(const UObject* WorldContextObject, int32 ControllerId = -1, bool bSpawnPlayerController = true);
 	
 	/** 
 	 * Create a new local player for this game, for cases like local multiplayer.
@@ -260,7 +260,7 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	 * @return                         The created player controller if one is created.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Game", meta = (AutoCreateRefTerm="UserId", DisplayName="Create Local Player For Platform User", WorldContext = "WorldContextObject", AdvancedDisplay = "2", UnsafeDuringActorConstruction = "true"))
-	static class APlayerController* CreatePlayerFromPlatformUser(const UObject* WorldContextObject, FPlatformUserId UserId, bool bSpawnPlayerController = true);
+	static ENGINE_API class APlayerController* CreatePlayerFromPlatformUser(const UObject* WorldContextObject, FPlatformUserId UserId, bool bSpawnPlayerController = true);
 
 	/** 
 	 * Removes a local player from this game.
@@ -269,7 +269,7 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	 * @param bDestroyPawn		Whether the controlled pawn should be deleted as well
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Game", meta = (DisplayName="Remove Local Player", UnsafeDuringActorConstruction = "true"))
-	static void RemovePlayer(APlayerController* Player, bool bDestroyPawn);
+	static ENGINE_API void RemovePlayer(APlayerController* Player, bool bDestroyPawn);
 
 	/**
 	 * Gets what physical controller ID a player is using. This only works for local player controllers.
@@ -278,7 +278,7 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	 * @return			The ID of the passed in player. -1 if there is no physical controller assigned to the passed in player
 	 */
 	UFUNCTION(BlueprintPure, Category="Game", meta=(DisplayName="Get Local Player Controller ID", UnsafeDuringActorConstruction="true"))
-	static int32 GetPlayerControllerID(APlayerController* Player);
+	static ENGINE_API int32 GetPlayerControllerID(APlayerController* Player);
 
 	/**
 	 * Sets what physical controller ID a player should be using. This only works for local player controllers.
@@ -287,7 +287,7 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	 * @param ControllerId		The controller ID to assign to this player
 	 */
 	UFUNCTION(BlueprintCallable, Category="Game", meta=(DisplayName="Set Local Player Controller ID",UnsafeDuringActorConstruction="true"))
-	static void SetPlayerControllerID(APlayerController* Player, int32 ControllerId);
+	static ENGINE_API void SetPlayerControllerID(APlayerController* Player, int32 ControllerId);
 	
 	/**
 	 * Sets what platform user id a player should be using. This only works for local player controllers.
@@ -296,37 +296,37 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	 * @param PlatformUserId	The platform user id to assign this player
 	 */
 	UFUNCTION(BlueprintCallable, Category="Game", meta=(DisplayName="Set Local Player Controller Platform User Id",UnsafeDuringActorConstruction="true"))
-	static void SetPlayerPlatformUserId(APlayerController* PlayerController, FPlatformUserId UserId);
+	static ENGINE_API void SetPlayerPlatformUserId(APlayerController* PlayerController, FPlatformUserId UserId);
 
 	// --- Level Streaming functions ------------------------
 	
 	/** Stream the level (by Name); Calling again before it finishes has no effect */
 	UFUNCTION(BlueprintCallable, meta=(WorldContext="WorldContextObject", Latent = "", LatentInfo = "LatentInfo", DisplayName = "Load Stream Level (by Name)"), Category="Game")
-	static void LoadStreamLevel(const UObject* WorldContextObject, FName LevelName, bool bMakeVisibleAfterLoad, bool bShouldBlockOnLoad, FLatentActionInfo LatentInfo);
+	static ENGINE_API void LoadStreamLevel(const UObject* WorldContextObject, FName LevelName, bool bMakeVisibleAfterLoad, bool bShouldBlockOnLoad, FLatentActionInfo LatentInfo);
 
 	/** Stream the level (by Object Reference); Calling again before it finishes has no effect */
 	UFUNCTION(BlueprintCallable, meta=(WorldContext="WorldContextObject", Latent = "", LatentInfo = "LatentInfo", DisplayName = "Load Stream Level (by Object Reference)"), Category="Game")
-	static void LoadStreamLevelBySoftObjectPtr(const UObject* WorldContextObject, const TSoftObjectPtr<UWorld> Level, bool bMakeVisibleAfterLoad, bool bShouldBlockOnLoad, FLatentActionInfo LatentInfo);
+	static ENGINE_API void LoadStreamLevelBySoftObjectPtr(const UObject* WorldContextObject, const TSoftObjectPtr<UWorld> Level, bool bMakeVisibleAfterLoad, bool bShouldBlockOnLoad, FLatentActionInfo LatentInfo);
 	
 	/** Unload a streamed in level (by Name)*/
 	UFUNCTION(BlueprintCallable, meta=(WorldContext="WorldContextObject", Latent = "", LatentInfo = "LatentInfo", DisplayName = "Unload Stream Level (by Name)"), Category="Game")
-	static void UnloadStreamLevel(const UObject* WorldContextObject, FName LevelName, FLatentActionInfo LatentInfo, bool bShouldBlockOnUnload);
+	static ENGINE_API void UnloadStreamLevel(const UObject* WorldContextObject, FName LevelName, FLatentActionInfo LatentInfo, bool bShouldBlockOnUnload);
 
 	/** Unload a streamed in level (by Object Reference)*/
 	UFUNCTION(BlueprintCallable, meta=(WorldContext="WorldContextObject", Latent = "", LatentInfo = "LatentInfo", DisplayName = "Unload Stream Level (by Object Reference)"), Category="Game")
-	static void UnloadStreamLevelBySoftObjectPtr(const UObject* WorldContextObject, const TSoftObjectPtr<UWorld> Level, FLatentActionInfo LatentInfo, bool bShouldBlockOnUnload);
+	static ENGINE_API void UnloadStreamLevelBySoftObjectPtr(const UObject* WorldContextObject, const TSoftObjectPtr<UWorld> Level, FLatentActionInfo LatentInfo, bool bShouldBlockOnUnload);
 	
 	/** Returns level streaming object with specified level package name */
 	UFUNCTION(BlueprintPure, meta=(WorldContext="WorldContextObject"), Category="Game")
-	static class ULevelStreaming* GetStreamingLevel(const UObject* WorldContextObject, FName PackageName);
+	static ENGINE_API class ULevelStreaming* GetStreamingLevel(const UObject* WorldContextObject, FName PackageName);
 
 	/** Flushes level streaming in blocking fashion and returns when all sub-levels are loaded / visible / hidden */
 	UFUNCTION(BlueprintCallable, meta=(WorldContext="WorldContextObject"), Category = "Game")
-	static void FlushLevelStreaming(const UObject* WorldContextObject);
+	static ENGINE_API void FlushLevelStreaming(const UObject* WorldContextObject);
 		
 	/** Cancels all currently queued streaming packages */
 	UFUNCTION(BlueprintCallable, Category = "Game")
-	static void CancelAsyncLoading();
+	static ENGINE_API void CancelAsyncLoading();
 
 
 	/**
@@ -337,7 +337,7 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	 * @param	Options				a string of options to use for the travel URL
 	 */
 	UFUNCTION(BlueprintCallable, meta=(WorldContext="WorldContextObject", AdvancedDisplay = "2", DisplayName = "Open Level (by Name)"), Category="Game")
-	static void OpenLevel(const UObject* WorldContextObject, FName LevelName, bool bAbsolute = true, FString Options = FString(TEXT("")));
+	static ENGINE_API void OpenLevel(const UObject* WorldContextObject, FName LevelName, bool bAbsolute = true, FString Options = FString(TEXT("")));
 
 	/**
 	 * Travel to another level
@@ -347,7 +347,7 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	 * @param	Options				a string of options to use for the travel URL
 	 */
 	UFUNCTION(BlueprintCallable, meta=(WorldContext="WorldContextObject", AdvancedDisplay = "2", DisplayName = "Open Level (by Object Reference)"), Category="Game")
-	static void OpenLevelBySoftObjectPtr(const UObject* WorldContextObject, const TSoftObjectPtr<UWorld> Level, bool bAbsolute = true, FString Options = FString(TEXT("")));
+	static ENGINE_API void OpenLevelBySoftObjectPtr(const UObject* WorldContextObject, const TSoftObjectPtr<UWorld> Level, bool bAbsolute = true, FString Options = FString(TEXT("")));
 	
 	/**
 	* Get the name of the currently-open level.
@@ -355,42 +355,42 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	* @param bRemovePrefixString	remove any streaming- or editor- added prefixes from the level name.
 	*/
 	UFUNCTION(BlueprintCallable, meta = (WorldContext = "WorldContextObject", AdvancedDisplay = "1"), Category = "Game")
-	static FString GetCurrentLevelName(const UObject* WorldContextObject, bool bRemovePrefixString = true);
+	static ENGINE_API FString GetCurrentLevelName(const UObject* WorldContextObject, bool bRemovePrefixString = true);
 
 	// --- Global functions ------------------------------
 
 	/** Returns the current GameModeBase or Null if it can't be retrieved, such as on the client */
 	UFUNCTION(BlueprintPure, Category="Game", meta=(WorldContext="WorldContextObject"))
-	static class AGameModeBase* GetGameMode(const UObject* WorldContextObject);
+	static ENGINE_API class AGameModeBase* GetGameMode(const UObject* WorldContextObject);
 
 	/** Returns the current GameStateBase or Null if it can't be retrieved */
 	UFUNCTION(BlueprintPure, Category="Game", meta=(WorldContext="WorldContextObject"))
-	static class AGameStateBase* GetGameState(const UObject* WorldContextObject);
+	static ENGINE_API class AGameStateBase* GetGameState(const UObject* WorldContextObject);
 
 	/** Returns the class of a passed in Object, will always be valid if Object is not NULL */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "Get Class", DeterminesOutputType = "Object"), Category="Utilities")
-	static class UClass *GetObjectClass(const UObject *Object);
+	static ENGINE_API class UClass *GetObjectClass(const UObject *Object);
 
 	/**
 	 * Returns whether or not the object passed in is of (or inherits from) the class type.
 	 * @return True if the object is of (or inherits from) the class type.
 	 */
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "IsA"), Category = "Utilities")
-	static bool ObjectIsA(const UObject* Object, TSubclassOf<UObject> ObjectClass);
+	static ENGINE_API bool ObjectIsA(const UObject* Object, TSubclassOf<UObject> ObjectClass);
 
 	/**
 	 * Gets the current global time dilation.
 	 * @return Current time dilation.
 	 */
 	UFUNCTION(BlueprintPure, Category="Utilities|Time", meta=(WorldContext="WorldContextObject") )
-	static float GetGlobalTimeDilation(const UObject* WorldContextObject);
+	static ENGINE_API float GetGlobalTimeDilation(const UObject* WorldContextObject);
 
 	/**
 	 * Sets the global time dilation.
 	 * @param	TimeDilation	value to set the global time dilation to
 	 */
 	UFUNCTION(BlueprintCallable, Category="Utilities|Time", meta=(WorldContext="WorldContextObject") )
-	static void SetGlobalTimeDilation(const UObject* WorldContextObject, float TimeDilation);
+	static ENGINE_API void SetGlobalTimeDilation(const UObject* WorldContextObject, float TimeDilation);
 
 	/**
 	 * Sets the game's paused state
@@ -398,54 +398,54 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	 * @return	Whether the game was successfully paused/unpaused
 	 */
 	UFUNCTION(BlueprintCallable, Category="Game", meta=(WorldContext="WorldContextObject") )
-	static bool SetGamePaused(const UObject* WorldContextObject, bool bPaused);
+	static ENGINE_API bool SetGamePaused(const UObject* WorldContextObject, bool bPaused);
 
 	/**
 	 * Returns the game's paused state
 	 * @return	Whether the game is currently paused or not
 	 */
 	UFUNCTION(BlueprintPure, Category="Game", meta=(WorldContext="WorldContextObject") )
-	static bool IsGamePaused(const UObject* WorldContextObject);
+	static ENGINE_API bool IsGamePaused(const UObject* WorldContextObject);
 
 	/**
 	 * Enables split screen
 	 * @param	bDisable		Whether the viewport should split screen between local players or not
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Viewport", meta = (WorldContext = "WorldContextObject"))
-	static void SetForceDisableSplitscreen(const UObject* WorldContextObject, bool bDisable);
+	static ENGINE_API void SetForceDisableSplitscreen(const UObject* WorldContextObject, bool bDisable);
 
 	/**
 	 * Returns the split screen state
 	 * @return	Whether the game viewport is split screen or not
 	 */
 	UFUNCTION(BlueprintPure, Category = "Viewport", meta = (WorldContext = "WorldContextObject"))
-	static bool IsSplitscreenForceDisabled(const UObject* WorldContextObject);
+	static ENGINE_API bool IsSplitscreenForceDisabled(const UObject* WorldContextObject);
 
 	/**
 	 * Enabled rendering of the world
 	 * @param	bEnable		Whether the world should be rendered or not
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Rendering", meta = (WorldContext = "WorldContextObject"))
-	static void SetEnableWorldRendering(const UObject* WorldContextObject, bool bEnable);
+	static ENGINE_API void SetEnableWorldRendering(const UObject* WorldContextObject, bool bEnable);
 
 	/**
 	 * Returns the world rendering state
 	 * @return	Whether the world should be rendered or not
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Rendering", meta = (WorldContext = "WorldContextObject"))
-	static bool GetEnableWorldRendering(const UObject* WorldContextObject);
+	static ENGINE_API bool GetEnableWorldRendering(const UObject* WorldContextObject);
 
 	/**
 	 * Returns the current viewport mouse capture mode
 	 */
 	UFUNCTION(BlueprintPure, Category = "Viewport", meta = (WorldContext = "WorldContextObject"))
-	static EMouseCaptureMode GetViewportMouseCaptureMode(const UObject* WorldContextObject);
+	static ENGINE_API EMouseCaptureMode GetViewportMouseCaptureMode(const UObject* WorldContextObject);
 
 	/**
 	 * Sets the current viewport mouse capture mode
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Viewport", meta = (WorldContext = "WorldContextObject"))
-	static void SetViewportMouseCaptureMode(const UObject* WorldContextObject, const EMouseCaptureMode MouseCaptureMode);
+	static ENGINE_API void SetViewportMouseCaptureMode(const UObject* WorldContextObject, const EMouseCaptureMode MouseCaptureMode);
 
 	/** Hurt locally authoritative actors within the radius. Will only hit components that block the Visibility channel.
 	 * @param BaseDamage - The base damage to apply, i.e. the damage at the origin.
@@ -460,7 +460,7 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	 * @return true if damage was applied to at least one actor.
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category="Game|Damage", meta=(WorldContext="WorldContextObject", AutoCreateRefTerm="IgnoreActors"))
-	static bool ApplyRadialDamage(const UObject* WorldContextObject, float BaseDamage, const FVector& Origin, float DamageRadius, TSubclassOf<class UDamageType> DamageTypeClass, const TArray<AActor*>& IgnoreActors, AActor* DamageCauser = NULL, AController* InstigatedByController = NULL, bool bDoFullDamage = false, ECollisionChannel DamagePreventionChannel = ECC_Visibility);
+	static ENGINE_API bool ApplyRadialDamage(const UObject* WorldContextObject, float BaseDamage, const FVector& Origin, float DamageRadius, TSubclassOf<class UDamageType> DamageTypeClass, const TArray<AActor*>& IgnoreActors, AActor* DamageCauser = NULL, AController* InstigatedByController = NULL, bool bDoFullDamage = false, ECollisionChannel DamagePreventionChannel = ECC_Visibility);
 	
 	/** Hurt locally authoritative actors within the radius. Will only hit components that block the Visibility channel.
 	 * @param BaseDamage - The base damage to apply, i.e. the damage at the origin.
@@ -477,7 +477,7 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	 * @return true if damage was applied to at least one actor.
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category="Game|Damage", meta=(WorldContext="WorldContextObject", AutoCreateRefTerm="IgnoreActors"))
-	static bool ApplyRadialDamageWithFalloff(const UObject* WorldContextObject, float BaseDamage, float MinimumDamage, const FVector& Origin, float DamageInnerRadius, float DamageOuterRadius, float DamageFalloff, TSubclassOf<class UDamageType> DamageTypeClass, const TArray<AActor*>& IgnoreActors, AActor* DamageCauser = NULL, AController* InstigatedByController = NULL, ECollisionChannel DamagePreventionChannel = ECC_Visibility);
+	static ENGINE_API bool ApplyRadialDamageWithFalloff(const UObject* WorldContextObject, float BaseDamage, float MinimumDamage, const FVector& Origin, float DamageInnerRadius, float DamageOuterRadius, float DamageFalloff, TSubclassOf<class UDamageType> DamageTypeClass, const TArray<AActor*>& IgnoreActors, AActor* DamageCauser = NULL, AController* InstigatedByController = NULL, ECollisionChannel DamagePreventionChannel = ECC_Visibility);
 	
 
 	/** Hurts the specified actor with the specified impact.
@@ -491,7 +491,7 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	 * @return Actual damage the ended up being applied to the actor.
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category="Game|Damage")
-	static float ApplyPointDamage(AActor* DamagedActor, float BaseDamage, const FVector& HitFromDirection, const FHitResult& HitInfo, AController* EventInstigator, AActor* DamageCauser, TSubclassOf<class UDamageType> DamageTypeClass);
+	static ENGINE_API float ApplyPointDamage(AActor* DamagedActor, float BaseDamage, const FVector& HitFromDirection, const FHitResult& HitInfo, AController* EventInstigator, AActor* DamageCauser, TSubclassOf<class UDamageType> DamageTypeClass);
 
 	/** Hurts the specified actor with generic damage.
 	 * @param DamagedActor - Actor that will be damaged.
@@ -502,7 +502,7 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	 * @return Actual damage the ended up being applied to the actor.
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category="Game|Damage")
-	static float ApplyDamage(AActor* DamagedActor, float BaseDamage, AController* EventInstigator, AActor* DamageCauser, TSubclassOf<class UDamageType> DamageTypeClass);
+	static ENGINE_API float ApplyDamage(AActor* DamagedActor, float BaseDamage, AController* EventInstigator, AActor* DamageCauser, TSubclassOf<class UDamageType> DamageTypeClass);
 
 	// --- Camera functions ------------------------------
 
@@ -516,7 +516,7 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	 * @param bOrientShakeTowardsEpicenter - Changes the rotation of shake to point towards epicenter instead of forward
 	 */
 	UFUNCTION(BlueprintCallable, Category="Camera", meta=(WorldContext="WorldContextObject", UnsafeDuringActorConstruction = "true"))
-	static void PlayWorldCameraShake(const UObject* WorldContextObject, TSubclassOf<class UCameraShakeBase> Shake, FVector Epicenter, float InnerRadius, float OuterRadius, float Falloff = 1.f, bool bOrientShakeTowardsEpicenter = false);
+	static ENGINE_API void PlayWorldCameraShake(const UObject* WorldContextObject, TSubclassOf<class UCameraShakeBase> Shake, FVector Epicenter, float InnerRadius, float OuterRadius, float Falloff = 1.f, bool bOrientShakeTowardsEpicenter = false);
 
 	// --- Particle functions ------------------------------
 
@@ -531,10 +531,10 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	 * @param bAutoActivate - Whether the component will be automatically activated on creation.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Effects", meta=(Keywords = "particle system", WorldContext="WorldContextObject", UnsafeDuringActorConstruction = "true"))
-	static UParticleSystemComponent* SpawnEmitterAtLocation(const UObject* WorldContextObject, UParticleSystem* EmitterTemplate, FVector Location, FRotator Rotation = FRotator::ZeroRotator, FVector Scale = FVector(1.f), bool bAutoDestroy = true, EPSCPoolMethod PoolingMethod = EPSCPoolMethod::None, bool bAutoActivateSystem = true);
+	static ENGINE_API UParticleSystemComponent* SpawnEmitterAtLocation(const UObject* WorldContextObject, UParticleSystem* EmitterTemplate, FVector Location, FRotator Rotation = FRotator::ZeroRotator, FVector Scale = FVector(1.f), bool bAutoDestroy = true, EPSCPoolMethod PoolingMethod = EPSCPoolMethod::None, bool bAutoActivateSystem = true);
 
 	// Backwards compatible version of SpawnEmitterAttached for C++ without Scale
-	static UParticleSystemComponent* SpawnEmitterAtLocation(const UObject* WorldContextObject, UParticleSystem* EmitterTemplate, FVector Location, FRotator Rotation, bool bAutoDestroy, EPSCPoolMethod PoolingMethod = EPSCPoolMethod::None, bool bAutoActivateSystem =true);
+	static ENGINE_API UParticleSystemComponent* SpawnEmitterAtLocation(const UObject* WorldContextObject, UParticleSystem* EmitterTemplate, FVector Location, FRotator Rotation, bool bAutoDestroy, EPSCPoolMethod PoolingMethod = EPSCPoolMethod::None, bool bAutoActivateSystem =true);
 
 	/** Plays the specified effect at the given location and rotation, fire and forget. The system will go away when the effect is complete. Does not replicate.
 	 * @param World - The World to spawn in
@@ -544,10 +544,10 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	 * @param PoolingMethod - Method used for pooling this component. Defaults to none.
 	 * @param bAutoActivate - Whether the component will be automatically activated on creation.
 	 */
-	static UParticleSystemComponent* SpawnEmitterAtLocation(UWorld* World, UParticleSystem* EmitterTemplate, const FTransform& SpawnTransform, bool bAutoDestroy = true, EPSCPoolMethod PoolingMethod = EPSCPoolMethod::None, bool bAutoActivate = true);
+	static ENGINE_API UParticleSystemComponent* SpawnEmitterAtLocation(UWorld* World, UParticleSystem* EmitterTemplate, const FTransform& SpawnTransform, bool bAutoDestroy = true, EPSCPoolMethod PoolingMethod = EPSCPoolMethod::None, bool bAutoActivate = true);
 
 private:
-	static UParticleSystemComponent* InternalSpawnEmitterAtLocation(UWorld* World, UParticleSystem* EmitterTemplate, FVector Location, FRotator Rotation, FVector Scale, bool bAutoDestroy, EPSCPoolMethod PoolingMethod = EPSCPoolMethod::None, bool bAutoActivate = true);
+	static ENGINE_API UParticleSystemComponent* InternalSpawnEmitterAtLocation(UWorld* World, UParticleSystem* EmitterTemplate, FVector Location, FRotator Rotation, FVector Scale, bool bAutoDestroy, EPSCPoolMethod PoolingMethod = EPSCPoolMethod::None, bool bAutoActivate = true);
 
 public:
 
@@ -564,10 +564,10 @@ public:
 	 * @param bAutoActivate - Whether the component will be automatically activated on creation.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Effects", meta=(Keywords = "particle system", UnsafeDuringActorConstruction = "true"))
-	static UParticleSystemComponent* SpawnEmitterAttached(class UParticleSystem* EmitterTemplate, class USceneComponent* AttachToComponent, FName AttachPointName = NAME_None, FVector Location = FVector(ForceInit), FRotator Rotation = FRotator::ZeroRotator, FVector Scale = FVector(1.f), EAttachLocation::Type LocationType = EAttachLocation::KeepRelativeOffset, bool bAutoDestroy = true, EPSCPoolMethod PoolingMethod = EPSCPoolMethod::None, bool bAutoActivate=true);
+	static ENGINE_API UParticleSystemComponent* SpawnEmitterAttached(class UParticleSystem* EmitterTemplate, class USceneComponent* AttachToComponent, FName AttachPointName = NAME_None, FVector Location = FVector(ForceInit), FRotator Rotation = FRotator::ZeroRotator, FVector Scale = FVector(1.f), EAttachLocation::Type LocationType = EAttachLocation::KeepRelativeOffset, bool bAutoDestroy = true, EPSCPoolMethod PoolingMethod = EPSCPoolMethod::None, bool bAutoActivate=true);
 
 	// Backwards compatible version of SpawnEmitterAttached for C++ without Scale
-	static UParticleSystemComponent* SpawnEmitterAttached(class UParticleSystem* EmitterTemplate, class USceneComponent* AttachToComponent, FName AttachPointName, FVector Location, FRotator Rotation, EAttachLocation::Type LocationType, bool bAutoDestroy = true, EPSCPoolMethod PoolingMethod = EPSCPoolMethod::None, bool bAutoActivate=true);
+	static ENGINE_API UParticleSystemComponent* SpawnEmitterAttached(class UParticleSystem* EmitterTemplate, class USceneComponent* AttachToComponent, FName AttachPointName, FVector Location, FRotator Rotation, EAttachLocation::Type LocationType, bool bAutoDestroy = true, EPSCPoolMethod PoolingMethod = EPSCPoolMethod::None, bool bAutoActivate=true);
 
 	// --- Sound functions ------------------------------
 	
@@ -578,7 +578,7 @@ public:
 	 * @note This will always return false if there is no audio device, or the audio device is disabled.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio", meta = (WorldContext = "WorldContextObject"))
-	static bool AreAnyListenersWithinRange(const UObject* WorldContextObject, const FVector& Location, float MaximumRange);
+	static ENGINE_API bool AreAnyListenersWithinRange(const UObject* WorldContextObject, const FVector& Location, float MaximumRange);
 	
 
 	/**
@@ -591,7 +591,7 @@ public:
  	 * @note This will always return false if there is no audio device, or the audio device is disabled.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio", meta = (WorldContext = "WorldContextObject"))
-	static bool GetClosestListenerLocation(const UObject* WorldContextObject, const FVector& Location, float MaximumRange, const bool bAllowAttenuationOverride, FVector& ListenerPosition);
+	static ENGINE_API bool GetClosestListenerLocation(const UObject* WorldContextObject, const FVector& Location, float MaximumRange, const bool bAllowAttenuationOverride, FVector& ListenerPosition);
 
 	/**
 	* Sets a global pitch modulation scalar that will apply to all non-UI sounds
@@ -602,7 +602,7 @@ public:
 	* @param TimeSec - A time value to linearly interpolate the global modulation pitch over from it's current value.
 	*/
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Audio", meta = (WorldContext = "WorldContextObject"))
-	static void SetGlobalPitchModulation(const UObject* WorldContextObject, float PitchModulation, float TimeSec);
+	static ENGINE_API void SetGlobalPitchModulation(const UObject* WorldContextObject, float PitchModulation, float TimeSec);
 
 	/** 
 	* Linearly interpolates the attenuation distance scale value from it's current attenuation distance override value 
@@ -615,7 +615,7 @@ public:
 	* @param TimeSec - A time value to linearly interpolate from the current distance attenuation scale value to the new value.
 	*/
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Audio", meta = (WorldContext = "WorldContextObject"))
-	static void SetSoundClassDistanceScale(const UObject* WorldContextObject, USoundClass* SoundClass, float DistanceAttenuationScale, float TimeSec = 0.0f);
+	static ENGINE_API void SetSoundClassDistanceScale(const UObject* WorldContextObject, USoundClass* SoundClass, float DistanceAttenuationScale, float TimeSec = 0.0f);
 
 
 	/**
@@ -639,7 +639,7 @@ public:
 	*								 out-of-focus sounds.
 	*/
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Audio", meta = (WorldContext = "WorldContextObject"))
-	static void SetGlobalListenerFocusParameters(const UObject* WorldContextObject, float FocusAzimuthScale = 1.0f, float NonFocusAzimuthScale = 1.0f, float FocusDistanceScale = 1.0f, float NonFocusDistanceScale = 1.0f, float FocusVolumeScale = 1.0f, float NonFocusVolumeScale = 1.0f, float FocusPriorityScale = 1.0f, float NonFocusPriorityScale = 1.0f);
+	static ENGINE_API void SetGlobalListenerFocusParameters(const UObject* WorldContextObject, float FocusAzimuthScale = 1.0f, float NonFocusAzimuthScale = 1.0f, float FocusDistanceScale = 1.0f, float NonFocusDistanceScale = 1.0f, float FocusVolumeScale = 1.0f, float NonFocusVolumeScale = 1.0f, float FocusPriorityScale = 1.0f, float NonFocusPriorityScale = 1.0f);
 
 	/**
 	 * Plays a sound directly with no attenuation, perfect for UI sounds.
@@ -656,7 +656,7 @@ public:
 	 * @param bIsUISound - True if sound is UI related, else false
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category="Audio", meta=( WorldContext="WorldContextObject", AdvancedDisplay = "2", UnsafeDuringActorConstruction = "true" ))
-	static void PlaySound2D(const UObject* WorldContextObject, USoundBase* Sound, float VolumeMultiplier = 1.f, float PitchMultiplier = 1.f, float StartTime = 0.f, USoundConcurrency* ConcurrencySettings = nullptr, const AActor* OwningActor = nullptr, bool bIsUISound = true);
+	static ENGINE_API void PlaySound2D(const UObject* WorldContextObject, USoundBase* Sound, float VolumeMultiplier = 1.f, float PitchMultiplier = 1.f, float StartTime = 0.f, USoundConcurrency* ConcurrencySettings = nullptr, const AActor* OwningActor = nullptr, bool bIsUISound = true);
 
 	/**
 	 * This function allows users to create Audio Components with settings specifically for non-spatialized,
@@ -675,7 +675,7 @@ public:
 	 * @return An audio component to manipulate the spawned sound
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category="Audio", meta=( WorldContext="WorldContextObject", AdvancedDisplay = "2", UnsafeDuringActorConstruction = "true", Keywords = "play" ))
-	static UAudioComponent* SpawnSound2D(const UObject* WorldContextObject, USoundBase* Sound, float VolumeMultiplier = 1.f, float PitchMultiplier = 1.f, float StartTime = 0.f, USoundConcurrency* ConcurrencySettings = nullptr, bool bPersistAcrossLevelTransition = false, bool bAutoDestroy = true);
+	static ENGINE_API UAudioComponent* SpawnSound2D(const UObject* WorldContextObject, USoundBase* Sound, float VolumeMultiplier = 1.f, float PitchMultiplier = 1.f, float StartTime = 0.f, USoundConcurrency* ConcurrencySettings = nullptr, bool bPersistAcrossLevelTransition = false, bool bAutoDestroy = true);
 
 	/**
 	 * This function allows users to create Audio Components in advance of playback with settings specifically for non-spatialized,
@@ -691,7 +691,7 @@ public:
 	 * @return An audio component to manipulate the created sound
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category="Audio", meta=( WorldContext="WorldContextObject", AdvancedDisplay = "2", UnsafeDuringActorConstruction = "true", Keywords = "play" ))
-	static UAudioComponent* CreateSound2D(const UObject* WorldContextObject, USoundBase* Sound, float VolumeMultiplier = 1.f, float PitchMultiplier = 1.f, float StartTime = 0.f, USoundConcurrency* ConcurrencySettings = nullptr, bool bPersistAcrossLevelTransition = false, bool bAutoDestroy = true);
+	static ENGINE_API UAudioComponent* CreateSound2D(const UObject* WorldContextObject, USoundBase* Sound, float VolumeMultiplier = 1.f, float PitchMultiplier = 1.f, float StartTime = 0.f, USoundConcurrency* ConcurrencySettings = nullptr, bool bPersistAcrossLevelTransition = false, bool bAutoDestroy = true);
 
 	/**
 	 * Plays a sound at the given location. This is a fire and forget sound and does not travel with any actor. 
@@ -708,7 +708,7 @@ public:
 	 *						to do a concurrency limit per owner.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Audio", meta=(WorldContext="WorldContextObject", AdvancedDisplay = "3", UnsafeDuringActorConstruction = "true", Keywords = "play"))
-	static void PlaySoundAtLocation(const UObject* WorldContextObject, USoundBase* Sound, FVector Location, FRotator Rotation, float VolumeMultiplier = 1.f, float PitchMultiplier = 1.f, float StartTime = 0.f, class USoundAttenuation* AttenuationSettings = nullptr, USoundConcurrency* ConcurrencySettings = nullptr, const AActor* OwningActor = nullptr, const UInitialActiveSoundParams* InitialParams = nullptr);
+	static ENGINE_API void PlaySoundAtLocation(const UObject* WorldContextObject, USoundBase* Sound, FVector Location, FRotator Rotation, float VolumeMultiplier = 1.f, float PitchMultiplier = 1.f, float StartTime = 0.f, class USoundAttenuation* AttenuationSettings = nullptr, USoundConcurrency* ConcurrencySettings = nullptr, const AActor* OwningActor = nullptr, const UInitialActiveSoundParams* InitialParams = nullptr);
 
 	static void PlaySoundAtLocation(const UObject* WorldContextObject, USoundBase* Sound, FVector Location, float VolumeMultiplier = 1.f, float PitchMultiplier = 1.f, float StartTime = 0.f, class USoundAttenuation* AttenuationSettings = nullptr, USoundConcurrency* ConcurrencySettings = nullptr, const UInitialActiveSoundParams* InitialParams = nullptr)
 	{
@@ -730,7 +730,7 @@ public:
 	 * @return An audio component to manipulate the spawned sound
 	 */
 	UFUNCTION(BlueprintCallable, Category="Audio", meta=(WorldContext="WorldContextObject", AdvancedDisplay = "3", UnsafeDuringActorConstruction = "true", Keywords = "play"))
-	static UAudioComponent* SpawnSoundAtLocation(const UObject* WorldContextObject, USoundBase* Sound, FVector Location, FRotator Rotation = FRotator::ZeroRotator, float VolumeMultiplier = 1.f, float PitchMultiplier = 1.f, float StartTime = 0.f, class USoundAttenuation* AttenuationSettings = nullptr, USoundConcurrency* ConcurrencySettings = nullptr, bool bAutoDestroy = true);
+	static ENGINE_API UAudioComponent* SpawnSoundAtLocation(const UObject* WorldContextObject, USoundBase* Sound, FVector Location, FRotator Rotation = FRotator::ZeroRotator, float VolumeMultiplier = 1.f, float PitchMultiplier = 1.f, float StartTime = 0.f, class USoundAttenuation* AttenuationSettings = nullptr, USoundConcurrency* ConcurrencySettings = nullptr, bool bAutoDestroy = true);
 
 	/** This function allows users to create and play Audio Components attached to a specific Scene Component. 
 	 *  Useful for spatialized and/or distance-attenuated sounds that need to follow another object in space.
@@ -754,7 +754,7 @@ public:
 	 * @return An audio component to manipulate the spawned sound
 	 */
 	UFUNCTION(BlueprintCallable, Category="Audio", meta=(AdvancedDisplay = "2", UnsafeDuringActorConstruction = "true", Keywords = "play"))
-	static UAudioComponent* SpawnSoundAttached(USoundBase* Sound, USceneComponent* AttachToComponent, FName AttachPointName = NAME_None, FVector Location = FVector(ForceInit), FRotator Rotation = FRotator::ZeroRotator, EAttachLocation::Type LocationType = EAttachLocation::KeepRelativeOffset, bool bStopWhenAttachedToDestroyed = false, float VolumeMultiplier = 1.f, float PitchMultiplier = 1.f, float StartTime = 0.f, USoundAttenuation* AttenuationSettings = nullptr, USoundConcurrency* ConcurrencySettings = nullptr, bool bAutoDestroy = true);
+	static ENGINE_API UAudioComponent* SpawnSoundAttached(USoundBase* Sound, USceneComponent* AttachToComponent, FName AttachPointName = NAME_None, FVector Location = FVector(ForceInit), FRotator Rotation = FRotator::ZeroRotator, EAttachLocation::Type LocationType = EAttachLocation::KeepRelativeOffset, bool bStopWhenAttachedToDestroyed = false, float VolumeMultiplier = 1.f, float PitchMultiplier = 1.f, float StartTime = 0.f, USoundAttenuation* AttenuationSettings = nullptr, USoundConcurrency* ConcurrencySettings = nullptr, bool bAutoDestroy = true);
 
 	static class UAudioComponent* SpawnSoundAttached(USoundBase* Sound, USceneComponent* AttachToComponent, FName AttachPointName, FVector Location, EAttachLocation::Type LocationType = EAttachLocation::KeepRelativeOffset, bool bStopWhenAttachedToDestroyed = false, float VolumeMultiplier = 1.f, float PitchMultiplier = 1.f, float StartTime = 0.f, USoundAttenuation* AttenuationSettings = nullptr, USoundConcurrency* ConcurrencySettings = nullptr, bool bAutoDestroy = true)
 	{
@@ -773,7 +773,7 @@ public:
 	 * @param StartTime - How far in to the dialogue to begin playback at
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category="Audio", meta=( WorldContext="WorldContextObject", AdvancedDisplay = "3", UnsafeDuringActorConstruction = "true" ))
-	static void PlayDialogue2D(const UObject* WorldContextObject, UDialogueWave* Dialogue, const struct FDialogueContext& Context, float VolumeMultiplier = 1.f, float PitchMultiplier = 1.f, float StartTime = 0.f);
+	static ENGINE_API void PlayDialogue2D(const UObject* WorldContextObject, UDialogueWave* Dialogue, const struct FDialogueContext& Context, float VolumeMultiplier = 1.f, float PitchMultiplier = 1.f, float StartTime = 0.f);
 
 	/**
 	 * Spawns a DialogueWave, a special type of Asset that requires Context data in order to resolve a specific SoundBase,
@@ -791,7 +791,7 @@ public:
 	 * @return An audio component to manipulate the spawned sound
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category="Audio", meta=( WorldContext="WorldContextObject", AdvancedDisplay = "3", UnsafeDuringActorConstruction = "true", Keywords = "play" ))
-	static UAudioComponent* SpawnDialogue2D(const UObject* WorldContextObject, UDialogueWave* Dialogue, const struct FDialogueContext& Context, float VolumeMultiplier = 1.f, float PitchMultiplier = 1.f, float StartTime = 0.f, bool bAutoDestroy = true);
+	static ENGINE_API UAudioComponent* SpawnDialogue2D(const UObject* WorldContextObject, UDialogueWave* Dialogue, const struct FDialogueContext& Context, float VolumeMultiplier = 1.f, float PitchMultiplier = 1.f, float StartTime = 0.f, bool bAutoDestroy = true);
 
 	/** Plays a dialogue at the given location. This is a fire and forget sound and does not travel with any actor. 
 	 *	Replication is also not handled at this point.
@@ -805,7 +805,7 @@ public:
 	 * @param AttenuationSettings - Override attenuation settings package to play sound with
 	 */
 	UFUNCTION(BlueprintCallable, Category="Audio", meta=(WorldContext="WorldContextObject", AdvancedDisplay = "4", UnsafeDuringActorConstruction = "true"))
-	static void PlayDialogueAtLocation(const UObject* WorldContextObject, class UDialogueWave* Dialogue, const FDialogueContext& Context, FVector Location, FRotator Rotation, float VolumeMultiplier = 1.f, float PitchMultiplier = 1.f, float StartTime = 0.f, USoundAttenuation* AttenuationSettings = nullptr);
+	static ENGINE_API void PlayDialogueAtLocation(const UObject* WorldContextObject, class UDialogueWave* Dialogue, const FDialogueContext& Context, FVector Location, FRotator Rotation, float VolumeMultiplier = 1.f, float PitchMultiplier = 1.f, float StartTime = 0.f, USoundAttenuation* AttenuationSettings = nullptr);
 
 	static void PlayDialogueAtLocation(const UObject* WorldContextObject, UDialogueWave* Dialogue, const FDialogueContext& Context, FVector Location, float VolumeMultiplier = 1.f, float PitchMultiplier = 1.f, float StartTime = 0.f, USoundAttenuation* AttenuationSettings = nullptr)
 	{
@@ -828,7 +828,7 @@ public:
 	 * @return Audio Component to manipulate the playing dialogue with
 	 */
 	UFUNCTION(BlueprintCallable, Category="Audio", meta=(WorldContext="WorldContextObject", AdvancedDisplay = "4", UnsafeDuringActorConstruction = "true", Keywords = "play"))
-	static UAudioComponent* SpawnDialogueAtLocation(const UObject* WorldContextObject, UDialogueWave* Dialogue, const struct FDialogueContext& Context, FVector Location, FRotator Rotation = FRotator::ZeroRotator, float VolumeMultiplier = 1.f, float PitchMultiplier = 1.f, float StartTime = 0.f, USoundAttenuation* AttenuationSettings = nullptr, bool bAutoDestroy = true);
+	static ENGINE_API UAudioComponent* SpawnDialogueAtLocation(const UObject* WorldContextObject, UDialogueWave* Dialogue, const struct FDialogueContext& Context, FVector Location, FRotator Rotation = FRotator::ZeroRotator, float VolumeMultiplier = 1.f, float PitchMultiplier = 1.f, float StartTime = 0.f, USoundAttenuation* AttenuationSettings = nullptr, bool bAutoDestroy = true);
 
 	/** Spawns a DialogueWave, a special type of Asset that requires Context data in order to resolve a specific SoundBase,
 	 *	which is then passed on to the new Audio Component. This function allows users to create and play Audio Components
@@ -854,7 +854,7 @@ public:
 	 * @return Audio Component to manipulate the playing dialogue with
 	 */
 	UFUNCTION(BlueprintCallable, Category="Audio", meta=(AdvancedDisplay = "2", UnsafeDuringActorConstruction = "true", Keywords = "play"))
-	static UAudioComponent* SpawnDialogueAttached(UDialogueWave* Dialogue, const FDialogueContext& Context, USceneComponent* AttachToComponent, FName AttachPointName = NAME_None, FVector Location = FVector(ForceInit), FRotator Rotation = FRotator::ZeroRotator, EAttachLocation::Type LocationType = EAttachLocation::KeepRelativeOffset, bool bStopWhenAttachedToDestroyed = false, float VolumeMultiplier = 1.f, float PitchMultiplier = 1.f, float StartTime = 0.f, USoundAttenuation* AttenuationSettings = nullptr, bool bAutoDestroy = true);
+	static ENGINE_API UAudioComponent* SpawnDialogueAttached(UDialogueWave* Dialogue, const FDialogueContext& Context, USceneComponent* AttachToComponent, FName AttachPointName = NAME_None, FVector Location = FVector(ForceInit), FRotator Rotation = FRotator::ZeroRotator, EAttachLocation::Type LocationType = EAttachLocation::KeepRelativeOffset, bool bStopWhenAttachedToDestroyed = false, float VolumeMultiplier = 1.f, float PitchMultiplier = 1.f, float StartTime = 0.f, USoundAttenuation* AttenuationSettings = nullptr, bool bAutoDestroy = true);
 
 	static UAudioComponent* SpawnDialogueAttached(UDialogueWave* Dialogue, const FDialogueContext& Context, USceneComponent* AttachToComponent, FName AttachPointName, FVector Location, EAttachLocation::Type LocationType = EAttachLocation::KeepRelativeOffset, bool bStopWhenAttachedToDestroyed = false, float VolumeMultiplier = 1.f, float PitchMultiplier = 1.f, float StartTime = 0.f, USoundAttenuation* AttenuationSettings = nullptr, bool bAutoDestroy = true)
 	{
@@ -872,7 +872,7 @@ public:
 	 * @return Force Feedback Component to manipulate the playing feedback effect with
 	 */
 	UFUNCTION(BlueprintCallable, Category="ForceFeedback", meta=(WorldContext="WorldContextObject", AdvancedDisplay = "3", UnsafeDuringActorConstruction = "true", Keywords = "play"))
-	static UForceFeedbackComponent* SpawnForceFeedbackAtLocation(const UObject* WorldContextObject, UForceFeedbackEffect* ForceFeedbackEffect, FVector Location, FRotator Rotation = FRotator::ZeroRotator, bool bLooping = false, float IntensityMultiplier = 1.f, float StartTime = 0.f, UForceFeedbackAttenuation* AttenuationSettings = nullptr, bool bAutoDestroy = true);
+	static ENGINE_API UForceFeedbackComponent* SpawnForceFeedbackAtLocation(const UObject* WorldContextObject, UForceFeedbackEffect* ForceFeedbackEffect, FVector Location, FRotator Rotation = FRotator::ZeroRotator, bool bLooping = false, float IntensityMultiplier = 1.f, float StartTime = 0.f, UForceFeedbackAttenuation* AttenuationSettings = nullptr, bool bAutoDestroy = true);
 
 	/** Plays a force feedback effect attached to and following the specified component. This is a fire and forget effect. Replication is also not handled at this point.
 	 * @param ForceFeedbackEffect - effect to play
@@ -889,50 +889,50 @@ public:
 	 * @return Force Feedback Component to manipulate the playing feedback effect with
 	*/
 	UFUNCTION(BlueprintCallable, Category="ForceFeedback", meta=(AdvancedDisplay = "2", UnsafeDuringActorConstruction = "true", Keywords = "play"))
-	static UForceFeedbackComponent* SpawnForceFeedbackAttached(UForceFeedbackEffect* ForceFeedbackEffect, USceneComponent* AttachToComponent, FName AttachPointName = NAME_None, FVector Location = FVector(ForceInit), FRotator Rotation = FRotator::ZeroRotator, EAttachLocation::Type LocationType = EAttachLocation::KeepRelativeOffset, bool bStopWhenAttachedToDestroyed = false, bool bLooping = false, float IntensityMultiplier = 1.f, float StartTime = 0.f, class UForceFeedbackAttenuation* AttenuationSettings = nullptr, bool bAutoDestroy = true);
+	static ENGINE_API UForceFeedbackComponent* SpawnForceFeedbackAttached(UForceFeedbackEffect* ForceFeedbackEffect, USceneComponent* AttachToComponent, FName AttachPointName = NAME_None, FVector Location = FVector(ForceInit), FRotator Rotation = FRotator::ZeroRotator, EAttachLocation::Type LocationType = EAttachLocation::KeepRelativeOffset, bool bStopWhenAttachedToDestroyed = false, bool bLooping = false, float IntensityMultiplier = 1.f, float StartTime = 0.f, class UForceFeedbackAttenuation* AttenuationSettings = nullptr, bool bAutoDestroy = true);
 
 	/**
 	 * Will set subtitles to be enabled or disabled.
 	 * @param bEnabled will enable subtitle drawing if true, disable if false.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Subtitles")
-	static void SetSubtitlesEnabled(bool bEnabled);
+	static ENGINE_API void SetSubtitlesEnabled(bool bEnabled);
 
 	/**
 	 * Returns whether or not subtitles are currently enabled.
 	 * @return true if subtitles are enabled.
 	 */
 	UFUNCTION(BlueprintPure, Category = "Audio|Subtitles")
-	static bool AreSubtitlesEnabled();
+	static ENGINE_API bool AreSubtitlesEnabled();
 
 	// --- Audio Functions ----------------------------
 	/** Set the sound mix of the audio system for special EQing */
 	UFUNCTION(BlueprintCallable, Category="Audio", meta=(WorldContext = "WorldContextObject"))
-	static void SetBaseSoundMix(const UObject* WorldContextObject, class USoundMix* InSoundMix);
+	static ENGINE_API void SetBaseSoundMix(const UObject* WorldContextObject, class USoundMix* InSoundMix);
 
 	/** Primes the sound, caching the first chunk of streamed audio. */
 	UFUNCTION(BlueprintCallable, Category = "Audio")
-	static void PrimeSound(USoundBase* InSound);
+	static ENGINE_API void PrimeSound(USoundBase* InSound);
 
 	/** Get list of available Audio Spatialization Plugin names */
 	UFUNCTION(BlueprintCallable, Category = "Audio", meta = (WorldContext = "WorldContextObject"))
-	static TArray<FName> GetAvailableSpatialPluginNames(const UObject* WorldContextObject);
+	static ENGINE_API TArray<FName> GetAvailableSpatialPluginNames(const UObject* WorldContextObject);
 
 	/** Get currently active Audio Spatialization Plugin name */
 	UFUNCTION(BlueprintCallable, Category = "Audio", meta = (WorldContext = "WorldContextObject"))
-	static FName GetActiveSpatialPluginName(const UObject* WorldContextObject);
+	static ENGINE_API FName GetActiveSpatialPluginName(const UObject* WorldContextObject);
 
 	/** Get list of available Audio Spatialization Plugins */
 	UFUNCTION(BlueprintCallable, Category = "Audio", meta = (WorldContext = "WorldContextObject"))
-	static bool SetActiveSpatialPluginByName(const UObject* WorldContextObject, FName InPluginName);
+	static ENGINE_API bool SetActiveSpatialPluginByName(const UObject* WorldContextObject, FName InPluginName);
 
 	/** Primes the sound waves in the given USoundClass, caching the first chunk of streamed audio. */
 	UFUNCTION(BlueprintCallable, Category = "Audio")
-	static void PrimeAllSoundsInSoundClass(class USoundClass* InSoundClass);
+	static ENGINE_API void PrimeAllSoundsInSoundClass(class USoundClass* InSoundClass);
 
 	/** Iterate through all sound waves and releases handles to retained chunks. (If the chunk is not being played it will be up for eviction) */
 	UFUNCTION(BlueprintCallable, Category = "Audio")
-	static void UnRetainAllSoundsInSoundClass(class USoundClass* InSoundClass);
+	static ENGINE_API void UnRetainAllSoundsInSoundClass(class USoundClass* InSoundClass);
 
 	/** Overrides the sound class adjuster in the given sound mix. If the sound class does not exist in the input sound mix, 
 	 *	the sound class adjuster will be added to the list of active sound mix modifiers. 
@@ -944,7 +944,7 @@ public:
 	 * @param bApplyToChildren Whether or not to apply this override to the sound class' children or to just the specified sound class.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio", meta = (WorldContext = "WorldContextObject"))
-	static void SetSoundMixClassOverride(const UObject* WorldContextObject, class USoundMix* InSoundMixModifier, class USoundClass* InSoundClass, float Volume = 1.0f, float Pitch = 1.0f, float FadeInTime = 1.0f, bool bApplyToChildren = true);
+	static ENGINE_API void SetSoundMixClassOverride(const UObject* WorldContextObject, class USoundMix* InSoundMixModifier, class USoundClass* InSoundClass, float Volume = 1.0f, float Pitch = 1.0f, float FadeInTime = 1.0f, bool bApplyToChildren = true);
 
 	/** Clears any existing override of the Sound Class Adjuster in the given Sound Mix
 	 * @param InSoundMixModifier The sound mix to modify.
@@ -952,23 +952,23 @@ public:
 	 * @param FadeOutTime The interpolation time to use to go from the current sound class adjuster override values to the non-override values.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Audio", meta = (WorldContext = "WorldContextObject"))
-	static void ClearSoundMixClassOverride(const UObject* WorldContextObject, class USoundMix* InSoundMixModifier, class USoundClass* InSoundClass, float FadeOutTime = 1.0f);
+	static ENGINE_API void ClearSoundMixClassOverride(const UObject* WorldContextObject, class USoundMix* InSoundMixModifier, class USoundClass* InSoundClass, float FadeOutTime = 1.0f);
 
 	/** Push a sound mix modifier onto the audio system 
 	 * @param InSoundMixModifier The Sound Mix Modifier to add to the system
 	 */
 	UFUNCTION(BlueprintCallable, Category="Audio", meta=(WorldContext = "WorldContextObject"))
-	static void PushSoundMixModifier(const UObject* WorldContextObject, class USoundMix* InSoundMixModifier);
+	static ENGINE_API void PushSoundMixModifier(const UObject* WorldContextObject, class USoundMix* InSoundMixModifier);
 
 	/** Pop a sound mix modifier from the audio system 
 	 *	@param InSoundMixModifier The Sound Mix Modifier to remove from the system
 	 */
 	UFUNCTION(BlueprintCallable, Category="Audio", meta=(WorldContext = "WorldContextObject"))
-	static void PopSoundMixModifier(const UObject* WorldContextObject, class USoundMix* InSoundMixModifier);
+	static ENGINE_API void PopSoundMixModifier(const UObject* WorldContextObject, class USoundMix* InSoundMixModifier);
 
 	/** Clear all sound mix modifiers from the audio system */
 	UFUNCTION(BlueprintCallable, Category="Audio", meta=(WorldContext = "WorldContextObject"))
-	static void ClearSoundMixModifiers(const UObject* WorldContextObject);
+	static ENGINE_API void ClearSoundMixModifiers(const UObject* WorldContextObject);
 
 	/** Activates a Reverb Effect without the need for an Audio Volume
 	 * @param ReverbEffect Reverb Effect to use
@@ -978,7 +978,7 @@ public:
 	 * @param FadeTime Time before Reverb Effect is fully active
 	 */
 	UFUNCTION(BlueprintCallable, Category="Audio", meta=(WorldContext = "WorldContextObject", AdvancedDisplay = "2"))
-	static void ActivateReverbEffect(const UObject* WorldContextObject, class UReverbEffect* ReverbEffect, FName TagName, float Priority = 0.f, float Volume = 0.5f, float FadeTime = 2.f);
+	static ENGINE_API void ActivateReverbEffect(const UObject* WorldContextObject, class UReverbEffect* ReverbEffect, FName TagName, float Priority = 0.f, float Volume = 0.5f, float FadeTime = 2.f);
 
 	/**
 	 * Deactivates a Reverb Effect that was applied outside of an Audio Volume
@@ -986,13 +986,13 @@ public:
 	 * @param TagName Tag associated with Reverb Effect to remove
 	 */
 	UFUNCTION(BlueprintCallable, Category="Audio", meta=(WorldContext = "WorldContextObject"))
-	static void DeactivateReverbEffect(const UObject* WorldContextObject, FName TagName);
+	static ENGINE_API void DeactivateReverbEffect(const UObject* WorldContextObject, FName TagName);
 
 	/** 
 	 * Returns the highest priority reverb settings currently active from any source (Audio Volumes or manual settings). 
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio", meta = (WorldContext = "WorldContextObject"))
-	static class UReverbEffect* GetCurrentReverbEffect(const UObject* WorldContextObject);
+	static ENGINE_API class UReverbEffect* GetCurrentReverbEffect(const UObject* WorldContextObject);
 
 	/**
 	 * Sets the max number of voices (also known as "channels") dynamically by percentage. E.g. if you want to temporarily
@@ -1000,13 +1000,13 @@ public:
 	 * @param MaxChannelCountScale The percentage of the original voice count to set the max number of voices to
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio", meta = (WorldContext = "WorldContextObject"))
-	static void SetMaxAudioChannelsScaled(const UObject* WorldContextObject, float MaxChannelCountScale);
+	static ENGINE_API void SetMaxAudioChannelsScaled(const UObject* WorldContextObject, float MaxChannelCountScale);
 
 	/**
 	 * Retrieves the max voice count currently used by the audio engine.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio", meta = (WorldContext = "WorldContextObject"))
-	static int32 GetMaxAudioChannelCount(const UObject* WorldContextObject);
+	static ENGINE_API int32 GetMaxAudioChannelCount(const UObject* WorldContextObject);
 
 
 	// --- Decal functions ------------------------------
@@ -1019,7 +1019,7 @@ public:
 	 * @param LifeSpan - destroy decal component after time runs out (0 = infinite)
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category="Rendering|Decal", meta=(WorldContext="WorldContextObject", UnsafeDuringActorConstruction = "true"))
-	static UDecalComponent* SpawnDecalAtLocation(const UObject* WorldContextObject, class UMaterialInterface* DecalMaterial, FVector DecalSize, FVector Location, FRotator Rotation = FRotator(-90, 0, 0), float LifeSpan = 0);
+	static ENGINE_API UDecalComponent* SpawnDecalAtLocation(const UObject* WorldContextObject, class UMaterialInterface* DecalMaterial, FVector DecalSize, FVector Location, FRotator Rotation = FRotator(-90, 0, 0), float LifeSpan = 0);
 
 	/** Spawns a decal attached to and following the specified component. Does not replicate.
 	 * @param DecalMaterial - decal's material
@@ -1032,7 +1032,7 @@ public:
 	 * @param LifeSpan - destroy decal component after time runs out (0 = infinite)
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category="Rendering|Decal", meta=(UnsafeDuringActorConstruction = "true"))
-	static UDecalComponent* SpawnDecalAttached(class UMaterialInterface* DecalMaterial, FVector DecalSize, class USceneComponent* AttachToComponent, FName AttachPointName = NAME_None, FVector Location = FVector(ForceInit), FRotator Rotation = FRotator::ZeroRotator, EAttachLocation::Type LocationType = EAttachLocation::KeepRelativeOffset, float LifeSpan = 0);
+	static ENGINE_API UDecalComponent* SpawnDecalAttached(class UMaterialInterface* DecalMaterial, FVector DecalSize, class USceneComponent* AttachToComponent, FName AttachPointName = NAME_None, FVector Location = FVector(ForceInit), FRotator Rotation = FRotator::ZeroRotator, EAttachLocation::Type LocationType = EAttachLocation::KeepRelativeOffset, float LifeSpan = 0);
 
 	/** Extracts data from a HitResult. 
 	 * @param Hit			The source HitResult.
@@ -1054,7 +1054,7 @@ public:
 	 * @param FaceIndex		If colliding with trimesh or landscape, index of face that was hit.
 	 */
 	UFUNCTION(BlueprintPure, Category = "Collision", meta=(NativeBreakFunc, AdvancedDisplay="3"))
-	static void BreakHitResult(const struct FHitResult& Hit, bool& bBlockingHit, bool& bInitialOverlap, float& Time, float& Distance, FVector& Location, FVector& ImpactPoint, FVector& Normal, FVector& ImpactNormal, class UPhysicalMaterial*& PhysMat, class AActor*& HitActor, class UPrimitiveComponent*& HitComponent, FName& HitBoneName, FName& BoneName, int32& HitItem, int32& ElementIndex, int32& FaceIndex, FVector& TraceStart, FVector& TraceEnd);
+	static ENGINE_API void BreakHitResult(const struct FHitResult& Hit, bool& bBlockingHit, bool& bInitialOverlap, float& Time, float& Distance, FVector& Location, FVector& ImpactPoint, FVector& Normal, FVector& ImpactNormal, class UPhysicalMaterial*& PhysMat, class AActor*& HitActor, class UPrimitiveComponent*& HitComponent, FName& HitBoneName, FName& BoneName, int32& HitItem, int32& ElementIndex, int32& FaceIndex, FVector& TraceStart, FVector& TraceEnd);
 
 	/** 
 	 *	Create a HitResult struct
@@ -1077,20 +1077,20 @@ public:
 	 * @param FaceIndex		If colliding with trimesh or landscape, index of face that was hit.
 	 */
 	UFUNCTION(BlueprintPure, Category = "Collision", meta = (NativeMakeFunc, AdvancedDisplay="2", Normal="0,0,1", ImpactNormal="0,0,1"))
-	static FHitResult MakeHitResult(bool bBlockingHit, bool bInitialOverlap, float Time, float Distance, FVector Location, FVector ImpactPoint, FVector Normal, FVector ImpactNormal, class UPhysicalMaterial* PhysMat, class AActor* HitActor, class UPrimitiveComponent* HitComponent, FName HitBoneName, FName BoneName, int32 HitItem, int32 ElementIndex, int32 FaceIndex, FVector TraceStart, FVector TraceEnd);
+	static ENGINE_API FHitResult MakeHitResult(bool bBlockingHit, bool bInitialOverlap, float Time, float Distance, FVector Location, FVector ImpactPoint, FVector Normal, FVector ImpactNormal, class UPhysicalMaterial* PhysMat, class AActor* HitActor, class UPrimitiveComponent* HitComponent, FName HitBoneName, FName BoneName, int32 HitItem, int32 ElementIndex, int32 FaceIndex, FVector TraceStart, FVector TraceEnd);
 
 
 	/** Returns the EPhysicalSurface type of the given Hit. 
 	 * To edit surface type for your project, use ProjectSettings/Physics/PhysicalSurface section
 	 */
 	UFUNCTION(BlueprintPure, Category="Collision")
-	static EPhysicalSurface GetSurfaceType(const struct FHitResult& Hit);
+	static ENGINE_API EPhysicalSurface GetSurfaceType(const struct FHitResult& Hit);
 
 	/** 
 	 *	Try and find the UV for a collision impact. Note this ONLY works if 'Support UV From Hit Results' is enabled in Physics Settings.
 	 */
 	UFUNCTION(BlueprintPure, Category = "Collision")
-	static bool FindCollisionUV(const struct FHitResult& Hit, int32 UVChannel, FVector2D& UV);
+	static ENGINE_API bool FindCollisionUV(const struct FHitResult& Hit, int32 UVChannel, FVector2D& UV);
 
 	// --- Save Game functions ------------------------------
 
@@ -1100,7 +1100,7 @@ public:
 	 * @return					New SaveGame object to write data to
 	 */
 	UFUNCTION(BlueprintCallable, Category="SaveGame", meta=(DeterminesOutputType="SaveGameClass"))
-	static USaveGame* CreateSaveGameObject(TSubclassOf<USaveGame> SaveGameClass);
+	static ENGINE_API USaveGame* CreateSaveGameObject(TSubclassOf<USaveGame> SaveGameClass);
 
 	/** 
 	 * Serialize our USaveGame object into a given array of bytes
@@ -1110,7 +1110,7 @@ public:
 	 * @param OutSaveData		Byte array that is written into
 	 * @return					Whether we successfully wrote data
 	 */
-	static bool SaveGameToMemory(USaveGame* SaveGameObject, TArray<uint8>& OutSaveData);
+	static ENGINE_API bool SaveGameToMemory(USaveGame* SaveGameObject, TArray<uint8>& OutSaveData);
 
 	/** 
 	 * Save the contents of the buffer to a platform-specific save slot/file 
@@ -1119,7 +1119,7 @@ public:
 	 * @param UserIndex			The platform user index that identifies the user doing the saving, ignored on some platforms.
 	 * @return					Whether we successfully saved this information
 	 */
-	static bool SaveDataToSlot(const TArray<uint8>& InSaveData, const FString& SlotName, const int32 UserIndex);
+	static ENGINE_API bool SaveDataToSlot(const TArray<uint8>& InSaveData, const FString& SlotName, const int32 UserIndex);
 
 	/** 
 	 * Schedule an async save to a specific slot. UAsyncActionHandleSaveGame::AsyncSaveGameToSlot is the blueprint version of this.
@@ -1131,7 +1131,7 @@ public:
 	 * @param UserIndex			The platform user index that identifies the user doing the saving, ignored on some platforms.
 	 * @param SavedDelegate		Delegate that will be called on game thread when save succeeds or fails.
 	 */
-	static void AsyncSaveGameToSlot(USaveGame* SaveGameObject, const FString& SlotName, const int32 UserIndex, FAsyncSaveGameToSlotDelegate SavedDelegate = FAsyncSaveGameToSlotDelegate());
+	static ENGINE_API void AsyncSaveGameToSlot(USaveGame* SaveGameObject, const FString& SlotName, const int32 UserIndex, FAsyncSaveGameToSlotDelegate SavedDelegate = FAsyncSaveGameToSlotDelegate());
 
 	/** 
 	 * Save the contents of the SaveGameObject to a platform-specific save slot/file.
@@ -1143,7 +1143,7 @@ public:
 	 * @return					Whether we successfully saved this information
 	 */
 	UFUNCTION(BlueprintCallable, Category="SaveGame")
-	static bool SaveGameToSlot(USaveGame* SaveGameObject, const FString& SlotName, const int32 UserIndex);
+	static ENGINE_API bool SaveGameToSlot(USaveGame* SaveGameObject, const FString& SlotName, const int32 UserIndex);
 
 	/**
 	 * See if a save game exists with the specified name.
@@ -1151,14 +1151,14 @@ public:
 	 * @param UserIndex			The platform user index that identifies the user doing the saving, ignored on some platforms.
 	 */
 	UFUNCTION(BlueprintCallable, Category="SaveGame")
-	static bool DoesSaveGameExist(const FString& SlotName, const int32 UserIndex);
+	static ENGINE_API bool DoesSaveGameExist(const FString& SlotName, const int32 UserIndex);
 
 	/**
 	 * Tries to load a SaveGame object from a given array of bytes.
 	 * @param InSaveData		The array containing the serialized USaveGame data to load
 	 * @return					Object containing loaded game state (nullptr if load fails)
 	 */
-	static USaveGame* LoadGameFromMemory(const TArray<uint8>& InSaveData);
+	static ENGINE_API USaveGame* LoadGameFromMemory(const TArray<uint8>& InSaveData);
 
 	/**
 	 * Load contents from a slot/file into a buffer of save data.
@@ -1167,7 +1167,7 @@ public:
 	 * @param UserIndex			The platform user index that identifies the user doing the saving, ignored on some platforms.
 	 * @return					Whether valid save data was found and loaded.
 	 */
-	static bool LoadDataFromSlot(TArray<uint8>& OutSaveData, const FString& SlotName, const int32 UserIndex);
+	static ENGINE_API bool LoadDataFromSlot(TArray<uint8>& OutSaveData, const FString& SlotName, const int32 UserIndex);
 
 	/** 
 	 * Schedule an async load of a specific slot. UAsyncActionHandleSaveGame::AsyncLoadGameFromSlot is the blueprint version of this.
@@ -1178,7 +1178,7 @@ public:
 	 * @param UserIndex			The platform user index that identifies the user doing the saving, ignored on some platforms.
 	 * @param LoadedDelegate	Delegate that will be called on game thread when load succeeds or fails.
 	 */
-	static void AsyncLoadGameFromSlot(const FString& SlotName, const int32 UserIndex, FAsyncLoadGameFromSlotDelegate LoadedDelegate);
+	static ENGINE_API void AsyncLoadGameFromSlot(const FString& SlotName, const int32 UserIndex, FAsyncLoadGameFromSlotDelegate LoadedDelegate);
 
 	/** 
 	 * Load the contents from a given slot.
@@ -1187,7 +1187,7 @@ public:
 	 * @return					Object containing loaded game state (nullptr if load fails)
 	 */
 	UFUNCTION(BlueprintCallable, Category="SaveGame")
-	static USaveGame* LoadGameFromSlot(const FString& SlotName, const int32 UserIndex);
+	static ENGINE_API USaveGame* LoadGameFromSlot(const FString& SlotName, const int32 UserIndex);
 
 	/** 
 	 * Takes the provided buffer and consumes it, parsing past the internal header data, returning a MemoryReader
@@ -1198,7 +1198,7 @@ public:
 	 * @param SaveData			A byte array, presumably produced by one of the SaveGame functions here.
 	 * @return					A memory reader, wrapping SaveData, offset to the point past the header data.
 	 */
-	static FMemoryReader StripSaveGameHeader(const TArray<uint8>& SaveData);
+	static ENGINE_API FMemoryReader StripSaveGameHeader(const TArray<uint8>& SaveData);
 
 	/**
 	 * Delete a save game in a particular slot.
@@ -1207,34 +1207,34 @@ public:
 	 * @return					True if a file was actually able to be deleted. use DoesSaveGameExist to distinguish between delete failures and failure due to file not existing.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SaveGame")
-	static bool DeleteGameInSlot(const FString& SlotName, const int32 UserIndex);
+	static ENGINE_API bool DeleteGameInSlot(const FString& SlotName, const int32 UserIndex);
 
 	/** Returns the frame delta time in seconds, adjusted by time dilation. */
 	UFUNCTION(BlueprintPure, Category = "Utilities|Time", meta = (WorldContext="WorldContextObject"))
-	static double GetWorldDeltaSeconds(const UObject* WorldContextObject);
+	static ENGINE_API double GetWorldDeltaSeconds(const UObject* WorldContextObject);
 
 	/** Returns time in seconds since world was brought up for play, adjusted by time dilation and IS stopped when game pauses */
 	UFUNCTION(BlueprintPure, Category="Utilities|Time", meta=(WorldContext="WorldContextObject"))
-	static double GetTimeSeconds(const UObject* WorldContextObject);
+	static ENGINE_API double GetTimeSeconds(const UObject* WorldContextObject);
 
 	/** Returns time in seconds since world was brought up for play, adjusted by time dilation and IS NOT stopped when game pauses */
 	UFUNCTION(BlueprintPure, Category="Utilities|Time", meta=(WorldContext="WorldContextObject"))
-	static double GetUnpausedTimeSeconds(const UObject* WorldContextObject);
+	static ENGINE_API double GetUnpausedTimeSeconds(const UObject* WorldContextObject);
 
 	/** Returns time in seconds since world was brought up for play, does NOT stop when game pauses, NOT dilated/clamped */
 	UFUNCTION(BlueprintPure, Category="Utilities|Time", meta=(WorldContext="WorldContextObject"))
-	static double GetRealTimeSeconds(const UObject* WorldContextObject);
+	static ENGINE_API double GetRealTimeSeconds(const UObject* WorldContextObject);
 	
 	/** Returns time in seconds since world was brought up for play, IS stopped when game pauses, NOT dilated/clamped. */
 	UFUNCTION(BlueprintPure, Category="Utilities|Time", meta=(WorldContext="WorldContextObject"))
-	static double GetAudioTimeSeconds(const UObject* WorldContextObject);
+	static ENGINE_API double GetAudioTimeSeconds(const UObject* WorldContextObject);
 
 	UE_DEPRECATED(5.1, "This method has been deprecated and will be removed. Use the double version instead.")
-	static void GetAccurateRealTime(int32& Seconds, float& PartialSeconds);
+	static ENGINE_API void GetAccurateRealTime(int32& Seconds, float& PartialSeconds);
 
 	/** Returns time in seconds since the application was started. Unlike the other time functions this is accurate to the exact time this function is called instead of set once per frame. */
 	UFUNCTION(BlueprintPure, Category="Utilities|Time")
-	static void GetAccurateRealTime(int32& Seconds, double& PartialSeconds);
+	static ENGINE_API void GetAccurateRealTime(int32& Seconds, double& PartialSeconds);
 
 	/*~ DVRStreaming API */
 	
@@ -1243,13 +1243,13 @@ public:
 	 * @param Enable			If true enable streaming, otherwise disable.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Game", meta=(Enable="true"))
-	static void EnableLiveStreaming(bool Enable);
+	static ENGINE_API void EnableLiveStreaming(bool Enable);
 
 	/**
 	 * Returns the string name of the current platform, to perform different behavior based on platform. 
 	 * (Platform names include Windows, Mac, Linux, IOS, Android, consoles, etc.). */
 	UFUNCTION(BlueprintPure, Category="Game")
-	static FString GetPlatformName();
+	static ENGINE_API FString GetPlatformName();
 
 	/**
 	 * Calculates an launch velocity for a projectile to hit a specified point.
@@ -1265,10 +1265,10 @@ public:
 	 * @return					Returns false if there is no valid solution or the valid solutions are blocked.  Returns true otherwise.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Game", DisplayName="Suggest Projectile Velocity", meta=(WorldContext="WorldContextObject"))
-	static bool BlueprintSuggestProjectileVelocity(const UObject* WorldContextObject, FVector& TossVelocity, FVector StartLocation, FVector EndLocation, float LaunchSpeed, float OverrideGravityZ, ESuggestProjVelocityTraceOption::Type TraceOption, float CollisionRadius, bool bFavorHighArc, bool bDrawDebug);
+	static ENGINE_API bool BlueprintSuggestProjectileVelocity(const UObject* WorldContextObject, FVector& TossVelocity, FVector StartLocation, FVector EndLocation, float LaunchSpeed, float OverrideGravityZ, ESuggestProjVelocityTraceOption::Type TraceOption, float CollisionRadius, bool bFavorHighArc, bool bDrawDebug);
 
 	/** Native version, has more options than the Blueprint version. */
-	static bool SuggestProjectileVelocity(const UObject* WorldContextObject, FVector& TossVelocity, FVector StartLocation, FVector EndLocation, float TossSpeed, bool bHighArc = false, float CollisionRadius = 0.f, float OverrideGravityZ = 0, ESuggestProjVelocityTraceOption::Type TraceOption = ESuggestProjVelocityTraceOption::TraceFullPath, const FCollisionResponseParams& ResponseParam = FCollisionResponseParams::DefaultResponseParam, const TArray<AActor*>& ActorsToIgnore = TArray<AActor*>(), bool bDrawDebug = false);
+	static ENGINE_API bool SuggestProjectileVelocity(const UObject* WorldContextObject, FVector& TossVelocity, FVector StartLocation, FVector EndLocation, float TossSpeed, bool bHighArc = false, float CollisionRadius = 0.f, float OverrideGravityZ = 0, ESuggestProjVelocityTraceOption::Type TraceOption = ESuggestProjVelocityTraceOption::TraceFullPath, const FCollisionResponseParams& ResponseParam = FCollisionResponseParams::DefaultResponseParam, const TArray<AActor*>& ActorsToIgnore = TArray<AActor*>(), bool bDrawDebug = false);
 
 	/**
 	* Predict the arc of a virtual projectile affected by gravity with collision checks along the arc. Returns a list of positions of the simulated arc and the destination reached by the simulation.
@@ -1292,7 +1292,7 @@ public:
 	* @return							True if hit something along the path if tracing for collision.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Game", DisplayName="Predict Projectile Path By ObjectType", meta = (WorldContext = "WorldContextObject", AutoCreateRefTerm = "ActorsToIgnore", AdvancedDisplay = "DrawDebugTime, DrawDebugType, SimFrequency, MaxSimTime, OverrideGravityZ", bTracePath = true))
-	static bool Blueprint_PredictProjectilePath_ByObjectType(const UObject* WorldContextObject, FHitResult& OutHit, TArray<FVector>& OutPathPositions, FVector& OutLastTraceDestination, FVector StartPos, FVector LaunchVelocity, bool bTracePath, float ProjectileRadius, const TArray<TEnumAsByte<EObjectTypeQuery> >& ObjectTypes, bool bTraceComplex, const TArray<AActor*>& ActorsToIgnore, EDrawDebugTrace::Type DrawDebugType, float DrawDebugTime, float SimFrequency = 15.f, float MaxSimTime = 2.f, float OverrideGravityZ = 0);
+	static ENGINE_API bool Blueprint_PredictProjectilePath_ByObjectType(const UObject* WorldContextObject, FHitResult& OutHit, TArray<FVector>& OutPathPositions, FVector& OutLastTraceDestination, FVector StartPos, FVector LaunchVelocity, bool bTracePath, float ProjectileRadius, const TArray<TEnumAsByte<EObjectTypeQuery> >& ObjectTypes, bool bTraceComplex, const TArray<AActor*>& ActorsToIgnore, EDrawDebugTrace::Type DrawDebugType, float DrawDebugTime, float SimFrequency = 15.f, float MaxSimTime = 2.f, float OverrideGravityZ = 0);
 
 	/**
 	* Predict the arc of a virtual projectile affected by gravity with collision checks along the arc. Returns a list of positions of the simulated arc and the destination reached by the simulation.
@@ -1316,7 +1316,7 @@ public:
 	* @return							True if hit something along the path (if tracing with collision).
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Game", DisplayName="Predict Projectile Path By TraceChannel", meta = (WorldContext = "WorldContextObject", AutoCreateRefTerm = "ActorsToIgnore", AdvancedDisplay = "DrawDebugTime, DrawDebugType, SimFrequency, MaxSimTime, OverrideGravityZ", TraceChannel = ECC_WorldDynamic, bTracePath = true))
-	static bool Blueprint_PredictProjectilePath_ByTraceChannel(const UObject* WorldContextObject, FHitResult& OutHit, TArray<FVector>& OutPathPositions, FVector& OutLastTraceDestination, FVector StartPos, FVector LaunchVelocity, bool bTracePath, float ProjectileRadius, TEnumAsByte<ECollisionChannel> TraceChannel, bool bTraceComplex, const TArray<AActor*>& ActorsToIgnore, EDrawDebugTrace::Type DrawDebugType, float DrawDebugTime, float SimFrequency = 15.f, float MaxSimTime = 2.f, float OverrideGravityZ = 0);
+	static ENGINE_API bool Blueprint_PredictProjectilePath_ByTraceChannel(const UObject* WorldContextObject, FHitResult& OutHit, TArray<FVector>& OutPathPositions, FVector& OutLastTraceDestination, FVector StartPos, FVector LaunchVelocity, bool bTracePath, float ProjectileRadius, TEnumAsByte<ECollisionChannel> TraceChannel, bool bTraceComplex, const TArray<AActor*>& ActorsToIgnore, EDrawDebugTrace::Type DrawDebugType, float DrawDebugTime, float SimFrequency = 15.f, float MaxSimTime = 2.f, float OverrideGravityZ = 0);
 
 	/**
 	* Predict the arc of a virtual projectile affected by gravity with collision checks along the arc.
@@ -1326,7 +1326,7 @@ public:
 	* @param PredictResult				Output result of the trace (Hit result, array of location/velocity/times for each trace step, etc).
 	* @return							True if hit something along the path (if tracing with collision).
 	*/
-	static bool PredictProjectilePath(const UObject* WorldContextObject, const FPredictProjectilePathParams& PredictParams, FPredictProjectilePathResult& PredictResult);
+	static ENGINE_API bool PredictProjectilePath(const UObject* WorldContextObject, const FPredictProjectilePathParams& PredictParams, FPredictProjectilePathResult& PredictResult);
 
 	/**
 	* Predict the arc of a virtual projectile affected by gravity with collision checks along the arc.
@@ -1337,7 +1337,7 @@ public:
 	* @return							True if hit something along the path (if tracing with collision).
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Game", DisplayName="Predict Projectile Path (Advanced)", meta = (WorldContext = "WorldContextObject"))
-	static bool Blueprint_PredictProjectilePath_Advanced(const UObject* WorldContextObject, const FPredictProjectilePathParams& PredictParams, FPredictProjectilePathResult& PredictResult);
+	static ENGINE_API bool Blueprint_PredictProjectilePath_Advanced(const UObject* WorldContextObject, const FPredictProjectilePathParams& PredictParams, FPredictProjectilePathResult& PredictResult);
 
 	/**
 	* Returns the launch velocity needed for a projectile at rest at StartPos to land on EndPos.
@@ -1351,7 +1351,7 @@ public:
 	* @param ArcParam					Change height of arc between 0.0-1.0 where 0.5 is the default medium arc, 0 is up, and 1 is directly toward EndPos.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Game", DisplayName = "Suggest Projectile Velocity Custom Arc", meta = (WorldContext = "WorldContextObject", AdvancedDisplay = "OverrideGravityZ, ArcParam"))
-	static bool SuggestProjectileVelocity_CustomArc(const UObject* WorldContextObject, FVector& OutLaunchVelocity, FVector StartPos, FVector EndPos, float OverrideGravityZ = 0, float ArcParam = 0.5f);
+	static ENGINE_API bool SuggestProjectileVelocity_CustomArc(const UObject* WorldContextObject, FVector& OutLaunchVelocity, FVector StartPos, FVector EndPos, float OverrideGravityZ = 0, float ArcParam = 0.5f);
 
 	/**
 	 * Returns a launch velocity need for a projectile to hit the TargetActor in TimeToTarget seconds based on the TargetActor's current velocity.
@@ -1365,23 +1365,23 @@ public:
 	 * @param TimeToTarget				Time (in seconds) between the projectile being launched and the projectile hitting the TargetActor - clamped to be at least 0.1
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Game", DisplayName = "Suggest Projectile Velocity Moving Target", meta = (WorldContext = "WorldContextObject", AdvancedDisplay = "DrawDebugType, DrawDebugTime, DrawDebugColor"))
-	static bool SuggestProjectileVelocity_MovingTarget(const UObject* WorldContextObject, FVector& OutLaunchVelocity, FVector ProjectileStartLocation, AActor* TargetActor, FVector TargetLocationOffset = FVector::ZeroVector, double GravityZOverride = 0.f, double TimeToTarget = 1.f, EDrawDebugTrace::Type DrawDebugType = EDrawDebugTrace::Type::None, float DrawDebugTime = 3.f, FLinearColor DrawDebugColor = FLinearColor::Red);
+	static ENGINE_API bool SuggestProjectileVelocity_MovingTarget(const UObject* WorldContextObject, FVector& OutLaunchVelocity, FVector ProjectileStartLocation, AActor* TargetActor, FVector TargetLocationOffset = FVector::ZeroVector, double GravityZOverride = 0.f, double TimeToTarget = 1.f, EDrawDebugTrace::Type DrawDebugType = EDrawDebugTrace::Type::None, float DrawDebugTime = 3.f, FLinearColor DrawDebugColor = FLinearColor::Red);
 
 	/** Returns world origin current location. */
 	UFUNCTION(BlueprintPure, Category="Game", meta=(WorldContext="WorldContextObject") )
-	static FIntVector GetWorldOriginLocation(const UObject* WorldContextObject);
+	static ENGINE_API FIntVector GetWorldOriginLocation(const UObject* WorldContextObject);
 	
 	/** Requests a new location for a world origin. */
 	UFUNCTION(BlueprintCallable, Category="Game", meta=(WorldContext="WorldContextObject"))
-	static void SetWorldOriginLocation(const UObject* WorldContextObject, FIntVector NewLocation);
+	static ENGINE_API void SetWorldOriginLocation(const UObject* WorldContextObject, FIntVector NewLocation);
 
 	/** Returns origin based position for local world location. */
 	UFUNCTION(BlueprintPure, Category = "Game", meta = (WorldContext = "WorldContextObject"))
-	static FVector RebaseLocalOriginOntoZero(UObject* WorldContextObject, FVector WorldLocation);
+	static ENGINE_API FVector RebaseLocalOriginOntoZero(UObject* WorldContextObject, FVector WorldLocation);
 
 	/** Returns local location for origin based position. */
 	UFUNCTION(BlueprintPure, Category = "Game", meta = (WorldContext = "WorldContextObject"))
-	static FVector RebaseZeroOriginOntoLocal(UObject* WorldContextObject, FVector WorldLocation);
+	static ENGINE_API FVector RebaseZeroOriginOntoLocal(UObject* WorldContextObject, FVector WorldLocation);
 
 	/**
 	* Counts how many grass foliage instances overlap a given sphere.
@@ -1393,7 +1393,7 @@ public:
 	* @return Number of foliage instances with their mesh set to Mesh that overlap the sphere.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Foliage", meta = (WorldContext = "WorldContextObject", UnsafeDuringActorConstruction = "true"))
-	static int32 GrassOverlappingSphereCount(const UObject* WorldContextObject, const UStaticMesh* StaticMesh, FVector CenterPosition, float Radius);
+	static ENGINE_API int32 GrassOverlappingSphereCount(const UObject* WorldContextObject, const UStaticMesh* StaticMesh, FVector CenterPosition, float Radius);
 
 	/** 
 	 * Transforms the given 2D screen space coordinate into a 3D world-space point and direction.
@@ -1403,7 +1403,7 @@ public:
 	 * @param WorldDirection	(out) World space direction vector away from the camera at the given 2d point.
 	 */
 	UFUNCTION(BlueprintPure, Category = "Camera", meta = (Keywords = "unproject"))
-	static bool DeprojectScreenToWorld(APlayerController const* Player, const FVector2D& ScreenPosition, FVector& WorldPosition, FVector& WorldDirection);
+	static ENGINE_API bool DeprojectScreenToWorld(APlayerController const* Player, const FVector2D& ScreenPosition, FVector& WorldPosition, FVector& WorldDirection);
 
 	/** 
 	 * Transforms the given 2D UV coordinate into a 3D world-space point and direction.
@@ -1413,7 +1413,7 @@ public:
 	 * @param WorldDirection	(out) World space direction vector away from the camera at the given 2d point.
 	 */
 	UFUNCTION(BlueprintPure, Category = "Camera", meta = (Keywords = "unproject"))
-	static bool DeprojectSceneCaptureToWorld(ASceneCapture2D const* SceneCapture2D, const FVector2D& TargetUV, FVector& WorldPosition, FVector& WorldDirection);
+	static ENGINE_API bool DeprojectSceneCaptureToWorld(ASceneCapture2D const* SceneCapture2D, const FVector2D& TargetUV, FVector& WorldPosition, FVector& WorldDirection);
 
 	/** 
 	 * Transforms the given 3D world-space point into a its 2D screen space coordinate. 
@@ -1423,7 +1423,7 @@ public:
 	 * @param bPlayerViewportRelative	Should this be relative to the player viewport subregion (useful when using player attached widgets in split screen)
 	 */
 	UFUNCTION(BlueprintPure, Category = "Camera")
-	static bool ProjectWorldToScreen(APlayerController const* Player, const FVector& WorldPosition, FVector2D& ScreenPosition, bool bPlayerViewportRelative = false);
+	static ENGINE_API bool ProjectWorldToScreen(APlayerController const* Player, const FVector& WorldPosition, FVector2D& ScreenPosition, bool bPlayerViewportRelative = false);
 
 	/**
 	 * Returns the View Matrix, Projection Matrix and the View x Projection Matrix for a given view
@@ -1433,24 +1433,24 @@ public:
 	 * @param ViewProjectionMatrix	(out) Corresponding View x Projection Matrix
 	 */
 	UFUNCTION(BlueprintPure, Category = "Camera")
-	static void GetViewProjectionMatrix(FMinimalViewInfo DesiredView, FMatrix &ViewMatrix, FMatrix &ProjectionMatrix, FMatrix &ViewProjectionMatrix);
+	static ENGINE_API void GetViewProjectionMatrix(FMinimalViewInfo DesiredView, FMatrix &ViewMatrix, FMatrix &ProjectionMatrix, FMatrix &ViewProjectionMatrix);
 
 	/**
 	 * Calculate view-projection matrices from a specified view target
 	 */
-	static void CalculateViewProjectionMatricesFromViewTarget(AActor* InViewTarget, FMatrix& OutViewMatrix, FMatrix& OutProjectionMatrix, FMatrix& OutViewProjectionMatrix);
+	static ENGINE_API void CalculateViewProjectionMatricesFromViewTarget(AActor* InViewTarget, FMatrix& OutViewMatrix, FMatrix& OutProjectionMatrix, FMatrix& OutViewProjectionMatrix);
 
 	/**
 	 * Calculate view-projection matrices from a specified MinimalViewInfo and optional custom projection matrix
 	 */
-	static void CalculateViewProjectionMatricesFromMinimalView(const FMinimalViewInfo& MinimalViewInfo, const TOptional<FMatrix>& CustomProjectionMatrix, FMatrix& OutViewMatrix, FMatrix& OutProjectionMatrix, FMatrix& OutViewProjectionMatrix);
+	static ENGINE_API void CalculateViewProjectionMatricesFromMinimalView(const FMinimalViewInfo& MinimalViewInfo, const TOptional<FMatrix>& CustomProjectionMatrix, FMatrix& OutViewMatrix, FMatrix& OutProjectionMatrix, FMatrix& OutViewProjectionMatrix);
 
 	//~ Utility functions for interacting with Options strings
 
 	//~=========================================================================
 	//~ URL Parsing
 
-	static bool GrabOption( FString& Options, FString& ResultString );
+	static ENGINE_API bool GrabOption( FString& Options, FString& ResultString );
 
 	/** 
 	 * Break up a key=value pair into its key and value. 
@@ -1459,7 +1459,7 @@ public:
 	 * @param Value			(out) Value portion of Pair. If no = in string will be empty.
 	 */
 	UFUNCTION(BlueprintPure, Category="Game Options", meta=(BlueprintThreadSafe))
-	static void GetKeyValue( const FString& Pair, FString& Key, FString& Value );
+	static ENGINE_API void GetKeyValue( const FString& Pair, FString& Key, FString& Value );
 
 	/** 
 	 * Find an option in the options string and return it.
@@ -1468,7 +1468,7 @@ public:
 	 * @return				The value associated with Key if Key found in Options string.
 	 */
 	UFUNCTION(BlueprintPure, Category="Game Options", meta=(BlueprintThreadSafe))
-	static FString ParseOption( FString Options, const FString& Key );
+	static ENGINE_API FString ParseOption( FString Options, const FString& Key );
 
 	/** 
 	 * Returns whether a key exists in an options string.
@@ -1477,7 +1477,7 @@ public:
 	 * @return				Whether Key was found in Options.
 	 */
 	UFUNCTION(BlueprintPure, Category="Game Options", meta=(BlueprintThreadSafe))
-	static bool HasOption( FString Options, const FString& InKey );
+	static ENGINE_API bool HasOption( FString Options, const FString& InKey );
 
 	/** 
 	 * Find an option in the options string and return it as an integer.
@@ -1486,7 +1486,7 @@ public:
 	 * @return				The value associated with Key as an integer if Key found in Options string, otherwise DefaultValue.
 	 */
 	UFUNCTION(BlueprintPure, Category="Game Options", meta=(BlueprintThreadSafe))
-	static int32 GetIntOption( const FString& Options, const FString& Key, int32 DefaultValue);
+	static ENGINE_API int32 GetIntOption( const FString& Options, const FString& Key, int32 DefaultValue);
 
 	//~=========================================================================
 	//~ Launch Options Parsing
@@ -1496,7 +1496,7 @@ public:
 	* @return				True if the launch option was specified on the commandline, false otherwise
 	*/
 	UFUNCTION(BlueprintPure, Category = "Utilities")
-	static bool HasLaunchOption(const FString& OptionToCheck);
+	static ENGINE_API bool HasLaunchOption(const FString& OptionToCheck);
 
 	/**
 	 * If accessibility is enabled, have the platform announce a string to the player.
@@ -1506,6 +1506,6 @@ public:
 	 * NOTE: Currently only supported on Win10, Mac, iOS
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Accessibility")
-	static void AnnounceAccessibleString(const FString& AnnouncementString);
+	static ENGINE_API void AnnounceAccessibleString(const FString& AnnouncementString);
 };
 

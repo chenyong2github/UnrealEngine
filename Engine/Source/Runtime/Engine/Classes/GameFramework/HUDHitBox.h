@@ -12,7 +12,7 @@
  * @see NotifyHitBoxClick(), NotifyHitBoxRelease(), NotifyHitBoxBeginCursorOver(), NotifyHitBoxEndCursorOver()
  * @see GetHitBoxAtCoordinates(), GetHitBoxesAtCoordinates(), GetHitBoxWithName()
  */
-class ENGINE_API FHUDHitBox
+class FHUDHitBox
 {
 public:
 	/** 
@@ -20,21 +20,21 @@ public:
 	 * @param	InCoords		Coordinates of top left of hitbox.
 	 * @param	InSize			Size of the box.
 	 */
-	FHUDHitBox( FVector2D InCoords, FVector2D InSize, const FName& InName, bool bInConsumesInput, int32 InPriority );
+	ENGINE_API FHUDHitBox( FVector2D InCoords, FVector2D InSize, const FName& InName, bool bInConsumesInput, int32 InPriority );
 
 	/** 
 	 * Are the given coordinates within this hitbox.
 	 * @param	InCoords		Coordinates to check.
 	 * @returns true if coordinates are within this hitbox.
 	 */
-	bool Contains( FVector2D InCoords ) const;
+	ENGINE_API bool Contains( FVector2D InCoords ) const;
 
 	/** 
 	 * Debug render for this hitbox.
 	 * @param	InCanvas		Canvas on which to render.
 	 * @param	InColor			Color to render the box.
 	 */
-	void Draw( class FCanvas* InCanvas, const FLinearColor& InColor ) const;
+	ENGINE_API void Draw( class FCanvas* InCanvas, const FLinearColor& InColor ) const;
 	
 	/** Get the name of this hitbox.  */
 	const FName& GetName() const { return Name;};

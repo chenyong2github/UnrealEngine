@@ -40,7 +40,7 @@ public:
 //	FConvexVolume
 //
 
-struct ENGINE_API FConvexVolume
+struct FConvexVolume
 {
 public:
 
@@ -70,7 +70,7 @@ public:
 	/**
 	 * Builds the permuted planes for SSE/Altivec fast clipping
 	 */
-	void Init(void);
+	ENGINE_API void Init(void);
 
 	/**
 	 * Clips a polygon to the volume.
@@ -80,11 +80,11 @@ public:
 	 *
 	 * @return	Returns false if the polygon is entirely outside the volume and true otherwise.
 	 */
-	bool ClipPolygon(class FPoly& Polygon) const;
+	ENGINE_API bool ClipPolygon(class FPoly& Polygon) const;
 
 	// Intersection tests.
 
-	FOutcode GetBoxIntersectionOutcode(const FVector& Origin,const FVector& Extent) const;
+	ENGINE_API FOutcode GetBoxIntersectionOutcode(const FVector& Origin,const FVector& Extent) const;
 
     /**
      * Intersection test with a translated axis-aligned box.
@@ -93,7 +93,7 @@ public:
      * @param Extent of the box along each axis.
      * @returns true if this convex volume intersects the given translated box.
      */
-	bool IntersectBox(const FVector& Origin,const FVector& Extent) const;
+	ENGINE_API bool IntersectBox(const FVector& Origin,const FVector& Extent) const;
 
     /**
      * Intersection test with a translated axis-aligned box.
@@ -103,7 +103,7 @@ public:
 	 * param bOutFullyContained to know if the box was fully contained 
      * @returns true if this convex volume intersects the given translated box.
      */
-	bool IntersectBox(const FVector& Origin,const FVector& Extent, bool& bOutFullyContained) const;
+	ENGINE_API bool IntersectBox(const FVector& Origin,const FVector& Extent, bool& bOutFullyContained) const;
 
 	/**
      * Intersection test with a sphere
@@ -111,7 +111,7 @@ public:
      * @param Radius of the sphere.
      * @returns true if this convex volume intersects the given sphere (the result is conservative at the corners)
      */
-	bool IntersectSphere(const FVector& Origin,const float& Radius) const;
+	ENGINE_API bool IntersectSphere(const FVector& Origin,const float& Radius) const;
 
 	/**
      * Intersection test with a sphere
@@ -120,14 +120,14 @@ public:
 	 * param bOutFullyContained to know if the sphere was fully contained 
      * @returns true if this convex volume intersects the given sphere (the result is conservative at the corners)
      */
-	bool IntersectSphere(const FVector& Origin,const float& Radius, bool& bOutFullyContained) const;
+	ENGINE_API bool IntersectSphere(const FVector& Origin,const float& Radius, bool& bOutFullyContained) const;
 
 	/**
      * Intersection test with a triangle
 	 * param bOutFullyContained to know if the triangle was fully contained 
      * @returns true if this convex volume intersects the given triangle.
      */
-	bool IntersectTriangle(const FVector& PointA, const FVector& PointB, const FVector& PointC, bool& bOutFullyContained) const;
+	ENGINE_API bool IntersectTriangle(const FVector& PointA, const FVector& PointB, const FVector& PointC, bool& bOutFullyContained) const;
 
 	/**
      * Intersection test with line segment
@@ -136,7 +136,7 @@ public:
 	 * param bOutFullyContained to know if the sphere was fully contained 
      * @returns true if this convex volume intersects the given line segment
      */
-	bool IntersectLineSegment(const FVector& Start, const FVector& End) const;
+	ENGINE_API bool IntersectLineSegment(const FVector& Start, const FVector& End) const;
 
 	/**
 	 * Calculates the maximum perpendicular distance of a point to the plains of the convex volume.
@@ -144,7 +144,7 @@ public:
 	 * @param 	Point to calculate the distance to.
 	 * @return 	Returns the maximum perpendicular distance to then plains (the distance is conservative at the corners)
 	 */
-	float DistanceTo(const FVector& Point) const;
+	ENGINE_API float DistanceTo(const FVector& Point) const;
 
 	/**
 	 * Intersection test with a translated axis-aligned box.
@@ -153,7 +153,7 @@ public:
 	 * @param Extent - Extent of the box along each axis.
 	 * @returns true if this convex volume intersects the given translated box.
 	 */
-	bool IntersectBox(const FVector& Origin,const FVector& Translation,const FVector& Extent) const;
+	ENGINE_API bool IntersectBox(const FVector& Origin,const FVector& Translation,const FVector& Extent) const;
 
 	/** 
 	 * Determines whether the given point lies inside the convex volume

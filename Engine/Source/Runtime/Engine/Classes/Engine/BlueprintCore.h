@@ -9,8 +9,8 @@
 #include "Templates/SubclassOf.h"
 #include "BlueprintCore.generated.h"
 
-UCLASS()
-class ENGINE_API UBlueprintCore
+UCLASS(MinimalAPI)
+class UBlueprintCore
 	: public UObject
 {
 	GENERATED_UCLASS_BODY()
@@ -35,7 +35,7 @@ private:
 
 public:
 
-	virtual void Serialize( FArchive& Ar ) override;
+	ENGINE_API virtual void Serialize( FArchive& Ar ) override;
 
 	/** Generates a new blueprint Guid, used when creating new blueprints */
 	void GenerateNewGuid()
@@ -49,5 +49,5 @@ public:
 private:
 	
 	/** Generates a new deterministic guid based on blueprint properties */
-	void GenerateDeterministicGuid();
+	ENGINE_API void GenerateDeterministicGuid();
 };

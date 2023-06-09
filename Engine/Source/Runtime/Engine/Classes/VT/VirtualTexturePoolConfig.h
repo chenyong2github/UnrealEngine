@@ -69,8 +69,8 @@ struct FVirtualTextureSpacePoolConfig
 	bool IsDefault() const { return Formats.Num() == 0 && SizeInMegabyte > 0; }
 };
 
-UCLASS(config = Engine, transient)
-class ENGINE_API UVirtualTexturePoolConfig : public UObject
+UCLASS(config = Engine, transient, MinimalAPI)
+class UVirtualTexturePoolConfig : public UObject
 {
 	GENERATED_UCLASS_BODY()
 public:
@@ -80,5 +80,5 @@ public:
 	UPROPERTY(config)
 	TArray<FVirtualTextureSpacePoolConfig> Pools; // All the VT pools specified in the config
 
-	void FindPoolConfig(TEnumAsByte<EPixelFormat> const* InFormats, int32 InNumLayers, int32 InTileSize, FVirtualTextureSpacePoolConfig& OutConfig) const;
+	ENGINE_API void FindPoolConfig(TEnumAsByte<EPixelFormat> const* InFormats, int32 InNumLayers, int32 InTileSize, FVirtualTextureSpacePoolConfig& OutConfig) const;
 };

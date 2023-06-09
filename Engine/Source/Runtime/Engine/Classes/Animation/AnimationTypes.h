@@ -8,7 +8,7 @@
 
 /** A named float */
 USTRUCT(BlueprintType)
-struct ENGINE_API FNamedFloat
+struct FNamedFloat
 {
 	GENERATED_BODY()
 
@@ -22,7 +22,7 @@ public:
 
 /** A named float */
 USTRUCT(BlueprintType)
-struct ENGINE_API FNamedVector
+struct FNamedVector
 {
 	GENERATED_BODY()
 
@@ -36,7 +36,7 @@ public:
 
 /** A named color */
 USTRUCT(BlueprintType)
-struct ENGINE_API FNamedColor
+struct FNamedColor
 {
 	GENERATED_BODY()
 
@@ -50,7 +50,7 @@ public:
 
 /** A named transform */
 USTRUCT(BlueprintType)
-struct ENGINE_API FNamedTransform
+struct FNamedTransform
 {
 	GENERATED_BODY()
 

@@ -28,11 +28,11 @@ namespace UE::Transaction
 	(rather than the CDO) to store editor data. The CDO can then be re-instanced (or not)
 	as runtime code requires.
 */
-struct ENGINE_API FPersistentObjectRef
+struct FPersistentObjectRef
 {
 public:
 	FPersistentObjectRef() = default;
-	explicit FPersistentObjectRef(UObject* InObject);
+	ENGINE_API explicit FPersistentObjectRef(UObject* InObject);
 
 	bool Serialize(FArchive& Ar)
 	{
@@ -75,9 +75,9 @@ public:
 		return ReferenceType == EReferenceType::SubObject;
 	}
 
-	UObject* Get() const;
+	ENGINE_API UObject* Get() const;
 	
-	void AddReferencedObjects(FReferenceCollector& Collector);
+	ENGINE_API void AddReferencedObjects(FReferenceCollector& Collector);
 
 private:
 	/** This enum represents all of the different special cases we are handling with this type */
@@ -101,16 +101,16 @@ private:
 	mutable TArray<TWeakObjectPtr<UObject>, TInlineAllocator<4>> CachedSubObjectHierarchy;
 };
 
-struct ENGINE_API FSerializedTaggedData
+struct FSerializedTaggedData
 {
 public:
-	static FSerializedTaggedData FromOffsetAndSize(const int64 InOffset, const int64 InSize);
-	static FSerializedTaggedData FromStartAndEnd(const int64 InStart, const int64 InEnd);
+	static ENGINE_API FSerializedTaggedData FromOffsetAndSize(const int64 InOffset, const int64 InSize);
+	static ENGINE_API FSerializedTaggedData FromStartAndEnd(const int64 InStart, const int64 InEnd);
 
-	void AppendSerializedData(const int64 InOffset, const int64 InSize);
-	void AppendSerializedData(const FSerializedTaggedData& InData);
+	ENGINE_API void AppendSerializedData(const int64 InOffset, const int64 InSize);
+	ENGINE_API void AppendSerializedData(const FSerializedTaggedData& InData);
 
-	bool HasSerializedData() const;
+	ENGINE_API bool HasSerializedData() const;
 
 	int64 GetStart() const
 	{
@@ -140,7 +140,7 @@ public:
 	int64 DataSize = 0;
 };
 
-struct ENGINE_API FSerializedObjectData
+struct FSerializedObjectData
 {
 public:
 	bool Serialize(FArchive& Ar)
@@ -165,8 +165,8 @@ public:
 		return !(LHS == RHS);
 	}
 
-	void Read(void* Dest, int64 Offset, int64 Num) const;
-	void Write(const void* Src, int64 Offset, int64 Num);
+	ENGINE_API void Read(void* Dest, int64 Offset, int64 Num) const;
+	ENGINE_API void Write(const void* Src, int64 Offset, int64 Num);
 	
 	const void* GetPtr(int64 Offset) const
 	{
@@ -288,21 +288,21 @@ ENGINE_API extern const FName TaggedDataKey_UnknownData;
 ENGINE_API extern const FName TaggedDataKey_ScriptData;
 
 /** Core archive to read a transaction object from the buffer. */
-class ENGINE_API FSerializedObjectDataReader : public FArchiveUObject
+class FSerializedObjectDataReader : public FArchiveUObject
 {
 public:
-	FSerializedObjectDataReader(const FSerializedObject& InSerializedObject);
+	ENGINE_API FSerializedObjectDataReader(const FSerializedObject& InSerializedObject);
 
 	virtual int64 Tell() override { return Offset; }
 	virtual void Seek(int64 InPos) override { Offset = InPos; }
 	virtual int64 TotalSize() override { return SerializedObject.SerializedData.Num(); }
 
 protected:
-	virtual void Serialize(void* SerData, int64 Num) override;
+	ENGINE_API virtual void Serialize(void* SerData, int64 Num) override;
 
 	using FArchiveUObject::operator<<;
-	virtual FArchive& operator<<(class FName& N) override;
-	virtual FArchive& operator<<(class UObject*& Res) override;
+	ENGINE_API virtual FArchive& operator<<(class FName& N) override;
+	ENGINE_API virtual FArchive& operator<<(class UObject*& Res) override;
 
 	const FSerializedObject& SerializedObject;
 	int64 Offset = 0;
@@ -312,17 +312,17 @@ namespace Internal
 {
 
 /** Core archive to write a transaction object to the buffer. */
-class ENGINE_API FSerializedObjectDataWriterCommon : public FArchiveUObject
+class FSerializedObjectDataWriterCommon : public FArchiveUObject
 {
 public:
-	FSerializedObjectDataWriterCommon(FSerializedObjectData& InSerializedData);
+	ENGINE_API FSerializedObjectDataWriterCommon(FSerializedObjectData& InSerializedData);
 
 	virtual int64 Tell() override { return Offset; }
 	virtual void Seek(int64 InPos) override { checkSlow(Offset <= SerializedData.Num()); Offset = InPos; }
 	virtual int64 TotalSize() override { return SerializedData.Num(); }
 
 protected:
-	virtual void Serialize(void* SerData, int64 Num) override;
+	ENGINE_API virtual void Serialize(void* SerData, int64 Num) override;
 
 	virtual void OnDataSerialized(int64 InOffset, int64 InNum) {}
 
@@ -333,15 +333,15 @@ protected:
 } // namespace Internal
 
 /** Core archive to write a transaction object to the buffer. */
-class ENGINE_API FSerializedObjectDataWriter : public Internal::FSerializedObjectDataWriterCommon
+class FSerializedObjectDataWriter : public Internal::FSerializedObjectDataWriterCommon
 {
 public:
-	FSerializedObjectDataWriter(FSerializedObject& InSerializedObject);
+	ENGINE_API FSerializedObjectDataWriter(FSerializedObject& InSerializedObject);
 
 protected:
 	using FArchiveUObject::operator<<;
-	virtual FArchive& operator<<(class FName& N) override;
-	virtual FArchive& operator<<(class UObject*& Res) override;
+	ENGINE_API virtual FArchive& operator<<(class FName& N) override;
+	ENGINE_API virtual FArchive& operator<<(class UObject*& Res) override;
 
 	FSerializedObject& SerializedObject;
 	int64 Offset = 0;
@@ -351,26 +351,26 @@ protected:
 };
 
 /** Core archive to write a diffable object to the buffer. */
-class ENGINE_API FDiffableObjectDataWriter : public Internal::FSerializedObjectDataWriterCommon
+class FDiffableObjectDataWriter : public Internal::FSerializedObjectDataWriterCommon
 {
 public:
-	FDiffableObjectDataWriter(FDiffableObject& InDiffableObject, TArrayView<const FProperty*> InPropertiesToSerialize = TArrayView<const FProperty*>());
+	ENGINE_API FDiffableObjectDataWriter(FDiffableObject& InDiffableObject, TArrayView<const FProperty*> InPropertiesToSerialize = TArrayView<const FProperty*>());
 
 protected:
-	FName GetTaggedDataKey() const;
+	ENGINE_API FName GetTaggedDataKey() const;
 
-	bool DoesObjectMatchDiffableObject(const UObject* Obj) const;
+	ENGINE_API bool DoesObjectMatchDiffableObject(const UObject* Obj) const;
 
-	virtual bool ShouldSkipProperty(const FProperty* InProperty) const override;
+	ENGINE_API virtual bool ShouldSkipProperty(const FProperty* InProperty) const override;
 
-	virtual void MarkScriptSerializationStart(const UObject* Obj) override;
-	virtual void MarkScriptSerializationEnd(const UObject* Obj) override;
+	ENGINE_API virtual void MarkScriptSerializationStart(const UObject* Obj) override;
+	ENGINE_API virtual void MarkScriptSerializationEnd(const UObject* Obj) override;
 
-	virtual void OnDataSerialized(int64 InOffset, int64 InNum) override;
+	ENGINE_API virtual void OnDataSerialized(int64 InOffset, int64 InNum) override;
 
 	using FArchiveUObject::operator<<;
-	virtual FArchive& operator<<(class FName& N) override;
-	virtual FArchive& operator<<(class UObject*& Res) override;
+	ENGINE_API virtual FArchive& operator<<(class FName& N) override;
+	ENGINE_API virtual FArchive& operator<<(class UObject*& Res) override;
 
 private:
 	struct FCachedPropertyKey

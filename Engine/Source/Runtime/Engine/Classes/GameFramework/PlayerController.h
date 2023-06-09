@@ -103,7 +103,7 @@ struct FDynamicForceFeedbackDetails
 };
 
 /** Abstract base class for Input Mode structures */
-struct ENGINE_API FInputModeDataBase
+struct FInputModeDataBase
 {
 protected:
 	virtual ~FInputModeDataBase() { }
@@ -114,7 +114,7 @@ protected:
 	virtual bool ShouldFlushInputOnViewportFocus() const { return true; };
 
 	/** Utility functions for derived classes. */
-	void SetFocusAndLocking(FReply& SlateOperations, TSharedPtr<class SWidget> InWidgetToFocus, bool bLockMouseToViewport, TSharedRef<class SViewport> InViewportWidget) const;
+	ENGINE_API void SetFocusAndLocking(FReply& SlateOperations, TSharedPtr<class SWidget> InWidgetToFocus, bool bLockMouseToViewport, TSharedRef<class SViewport> InViewportWidget) const;
 
 	friend class APlayerController;
 
@@ -122,18 +122,18 @@ public:
 
 #if UE_ENABLE_DEBUG_DRAWING
 	/** Returns the name of this input mode for debug display when you call the "showdebug input" command. */
-	virtual const FString& GetDebugDisplayName() const;
+	ENGINE_API virtual const FString& GetDebugDisplayName() const;
 #endif	// UE_ENABLE_DEBUG_DRAWING
 };
 
 /** Data structure used to setup an input mode that allows only the UI to respond to user input. */
-struct ENGINE_API FInputModeUIOnly : public FInputModeDataBase
+struct FInputModeUIOnly : public FInputModeDataBase
 {
 	/** Widget to focus */
-	FInputModeUIOnly& SetWidgetToFocus(TSharedPtr<SWidget> InWidgetToFocus);
+	ENGINE_API FInputModeUIOnly& SetWidgetToFocus(TSharedPtr<SWidget> InWidgetToFocus);
 
 	/** Sets the mouse locking behavior of the viewport */
-	FInputModeUIOnly& SetLockMouseToViewportBehavior(EMouseLockMode InMouseLockMode);
+	ENGINE_API FInputModeUIOnly& SetLockMouseToViewportBehavior(EMouseLockMode InMouseLockMode);
 
 	FInputModeUIOnly()
 		: WidgetToFocus()
@@ -141,19 +141,19 @@ struct ENGINE_API FInputModeUIOnly : public FInputModeDataBase
 	{}
 
 #if UE_ENABLE_DEBUG_DRAWING
-	virtual const FString& GetDebugDisplayName() const override;
+	ENGINE_API virtual const FString& GetDebugDisplayName() const override;
 #endif	// UE_ENABLE_DEBUG_DRAWING
 
 protected:
 	TSharedPtr<SWidget> WidgetToFocus;
 	EMouseLockMode MouseLockMode;
 
-	virtual void ApplyInputMode(FReply& SlateOperations, class UGameViewportClient& GameViewportClient) const override;
+	ENGINE_API virtual void ApplyInputMode(FReply& SlateOperations, class UGameViewportClient& GameViewportClient) const override;
 };
 
 /** This structure is used to pass arguments to ClientUpdateMultipleLevelsStreamingStatus() client RPC function */
 USTRUCT()
-struct ENGINE_API FUpdateLevelStreamingLevelStatus
+struct FUpdateLevelStreamingLevelStatus
 {
 	GENERATED_BODY();
 
@@ -183,7 +183,7 @@ struct ENGINE_API FUpdateLevelStreamingLevelStatus
 };
 
 /** Data structure used to setup an input mode that allows the UI to respond to user input, and if the UI doesn't handle it player input / player controller gets a chance. */
-struct ENGINE_API FInputModeGameAndUI : public FInputModeDataBase
+struct FInputModeGameAndUI : public FInputModeDataBase
 {
 	/** Widget to focus */
 	FInputModeGameAndUI& SetWidgetToFocus(TSharedPtr<SWidget> InWidgetToFocus) { WidgetToFocus = InWidgetToFocus; return *this; }
@@ -203,7 +203,7 @@ struct ENGINE_API FInputModeGameAndUI : public FInputModeDataBase
 	{}
 
 #if UE_ENABLE_DEBUG_DRAWING
-	virtual const FString& GetDebugDisplayName() const override;
+	ENGINE_API virtual const FString& GetDebugDisplayName() const override;
 #endif	// UE_ENABLE_DEBUG_DRAWING
 
 protected:
@@ -212,11 +212,11 @@ protected:
 	EMouseLockMode MouseLockMode;
 	bool bHideCursorDuringCapture;
 
-	virtual void ApplyInputMode(FReply& SlateOperations, class UGameViewportClient& GameViewportClient) const override;
+	ENGINE_API virtual void ApplyInputMode(FReply& SlateOperations, class UGameViewportClient& GameViewportClient) const override;
 };
 
 /** Data structure used to setup an input mode that allows only the player input / player controller to respond to user input. */
-struct ENGINE_API FInputModeGameOnly : public FInputModeDataBase
+struct FInputModeGameOnly : public FInputModeDataBase
 {
 	/** Whether the mouse down that causes capture should be consumed, and not passed to player input processing */
 	FInputModeGameOnly& SetConsumeCaptureMouseDown(bool InConsumeCaptureMouseDown) { bConsumeCaptureMouseDown = InConsumeCaptureMouseDown; return *this; }
@@ -226,13 +226,13 @@ struct ENGINE_API FInputModeGameOnly : public FInputModeDataBase
 	{}
 
 #if UE_ENABLE_DEBUG_DRAWING
-	virtual const FString& GetDebugDisplayName() const override;
+	ENGINE_API virtual const FString& GetDebugDisplayName() const override;
 #endif	// UE_ENABLE_DEBUG_DRAWING
 	
 protected:
 	bool bConsumeCaptureMouseDown;
 
-	virtual void ApplyInputMode(FReply& SlateOperations, class UGameViewportClient& GameViewportClient) const override;
+	ENGINE_API virtual void ApplyInputMode(FReply& SlateOperations, class UGameViewportClient& GameViewportClient) const override;
 };
 
 USTRUCT()
@@ -265,14 +265,14 @@ struct FAsyncPhysicsTimestamp
  *
  * @see https://docs.unrealengine.com/latest/INT/Gameplay/Framework/Controller/PlayerController/
  */
-UCLASS(config=Game, BlueprintType, Blueprintable, meta=(ShortTooltip="A Player Controller is an actor responsible for controlling a Pawn used by the player."))
-class ENGINE_API APlayerController : public AController, public IWorldPartitionStreamingSourceProvider
+UCLASS(config=Game, BlueprintType, Blueprintable, meta=(ShortTooltip="A Player Controller is an actor responsible for controlling a Pawn used by the player."), MinimalAPI)
+class APlayerController : public AController, public IWorldPartitionStreamingSourceProvider
 {
 	GENERATED_BODY()
 
 public:
 	/** Default Constructor */
-	APlayerController(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	ENGINE_API APlayerController(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	/** UPlayer associated with this PlayerController.  Could be a local player or a net connection. */
 	UPROPERTY()
@@ -383,7 +383,7 @@ public:
 
 protected:
 #if UE_WITH_IRIS
-	virtual void BeginReplication() override;
+	ENGINE_API virtual void BeginReplication() override;
 #endif // UE_WITH_IRIS
 	/** The type of async physics data object to use*/
 	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "AsyncPhysicsDataClass is deprecated. See UInputSettings::bEnableLegacyInputScales to enable legacy behavior"))
@@ -392,12 +392,12 @@ protected:
 	/** Get the async physics data to write to. This data will make its way to the async physics tick on client and server. Should not be used during async tick */
 	UE_DEPRECATED(5.3, "GetAsyncPhysicsDataToConsume is deprecated, please see the new C++ NetworkPhysicsComponent")
 	UFUNCTION(BlueprintPure, Category = PlayerController)
-	UAsyncPhysicsData* GetAsyncPhysicsDataToWrite() const;
+	ENGINE_API UAsyncPhysicsData* GetAsyncPhysicsDataToWrite() const;
 
 	/** Get the async physics data to execute logic off of. This data should not be modified and will NOT make its way back. Must be used during async tick */
 	UE_DEPRECATED(5.3, "GetAsyncPhysicsDataToConsume is deprecated, please see the new C++ NetworkPhysicsComponent")
 	UFUNCTION(BlueprintPure, Category = PlayerController)
-	const UAsyncPhysicsData* GetAsyncPhysicsDataToConsume() const;
+	ENGINE_API const UAsyncPhysicsData* GetAsyncPhysicsDataToConsume() const;
 
 private:
 
@@ -406,7 +406,7 @@ private:
 
 	UE_DEPRECATED(5.3, "OnRep_AsyncPhysicsDataComponent is deprecated, please see the new C++ NetworkPhysicsComponent")
 	UFUNCTION()
-	void OnRep_AsyncPhysicsDataComponent();
+	ENGINE_API void OnRep_AsyncPhysicsDataComponent();
 
 	struct FDynamicForceFeedbackAction
 	{
@@ -473,11 +473,11 @@ public:
 
 	/** Indicate that the Spectator is waiting to join/respawn. */
 	UFUNCTION(server, reliable, WithValidation, Category=PlayerController)
-	void ServerSetSpectatorWaiting(bool bWaiting);
+	ENGINE_API void ServerSetSpectatorWaiting(bool bWaiting);
 
 	/** Indicate that the Spectator is waiting to join/respawn. */
 	UFUNCTION(client, reliable, Category=PlayerController)
-	void ClientSetSpectatorWaiting(bool bWaiting);
+	ENGINE_API void ClientSetSpectatorWaiting(bool bWaiting);
 
 	/**
 	 * Index identifying players using the same base connection (splitscreen clients)
@@ -521,32 +521,32 @@ public:
 	/** A getter for the deprecated InputYawScale property. This should only be used if UInputSettings::bEnableLegacyInputScales is turned on. */
 	UE_DEPRECATED(5.0, "GetDeprecatedInputYawScale is deprecated, please use the Enhanced Input plugin Scalar Modifier instead.")
 	UFUNCTION(BlueprintCallable, Category = PlayerController)
-	float GetDeprecatedInputYawScale() const;
+	ENGINE_API float GetDeprecatedInputYawScale() const;
 	
 	/** A getter for the deprecated InputPitchScale property. This should only be used if UInputSettings::bEnableLegacyInputScales is turned on. */
 	UE_DEPRECATED(5.0, "GetDeprecatedInputPitchScale is deprecated, please use the Enhanced Input plugin Scalar Modifier instead.")
 	UFUNCTION(BlueprintCallable, Category = PlayerController)
-	float GetDeprecatedInputPitchScale() const;
+	ENGINE_API float GetDeprecatedInputPitchScale() const;
 	
 	/** A getter for the deprecated InputRollScale property. This should only be used if UInputSettings::bEnableLegacyInputScales is turned on. */
 	UE_DEPRECATED(5.0, "GetDeprecatedInputRollScale is deprecated, please use the Enhanced Input plugin Scalar Modifier instead.)")
 	UFUNCTION(BlueprintCallable, Category = PlayerController)
-	float GetDeprecatedInputRollScale() const;
+	ENGINE_API float GetDeprecatedInputRollScale() const;
 
 	/** A getter for the deprecated InputYawScale property. This should only be used if UInputSettings::bEnableLegacyInputScales is turned on. */
 	UE_DEPRECATED(5.0, "SetDeprecatedInputYawScale is deprecated, please use the Enhanced Input plugin Scalar Modifier instead.")
 	UFUNCTION(BlueprintCallable, Category = PlayerController)
-	void SetDeprecatedInputYawScale(float NewValue);
+	ENGINE_API void SetDeprecatedInputYawScale(float NewValue);
 
 	/** A getter for the deprecated InputPitchScale property. This should only be used if UInputSettings::bEnableLegacyInputScales is turned on. */
 	UE_DEPRECATED(5.0, "SetDeprecatedInputPitchScale is deprecated, please use the Enhanced Input plugin Scalar Modifier instead.")
 	UFUNCTION(BlueprintCallable, Category = PlayerController)
-	void SetDeprecatedInputPitchScale(float NewValue);
+	ENGINE_API void SetDeprecatedInputPitchScale(float NewValue);
 
 	/** A getter for the deprecated InputRollScale property. This should only be used if UInputSettings::bEnableLegacyInputScales is turned on. */
 	UE_DEPRECATED(5.0, "SetDeprecatedInputRollScale is deprecated, please use the Enhanced Input plugin Scalar Modifier instead.)")
 	UFUNCTION(BlueprintCallable, Category = PlayerController)
-	void SetDeprecatedInputRollScale(float NewValue);
+	ENGINE_API void SetDeprecatedInputRollScale(float NewValue);
 
 	/** Whether the mouse cursor should be displayed. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=MouseInterface)
@@ -576,7 +576,7 @@ public:
 	uint32 bEnableMotionControls:1;
 
 	UFUNCTION(BlueprintSetter)
-	void SetMotionControlsEnabled(bool bEnabled);
+	ENGINE_API void SetMotionControlsEnabled(bool bEnabled);
 
 	/** Whether the PlayerController should be used as a World Partiton streaming source. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = WorldPartition)
@@ -641,158 +641,158 @@ public:
 public:
 	/** Run from the console to try and manually enable cheats which are disabled by default in multiplayer, games can override this */
 	UFUNCTION(exec)
-	virtual void EnableCheats();
+	ENGINE_API virtual void EnableCheats();
 
 	/** Timer used by RoundEnded and Inactive states to accept player input again */
-	virtual void UnFreeze();
+	ENGINE_API virtual void UnFreeze();
 
 	/** Calculate minimal respawn delay */
-	virtual float GetMinRespawnDelay();
+	ENGINE_API virtual float GetMinRespawnDelay();
 
 	/** Set the field of view to NewFOV */ 
 	UFUNCTION(exec)
-	virtual void FOV(float NewFOV);
+	ENGINE_API virtual void FOV(float NewFOV);
 
 	/** Restarts the current level */
 	UFUNCTION(exec)
-	virtual void RestartLevel();
+	ENGINE_API virtual void RestartLevel();
 
 	/** Causes the client to travel to the given URL */
 	UFUNCTION(exec)
-	virtual void LocalTravel(const FString& URL);
+	ENGINE_API virtual void LocalTravel(const FString& URL);
 
 	/** RPC used by ServerExec. Not intended to be called directly */
 	UFUNCTION(Reliable, Server, WithValidation)
-	void ServerExecRPC(const FString& Msg);
+	ENGINE_API void ServerExecRPC(const FString& Msg);
 
 	/** Executes command on server (non shipping builds only) */
 	UFUNCTION(exec)
-	void ServerExec(const FString& Msg);
+	ENGINE_API void ServerExec(const FString& Msg);
 
 	/** Return the client to the main menu gracefully */
 	UE_DEPRECATED(4.19, "As an FString, the ReturnReason parameter is not easily localized. Please use ClientReturnToMainMenuWithTextReason instead.")
 	UFUNCTION(Reliable, Client)
-	virtual void ClientReturnToMainMenu(const FString& ReturnReason);
+	ENGINE_API virtual void ClientReturnToMainMenu(const FString& ReturnReason);
 
 	/** Return the client to the main menu gracefully */
 	UFUNCTION(Reliable, Client)
-	virtual void ClientReturnToMainMenuWithTextReason(const FText& ReturnReason);
+	ENGINE_API virtual void ClientReturnToMainMenuWithTextReason(const FText& ReturnReason);
 
 	/** Development RPC for testing object reference replication */
 	UFUNCTION(Reliable, Client)
-	virtual void ClientRepObjRef(UObject* Object);
+	ENGINE_API virtual void ClientRepObjRef(UObject* Object);
 
 	/**
 	 * Locally try to pause game (call serverpause to pause network game); returns success indicator.  Calls GameModeBase's SetPause().
 	 * @return true if succeeded to pause
 	 */
-	virtual bool SetPause(bool bPause, FCanUnpause CanUnpauseDelegate = FCanUnpause());
+	ENGINE_API virtual bool SetPause(bool bPause, FCanUnpause CanUnpauseDelegate = FCanUnpause());
 
 	/** Command to try to pause the game. */
 	UFUNCTION(exec)
-	virtual void Pause();
+	ENGINE_API virtual void Pause();
 
 	/** Tries to set the player's name to the given name. */
 	UFUNCTION(exec)
-	virtual void SetName(const FString& S);
+	ENGINE_API virtual void SetName(const FString& S);
 
 	/** SwitchLevel to the given MapURL. */
 	UFUNCTION(exec)
-	virtual void SwitchLevel(const FString& URL);
+	ENGINE_API virtual void SwitchLevel(const FString& URL);
 
 	/** 
 	 * Called to notify the server when the client has loaded a new world via seamless traveling
 	 * @param WorldPackageName the name of the world package that was loaded
 	 * @param bFinalDest whether this world is the destination map for the travel (i.e. not the transition level)
 	 */
-	virtual void NotifyLoadedWorld(FName WorldPackageName, bool bFinalDest);
+	ENGINE_API virtual void NotifyLoadedWorld(FName WorldPackageName, bool bFinalDest);
 
 	/**
 	 * Processes player input (immediately after PlayerInput gets ticked) and calls UpdateRotation().
 	 * PlayerTick is only called if the PlayerController has a PlayerInput object. Therefore, it will only be called for locally controlled PlayerControllers.
 	 */
-	virtual void PlayerTick(float DeltaTime);
+	ENGINE_API virtual void PlayerTick(float DeltaTime);
 
 	/** Method called prior to processing input */
-	virtual void PreProcessInput(const float DeltaTime, const bool bGamePaused);
+	ENGINE_API virtual void PreProcessInput(const float DeltaTime, const bool bGamePaused);
 
 	/** Method called after processing input */
-	virtual void PostProcessInput(const float DeltaTime, const bool bGamePaused);
+	ENGINE_API virtual void PostProcessInput(const float DeltaTime, const bool bGamePaused);
 
 	/** Adjust input based on cinematic mode 
 	  * @param	bInCinematicMode	specify true if the player is entering cinematic mode; false if the player is leaving cinematic mode.
 	  * @param	bAffectsMovement	specify true to disable movement in cinematic mode, enable it when leaving
 	  * @param	bAffectsTurning		specify true to disable turning in cinematic mode or enable it when leaving
 	  */
-	virtual void SetCinematicMode( bool bInCinematicMode, bool bAffectsMovement, bool bAffectsTurning);
+	ENGINE_API virtual void SetCinematicMode( bool bInCinematicMode, bool bAffectsMovement, bool bAffectsTurning);
 
 	/** Reset move and look input ignore flags to defaults */
-	virtual void ResetIgnoreInputFlags() override;
+	ENGINE_API virtual void ResetIgnoreInputFlags() override;
 
 	/** Returns hit results from doing a collision query at a certain location on the screen */
-	bool GetHitResultAtScreenPosition(const FVector2D ScreenPosition, const ECollisionChannel TraceChannel, const FCollisionQueryParams& CollisionQueryParams, FHitResult& HitResult) const;
-	bool GetHitResultAtScreenPosition(const FVector2D ScreenPosition, const ECollisionChannel TraceChannel, bool bTraceComplex, FHitResult& HitResult) const;
-	bool GetHitResultAtScreenPosition(const FVector2D ScreenPosition, const ETraceTypeQuery TraceChannel, bool bTraceComplex, FHitResult& HitResult) const;
-	bool GetHitResultAtScreenPosition(const FVector2D ScreenPosition, const TArray<TEnumAsByte<EObjectTypeQuery> > & ObjectTypes, bool bTraceComplex, FHitResult& HitResult) const;
+	ENGINE_API bool GetHitResultAtScreenPosition(const FVector2D ScreenPosition, const ECollisionChannel TraceChannel, const FCollisionQueryParams& CollisionQueryParams, FHitResult& HitResult) const;
+	ENGINE_API bool GetHitResultAtScreenPosition(const FVector2D ScreenPosition, const ECollisionChannel TraceChannel, bool bTraceComplex, FHitResult& HitResult) const;
+	ENGINE_API bool GetHitResultAtScreenPosition(const FVector2D ScreenPosition, const ETraceTypeQuery TraceChannel, bool bTraceComplex, FHitResult& HitResult) const;
+	ENGINE_API bool GetHitResultAtScreenPosition(const FVector2D ScreenPosition, const TArray<TEnumAsByte<EObjectTypeQuery> > & ObjectTypes, bool bTraceComplex, FHitResult& HitResult) const;
 
 	UFUNCTION(BlueprintCallable, Category="Game|Player", meta=(DeprecatedFunction, DeprecationMessage = "Use new GetHitResultUnderCursorByChannel or GetHitResultUnderCursorForObject", TraceChannel=ECC_Visibility, bTraceComplex=true))
-	bool GetHitResultUnderCursor(ECollisionChannel TraceChannel, bool bTraceComplex, FHitResult& HitResult) const;
+	ENGINE_API bool GetHitResultUnderCursor(ECollisionChannel TraceChannel, bool bTraceComplex, FHitResult& HitResult) const;
 
 	/** Performs a collision query under the mouse cursor, looking on a trace channel */
 	UFUNCTION(BlueprintCallable, Category="Game|Player", meta=(bTraceComplex=true))
-	bool GetHitResultUnderCursorByChannel(ETraceTypeQuery TraceChannel, bool bTraceComplex, FHitResult& HitResult) const;
+	ENGINE_API bool GetHitResultUnderCursorByChannel(ETraceTypeQuery TraceChannel, bool bTraceComplex, FHitResult& HitResult) const;
 
 	/** Performs a collision query under the mouse cursor, looking for object types */
 	UFUNCTION(BlueprintCallable, Category="Game|Player", meta=(bTraceComplex=true))
-	bool GetHitResultUnderCursorForObjects(const TArray<TEnumAsByte<EObjectTypeQuery> > & ObjectTypes, bool bTraceComplex, FHitResult& HitResult) const;
+	ENGINE_API bool GetHitResultUnderCursorForObjects(const TArray<TEnumAsByte<EObjectTypeQuery> > & ObjectTypes, bool bTraceComplex, FHitResult& HitResult) const;
 
 	UFUNCTION(BlueprintCallable, Category="Game|Player", meta=(DeprecatedFunction, DeprecationMessage = "Use new GetHitResultUnderFingerByChannel or GetHitResultUnderFingerForObject", TraceChannel=ECC_Visibility, bTraceComplex=true))
-	bool GetHitResultUnderFinger(ETouchIndex::Type FingerIndex, ECollisionChannel TraceChannel, bool bTraceComplex, FHitResult& HitResult) const;
+	ENGINE_API bool GetHitResultUnderFinger(ETouchIndex::Type FingerIndex, ECollisionChannel TraceChannel, bool bTraceComplex, FHitResult& HitResult) const;
 
 	/** Performs a collision query under the finger, looking on a trace channel */
 	UFUNCTION(BlueprintCallable, Category="Game|Player", meta=(bTraceComplex=true))
-	bool GetHitResultUnderFingerByChannel(ETouchIndex::Type FingerIndex, ETraceTypeQuery TraceChannel, bool bTraceComplex, FHitResult& HitResult) const;
+	ENGINE_API bool GetHitResultUnderFingerByChannel(ETouchIndex::Type FingerIndex, ETraceTypeQuery TraceChannel, bool bTraceComplex, FHitResult& HitResult) const;
 
 	/** Performs a collision query under the finger, looking for object types */
 	UFUNCTION(BlueprintCallable, Category="Game|Player", meta=(bTraceComplex=true))
-	bool GetHitResultUnderFingerForObjects(ETouchIndex::Type FingerIndex, const  TArray<TEnumAsByte<EObjectTypeQuery> > & ObjectTypes, bool bTraceComplex, FHitResult& HitResult) const;
+	ENGINE_API bool GetHitResultUnderFingerForObjects(ETouchIndex::Type FingerIndex, const  TArray<TEnumAsByte<EObjectTypeQuery> > & ObjectTypes, bool bTraceComplex, FHitResult& HitResult) const;
 
 	/** Convert current mouse 2D position to World Space 3D position and direction. Returns false if unable to determine value. **/
 	UFUNCTION(BlueprintCallable, Category="Game|Player", meta = (DisplayName = "Convert Mouse Location To World Space", Keywords = "deproject"))
-	bool DeprojectMousePositionToWorld(FVector& WorldLocation, FVector& WorldDirection) const;
+	ENGINE_API bool DeprojectMousePositionToWorld(FVector& WorldLocation, FVector& WorldDirection) const;
 
 	/** Convert 2D screen position to World Space 3D position and direction. Returns false if unable to determine value. **/
 	UFUNCTION(BlueprintCallable, Category="Game|Player", meta = (DisplayName = "Convert Screen Location To World Space", Keywords = "deproject"))
-	bool DeprojectScreenPositionToWorld(float ScreenX, float ScreenY, FVector& WorldLocation, FVector& WorldDirection) const;
+	ENGINE_API bool DeprojectScreenPositionToWorld(float ScreenX, float ScreenY, FVector& WorldLocation, FVector& WorldDirection) const;
 
 	/**
 	 * Convert a World Space 3D position into a 2D Screen Space position.
 	 * @return true if the world coordinate was successfully projected to the screen.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Game|Player", meta = (DisplayName = "Convert World Location To Screen Location", Keywords = "project"))
-	bool ProjectWorldLocationToScreen(FVector WorldLocation, FVector2D& ScreenLocation, bool bPlayerViewportRelative = false) const;
+	ENGINE_API bool ProjectWorldLocationToScreen(FVector WorldLocation, FVector2D& ScreenLocation, bool bPlayerViewportRelative = false) const;
 
 	/**
 	 * Convert a World Space 3D position into a 3D Screen Space position.
 	 * @return true if the world coordinate was successfully projected to the screen.
 	 */
-	bool ProjectWorldLocationToScreenWithDistance(FVector WorldLocation, FVector& ScreenLocation, bool bPlayerViewportRelative = false) const;
+	ENGINE_API bool ProjectWorldLocationToScreenWithDistance(FVector WorldLocation, FVector& ScreenLocation, bool bPlayerViewportRelative = false) const;
 	
 	/**
 	 * After successful world to screen projection, allows custom post-processing of the resulting ScreenLocation.
 	 * @return Whether projected location remains valid.
 	 */
-	virtual bool PostProcessWorldToScreen(FVector WorldLocation, FVector2D& ScreenLocation, bool bPlayerViewportRelative) const;
+	ENGINE_API virtual bool PostProcessWorldToScreen(FVector WorldLocation, FVector2D& ScreenLocation, bool bPlayerViewportRelative) const;
 
 	/** Positions the mouse cursor in screen space, in pixels. */
 	UFUNCTION( BlueprintCallable, Category="Game|Player", meta = (DisplayName = "Set Mouse Position", Keywords = "mouse" ))
-	void SetMouseLocation( const int X, const int Y );
+	ENGINE_API void SetMouseLocation( const int X, const int Y );
 
 	/**
 	 * Updates the rotation of player, based on ControlRotation after RotationInput has been applied.
 	 * This may then be modified by the PlayerCamera, and is passed to Pawn->FaceRotation().
 	 */
-	virtual void UpdateRotation(float DeltaTime);
+	ENGINE_API virtual void UpdateRotation(float DeltaTime);
 
 	/**
 	* Whether the PlayerController should be used as a World Partiton streaming source. 
@@ -831,7 +831,7 @@ public:
 	* Default implementation returns APlayerController::GetPlayerViewPoint but can be overriden in child classes.
 	*/
 	UFUNCTION(BlueprintCallable, Category = WorldPartition)
-	virtual void GetStreamingSourceLocationAndRotation(FVector& OutLocation, FRotator& OutRotation) const;
+	ENGINE_API virtual void GetStreamingSourceLocationAndRotation(FVector& OutLocation, FRotator& OutRotation) const;
 	
 	/**
 	* Gets the streaming source priority.
@@ -839,39 +839,39 @@ public:
 	* @return the streaming source priority.
 	*/
 	UFUNCTION(BlueprintCallable, Category = WorldPartition)
-	virtual void GetStreamingSourceShapes(TArray<FStreamingSourceShape>& OutShapes) const;
+	ENGINE_API virtual void GetStreamingSourceShapes(TArray<FStreamingSourceShape>& OutShapes) const;
 
 	/**
 	 * Gets the PlayerController's streaming sources
 	 * @return the streaming sources.
 	 */
-	virtual bool GetStreamingSources(TArray<FWorldPartitionStreamingSource>& OutStreamingSources) const final;
+	ENGINE_API virtual bool GetStreamingSources(TArray<FWorldPartitionStreamingSource>& OutStreamingSources) const final;
 
 protected:
-	virtual bool GetStreamingSourcesInternal(TArray<FWorldPartitionStreamingSource>& OutStreamingSources) const;
-	virtual bool GetStreamingSource(FWorldPartitionStreamingSource& OutStreamingSource) const final;
+	ENGINE_API virtual bool GetStreamingSourcesInternal(TArray<FWorldPartitionStreamingSource>& OutStreamingSources) const;
+	ENGINE_API virtual bool GetStreamingSource(FWorldPartitionStreamingSource& OutStreamingSource) const final;
 	virtual const UObject* GetStreamingSourceOwner() const override final { return this; }
 	
 	/** Pawn has been possessed, so changing state to NAME_Playing. Start it walking and begin playing with it. */
-	virtual void BeginPlayingState();
+	ENGINE_API virtual void BeginPlayingState();
 
 	/** Leave playing state. */ 
-	virtual void EndPlayingState();
+	ENGINE_API virtual void EndPlayingState();
 
 	/** Overridden to return that player controllers are capable of RPCs */
-	virtual bool HasNetOwner() const override;
+	ENGINE_API virtual bool HasNetOwner() const override;
 
 public:
 	/** Fire the player's currently selected weapon with the optional firemode. */
 	UFUNCTION(exec)
-	virtual void StartFire(uint8 FireModeNum = 0);
+	ENGINE_API virtual void StartFire(uint8 FireModeNum = 0);
 
 	/** Notify player of change to level */
-	void LevelStreamingStatusChanged(class ULevelStreaming* LevelObject, bool bNewShouldBeLoaded, bool bNewShouldBeVisible, bool bNewShouldBlockOnLoad, int32 LODIndex);
-	void LevelStreamingStatusChanged(class ULevelStreaming* LevelObject, bool bNewShouldBeLoaded, bool bNewShouldBeVisible, bool bNewShouldBlockOnLoad, bool bNewShouldBlockOnUnload, int32 LODIndex);
+	ENGINE_API void LevelStreamingStatusChanged(class ULevelStreaming* LevelObject, bool bNewShouldBeLoaded, bool bNewShouldBeVisible, bool bNewShouldBlockOnLoad, int32 LODIndex);
+	ENGINE_API void LevelStreamingStatusChanged(class ULevelStreaming* LevelObject, bool bNewShouldBeLoaded, bool bNewShouldBeVisible, bool bNewShouldBlockOnLoad, bool bNewShouldBlockOnUnload, int32 LODIndex);
 
 	/** Used to wait until a map change can be prepared when one was already in progress */
-	virtual void DelayedPrepareMapChange();
+	ENGINE_API virtual void DelayedPrepareMapChange();
 
 	/**
 	 * Called on client during seamless level transitions to get the list of Actors that should be moved into the new level
@@ -884,44 +884,44 @@ public:
 	 * @param bToEntry true if we are going from old level -> entry, false if we are going from entry -> new level
 	 * @param ActorList (out) list of actors to maintain
 	 */
-	virtual void GetSeamlessTravelActorList(bool bToEntry, TArray<class AActor*>& ActorList);
+	ENGINE_API virtual void GetSeamlessTravelActorList(bool bToEntry, TArray<class AActor*>& ActorList);
 
 	/**
 	 * Called when seamless traveling and we are being replaced by the specified PC
 	 * clean up any persistent state (post process chains on LocalPlayers, for example)
 	 * (not called if PlayerController is the same for the from and to GameModes)
 	 */
-	virtual void SeamlessTravelTo(class APlayerController* NewPC);
+	ENGINE_API virtual void SeamlessTravelTo(class APlayerController* NewPC);
 
 	/**
 	 * Called when seamless traveling and the specified PC is being replaced by this one
 	 * copy over data that should persist
 	 * (not called if PlayerController is the same for the from and to GameModes)
 	 */
-	virtual void SeamlessTravelFrom(class APlayerController* OldPC);
+	ENGINE_API virtual void SeamlessTravelFrom(class APlayerController* OldPC);
 
 	/** 
 	 * Called after this player controller has transitioned through seamless travel, but before that player is initialized
 	 * This is called both when a new player controller is created, and when it is maintained
 	 */
-	virtual void PostSeamlessTravel();
+	ENGINE_API virtual void PostSeamlessTravel();
 
 	/**
 	 * Called when player controller gets added to its owning world player controller list. 
 	 */
-	void OnAddedToPlayerControllerList();
+	ENGINE_API void OnAddedToPlayerControllerList();
 
 	/**
 	 * Called when player controller gets removed from its owning world player controller list.
 	 */
-	void OnRemovedFromPlayerControllerList();
+	ENGINE_API void OnRemovedFromPlayerControllerList();
 
 	/** 
 	 * Tell the client to enable or disable voice chat (not muting)
 	 * @param bEnable enable or disable voice chat
 	 */
 	UFUNCTION(Reliable, Client)
-	virtual void ClientEnableNetworkVoice(bool bEnable);
+	ENGINE_API virtual void ClientEnableNetworkVoice(bool bEnable);
 
 	/** 
 	 * Acknowledge received LevelVisibilityTransactionId
@@ -929,20 +929,20 @@ public:
 	 * @param TransactionId - TransactionId being acknowledged
 	 */
 	UFUNCTION(Reliable, Client)
-	void ClientAckUpdateLevelVisibility(FName PackageName, FNetLevelVisibilityTransactionId TransactionId, bool bClientAckCanMakeVisible);
+	ENGINE_API void ClientAckUpdateLevelVisibility(FName PackageName, FNetLevelVisibilityTransactionId TransactionId, bool bClientAckCanMakeVisible);
 
 	/** Enable voice chat transmission */
-	void StartTalking();
+	ENGINE_API void StartTalking();
 
 	/** Disable voice chat transmission */
-	void StopTalking();
+	ENGINE_API void StopTalking();
 
 	/** 
 	 * Toggle voice chat on and off
 	 * @param bSpeaking enable or disable voice chat
 	 */
 	UFUNCTION(exec)
-	virtual void ToggleSpeaking(bool bInSpeaking);
+	ENGINE_API virtual void ToggleSpeaking(bool bInSpeaking);
 
 	/**
 	 * Tells the client that the server has all the information it needs and that it
@@ -952,82 +952,82 @@ public:
 	 * NOTE: This is done as an RPC instead of variable replication because ordering matters
 	 */
 	UFUNCTION(Reliable, Client)
-	virtual void ClientVoiceHandshakeComplete();
+	ENGINE_API virtual void ClientVoiceHandshakeComplete();
 
 	/**
 	 * Tell the server to mute a player for this controller
 	 * @param PlayerId player id to mute
 	 */
 	UFUNCTION(server, reliable, WithValidation)
-	virtual void ServerMutePlayer(FUniqueNetIdRepl PlayerId);
+	ENGINE_API virtual void ServerMutePlayer(FUniqueNetIdRepl PlayerId);
 
 	/**
 	 * Tell the server to unmute a player for this controller
 	 * @param PlayerId player id to unmute
 	 */
 	UFUNCTION(server, reliable, WithValidation )
-	virtual void ServerUnmutePlayer(FUniqueNetIdRepl PlayerId);
+	ENGINE_API virtual void ServerUnmutePlayer(FUniqueNetIdRepl PlayerId);
 
 	/**
 	 * Tell the client to mute a player for this controller
 	 * @param PlayerId player id to mute
 	 */
 	UFUNCTION(Reliable, Client)
-	virtual void ClientMutePlayer(FUniqueNetIdRepl PlayerId);
+	ENGINE_API virtual void ClientMutePlayer(FUniqueNetIdRepl PlayerId);
 
 	/**
 	 * Tell the client to unmute a player for this controller
 	 * @param PlayerId player id to unmute
 	 */
 	UFUNCTION(Reliable, Client)
-	virtual void ClientUnmutePlayer(FUniqueNetIdRepl PlayerId);
+	ENGINE_API virtual void ClientUnmutePlayer(FUniqueNetIdRepl PlayerId);
 
 	/**
 	 * Tell the client to block a player for this controller
 	 * @param PlayerId player id to block
 	 */
 	UFUNCTION(server, reliable, WithValidation)
-	virtual void ServerBlockPlayer(FUniqueNetIdRepl PlayerId);
+	ENGINE_API virtual void ServerBlockPlayer(FUniqueNetIdRepl PlayerId);
 
 	/**
 	 * Tell the client to unblock a player for this controller
 	 * @param PlayerId player id to unblock
 	 */
 	UFUNCTION(server, reliable, WithValidation)
-	virtual void ServerUnblockPlayer(FUniqueNetIdRepl PlayerId);
+	ENGINE_API virtual void ServerUnblockPlayer(FUniqueNetIdRepl PlayerId);
 
 	/**
 	 * Tell the client to unmute an array of players for this controller
 	 * @param PlayerIds player ids to unmute
 	 */
 	UFUNCTION(Reliable, Client)
-	virtual void ClientUnmutePlayers(const TArray<FUniqueNetIdRepl>& PlayerIds);
+	ENGINE_API virtual void ClientUnmutePlayers(const TArray<FUniqueNetIdRepl>& PlayerIds);
 
 	/**
 	 * Mutes a remote player on the server and then tells the client to mute
 	 *
 	 * @param PlayerNetId the remote player to mute
 	 */
-	void GameplayMutePlayer(const FUniqueNetIdRepl& PlayerNetId);
+	ENGINE_API void GameplayMutePlayer(const FUniqueNetIdRepl& PlayerNetId);
 
 	/**
 	 * Unmutes a remote player on the server and then tells the client to unmute
 	 *
 	 * @param PlayerNetId the remote player to unmute
 	 */
-	void GameplayUnmutePlayer(const FUniqueNetIdRepl& PlayerNetId);
+	ENGINE_API void GameplayUnmutePlayer(const FUniqueNetIdRepl& PlayerNetId);
 
 	/**
 	 * Unmutes all remote players muted due to gameplay rules on the server and then tells the client to unmute
 	 */
-	void GameplayUnmuteAllPlayers();
+	ENGINE_API void GameplayUnmuteAllPlayers();
 
 	/**
 	* Get a remote player controller on the server for muting
 	*
 	* @param PlayerNetId the remote player to find
 	*/
-	virtual class APlayerController* GetPlayerControllerForMuting(const FUniqueNetIdRepl& PlayerNetId);
+	ENGINE_API virtual class APlayerController* GetPlayerControllerForMuting(const FUniqueNetIdRepl& PlayerNetId);
 
 	/**
 	 * Is the specified player muted by this controlling player
@@ -1036,32 +1036,32 @@ public:
 	 * @param PlayerId potentially muted player
 	 * @return true if player is muted, false otherwise
 	 */
-	virtual bool IsPlayerMuted(const class FUniqueNetId& PlayerId);
+	ENGINE_API virtual bool IsPlayerMuted(const class FUniqueNetId& PlayerId);
 
 
 	/** Console control commands, useful when remote debugging so you can't touch the console the normal way */
 	UFUNCTION(exec)
-	virtual void ConsoleKey(FKey Key);
+	ENGINE_API virtual void ConsoleKey(FKey Key);
 
 	/** Sends a command to the console to execute if not shipping version */
 	UFUNCTION(exec)
-	virtual void SendToConsole(const FString& Command);
+	ENGINE_API virtual void SendToConsole(const FString& Command);
 
 	/** Adds a location to the texture streaming system for the specified duration. */
 	UFUNCTION(reliable, client, SealedEvent)
-	void ClientAddTextureStreamingLoc(FVector InLoc, float Duration, bool bOverrideLocation);
+	ENGINE_API void ClientAddTextureStreamingLoc(FVector InLoc, float Duration, bool bOverrideLocation);
 
 	/** Tells client to cancel any pending map change. */
 	UFUNCTION(Reliable, Client)
-	void ClientCancelPendingMapChange();
+	ENGINE_API void ClientCancelPendingMapChange();
 
 	/** Set CurrentNetSpeed to the lower of its current value and Cap. */
 	UFUNCTION(Reliable, Client)
-	void ClientCapBandwidth(int32 Cap);
+	ENGINE_API void ClientCapBandwidth(int32 Cap);
 
 	/** Actually performs the level transition prepared by PrepareMapChange(). */
 	UFUNCTION(Reliable, Client)	
-	void ClientCommitMapChange();
+	ENGINE_API void ClientCommitMapChange();
 
 	/**
 	 * Tells the client to block until all pending level streaming actions are complete
@@ -1069,11 +1069,11 @@ public:
 	 * primarily used to force update the client ASAP at join time
 	 */
 	UFUNCTION(reliable, client, SealedEvent)
-	void ClientFlushLevelStreaming();
+	ENGINE_API void ClientFlushLevelStreaming();
 
 	/** Forces GC at the end of the tick on the client */
 	UFUNCTION(Reliable, Client)
-	void ClientForceGarbageCollection();
+	ENGINE_API void ClientForceGarbageCollection();
 
 	/** 
 	 * Replicated function called by GameHasEnded().
@@ -1081,22 +1081,22 @@ public:
 	 * @param	bIsWinner - true if this controller is on winning team
 	 */
 	UFUNCTION(Reliable, Client)
-	void ClientGameEnded(class AActor* EndGameFocus, bool bIsWinner);
+	ENGINE_API void ClientGameEnded(class AActor* EndGameFocus, bool bIsWinner);
 
 	/** 
 	 * Server uses this to force client into NewState .
 	 * @Note ALL STATE NAMES NEED TO BE DEFINED IN name table in UnrealNames.h to be correctly replicated (so they are mapped to the same thing on client and server).
 	 */
 	UFUNCTION(Reliable, Client)
-	void ClientGotoState(FName NewState);
+	ENGINE_API void ClientGotoState(FName NewState);
 
 	/** Calls IgnoreLookInput on client */
 	UFUNCTION(Reliable, Client)
-	void ClientIgnoreLookInput(bool bIgnore);
+	ENGINE_API void ClientIgnoreLookInput(bool bIgnore);
 
 	/** Calls IgnoreMoveInput on client */
 	UFUNCTION(Reliable, Client)
-	void ClientIgnoreMoveInput(bool bIgnore);
+	ENGINE_API void ClientIgnoreMoveInput(bool bIgnore);
 
 	/**
 	 * Outputs a message to HUD
@@ -1105,7 +1105,7 @@ public:
 	 * @param MsgLifeTime - Optional length of time to display 0 = default time
 	 */
 	UFUNCTION(Reliable, Client)
-	void ClientMessage(const FString& S, FName Type = NAME_None, float MsgLifeTime = 0.f);
+	ENGINE_API void ClientMessage(const FString& S, FName Type = NAME_None, float MsgLifeTime = 0.f);
 
 	/** 
 	 * Play Camera Shake 
@@ -1115,7 +1115,7 @@ public:
 	 * @param UserPlaySpaceRot - Matrix used when PlaySpace = CAPS_UserDefined
 	 */
 	UFUNCTION(unreliable, client, BlueprintCallable, Category="Game|Feedback")
-	void ClientStartCameraShake(TSubclassOf<class UCameraShakeBase> Shake, float Scale = 1.f, ECameraShakePlaySpace PlaySpace = ECameraShakePlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
+	ENGINE_API void ClientStartCameraShake(TSubclassOf<class UCameraShakeBase> Shake, float Scale = 1.f, ECameraShakePlaySpace PlaySpace = ECameraShakePlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
 
 	/** Backwards compatible method, for C++ code */
 	UE_DEPRECATED(4.26, "Please use ClientStartCameraShake")
@@ -1130,7 +1130,7 @@ public:
 	 * @param SourceComponent - The source from which the camera shakes originates
 	 */
 	UFUNCTION(BlueprintCallable, Category="Game|Feedback")
-	void ClientStartCameraShakeFromSource(TSubclassOf<class UCameraShakeBase> Shake, class UCameraShakeSourceComponent* SourceComponent);
+	ENGINE_API void ClientStartCameraShakeFromSource(TSubclassOf<class UCameraShakeBase> Shake, class UCameraShakeSourceComponent* SourceComponent);
 
 	/** Backwards compatible method, for C++ code */
 	UE_DEPRECATED(4.26, "Please use ClientStartCameraShakeFromSource")
@@ -1146,7 +1146,7 @@ public:
 	 * @param PitchMultiplier - Pitch multiplier to apply to the sound
 	 */
 	UFUNCTION(unreliable, client)
-	void ClientPlaySound(class USoundBase* Sound, float VolumeMultiplier = 1.f, float PitchMultiplier = 1.f );
+	ENGINE_API void ClientPlaySound(class USoundBase* Sound, float VolumeMultiplier = 1.f, float PitchMultiplier = 1.f );
 
 	/**
 	 * Play sound client-side at the specified location
@@ -1156,7 +1156,7 @@ public:
 	 * @param PitchMultiplier - Pitch multiplier to apply to the sound
 	 */
 	UFUNCTION(unreliable, client)
-	void ClientPlaySoundAtLocation(class USoundBase* Sound, FVector Location, float VolumeMultiplier = 1.f, float PitchMultiplier = 1.f);
+	ENGINE_API void ClientPlaySoundAtLocation(class USoundBase* Sound, FVector Location, float VolumeMultiplier = 1.f, float PitchMultiplier = 1.f);
 
 	/** Asynchronously loads the given level in preparation for a streaming map transition.
 	 * the server sends one function per level name since dynamic arrays can't be replicated
@@ -1165,7 +1165,7 @@ public:
 	 * @param bLast - whether this is the last item in the list (so start preparing the change after receiving it)
 	 */
 	UFUNCTION(Reliable, Client)
-	void ClientPrepareMapChange(FName LevelName, bool bFirst, bool bLast);
+	ENGINE_API void ClientPrepareMapChange(FName LevelName, bool bFirst, bool bLast);
 
 	/**
 	 * Forces the streaming system to disregard the normal logic for the specified duration and
@@ -1176,22 +1176,22 @@ public:
 	 * @param CinematicTextureGroups	- Bitfield indicating which texture groups that use extra high-resolution mips
 	 */
 	UFUNCTION(Reliable, Client)
-	void ClientPrestreamTextures(class AActor* ForcedActor, float ForceDuration, bool bEnableStreaming, int32 CinematicTextureGroups = 0);
+	ENGINE_API void ClientPrestreamTextures(class AActor* ForcedActor, float ForceDuration, bool bEnableStreaming, int32 CinematicTextureGroups = 0);
 
 	/** Tell client to reset the PlayerController */
 	UFUNCTION(Reliable, Client)
-	void ClientReset();
+	ENGINE_API void ClientReset();
 
 	/** Tell client to restart the level */
 	UFUNCTION(Reliable, Client)
-	void ClientRestart(class APawn* NewPawn);
+	ENGINE_API void ClientRestart(class APawn* NewPawn);
 
 	/** 
 	 * Tells the client to block until all pending level streaming actions are complete.
 	 * Happens at the end of the tick primarily used to force update the client ASAP at join time.
 	 */
 	UFUNCTION(Reliable, Client)
-	void ClientSetBlockOnAsyncLoading();
+	ENGINE_API void ClientSetBlockOnAsyncLoading();
 
 	/**
 	 * Tell client to fade camera
@@ -1203,18 +1203,18 @@ public:
 	 * @param bHoldWhenFinished - True for fade to hold at the ToAlpha until fade is disabled
 	 */
 	UFUNCTION(Reliable, Client)
-	void ClientSetCameraFade(bool bEnableFading, FColor FadeColor = FColor(ForceInit), FVector2D FadeAlpha = FVector2D(-1.0f, 0.0f), float FadeTime = 0, bool bFadeAudio = false, bool bHoldWhenFinished = false);
+	ENGINE_API void ClientSetCameraFade(bool bEnableFading, FColor FadeColor = FColor(ForceInit), FVector2D FadeAlpha = FVector2D(-1.0f, 0.0f), float FadeTime = 0, bool bFadeAudio = false, bool bHoldWhenFinished = false);
 
 	/**
 	 * Replicated function to set camera style on client
 	 * @param	NewCamMode, name defining the new camera mode
 	 */
 	UFUNCTION(Reliable, Client)
-	void ClientSetCameraMode(FName NewCamMode);
+	ENGINE_API void ClientSetCameraMode(FName NewCamMode);
 
 	/** Called by the server to synchronize cinematic transitions with the client */
 	UFUNCTION(Reliable, Client)
-	void ClientSetCinematicMode(bool bInCinematicMode, bool bAffectsMovement, bool bAffectsTurning, bool bAffectsHUD);
+	ENGINE_API void ClientSetCinematicMode(bool bInCinematicMode, bool bAffectsMovement, bool bAffectsTurning, bool bAffectsHUD);
 
 	/**
 	 * Forces the streaming system to disregard the normal logic for the specified duration and
@@ -1225,19 +1225,19 @@ public:
 	 * @param CinematicTextureGroups	- Bitfield indicating which texture groups that use extra high-resolution mips
 	 */
 	UFUNCTION(Reliable, Client)
-	void ClientSetForceMipLevelsToBeResident(class UMaterialInterface* Material, float ForceDuration, int32 CinematicTextureGroups = 0);
+	ENGINE_API void ClientSetForceMipLevelsToBeResident(class UMaterialInterface* Material, float ForceDuration, int32 CinematicTextureGroups = 0);
 
 	/** Set the client's class of HUD and spawns a new instance of it. If there was already a HUD active, it is destroyed. */
 	UFUNCTION(BlueprintCallable, Category="HUD", Reliable, Client)
-	void ClientSetHUD(TSubclassOf<AHUD> NewHUDClass);
+	ENGINE_API void ClientSetHUD(TSubclassOf<AHUD> NewHUDClass);
 
 	/** Helper to get the size of the HUD canvas for this player controller.  Returns 0 if there is no HUD */
 	UFUNCTION(BlueprintCallable, Category="HUD")
-	void GetViewportSize(int32& SizeX, int32& SizeY) const;
+	ENGINE_API void GetViewportSize(int32& SizeX, int32& SizeY) const;
 
 	/** Gets the HUD currently being used by this player controller */
 	UFUNCTION(BlueprintCallable, Category="HUD")
-	AHUD* GetHUD() const;
+	ENGINE_API AHUD* GetHUD() const;
 
 	/** Templated version of GetHUD, will return nullptr if cast fails */
 	template<class T>
@@ -1252,33 +1252,33 @@ public:
 	 * @param CursorWidget - the widget to set the cursor to
 	 */
 	UFUNCTION(BlueprintCallable, Category="Game|Player")
-	void SetMouseCursorWidget(EMouseCursor::Type Cursor, class UUserWidget* CursorWidget);
+	ENGINE_API void SetMouseCursorWidget(EMouseCursor::Type Cursor, class UUserWidget* CursorWidget);
 
 	/** Set the view target
 	 * @param A - new actor to set as view target
 	 * @param TransitionParams - parameters to use for controlling the transition
 	 */
 	UFUNCTION(Reliable, Client)
-	void ClientSetViewTarget(class AActor* A, struct FViewTargetTransitionParams TransitionParams = FViewTargetTransitionParams());
+	ENGINE_API void ClientSetViewTarget(class AActor* A, struct FViewTargetTransitionParams TransitionParams = FViewTargetTransitionParams());
 	
 	/** Spawn a camera lens effect (e.g. blood). */	
 	UFUNCTION(unreliable, client, BlueprintCallable, Category="Game|Feedback")
-	void ClientSpawnGenericCameraLensEffect(UPARAM(meta=(MustImplement ="CameraLensEffectInterface")) TSubclassOf<class AActor>  LensEffectEmitterClass);
+	ENGINE_API void ClientSpawnGenericCameraLensEffect(UPARAM(meta=(MustImplement ="CameraLensEffectInterface")) TSubclassOf<class AActor>  LensEffectEmitterClass);
 
 	UFUNCTION(unreliable, client, Category="Game|Feedback", meta=(DeprecatedFunction, DeprecationMessage="Prefer the version taking ICameraLensEffectInterface (ClientSpawnGenericCameraLensEffect)"))
-	void ClientSpawnCameraLensEffect(TSubclassOf<class AEmitterCameraLensEffectBase>  LensEffectEmitterClass);
+	ENGINE_API void ClientSpawnCameraLensEffect(TSubclassOf<class AEmitterCameraLensEffectBase>  LensEffectEmitterClass);
 
 	/** Removes all Camera Lens Effects. */
 	UFUNCTION(reliable, client, BlueprintCallable, Category="Game|Feedback")
-	virtual void ClientClearCameraLensEffects();
+	ENGINE_API virtual void ClientClearCameraLensEffects();
 
 	/** Stop camera shake on client.  */
 	UFUNCTION(reliable, client, BlueprintCallable, Category="Game|Feedback")
-	void ClientStopCameraShake(TSubclassOf<class UCameraShakeBase> Shake, bool bImmediately = true);
+	ENGINE_API void ClientStopCameraShake(TSubclassOf<class UCameraShakeBase> Shake, bool bImmediately = true);
 
 	/** Stop camera shake on client.  */
 	UFUNCTION(BlueprintCallable, Category="Game|Feedback")
-	void ClientStopCameraShakesFromSource(class UCameraShakeSourceComponent* SourceComponent, bool bImmediately = true);
+	ENGINE_API void ClientStopCameraShakesFromSource(class UCameraShakeSourceComponent* SourceComponent, bool bImmediately = true);
 
 	/** 
 	 * Play a force feedback pattern on the player's controller
@@ -1289,7 +1289,7 @@ public:
 	 * @param	Tag						A tag that allows stopping of an effect.  If another effect with this Tag is playing, it will be stopped and replaced
 	 */
 	UFUNCTION(BlueprintCallable, Category="Game|Feedback", meta=(DisplayName="Client Play Force Feedback", AdvancedDisplay="bIgnoreTimeDilation,bPlayWhilePaused"))
-	void K2_ClientPlayForceFeedback(class UForceFeedbackEffect* ForceFeedbackEffect, FName Tag, bool bLooping, bool bIgnoreTimeDilation, bool bPlayWhilePaused);
+	ENGINE_API void K2_ClientPlayForceFeedback(class UForceFeedbackEffect* ForceFeedbackEffect, FName Tag, bool bLooping, bool bIgnoreTimeDilation, bool bPlayWhilePaused);
 
 private:
 	/** 
@@ -1297,7 +1297,7 @@ private:
 	 * Cannot be named ClientPlayForceFeedback as redirector for blueprint function version to K2_... does not work in that case
 	 */
 	UFUNCTION(unreliable, client)
-	void ClientPlayForceFeedback_Internal(class UForceFeedbackEffect* ForceFeedbackEffect, FForceFeedbackParameters Params = FForceFeedbackParameters());
+	ENGINE_API void ClientPlayForceFeedback_Internal(class UForceFeedbackEffect* ForceFeedbackEffect, FForceFeedbackParameters Params = FForceFeedbackParameters());
 
 public:
 
@@ -1317,7 +1317,7 @@ public:
 	 * @param	Tag						If not none only the pattern with this tag will be stopped
 	 */
 	UFUNCTION(reliable, client, BlueprintCallable, Category="Game|Feedback")
-	void ClientStopForceFeedback(class UForceFeedbackEffect* ForceFeedbackEffect, FName Tag);
+	ENGINE_API void ClientStopForceFeedback(class UForceFeedbackEffect* ForceFeedbackEffect, FName Tag);
 
 private:
 	/** 
@@ -1333,12 +1333,12 @@ private:
 	 * @param   bAffectsRightSmall		Whether the intensity should be applied to the small right servo
 	 */
 	UFUNCTION(BlueprintCallable, meta=(Latent, LatentInfo="LatentInfo", ExpandEnumAsExecs="Action", Duration="-1", bAffectsLeftLarge="true", bAffectsLeftSmall="true", bAffectsRightLarge="true", bAffectsRightSmall="true", AdvancedDisplay="bAffectsLeftLarge,bAffectsLeftSmall,bAffectsRightLarge,bAffectsRightSmall"), Category="Game|Feedback")
-	void PlayDynamicForceFeedback(float Intensity, float Duration, bool bAffectsLeftLarge, bool bAffectsLeftSmall, bool bAffectsRightLarge, bool bAffectsRightSmall, TEnumAsByte<EDynamicForceFeedbackAction::Type> Action, FLatentActionInfo LatentInfo);
+	ENGINE_API void PlayDynamicForceFeedback(float Intensity, float Duration, bool bAffectsLeftLarge, bool bAffectsLeftSmall, bool bAffectsRightLarge, bool bAffectsRightSmall, TEnumAsByte<EDynamicForceFeedbackAction::Type> Action, FLatentActionInfo LatentInfo);
 
 	//~ This method is purely for debugging purposes.
 	//~ It will trigger a ServerUpdateLevelVisibilityCall with the provided package name.
 	UFUNCTION(Exec)
-	void TestServerLevelVisibilityChange(const FName PackageName, const FName FileName);
+	ENGINE_API void TestServerLevelVisibilityChange(const FName PackageName, const FName FileName);
 
 public:
 	/** 
@@ -1356,7 +1356,7 @@ public:
 	 * @return  The index to pass in to the function to update the latent action in the future if needed. Returns 0 if the feedback was stopped
 	 *          or the specified UniqueID did not map to an action that can be started/updated.
 	 */
-	FDynamicForceFeedbackHandle PlayDynamicForceFeedback(float Intensity, float Duration, bool bAffectsLeftLarge, bool bAffectsLeftSmall, bool bAffectsRightLarge, bool bAffectsRightSmall, EDynamicForceFeedbackAction::Type Action = EDynamicForceFeedbackAction::Start, FDynamicForceFeedbackHandle ActionHandle = 0);
+	ENGINE_API FDynamicForceFeedbackHandle PlayDynamicForceFeedback(float Intensity, float Duration, bool bAffectsLeftLarge, bool bAffectsLeftSmall, bool bAffectsRightLarge, bool bAffectsRightSmall, EDynamicForceFeedbackAction::Type Action = EDynamicForceFeedbackAction::Start, FDynamicForceFeedbackHandle ActionHandle = 0);
 
 	/**
 	 * Play a haptic feedback curve on the player's controller
@@ -1365,7 +1365,7 @@ public:
 	 * @param	Scale					Scale between 0.0 and 1.0 on the intensity of playback
 	 */
 	UFUNCTION(BlueprintCallable, Category="Game|Feedback")
-	void PlayHapticEffect(class UHapticFeedbackEffect_Base* HapticEffect, EControllerHand Hand, float Scale = 1.f,  bool bLoop = false);
+	ENGINE_API void PlayHapticEffect(class UHapticFeedbackEffect_Base* HapticEffect, EControllerHand Hand, float Scale = 1.f,  bool bLoop = false);
 
 	/**
 	 * Stops a playing haptic feedback curve
@@ -1373,7 +1373,7 @@ public:
 	 * @param	Hand					Which hand to stop the effect for
 	 */
 	UFUNCTION(BlueprintCallable, Category="Game|Feedback")
-	void StopHapticEffect(EControllerHand Hand);
+	ENGINE_API void StopHapticEffect(EControllerHand Hand);
 
 	/**
 	 * Sets the value of the haptics for the specified hand directly, using frequency and amplitude.  NOTE:  If a curve is already
@@ -1384,7 +1384,7 @@ public:
 	 * @param	Hand					Which hand to play the effect on
 	 */
 	UFUNCTION(BlueprintCallable, Category="Game|Feedback")
-	void SetHapticsByValue(const float Frequency, const float Amplitude, EControllerHand Hand);
+	ENGINE_API void SetHapticsByValue(const float Frequency, const float Amplitude, EControllerHand Hand);
 	
 	/**
 	 * Allows the player controller to disable all haptic requests from being fired, e.g. in the case of a level loading
@@ -1392,20 +1392,20 @@ public:
 	 * @param	bNewDisabled	If TRUE, the haptics will stop and prevented from being enabled again until set to FALSE
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Game|Feedback")
-	virtual void SetDisableHaptics(bool bNewDisabled);
+	ENGINE_API virtual void SetDisableHaptics(bool bNewDisabled);
 
 	/**
 	 * Sets the light color of the player's controller
 	 * @param	Color					The color for the light to be
 	 */
 	UFUNCTION(BlueprintCallable, Category="Game|Feedback")
-	void SetControllerLightColor(FColor Color);
+	ENGINE_API void SetControllerLightColor(FColor Color);
 	
 	/**
 	 * Resets the light color of the player's controller to default
 	 */
 	UFUNCTION(BlueprintCallable, Category="Game|Feedback")
-	void ResetControllerLightColor();
+	ENGINE_API void ResetControllerLightColor();
 
 	/**
 	 * Travel to a different map or IP address. Calls the PreClientTravel event before doing anything.
@@ -1419,7 +1419,7 @@ public:
 	 * 							so it is only needed for clients
 	 */
 	UFUNCTION()
-	void ClientTravel(const FString& URL, enum ETravelType TravelType, bool bSeamless = false, FGuid MapPackageGuid = FGuid());
+	ENGINE_API void ClientTravel(const FString& URL, enum ETravelType TravelType, bool bSeamless = false, FGuid MapPackageGuid = FGuid());
 
 	/**
 	 * Internal clientside implementation of ClientTravel - use ClientTravel to call this
@@ -1432,7 +1432,7 @@ public:
 	 * 							so it is only needed for clients
 	 */
 	UFUNCTION(Reliable, Client)
-	void ClientTravelInternal(const FString& URL, enum ETravelType TravelType, bool bSeamless = false, FGuid MapPackageGuid = FGuid());
+	ENGINE_API void ClientTravelInternal(const FString& URL, enum ETravelType TravelType, bool bSeamless = false, FGuid MapPackageGuid = FGuid());
 
 	/**
 	 * Replicated Update streaming status
@@ -1445,91 +1445,91 @@ public:
 	 * @param bNewShouldBlockOnUnload - Optional parameter used to force a blocking unload or not
 	 */
 	UFUNCTION(Reliable, Client)
-	void ClientUpdateLevelStreamingStatus(FName PackageName, bool bNewShouldBeLoaded, bool bNewShouldBeVisible, bool bNewShouldBlockOnLoad, int32 LODIndex, FNetLevelVisibilityTransactionId TransactionId = FNetLevelVisibilityTransactionId(), bool bNewShouldBlockOnUnload = false);
+	ENGINE_API void ClientUpdateLevelStreamingStatus(FName PackageName, bool bNewShouldBeLoaded, bool bNewShouldBeVisible, bool bNewShouldBlockOnLoad, int32 LODIndex, FNetLevelVisibilityTransactionId TransactionId = FNetLevelVisibilityTransactionId(), bool bNewShouldBlockOnUnload = false);
 
 	/**
 	 * Replicated Update streaming status.  This version allows for the streaming state of many levels to be sent in a single RPC.
 	 * @param LevelStatuses	The list of levels the client should have either streamed in or not, depending on state.
 	 */
 	UFUNCTION(Reliable, Client)
-	void ClientUpdateMultipleLevelsStreamingStatus(const TArray<FUpdateLevelStreamingLevelStatus>& LevelStatuses);
+	ENGINE_API void ClientUpdateMultipleLevelsStreamingStatus(const TArray<FUpdateLevelStreamingLevelStatus>& LevelStatuses);
 
 	/** Notify client they were kicked from the server */
 	UFUNCTION(Reliable, Client)
-	void ClientWasKicked(const FText& KickReason);
+	ENGINE_API void ClientWasKicked(const FText& KickReason);
 
 	/** Notify client that the session is starting */
 	UFUNCTION(Reliable, Client)
-	void ClientStartOnlineSession();
+	ENGINE_API void ClientStartOnlineSession();
 
 	/** Notify client that the session is about to start */
 	UFUNCTION(Reliable, Client)
-	void ClientEndOnlineSession();
+	ENGINE_API void ClientEndOnlineSession();
 
 	/** Assign Pawn to player, but avoid calling ClientRestart if we have already accepted this pawn */
 	UFUNCTION(Reliable, Client)
-	void ClientRetryClientRestart(class APawn* NewPawn);
+	ENGINE_API void ClientRetryClientRestart(class APawn* NewPawn);
 
 	/** Call ClientRetryClientRestart, but only if the current pawn is not the currently acknowledged pawn (and throttled to avoid saturating the network). */
-	virtual void SafeRetryClientRestart();
+	ENGINE_API virtual void SafeRetryClientRestart();
 
 	/** send client localized message id */
 	UFUNCTION(Reliable, Client)
-	void ClientReceiveLocalizedMessage(TSubclassOf<ULocalMessage> Message, int32 Switch = 0, class APlayerState* RelatedPlayerState_1 = nullptr, class APlayerState* RelatedPlayerState_2 = nullptr, class UObject* OptionalObject = nullptr);
+	ENGINE_API void ClientReceiveLocalizedMessage(TSubclassOf<ULocalMessage> Message, int32 Switch = 0, class APlayerState* RelatedPlayerState_1 = nullptr, class APlayerState* RelatedPlayerState_2 = nullptr, class UObject* OptionalObject = nullptr);
 
 	/** acknowledge possession of pawn */
 	UFUNCTION(reliable, server, WithValidation)
-	void ServerAcknowledgePossession(class APawn* P);
+	ENGINE_API void ServerAcknowledgePossession(class APawn* P);
 
 	/** change mode of camera */
 	UFUNCTION(reliable, server, WithValidation)
-	void ServerCamera(FName NewMode);
+	ENGINE_API void ServerCamera(FName NewMode);
 
 	/** Change name of server */
 	UFUNCTION(reliable, server, WithValidation)
-	void ServerChangeName(const FString& S);
+	ENGINE_API void ServerChangeName(const FString& S);
 
 	/** 
 	 * Called to notify the server when the client has loaded a new world via seamless traveling
 	 * @param WorldPackageName the name of the world package that was loaded
 	 */
 	UFUNCTION(reliable, server, WithValidation, SealedEvent)
-	void ServerNotifyLoadedWorld(FName WorldPackageName);
+	ENGINE_API void ServerNotifyLoadedWorld(FName WorldPackageName);
 
 	/** Replicate pause request to the server */
 	UFUNCTION(reliable, server, WithValidation)
-	void ServerPause();
+	ENGINE_API void ServerPause();
 
 	/** Attempts to restart this player, generally called from the client upon respawn request. */
 	UFUNCTION(reliable, server, WithValidation)
-	void ServerRestartPlayer();
+	ENGINE_API void ServerRestartPlayer();
 
 	/** When spectating, updates spectator location/rotation and pings the server to make sure spectating should continue. */
 	UFUNCTION(unreliable, server, WithValidation)
-	void ServerSetSpectatorLocation(FVector NewLoc, FRotator NewRot);
+	ENGINE_API void ServerSetSpectatorLocation(FVector NewLoc, FRotator NewRot);
 
 	/** Calls ServerSetSpectatorLocation but throttles it to reduce bandwidth and only calls it when necessary. */
-	void SafeServerUpdateSpectatorState();
+	ENGINE_API void SafeServerUpdateSpectatorState();
 
 	/** Tells the server to make sure the possessed pawn is in sync with the client. */
 	UFUNCTION(unreliable, server, WithValidation)
-	void ServerCheckClientPossession();
+	ENGINE_API void ServerCheckClientPossession();
 
 	/** Reliable version of ServerCheckClientPossession to be used when there is no likely danger of spamming the network. */
 	UFUNCTION(reliable, server, WithValidation)
-	void ServerCheckClientPossessionReliable();
+	ENGINE_API void ServerCheckClientPossessionReliable();
 
 	/** Call ServerCheckClientPossession on the server, but only if the current pawn is not the acknowledged pawn (and throttled to avoid saturating the network). */
-	virtual void SafeServerCheckClientPossession();
+	ENGINE_API virtual void SafeServerCheckClientPossession();
 
 	/** Notifies the server that the client has ticked gameplay code, and should no longer get the extended "still loading" timeout grace period */
 	UFUNCTION(reliable, server, WithValidation)
-	void ServerShortTimeout();
+	ENGINE_API void ServerShortTimeout();
 
 	/** If PlayerCamera.bUseClientSideCameraUpdates is set, client will replicate camera positions to the server. */
 	// @TODO - combine pitch/yaw into one int, maybe also send location compressed
 	UFUNCTION(unreliable, server, WithValidation)
-	void ServerUpdateCamera(FVector_NetQuantize CamLoc, int32 CamPitchAndYaw);
+	ENGINE_API void ServerUpdateCamera(FVector_NetQuantize CamLoc, int32 CamPitchAndYaw);
 
 	/** 
 	 * Called when the client adds/removes a streamed level.
@@ -1539,7 +1539,7 @@ public:
 	 * @param LevelVisibility	Visibility state for the level whose state changed.
 	 */
 	UFUNCTION(reliable, server, WithValidation, SealedEvent)
-	void ServerUpdateLevelVisibility(const FUpdateLevelVisibilityLevelInfo& LevelVisibility);
+	ENGINE_API void ServerUpdateLevelVisibility(const FUpdateLevelVisibilityLevelInfo& LevelVisibility);
 
 	/** 
 	 * Called when the client adds/removes a streamed level.  This version of the function allows you to pass the state of 
@@ -1548,118 +1548,118 @@ public:
 	 * @param	LevelVisibilities	Visibility state for each level whose state has changed
 	 */
 	UFUNCTION(reliable, server, WithValidation, SealedEvent)
-	void ServerUpdateMultipleLevelsVisibility( const TArray<FUpdateLevelVisibilityLevelInfo>& LevelVisibilities );
+	ENGINE_API void ServerUpdateMultipleLevelsVisibility( const TArray<FUpdateLevelVisibilityLevelInfo>& LevelVisibilities );
 
 	/** Used by client to request server to confirm current viewtarget (server will respond with ClientSetViewTarget() ). */
 	UFUNCTION(reliable, server, WithValidation)
-	void ServerVerifyViewTarget();
+	ENGINE_API void ServerVerifyViewTarget();
 
 	/** Move camera to next player on round ended or spectating*/
 	UFUNCTION(unreliable, server, WithValidation)
-	void ServerViewNextPlayer();
+	ENGINE_API void ServerViewNextPlayer();
 
 	/** Move camera to previous player on round ended or spectating */
 	UFUNCTION(unreliable, server, WithValidation)
-	void ServerViewPrevPlayer();
+	ENGINE_API void ServerViewPrevPlayer();
 
 	/** Move camera to current user */
 	UFUNCTION(unreliable, server, WithValidation)
-	void ServerViewSelf(struct FViewTargetTransitionParams TransitionParams = FViewTargetTransitionParams());
+	ENGINE_API void ServerViewSelf(struct FViewTargetTransitionParams TransitionParams = FViewTargetTransitionParams());
 
 	/** @todo document */
 	UFUNCTION(Reliable, Client)
-	void ClientTeamMessage(class APlayerState* SenderPlayerState, const FString& S, FName Type, float MsgLifeTime = 0);
+	ENGINE_API void ClientTeamMessage(class APlayerState* SenderPlayerState, const FString& S, FName Type, float MsgLifeTime = 0);
 
 	/** Used by UGameplayDebuggingControllerComponent to replicate messages for AI debugging in network games. */
 	UFUNCTION(reliable, server, WithValidation)
-	void ServerToggleAILogging();
+	ENGINE_API void ServerToggleAILogging();
 
 	/**
 	 * Add Pitch (look up) input. This value is multiplied by InputPitchScale.
 	 * @param Val Amount to add to Pitch. This value is multiplied by InputPitchScale.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Game|Player", meta=(Keywords="up down"))
-	virtual void AddPitchInput(float Val);
+	ENGINE_API virtual void AddPitchInput(float Val);
 
 	/**
 	 * Add Yaw (turn) input. This value is multiplied by InputYawScale.
 	 * @param Val Amount to add to Yaw. This value is multiplied by InputYawScale.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Game|Player", meta=(Keywords="left right turn"))
-	virtual void AddYawInput(float Val);
+	ENGINE_API virtual void AddYawInput(float Val);
 
 	/**
 	 * Add Roll input. This value is multiplied by InputRollScale.
 	 * @param Val Amount to add to Roll. This value is multiplied by InputRollScale.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Game|Player")
-	virtual void AddRollInput(float Val);
+	ENGINE_API virtual void AddRollInput(float Val);
 
 	/** Returns true if the given key/button is pressed on the input of the controller (if present) */
 	UFUNCTION(BlueprintCallable, Category="Game|Player")
-	bool IsInputKeyDown(FKey Key) const;
+	ENGINE_API bool IsInputKeyDown(FKey Key) const;
 
 	/** Returns true if the given key/button was up last frame and down this frame. */
 	UFUNCTION(BlueprintCallable, Category="Game|Player")
-	bool WasInputKeyJustPressed(FKey Key) const;
+	ENGINE_API bool WasInputKeyJustPressed(FKey Key) const;
 
 	/** Returns true if the given key/button was down last frame and up this frame. */
 	UFUNCTION(BlueprintCallable, Category="Game|Player")
-	bool WasInputKeyJustReleased(FKey Key) const;
+	ENGINE_API bool WasInputKeyJustReleased(FKey Key) const;
 
 	/** Returns the analog value for the given key/button.  If analog isn't supported, returns 1 for down and 0 for up. */
 	UFUNCTION(BlueprintCallable, Category="Game|Player")
-	float GetInputAnalogKeyState(FKey Key) const;
+	ENGINE_API float GetInputAnalogKeyState(FKey Key) const;
 
 	/** Returns the vector value for the given key/button. */
 	UFUNCTION(BlueprintCallable, Category="Game|Player")
-	FVector GetInputVectorKeyState(FKey Key) const;
+	ENGINE_API FVector GetInputVectorKeyState(FKey Key) const;
 
 	/** Retrieves the X and Y screen coordinates of the specified touch key. Returns false if the touch index is not down */
 	UFUNCTION(BlueprintCallable, Category="Game|Player")
-	void GetInputTouchState(ETouchIndex::Type FingerIndex, float& LocationX, float& LocationY, bool& bIsCurrentlyPressed) const;
-	void GetInputTouchState(ETouchIndex::Type FingerIndex, double& LocationX, double& LocationY, bool& bIsCurrentlyPressed) const;	// LWC_TODO: Temp stand in for native calls with FVector2D components.
+	ENGINE_API void GetInputTouchState(ETouchIndex::Type FingerIndex, float& LocationX, float& LocationY, bool& bIsCurrentlyPressed) const;
+	ENGINE_API void GetInputTouchState(ETouchIndex::Type FingerIndex, double& LocationX, double& LocationY, bool& bIsCurrentlyPressed) const;	// LWC_TODO: Temp stand in for native calls with FVector2D components.
 
 	/** Retrieves the current motion state of the player's input device */
 	UFUNCTION(BlueprintCallable, Category="Game|Player")
-	void GetInputMotionState(FVector& Tilt, FVector& RotationRate, FVector& Gravity, FVector& Acceleration) const;
+	ENGINE_API void GetInputMotionState(FVector& Tilt, FVector& RotationRate, FVector& Gravity, FVector& Acceleration) const;
 
 	/** Retrieves the X and Y screen coordinates of the mouse cursor. Returns false if there is no associated mouse device */
 	UFUNCTION(BlueprintCallable, Category="Game|Player")
-	bool GetMousePosition(float& LocationX, float& LocationY) const;
-	bool GetMousePosition(double& LocationX, double& LocationY) const;	// LWC_TODO: Temp stand in for native calls with FVector2D components.
+	ENGINE_API bool GetMousePosition(float& LocationX, float& LocationY) const;
+	ENGINE_API bool GetMousePosition(double& LocationX, double& LocationY) const;	// LWC_TODO: Temp stand in for native calls with FVector2D components.
 
 	/** Returns how long the given key/button has been down.  Returns 0 if it's up or it just went down this frame. */
 	UFUNCTION(BlueprintCallable, Category="Game|Player")
-	float GetInputKeyTimeDown(FKey Key) const;
+	ENGINE_API float GetInputKeyTimeDown(FKey Key) const;
 
 	/** Retrieves how far the mouse moved this frame. */
 	UFUNCTION(BlueprintCallable, Category="Game|Player")
-	void GetInputMouseDelta(float& DeltaX, float& DeltaY) const;
-	void GetInputMouseDelta(double& DeltaX, double& DeltaY) const;	// LWC_TODO: Temp stand in for native calls with FVector2D components.
+	ENGINE_API void GetInputMouseDelta(float& DeltaX, float& DeltaY) const;
+	ENGINE_API void GetInputMouseDelta(double& DeltaX, double& DeltaY) const;	// LWC_TODO: Temp stand in for native calls with FVector2D components.
 	
 	/** Retrieves the X and Y displacement of the given analog stick. */
 	UFUNCTION(BlueprintCallable, Category="Game|Player")
-	void GetInputAnalogStickState(EControllerAnalogStick::Type WhichStick, float& StickX, float& StickY) const;
-	void GetInputAnalogStickState(EControllerAnalogStick::Type WhichStick, double& StickX, double& StickY) const;	// LWC_TODO: Temp stand in for native calls with FVector2D components.
+	ENGINE_API void GetInputAnalogStickState(EControllerAnalogStick::Type WhichStick, float& StickX, float& StickY) const;
+	ENGINE_API void GetInputAnalogStickState(EControllerAnalogStick::Type WhichStick, double& StickX, double& StickY) const;	// LWC_TODO: Temp stand in for native calls with FVector2D components.
 
 	/** Activates a new touch interface for this player controller */
 	UFUNCTION(BlueprintCallable, Category="Game|Player")
-	virtual void ActivateTouchInterface(class UTouchInterface* NewTouchInterface);
+	ENGINE_API virtual void ActivateTouchInterface(class UTouchInterface* NewTouchInterface);
 
 	/** Set the virtual joystick visibility. */
 	UFUNCTION(BlueprintCallable, Category="Game|Player")
-	virtual void SetVirtualJoystickVisibility(bool bVisible);
+	ENGINE_API virtual void SetVirtualJoystickVisibility(bool bVisible);
 
 	/** Setup an input mode. */
-	virtual void SetInputMode(const FInputModeDataBase& InData);
+	ENGINE_API virtual void SetInputMode(const FInputModeDataBase& InData);
 
 	/**
 	 * Change Camera mode
 	 * @param	New camera mode to set
 	 */
 	UFUNCTION(exec)
-	virtual void Camera(FName NewMode);
+	ENGINE_API virtual void Camera(FName NewMode);
 
 	/**
 	 * Set the view target blending with variable control
@@ -1670,16 +1670,16 @@ public:
 	 * @param bLockOutgoing - If true, lock outgoing viewtarget to last frame's camera position for the remainder of the blend.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Game|Player", meta=(Keywords = "Camera"))
-	virtual void SetViewTargetWithBlend(class AActor* NewViewTarget, float BlendTime = 0, enum EViewTargetBlendFunction BlendFunc = VTBlend_Linear, float BlendExp = 0, bool bLockOutgoing = false);
+	ENGINE_API virtual void SetViewTargetWithBlend(class AActor* NewViewTarget, float BlendTime = 0, enum EViewTargetBlendFunction BlendFunc = VTBlend_Linear, float BlendExp = 0, bool bLockOutgoing = false);
 
 	/** 
 	* Make this player a member of a netcondition group. 
 	* Any subobject registered in the group may now be replicated to this player's connection.
 	*/
-	void IncludeInNetConditionGroup(FName NetGroup);
+	ENGINE_API void IncludeInNetConditionGroup(FName NetGroup);
 
 	/** Remove this player from a netcondition group. */
-	void RemoveFromNetConditionGroup(FName NetGroup);
+	ENGINE_API void RemoveFromNetConditionGroup(FName NetGroup);
 
 	/** Returns true if the player controller is a member of the netcondition group */
 	bool IsMemberOfNetConditionGroup(FName NetGroup) const
@@ -1710,10 +1710,10 @@ protected:
 	TObjectPtr<UInputComponent> InactiveStateInputComponent;
 
 	/** Sets up input bindings for the input component pushed on the stack in the inactive state. */
-	virtual void SetupInactiveStateInputComponent(UInputComponent* InComponent);
+	ENGINE_API virtual void SetupInactiveStateInputComponent(UInputComponent* InComponent);
 
 	/** Refresh state specific input components */
-	virtual void UpdateStateInputComponents();
+	ENGINE_API virtual void UpdateStateInputComponents();
 
 	/** The state of the inputs from cinematic mode */
 	uint32 bCinemaDisableInputMove:1;
@@ -1733,7 +1733,7 @@ protected:
 	TSharedPtr<class SVirtualJoystick> VirtualJoystick;
 
 	/** Create virtual touch interface */
-	virtual TSharedPtr<class SVirtualJoystick> CreateVirtualJoystick();
+	ENGINE_API virtual TSharedPtr<class SVirtualJoystick> CreateVirtualJoystick();
 
 	/** The currently set touch interface */
 	UPROPERTY()
@@ -1755,16 +1755,16 @@ private:
 
 public:
 	/** Adds an inputcomponent to the top of the input stack. */
-	virtual void PushInputComponent(UInputComponent* Input);
+	ENGINE_API virtual void PushInputComponent(UInputComponent* Input);
 
 	/** Removes given inputcomponent from the input stack (regardless of if it's the top, actually). */
-	virtual bool PopInputComponent(UInputComponent* Input);
+	ENGINE_API virtual bool PopInputComponent(UInputComponent* Input);
 
 	/** Returns true if the given input component is in this PlayerController's CurrentInputStack */
-	virtual bool IsInputComponentInStack(const UInputComponent* Input) const;
+	ENGINE_API virtual bool IsInputComponentInStack(const UInputComponent* Input) const;
 
 	/** Flushes the current key state. */
-	virtual void FlushPressedKeys();
+	ENGINE_API virtual void FlushPressedKeys();
 
 	/**
 	 * If true, then the GameViewportClient should call FlushPressedKeys on this controller when it loses focus.
@@ -1773,44 +1773,44 @@ public:
 	virtual bool ShouldFlushKeysWhenViewportFocusChanges() const { return bShouldFlushInputWhenViewportFocusChanges; }
 
 	UFUNCTION(BlueprintCallable, Category = Input)
-	TSubclassOf<UPlayerInput> GetOverridePlayerInputClass() const;
+	ENGINE_API TSubclassOf<UPlayerInput> GetOverridePlayerInputClass() const;
 
 	/** Handles a key press */
 	UE_DEPRECATED(5.0, "This version of InputKey has been deprecated, please use the version that takes FInputKeyParams instead")
-	virtual bool InputKey(FKey Key, EInputEvent EventType, float AmountDepressed, bool bGamepad);
+	ENGINE_API virtual bool InputKey(FKey Key, EInputEvent EventType, float AmountDepressed, bool bGamepad);
 
 	/** Handles a key press */
-	virtual bool InputKey(const FInputKeyParams& Params);
+	ENGINE_API virtual bool InputKey(const FInputKeyParams& Params);
 
 	/** Handles a touch screen action */
-	virtual bool InputTouch(uint32 Handle, ETouchType::Type Type, const FVector2D& TouchLocation, float Force, FDateTime DeviceTimestamp, uint32 TouchpadIndex);
+	ENGINE_API virtual bool InputTouch(uint32 Handle, ETouchType::Type Type, const FVector2D& TouchLocation, float Force, FDateTime DeviceTimestamp, uint32 TouchpadIndex);
 
 	/** Handles a controller axis input */
 	UE_DEPRECATED(5.0, "InputAxis has been deprecated, please use InputKey instead.")
-	virtual bool InputAxis(FKey Key, float Delta, float DeltaTime, int32 NumSamples, bool bGamepad);
+	ENGINE_API virtual bool InputAxis(FKey Key, float Delta, float DeltaTime, int32 NumSamples, bool bGamepad);
 	
 	/** Handles motion control */
-	virtual bool InputMotion(const FVector& Tilt, const FVector& RotationRate, const FVector& Gravity, const FVector& Acceleration);
+	ENGINE_API virtual bool InputMotion(const FVector& Tilt, const FVector& RotationRate, const FVector& Gravity, const FVector& Acceleration);
 
 	/** Associate a new UPlayer with this PlayerController. */
-	virtual void SetPlayer(UPlayer* InPlayer);
+	ENGINE_API virtual void SetPlayer(UPlayer* InPlayer);
 
 	/** Returns the ULocalPlayer for this controller if it exists, or null otherwise */
-	class ULocalPlayer* GetLocalPlayer() const;
+	ENGINE_API class ULocalPlayer* GetLocalPlayer() const;
 
 	/**
 	 * Returns the platform user that is assigned to this Player Controller's Local Player.
 	 * If there is no local player, then this will return PLATFORMUSERID_NONE
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Game|Player")
-	FPlatformUserId GetPlatformUserId() const;
+	ENGINE_API FPlatformUserId GetPlatformUserId() const;
 
 	/**
 	 * Called client-side to smoothly interpolate received TargetViewRotation (result is in BlendedTargetViewRotation)
 	 * @param TargetPawn   is the pawn which is the current ViewTarget
 	 * @param DeltaSeconds is the time interval since the last smoothing update
 	 */
-	virtual void SmoothTargetViewRotation(APawn* TargetPawn, float DeltaSeconds);
+	ENGINE_API virtual void SmoothTargetViewRotation(APawn* TargetPawn, float DeltaSeconds);
 
 	/**
 	 * Executes the Exec() command on the UPlayer object
@@ -1818,56 +1818,56 @@ public:
 	 * @param Command command to execute (string of commands optionally separated by a | (pipe))
 	 * @param bWriteToLog write out to the log
 	 */
-	virtual FString ConsoleCommand(const FString& Command, bool bWriteToLog = true);
+	ENGINE_API virtual FString ConsoleCommand(const FString& Command, bool bWriteToLog = true);
 
 	//~ Begin UObject Interface
-	virtual void PostLoad() override;
-	virtual void GetLifetimeReplicatedProps(TArray< FLifetimeProperty > & OutLifetimeProps) const override;
+	ENGINE_API virtual void PostLoad() override;
+	ENGINE_API virtual void GetLifetimeReplicatedProps(TArray< FLifetimeProperty > & OutLifetimeProps) const override;
 	//~ End UObject Interface
 
 	//~ Begin AActor Interface
-	virtual void GetActorEyesViewPoint(FVector& Location, FRotator& Rotation) const override;
-	virtual void CalcCamera(float DeltaTime, struct FMinimalViewInfo& OutResult) override;
-	virtual void TickActor(float DeltaTime, enum ELevelTick TickType, FActorTickFunction& ThisTickFunction) override;
-	virtual bool IsNetRelevantFor(const AActor* RealViewer, const AActor* ViewTarget, const FVector& SrcLocation) const override;
-	virtual void FellOutOfWorld(const class UDamageType& dmgType) override;
-	virtual void Reset() override;
+	ENGINE_API virtual void GetActorEyesViewPoint(FVector& Location, FRotator& Rotation) const override;
+	ENGINE_API virtual void CalcCamera(float DeltaTime, struct FMinimalViewInfo& OutResult) override;
+	ENGINE_API virtual void TickActor(float DeltaTime, enum ELevelTick TickType, FActorTickFunction& ThisTickFunction) override;
+	ENGINE_API virtual bool IsNetRelevantFor(const AActor* RealViewer, const AActor* ViewTarget, const FVector& SrcLocation) const override;
+	ENGINE_API virtual void FellOutOfWorld(const class UDamageType& dmgType) override;
+	ENGINE_API virtual void Reset() override;
 protected:
-	virtual void OnPossess(APawn* aPawn) override;
-	virtual void OnUnPossess() override;
+	ENGINE_API virtual void OnPossess(APawn* aPawn) override;
+	ENGINE_API virtual void OnUnPossess() override;
 public:
-	virtual void CleanupPlayerState() override;
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-	virtual void Destroyed() override;
-	virtual void OnActorChannelOpen(class FInBunch& InBunch, class UNetConnection* Connection) override;
-	virtual bool UseShortConnectTimeout() const override;
-	virtual void OnSerializeNewActor(class FOutBunch& OutBunch) override;
-	virtual void OnNetCleanup(class UNetConnection* Connection) override;
-	virtual float GetNetPriority(const FVector& ViewPos, const FVector& ViewDir, AActor* Viewer, AActor* ViewTarget, UActorChannel* InChannel, float Time, bool bLowBandwidth) override;
-	virtual const AActor* GetNetOwner() const override;
-	virtual class UPlayer* GetNetOwningPlayer() override;
-	virtual class UNetConnection* GetNetConnection() const override;
-	virtual bool DestroyNetworkActorHandled() override;
-	virtual void DisplayDebug(class UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos) override;
-	virtual void PostInitializeComponents() override;
-	virtual void EnableInput(class APlayerController* PlayerController) override;
-	virtual void DisableInput(class APlayerController* PlayerController) override;
+	ENGINE_API virtual void CleanupPlayerState() override;
+	ENGINE_API virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	ENGINE_API virtual void Destroyed() override;
+	ENGINE_API virtual void OnActorChannelOpen(class FInBunch& InBunch, class UNetConnection* Connection) override;
+	ENGINE_API virtual bool UseShortConnectTimeout() const override;
+	ENGINE_API virtual void OnSerializeNewActor(class FOutBunch& OutBunch) override;
+	ENGINE_API virtual void OnNetCleanup(class UNetConnection* Connection) override;
+	ENGINE_API virtual float GetNetPriority(const FVector& ViewPos, const FVector& ViewDir, AActor* Viewer, AActor* ViewTarget, UActorChannel* InChannel, float Time, bool bLowBandwidth) override;
+	ENGINE_API virtual const AActor* GetNetOwner() const override;
+	ENGINE_API virtual class UPlayer* GetNetOwningPlayer() override;
+	ENGINE_API virtual class UNetConnection* GetNetConnection() const override;
+	ENGINE_API virtual bool DestroyNetworkActorHandled() override;
+	ENGINE_API virtual void DisplayDebug(class UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos) override;
+	ENGINE_API virtual void PostInitializeComponents() override;
+	ENGINE_API virtual void EnableInput(class APlayerController* PlayerController) override;
+	ENGINE_API virtual void DisableInput(class APlayerController* PlayerController) override;
 protected:
-	virtual void BeginPlay() override;
+	ENGINE_API virtual void BeginPlay() override;
 	//~ End AActor Interface
 
 public:
 	//~ Begin AController Interface
-	virtual void GameHasEnded(class AActor* EndGameFocus = nullptr, bool bIsWinner = false) override;
-	virtual bool IsLocalController() const override;
-	virtual void GetPlayerViewPoint(FVector& out_Location, FRotator& out_Rotation) const override;
-	virtual void SetInitialLocationAndRotation(const FVector& NewLocation, const FRotator& NewRotation) override;
-	virtual void ChangeState(FName NewState) override;
-	virtual class AActor* GetViewTarget() const override;
-	virtual void BeginInactiveState() override;
-	virtual void EndInactiveState() override;
-	virtual void FailedToSpawnPawn() override;
-	virtual void SetPawn(APawn* InPawn) override;
+	ENGINE_API virtual void GameHasEnded(class AActor* EndGameFocus = nullptr, bool bIsWinner = false) override;
+	ENGINE_API virtual bool IsLocalController() const override;
+	ENGINE_API virtual void GetPlayerViewPoint(FVector& out_Location, FRotator& out_Rotation) const override;
+	ENGINE_API virtual void SetInitialLocationAndRotation(const FVector& NewLocation, const FRotator& NewRotation) override;
+	ENGINE_API virtual void ChangeState(FName NewState) override;
+	ENGINE_API virtual class AActor* GetViewTarget() const override;
+	ENGINE_API virtual void BeginInactiveState() override;
+	ENGINE_API virtual void EndInactiveState() override;
+	ENGINE_API virtual void FailedToSpawnPawn() override;
+	ENGINE_API virtual void SetPawn(APawn* InPawn) override;
 	//~ End AController Interface
 
 	/**
@@ -1897,16 +1897,16 @@ public:
 	 * @param ViewLocation the view point to hide/unhide from
 	 * @param HiddenComponents this list will have all components that should be hidden added to it
 	 */
-	void BuildHiddenComponentList(const FVector& ViewLocation, TSet<FPrimitiveComponentId>& HiddenComponentsOut);
+	ENGINE_API void BuildHiddenComponentList(const FVector& ViewLocation, TSet<FPrimitiveComponentId>& HiddenComponentsOut);
 
 	/** spawn cameras for servers and owning players */
-	virtual void SpawnPlayerCameraManager();
+	ENGINE_API virtual void SpawnPlayerCameraManager();
 
 	/** get audio listener position and orientation */
-	virtual void GetAudioListenerPosition(FVector& OutLocation, FVector& OutFrontDir, FVector& OutRightDir) const;
+	ENGINE_API virtual void GetAudioListenerPosition(FVector& OutLocation, FVector& OutFrontDir, FVector& OutRightDir) const;
 
 	/** Gets the attenuation position override. */
-	virtual bool GetAudioListenerAttenuationOverridePosition(FVector& OutLocation) const;
+	ENGINE_API virtual bool GetAudioListenerAttenuationOverridePosition(FVector& OutLocation) const;
 
 	/**
 	 * Used to override the default positioning of the audio listener
@@ -1916,19 +1916,19 @@ public:
 	 * @param Rotation Depending on whether Component is attached this is either an offset from its rotation or an absolute rotation
 	 */
 	UFUNCTION(BlueprintCallable, Category="Game|Audio")
-	void SetAudioListenerOverride(USceneComponent* AttachToComponent, FVector Location, FRotator Rotation);
+	ENGINE_API void SetAudioListenerOverride(USceneComponent* AttachToComponent, FVector Location, FRotator Rotation);
 
 	/**
 	 * Clear any overrides that have been applied to audio listener
 	 */
 	UFUNCTION(BlueprintCallable, Category="Game|Audio")
-	void ClearAudioListenerOverride();
+	ENGINE_API void ClearAudioListenerOverride();
 
 	UFUNCTION(BlueprintCallable, Category = "Game|Audio")
-	void SetAudioListenerAttenuationOverride(USceneComponent* AttachToComponent, FVector AttenuationLocationOVerride);
+	ENGINE_API void SetAudioListenerAttenuationOverride(USceneComponent* AttachToComponent, FVector AttenuationLocationOVerride);
 
 	UFUNCTION(BlueprintCallable, Category = "Game|Audio")
-	void ClearAudioListenerAttenuationOverride();
+	ENGINE_API void ClearAudioListenerAttenuationOverride();
 
 
 protected:
@@ -1948,79 +1948,79 @@ protected:
 	FVector AudioListenerAttenuationOverride;
 
 	/** Internal. */
-	void TickPlayerInput(const float DeltaSeconds, const bool bGamePaused);
-	virtual void ProcessPlayerInput(const float DeltaTime, const bool bGamePaused);
-	virtual void BuildInputStack(TArray<UInputComponent*>& InputStack);
-	void ProcessForceFeedbackAndHaptics(const float DeltaTime, const bool bGamePaused);
-	virtual void UpdateForceFeedback(IInputInterface* InputInterface, const int32 ControllerId);
-	virtual bool IsInViewportClient(UGameViewportClient* ViewportClient) const;
-	virtual int32 GetInputIndex() const;
-	virtual ACameraActor* GetAutoActivateCameraForPlayer() const;
+	ENGINE_API void TickPlayerInput(const float DeltaSeconds, const bool bGamePaused);
+	ENGINE_API virtual void ProcessPlayerInput(const float DeltaTime, const bool bGamePaused);
+	ENGINE_API virtual void BuildInputStack(TArray<UInputComponent*>& InputStack);
+	ENGINE_API void ProcessForceFeedbackAndHaptics(const float DeltaTime, const bool bGamePaused);
+	ENGINE_API virtual void UpdateForceFeedback(IInputInterface* InputInterface, const int32 ControllerId);
+	ENGINE_API virtual bool IsInViewportClient(UGameViewportClient* ViewportClient) const;
+	ENGINE_API virtual int32 GetInputIndex() const;
+	ENGINE_API virtual ACameraActor* GetAutoActivateCameraForPlayer() const;
 
 	/** Allows the PlayerController to set up custom input bindings. */
-	virtual void SetupInputComponent();
+	ENGINE_API virtual void SetupInputComponent();
 
 public:
 	/**
 	 * Store the net speed 
 	 * @param NewSpeed current speed of network
 	 */
-	void SetNetSpeed(int32 NewSpeed);
+	ENGINE_API void SetNetSpeed(int32 NewSpeed);
 
 	/** 
 	 * Get the local players network address
 	 * @return the address
 	 */
-	FString GetPlayerNetworkAddress();
+	ENGINE_API FString GetPlayerNetworkAddress();
 
 	/** 
 	 * Get the server network address
 	 * @return the adress
 	 */
-	FString GetServerNetworkAddress();
+	ENGINE_API FString GetServerNetworkAddress();
 
 	/** Handles remapping a package name for networking, call on both the client and server when sending package names manually for RPCs */
-	FName NetworkRemapPath(FName InPackageName, bool bReading);
+	ENGINE_API FName NetworkRemapPath(FName InPackageName, bool bReading);
 
 	/** Clears out 'left-over' audio components. */
-	virtual void CleanUpAudioComponents();
+	ENGINE_API virtual void CleanUpAudioComponents();
 
 	/** Called to try and enable cheats for this player, happens during initialization or from AllowCheats command */
-	virtual void AddCheats(bool bForce = false);
+	ENGINE_API virtual void AddCheats(bool bForce = false);
 
 	/** Spawn a HUD (make sure that PlayerController always has valid HUD, even if ClientSetHUD() hasn't been called */
-	virtual void SpawnDefaultHUD();
+	ENGINE_API virtual void SpawnDefaultHUD();
 
 	/** Create the touch interface, and activate an initial touch interface (if touch interface is desired) */
-	virtual void CreateTouchInterface();
+	ENGINE_API virtual void CreateTouchInterface();
 
 	/** Gives the PlayerController an opportunity to cleanup any changes it applied to the game viewport, primarily for the touch interface */
-	virtual void CleanupGameViewport();
+	ENGINE_API virtual void CleanupGameViewport();
 
 	/** Called on the client to do local pawn setup after possession, before calling ServerAcknowledgePossession */
-	virtual void AcknowledgePossession(class APawn* P);
+	ENGINE_API virtual void AcknowledgePossession(class APawn* P);
 
 	/** Clean up when a Pawn's player is leaving a game. Base implementation destroys the pawn. */
-	virtual void PawnLeavingGame();
+	ENGINE_API virtual void PawnLeavingGame();
 
 	/** Takes ping updates from the net driver (both clientside and serverside), and passes them on to PlayerState::UpdatePing */
-	virtual void UpdatePing(float InPing);
+	ENGINE_API virtual void UpdatePing(float InPing);
 
 	/**
 	 * Get next active viewable player in PlayerArray.
 	 * @param dir is the direction to go in the array
 	 */
-	virtual class APlayerState* GetNextViewablePlayer(int32 dir);
+	ENGINE_API virtual class APlayerState* GetNextViewablePlayer(int32 dir);
 
 	/**
 	 * View next active player in PlayerArray.
 	 * @param dir is the direction to go in the array
 	 */
-	virtual void ViewAPlayer(int32 dir);
+	ENGINE_API virtual void ViewAPlayer(int32 dir);
 
 	/** Returns true if this controller thinks it's able to restart. Called from GameModeBase::PlayerCanRestart */
 	UFUNCTION(BlueprintCallable, Category = "Game|Player")
-	virtual bool CanRestartPlayer();
+	ENGINE_API virtual bool CanRestartPlayer();
 
 	/**
 	 * Server/SP only function for changing whether the player is in cinematic mode.  Updates values of various state variables, then replicates the call to the client
@@ -2032,20 +2032,20 @@ public:
 	 * @param	bAffectsTurning		specify true to disable turning in cinematic mode or enable it when leaving
 	 */
 	UFUNCTION(BlueprintCallable, Category="Game|Cinematic", meta=(bHidePlayer="true", bAffectsHUD="true"))
-	virtual void SetCinematicMode(bool bInCinematicMode, bool bHidePlayer, bool bAffectsHUD, bool bAffectsMovement, bool bAffectsTurning);
+	ENGINE_API virtual void SetCinematicMode(bool bInCinematicMode, bool bHidePlayer, bool bAffectsHUD, bool bAffectsMovement, bool bAffectsTurning);
 
 	/**
 	 * Determines whether this player is playing split-screen.
 	 * @param	OutSplitscreenPlayerIndex	receives the index [into the player's local GamePlayers array] for this player, if playing splitscreen.
 	 * @return	true if this player is playing splitscreen.
 	 */
-	bool IsSplitscreenPlayer(int32* OutSplitscreenPlayerIndex = nullptr) const;
+	ENGINE_API bool IsSplitscreenPlayer(int32* OutSplitscreenPlayerIndex = nullptr) const;
 
 	/**
 	 * Wrapper for determining whether this player is the first player on their console.
 	 * @return	true if this player is not using splitscreen, or is the first player in the split-screen layout.
 	 */
-	bool IsPrimaryPlayer() const;
+	ENGINE_API bool IsPrimaryPlayer() const;
 
 	/**
 	 * Returns the PlayerState associated with the player at the specified index.
@@ -2053,16 +2053,16 @@ public:
 	 * @return	the PlayerState associated with the player at the specified index, or None if the player is not a split-screen player or
 	 *			the index was out of range.
 	 */
-	class APlayerState* GetSplitscreenPlayerByIndex(int32 PlayerIndex = 1) const;
+	ENGINE_API class APlayerState* GetSplitscreenPlayerByIndex(int32 PlayerIndex = 1) const;
 
 	/**
 	 * Returns the number of split-screen players playing on this player's machine.
 	 * @return	the total number of players on the player's local machine, or 0 if this player isn't playing split-screen.
 	 */
-	int32 GetSplitscreenPlayerCount() const;
+	ENGINE_API int32 GetSplitscreenPlayerCount() const;
 
 	/** Update the camera manager; this is called after all actors have been ticked.	 */ 
-	virtual void UpdateCameraManager(float DeltaSeconds);
+	ENGINE_API virtual void UpdateCameraManager(float DeltaSeconds);
 
 	/**
 	 * This function will be called to notify the player controller that the world has received its game class. In the case of a client
@@ -2070,63 +2070,63 @@ public:
 	 *
 	 * @Param GameModeClass - The Class of the game that was replicated
 	 */
-	virtual void ReceivedGameModeClass(TSubclassOf<class AGameModeBase> GameModeClass);
+	ENGINE_API virtual void ReceivedGameModeClass(TSubclassOf<class AGameModeBase> GameModeClass);
 
 	/** Notify the server that client data was received on the Pawn.
 	 * @return true if InPawn is acknowledged on the server, false otherwise. */
-	virtual bool NotifyServerReceivedClientData(APawn* InPawn, float TimeStamp);
+	ENGINE_API virtual bool NotifyServerReceivedClientData(APawn* InPawn, float TimeStamp);
 
 	/** Start spectating mode, as the only mode allowed. */
-	virtual void StartSpectatingOnly();
+	ENGINE_API virtual void StartSpectatingOnly();
 
 	/**
 	 * Default implementation of pausing check for 'CanUnpause' delegates
 	 * @return True if pausing is allowed
 	 */
-	virtual bool DefaultCanUnpause();
+	ENGINE_API virtual bool DefaultCanUnpause();
 
 	/** Returns true if game is currently paused. */
-	bool IsPaused() const;
+	ENGINE_API bool IsPaused() const;
 
 	bool InputEnabled() const { return bInputEnabled; }
 
 	/** Returns true if we fully tick when paused (and if our tick function is enabled when paused).	 */
-	bool ShouldPerformFullTickWhenPaused() const;
+	ENGINE_API bool ShouldPerformFullTickWhenPaused() const;
 
 	/** returns whether the client has completely loaded the server's current world (valid on server only) */
-	bool HasClientLoadedCurrentWorld();
+	ENGINE_API bool HasClientLoadedCurrentWorld();
 
 	/** forces a full replication check of the specified Actor on only the client that owns this PlayerController
 	 * this function has no effect if this PC is not a remote client or if the Actor is not relevant to that client
 	 */
 	UE_DEPRECATED(5.3, "Deprecated in favor of using ForceNetUpdate on the target actor instead.")
-	void ForceSingleNetUpdateFor(class AActor* Target);
+	ENGINE_API void ForceSingleNetUpdateFor(class AActor* Target);
 
 	/** Set the view target
 	 * @param A - new actor to set as view target
 	 * @param TransitionParams - parameters to use for controlling the transition
 	 */
-	virtual void SetViewTarget(class AActor* NewViewTarget, FViewTargetTransitionParams TransitionParams = FViewTargetTransitionParams());
+	ENGINE_API virtual void SetViewTarget(class AActor* NewViewTarget, FViewTargetTransitionParams TransitionParams = FViewTargetTransitionParams());
 
 	/**
 	 * If bAutoManageActiveCameraTarget is true, then automatically manage the active camera target.
 	 * If there a CameraActor placed in the level with an auto-activate player assigned to it, that will be preferred, otherwise SuggestedTarget will be used.
 	 */
-	virtual void AutoManageActiveCameraTarget(AActor* SuggestedTarget);
+	ENGINE_API virtual void AutoManageActiveCameraTarget(AActor* SuggestedTarget);
 
 	/**
 	 * Notify from server that Visual Logger is recording, to show that information on client about possible performance issues 
 	 */
 	UFUNCTION(Reliable, Client)
-	void OnServerStartedVisualLogger(bool bIsLogging);
+	ENGINE_API void OnServerStartedVisualLogger(bool bIsLogging);
 
-	void SetShowMouseCursor(bool bShow);
+	ENGINE_API void SetShowMouseCursor(bool bShow);
 
 	/** Returns true if the mouse cursor should be shown */
-	virtual bool ShouldShowMouseCursor() const;
+	ENGINE_API virtual bool ShouldShowMouseCursor() const;
 
 	/** Returns the current mouse cursor, or None */
-	virtual EMouseCursor::Type GetMouseCursor() const;
+	ENGINE_API virtual EMouseCursor::Type GetMouseCursor() const;
 
 	// Spectating
 
@@ -2135,10 +2135,10 @@ public:
 	ASpectatorPawn* GetSpectatorPawn() const { return SpectatorPawn; }
 
 	/** Returns the first of GetPawn() or GetSpectatorPawn() that is not nullptr, or nullptr otherwise. */
-	APawn* GetPawnOrSpectator() const;
+	ENGINE_API APawn* GetPawnOrSpectator() const;
 
 	/** Called to notify the controller that the spectator class has been received. */
-	virtual void ReceivedSpectatorClass(TSubclassOf<ASpectatorPawn> SpectatorClass);
+	ENGINE_API virtual void ReceivedSpectatorClass(TSubclassOf<ASpectatorPawn> SpectatorClass);
 
 	/**
 	 * Returns the location the PlayerController is focused on.
@@ -2147,23 +2147,23 @@ public:
 	 *  Otherwise, returns the PlayerController's spawn location (usually the last known Pawn location after it has died).
 	 */
 	UFUNCTION(BlueprintCallable, Category=Pawn)
-	virtual FVector GetFocalLocation() const;
+	ENGINE_API virtual FVector GetFocalLocation() const;
 
 protected:
 	/** Event when spectating begins. */
-	virtual void BeginSpectatingState();
+	ENGINE_API virtual void BeginSpectatingState();
 
 	/** Event when no longer spectating. */
-	virtual void EndSpectatingState();
+	ENGINE_API virtual void EndSpectatingState();
 
 	/** Set the spectator pawn. Will also call AttachToPawn() using the new spectator. */
-	virtual void SetSpectatorPawn(ASpectatorPawn* NewSpectatorPawn);
+	ENGINE_API virtual void SetSpectatorPawn(ASpectatorPawn* NewSpectatorPawn);
 
 	/** Spawn a SpectatorPawn to use as a spectator and initialize it. By default it is spawned at the PC's current location and rotation. */
-	virtual ASpectatorPawn* SpawnSpectatorPawn();
+	ENGINE_API virtual ASpectatorPawn* SpawnSpectatorPawn();
 
 	/** Destroys the SpectatorPawn and sets it to nullptr. */
-	virtual void DestroySpectatorPawn();
+	ENGINE_API virtual void DestroySpectatorPawn();
 
 	/** Useful to spectate other pawn without un-possessing the current pawn */
 	virtual bool ShouldKeepCurrentPawnUponSpectating() const { return false; }
@@ -2186,7 +2186,7 @@ protected:
 	FVector SpawnLocation;
 
 	/** Set the SpawnLocation for use when changing states or when there is no pawn or spectator. */
-	virtual void SetSpawnLocation(const FVector& NewLocation);
+	ENGINE_API virtual void SetSpawnLocation(const FVector& NewLocation);
 
 	/** Last real time (undilated) recorded in TickActor() when checking for forced client movement updates. */
 	float LastMovementUpdateTime;
@@ -2199,34 +2199,34 @@ public:
 	FVector GetSpawnLocation() const { return SpawnLocation; }
 
 	/** Called after this PlayerController's viewport/net connection is associated with this player controller. */
-	virtual void ReceivedPlayer();
+	ENGINE_API virtual void ReceivedPlayer();
 
 	/** 
 	 * Spawn the appropriate class of PlayerInput.
 	 * Only called for playercontrollers that belong to local players.
 	 */
-	virtual void InitInputSystem();
+	ENGINE_API virtual void InitInputSystem();
 
 	/** Returns true if input should be frozen (whether UnFreeze timer is active) */
-	virtual bool IsFrozen();
+	ENGINE_API virtual bool IsFrozen();
 
 	/**
 	 * Called when the local player is about to travel to a new map or IP address.  Provides subclass with an opportunity
 	 * to perform cleanup or other tasks prior to the travel.
 	 */
-	virtual void PreClientTravel(const FString& PendingURL, ETravelType TravelType, bool bIsSeamlessTravel);
+	ENGINE_API virtual void PreClientTravel(const FString& PendingURL, ETravelType TravelType, bool bIsSeamlessTravel);
 
 	/** Set new camera mode */
-	virtual void SetCameraMode(FName NewCamMode);
+	ENGINE_API virtual void SetCameraMode(FName NewCamMode);
 
 	/** Reset Camera Mode to default. */
-	virtual void ResetCameraMode();
+	ENGINE_API virtual void ResetCameraMode();
 
 	/**
 	 * Called on server at end of tick, to let client Pawns handle updates from the server.
 	 * Done this way to avoid ever sending more than one ClientAdjustment per server tick.
 	 */
-	virtual void SendClientAdjustment();
+	ENGINE_API virtual void SendClientAdjustment();
 
 	/**
 	 * Designate this player controller as local (public for GameModeBase to use, not expected to be called anywhere else)
@@ -2241,7 +2241,7 @@ public:
 	
 #if UE_ENABLE_DEBUG_DRAWING
 	/** Keep track of the current input mode debug string here. Set in APlayerController::SetInputMode */
-	const FString& GetCurrentInputModeDebugString() const;
+	ENGINE_API const FString& GetCurrentInputModeDebugString() const;
 #endif
 
 private:
@@ -2304,11 +2304,11 @@ public:
 	};	
 
 	// Client pushes input data locally. RPC is sent here but also includes redundant data
-	void PushClientInput(int32 ClientInputFrame, TArray<uint8>& Data);
+	ENGINE_API void PushClientInput(int32 ClientInputFrame, TArray<uint8>& Data);
 
 	// Client says "Here is input frame number X" (and then calls other RPCs to deliver InputCmd payload)
 	UFUNCTION(Server, unreliable)
-	void ServerRecvClientInputFrame(int32 RecvClientInputFrame, const TArray<uint8>& Data);
+	ENGINE_API void ServerRecvClientInputFrame(int32 RecvClientInputFrame, const TArray<uint8>& Data);
 
 	const FClientFrameInfo& GetClientFrameInfo() const { return ClientFrameInfo; }
 	FClientFrameInfo& GetClientFrameInfo() { return ClientFrameInfo; }
@@ -2331,10 +2331,10 @@ public:
 
 	// We call this in ::SendClientAdjustment to tell the client what the last processed input frame was for it and on what local frame number it was processed
 	UFUNCTION(Client, unreliable)
-	void ClientRecvServerAckFrame(int32 LastProcessedInputFrame, int32 RecvServerFrameNumber, int8 TimeDilation);
+	ENGINE_API void ClientRecvServerAckFrame(int32 LastProcessedInputFrame, int32 RecvServerFrameNumber, int8 TimeDilation);
 
 	UFUNCTION(Client, unreliable)
-	void ClientRecvServerAckFrameDebug(uint8 NumBuffered, float TargetNumBufferedCmds);
+	ENGINE_API void ClientRecvServerAckFrameDebug(uint8 NumBuffered, float TargetNumBufferedCmds);
 
 	FServerFrameInfo& GetServerFrameInfo() { return ServerFrameInfo; };
 private:
@@ -2370,19 +2370,19 @@ private:
 	TArray<FAsyncPhysicsTimestamp> ServerPendingTimestamps;
 
 	/** Update the tick ofsset in between the local client and the server */
-	void UpdateServerAsyncPhysicsTickOffset();
+	ENGINE_API void UpdateServerAsyncPhysicsTickOffset();
 
 	UFUNCTION(Server, Unreliable)
-	void ServerSendLatestAsyncPhysicsTimestamp(FAsyncPhysicsTimestamp Timestamp);
+	ENGINE_API void ServerSendLatestAsyncPhysicsTimestamp(FAsyncPhysicsTimestamp Timestamp);
 
 	UFUNCTION(Client, Unreliable)
-	void ClientCorrectionAsyncPhysicsTimestamp(FAsyncPhysicsTimestamp Timestamp);
+	ENGINE_API void ClientCorrectionAsyncPhysicsTimestamp(FAsyncPhysicsTimestamp Timestamp);
 
 	UFUNCTION(Client, Unreliable)
-	void ClientAckTimeDilation(float TimeDilation, int32 ServerStep);
+	ENGINE_API void ClientAckTimeDilation(float TimeDilation, int32 ServerStep);
 
 	/** Update the tick offset in between the local client and the server */
-	virtual void AsyncPhysicsTickActor(float DeltaTime, float SimTime) override;
+	ENGINE_API virtual void AsyncPhysicsTickActor(float DeltaTime, float SimTime) override;
 
 public:
 
@@ -2390,10 +2390,10 @@ public:
 		These commands are all run on the game thread. If you want to run on the physics thread see FPhysicsSolverBase::RegisterSimOneShotCallback
 		If OwningObject is not null this command will only fire as long as the object is still alive. This allows a lambda to still use the owning object's data for read/write (assuming data is designed for async physics tick)
 	*/
-	void ExecuteAsyncPhysicsCommand(const FAsyncPhysicsTimestamp& AsyncPhysicsTimestamp, UObject* OwningObject, const TFunction<void()>& Command, const bool bEnableResim = true);
+	ENGINE_API void ExecuteAsyncPhysicsCommand(const FAsyncPhysicsTimestamp& AsyncPhysicsTimestamp, UObject* OwningObject, const TFunction<void()>& Command, const bool bEnableResim = true);
 
 	/** Generates a timestamp for the upcoming physics step (plus any pending time). Useful for synchronizing client and server events on a specific physics step */
-	FAsyncPhysicsTimestamp GetAsyncPhysicsTimestamp(float DeltaSeconds = 0.f);
+	ENGINE_API FAsyncPhysicsTimestamp GetAsyncPhysicsTimestamp(float DeltaSeconds = 0.f);
 
 	/** Returns the current estimated offset between the local async physics step and the server. This is useful for dealing with low level synchronization.
 		In general it's recommended to use GetAsyncPhysicsTimestamp which accounts for the offset automatically*/

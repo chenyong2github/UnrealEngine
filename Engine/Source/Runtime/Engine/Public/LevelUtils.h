@@ -11,7 +11,7 @@ class ULevelStreaming;
 /**
  * A set of static methods for common editor operations that operate on ULevel objects.
  */
-class ENGINE_API FLevelUtils
+class FLevelUtils
 {
 public:
 	///////////////////////////////////////////////////////////////////////////
@@ -23,7 +23,7 @@ public:
 	 * @param		Level		The level to query.
 	 * @return					The level's streaming level, or NULL if none exists.
 	 */
-	static ULevelStreaming* FindStreamingLevel(const ULevel* Level);
+	static ENGINE_API ULevelStreaming* FindStreamingLevel(const ULevel* Level);
 
 	/**
 	 * Returns the streaming level by package FName, or NULL if none exists.
@@ -32,7 +32,7 @@ public:
 	 * @param		PackageFName	FName of the package containing the ULevel to query
 	 * @return						The level's streaming level, or NULL if none exists.
 	 */
-	static ULevelStreaming* FindStreamingLevel(UWorld* InWorld, const FName PackageName);
+	static ENGINE_API ULevelStreaming* FindStreamingLevel(UWorld* InWorld, const FName PackageName);
 
 	/**
 	 * Returns the streaming level by package name, or NULL if none exists.
@@ -41,7 +41,7 @@ public:
 	 * @param		PackageName		Name of the package containing the ULevel to query
 	 * @return						The level's streaming level, or NULL if none exists.
 	 */
-	static ULevelStreaming* FindStreamingLevel(UWorld* InWorld, const TCHAR* PackageName);
+	static ENGINE_API ULevelStreaming* FindStreamingLevel(UWorld* InWorld, const TCHAR* PackageName);
 
 	/**
 	 * Returns whether the given package is referenced by one of the world streaming levels or not.
@@ -51,7 +51,7 @@ public:
 	 * @return						True if the given package is referenced by one of
 	 *								the world streaming levels, else False.
 	 */
-	static bool IsValidStreamingLevel(UWorld* InWorld, const TCHAR* InPackageName);
+	static ENGINE_API bool IsValidStreamingLevel(UWorld* InWorld, const TCHAR* InPackageName);
 
 	/**
 	 * Returns whether the given package is part of the world server visible streaming levels or not.
@@ -61,7 +61,7 @@ public:
 	 * @return						True if the given package is referenced by one of
 	 *								the world server visible streaming levels, else False.
 	 */
-	static bool IsServerStreamingLevelVisible(UWorld* InWorld, const FName& InPackageName);
+	static ENGINE_API bool IsServerStreamingLevelVisible(UWorld* InWorld, const FName& InPackageName);
 
 	/**
 	 * Returns the streaming level by package name if visible on server, or NULL if none exists.
@@ -70,13 +70,13 @@ public:
 	 * @param		PackageName		Name of the package containing the ULevel to query
 	 * @return						The level's streaming level if visible on server, or NULL if none exists.
 	 */
-	static ULevelStreaming* GetServerVisibleStreamingLevel(UWorld* InWorld, const FName& InPackageName);
+	static ENGINE_API ULevelStreaming* GetServerVisibleStreamingLevel(UWorld* InWorld, const FName& InPackageName);
 
 	/** Returns whether the world supports for a client to use "making visible" transaction requests to the server. */
-	static bool SupportsMakingVisibleTransactionRequests(UWorld* InWorld);
+	static ENGINE_API bool SupportsMakingVisibleTransactionRequests(UWorld* InWorld);
 
 	/** Returns whether the world supports for a client to use "making invisible" transaction requests to the server. */
-	static bool SupportsMakingInvisibleTransactionRequests(UWorld* InWorld);
+	static ENGINE_API bool SupportsMakingInvisibleTransactionRequests(UWorld* InWorld);
 
 	///////////////////////////////////////////////////////////////////////////
 	// Locking/unlocking levels for edit.
@@ -88,15 +88,15 @@ public:
 	 * @param	Level		The level to query.
 	 * @return				true if the level is locked, false otherwise.
 	 */
-	static bool IsLevelLocked(ULevel* Level);
-	static bool IsLevelLocked(AActor* Actor);
+	static ENGINE_API bool IsLevelLocked(ULevel* Level);
+	static ENGINE_API bool IsLevelLocked(AActor* Actor);
 
 	/**
 	 * Sets a level's edit lock.
 	 *
 	 * @param	Level		The level to modify.
 	 */
-	static void ToggleLevelLock(ULevel* Level);
+	static ENGINE_API void ToggleLevelLock(ULevel* Level);
 #endif
 
 	///////////////////////////////////////////////////////////////////////////
@@ -108,7 +108,7 @@ public:
 	 * @param	Level		The level to query.
 	 * @return				true if the level is loaded, false otherwise.
 	 */
-	static bool IsLevelLoaded(ULevel* Level);
+	static ENGINE_API bool IsLevelLoaded(ULevel* Level);
 
 
 	///////////////////////////////////////////////////////////////////////////
@@ -120,7 +120,7 @@ public:
 	 * @param	StreamingLevel		The level to query.
 	 */
 #if WITH_EDITORONLY_DATA
-	static bool IsStreamingLevelVisibleInEditor(const ULevelStreaming* StreamingLevel);
+	static ENGINE_API bool IsStreamingLevelVisibleInEditor(const ULevelStreaming* StreamingLevel);
 
 	UE_DEPRECATED(4.20, "Use IsStreamingLevelVisibleInEditor instead.")
 	static bool IsLevelVisible(const ULevelStreaming* StreamingLevel) { return IsStreamingLevelVisibleInEditor(StreamingLevel); }
@@ -131,7 +131,7 @@ public:
 	 *
 	 * @param	Level		The level to query.
 	 */
-	static bool IsLevelVisible(const ULevel* Level);
+	static ENGINE_API bool IsLevelVisible(const ULevel* Level);
 
 
 	struct FApplyLevelTransformParams
@@ -161,7 +161,7 @@ public:
 	};
 
 	/** Transforms the level to a new world space */
-	static void ApplyLevelTransform(const FApplyLevelTransformParams& TransformParams);
+	static ENGINE_API void ApplyLevelTransform(const FApplyLevelTransformParams& TransformParams);
 
 	UE_DEPRECATED(4.24, "Use version that takes params struct")
 	static void ApplyLevelTransform( ULevel* Level, const FTransform& LevelTransform, bool bDoPostEditMove = true )
@@ -182,7 +182,7 @@ public:
 	 *
 	 * @param	Level		The level.
 	 */
-	static void ApplyPostEditMove( ULevel* Level );
+	static ENGINE_API void ApplyPostEditMove( ULevel* Level );
 
 	/**
 	 * Sets a new LevelEditorTransform on a streaming level .
@@ -191,7 +191,7 @@ public:
 	 * @param	Transform			The new transform.
 	 * @param	bDoPostEditMove		Whether to call PostEditMove on actors after transforming
 	 */
-	static void SetEditorTransform(ULevelStreaming* StreamingLevel, const FTransform& Transform, bool bDoPostEditMove = true);
+	static ENGINE_API void SetEditorTransform(ULevelStreaming* StreamingLevel, const FTransform& Transform, bool bDoPostEditMove = true);
 
 	/**
 	 * Apply the LevelEditorTransform on a level.
@@ -200,7 +200,7 @@ public:
 	 * @param   bDoPostEditMove		Whether to call PostEditMove on actors after transforming
 	 * @param	Actor				Optional actor on which to apply the transform instead of the full level.
 	 */
-	static void ApplyEditorTransform(const ULevelStreaming* StreamingLevel, bool bDoPostEditMove = true, AActor* Actor = nullptr);
+	static ENGINE_API void ApplyEditorTransform(const ULevelStreaming* StreamingLevel, bool bDoPostEditMove = true, AActor* Actor = nullptr);
 
 	/**
 	 * Remove the LevelEditorTransform from a level.
@@ -209,19 +209,19 @@ public:
 	 * @param	bDoPostEditMove		Whether to call PostEditMove on actors after transforming
 	 * @param	Actor				Optional actor on which to apply the transform instead of the full level.
 	 */
-	static void RemoveEditorTransform(const ULevelStreaming* StreamingLevel, bool bDoPostEditMove = true, AActor* Actor = nullptr);
+	static ENGINE_API void RemoveEditorTransform(const ULevelStreaming* StreamingLevel, bool bDoPostEditMove = true, AActor* Actor = nullptr);
 
 	/**
 	* Returns true if we are moving a level
 	*/
-	static bool IsMovingLevel();
-	static bool IsApplyingLevelTransform();
+	static ENGINE_API bool IsMovingLevel();
+	static ENGINE_API bool IsApplyingLevelTransform();
 
 private:
 
 	// Flag to mark if we are currently finalizing a level offset
-	static bool bMovingLevel;
-	static bool bApplyingLevelTransform;
+	static ENGINE_API bool bMovingLevel;
+	static ENGINE_API bool bApplyingLevelTransform;
 
 #endif // WITH_EDITOR
 };

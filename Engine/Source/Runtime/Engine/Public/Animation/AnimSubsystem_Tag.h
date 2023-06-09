@@ -10,7 +10,7 @@ class UAnimInstance;
 
 /** Allows anim nodes to be tagged by name at edit time and retrieved by tag at runtime */
 USTRUCT()
-struct ENGINE_API FAnimSubsystem_Tag : public FAnimSubsystem
+struct FAnimSubsystem_Tag : public FAnimSubsystem
 {
 	GENERATED_BODY()
 
@@ -20,7 +20,7 @@ public:
 	 * @param	InTag		The name tag for the node to find
 	 * @return INDEX_NONE if the tagged node was not found
 	 */	
-	int32 FindNodeIndexByTag(FName InTag) const;
+	ENGINE_API int32 FindNodeIndexByTag(FName InTag) const;
 	
 	/**
 	 * Find a node by tag.
@@ -48,10 +48,10 @@ public:
 	
 private:
 	// FAnimSubsystem interface
-	virtual void OnPostLoadDefaults(FAnimSubsystemPostLoadDefaultsContext& InContext) override;
+	ENGINE_API virtual void OnPostLoadDefaults(FAnimSubsystemPostLoadDefaultsContext& InContext) override;
 
 	// Internal impl for FindNodeByTag
-	FAnimNode_Base* FindNodeByTag_Internal(FName InTag, UAnimInstance* InInstance, UScriptStruct* InNodeType) const;
+	ENGINE_API FAnimNode_Base* FindNodeByTag_Internal(FName InTag, UAnimInstance* InInstance, UScriptStruct* InNodeType) const;
 	
 private:
 	friend class UAnimBlueprintExtension_Tag;

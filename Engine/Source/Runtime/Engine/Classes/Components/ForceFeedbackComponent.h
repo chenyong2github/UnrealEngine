@@ -55,14 +55,14 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam( FOnForceFeedbackFinished, UForceFee
 /**
  * ForceFeedbackComponent allows placing a rumble effect in to the world and having it apply to player characters who come near it
  */
-UCLASS(ClassGroup=(Utility), hidecategories=(Object, ActorComponent, Physics, Rendering, Mobility, LOD), ShowCategories=Trigger, meta=(BlueprintSpawnableComponent))
-class ENGINE_API UForceFeedbackComponent : public USceneComponent
+UCLASS(ClassGroup=(Utility), hidecategories=(Object, ActorComponent, Physics, Rendering, Mobility, LOD), ShowCategories=Trigger, meta=(BlueprintSpawnableComponent), MinimalAPI)
+class UForceFeedbackComponent : public USceneComponent
 {
 	GENERATED_BODY()
 
 public:
 
-	UForceFeedbackComponent(const FObjectInitializer& ObjectInitializer);
+	ENGINE_API UForceFeedbackComponent(const FObjectInitializer& ObjectInitializer);
 
 	/** The feedback effect to be played */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ForceFeedback)
@@ -105,53 +105,53 @@ public:
 
 	/** Set what force feedback effect is played by this component */
 	UFUNCTION(BlueprintCallable, Category="ForceFeedback")
-	void SetForceFeedbackEffect( UForceFeedbackEffect* NewForceFeedbackEffect);
+	ENGINE_API void SetForceFeedbackEffect( UForceFeedbackEffect* NewForceFeedbackEffect);
 
 	/** Start a feedback effect playing */
 	UFUNCTION(BlueprintCallable, Category="ForceFeedback")
-	virtual void Play(float StartTime = 0.f);
+	ENGINE_API virtual void Play(float StartTime = 0.f);
 
 	/** Stop playing the feedback effect */
 	UFUNCTION(BlueprintCallable, Category="ForceFeedback")
-	virtual void Stop();
+	ENGINE_API virtual void Stop();
 
 	/** Set a new intensity multiplier */
 	UFUNCTION(BlueprintCallable, Category="ForceFeedback")
-	void SetIntensityMultiplier(float NewIntensityMultiplier);
+	ENGINE_API void SetIntensityMultiplier(float NewIntensityMultiplier);
 
 	/** Modify the attenuation settings of the component */
 	UFUNCTION(BlueprintCallable, Category="ForceFeedback")
-	void AdjustAttenuation(const FForceFeedbackAttenuationSettings& InAttenuationSettings);
+	ENGINE_API void AdjustAttenuation(const FForceFeedbackAttenuationSettings& InAttenuationSettings);
 
 	//~ Begin UObject Interface.
 #if WITH_EDITORONLY_DATA
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
 #endif // WITH_EDITOR
 	//~ End UObject Interface.
 
 	//~ Begin USceneComponent Interface
-	virtual void Activate(bool bReset=false) override;
-	virtual void Deactivate() override;
+	ENGINE_API virtual void Activate(bool bReset=false) override;
+	ENGINE_API virtual void Deactivate() override;
 	//~ End USceneComponent Interface
 
 	//~ Begin ActorComponent Interface.
 #if WITH_EDITORONLY_DATA
-	virtual void OnRegister() override;
+	ENGINE_API virtual void OnRegister() override;
 #endif
-	virtual void OnUnregister() override;
-	virtual const UObject* AdditionalStatObject() const override;
-	virtual bool IsReadyForOwnerToAutoDestroy() const override;
+	ENGINE_API virtual void OnUnregister() override;
+	ENGINE_API virtual const UObject* AdditionalStatObject() const override;
+	ENGINE_API virtual bool IsReadyForOwnerToAutoDestroy() const override;
 	//~ End ActorComponent Interface.
 
 	/** Returns a pointer to the attenuation settings to be used (if any) for this audio component dependent on the ForceFeedbackEffectAttenuation asset or overrides set. */
-	const FForceFeedbackAttenuationSettings* GetAttenuationSettingsToApply() const;
+	ENGINE_API const FForceFeedbackAttenuationSettings* GetAttenuationSettingsToApply() const;
 
 	UFUNCTION(BlueprintCallable, Category = "ForceFeedback", meta = (DisplayName = "Get Attenuation Settings To Apply", ScriptName="GetAttenuationSettingsToApply"))
-	bool BP_GetAttenuationSettingsToApply(FForceFeedbackAttenuationSettings& OutAttenuationSettings) const;
+	ENGINE_API bool BP_GetAttenuationSettingsToApply(FForceFeedbackAttenuationSettings& OutAttenuationSettings) const;
 
 	/** Collects the various attenuation shapes that may be applied to the effect played by the component for visualization in the editor. */
-	void CollectAttenuationShapesForVisualization(TMultiMap<EAttenuationShape::Type, FBaseAttenuationSettings::AttenuationShapeDetails>& ShapeDetailsMap) const;
+	ENGINE_API void CollectAttenuationShapesForVisualization(TMultiMap<EAttenuationShape::Type, FBaseAttenuationSettings::AttenuationShapeDetails>& ShapeDetailsMap) const;
 
 private:
 	
@@ -159,12 +159,12 @@ private:
 
 #if WITH_EDITORONLY_DATA
 	/** Utility function that updates which texture is displayed on the sprite dependent on the properties of the Audio Component. */
-	void UpdateSpriteTexture();
+	ENGINE_API void UpdateSpriteTexture();
 #endif
 
-	bool Advance(float DeltaTime);
-	void Update(FVector Location, FForceFeedbackValues& Values, const FPlatformUserId UserId) const;
-	void StopInternal(bool bRemoveFromManager = true);
+	ENGINE_API bool Advance(float DeltaTime);
+	ENGINE_API void Update(FVector Location, FForceFeedbackValues& Values, const FPlatformUserId UserId) const;
+	ENGINE_API void StopInternal(bool bRemoveFromManager = true);
 
 	friend FForceFeedbackManager;
 };

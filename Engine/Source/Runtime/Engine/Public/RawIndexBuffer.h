@@ -153,7 +153,7 @@ public:
 	 * @param	At	The index of the index to set
 	 * @param	NewIndexValue	The index value
 	 */
-	ENGINE_API inline void SetIndex( const uint32 At, const uint32 NewIndexValue )
+	inline void SetIndex( const uint32 At, const uint32 NewIndexValue )
 	{
 		check( At >= 0 && At < (uint32)IndexStorage.Num() );
 
@@ -192,7 +192,7 @@ public:
 	ENGINE_API void AppendIndices( const uint32* IndicesToAppend, const uint32 NumIndicesToAppend );
 
 	/** @return Gets a specific index value */
-	ENGINE_API inline uint32 GetIndex( const uint32 At ) const
+	inline uint32 GetIndex( const uint32 At ) const
 	{
 		check( At >= 0 && At < (uint32)IndexStorage.Num() );
 		uint32 IndexValue;

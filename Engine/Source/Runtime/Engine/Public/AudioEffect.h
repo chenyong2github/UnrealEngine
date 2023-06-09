@@ -22,16 +22,16 @@ class UReverbEffect;
 
 
 USTRUCT()
-struct ENGINE_API FAudioReverbEffect : public FAudioEffectParameters
+struct FAudioReverbEffect : public FAudioEffectParameters
 {
 	GENERATED_BODY()
 
 public:
 	/** Sets the default values for a reverb effect */
-	FAudioReverbEffect();
+	ENGINE_API FAudioReverbEffect();
 
 	/** Sets the platform agnostic parameters */
-	FAudioReverbEffect
+	ENGINE_API FAudioReverbEffect
 	(
 		float InRoom,
 		float InRoomHF,
@@ -49,12 +49,12 @@ public:
 		bool bInBypassLateReflections
 	);
 
-	FAudioReverbEffect& operator=(class UReverbEffect* InReverbEffect);
+	ENGINE_API FAudioReverbEffect& operator=(class UReverbEffect* InReverbEffect);
 
 	/** Interpolates between Start and End reverb effect settings, storing results locally and returning if interpolation is complete */
-	bool Interpolate(const FAudioEffectParameters& InStart, const FAudioEffectParameters& InEnd);
+	ENGINE_API bool Interpolate(const FAudioEffectParameters& InStart, const FAudioEffectParameters& InEnd);
 
-	void PrintSettings() const override;
+	ENGINE_API void PrintSettings() const override;
 
 	/** Time when this reverb was initiated or completed faded in */
 	double		Time;

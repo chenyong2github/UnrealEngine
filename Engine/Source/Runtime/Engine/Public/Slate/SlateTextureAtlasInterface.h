@@ -51,8 +51,8 @@ public:
 /**
  * 
  */
-UINTERFACE(meta=( CannotImplementInterfaceInBlueprint ))
-class ENGINE_API USlateTextureAtlasInterface : public UInterface
+UINTERFACE(meta=( CannotImplementInterfaceInBlueprint ), MinimalAPI)
+class USlateTextureAtlasInterface : public UInterface
 {
 	GENERATED_UINTERFACE_BODY()
 };
@@ -60,7 +60,7 @@ class ENGINE_API USlateTextureAtlasInterface : public UInterface
 /**
  * 
  */
-class ENGINE_API ISlateTextureAtlasInterface
+class ISlateTextureAtlasInterface
 {
 	GENERATED_IINTERFACE_BODY()
 

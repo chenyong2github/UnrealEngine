@@ -7,11 +7,11 @@
 class UDataLayerInstance;
 
 #if WITH_EDITOR
-class ENGINE_API FDataLayersID
+class FDataLayersID
 {
 public:
-	FDataLayersID();
-	FDataLayersID(const TArray<const UDataLayerInstance*>& DataLayerInstance);
+	ENGINE_API FDataLayersID();
+	ENGINE_API FDataLayersID(const TArray<const UDataLayerInstance*>& DataLayerInstance);
 
 	bool operator==(const FDataLayersID& Other) const
 	{

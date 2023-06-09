@@ -7,7 +7,7 @@
 
 class FMaterialRenderProxy;
 
-class ENGINE_API IStaticLightingSystem
+class IStaticLightingSystem
 {
 public:
 	virtual const class FMeshMapBuildData* GetPrimitiveMeshMapBuildData(const UPrimitiveComponent* Component, int32 LODIndex) { return nullptr; }
@@ -16,7 +16,7 @@ public:
 	virtual ~IStaticLightingSystem() {}
 };
 
-class ENGINE_API IStaticLightingSystemImpl
+class IStaticLightingSystemImpl
 {
 public:	
 	virtual IStaticLightingSystem* GetStaticLightingSystemForWorld(UWorld* InWorld) { return nullptr; }
@@ -25,7 +25,7 @@ public:
 	virtual bool IsStaticLightingSystemRunning() { return false; }
 };
 
-class ENGINE_API FStaticLightingSystemInterface
+class FStaticLightingSystemInterface
 {
 public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FPrimitiveComponentBasedSignature, UPrimitiveComponent* /*InComponent*/);
@@ -34,28 +34,28 @@ public:
 	DECLARE_MULTICAST_DELEGATE(FLightmassImportanceVolumeModifiedSignature);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FMaterialInvalidationSignature, FMaterialRenderProxy* /*Material*/);
 
-	static FPrimitiveComponentBasedSignature OnPrimitiveComponentRegistered;
-	static FPrimitiveComponentBasedSignature OnPrimitiveComponentUnregistered;
-	static FLightComponentBasedSignature OnLightComponentRegistered;
-	static FLightComponentBasedSignature OnLightComponentUnregistered;
-	static FStationaryLightChannelReassignmentSignature OnStationaryLightChannelReassigned;
-	static FLightmassImportanceVolumeModifiedSignature OnLightmassImportanceVolumeModified;
-	static FMaterialInvalidationSignature OnMaterialInvalidated;
-	static FSimpleMulticastDelegate OnSkyAtmosphereModified;
+	static ENGINE_API FPrimitiveComponentBasedSignature OnPrimitiveComponentRegistered;
+	static ENGINE_API FPrimitiveComponentBasedSignature OnPrimitiveComponentUnregistered;
+	static ENGINE_API FLightComponentBasedSignature OnLightComponentRegistered;
+	static ENGINE_API FLightComponentBasedSignature OnLightComponentUnregistered;
+	static ENGINE_API FStationaryLightChannelReassignmentSignature OnStationaryLightChannelReassigned;
+	static ENGINE_API FLightmassImportanceVolumeModifiedSignature OnLightmassImportanceVolumeModified;
+	static ENGINE_API FMaterialInvalidationSignature OnMaterialInvalidated;
+	static ENGINE_API FSimpleMulticastDelegate OnSkyAtmosphereModified;
 	
-	static const class FMeshMapBuildData* GetPrimitiveMeshMapBuildData(const UPrimitiveComponent* Component, int32 LODIndex = 0);
-	static const class FLightComponentMapBuildData* GetLightComponentMapBuildData(const ULightComponent* Component);
-	static const class FPrecomputedVolumetricLightmap* GetPrecomputedVolumetricLightmap(UWorld* World);
+	static ENGINE_API const class FMeshMapBuildData* GetPrimitiveMeshMapBuildData(const UPrimitiveComponent* Component, int32 LODIndex = 0);
+	static ENGINE_API const class FLightComponentMapBuildData* GetLightComponentMapBuildData(const ULightComponent* Component);
+	static ENGINE_API const class FPrecomputedVolumetricLightmap* GetPrecomputedVolumetricLightmap(UWorld* World);
 	
-	static void EditorTick();
-	static void GameTick(float DeltaSeconds);
-	static bool IsStaticLightingSystemRunning();
+	static ENGINE_API void EditorTick();
+	static ENGINE_API void GameTick(float DeltaSeconds);
+	static ENGINE_API bool IsStaticLightingSystemRunning();
 
-	static FStaticLightingSystemInterface* Get();
+	static ENGINE_API FStaticLightingSystemInterface* Get();
 
-	void RegisterImplementation(FName Name, IStaticLightingSystemImpl* Impl);
-	void UnregisterImplementation(FName Name);
-	IStaticLightingSystemImpl* GetPreferredImplementation();
+	ENGINE_API void RegisterImplementation(FName Name, IStaticLightingSystemImpl* Impl);
+	ENGINE_API void UnregisterImplementation(FName Name);
+	ENGINE_API IStaticLightingSystemImpl* GetPreferredImplementation();
 
 private:
 	TMap<FName, IStaticLightingSystemImpl*> Implementations;

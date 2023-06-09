@@ -57,8 +57,8 @@ enum ERuntimeVirtualTextureTextureAddressMode : int
 };
 
 /** Material expression for sampling from a runtime virtual texture. */
-UCLASS(collapsecategories, hidecategories=Object)
-class ENGINE_API UMaterialExpressionRuntimeVirtualTextureSample : public UMaterialExpression
+UCLASS(collapsecategories, hidecategories=Object, MinimalAPI)
+class UMaterialExpressionRuntimeVirtualTextureSample : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
 
@@ -107,23 +107,23 @@ class ENGINE_API UMaterialExpressionRuntimeVirtualTextureSample : public UMateri
 	TEnumAsByte<enum ERuntimeVirtualTextureTextureAddressMode> TextureAddressMode = RVTTA_Clamp;
 
 	/** Init settings that affect shader compilation and need to match the current VirtualTexture */
-	bool InitVirtualTextureDependentSettings();
+	ENGINE_API bool InitVirtualTextureDependentSettings();
 
 protected:
 	/** Initialize the output pins. */
-	void InitOutputs();
+	ENGINE_API void InitOutputs();
 
 	//~ Begin UMaterialExpression Interface
-	virtual UObject* GetReferencedTexture() const override;
+	ENGINE_API virtual UObject* GetReferencedTexture() const override;
 	virtual bool CanReferenceTexture() const { return true; }
 
 #if WITH_EDITOR
-	virtual void PostLoad() override;
-	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
-	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
-	virtual bool CanEditChange(const FProperty* InProperty) const override;
+	ENGINE_API virtual void PostLoad() override;
+	ENGINE_API virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
+	ENGINE_API virtual void GetCaption(TArray<FString>& OutCaptions) const override;
+	ENGINE_API virtual bool CanEditChange(const FProperty* InProperty) const override;
 public:
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 	//~ End UMaterialExpression Interface
 };

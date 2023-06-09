@@ -20,34 +20,34 @@ class UMaterialParameterCollection;
  * Class that stores per-world instance parameter data for a given UMaterialParameterCollection resource. 
  * Instances of this class are always transient.
  */
-UCLASS(hidecategories=object)
-class ENGINE_API UMaterialParameterCollectionInstance : public UObject
+UCLASS(hidecategories=object, MinimalAPI)
+class UMaterialParameterCollectionInstance : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
 	//~ Begin UObject Interface.
-	virtual void PostInitProperties() override;
-	virtual void FinishDestroy() override;
+	ENGINE_API virtual void PostInitProperties() override;
+	ENGINE_API virtual void FinishDestroy() override;
 	//~ End UObject Interface.
 
 	/** Initializes the instance with the collection it is based off of and the world it is owned by. */
-	void SetCollection(UMaterialParameterCollection* InCollection, UWorld* InWorld);
+	ENGINE_API void SetCollection(UMaterialParameterCollection* InCollection, UWorld* InWorld);
 
 	bool IsCollectionValid() const { return Collection.IsValid(); }
 
 	/** Sets parameter value overrides, returns false if the parameter was not found. */
-	bool SetScalarParameterValue(FName ParameterName, float ParameterValue);
-	bool SetVectorParameterValue(FName ParameterName, const FLinearColor& ParameterValue);
+	ENGINE_API bool SetScalarParameterValue(FName ParameterName, float ParameterValue);
+	ENGINE_API bool SetVectorParameterValue(FName ParameterName, const FLinearColor& ParameterValue);
 	bool SetVectorParameterValue(FName ParameterName, const FVector& ParameterValue) { return SetVectorParameterValue(ParameterName, FLinearColor(ParameterValue)); }
 	bool SetVectorParameterValue(FName ParameterName, const FVector4& ParameterValue) { return SetVectorParameterValue(ParameterName, FLinearColor(ParameterValue)); }
 
 	/** Gets parameter values, returns false if the parameter was not found. */
-	bool GetScalarParameterValue(FName ParameterName, float& OutParameterValue) const;
-	bool GetVectorParameterValue(FName ParameterName, FLinearColor& OutParameterValue) const;
+	ENGINE_API bool GetScalarParameterValue(FName ParameterName, float& OutParameterValue) const;
+	ENGINE_API bool GetVectorParameterValue(FName ParameterName, FLinearColor& OutParameterValue) const;
 
 	/** Alternate Get method for parameter values where the Collection parameter is provided */
-	bool GetScalarParameterValue(const FCollectionScalarParameter& Parameter, float& OutParameterValue) const;
-	bool GetVectorParameterValue(const FCollectionVectorParameter& Parameter, FLinearColor& OutParameterValue) const;
+	ENGINE_API bool GetScalarParameterValue(const FCollectionScalarParameter& Parameter, float& OutParameterValue) const;
+	ENGINE_API bool GetVectorParameterValue(const FCollectionVectorParameter& Parameter, FLinearColor& OutParameterValue) const;
 
 	class FMaterialParameterCollectionInstanceResource* GetResource()
 	{
@@ -73,9 +73,9 @@ class ENGINE_API UMaterialParameterCollectionInstance : public UObject
 		return VectorParameterUpdatedDelegate;
 	}
 
-	void UpdateRenderState(bool bRecreateUniformBuffer);
+	ENGINE_API void UpdateRenderState(bool bRecreateUniformBuffer);
 
-	void DeferredUpdateRenderState(bool bRecreateUniformBuffer);
+	ENGINE_API void DeferredUpdateRenderState(bool bRecreateUniformBuffer);
 
 	/** Tracks whether this instance has ever issued a missing parameter warning, to reduce log spam. */
 	bool bLoggedMissingParameterWarning;
@@ -105,7 +105,7 @@ protected:
 	FOnVectorParameterUpdated VectorParameterUpdatedDelegate;
 
 	/** Boils down the instance overrides and default values into data to be set on the uniform buffer. */
-	void GetParameterData(TArray<FVector4f>& ParameterData) const;
+	ENGINE_API void GetParameterData(TArray<FVector4f>& ParameterData) const;
 	
 	/** Tracks whether this instance needs to update the render state from the game thread */
 	bool bNeedsRenderStateUpdate;

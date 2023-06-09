@@ -32,8 +32,8 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FOnHUDPostRender, AHUD* /* HUD */, UCanvas*
  * @see FHUDHitBox
  * @see FDebugTextInfo
  */
-UCLASS(config=Game, hidecategories=(Rendering,Actor,Input,Replication), showcategories=("Input|MouseInput", "Input|TouchInput"), notplaceable, transient, BlueprintType, Blueprintable)
-class ENGINE_API AHUD : public AActor
+UCLASS(config=Game, hidecategories=(Rendering,Actor,Input,Replication), showcategories=("Input|MouseInput", "Input|TouchInput"), notplaceable, transient, BlueprintType, Blueprintable, MinimalAPI)
+class AHUD : public AActor
 {
 	GENERATED_UCLASS_BODY()
 
@@ -111,24 +111,24 @@ public:
 
 	/** hides or shows HUD */
 	UFUNCTION(exec)
-	virtual void ShowHUD();
+	ENGINE_API virtual void ShowHUD();
 
 	/**
 	 * Toggles displaying properties of player's current ViewTarget
 	 * DebugType input values supported by base engine include "AI", "physics", "net", "camera", and "collision"
 	 */
 	UFUNCTION(exec)
-	virtual void ShowDebug(FName DebugType = NAME_None);
+	ENGINE_API virtual void ShowDebug(FName DebugType = NAME_None);
 
 	/**
 	 * Toggles sub categories of show debug to customize display
 	 */
 	UFUNCTION(exec)
-	void ShowDebugToggleSubCategory(FName Category);
+	ENGINE_API void ShowDebugToggleSubCategory(FName Category);
 
 	/** Toggles 'ShowDebug' from showing debug info between reticle target actor (of subclass <DesiredClass>) and camera view target */
 	UFUNCTION(exec)
-	void ShowDebugForReticleTargetToggle(TSubclassOf<AActor> DesiredClass);
+	ENGINE_API void ShowDebugForReticleTargetToggle(TSubclassOf<AActor> DesiredClass);
 
 protected:
 	/** Class filter for selecting 'ShowDebugTargetActor' when 'bShowDebugForReticleTarget' is true. */
@@ -158,13 +158,13 @@ public:
 	 * @param bDrawShadow 			Draw shadow on this string
 	 */
 	UFUNCTION(reliable, client, SealedEvent)
-	void AddDebugText(const FString& DebugText, AActor* SrcActor = NULL, float Duration = 0, FVector Offset = FVector(ForceInit), FVector DesiredOffset = FVector(ForceInit), FColor TextColor = FColor(ForceInit), bool bSkipOverwriteCheck = false, bool bAbsoluteLocation = false, bool bKeepAttachedToActor = false, UFont* InFont = NULL, float FontScale = 1.0, bool bDrawShadow = false);
+	ENGINE_API void AddDebugText(const FString& DebugText, AActor* SrcActor = NULL, float Duration = 0, FVector Offset = FVector(ForceInit), FVector DesiredOffset = FVector(ForceInit), FColor TextColor = FColor(ForceInit), bool bSkipOverwriteCheck = false, bool bAbsoluteLocation = false, bool bKeepAttachedToActor = false, UFont* InFont = NULL, float FontScale = 1.0, bool bDrawShadow = false);
 
 	/**
 	 * Remove all debug strings added via AddDebugText
 	 */
 	UFUNCTION(reliable, client, SealedEvent)
-	void RemoveAllDebugStrings();
+	ENGINE_API void RemoveAllDebugStrings();
 
 	/**
 	 * Remove debug strings for the given actor
@@ -173,38 +173,38 @@ public:
 	 * @param	bLeaveDurationText	when true text that has a finite duration will be removed, otherwise all will be removed for given actor
 	 */
 	UFUNCTION(reliable, client, SealedEvent)
-	void RemoveDebugText(AActor* SrcActor, bool bLeaveDurationText = false);
+	ENGINE_API void RemoveDebugText(AActor* SrcActor, bool bLeaveDurationText = false);
 
 	/** 
 	 *	Hook to allow blueprints to do custom HUD drawing. @see bSuppressNativeHUD to control HUD drawing in base class. 
 	 *	Note:  the canvas resource used for drawing is only valid during this event, it will not be valid if drawing functions are called later (e.g. after a Delay node).
 	 */
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCosmetic)
-	void ReceiveDrawHUD(int32 SizeX, int32 SizeY);
+	ENGINE_API void ReceiveDrawHUD(int32 SizeX, int32 SizeY);
 
 	/** Called when a hit box is clicked on. Provides the name associated with that box. */
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCosmetic, meta=(DisplayName = "HitBoxClicked"))
-	void ReceiveHitBoxClick(const FName BoxName);
+	ENGINE_API void ReceiveHitBoxClick(const FName BoxName);
 	/** Native handler, called when a hit box is clicked on. Provides the name associated with that box. */
-	virtual void NotifyHitBoxClick(FName BoxName);
+	ENGINE_API virtual void NotifyHitBoxClick(FName BoxName);
 
 	/** Called when a hit box is unclicked. Provides the name associated with that box. */
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCosmetic, meta=(DisplayName = "HitBoxReleased"))
-	void ReceiveHitBoxRelease(const FName BoxName);
+	ENGINE_API void ReceiveHitBoxRelease(const FName BoxName);
 	/** Native handler, called when a hit box is unclicked. Provides the name associated with that box. */
-	virtual void NotifyHitBoxRelease(FName BoxName);
+	ENGINE_API virtual void NotifyHitBoxRelease(FName BoxName);
 
 	/** Called when a hit box is moused over. */
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCosmetic, meta=(DisplayName = "HitBoxBeginCursorOver"))
-	void ReceiveHitBoxBeginCursorOver(const FName BoxName);
+	ENGINE_API void ReceiveHitBoxBeginCursorOver(const FName BoxName);
 	/** Native handler, called when a hit box is moused over. */
-	virtual void NotifyHitBoxBeginCursorOver(FName BoxName);
+	ENGINE_API virtual void NotifyHitBoxBeginCursorOver(FName BoxName);
 
 	/** Called when a hit box no longer has the mouse over it. */
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCosmetic, meta=(DisplayName = "HitBoxEndCursorOver"))
-	void ReceiveHitBoxEndCursorOver(const FName BoxName);
+	ENGINE_API void ReceiveHitBoxEndCursorOver(const FName BoxName);
 	/** Native handler, called when a hit box no longer has the mouse over it. */
-	virtual void NotifyHitBoxEndCursorOver(FName BoxName);
+	ENGINE_API virtual void NotifyHitBoxEndCursorOver(FName BoxName);
 
 	//=============================================================================
 	// Kismet API for simple HUD drawing.
@@ -218,7 +218,7 @@ public:
 	 * @param Scale				Scale multiplier to control size of the text.
 	 */
 	UFUNCTION(BlueprintCallable, Category=HUD)
-	void GetTextSize(const FString& Text, float& OutWidth, float& OutHeight, UFont* Font=NULL, float Scale=1.f) const;
+	ENGINE_API void GetTextSize(const FString& Text, float& OutWidth, float& OutHeight, UFont* Font=NULL, float Scale=1.f) const;
 
 	/**
 	 * Draws a string on the HUD.
@@ -231,7 +231,7 @@ public:
 	 * @param bScalePosition	Whether the "Scale" parameter should also scale the position of this draw call.
 	 */
 	UFUNCTION(BlueprintCallable, Category=HUD, meta=(TextColor="(R=0,G=0,B=0,A=1)"))
-	void DrawText(const FString& Text, FLinearColor TextColor, float ScreenX, float ScreenY, UFont* Font=NULL, float Scale=1.f, bool bScalePosition=false);
+	ENGINE_API void DrawText(const FString& Text, FLinearColor TextColor, float ScreenX, float ScreenY, UFont* Font=NULL, float Scale=1.f, bool bScalePosition=false);
 
 	/**
 	 * Draws a 2D line on the HUD.
@@ -243,7 +243,7 @@ public:
 	 * @param LineThickness		Thickness of the line to draw
 	 */
 	UFUNCTION(BlueprintCallable, Category=HUD, meta=(LineColor="(R=0,G=0,B=0,A=1)"))
-	void DrawLine(float StartScreenX, float StartScreenY, float EndScreenX, float EndScreenY, FLinearColor LineColor, float LineThickness=0.f);
+	ENGINE_API void DrawLine(float StartScreenX, float StartScreenY, float EndScreenX, float EndScreenY, FLinearColor LineColor, float LineThickness=0.f);
 
 	/**
 	 * Draws a colored untextured quad on the HUD.
@@ -254,7 +254,7 @@ public:
 	 * @param ScreenH			Screen-space height of the quad (in pixels).
 	 */
 	UFUNCTION(BlueprintCallable, Category=HUD, meta=(RectColor="(R=0,G=0,B=0,A=1)"))
-	void DrawRect(FLinearColor RectColor, float ScreenX, float ScreenY, float ScreenW, float ScreenH);
+	ENGINE_API void DrawRect(FLinearColor RectColor, float ScreenX, float ScreenY, float ScreenW, float ScreenH);
 
 	/**
 	 * Draws a textured quad on the HUD.
@@ -275,7 +275,7 @@ public:
 	 * @param RotPivot			Location (as proportion of quad, 0-1) to rotate about
 	 */
 	UFUNCTION(BlueprintCallable, Category=HUD, meta=(AdvancedDisplay = "9"))
-	void DrawTexture(UTexture* Texture, float ScreenX, float ScreenY, float ScreenW, float ScreenH, float TextureU, float TextureV, float TextureUWidth, float TextureVHeight, FLinearColor TintColor=FLinearColor::White, EBlendMode BlendMode=BLEND_Translucent, float Scale=1.f, bool bScalePosition=false, float Rotation=0.f, FVector2D RotPivot=FVector2D::ZeroVector);
+	ENGINE_API void DrawTexture(UTexture* Texture, float ScreenX, float ScreenY, float ScreenW, float ScreenH, float TextureU, float TextureV, float TextureUWidth, float TextureVHeight, FLinearColor TintColor=FLinearColor::White, EBlendMode BlendMode=BLEND_Translucent, float Scale=1.f, bool bScalePosition=false, float Rotation=0.f, FVector2D RotPivot=FVector2D::ZeroVector);
 
 	/**
 	 * Draws a textured quad on the HUD. Assumes 1:1 texel density.
@@ -286,7 +286,7 @@ public:
 	 * @param bScalePosition	Whether the "Scale" parameter should also scale the position of this draw call.
 	 */
 	UFUNCTION(BlueprintCallable, Category=HUD)
-	void DrawTextureSimple(UTexture* Texture, float ScreenX, float ScreenY, float Scale=1.f, bool bScalePosition=false);
+	ENGINE_API void DrawTextureSimple(UTexture* Texture, float ScreenX, float ScreenY, float Scale=1.f, bool bScalePosition=false);
 
 	/**
 	 * Draws a material-textured quad on the HUD.
@@ -305,7 +305,7 @@ public:
 	 * @param RotPivot			Location (as proportion of quad, 0-1) to rotate about
 	 */
 	UFUNCTION(BlueprintCallable, Category=HUD, meta=(AdvancedDisplay = "9"))
-	void DrawMaterial(UMaterialInterface* Material, float ScreenX, float ScreenY, float ScreenW, float ScreenH, float MaterialU, float MaterialV, float MaterialUWidth, float MaterialVHeight, float Scale=1.f, bool bScalePosition=false, float Rotation=0.f, FVector2D RotPivot=FVector2D::ZeroVector);
+	ENGINE_API void DrawMaterial(UMaterialInterface* Material, float ScreenX, float ScreenY, float ScreenW, float ScreenH, float MaterialU, float MaterialV, float MaterialUWidth, float MaterialVHeight, float Scale=1.f, bool bScalePosition=false, float Rotation=0.f, FVector2D RotPivot=FVector2D::ZeroVector);
 
 	/**
 	 * Draws a material-textured quad on the HUD.  Assumes UVs such that the entire material is shown.
@@ -318,10 +318,10 @@ public:
 	 * @param bScalePosition	Whether the "Scale" parameter should also scale the position of this draw call.
 	 */
 	UFUNCTION(BlueprintCallable, Category=HUD)
-	void DrawMaterialSimple(UMaterialInterface* Material, float ScreenX, float ScreenY, float ScreenW, float ScreenH, float Scale=1.f, bool bScalePosition=false);
+	ENGINE_API void DrawMaterialSimple(UMaterialInterface* Material, float ScreenX, float ScreenY, float ScreenW, float ScreenH, float Scale=1.f, bool bScalePosition=false);
 
 	UFUNCTION(BlueprintCallable, Category = HUD)
-	void DrawMaterialTriangle(UMaterialInterface* Material, FVector2D V0_Pos, FVector2D V1_Pos, FVector2D V2_Pos, FVector2D V0_UV, FVector2D V1_UV, FVector2D V2_UV, FLinearColor V0_Color = FLinearColor::White, FLinearColor V1_Color = FLinearColor::White, FLinearColor V2_Color = FLinearColor::White);
+	ENGINE_API void DrawMaterialTriangle(UMaterialInterface* Material, FVector2D V0_Pos, FVector2D V1_Pos, FVector2D V2_Pos, FVector2D V0_UV, FVector2D V1_UV, FVector2D V2_UV, FLinearColor V0_Color = FLinearColor::White, FLinearColor V1_Color = FLinearColor::White, FLinearColor V2_Color = FLinearColor::White);
 	
 	/** Transforms a 3D world-space vector into 2D screen coordinates
 	 * @param Location			The world-space position to transform
@@ -329,11 +329,11 @@ public:
 	 * @return The transformed vector
 	 */
 	UFUNCTION(BlueprintCallable, Category = HUD)
-	FVector Project(FVector Location, bool bClampToZeroPlane = true) const;
+	ENGINE_API FVector Project(FVector Location, bool bClampToZeroPlane = true) const;
 	
 	/** Transforms a 2D screen location into a 3D location and direction */
 	UFUNCTION(BlueprintCallable, Category = HUD)
-	void Deproject(float ScreenX, float ScreenY, FVector& WorldPosition, FVector& WorldDirection) const;
+	ENGINE_API void Deproject(float ScreenX, float ScreenY, FVector& WorldPosition, FVector& WorldDirection) const;
 
 	/**
 	 * Returns the array of actors inside a selection rectangle, with a class filter.
@@ -391,7 +391,7 @@ public:
 	 *
 	 */
 	UFUNCTION(BlueprintPure, Category=HUD)
-	void GetActorsInSelectionRectangle(TSubclassOf<AActor> ClassFilter, const FVector2D& FirstPoint, const FVector2D& SecondPoint, TArray<AActor*>& OutActors, bool bIncludeNonCollidingComponents = true, bool bActorMustBeFullyEnclosed = false);
+	ENGINE_API void GetActorsInSelectionRectangle(TSubclassOf<AActor> ClassFilter, const FVector2D& FirstPoint, const FVector2D& SecondPoint, TArray<AActor*>& OutActors, bool bIncludeNonCollidingComponents = true, bool bActorMustBeFullyEnclosed = false);
 
 	/**
 	 * Add a hitbox to the hud
@@ -402,15 +402,15 @@ public:
 	 * @param Priority			The priority of the box used for layering. Larger values are considered first.  Equal values are considered in the order they were added.
 	 */
 	UFUNCTION(BlueprintCallable, Category=HUD)
-	void AddHitBox(FVector2D Position, FVector2D Size, FName InName, bool bConsumesInput, int32 Priority = 0);
+	ENGINE_API void AddHitBox(FVector2D Position, FVector2D Size, FName InName, bool bConsumesInput, int32 Priority = 0);
 
 	/** Returns the PlayerController for this HUD's player.	 */
 	UFUNCTION(BlueprintCallable, Category=HUD)
-	APlayerController* GetOwningPlayerController() const;
+	ENGINE_API APlayerController* GetOwningPlayerController() const;
 
 	/** Returns the Pawn for this HUD's player.	 */
 	UFUNCTION(BlueprintCallable, Category=HUD)
-	APawn* GetOwningPawn() const;
+	ENGINE_API APawn* GetOwningPawn() const;
 
 	/**
 	 * Draws a colored line between two points
@@ -418,7 +418,7 @@ public:
 	 * @param End - end if line
 	 * @param LineColor
 	 */
-	void Draw3DLine(FVector Start, FVector End, FColor LineColor);
+	ENGINE_API void Draw3DLine(FVector Start, FVector End, FColor LineColor);
 
 	/**
 	 * Draws a colored line between two points
@@ -428,21 +428,21 @@ public:
 	 * @param Y3 - end of line y
 	 * @param LineColor
 	 */
-	void Draw2DLine(int32 X1, int32 Y1, int32 X2, int32 Y2, FColor LineColor);
+	ENGINE_API void Draw2DLine(int32 X1, int32 Y1, int32 X2, int32 Y2, FColor LineColor);
 
 	/** Set the canvas and debug canvas to use during drawing */
-	void SetCanvas(UCanvas* InCanvas, UCanvas* InDebugCanvas);
+	ENGINE_API void SetCanvas(UCanvas* InCanvas, UCanvas* InDebugCanvas);
 
-	virtual void PostInitializeComponents() override;
+	ENGINE_API virtual void PostInitializeComponents() override;
 
 	/** draw overlays for actors that were rendered this tick and have added themselves to the PostRenderedActors array	*/
-	virtual void DrawActorOverlays(FVector Viewpoint, FRotator ViewRotation);
+	ENGINE_API virtual void DrawActorOverlays(FVector Viewpoint, FRotator ViewRotation);
 
 	/** Draw the safe zone debugging overlay when enabled */
-	virtual void DrawSafeZoneOverlay();
+	ENGINE_API virtual void DrawSafeZoneOverlay();
 
 	/** Called in PostInitializeComponents or postprocessing chain has changed (happens because of the worldproperties can define it's own chain and this one is set late). */
-	virtual void NotifyBindPostProcessEffects();
+	ENGINE_API virtual void NotifyBindPostProcessEffects();
 
 	/************************************************************************************************************
 	 Actor Render - These functions allow for actors in the world to gain access to the hud and render
@@ -450,76 +450,76 @@ public:
 	************************************************************************************************************/
 
 	/** remove an actor from the PostRenderedActors array */
-	virtual void RemovePostRenderedActor(AActor* A);
+	ENGINE_API virtual void RemovePostRenderedActor(AActor* A);
 
 	/** add an actor to the PostRenderedActors array */
-	virtual void AddPostRenderedActor(AActor* A);
+	ENGINE_API virtual void AddPostRenderedActor(AActor* A);
 
 	/**
 	 * check if we should be display debug information for particular types of debug messages.
 	 * @param DebugType - type of debug message.
 	 * @return true if it should be displayed, false otherwise.
 	 */
-	virtual bool ShouldDisplayDebug(const FName& DebugType) const;
+	ENGINE_API virtual bool ShouldDisplayDebug(const FName& DebugType) const;
 
 	/** 
 	 * Entry point for basic debug rendering on the HUD.  Activated and controlled via the "showdebug" console command.  
 	 * Can be overridden to display custom debug per-game. 
 	 */
-	virtual void ShowDebugInfo(float& YL, float& YPos);
+	ENGINE_API virtual void ShowDebugInfo(float& YL, float& YPos);
 
 	/** Get Target to view 'showdebug' on */
-	virtual AActor* GetCurrentDebugTargetActor();
+	ENGINE_API virtual AActor* GetCurrentDebugTargetActor();
 	
 	/** Utility function to add an actor to our consideration list for 'showdebug' 
 	 * Only consider visible, non destroyed Actors in the same world the player is in. */
-	static void AddActorToDebugList(AActor* InActor, TArray<AActor*>& InOutList, UWorld* InWorld);
+	static ENGINE_API void AddActorToDebugList(AActor* InActor, TArray<AActor*>& InOutList, UWorld* InWorld);
 
 	/** Utility function to add a component's owner to our consideration list for 'showdebug' */
-	static void AddComponentOwnerToDebugList(UActorComponent* InComponent, TArray<AActor*>& InOutList, UWorld* InWorld);
+	static ENGINE_API void AddComponentOwnerToDebugList(UActorComponent* InComponent, TArray<AActor*>& InOutList, UWorld* InWorld);
 
 	/** Get list of considered targets for 'showdebug'
 	 * This list is built contextually based on which 'showdebug' flags have been enabled. */
-	virtual void GetDebugActorList(TArray<AActor*>& InOutList);
+	ENGINE_API virtual void GetDebugActorList(TArray<AActor*>& InOutList);
 
 	/** Cycle to next target in our considered targets list for 'showdebug' */
 	UFUNCTION(exec)
-	virtual void NextDebugTarget();
+	ENGINE_API virtual void NextDebugTarget();
 
 	/** Cycle to previous target in our considered targets list for 'showdebug' */
 	UFUNCTION(exec)
-	virtual void PreviousDebugTarget();
+	ENGINE_API virtual void PreviousDebugTarget();
 
 	// Callback allowing external systems to register to show debug info
-	static FOnShowDebugInfo OnShowDebugInfo;
+	static ENGINE_API FOnShowDebugInfo OnShowDebugInfo;
 
 	// Called from ::PostRender. For less player/actor centered debugging
-	static FOnHUDPostRender OnHUDPostRender;
+	static ENGINE_API FOnHUDPostRender OnHUDPostRender;
 
 	/** PostRender is the main draw loop. */
-	virtual void PostRender();
+	ENGINE_API virtual void PostRender();
 
 	/** The Main Draw loop for the hud.  Gets called before any messaging.  Should be subclassed */
-	virtual void DrawHUD();
+	ENGINE_API virtual void DrawHUD();
 
 	//=============================================================================
 	// Messaging.
 	//=============================================================================
 
 	/** @return UFont* from given FontSize index */
-	virtual  UFont* GetFontFromSizeIndex(int32 FontSize) const;
+	ENGINE_API virtual  UFont* GetFontFromSizeIndex(int32 FontSize) const;
 
 	/**
 	 *	Pauses or unpauses the game due to main window's focus being lost.
 	 *	@param Enable - tells whether to enable or disable the pause state
 	 */
-	virtual void OnLostFocusPause(bool bEnable);
+	ENGINE_API virtual void OnLostFocusPause(bool bEnable);
 
 	/**
 	 * Iterate through list of debug text and draw it over the associated actors in world space.
 	 * Also handles culling null entries, and reducing the duration for timed debug text.
 	 */
-	void DrawDebugTextList();
+	ENGINE_API void DrawDebugTextList();
 
 	/** Gives the HUD a chance to display project-specific data when taking a "bug" screen shot.	 */
 	virtual void HandleBugScreenShot() { }
@@ -537,23 +537,23 @@ public:
 	 * Debug renderer for this frames hitboxes.
 	 * @param	Canvas	Canvas on which to render debug boxes.
 	 */
-	void RenderHitBoxes( FCanvas* InCanvas );
+	ENGINE_API void RenderHitBoxes( FCanvas* InCanvas );
 	
 	/**
 	 * Update the list of hitboxes and dispatch events for any hits.
 	 * @param   ClickLocation	Location of the click event
 	 * @param	InEventType		Type of input event that triggered the call.
 	 */
-	bool UpdateAndDispatchHitBoxClickEvents(const FVector2D ClickLocation, const EInputEvent InEventType);
+	ENGINE_API bool UpdateAndDispatchHitBoxClickEvents(const FVector2D ClickLocation, const EInputEvent InEventType);
 	
 	/**
 	 * Update a the list of hitboxes that have been hit this frame.
 	 * @param	Canvas	Canvas on which to render debug boxes.
 	 */
-	void UpdateHitBoxCandidates( TArray<FVector2D> InContactPoints );
+	ENGINE_API void UpdateHitBoxCandidates( TArray<FVector2D> InContactPoints );
 	
 	/** Have any hitboxes been hit this frame. */
-	bool AnyCurrentHitBoxHits() const;	
+	ENGINE_API bool AnyCurrentHitBoxHits() const;	
 
 	/**
 	 * Find the first hitbox containing the given coordinates.
@@ -561,33 +561,33 @@ public:
 	 * @param	bConsumingInput		If true will return the first hitbox that would consume input at this coordinate
 	 * @return	returns the hitbox at the given coordinates or NULL if none match.
 	 */
-	const FHUDHitBox* GetHitBoxAtCoordinates( FVector2D InHitLocation, bool bConsumingInput = false ) const;
+	ENGINE_API const FHUDHitBox* GetHitBoxAtCoordinates( FVector2D InHitLocation, bool bConsumingInput = false ) const;
 
 	/**
 	* Finds all the hitboxes containing the given coordinates.
 	* @param	InHitLocation		Coordinates to check
 	* @param	OutHitBoxes			Reference parameter with hit box references at the coordinates
 	*/
-	void GetHitBoxesAtCoordinates(FVector2D InHitLocation, TArray<const FHUDHitBox*>& OutHitBoxes) const;
+	ENGINE_API void GetHitBoxesAtCoordinates(FVector2D InHitLocation, TArray<const FHUDHitBox*>& OutHitBoxes) const;
 	
 	/**
 	 * Return the hitbox with the given name
 	 * @param	InName	Name of required hitbox
 	 * @return returns the hitbox with the given name NULL if none match.
 	 */
-	const FHUDHitBox* GetHitBoxWithName( const FName InName ) const;
+	ENGINE_API const FHUDHitBox* GetHitBoxWithName( const FName InName ) const;
 
 protected:
-	bool IsCanvasValid_WarnIfNot() const;
+	ENGINE_API bool IsCanvasValid_WarnIfNot() const;
 
 private:
 	// Helper function to deal with screen offset and splitscreen mapping of coordinates to HUD
-	FVector2D GetCoordinateOffset() const;
+	ENGINE_API FVector2D GetCoordinateOffset() const;
 
 	/** Helper function to find the first and last index (if any) of elements from DebugTextList with the matching actor : 
 	* @return number of elements found.
 	*/
-	int32 FindDebugTextListIntervalForActor(AActor* InSrcActor, int32& OutFirstIdx, int32& OutLastIdx) const;
+	ENGINE_API int32 FindDebugTextListIntervalForActor(AActor* InSrcActor, int32& OutFirstIdx, int32& OutLastIdx) const;
 };
 
 

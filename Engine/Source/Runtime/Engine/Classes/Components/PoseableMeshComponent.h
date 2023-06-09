@@ -13,8 +13,8 @@ class USkeletalMeshComponent;
 /**
  *	UPoseableMeshComponent that allows bone transforms to be driven by blueprint.
  */
-UCLASS(ClassGroup=Rendering, hidecategories=(Object,Physics), config=Engine, editinlinenew, meta=(BlueprintSpawnableComponent))
-class ENGINE_API UPoseableMeshComponent : public USkinnedMeshComponent
+UCLASS(ClassGroup=Rendering, hidecategories=(Object,Physics), config=Engine, editinlinenew, meta=(BlueprintSpawnableComponent), MinimalAPI)
+class UPoseableMeshComponent : public USkinnedMeshComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -31,39 +31,39 @@ public:
 	FBoneContainer RequiredBones;
 
 	UFUNCTION(BlueprintCallable, Category="Components|PoseableMesh")
-	void SetBoneTransformByName(FName BoneName, const FTransform& InTransform, EBoneSpaces::Type BoneSpace);
+	ENGINE_API void SetBoneTransformByName(FName BoneName, const FTransform& InTransform, EBoneSpaces::Type BoneSpace);
 
 	UFUNCTION(BlueprintCallable, Category="Components|PoseableMesh")
-	void SetBoneLocationByName(FName BoneName, FVector InLocation, EBoneSpaces::Type BoneSpace);
+	ENGINE_API void SetBoneLocationByName(FName BoneName, FVector InLocation, EBoneSpaces::Type BoneSpace);
 
 	UFUNCTION(BlueprintCallable, Category="Components|PoseableMesh")
-	void SetBoneRotationByName(FName BoneName, FRotator InRotation, EBoneSpaces::Type BoneSpace);
+	ENGINE_API void SetBoneRotationByName(FName BoneName, FRotator InRotation, EBoneSpaces::Type BoneSpace);
 
 	UFUNCTION(BlueprintCallable, Category="Components|PoseableMesh")
-	void SetBoneScaleByName(FName BoneName, FVector InScale3D, EBoneSpaces::Type BoneSpace);
+	ENGINE_API void SetBoneScaleByName(FName BoneName, FVector InScale3D, EBoneSpaces::Type BoneSpace);
 
 	UFUNCTION(BlueprintCallable, Category="Components|PoseableMesh") 
-	FTransform GetBoneTransformByName(FName BoneName, EBoneSpaces::Type BoneSpace);
+	ENGINE_API FTransform GetBoneTransformByName(FName BoneName, EBoneSpaces::Type BoneSpace);
 
 	UFUNCTION(BlueprintCallable, Category="Components|PoseableMesh")
-	FVector GetBoneLocationByName(FName BoneName, EBoneSpaces::Type BoneSpace);
+	ENGINE_API FVector GetBoneLocationByName(FName BoneName, EBoneSpaces::Type BoneSpace);
 
 	UFUNCTION(BlueprintCallable, Category="Components|PoseableMesh")
-	FRotator GetBoneRotationByName(FName BoneName, EBoneSpaces::Type BoneSpace);
+	ENGINE_API FRotator GetBoneRotationByName(FName BoneName, EBoneSpaces::Type BoneSpace);
 
 	UFUNCTION(BlueprintCallable, Category="Components|PoseableMesh")
-	FVector GetBoneScaleByName(FName BoneName, EBoneSpaces::Type BoneSpace);
+	ENGINE_API FVector GetBoneScaleByName(FName BoneName, EBoneSpaces::Type BoneSpace);
 
 	UFUNCTION(BlueprintCallable, Category="Components|PoseableMesh")
-	void ResetBoneTransformByName(FName BoneName);
+	ENGINE_API void ResetBoneTransformByName(FName BoneName);
 
 	UFUNCTION(BlueprintCallable, Category="Components|PoseableMesh")
-	void CopyPoseFromSkeletalComponent(USkeletalMeshComponent* InComponentToCopy);
+	ENGINE_API void CopyPoseFromSkeletalComponent(USkeletalMeshComponent* InComponentToCopy);
 
 	//~ Begin USkinnedMeshComponent Interface
-	virtual void RefreshBoneTransforms(FActorComponentTickFunction* TickFunction = NULL) override;
-	virtual bool AllocateTransformData() override;
-	virtual bool ShouldUpdateTransform(bool bLODHasChanged) const override;
+	ENGINE_API virtual void RefreshBoneTransforms(FActorComponentTickFunction* TickFunction = NULL) override;
+	ENGINE_API virtual bool AllocateTransformData() override;
+	ENGINE_API virtual bool ShouldUpdateTransform(bool bLODHasChanged) const override;
 	//~ End USkinnedMeshComponent Interface
 
 	bool IsRunningParallelEvaluation() const { return false; }
@@ -72,9 +72,9 @@ public:
 	 * It will work down hierarchy multiplying the component-space transform of the parent by the relative transform of the child.
 	 * This code also applies any per-bone rotators etc. as part of the composition process
 	 */
-	void FillComponentSpaceTransforms();
+	ENGINE_API void FillComponentSpaceTransforms();
 
-	void MarkRefreshTransformDirty();
+	ENGINE_API void MarkRefreshTransformDirty();
 private:
 	// this is marked if transform has to be updated
 	bool bNeedsRefreshTransform;

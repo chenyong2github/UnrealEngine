@@ -9,7 +9,7 @@
 
 /** Properties from the base material that can be overridden in material instances. */
 USTRUCT()
-struct ENGINE_API FMaterialInstanceBasePropertyOverrides
+struct FMaterialInstanceBasePropertyOverrides
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -92,8 +92,8 @@ struct ENGINE_API FMaterialInstanceBasePropertyOverrides
 	UPROPERTY(EditAnywhere, Category = Material, meta = (editcondition = "bOverride_MaxWorldPositionOffsetDisplacement", ClampMin=0.0f, NoSpinbox = true))
 	float MaxWorldPositionOffsetDisplacement;
 
-	FMaterialInstanceBasePropertyOverrides();
+	ENGINE_API FMaterialInstanceBasePropertyOverrides();
 
-	bool operator==(const FMaterialInstanceBasePropertyOverrides& Other)const;
-	bool operator!=(const FMaterialInstanceBasePropertyOverrides& Other)const;
+	ENGINE_API bool operator==(const FMaterialInstanceBasePropertyOverrides& Other)const;
+	ENGINE_API bool operator!=(const FMaterialInstanceBasePropertyOverrides& Other)const;
 };

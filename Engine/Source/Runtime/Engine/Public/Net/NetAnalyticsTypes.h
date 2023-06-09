@@ -11,7 +11,7 @@
  *
  * Could have used a TPair, but this will make it more obvious what we're tracking.
  */
-struct ENGINE_API FDelinquencyNameTimePair
+struct FDelinquencyNameTimePair
 {
 public:
 
@@ -32,7 +32,7 @@ inline FString LexToString(const FDelinquencyNameTimePair& Value)
 	return FString::Printf(TEXT("%s:%f"), *Value.Name.ToString(), Value.TimeSeconds);
 }
 
-struct ENGINE_API FDelinquencyKeyFuncs : public BaseKeyFuncs<FDelinquencyNameTimePair, FDelinquencyNameTimePair, false>
+struct FDelinquencyKeyFuncs : public BaseKeyFuncs<FDelinquencyNameTimePair, FDelinquencyNameTimePair, false>
 {
 	static KeyInitType GetSetKey(ElementInitType Element)
 	{
@@ -56,13 +56,13 @@ struct ENGINE_API FDelinquencyKeyFuncs : public BaseKeyFuncs<FDelinquencyNameTim
  *
  * The overall number of entries is expected to be small, but ultimately is left up to callers.
  */
-struct ENGINE_API FDelinquencyAnalytics
+struct FDelinquencyAnalytics
 {
 public:
 
-	explicit FDelinquencyAnalytics(const uint32 InNumberOfTopOffendersToTrack);
+	ENGINE_API explicit FDelinquencyAnalytics(const uint32 InNumberOfTopOffendersToTrack);
 
-	FDelinquencyAnalytics(FDelinquencyAnalytics&& Other);
+	ENGINE_API FDelinquencyAnalytics(FDelinquencyAnalytics&& Other);
 
 	FDelinquencyAnalytics(const FDelinquencyAnalytics&) = delete;
 	const FDelinquencyAnalytics& operator=(const FDelinquencyAnalytics&) = delete;
@@ -85,7 +85,7 @@ public:
 	 * By setting NumberOfTopOffendersToTrack to 0, users can manage their own lists of "TopOffenders", or
 	 * otherwise avoid the per add overhead of this tracking.
 	 */
-	void Add(FDelinquencyNameTimePair&& ToTrack);
+	ENGINE_API void Add(FDelinquencyNameTimePair&& ToTrack);
 
 	const TArray<FDelinquencyNameTimePair>& GetTopOffenders() const
 	{
@@ -107,9 +107,9 @@ public:
 		return NumberOfTopOffendersToTrack;
 	}
 
-	void Reset();
+	ENGINE_API void Reset();
 
-	void CountBytes(class FArchive& Ar) const;
+	ENGINE_API void CountBytes(class FArchive& Ar) const;
 
 private:
 
@@ -129,7 +129,7 @@ private:
  *
  * Also @see FConnectionDelinquencyAnalytics and FDelinquencyAnalytics.
  */
-struct ENGINE_API FNetAsyncLoadDelinquencyAnalytics
+struct FNetAsyncLoadDelinquencyAnalytics
 {
 	FNetAsyncLoadDelinquencyAnalytics()
 		: DelinquentAsyncLoads(0)
@@ -174,7 +174,7 @@ struct ENGINE_API FNetAsyncLoadDelinquencyAnalytics
  *
  * Also @see FDriverDelinquencyAnalytics and FDelinquencyAnalytics.
  */
-struct ENGINE_API FNetQueuedActorDelinquencyAnalytics
+struct FNetQueuedActorDelinquencyAnalytics
 {
 	FNetQueuedActorDelinquencyAnalytics()
 		: DelinquentQueuedActors(0)
@@ -215,7 +215,7 @@ struct ENGINE_API FNetQueuedActorDelinquencyAnalytics
 };
 
 /** Struct wrapping Per Net Connection saturation analytics. */
-struct ENGINE_API FNetConnectionSaturationAnalytics
+struct FNetConnectionSaturationAnalytics
 {
 public:
 
@@ -271,15 +271,15 @@ public:
 	}
 
 	/** Resets the state of tracking. */
-	void Reset();
+	ENGINE_API void Reset();
 
 private:
 
 	friend class UNetConnection;
 
-	void TrackFrame(const bool bIsSaturated);
+	ENGINE_API void TrackFrame(const bool bIsSaturated);
 
-	void TrackReplication(const bool bIsSaturated);
+	ENGINE_API void TrackReplication(const bool bIsSaturated);
 
 	uint32 NumberOfTrackedFrames;
 	uint32 NumberOfSaturatedFrames;
@@ -294,7 +294,7 @@ private:
 };
 
 /** Struct wrapper Per Net Connection analytics for things like packet loss and jitter. */
-struct ENGINE_API FNetConnectionPacketAnalytics
+struct FNetConnectionPacketAnalytics
 {
 public:
 
@@ -349,17 +349,17 @@ public:
 	}
 
 	/** Resets the state of tracking. */
-	void Reset();
+	ENGINE_API void Reset();
 
 private:
 
 	friend class UNetConnection;
 
-	void TrackAck(int32 PacketId);
-	void TrackNak(int32 PacketId);
-	void TrackInPacket(uint32 InPacketId, uint32 NumberOfMissingPackets);
+	ENGINE_API void TrackAck(int32 PacketId);
+	ENGINE_API void TrackNak(int32 PacketId);
+	ENGINE_API void TrackInPacket(uint32 InPacketId, uint32 NumberOfMissingPackets);
 
-	void Tick();
+	ENGINE_API void Tick();
 
 	bool bSawPacketLossBurstThisFrame : 1;
 

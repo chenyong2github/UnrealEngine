@@ -31,7 +31,7 @@ struct FTickableStatics;
 /**
  * Base class for tickable objects
  */
-class ENGINE_API FTickableObjectBase
+class FTickableObjectBase
 {
 	friend struct FTickableStatics;
 
@@ -44,9 +44,9 @@ protected:
 		bool operator==(FTickableObjectBase* OtherObject) const { return TickableObject == OtherObject; }
 	};
 
-	static void AddTickableObject(TArray<FTickableObjectEntry>& TickableObjects, FTickableObjectBase* TickableObject);
+	static ENGINE_API void AddTickableObject(TArray<FTickableObjectEntry>& TickableObjects, FTickableObjectBase* TickableObject);
 
-	static void RemoveTickableObject(TArray<FTickableObjectEntry>& TickableObjects, FTickableObjectBase* TickableObject, const bool bIsTickingObjects);
+	static ENGINE_API void RemoveTickableObject(TArray<FTickableObjectEntry>& TickableObjects, FTickableObjectBase* TickableObject, const bool bIsTickingObjects);
 
 public:
 	/**
@@ -100,19 +100,19 @@ public:
  * Can optionally also be ticked in the Editor, allowing for an object that both ticks
  * during edit time and at runtime.
  */
-class ENGINE_API FTickableGameObject : public FTickableObjectBase
+class FTickableGameObject : public FTickableObjectBase
 {
 public:
 	/**
 	 * Registers this instance with the static array of tickable objects.	
 	 *
 	 */
-	FTickableGameObject();
+	ENGINE_API FTickableGameObject();
 
 	/**
 	 * Removes this instance from the static array of tickable objects.
 	 */
-	virtual ~FTickableGameObject();
+	ENGINE_API virtual ~FTickableGameObject();
 
 	/**
 	 * Used to determine if an object should be ticked when the game is paused.
@@ -141,5 +141,5 @@ public:
 		return nullptr;
 	}
 
-	static void TickObjects(UWorld* World, int32 TickType, bool bIsPaused, float DeltaSeconds);
+	static ENGINE_API void TickObjects(UWorld* World, int32 TickType, bool bIsPaused, float DeltaSeconds);
 };

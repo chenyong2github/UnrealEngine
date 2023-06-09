@@ -16,9 +16,9 @@ class UWorldPartition;
 /**
  * FActorPartitionGetParam
  */
-struct ENGINE_API FActorPartitionGetParams
+struct FActorPartitionGetParams
 {
-	FActorPartitionGetParams(const TSubclassOf<APartitionActor>& InActorClass, bool bInCreate, ULevel* InLevelHint, const FVector& InLocationHint, uint32 InGridSize = 0, const FGuid& InGuidHint = FGuid(), bool bInBoundsSearch = true, TFunctionRef<void(APartitionActor*)> InActorCreated = [](APartitionActor*) {});
+	ENGINE_API FActorPartitionGetParams(const TSubclassOf<APartitionActor>& InActorClass, bool bInCreate, ULevel* InLevelHint, const FVector& InLocationHint, uint32 InGridSize = 0, const FGuid& InGuidHint = FGuid(), bool bInBoundsSearch = true, TFunctionRef<void(APartitionActor*)> InActorCreated = [](APartitionActor*) {});
 
 	/* Class of Actor we are getting from the subsystem. */
 	TSubclassOf<APartitionActor> ActorClass;
@@ -49,7 +49,7 @@ struct ENGINE_API FActorPartitionGetParams
  * FActorPartitionIdentifier
  */
 
-struct ENGINE_API FActorPartitionIdentifier
+struct FActorPartitionIdentifier
 {
 	FActorPartitionIdentifier(UClass* InClass, const FGuid& InGridGuid, const uint32& InDataLayerEditorContextHash)
 		: Class(InClass)
@@ -80,13 +80,13 @@ private:
  * UActorPartitionSubsystem
  */
 
-UCLASS()
-class ENGINE_API UActorPartitionSubsystem : public UWorldSubsystem
+UCLASS(MinimalAPI)
+class UActorPartitionSubsystem : public UWorldSubsystem
 {
 	GENERATED_BODY()
 
 public:
-	UActorPartitionSubsystem();
+	ENGINE_API UActorPartitionSubsystem();
 
 	struct FCellCoord
 	{
@@ -154,7 +154,7 @@ public:
 	};
 
 #if WITH_EDITOR
-	APartitionActor* GetActor(const FActorPartitionGetParams& GetParam);
+	ENGINE_API APartitionActor* GetActor(const FActorPartitionGetParams& GetParam);
 
 	/**
 	 * Returns a matching actor based on the parameters being provided
@@ -166,14 +166,14 @@ public:
 	 * @param InGridSize Optional, if not provided the InActorClass CDO will be used to determine GridSize.
 	 * @param bInBoundsSearch Optional, if not specified existing actors will be searched in the cell bounds only.
 	 */
-	APartitionActor* GetActor(const TSubclassOf<APartitionActor>& InActorClass, const FCellCoord& InCellCoords, bool bInCreate, const FGuid& InGuid = FGuid(), uint32 InGridSize = 0, bool bInBoundsSearch = true, TFunctionRef<void(APartitionActor*)> InActorCreated = [](APartitionActor*) {});
+	ENGINE_API APartitionActor* GetActor(const TSubclassOf<APartitionActor>& InActorClass, const FCellCoord& InCellCoords, bool bInCreate, const FGuid& InGuid = FGuid(), uint32 InGridSize = 0, bool bInBoundsSearch = true, TFunctionRef<void(APartitionActor*)> InActorCreated = [](APartitionActor*) {});
 
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-	virtual void Deinitialize() override;
+	ENGINE_API virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	ENGINE_API virtual void Deinitialize() override;
 
-	void ForEachRelevantActor(const TSubclassOf<APartitionActor>& InActorClass, const FBox& IntersectionBounds, TFunctionRef<bool(APartitionActor*)>InOperation) const;
+	ENGINE_API void ForEachRelevantActor(const TSubclassOf<APartitionActor>& InActorClass, const FBox& IntersectionBounds, TFunctionRef<bool(APartitionActor*)>InOperation) const;
 #endif
-	bool IsLevelPartition() const;
+	ENGINE_API bool IsLevelPartition() const;
 
 private:
 
@@ -216,10 +216,10 @@ protected:
 };
 
 
-class ENGINE_API FActorPartitionGridHelper
+class FActorPartitionGridHelper
 {
 public:
-	static void ForEachIntersectingCell(const TSubclassOf<APartitionActor>& InActorClass, const FBox& InBounds, ULevel* InLevel, TFunctionRef<bool(const UActorPartitionSubsystem::FCellCoord&, const FBox&)> InOperation, uint32 InGridSize = 0);
-	static void ForEachIntersectingCell(const TSubclassOf<APartitionActor>& InActorClass, const FIntRect& InBounds, ULevel* InLevel, TFunctionRef<bool(const UActorPartitionSubsystem::FCellCoord&, const FIntRect&)> InOperation, uint32 InGridSize = 0);
+	static ENGINE_API void ForEachIntersectingCell(const TSubclassOf<APartitionActor>& InActorClass, const FBox& InBounds, ULevel* InLevel, TFunctionRef<bool(const UActorPartitionSubsystem::FCellCoord&, const FBox&)> InOperation, uint32 InGridSize = 0);
+	static ENGINE_API void ForEachIntersectingCell(const TSubclassOf<APartitionActor>& InActorClass, const FIntRect& InBounds, ULevel* InLevel, TFunctionRef<bool(const UActorPartitionSubsystem::FCellCoord&, const FIntRect&)> InOperation, uint32 InGridSize = 0);
 };
 #endif

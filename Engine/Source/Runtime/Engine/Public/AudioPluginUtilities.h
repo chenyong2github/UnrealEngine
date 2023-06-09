@@ -5,9 +5,9 @@
 /************************************************************************/
 /* Plugin Utilities                                                     */
 /************************************************************************/
-struct ENGINE_API AudioPluginUtilities
+struct AudioPluginUtilities
 {
-	static const FName& GetDefaultModulationPluginName();
+	static ENGINE_API const FName& GetDefaultModulationPluginName();
 
 	/*
 	 * These functions return a pointer to the plugin factory
@@ -16,14 +16,14 @@ struct ENGINE_API AudioPluginUtilities
 	 * 
 	 * if no matching plugin is found, nullptr is returned.
 	 */
-	static FName GetDesiredSpatializationPluginName();
-	static TArray<IAudioSpatializationFactory*> GetSpatialPluginArray();
-	static IAudioSpatializationFactory* GetDesiredSpatializationPlugin();
-	static IAudioSourceDataOverrideFactory* GetDesiredSourceDataOverridePlugin();
-	static IAudioReverbFactory* GetDesiredReverbPlugin();
-	static IAudioOcclusionFactory* GetDesiredOcclusionPlugin();
-	static IAudioModulationFactory* GetDesiredModulationPlugin();
+	static ENGINE_API FName GetDesiredSpatializationPluginName();
+	static ENGINE_API TArray<IAudioSpatializationFactory*> GetSpatialPluginArray();
+	static ENGINE_API IAudioSpatializationFactory* GetDesiredSpatializationPlugin();
+	static ENGINE_API IAudioSourceDataOverrideFactory* GetDesiredSourceDataOverridePlugin();
+	static ENGINE_API IAudioReverbFactory* GetDesiredReverbPlugin();
+	static ENGINE_API IAudioOcclusionFactory* GetDesiredOcclusionPlugin();
+	static ENGINE_API IAudioModulationFactory* GetDesiredModulationPlugin();
 
 	/** This function returns the name of the plugin specified in the platform settings. */
-	static FString GetDesiredPluginName(EAudioPlugin PluginType);
+	static ENGINE_API FString GetDesiredPluginName(EAudioPlugin PluginType);
 };

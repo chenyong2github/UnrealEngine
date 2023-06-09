@@ -179,7 +179,7 @@ public:
 	* Function name is legacy and incorrect, it is no longer cached
 	* @return	LOD bias
 	*/
-	ENGINE_API virtual int32 GetCachedLODBias() const 
+	virtual int32 GetCachedLODBias() const 
 	{ 
 		return 0; 
 	}

@@ -157,7 +157,7 @@ public:
 	ENGINE_API static FSubtitleManager* GetSubtitleManager();
 
 	/** HACK: Returns the delegate for setting subtitle text */
-	ENGINE_API FSubtitleManagerSetSubtitleText&  OnSetSubtitleText() { return OnSetSubtitleTextDelegate; }
+	FSubtitleManagerSetSubtitleText&  OnSetSubtitleText() { return OnSetSubtitleTextDelegate; }
 
 	/**
 	 * HACK: Accept a movie subtitle and display it to all currently registered displays. This will not

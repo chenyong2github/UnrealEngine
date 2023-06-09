@@ -27,13 +27,13 @@ class FTexture;
  * The constructor is called from the game thread, and after that the rendering thread owns the object.
  * FLightSceneProxy is in the engine module and is subclassed to implement various types of lights.
  */
-class ENGINE_API FLightSceneProxy
+class FLightSceneProxy
 {
 public:
 
 	/** Initialization constructor. */
-	FLightSceneProxy(const ULightComponent* InLightComponent);
-	virtual ~FLightSceneProxy();
+	ENGINE_API FLightSceneProxy(const ULightComponent* InLightComponent);
+	ENGINE_API virtual ~FLightSceneProxy();
 
 	/**
 	 * Tests whether the light affects the given bounding volume.
@@ -45,7 +45,7 @@ public:
 		return true;
 	}
 
-	virtual FSphere GetBoundingSphere() const;
+	ENGINE_API virtual FSphere GetBoundingSphere() const;
 
 	/** @return radius of the light */
 	virtual float GetRadius() const { return FLT_MAX; }
@@ -100,10 +100,10 @@ public:
 	}
 
 	/** Whether this light should create per object shadows for dynamic objects. */
-	virtual bool ShouldCreatePerObjectShadowsForDynamicObjects() const;
+	ENGINE_API virtual bool ShouldCreatePerObjectShadowsForDynamicObjects() const;
 
 	/** Whether this light should create CSM for dynamic objects only (forward renderer) */
-	virtual bool UseCSMForDynamicObjects() const;
+	ENGINE_API virtual bool UseCSMForDynamicObjects() const;
 
 	/** Returns the number of view dependent shadows this light will create, not counting distance field shadow cascades. */
 	virtual uint32 GetNumViewDependentWholeSceneShadows(const FSceneView& View, bool bPrecomputedLightingIsValid) const { return 0; }
@@ -138,7 +138,7 @@ public:
 	virtual FSphere GetShadowSplitBounds(const FSceneView& View, int32 InCascadeIndex, bool bPrecomputedLightingIsValid, FShadowCascadeSettings* OutCascadeSettings) const { return FSphere(FVector::ZeroVector, 0); }
 	virtual FSphere GetShadowSplitBoundsDepthRange(const FSceneView& View, FVector ViewOrigin, float SplitNear, float SplitFar, FShadowCascadeSettings* OutCascadeSettings) const { return FSphere(FVector::ZeroVector, 0); }
 
-	virtual bool GetScissorRect(FIntRect& ScissorRect, const FSceneView& View, const FIntRect& ViewRect) const;
+	ENGINE_API virtual bool GetScissorRect(FIntRect& ScissorRect, const FSceneView& View, const FIntRect& ViewRect) const;
 
 	// @param OutScissorRect the scissor rect used if one is set
 	// @return whether a scissor rect is set
@@ -181,7 +181,7 @@ public:
 	inline float GetLightFunctionFadeDistance() const { return LightFunctionFadeDistance; }
 	inline float GetLightFunctionDisabledBrightness() const { return LightFunctionDisabledBrightness; }
 	inline UTextureLightProfile* GetIESTexture() const { return IESTexture; }
-	FTexture* GetIESTextureResource() const;
+	ENGINE_API FTexture* GetIESTextureResource() const;
 	inline const FMaterialRenderProxy* GetLightFunctionMaterial() const { return LightFunctionMaterial; }
 	inline bool IsMovable() const { return bMovable; }
 	inline bool HasStaticLighting() const { return bStaticLighting; }
@@ -236,7 +236,7 @@ public:
 	 * Called on world origin changes
 	 * @param InOffset - The delta to shift by
 	 */
-	virtual void ApplyWorldOffset(FVector InOffset);
+	ENGINE_API virtual void ApplyWorldOffset(FVector InOffset);
 
 	virtual float GetMaxDrawDistance() const { return 0.0f; }
 	virtual float GetFadeRange() const { return 0.0f; }
@@ -468,10 +468,10 @@ protected:
 	 * @param InLightToWorld - The new light-to-world transform.
 	 * @param InPosition - The new position of the light.
 	 */
-	void SetTransform(const FMatrix& InLightToWorld, const FVector4& InPosition);
+	ENGINE_API void SetTransform(const FMatrix& InLightToWorld, const FVector4& InPosition);
 
 	/** Updates the light's color. */
-	void SetColor(const FLinearColor& InColor);
+	ENGINE_API void SetColor(const FLinearColor& InColor);
 
 private:
 #if ACTOR_HAS_LABELS

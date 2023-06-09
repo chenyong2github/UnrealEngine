@@ -85,7 +85,7 @@ class UMaterialExpressionFontSampleParameter : public UMaterialExpressionFontSam
 	*/
 	virtual void SetDefaultFont();
 	
-	ENGINE_API virtual FGuid& GetParameterExpressionId() override
+	virtual FGuid& GetParameterExpressionId() override
 	{
 		return ExpressionGUID;
 	}
