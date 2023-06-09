@@ -2037,9 +2037,6 @@ void FWireTranslatorImpl::DagForLeavesNoMerge(const TSharedPtr<AlDagNode>& DagNo
 
 TOptional<FMeshDescription> FWireTranslatorImpl::MeshDagNodeWithExternalMesher(AlDagNode& DagNode, TSharedRef<IDatasmithMeshElement> MeshElement, CADLibrary::FMeshParameters& MeshParameters)
 {
-	static uint32 HelloWorld = 0;
-	HelloWorld++;
-
 	// Wire unit is cm
 	CADModelConverter->InitializeProcess();
 
