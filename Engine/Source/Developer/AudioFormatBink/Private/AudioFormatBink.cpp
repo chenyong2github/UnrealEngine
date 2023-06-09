@@ -56,7 +56,9 @@ namespace AudioFormatBinkPrivate
 		static const uint16 BinkDefault = 4096;
 		static const uint16 BinkMax		= TNumericLimits<uint16>::Max();
 
-		return IntCastChecked<uint16>(FMath::Clamp<uint64>(MaxEntries, BinkDefault, BinkMax));
+		const uint64 Clamped = FMath::Clamp<uint64>(MaxEntries, BinkDefault, BinkMax);
+			
+		return IntCastChecked<uint16>(Clamped);
 	}
 }
 
@@ -68,7 +70,7 @@ class FAudioFormatBink : public IAudioFormat
 	enum
 	{
 		/** Version for Bink Audio format, this becomes part of the DDC key. */
-		UE_AUDIO_BINK_VER = 9,
+		UE_AUDIO_BINK_VER = 11,
 	};
 
 public:
@@ -122,6 +124,7 @@ public:
 		case BINKA_COMPRESS_ERROR_ALLOCATORS: CompressErrorStr = TEXT("No allocators provided!"); break;
 		case BINKA_COMPRESS_ERROR_OUTPUT: CompressErrorStr = TEXT("No output pointers provided!"); break;
 		case BINKA_COMPRESS_ERROR_SEEKTABLE: CompressErrorStr = TEXT("Invalid seektable size limit specified!"); break;
+		case BINKA_COMPRESS_ERROR_SIZE: CompressErrorStr = TEXT("Input file too big - can't fit offsets in seek table!"); break;
 		}
 
 		if (CompressErrorStr != nullptr)
@@ -309,11 +312,11 @@ public:
 		static const uint32 ActualAudioOffset = sizeof(BinkAudioFileHeader) + 0; // No entries as we're stripping it.
 
 		// Decode and copy out the seek-table. (it's stored as deltas).
-		uint16* EncodedSeekTable = (uint16*)(InOutBuffer.GetData() + sizeof(BinkAudioFileHeader));
+		const uint16* EncodedSeekTable = (uint16*)(InOutBuffer.GetData() + sizeof(BinkAudioFileHeader));
 		uint32 CurrentSeekOffset = ActualAudioOffset;
 		uint32 CurrentTimeOffset = 0;
 		
-		int32 SamplesPerEntry = Header->blocks_per_seek_table_entry * AudioFormatBinkPrivate::GetMaxFrameSizeSamples(Header->rate);
+		const int32 SamplesPerEntry = Header->blocks_per_seek_table_entry * AudioFormatBinkPrivate::GetMaxFrameSizeSamples(Header->rate);
 		OutSeektable.Offsets.SetNum(Header->seek_table_entry_count);
 		OutSeektable.Times.SetNum(Header->seek_table_entry_count);
 
@@ -323,6 +326,13 @@ public:
 			OutSeektable.Offsets[i] = CurrentSeekOffset;
 			CurrentSeekOffset += EncodedSeekTable[i];
 			CurrentTimeOffset += SamplesPerEntry;
+		}
+
+		// Check that the last block which spans the last offset in the table and end of file
+		// is a reasonable size.
+		if (!ensure(InOutBuffer.Num() - OutSeektable.Offsets.Last() < 1024*1024))
+		{
+			return false;
 		}
 
 		// Strip the seek-table from the buffer now we've copied it.

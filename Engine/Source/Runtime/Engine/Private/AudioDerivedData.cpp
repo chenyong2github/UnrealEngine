@@ -541,32 +541,46 @@ class FStreamedAudioCacheDerivedDataWorker : public FNonAbandonableTask
 		while (Current < SourceEnd)
 		{	
 			// A block is the span between two neighboring offsets in our table.
-			uint32 BlockStart = Offsets[CurrentBlock];
-			uint32 BlockEnd = CurrentBlock < Offsets.Num() - 1 ? Offsets[CurrentBlock + 1] : SourceLen;
-			uint32 BlockSize = BlockEnd - BlockStart;
+			const uint32 BlockStart = Offsets[CurrentBlock];
+			const uint32 BlockEnd = CurrentBlock < Offsets.Num() - 1 ? Offsets[CurrentBlock + 1] : SourceLen;
+			if (!ensureMsgf(BlockStart < BlockEnd, TEXT("Malformed Table: BlockStart=%u, BlockEnd=%u"), BlockStart, BlockEnd))
+			{
+				return false;
+			}
+			const uint32 BlockSize = BlockEnd - BlockStart;
+			if (!ensureMsgf(BlockSize < 1024*1024, TEXT("Malformed Table: Block is too large to be real. BlockSize=%u"), BlockSize) )
+			{
+				return false;
+			}
 			
 			// Current chunk stats.
-			int32 CurrentTableSize = FStreamedAudioChunkSeekTable::CalcSize(BlockCount, Mode);
-			uint32 CurrentChunkSize = (Current - ChunkStart) + CurrentTableSize;
+			const int32 CurrentTableSize = FStreamedAudioChunkSeekTable::CalcSize(BlockCount, Mode);
+			checkf(CurrentTableSize >= 0, TEXT("CurrentTableSize=%d"), CurrentTableSize);
+			const uint32 CurrentChunkSize = (Current - ChunkStart) + CurrentTableSize;
 			
 			// Adding a new item will grow the table by 1.
-			int32 NewTableSize = FStreamedAudioChunkSeekTable::CalcSize(BlockCount + 1, Mode);
-			int32 TableDelta = NewTableSize - CurrentTableSize;
+			const int32 NewTableSize = FStreamedAudioChunkSeekTable::CalcSize(BlockCount + 1, Mode);
+			checkf(NewTableSize >= 0, TEXT("NewTableSize=%d"), NewTableSize);
+			const int32 TableDelta = NewTableSize - CurrentTableSize;
+			checkf(TableDelta > 0, TEXT("Table should grow when we add a new entry: TableDelta=%d"), TableDelta);
 			
 			// Accumulated enough?
 			if (CurrentChunkSize + BlockSize + TableDelta > Budget)
 			{
 				// can't add this chunk, emit.
 				TArray<uint8> Chunk(ChunkStart, Current - ChunkStart);
-				int32 AudioSize = Chunk.Num();
+				const int32 AudioSize = Chunk.Num();
 
 				CreateChunkSeektableAndPrefix(Mode, InTable, ChunkStart-Source, Current-Source, Chunk, OutChunkOffsets, CurrentTableSize, BlockCount, AudioSize, Budget);
 		
+				UE_LOG(LogAudio, Verbose, TEXT("Adding Chunk %d: Blocks=%d (%u bytes), SeekTableEntries=%d (%d bytes), ChunkSize=%u bytes, PercentFull=%2.2f, Remaining=%u bytes"),
+					OutBuffers.Num(), BlockCount, AudioSize, BlockCount, CurrentTableSize, Chunk.Num(), ((float)Chunk.Num() / Budget) * 100.f, Budget-Chunk.Num());
+
 				OutBuffers.Add(Chunk);
-				
+
 				ChunkStart = Current;
 				Budget = InMaxChunkSize;
-				BlockCount = 0;
+				BlockCount = 0;				
 			
 				// retry.
 				continue;
@@ -577,7 +591,7 @@ class FStreamedAudioCacheDerivedDataWorker : public FNonAbandonableTask
 			BlockCount++;
 			CurrentBlock++;
 
-			UE_LOG(LogAudio, Verbose, TEXT("Adding Block: Chunk_Block_Count=%d, BlockSize=%d, ChunkSize=%d"), BlockCount, BlockSize, Current - ChunkStart);
+			UE_LOG(LogAudio, VeryVerbose, TEXT("\tAdding Block: Chunk_Block_Count=%d, BlockSize=%d, ChunkSize=%lld"), BlockCount, BlockSize, Current - ChunkStart);
 		}
 
 		// emit any remainder chunks
@@ -585,9 +599,13 @@ class FStreamedAudioCacheDerivedDataWorker : public FNonAbandonableTask
 		{
 			// emit this chunk
 			TArray<uint8> Chunk(ChunkStart, Current - ChunkStart);
-			int32 AudioSize = Chunk.Num();
-			int32 CurrentTableSize = FStreamedAudioChunkSeekTable::CalcSize(BlockCount, Mode);
+			const int32 AudioSize = Chunk.Num();
+			const int32 CurrentTableSize = FStreamedAudioChunkSeekTable::CalcSize(BlockCount, Mode);
 			CreateChunkSeektableAndPrefix(Mode, InTable, ChunkStart - Source, Current - Source, Chunk, OutChunkOffsets, CurrentTableSize, BlockCount, AudioSize, Budget);
+
+			UE_LOG(LogAudio, Verbose, TEXT("Adding Chunk %d: Blocks=%d (%u bytes), SeekTableEntries=%d (%d bytes), ChunkSize=%u bytes, PercentFull=%2.2f, Remaining=%u bytes"),
+				OutBuffers.Num(), BlockCount, AudioSize, BlockCount, CurrentTableSize, Chunk.Num(), ((float)Chunk.Num() / Budget) * 100.f, Budget - Chunk.Num());
+
 			OutBuffers.Add(Chunk);
 		}
 

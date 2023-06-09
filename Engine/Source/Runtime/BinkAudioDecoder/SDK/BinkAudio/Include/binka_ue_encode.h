@@ -5,8 +5,6 @@
 typedef void* BAUECompressAllocFnType(uintptr_t ByteCount);
 typedef void BAUECompressFreeFnType(void* Ptr);
 
-// (NOTE! This was copied after integrating the latest source, so when updating make sure
-// it stays around!
 #define BINKA_COMPRESS_SUCCESS 0
 #define BINKA_COMPRESS_ERROR_CHANS 1
 #define BINKA_COMPRESS_ERROR_SAMPLES 2
@@ -15,6 +13,7 @@ typedef void BAUECompressFreeFnType(void* Ptr);
 #define BINKA_COMPRESS_ERROR_ALLOCATORS 5
 #define BINKA_COMPRESS_ERROR_OUTPUT 6
 #define BINKA_COMPRESS_ERROR_SEEKTABLE 7
+#define BINKA_COMPRESS_ERROR_SIZE 8
 
 #define BINKA_MAX_CHANS_STR TEXT("16") // (8*2) MAX_STREAMS stereo
 #define BINKA_MIN_RATE_STR TEXT("2 khz")
