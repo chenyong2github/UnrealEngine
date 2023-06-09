@@ -67,7 +67,7 @@ namespace Horde.Commands.Bundles
 					for(int referenceIdx = 0; referenceIdx < export.References.Count; referenceIdx++)
 					{
 						BundleExportRef exportRef = export.References[referenceIdx];
-						NodeLocator nodeLocator = new NodeLocator(header.Imports[exportRef.ImportIdx], exportRef.NodeIdx);
+						NodeLocator nodeLocator = new NodeLocator(exportRef.Hash, header.Imports[exportRef.ImportIdx], exportRef.NodeIdx);
 						logger.LogInformation("            REF {RefIdx,-3} -> {Node}", referenceIdx, nodeLocator);
 					}
 				}

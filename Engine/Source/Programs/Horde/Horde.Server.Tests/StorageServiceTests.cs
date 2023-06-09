@@ -44,20 +44,20 @@ namespace Horde.Server.Tests
 			Bundle bundle = new Bundle(header, Array.Empty<ReadOnlyMemory<byte>>());
 			BlobLocator locator = await client.WriteBundleAsync(bundle);
 
-			await client.AddAliasAsync("foo", new HashedNodeLocator(hash1, locator, 0));
-			await client.AddAliasAsync("foo", new HashedNodeLocator(hash1, locator, 1));
-			await client.AddAliasAsync("bar", new HashedNodeLocator(hash2, locator, 2));
+			await client.AddAliasAsync("foo", new NodeLocator(hash1, locator, 0));
+			await client.AddAliasAsync("foo", new NodeLocator(hash1, locator, 1));
+			await client.AddAliasAsync("bar", new NodeLocator(hash2, locator, 2));
 
 			List<BlobHandle> handles;
 			
 			handles = await client.FindNodesAsync("foo").ToListAsync();
 			Assert.AreEqual(2, handles.Count);
-			Assert.AreEqual(new NodeLocator(locator, 0), handles[0].GetLocator());
-			Assert.AreEqual(new NodeLocator(locator, 1), handles[1].GetLocator());
+			Assert.AreEqual(new NodeLocator(hash1, locator, 0), handles[0].GetLocator());
+			Assert.AreEqual(new NodeLocator(hash1, locator, 1), handles[1].GetLocator());
 
 			handles = await client.FindNodesAsync("bar").ToListAsync();
 			Assert.AreEqual(1, handles.Count);
-			Assert.AreEqual(new NodeLocator(locator, 2), handles[0].GetLocator());
+			Assert.AreEqual(new NodeLocator(hash2, locator, 2), handles[0].GetLocator());
 		}
 	}
 }

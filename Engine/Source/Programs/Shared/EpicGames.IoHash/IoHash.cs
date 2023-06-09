@@ -189,7 +189,7 @@ namespace EpicGames.Core
 		/// <param name="text"></param>
 		/// <param name="hash">Receives the hash on success</param>
 		/// <returns></returns>
-		public static bool TryParse(string text, out IoHash hash)
+		public static bool TryParse(ReadOnlySpan<char> text, out IoHash hash)
 		{
 			byte[]? bytes;
 			if (StringUtils.TryParseHexString(text, out bytes) && bytes.Length == IoHash.NumBytes)

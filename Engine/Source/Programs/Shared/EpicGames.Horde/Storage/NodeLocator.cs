@@ -4,6 +4,7 @@ using System;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using EpicGames.Core;
@@ -20,6 +21,11 @@ namespace EpicGames.Horde.Storage
 	public struct NodeLocator : IEquatable<NodeLocator>
 	{
 		/// <summary>
+		/// Hash of the referenced node
+		/// </summary>
+		public IoHash Hash { get; }
+
+		/// <summary>
 		/// Location of the blob containing this node
 		/// </summary>
 		public BlobLocator Blob { get; }
@@ -32,8 +38,9 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public NodeLocator(BlobLocator blob, int exportIdx)
+		public NodeLocator(IoHash hash, BlobLocator blob, int exportIdx)
 		{
+			Hash = hash;
 			Blob = blob;
 			ExportIdx = exportIdx;
 		}
@@ -50,6 +57,25 @@ namespace EpicGames.Horde.Storage
 		/// <returns></returns>
 		public static NodeLocator Parse(ReadOnlySpan<char> text)
 		{
+			int hashLength = IoHash.NumBytes * 2;
+
+			IoHash hash;
+			if (text.Length == hashLength && IoHash.TryParse(text, out hash))
+			{
+				return new NodeLocator(hash, default, 0);
+			}
+
+			if (text[hashLength] == '@')
+			{
+				hash = IoHash.Parse(text.Slice(0, hashLength));
+				text = text.Slice(hashLength + 1);
+			}
+			else
+			{
+				// For legacy locators that don't have a hash, hash the path instead. This is obviously incorrect, but we never validate hashes and will serve as a stable id during migration.
+				hash = IoHash.Compute(Encoding.UTF8.GetBytes(text.ToString()));
+			}
+
 			int hashIdx = text.IndexOf('#');
 			if (hashIdx == -1)
 			{
@@ -58,7 +84,7 @@ namespace EpicGames.Horde.Storage
 
 			int exportIdx = Int32.Parse(text.Slice(hashIdx + 1), NumberStyles.None, CultureInfo.InvariantCulture);
 			BlobLocator blobLocator = new BlobLocator(new Utf8String(text.Slice(0, hashIdx)));
-			return new NodeLocator(blobLocator, exportIdx);
+			return new NodeLocator(hash, blobLocator, exportIdx);
 		}
 
 		/// <inheritdoc/>
@@ -71,70 +97,13 @@ namespace EpicGames.Horde.Storage
 		public override int GetHashCode() => HashCode.Combine(Blob, ExportIdx);
 
 		/// <inheritdoc/>
-		public override string ToString() => $"{Blob}#{ExportIdx}";
+		public override string ToString() => $"{Hash}@{Blob}#{ExportIdx}";
 
 		/// <inheritdoc/>
 		public static bool operator ==(NodeLocator left, NodeLocator right) => left.Equals(right);
 
 		/// <inheritdoc/>
 		public static bool operator !=(NodeLocator left, NodeLocator right) => !left.Equals(right);
-	}
-
-	/// <summary>
-	/// Combination of a NodeLocator with Hash
-	/// </summary>
-	/// <param name="Hash">Hash of the target node</param>
-	/// <param name="Locator">Locator for the node</param>
-	public readonly record struct HashedNodeLocator(IoHash Hash, NodeLocator Locator)
-	{
-		/// <inheritdoc cref="NodeLocator.Blob"/>
-		public BlobLocator Blob => Locator.Blob;
-
-		/// <inheritdoc cref="NodeLocator.ExportIdx"/>
-		public int ExportIdx => Locator.ExportIdx;
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		public HashedNodeLocator(IoHash hash, BlobLocator blobLocator, int exportIdx) 
-			: this(hash, new NodeLocator(blobLocator, exportIdx))
-		{
-		}
-
-		/// <summary>
-		/// Parse a node handle value from a string
-		/// </summary>
-		/// <param name="text">Text to parse</param>
-		/// <returns>Parsed node handle</returns>
-		public static HashedNodeLocator Parse(string text)
-		{
-			int hashLength = IoHash.NumBytes * 2;
-			if (text.Length == hashLength)
-			{
-				return new HashedNodeLocator(IoHash.Parse(text), default);
-			}
-			else if (text[hashLength] == '@')
-			{
-				return new HashedNodeLocator(IoHash.Parse(text.Substring(0, hashLength)), NodeLocator.Parse(text.Substring(hashLength + 1)));
-			}
-			else
-			{
-				throw new FormatException("Invalid NodeHandle value");
-			}
-		}
-
-		/// <inheritdoc/>
-		public override string ToString()
-		{
-			if (Locator.IsValid())
-			{
-				return $"{Hash}@{Locator}";
-			}
-			else
-			{
-				return $"{Hash}";
-			}
-		}
 	}
 
 	/// <summary>

@@ -99,7 +99,7 @@ namespace EpicGames.Horde.Storage
 		public abstract ValueTask<NodeLocator> FlushAsync(CancellationToken cancellationToken = default);
 
 		/// <inheritdoc/>
-		public override string ToString() => HasLocator() ? new HashedNodeLocator(Hash, GetLocator()).ToString() : Hash.ToString();
+		public override string ToString() => HasLocator()? GetLocator().ToString() : Hash.ToString();
 	}
 
 	/// <summary>

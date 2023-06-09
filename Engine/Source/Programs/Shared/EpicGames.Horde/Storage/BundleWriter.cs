@@ -62,16 +62,8 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public FlushedNodeHandle(BundleReader reader, HashedNodeLocator hashedLocator)
-			: this(reader, hashedLocator.Hash, hashedLocator.Locator)
-		{
-		}
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		public FlushedNodeHandle(BundleReader reader, IoHash hash, NodeLocator locator)
-			: base(hash)
+		public FlushedNodeHandle(BundleReader reader, NodeLocator locator)
+			: base(locator.Hash)
 		{
 			_reader = reader;
 			_locator = locator;
@@ -547,7 +539,7 @@ namespace EpicGames.Horde.Storage
 
 					for (int idx = 0; idx < _queue.Count; idx++)
 					{
-						NodeLocator nodeLocator = new NodeLocator(locator, idx);
+						NodeLocator nodeLocator = new NodeLocator(_queue[idx].Key.Hash, locator, idx);
 						traceLogger?.LogInformation("Updated pending node {Hash} with locator {Locator}", _queue[idx].Key.Hash, nodeLocator);
 						_queue[idx].MarkAsWritten(nodeLocator);
 					}

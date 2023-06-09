@@ -364,7 +364,7 @@ namespace Horde.Server.Storage
 			}
 
 			IStorageClientImpl client = await _storageService.GetClientAsync(namespaceId, cancellationToken);
-			HashedNodeLocator target = new HashedNodeLocator(request.Hash, request.Blob, request.ExportIdx);
+			NodeLocator target = new NodeLocator(request.Hash, request.Blob, request.ExportIdx);
 			await client.WriteRefTargetAsync(refName, target, request.Options, cancellationToken);
 
 			return Ok();
@@ -573,7 +573,7 @@ namespace Horde.Server.Storage
 
 			object content;
 
-			BlobData nodeData = await reader.ReadNodeDataAsync(new NodeLocator(locator, exportIdx), cancellationToken);
+			BlobData nodeData = await reader.ReadNodeDataAsync(new NodeLocator(export.Hash, locator, exportIdx), cancellationToken);
 
 			Node node = Node.Deserialize(nodeData);
 			switch (node)
