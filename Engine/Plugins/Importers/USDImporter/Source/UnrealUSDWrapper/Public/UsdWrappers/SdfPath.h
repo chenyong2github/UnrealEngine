@@ -42,6 +42,8 @@ namespace UE
 
 		bool operator==( const FSdfPath& Other ) const;
 		bool operator!=( const FSdfPath& Other ) const;
+		bool operator<(const FSdfPath& Other) const;
+		bool operator<=(const FSdfPath& Other) const;
 
 		friend UNREALUSDWRAPPER_API uint32 GetTypeHash( const UE::FSdfPath& Path );
 		friend UNREALUSDWRAPPER_API FArchive& operator<<( FArchive& Ar, FSdfPath& Path );

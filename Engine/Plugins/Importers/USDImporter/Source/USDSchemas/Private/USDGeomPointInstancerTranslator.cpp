@@ -152,8 +152,6 @@ void FUsdGeomPointInstancerTranslator::CreateAssets()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE( FUsdGeomPointInstancerTranslator::CreateAssets );
 
-	RegisterAuxiliaryPrims();
-
 	FScopedUsdAllocs Allocs;
 
 	pxr::UsdPrim Prim = GetPrim();
@@ -523,6 +521,11 @@ bool FUsdGeomPointInstancerTranslator::CanBeCollapsed( ECollapsingType Collapsin
 
 TSet<UE::FSdfPath> FUsdGeomPointInstancerTranslator::CollectAuxiliaryPrims() const
 {
+	if (!Context->bIsBuildingInfoCache)
+	{
+		return Context->InfoCache->GetAuxiliaryPrims(PrimPath);
+	}
+
 	FScopedUsdAllocs UsdAllocs;
 
 	pxr::UsdPrim Prim = GetPrim();

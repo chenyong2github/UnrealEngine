@@ -140,6 +140,12 @@ struct USDSCHEMAS_API FUsdSchemaTranslationContext : public TSharedFromThis< FUs
 	/** True if we're a context created by the USDStageImporter to fully import to persistent assets and actors */
 	bool bIsImporting = false;
 
+	/**
+	 * True if we're building the InfoCache assigned to this context. This usually means we shouldn't query it for information, and should instead
+	 * compute it manually so that it can be cached
+	 */
+	bool bIsBuildingInfoCache = false;
+
 	/** pxr::UsdStage we're translating from */
 	UE::FUsdStage Stage;
 
@@ -287,12 +293,6 @@ public:
 
 	virtual ~FUsdSchemaTranslator() = default;
 
-	/**
-	 * Translates the prim at PrimPath, creating assets.
-	 * Derived classes that wish to implement FUsdSchemaTranslator::CreateAssets should manually call
-	 * FUsdSchemaTranslator::RegisterAuxiliaryPrims and implement CollectAuxiliaryPrims to catalog their
-	 * dependency prims and regenerate assets when those prims are updated.
-	 */
 	virtual void CreateAssets() {}
 
 	virtual USceneComponent* CreateComponents() { return nullptr; }
@@ -311,10 +311,6 @@ public:
 	virtual bool CanBeCollapsed( ECollapsingType CollapsingType ) const { return false; }
 
 	UE::FUsdPrim GetPrim() const { return Context->Stage.GetPrimAtPath(PrimPath); }
-
-protected:
-	/** Calls CollectAuxiliaryPrims to record the current dependencies in the Context's InfoCache */
-	void RegisterAuxiliaryPrims();
 
 protected:
 	UE::FSdfPath PrimPath;

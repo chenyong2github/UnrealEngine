@@ -268,8 +268,6 @@ void FUsdGeomXformableTranslator::CreateAssets()
 		return;
 	}
 
-	RegisterAuxiliaryPrims();
-
 	Context->TranslatorTasks.Add( MakeShared< FUsdGeomXformableCreateAssetsTaskChain >( Context, PrimPath ) );
 }
 
@@ -672,9 +670,9 @@ bool FUsdGeomXformableTranslator::CollapsesChildren( ECollapsingType CollapsingT
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE( FUsdGeomXformableTranslator::CollapsesChildren );
 
-	if ( Context->InfoCache.IsValid() )
+	if (!Context->bIsBuildingInfoCache)
 	{
-		return Context->InfoCache->DoesPathCollapseChildren( PrimPath, CollapsingType );
+		return Context->InfoCache->DoesPathCollapseChildren(PrimPath, CollapsingType);
 	}
 
 	bool bCollapsesChildren = false;
@@ -754,9 +752,9 @@ bool FUsdGeomXformableTranslator::CanBeCollapsed( ECollapsingType CollapsingType
 
 TSet<UE::FSdfPath> FUsdGeomXformableTranslator::CollectAuxiliaryPrims() const
 {
-	if (!Context->InfoCache.IsValid())
+	if (!Context->bIsBuildingInfoCache)
 	{
-		return {};
+		return Context->InfoCache->GetAuxiliaryPrims(PrimPath);
 	}
 
 	if (!Context->InfoCache->DoesPathCollapseChildren(PrimPath, ECollapsingType::Assets))

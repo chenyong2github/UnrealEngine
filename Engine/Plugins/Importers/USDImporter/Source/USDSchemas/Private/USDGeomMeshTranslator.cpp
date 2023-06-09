@@ -1004,12 +1004,10 @@ void FUsdGeomMeshTranslator::CreateAssets()
 		return Super::CreateAssets();
 	}
 
-	RegisterAuxiliaryPrims();
+	TSharedRef< FGeomMeshCreateAssetsTaskChain > AssetsTaskChain = MakeShared< FGeomMeshCreateAssetsTaskChain >(Context, PrimPath);
 
-		TSharedRef< FGeomMeshCreateAssetsTaskChain > AssetsTaskChain = MakeShared< FGeomMeshCreateAssetsTaskChain >(Context, PrimPath);
-
-		Context->TranslatorTasks.Add(MoveTemp(AssetsTaskChain));
-	}
+	Context->TranslatorTasks.Add(MoveTemp(AssetsTaskChain));
+}
 
 USceneComponent* FUsdGeomMeshTranslator::CreateComponents()
 {
@@ -1124,6 +1122,11 @@ TSet<UE::FSdfPath> FUsdGeomMeshTranslator::CollectAuxiliaryPrims() const
 	if (!IsMeshPrim())
 	{
 		return Super::CollectAuxiliaryPrims();
+	}
+
+	if (!Context->bIsBuildingInfoCache)
+	{
+		return Context->InfoCache->GetAuxiliaryPrims(PrimPath);
 	}
 
 	TSet<UE::FSdfPath> Result;

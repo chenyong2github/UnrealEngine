@@ -250,8 +250,6 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 		}
 	}
 
-	RegisterAuxiliaryPrims();
-
 	const pxr::TfToken RenderContextToken =
 		Context->RenderContext.IsNone() ?
 			pxr::UsdShadeTokens->universalRenderContext :
@@ -553,6 +551,11 @@ void FUsdShadeMaterialTranslator::PostImportMaterial(const FString& MaterialHash
 
 TSet<UE::FSdfPath> FUsdShadeMaterialTranslator::CollectAuxiliaryPrims() const
 {
+	if (!Context->bIsBuildingInfoCache)
+	{
+		return Context->InfoCache->GetAuxiliaryPrims(PrimPath);
+	}
+
 	TSet<UE::FSdfPath> Result;
 	{
 		TFunction<void(const pxr::UsdShadeInput&)> TraverseShadeInput;

@@ -35,12 +35,16 @@ public:
 	struct FUsdInfoCacheImpl;
 
 	FUsdInfoCache();
+	FUsdInfoCache(const FUsdInfoCache& Other);
 	virtual ~FUsdInfoCache();
 
 	bool Serialize(FArchive& Ar);
 
 	// Returns whether we contain any info about prim at 'Path' at all
 	bool ContainsInfoAboutPrim(const UE::FSdfPath& Path) const;
+
+	// Returns a list of all prims we have generic info about
+	TSet<UE::FSdfPath> GetKnownPrims() const;
 
 	void RebuildCacheForSubtree(const UE::FUsdPrim& Prim, FUsdSchemaTranslationContext& Context);
 
@@ -55,12 +59,6 @@ public:
 	UE::FSdfPath UnwindToNonCollapsedPath(const UE::FSdfPath& Path, ECollapsingType CollapsingType) const;
 
 public:
-	// Records that whenever we want to translate MainPrim, we need to read one or more attributes off AuxPrim
-	void RegisterAuxiliaryPrim(const UE::FSdfPath& MainPrimPath, const UE::FSdfPath& AuxPrimPath) const;
-	void RegisterAuxiliaryPrims(const UE::FSdfPath& MainPrimPath, const TSet<UE::FSdfPath>& AuxPrimPaths) const;
-
-	void RemoveAuxiliaryPrims(const UE::FSdfPath& MainPrimPath) const;
-
 	// Returns the paths to prims that, when translated into assets or components, also require reading the prim at
 	// 'Path'. e.g. providing the path to a Shader prim will return the paths to all Material prims for which the
 	// translation involves reading that particular Shader.

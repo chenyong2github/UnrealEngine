@@ -102,9 +102,6 @@ void FMdlUsdShadeMaterialTranslator::CreateAssets()
 		return;
 	}
 
-	// Note that we rely on FUsdShadeMaterialTranslator's implementation of CollectAuxiliaryPrims
-	RegisterAuxiliaryPrims();
-
 	const pxr::TfToken MdlToken = UnrealToUsd::ConvertToken( *MdlRenderContext.ToString() ).Get();
 
 	pxr::UsdShadeShader SurfaceShader = ShadeMaterial.ComputeSurfaceSource( MdlToken );

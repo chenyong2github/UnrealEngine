@@ -266,6 +266,8 @@ public:
 	USDSTAGE_API AUsdStageActor();
 
 protected:
+	bool UnloadAssets(const UE::FSdfPath& PrimPath, bool bForEntireSubtree);
+
 	/** Loads the asset for a single prim */
 	bool LoadAsset(FUsdSchemaTranslationContext& TranslationContext, const UE::FUsdPrim& Prim);
 
@@ -278,7 +280,7 @@ protected:
 	UUsdPrimTwin* GetRootPrimTwin();
 	UUsdPrimTwin* GetOrCreatePrimTwin(const UE::FSdfPath& UsdPrimPath);
 
-	UUsdPrimTwin* ExpandPrim(const UE::FUsdPrim& Prim, FUsdSchemaTranslationContext& TranslationContext);
+	UUsdPrimTwin* ExpandPrim(const UE::FUsdPrim& Prim, bool bResync, FUsdSchemaTranslationContext& TranslationContext);
 	void UpdatePrim(const UE::FSdfPath& UsdPrimPath, bool bResync, FUsdSchemaTranslationContext& TranslationContext);
 
 	void OpenUsdStage();

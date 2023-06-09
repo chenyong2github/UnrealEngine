@@ -112,6 +112,24 @@ namespace UE
 		return !( *this == Other );
 	}
 
+	bool FSdfPath::operator<(const FSdfPath& Other) const
+	{
+#if USE_USD_SDK
+		return Impl->PxrSdfPath.Get() < Other.Impl->PxrSdfPath.Get();
+#else
+		return false;
+#endif // #if USE_USD_SDK
+	}
+
+	bool FSdfPath::operator<=(const FSdfPath& Other) const
+	{
+#if USE_USD_SDK
+		return Impl->PxrSdfPath.Get() <= Other.Impl->PxrSdfPath.Get();
+#else
+		return false;
+#endif // #if USE_USD_SDK
+	}
+
 	uint32 GetTypeHash( const UE::FSdfPath& Path )
 	{
 		uint32 Result = 0;

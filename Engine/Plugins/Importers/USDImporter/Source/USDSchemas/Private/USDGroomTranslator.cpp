@@ -365,8 +365,6 @@ void FUsdGroomTranslator::CreateAssets()
 		return Super::CreateAssets();
 	}
 
-	RegisterAuxiliaryPrims();
-
 	Context->TranslatorTasks.Add(MakeShared<FUsdGroomCreateAssetsTaskChain>(Context, PrimPath));
 }
 
@@ -471,9 +469,9 @@ TSet<UE::FSdfPath> FUsdGroomTranslator::CollectAuxiliaryPrims() const
 		return Super::CollectAuxiliaryPrims();
 	}
 
-	if (!Context->InfoCache.IsValid())
+	if (!Context->bIsBuildingInfoCache)
 	{
-		return {};
+		return Context->InfoCache->GetAuxiliaryPrims(PrimPath);
 	}
 
 	if (!Context->InfoCache->DoesPathCollapseChildren(PrimPath, ECollapsingType::Assets))

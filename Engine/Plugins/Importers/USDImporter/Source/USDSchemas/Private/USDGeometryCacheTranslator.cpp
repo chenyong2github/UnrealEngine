@@ -826,8 +826,6 @@ void FUsdGeometryCacheTranslator::CreateAssets()
 		return;
 	}
 
-	RegisterAuxiliaryPrims();
-
 	// Create the GeometryCache TaskChain
 	TSharedRef<FGeometryCacheCreateAssetsTaskChain> AssetsTaskChain = MakeShared<FGeometryCacheCreateAssetsTaskChain>(Context, PrimPath);
 
@@ -989,19 +987,11 @@ void FUsdGeometryCacheTranslator::UpdateComponents(USceneComponent* SceneCompone
 
 bool FUsdGeometryCacheTranslator::CollapsesChildren(ECollapsingType CollapsingType) const
 {
-	if (!Context->InfoCache.IsValid())
-	{
-		return Super::CollapsesChildren(CollapsingType);
-	}
 	return IsPotentialGeometryCacheRoot() ? true : Super::CollapsesChildren(CollapsingType);
 }
 
 bool FUsdGeometryCacheTranslator::CanBeCollapsed(ECollapsingType CollapsingType) const
 {
-	if (!Context->InfoCache.IsValid())
-	{
-		return Super::CanBeCollapsed(CollapsingType);
-	}
 	return IsPotentialGeometryCacheRoot() ? false : Super::CanBeCollapsed(CollapsingType);
 }
 
@@ -1010,6 +1000,11 @@ TSet<UE::FSdfPath> FUsdGeometryCacheTranslator::CollectAuxiliaryPrims() const
 	if (!IsPotentialGeometryCacheRoot())
 	{
 		return Super::CollectAuxiliaryPrims();
+	}
+
+	if (!Context->bIsBuildingInfoCache)
+	{
+		return Context->InfoCache->GetAuxiliaryPrims(PrimPath);
 	}
 
 	TSet<UE::FSdfPath> AuxPrims;
@@ -1029,8 +1024,6 @@ TSet<UE::FSdfPath> FUsdGeometryCacheTranslator::CollectAuxiliaryPrims() const
 
 bool FUsdGeometryCacheTranslator::IsPotentialGeometryCacheRoot() const
 {
-	check(Context->InfoCache.IsValid());
-
 	// The logic to check for GeometryCache is completely in the InfoCache
 	return Context->InfoCache->IsPotentialGeometryCacheRoot(PrimPath);
 }

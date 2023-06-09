@@ -1642,8 +1642,6 @@ void FUsdSkelRootTranslator::CreateAssets()
 	TRACE_CPUPROFILER_EVENT_SCOPE(FUsdSkelRootTranslator::CreateAssets);
 
 #if WITH_EDITOR
-	RegisterAuxiliaryPrims();
-
 	// Importing skeletal meshes actually works in Standalone mode, but we intentionally block it here
 	// to not confuse users as to why it doesn't work at runtime
 	TSharedRef< UsdSkelRootTranslatorImpl::FSkelRootCreateAssetsTaskChain > AssetsTaskChain =
@@ -1877,9 +1875,9 @@ bool FUsdSkelRootTranslator::CanBeCollapsed(ECollapsingType CollapsingType) cons
 
 TSet<UE::FSdfPath> FUsdSkelRootTranslator::CollectAuxiliaryPrims() const
 {
-	if (!Context->InfoCache.IsValid())
+	if (!Context->bIsBuildingInfoCache)
 	{
-		return {};
+		return Context->InfoCache->GetAuxiliaryPrims(PrimPath);
 	}
 
 	if (!Context->InfoCache->DoesPathCollapseChildren(PrimPath, ECollapsingType::Assets))

@@ -97,6 +97,24 @@ struct FUsdInfoCache::FUsdInfoCacheImpl
 		AllowedExtensionsForGeometryCacheSource.Add(TEXT("abc"));
 	}
 
+	FUsdInfoCacheImpl(const FUsdInfoCacheImpl& Other)
+		: FUsdInfoCacheImpl()
+	{
+		// Probably not necessary
+		FReadScopeLock ScopedInfoMapLock(Other.InfoMapLock);
+		FReadScopeLock ScopedPrimPathToAssetsLock(Other.PrimPathToAssetsLock);
+		FReadScopeLock ScopedMaterialUsersLock(Other.MaterialUsersLock);
+		FReadScopeLock ScopedAuxPrimsLock(Other.AuxiliaryPrimsLock);
+
+		InfoMap = Other.InfoMap;
+		PrimPathToAssets = Other.PrimPathToAssets;
+		AssetToPrimPaths = Other.AssetToPrimPaths;
+		MaterialUsers = Other.MaterialUsers;
+		AuxToMainPrims = Other.AuxToMainPrims;
+		MainToAuxPrims = Other.MainToAuxPrims;
+		AllowedExtensionsForGeometryCacheSource = Other.AllowedExtensionsForGeometryCacheSource;
+	}
+
 	// Information we must have about all prims on the stage
 	TMap< UE::FSdfPath, UE::UsdInfoCache::Private::FUsdPrimInfo > InfoMap;
 	mutable FRWLock InfoMapLock;
@@ -119,11 +137,39 @@ struct FUsdInfoCache::FUsdInfoCacheImpl
 
 	// Geometry cache can come from a reference or payload of these file types
 	TArray<FString> AllowedExtensionsForGeometryCacheSource;
+
+public:
+	void RegisterAuxiliaryPrims(const UE::FSdfPath& MainPrimPath, const TSet<UE::FSdfPath>& AuxPrimPaths)
+	{
+		if (AuxPrimPaths.Num() == 0)
+		{
+			return;
+		}
+
+		FWriteScopeLock ScopeLock(AuxiliaryPrimsLock);
+
+		MainToAuxPrims.FindOrAdd(MainPrimPath).Append(AuxPrimPaths);
+
+		for (const UE::FSdfPath& AuxPrimPath : AuxPrimPaths)
+		{
+			UE_LOG(LogUsd, Verbose, TEXT("Registering main prim '%s' and aux prim '%s'"),
+				*MainPrimPath.GetString(),
+				*AuxPrimPath.GetString()
+			);
+
+			AuxToMainPrims.FindOrAdd(AuxPrimPath).Add(MainPrimPath);
+		}
+	}
 };
 
 FUsdInfoCache::FUsdInfoCache()
 {
-	Impl = MakeUnique< FUsdInfoCache::FUsdInfoCacheImpl>();
+	Impl = MakeUnique<FUsdInfoCache::FUsdInfoCacheImpl>();
+}
+
+FUsdInfoCache::FUsdInfoCache(const FUsdInfoCache& Other)
+{
+	Impl = MakeUnique<FUsdInfoCache::FUsdInfoCacheImpl>(*Other.Impl);
 }
 
 FUsdInfoCache::~FUsdInfoCache()
@@ -166,6 +212,21 @@ bool FUsdInfoCache::ContainsInfoAboutPrim( const UE::FSdfPath& Path ) const
 	}
 
 	return false;
+}
+
+TSet<UE::FSdfPath> FUsdInfoCache::GetKnownPrims() const
+{
+	TSet<UE::FSdfPath> Result;
+
+	if (FUsdInfoCacheImpl* ImplPtr = Impl.Get())
+	{
+		FReadScopeLock ScopeLock(ImplPtr->InfoMapLock);
+
+		ImplPtr->InfoMap.GetKeys(Result);
+		return Result;
+	}
+
+	return Result;
 }
 
 bool FUsdInfoCache::IsPathCollapsed( const UE::FSdfPath& Path, ECollapsingType CollapsingType ) const
@@ -244,67 +305,6 @@ UE::FSdfPath FUsdInfoCache::UnwindToNonCollapsedPath( const UE::FSdfPath& Path, 
 	}
 
 	return Path;
-}
-
-void FUsdInfoCache::RegisterAuxiliaryPrim(const UE::FSdfPath& MainPrimPath, const UE::FSdfPath& AuxPrimPath) const
-{
-	if (FUsdInfoCacheImpl* ImplPtr = Impl.Get())
-	{
-		FWriteScopeLock ScopeLock(ImplPtr->AuxiliaryPrimsLock);
-
-		UE_LOG(LogUsd, Verbose, TEXT("Registering main prim '%s' and aux prim '%s'"),
-			*MainPrimPath.GetString(),
-			*AuxPrimPath.GetString()
-		);
-
-		ImplPtr->MainToAuxPrims.FindOrAdd(MainPrimPath).Add(AuxPrimPath);
-		ImplPtr->AuxToMainPrims.FindOrAdd(AuxPrimPath).Add(MainPrimPath);
-	}
-}
-
-void FUsdInfoCache::RegisterAuxiliaryPrims(const UE::FSdfPath& MainPrimPath, const TSet<UE::FSdfPath>& AuxPrimPaths) const
-{
-	if (FUsdInfoCacheImpl* ImplPtr = Impl.Get())
-	{
-		FWriteScopeLock ScopeLock(ImplPtr->AuxiliaryPrimsLock);
-
-		ImplPtr->MainToAuxPrims.FindOrAdd(MainPrimPath).Append(AuxPrimPaths);
-
-		for (const UE::FSdfPath& AuxPrimPath : AuxPrimPaths)
-		{
-			UE_LOG(LogUsd, Verbose, TEXT("Registering main prim '%s' and aux prim '%s'"),
-				*MainPrimPath.GetString(),
-				*AuxPrimPath.GetString()
-			);
-
-			ImplPtr->AuxToMainPrims.FindOrAdd(AuxPrimPath).Add(MainPrimPath);
-		}
-	}
-}
-
-void FUsdInfoCache::RemoveAuxiliaryPrims(const UE::FSdfPath& MainPrimPath) const
-{
-	if (FUsdInfoCacheImpl* ImplPtr = Impl.Get())
-	{
-		FWriteScopeLock ScopeLock(ImplPtr->AuxiliaryPrimsLock);
-
-		TSet<UE::FSdfPath> AuxPrimPaths;
-		ImplPtr->MainToAuxPrims.RemoveAndCopyValue(MainPrimPath, AuxPrimPaths);
-
-		for (const UE::FSdfPath& AuxPrimPath : AuxPrimPaths)
-		{
-			UE_LOG(LogUsd, Verbose, TEXT("Removing auxilliary prim '%s' from main prim '%s'"),
-				*AuxPrimPath.GetString(),
-				*MainPrimPath.GetString()
-			);
-
-			TSet<UE::FSdfPath>* MainPrimPaths = ImplPtr->AuxToMainPrims.Find(AuxPrimPath);
-			if (ensure(MainPrimPaths))
-			{
-				MainPrimPaths->Remove(MainPrimPath);
-			}
-		}
-	}
 }
 
 TSet<UE::FSdfPath> FUsdInfoCache::GetMainPrims(const UE::FSdfPath& AuxPrimPath) const
@@ -506,14 +506,12 @@ namespace UE::USDInfoCacheImpl::Private
 
 		if (!UsdPrim.IsPseudoRoot())
 		{
+			pxr::UsdShadeMaterial ShadeMaterial;
+
 			pxr::UsdShadeMaterialBindingAPI BindingAPI{UsdPrim};
 			if (BindingAPI)
 			{
-				if (pxr::UsdShadeMaterial ShadeMaterial = BindingAPI.ComputeBoundMaterial(MaterialPurposeToken))
-				{
-					FWriteScopeLock ScopeLock(Impl.MaterialUsersLock);
-					Impl.MaterialUsers.FindOrAdd(UE::FSdfPath{ShadeMaterial.GetPrim().GetPath()}).Add(UE::FSdfPath{UsdPrimPath});
-				}
+				ShadeMaterial = BindingAPI.ComputeBoundMaterial(MaterialPurposeToken);
 			}
 			else if (pxr::UsdRelationship Relationship = UsdPrim.GetRelationship(pxr::UsdShadeTokens->materialBinding))
 			{
@@ -524,12 +522,43 @@ namespace UE::USDInfoCacheImpl::Private
 				{
 					const pxr::SdfPath& TargetMaterialPrimPath = Targets[0];
 					pxr::UsdPrim MaterialPrim = UsdPrim.GetStage()->GetPrimAtPath(TargetMaterialPrimPath);
-					pxr::UsdShadeMaterial UsdShadeMaterial{MaterialPrim};
-					if (UsdShadeMaterial)
-					{
-						FWriteScopeLock ScopeLock(Impl.MaterialUsersLock);
-						Impl.MaterialUsers.FindOrAdd(UE::FSdfPath{TargetMaterialPrimPath}).Add(UE::FSdfPath{UsdPrimPath});
-					}
+					ShadeMaterial = pxr::UsdShadeMaterial{MaterialPrim};
+				}
+			}
+
+			if (ShadeMaterial)
+			{
+				UE::FSdfPath UsedMaterialPath{ShadeMaterial.GetPrim().GetPath()};
+
+				FWriteScopeLock ScopeLock(Impl.MaterialUsersLock);
+				TSet<UE::FSdfPath>& MaterialUsersForPrim = Impl.MaterialUsers.FindOrAdd(UsedMaterialPath);
+
+				MaterialUsersForPrim.Add(PrimPath);
+
+				UE_LOG(
+					LogUsd,
+					Verbose,
+					TEXT("Registering prim '%s' as a material user of material prim '%s'"),
+					*PrimPath.GetString(),
+					*UsedMaterialPath.GetString()
+				);
+
+				// Our notice handling is somewhat stricter now, and we have no good way of upgrading a simple material info change
+				// into a resync change of the StaticMeshComponent when we change a material that is bound directly to a
+				// UsdGeomSubset, since the GeomMesh translator doesn't collapse. We'll unwind this path later when fetching material
+				// users, so collapsed static meshes are handled OK, skeletal meshes are handled OK, we just need this one exception
+				// for handling uncollapsed static meshes, because by default Mesh prims don't "collapse" their child UsdGeomSubsets
+				if (pxr::UsdGeomSubset Subset{UsdPrim})
+				{
+					UE::FSdfPath ParentMesh{PrimPath.GetParentPath()};
+					UE_LOG(
+						LogUsd,
+						Verbose,
+						TEXT("Registering prim '%s' as a material user of material prim '%s'"),
+						*ParentMesh.GetString(),
+						*UsedMaterialPath.GetString()
+					);
+					MaterialUsersForPrim.Add(ParentMesh);
 				}
 			}
 		}
@@ -854,9 +883,10 @@ namespace UE::USDInfoCacheImpl::Private
 		bool bIsAssetCollapsed = !AssetCollapsedRoot.IsEmpty();
 		bool bIsComponentCollapsed = !ComponentCollapsedRoot.IsEmpty();
 
-		if (!bIsAssetCollapsed || !bIsComponentCollapsed)
+		TSharedPtr< FUsdSchemaTranslator > SchemaTranslator = Registry.CreateTranslatorForSchema(Context.AsShared(), UE::FUsdTyped(UsdPrim));
+		if (SchemaTranslator)
 		{
-			if (TSharedPtr< FUsdSchemaTranslator > SchemaTranslator = Registry.CreateTranslatorForSchema(Context.AsShared(), UE::FUsdTyped(UsdPrim)))
+			if (!bIsAssetCollapsed || !bIsComponentCollapsed)
 			{
 				const bool bCanMeshSubtreeBeCollapsed = CanMeshSubtreeBeCollapsed(UsdPrim, Context, Impl, SchemaTranslator);
 
@@ -916,6 +946,24 @@ namespace UE::USDInfoCacheImpl::Private
 			// collapsed
 			Info.AssetCollapsedRoot = *AssetCollapsedRootOverride;
 			Info.ComponentCollapsedRoot = *ComponentCollapsedRootOverride;
+		}
+
+		// This really should be a separate pass, but it does no harm here and we have so many passes already...
+		// This needs to happen after we set things into the FUsdPrimInfo for this prim right above this, as it may query
+		// whether this prim (or any of its children) collapse
+		if (SchemaTranslator)
+		{
+			const bool bIsCollapsedBySomeParent = AssetCollapsedRootOverride && !AssetCollapsedRootOverride->IsEmpty()
+												  && *AssetCollapsedRootOverride != UsdPrimPath;
+
+			// We don't care about prims that were collapsed by another. This because whenever the collapse root
+			// registers its auxiliary prims it will already account for all of the collapsed prims that are relevant,
+			// according to the translator type. If we registered aux prims for all prims here, we'd get useless aux
+			// prim links between e.g. all parent and child prims *within* the collapsed subtree
+			if (!bIsCollapsedBySomeParent)
+			{
+				Impl.RegisterAuxiliaryPrims(PrimPath, SchemaTranslator->CollectAuxiliaryPrims());
+			}
 		}
 	}
 
@@ -1049,7 +1097,7 @@ namespace UE::USDInfoCacheImpl::Private
 		// if the prim can serve as a root and collapse its children into a GeometryCache. The sole condition for
 		// being a valid root is that all the branches of the subtree are collapsible.
 		EGeometryCachePrimState ChildrenState = EGeometryCachePrimState::None;
-		for (EGeometryCachePrimState ChildState : States) 
+		for (EGeometryCachePrimState ChildState : States)
 		{
 			ChildrenState |= ChildState;
 		}
@@ -1394,8 +1442,7 @@ void FUsdInfoCache::RebuildCacheForSubtree( const UE::FUsdPrim& Prim, FUsdSchema
 	// We can't deallocate our info cache pointer with the Usd allocator
 	FScopedUnrealAllocs UEAllocs;
 
-	// We don't want the translation context to try using its info cache during the rebuild process, as that's the entire point
-	TGuardValue< TSharedPtr<FUsdInfoCache> > Guard{ Context.InfoCache, nullptr };
+	TGuardValue<bool> Guard{Context.bIsBuildingInfoCache, true};
 	{
 		FScopedUsdAllocs Allocs;
 
@@ -1406,8 +1453,7 @@ void FUsdInfoCache::RebuildCacheForSubtree( const UE::FUsdPrim& Prim, FUsdSchema
 		}
 
 		// Don't call Clear() here as we don't want to get rid of PrimPathToAssets because we're rebuilding the cache,
-		// as that info is also linked to the asset cache. The same for the aux prim maps, that currently gets
-		// filled in on-demand.
+		// as that info is also linked to the asset cache
 		{
 			FWriteScopeLock ScopeLock(ImplPtr->InfoMapLock);
 			ImplPtr->InfoMap.Empty();
@@ -1415,6 +1461,11 @@ void FUsdInfoCache::RebuildCacheForSubtree( const UE::FUsdPrim& Prim, FUsdSchema
 		{
 			FWriteScopeLock ScopeLock(ImplPtr->MaterialUsersLock);
 			ImplPtr->MaterialUsers.Empty();
+		}
+		{
+			FWriteScopeLock ScopeLock(ImplPtr->AuxiliaryPrimsLock);
+			ImplPtr->AuxToMainPrims.Empty();
+			ImplPtr->MainToAuxPrims.Empty();
 		}
 
 		IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT( "USDSchemas" ) );
