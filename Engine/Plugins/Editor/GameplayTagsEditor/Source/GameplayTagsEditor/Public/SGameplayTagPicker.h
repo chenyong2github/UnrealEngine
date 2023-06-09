@@ -332,9 +332,6 @@ private:
 	/** Creates a dropdown menu to provide additional functionality for tags (renaming, deletion, search for references, etc.) */
 	TSharedRef<SWidget> MakeTagActionsMenu(TSharedPtr<FGameplayTagNode> InTagNode, TSharedPtr<SComboButton> OwnerCombo, const bool bInShouldCloseWindowAfterMenuSelection);
 
-	/** Creates add menu content. */
-	TSharedRef<SWidget> MakeAddMenu();
-
 	/** Creates settings menu content. */
 	TSharedRef<SWidget> MakeSettingsMenu(TSharedPtr<SComboButton> OwnerCombo);
 
