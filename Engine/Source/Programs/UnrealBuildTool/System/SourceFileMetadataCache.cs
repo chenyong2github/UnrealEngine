@@ -28,7 +28,8 @@ namespace UnrealBuildTool
 	{
 		Valid = 0,
 		Unsupported = 1,
-		Skip = 2
+		Skip = 2,
+		Ignore = 3
 	}
 
 	/// <summary>
@@ -73,6 +74,11 @@ namespace UnrealBuildTool
 			public bool bContainsMarkup;
 
 			/// <summary>
+			/// Whether or not the file has types that use DLL export/import defines
+			/// </summary>
+			public bool bUsesAPIDefine;
+
+			/// <summary>
 			/// List of includes that header contains
 			/// </summary>
 			public List<string>? Includes;
@@ -83,7 +89,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The current file version
 		/// </summary>
-		public const int CurrentVersion = 6;
+		public const int CurrentVersion = 7;
 
 		/// <summary>
 		/// Location of this dependency cache
@@ -250,7 +256,7 @@ namespace UnrealBuildTool
 					Match ImportMatch = ImportRegex.Match(Line);
 					if (ImportMatch.Success)
 					{
-						return IncludeMatch.Groups[1].Value;
+						return ImportMatch.Groups[1].Value;
 					}
 				}
 			}
@@ -296,12 +302,69 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Attempts to find the include in the passed in line
+		/// </summary>
+		/// <param name="Line">Line from a file</param>
+		/// <returns>Include found or null if not found</returns>
+		static private string? FindInclude(string Line)
+		{
+			ReadOnlySpan<char> IncludeSpan = Line.AsSpan().TrimStart();
+			if (IncludeSpan.StartsWith("#include"))
+			{
+				IncludeSpan = IncludeSpan.Slice("#include".Length).TrimStart();
+				if (IncludeSpan.IsEmpty)
+				{
+					return null;
+				}
+
+				char EndChar;
+				bool TrimQuotation = true;
+				if (IncludeSpan[0] == '"')
+				{
+					EndChar = '"';
+				}
+				else if (IncludeSpan[0] == '<')
+				{
+					EndChar = '>';
+				}
+				else
+				{
+					EndChar = ')';
+					TrimQuotation = false;
+				}
+
+				if (TrimQuotation)
+				{
+					IncludeSpan = IncludeSpan.Slice(1);
+				}
+
+				int EndIndex = IncludeSpan.IndexOf(EndChar);
+				if (EndIndex == -1)
+				{
+					return null;
+				}
+
+				// This will include the ')' at the end
+				if (!TrimQuotation)
+				{
+					EndIndex++;
+				}
+
+				IncludeSpan = IncludeSpan.Slice(0, EndIndex);
+
+				return IncludeSpan.ToString();
+			}
+			return null;
+		}
+
+		/// <summary>
 		/// Read entire header file to find markup and includes
 		/// </summary>
 		/// <returns>A HeaderInfo struct containing information about header</returns>
 		private void ParseHeader(HeaderFileInfo HeaderFileInfo, string[] FileText)
 		{
 			bool bContainsMarkup = false;
+			bool bUsesAPIDefine = false;
 			SortedSet<string> Includes = new();
 			foreach (string Line in FileText)
 			{
@@ -310,50 +373,17 @@ namespace UnrealBuildTool
 					bContainsMarkup = ReflectionMarkupRegex.IsMatch(Line);
 				}
 
-				ReadOnlySpan<char> IncludeSpan = Line.AsSpan().TrimStart();
-				if (IncludeSpan.StartsWith("#include"))
+				if (!bUsesAPIDefine)
 				{
-					IncludeSpan = IncludeSpan.Slice("#include".Length).TrimStart();
-					if (IncludeSpan.IsEmpty)
-					{
-						continue;
-					}
-
-					char EndChar;
-					bool TrimQuotation = true;
-					if (IncludeSpan[0] == '"')
-					{
-						EndChar = '"';
-					}
-					else if (IncludeSpan[0] == '<')
-					{
-						EndChar = '>';
-					}
-					else
-					{
-						EndChar = ')';
-						TrimQuotation = false;
-					}
-					if (TrimQuotation)
-					{
-						IncludeSpan = IncludeSpan.Slice(1);
-					}
-
-					if (IncludeSpan.Contains("HEADER_UNIT_IGNORE", StringComparison.OrdinalIgnoreCase))
-					{
-						continue;
-					}
-
-					int EndIndex = IncludeSpan.IndexOf(EndChar);
-
-					if (EndIndex == -1)
-					{
-						continue;
-					}
-
-					IncludeSpan = IncludeSpan.Slice(0, EndIndex);
-					Includes.Add(IncludeSpan.ToString());
+					bUsesAPIDefine = Line.Contains("_API", StringComparison.Ordinal);
 				}
+
+				string? Include = FindInclude(Line);
+				if (Include == null)
+				{
+					continue;
+				}
+				Includes.Add(Include);
 
 				int HeaderUnitIndex = Line.IndexOf("HEADER_UNIT_");
 				if (HeaderUnitIndex != -1)
@@ -367,10 +397,15 @@ namespace UnrealBuildTool
 					{
 						HeaderFileInfo.UnitType = HeaderUnitType.Skip;
 					}
+					else if (Span.StartsWith("IGNORE"))
+					{
+						HeaderFileInfo.UnitType = HeaderUnitType.Ignore;
+					}
 				}
 			}
 
 			HeaderFileInfo.bContainsMarkup = bContainsMarkup;
+			HeaderFileInfo.bUsesAPIDefine = bUsesAPIDefine;
 			HeaderFileInfo.Includes = Includes.ToList();
 		}
 
@@ -430,6 +465,16 @@ namespace UnrealBuildTool
 		public bool ContainsReflectionMarkup(FileItem HeaderFile)
 		{
 			return GetHeaderFileInfo(HeaderFile).bContainsMarkup;
+		}
+
+		/// <summary>
+		/// Determines whether the given file uses the *_API define
+		/// </summary>
+		/// <param name="HeaderFile">The source file to parse</param>
+		/// <returns>True if the file uses the *_API define</returns>
+		public bool UsesAPIDefine(FileItem HeaderFile)
+		{
+			return GetHeaderFileInfo(HeaderFile).bUsesAPIDefine;
 		}
 
 		/// <summary>
@@ -547,6 +592,7 @@ namespace UnrealBuildTool
 						HeaderFileInfo HeaderFileInfo = new HeaderFileInfo();
 						HeaderFileInfo.LastWriteTimeUtc = Reader.ReadLong();
 						HeaderFileInfo.bContainsMarkup = Reader.ReadBool();
+						HeaderFileInfo.bUsesAPIDefine = Reader.ReadBool();
 						HeaderFileInfo.UnitType = (HeaderUnitType)Reader.ReadByte();
 						HeaderFileInfo.Includes = Reader.ReadList(() => Reader.ReadString())!;
 
@@ -592,6 +638,7 @@ namespace UnrealBuildTool
 						Writer.WriteCompactFileItem(Pair.Key);
 						Writer.WriteLong(Pair.Value.LastWriteTimeUtc);
 						Writer.WriteBool(Pair.Value.bContainsMarkup);
+						Writer.WriteBool(Pair.Value.bUsesAPIDefine);
 						Writer.WriteByte((byte)Pair.Value.UnitType);
 						Writer.WriteList(Pair.Value.Includes, Item => Writer.WriteString(Item));
 					}

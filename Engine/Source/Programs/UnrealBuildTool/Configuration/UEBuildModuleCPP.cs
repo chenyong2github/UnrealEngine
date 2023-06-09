@@ -820,13 +820,124 @@ namespace UnrealBuildTool
 			return HeaderFileItems;
 		}
 
+		private void FindIncludedHeaders(HashSet<string> VisitedIncludes, HashSet<FileItem> FoundIncludeFileItems, HashSet<string> IncludesNotFound, CppCompileEnvironment CompileEnvironment, FileItem FileToSearch, ILogger Logger)
+		{
+			HashSet<DirectoryReference> SearchPaths = new(CompileEnvironment.UserIncludePaths);
+			SearchPaths.Add(FileToSearch.Directory.Location);
+
+			foreach (string HeaderInclude in CompileEnvironment.MetadataCache.GetHeaderIncludes(FileToSearch))
+			{
+				string TranformedHeaderInclude = HeaderInclude;
+				if (TranformedHeaderInclude.Contains("COMPILED_PLATFORM_HEADER("))
+				{
+					string PlatformName = UEBuildPlatform.GetBuildPlatform(CompileEnvironment.Platform).GetPlatformName();
+					TranformedHeaderInclude = TranformedHeaderInclude.Replace("COMPILED_PLATFORM_HEADER(", PlatformName + "/" + PlatformName);
+					TranformedHeaderInclude = TranformedHeaderInclude.TrimEnd(')');
+				}
+
+				if (VisitedIncludes.Add(TranformedHeaderInclude))
+				{
+					var FoundDir = SearchPaths.FirstOrDefault(dir => DirectoryLookupCache.FileExists(FileReference.Combine(dir, TranformedHeaderInclude)));
+					if (FoundDir != null)
+					{
+						FileItem IncludeFileItem = FileItem.GetItemByFileReference(FileReference.Combine(FoundDir, TranformedHeaderInclude));
+						FoundIncludeFileItems.Add(IncludeFileItem);
+						Logger.LogDebug("{0} SharedPCH - '{1}' included '{2}'.", Name, FileToSearch.Location, IncludeFileItem.Location);
+
+						FindIncludedHeaders(VisitedIncludes, FoundIncludeFileItems, IncludesNotFound, CompileEnvironment, IncludeFileItem, Logger);
+					}
+					else
+					{
+						if (!TranformedHeaderInclude.Contains('.'))
+						{
+							Logger.LogDebug("{0} SharedPCH - Skipping '{1}' found in '{2}' because it doesn't appear to be a module header.", Name, TranformedHeaderInclude, FileToSearch.Location);
+						}
+						else if (TranformedHeaderInclude.EndsWith(".generated.h"))
+						{
+							Logger.LogDebug("{0} SharedPCH - Skipping '{1}' found in '{2}' because it appears to be a generated UHT header.", Name, TranformedHeaderInclude, FileToSearch.Location);
+						}
+						else
+						{
+							Logger.LogDebug("{0} SharedPCH - Could not find include directory for '{1}' found in '{2}'.", Name, TranformedHeaderInclude, FileToSearch.Location);
+							IncludesNotFound.Add(TranformedHeaderInclude);
+						}
+					}
+				}
+			}
+		}
+
+		/// <summary>
+		/// Gets the list of module dependencies that this module declares and then tries to optimize the list to what is actually used by the header.
+		/// </summary>
+		/// <param name="CompileEnvironment">Compile environment for this PCH</param>
+		/// <param name="PCHHeaderFile">PCH header file</param>
+		/// <param name="Logger">Logger for output</param>
+		/// <returns>Returns an optimized list of modules this module's shared PCH uses</returns>
+		private HashSet<UEBuildModule> GetSharedPCHModuleDependencies(CppCompileEnvironment CompileEnvironment, FileItem PCHHeaderFile, ILogger Logger)
+		{
+			Dictionary<UEBuildModule, bool> ModuleToIncludePathsOnlyFlag = new Dictionary<UEBuildModule, bool>();
+			FindModulesInPublicCompileEnvironment(ModuleToIncludePathsOnlyFlag);
+
+			HashSet<UEBuildModule> AllModuleDeps = ModuleToIncludePathsOnlyFlag.Keys.ToHashSet();
+			HashSet<UEBuildModule> ModuleDeps = new HashSet<UEBuildModule>(AllModuleDeps) { this };
+
+			HashSet<string> VisitedIncludes = new();
+			HashSet<FileItem> FoundIncludeFileItems = new();
+			HashSet<string> IncludesNotFound = new();
+			FindIncludedHeaders(VisitedIncludes, FoundIncludeFileItems, IncludesNotFound, CompileEnvironment, PCHHeaderFile, Logger);
+			if (IncludesNotFound.Any())
+			{
+				// We are assuming that the includes not found aren't important. If this is found to be not true then we should return all the module dependencies
+				//return AllModuleDeps;
+			}
+
+			bool FoundAllModules = true;
+			HashSet<UEBuildModule> OptModules = new();
+			foreach (var IncludeFile in FoundIncludeFileItems)
+			{
+				if (CompileEnvironment.MetadataCache.UsesAPIDefine(IncludeFile) || CompileEnvironment.MetadataCache.ContainsReflectionMarkup(IncludeFile))
+				{
+					UEBuildModule? FoundModule = ModuleDeps.FirstOrDefault(Module => Module.ContainsFile(IncludeFile.Location));
+					if (FoundModule != null)
+					{
+						if (ModuleToIncludePathsOnlyFlag[FoundModule])
+						{
+							Logger.LogDebug("{0} SharedPCH - '{1}' is exporting types but '{2}' isn't declared as a public dependency.", Name, IncludeFile.Location, FoundModule);
+						}
+
+						OptModules.Add(FoundModule);
+					}
+					else
+					{
+						Logger.LogWarning("{0} SharedPCH - '{1}' is exporting types but the module this file belongs to isn't declared as a public dependency or include.", Name, IncludeFile.Location);
+						FoundAllModules = false;
+					}
+				}
+				else
+				{
+					Logger.LogDebug("{0} SharedPCH - '{1}' is not exporting types so we are ignoring the dependency", Name, IncludeFile.Location);
+				}	
+			}
+
+			if (!FoundAllModules)
+			{
+				Logger.LogWarning("{0} SharedPCH - Is missing public dependencies. To be safe, this shared PCH will fall back to use all the module dependencies. Note that this could affect compile times.", Name);
+				return AllModuleDeps;
+			}
+			else
+			{
+				return OptModules;
+			}
+		}
+
 		/// <summary>
 		/// Create a shared PCH template for this module, which allows constructing shared PCH instances in the future
 		/// </summary>
 		/// <param name="Target">The target which owns this module</param>
 		/// <param name="BaseCompileEnvironment">Base compile environment for this target</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <returns>Template for shared PCHs</returns>
-		public PrecompiledHeaderTemplate CreateSharedPCHTemplate(UEBuildTarget Target, CppCompileEnvironment BaseCompileEnvironment)
+		public PrecompiledHeaderTemplate CreateSharedPCHTemplate(UEBuildTarget Target, CppCompileEnvironment BaseCompileEnvironment, ILogger Logger)
 		{
 			CppCompileEnvironment CompileEnvironment = CreateSharedPCHCompileEnvironment(Target, BaseCompileEnvironment);
 			FileItem HeaderFile = FileItem.GetItemByFileReference(FileReference.Combine(ModuleDirectory, Rules.SharedPCHHeaderFile!));
@@ -841,7 +952,7 @@ namespace UnrealBuildTool
 				PrecompiledHeaderDir = IntermediateDirectory;
 			}
 
-			return new PrecompiledHeaderTemplate(this, CompileEnvironment, HeaderFile, PrecompiledHeaderDir, GetAllDependencyModulesForPCH(false, false));
+			return new PrecompiledHeaderTemplate(this, CompileEnvironment, HeaderFile, PrecompiledHeaderDir, GetSharedPCHModuleDependencies(CompileEnvironment, HeaderFile, Logger));
 		}
 
 		static HashSet<string> GetImmutableDefinitions(List<string> Definitions)
