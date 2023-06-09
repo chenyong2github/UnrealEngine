@@ -5,6 +5,8 @@
 #include "Modules/ModuleManager.h"
 #include "Features/IPluginsEditorFeature.h"
 
+DECLARE_DELEGATE_OneParam(FOnLaunchReferenceViewer, TSharedPtr<IPlugin>);
+
 /**
  * The public interface to this module
  */
@@ -43,6 +45,11 @@ public:
 	 * @return	A shared reference to the dock tab where the new plugin widget is created.
 	 */
 	virtual TSharedRef<class SDockTab> SpawnPluginCreatorTab(const class FSpawnTabArgs& SpawnTabArgs, TSharedPtr<class IPluginWizardDefinition> PluginWizardDefinition) = 0;
+
+	/**
+	 * Allows another module that supplies the plugin reference viewer to launch when requested.
+	 */
+	virtual FOnLaunchReferenceViewer& OnLaunchReferenceViewerDelegate() = 0;
 };
 
 

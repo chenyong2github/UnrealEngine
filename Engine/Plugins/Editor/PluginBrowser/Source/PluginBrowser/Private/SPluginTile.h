@@ -54,6 +54,9 @@ private:
 	/** Called when the 'package' hyperlink is clicked */
 	void OnPackagePlugin();
 
+	/** Called when the "reference viewer' hyperlink is clicked */
+	void OnOpenPluginReferenceViewer();
+
 	/** Called when the beta or experimental flags are hovered over, or when a beta or experimental plugin is enabled */
 	FText GetBetaOrExperimentalHelpText() const;
 

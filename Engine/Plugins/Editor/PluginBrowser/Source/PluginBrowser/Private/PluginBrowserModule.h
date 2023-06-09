@@ -40,6 +40,8 @@ public:
 	/** Broadcasts callback to notify registrants that a plugin has been created */
 	void BroadcastNewPluginCreated() const {NewPluginCreatedDelegate.Broadcast();}
 
+	virtual FOnLaunchReferenceViewer& OnLaunchReferenceViewerDelegate() override { return LaunchReferenceViewerDelegate; }
+
 	/**
 	 * Sets whether a plugin is pending enable/disable
 	 * @param PluginName The name of the plugin
@@ -120,6 +122,9 @@ private:
 
 	/** Delegate called when a new plugin is created */
 	FOnNewPluginCreated NewPluginCreatedDelegate;
+
+	/** Delegate that if bound the Plugin Browser will show the Reference Viewer button. Delegate called when the button is clicked */
+	FOnLaunchReferenceViewer LaunchReferenceViewerDelegate;
 
 	/** Notification popup that new plugins are available */
 	TWeakPtr<SNotificationItem> NewPluginsNotification;

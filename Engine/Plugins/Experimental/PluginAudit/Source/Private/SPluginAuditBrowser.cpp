@@ -20,7 +20,7 @@
 #include "IMessageLogListing.h"
 #include "MessageLogModule.h"
 #include "Misc/UObjectToken.h"
-#include "SPluginReferenceViewer.h"
+#include "PluginReferenceViewerModule.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SBorder.h"
@@ -136,13 +136,6 @@ void SPluginAuditBrowser::Construct(const FArguments& InArgs)
 			.Value(0.90f)
 			[
 				SNew(SVerticalBox)
-
-				// Path and history
-				+SVerticalBox::Slot()
-				.FillHeight(0.90f)
-				[
-					SAssignNew(PluginReferenceViewer, SPluginReferenceViewer)
-				]
 
 				+ SVerticalBox::Slot()
 				.AutoHeight()
@@ -351,12 +344,7 @@ void SPluginAuditBrowser::OnOpenPluginDependencyViewer()
 	TArray<TSharedRef<FCookedPlugin>> SelectedItems = PluginListView->GetSelectedItems();
 	if (SelectedItems.Num() == 1)
 	{
-		TSharedRef<IPlugin> SelectedPlugin = SelectedItems[0]->Plugin;
-
-		TArray<FPluginIdentifier> NewGraphRootNames;
-		NewGraphRootNames.Add(FName(SelectedPlugin->GetName()));
-
-		PluginReferenceViewer->SetGraphRoot(NewGraphRootNames);
+		FPluginReferenceViewerModule::Get().OpenPluginReferenceViewerUI(SelectedItems[0]->Plugin);
 	}
 }
 

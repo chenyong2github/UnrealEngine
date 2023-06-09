@@ -212,6 +212,33 @@ void SPluginTile::RecreateWidgets()
 					
 				];
 	}
+
+	TSharedPtr<SWidget> ReferenceViewerWidget = SNullWidget::NullWidget;
+	if (FPluginBrowserModule::Get().OnLaunchReferenceViewerDelegate().IsBound())
+	{
+		ReferenceViewerWidget = SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			[
+				SNew(SImage)
+				.ColorAndOpacity(FSlateColor::UseForeground())
+				.Image(FAppStyle::Get().GetBrush("ContentBrowser.ReferenceViewer"))
+			]
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+			[
+				SNew(SHyperlink)
+				.OnNavigate(this, &SPluginTile::OnOpenPluginReferenceViewer)
+				.Text(LOCTEXT("PluginReferenceViewer", "Reference Viewer"))
+				.ToolTipText(LOCTEXT("NavigateToPluginReferenceViewer", "Launches the plugin reference viewer showing this plugins' references"))
+				.Style(FAppStyle::Get(), "HoverOnlyHyperlink")
+			];
+	}
+
 	
 	TSharedRef<SHorizontalBox> MiscLinks = SNew(SHorizontalBox);
 	
@@ -272,6 +299,17 @@ void SPluginTile::RecreateWidgets()
 				.Style(FAppStyle::Get(), "HoverOnlyHyperlink")
 			]
 		];
+
+	if (ReferenceViewerWidget != SNullWidget::NullWidget)
+	{
+		MiscLinks->AddSlot()
+			.AutoWidth()
+			.Padding(PaddingAmount, PaddingAmount, PaddingAmount + 14.f, PaddingAmount)
+			.HAlign(HAlign_Left)
+			[
+				ReferenceViewerWidget.ToSharedRef()
+			];
+	}
 
 	if (DocumentationWidget != SNullWidget::NullWidget)
 	{
@@ -680,6 +718,11 @@ void SPluginTile::OnPackagePlugin()
 
 	IUATHelperModule::Get().CreateUatTask(CommandLine, PlatformName, LOCTEXT("PackagePluginTaskName", "Packaging Plugin"),
 		LOCTEXT("PackagePluginTaskShortName", "Package Plugin Task"), FAppStyle::GetBrush(TEXT("MainFrame.CookContent")));
+}
+
+void SPluginTile::OnOpenPluginReferenceViewer()
+{
+	FPluginBrowserModule::Get().OnLaunchReferenceViewerDelegate().Execute(Plugin);
 }
 
 FText SPluginTile::GetBetaOrExperimentalHelpText() const

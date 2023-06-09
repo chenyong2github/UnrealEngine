@@ -55,6 +55,7 @@ public class PluginAudit : ModuleRules
 				"GameFeatures",
 				"GameplayTags",
 				"AssetManagerEditor",
+				"PluginReferenceViewer",
 			}
 		);
 	}
