@@ -28,6 +28,7 @@ public:
 	bool operator==(const TSerializablePtr<T>& Serializable) const { return Ptr == Serializable.Ptr; }
 	bool operator!=(const TSerializablePtr<T>& Serializable) const { return Ptr != Serializable.Ptr; }
 	operator bool() const { return Ptr != nullptr; }
+	bool IsValid() const { return Ptr != nullptr; }
 
 	template <typename R>
 	operator TSerializablePtr<R>() const
