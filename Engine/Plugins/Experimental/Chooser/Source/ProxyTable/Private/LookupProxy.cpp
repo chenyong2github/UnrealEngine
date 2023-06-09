@@ -3,12 +3,28 @@
 #include "ProxyTableFunctionLibrary.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "ChooserPropertyAccess.h"
-#include "UObject/Package.h"
+
+FLookupProxy::FLookupProxy()
+{
+	ProxyTable.InitializeAs(FProxyTableContextProperty::StaticStruct());
+}
 
 UObject* FLookupProxy::ChooseObject(FChooserEvaluationContext& Context) const
 {
 	if (Proxy)
 	{
+		if (const FChooserParameterProxyTableBase* ProxyTableParameter = ProxyTable.GetPtr<FChooserParameterProxyTableBase>())
+		{
+			const UProxyTable* Table = nullptr;
+			if (ProxyTableParameter->GetValue(Context, Table))
+			{
+				if (Table)
+				{
+					return Table->FindProxyObject(Proxy->Guid, Context);
+				}
+			}
+		}
+		// fallback codepath will look up the table from the property binding on the proxy asset
 		return Proxy->FindProxyObject(Context);
 	}
 	return nullptr;

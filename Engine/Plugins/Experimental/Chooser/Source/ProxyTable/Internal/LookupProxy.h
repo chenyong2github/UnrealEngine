@@ -40,11 +40,16 @@ struct PROXYTABLE_API FLookupProxy : public FObjectChooserBase
 {
 	GENERATED_BODY()
 	virtual UObject* ChooseObject(FChooserEvaluationContext& Context) const final override;
+
+	FLookupProxy();
 	
 	public:
 	
 	UPROPERTY(EditAnywhere, Category="Parameters")
 	TObjectPtr<UProxyAsset> Proxy;
+
+	UPROPERTY(EditAnywhere, NoClear, Meta = (ExcludeBaseStruct, BaseStruct = "/Script/ProxyTable.ChooserParameterProxyTableBase"), Category = "Parameters")
+	FInstancedStruct ProxyTable;
 };
 
 USTRUCT(meta=(Hidden))
