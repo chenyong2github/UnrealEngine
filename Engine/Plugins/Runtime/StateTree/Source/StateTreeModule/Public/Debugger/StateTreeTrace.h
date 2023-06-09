@@ -34,10 +34,7 @@ namespace UE::StateTreeTrace
 }
 
 #define TRACE_STATETREE_INSTANCE_EVENT(InstanceID, StateTree, InstanceName, EventType) \
-	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(StateTreeDebugChannel)) \
-	{ \
-		UE::StateTreeTrace::OutputInstanceLifetimeEvent(InstanceID, StateTree, InstanceName, EventType); \
-	}
+	UE::StateTreeTrace::OutputInstanceLifetimeEvent(InstanceID, StateTree, InstanceName, EventType);
 
 #define TRACE_STATETREE_PHASE_EVENT(InstanceID, Phase, EventType) \
 	UE::StateTreeTrace::ProcessPhaseScopeEvent(InstanceID, Phase, EventType); \
@@ -73,10 +70,7 @@ namespace UE::StateTreeTrace
 	}
 
 #define TRACE_STATETREE_ACTIVE_STATES_EVENT(InstanceId, ActivateStates) \
-	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(StateTreeDebugChannel)) \
-	{ \
-		UE::StateTreeTrace::OutputActiveStatesEventTrace(InstanceId, ActivateStates); \
-	}
+		UE::StateTreeTrace::OutputActiveStatesEventTrace(InstanceId, ActivateStates);
 
 #else //STATETREE_DEBUG_TRACE_ENABLED
 

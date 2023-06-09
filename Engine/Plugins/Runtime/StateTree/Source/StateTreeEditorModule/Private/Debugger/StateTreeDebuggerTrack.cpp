@@ -86,7 +86,7 @@ bool FStateTreeDebuggerInstanceTrack::UpdateInternal()
 			}
 			else
 			{
-				Window.TimeEnd = Debugger->IsActiveInstance(RecordingDuration, InstanceId) ? RecordingDuration : Span.GetWorldTimeEnd();
+				Window.TimeEnd = Debugger->IsActiveInstance(RecordingDuration, InstanceId) ? RecordingDuration : EventCollection.FrameSpans.Last().GetWorldTimeEnd();
 			}
 		}
 

@@ -788,15 +788,37 @@ void FStateTreeDebugger::AddEvents(const double StartTime, const double EndTime,
 			TimelineData.EnumerateEvents(StartTime,	EndTime,
 				[this, InstanceId, &FrameProvider, &Frame](const double EventStartTime, const double EventEndTime, uint32 InDepth, const FStateTreeTraceEventVariantType& Event)
 				{
+					bool bValidFrame = true;
+
 					// Fetch frame when not set yet or if events no longer part of the current one
 					if (Frame.Index == INDEX_NONE ||
 						(EventEndTime < Frame.StartTime || Frame.EndTime < EventStartTime))
 					{
-						FrameProvider.GetFrameFromTime(TraceFrameType_Game, EventStartTime, Frame);
+						bValidFrame = FrameProvider.GetFrameFromTime(TraceFrameType_Game, EventStartTime, Frame);
+
+						if (bValidFrame == false)
+						{
+							// Edge case for events from a missing first complete frame.
+							// (i.e. FrameProvider didn't get BeginFrame event but StateTreeEvent were sent in that frame)
+							// Doing this will merge our two first frames of state tree events using the same recording world time
+							// but this should happen only for late start recording.
+							const TraceServices::FFrame* FirstFrame = FrameProvider.GetFrame(TraceFrameType_Game, 0);
+							if (FirstFrame != nullptr && EventEndTime < FirstFrame->StartTime)
+							{
+								Frame = *FirstFrame;
+								bValidFrame = true;
+							}
+						}
 					}
 
-					const bool bKeepProcessing = ProcessEvent(InstanceId, Frame, Event);
-					return bKeepProcessing ? TraceServices::EEventEnumerate::Continue : TraceServices::EEventEnumerate::Stop;
+					if (bValidFrame)
+					{
+						const bool bKeepProcessing = ProcessEvent(InstanceId, Frame, Event);
+						return bKeepProcessing ? TraceServices::EEventEnumerate::Continue : TraceServices::EEventEnumerate::Stop;
+					}
+
+					// Skip events outside of game frames
+					return TraceServices::EEventEnumerate::Continue;
 				});
 		});
 }
