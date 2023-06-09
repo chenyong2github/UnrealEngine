@@ -333,7 +333,9 @@ namespace UnrealBuildTool
 				}
 
 				// Add Multi-user support for tvOS
-				if (Platform == UnrealTargetPlatform.TVOS)
+				bool bUserSwitching = false;
+				PlatformGameConfig.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bUserSwitching", out bUserSwitching);
+				if (bUserSwitching && Platform == UnrealTargetPlatform.TVOS)
 				{
 					Text.AppendLine("\t<key>com.apple.developer.user-management</key>");
 					Text.AppendLine("\t<array><string>runs-as-current-user</string></array>");

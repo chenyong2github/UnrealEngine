@@ -326,6 +326,10 @@ public:
     UPROPERTY(GlobalConfig, EditAnywhere, Category = "Remote Build", meta = (EditCondition = "bSupportSecondaryMac", DisplayName = "Override existing SSH permissions file for Secondary Mac", ConfigHierarchyEditable))
     FIOSBuildResourceFilePath SecondarySSHPrivateKeyOverridePath;
 
+	// Should the app be multi-users compatible on tvOS ? Requires the com.apple.developer.user-management entitlement.
+    UPROPERTY(GlobalConfig, EditAnywhere, Category = "Build", meta = (DisplayName = "Support user switching on tvOS"))
+    bool bUserSwitching;
+
     // If checked, the game will be able to handle multiple gamepads at the same time (the Siri Remote is a gamepad)
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Input, meta = (DisplayName = "Multiple gamepads support"))
 	bool bGameSupportsMultipleActiveControllers;
