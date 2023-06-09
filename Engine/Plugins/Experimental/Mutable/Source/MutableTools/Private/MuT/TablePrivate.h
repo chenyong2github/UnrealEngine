@@ -103,7 +103,7 @@ namespace mu
 		{
             uint32_t ver;
 			arch >> ver;
-			check(ver<=1);
+			check(ver<=2);
 
             uint32_t columnCount;
 			arch >> columnCount;
