@@ -72,7 +72,7 @@ public:
 	DECLARE_MULTICAST_DELEGATE(FOnEmptyControllers);
 	DECLARE_MULTICAST_DELEGATE(FOnEmptyBehaviours);
 	DECLARE_MULTICAST_DELEGATE(FOnEmptyActions);
-	
+
 	void Construct(const FArguments& InArgs, URemoteControlPreset* InPreset, TSharedPtr<IToolkitHost> InToolkitHost);
 	~SRemoteControlPanel();
 	static void Shutdown();
@@ -108,8 +108,9 @@ public:
 	/**
 	 * Exposes or unexposes a property.
 	 * @param InArgs The extension arguments of the property to toggle.
+	 * @param InDesiredName Desired Name for this property if leaved empty RC will deduce it itself
 	 */
-	void ToggleProperty(const FRCExposesPropertyArgs& InArgs);
+	void ToggleProperty(const FRCExposesPropertyArgs& InArgs, FString InDesiredName = TEXT(""));
 
 	/**
 	 * @return Whether or not the panel is in live mode.
@@ -183,7 +184,7 @@ private:
 	void OnBlueprintReinstanced();
 
 	/** Expose a property using its handle. */
-	void ExposeProperty(UObject* Object, FRCFieldPathInfo FieldPath);
+	void ExposeProperty(UObject* Object, FRCFieldPathInfo FieldPath, FString InDesiredName = TEXT(""));
 
 	/** Exposes a function.  */
 	void ExposeFunction(UObject* Object, UFunction* Function);
@@ -205,13 +206,13 @@ private:
 
 	/** Creates a widget that warns the user when the settings are currently ignoring the Protected flag is enabled. */
 	TSharedRef<SWidget> CreateProtectedIgnoredWarning() const;
-	
+
 	/** Creates a widget that warns the user when the settings are currently ignoring the Getter/Setter is enabled. */
 	TSharedRef<SWidget> CreateGetterSetterIgnoredWarning() const;
 
 	/** Create expose button, allowing to expose blueprints and actor functions. */
 	TSharedRef<SWidget> CreateExposeFunctionsButton();
-	
+
 	/** Create expose button, allowing to expose actors. */
 	TSharedRef<SWidget> CreateExposeActorsButton();
 
@@ -220,7 +221,7 @@ private:
 
 	/** Cache the classes (and parent classes) of all actors in the level. */
 	void CacheLevelClasses();
-	
+
 	//~ Handlers for various level actor events.
 	void OnActorAddedToLevel(AActor* Actor);
 	void OnLevelActorsRemoved(AActor* Actor);
@@ -234,7 +235,7 @@ private:
 
 	/** Create the details view for the entity currently selected. */
 	TSharedRef<SWidget> CreateEntityDetailsView();
-	
+
 	/** Update the details view following entity selection change.  */
 	void UpdateEntityDetailsView(const TSharedPtr<SRCPanelTreeNode>& SelectedNode);
 
@@ -247,13 +248,13 @@ private:
 	//~ Handlers called in order to clear the exposed property cache.
 	void OnEntityExposed(URemoteControlPreset* InPreset, const FGuid& InEntityId);
 	void OnEntityUnexposed(URemoteControlPreset* InPreset, const FGuid& InEntityId);
-	
+
 	/** Toggles the logging part of UI */
 	void OnLogCheckboxToggle(ECheckBoxState State);
 
 	/** Triggers a next frame update of the actor function picker to ensure that added actors are valid. */
 	void UpdateActorFunctionPicker();
-	
+
 	/** Handle clicking on the setting button. */
 	FReply OnClickSettingsButton();
 
@@ -262,13 +263,13 @@ private:
 
 	/* Refreshed called at max once per frame when a material is compiled. */
 	void TriggerMaterialCompiledRefresh();
-	
+
 	/** Registers default tool bar */
 	static void RegisterDefaultToolBar();
 
 	/** Makes a default asset editing toolbar */
 	void GenerateToolbar();
-	
+
 	/** Registers Auxiliary tool bar */
 	static void RegisterAuxiliaryToolBar();
 
@@ -306,7 +307,7 @@ private:
 
 	/** Called to test if user is able to delete a group/exposed entity. */
 	bool CanDeleteEntity() const;
-	
+
 	/** Called when user attempts to rename a group/exposed entity. */
 	void RenameEntity_Execute() const;
 
@@ -330,7 +331,7 @@ private:
 
 	/** Called to test if user is able to Duplicate a logic UI item. */
 	bool CanDuplicateItem() const;
-	
+
 	// Exposed Entities filtering. (Filters the Exposed Entities view)
 	void OnSearchTextChanged(const FText& InFilterText);
 	void OnSearchTextCommitted(const FText& InFilterText, ETextCommit::Type InCommitType);
@@ -341,7 +342,7 @@ private:
 
 	/** Loads settings from config based on the preset identifier. */
 	void LoadSettings(const FGuid& InInstanceId);
-	
+
 	/** Saves settings from config based on the preset identifier. */
 	void SaveSettings();
 
@@ -436,7 +437,7 @@ private:
 	TSharedPtr<class SRCActionPanel> ActionPanel;
 
 	/** LogicClipboardItem - Holds the latest item copied from a Logic panel
-	* 
+	*
 	* Note: We track UObjects (Data Model) here rather than the UI Models as the latter are swept away the moment the user navigates to a different Controller.
 	* For example if the user copies an action from a behaviour in a given Controller but then navigates to another Controller, we can no longer rely on the previous UI objects
 	* as they would have been discarded in favor of a new data set for the actively selected Controller */
@@ -450,7 +451,7 @@ public:
 
 	static const float MinimumPanelWidth;
 	// Global Delegates for Remote Control Logic
-	FOnControllerAdded OnControllerAdded;	
+	FOnControllerAdded OnControllerAdded;
 	FOnBehaviourAdded OnBehaviourAdded;
 	FOnActionAdded OnActionAdded;
 	FOnControllerSelectionChanged OnControllerSelectionChanged;

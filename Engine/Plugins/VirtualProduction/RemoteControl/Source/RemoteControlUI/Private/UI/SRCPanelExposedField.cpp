@@ -4,6 +4,7 @@
 
 #include "Algo/Transform.h"
 #include "Components/MeshComponent.h"
+#include "Components/SceneComponent.h"
 #include "EditorFontGlyphs.h"
 #include "Factories/IRCDefaultValueFactory.h"
 #include "IDetailTreeNode.h"
@@ -22,6 +23,8 @@
 #include "SRCPanelTreeNode.h"
 #include "SResetToDefaultPropertyEditor.h"
 #include "ScopedTransaction.h"
+#include "UnrealEdGlobals.h"
+#include "Editor/UnrealEdEngine.h"
 #include "Styling/AppStyle.h"
 #include "Styling/RemoteControlStyles.h"
 #include "Styling/SlateBrush.h"
@@ -32,7 +35,6 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Masks/SRCProtocolMask.h"
 #include "Widgets/SNullWidget.h"
-#include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "RemoteControlPanel"
@@ -66,6 +68,56 @@ namespace ExposedFieldUtils
 		OutValueWidget = FieldWidget;
 		OutEditConditionWidget = NodeWidgets.EditConditionWidget;
 	}
+
+	bool IsFieldPathMatchingWithNodePath(const TSharedPtr<IDetailTreeNode>& InNode, const TSharedPtr<FRemoteControlField>& InField)
+	{
+		if (!InField.IsValid())
+		{
+			// if not able to check it by default is true
+			return true;
+		}
+		TSharedPtr<IPropertyHandle> ParentHandle = InNode->CreatePropertyHandle();
+		const FStringView ParentPath = ParentHandle->GetPropertyPath();
+		FString PropPath = InField->FieldPathInfo.ToPathPropertyString();
+		PropPath = PropPath.Replace(TEXT("."), TEXT("->"));
+		const FName ParentPathName = FName(ParentPath);
+		return ParentPathName == FName(PropPath);
+	}
+
+	bool TryCreateWidgetForChildProperty(const TSharedPtr<IDetailTreeNode>& InNode, const TSharedPtr<FRemoteControlField>& InField, TSharedPtr<IPropertyHandle>& OutChildHandle, TSharedPtr<SWidget>& OutValueWidget, TSharedPtr<SWidget>& OutEditConditionWidget)
+	{
+		const TSharedPtr<IPropertyHandle> ParentHandle = InNode->CreatePropertyHandle();
+		uint32 ChildNum;
+		ParentHandle->GetNumChildren(ChildNum);
+		const FStringView ParentPath = ParentHandle->GetPropertyPath();
+		FString FieldPath = InField->FieldPathInfo.ToPathPropertyString();
+		FieldPath = FieldPath.Replace(TEXT("."), TEXT("->"));
+		const FName FieldPathName = FName(FieldPath);
+		const FName ParentPathName = FName(ParentPath);
+		// Need to check if it is a child of the location to update the arrows widget position in the scene when moving
+		const bool bIsLocation = ParentPathName == USceneComponent::GetRelativeLocationPropertyName() || ParentPathName == USceneComponent::GetAbsoluteLocationPropertyName();
+
+		for (uint32 ChildHandleIndex = 0; ChildHandleIndex < ChildNum; ++ChildHandleIndex)
+		{
+			const TSharedPtr<IPropertyHandle> ChildHandle = ParentHandle->GetChildHandle(ChildHandleIndex);
+			const FName ChildPathName = FName(ChildHandle->GetPropertyPath());
+			if (ChildPathName == FieldPathName)
+			{
+				ExposedFieldUtils::CreateWidgets(InNode, OutValueWidget, OutEditConditionWidget);
+				OutChildHandle = ChildHandle;
+				if (bIsLocation)
+				{
+					OutChildHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([]()
+					{
+						GUnrealEd->UpdatePivotLocationForSelection();
+					}));
+				}
+				OutValueWidget = OutChildHandle->CreatePropertyValueWidget();
+				return true;
+			}
+		}
+		return false;
+	}
 }
 
 TSharedPtr<SRCPanelTreeNode> SRCPanelExposedField::MakeInstance(const FGenerateWidgetArgs& Args)
@@ -82,7 +134,7 @@ void SRCPanelExposedField::Construct(const FArguments& InArgs, TWeakPtr<FRemoteC
 
 	ColumnSizeData = MoveTemp(InColumnSizeData);
 	WidgetRegistry = MoveTemp(InWidgetRegistry);
-	
+
 	HighlightText = InArgs._HighlightText;
 
 	ResetButtonWidget = SNullWidget::NullWidget;
@@ -90,10 +142,10 @@ void SRCPanelExposedField::Construct(const FArguments& InArgs, TWeakPtr<FRemoteC
 	if (TSharedPtr<FRemoteControlField> FieldPtr = WeakField.Pin())
 	{
 		Initialize(FieldPtr->GetId(), InArgs._Preset.Get(), InArgs._LiveMode);
-	
+
 		CachedLabel = FieldPtr->GetLabel();
 		EntityId = FieldPtr->GetId();
-		
+
 		if (FieldPtr->FieldType == EExposedFieldType::Property)
 		{
 			ConstructPropertyWidget();
@@ -131,7 +183,7 @@ EExposedFieldType SRCPanelExposedField::GetFieldType() const
 	{
 		return Field->FieldType;
 	}
-	
+
 	return EExposedFieldType::Invalid;
 }
 
@@ -227,7 +279,7 @@ TSharedRef<SWidget> SRCPanelExposedField::GetProtocolWidget(const FName ForColum
 			}
 		}
 	}
-	
+
 	return SRCPanelTreeNode::GetProtocolWidget(ForColumnName, InProtocolName);
 }
 
@@ -277,11 +329,11 @@ const bool SRCPanelExposedField::SupportsProtocol(const FName& InProtocolName) c
 void SRCPanelExposedField::Refresh()
 {
 	SRCPanelExposedEntity::Refresh();
-	
+
 	if (TSharedPtr<FRemoteControlField> Field = WeakField.Pin())
 	{
 		CachedLabel = Field->GetLabel();
-		
+
 		if (Field->FieldType == EExposedFieldType::Property)
 		{
 			ConstructPropertyWidget();
@@ -342,27 +394,37 @@ TSharedRef<SWidget> SRCPanelExposedField::ConstructWidget()
 
 				if (TSharedPtr<IDetailTreeNode> Node = Registry->GetObjectTreeNode(Object, Field->FieldPathInfo.ToPathPropertyString(), ERCFindNodeMethod::Path))
 				{
-					TArray<TSharedRef<IDetailTreeNode>> ChildNodes;
-					Node->GetChildren(ChildNodes);
-					ChildWidgets.Reset(ChildNodes.Num());
+					TSharedPtr<SWidget> ValueWidget = SNullWidget::NullWidget;
+					TSharedPtr<SWidget> EditConditionWidget = SNullWidget::NullWidget;
+					TSharedPtr<IPropertyHandle> PropertyHandle;
+					bool bIsChildPropertyWidgetCreated = false;
 
-					for (const TSharedRef<IDetailTreeNode>& ChildNode : ChildNodes)
+					if (!ExposedFieldUtils::IsFieldPathMatchingWithNodePath(Node, Field))
 					{
-						ChildWidgets.Add(SNew(SRCPanelFieldChildNode, ChildNode, ColumnSizeData));
+						bIsChildPropertyWidgetCreated = ExposedFieldUtils::TryCreateWidgetForChildProperty(Node, Field, PropertyHandle, ValueWidget, EditConditionWidget);
+					}
+
+					if (!bIsChildPropertyWidgetCreated)
+					{
+						TArray<TSharedRef<IDetailTreeNode>> ChildNodes;
+						Node->GetChildren(ChildNodes);
+						ChildWidgets.Reset(ChildNodes.Num());
+
+						for (const TSharedRef<IDetailTreeNode>& ChildNode : ChildNodes)
+						{
+							ChildWidgets.Add(SNew(SRCPanelFieldChildNode, ChildNode, ColumnSizeData));
+						}
+
+						ExposedFieldUtils::CreateWidgets(Node, ValueWidget, EditConditionWidget);
+
+						PropertyHandle = Node->CreatePropertyHandle();
 					}
 
 					TSharedPtr<SHorizontalBox> FieldWidget = SNew(SHorizontalBox);
-					TSharedPtr<SWidget> ValueWidget = SNullWidget::NullWidget;
-					TSharedPtr<SWidget> EditConditionWidget = SNullWidget::NullWidget;
-
-					ExposedFieldUtils::CreateWidgets(Node, ValueWidget, EditConditionWidget);
-
 					FieldWidget->AddSlot()
 					[
 						ValueWidget.ToSharedRef()
 					];
-
-					TSharedPtr<IPropertyHandle> PropertyHandle = Node->CreatePropertyHandle();
 					if (PropertyHandle && PropertyHandle->IsValidHandle() && (PropertyHandle->GetParentHandle()->GetPropertyDisplayName().ToString() == FString("Transform")
 						|| PropertyHandle->GetOuterBaseClass() == UMaterialInstanceDynamic::StaticClass()))
 					{
@@ -376,10 +438,9 @@ TSharedRef<SWidget> SRCPanelExposedField::ConstructWidget()
 						}
 
 						TWeakPtr<SRCPanelExposedField> WeakFieldPtr = SharedThis(this);
-						auto IsVisible = [WeakFieldPtr, Node]()
+						auto IsVisible = [WeakFieldPtr, PropertyHandle]()
 						{
 							TSharedPtr<SRCPanelExposedField> FieldPtr = WeakFieldPtr.Pin();
-							TSharedPtr<IPropertyHandle> PropertyHandle = Node->CreatePropertyHandle();
 							if (FieldPtr && PropertyHandle && PropertyHandle->IsValidHandle())
 							{
 								void* DataPtr;
@@ -392,7 +453,7 @@ TSharedRef<SWidget> SRCPanelExposedField::ConstructWidget()
 							}
 							return EVisibility::Hidden;
 						};
-						
+
 						ResetButtonWidget = SNew(SBox)
 							.HAlign(HAlign_Center)
 							.VAlign(VAlign_Center)
@@ -461,10 +522,10 @@ TSharedRef<SWidget> SRCPanelExposedField::ConstructWidget()
 
 					FText ErrorText = FText::Format(LOCTEXT("ExposedPropertyInvalidErrorMessage", "Could not find property {0} on object {1}"), FText::FromString(PropertyName), FText::FromString(TargetName));
 					IRemoteControlModule::BroadcastError(ErrorText.ToString());
-					
+
 					return MakeFieldWidget(CreateInvalidWidget(ErrorText));
 				}
-			} 
+			}
 		}
 
 		return MakeFieldWidget(CreateInvalidWidget());
@@ -484,7 +545,7 @@ TSharedRef<SWidget> SRCPanelExposedField::MakeFieldWidget(const TSharedRef<SWidg
 		bool bIsEditorOnly = false,
             bIsEditableInPackaged = true,
             bIsCallableInPackaged = true;
-		
+
 		if (const TSharedPtr<FRemoteControlField> RCField = GetRemoteControlField().Pin())
 		{
 			bIsEditorOnly = RCField->IsEditorOnly();
@@ -513,10 +574,10 @@ TSharedRef<SWidget> SRCPanelExposedField::MakeFieldWidget(const TSharedRef<SWidg
 		{
 			Builder.AppendLine(LOCTEXT("NotCallableInPackagedWarning", "This function will not be callable in packaged projects."));
 		}
-		
+
 		WarningMessage = Builder.ToText();
 	}
-	
+
 	return CreateEntityWidget(InWidget, ResetButtonWidget.ToSharedRef(), WarningMessage, EditConditionWidget);
 }
 
@@ -564,7 +625,7 @@ void SRCPanelExposedField::ConstructFunctionWidget()
 				ChildSlot.AttachWidget(MakeFieldWidget(ConstructCallFunctionButton()));
 				ChildWidgets = ChildNodes;
 			}
-			
+
 
 			return;
 		}
@@ -576,16 +637,16 @@ void SRCPanelExposedField::ConstructFunctionWidget()
 TSharedRef<SWidget> SRCPanelExposedField::ConstructResetToDefaultWidget(UObject* InObject, TSharedPtr<IPropertyHandle> InPropertyHandle)
 {
 	TSharedPtr<SResetToDefaultPropertyEditor> ResetDefaultProperty = SNew(SResetToDefaultPropertyEditor, InPropertyHandle);
-	
+
 	const TAttribute<bool> CanResetToDefaultValue = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda([this, InObject, InPropertyHandle]()
 		{
 			IRemoteControlModule& RemoteControlModule = IRemoteControlModule::Get();
-		
+
 			if (RemoteControlModule.HasDefaultValueCustomization(InObject, InPropertyHandle->GetProperty()))
 			{
 				FRCResetToDefaultArgs Args;
 				Args.Property = InPropertyHandle->GetProperty();
-				
+
 				if (InPropertyHandle->IsValidHandle())
 				{
 					Args.Path = InPropertyHandle->GetPropertyPath();
@@ -608,23 +669,23 @@ TSharedRef<SWidget> SRCPanelExposedField::ConstructResetToDefaultWidget(UObject*
 			{
 				FRCResetToDefaultArgs Args;
 				Args.Property = InPropertyHandle->GetProperty();
-				
+
 				if (InPropertyHandle->IsValidHandle())
 				{
 					Args.Path = InPropertyHandle->GetPropertyPath();
 					Args.ArrayIndex = InPropertyHandle->GetArrayIndex();
 				}
-				
+
 				Args.bCreateTransaction = true;
 				RemoteControlModule.ResetToDefaultValue(InObject, Args);
-			
+
 				return;
 			}
 
 			InPropertyHandle->ResetToDefault();
 		}
 	);
-	
+
 	const FResetToDefaultOverride ResetValueOverride = FResetToDefaultOverride::Create(CanResetToDefaultValue, PerformValueReset);
 
 	if (UMeshComponent* MeshComponent = Cast<UMeshComponent>(InObject))
@@ -642,11 +703,11 @@ TSharedRef<SWidget> SRCPanelExposedField::ConstructResetToDefaultWidget(UObject*
 			Args.bCreateTransaction = false;
 			RemoteControlModule.ResetToDefaultValue(InObject, Args);
 		}
-		
+
 	}
-	
+
 	ResetDefaultProperty.Reset();
-	
+
 	ResetDefaultProperty = SNew(SResetToDefaultPropertyEditor, InPropertyHandle)
 		.CustomResetToDefault(ResetValueOverride);
 

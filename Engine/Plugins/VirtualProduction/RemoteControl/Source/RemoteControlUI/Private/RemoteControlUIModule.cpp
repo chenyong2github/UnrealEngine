@@ -5,6 +5,7 @@
 #include "AssetEditor/RemoteControlPresetEditorToolkit.h"
 #include "AssetTools/RemoteControlPresetActions.h"
 #include "AssetToolsModule.h"
+#include "DetailTreeNode.h"
 #include "Commands/RemoteControlCommands.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -31,6 +32,7 @@
 #include "Styling/AppStyle.h"
 #include "Styling/AppStyle.h"
 #include "Textures/SlateIcon.h"
+#include "UI/RemoteControlExposeMenuStyle.h"
 #include "UI/Action/SRCActionPanel.h"
 #include "UI/Behaviour/Builtin/Conditional/SRCBehaviourConditional.h"
 #include "UI/Behaviour/SRCBehaviourPanel.h"
@@ -121,14 +123,9 @@ FProperty* FRCExposesPropertyArgs::GetProperty() const
 	const EType Type = GetType();
 	if (Type == EType::E_Handle)
 	{
-		PropertyHandle->GetProperty();
+		return PropertyHandle->GetProperty();
 	}
-	else
-	{
-		return Property.Get();
-	}
-
-	return nullptr;
+	return Property.Get();
 }
 
 FProperty* FRCExposesPropertyArgs::GetPropertyChecked() const
@@ -151,7 +148,7 @@ namespace RemoteControlUIModule
 
 		return CustomizedStructNames;
 	};
-	
+
 	static void OnOpenRemoteControlPanel(const EToolkitMode::Type Mode, const TSharedPtr<class IToolkitHost>& EditWithinLevelEditor, class URemoteControlPreset* Preset)
 	{
 		TSharedRef<FRemoteControlPresetEditorToolkit> Toolkit = FRemoteControlPresetEditorToolkit::CreateEditor(Mode, EditWithinLevelEditor,  Preset);
@@ -253,6 +250,7 @@ namespace RemoteControlUIModule
 void FRemoteControlUIModule::StartupModule()
 {
 	FRemoteControlPanelStyle::Initialize();
+	FRemoteControlExposeMenuStyle::Initialize();
 	BindRemoteControlCommands();
 	RegisterAssetTools();
 	RegisterDetailRowExtension();
@@ -273,6 +271,7 @@ void FRemoteControlUIModule::ShutdownModule()
 	UnregisterAssetTools();
 	UnbindRemoteControlCommands();
 	FRemoteControlPanelStyle::Shutdown();
+	FRemoteControlExposeMenuStyle::Shutdown();
 	SRemoteControlPanel::Shutdown();
 	SRCActionPanel::Shutdown();
 	SRCBehaviourPanel::Shutdown();
@@ -318,7 +317,7 @@ TSharedRef<SRemoteControlPanel> FRemoteControlUIModule::CreateRemoteControlPanel
 
 				if (!IsValid(Preset) || Preset->IsEmbeddedPreset() == false)
 				{
-					// Activating the live mode on a panel sets it as the active panel 
+					// Activating the live mode on a panel sets it as the active panel
 					if (bLiveMode)
 					{
 						if (TSharedPtr<SRemoteControlPanel> ActivePanel = WeakActivePanel.Pin())
@@ -355,17 +354,23 @@ TSharedRef<SRemoteControlPanel> FRemoteControlUIModule::CreateRemoteControlPanel
 		for (const FName& DetailsTabIdentifier : DetailsTabIdentifiers)
 		{
 			SharedDetailsPanel = PropertyEditor.FindDetailView(DetailsTabIdentifier);
-			
+
 			if (SharedDetailsPanel.IsValid())
 			{
-				SharedDetailsPanel->SetRightColumnMinWidth(50);
+				SharedDetailsPanel->SetRightColumnMinWidth(100);
+				SharedDetailsPanel->ForceRefresh();
 				break;
 			}
 		}
 	}
+	else
+	{
+		SharedDetailsPanel->SetRightColumnMinWidth(100);
+		SharedDetailsPanel->ForceRefresh();
+	}
 
 	OnRemoteControlPresetOpened().Broadcast(Preset);
-	
+
 	return PanelRef;
 }
 
@@ -477,7 +482,7 @@ void FRemoteControlUIModule::UnbindRemoteControlCommands()
 		ActionList.UnmapAction(Commands.PasteItem);
 		ActionList.UnmapAction(Commands.DuplicateItem);
 	}
-	
+
 	FRemoteControlCommands::Unregister();
 }
 
@@ -503,6 +508,24 @@ void FRemoteControlUIModule::HandleCreatePropertyRowExtension(const FOnGenerateG
 			FGetActionCheckState::CreateRaw(this, &FRemoteControlUIModule::GetPropertyExposedCheckState, ExposesPropertyArgs),
 			FIsActionButtonVisible::CreateRaw(this, &FRemoteControlUIModule::CanToggleExposeProperty, ExposesPropertyArgs)
 		);
+
+		if (ExposesPropertyArgs.PropertyHandle.IsValid() && HasChildProperties(ExposesPropertyArgs.PropertyHandle->GetProperty()))
+		{
+			// Expose/Unexpose button.
+			FPropertyRowExtensionButton& ExposeSubPropertiesButton = OutExtensions.AddDefaulted_GetRef();
+			ExposeSubPropertiesButton.Icon = TAttribute<FSlateIcon>::Create([]()
+			{
+				return FSlateIcon(FRemoteControlExposeMenuStyle::GetStyleSetName(),"RemoteControlExposeMenu.Expand");
+			});
+
+			ExposeSubPropertiesButton.Label = LOCTEXT("RemoteControlExpandMenu_Title","Expose Sub-Property");
+			ExposeSubPropertiesButton.ToolTip = LOCTEXT("RemoteControlExpandMenu_Tooltip","Expose Sub-Property");
+			ExposeSubPropertiesButton.UIAction = FUIAction(
+				FExecuteAction::CreateRaw(this, &FRemoteControlUIModule::OnToggleExposePropertyWithChild, ExposesPropertyArgs),
+				FCanExecuteAction::CreateRaw(this, &FRemoteControlUIModule::CanToggleExposeProperty, ExposesPropertyArgs),
+				FGetActionCheckState(),
+				FIsActionButtonVisible::CreateRaw(this, &FRemoteControlUIModule::CanToggleExposeProperty, ExposesPropertyArgs));
+		}
 
 		// Override material(s) warning.
 		FPropertyRowExtensionButton& OverrideMaterialButton = OutExtensions.AddDefaulted_GetRef();
@@ -564,7 +587,7 @@ TSharedPtr<SRemoteControlPanel> FRemoteControlUIModule::GetPanelForProperty(cons
 		if (OuterObjects.Num() > 0)
 		{
 			return GetPanelForObject(OuterObjects[0]);
-		}		
+		}
 	}
 	else if (ExtensionArgsType == FRCExposesPropertyArgs::EType::E_OwnerObject)
 	{
@@ -586,7 +609,7 @@ TSharedPtr<SRemoteControlPanel> FRemoteControlUIModule::GetPanelForPropertyChang
 
 FSlateIcon FRemoteControlUIModule::OnGetExposedIcon(const FRCExposesPropertyArgs& InPropertyArgs) const
 {
-	FName BrushName("NoBrush");
+	FName BrushName("RemoteControlExposeMenu.NoBrush");
 
 	if (TSharedPtr<SRemoteControlPanel> Panel = GetPanelForProperty(InPropertyArgs))
 	{
@@ -595,16 +618,16 @@ FSlateIcon FRemoteControlUIModule::OnGetExposedIcon(const FRCExposesPropertyArgs
 			EPropertyExposeStatus Status = GetPropertyExposeStatus(InPropertyArgs);
 			if (Status == EPropertyExposeStatus::Exposed)
 			{
-				BrushName = "Level.VisibleIcon16x";
+				BrushName = HasChildPropertiesExposed(InPropertyArgs) ? "RemoteControlExposeMenu.VisibleAndVisibleChildren" : "RemoteControlExposeMenu.Visible";
 			}
 			else
 			{
-				BrushName = "Level.NotVisibleIcon16x";
+				BrushName = HasChildPropertiesExposed(InPropertyArgs) ? "RemoteControlExposeMenu.HiddenAndVisibleChildren" : "RemoteControlExposeMenu.Hidden";
 			}
 		}
 	}
 
-	return FSlateIcon(FAppStyle::Get().GetStyleSetName(), BrushName);
+	return FSlateIcon(FRemoteControlExposeMenuStyle::GetStyleSetName(), BrushName);
 }
 
 bool FRemoteControlUIModule::CanToggleExposeProperty(const FRCExposesPropertyArgs InPropertyArgs) const
@@ -641,10 +664,62 @@ void FRemoteControlUIModule::OnToggleExposeProperty(const FRCExposesPropertyArgs
 	{
 		return;
 	}
-
-	if (TSharedPtr<SRemoteControlPanel> Panel = GetPanelForProperty(InPropertyArgs))
+	if (ShouldCreateSubMenuForChildProperties(InPropertyArgs))
+	{
+		CreateSubMenuForChildProperties(InPropertyArgs);
+	}
+	else if (TSharedPtr<SRemoteControlPanel> Panel = GetPanelForProperty(InPropertyArgs))
 	{
 		Panel->ToggleProperty(InPropertyArgs);
+	}
+}
+
+void FRemoteControlUIModule::OnToggleExposeSubProperty(const FRCExposesPropertyArgs InPropertyArgs, const FString InDesiredName) const
+{
+	if (!ensureMsgf(InPropertyArgs.IsValid(), TEXT("Property could not be exposed because the extension args was invalid.")))
+	{
+		return;
+	}
+	if (TSharedPtr<SRemoteControlPanel> Panel = GetPanelForProperty(InPropertyArgs))
+	{
+		Panel->ToggleProperty(InPropertyArgs, InDesiredName);
+	}
+}
+
+void FRemoteControlUIModule::OnToggleExposePropertyWithChild(const FRCExposesPropertyArgs InPropertyArgs)
+{
+	if (!ensureMsgf(InPropertyArgs.IsValid(), TEXT("Property could not be exposed because the extension args was invalid.")))
+	{
+		return;
+	}
+	CreateSubMenuForChildProperties(InPropertyArgs);
+}
+
+void FRemoteControlUIModule::OnExposeAll(const TArray<FRCExposesAllPropertiesArgs> InExposeAllArgs) const
+{
+	for (const FRCExposesAllPropertiesArgs& PropInfo : InExposeAllArgs)
+	{
+		if (TSharedPtr<SRemoteControlPanel> Panel = GetPanelForProperty(PropInfo.PropertyArgs))
+		{
+			if (!Panel->IsExposed(PropInfo.PropertyArgs))
+			{
+				OnToggleExposeSubProperty(PropInfo.PropertyArgs, PropInfo.DesiredName);
+			}
+		}
+	}
+}
+
+void FRemoteControlUIModule::OnUnexposeAll(const TArray<FRCExposesAllPropertiesArgs> InExposeAllArgs) const
+{
+	for (const FRCExposesAllPropertiesArgs& PropInfo : InExposeAllArgs)
+	{
+		if (TSharedPtr<SRemoteControlPanel> Panel = GetPanelForProperty(PropInfo.PropertyArgs))
+		{
+			if (Panel->IsExposed(PropInfo.PropertyArgs))
+			{
+				OnToggleExposeSubProperty(PropInfo.PropertyArgs, PropInfo.DesiredName);
+			}
+		}
 	}
 }
 
@@ -837,12 +912,12 @@ bool FRemoteControlUIModule::IsAllowedOwnerObjects(TArray<UObject*> InOuterObjec
 void FRemoteControlUIModule::RegisterStructCustomizations()
 {
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	
+
 	for (FName Name : RemoteControlUIModule::GetCustomizedStructNames())
 	{
 		PropertyEditorModule.RegisterCustomClassLayout(Name, FOnGetDetailCustomizationInstance::CreateStatic(&FRemoteControlEntityCustomization::MakeInstance));
 	}
-	
+
 	PropertyEditorModule.RegisterCustomPropertyTypeLayout(FRCNetworkAddress::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNetworkAddressCustomization::MakeInstance));
 	PropertyEditorModule.RegisterCustomPropertyTypeLayout(FRCPassphrase::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FPassphraseCustomization::MakeInstance));
 }
@@ -850,7 +925,7 @@ void FRemoteControlUIModule::RegisterStructCustomizations()
 void FRemoteControlUIModule::UnregisterStructCustomizations()
 {
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	
+
 	// Unregister delegates in reverse order.
 	for (int8 NameIndex = RemoteControlUIModule::GetCustomizedStructNames().Num() - 1; NameIndex >= 0; NameIndex--)
 	{
@@ -982,7 +1057,7 @@ void FRemoteControlUIModule::TryOverridingMaterials(const FRCExposesPropertyArgs
 	{
 		return;
 	}
-	
+
 	const FRCExposesPropertyArgs::EType ExtensionArgsType = InPropertyArgs.GetType();
 
 	if (ExtensionArgsType == FRCExposesPropertyArgs::EType::E_Handle)
@@ -1134,6 +1209,146 @@ void FRemoteControlUIModule::RefreshPanels()
 	}
 }
 
+bool FRemoteControlUIModule::ShouldCreateSubMenuForChildProperties(const FRCExposesPropertyArgs InPropertyArgs) const
+{
+	if (InPropertyArgs.PropertyHandle.IsValid() && FSlateApplication::Get().GetModifierKeys().IsControlDown())
+	{
+		return HasChildProperties(InPropertyArgs.GetProperty());
+	}
+	return false;
+}
+
+bool FRemoteControlUIModule::HasChildProperties(const FProperty* InProperty) const
+{
+	if (const FStructProperty* StructProperty = CastField<FStructProperty>(InProperty))
+	{
+		// if at least it contains one child than it is consider valid to expose child properties
+		return StructProperty->Struct->Children->IsValidLowLevel() || StructProperty->Struct->ChildProperties->IsValidLowLevel();
+	}
+	return false;
+}
+
+void FRemoteControlUIModule::CreateSubMenuForChildProperties(const FRCExposesPropertyArgs InPropertyArgs) const
+{
+	FMenuBuilder MenuBuilder(false, nullptr, nullptr, true );
+	MenuBuilder.SetStyle(FRemoteControlExposeMenuStyle::Get().Get(), FRemoteControlExposeMenuStyle::GetStyleSetName());
+
+	TArray<FRCExposesAllPropertiesArgs> ExposeAllArgs;
+	GetAllExposableSubPropertyFromStruct(InPropertyArgs, ExposeAllArgs);
+	MenuBuilder.BeginSection(NAME_None, FText::Format(LOCTEXT("ExposeUnexposeExpansion", "{0}"), InPropertyArgs.GetProperty()->GetDisplayNameText()));
+
+	// Expose and Unexpose ALL section
+	MenuBuilder.AddMenuEntry(
+	LOCTEXT("RCExposeAll", "Expose All"),
+	LOCTEXT("RCExposeAll", "Expose all sub-properties"),
+	FSlateIcon(),
+	FUIAction(FExecuteAction::CreateRaw(this, &FRemoteControlUIModule::OnExposeAll, ExposeAllArgs)),
+	NAME_None,
+	EUserInterfaceActionType::CollapsedButton);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("RCUnexposeAll", "Unexpose All"),
+		LOCTEXT("RCUnexposeAll", "Unexpose all sub-properties"),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateRaw(this, &FRemoteControlUIModule::OnUnexposeAll, ExposeAllArgs)),
+		NAME_None,
+		EUserInterfaceActionType::CollapsedButton);
+
+	MenuBuilder.EndSection();
+
+	// Sub-Properties section
+	MenuBuilder.BeginSection(NAME_None, LOCTEXT("ExposeUnexposeExpansion", "EXPOSE"));
+
+	for (FRCExposesAllPropertiesArgs PropArgs : ExposeAllArgs)
+	{
+		MenuBuilder.AddMenuEntry(
+			PropArgs.ExposedPropertyLabel,
+			PropArgs.ToolTip,
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateRaw(this, &FRemoteControlUIModule::OnToggleExposeSubProperty, PropArgs.PropertyArgs, PropArgs.DesiredName),
+				FCanExecuteAction::CreateRaw(this, &FRemoteControlUIModule::CanToggleExposeProperty, PropArgs.PropertyArgs),
+				FGetActionCheckState::CreateRaw(this, &FRemoteControlUIModule::GetPropertyExposedCheckState, PropArgs.PropertyArgs),
+				FIsActionButtonVisible::CreateRaw(this, &FRemoteControlUIModule::CanToggleExposeProperty, PropArgs.PropertyArgs)),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton);
+	}
+
+	MenuBuilder.EndSection();
+
+	UE::Slate::FDeprecateVector2DParameter MousePos = FSlateApplication::Get().GetCursorPos();
+	FWidgetPath WindowPath = FSlateApplication::Get().LocateWindowUnderMouse(MousePos, FSlateApplication::Get().GetInteractiveTopLevelWindows(), false, 0);
+
+	FSlateApplication::Get().PushMenu(WindowPath.GetLastWidget(), WindowPath, MenuBuilder.MakeWidget(), MousePos, FPopupTransitionEffect::ContextMenu);
+}
+
+bool FRemoteControlUIModule::HasChildPropertiesExposed(const FRCExposesPropertyArgs& InPropertyArgs) const
+{
+	if (InPropertyArgs.PropertyHandle.IsValid() && InPropertyArgs.PropertyHandle->GetProperty()->IsA<FStructProperty>())
+	{
+		// Check if it has sub-properties exposed
+		FStructProperty* StructProperty = CastFieldChecked<FStructProperty>(InPropertyArgs.PropertyHandle->GetProperty());
+		int32 ChildHandleIndex = 0;
+		for (TFieldIterator<FProperty> It(StructProperty->Struct); It; ++It)
+		{
+			FRCExposesPropertyArgs ChildArgs;
+			ChildArgs.OwnerObject = InPropertyArgs.OwnerObject.Get();
+			ChildArgs.Property = *It;
+			ChildArgs.PropertyPath = (*It)->GetPathName(nullptr);
+			ChildArgs.PropertyHandle = InPropertyArgs.PropertyHandle->GetChildHandle(ChildHandleIndex++);
+			EPropertyExposeStatus ChildStatus = GetPropertyExposeStatus(ChildArgs);
+
+			if (ChildStatus == EPropertyExposeStatus::Exposed)
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+void FRemoteControlUIModule::GetAllExposableSubPropertyFromStruct(const FRCExposesPropertyArgs InPropertyArgs, TArray<FRCExposesAllPropertiesArgs>& OutAllProperty) const
+{
+	FStructProperty* StructProperty = CastFieldChecked<FStructProperty>(InPropertyArgs.PropertyHandle->GetProperty());
+	int32 ChildHandleIndex = 0;
+	for (TFieldIterator<FProperty> It(StructProperty->Struct); It; ++It)
+	{
+		FRCExposesPropertyArgs ChildArgs;
+		ChildArgs.OwnerObject = InPropertyArgs.OwnerObject.Get();
+		ChildArgs.Property = *It;
+		ChildArgs.PropertyPath = (*It)->GetPathName(nullptr);
+		ChildArgs.PropertyHandle = InPropertyArgs.PropertyHandle->GetChildHandle(ChildHandleIndex++);
+		// Skip if not valid or special case for FColor and FLinearColor since they can decide to show the Alpha channel or not
+		if (!ChildArgs.IsValid() || (InPropertyArgs.GetProperty()->HasMetaData("HideAlphaChannel") && ChildArgs.Property->GetFName() == FName("A")))
+		{
+			continue;
+		}
+		FText PropertyName = It->GetDisplayNameText();
+		if (StructProperty->GetFName() == USceneComponent::GetRelativeRotationPropertyName() || StructProperty->GetFName() == USceneComponent::GetAbsoluteRotationPropertyName())
+		{
+			PropertyName = FText::FromString(It->GetName());
+		}
+		FText ExposedPropertyLabel = FText::Format(LOCTEXT("RC_ChildProperty", "{0}"), PropertyName);
+		TAttribute<FText> ToolTip = TAttribute<FText>::CreateLambda([this, ChildArgs, PropertyName]()
+		{
+			const EPropertyExposeStatus ChildStatus = GetPropertyExposeStatus(ChildArgs);
+			switch (ChildStatus)
+			{
+				case EPropertyExposeStatus::Exposed:
+					return FText::Format(LOCTEXT("RCUnexpose", "Unexpose {0}"), PropertyName);
+
+				case EPropertyExposeStatus::Unexposed:
+					return FText::Format(LOCTEXT("RCExpose", "Expose {0}"), PropertyName);
+
+				case EPropertyExposeStatus::Unexposable:
+				default:
+					return FText::Format(LOCTEXT("RCUnexposable", "Property {0} cannot be exposed"), PropertyName);
+			}
+		});
+		OutAllProperty.Add(FRCExposesAllPropertiesArgs({ChildArgs, PropertyName, PropertyName.ToString(), ExposedPropertyLabel, ToolTip}));
+	}
+}
+
 TSharedPtr<SRCPanelTreeNode> FRemoteControlUIModule::GenerateEntityWidget(const FGenerateWidgetArgs& Args)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FRemoteControlUIModule::GenerateEntityWidget);
@@ -1141,7 +1356,7 @@ TSharedPtr<SRCPanelTreeNode> FRemoteControlUIModule::GenerateEntityWidget(const 
 	if (Args.Preset && Args.Entity)
 	{
 		const UScriptStruct* EntityType = Args.Preset->GetExposedEntityType(Args.Entity->GetId());
-		
+
 		if (FOnGenerateRCWidget* OnGenerateWidget = GenerateWidgetDelegates.Find(const_cast<UScriptStruct*>(EntityType)))
 		{
 			return OnGenerateWidget->Execute(Args);
@@ -1153,6 +1368,13 @@ TSharedPtr<SRCPanelTreeNode> FRemoteControlUIModule::GenerateEntityWidget(const 
 
 void FRemoteControlUIModule::UnregisterRemoteControlPanel(SRemoteControlPanel* Panel)
 {
+	if (SharedDetailsPanel.IsValid())
+	{
+		// reset column min width to standard size
+		SharedDetailsPanel->SetRightColumnMinWidth(22);
+		SharedDetailsPanel->ForceRefresh();
+	}
+
 	if (!Panel)
 	{
 		return;

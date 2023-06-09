@@ -1618,7 +1618,9 @@ void FRemoteControlModule::RefreshEditorPostSetObjectProperties(const FRCObjectR
 	{
 		if (FProperty* Property = ObjectAccess.Property.Get())
 		{
-			if(Property->GetFName() == RemoteControlUtil::NAME_RelativeLocation)
+			// Check if the property is the RelativeLocation or if a child by checking the Segment[0]
+			const bool bCheckSegmentParent = ObjectAccess.PropertyPathInfo.Segments.Num() ? ObjectAccess.PropertyPathInfo.Segments[0].Name == RemoteControlUtil::NAME_RelativeLocation : false;
+			if(Property->GetFName() == RemoteControlUtil::NAME_RelativeLocation || bCheckSegmentParent)
 			{
 				if (AActor* Actor = SceneComponent->GetOwner())
 				{
@@ -2695,6 +2697,7 @@ void FRemoteControlModule::TestOrFinalizeOngoingChange(bool bForceEndChange)
 						ChainEvent.SetArrayIndexPerObject(ArrayIndicesPerObject);
 
 						Object->PostEditChangeChainProperty(ChainEvent);
+						RefreshEditorPostSetObjectProperties(ObjectReference);
 					}
 				}
 			}
