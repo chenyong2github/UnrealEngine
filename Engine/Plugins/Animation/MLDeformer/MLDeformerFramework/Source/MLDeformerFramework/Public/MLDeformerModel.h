@@ -175,6 +175,18 @@ public:
 	 */
 	virtual FString GetDefaultDeformerGraphAssetPath() const	{ return FString(); }
 
+	/** 
+	 * Get the number of floats used to represent a single bone rotation, used as input to the neural networks.
+	 * @return The number of floats per individual bone.
+	 */
+	virtual int32 GetNumFloatsPerBone() const				{ return 6; }
+
+	/** 
+	 * Get the number of floats used to represent a single bone rotation, used as input to the neural networks.
+	 * @return The number of floats per individual bone.
+	 */
+	virtual int32 GetNumFloatsPerCurve() const				{ return 1; }
+
 	/**
 	 * Get the skeletal mesh that is used during training.
 	 * You typically want to apply the ML Deformer on this specific skeletal mesh in your game as well.
@@ -403,6 +415,13 @@ public:
 	UAnimSequence* GetAnimSequence()							{ return AnimSequence.LoadSynchronous(); }
 
 	/**
+	 * Set the animation sequence object to use for training.
+	 * Keep in mind that the editor still needs to handle a change of this property for things to be initialized correctly.
+	 * @param AnimSeq The animation sequence to use for training.
+	 */
+	void SetAnimSequence(UAnimSequence* AnimSeq)				{ AnimSequence = AnimSeq; }
+
+	/**
 	 * Get the maximum number of training frames to use during training.
 	 * Your training anim sequence might contain say 10000 frames, but for quickly iterating you might
 	 * want to train on only 2000 frames instead. You can do this by setting the maximum training frames to 2000.
@@ -516,12 +535,6 @@ public:
 
 #endif	// #if WITH_EDITORONLY_DATA
 
-	/** @return The number of floats per bone in network input. */
-	virtual int32 GetNumFloatsPerBone() const { return NumFloatsPerBone; }
-
-	/** @return The number of floats per curve in network input. */
-	virtual int32 GetNumFloatsPerCurve() const { return NumFloatsPerCurve; }
-
 protected:
 	/**
 	 * Set the training input information.
@@ -611,9 +624,11 @@ private:
 	TObjectPtr<USkeletalMesh> SkeletalMesh = nullptr;
 
 	/** The number of floats per bone in network input. */
+	UE_DEPRECATED(5.3, "This will be removed")
 	static constexpr int32 NumFloatsPerBone = 6;
 
 	/** The number of floats per curve in network input. */
+	UE_DEPRECATED(5.3, "This will be removed")
 	static constexpr int32 NumFloatsPerCurve = 1;
 
 #if WITH_EDITORONLY_DATA

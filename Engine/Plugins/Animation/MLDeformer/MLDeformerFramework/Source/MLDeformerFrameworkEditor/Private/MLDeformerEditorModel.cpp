@@ -1326,7 +1326,7 @@ namespace UE::MLDeformer
 		ClampCurrentTrainingFrameIndex();
 
 		// If we have no Persona toolkit yet, then it is not yet safe to init the sampler.
-		if (Editor->GetPersonaToolkitPointer() != nullptr)
+		if (Editor->GetPersonaToolkitPointer() != nullptr && !Sampler->IsInitialized())
 		{
 			Sampler->Init(this);
 		}

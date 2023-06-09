@@ -130,6 +130,11 @@ void UMLDeformerInputInfo::SetNumTargetVertices(int32 NumVerts)
 
 bool UMLDeformerInputInfo::IsCompatible(USkeletalMesh* InSkeletalMesh) const
 {
+	if (SkeletalMesh.IsNull())
+	{
+		return true;
+	}
+
 	if (InSkeletalMesh == nullptr)
 	{
 		return false;

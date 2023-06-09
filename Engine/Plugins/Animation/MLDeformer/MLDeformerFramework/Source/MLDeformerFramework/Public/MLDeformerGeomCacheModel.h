@@ -62,6 +62,13 @@ public:
 	UGeometryCache* GetGeometryCache()						{ return GeometryCache.LoadSynchronous(); }
 
 	/**
+	 * Set the geometry cache object to use for training.
+	 * Keep in mind that the editor still needs to handle a change of this property for things to be initialized correctly.
+	 * @param GeomCache The geometry cache to use for training.
+	 */
+	void SetGeometryCache(UGeometryCache* GeomCache)		{ GeometryCache = GeomCache; }
+
+	/**
 	 * Get the mapping between geometry cache tracks and meshes inside the skeletal mesh.
 	 * This lets us know what parts of the skeletal mesh are related to what geometry cache tracks.
 	 * Once we have that, we can calculate deltas between the two.

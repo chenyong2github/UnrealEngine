@@ -220,7 +220,7 @@ namespace UE::MLDeformer
 					bFoundMatch = true;
 					if (!bSuppressLog)
 					{
-						UE_LOG(LogMLDeformer, Display, TEXT("Mapped geom cache track '%s' to SkelMesh submesh '%s'"), *Track->GetName(), *SkelMeshName);
+						UE_LOG(LogMLDeformer, Verbose, TEXT("Mapped geom cache track '%s' to SkelMesh submesh '%s'"), *Track->GetName(), *SkelMeshName);
 					}
 					break;
 				} // If the track name matches the skeletal meshes internal mesh name.

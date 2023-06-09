@@ -42,7 +42,7 @@ void UNeuralMorphModelInstance::FillNetworkInputs()
 	Super::SetBoneTransforms(MainInputs, NumMainMLPInputs, 0);
 
 	// Write the curve input values, start writing after the bone inputs.
-	const int32 CurveWriteOffset = Model->GetInputInfo()->GetNumBones() * 6;	// 6 Floats per bone.
+	const int32 CurveWriteOffset = Model->GetInputInfo()->GetNumBones() * Model->GetNumFloatsPerBone();
 	SetCurveValues(MainInputs, NumMainMLPInputs, CurveWriteOffset);
 
 	// Normalize the inputs.
@@ -60,6 +60,8 @@ void UNeuralMorphModelInstance::FillNetworkInputs()
 	const UNeuralMorphMLP* GroupMLP = MorphNetwork->GetGroupMLP();
 	if (GroupMLP)
 	{
+		const int32 NumFloatsPerBone = Model->GetNumFloatsPerBone();
+
 		// Write the bone transforms.
 		int32 Offset = 0;
 		float* GroupNetworkInputs = NetworkInstance->GetGroupInputs().GetData();
@@ -69,7 +71,7 @@ void UNeuralMorphModelInstance::FillNetworkInputs()
 			const int32 BoneIndex = BoneGroupIndices[Index];
 			if (BoneIndex != INDEX_NONE)
 			{
-				const int32 BoneOffset = BoneIndex * 6;
+				const int32 BoneOffset = BoneIndex * NumFloatsPerBone;
 				GroupNetworkInputs[Offset++] = MainInputs[BoneOffset];
 				GroupNetworkInputs[Offset++] = MainInputs[BoneOffset + 1];
 				GroupNetworkInputs[Offset++] = MainInputs[BoneOffset + 2];
@@ -88,9 +90,8 @@ void UNeuralMorphModelInstance::FillNetworkInputs()
 			}
 		}
 
-		// Write the curve values.
+		// Write the curve values for all curve groups.
 		const int32 NumFloatsPerCurve = MorphNetwork->GetNumFloatsPerCurve();
-		check(MorphNetwork->GetNumFloatsPerCurve() == 6);	// Local mode curve values are expected to use 6 floats.
 		const int32 NumCurveGroups = CurveGroupIndices.Num();
 		for (int32 Index = 0; Index < CurveGroupIndices.Num(); ++Index)
 		{
@@ -118,6 +119,7 @@ void UNeuralMorphModelInstance::FillNetworkInputs()
 	}
 }
 
+// This will fill the curve values for the curves, with curve groups excluded.
 int64 UNeuralMorphModelInstance::SetCurveValues(float* OutputBuffer, int64 OutputBufferSize, int64 StartIndex)
 {
 	UNeuralMorphModel* MorphModel = Cast<UNeuralMorphModel>(Model);
@@ -127,7 +129,7 @@ int64 UNeuralMorphModelInstance::SetCurveValues(float* OutputBuffer, int64 Outpu
 
 	int64 Index = StartIndex;
 	const int32 AssetNumCurves = InputInfo->GetNumCurves();
-	const int32 NumFloatsPerCurve = MorphNetwork ? MorphNetwork->GetNumFloatsPerCurve() : 1;
+	const int32 NumFloatsPerCurve = MorphNetwork->GetNumFloatsPerCurve();
 	const int32 NumCurveFloats = AssetNumCurves * NumFloatsPerCurve;
 	checkf((Index + NumCurveFloats) <= OutputBufferSize, TEXT("Writing curves past the end of the input buffer"));
 

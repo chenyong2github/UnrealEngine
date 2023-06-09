@@ -11,6 +11,11 @@ struct FExternalMorphSet;
 struct FExternalMorphSetWeights;
 class USkinnedMeshComponent;
 
+/**
+ * The morph model base class.
+ * This is the base class for models that generate and drive morph targets.
+ * Use this in combination with UMLDeformerMorphModelInstance or inherited classes.
+ */
 UCLASS()
 class MLDEFORMERFRAMEWORK_API UMLDeformerMorphModel
 	: public UMLDeformerGeomCacheModel
@@ -52,8 +57,11 @@ public:
 	void SetMorphDeltaZeroThreshold(float Threshold)				{ MorphDeltaZeroThreshold = Threshold; }
 	void SetMorphCompressionlevel(float Tolerance)					{ MorphCompressionLevel = Tolerance; }
 	void SetIncludeMorphTargetNormals(bool bInclude)				{ bIncludeNormals = bInclude; }
-	void SetWeightMask(EMLDeformerMaskChannel Channel)				{ MaskChannel = Channel; }
+	void SetMaskChannel(EMLDeformerMaskChannel Channel)				{ MaskChannel = Channel; }
 	void SetInvertMaskChannel(bool bInvert)							{ bInvertMaskChannel = bInvert; }
+
+	UE_DEPRECATED(5.3, "Use SetMaskChannel instead.")
+	void SetWeightMask(EMLDeformerMaskChannel Channel)				{ MaskChannel = Channel; }
 
 	UE_DEPRECATED(5.2, "Please use GetMorphDeltaZeroThreshold instead.")
 	float GetMorphTargetDeltaThreshold() const						{ return MorphDeltaZeroThreshold; }

@@ -3,6 +3,7 @@
 #include "NeuralMorphModelVizSettings.h"
 #include "NeuralMorphModelInstance.h"
 #include "NeuralMorphInputInfo.h"
+#include "NeuralMorphNetwork.h"
 #include "MLDeformerAsset.h"
 #include "MLDeformerComponent.h"
 #include "UObject/UObjectGlobals.h"
@@ -115,6 +116,15 @@ void UNeuralMorphModel::SetNeuralMorphNetwork(UNeuralMorphNetwork* Net)
 { 
 	NeuralMorphNetwork = Net;
 	GetReinitModelInstanceDelegate().Broadcast();
+}
+
+int32 UNeuralMorphModel::GetNumFloatsPerCurve() const
+{
+	if (NeuralMorphNetwork)
+	{
+		return NeuralMorphNetwork->GetNumFloatsPerCurve();
+	}
+	return (Mode == ENeuralMorphMode::Local) ? 6 : 1;
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -57,6 +57,7 @@ public:
 	virtual FString GetDisplayName() const override					{ return "Neural Morph Model"; }
 	virtual UMLDeformerModelInstance* CreateModelInstance(UMLDeformerComponent* Component) override;
 	virtual UMLDeformerInputInfo* CreateInputInfo() override;
+	virtual int32 GetNumFloatsPerCurve() const override;
 	// ~END UMLDeformerModel overrides.
 
 	const TArray<FNeuralMorphBoneGroup>& GetBoneGroups() const		{ return BoneGroups; }
@@ -71,6 +72,7 @@ public:
 	int32 GetGlobalNumNeuronsPerLayer() const						{ return GlobalNumNeuronsPerLayer; }
 	int32 GetNumIterations() const									{ return NumIterations; }
 	int32 GetBatchSize() const										{ return BatchSize; }
+	int32 GetLocalNumMorphsPerBoneOrCurve() const					{ return LocalNumMorphTargetsPerBone; }
 	float GetLearningRate() const									{ return LearningRate; }
 	float GetSmoothLossBeta() const									{ return SmoothLossBeta; }
 	float GetRegularizationFactor() const							{ return RegularizationFactor; }
@@ -78,6 +80,8 @@ public:
 
 	void UpdateMissingGroupNames();
 	void SetNeuralMorphNetwork(UNeuralMorphNetwork* Net);
+
+	void SetNumIterations(int32 InNumIterations)					{ check(InNumIterations > 0); NumIterations = InNumIterations; }
 
 public:
 	/**
