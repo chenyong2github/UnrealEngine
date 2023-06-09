@@ -16,7 +16,7 @@ namespace EpicGames.Horde.Storage
 	/// <summary>
 	/// Options for configuring a bundle serializer
 	/// </summary>
-	public class TreeOptions
+	public class BundleOptions
 	{
 		/// <summary>
 		/// Maximum payload size fo a blob
@@ -56,13 +56,13 @@ namespace EpicGames.Horde.Storage
 	/// </summary>
 	public sealed class FlushedNodeHandle : NodeHandle
 	{
-		readonly TreeReader _reader;
+		readonly BundleReader _reader;
 		readonly NodeLocator _locator;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public FlushedNodeHandle(TreeReader reader, HashedNodeLocator hashedLocator)
+		public FlushedNodeHandle(BundleReader reader, HashedNodeLocator hashedLocator)
 			: this(reader, hashedLocator.Hash, hashedLocator.Locator)
 		{
 		}
@@ -70,7 +70,7 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public FlushedNodeHandle(TreeReader reader, IoHash hash, NodeLocator locator)
+		public FlushedNodeHandle(BundleReader reader, IoHash hash, NodeLocator locator)
 			: base(hash)
 		{
 			_reader = reader;
@@ -153,15 +153,15 @@ namespace EpicGames.Horde.Storage
 	}
 
 	/// <summary>
-	/// Writes nodes of a tree to an <see cref="IStorageClient"/>, packed into bundles. Each <see cref="TreeWriter"/> instance is single threaded,
+	/// Writes nodes of a tree to an <see cref="IStorageClient"/>, packed into bundles. Each <see cref="BundleWriter"/> instance is single threaded,
 	/// but multiple instances may be written to in parallel.
 	/// </summary>
-	public sealed class TreeWriter : IStorageWriter
+	public sealed class BundleWriter : IStorageWriter
 	{
 		// Information about a unique output node. Note that multiple node refs may de-duplicate to the same output node.
 		internal class PendingNode : NodeHandle
 		{
-			readonly TreeReader _reader;
+			readonly BundleReader _reader;
 
 			object LockObject => _reader;
 
@@ -176,7 +176,7 @@ namespace EpicGames.Horde.Storage
 
 			public PendingBundle? PendingBundle => _pendingBundle;
 
-			public PendingNode(TreeReader reader, NodeKey key, int packet, int offset, int length, IReadOnlyList<NodeHandle> refs, PendingBundle pendingBundle)
+			public PendingNode(BundleReader reader, NodeKey key, int packet, int offset, int length, IReadOnlyList<NodeHandle> refs, PendingBundle pendingBundle)
 				: base(key.Hash)
 			{
 				_reader = reader;
@@ -281,8 +281,8 @@ namespace EpicGames.Horde.Storage
 			static int s_lastBundleId = 0;
 			public int BundleId { get; } = Interlocked.Increment(ref s_lastBundleId);
 
-			readonly TreeReader _treeReader;
-			readonly TreeWriter _treeWriter;
+			readonly BundleReader _treeReader;
+			readonly BundleWriter _treeWriter;
 			readonly int _maxPacketSize;
 			readonly BundleCompressionFormat _compressionFormat;
 
@@ -330,7 +330,7 @@ namespace EpicGames.Horde.Storage
 			// Task signalled after the write is complete
 			public Task CompleteTask => _completeEvent.Task;
 
-			public PendingBundle(TreeReader treeReader, TreeWriter treeWriter, int maxPacketSize, int maxBlobSize, BundleCompressionFormat compressionFormat)
+			public PendingBundle(BundleReader treeReader, BundleWriter treeWriter, int maxPacketSize, int maxBlobSize, BundleCompressionFormat compressionFormat)
 			{
 				_treeReader = treeReader;
 				_treeWriter = treeWriter;
@@ -683,11 +683,11 @@ namespace EpicGames.Horde.Storage
 			}
 		}
 
-		static readonly TreeOptions s_defaultOptions = new TreeOptions();
+		static readonly BundleOptions s_defaultOptions = new BundleOptions();
 
 		readonly IStorageClient _store;
-		readonly TreeReader _treeReader;
-		readonly TreeOptions _options;
+		readonly BundleReader _treeReader;
+		readonly BundleOptions _options;
 		readonly Utf8String _prefix;
 
 		readonly NodeCache _nodeCache;
@@ -719,7 +719,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="prefix">Prefix for blobs written to the store</param>
 		/// <param name="nodeCache">Cache of nodes for deduplication</param>
 		/// <param name="traceLogger">Optional logger for trace information</param>
-		public TreeWriter(IStorageClient store, TreeReader treeReader, TreeOptions? options = null, Utf8String prefix = default, NodeCache? nodeCache = null, ILogger? traceLogger = null)
+		public BundleWriter(IStorageClient store, BundleReader treeReader, BundleOptions? options = null, Utf8String prefix = default, NodeCache? nodeCache = null, ILogger? traceLogger = null)
 		{
 			_store = store;
 			_treeReader = treeReader;
@@ -737,7 +737,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="refName">Ref being written. Will be used as a prefix for storing blobs.</param>
 		/// <param name="options">Options for the writer</param>
 		/// <param name="traceLogger">Optional logger for trace information</param>
-		public TreeWriter(IStorageClient store, TreeReader reader, RefName refName, TreeOptions? options = null, ILogger? traceLogger = null)
+		public BundleWriter(IStorageClient store, BundleReader reader, RefName refName, BundleOptions? options = null, ILogger? traceLogger = null)
 			: this(store, reader, options, refName.Text, traceLogger: traceLogger)
 		{
 		}
@@ -746,13 +746,13 @@ namespace EpicGames.Horde.Storage
 		/// Copy constructor
 		/// </summary>
 		/// <param name="other"></param>
-		public TreeWriter(TreeWriter other)
+		public BundleWriter(BundleWriter other)
 			: this(other._store, other._treeReader, other._options, other._prefix, other._nodeCache, other._traceLogger)
 		{
 		}
 
 		/// <inheritdoc/>
-		IStorageWriter IStorageWriter.Fork() => new TreeWriter(this);
+		IStorageWriter IStorageWriter.Fork() => new BundleWriter(this);
 
 		/// <inheritdoc/>
 		public async ValueTask DisposeAsync()

@@ -17,7 +17,7 @@ namespace EpicGames.Horde.Storage
 	/// <summary>
 	/// Writes nodes from bundles in an <see cref="IStorageClient"/> instance.
 	/// </summary>
-	public class TreeReader
+	public class BundleReader
 	{
 		/// <summary>
 		/// Computed information about a bundle
@@ -92,7 +92,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="store"></param>
 		/// <param name="cache">Cache for data</param>
 		/// <param name="logger">Logger for output</param>
-		public TreeReader(IStorageClient store, IMemoryCache? cache, ILogger logger)
+		public BundleReader(IStorageClient store, IMemoryCache? cache, ILogger logger)
 		{
 			_store = store;
 			_cache = cache;
