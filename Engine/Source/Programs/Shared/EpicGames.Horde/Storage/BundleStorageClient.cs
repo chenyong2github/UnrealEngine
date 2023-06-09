@@ -74,15 +74,6 @@ namespace EpicGames.Horde.Storage
 		public abstract Task<NodeHandle?> TryReadRefTargetAsync(RefName name, RefCacheTime cacheTime = default, CancellationToken cancellationToken = default);
 
 		/// <inheritdoc/>
-		public virtual async Task<NodeHandle> WriteRefAsync(RefName name, Bundle bundle, int exportIdx = 0, Utf8String prefix = default, RefOptions? options = null, CancellationToken cancellationToken = default)
-		{
-			BlobLocator locator = await this.WriteBundleAsync(bundle, prefix, cancellationToken);
-			NodeHandle target = new FlushedNodeHandle(TreeReader, bundle.Header.Exports[exportIdx].Hash, new NodeLocator(locator, exportIdx));
-			await WriteRefTargetAsync(name, target, options, cancellationToken);
-			return target;
-		}
-
-		/// <inheritdoc/>
 		public abstract Task WriteRefTargetAsync(RefName name, NodeHandle target, RefOptions? options = null, CancellationToken cancellationToken = default);
 
 		#endregion

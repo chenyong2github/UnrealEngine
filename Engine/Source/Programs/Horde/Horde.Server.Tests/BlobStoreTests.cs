@@ -124,13 +124,6 @@ namespace Horde.Server.Tests
 				NodeHandle refTarget = await store.ReadRefTargetAsync(refName);
 				Assert.AreEqual(locator3, refTarget.GetLocator().Blob);
 			}
-
-			RefName refName2 = new RefName("hello2");
-
-			NodeHandle refTargetId2 = await store.WriteRefAsync(refName2, CreateTestBundle(input3, new BlobLocator[] { locator1, locator2 }), 0);
-			Blob refTarget2 = await ReadBlobAsync(store, refTargetId2.GetLocator().Blob);
-			Assert.IsTrue(refTarget2.Data.Span.SequenceEqual(input3));
-			Assert.IsTrue(refTarget2.References.SequenceEqual(new BlobLocator[] { locator1, locator2 }));
 		}
 
 		[TestMethod]

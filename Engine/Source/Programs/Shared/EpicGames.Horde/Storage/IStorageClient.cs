@@ -161,18 +161,6 @@ namespace EpicGames.Horde.Storage
 		Task<NodeHandle?> TryReadRefTargetAsync(RefName name, RefCacheTime cacheTime = default, CancellationToken cancellationToken = default);
 
 		/// <summary>
-		/// Writes a new ref to the store which points to a new blob
-		/// </summary>
-		/// <param name="name">Ref to write</param>
-		/// <param name="bundle">The bundle to write</param>
-		/// <param name="exportIdx">Index of the export in the bundle to be the root of the tree</param>
-		/// <param name="prefix">Prefix for blob names.</param>
-		/// <param name="options">Options for the new ref</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>Unique identifier for the blob</returns>
-		Task<NodeHandle> WriteRefAsync(RefName name, Bundle bundle, int exportIdx, Utf8String prefix = default, RefOptions? options = null, CancellationToken cancellationToken = default);
-
-		/// <summary>
 		/// Writes a new ref to the store
 		/// </summary>
 		/// <param name="name">Ref to write</param>
