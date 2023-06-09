@@ -169,6 +169,7 @@ void URCActionContainer::PostEditUndo()
 
 	OnActionsListModified.Broadcast();
 }
+#endif
 
 void URCActionContainer::ExecuteActionsOnLoad()
 {
@@ -214,7 +215,6 @@ void URCActionContainer::PostLoad()
 			return false;
 		}));
 }
-#endif
 
 URCAction* URCActionContainer::FindActionByFieldId(const FGuid InId) const
 {
