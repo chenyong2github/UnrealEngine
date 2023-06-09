@@ -1589,6 +1589,7 @@ UNiagaraScript* FVersionedNiagaraEmitterData::GetScript(ENiagaraScriptUsage Usag
 void FVersionedNiagaraEmitterData::CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData, const UNiagaraEmitter& Emitter)
 {
 	bRequiresViewUniformBuffer = false;
+	bNeedsPartialDepthTexture = false;
 
 	MaxInstanceCount = 0;
 	MaxAllocationCount = 0;
@@ -1881,6 +1882,7 @@ void FVersionedNiagaraEmitterData::RebuildRendererBindings(const UNiagaraEmitter
 void FVersionedNiagaraEmitterData::CacheFromShaderCompiled()
 {
 	bRequiresViewUniformBuffer = false;
+	bNeedsPartialDepthTexture = false;
 	if (GPUComputeScript && (SimTarget == ENiagaraSimTarget::GPUComputeSim))
 	{
 		if (const FNiagaraShaderScript* NiagaraShaderScript = GPUComputeScript->GetRenderThreadScript())
@@ -1888,10 +1890,10 @@ void FVersionedNiagaraEmitterData::CacheFromShaderCompiled()
 			for (int i=0; i < NiagaraShaderScript->GetNumPermutations(); ++i)
 			{
 				FNiagaraShaderRef NiagaraShaderRef = NiagaraShaderScript->GetShaderGameThread(i);
-				if (NiagaraShaderRef.IsValid() && NiagaraShaderRef->bNeedsViewUniformBuffer)
+				if (NiagaraShaderRef.IsValid())
 				{
-					bRequiresViewUniformBuffer = true;
-					break;
+					bRequiresViewUniformBuffer |= NiagaraShaderRef->bNeedsViewUniformBuffer;
+					bNeedsPartialDepthTexture |= (NiagaraShaderRef->MiscUsageBitMask & uint16(ENiagaraScriptMiscUsageMask::UsesPartialDepthCollisionQuery)) != 0;
 				}
 			}
 		}
@@ -2810,6 +2812,7 @@ FVersionedNiagaraEmitterData::FVersionedNiagaraEmitterData()
 	, bRequiresPersistentIDs(false)
 	, MaxGPUParticlesSpawnPerFrame(0)
 	, bRequiresViewUniformBuffer(false)
+	, bNeedsPartialDepthTexture(false)
 #if WITH_EDITORONLY_DATA
 	, EditorData(nullptr)
 	, EditorParameters(nullptr)

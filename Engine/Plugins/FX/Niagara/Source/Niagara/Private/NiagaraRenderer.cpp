@@ -381,27 +381,7 @@ void FNiagaraRenderer::Initialize(const UNiagaraRendererProperties* InProps, con
 	bRendersInSecondaryDepthPass = false;
 
 	// Let check if the GPU simulation shader script needed to use the partial depth texture for depth queries.
-	bool bNeedsPartialDepthTexture = false;
-	if (Emitter)
-	{
-		FVersionedNiagaraEmitterData* CachedEmitterData = Emitter->GetCachedEmitterData();
-		if (CachedEmitterData)
-		{
-			UNiagaraScript* NiagaraScriptGPU = CachedEmitterData->GetGPUComputeScript();
-			if (NiagaraScriptGPU)
-			{
-				FNiagaraShaderScript* NiagaraShaderScript = NiagaraScriptGPU->GetRenderThreadScript();
-				if (NiagaraShaderScript)
-				{
-					FNiagaraShaderRef NiagaraShader = NiagaraShaderScript->GetShaderGameThread(0);
-					if (NiagaraShader.IsValid())
-					{
-						bNeedsPartialDepthTexture = (NiagaraShader->MiscUsageBitMask & uint16(ENiagaraScriptMiscUsageMask::UsesPartialDepthCollisionQuery)) > 0;
-					}
-				}
-			}
-		}
-	}
+	const bool bNeedsPartialDepthTexture = Emitter->GetCachedEmitterData()->NeedsPartialDepthTexture();
 
 	uint32 Index = 0;
 	for (UMaterialInterface*& Mat : BaseMaterials_GT)

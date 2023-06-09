@@ -379,6 +379,7 @@ struct NIAGARA_API FVersionedNiagaraEmitterData
 	bool DidPSOPrecacheFail() const { return PSOPrecacheResult == EPSOPrecacheResult::NotSupported; }
 
 	bool RequiresViewUniformBuffer() const { return bRequiresViewUniformBuffer; }
+	bool NeedsPartialDepthTexture() const { return bNeedsPartialDepthTexture; }
 	uint32 GetMaxInstanceCount() const { return MaxInstanceCount; }
 	uint32 GetMaxAllocationCount() const { return MaxAllocationCount; }
 	TConstArrayView<TSharedPtr<FNiagaraBoundsCalculator>> GetBoundsCalculators() const { return MakeArrayView(BoundsCalculators); }
@@ -501,6 +502,9 @@ private:
 	
 	/** Indicates that the GPU script requires the view uniform buffer. */
 	uint32 bRequiresViewUniformBuffer : 1;
+
+	/** Indicates we use the partial depth textures. */
+	uint32 bNeedsPartialDepthTexture : 1;
 
 	/** Maximum number of instances we can create for this emitter. */
 	uint32 MaxInstanceCount = 0;
