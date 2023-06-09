@@ -2001,6 +2001,8 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 				SharedView->CachedViewUniformShaderParameters->RoughnessOverrideParameter = Views[0].CachedViewUniformShaderParameters->RoughnessOverrideParameter;
 				SharedView->CachedViewUniformShaderParameters->SpecularOverrideParameter = Views[0].CachedViewUniformShaderParameters->SpecularOverrideParameter;
 				SharedView->CachedViewUniformShaderParameters->NormalOverrideParameter = Views[0].CachedViewUniformShaderParameters->NormalOverrideParameter;
+				SharedView->CachedViewUniformShaderParameters->GameTime = Views[0].CachedViewUniformShaderParameters->GameTime;
+				SharedView->CachedViewUniformShaderParameters->RealTime = Views[0].CachedViewUniformShaderParameters->RealTime;
 				SharedView->CreateViewUniformBuffers(*SharedView->CachedViewUniformShaderParameters);
 			}
 
