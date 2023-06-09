@@ -731,7 +731,10 @@ public:
 	void Commit(uint32 InPoolIndex, void *Ptr, SIZE_T Size);
 	void Decommit(uint32 InPoolIndex, void *Ptr, SIZE_T Size);
 
+private:
 	static void* AllocateMetaDataMemory(SIZE_T Size);
+	static FPlatformMemory::FPlatformVirtualMemoryBlock AllocateMemoryBlock(SIZE_T Size);
+	static void DeallocateMemoryBlock(FPlatformMemory::FPlatformVirtualMemoryBlock& Block);
 };
 
 PRAGMA_RESTORE_UNSAFE_TYPECAST_WARNINGS
