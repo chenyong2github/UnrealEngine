@@ -293,7 +293,9 @@ void FDMXLibraryFromMVRImporter::InitializeDMXLibrary(UDMXLibrary* DMXLibrary, c
 
 		int32 ActiveModeIndex = FixtureType->Modes.IndexOfByPredicate([FixtureNode](const FDMXFixtureMode& Mode)
 			{
-				return Mode.ModeName == FixtureNode->GDTFMode;
+				const FString TrimmedModeName = Mode.ModeName.TrimStartAndEnd();
+				const FString TrimmedGDTFModeName = FixtureNode->GDTFMode.TrimStartAndEnd();
+				return TrimmedModeName.Equals(TrimmedGDTFModeName);
 			});
 
 		if (ActiveModeIndex != INDEX_NONE)
