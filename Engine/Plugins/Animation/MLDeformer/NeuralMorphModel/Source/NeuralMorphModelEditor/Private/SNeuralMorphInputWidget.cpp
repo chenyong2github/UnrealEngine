@@ -765,3 +765,5 @@ namespace UE::NeuralMorphModel
 		NeuralEditorModel->RebuildEditorMaskInfo();
 	}
 }	// namespace UE::NeuralMorphModel
+
+#undef LOCTEXT_NAMESPACE
