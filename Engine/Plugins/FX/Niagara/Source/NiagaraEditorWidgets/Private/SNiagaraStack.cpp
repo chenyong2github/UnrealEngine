@@ -35,8 +35,9 @@
 #include "IDetailTreeNode.h"
 #include "Stack/NiagaraStackPropertyRowUtilities.h"
 #include "Stack/SNiagaraStackFunctionInputName.h"
-#include "Stack/SNiagaraStackFunctionInputValue.h"
 #include "Stack/SNiagaraStackFunctionInputCollection.h"
+#include "Stack/SNiagaraStackFunctionInputValue.h"
+#include "Stack/SNiagaraStackInlineDynamicInput.h"
 #include "Stack/SNiagaraStackItem.h"
 #include "Stack/SNiagaraStackItemFooter.h"
 #include "Stack/SNiagaraStackItemGroup.h"
@@ -895,9 +896,46 @@ SNiagaraStack::FRowWidgets SNiagaraStack::ConstructNameAndValueWidgetsForItem(UN
 		TSharedRef<SNiagaraStackFunctionInputName> FunctionInputNameWidget =
 			SNew(SNiagaraStackFunctionInputName, FunctionInput, StackViewModel)
 			.IsSelected(Container, &SNiagaraStackTableRow::IsSelected);
-		Container->AddFillRowContextMenuHandler(SNiagaraStackTableRow::FOnFillRowContextMenu::CreateSP(FunctionInputNameWidget, &SNiagaraStackFunctionInputName::FillRowContextMenu));
 
-		return FRowWidgets(FunctionInputNameWidget,	SNew(SNiagaraStackFunctionInputValue, FunctionInput));
+		FunctionInputNameWidget->OnRequestReconstructRow().AddSP(this, &SNiagaraStack::ReconstructNameAndValueWidgetsForItem, Item);
+
+		bool bShowInlineDynamicInput = 
+			GbEnableExperimentalInlineDynamicInputs &&
+			FunctionInput->GetValueMode() == UNiagaraStackFunctionInput::EValueMode::Dynamic &&
+			FunctionInput->GetInlineDisplayMode() != ENiagaraStackEntryInlineDisplayMode::None;
+		TSharedPtr<SWidget> FunctionInputValueWidget = nullptr;
+		if (bShowInlineDynamicInput)
+		{
+			FunctionInputValueWidget = SNew(SNiagaraStackInlineDynamicInput, FunctionInput);
+		}
+		else
+		{
+			FunctionInputValueWidget = SNew(SNiagaraStackFunctionInputValue, FunctionInput);
+		}
+
+		Container->AddFillRowContextMenuHandler(SNiagaraStackTableRow::FOnFillRowContextMenu::CreateSP(FunctionInputNameWidget, &SNiagaraStackFunctionInputName::FillRowContextMenu));
+		if (bShowInlineDynamicInput && 
+			(FunctionInput->GetInlineDisplayMode() == ENiagaraStackEntryInlineDisplayMode::GraphHorizontal ||
+			FunctionInput->GetInlineDisplayMode() == ENiagaraStackEntryInlineDisplayMode::GraphVertical ||
+			FunctionInput->GetInlineDisplayMode() == ENiagaraStackEntryInlineDisplayMode::GraphHybrid))
+		{
+			return FRowWidgets(
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					FunctionInputNameWidget
+				]
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					FunctionInputValueWidget.ToSharedRef()
+				]);
+		}
+		else
+		{
+			return FRowWidgets(FunctionInputNameWidget, FunctionInputValueWidget.ToSharedRef());
+		}
 	}
 	else if (Item->IsA<UNiagaraStackErrorItem>())
 	{
@@ -1096,6 +1134,18 @@ SNiagaraStack::FRowWidgets SNiagaraStack::ConstructNameAndValueWidgetsForItem(UN
 	else
 	{
 		return FRowWidgets(SNullWidget::NullWidget);
+	}
+}
+
+void SNiagaraStack::ReconstructNameAndValueWidgetsForItem(UNiagaraStackEntry* Item)
+{
+	TSharedPtr<ITableRow> TableRow = StackTree->WidgetFromItem(Item);
+	if (TableRow.IsValid())
+	{
+		TSharedRef<SNiagaraStackTableRow> Container = StaticCastSharedRef<SNiagaraStackTableRow>(TableRow.ToSharedRef());
+		Container->Reset();
+		FRowWidgets RowWidgets = ConstructNameAndValueWidgetsForItem(Item, Container);
+		Container->SetNameAndValueContent(RowWidgets.NameWidget, RowWidgets.ValueWidget);
 	}
 }
 

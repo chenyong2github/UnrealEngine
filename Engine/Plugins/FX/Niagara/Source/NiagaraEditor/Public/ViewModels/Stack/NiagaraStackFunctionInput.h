@@ -6,6 +6,7 @@
 #include "NiagaraTypes.h"
 #include "ViewModels/Stack/NiagaraParameterHandle.h"
 #include "ViewModels/Stack/NiagaraStackFunctionInputCondition.h"
+#include "NiagaraStackEditorData.h"
 #include "NiagaraStackFunctionInput.generated.h"
 
 class UNiagaraNodeFunctionCall;
@@ -288,6 +289,10 @@ public:
 
 	TOptional<FNiagaraVariableMetaData> GetInputMetaData() const;
 	
+	void GetFilteredChildInputs(TArray<UNiagaraStackFunctionInput*>& OutFilteredChildInputs) const;
+
+	UNiagaraStackObject* GetChildDataObject() const;
+
 	virtual bool IsSemanticChild() const override;
 	void SetSemanticChild(bool IsSemanticChild);
 
@@ -295,6 +300,10 @@ public:
 	virtual void GetSearchItems(TArray<FStackSearchItem>& SearchItems) const override;
 
 	virtual const FCollectedUsageData& GetCollectedUsageData() const override;
+
+	ENiagaraStackEntryInlineDisplayMode GetInlineDisplayMode() const;
+
+	void SetInlineDisplayMode(ENiagaraStackEntryInlineDisplayMode InlineDisplayMode);
 
 	bool OpenSourceAsset() const;
 
@@ -392,6 +401,8 @@ private:
 	void GetCurrentChangeIds(FGuid& OutOwningGraphChangeId, FGuid& OutFunctionGraphChangeId) const;
 
 	UNiagaraScript* FindConversionScript(const FNiagaraTypeDefinition& FromType, TMap<FNiagaraTypeDefinition, UNiagaraScript*>& ConversionScriptCache, bool bIncludeConversionScripts) const;
+
+	bool FilterInlineChildren(const UNiagaraStackEntry& Child) const;
 
 private:
 	/** The module function call which owns this input entry. NOTE: This input might not be an input to the module function

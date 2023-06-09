@@ -7,6 +7,17 @@
 #include "NiagaraStackEditorData.generated.h"
 struct FStackIssue;
 
+/* Defines different modes for inline display in the stack. */
+UENUM()
+enum class ENiagaraStackEntryInlineDisplayMode
+{
+	Expression,
+	GraphHorizontal,
+	GraphVertical,
+	GraphHybrid,
+	None
+};
+
 /** Editor only UI data for emitters. */
 UCLASS()
 class UNiagaraStackEditorData : public UNiagaraEditorDataBase
@@ -68,6 +79,16 @@ public:
 	 * @param bWasExpandedPreSearch Whether or not the entry was expanded pre-search.
 	 */
 	void SetStackEntryWasExpandedPreSearch(const FString& StackEntryKey, bool bWasExpandedPreSearch);
+
+	/*
+	 * Gets whether or not this entry should display all of its content inline. 
+	 */
+	ENiagaraStackEntryInlineDisplayMode GetStackEntryInlineDisplayMode(const FString& StackEntryKey) const;
+
+	/*
+	 * Sets whether or not this entry should display all of its content inline.
+	 */
+	void SetStackEntryInlineDisplayMode(const FString& StackEntryKey, ENiagaraStackEntryInlineDisplayMode InlineDisplayMode);
 
 	/*
 	* Gets whether or not a stack item is showing advanced items.
@@ -166,6 +187,9 @@ private:
 	TMap<FString, bool> StackEntryKeyToExpandedMap;
 
 	TMap<FString, bool> StackEntryKeyToPreSearchExpandedMap;
+
+	UPROPERTY()
+	TMap<FString, ENiagaraStackEntryInlineDisplayMode> StackEntryKeyToInlineDisplayModeMap;
 
 	TMap<FString, bool> StackItemKeyToShowAdvancedMap;
 

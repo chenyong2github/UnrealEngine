@@ -611,6 +611,48 @@ struct NIAGARA_API FNiagaraGraphCachedDataBase
 	virtual void SetSourceEmitter(const FVersionedNiagaraEmitterData* InEmitterData) {};
 };
 
+/** Defines usages for inline dynamic input format tokens. */
+UENUM()
+enum class ENiagaraInlineDynamicInputFormatTokenUsage
+{
+	/** The format token refers to a dynamic input function input. */
+	Input,
+	/** The format token represents text which is displayed along with inputs. */
+	Decorator,
+	/** The format token represents a line break which will force the start a new row when sorting format tokens into groups. */
+	LineBreak
+};
+
+/** Defines a single token in a format for displaying dynamic input trees inline in the UI.  These tokens can represent the
+	inputs to the dynamic input or additional text and layout options. */
+USTRUCT()
+struct NIAGARA_API FNiagaraInlineDynamicInputFormatToken
+{
+	GENERATED_BODY();
+#if WITH_EDITORONLY_DATA
+
+	FNiagaraInlineDynamicInputFormatToken()
+		: Usage(ENiagaraInlineDynamicInputFormatTokenUsage::Decorator)
+	{
+	}
+
+	FNiagaraInlineDynamicInputFormatToken(ENiagaraInlineDynamicInputFormatTokenUsage InUsage, const FString& InValue)
+		: Usage(InUsage)
+		, Value(InValue)
+	{
+	}
+
+	/** Defines how the value of this token should be used when formatting the dynamic input tree. */
+	UPROPERTY(EditAnywhere, Category="Format")
+	ENiagaraInlineDynamicInputFormatTokenUsage Usage;
+
+	/** The value of this token which is used for formatting an inline dynamic input tree.  The purpose of this value is different
+		depending on the value of the Usage property. */
+	UPROPERTY(EditAnywhere, Category ="Format")
+	FString Value;
+#endif
+};
+
 /** Struct containing all of the data that can be different between different script versions.*/
 USTRUCT()
 struct NIAGARA_API FVersionedNiagaraScriptData
@@ -711,6 +753,12 @@ public:
 	*  This supports formatting placeholders for the function inputs, for example "myfunc({0}, {1})" will be converted to "myfunc(1.23, Particles.Position)". */
 	UPROPERTY(EditAnywhere, Category = Script)
 	FText CollapsedViewFormat;
+
+	UPROPERTY(EditAnywhere, Category = "Script")
+	TArray<FNiagaraInlineDynamicInputFormatToken> InlineExpressionFormat;
+
+	UPROPERTY(EditAnywhere, Category = "Script")
+	TArray<FNiagaraInlineDynamicInputFormatToken> InlineGraphFormat;
 
 	/* If used as a dynamic input with exactly one input and output of different types, setting this to true will auto-insert this script to convert from one type to another when dragging and dropping parameters in the stack.
 	   For example, a script with a bool as input and a float as output will be automatically inserted in the stack when dropping a bool parameter into the float input of a module in the stack. */

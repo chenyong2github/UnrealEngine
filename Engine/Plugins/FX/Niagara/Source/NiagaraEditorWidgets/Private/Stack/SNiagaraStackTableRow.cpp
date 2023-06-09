@@ -32,7 +32,7 @@
 
 void SNiagaraStackTableRow::Construct(const FArguments& InArgs, UNiagaraStackViewModel* InStackViewModel, UNiagaraStackEntry* InStackEntry, TSharedRef<FNiagaraStackCommandContext> InStackCommandContext, const TSharedRef<STreeView<UNiagaraStackEntry*>>& InOwnerTree)
 {
-	ContentPadding = InArgs._ContentPadding;
+	DefaultContentPadding = InArgs._ContentPadding;
 	bIsCategoryIconHighlighted = InArgs._IsCategoryIconHighlighted;
 	bShowExecutionCategoryIcon = InArgs._ShowExecutionCategoryIcon;
 	NameColumnWidth = InArgs._NameColumnWidth;
@@ -45,8 +45,7 @@ void SNiagaraStackTableRow::Construct(const FArguments& InArgs, UNiagaraStackVie
 	StackCommandContext = InStackCommandContext;
 	OwnerTree = InOwnerTree;
 
-	NameVerticalAlignment = VAlign_Center;
-	NameHorizontalAlignment = HAlign_Fill;
+	Reset();
 
 	ExpandedImage = FCoreStyle::Get().GetBrush("TreeArrow_Expanded");
 	CollapsedImage = FCoreStyle::Get().GetBrush("TreeArrow_Collapsed");
@@ -65,6 +64,21 @@ void SNiagaraStackTableRow::Construct(const FArguments& InArgs, UNiagaraStackVie
 			.OnCanAcceptDrop(InArgs._OnCanAcceptDrop)
 			.OnAcceptDrop(InArgs._OnAcceptDrop)
 		, OwnerTree.ToSharedRef());
+}
+
+void SNiagaraStackTableRow::Reset()
+{
+	ChildSlot[SNullWidget::NullWidget];
+	ContentPadding = DefaultContentPadding;
+	NameMinWidth.Reset();
+	NameMaxWidth.Reset();
+	NameVerticalAlignment = VAlign_Center;
+	NameHorizontalAlignment = HAlign_Fill;
+	ValueMinWidth.Reset();
+	ValueMaxWidth.Reset();
+	ValueVerticalAlignment = VAlign_Center;
+	ValueHorizontalAlignment = HAlign_Fill;
+	OnFillRowContextMenuHanders.Empty();
 }
 
 void SNiagaraStackTableRow::SetOverrideNameWidth(TOptional<float> InMinWidth, TOptional<float> InMaxWidth)

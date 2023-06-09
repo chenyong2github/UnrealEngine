@@ -178,6 +178,8 @@ void UNiagaraStackFunctionInput::Initialize(
 	VisibleCondition.Initialize(SourceScript.Get(), AffectedScriptsNotWeak, ConstantResolver, UniqueEmitterName, OwningFunctionCallNode.Get());
 
 	MessageLogGuid = GetSystemViewModel()->GetMessageLogGuid();
+
+	AddChildFilter(FOnFilterChild::CreateUObject(this, &UNiagaraStackFunctionInput::FilterInlineChildren));
 }
 
 void UNiagaraStackFunctionInput::FinalizeInternal()
@@ -431,10 +433,39 @@ TOptional<FNiagaraVariableMetaData> UNiagaraStackFunctionInput::GetInputMetaData
 	return InputMetaData;
 }
 
+void UNiagaraStackFunctionInput::GetFilteredChildInputs(TArray<UNiagaraStackFunctionInput*>& OutFilteredChildInputs) const
+{
+	TArray<UNiagaraStackFunctionInputCollection*> DynamicInputCollections;
+	GetUnfilteredChildrenOfType(DynamicInputCollections);
+	for (UNiagaraStackFunctionInputCollection* DynamicInputCollection : DynamicInputCollections)
+	{
+		DynamicInputCollection->GetFilteredChildInputs(OutFilteredChildInputs);
+	}
+}
+
+UNiagaraStackObject* UNiagaraStackFunctionInput::GetChildDataObject() const
+{
+	TArray<UNiagaraStackObject*> ChildDataObjects;
+	GetUnfilteredChildrenOfType(ChildDataObjects);
+	if (ensureMsgf(ChildDataObjects.Num() <= 1, TEXT("Function input should have at most one child object.  Function Path: %s Function Name: %s Input Name: %s"),
+		OwningFunctionCallNode.IsValid() ? *OwningFunctionCallNode->GetPathName() : TEXT("[Unknown]"), 
+		OwningFunctionCallNode.IsValid() ? *OwningFunctionCallNode->GetFunctionName() : TEXT("[Unknown]"),
+		*InputParameterHandle.GetName().ToString()))
+	{
+		return ChildDataObjects.Num() == 1 ? ChildDataObjects[0] : nullptr;
+	}
+	return nullptr;
+}
+
 void UNiagaraStackFunctionInput::GetCurrentChangeIds(FGuid& OutOwningGraphChangeId, FGuid& OutFunctionGraphChangeId) const
 {
 	OutOwningGraphChangeId = OwningFunctionCallNode->GetNiagaraGraph()->GetChangeID();
 	OutFunctionGraphChangeId = OwningFunctionCallNode->GetCalledGraph() != nullptr ? OwningFunctionCallNode->GetCalledGraph()->GetChangeID() : FGuid();
+}
+
+bool UNiagaraStackFunctionInput::FilterInlineChildren(const UNiagaraStackEntry& Child) const
+{
+	return GbEnableExperimentalInlineDynamicInputs == 0 || GetInlineDisplayMode() == ENiagaraStackEntryInlineDisplayMode::None;
 }
 
 FText UNiagaraStackFunctionInput::GetCollapsedStateText() const
@@ -1971,8 +2002,13 @@ void UNiagaraStackFunctionInput::SetLocalValue(TSharedRef<FStructOnScope> InLoca
 	TSharedRef<FNiagaraSystemViewModel> CachedSysViewModel = GetSystemViewModel();
 	if (CachedSysViewModel->GetSystemStackViewModel())
 		CachedSysViewModel->GetSystemStackViewModel()->InvalidateCachedParameterUsage();
-	RefreshChildren();
+	EValueMode PreviousValueMode = InputValues.Mode;
 	RefreshValues();
+
+	if (InputValues.Mode != PreviousValueMode)
+	{
+		RefreshChildren();
+	}
 }
 
 bool UNiagaraStackFunctionInput::CanReset() const
@@ -2973,6 +3009,17 @@ const UNiagaraStackFunctionInput::FCollectedUsageData& UNiagaraStackFunctionInpu
 	}
 
 	return CachedCollectedUsageData.GetValue();
+}
+
+ENiagaraStackEntryInlineDisplayMode UNiagaraStackFunctionInput::GetInlineDisplayMode() const
+{
+	return GetStackEditorData().GetStackEntryInlineDisplayMode(GetStackEditorDataKey());
+}
+
+void UNiagaraStackFunctionInput::SetInlineDisplayMode(ENiagaraStackEntryInlineDisplayMode InlineDisplayMode)
+{
+	GetStackEditorData().SetStackEntryInlineDisplayMode(GetStackEditorDataKey(), InlineDisplayMode);
+	RefreshFilteredChildren();
 }
 
 void UNiagaraStackFunctionInput::OnGraphChanged(const struct FEdGraphEditAction& InAction)

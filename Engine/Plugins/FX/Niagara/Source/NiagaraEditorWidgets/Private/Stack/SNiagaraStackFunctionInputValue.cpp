@@ -20,6 +20,7 @@
 #include "NiagaraNodeAssignment.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "NiagaraParameterCollection.h"
+#include "NiagaraStackCommandContext.h"
 #include "NiagaraScriptVariable.h"
 #include "NiagaraSettings.h"
 #include "NiagaraSystem.h"
@@ -65,13 +66,16 @@ bool SNiagaraStackFunctionInputValue::bLibraryOnly = true;
 void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiagaraStackFunctionInput* InFunctionInput)
 {
 	FunctionInput = InFunctionInput;
+	LayoutMode = InArgs._LayoutMode;
+	CompactActionMenuButtonVisibilityAttribute = InArgs._CompactActionMenuButtonVisibility;
 	FunctionInput->OnValueChanged().AddSP(this, &SNiagaraStackFunctionInputValue::OnInputValueChanged);
 	SyntaxHighlighter = FNiagaraHLSLSyntaxHighlighter::Create();
 
+	TSharedPtr<SHorizontalBox> OuterChildrenBox;
 	TSharedPtr<SHorizontalBox> ChildrenBox;
 	ChildSlot
 	[
-		SAssignNew(ChildrenBox, SHorizontalBox)
+		SAssignNew(OuterChildrenBox, SHorizontalBox)
 		+ SHorizontalBox::Slot()
 		[
 			SNew(SNiagaraParameterDropTarget)
@@ -87,16 +91,24 @@ void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiaga
 			.bUseAllowDropCache(true)
 			.Content()
 			[
-				// Values
-				SNew(SHorizontalBox)
+				SAssignNew(ChildrenBox, SHorizontalBox)
 				.IsEnabled(this, &SNiagaraStackFunctionInputValue::GetInputEnabled)
-				+ SHorizontalBox::Slot()
+			])
+		]
+	];
+			// Values
+	if (LayoutMode == ELayoutMode::FullRow)
+	{
+			ChildrenBox->AddSlot()
 				.AutoWidth()
 				.Padding(0, 0, 3, 0)
 				[
 					SNew(SNiagaraStackIndent, FunctionInput, ENiagaraStackIndentMode::Value)
-				]
-				+ SHorizontalBox::Slot()
+				];
+	}
+	if (LayoutMode == ELayoutMode::FullRow || LayoutMode == ELayoutMode::CompactInline)
+	{
+			ChildrenBox->AddSlot()
 				.VAlign(VAlign_Center)
 				.AutoWidth()
 				.Padding(0, 0, 3, 0)
@@ -123,7 +135,9 @@ void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiaga
 							.ColorAndOpacity(this, &SNiagaraStackFunctionInputValue::GetInputIconColor)
 						]
 					]
-					+ SHorizontalBox::Slot()
+				];
+
+				ChildrenBox->AddSlot()
 					.AutoWidth()
 					[
 						// icons type info pill
@@ -160,9 +174,9 @@ void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiaga
 								.Image(FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.Module.DynamicInput"))
 							]
 						]
-					]
-				]
-				+ SHorizontalBox::Slot()
+					];
+
+			ChildrenBox->AddSlot()
 				.VAlign(VAlign_Center)
 				.AutoWidth()
 				.Padding(0, 0, 3, 0)
@@ -177,8 +191,9 @@ void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiaga
 						.Image(GetTypeModifierIcon())
 						.ToolTipText(GetTypeModifierIconToolTip())
 					]
-				]
-				+ SHorizontalBox::Slot()
+				];
+
+			ChildrenBox->AddSlot()
 				.VAlign(VAlign_Center)
 				[
 					// Value container and widgets.
@@ -187,10 +202,13 @@ void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiaga
 					[
 						ConstructValueWidgets()
 					]
-				]
+				];
+	}
 
+	if (LayoutMode == ELayoutMode::FullRow)
+	{ 
 				// Handle drop-down button
-				+ SHorizontalBox::Slot()
+				ChildrenBox->AddSlot()
 				.AutoWidth()
 				.VAlign(VAlign_Center)
 				.Padding(3, 0, 0, 0)
@@ -205,10 +223,10 @@ void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiaga
 					.MenuPlacement(MenuPlacement_BelowRightAnchor)
 					.HAlign(HAlign_Center)
 					.VAlign(VAlign_Center)
-				]
+				];
 
 				// Reset Button
-				+ SHorizontalBox::Slot()
+				ChildrenBox->AddSlot()
 				.AutoWidth()
 				.VAlign(VAlign_Center)
 				.Padding(3, 0, 0, 0)
@@ -225,10 +243,10 @@ void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiaga
 						SNew(SImage)
 						.Image(FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
 					]
-				]
+				];
 
 				// Reset to base Button
-				+ SHorizontalBox::Slot()
+				ChildrenBox->AddSlot()
 				.AutoWidth()
 				.VAlign(VAlign_Center)
 				.Padding(3, 0, 0, 0)
@@ -246,10 +264,26 @@ void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiaga
 						.Image(FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
 						.ColorAndOpacity(FSlateColor(FLinearColor::Green))
 					]
-				]			
-			])
-		]
-	];
+				];
+	}
+
+	if (LayoutMode == ELayoutMode::CompactInline || LayoutMode == ELayoutMode::EditDropDownOnly)
+	{
+		ChildrenBox->AddSlot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		[
+			SNew(SComboButton)
+			.ComboButtonStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.CompactComboButton")
+			.IsFocusable(false)
+			.ForegroundColor(FSlateColor::UseForeground())
+			.OnGetMenuContent(this, &SNiagaraStackFunctionInputValue::OnGetCompactActionMenu)
+			.Visibility(CompactActionMenuButtonVisibilityAttribute)
+			.MenuPlacement(MenuPlacement_BelowRightAnchor)
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+		];
+	}
 
 	ValueModeForGeneratedWidgets = FunctionInput->GetValueMode();
 }
@@ -523,6 +557,10 @@ TSharedRef<SWidget> SNiagaraStackFunctionInputValue::ConstructLocalValueStructWi
 		if (TypeEditorUtilities.IsValid() && TypeEditorUtilities->CanCreateParameterEditor())
 		{
 			TSharedPtr<SNiagaraParameterEditor> ParameterEditor = TypeEditorUtilities->CreateParameterEditor(FunctionInput->GetInputType(), FunctionInput->GetInputDisplayUnit(), FunctionInput->GetInputWidgetCustomization());
+			if (LayoutMode == ELayoutMode::CompactInline && ParameterEditor->GetMinimumDesiredWidth().IsSet())
+			{
+				ParameterEditor->SetMinimumDesiredWidth(ParameterEditor->GetMinimumDesiredWidth().GetValue() / 2.0f);
+			}
 			ParameterEditor->UpdateInternalValueFromStruct(DisplayedLocalValueStruct.ToSharedRef());
 			ParameterEditor->SetOnBeginValueChange(SNiagaraParameterEditor::FOnValueChange::CreateSP(
 				this, &SNiagaraStackFunctionInputValue::ParameterBeginValueChange));
@@ -572,6 +610,11 @@ TSharedRef<SWidget> SNiagaraStackFunctionInputValue::ConstructLocalValueStructWi
 
 void SNiagaraStackFunctionInputValue::OnInputValueChanged()
 {
+	if (LayoutMode == ELayoutMode::EditDropDownOnly)
+	{
+		return;
+	}
+
 	if (ValueModeForGeneratedWidgets != FunctionInput->GetValueMode())
 	{
 		ValueContainer->SetContent(ConstructValueWidgets());
@@ -579,7 +622,7 @@ void SNiagaraStackFunctionInputValue::OnInputValueChanged()
 	}
 	else
 	{
-		if (ValueModeForGeneratedWidgets == UNiagaraStackFunctionInput::EValueMode::Local)
+		if (ValueModeForGeneratedWidgets == UNiagaraStackFunctionInput::EValueMode::Local && DisplayedLocalValueStruct.IsValid())
 		{
 			if (DisplayedLocalValueStruct->GetStruct() == FunctionInput->GetLocalValueStruct()->GetStruct())
 			{
@@ -809,8 +852,58 @@ TSharedRef<SWidget> SNiagaraStackFunctionInputValue::OnGetAvailableHandleMenu()
 		]
 	];
 
-	SetFunctionInputButton->SetMenuContentWidgetToFocus(ActionSelector->GetSearchBox());
+	if(SetFunctionInputButton.IsValid())
+	{ 
+		SetFunctionInputButton->SetMenuContentWidgetToFocus(ActionSelector->GetSearchBox());
+	}
 	return MenuWidget;
+}
+
+TSharedRef<SWidget> SNiagaraStackFunctionInputValue::OnGetCompactActionMenu()
+{
+	if (StackCommandContext.IsValid() == false)
+	{
+		StackCommandContext = MakeShared<FNiagaraStackCommandContext>();
+		TArray<UNiagaraStackEntry*> SelectedEntries;
+		SelectedEntries.Add(FunctionInput);
+		StackCommandContext->SetSelectedEntries(SelectedEntries);
+	}
+
+	FMenuBuilder MenuBuilder(true, StackCommandContext->GetCommands());
+	MenuBuilder.BeginSection("Value", LOCTEXT("ValueHeader", "Value"));
+	{
+		MenuBuilder.AddSubMenu(
+			LOCTEXT("AssignSubMenu", "Assign..."),
+			LOCTEXT("AssignSubMenuToolTip", "Assign this input a new value..."),
+			FNewMenuDelegate::CreateSP(this, &SNiagaraStackFunctionInputValue::OnFillAssignSubMenu));
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("ResetToDefaultMenuEntry", "Reset to Default"),
+			LOCTEXT("ResetToDefaultMenuEntryToolTip", "Reset this input to the value defined in the script."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateUObject(FunctionInput, &UNiagaraStackFunctionInput::Reset),
+				FCanExecuteAction::CreateUObject(FunctionInput, &UNiagaraStackFunctionInput::CanReset)));
+		if (FunctionInput->HasBaseEmitter())
+		{
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("ResetToBaseMenuEntry", "Reset to Base"),
+				LOCTEXT("ResetToBaseMenuEntryToolTip", "Reset this input to the value defined in the base emitter."),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateUObject(FunctionInput, &UNiagaraStackFunctionInput::ResetToBase),
+					FCanExecuteAction::CreateUObject(FunctionInput, &UNiagaraStackFunctionInput::CanResetToBase)));
+		}
+	}
+	MenuBuilder.EndSection();
+
+	StackCommandContext->AddEditMenuItems(MenuBuilder);
+
+	return MenuBuilder.MakeWidget();
+}
+
+void SNiagaraStackFunctionInputValue::OnFillAssignSubMenu(FMenuBuilder& MenuBuilder)
+{
+	MenuBuilder.AddWidget(OnGetAvailableHandleMenu(), FText());
 }
 
 void SNiagaraStackFunctionInputValue::DynamicInputScriptSelected(UNiagaraScript* DynamicInputScript)

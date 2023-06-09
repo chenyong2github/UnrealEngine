@@ -216,6 +216,11 @@ void  UNiagaraStackInputCategory::SetStandardValuesFromClipboardFunctionInputs(c
 	SetValuesFromFunctionInputsInternal(this, ClipboardFunctionInputs, [](UNiagaraStackFunctionInput* ChildInput) { return ChildInput->IsStaticParameter() == false; }, nullptr);
 }
 
+void UNiagaraStackInputCategory::GetFilteredChildInputs(TArray<UNiagaraStackFunctionInput*>& OutFilteredChildInputs) const
+{
+	GetFilteredChildrenOfType(OutFilteredChildInputs);
+}
+
 void UNiagaraStackSummaryCategory::Initialize(FRequiredEntryData InRequiredEntryData, TSharedPtr<FNiagaraHierarchyCategoryViewModel> InCategoryViewModel, FString InOwnerStackItemEditorDataKey)
 {
 	CategoryViewModelWeakPtr = InCategoryViewModel;

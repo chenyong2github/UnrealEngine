@@ -193,6 +193,20 @@ static FAutoConsoleVariableRef CVarPreloadSelectablePluginAssetsOnDemand(
 	TEXT("If > 0 then niagara system, emitter, and script assets provided by the niagara plugin will be preloaded when a dialog is opened to select them. This is a temoporary workaround for asset registry issues in cooked editor builds.\n"),
 	ECVF_Default);
 
+int32 GbEnableExperimentalInlineDynamicInputs = 0;
+static FAutoConsoleVariableRef CVarEnableExperimentalInlineDynamicInputs(
+	TEXT("fx.Niagara.EnableExperimentalInlineDynamicInputs"),
+	GbEnableExperimentalInlineDynamicInputs,
+	TEXT("If > 0 experimental inline editors for dynamic input trees will be available via right click menu in the stack.\n"),
+	ECVF_Default);
+
+int32 GbEnableCustomInlineDynamicInputFormats = 1;
+static FAutoConsoleVariableRef CVarEnableCustomInlineDynamicInputFormats(
+	TEXT("fx.Niagara.EnableCustomInlineDynamicInputFormats"),
+	GbEnableCustomInlineDynamicInputFormats,
+	TEXT("If > 0 and experimental inline editors for dynamic input trees are enabled, custom formats which are defined on scripts will be applied.\n"),
+	ECVF_Default);
+
 // this is required for gpu script compilation ticks
 static FNiagaraShaderQueueTickable NiagaraShaderQueueProcessor;
 

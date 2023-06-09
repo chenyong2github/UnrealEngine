@@ -50,8 +50,14 @@ public:
 	/** Gets an optional minimum desired width for this parameter editor. */
 	const TOptional<float>& GetMinimumDesiredWidth() const;
 
+	/** Sets the minimum desired width for this parameter editor.  If the option parameter is not set it clears the current value. */
+	void SetMinimumDesiredWidth(TOptional<float> InMinimumDesiredWidth);
+
 	/** Gets an optional maximum desired width for this parameter editor. */
 	const TOptional<float>& GetMaximumDesiredWidth() const;
+
+	/** Sets the maximum desired width for this parameter editor.  If the option parameter is not set it clears the current value. */
+	void SetMaximumDesiredWidth(TOptional<float> InMaximumDesiredWidth);
 
 	/** Gets the desired horizontal alignment of this parameter editor for it's parent container. */
 	EHorizontalAlignment GetHorizontalAlignment() const;

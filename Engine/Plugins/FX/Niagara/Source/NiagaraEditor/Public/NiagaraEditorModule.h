@@ -55,6 +55,8 @@ DECLARE_STATS_GROUP(TEXT("Niagara Editor"), STATGROUP_NiagaraEditor, STATCAT_Adv
 
 extern NIAGARAEDITOR_API int32 GbShowNiagaraDeveloperWindows;
 extern NIAGARAEDITOR_API int32 GbPreloadSelectablePluginAssetsOnDemand;
+extern NIAGARAEDITOR_API int32 GbEnableExperimentalInlineDynamicInputs;
+extern NIAGARAEDITOR_API int32 GbEnableCustomInlineDynamicInputFormats;
 
 /* Defines methods for allowing external modules to supply widgets to the core editor module. */
 class NIAGARAEDITOR_API INiagaraEditorWidgetProvider

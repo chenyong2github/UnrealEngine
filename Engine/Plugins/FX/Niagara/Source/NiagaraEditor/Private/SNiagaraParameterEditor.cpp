@@ -33,9 +33,19 @@ const TOptional<float>& SNiagaraParameterEditor::GetMinimumDesiredWidth() const
 	return MinimumDesiredWidth;
 }
 
+void SNiagaraParameterEditor::SetMinimumDesiredWidth(TOptional<float> InMinimumDesiredWidth)
+{
+	MinimumDesiredWidth = InMinimumDesiredWidth;
+}
+
 const TOptional<float>& SNiagaraParameterEditor::GetMaximumDesiredWidth() const
 {
 	return MaximumDesiredWidth;
+}
+
+void SNiagaraParameterEditor::SetMaximumDesiredWidth(TOptional<float> InMaximumDesiredWidth)
+{
+	MaximumDesiredWidth = InMaximumDesiredWidth;
 }
 
 EHorizontalAlignment SNiagaraParameterEditor::GetHorizontalAlignment() const

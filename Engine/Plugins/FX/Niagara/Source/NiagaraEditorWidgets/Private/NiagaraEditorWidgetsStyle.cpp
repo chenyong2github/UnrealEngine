@@ -133,7 +133,32 @@ FNiagaraEditorWidgetsStyle::FNiagaraEditorWidgetsStyle() : FSlateStyleSet("Niaga
 	FSlateFontInfo PerfWidgetEvalTypeFont = DEFAULT_FONT("Regular", 7);
 	Set("NiagaraEditor.Stack.Stats.EvalTypeFont", PerfWidgetEvalTypeFont);
 	
+	FSlateFontInfo StackInlineDynamicInputFormatFont = DEFAULT_FONT("Bold", 12);
+	FTextBlockStyle StackInlineDynamicInputFormatText = FTextBlockStyle(NormalText)
+		.SetFont(StackInlineDynamicInputFormatFont);
+	Set("NiagaraEditor.Stack.InlineDynamicInputFormatText", StackInlineDynamicInputFormatText);
 
+	FSlateFontInfo StackInlineDynamicInputFunctionFont = DEFAULT_FONT("Bold", 10);
+	FTextBlockStyle StackInlineDynamicInputFunctionText = FTextBlockStyle(NormalText)
+		.SetFont(StackInlineDynamicInputFunctionFont);
+	Set("NiagaraEditor.Stack.InlineDynamicInputFunctionText", StackInlineDynamicInputFunctionText);
+
+	Set("NiagaraEditor.Stack.InlineDynamicInput.GraphNode.Row.Top",				new BOX_BRUSH("Icons/MultiPartBorderRowTop", FMargin(1.0f / 4.0f)));
+	Set("NiagaraEditor.Stack.InlineDynamicInput.GraphNode.Row.Middle",			new BOX_BRUSH("Icons/MultiPartBorderRowMiddle", FMargin(1.0f / 4.0f)));
+	Set("NiagaraEditor.Stack.InlineDynamicInput.GraphNode.Row.Bottom",			new BOX_BRUSH("Icons/MultiPartBorderRowBottom", FMargin(1.0f / 4.0f)));
+	Set("NiagaraEditor.Stack.InlineDynamicInput.GraphNode.Column.Left",			new BOX_BRUSH("Icons/MultiPartBorderColumnLeft", FMargin(1.0f / 4.0f)));
+	Set("NiagaraEditor.Stack.InlineDynamicInput.GraphNode.Column.Middle",		new BOX_BRUSH("Icons/MultiPartBorderColumnMiddle", FMargin(1.0f / 4.0f)));
+	Set("NiagaraEditor.Stack.InlineDynamicInput.GraphNode.Column.Right",		new BOX_BRUSH("Icons/MultiPartBorderColumnRight", FMargin(1.0f / 4.0f)));
+	Set("NiagaraEditor.Stack.InlineDynamicInput.GraphNode.Corner.BottomLeft",	new BOX_BRUSH("Icons/MultiPartBorderCornerBottomLeft", FMargin(1.0f / 4.0f)));
+	Set("NiagaraEditor.Stack.InlineDynamicInput.GraphNode.Corner.BottomRight",	new BOX_BRUSH("Icons/MultiPartBorderCornerBottomRight", FMargin(1.0f / 4.0f)));
+	Set("NiagaraEditor.Stack.InlineDynamicInput.GraphNode.Edge.Bottom",			new BOX_BRUSH("Icons/MultiPartBorderEdgeBottom", FMargin(1.0f / 4.0f)));
+	Set("NiagaraEditor.Stack.InlineDynamicInput.GraphNode.Single",				new BOX_BRUSH("Icons/MultiPartBorderSingle", FMargin(1.0f / 4.0f)));
+	Set("NiagaraEditor.Stack.InlineDynamicInput.GraphNode.Pointer",				new IMAGE_BRUSH("Icons/MultiPartBorderPointer", Icon16x16));
+
+	FComboButtonStyle CompactComboButton = FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("ComboButton");
+	CompactComboButton.ButtonStyle = FAppStyle::Get().GetWidgetStyle<FButtonStyle>("HoverHintOnly");
+	CompactComboButton.DownArrowPadding = FMargin(1.0f, 0.0f);
+	Set("NiagaraEditor.Stack.CompactComboButton", CompactComboButton);
 
 	FSlateFontInfo StackSubduedItemFont = DEFAULT_FONT("Regular", 9);
 	FTextBlockStyle StackSubduedItemText = FTextBlockStyle(NormalText)

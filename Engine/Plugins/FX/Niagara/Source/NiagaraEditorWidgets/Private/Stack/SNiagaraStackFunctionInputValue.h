@@ -18,6 +18,8 @@ class SBox;
 class IStructureDetailsView;
 class SComboButton;
 struct FGraphActionListBuilderBase;
+class FNiagaraStackCommandContext;
+class FMenuBuilder;
 
 typedef SItemSelector<FString, TSharedPtr<FNiagaraMenuAction_Generic>, ENiagaraMenuSections> SNiagaraMenuActionSelector;
 
@@ -25,8 +27,21 @@ class SNiagaraStackFunctionInputValue: public SCompoundWidget
 {
 public:
 	DECLARE_DELEGATE_OneParam(FOnColumnWidthChanged, float)
+
+	enum class ELayoutMode
+	{
+		FullRow,
+		CompactInline,
+		EditDropDownOnly
+	};
+
 public:
-	SLATE_BEGIN_ARGS(SNiagaraStackFunctionInputValue) { }
+	SLATE_BEGIN_ARGS(SNiagaraStackFunctionInputValue)
+		: _LayoutMode(ELayoutMode::FullRow)
+		, _CompactActionMenuButtonVisibility(EVisibility::Visible)
+		{ }
+		SLATE_ARGUMENT(ELayoutMode, LayoutMode)
+		SLATE_ATTRIBUTE(EVisibility, CompactActionMenuButtonVisibility)
 	SLATE_END_ARGS();
 
 	void Construct(const FArguments& InArgs, UNiagaraStackFunctionInput* InFunctionInput);
@@ -104,6 +119,10 @@ private:
 
 	TSharedRef<SWidget> OnGetAvailableHandleMenu();
 
+	TSharedRef<SWidget> OnGetCompactActionMenu();
+
+	void OnFillAssignSubMenu(FMenuBuilder& MenuBuilder);
+
 	TSharedRef<SWidget> GetVersionSelectorDropdownMenu();
 	void SwitchToVersion(FNiagaraAssetVersion Version);
 	FSlateColor GetVersionSelectorColor() const;
@@ -162,6 +181,8 @@ private:
 private:
 	UNiagaraStackFunctionInput* FunctionInput;
 
+	ELayoutMode LayoutMode;
+
 	TSharedPtr<SBox> ValueContainer;
 	UNiagaraStackFunctionInput::EValueMode ValueModeForGeneratedWidgets;
 
@@ -173,6 +194,9 @@ private:
 	TSharedPtr<SNiagaraFilterBox> FilterBox;
 	TSharedPtr<SComboButton> SetFunctionInputButton;
 	TSharedPtr<FNiagaraHLSLSyntaxHighlighter> SyntaxHighlighter;
+
+	TAttribute<EVisibility> CompactActionMenuButtonVisibilityAttribute;
+	TSharedPtr<FNiagaraStackCommandContext> StackCommandContext;
 
 	static bool bLibraryOnly;
 

@@ -26,6 +26,8 @@ void SNiagaraStackFunctionInputName::Construct(const FArguments& InArgs, UNiagar
 	StackEntryItem = InFunctionInput;
 	IsSelected = InArgs._IsSelected;
 
+	FunctionInput->OnStructureChanged().AddSP(this, &SNiagaraStackFunctionInputName::InputStructureChanged);
+
 	TSharedPtr<SHorizontalBox> NameBox;
 	ChildSlot
 	[
@@ -131,9 +133,86 @@ void SNiagaraStackFunctionInputName::FillRowContextMenu(class FMenuBuilder& Menu
 				LOCTEXT("ChangeNamespaceModifier", "Namespace Modifier"),
 				LOCTEXT("ChangeNamespaceModifierToolTip", "Edit the namespace modifier for the selected parameter."),
 				FNewMenuDelegate::CreateSP(this, &SNiagaraStackFunctionInputName::GetChangeNamespaceModifierSubMenu));
+
+			if (FunctionInput->CanDeleteInput())
+			{
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("DeleteInput", "Remove this parameter"),
+					LOCTEXT("DeleteInputToolTip", "Remove this parameter from set parameters node."),
+					FSlateIcon(),
+					FUIAction(
+						FNiagaraMenuAction_Generic::FOnExecuteAction::CreateUObject(FunctionInput, &UNiagaraStackFunctionInput::DeleteInput),
+						FNiagaraMenuAction_Generic::FCanExecuteAction::CreateUObject(FunctionInput, &UNiagaraStackFunctionInput::CanDeleteInput)));
+			}
 		}
 		MenuBuilder.EndSection();
 	}
+	if (FunctionInput->GetValueMode() == UNiagaraStackFunctionInput::EValueMode::Dynamic && GbEnableExperimentalInlineDynamicInputs)
+	{
+		MenuBuilder.BeginSection("View", LOCTEXT("ViewHeader", "View"));
+		{
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("UseDefaultDisplay", "Use Default Display"),
+				LOCTEXT("UseDefaultDisplayToolTip", "Use the default multi-row tree view display for this input."),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateSP(this, &SNiagaraStackFunctionInputName::OnSetUseDefaultDisplay),
+					FCanExecuteAction(),
+					FGetActionCheckState::CreateSP(this, &SNiagaraStackFunctionInputName::GetUseDefaultDisplayCheckboxState)),
+				NAME_None,
+				EUserInterfaceActionType::RadioButton);
+
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("UseInlineExpressionDisplay", "Use Inline Expression Display"),
+				LOCTEXT("UseInlineExpressionDisplayToolTip", "Change the format of this input value to display inputs as an editable inline expression."),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateSP(this, &SNiagaraStackFunctionInputName::OnSetUseInlineExpressionDisplay),
+					FCanExecuteAction(),
+					FGetActionCheckState::CreateSP(this, &SNiagaraStackFunctionInputName::GetUseInlineExpressionDisplayCheckboxState)),
+				NAME_None,
+				EUserInterfaceActionType::RadioButton);
+
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("UseInlineHorizontalGraphDisplay", "Use Inline Horizontal Graph Display"),
+				LOCTEXT("UseInlineHorizontalGraphDisplayToolTip", "Change the format of this input value to display dynamic inputs as a horizontal inline graph."),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateSP(this, &SNiagaraStackFunctionInputName::OnSetUseInlineHorizontalGraphDisplay),
+					FCanExecuteAction(),
+					FGetActionCheckState::CreateSP(this, &SNiagaraStackFunctionInputName::GetUseInlineHorizontalGraphDisplayCheckboxState)),
+				NAME_None,
+				EUserInterfaceActionType::RadioButton);
+
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("UseInlineVerticalGraphDisplay", "Use Inline Vertical Graph Display"),
+				LOCTEXT("UseInlineVerticalGraphDisplayToolTip", "Change the format of this input value to display dynamic inputs as a vertical inline graph."),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateSP(this, &SNiagaraStackFunctionInputName::OnSetUseInlineVerticalGraphDisplay),
+					FCanExecuteAction(),
+					FGetActionCheckState::CreateSP(this, &SNiagaraStackFunctionInputName::GetUseInlineVerticalGraphDisplayCheckboxState)),
+				NAME_None,
+				EUserInterfaceActionType::RadioButton);
+
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("UseInlineHybridGraphDisplay", "Use Inline Hybrid Graph Display"),
+				LOCTEXT("UseInlineHybridGraphDisplayToolTip", "Change the format of this input value to display dynamic inputs as a hybrid inline graph."),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateSP(this, &SNiagaraStackFunctionInputName::OnSetUseInlineHybridGraphDisplay),
+					FCanExecuteAction(),
+					FGetActionCheckState::CreateSP(this, &SNiagaraStackFunctionInputName::GetUseInlineHybridGraphDisplayCheckboxState)),
+				NAME_None,
+				EUserInterfaceActionType::RadioButton);
+		}
+		MenuBuilder.EndSection();
+	}
+}
+
+FSimpleMulticastDelegate& SNiagaraStackFunctionInputName::OnRequestReconstructRow()
+{
+	return OnRequestReconstructRowDelegate;
 }
 
 EVisibility SNiagaraStackFunctionInputName::GetEditConditionCheckBoxVisibility() const
@@ -328,6 +407,69 @@ bool SNiagaraStackFunctionInputName::CanCopyParameterReference() const
 void SNiagaraStackFunctionInputName::OnCopyParameterReference()
 {
 	FPlatformApplicationMisc::ClipboardCopy(*FunctionInput->GetDisplayName().ToString());
+}
+
+ECheckBoxState SNiagaraStackFunctionInputName::GetUseDefaultDisplayCheckboxState() const
+{
+	return FunctionInput->GetInlineDisplayMode() == ENiagaraStackEntryInlineDisplayMode::None ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void SNiagaraStackFunctionInputName::OnSetUseDefaultDisplay()
+{
+	FunctionInput->SetInlineDisplayMode(ENiagaraStackEntryInlineDisplayMode::None);
+	OnRequestReconstructRowDelegate.Broadcast();
+}
+
+ECheckBoxState SNiagaraStackFunctionInputName::GetUseInlineExpressionDisplayCheckboxState() const
+{
+	return FunctionInput->GetInlineDisplayMode() == ENiagaraStackEntryInlineDisplayMode::Expression ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void SNiagaraStackFunctionInputName::OnSetUseInlineExpressionDisplay()
+{
+	FunctionInput->SetInlineDisplayMode(ENiagaraStackEntryInlineDisplayMode::Expression);
+	OnRequestReconstructRowDelegate.Broadcast();
+}
+
+ECheckBoxState SNiagaraStackFunctionInputName::GetUseInlineHorizontalGraphDisplayCheckboxState() const
+{
+	return FunctionInput->GetInlineDisplayMode() == ENiagaraStackEntryInlineDisplayMode::GraphHorizontal ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void SNiagaraStackFunctionInputName::OnSetUseInlineHorizontalGraphDisplay()
+{
+	FunctionInput->SetInlineDisplayMode(ENiagaraStackEntryInlineDisplayMode::GraphHorizontal);
+	OnRequestReconstructRowDelegate.Broadcast();
+}
+
+ECheckBoxState SNiagaraStackFunctionInputName::GetUseInlineVerticalGraphDisplayCheckboxState() const
+{
+	return FunctionInput->GetInlineDisplayMode() == ENiagaraStackEntryInlineDisplayMode::GraphVertical ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void SNiagaraStackFunctionInputName::OnSetUseInlineVerticalGraphDisplay()
+{
+	FunctionInput->SetInlineDisplayMode(ENiagaraStackEntryInlineDisplayMode::GraphVertical);
+	OnRequestReconstructRowDelegate.Broadcast();
+}
+
+ECheckBoxState SNiagaraStackFunctionInputName::GetUseInlineHybridGraphDisplayCheckboxState() const
+{
+	return FunctionInput->GetInlineDisplayMode() == ENiagaraStackEntryInlineDisplayMode::GraphHybrid ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void SNiagaraStackFunctionInputName::OnSetUseInlineHybridGraphDisplay()
+{
+	FunctionInput->SetInlineDisplayMode(ENiagaraStackEntryInlineDisplayMode::GraphHybrid);
+	OnRequestReconstructRowDelegate.Broadcast();
+}
+
+void SNiagaraStackFunctionInputName::InputStructureChanged(ENiagaraStructureChangedFlags Flags)
+{
+	if (FunctionInput != nullptr && FunctionInput->IsFinalized() == false && FunctionInput->GetInlineDisplayMode() != ENiagaraStackEntryInlineDisplayMode::None)
+	{
+		OnRequestReconstructRowDelegate.Broadcast();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

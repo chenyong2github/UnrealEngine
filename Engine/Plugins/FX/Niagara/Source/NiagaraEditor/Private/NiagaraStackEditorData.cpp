@@ -73,6 +73,27 @@ void UNiagaraStackEditorData::SetStackEntryWasExpandedPreSearch(const FString& S
 	}
 }
 
+ENiagaraStackEntryInlineDisplayMode UNiagaraStackEditorData::GetStackEntryInlineDisplayMode(const FString& StackEntryKey) const
+{
+	const ENiagaraStackEntryInlineDisplayMode* InlineDisplayModePtr = StackEntryKeyToInlineDisplayModeMap.Find(StackEntryKey);
+	return InlineDisplayModePtr != nullptr ? *InlineDisplayModePtr : ENiagaraStackEntryInlineDisplayMode::None;
+}
+
+void UNiagaraStackEditorData::SetStackEntryInlineDisplayMode(const FString& StackEntryKey, ENiagaraStackEntryInlineDisplayMode InlineDisplayMode)
+{
+	bool bBroadcast = false;
+	if (ensureMsgf(StackEntryKey.IsEmpty() == false, TEXT("Can not set the inline display mode with an empty key")))
+	{
+		bBroadcast = GetStackEntryInlineDisplayMode(StackEntryKey) != InlineDisplayMode;
+		StackEntryKeyToInlineDisplayModeMap.FindOrAdd(StackEntryKey) = InlineDisplayMode;
+	}
+
+	if (bBroadcast)
+	{
+		OnPersistentDataChanged().Broadcast();
+	}
+}
+
 bool UNiagaraStackEditorData::GetStackItemShowAdvanced(const FString& StackEntryKey, bool bShowAdvancedDefault) const
 {
 	const bool* bShowAdvancedPtr = StackItemKeyToShowAdvancedMap.Find(StackEntryKey);

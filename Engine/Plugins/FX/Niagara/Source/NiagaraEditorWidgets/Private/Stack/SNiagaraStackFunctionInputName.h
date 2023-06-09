@@ -14,9 +14,6 @@ class SNiagaraParameterNameTextBlock;
 class SNiagaraStackFunctionInputName: public SNiagaraStackEntryWidget
 {
 public:
-	DECLARE_DELEGATE_OneParam(FOnColumnWidthChanged, float);
-
-public:
 	SLATE_BEGIN_ARGS(SNiagaraStackFunctionInputName) { }
 		SLATE_ATTRIBUTE(bool, IsSelected);
 	SLATE_END_ARGS();
@@ -26,6 +23,8 @@ public:
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 	void FillRowContextMenu(class FMenuBuilder& MenuBuilder);
+
+	FSimpleMulticastDelegate& OnRequestReconstructRow();
 
 private:
 	EVisibility GetEditConditionCheckBoxVisibility() const;
@@ -61,6 +60,23 @@ private:
 	bool CanCopyParameterReference() const;
 	void OnCopyParameterReference();
 
+	ECheckBoxState GetUseDefaultDisplayCheckboxState() const;
+	void OnSetUseDefaultDisplay();
+
+	ECheckBoxState GetUseInlineExpressionDisplayCheckboxState() const;
+	void OnSetUseInlineExpressionDisplay();
+
+	ECheckBoxState GetUseInlineHorizontalGraphDisplayCheckboxState() const;
+	void OnSetUseInlineHorizontalGraphDisplay();
+
+	ECheckBoxState GetUseInlineVerticalGraphDisplayCheckboxState() const;
+	void OnSetUseInlineVerticalGraphDisplay();
+
+	ECheckBoxState GetUseInlineHybridGraphDisplayCheckboxState() const;
+	void OnSetUseInlineHybridGraphDisplay();
+
+	void InputStructureChanged(ENiagaraStructureChangedFlags Flags);
+
 private:
 	UNiagaraStackFunctionInput* FunctionInput;
 
@@ -69,4 +85,6 @@ private:
 	TSharedPtr<SNiagaraParameterNameTextBlock> ParameterTextBlock;
 
 	TAttribute<bool> IsSelected;
+
+	FSimpleMulticastDelegate OnRequestReconstructRowDelegate;
 };

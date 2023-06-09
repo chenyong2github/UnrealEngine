@@ -45,6 +45,8 @@ public:
 
 	void Construct(const FArguments& InArgs, UNiagaraStackViewModel* InStackViewModel, UNiagaraStackEntry* InStackEntry, TSharedRef<FNiagaraStackCommandContext> InStackCommandContext, const TSharedRef<STreeView<UNiagaraStackEntry*>>& InOwnerTree);
 
+	void Reset();
+
 	void SetOverrideNameWidth(TOptional<float> InMinWidth, TOptional<float> InMaxWidth);
 
 	void SetOverrideNameAlignment(EHorizontalAlignment InHAlign, EVerticalAlignment InVAlign);
@@ -116,6 +118,7 @@ private:
 
 	FText ExecutionCategoryToolTipText;
 
+	FMargin DefaultContentPadding;
 	FMargin ContentPadding;
 
 	EHorizontalAlignment NameHorizontalAlignment;
