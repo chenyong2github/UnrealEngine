@@ -39,30 +39,39 @@ FMirrorSyncScope::FMirrorSyncScope(const FAnimationBaseContext& InContext, const
 	{
 		// Syncing is done when animation sequences are evaluated, which means we need to examine the stack of mirror
 		// nodes to determine if we can simply enable and disable sync mirroring.  
-		OuterScopeMirrorDataTable = ParentMirrorScope->MirrorDataTable;
 		MirrorScopeDepth = ParentMirrorScope->GetMirrorScopeDepth() + 1;
+		OuterScopeMirrorDataTable = ParentMirrorScope->MirrorDataTable;
 		if (MirrorScopeDepth % 2 == 0)
 		{
 			bClearMirrorSync = IsMirrorSyncIdentical(ParentMirrorScope->MirrorDataTable, MirrorDataTable);
 		}
 	}
-		 
-	AnimSyncGroupScope = InContext.GetMessage<FAnimSyncGroupScope>();
-	if(AnimSyncGroupScope)
+
+	if (InContext.SharedContext)
+	{
+		TWeakPtr<FAnimSyncGroupScope> SyncScope;
+		InContext.SharedContext->MessageStack.TopMessageWeakPtr<FAnimSyncGroupScope>([&SyncScope](TWeakPtr<FAnimSyncGroupScope>& InMessage)
+			{
+				SyncScope = InMessage;
+			});
+		AnimSyncGroupScope = SyncScope; 
+	}
+
+	if(TSharedPtr<FAnimSyncGroupScope> PinnedSyncGroupScope = AnimSyncGroupScope.Pin())
 	{
 		if (bClearMirrorSync)
 		{
 			MirrorDataTable = nullptr;
 		}
-		AnimSyncGroupScope->SetMirror(MirrorDataTable);
+		PinnedSyncGroupScope.Get()->SetMirror(MirrorDataTable);
 	}
 }
 
 FMirrorSyncScope::~FMirrorSyncScope()
 {
-	if(AnimSyncGroupScope)
+	if (TSharedPtr<FAnimSyncGroupScope> PinnedSyncGroupScope = AnimSyncGroupScope.Pin())
 	{
-		AnimSyncGroupScope->SetMirror(OuterScopeMirrorDataTable);
+		PinnedSyncGroupScope->SetMirror(OuterScopeMirrorDataTable);
 	}
 }
 

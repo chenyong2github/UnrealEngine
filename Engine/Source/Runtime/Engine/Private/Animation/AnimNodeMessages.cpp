@@ -116,6 +116,22 @@ void FMessageStack::TopMessage(FName InMessageType, TFunctionRef<void(IGraphMess
 	}
 }
 
+void FMessageStack::TopMessageSharedPtr(FName InMessageType, TFunctionRef<void(TSharedPtr<IGraphMessage>&)> InFunction)
+{
+	if (FMessageStackEntry* StackEntryPtr = MessageStacks.Find(InMessageType))
+	{
+		FMessageStackEntry& StackEntry = *StackEntryPtr;
+		if (StackEntry.Num())
+		{
+			FMessageEntry& MessageEntry = StackEntry.Top();
+			if (MessageEntry.Message->GetTypeName() == InMessageType)
+			{
+				InFunction(MessageEntry.Message);
+			}
+		}
+	}
+}
+
 void FMessageStack::BottomMessage(FName InMessageType, TFunctionRef<void(IGraphMessage&)> InFunction) const
 {
 	if(const FMessageStackEntry* StackEntryPtr = MessageStacks.Find(InMessageType))

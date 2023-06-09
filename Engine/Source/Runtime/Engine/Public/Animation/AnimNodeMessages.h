@@ -257,6 +257,22 @@ public:
 		});
 	}
 
+	// Call the supplied function on the top-most node subscribed to the specified message in this stack
+	// @param	InFunction		The function to call with the specified message.
+	template<typename TGraphMessageType>
+	void TopMessageWeakPtr(TFunctionRef<void(TWeakPtr<TGraphMessageType>&)> InFunction)
+	{
+		static_assert(TIsDerivedFrom<TGraphMessageType, IGraphMessage>::IsDerived, "Argument TGraphMessageType must derive from IGraphMessage");
+		static_assert(!std::is_same_v<TGraphMessageType, IGraphMessage>, "Argument TGraphMessageType must not be IGraphMessage");
+
+		TopMessageSharedPtr(TGraphMessageType::GetStaticTypeName(), [&InFunction](TSharedPtr<IGraphMessage>& InMessage)
+			{
+				TSharedPtr<TGraphMessageType> PinPtr = StaticCastSharedPtr<TGraphMessageType>(InMessage);
+				TWeakPtr<TGraphMessageType> WeakPtr(PinPtr); 
+				InFunction(WeakPtr);
+			});
+	}
+
 	// @return true if a message of the specified type is present
 	template<typename TGraphMessageType>
 	bool HasMessage() const
@@ -294,6 +310,9 @@ private:
 
 	// Helper function for the templated function of the same name above
 	void TopMessage(FName InMessageType, TFunctionRef<void(IGraphMessage&)> InFunction) const;
+
+	// Helper function for the templated function of the same name above
+	void TopMessageSharedPtr(FName InMessageType, TFunctionRef<void(TSharedPtr<IGraphMessage>&)> InFunction);
 
 	// Helper function for the templated function of the same name above
 	void BottomMessage(FName InMessageType, TFunctionRef<void(IGraphMessage&)> InFunction) const;

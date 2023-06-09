@@ -32,9 +32,9 @@ public:
 	virtual TUniquePtr<const IAnimNotifyEventContextDataInterface> MakeUniqueEventContextData() const override;
 private:
 	const UMirrorDataTable* MirrorDataTable = nullptr;
-	int32 MirrorScopeDepth = 1; 
+	int32 MirrorScopeDepth = 1;
 	const UMirrorDataTable* OuterScopeMirrorDataTable = nullptr;
-	FAnimSyncGroupScope* AnimSyncGroupScope = nullptr; 
+	TWeakPtr<FAnimSyncGroupScope> AnimSyncGroupScope;
 };
 
 }}	// namespace UE::Anim
