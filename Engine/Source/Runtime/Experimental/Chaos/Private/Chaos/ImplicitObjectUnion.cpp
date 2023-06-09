@@ -21,9 +21,25 @@ namespace Chaos
 		FAutoConsoleVariableRef CVarChaosUnionBVHEnabled(TEXT("p.Chaos.Collision.UnionBVH.Enabled"), bChaosUnionBVHEnabled, TEXT("Set to false to disable use of BVH during collision detection (without affecting creations and serialization)"));
 	}
 
+inline FAABB3 CalculateObjectsBounds(const TArrayView<TUniquePtr<FImplicitObject>>& Objects)
+{
+	if (Objects.IsEmpty())
+	{
+		// No geometry, so a point particle at our local origin
+		return FAABB3::ZeroAABB();
+	}
+
+	FAABB3 Bounds = Objects[0]->BoundingBox();
+	for (int32 ObjectIndex = 1; ObjectIndex < Objects.Num(); ++ObjectIndex)
+	{
+		Bounds.GrowToInclude(Objects[ObjectIndex]->BoundingBox());
+	}
+	return Bounds;
+}
+
 FImplicitObjectUnion::FImplicitObjectUnion() 
 	: FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::Union)
-	, MLocalBoundingBox()
+	, MLocalBoundingBox(FAABB3::ZeroAABB())
 	, NumLeafObjects(0)
 	, Flags()
 {
@@ -32,22 +48,12 @@ FImplicitObjectUnion::FImplicitObjectUnion()
 FImplicitObjectUnion::FImplicitObjectUnion(TArray<TUniquePtr<FImplicitObject>>&& Objects)
 	: FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::Union)
 	, MObjects(MoveTemp(Objects))
-	, MLocalBoundingBox()
 	, NumLeafObjects(0)
 	, Flags()
 {
 	ensure(MObjects.Num());
-	for (int32 i = 0; i < MObjects.Num(); ++i)
-	{
-		if (i > 0)
-		{
-			MLocalBoundingBox.GrowToInclude(MObjects[i]->BoundingBox());
-		}
-		else
-		{
-			MLocalBoundingBox = MObjects[i]->BoundingBox();
-		}
-	}
+
+	MLocalBoundingBox = CalculateObjectsBounds(MakeArrayView(MObjects));
 
 	SetNumLeafObjects(Private::FImplicitBVH::CountLeafObjects(MakeArrayView(MObjects)));
 }
@@ -68,9 +74,14 @@ void FImplicitObjectUnion::Combine(TArray<TUniquePtr<FImplicitObject>>& OtherObj
 {
 	ensure(MObjects.Num());
 
-	for (int32 i = 0; i < OtherObjects.Num(); ++i)
+	const FAABB3 OtherBounds = CalculateObjectsBounds(MakeArrayView(OtherObjects));
+	if (MObjects.Num() > 0)
 	{
-		MLocalBoundingBox.GrowToInclude(OtherObjects[i]->BoundingBox());
+		MLocalBoundingBox.GrowToInclude(OtherBounds);
+	}
+	else
+	{
+		MLocalBoundingBox = OtherBounds;
 	}
 
 	MObjects.Reserve(MObjects.Num() + OtherObjects.Num());
@@ -94,18 +105,7 @@ void FImplicitObjectUnion::RemoveAt(int32 RemoveIndex)
 		MObjects.RemoveAt(RemoveIndex);
 	}
 
-	MLocalBoundingBox = FAABB3::EmptyAABB();
-	for (int32 i = 0; i < MObjects.Num(); ++i)
-	{
-		if (i > 0)
-		{
-			MLocalBoundingBox.GrowToInclude(MObjects[i]->BoundingBox());
-		}
-		else
-		{
-			MLocalBoundingBox = MObjects[i]->BoundingBox();
-		}
-	}
+	MLocalBoundingBox = CalculateObjectsBounds(MakeArrayView(MObjects));
 
 	RebuildBVH();
 }
@@ -387,6 +387,16 @@ void FImplicitObjectUnion::Serialize(FChaosArchive& Ar)
 			{
 				RebuildBVH();
 			}
+		}
+	}
+
+	if (Ar.IsLoading())
+	{
+		// We used to use empty bounds for particles with no geometry, but
+		// now it is a point bounds at the local origin.
+		if (MLocalBoundingBox.IsEmpty())
+		{
+			MLocalBoundingBox = FAABB3::ZeroAABB();
 		}
 	}
 }

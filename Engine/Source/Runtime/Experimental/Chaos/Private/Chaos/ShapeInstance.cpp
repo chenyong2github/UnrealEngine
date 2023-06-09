@@ -333,6 +333,10 @@ namespace Chaos
 		{
 			WorldSpaceInflatedShapeBounds = Geometry->CalculateTransformedBounds(WorldTransform).ThickenSymmetrically(BoundsExpansion);
 		}
+		else
+		{
+			WorldSpaceInflatedShapeBounds = FAABB3(WorldTransform.GetLocation(), WorldTransform.GetLocation()).ThickenSymmetrically(BoundsExpansion);
+		}
 	}
 
 	void FShapeInstanceProxy::UpdateWorldSpaceState(const FRigidTransform3& WorldTransform, const FVec3& BoundsExpansion)
@@ -393,6 +397,10 @@ namespace Chaos
 		{
 			WorldSpaceInflatedShapeBounds = Geometry->CalculateTransformedBounds(WorldTransform).ThickenSymmetrically(BoundsExpansion);
 		}
+		else
+		{
+			WorldSpaceInflatedShapeBounds = FAABB3(WorldTransform.GetLocation(), WorldTransform.GetLocation()).ThickenSymmetrically(BoundsExpansion);
+		}
 	}
 
 	void FShapeInstance::UpdateWorldSpaceState(const FRigidTransform3& WorldTransform, const FVec3& BoundsExpansion)
@@ -417,6 +425,10 @@ namespace Chaos
 		if ((LeafGeometry != nullptr) && LeafGeometry->HasBoundingBox())
 		{
 			WorldSpaceInflatedShapeBounds = LeafGeometry->CalculateTransformedBounds(LeafWorldTransform).ThickenSymmetrically(BoundsExpansion);;
+		}
+		else
+		{
+			WorldSpaceInflatedShapeBounds = FAABB3(WorldTransform.GetLocation(), WorldTransform.GetLocation()).ThickenSymmetrically(BoundsExpansion);
 		}
 	}
 

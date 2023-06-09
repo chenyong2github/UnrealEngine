@@ -377,56 +377,69 @@ namespace Chaos
 			{
 				MLocalBounds[Index] = TAABB<T, d>(InGeometry->BoundingBox());
 
-				if (CVars::CCDAxisThresholdMode == 0)
-				{
-					// Use object extents as CCD axis threshold
-					MCCDAxisThreshold[Index] = MLocalBounds[Index].Extents();
-				}
-				else if (CVars::CCDAxisThresholdMode == 1)
-				{
-					// Use thinnest object extents as all axis CCD thresholds
-					MCCDAxisThreshold[Index] = FVec3(MLocalBounds[Index].Extents().GetMin());
-				}
-				else
-				{
-					// Find minimum shape bounds thickness on each axis
-					FVec3 ThinnestBoundsPerAxis = MLocalBounds[Index].Extents();
-					for (const TUniquePtr<FPerShapeData>& Shape : ShapesArray(Index))
-					{
-						// Only sim-enabled shapes should ever be swept with CCD, so make sure the
-						// sim-enabled flag is on for each shape before considering it's min bounds
-						// for CCD extents.
-						if (Shape->GetSimEnabled() && (CVars::bCCDAxisThresholdUsesProbeShapes || !Shape->GetIsProbe()))
-						{
-							const TSerializablePtr<FImplicitObject> Geometry = Shape->GetGeometry();
-							if (Geometry->HasBoundingBox())
-							{
-								const TVector<T, d> ShapeExtents = Geometry->BoundingBox().Extents();
-								TVector<T, d>& CCDAxisThreshold = MCCDAxisThreshold[Index];
-								for (int32 AxisIndex = 0; AxisIndex < d; ++AxisIndex)
-								{
-									ThinnestBoundsPerAxis[AxisIndex] = FMath::Min(ShapeExtents[AxisIndex], ThinnestBoundsPerAxis[AxisIndex]);
-								}
-							}
-						}
-					}
-
-					if (CVars::CCDAxisThresholdMode == 2)
-					{
-						// On each axis, use the thinnest shape bound on that axis
-						MCCDAxisThreshold[Index] = ThinnestBoundsPerAxis;
-					}
-					else if (CVars::CCDAxisThresholdMode == 3)
-					{
-						// Find the thinnest shape bound on any axis and use this for all axes
-						MCCDAxisThreshold[Index] = FVec3(ThinnestBoundsPerAxis.GetMin());
-					}
-				}
+				// Update the threshold we use to determine when to enable CCD. This is based on the bounds.
+				UpdateCCDAxisThreshold(Index);
 
 				// Update the world-space stat of all the shapes - must be called after UpdateShapesArray
 				// world space inflated bounds needs to take expansion into account - this is done in integrate for dynamics anyway, so
 				// this computation is mainly for statics
 				UpdateWorldSpaceState(Index, TRigidTransform<FReal, 3>(X(Index), R(Index)), FVec3(0));
+			}
+		}
+
+		void UpdateCCDAxisThreshold(const int32 Index)
+		{
+			// NOTE: We get empty bounds (as opposed to no bounds) if we have Geometry that is an empty Union
+			if (!MHasBounds[Index] || MLocalBounds[Index].IsEmpty())
+			{
+				MCCDAxisThreshold[Index] = FVec3(0);
+				return;
+			}
+
+			if (CVars::CCDAxisThresholdMode == 0)
+			{
+				// Use object extents as CCD axis threshold
+				MCCDAxisThreshold[Index] = MLocalBounds[Index].Extents();
+			}
+			else if (CVars::CCDAxisThresholdMode == 1)
+			{
+				// Use thinnest object extents as all axis CCD thresholds
+				MCCDAxisThreshold[Index] = FVec3(MLocalBounds[Index].Extents().GetMin());
+			}
+			else
+			{
+				// Find minimum shape bounds thickness on each axis
+				FVec3 ThinnestBoundsPerAxis = MLocalBounds[Index].Extents();
+				for (const TUniquePtr<FPerShapeData>& Shape : ShapesArray(Index))
+				{
+					// Only sim-enabled shapes should ever be swept with CCD, so make sure the
+					// sim-enabled flag is on for each shape before considering it's min bounds
+					// for CCD extents.
+					if (Shape->GetSimEnabled() && (CVars::bCCDAxisThresholdUsesProbeShapes || !Shape->GetIsProbe()))
+					{
+						const TSerializablePtr<FImplicitObject> Geometry = Shape->GetGeometry();
+						if (Geometry->HasBoundingBox())
+						{
+							const TVector<T, d> ShapeExtents = Geometry->BoundingBox().Extents();
+							TVector<T, d>& CCDAxisThreshold = MCCDAxisThreshold[Index];
+							for (int32 AxisIndex = 0; AxisIndex < d; ++AxisIndex)
+							{
+								ThinnestBoundsPerAxis[AxisIndex] = FMath::Min(ShapeExtents[AxisIndex], ThinnestBoundsPerAxis[AxisIndex]);
+							}
+						}
+					}
+				}
+
+				if (CVars::CCDAxisThresholdMode == 2)
+				{
+					// On each axis, use the thinnest shape bound on that axis
+					MCCDAxisThreshold[Index] = ThinnestBoundsPerAxis;
+				}
+				else if (CVars::CCDAxisThresholdMode == 3)
+				{
+					// Find the thinnest shape bound on any axis and use this for all axes
+					MCCDAxisThreshold[Index] = FVec3(ThinnestBoundsPerAxis.GetMin());
+				}
 			}
 		}
 	public:
@@ -485,11 +498,11 @@ namespace Chaos
 
 		CHAOS_API void UpdateWorldSpaceState(const int32 Index, const FRigidTransform3& WorldTransform, const FVec3& BoundsExpansion)
 		{
-			// NOTE: Particle bounds are expanded for use by the spatial partitioning and broad phase but individual
-			// shape bounds are not. If expanded Shape bounds are required, the expansion should be done at the calling end.
-			FAABB3 WorldBounds = FAABB3::EmptyAABB();
-
 			const FShapesArray& Shapes = ShapesArray(Index);
+
+			// If we have no shapes we are have a point bounds at our local origin
+			FAABB3 WorldBounds = (Shapes.Num() > 0) ? FAABB3::EmptyAABB() : FAABB3::ZeroAABB();
+
 			for (const auto& Shape : Shapes)
 			{
 				Shape->UpdateWorldSpaceState(WorldTransform, BoundsExpansion);
@@ -501,6 +514,7 @@ namespace Chaos
 
 		void UpdateWorldSpaceStateSwept(const int32 Index, const FRigidTransform3& EndWorldTransform, const FVec3& BoundsExpansion, const FVec3& DeltaX)
 		{
+			// NOTE: Individual shape bounds are not expanded by the DeltaX (velocity term). Maybe they should be...
 			UpdateWorldSpaceState(Index, EndWorldTransform, BoundsExpansion);
 			MWorldSpaceInflatedBounds[Index].GrowByVector(DeltaX);
 		}
