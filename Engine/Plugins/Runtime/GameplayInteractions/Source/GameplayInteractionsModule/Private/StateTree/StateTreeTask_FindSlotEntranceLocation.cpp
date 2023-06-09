@@ -50,7 +50,8 @@ bool FStateTreeTask_FindSlotEntranceLocation::UpdateResult(const FStateTreeExecu
 	Request.bCheckSlotLocationOverlap = bCheckSlotLocationOverlap;
 	Request.bCheckTransitionTrajectory = bCheckTransitionTrajectory;
 	Request.LocationType = LocationType;
-	
+	Request.SearchLocation = InstanceData.UserActor->GetActorLocation();
+
 	FSmartObjectSlotEntranceLocationResult EntryLocation;
 	if (SmartObjectSubsystem.FindEntranceLocationForSlot(InstanceData.ReferenceSlot, Request, EntryLocation))
 	{

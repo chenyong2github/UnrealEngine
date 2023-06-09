@@ -1579,28 +1579,32 @@ bool USmartObjectSubsystem::FindEntranceLocationInternal(
 	const FSmartObjectSlotValidationParams& ValidationParams = ValidationFilter->GetValidationParams(Request.LocationType);
 
 	FSmartObjectUserCapsuleParams UserCapsule;
-	if (Request.UserCapsule.IsSet())
+	const bool bRequireValidUserCapsule = Request.bCheckSlotLocationOverlap || Request.bCheckEntranceLocationOverlap;
+	if (bRequireValidUserCapsule)
 	{
-		UserCapsule = ValidationParams.GetUserCapsule(Request.UserCapsule.GetValue());
-	}
-	else
-	{
-		if (Request.UserActor)
+		if (Request.UserCapsule.IsSet())
 		{
-			if (!ValidationParams.GetUserCapsuleForActor(*Request.UserActor, UserCapsule))
-			{
-				UE_VLOG_UELOG(this, LogSmartObject, Error,
-					TEXT("%hs: Slot %s, Could not resolve user capsule size. Failed to access navigation parameters for user actor %s."),
-					__FUNCTION__, *LexToString(SlotHandle), *GetNameSafe(Request.UserActor));
-				return false;
-			}
+			UserCapsule = ValidationParams.GetUserCapsule(Request.UserCapsule.GetValue());
 		}
 		else
 		{
-			UE_VLOG_UELOG(this, LogSmartObject, Error,
-				TEXT("%hs: Slot %s, Could not resolve user capsule size. Request's UserCapsule is expected to be set when user actor is not specified."),
-				__FUNCTION__, *LexToString(SlotHandle));
-			return false;
+			if (Request.UserActor)
+			{
+				if (!ValidationParams.GetUserCapsuleForActor(*Request.UserActor, UserCapsule))
+				{
+					UE_VLOG_UELOG(this, LogSmartObject, Error,
+						TEXT("%hs: Slot %s, Could not resolve user capsule size. Failed to access navigation parameters for user actor %s."),
+						__FUNCTION__, *LexToString(SlotHandle), *GetNameSafe(Request.UserActor));
+					return false;
+				}
+			}
+			else
+			{
+				UE_VLOG_UELOG(this, LogSmartObject, Error,
+					TEXT("%hs: Slot %s, Could not resolve user capsule size. Request's UserCapsule is expected to be set when user actor is not specified."),
+					__FUNCTION__, *LexToString(SlotHandle));
+				return false;
+			}
 		}
 	}
 
