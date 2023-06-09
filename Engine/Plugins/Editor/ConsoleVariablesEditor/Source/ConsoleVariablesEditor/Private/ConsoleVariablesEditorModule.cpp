@@ -54,9 +54,9 @@ void FConsoleVariablesEditorModule::ShutdownModule()
 	ConsoleObjectsMainReference.Empty();
 
 	// Unregister project settings
-	ISettingsModule& SettingsModule = FModuleManager::LoadModuleChecked<ISettingsModule>("Settings");
+	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
 	{
-		SettingsModule.UnregisterSettings("Project", "Plugins", "Console Variables Editor");
+		SettingsModule->UnregisterSettings("Project", "Plugins", "Console Variables Editor");
 	}
 }
 

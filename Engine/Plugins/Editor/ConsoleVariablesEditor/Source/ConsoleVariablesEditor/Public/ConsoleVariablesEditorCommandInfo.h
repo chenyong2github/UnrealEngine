@@ -50,9 +50,12 @@ struct CONSOLEVARIABLESEDITOR_API FConsoleVariablesEditorCommandInfo
 	~FConsoleVariablesEditorCommandInfo()
 	{
 		OnDetectConsoleObjectUnregistered.Remove(OnDetectConsoleObjectUnregisteredHandle);
-		if (IConsoleVariable* AsVariable = GetConsoleVariablePtr())
+		if (!IsEngineExitRequested()) // CrashFix as GetConsoleVariablePtr() returns stale deleted IConsoleVariable during shut down
 		{
-			AsVariable->OnChangedDelegate().Remove(OnVariableChangedCallbackHandle);
+			if (IConsoleVariable* AsVariable = GetConsoleVariablePtr())
+			{
+				AsVariable->OnChangedDelegate().Remove(OnVariableChangedCallbackHandle);
+			}
 		}
 	}
 	
