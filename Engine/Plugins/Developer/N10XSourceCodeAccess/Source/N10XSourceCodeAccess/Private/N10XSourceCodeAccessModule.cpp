@@ -3,6 +3,7 @@
 #include "N10XSourceCodeAccessModule.h"
 
 #include "Modules/ModuleManager.h"
+#include "Features/IModularFeatures.h"
 #include "N10XSourceCodeAccessor.h"
 
 IMPLEMENT_MODULE( F10XSourceCodeAccessModule, N10XSourceCodeAccess );
