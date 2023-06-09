@@ -33,7 +33,7 @@ struct FInitializeAttachParentsTask
 {
 	FInstanceRegistry* InstanceRegistry;
 
-	void ForEachEntity(UE::MovieScene::FInstanceHandle InstanceHandle, const FMovieSceneObjectBindingID& BindingID, const UE::MovieScene::FAttachmentComponent& AttachComponent, USceneComponent*& OutAttachedParent)
+	void ForEachEntity(UE::MovieScene::FInstanceHandle InstanceHandle, const FMovieSceneObjectBindingID& BindingID, const UE::MovieScene::FAttachmentComponent& AttachComponent, TWeakObjectPtr<USceneComponent>& OutAttachedParent)
 	{
 		const FSequenceInstance& TargetInstance = InstanceRegistry->GetInstance(InstanceHandle);
 
@@ -63,9 +63,9 @@ struct FAttachmentHandler
 		TrackComponents = FMovieSceneTracksComponentTypes::Get();
 	}
 
-	void InitializeOutput(UObject* Object, TArrayView<const FMovieSceneEntityID> Inputs, FPreAnimAttachment* Output, FEntityOutputAggregate Aggregate)
+	void InitializeOutput(FObjectKey Object, TArrayView<const FMovieSceneEntityID> Inputs, FPreAnimAttachment* Output, FEntityOutputAggregate Aggregate)
 	{
-		USceneComponent* AttachChild = CastChecked<USceneComponent>(Object);
+		USceneComponent* AttachChild = CastChecked<USceneComponent>(Object.ResolveObjectPtr());
 
 		Output->OldAttachParent = AttachChild->GetAttachParent();
 		Output->OldAttachSocket = AttachChild->GetAttachSocketName();
@@ -73,17 +73,17 @@ struct FAttachmentHandler
 		UpdateOutput(Object, Inputs, Output, Aggregate);
 	}
 
-	void UpdateOutput(UObject* Object, TArrayView<const FMovieSceneEntityID> Inputs, FPreAnimAttachment* Output, FEntityOutputAggregate Aggregate)
+	void UpdateOutput(FObjectKey Object, TArrayView<const FMovieSceneEntityID> Inputs, FPreAnimAttachment* Output, FEntityOutputAggregate Aggregate)
 	{
-		USceneComponent* AttachChild = CastChecked<USceneComponent>(Object);
+		USceneComponent* AttachChild = CastChecked<USceneComponent>(Object.ResolveObjectPtr());
 
 		for (FMovieSceneEntityID Entity : Inputs)
 		{
-			TOptionalComponentReader<USceneComponent*>     AttachParentComponent = EntityManager->ReadComponent(Entity, TrackComponents->AttachParent);
-			TOptionalComponentReader<FAttachmentComponent> AttachmentComponent   = EntityManager->ReadComponent(Entity, TrackComponents->AttachComponent);
+			TOptionalComponentReader<TWeakObjectPtr<USceneComponent>> AttachParentComponent = EntityManager->ReadComponent(Entity, TrackComponents->AttachParent);
+			TOptionalComponentReader<FAttachmentComponent>            AttachmentComponent   = EntityManager->ReadComponent(Entity, TrackComponents->AttachComponent);
 			if (AttachParentComponent && AttachmentComponent)
 			{
-				if (USceneComponent* AttachParent = *AttachParentComponent)
+				if (USceneComponent* AttachParent = AttachParentComponent->Get())
 				{
 					Output->DetachParams = AttachmentComponent->DetachParams;
 					AttachmentComponent->AttachParams.ApplyAttach(AttachChild, AttachParent, AttachmentComponent->Destination.SocketName);
@@ -95,9 +95,10 @@ struct FAttachmentHandler
 		}
 	}
 
-	void DestroyOutput(UObject* Object, FPreAnimAttachment* Output, FEntityOutputAggregate Aggregate)
+	void DestroyOutput(FObjectKey ObjectKey, FPreAnimAttachment* Output, FEntityOutputAggregate Aggregate)
 	{
-		if (Aggregate.bNeedsRestoration)
+		UObject* Object = ObjectKey.ResolveObjectPtr();
+		if (Aggregate.bNeedsRestoration && Object != nullptr)
 		{
 			USceneComponent* AttachChild = CastChecked<USceneComponent>(Object);
 			AttachmentSystem->AddPendingDetach(AttachChild, *Output);
@@ -228,7 +229,7 @@ void UMovieSceneComponentAttachmentSystem::OnRun(FSystemTaskPrerequisites& InPre
 	FEntityComponentFilter Filter;
 	Filter.All({ TrackComponents->AttachComponent });
 
-	AttachmentTracker.Update(Linker, FBuiltInComponentTypes::Get()->BoundObject, Filter);
+	AttachmentTracker.UpdateFromComponents(Linker, Filter, FBuiltInComponentTypes::Get()->BoundObject);
 	AttachmentTracker.ProcessInvalidatedOutputs(Linker, FAttachmentHandler(this));
 }
 

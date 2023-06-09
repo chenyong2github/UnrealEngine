@@ -38,10 +38,6 @@ void AddReferencedObjectForComponent(FReferenceCollector& ReferenceCollector, FO
 		ReferenceCollector.AddReferencedObject(ComponentData->ObjectPtr);
 	}
 }
-void AddReferencedObjectForBoundObject(FReferenceCollector& ReferenceCollector, void* ComponentData, int32 Num)
-{
-	// Intentionally hidden from the reference graph
-}
 
 static bool GMovieSceneBuiltInComponentTypesDestroyed = false;
 static TUniquePtr<FBuiltInComponentTypes> GMovieSceneBuiltInComponentTypes;
@@ -77,7 +73,8 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	ComponentRegistry->NewComponentType(&EvalSeconds,           TEXT("Eval Seconds"));
 
 	ComponentRegistry->NewComponentType(&BoundObjectKey,        TEXT("Bound Object Key"));
-	ComponentRegistry->NewComponentType(&BoundObject,           TEXT("Bound Object"), FNewComponentTypeParams(&AddReferencedObjectForBoundObject, EComponentTypeFlags::None));
+	// Intentionally hidden from the reference graph because they are always accompanied by a BoundObjectKey which is used for garbage collection
+	ComponentRegistry->NewComponentTypeNoAddReferencedObjects(&BoundObject, TEXT("Bound Object"));
 
 	ComponentRegistry->NewComponentType(&PropertyBinding,         TEXT("Property Binding"), EComponentTypeFlags::CopyToOutput);
 	ComponentRegistry->NewComponentType(&GenericObjectBinding,    TEXT("Generic Object Binding ID"));

@@ -26,14 +26,31 @@ using FComponentReferenceCollectionPtr = void (*)(FReferenceCollector&, void*, i
  */
 inline FNotImplemented* AddReferencedObjectForComponent(...) { return nullptr; }
 
+/** Instantiation for raw pointers */
 template<typename T>
-typename TEnableIf<TPointerIsConvertibleFromTo<T, UObject>::Value>::Type AddReferencedObjectForComponent(FReferenceCollector* ReferenceCollector, TObjectPtr<T>* Component)
+typename TEnableIf<TPointerIsConvertibleFromTo<T, UObject>::Value>::Type AddReferencedObjectForComponent(FReferenceCollector* ReferenceCollector, T** Component)
+{
+	// Ideally this would be a compile-time check buyt 
+	constexpr bool bTypeDependentFalse = !std::is_same_v<T, T>;
+	static_assert(bTypeDependentFalse, "Raw object pointers are no longer supported. Please use TObjectPtr<T> instead.");
+}
+
+template<typename T>
+void AddReferencedObjectForComponent(FReferenceCollector* ReferenceCollector, TObjectPtr<T>* Component)
 {
 	ReferenceCollector->AddReferencedObject(*Component);
 }
 
+// Hack to enable garbage collection path for object keys
+inline void AddReferencedObjectForComponent(FReferenceCollector* ReferenceCollector, FObjectKey* Component)
+{}
+
 template<typename T>
-typename TEnableIf< std::is_same_v<decltype(T::StaticStruct()), decltype(T::StaticStruct())> >::Type AddReferencedObjectForComponent(FReferenceCollector* ReferenceCollector, T* Component)
+void AddReferencedObjectForComponent(FReferenceCollector* ReferenceCollector, TObjectKey<T>* Component)
+{}
+
+template<typename T, typename U = decltype(T::StaticStruct())>
+void AddReferencedObjectForComponent(FReferenceCollector* ReferenceCollector, T* Component)
 {
 	for (TPropertyValueIterator<const FObjectProperty> It(T::StaticStruct(), Component); It; ++It)
 	{
@@ -185,6 +202,15 @@ struct FComponentTypeInfo
 	}
 
 	/**
+	 * Define complex component operations for this type of component without implementing AddReferencedObjects - use with caution!
+	 */
+	template<typename T>
+	void MakeComplexComponentOpsNoAddReferencedObjects()
+	{
+		ComplexComponentOps = MakeUnique<TComplexComponentOpsBase<T>>();
+	}
+
+	/**
 	 * Define complex component with a specific reference collection callback
 	 */
 	template<typename T>
@@ -234,6 +260,8 @@ private:
 				++TypedSrc;
 			}
 		}
+		virtual void AddReferencedObjects(FReferenceCollector& ReferenceCollector, void* ComponentStart, int32 Num)
+		{}
 	};
 	template<typename T>
 	struct TComplexComponentOps : TComplexComponentOpsBase<T>

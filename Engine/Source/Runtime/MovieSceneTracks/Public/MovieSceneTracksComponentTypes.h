@@ -548,7 +548,7 @@ struct MOVIESCENETRACKS_API FMovieSceneTracksComponentTypes
 
 	TComponentTypeID<FConstraintComponentData> ConstraintChannel;
 
-	TComponentTypeID<USceneComponent*> AttachParent;
+	TComponentTypeID<TWeakObjectPtr<USceneComponent>> AttachParent;
 	TComponentTypeID<FAttachmentComponent> AttachComponent;
 	TComponentTypeID<FMovieSceneObjectBindingID> AttachParentBinding;
 	TComponentTypeID<FPerlinNoiseParams> FloatPerlinNoiseChannel;
@@ -566,7 +566,7 @@ struct MOVIESCENETRACKS_API FMovieSceneTracksComponentTypes
 	TComponentTypeID<FName> TransformParameterName;
 
 	TComponentTypeID<FObjectComponent> BoundMaterial;
-	TComponentTypeID<UMaterialParameterCollection*> MPC;
+	TComponentTypeID<TWeakObjectPtr<UMaterialParameterCollection>> MPC;
 
 	TComponentTypeID<FFadeComponentData> Fade;
 

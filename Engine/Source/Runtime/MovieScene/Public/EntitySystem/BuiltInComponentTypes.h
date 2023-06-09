@@ -450,7 +450,7 @@ public:
 	TComponentTypeID<FString> StringResult;
 
 	// The result of an evaluated FMovieSceneObjectPathChannel
-	TComponentTypeID<UObject*> ObjectResult;
+	TComponentTypeID<FObjectComponent> ObjectResult;
 
 public:
 

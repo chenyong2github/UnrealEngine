@@ -118,7 +118,7 @@ void UMovieScenePrimitiveMaterialSection::ImportEntityImpl(UMovieSceneEntitySyst
 	OutImportedEntity->AddBuilder(
 		FEntityBuilder()
 		.AddConditional(BuiltInComponentTypes->GenericObjectBinding, ObjectBindingID, ObjectBindingID.IsValid())
-		.Add(BuiltInComponentTypes->ObjectResult, ValueToImport.Get())
+		.Add(BuiltInComponentTypes->ObjectResult, FObjectComponent::Strong(ValueToImport.Get()))
 		.Add(TracksComponentTypes->ComponentMaterialIndex, MaterialIndex)
 	);
 }

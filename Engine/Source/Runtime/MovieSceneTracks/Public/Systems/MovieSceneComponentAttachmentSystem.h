@@ -68,7 +68,7 @@ private:
 	virtual void SavePreAnimatedState(const FPreAnimationParameters& InParameters) override;
 	virtual void RestorePreAnimatedState(const FPreAnimationParameters& InParameters) override;
 
-	UE::MovieScene::TOverlappingEntityTracker<UE::MovieScene::FPreAnimAttachment, UObject*> AttachmentTracker;
+	UE::MovieScene::TOverlappingEntityTracker<UE::MovieScene::FPreAnimAttachment, FObjectKey> AttachmentTracker;
 
 	TArray<TTuple<USceneComponent*, UE::MovieScene::FPreAnimAttachment>> PendingAttachmentsToRestore;
 };

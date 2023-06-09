@@ -36,7 +36,7 @@ private:
 
 private:
 
-	UE::MovieScene::TOverlappingEntityTracker<EComponentMobility::Type, UObject*> MobilityTracker;
+	UE::MovieScene::TOverlappingEntityTracker<EComponentMobility::Type, FObjectKey> MobilityTracker;
 
 	UE::MovieScene::FEntityComponentFilter Filter;
 

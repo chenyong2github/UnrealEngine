@@ -15,11 +15,17 @@ namespace UE::MovieScene
 
 	struct FEvaluateObjectPathChannels
 	{
-		static void ForEachEntity(FSourceObjectPathChannel ObjectPathChannel, FFrameTime FrameTime, UObject*& OutResult)
+		static void ForEachEntity(FSourceObjectPathChannel ObjectPathChannel, FFrameTime FrameTime, FObjectComponent& OutResult)
 		{
-			if (!ObjectPathChannel.Source->Evaluate(FrameTime, OutResult))
+			UObject* ObjectResult = nullptr;
+			if (!ObjectPathChannel.Source->Evaluate(FrameTime, ObjectResult))
 			{
-				OutResult = nullptr;
+				OutResult = FObjectComponent::Null();
+			}
+			else
+			{
+				// Strong reference to keep the object alive - it is probably an asset of some sort that we wouldn't want to keep reloading
+				OutResult = FObjectComponent::Strong(ObjectResult);
 			}
 		}
 	};

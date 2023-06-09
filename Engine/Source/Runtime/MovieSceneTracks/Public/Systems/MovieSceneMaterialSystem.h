@@ -113,10 +113,10 @@ protected:
 template<typename AccessorType, typename... RequiredComponents>
 struct TApplyMaterialSwitchers
 {
-	static void ForEachEntity(typename TCallTraits<RequiredComponents>::ParamType... Inputs, UObject* ObjectResult)
+	static void ForEachEntity(typename TCallTraits<RequiredComponents>::ParamType... Inputs, const FObjectComponent& ObjectResult)
 	{
 		// ObjectResult must be a material
-		UMaterialInterface* NewMaterial = Cast<UMaterialInterface>(ObjectResult);
+		UMaterialInterface* NewMaterial = Cast<UMaterialInterface>(ObjectResult.GetObject());
 
 		AccessorType Accessor(Inputs...);
 		if (!Accessor)

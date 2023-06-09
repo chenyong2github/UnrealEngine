@@ -37,24 +37,24 @@ struct FMobilityCacheHandler
 		: System(InSystem)
 	{}
 
-	void InitializeOutput(UObject* Object, TArrayView<const FMovieSceneEntityID> Inputs, EComponentMobility::Type* OutMobility, FEntityOutputAggregate Aggregate)
+	void InitializeOutput(FObjectKey Object, TArrayView<const FMovieSceneEntityID> Inputs, EComponentMobility::Type* OutMobility, FEntityOutputAggregate Aggregate)
 	{
-		if (USceneComponent* SceneComponent = Cast<USceneComponent>(Object))
+		if (USceneComponent* SceneComponent = Cast<USceneComponent>(Object.ResolveObjectPtr()))
 		{
 			*OutMobility = SceneComponent->Mobility;
 			SceneComponent->SetMobility(EComponentMobility::Movable);
 		}
 	}
 
-	static void UpdateOutput(UObject* Object, TArrayView<const FMovieSceneEntityID> Inputs, EComponentMobility::Type* OutMobility, FEntityOutputAggregate Aggregate)
+	static void UpdateOutput(FObjectKey Object, TArrayView<const FMovieSceneEntityID> Inputs, EComponentMobility::Type* OutMobility, FEntityOutputAggregate Aggregate)
 	{
-		if (USceneComponent* SceneComponent = Cast<USceneComponent>(Object))
+		if (USceneComponent* SceneComponent = Cast<USceneComponent>(Object.ResolveObjectPtr()))
 		{
 			SceneComponent->SetMobility(EComponentMobility::Movable);
 		}
 	}
 
-	void DestroyOutput(UObject* Object, EComponentMobility::Type* Output, FEntityOutputAggregate Aggregate)
+	void DestroyOutput(FObjectKey Object, EComponentMobility::Type* Output, FEntityOutputAggregate Aggregate)
 	{
 	}
 };
@@ -164,7 +164,7 @@ void UMovieSceneComponentMobilitySystem::OnRun(FSystemTaskPrerequisites& InPrere
 	using namespace UE::MovieScene;
 
 	// Update the mobility tracker, caching preanimated mobilities and assigning everything as moveable that needs it
-	MobilityTracker.Update(Linker, FBuiltInComponentTypes::Get()->BoundObject, Filter);
+	MobilityTracker.UpdateFromComponents(Linker, Filter, FBuiltInComponentTypes::Get()->BoundObject);
 	MobilityTracker.ProcessInvalidatedOutputs(Linker, FMobilityCacheHandler(this));
 }
 

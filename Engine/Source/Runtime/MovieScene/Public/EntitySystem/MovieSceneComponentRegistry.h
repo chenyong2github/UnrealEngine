@@ -79,10 +79,22 @@ public:
 	template<typename T>
 	TComponentTypeID<T> NewComponentType(const TCHAR* const DebugName, const FNewComponentTypeParams& Params = FNewComponentTypeParams());
 
+	/**
+	 * Same as NewComponentType but specifically does not expose the component type to the reference graph. Use with caution!
+	 */
+	template<typename T>
+	TComponentTypeID<T> NewComponentTypeNoAddReferencedObjects(const TCHAR* const DebugName, const FNewComponentTypeParams& Params = FNewComponentTypeParams());
+
 	template<typename T>
 	void NewComponentType(TComponentTypeID<T>* Ref, const TCHAR* const DebugName, const FNewComponentTypeParams& Params = FNewComponentTypeParams())
 	{
 		*Ref = NewComponentType<T>(DebugName, Params);
+	}
+
+	template<typename T>
+	void NewComponentTypeNoAddReferencedObjects(TComponentTypeID<T>* Ref, const TCHAR* const DebugName, const FNewComponentTypeParams& Params = FNewComponentTypeParams())
+	{
+		*Ref = NewComponentTypeNoAddReferencedObjects<T>(DebugName, Params);
 	}
 
 	template<typename PropertyTraits>
@@ -158,6 +170,9 @@ public:
 private:
 
 	FComponentTypeID NewComponentTypeInternal(FComponentTypeInfo&& TypeInfo);
+
+	template<typename T>
+	FComponentTypeInfo MakeComponentTypeInfoWithoutComponentOps(const TCHAR* const DebugName, const FNewComponentTypeParams& Params);
 
 private:
 
