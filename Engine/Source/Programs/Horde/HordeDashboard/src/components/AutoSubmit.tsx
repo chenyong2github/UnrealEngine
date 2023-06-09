@@ -29,7 +29,7 @@ export const AutosubmitInfo: React.FC<{ jobDetails: JobDetailsV2 }> = observer((
    }
 
    if (job.autoSubmitMessage) {
-      return <Stack style={{ paddingTop: 24 }}><Text>{`Unable to submit change: ${job.autoSubmitMessage}`}</Text></Stack>;
+      return <Stack style={{ paddingTop: 24, whiteSpace:"pre" }}><Text>{`Unable to submit change: ${job.autoSubmitMessage}`}</Text></Stack>;
    }
 
    if (job.state !== JobState.Complete) {
