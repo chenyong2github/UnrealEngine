@@ -17,5 +17,7 @@ public:
 	/** IModuleInterface implementation end */
 
 	void OnPlacementModeRefresh(FName CategoryName);
-	void OnPostEngineInit();
+
+private:
+	TSharedPtr<class FColorCorrectionActorContextMenu> ContextMenu;
 };

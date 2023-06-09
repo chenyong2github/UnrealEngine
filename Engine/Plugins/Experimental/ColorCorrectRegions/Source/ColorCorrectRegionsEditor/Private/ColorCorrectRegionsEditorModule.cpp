@@ -2,6 +2,7 @@
 
 #include "ColorCorrectRegionsEditorModule.h"
 #include "ActorFactories/ActorFactoryBlueprint.h"
+#include "ColorCorrectionActorContextMenu.h"
 #include "ColorCorrectRegion.h"
 #include "ColorCorrectRegionCustomization.h"
 #include "ColorCorrectRegionsStyle.h"
@@ -17,6 +18,9 @@ void FColorCorrectRegionsEditorModule::StartupModule()
 
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	PropertyModule.RegisterCustomClassLayout(AColorCorrectRegion::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FColorCorrectWindowDetails::MakeInstance));
+
+	ContextMenu = MakeShared<FColorCorrectionActorContextMenu>();
+	ContextMenu->RegisterContextMenuExtender();
 }
 
 void FColorCorrectRegionsEditorModule::OnPlacementModeRefresh(FName CategoryName)
@@ -55,6 +59,7 @@ void FColorCorrectRegionsEditorModule::OnPlacementModeRefresh(FName CategoryName
 void FColorCorrectRegionsEditorModule::ShutdownModule()
 {
 	FColorCorrectRegionsStyle::Shutdown();
+	ContextMenu->UnregisterContextMenuExtender();
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -6,21 +6,10 @@ public class ColorCorrectRegionsEditor : ModuleRules
 {
 	public ColorCorrectRegionsEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PublicDependencyModuleNames.AddRange(
-			new string[]
-			{
-				"Core",
-				"RenderCore",
-				"UnrealEd",
-				"ColorCorrectRegions",
-				"Slate",
-				"SlateCore",
-			}
-		);
-			
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
+				"ActorPickerMode",
 				"Core",
 				"CoreUObject",
 				"Engine",
@@ -30,6 +19,7 @@ public class ColorCorrectRegionsEditor : ModuleRules
 				"SlateCore",
 				"ColorCorrectRegions",
 				"PlacementMode",
+				"SceneOutliner",
 			}
 		);
 	}
