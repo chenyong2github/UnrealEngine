@@ -2188,8 +2188,6 @@ FReplicationWriter::EWriteObjectStatus FReplicationWriter::WriteObjectAndSubObje
 			EWriteObjectStatus SubObjectWriteStatus = WriteObjectAndSubObjects(Context, SubObjectInternalIndex, WriteObjectFlags, OutBatchInfo);
 			if (!IsWriteObjectSuccess(SubObjectWriteStatus))
 			{
-				// Need to remove the batch entry from BatchInfo.
-				OutBatchInfo.ObjectInfos.RemoveAt(OutBatchInfo.ObjectInfos.Num() - 1);
 				return SubObjectWriteStatus;
 			}
 
@@ -2355,6 +2353,9 @@ int FReplicationWriter::PrepareAndSendHugeObjectPayload(FNetSerializationContext
 		// If we cannot fit the object in the largest supported buffer then we will never fit the object.
 		if (WriteHugeObjectStatus == EWriteObjectStatus::BitStreamOverflow)
 		{
+			// Cleanup data from batch
+			HandleObjectBatchFailure(WriteHugeObjectStatus, BatchInfo, WriteBitStreamInfo);
+
 			UE_LOG(LogIris, Error, TEXT("Unable to fit object ( InternalIndex: %u ) in maximum combined payload of %u bytes. Connection %u will be disconnected."), InternalIndex, MaxHugeObjectPayLoadBytes, Context.GetLocalConnectionId());
 			Context.SetError(NetError_ObjectStateTooLarge);
 			return -1;
@@ -2363,7 +2364,7 @@ int FReplicationWriter::PrepareAndSendHugeObjectPayload(FNetSerializationContext
 		// If we encounter some other error we can try sending a smaller object in the meantime.
 		if (!IsWriteObjectSuccess(WriteHugeObjectStatus))
 		{
-			// Need to call this to cleanup data from batch
+			// Cleanup data from batch
 			HandleObjectBatchFailure(WriteHugeObjectStatus, BatchInfo, WriteBitStreamInfo);
 
 			UE_LOG(LogIris, Verbose, TEXT("Problem writing huge object ( InternalIndex: %u ). WriteObjectStatus: %u. Trying smaller object."), InternalIndex, unsigned(WriteHugeObjectStatus));

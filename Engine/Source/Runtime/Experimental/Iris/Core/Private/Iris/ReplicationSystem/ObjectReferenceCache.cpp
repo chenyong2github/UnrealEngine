@@ -232,10 +232,13 @@ bool FObjectReferenceCache::CreateObjectReferenceInternal(const UObject* Object,
 	CA_ASSUME(Object != nullptr);
 
 	// Check if we are already know about this object
-	if (FNetRefHandle* ReferenceHandle = ObjectToNetReferenceHandle.Find(Object))
+	if (FNetRefHandle* RefHandlePtr = ObjectToNetReferenceHandle.Find(Object))
 	{
+		// Cache RefHandle as the pointer can become invalidated later.
+		const FNetRefHandle RefHandle = *RefHandlePtr;
+
 		// Verify that this is the same object and clean up if it is not
-		FCachedNetObjectReference& CachedObject = ReferenceHandleToCachedReference.FindChecked(*ReferenceHandle);
+		FCachedNetObjectReference& CachedObject = ReferenceHandleToCachedReference.FindChecked(RefHandle);
 
 		if (CachedObject.Object.Get() == Object)
 		{
@@ -250,7 +253,7 @@ bool FObjectReferenceCache::CreateObjectReferenceInternal(const UObject* Object,
 			ObjectToNetReferenceHandle.Remove(CachedObject.ObjectKey);
 			ObjectToNetReferenceHandle.Remove(Object);
 
-			if ((*ReferenceHandle).IsStatic())
+			if (RefHandle.IsStatic())
 			{
 				// Note we only cleanse the object reference
 				// we still keep the cachedObject data around in order to be able to serialize static destruction infos
@@ -259,7 +262,7 @@ bool FObjectReferenceCache::CreateObjectReferenceInternal(const UObject* Object,
 			}
 			else
 			{
-				ReferenceHandleToCachedReference.Remove(*ReferenceHandle);
+				ReferenceHandleToCachedReference.Remove(RefHandle);
 			}
 		}
 	}
