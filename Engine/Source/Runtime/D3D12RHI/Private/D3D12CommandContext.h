@@ -177,7 +177,7 @@ public:
 	FD3D12QueryLocation InsertTimestamp(ED3D12Units Units, uint64* Target);
 
 	// Allocates a query of the specified type, returning its location.
-	FD3D12QueryLocation AllocateQuery(ED3D12QueryType Type, uint64* Target);
+	FD3D12QueryLocation AllocateQuery(ED3D12QueryType Type, void* Target);
 
 	// Complete recording of the current command list set, and appends the resulting
 	// payloads to the given array. Resets the context so new commands can be recorded.
@@ -220,7 +220,7 @@ public:
 
 private:
 	// Allocators to manage query heaps
-	FD3D12QueryAllocator TimestampQueries, OcclusionQueries;
+	FD3D12QueryAllocator TimestampQueries, OcclusionQueries, PipelineStatsQueries;
 
 	// Batches resource barriers together until it's explicitly flushed
 	FD3D12ResourceBarrierBatcher ResourceBarrierBatcher;

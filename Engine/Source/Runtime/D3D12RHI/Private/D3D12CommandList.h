@@ -76,10 +76,10 @@ private:
 	FD3D12CommandList(FD3D12CommandList const&) = delete;
 	FD3D12CommandList(FD3D12CommandList&&) = delete;
 
-	FD3D12CommandList(FD3D12CommandAllocator* CommandAllocator, FD3D12QueryAllocator* TimestampAllocator);
+	FD3D12CommandList(FD3D12CommandAllocator* CommandAllocator, FD3D12QueryAllocator* TimestampAllocator, FD3D12QueryAllocator* PipelineStatsAllocator);
 
-	void WriteBeginTimestamp();
-	void WriteEndTimestamp();
+	void BeginLocalQueries();
+	void EndLocalQueries();
 
 public:
 	~FD3D12CommandList();
@@ -87,7 +87,7 @@ public:
 	void BeginQuery(FD3D12QueryLocation const& Location);
 	void EndQuery  (FD3D12QueryLocation const& Location);
 
-	void Reset(FD3D12CommandAllocator* CommandAllocator, FD3D12QueryAllocator* TimestampAllocator);
+	void Reset(FD3D12CommandAllocator* CommandAllocator, FD3D12QueryAllocator* TimestampAllocator, FD3D12QueryAllocator* PipelineStatsAllocator);
 	void Close();
 
 	bool IsOpen  () const { return !State.IsClosed; }
@@ -241,7 +241,7 @@ private:
 	{
 		static int64 NextCommandListID;
 
-		FState(FD3D12CommandAllocator* CommandAllocator, FD3D12QueryAllocator* TimestampAllocator);
+		FState(FD3D12CommandAllocator* CommandAllocator, FD3D12QueryAllocator* TimestampAllocator, FD3D12QueryAllocator* PipelineStatsAllocator);
 
 		// The allocator currently assigned to this command list.
 		FD3D12CommandAllocator* CommandAllocator;
@@ -265,14 +265,17 @@ private:
 		FD3D12QueryLocation BeginTimestamp;
 		FD3D12QueryLocation EndTimestamp;
 
+		FD3D12QueryLocation PipelineStats;
+
 		TArray<FD3D12QueryLocation> TimestampQueries;
 		TArray<FD3D12QueryLocation> OcclusionQueries;
+		TArray<FD3D12QueryLocation> PipelineStatsQueries;
 
 		uint32 NumCommands = 0;
 
 		bool IsClosed = false;
-		bool bBeginTimestampWritten = false;
-		bool bEndTimestampWritten = false;
+		bool bLocalQueriesBegun = false;
+		bool bLocalQueriesEnded = false;
 
 	} State;
 };

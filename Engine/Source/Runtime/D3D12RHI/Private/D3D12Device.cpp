@@ -20,6 +20,7 @@ static uint32 GetQueryHeapPoolIndex(D3D12_QUERY_HEAP_TYPE HeapType)
 	case D3D12_QUERY_HEAP_TYPE_OCCLUSION:            return 0;
 	case D3D12_QUERY_HEAP_TYPE_TIMESTAMP:            return 1;
 	case D3D12_QUERY_HEAP_TYPE_COPY_QUEUE_TIMESTAMP: return 2;
+	case D3D12_QUERY_HEAP_TYPE_PIPELINE_STATISTICS:  return 3;
 	}
 }
 
@@ -659,18 +660,18 @@ void FD3D12Device::ReleaseCommandAllocator(FD3D12CommandAllocator* Allocator)
 	Queues[(uint32)Allocator->QueueType].ObjectPool.Allocators.Push(Allocator);
 }
 
-FD3D12CommandList* FD3D12Device::ObtainCommandList(FD3D12CommandAllocator* CommandAllocator, FD3D12QueryAllocator* TimestampAllocator)
+FD3D12CommandList* FD3D12Device::ObtainCommandList(FD3D12CommandAllocator* CommandAllocator, FD3D12QueryAllocator* TimestampAllocator, FD3D12QueryAllocator* PipelineStatsAllocator)
 {
 	check(CommandAllocator->Device == this);
 
 	FD3D12CommandList* List = Queues[(uint32)CommandAllocator->QueueType].ObjectPool.Lists.Pop();
 	if (!List)
 	{
-		List = new FD3D12CommandList(CommandAllocator, TimestampAllocator);
+		List = new FD3D12CommandList(CommandAllocator, TimestampAllocator, PipelineStatsAllocator);
 	}
 	else
 	{
-		List->Reset(CommandAllocator, TimestampAllocator);
+		List->Reset(CommandAllocator, TimestampAllocator, PipelineStatsAllocator);
 	}
 	
 	check(List);
@@ -710,13 +711,25 @@ TRefCountPtr<FD3D12QueryHeap> FD3D12Device::ObtainQueryHeap(ED3D12QueueType Queu
 				HeapType = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
 			}
 			break;
+
+		case D3D12_QUERY_TYPE_PIPELINE_STATISTICS:
+#if D3D12RHI_ENABLE_PIPELINE_STATISTICS
+			if (QueueType != ED3D12QueueType::Direct)
+			{
+				// Only graphics/direct queues support pipeline statistics
+				return nullptr;
+			}
+			HeapType = D3D12_QUERY_HEAP_TYPE_PIPELINE_STATISTICS;
+			break;
+#else
+			return nullptr;
+#endif
 	}
 
 	FD3D12QueryHeap* QueryHeap = QueryHeapPool[GetQueryHeapPoolIndex(HeapType)].Pop();
 	if (!QueryHeap)
 	{
-		// Size the query heap to fill a 64KB page
-		QueryHeap = new FD3D12QueryHeap(this, QueryType, HeapType, 65536 / FD3D12QueryHeap::ResultSize);
+		QueryHeap = new FD3D12QueryHeap(this, QueryType, HeapType);
 	}
 
 	check(QueryHeap->QueryType == QueryType);

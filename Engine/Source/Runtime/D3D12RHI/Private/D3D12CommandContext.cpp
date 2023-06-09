@@ -201,6 +201,7 @@ FD3D12ContextCommon::FD3D12ContextCommon(FD3D12Device* Device, ED3D12QueueType Q
 	, bIsDefaultContext(bIsDefaultContext)
 	, TimestampQueries(Device, QueueType, D3D12_QUERY_TYPE_TIMESTAMP)
 	, OcclusionQueries(Device, QueueType, D3D12_QUERY_TYPE_OCCLUSION)
+	, PipelineStatsQueries(Device, QueueType, D3D12_QUERY_TYPE_PIPELINE_STATISTICS)
 {
 }
 
@@ -244,7 +245,7 @@ void FD3D12ContextCommon::WaitManualFence(ID3D12Fence* Fence, uint64 Value)
 	GetPayload(EPhase::Wait)->FencesToWait.Emplace(Fence, Value);
 }
 
-FD3D12QueryLocation FD3D12ContextCommon::AllocateQuery(ED3D12QueryType Type, uint64* Target)
+FD3D12QueryLocation FD3D12ContextCommon::AllocateQuery(ED3D12QueryType Type, void* Target)
 {
 	switch (Type)
 	{
@@ -258,6 +259,9 @@ FD3D12QueryLocation FD3D12ContextCommon::AllocateQuery(ED3D12QueryType Type, uin
 
 	case ED3D12QueryType::Occlusion:
 		return OcclusionQueries.Allocate(Type, Target);
+
+	case ED3D12QueryType::PipelineStats:
+		return PipelineStatsQueries.Allocate(Type, Target);
 	}
 }
 
@@ -292,7 +296,7 @@ void FD3D12ContextCommon::OpenCommandList()
 	}
 
 	// Get a new command list
-	CommandList = Device->ObtainCommandList(CommandAllocator, &TimestampQueries);
+	CommandList = Device->ObtainCommandList(CommandAllocator, &TimestampQueries, &PipelineStatsQueries);
 	GetPayload(EPhase::Execute)->CommandListsToExecute.Add(CommandList);
 
 	check(ActiveQueries == 0);
@@ -324,6 +328,7 @@ void FD3D12ContextCommon::CloseCommandList()
 
 	TimestampQueries.CloseAndReset(Payload->QueryRanges);
 	OcclusionQueries.CloseAndReset(Payload->QueryRanges);
+	PipelineStatsQueries.CloseAndReset(Payload->QueryRanges);
 }
 
 void FD3D12CommandContext::CloseCommandList()
@@ -369,6 +374,7 @@ void FD3D12ContextCommon::Finalize(TArray<FD3D12Payload*>& OutPayloads)
 
 	check(!TimestampQueries.HasQueries());
 	check(!OcclusionQueries.HasQueries());
+	check(!PipelineStatsQueries.HasQueries());
 
 	ContextSyncPoint = nullptr;
 
@@ -376,7 +382,7 @@ void FD3D12ContextCommon::Finalize(TArray<FD3D12Payload*>& OutPayloads)
 	OutPayloads.Append(MoveTemp(Payloads));
 }
 
-FD3D12QueryLocation FD3D12QueryAllocator::Allocate(ED3D12QueryType Type, uint64* Target)
+FD3D12QueryLocation FD3D12QueryAllocator::Allocate(ED3D12QueryType Type, void* Target)
 {
 	check(Type != ED3D12QueryType::None);
 

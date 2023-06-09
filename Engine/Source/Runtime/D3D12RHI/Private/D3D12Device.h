@@ -74,6 +74,8 @@ public:
 
 	uint64 BusyCycles = 0;
 
+	D3D12_QUERY_DATA_PIPELINE_STATISTICS PipelineStats {};
+
 	uint64 GetCurrentTimestamp()  const { return Timestamps[TimestampIndex]; }
 	uint64 GetPreviousTimestamp() const { return Timestamps[TimestampIndex - 1]; }
 
@@ -116,6 +118,7 @@ public:
 	TArray<FD3D12QueryRange   > PendingQueryRanges;
 	TArray<FD3D12QueryLocation> PendingTimestampQueries;
 	TArray<FD3D12QueryLocation> PendingOcclusionQueries;
+	TArray<FD3D12QueryLocation> PendingPipelineStatsQueries;
 
 	// Executes the current payload, returning the latest fence value signaled for this queue.
 	uint64 ExecutePayload();
@@ -326,7 +329,7 @@ public:
 	void                          ReleaseQueryHeap(FD3D12QueryHeap* QueryHeap);
 	
 	// Command Lists
-	FD3D12CommandList* ObtainCommandList (FD3D12CommandAllocator* CommandAllocator, FD3D12QueryAllocator* TimestampAllocator);
+	FD3D12CommandList* ObtainCommandList (FD3D12CommandAllocator* CommandAllocator, FD3D12QueryAllocator* TimestampAllocator, FD3D12QueryAllocator* PipelineStatsAllocator);
 	void               ReleaseCommandList(FD3D12CommandList* CommandList);
 
 	// Queues
@@ -362,7 +365,7 @@ private:
 
 	FD3D12DefaultViews DefaultViews;
 
-	TD3D12ObjectPool<FD3D12QueryHeap> QueryHeapPool[3];
+	TStaticArray<TD3D12ObjectPool<FD3D12QueryHeap>, 4> QueryHeapPool { InPlace };
 	
 	FD3D12CommandContext* ImmediateCommandContext = nullptr;
 

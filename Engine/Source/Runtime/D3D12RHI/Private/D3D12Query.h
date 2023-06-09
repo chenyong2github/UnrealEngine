@@ -35,6 +35,9 @@ struct TD3D12ResourceTraits<FRHIRenderQuery>
 // Ref-counting is used to recycle the heaps on parent device when all refering command lists have completed on the GPU.
 class FD3D12QueryHeap final : public FD3D12SingleNodeGPUObject
 {
+	// All query heaps are allocated to fill a single 64KB page
+	static constexpr uint32 MaxHeapSize = 65536;
+
 private:
 	friend FD3D12Device;
 	friend FD3D12QueryLocation;
@@ -42,7 +45,7 @@ private:
 	FD3D12QueryHeap(FD3D12QueryHeap const&) = delete;
 	FD3D12QueryHeap(FD3D12QueryHeap&&) = delete;
 
-	FD3D12QueryHeap(FD3D12Device* Device, D3D12_QUERY_TYPE QueryType, D3D12_QUERY_HEAP_TYPE HeapType, uint32 NumQueries);
+	FD3D12QueryHeap(FD3D12Device* Device, D3D12_QUERY_TYPE QueryType, D3D12_QUERY_HEAP_TYPE HeapType);
 
 public:
 	~FD3D12QueryHeap();
@@ -53,7 +56,19 @@ public:
 	uint32 const NumQueries;
 
 	// The byte size of a result for a single query
-	static constexpr uint32 ResultSize = sizeof(uint64);
+	uint32 GetResultSize() const
+	{
+		switch (QueryType)
+		{
+		default: checkNoEntry(); [[fallthrough]];
+		case D3D12_QUERY_TYPE_TIMESTAMP:
+		case D3D12_QUERY_TYPE_OCCLUSION:
+			return sizeof(uint64);
+
+		case D3D12_QUERY_TYPE_PIPELINE_STATISTICS:
+			return sizeof(D3D12_QUERY_DATA_PIPELINE_STATISTICS);
+		}
+	}
 
 	ID3D12QueryHeap* GetD3DQueryHeap() const { return D3DQueryHeap; }
 	FD3D12Resource* GetResultBuffer() const { return ResultBuffer; }
@@ -66,18 +81,31 @@ public:
 
 private:
 	TRefCountPtr<FD3D12Resource> ResultBuffer;
-	uint64* ResultPtr = nullptr;
+	uint8 const* ResultPtr = nullptr;
 	TRefCountPtr<ID3D12QueryHeap> D3DQueryHeap;
 	FD3D12ResidencyHandle ResidencyHandle;
 
 	FThreadSafeCounter NumRefs;
 };
 
-inline uint64 FD3D12QueryLocation::GetResult() const
+inline void FD3D12QueryLocation::CopyResultTo(void* Dst) const
 {
+	check(Dst);
 	check(Index < Heap->NumQueries);
 	check(Heap->ResultPtr);
-	return Heap->ResultPtr[Index];
+
+	void const* Src = Heap->ResultPtr + Index * Heap->GetResultSize();
+	FMemory::Memcpy(Dst, Src, Heap->GetResultSize());
+}
+
+template <typename TValueType>
+inline TValueType FD3D12QueryLocation::GetResult() const
+{
+	check(sizeof(TValueType) >= Heap->GetResultSize());
+
+	TValueType Value;
+	CopyResultTo(&Value);
+	return Value;
 }
 
 inline bool FD3D12QueryRange::IsFull() const
@@ -100,7 +128,7 @@ public:
 
 	// Allocate a query on a query heap, returning its location.
 	// The "target" is where the interrupt thread will write the result when completed by the GPU.
-	FD3D12QueryLocation Allocate(ED3D12QueryType Type, uint64* Target);
+	FD3D12QueryLocation Allocate(ED3D12QueryType Type, void* Target);
 
 	// Resets the allocator and returns the used query ranges
 	void CloseAndReset(TArray<FD3D12QueryRange>& OutRanges);

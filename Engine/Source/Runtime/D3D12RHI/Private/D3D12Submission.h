@@ -132,6 +132,7 @@ enum class ED3D12QueryType
 	None,
 	CommandListBegin,
 	CommandListEnd,
+	PipelineStats,
 	IdleBegin,
 	IdleEnd,
 	AdjustedMicroseconds,
@@ -151,13 +152,16 @@ struct FD3D12QueryLocation
 	ED3D12QueryType Type = ED3D12QueryType::None;
 
 	// The location into which the result is written by the interrupt thread.
-	uint64* Target = nullptr;
+	void* Target = nullptr;
 
 	// Reads the query result from the heap
-	inline uint64 GetResult() const;
+	inline void CopyResultTo(void* Dst) const;
+
+	template <typename TValueType>
+	inline TValueType GetResult() const;
 
 	FD3D12QueryLocation() = default;
-	FD3D12QueryLocation(FD3D12QueryHeap* Heap, uint32 Index, ED3D12QueryType Type, uint64* Target)
+	FD3D12QueryLocation(FD3D12QueryHeap* Heap, uint32 Index, ED3D12QueryType Type, void* Target)
 		: Heap	(Heap  )
 		, Index	(Index )
 		, Type	(Type  )
@@ -256,6 +260,7 @@ struct FD3D12PayloadBase
 	TArray<FD3D12CommandAllocator*> AllocatorsToRelease;
 	TArray<FD3D12QueryLocation> TimestampQueries;
 	TArray<FD3D12QueryLocation> OcclusionQueries;
+	TArray<FD3D12QueryLocation> PipelineStatsQueries;
 	TArray<FD3D12QueryRange> QueryRanges;
 
 	// GPU crash breadcrumbs stack

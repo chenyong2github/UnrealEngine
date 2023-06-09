@@ -147,11 +147,11 @@ void FD3D12CommandAllocator::Reset()
 	VERIFYD3D12RESULT(CommandAllocator->Reset());
 }
 
-FD3D12CommandList::FD3D12CommandList(FD3D12CommandAllocator* CommandAllocator, FD3D12QueryAllocator* TimestampAllocator)
+FD3D12CommandList::FD3D12CommandList(FD3D12CommandAllocator* CommandAllocator, FD3D12QueryAllocator* TimestampAllocator, FD3D12QueryAllocator* PipelineStatsAllocator)
 	: Device(CommandAllocator->Device)
 	, QueueType(CommandAllocator->QueueType)
 	, ResidencySet(D3DX12Residency::CreateResidencySet(Device->GetResidencyManager()))
-	, State(CommandAllocator, TimestampAllocator)
+	, State(CommandAllocator, TimestampAllocator, PipelineStatsAllocator)
 {
 	switch (QueueType)
 	{
@@ -236,7 +236,7 @@ FD3D12CommandList::FD3D12CommandList(FD3D12CommandAllocator* CommandAllocator, F
 #endif
 
 	D3DX12Residency::Open(ResidencySet);
-	WriteBeginTimestamp();
+	BeginLocalQueries();
 }
 
 FD3D12CommandList::~FD3D12CommandList()
@@ -256,7 +256,7 @@ FD3D12CommandList::~FD3D12CommandList()
 	DEC_DWORD_STAT(STAT_D3D12NumCommandLists);
 }
 
-void FD3D12CommandList::Reset(FD3D12CommandAllocator* NewCommandAllocator, FD3D12QueryAllocator* TimestampAllocator)
+void FD3D12CommandList::Reset(FD3D12CommandAllocator* NewCommandAllocator, FD3D12QueryAllocator* TimestampAllocator, FD3D12QueryAllocator* PipelineStatsAllocator)
 {
 	check(IsClosed());
 	check(NewCommandAllocator->Device == Device && NewCommandAllocator->QueueType == QueueType);
@@ -270,14 +270,14 @@ void FD3D12CommandList::Reset(FD3D12CommandAllocator* NewCommandAllocator, FD3D1
 	}
 	D3DX12Residency::Open(ResidencySet);
 
-	State = FState(NewCommandAllocator, TimestampAllocator);
-	WriteBeginTimestamp();
+	State = FState(NewCommandAllocator, TimestampAllocator, PipelineStatsAllocator);
+	BeginLocalQueries();
 }
 
 void FD3D12CommandList::Close()
 {
 	check(IsOpen());
-	WriteEndTimestamp();
+	EndLocalQueries();
 
 	if (Interfaces.CopyCommandList)
 	{
@@ -291,28 +291,46 @@ void FD3D12CommandList::Close()
 	State.IsClosed = true;
 }
 
-void FD3D12CommandList::WriteBeginTimestamp()
+void FD3D12CommandList::BeginLocalQueries()
 {
-	if (!State.bBeginTimestampWritten && State.BeginTimestamp)
+	if (!State.bLocalQueriesBegun)
 	{
-		EndQuery(State.BeginTimestamp);
-		State.bBeginTimestampWritten = true;
+		if (State.BeginTimestamp)
+		{
+			EndQuery(State.BeginTimestamp);
+		}
+
+		if (State.PipelineStats)
+		{
+			BeginQuery(State.PipelineStats);
+		}
+
+		State.bLocalQueriesBegun = true;
 	}
 }
 
-void FD3D12CommandList::WriteEndTimestamp()
+void FD3D12CommandList::EndLocalQueries()
 {
-	if (!State.bEndTimestampWritten && State.EndTimestamp)
+	if (!State.bLocalQueriesEnded)
 	{
-		EndQuery(State.EndTimestamp);
-		State.bEndTimestampWritten = true;
+		if (State.PipelineStats)
+		{
+			EndQuery(State.PipelineStats);
+		}
+
+		if (State.EndTimestamp)
+		{
+			EndQuery(State.EndTimestamp);
+		}
+
+		State.bLocalQueriesEnded = true;
 	}
 }
 
 void FD3D12CommandList::BeginQuery(FD3D12QueryLocation const& Location)
 {
 	check(Location);
-	check(Location.Heap->QueryType == D3D12_QUERY_TYPE_OCCLUSION);
+	check(Location.Heap->QueryType == D3D12_QUERY_TYPE_OCCLUSION || Location.Heap->QueryType == D3D12_QUERY_TYPE_PIPELINE_STATISTICS);
 
 	GraphicsCommandList()->BeginQuery(
 		Location.Heap->GetD3DQueryHeap(),
@@ -328,6 +346,15 @@ void FD3D12CommandList::EndQuery(FD3D12QueryLocation const& Location)
 	{
 	default:
 		checkNoEntry();
+		break;
+
+	case D3D12_QUERY_TYPE_PIPELINE_STATISTICS:
+		GraphicsCommandList()->EndQuery(
+			Location.Heap->GetD3DQueryHeap(),
+			Location.Heap->QueryType,
+			Location.Index
+		);
+		State.PipelineStatsQueries.Add(Location);
 		break;
 
 	case D3D12_QUERY_TYPE_OCCLUSION:
@@ -363,7 +390,7 @@ void FD3D12CommandList::WriteTimestamp(FD3D12QueryLocation const& Location)
 }
 #endif // D3D12RHI_PLATFORM_USES_TIMESTAMP_QUERIES
 
-FD3D12CommandList::FState::FState(FD3D12CommandAllocator* CommandAllocator, FD3D12QueryAllocator* TimestampAllocator)
+FD3D12CommandList::FState::FState(FD3D12CommandAllocator* CommandAllocator, FD3D12QueryAllocator* TimestampAllocator, FD3D12QueryAllocator* PipelineStatsAllocator)
 	: CommandAllocator(CommandAllocator)
 	, CommandListID   (FPlatformAtomics::InterlockedIncrement(&NextCommandListID))
 {
@@ -373,6 +400,11 @@ FD3D12CommandList::FState::FState(FD3D12CommandAllocator* CommandAllocator, FD3D
 	{
 		BeginTimestamp = TimestampAllocator->Allocate(ED3D12QueryType::CommandListBegin, nullptr);
 		EndTimestamp   = TimestampAllocator->Allocate(ED3D12QueryType::CommandListEnd  , nullptr);
+	}
+
+	if (PipelineStatsAllocator)
+	{
+		PipelineStats = PipelineStatsAllocator->Allocate(ED3D12QueryType::PipelineStats, nullptr);
 	}
 }
 
