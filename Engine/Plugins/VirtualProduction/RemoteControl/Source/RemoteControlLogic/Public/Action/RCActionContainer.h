@@ -72,8 +72,8 @@ public:
 	/** Called after applying a transaction to the object. Used to broadcast Undo related container changes to UI */
 	virtual void PostEditUndo();
 	void ExecuteActionsOnLoad();
-#endif
 	virtual void PostLoad() override;
+#endif
 	//~ End UObject
 
 	/** Set of child action container */
