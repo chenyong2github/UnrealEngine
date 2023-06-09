@@ -4,6 +4,7 @@
 
 #include "Catch2Includes.h"
 #include <AutoRTFM/AutoRTFM.h>
+#include <atomic>
 #include <map>
 #include <vector>
 
@@ -89,4 +90,17 @@ TEST_CASE("Open.Large")
     REQUIRE(m[12].size() == 2);
     REQUIRE(m[12][0] == 13);
     REQUIRE(m[12][1] == 14);
+}
+
+TEST_CASE("Open.Atomics")
+{
+    std::atomic<bool> bDidRun = false;
+    REQUIRE(
+        AutoRTFM::ETransactionResult::Committed ==
+        AutoRTFM::Transact([&] ()
+        {
+            AutoRTFM::Open([&] () { bDidRun = true; });
+            AutoRTFM::Open([&] () { REQUIRE(bDidRun); });
+        }));
+    REQUIRE(bDidRun);
 }
