@@ -1,7 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
-#include "Hal/Platform.h"
+#include "HAL/Platform.h"
 #include "Containers/StringFwd.h"
 
 /** Data Wrapper for used to Trace Implicit objects
