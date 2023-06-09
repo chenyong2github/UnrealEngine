@@ -48,7 +48,7 @@ struct CHOOSER_API FRandomizeColumn : public FChooserColumnBase
 	public:
 	FRandomizeColumn();
 	
-	UPROPERTY(EditAnywhere, Meta = (ExcludeBaseStruct, BaseStruct = "/Script/Chooser.RandomizeContextProperty"), Category = "Data")
+	UPROPERTY(EditAnywhere, NoClear, Meta = (ExcludeBaseStruct, BaseStruct = "/Script/Chooser.RandomizeContextProperty"), Category = "Data")
 	FInstancedStruct InputValue;
 	
 	

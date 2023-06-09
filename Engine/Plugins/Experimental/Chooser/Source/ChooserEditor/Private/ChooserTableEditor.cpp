@@ -853,6 +853,8 @@ void FChooserTableEditor::UpdateTableColumns()
 					{
 						FStructViewerInitializationOptions Options;
 						Options.StructFilter = MakeShared<FStructFilter>(Chooser->ColumnsStructs[ColumnIndex].Get<FChooserColumnBase>().GetInputBaseType());
+						Options.bAllowViewOptions = false;
+						Options.bShowNoneOption = false;
 						Options.NameTypeToDisplay = EStructViewerNameTypeToDisplay::DisplayName;
 					
 						// Add class filter for columns here
@@ -977,6 +979,8 @@ TSharedRef<SDockTab> FChooserTableEditor::SpawnTableTab( const FSpawnTabArgs& Ar
 	{
 		FStructViewerInitializationOptions Options;
 		Options.StructFilter = MakeShared<FStructFilter>(FChooserColumnBase::StaticStruct());
+		Options.bAllowViewOptions = false;
+		Options.bShowNoneOption = false;
 		Options.NameTypeToDisplay = EStructViewerNameTypeToDisplay::DisplayName;
 		
 		// Add class filter for columns here
@@ -1001,6 +1005,8 @@ TSharedRef<SDockTab> FChooserTableEditor::SpawnTableTab( const FSpawnTabArgs& Ar
 		{
 			FStructViewerInitializationOptions Options;
 			Options.StructFilter = MakeShared<FStructFilter>(FObjectChooserBase::StaticStruct());
+			Options.bAllowViewOptions = false;
+			Options.bShowNoneOption = false;
 			Options.NameTypeToDisplay = EStructViewerNameTypeToDisplay::DisplayName;
 			
 			TSharedRef<SWidget> Widget = FModuleManager::LoadModuleChecked<FStructViewerModule>("StructViewer").CreateStructViewer(Options, FOnStructPicked::CreateLambda([this](const UScriptStruct* ChosenStruct)

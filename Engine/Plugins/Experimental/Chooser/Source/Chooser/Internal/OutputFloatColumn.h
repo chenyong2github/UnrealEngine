@@ -18,7 +18,7 @@ struct CHOOSER_API FOutputFloatColumn : public FChooserColumnBase
 	virtual bool HasOutputs() const override { return true; }
 	virtual void SetOutputs(FChooserEvaluationContext& Context, int RowIndex) const override;
 	
-	UPROPERTY(EditAnywhere, Meta = (ExcludeBaseStruct, BaseStruct = "/Script/Chooser.ChooserParameterFloatBase"), Category = "Hidden")
+	UPROPERTY(EditAnywhere, Meta = (ExcludeBaseStruct, NoClear, BaseStruct = "/Script/Chooser.ChooserParameterFloatBase"), Category = "Hidden")
 	FInstancedStruct InputValue;
 
 #if WITH_EDITOR

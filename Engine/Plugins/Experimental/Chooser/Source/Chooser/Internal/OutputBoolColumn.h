@@ -18,7 +18,7 @@ struct CHOOSER_API FOutputBoolColumn : public FChooserColumnBase
 	virtual bool HasOutputs() const override { return true; }
 	virtual void SetOutputs(FChooserEvaluationContext& Context, int RowIndex) const override;
 	
-	UPROPERTY(EditAnywhere, Meta = (ExcludeBaseStruct, BaseStruct = "/Script/Chooser.ChooserParameterBoolBase"), Category = "Hidden")
+	UPROPERTY(EditAnywhere, NoClear, Meta = (ExcludeBaseStruct, BaseStruct = "/Script/Chooser.ChooserParameterBoolBase"), Category = "Hidden")
 	FInstancedStruct InputValue;
 
 #if WITH_EDITOR

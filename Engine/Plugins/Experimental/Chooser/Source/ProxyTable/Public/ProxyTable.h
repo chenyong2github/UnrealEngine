@@ -18,7 +18,7 @@ struct PROXYTABLE_API FProxyStructOutput
 	UPROPERTY(EditAnywhere, Category = "Data")
 	FChooserStructPropertyBinding Binding;
 	
-	UPROPERTY(EditAnywhere, Category = "Data")
+	UPROPERTY(EditAnywhere, NoClear, Category = "Data")
 	FInstancedStruct Value;
 };
 
@@ -37,10 +37,10 @@ struct PROXYTABLE_API FProxyEntry
 	UPROPERTY(EditAnywhere, Category = "Data")
 	FName Key;
 	
-	UPROPERTY(DisplayName="Value", EditAnywhere, Meta = (ExcludeBaseStruct, BaseStruct = "/Script/Chooser.ObjectChooserBase"), Category = "Data")
+	UPROPERTY(DisplayName="Value", EditAnywhere, NoClear, Meta = (ExcludeBaseStruct, BaseStruct = "/Script/Chooser.ObjectChooserBase"), Category = "Data")
 	FInstancedStruct ValueStruct;
 
-	UPROPERTY(EditAnywhere, Category = "Data")
+	UPROPERTY(EditAnywhere, NoClear, Category = "Data")
 	TArray<FProxyStructOutput> OutputStructData;
 
 	const FGuid GetGuid() const;

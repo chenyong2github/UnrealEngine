@@ -96,7 +96,7 @@ struct CHOOSER_API FEnumColumn : public FChooserColumnBase
 public:
 	FEnumColumn();
 
-	UPROPERTY(EditAnywhere, Meta = (ExcludeBaseStruct, BaseStruct = "/Script/Chooser.ChooserParameterEnumBase"), Category = "Data")
+	UPROPERTY(EditAnywhere, NoClear, Meta = (ExcludeBaseStruct, BaseStruct = "/Script/Chooser.ChooserParameterEnumBase"), Category = "Data")
 	FInstancedStruct InputValue;
 
 #if WITH_EDITORONLY_DATA

@@ -71,7 +71,7 @@ struct CHOOSER_API FBoolColumn : public FChooserColumnBase
 	public:
 	FBoolColumn();
 	
-	UPROPERTY(EditAnywhere, Meta = (ExcludeBaseStruct, BaseStruct = "/Script/Chooser.ChooserParameterBoolBase"), Category = "Data")
+	UPROPERTY(EditAnywhere, NoClear, Meta = (ExcludeBaseStruct, BaseStruct = "/Script/Chooser.ChooserParameterBoolBase"), Category = "Data")
 	FInstancedStruct InputValue;
 
 #if WITH_EDITORONLY_DATA

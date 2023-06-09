@@ -28,7 +28,7 @@ public:
 	virtual bool HasOutputs() const override { return true; }
 	virtual void SetOutputs(FChooserEvaluationContext& Context, int RowIndex) const override;
 
-	UPROPERTY(EditAnywhere, Meta = (ExcludeBaseStruct, BaseStruct = "/Script/Chooser.ChooserParameterEnumBase"), Category = "Data")
+	UPROPERTY(EditAnywhere, NoClear, Meta = (ExcludeBaseStruct, BaseStruct = "/Script/Chooser.ChooserParameterEnumBase"), Category = "Data")
 	FInstancedStruct InputValue;
 
 #if WITH_EDITORONLY_DATA

@@ -26,7 +26,6 @@ namespace UE::ChooserEditor
 		UClass* InterfaceType;
 	};
 	
-
 	class FStructFilter : public IStructViewerFilter
 	{
 	public:
@@ -34,6 +33,11 @@ namespace UE::ChooserEditor
 		
 		virtual bool IsStructAllowed(const FStructViewerInitializationOptions& InInitOptions, const UScriptStruct* InStruct, TSharedRef<FStructViewerFilterFuncs> InFilterFuncs) override
 		{
+			if (InStruct->HasMetaData(TEXT("Hidden")))
+			{
+				return false;
+			}
+			
 			return InStruct->IsChildOf(BaseType) && InStruct !=BaseType;
 		}
 		virtual bool IsUnloadedStructAllowed(const FStructViewerInitializationOptions& InInitOptions, const FSoftObjectPath& InStructPath, TSharedRef<class FStructViewerFilterFuncs> InFilterFuncs)

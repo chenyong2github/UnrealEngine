@@ -75,7 +75,7 @@ struct CHOOSER_API FFloatRangeColumn : public FChooserColumnBase
 	public:
 	FFloatRangeColumn();
 		
-	UPROPERTY(EditAnywhere, Meta = (ExcludeBaseStruct, BaseStruct = "/Script/Chooser.ChooserParameterFloatBase"), Category = "Data")
+	UPROPERTY(EditAnywhere, NoClear, Meta = (ExcludeBaseStruct, BaseStruct = "/Script/Chooser.ChooserParameterFloatBase"), Category = "Data")
 	FInstancedStruct InputValue;
 	
 #if WITH_EDITORONLY_DATA
