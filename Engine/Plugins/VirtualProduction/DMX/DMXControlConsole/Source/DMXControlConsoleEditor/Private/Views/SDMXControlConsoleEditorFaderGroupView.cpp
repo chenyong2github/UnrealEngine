@@ -8,23 +8,22 @@
 #include "DMXControlConsoleFaderGroup.h"
 #include "DMXControlConsoleFaderGroupRow.h"
 #include "DMXControlConsoleFixturePatchMatrixCell.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Models/DMXControlConsoleEditorModel.h"
+#include "ScopedTransaction.h"
 #include "Style/DMXControlConsoleEditorStyle.h"
+#include "Styling/SlateBrush.h"
+#include "Styling/SlateColor.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/SDMXControlConsoleEditorAddButton.h"
 #include "Widgets/SDMXControlConsoleEditorExpandArrowButton.h"
 #include "Widgets/SDMXControlConsoleEditorFader.h"
 #include "Widgets/SDMXControlConsoleEditorFaderGroupPanel.h"
 #include "Widgets/SDMXControlConsoleEditorFaderGroupToolbar.h"
 #include "Widgets/SDMXControlConsoleEditorMatrixCell.h"
-
-#include "ScopedTransaction.h"
-#include "Framework/Application/SlateApplication.h"
-#include "Styling/SlateBrush.h"
-#include "Styling/SlateColor.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Input/SButton.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Widgets/Layout/SBox.h"
 
 
 #define LOCTEXT_NAMESPACE "SDMXControlConsoleEditorFaderGroupView"
@@ -37,8 +36,7 @@ namespace UE::Private::DMXControlConsoleEditorFaderGroupView
 
 SDMXControlConsoleEditorFaderGroupView::SDMXControlConsoleEditorFaderGroupView()
 	: ViewMode(EDMXControlConsoleEditorViewMode::Collapsed)
-{
-}
+{}
 
 void SDMXControlConsoleEditorFaderGroupView::Construct(const FArguments& InArgs, const TObjectPtr<UDMXControlConsoleFaderGroup>& InFaderGroup)
 {
@@ -48,6 +46,12 @@ void SDMXControlConsoleEditorFaderGroupView::Construct(const FArguments& InArgs,
 	{
 		return;
 	}
+
+	UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+	EditorConsoleModel->GetOnFaderGroupsViewModeChanged().AddSP(this, &SDMXControlConsoleEditorFaderGroupView::OnViewModeChanged);
+	EditorConsoleModel->GetOnControlConsoleForceRefresh().AddSP(this, &SDMXControlConsoleEditorFaderGroupView::OnElementAdded);
+	EditorConsoleModel->GetOnControlConsoleForceRefresh().AddSP(this, &SDMXControlConsoleEditorFaderGroupView::OnElementRemoved);
+	FaderGroup->GetOnFixturePatchChanged().AddSP(this, &SDMXControlConsoleEditorFaderGroupView::OnFaderGroupFixturePatchChanged);
 
 	ChildSlot
 		[
@@ -133,9 +137,6 @@ void SDMXControlConsoleEditorFaderGroupView::Construct(const FArguments& InArgs,
 			]
 		];
 
-	UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
-	EditorConsoleModel->GetOnFaderGroupsViewModeChanged().AddSP(this, &SDMXControlConsoleEditorFaderGroupView::OnViewModeChanged);
-
 	RestoreExpansionState();
 }
 
@@ -173,8 +174,8 @@ bool SDMXControlConsoleEditorFaderGroupView::CanAddFaderGroup() const
 
 bool SDMXControlConsoleEditorFaderGroupView::CanAddFaderGroupRow() const
 {
-	// True if this is the first fader group of the row and there's no global filter
-	bool bCanAdd = FaderGroup.IsValid() && FaderGroup->GetIndex() == 0;
+	// True if this is the first active fader group of the row and there's no global filter
+	bool bCanAdd = FaderGroup.IsValid() && FaderGroup->IsFirstActiveFaderGroupInRow();
 
 	const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
 	if (const UDMXControlConsoleData* ControlConsoleData = EditorConsoleModel->GetEditorConsoleData())
@@ -267,7 +268,7 @@ void SDMXControlConsoleEditorFaderGroupView::Tick(const FGeometry& AllottedGeome
 	}
 
 	const TArray<TScriptInterface<IDMXControlConsoleFaderGroupElement>> AllElements = FaderGroup->GetElements();
-	if (AllElements.Num() == ElementWidgets.Num() && !FaderGroup->HasForceRefresh())
+	if (AllElements.Num() == ElementWidgets.Num())
 	{
 		return;
 	}
@@ -280,8 +281,6 @@ void SDMXControlConsoleEditorFaderGroupView::Tick(const FGeometry& AllottedGeome
 	{
 		OnElementRemoved();
 	}
-
-	FaderGroup->ForceRefresh();
 }
 
 TSharedRef<SWidget> SDMXControlConsoleEditorFaderGroupView::GenerateElementsWidget()
@@ -330,6 +329,11 @@ TSharedPtr<SDMXControlConsoleEditorExpandArrowButton> SDMXControlConsoleEditorFa
 
 void SDMXControlConsoleEditorFaderGroupView::OnElementAdded()
 {
+	if (!FaderGroup.IsValid())
+	{
+		return;
+	}
+
 	const TArray<TScriptInterface<IDMXControlConsoleFaderGroupElement>> Elements = FaderGroup->GetElements();
 
 	for (const TScriptInterface<IDMXControlConsoleFaderGroupElement>& Element : Elements)
@@ -388,6 +392,11 @@ void SDMXControlConsoleEditorFaderGroupView::AddElement(const TScriptInterface<I
 
 void SDMXControlConsoleEditorFaderGroupView::OnElementRemoved()
 {
+	if (!FaderGroup.IsValid())
+	{
+		return;
+	}
+
 	const TArray<TScriptInterface<IDMXControlConsoleFaderGroupElement>> Elements = FaderGroup->GetElements();
 
 	TArray<TWeakPtr<SWidget>> ElementWidgetsToRemove;
@@ -471,8 +480,8 @@ void SDMXControlConsoleEditorFaderGroupView::RestoreExpansionState()
 		if (ExpandArrowButton.IsValid())
 		{
 			// Get expansion state from model
-			const bool bIsExpanded = FaderGroup->GetIsExpanded();
-			ExpandArrowButton->SetExpandArrow(FaderGroup->GetIsExpanded());
+			const bool bIsExpanded = FaderGroup->IsExpanded();
+			ExpandArrowButton->SetExpandArrow(FaderGroup->IsExpanded());
 		}
 	}
 }
@@ -513,6 +522,15 @@ void SDMXControlConsoleEditorFaderGroupView::OnAddFaderGroupRow() const
 
 		const int32 RowIndex = FaderGroupRow.GetRowIndex();
 		ControlConsole.AddFaderGroupRow(RowIndex + 1);
+	}
+}
+
+void SDMXControlConsoleEditorFaderGroupView::OnFaderGroupFixturePatchChanged(UDMXControlConsoleFaderGroup* InFaderGroup, UDMXEntityFixturePatch* FixturePatch)
+{
+	if (FaderGroup.IsValid() && FaderGroup == InFaderGroup)
+	{
+		OnElementAdded();
+		OnElementRemoved();
 	}
 }
 
@@ -650,7 +668,7 @@ EVisibility SDMXControlConsoleEditorFaderGroupView::GetViewModeVisibility(EDMXCo
 
 EVisibility SDMXControlConsoleEditorFaderGroupView::GetElementWidgetVisibility(const TScriptInterface<IDMXControlConsoleFaderGroupElement> Element) const
 {
-	const bool bIsVisible = Element.GetInterface() && Element.GetInterface()->GetIsVisibleInEditor();
+	const bool bIsVisible = Element.GetInterface() && Element.GetInterface()->IsMatchingFilter();
 	return  bIsVisible ? EVisibility::Visible : EVisibility::Collapsed;
 }
 

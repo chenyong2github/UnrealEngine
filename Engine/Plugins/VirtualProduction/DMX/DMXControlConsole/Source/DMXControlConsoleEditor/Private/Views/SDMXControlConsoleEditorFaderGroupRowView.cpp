@@ -2,10 +2,11 @@
 
 #include "SDMXControlConsoleEditorFaderGroupRowView.h"
 
+#include "Algo/Find.h"
 #include "DMXControlConsoleFaderGroup.h"
 #include "DMXControlConsoleFaderGroupRow.h"
+#include "Models/DMXControlConsoleEditorModel.h"
 #include "Views/SDMXControlConsoleEditorFaderGroupView.h"
-
 #include "Widgets/SBoxPanel.h"
 
 
@@ -20,10 +21,32 @@ void SDMXControlConsoleEditorFaderGroupRowView::Construct(const FArguments& InAr
 		return;
 	}
 
+	UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+	EditorConsoleModel->GetOnControlConsoleForceRefresh().AddSP(this, &SDMXControlConsoleEditorFaderGroupRowView::OnFaderGroupAdded);
+	EditorConsoleModel->GetOnControlConsoleForceRefresh().AddSP(this, &SDMXControlConsoleEditorFaderGroupRowView::OnFaderGroupRemoved);
+
 	ChildSlot
 		[
 			SAssignNew(FaderGroupsHorizontalBox, SHorizontalBox)
 		];
+}
+
+TSharedPtr<SDMXControlConsoleEditorFaderGroupView> SDMXControlConsoleEditorFaderGroupRowView::FindFaderGroupView(const UDMXControlConsoleFaderGroup* FaderGroup)
+{
+	if (FaderGroup)
+	{
+		const TWeakPtr<SDMXControlConsoleEditorFaderGroupView>* FaderGroupViewPtr = Algo::FindByPredicate(FaderGroupViews, [FaderGroup](const TWeakPtr<SDMXControlConsoleEditorFaderGroupView>& WeakFaderGroupView)
+			{
+				return WeakFaderGroupView.IsValid() && WeakFaderGroupView.Pin()->GetFaderGroup() == FaderGroup;
+			});
+
+		if (FaderGroupViewPtr)
+		{
+			return FaderGroupViewPtr->Pin();
+		}
+	}
+
+	return nullptr;
 }
 
 void SDMXControlConsoleEditorFaderGroupRowView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
@@ -51,6 +74,11 @@ void SDMXControlConsoleEditorFaderGroupRowView::Tick(const FGeometry& AllottedGe
 
 void SDMXControlConsoleEditorFaderGroupRowView::OnFaderGroupAdded()
 {
+	if (!FaderGroupRow.IsValid())
+	{
+		return;
+	}
+
 	const TArray<UDMXControlConsoleFaderGroup*> FaderGroups = FaderGroupRow->GetFaderGroups();
 
 	for (UDMXControlConsoleFaderGroup* FaderGroup : FaderGroups)
@@ -100,6 +128,11 @@ void SDMXControlConsoleEditorFaderGroupRowView::AddFaderGroup(UDMXControlConsole
 
 void SDMXControlConsoleEditorFaderGroupRowView::OnFaderGroupRemoved()
 {
+	if (!FaderGroupRow.IsValid())
+	{
+		return;
+	}
+
 	const TArray<UDMXControlConsoleFaderGroup*> FaderGroups = FaderGroupRow->GetFaderGroups();
 
 	TArray<TWeakPtr<SDMXControlConsoleEditorFaderGroupView>> FaderGroupViewsToRemove;
@@ -154,7 +187,8 @@ EVisibility SDMXControlConsoleEditorFaderGroupRowView::GetFaderGroupViewVisibili
 		return EVisibility::Collapsed;
 	}
 
-	return FaderGroup->GetIsVisibleInEditor() ? EVisibility::Visible : EVisibility::Collapsed;
+	const bool bIsVisible = FaderGroup->IsActive() && FaderGroup->IsMatchingFilter();
+	return bIsVisible ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 #undef LOCTEXT_NAMESPACE

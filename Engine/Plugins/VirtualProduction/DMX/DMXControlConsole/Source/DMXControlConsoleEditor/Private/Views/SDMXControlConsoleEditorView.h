@@ -3,28 +3,30 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
+#include "EditorUndoClient.h"
 #include "Engine/EngineTypes.h"
 #include "Widgets/SCompoundWidget.h"
 
 enum class EDMXControlConsoleEditorViewMode : uint8;
-class SDMXControlConsoleEditorFaderGroupRowView;
-class SDMXControlConsoleEditorFixturePatchVerticalBox;
-class UDMXControlConsoleEditorModel;
-class SDMXControlConsoleEditorPortSelector;
-class UDMXControlConsoleFaderGroupRow;
-class UDMXControlConsoleData;
-
 class FUICommandList;
 class IDetailsView;
+class SDMXControlConsoleEditorFaderGroupRowView;
+class SDMXControlConsoleEditorFixturePatchVerticalBox;
+class SDMXControlConsoleEditorPortSelector;
 class SDockTab;
+class SScrollBox;
 class SSearchBox;
 class SVerticalBox;
+class UDMXControlConsoleEditorModel;
+class UDMXControlConsoleFaderGroup;
+class UDMXControlConsoleFaderGroupRow;
+class UDMXControlConsoleData;
 
 
 /** Widget for the DMX Control Console */
 class SDMXControlConsoleEditorView
 	: public SCompoundWidget
+	, public FSelfRegisteringEditorUndoClient
 {
 public:
 	SLATE_BEGIN_ARGS(SDMXControlConsoleEditorView)
@@ -50,6 +52,11 @@ protected:
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 	//~ End of SWidget interface
+	
+	//~ Begin FSelfRegisteringEditorUndoClient interface
+	virtual void PostUndo(bool bSuccess) override;
+	virtual void PostRedo(bool bSuccess) override;
+	//~ End FSelfRegisteringEditorUndoClient interface
 
 private:
 	/** Registers commands for this view */
@@ -63,6 +70,9 @@ private:
 
 	/** Generates a widget for selection options */
 	TSharedRef<SWidget> GenerateSelectionMenuWidget();
+
+	/** Finds FaderGroupRowView by the given FaderGroupRow, if valid */
+	TSharedPtr<SDMXControlConsoleEditorFaderGroupRowView> FindFaderGroupRowView(const UDMXControlConsoleFaderGroupRow* FaderGroupRow);
 
 	/** Restores global search filter text from Constrol Console Data */
 	void RestoreGlobalFilter();
@@ -103,8 +113,14 @@ private:
 	/** Called when a Selection option is selected */
 	void OnSelectAll(bool bOnlyVisible = false) const;
 
+	/** Called when Control Console gets cleared */
+	void OnClearAll();
+
 	/** Called when Port selection changes */
 	void OnSelectedPortsChanged();
+
+	/** Called when a Property has changed in current Control Console Data */
+	void OnControlConsoleDataPropertyChanged(const FPropertyChangedEvent& PropertyChangedEvent);
 
 	/** Called when the browse to asset button was clicked */
 	void OnBrowseToAssetClicked();
@@ -114,6 +130,9 @@ private:
 
 	/** Called when a console was saved */
 	void OnConsoleSaved();
+
+	/** Called when a FaderGroupView needs to be scrolled into view */
+	void OnScrollIntoView(const UDMXControlConsoleFaderGroup* FaderGroup);
 
 	/** Called when the active tab in the editor changes */
 	void OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated);
@@ -135,6 +154,12 @@ private:
 
 	/** Reference to FixturePatchRows widgets container */
 	TSharedPtr<SDMXControlConsoleEditorFixturePatchVerticalBox> FixturePatchVerticalBox;
+
+	/** Reference to horizontal ScrollBox widget */
+	TSharedPtr<SScrollBox> HorizontalScrollBox;
+
+	/** Reference to vertical ScrollBox widget */
+	TSharedPtr<SScrollBox> VerticalScrollBox;
 
 	/** Reference to Control Console searchbox used for global filtering */
 	TSharedPtr<SSearchBox> GlobalFilterSearchBox;

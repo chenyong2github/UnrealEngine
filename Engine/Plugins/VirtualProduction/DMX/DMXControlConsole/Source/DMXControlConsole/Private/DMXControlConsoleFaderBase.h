@@ -5,7 +5,6 @@
 #include "IDMXControlConsoleFaderGroupElement.h"
 
 #include "DMXProtocolTypes.h"
-
 #include "Tickable.h"
 #include "UObject/Object.h"
 
@@ -69,7 +68,7 @@ public:
 	/** Gets wheter this Fader uses LSB mode or not */
 	bool GetUseLSBMode() const { return bUseLSBMode; }
 
-	/** Gets wheter this Fader cans send DMX data */
+	/** Gets wheter this Fader can send DMX data */
 	bool IsMuted() const { return bIsMuted; }
 
 	/** Sets mute state of this fader */
@@ -156,7 +155,7 @@ protected:
 	int32 EndingAddress = 1;
 
 	/** The current Fader Value */
-	UPROPERTY(EditAnywhere, meta = (DisplayPriority = "6", HideEditConditionToggle, EditCondition = "!bIsMuted && !bIsLocked"), Category = "DMX Fader")
+	UPROPERTY(EditAnywhere, meta = (DisplayPriority = "6", HideEditConditionToggle, EditCondition = "!bIsLocked"), Category = "DMX Fader")
 	uint32 Value = 0;
 
 	/** Fader's default Value */
@@ -164,11 +163,11 @@ protected:
 	uint32 DefaultValue = 0;
 
 	/** The minimum Fader Value */
-	UPROPERTY(EditAnywhere, meta = (DisplayPriority = "7"), Category = "DMX Fader")
+	UPROPERTY(EditAnywhere, meta = (DisplayPriority = "7", EditCondition = "!bIsLocked"), Category = "DMX Fader")
 	uint32 MinValue = 0;
 
 	/** The maximum Fader Value */
-	UPROPERTY(EditAnywhere, meta = (DisplayPriority = "8"), Category = "DMX Fader")
+	UPROPERTY(EditAnywhere, meta = (DisplayPriority = "8", EditCondition = "!bIsLocked"), Category = "DMX Fader")
 	uint32 MaxValue = 255;
 
 	/** Use Least Significant Byte mode. Individual bytes(channels) be interpreted with the first bytes being the lowest part of the number(endianness). */

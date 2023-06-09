@@ -2,15 +2,14 @@
 
 #include "DMXControlConsoleFaderDetails.h"
 
+#include "Algo/AllOf.h"
+#include "DetailLayoutBuilder.h"
 #include "DMXControlConsoleEditorSelection.h"
 #include "DMXControlConsoleFaderBase.h"
-#include "Models/DMXControlConsoleEditorModel.h"
 #include "DMXControlConsoleRawFader.h"
-
-#include "DetailLayoutBuilder.h"
 #include "IPropertyUtilities.h"
+#include "Models/DMXControlConsoleEditorModel.h"
 #include "PropertyHandle.h"
-#include "Algo/AllOf.h"
 
 
 #define LOCTEXT_NAMESPACE "DMXControlConsoleFaderDetails"
@@ -64,7 +63,14 @@ namespace UE::DMXControlConsole
 	{
 		UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
 		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
-		const TArray<TWeakObjectPtr<UObject>> SelectedFaderObjects = SelectionHandler->GetSelectedFaders();
+		TArray<TWeakObjectPtr<UObject>> SelectedFaderObjects = SelectionHandler->GetSelectedFaders();
+		// Remove Faders which don't match filtering
+		SelectedFaderObjects.RemoveAll([](const TWeakObjectPtr<UObject>& SelectedFaderObject)
+			{
+				const UDMXControlConsoleFaderBase* SelectedFader = Cast<UDMXControlConsoleFaderBase>(SelectedFaderObject);
+				return SelectedFader && !SelectedFader->IsMatchingFilter();
+			});
+
 
 		auto AreAllRawFadersLambda = [](const TWeakObjectPtr<UObject>& SelectedFaderObject)
 		{
@@ -88,7 +94,7 @@ namespace UE::DMXControlConsole
 		for (const TWeakObjectPtr<UObject>& SelectedFaderObject : SelectedFaderObjects)
 		{
 			UDMXControlConsoleFaderBase* SelectedFader = Cast<UDMXControlConsoleFaderBase>(SelectedFaderObject);
-			if (!SelectedFader)
+			if (!SelectedFader || !SelectedFader->IsMatchingFilter())
 			{
 				continue;
 			}
@@ -106,7 +112,7 @@ namespace UE::DMXControlConsole
 		for (const TWeakObjectPtr<UObject>& SelectedFaderObject : SelectedFaderObjects)
 		{
 			UDMXControlConsoleFaderBase* SelectedFader = Cast<UDMXControlConsoleFaderBase>(SelectedFaderObject);
-			if (!SelectedFader)
+			if (!SelectedFader || !SelectedFader->IsMatchingFilter())
 			{
 				continue;
 			}
@@ -124,7 +130,7 @@ namespace UE::DMXControlConsole
 		for (const TWeakObjectPtr<UObject>& SelectedFaderObject : SelectedFaderObjects)
 		{
 			UDMXControlConsoleFaderBase* SelectedFader = Cast<UDMXControlConsoleFaderBase>(SelectedFaderObject);
-			if (!SelectedFader)
+			if (!SelectedFader || !SelectedFader->IsMatchingFilter())
 			{
 				continue;
 			}
@@ -142,7 +148,7 @@ namespace UE::DMXControlConsole
 		for (const TWeakObjectPtr<UObject>& SelectedFaderObject : SelectedFaderObjects)
 		{
 			UDMXControlConsoleRawFader* SelectedFader = Cast<UDMXControlConsoleRawFader>(SelectedFaderObject);
-			if (!SelectedFader)
+			if (!SelectedFader || !SelectedFader->IsMatchingFilter())
 			{
 				continue;
 			}
@@ -160,7 +166,7 @@ namespace UE::DMXControlConsole
 		for (const TWeakObjectPtr<UObject>& SelectedFaderObject : SelectedFaderObjects)
 		{
 			UDMXControlConsoleRawFader* SelectedFader = Cast<UDMXControlConsoleRawFader>(SelectedFaderObject);
-			if (!SelectedFader)
+			if (!SelectedFader || !SelectedFader->IsMatchingFilter())
 			{
 				continue;
 			}

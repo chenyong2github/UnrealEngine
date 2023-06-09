@@ -2,31 +2,29 @@
 
 #include "DMXControlConsoleEditorModel.h"
 
+#include "AssetRegistry/AssetData.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetToolsModule.h"
+#include "ContentBrowserModule.h"
 #include "DMXControlConsole.h"
-#include "DMXControlConsoleData.h"
 #include "DMXControlConsoleEditorFromLegacyUpgradeHandler.h"
 #include "DMXControlConsoleEditorSelection.h"
 #include "DMXControlConsoleFaderBase.h"
 #include "DMXControlConsoleFaderGroup.h"
-#include "Models/Filter/FilterModel.h"
-
-#include "AssetToolsModule.h"
-#include "ContentBrowserModule.h"
 #include "Editor.h"
-#include "FileHelpers.h"
-#include "IContentBrowserSingleton.h"
-#include "ScopedTransaction.h"
-#include "AssetRegistry/AssetData.h"
-#include "AssetRegistry/AssetRegistryModule.h"
 #include "Editor/Transactor.h"
+#include "FileHelpers.h"
 #include "Framework/Application/SlateApplication.h"
+#include "IContentBrowserSingleton.h"
+#include "Models/Filter/FilterModel.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/FileHelper.h"
 #include "Misc/MessageDialog.h"
+#include "ScopedTransaction.h"
+#include "TimerManager.h"
 
 
 #define LOCTEXT_NAMESPACE "DMXControlConsoleEditorModel"
-
 
 TSharedRef<FDMXControlConsoleEditorSelection> UDMXControlConsoleEditorModel::GetSelectionHandler()
 {
@@ -89,7 +87,9 @@ void UDMXControlConsoleEditorModel::RemoveAllSelectedElements()
 		for (const TWeakObjectPtr<UObject>& SelectedFaderGroupObject : SelectedFaderGroupsObjects)
 		{
 			UDMXControlConsoleFaderGroup* SelectedFaderGroup = Cast<UDMXControlConsoleFaderGroup>(SelectedFaderGroupObject);
-			if (SelectedFaderGroup && SelectionHandler->GetSelectedFadersFromFaderGroup(SelectedFaderGroup).IsEmpty())
+			if (SelectedFaderGroup && 
+				!SelectedFaderGroup->HasFixturePatch() &&
+				SelectionHandler->GetSelectedFadersFromFaderGroup(SelectedFaderGroup).IsEmpty())
 			{
 				// If there's only one fader group to delete, replace it in selection
 				if (SelectedFaderGroupsObjects.Num() == 1)
@@ -147,6 +147,11 @@ void UDMXControlConsoleEditorModel::ClearAll()
 
 		EditorConsoleData->Reset();
 	}
+}
+
+void UDMXControlConsoleEditorModel::ScrollIntoView(const UDMXControlConsoleFaderGroup* FaderGroup) const
+{
+	OnScrollFaderGroupIntoView.Broadcast(FaderGroup);
 }
 
 void UDMXControlConsoleEditorModel::LoadConsoleFromConfig()
@@ -272,6 +277,14 @@ void UDMXControlConsoleEditorModel::LoadConsole(const FAssetData& AssetData)
 	}
 }
 
+void UDMXControlConsoleEditorModel::RequestRefresh()
+{
+	if (!ForceRefreshTimerHandle.IsValid())
+	{
+		ForceRefreshTimerHandle = GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateUObject(this, &UDMXControlConsoleEditorModel::ForceRefresh));
+	}
+}
+
 UDMXControlConsole* UDMXControlConsoleEditorModel::CreateNewConsoleAsset(const FString& SavePackagePath, const FString& SaveAssetName, UDMXControlConsoleData* SourceControlConsoleData) const
 {
 	if (!ensureMsgf(SourceControlConsoleData, TEXT("Cannot create a console asset from a null control console")))
@@ -332,6 +345,12 @@ void UDMXControlConsoleEditorModel::BeginDestroy()
 	{
 		SaveConsoleToConfig();
 	}
+}
+
+void UDMXControlConsoleEditorModel::ForceRefresh()
+{
+	ForceRefreshTimerHandle.Invalidate();
+	OnControlConsoleForceRefresh.Broadcast();
 }
 
 void UDMXControlConsoleEditorModel::SaveConsoleToConfig()

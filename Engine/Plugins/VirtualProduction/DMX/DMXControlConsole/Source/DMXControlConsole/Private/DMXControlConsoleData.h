@@ -12,8 +12,11 @@
 
 class UDMXControlConsoleFaderGroup;
 class UDMXControlConsoleFaderGroupRow;
+class UDMXEntityFixturePatch;
 class UDMXLibrary;
 
+
+DECLARE_MULTICAST_DELEGATE_OneParam(FDMXControlConsoleFaderGroupDelegate, const UDMXControlConsoleFaderGroup*);
 
 /** The DMX Control Console */
 UCLASS()
@@ -25,8 +28,6 @@ class DMXCONTROLCONSOLE_API UDMXControlConsoleData
 
 	// Allow the DMXControlConsoleFaderGroupRow to read Control Console Data
 	friend UDMXControlConsoleFaderGroupRow;
-
-	DECLARE_MULTICAST_DELEGATE_OneParam(FDMXControlConsoleFaderGroupDelegate, UDMXControlConsoleFaderGroup*);
 
 public:
 	/** Adds a Fader Group Row to this DMX Control Console */
@@ -41,8 +42,16 @@ public:
 	/** Gets an array of all Fader Groups in this DMX Control Console */
 	TArray<UDMXControlConsoleFaderGroup*> GetAllFaderGroups() const;
 
+#if WITH_EDITOR
+	/** Gets an array of all active Fader Groups in this DMX Control Console */
+	TArray<UDMXControlConsoleFaderGroup*> GetAllActiveFaderGroups() const;
+#endif // WITH_EDITOR 
+
 	/** Generates sorted Fader Groups based on the DMX Control Console's current DMX Library */
 	void GenerateFromDMXLibrary();
+
+	/** Finds the Fader Group matching the given Fixture Patch, if valid */
+	UDMXControlConsoleFaderGroup* FindFaderGroupByFixturePatch(const UDMXEntityFixturePatch* InFixturePatch) const;
 
 	/** Gets this DMX Control Console's DMXLibrary */
 	UDMXLibrary* GetDMXLibrary() const { return CachedWeakDMXLibrary.Get(); }
@@ -63,6 +72,9 @@ public:
 
 	/** Updates DMX Output Ports */
 	void UpdateOutputPorts(const TArray<FDMXOutputPortSharedRef> InOutputPorts);
+
+	/** Clears all FaderGroupRows from this ControlConsole */
+	void Clear();
 
 	/** Resets the DMX Control Console to its default */
 	void Reset();
@@ -100,9 +112,6 @@ protected:
 	// ~ End FTickableGameObject interface
 
 private:
-	/** Clears FaderGroupRows array */
-	void ClearFaderGroupRows();
-
 	/** Called when a Fader Group is added to the Control Console */
 	FDMXControlConsoleFaderGroupDelegate OnFaderGroupAdded;
 

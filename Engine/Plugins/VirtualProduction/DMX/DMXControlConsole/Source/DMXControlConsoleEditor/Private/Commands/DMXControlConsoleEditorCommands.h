@@ -27,7 +27,8 @@ public:
 	TSharedPtr<FUICommandInfo> SelectAll;
 	TSharedPtr<FUICommandInfo> ClearAll;
 
-	TSharedPtr<FUICommandInfo> AddPatchNext;
-	TSharedPtr<FUICommandInfo> AddPatchNextRow;
-	TSharedPtr<FUICommandInfo> AddPatchToSelection;
+	TSharedPtr<FUICommandInfo> Mute;
+	TSharedPtr<FUICommandInfo> MuteAll;
+	TSharedPtr<FUICommandInfo> Unmute;
+	TSharedPtr<FUICommandInfo> UnmuteAll;
 };

@@ -2,11 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Widgets/SCompoundWidget.h"
-
 #include "Engine/EngineTypes.h"
 #include "Library/DMXEntityReference.h"
+#include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/SHeaderRow.h"
 
 #include "SDMXReadOnlyFixturePatchList.generated.h"
@@ -63,7 +61,7 @@ struct DMXEDITOR_API FDMXReadOnlyFixturePatchListDescriptor
 		ColumnIDToShowStateMap.Add(FDMXReadOnlyFixturePatchListCollumnIDs::Mode) = false;
 		ColumnIDToShowStateMap.Add(FDMXReadOnlyFixturePatchListCollumnIDs::Patch) = true;
 	}
-	
+
 	/** By which column ID the List is sorted */
 	UPROPERTY()
 	FName SortedByColumnID;
@@ -77,14 +75,15 @@ struct DMXEDITOR_API FDMXReadOnlyFixturePatchListDescriptor
 class DMXEDITOR_API SDMXReadOnlyFixturePatchList
 	: public SCompoundWidget
 {
-	DECLARE_DELEGATE_RetVal_OneParam(bool, FDMXEntityFixturePatchListRowDelegate, const FDMXEntityFixturePatchRef);
-
 public:
+	DECLARE_DELEGATE_OneParam(FDMXFixturePatchListRowDelegate, const TSharedPtr<FDMXEntityFixturePatchRef>)
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FDMXFixturePatchListRowRetValDelegate, const TSharedPtr<FDMXEntityFixturePatchRef>)
+	DECLARE_DELEGATE_TwoParams(FDMXFixturePatchListRowSelectionDelegate, const TSharedPtr<FDMXEntityFixturePatchRef>, ESelectInfo::Type)
+
 	SLATE_BEGIN_ARGS(SDMXReadOnlyFixturePatchList)
-		: _ListDescriptor(FDMXReadOnlyFixturePatchListDescriptor())
+	: _ListDescriptor(FDMXReadOnlyFixturePatchListDescriptor())
 	{}
 
-		/** Describes the list behaviour */
 		SLATE_ARGUMENT(FDMXReadOnlyFixturePatchListDescriptor, ListDescriptor)
 
 		/** The displayed DMX Library */
@@ -95,12 +94,21 @@ public:
 
 		/** Called when a row of the list is right clicked */
 		SLATE_EVENT(FOnContextMenuOpening, OnContextMenuOpening)
+		
+		/** Called when row selection has changed */
+		SLATE_EVENT(FDMXFixturePatchListRowSelectionDelegate, OnRowSelectionChanged)
+
+		/** Called when a row is clicked */
+		SLATE_EVENT(FDMXFixturePatchListRowDelegate, OnRowClicked)
+
+		/** Called when a row is double clicked */
+		SLATE_EVENT(FDMXFixturePatchListRowDelegate, OnRowDoubleClicked)
 
 		/** Called to get the enable state of each row of the list */
-		SLATE_EVENT(FDMXEntityFixturePatchListRowDelegate, IsRowEnabled)
+		SLATE_EVENT(FDMXFixturePatchListRowRetValDelegate, IsRowEnabled)
 
 		/** Called to get the visibility state of each row of the list */
-		SLATE_EVENT(FDMXEntityFixturePatchListRowDelegate, IsRowVisibile)
+		SLATE_EVENT(FDMXFixturePatchListRowRetValDelegate, IsRowVisibile)
 
 		/** Delegate executed when a row was dragged */
 		SLATE_EVENT(FOnDragDetected, OnRowDragged)
@@ -137,12 +145,12 @@ public:
 	/** Selects specified items in the list */
 	void SelectItems(const TArray<TSharedPtr<FDMXEntityFixturePatchRef>>& ItemsToSelect, ESelectInfo::Type SelectInfo = ESelectInfo::Direct);
 
-private:
+protected:
 	/** Initializes the list parameters using the given ListDescriptor */
-	void InitializeByListDescriptor(const FDMXReadOnlyFixturePatchListDescriptor& InListDescriptor);
+	virtual void InitializeByListDescriptor(const FDMXReadOnlyFixturePatchListDescriptor& InListDescriptor);
 
 	/** Refreshes the Fixture Patch List */
-	void RefreshList();
+	virtual void RefreshList();
 
 	/** Updates ListItems array */
 	void UpdateListItems();
@@ -151,7 +159,13 @@ private:
 	TArray<TSharedPtr<FDMXEntityFixturePatchRef>> FilterListItems(const FText& SearchText);
 
 	/** Called when a row in the List gets generated */
-	TSharedRef<ITableRow> OnGenerateRow(TSharedPtr<FDMXEntityFixturePatchRef> InItem, const TSharedRef<STableViewBase>& OwnerTable);
+	virtual TSharedRef<ITableRow> OnGenerateRow(TSharedPtr<FDMXEntityFixturePatchRef> InItem, const TSharedRef<STableViewBase>& OwnerTable);
+
+	/** Called to get wheter a row of the list is enabled or not */
+	virtual bool IsRowEnabled(const TSharedPtr<FDMXEntityFixturePatchRef> InFixturePatchRef) const;
+
+	/** Called to get wheter a row of the list is visible or not */
+	virtual EVisibility GetRowVisibility(const TSharedPtr<FDMXEntityFixturePatchRef> InFixturePatchRef) const;
 
 	/** Called when a row was dragged */
 	FReply OnRowDragged(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
@@ -168,14 +182,8 @@ private:
 	/** Called when a Fixture Type changed */
 	void OnFixtureTypeChanged(const UDMXEntityFixtureType* FixtureType);
 
-	/** Called to get wheter a row of the list is enabled or not */
-	bool IsRowEnabled(const FDMXEntityFixturePatchRef InFixturePatchRef) const ;
-
-	/** Called to get wheter a row of the list is visible or not */
-	EVisibility GetRowVisibility(const FDMXEntityFixturePatchRef InFixturePatchRef) const;
-
 	/** Generates the Header Row of the List */
-	TSharedRef<SHeaderRow> GenerateHeaderRow();
+	virtual TSharedRef<SHeaderRow> GenerateHeaderRow();
 
 	/** Generates a visibility menu fot the Header Row of the List */
 	TSharedRef<SWidget> GenerateHeaderRowVisibilityMenu();
@@ -215,7 +223,7 @@ private:
 
 	/** The Header Row of the List */
 	TSharedPtr<SSearchBox> SearchBox;
-	
+
 	/** The Header Row of the List */
 	TSharedPtr<SHeaderRow> HeaderRow;
 
@@ -233,7 +241,7 @@ private:
 
 	// Slate Arguments
 	TArray<FDMXEntityFixturePatchRef> ExcludedFixturePatches;
-	FDMXEntityFixturePatchListRowDelegate IsRowEnabledDelegate;
-	FDMXEntityFixturePatchListRowDelegate IsRowVisibleDelegate;
+	FDMXFixturePatchListRowRetValDelegate IsRowEnabledDelegate;
+	FDMXFixturePatchListRowRetValDelegate IsRowVisibleDelegate;
 	FOnDragDetected OnRowDraggedDelegate;
 };

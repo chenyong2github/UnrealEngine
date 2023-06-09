@@ -2,21 +2,19 @@
 
 #include "Widgets/SDMXReadOnlyFixturePatchList.h"
 
+#include "Algo/Sort.h"
 #include "DMXEditorUtils.h"
+#include "Editor.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXEntityFixtureType.h"
 #include "Library/DMXLibrary.h"
-#include "Widgets/FixturePatch/SDMXReadOnlyFixturePatchListRow.h"
-
-#include "Editor.h"
 #include "TimerManager.h"
-#include "Algo/Find.h"
-#include "Algo/Sort.h"
-#include "Framework/Application/SlateApplication.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SSearchBox.h"
+#include "Widgets/SDMXReadOnlyFixturePatchListRow.h"
 #include "Widgets/Views/SListView.h"
 
 
@@ -72,11 +70,9 @@ const FName FDMXReadOnlyFixturePatchListCollumnIDs::Patch = "Patch";
 void SDMXReadOnlyFixturePatchList::Construct(const FArguments& InArgs)
 {
 	DMXLibrary = InArgs._DMXLibrary;
-	ExcludedFixturePatches = InArgs._ExcludedFixturePatches;
 
 	IsRowEnabledDelegate = InArgs._IsRowEnabled;
 	IsRowVisibleDelegate = InArgs._IsRowVisibile;
-	OnRowDraggedDelegate = InArgs._OnRowDragged;
 
 	UpdateListItems();
 
@@ -87,53 +83,56 @@ void SDMXReadOnlyFixturePatchList::Construct(const FArguments& InArgs)
 	UDMXEntityFixtureType::GetOnFixtureTypeChanged().AddSP(this, &SDMXReadOnlyFixturePatchList::OnFixtureTypeChanged);
 
 	ChildSlot
-	[
-		SNew(SVerticalBox)
-
-		// SearchBox section
-		+SVerticalBox::Slot()
-		.Padding(8.f, 0.f, 8.f, 8.f)
-		.AutoHeight()
 		[
-			SNew(SHorizontalBox)
+			SNew(SVerticalBox)
 
-			+SHorizontalBox::Slot()
-			.HAlign(HAlign_Left)
-			.Padding(0.f, 0.f, 4.f, 0.f)
-			.AutoWidth()
+			// SearchBox section
+			+ SVerticalBox::Slot()
+			.Padding(8.f, 0.f, 8.f, 8.f)
+			.AutoHeight()
 			[
-				SNew(SComboButton)
-				.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton")
-				.HasDownArrow(true)
-				.OnGetMenuContent(this, &SDMXReadOnlyFixturePatchList::GenerateHeaderRowVisibilityMenu)
-				.ButtonContent()
+				SNew(SHorizontalBox)
+
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Left)
+				.Padding(0.f, 0.f, 4.f, 0.f)
+				.AutoWidth()
 				[
-					SNew(SImage)
-					.Image(FAppStyle::Get().GetBrush("Icons.Filter"))
+					SNew(SComboButton)
+					.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton")
+					.HasDownArrow(true)
+					.OnGetMenuContent(this, &SDMXReadOnlyFixturePatchList::GenerateHeaderRowVisibilityMenu)
+					.ButtonContent()
+					[
+						SNew(SImage)
+						.Image(FAppStyle::Get().GetBrush("Icons.Filter"))
+					]
+				]
+
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Fill)
+				[
+					SAssignNew(SearchBox, SSearchBox)
+					.OnTextChanged(this, &SDMXReadOnlyFixturePatchList::OnSearchTextChanged)
+					.ToolTipText(LOCTEXT("SearchBarTooltip", "Examples:\n\n* PatchName\n* FixtureTypeName\n* SomeMode\n* 1.\n* 1.1\n* Universe 1\n* Uni 1-3\n* Uni 1, 3\n* Uni 1, 4-5'."))
 				]
 			]
 
-			+ SHorizontalBox::Slot()
-			.HAlign(HAlign_Fill)
+			// ListView section
+			+ SVerticalBox::Slot()
+			.AutoHeight()
 			[
-				SAssignNew(SearchBox, SSearchBox)
-				.OnTextChanged(this, &SDMXReadOnlyFixturePatchList::OnSearchTextChanged)
-				.ToolTipText(LOCTEXT("SearchBarTooltip", "Examples:\n\n* PatchName\n* FixtureTypeName\n* SomeMode\n* 1.\n* 1.1\n* Universe 1\n* Uni 1-3\n* Uni 1, 3\n* Uni 1, 4-5'."))
+				SAssignNew(ListView, SListView<TSharedPtr<FDMXEntityFixturePatchRef>>)
+				.HeaderRow(GenerateHeaderRow())
+				.ItemHeight(60.0f)
+				.ListItemsSource(&ListItems)
+				.OnGenerateRow(this, &SDMXReadOnlyFixturePatchList::OnGenerateRow)
+				.OnContextMenuOpening(InArgs._OnContextMenuOpening)
+				.OnSelectionChanged(InArgs._OnRowSelectionChanged)
+				.OnMouseButtonClick(InArgs._OnRowClicked)
+				.OnMouseButtonDoubleClick(InArgs._OnRowDoubleClicked)
 			]
-		]
-
-		// ListView section
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		[
-			SAssignNew(ListView, SListView<TSharedPtr<FDMXEntityFixturePatchRef>>)
-			.HeaderRow(GenerateHeaderRow())
-			.ItemHeight(60.0f)
-			.ListItemsSource(&ListItems)
-			.OnGenerateRow(this, &SDMXReadOnlyFixturePatchList::OnGenerateRow)
-			.OnContextMenuOpening(InArgs._OnContextMenuOpening)
-		]
-	];
+		];
 
 	InitializeByListDescriptor(InArgs._ListDescriptor);
 }
@@ -177,7 +176,7 @@ TArray<TSharedPtr<FDMXEntityFixturePatchRef>> SDMXReadOnlyFixturePatchList::GetV
 		{
 			if (FixturePatchRef.IsValid() && IsRowVisibleDelegate.IsBound())
 			{
-				return !IsRowVisibleDelegate.Execute(*FixturePatchRef);
+				return !IsRowVisibleDelegate.Execute(FixturePatchRef);
 			}
 			return false;
 		});
@@ -220,7 +219,7 @@ void SDMXReadOnlyFixturePatchList::InitializeByListDescriptor(const FDMXReadOnly
 }
 
 void SDMXReadOnlyFixturePatchList::RefreshList()
-{	
+{
 	ListRefreshTimerHandle.Invalidate();
 
 	using namespace UE::DMX::SDMXReadOnlyFixturePatchListNamespace::Private;
@@ -332,7 +331,7 @@ void SDMXReadOnlyFixturePatchList::UpdateListItems()
 	const TArray<UDMXEntityFixturePatch*> FixturePatchesInLibrary = DMXLibrary->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
 	for (UDMXEntityFixturePatch* FixturePatch : FixturePatchesInLibrary)
 	{
-		if (!FixturePatch || ExcludedFixturePatches.Contains(FixturePatch))
+		if (!FixturePatch)
 		{
 			continue;
 		}
@@ -352,22 +351,40 @@ TSharedRef<ITableRow> SDMXReadOnlyFixturePatchList::OnGenerateRow(TSharedPtr<FDM
 {
 	const TSharedRef<SDMXReadOnlyFixturePatchListRow> NewRow =
 		SNew(SDMXReadOnlyFixturePatchListRow, OwnerTable, InItem.ToSharedRef())
-		.OnRowDragged(this, &SDMXReadOnlyFixturePatchList::OnRowDragged)
-		.IsEnabled(this, &SDMXReadOnlyFixturePatchList::IsRowEnabled, *InItem.Get())
-		.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXReadOnlyFixturePatchList::GetRowVisibility, *InItem.Get()));
+		.IsEnabled(this, &SDMXReadOnlyFixturePatchList::IsRowEnabled, InItem)
+		.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXReadOnlyFixturePatchList::GetRowVisibility, InItem));
 
-	ListRows.Add(NewRow);
 	return NewRow;
 }
 
-FReply SDMXReadOnlyFixturePatchList::OnRowDragged(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+bool SDMXReadOnlyFixturePatchList::IsRowEnabled(const TSharedPtr<FDMXEntityFixturePatchRef> InFixturePatchRef) const
 {
-	if (OnRowDraggedDelegate.IsBound())
+	if (IsRowEnabledDelegate.IsBound())
 	{
-		return OnRowDraggedDelegate.Execute(MyGeometry, MouseEvent);
+		return IsRowEnabledDelegate.Execute(InFixturePatchRef);
 	}
 
-	return FReply::Unhandled();
+	return true;
+}
+
+EVisibility SDMXReadOnlyFixturePatchList::GetRowVisibility(const TSharedPtr<FDMXEntityFixturePatchRef> InFixturePatchRef) const
+{
+	const bool bIsEnabled = IsRowEnabled(InFixturePatchRef);
+	bool bIsVisible = IsRowVisibleDelegate.IsBound() ? IsRowVisibleDelegate.Execute(InFixturePatchRef) : true;
+
+	switch (ShowMode)
+	{
+	case EDMXReadOnlyFixturePatchListShowMode::All:
+		break;
+	case EDMXReadOnlyFixturePatchListShowMode::Active:
+		bIsVisible &= bIsEnabled;
+		break;
+	case EDMXReadOnlyFixturePatchListShowMode::Inactive:
+		bIsVisible &= !bIsEnabled;
+		break;
+	}
+
+	return bIsVisible ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 void SDMXReadOnlyFixturePatchList::OnSearchTextChanged(const FText& SearchText)
@@ -401,46 +418,16 @@ void SDMXReadOnlyFixturePatchList::OnFixtureTypeChanged(const UDMXEntityFixtureT
 	}
 }
 
-bool SDMXReadOnlyFixturePatchList::IsRowEnabled(const FDMXEntityFixturePatchRef InFixturePatchRef) const
-{
-	if (IsRowEnabledDelegate.IsBound())
-	{
-		return IsRowEnabledDelegate.Execute(InFixturePatchRef);
-	}
-
-	return true;
-}
-
-EVisibility SDMXReadOnlyFixturePatchList::GetRowVisibility(const FDMXEntityFixturePatchRef InFixturePatchRef) const
-{
-	const bool bIsEnabled = IsRowEnabled(InFixturePatchRef);
-	bool bIsVisible = IsRowVisibleDelegate.IsBound() ? IsRowVisibleDelegate.Execute(InFixturePatchRef) : true;
-
-	switch (ShowMode)
-	{
-	case EDMXReadOnlyFixturePatchListShowMode::All:
-		break;
-	case EDMXReadOnlyFixturePatchListShowMode::Active:
-		bIsVisible &= bIsEnabled;
-		break;
-	case EDMXReadOnlyFixturePatchListShowMode::Inactive:
-		bIsVisible &= !bIsEnabled;
-		break;
-	}
-
-	return bIsVisible ? EVisibility::Visible : EVisibility::Collapsed;
-}
-
 TSharedRef<SHeaderRow> SDMXReadOnlyFixturePatchList::GenerateHeaderRow()
 {
 	HeaderRow = SNew(SHeaderRow);
 
 	HeaderRow->AddColumn(
-			SHeaderRow::FColumn::FArguments()
-			.ColumnId(FDMXReadOnlyFixturePatchListCollumnIDs::EditorColor)
-			.DefaultLabel(LOCTEXT("EditorColorColumnLabel", ""))
-			.FixedWidth(16.f)
-		);
+		SHeaderRow::FColumn::FArguments()
+		.ColumnId(FDMXReadOnlyFixturePatchListCollumnIDs::EditorColor)
+		.DefaultLabel(LOCTEXT("EditorColorColumnLabel", ""))
+		.FixedWidth(16.f)
+	);
 
 	HeaderRow->AddColumn(
 		SHeaderRow::FColumn::FArguments()

@@ -25,22 +25,22 @@ int32 UDMXControlConsoleFixturePatchCellAttributeFader::GetIndex() const
 }
 
 #if WITH_EDITOR
-void UDMXControlConsoleFixturePatchCellAttributeFader::SetIsVisibleInEditor(bool bVisible)
+void UDMXControlConsoleFixturePatchCellAttributeFader::SetIsMatchingFilter(bool bMatches)
 {
-	bIsVisibleInEditor = bVisible;
+	bIsMatchingFilter = bMatches;
 
 	UDMXControlConsoleFixturePatchMatrixCell& MatrixCell = GetOwnerMatrixCellChecked();
 	// Set Matrix Cell to not visible if it has no more visible CellAttributeFaders
-	if (MatrixCell.GetIsVisibleInEditor() && !bIsVisibleInEditor)
+	if (MatrixCell.IsMatchingFilter() && !bIsMatchingFilter)
 	{
 		if (!MatrixCell.HasVisibleInEditorCellAttributeFaders())
 		{
-			MatrixCell.SetIsVisibleInEditor(false);
+			MatrixCell.SetIsMatchingFilter(false);
 		}
 	}
-	else if (!MatrixCell.GetIsVisibleInEditor() && bIsVisibleInEditor)
+	else if (!MatrixCell.IsMatchingFilter() && bIsMatchingFilter)
 	{
-		MatrixCell.SetIsVisibleInEditor(true);
+		MatrixCell.SetIsMatchingFilter(true);
 	}
 }
 #endif // WITH_EDITOR

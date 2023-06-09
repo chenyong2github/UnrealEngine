@@ -88,7 +88,6 @@ void SDMXPixelMappingFixturePatchList::Construct(const FArguments& InArgs, const
 			[
 				SAssignNew(FixturePatchList, SDMXReadOnlyFixturePatchList)
 				.DMXLibrary(InViewModel->GetDMXLibrary())
-				.ExcludedFixturePatches(InViewModel->GetFixturePatchesInUse())
 				.ListDescriptor(InViewModel->GetFixturePatchListDescriptor())
 				.OnRowDragged(this, &SDMXPixelMappingFixturePatchList::OnRowDragged)
 			]

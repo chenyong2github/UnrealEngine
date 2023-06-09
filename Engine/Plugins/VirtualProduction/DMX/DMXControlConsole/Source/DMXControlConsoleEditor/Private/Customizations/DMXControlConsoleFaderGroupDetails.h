@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "IDetailCustomization.h"
 
+enum class ECheckBoxState : uint8;
 struct EVisibility;
 class FReply;
 class IPropertyUtilities;
@@ -34,6 +35,18 @@ private:
 
 	/** Called when Clear button is clicked */
 	FReply OnClearButtonClicked();
+
+	/** Called to toggle the mute state of selected Fader Groups */
+	void OnMuteToggleChanged(ECheckBoxState CheckState);
+
+	/** Gets the current mute state of selected Fader Groups */
+	ECheckBoxState IsMuteChecked() const;
+
+	/** Called to toggle the lock state of selected Fader Groups */
+	void OnLockToggleChanged(ECheckBoxState CheckState);
+
+	/** Gets the current lock state of selected Fader Groups */
+	ECheckBoxState IsLockChecked() const;
 
 	/** Gets current selected FaderGroup Fixture Patch name */
 	FText GetFixturePatchText() const;

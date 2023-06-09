@@ -16,9 +16,6 @@ class FDMXControlConsoleEditorSelection final
 public:
 	DECLARE_EVENT(FDMXControlConsoleEditorSelection, FDMXControlConsoleSelectionEvent)
 
-	FDMXControlConsoleEditorSelection();
-	~FDMXControlConsoleEditorSelection();
-
 	/** Adds the given Fader Group to selection */
 	void AddToSelection(UDMXControlConsoleFaderGroup* FaderGroup, bool bNotifySelectionChange = true);
 
@@ -85,9 +82,6 @@ public:
 private:
 	/** Updates the multi select anchor */
 	void UpdateMultiSelectAnchor(UClass* PreferedClass);
-
-	/** Removes invisible elements from selection */
-	void RemoveInvisibleElements();
 
 	/** Array of current selected Fader Groups */
 	TArray<TWeakObjectPtr<UObject>> SelectedFaderGroups;

@@ -2,14 +2,13 @@
 
 #include "FilterModelFaderGroup.h"
 
+#include "Algo/Find.h"
+#include "Algo/Transform.h"
 #include "DMXControlConsoleData.h"
 #include "DMXControlConsoleFaderBase.h"
 #include "DMXControlConsoleFaderGroup.h"
 #include "FilterModel.h"
 #include "FilterModelFader.h"
-
-#include "Algo/Find.h"
-#include "Algo/Transform.h"
 
 
 namespace UE::DMXControlConsoleEditor::FilterModel::Private
@@ -89,11 +88,11 @@ namespace UE::DMXControlConsoleEditor::FilterModel::Private
 		}
 
 		// Reset visibility
-		FaderGroup->SetIsVisibleInEditor(false);
+		FaderGroup->SetIsMatchingFilter(false);
 		const TArray<UDMXControlConsoleFaderBase*> Faders = FaderGroup->GetAllFaders();
 		for (UDMXControlConsoleFaderBase* Fader : Faders)
 		{
-			Fader->SetIsVisibleInEditor(false);
+			Fader->SetIsMatchingFilter(false);
 		}
 
 		// Apply filter
@@ -104,7 +103,7 @@ namespace UE::DMXControlConsoleEditor::FilterModel::Private
 		}
 		else if (bRequiresMatchingFaderGroupName && FaderModels.IsEmpty())
 		{
-			FaderGroup->SetIsVisibleInEditor(true);
+			FaderGroup->SetIsMatchingFilter(true);
 		}
 
 		for (const TSharedRef<FFilterModelFader>& FaderModel : FaderModels)
@@ -115,10 +114,10 @@ namespace UE::DMXControlConsoleEditor::FilterModel::Private
 				continue;
 			}
 
-			FaderGroup->SetIsVisibleInEditor(true);
+			FaderGroup->SetIsMatchingFilter(true);
 			if (FaderModel->MatchesFaderGroupFilter(FaderGroupFilter))
 			{
-				Fader->SetIsVisibleInEditor(true);
+				Fader->SetIsMatchingFilter(true);
 			}
 		}
 	}

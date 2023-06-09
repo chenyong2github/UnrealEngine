@@ -19,8 +19,11 @@ class DMXCONTROLCONSOLE_API UDMXControlConsoleFaderGroupRow
 	GENERATED_BODY()
 
 public:
-	/** Adds a Fader Group to this Fader Group Row */
+	/** Adds a new Fader Group to this Fader Group Row */
 	UDMXControlConsoleFaderGroup* AddFaderGroup(const int32 Index);
+
+	/** Adds the given Fader Group to this Fader Group Row */
+	UDMXControlConsoleFaderGroup* AddFaderGroup(UDMXControlConsoleFaderGroup* FaderGroup, const int32 Index);
 
 	/** Duplicates the Fader Group at the given index */
 	UDMXControlConsoleFaderGroup* DuplicateFaderGroup(const int32 Index);
@@ -34,6 +37,11 @@ public:
 	/** Gets the Fader Group array of this Fader Group Row */
 	const TArray<UDMXControlConsoleFaderGroup*>& GetFaderGroups() const { return FaderGroups; }
 	
+#if WITH_EDITOR
+	/** Gets only active Fader Groups of this Fader Group Row */
+	TArray<UDMXControlConsoleFaderGroup*> GetActiveFaderGroups() const;
+#endif // WITH_EDITOR
+
 	/** Gets the Index of this Row according to the DMX Control Console */
 	int32 GetRowIndex() const;
 

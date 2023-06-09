@@ -2,15 +2,14 @@
 
 #include "DMXControlConsoleFixturePatchMatrixCell.h"
 
+#include "Algo/Find.h"
+#include "Algo/Sort.h"
 #include "DMXAttribute.h"
 #include "DMXProtocolTypes.h"
 #include "DMXControlConsoleFaderGroup.h"
 #include "DMXControlConsoleFixturePatchCellAttributeFader.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXEntityFixtureType.h"
-
-#include "Algo/Find.h"
-#include "Algo/Sort.h"
 
 
 #define LOCTEXT_NAMESPACE "DMXControlConsoleFixturePatchMatrixCell"
@@ -70,9 +69,9 @@ int32 UDMXControlConsoleFixturePatchMatrixCell::GetEndingAddress() const
 }
 
 #if WITH_EDITOR
-void UDMXControlConsoleFixturePatchMatrixCell::SetIsVisibleInEditor(bool bVisibleInEditor)
+void UDMXControlConsoleFixturePatchMatrixCell::SetIsMatchingFilter(bool bMatches)
 {
-	bIsVisibleInEditor = HasVisibleInEditorCellAttributeFaders();
+	bIsMatchingFilter = HasVisibleInEditorCellAttributeFaders();
 }
 #endif // WITH_EDITOR
 
@@ -182,7 +181,7 @@ bool UDMXControlConsoleFixturePatchMatrixCell::HasVisibleInEditorCellAttributeFa
 {
 	for (const UDMXControlConsoleFaderBase* CellAttributeFader : CellAttributeFaders)
 	{
-		if (CellAttributeFader && CellAttributeFader->GetIsVisibleInEditor())
+		if (CellAttributeFader && CellAttributeFader->IsMatchingFilter())
 		{
 			return true;
 		}
@@ -202,7 +201,7 @@ void UDMXControlConsoleFixturePatchMatrixCell::ShowAllFadersInEditor()
 			continue;
 		}
 
-		CellAttributeFader->SetIsVisibleInEditor(true);
+		CellAttributeFader->SetIsMatchingFilter(true);
 	}
 }
 #endif // WITH_EDITOR

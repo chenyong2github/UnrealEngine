@@ -8,17 +8,17 @@
 #include "Widgets/SCompoundWidget.h"
 
 enum class EDMXControlConsoleEditorViewMode : uint8;
-class IDMXControlConsoleFaderGroupElement;
-class SDMXControlConsoleEditorExpandArrowButton;
-class SDMXControlConsoleEditorFaderGroupToolbar;
-class UDMXControlConsoleFaderBase;
-class UDMXControlConsoleFaderGroup;
-class UDMXControlConsoleFixturePatchMatrixCellFader;
-
 struct FOptionalSize;
 struct FSlateBrush;
 struct FSlateColor;
+class IDMXControlConsoleFaderGroupElement;
+class SDMXControlConsoleEditorExpandArrowButton;
+class SDMXControlConsoleEditorFaderGroupToolbar;
 class SHorizontalBox;
+class UDMXControlConsoleFaderBase;
+class UDMXControlConsoleFaderGroup;
+class UDMXControlConsoleFixturePatchMatrixCellFader;
+class UDMXEntityFixturePatch;
 
 
 /** A widget which gathers a collection of Faders */
@@ -31,7 +31,8 @@ public:
 
 	SLATE_END_ARGS()
 
-		SDMXControlConsoleEditorFaderGroupView();
+	/** Constructor */
+	SDMXControlConsoleEditorFaderGroupView();
 
 	/** Constructs the widget */
 	void Construct(const FArguments& InArgs, const TObjectPtr<UDMXControlConsoleFaderGroup>& InFaderGroup);
@@ -97,6 +98,9 @@ private:
 
 	/** Adds a new Fader Group Row next to the owner row */
 	void OnAddFaderGroupRow() const;
+
+	/** Called when Fader Group Fixture Patch has changed */
+	void OnFaderGroupFixturePatchChanged(UDMXControlConsoleFaderGroup* InFaderGroup, UDMXEntityFixturePatch* FixturePatch);
 
 	/** Notifies this Fader Group's owner row to add a new Fader Group */
 	FReply OnAddFaderGroupClicked() const;

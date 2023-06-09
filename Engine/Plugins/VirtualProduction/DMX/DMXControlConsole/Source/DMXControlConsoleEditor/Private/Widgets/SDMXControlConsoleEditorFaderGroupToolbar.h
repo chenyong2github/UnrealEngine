@@ -6,14 +6,14 @@
 #include "Widgets/SDMXControlConsoleEditorExpandArrowButton.h"
 
 struct FDMXEntityFixturePatchRef;
+struct FSlateColor;
+template <typename OptionType> class SComboBox;
 class SDMXControlConsoleEditorFaderGroupView;
+class SSearchBox;
 class UDMXControlConsoleFaderGroup;
 class UDMXEntityFixturePatch;
 class UDMXLibrary;
 
-struct FSlateColor;
-template <typename OptionType> class SComboBox;
-class SSearchBox;
 
 /** Base Fader Group UI widget */
 class SDMXControlConsoleEditorFaderGroupToolbar

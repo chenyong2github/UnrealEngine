@@ -5,11 +5,9 @@
 #include "DMXControlConsoleFaderGroupRow.h"
 
 #include "CoreMinimal.h"
-
 #include "Widgets/SCompoundWidget.h"
 
 class SDMXControlConsoleEditorFaderGroupView;
-
 class SHorizontalBox;
 
 
@@ -27,10 +25,13 @@ public:
 	void Construct(const FArguments& InArgs, const TObjectPtr<UDMXControlConsoleFaderGroupRow>& InFaderGroupRow);
 
 	/** Gets the Fader Group Row this row is based on */
-	UDMXControlConsoleFaderGroupRow* GetFaderGropuRow() const { return FaderGroupRow.Get(); }
+	UDMXControlConsoleFaderGroupRow* GetFaderGroupRow() const { return FaderGroupRow.Get(); }
 
 	/** Gets the index of this row according to the referenced DMX Control Console */
 	int32 GetRowIndex() const { return FaderGroupRow->GetRowIndex(); }
+
+	/** Finds FaderGroupView by the given FaderGroup, if valid */
+	TSharedPtr<SDMXControlConsoleEditorFaderGroupView> FindFaderGroupView(const UDMXControlConsoleFaderGroup* FaderGroup);
 
 protected:
 	//~ Begin SWidget interface

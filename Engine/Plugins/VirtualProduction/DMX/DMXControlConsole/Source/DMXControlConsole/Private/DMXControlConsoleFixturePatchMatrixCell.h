@@ -31,7 +31,7 @@ public:
 	virtual int32 GetStartingAddress() const override;
 	virtual int32 GetEndingAddress() const override;
 #if WITH_EDITOR
-	virtual void SetIsVisibleInEditor(bool bVisibleInEditor) override;
+	virtual void SetIsMatchingFilter(bool bMatches) override;
 #endif // WITH_EDITOR
 	virtual void Destroy() override;
 	//~ End IDMXControlConsoleFaderGroupElementInterface

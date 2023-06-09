@@ -294,7 +294,7 @@ FSlateColor SDMXControlConsoleEditorMatrixCell::GetLabelBorderColor() const
 
 EVisibility SDMXControlConsoleEditorMatrixCell::GetFaderWidgetVisibility(const UDMXControlConsoleFaderBase* Fader) const
 {
-	const bool bIsVisible = Fader && Fader->GetIsVisibleInEditor();
+	const bool bIsVisible = Fader && Fader->IsMatchingFilter();
 	return bIsVisible ? EVisibility::Visible : EVisibility::Collapsed;
 }
 

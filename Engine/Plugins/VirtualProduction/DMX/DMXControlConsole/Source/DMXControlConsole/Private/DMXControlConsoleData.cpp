@@ -2,14 +2,14 @@
 
 #include "DMXControlConsoleData.h"
 
+#include "Algo/Find.h"
+#include "Algo/Sort.h"
 #include "DMXControlConsoleFaderGroup.h"
 #include "DMXControlConsoleFaderGroupRow.h"
 #include "IO/DMXOutputPort.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXEntityFixtureType.h"
 #include "Library/DMXLibrary.h"
-
-#include "Algo/Sort.h"
 
 
 #define LOCTEXT_NAMESPACE "DMXControlConsole"
@@ -42,6 +42,42 @@ void UDMXControlConsoleData::DeleteFaderGroupRow(const TObjectPtr<UDMXControlCon
 
 	FaderGroupRows.Remove(FaderGroupRow);
 }
+
+TArray<UDMXControlConsoleFaderGroup*> UDMXControlConsoleData::GetAllFaderGroups() const
+{
+	TArray<UDMXControlConsoleFaderGroup*> AllFaderGroups;
+
+	for (const TObjectPtr<UDMXControlConsoleFaderGroupRow>& FaderGroupRow : FaderGroupRows)
+	{
+		if (!FaderGroupRow)
+		{
+			continue;
+		}
+
+		const TArray<UDMXControlConsoleFaderGroup*> FaderGroups = FaderGroupRow->GetFaderGroups();
+		if (FaderGroups.IsEmpty())
+		{
+			continue;
+		}
+
+		AllFaderGroups.Append(FaderGroups);
+	}
+
+	return AllFaderGroups;
+}
+
+#if WITH_EDITOR
+TArray<UDMXControlConsoleFaderGroup*> UDMXControlConsoleData::GetAllActiveFaderGroups() const
+{
+	TArray<UDMXControlConsoleFaderGroup*> AllActiveFaderGroups = GetAllFaderGroups();
+	AllActiveFaderGroups.RemoveAll([](const UDMXControlConsoleFaderGroup* FaderGroup)
+			{
+				return FaderGroup && !FaderGroup->IsActive();
+			});
+	
+	return AllActiveFaderGroups;
+}
+#endif // WITH_EDITOR
 
 void UDMXControlConsoleData::GenerateFromDMXLibrary()
 {
@@ -130,6 +166,22 @@ void UDMXControlConsoleData::GenerateFromDMXLibrary()
 	}
 }
 
+UDMXControlConsoleFaderGroup* UDMXControlConsoleData::FindFaderGroupByFixturePatch(const UDMXEntityFixturePatch* InFixturePatch) const
+{
+	if (InFixturePatch)
+	{
+		const TArray<UDMXControlConsoleFaderGroup*> AllFaderGroups = GetAllFaderGroups();
+		UDMXControlConsoleFaderGroup* const* FaderGroupPtr = Algo::FindByPredicate(AllFaderGroups, [InFixturePatch](const UDMXControlConsoleFaderGroup* FaderGroup)
+			{
+				return IsValid(FaderGroup) && FaderGroup->GetFixturePatch() == InFixturePatch;
+			});
+
+		return FaderGroupPtr ? *FaderGroupPtr : nullptr;
+	}
+
+	return nullptr;
+}
+
 void UDMXControlConsoleData::StartSendingDMX()
 {
 	bSendDMX = true;
@@ -150,15 +202,23 @@ void UDMXControlConsoleData::UpdateOutputPorts(const TArray<FDMXOutputPortShared
 	OutputPorts = InOutputPorts;
 }
 
+void UDMXControlConsoleData::Clear()
+{
+	FaderGroupRows.Reset();
+}
+
 void UDMXControlConsoleData::Reset()
 {
-	ClearFaderGroupRows();
+	Clear();
+	CachedWeakDMXLibrary.Reset();
+	SoftDMXLibraryPtr.Reset();  
 }
 
 void UDMXControlConsoleData::PostLoad()
 {
 	Super::PostLoad();
 
+	Modify();
 	CachedWeakDMXLibrary = Cast<UDMXLibrary>(SoftDMXLibraryPtr.ToSoftObjectPath().TryLoad());
 }
 
@@ -187,7 +247,7 @@ void UDMXControlConsoleData::Tick(float InDeltaTime)
 	{
 		return;
 	}
-#endif
+#endif // WITH_EDITOR
 	
 	const TArray<UDMXControlConsoleFaderGroup*> FaderGroups = GetAllFaderGroups();
 	for (const UDMXControlConsoleFaderGroup* FaderGroup : FaderGroups)
@@ -245,34 +305,6 @@ TStatId UDMXControlConsoleData::GetStatId() const
 ETickableTickType UDMXControlConsoleData::GetTickableTickType() const
 {
 	return ETickableTickType::Always;
-}
-
-void UDMXControlConsoleData::ClearFaderGroupRows()
-{
-	FaderGroupRows.Reset();
-}
-
-TArray<UDMXControlConsoleFaderGroup*> UDMXControlConsoleData::GetAllFaderGroups() const
-{
-	TArray<UDMXControlConsoleFaderGroup*> AllFaderGroups;
-
-	for (const TObjectPtr<UDMXControlConsoleFaderGroupRow>& FaderGroupRow : FaderGroupRows)
-	{
-		if (!FaderGroupRow)
-		{
-			continue;
-		}
-
-		const TArray<UDMXControlConsoleFaderGroup*> FaderGroups = FaderGroupRow->GetFaderGroups();
-		if (FaderGroups.IsEmpty())
-		{
-			continue;
-		}
-
-		AllFaderGroups.Append(FaderGroups);
-	}
-
-	return AllFaderGroups;
 }
 
 #undef LOCTEXT_NAMESPACE

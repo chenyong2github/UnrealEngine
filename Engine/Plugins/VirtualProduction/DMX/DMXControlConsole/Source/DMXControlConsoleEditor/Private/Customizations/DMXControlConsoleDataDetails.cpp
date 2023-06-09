@@ -2,13 +2,14 @@
 
 #include "DMXControlConsoleDataDetails.h"
 
-#include "DMXControlConsoleData.h"
-#include "Models/DMXControlConsoleEditorModel.h"
-
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
+#include "DMXControlConsoleData.h"
+#include "Editor.h"
 #include "IPropertyUtilities.h"
+#include "Models/DMXControlConsoleEditorModel.h"
 #include "PropertyHandle.h"
+#include "TimerManager.h"
 
 
 #define LOCTEXT_NAMESPACE "DMXControlConsoleDataDetails"
@@ -22,8 +23,8 @@ void FDMXControlConsoleDataDetails::CustomizeDetails(IDetailLayoutBuilder& InDet
 	InDetailLayout.HideProperty(FaderGroupRowsHandle);
 	
 	const TSharedPtr<IPropertyHandle> DMXLibraryHandle = InDetailLayout.GetProperty(UDMXControlConsoleData::GetDMXLibraryPropertyName());
-	DMXLibraryHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDMXControlConsoleDataDetails::ForceRefresh));
-	DMXLibraryHandle->SetOnChildPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDMXControlConsoleDataDetails::ForceRefresh));
+	DMXLibraryHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDMXControlConsoleDataDetails::OnDMXLibraryChanged));
+	DMXLibraryHandle->SetOnChildPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDMXControlConsoleDataDetails::OnDMXLibraryChanged));
 }
 
 void FDMXControlConsoleDataDetails::ForceRefresh() const
@@ -34,6 +35,19 @@ void FDMXControlConsoleDataDetails::ForceRefresh() const
 	}
 	
 	PropertyUtilities->ForceRefresh();
+}
+
+void FDMXControlConsoleDataDetails::OnDMXLibraryChanged() const
+{
+	const UDMXControlConsoleEditorModel* EditorModel = GetDefault<UDMXControlConsoleEditorModel>();
+	if (UDMXControlConsoleData* EditorConsoleData = EditorModel->GetEditorConsoleData())
+	{
+		EditorConsoleData->Clear();
+		if (const UDMXLibrary* DMXLibrary = EditorConsoleData->GetDMXLibrary())
+		{
+			GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateUObject(EditorConsoleData, &UDMXControlConsoleData::GenerateFromDMXLibrary));
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

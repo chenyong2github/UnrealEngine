@@ -25,7 +25,7 @@ public:
 	virtual UDMXControlConsoleFaderGroup& GetOwnerFaderGroupChecked() const override;
 	virtual int32 GetIndex() const override;
 #if WITH_EDITOR
-	virtual void SetIsVisibleInEditor(bool bVisible) override;
+	virtual void SetIsMatchingFilter(bool bMatches) override;
 #endif // WITH_EDITOR
 	virtual void Destroy() override;
 	//~ End IDMXControlConsoleFaderGroupElementInterface

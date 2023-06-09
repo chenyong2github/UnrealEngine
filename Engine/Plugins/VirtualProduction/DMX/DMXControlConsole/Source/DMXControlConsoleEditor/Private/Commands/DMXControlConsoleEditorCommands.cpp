@@ -2,8 +2,8 @@
 
 #include "DMXControlConsoleEditorCommands.h"
 
-#include "Styling/AppStyle.h"
 #include "Framework/Commands/Commands.h"
+#include "Styling/AppStyle.h"
 
 
 #define LOCTEXT_NAMESPACE "DMXControlConsoleEditorCommands"
@@ -30,10 +30,11 @@ void FDMXControlConsoleEditorCommands::RegisterCommands()
 	UI_COMMAND(RemoveElements, "Remove Elements", "Remove selected elements from current Control Console", EUserInterfaceActionType::None, FInputChord(EKeys::Delete));
 	UI_COMMAND(SelectAll, "Select All", "Select all visible Elements in Control Console", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::A));
 	UI_COMMAND(ClearAll, "Clear All", "Clear All.", EUserInterfaceActionType::Button, FInputChord());
-
-	UI_COMMAND(AddPatchNext, "Next", "Add selected Fixture Patches next.", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(AddPatchNextRow, "Next Row", "Add selected Fixture Patches to next row.", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(AddPatchToSelection, "To Selection", "Add selected Fixture Patch to selected Fader Group", EUserInterfaceActionType::Button, FInputChord());
+	
+	UI_COMMAND(Mute, "Mute", "Mute selected Fader Groups.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(MuteAll, "Mute All", "Mute all Fader Groups.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(Unmute, "Unmute", "Unmute selected Fader Groups.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(UnmuteAll, "Unmute All", "Mute all Fader Groups.", EUserInterfaceActionType::Button, FInputChord());
 }
 
 #undef LOCTEXT_NAMESPACE 

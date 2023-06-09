@@ -2,20 +2,19 @@
 
 #include "FilterModel.h"
 
+#include "Algo/AnyOf.h"
+#include "Algo/Find.h"
+#include "Algo/ForEach.h"
+#include "Algo/Transform.h"
 #include "DMXControlConsoleData.h"
 #include "DMXControlConsoleFaderBase.h"
 #include "DMXControlConsoleFaderGroup.h"
 #include "DMXEditorUtils.h"
 #include "FilterModelFaderGroup.h"
-#include "Library/DMXEntityFixturePatch.h"
-#include "Models/DMXControlConsoleEditorModel.h"
-
-#include "Algo/AnyOf.h"
-#include "Algo/Find.h"
-#include "Algo/ForEach.h"
-#include "Algo/Transform.h"
 #include "Internationalization/Regex.h"
+#include "Library/DMXEntityFixturePatch.h"
 #include "Misc/TransactionObjectEvent.h"
+#include "Models/DMXControlConsoleEditorModel.h"
 
 
 namespace UE::DMXControlConsoleEditor::FilterModel::Private
@@ -303,7 +302,7 @@ namespace UE::DMXControlConsoleEditor::FilterModel::Private
 		}
 	}
 
-	void FFilterModel::OnEditorConsoleDataChanged(UDMXControlConsoleFaderGroup* FaderGroup)
+	void FFilterModel::OnEditorConsoleDataChanged(const UDMXControlConsoleFaderGroup* FaderGroup)
 	{
 		if (FaderGroup && WeakControlConsoleData.IsValid())
 		{

@@ -79,6 +79,7 @@ public:
 		, _MaxValue(10)
 		, _Delta(0)
 		, _ShiftMouseMovePixelPerDelta(1)
+		, _IsActive(true)
 		, _SupportDynamicSliderMaxValue(false)
 		, _SupportDynamicSliderMinValue(false)
 		, _SliderExponent(1)
@@ -110,6 +111,8 @@ public:
 		SLATE_ATTRIBUTE( int32, ShiftMouseMovePixelPerDelta )
 		/** If we're an unbounded spinbox, what value do we divide mouse movement by before multiplying by Delta. Requires Delta to be set. */
 		SLATE_ATTRIBUTE( int32, LinearDeltaSensitivity)
+		/** Tell us if the SpinBox should be considered active for visual feedbacks */
+		SLATE_ATTRIBUTE(bool, IsActive)
 		/** Tell us if we want to support dynamically changing of the max value using ctrl */
 		SLATE_ATTRIBUTE(bool, SupportDynamicSliderMaxValue)
 		/** Tell us if we want to support dynamically changing of the min value using ctrl */
@@ -177,6 +180,7 @@ public:
 		MinSliderValue = (InArgs._MinSliderValue.Get().IsSet()) ? InArgs._MinSliderValue : MinValue;
 		MaxSliderValue = (InArgs._MaxSliderValue.Get().IsSet()) ? InArgs._MaxSliderValue : MaxValue;
 
+		IsActive = InArgs._IsActive;
 		SupportDynamicSliderMaxValue = InArgs._SupportDynamicSliderMaxValue;
 		SupportDynamicSliderMinValue = InArgs._SupportDynamicSliderMinValue;
 		OnDynamicSliderMaxValueChanged = InArgs._OnDynamicSliderMaxValueChanged;
@@ -260,7 +264,7 @@ public:
 	
 	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override
 	{
-		const bool bActiveFeedback = IsEnabled() || bDragging;
+		const bool bActiveFeedback = IsActive.Get() && (IsEnabled() || bDragging);
 
 		const FSlateBrush* BackgroundImage = bActiveFeedback ?
 			BackgroundHoveredBrush :
@@ -889,6 +893,7 @@ private:
 	TAttribute< TOptional<NumericType> > MaxValue;
 	TAttribute< TOptional<NumericType> > MinSliderValue;
 	TAttribute< TOptional<NumericType> > MaxSliderValue;
+	TAttribute<bool> IsActive;
 	TAttribute<bool> SupportDynamicSliderMaxValue;
 	TAttribute<bool> SupportDynamicSliderMinValue;
 	FOnDynamicSliderMinMaxValueChanged OnDynamicSliderMaxValueChanged;

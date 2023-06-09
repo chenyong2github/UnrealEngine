@@ -2,12 +2,13 @@
 
 #pragma once
 
+#include "DMXControlConsoleFaderGroup.h"
 #include "UObject/Interface.h"
 
 #include "IDMXControlConsoleFaderGroupElement.generated.h"
 
 class UDMXControlConsoleFaderBase;
-class UDMXControlConsoleFaderGroup;
+
 
 /** 
  * Interface used by elmeents that can be placed inside a Fixture Group.
@@ -45,11 +46,14 @@ public:
 	virtual int32 GetEndingAddress() const = 0;
 
 #if WITH_EDITOR
-	/** Returns in Editor visibility state of the element */
-	virtual bool GetIsVisibleInEditor() const { return bIsVisibleInEditor; }
+	/** Gets the activity state of the Element */
+	virtual bool IsActive() const { return GetOwnerFaderGroupChecked().IsActive(); }
 
-	/** Sets in Editor visibility state of the element */
-	virtual void SetIsVisibleInEditor(bool bVisible) { bIsVisibleInEditor = bVisible; }
+	/** True if Element matches Control Console filtering system */
+	virtual bool IsMatchingFilter() const { return bIsMatchingFilter; }
+
+	/** Sets wheter Element matches Control Console filtering system */
+	virtual void SetIsMatchingFilter(bool bMatches) { bIsMatchingFilter = bMatches; }
 #endif // WITH_EDITOR
 
 	/** Destroys the Element */
@@ -57,7 +61,7 @@ public:
 
 protected:
 #if WITH_EDITOR
-	/** In Editor visibility state of the Element */
-	bool bIsVisibleInEditor = true;
+	/** True if Element matches Control Console filtering system */
+	bool bIsMatchingFilter = true;
 #endif // WITH_EDITOR
 };

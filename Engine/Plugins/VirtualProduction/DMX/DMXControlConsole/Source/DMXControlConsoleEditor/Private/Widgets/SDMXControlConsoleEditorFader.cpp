@@ -7,19 +7,18 @@
 #include "DMXControlConsoleFixturePatchFunctionFader.h"
 #include "DMXControlConsoleFixturePatchCellAttributeFader.h"
 #include "DMXControlConsoleRawFader.h"
-#include "Library/DMXEntityFixturePatch.h"
-#include "Models/DMXControlConsoleEditorModel.h"
-#include "Style/DMXControlConsoleEditorStyle.h"
-#include "Widgets/SDMXControlConsoleEditorSpinBoxVertical.h"
-
-#include "ScopedTransaction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Library/DMXEntityFixturePatch.h"
 #include "Misc/Optional.h"
+#include "Models/DMXControlConsoleEditorModel.h"
+#include "ScopedTransaction.h"
+#include "Style/DMXControlConsoleEditorStyle.h"
 #include "Styling/StyleColors.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
+#include "Widgets/SDMXControlConsoleEditorSpinBoxVertical.h"
 #include "Widgets/Text/STextBlock.h"
 
 
@@ -79,6 +78,7 @@ void SDMXControlConsoleEditorFader::Construct(const FArguments& InArgs, const TO
 						[
 							SNew(SEditableTextBox)
 							.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+							.IsReadOnly(this, &SDMXControlConsoleEditorFader::IsReadOnly)
 							.Justification(ETextJustify::Center)
 							.MinDesiredWidth(20.f)
 							.OnTextCommitted(this, &SDMXControlConsoleEditorFader::OnMaxValueTextCommitted)
@@ -112,7 +112,7 @@ void SDMXControlConsoleEditorFader::Construct(const FArguments& InArgs, const TO
 											.OnBeginSliderMovement(this, &SDMXControlConsoleEditorFader::OnBeginValueChange)
 											.OnValueChanged(this, &SDMXControlConsoleEditorFader::HandleValueChanged)
 											.OnValueCommitted(this, &SDMXControlConsoleEditorFader::OnValueCommitted)
-											.IsEnabled(this, &SDMXControlConsoleEditorFader::IsFaderSpinBoxEnabled)
+											.IsActive(this, &SDMXControlConsoleEditorFader::IsFaderSpinBoxActive)
 											.Style(FDMXControlConsoleEditorStyle::Get(), "DMXControlConsole.Fader")
 											.ToolTipText(this, &SDMXControlConsoleEditorFader::GetToolTipText)
 											.MinDesiredWidth(40.0f)
@@ -150,6 +150,7 @@ void SDMXControlConsoleEditorFader::Construct(const FArguments& InArgs, const TO
 								.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 								.FocusedForegroundColor(FLinearColor::White)
 								.ForegroundColor(FLinearColor::FromSRGBColor(FColor::FromHex("0088f7")))
+								.IsReadOnly(this, &SDMXControlConsoleEditorFader::IsReadOnly)
 								.Justification(ETextJustify::Center)
 								.OnTextCommitted(this, &SDMXControlConsoleEditorFader::OnValueTextCommitted)
 								.MinDesiredWidth(20.f)
@@ -165,6 +166,7 @@ void SDMXControlConsoleEditorFader::Construct(const FArguments& InArgs, const TO
 							[
 								SNew(SEditableTextBox)
 								.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+								.IsReadOnly(this, &SDMXControlConsoleEditorFader::IsReadOnly)
 								.Justification(ETextJustify::Center)
 								.MinDesiredWidth(20.f)
 								.OnTextCommitted(this, &SDMXControlConsoleEditorFader::OnMinValueTextCommitted)
@@ -394,6 +396,11 @@ bool SDMXControlConsoleEditorFader::IsSelected() const
 	return false;
 }
 
+bool SDMXControlConsoleEditorFader::IsReadOnly() const
+{ 
+	return Fader.IsValid() ? Fader->IsLocked() : true; 
+}
+
 bool SDMXControlConsoleEditorFader::IsRawFader() const
 {
 	return IsValid(Cast<UDMXControlConsoleRawFader>(Fader));
@@ -508,7 +515,7 @@ void SDMXControlConsoleEditorFader::HandleValueChanged(uint32 NewValue)
 	const TArray<TWeakObjectPtr<UObject>> SelectedFadersObjects = SelectionHandler->GetSelectedFaders();
 	if (SelectedFadersObjects.IsEmpty() || !SelectedFadersObjects.Contains(Fader))
 	{
-		if (!Fader->IsMuted() || !Fader->IsLocked())
+		if (!Fader->IsLocked())
 		{
 			Fader->SetValue(NewValue);
 		}
@@ -521,7 +528,9 @@ void SDMXControlConsoleEditorFader::HandleValueChanged(uint32 NewValue)
 		for (const TWeakObjectPtr<UObject> SelectFaderObject : SelectedFadersObjects)
 		{
 			UDMXControlConsoleFaderBase* SelectedFader = Cast<UDMXControlConsoleFaderBase>(SelectFaderObject);
-			if (!SelectedFader || SelectedFader->IsMuted() || Fader->IsLocked())
+			if (!SelectedFader || 
+				!SelectedFader->IsMatchingFilter() ||
+				SelectedFader->IsLocked())
 			{
 				continue;
 			}
@@ -557,7 +566,7 @@ void SDMXControlConsoleEditorFader::OnValueCommitted(uint32 NewValue, ETextCommi
 	const TArray<TWeakObjectPtr<UObject>> SelectedFadersObjects = SelectionHandler->GetSelectedFaders();
 	if (SelectedFadersObjects.IsEmpty() || !SelectedFadersObjects.Contains(Fader))
 	{
-		if (!Fader->IsMuted() || !Fader->IsLocked())
+		if (!Fader->IsLocked())
 		{
 			// Reset to PreCommittedValue to handle transactions
 			Fader->SetValue(PreCommittedValue);
@@ -577,7 +586,9 @@ void SDMXControlConsoleEditorFader::OnValueCommitted(uint32 NewValue, ETextCommi
 		for (const TWeakObjectPtr<UObject> SelectFaderObject : SelectedFadersObjects)
 		{
 			UDMXControlConsoleFaderBase* SelectedFader = Cast<UDMXControlConsoleFaderBase>(SelectFaderObject);
-			if (!SelectedFader || SelectedFader->IsMuted() || Fader->IsLocked())
+			if (!SelectedFader ||
+				!SelectedFader->IsMatchingFilter() ||
+				SelectedFader->IsLocked())
 			{
 				continue;
 			}
@@ -657,7 +668,7 @@ FReply SDMXControlConsoleEditorFader::OnDeleteClicked()
 			for (const TWeakObjectPtr<UObject> SelectFaderObject : SelectedFadersObjects)
 			{
 				UDMXControlConsoleFaderBase* SelectedFader = Cast<UDMXControlConsoleFaderBase>(SelectFaderObject);
-				if (!SelectedFader)
+				if (!SelectedFader || !SelectedFader->IsMatchingFilter())
 				{
 					continue;
 				}
@@ -689,7 +700,7 @@ FReply SDMXControlConsoleEditorFader::OnLockClicked()
 			for (const TWeakObjectPtr<UObject> SelectFaderObject : SelectedFadersObjects)
 			{
 				UDMXControlConsoleFaderBase* SelectedFader = Cast<UDMXControlConsoleFaderBase>(SelectFaderObject);
-				if (!SelectedFader)
+				if (!SelectedFader || !SelectedFader->IsMatchingFilter())
 				{
 					continue;
 				}
@@ -723,7 +734,7 @@ void SDMXControlConsoleEditorFader::OnMuteToggleChanged(ECheckBoxState CheckStat
 			for (const TWeakObjectPtr<UObject> SelectFaderObject : SelectedFadersObjects)
 			{
 				UDMXControlConsoleFaderBase* SelectedFader = Cast<UDMXControlConsoleFaderBase>(SelectFaderObject);
-				if (!SelectedFader)
+				if (!SelectedFader || !SelectedFader->IsMatchingFilter())
 				{
 					continue;
 				}
@@ -746,9 +757,9 @@ ECheckBoxState SDMXControlConsoleEditorFader::IsMuteChecked() const
 	return ECheckBoxState::Undetermined;
 }
 
-bool SDMXControlConsoleEditorFader::IsFaderSpinBoxEnabled() const
+bool SDMXControlConsoleEditorFader::IsFaderSpinBoxActive() const
 {
-	return Fader.IsValid() ? !Fader->IsMuted() : false;
+	return Fader.IsValid() && !Fader->IsMuted();
 }
 
 FOptionalSize SDMXControlConsoleEditorFader::GetFaderHeightByViewMode() const

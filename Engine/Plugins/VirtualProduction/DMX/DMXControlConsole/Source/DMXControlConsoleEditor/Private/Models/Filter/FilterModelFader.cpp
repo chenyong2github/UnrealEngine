@@ -2,14 +2,13 @@
 
 #include "FilterModelFader.h"
 
+#include "Algo/Find.h"
 #include "DMXControlConsoleFaderBase.h"
 #include "DMXControlConsoleFaderGroup.h"
 #include "FilterModel.h"
 #include "FilterModelFaderGroup.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXLibrary.h"
-
-#include "Algo/Find.h"
 
 
 namespace UE::DMXControlConsoleEditor::FilterModel::Private

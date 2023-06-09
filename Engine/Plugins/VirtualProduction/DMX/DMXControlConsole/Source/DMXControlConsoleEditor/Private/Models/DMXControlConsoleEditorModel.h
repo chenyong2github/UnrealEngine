@@ -4,15 +4,17 @@
 
 #include "DMXControlConsole.h"
 
+#include "DMXControlConsoleData.h"
 #include "UObject/Object.h"
 #include "Widgets/SDMXReadOnlyFixturePatchList.h"
 
 #include "DMXControlConsoleEditorModel.generated.h"
 
+class FDMXControlConsoleEditorSelection;
 struct FDMXReadOnlyFixturePatchListDescriptor;
 class UDMXControlConsole;
 class UDMXControlConsoleData;
-class FDMXControlConsoleEditorSelection;
+class UDMXControlConsoleFaderGroup;
 
 namespace UE::DMXControlConsoleEditor::FilterModel::Private
 {
@@ -80,6 +82,9 @@ public:
 	/** Resets DMX Control Console */
 	void ClearAll();
 
+	/** Scrolls the given FaderGroup into view */
+	void ScrollIntoView(const UDMXControlConsoleFaderGroup* FaderGroup) const;
+
 	/** Loads the console stored in config or creates a transient console if none is stored in config */
 	void LoadConsoleFromConfig();
 
@@ -94,6 +99,9 @@ public:
 
 	/** Loads a console. Returns the loaded console, or nullptr if the console could not be loaded. */
 	void LoadConsole(const FAssetData& AssetData);
+
+	/** Requests refresh for the current Control Console */
+	void RequestRefresh();
 
 	/** 
 	 * Creates a new Control Console asset from provided source control console in desired package name.
@@ -123,6 +131,12 @@ public:
 	/** Gets a reference to OnFadersViewModeChanged delegate */
 	FSimpleMulticastDelegate& GetOnFadersViewModeChanged() { return OnFadersViewModeChanged; }
 
+	/** Gets a reference to OnScrollFaderGroupIntoView delegate */
+	FDMXControlConsoleFaderGroupDelegate& GetOnScrollFaderGroupIntoView() { return OnScrollFaderGroupIntoView; }
+
+	/** Gets a reference to OnControlConsoleForceRefresh delegate */
+	FSimpleMulticastDelegate& GetOnControlConsoleForceRefresh() { return OnControlConsoleForceRefresh; }
+
 protected:
 	//~ Begin UObject interface
 	virtual void PostInitProperties() override;
@@ -130,6 +144,9 @@ protected:
 	//~ End UObject interface
 
 private:
+	/** Refreshes Control Console */
+	void ForceRefresh();
+
 	/** Saves the current editor console to config */
 	void SaveConsoleToConfig();
 
@@ -165,6 +182,15 @@ private:
 
 	/** Called when the Faders view mode is changed */
 	FSimpleMulticastDelegate OnFadersViewModeChanged;
+
+	/** Called when a Fader Group needs to be scrolled into view */
+	FDMXControlConsoleFaderGroupDelegate OnScrollFaderGroupIntoView;
+
+	/** Called when Control Console needs to be refreshed */
+	FSimpleMulticastDelegate OnControlConsoleForceRefresh;
+
+	/** Timer handle in use while refreshing Control Console is requested but not carried out yet */
+	FTimerHandle ForceRefreshTimerHandle;
 
 	/** The filter model for this console editor */
 	TSharedPtr<UE::DMXControlConsoleEditor::FilterModel::Private::FFilterModel> FilterModel;

@@ -2,6 +2,10 @@
 
 #include "DMXControlConsoleFaderGroup.h"
 
+#include "Algo/AnyOf.h"
+#include "Algo/Find.h"
+#include "Algo/ForEach.h"
+#include "Algo/Sort.h"
 #include "DMXAttribute.h"
 #include "DMXControlConsoleFaderBase.h"
 #include "DMXControlConsoleFaderGroupRow.h"
@@ -13,9 +17,6 @@
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXEntityFixtureType.h"
 #include "Library/DMXLibrary.h"
-
-#include "Algo/Find.h"
-#include "Algo/Sort.h"
 
 
 #define LOCTEXT_NAMESPACE "DMXControlConsoleFaderGroup"
@@ -87,18 +88,18 @@ TArray<TScriptInterface<IDMXControlConsoleFaderGroupElement>> UDMXControlConsole
 	if (bSortByUniverseAndAddress)
 	{
 		auto SortElementsLambda = [](const TScriptInterface<IDMXControlConsoleFaderGroupElement>& ItemA, const TScriptInterface<IDMXControlConsoleFaderGroupElement>& ItemB)
-		{
-			const int32 UniverseIDA = ItemA->GetUniverseID();
-			const int32 UniverseIDB = ItemB->GetUniverseID();
+			{
+				const int32 UniverseIDA = ItemA->GetUniverseID();
+				const int32 UniverseIDB = ItemB->GetUniverseID();
 
-			const int32 StartingChannelA = ItemA->GetStartingAddress();
-			const int32 StartingChannelB = ItemB->GetStartingAddress();
+				const int32 StartingChannelA = ItemA->GetStartingAddress();
+				const int32 StartingChannelB = ItemB->GetStartingAddress();
 
-			const int64 AbsoluteChannelA = (UniverseIDA - 1) * DMX_MAX_ADDRESS + StartingChannelA;
-			const int64 AbsoluteChannelB = (UniverseIDB - 1) * DMX_MAX_ADDRESS + StartingChannelB;
+				const int64 AbsoluteChannelA = (UniverseIDA - 1) * DMX_MAX_ADDRESS + StartingChannelA;
+				const int64 AbsoluteChannelB = (UniverseIDB - 1) * DMX_MAX_ADDRESS + StartingChannelB;
 
-			return AbsoluteChannelA < AbsoluteChannelB;
-		};
+				return AbsoluteChannelA < AbsoluteChannelB;
+			};
 
 		Algo::Sort(ElementsArray, SortElementsLambda);
 	}
@@ -199,10 +200,6 @@ void UDMXControlConsoleFaderGroup::GenerateFromFixturePatch(UDMXEntityFixturePat
 
 	Algo::Sort(Elements, SortElementsByEndingAddressLambda);
 	OnFixturePatchChangedDelegate.Broadcast(this, InFixturePatch);
-
-#if WITH_EDITOR
-	bForceRefresh = true;
-#endif
 }
 
 bool UDMXControlConsoleFaderGroup::HasFixturePatch() const
@@ -400,17 +397,68 @@ void UDMXControlConsoleFaderGroup::Destroy()
 #endif // WITH_EDITOR
 }
 
-#if WITH_EDITOR
-void UDMXControlConsoleFaderGroup::ForceRefresh()
+bool UDMXControlConsoleFaderGroup::IsMuted() const
 {
-	bForceRefresh = false;
+	const TArray<UDMXControlConsoleFaderBase*> AllFaders = GetAllFaders();
+	const bool bIsAnyFaderUnmuted = Algo::AnyOf(AllFaders, [this](UDMXControlConsoleFaderBase* Fader)
+		{
+			return Fader && !Fader->IsMuted();
+		});
+
+	return !bIsAnyFaderUnmuted;
 }
-#endif // WITH_EDITOR
+
+void UDMXControlConsoleFaderGroup::SetMute(bool bMute)
+{
+	const TArray<UDMXControlConsoleFaderBase*> AllFaders = GetAllFaders();
+	for (UDMXControlConsoleFaderBase* Fader : AllFaders)
+	{
+		if (Fader)
+		{
+			Fader->SetMute(bMute);
+		}
+	}
+}
+
+void UDMXControlConsoleFaderGroup::ToggleMute()
+{
+	SetMute(!IsMuted());
+}
+
+bool UDMXControlConsoleFaderGroup::IsLocked() const
+{
+	const TArray<UDMXControlConsoleFaderBase*> AllFaders = GetAllFaders();
+	const bool bIsAnyFaderUnlocked = Algo::AnyOf(AllFaders, [this](UDMXControlConsoleFaderBase* Fader)
+		{
+			return Fader && !Fader->IsLocked();
+		});
+
+	return !bIsAnyFaderUnlocked;
+}
+
+void UDMXControlConsoleFaderGroup::SetLock(bool bLock)
+{
+	const TArray<UDMXControlConsoleFaderBase*> AllFaders = GetAllFaders();
+	for (UDMXControlConsoleFaderBase* Fader : AllFaders)
+	{
+		if (Fader)
+		{
+			Fader->SetLock(bLock);
+		}
+	}
+}
+
+void UDMXControlConsoleFaderGroup::ToggleLock()
+{
+	SetLock(!IsLocked());
+}
 
 #if WITH_EDITOR
-void UDMXControlConsoleFaderGroup::SetIsExpanded(const bool bExpanded)
+bool UDMXControlConsoleFaderGroup::IsFirstActiveFaderGroupInRow() const
 {
-	bIsExpanded = bExpanded;
+	const UDMXControlConsoleFaderGroupRow& OwnerRow = GetOwnerFaderGroupRowChecked();
+	const TArray<UDMXControlConsoleFaderGroup*> ActiveFaderGroups = OwnerRow.GetActiveFaderGroups();
+	return !ActiveFaderGroups.IsEmpty() && ActiveFaderGroups[0] == this;
 }
 #endif // WITH_EDITOR
 
@@ -424,7 +472,7 @@ void UDMXControlConsoleFaderGroup::ShowAllElementsInEditor()
 			continue;
 		}
 
-		Element.GetInterface()->SetIsVisibleInEditor(true);
+		Element.GetInterface()->SetIsMatchingFilter(true);
 
 		if (UDMXControlConsoleFixturePatchMatrixCell* MatrixCell = Cast<UDMXControlConsoleFixturePatchMatrixCell>(Element.GetObject()))
 		{
@@ -473,15 +521,6 @@ void UDMXControlConsoleFaderGroup::PostEditChangeProperty(FPropertyChangedEvent&
 	{
 		CachedWeakFixturePatch = Cast<UDMXEntityFixturePatch>(SoftFixturePatchPtr.ToSoftObjectPath().TryLoad());
 	}
-}
-#endif // WITH_EDITOR
-
-#if WITH_EDITOR
-void UDMXControlConsoleFaderGroup::PostEditUndo()
-{
-	Super::PostEditUndo();
-
-	bForceRefresh = true;
 }
 #endif // WITH_EDITOR
 
@@ -543,10 +582,6 @@ void UDMXControlConsoleFaderGroup::UpdateFaderGroupFromFixturePatch(UDMXEntityFi
 
 	Algo::Sort(Elements, SortElementsByEndingAddressLambda);
 	OnFixturePatchChangedDelegate.Broadcast(this, InFixturePatch);
-
-#if WITH_EDITOR
-	bForceRefresh = true;
-#endif
 }
 
 void UDMXControlConsoleFaderGroup::UpdateFixturePatchFunctionFaders(UDMXEntityFixturePatch* InFixturePatch)

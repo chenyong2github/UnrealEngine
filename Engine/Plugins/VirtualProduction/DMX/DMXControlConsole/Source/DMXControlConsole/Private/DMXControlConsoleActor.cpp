@@ -2,9 +2,8 @@
 
 #include "DMXControlConsoleActor.h"
 
-#include "DMXControlConsoleData.h"
-
 #include "Components/SceneComponent.h"
+#include "DMXControlConsoleData.h"
 
 
 #define LOCTEXT_NAMESPACE "DMXControlConsoleActor"

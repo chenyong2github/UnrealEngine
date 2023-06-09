@@ -5,14 +5,13 @@
 #include "CoreMinimal.h"
 #include "Widgets/SCompoundWidget.h"
 
-class UDMXControlConsoleFaderBase;
-template<typename NumericType> class SDMXControlConsoleEditorSpinBoxVertical;
-
 enum class ECheckBoxState : uint8;
 struct FOptionalSize;
 struct FSlateColor;
 class SButton;
+template<typename NumericType> class SDMXControlConsoleEditorSpinBoxVertical;
 class SInlineEditableTextBlock;
+class UDMXControlConsoleFaderBase;
 
 
 /** Individual fader UI class */
@@ -25,10 +24,10 @@ public:
 
 	SLATE_ARGUMENT(FMargin, Padding)
 
-		SLATE_END_ARGS()
+	SLATE_END_ARGS()
 
-		/** Constructs the widget */
-		void Construct(const FArguments& InArgs, const TObjectPtr<UDMXControlConsoleFaderBase>& InFader);
+	/** Constructs the widget */
+	void Construct(const FArguments& InArgs, const TObjectPtr<UDMXControlConsoleFaderBase>& InFader);
 
 	/** Gets the Fader this Fader widget is based on */
 	UDMXControlConsoleFaderBase* GetFader() const { return Fader.Get(); }
@@ -50,6 +49,9 @@ private:
 
 	/** Gets wheter this Fader is selected or not */
 	bool IsSelected() const;
+
+	/** Gets wheter this widget should have readonly properties or not */
+	bool IsReadOnly() const;
 
 	/** True if this Fader is a Raw Fader */
 	bool IsRawFader() const;
@@ -114,14 +116,14 @@ private:
 	/** Called to lock/unlock this Fader */
 	FReply OnLockClicked();
 
-	/** Called to toggle the mute state of this Fader */
-	void OnMuteToggleChanged(ECheckBoxState CheckState);
-
 	/** Checks the current mute state of the Fader */
 	ECheckBoxState IsMuteChecked() const;
 
-	/** Gets wheter the FaderSpinBox widget should be enabled or not */
-	bool IsFaderSpinBoxEnabled() const;
+	/** Called to toggle the mute state of this Fader */
+	void OnMuteToggleChanged(ECheckBoxState CheckState);
+
+	/** Gets wheter the FaderSpinBox widget should be active or not */
+	bool IsFaderSpinBoxActive() const;
 
 	/** Gets the height of the Fader according to the current View Mode  */
 	FOptionalSize GetFaderHeightByViewMode() const;

@@ -101,27 +101,48 @@ public:
 	/** Destroys this Fader Group */
 	void Destroy();
 
+	/** Gets wheter this Fader Group can send DMX data */
+	bool IsMuted() const;
+
+	/** Sets mute state of this Fader Group */
+	virtual void SetMute(bool bMute);
+
+	/** Mutes/Unmutes this Fader Group */
+	virtual void ToggleMute();
+
+	/** Gets wheter this Fader Group's Faders Value can be changed */
+	bool IsLocked() const;
+	
+	/** Sets lock state of this Fader Group */
+	virtual void SetLock(bool bLock);
+
+	/** Locks/Unlocks this Fader Group  */
+	virtual void ToggleLock();
+
 #if WITH_EDITOR
-	/** Resets bForceRefresh condition */
-	void ForceRefresh();
-
-	/** True if this Fader Group needs to be refreshed */
-	bool HasForceRefresh() const { return bForceRefresh; }
-
 	/** Gets Fader Group color for Editor representation */
 	const FLinearColor& GetEditorColor() const { return EditorColor; }
 
 	/** Gets the expansion state of the Fader Group */
-	bool GetIsExpanded() const { return bIsExpanded; }
+	bool IsExpanded() const { return bIsExpanded; }
 
 	/** Sets the expansion state of the Fader Group */
-	void SetIsExpanded(const bool bExpanded);
+	void SetIsExpanded(const bool bExpanded) { bIsExpanded = bExpanded; }
 
-	/** Gets in Editor visibility state of the Fader Group */
-	bool GetIsVisibleInEditor() const { return bIsVisibleInEditor; }
+	/** Gets the activity state of the Fader Group */
+	bool IsActive() const { return HasFixturePatch() ? bIsActive : true; }
 
-	/** Sets in Editor visibility state of the Fader Group */
-	void SetIsVisibleInEditor(bool bVisible) { bIsVisibleInEditor = bVisible; }
+	/** Sets the activity state of the Fader Group */
+	void SetIsActive(const bool bActive) { bIsActive = bActive; }
+
+	/** True if this is the firs active Fader Group in its row */
+	bool IsFirstActiveFaderGroupInRow() const;
+
+	/** True if Fader Group matches Control Console filtering system */
+	bool IsMatchingFilter() const { return bIsMatchingFilter; }
+
+	/** Sets wheter Fader Group matches Control Console filtering system */
+	void SetIsMatchingFilter(bool bMatches) { bIsMatchingFilter = bMatches; }
 
 	/** Sets in Editor visibility state of all elements to true */
 	void ShowAllElementsInEditor();
@@ -157,7 +178,6 @@ protected:
 	virtual void PostLoad() override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PostEditUndo() override;
 #endif
 	//~ End UObject interface
 
@@ -217,10 +237,11 @@ private:
 	UPROPERTY()
 	bool bIsExpanded = false;
 
-	/** In Editor visibility state of the Fader Group */
-	bool bIsVisibleInEditor = true;
+	/** In Editor activity state of the Fader Group */
+	UPROPERTY()
+	bool bIsActive = false;
 
-	/** Shows wheter this Fader Group needs to be refreshed or not */
-	bool bForceRefresh = false;
+	/** True if Fader Group matches Control Console filtering system */
+	bool bIsMatchingFilter = true;
 #endif
 };

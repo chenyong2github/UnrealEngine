@@ -1,13 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SDMXReadOnlyFixturePatchListRow.h"
+#include "Widgets/SDMXReadOnlyFixturePatchListRow.h"
 
 #include "DMXEditor.h"
 #include "DMXEditorStyle.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXEntityFixtureType.h"
 #include "Library/DMXLibrary.h"
-
 #include "Styling/AppStyle.h"
 #include "Widgets/Input/STextComboBox.h"
 #include "Widgets/SBoxPanel.h"
@@ -205,7 +204,7 @@ FText SDMXReadOnlyFixturePatchListRow::GetModeText() const
 {
 	if (const UDMXEntityFixturePatch* FixturePatch = GetFixturePatch())
 	{
-		if(FixturePatch->GetActiveMode())
+		if (FixturePatch->GetActiveMode())
 		{
 			const FString FixtureModeName = FixturePatch->GetActiveMode()->ModeName;
 			return FText::FromString(FixtureModeName);

@@ -2,30 +2,30 @@
 
 #include "SDMXControlConsoleEditorFaderGroupToolbar.h"
 
+#include "Algo/AnyOf.h"
 #include "DMXControlConsoleData.h"
 #include "DMXControlConsoleEditorSelection.h"
 #include "DMXControlConsoleFaderBase.h"
 #include "DMXControlConsoleFaderGroup.h"
+#include "DMXControlConsoleFaderGroupRow.h"
 #include "DMXEditorStyle.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXEntityReference.h"
 #include "Library/DMXLibrary.h"
 #include "Models/DMXControlConsoleEditorModel.h"
 #include "Models/Filter/FilterModel.h"
-#include "Style/DMXControlConsoleEditorStyle.h"
-#include "Views/SDMXControlConsoleEditorFaderGroupView.h"
-#include "Widgets/SDMXControlConsoleEditorFaderGroupPanel.h"
-
 #include "ScopedTransaction.h"
-#include "Algo/AnyOf.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Style/DMXControlConsoleEditorStyle.h"
 #include "Styling/SlateColor.h"
 #include "Styling/StyleColors.h"
+#include "Views/SDMXControlConsoleEditorFaderGroupView.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SBorder.h"
+#include "Widgets/SDMXControlConsoleEditorFaderGroupPanel.h"
 
 
 #define LOCTEXT_NAMESPACE "SDMXControlConsoleEditorFaderGroup"
@@ -155,7 +155,7 @@ void SDMXControlConsoleEditorFaderGroupToolbar::Construct(const FArguments& InAr
 		.Padding(4.f, 8.f)
 		[
 			SAssignNew(ToolbarSearchBox, SSearchBox)
-			.MinDesiredWidth(200.f)
+			.MinDesiredWidth(100.f)
 			.OnTextChanged(this, &SDMXControlConsoleEditorFaderGroupToolbar::OnSearchTextChanged)
 			.ToolTipText(LOCTEXT("SearchBarTooltip", "Searches for Fader Name, Attributes, Fixture ID, Universe or Patch. Examples:\n\n* FaderName\n* Dimmer\n* Pan, Tilt\n* 1\n* 1.\n* 1.1\n* Universe 1\n* Uni 1-3\n* Uni 1, 3\n* Uni 1, 4-5'."))
 			.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::GetExpandedViewModeVisibility))
@@ -283,7 +283,8 @@ TSharedRef<SWidget> SDMXControlConsoleEditorFaderGroupToolbar::GenerateSettingsM
 			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Delete"),
 			FUIAction
 			(
-				FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::OnRemoveFaderGroup)
+				FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::OnRemoveFaderGroup),
+				FCanExecuteAction::CreateLambda([this]() { return GetFaderGroup() && !GetFaderGroup()->HasFixturePatch(); })
 			),
 			NAME_None,
 			EUserInterfaceActionType::Button
@@ -308,12 +309,15 @@ TSharedRef<SWidget> SDMXControlConsoleEditorFaderGroupToolbar::GenerateSettingsM
 
 		MenuBuilder.AddMenuEntry
 		(
-			FText::FromString(TEXT("Lock")),
-			FText::FromString(TEXT("Lock")),
+			LOCTEXT("LockLabel", "Lock"),
+			FText::GetEmpty(),
 			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Lock"),
 			FUIAction
 			(
-				FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::OnLockFaderGroup, true)
+				FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::OnLockFaderGroup, true),
+				FCanExecuteAction::CreateLambda([this]() { return GetFaderGroup() && !GetFaderGroup()->IsLocked(); }),
+				FIsActionChecked(),
+				FIsActionButtonVisible::CreateLambda([this]() { return GetFaderGroup() && !GetFaderGroup()->IsLocked(); })
 			),
 			NAME_None,
 			EUserInterfaceActionType::Button
@@ -321,12 +325,15 @@ TSharedRef<SWidget> SDMXControlConsoleEditorFaderGroupToolbar::GenerateSettingsM
 
 		MenuBuilder.AddMenuEntry
 		(
-			FText::FromString(TEXT("Unlock")),
-			FText::FromString(TEXT("Unlock")),
+			LOCTEXT("UnlockLabel", "Unlock"),
+			FText::GetEmpty(),
 			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Unlock"),
 			FUIAction
 			(
-				FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::OnLockFaderGroup, false)
+				FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::OnLockFaderGroup, false),
+				FCanExecuteAction::CreateLambda([this]() { return GetFaderGroup() && GetFaderGroup()->IsLocked(); }),
+				FIsActionChecked(),
+				FIsActionButtonVisible::CreateLambda([this]() { return GetFaderGroup() && GetFaderGroup()->IsLocked(); })
 			),
 			NAME_None,
 			EUserInterfaceActionType::Button
@@ -480,25 +487,20 @@ bool SDMXControlConsoleEditorFaderGroupToolbar::IsFixturePatchStillAvailable(con
 			const TArray<UDMXControlConsoleFaderGroup*> AllFaderGroups = EditorConsoleData->GetAllFaderGroups();
 
 			auto IsFixturePatchInUseLambda = [InFixturePatch](const UDMXControlConsoleFaderGroup* FaderGroup)
-			{
-				if (!FaderGroup)
 				{
-					return false;
-				}
+					if (!FaderGroup || !FaderGroup->IsActive() || !FaderGroup->HasFixturePatch())
+					{
+						return false;
+					}
 
-				if (!FaderGroup->HasFixturePatch())
-				{
-					return false;
-				}
+					const UDMXEntityFixturePatch* FixturePatch = FaderGroup->GetFixturePatch();
+					if (FixturePatch != InFixturePatch)
+					{
+						return false;
+					}
 
-				const UDMXEntityFixturePatch* FixturePatch = FaderGroup->GetFixturePatch();
-				if (FixturePatch != InFixturePatch)
-				{
-					return false;
-				}
-
-				return true;
-			};
+					return true;
+				};
 
 			return !Algo::AnyOf(AllFaderGroups, IsFixturePatchInUseLambda);
 		}
@@ -551,19 +553,64 @@ void SDMXControlConsoleEditorFaderGroupToolbar::OnComboBoxSelectionChanged(const
 		FaderGroup->PreEditChange(nullptr);
 		if (FixturePatch)
 		{
-			FaderGroup->GenerateFromFixturePatch(FixturePatch);
+			if (UDMXControlConsoleData* EditorConsoleData = EditorConsoleModel->GetEditorConsoleData())
+			{
+				// Find already existing Fader Group with the given FixturePatch and replace the current one
+				if (UDMXControlConsoleFaderGroup* FaderGroupToMove = EditorConsoleData->FindFaderGroupByFixturePatch(FixturePatch))
+				{
+					UDMXControlConsoleFaderGroupRow& DestinationRow = FaderGroup->GetOwnerFaderGroupRowChecked();
+					const int32 DestinationIndex = FaderGroup->GetIndex();
+					
+					// Change active state of the two Fader Groups
+					FaderGroupToMove->Modify();
+					FaderGroupToMove->SetIsActive(true);
+					FaderGroup->SetIsActive(false);
+
+					DestinationRow.PreEditChange(UDMXControlConsoleFaderGroupRow::StaticClass()->FindPropertyByName(UDMXControlConsoleFaderGroupRow::GetFaderGroupsPropertyName()));
+					DestinationRow.AddFaderGroup(FaderGroupToMove, DestinationIndex);
+					DestinationRow.PostEditChange();
+
+					// Handle selection for both FaderGroups
+					if (SelectionHandler->IsSelected(FaderGroup))
+					{
+						constexpr bool bNotifySelectionChange = false;
+						SelectionHandler->AddToSelection(FaderGroupToMove, bNotifySelectionChange);
+						SelectionHandler->RemoveFromSelection(FaderGroup);
+					}
+
+					// Destroy Fader Group if not patched
+					if (!FaderGroup->HasFixturePatch())
+					{
+						FaderGroup->Destroy();
+					}
+				}
+			}
 		}
 		else
 		{
+			// Replace patched Fader Group with a not patched one
 			if (FaderGroup->HasFixturePatch())
 			{
-				SelectionHandler->ClearFadersSelection(FaderGroup);
-				FaderGroup->Clear();
+				UDMXControlConsoleFaderGroupRow& OwnerRow = FaderGroup->GetOwnerFaderGroupRowChecked();
+				const int32 Index = FaderGroup->GetIndex();
+				FaderGroup->SetIsActive(false);
+
+				OwnerRow.PreEditChange(UDMXControlConsoleFaderGroupRow::StaticClass()->FindPropertyByName(UDMXControlConsoleFaderGroupRow::GetFaderGroupsPropertyName()));
+				UDMXControlConsoleFaderGroup* NewFaderGroup = OwnerRow.AddFaderGroup(Index);
+				OwnerRow.PostEditChange();
+
+				// Handle selection for both FaderGroups
+				if (SelectionHandler->IsSelected(FaderGroup))
+				{
+					constexpr bool bNotifySelectionChange = false;
+					SelectionHandler->AddToSelection(NewFaderGroup, bNotifySelectionChange);
+					SelectionHandler->RemoveFromSelection(FaderGroup);
+				}
 			}
 		}
-		
-		FaderGroup->PostEditChange();
 
+		FaderGroup->PostEditChange();
+		EditorConsoleModel->RequestRefresh();
 	}
 }
 
@@ -573,6 +620,9 @@ void SDMXControlConsoleEditorFaderGroupToolbar::OnSearchTextChanged(const FText&
 	{
 		using namespace UE::DMXControlConsoleEditor::FilterModel::Private;
 		FFilterModel::Get().SetFaderGroupFilter(FaderGroup, SearchText.ToString());
+
+		UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+		EditorConsoleModel->RequestRefresh();
 	}
 }
 

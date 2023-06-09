@@ -72,7 +72,7 @@ void UDMXControlConsoleFaderBase::SetValue(const uint32 NewValue)
 
 void UDMXControlConsoleFaderBase::SetMinValue(uint32 NewMinValue)
 {
-	if (NewMinValue >= 0)
+	if (!bIsLocked && NewMinValue >= 0)
 	{
 		MinValue = FMath::Clamp(NewMinValue, 0, MaxValue - 1);
 		Value = FMath::Clamp(Value, MinValue, MaxValue);
@@ -81,7 +81,7 @@ void UDMXControlConsoleFaderBase::SetMinValue(uint32 NewMinValue)
 
 void UDMXControlConsoleFaderBase::SetMaxValue(uint32 NewMaxValue)
 {
-	if (NewMaxValue >= 0)
+	if (!bIsLocked && NewMaxValue >= 0)
 	{
 		const uint8 NumChannels = static_cast<uint8>(DataType) + 1;
 		const uint32 ValueRange = static_cast<uint32>(FMath::Pow(2.f, 8.f * NumChannels) - 1);
@@ -97,7 +97,7 @@ void UDMXControlConsoleFaderBase::SetMute(bool bMute)
 
 void UDMXControlConsoleFaderBase::ToggleMute()
 {
-	bIsMuted = !bIsMuted;
+	SetMute(!bIsMuted);
 }
 
 void UDMXControlConsoleFaderBase::SetLock(bool bLock)
@@ -107,7 +107,7 @@ void UDMXControlConsoleFaderBase::SetLock(bool bLock)
 
 void UDMXControlConsoleFaderBase::ToggleLock()
 {
-	bIsLocked = !bIsLocked;
+	SetLock(!bIsLocked);
 }
 
 void UDMXControlConsoleFaderBase::ResetToDefault()
@@ -155,7 +155,6 @@ void UDMXControlConsoleFaderBase::Tick(float DeltaTime)
 bool UDMXControlConsoleFaderBase::IsTickable() const
 {
 	return
-		!bIsMuted &&
 		!bIsLocked &&
 		FloatOscillator != nullptr;
 }

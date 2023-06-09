@@ -13,6 +13,7 @@ class UDMXControlConsoleData;
 class UDMXControlConsoleFaderGroup;
 class UDMXEntityFixturePatch;
 
+
 namespace UE::DMXControlConsoleEditor::FilterModel::Private
 { 
 	class FFilterModelFader;
@@ -97,7 +98,7 @@ namespace UE::DMXControlConsoleEditor::FilterModel::Private
 		void ApplyFilter();
 
 		/** Called when Control Console Data have been changed by adding/removing Fader Groups */
-		void OnEditorConsoleDataChanged(UDMXControlConsoleFaderGroup* FaderGroup);
+		void OnEditorConsoleDataChanged(const UDMXControlConsoleFaderGroup* FaderGroup);
 
 		/** Called when Fader Group has been changed by adding/removing Elements */
 		void OnFaderGroupElementsChanged(IDMXControlConsoleFaderGroupElement* Element);
