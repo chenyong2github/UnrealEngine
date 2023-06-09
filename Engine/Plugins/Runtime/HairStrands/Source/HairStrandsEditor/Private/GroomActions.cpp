@@ -121,7 +121,6 @@ void ExecuteRebuild(const FToolMenuContext& InContext)
 						OutGroup.Attributes 	= HairDescriptionGroups.HairGroups[GroupIndex].GetHairAttributes();
 						OutGroup.AttributeFlags = HairDescriptionGroups.HairGroups[GroupIndex].GetHairAttributeFlags();
 						OutGroup.InterpolationSettings = GroomAsset->HairGroupsInterpolation[GroupIndex];
-						OutGroup.InterpolationSettings.RiggingSettings.bCanEditRigging = true;
 					}
 				}
 				TSharedPtr<SGroomImportOptionsWindow> GroomOptionWindow = SGroomImportOptionsWindow::DisplayRebuildOptions(CurrentOptions, GroupsPreview, Filename);
@@ -136,9 +135,7 @@ void ExecuteRebuild(const FToolMenuContext& InContext)
 				for (uint32 GroupIndex = 0; GroupIndex < GroupCount; ++GroupIndex)
 				{
 					GroomAsset->HairGroupsInterpolation[GroupIndex] = GroupsPreview->Groups[GroupIndex].InterpolationSettings;
-					GroomAsset->HairGroupsInterpolation[GroupIndex].RiggingSettings.bCanEditRigging = false;
-					bEnableRigging |= GroomAsset->HairGroupsInterpolation[GroupIndex].RiggingSettings.bEnableRigging &&
-						GroomAsset->HairGroupsInterpolation[GroupIndex].InterpolationSettings.bOverrideGuides;
+					bEnableRigging |= GroomAsset->HairGroupsInterpolation[GroupIndex].InterpolationSettings.GuideType == EGroomGuideType::Rigged;
 				}
 
 				bool bSucceeded = GroomAsset->CacheDerivedDatas();

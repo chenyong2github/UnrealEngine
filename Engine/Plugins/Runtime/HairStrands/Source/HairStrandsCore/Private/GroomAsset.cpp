@@ -1233,6 +1233,31 @@ void UGroomAsset::PostLoad()
 		}
 	}
 #endif
+	// Convert old rigging/guide override
+	for (FHairGroupsInterpolation& Group : HairGroupsInterpolation)
+	{
+		const bool bNeedLegacyConversion = Group.InterpolationSettings.bOverrideGuides_DEPRECATED || Group.RiggingSettings.bEnableRigging_DEPRECATED;
+		if (bNeedLegacyConversion)
+		{				
+			if (Group.RiggingSettings.bEnableRigging_DEPRECATED && Group.InterpolationSettings.bOverrideGuides_DEPRECATED)
+			{
+				Group.InterpolationSettings.GuideType = EGroomGuideType::Rigged;
+			}
+			else if (Group.InterpolationSettings.bOverrideGuides_DEPRECATED)
+			{
+				Group.InterpolationSettings.GuideType = EGroomGuideType::Generated;
+			}
+
+			Group.InterpolationSettings.RiggedGuideNumCurves = Group.RiggingSettings.NumCurves_DEPRECATED;
+			Group.InterpolationSettings.RiggedGuideNumPoints = Group.RiggingSettings.NumPoints_DEPRECATED;
+
+			// Reset deprecated values, so that if the asset is saved, the legacy conversion will no longer occur
+			Group.InterpolationSettings.bOverrideGuides_DEPRECATED = false;
+			Group.RiggingSettings.bEnableRigging_DEPRECATED = false;
+			Group.RiggingSettings.NumCurves_DEPRECATED = 0;
+			Group.RiggingSettings.NumPoints_DEPRECATED = 0;
+		}
+	}
 
 #if WITH_EDITORONLY_DATA
 	bool bSucceed = true;
@@ -1511,9 +1536,6 @@ static bool IsStrandsInterpolationAttributes(const FName PropertyName)
 		   PropertyName == GET_MEMBER_NAME_CHECKED(FHairDecimationSettings, CurveDecimation)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairDecimationSettings, VertexDecimation)
 
-		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairDeformationSettings, NumCurves)
-		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairDeformationSettings, NumPoints)
-		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairDeformationSettings, bEnableRigging)
 
 		// Add dependency on simulation and per LOD-simulation/global-interpolation to strip-out interpolation data if there are not needed
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(UGroomAsset, EnableGlobalInterpolation)
@@ -1530,8 +1552,10 @@ static bool IsStrandsInterpolationAttributes(const FName PropertyName)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairLODSettings, Simulation)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairLODSettings, GlobalInterpolation)
 
-		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairInterpolationSettings, bOverrideGuides)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairInterpolationSettings, GuideType)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairInterpolationSettings, HairToGuideDensity)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairInterpolationSettings, RiggedGuideNumCurves)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairInterpolationSettings, RiggedGuideNumPoints)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairInterpolationSettings, InterpolationQuality)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairInterpolationSettings, InterpolationDistance)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairInterpolationSettings, bRandomizeGuide)
@@ -1560,6 +1584,14 @@ static bool IsStrandsLODAttributes(const FName PropertyName)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairLODSettings, BindingType)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairLODSettings, Simulation)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairLODSettings, GlobalInterpolation);
+}
+
+static bool IsRiggingSettings(const FName PropertyName)
+{
+	return
+		PropertyName == GET_MEMBER_NAME_CHECKED(FHairInterpolationSettings, GuideType) ||
+		PropertyName == GET_MEMBER_NAME_CHECKED(FHairInterpolationSettings, RiggedGuideNumCurves) ||
+		PropertyName == GET_MEMBER_NAME_CHECKED(FHairInterpolationSettings, RiggedGuideNumPoints);
 }
 
 static bool IsCardsAttributes(const FName PropertyName)
@@ -1639,6 +1671,21 @@ void UGroomAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 	{
 		FGroomComponentRecreateRenderStateContext Context(this);
 		InitCardsTextureResources(this);
+	}
+
+	// If rigging options changed, recreate skeletal mesh asset
+	const bool bRiggingChanged = IsRiggingSettings(PropertyName);
+	if (bRiggingChanged)
+	{
+		bool bUpdateRiggedMesh = false;
+		for (const FHairGroupsInterpolation& Interpolation : HairGroupsInterpolation)
+		{
+			bUpdateRiggedMesh |= Interpolation.InterpolationSettings.GuideType == EGroomGuideType::Rigged;
+		}
+		if (bUpdateRiggedMesh)
+		{
+			RiggedSkeletalMesh = FGroomDeformerBuilder::CreateSkeletalMesh(this);
+		}
 	}
 
 	const bool bCardMaterialChanged = PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupsCardsSourceDescription, Material);
@@ -3005,7 +3052,7 @@ bool UGroomAsset::BuildCardsData(uint32 GroupIndex)
 				// Create own interpolation settings for cards.
 				// Force closest guides as this is the most relevant matching metric for cards, due to their coarse geometry
 				FHairInterpolationSettings CardsInterpolationSettings = HairGroupsInterpolation[GroupIndex].InterpolationSettings;
-				CardsInterpolationSettings.bOverrideGuides = false;
+				CardsInterpolationSettings.GuideType = EGroomGuideType::Imported;
 				CardsInterpolationSettings.bUseUniqueGuide = true;
 				CardsInterpolationSettings.bRandomizeGuide = false;
 				CardsInterpolationSettings.InterpolationDistance = EHairInterpolationWeight::Parametric;
@@ -3570,7 +3617,9 @@ bool UGroomAsset::IsVisible(int32 GroupIndex, int32 LODIndex) const
 
 bool UGroomAsset::IsDeformationEnable(int32 GroupIndex) const
 {
-	return HairGroupsInterpolation.IsValidIndex(GroupIndex) && HairGroupsInterpolation[GroupIndex].RiggingSettings.bEnableRigging && HairGroupsInterpolation[GroupIndex].InterpolationSettings.bOverrideGuides;
+	return 
+		HairGroupsInterpolation.IsValidIndex(GroupIndex) && 
+		HairGroupsInterpolation[GroupIndex].InterpolationSettings.GuideType == EGroomGuideType::Rigged;
 }
 
 bool UGroomAsset::IsSimulationEnable(int32 GroupIndex, int32 LODIndex) const 

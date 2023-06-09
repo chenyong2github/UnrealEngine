@@ -651,7 +651,7 @@ void FGroomRBFDeformer::GetRBFDeformedGroomAsset(const UGroomAsset* InGroomAsset
 
 			// Get deformed guides
 			// If the groom override the value, we output dummy value for the guides, since they won't be used
-			if (InGroomAsset->HairGroupsInterpolation[GroupIndex].InterpolationSettings.bOverrideGuides)
+			if (InGroomAsset->HairGroupsInterpolation[GroupIndex].InterpolationSettings.GuideType != EGroomGuideType::Imported)
 			{
 				const uint32 OriginalVertexCount = OriginalGuides.StrandsPoints.Num();
 				DeformedPositions[GroupIndex].GuideStrands.Init(FVector3f::ZeroVector, OriginalVertexCount);

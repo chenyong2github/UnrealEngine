@@ -910,17 +910,12 @@ bool FGroomRenderingDetails::CommonResetToDefault(TSharedPtr<IPropertyHandle> Ch
 
 		{
 			FHairInterpolationSettings Default;
-			HAIR_RESET1(HairGroupsInterpolation, FHairInterpolationSettings, InterpolationSettings, bOverrideGuides);
+			HAIR_RESET1(HairGroupsInterpolation, FHairInterpolationSettings, InterpolationSettings, GuideType);
 			HAIR_RESET1(HairGroupsInterpolation, FHairInterpolationSettings, InterpolationSettings, HairToGuideDensity);
 			HAIR_RESET1(HairGroupsInterpolation, FHairInterpolationSettings, InterpolationSettings, bRandomizeGuide);
 			HAIR_RESET1(HairGroupsInterpolation, FHairInterpolationSettings, InterpolationSettings, bUseUniqueGuide);
-		}
-
-		{
-			FHairDeformationSettings Default;
-			HAIR_RESET1(HairGroupsInterpolation, FHairDeformationSettings, RiggingSettings, NumCurves);
-			HAIR_RESET1(HairGroupsInterpolation, FHairDeformationSettings, RiggingSettings, NumPoints);
-			HAIR_RESET1(HairGroupsInterpolation, FHairDeformationSettings, RiggingSettings, bEnableRigging);
+			HAIR_RESET1(HairGroupsInterpolation, FHairInterpolationSettings, InterpolationSettings, RiggedGuideNumCurves);
+			HAIR_RESET1(HairGroupsInterpolation, FHairInterpolationSettings, InterpolationSettings, RiggedGuideNumPoints);
 		}
 	}
 

@@ -2064,31 +2064,36 @@ void FGroomBuilder::BuildData(
 		// Simulation data
 		{
 			OutSim = InHairDescriptionGroup.Guides;
-			if (InHairDescriptionGroup.Info.NumGuides > 0 && !InSettings.InterpolationSettings.bOverrideGuides)
+			const bool bHasImportedGuides = InHairDescriptionGroup.Info.NumGuides > 0;
+			if (bHasImportedGuides && InSettings.InterpolationSettings.GuideType == EGroomGuideType::Imported)
 			{
 				HairStrandsBuilder::BuildInternalData(OutSim);
 			}
 			else
 			{
 				OutSim.Reset();
-				if(InSettings.RiggingSettings.bEnableRigging)
+				if(InSettings.InterpolationSettings.GuideType == EGroomGuideType::Rigged)
 				{
 					if (InHairDescriptionGroup.Info.NumGuides > 0)
 					{
-						// We pick the new guides among the imported ones
+						// Pick the new guides among the imported ones
 						FHairStrandsDatas TempSim = InHairDescriptionGroup.Guides;
 						HairStrandsBuilder::BuildInternalData(TempSim);
-						FHairStrandsDecimation::Decimate(TempSim, InSettings.RiggingSettings.NumCurves, InSettings.RiggingSettings.NumPoints, OutSim);
+						FHairStrandsDecimation::Decimate(TempSim, InSettings.InterpolationSettings.RiggedGuideNumCurves, InSettings.InterpolationSettings.RiggedGuideNumPoints, OutSim);
 					}
 					else
 					{
 						// Otherwise let s pick the guides among the rendered strands
-						FHairStrandsDecimation::Decimate(OutRen, InSettings.RiggingSettings.NumCurves, InSettings.RiggingSettings.NumPoints, OutSim);
+						FHairStrandsDecimation::Decimate(OutRen, InSettings.InterpolationSettings.RiggedGuideNumCurves, InSettings.InterpolationSettings.RiggedGuideNumPoints, OutSim);
 					}
+				}
+				else if (!bHasImportedGuides || InSettings.InterpolationSettings.GuideType == EGroomGuideType::Generated)
+				{
+					FHairStrandsDecimation::Decimate(OutRen, HairToGuideDensity, 1, false, OutSim);
 				}
 				else
 				{
-					FHairStrandsDecimation::Decimate(OutRen, HairToGuideDensity, 1, false, OutSim);
+					checkNoEntry();
 				}
 			}
 
@@ -2135,7 +2140,7 @@ void FGroomBuilder::BuildInterplationData(
 	{
 		// If there's usable closest guides and guide weights attributes, fill them into the asset
 		// This step requires the HairSimulationData (guides) to be filled prior to this
-		const bool bUsePrecomputedWeights = !InInterpolationSettings.bOverrideGuides && InRenData.StrandsCurves.CurvesClosestGuideIDs.Num() > 0 && InRenData.StrandsCurves.CurvesClosestGuideWeights.Num() > 0;
+		const bool bUsePrecomputedWeights = InInterpolationSettings.GuideType == EGroomGuideType::Imported && InRenData.StrandsCurves.CurvesClosestGuideIDs.Num() > 0 && InRenData.StrandsCurves.CurvesClosestGuideWeights.Num() > 0;
 		if (bUsePrecomputedWeights)
 		{
 			FHairStrandsInterpolationDatas OutInterpolation;

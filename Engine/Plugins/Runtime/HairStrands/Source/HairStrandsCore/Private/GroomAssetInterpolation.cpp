@@ -12,20 +12,22 @@ FHairDecimationSettings::FHairDecimationSettings()
 
 FHairInterpolationSettings::FHairInterpolationSettings()
 {
-	bOverrideGuides = false;
+	bOverrideGuides_DEPRECATED = false;
 	HairToGuideDensity = 0.1f;
 	InterpolationQuality = EHairInterpolationQuality::High;
 	InterpolationDistance = EHairInterpolationWeight::Parametric;
 	bRandomizeGuide = false;
 	bUseUniqueGuide = false;
+	GuideType = EGroomGuideType::Imported;
+	RiggedGuideNumCurves = 10;
+	RiggedGuideNumPoints = 4;
 }
 
 FHairDeformationSettings::FHairDeformationSettings()
 {
-	bCanEditRigging = false;
-	bEnableRigging = false;
-	NumCurves = 10;
-	NumPoints = 4;
+	bEnableRigging_DEPRECATED = false;
+	NumCurves_DEPRECATED = 10;
+	NumPoints_DEPRECATED = 4;
 }
 
 FHairGroupsInterpolation::FHairGroupsInterpolation()
@@ -82,12 +84,14 @@ bool FHairDecimationSettings::operator==(const FHairDecimationSettings& A) const
 bool FHairInterpolationSettings::operator==(const FHairInterpolationSettings& A) const
 {
 	return
-		bOverrideGuides == A.bOverrideGuides &&
+		GuideType == A.GuideType &&
 		HairToGuideDensity == A.HairToGuideDensity &&
 		InterpolationQuality == A.InterpolationQuality &&
 		InterpolationDistance == A.InterpolationDistance &&
 		bRandomizeGuide == A.bRandomizeGuide &&
-		bUseUniqueGuide == A.bUseUniqueGuide;
+		bUseUniqueGuide == A.bUseUniqueGuide &&
+		RiggedGuideNumCurves == A.RiggedGuideNumCurves &&
+		RiggedGuideNumPoints == A.RiggedGuideNumPoints;
 }
 
 bool FHairGroupsInterpolation::operator==(const FHairGroupsInterpolation& A) const
@@ -97,29 +101,18 @@ bool FHairGroupsInterpolation::operator==(const FHairGroupsInterpolation& A) con
 		InterpolationSettings == A.InterpolationSettings;
 }
 
-bool FHairDeformationSettings::operator==(const FHairDeformationSettings& A) const
-{
-	return
-		bEnableRigging == A.bEnableRigging &&
-		NumCurves == A.NumCurves &&
-		NumPoints == A.NumPoints &&
-		bCanEditRigging == A.bCanEditRigging;
-}
-
 void FHairGroupsInterpolation::BuildDDCKey(FArchive& Ar)
 {
 	Ar << DecimationSettings.CurveDecimation;
 	Ar << DecimationSettings.VertexDecimation;
-	Ar << InterpolationSettings.bOverrideGuides;
+	Ar << InterpolationSettings.GuideType;
 	Ar << InterpolationSettings.HairToGuideDensity;
 	Ar << InterpolationSettings.InterpolationQuality;
 	Ar << InterpolationSettings.InterpolationDistance;
 	Ar << InterpolationSettings.bRandomizeGuide;
 	Ar << InterpolationSettings.bUseUniqueGuide;
-	Ar << RiggingSettings.NumCurves;
-	Ar << RiggingSettings.NumPoints;
-	Ar << RiggingSettings.bEnableRigging;
-	Ar << RiggingSettings.bCanEditRigging;
+	Ar << InterpolationSettings.RiggedGuideNumCurves;
+	Ar << InterpolationSettings.RiggedGuideNumPoints;
 }
 
 void FHairGroupsLOD::BuildDDCKey(FArchive& Ar)
