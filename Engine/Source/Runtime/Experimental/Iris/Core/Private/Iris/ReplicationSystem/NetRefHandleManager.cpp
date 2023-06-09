@@ -119,6 +119,9 @@ FInternalNetRefIndex FNetRefHandleManager::InternalCreateNetObject(const FNetRef
 		// Need a full copy if set, normally only needed for new objects.
 		Data.bNeedsFullCopyAndQuantize = 1U;
 
+		// Make sure we do a full poll of all properties the first time the object gets polled.
+		Data.bWantsFullPoll = 1U;
+
 		ReplicatedObjectRefCount[InternalIndex] = 0;
 
 		return InternalIndex;

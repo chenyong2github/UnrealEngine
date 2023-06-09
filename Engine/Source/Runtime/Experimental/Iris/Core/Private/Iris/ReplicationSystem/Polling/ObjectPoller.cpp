@@ -23,7 +23,6 @@ FObjectPoller::FObjectPoller(const FInitParams& InitParams)
 	, LocalNetRefHandleManager(ReplicationSystemInternal->GetNetRefHandleManager())
 	, ReplicatedInstances(LocalNetRefHandleManager.GetReplicatedInstances())
 	, AccumulatedDirtyObjects(ReplicationSystemInternal->GetDirtyNetObjectTracker().GetAccumulatedDirtyNetObjects())
-	, PrevFrameGlobalScopeObjects(MakeNetBitArrayView(LocalNetRefHandleManager.GetPrevFrameScopableInternalIndices()))
 {
 	GarbageCollectionAffectedObjects = MakeNetBitArrayView(ObjectReplicationBridge->GarbageCollectionAffectedObjects);
 
@@ -78,13 +77,16 @@ void FObjectPoller::PollSingleObject(FNetRefHandle Handle)
 
 void FObjectPoller::ForcePollObject(FInternalNetRefIndex ObjectIndex)
 {
-	const FNetRefHandleManager::FReplicatedObjectData& ObjectData = LocalNetRefHandleManager.GetReplicatedObjectDataNoCheck(ObjectIndex);
+	FNetRefHandleManager::FReplicatedObjectData& ObjectData = LocalNetRefHandleManager.GetReplicatedObjectDataNoCheck(ObjectIndex);
 	if (ObjectData.InstanceProtocol == nullptr)
 	{
 		return;
 	}
 
 	IRIS_PROFILER_PROTOCOL_NAME(ObjectData.Protocol->DebugName->Name);
+
+	// We always poll all states here.
+	ObjectData.bWantsFullPoll = 0U;
 
 	// Call per-instance PreUpdate function
 	if (ObjectReplicationBridge->PreUpdateInstanceFunction && EnumHasAnyFlags(ObjectData.InstanceProtocol->InstanceTraits, EReplicationInstanceProtocolTraits::NeedsPreSendUpdate))
@@ -117,7 +119,7 @@ void FObjectPoller::ForcePollObject(FInternalNetRefIndex ObjectIndex)
 
 void FObjectPoller::PushModelPollObject(FInternalNetRefIndex ObjectIndex)
 {
-	const FNetRefHandleManager::FReplicatedObjectData& ObjectData = LocalNetRefHandleManager.GetReplicatedObjectDataNoCheck(ObjectIndex);
+	FNetRefHandleManager::FReplicatedObjectData& ObjectData = LocalNetRefHandleManager.GetReplicatedObjectDataNoCheck(ObjectIndex);
 	if (ObjectData.InstanceProtocol == nullptr)
 	{
 		return;
@@ -165,15 +167,15 @@ void FObjectPoller::PushModelPollObject(FInternalNetRefIndex ObjectIndex)
 
 	IRIS_PROFILER_SCOPE_VERBOSE(PollPushBased);
 
-	const bool bIsNewInScope = !PrevFrameGlobalScopeObjects.GetBit(ObjectIndex);
-
+	// Does the object need to poll all states once.
+	const bool bWantsFullPoll = ObjectData.bWantsFullPoll;
+	ObjectData.bWantsFullPoll = 0U;
 	
-
 	// If the object is fully push model we only need to poll it if it's dirty, unless it's a new object or was garbage collected.
 	bool bWasMarkedDirty = false;
 	if (EnumHasAnyFlags(InstanceTraits, EReplicationInstanceProtocolTraits::HasFullPushBasedDirtiness))
 	{
-		if (bIsDirtyObject || bIsNewInScope)
+		if (bIsDirtyObject || bWantsFullPoll)
 		{
 			// We need to do a poll if object is marked as dirty
 			EReplicationFragmentPollFlags PollOptions = EReplicationFragmentPollFlags::PollAllState;
@@ -194,7 +196,7 @@ void FObjectPoller::PushModelPollObject(FInternalNetRefIndex ObjectIndex)
 		// If the object has pushed based fragments, and not is marked dirty and object is affected by GC we need to make sure that we refresh cached references for all push based fragments
 		const bool bIsPushBasedObject = EnumHasAnyFlags(InstanceTraits, EReplicationInstanceProtocolTraits::HasPartialPushBasedDirtiness | EReplicationInstanceProtocolTraits::HasFullPushBasedDirtiness);
 		const bool bHasObjectReferences = EnumHasAnyFlags(InstanceTraits, EReplicationInstanceProtocolTraits::HasObjectReference);
-		const bool bNeedsRefreshOfCachedObjectReferences = ((!(bIsNewInScope | bIsDirtyObject)) & bIsGCAffectedObject & bIsPushBasedObject & bHasObjectReferences);
+		const bool bNeedsRefreshOfCachedObjectReferences = ((!(bWantsFullPoll | bIsDirtyObject)) & bIsGCAffectedObject & bIsPushBasedObject & bHasObjectReferences);
 		if (bNeedsRefreshOfCachedObjectReferences)
 		{
 			// Only states which has push based dirtiness need to be updated as the other states will be polled in full anyway.
@@ -208,7 +210,7 @@ void FObjectPoller::PushModelPollObject(FInternalNetRefIndex ObjectIndex)
 		PollOptions |= bIsGCAffectedObject ? EReplicationFragmentPollFlags::ForceRefreshCachedObjectReferencesAfterGC : EReplicationFragmentPollFlags::None;
 
 		// If the object is not new or dirty at this point we only need to poll non-push based fragments as we know that pushed based states have not been modified
-		const EReplicationFragmentTraits ExcludeTraits = (bIsDirtyObject | bIsNewInScope) ? EReplicationFragmentTraits::None : EReplicationFragmentTraits::HasPushBasedDirtiness;
+		const EReplicationFragmentTraits ExcludeTraits = (bIsDirtyObject || bWantsFullPoll) ? EReplicationFragmentTraits::None : EReplicationFragmentTraits::HasPushBasedDirtiness;
 		bWasMarkedDirty |= FReplicationInstanceOperations::PollAndRefreshCachedPropertyData(InstanceProtocol, ExcludeTraits, PollOptions);
 		++PollStats.PolledObjectCount;
 	}

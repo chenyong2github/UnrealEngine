@@ -67,18 +67,15 @@ private:
 	UObjectReplicationBridge* ObjectReplicationBridge;
 	FReplicationSystemInternal* ReplicationSystemInternal;
 
-	const FNetRefHandleManager& LocalNetRefHandleManager;
+	FNetRefHandleManager& LocalNetRefHandleManager;
 	const TArray<UObject*>& ReplicatedInstances;
 
 	const FNetBitArrayView AccumulatedDirtyObjects;
-	const FNetBitArrayView PrevFrameGlobalScopeObjects;
 
 	FNetBitArrayView DirtyObjectsThisFrame;
-
 	FNetBitArrayView GarbageCollectionAffectedObjects;
 
 	FPreUpdateAndPollStats PollStats;
-
 };
 
 } // end namespace UE::Net::Private
