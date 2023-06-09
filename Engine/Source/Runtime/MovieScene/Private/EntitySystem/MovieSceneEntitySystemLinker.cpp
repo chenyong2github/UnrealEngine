@@ -367,6 +367,9 @@ void UMovieSceneEntitySystemLinker::HandlePostGarbageCollection()
 {
 	using namespace UE::MovieScene;
 
+	// Increment the system serial number to ensure that any structural mutation that occurs in this function does so under a unique serial
+	EntityManager.IncrementSystemSerial();
+
 	// All the instance registry to unlink garbage first
 	InstanceRegistry->TagGarbage();
 
