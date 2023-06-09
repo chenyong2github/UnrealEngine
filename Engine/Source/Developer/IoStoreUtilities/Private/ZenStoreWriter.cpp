@@ -211,6 +211,13 @@ FZenStoreWriter::FZenStoreWriter(
 
 FZenStoreWriter::~FZenStoreWriter()
 {
+	if (CommitThread.IsValid())
+	{
+		UE_LOG(LogZenStoreWriter, Display, TEXT("Aborted, flushing..."));
+		CommitQueue->CompleteAdding();
+		CommitThread.Wait();
+	}
+
 	FScopeLock _(&PackagesCriticalSection);
 
 	if (PendingPackages.Num())
@@ -586,6 +593,7 @@ void FZenStoreWriter::EndCook(const FCookInfo& Info)
 	
 	CommitQueue->CompleteAdding();
 	CommitThread.Wait();
+	CommitThread.Reset();
 
 	if (!Info.bWorkerOnSharedSandbox)
 	{
