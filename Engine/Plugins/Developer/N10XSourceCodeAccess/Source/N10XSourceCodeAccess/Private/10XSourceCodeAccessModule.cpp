@@ -6,7 +6,7 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "10XSourceCodeAccessor.h"
 
-LLM_DEFINE_TAG(N10XSourceCodeAccess);
+LLM_DEFINE_TAG(XSourceCodeAccess_10);
 
 IMPLEMENT_MODULE( F10XSourceCodeAccessModule, 10XSourceCodeAccess );
 
@@ -17,7 +17,7 @@ F10XSourceCodeAccessModule::F10XSourceCodeAccessModule()
 
 void F10XSourceCodeAccessModule::StartupModule()
 {
-	LLM_SCOPE_BYTAG(N10XSourceCodeAccess);
+	LLM_SCOPE_BYTAG(XSourceCodeAccess_10);
 
 	SourceCodeAccessor->Startup();
 
