@@ -444,7 +444,7 @@ void SNiagaraStackInlineDynamicInput::ConstructWrappedExpressionDynamicInputWidg
 			];
 		}
 
-		for (const TPair<FNiagaraInlineDynamicInputFormatToken, FInputDisplayEntries> FormatTokenInputPair : OutMatchedFormatInputs)
+		for (const TPair<FNiagaraInlineDynamicInputFormatToken, FInputDisplayEntries>& FormatTokenInputPair : OutMatchedFormatInputs)
 		{
 			if (FormatTokenInputPair.Key.Usage == ENiagaraInlineDynamicInputFormatTokenUsage::Input)
 			{
