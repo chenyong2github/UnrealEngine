@@ -1028,9 +1028,9 @@ public:
 				}
 				else
 				{
-					Job.Output.Errors.Append(Job.PreprocessOutput.Errors);
 					Job.Output.bSucceeded = false;
 				}
+				Job.Output.Errors.Append(Job.PreprocessOutput.Errors);
 			}
 			else
 			{
