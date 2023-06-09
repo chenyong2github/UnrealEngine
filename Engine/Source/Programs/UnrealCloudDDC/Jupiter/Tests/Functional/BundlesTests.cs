@@ -309,7 +309,7 @@ public abstract class BundlesTests
         HttpMessageHandler httpMessageHandler = Server!.CreateHandler();
 
         HttpStorageClient blobStore = new HttpStorageClient(() => new HttpClient(httpMessageHandler) {BaseAddress = new Uri(Server.BaseAddress, $"api/v1/storage/{TestNamespaceName}/")}!, () => null!, null, NullLogger.Instance);
-        await SeedTreeAsync(blobStore, rootRefName, leafRefName, new TreeOptions { MaxBlobSize = 1 });
+        await SeedTreeAsync(blobStore, rootRefName, leafRefName, new BundleOptions { MaxBlobSize = 1 });
 
         IBlobIndex blobIndex = Server.Services.GetService<IBlobIndex>()!;
 
@@ -393,7 +393,7 @@ public abstract class BundlesTests
         public override IEnumerable<NodeRef> EnumerateRefs() => Refs;
     }
 
-    static async Task SeedTreeAsync(IStorageClient store, RefName rootRefName, RefName leafRefName, TreeOptions options)
+    static async Task SeedTreeAsync(BundleStorageClient store, RefName rootRefName, RefName leafRefName, BundleOptions options)
     {
         // Generate a tree
         {

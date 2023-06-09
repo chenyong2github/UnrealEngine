@@ -53,7 +53,7 @@ public class StorageClient : IStorageClientJupiter
     private readonly IReferencesStore _refStore;
     private readonly IBlobIndex _blobIndex;
     private readonly BucketId _defaultBucket = new BucketId("bundles");
-    private readonly TreeReader _treeReader;
+    private readonly BundleReader _treeReader;
 
     public bool SupportsRedirects { get; set; } = true;
 
@@ -63,7 +63,7 @@ public class StorageClient : IStorageClientJupiter
         _blobService = blobService;
         _refStore = refStore;
         _blobIndex = blobIndex;
-        _treeReader = new TreeReader(this, null, NullLogger.Instance);
+        _treeReader = new BundleReader(this, null, NullLogger.Instance);
     }
 
     public async Task<(BlobLocator Locator, Uri UploadUrl)?> GetWriteRedirectAsync(string prefix, CancellationToken cancellationToken)
@@ -219,10 +219,12 @@ public class StorageClient : IStorageClientJupiter
         await _refStore.Delete(_namespaceId, _defaultBucket, IoHashKey.FromName(name.ToString()));
     }
 
-    public IStorageWriter CreateWriter(RefName refName = default, TreeOptions? options = null)
+    public BundleWriter CreateWriter(RefName refName = default, BundleOptions? options = null)
     {
-        return new TreeWriter(this, _treeReader, refName, options);
+        return new BundleWriter(this, _treeReader, refName, options);
     }
+
+    IStorageWriter IStorageClient.CreateWriter(RefName refName) => CreateWriter(refName);
 }
 
 public class RefInlinePayload
