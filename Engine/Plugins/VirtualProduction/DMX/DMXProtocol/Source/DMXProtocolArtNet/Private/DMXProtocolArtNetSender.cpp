@@ -54,7 +54,7 @@ TSharedPtr<FDMXProtocolArtNetSender> FDMXProtocolArtNetSender::TryCreateUnicastS
 	TSharedPtr<FInternetAddr> NewNetworkInterfaceInternetAddr = FDMXProtocolUtils::CreateInternetAddr(InNetworkInterfaceIP, ARTNET_SENDER_PORT);
 	if (!NewNetworkInterfaceInternetAddr.IsValid())
 	{
-		UE_LOG(LogDMXProtocol, Error, TEXT("Cannot create Art-Net sender: Invalid IP address: %s"), *InNetworkInterfaceIP);
+		UE_LOG(LogDMXProtocol, Warning, TEXT("Cannot create Art-Net sender: Invalid IP address: %s"), *InNetworkInterfaceIP);
 		return nullptr;
 	}
 
@@ -68,7 +68,7 @@ TSharedPtr<FDMXProtocolArtNetSender> FDMXProtocolArtNetSender::TryCreateUnicastS
 	
 	if(!NewSocket)
 	{
-		UE_LOG(LogDMXProtocol, Error, TEXT("Invalid Network Interface IP %s for DMX Port. Please update your Output Port in Project Settings -> Plugins -> DMX Plugin"), *InNetworkInterfaceIP);
+		UE_LOG(LogDMXProtocol, Warning, TEXT("Invalid Network Interface IP %s for DMX Port. Please update your Output Port in Project Settings -> Plugins -> DMX Plugin"), *InNetworkInterfaceIP);
 		return nullptr;
 	}
 
@@ -76,7 +76,7 @@ TSharedPtr<FDMXProtocolArtNetSender> FDMXProtocolArtNetSender::TryCreateUnicastS
 	TSharedPtr<FInternetAddr> NewUnicastInternetAddr = FDMXProtocolUtils::CreateInternetAddr(InUnicastIP, ARTNET_PORT);
 	if (!NewUnicastInternetAddr.IsValid())
 	{
-		UE_LOG(LogDMXProtocol, Error, TEXT("Invalid Unicast IP %s for DMX Port. Please update your Output Port in Project Settings -> Plugins -> DMX Plugin"), *InUnicastIP);
+		UE_LOG(LogDMXProtocol, Warning, TEXT("Invalid Unicast IP %s for DMX Port. Please update your Output Port in Project Settings -> Plugins -> DMX Plugin"), *InUnicastIP);
 		return nullptr;
 	}
 
@@ -94,7 +94,7 @@ TSharedPtr<FDMXProtocolArtNetSender> FDMXProtocolArtNetSender::TryCreateBroadcas
 	TSharedPtr<FInternetAddr> NewNetworkInterfaceInternetAddr = FDMXProtocolUtils::CreateInternetAddr(InNetworkInterfaceIP, ARTNET_SENDER_PORT);
 	if (!NewNetworkInterfaceInternetAddr.IsValid())
 	{
-		UE_LOG(LogDMXProtocol, Error, TEXT("Cannot create Art-Net sender: Invalid IP address: %s"), *InNetworkInterfaceIP);
+		UE_LOG(LogDMXProtocol, Warning, TEXT("Cannot create Art-Net sender: Invalid IP address: %s"), *InNetworkInterfaceIP);
 		return nullptr;
 	}
 
@@ -109,7 +109,7 @@ TSharedPtr<FDMXProtocolArtNetSender> FDMXProtocolArtNetSender::TryCreateBroadcas
 
 	if(!NewSocket)
 	{
-		UE_LOG(LogDMXProtocol, Error, TEXT("Invalid Network Interface IP %s for DMX Port. Please update your Output Ports in Project Settings -> Plugins -> DMX Plugin"), *InNetworkInterfaceIP);
+		UE_LOG(LogDMXProtocol, Warning, TEXT("Invalid Network Interface IP %s for DMX Port. Please update your Output Ports in Project Settings -> Plugins -> DMX Plugin"), *InNetworkInterfaceIP);
 		return nullptr;
 	}
 
@@ -186,7 +186,7 @@ void FDMXProtocolArtNetSender::SendDMXSignal(const FDMXSignalSharedRef& DMXSigna
 			ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
 			TEnumAsByte<ESocketErrors> RecvFromError = SocketSubsystem->GetLastErrorCode();
 
-			UE_LOG(LogDMXProtocol, Error, TEXT("Failed send DMX to %s with Error Code %d"), *DestinationInternetAddr->ToString(false), RecvFromError.GetValue());
+			UE_LOG(LogDMXProtocol, Error, TEXT("Socket subsystem failed sending DMX to %s with Error Code %d"), *DestinationInternetAddr->ToString(false), RecvFromError.GetValue());
 
 			bErrorEverLogged = true;
 		}

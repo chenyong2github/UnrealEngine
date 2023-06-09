@@ -59,7 +59,7 @@ TSharedPtr<FDMXProtocolArtNetReceiver> FDMXProtocolArtNetReceiver::TryCreate(con
 	TSharedPtr<FInternetAddr> EndpointInternetAddr = FDMXProtocolUtils::CreateInternetAddr(IPAddress, ARTNET_PORT);
 	if (!EndpointInternetAddr.IsValid())
 	{
-		UE_LOG(LogDMXProtocol, Error, TEXT("Cannot create Art-Net receiver: Invalid IP address: %s"), *IPAddress);
+		UE_LOG(LogDMXProtocol, Warning, TEXT("Cannot create Art-Net receiver: Invalid IP address: %s"), *IPAddress);
 		return nullptr;
 	}
 
@@ -72,7 +72,7 @@ TSharedPtr<FDMXProtocolArtNetReceiver> FDMXProtocolArtNetReceiver::TryCreate(con
 
 	if (!NewListeningSocket)
 	{
-		UE_LOG(LogDMXProtocol, Error, TEXT("Cannot create Art-Net receiver: Error create ListeningSocket for: %s"), *IPAddress);
+		UE_LOG(LogDMXProtocol, Warning, TEXT("Cannot create Art-Net receiver: Error create ListeningSocket for: %s"), *IPAddress);
 		return nullptr;
 	}
 

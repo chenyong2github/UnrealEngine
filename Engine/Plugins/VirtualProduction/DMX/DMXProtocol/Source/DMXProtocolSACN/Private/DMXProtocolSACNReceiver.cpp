@@ -61,7 +61,7 @@ TSharedPtr<FDMXProtocolSACNReceiver> FDMXProtocolSACNReceiver::TryCreate(const T
 	const TSharedPtr<FInternetAddr> EndpointInternetAddr = FDMXProtocolUtils::CreateInternetAddr(IPAddress, ACN_PORT);
 	if (!EndpointInternetAddr.IsValid())
 	{
-		UE_LOG(LogDMXProtocol, Error, TEXT("Cannot create sACN receiver: Invalid IP address: %s"), *IPAddress);
+		UE_LOG(LogDMXProtocol, Warning, TEXT("Cannot create sACN receiver: Invalid IP address: %s"), *IPAddress);
 		return nullptr;
 	}
 	const FIPv4Endpoint Endpoint(EndpointInternetAddr);
@@ -77,7 +77,7 @@ TSharedPtr<FDMXProtocolSACNReceiver> FDMXProtocolSACNReceiver::TryCreate(const T
 
 	if (!NewListeningSocket)
 	{
-		UE_LOG(LogDMXProtocol, Error, TEXT("Cannot create sACN receiver: Error create ListeningSocket for: %s"), *IPAddress);
+		UE_LOG(LogDMXProtocol, Warning, TEXT("Cannot create sACN receiver: Error create ListeningSocket for: %s"), *IPAddress);
 		return nullptr;
 	}
 
@@ -86,7 +86,7 @@ TSharedPtr<FDMXProtocolSACNReceiver> FDMXProtocolSACNReceiver::TryCreate(const T
 		ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
 		SocketSubsystem->DestroySocket(NewListeningSocket);
 
-		UE_LOG(LogDMXProtocol, Error, TEXT("Cannot create sACN receiver: Platform does not support IP_PKTINFO required for sACN."), *IPAddress);
+		UE_LOG(LogDMXProtocol, Warning, TEXT("Cannot create sACN receiver: Platform does not support IP_PKTINFO required for sACN."), *IPAddress);
 		return nullptr;
 	}
 
