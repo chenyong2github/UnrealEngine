@@ -44,8 +44,8 @@ namespace Horde.Server.Tests
 
 		static Bundle CreateTestBundle(ReadOnlyMemory<byte> data, IReadOnlyList<BlobLocator> refs)
 		{
-			List<NodeType> types = new List<NodeType>();
-			types.Add(new NodeType(Guid.Parse("{AFDF76A7-5333-4DEE-B837-B5F5CA511245}"), 1));
+			List<BlobType> types = new List<BlobType>();
+			types.Add(new BlobType(Guid.Parse("{AFDF76A7-5333-4DEE-B837-B5F5CA511245}"), 1));
 
 			List<BlobLocator> imports = new List<BlobLocator>(refs);
 
@@ -121,7 +121,7 @@ namespace Horde.Server.Tests
 			{
 				RefName refName = new RefName("hello");
 				await store.WriteRefTargetAsync(refName, new HashedNodeLocator(bundle3.Header.Exports[0].Hash, locator3, 0));
-				NodeHandle refTarget = await store.ReadRefTargetAsync(refName);
+				BlobHandle refTarget = await store.ReadRefTargetAsync(refName);
 				Assert.AreEqual(locator3, refTarget.GetLocator().Blob);
 			}
 		}
@@ -164,7 +164,7 @@ namespace Horde.Server.Tests
 
 		static async Task<HashedNodeLocator> TryReadRefTargetAsync(IStorageClient store, RefName name)
 		{
-			NodeHandle? handle = await store.TryReadRefTargetAsync(name);
+			BlobHandle? handle = await store.TryReadRefTargetAsync(name);
 			if (handle == null)
 			{
 				return default;

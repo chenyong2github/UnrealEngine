@@ -64,7 +64,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// </summary>
 		public const int DefaultBufferLength = 32 * 1024;
 
-		static readonly NodeType s_leafNodeType = Node.GetNodeType<LeafChunkedDataNode>();
+		static readonly BlobType s_leafNodeType = Node.GetNodeType<LeafChunkedDataNode>();
 
 		readonly IStorageWriter _writer;
 		readonly ChunkingOptions _options;
@@ -329,7 +329,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <returns>Handle to the written leaf node</returns>
 		async ValueTask FlushLeafNodeAsync(CancellationToken cancellationToken)
 		{
-			NodeHandle handle = await _writer.WriteNodeAsync(_leafLength, Array.Empty<NodeHandle>(), s_leafNodeType, cancellationToken);
+			BlobHandle handle = await _writer.WriteNodeAsync(_leafLength, Array.Empty<BlobHandle>(), s_leafNodeType, cancellationToken);
 			_leafHandles.Add(new NodeRef<ChunkedDataNode>(handle));
 			ResetLeafState();
 		}

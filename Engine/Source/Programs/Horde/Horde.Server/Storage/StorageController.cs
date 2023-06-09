@@ -73,7 +73,7 @@ namespace Horde.Server.Storage
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public FindNodeResponse(NodeHandle target)
+		public FindNodeResponse(BlobHandle target)
 		{
 			Hash = target.Hash;
 			Blob = target.GetLocator().Blob;
@@ -145,7 +145,7 @@ namespace Horde.Server.Storage
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ReadRefResponse(NodeHandle target, string link)
+		public ReadRefResponse(BlobHandle target, string link)
 		{
 			Hash = target.Hash;
 			Blob = target.GetLocator().Blob;
@@ -329,7 +329,7 @@ namespace Horde.Server.Storage
 			IStorageClientImpl client = await _storageService.GetClientAsync(namespaceId, cancellationToken);
 
 			FindNodesResponse response = new FindNodesResponse();
-			await foreach (NodeHandle handle in client.FindNodesAsync(alias, cancellationToken))
+			await foreach (BlobHandle handle in client.FindNodesAsync(alias, cancellationToken))
 			{
 				response.Nodes.Add(new FindNodeResponse(handle));
 			}
@@ -409,7 +409,7 @@ namespace Horde.Server.Storage
 				}
 			}
 
-			NodeHandle? target = await client.TryReadRefTargetAsync(refName, cacheTime, cancellationToken: cancellationToken);
+			BlobHandle? target = await client.TryReadRefTargetAsync(refName, cacheTime, cancellationToken: cancellationToken);
 			if (target == null)
 			{
 				return new NotFoundResult();
@@ -509,7 +509,7 @@ namespace Horde.Server.Storage
 					BundleExport export = header.Exports[exportIdx];
 
 					string details = $"{linkBase}/nodes/{locator}?export={exportIdx}";
-					NodeType type = header.Types[export.TypeIdx];
+					BlobType type = header.Types[export.TypeIdx];
 					string typeName = GetNodeType(type.Guid)?.Name ?? type.Guid.ToString();
 
 					responseExports.Add(new { export.Hash, export.Length, details, type = typeName });
@@ -573,7 +573,7 @@ namespace Horde.Server.Storage
 
 			object content;
 
-			NodeData nodeData = await reader.ReadNodeDataAsync(new NodeLocator(locator, exportIdx), cancellationToken);
+			BlobData nodeData = await reader.ReadNodeDataAsync(new NodeLocator(locator, exportIdx), cancellationToken);
 
 			Node node = Node.Deserialize(nodeData);
 			switch (node)
@@ -603,7 +603,7 @@ namespace Horde.Server.Storage
 			return new { bundle = $"{linkBase}/bundles/{locator}", export.Hash, export.Length, guid = header.Types[export.TypeIdx].Guid, type = node.GetType().Name, content = content };
 		}
 
-		static string GetNodeLink(string linkBase, NodeHandle handle) => GetNodeLink(linkBase, handle.GetLocator());
+		static string GetNodeLink(string linkBase, BlobHandle handle) => GetNodeLink(linkBase, handle.GetLocator());
 		
 		static string GetNodeLink(string linkBase, NodeLocator locator) => $"{linkBase}/nodes/{locator.Blob}?export={locator.ExportIdx}";
 

@@ -115,19 +115,19 @@ public class StorageClient : IStorageClientJupiter
         return locator;
     }
 
-    public async Task AddAliasAsync(Utf8String name, NodeHandle handle, CancellationToken cancellationToken = default)
+    public async Task AddAliasAsync(Utf8String name, BlobHandle handle, CancellationToken cancellationToken = default)
     {
         // TODO: Implement aliases
         await Task.CompletedTask;
     }
 
-    public async Task RemoveAliasAsync(Utf8String name, NodeHandle handle, CancellationToken cancellationToken = default)
+    public async Task RemoveAliasAsync(Utf8String name, BlobHandle handle, CancellationToken cancellationToken = default)
     {
         // TODO: Implement aliases
         await Task.CompletedTask;
     }
 
-    public async IAsyncEnumerable<NodeHandle> FindNodesAsync(Utf8String name, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    public async IAsyncEnumerable<BlobHandle> FindNodesAsync(Utf8String name, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         // TODO: Implement aliases
         await Task.CompletedTask;
@@ -159,7 +159,7 @@ public class StorageClient : IStorageClientJupiter
 
     }
 
-    public async Task<NodeHandle?> TryReadRefTargetAsync(RefName name, RefCacheTime cacheTime = default, CancellationToken cancellationToken = default)
+    public async Task<BlobHandle?> TryReadRefTargetAsync(RefName name, RefCacheTime cacheTime = default, CancellationToken cancellationToken = default)
     {
         // TODO: Cache time is ignored
         try
@@ -184,16 +184,16 @@ public class StorageClient : IStorageClientJupiter
         }
     }
 
-    public async Task<NodeHandle> WriteRefAsync(RefName name, Bundle bundle, int exportIdx, Utf8String prefix = default, RefOptions? options = null, CancellationToken cancellationToken = default)
+    public async Task<BlobHandle> WriteRefAsync(RefName name, Bundle bundle, int exportIdx, Utf8String prefix = default, RefOptions? options = null, CancellationToken cancellationToken = default)
     {
         BlobLocator locator = await this.WriteBundleAsync(bundle, prefix, cancellationToken);
-        NodeHandle target = new FlushedNodeHandle(_treeReader, bundle.Header.Exports[exportIdx].Hash, new NodeLocator(locator, exportIdx));
+        BlobHandle target = new FlushedNodeHandle(_treeReader, bundle.Header.Exports[exportIdx].Hash, new NodeLocator(locator, exportIdx));
         await WriteRefTargetAsync(name, target, options, cancellationToken);
 
         return target;
     }
 
-    public Task WriteRefTargetAsync(RefName refName, NodeHandle target, RefOptions? requestOptions, CancellationToken cancellationToken)
+    public Task WriteRefTargetAsync(RefName refName, BlobHandle target, RefOptions? requestOptions, CancellationToken cancellationToken)
     {
         return WriteRefTargetAsync(refName, new HashedNodeLocator(target.Hash, target.GetLocator()), requestOptions, cancellationToken);
     }

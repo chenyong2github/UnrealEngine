@@ -66,7 +66,7 @@ namespace Jupiter.Controllers
         /// <summary>
         /// Constructor
         /// </summary>
-        public FindNodeResponse(NodeHandle target)
+        public FindNodeResponse(BlobHandle target)
         {
             Hash = target.Hash;
             Blob = target.GetLocator().Blob;
@@ -140,7 +140,7 @@ namespace Jupiter.Controllers
         /// <summary>
         /// Constructor
         /// </summary>
-        public ReadRefResponse(NodeHandle target, string link)
+        public ReadRefResponse(BlobHandle target, string link)
         {
             Hash = target.Hash;
             Blob = target.GetLocator().Blob;
@@ -298,7 +298,7 @@ namespace Jupiter.Controllers
             IStorageClient client = await _storageService.GetClientAsync(namespaceId, cancellationToken);
 
             FindNodesResponse response = new FindNodesResponse();
-            await foreach (NodeHandle handle in client.FindNodesAsync(alias, cancellationToken))
+            await foreach (BlobHandle handle in client.FindNodesAsync(alias, cancellationToken))
             {
                 response.Nodes.Add(new FindNodeResponse(handle));
             }
@@ -352,7 +352,7 @@ namespace Jupiter.Controllers
 
             IStorageClient client = await _storageService.GetClientAsync(namespaceId, cancellationToken);
 
-            NodeHandle? target = await client.TryReadRefTargetAsync(refName, cancellationToken: cancellationToken);
+            BlobHandle? target = await client.TryReadRefTargetAsync(refName, cancellationToken: cancellationToken);
             if (target == null)
             {
                 return NotFound();
@@ -408,7 +408,7 @@ namespace Jupiter.Controllers
                     BundleExport export = header.Exports[exportIdx];
 
                     string details = Url.Action("GetNode", new { namespaceId = namespaceId, locator = locator, export = exportIdx})!;
-                    NodeType type = header.Types[export.TypeIdx];
+                    BlobType type = header.Types[export.TypeIdx];
                     string typeName = GetNodeType(type.Guid)?.Name ?? type.Guid.ToString();
 
                     responseExports.Add(new { export.Hash, export.Length, details, type = typeName });
@@ -466,7 +466,7 @@ namespace Jupiter.Controllers
 
             object content;
 
-            NodeData nodeData = await reader.ReadNodeDataAsync(new NodeLocator(locator, exportIdx), cancellationToken);
+            BlobData nodeData = await reader.ReadNodeDataAsync(new NodeLocator(locator, exportIdx), cancellationToken);
 
             Node node = Node.Deserialize(nodeData);
             switch (node)

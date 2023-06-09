@@ -99,7 +99,7 @@ namespace RemoteClient
 				{
 					DirectoryNode sandbox = new DirectoryNode();
 					await sandbox.CopyFromDirectoryAsync(uploadDir.ToDirectoryInfo(), new ChunkingOptions(), treeWriter, null);
-					NodeHandle handle = await treeWriter.FlushAsync(sandbox);
+					BlobHandle handle = await treeWriter.FlushAsync(sandbox);
 					await channel.UploadFilesAsync("", handle.GetLocator(), storage);
 				}
 

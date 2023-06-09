@@ -260,7 +260,7 @@ namespace Horde.Server.Tools
 				nodeRef = await writer.WriteNodeAsync(directoryNode, cancellationToken);
 			}
 
-			NodeHandle handle = nodeRef.Handle;
+			BlobHandle handle = nodeRef.Handle;
 			await client.WriteRefTargetAsync(refName, handle, cancellationToken: cancellationToken);
 
 			return await CreateDeploymentAsync(tool, options, new HashedNodeLocator(handle.Hash, handle.GetLocator()), globalConfig, cancellationToken);

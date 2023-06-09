@@ -148,7 +148,7 @@ namespace AutomationTool.Tasks
 				return httpClient;
 			}
 
-			NodeHandle handle;
+			BlobHandle handle;
 
 			HttpStorageClient storageClient = new HttpStorageClient(CreateHttpClient, () => new HttpClient(), null, Logger);
 			await using (IStorageWriter treeWriter = storageClient.CreateWriter())

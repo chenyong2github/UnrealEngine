@@ -539,12 +539,12 @@ namespace EpicGames.Horde.Storage
 		/// <param name="locator">Locator for the node</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Node data read from the given bundle</returns>
-		public async ValueTask<NodeData> ReadNodeDataAsync(NodeLocator locator, CancellationToken cancellationToken = default)
+		public async ValueTask<BlobData> ReadNodeDataAsync(NodeLocator locator, CancellationToken cancellationToken = default)
 		{
 			BundleInfo bundleInfo = await GetBundleInfoAsync(locator.Blob, cancellationToken);
 			BundleExport export = bundleInfo.Header.Exports[locator.ExportIdx];
 
-			List<NodeHandle> refs = new List<NodeHandle>(export.References.Count);
+			List<BlobHandle> refs = new List<BlobHandle>(export.References.Count);
 			foreach (BundleExportRef reference in export.References)
 			{
 				BlobLocator importBlob;
@@ -567,8 +567,8 @@ namespace EpicGames.Horde.Storage
 				nodeData = packetData.Slice(export.Offset, export.Length);
 			}
 
-			NodeType nodeType = bundleInfo.Header.Types[export.TypeIdx];
-			return new NodeData(nodeType, export.Hash, nodeData, refs);
+			BlobType nodeType = bundleInfo.Header.Types[export.TypeIdx];
+			return new BlobData(nodeType, export.Hash, nodeData, refs);
 		}
 
 		/// <summary>
@@ -579,7 +579,7 @@ namespace EpicGames.Horde.Storage
 		/// <returns>Node data read from the given bundle</returns>
 		public async ValueTask<Node> ReadNodeAsync(NodeLocator locator, CancellationToken cancellationToken = default)
 		{
-			NodeData nodeData = await ReadNodeDataAsync(locator, cancellationToken);
+			BlobData nodeData = await ReadNodeDataAsync(locator, cancellationToken);
 			return Node.Deserialize(nodeData);
 		}
 

@@ -353,8 +353,8 @@ public abstract class BundlesTests
         payloadWriter.WriteString("Hello world");
         byte[] payload = payloadWriter.WrittenMemory.ToArray();
 
-        List<NodeType> types = new List<NodeType>();
-        types.Add(new NodeType(Guid.Parse("F63606D4-5DBB-4061-A655-6F444F65229E"), 1));
+        List<BlobType> types = new List<BlobType>();
+        types.Add(new BlobType(Guid.Parse("F63606D4-5DBB-4061-A655-6F444F65229E"), 1));
 
         List<BundleExport> exports = new List<BundleExport>();
         exports.Add(new BundleExport(0, IoHash.Compute(payload), 0, 0, payload.Length, Array.Empty<BundleExportRef>()));

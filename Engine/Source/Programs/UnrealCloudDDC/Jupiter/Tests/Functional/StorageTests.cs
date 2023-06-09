@@ -486,7 +486,7 @@ namespace Jupiter.FunctionalTests.Storage
             await using IStorageWriter writer = store.CreateWriter(options: new BundleOptions { CompressionFormat = BundleCompressionFormat.None });
 
             TextNode node = new TextNode(contents);
-            NodeHandle handle = await writer.FlushAsync(node, CancellationToken.None);
+            BlobHandle handle = await writer.FlushAsync(node, CancellationToken.None);
 
             return await store.ReadBundleAsync(handle.GetLocator().Blob);
         }

@@ -302,7 +302,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="imports">Imported bundles</param>
 		/// <param name="exports">Exports for nodes</param>
 		/// <param name="packets">Compression packets within the bundle</param>
-		public static BundleHeader Create(IReadOnlyList<NodeType> types, IReadOnlyList<BlobLocator> imports, IReadOnlyList<BundleExport> exports, IReadOnlyList<BundlePacket> packets)
+		public static BundleHeader Create(IReadOnlyList<BlobType> types, IReadOnlyList<BlobLocator> imports, IReadOnlyList<BundleExport> exports, IReadOnlyList<BundlePacket> packets)
 		{
 			// Find the size of all the sections
 			int typesLength = BundleTypeCollection.Measure(types);
@@ -456,14 +456,14 @@ namespace EpicGames.Horde.Storage
 
 			// Read the types
 			int numTypes = (int)reader.ReadUnsignedVarInt();
-			List<NodeType> types = new List<NodeType>(numTypes);
+			List<BlobType> types = new List<BlobType>(numTypes);
 
 			for (int typeIdx = 0; typeIdx < numTypes; typeIdx++)
 			{
 				Guid guid = reader.ReadGuid();
 				int serializerVersion = (int)reader.ReadUnsignedVarInt();
 
-				types.Add(new NodeType(guid, serializerVersion));
+				types.Add(new BlobType(guid, serializerVersion));
 			}
 
 			// Read the imports
@@ -614,7 +614,7 @@ namespace EpicGames.Horde.Storage
 	public struct BundleTypeCollection
 	{
 		/// <summary>
-		/// Number of bytes in a serialized <see cref="NodeType"/> instance
+		/// Number of bytes in a serialized <see cref="BlobType"/> instance
 		/// </summary>
 		const int NumBytesPerType = 20;
 
@@ -631,7 +631,7 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BundleTypeCollection(IReadOnlyList<NodeType> types)
+		public BundleTypeCollection(IReadOnlyList<BlobType> types)
 		{
 			byte[] data = new byte[Measure(types)];
 			Write(data, types);
@@ -642,7 +642,7 @@ namespace EpicGames.Horde.Storage
 		public int Count => Data.Length / NumBytesPerType;
 
 		/// <inheritdoc/>
-		public NodeType this[int index]
+		public BlobType this[int index]
 		{
 			get
 			{
@@ -651,7 +651,7 @@ namespace EpicGames.Horde.Storage
 				Guid guid = new Guid(span.Slice(0, 16));
 				int version = BinaryPrimitives.ReadInt32LittleEndian(span.Slice(16));
 
-				return new NodeType(guid, version);
+				return new BlobType(guid, version);
 			}
 		}
 
@@ -660,17 +660,17 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		/// <param name="types">Type collection</param>
 		/// <returns>Number of bytes required to serialize the types</returns>
-		public static int Measure(IReadOnlyCollection<NodeType> types) => types.Count * NumBytesPerType;
+		public static int Measure(IReadOnlyCollection<BlobType> types) => types.Count * NumBytesPerType;
 
 		/// <summary>
 		/// Serializes a set of types to a fixed block of memory
 		/// </summary>
 		/// <param name="span">Span to write the types to</param>
 		/// <param name="types">Collection of types to be written</param>
-		public static void Write(Span<byte> span, IReadOnlyCollection<NodeType> types)
+		public static void Write(Span<byte> span, IReadOnlyCollection<BlobType> types)
 		{
 			Span<byte> next = span;
-			foreach (NodeType type in types)
+			foreach (BlobType type in types)
 			{
 				type.Guid.TryWriteBytes(next.Slice(0, 16));
 				next = next.Slice(16);

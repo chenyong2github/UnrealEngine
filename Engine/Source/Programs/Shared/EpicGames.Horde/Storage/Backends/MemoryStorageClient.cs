@@ -20,7 +20,7 @@ namespace EpicGames.Horde.Storage.Backends
 	/// </summary>
 	public class MemoryStorageClient : BundleStorageClient
 	{
-		record class ExportEntry(NodeHandle Handle, ExportEntry? Next);
+		record class ExportEntry(BlobHandle Handle, ExportEntry? Next);
 
 		/// <summary>
 		/// Map of blob id to blob data
@@ -82,20 +82,20 @@ namespace EpicGames.Horde.Storage.Backends
 		#region Aliases
 
 		/// <inheritdoc/>
-		public override Task AddAliasAsync(Utf8String name, NodeHandle handle, CancellationToken cancellationToken = default)
+		public override Task AddAliasAsync(Utf8String name, BlobHandle handle, CancellationToken cancellationToken = default)
 		{
 			_exports.AddOrUpdate(name, _ => new ExportEntry(handle, null), (_, entry) => new ExportEntry(handle, entry));
 			return Task.CompletedTask;
 		}
 
 		/// <inheritdoc/>
-		public override Task RemoveAliasAsync(Utf8String name, NodeHandle handle, CancellationToken cancellationToken = default)
+		public override Task RemoveAliasAsync(Utf8String name, BlobHandle handle, CancellationToken cancellationToken = default)
 		{
 			throw new NotSupportedException();
 		}
 
 		/// <inheritdoc/>
-		public override async IAsyncEnumerable<NodeHandle> FindNodesAsync(Utf8String alias, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+		public override async IAsyncEnumerable<BlobHandle> FindNodesAsync(Utf8String alias, [EnumeratorCancellation] CancellationToken cancellationToken = default)
 		{
 			if(_exports.TryGetValue(alias, out ExportEntry? entry))
 			{
@@ -116,21 +116,21 @@ namespace EpicGames.Horde.Storage.Backends
 		public override Task DeleteRefAsync(RefName name, CancellationToken cancellationToken) => Task.FromResult(_refs.TryRemove(name, out _));
 
 		/// <inheritdoc/>
-		public override Task<NodeHandle?> TryReadRefTargetAsync(RefName name, RefCacheTime cacheTime = default, CancellationToken cancellationToken = default)
+		public override Task<BlobHandle?> TryReadRefTargetAsync(RefName name, RefCacheTime cacheTime = default, CancellationToken cancellationToken = default)
 		{
 			HashedNodeLocator hashedLocator;
 			if (_refs.TryGetValue(name, out hashedLocator))
 			{
-				return Task.FromResult<NodeHandle?>(new FlushedNodeHandle(TreeReader, hashedLocator)); 
+				return Task.FromResult<BlobHandle?>(new FlushedNodeHandle(TreeReader, hashedLocator)); 
 			}
 			else
 			{
-				return Task.FromResult<NodeHandle?>(null);
+				return Task.FromResult<BlobHandle?>(null);
 			}
 		}
 
 		/// <inheritdoc/>
-		public override async Task WriteRefTargetAsync(RefName name, NodeHandle target, RefOptions? options = null, CancellationToken cancellationToken = default)
+		public override async Task WriteRefTargetAsync(RefName name, BlobHandle target, RefOptions? options = null, CancellationToken cancellationToken = default)
 		{
 			NodeLocator locator = await target.FlushAsync(cancellationToken);
 			_refs[name] = new HashedNodeLocator(target.Hash, locator);

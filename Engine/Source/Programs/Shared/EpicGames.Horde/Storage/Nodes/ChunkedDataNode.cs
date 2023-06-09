@@ -36,9 +36,9 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="handle">Handle to the data to read</param>
 		/// <param name="outputStream">The output stream to receive the data</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static async Task CopyToStreamAsync(NodeHandle handle, Stream outputStream, CancellationToken cancellationToken)
+		public static async Task CopyToStreamAsync(BlobHandle handle, Stream outputStream, CancellationToken cancellationToken)
 		{
-			NodeData nodeData = await handle.ReadAsync(cancellationToken);
+			BlobData nodeData = await handle.ReadAsync(cancellationToken);
 			if (nodeData.Type.Guid == s_leafNodeGuid)
 			{
 				await LeafChunkedDataNode.CopyToStreamAsync(nodeData, outputStream, cancellationToken);
@@ -131,7 +131,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="nodeData">The raw node data</param>
 		/// <param name="outputStream">The output stream to receive the data</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static async Task CopyToStreamAsync(NodeData nodeData, Stream outputStream, CancellationToken cancellationToken)
+		public static async Task CopyToStreamAsync(BlobData nodeData, Stream outputStream, CancellationToken cancellationToken)
 		{
 			// Keep this code in sync with the constructor
 			await outputStream.WriteAsync(nodeData.Data, cancellationToken);
@@ -197,7 +197,7 @@ namespace EpicGames.Horde.Storage.Nodes
 				Memory<byte> outputBuffer = writer.GetOutputBuffer(0, nextLength);
 				readBuffer.Memory.Slice(0, nextLength).CopyTo(outputBuffer);
 
-				NodeHandle handle = await writer.WriteNodeAsync(nextLength, Array.Empty<NodeHandle>(), GetNodeType<LeafChunkedDataNode>(), cancellationToken);
+				BlobHandle handle = await writer.WriteNodeAsync(nextLength, Array.Empty<BlobHandle>(), GetNodeType<LeafChunkedDataNode>(), cancellationToken);
 				handles.Add(new NodeRef<ChunkedDataNode>(handle));
 
 				readBuffer.Memory.Slice(nextLength, size - nextLength).CopyTo(readBuffer.Memory);
@@ -401,7 +401,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="nodeData">Source data</param>
 		/// <param name="outputStream">The output stream to receive the data</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static async Task CopyToStreamAsync(NodeData nodeData, Stream outputStream, CancellationToken cancellationToken)
+		public static async Task CopyToStreamAsync(BlobData nodeData, Stream outputStream, CancellationToken cancellationToken)
 		{
 			NodeReader nodeReader = new NodeReader(nodeData);
 			while (nodeReader.GetMemory(0).Length > 0)

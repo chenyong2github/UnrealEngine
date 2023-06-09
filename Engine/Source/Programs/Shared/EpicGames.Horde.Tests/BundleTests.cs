@@ -137,8 +137,8 @@ namespace EpicGames.Horde.Tests
 		{
 			BundleHeader oldHeader;
 			{
-				List<NodeType> types = new List<NodeType>();
-				types.Add(new NodeType(Guid.NewGuid(), 0));
+				List<BlobType> types = new List<BlobType>();
+				types.Add(new BlobType(Guid.NewGuid(), 0));
 
 				List<BlobLocator> imports = new List<BlobLocator>();
 				imports.Add(new BlobLocator("import1"));
@@ -216,7 +216,7 @@ namespace EpicGames.Horde.Tests
 			Assert.AreEqual(1, store.Blobs.Count);
 
 			// Check the ref
-			NodeHandle refTarget = await store.ReadRefTargetAsync(refName);
+			Storage.BlobHandle refTarget = await store.ReadRefTargetAsync(refName);
 			Bundle bundle = await store.ReadBundleAsync(refTarget.GetLocator().Blob);
 			Assert.AreEqual(0, bundle.Header.Imports.Count);
 			Assert.AreEqual(3, bundle.Header.Exports.Count);

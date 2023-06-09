@@ -25,7 +25,7 @@ namespace Horde.Commands.Bundles
 		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
 			IStorageClient store;
-			NodeHandle handle;
+			BlobHandle handle;
 			if (File != null)
 			{
 				store = new FileStorageClient(File.Directory, logger);

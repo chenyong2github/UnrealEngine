@@ -58,7 +58,7 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Accessor for the bundle type definition associated with this node
 		/// </summary>
-		public NodeType NodeType => GetNodeType(GetType());
+		public BlobType NodeType => GetNodeType(GetType());
 
 		/// <summary>
 		/// Default constructor
@@ -94,13 +94,13 @@ namespace EpicGames.Horde.Storage
 		#region Static methods
 
 		static readonly object s_writeLock = new object();
-		static readonly ConcurrentDictionary<Type, NodeType> s_typeToNodeType = new ConcurrentDictionary<Type, NodeType>();
+		static readonly ConcurrentDictionary<Type, BlobType> s_typeToNodeType = new ConcurrentDictionary<Type, BlobType>();
 		static readonly ConcurrentDictionary<Guid, Type> s_guidToType = new ConcurrentDictionary<Guid, Type>();
-		static readonly ConcurrentDictionary<Guid, Func<NodeData, Node>> s_guidToDeserializer = new ConcurrentDictionary<Guid, Func<NodeData, Node>>();
+		static readonly ConcurrentDictionary<Guid, Func<BlobData, Node>> s_guidToDeserializer = new ConcurrentDictionary<Guid, Func<BlobData, Node>>();
 
-		static NodeType CreateNodeType(NodeTypeAttribute attribute)
+		static BlobType CreateNodeType(NodeTypeAttribute attribute)
 		{
-			return new NodeType(Guid.Parse(attribute.Guid), attribute.Version);
+			return new BlobType(Guid.Parse(attribute.Guid), attribute.Version);
 		}
 
 		/// <summary>
@@ -116,9 +116,9 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		/// <param name="type"></param>
 		/// <returns></returns>
-		public static NodeType GetNodeType(Type type)
+		public static BlobType GetNodeType(Type type)
 		{
-			NodeType nodeType;
+			BlobType nodeType;
 			if (!s_typeToNodeType.TryGetValue(type, out nodeType))
 			{
 				lock (s_writeLock)
@@ -142,14 +142,14 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		/// <typeparam name="T">Type to get a <see cref="NodeType"/> for</typeparam>
 		/// <returns></returns>
-		public static NodeType GetNodeType<T>() where T : Node => GetNodeType(typeof(T));
+		public static BlobType GetNodeType<T>() where T : Node => GetNodeType(typeof(T));
 
 		/// <summary>
 		/// Deserialize a node from the given reader
 		/// </summary>
 		/// <param name="nodeData">Data to deserialize from</param>
 		/// <returns>New node instance</returns>
-		public static Node Deserialize(NodeData nodeData)
+		public static Node Deserialize(BlobData nodeData)
 		{
 			return s_guidToDeserializer[nodeData.Type.Guid](nodeData);
 		}
@@ -159,7 +159,7 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		/// <param name="nodeData">Data to deserialize from</param>
 		/// <returns>New node instance</returns>
-		public static TNode Deserialize<TNode>(NodeData nodeData) where TNode : Node => (TNode)Deserialize(nodeData);
+		public static TNode Deserialize<TNode>(BlobData nodeData) where TNode : Node => (TNode)Deserialize(nodeData);
 
 		/// <summary>
 		/// Static constructor. Registers all the types in the current assembly.
@@ -215,19 +215,19 @@ namespace EpicGames.Horde.Storage
 
 		static void RegisterType(Type type, NodeTypeAttribute attribute)
 		{
-			NodeType nodeType = CreateNodeType(attribute);
+			BlobType nodeType = CreateNodeType(attribute);
 			s_typeToNodeType.TryAdd(type, nodeType);
 
-			Func<NodeData, Node> deserializer = CreateDeserializer(type);
+			Func<BlobData, Node> deserializer = CreateDeserializer(type);
 			s_guidToType.TryAdd(nodeType.Guid, type);
 			s_guidToDeserializer.TryAdd(nodeType.Guid, deserializer);
 		}
 
-		static readonly ConstructorInfo? s_nodeReaderTypeCtor = typeof(NodeReader).GetConstructor(new[] { typeof(NodeData) });
+		static readonly ConstructorInfo? s_nodeReaderTypeCtor = typeof(NodeReader).GetConstructor(new[] { typeof(BlobData) });
 
-		static Func<NodeData, Node> CreateDeserializer(Type type)
+		static Func<BlobData, Node> CreateDeserializer(Type type)
 		{
-			Type[] signature = new[] { typeof(NodeData) };
+			Type[] signature = new[] { typeof(BlobData) };
 
 			ConstructorInfo? nodeDataCtor = type.GetConstructor(signature);
 			if (nodeDataCtor != null)
@@ -239,7 +239,7 @@ namespace EpicGames.Horde.Storage
 				generator.Emit(OpCodes.Newobj, nodeDataCtor);
 				generator.Emit(OpCodes.Ret);
 
-				return (Func<NodeData, Node>)method.CreateDelegate(typeof(Func<NodeData, Node>));
+				return (Func<BlobData, Node>)method.CreateDelegate(typeof(Func<BlobData, Node>));
 			}
 
 			ConstructorInfo? nodeReaderCtor = type.GetConstructor(new[] { typeof(NodeReader) });
@@ -253,19 +253,14 @@ namespace EpicGames.Horde.Storage
 				generator.Emit(OpCodes.Newobj, nodeReaderCtor);
 				generator.Emit(OpCodes.Ret);
 
-				return (Func<NodeData, Node>)method.CreateDelegate(typeof(Func<NodeData, Node>));
+				return (Func<BlobData, Node>)method.CreateDelegate(typeof(Func<BlobData, Node>));
 			}
 
-			throw new InvalidOperationException($"Type {type.Name} does not have a constructor taking a {typeof(NodeData).Name} or {typeof(NodeReader).Name} instance as parameter.");
+			throw new InvalidOperationException($"Type {type.Name} does not have a constructor taking a {typeof(BlobData).Name} or {typeof(NodeReader).Name} instance as parameter.");
 		}
 
 		#endregion
 	}
-
-	/// <summary>
-	/// Data for an individual node
-	/// </summary>
-	public record struct NodeData(NodeType Type, IoHash Hash, ReadOnlyMemory<byte> Data, IReadOnlyList<NodeHandle> Refs);
 
 	/// <summary>
 	/// Reader for tree nodes
@@ -275,7 +270,7 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Type to deserialize
 		/// </summary>
-		public NodeType Type => _nodeData.Type;
+		public BlobType Type => _nodeData.Type;
 
 		/// <summary>
 		/// Version of the current node, as specified via <see cref="NodeTypeAttribute"/>
@@ -300,15 +295,15 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Locations of all referenced nodes.
 		/// </summary>
-		public IReadOnlyList<NodeHandle> References => _nodeData.Refs;
+		public IReadOnlyList<BlobHandle> References => _nodeData.Refs;
 
-		readonly NodeData _nodeData;
+		readonly BlobData _nodeData;
 		int _refIdx;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public NodeReader(NodeData nodeData)
+		public NodeReader(BlobData nodeData)
 			: base(nodeData.Data)
 		{
 			_nodeData = nodeData;
@@ -317,7 +312,7 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Reads the next reference to another node
 		/// </summary>
-		public NodeHandle ReadNodeHandle()
+		public BlobHandle ReadNodeHandle()
 		{
 			IoHash hash = this.ReadIoHash();
 			return GetNodeHandle(_refIdx++, hash);
@@ -329,7 +324,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="index"></param>
 		/// <param name="hash"></param>
 		/// <returns></returns>
-		public NodeHandle GetNodeHandle(int index, IoHash hash)
+		public BlobHandle GetNodeHandle(int index, IoHash hash)
 		{
 			Debug.Assert(_nodeData.Refs[index].Hash == hash);
 			return _nodeData.Refs[index];
@@ -344,13 +339,13 @@ namespace EpicGames.Horde.Storage
 		readonly IStorageWriter _treeWriter;
 
 		Memory<byte> _memory;
-		readonly List<NodeHandle> _refs = new List<NodeHandle>();
+		readonly List<BlobHandle> _refs = new List<BlobHandle>();
 		int _length;
 
 		/// <summary>
 		/// List of serialized references
 		/// </summary>
-		public IReadOnlyList<NodeHandle> References => _refs;
+		public IReadOnlyList<BlobHandle> References => _refs;
 
 		/// <inheritdoc/>
 		public int Length => _length;
@@ -368,7 +363,7 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Writes a handle to another node
 		/// </summary>
-		public void WriteNodeHandle(NodeHandle target)
+		public void WriteNodeHandle(BlobHandle target)
 		{
 			this.WriteIoHash(target.Hash);
 			_refs.Add(target);
@@ -405,9 +400,9 @@ namespace EpicGames.Horde.Storage
 		/// <param name="handle"></param>
 		/// <param name="cancellationToken"></param>
 		/// <returns></returns>
-		public static async ValueTask<TNode> ReadNodeAsync<TNode>(this NodeHandle handle, CancellationToken cancellationToken = default) where TNode : Node
+		public static async ValueTask<TNode> ReadNodeAsync<TNode>(this BlobHandle handle, CancellationToken cancellationToken = default) where TNode : Node
 		{
-			NodeData nodeData = await handle.ReadAsync(cancellationToken);
+			BlobData nodeData = await handle.ReadAsync(cancellationToken);
 			return Node.Deserialize<TNode>(nodeData);
 		}
 
@@ -420,7 +415,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="refOptions">Options for the ref</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Location of node targetted by the ref</returns>
-		public static async Task<NodeHandle> WriteNodeAsync(this IStorageClient store, RefName name, Node node, RefOptions? refOptions = null, CancellationToken cancellationToken = default)
+		public static async Task<BlobHandle> WriteNodeAsync(this IStorageClient store, RefName name, Node node, RefOptions? refOptions = null, CancellationToken cancellationToken = default)
 		{
 			await using IStorageWriter writer = store.CreateWriter(name);
 			NodeRef<Node> nodeRef = await writer.WriteNodeAsync(node, cancellationToken);
@@ -438,13 +433,13 @@ namespace EpicGames.Horde.Storage
 		/// <returns>Node for the given ref, or null if it does not exist</returns>
 		public static async Task<TNode?> TryReadNodeAsync<TNode>(this IStorageClient store, RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default) where TNode : Node
 		{
-			NodeHandle? refTarget = await store.TryReadRefTargetAsync(name, cacheTime, cancellationToken);
+			BlobHandle? refTarget = await store.TryReadRefTargetAsync(name, cacheTime, cancellationToken);
 			if (refTarget == null)
 			{
 				return null;
 			}
 
-			NodeData nodeData = await refTarget.ReadAsync(cancellationToken);
+			BlobData nodeData = await refTarget.ReadAsync(cancellationToken);
 			return Node.Deserialize<TNode>(nodeData);
 		}
 

@@ -18,13 +18,13 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Handle to the node if in storage (or pending write to storage)
 		/// </summary>
-		public NodeHandle Handle { get; }
+		public BlobHandle Handle { get; }
 
 		/// <summary>
 		/// Creates a reference to a node in storage.
 		/// </summary>
 		/// <param name="handle">Handle to the referenced node</param>
-		public NodeRef(NodeHandle handle)
+		public NodeRef(BlobHandle handle)
 		{
 			Handle = handle;
 		}
@@ -54,7 +54,7 @@ namespace EpicGames.Horde.Storage
 		/// <returns></returns>
 		public async ValueTask<Node> ExpandAsync(CancellationToken cancellationToken = default)
 		{
-			NodeData nodeData = await Handle!.ReadAsync(cancellationToken);
+			BlobData nodeData = await Handle!.ReadAsync(cancellationToken);
 			return Node.Deserialize(nodeData);
 		}
 	}
@@ -68,7 +68,7 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public NodeRef(NodeHandle handle) : base(handle)
+		public NodeRef(BlobHandle handle) : base(handle)
 		{
 		}
 
@@ -199,7 +199,7 @@ namespace EpicGames.Horde.Storage
 			node.Serialize(nodeWriter);
 
 			// Write the final data
-			NodeHandle handle = await writer.WriteNodeAsync(nodeWriter.Length, nodeWriter.References, node.NodeType, cancellationToken);
+			BlobHandle handle = await writer.WriteNodeAsync(nodeWriter.Length, nodeWriter.References, node.NodeType, cancellationToken);
 			return new NodeRef<TNode>(handle);
 		}
 
@@ -212,7 +212,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="cancellationToken"></param>
 		public static async ValueTask<NodeRef<TNode>?> TryReadRefTargetAsync<TNode>(this IStorageClient storageClient, RefName refName, DateTime cacheTime = default, CancellationToken cancellationToken = default) where TNode : Node
 		{
-			NodeHandle? handle = await storageClient.TryReadRefTargetAsync(refName, cacheTime, cancellationToken);
+			BlobHandle? handle = await storageClient.TryReadRefTargetAsync(refName, cacheTime, cancellationToken);
 			if (handle == null)
 			{
 				return null;
@@ -240,7 +240,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="root">Root for the tree</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		public static async Task<NodeHandle> FlushAsync(this IStorageWriter writer, Node root, CancellationToken cancellationToken = default)
+		public static async Task<BlobHandle> FlushAsync(this IStorageWriter writer, Node root, CancellationToken cancellationToken = default)
 		{
 			NodeRef<Node> rootRef = await writer.WriteNodeAsync(root, cancellationToken);
 			await writer.FlushAsync(cancellationToken);

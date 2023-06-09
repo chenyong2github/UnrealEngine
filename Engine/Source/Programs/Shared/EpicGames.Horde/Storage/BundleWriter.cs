@@ -49,12 +49,12 @@ namespace EpicGames.Horde.Storage
 	/// </summary>
 	/// <param name="Hash">Hash of the node</param>
 	/// <param name="Type">Type of the node</param>
-	public record NodeKey(IoHash Hash, NodeType Type);
+	public record NodeKey(IoHash Hash, BlobType Type);
 
 	/// <summary>
-	/// Implementation of <see cref="NodeHandle"/> for nodes which can be read from storage
+	/// Implementation of <see cref="BlobHandle"/> for nodes which can be read from storage
 	/// </summary>
-	public sealed class FlushedNodeHandle : NodeHandle
+	public sealed class FlushedNodeHandle : BlobHandle
 	{
 		readonly BundleReader _reader;
 		readonly NodeLocator _locator;
@@ -84,10 +84,10 @@ namespace EpicGames.Horde.Storage
 		public override NodeLocator GetLocator() => _locator;
 
 		/// <inheritdoc/>
-		public override void AddWriteCallback(NodeWriteCallback callback) => callback.OnWrite();
+		public override void AddWriteCallback(BlobWriteCallback callback) => callback.OnWrite();
 
 		/// <inheritdoc/>
-		public override ValueTask<NodeData> ReadAsync(CancellationToken cancellationToken = default) => _reader.ReadNodeDataAsync(_locator, cancellationToken);
+		public override ValueTask<BlobData> ReadAsync(CancellationToken cancellationToken = default) => _reader.ReadNodeDataAsync(_locator, cancellationToken);
 
 		/// <inheritdoc/>
 		public override ValueTask<NodeLocator> FlushAsync(CancellationToken cancellationToken = default) => new ValueTask<NodeLocator>(_locator);
@@ -101,7 +101,7 @@ namespace EpicGames.Horde.Storage
 		readonly object _lockObject = new object();
 		readonly int _maxKeys;
 		readonly Queue<NodeKey> _nodeKeys = new Queue<NodeKey>();
-		readonly Dictionary<NodeKey, NodeHandle> _nodeKeyToHandle = new Dictionary<NodeKey, NodeHandle>();
+		readonly Dictionary<NodeKey, BlobHandle> _nodeKeyToHandle = new Dictionary<NodeKey, BlobHandle>();
 
 		/// <summary>
 		/// Constructor
@@ -111,7 +111,7 @@ namespace EpicGames.Horde.Storage
 		{
 			_maxKeys = maxKeys;
 			_nodeKeys = new Queue<NodeKey>(maxKeys);
-			_nodeKeyToHandle = new Dictionary<NodeKey, NodeHandle>(maxKeys);
+			_nodeKeyToHandle = new Dictionary<NodeKey, BlobHandle>(maxKeys);
 		}
 
 		/// <summary>
@@ -119,7 +119,7 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		/// <param name="key">Unique node key</param>
 		/// <param name="handle">Handle to the node</param>
-		public void Add(NodeKey key, NodeHandle handle)
+		public void Add(NodeKey key, BlobHandle handle)
 		{
 			lock (_lockObject)
 			{
@@ -127,7 +127,7 @@ namespace EpicGames.Horde.Storage
 			}
 		}
 
-		void AddInternal(NodeKey key, NodeHandle handle)
+		void AddInternal(NodeKey key, BlobHandle handle)
 		{
 			NodeKey? prevKey;
 			if (_nodeKeys.Count == _maxKeys && _nodeKeys.TryDequeue(out prevKey))
@@ -143,7 +143,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="key">Key to look up in the cache</param>
 		/// <param name="handle">Handle for the node</param>
 		/// <returns>True if the node was found</returns>
-		public bool TryGetNode(NodeKey key, [NotNullWhen(true)] out NodeHandle? handle)
+		public bool TryGetNode(NodeKey key, [NotNullWhen(true)] out BlobHandle? handle)
 		{
 			lock (_lockObject)
 			{
@@ -159,7 +159,7 @@ namespace EpicGames.Horde.Storage
 	public sealed class BundleWriter : IStorageWriter
 	{
 		// Information about a unique output node. Note that multiple node refs may de-duplicate to the same output node.
-		internal class PendingNode : NodeHandle
+		internal class PendingNode : BlobHandle
 		{
 			readonly BundleReader _reader;
 
@@ -172,11 +172,11 @@ namespace EpicGames.Horde.Storage
 			public readonly int Packet;
 			public readonly int Offset;
 			public readonly int Length;
-			public readonly NodeHandle[] Refs;
+			public readonly BlobHandle[] Refs;
 
 			public PendingBundle? PendingBundle => _pendingBundle;
 
-			public PendingNode(BundleReader reader, NodeKey key, int packet, int offset, int length, IReadOnlyList<NodeHandle> refs, PendingBundle pendingBundle)
+			public PendingNode(BundleReader reader, NodeKey key, int packet, int offset, int length, IReadOnlyList<BlobHandle> refs, PendingBundle pendingBundle)
 				: base(key.Hash)
 			{
 				_reader = reader;
@@ -214,7 +214,7 @@ namespace EpicGames.Horde.Storage
 			}
 
 			/// <inheritdoc/>
-			public override void AddWriteCallback(NodeWriteCallback callback)
+			public override void AddWriteCallback(BlobWriteCallback callback)
 			{
 				PendingBundle? pendingBundle = PendingBundle;
 				if (pendingBundle == null || !pendingBundle.TryAddWriteCallback(callback))
@@ -225,7 +225,7 @@ namespace EpicGames.Horde.Storage
 			}
 
 			/// <inheritdoc/>
-			public override async ValueTask<NodeData> ReadAsync(CancellationToken cancellationToken = default)
+			public override async ValueTask<BlobData> ReadAsync(CancellationToken cancellationToken = default)
 			{
 				if (!_locator.IsValid())
 				{
@@ -236,7 +236,7 @@ namespace EpicGames.Horde.Storage
 							ReadOnlyMemory<byte> data = _pendingBundle.GetNodeData(Packet, Offset, Length);
 							if (data.Length == Length)
 							{
-								return new NodeData(Key.Type, Hash, data, Refs);
+								return new BlobData(Key.Type, Hash, data, Refs);
 							}
 						}
 					}
@@ -253,7 +253,7 @@ namespace EpicGames.Horde.Storage
 					return _locator;
 				}
 
-				foreach (NodeHandle nodeRef in Refs)
+				foreach (BlobHandle nodeRef in Refs)
 				{
 					await nodeRef.FlushAsync(cancellationToken);
 				}
@@ -271,7 +271,7 @@ namespace EpicGames.Horde.Storage
 		// Information about a bundle being built. Metadata operations are synchronous, compression/writes are asynchronous.
 		internal class PendingBundle : IDisposable
 		{
-			class WriteCallbackSentinel : NodeWriteCallback
+			class WriteCallbackSentinel : BlobWriteCallback
 			{
 				public override void OnWrite() => throw new NotImplementedException();
 			}
@@ -319,7 +319,7 @@ namespace EpicGames.Horde.Storage
 			public bool IsReadOnly { get; private set; }
 
 			// List of post-write callbacks
-			NodeWriteCallback? _callbacks = null;
+			BlobWriteCallback? _callbacks = null;
 
 			// Task used to compress data in the background
 			Task _writeTask = Task.CompletedTask;
@@ -373,11 +373,11 @@ namespace EpicGames.Horde.Storage
 			}
 
 			// Adds a callback after writing
-			public bool TryAddWriteCallback(NodeWriteCallback callback)
+			public bool TryAddWriteCallback(BlobWriteCallback callback)
 			{
 				for (; ; )
 				{
-					NodeWriteCallback? tail = _callbacks;
+					BlobWriteCallback? tail = _callbacks;
 					if (tail == s_callbackSentinel)
 					{
 						return false;
@@ -429,7 +429,7 @@ namespace EpicGames.Horde.Storage
 			}
 
 			// Finish a node write
-			public PendingNode WriteNode(NodeKey nodeKey, int size, IReadOnlyList<NodeHandle> refs)
+			public PendingNode WriteNode(NodeKey nodeKey, int size, IReadOnlyList<BlobHandle> refs)
 			{
 				int offset = _currentPacketLength;
 
@@ -552,7 +552,7 @@ namespace EpicGames.Horde.Storage
 						_queue[idx].MarkAsWritten(nodeLocator);
 					}
 
-					NodeWriteCallback? callback = Interlocked.Exchange(ref _callbacks, s_callbackSentinel);
+					BlobWriteCallback? callback = Interlocked.Exchange(ref _callbacks, s_callbackSentinel);
 					while (callback != null)
 					{
 						callback.OnWrite();
@@ -582,22 +582,22 @@ namespace EpicGames.Horde.Storage
 			Bundle CreateBundleInternal()
 			{
 				// Create a set from the nodes to be written. We use this to determine references that are imported.
-				HashSet<NodeHandle> nodeSet = new HashSet<NodeHandle>(_queue);
+				HashSet<BlobHandle> nodeSet = new HashSet<BlobHandle>(_queue);
 
 				// Find all the imported nodes by bundle
-				Dictionary<BlobLocator, List<(int, NodeHandle)>> bundleToImports = new Dictionary<BlobLocator, List<(int, NodeHandle)>>();
+				Dictionary<BlobLocator, List<(int, BlobHandle)>> bundleToImports = new Dictionary<BlobLocator, List<(int, BlobHandle)>>();
 				foreach (PendingNode nodeInfo in _queue)
 				{
-					foreach (NodeHandle handle in nodeInfo.Refs)
+					foreach (BlobHandle handle in nodeInfo.Refs)
 					{
 						if (nodeSet.Add(handle))
 						{
 							NodeLocator refLocator = handle.GetLocator();
 
-							List<(int, NodeHandle)>? importedNodes;
+							List<(int, BlobHandle)>? importedNodes;
 							if (!bundleToImports.TryGetValue(refLocator.Blob, out importedNodes))
 							{
-								importedNodes = new List<(int, NodeHandle)>();
+								importedNodes = new List<(int, BlobHandle)>();
 								bundleToImports.Add(refLocator.Blob, importedNodes);
 							}
 
@@ -610,14 +610,14 @@ namespace EpicGames.Horde.Storage
 				Dictionary<BlobLocator, int> importToIndex = new Dictionary<BlobLocator, int>();
 
 				// List of types in the bundle
-				List<NodeType> types = new List<NodeType>();
-				Dictionary<NodeType, int> typeToIndex = new Dictionary<NodeType, int>();
+				List<BlobType> types = new List<BlobType>();
+				Dictionary<BlobType, int> typeToIndex = new Dictionary<BlobType, int>();
 
 				// Map of node handle to reference
-				Dictionary<NodeHandle, BundleExportRef> nodeHandleToExportRef = new Dictionary<NodeHandle, BundleExportRef>();
+				Dictionary<BlobHandle, BundleExportRef> nodeHandleToExportRef = new Dictionary<BlobHandle, BundleExportRef>();
 				for (int exportIdx = 0; exportIdx < _queue.Count; exportIdx++)
 				{
-					NodeHandle handle = _queue[exportIdx];
+					BlobHandle handle = _queue[exportIdx];
 					nodeHandleToExportRef[handle] = new BundleExportRef(-1, exportIdx, handle.Hash);
 				}
 
@@ -634,7 +634,7 @@ namespace EpicGames.Horde.Storage
 					}
 
 					List<BundleExportRef> exportRefs = new List<BundleExportRef>();
-					foreach (NodeHandle handle in nodeInfo.Refs)
+					foreach (BlobHandle handle in nodeInfo.Refs)
 					{
 						BundleExportRef exportRef;
 						if (!nodeHandleToExportRef.TryGetValue(handle, out exportRef))
@@ -785,7 +785,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="type">Type of the node that was written</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Handle to the written node</returns>
-		public async ValueTask<NodeHandle> WriteNodeAsync(int size, IReadOnlyList<NodeHandle> references, NodeType type, CancellationToken cancellationToken = default)
+		public async ValueTask<BlobHandle> WriteNodeAsync(int size, IReadOnlyList<BlobHandle> references, BlobType type, CancellationToken cancellationToken = default)
 		{
 			PendingBundle currentBundle = GetCurrentBundle();
 
@@ -797,7 +797,7 @@ namespace EpicGames.Horde.Storage
 			NodeKey nodeKey = new NodeKey(hash, type);
 
 			// Check if we have a matching node already in storage
-			if (_nodeCache.TryGetNode(nodeKey, out NodeHandle? handle))
+			if (_nodeCache.TryGetNode(nodeKey, out BlobHandle? handle))
 			{
 				_traceLogger?.LogInformation("Returning cached handle for {NodeKey} -> {Handle}", nodeKey, handle);
 				return handle;
@@ -810,7 +810,7 @@ namespace EpicGames.Horde.Storage
 			_traceLogger?.LogInformation("Added new node for {NodeKey} in bundle {BundleId}", nodeKey, currentBundle.BundleId);
 
 			// Add dependencies on all bundles containing a dependent node
-			foreach (NodeHandle reference in references)
+			foreach (BlobHandle reference in references)
 			{
 				PendingNode? pendingReference = reference as PendingNode;
 				if (pendingReference?.PendingBundle != null)
@@ -873,7 +873,7 @@ namespace EpicGames.Horde.Storage
 		}
 
 		/// <inheritdoc/>
-		public async ValueTask WriteRefAsync(NodeHandle target, RefOptions? options = null, CancellationToken cancellationToken = default)
+		public async ValueTask WriteRefAsync(BlobHandle target, RefOptions? options = null, CancellationToken cancellationToken = default)
 		{
 			await _store.WriteRefTargetAsync(_refName, target, options, cancellationToken);
 		}

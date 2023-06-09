@@ -24,9 +24,9 @@ namespace Horde.Server.Tests
 			StorageService storageService = ServiceProvider.GetRequiredService<StorageService>();
 			IStorageClientImpl client = await storageService.GetClientAsync(new NamespaceId("memory"), default);
 
-			List<NodeType> types = new List<NodeType>();
-			types.Add(new NodeType(Guid.Parse("{11C2D886-3349-4164-946F-E9D10BD12E3D}"), 0));
-			types.Add(new NodeType(Guid.Parse("{6CB3A005-26BA-4787-86D2-793ED13771CB}"), 0));
+			List<BlobType> types = new List<BlobType>();
+			types.Add(new BlobType(Guid.Parse("{11C2D886-3349-4164-946F-E9D10BD12E3D}"), 0));
+			types.Add(new BlobType(Guid.Parse("{6CB3A005-26BA-4787-86D2-793ED13771CB}"), 0));
 
 			byte[] data1 = new byte[] { 1, 2, 3 };
 			IoHash hash1 = IoHash.Compute(data1);
@@ -48,7 +48,7 @@ namespace Horde.Server.Tests
 			await client.AddAliasAsync("foo", new HashedNodeLocator(hash1, locator, 1));
 			await client.AddAliasAsync("bar", new HashedNodeLocator(hash2, locator, 2));
 
-			List<NodeHandle> handles;
+			List<BlobHandle> handles;
 			
 			handles = await client.FindNodesAsync("foo").ToListAsync();
 			Assert.AreEqual(2, handles.Count);

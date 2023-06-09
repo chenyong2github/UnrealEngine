@@ -63,13 +63,13 @@ namespace Horde.Server.Storage
 		/// </summary>
 		bool SupportsRedirects { get; }
 
-		/// <inheritdoc cref="IStorageClient.AddAliasAsync(Utf8String, NodeHandle, CancellationToken)"/>
+		/// <inheritdoc cref="IStorageClient.AddAliasAsync(Utf8String, BlobHandle, CancellationToken)"/>
 		Task AddAliasAsync(Utf8String name, HashedNodeLocator target, CancellationToken cancellationToken = default);
 
-		/// <inheritdoc cref="IStorageClient.RemoveAliasAsync(Utf8String, NodeHandle, CancellationToken)"/>
+		/// <inheritdoc cref="IStorageClient.RemoveAliasAsync(Utf8String, BlobHandle, CancellationToken)"/>
 		Task RemoveAliasAsync(Utf8String name, HashedNodeLocator target, CancellationToken cancellationToken = default); 
 
-		/// <inheritdoc cref="IStorageClient.WriteRefTargetAsync(RefName, NodeHandle, RefOptions?, CancellationToken)"/>
+		/// <inheritdoc cref="IStorageClient.WriteRefTargetAsync(RefName, BlobHandle, RefOptions?, CancellationToken)"/>
 		Task WriteRefTargetAsync(RefName name, HashedNodeLocator handle, RefOptions? options = null, CancellationToken cancellationToken = default);
 
 		/// <summary>
@@ -224,19 +224,19 @@ namespace Horde.Server.Storage
 			#region Nodes
 
 			/// <inheritdoc/>
-			public override Task AddAliasAsync(Utf8String name, NodeHandle handle, CancellationToken cancellationToken = default) => _outer.AddAliasAsync(NamespaceId, name, new HashedNodeLocator(handle.Hash, handle.GetLocator()), cancellationToken);
+			public override Task AddAliasAsync(Utf8String name, BlobHandle handle, CancellationToken cancellationToken = default) => _outer.AddAliasAsync(NamespaceId, name, new HashedNodeLocator(handle.Hash, handle.GetLocator()), cancellationToken);
 
 			/// <inheritdoc/>
 			public Task AddAliasAsync(Utf8String name, HashedNodeLocator locator, CancellationToken cancellationToken = default) => _outer.AddAliasAsync(NamespaceId, name, locator, cancellationToken);
 
 			/// <inheritdoc/>
-			public override Task RemoveAliasAsync(Utf8String name, NodeHandle handle, CancellationToken cancellationToken = default) => _outer.RemoveAliasAsync(NamespaceId, name, new HashedNodeLocator(handle.Hash, handle.GetLocator()), cancellationToken);
+			public override Task RemoveAliasAsync(Utf8String name, BlobHandle handle, CancellationToken cancellationToken = default) => _outer.RemoveAliasAsync(NamespaceId, name, new HashedNodeLocator(handle.Hash, handle.GetLocator()), cancellationToken);
 
 			/// <inheritdoc/>
 			public Task RemoveAliasAsync(Utf8String name, HashedNodeLocator locator, CancellationToken cancellationToken = default) => _outer.RemoveAliasAsync(NamespaceId, name, locator, cancellationToken);
 
 			/// <inheritdoc/>
-			public override async IAsyncEnumerable<NodeHandle> FindNodesAsync(Utf8String alias, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+			public override async IAsyncEnumerable<BlobHandle> FindNodesAsync(Utf8String alias, [EnumeratorCancellation] CancellationToken cancellationToken = default)
 			{
 				await foreach (HashedNodeLocator locator in _outer.FindNodesAsync(NamespaceId, alias, cancellationToken))
 				{
@@ -249,7 +249,7 @@ namespace Horde.Server.Storage
 			#region Refs
 
 			/// <inheritdoc/>
-			public override async Task<NodeHandle?> TryReadRefTargetAsync(RefName name, RefCacheTime cacheTime = default, CancellationToken cancellationToken = default)
+			public override async Task<BlobHandle?> TryReadRefTargetAsync(RefName name, RefCacheTime cacheTime = default, CancellationToken cancellationToken = default)
 			{
 				HashedNodeLocator? locator = await _outer.TryReadRefTargetAsync(NamespaceId, name, cacheTime, cancellationToken);
 				if (locator == null)
@@ -260,7 +260,7 @@ namespace Horde.Server.Storage
 			}
 
 			/// <inheritdoc/>
-			public override async Task WriteRefTargetAsync(RefName name, NodeHandle target, RefOptions? options = null, CancellationToken cancellationToken = default)
+			public override async Task WriteRefTargetAsync(RefName name, BlobHandle target, RefOptions? options = null, CancellationToken cancellationToken = default)
 			{
 				NodeLocator locator = await target.FlushAsync(cancellationToken);
 				await _outer.WriteRefTargetAsync(NamespaceId, name, new HashedNodeLocator(target.Hash, locator), options, cancellationToken);
