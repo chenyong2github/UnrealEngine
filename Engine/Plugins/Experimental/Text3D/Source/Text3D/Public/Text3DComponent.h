@@ -50,6 +50,7 @@ class TEXT3D_API UText3DComponent : public USceneComponent
 public:
 	UText3DComponent();
 
+	virtual void PostLoad() override;
 	virtual void BeginDestroy() override;
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;

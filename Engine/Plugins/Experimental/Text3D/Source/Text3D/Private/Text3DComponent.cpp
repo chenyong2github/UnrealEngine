@@ -101,6 +101,14 @@ UText3DComponent::UText3DComponent()
 	TextScale = FVector::ZeroVector;
 }
 
+void UText3DComponent::PostLoad()
+{
+	// Reset so it's rebuilt (needed if re-using the component!)
+	ModifyFlags = EText3DModifyFlags::All;
+	
+	Super::PostLoad();
+}
+
 void UText3DComponent::BeginDestroy()
 {
 	ClearTextMesh();
@@ -618,7 +626,7 @@ void UText3DComponent::SetFreeze(const bool bFreeze)
 	bFreezeBuild = bFreeze;
 	if (bFreeze)
 	{
-		ModifyFlags = EText3DModifyFlags::Unfreeze;
+		ModifyFlags |= EText3DModifyFlags::Unfreeze;
 	}
 	else if (EnumHasAnyFlags(ModifyFlags,EText3DModifyFlags::Unfreeze))
 	{
