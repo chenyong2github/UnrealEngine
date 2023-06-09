@@ -1362,10 +1362,21 @@ namespace UnrealBuildTool
 		public bool bIWYU = false;
 
 		/// <summary>
-		/// Tells "include what you use" to only compile header files.
+		/// Adds header files in included modules to the build.
 		/// </summary>
-		[CommandLine("-IWYUHeadersOnly")]
-		public bool bIWYUHeadersOnly = false;
+		[CommandLine("-IncludeHeaders")]
+		public bool bIncludeHeaders
+		{
+			get => bIncludeHeadersPrivate || bIWYU;
+			set => bIncludeHeadersPrivate = value;
+		}
+		private bool bIncludeHeadersPrivate = false;
+
+		/// <summary>
+		/// When used with -IncludeHeaders, only header files will be compiled.
+		/// </summary>
+		[CommandLine("-HeadersOnly")]
+		public bool bHeadersOnly = false;
 
 		/// <summary>
 		/// Enforce "include what you use" rules; warns if monolithic headers (Engine.h, UnrealEd.h, etc...) are used, and checks that source files include their matching header first.
@@ -3040,7 +3051,9 @@ namespace UnrealBuildTool
 
 		public bool bIWYU => Inner.bIWYU;
 
-		public bool bIWYUHeadersOnly => Inner.bIWYUHeadersOnly;
+		public bool bIncludeHeaders => Inner.bIncludeHeaders;
+
+		public bool bHeadersOnly => Inner.bHeadersOnly;
 
 		public bool bEnforceIWYU => Inner.bEnforceIWYU;
 

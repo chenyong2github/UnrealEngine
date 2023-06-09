@@ -749,13 +749,13 @@ namespace UnrealBuildTool
 			}
 
 			// IWYU needs to build all headers separate from cpp files to produce proper recommendations for includes
-			if (Target.bIWYU)
+			if (Target.bIncludeHeaders)
 			{
 				// Collect the headers that should be built
 				List<FileItem> HeaderFileItems = GetCompilableHeaders(InputFiles, CompileEnvironment);
 				if (HeaderFileItems.Count > 0)
 				{
-					if (Target.bIWYUHeadersOnly)
+					if (Target.bHeadersOnly)
 					{
 						LinkInputFiles.Clear();
 					}
