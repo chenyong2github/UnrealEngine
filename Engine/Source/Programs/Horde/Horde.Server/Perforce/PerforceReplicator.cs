@@ -27,7 +27,7 @@ namespace Horde.Server.Perforce
 	class PerforceReplicationOptions
 	{
 		public bool IncludeContent { get; set; }
-		public TreeOptions TreeOptions { get; set; } = new TreeOptions();
+		public BundleOptions TreeOptions { get; set; } = new BundleOptions();
 		public ChunkingOptions ChunkingOptions { get; set; } = new ChunkingOptions();
 		public RefOptions RefOptions { get; set; } = new RefOptions();
 	}

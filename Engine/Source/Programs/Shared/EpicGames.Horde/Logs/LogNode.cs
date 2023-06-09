@@ -324,7 +324,7 @@ namespace EpicGames.Horde.Logs
 		/// <param name="reader">Reader to pull nodes from</param>
 		/// <param name="cancellationToken">Cancellation token</param>
 		/// <returns>Sequence of line buffers</returns>
-		public static async IAsyncEnumerable<ReadOnlyMemory<byte>> ReadLogAsync(this LogNode logNode, TreeReader reader, [EnumeratorCancellation] CancellationToken cancellationToken)
+		public static async IAsyncEnumerable<ReadOnlyMemory<byte>> ReadLogAsync(this LogNode logNode, BundleReader reader, [EnumeratorCancellation] CancellationToken cancellationToken)
 		{
 			foreach (LogChunkRef textChunkRef in logNode.TextChunkRefs)
 			{

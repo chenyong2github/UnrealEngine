@@ -68,7 +68,7 @@ namespace EpicGames.Horde.Tests
 		public async Task BasicChunkingTests()
 		{
 			RefName refName = new RefName("test");
-			TreeReader reader = new TreeReader(_storage, null, NullLogger.Instance);
+			BundleReader reader = new BundleReader(_storage, null, NullLogger.Instance);
 			await using IStorageWriter writer = _storage.CreateWriter(refName);
 
 			ChunkingOptions options = new ChunkingOptions();
@@ -244,7 +244,7 @@ namespace EpicGames.Horde.Tests
 			Assert.AreEqual(0, _storage.Refs.Count);
 			Assert.AreEqual(0, _storage.Blobs.Count);
 
-			TreeOptions options = new TreeOptions();
+			BundleOptions options = new BundleOptions();
 			options.MaxBlobSize = 1;
 
 			await using (IStorageWriter writer = _storage.CreateWriter())
@@ -268,7 +268,7 @@ namespace EpicGames.Horde.Tests
 		[TestMethod]
 		public async Task ReloadTests()
 		{
-			TreeOptions options = new TreeOptions();
+			BundleOptions options = new BundleOptions();
 			options.MaxBlobSize = 1;
 
 			RefName refName = new RefName("ref");

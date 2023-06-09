@@ -484,7 +484,7 @@ namespace Horde.Server.Storage
 			}
 
 			IStorageClient storageClient = await _storageService.GetClientAsync(namespaceId, cancellationToken);
-			TreeReader reader = new TreeReader(storageClient, _memoryCache, _logger);
+			BundleReader reader = new BundleReader(storageClient, _memoryCache, _logger);
 
 			BundleHeader header = await reader.ReadBundleHeaderAsync(locator, cancellationToken);
 
@@ -564,7 +564,7 @@ namespace Horde.Server.Storage
 			}
 
 			IStorageClient storageClient = await _storageService.GetClientAsync(namespaceId, cancellationToken);
-			TreeReader reader = new TreeReader(storageClient, _memoryCache, _logger);
+			BundleReader reader = new BundleReader(storageClient, _memoryCache, _logger);
 
 			BundleHeader header = await reader.ReadBundleHeaderAsync(locator, cancellationToken);
 			BundleExport export = header.Exports[exportIdx];

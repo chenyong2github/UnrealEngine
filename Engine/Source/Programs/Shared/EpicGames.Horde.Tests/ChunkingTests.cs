@@ -72,7 +72,7 @@ namespace EpicGames.Horde.Tests
 			using MemoryCache cache = new MemoryCache(new MemoryCacheOptions());
 
 			MemoryStorageClient store = new MemoryStorageClient();
-			TreeReader reader = new TreeReader(store, cache, NullLogger.Instance);
+			BundleReader reader = new BundleReader(store, cache, NullLogger.Instance);
 			await using IStorageWriter writer = store.CreateWriter();
 
 			byte[] data = new byte[4096];
@@ -117,7 +117,7 @@ namespace EpicGames.Horde.Tests
 			await CheckSizes(reader, root, options, true);
 		}
 
-		async Task CheckSizes(TreeReader reader, ChunkedDataNode node, ChunkingOptions options, bool rightmost)
+		async Task CheckSizes(BundleReader reader, ChunkedDataNode node, ChunkingOptions options, bool rightmost)
 		{
 			if (node is LeafChunkedDataNode leafNode)
 			{

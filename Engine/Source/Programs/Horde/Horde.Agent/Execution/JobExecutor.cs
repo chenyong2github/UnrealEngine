@@ -792,7 +792,7 @@ namespace Horde.Agent.Execution
 
 			using MemoryCache cache = new MemoryCache(new MemoryCacheOptions { });
 			IStorageClient storage = _storageFactory.CreateStorageClient(_session, _namespaceId, _token);
-			TreeReader reader = new TreeReader(storage, cache, _logger);
+			BundleReader reader = new BundleReader(storage, cache, _logger);
 
 			// Create the mapping of tag names to file sets
 			Dictionary<string, HashSet<FileReference>> tagNameToFileSet = new Dictionary<string, HashSet<FileReference>>();
@@ -954,7 +954,7 @@ namespace Horde.Agent.Execution
 				Stopwatch timer = Stopwatch.StartNew();
 				RefName refName = TempStorage.GetRefNameForNode(_storagePrefix, step.Name);
 
-				TreeOptions treeOptions = new TreeOptions();
+				BundleOptions treeOptions = new BundleOptions();
 				await using IStorageWriter treeWriter = storage.CreateWriter(refName, treeOptions);
 
 				DirectoryNode outputNode = new DirectoryNode();

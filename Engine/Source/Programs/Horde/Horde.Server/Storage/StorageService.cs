@@ -570,18 +570,6 @@ namespace Horde.Server.Storage
 		/// <inheritdoc/>
 		async ValueTask<IStorageClient> IStorageClientFactory.GetClientAsync(NamespaceId namespaceId, CancellationToken cancellationToken) => await GetClientAsync(namespaceId, cancellationToken);
 
-		/// <summary>
-		/// Gets a <see cref="TreeReader"/> for a particular namespace
-		/// </summary>
-		/// <param name="namespaceId">Namespace identififer</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns></returns>
-		public async ValueTask<TreeReader> GetReaderAsync(NamespaceId namespaceId, CancellationToken cancellationToken)
-		{
-			IStorageClientImpl storageClient = await GetClientAsync(namespaceId, cancellationToken);
-			return new TreeReader(storageClient, _cache, _logger);
-		}
-
 		#region Config
 
 		State GetNextState()

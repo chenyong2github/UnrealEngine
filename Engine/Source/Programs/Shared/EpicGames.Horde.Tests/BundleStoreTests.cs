@@ -61,7 +61,7 @@ namespace EpicGames.Horde.Tests
 		static async Task<Bundle> CreateBundleNormalAsync()
 		{
 			MemoryStorageClient store = new MemoryStorageClient();
-			await using IStorageWriter writer = store.CreateWriter(options: new TreeOptions { CompressionFormat = BundleCompressionFormat.None });
+			await using IStorageWriter writer = store.CreateWriter(options: new BundleOptions { CompressionFormat = BundleCompressionFormat.None });
 
 			TextNode node = new TextNode("Hello world");
 			NodeHandle handle = await writer.FlushAsync(node, CancellationToken.None);
@@ -94,7 +94,7 @@ namespace EpicGames.Horde.Tests
 			using IMemoryCache cache = new MemoryCache(new MemoryCacheOptions());
 
 			MemoryStorageClient blobStore = new MemoryStorageClient();
-			await TestTreeAsync(blobStore, new TreeOptions { MaxBlobSize = 1024 * 1024 });
+			await TestTreeAsync(blobStore, new BundleOptions { MaxBlobSize = 1024 * 1024 });
 
 			Assert.AreEqual(1, blobStore.Blobs.Count);
 			Assert.AreEqual(1, blobStore.Refs.Count);
@@ -106,7 +106,7 @@ namespace EpicGames.Horde.Tests
 			using IMemoryCache cache = new MemoryCache(new MemoryCacheOptions());
 
 			MemoryStorageClient blobStore = new MemoryStorageClient();
-			await TestTreeAsync(blobStore, new TreeOptions { MaxBlobSize = 1 });
+			await TestTreeAsync(blobStore, new BundleOptions { MaxBlobSize = 1 });
 
 			Assert.AreEqual(5, blobStore.Blobs.Count);
 			Assert.AreEqual(1, blobStore.Refs.Count);
@@ -139,7 +139,7 @@ namespace EpicGames.Horde.Tests
 			public override IEnumerable<NodeRef> EnumerateRefs() => Refs;
 		}
 
-		static async Task TestTreeAsync(MemoryStorageClient store, TreeOptions options)
+		static async Task TestTreeAsync(MemoryStorageClient store, BundleOptions options)
 		{
 			// Generate a tree
 			{
@@ -154,7 +154,7 @@ namespace EpicGames.Horde.Tests
 
 				await store.WriteRefTargetAsync(new RefName("test"), await writer.WriteNodeAsync(root));
 
-				TreeReader reader = new TreeReader(store, null, NullLogger.Instance);
+				BundleReader reader = new BundleReader(store, null, NullLogger.Instance);
 				await CheckTree(root);
 			}
 
@@ -262,7 +262,7 @@ namespace EpicGames.Horde.Tests
 		{
 			using IMemoryCache cache = new MemoryCache(new MemoryCacheOptions());
 			MemoryStorageClient store = new MemoryStorageClient();
-			TreeReader reader = new TreeReader(store, null, NullLogger.Instance);
+			BundleReader reader = new BundleReader(store, null, NullLogger.Instance);
 
 			// Generate a tree
 			{
@@ -319,7 +319,7 @@ namespace EpicGames.Horde.Tests
 			// Generate a tree
 			NodeRef<ChunkedDataNode> nodeRef;
 			{
-				await using IStorageWriter writer = store.CreateWriter(options: new TreeOptions { MaxBlobSize = 1024 });
+				await using IStorageWriter writer = store.CreateWriter(options: new BundleOptions { MaxBlobSize = 1024 });
 
 				ChunkingOptions options = new ChunkingOptions();
 				options.LeafOptions = new LeafChunkedDataNodeOptions(128, 256, 64 * 1024);
@@ -366,7 +366,7 @@ namespace EpicGames.Horde.Tests
 			// Generate a tree
 			DirectoryNode root;
 			{
-				await using IStorageWriter writer = store.CreateWriter(options: new TreeOptions { MaxBlobSize = 1024 });
+				await using IStorageWriter writer = store.CreateWriter(options: new BundleOptions { MaxBlobSize = 1024 });
 
 				ChunkingOptions options = new ChunkingOptions();
 				options.LeafOptions = new LeafChunkedDataNodeOptions(128, 256, 64 * 1024);

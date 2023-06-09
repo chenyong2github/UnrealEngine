@@ -20,11 +20,11 @@ namespace Horde.Server.Commands.Bundles
 	{
 		class FakeStorageClient : IStorageClient
 		{
-			readonly TreeReader _reader;
+			readonly BundleReader _reader;
 
 			public FakeStorageClient()
 			{
-				_reader = new TreeReader(this, null, NullLogger.Instance);
+				_reader = new BundleReader(this, null, NullLogger.Instance);
 			}
 
 			public Task DeleteRefAsync(RefName name, CancellationToken cancellationToken = default) => Task.CompletedTask;
@@ -37,14 +37,14 @@ namespace Horde.Server.Commands.Bundles
 			public Task<BlobLocator> WriteBlobAsync(Stream stream, Utf8String prefix = default, CancellationToken cancellationToken = default) => Task.FromResult(BlobLocator.Create(HostId.Empty));
 			public Task WriteRefTargetAsync(RefName name, NodeHandle target, RefOptions? options = null, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
-			public IStorageWriter CreateWriter(RefName refName = default, TreeOptions? options = null) => new TreeWriter(this, _reader, options);
+			public IStorageWriter CreateWriter(RefName refName = default, BundleOptions? options = null) => new BundleWriter(this, _reader, options);
 		}
 
 		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
 			FakeStorageClient store = new FakeStorageClient();
 
-			TreeOptions options = new TreeOptions();
+			BundleOptions options = new BundleOptions();
 			options.CompressionFormat = BundleCompressionFormat.None;
 			await using IStorageWriter writer = store.CreateWriter(options: options);
 

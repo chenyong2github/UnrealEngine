@@ -55,7 +55,7 @@ namespace EpicGames.Horde.Storage.Nodes
 	}
 
 	/// <summary>
-	/// Utility class for generating FileNode data directly into <see cref="TreeWriter"/> instances, without constructing node representations first.
+	/// Utility class for generating FileNode data directly into <see cref="BundleWriter"/> instances, without constructing node representations first.
 	/// </summary>
 	public class ChunkedDataWriter
 	{

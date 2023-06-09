@@ -107,7 +107,7 @@ namespace Horde.Server
 		/// <summary>
 		/// Options for creating bundles
 		/// </summary>
-		TreeOptions Bundle { get; }
+		BundleOptions Bundle { get; }
 
 		/// <summary>
 		/// Options for chunking content
@@ -121,7 +121,7 @@ namespace Horde.Server
 	public class TreeStoreOptions : BlobStoreOptions, ITreeStoreOptions
 	{
 		/// <inheritdoc/>
-		public TreeOptions Bundle { get; set; } = new TreeOptions();
+		public BundleOptions Bundle { get; set; } = new BundleOptions();
 
 		/// <inheritdoc/>
 		public ChunkingOptions Chunking { get; set; } = new ChunkingOptions();
@@ -281,7 +281,7 @@ namespace Horde.Server
 		/// <summary>
 		/// Options for how objects are packed together
 		/// </summary>
-		public TreeOptions Bundle { get; set; } = new TreeOptions();
+		public BundleOptions Bundle { get; set; } = new BundleOptions();
 
 		/// <summary>
 		/// Options for how objects are sliced

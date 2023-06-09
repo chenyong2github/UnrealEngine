@@ -19,14 +19,14 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Reader for node data
 		/// </summary>
-		protected TreeReader TreeReader { get; }
+		protected BundleReader TreeReader { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		protected BundleStorageClient(IMemoryCache? memoryCache, ILogger logger)
 		{
-			TreeReader = new TreeReader(this, memoryCache, logger);
+			TreeReader = new BundleReader(this, memoryCache, logger);
 		}
 
 		#region Blobs
@@ -45,9 +45,9 @@ namespace EpicGames.Horde.Storage
 		#region Nodes
 
 		/// <inheritdoc/>
-		public IStorageWriter CreateWriter(RefName refName = default, TreeOptions? options = null)
+		public IStorageWriter CreateWriter(RefName refName = default, BundleOptions? options = null)
 		{
-			return new TreeWriter(this, TreeReader, refName, options);
+			return new BundleWriter(this, TreeReader, refName, options);
 		}
 
 		#endregion

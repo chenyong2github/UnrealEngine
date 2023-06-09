@@ -144,7 +144,7 @@ namespace Horde.Agent.Tests
 			using MemoryCache cache = new MemoryCache(new MemoryCacheOptions());
 			MemoryStorageClient store = new MemoryStorageClient();
 
-			TreeReader reader = new TreeReader(store, cache, NullLogger.Instance);
+			BundleReader reader = new BundleReader(store, cache, NullLogger.Instance);
 
 			await using FakeLogSink innerSink = new FakeLogSink();
 

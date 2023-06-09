@@ -119,7 +119,7 @@ namespace EpicGames.Horde.Compute
 		async Task WriteFilesAsync(AgentMessageChannel channel, string path, NodeLocator locator, CancellationToken cancellationToken)
 		{
 			using AgentStorageClient store = new AgentStorageClient(channel);
-			TreeReader reader = new TreeReader(store, _memoryCache, _logger);
+			BundleReader reader = new BundleReader(store, _memoryCache, _logger);
 
 			DirectoryNode directoryNode = await reader.ReadNodeAsync<DirectoryNode>(locator, cancellationToken);
 

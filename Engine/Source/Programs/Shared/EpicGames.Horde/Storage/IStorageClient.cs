@@ -117,7 +117,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="refName">Name of the ref being written.</param>
 		/// <param name="options"></param>
 		/// <returns>New writer instance. Must be disposed after use.</returns>
-		IStorageWriter CreateWriter(RefName refName = default, TreeOptions? options = null);
+		IStorageWriter CreateWriter(RefName refName = default, BundleOptions? options = null);
 
 		#endregion
 
