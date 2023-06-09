@@ -649,7 +649,7 @@ void UMaterialGraph::LinkMaterialExpressionsFromGraph()
 								{
 									UEdGraphPin* ConnectedPin = Pin->LinkedTo[0];
 									UMaterialGraphNode* ConnectedNode = Cast<UMaterialGraphNode>(ConnectedPin->GetOwningNode());
-									
+
 									if (ConnectedNode && !ConnectedNode->MaterialExpression->IsExpressionConnected(ExpressionInput, ConnectedPin->SourceIndex))
 									{
 										if (!bModifiedExpression)

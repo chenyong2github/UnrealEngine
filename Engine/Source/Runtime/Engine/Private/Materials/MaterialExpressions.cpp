@@ -2271,6 +2271,47 @@ bool UMaterialExpression::ContainsInputLoopInternal(const FContainsInputLoopInte
 	return false;
 }
 
+// Deprecated
+bool UMaterialExpression::ContainsInputLoopInternal(TArray<FMaterialExpressionKey>& ExpressionStack, TSet<FMaterialExpressionKey>& VisitedExpressions, const bool bStopOnFunctionCall)
+{
+	for (FExpressionInput* Input : GetInputsView())
+	{
+		if (!Input->Expression)
+		{
+			continue;
+		}
+		
+		// ContainsInputLoop primarily used to detect safe traversal path for IsResultMaterialAttributes.
+		// In those cases we can bail on a function as the inputs are strongly typed
+		UMaterialExpressionMaterialFunctionCall* FunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(Input->Expression);
+		UMaterialExpressionMaterialAttributeLayers* Layers = Cast<UMaterialExpressionMaterialAttributeLayers>(Input->Expression);
+		if (bStopOnFunctionCall && (FunctionCall || Layers))
+		{
+			continue;
+		}
+
+		FMaterialExpressionKey InputExpressionKey(Input->Expression, Input->OutputIndex);
+		if (ExpressionStack.Contains(InputExpressionKey))
+		{
+			return true;
+		}
+
+		// prevent recurring visits to expressions we've already checked
+		if (!VisitedExpressions.Contains(InputExpressionKey))
+		{
+			VisitedExpressions.Add(InputExpressionKey);
+			ExpressionStack.Add(InputExpressionKey);
+			if (Input->Expression->ContainsInputLoopInternal(ExpressionStack, VisitedExpressions, bStopOnFunctionCall))
+			{
+				return true;
+			}
+			ExpressionStack.Pop();
+		}
+	}
+
+	return false;
+}
+
 bool UMaterialExpression::IsUsingNewHLSLGenerator() const
 {
 	if (Material)

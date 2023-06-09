@@ -27,6 +27,7 @@ class UMaterialExpression;
 class UMaterialExpressionComment;
 class UMaterialExpressionExecBegin;
 class UMaterialExpressionExecEnd;
+class FMaterialExpressionKey;
 
 class FMaterialHLSLGenerator;
 enum class EMaterialNewScopeFlag : uint8;
@@ -349,7 +350,7 @@ class ENGINE_API UMaterialExpression : public UObject
 	/** Get the expression inputs supported by this expression (Note: property inputs NOT included). */
 	virtual TArrayView<FExpressionInput*> GetInputsView();
 	
-	UE_DEPRECATED(5.2, "Use GetInputsView() instead.")
+	UE_DEPRECATED(5.3, "Use GetInputsView() instead.")
 	const TArray<FExpressionInput*> GetInputs() { return TArray<FExpressionInput*>{ GetInputsView() }; }
 
 	virtual FExpressionInput* GetInput(int32 InputIndex);
@@ -597,6 +598,8 @@ private:
 	 */
 	bool ContainsInputLoopInternal(const FContainsInputLoopInternalExpressionStack& ExpressionStack, TSet<UMaterialExpression*>& VisitedExpressions, const bool bStopOnFunctionCall);
 
+	UE_DEPRECATED(5.3, "Use the other, more efficient ContainsInputLoopInternal() implementation.")
+	bool ContainsInputLoopInternal(TArray<FMaterialExpressionKey>& ExpressionStack, TSet<FMaterialExpressionKey>& VisitedExpressions, const bool bStopOnFunctionCall);
 #endif // WITH_EDITOR
 };
 
