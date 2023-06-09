@@ -34,7 +34,7 @@
 
 #include "Algo/RemoveIf.h"
 
-#define LOCTEXT_NAMESPACE "NiagaraCompiler"
+#define LOCTEXT_NAMESPACE "NiagaraDigestCompiler"
 
 #define NIAGARA_GRAPH_DIGEST_NODE_TYPE(name) NIAGARA_GRAPH_DIGEST_NODE_IMPLEMENT_BODY(name)
 
