@@ -9,7 +9,10 @@
 #include "Elements/Interfaces/TypedElementQueryStorageInterfaces.h"
 #include "Templates/Function.h"
 #include "UObject/NameTypes.h"
+#include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
+
+class UScriptStruct;
 
 namespace TypedElementDataStorage
 {
