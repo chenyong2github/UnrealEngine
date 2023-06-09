@@ -114,8 +114,12 @@ public class BuildCookRun : BuildCommand, IProjectParamsHelpers
 		{
 			PluginsToEnable.AddRange(EnablePlugins.Split(new[] { ',', '+' }, StringSplitOptions.RemoveEmptyEntries));
 		}
-		Params.AdditionalCookerOptions += " -EnablePlugins=\"" + string.Join(",", PluginsToEnable) + "\"";
-		Params.AdditionalBuildOptions += " -EnablePlugins=\"" + string.Join(",", PluginsToEnable) + "\"";
+
+		if (PluginsToEnable.Count > 0)
+		{
+			Params.AdditionalCookerOptions += " -EnablePlugins=\"" + string.Join(",", PluginsToEnable) + "\"";
+			Params.AdditionalBuildOptions += " -EnablePlugins=\"" + string.Join(",", PluginsToEnable) + "\"";
+		}
 
 		Params.ValidateAndLog();
 		return Params;
