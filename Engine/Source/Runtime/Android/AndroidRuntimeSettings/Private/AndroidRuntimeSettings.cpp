@@ -22,6 +22,7 @@ UAndroidRuntimeSettings::UAndroidRuntimeSettings(const FObjectInitializer& Objec
 	, Orientation(EAndroidScreenOrientation::Landscape)
 	, MaxAspectRatio(2.1f)
 	, bAndroidVoiceEnabled(false)
+	, bPackageForMetaQuest(false)
 	, bEnableGooglePlaySupport(false)
 	, bUseGetAccounts(false)
 	, bSupportAdMob(true)
@@ -62,7 +63,7 @@ void UAndroidRuntimeSettings::PostReloadConfig(FProperty* PropertyThatWasLoaded)
 
 void UAndroidRuntimeSettings::HandlesRGBHWSupport()
 {
-	const bool SupportssRGB = PackageForOculusMobile.Num() > 0;
+	const bool SupportssRGB = bPackageForMetaQuest;
 	URendererSettings* const Settings = GetMutableDefault<URendererSettings>();
 	static auto* MobileUseHWsRGBEncodingCVAR = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.UseHWsRGBEncoding"));
 
@@ -77,6 +78,83 @@ void UAndroidRuntimeSettings::HandlesRGBHWSupport()
 		MobileUseHWsRGBEncodingCVAR->Set((int)SupportssRGB);
 	}
 
+}
+
+void UAndroidRuntimeSettings::HandleMetaQuestSupport()
+{
+	// PackageForOculusMobile doesn't get loaded since it's marked as deprecated, so it needs to be read directly from the config
+	TArray<FString> PackageList;
+	GConfig->GetArray(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"), *FString("+").Append(GET_MEMBER_NAME_STRING_CHECKED(UAndroidRuntimeSettings, PackageForOculusMobile)), PackageList, GetDefaultConfigFilename());
+	if (PackageList.Num() > 0)
+	{
+		bPackageForMetaQuest = true;
+		// Clean ExtraApplications metadata so that the updated list of supported devices will be added further down.
+		RemoveExtraApplicationTag("<meta-data android:name=\"com.oculus.supportedDevices\"");
+		// Use TryUpdateDefaultConfigFile() instead of UpdateSinglePropertyInConfigFile() so that the PackageForOculusMobile will also get cleared
+		TryUpdateDefaultConfigFile();
+	}
+
+	// Automatically disable x86_64, and Vulkan Desktop if building for Meta Quest devices and switch to appropriate alternatives
+	if (bPackageForMetaQuest)
+	{
+		if (bBuildForX8664)
+		{
+			bBuildForX8664 = false;
+			UpdateSinglePropertyInConfigFile(GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, bBuildForX8664)), GetDefaultConfigFilename());
+			UE_LOG(LogAndroidRuntimeSettings, Warning, TEXT("Support x86_64 has been changed to false.\n"));
+
+		}
+		if (!bBuildForArm64)
+		{
+			bBuildForArm64 = true;
+			UpdateSinglePropertyInConfigFile(GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, bBuildForArm64)), GetDefaultConfigFilename());
+			UE_LOG(LogAndroidRuntimeSettings, Warning, TEXT("Support arm64 has been changed to true.\n"));
+		}
+		if (bSupportsVulkanSM5)
+		{
+			bSupportsVulkanSM5 = false;
+			UpdateSinglePropertyInConfigFile(GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, bSupportsVulkanSM5)), GetDefaultConfigFilename());
+			UE_LOG(LogAndroidRuntimeSettings, Warning, TEXT("Support Vulkan Desktop has been changed to false.\n"));
+			EnsureValidGPUArch();
+		}
+		if (bBuildForES31)
+		{
+			bBuildForES31 = false;
+			UpdateSinglePropertyInConfigFile(GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, bBuildForES31)), GetDefaultConfigFilename());
+			UE_LOG(LogAndroidRuntimeSettings, Warning, TEXT("Support OpenGL ES3.2 has been changed to false.\n"));
+			EnsureValidGPUArch();
+		}
+
+		UE_LOG(LogAndroidRuntimeSettings, Display, TEXT("Enabled Package for Meta Quest devices.\nThe following settings have been applied:\n"));
+		UE_LOG(LogAndroidRuntimeSettings, Display, TEXT("Support arm64: %d.\n"), bBuildForArm64);
+		UE_LOG(LogAndroidRuntimeSettings, Display, TEXT("Support Vulkan: %d.\n"), bSupportsVulkan);
+		UE_LOG(LogAndroidRuntimeSettings, Display, TEXT("Support x86_64: %d.\n"), bBuildForX8664);
+		UE_LOG(LogAndroidRuntimeSettings, Display, TEXT("Support Vulkan Desktop: %d.\n"), bSupportsVulkanSM5);
+		UE_LOG(LogAndroidRuntimeSettings, Display, TEXT("Support OpenGL ES3.2: %d."), bBuildForES31);
+
+		if (ExtraApplicationSettings.Find("com.oculus.supportedDevices") == INDEX_NONE)
+		{
+			FString SupportedDevicesValue("quest|quest2|questpro");
+			ExtraApplicationSettings.Append("<meta-data android:name=\"com.oculus.supportedDevices\" android:value=\"" + SupportedDevicesValue + "\" />");
+			UpdateSinglePropertyInConfigFile(GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, ExtraApplicationSettings)), GetDefaultConfigFilename());
+		}
+	}
+	else 
+	{
+		// Clean up the supported devices metadata tag so it doesn't end up in the manifest when bPackageForMetaQuest is turned off.
+		RemoveExtraApplicationTag("<meta-data android:name=\"com.oculus.supportedDevices\"");
+	}
+}
+
+void UAndroidRuntimeSettings::RemoveExtraApplicationTag(FString TagToRemove)
+{
+	int32 StartIndex = ExtraApplicationSettings.Find(TagToRemove);
+	if (StartIndex != INDEX_NONE)
+	{
+		int32 EndIndex = ExtraApplicationSettings.Find(">", ESearchCase::IgnoreCase, ESearchDir::FromStart, StartIndex);
+		ExtraApplicationSettings.RemoveAt(StartIndex, EndIndex - StartIndex + 1);
+		UpdateSinglePropertyInConfigFile(GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, ExtraApplicationSettings)), GetDefaultConfigFilename());
+	}
 }
 
 static void InvalidateAllAndroidPlatforms()
@@ -146,25 +224,9 @@ void UAndroidRuntimeSettings::PostEditChangeProperty(struct FPropertyChangedEven
 		}
 	}
 
-	if (PropertyChangedEvent.Property != nullptr && PropertyChangedEvent.Property->GetName().StartsWith(TEXT("PackageForOculusMobile")))
+	if (PropertyChangedEvent.Property != nullptr && PropertyChangedEvent.Property->GetName().StartsWith(TEXT("bPackageForMetaQuest")))
 	{
-		if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayAdd)
-		{
-			// Get a list of all available devices
-			TArray<EOculusMobileDevice::Type> deviceList;
-#define OCULUS_DEVICE_LOOP(device) deviceList.Add(device);
-			FOREACH_ENUM_EOCULUSMOBILEDEVICE(OCULUS_DEVICE_LOOP);
-#undef OCULUS_DEVICE_LOOP
-			// Add last device that isn't already in the list
-			for (int i = deviceList.Num() - 1; i >= 0; --i)
-			{
-				if (!PackageForOculusMobile.Contains(deviceList[i]))
-				{
-					PackageForOculusMobile.Last() = deviceList[i];
-					break;
-				}
-			}
-		}
+		HandleMetaQuestSupport();
 	}
 
 	HandlesRGBHWSupport();
@@ -184,6 +246,7 @@ void UAndroidRuntimeSettings::PostInitProperties()
 
 	EnsureValidGPUArch();
 	HandlesRGBHWSupport();
+	HandleMetaQuestSupport();
 }
 
 void UAndroidRuntimeSettings::EnsureValidGPUArch()
@@ -191,8 +254,20 @@ void UAndroidRuntimeSettings::EnsureValidGPUArch()
 	// Ensure that at least one GPU architecture is supported
 	if (!bSupportsVulkan && !bBuildForES31 && !bSupportsVulkanSM5)
 	{
-		bBuildForES31 = true;
-		UpdateSinglePropertyInConfigFile(GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, bBuildForES31)), GetDefaultConfigFilename());
+		UE_LOG(LogAndroidRuntimeSettings, Warning, TEXT("No GPU architecture is selected.\n"));
+		// Default to Vulkan for Meta Quest devices
+		if (bPackageForMetaQuest)
+		{
+			bSupportsVulkan = true;
+			UpdateSinglePropertyInConfigFile(GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, bSupportsVulkan)), GetDefaultConfigFilename());
+			UE_LOG(LogAndroidRuntimeSettings, Warning, TEXT("Support Vulkan has been changed to true.\n"));
+		}
+		else
+		{
+			bBuildForES31 = true;
+			UpdateSinglePropertyInConfigFile(GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, bBuildForES31)), GetDefaultConfigFilename());
+			UE_LOG(LogAndroidRuntimeSettings, Warning, TEXT("Support OpenGL ES3.2 has been changed to true.\n"));
+		}
 
 		// Supported shader formats changed so invalidate cache
 		InvalidateAllAndroidPlatforms();

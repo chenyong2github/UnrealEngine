@@ -92,7 +92,6 @@ namespace UnrealBuildTool
 		private bool ARCorePluginEnabled = false;
 		private bool FacebookPluginEnabled = false;
 		private bool OculusMobilePluginEnabled = false;
-		private bool GoogleVRPluginEnabled = false;
 		private bool EOSSDKPluginEnabled = false;
 		private UnrealArchitectures? Architectures = null;
 
@@ -106,7 +105,6 @@ namespace UnrealBuildTool
 			ARCorePluginEnabled = false;
 			FacebookPluginEnabled = false;
 			OculusMobilePluginEnabled = false;
-			GoogleVRPluginEnabled = false;
 			EOSSDKPluginEnabled = false;
 			ActiveUPLFiles = "";
 			foreach (string Plugin in inPluginExtraData)
@@ -131,13 +129,6 @@ namespace UnrealBuildTool
 				if (Plugin.Contains("OculusMobile_APL"))
 				{
 					OculusMobilePluginEnabled = true;
-					continue;
-				}
-
-				// check if the GoogleVR plugin was enabled
-				if (Plugin.Contains("GoogleVRHMD"))
-				{
-					GoogleVRPluginEnabled = true;
 					continue;
 				}
 
@@ -447,45 +438,12 @@ namespace UnrealBuildTool
 			return bUseExternalFilesDir;
 		}
 
-		public bool IsPackagingForDaydream(ConfigHierarchy? Ini = null)
-		{
-			// always false if the GoogleVR plugin wasn't enabled
-			if (!GoogleVRPluginEnabled)
-			{
-				return false;
-			}
-
-			// make a new one if one wasn't passed in
-			if (Ini == null)
-			{
-				Ini = GetConfigCacheIni(ConfigHierarchyType.Engine);
-			}
-
-			List<string>? GoogleVRCaps = new List<string>();
-			if (Ini.GetArray("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "GoogleVRCaps", out GoogleVRCaps))
-			{
-				return GoogleVRCaps.Contains("Daydream33") || GoogleVRCaps.Contains("Daydream63") || GoogleVRCaps.Contains("Daydream66");
-			}
-			else
-			{
-				// the default values for the VRCaps are Cardboard and Daydream33, so unless the
-				// developer changes the mode, there will be no setting string to look up here
-				return true;
-			}
-		}
-
-		public List<string> GetTargetOculusMobileDevices(ConfigHierarchy? Ini = null)
+		public List<string> GetTargetOculusMobileDevices(ConfigHierarchy Ini)
 		{
 			// always false if the Oculus Mobile plugin wasn't enabled
 			if (!OculusMobilePluginEnabled)
 			{
 				return new List<string>();
-			}
-
-			// make a new one if one wasn't passed in
-			if (Ini == null)
-			{
-				Ini = GetConfigCacheIni(ConfigHierarchyType.Engine);
 			}
 
 			List<string>? OculusMobileDevices;
@@ -498,12 +456,20 @@ namespace UnrealBuildTool
 			return OculusMobileDevices;
 		}
 
-		public bool IsPackagingForOculusMobile(ConfigHierarchy? Ini = null)
+		public bool IsPackagingForMetaQuest(ConfigHierarchy? Ini = null)
 		{
-			List<string> TargetOculusDevices = GetTargetOculusMobileDevices(Ini);
-			bool bTargetOculusDevices = (TargetOculusDevices != null && TargetOculusDevices.Count() > 0);
+			// make a new one if one wasn't passed in
+			if (Ini == null)
+			{
+				Ini = GetConfigCacheIni(ConfigHierarchyType.Engine);
+			}
 
-			return bTargetOculusDevices;
+			List<string> TargetOculusDevices = GetTargetOculusMobileDevices(Ini); // Backcompat for deprecated oculus device target setting
+			bool bTargetOculusDevices = (TargetOculusDevices != null && TargetOculusDevices.Count() > 0); // Backcompat for deprecated oculus device target setting
+
+			bool result = Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bPackageForMetaQuest", out var bPackageForMetaQuest);
+
+			return (result && bPackageForMetaQuest) || bTargetOculusDevices;
 		}
 
 		public bool DisableVerifyOBBOnStartUp(ConfigHierarchy? Ini = null)
@@ -2293,35 +2259,15 @@ namespace UnrealBuildTool
 			}
 		}
 
-		private void PackageForDaydream(string UnrealBuildPath)
-		{
-			bool bPackageForDaydream = IsPackagingForDaydream();
-
-			if (!bPackageForDaydream)
-			{
-				// If this isn't a Daydream App, we need to make sure to remove
-				// Daydream specific assets.
-
-				// Remove the Daydream app  tile background.
-				string AppTileBackgroundPath = UnrealBuildPath + "/res/drawable-nodpi/vr_icon_background.png";
-				SafeDeleteFile(AppTileBackgroundPath);
-
-				// Remove the Daydream app tile icon.
-				string AppTileIconPath = UnrealBuildPath + "/res/drawable-nodpi/vr_icon.png";
-				SafeDeleteFile(AppTileIconPath);
-			}
-		}
-
 		private void PickSplashScreenOrientation(string UnrealBuildPath, bool bNeedPortrait, bool bNeedLandscape)
 		{
 			ConfigHierarchy Ini = GetConfigCacheIni(ConfigHierarchyType.Engine);
 			bool bShowLaunchImage = false;
 			Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bShowLaunchImage", out bShowLaunchImage);
-			bool bPackageForOculusMobile = IsPackagingForOculusMobile(Ini); ;
-			bool bPackageForDaydream = IsPackagingForDaydream(Ini);
+			bool bPackageForMetaQuest = IsPackagingForMetaQuest(Ini);
 
-			//override the parameters if we are not showing a launch image or are packaging for Oculus Mobile and Daydream
-			if (bPackageForOculusMobile || bPackageForDaydream || !bShowLaunchImage)
+			//override the parameters if we are not showing a launch image or are packaging for Meta Quest
+			if (bPackageForMetaQuest || !bShowLaunchImage)
 			{
 				bNeedPortrait = bNeedLandscape = false;
 			}
@@ -2567,7 +2513,7 @@ namespace UnrealBuildTool
 			Ini.GetString("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "ExtraApplicationSettings", out ExtraApplicationSettings);
 			List<string>? ExtraPermissions;
 			Ini.GetArray("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "ExtraPermissions", out ExtraPermissions);
-			bool bPackageForOculusMobile = IsPackagingForOculusMobile(Ini);
+			bool bPackageForMetaQuest = IsPackagingForMetaQuest(Ini);
 			bool bEnableIAP = false;
 			Ini.GetBool("OnlineSubsystemGooglePlay.Store", "bSupportsInAppPurchasing", out bEnableIAP);
 			bool bShowLaunchImage = false;
@@ -2589,10 +2535,6 @@ namespace UnrealBuildTool
 
 			bool bAllowIMU = true;
 			Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bAllowIMU", out bAllowIMU);
-			if (IsPackagingForDaydream(Ini) && bAllowIMU)
-			{
-				Logger.LogInformation("Daydream and IMU both enabled, recommend disabling IMU if not needed.");
-			}
 
 			bool bExtractNativeLibs = true;
 			Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bExtractNativeLibs", out bExtractNativeLibs);
@@ -2625,33 +2567,22 @@ namespace UnrealBuildTool
 			// only apply density to configChanges if using android-24 or higher and minimum sdk is 17
 			bool bAddDensity = (SDKLevelInt >= 24) && (MinSDKVersion >= 17);
 
-			// disable Oculus Mobile if not supported platform (in this case only arm64 for now)
+			// disable Meta Quest if not supported platform (in this case only arm64 for now)
 			if (UnrealArch != UnrealArch.Arm64)
 			{
-				if (bPackageForOculusMobile)
+				if (bPackageForMetaQuest)
 				{
-					Logger.LogInformation("Disabling Package For Oculus Mobile for unsupported architecture {UnrealArch}", UnrealArch);
-					bPackageForOculusMobile = false;
+					Logger.LogInformation("Disabling Package For Meta Quest for unsupported architecture {UnrealArch}", UnrealArch);
+					bPackageForMetaQuest = false;
 				}
 			}
 
-			// disable splash screen for Oculus Mobile (for now)
-			if (bPackageForOculusMobile)
+			// disable splash screen for Meta Quest (for now)
+			if (bPackageForMetaQuest)
 			{
 				if (bShowLaunchImage)
 				{
-					Logger.LogInformation("Disabling Show Launch Image for Oculus Mobile enabled application");
-					bShowLaunchImage = false;
-				}
-			}
-
-			bool bPackageForDaydream = IsPackagingForDaydream(Ini);
-			// disable splash screen for daydream
-			if (bPackageForDaydream)
-			{
-				if (bShowLaunchImage)
-				{
-					Logger.LogInformation("Disabling Show Launch Image for Daydream enabled application");
+					Logger.LogInformation("Disabling Show Launch Image for Meta Quest enabled application");
 					bShowLaunchImage = false;
 				}
 			}
@@ -2896,10 +2827,6 @@ namespace UnrealBuildTool
 			Text.AppendLine(String.Format("\t\t<meta-data android:name=\"com.epicgames.unreal.GameActivity.bSupportsVulkan\" android:value=\"{0}\"/>", bSupportsVulkan ? "true" : "false"));
 			Text.AppendLine(String.Format("\t\t<meta-data android:name=\"com.epicgames.unreal.GameActivity.PropagateAlpha\" android:value=\"{0}\"/>", PropagateAlpha));
 			Text.AppendLine(String.Format("\t\t<meta-data android:name=\"com.epicgames.unreal.GameActivity.StartupPermissions\" android:value=\"{0}\"/>", StartupPermissions));
-			if (bPackageForDaydream)
-			{
-				Text.AppendLine(String.Format("\t\t<meta-data android:name=\"com.epicgames.unreal.GameActivity.bDaydream\" android:value=\"true\"/>"));
-			}
 			Text.AppendLine("\t\t<meta-data android:name=\"com.google.android.gms.games.APP_ID\"");
 			Text.AppendLine("\t\t           android:value=\"@string/app_id\" />");
 			Text.AppendLine("\t\t<meta-data android:name=\"com.google.android.gms.version\"");
@@ -3017,7 +2944,7 @@ namespace UnrealBuildTool
 					Text.AppendLine("\t<uses-permission android:name=\"android.permission.GET_ACCOUNTS\"/>");
 				}
 
-				if (!bPackageForOculusMobile)
+				if(!bPackageForMetaQuest)
 				{
 					Text.AppendLine("\t<uses-permission android:name=\"android.permission.MODIFY_AUDIO_SETTINGS\"/>");
 					Text.AppendLine("\t<uses-permission android:name=\"android.permission.VIBRATE\"/>");
@@ -3897,14 +3824,6 @@ namespace UnrealBuildTool
 
 			if (bForDistribution)
 			{
-				bool bDisableV2Signing = false;
-
-				if (GetTargetOculusMobileDevices().Contains("Go"))
-				{
-					bDisableV2Signing = true;
-					Logger.LogInformation("Disabling v2Signing for Oculus Go");
-				}
-
 				string KeyAlias, KeyStore, KeyStorePassword, KeyPassword;
 				Ini.GetString("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "KeyStore", out KeyStore);
 				Ini.GetString("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "KeyAlias", out KeyAlias);
@@ -3939,10 +3858,6 @@ namespace UnrealBuildTool
 				GradleBuildAdditionsContent.AppendLine(String.Format("\t\t\tstorePassword '{0}'", KeyStorePassword));
 				GradleBuildAdditionsContent.AppendLine(String.Format("\t\t\tkeyAlias '{0}'", KeyAlias));
 				GradleBuildAdditionsContent.AppendLine(String.Format("\t\t\tkeyPassword '{0}'", KeyPassword));
-				if (bDisableV2Signing)
-				{
-					GradleBuildAdditionsContent.AppendLine("\t\t\tv2SigningEnabled false");
-				}
 				GradleBuildAdditionsContent.AppendLine("\t\t}");
 				GradleBuildAdditionsContent.AppendLine("\t}");
 
@@ -4695,9 +4610,6 @@ namespace UnrealBuildTool
 
 				//Now keep the splash screen images matching orientation requested
 				PickSplashScreenOrientation(UnrealBuildPath, bNeedPortrait, bNeedLandscape);
-
-				//Now package the app based on Daydream packaging settings 
-				PackageForDaydream(UnrealBuildPath);
 
 				//Similarly, keep only the downloader screen image matching the orientation requested
 				PickDownloaderScreenOrientation(UnrealBuildPath, bNeedPortrait, bNeedLandscape);
