@@ -5,12 +5,12 @@
 
 class FRHICommandListImmediate;
 
-class RENDERCORE_API ICustomResourcePool
+class ICustomResourcePool
 {
 public:
 	virtual ~ICustomResourcePool() {}
 	virtual void Tick(FRHICommandListImmediate& RHICmdList) = 0;
 
-	static void TickPoolElements(FRHICommandListImmediate& RHICmdList);
+	static RENDERCORE_API void TickPoolElements(FRHICommandListImmediate& RHICmdList);
 };
 extern RENDERCORE_API ICustomResourcePool* GCustomResourcePool;

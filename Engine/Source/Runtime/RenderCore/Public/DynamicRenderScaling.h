@@ -30,7 +30,7 @@ enum class EHeuristicModel
 };
 
 /* Represent an independent budget to dynamically scale by its own. */
-struct RENDERCORE_API FHeuristicSettings final
+struct FHeuristicSettings final
 {
 	static constexpr float kDefaultMinResolutionFraction = 0.5f;
 	static constexpr float kDefaultMaxResolutionFraction = 1.0f;
@@ -56,38 +56,38 @@ struct RENDERCORE_API FHeuristicSettings final
 	int32 UpperBoundQuantization     = kDefaultUpperBoundQuantization;
 
 	/** Returns whether the heuristic is enabled or not. */
-	bool IsEnabled() const;
+	RENDERCORE_API bool IsEnabled() const;
 
 	/** Returns the desired GPU cost to be targeted to have head room left to not go over budget. */
-	float GetTargetedMs(float BudgetMs) const;
+	RENDERCORE_API float GetTargetedMs(float BudgetMs) const;
 
 	/** Returns how much the GPU cost scales for a given ResolutionFraction. */
-	float EstimateCostScale(float ResolutionFraction) const;
+	RENDERCORE_API float EstimateCostScale(float ResolutionFraction) const;
 
 	/** Returns how much the ResolutionFraction should scale for a GPU timing to fit to target. */
-	float EstimateResolutionFactor(float TargetMs, float TimingMs) const;
+	RENDERCORE_API float EstimateResolutionFactor(float TargetMs, float TimingMs) const;
 
 	/** Returns how much the GPU time should scale between two different resolution fraction. */
-	float EstimateTimeFactor(float CurrentResolutionFraction, float NewResolutionFraction) const;
+	RENDERCORE_API float EstimateTimeFactor(float CurrentResolutionFraction, float NewResolutionFraction) const;
 
 	/** Corrects new resolution fraction to ensure it's within bounds, honor AmortizationFactor and FractionQuantization. */
-	float CorrectNewResolutionFraction(float CurrentResolutionFraction, float NewResolutionFraction, float ResolutionFractionScale) const;
+	RENDERCORE_API float CorrectNewResolutionFraction(float CurrentResolutionFraction, float NewResolutionFraction, float ResolutionFractionScale) const;
 
 	/** Returns whether the ResolutionFraction is changing meaningfully enough. */
-	bool DoesResolutionChangeEnough(float CurrentResolutionFraction, float NewResolutionFraction, bool bCanChangeResolution) const;
+	RENDERCORE_API bool DoesResolutionChangeEnough(float CurrentResolutionFraction, float NewResolutionFraction, bool bCanChangeResolution) const;
 };
 
 
 /* Represent an independent budget to dynamically scale by its own. */
-class RENDERCORE_API FBudget final
+class FBudget final
 {
 public:
-	FBudget(const TCHAR* Name, FHeuristicSettings (*HeuristicSettingsGetter)(void));
-	~FBudget();
+	RENDERCORE_API FBudget(const TCHAR* Name, FHeuristicSettings (*HeuristicSettingsGetter)(void));
+	RENDERCORE_API ~FBudget();
 
 	/* Returns the global list of all dynamic resolution budgets. */
-	static TLinkedList<FBudget*>*& GetGlobalList();
-	static int32 GetGlobalListSize();
+	static RENDERCORE_API TLinkedList<FBudget*>*& GetGlobalList();
+	static RENDERCORE_API int32 GetGlobalListSize();
 
 	inline const TCHAR* GetName() const
 	{

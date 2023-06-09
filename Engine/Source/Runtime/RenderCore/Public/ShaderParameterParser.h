@@ -21,7 +21,7 @@ enum class EBindlessConversionType : uint8
 };
 
 /** Validates and moves all the shader loose data parameter defined in the root scope of the shader into the root uniform buffer. */
-class RENDERCORE_API FShaderParameterParser
+class FShaderParameterParser
 {
 public:
 	struct FParsedShaderParameter
@@ -64,40 +64,40 @@ public:
 		friend class FShaderParameterParser;
 	};
 
-	FShaderParameterParser();
+	RENDERCORE_API FShaderParameterParser();
 
 	UE_DEPRECATED(5.3, "Use FShaderParameterParser constructor which accepts FShaderCompilerFlags")
-	FShaderParameterParser(const TCHAR* InConstantBufferType);
+	RENDERCORE_API FShaderParameterParser(const TCHAR* InConstantBufferType);
 	UE_DEPRECATED(5.3, "Use FShaderParameterParser constructor which accepts FShaderCompilerFlags")
-	FShaderParameterParser(const TCHAR* InConstantBufferType, TConstArrayView<const TCHAR*> InExtraSRVTypes, TConstArrayView<const TCHAR*> InExtraUAVTypes);
+	RENDERCORE_API FShaderParameterParser(const TCHAR* InConstantBufferType, TConstArrayView<const TCHAR*> InExtraSRVTypes, TConstArrayView<const TCHAR*> InExtraUAVTypes);
 
-	FShaderParameterParser(
+	RENDERCORE_API FShaderParameterParser(
 		FShaderCompilerFlags CompilerFlags,
 		const TCHAR* InConstantBufferType = nullptr,
 		TConstArrayView<const TCHAR*> InExtraSRVTypes = {},
 		TConstArrayView<const TCHAR*> InExtraUAVTypes = {});
 
-	virtual ~FShaderParameterParser();
+	RENDERCORE_API virtual ~FShaderParameterParser();
 
 	FShaderParameterParser& operator=(FShaderParameterParser&&) = default;
 
 	static constexpr const TCHAR* kBindlessResourcePrefix = TEXT("BindlessResource_");
 	static constexpr const TCHAR* kBindlessSamplerPrefix = TEXT("BindlessSampler_");
 
-	static EShaderParameterType ParseParameterType(FStringView InType, TConstArrayView<const TCHAR*> InExtraSRVTypes, TConstArrayView<const TCHAR*> InExtraUAVTypes);
-	static EShaderParameterType ParseAndRemoveBindlessParameterPrefix(FStringView& InName);
-	static EShaderParameterType ParseAndRemoveBindlessParameterPrefix(FString& InName);
-	static bool RemoveBindlessParameterPrefix(FString& InName);
+	static RENDERCORE_API EShaderParameterType ParseParameterType(FStringView InType, TConstArrayView<const TCHAR*> InExtraSRVTypes, TConstArrayView<const TCHAR*> InExtraUAVTypes);
+	static RENDERCORE_API EShaderParameterType ParseAndRemoveBindlessParameterPrefix(FStringView& InName);
+	static RENDERCORE_API EShaderParameterType ParseAndRemoveBindlessParameterPrefix(FString& InName);
+	static RENDERCORE_API bool RemoveBindlessParameterPrefix(FString& InName);
 
 	/** Parses the preprocessed shader code and applies the necessary modifications to it. */
 	UE_DEPRECATED(5.3, "Use ParseAndModify overload accepting array of FShaderCompilerError instead of passing FShaderCompilerOutput")
-	bool ParseAndModify(
+	RENDERCORE_API bool ParseAndModify(
 		const FShaderCompilerInput& CompilerInput,
 		FShaderCompilerOutput& CompilerOutput,
 		FString& PreprocessedShaderSource
 	);
 
-	bool ParseAndModify(
+	RENDERCORE_API bool ParseAndModify(
 		const FShaderCompilerInput& CompilerInput,
 		TArray<FShaderCompilerError>& OutErrors,
 		FString& PreprocessedShaderSource
@@ -123,7 +123,7 @@ public:
 	}
 
 	/** Validates the shader parameter in code is compatible with the shader parameter structure. */
-	void ValidateShaderParameterType(
+	RENDERCORE_API void ValidateShaderParameterType(
 		const FShaderCompilerInput& CompilerInput,
 		const FString& ShaderBindingName,
 		int32 ReflectionOffset,
@@ -142,7 +142,7 @@ public:
 	}
 
 	/** Validates shader parameter map is compatible with the shader parameter structure. */
-	void ValidateShaderParameterTypes(
+	RENDERCORE_API void ValidateShaderParameterTypes(
 		const FShaderCompilerInput& CompilerInput,
 		bool bPlatformSupportsPrecisionModifier,
 		FShaderCompilerOutput& CompilerOutput) const;
@@ -164,33 +164,33 @@ public:
 
 protected:
 	/** Parses the preprocessed shader code */
-	bool ParseParameters(
+	RENDERCORE_API bool ParseParameters(
 		const FShaderParametersMetadata* RootParametersStructure,
 		TArray<FShaderCompilerError>& OutErrors
 	);
 
-	void RemoveMovingParametersFromSource(
+	RENDERCORE_API void RemoveMovingParametersFromSource(
 		FString& PreprocessedShaderSource
 	);
 
 	/** Converts parsed parameters into their bindless forms. */
-	void ApplyBindlessModifications(
+	RENDERCORE_API void ApplyBindlessModifications(
 		FString& PreprocessedShaderSource
 	);
 
 	/** Moves parsed parameters into the root constant buffer. */
-	bool MoveShaderParametersToRootConstantBuffer(
+	RENDERCORE_API bool MoveShaderParametersToRootConstantBuffer(
 		const FShaderParametersMetadata* RootParametersStructure,
 		FString& PreprocessedShaderSource
 	);
 
-	void ExtractFileAndLine(int32 PragamLineoffset, int32 LineOffset, FString& OutFile, FString& OutLine) const;
+	RENDERCORE_API void ExtractFileAndLine(int32 PragamLineoffset, int32 LineOffset, FString& OutFile, FString& OutLine) const;
 
 	/**
 	* Generates shader source code to declare a bindless resource or sampler (for automatic bindless conversion).
 	* May be overriden to allow custom implementations for different platforms.
 	*/
-	virtual FString GenerateBindlessParameterDeclaration(const FParsedShaderParameter& ParsedParameter) const;
+	RENDERCORE_API virtual FString GenerateBindlessParameterDeclaration(const FParsedShaderParameter& ParsedParameter) const;
 
 	const TCHAR* ConstantBufferType = nullptr;
 

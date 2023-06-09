@@ -28,32 +28,32 @@ class FWildcardString;
 
 #define SUPPORTS_VISUALIZE_TEXTURE (WITH_ENGINE && (!UE_BUILD_SHIPPING || WITH_EDITOR))
 
-class RENDERCORE_API FVisualizeTexture : public FRenderResource
+class FVisualizeTexture : public FRenderResource
 {
 public:
 	FVisualizeTexture() = default;
 
-	void ParseCommands(const TCHAR* Cmd, FOutputDevice &Ar);
+	RENDERCORE_API void ParseCommands(const TCHAR* Cmd, FOutputDevice &Ar);
 
-	void DebugLogOnCrash();
+	RENDERCORE_API void DebugLogOnCrash();
 
-	void GetTextureInfos_GameThread(TArray<FString>& Infos) const;
+	RENDERCORE_API void GetTextureInfos_GameThread(TArray<FString>& Infos) const;
 
 	/** Creates a new checkpoint (e.g. "SceneDepth@N") for the pooled render target. A null parameter is a no-op. */
 #if SUPPORTS_VISUALIZE_TEXTURE
-	void SetCheckPoint(FRDGBuilder& GraphBuilder, IPooledRenderTarget* PooledRenderTarget);
-	void SetCheckPoint(FRHICommandListImmediate& RHICmdList, IPooledRenderTarget* PooledRenderTarget);
+	RENDERCORE_API void SetCheckPoint(FRDGBuilder& GraphBuilder, IPooledRenderTarget* PooledRenderTarget);
+	RENDERCORE_API void SetCheckPoint(FRHICommandListImmediate& RHICmdList, IPooledRenderTarget* PooledRenderTarget);
 #else
 	inline void SetCheckPoint(FRDGBuilder& GraphBuilder, IPooledRenderTarget* PooledRenderTarget) {}
 	inline void SetCheckPoint(FRHICommandListImmediate& RHICmdList, IPooledRenderTarget* PooledRenderTarget) {}
 #endif
 
-	static FRDGTextureRef AddVisualizeTexturePass(
+	static RENDERCORE_API FRDGTextureRef AddVisualizeTexturePass(
 		FRDGBuilder& GraphBuilder,
 		class FGlobalShaderMap* ShaderMap,
 		const FRDGTextureRef InputTexture);
 
-	static FRDGTextureRef AddVisualizeTextureAlphaPass(
+	static RENDERCORE_API FRDGTextureRef AddVisualizeTextureAlphaPass(
 		FRDGBuilder& GraphBuilder,
 		class FGlobalShaderMap* ShaderMap,
 		const FRDGTextureRef InputTexture);
@@ -112,12 +112,12 @@ private:
 	};
 
 #if SUPPORTS_VISUALIZE_TEXTURE
-	static void DisplayHelp(FOutputDevice &Ar);
-	void DisplayPoolResourceListToLog(ESortBy SortBy);
-	void DisplayResourceListToLog(const TOptional<FWildcardString>& Wildcard);
+	static RENDERCORE_API void DisplayHelp(FOutputDevice &Ar);
+	RENDERCORE_API void DisplayPoolResourceListToLog(ESortBy SortBy);
+	RENDERCORE_API void DisplayResourceListToLog(const TOptional<FWildcardString>& Wildcard);
 
 	/** Determine whether a texture should be captured for debugging purposes and return the capture id if needed. */
-	TOptional<uint32> ShouldCapture(const TCHAR* DebugName, uint32 MipIndex);
+	RENDERCORE_API TOptional<uint32> ShouldCapture(const TCHAR* DebugName, uint32 MipIndex);
 
 	struct FConfig
 	{
@@ -136,7 +136,7 @@ private:
 	};
 
 	/** Adds a pass to visualize a texture. */
-	static FRDGTextureRef AddVisualizeTexturePass(
+	static RENDERCORE_API FRDGTextureRef AddVisualizeTexturePass(
 		FRDGBuilder& GraphBuilder,
 		class FGlobalShaderMap* ShaderMap,
 		const FRDGTextureRef InputTexture,
@@ -145,13 +145,13 @@ private:
 		uint32 CaptureId);
 
 	/** Create a pass capturing a texture. */
-	void CreateContentCapturePass(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, uint32 CaptureId);
+	RENDERCORE_API void CreateContentCapturePass(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, uint32 CaptureId);
 
-	void ReleaseRHI() override;
+	RENDERCORE_API void ReleaseRHI() override;
 
-	void Visualize(const FString& InName, TOptional<uint32> InVersion = {});
+	RENDERCORE_API void Visualize(const FString& InName, TOptional<uint32> InVersion = {});
 
-	uint32 GetVersionCount(const TCHAR* InName) const;
+	RENDERCORE_API uint32 GetVersionCount(const TCHAR* InName) const;
 
 	FConfig Config;
 

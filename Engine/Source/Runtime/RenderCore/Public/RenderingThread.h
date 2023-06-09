@@ -94,14 +94,14 @@ extern RENDERCORE_API void TickRenderingTickables();
 extern RENDERCORE_API void StartRenderCommandFenceBundler();
 extern RENDERCORE_API void StopRenderCommandFenceBundler();
 
-class RENDERCORE_API FCoreRenderDelegates
+class FCoreRenderDelegates
 {
 public:
 	DECLARE_MULTICAST_DELEGATE(FOnFlushRenderingCommandsStart);
-	static FOnFlushRenderingCommandsStart OnFlushRenderingCommandsStart;
+	static RENDERCORE_API FOnFlushRenderingCommandsStart OnFlushRenderingCommandsStart;
 
 	DECLARE_MULTICAST_DELEGATE(FOnFlushRenderingCommandsEnd);
-	static FOnFlushRenderingCommandsEnd OnFlushRenderingCommandsEnd;
+	static RENDERCORE_API FOnFlushRenderingCommandsEnd OnFlushRenderingCommandsEnd;
 };
 ////////////////////////////////////
 // Render thread suspension
@@ -110,17 +110,17 @@ public:
 /**
  * Encapsulates stopping and starting the renderthread so that other threads can manipulate graphics resources.
  */
-class RENDERCORE_API FSuspendRenderingThread
+class FSuspendRenderingThread
 {
 public:
 	/**
 	 *	Constructor that flushes and suspends the renderthread
 	 *	@param bRecreateThread	- Whether the rendering thread should be completely destroyed and recreated, or just suspended.
 	 */
-	FSuspendRenderingThread( bool bRecreateThread );
+	RENDERCORE_API FSuspendRenderingThread( bool bRecreateThread );
 
 	/** Destructor that starts the renderthread again */
-	~FSuspendRenderingThread();
+	RENDERCORE_API ~FSuspendRenderingThread();
 
 private:
 	/** Whether we should use a rendering thread or not */
@@ -143,7 +143,7 @@ private:
 UE_TRACE_CHANNEL_EXTERN(RenderCommandsChannel, RENDERCORE_API);
 
 /** The parent class of commands stored in the rendering command queue. */
-class RENDERCORE_API FRenderCommand
+class FRenderCommand
 {
 public:
 	// All render commands run on the render thread
@@ -343,7 +343,7 @@ private:
 	FRHICommandList RHICmdListStack;
 };
 
-class RENDERCORE_API FRenderThreadScope
+class FRenderThreadScope
 {
 	typedef TFunction<void(FRHICommandListImmediate&)> RenderCommandFunction;
 	typedef TArray<RenderCommandFunction> RenderCommandFunctionArray;

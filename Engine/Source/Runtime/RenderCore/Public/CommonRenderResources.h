@@ -117,7 +117,7 @@ class FScreenVertexShaderVS : public FGlobalShader
 
 /** Vertex shader to draw an instanced quad covering all the viewports (SV_ViewportArrayIndex is output for each SV_InstanceID). Does not have any shader parameters.
  * The pixel shader should just use SV_Position. */
-class RENDERCORE_API FInstancedScreenVertexShaderVS : public FScreenVertexShaderVS
+class FInstancedScreenVertexShaderVS : public FScreenVertexShaderVS
 {
 	DECLARE_GLOBAL_SHADER(FInstancedScreenVertexShaderVS);
 	SHADER_USE_PARAMETER_STRUCT(FInstancedScreenVertexShaderVS, FScreenVertexShaderVS);

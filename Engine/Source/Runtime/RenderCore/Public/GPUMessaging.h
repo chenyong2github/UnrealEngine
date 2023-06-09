@@ -24,11 +24,11 @@ class FSocket;
 class FSystem;
 
 /** RAII object for controlling a new GPU message scope. */
-class RENDERCORE_API FScope
+class FScope
 {
 public:
-	FScope(FRDGBuilder& GraphBuilder);
-	~FScope();
+	RENDERCORE_API FScope(FRDGBuilder& GraphBuilder);
+	RENDERCORE_API ~FScope();
 
 private:
 	FRDGBuilder& GraphBuilder;
@@ -39,7 +39,7 @@ private:
 using FMessageId = TRDGHandle<FSocket, uint32>;
 
 /** A socket object mapped to a persistently registered handler. Supports only move construction. Will unregister the handler on destruction. */
-class RENDERCORE_API FSocket
+class FSocket
 {
 public:
 	FSocket() = default;
@@ -64,7 +64,7 @@ public:
 
 	const FMessageId GetMessageId() const { return MessageId; }
 
-	void Reset();
+	RENDERCORE_API void Reset();
 
 private:
 	FSocket(FMessageId InMessageId)

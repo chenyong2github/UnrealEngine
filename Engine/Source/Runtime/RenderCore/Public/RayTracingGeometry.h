@@ -19,13 +19,13 @@ enum class ERTAccelerationStructureBuildPriority
 };
 
 /** A ray tracing geometry resource */
-class RENDERCORE_API FRayTracingGeometry : public FRenderResource
+class FRayTracingGeometry : public FRenderResource
 {
 public:
 	TResourceArray<uint8> RawData;
 
-	FRayTracingGeometry();
-	virtual ~FRayTracingGeometry();
+	RENDERCORE_API FRayTracingGeometry();
+	RENDERCORE_API virtual ~FRayTracingGeometry();
 
 #if RHI_RAYTRACING
 
@@ -68,7 +68,7 @@ public:
 		Initializer = InInitializer;
 	}
 
-	bool IsValid() const;
+	RENDERCORE_API bool IsValid() const;
 
 	void SetAsStreamedIn()
 	{
@@ -97,33 +97,33 @@ public:
 		return GeometryState;
 	}
 
-	void InitRHIForStreaming(FRHIRayTracingGeometry* IntermediateGeometry, FRHIResourceUpdateBatcher& Batcher);
-	void ReleaseRHIForStreaming(FRHIResourceUpdateBatcher& Batcher);
+	RENDERCORE_API void InitRHIForStreaming(FRHIRayTracingGeometry* IntermediateGeometry, FRHIResourceUpdateBatcher& Batcher);
+	RENDERCORE_API void ReleaseRHIForStreaming(FRHIResourceUpdateBatcher& Batcher);
 
-	void CreateRayTracingGeometryFromCPUData(TResourceArray<uint8>& OfflineData);
-	void RequestBuildIfNeeded(ERTAccelerationStructureBuildPriority InBuildPriority);
+	RENDERCORE_API void CreateRayTracingGeometryFromCPUData(TResourceArray<uint8>& OfflineData);
+	RENDERCORE_API void RequestBuildIfNeeded(ERTAccelerationStructureBuildPriority InBuildPriority);
 
 	// That function is only supposed to be used when dynamic ray tracing is enabled
-	void InitRHIForDynamicRayTracing();
+	RENDERCORE_API void InitRHIForDynamicRayTracing();
 
-	void CreateRayTracingGeometry(ERTAccelerationStructureBuildPriority InBuildPriority);
+	RENDERCORE_API void CreateRayTracingGeometry(ERTAccelerationStructureBuildPriority InBuildPriority);
 
 	bool HasPendingBuildRequest() const
 	{
 		return RayTracingBuildRequestIndex != INDEX_NONE;
 	}
-	void BoostBuildPriority(float InBoostValue = 0.01f) const;
+	RENDERCORE_API void BoostBuildPriority(float InBoostValue = 0.01f) const;
 
 	// FRenderResource interface
 
 	virtual FString GetFriendlyName() const override { return TEXT("FRayTracingGeometry"); }
 
-	virtual void InitRHI() override;
-	virtual void ReleaseRHI() override;
+	RENDERCORE_API virtual void InitRHI() override;
+	RENDERCORE_API virtual void ReleaseRHI() override;
 
-	virtual void ReleaseResource() override;
+	RENDERCORE_API virtual void ReleaseResource() override;
 protected:
-	void RemoveBuildRequest();
+	RENDERCORE_API void RemoveBuildRequest();
 
 	friend class FRayTracingGeometryManager;
 	int32 RayTracingBuildRequestIndex = INDEX_NONE;

@@ -11,7 +11,7 @@
 #include "PipelineStateCache.h"
 
 /** All utils for ray generation shaders. */
-struct RENDERCORE_API FRayGenShaderUtils
+struct FRayGenShaderUtils
 {
 	/** Dispatch a ray generation shader to render graph builder with its parameters. */
 	template<typename TShaderClass>

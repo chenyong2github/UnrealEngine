@@ -625,7 +625,7 @@ struct FShaderCompilerOutput
 	}
 };
 
-struct RENDERCORE_API FSCWErrorCode
+struct FSCWErrorCode
 {
 	enum ECode : int32
 	{
@@ -650,19 +650,19 @@ struct RENDERCORE_API FSCWErrorCode
 	Call Reset first before setting a new value.
 	Returns true on success, otherwise the error code has already been set.
 	*/
-	static void Report(ECode Code, const FStringView& Info = {});
+	static RENDERCORE_API void Report(ECode Code, const FStringView& Info = {});
 
 	/** Resets the global SCW error code to NotSet. */
-	static void Reset();
+	static RENDERCORE_API void Reset();
 
 	/** Returns the global SCW error code. */
-	static ECode Get();
+	static RENDERCORE_API ECode Get();
 
 	/** Returns the global SCW error code information string. Empty string if not set. */
-	static const FString& GetInfo();
+	static RENDERCORE_API const FString& GetInfo();
 
 	/** Returns true if the SCW global error code has been set. Equivalent to 'Get() != NotSet'. */
-	static bool IsSet();
+	static RENDERCORE_API bool IsSet();
 };
 
 #if PLATFORM_WINDOWS

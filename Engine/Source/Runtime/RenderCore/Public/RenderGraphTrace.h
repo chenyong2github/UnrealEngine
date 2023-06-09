@@ -18,21 +18,21 @@ namespace UE { namespace Trace { class FChannel; } }
 
 UE_TRACE_CHANNEL_EXTERN(RDGChannel, RENDERCORE_API);
 
-class RENDERCORE_API FRDGTrace
+class FRDGTrace
 {
 public:
-	FRDGTrace();
+	RENDERCORE_API FRDGTrace();
 
-	void OutputGraphBegin();
-	void OutputGraphEnd(const FRDGBuilder& GraphBuilder);
+	RENDERCORE_API void OutputGraphBegin();
+	RENDERCORE_API void OutputGraphEnd(const FRDGBuilder& GraphBuilder);
 
-	void AddResource(FRDGViewableResource* Resource);
-	void AddTexturePassDependency(FRDGTexture* Texture, FRDGPass* Pass);
-	void AddBufferPassDependency(FRDGBuffer* Buffer, FRDGPass* Pass);
+	RENDERCORE_API void AddResource(FRDGViewableResource* Resource);
+	RENDERCORE_API void AddTexturePassDependency(FRDGTexture* Texture, FRDGPass* Pass);
+	RENDERCORE_API void AddBufferPassDependency(FRDGBuffer* Buffer, FRDGPass* Pass);
 
 	FRHITransientAllocationStats TransientAllocationStats;
 
-	bool IsEnabled() const;
+	RENDERCORE_API bool IsEnabled() const;
 
 private:
 	uint64 GraphStartCycles{};

@@ -113,7 +113,7 @@ public:
 	RENDERCORE_API void Init( uint32 NumElements, uint32 InNumBytesPerElement, bool bInFloat4Buffer, const TCHAR* DebugName );
 
 	template<typename ResourceType>
-	RENDERCORE_API void ResourceUploadTo(FRHICommandList& RHICmdList, const ResourceType& DstBuffer, bool bFlush = false);
+	void ResourceUploadTo(FRHICommandList& RHICmdList, const ResourceType& DstBuffer, bool bFlush = false);
 	
 	UE_DEPRECATED(5.3, "Scattered uploads to FTextureRWBuffer will no longer supported in a future release. Use a supported destination buffer type instead.")
 	inline void ResourceUploadTo(FRHICommandList& RHICmdList, const FTextureRWBuffer& DstBuffer, bool bFlush = false)
@@ -326,12 +326,12 @@ protected:
 	friend FRDGAsyncScatterUploadBuffer;
 };
 
-class RENDERCORE_API FRDGScatterUploader
+class FRDGScatterUploader
 	: public FRDGScatterUploadBase
 {
 public:
-	void Lock(FRHICommandListBase& RHICmdList);
-	void Unlock(FRHICommandListBase& RHICmdList);
+	RENDERCORE_API void Lock(FRHICommandListBase& RHICmdList);
+	RENDERCORE_API void Unlock(FRHICommandListBase& RHICmdList);
 
 	FRDGViewableResource* GetDstResource() const
 	{
@@ -380,24 +380,24 @@ inline void UnlockIfValid(FRHICommandListBase& RHICmdList, FRDGScatterUploader* 
 	}
 }
 
-class RENDERCORE_API FRDGAsyncScatterUploadBuffer
+class FRDGAsyncScatterUploadBuffer
 {
 public:
-	FRDGScatterUploader* Begin(FRDGBuilder& GraphBuilder, FRDGViewableResource* DstResource, uint32 NumElements, uint32 NumBytesPerElement, const TCHAR* Name);
-	FRDGScatterUploader* BeginPreSized(FRDGBuilder& GraphBuilder, FRDGViewableResource* DstResource, uint32 NumElements, uint32 NumBytesPerElement, const TCHAR* Name);
+	RENDERCORE_API FRDGScatterUploader* Begin(FRDGBuilder& GraphBuilder, FRDGViewableResource* DstResource, uint32 NumElements, uint32 NumBytesPerElement, const TCHAR* Name);
+	RENDERCORE_API FRDGScatterUploader* BeginPreSized(FRDGBuilder& GraphBuilder, FRDGViewableResource* DstResource, uint32 NumElements, uint32 NumBytesPerElement, const TCHAR* Name);
 
-	void End(FRDGBuilder& GraphBuilder, FRDGScatterUploader* Uploader);
+	RENDERCORE_API void End(FRDGBuilder& GraphBuilder, FRDGScatterUploader* Uploader);
 
-	void Release();
+	RENDERCORE_API void Release();
 
-	uint32 GetNumBytes() const;
+	RENDERCORE_API uint32 GetNumBytes() const;
 
 private:
 	TRefCountPtr<FRDGPooledBuffer> ScatterBuffer;
 	TRefCountPtr<FRDGPooledBuffer> UploadBuffer;
 };
 
-class RENDERCORE_API FRDGScatterUploadBuffer
+class FRDGScatterUploadBuffer
 	: public FRDGScatterUploadBase
 {
 public:
@@ -413,14 +413,14 @@ public:
 	/**
 	 * Init with presized num scatters, expecting each to be set at a later point. Requires the user to keep track of the offsets to use.
 	 */
-	void InitPreSized(FRDGBuilder& GraphBuilder, uint32 NumElements, uint32 InNumBytesPerElement, bool bInFloat4Buffer, const TCHAR* DebugName);
+	RENDERCORE_API void InitPreSized(FRDGBuilder& GraphBuilder, uint32 NumElements, uint32 InNumBytesPerElement, bool bInFloat4Buffer, const TCHAR* DebugName);
 
 	/**
 	 * Init with pre-existing destination index data, performs a bulk-copy.
 	 */
-	void Init(FRDGBuilder& GraphBuilder, TArrayView<const uint32> ElementScatterOffsets, uint32 InNumBytesPerElement, bool bInFloat4Buffer, const TCHAR* DebugName);
+	RENDERCORE_API void Init(FRDGBuilder& GraphBuilder, TArrayView<const uint32> ElementScatterOffsets, uint32 InNumBytesPerElement, bool bInFloat4Buffer, const TCHAR* DebugName);
 
-	void Init(FRDGBuilder& GraphBuilder, uint32 NumElements, uint32 NumBytesPerElement, bool bInFloat4Buffer, const TCHAR* Name);
+	RENDERCORE_API void Init(FRDGBuilder& GraphBuilder, uint32 NumElements, uint32 NumBytesPerElement, bool bInFloat4Buffer, const TCHAR* Name);
 
 	inline void ResourceUploadTo(FRDGBuilder& GraphBuilder, FRDGBuffer* DstResource)
 	{
@@ -433,13 +433,13 @@ public:
 		ResourceUploadToInternal(GraphBuilder, DstResource);
 	}
 
-	void Release();
+	RENDERCORE_API void Release();
 
-	uint32 GetNumBytes() const;
+	RENDERCORE_API uint32 GetNumBytes() const;
 
 private:
-	void ResourceUploadToInternal(FRDGBuilder& GraphBuilder, FRDGViewableResource* DstResource);
-	void Reset();
+	RENDERCORE_API void ResourceUploadToInternal(FRDGBuilder& GraphBuilder, FRDGViewableResource* DstResource);
+	RENDERCORE_API void Reset();
 
 	TRefCountPtr<FRDGPooledBuffer> ScatterBuffer;
 	TRefCountPtr<FRDGPooledBuffer> UploadBuffer;

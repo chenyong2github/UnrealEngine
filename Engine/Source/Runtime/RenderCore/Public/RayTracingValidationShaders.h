@@ -8,7 +8,7 @@
 
 #if RHI_RAYTRACING
 
-class RENDERCORE_API FRayTracingValidateGeometryBuildParamsCS : public FBuiltInRayTracingShader
+class FRayTracingValidateGeometryBuildParamsCS : public FBuiltInRayTracingShader
 {
 	DECLARE_GLOBAL_SHADER(FRayTracingValidateGeometryBuildParamsCS);
 
@@ -42,7 +42,7 @@ public:
 		FBuiltInRayTracingShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
 
-	static void Dispatch(FRHICommandList& RHICmdList, const FRayTracingGeometryBuildParams& Params);
+	static RENDERCORE_API void Dispatch(FRHICommandList& RHICmdList, const FRayTracingGeometryBuildParams& Params);
 
 	LAYOUT_FIELD(FShaderResourceParameter, IndexBufferParam);
 	LAYOUT_FIELD(FShaderResourceParameter, VertexBufferParam);
@@ -55,7 +55,7 @@ public:
 
 };
 
-class RENDERCORE_API FRayTracingValidateSceneBuildParamsCS : public FBuiltInRayTracingShader
+class FRayTracingValidateSceneBuildParamsCS : public FBuiltInRayTracingShader
 {
 	DECLARE_GLOBAL_SHADER(FRayTracingValidateSceneBuildParamsCS);
 
@@ -86,7 +86,7 @@ public:
 		FBuiltInRayTracingShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
 
-	static void Dispatch(FRHICommandList& RHICmdList, 
+	static RENDERCORE_API void Dispatch(FRHICommandList& RHICmdList, 
 		uint32 NumHitGroups, uint32 NumInstances, 
 		FRHIBuffer* InstanceBuffer, uint32 InstanceBufferOffset, uint32 InstanceBufferStride);
 

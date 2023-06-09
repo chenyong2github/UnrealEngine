@@ -219,10 +219,10 @@ public:
 
 	RENDERCORE_API const FString& GetFinalSource() const;
 
-	RENDERCORE_API FShaderCompileJob() : FShaderCommonCompileJob(Type, 0u, 0u, EShaderCompileJobPriority::Num)
+	FShaderCompileJob() : FShaderCommonCompileJob(Type, 0u, 0u, EShaderCompileJobPriority::Num)
 	{}
 
-	RENDERCORE_API FShaderCompileJob(uint32 InHash, uint32 InId, EShaderCompileJobPriority InPriroity, const FShaderCompileJobKey& InKey) :
+	FShaderCompileJob(uint32 InHash, uint32 InId, EShaderCompileJobPriority InPriroity, const FShaderCompileJobKey& InKey) :
 		FShaderCommonCompileJob(Type, InHash, InId, InPriroity),
 		Key(InKey)
 	{}

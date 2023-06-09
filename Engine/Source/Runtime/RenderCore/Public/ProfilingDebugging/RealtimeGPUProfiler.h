@@ -40,7 +40,7 @@ class FRenderQueryPool;
 class FScopedGPUStatEvent;
 
 #if RHI_WANT_BREADCRUMB_EVENTS
-struct RENDERCORE_API FBreadcrumbEvent
+struct FBreadcrumbEvent
 {
 	FRHIComputeCommandList* RHICmdList{};
 
@@ -86,7 +86,7 @@ struct RENDERCORE_API FBreadcrumbEvent
 	 * Class that logs draw events based upon class scope. Draw events can be seen
 	 * in PIX
 	 */
-	struct RENDERCORE_API FDrawEvent
+	struct FDrawEvent
 	{
 		/** Cmdlist to push onto. */
 		FRHIComputeCommandList* RHICmdList;
@@ -118,15 +118,15 @@ struct RENDERCORE_API FBreadcrumbEvent
 		 * - Stop can be called on any thread but must be called on the same thread Start was called on and will either use the same 
 		 *  command list (rendering / RHI thread) or enqueue a command on the current immediate command list (game thread)
 		 */
-		void CDECL Start(FRHIComputeCommandList* RHICmdList, FColor Color, const TCHAR* Fmt, ...);
-		void Stop();
+		RENDERCORE_API void CDECL Start(FRHIComputeCommandList* RHICmdList, FColor Color, const TCHAR* Fmt, ...);
+		RENDERCORE_API void Stop();
 	};
 
 	/** Legacy support for template class version. */
 	template <typename TRHICmdList>
 	struct TDrawEvent : FDrawEvent {};
 
-	struct RENDERCORE_API FDrawEventRHIExecute
+	struct FDrawEventRHIExecute
 	{
 		/** Context to execute on*/
 		class IRHIComputeContext* RHICommandContext;
@@ -150,8 +150,8 @@ struct RENDERCORE_API FBreadcrumbEvent
 		/**
 		* Function for logging a PIX event with var args
 		*/
-		void CDECL Start(IRHIComputeContext& InRHICommandContext, FColor Color, const TCHAR* Fmt, ...);
-		void Stop();
+		RENDERCORE_API void CDECL Start(IRHIComputeContext& InRHICommandContext, FColor Color, const TCHAR* Fmt, ...);
+		RENDERCORE_API void Stop();
 	};
 
 	// Macros to allow for scoping of draw events outside of RHI function implementations
@@ -205,7 +205,7 @@ struct RENDERCORE_API FBreadcrumbEvent
 
 #else
 
-	struct RENDERCORE_API FDrawEvent
+	struct FDrawEvent
 	{
 	};
 
@@ -366,7 +366,7 @@ struct FRealtimeGPUProfilerHistoryByDescription
 	mutable FRWLock Mutex;
 };
 
-struct RENDERCORE_API FRealtimeGPUProfilerDescriptionResult
+struct FRealtimeGPUProfilerDescriptionResult
 {
 	// Times are in microseconds
 	FString Description;

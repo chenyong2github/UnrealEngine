@@ -89,15 +89,15 @@ struct FRDGBarrierBatchEndId
 	ERDGBarrierLocation BarrierLocation = ERDGBarrierLocation::Epilogue;
 };
 
-class RENDERCORE_API FRDGBarrierBatchBegin
+class FRDGBarrierBatchBegin
 {
 public:
-	FRDGBarrierBatchBegin(ERHIPipeline PipelinesToBegin, ERHIPipeline PipelinesToEnd, const TCHAR* DebugName, FRDGPass* DebugPass);
-	FRDGBarrierBatchBegin(ERHIPipeline PipelinesToBegin, ERHIPipeline PipelinesToEnd, const TCHAR* DebugName, FRDGPassesByPipeline DebugPasses);
+	RENDERCORE_API FRDGBarrierBatchBegin(ERHIPipeline PipelinesToBegin, ERHIPipeline PipelinesToEnd, const TCHAR* DebugName, FRDGPass* DebugPass);
+	RENDERCORE_API FRDGBarrierBatchBegin(ERHIPipeline PipelinesToBegin, ERHIPipeline PipelinesToEnd, const TCHAR* DebugName, FRDGPassesByPipeline DebugPasses);
 
-	void AddTransition(FRDGViewableResource* Resource, const FRHITransitionInfo& Info);
+	RENDERCORE_API void AddTransition(FRDGViewableResource* Resource, const FRHITransitionInfo& Info);
 
-	void AddAlias(FRDGViewableResource* Resource, const FRHITransientAliasingInfo& Info);
+	RENDERCORE_API void AddAlias(FRDGViewableResource* Resource, const FRHITransientAliasingInfo& Info);
 
 	void SetUseCrossPipelineFence()
 	{
@@ -105,10 +105,10 @@ public:
 		bTransitionNeeded = true;
 	}
 
-	void CreateTransition();
+	RENDERCORE_API void CreateTransition();
 
-	void Submit(FRHIComputeCommandList& RHICmdList, ERHIPipeline Pipeline);
-	void Submit(FRHIComputeCommandList& RHICmdList, ERHIPipeline Pipeline, FRDGTransitionQueue& TransitionsToBegin);
+	RENDERCORE_API void Submit(FRHIComputeCommandList& RHICmdList, ERHIPipeline Pipeline);
+	RENDERCORE_API void Submit(FRHIComputeCommandList& RHICmdList, ERHIPipeline Pipeline, FRDGTransitionQueue& TransitionsToBegin);
 
 	void Reserve(uint32 TransitionCount)
 	{
@@ -145,7 +145,7 @@ private:
 
 using FRDGTransitionCreateQueue = TArray<FRDGBarrierBatchBegin*, FRDGArrayAllocator>;
 
-class RENDERCORE_API FRDGBarrierBatchEnd
+class FRDGBarrierBatchEnd
 {
 public:
 	FRDGBarrierBatchEnd(FRDGPass* InPass, ERDGBarrierLocation InBarrierLocation)
@@ -154,18 +154,18 @@ public:
 	{}
 
 	/** Inserts a dependency on a begin batch. A begin batch can be inserted into more than one end batch. */
-	void AddDependency(FRDGBarrierBatchBegin* BeginBatch);
+	RENDERCORE_API void AddDependency(FRDGBarrierBatchBegin* BeginBatch);
 
-	void Submit(FRHIComputeCommandList& RHICmdList, ERHIPipeline Pipeline);
+	RENDERCORE_API void Submit(FRHIComputeCommandList& RHICmdList, ERHIPipeline Pipeline);
 
 	void Reserve(uint32 TransitionBatchCount)
 	{
 		Dependencies.Reserve(TransitionBatchCount);
 	}
 
-	FRDGBarrierBatchEndId GetId() const;
+	RENDERCORE_API FRDGBarrierBatchEndId GetId() const;
 
-	bool IsPairedWith(const FRDGBarrierBatchBegin& BeginBatch) const;
+	RENDERCORE_API bool IsPairedWith(const FRDGBarrierBatchBegin& BeginBatch) const;
 
 private:
 	TArray<FRDGBarrierBatchBegin*, TInlineAllocator<4, FRDGArrayAllocator>> Dependencies;
@@ -177,15 +177,15 @@ private:
 };
 
 /** Base class of a render graph pass. */
-class RENDERCORE_API FRDGPass
+class FRDGPass
 {
 public:
-	FRDGPass(FRDGEventName&& InName, FRDGParameterStruct InParameterStruct, ERDGPassFlags InFlags);
+	RENDERCORE_API FRDGPass(FRDGEventName&& InName, FRDGParameterStruct InParameterStruct, ERDGPassFlags InFlags);
 	FRDGPass(const FRDGPass&) = delete;
 	virtual ~FRDGPass() = default;
 
 #if RDG_ENABLE_DEBUG
-	const TCHAR* GetName() const;
+	RENDERCORE_API const TCHAR* GetName() const;
 #else
 	FORCEINLINE const TCHAR* GetName() const
 	{
@@ -320,10 +320,10 @@ public:
 #endif
 
 protected:
-	FRDGBarrierBatchBegin& GetPrologueBarriersToBegin(FRDGAllocator& Allocator, FRDGTransitionCreateQueue& CreateQueue);
-	FRDGBarrierBatchBegin& GetEpilogueBarriersToBeginForGraphics(FRDGAllocator& Allocator, FRDGTransitionCreateQueue& CreateQueue);
-	FRDGBarrierBatchBegin& GetEpilogueBarriersToBeginForAsyncCompute(FRDGAllocator& Allocator, FRDGTransitionCreateQueue& CreateQueue);
-	FRDGBarrierBatchBegin& GetEpilogueBarriersToBeginForAll(FRDGAllocator& Allocator, FRDGTransitionCreateQueue& CreateQueue);
+	RENDERCORE_API FRDGBarrierBatchBegin& GetPrologueBarriersToBegin(FRDGAllocator& Allocator, FRDGTransitionCreateQueue& CreateQueue);
+	RENDERCORE_API FRDGBarrierBatchBegin& GetEpilogueBarriersToBeginForGraphics(FRDGAllocator& Allocator, FRDGTransitionCreateQueue& CreateQueue);
+	RENDERCORE_API FRDGBarrierBatchBegin& GetEpilogueBarriersToBeginForAsyncCompute(FRDGAllocator& Allocator, FRDGTransitionCreateQueue& CreateQueue);
+	RENDERCORE_API FRDGBarrierBatchBegin& GetEpilogueBarriersToBeginForAll(FRDGAllocator& Allocator, FRDGTransitionCreateQueue& CreateQueue);
 
 	FRDGBarrierBatchBegin& GetEpilogueBarriersToBeginFor(FRDGAllocator& Allocator, FRDGTransitionCreateQueue& CreateQueue, ERHIPipeline PipelineForEnd)
 	{
@@ -344,8 +344,8 @@ protected:
 		}
 	}
 
-	FRDGBarrierBatchEnd& GetPrologueBarriersToEnd(FRDGAllocator& Allocator);
-	FRDGBarrierBatchEnd& GetEpilogueBarriersToEnd(FRDGAllocator& Allocator);
+	RENDERCORE_API FRDGBarrierBatchEnd& GetPrologueBarriersToEnd(FRDGAllocator& Allocator);
+	RENDERCORE_API FRDGBarrierBatchEnd& GetEpilogueBarriersToEnd(FRDGAllocator& Allocator);
 
 	virtual void Execute(FRHIComputeCommandList& RHICmdList) {}
 

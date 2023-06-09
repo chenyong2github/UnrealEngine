@@ -1428,7 +1428,7 @@ extern RENDERCORE_API FShaderParametersMetadata* FindUniformBufferStructByShader
 	END_SHADER_PARAMETER_STRUCT()
 
 
-class RENDERCORE_API FShaderParametersMetadataRegistration
+class FShaderParametersMetadataRegistration
 {
 public:
 	FShaderParametersMetadataRegistration(TFunctionRef<const FShaderParametersMetadata* ()> LazyShaderParametersMetadataAccessor)
@@ -1437,11 +1437,11 @@ public:
 		GetInstances().Add(this);
 	}
 
-	static TArray<const FShaderParametersMetadataRegistration*>& GetInstances();
+	static RENDERCORE_API TArray<const FShaderParametersMetadataRegistration*>& GetInstances();
 
 	// Actually register all the instances and clear the array
-	static void CommitAll();
-	static bool IsReadyForRegistration();
+	static RENDERCORE_API void CommitAll();
+	static RENDERCORE_API bool IsReadyForRegistration();
 
 private:
 	TFunctionRef<const FShaderParametersMetadata* ()> LazyShaderParametersMetadataAccessor;

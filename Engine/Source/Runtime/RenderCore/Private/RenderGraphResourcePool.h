@@ -10,20 +10,20 @@
 #include "RendererInterface.h"
 #include "RenderGraphResources.h"
 
-class RENDERCORE_API FRDGBufferPool : public FRenderResource
+class FRDGBufferPool : public FRenderResource
 {
 public:
 	FRDGBufferPool() = default;
 
 	/** Call once per frame to trim elements from the pool. */
-	void TickPoolElements();
+	RENDERCORE_API void TickPoolElements();
 
-	TRefCountPtr<FRDGPooledBuffer> FindFreeBuffer(const FRDGBufferDesc& Desc, const TCHAR* InDebugName, ERDGPooledBufferAlignment Alignment = ERDGPooledBufferAlignment::Page);
+	RENDERCORE_API TRefCountPtr<FRDGPooledBuffer> FindFreeBuffer(const FRDGBufferDesc& Desc, const TCHAR* InDebugName, ERDGPooledBufferAlignment Alignment = ERDGPooledBufferAlignment::Page);
 
-	void DumpMemoryUsage(FOutputDevice& OutputDevice);
+	RENDERCORE_API void DumpMemoryUsage(FOutputDevice& OutputDevice);
 
 private:
-	void ReleaseRHI() override;
+	RENDERCORE_API void ReleaseRHI() override;
 
 	/** Elements can be 0, we compact the buffer later. */
 	TArray<TRefCountPtr<FRDGPooledBuffer>> AllocatedBuffers;

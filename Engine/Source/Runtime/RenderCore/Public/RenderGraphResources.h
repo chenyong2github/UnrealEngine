@@ -111,7 +111,7 @@ using FRDGTextureSubresourceState = TRDGTextureSubresourceArray<FRDGSubresourceS
 using FRDGTextureSubresourceStateIndirect = TRDGTextureSubresourceArray<FRDGSubresourceState*, FRDGArrayAllocator>;
 
 /** Generic graph resource. */
-class RENDERCORE_API FRDGResource
+class FRDGResource
 {
 public:
 	FRDGResource(const FRDGResource&) = delete;
@@ -125,7 +125,7 @@ public:
 
 	/** Marks this resource as actually used by a resource. This is to track what dependencies on pass was actually unnecessary. */
 #if RDG_ENABLE_DEBUG
-	virtual void MarkResourceAsUsed();
+	RENDERCORE_API virtual void MarkResourceAsUsed();
 #else
 	inline  void MarkResourceAsUsed() {}
 #endif
@@ -163,13 +163,13 @@ protected:
 	FRHIResource* ResourceRHI = nullptr;
 
 #if RDG_ENABLE_DEBUG
-	void ValidateRHIAccess() const;
+	RENDERCORE_API void ValidateRHIAccess() const;
 #endif
 
 private:
 #if RDG_ENABLE_DEBUG
 	struct FRDGResourceDebugData* DebugData = nullptr;
-	FRDGResourceDebugData& GetDebugData() const;
+	RENDERCORE_API FRDGResourceDebugData& GetDebugData() const;
 #endif
 
 #if RHI_ENABLE_RESOURCE_INFO
@@ -181,7 +181,7 @@ private:
 	friend FRDGBarrierValidation;
 };
 
-class RENDERCORE_API FRDGUniformBuffer
+class FRDGUniformBuffer
 	: public FRDGResource
 {
 public:
@@ -199,7 +199,7 @@ public:
 	}
 
 #if RDG_ENABLE_DEBUG
-	void MarkResourceAsUsed() override;
+	RENDERCORE_API void MarkResourceAsUsed() override;
 #else
 	inline void MarkResourceAsUsed() {}
 #endif
@@ -227,7 +227,7 @@ private:
 		return static_cast<FRHIUniformBuffer*>(FRDGResource::GetRHIUnchecked());
 	}
 
-	void InitRHI();
+	RENDERCORE_API void InitRHI();
 
 	const FRDGParameterStruct ParameterStruct;
 	TRefCountPtr<FRHIUniformBuffer> UniformBufferRHI;
@@ -280,7 +280,7 @@ private:
 };
 
 /** A render graph resource with an allocation lifetime tracked by the graph. May have child resources which reference it (e.g. views). */
-class RENDERCORE_API FRDGViewableResource
+class FRDGViewableResource
 	: public FRDGResource
 {
 public:
@@ -313,7 +313,7 @@ public:
 	}
 
 protected:
-	FRDGViewableResource(const TCHAR* InName, ERDGViewableResourceType InType, bool bSkipTracking, bool bImmediateFirstBarrier);
+	RENDERCORE_API FRDGViewableResource(const TCHAR* InName, ERDGViewableResourceType InType, bool bSkipTracking, bool bImmediateFirstBarrier);
 
 	static const ERHIAccess DefaultEpilogueAccess = ERHIAccess::SRVMask;
 
@@ -419,7 +419,7 @@ private:
 
 #if RDG_ENABLE_DEBUG
 	struct FRDGViewableResourceDebugData* ViewableDebugData = nullptr;
-	FRDGViewableResourceDebugData& GetViewableDebugData() const;
+	RENDERCORE_API FRDGViewableResourceDebugData& GetViewableDebugData() const;
 #endif
 
 	friend FRDGBuilder;
@@ -472,7 +472,7 @@ inline FRDGTextureDesc Translate(const FPooledRenderTargetDesc& InDesc);
 /** Translates from an RHI/RDG texture descriptor to a pooled render target descriptor. */
 inline FPooledRenderTargetDesc Translate(const FRHITextureDesc& InDesc);
 
-class RENDERCORE_API FRDGPooledTexture final
+class FRDGPooledTexture final
 	: public FRefCountBase
 {
 public:
@@ -496,7 +496,7 @@ private:
 };
 
 /** Render graph tracked Texture. */
-class RENDERCORE_API FRDGTexture final
+class FRDGTexture final
 	: public FRDGViewableResource
 {
 public:
@@ -541,7 +541,7 @@ public:
 		return Layout.GetSubresource(SubresourceIndex);
 	}
 
-	FRDGTextureSubresourceRange GetSubresourceRangeSRV() const;
+	RENDERCORE_API FRDGTextureSubresourceRange GetSubresourceRangeSRV() const;
 
 private:
 	FRDGTexture(const TCHAR* InName, const FRDGTextureDesc& InDesc, ERDGTextureFlags InFlags)
@@ -616,7 +616,7 @@ private:
 
 #if RDG_ENABLE_DEBUG
 	struct FRDGTextureDebugData* TextureDebugData = nullptr;
-	FRDGTextureDebugData& GetTextureDebugData() const;
+	RENDERCORE_API FRDGTextureDebugData& GetTextureDebugData() const;
 #endif
 
 	friend FRDGBuilder;
@@ -1116,7 +1116,7 @@ struct FRDGBufferUAVDesc final
 /** Translates from a RDG buffer descriptor to a RHI buffer creation info */
 inline FRHIBufferCreateInfo Translate(const FRDGBufferDesc& InDesc);
 
-class RENDERCORE_API FRDGPooledBuffer final
+class FRDGPooledBuffer final
 	: public FRefCountBase
 {
 public:
@@ -1192,7 +1192,7 @@ private:
 };
 
 /** A render graph tracked buffer. */
-class RENDERCORE_API FRDGBuffer final
+class FRDGBuffer final
 	: public FRDGViewableResource
 {
 public:
@@ -1303,7 +1303,7 @@ private:
 
 #if RDG_ENABLE_DEBUG
 	struct FRDGBufferDebugData* BufferDebugData = nullptr;
-	FRDGBufferDebugData& GetBufferDebugData() const;
+	RENDERCORE_API FRDGBufferDebugData& GetBufferDebugData() const;
 #endif
 
 	friend FRDGBuilder;

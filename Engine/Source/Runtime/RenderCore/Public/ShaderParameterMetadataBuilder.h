@@ -11,7 +11,7 @@
 #include "ShaderParameterMetadata.h"
 #include "Templates/AlignmentTemplates.h"
 
-class RENDERCORE_API FShaderParametersMetadataBuilder
+class FShaderParametersMetadataBuilder
 {
 public:
 	FShaderParametersMetadataBuilder() {}
@@ -87,7 +87,7 @@ public:
 		AddReferencedStruct(Name, TShaderParameterStructTypeInfo<T>::GetStructMetadata(), Precision);
 	}
 
-	void AddReferencedStruct(
+	RENDERCORE_API void AddReferencedStruct(
 		const TCHAR* Name,
 		const FShaderParametersMetadata* StructMetadata,
 		EShaderPrecisionModifier::Type Precision = EShaderPrecisionModifier::Float
@@ -101,7 +101,7 @@ public:
 		AddIncludedStruct(TShaderParameterStructTypeInfo<T>::GetStructMetadata(), Precision);
 	}
 
-	void AddIncludedStruct(
+	RENDERCORE_API void AddIncludedStruct(
 		const FShaderParametersMetadata* StructMetadata,
 		EShaderPrecisionModifier::Type Precision = EShaderPrecisionModifier::Float
 	);
@@ -134,31 +134,31 @@ public:
 		return ThisMemberOffset;
 	}
 
-	uint32 AddNestedStruct(
+	RENDERCORE_API uint32 AddNestedStruct(
 		const TCHAR* Name,
 		const FShaderParametersMetadata* StructMetadata,
 		EShaderPrecisionModifier::Type Precision = EShaderPrecisionModifier::Float
 		);
 
-	void AddBufferSRV(
+	RENDERCORE_API void AddBufferSRV(
 		const TCHAR* Name,
 		const TCHAR* ShaderType,
 		EShaderPrecisionModifier::Type Precision = EShaderPrecisionModifier::Float
 		);
 
-	void AddBufferUAV(
+	RENDERCORE_API void AddBufferUAV(
 		const TCHAR* Name,
 		const TCHAR* ShaderType,
 		EShaderPrecisionModifier::Type Precision = EShaderPrecisionModifier::Float
 		);
 
-	void AddRDGBufferSRV(
+	RENDERCORE_API void AddRDGBufferSRV(
 		const TCHAR* Name,
 		const TCHAR* ShaderType,
 		EShaderPrecisionModifier::Type Precision = EShaderPrecisionModifier::Float
 		);
 
-	void AddRDGBufferUAV(
+	RENDERCORE_API void AddRDGBufferUAV(
 		const TCHAR* Name,
 		const TCHAR* ShaderType,
 		EShaderPrecisionModifier::Type Precision = EShaderPrecisionModifier::Float
@@ -171,12 +171,12 @@ public:
 
 	uint32 GetNextMemberOffset() const { return NextMemberOffset; }
 
-	FShaderParametersMetadata* Build(
+	RENDERCORE_API FShaderParametersMetadata* Build(
 		FShaderParametersMetadata::EUseCase UseCase,
 		const TCHAR* ShaderParameterName
 		);
 
-	FShaderParametersMetadata* Build(
+	RENDERCORE_API FShaderParametersMetadata* Build(
 		FShaderParametersMetadata::EUseCase InUseCase,
 		EUniformBufferBindingFlags InBindingFlags,
 		const TCHAR* InLayoutName,

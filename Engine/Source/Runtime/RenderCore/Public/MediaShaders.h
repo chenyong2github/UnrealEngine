@@ -140,14 +140,14 @@ inline FBufferRHIRef CreateTempMediaVertexBuffer(float ULeft = 0.0f, float URigh
 /**
  * The simple element vertex declaration resource type.
  */
-class RENDERCORE_API FMediaVertexDeclaration : public FRenderResource
+class FMediaVertexDeclaration : public FRenderResource
 {
 public:
-	FMediaVertexDeclaration();
-	virtual ~FMediaVertexDeclaration();
+	RENDERCORE_API FMediaVertexDeclaration();
+	RENDERCORE_API virtual ~FMediaVertexDeclaration();
 
-	virtual void InitRHI() override;
-	virtual void ReleaseRHI() override;
+	RENDERCORE_API virtual void InitRHI() override;
+	RENDERCORE_API virtual void ReleaseRHI() override;
 
 	FVertexDeclarationRHIRef VertexDeclarationRHI;
 };

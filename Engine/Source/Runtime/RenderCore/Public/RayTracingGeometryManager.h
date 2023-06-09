@@ -15,7 +15,7 @@ class FRHIComputeCommandList;
 enum class EAccelerationStructureBuildMode;
 enum class ERTAccelerationStructureBuildPriority;
 
-class RENDERCORE_API FRayTracingGeometryManager
+class FRayTracingGeometryManager
 {
 public:
 
@@ -29,17 +29,17 @@ public:
 	{
 		return RequestBuildAccelerationStructure(InGeometry, InPriority, EAccelerationStructureBuildMode::Build);
 	}	
-	BuildRequestIndex RequestBuildAccelerationStructure(FRayTracingGeometry* InGeometry, ERTAccelerationStructureBuildPriority InPriority, EAccelerationStructureBuildMode InBuildMode);
+	RENDERCORE_API BuildRequestIndex RequestBuildAccelerationStructure(FRayTracingGeometry* InGeometry, ERTAccelerationStructureBuildPriority InPriority, EAccelerationStructureBuildMode InBuildMode);
 
-	void RemoveBuildRequest(BuildRequestIndex InRequestIndex);
-	void BoostPriority(BuildRequestIndex InRequestIndex, float InBoostValue);
-	void ForceBuildIfPending(FRHIComputeCommandList& InCmdList, const TArrayView<const FRayTracingGeometry*> InGeometries);
-	void ProcessBuildRequests(FRHIComputeCommandList& InCmdList, bool bInBuildAll = false);
+	RENDERCORE_API void RemoveBuildRequest(BuildRequestIndex InRequestIndex);
+	RENDERCORE_API void BoostPriority(BuildRequestIndex InRequestIndex, float InBoostValue);
+	RENDERCORE_API void ForceBuildIfPending(FRHIComputeCommandList& InCmdList, const TArrayView<const FRayTracingGeometry*> InGeometries);
+	RENDERCORE_API void ProcessBuildRequests(FRHIComputeCommandList& InCmdList, bool bInBuildAll = false);
 
-	void Tick(bool bHasRayTracingEnableChanged);
+	RENDERCORE_API void Tick(bool bHasRayTracingEnableChanged);
 
-	RayTracingGeometryHandle RegisterRayTracingGeometry(FRayTracingGeometry* InGeometry);
-	void ReleaseRayTracingGeometryHandle(RayTracingGeometryHandle Handle);
+	RENDERCORE_API RayTracingGeometryHandle RegisterRayTracingGeometry(FRayTracingGeometry* InGeometry);
+	RENDERCORE_API void ReleaseRayTracingGeometryHandle(RayTracingGeometryHandle Handle);
 private:
 
 	struct BuildRequest
@@ -51,7 +51,7 @@ private:
 		EAccelerationStructureBuildMode BuildMode;
 	};
 
-	void SetupBuildParams(const BuildRequest& InBuildRequest, TArray<FRayTracingGeometryBuildParams>& InBuildParams);
+	RENDERCORE_API void SetupBuildParams(const BuildRequest& InBuildRequest, TArray<FRayTracingGeometryBuildParams>& InBuildParams);
 
 	FCriticalSection RequestCS;
 

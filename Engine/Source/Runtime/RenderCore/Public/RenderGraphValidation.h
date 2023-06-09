@@ -37,93 +37,93 @@ template <typename ReferencedType> class TRefCountPtr;
  *  and modular location to extend the validation layer as well as clearly separate the graph implementation
  *  details from events in the graph.
  */
-class RENDERCORE_API FRDGUserValidation final
+class FRDGUserValidation final
 {
 public:
 	FRDGUserValidation(FRDGAllocator& Allocator, bool bParallelExecuteEnabled);
 	FRDGUserValidation(const FRDGUserValidation&) = delete;
-	~FRDGUserValidation();
+	RENDERCORE_API ~FRDGUserValidation();
 
 	/** Tracks and validates inputs into resource creation functions. */
-	void ValidateCreateTexture(const FRDGTextureDesc& Desc, const TCHAR* Name, ERDGTextureFlags Flags);
-	void ValidateCreateBuffer(const FRDGBufferDesc& Desc, const TCHAR* Name, ERDGBufferFlags Flags);
-	void ValidateCreateSRV(const FRDGTextureSRVDesc& Desc);
-	void ValidateCreateSRV(const FRDGBufferSRVDesc& Desc);
-	void ValidateCreateUAV(const FRDGTextureUAVDesc& Desc);
-	void ValidateCreateUAV(const FRDGBufferUAVDesc& Desc);
-	void ValidateCreateUniformBuffer(const void* ParameterStruct, const FShaderParametersMetadata* Metadata);
+	RENDERCORE_API void ValidateCreateTexture(const FRDGTextureDesc& Desc, const TCHAR* Name, ERDGTextureFlags Flags);
+	RENDERCORE_API void ValidateCreateBuffer(const FRDGBufferDesc& Desc, const TCHAR* Name, ERDGBufferFlags Flags);
+	RENDERCORE_API void ValidateCreateSRV(const FRDGTextureSRVDesc& Desc);
+	RENDERCORE_API void ValidateCreateSRV(const FRDGBufferSRVDesc& Desc);
+	RENDERCORE_API void ValidateCreateUAV(const FRDGTextureUAVDesc& Desc);
+	RENDERCORE_API void ValidateCreateUAV(const FRDGBufferUAVDesc& Desc);
+	RENDERCORE_API void ValidateCreateUniformBuffer(const void* ParameterStruct, const FShaderParametersMetadata* Metadata);
 
 	/** Tracks and validates the creation of a new externally created / registered resource instances. */
-	void ValidateCreateTexture(FRDGTextureRef Texture);
-	void ValidateCreateBuffer(FRDGBufferRef Buffer);
-	void ValidateCreateSRV(FRDGTextureSRVRef SRV);
-	void ValidateCreateSRV(FRDGBufferSRVRef SRV);
-	void ValidateCreateUAV(FRDGTextureUAVRef UAV);
-	void ValidateCreateUAV(FRDGBufferUAVRef UAV);
-	void ValidateCreateUniformBuffer(FRDGUniformBufferRef UniformBuffer);
+	RENDERCORE_API void ValidateCreateTexture(FRDGTextureRef Texture);
+	RENDERCORE_API void ValidateCreateBuffer(FRDGBufferRef Buffer);
+	RENDERCORE_API void ValidateCreateSRV(FRDGTextureSRVRef SRV);
+	RENDERCORE_API void ValidateCreateSRV(FRDGBufferSRVRef SRV);
+	RENDERCORE_API void ValidateCreateUAV(FRDGTextureUAVRef UAV);
+	RENDERCORE_API void ValidateCreateUAV(FRDGBufferUAVRef UAV);
+	RENDERCORE_API void ValidateCreateUniformBuffer(FRDGUniformBufferRef UniformBuffer);
 
-	void ValidateRegisterExternalTexture(
+	RENDERCORE_API void ValidateRegisterExternalTexture(
 		const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
 		const TCHAR* Name,
 		ERDGTextureFlags Flags);
 
-	void ValidateRegisterExternalBuffer(
+	RENDERCORE_API void ValidateRegisterExternalBuffer(
 		const TRefCountPtr<FRDGPooledBuffer>& ExternalPooledBuffer,
 		const TCHAR* Name,
 		ERDGBufferFlags Flags);
 
-	void ValidateRegisterExternalTexture(FRDGTextureRef Texture);
-	void ValidateRegisterExternalBuffer(FRDGBufferRef Buffer);
+	RENDERCORE_API void ValidateRegisterExternalTexture(FRDGTextureRef Texture);
+	RENDERCORE_API void ValidateRegisterExternalBuffer(FRDGBufferRef Buffer);
 
-	void ValidateUploadBuffer(FRDGBufferRef Buffer, const void* InitialData, uint64 InitialDataSize);
-	void ValidateUploadBuffer(FRDGBufferRef Buffer, const void* InitialData, uint64 InitialDataSize, const FRDGBufferInitialDataFreeCallback& InitialDataFreeCallback);
-	void ValidateUploadBuffer(FRDGBufferRef Buffer, const FRDGBufferInitialDataCallback& InitialDataCallback, const FRDGBufferInitialDataSizeCallback& InitialDataSizeCallback);
-	void ValidateUploadBuffer(FRDGBufferRef Buffer, const FRDGBufferInitialDataCallback& InitialDataCallback, const FRDGBufferInitialDataSizeCallback& InitialDataSizeCallback, const FRDGBufferInitialDataFreeCallback& InitialDataFreeCallback);
+	RENDERCORE_API void ValidateUploadBuffer(FRDGBufferRef Buffer, const void* InitialData, uint64 InitialDataSize);
+	RENDERCORE_API void ValidateUploadBuffer(FRDGBufferRef Buffer, const void* InitialData, uint64 InitialDataSize, const FRDGBufferInitialDataFreeCallback& InitialDataFreeCallback);
+	RENDERCORE_API void ValidateUploadBuffer(FRDGBufferRef Buffer, const FRDGBufferInitialDataCallback& InitialDataCallback, const FRDGBufferInitialDataSizeCallback& InitialDataSizeCallback);
+	RENDERCORE_API void ValidateUploadBuffer(FRDGBufferRef Buffer, const FRDGBufferInitialDataCallback& InitialDataCallback, const FRDGBufferInitialDataSizeCallback& InitialDataSizeCallback, const FRDGBufferInitialDataFreeCallback& InitialDataFreeCallback);
 
 	/** Validates a resource extraction operation. */
-	void ValidateExtractTexture(FRDGTextureRef Texture, TRefCountPtr<IPooledRenderTarget>* OutTexturePtr);
-	void ValidateExtractBuffer(FRDGBufferRef Buffer, TRefCountPtr<FRDGPooledBuffer>* OutBufferPtr);
+	RENDERCORE_API void ValidateExtractTexture(FRDGTextureRef Texture, TRefCountPtr<IPooledRenderTarget>* OutTexturePtr);
+	RENDERCORE_API void ValidateExtractBuffer(FRDGBufferRef Buffer, TRefCountPtr<FRDGPooledBuffer>* OutBufferPtr);
 
-	void ValidateConvertToExternalResource(FRDGViewableResource* Resource);
-	void ValidateConvertToExternalUniformBuffer(FRDGUniformBuffer* UniformBuffer);
+	RENDERCORE_API void ValidateConvertToExternalResource(FRDGViewableResource* Resource);
+	RENDERCORE_API void ValidateConvertToExternalUniformBuffer(FRDGUniformBuffer* UniformBuffer);
 
 	/** Tracks and validates the addition of a new pass to the graph.
 	 *  @param bSkipPassAccessMarking Skips marking the pass as a producer or incrementing the pass access. Useful when
 	 *      the builder needs to inject a pass for debugging while preserving error messages and warnings for the original
 	 *      graph structure.
 	 */
-	void ValidateAddPass(const void* ParameterStruct, const FShaderParametersMetadata* Metadata, const FRDGEventName& Name, ERDGPassFlags Flags);
-	void ValidateAddPass(const FRDGEventName& Name, ERDGPassFlags Flags);
-	void ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAccessMarking);
+	RENDERCORE_API void ValidateAddPass(const void* ParameterStruct, const FShaderParametersMetadata* Metadata, const FRDGEventName& Name, ERDGPassFlags Flags);
+	RENDERCORE_API void ValidateAddPass(const FRDGEventName& Name, ERDGPassFlags Flags);
+	RENDERCORE_API void ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAccessMarking);
 
 	/** Validate pass state before and after execution. */
-	void ValidateExecutePassBegin(const FRDGPass* Pass);
-	void ValidateExecutePassEnd(const FRDGPass* Pass);
+	RENDERCORE_API void ValidateExecutePassBegin(const FRDGPass* Pass);
+	RENDERCORE_API void ValidateExecutePassEnd(const FRDGPass* Pass);
 
 	/** Validate graph state before and after execution. */
-	void ValidateExecuteBegin();
-	void ValidateExecuteEnd();
+	RENDERCORE_API void ValidateExecuteBegin();
+	RENDERCORE_API void ValidateExecuteEnd();
 
 	/** Removes the 'produced but not used' warning from the requested resource. */
-	void RemoveUnusedWarning(FRDGViewableResource* Resource);
+	RENDERCORE_API void RemoveUnusedWarning(FRDGViewableResource* Resource);
 
 	/** Attempts to mark a resource for clobbering. If already marked, returns false.  */
-	bool TryMarkForClobber(FRDGViewableResource* Resource) const;
+	RENDERCORE_API bool TryMarkForClobber(FRDGViewableResource* Resource) const;
 
-	void ValidateGetPooledTexture(FRDGTextureRef Texture) const;
-	void ValidateGetPooledBuffer(FRDGBufferRef Buffer) const;
+	RENDERCORE_API void ValidateGetPooledTexture(FRDGTextureRef Texture) const;
+	RENDERCORE_API void ValidateGetPooledBuffer(FRDGBufferRef Buffer) const;
 
-	void ValidateSetAccessFinal(FRDGViewableResource* Resource, ERHIAccess AccessFinal);
+	RENDERCORE_API void ValidateSetAccessFinal(FRDGViewableResource* Resource, ERHIAccess AccessFinal);
 
-	void ValidateAddSubresourceAccess(FRDGViewableResource* Resource, const FRDGSubresourceState& Subresource, ERHIAccess Access);
+	RENDERCORE_API void ValidateAddSubresourceAccess(FRDGViewableResource* Resource, const FRDGSubresourceState& Subresource, ERHIAccess Access);
 
-	void ValidateUseExternalAccessMode(FRDGViewableResource* Resource, ERHIAccess ReadOnlyAccess, ERHIPipeline Pipelines);
-	void ValidateUseInternalAccessMode(FRDGViewableResource* Resaource);
+	RENDERCORE_API void ValidateUseExternalAccessMode(FRDGViewableResource* Resource, ERHIAccess ReadOnlyAccess, ERHIPipeline Pipelines);
+	RENDERCORE_API void ValidateUseInternalAccessMode(FRDGViewableResource* Resaource);
 
-	void ValidateExternalAccess(FRDGViewableResource* Resource, ERHIAccess Access, const FRDGPass* Pass);
+	RENDERCORE_API void ValidateExternalAccess(FRDGViewableResource* Resource, ERHIAccess Access, const FRDGPass* Pass);
 
 	/** Traverses all resources in the pass and marks whether they are externally accessible by user pass implementations. */
-	static void SetAllowRHIAccess(const FRDGPass* Pass, bool bAllowAccess);
+	static RENDERCORE_API void SetAllowRHIAccess(const FRDGPass* Pass, bool bAllowAccess);
 
 private:
 	void ValidateCreateViewableResource(FRDGViewableResource* Resource);

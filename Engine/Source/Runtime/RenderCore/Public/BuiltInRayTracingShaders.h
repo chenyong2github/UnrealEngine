@@ -54,7 +54,7 @@ public:
 	{}
 };
 
-class RENDERCORE_API FRayTracingDispatchDescCS : public FBuiltInRayTracingShader
+class FRayTracingDispatchDescCS : public FBuiltInRayTracingShader
 {
 	DECLARE_GLOBAL_SHADER(FRayTracingDispatchDescCS);
 
@@ -77,7 +77,7 @@ public:
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
 
-	static void Dispatch(FRHICommandList& RHICmdList,
+	static RENDERCORE_API void Dispatch(FRHICommandList& RHICmdList,
 		const void* DispatchDescInput, uint32 DispatchDescSize, uint32 DispatchDescDimensionsOffset,
 		FRHIShaderResourceView* DispatchDimensionsSRV, uint32 DimensionsBufferOffset,
 		FRHIUnorderedAccessView* DispatchDescOutputUAV);

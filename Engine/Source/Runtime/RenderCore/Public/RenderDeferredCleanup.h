@@ -7,7 +7,7 @@
 /**
  * The base class of objects that need to defer deletion until the render command queue has been flushed.
  */
-class RENDERCORE_API FDeferredCleanupInterface
+class FDeferredCleanupInterface
 {
 public:
 	virtual ~FDeferredCleanupInterface() {}

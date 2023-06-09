@@ -13,7 +13,7 @@
  * This class provides common registration for render thread tickable objects. It is an
  * abstract base class requiring you to implement the Tick() method.
  */
-class RENDERCORE_API FTickableObjectRenderThread
+class FTickableObjectRenderThread
 {
 public:
 
@@ -35,8 +35,8 @@ public:
 		}
 	};
 
-	static FRenderingThreadTickableObjectsArray RenderingThreadTickableObjects;
-	static FRenderingThreadTickableObjectsArray RenderingThreadHighFrequencyTickableObjects;
+	static RENDERCORE_API FRenderingThreadTickableObjectsArray RenderingThreadTickableObjects;
+	static RENDERCORE_API FRenderingThreadTickableObjectsArray RenderingThreadHighFrequencyTickableObjects;
 
 	/**
 	 * Registers this instance with the static array of tickable objects.	

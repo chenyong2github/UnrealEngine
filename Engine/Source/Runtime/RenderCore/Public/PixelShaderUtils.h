@@ -37,7 +37,7 @@ class FRDGBuilder;
 
 
 /** All utils for pixel shaders. */
-struct RENDERCORE_API FPixelShaderUtils
+struct FPixelShaderUtils
 {
 	/** Utility vertex shader for rect array based operations. For example for clearing specified parts of an atlas. */
 	class FRasterizeToRectsVS : public FGlobalShader
@@ -61,20 +61,20 @@ struct RENDERCORE_API FPixelShaderUtils
 	};
 
 	/** Draw a single triangle on the entire viewport. */
-	static void DrawFullscreenTriangle(FRHICommandList& RHICmdList, uint32 InstanceCount = 1);
+	static RENDERCORE_API void DrawFullscreenTriangle(FRHICommandList& RHICmdList, uint32 InstanceCount = 1);
 
 	/** Draw a two triangle on the entire viewport. */
-	static void DrawFullscreenQuad(FRHICommandList& RHICmdList, uint32 InstanceCount = 1);
+	static RENDERCORE_API void DrawFullscreenQuad(FRHICommandList& RHICmdList, uint32 InstanceCount = 1);
 
 	/** Initialize a pipeline state object initializer with almost all the basics required to do a full viewport pass. */
-	static void InitFullscreenPipelineState(
+	static RENDERCORE_API void InitFullscreenPipelineState(
 		FRHICommandList& RHICmdList,
 		const FGlobalShaderMap* GlobalShaderMap,
 		const TShaderRef<FShader>& PixelShader,
 		FGraphicsPipelineStateInitializer& GraphicsPSOInit);
 
 	/** Initialize a pipeline state object initializer with almost all the basics required to do a full multi-viewport pass. */
-	static void InitFullscreenMultiviewportPipelineState(
+	static RENDERCORE_API void InitFullscreenMultiviewportPipelineState(
 		FRHICommandList& RHICmdList,
 		const FGlobalShaderMap* GlobalShaderMap,
 		const TShaderRef<FShader>& PixelShader,

@@ -10,7 +10,7 @@
 RENDERCORE_API EShaderPlatform GetEditorShaderPlatform(EShaderPlatform ShaderPlatform);
 
 template<typename Type>
-struct RENDERCORE_API FShaderPlatformCachedIniValue
+struct FShaderPlatformCachedIniValue
 {
 	FShaderPlatformCachedIniValue(const TCHAR* InCVarName)
 		: CVarName(InCVarName)

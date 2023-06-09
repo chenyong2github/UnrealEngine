@@ -6,11 +6,11 @@
 #include "UObject/NameTypes.h"
 
 
-class RENDERCORE_API IDumpGPUUploadServiceProvider
+class IDumpGPUUploadServiceProvider
 {
 public:
 
-	struct RENDERCORE_API FDumpParameters
+	struct FDumpParameters
 	{
 		static constexpr const TCHAR* kServiceFileName = TEXT("Base/DumpService.json");
 
@@ -21,12 +21,12 @@ public:
 		FName CompressionName;
 		FWildcardString CompressionFiles;
 
-		FString DumpServiceParametersFileContent() const;
-		bool DumpServiceParametersFile() const;
+		RENDERCORE_API FString DumpServiceParametersFileContent() const;
+		RENDERCORE_API bool DumpServiceParametersFile() const;
 	};
 
 	virtual void UploadDump(const FDumpParameters& Parameters) = 0;
 	virtual ~IDumpGPUUploadServiceProvider() = default;
 
-	static IDumpGPUUploadServiceProvider* GProvider;
+	static RENDERCORE_API IDumpGPUUploadServiceProvider* GProvider;
 };

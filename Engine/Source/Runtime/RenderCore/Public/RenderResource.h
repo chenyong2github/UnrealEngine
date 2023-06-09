@@ -60,34 +60,34 @@ enum class ERayTracingMode : uint8
  * A rendering resource which is owned by the rendering thread.
  * NOTE - Adding new virtual methods to this class may require stubs added to FViewport/FDummyViewport, otherwise certain modules may have link errors
  */
-class RENDERCORE_API FRenderResource
+class FRenderResource
 {
 public:
 	////////////////////////////////////////////////////////////////////////////////////
 	// The following methods may not be called while asynchronously initializing / releasing render resources.
 
 	/** Release all render resources that are currently initialized. */
-	static void ReleaseRHIForAllResources();
+	static RENDERCORE_API void ReleaseRHIForAllResources();
 
 	/** Initialize all resources initialized before the RHI was initialized. */
-	static void InitPreRHIResources();
+	static RENDERCORE_API void InitPreRHIResources();
 
 	/** Call periodically to coalesce the render resource list. */
-	static void CoalesceResourceList();
+	static RENDERCORE_API void CoalesceResourceList();
 
 	/** Reinitializes render resources at a new feature level. */
-	static void ChangeFeatureLevel(ERHIFeatureLevel::Type NewFeatureLevel);
+	static RENDERCORE_API void ChangeFeatureLevel(ERHIFeatureLevel::Type NewFeatureLevel);
 
 	////////////////////////////////////////////////////////////////////////////////////
 
 	/** Default constructor. */
-	FRenderResource();
+	RENDERCORE_API FRenderResource();
 
 	/** Constructor when we know what feature level this resource should support */
-	FRenderResource(ERHIFeatureLevel::Type InFeatureLevel);
+	RENDERCORE_API FRenderResource(ERHIFeatureLevel::Type InFeatureLevel);
 
 	/** Destructor used to catch unreleased resources. */
-	virtual ~FRenderResource();
+	RENDERCORE_API virtual ~FRenderResource();
 
 	/**
 	 * Initializes the dynamic RHI resource and/or RHI render target used by this resource.
@@ -126,21 +126,21 @@ public:
 	 * Initializes the resource.
 	 * This is only called by the rendering thread.
 	 */
-	virtual void InitResource();
-	virtual void InitResource(FRHICommandList& RHICmdList);
+	RENDERCORE_API virtual void InitResource();
+	RENDERCORE_API virtual void InitResource(FRHICommandList& RHICmdList);
 
 	/**
 	 * Prepares the resource for deletion.
 	 * This is only called by the rendering thread.
 	 */
-	virtual void ReleaseResource();
+	RENDERCORE_API virtual void ReleaseResource();
 
 	/**
 	 * If the resource's RHI resources have been initialized, then release and reinitialize it.  Otherwise, do nothing.
 	 * This is only called by the rendering thread.
 	 */
-	void UpdateRHI();
-	void UpdateRHI(FRHICommandList& RHICmdList);
+	RENDERCORE_API void UpdateRHI();
+	RENDERCORE_API void UpdateRHI(FRHICommandList& RHICmdList);
 
 	/** @return The resource's friendly name.  Typically a UObject name. */
 	virtual FString GetFriendlyName() const { return TEXT("undefined"); }
@@ -151,8 +151,8 @@ public:
 	int32 GetListIndex() const { return ListIndex; }
 
 	/** SetOwnerName should be called before BeginInitResource for the owner name to be successfully tracked. */
-	void SetOwnerName(const FName& InOwnerName);
-	FName GetOwnerName() const;
+	RENDERCORE_API void SetOwnerName(const FName& InOwnerName);
+	RENDERCORE_API FName GetOwnerName() const;
 
 protected:
 	// This is used during mobile editor preview refactor, this will eventually be replaced with a parameter to InitRHI() etc..
@@ -186,8 +186,8 @@ protected:
 	}
 
 private:
-	static bool ShouldFreeResourceObject(void* ResourceObject, FResourceArrayInterface* ResourceArray);
-	static FBufferRHIRef CreateRHIBufferInternal(
+	static RENDERCORE_API bool ShouldFreeResourceObject(void* ResourceObject, FResourceArrayInterface* ResourceArray);
+	static RENDERCORE_API FBufferRHIRef CreateRHIBufferInternal(
 		const TCHAR* InDebugName,
 		const FName& InOwnerName,
 		uint32 ResourceCount,
@@ -338,7 +338,7 @@ struct FMipBiasFade
 };
 
 /** A textures resource. */
-class RENDERCORE_API FTexture : public FRenderResource
+class FTexture : public FRenderResource
 {
 public:
 
@@ -375,43 +375,43 @@ public:
 	 **/
 	bool				bSRGB = false;
 
-	FTexture();
-	virtual ~FTexture();
+	RENDERCORE_API FTexture();
+	RENDERCORE_API virtual ~FTexture();
 
 	const FTextureRHIRef& GetTextureRHI() { return TextureRHI; }
 
 	/** Returns the width of the texture in pixels. */
-	virtual uint32 GetSizeX() const;
+	RENDERCORE_API virtual uint32 GetSizeX() const;
 
 	/** Returns the height of the texture in pixels. */
-	virtual uint32 GetSizeY() const;
+	RENDERCORE_API virtual uint32 GetSizeY() const;
 
 	/** Returns the depth of the texture in pixels. */
-	virtual uint32 GetSizeZ() const;
+	RENDERCORE_API virtual uint32 GetSizeZ() const;
 
 	// FRenderResource interface.
-	virtual void ReleaseRHI() override;
-	virtual FString GetFriendlyName() const override;
+	RENDERCORE_API virtual void ReleaseRHI() override;
+	RENDERCORE_API virtual FString GetFriendlyName() const override;
 
 protected:
-	static FRHISamplerState* GetOrCreateSamplerState(const FSamplerStateInitializerRHI& Initializer);
+	static RENDERCORE_API FRHISamplerState* GetOrCreateSamplerState(const FSamplerStateInitializerRHI& Initializer);
 };
 
 /** A textures resource that includes an SRV. */
-class RENDERCORE_API FTextureWithSRV : public FTexture
+class FTextureWithSRV : public FTexture
 {
 public:
-	FTextureWithSRV();
-	virtual ~FTextureWithSRV();
+	RENDERCORE_API FTextureWithSRV();
+	RENDERCORE_API virtual ~FTextureWithSRV();
 
-	virtual void ReleaseRHI() override;
+	RENDERCORE_API virtual void ReleaseRHI() override;
 
 	/** SRV that views the entire texture */
 	FShaderResourceViewRHIRef ShaderResourceViewRHI;
 };
 
 /** A texture reference resource. */
-class RENDERCORE_API FTextureReference : public FRenderResource
+class FTextureReference : public FRenderResource
 {
 public:
 	/** The texture reference's RHI resource. */
@@ -423,53 +423,53 @@ private:
 
 public:
 	/** Default constructor. */
-	FTextureReference();
+	RENDERCORE_API FTextureReference();
 
 	// Destructor
-	virtual ~FTextureReference();
+	RENDERCORE_API virtual ~FTextureReference();
 
 	/** Returns the last time the texture has been rendered via this reference. */
-	double GetLastRenderTime() const;
+	RENDERCORE_API double GetLastRenderTime() const;
 
 	/** Invalidates the last render time. */
-	void InvalidateLastRenderTime();
+	RENDERCORE_API void InvalidateLastRenderTime();
 
 	/** Returns true if the texture reference has been initialized from the game thread. */
 	bool IsInitialized_GameThread() const { return bInitialized_GameThread; }
 
 	/** Kicks off the initialization process on the game thread. */
-	void BeginInit_GameThread();
+	RENDERCORE_API void BeginInit_GameThread();
 
 	/** Kicks off the release process on the game thread. */
-	void BeginRelease_GameThread();
+	RENDERCORE_API void BeginRelease_GameThread();
 
 	// FRenderResource interface.
-	virtual void InitRHI();
-	virtual void ReleaseRHI();
-	virtual FString GetFriendlyName() const;
+	RENDERCORE_API virtual void InitRHI();
+	RENDERCORE_API virtual void ReleaseRHI();
+	RENDERCORE_API virtual FString GetFriendlyName() const;
 };
 
 /** A vertex buffer resource */
-class RENDERCORE_API FVertexBuffer : public FRenderResource
+class FVertexBuffer : public FRenderResource
 {
 public:
-	FVertexBuffer();
-	virtual ~FVertexBuffer();
+	RENDERCORE_API FVertexBuffer();
+	RENDERCORE_API virtual ~FVertexBuffer();
 
 	// FRenderResource interface.
-	virtual void ReleaseRHI() override;
-	virtual FString GetFriendlyName() const override;
+	RENDERCORE_API virtual void ReleaseRHI() override;
+	RENDERCORE_API virtual FString GetFriendlyName() const override;
 
 	FBufferRHIRef VertexBufferRHI;
 };
 
-class RENDERCORE_API FVertexBufferWithSRV : public FVertexBuffer
+class FVertexBufferWithSRV : public FVertexBuffer
 {
 public:
-	FVertexBufferWithSRV();
-	~FVertexBufferWithSRV();
+	RENDERCORE_API FVertexBufferWithSRV();
+	RENDERCORE_API ~FVertexBufferWithSRV();
 
-	virtual void ReleaseRHI() override;
+	RENDERCORE_API virtual void ReleaseRHI() override;
 
 	/** SRV that views the entire texture */
 	FShaderResourceViewRHIRef ShaderResourceViewRHI;
@@ -479,28 +479,28 @@ public:
 };
 
 /** An index buffer resource. */
-class RENDERCORE_API FIndexBuffer : public FRenderResource
+class FIndexBuffer : public FRenderResource
 {
 public:
-	FIndexBuffer();
-	virtual ~FIndexBuffer();
+	RENDERCORE_API FIndexBuffer();
+	RENDERCORE_API virtual ~FIndexBuffer();
 
 	// FRenderResource interface.
-	virtual void ReleaseRHI() override;
-	virtual FString GetFriendlyName() const override;
+	RENDERCORE_API virtual void ReleaseRHI() override;
+	RENDERCORE_API virtual FString GetFriendlyName() const override;
 
 	FBufferRHIRef IndexBufferRHI;
 };
 
-class RENDERCORE_API FBufferWithRDG : public FRenderResource
+class FBufferWithRDG : public FRenderResource
 {
 public:
-	FBufferWithRDG();
-	FBufferWithRDG(const FBufferWithRDG& Other);
-	FBufferWithRDG& operator=(const FBufferWithRDG& Other);
-	~FBufferWithRDG() override;
+	RENDERCORE_API FBufferWithRDG();
+	RENDERCORE_API FBufferWithRDG(const FBufferWithRDG& Other);
+	RENDERCORE_API FBufferWithRDG& operator=(const FBufferWithRDG& Other);
+	RENDERCORE_API ~FBufferWithRDG() override;
 
-	void ReleaseRHI() override;
+	RENDERCORE_API void ReleaseRHI() override;
 
 	TRefCountPtr<FRDGPooledBuffer> Buffer;
 };

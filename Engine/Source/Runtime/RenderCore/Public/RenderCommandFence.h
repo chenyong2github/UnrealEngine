@@ -14,7 +14,7 @@ namespace ENamedThreads { enum Type : int32; }
  /**
  * Used to track pending rendering commands from the game thread.
  */
-class RENDERCORE_API FRenderCommandFence
+class FRenderCommandFence
 {
 public:
 
@@ -24,20 +24,20 @@ public:
 	 * Once the rendering thread has executed the fence command, it decrements the pending fence count.
 	 * @param bSyncToRHIAndGPU, true if we should wait for the RHI thread or GPU, otherwise we only wait for the render thread.
 	 */
-	void BeginFence(bool bSyncToRHIAndGPU = false);
+	RENDERCORE_API void BeginFence(bool bSyncToRHIAndGPU = false);
 
 	/**
 	 * Waits for pending fence commands to retire.
 	 * @param bProcessGameThreadTasks, if true we are on a short callstack where it is safe to process arbitrary game thread tasks while we wait
 	 */
-	void Wait(bool bProcessGameThreadTasks = false) const;
+	RENDERCORE_API void Wait(bool bProcessGameThreadTasks = false) const;
 
 	// return true if the fence is complete
-	bool IsFenceComplete() const;
+	RENDERCORE_API bool IsFenceComplete() const;
 
 	// Ctor/dtor
-	FRenderCommandFence();
-	~FRenderCommandFence();
+	RENDERCORE_API FRenderCommandFence();
+	RENDERCORE_API ~FRenderCommandFence();
 
 private:
 	/** Graph event that represents completion of this fence **/

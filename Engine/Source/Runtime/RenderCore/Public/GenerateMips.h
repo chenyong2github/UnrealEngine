@@ -29,13 +29,13 @@ enum class EGenerateMipsPass
 	Raster
 };
 
-class RENDERCORE_API FGenerateMips
+class FGenerateMips
 {
 public:
-	static bool WillFormatSupportCompute(EPixelFormat InPixelFormat);
+	static RENDERCORE_API bool WillFormatSupportCompute(EPixelFormat InPixelFormat);
 
 	/** (ES3.1+) Generates mips for the requested RHI texture using the feature-level appropriate means (Compute, Raster, or Fixed-Function). */
-	static void Execute(
+	static RENDERCORE_API void Execute(
 		FRDGBuilder& GraphBuilder,
 		ERHIFeatureLevel::Type FeatureLevel,
 		FRDGTextureRef Texture,
@@ -43,14 +43,14 @@ public:
 		EGenerateMipsPass Pass = EGenerateMipsPass::AutoDetect);
 
 	/** (SM5+) Generates mips for the requested RDG texture using the requested compute / raster pass. */
-	static void Execute(
+	static RENDERCORE_API void Execute(
 		FRDGBuilder& GraphBuilder,
 		ERHIFeatureLevel::Type FeatureLevel,
 		FRDGTextureRef Texture,
 		FRHISamplerState* Sampler,
 		EGenerateMipsPass Pass = EGenerateMipsPass::AutoDetect);
 
-	static void ExecuteCompute(
+	static RENDERCORE_API void ExecuteCompute(
 		FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel,
 		FRDGTextureRef Texture,
 		FRHISamplerState* Sampler);
@@ -59,14 +59,14 @@ public:
 		if( uint(ConditionBuffer[Offset]) > 0)
 			Execute(...)
 	*/
-	static void ExecuteCompute(
+	static RENDERCORE_API void ExecuteCompute(
 		FRDGBuilder& GraphBuilder,
 		ERHIFeatureLevel::Type FeatureLevel,
 		FRDGTextureRef Texture,
 		FRHISamplerState* Sampler,
 		FRDGBufferRef ConditionBuffer, uint32 Offset = 0);
 
-	static void ExecuteRaster(
+	static RENDERCORE_API void ExecuteRaster(
 		FRDGBuilder& GraphBuilder,
 		ERHIFeatureLevel::Type FeatureLevel,
 		FRDGTextureRef Texture,
@@ -74,18 +74,18 @@ public:
 
 	//////////////////////////////////////////////////////////////////////////
 	UE_DEPRECATED(5.1, "This function now requires a ERHIFeatureLevel argument. You can obtain the correct Feature Level from a Scene or View.")
-	static void Execute(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, FGenerateMipsParams Params = {}, EGenerateMipsPass Pass = EGenerateMipsPass::AutoDetect);
+	static RENDERCORE_API void Execute(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, FGenerateMipsParams Params = {}, EGenerateMipsPass Pass = EGenerateMipsPass::AutoDetect);
 
 	UE_DEPRECATED(5.1, "This function now requires a ERHIFeatureLevel argument. You can obtain the correct Feature Level from a Scene or View.")
-	static void Execute(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, FRHISamplerState* Sampler, EGenerateMipsPass Pass = EGenerateMipsPass::AutoDetect);
+	static RENDERCORE_API void Execute(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, FRHISamplerState* Sampler, EGenerateMipsPass Pass = EGenerateMipsPass::AutoDetect);
 
 	UE_DEPRECATED(5.1, "This function now requires a ERHIFeatureLevel argument. You can obtain the correct Feature Level from a Scene or View.")
-	static void ExecuteCompute(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, FRHISamplerState* Sampler);
+	static RENDERCORE_API void ExecuteCompute(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, FRHISamplerState* Sampler);
 
 	UE_DEPRECATED(5.1, "This function now requires a ERHIFeatureLevel argument. You can obtain the correct Feature Level from a Scene or View.")
-	static void ExecuteCompute(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, FRHISamplerState* Sampler, FRDGBufferRef ConditionBuffer, uint32 Offset = 0);
+	static RENDERCORE_API void ExecuteCompute(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, FRHISamplerState* Sampler, FRDGBufferRef ConditionBuffer, uint32 Offset = 0);
 
 	UE_DEPRECATED(5.1, "This function now requires a ERHIFeatureLevel argument. You can obtain the correct Feature Level from a Scene or View.")
-	static void ExecuteRaster(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, FRHISamplerState* Sampler);
+	static RENDERCORE_API void ExecuteRaster(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, FRHISamplerState* Sampler);
 	//////////////////////////////////////////////////////////////////////////
 };

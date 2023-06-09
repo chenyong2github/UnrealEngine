@@ -138,7 +138,7 @@ public:
 
 class FShaderUniformBufferParameterInfo
 {
-	DECLARE_TYPE_LAYOUT(FShaderUniformBufferParameterInfo, NonVirtual);
+	DECLARE_EXPORTED_TYPE_LAYOUT(FShaderUniformBufferParameterInfo, RENDERCORE_API, NonVirtual);
 public:
 	LAYOUT_FIELD(uint16, BaseIndex);
 
@@ -169,7 +169,7 @@ public:
 
 class FShaderResourceParameterInfo
 {
-	DECLARE_TYPE_LAYOUT(FShaderResourceParameterInfo, NonVirtual);
+	DECLARE_EXPORTED_TYPE_LAYOUT(FShaderResourceParameterInfo, RENDERCORE_API, NonVirtual);
 public:
 	LAYOUT_FIELD(uint16, BaseIndex);
 	LAYOUT_FIELD(uint8, BufferIndex);
@@ -208,7 +208,7 @@ public:
 
 class FShaderLooseParameterInfo
 {
-	DECLARE_TYPE_LAYOUT(FShaderLooseParameterInfo, NonVirtual);
+	DECLARE_EXPORTED_TYPE_LAYOUT(FShaderLooseParameterInfo, RENDERCORE_API, NonVirtual);
 public:
 	LAYOUT_FIELD(uint16, BaseIndex);
 	LAYOUT_FIELD(uint16, Size);
@@ -243,7 +243,7 @@ public:
 
 class FShaderLooseParameterBufferInfo
 {
-	DECLARE_TYPE_LAYOUT(FShaderLooseParameterBufferInfo, NonVirtual);
+	DECLARE_EXPORTED_TYPE_LAYOUT(FShaderLooseParameterBufferInfo, RENDERCORE_API, NonVirtual);
 public:
 	LAYOUT_FIELD(uint16, BaseIndex);
 	LAYOUT_FIELD(uint16, Size);
@@ -282,7 +282,7 @@ public:
 
 class FShaderParameterMapInfo
 {
-	DECLARE_TYPE_LAYOUT(FShaderParameterMapInfo, NonVirtual);
+	DECLARE_EXPORTED_TYPE_LAYOUT(FShaderParameterMapInfo, RENDERCORE_API, NonVirtual);
 public:
 	LAYOUT_FIELD(TMemoryImageArray<FShaderUniformBufferParameterInfo>, UniformBuffers);
 	LAYOUT_FIELD(TMemoryImageArray<FShaderResourceParameterInfo>, TextureSamplers);
@@ -326,19 +326,19 @@ struct FRegisterRayTracingPayloadTypeHelper
 #define IMPLEMENT_RT_PAYLOAD_TYPE(PayloadType, PayloadSize)  static FRegisterRayTracingPayloadTypeHelper IMPLEMENT_RT_PAYLOAD_TYPE_CONCAT(PayloadHelper, __COUNTER__) = FRegisterRayTracingPayloadTypeHelper(PayloadType, PayloadSize, nullptr);
 #define IMPLEMENT_RT_PAYLOAD_TYPE_FUNCTION(PayloadType, PayloadSizeFunction)  static FRegisterRayTracingPayloadTypeHelper IMPLEMENT_RT_PAYLOAD_TYPE_CONCAT(PayloadHelper, __COUNTER__) = FRegisterRayTracingPayloadTypeHelper(PayloadType, 0u, PayloadSizeFunction);
 
-class RENDERCORE_API FShaderMapResource : public FRenderResource, public FDeferredCleanupInterface
+class FShaderMapResource : public FRenderResource, public FDeferredCleanupInterface
 {
 public:
-	static bool ArePlatformsCompatible(EShaderPlatform CurrentPlatform, EShaderPlatform TargetPlatform);
+	static RENDERCORE_API bool ArePlatformsCompatible(EShaderPlatform CurrentPlatform, EShaderPlatform TargetPlatform);
 
 	EShaderPlatform GetPlatform() const { return Platform; }
 
-	void AddRef();
-	void Release();
+	RENDERCORE_API void AddRef();
+	RENDERCORE_API void Release();
 	inline int32 GetNumRefs() const { return NumRefs.load(std::memory_order_relaxed); }
 
 	// FRenderResource interface.
-	virtual void ReleaseRHI();
+	RENDERCORE_API virtual void ReleaseRHI();
 
 	inline int32 GetNumShaders() const
 	{
@@ -372,7 +372,7 @@ public:
 	/** Return shader hash for a particular shader without creating it. */
 	virtual FSHAHash GetShaderHash(int32 ShaderIndex) = 0;
 
-	void BeginCreateAllShaders();
+	RENDERCORE_API void BeginCreateAllShaders();
 
 #if RHI_RAYTRACING
 
@@ -388,9 +388,9 @@ public:
 		return GetRayTracingHitGroupLibraryIndex(ShaderIndex);
 	}
 
-	static void GetRayTracingHitGroupLibrary(TArray<FRHIRayTracingShader*>& RayTracingHitGroupShaders, FRHIRayTracingShader* DefaultShader);
-	static void GetRayTracingCallableShaderLibrary(TArray<FRHIRayTracingShader*>& RayTracingCallableShaders, FRHIRayTracingShader* DefaultShader);
-	static void GetRayTracingMissShaderLibrary(TArray<FRHIRayTracingShader*>& RayTracingMissShaders, FRHIRayTracingShader* DefaultShader);
+	static RENDERCORE_API void GetRayTracingHitGroupLibrary(TArray<FRHIRayTracingShader*>& RayTracingHitGroupShaders, FRHIRayTracingShader* DefaultShader);
+	static RENDERCORE_API void GetRayTracingCallableShaderLibrary(TArray<FRHIRayTracingShader*>& RayTracingCallableShaders, FRHIRayTracingShader* DefaultShader);
+	static RENDERCORE_API void GetRayTracingMissShaderLibrary(TArray<FRHIRayTracingShader*>& RayTracingMissShaders, FRHIRayTracingShader* DefaultShader);
 
 	inline uint32 GetRayTracingHitGroupLibraryIndex(int32 ShaderIndex)
 	{
@@ -417,8 +417,8 @@ public:
 	virtual uint32 GetSizeBytes() const = 0;
 
 protected:
-	explicit FShaderMapResource(EShaderPlatform InPlatform, int32 NumShaders);
-	virtual ~FShaderMapResource();
+	RENDERCORE_API explicit FShaderMapResource(EShaderPlatform InPlatform, int32 NumShaders);
+	RENDERCORE_API virtual ~FShaderMapResource();
 
 	SIZE_T GetAllocatedSize() const
 	{
@@ -437,12 +437,12 @@ protected:
 
 	virtual bool TryRelease() { return true; }
 
-	void ReleaseShaders();
+	RENDERCORE_API void ReleaseShaders();
 
 private:
 
 	/** Creates an entry in RHIShaders array and registers it among the raytracing libs if needed. Created shader is returned. */
-	FRHIShader* CreateShaderOrCrash(int32 ShaderIndex);
+	RENDERCORE_API FRHIShader* CreateShaderOrCrash(int32 ShaderIndex);
 
 	/** This lock is to prevent two threads creating the same RHIShaders element. It is only taken if the element is to be created. */
 	FCriticalSection RHIShadersCreationGuard;
@@ -498,7 +498,7 @@ public:
 	};
 #endif // WITH_EDITORONLY_DATA
 
-	RENDERCORE_API FShaderMapResourceCode() {}
+	FShaderMapResourceCode() {}
 	RENDERCORE_API FShaderMapResourceCode(const FShaderMapResourceCode& Other);
     RENDERCORE_API ~FShaderMapResourceCode();
 
@@ -534,7 +534,7 @@ public:
 #endif // WITH_EDITORONLY_DATA
 };
 	
-class RENDERCORE_API FShaderMapResource_InlineCode : public FShaderMapResource
+class FShaderMapResource_InlineCode : public FShaderMapResource
 {
 public:
 	FShaderMapResource_InlineCode(EShaderPlatform InPlatform, FShaderMapResourceCode* InCode)
@@ -543,23 +543,23 @@ public:
 	{}
 
 	// FShaderMapResource interface
-	virtual FSHAHash GetShaderHash(int32 ShaderIndex) override;
-	virtual FRHIShader* CreateRHIShaderOrCrash(int32 ShaderIndex) override;
+	RENDERCORE_API virtual FSHAHash GetShaderHash(int32 ShaderIndex) override;
+	RENDERCORE_API virtual FRHIShader* CreateRHIShaderOrCrash(int32 ShaderIndex) override;
 	virtual uint32 GetSizeBytes() const override { return sizeof(*this) + GetAllocatedSize(); }
 
 	TRefCountPtr<FShaderMapResourceCode> Code;
 };
 
-class RENDERCORE_API FShaderMapPointerTable : public FPointerTableBase
+class FShaderMapPointerTable : public FPointerTableBase
 {
 public:
-	virtual int32 AddIndexedPointer(const FTypeLayoutDesc& TypeDesc, void* Ptr) override;
-	virtual void* GetIndexedPointer(const FTypeLayoutDesc& TypeDesc, uint32 i) const override;
+	RENDERCORE_API virtual int32 AddIndexedPointer(const FTypeLayoutDesc& TypeDesc, void* Ptr) override;
+	RENDERCORE_API virtual void* GetIndexedPointer(const FTypeLayoutDesc& TypeDesc, uint32 i) const override;
 
 	virtual FShaderMapPointerTable* Clone() const { return new FShaderMapPointerTable(*this); }
 
-	virtual void SaveToArchive(FArchive& Ar, const FPlatformTypeLayoutParameters& LayoutParams, const void* FrozenObject) const override;
-	virtual bool LoadFromArchive(FArchive& Ar, const FPlatformTypeLayoutParameters& LayoutParams, void* FrozenObject) override;
+	RENDERCORE_API virtual void SaveToArchive(FArchive& Ar, const FPlatformTypeLayoutParameters& LayoutParams, const void* FrozenObject) const override;
+	RENDERCORE_API virtual bool LoadFromArchive(FArchive& Ar, const FPlatformTypeLayoutParameters& LayoutParams, void* FrozenObject) override;
 
 	TPtrTable<FShaderType> ShaderTypes;
 	TPtrTable<FVertexFactoryType> VFTypes;
@@ -734,7 +734,7 @@ class FMaterial;
 /**
  * Stores all shader parameter bindings and their corresponding offset and size in the shader's parameters struct.
  */
-class RENDERCORE_API FShaderParameterBindings
+class FShaderParameterBindings
 {
 public:
 	struct FParameter
@@ -770,12 +770,12 @@ public:
 		LAYOUT_FIELD(uint16, ByteOffset);
 	};
 
-	DECLARE_TYPE_LAYOUT(FShaderParameterBindings, NonVirtual);
+	DECLARE_EXPORTED_TYPE_LAYOUT(FShaderParameterBindings, RENDERCORE_API, NonVirtual);
 public:
 	static constexpr uint16 kInvalidBufferIndex = 0xFFFF;
 
-	void BindForLegacyShaderParameters(const FShader* Shader, int32 PermutationId, const FShaderParameterMap& ParameterMaps, const FShaderParametersMetadata& StructMetaData, bool bShouldBindEverything = false);
-	void BindForRootShaderParameters(const FShader* Shader, int32 PermutationId, const FShaderParameterMap& ParameterMaps);
+	RENDERCORE_API void BindForLegacyShaderParameters(const FShader* Shader, int32 PermutationId, const FShaderParameterMap& ParameterMaps, const FShaderParametersMetadata& StructMetaData, bool bShouldBindEverything = false);
+	RENDERCORE_API void BindForRootShaderParameters(const FShader* Shader, int32 PermutationId, const FShaderParameterMap& ParameterMaps);
 
 	LAYOUT_FIELD(TMemoryImageArray<FParameter>, Parameters);
 	LAYOUT_FIELD(TMemoryImageArray<FResourceParameter>, ResourceParameters);
@@ -834,10 +834,10 @@ DECLARE_EXPORTED_TEMPLATE_INTRINSIC_TYPE_LAYOUT(template<>, TIndexedPtr<FShaderT
 DECLARE_EXPORTED_TEMPLATE_INTRINSIC_TYPE_LAYOUT(template<>, TIndexedPtr<FVertexFactoryType>, RENDERCORE_API);
 
 /** A compiled shader and its parameter bindings. */
-class RENDERCORE_API FShader
+class FShader
 {
 	friend class FShaderType;
-	DECLARE_TYPE_LAYOUT(FShader, NonVirtual);
+	DECLARE_EXPORTED_TYPE_LAYOUT(FShader, RENDERCORE_API, NonVirtual);
 public:
 	using FPermutationDomain = FShaderPermutationNone;
 	using FPermutationParameters = FShaderPermutationParameters;
@@ -848,14 +848,14 @@ public:
 	 * Used to construct a shader for deserialization.
 	 * This still needs to initialize members to safe values since FShaderType::GenerateSerializationHistory uses this constructor.
 	 */
-	FShader();
+	RENDERCORE_API FShader();
 
 	/**
 	 * Construct a shader from shader compiler output.
 	 */
-	FShader(const CompiledShaderInitializerType& Initializer);
+	RENDERCORE_API FShader(const CompiledShaderInitializerType& Initializer);
 
-	~FShader();
+	RENDERCORE_API ~FShader();
 
 	/** Can be overridden by FShader subclasses to modify their compile environment just before compilation occurs. */
 	static void ModifyCompilationEnvironment(const FShaderPermutationParameters&, FShaderCompilerEnvironment&) {}
@@ -870,16 +870,16 @@ public:
 	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId) { return static_cast<ERayTracingPayloadType>(0); }
 
 	/** Returns the hash of the shader file that this shader was compiled with. */
-	const FSHAHash& GetHash() const;
+	RENDERCORE_API const FSHAHash& GetHash() const;
 
-	const FSHAHash& GetVertexFactoryHash() const;
+	RENDERCORE_API const FSHAHash& GetVertexFactoryHash() const;
 	
-	const FSHAHash& GetOutputHash() const;
+	RENDERCORE_API const FSHAHash& GetOutputHash() const;
 
 	/** Returns an identifier suitable for deterministic sorting of shaders between sessions. */
 	uint32 GetSortKey() const { return SortKey; }
 
-	void Finalize(const FShaderMapResourceCode* Code);
+	RENDERCORE_API void Finalize(const FShaderMapResourceCode* Code);
 
 	// Accessors.
 	inline FShaderType* GetType(const FShaderMapPointerTable& InPointerTable) const { return Type.Get(InPointerTable.ShaderTypes); }
@@ -948,12 +948,12 @@ public:
 		}
 	}
 
-	const FShaderParametersMetadata* FindAutomaticallyBoundUniformBufferStruct(int32 BaseIndex) const;
+	RENDERCORE_API const FShaderParametersMetadata* FindAutomaticallyBoundUniformBufferStruct(int32 BaseIndex) const;
 
-	void DumpDebugInfo(const FShaderMapPointerTable& InPtrTable);
+	RENDERCORE_API void DumpDebugInfo(const FShaderMapPointerTable& InPtrTable);
 
 #if WITH_EDITOR
-	void SaveShaderStableKeys(const FShaderMapPointerTable& InPtrTable, EShaderPlatform TargetShaderPlatform, int32 PermutationId, const struct FStableShaderKeyAndValue& SaveKeyVal);
+	RENDERCORE_API void SaveShaderStableKeys(const FShaderMapPointerTable& InPtrTable, EShaderPlatform TargetShaderPlatform, int32 PermutationId, const struct FStableShaderKeyAndValue& SaveKeyVal);
 #endif // WITH_EDITOR
 
 	/** Returns the meta data for the root shader parameter struct. */
@@ -963,7 +963,7 @@ public:
 	}
 
 private:
-	void BuildParameterMapInfo(const TMap<FString, FParameterAllocation>& ParameterMap);
+	RENDERCORE_API void BuildParameterMapInfo(const TMap<FString, FParameterAllocation>& ParameterMap);
 
 public:
 	LAYOUT_FIELD(FShaderParameterBindings, Bindings);
@@ -1186,7 +1186,7 @@ using TShaderRef = TShaderRefBase<ShaderType, FShaderMapPointerTable>;
  * A shader type can manage multiple instance of FShader across mutiple dimensions such as EShaderPlatform, or permutation id.
  * The number of permutation of a shader type is simply given by GetPermutationCount().
  */
-class RENDERCORE_API FShaderType
+class FShaderType
 {
 public:
 	enum class EShaderTypeForDynamicCast : uint32
@@ -1219,24 +1219,24 @@ public:
 #endif // WITH_EDITOR
 
 	/** @return The global shader factory list. */
-	static TLinkedList<FShaderType*>*& GetTypeList();
+	static RENDERCORE_API TLinkedList<FShaderType*>*& GetTypeList();
 
-	static FShaderType* GetShaderTypeByName(const TCHAR* Name);
-	static TArray<const FShaderType*> GetShaderTypesByFilename(const TCHAR* Filename);
+	static RENDERCORE_API FShaderType* GetShaderTypeByName(const TCHAR* Name);
+	static RENDERCORE_API TArray<const FShaderType*> GetShaderTypesByFilename(const TCHAR* Filename);
 
 	/** @return The global shader name to type map */
-	static TMap<FHashedName, FShaderType*>& GetNameToTypeMap();
+	static RENDERCORE_API TMap<FHashedName, FShaderType*>& GetNameToTypeMap();
 
-	static const TArray<FShaderType*>& GetSortedTypes(EShaderTypeForDynamicCast Type);
+	static RENDERCORE_API const TArray<FShaderType*>& GetSortedTypes(EShaderTypeForDynamicCast Type);
 
 	/** Initialize FShaderType static members, this must be called before any shader types are created. */
-	static void Initialize(const TMap<FString, TArray<const TCHAR*> >& ShaderFileToUniformBufferVariables);
+	static RENDERCORE_API void Initialize(const TMap<FString, TArray<const TCHAR*> >& ShaderFileToUniformBufferVariables);
 
 	/** Uninitializes FShaderType cached data. */
-	static void Uninitialize();
+	static RENDERCORE_API void Uninitialize();
 
 	/** Minimal initialization constructor. */
-	FShaderType(
+	RENDERCORE_API FShaderType(
 		EShaderTypeForDynamicCast InShaderTypeForDynamicCast,
 		FTypeLayoutDesc& InTypeLayout,
 		const TCHAR* InName,
@@ -1256,16 +1256,16 @@ public:
 		const FShaderParametersMetadata* InRootParametersMetadata
 	);
 
-	virtual ~FShaderType();
+	RENDERCORE_API virtual ~FShaderType();
 
 	/** Constructs a new instance of the shader type for deserialization. */
-	FShader* ConstructForDeserialization() const;
-	FShader* ConstructCompiled(const FShader::CompiledShaderInitializerType& Initializer) const;
+	RENDERCORE_API FShader* ConstructForDeserialization() const;
+	RENDERCORE_API FShader* ConstructCompiled(const FShader::CompiledShaderInitializerType& Initializer) const;
 
-	bool ShouldCompilePermutation(const FShaderPermutationParameters& Parameters) const;
+	RENDERCORE_API bool ShouldCompilePermutation(const FShaderPermutationParameters& Parameters) const;
 
 #if WITH_EDITOR
-	void ModifyCompilationEnvironment(const FShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment) const;
+	RENDERCORE_API void ModifyCompilationEnvironment(const FShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment) const;
 
 	/**
 	* Checks if the shader type should pass compilation for a particular set of parameters.
@@ -1273,13 +1273,13 @@ public:
 	* @param ParameterMap - Shader parameters to validate.
 	* @param OutError - List for appending validation errors.
 	*/
-	bool ValidateCompiledResult(EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutError) const;
+	RENDERCORE_API bool ValidateCompiledResult(EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutError) const;
 #endif // WITH_EDITOR
 
-	ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId) const;
+	RENDERCORE_API ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId) const;
 
 	/** Calculates a Hash based on this shader type's source code and includes */
-	const FSHAHash& GetSourceHash(EShaderPlatform ShaderPlatform) const;
+	RENDERCORE_API const FSHAHash& GetSourceHash(EShaderPlatform ShaderPlatform) const;
 
 	/** Serializes a shader type reference by name. */
 	RENDERCORE_API friend FArchive& operator<<(FArchive& Ar,FShaderType*& Ref);
@@ -1437,7 +1437,7 @@ public:
 	}
 
 	/** Adds include statements for uniform buffers that this shader type references. */
-	void AddUniformBufferIncludesToEnvironment(FShaderCompilerEnvironment& OutEnvironment, EShaderPlatform Platform) const;
+	RENDERCORE_API void AddUniformBufferIncludesToEnvironment(FShaderCompilerEnvironment& OutEnvironment, EShaderPlatform Platform) const;
 
 	UE_DEPRECATED(5.2, "AddReferencedUniformBufferIncludes has moved to AddUniformBufferIncludesToEnvironment and no longer takes a prefix argument.")
 	inline void AddReferencedUniformBufferIncludes(FShaderCompilerEnvironment& OutEnvironment, FString& OutSourceFilePrefix, EShaderPlatform Platform) const
@@ -1445,15 +1445,15 @@ public:
 		AddUniformBufferIncludesToEnvironment(OutEnvironment, Platform);
 	}
 
-	void UpdateReferencedUniformBufferNames(const TMap<FString, TArray<const TCHAR*>>& ShaderFileToUniformBufferVariables);
+	RENDERCORE_API void UpdateReferencedUniformBufferNames(const TMap<FString, TArray<const TCHAR*>>& ShaderFileToUniformBufferVariables);
 
 	UE_DEPRECATED(5.2, "FlushShaderFileCache is deprecated. UpdateReferencedUniformBufferNames should be used to flush any uniform buffer changes")
-	void FlushShaderFileCache(const TMap<FString, TArray<const TCHAR*> >& ShaderFileToUniformBufferVariables);
+	RENDERCORE_API void FlushShaderFileCache(const TMap<FString, TArray<const TCHAR*> >& ShaderFileToUniformBufferVariables);
 
-	void GetShaderStableKeyParts(struct FStableShaderKeyAndValue& SaveKeyVal);
+	RENDERCORE_API void GetShaderStableKeyParts(struct FStableShaderKeyAndValue& SaveKeyVal);
 #endif // WITH_EDITOR
 
-	void DumpDebugInfo();
+	RENDERCORE_API void DumpDebugInfo();
 
 private:
 	EShaderTypeForDynamicCast ShaderTypeForDynamicCast;
@@ -1483,7 +1483,7 @@ private:
 	friend void RENDERCORE_API DumpShaderStats( EShaderPlatform Platform, EShaderFrequency Frequency );
 
 	/** Tracks whether serialization history for all shader types has been initialized. */
-	static bool bInitializedSerializationHistory;
+	static RENDERCORE_API bool bInitializedSerializationHistory;
 
 #if WITH_EDITOR
 protected:
@@ -1503,7 +1503,7 @@ protected:
  * The collection happens during static init, the actual construction happens later during launch.
  * The purpose of collecting the types is the CommitAll function, called in LaunchEngineLoop, to ensure all type instances are constructed and registered before other systems start iterating them.
  */
-class RENDERCORE_API FShaderTypeRegistration
+class FShaderTypeRegistration
 {
 public:
 	FShaderTypeRegistration(TFunctionRef<FShaderType& ()> LazyShaderTypeAccessor)
@@ -1512,10 +1512,10 @@ public:
 		GetInstances().Add(this);
 	}
 
-	static TArray<const FShaderTypeRegistration*>& GetInstances();
+	static RENDERCORE_API TArray<const FShaderTypeRegistration*>& GetInstances();
 
 	// Actually register all the types and clear the array
-	static void CommitAll();
+	static RENDERCORE_API void CommitAll();
 
 private:
 	TFunctionRef<FShaderType& ()> LazyShaderTypeAccessor;
@@ -1724,19 +1724,19 @@ struct FShaderCompiledShaderInitializerType
 	TemplatePrefix FShaderTypeRegistration ShaderClass::ShaderTypeRegistration{TFunctionRef<::FShaderType&()>{ShaderClass::GetStaticType}};
 
 // Binding of a set of shader stages in a single pipeline
-class RENDERCORE_API FShaderPipelineType
+class FShaderPipelineType
 {
 public:
 	// Set bShouldOptimizeUnusedOutputs to true if we want unique FShaders for each shader pipeline
 	// Set bShouldOptimizeUnusedOutputs to false if the FShaders will point to the individual shaders in the map
-	FShaderPipelineType(
+	RENDERCORE_API FShaderPipelineType(
 		const TCHAR* InName,
 		const FShaderType* InVertexOrMeshShader,
 		const FShaderType* InGeometryOrAmplificationShader,
 		const FShaderType* InPixelShader,
 		bool bInIsMeshPipeline,
 		bool bInShouldOptimizeUnusedOutputs);
-	~FShaderPipelineType();
+	RENDERCORE_API ~FShaderPipelineType();
 
 	FORCEINLINE bool HasMeshShader() const { return AllStages[SF_Mesh] != nullptr; }
 	FORCEINLINE bool HasGeometry() const { return AllStages[SF_Geometry] != nullptr; }
@@ -1756,19 +1756,19 @@ public:
 	// Returns an array of valid stages, sorted from PS->GS->DS->HS->VS, no gaps if missing stages
 	FORCEINLINE const TArray<const FShaderType*>& GetStages() const { return Stages; }
 
-	static TLinkedList<FShaderPipelineType*>*& GetTypeList();
+	static RENDERCORE_API TLinkedList<FShaderPipelineType*>*& GetTypeList();
 
-	static const TArray<FShaderPipelineType*>& GetSortedTypes(FShaderType::EShaderTypeForDynamicCast Type);
+	static RENDERCORE_API const TArray<FShaderPipelineType*>& GetSortedTypes(FShaderType::EShaderTypeForDynamicCast Type);
 
 	/** @return The global shader pipeline name to type map */
-	static TMap<FHashedName, FShaderPipelineType*>& GetNameToTypeMap();
-	static const FShaderPipelineType* GetShaderPipelineTypeByName(const FHashedName& Name);
+	static RENDERCORE_API TMap<FHashedName, FShaderPipelineType*>& GetNameToTypeMap();
+	static RENDERCORE_API const FShaderPipelineType* GetShaderPipelineTypeByName(const FHashedName& Name);
 
 	/** Initialize static members, this must be called before any shader types are created. */
-	static void Initialize();
-	static void Uninitialize();
+	static RENDERCORE_API void Initialize();
+	static RENDERCORE_API void Uninitialize();
 
-	static TArray<const FShaderPipelineType*> GetShaderPipelineTypesByFilename(const TCHAR* Filename);
+	static RENDERCORE_API TArray<const FShaderPipelineType*> GetShaderPipelineTypesByFilename(const TCHAR* Filename);
 
 	/** Serializes a shader type reference by name. */
 	RENDERCORE_API friend FArchive& operator<<(FArchive& Ar, const FShaderPipelineType*& Ref);
@@ -1782,12 +1782,12 @@ public:
 	bool IsMaterialTypePipeline() const { return Stages[0]->GetMaterialShaderType() != nullptr; }
 	bool IsMeshMaterialTypePipeline() const { return Stages[0]->GetMeshMaterialShaderType() != nullptr; }
 
-	bool ShouldOptimizeUnusedOutputs(EShaderPlatform Platform) const;
+	RENDERCORE_API bool ShouldOptimizeUnusedOutputs(EShaderPlatform Platform) const;
 
 	/** Calculates a Hash based on this shader pipeline type stages' source code and includes */
-	const FSHAHash& GetSourceHash(EShaderPlatform ShaderPlatform) const;
+	RENDERCORE_API const FSHAHash& GetSourceHash(EShaderPlatform ShaderPlatform) const;
 
-	bool ShouldCompilePermutation(const FShaderPermutationParameters& Parameters) const;
+	RENDERCORE_API bool ShouldCompilePermutation(const FShaderPermutationParameters& Parameters) const;
 
 protected:
 	const TCHAR* const Name;
@@ -1805,7 +1805,7 @@ protected:
 	uint32 HashIndex;
 	bool bShouldOptimizeUnusedOutputs;
 
-	static bool bInitialized;
+	static RENDERCORE_API bool bInitialized;
 };
 
 #if !UE_BUILD_DOCS
@@ -1974,15 +1974,15 @@ public:
 };
 
 // A Shader Pipeline instance with compiled stages
-class RENDERCORE_API FShaderPipeline
+class FShaderPipeline
 {
-	DECLARE_TYPE_LAYOUT(FShaderPipeline, NonVirtual);
+	DECLARE_EXPORTED_TYPE_LAYOUT(FShaderPipeline, RENDERCORE_API, NonVirtual);
 public:
 	explicit FShaderPipeline(const FShaderPipelineType* InType) : TypeName(InType->GetHashedName()) { FMemory::Memzero(&PermutationIds, sizeof(PermutationIds)); }
-	~FShaderPipeline();
+	RENDERCORE_API ~FShaderPipeline();
 
-	void AddShader(FShader* Shader, int32 PermutationId);
-	FShader* FindOrAddShader(FShader* Shader, int32 PermutationId);
+	RENDERCORE_API void AddShader(FShader* Shader, int32 PermutationId);
+	RENDERCORE_API FShader* FindOrAddShader(FShader* Shader, int32 PermutationId);
 
 	inline uint32 GetNumShaders() const
 	{
@@ -2039,9 +2039,9 @@ public:
 		return Result;
 	}
 
-	void Validate(const FShaderPipelineType* InPipelineType) const;
+	RENDERCORE_API void Validate(const FShaderPipelineType* InPipelineType) const;
 
-	void Finalize(const FShaderMapResourceCode* Code);
+	RENDERCORE_API void Finalize(const FShaderMapResourceCode* Code);
 
 	enum EFilter
 	{
@@ -2052,7 +2052,7 @@ public:
 
 	/** Saves stable keys for the shaders in the pipeline */
 #if WITH_EDITOR
-	void SaveShaderStableKeys(const FShaderMapPointerTable& InPtrTable, EShaderPlatform TargetShaderPlatform, const struct FStableShaderKeyAndValue& SaveKeyVal) const;
+	RENDERCORE_API void SaveShaderStableKeys(const FShaderMapPointerTable& InPtrTable, EShaderPlatform TargetShaderPlatform, const struct FStableShaderKeyAndValue& SaveKeyVal) const;
 #endif // WITH_EDITOR
 
 	LAYOUT_FIELD(FHashedName, TypeName);
@@ -2102,9 +2102,9 @@ private:
 };
 
 /** A collection of shaders of different types */
-class RENDERCORE_API FShaderMapContent
+class FShaderMapContent
 {
-	DECLARE_TYPE_LAYOUT(FShaderMapContent, NonVirtual);
+	DECLARE_EXPORTED_TYPE_LAYOUT(FShaderMapContent, RENDERCORE_API, NonVirtual);
 public:
 	struct FProjectShaderPipelineToKey
 	{
@@ -2112,14 +2112,14 @@ public:
 	};
 
 	/** Default constructor. */
-	explicit FShaderMapContent(EShaderPlatform InPlatform);
+	RENDERCORE_API explicit FShaderMapContent(EShaderPlatform InPlatform);
 
 	/** Destructor ensures pipelines cleared up. */
-	~FShaderMapContent();
+	RENDERCORE_API ~FShaderMapContent();
 
-	EShaderPlatform GetShaderPlatform() const;
+	RENDERCORE_API EShaderPlatform GetShaderPlatform() const;
 
-	void Validate(const FShaderMapBase& InShaderMap) const;
+	RENDERCORE_API void Validate(const FShaderMapBase& InShaderMap) const;
 
 	/** Finds the shader with the given type.  Asserts on failure. */
 	template<typename ShaderType>
@@ -2144,7 +2144,7 @@ public:
 	}
 
 	/** Finds the shader with the given type name.  May return NULL. */
-	FShader* GetShader(const FHashedName& TypeName, int32 PermutationId = 0) const;
+	RENDERCORE_API FShader* GetShader(const FHashedName& TypeName, int32 PermutationId = 0) const;
 
 	/** Finds the shader with the given type. */
 	bool HasShader(const FHashedName& TypeName, int32 PermutationId) const
@@ -2168,42 +2168,42 @@ public:
 		return ShaderPipelines;
 	}
 
-	void AddShader(const FHashedName& TypeName, int32 PermutationId, FShader* Shader);
+	RENDERCORE_API void AddShader(const FHashedName& TypeName, int32 PermutationId, FShader* Shader);
 
-	FShader* FindOrAddShader(const FHashedName& TypeName, int32 PermutationId, FShader* Shader);
+	RENDERCORE_API FShader* FindOrAddShader(const FHashedName& TypeName, int32 PermutationId, FShader* Shader);
 
-	void AddShaderPipeline(FShaderPipeline* Pipeline);
+	RENDERCORE_API void AddShaderPipeline(FShaderPipeline* Pipeline);
 
-	FShaderPipeline* FindOrAddShaderPipeline(FShaderPipeline* Pipeline);
+	RENDERCORE_API FShaderPipeline* FindOrAddShaderPipeline(FShaderPipeline* Pipeline);
 
 	/**
 	 * Removes the shader of the given type from the shader map
 	 * @param Type Shader type to remove the entry for 
 	 */
-	void RemoveShaderTypePermutaion(const FHashedName& TypeName, int32 PermutationId);
+	RENDERCORE_API void RemoveShaderTypePermutaion(const FHashedName& TypeName, int32 PermutationId);
 
 	inline void RemoveShaderTypePermutaion(const FShaderType* Type, int32 PermutationId)
 	{
 		RemoveShaderTypePermutaion(Type->GetHashedName(), PermutationId);
 	}
 
-	void RemoveShaderPipelineType(const FShaderPipelineType* ShaderPipelineType);
+	RENDERCORE_API void RemoveShaderPipelineType(const FShaderPipelineType* ShaderPipelineType);
 
 	/** Builds a list of the shaders in a shader map. */
-	void GetShaderList(const FShaderMapBase& InShaderMap, const FSHAHash& InMaterialShaderMapHash, TMap<FShaderId, TShaderRef<FShader>>& OutShaders) const;
+	RENDERCORE_API void GetShaderList(const FShaderMapBase& InShaderMap, const FSHAHash& InMaterialShaderMapHash, TMap<FShaderId, TShaderRef<FShader>>& OutShaders) const;
 
 	/** Builds a list of the shaders in a shader map. Key is FShaderType::TypeName */
-	void GetShaderList(const FShaderMapBase& InShaderMap, TMap<FHashedName, TShaderRef<FShader>>& OutShaders) const;
+	RENDERCORE_API void GetShaderList(const FShaderMapBase& InShaderMap, TMap<FHashedName, TShaderRef<FShader>>& OutShaders) const;
 
 	/** Builds a list of the shader pipelines in a shader map. */
-	void GetShaderPipelineList(const FShaderMapBase& InShaderMap, TArray<FShaderPipelineRef>& OutShaderPipelines, FShaderPipeline::EFilter Filter) const;
+	RENDERCORE_API void GetShaderPipelineList(const FShaderMapBase& InShaderMap, TArray<FShaderPipelineRef>& OutShaderPipelines, FShaderPipeline::EFilter Filter) const;
 
 #if WITH_EDITOR
-	uint32 GetMaxTextureSamplersShaderMap(const FShaderMapBase& InShaderMap) const;
+	RENDERCORE_API uint32 GetMaxTextureSamplersShaderMap(const FShaderMapBase& InShaderMap) const;
 
-	void GetOutdatedTypes(const FShaderMapBase& InShaderMap, TArray<const FShaderType*>& OutdatedShaderTypes, TArray<const FShaderPipelineType*>& OutdatedShaderPipelineTypes, TArray<const FVertexFactoryType*>& OutdatedFactoryTypes) const;
+	RENDERCORE_API void GetOutdatedTypes(const FShaderMapBase& InShaderMap, TArray<const FShaderType*>& OutdatedShaderTypes, TArray<const FShaderPipelineType*>& OutdatedShaderPipelineTypes, TArray<const FVertexFactoryType*>& OutdatedFactoryTypes) const;
 
-	void SaveShaderStableKeys(const FShaderMapBase& InShaderMap, EShaderPlatform TargetShaderPlatform, const struct FStableShaderKeyAndValue& SaveKeyVal);
+	RENDERCORE_API void SaveShaderStableKeys(const FShaderMapBase& InShaderMap, EShaderPlatform TargetShaderPlatform, const struct FStableShaderKeyAndValue& SaveKeyVal);
 #endif // WITH_EDITOR
 
 	/** @return true if the map is empty */
@@ -2213,7 +2213,7 @@ public:
 	}
 
 	/** @return The number of shaders in the map. */
-	uint32 GetNumShaders() const;
+	RENDERCORE_API uint32 GetNumShaders() const;
 
 	/** @return The number of shader pipelines in the map. */
 	inline uint32 GetNumShaderPipelines() const
@@ -2222,7 +2222,7 @@ public:
 	}
 
 	/** clears out all shaders and deletes shader pipelines held in the map */
-	void Empty();
+	RENDERCORE_API void Empty();
 
 	inline FShaderPipeline* GetShaderPipeline(const FHashedName& PipelineTypeName) const
 	{
@@ -2238,14 +2238,14 @@ public:
 	inline bool HasShaderPipeline(const FHashedName& PipelineTypeName) const { return GetShaderPipeline(PipelineTypeName) != nullptr; }
 	inline bool HasShaderPipeline(const FShaderPipelineType* PipelineType) const { return (GetShaderPipeline(PipelineType) != nullptr); }
 
-	uint32 GetMaxNumInstructionsForShader(const FShaderMapBase& InShaderMap, FShaderType* ShaderType) const;
+	RENDERCORE_API uint32 GetMaxNumInstructionsForShader(const FShaderMapBase& InShaderMap, FShaderType* ShaderType) const;
 
-	void Finalize(const FShaderMapResourceCode* Code);
+	RENDERCORE_API void Finalize(const FShaderMapResourceCode* Code);
 
-	void UpdateHash(FSHA1& Hasher) const;
+	RENDERCORE_API void UpdateHash(FSHA1& Hasher) const;
 
 protected:
-	void EmptyShaderPipelines();
+	RENDERCORE_API void EmptyShaderPipelines();
 
 	using FMemoryImageHashTable = THashTable<FMemoryImageAllocator>;
 
@@ -2258,12 +2258,12 @@ protected:
 	LAYOUT_FIELD(FMemoryImageName, ShaderPlatformName);
 };
 
-class RENDERCORE_API FShaderMapBase
+class FShaderMapBase
 {
 public:
-	virtual ~FShaderMapBase();
+	RENDERCORE_API virtual ~FShaderMapBase();
 
-	FShaderMapResourceCode* GetResourceCode();
+	RENDERCORE_API FShaderMapResourceCode* GetResourceCode();
 
 	inline FShaderMapResource* GetResource() const { return Resource; }
 	inline FShaderMapResource* GetResourceChecked() const { check(Resource); return Resource; }
@@ -2278,18 +2278,18 @@ public:
 	inline EShaderPlatform GetShaderPlatform() const { return Content.Object ? Content.Object->GetShaderPlatform() : SP_NumPlatforms; }
 	inline uint32 GetFrozenContentSize() const { return Content.FrozenSize; }
 
-	void AssignContent(TMemoryImageObject<FShaderMapContent> InContent);
+	RENDERCORE_API void AssignContent(TMemoryImageObject<FShaderMapContent> InContent);
 
-	void FinalizeContent();
-	void UnfreezeContent();
-	bool Serialize(FArchive& Ar, bool bInlineShaderResources, bool bLoadedByCookedMaterial, bool bInlineShaderCode=false);
+	RENDERCORE_API void FinalizeContent();
+	RENDERCORE_API void UnfreezeContent();
+	RENDERCORE_API bool Serialize(FArchive& Ar, bool bInlineShaderResources, bool bLoadedByCookedMaterial, bool bInlineShaderCode=false);
 
 	EShaderPermutationFlags GetPermutationFlags() const
 	{
 		return PermutationFlags;
 	}
 
-	FString ToString() const;
+	RENDERCORE_API FString ToString() const;
 
 #if WITH_EDITOR
 	inline void GetOutdatedTypes(TArray<const FShaderType*>& OutdatedShaderTypes, TArray<const FShaderPipelineType*>& OutdatedShaderPipelineTypes, TArray<const FVertexFactoryType*>& OutdatedFactoryTypes) const
@@ -2321,12 +2321,12 @@ public:
 #endif // WITH_EDITOR
 
 protected:
-	FShaderMapBase();
+	RENDERCORE_API FShaderMapBase();
 
-	void AssignCopy(const FShaderMapBase& Source);
+	RENDERCORE_API void AssignCopy(const FShaderMapBase& Source);
 
-	void InitResource();
-	void DestroyContent();
+	RENDERCORE_API void InitResource();
+	RENDERCORE_API void DestroyContent();
 
 protected:
 	virtual const FTypeLayoutDesc& GetContentTypeDesc() const = 0;

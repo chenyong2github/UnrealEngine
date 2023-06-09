@@ -22,7 +22,7 @@ class FRHICommandList;
 class FRenderTargetPool;
 
 /** The reference to a pooled render target, use like this: TRefCountPtr<IPooledRenderTarget> */
-struct RENDERCORE_API FPooledRenderTarget final : public IPooledRenderTarget
+struct FPooledRenderTarget final : public IPooledRenderTarget
 {
 	FPooledRenderTarget(FRHITexture* Texture, const FPooledRenderTargetDesc& InDesc, FRenderTargetPool* InRenderTargetPool) 
 		: RenderTargetPool(InRenderTargetPool)
@@ -59,9 +59,9 @@ struct RENDERCORE_API FPooledRenderTarget final : public IPooledRenderTarget
 		return uint32(NumRefs);
 	}
 
-	bool IsFree() const override;
+	RENDERCORE_API bool IsFree() const override;
 	bool IsTracked() const override { return RenderTargetPool != nullptr; }
-	uint32 ComputeMemorySize() const override;
+	RENDERCORE_API uint32 ComputeMemorySize() const override;
 
 private:
 	/** Pointer back to the pool for render targets which are actually pooled, otherwise NULL. */
@@ -80,7 +80,7 @@ private:
 	FRDGPooledTexture PooledTexture;
 
 	/** @return true:release this one, false otherwise */
-	bool OnFrameStart();
+	RENDERCORE_API bool OnFrameStart();
 
 	friend class FRDGTexture;
 	friend class FRDGBuilder;
@@ -90,14 +90,14 @@ private:
 /**
  * Encapsulates the render targets pools that allows easy sharing (mostly used on the render thread side)
  */
-class RENDERCORE_API FRenderTargetPool : public FRenderResource
+class FRenderTargetPool : public FRenderResource
 {
 public:
 	FRenderTargetPool() = default;
 
-	TRefCountPtr<IPooledRenderTarget> FindFreeElement(FRHITextureCreateInfo Desc, const TCHAR* Name);
+	RENDERCORE_API TRefCountPtr<IPooledRenderTarget> FindFreeElement(FRHITextureCreateInfo Desc, const TCHAR* Name);
 
-	bool FindFreeElement(const FRHITextureCreateInfo& Desc, TRefCountPtr<IPooledRenderTarget>& Out, const TCHAR* Name);
+	RENDERCORE_API bool FindFreeElement(const FRHITextureCreateInfo& Desc, TRefCountPtr<IPooledRenderTarget>& Out, const TCHAR* Name);
 
 	/**
 	 * @param DebugName must not be 0, we only store the pointer
@@ -114,38 +114,38 @@ public:
 		return FindFreeElement(Translate(Desc), Out, InDebugName);
 	}
 
-	void CreateUntrackedElement(const FPooledRenderTargetDesc& Desc, TRefCountPtr<IPooledRenderTarget>& Out, const FSceneRenderTargetItem& Item);
+	RENDERCORE_API void CreateUntrackedElement(const FPooledRenderTargetDesc& Desc, TRefCountPtr<IPooledRenderTarget>& Out, const FSceneRenderTargetItem& Item);
 
 	/** Only to get statistics on usage and free elements. Normally only called in renderthread or if FlushRenderingCommands was called() */
-	void GetStats(uint32& OutWholeCount, uint32& OutWholePoolInKB, uint32& OutUsedInKB) const;
+	RENDERCORE_API void GetStats(uint32& OutWholeCount, uint32& OutWholePoolInKB, uint32& OutUsedInKB) const;
 	/**
 	 * Can release RT, should be called once per frame.
 	 * call from RenderThread only
 	 */
-	void TickPoolElements();
+	RENDERCORE_API void TickPoolElements();
 	/** Free renderer resources */
-	void ReleaseRHI();
+	RENDERCORE_API void ReleaseRHI();
 
 	/** Allows to remove a resource so it cannot be shared and gets released immediately instead a/some frame[s] later. */
-	void FreeUnusedResource(TRefCountPtr<IPooledRenderTarget>& In);
+	RENDERCORE_API void FreeUnusedResource(TRefCountPtr<IPooledRenderTarget>& In);
 
 	/** Good to call between levels or before memory intense operations. */
-	void FreeUnusedResources();
+	RENDERCORE_API void FreeUnusedResources();
 
 	// for debugging purpose, assumes you call FlushRenderingCommands() be
 	// @return can be 0, that doesn't mean iteration is done
-	FPooledRenderTarget* GetElementById(uint32 Id) const;
+	RENDERCORE_API FPooledRenderTarget* GetElementById(uint32 Id) const;
 
 	uint32 GetElementCount() const { return PooledRenderTargets.Num(); }
 
 	// @return -1 if not found
-	int32 FindIndex(IPooledRenderTarget* In) const;
+	RENDERCORE_API int32 FindIndex(IPooledRenderTarget* In) const;
 
 	// Logs out usage information.
-	void DumpMemoryUsage(FOutputDevice& OutputDevice);
+	RENDERCORE_API void DumpMemoryUsage(FOutputDevice& OutputDevice);
 
 private:
-	void FreeElementAtIndex(int32 Index);
+	RENDERCORE_API void FreeElementAtIndex(int32 Index);
 
 	/** Elements can be 0, we compact the buffer later. */
 	TArray<uint32> PooledRenderTargetHashes;
@@ -159,7 +159,7 @@ private:
 	bool bCurrentlyOverBudget = false;
 
 	// could be done on the fly but that makes the RenderTargetPoolEvents harder to read
-	void CompactPool();
+	RENDERCORE_API void CompactPool();
 
 	friend struct FPooledRenderTarget;
 	friend class FVisualizeTexture;

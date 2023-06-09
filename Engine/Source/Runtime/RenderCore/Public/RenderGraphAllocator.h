@@ -17,7 +17,7 @@
 #define RDG_USE_MALLOC USING_ADDRESS_SANITISER
 
 /** Private allocator used by RDG to track its internal memory. All memory is released after RDG builder execution. */
-class RENDERCORE_API FRDGAllocator final
+class FRDGAllocator final
 {
 public:
 	class FObject
@@ -39,8 +39,8 @@ public:
 		T Alloc;
 	};
 
-	static FRDGAllocator& Get();
-	~FRDGAllocator();
+	static RENDERCORE_API FRDGAllocator& Get();
+	RENDERCORE_API ~FRDGAllocator();
 
 	/** Allocates raw memory. */
 	FORCEINLINE void* Alloc(uint64 SizeInBytes, uint32 AlignInBytes)
@@ -101,7 +101,7 @@ private:
 	FRDGAllocator(FRDGAllocator&&) = default;
 	FRDGAllocator& operator = (FRDGAllocator&&) = default;
 
-	void ReleaseAll();
+	RENDERCORE_API void ReleaseAll();
 
 	struct FContext
 	{
@@ -132,14 +132,14 @@ private:
 #define RDG_FRIEND_ALLOCATOR_FRIEND(Type) friend class FRDGAllocator::TObject<Type>
 
 /** Base class for RDG builder which scopes the allocations and releases them in the destructor. */
-class RENDERCORE_API FRDGAllocatorScope
+class FRDGAllocatorScope
 {
 public:
 	FRDGAllocatorScope()
 		: Allocator(FRDGAllocator::Get())
 	{}
 
-	~FRDGAllocatorScope();
+	RENDERCORE_API ~FRDGAllocatorScope();
 
 protected:
 	FRDGAllocator& Allocator;

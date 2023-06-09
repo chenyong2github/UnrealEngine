@@ -8,7 +8,7 @@
 #include "VectorVM.h"
 #include "NiagaraDataInterface.generated.h"
 
-class RENDERCORE_API FRDGBuilder;
+class FRDGBuilder;
 class FRDGExternalAccessQueue;
 
 class INiagaraCompiler;

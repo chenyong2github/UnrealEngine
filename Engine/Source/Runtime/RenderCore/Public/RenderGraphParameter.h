@@ -209,7 +209,7 @@ private:
 };
 
 /** Wraps a pass parameter struct payload and provides helpers for traversing members. */
-class RENDERCORE_API FRDGParameterStruct
+class FRDGParameterStruct
 {
 public:
 	template <typename ParameterStructType>
@@ -276,13 +276,13 @@ public:
 	void EnumerateUniformBuffers(FunctionType Function) const;
 
 	/** Returns a set of static uniform buffer bindings for the parameter struct. */
-	FUniformBufferStaticBindings GetStaticUniformBuffers() const;
+	RENDERCORE_API FUniformBufferStaticBindings GetStaticUniformBuffers() const;
 
 	/** Returns the render pass info generated from the render target binding slots. */
-	FRHIRenderPassInfo GetRenderPassInfo() const;
+	RENDERCORE_API FRHIRenderPassInfo GetRenderPassInfo() const;
 
 	/** Clears out all uniform buffer references in the parameter struct. */
-	static void ClearUniformBuffers(void* Contents, const FRHIUniformBufferLayout* Layout);
+	static RENDERCORE_API void ClearUniformBuffers(void* Contents, const FRHIUniformBufferLayout* Layout);
 
 private:
 	FRDGParameter GetParameterInternal(TArrayView<const FRHIUniformBufferResource> Parameters, uint32 ParameterIndex) const

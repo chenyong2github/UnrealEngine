@@ -45,7 +45,7 @@ struct FDynamicAllocReadBuffer : public FDynamicReadBuffer
   the renderer RHI will have already been destroyed and we can execute code on invalid data. By making ourself a render resource, we
   clean up immediately before the renderer dies.
 */
-class RENDERCORE_API FGlobalDynamicReadBuffer : public FRenderResource
+class FGlobalDynamicReadBuffer : public FRenderResource
 {
 public:
 	/**
@@ -74,30 +74,30 @@ public:
 		}
 	};
 
-	FGlobalDynamicReadBuffer();
-	~FGlobalDynamicReadBuffer();
+	RENDERCORE_API FGlobalDynamicReadBuffer();
+	RENDERCORE_API ~FGlobalDynamicReadBuffer();
 	
-	FAllocation AllocateHalf(uint32 Num);
-	FAllocation AllocateFloat(uint32 Num);
-	FAllocation AllocateInt32(uint32 Num);
-	FAllocation AllocateUInt32(uint32 Num);
+	RENDERCORE_API FAllocation AllocateHalf(uint32 Num);
+	RENDERCORE_API FAllocation AllocateFloat(uint32 Num);
+	RENDERCORE_API FAllocation AllocateInt32(uint32 Num);
+	RENDERCORE_API FAllocation AllocateUInt32(uint32 Num);
 
 	/**
 	* Commits allocated memory to the GPU.
 	*		WARNING: Once this buffer has been committed to the GPU, allocations
 	*		remain valid only until the next call to Allocate!
 	*/
-	void Commit();
+	RENDERCORE_API void Commit();
 
 
 	/** Returns true if log statements should be made because we exceeded GMaxVertexBytesAllocatedPerFrame */
-	bool IsRenderAlarmLoggingEnabled() const;
+	RENDERCORE_API bool IsRenderAlarmLoggingEnabled() const;
 
 protected:
-	virtual void InitRHI() override;
-	virtual void ReleaseRHI() override;
-	void Cleanup();
-	void IncrementTotalAllocations(uint32 Num);
+	RENDERCORE_API virtual void InitRHI() override;
+	RENDERCORE_API virtual void ReleaseRHI() override;
+	RENDERCORE_API void Cleanup();
+	RENDERCORE_API void IncrementTotalAllocations(uint32 Num);
 
 	/** The pools of read buffers from which allocations are made. */
 	FDynamicReadBufferPool* HalfBufferPool;

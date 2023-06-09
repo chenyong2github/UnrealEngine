@@ -73,7 +73,7 @@ struct FShaderCodeEntry
 };
 
 // Portion of shader code archive that's serialize to disk
-class RENDERCORE_API FSerializedShaderArchive
+class FSerializedShaderArchive
 {
 public:
 
@@ -197,25 +197,25 @@ public:
 			;
 	}
 
-	int32 FindShaderMapWithKey(const FSHAHash& Hash, uint32 Key) const;
-	int32 FindShaderMap(const FSHAHash& Hash) const;
-	bool FindOrAddShaderMap(const FSHAHash& Hash, int32& OutIndex, const FShaderMapAssetPaths* AssociatedAssets);
+	RENDERCORE_API int32 FindShaderMapWithKey(const FSHAHash& Hash, uint32 Key) const;
+	RENDERCORE_API int32 FindShaderMap(const FSHAHash& Hash) const;
+	RENDERCORE_API bool FindOrAddShaderMap(const FSHAHash& Hash, int32& OutIndex, const FShaderMapAssetPaths* AssociatedAssets);
 
-	int32 FindShaderWithKey(const FSHAHash& Hash, uint32 Key) const;
-	int32 FindShader(const FSHAHash& Hash) const;
-	bool FindOrAddShader(const FSHAHash& Hash, int32& OutIndex);
-	void RemoveLastAddedShader();
+	RENDERCORE_API int32 FindShaderWithKey(const FSHAHash& Hash, uint32 Key) const;
+	RENDERCORE_API int32 FindShader(const FSHAHash& Hash) const;
+	RENDERCORE_API bool FindOrAddShader(const FSHAHash& Hash, int32& OutIndex);
+	RENDERCORE_API void RemoveLastAddedShader();
 
-	void DecompressShader(int32 Index, const TArray<TArray<uint8>>& ShaderCode, TArray<uint8>& OutDecompressedShader) const;
+	RENDERCORE_API void DecompressShader(int32 Index, const TArray<TArray<uint8>>& ShaderCode, TArray<uint8>& OutDecompressedShader) const;
 
-	void Finalize();
-	void Serialize(FArchive& Ar);
+	RENDERCORE_API void Finalize();
+	RENDERCORE_API void Serialize(FArchive& Ar);
 #if WITH_EDITOR
-	void SaveAssetInfo(FArchive& Ar);
-	bool LoadAssetInfo(const FString& Filename);
-	void CreateAsChunkFrom(const FSerializedShaderArchive& Parent, const TSet<FName>& PackagesInChunk, TArray<int32>& OutShaderCodeEntriesNeeded);
-	void CollectStatsAndDebugInfo(FDebugStats& OutDebugStats, FExtendedDebugStats* OutExtendedDebugStats);
-	void DumpContentsInPlaintext(FString& OutText) const;
+	RENDERCORE_API void SaveAssetInfo(FArchive& Ar);
+	RENDERCORE_API bool LoadAssetInfo(const FString& Filename);
+	RENDERCORE_API void CreateAsChunkFrom(const FSerializedShaderArchive& Parent, const TSet<FName>& PackagesInChunk, TArray<int32>& OutShaderCodeEntriesNeeded);
+	RENDERCORE_API void CollectStatsAndDebugInfo(FDebugStats& OutDebugStats, FExtendedDebugStats* OutExtendedDebugStats);
+	RENDERCORE_API void DumpContentsInPlaintext(FString& OutText) const;
 	RENDERCORE_API friend FCbWriter& operator<<(FCbWriter& Writer, const FSerializedShaderArchive& Archive);
 	RENDERCORE_API friend bool LoadFromCompactBinary(FCbFieldView Field, FSerializedShaderArchive& OutArchive);
 #endif

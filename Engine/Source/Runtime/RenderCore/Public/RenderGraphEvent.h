@@ -308,19 +308,19 @@ public:
 
 using FRDGTimingScopeOp = TRDGScopeOp<FRDGTimingScope>;
 
-class RENDERCORE_API FRDGTimingScopeOpArray final
+class FRDGTimingScopeOpArray final
 {
 public:
 	FRDGTimingScopeOpArray() = default;
 	FRDGTimingScopeOpArray(ERHIPipeline Pipeline, const TRDGScopeOpArray<FRDGTimingScopeOp>& Ops);
 
-	void Execute(FRHIComputeCommandList& RHICmdList);
+	RENDERCORE_API void Execute(FRHIComputeCommandList& RHICmdList);
 
 private:
 	FRHIRenderQuery* TimestampQuery = nullptr;
 };
 
-class RENDERCORE_API FRDGTimingScopeStack final
+class FRDGTimingScopeStack final
 {
 public:
 	FRDGTimingScopeStack(FRDGAllocator& Allocator)
@@ -343,7 +343,7 @@ public:
 		ScopeStack.ReserveOps();
 	}
 
-	FRDGTimingScopeOpArray CompilePassPrologue(const FRDGPass* Pass);
+	RENDERCORE_API FRDGTimingScopeOpArray CompilePassPrologue(const FRDGPass* Pass);
 	
 	inline void EndExecute(FRHIComputeCommandList& RHICmdList)
 	{
@@ -361,12 +361,12 @@ public:
 namespace DynamicRenderScaling
 {
 
-class RENDERCORE_API FRDGScope final
+class FRDGScope final
 {
 public:
-	FRDGScope(FRDGBuilder& InGraphBuilder, const FBudget& InBudget);
+	RENDERCORE_API FRDGScope(FRDGBuilder& InGraphBuilder, const FBudget& InBudget);
 	FRDGScope(const FRDGScope&) = delete;
-	~FRDGScope();
+	RENDERCORE_API ~FRDGScope();
 
 private:
 	FRDGBuilder& GraphBuilder;
@@ -386,19 +386,19 @@ private:
 /** Stores a GPU event name for the render graph. Draw events can be compiled out entirely from
  *  a release build for performance.
  */
-class RENDERCORE_API FRDGEventName final
+class FRDGEventName final
 {
 public:
 	FRDGEventName() = default;
 
-	explicit FRDGEventName(const TCHAR* EventFormat, ...);
+	RENDERCORE_API explicit FRDGEventName(const TCHAR* EventFormat, ...);
 
 	FRDGEventName(const FRDGEventName& Other);
 	FRDGEventName(FRDGEventName&& Other);
-	FRDGEventName& operator=(const FRDGEventName& Other);
-	FRDGEventName& operator=(FRDGEventName&& Other);
+	RENDERCORE_API FRDGEventName& operator=(const FRDGEventName& Other);
+	RENDERCORE_API FRDGEventName& operator=(FRDGEventName&& Other);
 
-	const TCHAR* GetTCHAR() const;
+	RENDERCORE_API const TCHAR* GetTCHAR() const;
 
 private:
 #if RDG_EVENTS == RDG_EVENTS_STRING_REF || RDG_EVENTS == RDG_EVENTS_STRING_COPY
@@ -462,7 +462,7 @@ struct FRDGBreadcrumbState : TRHIBreadcrumbState<FRDGArrayAllocator>
 };
 #endif
 
-class RENDERCORE_API FRDGEventScopeOpArray final
+class FRDGEventScopeOpArray final
 {
 public:
 	FRDGEventScopeOpArray(bool bInRDGEvents = true)
@@ -474,10 +474,10 @@ public:
 		, bRDGEvents(bInRDGEvents)
 	{}
 
-	void Execute(FRHIComputeCommandList& RHICmdList);
+	RENDERCORE_API void Execute(FRHIComputeCommandList& RHICmdList);
 
 #if RHI_WANT_BREADCRUMB_EVENTS
-	void Execute(FRDGBreadcrumbState& State);
+	RENDERCORE_API void Execute(FRDGBreadcrumbState& State);
 #endif
 
 	TRDGScopeOpArray<FRDGEventScopeOp> Ops;
@@ -487,7 +487,7 @@ public:
 /** Manages a stack of event scopes. Scopes are recorded ahead of time in a hierarchical fashion
  *  and later executed topologically during pass execution.
  */
-class RENDERCORE_API FRDGEventScopeStack final
+class FRDGEventScopeStack final
 {
 public:
 	FRDGEventScopeStack(FRDGAllocator& Allocator)
@@ -519,9 +519,9 @@ public:
 		}
 	}
 
-	FRDGEventScopeOpArray CompilePassPrologue(const FRDGPass* Pass);
+	RENDERCORE_API FRDGEventScopeOpArray CompilePassPrologue(const FRDGPass* Pass);
 	
-	FRDGEventScopeOpArray CompilePassEpilogue();
+	RENDERCORE_API FRDGEventScopeOpArray CompilePassEpilogue();
 
 	inline void EndExecute(FRHIComputeCommandList& RHICmdList, ERHIPipeline Pipeline)
 	{
@@ -560,12 +560,12 @@ private:
 
 RENDERCORE_API FString GetRDGEventPath(const FRDGEventScope* Scope, const FRDGEventName& Event);
 
-class RENDERCORE_API FRDGEventScopeGuard final
+class FRDGEventScopeGuard final
 {
 public:
-	FRDGEventScopeGuard(FRDGBuilder& InGraphBuilder, FRDGEventName&& ScopeName, bool bCondition = true, ERDGEventScopeFlags Flags = ERDGEventScopeFlags::None);
+	RENDERCORE_API FRDGEventScopeGuard(FRDGBuilder& InGraphBuilder, FRDGEventName&& ScopeName, bool bCondition = true, ERDGEventScopeFlags Flags = ERDGEventScopeFlags::None);
 	FRDGEventScopeGuard(const FRDGEventScopeGuard&) = delete;
-	~FRDGEventScopeGuard();
+	RENDERCORE_API ~FRDGEventScopeGuard();
 
 private:
 	FRDGBuilder& GraphBuilder;
@@ -618,7 +618,7 @@ public:
 #endif
 };
 
-class RENDERCORE_API FRDGGPUStatScopeOpArray final
+class FRDGGPUStatScopeOpArray final
 {
 public:
 	static const int32 kInvalidEventIndex = -1;
@@ -632,14 +632,14 @@ public:
 	FRDGGPUStatScopeOpArray() = default;
 	FRDGGPUStatScopeOpArray(TRDGScopeOpArray<FRDGGPUStatScopeOp> InOps, FRHIGPUMask GPUMask);
 
-	void Execute(FRHIComputeCommandList& RHICmdList);
+	RENDERCORE_API void Execute(FRHIComputeCommandList& RHICmdList);
 
 	TRDGScopeOpArray<FRDGGPUStatScopeOp> Ops;
 	int32 OverrideEventIndex = kInvalidEventIndex;
 	EType Type = EType::Epilogue;
 };
 
-class RENDERCORE_API FRDGGPUStatScopeStack final
+class FRDGGPUStatScopeStack final
 {
 public:
 	FRDGGPUStatScopeStack(FRDGAllocator& Allocator)
@@ -673,9 +673,9 @@ public:
 		}
 	}
 
-	FRDGGPUStatScopeOpArray CompilePassPrologue(const FRDGPass* Pass, FRHIGPUMask GPUMask);
+	RENDERCORE_API FRDGGPUStatScopeOpArray CompilePassPrologue(const FRDGPass* Pass, FRHIGPUMask GPUMask);
 
-	FRDGGPUStatScopeOpArray CompilePassEpilogue();
+	RENDERCORE_API FRDGGPUStatScopeOpArray CompilePassEpilogue();
 
 	inline void EndExecute(FRHIComputeCommandList& RHICmdList, ERHIPipeline Pipeline)
 	{
@@ -707,12 +707,12 @@ private:
 	bool bGPUStats = false;
 };
 
-class RENDERCORE_API FRDGGPUStatScopeGuard final
+class FRDGGPUStatScopeGuard final
 {
 public:
-	FRDGGPUStatScopeGuard(FRDGBuilder& InGraphBuilder, const FName& Name, const FName& StatName, const TCHAR* Description, FDrawCallCategoryName& InCategory);
+	RENDERCORE_API FRDGGPUStatScopeGuard(FRDGBuilder& InGraphBuilder, const FName& Name, const FName& StatName, const TCHAR* Description, FDrawCallCategoryName& InCategory);
 	FRDGGPUStatScopeGuard(const FRDGGPUStatScopeGuard&) = delete;
-	~FRDGGPUStatScopeGuard();
+	RENDERCORE_API ~FRDGGPUStatScopeGuard();
 
 private:
 	FRDGBuilder& GraphBuilder;
@@ -803,7 +803,7 @@ struct FRDGGPUScopeStacks
 	IF_RDG_GPU_DEBUG_SCOPES(FRDGGPUStatScopeStack Stat);
 };
 
-struct RENDERCORE_API FRDGGPUScopeStacksByPipeline
+struct FRDGGPUScopeStacksByPipeline
 {
 	FRDGGPUScopeStacksByPipeline(FRDGAllocator& Allocator)
 		: Graphics(Allocator)
@@ -864,13 +864,13 @@ struct RENDERCORE_API FRDGGPUScopeStacksByPipeline
 		AsyncCompute.ReserveOps(PassCount);
 	}
 
-	FRDGGPUScopeOpArrays CompilePassPrologue(const FRDGPass* Pass, FRHIGPUMask GPUMask);
+	RENDERCORE_API FRDGGPUScopeOpArrays CompilePassPrologue(const FRDGPass* Pass, FRHIGPUMask GPUMask);
 
-	FRDGGPUScopeOpArrays CompilePassEpilogue(const FRDGPass* Pass);
+	RENDERCORE_API FRDGGPUScopeOpArrays CompilePassEpilogue(const FRDGPass* Pass);
 
-	const FRDGGPUScopeStacks& GetScopeStacks(ERHIPipeline Pipeline) const;
+	RENDERCORE_API const FRDGGPUScopeStacks& GetScopeStacks(ERHIPipeline Pipeline) const;
 
-	FRDGGPUScopeStacks& GetScopeStacks(ERHIPipeline Pipeline);
+	RENDERCORE_API FRDGGPUScopeStacks& GetScopeStacks(ERHIPipeline Pipeline);
 
 	FRDGGPUScopes GetCurrentScopes(ERHIPipeline Pipeline) const
 	{
@@ -906,7 +906,7 @@ public:
 
 using FRDGCSVStatScopeOp = TRDGScopeOp<FRDGCSVStatScope>;
 
-class RENDERCORE_API FRDGCSVStatScopeOpArray final
+class FRDGCSVStatScopeOpArray final
 {
 public:
 	FRDGCSVStatScopeOpArray() = default;
@@ -914,12 +914,12 @@ public:
 		: Ops(InOps)
 	{}
 
-	void Execute();
+	RENDERCORE_API void Execute();
 
 	TRDGScopeOpArray<FRDGCSVStatScopeOp> Ops;
 };
 
-class RENDERCORE_API FRDGCSVStatScopeStack final
+class FRDGCSVStatScopeStack final
 {
 public:
 	FRDGCSVStatScopeStack(FRDGAllocator& Allocator)
@@ -950,7 +950,7 @@ public:
 		}
 	}
 
-	FRDGCSVStatScopeOpArray CompilePassPrologue(const FRDGPass* Pass);
+	RENDERCORE_API FRDGCSVStatScopeOpArray CompilePassPrologue(const FRDGPass* Pass);
 
 	void EndExecute()
 	{
@@ -979,21 +979,21 @@ private:
 
 #if CSV_PROFILER
 
-class RENDERCORE_API FRDGScopedCsvStatExclusive : public FScopedCsvStatExclusive
+class FRDGScopedCsvStatExclusive : public FScopedCsvStatExclusive
 {
 public:
-	FRDGScopedCsvStatExclusive(FRDGBuilder& InGraphBuilder, const char* InStatName);
-	~FRDGScopedCsvStatExclusive();
+	RENDERCORE_API FRDGScopedCsvStatExclusive(FRDGBuilder& InGraphBuilder, const char* InStatName);
+	RENDERCORE_API ~FRDGScopedCsvStatExclusive();
 
 private:
 	FRDGBuilder& GraphBuilder;
 };
 
-class RENDERCORE_API FRDGScopedCsvStatExclusiveConditional : public FScopedCsvStatExclusiveConditional
+class FRDGScopedCsvStatExclusiveConditional : public FScopedCsvStatExclusiveConditional
 {
 public:
-	FRDGScopedCsvStatExclusiveConditional(FRDGBuilder& InGraphBuilder, const char* InStatName, bool bInCondition);
-	~FRDGScopedCsvStatExclusiveConditional();
+	RENDERCORE_API FRDGScopedCsvStatExclusiveConditional(FRDGBuilder& InGraphBuilder, const char* InStatName, bool bInCondition);
+	RENDERCORE_API ~FRDGScopedCsvStatExclusiveConditional();
 
 private:
 	FRDGBuilder& GraphBuilder;

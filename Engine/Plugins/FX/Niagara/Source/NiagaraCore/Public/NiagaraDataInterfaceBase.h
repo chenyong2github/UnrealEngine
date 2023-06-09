@@ -11,7 +11,7 @@ class INiagaraCompiler;
 class UCurveVector;
 class UCurveLinearColor;
 class UCurveFloat;
-class RENDERCORE_API FShaderParametersMetadataBuilder;
+class FShaderParametersMetadataBuilder;
 
 class UNiagaraEmitter;
 class FNiagaraSystemInstance;

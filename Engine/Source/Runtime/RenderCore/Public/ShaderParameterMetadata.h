@@ -87,19 +87,19 @@ const TCHAR* GetShaderCodeResourceBindingTypeName(EShaderCodeResourceBindingType
 
 
 /** Simple class that registers a uniform buffer static slot in the constructor. */
-class RENDERCORE_API FUniformBufferStaticSlotRegistrar
+class FUniformBufferStaticSlotRegistrar
 {
 public:
-	FUniformBufferStaticSlotRegistrar(const TCHAR* InName);
+	RENDERCORE_API FUniformBufferStaticSlotRegistrar(const TCHAR* InName);
 };
 
 /** Registry for uniform buffer static slots. */
-class RENDERCORE_API FUniformBufferStaticSlotRegistry
+class FUniformBufferStaticSlotRegistry
 {
 public:
-	static FUniformBufferStaticSlotRegistry& Get();
+	static RENDERCORE_API FUniformBufferStaticSlotRegistry& Get();
 
-	void RegisterSlot(FName SlotName);
+	RENDERCORE_API void RegisterSlot(FName SlotName);
 
 	inline int32 GetSlotCount() const
 	{
@@ -135,7 +135,7 @@ private:
 };
 
 /** A uniform buffer struct. */
-class RENDERCORE_API FShaderParametersMetadata
+class FShaderParametersMetadata
 {
 public:
 	/** The use case of the uniform buffer structures. */
@@ -167,7 +167,7 @@ public:
 	static constexpr int32 kRootCBufferBindingIndex = 0;
 
 	/** A member of a shader parameter structure. */
-	class RENDERCORE_API FMember
+	class FMember
 	{
 	public:
 
@@ -250,7 +250,7 @@ public:
 			return ElementSize;
 		}
 
-		static void GenerateShaderParameterType(
+		static RENDERCORE_API void GenerateShaderParameterType(
 			FString& Result,
 			bool bSupportsPrecisionModifier,
 			EUniformBufferBaseType BaseType,
@@ -258,8 +258,8 @@ public:
 			uint32 NumRows,
 			uint32 NumColumns
 		);
-		void GenerateShaderParameterType(FString& Result, bool bSupportsPrecisionModifier) const;
-		void GenerateShaderParameterType(FString& Result, EShaderPlatform ShaderPlatform) const;
+		RENDERCORE_API void GenerateShaderParameterType(FString& Result, bool bSupportsPrecisionModifier) const;
+		RENDERCORE_API void GenerateShaderParameterType(FString& Result, EShaderPlatform ShaderPlatform) const;
 
 	private:
 
@@ -282,7 +282,7 @@ public:
 	 * traversal. bForceCompleteInitialization force to ignore the list for EUseCase::UniformBuffer and instead handle it like a standalone non
 	 * globally listed EUseCase::ShaderParameterStruct. This is required for the ShaderCompileWorker to deserialize them without side global effects.
 	 */
-	FShaderParametersMetadata(
+	RENDERCORE_API FShaderParametersMetadata(
 		EUseCase UseCase,
 		EUniformBufferBindingFlags InBindingFlags,
 		const TCHAR* InLayoutName,
@@ -297,16 +297,16 @@ public:
 		FRHIUniformBufferLayoutInitializer* OutLayoutInitializer = nullptr,
 		uint32 InUsageFlags = 0);
 
-	virtual ~FShaderParametersMetadata();
+	RENDERCORE_API virtual ~FShaderParametersMetadata();
 
-	void GetNestedStructs(TArray<const FShaderParametersMetadata*>& OutNestedStructs) const;
+	RENDERCORE_API void GetNestedStructs(TArray<const FShaderParametersMetadata*>& OutNestedStructs) const;
 
 #if WITH_EDITOR
-	void AddResourceTableEntries(FShaderResourceTableMap& ResourceTableMap, TMap<FString, FUniformBufferEntry>& UniformBufferMap) const;
+	RENDERCORE_API void AddResourceTableEntries(FShaderResourceTableMap& ResourceTableMap, TMap<FString, FUniformBufferEntry>& UniformBufferMap) const;
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	UE_DEPRECATED(5.3, "Resource table entries are now stored in FShaderResourceTableMap, rather than a TMap.")
-	void AddResourceTableEntries(TMap<FString, FResourceTableEntry>& ResourceTableMap, TMap<FString, FUniformBufferEntry>& UniformBufferMap) const;
+	RENDERCORE_API void AddResourceTableEntries(TMap<FString, FResourceTableEntry>& ResourceTableMap, TMap<FString, FUniformBufferEntry>& UniformBufferMap) const;
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 
@@ -360,21 +360,21 @@ public:
 #endif // WITH_EDITOR
 
 	/** Find a member for a given offset. */
-	void FindMemberFromOffset(
+	RENDERCORE_API void FindMemberFromOffset(
 		uint16 MemberOffset,
 		const FShaderParametersMetadata** OutContainingStruct,
 		const FShaderParametersMetadata::FMember** OutMember,
 		int32* ArrayElementId, FString* NamePrefix) const;
 
 	/** Returns the full C++ member name from it's byte offset in the structure. */
-	FString GetFullMemberCodeName(uint16 MemberOffset) const;
+	RENDERCORE_API FString GetFullMemberCodeName(uint16 MemberOffset) const;
 
-	static TLinkedList<FShaderParametersMetadata*>*& GetStructList();
+	static RENDERCORE_API TLinkedList<FShaderParametersMetadata*>*& GetStructList();
 	/** Speed up finding the uniform buffer by its name */
-	static TMap<FHashedName, FShaderParametersMetadata*>& GetNameStructMap();
+	static RENDERCORE_API TMap<FHashedName, FShaderParametersMetadata*>& GetNameStructMap();
 
 	/** Initialize all the global shader parameter structs. */
-	static void InitializeAllUniformBufferStructs();
+	static RENDERCORE_API void InitializeAllUniformBufferStructs();
 
 	/** Returns a hash about the entire layout of the structure. */
 	uint32 GetLayoutHash() const
@@ -462,9 +462,9 @@ private:
 	/** Additional flags for how to use the buffer */
 	uint32 UsageFlags = 0;
 
-	void InitializeLayout(FRHIUniformBufferLayoutInitializer* OutLayoutInitializer = nullptr);
+	RENDERCORE_API void InitializeLayout(FRHIUniformBufferLayoutInitializer* OutLayoutInitializer = nullptr);
 
 #if WITH_EDITOR
-	void InitializeUniformBufferDeclaration();
+	RENDERCORE_API void InitializeUniformBufferDeclaration();
 #endif
 };
