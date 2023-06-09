@@ -231,6 +231,13 @@ void JoinedToGroup(const FIPv4Endpoint& UnicastEndpoint, const FIPv4Endpoint& Mu
 		{
 			DoJoinMulticastGroup(MulticastAddr, LocalIp, MulticastSocket);
 		}
+
+		// GetLocalAdapterAddresses returns empty list when all network adapters are offline
+		if (LocapIps.Num() == 0)
+		{
+			bool bCanBindAll = false;
+			DoJoinMulticastGroup(MulticastAddr, ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetLocalHostAddr(*GLog, bCanBindAll), MulticastSocket);
+		}
 	}
 	else
 	{
