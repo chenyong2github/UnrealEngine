@@ -573,7 +573,9 @@ namespace Horde.Server.Storage
 
 			object content;
 
-			Node node = await reader.ReadNodeAsync(new NodeLocator(locator, exportIdx), cancellationToken);
+			NodeData nodeData = await reader.ReadNodeDataAsync(new NodeLocator(locator, exportIdx), cancellationToken);
+
+			Node node = Node.Deserialize(nodeData);
 			switch (node)
 			{
 				case DirectoryNode directoryNode:
@@ -581,27 +583,27 @@ namespace Horde.Server.Storage
 						List<object> directories = new List<object>();
 						foreach ((Utf8String name, DirectoryEntry entry) in directoryNode.NameToDirectory)
 						{
-							directories.Add(new { name = name.ToString(), length = entry.Length, hash = entry.Handle.Hash, link = GetNodeLink(linkBase, entry) });
+							directories.Add(new { name = name.ToString(), length = entry.Length, hash = entry.Handle.Hash, link = GetNodeLink(linkBase, entry.Handle) });
 						}
 
 						List<object> files = new List<object>();
 						foreach ((Utf8String name, FileEntry entry) in directoryNode.NameToFile)
 						{
-							files.Add(new { name = name.ToString(), length = entry.Length, flags = entry.Flags, hash = entry.Hash, link = GetNodeLink(linkBase, entry) });
+							files.Add(new { name = name.ToString(), length = entry.Length, flags = entry.Flags, hash = entry.Hash, link = GetNodeLink(linkBase, entry.Handle) });
 						}
 
 						content = new { directoryNode.Length, directories, files };
 					}
 					break;
 				default:
-					content = new { references = node.EnumerateRefs().Select(x => GetNodeLink(linkBase, x)) };
+					content = new { references = nodeData.Refs.Select(x => GetNodeLink(linkBase, x)) };
 					break;
 			}
 
 			return new { bundle = $"{linkBase}/bundles/{locator}", export.Hash, export.Length, guid = header.Types[export.TypeIdx].Guid, type = node.GetType().Name, content = content };
 		}
 
-		static string GetNodeLink(string linkBase, NodeRef treeNodeRef) => GetNodeLink(linkBase, treeNodeRef.Handle!.GetLocator());
+		static string GetNodeLink(string linkBase, NodeHandle handle) => GetNodeLink(linkBase, handle.GetLocator());
 		
 		static string GetNodeLink(string linkBase, NodeLocator locator) => $"{linkBase}/nodes/{locator.Blob}?export={locator.ExportIdx}";
 

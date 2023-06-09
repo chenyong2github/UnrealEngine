@@ -124,9 +124,6 @@ namespace EpicGames.Horde.Logs
 			writer.WriteVariableLengthBytes(Data.Span);
 		}
 
-		/// <inheritdoc/>
-		public override IEnumerable<NodeRef> EnumerateRefs() => Enumerable.Empty<NodeRef>();
-
 		/// <summary>
 		/// Accessor for an individual line
 		/// </summary>

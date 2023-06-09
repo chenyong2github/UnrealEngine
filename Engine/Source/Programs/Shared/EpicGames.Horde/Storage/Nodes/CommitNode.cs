@@ -113,21 +113,5 @@ namespace EpicGames.Horde.Storage.Nodes
 			writer.WriteNodeRef(Contents);
 			writer.WriteDictionary(Metadata, key => writer.WriteGuid(key), value => writer.WriteNodeRef(value));
 		}
-
-		/// <inheritdoc/>
-		public override IEnumerable<NodeRef> EnumerateRefs()
-		{
-			if (Parent != null)
-			{
-				yield return Parent;
-			}
-
-			yield return Contents;
-
-			foreach (NodeRef metadataRef in Metadata.Values)
-			{
-				yield return metadataRef;
-			}
-		}
 	}
 }

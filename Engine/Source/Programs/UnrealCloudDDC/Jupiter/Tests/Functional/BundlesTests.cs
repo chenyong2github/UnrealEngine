@@ -389,8 +389,6 @@ public abstract class BundlesTests
             writer.WriteVariableLengthBytes(Data);
             writer.WriteVariableLengthArray(Refs, x => writer.WriteNodeRef(x));
         }
-
-        public override IEnumerable<NodeRef> EnumerateRefs() => Refs;
     }
 
     static async Task SeedTreeAsync(BundleStorageClient store, RefName rootRefName, RefName leafRefName, BundleOptions options)

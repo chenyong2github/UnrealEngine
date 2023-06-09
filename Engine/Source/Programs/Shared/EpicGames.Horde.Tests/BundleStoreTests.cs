@@ -49,8 +49,6 @@ namespace EpicGames.Horde.Tests
 			{
 				writer.WriteString(Text);
 			}
-
-			public override IEnumerable<NodeRef> EnumerateRefs() => Array.Empty<NodeRef>();
 		}
 
 		public BundleStoreTests()
@@ -135,8 +133,6 @@ namespace EpicGames.Horde.Tests
 				writer.WriteVariableLengthBytes(Data);
 				writer.WriteVariableLengthArray(Refs, x => writer.WriteNodeRef(x));
 			}
-
-			public override IEnumerable<NodeRef> EnumerateRefs() => Refs;
 		}
 
 		static async Task TestTreeAsync(MemoryStorageClient store, BundleOptions options)

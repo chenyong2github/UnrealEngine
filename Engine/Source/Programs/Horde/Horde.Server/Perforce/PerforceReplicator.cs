@@ -69,12 +69,6 @@ namespace Horde.Server.Perforce
 				writer.WriteNodeRef(Contents);
 				writer.WriteList(Paths, x => writer.WriteUtf8String(x));
 			}
-
-			/// <inheritdoc/>
-			public override IEnumerable<NodeRef> EnumerateRefs()
-			{
-				yield return Contents;
-			}
 		}
 
 		// Partial mirror of FileSysType from P4 API (filesys.h)

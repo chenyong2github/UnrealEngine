@@ -91,12 +91,6 @@ namespace EpicGames.Horde.Storage
 		/// <returns>Data for the node</returns>
 		public abstract void Serialize(NodeWriter writer);
 
-		/// <summary>
-		/// Enumerate all outward references from this node
-		/// </summary>
-		/// <returns>References to other nodes</returns>
-		public abstract IEnumerable<NodeRef> EnumerateRefs();
-
 		#region Static methods
 
 		static readonly object s_writeLock = new object();

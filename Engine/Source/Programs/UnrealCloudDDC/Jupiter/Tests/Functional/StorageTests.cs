@@ -897,7 +897,5 @@ namespace Jupiter.FunctionalTests.Storage
         {
             writer.WriteString(Text);
         }
-
-        public override IEnumerable<NodeRef> EnumerateRefs() => Array.Empty<NodeRef>();
     }
 }

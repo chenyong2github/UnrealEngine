@@ -105,17 +105,6 @@ namespace EpicGames.Horde.Logs
 			writer.WriteList(TextChunkRefs, x => writer.WriteNodeRef(x));
 			writer.WriteBoolean(Complete);
 		}
-
-		/// <inheritdoc/>
-		public override IEnumerable<NodeRef> EnumerateRefs()
-		{
-			yield return IndexRef;
-
-			foreach (NodeRef<LogChunkNode> textChunkRef in TextChunkRefs)
-			{
-				yield return textChunkRef;
-			}
-		}
 	}
 
 	/// <summary>

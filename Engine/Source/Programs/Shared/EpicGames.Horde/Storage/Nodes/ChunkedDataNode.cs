@@ -120,9 +120,6 @@ namespace EpicGames.Horde.Storage.Nodes
 		}
 
 		/// <inheritdoc/>
-		public override IEnumerable<NodeRef> EnumerateRefs() => Enumerable.Empty<NodeRef>();
-
-		/// <inheritdoc/>
 		public override async Task CopyToStreamAsync(Stream outputStream, CancellationToken cancellationToken)
 		{
 			await outputStream.WriteAsync(Data, cancellationToken);
@@ -322,9 +319,6 @@ namespace EpicGames.Horde.Storage.Nodes
 				writer.WriteNodeRef(child);
 			}
 		}
-
-		/// <inheritdoc/>
-		public override IEnumerable<NodeRef> EnumerateRefs() => Children;
 
 		/// <summary>
 		/// Create a tree of nodes from the given list of handles, splitting nodes in each layer based on the hash of the last node.

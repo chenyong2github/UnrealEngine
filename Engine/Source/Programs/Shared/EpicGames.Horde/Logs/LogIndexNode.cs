@@ -110,9 +110,6 @@ namespace EpicGames.Horde.Logs
 			writer.WriteVariableLengthArray(_plainTextChunkRefs, x => writer.WriteNodeRef(x));
 		}
 
-		/// <inheritdoc/>
-		public override IEnumerable<NodeRef> EnumerateRefs() => _plainTextChunkRefs;
-
 		/// <summary>
 		/// Appends a set of text blocks to this index
 		/// </summary>

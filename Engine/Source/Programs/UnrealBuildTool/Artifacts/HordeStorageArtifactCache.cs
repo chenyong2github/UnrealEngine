@@ -153,18 +153,6 @@ namespace UnrealBuildTool.Artifacts
 			writer.WriteDictionary<IoHash, HordeArtifactAction>(ArtifactActions, (x) => writer.WriteIoHash(x), (x) => writer.WriteHordeArtifactAction(x));
 		}
 
-		/// <inheritdoc/>
-		public override IEnumerable<NodeRef> EnumerateRefs()
-		{
-			foreach (HordeArtifactAction artifactAction in ArtifactActions.Values)
-			{
-				foreach (NodeRef outputRef in artifactAction.OutputRefs)
-				{
-					yield return outputRef;
-				}
-			}
-		}
-
 		/// <summary>
 		/// Mark the node as dirty
 		/// </summary>

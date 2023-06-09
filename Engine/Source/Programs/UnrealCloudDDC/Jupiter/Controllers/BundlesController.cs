@@ -466,7 +466,9 @@ namespace Jupiter.Controllers
 
             object content;
 
-            Node node = await reader.ReadNodeAsync(new NodeLocator(locator, exportIdx), cancellationToken);
+            NodeData nodeData = await reader.ReadNodeDataAsync(new NodeLocator(locator, exportIdx), cancellationToken);
+
+            Node node = Node.Deserialize(nodeData);
             switch (node)
             {
                 case DirectoryNode directoryNode:
@@ -487,7 +489,7 @@ namespace Jupiter.Controllers
                     }
                     break;
                 default:
-                    content = new { references = node.EnumerateRefs().Select(x => Url.Action("GetNode", new { namespaceId = namespaceId, locator = x.Handle!.GetLocator().Blob, export = x.Handle!.GetLocator().ExportIdx})!) };
+                    content = new { references = nodeData.Refs.Select(x => Url.Action("GetNode", new { namespaceId = namespaceId, locator = x.GetLocator().Blob, export = x.GetLocator().ExportIdx})!) };
                     break;
             }
 

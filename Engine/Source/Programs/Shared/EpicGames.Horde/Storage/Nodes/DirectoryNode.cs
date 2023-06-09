@@ -168,19 +168,6 @@ namespace EpicGames.Horde.Storage.Nodes
 			}
 		}
 
-		/// <inheritdoc/>
-		public override IEnumerable<NodeRef> EnumerateRefs()
-		{
-			foreach (FileEntry fileEntry in _nameToFileEntry.Values)
-			{
-				yield return fileEntry;
-			}
-			foreach (DirectoryEntry directoryEntry in _nameToDirectoryEntry.Values)
-			{
-				yield return directoryEntry;
-			}
-		}
-
 		/// <summary>
 		/// Clear the contents of this directory
 		/// </summary>

@@ -86,8 +86,5 @@ namespace EpicGames.Horde.Storage.Nodes
 		{
 			writer.WriteFixedLengthBytes(Object.GetView().Span);
 		}
-
-		/// <inheritdoc/>
-		public override IEnumerable<NodeRef> EnumerateRefs() => References;
 	}
 }
