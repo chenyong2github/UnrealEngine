@@ -3314,12 +3314,15 @@ void UNiagaraComponent::CopyParametersFromAsset(bool bResetExistingOverrideParam
 		UNiagaraDataInterface* OverrideDataInterface = OverrideParameters.GetDataInterface(i);
 		if (AssetDataInterface != OverrideDataInterface)
 		{
-			continue;
+			// We must copy the data regardless as there is an expectation that data interfaces are always reset to the original state
+			AssetDataInterface->CopyTo(OverrideDataInterface);
 		}
-
-		OverrideDataInterface = NewObject<UNiagaraDataInterface>(this, AssetDataInterface->GetClass(), NAME_None, RF_Transactional | RF_Public);
-		AssetDataInterface->CopyTo(OverrideDataInterface);
-		OverrideParameters.SetDataInterface(OverrideDataInterface, i);
+		else
+		{
+			OverrideDataInterface = NewObject<UNiagaraDataInterface>(this, AssetDataInterface->GetClass(), NAME_None, RF_Transactional | RF_Public);
+			AssetDataInterface->CopyTo(OverrideDataInterface);
+			OverrideParameters.SetDataInterface(OverrideDataInterface, i);
+		}
 	}
 }
 
