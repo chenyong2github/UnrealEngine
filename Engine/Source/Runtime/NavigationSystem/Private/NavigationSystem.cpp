@@ -987,9 +987,7 @@ void UNavigationSystemV1::OnWorldInitDone(FNavigationSystemRunMode Mode)
 	// those links were serialized-in or spawned)
 	ProcessCustomLinkPendingRegistration();
 
-	if (IsThereAnywhereToBuildNavigation() == false
-		// Simulation mode is a special case - better not do it in this case
-		&& OperationMode != FNavigationSystemRunMode::SimulationMode)
+	if (IsThereAnywhereToBuildNavigation() == false)
 	{
 		// remove all navigation data instances
 		for (TActorIterator<ANavigationData> It(World); It; ++It)

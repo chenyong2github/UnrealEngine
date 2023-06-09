@@ -32,7 +32,7 @@ enum class FNavigationSystemRunMode : uint8
 	InvalidMode,
 	GameMode,
 	EditorMode,
-	SimulationMode,
+	SimulationMode UE_DEPRECATED(5.3, "No longer used.") UMETA(Hidden, DisplayName = "DEPRECATED No longer used, to be removed soon"),
 	PIEMode,
 	InferFromWorldMode,
 	EditorWorldPartitionBuildMode
