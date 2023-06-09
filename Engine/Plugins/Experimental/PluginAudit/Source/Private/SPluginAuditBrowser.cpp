@@ -60,7 +60,8 @@ void SPluginAuditBrowser::Construct(const FArguments& InArgs)
 		SNew(SListView< TSharedRef<FCookedPlugin> >)
 		.ListItemsSource(&FilteredCookedPlugins)
 		.OnGenerateRow(this, &SPluginAuditBrowser::MakeCookedPluginRow)
-		.OnContextMenuOpening(this, &SPluginAuditBrowser::OnContextMenuOpening);
+		.OnContextMenuOpening(this, &SPluginAuditBrowser::OnContextMenuOpening)
+		.OnMouseButtonDoubleClick(this, &SPluginAuditBrowser::OnListViewDoubleClick);
 
 	ChildSlot
 	[
@@ -319,15 +320,20 @@ TSharedPtr<SWidget> SPluginAuditBrowser::OnContextMenuOpening()
 		));
 
 	MenuBuilder.AddMenuEntry(
-		LOCTEXT("OpenPluginDependencyViewerLabel", "Open Plugin Dependency Viewer"),
-		LOCTEXT("OpenPluginDependencyViewerTooltip", "Open Plugin Dependency Viewer"),
+		LOCTEXT("OpenPluginReferenceViewerLabel", "Open Plugin Reference Viewer"),
+		LOCTEXT("OpenPluginReferenceViewerTooltip", "Open Plugin Reference Viewer"),
 		FSlateIcon(),
 		FUIAction(
-			FExecuteAction::CreateSP(this, &SPluginAuditBrowser::OnOpenPluginDependencyViewer),
+			FExecuteAction::CreateSP(this, &SPluginAuditBrowser::OnOpenPluginReferenceViewer),
 			FCanExecuteAction()
 		));
 
 	return MenuBuilder.MakeWidget();
+}
+
+void SPluginAuditBrowser::OnListViewDoubleClick(TSharedRef<FCookedPlugin> Item)
+{
+	OpenPluginReferenceViewer(Item->Plugin);
 }
 
 void SPluginAuditBrowser::OnOpenPluginProperties()
@@ -339,12 +345,12 @@ void SPluginAuditBrowser::OnOpenPluginProperties()
 	}
 }
 
-void SPluginAuditBrowser::OnOpenPluginDependencyViewer()
+void SPluginAuditBrowser::OnOpenPluginReferenceViewer()
 {
 	TArray<TSharedRef<FCookedPlugin>> SelectedItems = PluginListView->GetSelectedItems();
 	if (SelectedItems.Num() == 1)
 	{
-		FPluginReferenceViewerModule::Get().OpenPluginReferenceViewerUI(SelectedItems[0]->Plugin);
+		OpenPluginReferenceViewer(SelectedItems[0]->Plugin);
 	}
 }
 
@@ -356,6 +362,11 @@ void SPluginAuditBrowser::OpenPluginProperties(const FString& PluginName)
 		IPluginsEditorFeature& PluginEditor = IModularFeatures::Get().GetModularFeature<IPluginsEditorFeature>(EditorFeatures::PluginsEditor);
 		PluginEditor.OpenPluginEditor(Plugin.ToSharedRef(), nullptr, FSimpleDelegate());
 	}
+}
+
+void SPluginAuditBrowser::OpenPluginReferenceViewer(const TSharedRef<IPlugin>& Plugin)
+{
+	FPluginReferenceViewerModule::Get().OpenPluginReferenceViewerUI(Plugin);
 }
 
 void SPluginAuditBrowser::CreateLogListing()

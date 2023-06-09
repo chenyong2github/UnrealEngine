@@ -19,7 +19,6 @@ struct FGameplayTag;
 class IMessageLogListing;
 class IMessageToken;
 class SFilterSearchBox;
-class SPluginReferenceViewer;
 class STableViewBase;
 class ITableRow;
 class FTokenizedMessage;
@@ -48,8 +47,9 @@ private:
 	FText GetPluginCountText() const;
 	TSharedPtr<SWidget> OnContextMenuOpening();
 	void OnOpenPluginProperties();
-	void OnOpenPluginDependencyViewer();
+	void OnOpenPluginReferenceViewer();
 	void OpenPluginProperties(const FString& PluginName);
+	void OpenPluginReferenceViewer(const TSharedRef<IPlugin>& Plugin);
 
 	class FCookedPlugin
 	{
@@ -62,6 +62,8 @@ private:
 		TSharedRef<IPlugin> Plugin;
 		bool bSimulateDisabled = false;
 	};
+
+	void OnListViewDoubleClick(TSharedRef<FCookedPlugin> Item);
 
 	TSharedRef<ITableRow> MakeCookedPluginRow(TSharedRef<FCookedPlugin> InItem, const TSharedRef<STableViewBase>& OwnerTable);
 
@@ -104,8 +106,6 @@ private:
 
 	/** The plugin search box widget */
 	TSharedPtr<class SSearchBox> SearchBoxPtr;
-
-	TSharedPtr<SPluginReferenceViewer> PluginReferenceViewer;
 
 	/** Text filter object for typing in filter text to the search box */
 	TSharedPtr<FCookedPluginTextFilter> PluginTextFilter;
