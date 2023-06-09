@@ -1346,6 +1346,7 @@ public:
 	 * releasing their resources and pending count if so.
 	 */
 	void PollPendingCookedPlatformDatas(bool bForce, double& LastCookableObjectTickTime);
+	void ClearCancelManager(FPackageData& PackageData);
 
 	/** Swap all ITargetPlatform* stored on this instance according to the mapping in @param Remap. */
 	void RemapTargetPlatforms(const TMap<ITargetPlatform*, ITargetPlatform*>& Remap);

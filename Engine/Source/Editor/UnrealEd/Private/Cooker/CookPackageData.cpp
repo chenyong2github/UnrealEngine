@@ -3210,6 +3210,22 @@ void FPackageDatas::PollPendingCookedPlatformDatas(bool bForce, double& LastCook
 	}
 }
 
+void FPackageDatas::ClearCancelManager(FPackageData& PackageData)
+{
+	ForEachPendingCookedPlatformData(
+		[&PackageData](FPendingCookedPlatformData& PendingCookedPlatformData)
+		{
+			if (&PendingCookedPlatformData.PackageData == &PackageData)
+			{
+				if (!PendingCookedPlatformData.PollIsComplete())
+				{
+					// Abandon it
+					PendingCookedPlatformData.Release();
+				}
+			}
+		});
+}
+
 void FPackageDatas::RemapTargetPlatforms(const TMap<ITargetPlatform*, ITargetPlatform*>& Remap)
 {
 	LockAndEnumeratePackageDatas([&Remap](FPackageData* PackageData)
