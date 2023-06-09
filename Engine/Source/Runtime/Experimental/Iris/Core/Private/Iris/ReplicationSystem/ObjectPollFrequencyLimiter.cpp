@@ -8,16 +8,6 @@
 namespace UE::Net::Private
 {
 
-// Storing poll frame period as uint8
-const int MaxPollFramePeriod = 256;
-float PollFrequencyMultiplier = 1.0f;
-
-static FAutoConsoleVariableRef CVarPollFrequencyMultiplier(
-		TEXT("net.Iris.PollFrequencyMultiplier"),
-		PollFrequencyMultiplier,
-		TEXT("Multiplied with the NetUpdateFrequency to decide how often PreReplication is called on an Actor. Default factor is 1.0.")
-		);
-
 FObjectPollFrequencyLimiter::FObjectPollFrequencyLimiter()
 {
 }

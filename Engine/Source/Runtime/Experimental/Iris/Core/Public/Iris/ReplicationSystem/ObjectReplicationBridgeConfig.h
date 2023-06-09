@@ -20,12 +20,14 @@ struct FObjectReplicationBridgePollConfig
 	FName ClassName;
 
 	/**
-	 * How many frames between polling for modified replicated properties.
-	 * The value will be clamped to what the runtime supports, currently [0,255].
-	 * 0 means poll every frame and 255 means poll every 256th frame.
+	 * How many times per second should we poll for modified replicated properties.
+	 * The value will be converted into a frame count based on the current TickRate up to a maximum of 255 frames
+	 * This means the slowest poll frequency is 255*MaxTickRate (ex: 8.5secs at 30hz)
+	 * If set to 0 it means we poll the object every frame.
 	 */
 	UPROPERTY()
-	uint32 PollFramePeriod = 0;
+	float PollFrequency = 0.0f;
+	
 
 	/** Whether instances of subclasses should also use this poll period. */
 	UPROPERTY()

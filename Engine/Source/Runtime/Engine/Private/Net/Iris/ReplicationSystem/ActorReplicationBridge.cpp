@@ -53,18 +53,6 @@ bool ShouldUseIrisReplication(const UObject* Object)
 
 namespace UE::Net::Private
 {
-// This is not pretty but the alternative is exposing the PollFrequencyMultiplier in a public header file.
-// It's really only useful for this particular class and in order to ensure
-// NetUpdateFrequencies are ok.
-extern IRISCORE_API float PollFrequencyMultiplier;
-extern IRISCORE_API const int MaxPollFramePeriod;
-
-static bool bIrisEnableLowNetUpdateFrequencyEnsure = false;
-static FAutoConsoleVariableRef CVarEnableLowNetUpdateFrequencyEnsure(
-		TEXT("net.Iris.EnableLowNetUpdateFrequencyEnsure"),
-		bIrisEnableLowNetUpdateFrequencyEnsure,
-		TEXT("Whether to ensure when NetUpdateFrequency is so low that the poll frame period is clamped. Default is true.")
-		);
 
 bool IsActorValidForIrisReplication(const AActor* Actor)
 {
@@ -94,12 +82,11 @@ void ActorReplicationBridgeGetActorWorldObjectInfo(FNetRefHandle Handle, const U
 	}
 }
 
-}
+} // end namespace UE::Net::Private
 
 UActorReplicationBridge::UActorReplicationBridge()
 : UObjectReplicationBridge()
 , NetDriver(nullptr)
-, MaxPollFrequency(0.0f)
 , ObjectReferencePackageMap(nullptr)
 , SpawnInfoFlags(0U)
 {
@@ -257,15 +244,9 @@ UE::Net::FNetRefHandle UActorReplicationBridge::BeginReplication(AActor* Actor, 
 	CreateNetRefHandleParams.bNeedsPreUpdate = 1U;
 	CreateNetRefHandleParams.bNeedsWorldLocationUpdate = 1U;
 	CreateNetRefHandleParams.StaticPriority = (Actor->bAlwaysRelevant || Actor->bOnlyRelevantToOwner) ? Actor->NetPriority : 0.0f;
-	const uint32 UnclampedPollPeriod = GetPollFramePeriod(Actor->NetUpdateFrequency);
-	const uint32 ClampedPollPeriod = FMath::Clamp<uint32>(UnclampedPollPeriod, 1U, static_cast<uint32>(std::numeric_limits<uint8>::max()) + 1U);
-	CreateNetRefHandleParams.PollFramePeriod = (ClampedPollPeriod - 1U) & 255U;
+	CreateNetRefHandleParams.PollFrequency = Actor->NetUpdateFrequency;
+
 #if !UE_BUILD_SHIPPING
-	if ((ClampedPollPeriod < UnclampedPollPeriod))
-	{
-		ensureAlwaysMsgf(!UE::Net::Private::bIrisEnableLowNetUpdateFrequencyEnsure, TEXT("Very low NetUpdateFrequency %f for Actor %s. Suggest setting it to %f or higher."), Actor->NetUpdateFrequency, ToCStr(Actor->GetName()), GetMinSupportedNetUpdateFrequency());
-		UE_CLOG(!UE::Net::Private::bIrisEnableLowNetUpdateFrequencyEnsure, LogIrisBridge, Warning, TEXT("Very low NetUpdateFrequency %f for Actor %s. Suggest setting it to %f or higher."), Actor->NetUpdateFrequency, ToCStr(Actor->GetName()), GetMinSupportedNetUpdateFrequency());
-	}
 	ensureAlwaysMsgf(!(Actor->bAlwaysRelevant || Actor->bOnlyRelevantToOwner) || CreateNetRefHandleParams.StaticPriority >= 1.0f, TEXT("Very low NetPriority %.02f for always relevant or owner relevant Actor %s. Set it to 1.0f or higher."), Actor->NetPriority, ToCStr(Actor->GetName()));
 #endif
 
@@ -901,7 +882,7 @@ void UActorReplicationBridge::SetNetDriver(UNetDriver* const InNetDriver)
 	NetDriver = InNetDriver;
 	if (InNetDriver != nullptr)
 	{
-		MaxPollFrequency = static_cast<float>(FPlatformMath::Max(InNetDriver->GetNetServerMaxTickRate(), 0));
+		SetMaxTickRate(static_cast<float>(FPlatformMath::Max(InNetDriver->GetNetServerMaxTickRate(), 0)));
 
 		InNetDriver->OnNetServerMaxTickRateChanged.AddUObject(this, &UActorReplicationBridge::OnMaxTickRateChanged);
 
@@ -921,9 +902,9 @@ void UActorReplicationBridge::SetNetDriver(UNetDriver* const InNetDriver)
 
 void UActorReplicationBridge::OnMaxTickRateChanged(UNetDriver* InNetDriver, int32 NewMaxTickRate, int32 OldMaxTickRate)
 {
-	MaxPollFrequency = static_cast<float>(FPlatformMath::Max(InNetDriver->GetNetServerMaxTickRate(), 0));
+	SetMaxTickRate(static_cast<float>(FPlatformMath::Max(InNetDriver->GetNetServerMaxTickRate(), 0)));
 
-	//TODO: Reset poll frequencies for all objects
+	ReinitPollFrequency();
 }
 
 void UActorReplicationBridge::GetActorCreationHeader(const AActor* Actor, UE::Net::Private::FActorCreationHeader& Header) const
@@ -1086,17 +1067,17 @@ UActorReplicationBridge* UActorReplicationBridge::Create(UNetDriver* NetDriver)
 	return Bridge;
 }
 
-uint32 UActorReplicationBridge::GetPollFramePeriod(float PollFrequency) const
+float UActorReplicationBridge::GetPollFrequencyOfRootObject(const UObject* ReplicatedObject) const
 {
-	const uint32 FramesBetweenUpdatesForObject = static_cast<uint32>(MaxPollFrequency/FPlatformMath::Max(0.001f, UE::Net::Private::PollFrequencyMultiplier*PollFrequency));
-	return FramesBetweenUpdatesForObject;
+	const AActor* ReplicatedActor = CastChecked<AActor>(ReplicatedObject);
+	float PollFrequency = ReplicatedActor->NetUpdateFrequency;
+	GetClassPollFrequency(ReplicatedActor->GetClass(), PollFrequency);
+	return PollFrequency;
 }
 
-float UActorReplicationBridge::GetMinSupportedNetUpdateFrequency() const
-{
-	return MaxPollFrequency/(UE::Net::Private::MaxPollFramePeriod*UE::Net::Private::PollFrequencyMultiplier);
-}
-#else
+#else //!UE_WITH_IRIS
+
 UActorReplicationBridge::UActorReplicationBridge() = default;
 UActorReplicationBridge::~UActorReplicationBridge() = default;
+
 #endif

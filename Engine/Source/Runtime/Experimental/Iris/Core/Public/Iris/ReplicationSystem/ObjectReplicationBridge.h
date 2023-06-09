@@ -53,16 +53,16 @@ public:
 		bool bAllowDynamicFilter = false;
 
 		/**
-		  * If StaticPriority is > 0 the ReplicationSystem will use that as priority when scheduling objects.
-		  * If it's <= 0.0f one will look for a world location support and then use the default spatial prioritizer.
-		  */
+		 * If StaticPriority is > 0 the ReplicationSystem will use that as priority when scheduling objects. 
+		 * If it's <= 0.0f one will look for a world location support and then use the default spatial prioritizer.
+		 */
 		float StaticPriority = 0.0f;
 
 		/**
-		  * How often the object should be polled for dirtiness, including calling the InstancePreUpdate function.
-		  * The period is zero based so 0 means poll every frame and 255 means poll every 256th frame.
-		  */
-		uint8 PollFramePeriod = 0;
+		 * How often per second the object should be polled for dirtiness, including calling the InstancePreUpdate function. 
+		 * When set to zero it will be polled every frame.
+		 */
+		float PollFrequency = 0.0f;
 	};
 
 	IRISCORE_API static FCreateNetRefHandleParams DefaultCreateNetRefHandleParams;
@@ -207,11 +207,17 @@ protected:
 	
 	// Poll frequency support
 
-	/** Set poll frame period for a specific object. Zero based period where 0 means every frame and 255 means every 256th frame. */
-	IRISCORE_API void SetPollFramePeriod(UE::Net::Private::FInternalNetRefIndex InternalReplicationIndex, uint8 FramePeriod);
-
 	/** Force polling of Object when ObjectToPollWith is polled. */
 	IRISCORE_API void SetPollWithObject(FNetRefHandle ObjectToPollWith, FNetRefHandle Object);
+
+	/** Transform a poll frequency (in updates per second) to an equivalent number of frames. */
+	IRISCORE_API uint8 ConvertPollFrequencyIntoFrames(float PollFrequency) const;
+
+	/** Returns the poll frequency of a specific root object. */
+	IRISCORE_API virtual float GetPollFrequencyOfRootObject(const UObject* ReplicatedObject) const;
+
+	/** Re-initialize the poll frequency of all replicated root objects. */
+	IRISCORE_API void ReinitPollFrequency();
 
 	/** Re-initialize config-driven parameters found in ObjectReplicationBridgeConfig. */
 	IRISCORE_API void LoadConfig();
@@ -224,6 +230,22 @@ protected:
 
 	/** Set the function used to determine whether two classes are to be considered equal when it comes to filtering. Used on subclasses. */
 	IRISCORE_API void SetShouldSubclassUseSameFilterFunction(TFunction<bool(const UClass* Class, const UClass* Subclass)>);
+
+	/** Finds the final poll frequency for a class and cache it for future lookups. OutPollPeriod will only be modified if this method returns true. */
+	IRISCORE_API bool FindOrCachePollFrequency(const UClass* Class, float& OutPollPeriod);
+
+	/**
+	 * Find the poll period of a class if it was configured with an override. 
+	 * Use this only if all class configs have been properly cached.
+	 * OutPollPeriod will only be modified if this method returns true.
+	 */
+	IRISCORE_API bool GetClassPollFrequency(const UClass* Class, float& OutPollPeriod) const;
+
+	/** Current max tick rate set by the engine */
+	float GetMaxTickRate() const { return MaxTickRate; }
+
+	/** Change the max tick rate to match the one from the engine */
+	void SetMaxTickRate(float InMaxTickRate) { MaxTickRate = InMaxTickRate; }
 
 private:
 
@@ -240,8 +262,6 @@ private:
 
 	void SetNetPushIdOnInstance(UE::Net::FReplicationInstanceProtocol* InstanceProtocol, FNetHandle NetHandle);
 
-	/** Finds a poll period override if it exists. OutPollPeriod will only be modified if this method returns true. */
-	bool FindPollInfo(const UClass* Class, uint8& OutPollPeriod);
 
 	/** Tries to load the classes used in poll period overrides. */
 	void FindClassesInPollPeriodOverrides();
@@ -277,13 +297,18 @@ private:
 	};
 
 	// Polling
+
+	/** The maximum tick per second of the engine. Default is to use 30hz */
+	float MaxTickRate = 30.0f;
+
 	struct FPollInfo
 	{
-		uint8 PollFramePeriod = 0;
+		float PollFrequency = 0.0f;
 		TWeakObjectPtr<const UClass> Class;
 	};
 	UE::Net::Private::FObjectPollFrequencyLimiter* PollFrequencyLimiter;
 
+	//$IRIS TODO: The poll class config management code should be moved into it's own class. Maybe in a class that handles any type of per-class settings.
 	// Class hierarchies with poll period overrides
 	TMap<FName, FPollInfo> ClassHierarchyPollPeriodOverrides;
 	// Exact classes with poll period overrides

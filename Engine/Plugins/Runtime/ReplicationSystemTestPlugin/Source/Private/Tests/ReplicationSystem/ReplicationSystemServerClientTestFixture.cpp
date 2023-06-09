@@ -326,6 +326,12 @@ uint32 FReplicationSystemTestNode::GetReplicationSystemId() const
 	return ReplicationSystem ? ReplicationSystem->GetId() : uint32(~0U);
 }
 
+float FReplicationSystemTestNode::ConvertPollPeriodIntoFrequency(uint32 PollPeriod) const
+{
+	const float PollFrequency = ReplicationBridge->GetMaxTickRate() / (float)PollPeriod;
+	return PollFrequency;
+}
+
 // FReplicationSystemTestClient implementation
 FReplicationSystemTestClient::FReplicationSystemTestClient(const TCHAR* Name)
 : FReplicationSystemTestNode(false, Name)

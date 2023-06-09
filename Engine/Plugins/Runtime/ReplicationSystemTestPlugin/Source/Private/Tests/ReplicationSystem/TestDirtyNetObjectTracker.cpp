@@ -143,7 +143,9 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, GlobalDirtyTracke
 
 	// Spawn object on server that is polled only every 3 frames
 	UObjectReplicationBridge::FCreateNetRefHandleParams Params;
-	Params.PollFramePeriod = 2;
+	const uint32 PollPeriod = 2;
+	const float PollFrequency = Server->ConvertPollPeriodIntoFrequency(PollPeriod);
+	Params.PollFrequency = PollFrequency;
 	Params.bCanReceive = true;
 	Params.bAllowDynamicFilter = true;
 	Params.bNeedsPreUpdate = true;
@@ -186,7 +188,9 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, DirtyInsidePreUpd
 
 	// Spawn object on server that is polled late in order to test ForceNetUpdate
 	UObjectReplicationBridge::FCreateNetRefHandleParams Params;
-	Params.PollFramePeriod = 10;
+	const uint32 PollPeriod = 10;
+	const float PollFrequency = Server->ConvertPollPeriodIntoFrequency(PollPeriod);
+	Params.PollFrequency = PollFrequency;
 	Params.bCanReceive = true;
 	Params.bAllowDynamicFilter = true;	
 	Params.bNeedsPreUpdate = true;

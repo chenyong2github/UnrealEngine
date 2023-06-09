@@ -307,9 +307,11 @@ UE::Net::FNetRefHandle UObjectReplicationBridge::BeginReplication(UObject* Insta
 			ObjectsWithObjectReferences.SetBitValue(InternalReplicationIndex, EnumHasAnyFlags(InstanceProtocol->InstanceTraits, EReplicationInstanceProtocolTraits::HasObjectReference));
 
 			// Set poll frame period
-			uint8 PollFramePeriod = Params.PollFramePeriod;
-			FindPollInfo(Instance->GetClass(), PollFramePeriod);
-			SetPollFramePeriod(InternalReplicationIndex, PollFramePeriod);
+			float PollFrequency = Params.PollFrequency;
+			FindOrCachePollFrequency(Instance->GetClass(), PollFrequency);
+			
+			uint8 PollFramePeriod = ConvertPollFrequencyIntoFrames(Params.PollFrequency);
+			PollFrequencyLimiter->SetPollFramePeriod(InternalReplicationIndex, PollFramePeriod);
 
 			UE_LOG_OBJECTREPLICATIONBRIDGE(Verbose, TEXT("BeginReplication Created %s with ProtocolId:0x%" UINT64_x_FMT " for Object named %s"), *RefHandle.ToString(), ReplicationProtocol->ProtocolIdentifier, *Instance->GetName());
 
@@ -913,11 +915,6 @@ void UObjectReplicationBridge::UpdateInstancesWorldLocation()
 
 }
 
-void UObjectReplicationBridge::SetPollFramePeriod(UE::Net::Private::FInternalNetRefIndex InternalReplicationIndex, uint8 PollFramePeriod)
-{
-	PollFrequencyLimiter->SetPollFramePeriod(InternalReplicationIndex, PollFramePeriod);
-}
-
 void UObjectReplicationBridge::SetPollWithObject(FNetRefHandle ObjectToPollWithHandle, FNetRefHandle ObjectHandle)
 {
 	const UE::Net::Private::FInternalNetRefIndex PollWithInternalReplicationIndex = NetRefHandleManager->GetInternalIndex(ObjectToPollWithHandle);
@@ -991,7 +988,7 @@ void UObjectReplicationBridge::SetNetPushIdOnInstance(UE::Net::FReplicationInsta
 #endif
 }
 
-bool UObjectReplicationBridge::FindPollInfo(const UClass* Class, uint8& OutPollPeriod)
+bool UObjectReplicationBridge::GetClassPollFrequency(const UClass* Class, float& OutPollFrequency) const
 {
 	if (!(bAllowPollPeriodOverrides & bHasPollOverrides))
 	{
@@ -1001,7 +998,67 @@ bool UObjectReplicationBridge::FindPollInfo(const UClass* Class, uint8& OutPollP
 	const FName ClassName = Class->GetFName();
 	if (const FPollInfo* PollInfo = ClassesWithPollPeriodOverride.Find(ClassName))
 	{
-		OutPollPeriod = PollInfo->PollFramePeriod;
+		OutPollFrequency = PollInfo->PollFrequency;
+		return true;
+	}
+
+	if (ClassesWithoutPollPeriodOverride.Find(ClassName))
+	{
+		return false;
+	}
+
+	bool bFoundOverride = false;
+	const UClass* SuperclassWithPollInfo = nullptr;
+	FPollInfo SuperclassPollInfo;
+	for (const auto& ClassNameAndPollInfo : ClassHierarchyPollPeriodOverrides)
+	{
+		const UClass* ClassWithPollInfo = ClassNameAndPollInfo.Value.Class.Get();
+		if (ClassWithPollInfo == nullptr)
+		{
+			continue;
+		}
+
+		if (Class->IsChildOf(ClassWithPollInfo))
+		{
+			// If we've already found a superclass with a config, see which one is closer in the hierarchy.
+			if (SuperclassWithPollInfo != nullptr)
+			{
+				if (ClassWithPollInfo->IsChildOf(SuperclassWithPollInfo))
+				{
+					bFoundOverride = true;
+					SuperclassWithPollInfo = ClassWithPollInfo;
+					SuperclassPollInfo = ClassNameAndPollInfo.Value;
+				}
+			}
+			else
+			{
+				bFoundOverride = true;
+				SuperclassWithPollInfo = ClassWithPollInfo;
+				SuperclassPollInfo = ClassNameAndPollInfo.Value;
+			}
+		}
+	}
+
+	if (bFoundOverride)
+	{
+		OutPollFrequency = SuperclassPollInfo.PollFrequency;
+		return true;
+	}
+
+	return false;
+}
+
+bool UObjectReplicationBridge::FindOrCachePollFrequency(const UClass* Class, float& OutPollFrequency)
+{
+	if (!(bAllowPollPeriodOverrides & bHasPollOverrides))
+	{
+		return false;
+	}
+
+	const FName ClassName = Class->GetFName();
+	if (const FPollInfo* PollInfo = ClassesWithPollPeriodOverride.Find(ClassName))
+	{
+		OutPollFrequency = PollInfo->PollFrequency;
 		return true;
 	}
 
@@ -1069,7 +1126,7 @@ bool UObjectReplicationBridge::FindPollInfo(const UClass* Class, uint8& OutPollP
 			ClassesWithPollPeriodOverride.FindOrAdd(ClassToAddName, SuperclassPollInfo);
 		}
 
-		OutPollPeriod = SuperclassPollInfo.PollFramePeriod;
+		OutPollFrequency = SuperclassPollInfo.PollFrequency;
 		return true;
 	}
 	else
@@ -1246,7 +1303,7 @@ void UObjectReplicationBridge::LoadConfig()
 		bHasPollOverrides = true;
 
 		FPollInfo PollInfo;
-		PollInfo.PollFramePeriod = FPlatformMath::Min(PollOverride.PollFramePeriod, 255U) & 255U;
+		PollInfo.PollFrequency = FPlatformMath::Max(PollOverride.PollFrequency, 0.0f);
 		if (PollOverride.bIncludeSubclasses)
 		{
 			bHasDirtyClassesInPollPeriodOverrides = true;
@@ -1370,4 +1427,54 @@ void UObjectReplicationBridge::InitConditionalPropertyDelegates()
 			Conditionals.SetPropertyDynamicCondition(LocalNetRefHandleManager.GetInternalIndex(RefHandle), Owner, RepIndex, Condition);
 		}
 	});
+}
+
+uint8 UObjectReplicationBridge::ConvertPollFrequencyIntoFrames(float PollFrequency) const
+{
+	if (PollFrequency <= 0.0f)
+	{
+		return 0U;
+	}
+
+	const uint32 FramesBetweenUpdatesForObject = static_cast<uint32>(MaxTickRate / FPlatformMath::Max(0.001f, PollFrequency));
+	return static_cast<uint8>(FMath::Clamp<uint32>(FramesBetweenUpdatesForObject, 0U, UE::Net::Private::FObjectPollFrequencyLimiter::GetMaxPollingFrames()));
+}
+
+float UObjectReplicationBridge::GetPollFrequencyOfRootObject(const UObject* ReplicatedObject) const
+{
+	float PollFrequency = 0.0f;
+	GetClassPollFrequency(ReplicatedObject->GetClass(), PollFrequency);
+
+	return PollFrequency;
+}
+
+void UObjectReplicationBridge::ReinitPollFrequency()
+{
+	using namespace UE::Net;
+	using namespace UE::Net::Private;
+
+	FReplicationSystemInternal* ReplicationSystemInternal = GetReplicationSystem()->GetReplicationSystemInternal();
+	const FNetRefHandleManager& LocalNetRefHandleManager = ReplicationSystemInternal->GetNetRefHandleManager();
+
+	auto UpdatePollFrequency = [this, &LocalNetRefHandleManager](uint32 RootObjectIndex)
+	{
+		if (UObject* RootObjectInstance = LocalNetRefHandleManager.GetReplicatedObjectInstance(RootObjectIndex))
+		{
+			const float PollFrequency = GetPollFrequencyOfRootObject(RootObjectInstance);
+			const uint8 PollFramePeriod = ConvertPollFrequencyIntoFrames(PollFrequency);
+
+			PollFrequencyLimiter->SetPollFramePeriod(RootObjectIndex, PollFramePeriod);
+
+			// Set the subobjects of the object
+			for (const FInternalNetRefIndex SubObjectIndex : LocalNetRefHandleManager.GetSubObjects(RootObjectIndex))
+			{
+				PollFrequencyLimiter->SetPollFramePeriod(SubObjectIndex, PollFramePeriod);
+			}
+		}
+	};
+
+	const FNetBitArrayView RootObjects = LocalNetRefHandleManager.GetScopableInternalIndicesView();
+	const FNetBitArrayView SubObjects = MakeNetBitArrayView(LocalNetRefHandleManager.GetSubObjectInternalIndices());
+
+	FNetBitArrayView::ForAllSetBits(RootObjects, SubObjects, FNetBitArrayView::AndNotOp, UpdatePollFrequency);
 }

@@ -148,6 +148,8 @@ public:
 
 	uint32 GetNetTraceId() const;
 
+	float ConvertPollPeriodIntoFrequency(uint32 PollPeriod) const;
+
 public:
 	UReplicationSystem* ReplicationSystem;
 	UReplicatedTestObjectBridge* ReplicationBridge;

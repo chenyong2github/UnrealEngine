@@ -218,23 +218,6 @@ bool UReplicatedTestObjectBridge::IsAllowedToDestroyInstance(const UObject* Inst
 	return true;
 }
 
-void UReplicatedTestObjectBridge::SetPollFramePeriod(UReplicatedTestObject* Instance, uint8 FramePeriod)
-{
-	using namespace UE::Net;
-	using namespace UE::Net::Private;
-
-	if (Instance == nullptr)
-	{
-		return;
-	}
-	const FNetRefHandleManager* LocalNetRefHandleManager = &GetReplicationSystem()->GetReplicationSystemInternal()->GetNetRefHandleManager();
-	const uint32 InternalObjectIndex = LocalNetRefHandleManager->GetInternalIndex(Instance->NetRefHandle);
-	if (InternalObjectIndex != FNetRefHandleManager::InvalidInternalIndex)
-	{
-		UObjectReplicationBridge::SetPollFramePeriod(InternalObjectIndex, FramePeriod);
-	}
-}
-
 void UReplicatedTestObjectBridge::SetExternalWorldLocationUpdateFunctor(TFunction<void(FNetRefHandle NetHandle, const UObject* ReplicatedObject, FVector& OutLocation, float& OutCullDistance)> LocUpdateFunctor)
 {
 	SetInstanceGetWorldObjectInfoFunction(LocUpdateFunctor);

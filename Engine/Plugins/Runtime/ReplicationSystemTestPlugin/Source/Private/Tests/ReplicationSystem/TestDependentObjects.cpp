@@ -188,8 +188,9 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestDependentObje
 
 	// Spawn second object on server that later will be added as a dependent object
 	// With high PollFramePeriod so that it will not replicate in a while unless it is a dependent
-	UTestReplicatedIrisObject* ServerDependentObject = Server->CreateObject(0, 0);
-	Server->ReplicationBridge->SetPollFramePeriod(ServerDependentObject, 255U);
+	UObjectReplicationBridge::FCreateNetRefHandleParams Params = Server->GetReplicationBridge()->DefaultCreateNetRefHandleParams;
+	Params.PollFrequency = Server->ConvertPollPeriodIntoFrequency(255U);
+	UTestReplicatedIrisObject* ServerDependentObject = Server->CreateObject(Params);
 
 	// Send and deliver packet
 	Server->PreSendUpdate();
@@ -254,16 +255,20 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestDependentObje
 	FReplicationSystemTestClient* Client = CreateClient();
 
 	// Spawn object on server
-	UTestReplicatedIrisObject* ServerObject0 = Server->CreateObject(0, 0);
-	UTestReplicatedIrisObject* ServerObject1 = Server->CreateObject(0, 0);
+	UObjectReplicationBridge::FCreateNetRefHandleParams Params = Server->GetReplicationBridge()->DefaultCreateNetRefHandleParams;
+
+	// Setup different poll frequencies for the objects
+	Params.PollFrequency = Server->ConvertPollPeriodIntoFrequency(10U);
+	UTestReplicatedIrisObject* ServerObject0 = Server->CreateObject(Params);
+
+	Params.PollFrequency = Server->ConvertPollPeriodIntoFrequency(20U);
+	UTestReplicatedIrisObject* ServerObject1 = Server->CreateObject(Params);
 
 	// Spawn second object on server that later will be added as a dependent object
-	UTestReplicatedIrisObject* ServerDependentObject = Server->CreateObject(0, 0);
+	Params.PollFrequency = Server->ConvertPollPeriodIntoFrequency(40U);
+	UTestReplicatedIrisObject* ServerDependentObject = Server->CreateObject(Params);
 
-	// Setup different pollframeperiods for the objects
-	Server->ReplicationBridge->SetPollFramePeriod(ServerObject0, 10);
-	Server->ReplicationBridge->SetPollFramePeriod(ServerObject1, 20);
-	Server->ReplicationBridge->SetPollFramePeriod(ServerDependentObject, 40U);
+
 
 	// Add dependent object to both server objects
 	Server->ReplicationBridge->AddDependentObject(ServerObject0->NetRefHandle, ServerDependentObject->NetRefHandle);
@@ -329,12 +334,13 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestDependentObje
 	FReplicationSystemTestClient* Client = CreateClient();
 
 	// Spawn object on server
-	UTestReplicatedIrisObject* ServerObject = Server->CreateObject(0, 0);
-	Server->ReplicationBridge->SetPollFramePeriod(ServerObject, 14U);
+	UObjectReplicationBridge::FCreateNetRefHandleParams Params = Server->GetReplicationBridge()->DefaultCreateNetRefHandleParams;
+	Params.PollFrequency = Server->ConvertPollPeriodIntoFrequency(14U);
+	UTestReplicatedIrisObject* ServerObject = Server->CreateObject(Params);
 
 	// Spawn second object add it as a dependency and bump poll period
-	UTestReplicatedIrisObject* ServerDependentObject = Server->CreateObject(0, 0);
-	Server->ReplicationBridge->SetPollFramePeriod(ServerDependentObject, 30U);
+	Params.PollFrequency = Server->ConvertPollPeriodIntoFrequency(30U);
+	UTestReplicatedIrisObject* ServerDependentObject = Server->CreateObject(Params);
 	Server->ReplicationBridge->AddDependentObject(ServerObject->NetRefHandle, ServerDependentObject->NetRefHandle);
 
 	// Send and deliver packet

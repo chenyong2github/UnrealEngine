@@ -1658,9 +1658,10 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestObjectPollFra
 	// Spawn object on server
 	UTestReplicatedIrisObject* ServerObject = Server->CreateObject(0, 0);
 
-	// Spawn second object on server that later will be addedded as a dependent object
-	UTestReplicatedIrisObject* ServerObjectPolledEveryOtherFrame = Server->CreateObject(0, 0);
-	Server->ReplicationBridge->SetPollFramePeriod(ServerObjectPolledEveryOtherFrame, 1U);
+	// Spawn second object on server that later will be added as a dependent object
+	UObjectReplicationBridge::FCreateNetRefHandleParams Params = Server->GetReplicationBridge()->DefaultCreateNetRefHandleParams;
+	Params.PollFrequency = Server->ConvertPollPeriodIntoFrequency(1U);
+	UTestReplicatedIrisObject* ServerObjectPolledEveryOtherFrame = Server->CreateObject(Params);
 
 	// Send and deliver packet
 	Server->PreSendUpdate();

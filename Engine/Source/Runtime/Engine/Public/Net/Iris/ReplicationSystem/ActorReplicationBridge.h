@@ -93,19 +93,16 @@ protected:
 	virtual bool ObjectLevelHasFinishedLoading(UObject* Object) const override;
 	virtual bool IsAllowedToDestroyInstance(const UObject* Instance) const override;
 
+	virtual float GetPollFrequencyOfRootObject(const UObject* ReplicatedObject) const override;
+
 private:
 	void GetActorCreationHeader(const AActor* Actor, UE::Net::Private::FActorCreationHeader& Header) const;
 	void GetSubObjectCreationHeader(const UObject* Object, UE::Net::Private::FSubObjectCreationHeader& Header) const;
 
-	uint32 GetPollFramePeriod(float PollFrequency) const;
-	float GetMinSupportedNetUpdateFrequency() const;
-
 	void OnMaxTickRateChanged(UNetDriver* InNetDriver, int32 NewMaxTickRate, int32 OldMaxTickRate);
 
 private:
-
 	UNetDriver* NetDriver;
-	float MaxPollFrequency;
 
 	UIrisObjectReferencePackageMap* ObjectReferencePackageMap;
 

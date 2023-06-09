@@ -14,9 +14,6 @@ namespace UE::Net::Private
 namespace UE::Net::Private
 {
 
-extern IRISCORE_API float PollFrequencyMultiplier;
-extern IRISCORE_API const int MaxPollFramePeriod;
-
 class FObjectPollFrequencyLimiter
 {
 public:
@@ -35,8 +32,13 @@ public:
 	*/
 	void Update(const FNetBitArrayView& RelevantObjects, const FNetBitArrayView& DirtyObjects, FNetBitArrayView& OutObjectsToPoll);
 
+	/** We use a uint8 to track frames, so the limit is 255 frames.*/
+	static constexpr uint32 GetMaxPollingFrames()
+	{		
+		return static_cast<uint32>(std::numeric_limits<uint8>::max());
+	}
+
 private:
-	uint32 GetPollFramePeriodForFrequency(float PollFrequency) const;
 
 	uint32 MaxInternalHandle = 0;
 	uint32 FrameIndex = 0;
