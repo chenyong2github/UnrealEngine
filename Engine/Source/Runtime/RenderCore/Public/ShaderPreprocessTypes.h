@@ -76,7 +76,7 @@ public:
 		return PreprocessedSource;
 	}
 
-	inline bool HasDirective(const FString& Directive)
+	inline bool HasDirective(const FString& Directive) const
 	{
 		int32 NumberOfDirectives = PragmaDirectives.Num();
 		for (int32 i = 0; i < NumberOfDirectives; i++)
