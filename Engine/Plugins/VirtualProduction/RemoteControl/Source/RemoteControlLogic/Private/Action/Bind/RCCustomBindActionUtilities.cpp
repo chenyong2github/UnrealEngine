@@ -5,6 +5,7 @@
 #include "Engine/Texture2D.h"
 #include "IRemoteControlPropertyHandle.h"
 #include "Kismet/KismetRenderingLibrary.h"
+#include "Misc/Paths.h"
 #include "RemoteControlField.h"
 
 UTexture2D* UE::RCCustomBindActionUtilities::LoadTextureFromPath(const FString& InPath)
