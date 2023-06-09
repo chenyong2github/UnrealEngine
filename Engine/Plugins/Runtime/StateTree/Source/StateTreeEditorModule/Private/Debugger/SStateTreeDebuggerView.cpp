@@ -172,15 +172,17 @@ SStateTreeDebuggerView::~SStateTreeDebuggerView()
 
 void SStateTreeDebuggerView::StartRecording()
 {
-	if (!CanStartRecording())
+	// We give priority to the Editor actions even if an analysis was active (remote process)
+	// This will stop current analysis and connect to the new live trace.
+	Debugger->RequestAnalysisOfNextLiveSession();
+
+	if (CanStartRecording())
 	{
-		return;
+		IStateTreeModule& StateTreeModule = FModuleManager::GetModuleChecked<IStateTreeModule>("StateTreeModule");
+		StateTreeModule.StartTraces();
+
+		bRecording = true;
 	}
-
-	IStateTreeModule& StateTreeModule = FModuleManager::GetModuleChecked<IStateTreeModule>("StateTreeModule");
-	StateTreeModule.StartTraces();
-
-	bRecording = true;
 }
 
 void SStateTreeDebuggerView::StopRecording()
@@ -208,11 +210,6 @@ void SStateTreeDebuggerView::OnPIEStarted(const bool bIsSimulating)
 	if (UStateTreeEditorSettings::Get().bShouldDebuggerAutoRecordOnPIE)
 	{
 		StartRecording();
-
-		if (!Debugger->IsAnalysisSessionActive())
-		{
-			Debugger->StartLastLiveSessionAnalysis();
-		}
 	}
 }
 

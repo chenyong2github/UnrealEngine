@@ -90,14 +90,14 @@ void FStateTreeDebugger::Tick(const float DeltaTime)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FStateTreeDebugger::Tick);
 
-	if (RetryLoadLastLiveSessionTimer > 0.0f)
+	if (RetryLoadNextLiveSessionTimer > 0.0f)
 	{
 		// We are still not connected to the last live session.
 		// Update polling timer and retry with remaining time; 0 or less will stop retries.
-		StartLastLiveSessionAnalysis(RetryLoadLastLiveSessionTimer - DeltaTime);
-		if (ActiveSessionTraceDescriptor.IsValid())
+		if (TryStartNewLiveSessionAnalysis(RetryLoadNextLiveSessionTimer - DeltaTime))
 		{
-			RetryLoadLastLiveSessionTimer = 0.0f;
+			RetryLoadNextLiveSessionTimer = 0.0f;
+			LastLiveSessionId = INDEX_NONE;
 		}
 	}
 	
@@ -207,34 +207,52 @@ void FStateTreeDebugger::UpdateInstances()
 	}
 }
 
-void FStateTreeDebugger::StartLastLiveSessionAnalysis(const float RetryPollingDuration)
+void FStateTreeDebugger::RequestAnalysisOfNextLiveSession()
+{
+	// Invalidate our current active session
+	ActiveSessionTraceDescriptor = FTraceDescriptor();
+
+	// Stop current analysis if any
+	StopAnalysis();
+
+	TArray<FTraceDescriptor> Traces;
+	GetLiveTraces(Traces);
+	
+	LastLiveSessionId = Traces.Num() ? Traces.Last().TraceId : INDEX_NONE;
+
+	// This won't succeed yet but will schedule our next retry
+	TryStartNewLiveSessionAnalysis(1.0f);
+}
+
+bool FStateTreeDebugger::TryStartNewLiveSessionAnalysis(const float RetryPollingDuration)
 {
 	TArray<FTraceDescriptor> Traces;
 	GetLiveTraces(Traces);
 
-	if (Traces.Num())
+	if (Traces.Num() && Traces.Last().TraceId != LastLiveSessionId)
 	{
-		StartSessionAnalysis(Traces.Last());
+		return StartSessionAnalysis(Traces.Last());
 	}
-	else
-	{
-		RetryLoadLastLiveSessionTimer = RetryPollingDuration;
-		ensure(RetryLoadLastLiveSessionTimer > 0);
-		UE_CLOG(RetryLoadLastLiveSessionTimer > 0, LogStateTree, Log, TEXT("Unable to start analysis for the most recent live session."));
-	}
+	
+	RetryLoadNextLiveSessionTimer = RetryPollingDuration;
+	ensure(RetryLoadNextLiveSessionTimer > 0);
+	UE_CLOG(RetryLoadNextLiveSessionTimer > 0, LogStateTree, Log, TEXT("Unable to start analysis for the most recent live session."));
+
+	return false;
 }
 
-void FStateTreeDebugger::StartSessionAnalysis(const FTraceDescriptor& TraceDescriptor)
+bool FStateTreeDebugger::StartSessionAnalysis(const FTraceDescriptor& TraceDescriptor)
 {
 	if (ActiveSessionTraceDescriptor == TraceDescriptor)
 	{
-		return;
+		return ActiveSessionTraceDescriptor.IsValid();
 	}
-	
+
+	ActiveSessionTraceDescriptor = FTraceDescriptor();
 	UE::Trace::FStoreClient* StoreClient = GetStoreClient();
 	if (StoreClient == nullptr)
 	{
-		return;
+		return false;
 	}
 
 	// Make sure any active analysis is stopped
@@ -253,7 +271,7 @@ void FStateTreeDebugger::StartSessionAnalysis(const FTraceDescriptor& TraceDescr
 		UE::Trace::FStoreClient::FTraceData TraceData = StoreClient->ReadTrace(TraceId);
 		if (!TraceData)
 		{
-			return;
+			return false;
 		}
 
 		FString TraceName(StoreClient->GetStatus()->GetStoreDir());
@@ -278,8 +296,13 @@ void FStateTreeDebugger::StartSessionAnalysis(const FTraceDescriptor& TraceDescr
 			SyncToCurrentSessionDuration();
 		}
 
-		ActiveSessionTraceDescriptor = AnalysisSession.IsValid() ? TraceDescriptor : FTraceDescriptor();
+		if (AnalysisSession.IsValid())
+		{
+			ActiveSessionTraceDescriptor = TraceDescriptor;	
+		}
 	}
+
+	return ActiveSessionTraceDescriptor.IsValid();
 }
 
 void FStateTreeDebugger::GetLiveTraces(TArray<FTraceDescriptor>& OutTraceDescriptors) const

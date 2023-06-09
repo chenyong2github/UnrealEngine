@@ -107,15 +107,14 @@ struct STATETREEMODULE_API FStateTreeDebugger : FTickableGameObject
 	void SetScrubTime(double ScrubTime);
 
 	void GetLiveTraces(TArray<FTraceDescriptor>& OutTraceDescriptors) const;
-	
+
 	/**
-	 * Creates a new analysis session instance and loads the latest available trace that is live.
-	 * Replaces the current analysis session.
-	 * On failure, if 'RetryPollingDuration is > 0', will retry connecting every frame for 'RetryPollingDuration' seconds 
-	 * @param RetryPollingDuration - On failure, how many seconds to retry connecting during FStateTreeDebugger::Tick
+	 * Queue a request to auto start an analysis session on the next available live trace.
+	 * This will replace the current analysis session if any.
 	 */
-	void StartLastLiveSessionAnalysis(float RetryPollingDuration = 1.0f);
-	void StartSessionAnalysis(const FTraceDescriptor& TraceDescriptor);
+	void RequestAnalysisOfNextLiveSession();
+
+	bool StartSessionAnalysis(const FTraceDescriptor& TraceDescriptor);
 	void StopAnalysis();
 	FTraceDescriptor GetSelectedTraceDescriptor() const { return ActiveSessionTraceDescriptor; }
 	FText GetSelectedTraceDescription() const;
@@ -149,6 +148,14 @@ private:
 
 	void SetActiveStates(const TConstArrayView<FStateTreeStateHandle> NewActiveStates);
 
+	/**
+	 * Looks for a new live traces to start an analysis session.
+	 * On failure, if 'RetryPollingDuration is > 0', will retry connecting every frame for 'RetryPollingDuration' seconds 
+	 * @param RetryPollingDuration - On failure, how many seconds to retry connecting during FStateTreeDebugger::Tick
+	 * @return True if the analysis was successfully started; false otherwise.
+	 */
+	bool TryStartNewLiveSessionAnalysis(float RetryPollingDuration);
+	
 	/**
 	 * Recompute index of the span that contains the active states change event and update the active states.
 	 * This method handles unselected instances in which case it will reset the active states and set the span index to INDEX_NONE
@@ -191,10 +198,16 @@ private:
 	TArray<FStateTreeStateHandle> ActiveStates;
 
 	/**
-	 * When auto-connecting on session start it is possible that a few frames are required for the tracing session to be accessible and connected to.
+	 * When auto-connecting on next live session it is possible that a few frames are required for the tracing session to be accessible and connected to.
+	 * This is to keep track of the previous last live session id so we can detect when the new one is available.
+	 */
+	int32 LastLiveSessionId = INDEX_NONE;
+	
+	/**
+	 * When auto-connecting on next live session it is possible that a few frames are required for the tracing session to be accessible and connected to.
 	 * This is to keep track of the time window where we will retry.
 	 */
-	float RetryLoadLastLiveSessionTimer = 0.0f;
+	float RetryLoadNextLiveSessionTimer = 0.0f;
 	
 	/** Recording duration of the analysis session in world recorded time. */
 	double RecordingDuration = 0;
