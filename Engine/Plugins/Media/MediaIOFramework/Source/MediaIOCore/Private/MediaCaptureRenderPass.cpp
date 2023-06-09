@@ -24,77 +24,20 @@ DECLARE_GPU_STAT(MediaCapture_Conversion);
 
 namespace UE::MediaCapture::Resample
 {
-	/** Shader parameter struct used for the Resample pixel shader. */
-	BEGIN_SHADER_PARAMETER_STRUCT(FMediaCaptureResampleParameters, )
-		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
-		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Input)
-		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Output)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, InputSampler)
-	END_SHADER_PARAMETER_STRUCT()
-
 	/**
-	 * This was adapted from PostProcessDownsample to support any output texture size.
+	 * Pixel shader to resample a texture using 4 samples per pixel.
 	 */
-	enum class EResampleQuality : uint8
-	{
-		// Single filtered sample (2x2 tap).
-		Low,
-
-		// Four filtered samples (4x4 tap).
-		High,
-
-		MAX
-	};
-
-	// The set of inputs needed to add a Resample pass to RDG.
-	struct FResamplePassInputs
-	{
-		FResamplePassInputs() = default;
-
-		// Friendly name of the pass. Used for logging and profiling.
-		const TCHAR* Name = nullptr;
-
-		// Input scene color RDG texture / view rect. Must not be null.
-		FScreenPassTexture SceneColor;
-
-		// The Resample method to use.
-		EResampleQuality Quality = EResampleQuality::Low;
-	};
-
-	/** Instantiate a Resample parameters struct. */
-	FMediaCaptureResampleParameters GetResampleParameters(const FViewInfo& View, FScreenPassTexture Output, FScreenPassTexture Input, EResampleQuality ResampleMethod)
-	{
-		check(Output.IsValid());
-		check(Input.IsValid());
-
-		const FScreenPassTextureViewportParameters InputParameters = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(Input));
-		const FScreenPassTextureViewportParameters OutputParameters = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(Output));
-
-		FMediaCaptureResampleParameters Parameters;
-		Parameters.ViewUniformBuffer = View.ViewUniformBuffer;
-		Parameters.Input = InputParameters;
-		Parameters.Output = OutputParameters;
-		Parameters.InputTexture = Input.Texture;
-		Parameters.InputSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-		return Parameters;
-	}
-
-	class FResampleQualityDimension : SHADER_PERMUTATION_ENUM_CLASS("DOWNSAMPLE_QUALITY", EResampleQuality);
-	using FResamplePermutationDomain = TShaderPermutationDomain<FResampleQualityDimension>;
-
-	/** Resample pixel shader struct copied from PostProcessResample.h */
-	/*
 	class FMediaCaptureResamplePS : public FGlobalShader
 	{
 	public:
 		DECLARE_GLOBAL_SHADER(FMediaCaptureResamplePS);
 		SHADER_USE_PARAMETER_STRUCT(FMediaCaptureResamplePS, FGlobalShader);
 
-		using FPermutationDomain = FResamplePermutationDomain;
-
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-			SHADER_PARAMETER_STRUCT_INCLUDE(FMediaCaptureResampleParameters, Common)
+			SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Input)
+			SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Output)
+			SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTexture) 
+			SHADER_PARAMETER_SAMPLER(SamplerState, InputSampler)
 			RENDER_TARGET_BINDING_SLOTS()
 		END_SHADER_PARAMETER_STRUCT()
 
@@ -102,15 +45,30 @@ namespace UE::MediaCapture::Resample
 		{
 			return true;
 		}
+
+		/** Allocates and setup shader parameter in the incoming graph builder */
+		static FMediaCaptureResamplePS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGTextureRef RGBATexture, FRDGTextureRef OutputTexture)
+		{
+			FMediaCaptureResamplePS::FParameters* Parameters = GraphBuilder.AllocParameters<FMediaCaptureResamplePS::FParameters>();
+
+			Parameters->Input = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(RGBATexture));
+			Parameters->Output = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(OutputTexture));
+			Parameters->InputTexture = RGBATexture;
+			Parameters->InputSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+			Parameters->RenderTargets[0] = FRenderTargetBinding{ OutputTexture, ERenderTargetLoadAction::ENoAction };
+
+			return Parameters;
+		}
 	};
-	*/
-
-	//IMPLEMENT_GLOBAL_SHADER(FMediaCaptureResamplePS, "/Engine/Private/PostProcessDownsample.usf", "MainPS", SF_Pixel);
-
+	
+	IMPLEMENT_GLOBAL_SHADER(FMediaCaptureResamplePS, "/MediaIOShaders/MediaIO.usf", "MediaDownsample", SF_Pixel);
+	
 	/** Adds a Resample pass to the graph builder. */
-	void AddResamplePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FResamplePassInputs& Inputs, FRDGTextureRef OutputTexture)
+	void AddResamplePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FScreenPassTexture& InputTexture, FRDGTextureRef OutputTexture)
 	{
-		check(Inputs.SceneColor.IsValid());
+		check(InputTexture.Texture);
+
+		const FScreenPassRenderTarget Input = FScreenPassRenderTarget::CreateFromInput(GraphBuilder, InputTexture, ERenderTargetLoadAction::ENoAction, TEXT("MediaCaptureResampleInput"));
 
 		FScreenPassRenderTarget Output;
 		const FIntVector OutputSize = OutputTexture->Desc.GetSize();
@@ -118,29 +76,20 @@ namespace UE::MediaCapture::Resample
 		Output.ViewRect = FIntRect{ 0, 0, OutputSize.X, OutputSize.Y };
 		Output.LoadAction = ERenderTargetLoadAction::ENoAction;
 
-		FResamplePermutationDomain PermutationVector;
-		PermutationVector.Set<FResampleQualityDimension>(Inputs.Quality);
-
-		/*
-
-		FMediaCaptureResamplePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMediaCaptureResamplePS::FParameters>();
-		PassParameters->Common = GetResampleParameters(View, Output, Inputs.SceneColor, Inputs.Quality);
-		PassParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
-
-		TShaderMapRef<FMediaCaptureResamplePS> PixelShader(View.ShaderMap, PermutationVector);
+		FMediaCaptureResamplePS::FParameters* PassParameters = FMediaCaptureResamplePS::AllocateAndSetParameters(GraphBuilder, InputTexture.Texture, OutputTexture);
+		
+		const FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+		const TShaderMapRef<FMediaCaptureResamplePS> PixelShader(GlobalShaderMap);
 		FPixelShaderUtils::AddFullscreenPass(
 			GraphBuilder,
-			View.ShaderMap,
-			RDG_EVENT_NAME("MediaCapture Resample(%s Quality=%s) %dx%d -> %dx%d",
+			GlobalShaderMap,
+			RDG_EVENT_NAME("MediaCapture Resample(%s) %dx%d -> %dx%d",
 				Output.Texture->Name,
-				Inputs.Quality == EResampleQuality::High ? TEXT("High") : TEXT("Bilinear"),
-				Inputs.SceneColor.ViewRect.Width(), Inputs.SceneColor.ViewRect.Height(),
+				Input.ViewRect.Width(), Input.ViewRect.Height(),
 				Output.ViewRect.Width(), Output.ViewRect.Height()),
 			PixelShader,
 			PassParameters,
 			Output.ViewRect);
-
-		*/
 	}
 
 }
@@ -421,8 +370,7 @@ namespace UE::MediaCapture
 
 		if (MediaCapture->GetDesiredCaptureOptions().ResizeMethod == EMediaCaptureResizeMethod::ResizeInRenderPass)
 		{
-			// Disabled temporarily to fix CIS issue related to the shader.
-			//RenderPasses.Add(CreateResamplePass());
+			RenderPasses.Add(CreateResamplePass());
 		}
 		
 		if (MediaCapture->GetDesiredCaptureOptions().ColorConversionSettings.IsValid())
@@ -445,7 +393,7 @@ namespace UE::MediaCapture
 
 		check(OutputResource->Type == FRDGTexture::StaticType);
 		FRDGTexture* OutputTexture =  static_cast<FRDGTexture*>(OutputResource);
-	
+		
 		//Based on conversion type, this might be changed
 		bool bRequiresFormatConversion = ConversionPassArgs.bRequiresFormatConversion;
 
@@ -522,11 +470,6 @@ namespace UE::MediaCapture
 		// Downsampling only supports texture at the moment.
 		check(OutputTexture->Type == ERDGViewableResourceType::Texture);
 			
-		UE::MediaCapture::Resample::FResamplePassInputs PassInputs;
-		PassInputs.Name = TEXT("MediaCapture.Resample");
-		PassInputs.SceneColor = FScreenPassTexture(ConversionPassArgs.SourceRGBTexture);
-		PassInputs.Quality = MediaCapture::Resample::EResampleQuality::High;
-
 		const FIntRect ViewRect(ConversionPassArgs.CopyInfo.GetSourceRect());
 
 		//Dummy ViewFamily/ViewInfo created to use built in Draw Screen/Texture Pass
@@ -542,7 +485,7 @@ namespace UE::MediaCapture
 		FViewInfo ViewInfo = FViewInfo(ViewInitOptions);
 
 		RDG_GPU_STAT_SCOPE(Args.GraphBuilder, MediaCapture_Resample);
-		MediaCapture::Resample::AddResamplePass(Args.GraphBuilder, ViewInfo, PassInputs, (FRDGTextureRef)OutputTexture);
+		MediaCapture::Resample::AddResamplePass(Args.GraphBuilder, ViewInfo, FScreenPassTexture(ConversionPassArgs.SourceRGBTexture), (FRDGTextureRef)OutputTexture);
 	}
 
 	FRenderPipeline::FRenderPipeline(UMediaCapture* InMediaCapture)
