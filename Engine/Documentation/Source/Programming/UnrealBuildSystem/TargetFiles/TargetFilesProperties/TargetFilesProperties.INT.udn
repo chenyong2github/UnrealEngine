@@ -172,6 +172,10 @@ $ bUseLauncherChecks (Boolean): Whether to check that the process was launched t
 
 $ bUseChecksInShipping (Boolean): Whether to turn on checks (asserts) for test/shipping builds.
 
+$ bAllowProfileGPUInTest (Boolean): Whether to turn on GPU markers for Test builds.
+
+$ bAllowProfileGPUInShipping (Boolean): Whether to turn on GPU markers for Shipping builds.
+
 $ bTCHARIsUTF8 (Boolean): Whether to turn on UTF-8 mode, mapping TCHAR to UTF8CHAR.
 
 $ bUseEstimatedUtcNow (Boolean): Whether to use the EstimatedUtcNow or PlatformUtcNow.  EstimatedUtcNow is appropriate in cases where PlatformUtcNow can be slow.

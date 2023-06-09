@@ -414,6 +414,7 @@ Spawns an external executable and waits for it to complete.
 |         |           |          |                                                                                   |
 | ------- | --------- | -------- | --------------------------------------------------------------------------------- |
 | Command | String    | Required | Executable to spawn.                                                              |
+| Lease   | Boolean   | Optional | Whether to execute on lease termination                                           |
 | If      | Condition | Optional | Whether to execute this task. It is ignored if this condition evaluates to false. |
 
 ### PakFile
