@@ -3,7 +3,7 @@
 #pragma once
 #include "Containers/Array.h"
 #include "Containers/StringFwd.h"
-#include "Hal/Platform.h"
+#include "HAL/Platform.h"
 #include "Templates/SharedPointer.h"
 
 class FChaosVDTraceProvider;
