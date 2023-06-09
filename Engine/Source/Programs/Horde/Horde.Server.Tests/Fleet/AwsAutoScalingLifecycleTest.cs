@@ -63,7 +63,17 @@ public class AwsAutoScalingLifecycleServiceTest : TestSetup
 	private AwsAutoScalingLifecycleService _asgLifecycleService = default!;
 	private Mock<IAmazonAutoScaling> _asgMock = default!;
 	private readonly List<CompleteLifecycleActionRequest> _lifecycleUpdates = new();
-	
+
+	protected override void Dispose(bool disposing)
+	{
+		if (disposing)
+		{
+			_asgLifecycleService?.Dispose();
+		}
+
+		base.Dispose(disposing);
+	}
+
 	[TestInitialize]
 	public async Task Setup()
 	{
