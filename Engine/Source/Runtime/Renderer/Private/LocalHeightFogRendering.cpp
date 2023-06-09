@@ -156,7 +156,7 @@ public:
 
 	FORCEINLINE bool operator<(FLocalFogVolumeSortKey B) const
 	{
-		return PackedData > B.PackedData;
+		return PackedData < B.PackedData;
 	}
 };
 

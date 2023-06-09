@@ -55,9 +55,9 @@ class ULocalHeightFogComponent : public USceneComponent
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Fog Shading", meta = (ClampMin = 0.0, ClampMax = 1.0))
 	FLinearColor FogEmissive = FLinearColor::Black;
 
-	/** The priority can be used as a way to overide the sorting by distance. A higher value means the volume will be considered further away, i.e. behing the one with a lower priority value. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sorting", meta = (UIMin = "0", UIMax = "255", ClampMin = 0, ClampMax = 255))
-	uint8 FogSortPriority = 127;
+	/** The priority can be used as a way to override the sorting by distance. A lower value means the volume will be considered further away, i.e. it will draw behind the one with a higher priority value. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sorting", meta = (UIMin = "-127", UIMax = "127", ClampMin = -127, ClampMax = 127))
+	int32 FogSortPriority = 0;
 
 public:
 
