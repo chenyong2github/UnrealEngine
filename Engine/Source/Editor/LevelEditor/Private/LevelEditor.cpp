@@ -269,6 +269,7 @@ void FLevelEditorModule::StartupModule()
 	NotificationBarExtensibilityManager = MakeShared<FExtensibilityManager>();
 
 	// Note this must come before any tab spawning because that can create the SLevelEditor and attempt to map commands
+	FGlobalEditorCommonCommands::Register();
 	FEditorViewportCommands::Register();
 	FLevelViewportCommands::Register();
 	FLevelEditorCommands::Register();
