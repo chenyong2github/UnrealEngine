@@ -247,7 +247,7 @@ namespace EpicGames.Horde.Tests
 			BundleOptions options = new BundleOptions();
 			options.MaxBlobSize = 1;
 
-			await using (IStorageWriter writer = _storage.CreateWriter())
+			await using (BundleWriter writer = _storage.CreateWriter())
 			{
 				DirectoryNode root = new DirectoryNode();
 				for (int idx = 1; idx <= 3; idx++)
@@ -258,7 +258,8 @@ namespace EpicGames.Horde.Tests
 				}
 
 				RefName refName = new RefName("ref");
-				await _storage.WriteNodeAsync(refName, root, options);
+				NodeRef<DirectoryNode> rootRef = await writer.WriteNodeAsync(root);
+				await _storage.WriteRefTargetAsync(refName, rootRef);
 			}
 
 			Assert.AreEqual(1, _storage.Refs.Count);

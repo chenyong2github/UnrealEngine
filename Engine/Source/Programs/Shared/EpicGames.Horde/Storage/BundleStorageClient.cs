@@ -45,10 +45,13 @@ namespace EpicGames.Horde.Storage
 		#region Nodes
 
 		/// <inheritdoc/>
-		public IStorageWriter CreateWriter(RefName refName = default, BundleOptions? options = null)
+		public BundleWriter CreateWriter(RefName refName = default, BundleOptions? options = null)
 		{
 			return new BundleWriter(this, TreeReader, refName, options);
 		}
+
+		/// <inheritdoc/>
+		IStorageWriter IStorageClient.CreateWriter(RefName refName) => CreateWriter(refName);
 
 		#endregion
 

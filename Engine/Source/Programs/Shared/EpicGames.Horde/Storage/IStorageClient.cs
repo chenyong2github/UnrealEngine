@@ -115,9 +115,8 @@ namespace EpicGames.Horde.Storage
 		/// Creates a new writer for storage nodes
 		/// </summary>
 		/// <param name="refName">Name of the ref being written.</param>
-		/// <param name="options"></param>
 		/// <returns>New writer instance. Must be disposed after use.</returns>
-		IStorageWriter CreateWriter(RefName refName = default, BundleOptions? options = null);
+		IStorageWriter CreateWriter(RefName refName = default);
 
 		#endregion
 

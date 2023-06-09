@@ -954,8 +954,7 @@ namespace Horde.Agent.Execution
 				Stopwatch timer = Stopwatch.StartNew();
 				RefName refName = TempStorage.GetRefNameForNode(_storagePrefix, step.Name);
 
-				BundleOptions treeOptions = new BundleOptions();
-				await using IStorageWriter treeWriter = storage.CreateWriter(refName, treeOptions);
+				await using IStorageWriter treeWriter = storage.CreateWriter(refName);
 
 				DirectoryNode outputNode = new DirectoryNode();
 
