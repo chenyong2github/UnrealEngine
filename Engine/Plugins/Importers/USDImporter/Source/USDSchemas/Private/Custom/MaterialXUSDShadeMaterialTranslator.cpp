@@ -49,6 +49,227 @@ static FAutoConsoleVariableRef CvarUseInterchangeMaterialXTranslator(
 
 FName FMaterialXUsdShadeMaterialTranslator::MaterialXRenderContext = TEXT("mtlx");
 
+namespace UE::USDMaterialXTranslator::Private
+{
+	TArray<FString> GetMaterialXFilePaths(const pxr::UsdPrim& Prim)
+	{
+		TArray<FString> Result;
+
+		pxr::UsdPrimCompositionQuery PrimCompositionQuery = pxr::UsdPrimCompositionQuery::GetDirectReferences(Prim);
+		for (const pxr::UsdPrimCompositionQueryArc& CompositionArc : PrimCompositionQuery.GetCompositionArcs())
+		{
+			if (CompositionArc.GetArcType() == pxr::PcpArcTypeReference)
+			{
+				pxr::SdfReferenceEditorProxy ReferenceEditor;
+				pxr::SdfReference UsdReference;
+
+				if (CompositionArc.GetIntroducingListEditor(&ReferenceEditor, &UsdReference))
+				{
+					// The mtlx file will be the "target layer". It's useful to get its real path via the SdfLayer
+					// interface as it already makes sure it is absolute
+					pxr::SdfLayerHandle TargetLayer = CompositionArc.GetTargetLayer();
+					FString AbsoluteFilePath = UsdToUnreal::ConvertString(TargetLayer->GetRealPath());
+
+					FString Extension = FPaths::GetExtension(AbsoluteFilePath);
+					if (Extension == FMaterialXUsdShadeMaterialTranslator::MaterialXRenderContext && FPaths::FileExists(AbsoluteFilePath))
+					{
+						Result.Add(AbsoluteFilePath);
+					}
+				}
+			}
+		}
+
+		return Result;
+	};
+
+	// Quick shallow parse of MaterialX documents ourselves so that we can find all the referenced MaterialX files and
+	// build a robust hash to use for caching our generated assets
+	FString HashMaterialXFile(const FString& MaterialXFilePath)
+	{
+		if (!FPaths::FileExists(MaterialXFilePath))
+		{
+			return {};
+		}
+
+		FSHA1 SHA1;
+
+		TSet<FString> ReferencedMaterialXFiles;
+		TFunction<void(const FString&)> CollectReferencedMaterialXFilesRecursive;
+		CollectReferencedMaterialXFilesRecursive =
+			[&ReferencedMaterialXFiles, &CollectReferencedMaterialXFilesRecursive](const FString& ActiveDocumentFullPath)
+		{
+			namespace mx = MaterialX;
+
+			mx::DocumentPtr Document = mx::createDocument();
+			mx::readFromXmlFile(Document, TCHAR_TO_UTF8(*ActiveDocumentFullPath));
+
+			for (const std::string& ReferencedURI : Document->getReferencedSourceUris())
+			{
+				FString UEReferencedURI = UTF8_TO_TCHAR(ReferencedURI.c_str());
+
+				// This could be relative to the referencer .mtlx file
+				UEReferencedURI = FPaths::ConvertRelativePathToFull(FPaths::GetPath(ActiveDocumentFullPath), UEReferencedURI);
+
+				if (ReferencedMaterialXFiles.Contains(UEReferencedURI))
+				{
+					continue;
+				}
+
+				if (FPaths::FileExists(UEReferencedURI))
+				{
+					ReferencedMaterialXFiles.Add(UEReferencedURI);
+					CollectReferencedMaterialXFilesRecursive(UEReferencedURI);
+				}
+			}
+		};
+
+		// Note we don't have to add MaterialXFilePath ourselves because getReferencedSourceUris
+		// always includes at least the active document itself anyway
+		CollectReferencedMaterialXFilesRecursive(MaterialXFilePath);
+
+		for (const FString& ReferencedMaterialXFile : ReferencedMaterialXFiles)
+		{
+			if (TUniquePtr<FArchive> Ar{IFileManager::Get().CreateFileReader(*ReferencedMaterialXFile)})
+			{
+				TArray<uint8> LocalScratch;
+				LocalScratch.SetNumUninitialized(1024 * 64);
+
+				const int64 Size = Ar->TotalSize();
+				int64 Position = 0;
+
+				// Read in BufferSize chunks
+				while (Position < Size)
+				{
+					const int64 ReadNum = FMath::Min(Size - Position, (int64)LocalScratch.Num());
+					Ar->Serialize(LocalScratch.GetData(), ReadNum);
+					SHA1.Update(LocalScratch.GetData(), ReadNum);
+
+					Position += ReadNum;
+				}
+			}
+		}
+
+		FSHAHash Hash;
+		SHA1.Final();
+		SHA1.GetHash(&Hash.Hash[0]);
+		return Hash.ToString();
+	}
+
+	bool TranslateMaterialXFile(const FString& MaterialXFilePath, const FString& FileHash, const pxr::UsdPrim& MaterialXReferencerPrim, UUsdAssetCache2& AssetCache)
+	{
+		if (!FPaths::FileExists(MaterialXFilePath))
+		{
+			return false;
+		}
+
+		UInterchangeManager& Manager = UInterchangeManager::GetInterchangeManager();
+		UInterchangeSourceData* SourceData = Manager.CreateSourceData(MaterialXFilePath);
+
+		FString ReferencerPrimPath = *UsdToUnreal::ConvertPath(MaterialXReferencerPrim.GetPrimPath());
+
+		FImportAssetParameters InterchangeParameters;
+		InterchangeParameters.bIsAutomated = true;
+
+		// Get a temp content folder we can give interchange as it must have a destination
+		int32 PackageSuffix = FMath::RandRange(0, TNumericLimits<int32>::Max()-1);
+		FString TempPackagePath = FString::Printf(TEXT("/Engine/USDImporter/Transient/%d"), PackageSuffix++);
+
+		// Make sure that content folder doesn't have any packages already in it
+		TArray<FString> Filenames;
+		while (FPackageName::FindPackagesInDirectory(Filenames, TempPackagePath))
+		{
+			TempPackagePath = FString::Printf(TEXT("/Engine/USDImporter/Transient/%d"), PackageSuffix++);
+		}
+
+		// Currently Interchange cannot import directly into the transient package, so we'll import into a temporary folder and then
+		// move everything over
+		InterchangeParameters.OnAssetsImportDoneNative.BindLambda(
+			[&AssetCache, &FileHash, &ReferencerPrimPath, &TempPackagePath, &MaterialXFilePath](const TArray<UObject*>& ImportedObjects)
+			{
+				UE_LOG(LogUsd, Verbose, TEXT("Translated '%d' assets from MaterialX file '%s'"), ImportedObjects.Num(), *MaterialXFilePath);
+
+				// Move all our assets to the transient package
+				for (UObject* ImportedObject : ImportedObjects)
+				{
+					const FName NewName = MakeUniqueObjectName(
+						GetTransientPackage(),
+						ImportedObject->GetClass(),
+						ImportedObject->GetFName()
+					);
+					bool bSuccess = ImportedObject->Rename(
+						*NewName.ToString(),
+						GetTransientPackage(),
+						REN_NonTransactional | REN_DontCreateRedirectors | REN_ForceNoResetLoaders
+					);
+					if (!bSuccess)
+					{
+						UE_LOG(LogUsd, Warning, TEXT("Failed to rename imported MaterialX material '%s', generated for referencer prim '%s'."),
+							*ImportedObject->GetPathName(),
+							*ReferencerPrimPath
+						);
+						continue;
+					}
+
+					ImportedObject->SetFlags(RF_Transient);
+
+					if (UMaterialInterface* Material = Cast<UMaterialInterface>(ImportedObject))
+					{
+						// MaterialX names are unique, and can only have alphanumeric and the "_" character, so we should
+						// always have a solid enough mapping to assume UAsset name == Prim name == MaterialX name
+						FString NewMaterialHash = FileHash + TEXT("/") + Material->GetFName().GetPlainNameString();
+
+						// We generate all assets from the MaterialX file once, but it's possible we're just updating a
+						// single material prim here. If we were to cache all assets here, we'd potentially be trying
+						// to overwrite the existing assets that are being used by other prims and wouldn't otherwise
+						// be discarded, so make sure we don't do that
+						UMaterialInterface* ExistingMaterial = Cast<UMaterialInterface>(AssetCache.GetCachedAsset(NewMaterialHash));
+						if (!ExistingMaterial)
+						{
+							AssetCache.CacheAsset(NewMaterialHash, Material);
+						}
+					}
+					else if (UTexture* Texture = Cast<UTexture>(ImportedObject))
+					{
+						const FString FilePath = Texture->AssetImportData ? Texture->AssetImportData->GetFirstFilename() : TEXT("");
+
+						FString TextureHash = UsdUtils::GetTextureHash(
+							FilePath,
+							Texture->SRGB,
+							Texture->CompressionSettings,
+							Texture->GetTextureAddressX(),
+							Texture->GetTextureAddressY()
+						);
+
+						// See comment on the analogous part of the Material case above
+						UTexture* ExistingTexture = Cast<UTexture>(AssetCache.GetCachedAsset(TextureHash));
+						if (!ExistingTexture)
+						{
+							UUsdAssetUserData* UserData = NewObject<UUsdAssetUserData>(Texture, TEXT("USDAssetUserData"));
+							UserData->PrimPath = ReferencerPrimPath;
+							Texture->AddAssetUserData(UserData);
+
+							AssetCache.CacheAsset(TextureHash, Texture);
+						}
+					}
+					else
+					{
+						ensureMsgf(false, TEXT("Asset type unsupported!"));
+					}
+				}
+
+				// Now that the asset cache took everything we imported we shouldn't have anything else
+				TArray<FString> Filenames;
+				if (FPackageName::FindPackagesInDirectory(Filenames, TempPackagePath))
+				{
+					ensureMsgf(false, TEXT("We should not have any leftover assets from MaterialX translation!"));
+				}
+			}
+		);
+
+		return Manager.ImportAsset(TempPackagePath, SourceData, InterchangeParameters);
+	}
+}
+
 void FMaterialXUsdShadeMaterialTranslator::CreateAssets()
 {
 #if WITH_EDITOR
@@ -155,39 +376,9 @@ void FMaterialXUsdShadeMaterialTranslator::CreateAssets()
 	// This material prim has the mtlx render context, so maybe it is one of the ones generated by usdMtlx.
 	// Let's traverse upwards and try finding a .mtlx file reference in one of our parents.
 
-	TFunction<bool(const pxr::UsdPrim&, FString&)> GetMaterialXFilePath = [](const pxr::UsdPrim& Prim, FString& OutMaterialXFilePath)
-	{
-		pxr::UsdPrimCompositionQuery PrimCompositionQuery = pxr::UsdPrimCompositionQuery::GetDirectReferences(Prim);
-		for (const pxr::UsdPrimCompositionQueryArc& CompositionArc : PrimCompositionQuery.GetCompositionArcs())
-		{
-			if (CompositionArc.GetArcType() == pxr::PcpArcTypeReference)
-			{
-				pxr::SdfReferenceEditorProxy ReferenceEditor;
-				pxr::SdfReference UsdReference;
-
-				if (CompositionArc.GetIntroducingListEditor(&ReferenceEditor, &UsdReference))
-				{
-					// The mtlx file will be the "target layer". It's useful to get its real path via the SdfLayer
-					// interface as it already makes sure it is absolute
-					pxr::SdfLayerHandle TargetLayer = CompositionArc.GetTargetLayer();
-					FString AbsoluteFilePath = UsdToUnreal::ConvertString(TargetLayer->GetRealPath());
-
-					FString Extension = FPaths::GetExtension(AbsoluteFilePath);
-					if (Extension == MaterialXRenderContext && FPaths::FileExists(AbsoluteFilePath))
-					{
-						OutMaterialXFilePath = AbsoluteFilePath;
-						return true;
-					}
-				}
-			}
-		}
-
-		return false;
-	};
-
-	FString MaterialXFilePath;
+	TArray<FString> MaterialXFilePaths = UE::USDMaterialXTranslator::Private::GetMaterialXFilePaths(Prim);
 	pxr::UsdPrim MaterialXReferencerPrim = Prim;
-	if (!GetMaterialXFilePath(Prim, MaterialXFilePath))
+	if (MaterialXFilePaths.Num() == 0)
 	{
 		// We know the usdMtlx plugin always generates a "Materials" schemaless prim to contain all the generated
 		// Materials, so let's use that too.
@@ -203,7 +394,8 @@ void FMaterialXUsdShadeMaterialTranslator::CreateAssets()
 			pxr::UsdPrim MaterialXReferencerCandidate = ParentPrim.GetParent();
 			while (MaterialXReferencerCandidate)
 			{
-				if (GetMaterialXFilePath(MaterialXReferencerCandidate, MaterialXFilePath))
+				MaterialXFilePaths = UE::USDMaterialXTranslator::Private::GetMaterialXFilePaths(MaterialXReferencerCandidate);
+				if (MaterialXFilePaths.Num() > 0)
 				{
 					break;
 				}
@@ -214,223 +406,103 @@ void FMaterialXUsdShadeMaterialTranslator::CreateAssets()
 		}
 	}
 
-	if (MaterialXFilePath.IsEmpty() || !MaterialXReferencerPrim)
+	if (MaterialXFilePaths.IsEmpty() || !MaterialXReferencerPrim)
 	{
 		UE_LOG(LogUsd, Warning, TEXT("Recognized potential MaterialX materials on prim '%s', but failed to find a valid referenced MaterialX file. Reverting to parsing the generated Material prims instead."), *PrimPath.GetString());
 		Super::CreateAssets();
 		return;
 	}
 
-	// Quick shallow parse of MaterialX documents ourselves so that we can find all the referenced MaterialX files and
-	// build a robust hash to use for caching our generated assets
-	FSHA1 SHA1;
+	FString TargetHashSuffix = TEXT("/") + UsdToUnreal::ConvertString(Prim.GetName());
+
+	FString FoundMaterialAssetHash;
+	UMaterialInterface* ParsedMaterial = nullptr;
+
+	// Try to find the parsed material already in the asset cache assuming it came from any one of the MaterialX file paths
+	TArray<FString> MaterialXFileHashes;
+	MaterialXFileHashes.Reserve(MaterialXFilePaths.Num());
+	for (const FString& MaterialXFilePath : MaterialXFilePaths)
 	{
-		TSet<FString> ReferencedMaterialXFiles;
-		TFunction<void(const FString&)> CollectReferencedMaterialXFilesRecursive;
-		CollectReferencedMaterialXFilesRecursive =
-			[&ReferencedMaterialXFiles, &CollectReferencedMaterialXFilesRecursive]
-			(const FString& ActiveDocumentFullPath)
-			{
-				namespace mx = MaterialX;
-
-				mx::DocumentPtr Document = mx::createDocument();
-				mx::readFromXmlFile(Document, TCHAR_TO_UTF8(*ActiveDocumentFullPath));
-
-				for (const std::string& ReferencedURI : Document->getReferencedSourceUris())
-				{
-					FString UEReferencedURI = UTF8_TO_TCHAR(ReferencedURI.c_str());
-
-					// This could be relative to the referencer .mtlx file
-					UEReferencedURI = FPaths::ConvertRelativePathToFull(
-						FPaths::GetPath(ActiveDocumentFullPath),
-						UEReferencedURI
-					);
-
-					if (ReferencedMaterialXFiles.Contains(UEReferencedURI))
-					{
-						continue;
-					}
-
-					if (FPaths::FileExists(UEReferencedURI))
-					{
-						ReferencedMaterialXFiles.Add(UEReferencedURI);
-						CollectReferencedMaterialXFilesRecursive(UEReferencedURI);
-					}
-				}
-			};
-
-		// Note we don't have to add MaterialXFilePath ourselves because getReferencedSourceUris
-		// always includes at least the active document itself anyway
-		CollectReferencedMaterialXFilesRecursive(MaterialXFilePath);
-
-		for (const FString& ReferencedMaterialXFile : ReferencedMaterialXFiles)
+		FString& MaterialXHash = MaterialXFileHashes.Emplace_GetRef(UE::USDMaterialXTranslator::Private::HashMaterialXFile(MaterialXFilePath));
+		if (MaterialXHash.IsEmpty())
 		{
-			if (TUniquePtr<FArchive> Ar{IFileManager::Get().CreateFileReader(*ReferencedMaterialXFile)})
-			{
-				TArray<uint8> LocalScratch;
-				LocalScratch.SetNumUninitialized(1024 * 64);
+			continue;
+		}
 
-				const int64 Size = Ar->TotalSize();
-				int64 Position = 0;
-
-				// Read in BufferSize chunks
-				while (Position < Size)
-				{
-					const int64 ReadNum = FMath::Min(Size - Position, (int64)LocalScratch.Num());
-					Ar->Serialize(LocalScratch.GetData(), ReadNum);
-					SHA1.Update(LocalScratch.GetData(), ReadNum);
-
-					Position += ReadNum;
-				}
-			}
+		FString MaterialAssetHashForThisFile = MaterialXHash + TargetHashSuffix;
+		ParsedMaterial = Cast<UMaterialInterface>(Context->AssetCache->GetCachedAsset(MaterialAssetHashForThisFile));
+		if (ParsedMaterial)
+		{
+			FoundMaterialAssetHash = MaterialAssetHashForThisFile;
+			break;
 		}
 	}
 
-	FSHAHash Hash;
-	SHA1.Final();
-	SHA1.GetHash(&Hash.Hash[0]);
-	FString MaterialXHash = Hash.ToString();
-
-	FString TargetMaterialAssetHash = MaterialXHash + TEXT("/") + UsdToUnreal::ConvertString(Prim.GetName());
-	UMaterialInterface* ParsedMaterial = Cast< UMaterialInterface >(Context->AssetCache->GetCachedAsset(TargetMaterialAssetHash));
 	if (!ParsedMaterial)
 	{
-		// If we don't have this asset in the cache yet, we need to parse the MaterialX file
-
-		UInterchangeManager& Manager = UInterchangeManager::GetInterchangeManager();
-		UInterchangeSourceData* SourceData = Manager.CreateSourceData(MaterialXFilePath);
-
-		FString ReferencerPrimPath = *UsdToUnreal::ConvertPath(MaterialXReferencerPrim.GetPrimPath());
-
-		FImportAssetParameters InterchangeParameters;
-		InterchangeParameters.bIsAutomated = true;
-
-		// Get a temp content folder we can give interchange as it must have a destination
-		int32 PackageSuffix = FMath::RandRange(0, TNumericLimits<int32>::Max()-1);
-		FString TempPackagePath = FString::Printf(TEXT("/Engine/USDImporter/Transient/%d"), PackageSuffix++);
-
-		// Make sure that content folder doesn't have any packages already in it
-		TArray<FString> Filenames;
-		while (FPackageName::FindPackagesInDirectory(Filenames, TempPackagePath))
+		// Translate all MaterialX files
+		ensure(MaterialXFilePaths.Num() == MaterialXFileHashes.Num());
+		for (int32 Index = 0; Index < MaterialXFilePaths.Num(); ++Index)
 		{
-			TempPackagePath = FString::Printf(TEXT("/Engine/USDImporter/Transient/%d"), PackageSuffix++);
-		}
+			const FString& MaterialXFilePath = MaterialXFilePaths[Index];
+			const FString& MaterialXFileHash = MaterialXFileHashes[Index];
 
-		// Currently Interchange cannot import directly into the transient package, so we'll import into a temporary folder and then
-		// move everything over
-		InterchangeParameters.OnAssetsImportDoneNative.BindLambda(
-			[this, &MaterialXHash, &TargetMaterialAssetHash, &ParsedMaterial, &ReferencerPrimPath, &TempPackagePath]
-			(const TArray<UObject*>& ImportedObjects)
+			const bool bSuccess = UE::USDMaterialXTranslator::Private::TranslateMaterialXFile(
+				MaterialXFilePath,
+				MaterialXFileHash,
+				MaterialXReferencerPrim,
+				*Context->AssetCache
+			);
+
+			if (!bSuccess)
 			{
-				// Move all our assets to the transient package
-				for (UObject* ImportedObject : ImportedObjects)
+				UE_LOG(
+					LogUsd,
+					Warning,
+					TEXT("Recognized potential MaterialX materials on prim '%s', but MaterialX parsing of file '%s' failed."),
+					*PrimPath.GetString(),
+					*MaterialXFilePath
+				);
+			}
+
+			// Check if we found our target material when parsing this file
+			if (!ParsedMaterial)
+			{
+				FString MaterialAssetHashForThisFile = MaterialXFileHash + TargetHashSuffix;
+				ParsedMaterial = Cast<UMaterialInterface>(Context->AssetCache->GetCachedAsset(MaterialAssetHashForThisFile));
+				if (ParsedMaterial)
 				{
-					const FName NewName = MakeUniqueObjectName(
-						GetTransientPackage(),
-						ImportedObject->GetClass(),
-						ImportedObject->GetFName()
-					);
-					bool bSuccess = ImportedObject->Rename(
-						*NewName.ToString(),
-						GetTransientPackage(),
-						REN_NonTransactional | REN_DontCreateRedirectors | REN_ForceNoResetLoaders
-					);
-					if (!bSuccess)
-					{
-						UE_LOG(LogUsd, Warning, TEXT("Failed to rename imported MaterialX material '%s', generated for referencer prim '%s'."),
-							*ImportedObject->GetPathName(),
-							*ReferencerPrimPath
-						);
-						continue;
-					}
+					FoundMaterialAssetHash = MaterialAssetHashForThisFile;
 
-					ImportedObject->SetFlags(RF_Transient);
-
-					if (UMaterialInterface* Material = Cast<UMaterialInterface>(ImportedObject))
-					{
-						// MaterialX names are unique, and can only have alphanumeric and the "_" character, so we should
-						// always have a solid enough mapping to assume UAsset name == Prim name == MaterialX name
-						FString NewMaterialHash = MaterialXHash + TEXT("/") + Material->GetFName().GetPlainNameString();
-
-						// We generate all assets from the MaterialX file once, but it's possible we're just updating a
-						// single material prim here. If we were to cache all assets here, we'd potentially be trying
-						// to overwrite the existing assets that are being used by other prims and wouldn't otherwise
-						// be discarded, so make sure we don't do that
-						UMaterialInterface* ExistingMaterial = Cast<UMaterialInterface>(Context->AssetCache->GetCachedAsset(NewMaterialHash));
-						if (!ExistingMaterial)
-						{
-							Context->AssetCache->CacheAsset(NewMaterialHash, Material);
-						}
-
-						if (NewMaterialHash == TargetMaterialAssetHash)
-						{
-							ParsedMaterial = Material;
-						}
-					}
-					else if (UTexture* Texture = Cast<UTexture>(ImportedObject))
-					{
-						// Note: This filename will be the .mtlx file for now, which is why we append the texture name manually later
-						const FString FilePath = Texture->AssetImportData ? Texture->AssetImportData->GetFirstFilename() : TEXT("");
-
-						FString TextureHash = UsdUtils::GetTextureHash(
-							FilePath,
-							Texture->SRGB,
-							Texture->CompressionSettings,
-							Texture->GetTextureAddressX(),
-							Texture->GetTextureAddressY()
-						);
-
-						// See comment on the analogous part of the Material case above
-						UTexture* ExistingTexture = Cast<UTexture>(Context->AssetCache->GetCachedAsset(TextureHash));
-						if (!ExistingTexture)
-						{
-							UUsdAssetUserData* UserData = NewObject<UUsdAssetUserData>(Texture, TEXT("USDAssetUserData"));
-							UserData->PrimPath = ReferencerPrimPath;
-							Texture->AddAssetUserData(UserData);
-
-							Context->AssetCache->CacheAsset(TextureHash, Texture);
-						}
-					}
-					else
-					{
-						ensureMsgf(false, TEXT("Asset type unsupported!"));
-					}
-				}
-
-				// Now that the asset cache took everything we imported we shouldn't have anything else
-				TArray<FString> Filenames;
-				if (FPackageName::FindPackagesInDirectory(Filenames, TempPackagePath))
-				{
-					ensureMsgf(false, TEXT("We should not have any leftover assets from MaterialX translation!"));
+					// Notice we don't break here: Let's parse all referenced MaterialX files anyway
 				}
 			}
-		);
-
-		const bool bSuccess = Manager.ImportAsset(TempPackagePath, SourceData, InterchangeParameters);
-		if (!bSuccess)
-		{
-			UE_LOG(LogUsd, Warning, TEXT("Recognized potential MaterialX materials on prim '%s', but MaterialX parsing of file '%s' failed. Reverting to parsing the generated Material prims instead."),
-				*PrimPath.GetString(),
-				*MaterialXFilePath
-			);
-			Super::CreateAssets();
-			return;
 		}
 	}
 
 	if (ParsedMaterial)
 	{
-		PostImportMaterial(TargetMaterialAssetHash, ParsedMaterial);
+		ensure(!FoundMaterialAssetHash.IsEmpty());
+		PostImportMaterial(FoundMaterialAssetHash, ParsedMaterial);
 	}
 	else
 	{
-		UE_LOG(LogUsd, Warning, TEXT("Parsing of MaterialX file '%s' on prim '%s' succeeded, but we failed to find the target material '%s' within the file."),
-			*MaterialXFilePath,
+		FString FilePaths;
+		for (const FString& MaterialXFilePath : MaterialXFilePaths)
+		{
+			FilePaths += MaterialXFilePath + TEXT(", ");
+		}
+		FilePaths.RemoveFromEnd(TEXT(", "));
+
+		UE_LOG(
+			LogUsd,
+			Warning,
+			TEXT("Failed to find target Material '%s' after parsing all Material X files [%s]. Reverting back to parsing the USD Material prim "
+				 "generated by usdMtlx directly."),
 			*PrimPath.GetString(),
-			*UsdToUnreal::ConvertString(Prim.GetName())
+			*FilePaths
 		);
 		Super::CreateAssets();
-		return;
 	}
 #else
 	Super::CreateAssets();
