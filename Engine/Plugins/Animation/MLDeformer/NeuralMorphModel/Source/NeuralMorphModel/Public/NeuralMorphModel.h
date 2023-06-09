@@ -72,7 +72,7 @@ public:
 	int32 GetNumIterations() const									{ return NumIterations; }
 	int32 GetBatchSize() const										{ return BatchSize; }
 	float GetLearningRate() const									{ return LearningRate; }
-	float GetLearningRateDecay() const								{ return LearningRateDecay; }
+	float GetSmoothLossBeta() const									{ return SmoothLossBeta; }
 	float GetRegularizationFactor() const							{ return RegularizationFactor; }
 	bool IsBoneMaskingEnabled() const								{ return bEnableBoneMasks; }
 
@@ -178,15 +178,6 @@ public:
 	float LearningRate = 0.001f;
 
 	/** 
-	 * The learning rate decay rate. If this is set to 1, the learning rate will not change. 
-	 * This is a multiplication factor. Every 1000 iterations, the new learning rate will be equal to
-	 * CurrentLearningRate * LearningRateDecay. This allows us to take slightly larger steps in the first iterations, and slowly take smaller steps.
-	 * Generally you want this to be between 0.9 and 1.
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Training Settings", meta = (ClampMin = "0.1", ClampMax = "1.0"))
-	float LearningRateDecay = 0.98f;
-
-	/** 
 	 * The regularization factor. Higher values can help generate more sparse morph targets, but can also lead to visual artifacts. 
 	 * A value of 0 disables the regularization, and gives the highest quality, at the cost of higher runtime memory usage.
 	 */
@@ -201,6 +192,15 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Training Settings", meta = (EditCondition = "Mode == ENeuralMorphMode::Local"))
 	bool bEnableBoneMasks = false;
+
+	/**
+	 * The beta parameter in the smooth L1 loss function, which describes below which absolute error to use a squared term. If the error is above or equal to this beta value, it will use the L1 loss.
+	 * This is a non-negative value, where 0 makes it behave exactly the same as an L1 loss.
+	 * The value entered represents how many cm of error to allow before an L1 loss is used. Typically higher values give smoother results.
+	 * If you see some noise in the trained results, even with large amount of samples and iterations, try increasing this value.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Training Settings", meta = (ClampMin = "0.0", ClampMax = "10.0"))
+	float SmoothLossBeta = 1.0f;
 
 	/**
 	 * The neural morph model network.

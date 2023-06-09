@@ -60,9 +60,6 @@ void UNeuralMorphModelInstance::FillNetworkInputs()
 	const UNeuralMorphMLP* GroupMLP = MorphNetwork->GetGroupMLP();
 	if (GroupMLP)
 	{
-		// Only the local mode should be using the group MLP.
-		check(Cast<UNeuralMorphModel>(Model)->GetModelMode() == ENeuralMorphMode::Local);
-
 		// Write the bone transforms.
 		int32 Offset = 0;
 		float* GroupNetworkInputs = NetworkInstance->GetGroupInputs().GetData();
