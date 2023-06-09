@@ -973,7 +973,8 @@ void FChaosClothAssetEditorToolkit::OnNodeSelectionChanged(const TSet<UObject*>&
 						return Collection;
 					}
 
-					return MakeShared<FManagedArrayCollection>();
+					// The cloth collection schema must be applied to prevent the dynamic mesh conversion and tools from crashing trying to access invalid facades
+					break;
 				}
 			}
 		}
