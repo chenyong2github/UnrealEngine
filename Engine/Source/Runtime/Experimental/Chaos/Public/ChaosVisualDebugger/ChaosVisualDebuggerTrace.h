@@ -64,6 +64,20 @@
 #ifndef CVD_TRACE_PARTICLE_DESTROYED
 	#define CVD_TRACE_PARTICLE_DESTROYED(DestroyedParticleHandle)
 #endif
+
+#ifndef CVD_TRACE_MID_PHASE
+	#define CVD_TRACE_MID_PHASE(MidPhase)
+#endif
+#ifndef CVD_TRACE_COLLISION_CONSTRAINT
+	#define CVD_TRACE_COLLISION_CONSTRAINT(Constraint)
+#endif
+#ifndef CVD_TRACE_COLLISION_CONSTRAINT_VIEW
+	#define CVD_TRACE_COLLISION_CONSTRAINT_VIEW(ConstraintView)
+#endif
+
+#ifndef CVD_TRACE_PARTICLES_VIEW
+	#define CVD_TRACE_PARTICLES_VIEW(ParticleHandlesView)
+#endif
 #else
 
 #include "ChaosVDRuntimeModule.h"
@@ -180,6 +194,11 @@ UE_TRACE_EVENT_END()
 		FChaosVisualDebuggerTrace::TraceParticles(ParticleHandles);
 #endif
 
+#ifndef CVD_TRACE_PARTICLES_VIEW
+	#define CVD_TRACE_PARTICLES_VIEW(ParticleHandlesView) \
+	FChaosVisualDebuggerTrace::TraceParticlesView(ParticleHandlesView);
+#endif
+
 #ifndef CVD_TRACE_PARTICLES_SOA
 	#define CVD_TRACE_PARTICLES_SOA(ParticleSoA) \
 	FChaosVisualDebuggerTrace::TraceParticlesSoA(ParticleSoA);
@@ -234,6 +253,20 @@ UE_TRACE_EVENT_END()
 	FChaosVisualDebuggerTrace::TraceParticleDestroyed(DestroyedParticleHandle);
 #endif
 
+#ifndef CVD_TRACE_MID_PHASE
+	#define CVD_TRACE_MID_PHASE(MidPhase) \
+	FChaosVisualDebuggerTrace::TraceMidPhase(MidPhase);
+#endif
+
+#ifndef CVD_TRACE_COLLISION_CONSTRAINT
+	#define CVD_TRACE_COLLISION_CONSTRAINT(Constraint) \
+	FChaosVisualDebuggerTrace::TraceCollisionConstraint(Constraint);
+#endif
+
+#ifndef CVD_TRACE_COLLISION_CONSTRAINT_VIEW
+	#define CVD_TRACE_COLLISION_CONSTRAINT_VIEW(ConstraintView) \
+	FChaosVisualDebuggerTrace::TraceCollisionConstraintView(ConstraintView);
+#endif
 
 struct FChaosVDContext;
 
@@ -244,6 +277,9 @@ namespace Chaos
 	class FPhysicsSolverBase;
 	template <typename T, int d>
 	class TGeometryParticleHandles;
+
+	class FPBDCollisionConstraint;
+	class FParticlePairMidPhase;
 }
 
 using FChaosVDImplicitObjectWrapper = FChaosVDImplicitObjectDataWrapper<Chaos::TSerializablePtr<Chaos::FImplicitObject>, Chaos::FChaosArchive>;
@@ -288,6 +324,15 @@ public:
 	template<typename ParticleType>
 	static void TraceParticlesView(const Chaos::TParticleView<ParticleType>& ParticlesView);
 
+	/** Traces a Particle pair MidPhase as binary data */
+	static CHAOS_API void TraceMidPhase(const Chaos::FParticlePairMidPhase* MidPhase);
+
+	/** Traces a Particle pair MidPhase as binary data */
+	static CHAOS_API void TraceCollisionConstraint(const Chaos::FPBDCollisionConstraint* CollisionConstraint);
+
+	/** Traces a Particle pair MidPhase as binary data in parallel */
+	static CHAOS_API void TraceCollisionConstraintView(TArrayView<Chaos::FPBDCollisionConstraint* const> CollisionConstraintView);
+
 	/** Traces the start of a solver frame and it pushes its context data to the CVD TLS context stack */
 	static CHAOS_API void TraceSolverFrameStart(const FChaosVDContext& ContextData, const FString& InDebugName);
 	
@@ -311,7 +356,7 @@ public:
 	 * @param InData Data to trace
 	 * @param TypeName Type name the data represents. It is used during Trace Analysis serialize it back (this is not automatic)
 	 */
-	static CHAOS_API void TraceBinaryData(const TArray<uint8>& InData, const FString& TypeName);
+	static CHAOS_API void TraceBinaryData(const TArray<uint8>& InData, FStringView TypeName);
 
 	/**
 	 * Serializes the implicit object contained in the wrapper and trace its it as binary data

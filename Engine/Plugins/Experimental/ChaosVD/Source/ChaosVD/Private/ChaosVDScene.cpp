@@ -124,6 +124,8 @@ void FChaosVDScene::UpdateFromRecordedStepData(const int32 SolverID, const FStri
 		}
 	}
 
+	UpdateParticlesCollisionData(InRecordedStepData, SolverID);
+
 	// TODO: This will not work once the recording has what changes between solver steps
 	// So it needs to be update to remove particles based on a Particles Removed event
 	int32 AmountRemoved = 0;
@@ -149,6 +151,35 @@ void FChaosVDScene::UpdateFromRecordedStepData(const int32 SolverID, const FStri
 	
 	OnSceneUpdated().Broadcast();
 }
+
+
+void FChaosVDScene::UpdateParticlesCollisionData(const FChaosVDStepData& InRecordedStepData, int32 SolverID)
+{
+	FChaosVDParticlesByIDMap& SolverParticlesByID = ParticlesBySolverID.FindChecked(SolverID);
+	
+	for (const TPair<int32, TArray<TSharedPtr<FChaosVDParticlePairMidPhase>>>& ParticleIDMidPhasePair : InRecordedStepData.RecordedMidPhasesByParticleID)
+	{
+		if (AChaosVDParticleActor** ExistingParticleVDInstancePtrPtr = SolverParticlesByID.Find(ParticleIDMidPhasePair.Key))
+		{
+			if (AChaosVDParticleActor* ExistingParticleVDInstancePtr = *ExistingParticleVDInstancePtrPtr)
+			{
+				ExistingParticleVDInstancePtr->UpdateCollisionData(ParticleIDMidPhasePair.Value);
+			}
+		}
+	}
+
+	for (const TPair<int32, TArray<FChaosVDConstraint>>& ParticleIDMidPhasePair : InRecordedStepData.RecordedConstraintsByParticleID)
+	{
+		if (AChaosVDParticleActor** ExistingParticleVDInstancePtrPtr = SolverParticlesByID.Find(ParticleIDMidPhasePair.Key))
+		{
+			if (AChaosVDParticleActor* ExistingParticleVDInstancePtr = *ExistingParticleVDInstancePtrPtr)
+			{
+				ExistingParticleVDInstancePtr->UpdateCollisionData(ParticleIDMidPhasePair.Value);
+			}
+		}
+	}
+}
+
 
 void FChaosVDScene::HandleNewGeometryData(const TSharedPtr<const Chaos::FImplicitObject>& GeometryData, const uint32 GeometryID) const
 {

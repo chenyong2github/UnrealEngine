@@ -16,6 +16,8 @@
 
 #define LOCTEXT_NAMESPACE "ChaosVisualDebugger"
 
+DEFINE_LOG_CATEGORY(LogChaosVDEditor);
+
 FChaosVDModule& FChaosVDModule::Get()
 {
 	return FModuleManager::Get().LoadModuleChecked<FChaosVDModule>(TEXT("ChaosVD"));

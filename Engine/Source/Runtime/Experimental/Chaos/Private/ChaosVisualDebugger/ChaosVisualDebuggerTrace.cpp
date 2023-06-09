@@ -1,15 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "ChaosVisualDebugger/ChaosVisualDebuggerTrace.h"
 
-#include "ChaosVisualDebugger/ChaosVDDataWrapperUtils.h"
-#include "Chaos/PBDRigidsSOAs.h"
-#include "Tasks/Task.h"
-
 #if CHAOS_VISUAL_DEBUGGER_ENABLED
-#include "Chaos/ParticleHandle.h"
+
 #include "Chaos/Framework/PhysicsSolverBase.h"
 #include "Chaos/ImplicitObject.h"
+#include "Chaos/ParticleHandle.h"
+#include "Chaos/PBDRigidsSOAs.h"
+#include "ChaosVisualDebugger/ChaosVDDataWrapperUtils.h"
 #include "Compression/OodleDataCompressionUtil.h"
+#include "DataWrappers/ChaosVDCollisionDataWrappers.h"
 #include "DataWrappers/ChaosVDImplicitObjectDataWrapper.h"
 #include "DataWrappers/ChaosVDParticleDataWrapper.h"
 #include "HAL/CriticalSection.h"
@@ -146,7 +146,7 @@ void FChaosVisualDebuggerTrace::TraceParticle(Chaos::FGeometryParticleHandle* Pa
 
 		ParticleDataWrapper.Serialize(MemWriterAr);
 
-		TraceBinaryData(TLSDataBuffer.BufferRef, TEXT("FChaosVDParticleDataWrapper"));
+		TraceBinaryData(TLSDataBuffer.BufferRef, FChaosVDParticleDataWrapper::WrapperTypeName);
 	}
 }
 
@@ -241,6 +241,74 @@ bool FChaosVisualDebuggerTrace::ShouldPerformFullCapture(int32 SolverID)
 
 	// If the solver ID is on the SolverIDsForDeltaRecording set, it means we should NOT perform a full capture
 	return FoundSolverID == nullptr;
+}
+
+void FChaosVisualDebuggerTrace::TraceMidPhase(const Chaos::FParticlePairMidPhase* MidPhase)
+{
+	if (!IsTracing())
+	{
+		return;
+	}
+
+	const FChaosVDContext* CVDContextData = FChaosVDThreadContext::Get().GetCurrentContext();
+	if (!ensure(CVDContextData))
+	{
+		return;
+	}
+
+	FChaosVDParticlePairMidPhase CVDMidPhase = FChaosVDDataWrapperUtils::BuildMidPhaseDataWrapperFromMidPhase(*MidPhase);
+	CVDMidPhase.SolverID = CVDContextData->Id;
+
+	FChaosVDScopedTLSBufferAccessor CVDBuffer;
+	FMemoryWriter MemWriter(CVDBuffer.BufferRef);
+		
+	CVDMidPhase.Serialize(MemWriter);
+
+	TraceBinaryData(CVDBuffer.BufferRef, FChaosVDParticlePairMidPhase::WrapperTypeName);
+}
+
+void FChaosVisualDebuggerTrace::TraceCollisionConstraint(const Chaos::FPBDCollisionConstraint* CollisionConstraint)
+{
+	if (!IsTracing())
+	{
+		return;
+	}
+
+	const FChaosVDContext* CVDContextData = FChaosVDThreadContext::Get().GetCurrentContext();
+	if (!ensure(CVDContextData))
+	{
+		return;
+	}
+
+	FChaosVDConstraint CVDConstraint = FChaosVDDataWrapperUtils::BuildConstraintDataWrapperFromConstraint(*CollisionConstraint);
+	CVDConstraint.SolverID = CVDContextData->Id;
+
+	FChaosVDScopedTLSBufferAccessor CVDBuffer;
+	FMemoryWriter MemWriter(CVDBuffer.BufferRef);
+		
+	CVDConstraint.Serialize(MemWriter);
+
+	TraceBinaryData(CVDBuffer.BufferRef, FChaosVDConstraint::WrapperTypeName);
+}
+
+void FChaosVisualDebuggerTrace::TraceCollisionConstraintView(TArrayView<Chaos::FPBDCollisionConstraint* const> CollisionConstraintView)
+{
+	if (!IsTracing())
+	{
+		return;
+	}
+
+	const FChaosVDContext* CVDContextData = FChaosVDThreadContext::Get().GetCurrentContext();
+	if (!ensure(CVDContextData))
+	{
+		return;
+	}
+
+	ParallelFor(CollisionConstraintView.Num(), [&CollisionConstraintView, CopyContext = *CVDContextData](int32 ConstraintIndex)
+	{
+		CVD_SCOPE_CONTEXT(CopyContext);
+		TraceCollisionConstraint(CollisionConstraintView[ConstraintIndex]);
+	});
 }
 
 void FChaosVisualDebuggerTrace::TraceSolverFrameStart(const FChaosVDContext& ContextData, const FString& InDebugName)
@@ -352,7 +420,7 @@ void FChaosVisualDebuggerTrace::TraceSolverSimulationSpace(const Chaos::FRigidTr
 		<< CVD_TRACE_ROTATOR_ON_EVENT(ChaosVDSolverSimulationSpace, Rotation, Transform.GetRotation());
 }
 
-void FChaosVisualDebuggerTrace::TraceBinaryData(const TArray<uint8>& InData, const FString& TypeName)
+void FChaosVisualDebuggerTrace::TraceBinaryData(const TArray<uint8>& InData, FStringView TypeName)
 {
 	if (!IsTracing())
 	{
@@ -386,7 +454,7 @@ void FChaosVisualDebuggerTrace::TraceBinaryData(const TArray<uint8>& InData, con
 
 	UE_TRACE_LOG(ChaosVDLogger, ChaosVDBinaryDataStart, ChaosVDChannel)
 		<< ChaosVDBinaryDataStart.Cycle(FPlatformTime::Cycles64())
-		<< ChaosVDBinaryDataStart.TypeName(*TypeName, TypeName.Len())
+		<< ChaosVDBinaryDataStart.TypeName(TypeName.GetData(), TypeName.Len())
 		<< ChaosVDBinaryDataStart.DataID(DataID)
 		<< ChaosVDBinaryDataStart.DataSize(DataSize)
 		<< ChaosVDBinaryDataStart.OriginalSize(InData.Num())
@@ -443,7 +511,7 @@ void FChaosVisualDebuggerTrace::TraceImplicitObject(FChaosVDImplicitObjectWrappe
 
 	WrappedGeometryData.Serialize(Ar);
 
-	TraceBinaryData(TLSDataBuffer.BufferRef, TEXT("FChaosVDImplicitObjectDataWrapper"));
+	TraceBinaryData(TLSDataBuffer.BufferRef, FChaosVDImplicitObjectWrapper::WrapperTypeName);
 }	
 
 void FChaosVisualDebuggerTrace::RegisterEventHandlers()

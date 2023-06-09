@@ -38,6 +38,30 @@ void AChaosVDParticleActor::UpdateFromRecordedParticleData(const FChaosVDParticl
 	ParticleDataViewer = InRecordedData;
 }
 
+void AChaosVDParticleActor::UpdateCollisionData(const TArray<TSharedPtr<FChaosVDParticlePairMidPhase>>& InRecordedMidPhases)
+{
+	// TODO: We should store a ptr to the data and in our custom details panel draw it
+	ParticleDataViewer.ParticleMidPhases.Reserve(InRecordedMidPhases.Num());
+	ParticleDataViewer.ParticleMidPhases.Reset(InRecordedMidPhases.Num());
+
+	for (const TSharedPtr<FChaosVDParticlePairMidPhase>& MidPhase : InRecordedMidPhases)
+	{
+		ParticleDataViewer.ParticleMidPhases.Emplace(*MidPhase.Get());
+	}
+}
+
+void AChaosVDParticleActor::UpdateCollisionData(const TArray<FChaosVDConstraint>& InRecordedConstraints)
+{
+	// TODO: We should store a ptr to the data and in our custom details panel draw it
+	ParticleDataViewer.ParticleConstraints.Reserve(InRecordedConstraints.Num());
+	ParticleDataViewer.ParticleConstraints.Reset(InRecordedConstraints.Num());
+
+	for (const FChaosVDConstraint& Constraint : InRecordedConstraints)
+	{
+		ParticleDataViewer.ParticleConstraints.Emplace(Constraint);
+	}
+}
+
 void AChaosVDParticleActor::UpdateGeometry(const TSharedPtr<const Chaos::FImplicitObject>& ImplicitObject, EChaosVDActorGeometryUpdateFlags OptionsFlags)
 {
 	if (EnumHasAnyFlags(OptionsFlags, EChaosVDActorGeometryUpdateFlags::ForceUpdate))

@@ -9,6 +9,7 @@
 #include "Containers/Array.h"
 
 #include "Chaos/ChaosArchive.h"
+#include "DataProcessors/IChaosVDDataProcessor.h"
 
 struct FChaosVDGameFrameData;
 class FChaosVDEngine;
@@ -37,13 +38,11 @@ struct FChaosVDTraceSessionData
 	TMap<int32, TSharedPtr<FChaosVDBinaryDataContainer>> UnprocessedDataByID;
 };
 
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnBinaryDataReady, TSharedPtr<FChaosVDBinaryDataContainer>)
-
 /** Provider class for Chaos VD trace recordings.
  * It stores and handles rebuilt recorded frame data from Trace events
  * dispatched by the Chaos VD Trace analyzer
  */
-class FChaosVDTraceProvider : public TraceServices::IProvider
+class FChaosVDTraceProvider : public TraceServices::IProvider, public TSharedFromThis<FChaosVDTraceProvider>
 {
 public:
 	
@@ -63,18 +62,23 @@ public:
 
 	FChaosVDBinaryDataContainer& FindOrAddUnprocessedData(const int32 DataID);
 
-	void SetBinaryDataReadyToUse(const int32 DataID);
+	bool ProcessBinaryData(const int32 DataID);
 
 	TSharedPtr<FChaosVDRecording> GetRecordingForSession() const;
-	
-	FOnBinaryDataReady& OnBinaryDataReady() { return BinaryDataReadyDelegate; }
+
+	void RegisterDataProcessor(TSharedPtr<IChaosVDDataProcessor> InDataProcessor);
 
 private:
+
+	void RegisterDefaultDataProcessorsIfNeeded();
+	
 	TraceServices::IAnalysisSession& Session;
 
 	TSharedPtr<FChaosVDRecording> InternalRecording;
 
 	TMap<int32, TSharedPtr<FChaosVDBinaryDataContainer>> UnprocessedDataByID;
-	
-	FOnBinaryDataReady BinaryDataReadyDelegate;
+
+	TMap<FStringView, TSharedPtr<IChaosVDDataProcessor>> RegisteredDataProcessors;
+
+	bool bDefaultDataProcessorsRegistered = false;
 };

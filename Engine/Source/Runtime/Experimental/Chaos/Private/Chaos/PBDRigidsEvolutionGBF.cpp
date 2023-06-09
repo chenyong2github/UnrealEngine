@@ -387,7 +387,10 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 		CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_DetectCollisions);
 		CollisionDetector.GetBroadPhase().SetSpatialAcceleration(InternalAcceleration);
 
-		CollisionDetector.RunBroadPhase(Dt, GetCurrentStepResimCache());
+		{
+			CVD_SCOPE_TRACE_SOLVER_STEP(TEXT("Collision Detection Broad Phase"))
+			CollisionDetector.RunBroadPhase(Dt, GetCurrentStepResimCache());
+		}
 
 		if (MidPhaseModifiers)
 		{
@@ -395,7 +398,11 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 			CollisionConstraints.ApplyMidPhaseModifier(*MidPhaseModifiers, Dt);
 		}
 
-		CollisionDetector.RunNarrowPhase(Dt, GetCurrentStepResimCache());
+		{
+			CVD_SCOPE_TRACE_SOLVER_STEP(TEXT("Collision Detection Narrow Phase"))
+
+			CollisionDetector.RunNarrowPhase(Dt, GetCurrentStepResimCache());
+		}
 	}
 
 	if (PostDetectCollisionsCallback != nullptr)

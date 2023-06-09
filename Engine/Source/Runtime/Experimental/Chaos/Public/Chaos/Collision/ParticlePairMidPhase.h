@@ -11,6 +11,8 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 
 
+class FChaosVDDataWrapperUtils;
+
 namespace Chaos
 {
 	namespace Private
@@ -435,6 +437,8 @@ namespace Chaos
 		// Indices into the arrays of collisions on the particles. This is a cookie for use by FParticleCollisions
 		int32 ParticleCollisionsIndex0;					// 4 bytes
 		int32 ParticleCollisionsIndex1;					// 4 bytes
+		
+		friend ::FChaosVDDataWrapperUtils;
 	};
 
 

@@ -3,6 +3,8 @@
 #pragma once
 
 #include "Chaos/Core.h"
+#include "Containers/UnrealString.h"
+#include "DataWrappers/ChaosVDCollisionDataWrappers.h"
 #include "DataWrappers/ChaosVDParticleDataWrapper.h"
 #include "UObject/ObjectMacros.h"
 #include "Containers/UnrealString.h"
@@ -19,6 +21,9 @@ struct FChaosVDStepData
 {
 	FString StepName;
 	TArray<FChaosVDParticleDataWrapper> RecordedParticlesData;
+	TArray<TSharedPtr<FChaosVDParticlePairMidPhase>> RecordedMidPhases;
+	TMap<int32, TArray<FChaosVDConstraint>> RecordedConstraintsByParticleID;
+	TMap<int32, TArray<TSharedPtr<FChaosVDParticlePairMidPhase>>> RecordedMidPhasesByParticleID;
 	TSet<int32> ParticlesDestroyedIDs;
 };
 
@@ -185,4 +190,5 @@ protected:
 	TMap<uint32, TSharedPtr<const Chaos::FImplicitObject>> ImplicitObjects;
 
 	friend class FChaosVDTraceProvider;
+	friend class FChaosVDTraceImplicitObjectProcessor;
 };

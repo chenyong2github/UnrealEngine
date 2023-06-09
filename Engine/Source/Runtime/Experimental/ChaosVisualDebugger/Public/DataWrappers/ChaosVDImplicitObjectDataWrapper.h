@@ -2,6 +2,7 @@
 
 #pragma once
 #include "Hal/Platform.h"
+#include "Containers/StringFwd.h"
 
 /** Data Wrapper for used to Trace Implicit objects
  * @note This should not be templated. But making it so for now so this can live in the ChaosVDRuntime module without referencing Chaos types directly.
@@ -10,6 +11,8 @@
 template<class SerializableImplicitType, class ArchiveType>
 struct FChaosVDImplicitObjectDataWrapper
 {
+	inline static FStringView WrapperTypeName = TEXT("FChaosVDImplicitObjectDataWrapper");
+
 	uint32 Hash;
 	SerializableImplicitType ImplicitObject;
 

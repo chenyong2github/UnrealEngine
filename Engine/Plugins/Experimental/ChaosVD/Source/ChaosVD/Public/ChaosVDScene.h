@@ -44,6 +44,8 @@ public:
 	/** Updates, Adds and Remove actors to match the provided Step Data */
 	void UpdateFromRecordedStepData(const int32 SolverID, const FString& SolverName, const FChaosVDStepData& InRecordedStepData, const FChaosVDSolverFrameData& InFrameData);
 
+	void UpdateParticlesCollisionData(const FChaosVDStepData& InRecordedStepData, int32 SolverID);
+
 	void HandleNewGeometryData(const TSharedPtr<const Chaos::FImplicitObject>&, const uint32 GeometryID) const;
 
 	void HandleEnterNewGameFrame(int32 FrameNumber, const TArray<int32>& AvailableSolversIds);

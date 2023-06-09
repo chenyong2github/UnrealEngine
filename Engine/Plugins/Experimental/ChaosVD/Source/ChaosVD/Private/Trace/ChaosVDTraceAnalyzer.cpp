@@ -2,7 +2,7 @@
 
 #include "Trace/ChaosVDTraceAnalyzer.h"
 
-#include "Chaos/GeometryParticlesfwd.h"
+#include "ChaosVDModule.h"
 #include "Trace/ChaosVDTraceProvider.h"
 #include "TraceServices/Model/AnalysisSession.h"
 #include "TraceServices/Model/Frames.h"
@@ -156,7 +156,11 @@ bool FChaosVDTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEvent
 		{
 			const int32 DataID = EventData.GetValue<int32>("DataID");
 
-			ChaosVDTraceProvider->SetBinaryDataReadyToUse(DataID);
+			if (!ensure(ChaosVDTraceProvider->ProcessBinaryData(DataID)))
+			{
+				UE_LOG(LogChaosVDEditor, Error, TEXT("[%s] FailedToProcess Binary Data with ID [%d]"), ANSI_TO_TCHAR(__FUNCTION__), DataID);
+			}
+
 			break;
 		}
 	case RouteId_ChaosVDSolverSimulationSpace:

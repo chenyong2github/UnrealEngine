@@ -12,6 +12,7 @@ class SDockTab;
 class FSpawnTabArgs;
 struct FGuid;
 
+DECLARE_LOG_CATEGORY_EXTERN(LogChaosVDEditor, Log, Log);
 class FChaosVDModule : public IModuleInterface
 {
 public:

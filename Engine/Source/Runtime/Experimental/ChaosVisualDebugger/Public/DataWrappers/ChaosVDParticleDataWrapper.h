@@ -4,6 +4,7 @@
 
 #include "UObject/ObjectMacros.h"
 #include "HAL/Platform.h"
+#include "DataWrappers/ChaosVDCollisionDataWrappers.h"
 
 #include "ChaosVDParticleDataWrapper.generated.h"
 
@@ -400,6 +401,8 @@ struct FChaosVDParticleDataWrapper : public FChaosVDParticleDataBase
 {
 	virtual ~FChaosVDParticleDataWrapper() override = default;
 
+	inline static FStringView WrapperTypeName = TEXT("FChaosVDParticleDataWrapper");
+
 	GENERATED_BODY()
 
 	FChaosVDParticleDataWrapper()
@@ -436,6 +439,12 @@ struct FChaosVDParticleDataWrapper : public FChaosVDParticleDataBase
 	UPROPERTY(EditAnywhere, Category= "Particle Particle Mass Props")
 	FChaosVDParticleMassProps ParticleMassProps;
 
+	UPROPERTY(EditAnywhere, Category= "Particle Collision")
+	TArray<FChaosVDParticlePairMidPhase> ParticleMidPhases;
+
+	UPROPERTY(EditAnywhere, Category= "Particle Collision")
+	TArray<FChaosVDConstraint> ParticleConstraints;
+	
 	/** Only used during recording */
 	TSharedPtr<FString> DebugNamePtr;
 	bool bHasDebugName = false;

@@ -2,20 +2,17 @@
 
 #include "Trace/ChaosVDTraceProvider.h"
 
+#include "ChaosVDModule.h"
 #include "ChaosVDRecording.h"
 
 #include "Chaos/ChaosArchive.h"
-#include "Chaos/ImplicitObject.h"
 
 #include "Compression/OodleDataCompressionUtil.h"
 #include "Serialization/MemoryReader.h"
-
-#if WITH_CHAOS_VISUAL_DEBUGGER
-#include "DataWrappers/ChaosVDImplicitObjectDataWrapper.h"
-#include "DataWrappers/ChaosVDParticleDataWrapper.h"
-
-using FChaosVDImplicitObjectWrapper = FChaosVDImplicitObjectDataWrapper<Chaos::TSerializablePtr<Chaos::FImplicitObject>, Chaos::FChaosArchive>;
-#endif
+#include "Trace/DataProcessors/ChaosVDConstraintDataProcessor.h"
+#include "Trace/DataProcessors/ChaosVDMidPhaseDataProcessor.h"
+#include "Trace/DataProcessors/ChaosVDTraceImplicitObjectProcessor.h"
+#include "Trace/DataProcessors/ChaosVDTraceParticleDataProcessor.h"
 
 FName FChaosVDTraceProvider::ProviderName("ChaosVDProvider");
 
@@ -114,16 +111,16 @@ FChaosVDBinaryDataContainer& FChaosVDTraceProvider::FindOrAddUnprocessedData(con
 	}
 }
 
-void FChaosVDTraceProvider::SetBinaryDataReadyToUse(const int32 DataID)
+bool FChaosVDTraceProvider::ProcessBinaryData(const int32 DataID)
 {
+	RegisterDefaultDataProcessorsIfNeeded();
+
 	if (const TSharedPtr<FChaosVDBinaryDataContainer>* UnprocessedDataPtr = UnprocessedDataByID.Find(DataID))
 	{
 		const TSharedPtr<FChaosVDBinaryDataContainer> UnprocessedData = *UnprocessedDataPtr;
 		if (UnprocessedData.IsValid())
 		{
 			UnprocessedData->bIsReady = true;
-
-			BinaryDataReadyDelegate.Broadcast(*UnprocessedDataPtr);
 
 			const TArray<uint8>* RawData = nullptr;
 			TArray<uint8> UncompressedData;
@@ -138,47 +135,58 @@ void FChaosVDTraceProvider::SetBinaryDataReadyToUse(const int32 DataID)
 				RawData = &UnprocessedData->RawData;
 			}
 
-#if WITH_CHAOS_VISUAL_DEBUGGER
-			// TODO: Create a system to register external "Data handlers" with the logic on how serialize each type
-			// This should not be done here but as this is the only type we have is ok for now
-			if (UnprocessedData->TypeName == TEXT("FChaosVDImplicitObjectDataWrapper"))
+			if (TSharedPtr<IChaosVDDataProcessor>* DataProcessorPtrPtr = RegisteredDataProcessors.Find(UnprocessedData->TypeName))
 			{
-				FMemoryReader MemeReader(*RawData);
-				Chaos::FChaosArchive Ar(MemeReader);
-
-				FChaosVDImplicitObjectWrapper WrappedGeometryData;
-				WrappedGeometryData.Serialize(Ar);
-
-				InternalRecording->AddImplicitObject(WrappedGeometryData.Hash, WrappedGeometryData.ImplicitObject.Get());
-			}
-
-			if (UnprocessedData->TypeName == TEXT("FChaosVDParticleDataWrapper"))
-			{	
-				FMemoryReader MemeReader(*RawData);
-				MemeReader.SetUseUnversionedPropertySerialization(true);
-
-				FChaosVDParticleDataWrapper ParticleData;
-				MemeReader << ParticleData;
-
-				// This can be null if the recording started Mid-Frame. In this case we just discard the data for now
-				if (FChaosVDSolverFrameData* FrameData = GetLastSolverFrame(ParticleData.SolverID))
+				if (TSharedPtr<IChaosVDDataProcessor> DataProcessorPtr = *DataProcessorPtrPtr)
 				{
-					if (ensureMsgf(FrameData->SolverSteps.Num() > 0, TEXT("A particle was traced without a valid step scope")))
+					if (ensure(DataProcessorPtr->ProcessRawData(*RawData)))
 					{
-						FrameData->SolverSteps.Last().RecordedParticlesData.Add(MoveTemp(ParticleData));
+						return true;
 					}
 				}
 			}
-#endif
+			else
+			{
+				UE_LOG(LogChaosVDEditor, Warning, TEXT("[%s] Data processor for type [%s] not found"), ANSI_TO_TCHAR(__FUNCTION__), *UnprocessedData->TypeName);
+			}
 		}
 	}
-	else
-	{
-		ensure(false);	
-	}
+
+	return false;
 }
 
 TSharedPtr<FChaosVDRecording> FChaosVDTraceProvider::GetRecordingForSession() const
 {
 	return InternalRecording;
+}
+
+void FChaosVDTraceProvider::RegisterDataProcessor(TSharedPtr<IChaosVDDataProcessor> InDataProcessor)
+{
+	RegisteredDataProcessors.Add(InDataProcessor->GetCompatibleTypeName(), InDataProcessor);
+}
+
+void FChaosVDTraceProvider::RegisterDefaultDataProcessorsIfNeeded()
+{
+	if (bDefaultDataProcessorsRegistered)
+	{
+		return;
+	}
+	
+	TSharedPtr<FChaosVDTraceImplicitObjectProcessor> ImplicitObjectProcessor = MakeShared<FChaosVDTraceImplicitObjectProcessor>();
+	ImplicitObjectProcessor->SetTraceProvider(AsShared());
+	RegisterDataProcessor(ImplicitObjectProcessor);
+
+	TSharedPtr<FChaosVDTraceParticleDataProcessor> ParticleDataProcessor = MakeShared<FChaosVDTraceParticleDataProcessor>();
+	ParticleDataProcessor->SetTraceProvider(AsShared());
+	RegisterDataProcessor(ParticleDataProcessor);
+
+	TSharedPtr<FChaosVDMidPhaseDataProcessor> MidPhaseDataProcessor = MakeShared<FChaosVDMidPhaseDataProcessor>();
+	MidPhaseDataProcessor->SetTraceProvider(AsShared());
+	RegisterDataProcessor(MidPhaseDataProcessor);
+
+	TSharedPtr<FChaosVDConstraintDataProcessor> ConstraintDataProcessor = MakeShared<FChaosVDConstraintDataProcessor>();
+	ConstraintDataProcessor->SetTraceProvider(AsShared());
+	RegisterDataProcessor(ConstraintDataProcessor);
+
+	bDefaultDataProcessorsRegistered = true;
 }

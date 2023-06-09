@@ -15,6 +15,8 @@
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/Vector.h"
 
+class FChaosVDDataWrapperUtils;
+
 namespace Chaos
 {
 	namespace Private
@@ -857,6 +859,8 @@ namespace Chaos
 		// The penetration we leave behind when rolling back to a CCD time of impact. Should be less than or equal to CCDEnablePenetration.
 		// Calculated from particle pair properties when constraint is created.
 		FRealSingle CCDTargetPenetration;
+
+		friend class ::FChaosVDDataWrapperUtils;
 	};
 
 

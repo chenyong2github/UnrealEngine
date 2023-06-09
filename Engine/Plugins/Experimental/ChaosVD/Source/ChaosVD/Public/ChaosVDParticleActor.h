@@ -3,6 +3,7 @@
 #pragma once
 #include "Chaos/Core.h"
 #include "DataWrappers/ChaosVDParticleDataWrapper.h"
+#include "DataWrappers/ChaosVDCollisionDataWrappers.h"
 #include "GameFramework/Actor.h"
 
 #include "ChaosVDParticleActor.generated.h"
@@ -36,6 +37,9 @@ public:
 	AChaosVDParticleActor(const FObjectInitializer& ObjectInitializer);
 
 	void UpdateFromRecordedParticleData(const FChaosVDParticleDataWrapper& InRecordedData, const Chaos::FRigidTransform3& SimulationTransform);
+
+	void UpdateCollisionData(const TArray<TSharedPtr<FChaosVDParticlePairMidPhase>>& InRecordedMidPhases);
+	void UpdateCollisionData(const TArray<FChaosVDConstraint>& InRecordedConstraints);
 
 	void UpdateGeometry(const TSharedPtr<const Chaos::FImplicitObject>& ImplicitObject, EChaosVDActorGeometryUpdateFlags OptionsFlags = EChaosVDActorGeometryUpdateFlags::None);
 	void UpdateGeometry(uint32 NewGeometryHash, EChaosVDActorGeometryUpdateFlags OptionsFlags = EChaosVDActorGeometryUpdateFlags::None);

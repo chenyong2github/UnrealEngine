@@ -3,9 +3,19 @@
 #pragma once
 
 #if WITH_CHAOS_VISUAL_DEBUGGER
+#include "Chaos/Collision/ContactPoint.h"
 #include "Chaos/ParticleHandleFwd.h"
+#include "DataWrappers/ChaosVDCollisionDataWrappers.h"
+
+namespace Chaos
+{
+	class FParticlePairMidPhase;
+	class FPBDCollisionConstraint;
+}
 
 class FChaosVisualDebuggerTrace;
+struct FChaosVDConstraint;
+struct FChaosVDParticlePairMidPhase;
 struct FChaosVDParticleDataWrapper;
 
 /**
@@ -18,8 +28,24 @@ struct FChaosVDParticleDataWrapper;
 class FChaosVDDataWrapperUtils
 {
 private:
-	/** Creates and populates a FChaosVDParticleDataWrapper with the data of the provided ParticleHandlePtr */
+
+	/** Takes a FManifoldPoint and copies the relevant data to the CVD counterpart */
+	static void CopyManifoldPointsToDataWrapper(const Chaos::FManifoldPoint& InCopyFrom, FChaosVDManifoldPoint& OutCopyTo);
+
+	/** Takes a FManifoldPointResult and copies the relevant data to the CVD counterpart */
+	static void CopyManifoldPointResultsToDataWrapper(const Chaos::FManifoldPointResult& InCopyFrom, FChaosVDManifoldPoint& OutCopyTo);
+
+	/** Creates and populates a FChaosVDParticleDataWrapper with the data of the provided FGeometryParticleHandle */
 	static FChaosVDParticleDataWrapper BuildParticleDataWrapperFromParticle(const Chaos::FGeometryParticleHandle* ParticleHandlePtr);
+
+	/** Creates and populates a FChaosVDConstraint with the data of the provided FPBDCollisionConstraint */
+	static FChaosVDConstraint BuildConstraintDataWrapperFromConstraint(const Chaos::FPBDCollisionConstraint& InConstraint);
+
+	/** Creates and populates a FChaosVDParticlePairMidPhase with the data of the provided FParticlePairMidPhase */
+	static FChaosVDParticlePairMidPhase BuildMidPhaseDataWrapperFromMidPhase(const Chaos::FParticlePairMidPhase& InMidPhase);
+
+	/** Converts a Chaos::FVec3 to a FVector. It is worth notice that FVector is double precision and FVec3 is single */
+	static FVector ConvertToFVector(const Chaos::FVec3f& VectorRef) { return FVector(VectorRef); }
 
 	friend FChaosVisualDebuggerTrace;
 };

@@ -338,9 +338,13 @@ namespace Chaos
 				SCOPE_CYCLE_COUNTER(STAT_Collisions_MidPhase);
 				CSV_SCOPED_TIMING_STAT(PhysicsVerbose, DetectCollisions_AssignMidPhases);
 
+				FChaosVDContextWrapper CVDContext;
+				CVD_GET_WRAPPED_CURRENT_CONTEXT(CVDContext);
+
 				// Find or assign a midphase to each overlapping particle pair
-				const auto& AssignMidPhasesWorker = [this, Dt](const int32 ContextIndex)
+				const auto& AssignMidPhasesWorker = [this, Dt, &CVDContext](const int32 ContextIndex)
 				{
+					CVD_SCOPE_CONTEXT(CVDContext.Context);
 					AssignMidPhases(BroadphaseContexts[ContextIndex]);
 				};
 				PhysicsParallelFor(NumActiveBroadphaseContexts, AssignMidPhasesWorker, bDisableCollisionParallelFor);
@@ -361,8 +365,13 @@ namespace Chaos
 		{
 			SCOPE_CYCLE_COUNTER(STAT_Collisions_NarrowPhase);
 			CSV_SCOPED_TIMING_STAT(PhysicsVerbose, DetectCollisions_MidPhase);
-			const auto& ProcessMidPhasesWorker = [this, Dt](const int32 ContextIndex)
+
+			FChaosVDContextWrapper CVDContext;
+			CVD_GET_WRAPPED_CURRENT_CONTEXT(CVDContext);
+	
+			const auto& ProcessMidPhasesWorker = [this, Dt, &CVDContext](const int32 ContextIndex)
 			{
+				CVD_SCOPE_CONTEXT(CVDContext.Context);
 				ProcessMidPhases(Dt, BroadphaseContexts[ContextIndex]);
 			};
 			PhysicsParallelFor(NumActiveBroadphaseContexts, ProcessMidPhasesWorker, bDisableCollisionParallelFor);
@@ -570,6 +579,9 @@ namespace Chaos
 					// Get the midphase for this pair
 					FParticlePairMidPhase* MidPhase = ContextAllocator->GetMidPhase(Overlap.Particles[0], Overlap.Particles[1], Overlap.Particles[Overlap.SearchParticleIndex], BroadphaseContext.CollisionContext);
 					BroadphaseContext.MidPhases[MidPhaseIndex] = MidPhase;
+
+					CVD_TRACE_MID_PHASE(MidPhase);
+
 					++MidPhaseIndex;
 				}
 			}
@@ -600,6 +612,8 @@ namespace Chaos
 
 				// Run MidPhase + NarrowPhase
 				BroadphaseContext.MidPhases[Index]->GenerateCollisions(BroadphaseContext.CollisionContext.GetSettings().BoundsExpansion, Dt, BroadphaseContext.CollisionContext);
+
+				CVD_TRACE_MID_PHASE(BroadphaseContext.MidPhases[Index]);
 			}
 
 			PHYSICS_CSV_CUSTOM_EXPENSIVE(PhysicsCounters, NumFromBroadphase, NumPotentials, ECsvCustomStatOp::Accumulate);
