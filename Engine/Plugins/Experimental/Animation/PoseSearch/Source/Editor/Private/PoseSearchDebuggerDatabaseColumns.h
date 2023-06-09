@@ -379,6 +379,36 @@ struct FCost : ITextColumn
 	}
 };
 
+struct FPCACost : ITextColumn
+{
+	using ITextColumn::ITextColumn;
+
+	virtual FText GetLabel() const override
+	{
+		return LOCTEXT("ColumnLabelPCACost", "PCA Cost");
+	}
+	
+	virtual FText GetLabelTooltip() const override
+	{
+		return LOCTEXT("ColumnLabelTooltipPCACost", "Total PCA Cost of the associated Pose");
+	}
+
+	virtual FSortPredicate GetSortPredicate() const override
+	{
+		return [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->PosePCACost < Row1->PosePCACost; };
+	}
+		
+	virtual FText GetRowText(const FRowDataRef& Row) const override
+	{
+		return FText::AsNumber(Row->PosePCACost);
+    }
+
+	virtual FSlateColor GetColorAndOpacity(const FRowDataRef& Row) const override
+	{
+		return Row->PCACostColor;
+	}
+};
+
 struct FChannelBreakdownCostColumn : ITextColumn
 {
 	FChannelBreakdownCostColumn(int32 SortIndex, int32 InBreakdownCostIndex, const FText& InLabel)

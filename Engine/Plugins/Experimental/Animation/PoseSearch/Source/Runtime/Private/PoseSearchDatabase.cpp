@@ -14,7 +14,6 @@
 #include "PoseSearch/PoseSearchFeatureChannel.h"
 #include "PoseSearch/PoseSearchHistory.h"
 #include "PoseSearch/PoseSearchSchema.h"
-#include "PoseSearchEigenHelper.h"
 #include "UObject/ObjectSaveContext.h"
 
 DECLARE_STATS_GROUP(TEXT("PoseSearch"), STATGROUP_PoseSearch, STATCAT_Advanced);
@@ -831,31 +830,17 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(UE::PoseSearc
 	//stack allocated temporaries
 	TArrayView<size_t> ResultIndexes((size_t*)FMemory_Alloca((ClampedKDTreeQueryNumNeighbors + 1) * sizeof(size_t)), ClampedKDTreeQueryNumNeighbors + 1);
 	TArrayView<float> ResultDistanceSqr((float*)FMemory_Alloca((ClampedKDTreeQueryNumNeighbors + 1) * sizeof(float)), ClampedKDTreeQueryNumNeighbors + 1);
-	RowMajorVectorMap WeightedQueryValues((float*)FMemory_Alloca(NumDimensions * sizeof(float)), 1, NumDimensions);
-	RowMajorVectorMap CenteredQueryValues((float*)FMemory_Alloca(NumDimensions * sizeof(float)), 1, NumDimensions);
-	RowMajorVectorMap ProjectedQueryValues((float*)FMemory_Alloca(ClampedNumberOfPrincipalComponents * sizeof(float)), 1, ClampedNumberOfPrincipalComponents);
+	TArrayView<float> ProjectedQueryValues((float*)FMemory_Alloca(ClampedNumberOfPrincipalComponents * sizeof(float)), ClampedNumberOfPrincipalComponents);
 
 #if DO_CHECK
 	// KDTree in PCA space search
 	if (PoseSearchMode == EPoseSearchMode::PCAKDTree_Validate)
 	{
-		const RowMajorVectorMapConst MapWeightsSqrt(SearchIndex.WeightsSqrt.GetData(), 1, NumDimensions);
-
 		// testing the KDTree is returning the proper searches for all the original points transformed in pca space
 		for (int32 PoseIdx = 0; PoseIdx < SearchIndex.GetNumPoses(); ++PoseIdx)
 		{
 			FKDTree::KNNResultSet ResultSet(ClampedKDTreeQueryNumNeighbors, ResultIndexes, ResultDistanceSqr);
-			TConstArrayView<float> PoseValues = SearchIndex.GetPoseValues(PoseIdx);
-
-			const RowMajorVectorMapConst Mean(SearchIndex.Mean.GetData(), 1, NumDimensions);
-			const ColMajorMatrixMapConst PCAProjectionMatrix(SearchIndex.PCAProjectionMatrix.GetData(), NumDimensions, ClampedNumberOfPrincipalComponents);
-
-			const RowMajorVectorMapConst QueryValues(PoseValues.GetData(), 1, NumDimensions);
-			WeightedQueryValues = QueryValues.array() * MapWeightsSqrt.array();
-			CenteredQueryValues.noalias() = WeightedQueryValues - Mean;
-			ProjectedQueryValues.noalias() = CenteredQueryValues * PCAProjectionMatrix;
-
-			SearchIndex.KDTree.FindNeighbors(ResultSet, ProjectedQueryValues.data());
+			SearchIndex.KDTree.FindNeighbors(ResultSet, SearchIndex.PCAProject(SearchIndex.GetPoseValues(PoseIdx), ProjectedQueryValues).GetData());
 
 			size_t ResultIndex = 0;
 			for (; ResultIndex < ResultSet.Num(); ++ResultIndex)
@@ -886,18 +871,8 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(UE::PoseSearc
 		FKDTree::KNNResultSet ResultSet(ClampedKDTreeQueryNumNeighbors, ResultIndexes, ResultDistanceSqr, NonSelectableIdx);
 
 		check(QueryValues.Num() == NumDimensions);
-
-		const RowMajorVectorMapConst Mean(SearchIndex.Mean.GetData(), 1, NumDimensions);
-		const ColMajorMatrixMapConst PCAProjectionMatrix(SearchIndex.PCAProjectionMatrix.GetData(), NumDimensions, ClampedNumberOfPrincipalComponents);
-
-		// transforming query values into PCA space to query the KDTree
-		const RowMajorVectorMapConst QueryValuesMap(QueryValues.GetData(), 1, NumDimensions);
-		const RowMajorVectorMapConst MapWeightsSqrt(SearchIndex.WeightsSqrt.GetData(), 1, NumDimensions);
-		WeightedQueryValues = QueryValuesMap.array() * MapWeightsSqrt.array();
-		CenteredQueryValues.noalias() = WeightedQueryValues - Mean;
-		ProjectedQueryValues.noalias() = CenteredQueryValues * PCAProjectionMatrix;
-
-		SearchIndex.KDTree.FindNeighbors(ResultSet, ProjectedQueryValues.data());
+		// projecting QueryValues into the PCA space ProjectedQueryValues and query the KDTree
+		SearchIndex.KDTree.FindNeighbors(ResultSet, SearchIndex.PCAProject(QueryValues, ProjectedQueryValues).GetData());
 
 		// NonSelectableIdx are already filtered out inside the kdtree search
 		const FSearchFilters SearchFilters(Schema, TConstArrayView<size_t>(), SearchIndex.bAnyBlockTransition);

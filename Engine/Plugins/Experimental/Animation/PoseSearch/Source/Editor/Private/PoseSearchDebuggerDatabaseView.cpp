@@ -14,6 +14,7 @@
 #include "PoseSearch/PoseSearchDerivedData.h"
 #include "PoseSearch/PoseSearchFeatureChannel.h"
 #include "PoseSearch/PoseSearchSchema.h"
+#include "PoseSearchEditor.h"
 #include "Trace/PoseSearchTraceProvider.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SScrollBar.h"
@@ -175,18 +176,38 @@ static void AddUnfilteredDatabaseRow(const UPoseSearchDatabase* Database,
 		// in case we modify the schema while PIE is paused and displaying the Pose Search Editor, we could end up with a stale State with a SharedData->QueryVector saved with the previous schema
 		// so the cardinality of SharedData->QueryVector and PoseValues don't match. In that case we just use PoseValues as query to have all costs set to zero
 		const bool bIsQueryVectorValid = SharedData->QueryVector.Num() == PoseValues.Num();
-		const TArray<float>& QueryVector = bIsQueryVectorValid ? SharedData->QueryVector : PoseValues;
+		TConstArrayView<float> QueryVector = bIsQueryVectorValid ? TConstArrayView<float>(SharedData->QueryVector) : TConstArrayView<float>(PoseValues);
 
 		CompareFeatureVectors(PoseValues, QueryVector, SearchIndex.WeightsSqrt, Row->CostVector);
 
 		if (Cost.IsValid())
 		{
 			Row->PoseCost = Cost;
+
+			// @todo: perhaps reuse this code to recalculate Row->PoseCost instead of using Cost
+			//const FPoseSearchCost RecalculatedCost = SearchIndex.ComparePoses(DbPoseIdx, 0.f, PoseValues, QueryVector);
+			//if (Cost.GetTotalCost() != RecalculatedCost.GetTotalCost())
+			//{
+			//	UE_LOG(LogPoseSearchEditor, Error, TEXT("RecalculatedCost (%f) differs from Cost (%f) for Pose '%d'"), RecalculatedCost.GetTotalCost(), Cost.GetTotalCost(), DbPoseIdx);
+			//}
+		}
+		// is PoseValues padded at 16 bytes (and 16 bytes aligned by construction)?
+		else if (PoseValues.Num() % 4 == 0)
+		{
+			Row->PoseCost = SearchIndex.CompareAlignedPoses(DbPoseIdx, 0.f, PoseValues, QueryVector);
 		}
 		else
 		{
-			// @todo: perhaps reuse CompareFeatureVectors cost calculation
 			Row->PoseCost = SearchIndex.ComparePoses(DbPoseIdx, 0.f, PoseValues, QueryVector);
+		}
+
+		if (!SharedData->PCAQueryVector.IsEmpty())
+		{
+			TConstArrayView<float> PCAPoseValues = SearchIndex.GetPCAPoseValues(DbPoseIdx);
+			if (SharedData->PCAQueryVector.Num() == PCAPoseValues.Num())
+			{
+				Row->PosePCACost = CompareFeatureVectors(SharedData->PCAQueryVector, PCAPoseValues);
+			}
 		}
 
 		const FInstancedStruct& DatabaseAssetStruct = Database->GetAnimationAssetStruct(*SearchIndexAsset);
@@ -231,6 +252,7 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 
 	UnfilteredDatabaseRows.Reset();
 
+	bool bAddPCACost = false;
 	for (const FTraceMotionMatchingStateDatabaseEntry& DbEntry : State.DatabaseEntries)
 	{
 		const UPoseSearchDatabase* Database = FTraceMotionMatchingState::GetObjectFromId<UPoseSearchDatabase>(DbEntry.DatabaseId);
@@ -241,6 +263,13 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 			SharedData->DatabaseName = Database->GetName();
 			SharedData->DatabasePath = Database->GetPathName();
 			SharedData->QueryVector = DbEntry.QueryVector;
+
+			if (Database->PoseSearchMode != EPoseSearchMode::BruteForce)
+			{
+				SharedData->PCAQueryVector.SetNumZeroed(Database->GetNumberOfPrincipalComponents());
+				Database->GetSearchIndex().PCAProject(DbEntry.QueryVector, SharedData->PCAQueryVector);
+				bAddPCACost = true;
+			}
 
 			for (const FTraceMotionMatchingStatePoseEntry& PoseEntry : DbEntry.PoseEntries)
 			{
@@ -272,87 +301,20 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 	{
 		CostBreakDownData.ProcessData(UnfilteredDatabaseRows);
 
-		// calculating breakdowns min max and colors
+		// calculating min/max for Cost, PCACost, and breakdowns
+		float MinCost = UE_MAX_FLT;
+		float MaxCost = -UE_MAX_FLT;
+
+		float MinPCACost = UE_MAX_FLT;
+		float MaxPCACost = -UE_MAX_FLT;
+
 		TArray<float> MinCostBreakdowns;
 		TArray<float> MaxCostBreakdowns;
 
 		const int32 CostBreakdownsCardinality = UnfilteredDatabaseRows[0]->CostBreakdowns.Num();
 		MinCostBreakdowns.Init(UE_MAX_FLT, CostBreakdownsCardinality);
 		MaxCostBreakdowns.Init(-UE_MAX_FLT, CostBreakdownsCardinality);
-
-		auto ArrayMinMax = [](TConstArrayView<float> View, TArrayView<float> Min, TArrayView<float> Max, float InvalidValue)
-		{
-			const int32 Num = View.Num();
-			check(Num == Min.Num() && Num == Max.Num());
-			for (int i = 0; i < Num; ++i)
-			{
-				const float Value = View[i];
-				if (Value != InvalidValue)
-				{
-					Min[i] = FMath::Min(Min[i], Value);
-					Max[i] = FMath::Max(Max[i], Value);
-				}
-			}
-		};
-
-		for (TSharedRef<FDebuggerDatabaseRowData>& UnfilteredRow : UnfilteredDatabaseRows)
-		{
-			if (EnumHasAnyFlags(UnfilteredRow->PoseCandidateFlags, EPoseCandidateFlags::AnyValidMask))
-			{
-				ArrayMinMax(UnfilteredRow->CostBreakdowns, MinCostBreakdowns, MaxCostBreakdowns, UE_MAX_FLT);
-			}
-		}
 		
-		auto ArraySafeNormalize = [](TConstArrayView<float> View, TConstArrayView<float> Min, TConstArrayView<float> Max, TArrayView<float> NormalizedView)
-		{
-			const int32 Num = View.Num();
-			check(Num == Min.Num() && Num == Max.Num() && Num == NormalizedView.Num());
-			for (int i = 0; i < Num; ++i)
-			{
-				const float Delta = Max[i] - Min[i];
-				if (FMath::IsNearlyZero(Delta, UE_KINDA_SMALL_NUMBER))
-				{
-					NormalizedView[i] = 0.f;
-				}
-				else
-				{
-					NormalizedView[i] = (View[i] - Min[i]) / Delta;
-				}
-			}
-		};
-
-		auto LinearColorBlend = [](FLinearColor LinearColorA, FLinearColor LinearColorB, float BlendParam) -> FLinearColor
-		{
-			return LinearColorA + (LinearColorB - LinearColorA) * BlendParam;
-		};
-
-		auto LinearColorArrayBlend = [](FLinearColor LinearColorA, FLinearColor LinearColorB, TConstArrayView<float> BlendParam, TArray<FLinearColor>& BlendedColors) -> void
-		{
-			const int32 Num = BlendParam.Num();
-			BlendedColors.SetNumUninitialized(Num);
-			for (int i = 0; i < Num; ++i)
-			{
-				BlendedColors[i] = LinearColorA + (LinearColorB - LinearColorA) * BlendParam[i];
-			}
-		};
-
-		TArray<float> CostBreakdownsColorBlend;
-		CostBreakdownsColorBlend.Init(0, CostBreakdownsCardinality);
-		for (TSharedRef<FDebuggerDatabaseRowData>& UnfilteredRow : UnfilteredDatabaseRows)
-		{
-			if (EnumHasAnyFlags(UnfilteredRow->PoseCandidateFlags, EPoseCandidateFlags::AnyValidMask))
-			{
-				ArraySafeNormalize(UnfilteredRow->CostBreakdowns, MinCostBreakdowns, MaxCostBreakdowns, CostBreakdownsColorBlend);
-				LinearColorArrayBlend(BestScoreRowColor, WorstScoreRowColor, CostBreakdownsColorBlend, UnfilteredRow->CostBreakdownsColors);
-			}
-			else
-			{
-				UnfilteredRow->CostBreakdownsColors.Init(DiscardedRowColor, CostBreakdownsCardinality);
-			}
-		}
-
-		float MinCost = UE_MAX_FLT;
-		float MaxCost = -UE_MAX_FLT;
 		for (TSharedRef<FDebuggerDatabaseRowData>& UnfilteredRow : UnfilteredDatabaseRows)
 		{
 			if (EnumHasAnyFlags(UnfilteredRow->PoseCandidateFlags, EPoseCandidateFlags::AnyValidMask))
@@ -360,26 +322,64 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 				const float Cost = UnfilteredRow->PoseCost.GetTotalCost();
 				MinCost = FMath::Min(MinCost, Cost);
 				MaxCost = FMath::Max(MaxCost, Cost);
+
+				const float PCACost = UnfilteredRow->PosePCACost;
+				MinPCACost = FMath::Min(MinPCACost, PCACost);
+				MaxPCACost = FMath::Max(MaxPCACost, PCACost);
+
+				for (int Index = 0; Index < CostBreakdownsCardinality; ++Index)
+				{
+					const float Value = UnfilteredRow->CostBreakdowns[Index];
+					if (Value != UE_MAX_FLT)
+					{
+						MinCostBreakdowns[Index] = FMath::Min(MinCostBreakdowns[Index], Value);
+						MaxCostBreakdowns[Index] = FMath::Max(MaxCostBreakdowns[Index], Value);
+					}
+				}
 			}
 		}
+		
+		// calculating min max deltas (always >= UE_KINDA_SMALL_NUMBER to avoid division by zero)
+		const float DeltaCost = FMath::Max(MaxCost - MinCost, UE_KINDA_SMALL_NUMBER);
+		const float DeltaPCACost = FMath::Max(MaxPCACost - MinPCACost, UE_KINDA_SMALL_NUMBER);
+		TArray<float> DeltaCostBreakdowns;
+		DeltaCostBreakdowns.SetNumUninitialized(CostBreakdownsCardinality);
+		for (int32 Index = 0; Index < CostBreakdownsCardinality; ++Index)
+		{
+			DeltaCostBreakdowns[Index] = FMath::Max(MaxCostBreakdowns[Index] - MinCostBreakdowns[Index], UE_KINDA_SMALL_NUMBER);
+		}
 
-		const float DeltaCost = MaxCost - MinCost;
+		// calculating colors for Cost, PCACost, and breakdowns (using min/max as range)
 		for (TSharedRef<FDebuggerDatabaseRowData>& UnfilteredRow : UnfilteredDatabaseRows)
 		{
 			if (EnumHasAnyFlags(UnfilteredRow->PoseCandidateFlags, EPoseCandidateFlags::AnyValidMask))
 			{
-				const float CostColorBlend = DeltaCost > UE_KINDA_SMALL_NUMBER ? (UnfilteredRow->PoseCost.GetTotalCost() - MinCost) / DeltaCost : 0.f;
-				UnfilteredRow->CostColor = LinearColorBlend(BestScoreRowColor, WorstScoreRowColor, CostColorBlend);
+				const float CostBlend = (UnfilteredRow->PoseCost.GetTotalCost() - MinCost) / DeltaCost;
+				UnfilteredRow->CostColor = BestScoreRowColor + (WorstScoreRowColor - BestScoreRowColor) * CostBlend;
+
+				const float PCACostBlend = (UnfilteredRow->PosePCACost - MinPCACost) / DeltaPCACost;
+				UnfilteredRow->PCACostColor = BestScoreRowColor + (WorstScoreRowColor - BestScoreRowColor) * PCACostBlend;
+
+				UnfilteredRow->CostBreakdownsColors.SetNumUninitialized(CostBreakdownsCardinality);
+				for (int Index = 0; Index < CostBreakdownsCardinality; ++Index)
+				{
+					const float CostBreakdownBlend = (UnfilteredRow->CostBreakdowns[Index] - MinCostBreakdowns[Index]) / DeltaCostBreakdowns[Index];
+					UnfilteredRow->CostBreakdownsColors[Index] = BestScoreRowColor + (WorstScoreRowColor - BestScoreRowColor) * CostBreakdownBlend;
+				}
 			}
 			else
 			{
 				UnfilteredRow->CostColor = DiscardedRowColor;
+				UnfilteredRow->PCACostColor = DiscardedRowColor;
+				UnfilteredRow->CostBreakdownsColors.Init(DiscardedRowColor, CostBreakdownsCardinality);
 			}
 		}
 	}
 
-	if (!CostBreakDownData.AreLabelsEqualTo(OldLabels))
+	if (bHasPCACostColumn != bAddPCACost || !CostBreakDownData.AreLabelsEqualTo(OldLabels))
 	{
+		bHasPCACostColumn = bAddPCACost;
+
 		OldLabels = CostBreakDownData.GetLabels();
 
 		// recreating and binding the columns
@@ -392,6 +392,11 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 
 		TSharedRef<FCost> CostColumn = MakeShared<FCost>(ColumnIdx++);
 		AddColumn(CostColumn);
+
+		if (bAddPCACost)
+		{
+			AddColumn(MakeShared<FPCACost>(ColumnIdx++));
+		}
 
 		int32 LabelIdx = 0;
 		for (const FText& Label : CostBreakDownData.GetLabels())
@@ -1082,6 +1087,7 @@ void SDebuggerDatabaseView::Construct(const FArguments& InArgs)
 	SortMode = EColumnSortMode::Ascending;
 	OldLabels.Reset();
 	Columns.Reset();
+	bHasPCACostColumn = false;
 }
 
 } // namespace UE::PoseSearch

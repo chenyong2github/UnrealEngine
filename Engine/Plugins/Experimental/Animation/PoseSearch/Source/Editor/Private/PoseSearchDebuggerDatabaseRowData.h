@@ -15,7 +15,8 @@ public:
 	TWeakObjectPtr<const UPoseSearchDatabase> SourceDatabase;
 	FString DatabaseName = "";
 	FString DatabasePath = "";
-	TArray<float> QueryVector;
+	TAlignedArray<float> QueryVector;
+	TAlignedArray<float> PCAQueryVector;
 };
 
 class FDebuggerDatabaseRowData : public TSharedFromThis<FDebuggerDatabaseRowData>
@@ -36,6 +37,8 @@ public:
 	FVector BlendParameters = FVector::Zero();
 	FPoseSearchCost PoseCost;
 	FLinearColor CostColor = FLinearColor::White;
+	float PosePCACost = 0.f;
+	FLinearColor PCACostColor = FLinearColor::White;
 	TArray<float> CostBreakdowns;
 	TArray<FLinearColor> CostBreakdownsColors;
 	TArray<float> CostVector;

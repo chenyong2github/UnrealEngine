@@ -75,6 +75,16 @@ void CompareFeatureVectors(TConstArrayView<float> A, TConstArrayView<float> B, T
 	VR = ((VA - VB) * VW).square();
 }
 
+float CompareFeatureVectors(TConstArrayView<float> A, TConstArrayView<float> B)
+{
+	check(A.Num() == B.Num() && A.Num());
+
+	Eigen::Map<const Eigen::ArrayXf> VA(A.GetData(), A.Num());
+	Eigen::Map<const Eigen::ArrayXf> VB(B.GetData(), B.Num());
+
+	return (VA - VB).square().sum();
+}
+
 //////////////////////////////////////////////////////////////////////////
 // FPoseMetadata
 FArchive& operator<<(FArchive& Ar, FPoseMetadata& Metadata)
@@ -184,10 +194,10 @@ void FSearchIndex::Reset()
 
 TConstArrayView<float> FSearchIndex::GetPoseValues(int32 PoseIdx) const
 {
-	const int32 SchemaCardinality = WeightsSqrt.Num();
-	check(!Values.IsEmpty() && PoseIdx >= 0 && PoseIdx < GetNumPoses() && SchemaCardinality > 0);
-	const int32 ValueOffset = PoseIdx * SchemaCardinality;
-	return MakeArrayView(&Values[ValueOffset], SchemaCardinality);
+	const int32 NumDimensions = WeightsSqrt.Num();
+	check(!Values.IsEmpty() && PoseIdx >= 0 && PoseIdx < GetNumPoses() && NumDimensions > 0);
+	const int32 ValueOffset = PoseIdx * NumDimensions;
+	return MakeArrayView(&Values[ValueOffset], NumDimensions);
 }
 
 TConstArrayView<float> FSearchIndex::GetReconstructedPoseValues(int32 PoseIdx, TArrayView<float> BufferUsedForReconstruction) const
@@ -214,6 +224,31 @@ TConstArrayView<float> FSearchIndex::GetReconstructedPoseValues(int32 PoseIdx, T
 	return BufferUsedForReconstruction;
 }
 
+TConstArrayView<float> FSearchIndex::PCAProject(TConstArrayView<float> PoseValues, TArrayView<float> BufferUsedForProjection) const
+{
+	const int32 NumDimensions = WeightsSqrt.Num();
+	const int32 NumberOfPrincipalComponents = PCAProjectionMatrix.Num() / NumDimensions;
+
+	check(PCAProjectionMatrix.Num() > 0 && PCAProjectionMatrix.Num() % NumDimensions == 0);
+	check(BufferUsedForProjection.Num() == NumberOfPrincipalComponents);
+
+	const RowMajorVectorMapConst WeightsSqrtMap(WeightsSqrt.GetData(), 1, NumDimensions);
+	const RowMajorVectorMapConst MeanMap(Mean.GetData(), 1, NumDimensions);
+	const ColMajorMatrixMapConst PCAProjectionMatrixMap(PCAProjectionMatrix.GetData(), NumDimensions, NumberOfPrincipalComponents);
+	const RowMajorVectorMapConst PoseValuesMap(PoseValues.GetData(), 1, NumDimensions);
+
+	RowMajorVectorMap WeightedPoseValuesMap((float*)FMemory_Alloca(NumDimensions * sizeof(float)), 1, NumDimensions);
+	WeightedPoseValuesMap = PoseValuesMap.array() * WeightsSqrtMap.array();
+
+	RowMajorVectorMap CenteredPoseValuesMap((float*)FMemory_Alloca(NumDimensions * sizeof(float)), 1, NumDimensions);
+	CenteredPoseValuesMap.noalias() = WeightedPoseValuesMap - MeanMap;
+
+	RowMajorVectorMap ProjectedPoseValuesMap(BufferUsedForProjection.GetData(), 1, NumberOfPrincipalComponents);
+	ProjectedPoseValuesMap.noalias() = CenteredPoseValuesMap * PCAProjectionMatrixMap;
+
+	return BufferUsedForProjection;
+}
+
 TArray<float> FSearchIndex::GetPoseValuesSafe(int32 PoseIdx) const
 {
 	TArray<float> PoseValues;
@@ -231,6 +266,23 @@ TArray<float> FSearchIndex::GetPoseValuesSafe(int32 PoseIdx) const
 		}
 	}
 	return PoseValues;
+}
+
+TConstArrayView<float> FSearchIndex::GetPCAPoseValues(int32 PoseIdx) const
+{
+	if (PCAValues.IsEmpty())
+	{
+		return TConstArrayView<float>();
+	}
+
+	const int32 NumDimensions = WeightsSqrt.Num();
+	const int32 NumberOfPrincipalComponents = PCAProjectionMatrix.Num() / NumDimensions;
+
+	check(PCAProjectionMatrix.Num() > 0 && PCAProjectionMatrix.Num() % NumDimensions == 0);
+	check(PoseIdx >= 0 && PoseIdx < GetNumPoses() && NumDimensions > 0);
+
+	const int32 ValueOffset = PoseIdx * NumberOfPrincipalComponents;
+	return MakeArrayView(&PCAValues[ValueOffset], NumberOfPrincipalComponents);
 }
 
 FPoseSearchCost FSearchIndex::ComparePoses(int32 PoseIdx, float ContinuingPoseCostBias, TConstArrayView<float> PoseValues, TConstArrayView<float> QueryValues) const

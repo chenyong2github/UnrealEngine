@@ -101,6 +101,7 @@ private:
     FColumnMap Columns;
 
 	TArray<FText> OldLabels;
+	bool bHasPCACostColumn = false;
 
 	struct FTable
 	{
