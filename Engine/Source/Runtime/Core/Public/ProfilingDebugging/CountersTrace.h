@@ -102,7 +102,7 @@ struct FCountersTrace
 			}
 		}
 
-		const ValueType& Get() const
+		ValueType Get() const
 		{
 			return Value;
 		}

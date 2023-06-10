@@ -180,10 +180,10 @@ namespace UE
 		bool bReported;
 
 		// The total number of times all callsites have been triggered
-		static FCountersTrace::TCounter<std::atomic<int64>, TraceCounterType_Int> TotalTriggeredCount;
+		static FCountersTrace::FCounterAtomicInt TotalTriggeredCount;
 
 		// The total number of reports that have been sent
-		static FCountersTrace::TCounter<std::atomic<int64>, TraceCounterType_Int> TotalReportedCount;
+		static FCountersTrace::FCounterAtomicInt TotalReportedCount;
 
 	private:
 		// The number of times this callsite has been triggered
