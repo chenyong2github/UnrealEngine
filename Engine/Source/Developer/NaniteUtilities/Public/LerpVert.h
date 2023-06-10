@@ -14,8 +14,8 @@ struct FLerpVert
 	FVector3f		TangentY;
 	FVector3f		TangentZ;
 
-	FVector2f		UVs[MAX_STATIC_TEXCOORDS];
 	FLinearColor	Color;
+	FVector2f		UVs[MAX_STATIC_TEXCOORDS];
 
 	FLerpVert() {}
 	FLerpVert( FStaticMeshBuildVertex In )
