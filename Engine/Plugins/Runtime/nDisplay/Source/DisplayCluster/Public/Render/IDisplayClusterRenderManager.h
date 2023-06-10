@@ -8,6 +8,7 @@ class IDisplayClusterRenderDevice;
 class IDisplayClusterPostProcess;
 class IDisplayClusterPostProcessFactory;
 class IDisplayClusterRender_MeshComponent;
+class IDisplayClusterRender_Texture;
 class IDisplayClusterProjectionPolicy;
 class IDisplayClusterProjectionPolicyFactory;
 class IDisplayClusterRenderDeviceFactory;
@@ -177,4 +178,9 @@ public:
 	* @return - new mesh component object
 	*/
 	virtual TSharedPtr<IDisplayClusterRender_MeshComponent, ESPMode::ThreadSafe> CreateMeshComponent() const = 0;
+
+	/**
+	 * Get or create a cached texture with unique name
+	 */
+	virtual TSharedPtr<IDisplayClusterRender_Texture, ESPMode::ThreadSafe> GetOrCreateCachedTexture(const FString& InUniqueTextureName) const = 0;
 };

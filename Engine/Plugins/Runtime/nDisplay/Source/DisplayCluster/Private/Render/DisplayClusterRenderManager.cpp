@@ -31,6 +31,7 @@
 #include "Render/Synchronization/IDisplayClusterRenderSyncPolicyFactory.h"
 
 #include "Render/Containers/DisplayClusterRender_MeshComponent.h"
+#include "Render/Containers/DisplayClusterRender_Texture.h"
 
 #include "Render/Presentation/DisplayClusterPresentationNative.h"
 
@@ -64,7 +65,36 @@ static TAutoConsoleVariable<int32> CVarSyncDiagnosticsVBlankMonitoring(
 	ECVF_ReadOnly
 );
 
+#include "Misc/DisplayClusterDataCache.h"
 
+/**
+ * The cache for DC texture objects. (Singleton)
+ * Allows you to reuse textures with the same unique name.
+ */
+class FDisplayClusterRenderTextureCache
+	: public TDisplayClusterDataCache<FDisplayClusterRender_Texture>
+{
+public:
+	static TSharedPtr<FDisplayClusterRender_Texture, ESPMode::ThreadSafe> GetOrCreateRenderTexture(const FString& InTextureName)
+	{
+		static FDisplayClusterRenderTextureCache TextureCacheSingleton;
+
+		const FString UniqueName = HashString(InTextureName);
+
+		TSharedPtr<FDisplayClusterRender_Texture, ESPMode::ThreadSafe> TextureRef = TextureCacheSingleton.Find(UniqueName);
+		if (!TextureRef.IsValid())
+		{
+			TextureRef = MakeShared<FDisplayClusterRender_Texture, ESPMode::ThreadSafe>(UniqueName);
+			TextureCacheSingleton.Add(TextureRef);
+		}
+
+		return TextureRef;
+	}
+};
+
+//---------------------------------------------------
+// FDisplayClusterRenderManager
+//---------------------------------------------------
 FDisplayClusterRenderManager::FDisplayClusterRenderManager()
 {
 	// Instantiate and register internal render device factory
@@ -502,6 +532,11 @@ void FDisplayClusterRenderManager::GetRegisteredPostProcess(TArray<FString>& Out
 TSharedPtr<IDisplayClusterRender_MeshComponent, ESPMode::ThreadSafe> FDisplayClusterRenderManager::CreateMeshComponent() const
 {
 	return MakeShared<FDisplayClusterRender_MeshComponent, ESPMode::ThreadSafe>();
+}
+
+TSharedPtr<IDisplayClusterRender_Texture, ESPMode::ThreadSafe> FDisplayClusterRenderManager::GetOrCreateCachedTexture(const FString& InUniqueTextureName) const
+{
+	return FDisplayClusterRenderTextureCache::GetOrCreateRenderTexture(InUniqueTextureName);
 }
 
 IDisplayClusterViewportManager* FDisplayClusterRenderManager::GetViewportManager() const
