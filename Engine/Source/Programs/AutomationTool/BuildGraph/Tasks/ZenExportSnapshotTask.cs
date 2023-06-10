@@ -128,7 +128,7 @@ namespace AutomationTool.Tasks
 			FileReference ProjectFile = Parameters.Project;
 			if(!FileReference.Exists(ProjectFile))
 			{
-				throw new AutomationException("Missing project file - {0}", ProjectFile.FullName);
+				return Task.CompletedTask;
 			}
 
 			List<ExportSourceData> ExportSources = new List<ExportSourceData>();
