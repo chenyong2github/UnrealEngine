@@ -47,9 +47,9 @@ class FArrangedChildren;
   *		 [-3-]
   */
 
-class SLATE_API SWrapBox : public SPanel
+class SWrapBox : public SPanel
 {
-	SLATE_DECLARE_WIDGET(SWrapBox, SPanel)
+	SLATE_DECLARE_WIDGET_API(SWrapBox, SPanel, SLATE_API)
 public:
 
 	/** A slot that support alignment of content and padding */
@@ -175,7 +175,7 @@ public:
 		/** Determines if the wrap box needs to arrange the slots left-to-right or top-to-bottom.*/
 		SLATE_ARGUMENT(EOrientation, Orientation);
 	SLATE_END_ARGS()
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	SLATE_API PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	SWrapBox();
 
@@ -185,49 +185,49 @@ public:
 	}
 
 	using FScopedWidgetSlotArguments = TPanelChildren<FSlot>::FScopedWidgetSlotArguments;
-	FScopedWidgetSlotArguments AddSlot();
+	SLATE_API FScopedWidgetSlotArguments AddSlot();
 
 	/** Removes a slot from this box panel which contains the specified SWidget
 	 *
 	 * @param SlotWidget The widget to match when searching through the slots
 	 * @returns The index in the children array where the slot was removed and -1 if no slot was found matching the widget
 	 */
-	int32 RemoveSlot( const TSharedRef<SWidget>& SlotWidget );
+	SLATE_API int32 RemoveSlot( const TSharedRef<SWidget>& SlotWidget );
 
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 
-	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
+	SLATE_API virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
 
-	virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
+	SLATE_API virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
 
-	void ClearChildren();
+	SLATE_API void ClearChildren();
 
-	virtual FVector2D ComputeDesiredSize(float) const override;
+	SLATE_API virtual FVector2D ComputeDesiredSize(float) const override;
 
-	virtual FChildren* GetChildren() override;
+	SLATE_API virtual FChildren* GetChildren() override;
 
 	/** See InnerSlotPadding Attribute */
-	void SetInnerSlotPadding(FVector2D InInnerSlotPadding);
+	SLATE_API void SetInnerSlotPadding(FVector2D InInnerSlotPadding);
 
 	/** Set the width at which the wrap panel should wrap its content. */
 	UE_DEPRECATED(4.26, "Deprecated, please use SetWrapSize() instead")
-	void SetWrapWidth(TAttribute<float> InWrapWidth);
+	SLATE_API void SetWrapWidth(TAttribute<float> InWrapWidth);
 
 	/** Set the size at which the wrap panel should wrap its content. */
-	void SetWrapSize(TAttribute<float> InWrapSize );
+	SLATE_API void SetWrapSize(TAttribute<float> InWrapSize );
 
 	/** When true, use the WrapWidth property to determine where to wrap to the next line. */
 	UE_DEPRECATED(4.26, "Deprecated, please use SetUseAllottedSize() instead")
-	void SetUseAllottedWidth(bool bInUseAllottedWidth);
+	SLATE_API void SetUseAllottedWidth(bool bInUseAllottedWidth);
 
 	/** When true, use the WrapSize property to determine where to wrap to the next line. */
-	void SetUseAllottedSize(bool bInUseAllottedSize);
+	SLATE_API void SetUseAllottedSize(bool bInUseAllottedSize);
 
 	/** Set the Orientation to determine if the wrap box needs to arrange the slots left-to-right or top-to-bottom */
-	void SetOrientation(EOrientation InOrientation);
+	SLATE_API void SetOrientation(EOrientation InOrientation);
 
 	/** How to distribute the elements among any extra space in a given row */
-	void SetHorizontalAlignment(TAttribute<EHorizontalAlignment> InHAlignment);
+	SLATE_API void SetHorizontalAlignment(TAttribute<EHorizontalAlignment> InHAlignment);
 
 private:
 	/** How wide or long, dependently of the orientation, this panel should appear to be. Any widgets past this line will be wrapped onto the next line. */

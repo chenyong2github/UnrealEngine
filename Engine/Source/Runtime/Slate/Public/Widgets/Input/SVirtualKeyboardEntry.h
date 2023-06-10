@@ -17,7 +17,7 @@
 class FPaintArgs;
 class FSlateWindowElementList;
 
-class SLATE_API SVirtualKeyboardEntry : public SLeafWidget, public IVirtualKeyboardEntry
+class SVirtualKeyboardEntry : public SLeafWidget, public IVirtualKeyboardEntry
 {
 
 public:
@@ -71,42 +71,42 @@ public:
 
 
 	/** Constructor */
-	SVirtualKeyboardEntry();
+	SLATE_API SVirtualKeyboardEntry();
 	
 	/**
 	 * Construct this widget
 	 *
 	 * @param	InArgs	The declaration data for this widget
 	 */
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 
 	/** Restores the text to the original state */
-	void RestoreOriginalText();
+	SLATE_API void RestoreOriginalText();
 
 	/** @return whether the current text varies from the original */
-	bool HasTextChangedFromOriginal() const;
+	SLATE_API bool HasTextChangedFromOriginal() const;
 
 	/**
 	* Sets the text currently being edited
 	*
 	* @param  InNewText  The new text
 	*/
-	void SetText(const TAttribute< FText >& InNewText);
+	SLATE_API void SetText(const TAttribute< FText >& InNewText);
 
 	/**
 	 * Sets the font used to draw the text
 	 *
 	 * @param  InNewFont	The new font to use
 	 */
-	void SetFont( const TAttribute< FSlateFontInfo >& InNewFont );
+	SLATE_API void SetFont( const TAttribute< FSlateFontInfo >& InNewFont );
 
 	/** @return Whether the user can edit the text. */
-	bool GetIsReadOnly() const;
+	SLATE_API bool GetIsReadOnly() const;
 
 public:
 	//~ Begin IVirtualKeyboardEntry Interface
-	virtual void SetTextFromVirtualKeyboard(const FText& InNewText, ETextEntryType TextEntryType) override;
-	virtual void SetSelectionFromVirtualKeyboard(int InSelStart, int InSelEnd) override;
+	SLATE_API virtual void SetTextFromVirtualKeyboard(const FText& InNewText, ETextEntryType TextEntryType) override;
+	SLATE_API virtual void SetSelectionFromVirtualKeyboard(int InSelStart, int InSelEnd) override;
 
 	virtual bool GetSelection(int& OutSelStart, int& OutSelEnd) override
 	{
@@ -152,18 +152,18 @@ public:
 protected:
 
 	//~ Begin SWidget Interface
-	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
-	virtual FVector2D ComputeDesiredSize(float) const override;
-	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
-	virtual bool SupportsKeyboardFocus() const override;
-	virtual FReply OnFocusReceived( const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent ) override;
-	virtual void OnFocusLost( const FFocusEvent& InFocusEvent ) override;
+	SLATE_API virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
+	SLATE_API virtual FVector2D ComputeDesiredSize(float) const override;
+	SLATE_API virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
+	SLATE_API virtual bool SupportsKeyboardFocus() const override;
+	SLATE_API virtual FReply OnFocusReceived( const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent ) override;
+	SLATE_API virtual void OnFocusLost( const FFocusEvent& InFocusEvent ) override;
 	//~ End SWidget Interface
 
 private:
 
 	/** @return The string that needs to be rendered */
-	FString GetStringToRender() const;
+	SLATE_API FString GetStringToRender() const;
 
 private:
 

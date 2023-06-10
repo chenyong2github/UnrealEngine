@@ -11,7 +11,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Notifications/SErrorText.h"
 
-class SLATE_API SErrorHint
+class SErrorHint
 	: public SCompoundWidget
 	, public IErrorReportingWidget
 {
@@ -23,16 +23,16 @@ public:
 		SLATE_ARGUMENT(FText, ErrorText)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
+	SLATE_API void Construct(const FArguments& InArgs);
 
 public:
 
 	// IErrorReportingWidget interface
 
-	virtual void SetError( const FText& InErrorText ) override;
-	virtual void SetError( const FString& InErrorText ) override;
-	virtual bool HasError() const override;
-	virtual TSharedRef<SWidget> AsWidget() override;
+	SLATE_API virtual void SetError( const FText& InErrorText ) override;
+	SLATE_API virtual void SetError( const FString& InErrorText ) override;
+	SLATE_API virtual bool HasError() const override;
+	SLATE_API virtual TSharedRef<SWidget> AsWidget() override;
 
 private:
 

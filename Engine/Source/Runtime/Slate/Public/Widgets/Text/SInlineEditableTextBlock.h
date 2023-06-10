@@ -28,7 +28,7 @@ DECLARE_DELEGATE_OneParam(FOnBeginTextEdit, const FText&)
 /**
  * Slate's InlineEditableTextBlock's are double selectable to go from a STextBlock to become SEditableTextBox.
  */
-class SLATE_API SInlineEditableTextBlock: public SCompoundWidget
+class SInlineEditableTextBlock: public SCompoundWidget
 {
 	SLATE_BEGIN_ARGS( SInlineEditableTextBlock )
 		: _Text()
@@ -109,7 +109,7 @@ class SLATE_API SInlineEditableTextBlock: public SCompoundWidget
 		SLATE_ARGUMENT(TOptional<ETextOverflowPolicy>, OverflowPolicy)
 	SLATE_END_ARGS()
 
-	~SInlineEditableTextBlock();
+	SLATE_API ~SInlineEditableTextBlock();
 
 	/**
 	 * Construct this widget.  Called by the SNew() Slate macro.
@@ -117,54 +117,54 @@ class SLATE_API SInlineEditableTextBlock: public SCompoundWidget
 	 * @param	InArgs				Declaration used by the SNew() macro to construct this widget
 	 * @param	InViewModel			The UI logic not specific to slate
 	 */
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 
 	/**
 	 * See SWidget::SupportsKeyboardFocus().
 	 *
 	 * @return  This widget can gain focus if IsSelected is not bound.
 	 */
-	virtual bool SupportsKeyboardFocus() const override;
+	SLATE_API virtual bool SupportsKeyboardFocus() const override;
 
-	virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
 
-	virtual FReply OnDragOver( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
+	SLATE_API virtual FReply OnDragOver( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
 
-	virtual FReply OnMouseButtonDoubleClick( const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent ) override;
+	SLATE_API virtual FReply OnMouseButtonDoubleClick( const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent ) override;
 
-	virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
+	SLATE_API virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
 
 	//virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
 	 
 	/** Switches the widget to editing mode */
-	void EnterEditingMode();
+	SLATE_API void EnterEditingMode();
 
 	/** Switches the widget to label mode. */
-	void ExitEditingMode();
+	SLATE_API void ExitEditingMode();
 
 	/** Checks if the widget is in edit mode */
-	bool IsInEditMode() const;
+	SLATE_API bool IsInEditMode() const;
 
-	void SetReadOnly(bool bInIsReadOnly);
+	SLATE_API void SetReadOnly(bool bInIsReadOnly);
 
-	void SetText( const TAttribute< FText >& InText );
-	void SetText( const FString& InText );
+	SLATE_API void SetText( const TAttribute< FText >& InText );
+	SLATE_API void SetText( const FString& InText );
 
 	/** Sets the wrap text at attribute.  See WrapTextAt attribute */
-	void SetWrapTextAt(const TAttribute<float>& InWrapTextAt);
+	SLATE_API void SetWrapTextAt(const TAttribute<float>& InWrapTextAt);
 
 	/** Sets the overflow policy for this text block */
-	void SetOverflowPolicy(TOptional<ETextOverflowPolicy> InOverflowPolicy);
+	SLATE_API void SetOverflowPolicy(TOptional<ETextOverflowPolicy> InOverflowPolicy);
 
 protected:
 	/** Callback for the text box's OnTextChanged event */
-	void OnTextChanged(const FText& InText);
+	SLATE_API void OnTextChanged(const FText& InText);
 
 	/** Callback when the text box is committed, switches back to label mode. */ 
-	void OnTextBoxCommitted(const FText& InText, ETextCommit::Type InCommitType);
+	SLATE_API void OnTextBoxCommitted(const FText& InText, ETextCommit::Type InCommitType);
 
 	/** Cancels the edit mode and switches back to label mode */
-	void CancelEditMode();
+	SLATE_API void CancelEditMode();
 
 protected:
 	/** The widget used when in label mode */

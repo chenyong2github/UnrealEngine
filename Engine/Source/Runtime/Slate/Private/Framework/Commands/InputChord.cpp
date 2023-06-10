@@ -9,6 +9,15 @@
 /* FInputChord interface
  *****************************************************************************/
 
+FInputChord::FInputChord()
+	: Key(EKeys::Invalid)
+	, bShift(false)
+	, bCtrl(false)
+	, bAlt(false)
+	, bCmd(false)
+{
+}
+
 /**
  * Returns the friendly, localized string name of this key binding
  */

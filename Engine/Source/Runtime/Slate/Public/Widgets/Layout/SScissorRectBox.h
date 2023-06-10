@@ -27,7 +27,7 @@ class FSlateWindowElementList;
  * NOTE: This class is provided as a STOPGAP for design-time widgets (like the UMG designer itself)
  *       until a more robust clipping solution can be put in place.
  */
-class SLATE_API SScissorRectBox : public SPanel
+class SScissorRectBox : public SPanel
 {
 
 public:
@@ -41,20 +41,20 @@ public:
 		SLATE_DEFAULT_SLOT(FArguments, Content)
 	SLATE_END_ARGS()
 	
-	SScissorRectBox();
+	SLATE_API SScissorRectBox();
 	
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 
 	/**
 	 * See the Content slot.
      */
-	void SetContent(const TSharedRef< SWidget >& InContent);
+	SLATE_API void SetContent(const TSharedRef< SWidget >& InContent);
 
 private:
-	virtual FVector2D ComputeDesiredSize(float) const override;
-	virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
-	virtual FChildren* GetChildren() override;
-	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
+	SLATE_API virtual FVector2D ComputeDesiredSize(float) const override;
+	SLATE_API virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
+	SLATE_API virtual FChildren* GetChildren() override;
+	SLATE_API virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
 
 	FScissorRectSlot ChildSlot;
 };

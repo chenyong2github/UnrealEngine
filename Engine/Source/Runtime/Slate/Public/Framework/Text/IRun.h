@@ -124,7 +124,7 @@ struct FLayoutBlockTextContext : public FRunTextContext
 	TextBiDi::ETextDirection TextDirection;
 };
 
-class SLATE_API IRun
+class IRun
 {
 public:
 

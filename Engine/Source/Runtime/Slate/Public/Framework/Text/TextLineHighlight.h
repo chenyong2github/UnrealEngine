@@ -5,7 +5,7 @@
 
 class ILineHighlighter;
 
-struct SLATE_API FTextLineHighlight
+struct FTextLineHighlight
 {
 	FTextLineHighlight( int32 InLineIndex, const FTextRange& InRange, int32 InZOrder, const TSharedRef< ILineHighlighter >& InHighlighter )
 		: LineIndex( InLineIndex )

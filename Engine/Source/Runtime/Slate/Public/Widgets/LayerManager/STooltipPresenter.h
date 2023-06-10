@@ -12,7 +12,7 @@
 class FArrangedChildren;
 
 /** Presents its content at the cursor's position. Tooltip avoids widget edges. */
-class SLATE_API STooltipPresenter : public SPanel
+class STooltipPresenter : public SPanel
 {
 public:
 	SLATE_BEGIN_ARGS(STooltipPresenter)
@@ -31,17 +31,17 @@ public:
 		bCanSupportFocus = false;
 	}
 
-	void Construct(const FArguments& InArgs);
+	SLATE_API void Construct(const FArguments& InArgs);
 
-	void SetContent(TSharedPtr<SWidget> InWidget);
+	SLATE_API void SetContent(TSharedPtr<SWidget> InWidget);
 
 private:
-	virtual bool ComputeVolatility() const override;
-	virtual void OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const override;
+	SLATE_API virtual bool ComputeVolatility() const override;
+	SLATE_API virtual void OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const override;
 
-	virtual FVector2D ComputeDesiredSize(float) const override;
+	SLATE_API virtual FVector2D ComputeDesiredSize(float) const override;
 
-	virtual FChildren* GetChildren() override;
+	SLATE_API virtual FChildren* GetChildren() override;
 
 	TWeakChild<SWidget> ChildSlot;
 };

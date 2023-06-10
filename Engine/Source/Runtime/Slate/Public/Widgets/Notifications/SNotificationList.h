@@ -20,7 +20,7 @@ class SWindow;
  * Interface class for an item in the event message list.
  * Real implementation is found in SEventMessageItemImpl
  */
-class SLATE_API SNotificationItem
+class SNotificationItem
 	: public SCompoundWidget
 {
 public:
@@ -224,7 +224,7 @@ struct FNotificationInfo
 /**
  * A list of non-intrusive messages about the status of currently active work.
  */
-class SLATE_API SNotificationList
+class SNotificationList
 	: public SCompoundWidget
 {
 	friend class SNotificationExtendable;
@@ -240,14 +240,14 @@ public:
 	 *
 	 * @param InArgs    Declaration from which to construct the widget.
 	 */
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 
 	/**
 	 * Adds a floating notification.
 	 *
 	 * @param Info 		Contains various settings used to initialize the notification.
 	 */
-	virtual TSharedRef<SNotificationItem> AddNotification(const FNotificationInfo& Info);
+	SLATE_API virtual TSharedRef<SNotificationItem> AddNotification(const FNotificationInfo& Info);
 
 protected:
 
@@ -256,7 +256,7 @@ protected:
 	 *
 	 * @param NotificationItem The item which finished fading out.
 	 */
-	virtual void NotificationItemFadedOut (const TSharedRef<SNotificationItem>& NotificationItem);
+	SLATE_API virtual void NotificationItemFadedOut (const TSharedRef<SNotificationItem>& NotificationItem);
 
 protected:
 

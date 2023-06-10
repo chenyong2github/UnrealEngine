@@ -11,18 +11,18 @@ class FPaintArgs;
 class FSlateWindowElementList;
 struct FTextBlockStyle;
 
-class SLATE_API FSlateTextHighlightRunRenderer : public ISlateRunRenderer
+class FSlateTextHighlightRunRenderer : public ISlateRunRenderer
 {
 public:
 
-	static TSharedRef< FSlateTextHighlightRunRenderer > Create();
+	static SLATE_API TSharedRef< FSlateTextHighlightRunRenderer > Create();
 
 	virtual ~FSlateTextHighlightRunRenderer() {}
 
-	virtual int32 OnPaint( const FPaintArgs& Args, const FTextLayout::FLineView& Line, const TSharedRef< ISlateRun >& Run, const TSharedRef< ILayoutBlock >& Block, const FTextBlockStyle& DefaultStyle, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
+	SLATE_API virtual int32 OnPaint( const FPaintArgs& Args, const FTextLayout::FLineView& Line, const TSharedRef< ISlateRun >& Run, const TSharedRef< ILayoutBlock >& Block, const FTextBlockStyle& DefaultStyle, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
 
 private:
 
-	FSlateTextHighlightRunRenderer();
+	SLATE_API FSlateTextHighlightRunRenderer();
 
 };

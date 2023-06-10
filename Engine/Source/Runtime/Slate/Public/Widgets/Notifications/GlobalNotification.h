@@ -8,7 +8,7 @@
 /**
  * Class used to provide simple global notifications
  */
-class SLATE_API FGlobalNotification
+class FGlobalNotification
 {
 public:
 	FGlobalNotification(const double InEnableDelayInSeconds = 1.0)
@@ -22,7 +22,7 @@ public:
 	}
 
 	/** Called to Tick this notification and update its state */
-	void TickNotification(float DeltaTime);
+	SLATE_API void TickNotification(float DeltaTime);
 
 protected:
 	/** 
@@ -36,10 +36,10 @@ protected:
 	
 private:
 	/** Begin the notification (make it visible, and mark it as pending) */
-	TSharedPtr<SNotificationItem> BeginNotification();
+	SLATE_API TSharedPtr<SNotificationItem> BeginNotification();
 
 	/** End the notification (hide it, and mark is at complete) */
-	void EndNotification();
+	SLATE_API void EndNotification();
 
 	/** Delay (in seconds) before we should actually show the notification (default is 1) */
 	double EnableDelayInSeconds;

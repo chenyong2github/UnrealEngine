@@ -5,7 +5,7 @@
 #include "Framework/Text/IRun.h"
 #include "Framework/Text/ILayoutBlock.h"
 
-class SLATE_API FDefaultLayoutBlock : public ILayoutBlock
+class FDefaultLayoutBlock : public ILayoutBlock
 {
 public:
 

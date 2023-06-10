@@ -16,7 +16,7 @@ class IScrollableWidget;
 /**
  * Shows a border above and below a scrollable area.
  */
-class SLATE_API SScrollBorder : public SCompoundWidget
+class SScrollBorder : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SScrollBorder)
@@ -34,20 +34,20 @@ public:
 		SLATE_DEFAULT_SLOT( FArguments, Content )
 	SLATE_END_ARGS()
 
-	virtual ~SScrollBorder();
+	SLATE_API virtual ~SScrollBorder();
 
 	/**
 	  * Constructs a scrollable border overlay for the specified ScrollableWidget
 	  */
-	void Construct(const FArguments& InArgs, TSharedRef<IScrollableWidget> InScrollableWidget);
+	SLATE_API void Construct(const FArguments& InArgs, TSharedRef<IScrollableWidget> InScrollableWidget);
 	
 protected:
 
 	/** Gets the top border opacity. */
-	FSlateColor GetTopBorderOpacity() const;
+	SLATE_API FSlateColor GetTopBorderOpacity() const;
 
 	/** Gets the bottom border opacity. */
-	FSlateColor GetBottomBorderOpacity() const;
+	SLATE_API FSlateColor GetBottomBorderOpacity() const;
 
 	/** The border fade distance in normalized coordinates. */
 	TAttribute<FVector2D> BorderFadeDistance;

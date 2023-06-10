@@ -57,37 +57,37 @@ public:
 /**
  * This class is used to control which FKeys and analog axis should move focus.
  */
-class SLATE_API FNavigationConfig : public TSharedFromThis<FNavigationConfig>
+class FNavigationConfig : public TSharedFromThis<FNavigationConfig>
 {
 public:
 	/** ctor */
-	FNavigationConfig();
+	SLATE_API FNavigationConfig();
 	/** dtor */
-	virtual ~FNavigationConfig();
+	SLATE_API virtual ~FNavigationConfig();
 
 	/** Gets the navigation direction from a given key event. */
-	virtual EUINavigation GetNavigationDirectionFromKey(const FKeyEvent& InKeyEvent) const;
+	SLATE_API virtual EUINavigation GetNavigationDirectionFromKey(const FKeyEvent& InKeyEvent) const;
 	/** Gets the navigation direction from a given analog event. */
-	virtual EUINavigation GetNavigationDirectionFromAnalog(const FAnalogInputEvent& InAnalogEvent);
+	SLATE_API virtual EUINavigation GetNavigationDirectionFromAnalog(const FAnalogInputEvent& InAnalogEvent);
 
 	/** Called when the navigation config is registered with Slate Application */
-	virtual void OnRegister();
+	SLATE_API virtual void OnRegister();
 	/** Called when the navigation config is registered with Slate Application */
-	virtual void OnUnregister();
+	SLATE_API virtual void OnUnregister();
 	/** Notified when users are removed from the system, good chance to clean up any user specific state. */
-	virtual void OnUserRemoved(int32 UserIndex);
+	SLATE_API virtual void OnUserRemoved(int32 UserIndex);
 
 	/** Notified when navigation has caused a widget change to occur */
 	virtual void OnNavigationChangedFocus(TSharedPtr<SWidget> OldWidget, TSharedPtr<SWidget> NewWidget, FFocusEvent FocusEvent) {}
 
 	/** Returns the navigation action corresponding to a key event. This version will handle multiple users correctly */
-	virtual EUINavigationAction GetNavigationActionFromKey(const FKeyEvent& InKeyEvent) const;
+	SLATE_API virtual EUINavigationAction GetNavigationActionFromKey(const FKeyEvent& InKeyEvent) const;
 
 	UE_DEPRECATED(4.24, "GetNavigationActionForKey doesn't handle multiple users properly, use GetNavigationActionFromKey instead")
-	virtual EUINavigationAction GetNavigationActionForKey(const FKey& InKey) const;
+	SLATE_API virtual EUINavigationAction GetNavigationActionForKey(const FKey& InKey) const;
 
 	/** Simplification of config as string */
-	virtual FString ToString() const;
+	SLATE_API virtual FString ToString() const;
 
 public:
 	/** Should the Tab key perform next and previous style navigation. */
@@ -116,12 +116,12 @@ protected:
 	 * that if the user moves the stick a little, we would navigate slowly, if they move it a lot, we would
 	 * repeat the navigation often.
 	 */
-	virtual float GetRepeatRateForPressure(float InPressure, int32 InRepeats) const;
+	SLATE_API virtual float GetRepeatRateForPressure(float InPressure, int32 InRepeats) const;
 
 	/**
 	 * Gets the navigation direction from the analog internally.
 	 */
-	virtual EUINavigation GetNavigationDirectionFromAnalogInternal(const FAnalogInputEvent& InAnalogEvent);
+	SLATE_API virtual EUINavigation GetNavigationDirectionFromAnalogInternal(const FAnalogInputEvent& InAnalogEvent);
 
 	virtual bool IsAnalogHorizontalKey(const FKey& InKey) const { return InKey == AnalogHorizontalKey; }
 	virtual bool IsAnalogVerticalKey  (const FKey& InKey) const { return InKey == AnalogVerticalKey;   }
@@ -132,7 +132,7 @@ protected:
 
 
 /** A navigation config that doesn't do any navigation. */
-class SLATE_API FNullNavigationConfig : public FNavigationConfig
+class FNullNavigationConfig : public FNavigationConfig
 {
 public:
 	FNullNavigationConfig()
@@ -144,23 +144,12 @@ public:
 };
 
 /** A Navigation config that supports UI Navigation with both analog sticks + D-Pad. */
-class SLATE_API FTwinStickNavigationConfig : public FNavigationConfig
+class FTwinStickNavigationConfig : public FNavigationConfig
 {
 public:
-	FTwinStickNavigationConfig()
-	{
-		bTabNavigation = false;
-
-		KeyEventRules =
-		{
-			{EKeys::Gamepad_DPad_Left, EUINavigation::Left},
-			{EKeys::Gamepad_DPad_Right, EUINavigation::Right},
-			{EKeys::Gamepad_DPad_Up, EUINavigation::Up},
-			{EKeys::Gamepad_DPad_Down, EUINavigation::Down}
-		};
-	}
+	SLATE_API FTwinStickNavigationConfig();
 	
 protected:
-	virtual bool IsAnalogHorizontalKey(const FKey& InKey) const override { return InKey == EKeys::Gamepad_LeftX || InKey == EKeys::Gamepad_RightX; }
-	virtual bool IsAnalogVerticalKey  (const FKey& InKey) const override { return InKey == EKeys::Gamepad_LeftY || InKey == EKeys::Gamepad_RightY; }
+	SLATE_API virtual bool IsAnalogHorizontalKey(const FKey& InKey) const override;
+	SLATE_API virtual bool IsAnalogVerticalKey(const FKey& InKey) const override;
 };

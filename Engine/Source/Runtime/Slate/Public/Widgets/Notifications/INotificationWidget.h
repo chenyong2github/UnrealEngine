@@ -6,7 +6,7 @@
 #include "Widgets/SWidget.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
-class SLATE_API INotificationWidget
+class INotificationWidget
 {
 public:
 	virtual void OnSetCompletionState(SNotificationItem::ECompletionState State) = 0;

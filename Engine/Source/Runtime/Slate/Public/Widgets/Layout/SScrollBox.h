@@ -68,11 +68,11 @@ enum class EScrollWhenFocusChanges : uint8
 };
 
 /** SScrollBox can scroll through an arbitrary number of widgets. */
-class SLATE_API SScrollBox : public SCompoundWidget
+class SScrollBox : public SCompoundWidget
 {
 public:
 	/** A Slot that provides layout options for the contents of a scrollable box. */
-	class SLATE_API FSlot : public TBasicLayoutWidgetSlot<FSlot>
+	class FSlot : public TBasicLayoutWidgetSlot<FSlot>
 	{
 	public:
 		SLATE_SLOT_BEGIN_ARGS(FSlot, TBasicLayoutWidgetSlot<FSlot>)
@@ -107,8 +107,8 @@ public:
 			, MaxSize(*this, 0.0f)
 		{ }
 
-		void Construct(const FChildren& SlotOwner, FSlotArguments&& InArgs);
-		static void RegisterAttributes(FSlateWidgetSlotAttributeInitializer& AttributeInitializer);
+		SLATE_API void Construct(const FChildren& SlotOwner, FSlotArguments&& InArgs);
+		static SLATE_API void RegisterAttributes(FSlateWidgetSlotAttributeInitializer& AttributeInitializer);
 
 		/** Get the space rule this slot should occupy along scrollbox's direction. */
 		FSizeParam::ESizeRule GetSizeRule() const
@@ -249,53 +249,53 @@ public:
 
 	SLATE_END_ARGS()
 
-	SScrollBox();
+	SLATE_API SScrollBox();
 
 	/** @return a new slot. Slots contain children for SScrollBox */
-	static FSlot::FSlotArguments Slot();
+	static SLATE_API FSlot::FSlotArguments Slot();
 
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 
 	using FScopedWidgetSlotArguments = TPanelChildren<FSlot>::FScopedWidgetSlotArguments;
 	/** Adds a slot to SScrollBox */
-	FScopedWidgetSlotArguments AddSlot();
+	SLATE_API FScopedWidgetSlotArguments AddSlot();
 
 	/** Removes a slot at the specified location */
-	void RemoveSlot( const TSharedRef<SWidget>& WidgetToRemove );
+	SLATE_API void RemoveSlot( const TSharedRef<SWidget>& WidgetToRemove );
 
 	/** Removes all children from the box */
-	void ClearChildren();
+	SLATE_API void ClearChildren();
 
 	/** @return Returns true if the user is currently interactively scrolling the view by holding
 		        the right mouse button and dragging. */
-	bool IsRightClickScrolling() const;
+	SLATE_API bool IsRightClickScrolling() const;
 
-	EAllowOverscroll GetAllowOverscroll() const;
+	SLATE_API EAllowOverscroll GetAllowOverscroll() const;
 
-	void SetAllowOverscroll( EAllowOverscroll NewAllowOverscroll );
+	SLATE_API void SetAllowOverscroll( EAllowOverscroll NewAllowOverscroll );
 
-	void SetAnimateWheelScrolling(bool bInAnimateWheelScrolling);
+	SLATE_API void SetAnimateWheelScrolling(bool bInAnimateWheelScrolling);
 
-	void SetWheelScrollMultiplier(float NewWheelScrollMultiplier);
+	SLATE_API void SetWheelScrollMultiplier(float NewWheelScrollMultiplier);
 	
-	void SetScrollWhenFocusChanges(EScrollWhenFocusChanges NewScrollWhenFocusChanges);
+	SLATE_API void SetScrollWhenFocusChanges(EScrollWhenFocusChanges NewScrollWhenFocusChanges);
 
-	float GetScrollOffset() const;
+	SLATE_API float GetScrollOffset() const;
 
-	float GetViewFraction() const;
+	SLATE_API float GetViewFraction() const;
 
-	float GetViewOffsetFraction() const;
+	SLATE_API float GetViewOffsetFraction() const;
 
 	/** Gets the scroll offset of the bottom of the ScrollBox in Slate Units. */
-	float GetScrollOffsetOfEnd() const;
+	SLATE_API float GetScrollOffsetOfEnd() const;
 
-	void SetScrollOffset( float NewScrollOffset );
+	SLATE_API void SetScrollOffset( float NewScrollOffset );
 
-	void ScrollToStart();
+	SLATE_API void ScrollToStart();
 
-	void ScrollToEnd();
+	SLATE_API void ScrollToEnd();
 
-	void EndInertialScrolling();
+	SLATE_API void EndInertialScrolling();
 
 	/** 
 	 * Attempt to scroll a widget into view, will safely handle non-descendant widgets 
@@ -304,60 +304,60 @@ public:
 	 * @param InAnimateScroll	Whether or not to animate the scroll
 	 * @param InDestination		Where we want the child widget to stop.
 	 */
-	void ScrollDescendantIntoView(const TSharedPtr<SWidget>& WidgetToFind, bool InAnimateScroll = true, EDescendantScrollDestination InDestination = EDescendantScrollDestination::IntoView, float Padding = 0);
+	SLATE_API void ScrollDescendantIntoView(const TSharedPtr<SWidget>& WidgetToFind, bool InAnimateScroll = true, EDescendantScrollDestination InDestination = EDescendantScrollDestination::IntoView, float Padding = 0);
 
 	/** Get the current orientation of the scrollbox. */
-	EOrientation GetOrientation();
+	SLATE_API EOrientation GetOrientation();
 
-	void SetNavigationDestination(const EDescendantScrollDestination NewNavigationDestination);
+	SLATE_API void SetNavigationDestination(const EDescendantScrollDestination NewNavigationDestination);
 
-	void SetConsumeMouseWheel(EConsumeMouseWheel NewConsumeMouseWheel);
+	SLATE_API void SetConsumeMouseWheel(EConsumeMouseWheel NewConsumeMouseWheel);
 
 	/** Sets the current orientation of the scrollbox and updates the layout */
-	void SetOrientation(EOrientation InOrientation);
+	SLATE_API void SetOrientation(EOrientation InOrientation);
 
-	void SetScrollBarVisibility(EVisibility InVisibility);
+	SLATE_API void SetScrollBarVisibility(EVisibility InVisibility);
 
-	void SetScrollBarAlwaysVisible(bool InAlwaysVisible);
+	SLATE_API void SetScrollBarAlwaysVisible(bool InAlwaysVisible);
 	
-	void SetScrollBarTrackAlwaysVisible(bool InAlwaysVisible);
+	SLATE_API void SetScrollBarTrackAlwaysVisible(bool InAlwaysVisible);
 
-	void SetScrollBarThickness(UE::Slate::FDeprecateVector2DParameter InThickness);
+	SLATE_API void SetScrollBarThickness(UE::Slate::FDeprecateVector2DParameter InThickness);
 
-	void SetScrollBarPadding(const FMargin& InPadding);
+	SLATE_API void SetScrollBarPadding(const FMargin& InPadding);
 
-	void SetScrollBarRightClickDragAllowed(bool bIsAllowed);
+	SLATE_API void SetScrollBarRightClickDragAllowed(bool bIsAllowed);
 
-	void SetStyle(const FScrollBoxStyle* InStyle);
+	SLATE_API void SetStyle(const FScrollBoxStyle* InStyle);
 	
-	void SetScrollBarStyle(const FScrollBarStyle* InBarStyle);
+	SLATE_API void SetScrollBarStyle(const FScrollBarStyle* InBarStyle);
 
-	void InvalidateStyle();
+	SLATE_API void InvalidateStyle();
 
-	void InvalidateScrollBarStyle();
+	SLATE_API void InvalidateScrollBarStyle();
 
 public:
 
 	// SWidget interface
-	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
-	virtual bool ComputeVolatility() const override;
-	virtual FReply OnPreviewMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
-	virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnMouseMove( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual void OnMouseEnter( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual void OnMouseLeave( const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnMouseWheel( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual FCursorReply OnCursorQuery( const FGeometry& MyGeometry, const FPointerEvent& CursorEvent ) const override;
-	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
-	virtual FReply OnTouchEnded(const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent) override;
-	virtual void OnMouseCaptureLost(const FCaptureLostEvent& CaptureLostEvent) override;
-	virtual FNavigationReply OnNavigation(const FGeometry& MyGeometry, const FNavigationEvent& InNavigationEvent) override;
-	virtual void OnFocusChanging(const FWeakWidgetPath& PreviousFocusPath, const FWidgetPath& NewWidgetPath, const FFocusEvent& InFocusEvent) override;
+	SLATE_API virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
+	SLATE_API virtual bool ComputeVolatility() const override;
+	SLATE_API virtual FReply OnPreviewMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	SLATE_API virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual FReply OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual FReply OnMouseMove( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual void OnMouseEnter( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual void OnMouseLeave( const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual FReply OnMouseWheel( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual FCursorReply OnCursorQuery( const FGeometry& MyGeometry, const FPointerEvent& CursorEvent ) const override;
+	SLATE_API virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
+	SLATE_API virtual FReply OnTouchEnded(const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent) override;
+	SLATE_API virtual void OnMouseCaptureLost(const FCaptureLostEvent& CaptureLostEvent) override;
+	SLATE_API virtual FNavigationReply OnNavigation(const FGeometry& MyGeometry, const FNavigationEvent& InNavigationEvent) override;
+	SLATE_API virtual void OnFocusChanging(const FWeakWidgetPath& PreviousFocusPath, const FWidgetPath& NewWidgetPath, const FFocusEvent& InFocusEvent) override;
 	// End of SWidget interface
 
 protected:
-	void OnClippingChanged();
+	SLATE_API void OnClippingChanged();
 
 private:
 
@@ -431,10 +431,10 @@ private:
 
 protected:
 	/** Scrolls or begins scrolling a widget into view, only valid to call when we have layout geometry. */
-	bool InternalScrollDescendantIntoView(const FGeometry& MyGeometry, const TSharedPtr<SWidget>& WidgetToFind, bool InAnimateScroll = true, EDescendantScrollDestination InDestination = EDescendantScrollDestination::IntoView, float Padding = 0);
+	SLATE_API bool InternalScrollDescendantIntoView(const FGeometry& MyGeometry, const TSharedPtr<SWidget>& WidgetToFind, bool InAnimateScroll = true, EDescendantScrollDestination InDestination = EDescendantScrollDestination::IntoView, float Padding = 0);
 
 	/** returns widget that can receive keyboard focus or nullprt **/
-	TSharedPtr<SWidget> GetKeyboardFocusableWidget(TSharedPtr<SWidget> InWidget);
+	SLATE_API TSharedPtr<SWidget> GetKeyboardFocusableWidget(TSharedPtr<SWidget> InWidget);
 
 	/** The panel which stacks the child slots */
 	TSharedPtr<class SScrollPanel> ScrollPanel;

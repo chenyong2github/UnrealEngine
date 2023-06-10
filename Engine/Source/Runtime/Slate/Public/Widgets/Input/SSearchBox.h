@@ -17,7 +17,7 @@
 class FActiveTimerHandle;
 
 /** A text box that is used for searching. Meant to be as easy to use as possible with as few options as possible. */
-class SLATE_API SSearchBox : public SEditableTextBox
+class SSearchBox : public SEditableTextBox
 {
 
 public:
@@ -100,7 +100,7 @@ public:
 		SLATE_EVENT(FOnClicked, OnSearchGlassClicked)
 	SLATE_END_ARGS()
 
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 
 private:
 

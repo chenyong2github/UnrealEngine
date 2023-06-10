@@ -15,9 +15,9 @@ class FArrangedChildren;
 class FPaintArgs;
 class FSlateWindowElementList;
 
-class SLATE_API SGridPanel : public SPanel
+class SGridPanel : public SPanel
 {
-	SLATE_DECLARE_WIDGET(SGridPanel, SPanel)
+	SLATE_DECLARE_WIDGET_API(SGridPanel, SPanel, SLATE_API)
 
 public:
 	// Used by the mandatory named parameter in FSlot
@@ -33,7 +33,7 @@ public:
 		int32 TheLayer;
 	};
 
-	class SLATE_API FSlot : public TBasicLayoutWidgetSlot<FSlot>
+	class FSlot : public TBasicLayoutWidgetSlot<FSlot>
 	{
 		friend SGridPanel;
 
@@ -65,7 +65,7 @@ public:
 				SLATE_ARGUMENT(TOptional<FVector2D>, Nudge)
 			SLATE_SLOT_END_ARGS()
 
-			void Construct(const FChildren& SlotOwner, FSlotArguments&& InArgs);
+			SLATE_API void Construct(const FChildren& SlotOwner, FSlotArguments&& InArgs);
 
 		public:
 			/** Which column in the grid this cell belongs to */
@@ -186,7 +186,7 @@ public:
 	/**
 	 * Used by declarative syntax to create a Slot in the specified Column, Row and Layer.
 	 */
-	static FSlot::FSlotArguments Slot( int32 Column, int32 Row, Layer InLayer = Layer(0) );
+	static SLATE_API FSlot::FSlotArguments Slot( int32 Column, int32 Row, Layer InLayer = Layer(0) );
 
 	using FScopedWidgetSlotArguments = TPanelChildren<FSlot>::FScopedWidgetSlotArguments;
 	/**
@@ -194,7 +194,7 @@ public:
 	 *
 	 * @return A reference to the newly-added slot
 	 */
-	FScopedWidgetSlotArguments AddSlot( int32 Column, int32 Row, Layer InLayer = Layer(0) );
+	SLATE_API FScopedWidgetSlotArguments AddSlot( int32 Column, int32 Row, Layer InLayer = Layer(0) );
 
 	/**
 	* Removes a slot from this panel which contains the specified SWidget
@@ -202,7 +202,7 @@ public:
 	* @param SlotWidget The widget to match when searching through the slots
 	* @returns The true if the slot was removed and false if no slot was found matching the widget
 	*/
-	bool RemoveSlot(const TSharedRef<SWidget>& SlotWidget);
+	SLATE_API bool RemoveSlot(const TSharedRef<SWidget>& SlotWidget);
 
 	SLATE_BEGIN_ARGS( SGridPanel )
 		{
@@ -241,12 +241,12 @@ public:
 		
 	SLATE_END_ARGS()
 
-	SGridPanel();
+	SLATE_API SGridPanel();
 
 	/** Removes all slots from the panel */
-	void ClearChildren();
+	SLATE_API void ClearChildren();
 	
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 
 	/**
 	 * GetDesiredSize of a subregion in the graph.
@@ -256,26 +256,26 @@ public:
 	 *
 	 * @return FVector2D  The desired size of the region of cells specified.
 	 */
-	FVector2D GetDesiredRegionSize( const FIntPoint& StartCell, int32 Width, int32 Height ) const;
+	SLATE_API FVector2D GetDesiredRegionSize( const FIntPoint& StartCell, int32 Width, int32 Height ) const;
 
 	/** Specify a column to stretch instead of sizing to content. */
-	void SetColumnFill( int32 ColumnId, const TAttribute<float>& Coefficient );
+	SLATE_API void SetColumnFill( int32 ColumnId, const TAttribute<float>& Coefficient );
 
 	/** Specify a row to stretch instead of sizing to content. */
-	void SetRowFill( int32 RowId, const TAttribute<float>& Coefficient );
+	SLATE_API void SetRowFill( int32 RowId, const TAttribute<float>& Coefficient );
 
 	/** Clear the row and column fill rules. */
-	void ClearFill();
+	SLATE_API void ClearFill();
 
 public:
 
 	// SWidget interface
 
-	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
-	virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
-	virtual void CacheDesiredSize(float) override;
-	virtual FVector2D ComputeDesiredSize(float) const override;
-	virtual FChildren* GetChildren() override;
+	SLATE_API virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
+	SLATE_API virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
+	SLATE_API virtual void CacheDesiredSize(float) override;
+	SLATE_API virtual FVector2D ComputeDesiredSize(float) const override;
+	SLATE_API virtual FChildren* GetChildren() override;
 
 private:
 
@@ -285,10 +285,10 @@ private:
 	 *
 	 * The resulting array is 1-element longer.
 	 */
-	static void ComputePartialSums( TArray<float>& TurnMeIntoPartialSums );
+	static SLATE_API void ComputePartialSums( TArray<float>& TurnMeIntoPartialSums );
 	
 	/** Given a SizeContribution, distribute it to the elements in DistributeOverMe at indexes from [StartIndex .. UpperBound) */
-	static void DistributeSizeContributions( float SizeContribution, TArray<float>& DistributeOverMe, int32 StartIndex, int32 UpperBound );
+	static SLATE_API void DistributeSizeContributions( float SizeContribution, TArray<float>& DistributeOverMe, int32 StartIndex, int32 UpperBound );
 
 	/**
 	 * Find the index where the given slot should be inserted into the list of Slots based on its LayerParam, such that Slots are sorter by layer.
@@ -296,13 +296,13 @@ private:
 	 * @param The newly-allocated slot to insert.
 	 * @return The index where the slot should be inserted.
 	 */
-	int32 FindInsertSlotLocation( const FSlot* InSlot );
+	SLATE_API int32 FindInsertSlotLocation( const FSlot* InSlot );
 
 	/** Compute the sizes of columns and rows needed to fit all the slots in this grid. */
-	void ComputeDesiredCellSizes( TArray<float>& OutColumns, TArray<float>& OutRows ) const;
+	SLATE_API void ComputeDesiredCellSizes( TArray<float>& OutColumns, TArray<float>& OutRows ) const;
 
 	/** Draw the debug grid of rows and colummns; useful for inspecting the GridPanel's logic. See OnPaint() for parameter meaning */
-	int32 LayoutDebugPaint(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId ) const;
+	SLATE_API int32 LayoutDebugPaint(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId ) const;
 	
 	/** 
 	 * Callback used to resize our internal arrays if a slot (or slot span) is changed. 
@@ -310,7 +310,7 @@ private:
 	 * @param InSlot The slot that has just changed.
 	 * @param bSlotLayerChanged Whether the slot layer changed.
 	 */
-	void NotifySlotChanged(const FSlot* InSlot, bool bSlotLayerChanged = false);
+	SLATE_API void NotifySlotChanged(const FSlot* InSlot, bool bSlotLayerChanged = false);
 
 private:
 

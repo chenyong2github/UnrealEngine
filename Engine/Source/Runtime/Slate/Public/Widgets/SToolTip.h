@@ -16,7 +16,7 @@
 /**
  * Slate tool tip widget
  */
-class SLATE_API SToolTip
+class SToolTip
 	: public SCompoundWidget
 	, public IToolTip
 {
@@ -61,7 +61,7 @@ public:
 	 *
 	 * @param	InArgs	The declaration data for this widget
 	 */
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 
 public:
 
@@ -77,14 +77,14 @@ public:
 		return ToolTipContent.ToSharedRef();
 	}
 
-	virtual void SetContentWidget(const TSharedRef<SWidget>& InContentWidget) override;
-	virtual void ResetContentWidget () override;
+	SLATE_API virtual void SetContentWidget(const TSharedRef<SWidget>& InContentWidget) override;
+	SLATE_API virtual void ResetContentWidget () override;
 
-	virtual bool IsEmpty( ) const override;
-	virtual bool IsInteractive( ) const override;
+	SLATE_API virtual bool IsEmpty( ) const override;
+	SLATE_API virtual bool IsInteractive( ) const override;
 	virtual void OnOpening() override { }
 	virtual void OnClosed() override { }
-	virtual void OnSetInteractiveWindowLocation(FVector2D& InOutDesiredLocation) const override;
+	SLATE_API virtual void OnSetInteractiveWindowLocation(FVector2D& InOutDesiredLocation) const override;
 
 	virtual const FText& GetTextTooltip() const
 	{
@@ -93,7 +93,7 @@ public:
 
 public:
 
-	static float GetToolTipWrapWidth();
+	static SLATE_API float GetToolTipWrapWidth();
 
 private:
 

@@ -15,9 +15,9 @@ class FArrangedChildren;
 /**
  * Controls the DPI scale of its content. Can be used for zooming or shrinking arbitrary widget content.
  */
-class SLATE_API SDPIScaler : public SPanel
+class SDPIScaler : public SPanel
 {
-	SLATE_DECLARE_WIDGET(SDPIScaler, SPanel)
+	SLATE_DECLARE_WIDGET_API(SDPIScaler, SPanel, SLATE_API)
 
 public:
 	SLATE_BEGIN_ARGS( SDPIScaler )
@@ -38,25 +38,25 @@ public:
 
 	SLATE_END_ARGS()
 
-	SDPIScaler();
+	SLATE_API SDPIScaler();
 
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 
-	virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
+	SLATE_API virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
 	
-	virtual FVector2D ComputeDesiredSize(float) const override;
+	SLATE_API virtual FVector2D ComputeDesiredSize(float) const override;
 
-	virtual FChildren* GetChildren() override;
+	SLATE_API virtual FChildren* GetChildren() override;
 
 	/** See the Content attribute */
-	void SetContent(TSharedRef<SWidget> InContent);
+	SLATE_API void SetContent(TSharedRef<SWidget> InContent);
 
 	/** See the DPIScale attribute */
-	void SetDPIScale(TAttribute<float> InDPIScale);
+	SLATE_API void SetDPIScale(TAttribute<float> InDPIScale);
 
 protected:
 
-	virtual float GetRelativeLayoutScale(int32 ChildIndex, float LayoutScaleMultiplier) const override;
+	SLATE_API virtual float GetRelativeLayoutScale(int32 ChildIndex, float LayoutScaleMultiplier) const override;
 
 	TSlateAttributeRef<float> GetDPIScaleAttribute() const { return TSlateAttributeRef<float>(SharedThis(this), DPIScaleAttribute); }
 

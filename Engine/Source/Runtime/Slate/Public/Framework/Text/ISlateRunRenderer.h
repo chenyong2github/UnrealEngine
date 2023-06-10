@@ -11,7 +11,7 @@ class FPaintArgs;
 class FSlateWindowElementList;
 struct FTextBlockStyle;
 
-class SLATE_API ISlateRunRenderer : public IRunRenderer
+class ISlateRunRenderer : public IRunRenderer
 {
 public:
 	virtual ~ISlateRunRenderer() {}

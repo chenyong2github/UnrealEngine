@@ -22,14 +22,14 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FOnRegisterCommandList, const FName, TShare
 /**
  * Manager responsible for creating and processing input bindings.                  
  */
-class SLATE_API FInputBindingManager
+class FInputBindingManager
 {
 public:
 
 	/**
 	 * @return The instance of this manager                   
 	 */
-	static FInputBindingManager& Get();
+	static SLATE_API FInputBindingManager& Get();
 
 	/**
 	 * Virtual destructor
@@ -42,17 +42,17 @@ public:
 	 * @param OutInputContexts	The generated list of contexts
 	 * @return A list of all known input contexts                   
 	 */
-	void GetKnownInputContexts( TArray< TSharedPtr<FBindingContext> >& OutInputContexts ) const;
+	SLATE_API void GetKnownInputContexts( TArray< TSharedPtr<FBindingContext> >& OutInputContexts ) const;
 
 	/**
 	 * Look up a binding context by name.
 	 */
-	TSharedPtr<FBindingContext> GetContextByName( const FName& InContextName );
+	SLATE_API TSharedPtr<FBindingContext> GetContextByName( const FName& InContextName );
 
 	/**
 	 * Remove the context with this name
 	 */
-	void RemoveContextByName( const FName& InContextName );
+	SLATE_API void RemoveContextByName( const FName& InContextName );
 
 	/**
 	 * Creates an input command from the specified user interface action
@@ -62,7 +62,7 @@ public:
 	 *								Will automatically bind the user interface action to the command specified 
 	 *								by the action so when the command's chord is pressed, the action is executed
 	 */
-	void CreateInputCommand( const TSharedRef<FBindingContext>& InBindingContext, TSharedRef<FUICommandInfo> InUICommandInfo );
+	SLATE_API void CreateInputCommand( const TSharedRef<FBindingContext>& InBindingContext, TSharedRef<FUICommandInfo> InUICommandInfo );
 
 	/**
 	 * Removes an input command, allowing a new one to take its place
@@ -70,7 +70,7 @@ public:
 	 * @param InBindingContext		The context where the command is valid
 	 * @param InUICommandInfo		The user interface action to remove
 	 */
-	void RemoveInputCommand( const TSharedRef<FBindingContext>& InBindingContext, TSharedRef<FUICommandInfo> InUICommandInfo );
+	SLATE_API void RemoveInputCommand( const TSharedRef<FBindingContext>& InBindingContext, TSharedRef<FUICommandInfo> InUICommandInfo );
 
 	/**
 	 * Returns a command info that is has the same active chord as the provided chord and is in the same binding context or parent context
@@ -80,7 +80,7 @@ public:
 	 * @param	bCheckDefault			Whether or not to check the default chord.  Will check the active chord if false
 	 * @return	A pointer to the command info which has the InChord as its active chord or null if one cannot be found
 	 */
-	const TSharedPtr<FUICommandInfo> GetCommandInfoFromInputChord( const FName InBindingContext, const FInputChord& InChord, bool bCheckDefault ) const;
+	SLATE_API const TSharedPtr<FUICommandInfo> GetCommandInfoFromInputChord( const FName InBindingContext, const FInputChord& InChord, bool bCheckDefault ) const;
 
 	/** 
 	 * Finds the command in the provided context which uses the provided input chord
@@ -90,7 +90,7 @@ public:
 	 * @param bCheckDefault		Whether or not to check the default chord of commands instead of active chords
 	 * @param OutActiveChordIndex	The index into the commands active chord array where the passed in chord was matched.  INDEX_NONE if bCheckDefault is true or nothing was found.
 	 */
-	const TSharedPtr<FUICommandInfo> FindCommandInContext( const FName InBindingContext, const FInputChord& InChord, bool bCheckDefault ) const;
+	SLATE_API const TSharedPtr<FUICommandInfo> FindCommandInContext( const FName InBindingContext, const FInputChord& InChord, bool bCheckDefault ) const;
 
 	/** 
 	 * Finds the command in the provided context which has the provided name 
@@ -98,24 +98,24 @@ public:
 	 * @param InBindingContext	The binding context name
 	 * @param CommandName		The name of the command to find
 	 */
-	const TSharedPtr<FUICommandInfo> FindCommandInContext( const FName InBindingContext, const FName CommandName ) const;
+	SLATE_API const TSharedPtr<FUICommandInfo> FindCommandInContext( const FName InBindingContext, const FName CommandName ) const;
 
 	/**
 	 * Called when the active chord is changed on a command
 	 *
 	 * @param CommandInfo	The command that had the active chord changed. 
 	 */
-	virtual void NotifyActiveChordChanged( const FUICommandInfo& CommandInfo, const EMultipleKeyBindingIndex InChordIndex);
+	SLATE_API virtual void NotifyActiveChordChanged( const FUICommandInfo& CommandInfo, const EMultipleKeyBindingIndex InChordIndex);
 	
 	/**
 	 * Saves the user defined chords to a json file
 	 */
-	void SaveInputBindings();
+	SLATE_API void SaveInputBindings();
 
 	/**
 	 * Removes any user defined chords
 	 */
-	void RemoveUserDefinedChords();
+	SLATE_API void RemoveUserDefinedChords();
 
 	/**
 	 * Returns all known command infos for a given binding context
@@ -123,7 +123,7 @@ public:
 	 * @param InBindingContext	The binding context to get command infos from
 	 * @param OutCommandInfos	The list of command infos for the binding context
 	 */
-	void GetCommandInfosFromContext( const FName InBindingContext, TArray< TSharedPtr<FUICommandInfo> >& OutCommandInfos ) const;
+	SLATE_API void GetCommandInfosFromContext( const FName InBindingContext, TArray< TSharedPtr<FUICommandInfo> >& OutCommandInfos ) const;
 
 	/** Registers a delegate to be called when a user-defined chord is edited */
 	FDelegateHandle RegisterUserDefinedChordChanged(const FOnUserDefinedChordChanged::FDelegate& Delegate)
@@ -144,7 +144,7 @@ public:
 	* @param InCommandName		The name of the command to get the chord from
 	* @param ChordIndex		The index of the key binding (in the multiple key bindings array)
 	*/
-	bool GetUserDefinedChord(const FName InBindingContext, const FName InCommandName, const EMultipleKeyBindingIndex InChordIndex, FInputChord& OutUserDefinedChord);
+	SLATE_API bool GetUserDefinedChord(const FName InBindingContext, const FName InCommandName, const EMultipleKeyBindingIndex InChordIndex, FInputChord& OutUserDefinedChord);
 
 	// Type of filter
 	enum class ECommandFilterType
@@ -163,10 +163,10 @@ public:
 	* @param InCommandName		The name of the command
 	* @param FilterType			Type of filter to apply
 	*/
-	void AddCommandFilter(const FName InOwnerName, const FName InBindingContext, const FName InCommandName, const ECommandFilterType FilterType);
+	SLATE_API void AddCommandFilter(const FName InOwnerName, const FName InBindingContext, const FName InCommandName, const ECommandFilterType FilterType);
 
 	/** Removes all filters associated with an owner */
-	void UnregisterCommandFilterOwner(const FName InOwnerName);
+	SLATE_API void UnregisterCommandFilterOwner(const FName InOwnerName);
 
 	/**
 	* Command passes allow/deny list filters
@@ -174,7 +174,7 @@ public:
 	* @param InBindingContext	The context in which the command is active
 	* @param InCommandName		The name of the command
 	*/
-	bool CommandPassesFilter(const FName InBindingContext, const FName InCommandName) const;
+	SLATE_API bool CommandPassesFilter(const FName InBindingContext, const FName InCommandName) const;
 
 	/**
 	 * Exposes the given command list and its context to all OnRegisterCommandList subscribers
@@ -182,7 +182,7 @@ public:
 	 * @param InBindingContext	The context in which the command list is active
 	 * @param CommandList		The command list to expose to subscribers
 	 */
-	bool RegisterCommandList(const ::FName InBindingContext, TSharedRef<FUICommandList> CommandList) const;
+	SLATE_API bool RegisterCommandList(const ::FName InBindingContext, TSharedRef<FUICommandList> CommandList) const;
 
 	/**
 	 * Exposes a new given command list from the given context to all OnRegisterCommandList subscribers
@@ -190,7 +190,7 @@ public:
 	 * @param InBindingContext	The context in which the command list is active
 	 * @return	The new command list exposed to subscribers
 	 */
-	TSharedPtr<FUICommandList> RegisterNewCommandList(const FName InBindingContext) const;
+	SLATE_API TSharedPtr<FUICommandList> RegisterNewCommandList(const FName InBindingContext) const;
 
 	/**
 	 * Exposes the given command list and its context to all OnUnregisterCommandList subscribers
@@ -198,7 +198,7 @@ public:
 	 * @param InBindingContext	The context in which the command list is active
 	 * @param CommandList		The command list to expose to subscribers
 	 */
-	bool UnregisterCommandList(const ::FName InBindingContext, TSharedRef<FUICommandList> CommandList) const;
+	SLATE_API bool UnregisterCommandList(const ::FName InBindingContext, TSharedRef<FUICommandList> CommandList) const;
 
 	/** A delegate for systems to subscribe to any other system exposing their command lists */
 	FOnRegisterCommandList OnRegisterCommandList;
@@ -211,12 +211,12 @@ private:
 	/**
 	 * Hidden default constructor.
 	 */
-	FInputBindingManager();
+	SLATE_API FInputBindingManager();
 
 	/**
 	 *	Checks a binding context for duplicate chords 
 	 */
-	void CheckForDuplicateDefaultChords( const FBindingContext& InBindingContext, TSharedPtr<FUICommandInfo> InCommandInfo ) const;
+	SLATE_API void CheckForDuplicateDefaultChords( const FBindingContext& InBindingContext, TSharedPtr<FUICommandInfo> InCommandInfo ) const;
 
 	/**
 	 * Recursively finds all child contexts of the provided binding context.  
@@ -224,12 +224,12 @@ private:
 	 * @param InBindingContext	The binding context to search
 	 * @param AllChildren		All the children of InBindingContext. InBindingContext is the first element in AllChildren
 	 */
-	void GetAllChildContexts( const FName InBindingContext, TArray<FName>& AllChildren ) const;
+	SLATE_API void GetAllChildContexts( const FName InBindingContext, TArray<FName>& AllChildren ) const;
 
 	/**
 	 * Displays list of commands.
 	 */
-	void PrintAllInputCommands(bool bBoundOnly);
+	SLATE_API void PrintAllInputCommands(bool bBoundOnly);
 
 private:
 

@@ -89,7 +89,7 @@ protected:
 /**
  * Tool bar button MultiBlock widget
  */
-class SLATE_API SToolBarStackButtonBlock
+class SToolBarStackButtonBlock
 	: public SMultiBlockBaseWidget
 {
 
@@ -111,7 +111,7 @@ public:
 	/**
 	 * Builds this MultiBlock widget up from the MultiBlock associated with it
 	 */
-	virtual void BuildMultiBlockWidget(const ISlateStyle* StyleSet, const FName& StyleName) override;
+	SLATE_API virtual void BuildMultiBlockWidget(const ISlateStyle* StyleSet, const FName& StyleName) override;
 
 
 	/**
@@ -119,65 +119,65 @@ public:
 	 *
 	 * @param	InArgs	The declaration data for this widget
 	 */
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 
 protected:
 
 	/**
 	 * Called by Slate when this tool bar check box button is toggled
 	 */
-	void OnCheckStateChanged(const ECheckBoxState NewCheckedState);
+	SLATE_API void OnCheckStateChanged(const ECheckBoxState NewCheckedState);
 
 	/**
 	 * Called by slate to determine if this button should appear checked
 	 *
 	 * @return ECheckBoxState::Checked if it should be checked, ECheckBoxState::Unchecked if not.
 	 */
-	ECheckBoxState GetCheckState() const;
+	SLATE_API ECheckBoxState GetCheckState() const;
 
 	/**
 	 * Called by Slate when content for this button's menu needs to be generated
 	 *
 	 * @return	The widget to use for the menu content
 	 */
-	TSharedRef<SWidget> OnGetMenuContent();
+	SLATE_API TSharedRef<SWidget> OnGetMenuContent();
 
 	/**
 	 * Called by Slate to determine if this button is enabled
 	 * 
 	 * @return True if the menu entry is enabled, false otherwise
 	 */
-	bool IsEnabled() const;
+	SLATE_API bool IsEnabled() const;
 
 	/**
 	 * Called by Slate to determine if this button is visible
 	 *
 	 * @return EVisibility::Visible or EVisibility::Collapsed, depending on if the button should be displayed
 	 */
-	EVisibility GetVisibility() const;
+	SLATE_API EVisibility GetVisibility() const;
 protected:
 
 	/** Gets the icon brush for the toolbar block widget */
-	const FSlateBrush* GetIconBrush() const;
+	SLATE_API const FSlateBrush* GetIconBrush() const;
 
 	/** Gets the label for the toolbar block widget */
-	FText GetLabel() const;
+	SLATE_API FText GetLabel() const;
 
 	/** Gets the description for the toolbar block widget */
-	FText GetDescription() const;
+	SLATE_API FText GetDescription() const;
 
 	/** @return The icon for the toolbar button; may be dynamic, so check HasDynamicIcon */
-	const FSlateBrush* GetNormalIconBrush() const;
+	SLATE_API const FSlateBrush* GetNormalIconBrush() const;
 
 	/** @return The small icon for the toolbar button; may be dynamic, so check HasDynamicIcon */
-	const FSlateBrush* GetSmallIconBrush() const;
+	SLATE_API const FSlateBrush* GetSmallIconBrush() const;
 
 	/** Called by Slate to determine whether icons/labels are visible */
-	EVisibility GetIconVisibility(bool bIsASmallIcon) const;
+	SLATE_API EVisibility GetIconVisibility(bool bIsASmallIcon) const;
 
-	FSlateColor GetIconForegroundColor() const;
+	SLATE_API FSlateColor GetIconForegroundColor() const;
 
-	const FSlateBrush* GetOverlayIconBrush() const;
+	SLATE_API const FSlateBrush* GetOverlayIconBrush() const;
 
 protected:
 	/** Overrides the visibility of the of label. This is used to set up the LabelVisibility attribute */

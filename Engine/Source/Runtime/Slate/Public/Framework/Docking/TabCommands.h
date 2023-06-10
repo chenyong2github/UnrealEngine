@@ -6,7 +6,7 @@
 #include "Styling/CoreStyle.h"
 #include "Framework/Commands/Commands.h"
 
-class SLATE_API FTabCommands : public TCommands < FTabCommands >
+class FTabCommands : public TCommands < FTabCommands >
 {
 public:
 
@@ -19,7 +19,7 @@ public:
 	{
 	}
 
-	virtual void RegisterCommands() override;
+	SLATE_API virtual void RegisterCommands() override;
 
 	TSharedPtr<FUICommandInfo> CloseMajorTab;
 	TSharedPtr<FUICommandInfo> CloseMinorTab;

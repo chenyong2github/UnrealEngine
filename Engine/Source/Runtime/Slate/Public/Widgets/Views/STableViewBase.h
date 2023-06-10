@@ -58,11 +58,11 @@ DECLARE_DELEGATE_OneParam(
 	double );	/** Scroll offset from the beginning of the list in items */
 
 /** Abstracts away the need to distinguish between X or Y when calculating table layout elements */
-struct SLATE_API FTableViewDimensions
+struct FTableViewDimensions
 {
-	FTableViewDimensions(EOrientation InOrientation);
-	FTableViewDimensions(EOrientation InOrientation, float X, float Y);
-	FTableViewDimensions(EOrientation InOrientation, const UE::Slate::FDeprecateVector2DParameter& Size);
+	SLATE_API FTableViewDimensions(EOrientation InOrientation);
+	SLATE_API FTableViewDimensions(EOrientation InOrientation, float X, float Y);
+	SLATE_API FTableViewDimensions(EOrientation InOrientation, const UE::Slate::FDeprecateVector2DParameter& Size);
 
 	UE::Slate::FDeprecateVector2DResult ToVector2D() const
 	{
@@ -86,140 +86,140 @@ struct SLATE_API FTableViewDimensions
 /**
  * Contains ListView functionality that does not depend on the type of data being observed by the ListView.
  */
-class SLATE_API STableViewBase
+class STableViewBase
 	: public SCompoundWidget
 	, public IScrollableWidget
 {
 public:
 
 	/** Create the child widgets that comprise the list */
-	void ConstructChildren( const TAttribute<float>& InItemWidth, const TAttribute<float>& InItemHeight, const TAttribute<EListItemAlignment>& InItemAlignment, const TSharedPtr<SHeaderRow>& InHeaderRow, const TSharedPtr<SScrollBar>& InScrollBar, EOrientation InScrollOrientation, const FOnTableViewScrolled& InOnTableViewScrolled, const FScrollBarStyle* InScrollBarStyle = nullptr, const bool bInPreventThrottling = false );
+	SLATE_API void ConstructChildren( const TAttribute<float>& InItemWidth, const TAttribute<float>& InItemHeight, const TAttribute<EListItemAlignment>& InItemAlignment, const TSharedPtr<SHeaderRow>& InHeaderRow, const TSharedPtr<SScrollBar>& InScrollBar, EOrientation InScrollOrientation, const FOnTableViewScrolled& InOnTableViewScrolled, const FScrollBarStyle* InScrollBarStyle = nullptr, const bool bInPreventThrottling = false );
 
 	/** Sets the item height */
-	void SetItemHeight(TAttribute<float> Height);
+	SLATE_API void SetItemHeight(TAttribute<float> Height);
 
 	/** Sets the item width */
-	void SetItemWidth(TAttribute<float> Width);
+	SLATE_API void SetItemWidth(TAttribute<float> Width);
 
 	/**
 	 * Invoked by the scrollbar when the user scrolls.
 	 *
 	 * @param InScrollOffsetFraction  The location to which the user scrolled as a fraction (between 0 and 1) of total height of the content.
 	 */
-	void ScrollBar_OnUserScrolled( float InScrollOffsetFraction );
+	SLATE_API void ScrollBar_OnUserScrolled( float InScrollOffsetFraction );
 
 	/** @return The number of Widgets we currently have generated. */
-	int32 GetNumGeneratedChildren() const;
+	SLATE_API int32 GetNumGeneratedChildren() const;
 
-	TSharedPtr<SHeaderRow> GetHeaderRow() const;
+	SLATE_API TSharedPtr<SHeaderRow> GetHeaderRow() const;
 
 	/** @return Returns true if the user is currently interactively scrolling the view by holding
 		        the right mouse button and dragging. */
-	bool IsRightClickScrolling() const;
+	SLATE_API bool IsRightClickScrolling() const;
 
 	/** @return Returns true if the user is currently interactively scrolling the view by holding
 		        either mouse button and dragging. */
-	bool IsUserScrolling() const;
+	SLATE_API bool IsUserScrolling() const;
 
 	/**
 	 * Mark the list as dirty so that it will refresh its widgets on next tick.
 	 * Note that refreshing will only generate/release widgets as needed from any deltas in the list items source.
 	 */
-	virtual void RequestListRefresh();
+	SLATE_API virtual void RequestListRefresh();
 
 	/** Completely wipe existing widgets and fully regenerate them on next tick. */
 	virtual void RebuildList() = 0;
 
 	/** Return true if there is currently a refresh pending, false otherwise */
-	bool IsPendingRefresh() const;
+	SLATE_API bool IsPendingRefresh() const;
 
 	/** Is this list backing a tree or just a standalone list */
 	const ETableViewMode::Type TableViewMode;
 
 	/** Scrolls the view to the top */
-	void ScrollToTop();
+	SLATE_API void ScrollToTop();
 
 	/** Scrolls the view to the bottom */
-	void ScrollToBottom();
+	SLATE_API void ScrollToBottom();
 
 	/** Returns whether the attached scrollbar is scrolling */
-	bool IsScrolling() const;
+	SLATE_API bool IsScrolling() const;
 
 	/** Gets the scroll offset of this view (in items) */
-	float GetScrollOffset() const;
+	SLATE_API float GetScrollOffset() const;
 
 	/** Set the scroll offset of this view (in items) */
-	void SetScrollOffset( const float InScrollOffset );
+	SLATE_API void SetScrollOffset( const float InScrollOffset );
 
 	/** Reset the inertial scroll velocity accumulated in the InertialScrollManager */
-	void EndInertialScrolling();
+	SLATE_API void EndInertialScrolling();
 
 	/** Add the scroll offset of this view (in items) */
-	void AddScrollOffset(const float InScrollOffsetDelta, bool RefreshList = false);
+	SLATE_API void AddScrollOffset(const float InScrollOffsetDelta, bool RefreshList = false);
 
-	EVisibility GetScrollbarVisibility() const;
+	SLATE_API EVisibility GetScrollbarVisibility() const;
 
-	void SetScrollbarVisibility(const EVisibility InVisibility);
+	SLATE_API void SetScrollbarVisibility(const EVisibility InVisibility);
 
 	/** Returns true if scrolling is possible; false if the view is big enough to fit all the content. */
-	bool IsScrollbarNeeded() const;
+	SLATE_API bool IsScrollbarNeeded() const;
 
 	/** Sets the fixed offset in items to always apply to the top/left (depending on orientation) of the list. */
-	void SetFixedLineScrollOffset(TOptional<double> InFixedLineScrollOffset);
+	SLATE_API void SetFixedLineScrollOffset(TOptional<double> InFixedLineScrollOffset);
 
 	/** Sets whether the list should lerp between scroll offsets or jump instantly between them. */
-	void SetIsScrollAnimationEnabled(bool bInEnableScrollAnimation);
+	SLATE_API void SetIsScrollAnimationEnabled(bool bInEnableScrollAnimation);
 
 	/** Sets whether to permit overscroll on this list view */
-	void SetAllowOverscroll(EAllowOverscroll InAllowOverscroll);
+	SLATE_API void SetAllowOverscroll(EAllowOverscroll InAllowOverscroll);
 
 	/** Enables/disables being able to scroll with the right mouse button. */
-	void SetIsRightClickScrollingEnabled(const bool bInEnableRightClickScrolling);
+	SLATE_API void SetIsRightClickScrollingEnabled(const bool bInEnableRightClickScrolling);
 
 	/** Sets the multiplier applied when wheel scrolling. Higher numbers will cover more distance per click of the wheel. */
-	void SetWheelScrollMultiplier(float NewWheelScrollMultiplier);
+	SLATE_API void SetWheelScrollMultiplier(float NewWheelScrollMultiplier);
 
 	/** Sets the Background Brush */
-	void SetBackgroundBrush(const TAttribute<const FSlateBrush*>& InBackgroundBrush);
+	SLATE_API void SetBackgroundBrush(const TAttribute<const FSlateBrush*>& InBackgroundBrush);
 
 public:
 
 	// SWidget interface
 
-	virtual void OnFocusLost( const FFocusEvent& InFocusEvent ) override;
-	virtual void OnMouseCaptureLost(const FCaptureLostEvent& CaptureLostEvent) override;
-	virtual bool SupportsKeyboardFocus() const override;
-	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
-	virtual FReply OnPreviewMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnMouseButtonDoubleClick( const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent ) override;
-	virtual FReply OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual void OnMouseEnter( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual void OnMouseLeave( const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnMouseMove( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnMouseWheel( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
-	virtual FCursorReply OnCursorQuery( const FGeometry& MyGeometry, const FPointerEvent& CursorEvent ) const override;
-	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
-	virtual bool ComputeVolatility() const override;
-	virtual FReply OnTouchStarted( const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent ) override;
-	virtual FReply OnTouchMoved( const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent ) override;
-	virtual FReply OnTouchEnded( const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent ) override;
+	SLATE_API virtual void OnFocusLost( const FFocusEvent& InFocusEvent ) override;
+	SLATE_API virtual void OnMouseCaptureLost(const FCaptureLostEvent& CaptureLostEvent) override;
+	SLATE_API virtual bool SupportsKeyboardFocus() const override;
+	SLATE_API virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
+	SLATE_API virtual FReply OnPreviewMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual FReply OnMouseButtonDoubleClick( const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent ) override;
+	SLATE_API virtual FReply OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual void OnMouseEnter( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual void OnMouseLeave( const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual FReply OnMouseMove( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual FReply OnMouseWheel( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
+	SLATE_API virtual FCursorReply OnCursorQuery( const FGeometry& MyGeometry, const FPointerEvent& CursorEvent ) const override;
+	SLATE_API virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
+	SLATE_API virtual bool ComputeVolatility() const override;
+	SLATE_API virtual FReply OnTouchStarted( const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent ) override;
+	SLATE_API virtual FReply OnTouchMoved( const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent ) override;
+	SLATE_API virtual FReply OnTouchEnded( const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent ) override;
 
 public:
 
 	// IScrollableWidget interface
 
-	virtual FVector2D GetScrollDistance() override;
-	virtual FVector2D GetScrollDistanceRemaining() override;
-	virtual TSharedRef<class SWidget> GetScrollWidget() override;
+	SLATE_API virtual FVector2D GetScrollDistance() override;
+	SLATE_API virtual FVector2D GetScrollDistanceRemaining() override;
+	SLATE_API virtual TSharedRef<class SWidget> GetScrollWidget() override;
 
 protected:
 
-	STableViewBase( ETableViewMode::Type InTableViewMode );
+	SLATE_API STableViewBase( ETableViewMode::Type InTableViewMode );
 
 	/** Returns the "true" scroll offset where the list will ultimately settle (and may already be). */
-	double GetTargetScrollOffset() const;
+	SLATE_API double GetTargetScrollOffset() const;
 
 	/**
 	 * Scroll the list view by some number of screen units.
@@ -230,7 +230,7 @@ protected:
 	 *
 	 * @return The amount actually scrolled in items
 	 */
-	virtual float ScrollBy( const FGeometry& MyGeometry, float ScrollByAmount, EAllowOverscroll InAllowOverscroll );
+	SLATE_API virtual float ScrollBy( const FGeometry& MyGeometry, float ScrollByAmount, EAllowOverscroll InAllowOverscroll );
 
 	/**
 	 * Scroll the view to an offset and resets the inertial scroll velocity 
@@ -239,60 +239,60 @@ protected:
 	 *
 	 * @return The amount actually scrolled
 	 */
-	virtual float ScrollTo( float InScrollOffset);
+	SLATE_API virtual float ScrollTo( float InScrollOffset);
 
 	/** Insert WidgetToInsert at the top of the view. */
-	void InsertWidget( const TSharedRef<ITableRow> & WidgetToInset );
+	SLATE_API void InsertWidget( const TSharedRef<ITableRow> & WidgetToInset );
 
 	/** Add a WidgetToAppend to the bottom of the view. */
-	void AppendWidget( const TSharedRef<ITableRow>& WidgetToAppend );
+	SLATE_API void AppendWidget( const TSharedRef<ITableRow>& WidgetToAppend );
 
-	const FChildren* GetConstructedTableItems() const;
+	SLATE_API const FChildren* GetConstructedTableItems() const;
 
 	/**
 	 * Remove all the widgets from the view.
 	 */
-	void ClearWidgets();
+	SLATE_API void ClearWidgets();
 
 	/** Insert WidgetToInsert at the top of the pinned view. */
-	void InsertPinnedWidget(const TSharedRef<SWidget>& WidgetToInset);
+	SLATE_API void InsertPinnedWidget(const TSharedRef<SWidget>& WidgetToInset);
 
 	/** Add a WidgetToAppend to the bottom of the pinned view. */
-	void AppendPinnedWidget(const TSharedRef<SWidget>& WidgetToAppend);
+	SLATE_API void AppendPinnedWidget(const TSharedRef<SWidget>& WidgetToAppend);
 
 	/**
 	 * Remove all the pinned widgets from the view.
 	 */
-	void ClearPinnedWidgets();
+	SLATE_API void ClearPinnedWidgets();
 
 	/**
 	 * Get the uniform item width.
 	 */
-	float GetItemWidth() const;
+	SLATE_API float GetItemWidth() const;
 
 	/**
 	 * Get the uniform item height that is enforced by ListViews.
 	 */
-	float GetItemHeight() const;
+	SLATE_API float GetItemHeight() const;
 
 	/**
 	* Get the uniform item
 	*/
-	UE::Slate::FDeprecateVector2DResult GetItemSize() const;
+	SLATE_API UE::Slate::FDeprecateVector2DResult GetItemSize() const;
 
 	/** @return the number of items that can fit on the screen */
-	virtual float GetNumLiveWidgets() const;
+	SLATE_API virtual float GetNumLiveWidgets() const;
 
 	/**
 	 * Get the number of items that can fit in the view along the line axis (orthogonal to the scroll axis) before creating a new line.
 	 * Default is 1, but may be more in subclasses (like STileView)
 	 */
-	virtual int32 GetNumItemsPerLine() const;
+	SLATE_API virtual int32 GetNumItemsPerLine() const;
 
 	/**
 	 * Get the offset of the first list item.
 	 */
-	virtual float GetFirstLineScrollOffset() const;
+	SLATE_API virtual float GetFirstLineScrollOffset() const;
 
 	/*
 	 * Right click down
@@ -302,12 +302,12 @@ protected:
 	/**
 	 * Opens a context menu as the result of a right click if OnContextMenuOpening is bound and we are not right click scrolling.
 	 */
-	virtual void OnRightMouseButtonUp(const FPointerEvent& MouseEvent);
+	SLATE_API virtual void OnRightMouseButtonUp(const FPointerEvent& MouseEvent);
 	
 	/**
 	 * Get the scroll rate in items that best approximates a constant physical scroll rate.
 	 */
-	float GetScrollRateInItems() const;
+	SLATE_API float GetScrollRateInItems() const;
 
 	/**
 	 * Remove any items that are no longer in the list from the selection set.
@@ -315,10 +315,10 @@ protected:
 	virtual void UpdateSelectionSet() = 0;
 
 	/** Internal request for a layout update on the next tick (i.e. a refresh without implication that the source items have changed) */
-	void RequestLayoutRefresh();
+	SLATE_API void RequestLayoutRefresh();
 
 	/** Information about the outcome of the WidgetRegeneratePass */
-	struct SLATE_API FReGenerateResults
+	struct FReGenerateResults
 	{
 		FReGenerateResults(double InNewScrollOffset, double InLengthGenerated, double InItemsOnScreen, bool AtEndOfList)
 			: NewScrollOffset(InNewScrollOffset)
@@ -349,9 +349,9 @@ protected:
 	virtual int32 GetNumItemsBeingObserved() const = 0;
 
 	/** @return how many pinned items are in the table */
-	int32 GetNumPinnedItems() const;
+	SLATE_API int32 GetNumPinnedItems() const;
 
-	EVisibility GetPinnedItemsVisiblity() const;
+	SLATE_API EVisibility GetPinnedItemsVisiblity() const;
 
 	enum class EScrollIntoViewResult
 	{
@@ -381,10 +381,10 @@ protected:
 	virtual void NotifyFinishedScrolling() = 0;
 
 	/** Util Function so templates classes don't need to include SlateApplication */
-	void NavigateToWidget(const uint32 UserIndex, const TSharedPtr<SWidget>& NavigationDestination, ENavigationSource NavigationSource = ENavigationSource::FocusedWidget) const;
+	SLATE_API void NavigateToWidget(const uint32 UserIndex, const TSharedPtr<SWidget>& NavigationDestination, ENavigationSource NavigationSource = ENavigationSource::FocusedWidget) const;
 
 	/** Util function to find the child index under the given position. */
-	int32 FindChildUnderPosition(FArrangedChildren& ArrangedChildren, const FVector2D& ArrangedSpacePosition) const;
+	SLATE_API int32 FindChildUnderPosition(FArrangedChildren& ArrangedChildren, const FVector2D& ArrangedSpacePosition) const;
 
 	/** The panel which holds the visible widgets in this list */
 	TSharedPtr< SListPanel > ItemsPanel;
@@ -467,7 +467,7 @@ protected:
 	EOrientation Orientation = Orient_Vertical;
 
 	/** Passing over the clipping to SListPanel */
-	virtual void OnClippingChanged() override;
+	SLATE_API virtual void OnClippingChanged() override;
 
 	/** Brush resource representing the background area of the view */
 	FInvalidatableBrushAttribute BackgroundBrush;
@@ -475,13 +475,13 @@ protected:
 protected:
 
 	/** Check whether the current state of the table warrants inertial scroll by the specified amount */
-	bool CanUseInertialScroll( float ScrollAmount ) const;
+	SLATE_API bool CanUseInertialScroll( float ScrollAmount ) const;
 
 	/** Active timer to update the inertial scroll */
-	EActiveTimerReturnType UpdateInertialScroll(double InCurrentTime, float InDeltaTime);
+	SLATE_API EActiveTimerReturnType UpdateInertialScroll(double InCurrentTime, float InDeltaTime);
 
 	/** One-off active timer to refresh the contents of the table as needed */
-	EActiveTimerReturnType EnsureTickToRefresh(double InCurrentTime, float InDeltaTime);
+	SLATE_API EActiveTimerReturnType EnsureTickToRefresh(double InCurrentTime, float InDeltaTime);
 
 	/** Whether the active timer to update the inertial scrolling is currently registered */
 	bool bIsScrollingActiveTimerRegistered;

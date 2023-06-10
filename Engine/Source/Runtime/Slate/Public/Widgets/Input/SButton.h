@@ -23,9 +23,9 @@ enum class ETextShapingMethod : uint8;
 /**
  * Slate's Buttons are clickable Widgets that can contain arbitrary widgets as its Content().
  */
-class SLATE_API SButton : public SBorder
+class SButton : public SBorder
 {
-	SLATE_DECLARE_WIDGET(SButton, SBorder)
+	SLATE_DECLARE_WIDGET_API(SButton, SBorder, SLATE_API)
 
 #if WITH_ACCESSIBILITY
 	// Allow the accessible button to "click" this button
@@ -121,7 +121,7 @@ public:
 	SLATE_END_ARGS()
 
 protected:
-		SButton();
+		SLATE_API SButton();
 
 public:
 	/**
@@ -140,7 +140,7 @@ public:
 	}
 
 	/** @return the Foreground color that this widget sets when this widget or any of its ancestors are disabled; unset options if the widget does not set a foreground color */
-	virtual FSlateColor GetDisabledForegroundColor() const final;
+	SLATE_API virtual FSlateColor GetDisabledForegroundColor() const final;
 
 	/**
 	 * Returns true if this button is currently pressed
@@ -158,87 +158,87 @@ public:
 	 *
 	 * @param	InArgs	The declaration data for this widget
 	 */
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 
 	/** See ContentPadding attribute */
-	void SetContentPadding(TAttribute<FMargin> InContentPadding);
+	SLATE_API void SetContentPadding(TAttribute<FMargin> InContentPadding);
 
 	/** See HoveredSound attribute */
-	void SetHoveredSound(TOptional<FSlateSound> InHoveredSound);
+	SLATE_API void SetHoveredSound(TOptional<FSlateSound> InHoveredSound);
 
 	/** See PressedSound attribute */
-	void SetPressedSound(TOptional<FSlateSound> InPressedSound);
+	SLATE_API void SetPressedSound(TOptional<FSlateSound> InPressedSound);
 
 	/** See OnClicked event */
-	void SetOnClicked(FOnClicked InOnClicked);
+	SLATE_API void SetOnClicked(FOnClicked InOnClicked);
 
 	/** Set OnHovered event */
-	void SetOnHovered(FSimpleDelegate InOnHovered);
+	SLATE_API void SetOnHovered(FSimpleDelegate InOnHovered);
 
 	/** Set OnUnhovered event */
-	void SetOnUnhovered(FSimpleDelegate InOnUnhovered);
+	SLATE_API void SetOnUnhovered(FSimpleDelegate InOnUnhovered);
 
 	/** See ButtonStyle attribute */
-	void SetButtonStyle(const FButtonStyle* ButtonStyle);
+	SLATE_API void SetButtonStyle(const FButtonStyle* ButtonStyle);
 
-	void SetClickMethod(EButtonClickMethod::Type InClickMethod);
-	void SetTouchMethod(EButtonTouchMethod::Type InTouchMethod);
-	void SetPressMethod(EButtonPressMethod::Type InPressMethod);
+	SLATE_API void SetClickMethod(EButtonClickMethod::Type InClickMethod);
+	SLATE_API void SetTouchMethod(EButtonTouchMethod::Type InTouchMethod);
+	SLATE_API void SetPressMethod(EButtonPressMethod::Type InPressMethod);
 
 #if !UE_BUILD_SHIPPING
-	void SimulateClick();
+	SLATE_API void SimulateClick();
 #endif // !UE_BUILD_SHIPPING
 
 public:
 
 	//~ SWidget overrides
-	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
-	virtual bool SupportsKeyboardFocus() const override;
-	virtual void OnFocusLost( const FFocusEvent& InFocusEvent ) override;
-	virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
-	virtual FReply OnKeyUp( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
-	virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent) override;
-	virtual FReply OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnMouseMove( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual void OnMouseEnter( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual void OnMouseLeave( const FPointerEvent& MouseEvent ) override;
-	virtual void OnMouseCaptureLost(const FCaptureLostEvent& CaptureLostEvent) override;
-	virtual bool IsInteractable() const override;
+	SLATE_API virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
+	SLATE_API virtual bool SupportsKeyboardFocus() const override;
+	SLATE_API virtual void OnFocusLost( const FFocusEvent& InFocusEvent ) override;
+	SLATE_API virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
+	SLATE_API virtual FReply OnKeyUp( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
+	SLATE_API virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual FReply OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent) override;
+	SLATE_API virtual FReply OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual FReply OnMouseMove( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual void OnMouseEnter( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual void OnMouseLeave( const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual void OnMouseCaptureLost(const FCaptureLostEvent& CaptureLostEvent) override;
+	SLATE_API virtual bool IsInteractable() const override;
 #if WITH_ACCESSIBILITY
-	virtual TSharedRef<FSlateAccessibleWidget> CreateAccessibleWidget() override;
+	SLATE_API virtual TSharedRef<FSlateAccessibleWidget> CreateAccessibleWidget() override;
 #endif
 protected:
-	virtual FVector2D ComputeDesiredSize(float) const override;
+	SLATE_API virtual FVector2D ComputeDesiredSize(float) const override;
 	//~ SWidget
 
 protected:
 	/** Press the button */
-	virtual void Press();
+	SLATE_API virtual void Press();
 
 	/** Release the button */
-	virtual void Release();
+	SLATE_API virtual void Release();
 
 	/** Execute the "OnClicked" delegate, and get the reply */
-	FReply ExecuteOnClick();
+	SLATE_API FReply ExecuteOnClick();
 
 	/** @return combines the user-specified margin and the button's internal margin. */
-	FMargin GetCombinedPadding() const;
+	SLATE_API FMargin GetCombinedPadding() const;
 
 	/** @return True if the disabled effect should be shown. */
-	bool GetShowDisabledEffect() const;
+	SLATE_API bool GetShowDisabledEffect() const;
 
 	/** Utility function to translate other input click methods to regular ones. */
-	TEnumAsByte<EButtonClickMethod::Type> GetClickMethodFromInputType(const FPointerEvent& MouseEvent) const;
+	SLATE_API TEnumAsByte<EButtonClickMethod::Type> GetClickMethodFromInputType(const FPointerEvent& MouseEvent) const;
 
 	/** Utility function to determine if the incoming mouse event is for a precise tap or click */
-	bool IsPreciseTapOrClick(const FPointerEvent& MouseEvent) const;
+	SLATE_API bool IsPreciseTapOrClick(const FPointerEvent& MouseEvent) const;
 
 	/** Play the pressed sound */
-	void PlayPressedSound() const;
+	SLATE_API void PlayPressedSound() const;
 
 	/** Play the hovered sound */
-	void PlayHoverSound() const;
+	SLATE_API void PlayHoverSound() const;
 
 	/** Set if this button can be focused */
 	void SetIsFocusable(bool bInIsFocusable)
@@ -246,7 +246,7 @@ protected:
 		bIsFocusable = bInIsFocusable;
 	}
 
-	void ExecuteHoverStateChanged(bool bPlaySound);
+	SLATE_API void ExecuteHoverStateChanged(bool bPlaySound);
 
 protected:
 	/** @return the BorderForegroundColor attribute. */
@@ -265,13 +265,13 @@ protected:
 	TSlateAttributeRef<bool> GetAppearPressedAttribute() const { return TSlateAttributeRef<bool>(SharedThis(this), AppearPressedAttribute); }
 
 private:
-	void UpdatePressStateChanged();
+	SLATE_API void UpdatePressStateChanged();
 
-	void UpdatePadding();
-	void UpdateShowDisabledEffect();
-	void UpdateBorderImage();
-	void UpdateForegroundColor();
-	void UpdateDisabledForegroundColor();
+	SLATE_API void UpdatePadding();
+	SLATE_API void UpdateShowDisabledEffect();
+	SLATE_API void UpdateBorderImage();
+	SLATE_API void UpdateForegroundColor();
+	SLATE_API void UpdateDisabledForegroundColor();
 
 protected:
 #if WITH_EDITORONLY_DATA

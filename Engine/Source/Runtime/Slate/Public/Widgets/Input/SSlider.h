@@ -19,9 +19,9 @@ class FSlateWindowElementList;
 /**
  * A Slate slider control is a linear scale and draggable handle.
  */
-class SLATE_API SSlider : public SLeafWidget
+class SSlider : public SLeafWidget
 {
-	SLATE_DECLARE_WIDGET(SSlider, SLeafWidget)
+	SLATE_DECLARE_WIDGET_API(SSlider, SLeafWidget, SLATE_API)
 
 public:
 
@@ -100,17 +100,17 @@ public:
 
 	SLATE_END_ARGS()
 
-	SSlider();
+	SLATE_API SSlider();
 
 	/**
 	 * Construct the widget.
 	 * 
 	 * @param InDeclaration A declaration from which to construct the widget.
 	 */
-	void Construct( const SSlider::FArguments& InDeclaration );
+	SLATE_API void Construct( const SSlider::FArguments& InDeclaration );
 
 	/** Set the widget style. */
-	void SetStyle(const FSliderStyle* InStyle);
+	SLATE_API void SetStyle(const FSliderStyle* InStyle);
 
 	/** Get the MinValue attribute */
 	float GetMinValue() const { return MinValue; }
@@ -119,70 +119,70 @@ public:
 	float GetMaxValue() const { return MaxValue; }
 
 	/** Get the Value attribute */
-	float GetValue() const;
+	SLATE_API float GetValue() const;
 
 	/** Get the Value attribute scaled from 0 to 1 */
-	float GetNormalizedValue() const;
+	SLATE_API float GetNormalizedValue() const;
 
 	/** Set the Value attribute */
-	void SetValue(TAttribute<float> InValueAttribute);
+	SLATE_API void SetValue(TAttribute<float> InValueAttribute);
 
 	/** Set the MinValue and MaxValue attributes. If the new MinValue is more than the new MaxValue, MaxValue will be changed to equal MinValue. */
-	void SetMinAndMaxValues(float InMinValue, float InMaxValue);
+	SLATE_API void SetMinAndMaxValues(float InMinValue, float InMaxValue);
 	
 	/** Set the IndentHandle attribute */
-	void SetIndentHandle(TAttribute<bool> InIndentHandle);
+	SLATE_API void SetIndentHandle(TAttribute<bool> InIndentHandle);
 	
 	/** Set the Locked attribute */
-	void SetLocked(TAttribute<bool> InLocked);
+	SLATE_API void SetLocked(TAttribute<bool> InLocked);
 
 	/** Set the Orientation attribute */
-	void SetOrientation(EOrientation InOrientation);
+	SLATE_API void SetOrientation(EOrientation InOrientation);
 	
 	/** Set the SliderBarColor attribute */
-	void SetSliderBarColor(TAttribute<FSlateColor> InSliderBarColor);
+	SLATE_API void SetSliderBarColor(TAttribute<FSlateColor> InSliderBarColor);
 	
 	/** Set the SliderHandleColor attribute */
-	void SetSliderHandleColor(TAttribute<FSlateColor> InSliderHandleColor);
+	SLATE_API void SetSliderHandleColor(TAttribute<FSlateColor> InSliderHandleColor);
 
 	/** Get the StepSize attribute */
-	float GetStepSize() const;
+	SLATE_API float GetStepSize() const;
 
 	/** Set the StepSize attribute */
-	void SetStepSize(TAttribute<float> InStepSize);
+	SLATE_API void SetStepSize(TAttribute<float> InStepSize);
 
 	/** Set the MouseUsesStep attribute */
-	void SetMouseUsesStep(bool MouseUsesStep);
+	SLATE_API void SetMouseUsesStep(bool MouseUsesStep);
 
 	/** Set the RequiresControllerLock attribute */
-	void SetRequiresControllerLock(bool RequiresControllerLock);
+	SLATE_API void SetRequiresControllerLock(bool RequiresControllerLock);
 
 public:
 
 	// SWidget overrides
 
-	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
-	virtual FVector2D ComputeDesiredSize(float) const override;
-	virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual void OnMouseCaptureLost(const FCaptureLostEvent& CaptureLostEvent) override;
-	virtual FReply OnMouseMove( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnTouchStarted(const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent) override;
-	virtual FReply OnTouchMoved(const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent) override;
-	virtual FReply OnTouchEnded(const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent) override;
-	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
-	virtual FReply OnKeyUp(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
-	virtual void OnFocusLost(const FFocusEvent& InFocusEvent) override;
-	virtual FNavigationReply OnNavigation(const FGeometry& MyGeometry, const FNavigationEvent& InNavigationEvent) override;
+	SLATE_API virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
+	SLATE_API virtual FVector2D ComputeDesiredSize(float) const override;
+	SLATE_API virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual FReply OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual void OnMouseCaptureLost(const FCaptureLostEvent& CaptureLostEvent) override;
+	SLATE_API virtual FReply OnMouseMove( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual FReply OnTouchStarted(const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent) override;
+	SLATE_API virtual FReply OnTouchMoved(const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent) override;
+	SLATE_API virtual FReply OnTouchEnded(const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent) override;
+	SLATE_API virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+	SLATE_API virtual FReply OnKeyUp(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+	SLATE_API virtual void OnFocusLost(const FFocusEvent& InFocusEvent) override;
+	SLATE_API virtual FNavigationReply OnNavigation(const FGeometry& MyGeometry, const FNavigationEvent& InNavigationEvent) override;
 
-	virtual bool SupportsKeyboardFocus() const override;
-	virtual bool IsInteractable() const override;
+	SLATE_API virtual bool SupportsKeyboardFocus() const override;
+	SLATE_API virtual bool IsInteractable() const override;
 #if WITH_ACCESSIBILITY
-	virtual TSharedRef<FSlateAccessibleWidget> CreateAccessibleWidget() override;
+	SLATE_API virtual TSharedRef<FSlateAccessibleWidget> CreateAccessibleWidget() override;
 #endif
 
 	/** @return Is the handle locked or not? Defaults to false */
-	bool IsLocked() const;
+	SLATE_API bool IsLocked() const;
 
 protected:
 
@@ -191,7 +191,7 @@ protected:
 	 *
 	 * @param NewValue The value to commit.
 	 */
-	virtual void CommitValue(float NewValue);
+	SLATE_API virtual void CommitValue(float NewValue);
 
 	/**
 	 * Calculates the new value based on the given absolute coordinates.
@@ -200,10 +200,10 @@ protected:
 	 * @param AbsolutePosition The absolute position of the slider.
 	 * @return The new value.
 	 */
-	float PositionToValue( const FGeometry& MyGeometry, const UE::Slate::FDeprecateVector2DParameter& AbsolutePosition );
+	SLATE_API float PositionToValue( const FGeometry& MyGeometry, const UE::Slate::FDeprecateVector2DParameter& AbsolutePosition );
 
-	const FSlateBrush* GetBarImage() const;
-	const FSlateBrush* GetThumbImage() const;
+	SLATE_API const FSlateBrush* GetBarImage() const;
+	SLATE_API const FSlateBrush* GetThumbImage() const;
 
 protected:
 #if WITH_EDITORONLY_DATA
@@ -283,7 +283,7 @@ protected:
 private:
 
 	// Resets controller input state. Fires delegates.
-	void ResetControllerState();
+	SLATE_API void ResetControllerState();
 
 	// Holds the slider's current value.
 	TSlateAttribute<float> ValueSlateAttribute;

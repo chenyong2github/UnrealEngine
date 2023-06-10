@@ -14,7 +14,7 @@ class SButton;
 DECLARE_DELEGATE_OneParam( FOnTextChosen, const FString& );
 
 /** Simple box containing a combobox of strings to pick from, usually used within a MenuStack */
-class SLATE_API STextComboPopup : public SCompoundWidget
+class STextComboPopup : public SCompoundWidget
 {
 public:
 	/** Array of shared pointers to strings so combo widget can work on them */
@@ -44,18 +44,18 @@ public:
 
 	SLATE_END_ARGS()
 
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 
 	/** SWidget interface */
-	virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
+	SLATE_API virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
 
 	/** Called to create a widget for each string */
-	TSharedRef<SWidget> MakeItemWidget( TSharedPtr<FString> StringItem );
+	SLATE_API TSharedRef<SWidget> MakeItemWidget( TSharedPtr<FString> StringItem );
 	/** Called when 'OK' button is pressed */
-	FReply OnOK();
+	SLATE_API FReply OnOK();
 
 	/** focuses the control on the OK button */
-	void FocusDefaultWidget();
+	SLATE_API void FocusDefaultWidget();
 
 private:
 	TSharedPtr<FString> OnGetSelection() const {return SelectedItem;}

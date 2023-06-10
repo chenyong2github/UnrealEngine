@@ -24,22 +24,22 @@ class SLinkedBox;
  *  
  *  FLinkedBoxManager needs to be created and passed to each LinkedBox during construction.
  */
-class SLATE_API FLinkedBoxManager : public TSharedFromThis<FLinkedBoxManager> 
+class FLinkedBoxManager : public TSharedFromThis<FLinkedBoxManager> 
 {
 
 public: 
 
-	FLinkedBoxManager();
-	~FLinkedBoxManager();
+	SLATE_API FLinkedBoxManager();
+	SLATE_API ~FLinkedBoxManager();
 
 	/* Add an SLinkedBox */
-	void RegisterLinkedBox(SLinkedBox* InBox);
+	SLATE_API void RegisterLinkedBox(SLinkedBox* InBox);
 
 	/* Remove an SLinkedBox */
-	void UnregisterLinkedBox(SLinkedBox* InBox);
+	SLATE_API void UnregisterLinkedBox(SLinkedBox* InBox);
 
 	/* Used by the individual SLinkedBoxes to acquire the computed uniform size */
-	FVector2D GetUniformCellSize() const;
+	SLATE_API FVector2D GetUniformCellSize() const;
 
 protected:
 	
@@ -53,7 +53,7 @@ private:
 };
 
 /** A panel that */
-class SLATE_API SLinkedBox: public SBox
+class SLinkedBox: public SBox
 {
 
 public:
@@ -109,18 +109,18 @@ public:
 
 	SLATE_END_ARGS()
 
-	FVector2D GetChildrensDesiredSize() const;
+	SLATE_API FVector2D GetChildrensDesiredSize() const;
 
-	virtual FVector2D ComputeDesiredSize(float) const override;
+	SLATE_API virtual FVector2D ComputeDesiredSize(float) const override;
 
 	/**
 	 * Most panels do not create widgets as part of their implementation, so
 	 * they do not need to implement a Construct()
 	 */
-	void Construct( const FArguments& InArgs, TSharedRef<FLinkedBoxManager> InManager ); 
+	SLATE_API void Construct( const FArguments& InArgs, TSharedRef<FLinkedBoxManager> InManager ); 
 
-	SLinkedBox();
-	~SLinkedBox();
+	SLATE_API SLinkedBox();
+	SLATE_API ~SLinkedBox();
 	
 protected:
 
@@ -130,9 +130,9 @@ protected:
 	 *  the Manager can call a prepass on all of the sibling 
 	 *  LinkedBoxes at once.  
 	*/
-	virtual bool CustomPrepass(float LayoutScaleMultiplier) override;
+	SLATE_API virtual bool CustomPrepass(float LayoutScaleMultiplier) override;
 
-	void CustomChildPrepass();
+	SLATE_API void CustomChildPrepass();
 
 	friend class FLinkedBoxManager;
 

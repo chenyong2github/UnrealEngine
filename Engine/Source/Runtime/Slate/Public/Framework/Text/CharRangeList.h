@@ -32,7 +32,7 @@ struct FCharRange
 
 /** Represents a list of character ranges. */
 USTRUCT()
-struct SLATE_API FCharRangeList
+struct FCharRangeList
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -46,22 +46,22 @@ struct SLATE_API FCharRangeList
 	*       "a-zA-Z0-9._" <-- All lowercase and uppercase letters, all digits, dot and underscore.
 	*       "a-zA-Z0-9\-\\._" <-- All lowercase and uppercase letters, all digits, minus sign, backslash, dot and underscore.
 	*/
-	bool InitializeFromString(const FString& InDefinitionString);
+	SLATE_API bool InitializeFromString(const FString& InDefinitionString);
 	/** Returns a definition string that represents all the character ranges in this instance. */
-	FString ToString() const;
+	SLATE_API FString ToString() const;
 
 	/** Empties this instance. */
-	void Empty();
+	SLATE_API void Empty();
 
 	/** Returns true if this instance does not contain any characters, or false otherwise. */
-	bool IsEmpty() const;
+	SLATE_API bool IsEmpty() const;
 
 	/** Returns true if the given char is included in any of the char ranges, or false otherwise. */
-	bool IsCharIncluded(TCHAR InChar) const;
+	SLATE_API bool IsCharIncluded(TCHAR InChar) const;
 	/** Returns true if all the characters in the given string are included in any of the char ranges, or false otherwise. */
-	bool AreAllCharsIncluded(const FString& InString) const;
+	SLATE_API bool AreAllCharsIncluded(const FString& InString) const;
 	/** Finds all the characters in the given string that are not included in any of the char ranges. */
-	TSet<TCHAR> FindCharsNotIncluded(const FString& InString) const;
+	SLATE_API TSet<TCHAR> FindCharsNotIncluded(const FString& InString) const;
 
 	UPROPERTY(EditAnywhere, Category = "Char Range List")
 	TArray<FCharRange> Ranges;

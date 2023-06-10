@@ -32,38 +32,38 @@ enum class EAnalogStick : uint8
 /**
  * A class that simulates a cursor driven by an analog stick.
  */
-class SLATE_API FAnalogCursor : public IInputProcessor, public TSharedFromThis<FAnalogCursor>
+class FAnalogCursor : public IInputProcessor, public TSharedFromThis<FAnalogCursor>
 {
 public:
-	FAnalogCursor();
+	SLATE_API FAnalogCursor();
 
 	/** Dtor */
 	virtual ~FAnalogCursor()
 	{}
 
-	virtual void Tick(const float DeltaTime, FSlateApplication& SlateApp, TSharedRef<ICursor> Cursor) override;
+	SLATE_API virtual void Tick(const float DeltaTime, FSlateApplication& SlateApp, TSharedRef<ICursor> Cursor) override;
 
-	virtual bool HandleKeyDownEvent(FSlateApplication& SlateApp, const FKeyEvent& InKeyEvent) override;
-	virtual bool HandleKeyUpEvent(FSlateApplication& SlateApp, const FKeyEvent& InKeyEvent) override;
-	virtual bool HandleAnalogInputEvent(FSlateApplication& SlateApp, const FAnalogInputEvent& InAnalogInputEvent) override;
-	virtual bool HandleMouseMoveEvent(FSlateApplication& SlateApp, const FPointerEvent& MouseEvent) override;
+	SLATE_API virtual bool HandleKeyDownEvent(FSlateApplication& SlateApp, const FKeyEvent& InKeyEvent) override;
+	SLATE_API virtual bool HandleKeyUpEvent(FSlateApplication& SlateApp, const FKeyEvent& InKeyEvent) override;
+	SLATE_API virtual bool HandleAnalogInputEvent(FSlateApplication& SlateApp, const FAnalogInputEvent& InAnalogInputEvent) override;
+	SLATE_API virtual bool HandleMouseMoveEvent(FSlateApplication& SlateApp, const FPointerEvent& MouseEvent) override;
 	virtual const TCHAR* GetDebugName() const override { return TEXT("AnalogCursor"); }
 
 
 	virtual int32 GetOwnerUserIndex() const { return 0; };
 
-	void SetAcceleration(float NewAcceleration);
-	void SetMaxSpeed(float NewMaxSpeed);
-	void SetStickySlowdown(float NewStickySlowdown);
-	void SetDeadZone(float NewDeadZone);
-	void SetMode(AnalogCursorMode::Type NewMode);
+	SLATE_API void SetAcceleration(float NewAcceleration);
+	SLATE_API void SetMaxSpeed(float NewMaxSpeed);
+	SLATE_API void SetStickySlowdown(float NewStickySlowdown);
+	SLATE_API void SetDeadZone(float NewDeadZone);
+	SLATE_API void SetMode(AnalogCursorMode::Type NewMode);
 
 protected:
 
-	virtual bool IsRelevantInput(const FInputEvent& InputEvent) const;
-	virtual bool IsRelevantInput(const FKeyEvent& KeyEvent) const;
-	virtual bool IsRelevantInput(const FAnalogInputEvent& AnalogInputEvent) const;
-	virtual bool IsRelevantInput(const FPointerEvent& MouseEvent) const;
+	SLATE_API virtual bool IsRelevantInput(const FInputEvent& InputEvent) const;
+	SLATE_API virtual bool IsRelevantInput(const FKeyEvent& KeyEvent) const;
+	SLATE_API virtual bool IsRelevantInput(const FAnalogInputEvent& AnalogInputEvent) const;
+	SLATE_API virtual bool IsRelevantInput(const FPointerEvent& MouseEvent) const;
 
 	/** Getter */
 	FORCEINLINE const FVector2D& GetAnalogValues( EAnalogStick Stick = EAnalogStick::Left ) const
@@ -72,15 +72,15 @@ protected:
 	}
 
 	/** Set the cached analog stick declinations to 0 */
-	void ClearAnalogValues();
+	SLATE_API void ClearAnalogValues();
 
 	/** Handles updating the cursor position and processing a Mouse Move Event */
 	UE_DEPRECATED(4.24, "FAnalogCursor now updates cursor position based on user, not the hardware cursor specifically.")
-	virtual void UpdateCursorPosition(FSlateApplication& SlateApp, TSharedRef<ICursor> Cursor, const FVector2D& NewPosition, bool bForce = false);
+	SLATE_API virtual void UpdateCursorPosition(FSlateApplication& SlateApp, TSharedRef<ICursor> Cursor, const FVector2D& NewPosition, bool bForce = false);
 
-	virtual void UpdateCursorPosition(FSlateApplication& SlateApp, TSharedRef<FSlateUser> SlateUser, const FVector2D& NewPosition, bool bForce = false);
+	SLATE_API virtual void UpdateCursorPosition(FSlateApplication& SlateApp, TSharedRef<FSlateUser> SlateUser, const FVector2D& NewPosition, bool bForce = false);
 
-	virtual FVector2D CalculateTickedCursorPosition(const float DeltaTime, FSlateApplication& SlateApp, TSharedPtr<FSlateUser> SlateUser);
+	SLATE_API virtual FVector2D CalculateTickedCursorPosition(const float DeltaTime, FSlateApplication& SlateApp, TSharedPtr<FSlateUser> SlateUser);
 
 	/** Current speed of the cursor */
 	FVector2D CurrentSpeed;

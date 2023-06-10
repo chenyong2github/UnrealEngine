@@ -12,7 +12,7 @@ class FActiveTimerHandle;
 /**
  * Wrapper for any widget that is used in a table view that wants to handle sub-menus with the same functionality as a normal multibox menu
  */
-class SLATE_API SSubMenuHandler : public SCompoundWidget
+class SSubMenuHandler : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS( SSubMenuHandler )
@@ -25,19 +25,19 @@ public:
 		SLATE_EVENT( FOnGetContent, OnGetMenuContent )
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, TWeakPtr<SMenuOwner> InMenuOwner);
+	SLATE_API void Construct(const FArguments& InArgs, TWeakPtr<SMenuOwner> InMenuOwner);
 
 public:
 	// SWidget interface
-	virtual void OnMouseEnter( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual void OnMouseLeave( const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual void OnMouseEnter( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual void OnMouseLeave( const FPointerEvent& MouseEvent ) override;
 	// End of SWidget interface
 	
 	/**
 	 * Returns whether or the sub-menu entry should appear hovered.  If the sub-menu is open we will always show the menu as hovered to indicate which sub-menu is open
 	 * In the case that the user is interacting in this menu we do not show the menu as hovered because we need to show what the user is actually selecting
 	 */
-	bool ShouldSubMenuAppearHovered() const;
+	SLATE_API bool ShouldSubMenuAppearHovered() const;
 
 	/**
 	 * Requests that the sub-menu associated with this widget be toggled on or off.
@@ -47,12 +47,12 @@ public:
 	 * @param bClobber					true if we want to open a menu when another menu is already open
 	 * @param const bool bImmediate		Default false, when true the menu will open immediately
 	 */
-	void RequestSubMenuToggle( bool bOpenMenu, const bool bClobber, const bool bImmediate = false);
+	SLATE_API void RequestSubMenuToggle( bool bOpenMenu, const bool bClobber, const bool bImmediate = false);
 	
 	/**
 	 * Cancels any open requests to toggle a sub-menu       
 	 */
-	void CancelPendingSubMenu();
+	SLATE_API void CancelPendingSubMenu();
 
 	/** Returns TRUE if there is a sub-menu available for this item */
 	bool HasSubMenu() const
@@ -61,11 +61,11 @@ public:
 	}
 
 	/** Returns TRUE if the sub-menu is open */
-	bool IsSubMenuOpen() const;
+	SLATE_API bool IsSubMenuOpen() const;
 
 protected:
 	/** One-off delayed active timer to update the open/closed state of the sub menu. */
-	EActiveTimerReturnType UpdateSubMenuState(double InCurrentTime, float InDeltaTime, bool bWantsOpen);
+	SLATE_API EActiveTimerReturnType UpdateSubMenuState(double InCurrentTime, float InDeltaTime, bool bWantsOpen);
 
 	/** The handle to the active timer to update the sub-menu state */
 	TWeakPtr<FActiveTimerHandle> ActiveTimerHandle;

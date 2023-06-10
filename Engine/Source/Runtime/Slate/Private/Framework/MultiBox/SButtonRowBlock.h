@@ -81,7 +81,7 @@ private:
 /**
  * Tool bar button MultiBlock widget
  */
-class SLATE_API SButtonRowBlock
+class SButtonRowBlock
 	: public SMultiBlockBaseWidget
 {
 
@@ -94,14 +94,14 @@ public:
 	/**
 	 * Builds this MultiBlock widget up from the MultiBlock associated with it
 	 */
-	virtual void BuildMultiBlockWidget(const ISlateStyle* StyleSet, const FName& StyleName) override;
+	SLATE_API virtual void BuildMultiBlockWidget(const ISlateStyle* StyleSet, const FName& StyleName) override;
 
 	/**
 	 * Construct this widget
 	 *
 	 * @param	InArgs	The declaration data for this widget
 	 */
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 
 
 protected:
@@ -110,34 +110,34 @@ protected:
 	/**
 	 * Called by Slate when this tool bar button's button is clicked
 	 */
-	FReply OnClicked();
+	SLATE_API FReply OnClicked();
 
 
 	/**
 	 * Called by Slate when this tool bar check box button is toggled
 	 */
-	void OnCheckStateChanged( const ECheckBoxState NewCheckedState );
+	SLATE_API void OnCheckStateChanged( const ECheckBoxState NewCheckedState );
 
 	/**
 	 * Called by slate to determine if this button should appear checked
 	 *
 	 * @return ECheckBoxState::Checked if it should be checked, ECheckBoxState::Unchecked if not.
 	 */
-	ECheckBoxState OnIsChecked() const;
+	SLATE_API ECheckBoxState OnIsChecked() const;
 
 	/**
 	 * Called by Slate to determine if this button is enabled
 	 * 
 	 * @return True if the menu entry is enabled, false otherwise
 	 */
-	bool IsEnabled() const;
+	SLATE_API bool IsEnabled() const;
 
 	/**
 	 * Called by Slate to determine if this button is visible
 	 *
 	 * @return EVisibility::Visible or EVisibility::Collapsed, depending on if the button should be displayed
 	 */
-	EVisibility GetVisibility() const;
+	SLATE_API EVisibility GetVisibility() const;
 private:
 	
 	/** For check toggle buttons, this is the widget that gets toggled. */

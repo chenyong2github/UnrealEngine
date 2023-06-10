@@ -12,7 +12,7 @@ class FWidgetStyle;
 struct FGeometry;
 struct FTextBlockStyle;
 
-class SLATE_API ISlateLineHighlighter : public ILineHighlighter
+class ISlateLineHighlighter : public ILineHighlighter
 {
 public:
 	virtual ~ISlateLineHighlighter() {}

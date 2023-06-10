@@ -33,9 +33,9 @@ namespace SResponsiveGridSize
  * The SResponsiveGridPanel is still in development and the API may change drastically in the future
  * or maybe removed entirely.
  */
-class SLATE_API SResponsiveGridPanel : public SPanel
+class SResponsiveGridPanel : public SPanel
 {
-	SLATE_DECLARE_WIDGET(SResponsiveGridPanel, SPanel)
+	SLATE_DECLARE_WIDGET_API(SResponsiveGridPanel, SPanel, SLATE_API)
 public:
 
 	class FSlot : public TBasicLayoutWidgetSlot< FSlot >
@@ -143,32 +143,32 @@ public:
 
 	SLATE_END_ARGS()
 
-	SResponsiveGridPanel();
+	SLATE_API SResponsiveGridPanel();
 
 	/** Removes all rows from the panel */
-	void ClearChildren();
+	SLATE_API void ClearChildren();
 	
-	void Construct( const FArguments& InArgs, int32 TotalColumns );
+	SLATE_API void Construct( const FArguments& InArgs, int32 TotalColumns );
 
 	using FScopedWidgetSlotArguments = TPanelChildren<FSlot>::FScopedWidgetSlotArguments;
-	FScopedWidgetSlotArguments AddSlot(int32 Row);
+	SLATE_API FScopedWidgetSlotArguments AddSlot(int32 Row);
 
-	bool RemoveSlot(const TSharedRef<SWidget>& SlotWidget);
+	SLATE_API bool RemoveSlot(const TSharedRef<SWidget>& SlotWidget);
 
-	void SetRowFill(int32 RowId, float Coefficient);
+	SLATE_API void SetRowFill(int32 RowId, float Coefficient);
 
 public:
 
 	//~ SWidget interface
 
-	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
-	virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
-	virtual void CacheDesiredSize(float) override;
-	virtual FChildren* GetChildren() override;
+	SLATE_API virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
+	SLATE_API virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
+	SLATE_API virtual void CacheDesiredSize(float) override;
+	SLATE_API virtual FChildren* GetChildren() override;
 
 protected:
 	//~ Begin SWidget overrides.
-	virtual FVector2D ComputeDesiredSize(float) const override;
+	SLATE_API virtual FVector2D ComputeDesiredSize(float) const override;
 	//~ End SWidget overrides.
 
 private:
@@ -179,21 +179,21 @@ private:
 	 *
 	 * The resulting array is 1-element longer.
 	 */
-	static void ComputePartialSums( TArray<float>& TurnMeIntoPartialSums );
+	static SLATE_API void ComputePartialSums( TArray<float>& TurnMeIntoPartialSums );
 	
 	/** Given a SizeContribution, distribute it to the elements in DistributeOverMe at indexes from [StartIndex .. UpperBound) */
-	static void DistributeSizeContributions( float SizeContribution, TArray<float>& DistributeOverMe, int32 StartIndex, int32 UpperBound );
+	static SLATE_API void DistributeSizeContributions( float SizeContribution, TArray<float>& DistributeOverMe, int32 StartIndex, int32 UpperBound );
 
 	/**
 	 * Return the location where to insert the slot. INDEX_NONE if we insert it at the end.
 	 */
-	int32 FindInsertSlotLocation(SResponsiveGridPanel::FSlot* InSlot) const;
+	SLATE_API int32 FindInsertSlotLocation(SResponsiveGridPanel::FSlot* InSlot) const;
 
 	/** Compute the sizes of columns and rows needed to fit all the slots in this grid. */
-	void ComputeDesiredCellSizes(float AvailableWidth, TArray<float>& OutColumns, TArray<float>& OutRows, TArray<float>& OutRowToSlot) const;
+	SLATE_API void ComputeDesiredCellSizes(float AvailableWidth, TArray<float>& OutColumns, TArray<float>& OutRows, TArray<float>& OutRowToSlot) const;
 
 	/** Draw the debug grid of rows and colummns; useful for inspecting the GridPanel's logic. See OnPaint() for parameter meaning */
-	int32 LayoutDebugPaint(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId ) const;
+	SLATE_API int32 LayoutDebugPaint(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId ) const;
 
 private:
 

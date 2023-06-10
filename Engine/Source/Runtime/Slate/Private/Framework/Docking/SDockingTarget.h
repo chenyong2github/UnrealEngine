@@ -13,7 +13,7 @@
  * gives the user a preview of what will happen if they drop on that target.
  * Dropping actually commits the layout-restructuring.
  */
-class SLATE_API SDockingTarget : public SBorder
+class SDockingTarget : public SBorder
 {
 public:
 	SLATE_BEGIN_ARGS(SDockingTarget)
@@ -26,19 +26,19 @@ public:
 		SLATE_ARGUMENT( SDockingNode::RelativeDirection, DockDirection )
 	SLATE_END_ARGS()
 
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 
 	// SWidget interface
-	virtual void OnDragEnter( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
-	virtual void OnDragLeave( const FDragDropEvent& DragDropEvent ) override;
-	virtual FReply OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
+	SLATE_API virtual void OnDragEnter( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
+	SLATE_API virtual void OnDragLeave( const FDragDropEvent& DragDropEvent ) override;
+	SLATE_API virtual FReply OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
 	// End of SWidget interface
 
 	/** @return the DockNode which this target represent */
-	TSharedPtr<SDockingNode> GetOwner() const;
+	SLATE_API TSharedPtr<SDockingNode> GetOwner() const;
 	
 	/** @return the direction which we represent (relative to the OwnerTabStack) */
-	SDockingNode::RelativeDirection GetDockDirection() const;
+	SLATE_API SDockingNode::RelativeDirection GetDockDirection() const;
 
 private:
 	const FSlateBrush* GetTargetImage() const;

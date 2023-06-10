@@ -101,6 +101,19 @@ FUICommandInfoDecl::operator TSharedRef<FUICommandInfo>() const
 	return Info.ToSharedRef();
 }
 
+FUICommandInfo::FUICommandInfo( const FName InBindingContext )
+	: BindingContext( InBindingContext )
+	, UserInterfaceType( EUserInterfaceActionType::Button )
+	, bUseLongDisplayName( true )
+{
+	LLM_SCOPE_BYTAG(UI_Slate);
+
+	ActiveChords.Empty(2);
+	ActiveChords.Add(TSharedRef<FInputChord>(new FInputChord));
+	ActiveChords.Add(TSharedRef<FInputChord>(new FInputChord));
+
+	DefaultChords.Init(FInputChord(EKeys::Invalid, EModifierKey::None), 2);
+}
 
 
 const FText FUICommandInfo::GetInputText() const

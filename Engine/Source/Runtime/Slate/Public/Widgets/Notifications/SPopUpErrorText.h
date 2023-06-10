@@ -9,7 +9,7 @@
 #include "Widgets/Notifications/SErrorText.h"
 #include "Widgets/Input/SComboButton.h"
 
-class SLATE_API SPopupErrorText : public SComboButton, public IErrorReportingWidget
+class SPopupErrorText : public SComboButton, public IErrorReportingWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SPopupErrorText)
@@ -21,16 +21,16 @@ public:
  		SLATE_ATTRIBUTE( FSlateFontInfo, Font )
 	SLATE_END_ARGS()
 
-	virtual void Construct( const FArguments& InArgs );
+	SLATE_API virtual void Construct( const FArguments& InArgs );
 
 	// IErrorReportingWidget interface
 
-	virtual void SetError( const FText& InErrorText ) override;
-	virtual void SetError( const FString& InErrorText ) override;
+	SLATE_API virtual void SetError( const FText& InErrorText ) override;
+	SLATE_API virtual void SetError( const FString& InErrorText ) override;
 
-	virtual bool HasError() const override;
+	SLATE_API virtual bool HasError() const override;
 
-	virtual TSharedRef<SWidget> AsWidget() override;
+	SLATE_API virtual TSharedRef<SWidget> AsWidget() override;
 
 	// IErrorReportingWidget interface
 

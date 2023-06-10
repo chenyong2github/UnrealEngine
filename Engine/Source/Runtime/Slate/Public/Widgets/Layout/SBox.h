@@ -19,9 +19,9 @@ class FSlateWindowElementList;
 /**
  * SBox is the simplest layout element.
  */
-class SLATE_API SBox : public SPanel
+class SBox : public SPanel
 {
-	SLATE_DECLARE_WIDGET(SBox, SPanel)
+	SLATE_DECLARE_WIDGET_API(SBox, SPanel, SLATE_API)
 
 public:
 	class UE_DEPRECATED(5.0, "FBoxSlot is deprecated. Use FSingleWidgetChildrenWithBasicLayoutSlot or FOneSimpleMemberChild")
@@ -99,55 +99,55 @@ public:
 
 	SLATE_END_ARGS()
 
-	SBox();
+	SLATE_API SBox();
 
-	void Construct(const FArguments& InArgs);
+	SLATE_API void Construct(const FArguments& InArgs);
 
-	virtual void OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const override;
-	virtual FChildren* GetChildren() override;
-	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
+	SLATE_API virtual void OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const override;
+	SLATE_API virtual FChildren* GetChildren() override;
+	SLATE_API virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
 
 	/**
 		* See the Content slot.
 		*/
-	void SetContent(const TSharedRef< SWidget >& InContent);
+	SLATE_API void SetContent(const TSharedRef< SWidget >& InContent);
 
 	/** See HAlign argument */
-	void SetHAlign(EHorizontalAlignment HAlign);
+	SLATE_API void SetHAlign(EHorizontalAlignment HAlign);
 
 	/** See VAlign argument */
-	void SetVAlign(EVerticalAlignment VAlign);
+	SLATE_API void SetVAlign(EVerticalAlignment VAlign);
 
 	/** See Padding attribute */
-	void SetPadding(TAttribute<FMargin> InPadding);
+	SLATE_API void SetPadding(TAttribute<FMargin> InPadding);
 
 	/** See WidthOverride attribute */
-	void SetWidthOverride(TAttribute<FOptionalSize> InWidthOverride);
+	SLATE_API void SetWidthOverride(TAttribute<FOptionalSize> InWidthOverride);
 
 	/** See HeightOverride attribute */
-	void SetHeightOverride(TAttribute<FOptionalSize> InHeightOverride);
+	SLATE_API void SetHeightOverride(TAttribute<FOptionalSize> InHeightOverride);
 
 	/** See MinDesiredWidth attribute */
-	void SetMinDesiredWidth(TAttribute<FOptionalSize> InMinDesiredWidth);
+	SLATE_API void SetMinDesiredWidth(TAttribute<FOptionalSize> InMinDesiredWidth);
 
 	/** See MinDesiredHeight attribute */
-	void SetMinDesiredHeight(TAttribute<FOptionalSize> InMinDesiredHeight);
+	SLATE_API void SetMinDesiredHeight(TAttribute<FOptionalSize> InMinDesiredHeight);
 
 	/** See MaxDesiredWidth attribute */
-	void SetMaxDesiredWidth(TAttribute<FOptionalSize> InMaxDesiredWidth);
+	SLATE_API void SetMaxDesiredWidth(TAttribute<FOptionalSize> InMaxDesiredWidth);
 
 	/** See MaxDesiredHeight attribute */
-	void SetMaxDesiredHeight(TAttribute<FOptionalSize> InMaxDesiredHeight);
+	SLATE_API void SetMaxDesiredHeight(TAttribute<FOptionalSize> InMaxDesiredHeight);
 
-	void SetMinAspectRatio(TAttribute<FOptionalSize> InMinAspectRatio);
+	SLATE_API void SetMinAspectRatio(TAttribute<FOptionalSize> InMinAspectRatio);
 
-	void SetMaxAspectRatio(TAttribute<FOptionalSize> InMaxAspectRatio);
+	SLATE_API void SetMaxAspectRatio(TAttribute<FOptionalSize> InMaxAspectRatio);
 
 protected:
 	// Begin SWidget overrides.
-	virtual FVector2D ComputeDesiredSize(float) const override;
-	float ComputeDesiredWidth() const;
-	float ComputeDesiredHeight() const;
+	SLATE_API virtual FVector2D ComputeDesiredSize(float) const override;
+	SLATE_API float ComputeDesiredWidth() const;
+	SLATE_API float ComputeDesiredHeight() const;
 	// End SWidget overrides.
 
 protected:

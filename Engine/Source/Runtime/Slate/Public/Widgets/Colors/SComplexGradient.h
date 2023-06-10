@@ -13,7 +13,7 @@ class FSlateWindowElementList;
 /**
  * Implements a Slate widget that renders a color gradient consisting of multiple stops.
  */
-class SLATE_API SComplexGradient
+class SComplexGradient
 	: public SCompoundWidget
 {
 public:
@@ -40,21 +40,21 @@ public:
 
 	SLATE_END_ARGS()
 	
-	SComplexGradient();
+	SLATE_API SComplexGradient();
 
 	/**
 	 * Construct this widget
 	 *
 	 * @param InArgs The declaration data for this widget.
 	 */
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 
 protected:
 
 	// SCompoundWidget overrides
 
-	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
-	virtual FVector2D ComputeDesiredSize(float LayoutScaleMultiplier) const override;
+	SLATE_API virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
+	SLATE_API virtual FVector2D ComputeDesiredSize(float LayoutScaleMultiplier) const override;
 private:
 
 	/** The colors used in the gradient. */

@@ -55,7 +55,7 @@ struct FCustomizedToolMenuNameArray
 };
 
 USTRUCT()
-struct SLATE_API FCustomizedToolMenu
+struct FCustomizedToolMenu
 {
 	GENERATED_BODY()
 
@@ -79,40 +79,40 @@ struct SLATE_API FCustomizedToolMenu
 
 	FNamePermissionList MenuPermissions;
 
-	FCustomizedToolMenuEntry* FindEntry(const FName InEntryName);
-	const FCustomizedToolMenuEntry* FindEntry(const FName InEntryName) const;
-	FCustomizedToolMenuEntry* AddEntry(const FName InEntryName);
-	ECustomizedToolMenuVisibility GetEntryVisiblity(const FName InSectionName) const;
-	bool IsEntryHidden(const FName InEntryName) const;
-	FName GetEntrySectionName(const FName InEntryName) const;
+	SLATE_API FCustomizedToolMenuEntry* FindEntry(const FName InEntryName);
+	SLATE_API const FCustomizedToolMenuEntry* FindEntry(const FName InEntryName) const;
+	SLATE_API FCustomizedToolMenuEntry* AddEntry(const FName InEntryName);
+	SLATE_API ECustomizedToolMenuVisibility GetEntryVisiblity(const FName InSectionName) const;
+	SLATE_API bool IsEntryHidden(const FName InEntryName) const;
+	SLATE_API FName GetEntrySectionName(const FName InEntryName) const;
 
-	FCustomizedToolMenuSection* FindSection(const FName InSectionName);
-	const FCustomizedToolMenuSection* FindSection(const FName InSectionName) const;
-	FCustomizedToolMenuSection* AddSection(const FName InSectionName);
-	ECustomizedToolMenuVisibility GetSectionVisiblity(const FName InSectionName) const;
-	bool IsSectionHidden(const FName InSectionName) const;
+	SLATE_API FCustomizedToolMenuSection* FindSection(const FName InSectionName);
+	SLATE_API const FCustomizedToolMenuSection* FindSection(const FName InSectionName) const;
+	SLATE_API FCustomizedToolMenuSection* AddSection(const FName InSectionName);
+	SLATE_API ECustomizedToolMenuVisibility GetSectionVisiblity(const FName InSectionName) const;
+	SLATE_API bool IsSectionHidden(const FName InSectionName) const;
 
-	void SetSuppressExtenders(const FName InOwnerName, const bool bInSuppress);
-	bool IsSuppressExtenders() const;
+	SLATE_API void SetSuppressExtenders(const FName InOwnerName, const bool bInSuppress);
+	SLATE_API bool IsSuppressExtenders() const;
 };
 
-struct SLATE_API FCustomizedToolMenuHierarchy
+struct FCustomizedToolMenuHierarchy
 {
-	FName GetEntrySectionName(const FName InEntryName) const;
-	bool IsEntryHidden(const FName InEntryName) const;
+	SLATE_API FName GetEntrySectionName(const FName InEntryName) const;
+	SLATE_API bool IsEntryHidden(const FName InEntryName) const;
 
-	bool IsSectionHidden(const FName InSectionName) const;
+	SLATE_API bool IsSectionHidden(const FName InSectionName) const;
 
-	bool IsSuppressExtenders() const;
+	SLATE_API bool IsSuppressExtenders() const;
 
-	FCustomizedToolMenu GenerateFlattened() const;
+	SLATE_API FCustomizedToolMenu GenerateFlattened() const;
 
 	TArray<const FCustomizedToolMenu*> Hierarchy;
 	TArray<const FCustomizedToolMenu*> RuntimeHierarchy;
 };
 
-UCLASS(Abstract)
-class SLATE_API UToolMenuBase : public UObject
+UCLASS(Abstract, MinimalAPI)
+class UToolMenuBase : public UObject
 {
 	GENERATED_BODY()
 

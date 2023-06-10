@@ -198,7 +198,7 @@ public:
 	}
 };
 
-class SLATE_API FTextLayout
+class FTextLayout
 	: public TSharedFromThis<FTextLayout>
 {
 public:
@@ -234,39 +234,39 @@ public:
 #endif
 	};
 
-	class SLATE_API FRunModel
+	class FRunModel
 	{
 	public:
 
-		FRunModel( const TSharedRef< IRun >& InRun);
+		SLATE_API FRunModel( const TSharedRef< IRun >& InRun);
 
 	public:
 
-		TSharedRef< IRun > GetRun() const;;
+		SLATE_API TSharedRef< IRun > GetRun() const;;
 
-		void BeginLayout();
-		void EndLayout();
+		SLATE_API void BeginLayout();
+		SLATE_API void EndLayout();
 
-		FTextRange GetTextRange() const;
-		void SetTextRange( const FTextRange& Value );
+		SLATE_API FTextRange GetTextRange() const;
+		SLATE_API void SetTextRange( const FTextRange& Value );
 		
-		int16 GetBaseLine( float Scale ) const;
-		int16 GetMaxHeight( float Scale ) const;
+		SLATE_API int16 GetBaseLine( float Scale ) const;
+		SLATE_API int16 GetMaxHeight( float Scale ) const;
 
-		FVector2D Measure( int32 BeginIndex, int32 EndIndex, float Scale, const FRunTextContext& InTextContext );
+		SLATE_API FVector2D Measure( int32 BeginIndex, int32 EndIndex, float Scale, const FRunTextContext& InTextContext );
 
-		int8 GetKerning( int32 CurrentIndex, float Scale, const FRunTextContext& InTextContext );
+		SLATE_API int8 GetKerning( int32 CurrentIndex, float Scale, const FRunTextContext& InTextContext );
 
-		static int32 BinarySearchForBeginIndex( const TArray< FTextRange >& Ranges, int32 BeginIndex );
+		static SLATE_API int32 BinarySearchForBeginIndex( const TArray< FTextRange >& Ranges, int32 BeginIndex );
 
-		static int32 BinarySearchForEndIndex( const TArray< FTextRange >& Ranges, int32 RangeBeginIndex, int32 EndIndex );
+		static SLATE_API int32 BinarySearchForEndIndex( const TArray< FTextRange >& Ranges, int32 RangeBeginIndex, int32 EndIndex );
 
-		TSharedRef< ILayoutBlock > CreateBlock( const FBlockDefinition& BlockDefine, float InScale, const FLayoutBlockTextContext& InTextContext ) const;
+		SLATE_API TSharedRef< ILayoutBlock > CreateBlock( const FBlockDefinition& BlockDefine, float InScale, const FLayoutBlockTextContext& InTextContext ) const;
 
-		void ClearCache();
+		SLATE_API void ClearCache();
 
-		void AppendTextTo(FString& Text) const;
-		void AppendTextTo(FString& Text, const FTextRange& Range) const;
+		SLATE_API void AppendTextTo(FString& Text) const;
+		SLATE_API void AppendTextTo(FString& Text, const FTextRange& Range) const;
 
 	private:
 
@@ -288,11 +288,11 @@ public:
 		};
 	};
 
-	struct SLATE_API FLineModel
+	struct FLineModel
 	{
 	public:
 
-		FLineModel( const TSharedRef< FString >& InText );
+		SLATE_API FLineModel( const TSharedRef< FString >& InText );
 
 		TSharedRef< FString > Text;
 		FShapedTextCacheRef ShapedTextCache;
@@ -329,14 +329,14 @@ public:
 	};
 
 	/** A mapping between the offsets into the text as a flat string (with line-breaks), and the internal lines used within a text layout */
-	struct SLATE_API FTextOffsetLocations
+	struct FTextOffsetLocations
 	{
 	friend class FTextLayout;
 
 	public:
-		int32 TextLocationToOffset(const FTextLocation& InLocation) const;
-		FTextLocation OffsetToTextLocation(const int32 InOffset) const;
-		int32 GetTextLength() const;
+		SLATE_API int32 TextLocationToOffset(const FTextLocation& InLocation) const;
+		SLATE_API FTextLocation OffsetToTextLocation(const int32 InOffset) const;
+		SLATE_API int32 GetTextLength() const;
 
 	private:
 		struct FOffsetEntry
@@ -362,7 +362,7 @@ public:
 
 public:
 
-	virtual ~FTextLayout();
+	SLATE_API virtual ~FTextLayout();
 
 	FORCEINLINE const TArray< FTextLayout::FLineView >& GetLineViews() const { return LineViews; }
 	FORCEINLINE const TArray< FTextLayout::FLineModel >& GetLineModels() const { return LineModels; }
@@ -371,73 +371,73 @@ public:
 	 * Get the size of the text layout, including any lines which extend beyond the wrapping boundaries (eg, lines with lots of trailing whitespace, or lines with no break candidates)
 	 * @note This value is unscaled
 	 */
-	FVector2D GetSize() const;
+	SLATE_API FVector2D GetSize() const;
 
 	/**
 	 * Get the size of the text layout that can actually be seen from the parent widget
 	 */
-	FVector2D GetViewSize() const;
+	SLATE_API FVector2D GetViewSize() const;
 
 	/**
 	 * Get the size of the text layout, including any lines which extend beyond the wrapping boundaries (eg, lines with lots of trailing whitespace, or lines with no break candidates)
 	 * @note This value is scaled
 	 */
-	FVector2D GetDrawSize() const;
+	SLATE_API FVector2D GetDrawSize() const;
 
 	/**
 	 * Get the size of the text layout after the text has been wrapped, and including the first piece of trailing whitespace for any given soft-wrapped line
 	 * @note This value is unscaled
 	 */
-	FVector2D GetWrappedSize() const;
+	SLATE_API FVector2D GetWrappedSize() const;
 
 	/**
 	 * Get the size of the text layout after the text has been wrapped, and including the first piece of trailing whitespace for any given soft-wrapped line
 	 * @note This value is scaled
 	 */
-	FVector2D GetWrappedDrawSize() const;
+	SLATE_API FVector2D GetWrappedDrawSize() const;
 
 	FORCEINLINE float GetWrappingWidth() const { return WrappingWidth; }
-	void SetWrappingWidth( float Value );
+	SLATE_API void SetWrappingWidth( float Value );
 
 	FORCEINLINE ETextWrappingPolicy GetWrappingPolicy() const { return WrappingPolicy; }
-	void SetWrappingPolicy(ETextWrappingPolicy Value);
+	SLATE_API void SetWrappingPolicy(ETextWrappingPolicy Value);
 
 	FORCEINLINE float GetLineHeightPercentage() const { return LineHeightPercentage; }
-	void SetLineHeightPercentage( float Value );
+	SLATE_API void SetLineHeightPercentage( float Value );
 
 	FORCEINLINE ETextJustify::Type GetJustification() const { return Justification; }
-	void SetJustification( ETextJustify::Type Value );
+	SLATE_API void SetJustification( ETextJustify::Type Value );
 
 	/** Get the visual justification for this document (based on the visual justification used by the first line of text) */
-	ETextJustify::Type GetVisualJustification() const;
+	SLATE_API ETextJustify::Type GetVisualJustification() const;
 
 	/** @note This option is destructive to the model text, so changing it requires refreshing the text layout from its marshaller */
 	FORCEINLINE ETextTransformPolicy GetTransformPolicy() const { return TransformPolicy; }
-	void SetTransformPolicy(ETextTransformPolicy Value);
+	SLATE_API void SetTransformPolicy(ETextTransformPolicy Value);
 
 	FORCEINLINE float GetScale() const { return Scale; }
-	void SetScale( float Value );
+	SLATE_API void SetScale( float Value );
 
 	FORCEINLINE ETextShapingMethod GetTextShapingMethod() const { return TextShapingMethod; }
-	void SetTextShapingMethod( const ETextShapingMethod InTextShapingMethod );
+	SLATE_API void SetTextShapingMethod( const ETextShapingMethod InTextShapingMethod );
 
 	FORCEINLINE ETextFlowDirection GetTextFlowDirection() const { return TextFlowDirection; }
-	void SetTextFlowDirection( const ETextFlowDirection InTextFlowDirection );
+	SLATE_API void SetTextFlowDirection( const ETextFlowDirection InTextFlowDirection );
 
-	void SetTextOverflowPolicy(const TOptional<ETextOverflowPolicy> InTextOverflowPolicy);
+	SLATE_API void SetTextOverflowPolicy(const TOptional<ETextOverflowPolicy> InTextOverflowPolicy);
 
 	FORCEINLINE FMargin GetMargin() const { return Margin; }
-	void SetMargin( const FMargin& InMargin );
+	SLATE_API void SetMargin( const FMargin& InMargin );
 
-	void SetVisibleRegion( const FVector2D& InViewSize, const FVector2D& InScrollOffset );
+	SLATE_API void SetVisibleRegion( const FVector2D& InViewSize, const FVector2D& InScrollOffset );
 
 	/** Set the iterator to use to detect appropriate soft-wrapping points for lines (or null to go back to using the default) */
-	void SetLineBreakIterator( TSharedPtr<IBreakIterator> InLineBreakIterator );
+	SLATE_API void SetLineBreakIterator( TSharedPtr<IBreakIterator> InLineBreakIterator );
 
 	/** Set the information used to help identify who owns this text layout in the case of an error */
-	void SetDebugSourceInfo(const TAttribute<FString>& InDebugSourceInfo);
+	SLATE_API void SetDebugSourceInfo(const TAttribute<FString>& InDebugSourceInfo);
 
-	void ClearLines();
+	SLATE_API void ClearLines();
 
 	struct FNewLineData
 	{
@@ -451,184 +451,184 @@ public:
 		TArray<TSharedRef<IRun>> Runs;
 	};
 
-	void AddLine( const FNewLineData& NewLine );
+	SLATE_API void AddLine( const FNewLineData& NewLine );
 
-	void AddLines( const TArray<FNewLineData>& NewLines );
+	SLATE_API void AddLines( const TArray<FNewLineData>& NewLines );
 
 	/**
 	* Clears all run renderers
 	*/
-	void ClearRunRenderers();
+	SLATE_API void ClearRunRenderers();
 
 	/**
 	* Replaces the current set of run renderers with the provided renderers.
 	*/
-	void SetRunRenderers( const TArray< FTextRunRenderer >& Renderers );
+	SLATE_API void SetRunRenderers( const TArray< FTextRunRenderer >& Renderers );
 
 	/**
 	* Adds a single run renderer to the existing set of renderers.
 	*/
-	void AddRunRenderer( const FTextRunRenderer& Renderer );
+	SLATE_API void AddRunRenderer( const FTextRunRenderer& Renderer );
 
 	/**
 	* Removes a single run renderer to the existing set of renderers.
 	*/
-	void RemoveRunRenderer( const FTextRunRenderer& Renderer );
+	SLATE_API void RemoveRunRenderer( const FTextRunRenderer& Renderer );
 
 	/**
 	* Clears all line highlights
 	*/
-	void ClearLineHighlights();
+	SLATE_API void ClearLineHighlights();
 
 	/**
 	* Replaces the current set of line highlights with the provided highlights.
 	*/
-	void SetLineHighlights( const TArray< FTextLineHighlight >& Highlights );
+	SLATE_API void SetLineHighlights( const TArray< FTextLineHighlight >& Highlights );
 
 	/**
 	* Adds a single line highlight to the existing set of highlights.
 	*/
-	void AddLineHighlight( const FTextLineHighlight& Highlight );
+	SLATE_API void AddLineHighlight( const FTextLineHighlight& Highlight );
 
 	/**
 	* Removes a single line highlight to the existing set of highlights.
 	*/
-	void RemoveLineHighlight( const FTextLineHighlight& Highlight );
+	SLATE_API void RemoveLineHighlight( const FTextLineHighlight& Highlight );
 
 	/**
 	* Updates the TextLayout's if any changes have occurred since the last update.
 	*/
-	virtual void UpdateIfNeeded();
+	SLATE_API virtual void UpdateIfNeeded();
 
-	virtual void UpdateLayout();
+	SLATE_API virtual void UpdateLayout();
 
-	virtual void UpdateHighlights();
+	SLATE_API virtual void UpdateHighlights();
 
-	void DirtyRunLayout(const TSharedRef<const IRun>& Run);
+	SLATE_API void DirtyRunLayout(const TSharedRef<const IRun>& Run);
 
-	void DirtyLayout();
+	SLATE_API void DirtyLayout();
 
-	bool IsLayoutDirty() const;
+	SLATE_API bool IsLayoutDirty() const;
 
-	int32 GetLineViewIndexForTextLocation(const TArray< FTextLayout::FLineView >& LineViews, const FTextLocation& Location, const bool bPerformInclusiveBoundsCheck) const;
+	SLATE_API int32 GetLineViewIndexForTextLocation(const TArray< FTextLayout::FLineView >& LineViews, const FTextLocation& Location, const bool bPerformInclusiveBoundsCheck) const;
 
 	/**
 	 * 
 	 */
-	FTextLocation GetTextLocationAt( const FVector2D& Relative, ETextHitPoint* const OutHitPoint = nullptr ) const;
+	SLATE_API FTextLocation GetTextLocationAt( const FVector2D& Relative, ETextHitPoint* const OutHitPoint = nullptr ) const;
 
-	FTextLocation GetTextLocationAt( const FLineView& LineView, const FVector2D& Relative, ETextHitPoint* const OutHitPoint = nullptr ) const;
+	SLATE_API FTextLocation GetTextLocationAt( const FLineView& LineView, const FVector2D& Relative, ETextHitPoint* const OutHitPoint = nullptr ) const;
 
-	FVector2D GetLocationAt( const FTextLocation& Location, const bool bPerformInclusiveBoundsCheck ) const;
+	SLATE_API FVector2D GetLocationAt( const FTextLocation& Location, const bool bPerformInclusiveBoundsCheck ) const;
 
-	bool SplitLineAt(const FTextLocation& Location);
+	SLATE_API bool SplitLineAt(const FTextLocation& Location);
 
-	bool JoinLineWithNextLine(int32 LineIndex);
+	SLATE_API bool JoinLineWithNextLine(int32 LineIndex);
 
-	bool InsertAt(const FTextLocation& Location, TCHAR Character);
+	SLATE_API bool InsertAt(const FTextLocation& Location, TCHAR Character);
 
-	bool InsertAt(const FTextLocation& Location, const FString& Text);
+	SLATE_API bool InsertAt(const FTextLocation& Location, const FString& Text);
 
-	bool InsertAt(const FTextLocation& Location, TSharedRef<IRun> InRun, const bool bAlwaysKeepRightRun = false);
+	SLATE_API bool InsertAt(const FTextLocation& Location, TSharedRef<IRun> InRun, const bool bAlwaysKeepRightRun = false);
 
-	bool RemoveAt(const FTextLocation& Location, int32 Count = 1);
+	SLATE_API bool RemoveAt(const FTextLocation& Location, int32 Count = 1);
 
-	bool RemoveLine(int32 LineIndex);
+	SLATE_API bool RemoveLine(int32 LineIndex);
 
-	bool IsEmpty() const;
+	SLATE_API bool IsEmpty() const;
 
-	int32 GetLineCount() const;
+	SLATE_API int32 GetLineCount() const;
 
-	void GetAsText(FString& DisplayText, FTextOffsetLocations* const OutTextOffsetLocations = nullptr) const;
+	SLATE_API void GetAsText(FString& DisplayText, FTextOffsetLocations* const OutTextOffsetLocations = nullptr) const;
 
-	void GetAsText(FText& DisplayText, FTextOffsetLocations* const OutTextOffsetLocations = nullptr) const;
+	SLATE_API void GetAsText(FText& DisplayText, FTextOffsetLocations* const OutTextOffsetLocations = nullptr) const;
 
 	/** Constructs an array containing the mappings between the text that would be returned by GetAsText, and the internal FTextLocation points used within this text layout */
-	void GetTextOffsetLocations(FTextOffsetLocations& OutTextOffsetLocations) const;
+	SLATE_API void GetTextOffsetLocations(FTextOffsetLocations& OutTextOffsetLocations) const;
 
-	void GetSelectionAsText(FString& DisplayText, const FTextSelection& Selection) const;
+	SLATE_API void GetSelectionAsText(FString& DisplayText, const FTextSelection& Selection) const;
 
-	FTextSelection GetGraphemeAt(const FTextLocation& Location) const;
+	SLATE_API FTextSelection GetGraphemeAt(const FTextLocation& Location) const;
 
-	FTextSelection GetWordAt(const FTextLocation& Location) const;
+	SLATE_API FTextSelection GetWordAt(const FTextLocation& Location) const;
 
 protected:
 
-	FTextLayout();
+	SLATE_API FTextLayout();
 
 	/**
 	 * Calculates the text direction for each line based upon the current shaping method and document flow direction
 	 * When changing the shaping method, or document flow direction, all the lines need to be dirtied (see DirtyAllLineModels(ELineModelDirtyState::TextBaseDirection))
 	 */
-	void CalculateTextDirection();
+	SLATE_API void CalculateTextDirection();
 
 	/**
 	 * Calculates the text direction for the given line based upon the current shaping method and document flow direction
 	 */
-	void CalculateLineTextDirection(FLineModel& LineModel) const;
+	SLATE_API void CalculateLineTextDirection(FLineModel& LineModel) const;
 
 	/**
 	 * Calculates the visual justification for the given line view
 	 */
-	ETextJustify::Type CalculateLineViewVisualJustification(const FLineView& LineView) const;
+	SLATE_API ETextJustify::Type CalculateLineViewVisualJustification(const FLineView& LineView) const;
 
 	/**
 	* Create the wrapping cache for the current text based upon the current scale
 	* Each line keeps its own cached state, so needs to be cleared when changing the text within a line
 	* When changing the scale, all the lines need to be cleared (see DirtyAllLineModels(ELineModelDirtyState::WrappingInformation))
 	*/
-	void CreateWrappingCache();
+	SLATE_API void CreateWrappingCache();
 
 	/**
 	* Create the wrapping cache for the given line based upon the current scale
 	*/
-	void CreateLineWrappingCache(FLineModel& LineModel);
+	SLATE_API void CreateLineWrappingCache(FLineModel& LineModel);
 
 	/**
 	 * Flushes the text shaping cache for each line
 	 */
-	void FlushTextShapingCache();
+	SLATE_API void FlushTextShapingCache();
 
 	/**
 	 * Flushes the text shaping cache for the given line
 	 */
-	void FlushLineTextShapingCache(FLineModel& LineModel);
+	SLATE_API void FlushLineTextShapingCache(FLineModel& LineModel);
 
 	/**
 	 * Set the given dirty flags on all line models in this layout
 	 */
-	void DirtyAllLineModels(const ELineModelDirtyState::Flags InDirtyFlags);
+	SLATE_API void DirtyAllLineModels(const ELineModelDirtyState::Flags InDirtyFlags);
 
 	/**
 	* Clears the current layouts view information.
 	*/
-	void ClearView();
+	SLATE_API void ClearView();
 
 	/**
 	 * Transform the given line model text based on the active transform policy.
 	 * @note This is destructive to the model text!
 	 */
-	void TransformLineText(FLineModel& LineModel) const;
+	SLATE_API void TransformLineText(FLineModel& LineModel) const;
 
 	/**
 	* Notifies all Runs that we are beginning to generate a new layout.
 	*/
-	virtual void BeginLayout();
+	SLATE_API virtual void BeginLayout();
 
 	/**
 	* Notifies all Runs on the given line is beginning to have a new layout generated.
 	*/
-	void BeginLineLayout(FLineModel& LineModel);
+	SLATE_API void BeginLineLayout(FLineModel& LineModel);
 
 	/**
 	* Notifies all Runs that the layout has finished generating.
 	*/
-	virtual void EndLayout();
+	SLATE_API virtual void EndLayout();
 
 	/**
 	* Notifies all Runs on the given line has finished having a new layout generated.
 	*/
-	void EndLineLayout(FLineModel& LineModel);
+	SLATE_API void EndLineLayout(FLineModel& LineModel);
 
 	/**
 	 * Called to generate a new empty text run for this text layout
@@ -637,22 +637,22 @@ protected:
 
 private:
 
-	float GetWrappingDrawWidth() const;
+	SLATE_API float GetWrappingDrawWidth() const;
 
-	void FlowLayout();
-	void MarginLayout();
+	SLATE_API void FlowLayout();
+	SLATE_API void MarginLayout();
 
-	void FlowLineLayout(const int32 LineModelIndex, const float WrappingDrawWidth, TArray<TSharedRef<ILayoutBlock>>& SoftLine);
+	SLATE_API void FlowLineLayout(const int32 LineModelIndex, const float WrappingDrawWidth, TArray<TSharedRef<ILayoutBlock>>& SoftLine);
 
-	void FlowHighlights();
+	SLATE_API void FlowHighlights();
 
-	void JustifyLayout();
+	SLATE_API void JustifyLayout();
 
-	void CreateLineViewBlocks( int32 LineModelIndex, const int32 StopIndex, const float WrappedLineWidth, const TOptional<float>& JustificationWidth, int32& OutRunIndex, int32& OutRendererIndex, int32& OutPreviousBlockEnd, TArray< TSharedRef< ILayoutBlock > >& OutSoftLine );
+	SLATE_API void CreateLineViewBlocks( int32 LineModelIndex, const int32 StopIndex, const float WrappedLineWidth, const TOptional<float>& JustificationWidth, int32& OutRunIndex, int32& OutRendererIndex, int32& OutPreviousBlockEnd, TArray< TSharedRef< ILayoutBlock > >& OutSoftLine );
 
-	FBreakCandidate CreateBreakCandidate( int32& OutRunIndex, FLineModel& Line, int32 PreviousBreak, int32 CurrentBreak );
+	SLATE_API FBreakCandidate CreateBreakCandidate( int32& OutRunIndex, FLineModel& Line, int32 PreviousBreak, int32 CurrentBreak );
 
-	void GetAsTextAndOffsets(FString* const OutDisplayText, FTextOffsetLocations* const OutTextOffsetLocations) const;
+	SLATE_API void GetAsTextAndOffsets(FString* const OutDisplayText, FTextOffsetLocations* const OutTextOffsetLocations) const;
 
 protected:
 	

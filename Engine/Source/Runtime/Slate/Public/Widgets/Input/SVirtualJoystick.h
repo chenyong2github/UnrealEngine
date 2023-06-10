@@ -15,12 +15,12 @@ class ISlateBrushSource;
 /**
  * A virtual joystsick
  */
-class SLATE_API SVirtualJoystick : public SLeafWidget
+class SVirtualJoystick : public SLeafWidget
 {
 
 public:
 	/** The settings of each zone we render */ 
-	struct SLATE_API FControlInfo
+	struct FControlInfo
 	{
 		// Set by the game
 
@@ -53,7 +53,7 @@ public:
 	};
 
 	/** The settings and current state of each zone we render */ 
-	struct SLATE_API FControlData
+	struct FControlData
 	{
 		/** Control settings */
 		FControlInfo Info;
@@ -61,7 +61,7 @@ public:
 		/**
 		 * Reset the control to a centered/inactive state
 		 */
-		void Reset();
+		SLATE_API void Reset();
 
 		// Current state
 
@@ -109,59 +109,59 @@ public:
 		{}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
+	SLATE_API void Construct(const FArguments& InArgs);
 
 	/**
 	 * Static function to return if external users should create/activate/etc a touch interface
 	 * Note that this function is also used internally, so even if this returns false but an SVirtualJoystick
 	 * is created, it won't actually show any controls
 	 */
-	static bool ShouldDisplayTouchInterface();
+	static SLATE_API bool ShouldDisplayTouchInterface();
 
 	/**
 	 * Shows or hides the controls (for instance during cinematics)
 	 */
-	void SetJoystickVisibility(const bool bVisible, const bool bFade);
+	SLATE_API void SetJoystickVisibility(const bool bVisible, const bool bFade);
 
-	void AddControl(const FControlInfo& Control);
-	void ClearControls();
-	void SetControls(const TArray<FControlInfo>& InControls);
+	SLATE_API void AddControl(const FControlInfo& Control);
+	SLATE_API void ClearControls();
+	SLATE_API void SetControls(const TArray<FControlInfo>& InControls);
 
 	/**
 	 * Sets parameters that control all controls
 	 */
-	void SetGlobalParameters(float InActiveOpacity, float InInactiveOpacity, float InTimeUntilDeactive, float InTimeUntilReset, float InActivationDelay, bool InbPreventReCenter, float InStartupDelay);
+	SLATE_API void SetGlobalParameters(float InActiveOpacity, float InInactiveOpacity, float InTimeUntilDeactive, float InTimeUntilReset, float InActivationDelay, bool InbPreventReCenter, float InStartupDelay);
 
-	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
+	SLATE_API virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
 	
-	virtual FVector2D ComputeDesiredSize(float) const override;
+	SLATE_API virtual FVector2D ComputeDesiredSize(float) const override;
 
-	virtual FReply OnTouchStarted(const FGeometry& MyGeometry, const FPointerEvent& Event) override;
-	virtual FReply OnTouchMoved(const FGeometry& MyGeometry, const FPointerEvent& Event) override;
-	virtual FReply OnTouchEnded(const FGeometry& MyGeometry, const FPointerEvent& Event) override;
+	SLATE_API virtual FReply OnTouchStarted(const FGeometry& MyGeometry, const FPointerEvent& Event) override;
+	SLATE_API virtual FReply OnTouchMoved(const FGeometry& MyGeometry, const FPointerEvent& Event) override;
+	SLATE_API virtual FReply OnTouchEnded(const FGeometry& MyGeometry, const FPointerEvent& Event) override;
 
-	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+	SLATE_API virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
-	virtual bool SupportsKeyboardFocus() const override;
+	SLATE_API virtual bool SupportsKeyboardFocus() const override;
 
 protected:
 	/** Callback for handling display metrics changes. */
-	virtual void HandleDisplayMetricsChanged(const FDisplayMetrics& NewDisplayMetric);
+	SLATE_API virtual void HandleDisplayMetricsChanged(const FDisplayMetrics& NewDisplayMetric);
 
-	static void AlignBoxIntoScreen(FVector2D& Position, const FVector2D& Size, const FVector2D& ScreenSize);
-	FVector2D ComputeThumbPosition(int32 ControlIndex, const FVector2D& LocalCoord, float* OutDistanceToTouchSqr = nullptr, float* OutDistanceToEdgeSqr = nullptr);
+	static SLATE_API void AlignBoxIntoScreen(FVector2D& Position, const FVector2D& Size, const FVector2D& ScreenSize);
+	SLATE_API FVector2D ComputeThumbPosition(int32 ControlIndex, const FVector2D& LocalCoord, float* OutDistanceToTouchSqr = nullptr, float* OutDistanceToEdgeSqr = nullptr);
 
 	/**
 	 * Process a touch event (on movement and possibly on initial touch)
 	 *
 	 * @return true if the touch was successful
 	 */
-	virtual bool HandleTouch(int32 ControlIndex, const FVector2D& LocalCoord, const FVector2D& ScreenSize);
+	SLATE_API virtual bool HandleTouch(int32 ControlIndex, const FVector2D& LocalCoord, const FVector2D& ScreenSize);
 
 	/** 
 	 * Return the target opacity to lerp to given the current state
 	 */
-	FORCEINLINE float GetBaseOpacity();
+	SLATE_API FORCEINLINE float GetBaseOpacity();
 
 	/**
 	 * TArray specialization for controls. In the game only few joysticks presented

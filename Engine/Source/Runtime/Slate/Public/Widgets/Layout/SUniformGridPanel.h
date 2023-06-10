@@ -15,7 +15,7 @@
 class FArrangedChildren;
 
 /** A panel that evenly divides up available space between all of its children. */
-class SLATE_API SUniformGridPanel : public SPanel
+class SUniformGridPanel : public SPanel
 {
 public:
 	/** Stores the per-child info for this panel type */
@@ -73,14 +73,14 @@ public:
 		UE_DEPRECATED(5.0, "Direct access to Row is now deprecated. Use the getter or setter.")
 		int32 Row;
 	};
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	SLATE_API PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	SUniformGridPanel();
 
 	/**
 	 * Used by declarative syntax to create a Slot in the specified Column, Row.
 	 */
-	static FSlot::FSlotArguments Slot( int32 Column, int32 Row );
+	static SLATE_API FSlot::FSlotArguments Slot( int32 Column, int32 Row );
 
 	SLATE_BEGIN_ARGS( SUniformGridPanel )
 		: _SlotPadding( FMargin(0.0f) )
@@ -104,21 +104,21 @@ public:
 
 	SLATE_END_ARGS()
 
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 
 	//~ Begin SPanel Interface	
-	virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
-	virtual FChildren* GetChildren() override;
+	SLATE_API virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
+	SLATE_API virtual FChildren* GetChildren() override;
 	//~ End SPanel Interface
 
 	/** See SlotPadding attribute */
-	void SetSlotPadding(TAttribute<FMargin> InSlotPadding);
+	SLATE_API void SetSlotPadding(TAttribute<FMargin> InSlotPadding);
 
 	/** See MinDesiredSlotWidth attribute */
-	void SetMinDesiredSlotWidth(TAttribute<float> InMinDesiredSlotWidth);
+	SLATE_API void SetMinDesiredSlotWidth(TAttribute<float> InMinDesiredSlotWidth);
 
 	/** See MinDesiredSlotHeight attribute */
-	void SetMinDesiredSlotHeight(TAttribute<float> InMinDesiredSlotHeight);
+	SLATE_API void SetMinDesiredSlotHeight(TAttribute<float> InMinDesiredSlotHeight);
 
 	using FScopedWidgetSlotArguments = TPanelChildren<FSlot>::FScopedWidgetSlotArguments;
 	/**
@@ -126,7 +126,7 @@ public:
 	 *
 	 * @return A reference to the newly-added slot
 	 */
-	FScopedWidgetSlotArguments AddSlot( int32 Column, int32 Row );
+	SLATE_API FScopedWidgetSlotArguments AddSlot( int32 Column, int32 Row );
 	
 	/**
 	 * Removes a slot from this panel which contains the specified SWidget
@@ -134,14 +134,14 @@ public:
 	 * @param SlotWidget The widget to match when searching through the slots
 	 * @returns The true if the slot was removed and false if no slot was found matching the widget
 	 */
-	bool RemoveSlot( const TSharedRef<SWidget>& SlotWidget );
+	SLATE_API bool RemoveSlot( const TSharedRef<SWidget>& SlotWidget );
 
 	/** Removes all slots from the panel */
-	void ClearChildren();
+	SLATE_API void ClearChildren();
 
 protected:
 	// Begin SWidget overrides.
-	virtual FVector2D ComputeDesiredSize(float) const override;
+	SLATE_API virtual FVector2D ComputeDesiredSize(float) const override;
 	// End SWidget overrides.
 
 private:

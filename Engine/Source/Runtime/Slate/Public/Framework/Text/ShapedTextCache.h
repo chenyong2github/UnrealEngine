@@ -51,7 +51,7 @@ public:
 };
 
 /** Cache of shaped text */
-class SLATE_API FShapedTextCache
+class FShapedTextCache
 {
 public:
 	/** Create a new shaped text cache */
@@ -67,7 +67,7 @@ public:
 	 *
 	 * @return The shaped text instance, or null if it wasn't found or was stale
 	 */
-	FShapedGlyphSequencePtr FindShapedText(const FCachedShapedTextKey& InKey) const;
+	SLATE_API FShapedGlyphSequencePtr FindShapedText(const FCachedShapedTextKey& InKey) const;
 
 	/**
 	 * Add the given shaped text instance to the cache, or generate a new instance and add that based on the parameters provided
@@ -79,9 +79,9 @@ public:
 	 *
 	 * @return The shaped text instance
 	 */
-	FShapedGlyphSequenceRef AddShapedText(const FCachedShapedTextKey& InKey, const TCHAR* InText);
-	FShapedGlyphSequenceRef AddShapedText(const FCachedShapedTextKey& InKey, const TCHAR* InText, const TextBiDi::ETextDirection InTextDirection);
-	FShapedGlyphSequenceRef AddShapedText(const FCachedShapedTextKey& InKey, FShapedGlyphSequenceRef InShapedText);
+	SLATE_API FShapedGlyphSequenceRef AddShapedText(const FCachedShapedTextKey& InKey, const TCHAR* InText);
+	SLATE_API FShapedGlyphSequenceRef AddShapedText(const FCachedShapedTextKey& InKey, const TCHAR* InText, const TextBiDi::ETextDirection InTextDirection);
+	SLATE_API FShapedGlyphSequenceRef AddShapedText(const FCachedShapedTextKey& InKey, FShapedGlyphSequenceRef InShapedText);
 
 	/**
 	 * Try and find an existing shaped text instance, or add a new entry to the cache if one cannot be found
@@ -92,8 +92,8 @@ public:
 	 *
 	 * @return The shaped text instance
 	 */
-	FShapedGlyphSequenceRef FindOrAddShapedText(const FCachedShapedTextKey& InKey, const TCHAR* InText);
-	FShapedGlyphSequenceRef FindOrAddShapedText(const FCachedShapedTextKey& InKey, const TCHAR* InText, const TextBiDi::ETextDirection InTextDirection);
+	SLATE_API FShapedGlyphSequenceRef FindOrAddShapedText(const FCachedShapedTextKey& InKey, const TCHAR* InText);
+	SLATE_API FShapedGlyphSequenceRef FindOrAddShapedText(const FCachedShapedTextKey& InKey, const TCHAR* InText, const TextBiDi::ETextDirection InTextDirection);
 
 	/**
 	 * Try and find an existing overflow shaped text instance, or add a new entry to the cache if one cannot be found.
@@ -101,12 +101,12 @@ public:
 	 *
 	 * @return The shaped text instance
 	 */
-	FShapedGlyphSequenceRef FindOrAddOverflowEllipsisText(const float InScale, const FShapedTextContext& InTextContext, const FSlateFontInfo& InFontInfo);
+	SLATE_API FShapedGlyphSequenceRef FindOrAddOverflowEllipsisText(const float InScale, const FShapedTextContext& InTextContext, const FSlateFontInfo& InFontInfo);
 
 	/**
 	 * Clear this cache
 	 */
-	void Clear();
+	SLATE_API void Clear();
 
 	/**
 	 * Get the font cache used by this instance

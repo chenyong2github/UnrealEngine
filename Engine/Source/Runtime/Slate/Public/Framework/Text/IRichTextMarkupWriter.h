@@ -9,7 +9,7 @@
 
 /**
  */
-class SLATE_API IRichTextMarkupWriter
+class IRichTextMarkupWriter
 {
 public:
 

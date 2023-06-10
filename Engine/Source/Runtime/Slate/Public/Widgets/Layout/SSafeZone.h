@@ -26,7 +26,7 @@ class FArrangedChildren;
 		] 
 */
 
-class SLATE_API SSafeZone : public SBox
+class SSafeZone : public SBox
 {
 	SLATE_BEGIN_ARGS(SSafeZone)
 		: _HAlign( HAlign_Fill )
@@ -90,28 +90,28 @@ class SLATE_API SSafeZone : public SBox
 
 public:
 
-	SSafeZone();
-	virtual ~SSafeZone();
+	SLATE_API SSafeZone();
+	SLATE_API virtual ~SSafeZone();
 
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 	
-	void SetTitleSafe( bool bIsTitleSafe );
-	void SetSafeAreaScale(FMargin InSafeAreaScale);
+	SLATE_API void SetTitleSafe( bool bIsTitleSafe );
+	SLATE_API void SetSafeAreaScale(FMargin InSafeAreaScale);
 
-	void SetSidesToPad( bool InPadLeft, bool InPadRight, bool InPadTop, bool InPadBottom );
+	SLATE_API void SetSidesToPad( bool InPadLeft, bool InPadRight, bool InPadTop, bool InPadBottom );
 
-	FMargin GetSafeMargin(float InLayoutScale) const;
+	SLATE_API FMargin GetSafeMargin(float InLayoutScale) const;
 
 #if WITH_EDITOR
-	void SetOverrideScreenInformation(TOptional<FVector2D> InScreenSize, TOptional<float> InOverrideDpiScale);
-	void DebugSafeAreaUpdated(const FMargin& NewSafeZone, bool bShouldRecacheMetrics);
+	SLATE_API void SetOverrideScreenInformation(TOptional<FVector2D> InScreenSize, TOptional<float> InOverrideDpiScale);
+	SLATE_API void DebugSafeAreaUpdated(const FMargin& NewSafeZone, bool bShouldRecacheMetrics);
 #endif
 
-	virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
-	virtual FVector2D ComputeDesiredSize(float LayoutScale) const override;
+	SLATE_API virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
+	SLATE_API virtual FVector2D ComputeDesiredSize(float LayoutScale) const override;
 
-	static void SetGlobalSafeZoneScale(TOptional<float> InScale);
-	static TOptional<float> GetGlobalSafeZoneScale();
+	static SLATE_API void SetGlobalSafeZoneScale(TOptional<float> InScale);
+	static SLATE_API TOptional<float> GetGlobalSafeZoneScale();
 
 private:
 

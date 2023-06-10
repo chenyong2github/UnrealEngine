@@ -12,7 +12,7 @@
 class FArrangedChildren;
 
 /** Arrange 3 widgets: the top track, bottom track, and thumb. */
-class SLATE_API SScrollBarTrack : public SPanel
+class SScrollBarTrack : public SPanel
 {
 public:
 	/** A ListPanel slot is very simple - it just stores a widget. */
@@ -50,7 +50,7 @@ public:
 	 *
 	 * @param InArgs  Declaration from which to construct the widget.
 	 */
-	void Construct(const FArguments& InArgs);
+	SLATE_API void Construct(const FArguments& InArgs);
 
 	struct FTrackSizeInfo
 	{
@@ -72,7 +72,7 @@ public:
 		}
 	};
 
-	FTrackSizeInfo GetTrackSizeInfo(const FGeometry& InTrackGeometry) const;
+	SLATE_API FTrackSizeInfo GetTrackSizeInfo(const FGeometry& InTrackGeometry) const;
 
 	/**
 	 * Panels arrange their children in a space described by the AllottedGeometry parameter. The results of the arrangement
@@ -81,7 +81,7 @@ public:
 	 * @param AllottedGeometry    The geometry allotted for this widget by its parent.
 	 * @param ArrangedChildren    The array to which to add the WidgetGeometries that represent the arranged children.
 	 */
-	virtual void OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const;
+	SLATE_API virtual void OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const;
 
 	/**
 	 * A Panel's desired size in the space required to arrange of its children on the screen while respecting all of
@@ -89,24 +89,24 @@ public:
 	 *
 	 * @return The desired size.
 	 */
-	virtual FVector2D ComputeDesiredSize(float) const;
+	SLATE_API virtual FVector2D ComputeDesiredSize(float) const;
 
 	/** @return  The children of a panel in a slot-agnostic way. */
-	virtual FChildren* GetChildren();
+	SLATE_API virtual FChildren* GetChildren();
 
-	void SetSizes(float InThumbOffsetFraction, float InThumbSizeFraction);
+	SLATE_API void SetSizes(float InThumbOffsetFraction, float InThumbSizeFraction);
 
-	bool IsNeeded() const;
+	SLATE_API bool IsNeeded() const;
 
-	float DistanceFromTop() const;
+	SLATE_API float DistanceFromTop() const;
 
-	float DistanceFromBottom() const;
+	SLATE_API float DistanceFromBottom() const;
 
-	float GetMinThumbSize() const;
+	SLATE_API float GetMinThumbSize() const;
 
-	float GetThumbSizeFraction() const;
+	SLATE_API float GetThumbSizeFraction() const;
 
-	void SetIsAlwaysVisible(bool InIsAlwaysVisible);
+	SLATE_API void SetIsAlwaysVisible(bool InIsAlwaysVisible);
 
 protected:
 

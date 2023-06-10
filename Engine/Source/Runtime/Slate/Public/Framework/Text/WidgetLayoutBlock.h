@@ -6,7 +6,7 @@
 #include "Framework/Text/IRun.h"
 #include "Framework/Text/ILayoutBlock.h"
 
-class SLATE_API FWidgetLayoutBlock : public ILayoutBlock
+class FWidgetLayoutBlock : public ILayoutBlock
 {
 public:
 

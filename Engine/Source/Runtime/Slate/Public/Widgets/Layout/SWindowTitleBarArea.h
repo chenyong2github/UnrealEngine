@@ -20,7 +20,7 @@ class SWindow;
 
 template< typename ObjectType > class TAttribute;
 
-class SLATE_API SWindowTitleBarArea
+class SWindowTitleBarArea
 	: public SPanel
 {
 public:
@@ -51,30 +51,30 @@ public:
 
 	SLATE_END_ARGS()
 
-	SWindowTitleBarArea();
+	SLATE_API SWindowTitleBarArea();
 
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 
-	virtual FVector2D ComputeDesiredSize(float) const override;
-	virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
-	virtual FChildren* GetChildren() override;
-	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
+	SLATE_API virtual FVector2D ComputeDesiredSize(float) const override;
+	SLATE_API virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
+	SLATE_API virtual FChildren* GetChildren() override;
+	SLATE_API virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
 
-	virtual FReply OnMouseButtonDoubleClick(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	SLATE_API virtual FReply OnMouseButtonDoubleClick(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 
-	virtual EWindowZone::Type GetWindowZoneOverride() const override;
+	SLATE_API virtual EWindowZone::Type GetWindowZoneOverride() const override;
 
 	/** See the Content slot. */
-	void SetContent(const TSharedRef< SWidget >& InContent);
+	SLATE_API void SetContent(const TSharedRef< SWidget >& InContent);
 
 	/** See HAlign argument */
-	void SetHAlign(EHorizontalAlignment HAlign);
+	SLATE_API void SetHAlign(EHorizontalAlignment HAlign);
 
 	/** See VAlign argument */
-	void SetVAlign(EVerticalAlignment VAlign);
+	SLATE_API void SetVAlign(EVerticalAlignment VAlign);
 
 	/** See Padding attribute */
-	void SetPadding(TAttribute<FMargin> InPadding);
+	SLATE_API void SetPadding(TAttribute<FMargin> InPadding);
 
 	void SetGameWindow(TSharedPtr<SWindow> Window)
 	{
@@ -118,25 +118,25 @@ private:
 	TSharedPtr<SWindow> GameWindow;
 	FSimpleDelegate RequestToggleFullscreen;
 
-	static FSimpleDelegate OnCloseButtonClicked;
-	static bool bIsCloseButtonActive;
+	static SLATE_API FSimpleDelegate OnCloseButtonClicked;
+	static SLATE_API bool bIsCloseButtonActive;
 
-	static FButtonStyle MinimizeButtonStyle;
-	static FButtonStyle MaximizeButtonStyle;
-	static FButtonStyle RestoreButtonStyle;
-	static FButtonStyle CloseButtonStyle;
+	static SLATE_API FButtonStyle MinimizeButtonStyle;
+	static SLATE_API FButtonStyle MaximizeButtonStyle;
+	static SLATE_API FButtonStyle RestoreButtonStyle;
+	static SLATE_API FButtonStyle CloseButtonStyle;
 
 	bool bIsMinimizeButtonEnabled;
 	bool bIsMaximizeRestoreButtonEnabled;
 	bool bIsCloseButtonEnabled;
 
-	FReply MinimizeButton_OnClicked();
-	FReply MaximizeRestoreButton_OnClicked();
-	FReply CloseButton_OnClicked();
+	SLATE_API FReply MinimizeButton_OnClicked();
+	SLATE_API FReply MaximizeRestoreButton_OnClicked();
+	SLATE_API FReply CloseButton_OnClicked();
 
-	const FSlateBrush* GetMinimizeImage() const;
-	const FSlateBrush* GetMaximizeRestoreImage() const;
-	const FSlateBrush* GetCloseImage() const;
+	SLATE_API const FSlateBrush* GetMinimizeImage() const;
+	SLATE_API const FSlateBrush* GetMaximizeRestoreImage() const;
+	SLATE_API const FSlateBrush* GetCloseImage() const;
 
 	TSharedPtr<SButton> MinimizeButton;
 	TSharedPtr<SButton> MaximizeRestoreButton;

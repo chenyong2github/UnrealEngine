@@ -18,7 +18,7 @@ class FArrangedChildren;
  * Items in this panel have a uniform height.
  * Also supports offsetting its items vertically.
  */
-class SLATE_API SListPanel : public SPanel
+class SListPanel : public SPanel
 {
 public:
 	/** A ListPanel slot is very simple - it just stores a widget. */
@@ -31,11 +31,11 @@ public:
 	};
 	
 	/** Make a new ListPanel::Slot  */
-	static FSlot::FSlotArguments Slot();
+	static SLATE_API FSlot::FSlotArguments Slot();
 	
 	using FScopedWidgetSlotArguments = TPanelChildren<FSlot>::FScopedWidgetSlotArguments;
 	/** Add a slot to the ListPanel */
-	FScopedWidgetSlotArguments AddSlot(int32 InsertAtIndex = INDEX_NONE);
+	SLATE_API FScopedWidgetSlotArguments AddSlot(int32 InsertAtIndex = INDEX_NONE);
 	
 	SLATE_BEGIN_ARGS( SListPanel )
 		: _ItemWidth(0)
@@ -57,68 +57,68 @@ public:
 
 	SLATE_END_ARGS()
 	
-	SListPanel();
+	SLATE_API SListPanel();
 
 	/**
 	 * Construct the widget
 	 *
 	 * @param InArgs   A declaration from which to construct the widget
 	 */
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 
 public:
 
 	// SWidget interface
-	virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
-	virtual FVector2D ComputeDesiredSize(float) const override;
-	virtual FChildren* GetAllChildren() override;
-	virtual FChildren* GetChildren() override;
-	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
+	SLATE_API virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
+	SLATE_API virtual FVector2D ComputeDesiredSize(float) const override;
+	SLATE_API virtual FChildren* GetAllChildren() override;
+	SLATE_API virtual FChildren* GetChildren() override;
+	SLATE_API virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
 	// End of SWidget interface
 
 	/** Fraction of the first line that we should offset by to account for the current scroll amount. */
-	void SetFirstLineScrollOffset(float InFirstLineScrollOffset);
+	SLATE_API void SetFirstLineScrollOffset(float InFirstLineScrollOffset);
 
 	/** Set how much we should appear to have scrolled past the beginning/end of the list. */
-	void SetOverscrollAmount( float InOverscrollAmount );
+	SLATE_API void SetOverscrollAmount( float InOverscrollAmount );
 	
 	/** Remove all the children from this panel */
-	void ClearItems();
+	SLATE_API void ClearItems();
 
 	/** @return the uniform desired item dimensions used when arranging children. */
-	FTableViewDimensions GetDesiredItemDimensions() const;
+	SLATE_API FTableViewDimensions GetDesiredItemDimensions() const;
 
 	/** @return the uniform item width used when arranging children. */
-	FTableViewDimensions GetItemSize(const FGeometry& AllottedGeometry) const;
+	SLATE_API FTableViewDimensions GetItemSize(const FGeometry& AllottedGeometry) const;
 
 	/** @return the uniform item width used when arranging children. */
-	FTableViewDimensions GetItemSize(const FGeometry& AllottedGeometry, const EListItemAlignment ListItemAlignment) const;
+	SLATE_API FTableViewDimensions GetItemSize(const FGeometry& AllottedGeometry, const EListItemAlignment ListItemAlignment) const;
 
 	/** @return the horizontal padding applied to each tile item */
-	float GetItemPadding(const FGeometry& AllottedGeometry) const;
+	SLATE_API float GetItemPadding(const FGeometry& AllottedGeometry) const;
 
 	/** @return the horizontal padding applied to each tile item */
-	float GetItemPadding(const FGeometry& AllottedGeometry, const EListItemAlignment ListItemAlignment) const;
+	SLATE_API float GetItemPadding(const FGeometry& AllottedGeometry, const EListItemAlignment ListItemAlignment) const;
 
 	/** @return the horizontal padding applied to all the items on a line */
-	float GetLinePadding(const FGeometry& AllottedGeometry, const int32 LineStartIndex) const;
+	SLATE_API float GetLinePadding(const FGeometry& AllottedGeometry, const int32 LineStartIndex) const;
 
 	/** Tells the list panel whether items in the list are pending a refresh */
-	void SetRefreshPending( bool IsPendingRefresh );
+	SLATE_API void SetRefreshPending( bool IsPendingRefresh );
 
 	/** Returns true if this list panel is pending a refresh, false otherwise */
-	bool IsRefreshPending() const;
+	SLATE_API bool IsRefreshPending() const;
 
 	/** See ItemHeight attribute */
-	void SetItemHeight(TAttribute<float> Height);
+	SLATE_API void SetItemHeight(TAttribute<float> Height);
 
 	/** See ItemWidth attribute */
-	void SetItemWidth(TAttribute<float> Width);
+	SLATE_API void SetItemWidth(TAttribute<float> Width);
 
 protected:
 
 	/** @return true if this panel should arrange items as tiles placed alongside one another in each line */
-	bool ShouldArrangeAsTiles() const;
+	SLATE_API bool ShouldArrangeAsTiles() const;
 	
 protected:
 

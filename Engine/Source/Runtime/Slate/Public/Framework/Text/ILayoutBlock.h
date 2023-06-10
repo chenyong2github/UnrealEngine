@@ -5,7 +5,7 @@
 #include "Framework/Text/IRun.h"
 #include "Framework/Text/IRunRenderer.h"
 
-class SLATE_API ILayoutBlock
+class ILayoutBlock
 {
 public:
 

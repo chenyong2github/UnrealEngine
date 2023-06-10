@@ -39,7 +39,7 @@ DECLARE_DELEGATE_TwoParams(FOnShowingSuggestions, const FString&, OUT TArray<FSt
 /**
  * Implements an editable text box that can show auto-complete histories and suggestions lists.
  */
-class SLATE_API SSuggestionTextBox
+class SSuggestionTextBox
 	: public SCompoundWidget
 {
 
@@ -129,7 +129,7 @@ public:
 public:
 
 	/** Default constructor. */
-	SSuggestionTextBox( );
+	SLATE_API SSuggestionTextBox( );
 
 public:
 
@@ -138,7 +138,7 @@ public:
 	 *
 	 * @param InArgs Declaration used by the SNew() macro to construct this widget.
 	 */
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 
 	/**
 	 * Returns the text string.
@@ -168,25 +168,25 @@ public:
 	 *
 	 * @param InNewText The new text string.
 	 */
-	void SetText( const TAttribute< FText >& InNewText );
+	SLATE_API void SetText( const TAttribute< FText >& InNewText );
 
 protected:
 	
 	/** Clears the list of suggestions and hides the suggestions list. */
-	void ClearSuggestions( );
+	SLATE_API void ClearSuggestions( );
 
 	/** Sets the keyboard focus to the text box. */
-	void FocusTextBox( );
+	SLATE_API void FocusTextBox( );
 
 	/**
 	 * Gets the string value of the currently selected suggestion.
 	 *
 	 * @return Suggestion string, or empty if no suggestion is selected.
 	 */
-	FString GetSelectedSuggestionString( ) const;
+	SLATE_API FString GetSelectedSuggestionString( ) const;
 
 	/** Highlights the selected suggestion in the suggestion list. */
-	void MarkActiveSuggestion( );
+	SLATE_API void MarkActiveSuggestion( );
 
 	/**
 	 * Sets the list of suggestions.
@@ -194,35 +194,35 @@ protected:
 	 * @param SuggestionStrings The suggestion strings.
 	 * @param InHistoryMode Whether the suggestions represent the input history.
 	 */
-	void SetSuggestions( TArray<FString>& SuggestionStrings, bool InHistoryMode );
+	SLATE_API void SetSuggestions( TArray<FString>& SuggestionStrings, bool InHistoryMode );
 
 protected:
 
 	// SWidget overrides
 
-	virtual void OnFocusLost( const FFocusEvent& InFocusEvent ) override;
-	virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& KeyEvent ) override;
-	virtual bool SupportsKeyboardFocus( ) const override;
+	SLATE_API virtual void OnFocusLost( const FFocusEvent& InFocusEvent ) override;
+	SLATE_API virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& KeyEvent ) override;
+	SLATE_API virtual bool SupportsKeyboardFocus( ) const override;
 
 private:
 
 	// Callback for generating a row widget for the suggestion list view.
-	TSharedRef<ITableRow> HandleSuggestionListViewGenerateRow( TSharedPtr<FString> Message, const TSharedRef<STableViewBase>& OwnerTable );
+	SLATE_API TSharedRef<ITableRow> HandleSuggestionListViewGenerateRow( TSharedPtr<FString> Message, const TSharedRef<STableViewBase>& OwnerTable );
 
 	// Callback for changing the selected suggestion.
-	void HandleSuggestionListViewSelectionChanged( TSharedPtr<FString> NewValue, ESelectInfo::Type SelectInfo );
+	SLATE_API void HandleSuggestionListViewSelectionChanged( TSharedPtr<FString> NewValue, ESelectInfo::Type SelectInfo );
 
 	// Callback for getting the highlight string in a suggestion list row widget.
-	FText HandleSuggestionListWidgetHighlightText( ) const;
+	SLATE_API FText HandleSuggestionListWidgetHighlightText( ) const;
 
 	// Callback for changing the text box input.
-	void HandleTextBoxTextChanged( const FText& InText );
+	SLATE_API void HandleTextBoxTextChanged( const FText& InText );
 
 	// Callback committing the text box input.
-	void HandleTextBoxTextCommitted( const FText& InText, ETextCommit::Type CommitInfo );
+	SLATE_API void HandleTextBoxTextCommitted( const FText& InText, ETextCommit::Type CommitInfo );
 
 	// Called when global focus changes so we can detect when to close the SuggestionList.
-	void OnGlobalFocusChanging(const FFocusEvent& FocusEvent, const FWeakWidgetPath& OldFocusedWidgetPath, const TSharedPtr<SWidget>& OldFocusedWidget, const FWidgetPath& NewFocusedWidgetPath, const TSharedPtr<SWidget>& NewFocusedWidget);
+	SLATE_API void OnGlobalFocusChanging(const FFocusEvent& FocusEvent, const FWeakWidgetPath& OldFocusedWidgetPath, const TSharedPtr<SWidget>& OldFocusedWidget, const FWidgetPath& NewFocusedWidgetPath, const TSharedPtr<SWidget>& NewFocusedWidget);
 
 private:
 

@@ -28,7 +28,7 @@ enum class ECursorAlignment : uint8
 };
 
 /** Store the information about the current cursor position */
-class SLATE_API FCursorInfo
+class FCursorInfo
 {
 public:
 	FCursorInfo()
@@ -70,19 +70,19 @@ public:
 	}
 
 	/** Update the last cursor interaction time to now */
-	void UpdateLastCursorInteractionTime();
+	SLATE_API void UpdateLastCursorInteractionTime();
 
 	/** Set the position of the cursor, and then work out the correct alignment based on the current text layout */
-	void SetCursorLocationAndCalculateAlignment(const FTextLayout& InTextLayout, const FTextLocation& InCursorPosition);
+	SLATE_API void SetCursorLocationAndCalculateAlignment(const FTextLayout& InTextLayout, const FTextLocation& InCursorPosition);
 
 	/** Set the literal position and alignment of the cursor */
-	void SetCursorLocationAndAlignment(const FTextLayout& InTextLayout, const FTextLocation& InCursorPosition, const ECursorAlignment InCursorAlignment);
+	SLATE_API void SetCursorLocationAndAlignment(const FTextLayout& InTextLayout, const FTextLocation& InCursorPosition, const ECursorAlignment InCursorAlignment);
 
 	/** Create an undo for this cursor data */
-	FCursorInfo CreateUndo() const;
+	SLATE_API FCursorInfo CreateUndo() const;
 
 	/** Restore this cursor data from an undo */
-	void RestoreFromUndo(const FCursorInfo& UndoData);
+	SLATE_API void RestoreFromUndo(const FCursorInfo& UndoData);
 
 private:
 	/** Current cursor position; there is always one. */
@@ -134,17 +134,17 @@ struct FScrollInfo
 };
 
 /** Run highlighter used to draw the cursor */
-class SLATE_API FCursorLineHighlighter : public ISlateLineHighlighter
+class FCursorLineHighlighter : public ISlateLineHighlighter
 {
 public:
-	static TSharedRef< FCursorLineHighlighter > Create(const FCursorInfo* InCursorInfo);
+	static SLATE_API TSharedRef< FCursorLineHighlighter > Create(const FCursorInfo* InCursorInfo);
 
-	void SetCursorBrush(const TAttribute<const FSlateBrush*>& InCursorBrush);
+	SLATE_API void SetCursorBrush(const TAttribute<const FSlateBrush*>& InCursorBrush);
 
-	virtual int32 OnPaint(const FPaintArgs& Args, const FTextLayout::FLineView& Line, const float OffsetX, const float Width, const FTextBlockStyle& DefaultStyle, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
+	SLATE_API virtual int32 OnPaint(const FPaintArgs& Args, const FTextLayout::FLineView& Line, const float OffsetX, const float Width, const FTextBlockStyle& DefaultStyle, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
 
 protected:
-	FCursorLineHighlighter(const FCursorInfo* InCursorInfo);
+	SLATE_API FCursorLineHighlighter(const FCursorInfo* InCursorInfo);
 
 	/** Cursor data that this highlighter is tracking */
 	const FCursorInfo* CursorInfo;
@@ -154,29 +154,29 @@ protected:
 };
 
 /** Run highlighter used to draw the composition range */
-class SLATE_API FTextCompositionHighlighter : public ISlateLineHighlighter
+class FTextCompositionHighlighter : public ISlateLineHighlighter
 {
 public:
-	static TSharedRef< FTextCompositionHighlighter > Create();
+	static SLATE_API TSharedRef< FTextCompositionHighlighter > Create();
 
-	void SetCompositionBrush(const TAttribute<const FSlateBrush*>& InCompositionBrush);
+	SLATE_API void SetCompositionBrush(const TAttribute<const FSlateBrush*>& InCompositionBrush);
 
-	virtual int32 OnPaint(const FPaintArgs& Args, const FTextLayout::FLineView& Line, const float OffsetX, const float Width, const FTextBlockStyle& DefaultStyle, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
+	SLATE_API virtual int32 OnPaint(const FPaintArgs& Args, const FTextLayout::FLineView& Line, const float OffsetX, const float Width, const FTextBlockStyle& DefaultStyle, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
 
 protected:
-	FTextCompositionHighlighter();
+	SLATE_API FTextCompositionHighlighter();
 
 	/** Brush used to draw the composition highlight */
 	TAttribute<const FSlateBrush*> CompositionBrush;
 };
 
 /** Run highlighter used to draw selection ranges */
-class SLATE_API FTextSelectionHighlighter : public ISlateLineHighlighter
+class FTextSelectionHighlighter : public ISlateLineHighlighter
 {
 public:
-	static TSharedRef< FTextSelectionHighlighter > Create();
+	static SLATE_API TSharedRef< FTextSelectionHighlighter > Create();
 
-	virtual int32 OnPaint(const FPaintArgs& Args, const FTextLayout::FLineView& Line, const float OffsetX, const float Width, const FTextBlockStyle& DefaultStyle, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
+	SLATE_API virtual int32 OnPaint(const FPaintArgs& Args, const FTextLayout::FLineView& Line, const float OffsetX, const float Width, const FTextBlockStyle& DefaultStyle, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
 
 	void SetHasKeyboardFocus(const bool bInHasKeyboardFocus)
 	{
@@ -184,19 +184,19 @@ public:
 	}
 
 protected:
-	FTextSelectionHighlighter();
+	SLATE_API FTextSelectionHighlighter();
 
 	/** true if the parent widget has keyboard focus, false otherwise */
 	bool bHasKeyboardFocus;
 };
 
 /** Run highlighter used to draw search ranges */
-class SLATE_API FTextSearchHighlighter : public ISlateLineHighlighter
+class FTextSearchHighlighter : public ISlateLineHighlighter
 {
 public:
-	static TSharedRef< FTextSearchHighlighter > Create();
+	static SLATE_API TSharedRef< FTextSearchHighlighter > Create();
 
-	virtual int32 OnPaint(const FPaintArgs& Args, const FTextLayout::FLineView& Line, const float OffsetX, const float Width, const FTextBlockStyle& DefaultStyle, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
+	SLATE_API virtual int32 OnPaint(const FPaintArgs& Args, const FTextLayout::FLineView& Line, const float OffsetX, const float Width, const FTextBlockStyle& DefaultStyle, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
 
 	void SetHasKeyboardFocus(const bool bInHasKeyboardFocus)
 	{
@@ -204,7 +204,7 @@ public:
 	}
 
 protected:
-	FTextSearchHighlighter();
+	SLATE_API FTextSearchHighlighter();
 
 	/** true if the parent widget has keyboard focus, false otherwise */
 	bool bHasKeyboardFocus;

@@ -26,7 +26,7 @@ DECLARE_DELEGATE_OneParam( FOnCheckStateChanged, ECheckBoxState );
 /**
  * Check box Slate control
  */
-class SLATE_API SCheckBox : public SCompoundWidget
+class SCheckBox : public SCompoundWidget
 {
 public:
 
@@ -153,28 +153,28 @@ public:
 
 	SLATE_END_ARGS()
 
-	SCheckBox();
+	SLATE_API SCheckBox();
 
 	/**
 	 * Construct this widget
 	 *
 	 * @param	InArgs	The declaration data for this widget
 	 */
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 
 	// SWidget interface
-	virtual bool SupportsKeyboardFocus() const override;
-	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
-	virtual FReply OnKeyUp( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
-	virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnMouseButtonDoubleClick( const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent ) override;
-	virtual FReply OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual void OnMouseEnter( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual void OnMouseLeave( const FPointerEvent& MouseEvent ) override;
-	virtual bool IsInteractable() const override;
-	virtual FSlateColor GetForegroundColor() const;
+	SLATE_API virtual bool SupportsKeyboardFocus() const override;
+	SLATE_API virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+	SLATE_API virtual FReply OnKeyUp( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
+	SLATE_API virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual FReply OnMouseButtonDoubleClick( const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent ) override;
+	SLATE_API virtual FReply OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual void OnMouseEnter( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual void OnMouseLeave( const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual bool IsInteractable() const override;
+	SLATE_API virtual FSlateColor GetForegroundColor() const;
 #if WITH_ACCESSIBILITY
-	virtual TSharedRef<FSlateAccessibleWidget> CreateAccessibleWidget() override;
+	SLATE_API virtual TSharedRef<FSlateAccessibleWidget> CreateAccessibleWidget() override;
 #endif
 	// End of SWidget interface
 
@@ -189,7 +189,7 @@ public:
 	}
 
 	/** @return The current checked state of the checkbox. */
-	ECheckBoxState GetCheckedState() const;
+	SLATE_API ECheckBoxState GetCheckedState() const;
 
 	/**
 	 * Returns true if this button is currently pressed
@@ -204,78 +204,78 @@ public:
 	/**
 	 * Toggles the checked state for this check box, fire events as needed
 	 */
-	void ToggleCheckedState();
+	SLATE_API void ToggleCheckedState();
 
 	/** See the IsChecked attribute */
-	void SetIsChecked(TAttribute<ECheckBoxState> InIsChecked);
+	SLATE_API void SetIsChecked(TAttribute<ECheckBoxState> InIsChecked);
 	
 	/** See the Content slot */
-	void SetContent(const TSharedRef< SWidget >& InContent);
+	SLATE_API void SetContent(const TSharedRef< SWidget >& InContent);
 	
 	/** See the Style attribute */
-	void SetStyle(const FCheckBoxStyle* InStyle);
+	SLATE_API void SetStyle(const FCheckBoxStyle* InStyle);
 	
 	/** See the UncheckedImage attribute */
-	void SetUncheckedImage(const FSlateBrush* Brush);
+	SLATE_API void SetUncheckedImage(const FSlateBrush* Brush);
 	/** See the UncheckedHoveredImage attribute */
-	void SetUncheckedHoveredImage(const FSlateBrush* Brush);
+	SLATE_API void SetUncheckedHoveredImage(const FSlateBrush* Brush);
 	/** See the UncheckedPressedImage attribute */
-	void SetUncheckedPressedImage(const FSlateBrush* Brush);
+	SLATE_API void SetUncheckedPressedImage(const FSlateBrush* Brush);
 	
 	/** See the CheckedImage attribute */
-	void SetCheckedImage(const FSlateBrush* Brush);
+	SLATE_API void SetCheckedImage(const FSlateBrush* Brush);
 	/** See the CheckedHoveredImage attribute */
-	void SetCheckedHoveredImage(const FSlateBrush* Brush);
+	SLATE_API void SetCheckedHoveredImage(const FSlateBrush* Brush);
 	/** See the CheckedPressedImage attribute */
-	void SetCheckedPressedImage(const FSlateBrush* Brush);
+	SLATE_API void SetCheckedPressedImage(const FSlateBrush* Brush);
 	
 	/** See the UndeterminedImage attribute */
-	void SetUndeterminedImage(const FSlateBrush* Brush);
+	SLATE_API void SetUndeterminedImage(const FSlateBrush* Brush);
 	/** See the UndeterminedHoveredImage attribute */
-	void SetUndeterminedHoveredImage(const FSlateBrush* Brush);
+	SLATE_API void SetUndeterminedHoveredImage(const FSlateBrush* Brush);
 	/** See the UndeterminedPressedImage attribute */
-	void SetUndeterminedPressedImage(const FSlateBrush* Brush);
+	SLATE_API void SetUndeterminedPressedImage(const FSlateBrush* Brush);
 
-	void SetClickMethod(EButtonClickMethod::Type InClickMethod);
-	void SetTouchMethod(EButtonTouchMethod::Type InTouchMethod);
-	void SetPressMethod(EButtonPressMethod::Type InPressMethod);
+	SLATE_API void SetClickMethod(EButtonClickMethod::Type InClickMethod);
+	SLATE_API void SetTouchMethod(EButtonTouchMethod::Type InTouchMethod);
+	SLATE_API void SetPressMethod(EButtonPressMethod::Type InPressMethod);
 
 protected:
 
 	/** Rebuilds the checkbox based on the current ESlateCheckBoxType */
-	void BuildCheckBox(TSharedRef<SWidget> InContent);
+	SLATE_API void BuildCheckBox(TSharedRef<SWidget> InContent);
 
 	/** Attribute getter for the padding */
-	FMargin OnGetPadding() const;
+	SLATE_API FMargin OnGetPadding() const;
 	/** Attribute getter for the border background color */
-	FSlateColor OnGetBorderBackgroundColor() const;
+	SLATE_API FSlateColor OnGetBorderBackgroundColor() const;
 	/** Attribute getter for the checkbox type */
-	ESlateCheckBoxType::Type OnGetCheckBoxType() const;
+	SLATE_API ESlateCheckBoxType::Type OnGetCheckBoxType() const;
 
 	/**
 	 * Gets the check image to display for the current state of the check box
 	 * @return	The name of the image to display
 	 */
-	const FSlateBrush* OnGetCheckImage() const;
+	SLATE_API const FSlateBrush* OnGetCheckImage() const;
 	
-	const FSlateBrush* GetUncheckedImage() const;
-	const FSlateBrush* GetUncheckedHoveredImage() const;
-	const FSlateBrush* GetUncheckedPressedImage() const;
+	SLATE_API const FSlateBrush* GetUncheckedImage() const;
+	SLATE_API const FSlateBrush* GetUncheckedHoveredImage() const;
+	SLATE_API const FSlateBrush* GetUncheckedPressedImage() const;
 	
-	const FSlateBrush* GetCheckedImage() const;
-	const FSlateBrush* GetCheckedHoveredImage() const;
-	const FSlateBrush* GetCheckedPressedImage() const;
+	SLATE_API const FSlateBrush* GetCheckedImage() const;
+	SLATE_API const FSlateBrush* GetCheckedHoveredImage() const;
+	SLATE_API const FSlateBrush* GetCheckedPressedImage() const;
 	
-	const FSlateBrush* GetUndeterminedImage() const;
-	const FSlateBrush* GetUndeterminedHoveredImage() const;
-	const FSlateBrush* GetUndeterminedPressedImage() const;
+	SLATE_API const FSlateBrush* GetUndeterminedImage() const;
+	SLATE_API const FSlateBrush* GetUndeterminedHoveredImage() const;
+	SLATE_API const FSlateBrush* GetUndeterminedPressedImage() const;
 
 	/** Attribute getter for the background image */
-	const FSlateBrush* OnGetBackgroundImage() const;
+	SLATE_API const FSlateBrush* OnGetBackgroundImage() const;
 
-	const FSlateBrush* GetBackgroundImage() const;
-	const FSlateBrush* GetBackgroundHoveredImage() const;
-	const FSlateBrush* GetBackgroundPressedImage() const;
+	SLATE_API const FSlateBrush* GetBackgroundImage() const;
+	SLATE_API const FSlateBrush* GetBackgroundHoveredImage() const;
+	SLATE_API const FSlateBrush* GetBackgroundPressedImage() const;
 
 	
 protected:
@@ -347,19 +347,19 @@ protected:
 	FOnGetContent OnGetMenuContent;
 
 	/** Play the checked sound */
-	void PlayCheckedSound() const;
+	SLATE_API void PlayCheckedSound() const;
 
 	/** Play the unchecked sound */
-	void PlayUncheckedSound() const;
+	SLATE_API void PlayUncheckedSound() const;
 
 	/** Play the hovered sound */
-	void PlayHoverSound() const;
+	SLATE_API void PlayHoverSound() const;
 
 	/** Utility function to translate other input click methods to regular ones. */
-	TEnumAsByte<EButtonClickMethod::Type> GetClickMethodFromInputType(const FPointerEvent& MouseEvent) const;
+	SLATE_API TEnumAsByte<EButtonClickMethod::Type> GetClickMethodFromInputType(const FPointerEvent& MouseEvent) const;
 
 	/** Utility function to determine if the incoming mouse event is for a precise tap or click */
-	bool IsPreciseTapOrClick(const FPointerEvent& MouseEvent) const;
+	SLATE_API bool IsPreciseTapOrClick(const FPointerEvent& MouseEvent) const;
 
 	/** The Sound to play when the check box is hovered  */
 	FSlateSound HoveredSound;

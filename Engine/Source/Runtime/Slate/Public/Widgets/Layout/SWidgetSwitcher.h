@@ -18,7 +18,7 @@ class FArrangedChildren;
  *
  * A widget switcher is like a tab control, but without tabs. At most one widget is visible at time.
  */
-class SLATE_API SWidgetSwitcher
+class SWidgetSwitcher
 	: public SPanel
 {
 public:
@@ -38,7 +38,7 @@ public:
 
 	SLATE_END_ARGS()
 
-	SWidgetSwitcher();
+	SLATE_API SWidgetSwitcher();
 
 public:
 
@@ -48,19 +48,19 @@ public:
 	 *
 	 * @param SlotIndex The index at which to insert the slot, or INDEX_NONE to append.
 	 */
-	FScopedWidgetSlotArguments AddSlot( int32 SlotIndex = INDEX_NONE );
+	SLATE_API FScopedWidgetSlotArguments AddSlot( int32 SlotIndex = INDEX_NONE );
 
 	/**
 	 * Constructs the widget.
 	 */
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 
 	/**
 	 * Gets the active widget.
 	 *
 	 * @return Active widget.
 	 */
-	TSharedPtr<SWidget> GetActiveWidget( ) const;
+	SLATE_API TSharedPtr<SWidget> GetActiveWidget( ) const;
 
 	/**
 	 * Gets the slot index of the currently active widget.
@@ -88,7 +88,7 @@ public:
 	 * @param SlotIndex The slot index of the widget to get.
 	 * @return The widget, or nullptr if the slot does not exist.
 	 */
-	TSharedPtr<SWidget> GetWidget( int32 SlotIndex ) const;
+	SLATE_API TSharedPtr<SWidget> GetWidget( int32 SlotIndex ) const;
 
 	/**
 	 * Gets the slot index of the specified widget.
@@ -96,14 +96,14 @@ public:
 	 * @param Widget The widget to get the index for.
 	 * @return The slot index, or INDEX_NONE if the widget does not exist.
 	 */
-	int32 GetWidgetIndex( TSharedRef<SWidget> Widget ) const;
+	SLATE_API int32 GetWidgetIndex( TSharedRef<SWidget> Widget ) const;
 
 	/**
 	 * Removes a slot with the corresponding widget in it.  Returns the index where the widget was found, otherwise -1.
 	 *
 	 * @param Widget The widget to find and remove.
 	 */
-	int32 RemoveSlot( TSharedRef<SWidget> WidgetToRemove );
+	SLATE_API int32 RemoveSlot( TSharedRef<SWidget> WidgetToRemove );
 
 	/**
 	 * Sets the active widget.
@@ -120,9 +120,9 @@ public:
 	 *
 	 * @param Index The slot index.
 	 */
-	void SetActiveWidgetIndex( int32 Index );
+	SLATE_API void SetActiveWidgetIndex( int32 Index );
 
-	virtual bool ValidatePathToChild(SWidget* InChild) override;
+	SLATE_API virtual bool ValidatePathToChild(SWidget* InChild) override;
 
 public:
 
@@ -131,17 +131,17 @@ public:
 	 *
 	 * @return A new slot.
 	 */
-	static FSlot::FSlotArguments Slot();
+	static SLATE_API FSlot::FSlotArguments Slot();
 
 protected:
 
 	// SCompoundWidget interface
 
-	virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
-	virtual FVector2D ComputeDesiredSize( float ) const override;
-	virtual FChildren* GetChildren( ) override;
+	SLATE_API virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
+	SLATE_API virtual FVector2D ComputeDesiredSize( float ) const override;
+	SLATE_API virtual FChildren* GetChildren( ) override;
 	virtual bool ComputeVolatility() const override { return WidgetIndex.IsBound(); }
-	const FSlot* GetActiveSlot() const;
+	SLATE_API const FSlot* GetActiveSlot() const;
 
 	TPanelChildren<FSlot>& GetTypedChildren() { return AllChildren; }
 

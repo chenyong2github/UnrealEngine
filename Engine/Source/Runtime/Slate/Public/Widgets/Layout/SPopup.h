@@ -10,7 +10,7 @@ class FPaintArgs;
 class FSlateWindowElementList;
 
 /** A popup's contents show up on top of other things. */
-class SLATE_API SPopup : public SCompoundWidget
+class SPopup : public SCompoundWidget
 {
 public:
 
@@ -29,10 +29,10 @@ public:
 		bCanSupportFocus = false;
 	}
 
-	void Construct(const FArguments& InArgs);
+	SLATE_API void Construct(const FArguments& InArgs);
 
 private:
 
-	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
+	SLATE_API virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
 
 };

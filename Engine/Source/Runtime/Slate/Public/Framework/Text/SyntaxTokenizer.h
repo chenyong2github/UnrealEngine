@@ -8,7 +8,7 @@
 #include "Templates/SharedPointer.h"
 #include "Templates/UnrealTemplate.h"
 
-class SLATE_API ISyntaxTokenizer
+class ISyntaxTokenizer
 {
 public:
 	/** Denotes the type of token */
@@ -48,7 +48,7 @@ public:
 /**
  * Tokenize the text based upon the given rule set
  */
-class SLATE_API FSyntaxTokenizer : public ISyntaxTokenizer
+class FSyntaxTokenizer : public ISyntaxTokenizer
 {
 public:
 	/** Rule used to match syntax token types */
@@ -66,11 +66,11 @@ public:
 	 * Create a new tokenizer which will use the given rules to match syntax tokens
 	 * @param InRules Rules to control the tokenizer, processed in-order so the most greedy matches must come first
 	 */
-	static TSharedRef< FSyntaxTokenizer > Create(TArray<FRule> InRules);
+	static SLATE_API TSharedRef< FSyntaxTokenizer > Create(TArray<FRule> InRules);
 
-	virtual ~FSyntaxTokenizer();
+	SLATE_API virtual ~FSyntaxTokenizer();
 
-	virtual void Process(TArray<FTokenizedLine>& OutTokenizedLines, const FString& Input) override;
+	SLATE_API virtual void Process(TArray<FTokenizedLine>& OutTokenizedLines, const FString& Input) override;
 
 private:
 

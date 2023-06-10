@@ -8,7 +8,7 @@ class FTextLayout;
 /**
  * Interface used to get/set the raw text to/from a text layout
  */
-class SLATE_API ITextLayoutMarshaller
+class ITextLayoutMarshaller
 {
 public:
 

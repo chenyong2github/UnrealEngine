@@ -46,7 +46,7 @@ class FMenuBuilder;
  * A tab widget that also holds on to some content that should be shown when this tab is selected.
  * Intended to be used in conjunction with SDockingTabStack.
  */
-class SLATE_API SDockTab : public SBorder
+class SDockTab : public SBorder
 {
 	friend class FTabManager;
 	friend class STabSidebar;
@@ -125,196 +125,196 @@ public:
 
 
 	/** Construct the widget from the declaration. */
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 
 	// SWidget interface
-	virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnMouseButtonDoubleClick( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnDragDetected( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent  ) override;
-	virtual FReply OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual void OnDragEnter( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
-	virtual void OnDragLeave( const FDragDropEvent& DragDropEvent ) override;
-	virtual FReply OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
-	virtual FReply OnTouchStarted( const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent ) override;
-	virtual FReply OnTouchEnded( const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent ) override;
+	SLATE_API virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual FReply OnMouseButtonDoubleClick( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual FReply OnDragDetected( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent  ) override;
+	SLATE_API virtual FReply OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual void OnDragEnter( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
+	SLATE_API virtual void OnDragLeave( const FDragDropEvent& DragDropEvent ) override;
+	SLATE_API virtual FReply OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
+	SLATE_API virtual FReply OnTouchStarted( const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent ) override;
+	SLATE_API virtual FReply OnTouchEnded( const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent ) override;
 	// End of SWidget interface
 
 	// SBorder interface
-	virtual void SetContent(TSharedRef<SWidget> InContent) override;
+	SLATE_API virtual void SetContent(TSharedRef<SWidget> InContent) override;
 	// End of SBorder interface
 
 	/** Content that appears in the TabWell to the left of the tabs */
-	void SetLeftContent(TSharedRef<SWidget> InContent);
+	SLATE_API void SetLeftContent(TSharedRef<SWidget> InContent);
 	/** Content that appears in the TabWell to the right of the tabs */
-	void SetRightContent(TSharedRef<SWidget> InContent);
+	SLATE_API void SetRightContent(TSharedRef<SWidget> InContent);
 	/** Content that appears on the right side of the title bar in the window this stack is in */
-	void SetTitleBarRightContent(TSharedRef<SWidget> InContent);
+	SLATE_API void SetTitleBarRightContent(TSharedRef<SWidget> InContent);
 
 	/** @return True if this tab is currently focused */
-	bool IsActive() const;
+	SLATE_API bool IsActive() const;
 
 	/** @return True if this tab appears active; False otherwise */
-	bool IsForeground() const;
+	SLATE_API bool IsForeground() const;
 
 	/** @return the Foreground color that this widget sets; unset options if the widget does not set a foreground color */
-	virtual FSlateColor GetForegroundColor() const;
+	SLATE_API virtual FSlateColor GetForegroundColor() const;
 
 	/** Add any entries specific to this tab to the tab context menu */
-	void ExtendContextMenu(FMenuBuilder& MenuBuilder);
+	SLATE_API void ExtendContextMenu(FMenuBuilder& MenuBuilder);
 
 	/** Is this an MajorTab? A tool panel tab? */
-	ETabRole GetTabRole() const;
+	SLATE_API ETabRole GetTabRole() const;
 
 	/** Similar to GetTabRole() but returns the correct role for UI style and user input purposes */
-	ETabRole GetVisualTabRole() const;
+	SLATE_API ETabRole GetVisualTabRole() const;
 
 	/**
 	 * What should the content area look like for this type of tab?
 	 * Documents, Apps, and Tool Panels have different backgrounds.
 	 */
-	const FSlateBrush* GetContentAreaBrush() const;
+	SLATE_API const FSlateBrush* GetContentAreaBrush() const;
 
 	/** Depending on the tabs we put into the tab well, we want a different background brush. */
-	const FSlateBrush* GetTabWellBrush() const;
+	SLATE_API const FSlateBrush* GetTabWellBrush() const;
 
 	/** @return the content associated with this tab */
-	TSharedRef<SWidget> GetContent();
-	TSharedRef<SWidget> GetLeftContent();
-	TSharedRef<SWidget> GetRightContent();
-	TSharedRef<SWidget> GetTitleBarRightContent();
+	SLATE_API TSharedRef<SWidget> GetContent();
+	SLATE_API TSharedRef<SWidget> GetLeftContent();
+	SLATE_API TSharedRef<SWidget> GetRightContent();
+	SLATE_API TSharedRef<SWidget> GetTitleBarRightContent();
 
 	/** Padding around the content when it is presented by the SDockingTabStack */
-	FMargin GetContentPadding() const;
+	SLATE_API FMargin GetContentPadding() const;
 
 	/** Gets this tab's layout identifier */
-	const FTabId GetLayoutIdentifier() const;
+	SLATE_API const FTabId GetLayoutIdentifier() const;
 
 	/** Sets the tab's tab well parent, or resets it if nothing is passed in */
-	void SetParent(TSharedPtr<SDockingTabWell> Parent = TSharedPtr<SDockingTabWell>());
+	SLATE_API void SetParent(TSharedPtr<SDockingTabWell> Parent = TSharedPtr<SDockingTabWell>());
 
 	/** Gets the tab's tab well parent, or nothing, if it has none */
-	TSharedPtr<SDockingTabWell> GetParent() const;
+	SLATE_API TSharedPtr<SDockingTabWell> GetParent() const;
 
 	/** Gets the dock tab stack this dockable tab resides within, if any */
-	TSharedPtr<SDockingTabStack> GetParentDockTabStack() const;
+	SLATE_API TSharedPtr<SDockingTabStack> GetParentDockTabStack() const;
 
 	/** Gets the dock area that this resides in */
-	TSharedPtr<class SDockingArea> GetDockArea() const;
+	SLATE_API TSharedPtr<class SDockingArea> GetDockArea() const;
 
 	/** Get the window in which this tab's tabmanager has placed it */
-	TSharedPtr<SWindow> GetParentWindow() const;
+	SLATE_API TSharedPtr<SWindow> GetParentWindow() const;
 
 	/** The width that this tab will overlap with side-by-side tabs. */
-	float GetOverlapWidth() const;
+	SLATE_API float GetOverlapWidth() const;
 
 	/** The label on the tab */
-	FText GetTabLabel() const;
+	SLATE_API FText GetTabLabel() const;
 
 	/** The label that appears on the tab. */
-	void SetLabel( const TAttribute<FText>& InTabLabel );
+	SLATE_API void SetLabel( const TAttribute<FText>& InTabLabel );
 
 	/** Get Label Suffix */
-	FText GetTabLabelSuffix() const;
+	SLATE_API FText GetTabLabelSuffix() const;
 
 	/** Set Label Suffix.  A second text field at the end of the Label that takes precedence and isn't lost when space is restricted */
-	void SetTabLabelSuffix(const TAttribute<FText>& InTabLabelSuffix);
+	SLATE_API void SetTabLabelSuffix(const TAttribute<FText>& InTabLabelSuffix);
 
 	/** The tooltip text that appears on the tab. */
-	void SetTabToolTipWidget(TSharedPtr<SToolTip> InTabToolTipWidget);
+	SLATE_API void SetTabToolTipWidget(TSharedPtr<SToolTip> InTabToolTipWidget);
 
 	/** Gets the tab icon */
-	const FSlateBrush* GetTabIcon() const;
+	SLATE_API const FSlateBrush* GetTabIcon() const;
 
 	/** Sets the tab icon */
-	void SetTabIcon( const TAttribute<const FSlateBrush*> InTabIcon );
+	SLATE_API void SetTabIcon( const TAttribute<const FSlateBrush*> InTabIcon );
 
 	/** Should this tab be sized based on its content. */
-	bool ShouldAutosize() const;
+	SLATE_API bool ShouldAutosize() const;
 
 	/** Set whether this tab should be sized based on its content. */
-	void SetShouldAutosize(const bool bNewShouldAutosize);
+	SLATE_API void SetShouldAutosize(const bool bNewShouldAutosize);
 
 	/** @return true if the tab can be closed right now. Example: Callback could ask user via dialog. */
-	bool CanCloseTab() const;
+	SLATE_API bool CanCloseTab() const;
 
 	/** Requests that the tab be closed.  Tabs may prevent closing depending on their state */	
-	bool RequestCloseTab();
+	SLATE_API bool RequestCloseTab();
 
 	/** A chance for the tab's content to save any internal layout info */
-	void PersistVisualState();
+	SLATE_API void PersistVisualState();
 
 	/** 
 	 * Pulls this tab out of it's parent tab stack and destroys it
 	 * Note: This does not check if its safe to remove the tab.  Use RequestCloseTab to do this safely.
 	 */
-	void RemoveTabFromParent();
+	SLATE_API void RemoveTabFromParent();
 
 	/** Protected constructor; Widgets may only be constructed via a FArguments (i.e.: SNew(SDockTab) ) */
-	SDockTab();
+	SLATE_API SDockTab();
 
 	/** 
 	 * Make this tab active in its tabwell 
 	 * @param	InActivationMethod	How this tab was activated.
 	 */
-	void ActivateInParent(ETabActivationCause InActivationCause);
+	SLATE_API void ActivateInParent(ETabActivationCause InActivationCause);
 
 	/** Set the tab manager that is controlling this tab */
-	void SetTabManager( const TSharedPtr<FTabManager>& InTabManager );
+	SLATE_API void SetTabManager( const TSharedPtr<FTabManager>& InTabManager );
 
 	/**
 	 * Set the custom code to execute for saving visual state in this tab.
 	 * e.g. ContentBrowser saves the visible filters.OnExtendContextMenu
 	 */
-	void SetOnPersistVisualState( const FOnPersistVisualState& Handler );
+	SLATE_API void SetOnPersistVisualState( const FOnPersistVisualState& Handler );
 
 	/** Set the handler to be invoked when the user requests that this tab be closed. */
-	void SetCanCloseTab( const FCanCloseTab& InOnTabClosing );
+	SLATE_API void SetCanCloseTab( const FCanCloseTab& InOnTabClosing );
 
 	/** Set the handler that will be invoked when the tab is closed */
-	void SetOnTabClosed( const FOnTabClosedCallback& InDelegate );
+	SLATE_API void SetOnTabClosed( const FOnTabClosedCallback& InDelegate );
 
 	/** Set the handler that will be invoked when the tab is activated */
-	void SetOnTabActivated( const FOnTabActivatedCallback& InDelegate );
+	SLATE_API void SetOnTabActivated( const FOnTabActivatedCallback& InDelegate );
 
 	/** Set the handler that will be invoked when the tab is relocated to a new tab well */
-	void SetOnTabRelocated(const FSimpleDelegate InDelegate);
+	SLATE_API void SetOnTabRelocated(const FSimpleDelegate InDelegate);
 
 	/** Set the handler that will be invoked when the tab is dragged over dock area */
-	void SetOnTabDraggedOverDockArea(const FSimpleDelegate InDelegate);
+	SLATE_API void SetOnTabDraggedOverDockArea(const FSimpleDelegate InDelegate);
 
 	/** Set the handler that will be invoked when the tab is renamed */
-	void SetOnTabRenamed(const FOnTabRenamed& InDelegate);
+	SLATE_API void SetOnTabRenamed(const FOnTabRenamed& InDelegate);
 
 	/** Set the handler that will be invoked when the tab is opened from a drawer */
-	void SetOnTabDrawerOpened(const FSimpleDelegate InDelegate);
+	SLATE_API void SetOnTabDrawerOpened(const FSimpleDelegate InDelegate);
 
 	/** Set the handler that will be invoked when the tab is closed from a drawer */
-	void SetOnTabDrawerClosed(const FSimpleDelegate InDelegate);
+	SLATE_API void SetOnTabDrawerClosed(const FSimpleDelegate InDelegate);
 
 	/** Set the handler for extending the tab context menu */
-	void SetOnExtendContextMenu( const FExtendContextMenu& Handler );
+	SLATE_API void SetOnExtendContextMenu( const FExtendContextMenu& Handler );
 
 	/** Get the tab manager currently managing this tab. Note that a user move the tab between Tab Managers, so this return value may change. */
 	UE_DEPRECATED(5.0, "The tab manager is not guaranteed to exist, which will cause GetTabManager() to crash. Use GetTabManagerPtr() instead.")
-	TSharedRef<FTabManager> GetTabManager() const;
+	SLATE_API TSharedRef<FTabManager> GetTabManager() const;
 
 	/** Get the tab manager currently managing this tab. Note that a user move the tab between Tab Managers, so this return value may change. */
-	TSharedPtr<FTabManager> GetTabManagerPtr() const;
+	SLATE_API TSharedPtr<FTabManager> GetTabManagerPtr() const;
 
 	/** Draws attention to the tab. */
-	void DrawAttention();
+	SLATE_API void DrawAttention();
 
 	/** Provide a default tab label in case the spawner did not set one. */
-	void ProvideDefaultLabel( const FText& InDefaultLabel );
+	SLATE_API void ProvideDefaultLabel( const FText& InDefaultLabel );
 
 	/** Play an animation showing this tab as opening */
-	void PlaySpawnAnim();
+	SLATE_API void PlaySpawnAnim();
 
 	/** Flash the tab, used for drawing attention to it */
-	void FlashTab();
+	SLATE_API void FlashTab();
 
 	/** Used by the drag/drop operation to signal to this tab what it is dragging over. */
-	void SetDraggedOverDockArea( const TSharedPtr<SDockingArea>& Area );
+	SLATE_API void SetDraggedOverDockArea( const TSharedPtr<SDockingArea>& Area );
 
 	/** 
 	 * Check to see whether this tab has a sibling tab with the given tab ID
@@ -324,10 +324,10 @@ public:
 	 *										If true, we will consider this a "wildcard" search (matching any tab with the correct TabType, regardless 
 	 *										of its InstanceId). If false, we will explicitly look for a tab with an InstanceId of INDEX_NONE
 	 */
-	bool HasSiblingTab(const FTabId& SiblingTabId, const bool TreatIndexNoneAsWildcard = true) const;
+	SLATE_API bool HasSiblingTab(const FTabId& SiblingTabId, const bool TreatIndexNoneAsWildcard = true) const;
 
 	/** Updates the 'last activated' time to the current time */
-	void UpdateActivationTime();
+	SLATE_API void UpdateActivationTime();
 
 	/** Returns the time this tab was last activated */
 	double GetLastActivationTime()
@@ -335,71 +335,71 @@ public:
 		return LastActivationTime;
 	}
 
-	void SetParentDockTabStackTabWellHidden(bool bIsTabWellHidden);
+	SLATE_API void SetParentDockTabStackTabWellHidden(bool bIsTabWellHidden);
 
 protected:
 	/** Provide a default tab icon. */
-	void ProvideDefaultIcon(const FSlateBrush* InDefaultIcon);
+	SLATE_API void ProvideDefaultIcon(const FSlateBrush* InDefaultIcon);
 
 	/** @return the style currently applied to the dock tab */
-	const FDockTabStyle& GetCurrentStyle() const;
+	SLATE_API const FDockTabStyle& GetCurrentStyle() const;
 
 	/** @return the image brush that best represents this tab's in its current state */
-	const FSlateBrush* GetImageBrush() const;
+	SLATE_API const FSlateBrush* GetImageBrush() const;
 
 	/** @return the padding for the tab widget */
-	FMargin GetTabPadding() const;
+	SLATE_API FMargin GetTabPadding() const;
 
 	/** @return the image brush for the tab's color overlay */
-	const FSlateBrush* GetColorOverlayImageBrush() const;
+	SLATE_API const FSlateBrush* GetColorOverlayImageBrush() const;
 
 	/** @return The visibility of the active tab indicator */
-	EVisibility GetActiveTabIndicatorVisibility() const;
+	SLATE_API EVisibility GetActiveTabIndicatorVisibility() const;
 
 	/** @return Returns a color to scale the background of this tab by */
-	FSlateColor GetTabColor() const;
+	SLATE_API FSlateColor GetTabColor() const;
 
 	/** @return Returns the color of this tab's icon */
-	FSlateColor GetIconColor() const;
+	SLATE_API FSlateColor GetIconColor() const;
 
 	/** @return the image brush for the tab's flasher overlay */
-	const FSlateBrush* GetFlashOverlayImageBrush() const;
+	SLATE_API const FSlateBrush* GetFlashOverlayImageBrush() const;
 
 	/** @return Returns a color to flash the background of this tab with */
-	FSlateColor GetFlashColor() const;
+	SLATE_API FSlateColor GetFlashColor() const;
 
 	/** Called when the close button is clicked on the tab. */
-	FReply OnCloseButtonClicked();
+	SLATE_API FReply OnCloseButtonClicked();
 
 	/** The close button tooltip showing the appropriate close command shortcut */
-	FText GetCloseButtonToolTipText() const;
+	SLATE_API FText GetCloseButtonToolTipText() const;
 
 	/** Specify the TabId that was used to spawn this tab. */
-	void SetLayoutIdentifier( const FTabId& TabId );
+	SLATE_API void SetLayoutIdentifier( const FTabId& TabId );
 
 	/** @return if the close button should be visible. */
-	EVisibility HandleIsCloseButtonVisible() const;
+	SLATE_API EVisibility HandleIsCloseButtonVisible() const;
 
 	/** @return the size the tab icon should be */
-	TOptional<FVector2D> GetTabIconSize() const;
+	SLATE_API TOptional<FVector2D> GetTabIconSize() const;
 
 	/** @return the padding for the tab icon border */
-	FMargin GetTabIconBorderPadding() const;
+	SLATE_API FMargin GetTabIconBorderPadding() const;
 
 private:
 	/** Activates the tab in its tab well */
-	EActiveTimerReturnType TriggerActivateTab( double InCurrentTime, float InDeltaTime );
+	SLATE_API EActiveTimerReturnType TriggerActivateTab( double InCurrentTime, float InDeltaTime );
 
-	EActiveTimerReturnType OnHandleUpdateStyle(double InCurrentTime, float InDeltaTime);
+	SLATE_API EActiveTimerReturnType OnHandleUpdateStyle(double InCurrentTime, float InDeltaTime);
 
-	void OnParentSet();
+	SLATE_API void OnParentSet();
 
-	void UpdateTabStyle();
+	SLATE_API void UpdateTabStyle();
 
-	void OnTabDrawerOpened();
-	void OnTabDrawerClosed();
+	SLATE_API void OnTabDrawerOpened();
+	SLATE_API void OnTabDrawerClosed();
 
-	void NotifyTabRelocated();
+	SLATE_API void NotifyTabRelocated();
 
 	/** The handle to the active tab activation tick */
 	TWeakPtr<FActiveTimerHandle> DragDropTimerHandle;
@@ -480,7 +480,7 @@ protected:
 	TAttribute<FLinearColor> IconColor;
 
 	/** @return the scaling of the tab based on the opening/closing animation */
-	UE::Slate::FDeprecateVector2DResult GetAnimatedScale() const;
+	SLATE_API UE::Slate::FDeprecateVector2DResult GetAnimatedScale() const;
 
 	/** Animation that shows the tab opening up */
 	FCurveSequence SpawnAnimCurve;
@@ -489,7 +489,7 @@ protected:
 	FCurveSequence FlashTabCurve;
 
 	/** Get the desired color of tab. These change during flashing. */
-	float GetFlashValue() const;
+	SLATE_API float GetFlashValue() const;
 
 	/** The dock area this tab is currently being dragged over. Used in nomad tabs to change style */
 	TSharedPtr<SDockingArea> DraggedOverDockingArea;

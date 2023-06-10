@@ -36,9 +36,9 @@ namespace ETextRole
 /**
  * A simple static text widget
  */
-class SLATE_API STextBlock : public SLeafWidget
+class STextBlock : public SLeafWidget
 {
-	SLATE_DECLARE_WIDGET(STextBlock, SLeafWidget)
+	SLATE_DECLARE_WIDGET_API(STextBlock, SLeafWidget, SLATE_API)
 
 public:
 
@@ -151,17 +151,17 @@ public:
 	SLATE_END_ARGS()
 
 	/** Constructor */
-	STextBlock();
+	SLATE_API STextBlock();
 
 	/** Destructor */
-	~STextBlock();
+	SLATE_API ~STextBlock();
 
 	/**
 	 * Construct this widget
 	 *
 	 * @param	InArgs	The declaration data for this widget
 	 */
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 
 	/**
 	 * Gets the text assigned to this text block
@@ -180,118 +180,118 @@ public:
 	
 public:
 	/** Sets the text for this text block */
-	void SetText(TAttribute<FText> InText);
+	SLATE_API void SetText(TAttribute<FText> InText);
 
 	/** Sets the highlight text for this text block */
-	void SetHighlightText(TAttribute<FText> InText);
+	SLATE_API void SetHighlightText(TAttribute<FText> InText);
 
 	/** Sets the font used to draw the text	*/
-	void SetFont(TAttribute<FSlateFontInfo> InFont);
+	SLATE_API void SetFont(TAttribute<FSlateFontInfo> InFont);
 
 	/** Sets the brush used to strike through the text */
-	void SetStrikeBrush(TAttribute<const FSlateBrush*> InStrikeBrush);
+	SLATE_API void SetStrikeBrush(TAttribute<const FSlateBrush*> InStrikeBrush);
 
 	/** See ColorAndOpacity attribute */
-	void SetColorAndOpacity(TAttribute<FSlateColor> InColorAndOpacity);
+	SLATE_API void SetColorAndOpacity(TAttribute<FSlateColor> InColorAndOpacity);
 
 	/** See TextStyle argument */
-	void SetTextStyle(const FTextBlockStyle* InTextStyle);
+	SLATE_API void SetTextStyle(const FTextBlockStyle* InTextStyle);
 
 	/** See TextShapingMethod attribute */
-	void SetTextShapingMethod(const TOptional<ETextShapingMethod>& InTextShapingMethod);
+	SLATE_API void SetTextShapingMethod(const TOptional<ETextShapingMethod>& InTextShapingMethod);
 
 	/** See TextFlowDirection attribute */
-	void SetTextFlowDirection(const TOptional<ETextFlowDirection>& InTextFlowDirection);
+	SLATE_API void SetTextFlowDirection(const TOptional<ETextFlowDirection>& InTextFlowDirection);
 
 	/** See WrapTextAt attribute */
-	void SetWrapTextAt(TAttribute<float> InWrapTextAt);
+	SLATE_API void SetWrapTextAt(TAttribute<float> InWrapTextAt);
 
 	/** See AutoWrapText attribute */
-	void SetAutoWrapText(TAttribute<bool> InAutoWrapText);
+	SLATE_API void SetAutoWrapText(TAttribute<bool> InAutoWrapText);
 
 	/** Set WrappingPolicy attribute */
-	void SetWrappingPolicy(TAttribute<ETextWrappingPolicy> InWrappingPolicy);
+	SLATE_API void SetWrappingPolicy(TAttribute<ETextWrappingPolicy> InWrappingPolicy);
 
 	/** Set TransformPolicy attribute */
-	void SetTransformPolicy(TAttribute<ETextTransformPolicy> InTransformPolicy);
+	SLATE_API void SetTransformPolicy(TAttribute<ETextTransformPolicy> InTransformPolicy);
 
 	/** Get TransformPolicy attribute */
 	UE_DEPRECATED(5.0, "GetTransformPolicy is not accessible anymore since it's attribute value may not have been updated yet.")
 	ETextTransformPolicy GetTransformPolicy() const { return GetTransformPolicyImpl(); }
 
 	/** Sets the overflow policy for this text block */
-	void SetOverflowPolicy(TOptional<ETextOverflowPolicy> InOverflowPolicy);
+	SLATE_API void SetOverflowPolicy(TOptional<ETextOverflowPolicy> InOverflowPolicy);
 
 	/** See ShadowOffset attribute */
-	void SetShadowOffset(TAttribute<FVector2D> InShadowOffset);
+	SLATE_API void SetShadowOffset(TAttribute<FVector2D> InShadowOffset);
 
 	/** See ShadowColorAndOpacity attribute */
-	void SetShadowColorAndOpacity(TAttribute<FLinearColor> InShadowColorAndOpacity);
+	SLATE_API void SetShadowColorAndOpacity(TAttribute<FLinearColor> InShadowColorAndOpacity);
 
 	/** See HighlightColor attribute */
-	void SetHighlightColor(TAttribute<FLinearColor> InHighlightColor);
+	SLATE_API void SetHighlightColor(TAttribute<FLinearColor> InHighlightColor);
 	
 	/** See HighlightShape attribute */
-	void SetHighlightShape(TAttribute<const FSlateBrush*> InHighlightShape);
+	SLATE_API void SetHighlightShape(TAttribute<const FSlateBrush*> InHighlightShape);
 
 	/** See MinDesiredWidth attribute */
-	void SetMinDesiredWidth(TAttribute<float> InMinDesiredWidth);
+	SLATE_API void SetMinDesiredWidth(TAttribute<float> InMinDesiredWidth);
 
 	/** See LineHeightPercentage attribute */
-	void SetLineHeightPercentage(TAttribute<float> InLineHeightPercentage);
+	SLATE_API void SetLineHeightPercentage(TAttribute<float> InLineHeightPercentage);
 
 	/** See Margin attribute */
-	void SetMargin(TAttribute<FMargin> InMargin);
+	SLATE_API void SetMargin(TAttribute<FMargin> InMargin);
 
 	/** See Justification attribute */
-	void SetJustification(TAttribute<ETextJustify::Type> InJustification);
+	SLATE_API void SetJustification(TAttribute<ETextJustify::Type> InJustification);
 
 	// SWidget interface
-	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
-	virtual FVector2D ComputeDesiredSize(float) const override;
+	SLATE_API virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
+	SLATE_API virtual FVector2D ComputeDesiredSize(float) const override;
 #if WITH_ACCESSIBILITY
-	virtual TSharedRef<FSlateAccessibleWidget> CreateAccessibleWidget() override;
-	virtual TOptional<FText> GetDefaultAccessibleText(EAccessibleType AccessibleType = EAccessibleType::Main) const override;
+	SLATE_API virtual TSharedRef<FSlateAccessibleWidget> CreateAccessibleWidget() override;
+	SLATE_API virtual TOptional<FText> GetDefaultAccessibleText(EAccessibleType AccessibleType = EAccessibleType::Main) const override;
 #endif
 	// End of SWidget interface
 
 public:
 	/** Gets the current foreground color */
-	FSlateColor GetColorAndOpacity() const;
+	SLATE_API FSlateColor GetColorAndOpacity() const;
 
 	/** Gets the current font */
-	FSlateFontInfo GetFont() const;
+	SLATE_API FSlateFontInfo GetFont() const;
 
 	/** Gets the current strike brush */
-	const FSlateBrush* GetStrikeBrush() const;
+	SLATE_API const FSlateBrush* GetStrikeBrush() const;
 
 	/** Get TransformPolicy attribute */
-	ETextTransformPolicy GetTransformPolicyImpl() const;
+	SLATE_API ETextTransformPolicy GetTransformPolicyImpl() const;
 	
 	/** Gets the current shadow offset */
-	FVector2f GetShadowOffset() const;
+	SLATE_API FVector2f GetShadowOffset() const;
 
 	/** Gets the current shadow color and opacity */
-	FLinearColor GetShadowColorAndOpacity() const;
+	SLATE_API FLinearColor GetShadowColorAndOpacity() const;
 
 	/** Gets the current highlight color */
-	FSlateColor GetHighlightColor() const;
+	SLATE_API FSlateColor GetHighlightColor() const;
 
 	/** Gets the current highlight shape */
-	const FSlateBrush* GetHighlightShape() const;
+	SLATE_API const FSlateBrush* GetHighlightShape() const;
 
 	/** Gets the current margin */
-	FMargin GetMargin() const;
+	SLATE_API FMargin GetMargin() const;
 
 	/** Gets the current min desired width */
-	float GetMinDesiredWidth() const;
+	SLATE_API float GetMinDesiredWidth() const;
 
 private:
 	/** Get the computed text style to use with the text marshaller */
-	FTextBlockStyle GetComputedTextStyle() const;
+	SLATE_API FTextBlockStyle GetComputedTextStyle() const;
 
 	/** Call to invalidate this text block */
-	void InvalidateText(EInvalidateWidgetReason InvalidateReason);
+	SLATE_API void InvalidateText(EInvalidateWidgetReason InvalidateReason);
 
 private:
 	/** The text displayed in this text block */

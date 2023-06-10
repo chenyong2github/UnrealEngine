@@ -8,7 +8,7 @@
 #include "Widgets/Accessibility/SlateCoreAccessibleWidgets.h"
 
 // SButton
-class SLATE_API FSlateAccessibleButton
+class FSlateAccessibleButton
 	: public FSlateAccessibleWidget
 	, public IAccessibleActivatable
 {
@@ -19,13 +19,13 @@ public:
 	virtual IAccessibleActivatable* AsActivatable() override { return this; }
 
 	// IAccessibleActivatable
-	virtual void Activate() override;
+	SLATE_API virtual void Activate() override;
 	// ~
 };
 // ~
 
 // SCheckBox
-class SLATE_API FSlateAccessibleCheckBox
+class FSlateAccessibleCheckBox
 	: public FSlateAccessibleWidget
 	, public IAccessibleActivatable
 	, public IAccessibleProperty
@@ -38,20 +38,20 @@ public:
 	virtual IAccessibleProperty* AsProperty() override { return this; }
 
 	// IAccessibleActivatable
-	virtual void Activate() override;
-	virtual bool IsCheckable() const override;
-	virtual bool GetCheckedState() const override;
+	SLATE_API virtual void Activate() override;
+	SLATE_API virtual bool IsCheckable() const override;
+	SLATE_API virtual bool GetCheckedState() const override;
 	// ~
 	
 	// IAccessibleProperty
-	virtual FString GetValue() const override;
-	virtual FVariant GetValueAsVariant() const override;
+	SLATE_API virtual FString GetValue() const override;
+	SLATE_API virtual FVariant GetValueAsVariant() const override;
 	// ~
 };
 // ~
 
 // SEditableText
-class SLATE_API FSlateAccessibleEditableText
+class FSlateAccessibleEditableText
 	: public FSlateAccessibleWidget
 	, public IAccessibleText
 	, public IAccessibleProperty
@@ -65,21 +65,21 @@ public:
 	// ~
 
 	// IAccessibleText
-	virtual const FString& GetText() const override;
+	SLATE_API virtual const FString& GetText() const override;
 	// ~
 
 	// IAccessibleProperty
-	virtual bool IsReadOnly() const override;
-	virtual bool IsPassword() const override;
-	virtual FString GetValue() const override;
-	virtual FVariant GetValueAsVariant() const override;
-	virtual void SetValue(const FString& Value) override;
+	SLATE_API virtual bool IsReadOnly() const override;
+	SLATE_API virtual bool IsPassword() const override;
+	SLATE_API virtual FString GetValue() const override;
+	SLATE_API virtual FVariant GetValueAsVariant() const override;
+	SLATE_API virtual void SetValue(const FString& Value) override;
 	// ~
 };
 // ~
 
 // SEditableTextBox
-class SLATE_API FSlateAccessibleEditableTextBox
+class FSlateAccessibleEditableTextBox
 	: public FSlateAccessibleWidget
 	, public IAccessibleText
 	, public IAccessibleProperty
@@ -93,21 +93,21 @@ public:
 	// ~
 
 	// IAccessibleText
-	virtual const FString& GetText() const override;
+	SLATE_API virtual const FString& GetText() const override;
 	// ~
 
 	// IAccessibleProperty
-	virtual bool IsReadOnly() const override;
-	virtual bool IsPassword() const override;
-	virtual FString GetValue() const override;
-	virtual FVariant GetValueAsVariant() const override;
-	virtual void SetValue(const FString& Value) override;
+	SLATE_API virtual bool IsReadOnly() const override;
+	SLATE_API virtual bool IsPassword() const override;
+	SLATE_API virtual FString GetValue() const override;
+	SLATE_API virtual FVariant GetValueAsVariant() const override;
+	SLATE_API virtual void SetValue(const FString& Value) override;
 	// ~
 };
 // ~
 
 // SHyperlink
-class SLATE_API FSlateAccessibleHyperlink
+class FSlateAccessibleHyperlink
 	: public FSlateAccessibleButton
 {
 public:
@@ -118,7 +118,7 @@ public:
 // ~
 
 // Layouts
-class SLATE_API FSlateAccessibleLayout
+class FSlateAccessibleLayout
 	: public FSlateAccessibleWidget
 {
 public:
@@ -127,7 +127,7 @@ public:
 // ~
 
 // SSlider
-class SLATE_API FSlateAccessibleSlider
+class FSlateAccessibleSlider
 	: public FSlateAccessibleWidget
 	, public IAccessibleProperty
 {
@@ -139,19 +139,19 @@ public:
 	// ~
 
 	// IAccessibleProperty
-	virtual bool IsReadOnly() const override;
-	virtual float GetStepSize() const override;
-	virtual float GetMaximum() const override;
-	virtual float GetMinimum() const override;
-	virtual FString GetValue() const override;
-	virtual FVariant GetValueAsVariant() const override;
-	virtual void SetValue(const FString& Value) override;
+	SLATE_API virtual bool IsReadOnly() const override;
+	SLATE_API virtual float GetStepSize() const override;
+	SLATE_API virtual float GetMaximum() const override;
+	SLATE_API virtual float GetMinimum() const override;
+	SLATE_API virtual FString GetValue() const override;
+	SLATE_API virtual FVariant GetValueAsVariant() const override;
+	SLATE_API virtual void SetValue(const FString& Value) override;
 	// ~
 };
 // ~
 
 // STextBlock
-class SLATE_API FSlateAccessibleTextBlock
+class FSlateAccessibleTextBlock
 	: public FSlateAccessibleWidget
 	//, public IAccessibleText // Disabled until we have better support for text. JAWS will not read these properly as-is.
 {
@@ -163,7 +163,7 @@ public:
 	// ~
 
 	// IAccessibleText
-	virtual const FString& GetText() const /*override*/;
+	SLATE_API virtual const FString& GetText() const /*override*/;
 	// ~
 };
 // ~

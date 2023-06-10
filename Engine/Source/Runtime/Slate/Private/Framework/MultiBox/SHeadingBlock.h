@@ -45,7 +45,7 @@ private:
 /**
  * Heading MultiBlock widget
  */
-class SLATE_API SHeadingBlock
+class SHeadingBlock
 	: public SMultiBlockBaseWidget
 {
 
@@ -59,7 +59,7 @@ public:
 	/**
 	 * Builds this MultiBlock widget up from the MultiBlock associated with it
 	 */
-	virtual void BuildMultiBlockWidget(const ISlateStyle* StyleSet, const FName& StyleName) override;
+	SLATE_API virtual void BuildMultiBlockWidget(const ISlateStyle* StyleSet, const FName& StyleName) override;
 
 
 	/**
@@ -67,5 +67,5 @@ public:
 	 *
 	 * @param	InArgs	The declaration data for this widget
 	 */
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 };

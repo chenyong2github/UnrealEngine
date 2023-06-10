@@ -16,20 +16,20 @@ class FSlateWindowElementList;
  * gives the user a preview of what will happen if they drop on that target.
  * Dropping actually commits the layout-restructuring.
  */
-class SLATE_API SDockingCross : public SLeafWidget
+class SDockingCross : public SLeafWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SDockingCross){}
 	SLATE_END_ARGS()
 
-	void Construct( const FArguments& InArgs, const TSharedPtr<class SDockingNode>& InOwnerNode );
+	SLATE_API void Construct( const FArguments& InArgs, const TSharedPtr<class SDockingNode>& InOwnerNode );
 
 	// SWidget interface
-	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
-	virtual FVector2D ComputeDesiredSize(float) const override;
-	virtual void OnDragLeave( const FDragDropEvent& DragDropEvent ) override;
-	virtual FReply OnDragOver( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
-	virtual FReply OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
+	SLATE_API virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
+	SLATE_API virtual FVector2D ComputeDesiredSize(float) const override;
+	SLATE_API virtual void OnDragLeave( const FDragDropEvent& DragDropEvent ) override;
+	SLATE_API virtual FReply OnDragOver( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
+	SLATE_API virtual FReply OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
 	// End of SWidget interface
 	
 private:

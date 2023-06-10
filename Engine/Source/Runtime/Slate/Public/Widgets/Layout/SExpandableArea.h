@@ -23,7 +23,7 @@ class SButton;
 /**
  * Represents an expandable area of content            
  */
-class SLATE_API SExpandableArea : public SCompoundWidget
+class SExpandableArea : public SCompoundWidget
 {
 public:
 
@@ -92,7 +92,7 @@ public:
 	 *
 	 * @param InArgs Construction arguments.
 	 */
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 
 	/**
 	 * @return true if the area is currently expanded
@@ -102,54 +102,54 @@ public:
 	/**
 	 * Instantly sets the expanded state of the area
 	 */
-	virtual void SetExpanded( bool bExpanded );
+	SLATE_API virtual void SetExpanded( bool bExpanded );
 
-	virtual void SetExpanded_Animated( bool bExpanded );
+	SLATE_API virtual void SetExpanded_Animated( bool bExpanded );
 
 	/**
 	 * Returns true if area title is hovered, false otherwise.
 	 */
-	virtual bool IsTitleHovered() const;
+	SLATE_API virtual bool IsTitleHovered() const;
 
 	/**
 	 * Sets the max height of the area
 	 */
-	void SetMaxHeight(float InMaxHeight);
+	SLATE_API void SetMaxHeight(float InMaxHeight);
 
 	/**
 	 * Sets the color of all borders
 	 */
-	void SetBorderBackgroundColor(const FSlateColor& InBorderColor);
+	SLATE_API void SetBorderBackgroundColor(const FSlateColor& InBorderColor);
 
 	/**
 	 * Sets the header padding
 	 */
-	void SetHeaderPadding(FMargin InHeaderPadding);
+	SLATE_API void SetHeaderPadding(FMargin InHeaderPadding);
 
 	/**
 	 * Sets the body padding
 	 */
-	void SetAreaPadding(FMargin InAreaPadding);
+	SLATE_API void SetAreaPadding(FMargin InAreaPadding);
 
 	/**
 	 * Sets the style of the widget
 	 */
-	void SetStyle(const FExpandableAreaStyle* InStyle);
+	SLATE_API void SetStyle(const FExpandableAreaStyle* InStyle);
 
 	/**
 	 * Invalidates the style
 	 */
-	void InvalidateStyle();
+	SLATE_API void InvalidateStyle();
 
 	/**
 	 * Invalidates the border brush
 	 */
-	void InvalidateBorderBrush();
+	SLATE_API void InvalidateBorderBrush();
 
 	/**
 	 * Sets the brush of all borders
 	 */
-	void SetBorderBrush(const FSlateBrush* InBorderBrush);
+	SLATE_API void SetBorderBrush(const FSlateBrush* InBorderBrush);
 
 protected:
 
@@ -159,32 +159,32 @@ protected:
 	 * @param InArgs	Construction arguments
 	 * @param HeaderContent	User specified header content to display
 	 */
-	virtual TSharedRef<SWidget> ConstructHeaderWidget( const FArguments& InArgs, TSharedRef<SWidget> HeaderContent );
+	SLATE_API virtual TSharedRef<SWidget> ConstructHeaderWidget( const FArguments& InArgs, TSharedRef<SWidget> HeaderContent );
 
 	/**
 	 * @return The visibility of this section                   
 	 */
-	virtual EVisibility OnGetContentVisibility() const;
+	SLATE_API virtual EVisibility OnGetContentVisibility() const;
 
-	FReply OnHeaderClicked();
+	SLATE_API FReply OnHeaderClicked();
 
 	/** Toggles selection visibility when the panel is clicked. */
-	virtual void OnToggleContentVisibility();
+	SLATE_API virtual void OnToggleContentVisibility();
 
 	/**
 	 * @return The collapsed/expanded image we should show.                     
 	 */
-	virtual const FSlateBrush* OnGetCollapseImage() const;
+	SLATE_API virtual const FSlateBrush* OnGetCollapseImage() const;
 
 	/**
 	 * @return The scale of the content inside this section.  Animated 
 	 */
-	virtual FVector2D GetSectionScale() const;
+	SLATE_API virtual FVector2D GetSectionScale() const;
 
 	/**
 	 * Computes the desired size of this area. Optionally clamping to Max height
 	 */
-	virtual FVector2D ComputeDesiredSize(float) const override;
+	SLATE_API virtual FVector2D ComputeDesiredSize(float) const override;
 
 protected:
 

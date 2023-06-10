@@ -5,13 +5,13 @@
 #include "CoreMinimal.h"
 #include "Widgets/Layout/SScrollBar.h"
 
-class SLATE_API SLinkableScrollBar : public SScrollBar
+class SLinkableScrollBar : public SScrollBar
 {
 public:
 	
-	virtual void SetState(float InOffsetFraction, float InThumbSizeFraction, bool bCallOnUserScrolled = false) override;
+	SLATE_API virtual void SetState(float InOffsetFraction, float InThumbSizeFraction, bool bCallOnUserScrolled = false) override;
 
-	static void LinkScrollBars(TSharedRef<SLinkableScrollBar> Left, TSharedRef<SLinkableScrollBar> Right, TAttribute<TArray<FVector2f>> ScrollSyncRate);
+	static SLATE_API void LinkScrollBars(TSharedRef<SLinkableScrollBar> Left, TSharedRef<SLinkableScrollBar> Right, TAttribute<TArray<FVector2f>> ScrollSyncRate);
 
 private:
 	TWeakPtr<SLinkableScrollBar> LinkedScrollBarRight;

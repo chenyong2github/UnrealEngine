@@ -93,7 +93,7 @@ DECLARE_DELEGATE_RetVal_TwoParams(FVector2D, FOnGetMaxRowSizeForColumn, const FN
 /**
  * The header that appears above lists and trees when they are showing multiple columns.
  */
-class SLATE_API SHeaderRow : public SBorder
+class SHeaderRow : public SBorder
 {
 public:
 	/** Describes a single column header */
@@ -309,70 +309,70 @@ public:
 		SLATE_EVENT( FSimpleDelegate, OnHiddenColumnsListChanged )
 	SLATE_END_ARGS()
 
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 
 	/** Restore the columns to their original width */
-	void ResetColumnWidths();
+	SLATE_API void ResetColumnWidths();
 
 	/** @return the Columns driven by the column headers */
-	const TIndirectArray<FColumn>& GetColumns() const;
+	SLATE_API const TIndirectArray<FColumn>& GetColumns() const;
 
 	/** Adds a column to the header */
-	void AddColumn( const FColumn::FArguments& NewColumnArgs );
-	void AddColumn( FColumn& NewColumn );
+	SLATE_API void AddColumn( const FColumn::FArguments& NewColumnArgs );
+	SLATE_API void AddColumn( FColumn& NewColumn );
 
 	/** Inserts a column at the specified index in the header */
-	void InsertColumn( const FColumn::FArguments& NewColumnArgs, int32 InsertIdx );
-	void InsertColumn( FColumn& NewColumn, int32 InsertIdx );
+	SLATE_API void InsertColumn( const FColumn::FArguments& NewColumnArgs, int32 InsertIdx );
+	SLATE_API void InsertColumn( FColumn& NewColumn, int32 InsertIdx );
 
 	/** Removes a column from the header */
-	void RemoveColumn( const FName& InColumnId );
+	SLATE_API void RemoveColumn( const FName& InColumnId );
 
 	/** Force refreshing of the column widgets*/
-	void RefreshColumns();
+	SLATE_API void RefreshColumns();
 
 	/** Removes all columns from the header */
-	void ClearColumns();
+	SLATE_API void ClearColumns();
 
-	void SetAssociatedVerticalScrollBar( const TSharedRef< SScrollBar >& ScrollBar, const float ScrollBarSize );
+	SLATE_API void SetAssociatedVerticalScrollBar( const TSharedRef< SScrollBar >& ScrollBar, const float ScrollBarSize );
 
 	/** Sets the column, with the specified name, to the desired width */
-	void SetColumnWidth( const FName& InColumnId, float InWidth );
+	SLATE_API void SetColumnWidth( const FName& InColumnId, float InWidth );
 
 	/** Will return the size for this row at the specified slot index */
-	FVector2D GetRowSizeForSlotIndex(int32 SlotIndex) const;
+	SLATE_API FVector2D GetRowSizeForSlotIndex(int32 SlotIndex) const;
 
 	/** Simple function to set the delegate to fetch the max row size for column id */
 	void SetOnGetMaxRowSizeForColumn(const FOnGetMaxRowSizeForColumn& Delegate) { OnGetMaxRowSizeForColumn = Delegate; }
 
 	/** @return The columns id of the header widgets that were not generated */
-	TArray<FName> GetHiddenColumnIds() const;
+	SLATE_API TArray<FName> GetHiddenColumnIds() const;
 
 	/** @return is the header widget should be generated */
-	bool ShouldGeneratedColumn( const FName& InColumnId ) const;
+	SLATE_API bool ShouldGeneratedColumn( const FName& InColumnId ) const;
 
 	/** @return is the header widget with the column id is generated */
-	bool IsColumnGenerated( const FName& InColumnId ) const;
+	SLATE_API bool IsColumnGenerated( const FName& InColumnId ) const;
 
 	/** @return true if the header widget with the column id is visible */
-	bool IsColumnVisible( const FName& InColumnId ) const;
+	SLATE_API bool IsColumnVisible( const FName& InColumnId ) const;
 
 	//~ Begin SWidget interface
-	virtual FReply OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual FReply OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
 	//~ End SWidget interface
 
 	/** Show or Hide a generated column */
-	void SetShowGeneratedColumn(const FName& InColumnIdm, bool InShow = true);
+	SLATE_API void SetShowGeneratedColumn(const FName& InColumnIdm, bool InShow = true);
 
 
 private:
 
 	/** Regenerates all widgets in the header */
-	void RegenerateWidgets();
+	SLATE_API void RegenerateWidgets();
 
-	void OnGenerateSelectColumnsSubMenu(FMenuBuilder& InSubMenuBuilder);
-	void ToggleGeneratedColumn(FName ColumnId);
-	ECheckBoxState GetGeneratedColumnCheckedState(FName ColumnId) const;
+	SLATE_API void OnGenerateSelectColumnsSubMenu(FMenuBuilder& InSubMenuBuilder);
+	SLATE_API void ToggleGeneratedColumn(FName ColumnId);
+	SLATE_API ECheckBoxState GetGeneratedColumnCheckedState(FName ColumnId) const;
 
 	/** Information about the various columns */
 	TIndirectArray<FColumn> Columns;

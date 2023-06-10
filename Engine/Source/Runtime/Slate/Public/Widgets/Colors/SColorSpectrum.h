@@ -16,7 +16,7 @@ struct FSlateBrush;
 /**
  * Implements the color spectrum widget.
  */
-class SLATE_API SColorSpectrum
+class SColorSpectrum
 	: public SLeafWidget
 {
 public:
@@ -43,25 +43,25 @@ public:
 	SLATE_END_ARGS()
 	
 public:
-	SColorSpectrum();
+	SLATE_API SColorSpectrum();
 
 	/**
 	 * Construct this widget.
 	 *
 	 * @param InArgs The declaration data for this widget.
 	 */
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 
 public:
 
 	// SWidget overrides
 
-	virtual FVector2D ComputeDesiredSize(float) const override;
-	virtual FReply OnMouseButtonDoubleClick( const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent ) override;
-	virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnMouseMove( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
+	SLATE_API virtual FVector2D ComputeDesiredSize(float) const override;
+	SLATE_API virtual FReply OnMouseButtonDoubleClick( const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent ) override;
+	SLATE_API virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual FReply OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual FReply OnMouseMove( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
 	
 protected:
 
@@ -70,12 +70,12 @@ protected:
 	 *
 	 * @return The position relative to the widget.
 	 */
-	FVector2D CalcRelativeSelectedPosition( ) const;
+	SLATE_API FVector2D CalcRelativeSelectedPosition( ) const;
 
 	/**
 	 * Performs actions according to mouse click / move
 	 */
-	void ProcessMouseAction(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
+	SLATE_API void ProcessMouseAction(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
 
 private:
 

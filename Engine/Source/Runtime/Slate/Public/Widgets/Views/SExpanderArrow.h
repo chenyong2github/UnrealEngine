@@ -18,9 +18,9 @@ class SButton;
  * Expander arrow and indentation component that can be placed in a TableRow
  * of a TreeView. Intended for use by TMultiColumnRow in TreeViews.
  */
-class SLATE_API SExpanderArrow : public SCompoundWidget
+class SExpanderArrow : public SCompoundWidget
 {
-	SLATE_DECLARE_WIDGET(SExpanderArrow, SCompoundWidget)
+	SLATE_DECLARE_WIDGET_API(SExpanderArrow, SCompoundWidget, SLATE_API)
 public:
 
 	SLATE_BEGIN_ARGS( SExpanderArrow )
@@ -38,24 +38,24 @@ public:
 		SLATE_ATTRIBUTE(bool, ShouldDrawWires)
 	SLATE_END_ARGS()
 
-	SExpanderArrow();
-	void Construct( const FArguments& InArgs, const TSharedPtr<class ITableRow>& TableRow );
+	SLATE_API SExpanderArrow();
+	SLATE_API void Construct( const FArguments& InArgs, const TSharedPtr<class ITableRow>& TableRow );
 
 protected:
 
-	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
+	SLATE_API virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
 
 	/** Invoked when the expanded button is clicked (toggle item expansion) */
-	FReply OnArrowClicked();
+	SLATE_API FReply OnArrowClicked();
 
 	/** @return Visible when has children; invisible otherwise */
-	EVisibility GetExpanderVisibility() const;
+	SLATE_API EVisibility GetExpanderVisibility() const;
 
 	/** @return the margin corresponding to how far this item is indented */
-	FMargin GetExpanderPadding() const;
+	SLATE_API FMargin GetExpanderPadding() const;
 
 	/** @return the name of an image that should be shown as the expander arrow */
-	const FSlateBrush* GetExpanderImage() const;
+	SLATE_API const FSlateBrush* GetExpanderImage() const;
 
 	TWeakPtr<class ITableRow> OwnerRowPtr;
 

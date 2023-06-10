@@ -7,7 +7,7 @@
 /**
  * Base class implementing some common functionality for all text marshallers
  */
-class SLATE_API FBaseTextLayoutMarshaller : public ITextLayoutMarshaller
+class FBaseTextLayoutMarshaller : public ITextLayoutMarshaller
 {
 public:
 

@@ -25,7 +25,7 @@ enum class ETextShapingMethod : uint8;
 /**
  * Editable text box widget
  */
-class SLATE_API SEditableTextBox : public SBorder
+class SEditableTextBox : public SBorder
 {
 
 public:
@@ -169,14 +169,14 @@ public:
 		SLATE_ARGUMENT(TOptional<ETextOverflowPolicy>, OverflowPolicy)
 	SLATE_END_ARGS()
 
-	SEditableTextBox();
+	SLATE_API SEditableTextBox();
 	
 	/**
 	 * Construct this widget
 	 *
 	 * @param	InArgs	The declaration data for this widget
 	 */
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 
 	/**
 	 * Returns the text string
@@ -189,21 +189,21 @@ public:
 	}
 
 	/** See attribute Style */
-	void SetStyle(const FEditableTextBoxStyle* InStyle);
+	SLATE_API void SetStyle(const FEditableTextBoxStyle* InStyle);
 
 	/**
 	 * Sets the text block style currently used
 	 *
 	 * @param  InTextStyle  The new text string
 	 */
-	void SetTextBlockStyle(const FTextBlockStyle* InTextStyle);
+	SLATE_API void SetTextBlockStyle(const FTextBlockStyle* InTextStyle);
 
 	/**
 	 * Sets the text string currently being edited 
 	 *
 	 * @param  InNewText  The new text string
 	 */
-	void SetText( const TAttribute< FText >& InNewText );
+	SLATE_API void SetText( const TAttribute< FText >& InNewText );
 	
 	/**
 	 * Returns the Hint text string
@@ -216,161 +216,161 @@ public:
 	}
 
 	/** See the HintText attribute */
-	void SetHintText( const TAttribute< FText >& InHintText );
+	SLATE_API void SetHintText( const TAttribute< FText >& InHintText );
 	
 	/** Set the text that is currently being searched for (if any) */
-	void SetSearchText(const TAttribute<FText>& InSearchText);
+	SLATE_API void SetSearchText(const TAttribute<FText>& InSearchText);
 
 	/** Get the text that is currently being searched for (if any) */
-	FText GetSearchText() const;
+	SLATE_API FText GetSearchText() const;
 
 	/** See the IsReadOnly attribute */
-	void SetIsReadOnly( TAttribute< bool > InIsReadOnly );
+	SLATE_API void SetIsReadOnly( TAttribute< bool > InIsReadOnly );
 
 	bool IsReadOnly() const { return EditableText->IsTextReadOnly(); }
 	
 	/** See the IsPassword attribute */
-	void SetIsPassword( TAttribute< bool > InIsPassword );
+	SLATE_API void SetIsPassword( TAttribute< bool > InIsPassword );
 
 	bool IsPassword() const { return EditableText->IsTextPassword(); }
 
 	/** See the AllowContextMenu attribute */
-	void SetAllowContextMenu(TAttribute< bool > InAllowContextMenu);
+	SLATE_API void SetAllowContextMenu(TAttribute< bool > InAllowContextMenu);
 
 	/** Set the VirtualKeyboardDismissAction attribute */
-	void SetVirtualKeyboardDismissAction(TAttribute< EVirtualKeyboardDismissAction > InVirtualKeyboardDismissAction);
+	SLATE_API void SetVirtualKeyboardDismissAction(TAttribute< EVirtualKeyboardDismissAction > InVirtualKeyboardDismissAction);
 	
 	/**
 	 * Sets the font used to draw the text
 	 *
 	 * @param  InFont	The new font to use
 	 */
-	void SetFont(const TAttribute<FSlateFontInfo>& InFont);
+	SLATE_API void SetFont(const TAttribute<FSlateFontInfo>& InFont);
 
 	/**
 	 * Sets the text color and opacity (overrides Style)
 	 *
 	 * @param  InForegroundColor 	The text color and opacity
 	 */
-	void SetTextBoxForegroundColor(const TAttribute<FSlateColor>& InForegroundColor);
+	SLATE_API void SetTextBoxForegroundColor(const TAttribute<FSlateColor>& InForegroundColor);
 
 	/**
 	 * Sets the color of the background/border around the editable text (overrides Style) 
 	 *
 	 * @param  InBackgroundColor 	The background/border color
 	 */
-	void SetTextBoxBackgroundColor(const TAttribute<FSlateColor>& InBackgroundColor);
+	SLATE_API void SetTextBoxBackgroundColor(const TAttribute<FSlateColor>& InBackgroundColor);
 
 	/**
 	 * Sets the text color and opacity when read-only (overrides Style) 
 	 *
 	 * @param  InReadOnlyForegroundColor 	The read-only text color and opacity
 	 */
-	void SetReadOnlyForegroundColor(const TAttribute<FSlateColor>& InReadOnlyForegroundColor);
+	SLATE_API void SetReadOnlyForegroundColor(const TAttribute<FSlateColor>& InReadOnlyForegroundColor);
 
 	/**
 	 * Sets the text color and opacity when this box has keyboard focus(overrides Style)
 	 *
 	 * @param  InFocusedForegroundColor 	The focused color and opacity
 	 */
-	void SetFocusedForegroundColor(const TAttribute<FSlateColor>& InFocusedForegroundColor);
+	SLATE_API void SetFocusedForegroundColor(const TAttribute<FSlateColor>& InFocusedForegroundColor);
 
 	/**
 	 * Sets the minimum width that a text box should be.
 	 *
 	 * @param  InMinimumDesiredWidth	The minimum width
 	 */
-	void SetMinimumDesiredWidth(const TAttribute<float>& InMinimumDesiredWidth);
+	SLATE_API void SetMinimumDesiredWidth(const TAttribute<float>& InMinimumDesiredWidth);
 
 	/**
 	 * Workaround as we loose focus when the auto completion closes.
 	 *
 	 * @param  InIsCaretMovedWhenGainFocus	Workaround
 	 */
-	void SetIsCaretMovedWhenGainFocus(const TAttribute<bool>& InIsCaretMovedWhenGainFocus);
+	SLATE_API void SetIsCaretMovedWhenGainFocus(const TAttribute<bool>& InIsCaretMovedWhenGainFocus);
 
 	/**
 	 * Sets whether to select all text when the user clicks to give focus on the widget
 	 *
 	 * @param  InSelectAllTextWhenFocused	Select all text when the user clicks?
 	 */
-	void SetSelectAllTextWhenFocused(const TAttribute<bool>& InSelectAllTextWhenFocused);
+	SLATE_API void SetSelectAllTextWhenFocused(const TAttribute<bool>& InSelectAllTextWhenFocused);
 
 	/**
 	 * Sets whether to allow the user to back out of changes when they press the escape key
 	 *
 	 * @param  InRevertTextOnEscape			Allow the user to back out of changes?
 	 */
-	void SetRevertTextOnEscape(const TAttribute<bool>& InRevertTextOnEscape);
+	SLATE_API void SetRevertTextOnEscape(const TAttribute<bool>& InRevertTextOnEscape);
 
 	/**
 	 * Sets whether to clear keyboard focus when pressing enter to commit changes
 	 *
 	 * @param  InClearKeyboardFocusOnCommit		Clear keyboard focus when pressing enter?
 	 */
-	void SetClearKeyboardFocusOnCommit(const TAttribute<bool>& InClearKeyboardFocusOnCommit);
+	SLATE_API void SetClearKeyboardFocusOnCommit(const TAttribute<bool>& InClearKeyboardFocusOnCommit);
 
 	/**
 	 * Sets whether to select all text when pressing enter to commit changes
 	 *
 	 * @param  InSelectAllTextOnCommit		Select all text when pressing enter?
 	 */
-	void SetSelectAllTextOnCommit(const TAttribute<bool>& InSelectAllTextOnCommit);
+	SLATE_API void SetSelectAllTextOnCommit(const TAttribute<bool>& InSelectAllTextOnCommit);
 
 	/**
 	 * Sets whether to select select word on mouse double click
 	 *
 	 * @param  InSelectWordOnMouseDoubleClick		Select select word on mouse double click?
 	 */
-	void SetSelectWordOnMouseDoubleClick(const TAttribute<bool>& InSelectWordOnMouseDoubleClick);
+	SLATE_API void SetSelectWordOnMouseDoubleClick(const TAttribute<bool>& InSelectWordOnMouseDoubleClick);
 
 	/** See Justification attribute */
-	void SetJustification(const TAttribute<ETextJustify::Type>& InJustification);
+	SLATE_API void SetJustification(const TAttribute<ETextJustify::Type>& InJustification);
 
 	/**
 	 * If InError is a non-empty string the TextBox will the ErrorReporting provided during construction
 	 * If no error reporting was provided, the TextBox will create a default error reporter.
 	 */
-	void SetError( const FText& InError );
-	void SetError( const FString& InError );
+	SLATE_API void SetError( const FText& InError );
+	SLATE_API void SetError( const FString& InError );
 
 	/**
 	 * Sets the OnKeyCharHandler to provide first chance handling of the SEditableText's OnKeyChar event
 	 *
 	 * @param InOnKeyCharHandler			Delegate to call during OnKeyChar event
 	 */
-	void SetOnKeyCharHandler(FOnKeyChar InOnKeyCharHandler);
+	SLATE_API void SetOnKeyCharHandler(FOnKeyChar InOnKeyCharHandler);
 
 	/**
 	 * Sets the OnKeyDownHandler to provide first chance handling of the SEditableText's OnKeyDown event
 	 *
 	 * @param InOnKeyDownHandler			Delegate to call during OnKeyDown event
 	 */
-	void SetOnKeyDownHandler(FOnKeyDown InOnKeyDownHandler);
+	SLATE_API void SetOnKeyDownHandler(FOnKeyDown InOnKeyDownHandler);
 
 	/** See TextShapingMethod attribute */
-	void SetTextShapingMethod(const TOptional<ETextShapingMethod>& InTextShapingMethod);
+	SLATE_API void SetTextShapingMethod(const TOptional<ETextShapingMethod>& InTextShapingMethod);
 
 	/** See TextFlowDirection attribute */
-	void SetTextFlowDirection(const TOptional<ETextFlowDirection>& InTextFlowDirection);
+	SLATE_API void SetTextFlowDirection(const TOptional<ETextFlowDirection>& InTextFlowDirection);
 
 	/** Sets the overflow policy for this text block */
-	void SetOverflowPolicy(TOptional<ETextOverflowPolicy> InOverflowPolicy);
+	SLATE_API void SetOverflowPolicy(TOptional<ETextOverflowPolicy> InOverflowPolicy);
 
 	/** Query to see if any text is selected within the document */
-	bool AnyTextSelected() const;
+	SLATE_API bool AnyTextSelected() const;
 
 	/** Select all the text in the document */
-	void SelectAllText();
+	SLATE_API void SelectAllText();
 
 	/** Clear the active text selection */
-	void ClearSelection();
+	SLATE_API void ClearSelection();
 
 	/** Get the currently selected text */
-	FText GetSelectedText() const;
+	SLATE_API FText GetSelectedText() const;
 
 	/** Move the cursor to the given location in the document */
-	void GoTo(const FTextLocation& NewLocation);
+	SLATE_API void GoTo(const FTextLocation& NewLocation);
 
 	/** Move the cursor to the specified location */
 	void GoTo(const ETextLocation NewLocation)
@@ -379,7 +379,7 @@ public:
 	}
 
 	/** Scroll to the given location in the document (without moving the cursor) */
-	void ScrollTo(const FTextLocation& NewLocation);
+	SLATE_API void ScrollTo(const FTextLocation& NewLocation);
 
 	/** Scroll to the given location in the document (without moving the cursor) */
 	void ScrollTo(const ETextLocation NewLocation)
@@ -388,32 +388,32 @@ public:
 	}
 
 	/** Begin a new text search (this is called automatically when the bound search text changes) */
-	void BeginSearch(const FText& InSearchText, const ESearchCase::Type InSearchCase = ESearchCase::IgnoreCase, const bool InReverse = false);
+	SLATE_API void BeginSearch(const FText& InSearchText, const ESearchCase::Type InSearchCase = ESearchCase::IgnoreCase, const bool InReverse = false);
 
 	/** Advance the current search to the next match (does nothing if not currently searching) */
-	void AdvanceSearch(const bool InReverse = false);
+	SLATE_API void AdvanceSearch(const bool InReverse = false);
 
 	/** Register and activate the IME context for the text layout of this textbox */
-	void EnableTextInputMethodContext();
+	SLATE_API void EnableTextInputMethodContext();
 
-	bool HasError() const;
+	SLATE_API bool HasError() const;
 
 	// SWidget overrides
-	virtual bool SupportsKeyboardFocus() const override;
-	virtual bool HasKeyboardFocus() const override;
-	virtual FReply OnFocusReceived( const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent ) override;
-	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+	SLATE_API virtual bool SupportsKeyboardFocus() const override;
+	SLATE_API virtual bool HasKeyboardFocus() const override;
+	SLATE_API virtual FReply OnFocusReceived( const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent ) override;
+	SLATE_API virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 
 protected:
 #if WITH_ACCESSIBILITY
-	virtual TSharedRef<FSlateAccessibleWidget> CreateAccessibleWidget() override;
-	virtual TOptional<FText> GetDefaultAccessibleText(EAccessibleType AccessibleType = EAccessibleType::Main) const override;
+	SLATE_API virtual TSharedRef<FSlateAccessibleWidget> CreateAccessibleWidget() override;
+	SLATE_API virtual TOptional<FText> GetDefaultAccessibleText(EAccessibleType AccessibleType = EAccessibleType::Main) const override;
 #endif
 	/** Callback for the editable text's OnTextChanged event */
-	void OnEditableTextChanged(const FText& InText);
+	SLATE_API void OnEditableTextChanged(const FText& InText);
 
 	/** Callback when the editable text is committed. */
-	void OnEditableTextCommitted(const FText& InText, ETextCommit::Type InCommitType);
+	SLATE_API void OnEditableTextCommitted(const FText& InText, ETextCommit::Type InCommitType);
 
 	const FEditableTextBoxStyle* Style;
 
@@ -458,10 +458,10 @@ protected:
 
 private:
 
-	FMargin DeterminePadding() const;
-	FSlateFontInfo DetermineFont() const;
-	FSlateColor DetermineBackgroundColor() const;
-	FSlateColor DetermineForegroundColor() const;
+	SLATE_API FMargin DeterminePadding() const;
+	SLATE_API FSlateFontInfo DetermineFont() const;
+	SLATE_API FSlateColor DetermineBackgroundColor() const;
+	SLATE_API FSlateColor DetermineForegroundColor() const;
 
 	/** Styling: border image to draw when not hovered or focused */
 	const FSlateBrush* BorderImageNormal;
@@ -473,6 +473,6 @@ private:
 	const FSlateBrush* BorderImageReadOnly;
 
 	/** @return Border image for the text box based on the hovered and focused state */
-	const FSlateBrush* GetBorderImage() const;
+	SLATE_API const FSlateBrush* GetBorderImage() const;
 
 };

@@ -5,7 +5,7 @@
 
 class IRunRenderer;
 
-struct SLATE_API FTextRunRenderer
+struct FTextRunRenderer
 {
 	FTextRunRenderer( int32 InLineIndex, const FTextRange& InRange, const TSharedRef< IRunRenderer >& InRenderer )
 		: LineIndex( InLineIndex )

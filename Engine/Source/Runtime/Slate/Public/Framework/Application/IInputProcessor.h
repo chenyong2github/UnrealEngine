@@ -14,7 +14,7 @@ struct FPointerEvent;
 /**
  * Interface for a Slate Input Handler
  */
-class SLATE_API IInputProcessor
+class IInputProcessor
 {
 public:
 	IInputProcessor(){};

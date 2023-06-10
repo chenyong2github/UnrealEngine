@@ -12,10 +12,10 @@
 /**
  * Implements the color wheel widget.
  */
-class SLATE_API SColorGradingWheel
+class SColorGradingWheel
 	: public SLeafWidget
 {
-	SLATE_DECLARE_WIDGET(SColorGradingWheel, SLeafWidget)
+	SLATE_DECLARE_WIDGET_API(SColorGradingWheel, SLeafWidget, SLATE_API)
 
 public:
 
@@ -50,25 +50,25 @@ public:
 	SLATE_END_ARGS()
 	
 public:
-	SColorGradingWheel();
+	SLATE_API SColorGradingWheel();
 
 	/**
 	 * Construct this widget.
 	 *
 	 * @param InArgs The declaration data for this widget.
 	 */
-	void Construct(const FArguments& InArgs);
+	SLATE_API void Construct(const FArguments& InArgs);
 
 public:
 
 	// SWidget overrides
 
-	virtual FVector2D ComputeDesiredSize(float) const override;
-	virtual FReply OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent) override;
-	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
-	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
-	virtual FReply OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
-	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
+	SLATE_API virtual FVector2D ComputeDesiredSize(float) const override;
+	SLATE_API virtual FReply OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent) override;
+	SLATE_API virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	SLATE_API virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	SLATE_API virtual FReply OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	SLATE_API virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
 	
 protected:
 
@@ -77,23 +77,23 @@ protected:
 	 *
 	 * @return The position relative to the widget.
 	 */
-	UE::Slate::FDeprecateVector2DResult CalcRelativePositionFromCenter() const;
+	SLATE_API UE::Slate::FDeprecateVector2DResult CalcRelativePositionFromCenter() const;
 
 	/**
 	 * Performs actions according to mouse click / move
 	 *
 	 * @return	True if the mouse action occurred within the color wheel radius
 	 */
-	bool ProcessMouseAction(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, bool bProcessWhenOutsideColorWheel);
+	SLATE_API bool ProcessMouseAction(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, bool bProcessWhenOutsideColorWheel);
 
 	/** */
-	void SetSelectedColorAttribute(TAttribute<FLinearColor> InSelectedColor);
+	SLATE_API void SetSelectedColorAttribute(TAttribute<FLinearColor> InSelectedColor);
 
 	/** */
-	void SetDesiredWheelSizeAttribute(TAttribute<int32> InDesiredWheelSize);
+	SLATE_API void SetDesiredWheelSizeAttribute(TAttribute<int32> InDesiredWheelSize);
 
 	/** */
-	void SetExponentDisplacementAttribute(TAttribute<float> InExponentDisplacement);
+	SLATE_API void SetExponentDisplacementAttribute(TAttribute<float> InExponentDisplacement);
 
 	/** @return an attribute reference of SelectedColor */
 	TSlateAttributeRef<FLinearColor> GetSelectedColorAttribute() const { return TSlateAttributeRef<FLinearColor>(SharedThis(this), SelectedColorAttribute); }

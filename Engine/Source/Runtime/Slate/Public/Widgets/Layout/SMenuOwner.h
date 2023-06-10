@@ -10,7 +10,7 @@
 /**
  * Any widget that wants to own lists of items that may have sub-menus that should be handled in the same way as multibox menus (mouse can cross other items without sub-menu closing)
  */
-class SLATE_API SMenuOwner : public SCompoundWidget
+class SMenuOwner : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS( SMenuOwner )
@@ -18,7 +18,7 @@ public:
 		SLATE_DEFAULT_SLOT( FArguments, Content )
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
+	SLATE_API void Construct(const FArguments& InArgs);
 
 public:
 	/**
@@ -26,7 +26,7 @@ public:
 	 *
 	 * @param	InMenuAnchor	Menu anchor for active pull-down menu or sub-menu
 	 */
-	void SetSummonedMenu( TSharedRef< SMenuAnchor > InMenuAnchor );
+	SLATE_API void SetSummonedMenu( TSharedRef< SMenuAnchor > InMenuAnchor );
 	
 
 	/**
@@ -34,12 +34,12 @@ public:
 	 *
 	 * @return	Menu anchor, or null pointer
 	 */
-	TSharedPtr< const SMenuAnchor > GetOpenMenu() const;
+	SLATE_API TSharedPtr< const SMenuAnchor > GetOpenMenu() const;
 
 	/**
 	 * For menu bar widget, closes any open pull-down or sub menus
 	 */
-	void CloseSummonedMenus();
+	SLATE_API void CloseSummonedMenus();
 
 protected:
 	/** For menu bar widgets, this stores a weak reference to the last pull-down or sub-menu that was summoned. */

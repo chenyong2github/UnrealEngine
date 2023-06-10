@@ -10,14 +10,14 @@
 
 #if WITH_FANCY_TEXT
 
-class SLATE_API FDefaultRichTextMarkupParser : public IRichTextMarkupParser
+class FDefaultRichTextMarkupParser : public IRichTextMarkupParser
 {
 public:
-	static TSharedRef< FDefaultRichTextMarkupParser > Create();
-	static TSharedRef< FDefaultRichTextMarkupParser > GetStaticInstance();
+	static SLATE_API TSharedRef< FDefaultRichTextMarkupParser > Create();
+	static SLATE_API TSharedRef< FDefaultRichTextMarkupParser > GetStaticInstance();
 
 public:
-	virtual void Process(TArray<FTextLineParseResults>& Results, const FString& Input, FString& Output) override;
+	SLATE_API virtual void Process(TArray<FTextLineParseResults>& Results, const FString& Input, FString& Output) override;
 
 private:
 	FDefaultRichTextMarkupParser();
@@ -30,14 +30,14 @@ private:
 	FRegexPattern AttributeRegexPattern;
 };
 
-class SLATE_API FDefaultRichTextMarkupWriter : public IRichTextMarkupWriter
+class FDefaultRichTextMarkupWriter : public IRichTextMarkupWriter
 {
 public:
-	static TSharedRef< FDefaultRichTextMarkupWriter > Create();
-	static TSharedRef< FDefaultRichTextMarkupWriter > GetStaticInstance();
+	static SLATE_API TSharedRef< FDefaultRichTextMarkupWriter > Create();
+	static SLATE_API TSharedRef< FDefaultRichTextMarkupWriter > GetStaticInstance();
 
 public:
-	virtual void Write(const TArray<FRichTextLine>& InLines, FString& Output) override;
+	SLATE_API virtual void Write(const TArray<FRichTextLine>& InLines, FString& Output) override;
 
 private:
 	FDefaultRichTextMarkupWriter() {}

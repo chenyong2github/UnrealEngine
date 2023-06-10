@@ -26,7 +26,7 @@ struct FTextScrollerOptions
 /**
  * Utility to wrap a single-line text widget (STextBlock or SRichTextBlock) and provide support for auto-scrolling the text if it's longer than the available space.
  */
-class SLATE_API STextScroller : public SCompoundWidget
+class STextScroller : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(STextScroller)
@@ -40,19 +40,19 @@ public:
 	SLATE_END_ARGS()
 
 public:
-	void Construct(const FArguments& InArgs);
+	SLATE_API void Construct(const FArguments& InArgs);
 
-	virtual void OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const override;
-	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
+	SLATE_API virtual void OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const override;
+	SLATE_API virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
 
-	void ResetScrollState();
-	void StartScrolling();
-	void SuspendScrolling();
+	SLATE_API void ResetScrollState();
+	SLATE_API void StartScrolling();
+	SLATE_API void SuspendScrolling();
 
 	bool IsScrollingEnabled() const { return ActiveState != EActiveState::Suspend; }
 
 private:
-	EActiveTimerReturnType OnScrollTextTick(double CurrentTime, float DeltaTime);
+	SLATE_API EActiveTimerReturnType OnScrollTextTick(double CurrentTime, float DeltaTime);
 
 private:
 	enum class EActiveState : uint8

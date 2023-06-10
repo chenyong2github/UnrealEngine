@@ -17,7 +17,7 @@ class ISlateRunRenderer;
 enum class ETextShapingMethod : uint8;
 
 /** Class to handle the cached layout of STextBlock/SRichTextBlock by proxying around a FTextLayout */
-class SLATE_API FSlateTextBlockLayout
+class FSlateTextBlockLayout
 {
 public:
 	struct FWidgetDesiredSizeArgs
@@ -97,20 +97,20 @@ public:
 	/**
 	 * Constructor
 	 */
-	FSlateTextBlockLayout(SWidget* InOwner, FTextBlockStyle InDefaultTextStyle, const TOptional<ETextShapingMethod> InTextShapingMethod, const TOptional<ETextFlowDirection> InTextFlowDirection, const FCreateSlateTextLayout& InCreateSlateTextLayout, TSharedRef<ITextLayoutMarshaller> InMarshaller, TSharedPtr<IBreakIterator> InLineBreakPolicy);
+	SLATE_API FSlateTextBlockLayout(SWidget* InOwner, FTextBlockStyle InDefaultTextStyle, const TOptional<ETextShapingMethod> InTextShapingMethod, const TOptional<ETextFlowDirection> InTextFlowDirection, const FCreateSlateTextLayout& InCreateSlateTextLayout, TSharedRef<ITextLayoutMarshaller> InMarshaller, TSharedPtr<IBreakIterator> InLineBreakPolicy);
 
 	/**
 	 * Get the computed desired size for this layout, updating the internal cache as required
 	 */
-	FVector2D ComputeDesiredSize(const FWidgetDesiredSizeArgs& InWidgetArgs, const float InScale, const FTextBlockStyle& InTextStyle);
+	SLATE_API FVector2D ComputeDesiredSize(const FWidgetDesiredSizeArgs& InWidgetArgs, const float InScale, const FTextBlockStyle& InTextStyle);
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/**
 	 * Get the computed desired size for this layout, updating the internal cache as required
 	 */
 	UE_DEPRECATED(5.0, "FWidgetArgs is deprecated. Upgrade to FWidgetDesiredSizeArgs instead.")
-	FVector2D ComputeDesiredSize(const FWidgetArgs& InWidgetArgs, const float InScale, const FTextBlockStyle& InTextStyle);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	SLATE_API FVector2D ComputeDesiredSize(const FWidgetArgs& InWidgetArgs, const float InScale, const FTextBlockStyle& InTextStyle);
+	SLATE_API PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/**
 	 * Gets the last computed desired size.
@@ -121,61 +121,61 @@ public:
 	/**
 	 * Get the TextLayout scale.
 	 */
-	float GetLayoutScale() const;
+	SLATE_API float GetLayoutScale() const;
 
 
 	/**
 	 * Paint this layout, updating the internal cache as required
 	 */
-	int32 OnPaint(const FPaintArgs& InPaintArgs, const FGeometry& InAllottedGeometry, const FSlateRect& InClippingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled);
+	SLATE_API int32 OnPaint(const FPaintArgs& InPaintArgs, const FGeometry& InAllottedGeometry, const FSlateRect& InClippingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled);
 
 	/**
 	 * Force dirty the layout due to an external change that can't be picked up automatically by this cache
 	 */
-	void DirtyLayout();
+	SLATE_API void DirtyLayout();
 
 	/**
 	 * Force dirty the content due to an external change that can't be picked up automatically by this cache.
 	 * Also force dirties the layout. Will cause the contained text to be re-parsed by the marshaller next frame.
 	 */
-	void DirtyContent();
+	SLATE_API void DirtyContent();
 
 	/**
 	 * Override the text style used and immediately update the text layout (if required).
 	 * This can be used to override the text style after calling ComputeDesiredSize (eg, if you can only compute your text style in OnPaint)
 	 * Please note that changing the size or font used by the text may causing clipping issues until the next call to ComputeDesiredSize
 	 */
-	void OverrideTextStyle(const FTextBlockStyle& InTextStyle);
+	SLATE_API void OverrideTextStyle(const FTextBlockStyle& InTextStyle);
 
 	/**
 	 * Set the text shaping method that the internal text layout should use
 	 */
-	void SetTextShapingMethod(const TOptional<ETextShapingMethod>& InTextShapingMethod);
+	SLATE_API void SetTextShapingMethod(const TOptional<ETextShapingMethod>& InTextShapingMethod);
 
 	/**
 	 * Set the text flow direction that the internal text layout should use
 	 */
-	void SetTextFlowDirection(const TOptional<ETextFlowDirection>& InTextFlowDirection);
+	SLATE_API void SetTextFlowDirection(const TOptional<ETextFlowDirection>& InTextFlowDirection);
 
 	/**
 	 * Set the text overflow policy that the internal text layout should use
 	 */
-	void SetTextOverflowPolicy(const TOptional<ETextOverflowPolicy> InTextOverflowPolicy);
+	SLATE_API void SetTextOverflowPolicy(const TOptional<ETextOverflowPolicy> InTextOverflowPolicy);
 
 	/**
 	 * Set the information used to help identify who owns this text layout in the case of an error
 	 */
-	void SetDebugSourceInfo(const TAttribute<FString>& InDebugSourceInfo);
+	SLATE_API void SetDebugSourceInfo(const TAttribute<FString>& InDebugSourceInfo);
 
 	/**
 	 * Get the child widgets of this layout
 	 */
-	FChildren* GetChildren();
+	SLATE_API FChildren* GetChildren();
 
 	/**
 	 * Arrange any child widgets in this layout
 	 */
-	void ArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const;
+	SLATE_API void ArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const;
 
 private:
 	/** Updates the text layout to contain the given text */

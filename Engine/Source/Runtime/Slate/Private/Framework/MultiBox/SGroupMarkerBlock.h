@@ -44,7 +44,7 @@ private:
 /**
  * Group Marker MultiBlock widget
  */
-class SLATE_API SGroupMarkerBlock 
+class SGroupMarkerBlock 
 	: public SMultiBlockBaseWidget
 {
 
@@ -54,7 +54,7 @@ public:
 	SLATE_END_ARGS()
 
 	/** FMultiBlock interface */
-	virtual void BuildMultiBlockWidget(const ISlateStyle* StyleSet, const FName& StyleName) override;
+	SLATE_API virtual void BuildMultiBlockWidget(const ISlateStyle* StyleSet, const FName& StyleName) override;
 
 	/**
 	 * Construct this widget

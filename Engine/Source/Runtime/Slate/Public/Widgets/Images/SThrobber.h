@@ -18,7 +18,7 @@ class SHorizontalBox;
 /**
  * A throbber widget that uses 5 zooming circles in a row.
  */
-class SLATE_API SThrobber
+class SThrobber
 	: public SCompoundWidget
 {
 	static const int32 DefaultNumPieces = 3;
@@ -49,25 +49,25 @@ public:
 		SLATE_ARGUMENT( EAnimation, Animate )
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
+	SLATE_API void Construct(const FArguments& InArgs);
 
 	/** Sets what each segment of the throbber looks like. */
-	void SetPieceImage(const FSlateBrush* InPieceImage);
+	SLATE_API void SetPieceImage(const FSlateBrush* InPieceImage);
 
 	/**
 	 * Invalidate the SCircularThrobber with the correct reason.
 	 * You should invalidate when you are changing a property of SlateBrush after the SlateBrush was set to the SCircularThrobber.
 	 */
-	void InvalidatePieceImage();
+	SLATE_API void InvalidatePieceImage();
 
 	/** Sets how many pieces there are */
-	void SetNumPieces(int InNumPieces);
+	SLATE_API void SetNumPieces(int InNumPieces);
 
 	/** Sets which aspects of the throbber to animate */
-	void SetAnimate(EAnimation InAnimate);
+	SLATE_API void SetAnimate(EAnimation InAnimate);
 
 	//~ Begin SWidget interface
-	virtual bool ComputeVolatility() const override;
+	SLATE_API virtual bool ComputeVolatility() const override;
 	//~ End SWidget interface
 
 private:
@@ -103,13 +103,13 @@ private:
 /**
  * A throbber widget that orients images in a spinning circle.
  */
-class SLATE_API SCircularThrobber
+class SCircularThrobber
 	: public SLeafWidget
 {
-	SLATE_DECLARE_WIDGET(SCircularThrobber, SLeafWidget)
+	SLATE_DECLARE_WIDGET_API(SCircularThrobber, SLeafWidget, SLATE_API)
 
 public:
-	static const float MinimumPeriodValue;
+	static SLATE_API const float MinimumPeriodValue;
 
 	SLATE_BEGIN_ARGS(SCircularThrobber)	
 		: _PieceImage( FCoreStyle::Get().GetBrush( "Throbber.CircleChunk" ) )
@@ -131,33 +131,33 @@ public:
 
 	SLATE_END_ARGS()
 
-	SCircularThrobber();
+	SLATE_API SCircularThrobber();
 
 	/** Constructs the widget */
-	void Construct(const FArguments& InArgs);
+	SLATE_API void Construct(const FArguments& InArgs);
 
 	/** Sets what each segment of the throbber looks like */
-	void SetPieceImage(const FSlateBrush* InPieceImage);
+	SLATE_API void SetPieceImage(const FSlateBrush* InPieceImage);
 
 	/**
 	 * Invalidate the SCircularThrobber with the correct reason. 
 	 * You should invalidate when you are changing a property of SlateBrush after the SlateBrush was set to the SCircularThrobber.
 	 */
-	void InvalidatePieceImage();
+	SLATE_API void InvalidatePieceImage();
 
 	/** Sets how many pieces there are */
-	void SetNumPieces(int32 InNumPieces);
+	SLATE_API void SetNumPieces(int32 InNumPieces);
 
 	/** Sets the amount of time in seconds for a full circle */
-	void SetPeriod(float InPeriod);
+	SLATE_API void SetPeriod(float InPeriod);
 
 	/** Sets the radius of the circle */
-	void SetRadius(float InRadius);
+	SLATE_API void SetRadius(float InRadius);
 
 	//~ Begin SWidget interface
-	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
-	virtual FVector2D ComputeDesiredSize(float) const override;
-	virtual bool ComputeVolatility() const override;
+	SLATE_API virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
+	SLATE_API virtual FVector2D ComputeDesiredSize(float) const override;
+	SLATE_API virtual bool ComputeVolatility() const override;
 	//~ End SWidget interface
 
 private:

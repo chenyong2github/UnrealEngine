@@ -11,17 +11,17 @@
  * when the velocity grows small enough, and the percentage of friction lost prevents large velocities
  * from scrolling forever.
  */
-class SLATE_API FInertialScrollManager
+class FInertialScrollManager
 {
 	/**
 	 * This is the percentage of velocity loss per second.
 	 */
-	static float FrictionCoefficient;
+	static SLATE_API float FrictionCoefficient;
 
 	/**
 	 * This is a constant amount of velocity lost per second.
 	 */
-	static float StaticVelocityDrag;
+	static SLATE_API float StaticVelocityDrag;
 
 public:
 	/**
@@ -29,16 +29,16 @@ public:
 	  * @param ScrollDecceleration	The acceleration against the velocity causing it to decay.
 	  * @param SampleTimeout		Samples older than this amount of time will be discarded.
 	  */
-	FInertialScrollManager(double SampleTimeout = 0.1f);
+	SLATE_API FInertialScrollManager(double SampleTimeout = 0.1f);
 
 	/** Adds a scroll velocity sample to help calculate a smooth velocity */
-	void AddScrollSample(float Delta, double CurrentTime);
+	SLATE_API void AddScrollSample(float Delta, double CurrentTime);
 
 	/** Updates the current scroll velocity. Call every frame. */
-	void UpdateScrollVelocity(const float InDeltaTime);
+	SLATE_API void UpdateScrollVelocity(const float InDeltaTime);
 
 	/** Instantly end the inertial scroll */
-	void ClearScrollVelocity();
+	SLATE_API void ClearScrollVelocity();
 
 	/** Gets the calculated velocity of the scroll. */
 	float GetScrollVelocity() const { return ScrollVelocity; }

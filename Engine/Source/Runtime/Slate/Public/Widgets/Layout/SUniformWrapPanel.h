@@ -15,9 +15,9 @@
 class FArrangedChildren;
 
 /** A panel that evenly divides up available space between all of its children. */
-class SLATE_API SUniformWrapPanel : public SPanel
+class SUniformWrapPanel : public SPanel
 {
-	SLATE_DECLARE_WIDGET(SUniformWrapPanel, SPanel)
+	SLATE_DECLARE_WIDGET_API(SUniformWrapPanel, SPanel, SLATE_API)
 
 public:
 	/** Stores the per-child info for this panel type */
@@ -38,7 +38,7 @@ public:
 		}
 	};
 
-	SUniformWrapPanel();
+	SLATE_API SUniformWrapPanel();
 
 	/**
 	 * Used by declarative syntax to create a Slot.
@@ -90,41 +90,41 @@ public:
 
 	SLATE_END_ARGS()
 
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 
 	//~ Begin SPanel Interface	
-	virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
-	virtual FChildren* GetChildren() override;
+	SLATE_API virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
+	SLATE_API virtual FChildren* GetChildren() override;
 	//~ End SPanel Interface
 
 	/** See SlotPadding attribute */
-	void SetSlotPadding(TAttribute<FMargin> InSlotPadding);
+	SLATE_API void SetSlotPadding(TAttribute<FMargin> InSlotPadding);
 
 	/** See MinDesiredSlotWidth attribute */
-	void SetMinDesiredSlotWidth(TAttribute<float> InMinDesiredSlotWidth);
+	SLATE_API void SetMinDesiredSlotWidth(TAttribute<float> InMinDesiredSlotWidth);
 
 	/** See MinDesiredSlotHeight attribute */
-	void SetMinDesiredSlotHeight(TAttribute<float> InMinDesiredSlotHeight);
+	SLATE_API void SetMinDesiredSlotHeight(TAttribute<float> InMinDesiredSlotHeight);
 
 	/** See NumColumnsOverride attribute */
-	void SetNumColumnsOverride(TAttribute<int32> InNumColumnsOverride);
+	SLATE_API void SetNumColumnsOverride(TAttribute<int32> InNumColumnsOverride);
 	
 	/** See MinDesiredSlotWidth attribute */
-	void SetMaxDesiredSlotWidth(TAttribute<float> InMaxDesiredSlotWidth);
+	SLATE_API void SetMaxDesiredSlotWidth(TAttribute<float> InMaxDesiredSlotWidth);
 
 	/** See MinDesiredSlotHeight attribute */
-	void SetMaxDesiredSlotHeight(TAttribute<float> InMaxDesiredSlotHeight);
+	SLATE_API void SetMaxDesiredSlotHeight(TAttribute<float> InMaxDesiredSlotHeight);
 
 	/** See HAlign attribute */
-	void SetHorizontalAlignment(TAttribute<EHorizontalAlignment> InHAlignment);
+	SLATE_API void SetHorizontalAlignment(TAttribute<EHorizontalAlignment> InHAlignment);
 	EHorizontalAlignment GetHorizontalAlignment() { return HAlign.Get(); }
 
 	/** See EvenRowDistribution attribute */
-	void SetEvenRowDistribution(TAttribute<bool> InEvenRowDistribution);
+	SLATE_API void SetEvenRowDistribution(TAttribute<bool> InEvenRowDistribution);
 	bool GetEvenRowDistribution() { return EvenRowDistribution.Get(); }
 
 	using FScopedWidgetSlotArguments = TPanelChildren<FSlot>::FScopedWidgetSlotArguments;
-	FScopedWidgetSlotArguments AddSlot();
+	SLATE_API FScopedWidgetSlotArguments AddSlot();
 	
 	/**
 	 * Removes a slot from this panel which contains the specified SWidget
@@ -132,17 +132,17 @@ public:
 	 * @param SlotWidget The widget to match when searching through the slots
 	 * @returns The true if the slot was removed and false if no slot was found matching the widget
 	 */
-	bool RemoveSlot( const TSharedRef<SWidget>& SlotWidget );
+	SLATE_API bool RemoveSlot( const TSharedRef<SWidget>& SlotWidget );
 
 	/** Removes all slots from the panel */
-	void ClearChildren();
+	SLATE_API void ClearChildren();
 
 protected:
 	// Begin SWidget overrides.
-	virtual FVector2D ComputeDesiredSize(float) const override;
+	SLATE_API virtual FVector2D ComputeDesiredSize(float) const override;
 	// End SWidget overrides.
 
-	FVector2D ComputeUniformCellSize() const;
+	SLATE_API FVector2D ComputeUniformCellSize() const;
 
 private:
 	TPanelChildren<FSlot> Children;

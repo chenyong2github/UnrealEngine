@@ -8,7 +8,7 @@ struct FButtonArgs;
 /**
  * Horizontal Button Row MultiBlock
  */
-class SLATE_API FUniformToolbarButtonBlock
+class FUniformToolbarButtonBlock
 	: public FToolBarButtonBlock
 {
 
@@ -19,7 +19,7 @@ public:
 	 *
 	 * @param	ButtonArgs The Parameters object which will provide the data to initialize the button
 	 */
-	FUniformToolbarButtonBlock( FButtonArgs ButtonArgs);
+	SLATE_API FUniformToolbarButtonBlock( FButtonArgs ButtonArgs);
 
 	
 	/**
@@ -27,11 +27,11 @@ public:
 	 *
 	 * @return  MultiBlock widget object
 	 */
-	 virtual TSharedRef< class IMultiBlockBaseWidget > ConstructWidget() const override;
+	 SLATE_API virtual TSharedRef< class IMultiBlockBaseWidget > ConstructWidget() const override;
 
 };
 
-class SLATE_API SUniformToolbarButtonBlock
+class SUniformToolbarButtonBlock
 	: public SToolBarButtonBlock
 {
 	

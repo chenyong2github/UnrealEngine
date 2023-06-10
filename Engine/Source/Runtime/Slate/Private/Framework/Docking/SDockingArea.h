@@ -24,7 +24,7 @@ struct FSidebarTabLists
 /**
  * Represents the root node in a hierarchy of DockNodes.
  */
-class SLATE_API SDockingArea : public SDockingSplitter
+class SDockingArea : public SDockingSplitter
 {
 public:
 
@@ -52,7 +52,7 @@ public:
 
 	SLATE_END_ARGS()
 
-	void Construct( const FArguments& InArgs, const TSharedRef<FTabManager>& InTabManager, const TSharedRef<FTabManager::FArea>& PersistentNode );
+	SLATE_API void Construct( const FArguments& InArgs, const TSharedRef<FTabManager>& InTabManager, const TSharedRef<FTabManager::FArea>& PersistentNode );
 
 	virtual Type GetNodeType() const override
 	{
@@ -60,37 +60,37 @@ public:
 	}
 	
 	/** Returns this dock area */
-	virtual TSharedPtr<SDockingArea> GetDockArea() override;
-	virtual TSharedPtr<const SDockingArea> GetDockArea() const override;
+	SLATE_API virtual TSharedPtr<SDockingArea> GetDockArea() override;
+	SLATE_API virtual TSharedPtr<const SDockingArea> GetDockArea() const override;
 
 	/** Returns the window that this dock area resides in directly and also manages */
-	TSharedPtr<SWindow> GetParentWindow() const;
+	SLATE_API TSharedPtr<SWindow> GetParentWindow() const;
 
-	virtual void OnDragEnter( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
-	virtual void OnDragLeave( const FDragDropEvent& DragDropEvent ) override;
+	SLATE_API virtual void OnDragEnter( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
+	SLATE_API virtual void OnDragLeave( const FDragDropEvent& DragDropEvent ) override;
 	
-	virtual FReply OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
+	SLATE_API virtual FReply OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
 
-	virtual FReply OnUserAttemptingDock( SDockingNode::RelativeDirection Direction, const FDragDropEvent& DragDropEvent ) override;
+	SLATE_API virtual FReply OnUserAttemptingDock( SDockingNode::RelativeDirection Direction, const FDragDropEvent& DragDropEvent ) override;
 
-	void OnTabFoundNewHome( const TSharedRef<SDockTab>& RelocatedTab, const TSharedRef<SWindow>& NewOwnerWindow );
+	SLATE_API void OnTabFoundNewHome( const TSharedRef<SDockTab>& RelocatedTab, const TSharedRef<SWindow>& NewOwnerWindow );
 
 	// Show the dock-from-outside dock targets
-	void ShowCross();
+	SLATE_API void ShowCross();
 
 	// Hide the dock-from-outside dock targets
-	void HideCross();
+	SLATE_API void HideCross();
 
 	/**
 	 * Removes redundant stack and splitters. Collapses any widgets that any no longer showing live content.
 	 */
-	void CleanUp( ELayoutModification RemovalMethod );
+	SLATE_API void CleanUp( ELayoutModification RemovalMethod );
 
-	void SetParentWindow( const TSharedRef<SWindow>& NewParentWindow );
+	SLATE_API void SetParentWindow( const TSharedRef<SWindow>& NewParentWindow );
 
-	virtual TSharedPtr<FTabManager::FLayoutNode> GatherPersistentLayout() const override;
+	SLATE_API virtual TSharedPtr<FTabManager::FLayoutNode> GatherPersistentLayout() const override;
 
-	TSharedRef<FTabManager> GetTabManager() const;
+	SLATE_API TSharedRef<FTabManager> GetTabManager() const;
 
 	/**
 	 * Adds a tab to a drawer in the sidebar. 
@@ -98,60 +98,60 @@ public:
 	 * @param TabToAdd	The tab to add to the sidebar
 	 * @return The location of the sidebar that the tab was added to
 	 */
-	ESidebarLocation AddTabToSidebar(TSharedRef<SDockTab> TabToAdd);
+	SLATE_API ESidebarLocation AddTabToSidebar(TSharedRef<SDockTab> TabToAdd);
 
 	/**
 	 * Restores a tab from the sidebar to its parent tab stack and removes the tab from the sidebar.  
 	 *
 	 * @return true if the tab was found in this area and restore
 	 */
-	bool RestoreTabFromSidebar(TSharedRef<SDockTab> TabToRemove);
+	SLATE_API bool RestoreTabFromSidebar(TSharedRef<SDockTab> TabToRemove);
 
 	/**
 	 * @return true if the specified tab is in the sidebar
 	 */
-	bool IsTabInSidebar(TSharedRef<SDockTab> Tab) const;
+	SLATE_API bool IsTabInSidebar(TSharedRef<SDockTab> Tab) const;
 
 	/**
  	 * Removes a tab from a sidebar
 	 * @return true if the specified tab was found and removed
 	 */
-	bool RemoveTabFromSidebar(TSharedRef<SDockTab> Tab);
+	SLATE_API bool RemoveTabFromSidebar(TSharedRef<SDockTab> Tab);
 
 	/**
 	 * Attempts to open a sidebar drawer that may the tab to open
 	 *
 	 * @true if the drawer was opened, false if the tab is not in a drawer
 	 */
-	bool TryOpenSidebarDrawer(TSharedRef<SDockTab> TabToOpen) const;
+	SLATE_API bool TryOpenSidebarDrawer(TSharedRef<SDockTab> TabToOpen) const;
 
 	/**
 	 * Adds all tabs back to a sidebar that were saved in a sidebar from a previous session
 	 */
-	void AddSidebarTabsFromRestoredLayout(const FSidebarTabLists& SidebarTabs);
+	SLATE_API void AddSidebarTabsFromRestoredLayout(const FSidebarTabLists& SidebarTabs);
 
 	/**
 	 * Gets all tabs in all sidebars in this dock area
 	 */
-	TArray<TSharedRef<SDockTab>> GetAllSidebarTabs() const;
+	SLATE_API TArray<TSharedRef<SDockTab>> GetAllSidebarTabs() const;
 
 	bool CanHaveSidebar() const { return bCanHaveSidebar; }
 protected:
-	virtual SDockingNode::ECleanupRetVal CleanUpNodes() override;
+	SLATE_API virtual SDockingNode::ECleanupRetVal CleanUpNodes() override;
 
 private:
-	EVisibility TargetCrossVisibility() const;
-	EVisibility TargetCrossCenterVisibility() const;
+	SLATE_API EVisibility TargetCrossVisibility() const;
+	SLATE_API EVisibility TargetCrossCenterVisibility() const;
 	/** Dock a tab along the outer edge of this DockArea */
-	void DockFromOutside(SDockingNode::RelativeDirection Direction, const FDragDropEvent& DragDropEvent);
+	SLATE_API void DockFromOutside(SDockingNode::RelativeDirection Direction, const FDragDropEvent& DragDropEvent);
 
 	/** We were placed in a window, and it is being destroyed */
-	void OnOwningWindowBeingDestroyed(const TSharedRef<SWindow>& WindowBeingDestroyed);
+	SLATE_API void OnOwningWindowBeingDestroyed(const TSharedRef<SWindow>& WindowBeingDestroyed);
 
 	/** We were placed in a window and it is being activated */
-	void OnOwningWindowActivated();
+	SLATE_API void OnOwningWindowActivated();
 	
-	virtual void OnLiveTabAdded() override;
+	SLATE_API virtual void OnLiveTabAdded() override;
 
 	/**
 	 * If this dock area controls a window, then we need
@@ -160,7 +160,7 @@ private:
 	 *
 	 * We also update the sidebar to account for major tabs.  Docking areas for major tabs do not have a sidebar.
 	 */
-	void UpdateWindowChromeAndSidebar();
+	SLATE_API void UpdateWindowChromeAndSidebar();
 private:	
 	/** Left and right sidebar widgets */
 	TSharedPtr<STabSidebar> LeftSidebar;

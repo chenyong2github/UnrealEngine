@@ -48,7 +48,7 @@ public:
 
 DECLARE_DELEGATE(FOnSelectionChangedDelegateVK);
 
-class SLATE_API IVirtualKeyboardEntry
+class IVirtualKeyboardEntry
 {
 
 public:

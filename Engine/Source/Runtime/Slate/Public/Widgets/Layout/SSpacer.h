@@ -11,9 +11,9 @@
 class FPaintArgs;
 class FSlateWindowElementList;
 
-class SLATE_API SSpacer : public SLeafWidget
+class SSpacer : public SLeafWidget
 {
-	SLATE_DECLARE_WIDGET(SSpacer, SLeafWidget)
+	SLATE_DECLARE_WIDGET_API(SSpacer, SLeafWidget, SLATE_API)
 
 public:
 
@@ -26,17 +26,17 @@ public:
 		SLATE_ATTRIBUTE( FVector2D, Size )
 	SLATE_END_ARGS()
 
-	SSpacer();
+	SLATE_API SSpacer();
 
 	/**
 	 * Construct this widget
 	 *
 	 * @param	InArgs	The declaration data for this widget
 	 */
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 
 	// SWidget interface
-	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
+	SLATE_API virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
 	// End of SWidget interface
 
 	FVector2D GetSize() const
@@ -57,7 +57,7 @@ public:
 
 protected:
 	//~ Begin SWidget overrides.
-	virtual FVector2D ComputeDesiredSize(float) const override;
+	SLATE_API virtual FVector2D ComputeDesiredSize(float) const override;
 	//~ End SWidget overrides.
 
 private:

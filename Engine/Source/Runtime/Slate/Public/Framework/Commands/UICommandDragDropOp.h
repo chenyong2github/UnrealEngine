@@ -12,14 +12,14 @@ class SWidget;
 /**
  * A drag drop operation for UI Commands
  */
-class SLATE_API FUICommandDragDropOp
+class FUICommandDragDropOp
 	: public FDragDropOperation
 {
 public:
 
 	DRAG_DROP_OPERATOR_TYPE(FUICommandDragDropOp, FDragDropOperation)
 
-	static TSharedRef<FUICommandDragDropOp> New( FName InItemName, EMultiBlockType InBlockType, bool bInIsDraggingSection, FName InOriginMultiBox, TSharedPtr<SWidget> CustomDectorator, FVector2D DecoratorOffset );
+	static SLATE_API TSharedRef<FUICommandDragDropOp> New( FName InItemName, EMultiBlockType InBlockType, bool bInIsDraggingSection, FName InOriginMultiBox, TSharedPtr<SWidget> CustomDectorator, FVector2D DecoratorOffset );
 
 	FUICommandDragDropOp( FName InItemName, EMultiBlockType InBlockType, bool bInIsDraggingSection, FName InOriginMultiBox, TSharedPtr<SWidget> InCustomDecorator, FVector2D DecoratorOffset )
 		: ItemName( InItemName )
@@ -36,9 +36,9 @@ public:
 	void SetOnDropNotification( FSimpleDelegate InOnDropNotification ) { OnDropNotification = InOnDropNotification; }
 
 	/** FDragDropOperation interface */
-	virtual TSharedPtr<SWidget> GetDefaultDecorator() const override;
-	virtual void OnDragged( const class FDragDropEvent& DragDropEvent ) override;
-	virtual void OnDrop( bool bDropWasHandled, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual TSharedPtr<SWidget> GetDefaultDecorator() const override;
+	SLATE_API virtual void OnDragged( const class FDragDropEvent& DragDropEvent ) override;
+	SLATE_API virtual void OnDrop( bool bDropWasHandled, const FPointerEvent& MouseEvent ) override;
 
 public:
 

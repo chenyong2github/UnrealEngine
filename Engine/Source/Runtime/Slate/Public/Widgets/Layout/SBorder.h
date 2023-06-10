@@ -21,9 +21,9 @@ class FSlateWindowElementList;
  * Border also has a Content() slot as well as some parameters controlling the
  * arrangement of said content.
  */
-class SLATE_API SBorder : public SCompoundWidget
+class SBorder : public SCompoundWidget
 {
-	SLATE_DECLARE_WIDGET(SBorder, SCompoundWidget)
+	SLATE_DECLARE_WIDGET_API(SBorder, SCompoundWidget, SLATE_API)
 
 public:
 
@@ -98,67 +98,67 @@ public:
 	/**
 	 * Default constructor.
 	 */
-	SBorder();
+	SLATE_API SBorder();
 
 	/**
 	 * Construct this widget
 	 *
 	 * @param	InArgs	The declaration data for this widget
 	 */
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 
 	/**
 	 * Sets the content for this border
 	 *
 	 * @param	InContent	The widget to use as content for the border
 	 */
-	virtual void SetContent( TSharedRef< SWidget > InContent );
+	SLATE_API virtual void SetContent( TSharedRef< SWidget > InContent );
 
 	/**
 	 * Gets the content for this border
 	 *
 	 * @return The widget used as content for the border
 	 */
-	const TSharedRef< SWidget >& GetContent() const;
+	SLATE_API const TSharedRef< SWidget >& GetContent() const;
 
 	/** Clears out the content for the border */
-	void ClearContent();
+	SLATE_API void ClearContent();
 
 	/** Sets the color and opacity of the background image of this border. */
-	void SetBorderBackgroundColor(TAttribute<FSlateColor> InColorAndOpacity);
+	SLATE_API void SetBorderBackgroundColor(TAttribute<FSlateColor> InColorAndOpacity);
 
 	/** Gets the color and opacity of the background image of this border. */
 	FSlateColor GetBorderBackgroundColor() const { return BorderBackgroundColorAttribute.Get(); }
 
 	/** Set the desired size scale multiplier */
-	void SetDesiredSizeScale(TAttribute<FVector2D> InDesiredSizeScale);
+	SLATE_API void SetDesiredSizeScale(TAttribute<FVector2D> InDesiredSizeScale);
 	
 	/** See HAlign argument */
-	void SetHAlign(EHorizontalAlignment HAlign);
+	SLATE_API void SetHAlign(EHorizontalAlignment HAlign);
 
 	/** See VAlign argument */
-	void SetVAlign(EVerticalAlignment VAlign);
+	SLATE_API void SetVAlign(EVerticalAlignment VAlign);
 
 	/** See Padding attribute */
-	void SetPadding(TAttribute<FMargin> InPadding);
+	SLATE_API void SetPadding(TAttribute<FMargin> InPadding);
 
 	/** Set whether or not to show the disabled effect when this border is disabled */
-	void SetShowEffectWhenDisabled(TAttribute<bool> InShowEffectWhenDisabled);
+	SLATE_API void SetShowEffectWhenDisabled(TAttribute<bool> InShowEffectWhenDisabled);
 
 	/** Set the image to draw for this border. */
-	void SetBorderImage(TAttribute<const FSlateBrush*> InBorderImage);
+	SLATE_API void SetBorderImage(TAttribute<const FSlateBrush*> InBorderImage);
 
 	/** Get the image to draw for this border. */
 	const FSlateBrush* GetBorderImage() const { return BorderImageAttribute.Get(); }
 
 public:
 	// SWidget interface
-	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
+	SLATE_API virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
 	// End of SWidget interface
 
 protected:
 	//~Begin SWidget overrides.
-	virtual FVector2D ComputeDesiredSize(float) const override;
+	SLATE_API virtual FVector2D ComputeDesiredSize(float) const override;
 	//~End SWidget overrides.
 
 	/** Get whether or not to show the disabled effect when this border is disabled */

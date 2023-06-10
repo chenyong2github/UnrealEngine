@@ -19,7 +19,7 @@ class FPaintArgs;
 class FSlateWindowElementList;
 class ICustomHitTestPath;
 
-class SLATE_API SViewport
+class SViewport
 	: public SCompoundWidget
 {
 public:
@@ -83,14 +83,14 @@ public:
 	SLATE_END_ARGS()
 
 	/** Default constructor. */
-	SViewport();
+	SLATE_API SViewport();
 
 	/**
 	 * Construct the widget.
 	 *
 	 * @param InArgs  Declaration from which to construct the widget.
 	 */
-	void Construct(const FArguments& InArgs);
+	SLATE_API void Construct(const FArguments& InArgs);
 
 public:
 
@@ -112,7 +112,7 @@ public:
 	 *
 	 * @param InViewportInterface The interface to use
 	 */
-	void SetViewportInterface( TSharedRef<ISlateViewport> InViewportInterface );
+	SLATE_API void SetViewportInterface( TSharedRef<ISlateViewport> InViewportInterface );
 
 	/**
 	 * Sets the interface to be used by this viewport for rendering and I/O
@@ -129,11 +129,11 @@ public:
 	 *
 	 * @param InContent	The new content (can be null)
 	 */
-	void SetContent( TSharedPtr<SWidget> InContent );
+	SLATE_API void SetContent( TSharedPtr<SWidget> InContent );
 
-	void SetCustomHitTestPath( TSharedPtr<ICustomHitTestPath> CustomHitTestPath );
+	SLATE_API void SetCustomHitTestPath( TSharedPtr<ICustomHitTestPath> CustomHitTestPath );
 
-	TSharedPtr<ICustomHitTestPath> GetCustomHitTestPath();
+	SLATE_API TSharedPtr<ICustomHitTestPath> GetCustomHitTestPath();
 
 	const TSharedPtr<SWidget> GetContent() const { return ChildSlot.GetWidget(); }
 
@@ -142,17 +142,17 @@ public:
 	 *
 	 * @param InWindowBeingClosed	The window that is about to be closed
 	 */
-	void OnWindowClosed( const TSharedRef<SWindow>& InWindowBeingClosed );
+	SLATE_API void OnWindowClosed( const TSharedRef<SWindow>& InWindowBeingClosed );
 
 	/**
 	 * A delegate called when the viewports top level window is activated
 	 */
-	FReply OnViewportActivated(const FWindowActivateEvent& InActivateEvent);
+	SLATE_API FReply OnViewportActivated(const FWindowActivateEvent& InActivateEvent);
 
 	/**
 	 * A delegate called when the viewports top level window is deactivated
 	 */
-	void OnViewportDeactivated(const FWindowActivateEvent& InActivateEvent);
+	SLATE_API void OnViewportDeactivated(const FWindowActivateEvent& InActivateEvent);
 
 	/** @return Whether or not this viewport renders directly to the backbuffer */
 	bool ShouldRenderDirectly() const { return bRenderDirectlyToWindow; }
@@ -165,7 +165,7 @@ public:
 	 * 
 	 * @param	bInRenderDirectlyToWindow	Whether we should be able to render to the back buffer
 	 */
-	void SetRenderDirectlyToWindow( const bool bInRenderDirectlyToWindow );
+	SLATE_API void SetRenderDirectlyToWindow( const bool bInRenderDirectlyToWindow );
 
 	/**
 	 * If true, the viewport's texture alpha is ignored when performing blending.  In this case only the viewport tint opacity is used
@@ -173,7 +173,7 @@ public:
 	 * 
 	 * @param bIgnoreTextureAlpha If texture alpha should be ignored when blending.
 	 */
-	void SetIgnoreTextureAlpha(const bool bInIgnoreTextureAlpha);
+	SLATE_API void SetIgnoreTextureAlpha(const bool bInIgnoreTextureAlpha);
 
 	/** @return Whether or not to ignore texture alpha when blending */
 	bool GetIgnoreTextureAlpha(void) const
@@ -196,42 +196,42 @@ public:
 	 * While active, a persistent Active Timer is registered and a Slate tick/paint pass is guaranteed every frame.
 	 * @param bActive Whether to set the viewport as active
 	 */
-	void SetActive(bool bActive);
+	SLATE_API void SetActive(bool bActive);
 
 public:
 
 	// SWidget interface
 
-	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
-	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
-	virtual FReply OnTouchStarted( const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent ) override;
-	virtual FReply OnTouchMoved( const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent ) override;
-	virtual FReply OnTouchEnded( const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent ) override;
-	virtual FReply OnTouchForceChanged(const FGeometry& MyGeometry, const FPointerEvent& TouchEvent) override;
-	virtual FReply OnTouchFirstMove(const FGeometry& MyGeometry, const FPointerEvent& TouchEvent) override;
-	virtual FReply OnTouchGesture( const FGeometry& MyGeometry, const FPointerEvent& GestureEvent ) override;
-	virtual FCursorReply OnCursorQuery( const FGeometry& MyGeometry, const FPointerEvent& CursorEvent ) const override;
-	virtual TOptional<TSharedRef<SWidget>> OnMapCursor(const FCursorReply& CursorReply) const override;
-	virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual void OnMouseEnter( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual void OnMouseLeave( const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnMouseMove( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnMouseWheel( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnMouseButtonDoubleClick( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& KeyEvent ) override;
-	virtual FReply OnKeyUp( const FGeometry& MyGeometry, const FKeyEvent& KeyEvent ) override;
-	virtual FReply OnAnalogValueChanged( const FGeometry& MyGeometry, const FAnalogInputEvent& InAnalogInputEvent ) override;
-	virtual FReply OnKeyChar( const FGeometry& MyGeometry, const FCharacterEvent& CharacterEvent ) override;
-	virtual FReply OnFocusReceived( const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent ) override;
-	virtual void OnFocusLost( const FFocusEvent& InFocusEvent ) override;
-	virtual FReply OnMotionDetected( const FGeometry& MyGeometry, const FMotionEvent& InMotionEvent ) override;
-	virtual TOptional<bool> OnQueryShowFocus( const EFocusCause InFocusCause ) const override;
-	virtual FPopupMethodReply OnQueryPopupMethod() const override;
-	virtual void OnFinishedPointerInput() override;
-	virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
-	virtual TOptional<FVirtualPointerPosition> TranslateMouseCoordinateForCustomHitTestChild(const SWidget& ChildWidget, const FGeometry& MyGeometry, const FVector2D ScreenSpaceMouseCoordinate, const FVector2D LastScreenSpaceMouseCoordinate) const override;
-	virtual FNavigationReply OnNavigation( const FGeometry& MyGeometry, const FNavigationEvent& InNavigationEvent ) override;
+	SLATE_API virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
+	SLATE_API virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
+	SLATE_API virtual FReply OnTouchStarted( const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent ) override;
+	SLATE_API virtual FReply OnTouchMoved( const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent ) override;
+	SLATE_API virtual FReply OnTouchEnded( const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent ) override;
+	SLATE_API virtual FReply OnTouchForceChanged(const FGeometry& MyGeometry, const FPointerEvent& TouchEvent) override;
+	SLATE_API virtual FReply OnTouchFirstMove(const FGeometry& MyGeometry, const FPointerEvent& TouchEvent) override;
+	SLATE_API virtual FReply OnTouchGesture( const FGeometry& MyGeometry, const FPointerEvent& GestureEvent ) override;
+	SLATE_API virtual FCursorReply OnCursorQuery( const FGeometry& MyGeometry, const FPointerEvent& CursorEvent ) const override;
+	SLATE_API virtual TOptional<TSharedRef<SWidget>> OnMapCursor(const FCursorReply& CursorReply) const override;
+	SLATE_API virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual FReply OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual void OnMouseEnter( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual void OnMouseLeave( const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual FReply OnMouseMove( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual FReply OnMouseWheel( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual FReply OnMouseButtonDoubleClick( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& KeyEvent ) override;
+	SLATE_API virtual FReply OnKeyUp( const FGeometry& MyGeometry, const FKeyEvent& KeyEvent ) override;
+	SLATE_API virtual FReply OnAnalogValueChanged( const FGeometry& MyGeometry, const FAnalogInputEvent& InAnalogInputEvent ) override;
+	SLATE_API virtual FReply OnKeyChar( const FGeometry& MyGeometry, const FCharacterEvent& CharacterEvent ) override;
+	SLATE_API virtual FReply OnFocusReceived( const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent ) override;
+	SLATE_API virtual void OnFocusLost( const FFocusEvent& InFocusEvent ) override;
+	SLATE_API virtual FReply OnMotionDetected( const FGeometry& MyGeometry, const FMotionEvent& InMotionEvent ) override;
+	SLATE_API virtual TOptional<bool> OnQueryShowFocus( const EFocusCause InFocusCause ) const override;
+	SLATE_API virtual FPopupMethodReply OnQueryPopupMethod() const override;
+	SLATE_API virtual void OnFinishedPointerInput() override;
+	SLATE_API virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
+	SLATE_API virtual TOptional<FVirtualPointerPosition> TranslateMouseCoordinateForCustomHitTestChild(const SWidget& ChildWidget, const FGeometry& MyGeometry, const FVector2D ScreenSpaceMouseCoordinate, const FVector2D LastScreenSpaceMouseCoordinate) const override;
+	SLATE_API virtual FNavigationReply OnNavigation( const FGeometry& MyGeometry, const FNavigationEvent& InNavigationEvent ) override;
 
 private:
 	// Viewports shouldn't show focus
@@ -242,7 +242,7 @@ private:
 
 protected:
 	/** Empty active timer meant to ensure a tick/paint pass while this viewport is active */
-	EActiveTimerReturnType EnsureTick(double InCurrentTime, float InDeltaTime);
+	SLATE_API EActiveTimerReturnType EnsureTick(double InCurrentTime, float InDeltaTime);
 
 	/** Interface to the rendering and I/O implementation of the viewport. */
 	TWeakPtr<ISlateViewport> ViewportInterface;

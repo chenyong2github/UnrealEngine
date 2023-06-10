@@ -127,7 +127,7 @@ public:
 	static SLATE_API TSharedRef<FExtender> Combine(const TArray< TSharedPtr<FExtender> >& Extenders);
 
 	/** Returns the number of extensions in the extender */
-	SLATE_API int32 NumExtensions() const { return Extensions.Num(); }
+	int32 NumExtensions() const { return Extensions.Num(); }
 
 private:
 

@@ -195,3 +195,26 @@ FString FNavigationConfig::ToString() const
 
 	return Builder.ToString();
 }
+
+FTwinStickNavigationConfig::FTwinStickNavigationConfig()
+{
+	bTabNavigation = false;
+
+	KeyEventRules =
+	{
+		{EKeys::Gamepad_DPad_Left, EUINavigation::Left},
+		{EKeys::Gamepad_DPad_Right, EUINavigation::Right},
+		{EKeys::Gamepad_DPad_Up, EUINavigation::Up},
+		{EKeys::Gamepad_DPad_Down, EUINavigation::Down}
+	};
+}
+
+bool FTwinStickNavigationConfig::IsAnalogHorizontalKey(const FKey& InKey) const
+{
+	return InKey == EKeys::Gamepad_LeftX || InKey == EKeys::Gamepad_RightX;
+}
+
+bool FTwinStickNavigationConfig::IsAnalogVerticalKey(const FKey& InKey) const
+{
+	return InKey == EKeys::Gamepad_LeftY || InKey == EKeys::Gamepad_RightY;
+}

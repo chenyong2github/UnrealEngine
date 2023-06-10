@@ -17,7 +17,7 @@ class SSlider;
 /**
  * A Slate VolumeControl is a mute icon/button and volume slider.
  */
-class SLATE_API SVolumeControl : public SCompoundWidget
+class SVolumeControl : public SCompoundWidget
 {
 public:
 	DECLARE_DELEGATE_OneParam( FOnMuted, bool );
@@ -48,7 +48,7 @@ public:
 	 * 
 	 * @param InDeclaration   A declaration from which to construct the widget
 	 */
-	void Construct( const SVolumeControl::FArguments& InDeclaration );
+	SLATE_API void Construct( const SVolumeControl::FArguments& InDeclaration );
 
 	float GetVolume() const { return VolumeAttribute.Get(); }
 	bool IsMuted() const { return MutedAttribute.Get(); }
@@ -76,7 +76,7 @@ private:
 	const FSlateBrush* SpeakerIcons[ES_MAX];
 
 	float GetSliderPosition() const { return IsMuted() ? 0.f : GetVolume(); }
-	const FSlateBrush* GetSpeakerImage() const;
-	FReply OnMuteClicked();
-	void OnWriteValue(float NewValue);
+	SLATE_API const FSlateBrush* GetSpeakerImage() const;
+	SLATE_API FReply OnMuteClicked();
+	SLATE_API void OnWriteValue(float NewValue);
 };

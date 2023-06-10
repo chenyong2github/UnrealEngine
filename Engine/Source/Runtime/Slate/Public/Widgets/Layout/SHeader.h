@@ -10,7 +10,7 @@
  * A heading for a section of content.
  * Looks like this: ------- Content --------
  */
-class SLATE_API SHeader : public SHorizontalBox
+class SHeader : public SHorizontalBox
 {
 public:
 	SLATE_BEGIN_ARGS(SHeader)
@@ -34,5 +34,5 @@ public:
 
 	SLATE_END_ARGS()
 
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
  };

@@ -16,7 +16,7 @@ class FSlateWindowElementList;
  * 
  * Unless specified properties do not affect layout.
  */
-class SLATE_API SFxWidget : public SCompoundWidget
+class SFxWidget : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS( SFxWidget )
@@ -60,28 +60,28 @@ public:
 
 	SLATE_END_ARGS()
 
-	SFxWidget();
+	SLATE_API SFxWidget();
 
-	void Construct( const FArguments& InArgs );
-
-	/** @see VisualOffset */
-	void SetVisualOffset( TAttribute<FVector2D> InOffset );
+	SLATE_API void Construct( const FArguments& InArgs );
 
 	/** @see VisualOffset */
-	void SetVisualOffset( FVector InOffset );
+	SLATE_API void SetVisualOffset( TAttribute<FVector2D> InOffset );
+
+	/** @see VisualOffset */
+	SLATE_API void SetVisualOffset( FVector InOffset );
 
 	/** @see RenderScale */
-	void SetRenderScale( TAttribute<float> InScale );
+	SLATE_API void SetRenderScale( TAttribute<float> InScale );
 
 	/** @see RenderScale */
-	void SetRenderScale( float InScale );
+	SLATE_API void SetRenderScale( float InScale );
 
 	
 
 protected:
-	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
-	virtual FVector2D ComputeDesiredSize(float) const override;
-	virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
+	SLATE_API virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
+	SLATE_API virtual FVector2D ComputeDesiredSize(float) const override;
+	SLATE_API virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
 
 	TSlateAttribute<float, EInvalidateWidgetReason::Paint> RenderScale;
 	TSlateAttribute<FVector2D, EInvalidateWidgetReason::Paint> RenderScaleOrigin;

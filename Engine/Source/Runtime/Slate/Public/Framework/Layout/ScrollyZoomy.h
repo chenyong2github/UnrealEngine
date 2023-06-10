@@ -42,7 +42,7 @@ public:
  * instance of FScrollyZoomy as a widget member variable, and call this
  * class's event handlers from your own widget's event handler callbacks.
  */
-class SLATE_API FScrollyZoomy
+class FScrollyZoomy
 {
 public:
 
@@ -51,7 +51,7 @@ public:
 	 *
 	 * @param InUseInertialScrolling Whether inertial scrolling should be used (default = true).
 	 */
-	FScrollyZoomy(const bool InUseInertialScrolling = true);
+	SLATE_API FScrollyZoomy(const bool InUseInertialScrolling = true);
 
 	/** 
 	 * Should be called every frame to update simulation state.
@@ -59,7 +59,7 @@ public:
 	 * @param DeltaTime Time that's passed.
 	 * @param ScrollableZoomable Interface to the widget to scroll/zoom.
 	 */
-	void Tick(const float DeltaTime, IScrollableZoomable& ScrollableZoomable);
+	SLATE_API void Tick(const float DeltaTime, IScrollableZoomable& ScrollableZoomable);
 
 	/**
 	 * Should be called when a mouse button is pressed.
@@ -67,7 +67,7 @@ public:
 	 * @param MouseEvent The mouse event passed to a widget's OnMouseButtonDown function.
 	 * @return If FReply::Handled is returned, that should be passed as the result of the calling function.
 	 */
-	FReply OnMouseButtonDown(const FPointerEvent& MouseEvent);
+	SLATE_API FReply OnMouseButtonDown(const FPointerEvent& MouseEvent);
 
 	/**
 	 * Should be called when a mouse button is released.
@@ -77,7 +77,7 @@ public:
 	 * @param MouseEvent The mouse event passed to a widget's OnMouseButtonUp function.
 	 * @return If FReply::Handled is returned, that should be passed as the result of the calling function.
 	 */
-	FReply OnMouseButtonUp(const TSharedRef<SWidget> MyWidget, const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
+	SLATE_API FReply OnMouseButtonUp(const TSharedRef<SWidget> MyWidget, const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
 		
 	/**
 	 * Should be called when a mouse move event occurs.
@@ -88,7 +88,7 @@ public:
 	 * @param MouseEvent The mouse event passed to a widget's OnMouseMove function.
 	 * @return If FReply::Handled is returned, that should be passed as the result of the calling function.
 	 */
-	FReply OnMouseMove(const TSharedRef<SWidget> MyWidget, IScrollableZoomable& ScrollableZoomable, const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
+	SLATE_API FReply OnMouseMove(const TSharedRef<SWidget> MyWidget, IScrollableZoomable& ScrollableZoomable, const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
 
 	/**
 	 * Should be called from your widget's OnMouseLeave override.
@@ -96,7 +96,7 @@ public:
 	 * @param MyWidget Pointer to the widget that owns this object.
 	 * @param MouseEvent The mouse leave event that was passed to the widget's OnMouseLeave function.
 	 */
-	void OnMouseLeave(const TSharedRef<SWidget> MyWidget, const FPointerEvent& MouseEvent);
+	SLATE_API void OnMouseLeave(const TSharedRef<SWidget> MyWidget, const FPointerEvent& MouseEvent);
 		
 	/**
 	 * Should be called by your widget when the mouse wheel is used
@@ -105,21 +105,21 @@ public:
 	 * @param ScrollableZoomable	Interface to the widget to scroll/zoom.
 	 * @return If FReply::Handled is returned, that should be passed as the result of the calling function.
 	 */
-	FReply OnMouseWheel(const FPointerEvent& MouseEvent, IScrollableZoomable& ScrollableZoomable);
+	SLATE_API FReply OnMouseWheel(const FPointerEvent& MouseEvent, IScrollableZoomable& ScrollableZoomable);
 
 	/**
 	 * Call this from your widget's OnCursorQuery function.
 	 *
 	 * @return The cursor reply to pass back.
 	 */
-	FCursorReply OnCursorQuery() const;
+	SLATE_API FCursorReply OnCursorQuery() const;
 
 	/**
 	 * Whether the user is actively scrolling.
 	 *
 	 * @return true if the user is scrolling, false otherwise.
 	 */
-	bool IsRightClickScrolling() const;
+	SLATE_API bool IsRightClickScrolling() const;
 
 	/**
 	 * Whether a software cursor should be rendered.
@@ -129,7 +129,7 @@ public:
 	 * @return true if a software cursor should be rendered, false otherwise.
 	 * @see GetSoftwareCursorPosition
 	 */
-	bool NeedsSoftwareCursor() const;
+	SLATE_API bool NeedsSoftwareCursor() const;
 
 	/**
 	 * Get the position of the software cursor (when NeedsSoftwareCursor is true).
@@ -139,7 +139,7 @@ public:
 	 * @return Cursor position.
 	 * @see NeedsSoftwareCursor
 	 */
-	UE::Slate::FDeprecateVector2DResult GetSoftwareCursorPosition() const;
+	SLATE_API UE::Slate::FDeprecateVector2DResult GetSoftwareCursorPosition() const;
 
 	/**
 	 * Call this from your widget's OnPaint to paint a software cursor, if needed 
@@ -150,7 +150,7 @@ public:
 	 * @param LayerId Layer identifier.
 	 * @return New layer Identifier.
 	 */
-	int32 PaintSoftwareCursorIfNeeded(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId) const;
+	SLATE_API int32 PaintSoftwareCursorIfNeeded(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId) const;
 
 private:
 

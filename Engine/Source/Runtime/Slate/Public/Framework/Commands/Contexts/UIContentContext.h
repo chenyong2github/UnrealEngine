@@ -11,7 +11,7 @@
 /**
  * Context for generating content from a FUICommandInfo
  */
-struct SLATE_API FUIContentContext : public IUIActionContextBase
+struct FUIContentContext : public IUIActionContextBase
 {
 	virtual ~FUIContentContext() {}
 

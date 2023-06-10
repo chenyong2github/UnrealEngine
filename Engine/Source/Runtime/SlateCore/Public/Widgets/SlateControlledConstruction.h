@@ -17,6 +17,9 @@ namespace SharedPointerInternals
 
 /** */
 #define SLATE_DECLARE_WIDGET(WidgetType, ParentType) \
+	SLATE_DECLARE_WIDGET_API(WidgetType, ParentType, NO_API)
+
+#define SLATE_DECLARE_WIDGET_API(WidgetType, ParentType, ModuleApiDefine) \
 	private: \
 		using Super = ParentType; \
 		using ThisClass = WidgetType; \
@@ -31,7 +34,7 @@ namespace SharedPointerInternals
 			static FSlateWidgetClassData WidgetClassDataInstance = FSlateWidgetClassData(TIdentity<ParentType>(), #WidgetType, &WidgetType::PrivateRegisterAttributes); \
 			return WidgetClassDataInstance; \
 		} \
-		static void PrivateRegisterAttributes(FSlateAttributeInitializer&); \
+		static ModuleApiDefine void PrivateRegisterAttributes(FSlateAttributeInitializer&); \
 	public: \
 		static const FSlateWidgetClassData& StaticWidgetClass() { return GetPrivateWidgetClass(); } \
 		virtual const FSlateWidgetClassData& GetWidgetClass() const override { return GetPrivateWidgetClass(); } \
@@ -42,7 +45,7 @@ namespace SharedPointerInternals
 	FSlateWidgetClassRegistration ClassRegistration__##WidgetType = WidgetType::StaticWidgetClass();
 
 /** */
-class SLATECORE_API FSlateWidgetClassData
+class FSlateWidgetClassData
 {
 private:
 	friend FSlateControlledConstruction;
@@ -78,7 +81,7 @@ struct FSlateWidgetClassRegistration
 };
 
 /** */
-class SLATECORE_API FSlateControlledConstruction
+class FSlateControlledConstruction
 {
 public:
 	FSlateControlledConstruction() = default;

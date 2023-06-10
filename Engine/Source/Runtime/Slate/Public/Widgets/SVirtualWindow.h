@@ -18,7 +18,7 @@ class ISlate3DRenderer;
 class STooltipPresenter;
 class UTextureRenderTarget2D;
 
-class SLATE_API SVirtualWindow : public SWindow
+class SVirtualWindow : public SWindow
 {
 	SLATE_BEGIN_ARGS(SVirtualWindow)
 		: _Size(FVector2D(100, 100))
@@ -29,7 +29,7 @@ class SLATE_API SVirtualWindow : public SWindow
 		SLATE_END_ARGS()
 
 public:
-	void Construct(const FArguments& InArgs);
+	SLATE_API void Construct(const FArguments& InArgs);
 
 	/**
 	* We allow users to control the resolve policy for deferred content.  When a virtual window is used in a retainer, we don't want it trying to resolve
@@ -37,17 +37,17 @@ public:
 	* a case like the WidgetComponent, we always want to resolve the deferred content because there won't be another opportunity since the 3D widget has
 	* no owner window that can draw it.
 	*/
-	void SetShouldResolveDeferred(bool bResolve);
+	SLATE_API void SetShouldResolveDeferred(bool bResolve);
 
 	/**  */
-	void SetIsFocusable(bool bFocusable);
+	SLATE_API void SetIsFocusable(bool bFocusable);
 
-	virtual FPopupMethodReply OnQueryPopupMethod() const override;
-	virtual bool OnVisualizeTooltip(const TSharedPtr<SWidget>& TooltipContent) override;
-	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
-	virtual void OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const override;
-	virtual bool SupportsKeyboardFocus() const override;
-	virtual FVector2D ComputeDesiredSize(float LayoutScaleMultiplier) const override;
+	SLATE_API virtual FPopupMethodReply OnQueryPopupMethod() const override;
+	SLATE_API virtual bool OnVisualizeTooltip(const TSharedPtr<SWidget>& TooltipContent) override;
+	SLATE_API virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
+	SLATE_API virtual void OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const override;
+	SLATE_API virtual bool SupportsKeyboardFocus() const override;
+	SLATE_API virtual FVector2D ComputeDesiredSize(float LayoutScaleMultiplier) const override;
 
 private:
 	TSharedPtr<class STooltipPresenter> TooltipPresenter;

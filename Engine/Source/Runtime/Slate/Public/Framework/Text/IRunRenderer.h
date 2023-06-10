@@ -3,7 +3,7 @@
 
 #include "CoreMinimal.h"
 
-class SLATE_API IRunRenderer
+class IRunRenderer
 {
 public:
 

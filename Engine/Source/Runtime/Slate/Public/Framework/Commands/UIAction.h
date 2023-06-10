@@ -33,7 +33,7 @@ enum class EUIActionRepeatMode
 /**
  * Implements an UI action.
  */
-struct SLATE_API FUIAction
+struct FUIAction
 {
 	/** Holds a delegate that is executed when this action is activated. */
 	FExecuteAction ExecuteAction;
@@ -53,7 +53,7 @@ struct SLATE_API FUIAction
 public:
 
 	/** Default constructor. */
-	FUIAction();
+	SLATE_API FUIAction();
 
 	/**
 	 * Constructor that takes delegates to initialize the action with
@@ -61,7 +61,7 @@ public:
 	 * @param	ExecuteAction		The delegate to call when the action should be executed
 	 * @param	RepeatMode			Can this action can be repeated if the chord used to call it is held down?
 	 */
-	FUIAction(FExecuteAction InitExecuteAction, EUIActionRepeatMode InitRepeatMode = EUIActionRepeatMode::RepeatDisabled);
+	SLATE_API FUIAction(FExecuteAction InitExecuteAction, EUIActionRepeatMode InitRepeatMode = EUIActionRepeatMode::RepeatDisabled);
 
 	/**
 	 * Constructor that takes delegates to initialize the action with
@@ -70,7 +70,7 @@ public:
 	 * @param	CanExecuteAction	The delegate to call to see if the action can be executed
 	 * @param	RepeatMode			Can this action can be repeated if the chord used to call it is held down?
 	 */
-	FUIAction(FExecuteAction InitExecuteAction, FCanExecuteAction InitCanExecuteAction, EUIActionRepeatMode InitRepeatMode = EUIActionRepeatMode::RepeatDisabled);
+	SLATE_API FUIAction(FExecuteAction InitExecuteAction, FCanExecuteAction InitCanExecuteAction, EUIActionRepeatMode InitRepeatMode = EUIActionRepeatMode::RepeatDisabled);
 
 	/**
 	 * Constructor that takes delegates to initialize the action with
@@ -80,7 +80,7 @@ public:
 	 * @param	IsCheckedDelegate	The delegate to call to see if the action should appear checked when visualized
 	 * @param	RepeatMode			Can this action can be repeated if the chord used to call it is held down?
 	 */
-	FUIAction(FExecuteAction InitExecuteAction, FCanExecuteAction InitCanExecuteAction, FIsActionChecked InitIsCheckedDelegate, EUIActionRepeatMode InitRepeatMode = EUIActionRepeatMode::RepeatDisabled);
+	SLATE_API FUIAction(FExecuteAction InitExecuteAction, FCanExecuteAction InitCanExecuteAction, FIsActionChecked InitIsCheckedDelegate, EUIActionRepeatMode InitRepeatMode = EUIActionRepeatMode::RepeatDisabled);
 
 	/**
 	 * Constructor that takes delegates to initialize the action with
@@ -90,7 +90,7 @@ public:
 	 * @param	GetActionCheckState	The delegate to call to see what the check state of the action should be
 	 * @param	RepeatMode			Can this action can be repeated if the chord used to call it is held down?
 	 */
-	FUIAction(FExecuteAction InitExecuteAction, FCanExecuteAction InitCanExecuteAction, FGetActionCheckState InitGetActionCheckStateDelegate, EUIActionRepeatMode InitRepeatMode = EUIActionRepeatMode::RepeatDisabled);
+	SLATE_API FUIAction(FExecuteAction InitExecuteAction, FCanExecuteAction InitCanExecuteAction, FGetActionCheckState InitGetActionCheckStateDelegate, EUIActionRepeatMode InitRepeatMode = EUIActionRepeatMode::RepeatDisabled);
 
 	/**
 	 * Constructor that takes delegates to initialize the action with
@@ -101,7 +101,7 @@ public:
 	 * @param	IsActionVisible		The delegate to call to see if the action should be visible
 	 * @param	RepeatMode			Can this action can be repeated if the chord used to call it is held down?
 	 */
-	FUIAction(FExecuteAction InitExecuteAction, FCanExecuteAction InitCanExecuteAction, FIsActionChecked InitIsCheckedDelegate, FIsActionButtonVisible InitIsActionVisibleDelegate, EUIActionRepeatMode InitRepeatMode = EUIActionRepeatMode::RepeatDisabled);
+	SLATE_API FUIAction(FExecuteAction InitExecuteAction, FCanExecuteAction InitCanExecuteAction, FIsActionChecked InitIsCheckedDelegate, FIsActionButtonVisible InitIsActionVisibleDelegate, EUIActionRepeatMode InitRepeatMode = EUIActionRepeatMode::RepeatDisabled);
 
 	/**
 	 * Constructor that takes delegates to initialize the action with
@@ -112,7 +112,7 @@ public:
 	 * @param	IsActionVisible		The delegate to call to see if the action should be visible
 	 * @param	RepeatMode			Can this action can be repeated if the chord used to call it is held down?
 	 */
-	FUIAction(FExecuteAction InitExecuteAction, FCanExecuteAction InitCanExecuteAction, FGetActionCheckState InitGetActionCheckStateDelegate, FIsActionButtonVisible InitIsActionVisibleDelegate, EUIActionRepeatMode InitRepeatMode = EUIActionRepeatMode::RepeatDisabled);
+	SLATE_API FUIAction(FExecuteAction InitExecuteAction, FCanExecuteAction InitCanExecuteAction, FGetActionCheckState InitGetActionCheckStateDelegate, FIsActionButtonVisible InitIsActionVisibleDelegate, EUIActionRepeatMode InitRepeatMode = EUIActionRepeatMode::RepeatDisabled);
 
 public:
 
@@ -213,7 +213,7 @@ public:
  * 
  * Note: not using UObjects to avoid overhead.
  */
-struct SLATE_API IUIActionContextBase
+struct IUIActionContextBase
 {
 
 public:
@@ -226,13 +226,13 @@ public:
  * 
  * Ex: An FOnGetContent delegate that can be called to generate a widget.
  */
-struct SLATE_API FUIActionContext
+struct FUIActionContext
 {
 public:
 
-	TSharedPtr<IUIActionContextBase> FindContext(const FName InName) const;
+	SLATE_API TSharedPtr<IUIActionContextBase> FindContext(const FName InName) const;
 
-	void AddContext(const TSharedPtr<IUIActionContextBase>& InContext);
+	SLATE_API void AddContext(const TSharedPtr<IUIActionContextBase>& InContext);
 
 private:
 	TArray<TSharedPtr<IUIActionContextBase>> Contexts;

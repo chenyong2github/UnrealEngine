@@ -16,7 +16,7 @@ class FArrangedChildren;
 /**
  * Arranges widgets in a circular fashion
  */
-class SLATE_API SRadialBox : public SPanel
+class SRadialBox : public SPanel
 {
 
 public:
@@ -67,47 +67,47 @@ public:
 
 	SLATE_END_ARGS()
 
-	SRadialBox();
+	SLATE_API SRadialBox();
 
-	static FSlot::FSlotArguments Slot();
+	static SLATE_API FSlot::FSlotArguments Slot();
 
 	using FScopedWidgetSlotArguments = TPanelChildren<FSlot>::FScopedWidgetSlotArguments;
-	FScopedWidgetSlotArguments AddSlot();
+	SLATE_API FScopedWidgetSlotArguments AddSlot();
 
 	/** Removes a slot from this radial box which contains the specified SWidget
 	 *
 	 * @param SlotWidget The widget to match when searching through the slots
 	 * @returns The index in the children array where the slot was removed and -1 if no slot was found matching the widget
 	 */
-	int32 RemoveSlot( const TSharedRef<SWidget>& SlotWidget );
+	SLATE_API int32 RemoveSlot( const TSharedRef<SWidget>& SlotWidget );
 
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 
-	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
+	SLATE_API virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
 
-	virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
+	SLATE_API virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
 
-	void ClearChildren();
+	SLATE_API void ClearChildren();
 
-	virtual FVector2D ComputeDesiredSize(float) const override;
+	SLATE_API virtual FVector2D ComputeDesiredSize(float) const override;
 
-	virtual FChildren* GetChildren() override;
+	SLATE_API virtual FChildren* GetChildren() override;
 
 	void SetStartingAngle(float InStartingAngle) { StartingAngle = InStartingAngle; }
 	void SetAngleBetweenItems(float InAngleBetweenItems) { AngleBetweenItems = InAngleBetweenItems; }
 	void SetDistributeItemsEvenly(bool bInDistributeItemsEvenly) { bDistributeItemsEvenly = bInDistributeItemsEvenly; }
 	void SetSectorCentralAngle(float InSectorCentralAngle) { SectorCentralAngle = InSectorCentralAngle; }
 
-	void SetUseAllottedWidth(bool bInUseAllottedWidth);
+	SLATE_API void SetUseAllottedWidth(bool bInUseAllottedWidth);
 
 	/** Mods the angle so it's between 0-360 */
 	UE_DEPRECATED(5.0, "NormalizeAngle is deprecated. You should use the FRotator::NormalizeAxis.")
-	int32 NormalizeAngle(int32 Angle) const;
+	SLATE_API int32 NormalizeAngle(int32 Angle) const;
 
 private:
 
 	/** Mods the angle so it's between 0-360 */
-	float InternalNormalizeAngle(float Angle) const;
+	SLATE_API float InternalNormalizeAngle(float Angle) const;
 
 	/** The slots that contain this panel's children. */
 	TPanelChildren<FSlot> Slots;

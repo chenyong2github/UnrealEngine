@@ -7,7 +7,7 @@
 /**
 * An interface to allow Slate Widgets to expose scrollable functionality.
 */
-class SLATE_API IScrollableWidget
+class IScrollableWidget
 {
 public:
 	virtual ~IScrollableWidget() {}

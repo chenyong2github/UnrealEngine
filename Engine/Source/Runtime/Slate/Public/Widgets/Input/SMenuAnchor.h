@@ -28,7 +28,7 @@ DECLARE_DELEGATE_OneParam(FOnIsOpenChanged, bool)
  * A PopupAnchor summons a Popup relative to its content.
  * Summoning a popup relative to the cursor is accomplished via the application.
  */
-class SLATE_API SMenuAnchor : public SPanel, public IMenuHost
+class SMenuAnchor : public SPanel, public IMenuHost
 {
 public:
 	SLATE_BEGIN_ARGS( SMenuAnchor )
@@ -73,22 +73,22 @@ public:
 
 	SLATE_END_ARGS()
 
-	virtual ~SMenuAnchor();
+	SLATE_API virtual ~SMenuAnchor();
 	
 	/**
 	 * Construct this widget
 	 *
 	 * @param	InArgs	The declaration data for this widget
 	 */
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 	
-	SMenuAnchor();
+	SLATE_API SMenuAnchor();
 
 	/** See Content Slot attribute */
-	void SetContent(TSharedRef<SWidget> InContent);
+	SLATE_API void SetContent(TSharedRef<SWidget> InContent);
 
 	/** See MenuContent attribute */
-	virtual void SetMenuContent(TSharedRef<SWidget> InMenuContent);
+	SLATE_API virtual void SetMenuContent(TSharedRef<SWidget> InMenuContent);
 	
 	/**
 	 * Open or close the popup
@@ -96,64 +96,64 @@ public:
 	 * @param InIsOpen    If true, open the popup. Otherwise close it.
 	 * @param bFocusMenu  Should we focus the popup as soon as it opens?
 	 */
-	virtual void SetIsOpen( bool InIsOpen, const bool bFocusMenu = true, const int32 FocusUserIndex = 0 );
+	SLATE_API virtual void SetIsOpen( bool InIsOpen, const bool bFocusMenu = true, const int32 FocusUserIndex = 0 );
 	
 	/** @return true if the popup is open; false otherwise. */
-	bool IsOpen() const;
+	SLATE_API bool IsOpen() const;
 
 	/** @return true if we should open the menu due to a click. Sometimes we should not, if
 	   the same MouseDownEvent that just closed the menu is about to re-open it because it happens to land on the button.*/
-	bool ShouldOpenDueToClick() const;
+	SLATE_API bool ShouldOpenDueToClick() const;
 
 	/** @return The current menu position */
-	FVector2D GetMenuPosition() const;
+	SLATE_API FVector2D GetMenuPosition() const;
 
-	void SetMenuPlacement(TAttribute<EMenuPlacement> InMenuPlacement);
+	SLATE_API void SetMenuPlacement(TAttribute<EMenuPlacement> InMenuPlacement);
 
-	void SetFitInWindow(bool bFit);
+	SLATE_API void SetFitInWindow(bool bFit);
 
 	/** @return Whether this menu has open submenus */
-	bool HasOpenSubMenus() const;
+	SLATE_API bool HasOpenSubMenus() const;
 
 	// IMenuHost interface
-	virtual TSharedPtr<SWindow> GetMenuWindow() const override;
-	virtual void OnMenuDismissed() override;
-	virtual bool UsingApplicationMenuStack() const override;
+	SLATE_API virtual TSharedPtr<SWindow> GetMenuWindow() const override;
+	SLATE_API virtual void OnMenuDismissed() override;
+	SLATE_API virtual bool UsingApplicationMenuStack() const override;
 	// End of IMenuHost interface
 
-	static void DismissAllApplicationMenus();
+	static SLATE_API void DismissAllApplicationMenus();
 
 protected:
 	// SWidget interface
-	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
-	virtual bool ComputeVolatility() const override;
-	virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
-	virtual FVector2D ComputeDesiredSize(float) const override;
-	virtual FChildren* GetChildren() override;
-	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
+	SLATE_API virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
+	SLATE_API virtual bool ComputeVolatility() const override;
+	SLATE_API virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
+	SLATE_API virtual FVector2D ComputeDesiredSize(float) const override;
+	SLATE_API virtual FChildren* GetChildren() override;
+	SLATE_API virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
 	// End of SWidget interface
 
 	/** @return true if the popup is currently open and reusing an existing window */
-	bool IsOpenAndReusingWindow() const;
+	SLATE_API bool IsOpenAndReusingWindow() const;
 
 	/** @return true if the popup is currently open and we created a dedicated window for it */
-	bool IsOpenViaCreatedWindow() const;
+	SLATE_API bool IsOpenViaCreatedWindow() const;
 
 	/** Handler/callback called by menus created by this anchor, when they are dismissed */
-	void OnMenuClosed(TSharedRef<IMenu> InMenu);
+	SLATE_API void OnMenuClosed(TSharedRef<IMenu> InMenu);
 
 	/** Reset the popup state to prepopup. */
-	void ResetPopupMenuContent();
+	SLATE_API void ResetPopupMenuContent();
 
 	/** Computes the placement geometry for menus displayed in a separately created window */
-	FGeometry ComputeNewWindowMenuPlacement(const FGeometry& AllottedGeometry, const FVector2D& PopupDesiredSize, EMenuPlacement PlacementMode) const;
+	SLATE_API FGeometry ComputeNewWindowMenuPlacement(const FGeometry& AllottedGeometry, const FVector2D& PopupDesiredSize, EMenuPlacement PlacementMode) const;
 
-	static TArray<TWeakPtr<IMenu>> OpenApplicationMenus;
+	static SLATE_API TArray<TWeakPtr<IMenu>> OpenApplicationMenus;
 
 protected:
-	struct SLATE_API FPopupPlacement
+	struct FPopupPlacement
 	{
-		FPopupPlacement(const FGeometry& PlacementGeometry, const FVector2D& PopupDesiredSize, EMenuPlacement PlacementMode);
+		SLATE_API FPopupPlacement(const FGeometry& PlacementGeometry, const FVector2D& PopupDesiredSize, EMenuPlacement PlacementMode);
 		
 		FVector2D LocalPopupSize;
 		FVector2D LocalPopupOffset;

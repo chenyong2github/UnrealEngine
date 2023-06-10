@@ -10,7 +10,7 @@ class ISlateStyle;
 
 #if WITH_FANCY_TEXT
 
-struct SLATE_API FTextRunParseResults
+struct FTextRunParseResults
 {
 	FTextRunParseResults( FString InName, const FTextRange& InOriginalRange)
 		: Name( InName )
@@ -35,7 +35,7 @@ struct SLATE_API FTextRunParseResults
 	TMap< FString, FTextRange > MetaData; 
 };
 
-struct SLATE_API FTextLineParseResults
+struct FTextLineParseResults
 {
 public:
 
@@ -57,7 +57,7 @@ public:
 	TArray< FTextRunParseResults > Runs;
 };
 
-struct SLATE_API FTextRunInfo : FRunInfo
+struct FTextRunInfo : FRunInfo
 {
 	FTextRunInfo( FString InName, const FText& InContent )
 		: FRunInfo( MoveTemp(InName) )
@@ -69,7 +69,7 @@ struct SLATE_API FTextRunInfo : FRunInfo
 	FText Content;
 };
 
-class SLATE_API ITextDecorator
+class ITextDecorator
 {
 public:
 

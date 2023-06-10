@@ -12,8 +12,8 @@
 /**
 * Settings that control Slate functionality
 */
-UCLASS(config=Engine, defaultconfig, meta=(DisplayName="Slate"))
-class SLATE_API USlateSettings : public UObject
+UCLASS(config=Engine, defaultconfig, meta=(DisplayName="Slate"), MinimalAPI)
+class USlateSettings : public UObject
 {
 	GENERATED_UCLASS_BODY()
 

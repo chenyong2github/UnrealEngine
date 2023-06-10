@@ -51,23 +51,23 @@ class FUICommandInfo;
 /**
  *
  */
-class SLATE_API FUICommandInfoDecl
+class FUICommandInfoDecl
 {
 	friend class FBindingContext;
 
 public:
 
-	FUICommandInfoDecl& DefaultChord( const FInputChord& InDefaultChord, const EMultipleKeyBindingIndex InChordIndex = EMultipleKeyBindingIndex::Primary);
-	FUICommandInfoDecl& UserInterfaceType( EUserInterfaceActionType InType );
-	FUICommandInfoDecl& Icon( const FSlateIcon& InIcon );
-	FUICommandInfoDecl& Description( const FText& InDesc );
+	SLATE_API FUICommandInfoDecl& DefaultChord( const FInputChord& InDefaultChord, const EMultipleKeyBindingIndex InChordIndex = EMultipleKeyBindingIndex::Primary);
+	SLATE_API FUICommandInfoDecl& UserInterfaceType( EUserInterfaceActionType InType );
+	SLATE_API FUICommandInfoDecl& Icon( const FSlateIcon& InIcon );
+	SLATE_API FUICommandInfoDecl& Description( const FText& InDesc );
 
-	operator TSharedPtr<FUICommandInfo>() const;
-	operator TSharedRef<FUICommandInfo>() const;
+	SLATE_API operator TSharedPtr<FUICommandInfo>() const;
+	SLATE_API operator TSharedRef<FUICommandInfo>() const;
 
 public:
 
-	FUICommandInfoDecl( const TSharedRef<class FBindingContext>& InContext, const FName InCommandName, const FText& InLabel, const FText& InDesc, const FName InBundle = NAME_None);
+	SLATE_API FUICommandInfoDecl( const TSharedRef<class FBindingContext>& InContext, const FName InCommandName, const FText& InLabel, const FText& InDesc, const FName InBundle = NAME_None);
 
 private:
 
@@ -80,7 +80,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnBindingContextChanged, const FBindingCont
 /**
  * Represents a context in which input bindings are valid
  */
-class SLATE_API FBindingContext
+class FBindingContext
 	: public TSharedFromThis<FBindingContext>
 {
 public:
@@ -109,7 +109,7 @@ public:
 	/**
 	 * Creates a new command declaration used to populate commands with data
 	 */
-	FUICommandInfoDecl NewCommand( const FName InCommandName, const FText& InCommandLabel, const FText& InCommandDesc );
+	SLATE_API FUICommandInfoDecl NewCommand( const FName InCommandName, const FText& InCommandLabel, const FText& InCommandDesc );
 
 	/**
 	 * @return The name of the context
@@ -138,7 +138,7 @@ public:
 	 * @param Name A unique identifier for the bundle in this context
 	 * @param Desc A localized description of the bundle
 	 */
-	void AddBundle(const FName Name, const FText& Desc);
+	SLATE_API void AddBundle(const FName Name, const FText& Desc);
 
 	/**
 	 * Gets a localized label of a command bundle
@@ -146,7 +146,7 @@ public:
 	 * @param Name The name of the bundle to get a label for
 	 * @return The localized label of the bundle
 	 */
-	const FText& GetBundleLabel(const FName Name);
+	SLATE_API const FText& GetBundleLabel(const FName Name);
 
 	friend uint32 GetTypeHash( const FBindingContext& Context )
 	{
@@ -159,7 +159,7 @@ public:
 	}
 
 	/** A delegate that is called when commands are registered or unregistered with a binding context */
-	static FOnBindingContextChanged CommandsChanged;
+	static SLATE_API FOnBindingContextChanged CommandsChanged;
 
 private:
 
@@ -180,7 +180,7 @@ private:
 };
 
 
-class SLATE_API FUICommandInfo
+class FUICommandInfo
 {
 	friend class FInputBindingManager;
 	friend class FUICommandInfoDecl;
@@ -192,26 +192,14 @@ public:
 	 *
 	 * @param InBindingContext The name of the binding context to use.
 	 */
-	FUICommandInfo( const FName InBindingContext )
-		: BindingContext( InBindingContext )
-		, UserInterfaceType( EUserInterfaceActionType::Button )
-		, bUseLongDisplayName( true )
-	{
-		LLM_SCOPE_BYTAG(UI_Slate);
-
-		ActiveChords.Empty(2);
-		ActiveChords.Add(TSharedRef<FInputChord>(new FInputChord));
-		ActiveChords.Add(TSharedRef<FInputChord>(new FInputChord));
-
-		DefaultChords.Init(FInputChord(EKeys::Invalid, EModifierKey::None), 2);
-	}
+	SLATE_API FUICommandInfo(const FName InBindingContext);
 
 	/**
 	 * Returns the friendly, localized string name of the first valid chord in the key bindings list that is required to perform the command
 	 *
 	 * @return	Localized friendly text for the chord
 	 */
-	const FText GetInputText() const;
+	SLATE_API const FText GetInputText() const;
 
 	/**
 	 * @return	Returns the active chord at the specified index for this command
@@ -244,10 +232,10 @@ public:
 	const FInputChord& GetDefaultChord(const EMultipleKeyBindingIndex InChordIndex) const { return DefaultChords[static_cast<uint8>(InChordIndex)]; }
 
 	/** Utility function to make an FUICommandInfo */
-	static void MakeCommandInfo( const TSharedRef<class FBindingContext>& InContext, TSharedPtr< FUICommandInfo >& OutCommand, const FName InCommandName, const FText& InCommandLabel, const FText& InCommandDesc, const FSlateIcon& InIcon, const EUserInterfaceActionType InUserInterfaceType, const FInputChord& InDefaultChord, const FInputChord& InAlternateDefaultChord = FInputChord(), const FName InBundle = NAME_None);
+	static SLATE_API void MakeCommandInfo( const TSharedRef<class FBindingContext>& InContext, TSharedPtr< FUICommandInfo >& OutCommand, const FName InCommandName, const FText& InCommandLabel, const FText& InCommandDesc, const FSlateIcon& InIcon, const EUserInterfaceActionType InUserInterfaceType, const FInputChord& InDefaultChord, const FInputChord& InAlternateDefaultChord = FInputChord(), const FName InBundle = NAME_None);
 
 	/** Utility function to unregister an FUICommandInfo */
-	static void UnregisterCommandInfo(const TSharedRef<class FBindingContext>& InContext, const TSharedRef<FUICommandInfo>& InCommand);
+	static SLATE_API void UnregisterCommandInfo(const TSharedRef<class FBindingContext>& InContext, const TSharedRef<FUICommandInfo>& InCommand);
 
 	/** @return The display label for this command */
 	const FText& GetLabel() const { return Label; }
@@ -277,17 +265,17 @@ public:
 	void SetUseLongDisplayName(const bool bInUseLongDisplayName) { bUseLongDisplayName = bInUseLongDisplayName; }
 
 	/** Sets the new active chord for this command */
-	void SetActiveChord( const FInputChord& NewChord, const EMultipleKeyBindingIndex InChordIndex );
+	SLATE_API void SetActiveChord( const FInputChord& NewChord, const EMultipleKeyBindingIndex InChordIndex );
 
 	/** Removes the active chord from this command */
-	void RemoveActiveChord(const EMultipleKeyBindingIndex InChordIndex);
+	SLATE_API void RemoveActiveChord(const EMultipleKeyBindingIndex InChordIndex);
 
 	/** 
 	 * Makes a tooltip for this command.
 	 * @param	InText	Optional dynamic text to be displayed in the tooltip.
 	 * @return	The tooltip widget
 	 */
-	TSharedRef<class SToolTip> MakeTooltip( const TAttribute<FText>& InText = TAttribute<FText>() , const TAttribute< EVisibility >& InToolTipVisibility = TAttribute<EVisibility>()) const;
+	SLATE_API TSharedRef<class SToolTip> MakeTooltip( const TAttribute<FText>& InText = TAttribute<FText>() , const TAttribute< EVisibility >& InToolTipVisibility = TAttribute<EVisibility>()) const;
 
 private:
 

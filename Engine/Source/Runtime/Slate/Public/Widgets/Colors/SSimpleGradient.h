@@ -13,7 +13,7 @@ class FSlateWindowElementList;
 /**
  * Implements a Slate widget that renders a simple color gradient.
  */
-class SLATE_API SSimpleGradient
+class SSimpleGradient
 	: public SCompoundWidget
 {
 public:
@@ -46,20 +46,20 @@ public:
 	SLATE_END_ARGS()
 
 public:
-	SSimpleGradient();
+	SLATE_API SSimpleGradient();
 
 	/**
 	 * Constructs the widget
 	 *
 	 * @param InArgs The declaration data for this widget
 	 */
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 
 protected:
 
 	// SCompoundWidget overrides
 
-	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
+	SLATE_API virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
 
 private:
 

@@ -21,7 +21,7 @@ class SImage;
 /**
  * A button that, when clicked, brings up a popup.
  */
-class SLATE_API SComboButton : public SMenuAnchor
+class SComboButton : public SMenuAnchor
 {
 public:
 
@@ -75,18 +75,18 @@ public:
 	SLATE_END_ARGS()
 
 	// SMenuAnchor interface
-	virtual void SetMenuContent(TSharedRef<SWidget> InContent) override;
+	SLATE_API virtual void SetMenuContent(TSharedRef<SWidget> InContent) override;
 	// End of SMenuAnchor interface
 
 	/** See the OnGetMenuContent event */
-	void SetOnGetMenuContent( FOnGetContent InOnGetMenuContent );
+	SLATE_API void SetOnGetMenuContent( FOnGetContent InOnGetMenuContent );
 
 	/**
 	 * Construct the widget from a declaration
 	 *
 	 * @param InArgs  The declaration from which to construct
 	 */
-	void Construct(const FArguments& InArgs);
+	SLATE_API void Construct(const FArguments& InArgs);
 
 	void SetMenuContentWidgetToFocus( TWeakPtr<SWidget> InWidgetToFocusPtr )
 	{
@@ -94,17 +94,17 @@ public:
 	}
 
 	/** See the padding for button content. */
-	void SetButtonContentPadding(FMargin InPadding);
+	SLATE_API void SetButtonContentPadding(FMargin InPadding);
 
 	/** add/remove the expanding arrow. */
-	void SetHasDownArrow(bool InHasArrowDown);
+	SLATE_API void SetHasDownArrow(bool InHasArrowDown);
 
 protected:
 	/**
 	 * Handle the button being clicked by summoning the ComboButton.
 	 */
-	virtual FReply OnButtonClicked();
-	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+	SLATE_API virtual FReply OnButtonClicked();
+	SLATE_API virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 
 	/**
 	 * Called to query the tool tip text for this widget, but will return an empty text when the menu is already open
@@ -113,7 +113,7 @@ protected:
 	 *
 	 * @return	Tool tip text, or an empty text if filtered out
 	 */
-	FText GetFilteredToolTipText(TAttribute<FText> ToolTipText) const;
+	SLATE_API FText GetFilteredToolTipText(TAttribute<FText> ToolTipText) const;
 
 protected:
 	/** Area where the button's content resides */

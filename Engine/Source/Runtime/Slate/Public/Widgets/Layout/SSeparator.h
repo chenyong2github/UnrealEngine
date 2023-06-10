@@ -8,7 +8,7 @@
 #include "Styling/CoreStyle.h"
 #include "Widgets/Layout/SBorder.h"
 
-class SLATE_API SSeparator : public SBorder
+class SSeparator : public SBorder
 {
 public:
 	SLATE_BEGIN_ARGS(SSeparator)
@@ -33,10 +33,10 @@ public:
 	 *
 	 * @param	InArgs	The declaration data for this widget
 	 */
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 
 	// SWidget interface
-	virtual FVector2D ComputeDesiredSize(float) const override;
+	SLATE_API virtual FVector2D ComputeDesiredSize(float) const override;
 	// End of SWidget interface
 private:
 	EOrientation Orientation;

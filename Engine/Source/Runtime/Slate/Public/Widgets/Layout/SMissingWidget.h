@@ -7,7 +7,7 @@
 /**
  * Like a null widget, but visualizes itself as being explicitly missing.
  */
-class SLATE_API SMissingWidget
+class SMissingWidget
 {
 public:
 
@@ -16,5 +16,5 @@ public:
 	 *
 	 * @return The widget.
 	 */
-	static TSharedRef<class SWidget> MakeMissingWidget( );
+	static SLATE_API TSharedRef<class SWidget> MakeMissingWidget( );
 };

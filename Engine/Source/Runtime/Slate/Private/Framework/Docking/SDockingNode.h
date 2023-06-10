@@ -15,7 +15,7 @@ class SDockingSplitter;
  * A node in the Docking/Tabbing hierarchy.
  * Any SDockingNode can be either a stack of tabs or a splitter.
  */
-class SLATE_API SDockingNode : public SCompoundWidget
+class SDockingNode : public SCompoundWidget
 {
 public:
 	enum Type
@@ -86,8 +86,8 @@ public:
 	
 
 	/** Gets the dock area that this resides in */
-	virtual TSharedPtr<SDockingArea> GetDockArea();
-	virtual TSharedPtr<const SDockingArea> GetDockArea() const;
+	SLATE_API virtual TSharedPtr<SDockingArea> GetDockArea();
+	SLATE_API virtual TSharedPtr<const SDockingArea> GetDockArea() const;
 	
 	/** Recursively searches through all children looking for child tabs */
 	virtual TArray< TSharedRef<SDockTab> > GetAllChildTabs() const {return TArray< TSharedRef<SDockTab> >();}
@@ -103,16 +103,16 @@ public:
 	 *
 	 * @return An FReply::Handled() if we successfully docked the content; FReply::Unhandled() otherwise.
 	 */
-	virtual FReply OnUserAttemptingDock( SDockingNode::RelativeDirection Direction, const FDragDropEvent& DragDropEvent );
+	SLATE_API virtual FReply OnUserAttemptingDock( SDockingNode::RelativeDirection Direction, const FDragDropEvent& DragDropEvent );
 
 	/** Should this node auto-size or be a percentage of its parent size; this setting is usually determined by users */
 	virtual SSplitter::ESizeRule GetSizeRule() const { return SSplitter::FractionOfParent; }
 
 	/** @return the numerator for the fraction of available space that this dock node should occupy. */
-	float GetSizeCoefficient() const;
+	SLATE_API float GetSizeCoefficient() const;
 
 	/** Set the coefficient size */
-	void SetSizeCoefficient( float InSizeCoefficient );
+	SLATE_API void SetSizeCoefficient( float InSizeCoefficient );
 
 	/** @returns true when this node is showing a live DockableTab; false when this nodes content is only kept around for history's sake */
 	//virtual bool IsShowingLiveTabs() const;
@@ -135,10 +135,10 @@ public:
 
 protected:
 
-	SDockingNode();
+	SLATE_API SDockingNode();
 
 	/** A live tab was added to this node or one of its descendants */
-	virtual void OnLiveTabAdded();
+	SLATE_API virtual void OnLiveTabAdded();
 
 	virtual void OnResized() {}
 

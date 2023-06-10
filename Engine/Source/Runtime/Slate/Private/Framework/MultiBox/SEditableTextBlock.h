@@ -76,7 +76,7 @@ private:
 /**
  * Editable text block widget
  */
-class SLATE_API SEditableTextBlock
+class SEditableTextBlock
 	: public SMultiBlockBaseWidget
 {
 
@@ -88,7 +88,7 @@ public:
 	/**
 	 * Builds this MultiBlock widget up from the MultiBlock associated with it
 	 */
-	virtual void BuildMultiBlockWidget(const ISlateStyle* StyleSet, const FName& StyleName) override;
+	SLATE_API virtual void BuildMultiBlockWidget(const ISlateStyle* StyleSet, const FName& StyleName) override;
 
 	/**
 	 * Construct this widget
@@ -104,5 +104,5 @@ protected:
 	 * 
 	 * @return true if the widget is enabled, false otherwise
 	 */
-	bool IsEnabled() const;
+	SLATE_API bool IsEnabled() const;
 };

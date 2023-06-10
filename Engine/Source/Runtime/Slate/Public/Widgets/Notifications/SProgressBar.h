@@ -58,7 +58,7 @@ namespace EProgressBarFillStyle
 }
 
 /** A progress bar widget.*/
-class SLATE_API SProgressBar : public SLeafWidget
+class SProgressBar : public SLeafWidget
 {
 
 public:
@@ -114,38 +114,38 @@ public:
 	 * 
 	 * @param InArgs   A declaration from which to construct the widget
 	 */
-	void Construct(const FArguments& InArgs);
+	SLATE_API void Construct(const FArguments& InArgs);
 
-	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
-	virtual FVector2D ComputeDesiredSize(float) const override;
-	virtual bool ComputeVolatility() const override;
+	SLATE_API virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
+	SLATE_API virtual FVector2D ComputeDesiredSize(float) const override;
+	SLATE_API virtual bool ComputeVolatility() const override;
 
 	/** See attribute Percent */
-	void SetPercent(TAttribute< TOptional<float> > InPercent);
+	SLATE_API void SetPercent(TAttribute< TOptional<float> > InPercent);
 	
 	/** See attribute Style */
-	void SetStyle(const FProgressBarStyle* InStyle);
+	SLATE_API void SetStyle(const FProgressBarStyle* InStyle);
 	
 	/** See attribute BarFillType */
-	void SetBarFillType(EProgressBarFillType::Type InBarFillType);
+	SLATE_API void SetBarFillType(EProgressBarFillType::Type InBarFillType);
 
 	/** See attribute BarFillStyle */
-	void SetBarFillStyle(EProgressBarFillStyle::Type InBarFillStyle);
+	SLATE_API void SetBarFillStyle(EProgressBarFillStyle::Type InBarFillStyle);
 	
 	/** See attribute SetFillColorAndOpacity */
-	void SetFillColorAndOpacity(TAttribute< FSlateColor > InFillColorAndOpacity);
+	SLATE_API void SetFillColorAndOpacity(TAttribute< FSlateColor > InFillColorAndOpacity);
 	
 	/** See attribute BorderPadding */
-	void SetBorderPadding(TAttribute< FVector2D > InBorderPadding);
+	SLATE_API void SetBorderPadding(TAttribute< FVector2D > InBorderPadding);
 	
 	/** See attribute BackgroundImage */
-	void SetBackgroundImage(const FSlateBrush* InBackgroundImage);
+	SLATE_API void SetBackgroundImage(const FSlateBrush* InBackgroundImage);
 	
 	/** See attribute FillImage */
-	void SetFillImage(const FSlateBrush* InFillImage);
+	SLATE_API void SetFillImage(const FSlateBrush* InFillImage);
 	
 	/** See attribute MarqueeImage */
-	void SetMarqueeImage(const FSlateBrush* InMarqueeImage);
+	SLATE_API void SetMarqueeImage(const FSlateBrush* InMarqueeImage);
 	
 private:
 

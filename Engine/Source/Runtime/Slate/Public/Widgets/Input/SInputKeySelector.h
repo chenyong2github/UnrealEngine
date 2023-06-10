@@ -23,7 +23,7 @@ class STextBlock;
 /**
  * A widget for selecting keys or input chords.
  */
-class SLATE_API SInputKeySelector : public SCompoundWidget
+class SInputKeySelector : public SCompoundWidget
 {
 public:
 	DECLARE_DELEGATE_OneParam( FOnKeySelected, const FInputChord& )
@@ -84,24 +84,24 @@ public:
 		SLATE_ARGUMENT(bool, IsFocusable)
 	SLATE_END_ARGS()
 
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 
 public:
 
 	/** Gets the currently selected key chord. */
-	FInputChord GetSelectedKey() const;
+	SLATE_API FInputChord GetSelectedKey() const;
 
 	/** Sets the currently selected key chord. */
-	void SetSelectedKey( TAttribute<FInputChord> InSelectedKey );
+	SLATE_API void SetSelectedKey( TAttribute<FInputChord> InSelectedKey );
 
 	/** Sets the margin around the text used to display the currently selected key */
-	void SetMargin( TAttribute<FMargin> InMargin );
+	SLATE_API void SetMargin( TAttribute<FMargin> InMargin );
 
 	/** Sets the style of the button which is used enter key selection mode. */
-	void SetButtonStyle( const FButtonStyle* ButtonStyle );
+	SLATE_API void SetButtonStyle( const FButtonStyle* ButtonStyle );
 
 	/** Sets the style of the text on the button which is used enter key selection mode. */
-	void SetTextStyle(const FTextBlockStyle* InTextStyle);
+	SLATE_API void SetTextStyle(const FTextBlockStyle* InTextStyle);
 
 	/** Sets the text which is displayed when selecting a key. */
 	void SetKeySelectionText( FText InKeySelectionText ) { KeySelectionText = MoveTemp(InKeySelectionText); }
@@ -122,38 +122,38 @@ public:
 	bool GetIsSelectingKey() const { return bIsSelectingKey; }
 
 	/** Sets the visibility of the text block. */
-	void SetTextBlockVisibility(EVisibility InVisibility);
+	SLATE_API void SetTextBlockVisibility(EVisibility InVisibility);
 
 public:
 
-	virtual FReply OnPreviewKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
-	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
-	virtual FReply OnKeyUp( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
-	virtual FReply OnPreviewMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
-	virtual void OnFocusLost( const FFocusEvent& InFocusEvent ) override;
-	virtual FNavigationReply OnNavigation(const FGeometry& MyGeometry, const FNavigationEvent& InNavigationEvent) override;
+	SLATE_API virtual FReply OnPreviewKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
+	SLATE_API virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+	SLATE_API virtual FReply OnKeyUp( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
+	SLATE_API virtual FReply OnPreviewMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	SLATE_API virtual void OnFocusLost( const FFocusEvent& InFocusEvent ) override;
+	SLATE_API virtual FNavigationReply OnNavigation(const FGeometry& MyGeometry, const FNavigationEvent& InNavigationEvent) override;
 	virtual bool SupportsKeyboardFocus() const override { return true; }
 
 private:
 
 	/** Gets the display text for the currently selected key. */
-	FText GetSelectedKeyText() const;
+	SLATE_API FText GetSelectedKeyText() const;
 
 	/**  Gets the margin around the text used to display the currently selected key. */
-	FMargin GetMargin() const;
+	SLATE_API FMargin GetMargin() const;
 
 	/** Handles the OnClicked event from the button which enables key selection mode. */
-	FReply OnClicked();
+	SLATE_API FReply OnClicked();
 
 	/** Sets the currently selected key and invokes the associated events. */
-	void SelectKey( FKey Key, bool bShiftDown, bool bControllDown, bool bAltDown, bool bCommandDown );
+	SLATE_API void SelectKey( FKey Key, bool bShiftDown, bool bControllDown, bool bAltDown, bool bCommandDown );
 
 	/** Sets bIsSelectingKey and invokes the associated events. */
-	void SetIsSelectingKey(bool bInIsSelectingKey);
+	SLATE_API void SetIsSelectingKey(bool bInIsSelectingKey);
 
 	/** Returns true, if the key has been specified as an escape key, else false. */
-	bool IsEscapeKey(const FKey& InKey) const;
+	SLATE_API bool IsEscapeKey(const FKey& InKey) const;
 
 private:
 

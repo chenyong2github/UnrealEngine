@@ -15,9 +15,9 @@
 * Note: For low-spec machines where the blur effect is too computationally expensive, 
 * a user-specified fallback image is used instead (effectively turning this into a Border)
 */
-class SLATE_API SBackgroundBlur : public SCompoundWidget
+class SBackgroundBlur : public SCompoundWidget
 {
-	SLATE_DECLARE_WIDGET(SBackgroundBlur, SCompoundWidget)
+	SLATE_DECLARE_WIDGET_API(SBackgroundBlur, SCompoundWidget, SLATE_API)
 
 public:
 	SLATE_BEGIN_ARGS(SBackgroundBlur)
@@ -46,25 +46,25 @@ public:
 	SLATE_END_ARGS()
 
 public:
-	SBackgroundBlur();
-	void Construct(const FArguments& InArgs);
-	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
+	SLATE_API SBackgroundBlur();
+	SLATE_API void Construct(const FArguments& InArgs);
+	SLATE_API virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
 
-	void SetContent(const TSharedRef<SWidget>& InContent);
-	void SetApplyAlphaToBlur(bool bInApplyAlphaToBlur);
-	void SetBlurRadius(TAttribute<TOptional<int32>> InBlurRadius);
-	void SetBlurStrength(TAttribute<float> InStrength);
-	void SetCornerRadius(TAttribute<FVector4> InCornerRadius);
-	void SetLowQualityBackgroundBrush(const FSlateBrush* InBrush);
+	SLATE_API void SetContent(const TSharedRef<SWidget>& InContent);
+	SLATE_API void SetApplyAlphaToBlur(bool bInApplyAlphaToBlur);
+	SLATE_API void SetBlurRadius(TAttribute<TOptional<int32>> InBlurRadius);
+	SLATE_API void SetBlurStrength(TAttribute<float> InStrength);
+	SLATE_API void SetCornerRadius(TAttribute<FVector4> InCornerRadius);
+	SLATE_API void SetLowQualityBackgroundBrush(const FSlateBrush* InBrush);
 	
-	void SetHAlign(EHorizontalAlignment HAlign);
-	void SetVAlign(EVerticalAlignment VAlign);
-	void SetPadding(TAttribute<FMargin> InPadding);
+	SLATE_API void SetHAlign(EHorizontalAlignment HAlign);
+	SLATE_API void SetVAlign(EVerticalAlignment VAlign);
+	SLATE_API void SetPadding(TAttribute<FMargin> InPadding);
 
-	bool IsUsingLowQualityFallbackBrush() const;
+	SLATE_API bool IsUsingLowQualityFallbackBrush() const;
 
 protected:
-	void ComputeEffectiveKernelSize(float Strength, int32& OutKernelSize, int32& OutDownsampleAmount) const;
+	SLATE_API void ComputeEffectiveKernelSize(float Strength, int32& OutKernelSize, int32& OutDownsampleAmount) const;
 
 
 	/** @return an attribute reference of ColorAndOpacity */

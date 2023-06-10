@@ -18,7 +18,7 @@ class FSlateRenderDataHandle;
 class FSlateWindowElementList;
 class SWindow;
 
-class SLATE_API SInvalidationPanel : public SCompoundWidget, public FSlateInvalidationRoot
+class SInvalidationPanel : public SCompoundWidget, public FSlateInvalidationRoot
 {
 public:
 	SLATE_BEGIN_ARGS( SInvalidationPanel )
@@ -31,35 +31,35 @@ public:
 #endif
 	SLATE_END_ARGS()
 
-	SInvalidationPanel();
-	~SInvalidationPanel();
+	SLATE_API SInvalidationPanel();
+	SLATE_API ~SInvalidationPanel();
 
 #if WITH_SLATE_DEBUGGING
-	static bool AreInvalidationPanelsEnabled();
-	static void EnableInvalidationPanels(bool bEnable);
+	static SLATE_API bool AreInvalidationPanelsEnabled();
+	static SLATE_API void EnableInvalidationPanels(bool bEnable);
 #endif
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 
-	bool GetCanCache() const;
+	SLATE_API bool GetCanCache() const;
 
-	void SetCanCache(bool InCanCache);
+	SLATE_API void SetCanCache(bool InCanCache);
 
 	//~ SWidget overrides
-	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
-	virtual FChildren* GetChildren() override;
+	SLATE_API virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
+	SLATE_API virtual FChildren* GetChildren() override;
 #if WITH_SLATE_DEBUGGING
-	virtual FChildren* Debug_GetChildrenForReflector() override;
+	SLATE_API virtual FChildren* Debug_GetChildrenForReflector() override;
 #endif
 	//~ End SWidget
 
-	void SetContent(const TSharedRef< SWidget >& InContent);
+	SLATE_API void SetContent(const TSharedRef< SWidget >& InContent);
 
 protected:
-	virtual bool CustomPrepass(float LayoutScaleMultiplier) override;
-	virtual bool Advanced_IsInvalidationRoot() const override;
-	virtual const FSlateInvalidationRoot* Advanced_AsInvalidationRoot() const override;
-	virtual TSharedRef<SWidget> GetRootWidget() override;
-	virtual int32 PaintSlowPath(const FSlateInvalidationContext& Context) override;
+	SLATE_API virtual bool CustomPrepass(float LayoutScaleMultiplier) override;
+	SLATE_API virtual bool Advanced_IsInvalidationRoot() const override;
+	SLATE_API virtual const FSlateInvalidationRoot* Advanced_AsInvalidationRoot() const override;
+	SLATE_API virtual TSharedRef<SWidget> GetRootWidget() override;
+	SLATE_API virtual int32 PaintSlowPath(const FSlateInvalidationContext& Context) override;
 
 private:
 	void OnGlobalInvalidationToggled(bool bGlobalInvalidationEnabled);

@@ -34,7 +34,7 @@ struct FTextArgs
 
 };
 
-class SLATE_API ISlateRun : public IRun
+class ISlateRun : public IRun
 {
 public:
 	virtual int32 OnPaint(const FPaintArgs& PaintArgs, const FTextArgs& TextArgs, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const = 0;

@@ -18,7 +18,7 @@ DECLARE_DELEGATE_RetVal(const FText, FOnGetContextText)
 /**
  * Context for generating identifiers such as icons, labels, and descriptions from a FUICommandInfo
  */
-struct SLATE_API FUIIdentifierContext : public IUIActionContextBase
+struct FUIIdentifierContext : public IUIActionContextBase
 {
 	virtual ~FUIIdentifierContext() {}
 

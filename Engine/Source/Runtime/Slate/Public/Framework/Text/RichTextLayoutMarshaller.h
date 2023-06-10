@@ -22,21 +22,21 @@ struct FTextBlockStyle;
 /**
  * Get/set the raw text to/from a text layout as rich text
  */
-class SLATE_API FRichTextLayoutMarshaller : public FBaseTextLayoutMarshaller
+class FRichTextLayoutMarshaller : public FBaseTextLayoutMarshaller
 {
 public:
 
-	static TSharedRef< FRichTextLayoutMarshaller > Create(TArray< TSharedRef< ITextDecorator > > InDecorators, const ISlateStyle* const InDecoratorStyleSet);
-	static TSharedRef< FRichTextLayoutMarshaller > Create(TSharedPtr< IRichTextMarkupParser > InParser, TSharedPtr< IRichTextMarkupWriter > InWriter, TArray< TSharedRef< ITextDecorator > > InDecorators, const ISlateStyle* const InDecoratorStyleSet);
+	static SLATE_API TSharedRef< FRichTextLayoutMarshaller > Create(TArray< TSharedRef< ITextDecorator > > InDecorators, const ISlateStyle* const InDecoratorStyleSet);
+	static SLATE_API TSharedRef< FRichTextLayoutMarshaller > Create(TSharedPtr< IRichTextMarkupParser > InParser, TSharedPtr< IRichTextMarkupWriter > InWriter, TArray< TSharedRef< ITextDecorator > > InDecorators, const ISlateStyle* const InDecoratorStyleSet);
 
-	virtual ~FRichTextLayoutMarshaller();
+	SLATE_API virtual ~FRichTextLayoutMarshaller();
 
 	// ITextLayoutMarshaller
-	virtual void SetText(const FString& SourceString, FTextLayout& TargetTextLayout) override;
-	virtual void GetText(FString& TargetString, const FTextLayout& SourceTextLayout) override;
+	SLATE_API virtual void SetText(const FString& SourceString, FTextLayout& TargetTextLayout) override;
+	SLATE_API virtual void GetText(FString& TargetString, const FTextLayout& SourceTextLayout) override;
 
 	/** Set the Multiplier applied on the font size of the text*/
-	void SetFontSizeMultiplier(const float NewFontSizeMultiplier);
+	SLATE_API void SetFontSizeMultiplier(const float NewFontSizeMultiplier);
 
 	/**
 	 * Replace all decorators on this marshaller
@@ -62,12 +62,12 @@ public:
 
 protected:
 
-	FRichTextLayoutMarshaller(TArray< TSharedRef< ITextDecorator > > InDecorators, const ISlateStyle* const InDecoratorStyleSet);
-	FRichTextLayoutMarshaller(TSharedPtr< IRichTextMarkupParser > InParser, TSharedPtr< IRichTextMarkupWriter > InWriter, TArray< TSharedRef< ITextDecorator > > InDecorators, const ISlateStyle* const InDecoratorStyleSet);
+	SLATE_API FRichTextLayoutMarshaller(TArray< TSharedRef< ITextDecorator > > InDecorators, const ISlateStyle* const InDecoratorStyleSet);
+	SLATE_API FRichTextLayoutMarshaller(TSharedPtr< IRichTextMarkupParser > InParser, TSharedPtr< IRichTextMarkupWriter > InWriter, TArray< TSharedRef< ITextDecorator > > InDecorators, const ISlateStyle* const InDecoratorStyleSet);
 
-	TSharedPtr< ITextDecorator > TryGetDecorator(const FString& Line, const FTextRunParseResults& TextRun) const;
+	SLATE_API TSharedPtr< ITextDecorator > TryGetDecorator(const FString& Line, const FTextRunParseResults& TextRun) const;
 
-	virtual void AppendRunsForText(
+	SLATE_API virtual void AppendRunsForText(
 		const int32 LineIndex,
 		const FTextRunParseResults& TextRun, 
 		const FString& ProcessedString, 

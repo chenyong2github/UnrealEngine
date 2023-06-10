@@ -11,7 +11,7 @@
 /**
  * Interface for table views to talk to their rows.
  */
-class SLATE_API ITableRow
+class ITableRow
 {
 public:
 

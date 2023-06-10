@@ -10,23 +10,23 @@ class FTextLayout;
 /**
  * Get/set the raw text to/from a text layout as plain text
  */
-class SLATE_API FPlainTextLayoutMarshaller : public FBaseTextLayoutMarshaller
+class FPlainTextLayoutMarshaller : public FBaseTextLayoutMarshaller
 {
 public:
 
-	static TSharedRef< FPlainTextLayoutMarshaller > Create();
+	static SLATE_API TSharedRef< FPlainTextLayoutMarshaller > Create();
 
-	virtual ~FPlainTextLayoutMarshaller();
+	SLATE_API virtual ~FPlainTextLayoutMarshaller();
 	
-	void SetIsPassword(const TAttribute<bool>& InIsPassword);
+	SLATE_API void SetIsPassword(const TAttribute<bool>& InIsPassword);
 
 	// ITextLayoutMarshaller
-	virtual void SetText(const FString& SourceString, FTextLayout& TargetTextLayout) override;
-	virtual void GetText(FString& TargetString, const FTextLayout& SourceTextLayout) override;
+	SLATE_API virtual void SetText(const FString& SourceString, FTextLayout& TargetTextLayout) override;
+	SLATE_API virtual void GetText(FString& TargetString, const FTextLayout& SourceTextLayout) override;
 
 protected:
 
-	FPlainTextLayoutMarshaller();
+	SLATE_API FPlainTextLayoutMarshaller();
 
 	/** This this marshaller displaying a password? */
 	TAttribute<bool> bIsPassword;

@@ -22,9 +22,9 @@ enum class EColorBlockAlphaDisplayMode : uint8
 	Ignore,
 };
 
-class SLATE_API SColorBlock : public SLeafWidget
+class SColorBlock : public SLeafWidget
 {
-	SLATE_DECLARE_WIDGET(SColorBlock, SLeafWidget)
+	SLATE_DECLARE_WIDGET_API(SColorBlock, SLeafWidget, SLATE_API)
 
 public:
 
@@ -80,22 +80,22 @@ public:
 	SLATE_END_ARGS()
 
 public:
-	SColorBlock();
+	SLATE_API SColorBlock();
 
 	/**
 	 * Construct this widget
 	 *
 	 * @param	InArgs	The declaration data for this widget
 	 */
-	void Construct(const FArguments& InArgs);
+	SLATE_API void Construct(const FArguments& InArgs);
 
 private:
 	// SWidget overrides
-	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
-	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
-	virtual FVector2D ComputeDesiredSize(float) const override;
+	SLATE_API virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
+	SLATE_API virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	SLATE_API virtual FVector2D ComputeDesiredSize(float) const override;
 
-	void MakeSection(TArray<FSlateGradientStop>& OutGradientStops, FVector2D StartPt, FVector2D EndPt, FLinearColor Color, const FWidgetStyle& InWidgetStyle, bool bIgnoreAlpha) const;
+	SLATE_API void MakeSection(TArray<FSlateGradientStop>& OutGradientStops, FVector2D StartPt, FVector2D EndPt, FLinearColor Color, const FWidgetStyle& InWidgetStyle, bool bIgnoreAlpha) const;
 
 private:
 	/** The color to display for this color block */

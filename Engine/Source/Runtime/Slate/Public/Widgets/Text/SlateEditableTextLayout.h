@@ -31,41 +31,41 @@ class SWindow;
 enum class ETextShapingMethod : uint8;
 
 /** Class to handle the cached layout of SEditableText/SMultiLineEditableText by proxying around a FTextLayout */
-class SLATE_API FSlateEditableTextLayout
+class FSlateEditableTextLayout
 {
 public:
-	FSlateEditableTextLayout(ISlateEditableTextWidget& InOwnerWidget, const TAttribute<FText>& InInitialText, FTextBlockStyle InTextStyle, const TOptional<ETextShapingMethod> InTextShapingMethod, const TOptional<ETextFlowDirection> InTextFlowDirection, const FCreateSlateTextLayout& InCreateSlateTextLayout, TSharedRef<ITextLayoutMarshaller> InTextMarshaller, TSharedRef<ITextLayoutMarshaller> InHintTextMarshaller);
-	~FSlateEditableTextLayout();
+	SLATE_API FSlateEditableTextLayout(ISlateEditableTextWidget& InOwnerWidget, const TAttribute<FText>& InInitialText, FTextBlockStyle InTextStyle, const TOptional<ETextShapingMethod> InTextShapingMethod, const TOptional<ETextFlowDirection> InTextFlowDirection, const FCreateSlateTextLayout& InCreateSlateTextLayout, TSharedRef<ITextLayoutMarshaller> InTextMarshaller, TSharedRef<ITextLayoutMarshaller> InHintTextMarshaller);
+	SLATE_API ~FSlateEditableTextLayout();
 
-	void SetText(const TAttribute<FText>& InText);
-	FText GetText() const;
+	SLATE_API void SetText(const TAttribute<FText>& InText);
+	SLATE_API FText GetText() const;
 
-	void SetHintText(const TAttribute<FText>& InHintText);
-	FText GetHintText() const;
+	SLATE_API void SetHintText(const TAttribute<FText>& InHintText);
+	SLATE_API FText GetHintText() const;
 
-	void SetSearchText(const TAttribute<FText>& InSearchText);
-	FText GetSearchText() const;
+	SLATE_API void SetSearchText(const TAttribute<FText>& InSearchText);
+	SLATE_API FText GetSearchText() const;
 	
 	/** Get the index of the search result (0 if none) */
-	int32 GetSearchResultIndex() const;
+	SLATE_API int32 GetSearchResultIndex() const;
 	
 	/** Get the total number of search results (0 if none) */
-	int32 GetNumSearchResults() const;
+	SLATE_API int32 GetNumSearchResults() const;
 
-	void SetTextStyle(const FTextBlockStyle& InTextStyle);
-	const FTextBlockStyle& GetTextStyle() const;
+	SLATE_API void SetTextStyle(const FTextBlockStyle& InTextStyle);
+	SLATE_API const FTextBlockStyle& GetTextStyle() const;
 
 	/** Get the number of Text Lines */
-	int32 GetTextLineCount();
+	SLATE_API int32 GetTextLineCount();
 
 	/** Set the brush to use when drawing the cursor */
-	void SetCursorBrush(const TAttribute<const FSlateBrush*>& InCursorBrush);
+	SLATE_API void SetCursorBrush(const TAttribute<const FSlateBrush*>& InCursorBrush);
 
 	/** Set the brush to use when drawing the composition highlight */
-	void SetCompositionBrush(const TAttribute<const FSlateBrush*>& InCompositionBrush);
+	SLATE_API void SetCompositionBrush(const TAttribute<const FSlateBrush*>& InCompositionBrush);
 
 	/** Get the plain text string without rich-text formatting */
-	FText GetPlainText() const;
+	SLATE_API FText GetPlainText() const;
 
 	/**
 	 * Sets the current editable text for this text block
@@ -76,229 +76,229 @@ public:
 	 *
 	 * @return true if the text was updated, false if the text wasn't update (because it was already up-to-date)
 	 */
-	bool SetEditableText(const FText& TextToSet, const bool bForce = false);
+	SLATE_API bool SetEditableText(const FText& TextToSet, const bool bForce = false);
 
 	/**
 	 * Gets the current editable text for this text block
 	 * Note: We don't store text in this form (it's stored as lines in the text layout) so every call to this function has to reconstruct it
 	 */
-	FText GetEditableText() const;
+	SLATE_API FText GetEditableText() const;
 
 	/** Get the currently selected text */
-	FText GetSelectedText() const;
+	SLATE_API FText GetSelectedText() const;
 
 	/** Get the current selection*/
-	FTextSelection GetSelection() const;
+	SLATE_API FTextSelection GetSelection() const;
 	
 	/** Set the text shaping method that the internal text layout should use */
-	void SetTextShapingMethod(const TOptional<ETextShapingMethod>& InTextShapingMethod);
+	SLATE_API void SetTextShapingMethod(const TOptional<ETextShapingMethod>& InTextShapingMethod);
 
 	/** Set the text flow direction that the internal text layout should use */
-	void SetTextFlowDirection(const TOptional<ETextFlowDirection>& InTextFlowDirection);
+	SLATE_API void SetTextFlowDirection(const TOptional<ETextFlowDirection>& InTextFlowDirection);
 
 	/** Set the wrapping to use for this document */
-	void SetTextWrapping(const TAttribute<float>& InWrapTextAt, const TAttribute<bool>& InAutoWrapText, const TAttribute<ETextWrappingPolicy>& InWrappingPolicy);
+	SLATE_API void SetTextWrapping(const TAttribute<float>& InWrapTextAt, const TAttribute<bool>& InAutoWrapText, const TAttribute<ETextWrappingPolicy>& InWrappingPolicy);
 
 	/** Set whether text wraps onto a new line when it's length exceeds this width; if this value is zero or negative, no wrapping occurs */
-	void SetWrapTextAt(const TAttribute<float>& InWrapTextAt);
+	SLATE_API void SetWrapTextAt(const TAttribute<float>& InWrapTextAt);
 
 	/** Set whether to wrap text automatically based on the widget's computed horizontal space */
-	void SetAutoWrapText(const TAttribute<bool>& InAutoWrapText);
+	SLATE_API void SetAutoWrapText(const TAttribute<bool>& InAutoWrapText);
 
 	/** Set the wrapping policy to use */
-	void SetWrappingPolicy(const TAttribute<ETextWrappingPolicy>& InWrappingPolicy);
+	SLATE_API void SetWrappingPolicy(const TAttribute<ETextWrappingPolicy>& InWrappingPolicy);
 
 	/** Set the amount of blank space left around the edges of text area */
-	void SetMargin(const TAttribute<FMargin>& InMargin);
+	SLATE_API void SetMargin(const TAttribute<FMargin>& InMargin);
 
 	/** Set how the text should be aligned with the margin */
-	void SetJustification(const TAttribute<ETextJustify::Type>& InJustification);
+	SLATE_API void SetJustification(const TAttribute<ETextJustify::Type>& InJustification);
 
 	/** Set the amount to scale each lines height by */
-	void SetLineHeightPercentage(const TAttribute<float>& InLineHeightPercentage);
+	SLATE_API void SetLineHeightPercentage(const TAttribute<float>& InLineHeightPercentage);
 
 	/** Set the text overflow policy that should be used to determine what happens to clipped text */
-	void SetOverflowPolicy(TOptional<ETextOverflowPolicy> InOverflowPolicy);
+	SLATE_API void SetOverflowPolicy(TOptional<ETextOverflowPolicy> InOverflowPolicy);
 
 	/** Set the information used to help identify who owns this text layout in the case of an error */
-	void SetDebugSourceInfo(const TAttribute<FString>& InDebugSourceInfo);
+	SLATE_API void SetDebugSourceInfo(const TAttribute<FString>& InDebugSourceInfo);
 
 	/** Get the virtual keyboard handler for this text layout */
-	TSharedRef<IVirtualKeyboardEntry> GetVirtualKeyboardEntry() const;
+	SLATE_API TSharedRef<IVirtualKeyboardEntry> GetVirtualKeyboardEntry() const;
 
 	/** Get the IME context for this text layout */
-	TSharedRef<ITextInputMethodContext> GetTextInputMethodContext() const;
+	SLATE_API TSharedRef<ITextInputMethodContext> GetTextInputMethodContext() const;
 
 	/** Register and activate the IME context for this text layout */
-	void EnableTextInputMethodContext();
+	SLATE_API void EnableTextInputMethodContext();
 
 	/** Refresh this editable text immediately, rather than wait for the usual caching mechanisms to take affect on the text Tick */
-	bool Refresh();
+	SLATE_API bool Refresh();
 
 	/** Force the text layout to be updated from the marshaller */
-	void ForceRefreshTextLayout(const FText& CurrentText);
+	SLATE_API void ForceRefreshTextLayout(const FText& CurrentText);
 
 	/** Begin a new text search (this is called automatically when BoundSearchText changes) */
-	void BeginSearch(const FText& InSearchText, const ESearchCase::Type InSearchCase = ESearchCase::IgnoreCase, const bool InReverse = false);
+	SLATE_API void BeginSearch(const FText& InSearchText, const ESearchCase::Type InSearchCase = ESearchCase::IgnoreCase, const bool InReverse = false);
 
 	/** Advance the current search to the next match (does nothing if not currently searching) */
-	void AdvanceSearch(const bool InReverse = false);
+	SLATE_API void AdvanceSearch(const bool InReverse = false);
 
 	/** Update the horizontal scroll amount from the given fraction */
-	UE::Slate::FDeprecateVector2DResult SetHorizontalScrollFraction(const float InScrollOffsetFraction);
+	SLATE_API UE::Slate::FDeprecateVector2DResult SetHorizontalScrollFraction(const float InScrollOffsetFraction);
 
 	/** Update the vertical scroll amount from the given fraction */
-	UE::Slate::FDeprecateVector2DResult SetVerticalScrollFraction(const float InScrollOffsetFraction);
+	SLATE_API UE::Slate::FDeprecateVector2DResult SetVerticalScrollFraction(const float InScrollOffsetFraction);
 
 	/** Set the absolute scroll offset value */
-	UE::Slate::FDeprecateVector2DResult SetScrollOffset(const UE::Slate::FDeprecateVector2DParameter& InScrollOffset, const FGeometry& InGeometry);
+	SLATE_API UE::Slate::FDeprecateVector2DResult SetScrollOffset(const UE::Slate::FDeprecateVector2DParameter& InScrollOffset, const FGeometry& InGeometry);
 
 	/** Get the absolute scroll offset value */
-	UE::Slate::FDeprecateVector2DResult GetScrollOffset() const;
+	SLATE_API UE::Slate::FDeprecateVector2DResult GetScrollOffset() const;
 
 	/** Returns the computed wrap location for this layout */
-	float GetComputedWrappingWidth() const;
+	SLATE_API float GetComputedWrappingWidth() const;
 
 	/** Returns whether or not we are auto wrapping text */
-	bool GetAutoWrapText() const;
+	SLATE_API bool GetAutoWrapText() const;
 
 	/** Called when our parent widget receives focus */
-	bool HandleFocusReceived(const FFocusEvent& InFocusEvent);
+	SLATE_API bool HandleFocusReceived(const FFocusEvent& InFocusEvent);
 
 	/** Called when our parent widget loses focus */
-	bool HandleFocusLost(const FFocusEvent& InFocusEvent);
+	SLATE_API bool HandleFocusLost(const FFocusEvent& InFocusEvent);
 
 	/** Called to handle an OnKeyChar event from our parent widget */
-	FReply HandleKeyChar(const FCharacterEvent& InCharacterEvent);
+	SLATE_API FReply HandleKeyChar(const FCharacterEvent& InCharacterEvent);
 
 	/** Called to handle an OnKeyDown event from our parent widget */
-	FReply HandleKeyDown(const FKeyEvent& InKeyEvent);
+	SLATE_API FReply HandleKeyDown(const FKeyEvent& InKeyEvent);
 
 	/** Called to handle an OnKeyUp event from our parent widget */
-	FReply HandleKeyUp(const FKeyEvent& InKeyEvent);
+	SLATE_API FReply HandleKeyUp(const FKeyEvent& InKeyEvent);
 
 	/** Called to handle an OnMouseButtonDown event from our parent widget */
-	FReply HandleMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& InMouseEvent);
+	SLATE_API FReply HandleMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& InMouseEvent);
 
 	/** Called to handle an OnMouseButtonUp event from our parent widget */
-	FReply HandleMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& InMouseEvent);
+	SLATE_API FReply HandleMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& InMouseEvent);
 
 	/** Called to handle an OnMouseMove event from our parent widget */
-	FReply HandleMouseMove(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent);
+	SLATE_API FReply HandleMouseMove(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent);
 
 	/** Called to handle an OnMouseButtonDoubleClick event from our parent widget */
-	FReply HandleMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent);
+	SLATE_API FReply HandleMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent);
 
 	/** Called to handle an escape action acting on the current selection */
-	bool HandleEscape();
+	SLATE_API bool HandleEscape();
 
 	/** Called to handle a backspace action acting on the current selection or at the cursor position */
-	bool HandleBackspace();
+	SLATE_API bool HandleBackspace();
 
 	/** Called to handle a delete action acting on the current selection or at the cursor position */
-	bool HandleDelete();
+	SLATE_API bool HandleDelete();
 
 	/** Called to handle a typing a character on the current selection or at the cursor position */
-	bool HandleTypeChar(const TCHAR InChar);
+	SLATE_API bool HandleTypeChar(const TCHAR InChar);
 
 	/** Called to handle a carriage return action acting on the current selection or at the cursor position */
-	bool HandleCarriageReturn(bool isRepeat);
+	SLATE_API bool HandleCarriageReturn(bool isRepeat);
 
 	/** Are we able to delete the currently selected text? */
-	bool CanExecuteDelete() const;
+	SLATE_API bool CanExecuteDelete() const;
 
 	/** Delete any currently selected text */
-	void DeleteSelectedText();
+	SLATE_API void DeleteSelectedText();
 
 	/** Query to see if any text is selected within the document */
-	bool AnyTextSelected() const;
+	SLATE_API bool AnyTextSelected() const;
 
 	/** Query to see if the text under the given position is currently selected */
-	bool IsTextSelectedAt(const FGeometry& MyGeometry, const UE::Slate::FDeprecateVector2DParameter& ScreenSpacePosition) const;
+	SLATE_API bool IsTextSelectedAt(const FGeometry& MyGeometry, const UE::Slate::FDeprecateVector2DParameter& ScreenSpacePosition) const;
 
 	/** Query to see if the text under the given position is currently selected (the position is local to the text layout space) */
-	bool IsTextSelectedAt(const UE::Slate::FDeprecateVector2DParameter& InLocalPosition) const;
+	SLATE_API bool IsTextSelectedAt(const UE::Slate::FDeprecateVector2DParameter& InLocalPosition) const;
 
 	/** Are we able to execute the "Select All" command? */
-	bool CanExecuteSelectAll() const;
+	SLATE_API bool CanExecuteSelectAll() const;
 
 	/** Select all the text in the document */
-	void SelectAllText();
+	SLATE_API void SelectAllText();
 
 	/** Select the word under the given position */
-	void SelectWordAt(const FGeometry& MyGeometry, const UE::Slate::FDeprecateVector2DParameter& ScreenSpacePosition);
+	SLATE_API void SelectWordAt(const FGeometry& MyGeometry, const UE::Slate::FDeprecateVector2DParameter& ScreenSpacePosition);
 
 	/** Select the word under the given position (the position is local to the text layout space) */
-	void SelectWordAt(const UE::Slate::FDeprecateVector2DParameter& InLocalPosition);
+	SLATE_API void SelectWordAt(const UE::Slate::FDeprecateVector2DParameter& InLocalPosition);
 
 	/** Select a block of text */
-	void SelectText(const FTextLocation& InSelectionStart, const FTextLocation& InCursorLocation);
+	SLATE_API void SelectText(const FTextLocation& InSelectionStart, const FTextLocation& InCursorLocation);
 
 	/** Clear the active text selection */
-	void ClearSelection();
+	SLATE_API void ClearSelection();
 
 	/** Are we able to cut the currently selected text? */
-	bool CanExecuteCut() const;
+	SLATE_API bool CanExecuteCut() const;
 
 	/** Cut the currently selected text and place it on the clipboard */
-	void CutSelectedTextToClipboard();
+	SLATE_API void CutSelectedTextToClipboard();
 
 	/** Are we able to copy the currently selected text? */
-	bool CanExecuteCopy() const;
+	SLATE_API bool CanExecuteCopy() const;
 
 	/** Copy the currently selected text and place it on the clipboard */
-	void CopySelectedTextToClipboard();
+	SLATE_API void CopySelectedTextToClipboard();
 
 	/** Are we able to paste the text from the clipboard into this document? */
-	bool CanExecutePaste() const;
+	SLATE_API bool CanExecutePaste() const;
 
 	/** Paste the text from the clipboard into this document */
-	void PasteTextFromClipboard();
+	SLATE_API void PasteTextFromClipboard();
 
 	/** Insert the given text at the current cursor position, correctly taking into account new line characters */
-	void InsertTextAtCursor(const FString& InString);
+	SLATE_API void InsertTextAtCursor(const FString& InString);
 
 	/** Insert the given run at the current cursor position */
-	void InsertRunAtCursor(TSharedRef<IRun> InRun);
+	SLATE_API void InsertRunAtCursor(TSharedRef<IRun> InRun);
 
 	/** Move the cursor in the document using the specified move method */
-	bool MoveCursor(const FMoveCursor& InArgs);
+	SLATE_API bool MoveCursor(const FMoveCursor& InArgs);
 
 	/** Move the cursor to the given location in the document (will also scroll to this point) */
-	void GoTo(const FTextLocation& NewLocation);
+	SLATE_API void GoTo(const FTextLocation& NewLocation);
 
 	/** Move the cursor specified location */
-	void GoTo(const ETextLocation NewLocation);
+	SLATE_API void GoTo(const ETextLocation NewLocation);
 
 	/** Jump the cursor to the given location in the document */
-	void JumpTo(ETextLocation JumpLocation, ECursorAction Action);
+	SLATE_API void JumpTo(ETextLocation JumpLocation, ECursorAction Action);
 
 	/** Scroll to the given location in the document (without moving the cursor) */
-	void ScrollTo(const FTextLocation& NewLocation);
+	SLATE_API void ScrollTo(const FTextLocation& NewLocation);
 
 	/** Scroll to the given location in the document (without moving the cursor) */
-	void ScrollTo(const ETextLocation NewLocation);
+	SLATE_API void ScrollTo(const ETextLocation NewLocation);
 
 	/** Update the active cursor highlight based on the state of the text layout */
-	void UpdateCursorHighlight();
+	SLATE_API void UpdateCursorHighlight();
 
 	/** Remove any active cursor highlights */
-	void RemoveCursorHighlight();
+	SLATE_API void RemoveCursorHighlight();
 
 	/** Update the preferred offset of the cursor, based on the current state of the text layout */
-	void UpdatePreferredCursorScreenOffsetInLine();
+	SLATE_API void UpdatePreferredCursorScreenOffsetInLine();
 
 	/** Apply the given style to the currently selected text (or insert a new run at the current cursor position if no text is selected) */
-	void ApplyToSelection(const FRunInfo& InRunInfo, const FTextBlockStyle& InStyle);
+	SLATE_API void ApplyToSelection(const FRunInfo& InRunInfo, const FTextBlockStyle& InStyle);
 
 	/** Get the run currently under the cursor, or null if there is no run currently under the cursor */
-	TSharedPtr<const IRun> GetRunUnderCursor() const;
+	SLATE_API TSharedPtr<const IRun> GetRunUnderCursor() const;
 
 	/** Get the runs currently that are current selected, some of which may be only partially selected */
-	TArray<TSharedRef<const IRun>> GetSelectedRuns() const;
+	SLATE_API TArray<TSharedRef<const IRun>> GetSelectedRuns() const;
 
 	/** Get the interaction position of the cursor (where to insert, delete, etc, text from/to) */
-	FTextLocation GetCursorLocation() const;
+	SLATE_API FTextLocation GetCursorLocation() const;
 
 	/**
 	 * Given a location and a Direction to offset, return a new location.
@@ -306,7 +306,7 @@ public:
 	 * @param Location    Cursor location from which to offset
 	 * @param Direction   Positive means right, negative means left.
 	 */
-	FTextLocation TranslatedLocation(const FTextLocation& CurrentLocation, int8 Direction) const;
+	SLATE_API FTextLocation TranslatedLocation(const FTextLocation& CurrentLocation, int8 Direction) const;
 
 	/**
 	 * Given a location and a Direction to offset, return a new location.
@@ -317,92 +317,92 @@ public:
 	 * @param OutCursorPosition     Fill with the updated cursor position.
 	 * @param OutCursorAlignment    Optionally fill with a new cursor alignment (will be auto-calculated if not set).
 	 */
-	void TranslateLocationVertical(const FTextLocation& Location, int32 NumLinesToMove, float GeometryScale, FTextLocation& OutCursorPosition, TOptional<SlateEditableTextTypes::ECursorAlignment>& OutCursorAlignment) const;
+	SLATE_API void TranslateLocationVertical(const FTextLocation& Location, int32 NumLinesToMove, float GeometryScale, FTextLocation& OutCursorPosition, TOptional<SlateEditableTextTypes::ECursorAlignment>& OutCursorAlignment) const;
 
 	/** Find the closest word boundary */
-	FTextLocation ScanForWordBoundary(const FTextLocation& Location, int8 Direction) const;
+	SLATE_API FTextLocation ScanForWordBoundary(const FTextLocation& Location, int8 Direction) const;
 
 	/** Get the character at Location */
-	TCHAR GetCharacterAt(const FTextLocation& Location) const;
+	SLATE_API TCHAR GetCharacterAt(const FTextLocation& Location) const;
 
 	/** Are we at the beginning of all the text. */
-	bool IsAtBeginningOfDocument(const FTextLocation& Location) const;
+	SLATE_API bool IsAtBeginningOfDocument(const FTextLocation& Location) const;
 
 	/** Are we at the end of all the text. */
-	bool IsAtEndOfDocument(const FTextLocation& Location) const;
+	SLATE_API bool IsAtEndOfDocument(const FTextLocation& Location) const;
 
 	/** Is this location the beginning of a line */
-	bool IsAtBeginningOfLine(const FTextLocation& Location) const;
+	SLATE_API bool IsAtBeginningOfLine(const FTextLocation& Location) const;
 
 	/** Is this location the end of a line. */
-	bool IsAtEndOfLine(const FTextLocation& Location) const;
+	SLATE_API bool IsAtEndOfLine(const FTextLocation& Location) const;
 
 	/** Are we currently at the beginning of a word */
-	bool IsAtWordStart(const FTextLocation& Location) const;
+	SLATE_API bool IsAtWordStart(const FTextLocation& Location) const;
 
 	/** Restores the text to the original state */
-	void RestoreOriginalText();
+	SLATE_API void RestoreOriginalText();
 
 	/** Returns whether the current text varies from the original */
-	bool HasTextChangedFromOriginal() const;
+	SLATE_API bool HasTextChangedFromOriginal() const;
 
 	/** Called to begin an undoable editable text transaction */
-	void BeginEditTransation();
+	SLATE_API void BeginEditTransation();
 
 	/** Called to end an undoable editable text transaction */
-	void EndEditTransaction();
+	SLATE_API void EndEditTransaction();
 
 	/** Push the given undo state onto the undo stack */
-	void PushUndoState(const SlateEditableTextTypes::FUndoState& InUndoState);
+	SLATE_API void PushUndoState(const SlateEditableTextTypes::FUndoState& InUndoState);
 
 	/** Clear the current undo stack */
-	void ClearUndoStates();
+	SLATE_API void ClearUndoStates();
 
 	/** Create an undo state that reflects the current state of the document */
-	void MakeUndoState(SlateEditableTextTypes::FUndoState& OutUndoState);
+	SLATE_API void MakeUndoState(SlateEditableTextTypes::FUndoState& OutUndoState);
 
 	/** Are we currently able to execute an undo action? */
-	bool CanExecuteUndo() const;
+	SLATE_API bool CanExecuteUndo() const;
 	
 	/** Execute an undo action */
-	void Undo();
+	SLATE_API void Undo();
 
 	/** Are we currently able to execute a redo action? */
-	bool CanExecuteRedo() const;
+	SLATE_API bool CanExecuteRedo() const;
 
 	/** Execute a redo action */
-	void Redo();
+	SLATE_API void Redo();
 
-	void SaveText(const FText& TextToSave);
+	SLATE_API void SaveText(const FText& TextToSave);
 
-	void LoadText();
+	SLATE_API void LoadText();
 
-	bool ComputeVolatility() const;
+	SLATE_API bool ComputeVolatility() const;
 
-	void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime);
+	SLATE_API void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime);
 
-	int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled);
+	SLATE_API int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled);
 
-	void CacheDesiredSize(float LayoutScaleMultiplier);
+	SLATE_API void CacheDesiredSize(float LayoutScaleMultiplier);
 
-	FVector2D ComputeDesiredSize(float LayoutScaleMultiplier) const;
+	SLATE_API FVector2D ComputeDesiredSize(float LayoutScaleMultiplier) const;
 
-	FChildren* GetChildren();
+	SLATE_API FChildren* GetChildren();
 
-	void OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const;
+	SLATE_API void OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const;
 
-	UE::Slate::FDeprecateVector2DResult GetSize() const;
+	SLATE_API UE::Slate::FDeprecateVector2DResult GetSize() const;
 
-	TSharedRef<SWidget> BuildDefaultContextMenu(const TSharedPtr<FExtender>& InMenuExtender) const;
+	SLATE_API TSharedRef<SWidget> BuildDefaultContextMenu(const TSharedPtr<FExtender>& InMenuExtender) const;
 
-	bool HasActiveContextMenu() const;
+	SLATE_API bool HasActiveContextMenu() const;
 
 	/**
 	 * Fill OutTextLine with the text line where the current cursor location is at
 	 *
 	 * @param OutTextLine   FString of the line
 	 */
-	void GetCurrentTextLine(FString& OutTextLine) const;
+	SLATE_API void GetCurrentTextLine(FString& OutTextLine) const;
 
 	/**
 	 * Fill OutTextLine with the text line at the specified index
@@ -410,23 +410,23 @@ public:
 	 * @param InLineIndex   Index of the line
 	 * @param OutTextLine   FString of the line
 	 */
-	void GetTextLine(const int32 InLineIndex, FString& OutTextLine) const;
+	SLATE_API void GetTextLine(const int32 InLineIndex, FString& OutTextLine) const;
 
 private:
 	/** Insert the given text at the current cursor position, correctly taking into account new line characters */
-	void InsertTextAtCursorImpl(const FString& InString);
+	SLATE_API void InsertTextAtCursorImpl(const FString& InString);
 
 	/** Insert a new-line at the current cursor position */
-	void InsertNewLineAtCursorImpl();
+	SLATE_API void InsertNewLineAtCursorImpl();
 
 	/** Implementation of Refresh that actually updates the layout. Optionally takes text to set, or will use the current editable text if none if provided */
-	bool RefreshImpl(const FText* InTextToSet, const bool bForce = false);
+	SLATE_API bool RefreshImpl(const FText* InTextToSet, const bool bForce = false);
 
 	/** Create a text or password run using the given text and style */
-	TSharedRef<IRun> CreateTextOrPasswordRun(const FRunInfo& InRunInfo, const TSharedRef<const FString>& InText, const FTextBlockStyle& InStyle);
+	SLATE_API TSharedRef<IRun> CreateTextOrPasswordRun(const FRunInfo& InRunInfo, const TSharedRef<const FString>& InText, const FTextBlockStyle& InStyle);
 
 	/** Called when the active context menu is closed */
-	void OnContextMenuClosed(TSharedRef<IMenu> Menu);
+	SLATE_API void OnContextMenuClosed(TSharedRef<IMenu> Menu);
 
 private:
 	/** Virtual keyboard handler for an editable text layout */

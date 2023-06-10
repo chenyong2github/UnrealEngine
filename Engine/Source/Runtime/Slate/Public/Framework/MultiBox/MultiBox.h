@@ -54,7 +54,7 @@ namespace MultiBoxConstants
 /**
  * MultiBlock (abstract).  Wraps a "block" of useful UI functionality that can be added to a MultiBox.
  */
-class SLATE_API FMultiBlock
+class FMultiBlock
 	: public TSharedFromThis< FMultiBlock >		// Enables this->AsShared()
 {
 
@@ -197,7 +197,7 @@ public:
 	 *
 	 * @return  MultiBlock widget object
 	 */
-	TSharedRef<class IMultiBlockBaseWidget> MakeWidget(TSharedRef< class SMultiBoxWidget > InOwnerMultiBoxWidget, EMultiBlockLocation::Type InLocation, bool bSectionContainsIcons, TSharedPtr<SWidget> OptionsBlockWidget) const;
+	SLATE_API TSharedRef<class IMultiBlockBaseWidget> MakeWidget(TSharedRef< class SMultiBoxWidget > InOwnerMultiBoxWidget, EMultiBlockLocation::Type InLocation, bool bSectionContainsIcons, TSharedPtr<SWidget> OptionsBlockWidget) const;
 
 	/**
 	 * Gets the type of this MultiBox
@@ -234,14 +234,14 @@ public:
 	*
 	* @param	bSearchable		The searchable state to set
 	*/
-	void SetSearchable(bool bSearchable);
+	SLATE_API void SetSearchable(bool bSearchable);
 
 	/**
 	* Gets the searchable state of this block
 	*
 	* @return	Whether this block is searchable
 	*/
-	bool GetSearchable() const;
+	SLATE_API bool GetSearchable() const;
 
 	/** Gets the extension hook so users can see what hooks are where */
 	FName GetExtensionHook() const { return ExtensionHook; }
@@ -301,17 +301,17 @@ private:
 /**
  * MultiBox.  Contains a list of MultiBlocks that provide various functionality.
  */
-class SLATE_API FMultiBox
+class FMultiBox
 	: public TSharedFromThis< FMultiBox >		// Enables this->AsShared()
 {
 
 public:
-	virtual ~FMultiBox();
+	SLATE_API virtual ~FMultiBox();
 
 	/**
 	 * Creates a new multibox instance
 	 */
-	static TSharedRef<FMultiBox> Create( const EMultiBoxType InType,  FMultiBoxCustomization InCustomization, const bool bInShouldCloseWindowAfterMenuSelection );
+	static SLATE_API TSharedRef<FMultiBox> Create( const EMultiBoxType InType,  FMultiBoxCustomization InCustomization, const bool bInShouldCloseWindowAfterMenuSelection );
 
 	/**
 	 * Gets the type of this MultiBox
@@ -336,22 +336,22 @@ public:
 	/**
 	 * Adds a MultiBlock to this MultiBox, to the end of the list
 	 */
-	void AddMultiBlock( TSharedRef< const FMultiBlock > InBlock );
+	SLATE_API void AddMultiBlock( TSharedRef< const FMultiBlock > InBlock );
 
 	/**
 	 * Adds a MultiBlock to this MultiBox, to the front of the list
 	 */
-	void AddMultiBlockToFront(TSharedRef< const FMultiBlock > InBlock);
+	SLATE_API void AddMultiBlockToFront(TSharedRef< const FMultiBlock > InBlock);
 
 	/**
 	 * Removes a MultiBlock from the list for user customization
 	 */
-	void RemoveCustomMultiBlock( TSharedRef< const FMultiBlock> InBlock );
+	SLATE_API void RemoveCustomMultiBlock( TSharedRef< const FMultiBlock> InBlock );
 
 	/**
 	 * Inserts a MultiBlock to the list for user customization
 	 */
-	void InsertCustomMultiBlock( TSharedRef<const FMultiBlock> InBlock, int32 Index );
+	SLATE_API void InsertCustomMultiBlock( TSharedRef<const FMultiBlock> InBlock, int32 Index );
 
 	DECLARE_DELEGATE_TwoParams( FOnMakeMultiBoxBuilderOverride, const TSharedRef<FMultiBox>&, const TSharedRef<SMultiBoxWidget>& );
 
@@ -367,7 +367,7 @@ public:
 	 *
 	 * @return  MultiBox widget object
 	 */
-	TSharedRef< class SMultiBoxWidget > MakeWidget( bool bSearchable, FOnMakeMultiBoxBuilderOverride* InMakeMultiBoxBuilderOverride = nullptr, TAttribute<float> InMaxHeight = TAttribute<float>() );
+	SLATE_API TSharedRef< class SMultiBoxWidget > MakeWidget( bool bSearchable, FOnMakeMultiBoxBuilderOverride* InMakeMultiBoxBuilderOverride = nullptr, TAttribute<float> InMaxHeight = TAttribute<float>() );
 
 
 	/**
@@ -394,7 +394,7 @@ public:
 	}
 
 	/** @return The customization name for this box */
-	FName GetCustomizationName() const;
+	SLATE_API FName GetCustomizationName() const;
 
 	/**
 	 * Creates a block from the provided command that is compatible with this box 
@@ -402,7 +402,7 @@ public:
 	 * @param Command	The UI command to create the block from
 	 * @return The created multi block.  If null, this command could not be placed in this block
 	 */
-	TSharedPtr<FMultiBlock> MakeMultiBlockFromCommand( TSharedPtr<const FUICommandInfo> Command, bool bCommandMustBeBound ) const;
+	SLATE_API TSharedPtr<FMultiBlock> MakeMultiBlockFromCommand( TSharedPtr<const FUICommandInfo> Command, bool bCommandMustBeBound ) const;
 
 	/**
 	 * Finds an existing block by name and type
@@ -410,19 +410,19 @@ public:
 	 * @param InName The name to search for
 	  * @param InType The type to match during the search
 	 */
-	TSharedPtr<const FMultiBlock> FindBlockFromNameAndType(const FName InName, const EMultiBlockType InType) const;
+	SLATE_API TSharedPtr<const FMultiBlock> FindBlockFromNameAndType(const FName InName, const EMultiBlockType InType) const;
 
 	/** @return Is being editing */
-	bool IsInEditMode() const;
+	SLATE_API bool IsInEditMode() const;
 
 	/** @return The tool menu associated with this multi box */
-	UToolMenuBase* GetToolMenu() const;
+	SLATE_API UToolMenuBase* GetToolMenu() const;
 
 	/**
 	 * Only callable during edit mode
 	 * @return Index of section heading or separator
 	 */
-	int32 GetSectionEditBounds(const int32 Index, int32& OutSectionEndIndex) const;
+	SLATE_API int32 GetSectionEditBounds(const int32 Index, int32& OutSectionEndIndex) const;
 
 	DECLARE_DELEGATE_OneParam(FEditSelectionChangedDelegate, TSharedRef<const FMultiBlock>);
 
@@ -452,12 +452,12 @@ private:
 	 * @param	InType	Type of MultiBox
 	 * @param	bInShouldCloseWindowAfterMenuSelection	Sets whether or not the window that contains this multibox should be destroyed after the user clicks on a menu item in this box
 	 */
-	FMultiBox( const EMultiBoxType InType,  FMultiBoxCustomization InCustomization, const bool bInShouldCloseWindowAfterMenuSelection );
+	SLATE_API FMultiBox( const EMultiBoxType InType,  FMultiBoxCustomization InCustomization, const bool bInShouldCloseWindowAfterMenuSelection );
 
 	/**
 	 * @return true if this box can be customized by a user
 	 */
-	bool IsCustomizable() const;
+	SLATE_API bool IsCustomizable() const;
 
 private:
 
@@ -488,7 +488,7 @@ private:
 /**
  * MultiBlock Slate widget interface
  */
-class SLATE_API IMultiBlockBaseWidget
+class IMultiBlockBaseWidget
 {
 
 public:
@@ -561,7 +561,7 @@ public:
 /**
  * MultiBlock Slate base widget (pure virtual).  You'll derive your own MultiBlock class from this base class.
  */
-class SLATE_API SMultiBlockBaseWidget
+class SMultiBlockBaseWidget
 	: public IMultiBlockBaseWidget,
 	  public SCompoundWidget
 {
@@ -570,19 +570,19 @@ public:
 	TSharedPtr<const FMultiBlock> GetBlock() const { return MultiBlock; }
 
 	/** IMultiBlockBaseWidget interface */
-	virtual TSharedRef< SWidget > AsWidget() override;
-	virtual TSharedRef< const SWidget > AsWidget() const override;
-	virtual void SetOwnerMultiBoxWidget(TSharedRef<SMultiBoxWidget> InOwnerMultiBoxWidget) override;
-	virtual void SetMultiBlock(TSharedRef<const FMultiBlock> InMultiBlock) override;
-	virtual void SetOptionsBlockWidget(TSharedPtr<SWidget> InOptionsBlock) override;
-	virtual void SetMultiBlockLocation(EMultiBlockLocation::Type InLocation, bool bInSectionContainsIcons) override;
-	virtual EMultiBlockLocation::Type GetMultiBlockLocation() override;
-	virtual bool IsInEditMode() const override;
+	SLATE_API virtual TSharedRef< SWidget > AsWidget() override;
+	SLATE_API virtual TSharedRef< const SWidget > AsWidget() const override;
+	SLATE_API virtual void SetOwnerMultiBoxWidget(TSharedRef<SMultiBoxWidget> InOwnerMultiBoxWidget) override;
+	SLATE_API virtual void SetMultiBlock(TSharedRef<const FMultiBlock> InMultiBlock) override;
+	SLATE_API virtual void SetOptionsBlockWidget(TSharedPtr<SWidget> InOptionsBlock) override;
+	SLATE_API virtual void SetMultiBlockLocation(EMultiBlockLocation::Type InLocation, bool bInSectionContainsIcons) override;
+	SLATE_API virtual EMultiBlockLocation::Type GetMultiBlockLocation() override;
+	SLATE_API virtual bool IsInEditMode() const override;
 
 	/** SWidget Interface */
-	virtual void OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
-	virtual FReply OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
-	virtual FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
+	SLATE_API virtual void OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
+	SLATE_API virtual FReply OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
+	SLATE_API virtual FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
 protected:
 
 	/** Weak reference back to the MultiBox widget that owns us */
@@ -603,7 +603,7 @@ protected:
 /**
  * MultiBox Slate widget
  */
-class SLATE_API SMultiBoxWidget
+class SMultiBoxWidget
 	: public SMenuOwner
 {
 
@@ -623,7 +623,7 @@ public:
 	 *
 	 * @param	InArgs	The declaration data for this widget
 	 */
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 
 	/**
 	 * Associates this widget with a MultiBox
@@ -661,13 +661,13 @@ public:
 	*
 	* @param	bSearchable		The searchable state to set
 	*/
-	void SetSearchable(bool bSearchable);
+	SLATE_API void SetSearchable(bool bSearchable);
 	/**
 	* Gets the searchable state of this multibox
 	*
 	* @return	Whether this block is searchable
 	*/
-	bool GetSearchable() const;
+	SLATE_API bool GetSearchable() const;
 
 	/**
 	 * @return the the LinkedBoxManager
@@ -682,17 +682,17 @@ public:
 	/**
 	 * Builds this MultiBox widget up from the MultiBox associated with it
 	 */
-	void BuildMultiBoxWidget();
+	SLATE_API void BuildMultiBoxWidget();
 
 	/** Generates the tiles for an STileView for button rows */
-	TSharedRef<ITableRow> GenerateTiles(TSharedPtr<SWidget> Item, const TSharedRef<STableViewBase>& OwnerTable);
+	SLATE_API TSharedRef<ITableRow> GenerateTiles(TSharedPtr<SWidget> Item, const TSharedRef<STableViewBase>& OwnerTable);
 
 	/** Gets the maximum item width and height of the consituent widgets */
-	float GetItemWidth() const;
-	float GetItemHeight() const;
+	SLATE_API float GetItemWidth() const;
+	SLATE_API float GetItemHeight() const;
 
 	/** Event handler for clicking the wrap button */
-	TSharedRef<SWidget> OnWrapButtonClicked();
+	SLATE_API TSharedRef<SWidget> OnWrapButtonClicked();
 
 	const ISlateStyle* GetStyleSet() const { return MultiBox->GetStyleSet(); }
 	const FName& GetStyleName() const { return MultiBox->GetStyleName(); }
@@ -700,72 +700,72 @@ public:
 	/**
 	 * Called when a user drags a UI command into a multiblock in this widget
 	 */
-	void OnCustomCommandDragEnter( TSharedRef<const FMultiBlock> MultiBlock, const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent );
+	SLATE_API void OnCustomCommandDragEnter( TSharedRef<const FMultiBlock> MultiBlock, const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent );
 
 	/**
 	 * Called when a user drags a UI command within multiblock in this widget
 	 */
-	void OnCustomCommandDragged( TSharedRef<const FMultiBlock> MultiBlock, const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent );
+	SLATE_API void OnCustomCommandDragged( TSharedRef<const FMultiBlock> MultiBlock, const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent );
 
 	/**
 	 * Called when a user drops a UI command in this widget
 	 */
-	void OnCustomCommandDropped();
+	SLATE_API void OnCustomCommandDropped();
 	
 	/**
 	 * Called after a drag was initiated from this box but was dropped elsewhere
 	 */
-	void OnDropExternal();
+	SLATE_API void OnDropExternal();
 
 	/** Helper function used to transfer focus to the next/previous widget */
-	static FReply FocusNextWidget(EUINavigation NavigationType);
+	static SLATE_API FReply FocusNextWidget(EUINavigation NavigationType);
 
 	/** SWidget interface */
-	virtual FReply OnDragOver( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
-	virtual FReply OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
-	virtual bool SupportsKeyboardFocus() const override;
-	virtual FReply OnFocusReceived( const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent ) override;
-	virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& KeyEvent ) override;
-	virtual FReply OnKeyChar(const FGeometry& MyGeometry, const FCharacterEvent& InCharacterEvent) override;
-	virtual bool OnVisualizeTooltip(const TSharedPtr<SWidget>& TooltipContent) override;
+	SLATE_API virtual FReply OnDragOver( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
+	SLATE_API virtual FReply OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
+	SLATE_API virtual bool SupportsKeyboardFocus() const override;
+	SLATE_API virtual FReply OnFocusReceived( const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent ) override;
+	SLATE_API virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& KeyEvent ) override;
+	SLATE_API virtual FReply OnKeyChar(const FGeometry& MyGeometry, const FCharacterEvent& InCharacterEvent) override;
+	SLATE_API virtual bool OnVisualizeTooltip(const TSharedPtr<SWidget>& TooltipContent) override;
 
 	/**
 	* Starts a search and makes the search box visible
 	*
 	* @param	InChar		The first character typed in
 	*/
-	void BeginSearch(const TCHAR InChar);
+	SLATE_API void BeginSearch(const TCHAR InChar);
 
 	/**
 	* Resets the search to be empty
 	*/
-	void ResetSearch();
+	SLATE_API void ResetSearch();
 
 	/**
 	* Changes visibility of widgets in the multibox
 	*/
-	void FilterMultiBoxEntries();
+	SLATE_API void FilterMultiBoxEntries();
 
 	/**
 	* Get the text to search by
 	*
 	* @return	The text currently being searched
 	*/
-	FText GetSearchText() const;
+	SLATE_API FText GetSearchText() const;
 
 	/**
 	* Get the SSearchText widget holding the search text
 	*
 	* @return	The widget to get
 	*/
-	TSharedPtr<SWidget> GetSearchTextWidget();
+	SLATE_API TSharedPtr<SWidget> GetSearchTextWidget();
 
 	/**
 	* Set the block widget holding the search text
 	*
 	* @param	BlockWidget		The widget to set
 	*/
-	void SetSearchBlockWidget(TSharedPtr<SWidget>);
+	SLATE_API void SetSearchBlockWidget(TSharedPtr<SWidget>);
 
 	/**
 	* Adds a widget to SearchElement map, making the widget searchable
@@ -774,7 +774,7 @@ public:
 	* @param	BlockDisplayText	The display text of the widget to search by
 	*/
 	UE_DEPRECATED(4.26, "AddSearchElement is deprecated as non-searchable elements also need to be stored, use AddElement instead")
-	void AddSearchElement( TSharedPtr<SWidget>, FText );
+	SLATE_API void AddSearchElement( TSharedPtr<SWidget>, FText );
 
 	/**
 	* Adds a widget to MultiBoxWidgets map, to access and modify its visibility based on search filters
@@ -783,47 +783,47 @@ public:
 	* @param	BlockDisplayText	The display text of the widget to search by
 	  @param    bSearchable			Whether the text is searchable
 	*/
-	void AddElement(TSharedPtr<SWidget> BlockWidget, FText BlockDisplayText, bool bInSearchable = true);
+	SLATE_API void AddElement(TSharedPtr<SWidget> BlockWidget, FText BlockDisplayText, bool bInSearchable = true);
 
 	/**
 	 * @return True if the passed in block is being dragged
 	 */
-	bool IsBlockBeingDragged( TSharedPtr<const FMultiBlock> Block ) const;
+	SLATE_API bool IsBlockBeingDragged( TSharedPtr<const FMultiBlock> Block ) const;
 
 	/**
 	 * @return The visibility of customization widgets for a block
 	 */
-	EVisibility GetCustomizationVisibility(TWeakPtr<const FMultiBlock> BlockWeakPtr, TWeakPtr<SWidget> BlockWidgetWeakPtr) const;
+	SLATE_API EVisibility GetCustomizationVisibility(TWeakPtr<const FMultiBlock> BlockWeakPtr, TWeakPtr<SWidget> BlockWidgetWeakPtr) const;
 
 	/**
 	 * @return The visibility of the drop location indicator of a drag and drop for a block
 	 */
-	EVisibility GetCustomizationBorderDragVisibility(const FName InBlockName, const EMultiBlockType InBlockType, bool& bOutInsertAfter) const;
+	SLATE_API EVisibility GetCustomizationBorderDragVisibility(const FName InBlockName, const EMultiBlockType InBlockType, bool& bOutInsertAfter) const;
 
 	/**
 	 * Records the time that the multibox last summoned a menu
 	 */
-	void SetSummonedMenuTime(double InSummonedMenuTime);
+	SLATE_API void SetSummonedMenuTime(double InSummonedMenuTime);
 
 	/**
 	 * @return The last recorded time that the multibox summoned a menu
 	 */
-	double GetSummonedMenuTime() const;
+	SLATE_API double GetSummonedMenuTime() const;
 
 private:
 	/** Adds a block Widget to this widget */
-	void AddBlockWidget(const FMultiBlock& Block, TSharedPtr<SHorizontalBox> HorizontalBox, TSharedPtr<SVerticalBox> VerticalBox, EMultiBlockLocation::Type InLocation, bool bSectionContainsIcons, TSharedPtr<const FToolBarComboButtonBlock> OptionsBlock);
+	SLATE_API void AddBlockWidget(const FMultiBlock& Block, TSharedPtr<SHorizontalBox> HorizontalBox, TSharedPtr<SVerticalBox> VerticalBox, EMultiBlockLocation::Type InLocation, bool bSectionContainsIcons, TSharedPtr<const FToolBarComboButtonBlock> OptionsBlock);
 
 	/**
 	 * Updates the preview block being dragged.  The drag area is where the users dragged block will be dropped
 	 */
-	void UpdateDropAreaPreviewBlock( TSharedRef<const FMultiBlock> MultiBlock, TSharedPtr<FUICommandDragDropOp> DragDropContent, const FGeometry& DragArea, const FVector2D& DragPos );
+	SLATE_API void UpdateDropAreaPreviewBlock( TSharedRef<const FMultiBlock> MultiBlock, TSharedPtr<FUICommandDragDropOp> DragDropContent, const FGeometry& DragArea, const FVector2D& DragPos );
 
 	/** Creates the SearchTextWidget if the MultiBox has requested one */
-	void CreateSearchTextWidget();
+	SLATE_API void CreateSearchTextWidget();
 
 	/** Called when the SearchText changes */
-	void OnFilterTextChanged(const FText& InFilterText);
+	SLATE_API void OnFilterTextChanged(const FText& InFilterText);
 
 	/**
 	 * Walks the sub-menus and adds new searchable blocks representing the flattened structure of any nested sub-menus.
@@ -831,7 +831,7 @@ private:
 	 * 
 	 * @param MaxRecursionLevels Maximum depth of nested sub-menus to walk when flattening
 	 */
-	void FlattenSubMenusRecursive(uint32 MaxRecursionLevels);
+	SLATE_API void FlattenSubMenusRecursive(uint32 MaxRecursionLevels);
 
 private:
 	/** A preview of a block being dragged */

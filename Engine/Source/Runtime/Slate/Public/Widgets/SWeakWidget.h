@@ -20,7 +20,7 @@ class FSlateWindowElementList;
  *      by a floating window. That window cannot own the tooltip
  *      and must therefore use an SWeakWidget.
  */
-class SLATE_API SWeakWidget : public SWidget
+class SWeakWidget : public SWidget
 {
 public:
 
@@ -33,26 +33,26 @@ public:
 
 public:
 
-	SWeakWidget();
+	SLATE_API SWeakWidget();
 
-	void Construct(const FArguments& InArgs);
+	SLATE_API void Construct(const FArguments& InArgs);
 
-	void SetContent(const TSharedRef<SWidget>& InWidget);
+	SLATE_API void SetContent(const TSharedRef<SWidget>& InWidget);
 
-	bool ChildWidgetIsValid() const;
+	SLATE_API bool ChildWidgetIsValid() const;
 
-	TWeakPtr<SWidget> GetChildWidget() const;
+	SLATE_API TWeakPtr<SWidget> GetChildWidget() const;
 
 public:
 
 	// SWidget interface
-	virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
-	virtual FChildren* GetChildren() override;
-	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
+	SLATE_API virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
+	SLATE_API virtual FChildren* GetChildren() override;
+	SLATE_API virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
 
 protected:
 	// Begin SWidget overrides.
-	virtual FVector2D ComputeDesiredSize(float) const override;
+	SLATE_API virtual FVector2D ComputeDesiredSize(float) const override;
 	// End SWidget overrides.
 
 private:

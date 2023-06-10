@@ -22,7 +22,7 @@ class FSlateWindowElementList;
  * ConstraintCanvas is a layout widget that allows you to arbitrary position and size child widgets in a 
  * relative coordinate space.  Additionally it permits anchoring widgets.
  */
-class SLATE_API SConstraintCanvas : public SPanel
+class SConstraintCanvas : public SPanel
 {
 public:
 
@@ -137,16 +137,16 @@ public:
 
 	SLATE_END_ARGS()
 
-	SConstraintCanvas();
+	SLATE_API SConstraintCanvas();
 
 	/**
 	 * Construct this widget
 	 *
 	 * @param	InArgs	The declaration data for this widget
 	 */
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 
-	static FSlot::FSlotArguments Slot();
+	static SLATE_API FSlot::FSlotArguments Slot();
 
 	using FScopedWidgetSlotArguments = TPanelChildren<FSlot>::FScopedWidgetSlotArguments;
 	/**
@@ -154,31 +154,31 @@ public:
 	 *
 	 * @return The added slot.
 	 */
-	FScopedWidgetSlotArguments AddSlot();
+	SLATE_API FScopedWidgetSlotArguments AddSlot();
 
 	/**
 	 * Removes a particular content slot.
 	 *
 	 * @param SlotWidget The widget in the slot to remove.
 	 */
-	int32 RemoveSlot( const TSharedRef<SWidget>& SlotWidget );
+	SLATE_API int32 RemoveSlot( const TSharedRef<SWidget>& SlotWidget );
 
 	/**
 	 * Removes all slots from the panel.
 	 */
-	void ClearChildren();
+	SLATE_API void ClearChildren();
 
 public:
 
 	// Begin SWidget overrides
-	virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
-	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
-	virtual FChildren* GetChildren() override;
+	SLATE_API virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
+	SLATE_API virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
+	SLATE_API virtual FChildren* GetChildren() override;
 	// End SWidget overrides
 
 protected:
 	// Begin SWidget overrides.
-	virtual FVector2D ComputeDesiredSize(float) const override;
+	SLATE_API virtual FVector2D ComputeDesiredSize(float) const override;
 	// End SWidget overrides.
 
 private:
@@ -187,7 +187,7 @@ private:
 	typedef TArray<bool, TInlineAllocator<16>> FArrangedChildLayers;
 
 	/** Like ArrangeChildren but also generates an array of layering information (see FArrangedChildLayers). */
-	void ArrangeLayeredChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren, FArrangedChildLayers& ArrangedChildLayers) const;
+	SLATE_API void ArrangeLayeredChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren, FArrangedChildLayers& ArrangedChildLayers) const;
 
 protected:
 

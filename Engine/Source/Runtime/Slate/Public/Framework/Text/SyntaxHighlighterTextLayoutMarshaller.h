@@ -18,24 +18,24 @@ class FTextLayout;
 /**
  * Get/set the raw text to/from a text layout, and also inject syntax highlighting
  */
-class SLATE_API FSyntaxHighlighterTextLayoutMarshaller : public FPlainTextLayoutMarshaller
+class FSyntaxHighlighterTextLayoutMarshaller : public FPlainTextLayoutMarshaller
 {
 public:
 
-	virtual ~FSyntaxHighlighterTextLayoutMarshaller();
+	SLATE_API virtual ~FSyntaxHighlighterTextLayoutMarshaller();
 
 	// ITextLayoutMarshaller
-	virtual void SetText(const FString& SourceString, FTextLayout& TargetTextLayout) override;
-	virtual bool RequiresLiveUpdate() const override;
+	SLATE_API virtual void SetText(const FString& SourceString, FTextLayout& TargetTextLayout) override;
+	SLATE_API virtual bool RequiresLiveUpdate() const override;
 
-	void EnableSyntaxHighlighting(const bool bEnable);
-	bool IsSyntaxHighlightingEnabled() const;
+	SLATE_API void EnableSyntaxHighlighting(const bool bEnable);
+	SLATE_API bool IsSyntaxHighlightingEnabled() const;
 
 protected:
 
 	virtual void ParseTokens(const FString& SourceString, FTextLayout& TargetTextLayout, TArray<ISyntaxTokenizer::FTokenizedLine> TokenizedLines) = 0;
 
-	FSyntaxHighlighterTextLayoutMarshaller(TSharedPtr< ISyntaxTokenizer > InTokenizer);
+	SLATE_API FSyntaxHighlighterTextLayoutMarshaller(TSharedPtr< ISyntaxTokenizer > InTokenizer);
 
 	/** Tokenizer used to style the text */
 	TSharedPtr< ISyntaxTokenizer > Tokenizer;
@@ -48,7 +48,7 @@ protected:
 /**
  * Get/set the raw text to/from a text layout, and also inject syntax highlighting for our rich-text markup
  */
-class SLATE_API FRichTextSyntaxHighlighterTextLayoutMarshaller : public FSyntaxHighlighterTextLayoutMarshaller
+class FRichTextSyntaxHighlighterTextLayoutMarshaller : public FSyntaxHighlighterTextLayoutMarshaller
 {
 public:
 
@@ -79,15 +79,15 @@ public:
 		FTextBlockStyle NodeAttributeValueTextStyle;
 	};
 
-	static TSharedRef< FRichTextSyntaxHighlighterTextLayoutMarshaller > Create(const FSyntaxTextStyle& InSyntaxTextStyle);
+	static SLATE_API TSharedRef< FRichTextSyntaxHighlighterTextLayoutMarshaller > Create(const FSyntaxTextStyle& InSyntaxTextStyle);
 
-	virtual ~FRichTextSyntaxHighlighterTextLayoutMarshaller();
+	SLATE_API virtual ~FRichTextSyntaxHighlighterTextLayoutMarshaller();
 
 protected:
 
-	virtual void ParseTokens(const FString& SourceString, FTextLayout& TargetTextLayout, TArray<ISyntaxTokenizer::FTokenizedLine> TokenizedLines) override;
+	SLATE_API virtual void ParseTokens(const FString& SourceString, FTextLayout& TargetTextLayout, TArray<ISyntaxTokenizer::FTokenizedLine> TokenizedLines) override;
 
-	FRichTextSyntaxHighlighterTextLayoutMarshaller(TSharedPtr< ISyntaxTokenizer > InTokenizer, const FSyntaxTextStyle& InSyntaxTextStyle);
+	SLATE_API FRichTextSyntaxHighlighterTextLayoutMarshaller(TSharedPtr< ISyntaxTokenizer > InTokenizer, const FSyntaxTextStyle& InSyntaxTextStyle);
 
 	/** Styles used to display the text */
 	FSyntaxTextStyle SyntaxTextStyle;

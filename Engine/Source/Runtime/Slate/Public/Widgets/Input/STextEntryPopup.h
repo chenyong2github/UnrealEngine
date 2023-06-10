@@ -10,7 +10,7 @@
 class SVerticalBox;
 
 /** Simple text entry popup, usually used within a MenuStack */
-class SLATE_API STextEntryPopup : public SCompoundWidget
+class STextEntryPopup : public SCompoundWidget
 {
 public:
 
@@ -55,18 +55,18 @@ public:
 
 	SLATE_END_ARGS()
 
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 
 	/** @return the widget that we want to be focused when the popup is shown  */
-	void FocusDefaultWidget();
+	SLATE_API void FocusDefaultWidget();
 
 	/**
 	 * If InError is a non-empty string the TextBox will use the ErrorReporting widget provided during construction
 	 * If no error reporting was provided, the TextBox will create a default error reporter.
 	 * @param InError An error string used to give extra information about an error
 	 */
-	void SetError( const FText& InError );
-	void SetError( const FString& InError );
+	SLATE_API void SetError( const FText& InError );
+	SLATE_API void SetError( const FString& InError );
 
 protected:
 	/** Allows for inserting additional widgets that extend the functionality of the Popup */

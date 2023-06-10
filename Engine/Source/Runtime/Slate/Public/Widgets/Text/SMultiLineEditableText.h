@@ -38,7 +38,7 @@ class ITextLayoutMarshaller;
 class FSlateEditableTextLayout;
 
 /** An editable text widget that supports multiple lines and soft word-wrapping. */
-class SLATE_API SMultiLineEditableText : public SWidget, public ISlateEditableTextWidget
+class SMultiLineEditableText : public SWidget, public ISlateEditableTextWidget
 {
 public:
 
@@ -229,35 +229,35 @@ public:
 
 	SLATE_END_ARGS()
 
-	SMultiLineEditableText();
-	~SMultiLineEditableText();
+	SLATE_API SMultiLineEditableText();
+	SLATE_API ~SMultiLineEditableText();
 
-	void Construct( const FArguments& InArgs );
+	SLATE_API void Construct( const FArguments& InArgs );
 
 	/**
 	 * Sets the text for this text block
 	 */
-	void SetText(const TAttribute< FText >& InText);
+	SLATE_API void SetText(const TAttribute< FText >& InText);
 
 	/**
 	 * Returns the text string
 	 *
 	 * @return  Text string
 	 */
-	FText GetText() const;
+	SLATE_API FText GetText() const;
 
 	/**
 	 * Returns the plain text string without richtext formatting
 	 * @return  Text string
 	 */
-	FText GetPlainText() const;
+	SLATE_API FText GetPlainText() const;
 
 	/**
 	 * Fill OutTextLine with the text line where the current cursor location is at
 	 *
 	 * @param OutTextLine   FString of the line
 	 */
-	void GetCurrentTextLine(FString& OutTextLine) const;
+	SLATE_API void GetCurrentTextLine(FString& OutTextLine) const;
 
 	/**
 	 * Fill OutTextLine with the text line at the specified index
@@ -265,178 +265,178 @@ public:
 	 * @param InLineIndex   Index of the line
 	 * @param OutTextLine   FString of the line
 	 */
-	void GetTextLine(const int32 InLineIndex, FString& OutTextLine) const;
+	SLATE_API void GetTextLine(const int32 InLineIndex, FString& OutTextLine) const;
 	
 	/**
 	 * Sets the text that appears when there is no text in the text box
 	 */
-	void SetHintText(const TAttribute< FText >& InHintText);
+	SLATE_API void SetHintText(const TAttribute< FText >& InHintText);
 
 	/** Get the text that appears when there is no text in the text box */
-	FText GetHintText() const;
+	SLATE_API FText GetHintText() const;
 
 	/** Set the text that is currently being searched for (if any) */
-	void SetSearchText(const TAttribute<FText>& InSearchText);
+	SLATE_API void SetSearchText(const TAttribute<FText>& InSearchText);
 
 	/** Get the text that is currently being searched for (if any) */
-	FText GetSearchText() const;
+	SLATE_API FText GetSearchText() const;
 
 	/** Get the index of the search result (0 if none) */
-	int32 GetSearchResultIndex() const;
+	SLATE_API int32 GetSearchResultIndex() const;
 
 	/** Get the total number of search results (0 if none) */
-	int32 GetNumSearchResults() const;
+	SLATE_API int32 GetNumSearchResults() const;
 
 	/** See attribute TextStyle */
-	void SetTextStyle(const FTextBlockStyle* InTextStyle);
+	SLATE_API void SetTextStyle(const FTextBlockStyle* InTextStyle);
 
 	/** See attribute Font */
-	void SetFont(const TAttribute< FSlateFontInfo >& InNewFont);
-	FSlateFontInfo GetFont() const;
+	SLATE_API void SetFont(const TAttribute< FSlateFontInfo >& InNewFont);
+	SLATE_API FSlateFontInfo GetFont() const;
 
 	/** See TextShapingMethod attribute */
-	void SetTextShapingMethod(const TOptional<ETextShapingMethod>& InTextShapingMethod);
+	SLATE_API void SetTextShapingMethod(const TOptional<ETextShapingMethod>& InTextShapingMethod);
 
 	/** See TextFlowDirection attribute */
-	void SetTextFlowDirection(const TOptional<ETextFlowDirection>& InTextFlowDirection);
+	SLATE_API void SetTextFlowDirection(const TOptional<ETextFlowDirection>& InTextFlowDirection);
 
 	/** See WrapTextAt attribute */
-	void SetWrapTextAt(const TAttribute<float>& InWrapTextAt);
+	SLATE_API void SetWrapTextAt(const TAttribute<float>& InWrapTextAt);
 
 	/** See AutoWrapText attribute */
-	void SetAutoWrapText(const TAttribute<bool>& InAutoWrapText);
+	SLATE_API void SetAutoWrapText(const TAttribute<bool>& InAutoWrapText);
 
 	/** Set WrappingPolicy attribute */
-	void SetWrappingPolicy(const TAttribute<ETextWrappingPolicy>& InWrappingPolicy);
+	SLATE_API void SetWrappingPolicy(const TAttribute<ETextWrappingPolicy>& InWrappingPolicy);
 
 	/** See LineHeightPercentage attribute */
-	void SetLineHeightPercentage(const TAttribute<float>& InLineHeightPercentage);
+	SLATE_API void SetLineHeightPercentage(const TAttribute<float>& InLineHeightPercentage);
 
 	/** See Margin attribute */
-	void SetMargin(const TAttribute<FMargin>& InMargin);
+	SLATE_API void SetMargin(const TAttribute<FMargin>& InMargin);
 
 	/** See Justification attribute */
-	void SetJustification(const TAttribute<ETextJustify::Type>& InJustification);
+	SLATE_API void SetJustification(const TAttribute<ETextJustify::Type>& InJustification);
 
 	/** Sets the overflow policy for this text block */
-	void SetOverflowPolicy(TOptional<ETextOverflowPolicy> InOverflowPolicy);
+	SLATE_API void SetOverflowPolicy(TOptional<ETextOverflowPolicy> InOverflowPolicy);
 
 	/** See the AllowContextMenu attribute */
-	void SetAllowContextMenu(const TAttribute< bool >& InAllowContextMenu);
+	SLATE_API void SetAllowContextMenu(const TAttribute< bool >& InAllowContextMenu);
 
 	/** Set the VirtualKeyboardDismissAction attribute */
-	void SetVirtualKeyboardDismissAction(TAttribute< EVirtualKeyboardDismissAction > InVirtualKeyboardDismissAction);
+	SLATE_API void SetVirtualKeyboardDismissAction(TAttribute< EVirtualKeyboardDismissAction > InVirtualKeyboardDismissAction);
 
 	/**
 	 * Sets whether to select word on the mouse double click
 	 *
 	 * @param  InSelectWordOnMouseDoubleClick		Select word on the mouse double click
 	 */
-	void SetSelectWordOnMouseDoubleClick(const TAttribute<bool>& InSelectWordOnMouseDoubleClick);
+	SLATE_API void SetSelectWordOnMouseDoubleClick(const TAttribute<bool>& InSelectWordOnMouseDoubleClick);
 	
 	/** Sets the ReadOnly attribute */
-	void SetIsReadOnly(const TAttribute< bool >& InIsReadOnly);
+	SLATE_API void SetIsReadOnly(const TAttribute< bool >& InIsReadOnly);
 
 	/** Get the number of Text Lines */
-	int32 GetTextLineCount();
+	SLATE_API int32 GetTextLineCount();
 
 	/**
 	 * Sets whether to select all text when the user clicks to give focus on the widget
 	 *
 	 * @param  InSelectAllTextWhenFocused	Select all text when the user clicks?
 	 */
-	void SetSelectAllTextWhenFocused(const TAttribute<bool>& InSelectAllTextWhenFocused);
+	SLATE_API void SetSelectAllTextWhenFocused(const TAttribute<bool>& InSelectAllTextWhenFocused);
 
 	/**
 	 * Sets whether to clear text selection when focus is lost
 	 *
 	 * @param  InClearTextSelectionOnFocusLoss	Clear text selection when focus is lost?
 	 */
-	void SetClearTextSelectionOnFocusLoss(const TAttribute<bool>& InClearTextSelectionOnFocusLoss);
+	SLATE_API void SetClearTextSelectionOnFocusLoss(const TAttribute<bool>& InClearTextSelectionOnFocusLoss);
 
 	/**
 	 * Sets whether to allow the user to back out of changes when they press the escape key
 	 *
 	 * @param  InRevertTextOnEscape			Allow the user to back out of changes?
 	 */
-	void SetRevertTextOnEscape(const TAttribute<bool>& InRevertTextOnEscape);
+	SLATE_API void SetRevertTextOnEscape(const TAttribute<bool>& InRevertTextOnEscape);
 
 	/**
 	 * Sets whether to clear keyboard focus when pressing enter to commit changes
 	 *
 	 * @param  InClearKeyboardFocusOnCommit		Clear keyboard focus when pressing enter?
 	 */
-	void SetClearKeyboardFocusOnCommit(const TAttribute<bool>& InClearKeyboardFocusOnCommit);
+	SLATE_API void SetClearKeyboardFocusOnCommit(const TAttribute<bool>& InClearKeyboardFocusOnCommit);
 
 	/** Query to see if any text is selected within the document */
-	bool AnyTextSelected() const;
+	SLATE_API bool AnyTextSelected() const;
 
 	/** Select all the text in the document */
-	void SelectAllText();
+	SLATE_API void SelectAllText();
 
 	/** Select a block of text */
-	void SelectText(const FTextLocation& InSelectionStart, const FTextLocation& InCursorLocation);
+	SLATE_API void SelectText(const FTextLocation& InSelectionStart, const FTextLocation& InCursorLocation);
 	
 	/** Clear the active text selection */
-	void ClearSelection();
+	SLATE_API void ClearSelection();
 
 	/** Get the currently selected text */
-	FText GetSelectedText() const;
+	SLATE_API FText GetSelectedText() const;
 
 	/** Get the current selection */
-	FTextSelection GetSelection() const;
+	SLATE_API FTextSelection GetSelection() const;
 
 	/** Delete any currently selected text */
-	void DeleteSelectedText();
+	SLATE_API void DeleteSelectedText();
 
 	/** Insert the given text at the current cursor position, correctly taking into account new line characters */
-	void InsertTextAtCursor(const FText& InText);
-	void InsertTextAtCursor(const FString& InString);
+	SLATE_API void InsertTextAtCursor(const FText& InText);
+	SLATE_API void InsertTextAtCursor(const FString& InString);
 
 	/** Insert the given run at the current cursor position */
-	void InsertRunAtCursor(TSharedRef<IRun> InRun);
+	SLATE_API void InsertRunAtCursor(TSharedRef<IRun> InRun);
 
 	/** Move the cursor to the given location in the document (will also scroll to this point) */
-	void GoTo(const FTextLocation& NewLocation);
+	SLATE_API void GoTo(const FTextLocation& NewLocation);
 
 	/** Move the cursor specified location */
-	void GoTo(const ETextLocation NewLocation);
+	SLATE_API void GoTo(const ETextLocation NewLocation);
 
 	/** Scroll to the given location in the document (without moving the cursor) */
-	void ScrollTo(const FTextLocation& NewLocation);
+	SLATE_API void ScrollTo(const FTextLocation& NewLocation);
 
 	/** Scroll to the given location in the document (without moving the cursor) */
-	void ScrollTo(const ETextLocation NewLocation);
+	SLATE_API void ScrollTo(const ETextLocation NewLocation);
 
 	/** Apply the given style to the currently selected text (or insert a new run at the current cursor position if no text is selected) */
-	void ApplyToSelection(const FRunInfo& InRunInfo, const FTextBlockStyle& InStyle);
+	SLATE_API void ApplyToSelection(const FRunInfo& InRunInfo, const FTextBlockStyle& InStyle);
 
 	/** Begin a new text search (this is called automatically when the bound search text changes) */
-	void BeginSearch(const FText& InSearchText, const ESearchCase::Type InSearchCase = ESearchCase::IgnoreCase, const bool InReverse = false);
+	SLATE_API void BeginSearch(const FText& InSearchText, const ESearchCase::Type InSearchCase = ESearchCase::IgnoreCase, const bool InReverse = false);
 
 	/** Advance the current search to the next match (does nothing if not currently searching) */
-	void AdvanceSearch(const bool InReverse = false);
+	SLATE_API void AdvanceSearch(const bool InReverse = false);
 
 	/** Get the run currently under the cursor, or null if there is no run currently under the cursor */
-	TSharedPtr<const IRun> GetRunUnderCursor() const;
+	SLATE_API TSharedPtr<const IRun> GetRunUnderCursor() const;
 
 	/** Get the runs currently that are current selected, some of which may be only partially selected */
-	TArray<TSharedRef<const IRun>> GetSelectedRuns() const;
+	SLATE_API TArray<TSharedRef<const IRun>> GetSelectedRuns() const;
 
 	/** Get the interaction position of the cursor (where to insert, delete, etc, text from/to) */
-	FTextLocation GetCursorLocation() const;
+	SLATE_API FTextLocation GetCursorLocation() const;
 
 	/** Get the character at Location */
-	TCHAR GetCharacterAt(const FTextLocation& Location) const;
+	SLATE_API TCHAR GetCharacterAt(const FTextLocation& Location) const;
 
 	/** Get the horizontal scroll bar widget */
-	TSharedPtr<const SScrollBar> GetHScrollBar() const;
+	SLATE_API TSharedPtr<const SScrollBar> GetHScrollBar() const;
 
 	/** Get the vertical scroll bar widget */
-	TSharedPtr<const SScrollBar> GetVScrollBar() const;
+	SLATE_API TSharedPtr<const SScrollBar> GetVScrollBar() const;
 
 	/** Refresh this editable text immediately, rather than wait for the usual caching mechanisms to take affect on the text Tick */
-	void Refresh();
+	SLATE_API void Refresh();
 
 	/**
 	 * Sets the OnKeyCharHandler to provide first chance handling of the OnKeyChar event
@@ -461,78 +461,78 @@ public:
 	/**
 	 *	Force a single scroll operation. 
 	 */
-	void ForceScroll(int32 UserIndex, float ScrollAxisMagnitude);
+	SLATE_API void ForceScroll(int32 UserIndex, float ScrollAxisMagnitude);
 
 protected:
 	//~ Begin SWidget Interface
-	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
-	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
-	virtual void CacheDesiredSize(float LayoutScaleMultiplier) override;
-	virtual FVector2D ComputeDesiredSize(float LayoutScaleMultiplier) const override;
-	virtual FChildren* GetChildren() override;
-	virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
-	virtual bool SupportsKeyboardFocus() const override;
-	virtual FReply OnKeyChar( const FGeometry& MyGeometry,const FCharacterEvent& InCharacterEvent ) override;
-	virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
-	virtual FReply OnKeyUp( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
-	virtual FReply OnFocusReceived( const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent ) override;
-	virtual void OnFocusLost( const FFocusEvent& InFocusEvent ) override;
-	virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnMouseMove( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnMouseWheel( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnMouseButtonDoubleClick(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
-	virtual FCursorReply OnCursorQuery( const FGeometry& MyGeometry, const FPointerEvent& CursorEvent ) const override;
-	virtual bool IsInteractable() const override;
-	virtual bool ComputeVolatility() const override;
+	SLATE_API virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
+	SLATE_API virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
+	SLATE_API virtual void CacheDesiredSize(float LayoutScaleMultiplier) override;
+	SLATE_API virtual FVector2D ComputeDesiredSize(float LayoutScaleMultiplier) const override;
+	SLATE_API virtual FChildren* GetChildren() override;
+	SLATE_API virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
+	SLATE_API virtual bool SupportsKeyboardFocus() const override;
+	SLATE_API virtual FReply OnKeyChar( const FGeometry& MyGeometry,const FCharacterEvent& InCharacterEvent ) override;
+	SLATE_API virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
+	SLATE_API virtual FReply OnKeyUp( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
+	SLATE_API virtual FReply OnFocusReceived( const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent ) override;
+	SLATE_API virtual void OnFocusLost( const FFocusEvent& InFocusEvent ) override;
+	SLATE_API virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual FReply OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual FReply OnMouseMove( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual FReply OnMouseWheel( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	SLATE_API virtual FReply OnMouseButtonDoubleClick(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	SLATE_API virtual FCursorReply OnCursorQuery( const FGeometry& MyGeometry, const FPointerEvent& CursorEvent ) const override;
+	SLATE_API virtual bool IsInteractable() const override;
+	SLATE_API virtual bool ComputeVolatility() const override;
 	//~ End SWidget Interface
 
 protected:
-	void OnHScrollBarMoved(const float InScrollOffsetFraction);
-	void OnVScrollBarMoved(const float InScrollOffsetFraction);
+	SLATE_API void OnHScrollBarMoved(const float InScrollOffsetFraction);
+	SLATE_API void OnVScrollBarMoved(const float InScrollOffsetFraction);
 
 	/** Return whether a RMB+Drag scroll operation is taking place */
-	bool IsRightClickScrolling() const;
+	SLATE_API bool IsRightClickScrolling() const;
 
 public:
 	//~ Begin ISlateEditableTextWidget Interface
-	virtual bool IsTextReadOnly() const override;
-	virtual bool IsTextPassword() const override;
-	virtual bool IsMultiLineTextEdit() const override;
+	SLATE_API virtual bool IsTextReadOnly() const override;
+	SLATE_API virtual bool IsTextPassword() const override;
+	SLATE_API virtual bool IsMultiLineTextEdit() const override;
 	//~ End ISlateEditableTextWidget Interface
 
 protected:
 	//~ Begin ISlateEditableTextWidget Interface
-	virtual bool ShouldJumpCursorToEndWhenFocused() const override;
-	virtual bool ShouldSelectAllTextWhenFocused() const override;
-	virtual bool ShouldClearTextSelectionOnFocusLoss() const override;
-	virtual bool ShouldRevertTextOnEscape() const override;
-	virtual bool ShouldClearKeyboardFocusOnCommit() const override;
-	virtual bool ShouldSelectAllTextOnCommit() const override;
-	virtual bool ShouldSelectWordOnMouseDoubleClick() const override;
-	virtual bool CanInsertCarriageReturn() const override;
-	virtual bool CanTypeCharacter(const TCHAR InChar) const override;
-	virtual void EnsureActiveTick() override;
-	virtual EKeyboardType GetVirtualKeyboardType() const override;
-	virtual FVirtualKeyboardOptions GetVirtualKeyboardOptions() const override;
-	virtual EVirtualKeyboardTrigger GetVirtualKeyboardTrigger() const override;
-	virtual EVirtualKeyboardDismissAction GetVirtualKeyboardDismissAction() const override;
-	virtual TSharedRef<SWidget> GetSlateWidget() override;
-	virtual TSharedPtr<SWidget> GetSlateWidgetPtr() override;
-	virtual TSharedPtr<SWidget> BuildContextMenuContent() const override;
-	virtual void OnTextChanged(const FText& InText) override;
-	virtual void OnTextCommitted(const FText& InText, const ETextCommit::Type InTextAction) override;
-	virtual void OnCursorMoved(const FTextLocation& InLocation) override;
-	virtual float UpdateAndClampHorizontalScrollBar(const float InViewOffset, const float InViewFraction, const EVisibility InVisiblityOverride) override;
-	virtual float UpdateAndClampVerticalScrollBar(const float InViewOffset, const float InViewFraction, const EVisibility InVisiblityOverride) override;
+	SLATE_API virtual bool ShouldJumpCursorToEndWhenFocused() const override;
+	SLATE_API virtual bool ShouldSelectAllTextWhenFocused() const override;
+	SLATE_API virtual bool ShouldClearTextSelectionOnFocusLoss() const override;
+	SLATE_API virtual bool ShouldRevertTextOnEscape() const override;
+	SLATE_API virtual bool ShouldClearKeyboardFocusOnCommit() const override;
+	SLATE_API virtual bool ShouldSelectAllTextOnCommit() const override;
+	SLATE_API virtual bool ShouldSelectWordOnMouseDoubleClick() const override;
+	SLATE_API virtual bool CanInsertCarriageReturn() const override;
+	SLATE_API virtual bool CanTypeCharacter(const TCHAR InChar) const override;
+	SLATE_API virtual void EnsureActiveTick() override;
+	SLATE_API virtual EKeyboardType GetVirtualKeyboardType() const override;
+	SLATE_API virtual FVirtualKeyboardOptions GetVirtualKeyboardOptions() const override;
+	SLATE_API virtual EVirtualKeyboardTrigger GetVirtualKeyboardTrigger() const override;
+	SLATE_API virtual EVirtualKeyboardDismissAction GetVirtualKeyboardDismissAction() const override;
+	SLATE_API virtual TSharedRef<SWidget> GetSlateWidget() override;
+	SLATE_API virtual TSharedPtr<SWidget> GetSlateWidgetPtr() override;
+	SLATE_API virtual TSharedPtr<SWidget> BuildContextMenuContent() const override;
+	SLATE_API virtual void OnTextChanged(const FText& InText) override;
+	SLATE_API virtual void OnTextCommitted(const FText& InText, const ETextCommit::Type InTextAction) override;
+	SLATE_API virtual void OnCursorMoved(const FTextLocation& InLocation) override;
+	SLATE_API virtual float UpdateAndClampHorizontalScrollBar(const float InViewOffset, const float InViewFraction, const EVisibility InVisiblityOverride) override;
+	SLATE_API virtual float UpdateAndClampVerticalScrollBar(const float InViewOffset, const float InViewFraction, const EVisibility InVisiblityOverride) override;
 	//~ End ISlateEditableTextWidget Interface
 
 protected:
 	/** Called to begin an undoable editable text transaction, marked as protected for use with FScopedEditableTextTransaction only */
-	void BeginEditTransaction();
+	SLATE_API void BeginEditTransaction();
 
 	/** Called to end an undoable editable text transaction, marked as protected for use with FScopedEditableTextTransaction only */
-	void EndEditTransaction();
+	SLATE_API void EndEditTransaction();
 
 protected:
 	/** The text layout that deals with the editable text */

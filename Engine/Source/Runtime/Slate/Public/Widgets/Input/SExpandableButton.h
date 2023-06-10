@@ -12,10 +12,10 @@
 /**
  * A button that can either be collapsed or expanded, containing different content in each state.
  */
-class SLATE_API SExpandableButton
+class SExpandableButton
 	: public SBorder
 {
-	SLATE_DECLARE_WIDGET(SExpandableButton, SBorder)
+	SLATE_DECLARE_WIDGET_API(SExpandableButton, SBorder, SLATE_API)
 
 public:
 
@@ -49,21 +49,21 @@ public:
 
 	SLATE_END_ARGS()
 
-	SExpandableButton();
+	SLATE_API SExpandableButton();
 	/**
 	 * Construct this widget
 	 *
 	 * @param	InArgs	The declaration data for this widget
 	 */
-	void Construct(const FArguments& InArgs);
+	SLATE_API void Construct(const FArguments& InArgs);
 
 protected:
 
 	/** Callbacks to determine visibility of parts that should be shown when the button state is collapsed or expanded */
-	EVisibility GetCollapsedVisibility() const;
-	EVisibility GetExpandedVisibility() const;
+	SLATE_API EVisibility GetCollapsedVisibility() const;
+	SLATE_API EVisibility GetExpandedVisibility() const;
 
-	void UpdateVisibility();
+	SLATE_API void UpdateVisibility();
 
 private:
 

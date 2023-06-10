@@ -73,7 +73,7 @@ public:
 /**
  * A class which manages a group of notification windows                 
  */
-class SLATE_API FSlateNotificationManager
+class FSlateNotificationManager
 {
 	friend class SNotificationList;
 
@@ -81,25 +81,25 @@ public:
 	/**
 	 * Gets the instance of this manager                   
 	 */
-	static FSlateNotificationManager& Get();
+	static SLATE_API FSlateNotificationManager& Get();
 
 	/** Update the manager */
-	void Tick();
+	SLATE_API void Tick();
 
 	/** Provide a window under which all notifications should nest. */
-	void SetRootWindow( const TSharedRef<SWindow> InRootWindow );
+	SLATE_API void SetRootWindow( const TSharedRef<SWindow> InRootWindow );
 
 	/**
 	 * Adds a floating notification
 	 * @param Info 		Contains various settings used to initialize the notification
 	 */
-	TSharedPtr<SNotificationItem> AddNotification(const FNotificationInfo& Info);
+	SLATE_API TSharedPtr<SNotificationItem> AddNotification(const FNotificationInfo& Info);
 
 	/**
 	 * Thread safe method of queuing a notification for presentation on the next tick
 	 * @param Info 		Pointer to heap allocated notification info. Released by FSlateNotificationManager once the notification is displayed;
 	 */
-	void QueueNotification(FNotificationInfo* Info);
+	SLATE_API void QueueNotification(FNotificationInfo* Info);
 
 	/**
 	 * Begin a progress notification. These notifications should be used for background work not blocking work. Use SlowTask for blocking work
@@ -109,7 +109,7 @@ public:
  	 *
 	 * @return NotificationHandle	A handle that can be used to update the progress or cancel the notification
 	 */
-	FProgressNotificationHandle StartProgressNotification(FText DisplayText, int32 TotalWorkToDo);
+	SLATE_API FProgressNotificationHandle StartProgressNotification(FText DisplayText, int32 TotalWorkToDo);
 
 	/**
 	 * Updates a progress notification. 
@@ -119,18 +119,18 @@ public:
 	 * @param UpdatedDisplayText	(Optional) Updated display text of the notification
 	 * @return NotificationHandle	A handle that can be used to update the progress or cancel the notification
 	 */
-	void UpdateProgressNotification(FProgressNotificationHandle InHandle, int32 TotalWorkDone, int32 UpdatedTotalWorkToDo = 0, FText UpdatedDisplayText = FText::GetEmpty());
+	SLATE_API void UpdateProgressNotification(FProgressNotificationHandle InHandle, int32 TotalWorkDone, int32 UpdatedTotalWorkToDo = 0, FText UpdatedDisplayText = FText::GetEmpty());
 
 	/**
 	 * Cancels an active notification
 	 */
-	void CancelProgressNotification(FProgressNotificationHandle InHandle);
+	SLATE_API void CancelProgressNotification(FProgressNotificationHandle InHandle);
 
 	/**
 	 * Sets the progress notification handler for the current application. Only one handler is used at a time. 
 	 * This handler is not managed in any way. If your handler is being destroyed call SetProgressNotificationHandler(nullptr)
 	 */
-	void SetProgressNotificationHandler(IProgressNotificationHandler* NewHandler);
+	SLATE_API void SetProgressNotificationHandler(IProgressNotificationHandler* NewHandler);
 
 	/**
 	 * Called back from the SlateApplication when a window is activated/resized
@@ -138,13 +138,13 @@ public:
 	 * as there isn't a cross-platform OS-level way of making a 'topmost child'.
 	 * @param ActivateEvent 	Information about the activation event
 	 */
-	void ForceNotificationsInFront(const TSharedRef<SWindow> InWindow);
+	SLATE_API void ForceNotificationsInFront(const TSharedRef<SWindow> InWindow);
 
 	/**
 	 * Gets all the windows that represent notifications
 	 * @returns an array of windows that contain notifications.
 	 */
-	void GetWindows(TArray< TSharedRef<SWindow> >& OutWindows) const;
+	SLATE_API void GetWindows(TArray< TSharedRef<SWindow> >& OutWindows) const;
 
 	/**
 	 * Sets whether notifications should be displayed at all. Note, notifications can be
@@ -170,22 +170,22 @@ public:
 	/**
 	 * Register a Staged Async Notification, allowing the NotificationManager to keep a reference to it
 	 */
-	void RegisterStagedNotification(TSharedPtr<IAsyncTaskNotificationImpl> InNotification);
+	SLATE_API void RegisterStagedNotification(TSharedPtr<IAsyncTaskNotificationImpl> InNotification);
 
 	/**
 	 * Unregister a previously added Staged Notification
 	 */
-	void UnregisterStagedNotification(TSharedPtr<IAsyncTaskNotificationImpl> InNotification);
+	SLATE_API void UnregisterStagedNotification(TSharedPtr<IAsyncTaskNotificationImpl> InNotification);
 
 protected:
 	/** Protect constructor as this is a singleton */
-	FSlateNotificationManager();
+	SLATE_API FSlateNotificationManager();
 
 	/** Create a notification list for the specified screen rectangle */
-	TSharedRef<SNotificationList> CreateStackForArea(const FSlateRect& InRectangle, TSharedPtr<SWindow> Window);
+	SLATE_API TSharedRef<SNotificationList> CreateStackForArea(const FSlateRect& InRectangle, TSharedPtr<SWindow> Window);
 
 	/** FCoreDelegates::OnPreExit shutdown callback */
-	void ShutdownOnPreExit();
+	SLATE_API void ShutdownOnPreExit();
 
 private:
 
@@ -227,7 +227,7 @@ private:
 	FCriticalSection StagedNotificationCS;
 
 	/** Counter used to create progress handles */
-	static int32 ProgressHandleCounter;
+	static SLATE_API int32 ProgressHandleCounter;
 
 	/** Whether notifications should be displayed or not.  This can be used to globally suppress notification pop-ups */
 	bool bAllowNotifications = true;
