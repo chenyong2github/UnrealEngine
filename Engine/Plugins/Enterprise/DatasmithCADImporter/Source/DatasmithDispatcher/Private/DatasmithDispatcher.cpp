@@ -4,6 +4,7 @@
 
 #include "CADFileData.h"
 #include "CADFileReader.h"
+#include "CADOptions.h"
 #include "DatasmithDispatcherConfig.h"
 #include "DatasmithDispatcherLog.h"
 #include "DatasmithDispatcherTask.h"
@@ -51,16 +52,32 @@ const EAppReturnType::Type OpenMessageDialog(uint64 AvailableRam, uint64 Estimat
 }
 
 
-FDatasmithDispatcher::FDatasmithDispatcher(const CADLibrary::FImportParameters& InImportParameters, const FString& InCacheDir, int32 InNumberOfWorkers, TMap<uint32, FString>& OutCADFileToUnrealFileMap, TMap<uint32, FString>& OutCADFileToUnrealGeomMap)
+FDatasmithDispatcher::FDatasmithDispatcher(const CADLibrary::FImportParameters& InImportParameters, const FString& InCacheDir, TMap<uint32, FString>& OutCADFileToUnrealFileMap, TMap<uint32, FString>& OutCADFileToUnrealGeomMap)
 	: NextTaskIndex(0)
 	, CompletedTaskCount(0)
 	, CADFileToUnrealFileMap(OutCADFileToUnrealFileMap)
 	, CADFileToUnrealGeomMap(OutCADFileToUnrealGeomMap)
 	, ProcessCacheFolder(InCacheDir)
 	, ImportParameters(InImportParameters)
-	, NumberOfWorkers(InNumberOfWorkers)
+	, NumberOfWorkers(0)
 	, NextWorkerId(0)
 {
+	constexpr double RecommandedRamPerWorkers = 6.;
+	constexpr double OneGigaByte = 1024. * 1024. * 1024.;
+	const double AvailableRamGB = (double)(FPlatformMemory::GetStats().AvailablePhysical / OneGigaByte);
+
+	const int32 MaxNumberOfWorkers = FPlatformMisc::NumberOfCores();
+	const int32 RecommandedNumberOfWorkers = (int32)(AvailableRamGB / RecommandedRamPerWorkers + 0.5);
+
+	// UE recommendation 
+	NumberOfWorkers = FMath::Min(MaxNumberOfWorkers, RecommandedNumberOfWorkers);
+
+	// User choice but limited by the number of cores. More brings nothing
+	if (CADLibrary::GMaxImportThreads > 1)
+	{
+		NumberOfWorkers = FMath::Min(CADLibrary::GMaxImportThreads, MaxNumberOfWorkers);
+	}
+
 	if (CADLibrary::FImportParameters::bGEnableCADCache)
 	{
 		// init cache folders
@@ -200,6 +217,11 @@ void FDatasmithDispatcher::SetTaskState(int32 TaskIndex, ETaskState TaskState)
 
 void FDatasmithDispatcher::Process(bool bWithProcessor)
 {
+	if (TaskPool.Num() == 1 && !TaskPool[0].FileDescription.CanReferenceOtherFiles())
+	{
+		NumberOfWorkers = 1;
+	}
+
 	EstimationOfMemoryUsedByStaticMeshes = 0;
 	bool bCheckMemory = CADLibrary::FImportParameters::bValidationProcess ? false : true;
 

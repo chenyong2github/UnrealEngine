@@ -254,30 +254,8 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 	{
 		TMap<uint32, FString> CADFileToUEFileMap;
 		{
-			constexpr double RecommandedRamPerWorkers = 6.;
-			constexpr double OneGigaByte = 1024. * 1024. * 1024.;
-			const double AvailableRamGB = (double) (FPlatformMemory::GetStats().AvailablePhysical / OneGigaByte);
-
-			const int32 MaxNumberOfWorkers = FPlatformMisc::NumberOfCores();
-			const int32 RecommandedNumberOfWorkers = (int32) (AvailableRamGB / RecommandedRamPerWorkers + 0.5);
-
-			// UE recommendation 
-			int32 NumberOfWorkers = FMath::Min(MaxNumberOfWorkers, RecommandedNumberOfWorkers);
-
-			// User choice but limited by the number of cores. More brings nothing
-			if (GMaxImportThreads > 1)
-			{
-				NumberOfWorkers = FMath::Min(GMaxImportThreads, MaxNumberOfWorkers);
-			}
-
-			// If the file cannot have reference. One worker is enough.
-			if (GMaxImportThreads != 1 && !FileDescriptor.CanReferenceOtherFiles())
-			{
-				NumberOfWorkers = 1;
-			}
-
 			const EMesher Mesher = FImportParameters::bGDisableCADKernelTessellation ? EMesher::TechSoft : EMesher::CADKernel;
-			DatasmithDispatcher::FDatasmithDispatcher Dispatcher(ImportParameters, CachePath, NumberOfWorkers, CADFileToUEFileMap, CADFileToUEGeomMap);
+			DatasmithDispatcher::FDatasmithDispatcher Dispatcher(ImportParameters, CachePath, CADFileToUEFileMap, CADFileToUEGeomMap);
 			Dispatcher.AddTask(FileDescriptor, Mesher);
 
 			Dispatcher.Process(GMaxImportThreads != 1);
