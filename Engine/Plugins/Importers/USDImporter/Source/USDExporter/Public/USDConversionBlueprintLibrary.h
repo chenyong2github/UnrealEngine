@@ -82,6 +82,9 @@ public:
 	static void InsertSubLayer( const FString& ParentLayerPath, const FString& SubLayerPath, int32 Index = -1 );
 
 	UFUNCTION( BlueprintCallable, Category = "Layer utils" )
+	static void AddReference( const FString& ReferencingStagePath, const FString& ReferencingPrimPath, const FString& TargetStagePath );
+
+	UFUNCTION( BlueprintCallable, Category = "Layer utils" )
 	static void AddPayload( const FString& ReferencingStagePath, const FString& ReferencingPrimPath, const FString& TargetStagePath );
 
 	UFUNCTION( BlueprintCallable, Category = "Prim utils" )

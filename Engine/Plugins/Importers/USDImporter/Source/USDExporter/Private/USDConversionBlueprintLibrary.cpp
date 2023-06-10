@@ -400,6 +400,29 @@ void UUsdConversionBlueprintLibrary::InsertSubLayer( const FString& ParentLayerP
 #endif // USE_USD_SDK
 }
 
+void UUsdConversionBlueprintLibrary::AddReference( const FString& ReferencingStagePath, const FString& ReferencingPrimPath, const FString& TargetStagePath )
+{
+#if USE_USD_SDK
+	TArray<UE::FUsdStage> PreviouslyOpenedStages = UnrealUSDWrapper::GetAllStagesFromCache();
+
+	// Open using the stage cache as it's very likely this stage is already in there anyway
+	UE::FUsdStage ReferencingStage = UnrealUSDWrapper::OpenStage( *ReferencingStagePath, EUsdInitialLoadSet::LoadAll );
+	if ( ReferencingStage )
+	{
+		if ( UE::FUsdPrim ReferencingPrim = ReferencingStage.GetPrimAtPath( UE::FSdfPath( *ReferencingPrimPath ) ) )
+		{
+			UsdUtils::AddReference( ReferencingPrim, *TargetStagePath );
+		}
+	}
+
+	// Cleanup or else the stage cache will keep these stages open forever
+	if ( !PreviouslyOpenedStages.Contains( ReferencingStage ) )
+	{
+		UnrealUSDWrapper::EraseStageFromCache( ReferencingStage );
+	}
+#endif // USE_USD_SDK
+}
+
 void UUsdConversionBlueprintLibrary::AddPayload( const FString& ReferencingStagePath, const FString& ReferencingPrimPath, const FString& TargetStagePath )
 {
 #if USE_USD_SDK

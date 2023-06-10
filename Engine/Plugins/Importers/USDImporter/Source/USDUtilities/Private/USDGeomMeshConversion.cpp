@@ -2183,6 +2183,13 @@ bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdPrim
 		MaterialAssignments.clear();
 	}
 
+	// Do this outside the variant edit context or else it's going to be a weaker opinion than the stuff outside
+	// the variant, and it won't really do anything for UsdPrim if it already exists.
+	// Use an Xform for the parent prim because it will be our defaultPrim for this layer, and our referencer code will
+	// try copying the schema of the defaultPrim onto the referencer prim to make sure they match. If we were typeless
+	// here, so would our referencer and we wouldn't be able to put a transform on it
+	UsdPrim = Stage->DefinePrim(UsdPrim.GetPath(), UnrealToUsd::ConvertToken(bExportMultipleLODs ? TEXT("Xform") : TEXT("Mesh")).Get());
+
 	for ( int32 LODIndex = LowestMeshLOD; LODIndex <= HighestMeshLOD; ++LODIndex )
 	{
 		const FStaticMeshLODResources& RenderMesh = StaticMesh->GetLODForExport( LODIndex );
@@ -2245,8 +2252,6 @@ bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdPrim
 		}
 		else
 		{
-			// Make sure the parent prim has the Mesh schema and add the mesh data directly to it
-			UsdPrim = Stage->DefinePrim( UsdPrim.GetPath(), UnrealToUsd::ConvertToken( TEXT("Mesh") ).Get() );
 			TargetMesh = pxr::UsdGeomMesh{ UsdPrim };
 
 			MaterialPrim = MaterialStage->OverridePrim( UsdPrim.GetPath() );
@@ -2297,6 +2302,9 @@ bool UnrealToUsd::ConvertMeshDescriptions( const TArray<FMeshDescription>& LODIn
 	pxr::SdfPath ParentPrimPath = UsdPrim.GetPath();
 	std::string LowestLODAdded = "";
 
+	// Check the comment on the analogous line on ConvertStaticMesh
+	UsdPrim = Stage->DefinePrim(UsdPrim.GetPath(), UnrealToUsd::ConvertToken(bExportMultipleLODs ? TEXT("Xform") : TEXT("Mesh")).Get());
+
 	for ( int32 LODIndex = 0; LODIndex < NumLODs; ++LODIndex )
 	{
 		const FMeshDescription& MeshDescription = LODIndexToMeshDescription[ LODIndex ];
@@ -2333,8 +2341,6 @@ bool UnrealToUsd::ConvertMeshDescriptions( const TArray<FMeshDescription>& LODIn
 		}
 		else
 		{
-			// Make sure the parent prim has the Mesh schema and add the mesh data directly to it
-			UsdPrim = Stage->DefinePrim( UsdPrim.GetPath(), UnrealToUsd::ConvertToken( TEXT( "Mesh" ) ).Get() );
 			TargetMesh = pxr::UsdGeomMesh{ UsdPrim };
 		}
 

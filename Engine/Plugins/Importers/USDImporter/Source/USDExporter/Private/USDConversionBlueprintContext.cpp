@@ -425,6 +425,27 @@ bool UUsdConversionBlueprintContext::ConvertLandscapeProxyActorMaterial( ALandsc
 #endif // USE_USD_SDK
 }
 
+bool UUsdConversionBlueprintContext::ConvertMaterialOverrides(
+	const UObject* MeshAsset,
+	const TArray<UMaterialInterface*> MaterialOverrides,
+	const FString& PrimPath,
+	int32 LowestLOD,
+	int32 HighestLOD
+)
+{
+#if USE_USD_SDK
+	UE::FUsdPrim Prim = UnrealToUsdImpl::GetPrim(Stage, PrimPath);
+	if (!Prim || !MeshAsset)
+	{
+		return false;
+	}
+
+	return UnrealToUsd::ConvertMaterialOverrides(MeshAsset, MaterialOverrides, Prim, LowestLOD, HighestLOD);
+#else
+	return false;
+#endif	  // USE_USD_SDK
+}
+
 void UUsdConversionBlueprintContext::ReplaceUnrealMaterialsWithBaked( const FFilePath& LayerToAuthorIn, const TMap<FString, FString>& BakedMaterials, bool bIsAssetLayer, bool bUsePayload, bool bRemoveUnrealMaterials )
 {
 #if USE_USD_SDK

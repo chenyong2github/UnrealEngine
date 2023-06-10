@@ -137,6 +137,15 @@ public:
 	bool ConvertLandscapeProxyActorMaterial( ALandscapeProxy* Actor, const FString& PrimPath, const TArray<FPropertyEntry>& PropertiesToBake, const FIntPoint& DefaultTextureSize, const FDirectoryPath& TexturesDir, float TimeCode = 3.402823466e+38F );
 
 public:
+	UFUNCTION( BlueprintCallable, Category = "Conversion utils" )
+	bool ConvertMaterialOverrides(
+		const UObject* MeshAsset,
+		const TArray<UMaterialInterface*> MaterialOverrides,
+		const FString& PrimPath,
+		int32 LowestLOD,
+		int32 HighestLOD
+	);
+
 	/**
 	 * Traverses the context's stage and authors material binding attributes for all `unrealMaterials` that were baked into USD material assets.
 	 * @param LayerToAuthorIn - File path to the layer where the material binding opinions are authored

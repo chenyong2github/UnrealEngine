@@ -132,9 +132,31 @@ namespace UnrealToUsd
 
 	USDUTILITIES_API bool ConvertSceneComponent( const pxr::UsdStageRefPtr& Stage, const USceneComponent* SceneComponent, pxr::UsdPrim& UsdPrim );
 
-	USDUTILITIES_API bool ConvertMeshComponent( const pxr::UsdStageRefPtr& Stage, const UMeshComponent* MeshComponent, pxr::UsdPrim& UsdPrim );
+	USDUTILITIES_API bool ConvertMeshComponent(
+		const pxr::UsdStageRefPtr& Stage,
+		const UMeshComponent* MeshComponent,
+		pxr::UsdPrim& UsdPrim
+	);
 
-	USDUTILITIES_API bool ConvertHierarchicalInstancedStaticMeshComponent( const UHierarchicalInstancedStaticMeshComponent* HISMComponent, pxr::UsdPrim& UsdPrim, double TimeCode = UsdUtils::GetDefaultTimeCode() );
+	USDUTILITIES_API bool ConvertHierarchicalInstancedStaticMeshComponent(
+		const UHierarchicalInstancedStaticMeshComponent* HISMComponent,
+		pxr::UsdPrim& UsdPrim,
+		double TimeCode = UsdUtils::GetDefaultTimeCode()
+	);
+
+	/**
+	 * Sets the material overrides as opinions on MeshPrim, taking care to figure out whether it needs to create LOD or subsection prims, and
+	 * which ones given the chosen export LOD range.
+	 * Leaving the LOD range at default of INDEX_NONE will author the material override opinions assuming all LODs of the MeshAsset were exported.
+	 * MeshAsset should be an UStaticMesh, USkeletalMesh or UGeometryCache.
+	 */
+	USDUTILITIES_API bool ConvertMaterialOverrides(
+		const UObject* MeshAsset,
+		const TArray<UMaterialInterface*> MaterialOverrides,
+		pxr::UsdPrim& UsdPrim,
+		int32 LowestLOD = INDEX_NONE,
+		int32 HighestLOD = INDEX_NONE
+	);
 
 	/**
 	 * Converts a UMovieScene3DTransformTrack to a UsdGeomXformable
