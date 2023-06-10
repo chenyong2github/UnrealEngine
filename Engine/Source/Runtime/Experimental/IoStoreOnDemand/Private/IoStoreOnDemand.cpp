@@ -70,6 +70,53 @@ static bool ParseEncryptionKeyParam(const FString& Param, FGuid& OutKeyGuid, FAE
 	return false;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+static FFileIoCacheConfig GetFileCacheConfig(const TCHAR* CommandLine)
+{
+	FFileIoCacheConfig Ret;
+
+	// Fetch values from .ini files
+	auto GetConfigIntImpl = [CommandLine] (const TCHAR* ConfigKey, const TCHAR* ParamName, auto& Out)
+	{
+		int64 Value = -1;
+		if (FString Temp; GConfig->GetString(TEXT("Ias"), ConfigKey, Temp, GEngineIni))
+		{
+			Value = ParseSizeParam(Temp);
+		}
+#if !UE_BUILD_SHIPPING
+		if (int64 Override = ParseSizeParam(CommandLine, ParamName); Override >= 0)
+		{
+			Value = Override;
+		}
+#endif
+
+		if (Value >= 0)
+		{
+			Out = decltype(Out)(Value);
+		}
+
+		return true;
+	};
+
+#define GetConfigInt(Name, Dest) \
+	do { GetConfigIntImpl(TEXT("FileCache.") Name, TEXT("Ias.FileCache.") Name, Dest); } while (false)
+	GetConfigInt(TEXT("WritePeriodSeconds"),	Ret.WriteRate.Seconds);
+	GetConfigInt(TEXT("WriteOpsPerPeriod"),		Ret.WriteRate.Ops);
+	GetConfigInt(TEXT("WriteBytesPerPeriod"),	Ret.WriteRate.Allowance);
+	GetConfigInt(TEXT("DiskQuota"),				Ret.DiskQuota);
+	GetConfigInt(TEXT("MemoryQuota"),			Ret.MemoryQuota);
+#undef GetConfigInt
+
+#if !UE_BUILD_SHIPPING
+	if (FParse::Param(CommandLine, TEXT("Ias.DropCache")))
+	{
+		Ret.DropCache = true;
+	}
+#endif
+
+	return Ret;
+}
+
 } // namespace UE::IO::Private
 
 
@@ -314,10 +361,12 @@ void FIoStoreOnDemandModule::StartupModule()
 	using namespace UE::IO::Private;
 
 #if !WITH_EDITOR
+	const TCHAR* CommandLine = FCommandLine::Get();
+
 	UE::FOnDemandEndpoint Endpoint;
 	
 	FString UrlParam;
-	if (FParse::Value(FCommandLine::Get(), TEXT("Ias.TocUrl="), UrlParam))
+	if (FParse::Value(CommandLine, TEXT("Ias.TocUrl="), UrlParam))
 	{
 		FStringView UrlView(UrlParam);
 		if (UrlView.StartsWith(TEXTVIEW("http://")) && UrlView.EndsWith(TEXTVIEW(".iochunktoc")))
@@ -333,7 +382,7 @@ void FIoStoreOnDemandModule::StartupModule()
 
 	{
 		FString EncryptionKey;
-		if (FParse::Value(FCommandLine::Get(), TEXT("Ias.EncryptionKey="), EncryptionKey))
+		if (FParse::Value(CommandLine, TEXT("Ias.EncryptionKey="), EncryptionKey))
 		{
 			FGuid KeyGuid;
 			FAES::FAESKey Key;
@@ -393,21 +442,15 @@ void FIoStoreOnDemandModule::StartupModule()
 		return;
 	}
 
-	TSharedPtr<IIoCache> Cache;
-
-	if (uint64 DiskSize = ParseSizeParam(TEXT("Ias.FileCache=")); DiskSize > 0)
-	{
-		uint64 MemorySize = ParseSizeParam(TEXT("Ias.FileCacheQueueSize="));
-		FFileIoCacheConfig FileCacheConfig;
-		FileCacheConfig.DiskStorageSize = DiskSize;
-		FileCacheConfig.MemoryStorageSize = MemorySize > 0 ? MemorySize : (16ull << 20);
-
-		UE_LOG(LogIoStoreOnDemand, Log, TEXT("Using %lluB file cache"), DiskSize);
-		Cache = MakeShareable(MakeFileIoCache(FileCacheConfig).Release());
-	}
-	TSharedPtr<UE::IOnDemandIoDispatcherBackend> Backend = UE::MakeOnDemandIoDispatcherBackend(Cache);
-
 	Endpoint.EndpointType = UE::EOnDemandEndpointType::CDN;
+
+	TSharedPtr<IIoCache> Cache;
+	if (FFileIoCacheConfig Config = GetFileCacheConfig(CommandLine); Config.DiskQuota > 0)
+	{
+		Cache = MakeShareable(MakeFileIoCache(Config).Release());
+	}
+
+	TSharedPtr<UE::IOnDemandIoDispatcherBackend> Backend = UE::MakeOnDemandIoDispatcherBackend(Cache);
 	Backend->Mount(Endpoint);
 	FIoDispatcher::Get().Mount(Backend.ToSharedRef(), -10);
 #endif // !WITH_EDITOR

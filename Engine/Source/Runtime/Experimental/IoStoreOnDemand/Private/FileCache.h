@@ -38,12 +38,12 @@ struct FFileIoCacheConfig
 	struct FRate
 	{
 		uint32 Allowance = ~0u;
-		uint32 Ops = 1;
+		uint32 Ops = 256;
 		uint32 Seconds = 1;
 	};
 
-	uint64 DiskStorageSize;
-	uint64 MemoryStorageSize;
+	uint64 DiskQuota = 1ull << 30;
+	uint32 MemoryQuota = 3 << 20;
 	FRate WriteRate;
 	bool DropCache = false;
 };

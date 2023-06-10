@@ -555,7 +555,8 @@ FFileIoCache::FFileIoCache(const FFileIoCacheConfig& Config)
 {
 	Governor.Set(Config.WriteRate.Allowance, Config.WriteRate.Ops, Config.WriteRate.Seconds);
 
-	CacheMap.SetCacheLimits(Config.MemoryStorageSize, Config.DiskStorageSize);
+	CacheMap.SetCacheLimits(Config.MemoryQuota, Config.DiskQuota);
+
 	Initialize();
 }
 
@@ -660,7 +661,7 @@ FIoStatus FFileIoCache::Put(const FIoHash& Key, FIoBuffer& Data)
 void FFileIoCache::Initialize()
 {
 	UE_LOG(LogIoCache, Log,
-		TEXT("Initializing file I/O cache, disk size %lluB, memory size %lluB"), CacheConfig.DiskStorageSize, CacheConfig.MemoryStorageSize);
+		TEXT("Initializing file I/O cache, disk size %lluB, memory size %lluB"), CacheConfig.DiskQuota, CacheConfig.MemoryQuota);
 
 	const FString CacheDir = FPaths::ProjectPersistentDownloadDir() / TEXT("IoCache");
 	const FString CacheTocPath = CacheDir / TEXT("cache.utoc");
@@ -779,7 +780,7 @@ void FFileIoCache::FileWriterThreadInner()
 	}
 
 	// Wrap the write cursor if we'd end up writing over the end
-	if (WriteCursorPos + PendingSize > CacheConfig.DiskStorageSize)
+	if (WriteCursorPos + PendingSize > CacheConfig.DiskQuota)
 	{
 		WriteCursorPos = 0;
 	}
