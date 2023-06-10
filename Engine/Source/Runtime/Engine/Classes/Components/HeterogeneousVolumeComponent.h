@@ -30,6 +30,9 @@ class UHeterogeneousVolumeComponent : public UMeshComponent
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Lighting)
 	float LightingDownsampleFactor;
+	
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInstanceDynamic> MaterialInstanceDynamic;
 
 	~UHeterogeneousVolumeComponent() {}
 
@@ -38,6 +41,7 @@ public:
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
+	virtual void PostLoad() override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
@@ -48,6 +52,7 @@ public:
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	virtual int32 GetNumMaterials() const override { return 1; }
 	virtual bool ShouldRenderSelected() const override { return true; }
+	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override;
 	//~ End UPrimitiveComponent Interface.
 
 private:
