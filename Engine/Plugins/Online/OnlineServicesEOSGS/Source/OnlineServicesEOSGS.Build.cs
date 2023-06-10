@@ -10,6 +10,7 @@ public class OnlineServicesEOSGS : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
+				"EOSSDK",
 				"OnlineServicesInterface",
 				"OnlineServicesCommon",
 				"OnlineServicesCommonEngineUtils",
@@ -21,7 +22,6 @@ public class OnlineServicesEOSGS : ModuleRules
 			new string[] {
 				"CoreOnline",
 				"CoreUObject",
-				"EOSSDK",
 				"EOSShared",
 				"Sockets"
 			}
