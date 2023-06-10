@@ -55,16 +55,16 @@ namespace EDragTool
 /**
 * Unreal level editor actions
 */
-class FViewportNavigationCommands : public TCommands<FViewportNavigationCommands>
+class UNREALED_API FViewportNavigationCommands : public TCommands<FViewportNavigationCommands>
 {
 
 public:
-	UNREALED_API FViewportNavigationCommands();
+	FViewportNavigationCommands();
 
 	/**
 	* Initialize commands
 	*/
-	UNREALED_API virtual void RegisterCommands() override;
+	virtual void RegisterCommands() override;
 
 
 	TSharedPtr< FUICommandInfo > Forward;

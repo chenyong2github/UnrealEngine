@@ -34,46 +34,46 @@ public:
 //////////////////////////////////////////////////////////////////////////
 // FPlayWorldCommands
 
-class FPlayWorldCommands : public TCommands<FPlayWorldCommands>
+class UNREALED_API FPlayWorldCommands : public TCommands<FPlayWorldCommands>
 {
 private:
 
 	friend class TCommands<FPlayWorldCommands>;
 
-	UNREALED_API FPlayWorldCommands();
+	FPlayWorldCommands();
 
 public:
 
 	// TCommands interface
-	UNREALED_API virtual void RegisterCommands() override;
+	virtual void RegisterCommands() override;
 	// End of TCommands interface
 
 	/**
 	 * Binds all global kismet commands to delegates
 	 */
-	static UNREALED_API void BindGlobalPlayWorldCommands();
+	static void BindGlobalPlayWorldCommands();
 
 	/** Populates a toolbar with the menu commands for play-world control (pause/resume/stop/possess/eject/step/show current loc) */
-	static UNREALED_API void BuildToolbar( FToolMenuSection& InSection, bool bIncludeLaunchButtonAndOptions = false );
+	static void BuildToolbar( FToolMenuSection& InSection, bool bIncludeLaunchButtonAndOptions = false );
 
 	/**
 	* Return the active widget that processes play world actions for PIE
 	*
 	*/
-	static UNREALED_API TWeakPtr<SGlobalPlayWorldActions> GetActiveGlobalPlayWorldActionsWidget();
+	static TWeakPtr<SGlobalPlayWorldActions> GetActiveGlobalPlayWorldActionsWidget();
 
 	/**
 	* Set the active widget that processes play world actions for PIE
 	*
 	*/
-	static UNREALED_API void SetActiveGlobalPlayWorldActionsWidget(TWeakPtr<SGlobalPlayWorldActions> ActiveWidget);
+	static void SetActiveGlobalPlayWorldActionsWidget(TWeakPtr<SGlobalPlayWorldActions> ActiveWidget);
 
 public:
 
 	/** 
 	 * A command list that can be passed around and isn't bound to an instance of any tool or editor. 
 	 */
-	static UNREALED_API TSharedPtr<FUICommandList> GlobalPlayWorldActions;
+	static TSharedPtr<FUICommandList> GlobalPlayWorldActions;
 
 public:
 
@@ -116,20 +116,20 @@ public:
 protected:
 
 	/** A weak pointer to the current active widget that processes PIE actions */
-	static UNREALED_API TWeakPtr<SGlobalPlayWorldActions> ActiveGlobalPlayWorldActionsWidget;
+	static TWeakPtr<SGlobalPlayWorldActions> ActiveGlobalPlayWorldActionsWidget;
 
 	/**
 	 * Generates menu content for the PIE combo button drop down menu
 	 *
 	 * @return	Menu content widget
 	 */
-	static UNREALED_API TSharedRef< SWidget > GeneratePlayMenuContent( TSharedRef<FUICommandList> InCommandList );
+	static TSharedRef< SWidget > GeneratePlayMenuContent( TSharedRef<FUICommandList> InCommandList );
 
 	// Add mobile PIE preview device commands
-	UNREALED_API void AddPIEPreviewDeviceCommands();
+	void AddPIEPreviewDeviceCommands();
 
 	// Add mobile PIE preview device actions
-	static UNREALED_API void AddPIEPreviewDeviceActions(const FPlayWorldCommands &Commands, FUICommandList &ActionList);
+	static void AddPIEPreviewDeviceActions(const FPlayWorldCommands &Commands, FUICommandList &ActionList);
 };
 
 

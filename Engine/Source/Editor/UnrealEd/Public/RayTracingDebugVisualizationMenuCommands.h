@@ -11,7 +11,7 @@
 
 class FEditorViewportClient;
 
-class FRayTracingDebugVisualizationMenuCommands : public TCommands<FRayTracingDebugVisualizationMenuCommands>
+class UNREALED_API FRayTracingDebugVisualizationMenuCommands : public TCommands<FRayTracingDebugVisualizationMenuCommands>
 {
 public:
 	struct FRayTracingDebugVisualizationRecord
@@ -28,15 +28,15 @@ public:
 		}
 	};
 
-	UNREALED_API FRayTracingDebugVisualizationMenuCommands();
+	FRayTracingDebugVisualizationMenuCommands();
 
-	static UNREALED_API void BuildVisualisationSubMenu(FMenuBuilder& Menu);
+	static void BuildVisualisationSubMenu(FMenuBuilder& Menu);
 
-	UNREALED_API virtual void RegisterCommands() override;
+	virtual void RegisterCommands() override;
 
-	UNREALED_API void BindCommands(FUICommandList& CommandList, const TSharedPtr<FEditorViewportClient>& Client) const;
+	void BindCommands(FUICommandList& CommandList, const TSharedPtr<FEditorViewportClient>& Client) const;
 
-	static UNREALED_API bool DebugModeShouldBeTonemapped(const FName& RayTracingDebugModeName);
+	static bool DebugModeShouldBeTonemapped(const FName& RayTracingDebugModeName);
 
 private:
 	void BuildCommandMap();

@@ -11,7 +11,7 @@
 
 class FEditorViewportClient;
 
-class FGPUSkinCacheVisualizationMenuCommands : public TCommands<FGPUSkinCacheVisualizationMenuCommands>
+class UNREALED_API FGPUSkinCacheVisualizationMenuCommands : public TCommands<FGPUSkinCacheVisualizationMenuCommands>
 {
 public:
 	enum class FGPUSkinCacheVisualizationType : uint8
@@ -38,15 +38,15 @@ public:
 	typedef TMultiMap<FName, FGPUSkinCacheVisualizationRecord> TGPUSkinCacheVisualizationModeCommandMap;
 	typedef TGPUSkinCacheVisualizationModeCommandMap::TConstIterator TCommandConstIterator;
 
-	UNREALED_API FGPUSkinCacheVisualizationMenuCommands();
+	FGPUSkinCacheVisualizationMenuCommands();
 
-	UNREALED_API TCommandConstIterator CreateCommandConstIterator() const;
+	TCommandConstIterator CreateCommandConstIterator() const;
 
-	static UNREALED_API void BuildVisualisationSubMenu(FMenuBuilder& Menu);
+	static void BuildVisualisationSubMenu(FMenuBuilder& Menu);
 
-	UNREALED_API virtual void RegisterCommands() override;
+	virtual void RegisterCommands() override;
 
-	UNREALED_API void BindCommands(FUICommandList& CommandList, const TSharedPtr<FEditorViewportClient>& Client) const;
+	void BindCommands(FUICommandList& CommandList, const TSharedPtr<FEditorViewportClient>& Client) const;
 
 	inline bool IsPopulated() const
 	{
@@ -54,11 +54,11 @@ public:
 	}
 
 private:
-	UNREALED_API void BuildCommandMap();
-	UNREALED_API bool AddCommandTypeToMenu(FMenuBuilder& Menu, const FGPUSkinCacheVisualizationType Type, bool bSeparatorBefore = false) const;
+	void BuildCommandMap();
+	bool AddCommandTypeToMenu(FMenuBuilder& Menu, const FGPUSkinCacheVisualizationType Type, bool bSeparatorBefore = false) const;
 
-	static UNREALED_API void ChangeGPUSkinCacheVisualizationMode(TWeakPtr<FEditorViewportClient> WeakClient, FName InName);
-	static UNREALED_API bool IsGPUSkinCacheVisualizationModeSelected(TWeakPtr<FEditorViewportClient> WeakClient, FName InName);
+	static void ChangeGPUSkinCacheVisualizationMode(TWeakPtr<FEditorViewportClient> WeakClient, FName InName);
+	static bool IsGPUSkinCacheVisualizationModeSelected(TWeakPtr<FEditorViewportClient> WeakClient, FName InName);
 
 	TGPUSkinCacheVisualizationModeCommandMap CommandMap;
 };
