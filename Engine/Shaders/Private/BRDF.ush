@@ -515,7 +515,7 @@ float SheenLTC_DirectionalAlbedo(float NoV, float Roughness, Texture2D InSheenLT
 }
 
 // [Zeltner et al. 2022, "Practical Multiple-Scattering Sheen Using Linearly Transformed Cosines"]
-float3 SheenLTC_Sample(float3 CosSample, float3 V, float3 L, half3 N, float NoV, float Roughness, Texture2D InSheenLTCTexture, SamplerState InSheenSampler)
+float3 SheenLTC_Sample(float3 CosSample, float3 V, half3 N, float NoV, float Roughness, Texture2D InSheenLTCTexture, SamplerState InSheenSampler)
 {
 	const float4 LTC = SheenLTC_Cofficients(NoV, Roughness, InSheenLTCTexture, InSheenSampler);
 	const float aInv = LTC.x;
@@ -531,7 +531,7 @@ float3 SheenLTC_Sample(float3 CosSample, float3 V, float3 L, half3 N, float NoV,
 }
 
 // [Zeltner et al. 2022, "Practical Multiple-Scattering Sheen Using Linearly Transformed Cosines"]
-float SheenLTC_Eval(float3 V, float3 L, half3 N, float NoV, float Roughness, Texture2D InSheenLTCTexture, SamplerState InSheenSampler, inout float OutDirectionalAlbedo, inout float OutPdf)
+float SheenLTC_Eval(float3 V, float3 L, half3 N, float NoV, float Roughness, Texture2D InSheenLTCTexture, SamplerState InSheenSampler, inout float OutDirectionalAlbedo)
 {
 	// Rotate L into tangent space
 	const float3 T1 = normalize(V - N * NoV);
@@ -563,9 +563,7 @@ float SheenLTC_Eval(float3 V, float3 L, half3 N, float NoV, float Roughness, Tex
 	const float CosDistribution = WrappedLocalL.z / PI;
 	const float Out = OutDirectionalAlbedo * CosDistribution * Jacobian; // Fs * CosTheta
 
-	// The function has perfect important sampling PDF=F
-	OutPdf = Out;
-	return Out;
+	return max(Out, 0.f);
 }
 
 //---------------
