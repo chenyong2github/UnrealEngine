@@ -78,7 +78,7 @@ class FGenerateRayMarchingTiles : public FGlobalShader
 	static int32 GetThreadGroupSize2D() { return 8; }
 };
 
-IMPLEMENT_MATERIAL_SHADER_TYPE(, FGenerateRayMarchingTiles, TEXT("/Engine/Private/HeterogeneousVolumes/HeterogeneousVolumesPreshadingPipeline.usf"), TEXT("GenerateRayMarchingTiles"), SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FGenerateRayMarchingTiles, "/Engine/Private/HeterogeneousVolumes/HeterogeneousVolumesPreshadingPipeline.usf", "GenerateRayMarchingTiles", SF_Compute);
 
 namespace HeterogeneousVolumes
 {
@@ -280,7 +280,7 @@ class FRenderLightingCacheWithPreshadingCS : public FGlobalShader
 	static int32 GetThreadGroupSize3D() { return 4; }
 };
 
-IMPLEMENT_MATERIAL_SHADER_TYPE(, FRenderLightingCacheWithPreshadingCS, TEXT("/Engine/Private/HeterogeneousVolumes/HeterogeneousVolumesPreshadingPipeline.usf"), TEXT("RenderLightingCacheWithPreshadingCS"), SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FRenderLightingCacheWithPreshadingCS, "/Engine/Private/HeterogeneousVolumes/HeterogeneousVolumesPreshadingPipeline.usf", "RenderLightingCacheWithPreshadingCS", SF_Compute);
 
 class FRenderSingleScatteringWithPreshadingCS : public FGlobalShader
 {
@@ -376,7 +376,7 @@ class FRenderSingleScatteringWithPreshadingCS : public FGlobalShader
 	static int32 GetThreadGroupSize2D() { return 8; }
 };
 
-IMPLEMENT_MATERIAL_SHADER_TYPE(, FRenderSingleScatteringWithPreshadingCS, TEXT("/Engine/Private/HeterogeneousVolumes/HeterogeneousVolumesPreshadingPipeline.usf"), TEXT("RenderSingleScatteringWithPreshadingCS"), SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FRenderSingleScatteringWithPreshadingCS, "/Engine/Private/HeterogeneousVolumes/HeterogeneousVolumesPreshadingPipeline.usf", "RenderSingleScatteringWithPreshadingCS", SF_Compute);
 
 void RenderLightingCacheWithPreshadingCompute(
 	FRDGBuilder& GraphBuilder,
