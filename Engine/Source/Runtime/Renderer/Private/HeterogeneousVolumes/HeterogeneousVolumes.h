@@ -182,6 +182,7 @@ BEGIN_UNIFORM_BUFFER_STRUCT(FFrustumVoxelGridUniformBufferParameters, )
 
 	SHADER_PARAMETER(float, NearPlaneDepth)
 	SHADER_PARAMETER(float, FarPlaneDepth)
+	SHADER_PARAMETER(float, TanHalfFOV)
 
 	SHADER_PARAMETER_ARRAY(FVector4f, ViewFrustumPlanes, [6])
 
@@ -227,6 +228,7 @@ struct FAdaptiveFrustumGridParameterCache
 
 	float NearPlaneDepth;
 	float FarPlaneDepth;
+	float TanHalfFOV;
 
 	FVector4f ViewFrustumPlanes[6];
 

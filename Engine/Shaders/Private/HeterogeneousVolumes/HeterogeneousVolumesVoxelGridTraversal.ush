@@ -488,8 +488,9 @@ float3 TraceFrustumVoxelGrid(float3 Origin, float3 Direction, inout float TMin, 
 	int3 VoxelDimensions = FrustumGridUniformBuffer.VoxelDimensions;
 	float NearPlaneDepth = FrustumGridUniformBuffer.NearPlaneDepth;
 	float FarPlaneDepth = FrustumGridUniformBuffer.FarPlaneDepth;
-	float3 VoxelRayOrigin = ViewToVoxel(ViewRayOrigin, VoxelDimensions, NearPlaneDepth, FarPlaneDepth);
-	float3 VoxelRayDirection = ViewToVoxel(ViewRayOrigin + ViewRayDirection, VoxelDimensions, NearPlaneDepth, FarPlaneDepth);
+	float TanHalfFOV = FrustumGridUniformBuffer.TanHalfFOV;
+	float3 VoxelRayOrigin = ViewToVoxel(ViewRayOrigin, VoxelDimensions, NearPlaneDepth, FarPlaneDepth, TanHalfFOV);
+	float3 VoxelRayDirection = ViewToVoxel(ViewRayOrigin + ViewRayDirection, VoxelDimensions, NearPlaneDepth, FarPlaneDepth, TanHalfFOV);
 	VoxelRayDirection -= VoxelRayOrigin;
 	float UnitWorldToVoxelScale = length(VoxelRayDirection);
 	VoxelRayDirection /= UnitWorldToVoxelScale;

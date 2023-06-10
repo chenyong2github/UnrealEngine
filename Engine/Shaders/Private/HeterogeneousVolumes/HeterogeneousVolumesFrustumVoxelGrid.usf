@@ -23,7 +23,7 @@ RWStructuredBuffer<FTopLevelGridData> RWTopLevelGridBuffer;
 float4x4 ViewToWorld;
 int3 VoxelDimensions;
 
-float HalfFOV;
+float TanHalfFOV;
 float NearPlaneDepth;
 float FarPlaneDepth;
 
@@ -32,8 +32,8 @@ bool BoxIntersectsVoxel(float3 WorldBoxCenter, float WorldBoxRadius, uint3 Voxel
 	float3 VoxelPosMin = VoxelIndex;
 	float3 VoxelPosMax = (VoxelIndex + 1);
 
-	float3 ViewPosMin = VoxelToView(VoxelPosMin, VoxelDimensions, NearPlaneDepth, FarPlaneDepth);
-	float3 ViewPosMax = VoxelToView(VoxelPosMax, VoxelDimensions, NearPlaneDepth, FarPlaneDepth);
+	float3 ViewPosMin = VoxelToView(VoxelPosMin, VoxelDimensions, NearPlaneDepth, FarPlaneDepth, TanHalfFOV);
+	float3 ViewPosMax = VoxelToView(VoxelPosMax, VoxelDimensions, NearPlaneDepth, FarPlaneDepth, TanHalfFOV);
 
 	float3 WorldPosMin = mul(float4(ViewPosMin, 1), ViewToWorld).xyz;
 	float3 WorldPosMax = mul(float4(ViewPosMax, 1), ViewToWorld).xyz;

@@ -304,6 +304,11 @@ namespace HeterogeneousVolumes
 	{
 		return CVarHeterogeneousVolumesEnableMajorantGrid.GetValueOnRenderThread() != 0;
 	}
+
+	float CalcTanHalfFOV(float FOVInDegrees)
+	{
+		return FMath::Tan(FMath::DegreesToRadians(FOVInDegrees * 0.5));
+	}
 }
 
 class FMarkTopLevelGridVoxelsForFrustumGrid : public FGlobalShader
@@ -322,7 +327,7 @@ class FMarkTopLevelGridVoxelsForFrustumGrid : public FGlobalShader
 		SHADER_PARAMETER(FVector3f, PrimitiveWorldBoundsMax)
 
 		SHADER_PARAMETER(FMatrix44f, ViewToWorld)
-		SHADER_PARAMETER(float, HalfFOV)
+		SHADER_PARAMETER(float, TanHalfFOV)
 		SHADER_PARAMETER(float, NearPlaneDepth)
 		SHADER_PARAMETER(float, FarPlaneDepth)
 
@@ -378,7 +383,7 @@ class FRasterizeBottomLevelFrustumGridCS : public FMeshMaterialShader
 		SHADER_PARAMETER(FIntVector, TopLevelGridResolution)
 		SHADER_PARAMETER(FIntVector, VoxelDimensions)
 		SHADER_PARAMETER(FMatrix44f, ViewToWorld)
-		SHADER_PARAMETER(float, HalfFOV)
+		SHADER_PARAMETER(float, TanHalfFOV)
 		SHADER_PARAMETER(float, NearPlaneDepth)
 		SHADER_PARAMETER(float, FarPlaneDepth)
 
@@ -1178,7 +1183,7 @@ void CalcViewBoundsAndMinimumVoxelSize(
 	FVector WorldCameraOrigin = View.ViewMatrices.GetViewOrigin();
 	FBoxSphereBounds WorldCameraBounds(FSphere(WorldCameraOrigin, HeterogeneousVolumes::GetMaxTraceDistance()));
 
-	float TanHalfFOV = FMath::Tan(View.ViewMatrices.ComputeHalfFieldOfViewPerAxis().X);
+	float TanHalfFOV = HeterogeneousVolumes::CalcTanHalfFOV(View.FOV);
 	int32 HalfWidth = View.ViewRect.Width() * 0.5;
 	float PixelWidth = TanHalfFOV / HalfWidth;
 
@@ -1235,7 +1240,7 @@ void CalcGlobalBoundsAndMinimumVoxelSize(
 		FVector WorldCameraOrigin = View.ViewMatrices.GetViewOrigin();
 		FBoxSphereBounds WorldCameraBounds(FSphere(WorldCameraOrigin, HeterogeneousVolumes::GetMaxTraceDistance()));
 
-		float TanHalfFOV = FMath::Tan(View.ViewMatrices.ComputeHalfFieldOfViewPerAxis().X);
+		float TanHalfFOV = HeterogeneousVolumes::CalcTanHalfFOV(View.FOV);
 		int32 HalfWidth = View.ViewRect.Width() * 0.5;
 		float PixelWidth = TanHalfFOV / HalfWidth;
 
@@ -1299,6 +1304,7 @@ void ExtractFrustumVoxelGridUniformBuffer(
 	AdaptiveFrustumGridParameterCache.bUseFrustumGrid = Parameters->bUseFrustumGrid;
 	AdaptiveFrustumGridParameterCache.NearPlaneDepth = Parameters->NearPlaneDepth;
 	AdaptiveFrustumGridParameterCache.FarPlaneDepth = Parameters->FarPlaneDepth;
+	AdaptiveFrustumGridParameterCache.TanHalfFOV = Parameters->TanHalfFOV;
 
 
 	AdaptiveFrustumGridParameterCache.WorldToClip = Parameters->WorldToClip;
@@ -1343,6 +1349,7 @@ void RegisterExternalFrustumVoxelGridUniformBuffer(
 		UniformBufferParameters->bUseFrustumGrid = AdaptiveFrustumGridParameterCache.bUseFrustumGrid;
 		UniformBufferParameters->NearPlaneDepth = AdaptiveFrustumGridParameterCache.NearPlaneDepth;
 		UniformBufferParameters->FarPlaneDepth = AdaptiveFrustumGridParameterCache.FarPlaneDepth;
+		UniformBufferParameters->TanHalfFOV = AdaptiveFrustumGridParameterCache.TanHalfFOV;
 
 		// Frustum assignment
 		for (int i = 0; i < 6; ++i)
@@ -1384,6 +1391,7 @@ void CreateEmptyFrustumVoxelGridUniformBuffer(
 		UniformBufferParameters->bUseFrustumGrid = false;
 		UniformBufferParameters->NearPlaneDepth = 0.0;
 		UniformBufferParameters->FarPlaneDepth = 0.0;
+		UniformBufferParameters->TanHalfFOV = 1.0;
 	}
 	FrustumGridUniformBuffer = GraphBuilder.CreateUniformBuffer(UniformBufferParameters);
 }
@@ -1698,7 +1706,7 @@ void MarkTopLevelGridVoxelsForFrustumGrid(
 			PassParameters->PrimitiveWorldBoundsMax = FVector3f(PrimitiveBounds.Origin + PrimitiveBounds.BoxExtent);
 
 			PassParameters->ViewToWorld = FMatrix44f(ViewToWorld);
-			PassParameters->HalfFOV = FMath::DegreesToRadians(View.FOV * 0.5);
+			PassParameters->TanHalfFOV = HeterogeneousVolumes::CalcTanHalfFOV(View.FOV);
 			PassParameters->NearPlaneDepth = NearPlaneDistance;
 			PassParameters->FarPlaneDepth = FarPlaneDistance;
 
@@ -1831,7 +1839,7 @@ void RasterizeVolumesIntoFrustumVoxelGrid(
 			PassParameters->TopLevelGridResolution = TopLevelGridResolution;
 			PassParameters->VoxelDimensions = TopLevelGridResolution;
 			PassParameters->ViewToWorld = FMatrix44f(ViewToWorld);
-			PassParameters->HalfFOV = FMath::DegreesToRadians(View.FOV * 0.5);
+			PassParameters->TanHalfFOV = HeterogeneousVolumes::CalcTanHalfFOV(View.FOV);
 			PassParameters->NearPlaneDepth = NearPlaneDistance;
 			PassParameters->FarPlaneDepth = FarPlaneDistance;
 
@@ -2029,6 +2037,7 @@ void BuildFrustumVoxelGrid(
 		UniformBufferParameters->bUseFrustumGrid = HeterogeneousVolumes::EnableFrustumVoxelGrid();
 		UniformBufferParameters->NearPlaneDepth = NearPlaneDistance;
 		UniformBufferParameters->FarPlaneDepth = FarPlaneDistance;
+		UniformBufferParameters->TanHalfFOV = HeterogeneousVolumes::CalcTanHalfFOV(View.FOV);
 
 		// Frustum assignment
 		{

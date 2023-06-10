@@ -341,7 +341,8 @@ FVolumeShadedResult GetFrustumVoxelGridDensity(float3 TranslatedWorldPos, inout 
 	int3 VoxelDimensions = FrustumGridUniformBuffer.VoxelDimensions;
 	float NearPlaneDepth = FrustumGridUniformBuffer.NearPlaneDepth;
 	float FarPlaneDepth = FrustumGridUniformBuffer.FarPlaneDepth;
-	float3 VoxelPos = ViewToVoxel(ViewPos, VoxelDimensions, NearPlaneDepth, FarPlaneDepth);
+	float TanHalfFOV = FrustumGridUniformBuffer.TanHalfFOV;
+	float3 VoxelPos = ViewToVoxel(ViewPos, VoxelDimensions, NearPlaneDepth, FarPlaneDepth, TanHalfFOV);
 
 	bInFrustum = all(VoxelPos > 0) && all(VoxelPos < FrustumGridUniformBuffer.TopLevelFroxelGridResolution);
 	if (bInFrustum)

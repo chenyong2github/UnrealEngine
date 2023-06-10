@@ -102,12 +102,12 @@ float InversePerspectiveRemap(float NormalizedDepth, int3 VoxelDimensions)
 	return ViewDepth;
 }
 
-float3 ViewToVoxel(float3 ViewPos, int3 VoxelDimensions, float NearPlaneDepth, float FarPlaneDepth)
+float3 ViewToVoxel(float3 ViewPos, int3 VoxelDimensions, float NearPlaneDepth, float FarPlaneDepth, float TanHalfFOV)
 {
 	//float4 ClipPos = mul(float4(ViewPos, 1), ViewToClip);
 	//float3 ScreenPos = ClipPos.xyz / ClipPos.w;
 	float2 AspectRatio = VoxelDimensions.xy / float(VoxelDimensions.x);
-	float2 ScreenPos = ViewPos.xy / (AspectRatio * ViewPos.z);
+	float2 ScreenPos = ViewPos.xy / (TanHalfFOV * AspectRatio * ViewPos.z);
 
 #if 0
 	float NormalizedDepth = SquareDistanceRemap(ViewPos.z, NearPlaneDepth, FarPlaneDepth);
@@ -124,7 +124,7 @@ float3 ViewToVoxel(float3 ViewPos, int3 VoxelDimensions, float NearPlaneDepth, f
 	return VoxelPos;
 }
 
-float3 VoxelToView(float3 VoxelPos, int3 VoxelDimensions, float NearPlaneDepth, float FarPlaneDepth)
+float3 VoxelToView(float3 VoxelPos, int3 VoxelDimensions, float NearPlaneDepth, float FarPlaneDepth, float TanHalfFOV)
 {
 	float3 NDC = VoxelPos / VoxelDimensions;
 	float2 ScreenPos = NDC.xy * 2.0 - 1.0;
@@ -140,7 +140,7 @@ float3 VoxelToView(float3 VoxelPos, int3 VoxelDimensions, float NearPlaneDepth, 
 
 	// TODO: Guarantee no view-space translation exists..
 	float2 AspectRatio = VoxelDimensions.xy / float(VoxelDimensions.x);
-	float3 ViewPos = float3(ScreenPos * AspectRatio * ViewDepth, ViewDepth);
+	float3 ViewPos = float3(ScreenPos * TanHalfFOV * AspectRatio * ViewDepth, ViewDepth);
 	return ViewPos;
 }
 

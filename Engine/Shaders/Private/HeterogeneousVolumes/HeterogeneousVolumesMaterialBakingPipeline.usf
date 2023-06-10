@@ -399,7 +399,7 @@ void RasterizeBottomLevelOrthoGridCS(
 int3 VoxelDimensions;
 float4x4 ViewToWorld;
 
-float HalfFOV;
+float TanHalfFOV;
 float NearPlaneDepth;
 float FarPlaneDepth;
 
@@ -440,7 +440,7 @@ void RasterizeBottomLevelFrustumGridCS(
 	float3 LocalVoxelPos = GroupThreadId + Jitter;
 	float3 VoxelPosition = TopLevelVoxelPos + LocalVoxelPos / BottomLevelVoxelResolution;
 
-	float3 ViewPos = VoxelToView(VoxelPosition, VoxelDimensions, NearPlaneDepth, FarPlaneDepth);
+	float3 ViewPos = VoxelToView(VoxelPosition, VoxelDimensions, NearPlaneDepth, FarPlaneDepth, TanHalfFOV);
 	float3 WorldPosition = mul(float4(ViewPos, 1), ViewToWorld).xyz;
 
 	float3 Extinction = 0;

@@ -770,8 +770,9 @@ void RenderTransmittanceWithVoxelGridCS(
 		int3 VoxelDimensions = FrustumGridUniformBuffer.VoxelDimensions;
 		float NearPlaneDepth = FrustumGridUniformBuffer.NearPlaneDepth;
 		float FarPlaneDepth = FrustumGridUniformBuffer.FarPlaneDepth;
-		float3 VoxelRayOrigin = ViewToVoxel(ViewRayOrigin, VoxelDimensions, NearPlaneDepth, FarPlaneDepth);
-		float3 VoxelRayEnd = ViewToVoxel(ViewRayOrigin + ViewRayDirection * ViewRayLength, VoxelDimensions, NearPlaneDepth, FarPlaneDepth);
+		float TanHalfFOV = FrustumGridUniformBuffer.TanHalfFOV;
+		float3 VoxelRayOrigin = ViewToVoxel(ViewRayOrigin, VoxelDimensions, NearPlaneDepth, FarPlaneDepth, TanHalfFOV);
+		float3 VoxelRayEnd = ViewToVoxel(ViewRayOrigin + ViewRayDirection * ViewRayLength, VoxelDimensions, NearPlaneDepth, FarPlaneDepth, TanHalfFOV);
 
 		float3 VoxelRayDirection = VoxelRayEnd - VoxelRayOrigin;
 		float VoxelRayLength = length(VoxelRayDirection);
