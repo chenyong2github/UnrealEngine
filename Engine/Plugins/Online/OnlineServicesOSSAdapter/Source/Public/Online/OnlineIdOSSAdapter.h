@@ -84,10 +84,16 @@ public:
 	}
 
 	// Begin IOnlineAccountIdRegistry
+	virtual FString ToString(const TOnlineId<IdType>& OnlineId) const override
+	{
+		FUniqueNetIdPtr IdValue = GetIdValue(OnlineId);
+		return IdValue ? IdValue->ToString() : TEXT("invalid_id");
+	}
+
 	virtual FString ToLogString(const TOnlineId<IdType>& OnlineId) const override
 	{
 		FUniqueNetIdPtr IdValue = GetIdValue(OnlineId);
-		return IdValue ? IdValue->ToDebugString() : FString(TEXT("invalid_id"));
+		return IdValue ? IdValue->ToDebugString() : TEXT("invalid_id");
 	}
 
 	virtual TArray<uint8> ToReplicationData(const TOnlineId<IdType>& OnlineId) const override
@@ -99,7 +105,6 @@ public:
 	{
 		return TOnlineId<IdType>();
 	}
-
 	// End IOnlineAccountIdRegistry
 
 private:

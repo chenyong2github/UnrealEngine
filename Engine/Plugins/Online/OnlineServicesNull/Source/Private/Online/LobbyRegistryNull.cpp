@@ -45,16 +45,20 @@ const FString* FOnlineLobbyIdRegistryNull::GetInternal(const FLobbyId& LobbyId) 
 	return nullptr;
 }
 
-FString FOnlineLobbyIdRegistryNull::ToLogString(const FLobbyId& LobbyId) const
+FString FOnlineLobbyIdRegistryNull::ToString(const FLobbyId& LobbyId) const
 {
 	if (const FString* Id = GetInternal(LobbyId))
 	{
 		return *Id;
 	}
 
-	return FString(TEXT("[InvalidLobbyID]"));
+	return FString(TEXT("Invalid"));
 }
 
+FString FOnlineLobbyIdRegistryNull::ToLogString(const FLobbyId& LobbyId) const
+{
+	return ToString(LobbyId);
+}
 
 TArray<uint8> FOnlineLobbyIdRegistryNull::ToReplicationData(const FLobbyId& LobbyId) const
 {

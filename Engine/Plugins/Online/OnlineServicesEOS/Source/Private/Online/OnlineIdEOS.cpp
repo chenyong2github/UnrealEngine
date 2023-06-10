@@ -8,6 +8,22 @@
 
 namespace UE::Online {
 
+FString FOnlineAccountIdRegistryEOS::ToString(const FAccountId& AccountId) const
+{
+	FString Result;
+	if (ValidateOnlineId(AccountId))
+	{
+		const FOnlineAccountIdDataEOS& IdData = GetAccountIdData(AccountId);
+		Result = FString::Printf(TEXT("%s|%s"), *LexToString(IdData.EpicAccountId), *LexToString(IdData.ProductUserId));
+	}
+	else
+	{
+		check(!AccountId.IsValid()); // Check we haven't been passed a valid handle for a different EOnlineServices.
+		Result = TEXT("Invalid");
+	}
+	return Result;
+}
+
 FString FOnlineAccountIdRegistryEOS::ToLogString(const FAccountId& AccountId) const
 {
 	FString Result;

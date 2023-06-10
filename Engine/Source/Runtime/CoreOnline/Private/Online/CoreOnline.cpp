@@ -237,6 +237,20 @@ void FOnlineIdRegistryRegistry::UnregisterAccountIdRegistry(EOnlineServices Onli
 	}
 }
 
+FString FOnlineIdRegistryRegistry::ToString(const FAccountId& AccountId) const
+{
+	FString Result;
+	if (IOnlineAccountIdRegistry* Registry = GetAccountIdRegistry(AccountId.GetOnlineServicesType()))
+	{
+		Result = Registry->ToString(AccountId);
+	}
+	else
+	{
+		Result = ForeignAccountIdRegistry->ToString(AccountId);
+	}
+	return Result;
+}
+
 FString FOnlineIdRegistryRegistry::ToLogString(const FAccountId& AccountId) const
 {
 	FString Result;
@@ -405,36 +419,42 @@ IOnlineSessionInviteIdRegistry* FOnlineIdRegistryRegistry::GetSessionInviteIdReg
 	return Registry;
 }
 
-FString ToLogString(const FAccountId& Id)
+template<typename IdType>
+FString ToStringImpl(const TOnlineId<IdType>& Id)
 {
-	return FString::Printf(TEXT("%s:%d (%s)"), LexToString(Id.GetOnlineServicesType()), Id.GetHandle(), *FOnlineIdRegistryRegistry::Get().ToLogString(Id));
+	return FOnlineIdRegistryRegistry::Get().ToString(Id);
 }
 
-FString ToLogString(const FLobbyId& Id)
+FString ToString(const FAccountId& Id) { return ToStringImpl(Id); }
+// TODO
+//FString ToString(const FLobbyId& Id) { return ToStringImpl(Id); }
+//FString ToString(const FOnlineSessionId& Id) { return ToStringImpl(Id); }
+//FString ToString(const FSessionInviteId& Id) { return ToStringImpl(Id); }
+//FString ToString(const FVerifiedAuthTicketId& Id) { return ToStringImpl(Id); }
+//FString ToString(const FVerifiedAuthSessionId& Id) { return ToStringImpl(Id); }
+
+template<typename IdType>
+FString ToLogStringImpl(const TOnlineId<IdType>& Id)
 {
-	// todo: use registry.
-	return FString::Printf(TEXT("%s:%d"), LexToString(Id.GetOnlineServicesType()), Id.GetHandle());
+	if constexpr (std::is_same_v<IdType, FAccountId>
+		|| std::is_same_v<IdType, FOnlineSessionId>
+		|| std::is_same_v<IdType, FSessionInviteId>)
+		// TODO Add FLobbyId
+	{
+		return FString::Printf(TEXT("%s:%d (%s)"), LexToString(Id.GetOnlineServicesType()), Id.GetHandle(), *FOnlineIdRegistryRegistry::Get().ToLogString(Id));
+	}
+	else
+	{
+		return FString::Printf(TEXT("%s:%d"), LexToString(Id.GetOnlineServicesType()), Id.GetHandle());
+	}
 }
 
-FString ToLogString(const FOnlineSessionId& Id)
-{
-	return FString::Printf(TEXT("%s:%d (%s)"), LexToString(Id.GetOnlineServicesType()), Id.GetHandle(), *FOnlineIdRegistryRegistry::Get().ToLogString(Id));
-}
-
-FString ToLogString(const FSessionInviteId& Id)
-{
-	return FString::Printf(TEXT("%s:%d (%s)"), LexToString(Id.GetOnlineServicesType()), Id.GetHandle(), *FOnlineIdRegistryRegistry::Get().ToLogString(Id));
-}
-
-FString ToLogString(const FVerifiedAuthTicketId& Id)
-{
-	return FString::Printf(TEXT("%s:%d"), LexToString(Id.GetOnlineServicesType()), Id.GetHandle());
-}
-
-FString ToLogString(const FVerifiedAuthSessionId& Id)
-{
-	return FString::Printf(TEXT("%s:%d"), LexToString(Id.GetOnlineServicesType()), Id.GetHandle());
-}
+FString ToLogString(const FAccountId& Id) { return ToLogStringImpl(Id); }
+FString ToLogString(const FLobbyId& Id) { return ToLogStringImpl(Id); }
+FString ToLogString(const FOnlineSessionId& Id) { return ToLogStringImpl(Id); }
+FString ToLogString(const FSessionInviteId& Id) { return ToLogStringImpl(Id); }
+FString ToLogString(const FVerifiedAuthTicketId& Id) { return ToLogStringImpl(Id); }
+FString ToLogString(const FVerifiedAuthSessionId& Id) { return ToLogStringImpl(Id); }
 
 }	/* UE::Online */
 

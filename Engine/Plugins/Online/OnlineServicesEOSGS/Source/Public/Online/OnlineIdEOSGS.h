@@ -35,6 +35,7 @@ public:
 	// End IOnlineAccountIdRegistryEOSGS
 
 	// Begin IOnlineAccountIdRegistry
+	virtual FString ToString(const FAccountId& AccountId) const override;
 	virtual FString ToLogString(const FAccountId& AccountId) const override;
 	virtual TArray<uint8> ToReplicationData(const FAccountId& AccountId) const override;
 	virtual FAccountId FromReplicationData(const TArray<uint8>& ReplicationData) override;

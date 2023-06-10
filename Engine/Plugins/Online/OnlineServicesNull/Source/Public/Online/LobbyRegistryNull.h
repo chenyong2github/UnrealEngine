@@ -17,6 +17,7 @@ public:
 	FLobbyId GetNext();
 
 	// Begin IOnlineAccountIdRegistry
+	virtual FString ToString(const FLobbyId& LobbyId) const override;
 	virtual FString ToLogString(const FLobbyId& LobbyId) const override;
 	virtual TArray<uint8> ToReplicationData(const FLobbyId& LobbyId) const override;
 	virtual FLobbyId FromReplicationData(const TArray<uint8>& ReplicationString) override;
@@ -25,10 +26,10 @@ public:
 	virtual ~FOnlineLobbyIdRegistryNull() = default;
 
 private:
+	// TODO use TOnlineBasicIdRegistry
 	const FString* GetInternal(const FLobbyId& LobbyId) const;
 	TArray<FString> Ids;
-	TMap<FString, FLobbyId> StringToId; 
-
+	TMap<FString, FLobbyId> StringToId;
 };
 
 } // namespace UE::Online

@@ -16,16 +16,21 @@ class FOnlineSessionIdStringRegistry : public IOnlineSessionIdRegistry
 {
 public:
 	// Begin IOnlineSessionIdRegistry
-	virtual inline FString ToLogString(const FOnlineSessionId& SessionId) const override
+	virtual inline FString ToString(const FOnlineSessionId& SessionId) const override
 	{
 		FString IdValue = BasicRegistry.FindIdValue(SessionId);
 
-		if (IdValue.Len() == 0)
+		if (IdValue.IsEmpty())
 		{
-			IdValue = FString(TEXT("[InvalidSessionID]"));
+			IdValue = FString(TEXT("Invalid"));
 		}
 
 		return IdValue;
+	};
+
+	virtual inline FString ToLogString(const FOnlineSessionId& SessionId) const override
+	{
+		return ToString(SessionId);
 	};
 
 	virtual inline TArray<uint8> ToReplicationData(const FOnlineSessionId& SessionId) const override
@@ -76,16 +81,21 @@ class FOnlineSessionInviteIdStringRegistry : public IOnlineSessionInviteIdRegist
 {
 public:
 	// Begin IOnlineSessionIdRegistry
-	virtual inline FString ToLogString(const FSessionInviteId& SessionInviteId) const override
+	virtual inline FString ToString(const FSessionInviteId& SessionInviteId) const override
 	{
 		FString IdValue = BasicRegistry.FindIdValue(SessionInviteId);
 
-		if (IdValue.Len() == 0)
+		if (IdValue.IsEmpty())
 		{
-			IdValue = FString(TEXT("[InvalidSessionID]"));
+			IdValue = TEXT("Invalid");
 		}
 
 		return IdValue;
+	}
+
+	virtual inline FString ToLogString(const FSessionInviteId& SessionInviteId) const override
+	{
+		return ToString(SessionInviteId);
 	};
 
 	virtual inline TArray<uint8> ToReplicationData(const FSessionInviteId& SessionInviteId) const override

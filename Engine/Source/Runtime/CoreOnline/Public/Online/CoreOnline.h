@@ -314,10 +314,19 @@ private:
 
 using FAccountId = TOnlineId<OnlineIdHandleTags::FAccount>;
 using FLobbyId = TOnlineId<OnlineIdHandleTags::FLobby>;
+// TODO rename to FSessionId
 using FOnlineSessionId = TOnlineId<OnlineIdHandleTags::FSession>;
 using FSessionInviteId = TOnlineId<OnlineIdHandleTags::FSessionInvite>;
 using FVerifiedAuthTicketId = TOnlineId<OnlineIdHandleTags::FVerifiedAuthTicket>;
 using FVerifiedAuthSessionId = TOnlineId<OnlineIdHandleTags::FVerifiedAuthSession>;
+
+COREONLINE_API FString ToString(const FAccountId& Id);
+// TODO
+// COREONLINE_API FString ToString(const FLobbyId& Id);
+// COREONLINE_API FString ToString(const FOnlineSessionId& Id);
+// COREONLINE_API FString ToString(const FSessionInviteId& Id);
+// COREONLINE_API FString ToString(const FVerifiedAuthTicketId& Id);
+// COREONLINE_API FString ToString(const FVerifiedAuthSessionId& Id);
 
 COREONLINE_API FString ToLogString(const FAccountId& Id);
 COREONLINE_API FString ToLogString(const FLobbyId& Id);
@@ -339,6 +348,7 @@ class IOnlineIdRegistry
 public:
 	virtual ~IOnlineIdRegistry() = default;
 
+	virtual FString ToString(const TOnlineId<IdType>& OnlineId) const = 0;
 	virtual FString ToLogString(const TOnlineId<IdType>& OnlineId) const = 0;
 	virtual TArray<uint8> ToReplicationData(const TOnlineId<IdType>& OnlineId) const = 0;
 	virtual TOnlineId<IdType> FromReplicationData(const TArray<uint8>& ReplicationData) = 0;
@@ -380,6 +390,8 @@ public:
 	 */
 	COREONLINE_API void UnregisterAccountIdRegistry(EOnlineServices OnlineServices, int32 Priority = 0);
 
+	// TODO Might be worth these being templates
+	COREONLINE_API FString ToString(const FAccountId& AccountId) const;
 	COREONLINE_API FString ToLogString(const FAccountId& AccountId) const;
 	COREONLINE_API TArray<uint8> ToReplicationData(const FAccountId& AccountId) const;
 	COREONLINE_API FAccountId ToAccountId(EOnlineServices Services, const TArray<uint8>& RepData) const;

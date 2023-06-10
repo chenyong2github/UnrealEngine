@@ -27,14 +27,25 @@ EOS_ProductUserId FOnlineAccountIdRegistryEOSGS::GetProductUserId(const FAccount
 	return Registry.FindIdValue(AccountId);
 }
 
-FString FOnlineAccountIdRegistryEOSGS::ToLogString(const FAccountId& AccountId) const
+FString FOnlineAccountIdRegistryEOSGS::ToString(const FAccountId& AccountId) const
 {
+	FString Result;
 	if (Registry.ValidateOnlineId(AccountId))
 	{
 		EOS_ProductUserId ProductUserId = Registry.FindIdValue(AccountId);
-		return LexToString(ProductUserId);
+		Result = LexToString(ProductUserId);
 	}
-	return FString();
+	else
+	{
+		check(!AccountId.IsValid()); // Check we haven't been passed a valid handle for a different EOnlineServices.
+		Result = TEXT("Invalid");
+	}
+	return Result;
+}
+
+FString FOnlineAccountIdRegistryEOSGS::ToLogString(const FAccountId& AccountId) const
+{
+	return ToString(AccountId);
 }
 
 TArray<uint8> FOnlineAccountIdRegistryEOSGS::ToReplicationData(const FAccountId& AccountId) const

@@ -227,7 +227,7 @@ FAccountId FOnlineAccountIdRegistryNull::FindOrAddAccountId(const FString& Accou
 	}
 }
 
-FString FOnlineAccountIdRegistryNull::ToLogString(const FAccountId& AccountId) const
+FString FOnlineAccountIdRegistryNull::ToString(const FAccountId& AccountId) const
 {
 	const FReadScopeLock ReadLock(Lock);
 	if(const FOnlineAccountIdString* Id = FindNoLock(AccountId))
@@ -235,9 +235,13 @@ FString FOnlineAccountIdRegistryNull::ToLogString(const FAccountId& AccountId) c
 		return Id->Data;
 	}
 
-	return FString(TEXT("[InvalidNetID]"));
+	return FString(TEXT("Invalid"));
 }
 
+FString FOnlineAccountIdRegistryNull::ToLogString(const FAccountId& AccountId) const
+{
+	return ToString(AccountId);
+}
 
 TArray<uint8> FOnlineAccountIdRegistryNull::ToReplicationData(const FAccountId& AccountId) const
 {
