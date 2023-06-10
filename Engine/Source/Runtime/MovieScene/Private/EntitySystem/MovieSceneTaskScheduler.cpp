@@ -469,12 +469,11 @@ void FEntitySystemScheduler::ExecuteTasks()
 		return;
 	}
 
-	WriteContextBase = FEntityAllocationWriteContext(*EntityManager);
-
 	const int32 PreviousNumRemaining = NumTasksRemaining.exchange(Tasks.Num());
 	check(PreviousNumRemaining == 0);
 
 	ThreadingModel = EntityManager->GetThreadingModel();
+	WriteContextBase = FEntityAllocationWriteContext(*EntityManager);
 
 	// Condition 1: No threading
 	//              Initiate all tasks immediately. Their subsequents will be triggered inline
@@ -487,6 +486,7 @@ void FEntitySystemScheduler::ExecuteTasks()
 		}
 
 		check(NumTasksRemaining.load() == 0);
+		EntityManager->IncrementSystemSerial(SystemSerialIncrement);
 		return;
 	}
 
@@ -539,6 +539,7 @@ void FEntitySystemScheduler::ExecuteTasks()
 	}
 
 	check(NumTasksRemaining.load() == 0);
+	EntityManager->IncrementSystemSerial(SystemSerialIncrement);
 }
 
 void FEntitySystemScheduler::CompleteTask(const FScheduledTask* Task, FTaskExecutionFlags InFlags) const
@@ -640,6 +641,7 @@ bool FEntitySystemScheduler::HasAnyTasksToPropagateDownstream() const
 void FEntitySystemScheduler::BeginConstruction()
 {
 	WriteContextBase = FEntityAllocationWriteContext(*EntityManager);
+	SystemSerialIncrement = EntityManager->GetSystemSerial();
 
 	Tasks.Reset();
 	PreLockedComponentData.Reset();
@@ -666,6 +668,18 @@ void FEntitySystemScheduler::EndSystem(uint16 NodeID)
 
 void FEntitySystemScheduler::EndConstruction()
 {
+	// SystemSerialIncrement is currently the system serial number from BeginConstruction
+	// Make this a diff by subtracting the current system serial so we can increment by it each time we run our tasks
+	const uint64 CurrentSerial = EntityManager->GetSystemSerial();
+	if (SystemSerialIncrement <= CurrentSerial)
+	{
+		SystemSerialIncrement = CurrentSerial - SystemSerialIncrement;
+	}
+	else
+	{
+		SystemSerialIncrement = 0;
+	}
+
 	Tasks.Shrink();
 	PreLockedComponentData.Shrink();
 

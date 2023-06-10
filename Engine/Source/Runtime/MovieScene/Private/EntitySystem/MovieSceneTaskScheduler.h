@@ -355,6 +355,7 @@ private:
 	FEvent* GameThreadSignal = nullptr;
 	mutable TLockFreePointerListFIFO<FScheduledTask, PLATFORM_CACHE_LINE_SIZE> GameThreadTaskList;
 	FEntityAllocationWriteContext WriteContextBase = FEntityAllocationWriteContext::NewAllocation();
+	uint32 SystemSerialIncrement = 0;
 	EEntityThreadingModel ThreadingModel = EEntityThreadingModel::NoThreading;
 };
 

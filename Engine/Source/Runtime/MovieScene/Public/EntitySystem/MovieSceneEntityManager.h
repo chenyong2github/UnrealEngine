@@ -819,9 +819,9 @@ public:
 	/**
 	 * Increment the current serial number for systems observing this manager. Should be called after any system is run
 	 */
-	void IncrementSystemSerial()
+	void IncrementSystemSerial(uint64 IncAmount = 1)
 	{
-		++SystemSerialNumber;
+		SystemSerialNumber += IncAmount;
 	}
 
 	/**
