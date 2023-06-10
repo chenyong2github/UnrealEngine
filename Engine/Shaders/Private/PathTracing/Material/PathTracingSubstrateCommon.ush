@@ -30,10 +30,7 @@ float3 SubstrateSpecularTint(FPathTracingPayload Payload, float NoV, float NoL, 
 	BRANCH
 	if (Payload.SpecularProfileId != 0)
 	{
-		const uint ProfileID = GetSpecularProfileId(Payload.SpecularProfileId);
-		const bool bUseHalfVector = GetSpecularProfileParameterization(Payload.SpecularProfileId) == 1;
-		const float3 ProfileCoord = bUseHalfVector ? float3(VoH, NoH, ProfileID) : float3(NoV, NoL, ProfileID);
-		Out = View.SpecularProfileTexture.SampleLevel(View.SpecularProfileSampler, ProfileCoord, 0).xyz;
+		Out = EvaluateSpecularProfile(Payload.SpecularProfileId, NoV, NoL, VoH, NoH);
 	}
 	return Out;
 }

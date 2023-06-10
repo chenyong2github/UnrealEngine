@@ -873,6 +873,14 @@ uint GetSpecularProfileParameterization(float In)
 	return In > 0.f ? 0u : 1u;
 }
 
+float3 EvaluateSpecularProfile(float InSpecularProfileId, float NoV, float NoL, float VoH, float NoH)
+{
+	const uint ProfileID = GetSpecularProfileId(InSpecularProfileId);
+	const bool bUseHalfVector = GetSpecularProfileParameterization(InSpecularProfileId) == 1;
+	const float3 ProfileCoord = bUseHalfVector ? float3(VoH, NoH, ProfileID) : float3(NoV, NoL, ProfileID);
+	return View.SpecularProfileTexture.SampleLevel(View.SpecularProfileSampler, ProfileCoord, 0).xyz;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Glint
 
