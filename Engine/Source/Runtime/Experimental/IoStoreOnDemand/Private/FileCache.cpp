@@ -668,6 +668,13 @@ void FFileIoCache::Initialize()
 	WriteCursorPos = 0;
 
 	IFileManager& FileMgr = IFileManager::Get();
+
+	if (CacheConfig.DropCache)
+	{
+		FileMgr.Delete(*CacheTocPath);
+		FileMgr.Delete(*CacheFilePath);
+		return;
+	}
 	
 	FIoStatus CacheStatus(EIoErrorCode::Unknown);
 	if (FileMgr.FileExists(*CacheTocPath))

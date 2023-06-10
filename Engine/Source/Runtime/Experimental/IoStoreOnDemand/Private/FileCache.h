@@ -45,6 +45,7 @@ struct FFileIoCacheConfig
 	uint64 DiskStorageSize;
 	uint64 MemoryStorageSize;
 	FRate WriteRate;
+	bool DropCache = false;
 };
 
 TUniquePtr<IIoCache> MakeFileIoCache(const FFileIoCacheConfig& Config);
