@@ -317,7 +317,7 @@ void FIoStoreOnDemandModule::StartupModule()
 	UE::FOnDemandEndpoint Endpoint;
 	
 	FString UrlParam;
-	if (FParse::Value(FCommandLine::Get(), TEXT("IoStoreOnDemand="), UrlParam))
+	if (FParse::Value(FCommandLine::Get(), TEXT("Ias.TocUrl="), UrlParam))
 	{
 		FStringView UrlView(UrlParam);
 		if (UrlView.StartsWith(TEXTVIEW("http://")) && UrlView.EndsWith(TEXTVIEW(".iochunktoc")))
@@ -333,7 +333,7 @@ void FIoStoreOnDemandModule::StartupModule()
 
 	{
 		FString EncryptionKey;
-		if (FParse::Value(FCommandLine::Get(), TEXT("OnDemandEncryptionKey="), EncryptionKey))
+		if (FParse::Value(FCommandLine::Get(), TEXT("Ias.EncryptionKey="), EncryptionKey))
 		{
 			FGuid KeyGuid;
 			FAES::FAESKey Key;
@@ -392,9 +392,9 @@ void FIoStoreOnDemandModule::StartupModule()
 	{
 		TSharedPtr<IIoCache> Cache;
 
-		if (uint64 DiskSize = ParseSizeParam(TEXT("OnDemandFileCache=")); DiskSize > 0)
+		if (uint64 DiskSize = ParseSizeParam(TEXT("Ias.FileCache=")); DiskSize > 0)
 		{
-			uint64 MemorySize = ParseSizeParam(TEXT("OnDemandFileCacheQueueSize="));
+			uint64 MemorySize = ParseSizeParam(TEXT("Ias.FileCacheQueueSize="));
 			FFileIoCacheConfig FileCacheConfig;
 			FileCacheConfig.DiskStorageSize = DiskSize;
 			FileCacheConfig.MemoryStorageSize = MemorySize > 0 ? MemorySize : (16ull << 20);
