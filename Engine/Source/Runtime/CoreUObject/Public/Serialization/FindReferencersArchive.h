@@ -75,7 +75,7 @@ public:
 	 *
 	 * This is overridden for the specific Archive Types
 	 **/
-	COREUOBJECT_API virtual FString GetArchiveName() const { return TEXT("FFindReferencersArchive"); }
+	virtual FString GetArchiveName() const { return TEXT("FFindReferencersArchive"); }
 
 	/**
 	 * Resets the reference counts.  Keeps the same target objects but sets up everything to test a new potential referencer.

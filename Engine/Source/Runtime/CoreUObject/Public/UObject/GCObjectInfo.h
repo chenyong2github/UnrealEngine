@@ -24,7 +24,7 @@
  * It's purpose is to avoid holding onto direct references to UObjects which may have already been Garbage Collected.
  * FGCObjectInfo interface mimics that of UObject.
  **/
-class COREUOBJECT_API FGCObjectInfo
+class FGCObjectInfo
 {
 public:
 
@@ -62,7 +62,7 @@ public:
 	 * Tries to find an existing object matching the stored Path.
 	 * @returns Pointer to an object this info struct represents if the object is still alive, nullptr otherwise
 	 */
-	UObject* TryResolveObject();
+	COREUOBJECT_API UObject* TryResolveObject();
 
 	FGCObjectInfo* GetClass() const
 	{
@@ -136,9 +136,9 @@ public:
 		return bDisregardForGC;
 	}
 
-	void GetPathName(FStringBuilderBase& ResultString) const;
-	FString GetPathName() const;
-	FString GetFullName() const;
+	COREUOBJECT_API void GetPathName(FStringBuilderBase& ResultString) const;
+	COREUOBJECT_API FString GetPathName() const;
+	COREUOBJECT_API FString GetFullName() const;
 
 	friend uint32 GetTypeHash(const FGCObjectInfo& Info)
 	{
@@ -146,5 +146,5 @@ public:
 	}
 
 	/** Helper function for adding info about an UObject into UObject to FGCObjectInfo map */
-	static FGCObjectInfo* FindOrAddInfoHelper(const UObject* InObject, TMap<const UObject*, FGCObjectInfo*>& InOutObjectToInfoMap);
+	static COREUOBJECT_API FGCObjectInfo* FindOrAddInfoHelper(const UObject* InObject, TMap<const UObject*, FGCObjectInfo*>& InOutObjectToInfoMap);
 };

@@ -6,7 +6,7 @@
 #include "CoreMinimal.h"
 
 /** Utility functions for dealing with localized package names */
-struct COREUOBJECT_API FPackageLocalizationUtil
+struct FPackageLocalizationUtil
 {
 	/**
 	 * Converts a localized version of a package path to the source version (by removing /L10N/<code> from the package path, if present)
@@ -17,7 +17,7 @@ struct COREUOBJECT_API FPackageLocalizationUtil
 	 *
 	 * @returns True if the conversion happened, false otherwise
 	 */
-	static bool ConvertLocalizedToSource(const FString& InLocalized, FString& OutSource);
+	static COREUOBJECT_API bool ConvertLocalizedToSource(const FString& InLocalized, FString& OutSource);
 
 	/**
 	 * Converts a source version of a package path to the localized version for the given culture (by adding /L10N/<code> to the package path)
@@ -29,7 +29,7 @@ struct COREUOBJECT_API FPackageLocalizationUtil
 	 *
 	 * @returns True if the conversion happened, false otherwise
 	 */
-	static bool ConvertSourceToLocalized(const FString& InSource, const FString& InCulture, FString& OutLocalized);
+	static COREUOBJECT_API bool ConvertSourceToLocalized(const FString& InSource, const FString& InCulture, FString& OutLocalized);
 
 	/**
 	 * Given a package path, get the localized root package for the given culture (eg, if given "/Game/MyFolder/MyAsset" and a culture of "fr", this would return "/Game/L10N/fr")
@@ -40,5 +40,5 @@ struct COREUOBJECT_API FPackageLocalizationUtil
 	 *
 	 * @returns True if the conversion happened, false otherwise
 	 */
-	static bool GetLocalizedRoot(const FString& InPath, const FString& InCulture, FString& OutLocalized);
+	static COREUOBJECT_API bool GetLocalizedRoot(const FString& InPath, const FString& InCulture, FString& OutLocalized);
 };

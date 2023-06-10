@@ -84,7 +84,7 @@ COREUOBJECT_API FIoFilenameHash MakeIoFilenameHash(const FIoChunkId& ChunkID);
  * It functions pretty much the same as IAsyncReadRequest expect that it also holds
  * the file handle as well.
  */
-class COREUOBJECT_API IBulkDataIORequest
+class IBulkDataIORequest
 {
 public:
 	virtual ~IBulkDataIORequest() {}
@@ -220,7 +220,7 @@ TUniquePtr<IBulkDataIORequest> CreateBulkDataIoDispatcherRequest(
 /**
  * @documentation @todo documentation
  */
-struct COREUOBJECT_API FOwnedBulkDataPtr
+struct FOwnedBulkDataPtr
 {
 	explicit FOwnedBulkDataPtr(void* InAllocatedData)
 		: AllocatedData(InAllocatedData)
@@ -238,8 +238,8 @@ struct COREUOBJECT_API FOwnedBulkDataPtr
 		
 	}
 
-	~FOwnedBulkDataPtr();
-	const void* GetPointer();
+	COREUOBJECT_API ~FOwnedBulkDataPtr();
+	COREUOBJECT_API const void* GetPointer();
 
 	IMappedFileHandle* GetMappedHandle()
 	{
@@ -490,7 +490,7 @@ struct FBulkDataSerializationParams
 /**
  * @documentation @todo documentation
  */
-class COREUOBJECT_API FBulkData
+class FBulkData
 {
 	// This struct represents an optional allocation.
 	struct FAllocatedPtr
@@ -513,7 +513,7 @@ class COREUOBJECT_API FBulkData
 		void* GetAllocationForWrite(const FBulkData* Owner) const;
 		const void* GetAllocationReadOnly(const FBulkData* Owner) const;
 
-		FOwnedBulkDataPtr* StealFileMapping(FBulkData* Owner);
+		COREUOBJECT_API FOwnedBulkDataPtr* StealFileMapping(FBulkData* Owner);
 		void Swap(FBulkData* Owner, void** DstBuffer);
 
 	private:
@@ -554,19 +554,19 @@ public:
 	 *
 	 * @param Other the source array to copy
 	 */
-	FBulkData( const FBulkData& Other );
+	COREUOBJECT_API FBulkData( const FBulkData& Other );
 
 	/**
 	 * Virtual destructor, free'ing allocated memory.
 	 */
-	~FBulkData();
+	COREUOBJECT_API ~FBulkData();
 
 	/**
 	 * Copies the source array into this one after detaching from archive.
 	 *
 	 * @param Other the source array to copy
 	 */
-	FBulkData& operator=( const FBulkData& Other );
+	COREUOBJECT_API FBulkData& operator=( const FBulkData& Other );
 
 	/*-----------------------------------------------------------------------------
 		Static functions.
@@ -577,7 +577,7 @@ public:
 	 *
 	 * @param Log FOutputDevice to use for logging
 	 */
-	static void DumpBulkDataUsage( FOutputDevice& Log );
+	static COREUOBJECT_API void DumpBulkDataUsage( FOutputDevice& Log );
 
 	/*-----------------------------------------------------------------------------
 		Accessors
@@ -588,64 +588,64 @@ public:
 	 *
 	 * @return Size of the bulk data in bytes
 	 */
-	int64 GetBulkDataSize() const;
+	COREUOBJECT_API int64 GetBulkDataSize() const;
 	/**
 	 * Returns the size of the bulk data on disk. This can differ from GetBulkDataSize if
 	 * BULKDATA_SerializeCompressed is set.
 	 *
 	 * @return Size of the bulk data on disk or INDEX_NONE in case there's no association
 	 */
-	int64 GetBulkDataSizeOnDisk() const;
+	COREUOBJECT_API int64 GetBulkDataSizeOnDisk() const;
 	/**
 	 * Returns the offset into the file the bulk data is located at.
 	 *
 	 * @return Offset into the file or INDEX_NONE in case there is no association
 	 */
-	int64 GetBulkDataOffsetInFile() const;
+	COREUOBJECT_API int64 GetBulkDataOffsetInFile() const;
 	/**
 	 * Returns whether the bulk data is stored compressed on disk.
 	 *
 	 * @return true if data is compressed on disk, false otherwise
 	 */
-	bool IsStoredCompressedOnDisk() const;
+	COREUOBJECT_API bool IsStoredCompressedOnDisk() const;
 
 	/**
 	 * Returns true if the data can be loaded from disk.
 	 */
-	bool CanLoadFromDisk() const;
+	COREUOBJECT_API bool CanLoadFromDisk() const;
 	
 	/**
 	 * Returns true if the data references a file that currently exists and can be referenced by the file system.
 	 */
-	bool DoesExist() const;
+	COREUOBJECT_API bool DoesExist() const;
 
 	/**
 	 * Returns flags usable to decompress the bulk data
 	 * 
 	 * @return NAME_None if the data was not compressed on disk, or valid format to pass to FCompression::UncompressMemory for this data
 	 */
-	FName GetDecompressionFormat() const;
+	COREUOBJECT_API FName GetDecompressionFormat() const;
 
 	/**
 	 * Returns whether the bulk data is currently loaded and resident in memory.
 	 *
 	 * @return true if bulk data is loaded, false otherwise
 	 */
-	bool IsBulkDataLoaded() const;
+	COREUOBJECT_API bool IsBulkDataLoaded() const;
 
 	/**
 	* Returns whether the bulk data asynchronous load has completed.
 	*
 	* @return true if bulk data has been loaded or async loading was not used to load this data, false otherwise
 	*/
-	bool IsAsyncLoadingComplete() const;
+	COREUOBJECT_API bool IsAsyncLoadingComplete() const;
 
 	/**
 	* Returns whether this bulk data is used
 	* @return true if BULKDATA_Unused is not set
 	*/
 	UE_DEPRECATED(5.3, "The feature is being removed, it is assumed that all bulkdata is available for use")
-	bool IsAvailableForUse() const;
+	COREUOBJECT_API bool IsAvailableForUse() const;
 
 	/**
 	* Returns whether this bulk data represents optional data or not
@@ -722,7 +722,7 @@ public:
 	 *
 	 * @param BulkDataFlagsToSet	Bulk data flags to set
 	 */
-	void SetBulkDataFlags( uint32 BulkDataFlagsToSet );
+	COREUOBJECT_API void SetBulkDataFlags( uint32 BulkDataFlagsToSet );
 
 	/**
 	 * Enable the given flags and disable all other flags.
@@ -731,31 +731,31 @@ public:
 	 *
 	 * @param BulkDataFlagsToSet	Bulk data flags to set
 	 */
-	void ResetBulkDataFlags(uint32 BulkDataFlagsToSet);
+	COREUOBJECT_API void ResetBulkDataFlags(uint32 BulkDataFlagsToSet);
 
 	/**
 	* Gets the current bulk data flags.
 	*
 	* @return Bulk data flags currently set
 	*/
-	uint32 GetBulkDataFlags() const;
+	COREUOBJECT_API uint32 GetBulkDataFlags() const;
 
 	UE_DEPRECATED(5.1, "Bulk Data will always use default alignment")
-	void SetBulkDataAlignment(uint16 BulkDataAlignmentToSet);
+	COREUOBJECT_API void SetBulkDataAlignment(uint16 BulkDataAlignmentToSet);
 
 	/**
 	* Gets the current bulk data alignment.
 	*
 	* @return Bulk data alignment currently set
 	*/
-	uint32 GetBulkDataAlignment() const;
+	COREUOBJECT_API uint32 GetBulkDataAlignment() const;
 
 	/**
 	 * Clears the passed in bulk data flags.
 	 *
 	 * @param BulkDataFlagsToClear	Bulk data flags to clear
 	 */
-	void ClearBulkDataFlags( uint32 BulkDataFlagsToClear );
+	COREUOBJECT_API void ClearBulkDataFlags( uint32 BulkDataFlagsToClear );
 
 	/** Returns the PackagePath this bulkdata resides in */
 	UE_DEPRECATED(5.1, "Deprecated, no replacement")
@@ -780,10 +780,10 @@ public:
 	FIoFilenameHash GetIoFilenameHash() const { return MakeIoFilenameHash(BulkChunkId); }
 	
 	/** Returns a FIoChunkId for the bulkdata payload, this will be invalid if the bulkdata is not stored in the IoStore */
-	FIoChunkId CreateChunkId() const;
+	COREUOBJECT_API FIoChunkId CreateChunkId() const;
 
 	/** Returns a string representing the bulk data for debugging purposes. */
-	FString GetDebugName() const;
+	COREUOBJECT_API FString GetDebugName() const;
 
 	/*-----------------------------------------------------------------------------
 		Data retrieval and manipulation.
@@ -795,20 +795,20 @@ public:
 	 * @param Dest [in/out] Pointer to pointer going to hold copy, can point to NULL pointer in which case memory is allocated
 	 * @param bDiscardInternalCopy Whether to discard/ free the potentially internally allocated copy of the data
 	 */
-	void GetCopy( void** Dest, bool bDiscardInternalCopy = true );
+	COREUOBJECT_API void GetCopy( void** Dest, bool bDiscardInternalCopy = true );
 
 	/**
 	 * Locks the bulk data and returns a pointer to it.
 	 *
 	 * @param	LockFlags	Flags determining lock behavior
 	 */
-	void* Lock( uint32 LockFlags );
+	COREUOBJECT_API void* Lock( uint32 LockFlags );
 
 	/**
 	 * Locks the bulk data and returns a read-only pointer to it.
 	 * This variant can be called on a const bulkdata
 	 */
-	const void* LockReadOnly() const;
+	COREUOBJECT_API const void* LockReadOnly() const;
 
 	/**
 	 * Change size of locked bulk data. Only valid if locked via read-write lock.
@@ -816,12 +816,12 @@ public:
 	 * @param ElementCount	Number of elements to allocate.
 	 * @param ElementSize	Size in bytes of the individual element.
 	 */
-	void* Realloc(int64 ElementCount, int64 ElementSize);
+	COREUOBJECT_API void* Realloc(int64 ElementCount, int64 ElementSize);
 
 	/** 
 	 * Unlocks bulk data after which point the pointer returned by Lock no longer is valid.
 	 */
-	void Unlock() const;
+	COREUOBJECT_API void Unlock() const;
 
 	/** 
 	 * Checks if this bulk is locked
@@ -839,26 +839,26 @@ public:
 	 * Note that once this has been called, the bulkdata object will no longer be able to reload
 	 * it's payload from disk!
 	 */
-	void RemoveBulkData();
+	COREUOBJECT_API void RemoveBulkData();
 
 #if !USE_RUNTIME_BULKDATA
 	/**
 	 * Load the bulk data using a file reader. Works even when no archive is attached to the bulk data..
   	 * @return Whether the operation succeeded.
 	 */
-	bool LoadBulkDataWithFileReader();
+	COREUOBJECT_API bool LoadBulkDataWithFileReader();
 
 	/**
 	 * Test if it is possible to load the bulk data using a file reader, even when no archive is attached to the bulk data.
 	 * @return Whether the operation is allowed.
 	 */
-	bool CanLoadBulkDataWithFileReader() const;
+	COREUOBJECT_API bool CanLoadBulkDataWithFileReader() const;
 #endif // USE_RUNTIME_BULKDATA
 
 	/**
 	 * Forces the bulk data to be resident in memory and detaches the archive.
 	 */
-	void ForceBulkDataResident();
+	COREUOBJECT_API void ForceBulkDataResident();
 
 	/** 
 	* Initiates a new asynchronous operation to load the dulkdata from disk assuming that it is not already
@@ -869,14 +869,14 @@ public:
 	* and false if the data is already loaded or cannot be loaded from disk.
 	*/
 	UE_DEPRECATED(5.1, "Use FBulkDataRequest or CreateStreamingRequest instead")
-	bool StartAsyncLoading();
+	COREUOBJECT_API bool StartAsyncLoading();
 	
 	/**
 	 * Sets whether we should store the data compressed on disk.
 	 *
 	 * @param CompressionFlags	Flags to use for compressing the data. Use COMPRESS_NONE for no compression, or something like COMPRESS_ZLIB to compress the data
 	 */
-	void StoreCompressedOnDisk( FName CompressionFormat );
+	COREUOBJECT_API void StoreCompressedOnDisk( FName CompressionFormat );
 
 	/**
 	 * Deallocates bulk data without detaching the archive, so that further bulk data accesses require a reload.
@@ -884,7 +884,7 @@ public:
 	 *
 	 * @return Whether the operation succeeded.
 	 */
-	bool UnloadBulkData();
+	COREUOBJECT_API bool UnloadBulkData();
 
 	/*-----------------------------------------------------------------------------
 		Serialization.
@@ -901,7 +901,7 @@ public:
 	 * @param bAttemptFileMapping	If true, attempt to map this instead of loading it into malloc'ed memory
 	 * @param FileRegionType	When cooking, a hint describing the type of data, used by some platforms to improve compression ratios
 	 */
-	void Serialize(FArchive& Ar, UObject* Owner, bool bAttemptFileMapping, int32 ElementSize, EFileRegionType FileRegionType);
+	COREUOBJECT_API void Serialize(FArchive& Ar, UObject* Owner, bool bAttemptFileMapping, int32 ElementSize, EFileRegionType FileRegionType);
 	
 	/**
 	 * Serialize just the bulk data portion to/ from the passed in memory.
@@ -922,7 +922,7 @@ public:
 	}
 
 	UE_DEPRECATED(5.1, "Call GetBulkDataVersions instead.")
-	FCustomVersionContainer GetCustomVersions(FArchive& InlineArchive) const;
+	COREUOBJECT_API FCustomVersionContainer GetCustomVersions(FArchive& InlineArchive) const;
 
 	/**
 	 * Get the CustomVersions used in the file containing the BulkData payload. If !IsInSeparateFile, this will be
@@ -932,7 +932,7 @@ public:
 	 * @param InlineArchive The archive that was used to load this object
 	 *
 	 */
-	void GetBulkDataVersions(FArchive& InlineArchive, FPackageFileVersion& OutUEVersion, int32& OutLicenseeUEVersion,
+	COREUOBJECT_API void GetBulkDataVersions(FArchive& InlineArchive, FPackageFileVersion& OutUEVersion, int32& OutLicenseeUEVersion,
 		FCustomVersionContainer& OutCustomVersions) const;
 
 #if WITH_EDITOR
@@ -942,7 +942,7 @@ public:
 	 * loading from disk are not the same as the values on disk.
 	 * This function handles running the same steps that SerializeBulkData does, but skips the deserialization of the BulkData.
 	 * */
-	void SetFlagsFromDiskWrittenValues(EBulkDataFlags InBulkDataFlags, int64 InBulkDataOffsetInFile, int64 InBulkDataSizeOnDisk, int64 LinkerSummaryBulkDataStartOffset);
+	COREUOBJECT_API void SetFlagsFromDiskWrittenValues(EBulkDataFlags InBulkDataFlags, int64 InBulkDataOffsetInFile, int64 InBulkDataSizeOnDisk, int64 LinkerSummaryBulkDataStartOffset);
 #endif
 
 	/*-----------------------------------------------------------------------------
@@ -954,7 +954,7 @@ public:
 	 *
 	 * @return A valid handle if the file can be accessed, if it cannot then nullptr.
 	 */
-	IAsyncReadFileHandle* OpenAsyncReadHandle() const;
+	COREUOBJECT_API IAsyncReadFileHandle* OpenAsyncReadHandle() const;
 
 	/**
 	 * Create an async read request for the bulk data.
@@ -965,7 +965,7 @@ public:
 	 * @param UserSuppliedMemory	A pointer to memory for the IO request to be written to, it is up to the caller to make sure that it is large enough. If the pointer is null then the system will allocate memory instead.
 	 * @return						A request for the read. This is owned by the caller and must be deleted by the caller.
 	 */
-	IBulkDataIORequest* CreateStreamingRequest(EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback, uint8* UserSuppliedMemory) const;
+	COREUOBJECT_API IBulkDataIORequest* CreateStreamingRequest(EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback, uint8* UserSuppliedMemory) const;
 
 	/**
 	 * Create an async read request for the bulk data.
@@ -978,7 +978,7 @@ public:
 	 * @param UserSuppliedMemory	A pointer to memory for the IO request to be written to, it is up to the caller to make sure that it is large enough. If the pointer is null then the system will allocate memory instead.
 	 * @return						A request for the read. This is owned by the caller and must be deleted by the caller.
 	 */
-	IBulkDataIORequest* CreateStreamingRequest(int64 OffsetInBulkData, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback, uint8* UserSuppliedMemory) const;
+	COREUOBJECT_API IBulkDataIORequest* CreateStreamingRequest(int64 OffsetInBulkData, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback, uint8* UserSuppliedMemory) const;
 
 	/**
 	 * Create an async read request for a range of bulk data streaming tokens
@@ -993,16 +993,16 @@ public:
 	 * @return					A request for the read. This is owned by the caller and must be deleted by the caller.
 	**/
 	UE_DEPRECATED(5.1, "Use FBulkDataRequest instead")
-	static IBulkDataIORequest* CreateStreamingRequestForRange(const BulkDataRangeArray& RangeArray, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback);
+	static COREUOBJECT_API IBulkDataIORequest* CreateStreamingRequestForRange(const BulkDataRangeArray& RangeArray, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback);
 
 	/** Enable the given flags in the given accumulator variable. */
-	static void SetBulkDataFlagsOn(EBulkDataFlags& InOutAccumulator, EBulkDataFlags FlagsToSet);
+	static COREUOBJECT_API void SetBulkDataFlagsOn(EBulkDataFlags& InOutAccumulator, EBulkDataFlags FlagsToSet);
 	/** Disable the given flags in the given accumulator variable. */
-	static void ClearBulkDataFlagsOn(EBulkDataFlags& InOutAccumulator, EBulkDataFlags FlagsToClear);
+	static COREUOBJECT_API void ClearBulkDataFlagsOn(EBulkDataFlags& InOutAccumulator, EBulkDataFlags FlagsToClear);
 	/** Returns whether all of the specified flags are set. */
-	static bool HasFlags(EBulkDataFlags Flags, EBulkDataFlags Contains);
+	static COREUOBJECT_API bool HasFlags(EBulkDataFlags Flags, EBulkDataFlags Contains);
 	/** Returns decompress method flags specified by the given bulk data flags. */
-	static FName GetDecompressionFormat(EBulkDataFlags InFlags);
+	static COREUOBJECT_API FName GetDecompressionFormat(EBulkDataFlags InFlags);
 
 	/*-----------------------------------------------------------------------------
 		Class specific virtuals.
@@ -1010,11 +1010,11 @@ public:
 
 protected:
 
-	void SerializeBulkData(FArchive& Ar, void* Data, int64 DataSize, EBulkDataFlags InBulkDataFlags);
+	COREUOBJECT_API void SerializeBulkData(FArchive& Ar, void* Data, int64 DataSize, EBulkDataFlags InBulkDataFlags);
 
 private:
 
-	int64 SerializePayload(FArchive& Ar, EBulkDataFlags SerializationFlags, const TOptional<EFileRegionType>& RegionType);
+	COREUOBJECT_API int64 SerializePayload(FArchive& Ar, EBulkDataFlags SerializationFlags, const TOptional<EFileRegionType>& RegionType);
 #if WITH_EDITOR
 	/**
 	 * Detaches the bulk data from the passed in archive. Needs to match the archive we are currently
@@ -1023,7 +1023,7 @@ private:
 	 * @param Ar						Archive to detach from
 	 * @param bEnsureBulkDataIsLoaded	whether to ensure that bulk data is load before detaching from archive
 	 */
-	void DetachFromArchive( FArchive* Ar, bool bEnsureBulkDataIsLoaded );
+	COREUOBJECT_API void DetachFromArchive( FArchive* Ar, bool bEnsureBulkDataIsLoaded );
 #endif // WITH_EDITOR
 
 	/*-----------------------------------------------------------------------------
@@ -1033,7 +1033,7 @@ private:
 	/**
 	 * Loads the bulk data if it is not already loaded.
 	 */
-	void MakeSureBulkDataIsLoaded();
+	COREUOBJECT_API void MakeSureBulkDataIsLoaded();
 
 	/**
 	 * Loads the data from disk into the specified memory block. This requires us still being attached to an
@@ -1043,15 +1043,15 @@ private:
 	 *
 	 * @return Whether the load succeeded
 	 */
-	bool TryLoadDataIntoMemory(FIoBuffer Dest);
+	COREUOBJECT_API bool TryLoadDataIntoMemory(FIoBuffer Dest);
 
 	/** Flushes any pending async load of bulk data  and copies the data to Dest buffer*/
-	void FlushAsyncLoading();
+	COREUOBJECT_API void FlushAsyncLoading();
 
 	/** Returns if the offset needs fixing when serialized */
-	bool NeedsOffsetFixup() const;
+	COREUOBJECT_API bool NeedsOffsetFixup() const;
 	
-	bool CanDiscardInternalData() const;
+	COREUOBJECT_API bool CanDiscardInternalData() const;
 	
 	/** Reallocate bulk data */
 	inline void* ReallocateData(int64 SizeInBytes) { return DataAllocation.ReallocateData(this, SizeInBytes); }
@@ -1192,7 +1192,7 @@ public:
 };
 
 UE_DEPRECATED(5.1, "Use FBulkData/TBulkData");
-struct COREUOBJECT_API FUntypedBulkData : public FBulkData
+struct FUntypedBulkData : public FBulkData
 {
 	virtual ~FUntypedBulkData() = default;
 
@@ -1243,7 +1243,7 @@ protected:
 #endif // !USE_RUNTIME_BULKDATA
 	}
 
-	virtual void SerializeElements(FArchive& Ar, void* Data);
+	COREUOBJECT_API virtual void SerializeElements(FArchive& Ar, void* Data);
 	
 	virtual void SerializeElement(FArchive& Ar, void* Data, int64 ElementIndex) = 0;
 
@@ -1254,7 +1254,7 @@ protected:
 	
 private:
 
-	void SerializeBulkData(FArchive& Ar, void* Data, int64 BulkDataSize, EBulkDataFlags InBulkDataFlags);
+	COREUOBJECT_API void SerializeBulkData(FArchive& Ar, void* Data, int64 BulkDataSize, EBulkDataFlags InBulkDataFlags);
 
 	FSerializeBulkDataElements SerializeElementsCallback;
 };
@@ -1307,7 +1307,7 @@ public:
 };
 
 /** Handle to a bulk data I/O request. */
-class COREUOBJECT_API FBulkDataRequest
+class FBulkDataRequest
 {
 public:
 	class IHandle;
@@ -1334,16 +1334,16 @@ public:
 	static constexpr EAsyncIOPriorityAndFlags DefaultPriority = AIOP_BelowNormal;
 
 	/** Constructs a new handle to bulk data request. */
-	FBulkDataRequest();
+	COREUOBJECT_API FBulkDataRequest();
 
 	/** Destructor, cancels and waits for any pending requests. */
-	~FBulkDataRequest();
+	COREUOBJECT_API ~FBulkDataRequest();
 
 	/** Moves ownership from an invalid or pending request. */
-	FBulkDataRequest(FBulkDataRequest&&);
+	COREUOBJECT_API FBulkDataRequest(FBulkDataRequest&&);
 
 	/** Moves ownership from an invalid or pending request. */
-	FBulkDataRequest& operator=(FBulkDataRequest&&);
+	COREUOBJECT_API FBulkDataRequest& operator=(FBulkDataRequest&&);
 	
 	/** Not copy constructable. */
 	FBulkDataRequest(const FBulkDataRequest&) = delete;
@@ -1352,31 +1352,31 @@ public:
 	FBulkDataRequest& operator=(const FBulkDataRequest&) = delete;
 
 	/** Returns current status of the request. */
-	EStatus GetStatus() const;
+	COREUOBJECT_API EStatus GetStatus() const;
 
 	/** Returns whether the request is associated with a pending or completed request. */
-	bool IsNone() const;
+	COREUOBJECT_API bool IsNone() const;
 
 	/** Returns whether the request is pending. */
-	bool IsPending() const;
+	COREUOBJECT_API bool IsPending() const;
 
 	/** Returns whether the request completed successfully. */
-	bool IsOk() const;
+	COREUOBJECT_API bool IsOk() const;
 
 	/** Returns whether the request has been completed. */
-	bool IsCompleted() const;
+	COREUOBJECT_API bool IsCompleted() const;
 
 	/** Cancel the pending request. */
-	void Cancel();
+	COREUOBJECT_API void Cancel();
 
 	/** Reset the request handle to an invalid state. Will cancel and wait if the request is not completed. */
-	void Reset();
+	COREUOBJECT_API void Reset();
 
 protected:
 	friend class FBulkDataBatchRequest;
 	
-	FBulkDataRequest(IHandle* InHandle);
-	int32 GetRefCount() const;
+	COREUOBJECT_API FBulkDataRequest(IHandle* InHandle);
+	COREUOBJECT_API int32 GetRefCount() const;
 
 	TRefCountPtr<IHandle> Handle;
 };
@@ -1392,23 +1392,23 @@ using FBulkDataBatchReadRequest = FBulkDataRequest;
  * one handle needs to be passed in. The last handle will block until the
  * entire batch is complete before being released.
  */
-class COREUOBJECT_API FBulkDataBatchRequest : public FBulkDataRequest
+class FBulkDataBatchRequest : public FBulkDataRequest
 {
 public:
 	class FBatchHandle;
 
 private:
-	class COREUOBJECT_API FBuilder
+	class FBuilder
 	{
 	public:
-		~FBuilder();
+		COREUOBJECT_API ~FBuilder();
 		FBuilder(const FBuilder&) = delete;
 		FBuilder& operator=(const FBuilder&) = delete;
 
 	protected:
-		explicit FBuilder(int32 MaxCount);
-		FBulkDataBatchRequest::FBatchHandle& GetBatch();
-		EStatus IssueBatch(FBulkDataBatchRequest* OutRequest, FCompletionCallback&& Callback);
+		COREUOBJECT_API explicit FBuilder(int32 MaxCount);
+		COREUOBJECT_API FBulkDataBatchRequest::FBatchHandle& GetBatch();
+		COREUOBJECT_API EStatus IssueBatch(FBulkDataBatchRequest* OutRequest, FCompletionCallback&& Callback);
 
 		int32 BatchCount = 0;
 		int32 NumLoaded = 0;
@@ -1422,21 +1422,21 @@ public:
 	using FBulkDataRequest::FBulkDataRequest;
 
 	/** Blocks the calling thread until the request is completed. */
-	void Wait();
+	COREUOBJECT_API void Wait();
 
 	/** Waits the specified amount of time in milliseconds for the request to be completed. */
-	bool WaitFor(uint32 Milliseconds);
+	COREUOBJECT_API bool WaitFor(uint32 Milliseconds);
 
 	/** Waits the specified amount of time for the request to be completed. */
-	bool WaitFor(const FTimespan& WaitTime);
+	COREUOBJECT_API bool WaitFor(const FTimespan& WaitTime);
 
 	/** Issue one or more I/O request in a single batch. */
-	class COREUOBJECT_API FBatchBuilder : public FBuilder
+	class FBatchBuilder : public FBuilder
 	{
 	public:
-		FBatchBuilder(int32 MaxCount);
+		COREUOBJECT_API FBatchBuilder(int32 MaxCount);
 		/** Read the entire bulk data and copy the result to the specified instance. */
-		FBatchBuilder& Read(FBulkData& BulkData, EAsyncIOPriorityAndFlags Priority = DefaultPriority);
+		COREUOBJECT_API FBatchBuilder& Read(FBulkData& BulkData, EAsyncIOPriorityAndFlags Priority = DefaultPriority);
 		/**
 		 * Read the bulk data from the specified offset and size and copy the result into the destination buffer.
 		 * @param BulkData		The bulk data instance.
@@ -1468,26 +1468,26 @@ public:
 		 * @param OutRequest	A handle to the batch request.
 		 * @return				Status of the issue operation.
 		 */
-		EStatus Issue(FBulkDataBatchRequest& OutRequest);
+		COREUOBJECT_API EStatus Issue(FBulkDataBatchRequest& OutRequest);
 		/**
 		 * Issue the batch. 
 		 * @return				Status of the issue operation.
 		 *
 		 * @note Assumes one or more handle(s) has been passed into any of the read operations.
 		 */
-		[[nodiscard]] EStatus Issue();
+		[[nodiscard]] COREUOBJECT_API EStatus Issue();
 
 	private:
-		FBatchBuilder& Read(const FBulkData& BulkData, uint64 Offset, uint64 Size, EAsyncIOPriorityAndFlags Priority, FIoBuffer& Dst, FBulkDataBatchReadRequest* OutRequest);
+		COREUOBJECT_API FBatchBuilder& Read(const FBulkData& BulkData, uint64 Offset, uint64 Size, EAsyncIOPriorityAndFlags Priority, FIoBuffer& Dst, FBulkDataBatchReadRequest* OutRequest);
 	};
 
 	/** Reads one or more bulk data and copies the result into a single I/O buffer. */
-	class COREUOBJECT_API FScatterGatherBuilder : public FBuilder
+	class FScatterGatherBuilder : public FBuilder
 	{
 	public:
-		FScatterGatherBuilder(int32 MaxCount);
+		COREUOBJECT_API FScatterGatherBuilder(int32 MaxCount);
 		/** Read the bulk data from the specified offset and size. */
-		FScatterGatherBuilder& Read(const FBulkData& BulkData, uint64 Offset = 0, uint64 Size = MAX_uint64);
+		COREUOBJECT_API FScatterGatherBuilder& Read(const FBulkData& BulkData, uint64 Offset = 0, uint64 Size = MAX_uint64);
 		/**
 		 * Issue the batch.
 		 * @param Dst			An empty or preallocated I/O buffer.	
@@ -1498,7 +1498,7 @@ public:
 		 *
 		 * @note Assumes one or more handle(s) has been passed into any of the read operations.
 		 */
-		EStatus Issue(FIoBuffer& Dst, EAsyncIOPriorityAndFlags Priority, FCompletionCallback&& Callback, FBulkDataBatchRequest& OutRequest);
+		COREUOBJECT_API EStatus Issue(FIoBuffer& Dst, EAsyncIOPriorityAndFlags Priority, FCompletionCallback&& Callback, FBulkDataBatchRequest& OutRequest);
 
 	private:
 		struct FRequest

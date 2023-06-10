@@ -27,7 +27,7 @@ struct FGuid;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogPackageName, Log, All);
 
-class COREUOBJECT_API FPackageName
+class FPackageName
 {
 public:
 	/** Indicates the format the input was in in functions that take flexible input that can be a LocalPath, PackageName, or ObjectPath */
@@ -58,7 +58,7 @@ public:
 	 * @param InPath the path that was passed to the convert function
 	 * @param ErrorCode The error code returned from the convert function
 	 */
-	static FString FormatErrorAsString(FStringView InPath, EErrorCode ErrorCode);
+	static COREUOBJECT_API FString FormatErrorAsString(FStringView InPath, EErrorCode ErrorCode);
 
 	/**
 	 * Return a user-readable string for the error code returned from a FPackageName function
@@ -66,7 +66,7 @@ public:
 	 * @param InPath the path that was passed to the convert function
 	 * @param ErrorCode The error code returned from the convert function
 	 */
-	static FText FormatErrorAsText(FStringView InPath, EErrorCode ErrorCode);
+	static COREUOBJECT_API FText FormatErrorAsText(FStringView InPath, EErrorCode ErrorCode);
 
 	/**
 	 * Helper function for converting short to long script package name (InputCore -> /Script/InputCore)
@@ -74,16 +74,16 @@ public:
 	 * @param InShortName Short package name.
 	 * @return Long package name.
 	 */
-	static FString ConvertToLongScriptPackageName(const TCHAR* InShortName);
+	static COREUOBJECT_API FString ConvertToLongScriptPackageName(const TCHAR* InShortName);
 
 	/** Return the LongPackageName of module's native script package. Does not check whether module is native. */
-	static FName GetModuleScriptPackageName(FName ModuleName);
-	static FString GetModuleScriptPackageName(FStringView ModuleName);
+	static COREUOBJECT_API FName GetModuleScriptPackageName(FName ModuleName);
+	static COREUOBJECT_API FString GetModuleScriptPackageName(FStringView ModuleName);
 
 	/**
 	 * Registers all short package names found in ini files.
 	 */
-	static void RegisterShortPackageNamesForUObjectModules();
+	static COREUOBJECT_API void RegisterShortPackageNamesForUObjectModules();
 
 	/**
 	 * Finds long script package name associated with a short package name.
@@ -91,7 +91,7 @@ public:
 	 * @param InShortName Short script package name.
 	 * @return Long script package name (/Script/Package) associated with short name or NULL.
 	 */
-	static FName* FindScriptPackageName(FName InShortName);
+	static COREUOBJECT_API FName* FindScriptPackageName(FName InShortName);
 
 	/** 
 	 * Tries to convert the supplied relative or absolute filename to a long package name/path starting with a root like /game
@@ -102,7 +102,7 @@ public:
 	 * @param OutFailureReason Description of an error if the conversion failed.
 	 * @return Returns true if the supplied filename properly maps to one of the long package roots.
 	 */
-	static bool TryConvertFilenameToLongPackageName(const FString& InFilename, FString& OutPackageName, FString* OutFailureReason = nullptr);
+	static COREUOBJECT_API bool TryConvertFilenameToLongPackageName(const FString& InFilename, FString& OutPackageName, FString* OutFailureReason = nullptr);
 
 	/** 
 	 * Converts the supplied filename to long package name.
@@ -111,7 +111,7 @@ public:
 	 * @param InFilename Filename to convert.
 	 * @return Long package name.
 	 */
-	static FString FilenameToLongPackageName(const FString& InFilename);
+	static COREUOBJECT_API FString FilenameToLongPackageName(const FString& InFilename);
 
 	/** 
 	 * Tries to convert a long package name to a file name with the supplied extension.
@@ -121,7 +121,7 @@ public:
 	 * @param InExtension Package extension.
 	 * @return Package filename.
 	 */
-	static bool TryConvertLongPackageNameToFilename(const FString& InLongPackageName, FString& OutFilename, const FString& InExtension = TEXT(""));
+	static COREUOBJECT_API bool TryConvertLongPackageNameToFilename(const FString& InLongPackageName, FString& OutFilename, const FString& InExtension = TEXT(""));
 
 	/** 
 	 * Find the MountPoint for a LocalPath, LongPackageName, or ObjectPath and return its elements. Use this function instead of TryConvertFilenameToLongPackageName or
@@ -135,7 +135,7 @@ public:
 	 * @param OutFlexNameType			If non-null, will be set to the FlexNameType of InPath.
 	 * @param OutFailureReason			If non-null, will be set to the reason InPath could not be converted, or to EErrorCode::Unknown if the function was successful.
 	 */
-	static bool TryConvertToMountedPath(FStringView InPath, FString* OutLocalPathNoExtension, FString* OutPackageName, FString* OutObjectName, FString* OutSubObjectName, FString* OutExtension, EFlexNameType* OutFlexNameType = nullptr, EErrorCode* OutFailureReason = nullptr);
+	static COREUOBJECT_API bool TryConvertToMountedPath(FStringView InPath, FString* OutLocalPathNoExtension, FString* OutPackageName, FString* OutObjectName, FString* OutSubObjectName, FString* OutExtension, EFlexNameType* OutFlexNameType = nullptr, EErrorCode* OutFailureReason = nullptr);
 
 	/** 
 	 * Converts a long package name to a file name with the supplied extension.
@@ -145,7 +145,7 @@ public:
 	 * @param InExtension Package extension.
 	 * @return Package filename.
 	 */
-	static FString LongPackageNameToFilename(const FString& InLongPackageName, const FString& InExtension = TEXT(""));
+	static COREUOBJECT_API FString LongPackageNameToFilename(const FString& InLongPackageName, const FString& InExtension = TEXT(""));
 
 	/** 
 	 * Returns the path to the specified package, excluding the short package name
@@ -153,7 +153,7 @@ public:
 	 * @param InLongPackageName Long Package Name.
 	 * @return The path containing the specified package.
 	 */
-	static FString GetLongPackagePath(const FString& InLongPackageName);
+	static COREUOBJECT_API FString GetLongPackagePath(const FString& InLongPackageName);
 
 	/** 
 	 * Returns the clean asset name for the specified package, same as GetShortName
@@ -161,7 +161,7 @@ public:
 	 * @param InLongPackageName Long Package Name
 	 * @return Clean asset name.
 	 */
-	static FString GetLongPackageAssetName(const FString& InLongPackageName);
+	static COREUOBJECT_API FString GetLongPackageAssetName(const FString& InLongPackageName);
 
 	/** 
 	 * Convert a long package name into root, path, and name components
@@ -173,7 +173,7 @@ public:
 	 * @param bStripRootLeadingSlash String any leading / character from the returned root
 	 * @return True if the conversion was possible, false otherwise
 	 */
-	static bool SplitLongPackageName(const FString& InLongPackageName, FString& OutPackageRoot, FString& OutPackagePath, FString& OutPackageName, const bool bStripRootLeadingSlash = false);
+	static COREUOBJECT_API bool SplitLongPackageName(const FString& InLongPackageName, FString& OutPackageRoot, FString& OutPackagePath, FString& OutPackageName, const bool bStripRootLeadingSlash = false);
 
 	/**
 	 * Split a full object path (Class /Path/To/A/Package.Object:SubObject) into its constituent pieces
@@ -188,9 +188,9 @@ public:
 	 *                          other names. Spaces in those names is invalid, but some code ignores the
 	 *                          invalidity in ObjectName if it only cares about packageName.
 	 */
-	static void SplitFullObjectPath(const FString& InFullObjectPath, FString& OutClassName,
+	static COREUOBJECT_API void SplitFullObjectPath(const FString& InFullObjectPath, FString& OutClassName,
 		FString& OutPackageName, FString& OutObjectName, FString& OutSubObjectName, bool bDetectClassName = true);
-	static void SplitFullObjectPath(FStringView InFullObjectPath, FStringView& OutClassName,
+	static COREUOBJECT_API void SplitFullObjectPath(FStringView InFullObjectPath, FStringView& OutClassName,
 		FStringView& OutPackageName, FStringView& OutObjectName, FStringView& OutSubObjectName, bool bDetectClassName=true);
 
 	/** 
@@ -201,8 +201,8 @@ public:
 	 * @param OutReason					When returning false, this will provide a description of what was wrong with the name.
 	 * @return							true if a valid long package name
 	 */
-	static bool IsValidLongPackageName(FStringView InLongPackageName, bool bIncludeReadOnlyRoots = false, EErrorCode* OutReason = nullptr);
-	static bool IsValidLongPackageName(FStringView InLongPackageName, bool bIncludeReadOnlyRoots, FText* OutReason );
+	static COREUOBJECT_API bool IsValidLongPackageName(FStringView InLongPackageName, bool bIncludeReadOnlyRoots = false, EErrorCode* OutReason = nullptr);
+	static COREUOBJECT_API bool IsValidLongPackageName(FStringView InLongPackageName, bool bIncludeReadOnlyRoots, FText* OutReason );
 
 	/**
 	 * Report whether a given name is the proper format for a PackageName, without checking whether it is in one of the registered mount points
@@ -211,8 +211,8 @@ public:
 	 * @param OutReason					When returning false, this will provide a description of what was wrong with the name.
 	 * @return							true if valid text for a long package name
 	 */
-	static bool IsValidTextForLongPackageName(FStringView InLongPackageName, EErrorCode* OutReason = nullptr);
-	static bool IsValidTextForLongPackageName(FStringView InLongPackageName, FText* OutReason);
+	static COREUOBJECT_API bool IsValidTextForLongPackageName(FStringView InLongPackageName, EErrorCode* OutReason = nullptr);
+	static COREUOBJECT_API bool IsValidTextForLongPackageName(FStringView InLongPackageName, FText* OutReason);
 
 
 	/**
@@ -224,7 +224,7 @@ public:
 	 * @param OutReason					When returning false, this will provide a description of what was wrong with the name.
 	 * @return							true if a valid object path
 	 */
-	static bool IsValidObjectPath(const FString& InObjectPath, FText* OutReason = nullptr);
+	static COREUOBJECT_API bool IsValidObjectPath(const FString& InObjectPath, FText* OutReason = nullptr);
 
 	/**
 	 * Returns true if the path starts with a valid root (i.e. /Game/, /Engine/, etc).
@@ -232,7 +232,7 @@ public:
 	 * @param InObjectPath				The object path to test
 	 * @return							true if a valid object path
 	 */
-	static bool IsValidPath(const FString& InPath);
+	static COREUOBJECT_API bool IsValidPath(const FString& InPath);
 
 	/**
 	 * Checks if the string is a ShortPackageName. A ShortPackageName is the leaf name after the last
@@ -242,9 +242,9 @@ public:
 	 * @param PossiblyLongName Package name.
 	 * @return true if the given name is a short package name (contains no slashes), false otherwise.
 	 */
-	static bool IsShortPackageName(const FString& PossiblyLongName);
-	static bool IsShortPackageName(const FName PossiblyLongName);
-	static bool IsShortPackageName(FStringView PossiblyLongName);
+	static COREUOBJECT_API bool IsShortPackageName(const FString& PossiblyLongName);
+	static COREUOBJECT_API bool IsShortPackageName(const FName PossiblyLongName);
+	static COREUOBJECT_API bool IsShortPackageName(FStringView PossiblyLongName);
 
 	/**
 	 * Converts package name to short name.
@@ -252,7 +252,7 @@ public:
 	 * @param Package Package with name to convert.
 	 * @return Short package name.
 	 */
-	static FString GetShortName(const UPackage* Package);
+	static COREUOBJECT_API FString GetShortName(const UPackage* Package);
 
 	/**
 	 * Converts package name to short name.
@@ -260,9 +260,9 @@ public:
 	 * @param LongName Package name to convert.
 	 * @return Short package name.
 	 */
-	static FString GetShortName(const FString& LongName);
-	static FString GetShortName(const FName& LongName);
-	static FString GetShortName(const TCHAR* LongName);
+	static COREUOBJECT_API FString GetShortName(const FString& LongName);
+	static COREUOBJECT_API FString GetShortName(const FName& LongName);
+	static COREUOBJECT_API FString GetShortName(const TCHAR* LongName);
 
 	/**
 	 * Converts package name to short name.
@@ -270,9 +270,9 @@ public:
 	 * @param LongName Package name to convert.
 	 * @return Short package name.
 	 */
-	static FName GetShortFName(const FString& LongName);
-	static FName GetShortFName(const FName& LongName);
-	static FName GetShortFName(const TCHAR* LongName);
+	static COREUOBJECT_API FName GetShortFName(const FString& LongName);
+	static COREUOBJECT_API FName GetShortFName(const FName& LongName);
+	static COREUOBJECT_API FName GetShortFName(const TCHAR* LongName);
 
 	/**
 	 * Tries to convert a file or directory in game-relative package name format to the corresponding local path
@@ -284,7 +284,7 @@ public:
 	 * @param OutLocalPath The corresponding local-path file (with the extension or lack of extension from the input).
 	 * @return Whether the conversion was successful.
 	 */
-	static bool TryConvertGameRelativePackagePathToLocalPath(FStringView RelativePackagePath, FString& OutLocalPath);
+	static COREUOBJECT_API bool TryConvertGameRelativePackagePathToLocalPath(FStringView RelativePackagePath, FString& OutLocalPath);
 
 	/**
 	 * This will insert a mount point at the head of the search chain (so it can overlap an existing mount point and win).
@@ -292,7 +292,7 @@ public:
 	 * @param RootPath Logical Root Path.
 	 * @param ContentPath Content Path on disk.
 	 */
-	static void RegisterMountPoint(const FString& RootPath, const FString& ContentPath);
+	static COREUOBJECT_API void RegisterMountPoint(const FString& RootPath, const FString& ContentPath);
 
 	/**
 	 * This will remove a previously inserted mount point.
@@ -300,12 +300,12 @@ public:
 	 * @param RootPath Logical Root Path.
 	 * @param ContentPath Content Path on disk.
 	 */
-	static void UnRegisterMountPoint(const FString& RootPath, const FString& ContentPath);
+	static COREUOBJECT_API void UnRegisterMountPoint(const FString& RootPath, const FString& ContentPath);
 
 	/**
 	 * Returns whether the specific logical root path is a valid mount point.
 	 */
-	static bool MountPointExists(const FString& RootPath);
+	static COREUOBJECT_API bool MountPointExists(const FString& RootPath);
 
 	/**
 	 * Get the mount point for a given package path
@@ -314,14 +314,14 @@ public:
 	 * @param InWithoutSlashes Optional parameters that keeps the slashes around the mount point if false
 	 * @return FName corresponding to the mount point, or Empty if invalid
 	 */
-	static FName GetPackageMountPoint(const FString& InPackagePath, bool InWithoutSlashes = true);
+	static COREUOBJECT_API FName GetPackageMountPoint(const FString& InPackagePath, bool InWithoutSlashes = true);
 
 	/**
 	 * Get the path associated with the given package root
 	 * @param InPackageRoot Package root to return the path for, e.g. /Game/, /Engine/, /PluginName/
 	 * @return Filesystem path associated with the provided package root
 	 */
-	static FString GetContentPathForPackageRoot(FStringView InPackageRoot);
+	static COREUOBJECT_API FString GetContentPathForPackageRoot(FStringView InPackageRoot);
 
 	/**
 	 * Checks if the package exists on disk.
@@ -347,7 +347,7 @@ public:
 	 * @param InAllowTextFormats Detect text format packages as well as binary (priority to text)
 	 * @return true if the specified package name points to an existing package, false otherwise.
 	 **/
-	static bool DoesPackageExist(const FString& LongPackageName, FString* OutFilename = nullptr, bool InAllowTextFormats = true);
+	static COREUOBJECT_API bool DoesPackageExist(const FString& LongPackageName, FString* OutFilename = nullptr, bool InAllowTextFormats = true);
 
 	/**
 	 * Checks if the package exists on disk. PackagePath must be a mounted path, otherwise returns false
@@ -358,7 +358,7 @@ public:
 	 * @param OutPackagePath If nonnull and the package exists, set to a copy of PackagePath with the HeaderExtension set to the extension that exists on disk (and if bMatchCaseOnDisk is true, capitalization changed to match). If not found, this variable is not written
 	 * @return true if the specified package name points to an existing package, false otherwise.
 	 **/
-	static bool DoesPackageExist(const FPackagePath& PackagePath, bool bMatchCaseOnDisk = false, FPackagePath* OutPackagePath = nullptr);
+	static COREUOBJECT_API bool DoesPackageExist(const FPackagePath& PackagePath, bool bMatchCaseOnDisk = false, FPackagePath* OutPackagePath = nullptr);
 
 	/**
 	 * Checks if the package exists on disk. PackagePath must be a mounted path, otherwise returns false
@@ -367,7 +367,7 @@ public:
 	 * @param OutPackagePath If nonnull and the package exists, set to a copy of PackagePath with the HeaderExtension set to the extension that exists on disk. If not found, this variable is not written
 	 * @return true if the specified package name points to an existing package, false otherwise.
 	 **/
-	static bool DoesPackageExist(const FPackagePath& PackagePath, FPackagePath* OutPackagePath);
+	static COREUOBJECT_API bool DoesPackageExist(const FPackagePath& PackagePath, FPackagePath* OutPackagePath);
 
 	enum class EPackageLocationFilter : uint8
 	{
@@ -387,7 +387,7 @@ public:
 	 * @param OutPackagePath If nonnull and the package exists, set to a copy of PackagePath with the HeaderExtension set to the extension that exists on disk (and if bMatchCaseOnDisk is true, capitalization changed to match). If not found, this variable is not written
 	 * @return the set of locations where the package exists (IoDispatcher or FileSystem, both or neither)
 	 **/
-	static EPackageLocationFilter DoesPackageExistEx(const FPackagePath& PackagePath, EPackageLocationFilter Filterconst, bool bMatchCaseOnDisk = false, FPackagePath* OutPackagePath = nullptr);
+	static COREUOBJECT_API EPackageLocationFilter DoesPackageExistEx(const FPackagePath& PackagePath, EPackageLocationFilter Filterconst, bool bMatchCaseOnDisk = false, FPackagePath* OutPackagePath = nullptr);
 
 	/**
 	 * Attempts to find a package given its short name on disk (very slow).
@@ -396,7 +396,7 @@ public:
 	 * @param OutLongPackageName Long package name corresponding to the found file (if any).
 	 * @return true if the specified package name points to an existing package, false otherwise.
 	 **/
-	static bool SearchForPackageOnDisk(const FString& PackageName, FString* OutLongPackageName = NULL, FString* OutFilename = NULL);
+	static COREUOBJECT_API bool SearchForPackageOnDisk(const FString& PackageName, FString* OutLongPackageName = NULL, FString* OutFilename = NULL);
 
 	/**
 	 * Tries to convert object path with short package name to object path with long package name found on disk (very slow)
@@ -406,7 +406,7 @@ public:
 	 *
 	 * @return True if succeeded. False otherwise.
 	 */
-	static bool TryConvertShortPackagePathToLongInObjectPath(const FString& ObjectPath, FString& ConvertedObjectPath);
+	static COREUOBJECT_API bool TryConvertShortPackagePathToLongInObjectPath(const FString& ObjectPath, FString& ConvertedObjectPath);
 
 	/**
 	 * Gets normalized object path i.e. with long package format.
@@ -415,7 +415,7 @@ public:
 	 *
 	 * @return Normalized path (or empty path, if short object path was given and it wasn't found on the disk).
 	 */
-	static FString GetNormalizedObjectPath(const FString& ObjectPath);
+	static COREUOBJECT_API FString GetNormalizedObjectPath(const FString& ObjectPath);
 
 	/**
 	 * Gets the resolved path of a long package as determined by the delegates registered with FCoreDelegates::PackageNameResolvers.
@@ -426,7 +426,7 @@ public:
 	 *
 	 * @return Resolved package path, or the source package path if there is no resolution occurs.
 	 */
-	static FString GetDelegateResolvedPackagePath(const FString& InSourcePackagePath);
+	static COREUOBJECT_API FString GetDelegateResolvedPackagePath(const FString& InSourcePackagePath);
 
 	/**
 	 * Gets the source version of a localized long package path (it is also safe to pass non-localized paths into this function).
@@ -435,7 +435,7 @@ public:
 	 *
 	 * @return Source package path.
 	 */
-	static FString GetSourcePackagePath(const FString& InLocalizedPackagePath);
+	static COREUOBJECT_API FString GetSourcePackagePath(const FString& InLocalizedPackagePath);
 
 	/**
 	 * Gets the localized version of a long package path for the current culture, or returns the source package if there is no suitable localized package.
@@ -444,7 +444,7 @@ public:
 	 *
 	 * @return Localized package path, or the source package path if there is no suitable localized package.
 	 */
-	static FString GetLocalizedPackagePath(const FString& InSourcePackagePath);
+	static COREUOBJECT_API FString GetLocalizedPackagePath(const FString& InSourcePackagePath);
 
 	/**
 	 * Gets the localized version of a long package path for the given culture, or returns the source package if there is no suitable localized package.
@@ -454,34 +454,34 @@ public:
 	 *
 	 * @return Localized package path, or the source package path if there is no suitable localized package.
 	 */
-	static FString GetLocalizedPackagePath(const FString& InSourcePackagePath, const FString& InCultureName);
+	static COREUOBJECT_API FString GetLocalizedPackagePath(const FString& InSourcePackagePath, const FString& InCultureName);
 
 	/** 
 	 * Returns the file extension for packages containing assets.
 	 *
 	 * @return	file extension for asset packages ( dot included )
 	 */
-	static const FString& GetAssetPackageExtension();
+	static COREUOBJECT_API const FString& GetAssetPackageExtension();
 	/** 
 	 * Returns the file extension for packages containing assets.
 	 *
 	 * @return	file extension for asset packages ( dot included )
 	 */
-	static const FString& GetMapPackageExtension();
+	static COREUOBJECT_API const FString& GetMapPackageExtension();
 
 	/**
 	* Returns the file extension for packages containing text assets.
 	*
 	* @return	file extension for text asset packages ( dot included )
 	*/
-	static const FString& GetTextAssetPackageExtension();
+	static COREUOBJECT_API const FString& GetTextAssetPackageExtension();
 
 	/**
 	* Returns the file extension for packages containing text maps.
 	*
 	* @return	file extension for text map packages ( dot included )
 	*/
-	static const FString& GetTextMapPackageExtension();
+	static COREUOBJECT_API const FString& GetTextMapPackageExtension();
 
 	/**
 	 * Returns whether the passed in extension is a valid text package
@@ -490,7 +490,7 @@ public:
 	 * @param	Extension to test.
 	 * @return	True if Ext is either an text asset or a text map extension, otherwise false
 	 */
-	static bool IsTextPackageExtension(const TCHAR* Ext);
+	static COREUOBJECT_API bool IsTextPackageExtension(const TCHAR* Ext);
 
 	/**
 	 * Returns whether the passed in extension is a text header extension
@@ -498,7 +498,7 @@ public:
 	 * @param	Extension to test.
 	 * @return	True if Ext is either an text asset or a text map extension, otherwise false
 	 */
-	static bool IsTextPackageExtension(EPackageExtension Extension);
+	static COREUOBJECT_API bool IsTextPackageExtension(EPackageExtension Extension);
 
 	/**
 	 * Returns whether the passed in extension is a valid text asset package
@@ -507,7 +507,7 @@ public:
 	 * @param	Extension to test.
 	 * @return	True if Ext is a text asset extension, otherwise false
 	 */
-	static bool IsTextAssetPackageExtension(const TCHAR* Ext);
+	static COREUOBJECT_API bool IsTextAssetPackageExtension(const TCHAR* Ext);
 
 	/**
 	 * Returns whether the passed in extension is a valid text map package
@@ -516,7 +516,7 @@ public:
 	 * @param	Extension to test.
 	 * @return	True if Ext is a text map extension, otherwise false
 	 */
-	static bool IsTextMapPackageExtension(const TCHAR* Ext);
+	static COREUOBJECT_API bool IsTextMapPackageExtension(const TCHAR* Ext);
 
 	/** 
 	 * Returns whether the passed in extension is a valid binary package
@@ -525,7 +525,7 @@ public:
 	 * @param	Extension to test. 
 	 * @return	True if Ext is either a binary  asset or map extension, otherwise false
 	 */
-	static bool IsPackageExtension(const TCHAR* Ext);
+	static COREUOBJECT_API bool IsPackageExtension(const TCHAR* Ext);
 
 	/**
 	 * Returns whether the passed in extension is a valid binary package extension.
@@ -533,7 +533,7 @@ public:
 	 * @param	Extension to test.
 	 * @return	True if Ext is either a binary asset or a binary map extension, otherwise false
 	 */
-	static bool IsPackageExtension(EPackageExtension Extension);
+	static COREUOBJECT_API bool IsPackageExtension(EPackageExtension Extension);
 
 	/**
 	 * Returns whether the passed in extension is a valid binary asset package
@@ -542,7 +542,7 @@ public:
 	 * @param	Extension to test.
 	 * @return	True if Ext is a binary asset extension, otherwise false
 	 */
-	static bool IsAssetPackageExtension(const TCHAR* Ext);
+	static COREUOBJECT_API bool IsAssetPackageExtension(const TCHAR* Ext);
 
 	/**
 	 * Returns whether the passed in extension is a valid binary map package
@@ -551,7 +551,7 @@ public:
 	 * @param	Extension to test.
 	 * @return	True if Ext is a binary asset extension, otherwise false
 	 */
-	static bool IsMapPackageExtension(const TCHAR* Ext);
+	static COREUOBJECT_API bool IsMapPackageExtension(const TCHAR* Ext);
 
 	/** 
 	 * Returns whether the passed in filename ends with any of the known
@@ -574,7 +574,7 @@ public:
 	 * @param	RootDir				The root of the directory structure to recurse through
 	 * @return	Returns true if any packages have been found, otherwise false
 	 */
-	static bool FindPackagesInDirectory(TArray<FString>& OutPackages, const FString& RootDir);
+	static COREUOBJECT_API bool FindPackagesInDirectory(TArray<FString>& OutPackages, const FString& RootDir);
 
 	/**
 	 * This will recurse over the given list of directory structures looking for packages.
@@ -583,7 +583,7 @@ public:
 	 * @param	RootDirss			The roots of the directory structures to recurse through
 	 * @return	Returns true if any packages have been found, otherwise false
 	 */
-	static bool FindPackagesInDirectories(TArray<FString>& OutPackages, const TArrayView<const FString>& RootDirs);
+	static COREUOBJECT_API bool FindPackagesInDirectories(TArray<FString>& OutPackages, const TArrayView<const FString>& RootDirs);
 
 	/**
 	 * This will recurse over a directory structure looking for packages.
@@ -593,8 +593,8 @@ public:
 	 */
 	typedef TFunctionRef<bool(const TCHAR*)> FPackageNameVisitor;
 	typedef TFunctionRef<bool(const TCHAR*, const FFileStatData&)> FPackageNameStatVisitor;
-	static void IteratePackagesInDirectory(const FString& RootDir, const FPackageNameVisitor& Visitor);
-	static void IteratePackagesInDirectory(const FString& RootDir, const FPackageNameStatVisitor& Visitor);
+	static COREUOBJECT_API void IteratePackagesInDirectory(const FString& RootDir, const FPackageNameVisitor& Visitor);
+	static COREUOBJECT_API void IteratePackagesInDirectory(const FString& RootDir, const FPackageNameStatVisitor& Visitor);
 
 	/** Event that is triggered when a new content path is mounted */
 	DECLARE_MULTICAST_DELEGATE_TwoParams( FOnContentPathMountedEvent, const FString& /* Asset path */, const FString& /* ContentPath */ );
@@ -618,10 +618,10 @@ public:
 	 * @param	bWithoutLeadingSlashes	  Strip slash at start of each path to end up with "Game/"
 	 * @param	bWithoutTrailingSlashes	  Strip trailing slash at end of each path to end up with "/Game"
 	 */
-	static void QueryRootContentPaths( TArray<FString>& OutRootContentPaths, bool bIncludeReadOnlyRoots = false, bool bWithoutLeadingSlashes = false, bool bWithoutTrailingSlashes = false);
+	static COREUOBJECT_API void QueryRootContentPaths( TArray<FString>& OutRootContentPaths, bool bIncludeReadOnlyRoots = false, bool bWithoutLeadingSlashes = false, bool bWithoutTrailingSlashes = false);
 	
 	/** If the FLongPackagePathsSingleton is not created yet, this function will create it and thus allow mount points to be added */
-	static void OnCoreUObjectInitialized();
+	static COREUOBJECT_API void OnCoreUObjectInitialized();
 
 	/** 
 	 * Converts the supplied export text path to an object path and class name.
@@ -631,10 +631,10 @@ public:
 	 * @param OutObjectPath The path to the object.
 	 * @return True if the supplied export text path could be parsed
 	 */
-	static bool ParseExportTextPath(FWideStringView InExportTextPath, FWideStringView* OutClassName, FWideStringView* OutObjectPath);
-	static bool ParseExportTextPath(FAnsiStringView InExportTextPath, FAnsiStringView* OutClassName, FAnsiStringView* OutObjectPath);
-	static bool ParseExportTextPath(const FString& InExportTextPath, FString* OutClassName, FString* OutObjectPath);	
-	static bool ParseExportTextPath(const TCHAR* InExportTextPath, FStringView* OutClassName, FStringView* OutObjectPath);
+	static COREUOBJECT_API bool ParseExportTextPath(FWideStringView InExportTextPath, FWideStringView* OutClassName, FWideStringView* OutObjectPath);
+	static COREUOBJECT_API bool ParseExportTextPath(FAnsiStringView InExportTextPath, FAnsiStringView* OutClassName, FAnsiStringView* OutObjectPath);
+	static COREUOBJECT_API bool ParseExportTextPath(const FString& InExportTextPath, FString* OutClassName, FString* OutObjectPath);	
+	static COREUOBJECT_API bool ParseExportTextPath(const TCHAR* InExportTextPath, FStringView* OutClassName, FStringView* OutObjectPath);
 
 
 	/** 
@@ -643,10 +643,10 @@ public:
 	 * @param InExportTextPath The export text path for an object. Takes on the form: ClassName'ObjectPath'
 	 * @return The path to the object referred to by the supplied export path.
 	 */
-	static FWideStringView	ExportTextPathToObjectPath(FWideStringView InExportTextPath);
-	static FAnsiStringView	ExportTextPathToObjectPath(FAnsiStringView InExportTextPath);
-	static FString			ExportTextPathToObjectPath(const FString& InExportTextPath);
-	static FString			ExportTextPathToObjectPath(const TCHAR* InExportTextPath);
+	static COREUOBJECT_API FWideStringView	ExportTextPathToObjectPath(FWideStringView InExportTextPath);
+	static COREUOBJECT_API FAnsiStringView	ExportTextPathToObjectPath(FAnsiStringView InExportTextPath);
+	static COREUOBJECT_API FString			ExportTextPathToObjectPath(const FString& InExportTextPath);
+	static COREUOBJECT_API FString			ExportTextPathToObjectPath(const TCHAR* InExportTextPath);
 
 	/**
 	 * Returns the top level 'directory' in a package name. If the package is part of a
@@ -657,7 +657,7 @@ public:
 	 * 
 	 * "/PackageRoot/Path/Leaf" -> (return "PackageRoot"; OutRelativePath = "Path/Leaf")
 	 */
-	static FStringView SplitPackageNameRoot(FStringView InPackageName, FStringView* OutRelativePath);
+	static COREUOBJECT_API FStringView SplitPackageNameRoot(FStringView InPackageName, FStringView* OutRelativePath);
 	
 	/** 
 	 * Returns the name of the package referred to by the specified object path
@@ -668,9 +668,9 @@ public:
 	 *   "/Game/MyAsset.MyAsset"                         -> "/Game/MyAsset"
 	 *   "/Game/MyAsset"                                 -> "/Game/MyAsset"
 	 */
-	static FWideStringView ObjectPathToPackageName(FWideStringView InObjectPath);
-	static FAnsiStringView ObjectPathToPackageName(FAnsiStringView InObjectPath);
-	static FString ObjectPathToPackageName(const FString& InObjectPath);
+	static COREUOBJECT_API FWideStringView ObjectPathToPackageName(FWideStringView InObjectPath);
+	static COREUOBJECT_API FAnsiStringView ObjectPathToPackageName(FAnsiStringView InObjectPath);
+	static COREUOBJECT_API FString ObjectPathToPackageName(const FString& InObjectPath);
 
 	/**
 	 * Returns any remaining object path after trimming the package name from the specified object path
@@ -681,9 +681,9 @@ public:
 	 *   "/Game/MyAsset.MyAsset"                         -> "MyAsset"
 	 *   "/Game/MyAsset"                                 -> ""
 	 */
-	static FWideStringView ObjectPathToPathWithinPackage(FWideStringView InObjectPath);
-	static FAnsiStringView ObjectPathToPathWithinPackage(FAnsiStringView InObjectPath);
-	static FString ObjectPathToPathWithinPackage(const FString& InObjectPath);
+	static COREUOBJECT_API FWideStringView ObjectPathToPathWithinPackage(FWideStringView InObjectPath);
+	static COREUOBJECT_API FAnsiStringView ObjectPathToPathWithinPackage(FAnsiStringView InObjectPath);
+	static COREUOBJECT_API FString ObjectPathToPathWithinPackage(const FString& InObjectPath);
 
 	/**
 	 * Returns the path name of the outer of the leaf object referred to by the specified object path
@@ -694,9 +694,9 @@ public:
 	 *   "/Game/MyAsset.MyAsset"                         -> "/Game/MyAsset"
 	 *   "/Game/MyAsset"                                 -> ""
 	 */
-	static FWideStringView ObjectPathToOuterPath(FWideStringView InObjectPath);
-	static FAnsiStringView ObjectPathToOuterPath(FAnsiStringView InObjectPath);
-	static FString ObjectPathToOuterPath(const FString& InObjectPath);
+	static COREUOBJECT_API FWideStringView ObjectPathToOuterPath(FWideStringView InObjectPath);
+	static COREUOBJECT_API FAnsiStringView ObjectPathToOuterPath(FAnsiStringView InObjectPath);
+	static COREUOBJECT_API FString ObjectPathToOuterPath(const FString& InObjectPath);
 
 	/**
 	 * Returns the path from (and including) the subobject referred to by the specified object path
@@ -707,9 +707,9 @@ public:
 	 *   "/Game/MyAsset.MyAsset"                         -> "MyAsset"
 	 *   "/Game/MyAsset"                                 -> "/Game/MyAsset"
 	 */
-	static FWideStringView ObjectPathToSubObjectPath(FWideStringView InObjectPath);
-	static FAnsiStringView ObjectPathToSubObjectPath(FAnsiStringView InObjectPath);
-	static FString ObjectPathToSubObjectPath(const FString& InObjectPath);
+	static COREUOBJECT_API FWideStringView ObjectPathToSubObjectPath(FWideStringView InObjectPath);
+	static COREUOBJECT_API FAnsiStringView ObjectPathToSubObjectPath(FAnsiStringView InObjectPath);
+	static COREUOBJECT_API FString ObjectPathToSubObjectPath(const FString& InObjectPath);
 
 	/** 
 	 * Returns the name of the leaf object referred to by the specified object path
@@ -720,46 +720,46 @@ public:
 	 *   "/Game/MyAsset.MyAsset"                         -> "MyAsset"
 	 *   "/Game/MyAsset"                                 -> "/Game/MyAsset"
 	 */
-	static FWideStringView ObjectPathToObjectName(FWideStringView InObjectPath);
-	static FAnsiStringView ObjectPathToObjectName(FAnsiStringView InObjectPath);
-	static FString ObjectPathToObjectName(const FString& InObjectPath);
+	static COREUOBJECT_API FWideStringView ObjectPathToObjectName(FWideStringView InObjectPath);
+	static COREUOBJECT_API FAnsiStringView ObjectPathToObjectName(FAnsiStringView InObjectPath);
+	static COREUOBJECT_API FString ObjectPathToObjectName(const FString& InObjectPath);
 
 	/**
 	 * Checks the package's path to see if it's a Verse package
 	 */
-	static bool IsVersePackage(FStringView InPackageName);
+	static COREUOBJECT_API bool IsVersePackage(FStringView InPackageName);
 
 	/**
 	 * Checks the root of the package's path to see if it is a script package
 	 * @return true if the root of the path matches the script path
 	 */
-	static bool IsScriptPackage(FStringView InPackageName);
+	static COREUOBJECT_API bool IsScriptPackage(FStringView InPackageName);
 
 	/**
 	 * Checks the root of the package's path to see if it's a memory package
 	 * This should be set for packages that reside in memory and not on disk, we treat them similar to a script package
 	 * @return true if the root of the patch matches the memory path
 	 */
-	static bool IsMemoryPackage(FStringView InPackageName);
+	static COREUOBJECT_API bool IsMemoryPackage(FStringView InPackageName);
 
 	/**
 	 * Checks the root of the package's path to see if it is a temp package
 	 * Temp packages are sometimes saved to disk, and sometimes only exist in memory. They are never in source control
 	 * @return true if the root of the patch matches the temp path
 	 */
-	static bool IsTempPackage(FStringView InPackageName);
+	static COREUOBJECT_API bool IsTempPackage(FStringView InPackageName);
 
 	/**
 	 * Checks the root of the package's path to see if it is a localized package
 	 * @return true if the root of the path matches any localized root path
 	 */
-	static bool IsLocalizedPackage(FStringView InPackageName);
+	static COREUOBJECT_API bool IsLocalizedPackage(FStringView InPackageName);
 
 	/**
 	 * Checks if a package name contains characters that are invalid for package names.
 	 */
-	static bool DoesPackageNameContainInvalidCharacters(FStringView InLongPackageName, FText* OutReason);
-	static bool DoesPackageNameContainInvalidCharacters(FStringView InLongPackageName, EErrorCode* OutReason = nullptr);
+	static COREUOBJECT_API bool DoesPackageNameContainInvalidCharacters(FStringView InLongPackageName, FText* OutReason);
+	static COREUOBJECT_API bool DoesPackageNameContainInvalidCharacters(FStringView InLongPackageName, EErrorCode* OutReason = nullptr);
 	
 	/**
 	* Checks if a package can be found using known package extensions (header extensions only; files with the extensions of other segments are not returned).
@@ -769,10 +769,10 @@ public:
 	* @param InAllowTextFormats Detect text format packages as well as binary (priority to text)
 	* @return true if the package could be found on disk.
 	*/
-	static bool FindPackageFileWithoutExtension(const FString& InPackageFilename, FString& OutFilename);
+	static COREUOBJECT_API bool FindPackageFileWithoutExtension(const FString& InPackageFilename, FString& OutFilename);
 
 	UE_DEPRECATED(5.0, "Specifying AllowTextFormats is no longer supported. Text format is instead specified as a field on the result struct from IPackageResourceManager->OpenReadPackage.")
-	static bool FindPackageFileWithoutExtension(const FString& InPackageFilename, FString& OutFilename, bool InAllowTextFormats);
+	static COREUOBJECT_API bool FindPackageFileWithoutExtension(const FString& InPackageFilename, FString& OutFilename, bool InAllowTextFormats);
 
 	/**
 	 * Converts a long package name to the case it exists as on disk.
@@ -781,7 +781,7 @@ public:
 	 * @param Extension The extension for this package
 	 * @return True if the long package name was fixed up, false otherwise
 	 */
-	static bool FixPackageNameCase(FString& LongPackageName, FStringView Extension);
+	static COREUOBJECT_API bool FixPackageNameCase(FString& LongPackageName, FStringView Extension);
 
 	/** Override whether a package exist or not. */
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FDoesPackageExistOverride, FName);
@@ -803,7 +803,7 @@ public:
 	 * @param OutFailureReason If non-null, will be set to the reason InPath could not be converted, or to EErrorCode::Unknown if the function was successful.
 	 * @return True if the MountPoint was found, else false
 	 */
-	static bool TryGetMountPointForPath(FStringView InFilePathOrPackageName, FStringBuilderBase& OutMountPointPackageName, FStringBuilderBase& OutMountPointFilePath, FStringBuilderBase& OutRelPath,
+	static COREUOBJECT_API bool TryGetMountPointForPath(FStringView InFilePathOrPackageName, FStringBuilderBase& OutMountPointPackageName, FStringBuilderBase& OutMountPointFilePath, FStringBuilderBase& OutRelPath,
 		EFlexNameType* OutFlexNameType = nullptr, EErrorCode* OutFailureReason = nullptr);
 
 private:
@@ -814,7 +814,7 @@ private:
 	 * @param InFilename
 	 * @param OutPackageName Long package name.
 	 */
-	static void InternalFilenameToLongPackageName(FStringView InFilename, FStringBuilderBase& OutPackageName);
+	static COREUOBJECT_API void InternalFilenameToLongPackageName(FStringView InFilename, FStringBuilderBase& OutPackageName);
 
 	/**
 	 * Internal helper to find a mount point that contains the given LocalFilePath or PackageName, and if found, return the MountPoint, RelativePath, and PackageExtension
@@ -830,17 +830,17 @@ private:
 	 * @param OutFailureReason If non-null, it is set to the failurereason if the MountPoint is not found, otherwise it is set to EErrorCode::PackageNameUnknown
 	 * @return True if the MountPoint was found, else false
 	 */
-	static bool TryConvertToMountedPathComponents(FStringView InPath, FStringBuilderBase& OutMountPointPackageName, FStringBuilderBase& OutMountPointFilePath, FStringBuilderBase& OutRelPath,
+	static COREUOBJECT_API bool TryConvertToMountedPathComponents(FStringView InPath, FStringBuilderBase& OutMountPointPackageName, FStringBuilderBase& OutMountPointFilePath, FStringBuilderBase& OutRelPath,
 		FStringBuilderBase& OutObjectName, EPackageExtension& OutExtension, FStringBuilderBase& OutCustomExtension, EFlexNameType* OutFlexNameType = nullptr, EErrorCode* OutFailureReason = nullptr);
 
 	/** Event that is triggered when a new content path is mounted */
-	static FOnContentPathMountedEvent OnContentPathMountedEvent;
+	static COREUOBJECT_API FOnContentPathMountedEvent OnContentPathMountedEvent;
 
 	/** Event that is triggered when a new content path is removed */
-	static FOnContentPathDismountedEvent OnContentPathDismountedEvent;
+	static COREUOBJECT_API FOnContentPathDismountedEvent OnContentPathDismountedEvent;
 
 	/** Delegate used to check whether a package exist without using the filesystem. */
-	static FDoesPackageExistOverride DoesPackageExistOverrideDelegate;
+	static COREUOBJECT_API FDoesPackageExistOverride DoesPackageExistOverrideDelegate;
 
 	friend class FPackagePath;
 };

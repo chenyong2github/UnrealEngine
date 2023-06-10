@@ -9,11 +9,11 @@
 /**
  * Global CoreUObject delegates for use by other engine modules
  */
-struct COREUOBJECT_API FCoreUObjectInternalDelegates
+struct FCoreUObjectInternalDelegates
 {
 	/** Called before GC verification code rename a package containing a World to try and prevent such errors blocking testing and development. */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FPackageRename, UPackage*);
-	static FPackageRename& GetOnLeakedPackageRenameDelegate();
+	static COREUOBJECT_API FPackageRename& GetOnLeakedPackageRenameDelegate();
 };
 
     

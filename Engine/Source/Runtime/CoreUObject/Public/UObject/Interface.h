@@ -12,12 +12,12 @@
  *
  */
 
-class COREUOBJECT_API UInterface : public UObject
+class UInterface : public UObject
 {
-	DECLARE_CLASS_INTRINSIC(UInterface, UObject, CLASS_Interface | CLASS_Abstract, TEXT("/Script/CoreUObject"))
+	DECLARE_CASTED_CLASS_INTRINSIC_WITH_API(UInterface, UObject, CLASS_Interface | CLASS_Abstract, TEXT("/Script/CoreUObject"), CASTCLASS_None, COREUOBJECT_API)
 };
 
-class COREUOBJECT_API IInterface
+class IInterface
 {
 protected:
 

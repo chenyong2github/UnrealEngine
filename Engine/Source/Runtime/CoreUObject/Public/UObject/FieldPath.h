@@ -32,7 +32,7 @@ template <typename T> struct TIsPODType;
 template <typename T> struct TIsWeakPointerType;
 template <typename T> struct TIsZeroConstructType;
 
-struct COREUOBJECT_API FFieldPath
+struct FFieldPath
 {
 	friend struct FGCInternals;
 
@@ -100,9 +100,9 @@ private:
 
 #if WITH_EDITORONLY_DATA
 	/** Used to check if the serial number on the provided struct is identical to the one stored in this FFieldPath */
-	bool IsFieldPathSerialNumberIdentical(UStruct* InStruct) const;
+	COREUOBJECT_API bool IsFieldPathSerialNumberIdentical(UStruct* InStruct) const;
 	/** Gets the serial number stored on the provided struct */
-	int32 GetFieldPathSerialNumber(UStruct* InStruct) const;
+	COREUOBJECT_API int32 GetFieldPathSerialNumber(UStruct* InStruct) const;
 #endif
 
 	/** FOR INTERNAL USE ONLY: gets the pointer to the resolved field without trying to resolve it */
@@ -122,7 +122,7 @@ private:
 	 * @param InResolveType Type of the resolve operation
 	 * @return Resolved owner struct
 	 */
-	UStruct* TryToResolveOwnerFromStruct(UStruct* InCurrentStruct = nullptr, EPathResolveType InResolveType = FFieldPath::UseStructIfOuterNotFound) const;
+	COREUOBJECT_API UStruct* TryToResolveOwnerFromStruct(UStruct* InCurrentStruct = nullptr, EPathResolveType InResolveType = FFieldPath::UseStructIfOuterNotFound) const;
 	
 
 	/**
@@ -130,7 +130,7 @@ private:
 	 * @param InLinker the current linker load serializing this field path
 	 * @return Resolved owner struct
 	 */
-	UStruct* TryToResolveOwnerFromLinker(FLinkerLoad* InLinker) const;
+	COREUOBJECT_API UStruct* TryToResolveOwnerFromLinker(FLinkerLoad* InLinker) const;
 
 
 	/**
@@ -138,7 +138,7 @@ private:
 	 * @param InLinker the current linker load serializing this field path
 	 * @return Resulved owner struct
 	 */
-	UStruct* ConvertFromFullPath(FLinkerLoad* InLinker);
+	COREUOBJECT_API UStruct* ConvertFromFullPath(FLinkerLoad* InLinker);
 
 public:
 
@@ -150,17 +150,17 @@ public:
 	}
 
 #if WITH_EDITORONLY_DATA
-	FFieldPath(UField* InField, const FName& InPropertyTypeName);
+	COREUOBJECT_API FFieldPath(UField* InField, const FName& InPropertyTypeName);
 #endif
 
 	/** Generates path from the passed in field pointer */
-	void Generate(FField* InField);
+	COREUOBJECT_API void Generate(FField* InField);
 
 	/** Generates path from the passed in field pointer */
-	void Generate(const TCHAR* InFieldPathString);
+	COREUOBJECT_API void Generate(const TCHAR* InFieldPathString);
 
 #if WITH_EDITORONLY_DATA
-	void GenerateFromUField(UField* InField);
+	COREUOBJECT_API void GenerateFromUField(UField* InField);
 #endif
 
 	/**
@@ -169,7 +169,7 @@ public:
 	 * @param OutOwnerIndex ObjectIndex of the Owner UObject
 	 * @return Resolved field or null
 	 */
-	FField* TryToResolvePath(UStruct* InCurrentStruct, EPathResolveType InResolveType = FFieldPath::UseStructIfOuterNotFound) const;
+	COREUOBJECT_API FField* TryToResolvePath(UStruct* InCurrentStruct, EPathResolveType InResolveType = FFieldPath::UseStructIfOuterNotFound) const;
 
 	/**
 	 * Tries to resolve the path and caches the result
@@ -262,7 +262,7 @@ public:
 		return ResolvedOwner != InOther.ResolvedOwner || Path != InOther.Path;
 	}
 
-	FString ToString() const;
+	COREUOBJECT_API FString ToString() const;
 
 	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FFieldPath& InOutPropertyPath);
 

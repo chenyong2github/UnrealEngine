@@ -38,7 +38,7 @@ struct FUObjectSerializeContext;
  * This is stored internally as an FTopLevelAssetPath pointing to the top level asset (/package/path.assetname) and an optional string subobject path.
  * If the MetaClass metadata is applied to a FProperty with this the UI will restrict to that type of asset.
  */
-struct COREUOBJECT_API FSoftObjectPath
+struct FSoftObjectPath
 {
 	FSoftObjectPath() = default;
 	FSoftObjectPath(const FSoftObjectPath& Other) = default;
@@ -75,7 +75,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 
 	/** Construct from an asset FName and subobject pair */
 	UE_DEPRECATED(5.1, "Asset path FNames have been deprecated. This constructor should be used only temporarily to fix up old codepaths that produce an FName.")
-	FSoftObjectPath(FName InAssetPathName, FString InSubPathString);
+	COREUOBJECT_API FSoftObjectPath(FName InAssetPathName, FString InSubPathString);
 	
 	template <typename T>
 	FSoftObjectPath(const TObjectPtr<T>& InObject)
@@ -115,17 +115,17 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 	}
 
 	/** Returns string representation of reference, in form /package/path.assetname[:subpath] */
-	FString ToString() const;
+	COREUOBJECT_API FString ToString() const;
 
 	UE_DEPRECATED(5.1, "Asset path FNames have been deprecated. This function should be used only temporarily to interface with old APIs that require an FName.")
 	FName ToFName() const { return *ToString(); }
 
 	/** Append string representation of reference, in form /package/path.assetname[:subpath] */
-	void ToString(FStringBuilderBase& Builder) const;
+	COREUOBJECT_API void ToString(FStringBuilderBase& Builder) const;
 
 	/** Append string representation of reference, in form /package/path.assetname[:subpath] */
-	void AppendString(FString& Builder) const;
-	void AppendString(FStringBuilderBase& Builder) const;
+	COREUOBJECT_API void AppendString(FString& Builder) const;
+	COREUOBJECT_API void AppendString(FStringBuilderBase& Builder) const;
 
 	/** Returns the top-level asset part of this path, without the subobject path. */
 	FTopLevelAssetPath GetAssetPath() const
@@ -141,10 +141,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 	
 	/** Returns the entire asset path as an FName, including both package and asset but not sub object */
 	UE_DEPRECATED(5.1, "Asset path FNames have been deprecated. Use GetAssetPath instead.")
-	FName GetAssetPathName() const;
+	COREUOBJECT_API FName GetAssetPathName() const;
 	
 	UE_DEPRECATED(5.1, "Asset path FNames have been deprecated. Use SetAssetPath instead.")
-	void SetAssetPathName(FName InAssetPathName);
+	COREUOBJECT_API void SetAssetPathName(FName InAssetPathName);
 
 	/** Returns string version of asset path, including both package and asset but not sub object */
 	FORCEINLINE FString GetAssetPathString() const
@@ -195,12 +195,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 	}
 
 	/** Sets asset path of this reference based on a string path */
-	void SetPath(const FTopLevelAssetPath& InAssetPath, FString InSubPathString = FString());
-	void SetPath(FWideStringView Path);
-	void SetPath(FAnsiStringView Path);
-	void SetPath(FUtf8StringView Path);
+	COREUOBJECT_API void SetPath(const FTopLevelAssetPath& InAssetPath, FString InSubPathString = FString());
+	COREUOBJECT_API void SetPath(FWideStringView Path);
+	COREUOBJECT_API void SetPath(FAnsiStringView Path);
+	COREUOBJECT_API void SetPath(FUtf8StringView Path);
 	UE_DEPRECATED(5.1, "Asset path FNames have been deprecated. This function should be used only temporarily to fix up old codepaths that produce an FName.")
-	void SetPath(FName Path);
+	COREUOBJECT_API void SetPath(FName Path);
 	void SetPath(const WIDECHAR* Path)			{ SetPath(FWideStringView(Path)); }
 	void SetPath(const ANSICHAR* Path)			{ SetPath(FAnsiStringView(Path)); }
 	void SetPath(const FString& Path)			{ SetPath(FStringView(Path)); }
@@ -210,14 +210,14 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 	 * @param InLoadContext Optional load context when called from nested load callstack
 	 * @return Loaded UObject, or nullptr if the reference is null or the asset fails to load
 	 */
-	UObject* TryLoad(FUObjectSerializeContext* InLoadContext = nullptr) const;
+	COREUOBJECT_API UObject* TryLoad(FUObjectSerializeContext* InLoadContext = nullptr) const;
 
 	/**
 	 * Attempts to find a currently loaded object that matches this path
 	 *
 	 * @return Found UObject, or nullptr if not currently in memory
 	 */
-	UObject* ResolveObject() const;
+	COREUOBJECT_API UObject* ResolveObject() const;
 
 	/** Resets reference to point to null */
 	void Reset()
@@ -273,41 +273,41 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 	}
 
 	/** Struct overrides */
-	bool Serialize(FArchive& Ar);
-	bool Serialize(FStructuredArchive::FSlot Slot);
-	bool operator==(FSoftObjectPath const& Other) const;
+	COREUOBJECT_API bool Serialize(FArchive& Ar);
+	COREUOBJECT_API bool Serialize(FStructuredArchive::FSlot Slot);
+	COREUOBJECT_API bool operator==(FSoftObjectPath const& Other) const;
 	bool operator!=(FSoftObjectPath const& Other) const
 	{
 		return !(*this == Other);
 	}
 
-	bool ExportTextItem(FString& ValueStr, FSoftObjectPath const& DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const;
-	bool ImportTextItem( const TCHAR*& Buffer, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText, FArchive* InSerializingArchive = nullptr );
-	bool SerializeFromMismatchedTag(struct FPropertyTag const& Tag, FStructuredArchive::FSlot Slot);
+	COREUOBJECT_API bool ExportTextItem(FString& ValueStr, FSoftObjectPath const& DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const;
+	COREUOBJECT_API bool ImportTextItem( const TCHAR*& Buffer, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText, FArchive* InSerializingArchive = nullptr );
+	COREUOBJECT_API bool SerializeFromMismatchedTag(struct FPropertyTag const& Tag, FStructuredArchive::FSlot Slot);
 
 	/** Serializes the internal path and also handles save/PIE fixups. Call this from the archiver overrides */
-	void SerializePath(FArchive& Ar);
+	COREUOBJECT_API void SerializePath(FArchive& Ar);
 
 	/** Serializes the internal path without any save/PIE fixups. Only call this directly if you know what you are doing */
-	void SerializePathWithoutFixup(FArchive& Ar);
+	COREUOBJECT_API void SerializePathWithoutFixup(FArchive& Ar);
 
 	/** Fixes up path for saving, call if saving with a method that skips SerializePath. This can modify the path, it will return true if it was modified */
-	bool PreSavePath(bool* bReportSoftObjectPathRedirects = nullptr);
+	COREUOBJECT_API bool PreSavePath(bool* bReportSoftObjectPathRedirects = nullptr);
 
 	/** 
 	 * Handles when a path has been loaded, call if loading with a method that skips SerializePath. This does not modify path but might call callbacks
 	 * @param InArchive The archive that loaded this path
 	 */
-	void PostLoadPath(FArchive* InArchive) const;
+	COREUOBJECT_API void PostLoadPath(FArchive* InArchive) const;
 
 	/** Fixes up this SoftObjectPath to add the PIE prefix depending on what is currently active, returns true if it was modified. The overload that takes an explicit PIE instance is preferred, if it's available. */
-	bool FixupForPIE(TFunctionRef<void(int32, FSoftObjectPath&)> InPreFixupForPIECustomFunction = [](int32, FSoftObjectPath&) {});
+	COREUOBJECT_API bool FixupForPIE(TFunctionRef<void(int32, FSoftObjectPath&)> InPreFixupForPIECustomFunction = [](int32, FSoftObjectPath&) {});
 
 	/** Fixes up this SoftObjectPath to add the PIE prefix for the given PIEInstance index, returns true if it was modified */
-	bool FixupForPIE(int32 PIEInstance, TFunctionRef<void(int32, FSoftObjectPath&)> InPreFixupForPIECustomFunction = [](int32, FSoftObjectPath&) {});
+	COREUOBJECT_API bool FixupForPIE(int32 PIEInstance, TFunctionRef<void(int32, FSoftObjectPath&)> InPreFixupForPIECustomFunction = [](int32, FSoftObjectPath&) {});
 
 	/** Fixes soft object path for CoreRedirects to handle renamed native objects, returns true if it was modified */
-	bool FixupCoreRedirects();
+	COREUOBJECT_API bool FixupCoreRedirects();
 
 	FORCEINLINE friend uint32 GetTypeHash(FSoftObjectPath const& This)
 	{
@@ -327,13 +327,13 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 	{
 		return 0;
 	}
-	static FSoftObjectPath GetOrCreateIDForObject(const UObject* Object);
+	static COREUOBJECT_API FSoftObjectPath GetOrCreateIDForObject(const UObject* Object);
 	
 	/** Adds list of packages names that have been created specifically for PIE, this is used for editor fixup */
-	static void AddPIEPackageName(FName NewPIEPackageName);
+	static COREUOBJECT_API void AddPIEPackageName(FName NewPIEPackageName);
 	
 	/** Disables special PIE path handling, call when PIE finishes to clear list */
-	static void ClearPIEPackageNames();
+	static COREUOBJECT_API void ClearPIEPackageNames();
 
 private:
 	/** Asset path, patch to a top level object in a package. This is /package/path.assetname */
@@ -343,10 +343,10 @@ private:
 	FString SubPathString;
 
 	/** Package names currently being duplicated, needed by FixupForPIE */
-	static TSet<FName> PIEPackageNames;
+	static COREUOBJECT_API TSet<FName> PIEPackageNames;
 
-	UObject* ResolveObjectInternal() const;
-	UObject* ResolveObjectInternal(const TCHAR* PathString) const;
+	COREUOBJECT_API UObject* ResolveObjectInternal() const;
+	COREUOBJECT_API UObject* ResolveObjectInternal(const TCHAR* PathString) const;
 
 	friend struct Z_Construct_UScriptStruct_FSoftObjectPath_Statics;
 };
@@ -378,7 +378,7 @@ inline FStringBuilderBase& operator<<(FStringBuilderBase& Builder, const FSoftOb
 /**
  * A struct that contains a string reference to a class, can be used to make soft references to classes
  */
-struct COREUOBJECT_API FSoftClassPath : public FSoftObjectPath
+struct FSoftClassPath : public FSoftObjectPath
 {
 	FSoftClassPath() = default;
 	FSoftClassPath(const FSoftClassPath& Other) = default;
@@ -420,18 +420,18 @@ struct COREUOBJECT_API FSoftClassPath : public FSoftObjectPath
 	 * Attempts to find a currently loaded object that matches this object ID
 	 * @return Found UClass, or NULL if not currently loaded
 	 */
-	UClass* ResolveClass() const;
+	COREUOBJECT_API UClass* ResolveClass() const;
 
-	bool SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
+	COREUOBJECT_API bool SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
 
-	static FSoftClassPath GetOrCreateIDForClass(const UClass *InClass);
+	static COREUOBJECT_API FSoftClassPath GetOrCreateIDForClass(const UClass *InClass);
 
 private:
 	/** Forbid creation for UObject. This class is for UClass only. Use FSoftObjectPath instead. */
 	FSoftClassPath(const UObject* InObject) { }
 
 	/** Forbidden. This class is for UClass only. Use FSoftObjectPath instead. */
-	static FSoftObjectPath GetOrCreateIDForObject(const UObject *Object);
+	static COREUOBJECT_API FSoftObjectPath GetOrCreateIDForObject(const UObject *Object);
 };
 
 UE_DEPRECATED(5.0, "FStringAssetReference was renamed to FSoftObjectPath as it is now not always a string and can also refer to a subobject")

@@ -12,11 +12,11 @@ class FProperty;
 struct FPropertyChangedEvent;
 
 // Notification hook.
-class COREUOBJECT_API FNotifyHook
+class FNotifyHook
 {
 public:
 	virtual void NotifyPreChange( FProperty* PropertyAboutToChange ) {}
 	virtual void NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged ) {}
-	virtual void NotifyPreChange( class FEditPropertyChain* PropertyAboutToChange );
-	virtual void NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, class FEditPropertyChain* PropertyThatChanged );
+	COREUOBJECT_API virtual void NotifyPreChange( class FEditPropertyChain* PropertyAboutToChange );
+	COREUOBJECT_API virtual void NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, class FEditPropertyChain* PropertyThatChanged );
 };

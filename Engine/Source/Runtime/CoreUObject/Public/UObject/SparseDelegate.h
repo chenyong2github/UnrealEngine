@@ -35,50 +35,50 @@ struct FSparseDelegate;
 
 
 /** Helper class for handling sparse delegate bindings */
-struct COREUOBJECT_API FSparseDelegateStorage
+struct FSparseDelegateStorage
 {
 public:
 
 	/** Registers the sparse delegate so that the offset can be determined. */
-	static void RegisterDelegateOffset(const UObject* OwningObject, FName DelegateName, size_t OffsetToOwner);
+	static COREUOBJECT_API void RegisterDelegateOffset(const UObject* OwningObject, FName DelegateName, size_t OffsetToOwner);
 
 	/** Binds a sparse delegate to the owner. Returns if the delegate was successfully bound. */
-	static bool Add(const UObject* DelegateOwner, const FName DelegateName, FScriptDelegate Delegate);
+	static COREUOBJECT_API bool Add(const UObject* DelegateOwner, const FName DelegateName, FScriptDelegate Delegate);
 
 	/** Binds a sparse delegate to the owner, verifying first that the delegate is not already bound. Returns if the delegate was successfully bound. */
-	static bool AddUnique(const UObject* DelegateOwner, const FName DelegateName, FScriptDelegate Delegate);
+	static COREUOBJECT_API bool AddUnique(const UObject* DelegateOwner, const FName DelegateName, FScriptDelegate Delegate);
 
 	/** Returns whether a sparse delegate is bound to the owner. */
-	static bool Contains(const UObject* DelegateOwner, const FName DelegateName, const FScriptDelegate& Delegate);
-	static bool Contains(const UObject* DelegateOwner, const FName DelegateName, const UObject* InObject, FName InFunctionName);
+	static COREUOBJECT_API bool Contains(const UObject* DelegateOwner, const FName DelegateName, const FScriptDelegate& Delegate);
+	static COREUOBJECT_API bool Contains(const UObject* DelegateOwner, const FName DelegateName, const UObject* InObject, FName InFunctionName);
 
 	/** Removes a delegate binding from the owner's sparse delegate storage. Returns true if there are still bindings to the delegate. */
-	static bool Remove(const UObject* DelegateOwner, const FName DelegateName, const FScriptDelegate& Delegate);
-	static bool Remove(const UObject* DelegateOwner, const FName DelegateName, const UObject* InObject, FName InFunctionName);
+	static COREUOBJECT_API bool Remove(const UObject* DelegateOwner, const FName DelegateName, const FScriptDelegate& Delegate);
+	static COREUOBJECT_API bool Remove(const UObject* DelegateOwner, const FName DelegateName, const UObject* InObject, FName InFunctionName);
 
 	/** Removes all sparse delegate binding from the owner for a given object. Returns true if there are still bindings to the delegate. */
-	static bool RemoveAll(const UObject* DelegateOwner, const FName DelegateName, const UObject* UserObject);
+	static COREUOBJECT_API bool RemoveAll(const UObject* DelegateOwner, const FName DelegateName, const UObject* UserObject);
 
 	/** Clear all of the named sparse delegate bindings from the owner. */
-	static void Clear(const UObject* DelegateOwner, const FName DelegateName);
+	static COREUOBJECT_API void Clear(const UObject* DelegateOwner, const FName DelegateName);
 
 	/** Acquires the actual Multicast Delegate from the annotation if any delegates are bound to it. Will be null if no entry exists in the annotation for this object/delegatename. */
-	static FMulticastScriptDelegate* GetMulticastDelegate(const UObject* DelegateOwner, const FName DelegateName);
+	static COREUOBJECT_API FMulticastScriptDelegate* GetMulticastDelegate(const UObject* DelegateOwner, const FName DelegateName);
 
 	/** Acquires the actual Multicast Delegate from the annotation if any delegates are bound to it as a shared pointer. Will be null if no entry exists in the annotation for this object/delegatename. */
-	static TSharedPtr<FMulticastScriptDelegate> GetSharedMulticastDelegate(const UObject* DelegateOwner, const FName DelegateName);
+	static COREUOBJECT_API TSharedPtr<FMulticastScriptDelegate> GetSharedMulticastDelegate(const UObject* DelegateOwner, const FName DelegateName);
 
 	/** Directly sets the Multicast Delegate for this object/delegatename pair. If the delegate is unbound it will be assigned/inserted anyways. */
-	static void SetMulticastDelegate(const UObject* DelegateOwner, const FName DelegateName, FMulticastScriptDelegate Delegate);
+	static COREUOBJECT_API void SetMulticastDelegate(const UObject* DelegateOwner, const FName DelegateName, FMulticastScriptDelegate Delegate);
 
 	/** Using the registry of sparse delegates recover the FSparseDelegate address from the UObject and name. */
-	static FSparseDelegate* ResolveSparseDelegate(const UObject* OwningObject, FName DelegateName);
+	static COREUOBJECT_API FSparseDelegate* ResolveSparseDelegate(const UObject* OwningObject, FName DelegateName);
 
 	/** Using the registry of sparse delegates recover the UObject owner from the FSparseDelegate address owning class and delegate names. */
-	static UObject* ResolveSparseOwner(const FSparseDelegate& SparseDelegate, const FName OwningClassName, const FName DelegateName);
+	static COREUOBJECT_API UObject* ResolveSparseOwner(const FSparseDelegate& SparseDelegate, const FName OwningClassName, const FName DelegateName);
 
 	/** Outputs a report about which delegates are bound. */
-	static void SparseDelegateReport(const TArray<FString>&, UWorld*, FOutputDevice&);
+	static COREUOBJECT_API void SparseDelegateReport(const TArray<FString>&, UWorld*, FOutputDevice&);
 
 private:
 
@@ -95,19 +95,19 @@ private:
 	friend struct FObjectListener;
 
 	/** A listener to get notified when objects have been deleted and remove them from the map */
-	static FObjectListener SparseDelegateObjectListener;
+	static COREUOBJECT_API FObjectListener SparseDelegateObjectListener;
 
 	/** Critical Section for locking access to the sparse delegate map */
-	static FCriticalSection SparseDelegateMapCritical;
+	static COREUOBJECT_API FCriticalSection SparseDelegateMapCritical;
 
 	/** Delegate map is a map of Delegate names to a shared pointer of the multicast script delegate */
 	typedef TMap<FName, TSharedPtr<FMulticastScriptDelegate>> FSparseDelegateMap;
 
 	/** Map of objects to the map of delegates that are bound to that object */
-	static TMap<const UObjectBase*, FSparseDelegateMap> SparseDelegates;
+	static COREUOBJECT_API TMap<const UObjectBase*, FSparseDelegateMap> SparseDelegates;
 	
 	/** Sparse delegate offsets are indexed by ActorClass/DelegateName pair */
-	static TMap<TPair<FName, FName>, size_t> SparseDelegateObjectOffsets;
+	static COREUOBJECT_API TMap<TPair<FName, FName>, size_t> SparseDelegateObjectOffsets;
 };
 
 /** Base implementation for all sparse delegate types */

@@ -72,7 +72,7 @@ ENUM_CLASS_FLAGS(ECoreRedirectMatchFlags);
 /**
  * An object path extracted into component names for matching. TODO merge with FSoftObjectPath?
  */
-struct COREUOBJECT_API FCoreRedirectObjectName
+struct FCoreRedirectObjectName
 {
 	/** Raw name of object */
 	FName ObjectName;
@@ -93,19 +93,19 @@ struct COREUOBJECT_API FCoreRedirectObjectName
 
 	}
 
-	FCoreRedirectObjectName(const FTopLevelAssetPath& TopLevelAssetPath);
+	COREUOBJECT_API FCoreRedirectObjectName(const FTopLevelAssetPath& TopLevelAssetPath);
 
 	/** Construct from a path string, this handles full paths with packages, or partial paths without */
-	FCoreRedirectObjectName(const FString& InString);
+	COREUOBJECT_API FCoreRedirectObjectName(const FString& InString);
 
 	/** Construct from object in memory */
-	FCoreRedirectObjectName(const class UObject* Object);
+	COREUOBJECT_API FCoreRedirectObjectName(const class UObject* Object);
 
 	/** Creates FString version */
-	FString ToString() const;
+	COREUOBJECT_API FString ToString() const;
 
 	/** Sets back to invalid state */
-	void Reset();
+	COREUOBJECT_API void Reset();
 
 	/** Checks for exact equality */
 	bool operator==(const FCoreRedirectObjectName& Other) const
@@ -134,16 +134,16 @@ struct COREUOBJECT_API FCoreRedirectObjectName
 		CheckSubString = (1 << 2),
 	};
 	/** Returns true if the passed in name matches requirements. */
-	bool Matches(const FCoreRedirectObjectName& Other, EMatchFlags MatchFlags = EMatchFlags::None) const;
+	COREUOBJECT_API bool Matches(const FCoreRedirectObjectName& Other, EMatchFlags MatchFlags = EMatchFlags::None) const;
 
 	UE_DEPRECATED(5.1, "Use EMatchFlags::CheckSubString to pass in bCheckSubstring=true.")
-	bool Matches(const FCoreRedirectObjectName& Other, bool bCheckSubstring) const;
+	COREUOBJECT_API bool Matches(const FCoreRedirectObjectName& Other, bool bCheckSubstring) const;
 
 	/** Returns integer of degree of match. 0 if doesn't match at all, higher integer for better matches */
-	int32 MatchScore(const FCoreRedirectObjectName& Other) const;
+	COREUOBJECT_API int32 MatchScore(const FCoreRedirectObjectName& Other) const;
 
 	/** Fills in any empty fields on this with the corresponding fields from Other. */
-	void UnionFieldsInline(const FCoreRedirectObjectName& Other);
+	COREUOBJECT_API void UnionFieldsInline(const FCoreRedirectObjectName& Other);
 
 	/** Returns the name used as the key into the acceleration map */
 	FName GetSearchKey(ECoreRedirectFlags Type) const
@@ -171,20 +171,20 @@ struct COREUOBJECT_API FCoreRedirectObjectName
 	}
 
 	/** Returns true if all names have valid characters */
-	bool HasValidCharacters(ECoreRedirectFlags Type) const;
+	COREUOBJECT_API bool HasValidCharacters(ECoreRedirectFlags Type) const;
 
 	/** Expand OldName/NewName as needed */
-	static bool ExpandNames(const FString& FullString, FName& OutName, FName& OutOuter, FName &OutPackage);
+	static COREUOBJECT_API bool ExpandNames(const FString& FullString, FName& OutName, FName& OutOuter, FName &OutPackage);
 
 	/** Turn it back into an FString */
-	static FString CombineNames(FName NewName, FName NewOuter, FName NewPackage);
+	static COREUOBJECT_API FString CombineNames(FName NewName, FName NewOuter, FName NewPackage);
 };
 ENUM_CLASS_FLAGS(FCoreRedirectObjectName::EMatchFlags);
 
 /** 
  * A single redirection from an old name to a new name, parsed out of an ini file
  */
-struct COREUOBJECT_API FCoreRedirect
+struct FCoreRedirect
 {
 	/** Flags of this redirect */
 	ECoreRedirectFlags RedirectFlags;
@@ -216,29 +216,29 @@ struct COREUOBJECT_API FCoreRedirect
 	}
 
 	/** Normalizes NewName with data from OldName */
-	void NormalizeNewName();
+	COREUOBJECT_API void NormalizeNewName();
 
 	/** Parses a char buffer into the ValueChanges map */
-	const TCHAR* ParseValueChanges(const TCHAR* Buffer);
+	COREUOBJECT_API const TCHAR* ParseValueChanges(const TCHAR* Buffer);
 
 	/** Returns true if the passed in name and flags match requirements */
-	bool Matches(ECoreRedirectFlags InFlags, const FCoreRedirectObjectName& InName,
+	COREUOBJECT_API bool Matches(ECoreRedirectFlags InFlags, const FCoreRedirectObjectName& InName,
 		ECoreRedirectMatchFlags MatchFlags = ECoreRedirectMatchFlags::None) const;
 	/** Returns true if the passed in name matches requirements */
-	bool Matches(const FCoreRedirectObjectName& InName,
+	COREUOBJECT_API bool Matches(const FCoreRedirectObjectName& InName,
 		ECoreRedirectMatchFlags MatchFlags = ECoreRedirectMatchFlags::None) const;
 
 	/** Returns true if this has value redirects */
-	bool HasValueChanges() const;
+	COREUOBJECT_API bool HasValueChanges() const;
 
 	/** Returns true if this is a substring match */
-	bool IsSubstringMatch() const;
+	COREUOBJECT_API bool IsSubstringMatch() const;
 
 	/** Convert to new names based on mapping */
-	FCoreRedirectObjectName RedirectName(const FCoreRedirectObjectName& OldObjectName) const;
+	COREUOBJECT_API FCoreRedirectObjectName RedirectName(const FCoreRedirectObjectName& OldObjectName) const;
 
 	/** See if search criteria is identical */
-	bool IdenticalMatchRules(const FCoreRedirect& Other) const;
+	COREUOBJECT_API bool IdenticalMatchRules(const FCoreRedirect& Other) const;
 
 	/** Returns the name used as the key into the acceleration map */
 	FName GetSearchKey() const
@@ -250,26 +250,26 @@ struct COREUOBJECT_API FCoreRedirect
 /**
  * A container for all of the registered core-level redirects 
  */
-struct COREUOBJECT_API FCoreRedirects
+struct FCoreRedirects
 {
 	/** Run initialization steps that are needed before any data can be stored in FCoreRedirects. Reads can occur before this, but no redirects will exist and redirect queries will all return empty. */
-	static void Initialize();
+	static COREUOBJECT_API void Initialize();
 
 	/** Returns a redirected version of the object name. If there are no valid redirects, it will return the original name */
-	static FCoreRedirectObjectName GetRedirectedName(ECoreRedirectFlags Type,
+	static COREUOBJECT_API FCoreRedirectObjectName GetRedirectedName(ECoreRedirectFlags Type,
 		const FCoreRedirectObjectName& OldObjectName, ECoreRedirectMatchFlags MatchFlags = ECoreRedirectMatchFlags::None);
 
 	/** Returns map of String->String value redirects for the object name, or nullptr if none found */
-	static const TMap<FString, FString>* GetValueRedirects(ECoreRedirectFlags Type,
+	static COREUOBJECT_API const TMap<FString, FString>* GetValueRedirects(ECoreRedirectFlags Type,
 		const FCoreRedirectObjectName& OldObjectName, ECoreRedirectMatchFlags MatchFlags = ECoreRedirectMatchFlags::None);
 
 	/** Performs both a name redirect and gets a value redirect struct if it exists. Returns true if either redirect found */
-	static bool RedirectNameAndValues(ECoreRedirectFlags Type, const FCoreRedirectObjectName& OldObjectName,
+	static COREUOBJECT_API bool RedirectNameAndValues(ECoreRedirectFlags Type, const FCoreRedirectObjectName& OldObjectName,
 		FCoreRedirectObjectName& NewObjectName, const FCoreRedirect** FoundValueRedirect,
 		ECoreRedirectMatchFlags MatchFlags = ECoreRedirectMatchFlags::None);
 
 	/** Returns true if this name has been registered as explicitly missing */
-	static bool IsKnownMissing(ECoreRedirectFlags Type, const FCoreRedirectObjectName& ObjectName);
+	static COREUOBJECT_API bool IsKnownMissing(ECoreRedirectFlags Type, const FCoreRedirectObjectName& ObjectName);
 
 	/**
 	  * Adds the given combination of (Type, ObjectName, Channel) as a missing name; IsKnownMissing queries will now find it
@@ -278,7 +278,7 @@ struct COREUOBJECT_API FCoreRedirects
 	  * @param ObjectName The name of the object now known to be missing
 	  * @param Channel may be Option_MissingLoad or Option_None; used to distinguish between detected-at-runtime and specified-by-ini
 	  */
-	static bool AddKnownMissing(ECoreRedirectFlags Type, const FCoreRedirectObjectName& ObjectName, ECoreRedirectFlags Channel = ECoreRedirectFlags::Option_MissingLoad);
+	static COREUOBJECT_API bool AddKnownMissing(ECoreRedirectFlags Type, const FCoreRedirectObjectName& ObjectName, ECoreRedirectFlags Channel = ECoreRedirectFlags::Option_MissingLoad);
 
 	/**
 	  * Removes the given combination of (Type, ObjectName, Channel) as a missing name
@@ -287,25 +287,25 @@ struct COREUOBJECT_API FCoreRedirects
 	  * @param ObjectName The name of the object that has just been loaded.
 	  * @param Channel may be Option_MissingLoad or Option_None; used to distinguish between detected-at-runtime and specified-by-ini
 	  */
-	static bool RemoveKnownMissing(ECoreRedirectFlags Type, const FCoreRedirectObjectName& ObjectName, ECoreRedirectFlags Channel = ECoreRedirectFlags::Option_MissingLoad);
+	static COREUOBJECT_API bool RemoveKnownMissing(ECoreRedirectFlags Type, const FCoreRedirectObjectName& ObjectName, ECoreRedirectFlags Channel = ECoreRedirectFlags::Option_MissingLoad);
 
-	static void ClearKnownMissing(ECoreRedirectFlags Type, ECoreRedirectFlags Channel = ECoreRedirectFlags::Option_MissingLoad);
+	static COREUOBJECT_API void ClearKnownMissing(ECoreRedirectFlags Type, ECoreRedirectFlags Channel = ECoreRedirectFlags::Option_MissingLoad);
 
 	/** Returns list of names it may have been before */
-	static bool FindPreviousNames(ECoreRedirectFlags Type, const FCoreRedirectObjectName& NewObjectName, TArray<FCoreRedirectObjectName>& PreviousNames);
+	static COREUOBJECT_API bool FindPreviousNames(ECoreRedirectFlags Type, const FCoreRedirectObjectName& NewObjectName, TArray<FCoreRedirectObjectName>& PreviousNames);
 
 	/** Returns list of all core redirects that match requirements */
-	static bool GetMatchingRedirects(ECoreRedirectFlags Type, const FCoreRedirectObjectName& OldObjectName,
+	static COREUOBJECT_API bool GetMatchingRedirects(ECoreRedirectFlags Type, const FCoreRedirectObjectName& OldObjectName,
 		TArray<const FCoreRedirect*>& FoundRedirects, ECoreRedirectMatchFlags MatchFlags = ECoreRedirectMatchFlags::None);
 
 	/** Parse all redirects out of a given ini file */
-	static bool ReadRedirectsFromIni(const FString& IniName);
+	static COREUOBJECT_API bool ReadRedirectsFromIni(const FString& IniName);
 
 	/** Adds an array of redirects to global list */
-	static bool AddRedirectList(TArrayView<const FCoreRedirect> Redirects, const FString& SourceString);
+	static COREUOBJECT_API bool AddRedirectList(TArrayView<const FCoreRedirect> Redirects, const FString& SourceString);
 
 	/** Removes an array of redirects from global list */
-	static bool RemoveRedirectList(TArrayView<const FCoreRedirect> Redirects, const FString& SourceString);
+	static COREUOBJECT_API bool RemoveRedirectList(TArrayView<const FCoreRedirect> Redirects, const FString& SourceString);
 
 	/** Returns true if this has ever been initialized */
 	static bool IsInitialized() { return bInitialized; }
@@ -314,41 +314,41 @@ struct COREUOBJECT_API FCoreRedirects
 	static bool IsInDebugMode() { return bInDebugMode; }
 
 	/** Validate a named list of redirects */
-	static void ValidateRedirectList(TArrayView<const FCoreRedirect> Redirects, const FString& SourceString);
+	static COREUOBJECT_API void ValidateRedirectList(TArrayView<const FCoreRedirect> Redirects, const FString& SourceString);
 
 	/** Validates all known redirects and warn if they seem to point to missing things */
-	static void ValidateAllRedirects();
+	static COREUOBJECT_API void ValidateAllRedirects();
 
 	/** Gets map from config key -> Flags */
 	static const TMap<FName, ECoreRedirectFlags>& GetConfigKeyMap() { return ConfigKeyMap; }
 
 	/** Goes from the containing package and name of the type to the type flag */
-	static ECoreRedirectFlags GetFlagsForTypeName(FName PackageName, FName TypeName);
+	static COREUOBJECT_API ECoreRedirectFlags GetFlagsForTypeName(FName PackageName, FName TypeName);
 
 	/** Goes from UClass Type to the type flag */
-	static ECoreRedirectFlags GetFlagsForTypeClass(UClass *TypeClass);
+	static COREUOBJECT_API ECoreRedirectFlags GetFlagsForTypeClass(UClass *TypeClass);
 
 	/** Runs set of redirector tests, returns false on failure */
-	static bool RunTests();
+	static COREUOBJECT_API bool RunTests();
 
 private:
 	/** Static only class, never constructed */
-	FCoreRedirects();
+	COREUOBJECT_API FCoreRedirects();
 
 	/** Add a single redirect to a type map */
-	static bool AddSingleRedirect(const FCoreRedirect& NewRedirect, const FString& SourceString);
+	static COREUOBJECT_API bool AddSingleRedirect(const FCoreRedirect& NewRedirect, const FString& SourceString);
 
 	/** Remove a single redirect from a type map */
-	static bool RemoveSingleRedirect(const FCoreRedirect& OldRedirect, const FString& SourceString);
+	static COREUOBJECT_API bool RemoveSingleRedirect(const FCoreRedirect& OldRedirect, const FString& SourceString);
 
 	/** Add native redirects, called before ini is parsed for the first time */
-	static void RegisterNativeRedirects();
+	static COREUOBJECT_API void RegisterNativeRedirects();
 
 #if WITH_COREREDIRECTS_MULTITHREAD_WARNING
 	/** Mark that CoreRedirects is about to start being used from multiple threads, and writes to new types of redirects are no longer allowed.
 	  * ReadRedirectsFromIni and all other AddRedirectList calls must be called before this
 	  */
-	static void EnterMultithreadedPhase();
+	static COREUOBJECT_API void EnterMultithreadedPhase();
 #endif
 
 	/** There is one of these for each registered set of redirect flags */
@@ -359,21 +359,21 @@ private:
 	};
 
 	/** Whether this has been initialized at least once */
-	static bool bInitialized;
+	static COREUOBJECT_API bool bInitialized;
 
 	/** True if we are in debug mode that does extra validation */
-	static bool bInDebugMode;
+	static COREUOBJECT_API bool bInDebugMode;
 
 	/** True if we have done our initial validation. After initial validation, each change to redirects will validate independently */
-	static bool bValidatedOnce;
+	static COREUOBJECT_API bool bValidatedOnce;
 
 #if WITH_COREREDIRECTS_MULTITHREAD_WARNING
 	/** Whether CoreRedirects is now being used multithreaded and therefore does not support writes to RedirectTypeMap keyvalue pairs */
-	static bool bIsInMultithreadedPhase;
+	static COREUOBJECT_API bool bIsInMultithreadedPhase;
 #endif
 
 	/** Map from config name to flag */
-	static TMap<FName, ECoreRedirectFlags> ConfigKeyMap;
+	static COREUOBJECT_API TMap<FName, ECoreRedirectFlags> ConfigKeyMap;
 
 	/** Map from name of thing being mapped to full list. List must be filtered further */
 	struct FRedirectTypeMap
@@ -389,11 +389,11 @@ private:
 		TMap<ECoreRedirectFlags, FRedirectNameMap*> Map;
 		TArray<TPair<ECoreRedirectFlags, FRedirectNameMap>> FastIterable;
 	};
-	static FRedirectTypeMap RedirectTypeMap;
+	static COREUOBJECT_API FRedirectTypeMap RedirectTypeMap;
 
 	/**
 	 * Lock to protect multithreaded access to *KnownMissing functions, which can be called from the async loading threads. 
 	 * TODO: The KnownMissing functions use RedirectTypeMap, which is unguarded; there is race condition vulnerability if asyncloading thread is active before all categories are added to RedirectTypeMap.
 	 */
-	static FRWLock KnownMissingLock;
+	static COREUOBJECT_API FRWLock KnownMissingLock;
 };

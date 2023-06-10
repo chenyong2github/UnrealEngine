@@ -11,13 +11,13 @@ struct FAssetData;
 
 #if WITH_EDITOR
 
-class COREUOBJECT_API FWarnIfAssetsLoadedInScope : public FNoncopyable
+class FWarnIfAssetsLoadedInScope : public FNoncopyable
 {
 public:
-    FWarnIfAssetsLoadedInScope();
-	FWarnIfAssetsLoadedInScope(TConstArrayView<FAssetData> InSpecificAssets);
+    COREUOBJECT_API FWarnIfAssetsLoadedInScope();
+	COREUOBJECT_API FWarnIfAssetsLoadedInScope(TConstArrayView<FAssetData> InSpecificAssets);
 
-    ~FWarnIfAssetsLoadedInScope();
+    COREUOBJECT_API ~FWarnIfAssetsLoadedInScope();
 	
 private:
 	bool IsEnabled() const;

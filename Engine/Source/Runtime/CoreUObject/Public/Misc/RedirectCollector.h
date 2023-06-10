@@ -24,7 +24,7 @@ class FArchive;
 
 enum class ESoftObjectPathCollectType : uint8;
 
-class COREUOBJECT_API FRedirectCollector
+class FRedirectCollector
 {
 private:
 	
@@ -81,7 +81,7 @@ public:
 	 * @param InPath The soft object path that was loaded
 	 * @Param InArchive The archive that loaded this path
 	 */
-	void OnSoftObjectPathLoaded(const struct FSoftObjectPath& InPath, FArchive* InArchive);
+	COREUOBJECT_API void OnSoftObjectPathLoaded(const struct FSoftObjectPath& InPath, FArchive* InArchive);
 
 	/**
 	 * Called at the end of Package Save to record soft package references that might have been created by save transformations
@@ -89,13 +89,13 @@ public:
 	 * @param PackageNames List of of soft package references needed by the referencing package
 	 * @param bEditorOnlyReferences if the PackageNames list are references made by editor only properties
 	 */
-	void CollectSavedSoftPackageReferences(FName ReferencingPackage, const TSet<FName>& PackageNames, bool bEditorOnlyReferences);
+	COREUOBJECT_API void CollectSavedSoftPackageReferences(FName ReferencingPackage, const TSet<FName>& PackageNames, bool bEditorOnlyReferences);
 
 	/**
 	 * Load all soft object paths to resolve them, add that to the remap table, and empty the array
 	 * @param FilterPackage If set, only load references that were created by FilterPackage. If empty, resolve  all of them
 	 */
-	void ResolveAllSoftObjectPaths(FName FilterPackage = NAME_None);
+	COREUOBJECT_API void ResolveAllSoftObjectPaths(FName FilterPackage = NAME_None);
 
 	/**
 	 * Returns the list of packages referenced by soft object paths loaded by FilterPackage, and remove them from the internal list
@@ -103,23 +103,23 @@ public:
 	 * @param bGetEditorOnly If true will return references loaded by editor only objects, if false it will not
 	 * @param OutReferencedPackages Return list of packages referenced by FilterPackage
 	 */
-	void ProcessSoftObjectPathPackageList(FName FilterPackage, bool bGetEditorOnly, TSet<FName>& OutReferencedPackages);
+	COREUOBJECT_API void ProcessSoftObjectPathPackageList(FName FilterPackage, bool bGetEditorOnly, TSet<FName>& OutReferencedPackages);
 
 	/** Adds a new mapping for redirector path to destination path, this is called from the Asset Registry to register all redirects it knows about */
 	UE_DEPRECATED(5.1, "Asset path FNames have been deprecated, use FSoftObjectPath instead.")
-	void AddAssetPathRedirection(FName OriginalPath, FName RedirectedPath);
-	void AddAssetPathRedirection(const FSoftObjectPath& OriginalPath, const FSoftObjectPath& RedirectedPath);
+	COREUOBJECT_API void AddAssetPathRedirection(FName OriginalPath, FName RedirectedPath);
+	COREUOBJECT_API void AddAssetPathRedirection(const FSoftObjectPath& OriginalPath, const FSoftObjectPath& RedirectedPath);
 
 	/** Removes an asset path redirection, call this when deleting redirectors */
 	UE_DEPRECATED(5.1, "Asset path FNames have been deprecated, use FSoftObjectPath instead.")
-	void RemoveAssetPathRedirection(FName OriginalPath);
-	void RemoveAssetPathRedirection(const FSoftObjectPath& OriginalPath);
+	COREUOBJECT_API void RemoveAssetPathRedirection(FName OriginalPath);
+	COREUOBJECT_API void RemoveAssetPathRedirection(const FSoftObjectPath& OriginalPath);
 
 	/** Returns a remapped asset path, if it returns null there is no relevant redirector */
 	UE_DEPRECATED(5.1, "Asset path FNames have been deprecated, use FSoftObjectPath instead.")
-	FName GetAssetPathRedirection(FName OriginalPath);
+	COREUOBJECT_API FName GetAssetPathRedirection(FName OriginalPath);
 	/** Returns a remapped asset path, if there is no relevant redirector, the return value reports true from IsNull() */
-	FSoftObjectPath GetAssetPathRedirection(const FSoftObjectPath& OriginalPath);
+	COREUOBJECT_API FSoftObjectPath GetAssetPathRedirection(const FSoftObjectPath& OriginalPath);
 
 	/**
 	 * Do we have any references to resolve.
@@ -138,10 +138,10 @@ public:
 	 * @param OutExcludedReferences Out set that is reset and then appended with any discovered values
 	 * @return Whether any references were found
 	 */
-	bool RemoveAndCopySoftObjectPathExclusions(FName PackageName, TSet<FName>& OutExcludedReferences);
+	COREUOBJECT_API bool RemoveAndCopySoftObjectPathExclusions(FName PackageName, TSet<FName>& OutExcludedReferences);
 
 	/** Called from the cooker to stop the tracking of exclusions. */
-	void OnStartupPackageLoadComplete();
+	COREUOBJECT_API void OnStartupPackageLoadComplete();
 
 private:
 
@@ -150,7 +150,7 @@ private:
 	typedef TMap<FName, FSoftObjectPathPropertySet> FSoftObjectPathMap;
 
 	/** Return whether SoftObjectPathExclusions are currently being tracked, based on commandline and cook phase. */
-	bool ShouldTrackPackageReferenceTypes();
+	COREUOBJECT_API bool ShouldTrackPackageReferenceTypes();
 
 	/** The discovered references that should be followed during cook */
 	FSoftObjectPathMap SoftObjectPathMap;

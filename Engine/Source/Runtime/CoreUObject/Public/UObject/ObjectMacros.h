@@ -168,7 +168,7 @@ class FVTableHelper
 {
 public:
 	/** DO NOT USE. This constructor is for internal usage only for hot-reload purposes. */
-	COREUOBJECT_API FVTableHelper()
+	FVTableHelper()
 	{
 		EnsureRetrievingVTablePtrDuringCtor(TEXT("FVTableHelper()"));
 	}
@@ -644,7 +644,7 @@ class UObject;
 class FProperty;
 class FObjectInitializer; 
 
-struct COREUOBJECT_API FReferencerInformation 
+struct FReferencerInformation 
 {
 	/** the object that is referencing the target */
 	UObject*				Referencer;
@@ -655,17 +655,17 @@ struct COREUOBJECT_API FReferencerInformation
 	/** the array of UProperties in Referencer which hold references to target */
 	TArray<const FProperty*>		ReferencingProperties;
 
-	FReferencerInformation( UObject* inReferencer );
-	FReferencerInformation( UObject* inReferencer, int32 InReferences, const TArray<const FProperty*>& InProperties );
+	COREUOBJECT_API FReferencerInformation( UObject* inReferencer );
+	COREUOBJECT_API FReferencerInformation( UObject* inReferencer, int32 InReferences, const TArray<const FProperty*>& InProperties );
 };
 
-struct COREUOBJECT_API FReferencerInformationList
+struct FReferencerInformationList
 {
 	TArray<FReferencerInformation>		InternalReferences;
 	TArray<FReferencerInformation>		ExternalReferences;
 
-	FReferencerInformationList();
-	FReferencerInformationList( const TArray<FReferencerInformation>& InternalRefs, const TArray<FReferencerInformation>& ExternalRefs );
+	COREUOBJECT_API FReferencerInformationList();
+	COREUOBJECT_API FReferencerInformationList( const TArray<FReferencerInformation>& InternalRefs, const TArray<FReferencerInformation>& ExternalRefs );
 };
 
 /*----------------------------------------------------------------------------

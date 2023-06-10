@@ -326,7 +326,7 @@ public:
 	COREUOBJECT_API FString GetRootPath(TFunctionRef<bool(FCallbackParams& Params)> ReferenceCallback, UObject* TargetObject = nullptr) const;
 
 	/** Returns all reference chains */
-	COREUOBJECT_API const TArray<FReferenceChain*>& GetReferenceChains() const
+	const TArray<FReferenceChain*>& GetReferenceChains() const
 	{
 		return ReferenceChains;
 	}

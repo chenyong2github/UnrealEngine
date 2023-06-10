@@ -9,12 +9,12 @@
 #include "Serialization/Archive.h"
 
 /** Helper class to set and restore serialized property on an archive */
-class COREUOBJECT_API FSerializedPropertyScope
+class FSerializedPropertyScope
 {
 	FArchive& Ar;
 	FProperty* Property;
-	void PushProperty();
-	void PopProperty();
+	COREUOBJECT_API void PushProperty();
+	COREUOBJECT_API void PopProperty();
 public:
 	FSerializedPropertyScope(FArchive& InAr, FProperty* InProperty, const FProperty* OnlyIfOldProperty = nullptr)
 		: Ar(InAr)

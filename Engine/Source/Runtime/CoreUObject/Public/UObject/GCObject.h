@@ -109,17 +109,17 @@ public:
  * non-UObject classes. It is an abstract base class requiring you to implement
  * the AddReferencedObjects() method.
  */
-class COREUOBJECT_API FGCObject
+class FGCObject
 {
 public:
 	/**
 	 * The static object referencer object that is shared across all
 	 * garbage collectible non-UObject objects.
 	 */
-	static UGCObjectReferencer* GGCObjectReferencer;
+	static COREUOBJECT_API UGCObjectReferencer* GGCObjectReferencer;
 
 	/** Initializes the global object referencer and adds it to the root set. */
-	static void StaticInit();
+	static COREUOBJECT_API void StaticInit();
 
 	/**
 	 * Tells the global object that forwards AddReferencedObjects calls on to objects
@@ -155,7 +155,7 @@ public:
 		 */
 		AddStableNativeReferencesOnly = 1 << 1,
 	};
-	explicit FGCObject(EFlags Flags);
+	COREUOBJECT_API explicit FGCObject(EFlags Flags);
 
 	virtual ~FGCObject()
 	{
@@ -166,10 +166,10 @@ public:
 	FGCObject& operator=(FGCObject&&) {return *this;}
 
 	/** Register with GC, only needed if constructed with EFlags::RegisterLater or after unregistering */
-	void RegisterGCObject();
+	COREUOBJECT_API void RegisterGCObject();
 
 	/** Unregister ahead of destruction. Safe to call multiple times. */
-	void UnregisterGCObject();
+	COREUOBJECT_API void UnregisterGCObject();
 
 	/**
 	 * Pure virtual that must be overloaded by the inheriting class. Use this
@@ -190,7 +190,7 @@ public:
 
 private:
 	friend UGCObjectReferencer;
-	static const TCHAR* UnknownGCObjectName;
+	static COREUOBJECT_API const TCHAR* UnknownGCObjectName;
 
 	const bool bCanMakeInitialReferences = false;
 	bool bReferenceAdded = false;	

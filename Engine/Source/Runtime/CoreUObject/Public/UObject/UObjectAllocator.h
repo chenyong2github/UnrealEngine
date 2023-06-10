@@ -11,7 +11,7 @@
 
 class UObjectBase;
 
-class COREUOBJECT_API FUObjectAllocator
+class FUObjectAllocator
 {
 public:
 
@@ -31,12 +31,12 @@ public:
 	 *
 	 * @param InPermanentObjectPoolSize size of permanent object pool
 	 */
-	void AllocatePermanentObjectPool(int32 InPermanentObjectPoolSize);
+	COREUOBJECT_API void AllocatePermanentObjectPool(int32 InPermanentObjectPoolSize);
 
 	/**
 	 * Prints a debugf message to allow tuning
 	 */
-	void BootMessage();
+	COREUOBJECT_API void BootMessage();
 
 	UE_DEPRECATED(5.1, "Use the more efficient FPermanentObjectPoolExtents instead")
 	FORCEINLINE bool ResidesInPermanentPool(const UObjectBase *Object) const
@@ -52,14 +52,14 @@ public:
 	 * @param bAllowPermanent if true, allow allocation in the permanent object pool, if it fits
 	 * @return newly allocated UObjectBase (not really a UObjectBase yet, no constructor like thing has been called).
 	 */
-	UObjectBase* AllocateUObject(int32 Size, int32 Alignment, bool bAllowPermanent);
+	COREUOBJECT_API UObjectBase* AllocateUObject(int32 Size, int32 Alignment, bool bAllowPermanent);
 
 	/**
 	 * Returns a UObjectBase to the free store, unless it is in the permanent object pool
 	 *
 	 * @param Object object to free
 	 */
-	void FreeUObject(UObjectBase *Object) const;
+	COREUOBJECT_API void FreeUObject(UObjectBase *Object) const;
 
 private:
 	friend class FPermanentObjectPoolExtents;

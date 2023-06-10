@@ -13,15 +13,15 @@ struct FWeakObjectPtr;
 /**
  * Base FArchive for serializing UObjects. Supports FLazyObjectPtr and FSoftObjectPtr serialization.
  */
-class COREUOBJECT_API FArchiveUObject : public FArchive
+class FArchiveUObject : public FArchive
 {
 public:
 
-	static FArchive& SerializeLazyObjectPtr(FArchive& Ar, FLazyObjectPtr& Value);
-	static FArchive& SerializeObjectPtr(FArchive& Ar, FObjectPtr& Value);
-	static FArchive& SerializeSoftObjectPtr(FArchive& Ar, FSoftObjectPtr& Value);
-	static FArchive& SerializeSoftObjectPath(FArchive& Ar, FSoftObjectPath& Value);
-	static FArchive& SerializeWeakObjectPtr(FArchive& Ar, FWeakObjectPtr& Value);
+	static COREUOBJECT_API FArchive& SerializeLazyObjectPtr(FArchive& Ar, FLazyObjectPtr& Value);
+	static COREUOBJECT_API FArchive& SerializeObjectPtr(FArchive& Ar, FObjectPtr& Value);
+	static COREUOBJECT_API FArchive& SerializeSoftObjectPtr(FArchive& Ar, FSoftObjectPtr& Value);
+	static COREUOBJECT_API FArchive& SerializeSoftObjectPath(FArchive& Ar, FSoftObjectPath& Value);
+	static COREUOBJECT_API FArchive& SerializeWeakObjectPtr(FArchive& Ar, FWeakObjectPtr& Value);
 
 	using FArchive::operator<<; // For visibility of the overloads we don't override
 

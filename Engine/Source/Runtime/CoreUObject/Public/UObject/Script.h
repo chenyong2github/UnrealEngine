@@ -406,11 +406,11 @@ protected:
 };
 
 // Information about a blueprint instrumentation signal
-struct COREUOBJECT_API FScriptInstrumentationSignal
+struct FScriptInstrumentationSignal
 {
 public:
 
-	FScriptInstrumentationSignal(EScriptInstrumentation::Type InEventType, const UObject* InContextObject, const struct FFrame& InStackFrame, const FName EventNameIn = NAME_None);
+	COREUOBJECT_API FScriptInstrumentationSignal(EScriptInstrumentation::Type InEventType, const UObject* InContextObject, const struct FFrame& InStackFrame, const FName EventNameIn = NAME_None);
 
 	FScriptInstrumentationSignal(EScriptInstrumentation::Type InEventType, const UObject* InContextObject, UFunction* InFunction, const int32 LinkId = INDEX_NONE)
 		: EventType(InEventType)
@@ -441,16 +441,16 @@ public:
 	const FFrame& GetStackFrame() const { return *StackFramePtr; }
 
 	/** Returns the owner class name of the active instance */
-	const UClass* GetClass() const;
+	COREUOBJECT_API const UClass* GetClass() const;
 
 	/** Returns the function scope class */
-	const UClass* GetFunctionClassScope() const;
+	COREUOBJECT_API const UClass* GetFunctionClassScope() const;
 
 	/** Returns the name of the active function */
-	FName GetFunctionName() const;
+	COREUOBJECT_API FName GetFunctionName() const;
 
 	/** Returns the script code offset */
-	int32 GetScriptCodeOffset() const;
+	COREUOBJECT_API int32 GetScriptCodeOffset() const;
 
 	/** Returns the latent link id for latent events */
 	int32 GetLatentLinkId() const { return LatentLinkId; }
@@ -471,7 +471,7 @@ protected:
 };
 
 // Blueprint core runtime delegates
-class COREUOBJECT_API FBlueprintCoreDelegates
+class FBlueprintCoreDelegates
 {
 public:
 	// Callback for debugging events such as a breakpoint (Object that triggered event, active stack frame, Info)
@@ -486,20 +486,20 @@ public:
 
 public:
 	// Called when a script exception occurs
-	static FOnScriptDebuggingEvent OnScriptException;
+	static COREUOBJECT_API FOnScriptDebuggingEvent OnScriptException;
 	// Called when a script profiling event is fired
-	static FOnScriptInstrumentEvent OnScriptProfilingEvent;
+	static COREUOBJECT_API FOnScriptInstrumentEvent OnScriptProfilingEvent;
 	// Called when a script profiler is enabled/disabled
-	static FOnToggleScriptProfiler OnToggleScriptProfiler;
+	static COREUOBJECT_API FOnToggleScriptProfiler OnToggleScriptProfiler;
 
 	UE_DEPRECATED(4.26, "OnScriptExecutionEnd is deprecated, bind to delegate inside FBlueprintContextTracker instead")
-	static FOnScriptExecutionEnd OnScriptExecutionEnd;
+	static COREUOBJECT_API FOnScriptExecutionEnd OnScriptExecutionEnd;
 
 public:
-	static void ThrowScriptException(const UObject* ActiveObject, struct FFrame& StackFrame, const FBlueprintExceptionInfo& Info);
-	static void InstrumentScriptEvent(const FScriptInstrumentationSignal& Info);
-	static void SetScriptMaximumLoopIterations( const int32 MaximumLoopIterations );
-	static bool IsDebuggingEnabled();
+	static COREUOBJECT_API void ThrowScriptException(const UObject* ActiveObject, struct FFrame& StackFrame, const FBlueprintExceptionInfo& Info);
+	static COREUOBJECT_API void InstrumentScriptEvent(const FScriptInstrumentationSignal& Info);
+	static COREUOBJECT_API void SetScriptMaximumLoopIterations( const int32 MaximumLoopIterations );
+	static COREUOBJECT_API bool IsDebuggingEnabled();
 };
 
 #if DO_BLUEPRINT_GUARD
@@ -597,11 +597,11 @@ private:
 
 
 // Scoped struct to allow execution of script in editor, while resetting the runaway loop counts
-struct COREUOBJECT_API FEditorScriptExecutionGuard
+struct FEditorScriptExecutionGuard
 {
 public:
-	FEditorScriptExecutionGuard();
-	~FEditorScriptExecutionGuard();
+	COREUOBJECT_API FEditorScriptExecutionGuard();
+	COREUOBJECT_API ~FEditorScriptExecutionGuard();
 
 private:
 	bool bOldGAllowScriptExecutionInEditor;

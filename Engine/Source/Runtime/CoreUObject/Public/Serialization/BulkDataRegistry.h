@@ -145,8 +145,8 @@ public:
 	COREUOBJECT_API uint64 GetBulkDataResaveSize(FName PackageName);
 
 private:
-	COREUOBJECT_API void OnEndLoadPackage(const FEndLoadPackageContext& Context);
-	COREUOBJECT_API void OnAllModuleLoadingPhasesComplete();
+	void OnEndLoadPackage(const FEndLoadPackageContext& Context);
+	void OnAllModuleLoadingPhasesComplete();
 
 	FRWLock Lock;
 	TMap<FName, uint64> PackageBulkResaveSize;

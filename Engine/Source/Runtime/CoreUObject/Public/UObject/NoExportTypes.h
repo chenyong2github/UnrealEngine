@@ -2645,7 +2645,7 @@ struct FARFilter
 };
 
 USTRUCT(noexport)
-struct COREUOBJECT_API FAssetBundleEntry
+struct FAssetBundleEntry
 {
 	/** Specific name of this bundle */
 	UPROPERTY()
@@ -2663,7 +2663,7 @@ struct COREUOBJECT_API FAssetBundleEntry
 
 /** A struct with a list of asset bundle entries. If one of these is inside a UObject it will get automatically exported as the asset registry tag AssetBundleData */
 USTRUCT(noexport, IsAlwaysAccessible, HasDefaults)
-struct COREUOBJECT_API FAssetBundleData
+struct FAssetBundleData
 {
 	/** List of bundles defined */
 	UPROPERTY()

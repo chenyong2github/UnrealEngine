@@ -12,7 +12,7 @@
 class IPackageLocalizationCache;
 
 /** Singleton class that manages localized package data. */
-class COREUOBJECT_API FPackageLocalizationManager
+class FPackageLocalizationManager
 {
 public:
 	typedef TFunction<void(FPackageLocalizationManager&)> FLazyInitFunc;
@@ -20,26 +20,26 @@ public:
 	/**
 	 * Initialize the manager from the callback set by InitializeFromLazyCallback. It is expected that this callback calls one of the InitializeFromX functions.
 	 */
-	void PerformLazyInitialization();
+	COREUOBJECT_API void PerformLazyInitialization();
 	
 	/**
 	 * Initialize the manager lazily using the given callback. It is expected that this callback calls one of the InitializeFromX functions.
 	 *
 	 * @param InLazyInitFunc	The function to call to initialize the manager.
 	 */
-	void InitializeFromLazyCallback(FLazyInitFunc InLazyInitFunc);
+	COREUOBJECT_API void InitializeFromLazyCallback(FLazyInitFunc InLazyInitFunc);
 
 	/**
 	 * Initialize the manager using the given cache. This will perform an initial scan for localized packages.
 	 *
 	 * @param InCache	The cache the manager should use.
 	 */
-	void InitializeFromCache(const TSharedRef<IPackageLocalizationCache>& InCache);
+	COREUOBJECT_API void InitializeFromCache(const TSharedRef<IPackageLocalizationCache>& InCache);
 
 	/**
 	 * Initialize this manager using the default cache. This will perform an initial scan for localized packages.
 	 */
-	void InitializeFromDefaultCache();
+	COREUOBJECT_API void InitializeFromDefaultCache();
 
 	/**
 	 * Try and find the localized package name for the given source package for the active culture.
@@ -48,7 +48,7 @@ public:
 	 *
 	 * @return The localized package name, or NAME_None if there is no localized package.
 	 */
-	FName FindLocalizedPackageName(const FName InSourcePackageName);
+	COREUOBJECT_API FName FindLocalizedPackageName(const FName InSourcePackageName);
 
 	/**
 	 * Try and find the localized package name for the given source package for the given culture.
@@ -58,19 +58,19 @@ public:
 	 *
 	 * @return The localized package name, or NAME_None if there is no localized package.
 	 */
-	FName FindLocalizedPackageNameForCulture(const FName InSourcePackageName, const FString& InCultureName);
+	COREUOBJECT_API FName FindLocalizedPackageNameForCulture(const FName InSourcePackageName, const FString& InCultureName);
 
 	/**
 	 * Update this cache, but only if it is dirty.
 	 */
-	void ConditionalUpdateCache();
+	COREUOBJECT_API void ConditionalUpdateCache();
 
 	/**
 	 * Singleton accessor.
 	 *
 	 * @return The singleton instance of the localization manager.
 	 */
-	static FPackageLocalizationManager& Get();
+	static COREUOBJECT_API FPackageLocalizationManager& Get();
 
 private:
 	/**

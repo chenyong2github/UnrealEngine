@@ -22,9 +22,9 @@ class UPackage;
 /**
  * An object that holds a map of key/value pairs. 
  */
-class COREUOBJECT_API UMetaData : public UObject
+class UMetaData : public UObject
 {
-	DECLARE_CLASS_INTRINSIC(UMetaData, UObject, CLASS_MatchedSerializers, TEXT("/Script/CoreUObject"))
+	DECLARE_CASTED_CLASS_INTRINSIC_WITH_API(UMetaData, UObject, CLASS_MatchedSerializers, TEXT("/Script/CoreUObject"), CASTCLASS_None, COREUOBJECT_API);
 
 public:
 	/**
@@ -47,7 +47,7 @@ public:
 	 * @param Key The key to lookup
 	 * @return The value if found, otherwise an empty string
 	 */
-	const FString& GetValue(const UObject* Object, const TCHAR* Key);
+	COREUOBJECT_API const FString& GetValue(const UObject* Object, const TCHAR* Key);
 	
 	/**
 	 * Return the value for the given key in the given property
@@ -55,7 +55,7 @@ public:
 	 * @param Key The key to lookup
 	 * @return The value if found, otherwise an empty string
 	 */
-	const FString& GetValue(const UObject* Object, FName Key);
+	COREUOBJECT_API const FString& GetValue(const UObject* Object, FName Key);
 
 	/**
 	 * Return whether or not the Key is in the meta data
@@ -85,7 +85,7 @@ public:
 	 * @param Key The key to query for existence
 	 * @return true if found
 	 */
-	const FString* FindValue(const UObject* Object, const TCHAR* Key);
+	COREUOBJECT_API const FString* FindValue(const UObject* Object, const TCHAR* Key);
 
 	/**
 	 * Returns the value for a the given key if it exists, null otherwise
@@ -93,28 +93,28 @@ public:
 	 * @param Key The key to query for existence
 	 * @return true if found
 	 */
-	const FString* FindValue(const UObject* Object, FName Key);
+	COREUOBJECT_API const FString* FindValue(const UObject* Object, FName Key);
 
 	/**
 	 * Is there any metadata for this property?
 	 * @param Object the object to lookup the metadata for
 	 * @return TrUE if the object has any metadata at all
 	 */
-	bool HasObjectValues(const UObject* Object);
+	COREUOBJECT_API bool HasObjectValues(const UObject* Object);
 
 	/**
 	 * Set the key/value pair in the Property's metadata
 	 * @param Object the object to set the metadata for
 	 * @Values The metadata key/value pairs
 	 */
-	void SetObjectValues(const UObject* Object, const TMap<FName, FString>& Values);
+	COREUOBJECT_API void SetObjectValues(const UObject* Object, const TMap<FName, FString>& Values);
 
 	/**
 	 * Set the key/value pair in the Property's metadata
 	 * @param Object the object to set the metadata for
 	 * @Values The metadata key/value pairs
 	 */
-	void SetObjectValues(const UObject* Object, TMap<FName, FString>&& Values);
+	COREUOBJECT_API void SetObjectValues(const UObject* Object, TMap<FName, FString>&& Values);
 
 	/**
 	 * Set the key/value pair in the Object's metadata
@@ -122,7 +122,7 @@ public:
 	 * @param Key A key to set the data for
 	 * @param Value The value to set for the key
 	 */
-	void SetValue(const UObject* Object, const TCHAR* Key, const TCHAR* Value);
+	COREUOBJECT_API void SetValue(const UObject* Object, const TCHAR* Key, const TCHAR* Value);
 
 	/**
 	 * Set the key/value pair in the Property's metadata
@@ -131,49 +131,49 @@ public:
 	 * @param Value The value to set for the key
 	 * @Values The metadata key/value pairs
 	 */
-	void SetValue(const UObject* Object, FName Key, const TCHAR* Value);
+	COREUOBJECT_API void SetValue(const UObject* Object, FName Key, const TCHAR* Value);
 
 	/** 
 	 *	Remove any entry with the supplied Key form the Property's metadata 
 	 *	@param Object the object to clear the metadata for
 	 *	@param Key A key to clear the data for
 	 */
-	void RemoveValue(const UObject* Object, const TCHAR* Key);
+	COREUOBJECT_API void RemoveValue(const UObject* Object, const TCHAR* Key);
 
 	/** 
 	 *	Remove any entry with the supplied Key form the Property's metadata 
 	 *	@param Object the object to clear the metadata for
 	 *	@param Key A key to clear the data for
 	 */
-	void RemoveValue(const UObject* Object, FName Key);
+	COREUOBJECT_API void RemoveValue(const UObject* Object, FName Key);
 
 	/** Find the name/value map for metadata for a specific object */
-	static TMap<FName, FString>* GetMapForObject(const UObject* Object);
+	static COREUOBJECT_API TMap<FName, FString>* GetMapForObject(const UObject* Object);
 
 	/** Copy all metadata from the source object to the destination object. This will add to any existing metadata entries for SourceObject. */
-	static void CopyMetadata(UObject* SourceObject, UObject* DestObject);
+	static COREUOBJECT_API void CopyMetadata(UObject* SourceObject, UObject* DestObject);
 
 	/**
 	 * Removes any metadata entries that are to objects not inside the same package as this UMetaData object.
 	 */
-	void RemoveMetaDataOutsidePackage();
+	COREUOBJECT_API void RemoveMetaDataOutsidePackage();
 
 	// UObject interface
-	virtual void Serialize(FArchive& Ar) override;
-	virtual void Serialize(FStructuredArchive::FRecord Record) override;
-	virtual bool NeedsLoadForEditorGame() const override;
+	COREUOBJECT_API virtual void Serialize(FArchive& Ar) override;
+	COREUOBJECT_API virtual void Serialize(FStructuredArchive::FRecord Record) override;
+	COREUOBJECT_API virtual bool NeedsLoadForEditorGame() const override;
 	virtual bool IsAsset() const override { return false; }
 	// End of UObject interface
 
 	// Returns the remapped key name, or NAME_None was not remapped.
-	static FName GetRemappedKeyName(FName OldKey);
+	static COREUOBJECT_API FName GetRemappedKeyName(FName OldKey);
 
 private:
-	static void InitializeRedirectMap();
+	static COREUOBJECT_API void InitializeRedirectMap();
 
 private:
 	// Redirect map from deprecated keys to current key names
-	static TMap<FName, FName> KeyRedirectMap;
+	static COREUOBJECT_API TMap<FName, FName> KeyRedirectMap;
 };
 
 

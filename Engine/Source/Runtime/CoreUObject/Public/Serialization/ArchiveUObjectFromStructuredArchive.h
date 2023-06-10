@@ -21,26 +21,26 @@ struct FObjectPtr;
 
 #if WITH_TEXT_ARCHIVE_SUPPORT
 
-class COREUOBJECT_API FArchiveUObjectFromStructuredArchiveImpl : public FArchiveFromStructuredArchiveImpl
+class FArchiveUObjectFromStructuredArchiveImpl : public FArchiveFromStructuredArchiveImpl
 {
 	using Super = FArchiveFromStructuredArchiveImpl;
 
 public:
 
-	FArchiveUObjectFromStructuredArchiveImpl(FStructuredArchive::FSlot Slot);
+	COREUOBJECT_API FArchiveUObjectFromStructuredArchiveImpl(FStructuredArchive::FSlot Slot);
 
 	using FArchive::operator<<; // For visibility of the overloads we don't override
 
 	//~ Begin FArchive Interface
-	virtual FArchive& operator<<(FLazyObjectPtr& Value) override;
-	virtual FArchive& operator<<(FSoftObjectPtr& Value) override;
-	virtual FArchive& operator<<(FSoftObjectPath& Value) override;
-	virtual FArchive& operator<<(FWeakObjectPtr& Value) override;
-	virtual FArchive& operator<<(FObjectPtr& Value) override;
+	COREUOBJECT_API virtual FArchive& operator<<(FLazyObjectPtr& Value) override;
+	COREUOBJECT_API virtual FArchive& operator<<(FSoftObjectPtr& Value) override;
+	COREUOBJECT_API virtual FArchive& operator<<(FSoftObjectPath& Value) override;
+	COREUOBJECT_API virtual FArchive& operator<<(FWeakObjectPtr& Value) override;
+	COREUOBJECT_API virtual FArchive& operator<<(FObjectPtr& Value) override;
 	//~ End FArchive Interface
 
-	virtual void PushFileRegionType(EFileRegionType Type) override;
-	virtual void PopFileRegionType() override;
+	COREUOBJECT_API virtual void PushFileRegionType(EFileRegionType Type) override;
+	COREUOBJECT_API virtual void PopFileRegionType() override;
 
 private:
 
@@ -57,7 +57,7 @@ private:
 	TMap<FSoftObjectPtr, int32> SoftObjectPtrToIndex;
 	TMap<FSoftObjectPath, int32> SoftObjectPathToIndex;
 
-	virtual bool Finalize(FStructuredArchive::FRecord Record) override;
+	COREUOBJECT_API virtual bool Finalize(FStructuredArchive::FRecord Record) override;
 };
 
 class FArchiveUObjectFromStructuredArchive
@@ -79,7 +79,7 @@ private:
 
 #else
 
-class COREUOBJECT_API FArchiveUObjectFromStructuredArchive : public FArchiveFromStructuredArchive
+class FArchiveUObjectFromStructuredArchive : public FArchiveFromStructuredArchive
 {
 public:
 

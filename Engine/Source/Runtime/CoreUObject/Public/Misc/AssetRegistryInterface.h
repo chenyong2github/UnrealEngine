@@ -204,7 +204,7 @@ namespace UE::AssetRegistry
 		 * TODO: this storage should be a class static variable on IAssetRegistry, but that type is defined in the AssetRegistry module, and many modules try to access the singleton (and call virtual functions on it) without linking against
 		 * the AssetRegistry module, so the storage for the singleton needs to be defined in a lower-level module that all of those modules do include
 		 */
-		class COREUOBJECT_API IAssetRegistrySingleton
+		class IAssetRegistrySingleton
 		{
 		public:
 			static IAssetRegistry* Get()
@@ -212,26 +212,26 @@ namespace UE::AssetRegistry
 				return Singleton;
 			}
 		private:
-			static IAssetRegistry* Singleton;
+			static COREUOBJECT_API IAssetRegistry* Singleton;
 			friend class ::UAssetRegistryImpl;
 		};
 	}
 
-	class COREUOBJECT_API FFiltering
+	class FFiltering
 	{
 	public:
 		/** Return whether to filter out assets of the given class and flags from the editor's asset registry */
-		static bool ShouldSkipAsset(const FTopLevelAssetPath& AssetClass, uint32 PackageFlags);
+		static COREUOBJECT_API bool ShouldSkipAsset(const FTopLevelAssetPath& AssetClass, uint32 PackageFlags);
 
 		/** Return whether to filter out the given object (assumed to be an asset) from the editor's asset registry */
-		static bool ShouldSkipAsset(const UObject* InAsset);
+		static COREUOBJECT_API bool ShouldSkipAsset(const UObject* InAsset);
 
 		/** Call to invalidate the list of skip assets and cause their next use to recreate them on demand */
-		static void MarkDirty();
+		static COREUOBJECT_API void MarkDirty();
 
 #if WITH_ENGINE && WITH_EDITOR
 		/** Copy the global skip classes set from the given external sets that were already populated. */
-		static void SetSkipClasses(const TSet<FTopLevelAssetPath>& InSkipUncookedClasses, const TSet<FTopLevelAssetPath>& InSkipCookedClasses);
+		static COREUOBJECT_API void SetSkipClasses(const TSet<FTopLevelAssetPath>& InSkipUncookedClasses, const TSet<FTopLevelAssetPath>& InSkipCookedClasses);
 #endif
 	};
 
@@ -275,13 +275,13 @@ namespace EAssetSetManagerFlags
 /**
  * Asset Registry module interface
  */
-class COREUOBJECT_API IAssetRegistryInterface
+class IAssetRegistryInterface
 {
 public:
 	/**
 	 * Tries to gets a pointer to the active AssetRegistryInterface implementation. 
 	 */
-	static IAssetRegistryInterface* GetPtr();
+	static COREUOBJECT_API IAssetRegistryInterface* GetPtr();
 
 	/**
 	 * Lookup dependencies for the given package name and fill OutDependencies with direct dependencies
@@ -308,6 +308,6 @@ public:
 
 protected:
 
-	static IAssetRegistryInterface* Default;
+	static COREUOBJECT_API IAssetRegistryInterface* Default;
 	friend class UAssetRegistryImpl;
 };

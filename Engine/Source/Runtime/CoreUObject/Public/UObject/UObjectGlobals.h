@@ -1048,13 +1048,13 @@ class FGCObject;
 /**
  * Internal class to finalize UObject creation (initialize properties) after the real C++ constructor is called.
  **/
-class COREUOBJECT_API FObjectInitializer
+class FObjectInitializer
 {
 public:
 	/**
 	 * Default Constructor, used when you are using the C++ "new" syntax. UObject::UObject will set the object pointer
 	 **/
-	FObjectInitializer();
+	COREUOBJECT_API FObjectInitializer();
 
 	/**
 	 * Constructor
@@ -1063,7 +1063,7 @@ public:
 	 * @param	InOptions initialization options, see EObjectInitializerOptions
 	 * @param	InInstanceGraph passed instance graph
 	 */
-	FObjectInitializer(UObject* InObj, UObject* InObjectArchetype, EObjectInitializerOptions InOptions, struct FObjectInstancingGraph* InInstanceGraph = nullptr);
+	COREUOBJECT_API FObjectInitializer(UObject* InObj, UObject* InObjectArchetype, EObjectInitializerOptions InOptions, struct FObjectInstancingGraph* InInstanceGraph = nullptr);
 
 	UE_DEPRECATED(5.0, "Use version that takes EObjectInitializerOptions")
 	FObjectInitializer(UObject* InObj, UObject* InObjectArchetype, bool bInCopyTransientsFromClassDefaults, bool bInShouldInitializeProps, struct FObjectInstancingGraph* InInstanceGraph = nullptr)
@@ -1075,14 +1075,14 @@ public:
 	}
 
 	/** Special constructor for static construct object internal that passes along the params block directly */
-	FObjectInitializer(UObject* InObj, const FStaticConstructObjectParameters& StaticConstructParams);
+	COREUOBJECT_API FObjectInitializer(UObject* InObj, const FStaticConstructObjectParameters& StaticConstructParams);
 
 private:
 	/** Helper for the common behaviors in the constructors */
-	void Construct_Internal();
+	COREUOBJECT_API void Construct_Internal();
 
 public:
-	~FObjectInitializer();
+	COREUOBJECT_API ~FObjectInitializer();
 
 	/** 
 	 * Return the archetype that this object will copy properties from later
@@ -1103,7 +1103,7 @@ public:
 	/**
 	* Return the class of the object that is being constructed
 	**/
-	UClass* GetClass() const;
+	COREUOBJECT_API UClass* GetClass() const;
 
 	/**
 	 * Create a component or subobject
@@ -1169,7 +1169,7 @@ public:
 	* @param	ReturnType					type of the new component
 	* @param	bTransient					true if the component is being assigned to a transient property
 	*/
-	UObject* CreateEditorOnlyDefaultSubobject(UObject* Outer, FName SubobjectName, const UClass* ReturnType, bool bTransient = false) const;
+	COREUOBJECT_API UObject* CreateEditorOnlyDefaultSubobject(UObject* Outer, FName SubobjectName, const UClass* ReturnType, bool bTransient = false) const;
 
 	/**
 	 * Create a component or subobject
@@ -1180,7 +1180,7 @@ public:
 	 * @param	bIsRequired                 true if the component is required and will always be created even if DoNotCreateDefaultSubobject was specified.
 	 * @param	bIsTransient                true if the component is being assigned to a transient property
 	 */
-	UObject* CreateDefaultSubobject(UObject* Outer, FName SubobjectFName, const UClass* ReturnType, const UClass* ClassToCreateByDefault, bool bIsRequired = true, bool bIsTransient = false) const;
+	COREUOBJECT_API UObject* CreateDefaultSubobject(UObject* Outer, FName SubobjectFName, const UClass* ReturnType, const UClass* ClassToCreateByDefault, bool bIsRequired = true, bool bIsTransient = false) const;
 
 	/**
 	 * Sets the class to use for a subobject defined in a base class, the class must be a subclass of the class used by the base class.
@@ -1284,7 +1284,7 @@ public:
 	/**
 	 * Asserts with the specified message if code is executed inside UObject constructor
 	 **/
-	static void AssertIfInConstructor(UObject* Outer, const TCHAR* ErrorMessage);
+	static COREUOBJECT_API void AssertIfInConstructor(UObject* Outer, const TCHAR* ErrorMessage);
 
 	FORCEINLINE void FinalizeSubobjectClassInitialization()
 	{
@@ -1292,7 +1292,7 @@ public:
 	}
 
 	/** Gets ObjectInitializer for the currently constructed object. Can only be used inside of a constructor of UObject-derived class. */
-	static FObjectInitializer& Get();
+	static COREUOBJECT_API FObjectInitializer& Get();
 
 private:
 
@@ -1310,16 +1310,16 @@ private:
 	 * @param	DefaultData			the buffer containing the source data for the initialization
 	 * @param	bCopyTransientsFromClassDefaults if true, copy the transients from the DefaultsClass defaults, otherwise copy the transients from DefaultData
 	 */
-	static void InitProperties(UObject* Obj, UClass* DefaultsClass, UObject* DefaultData, bool bCopyTransientsFromClassDefaults);
+	static COREUOBJECT_API void InitProperties(UObject* Obj, UClass* DefaultsClass, UObject* DefaultData, bool bCopyTransientsFromClassDefaults);
 
-	bool IsInstancingAllowed() const;
+	COREUOBJECT_API bool IsInstancingAllowed() const;
 
 	/**
 	 * Calls InitProperties for any default subobjects created through this ObjectInitializer.
 	 * @param bAllowInstancing	Indicates whether the object's components may be copied from their templates.
 	 * @return true if there are any subobjects which require instancing.
 	*/
-	bool InitSubobjectProperties(bool bAllowInstancing) const;
+	COREUOBJECT_API bool InitSubobjectProperties(bool bAllowInstancing) const;
 
 	/**
 	 * Create copies of the object's components from their templates.
@@ -1327,7 +1327,7 @@ private:
 	 * @param bNeedInstancing			Indicates whether the object's components need to be instanced
 	 * @param bNeedSubobjectInstancing	Indicates whether subobjects of the object's components need to be instanced
 	 */
-	void InstanceSubobjects(UClass* Class, bool bNeedInstancing, bool bNeedSubobjectInstancing) const;
+	COREUOBJECT_API void InstanceSubobjects(UClass* Class, bool bNeedInstancing, bool bNeedSubobjectInstancing) const;
 
 	/** 
 	 * Initializes a non-native property, according to the initialization rules. If the property is non-native
@@ -1336,13 +1336,13 @@ private:
 	 * @param	Data				Default data
 	 * @return	Returns true if that property was a non-native one, otherwise false
 	 */
-	static bool InitNonNativeProperty(FProperty* Property, UObject* Data);
+	static COREUOBJECT_API bool InitNonNativeProperty(FProperty* Property, UObject* Data);
 	
 	/**
 	 * Finalizes a constructed UObject by initializing properties, 
 	 * instancing/initializing sub-objects, etc.
 	 */
-	void PostConstructInit();
+	COREUOBJECT_API void PostConstructInit();
 
 private:
 
@@ -1350,13 +1350,13 @@ private:
 	struct FOverrides
 	{
 		/**  Add an override, make sure it is legal **/
-		void Add(FName InComponentName, const UClass* InComponentClass, const TArrayView<const FName>* FullPath = nullptr);
+		COREUOBJECT_API void Add(FName InComponentName, const UClass* InComponentClass, const TArrayView<const FName>* FullPath = nullptr);
 
 		/**  Add a potentially nested override, make sure it is legal **/
-		void Add(FStringView InComponentPath, const UClass* InComponentClass);
+		COREUOBJECT_API void Add(FStringView InComponentPath, const UClass* InComponentClass);
 
 		/**  Add a potentially nested override, make sure it is legal **/
-		void Add(TArrayView<const FName> InComponentPath, const UClass* InComponentClass, const TArrayView<const FName>* FullPath = nullptr);
+		COREUOBJECT_API void Add(TArrayView<const FName> InComponentPath, const UClass* InComponentClass, const TArrayView<const FName>* FullPath = nullptr);
 
 		struct FOverrideDetails
 		{
@@ -1442,13 +1442,13 @@ private:
 	};
 
 	/** Asserts if SetDefaultSubobjectClass or DoNotCreateOptionalDefaultSuobject are called inside of the constructor body */
-	void AssertIfSubobjectSetupIsNotAllowed(const FName SubobjectName) const;
+	COREUOBJECT_API void AssertIfSubobjectSetupIsNotAllowed(const FName SubobjectName) const;
 
 	/** Asserts if SetDefaultSubobjectClass or DoNotCreateOptionalDefaultSuobject are called inside of the constructor body */
-	void AssertIfSubobjectSetupIsNotAllowed(FStringView SubobjectName) const;
+	COREUOBJECT_API void AssertIfSubobjectSetupIsNotAllowed(FStringView SubobjectName) const;
 
 	/** Asserts if SetDefaultSubobjectClass or DoNotCreateOptionalDefaultSuobject are called inside of the constructor body */
-	void AssertIfSubobjectSetupIsNotAllowed(TArrayView<const FName> SubobjectNames) const;
+	COREUOBJECT_API void AssertIfSubobjectSetupIsNotAllowed(TArrayView<const FName> SubobjectNames) const;
 
 	/**  object to initialize, from static allocate object, after construction **/
 	UObject* Obj;
@@ -1484,7 +1484,7 @@ private:
 
 #if WITH_EDITORONLY_DATA
 	/** Detects when a new GC object was created */
-	void OnGCObjectCreated(FGCObject* InObject);
+	COREUOBJECT_API void OnGCObjectCreated(FGCObject* InObject);
 
 	/** Delegate handle for OnGCObjectCreated callback */
 	FDelegateHandle OnGCObjectCreatedHandle;
@@ -2141,7 +2141,7 @@ public:
 };
 
 /** Helper class for setting and resetting attributes on the FReferenceCollectorArchive */
-class COREUOBJECT_API FVerySlowReferenceCollectorArchiveScope
+class FVerySlowReferenceCollectorArchiveScope
 {	
 	FReferenceCollectorArchive& Archive;
 	const UObject* OldSerializingObject;
@@ -2172,19 +2172,19 @@ public:
 };
 
 /** Used by garbage collector to collect references via virtual AddReferencedObjects calls */
-class COREUOBJECT_API FReferenceCollector
+class FReferenceCollector
 {
 public:
 	virtual ~FReferenceCollector() {}
 	
 	/** Preferred way to add a reference that allows batching. Object must outlive GC tracing, can't be used for temporary/stack references. */
-	virtual void AddStableReference(TObjectPtr<UObject>* Object);
+	COREUOBJECT_API virtual void AddStableReference(TObjectPtr<UObject>* Object);
 	
 	/** Preferred way to add a reference array that allows batching. Can't be used for temporary/stack array. */
-	virtual void AddStableReferenceArray(TArray<TObjectPtr<UObject>>* Objects);
+	COREUOBJECT_API virtual void AddStableReferenceArray(TArray<TObjectPtr<UObject>>* Objects);
 
 	/** Preferred way to add a reference set that allows batching. Can't be used for temporary/stack set. */
-	virtual void AddStableReferenceSet(TSet<TObjectPtr<UObject>>* Objects);
+	COREUOBJECT_API virtual void AddStableReferenceSet(TSet<TObjectPtr<UObject>>* Objects);
 
 	template <typename KeyType, typename ValueType, typename Allocator, typename KeyFuncs>
 	FORCEINLINE_DEBUGGABLE void AddStableReferenceMap(TMapBase<KeyType, ValueType, Allocator, KeyFuncs>& Map)
@@ -2216,13 +2216,13 @@ public:
 
 #if !UE_REFERENCE_COLLECTOR_REQUIRE_OBJECTPTR
 	/** Preferred way to add a reference that allows batching. Object must outlive GC tracing, can't be used for temporary/stack references. */
-	virtual void AddStableReference(UObject** Object);
+	COREUOBJECT_API virtual void AddStableReference(UObject** Object);
 	
 	/** Preferred way to add a reference array that allows batching. Can't be used for temporary/stack array. */
-	virtual void AddStableReferenceArray(TArray<UObject*>* Objects);
+	COREUOBJECT_API virtual void AddStableReferenceArray(TArray<UObject*>* Objects);
 
 	/** Preferred way to add a reference set that allows batching. Can't be used for temporary/stack set. */
-	virtual void AddStableReferenceSet(TSet<UObject*>* Objects);
+	COREUOBJECT_API virtual void AddStableReferenceSet(TSet<UObject*>* Objects);
 
 	template<class UObjectType>
 	FORCEINLINE void AddStableReference(UObjectType** Object)
@@ -2515,7 +2515,7 @@ public:
 												ReferencingProperty);
 	}
 
-	void AddReferencedObject(FWeakObjectPtr& P,
+	COREUOBJECT_API void AddReferencedObject(FWeakObjectPtr& P,
 													 const UObject* ReferencingObject = nullptr,
 													 const FProperty* ReferencingProperty = nullptr);
 
@@ -2531,23 +2531,23 @@ public:
 	 * SerializeBin/TPropertyValueIterator/GetVerySlowReferenceCollectorArchive paths.
 	 */
 #if !UE_REFERENCE_COLLECTOR_REQUIRE_OBJECTPTR
-	void AddReferencedObjects(const UScriptStruct*& ScriptStruct, void* Instance, const UObject* ReferencingObject = nullptr, const FProperty* ReferencingProperty = nullptr);
+	COREUOBJECT_API void AddReferencedObjects(const UScriptStruct*& ScriptStruct, void* Instance, const UObject* ReferencingObject = nullptr, const FProperty* ReferencingProperty = nullptr);
 #endif
 
-	void AddReferencedObjects(TObjectPtr<const UScriptStruct>& ScriptStruct, void* Instance, const UObject* ReferencingObject = nullptr, const FProperty* ReferencingProperty = nullptr);
-	void AddReferencedObjects(TWeakObjectPtr<const UScriptStruct>& ScriptStruct, void* Instance, const UObject* ReferencingObject = nullptr, const FProperty* ReferencingProperty = nullptr);
+	COREUOBJECT_API void AddReferencedObjects(TObjectPtr<const UScriptStruct>& ScriptStruct, void* Instance, const UObject* ReferencingObject = nullptr, const FProperty* ReferencingProperty = nullptr);
+	COREUOBJECT_API void AddReferencedObjects(TWeakObjectPtr<const UScriptStruct>& ScriptStruct, void* Instance, const UObject* ReferencingObject = nullptr, const FProperty* ReferencingProperty = nullptr);
 	
 	/** Adds all strong property references from a struct instance, but not the struct itself. Skips AddStructReferencedObjects. */
-	void AddPropertyReferences(const UStruct* Struct, void* Instance, const UObject* ReferencingObject = nullptr);
+	COREUOBJECT_API void AddPropertyReferences(const UStruct* Struct, void* Instance, const UObject* ReferencingObject = nullptr);
 	
 	/** Same as AddPropertyReferences but also calls AddStructReferencedObjects on Struct and all nested structs */
-	void AddPropertyReferencesWithStructARO(const UScriptStruct* Struct, void* Instance, const UObject* ReferencingObject = nullptr);
+	COREUOBJECT_API void AddPropertyReferencesWithStructARO(const UScriptStruct* Struct, void* Instance, const UObject* ReferencingObject = nullptr);
 
 	/** Same as AddPropertyReferences but also calls AddStructReferencedObjects on all nested structs */
-	void AddPropertyReferencesWithStructARO(const UClass* Class, void* Instance, const UObject* ReferencingObject = nullptr);
+	COREUOBJECT_API void AddPropertyReferencesWithStructARO(const UClass* Class, void* Instance, const UObject* ReferencingObject = nullptr);
 
 	/** Internal use only. Same as AddPropertyReferences but skips field path and interface properties. Might get removed. */
-	void AddPropertyReferencesLimitedToObjectProperties(const UStruct* Struct, void* Instance, const UObject* ReferencingObject = nullptr);
+	COREUOBJECT_API void AddPropertyReferencesLimitedToObjectProperties(const UStruct* Struct, void* Instance, const UObject* ReferencingObject = nullptr);
 
 	/**
 	 * Make Add[OnlyObject]PropertyReference/AddReferencedObjects(UScriptStruct) use AddReferencedObjects(UObject*&) callbacks
@@ -2760,25 +2760,25 @@ protected:
 	* @param ReferencingObject Referencing object (if available).
 	* @param ReferencingProperty Referencing property (if available).
 	*/
-	virtual void HandleObjectReferences(FObjectPtr* InObjects, const int32 ObjectNum, const UObject* InReferencingObject, const FProperty* InReferencingProperty);
+	COREUOBJECT_API virtual void HandleObjectReferences(FObjectPtr* InObjects, const int32 ObjectNum, const UObject* InReferencingObject, const FProperty* InReferencingProperty);
 
 private:
 	/** Creates the proxy archive that uses serialization to add objects to this collector */
-	void CreateVerySlowReferenceCollectorArchive();
+	COREUOBJECT_API void CreateVerySlowReferenceCollectorArchive();
 
 	/** Default proxy archive that uses serialization to add objects to this collector */
 	TUniquePtr<FReferenceCollectorArchive> DefaultReferenceCollectorArchive;
 
-	void AddStableReferenceSetFwd(TSet<FObjectPtr>* Objects);	 
-	void AddStableReferenceArrayFwd(TArray<FObjectPtr>* Objects);		
-	void AddStableReferenceFwd(FObjectPtr* Object);	 
+	COREUOBJECT_API void AddStableReferenceSetFwd(TSet<FObjectPtr>* Objects);	 
+	COREUOBJECT_API void AddStableReferenceArrayFwd(TArray<FObjectPtr>* Objects);		
+	COREUOBJECT_API void AddStableReferenceFwd(FObjectPtr* Object);	 
 };
 
 /**
  * FReferenceFinder.
  * Helper class used to collect object references.
  */
-class COREUOBJECT_API FReferenceFinder : public FReferenceCollector
+class FReferenceFinder : public FReferenceCollector
 {
 public:
 
@@ -2794,7 +2794,7 @@ public:
 	 *									objects that have LimitOuter for their Outer (i.e. nested subobjects/components)
 	 * @param	bShouldIgnoreTransient	true to skip serialization of transient properties
 	 */
-	FReferenceFinder(TArray<UObject*>& InObjectArray, UObject* InOuter = nullptr, bool bInRequireDirectOuter = true, bool bInShouldIgnoreArchetype = false, bool bInSerializeRecursively = false, bool bInShouldIgnoreTransient = false);
+	COREUOBJECT_API FReferenceFinder(TArray<UObject*>& InObjectArray, UObject* InOuter = nullptr, bool bInRequireDirectOuter = true, bool bInShouldIgnoreArchetype = false, bool bInSerializeRecursively = false, bool bInShouldIgnoreTransient = false);
 
 	/**
 	 * Finds all objects referenced by Object.
@@ -2803,10 +2803,10 @@ public:
 	 * @param ReferencingObject object that's referencing the current object.
 	 * @param ReferencingProperty property the current object is being referenced through.
 	 */
-	virtual void FindReferences(UObject* Object, UObject* ReferencingObject = nullptr, FProperty* ReferencingProperty = nullptr);
+	COREUOBJECT_API virtual void FindReferences(UObject* Object, UObject* ReferencingObject = nullptr, FProperty* ReferencingProperty = nullptr);
 
 	// FReferenceCollector interface.
-	virtual void HandleObjectReference(UObject*& Object, const UObject* ReferencingObject, const FProperty* InReferencingProperty) override;
+	COREUOBJECT_API virtual void HandleObjectReference(UObject*& Object, const UObject* ReferencingObject, const FProperty* InReferencingProperty) override;
 	virtual bool IsIgnoringArchetypeRef() const override { return bShouldIgnoreArchetype; }
 	virtual bool IsIgnoringTransient() const override { return bShouldIgnoreTransient; }
 	virtual void SetSerializedProperty(class FProperty* Inproperty) override
@@ -2869,23 +2869,23 @@ struct FEndLoadPackageContext
 /**
  * Global CoreUObject delegates
  */
-struct COREUOBJECT_API FCoreUObjectDelegates
+struct FCoreUObjectDelegates
 {
 #if WITH_EDITOR
 	/** Callback for object property modifications, called by UObject::PostEditChangeProperty with a single property event */
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnObjectPropertyChanged, UObject*, struct FPropertyChangedEvent&);
-	static FOnObjectPropertyChanged OnObjectPropertyChanged;
+	static COREUOBJECT_API FOnObjectPropertyChanged OnObjectPropertyChanged;
 
 	/** Callback for object property modifications, called by UObject::PreEditChange with a full property chain */
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPreObjectPropertyChanged, UObject*, const class FEditPropertyChain&);
-	static FOnPreObjectPropertyChanged OnPreObjectPropertyChanged;
+	static COREUOBJECT_API FOnPreObjectPropertyChanged OnPreObjectPropertyChanged;
 
 	/** Called when an object is registered for change with UObject::Modify. This gets called in both the editor and standalone game editor builds, for every object modified */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnObjectModified, UObject*);
-	static FOnObjectModified OnObjectModified;
+	static COREUOBJECT_API FOnObjectModified OnObjectModified;
 
 	/** Set of objects modified this frame, to prevent multiple triggerings of the OnObjectModified delegate */
-	static TSet<UObject*> ObjectsModifiedThisFrame;
+	static COREUOBJECT_API TSet<UObject*> ObjectsModifiedThisFrame;
 
 	/** Broadcast OnObjectModified if the broadcast hasn't occurred for this object in this frame */
 	static void BroadcastOnObjectModified(UObject* Object)
@@ -2899,7 +2899,7 @@ struct COREUOBJECT_API FCoreUObjectDelegates
 
 	/** Callback for an object being transacted */
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnObjectTransacted, UObject*, const class FTransactionObjectEvent&);
-	static FOnObjectTransacted OnObjectTransacted;
+	static COREUOBJECT_API FOnObjectTransacted OnObjectTransacted;
 
 	/**
 	 * Called when UObjects have been replaced to allow others a chance to fix their references
@@ -2908,7 +2908,7 @@ struct COREUOBJECT_API FCoreUObjectDelegates
 	 */
 	using FReplacementObjectMap = TMap<UObject*, UObject*>; // Alias for use in the macro
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnObjectsReplaced, const FReplacementObjectMap&);
-	static FOnObjectsReplaced OnObjectsReplaced;
+	static COREUOBJECT_API FOnObjectsReplaced OnObjectsReplaced;
 
 	/**
 	 * Called when UObjects have been re-instanced to allow others a chance to fix their references
@@ -2916,7 +2916,7 @@ struct COREUOBJECT_API FCoreUObjectDelegates
 	 * references should be self-consistent).
 	 */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnObjectsReinstanced, const FReplacementObjectMap&);
-	static FOnObjectsReinstanced OnObjectsReinstanced;
+	static COREUOBJECT_API FOnObjectsReinstanced OnObjectsReinstanced;
 
 	/**
 	 * Called after the Blueprint compiler has finished generating the Class Default Object (CDO) for a class. This can only happen in the editor.
@@ -2924,141 +2924,141 @@ struct COREUOBJECT_API FCoreUObjectDelegates
 	 * eg) caching the name/count of properties of a certain type, or inspecting the properties on the class and using their meta-data and CDO default values to derive game data.
 	 */
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnObjectPostCDOCompiled, UObject*, const FObjectPostCDOCompiledContext&);
-	static FOnObjectPostCDOCompiled OnObjectPostCDOCompiled;
+	static COREUOBJECT_API FOnObjectPostCDOCompiled OnObjectPostCDOCompiled;
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnObjectSaved, UObject*);
 	UE_DEPRECATED(5.0, "Use OnObjectPreSave instead.")
-	static FOnObjectSaved OnObjectSaved;
+	static COREUOBJECT_API FOnObjectSaved OnObjectSaved;
 
 	/** Callback for when an asset is saved. This is called from UObject::PreSave before it is actually written to disk, for every object saved */
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnObjectPreSave, UObject*, FObjectPreSaveContext);
-	static FOnObjectPreSave OnObjectPreSave;
+	static COREUOBJECT_API FOnObjectPreSave OnObjectPreSave;
 
 	/** Callback for when an asset is loaded. This gets called in both the editor and standalone game editor builds, but only for objects that return true for IsAsset() */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnAssetLoaded, UObject*);
-	static FOnAssetLoaded OnAssetLoaded;
+	static COREUOBJECT_API FOnAssetLoaded OnAssetLoaded;
 
 	DECLARE_TS_MULTICAST_DELEGATE_OneParam(FOnObjectConstructed, UObject*);
-	static FOnObjectConstructed OnObjectConstructed;
+	static COREUOBJECT_API FOnObjectConstructed OnObjectConstructed;
 
 	/** Callback when packages end loading in LoadPackage or AsyncLoadPackage. All packages loaded recursively due to imports are included in the single call of the explicitly-loaded package. */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnEndLoadPackage, const FEndLoadPackageContext&);
-	static FOnEndLoadPackage OnEndLoadPackage;
+	static COREUOBJECT_API FOnEndLoadPackage OnEndLoadPackage;
 
 	/** Delegate used by SavePackage() to create the package backup */
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FAutoPackageBackupDelegate, const UPackage&);
 	UE_DEPRECATED(5.1, "Backups are no longer used in Unreal Package Saves")
-	static FAutoPackageBackupDelegate AutoPackageBackupDelegate;
+	static COREUOBJECT_API FAutoPackageBackupDelegate AutoPackageBackupDelegate;
 #endif // WITH_EDITOR
 
 	/** Called when new sparse class data has been created (and the base data initialized) for the given class */
 	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnPostInitSparseClassData, UClass*, UScriptStruct*, void*);
-	static FOnPostInitSparseClassData OnPostInitSparseClassData;
+	static COREUOBJECT_API FOnPostInitSparseClassData OnPostInitSparseClassData;
 
 	/** Called by ReloadPackage during package reloading. It will be called several times for different phases of fix-up to allow custom code to handle updating objects as needed */
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPackageReloaded, EPackageReloadPhase, FPackageReloadedEvent*);
-	static FOnPackageReloaded OnPackageReloaded;
+	static COREUOBJECT_API FOnPackageReloaded OnPackageReloaded;
 
 	/** Called when a package reload request is received from a network file server */
 	DECLARE_DELEGATE_OneParam(FNetworkFileRequestPackageReload, const TArray<FString>& /*PackageNames*/);
-	static FNetworkFileRequestPackageReload NetworkFileRequestPackageReload;
+	static COREUOBJECT_API FNetworkFileRequestPackageReload NetworkFileRequestPackageReload;
 
 	/** Delegate used by SavePackage() to check whether a package should be saved */
 	DECLARE_DELEGATE_RetVal_ThreeParams(bool, FIsPackageOKToSaveDelegate, UPackage*, const FString&, FOutputDevice*);
-	static FIsPackageOKToSaveDelegate IsPackageOKToSaveDelegate;
+	static COREUOBJECT_API FIsPackageOKToSaveDelegate IsPackageOKToSaveDelegate;
 
 	/** Delegate for reloaded classes that have been added. */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FReloadAddedClassesDelegate, const TArray<UClass*>&);
-	static FReloadAddedClassesDelegate ReloadAddedClassesDelegate;
+	static COREUOBJECT_API FReloadAddedClassesDelegate ReloadAddedClassesDelegate;
 
 	/** Delegate for reload re-instancing complete */
 	DECLARE_MULTICAST_DELEGATE(FReloadReinstancingCompleteDelegate);
-	static FReloadReinstancingCompleteDelegate ReloadReinstancingCompleteDelegate;
+	static COREUOBJECT_API FReloadReinstancingCompleteDelegate ReloadReinstancingCompleteDelegate;
 
 	/** Delegate for reload re-instancing complete */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FReloadCompleteDelegate, EReloadCompleteReason);
-	static FReloadCompleteDelegate ReloadCompleteDelegate;
+	static COREUOBJECT_API FReloadCompleteDelegate ReloadCompleteDelegate;
 
 	/** Delegate for registering hot-reloaded classes that have been added  */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FRegisterHotReloadAddedClassesDelegate, const TArray<UClass*>&);
 	UE_DEPRECATED(5.0, "RegisterHotReloadAddedClassesDelegate has been deprecated, use ReloadAddedClassesDelegate.")
-	static FRegisterHotReloadAddedClassesDelegate RegisterHotReloadAddedClassesDelegate;
+	static COREUOBJECT_API FRegisterHotReloadAddedClassesDelegate RegisterHotReloadAddedClassesDelegate;
 
 	/** Delegate for registering hot-reloaded classes that changed after hot-reload for reinstancing */
 	DECLARE_MULTICAST_DELEGATE_ThreeParams(FRegisterClassForHotReloadReinstancingDelegate, UClass*, UClass*, EHotReloadedClassFlags);
 	UE_DEPRECATED(5.0, "RegisterClassForHotReloadReinstancingDelegate has been deprecated, use FReload for class re-instancing.")
-	static FRegisterClassForHotReloadReinstancingDelegate RegisterClassForHotReloadReinstancingDelegate;
+	static COREUOBJECT_API FRegisterClassForHotReloadReinstancingDelegate RegisterClassForHotReloadReinstancingDelegate;
 
 	/** Delegate for reinstancing hot-reloaded classes */
 	DECLARE_MULTICAST_DELEGATE(FReinstanceHotReloadedClassesDelegate);
 	UE_DEPRECATED(5.0, "ReinstanceHotReloadedClassesDelegate has been deprecated, use FReload for class re-instancing or ReloadReinstancingCompleteDelegate for notification")
-	static FReinstanceHotReloadedClassesDelegate ReinstanceHotReloadedClassesDelegate;
+	static COREUOBJECT_API FReinstanceHotReloadedClassesDelegate ReinstanceHotReloadedClassesDelegate;
 
 	/** Delegate for catching when UClasses/UStructs/UEnums would be available via FindObject<>(), but before their CDOs would be constructed. */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FCompiledInUObjectsRegisteredDelegate, FName /*Package*/);
-	static FCompiledInUObjectsRegisteredDelegate CompiledInUObjectsRegisteredDelegate;
+	static COREUOBJECT_API FCompiledInUObjectsRegisteredDelegate CompiledInUObjectsRegisteredDelegate;
 
 	/** Sent at the very beginning of LoadMap */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FPreLoadMapDelegate, const FString& /* MapName */);
-	static FPreLoadMapDelegate PreLoadMap;
+	static COREUOBJECT_API FPreLoadMapDelegate PreLoadMap;
 
 	/** Sent at the very beginning of LoadMap */
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FPreLoadMapWithContextDelegate, const FWorldContext& /*WorldContext*/, const FString& /* MapName */);
-	static FPreLoadMapWithContextDelegate PreLoadMapWithContext;
+	static COREUOBJECT_API FPreLoadMapWithContextDelegate PreLoadMapWithContext;
 	
 	/** Sent at the end of LoadMap */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FPostLoadMapDelegate, UWorld* /* LoadedWorld */);
-	static FPostLoadMapDelegate PostLoadMapWithWorld;
+	static COREUOBJECT_API FPostLoadMapDelegate PostLoadMapWithWorld;
 
 	/** Sent when a network replay has started */
-	static FSimpleMulticastDelegate PostDemoPlay;
+	static COREUOBJECT_API FSimpleMulticastDelegate PostDemoPlay;
 
 	/** Called before garbage collection */
-	static FSimpleMulticastDelegate& GetPreGarbageCollectDelegate();
+	static COREUOBJECT_API FSimpleMulticastDelegate& GetPreGarbageCollectDelegate();
 
 	/** Delegate type for reachability analysis external roots callback. First parameter is FGarbageCollectionTracer to use for tracing, second is flags with which objects should be kept alive regardless, third is whether to force single threading */
 	DECLARE_MULTICAST_DELEGATE_ThreeParams(FTraceExternalRootsForReachabilityAnalysisDelegate, FGarbageCollectionTracer&, EObjectFlags, bool);
 
 	/** Called as last phase of reachability analysis. Allow external systems to add UObject roots *after* first reachability pass has been done */
 	UE_DEPRECATED(5.2, "Ability to inject extra root objects will be removed to reduce GC complexity")
-	static FTraceExternalRootsForReachabilityAnalysisDelegate TraceExternalRootsForReachabilityAnalysis;
+	static COREUOBJECT_API FTraceExternalRootsForReachabilityAnalysisDelegate TraceExternalRootsForReachabilityAnalysis;
 
 	/** Called after reachability analysis, before any purging */
-	static FSimpleMulticastDelegate PostReachabilityAnalysis;
+	static COREUOBJECT_API FSimpleMulticastDelegate PostReachabilityAnalysis;
 
 	/** Called after garbage collection */
-	static FSimpleMulticastDelegate& GetPostGarbageCollect();
+	static COREUOBJECT_API FSimpleMulticastDelegate& GetPostGarbageCollect();
 
 	/** Called after purging unreachable objects during garbage collection */
-	static FSimpleMulticastDelegate& GetPostPurgeGarbageDelegate();
+	static COREUOBJECT_API FSimpleMulticastDelegate& GetPostPurgeGarbageDelegate();
 
 #if !UE_BUILD_SHIPPING
 	/** Called when garbage collection detects references to objects that are marked for explicit destruction by MarkAsGarbage */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnReportGarbageReferencers, TConstArrayView<struct FGarbageReferenceInfo>);
-	static FOnReportGarbageReferencers& GetGarbageCollectReportGarbageReferencers();
+	static COREUOBJECT_API FOnReportGarbageReferencers& GetGarbageCollectReportGarbageReferencers();
 #endif
 
 	/** Called before ConditionalBeginDestroy phase of garbage collection */
-	static FSimpleMulticastDelegate PreGarbageCollectConditionalBeginDestroy;
+	static COREUOBJECT_API FSimpleMulticastDelegate PreGarbageCollectConditionalBeginDestroy;
 
 	/** Called after ConditionalBeginDestroy phase of garbage collection */
-	static FSimpleMulticastDelegate PostGarbageCollectConditionalBeginDestroy;
+	static COREUOBJECT_API FSimpleMulticastDelegate PostGarbageCollectConditionalBeginDestroy;
 
 	/** Queries whether an object should be loaded on top ( replace ) an already existing one */
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnLoadObjectsOnTop, const FString&);
-	static FOnLoadObjectsOnTop ShouldLoadOnTop;
+	static COREUOBJECT_API FOnLoadObjectsOnTop ShouldLoadOnTop;
 
 	/** Called when path to world root is changed */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FPackageCreatedForLoad, class UPackage*);
-	static FPackageCreatedForLoad PackageCreatedForLoad;
+	static COREUOBJECT_API FPackageCreatedForLoad PackageCreatedForLoad;
 
 	/** Called when trying to figure out if a UObject is a primary asset, if it doesn't implement GetPrimaryAssetId itself */
 	DECLARE_DELEGATE_RetVal_OneParam(FPrimaryAssetId, FGetPrimaryAssetIdForObject, const UObject*);
-	static FGetPrimaryAssetIdForObject GetPrimaryAssetIdForObject;
+	static COREUOBJECT_API FGetPrimaryAssetIdForObject GetPrimaryAssetIdForObject;
 
 	/** Called during cooking to see if a specific package should be cooked for a given target platform */
 	DECLARE_DELEGATE_RetVal_TwoParams(bool, FShouldCookPackageForPlatform, const UPackage*, const ITargetPlatform*);
-	static FShouldCookPackageForPlatform ShouldCookPackageForPlatform;
+	static COREUOBJECT_API FShouldCookPackageForPlatform ShouldCookPackageForPlatform;
 };
 
 /** Allows release builds to override not verifying GC assumptions. Useful for profiling as it's hitchy. */

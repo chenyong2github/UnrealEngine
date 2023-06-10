@@ -69,7 +69,7 @@ namespace UE::CoreUObject::Private
 
 		enum EInvalid { Invalid = 0 };
 
-		explicit COREUOBJECT_API FObjectPathId(EInvalid)
+		explicit FObjectPathId(EInvalid)
 			: Index(0)
 			, Number(SimpleNameMask | WeakObjectMask)
 		{

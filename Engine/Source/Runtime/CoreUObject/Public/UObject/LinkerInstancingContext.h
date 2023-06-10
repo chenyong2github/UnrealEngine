@@ -7,7 +7,7 @@
 /**
  * Helper class to map between an original package and an instance of it (including world partition cells).
  */
-class COREUOBJECT_API FLinkerInstancedPackageMap
+class FLinkerInstancedPackageMap
 {
 public:
 	enum class EInstanceMappingDirection : uint8
@@ -45,11 +45,11 @@ public:
 	}
 
 	/** Add a mapping from a package name to a new package name. There should be no separators (. or :) in these strings. */
-	void AddPackageMapping(FName Original, FName Instanced);
+	COREUOBJECT_API void AddPackageMapping(FName Original, FName Instanced);
 
-	void BuildPackageMapping(FName Original, FName Instanced, const bool bBuildWorldPartitionCellMapping = true);
+	COREUOBJECT_API void BuildPackageMapping(FName Original, FName Instanced, const bool bBuildWorldPartitionCellMapping = true);
 
-	bool FixupSoftObjectPath(FSoftObjectPath& InOutSoftObjectPath) const;
+	COREUOBJECT_API bool FixupSoftObjectPath(FSoftObjectPath& InOutSoftObjectPath) const;
 
 private:
 	friend class FLinkerInstancingContext;

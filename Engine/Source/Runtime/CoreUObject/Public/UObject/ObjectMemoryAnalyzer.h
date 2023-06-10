@@ -79,7 +79,7 @@ struct FObjectMemoryUsage
 /** 
  * Analyzes memory usage of UObjects
  **/
-struct COREUOBJECT_API FObjectMemoryAnalyzer
+struct FObjectMemoryAnalyzer
 {
 	/** Flags to modify the memory counting behavior */
 	struct EAnalyzeFlags
@@ -129,22 +129,22 @@ struct COREUOBJECT_API FObjectMemoryAnalyzer
 		ESortKey::Type SortKey;
 	};
 
-	FObjectMemoryAnalyzer(uint32 Flags = 0);
-	FObjectMemoryAnalyzer(class UClass* BaseClass, uint32 Flags = 0);
-	FObjectMemoryAnalyzer(class UObject* Object, uint32 Flags = 0);
-	FObjectMemoryAnalyzer(const TArray<class UObject*>& ObjectList, uint32 Flags = 0);
+	COREUOBJECT_API FObjectMemoryAnalyzer(uint32 Flags = 0);
+	COREUOBJECT_API FObjectMemoryAnalyzer(class UClass* BaseClass, uint32 Flags = 0);
+	COREUOBJECT_API FObjectMemoryAnalyzer(class UObject* Object, uint32 Flags = 0);
+	COREUOBJECT_API FObjectMemoryAnalyzer(const TArray<class UObject*>& ObjectList, uint32 Flags = 0);
 
 	/** Analyzes the memory usage of the specified object */
-	void AnalyzeObject(class UObject* Object);
+	COREUOBJECT_API void AnalyzeObject(class UObject* Object);
 	/** Analyzes the memory usage of the specified object list */
-	void AnalyzeObjects(const TArray<class UObject*>& ObjectList);
+	COREUOBJECT_API void AnalyzeObjects(const TArray<class UObject*>& ObjectList);
 	/** Analyzes the memory usage of all objects with the specified class */
-	void AnalyzeObjects(class UClass* BaseClass);
+	COREUOBJECT_API void AnalyzeObjects(class UClass* BaseClass);
 
 	/** Returns the results */
-	int32 GetResults(TArray<FObjectMemoryUsage>& Results);
+	COREUOBJECT_API int32 GetResults(TArray<FObjectMemoryUsage>& Results);
 	/** Returns the memory usage of an object not in the result set ( ex. referenced by a result ) */
-	const FObjectMemoryUsage& GetObjectMemoryUsage(class UObject* Obj);
+	COREUOBJECT_API const FObjectMemoryUsage& GetObjectMemoryUsage(class UObject* Obj);
 
 	struct EPrintFlags
 	{
@@ -157,7 +157,7 @@ struct COREUOBJECT_API FObjectMemoryAnalyzer
 		};
 	};
 
-	void PrintResults(FOutputDevice& Ar, uint32 PrintFlags = 0);
+	COREUOBJECT_API void PrintResults(FOutputDevice& Ar, uint32 PrintFlags = 0);
 
 private:
 	int32 GetReferencedObjects(UObject* Obj, TArray<UObject*>& ReferencedObjects);

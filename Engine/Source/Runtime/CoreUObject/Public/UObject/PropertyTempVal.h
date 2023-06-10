@@ -13,20 +13,20 @@ class UObject;
 // A helper struct which owns a single instance of the type pointed to by a property.
 // The instance is properly constructed, destructed and can be serialized and have other
 // functions called on it.
-struct COREUOBJECT_API FPropertyTempVal
+struct FPropertyTempVal
 {
-	explicit FPropertyTempVal(FProperty* InProp);
-	~FPropertyTempVal();
+	COREUOBJECT_API explicit FPropertyTempVal(FProperty* InProp);
+	COREUOBJECT_API ~FPropertyTempVal();
 
 	// Uncopyable
 	FPropertyTempVal(const FPropertyTempVal&) = delete;
 	FPropertyTempVal& operator=(const FPropertyTempVal&) = delete;
 
 	// Serializes the instance
-	void Serialize(FArchive& Ar, const void* Defaults = nullptr);
+	COREUOBJECT_API void Serialize(FArchive& Ar, const void* Defaults = nullptr);
 
 	// Exports the text of the instance
-	void ExportText(FString& ValueStr, const void* Defaults = nullptr, UObject* Parent = nullptr, int32 PortFlags = 0, UObject* ExportRootScope = nullptr);
+	COREUOBJECT_API void ExportText(FString& ValueStr, const void* Defaults = nullptr, UObject* Parent = nullptr, int32 PortFlags = 0, UObject* ExportRootScope = nullptr);
 
 	// Returns a pointer to the internal instance
 	FORCEINLINE void* Get()

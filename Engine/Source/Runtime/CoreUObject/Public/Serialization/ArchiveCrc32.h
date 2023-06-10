@@ -17,13 +17,13 @@ struct CStaticStructProvider;
 /**
 * Calculates a checksum from the input provided to the archive.
 */
-class COREUOBJECT_API FArchiveCrc32 : public FArchiveUObject
+class FArchiveCrc32 : public FArchiveUObject
 {
 public:
 	/**
 	* Default constructor.
 	*/
-	FArchiveCrc32(uint32 InCRC = 0, UObject* InRootObject = nullptr);
+	COREUOBJECT_API FArchiveCrc32(uint32 InCRC = 0, UObject* InRootObject = nullptr);
 
 	/**
 	 * @return The checksum computed so far.
@@ -31,9 +31,9 @@ public:
 	uint32 GetCrc() const { return CRC; }
 
 	//~ Begin FArchive Interface
-	virtual void Serialize(void* Data, int64 Num) override;
-	virtual FArchive& operator<<(class FName& Name);
-	virtual FArchive& operator<<(class UObject*& Object);
+	COREUOBJECT_API virtual void Serialize(void* Data, int64 Num) override;
+	COREUOBJECT_API virtual FArchive& operator<<(class FName& Name);
+	COREUOBJECT_API virtual FArchive& operator<<(class UObject*& Object);
 	virtual FString GetArchiveName() const { return TEXT("FArchiveCrc32"); }
 	//~ End FArchive Interface
 

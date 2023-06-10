@@ -29,7 +29,7 @@ class UObject;
  * and the object resolves to the string `/Path/To/Package`
  * This struct is mirrored and exposed to the UE reflection system in NoExportTypes.h
 */
-struct COREUOBJECT_API FTopLevelAssetPath
+struct FTopLevelAssetPath
 {
 	FTopLevelAssetPath() { }
 	FTopLevelAssetPath(TYPE_OF_NULLPTR) { }
@@ -67,13 +67,13 @@ struct COREUOBJECT_API FTopLevelAssetPath
 	FTopLevelAssetPath& operator=(TYPE_OF_NULLPTR) { Reset(); return *this; }
 
 	/** Sets asset path of this reference based on components. */
-	bool TrySetPath(FName InPackageName, FName InAssetName);
+	COREUOBJECT_API bool TrySetPath(FName InPackageName, FName InAssetName);
 	/** Sets asset path to path of existing object. Sets an empty path and returns false if the object is not a package or the direct inner of a package. */
-	bool TrySetPath(const UObject* InObject);
+	COREUOBJECT_API bool TrySetPath(const UObject* InObject);
 	/** Sets asset path of this reference based on a string path. Resets this object and returns false if the string is empty or does not represent a top level asset path. */
-	bool TrySetPath(FWideStringView Path);
-	bool TrySetPath(FUtf8StringView Path);
-	bool TrySetPath(FAnsiStringView Path);
+	COREUOBJECT_API bool TrySetPath(FWideStringView Path);
+	COREUOBJECT_API bool TrySetPath(FUtf8StringView Path);
+	COREUOBJECT_API bool TrySetPath(FAnsiStringView Path);
 	template<typename CharType,	typename = typename std::enable_if<TIsCharType<CharType>::Value>::type>
 	bool TrySetPath(const CharType* Path) { return TrySetPath(TStringView<CharType>(Path)); }
 	bool TrySetPath(const FString& Path) { return TrySetPath(FStringView(Path)); }
@@ -85,14 +85,14 @@ struct COREUOBJECT_API FTopLevelAssetPath
 	FName GetAssetName() const { return AssetName; }
 
 	/** Append the full asset path (e.g. '/Path/To/Package.AssetName') to the string builder. */
-	void AppendString(FStringBuilderBase& Builder) const;
+	COREUOBJECT_API void AppendString(FStringBuilderBase& Builder) const;
 	/** Append the full asset path (e.g. '/Path/To/Package.AssetName') to the string. */
-	void AppendString(FString& OutString) const;
+	COREUOBJECT_API void AppendString(FString& OutString) const;
 
 	/** Return the full asset path (e.g. '/Path/To/Package.AssetName') as a string. */
-	FString ToString() const;
+	COREUOBJECT_API FString ToString() const;
 	/** Copy the full asset path (e.g. '/Path/To/Package.AssetName') into the provided string. */
-	void ToString(FString& OutString) const;
+	COREUOBJECT_API void ToString(FString& OutString) const;
 
 	// Return the full asset path (e.g. '/Path/To/Package.AssetName') as an FName.
 	UE_DEPRECATED(5.1, "FNames containing full asset paths have been replaced by FTopLevelAssetPath/FSoftLevelObjectPath."
@@ -167,9 +167,9 @@ struct COREUOBJECT_API FTopLevelAssetPath
 		return HashCombineFast(GetTypeHash(This.PackageName), GetTypeHash(This.AssetName));
 	}
 
-	bool ExportTextItem(FString& ValueStr, FTopLevelAssetPath const& DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const;
-	bool ImportTextItem( const TCHAR*& Buffer, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText, FArchive* InSerializingArchive = nullptr );
-	bool SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
+	COREUOBJECT_API bool ExportTextItem(FString& ValueStr, FTopLevelAssetPath const& DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const;
+	COREUOBJECT_API bool ImportTextItem( const TCHAR*& Buffer, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText, FArchive* InSerializingArchive = nullptr );
+	COREUOBJECT_API bool SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
 
 private:
 	/** Name of the package containing the asset e.g. /Path/To/Package */

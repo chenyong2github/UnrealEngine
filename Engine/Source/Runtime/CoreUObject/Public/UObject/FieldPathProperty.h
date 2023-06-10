@@ -24,9 +24,9 @@ struct FPropertyTag;
 // need to break this out a different type so that the DECLARE_CASTED_CLASS_INTRINSIC macro can digest the comma
 typedef TProperty<FFieldPath, FProperty> FFieldPathProperty_Super;
 
-class COREUOBJECT_API FFieldPathProperty : public FFieldPathProperty_Super
+class FFieldPathProperty : public FFieldPathProperty_Super
 {
-	DECLARE_FIELD(FFieldPathProperty, FFieldPathProperty_Super, CASTCLASS_FFieldPathProperty)
+	DECLARE_FIELD_API(FFieldPathProperty, FFieldPathProperty_Super, CASTCLASS_FFieldPathProperty, COREUOBJECT_API)
 
 public:
 
@@ -40,7 +40,7 @@ public:
 	}
 
 	UE_DEPRECATED(5.1, "Compiled-in property constructor is deprecated, use other constructors instead.")
-	FFieldPathProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, FFieldClass* InPropertyClass)
+	COREUOBJECT_API FFieldPathProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags, FFieldClass* InPropertyClass)
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: FFieldPathProperty_Super(InOwner, InName, InObjectFlags, InOffset, InFlags)
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -56,30 +56,30 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	FFieldPathProperty(FFieldVariant InOwner, const UECodeGen_Private::FFieldPathPropertyParams& Prop);
 
 #if WITH_EDITORONLY_DATA
-	explicit FFieldPathProperty(UField* InField);
+	COREUOBJECT_API explicit FFieldPathProperty(UField* InField);
 #endif // WITH_EDITORONLY_DATA
 
 	FFieldClass* PropertyClass;
 
 	// UHT interface
-	virtual FString GetCPPMacroType(FString& ExtendedTypeText) const  override;
-	virtual FString GetCPPTypeForwardDeclaration() const override;
-	virtual FString GetCPPType(FString* ExtendedTypeText = nullptr, uint32 CPPExportFlags = 0) const override;
+	COREUOBJECT_API virtual FString GetCPPMacroType(FString& ExtendedTypeText) const  override;
+	COREUOBJECT_API virtual FString GetCPPTypeForwardDeclaration() const override;
+	COREUOBJECT_API virtual FString GetCPPType(FString* ExtendedTypeText = nullptr, uint32 CPPExportFlags = 0) const override;
 	// End of UHT interface
 
 	// FProperty interface
-	virtual EConvertFromTypeResult ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct) override;
-	virtual bool Identical( const void* A, const void* B, uint32 PortFlags ) const override;
-	virtual void SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const override;
-	virtual void ExportText_Internal( FString& ValueStr, const void* PropertyValueOrContainer, EPropertyPointerType PropertyPointerType, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const override;
-	virtual const TCHAR* ImportText_Internal(const TCHAR* Buffer, void* ContainerOrPropertyPtr, EPropertyPointerType PropertyPointerType, UObject* OwnerObject, int32 PortFlags, FOutputDevice* ErrorText) const override;
-	virtual void Serialize(FArchive& Ar) override;
-	virtual bool ContainsObjectReference(TArray<const FStructProperty*>& EncounteredStructProps, EPropertyObjectReferenceType InReferenceType = EPropertyObjectReferenceType::Strong) const override;
-	virtual void EmitReferenceInfo(UE::GC::FSchemaBuilder& Schema, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, UE::GC::FPropertyStack& DebugPath) override;
-	virtual bool SupportsNetSharedSerialization() const override;
+	COREUOBJECT_API virtual EConvertFromTypeResult ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct) override;
+	COREUOBJECT_API virtual bool Identical( const void* A, const void* B, uint32 PortFlags ) const override;
+	COREUOBJECT_API virtual void SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const override;
+	COREUOBJECT_API virtual void ExportText_Internal( FString& ValueStr, const void* PropertyValueOrContainer, EPropertyPointerType PropertyPointerType, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const override;
+	COREUOBJECT_API virtual const TCHAR* ImportText_Internal(const TCHAR* Buffer, void* ContainerOrPropertyPtr, EPropertyPointerType PropertyPointerType, UObject* OwnerObject, int32 PortFlags, FOutputDevice* ErrorText) const override;
+	COREUOBJECT_API virtual void Serialize(FArchive& Ar) override;
+	COREUOBJECT_API virtual bool ContainsObjectReference(TArray<const FStructProperty*>& EncounteredStructProps, EPropertyObjectReferenceType InReferenceType = EPropertyObjectReferenceType::Strong) const override;
+	COREUOBJECT_API virtual void EmitReferenceInfo(UE::GC::FSchemaBuilder& Schema, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, UE::GC::FPropertyStack& DebugPath) override;
+	COREUOBJECT_API virtual bool SupportsNetSharedSerialization() const override;
 	// End of FProperty interface
 
-	static FString RedirectFieldPathName(const FString& InPathName);
+	static COREUOBJECT_API FString RedirectFieldPathName(const FString& InPathName);
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

@@ -9,7 +9,7 @@
 
 DECLARE_LOG_CATEGORY_EXTERN(LogLoadingDev, Fatal, All);
 
-class COREUOBJECT_API FAsyncArchive final: public FArchive
+class FAsyncArchive final: public FArchive
 {
 public:
 	enum class ELoadPhase
@@ -30,13 +30,13 @@ public:
 	};
 
 	FAsyncArchive(const FPackagePath& InPackagePath, FLinkerLoad* InOwner, TFunction<void()>&& InSummaryReadyCallback);
-	virtual ~FAsyncArchive ();
+	COREUOBJECT_API virtual ~FAsyncArchive ();
 
 	/** Archive overrides */
-	virtual bool Close() override;
-	virtual bool SetCompressionMap(TArray<FCompressedChunk>* CompressedChunks, ECompressionFlags CompressionFlags) override;
-	virtual bool Precache(int64 PrecacheOffset, int64 PrecacheSize) override;
-	virtual void Serialize(void* Data, int64 Num) override;
+	COREUOBJECT_API virtual bool Close() override;
+	COREUOBJECT_API virtual bool SetCompressionMap(TArray<FCompressedChunk>* CompressedChunks, ECompressionFlags CompressionFlags) override;
+	COREUOBJECT_API virtual bool Precache(int64 PrecacheOffset, int64 PrecacheSize) override;
+	COREUOBJECT_API virtual void Serialize(void* Data, int64 Num) override;
 	FORCEINLINE virtual int64 Tell() override
 	{
 #if DEVIRTUALIZE_FLinkerLoad_Serialize
@@ -45,23 +45,23 @@ public:
 		return CurrentPos;
 #endif
 	}
-	virtual int64 TotalSize() override;
-	virtual void Seek(int64 InPos) override;
-	virtual void FlushCache() override;
+	COREUOBJECT_API virtual int64 TotalSize() override;
+	COREUOBJECT_API virtual void Seek(int64 InPos) override;
+	COREUOBJECT_API virtual void FlushCache() override;
 	virtual FString GetArchiveName() const override 
 	{
 		return PackagePath.GetDebugName();
 	}
 
 	/** AsyncArchive interface */
-	bool PrecacheWithTimeLimit(int64 PrecacheOffset, int64 PrecacheSize, bool bUseTimeLimit, bool bUseFullTimeLimit, double TickStartTime, double TimeLimit);
-	bool PrecacheForEvent(IAsyncReadRequest* Read, int64 PrecacheOffset, int64 PrecacheSize);
-	void FlushPrecacheBlock();
-	bool ReadyToStartReadingHeader(bool bUseTimeLimit, bool bUseFullTimeLimit, double TickStartTime, double TimeLimit);
-	void StartReadingHeader();
-	void EndReadingHeader();
-	IAsyncReadRequest* MakeEventDrivenPrecacheRequest(int64 Offset, int64 BytesToRead, FAsyncFileCallBack* CompleteCallback);
-	void LogItem(const TCHAR* Item, int64 Offset = 0, int64 Size = 0, double StartTime = 0.0);
+	COREUOBJECT_API bool PrecacheWithTimeLimit(int64 PrecacheOffset, int64 PrecacheSize, bool bUseTimeLimit, bool bUseFullTimeLimit, double TickStartTime, double TimeLimit);
+	COREUOBJECT_API bool PrecacheForEvent(IAsyncReadRequest* Read, int64 PrecacheOffset, int64 PrecacheSize);
+	COREUOBJECT_API void FlushPrecacheBlock();
+	COREUOBJECT_API bool ReadyToStartReadingHeader(bool bUseTimeLimit, bool bUseFullTimeLimit, double TickStartTime, double TimeLimit);
+	COREUOBJECT_API void StartReadingHeader();
+	COREUOBJECT_API void EndReadingHeader();
+	COREUOBJECT_API IAsyncReadRequest* MakeEventDrivenPrecacheRequest(int64 Offset, int64 BytesToRead, FAsyncFileCallBack* CompleteCallback);
+	COREUOBJECT_API void LogItem(const TCHAR* Item, int64 Offset = 0, int64 Size = 0, double StartTime = 0.0);
 
 	bool IsCookedForEDLInEditor() const
 	{
@@ -83,19 +83,19 @@ private:
 	/**
 	* Updates CurrentPos based on StartFastPathLoadBuffer and sets both StartFastPathLoadBuffer and EndFastPathLoadBuffer to null
 	*/
-	void DiscardInlineBufferAndUpdateCurrentPos();
+	COREUOBJECT_API void DiscardInlineBufferAndUpdateCurrentPos();
 
-	void SetPosAndUpdatePrecacheBuffer(int64 Pos);
+	COREUOBJECT_API void SetPosAndUpdatePrecacheBuffer(int64 Pos);
 
 #endif
-	void FirstExportStarting();
-	bool WaitRead(double TimeLimit = 0.0);
-	void CompleteRead();
-	void CancelRead();
-	void CompleteCancel();
-	bool WaitForIntialPhases(double TimeLimit = 0.0);
-	void ReadCallback(bool bWasCancelled, IAsyncReadRequest*);
-	bool PrecacheInternal(int64 PrecacheOffset, int64 PrecacheSize, bool bApplyMinReadSize = true, IAsyncReadRequest* Read = nullptr);
+	COREUOBJECT_API void FirstExportStarting();
+	COREUOBJECT_API bool WaitRead(double TimeLimit = 0.0);
+	COREUOBJECT_API void CompleteRead();
+	COREUOBJECT_API void CancelRead();
+	COREUOBJECT_API void CompleteCancel();
+	COREUOBJECT_API bool WaitForIntialPhases(double TimeLimit = 0.0);
+	COREUOBJECT_API void ReadCallback(bool bWasCancelled, IAsyncReadRequest*);
+	COREUOBJECT_API bool PrecacheInternal(int64 PrecacheOffset, int64 PrecacheSize, bool bApplyMinReadSize = true, IAsyncReadRequest* Read = nullptr);
 	
 	FORCEINLINE int64 TotalSizeOrMaxInt64IfNotReady()
 	{
@@ -156,14 +156,14 @@ private:
  * to file relative offsets when exports are cooked to separate
  * archives.
  */
-class COREUOBJECT_API FLinkerExportArchive final
+class FLinkerExportArchive final
 	: public FArchiveProxy
 {
 public:
 	FLinkerExportArchive(class FLinkerLoad& InLinker, int64 InExportSerialOffset, int64 InExportSerialSize);
 
-	virtual int64 Tell() override;
-	virtual void Seek(int64 Position) override;
+	COREUOBJECT_API virtual int64 Tell() override;
+	COREUOBJECT_API virtual void Seek(int64 Position) override;
 
 private:
 	int64 ExportSerialOffset;

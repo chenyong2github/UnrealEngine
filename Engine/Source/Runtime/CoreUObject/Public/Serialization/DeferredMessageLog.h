@@ -23,7 +23,7 @@ class FTokenizedMessage;
  * finished to prevent modules from being loaded outside of game thread.
  * Also makes sure the messages are added to the message queue in a thread-safe way.
 */
-class COREUOBJECT_API FDeferredMessageLog
+class FDeferredMessageLog
 {
 	FName LogCategory;
 
@@ -33,12 +33,12 @@ class COREUOBJECT_API FDeferredMessageLog
 	void AddMessage(TSharedRef<FTokenizedMessage>& Message);
 
 public:
-	FDeferredMessageLog(const FName& InLogCategory);
+	COREUOBJECT_API FDeferredMessageLog(const FName& InLogCategory);
 	
-	TSharedRef<FTokenizedMessage> Info(const FText& Message);
-	TSharedRef<FTokenizedMessage> Warning(const FText& Message);
-	TSharedRef<FTokenizedMessage> Error(const FText& Message);
+	COREUOBJECT_API TSharedRef<FTokenizedMessage> Info(const FText& Message);
+	COREUOBJECT_API TSharedRef<FTokenizedMessage> Warning(const FText& Message);
+	COREUOBJECT_API TSharedRef<FTokenizedMessage> Error(const FText& Message);
 
-	static void Flush();
-	static void Cleanup();
+	static COREUOBJECT_API void Flush();
+	static COREUOBJECT_API void Cleanup();
 };

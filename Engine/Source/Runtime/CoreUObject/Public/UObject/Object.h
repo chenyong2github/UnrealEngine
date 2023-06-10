@@ -82,10 +82,10 @@ ENUM_CLASS_FLAGS(EEditChangePropagationFlags);
  * 
  * @see https://docs.unrealengine.com/ProgrammingAndScripting/ProgrammingWithCPP/UnrealArchitecture/Objects
  */
-class COREUOBJECT_API UObject : public UObjectBaseUtility
+class UObject : public UObjectBaseUtility
 {
 	// Declarations, normally created by UnrealHeaderTool boilerplate code
-	DECLARE_CLASS(UObject,UObject,CLASS_Abstract|CLASS_Intrinsic|CLASS_MatchedSerializers,CASTCLASS_None,TEXT("/Script/CoreUObject"),NO_API)
+	DECLARE_CLASS(UObject,UObject,CLASS_Abstract|CLASS_Intrinsic|CLASS_MatchedSerializers,CASTCLASS_None,TEXT("/Script/CoreUObject"),COREUOBJECT_API)
 	DEFINE_DEFAULT_OBJECT_INITIALIZER_CONSTRUCTOR_CALL(UObject)
 	typedef UObject WithinClass;
 	static UObject* __VTableCtorCaller(FVTableHelper& Helper)
@@ -101,20 +101,20 @@ class COREUOBJECT_API UObject : public UObjectBaseUtility
 	}
 
 	/** Default constructor */
-	UObject();
+	COREUOBJECT_API UObject();
 
 	/** 
 	 *  Constructor that takes an ObjectInitializer. 
 	 *  Typically not needed, but can be useful for class hierarchies that support
 	 *  optional subobjects or subobject class overriding
 	 */
-	UObject(const FObjectInitializer& ObjectInitializer);
+	COREUOBJECT_API UObject(const FObjectInitializer& ObjectInitializer);
 
 	/** DO NOT USE. This constructor is for internal usage only for statically-created objects. */
-	UObject(EStaticConstructor, EObjectFlags InFlags);
+	COREUOBJECT_API UObject(EStaticConstructor, EObjectFlags InFlags);
 
 	/** DO NOT USE. This constructor is for internal usage only for hot-reload purposes. */
-	UObject(FVTableHelper& Helper);
+	COREUOBJECT_API UObject(FVTableHelper& Helper);
 
 	UE_DEPRECATED(4.23, "CreateDefaultSubobject no longer takes bAbstract as a parameter.")
 	UObject* CreateDefaultSubobject(FName SubobjectFName, UClass* ReturnType, UClass* ClassToCreateByDefault, bool bIsRequired, bool bAbstract, bool bIsTransient)
@@ -123,7 +123,7 @@ class COREUOBJECT_API UObject : public UObjectBaseUtility
 	}
 
 	/** Utility function for templates below */
-	UObject* CreateDefaultSubobject(FName SubobjectFName, UClass* ReturnType, UClass* ClassToCreateByDefault, bool bIsRequired, bool bIsTransient);
+	COREUOBJECT_API UObject* CreateDefaultSubobject(FName SubobjectFName, UClass* ReturnType, UClass* ClassToCreateByDefault, bool bIsRequired, bool bIsTransient);
 
 	/**
 	 * Create a component or subobject only to be used with the editor. They will be stripped out in packaged builds.
@@ -209,13 +209,13 @@ class COREUOBJECT_API UObject : public UObjectBaseUtility
 	 * Gets all default subobjects associated with this object instance.
 	 * @param	OutDefaultSubobjects	Array containing all default subobjects of this object.
 	 */
-	void GetDefaultSubobjects(TArray<UObject*>& OutDefaultSubobjects);
+	COREUOBJECT_API void GetDefaultSubobjects(TArray<UObject*>& OutDefaultSubobjects);
 
 	/**
 	 * Finds a subobject associated with this object instance by its name
 	 * @param	Name	Object name to look for
 	 */
-	UObject* GetDefaultSubobjectByName(FName ToFind);
+	COREUOBJECT_API UObject* GetDefaultSubobjectByName(FName ToFind);
 
 	/*----------------------------------
 			UObject interface
@@ -233,13 +233,13 @@ public:
 	 * Called after the C++ constructor and after the properties have been initialized, including those loaded from config.
 	 * This is called before any serialization or other setup has happened.
 	 */
-	virtual void PostInitProperties();
+	COREUOBJECT_API virtual void PostInitProperties();
 	
 	/**
 	 * Called after properties are overwritten, including after subobjects initialization from a CDO.
 	 * This could be called multiple times during an object lifetime, which is not the case for PostInitProperties which is expected to be called only once.
 	 */
-	virtual void PostReinitProperties();
+	COREUOBJECT_API virtual void PostReinitProperties();
 
 	/**
 	* Called after the C++ constructor has run on the Class Default Object (CDO) for a class. This is an obscure routine used to deal with the recursion 
@@ -272,7 +272,7 @@ public:
 #endif
 
 	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
-	virtual bool PreSaveRoot(const TCHAR* Filename);
+	COREUOBJECT_API virtual bool PreSaveRoot(const TCHAR* Filename);
 
 	/**
 	 * Called from within SavePackage on the passed in base/root object. The return value of this function will be passed to PostSaveRoot. 
@@ -281,10 +281,10 @@ public:
 	 * @param	ObjectSaveContext Context providing access to parameters of the save,
 	*							  Also allows storage of variables like bCleanupIsRequired for use in PostSaveRoot
 	 */
-	virtual void PreSaveRoot(FObjectPreSaveRootContext ObjectSaveContext);
+	COREUOBJECT_API virtual void PreSaveRoot(FObjectPreSaveRootContext ObjectSaveContext);
 
 	UE_DEPRECATED(5.0, "Use version that takes FObjectPostSaveContext instead.")
-	virtual void PostSaveRoot(bool bCleanupIsRequired);
+	COREUOBJECT_API virtual void PostSaveRoot(bool bCleanupIsRequired);
 
 	/**
 	 * Called from within SavePackage on the passed in base/root object. 
@@ -292,10 +292,10 @@ public:
 	 *
 	 * @param	ObjectSaveContext Context providing access to parameters of the save and to values from PreSaveRoot
 	 */
-	virtual void PostSaveRoot(FObjectPostSaveRootContext ObjectSaveContext);
+	COREUOBJECT_API virtual void PostSaveRoot(FObjectPostSaveRootContext ObjectSaveContext);
 
 	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
-	virtual void PreSave(const class ITargetPlatform* TargetPlatform);
+	COREUOBJECT_API virtual void PreSave(const class ITargetPlatform* TargetPlatform);
 
 	/**
 	 * Presave function. Gets called once before an object gets serialized for saving. This function is necessary
@@ -303,7 +303,7 @@ public:
 	 *
 	 * @warning: Objects created from within PreSave will NOT have PreSave called on them!!!
 	 */
-	virtual void PreSave(FObjectPreSaveContext SaveContext);
+	COREUOBJECT_API virtual void PreSave(FObjectPreSaveContext SaveContext);
 
 #if WITH_EDITOR
 	/**
@@ -315,13 +315,13 @@ public:
 	 *								currently recording an active undo/redo transaction
 	 * @return true if the object was saved to the transaction buffer
 	 */
-	virtual bool Modify( bool bAlwaysMarkDirty=true );
+	COREUOBJECT_API virtual bool Modify( bool bAlwaysMarkDirty=true );
 
 	/** Method to disable the sub object special handling in the transaction buffer for this object*/
-	virtual bool IsCapturingAsRootObjectForTransaction() const;
+	COREUOBJECT_API virtual bool IsCapturingAsRootObjectForTransaction() const;
 
 	/** Utility to allow overrides of Modify to avoid doing work if this object cannot be safely modified */
-	bool CanModify() const;
+	COREUOBJECT_API bool CanModify() const;
 #else
 	FORCEINLINE bool Modify(bool bAlwaysMarkDirty = true) { return false; }
 	FORCEINLINE bool IsCapturingAsRootObjectForTransaction() const { return false; };
@@ -357,7 +357,7 @@ public:
 	 * Do any object-specific cleanup required immediately after loading an object.
 	 * This is not called for newly-created objects, and by default will always execute on the game thread.
 	 */
-	virtual void PostLoad();
+	COREUOBJECT_API virtual void PostLoad();
 
 	/**
 	 * Instances components for objects being loaded from disk, if necessary.  Ensures that component references
@@ -366,13 +366,13 @@ public:
 	 * @param	OuterInstanceGraph	when calling this method on subobjects, specifies the instancing graph which contains all instanced
 	 *								subobjects and components for a subobject root.
 	 */
-	virtual void PostLoadSubobjects(FObjectInstancingGraph* OuterInstanceGraph);
+	COREUOBJECT_API virtual void PostLoadSubobjects(FObjectInstancingGraph* OuterInstanceGraph);
 	
 	/**
 	 * Called before destroying the object.  This is called immediately upon deciding to destroy the object, to allow the object to begin an
 	 * asynchronous cleanup process.
 	 */
-	virtual void BeginDestroy();
+	COREUOBJECT_API virtual void BeginDestroy();
 
 	/**
 	 * Called to check if the object is ready for FinishDestroy.  This is called after BeginDestroy to check the completion of the
@@ -393,27 +393,27 @@ public:
 	 *
 	 * @warning Because properties are destroyed here, Super::FinishDestroy() should always be called at the end of your child class's FinishDestroy() method, rather than at the beginning.
 	 */
-	virtual void FinishDestroy();
+	COREUOBJECT_API virtual void FinishDestroy();
 
 	/** 
 	 * Handles reading, writing, and reference collecting using FArchive.
 	 * This implementation handles all FProperty serialization, but can be overridden for native variables.
 	 */
-	virtual void Serialize(FArchive& Ar);
-	virtual void Serialize(FStructuredArchive::FRecord Record);
+	COREUOBJECT_API virtual void Serialize(FArchive& Ar);
+	COREUOBJECT_API virtual void Serialize(FStructuredArchive::FRecord Record);
 #if WITH_EDITORONLY_DATA
 	/**
 	 * Call Ar.UsingCustomVersion for every CustomVersion that might be serialized by this class when saving.
 	 * This duplicates CustomVersions declared in Serialize; Serialize still needs to declare them.
 	 * Used to track which customversions will be used by a package when it is resaved.
 	 * Not yet exhaustive; add CustomVersions as necessary to remove EditorDomain warnings about missing versions. */
-	static void DeclareCustomVersions(FArchive& Ar, const UClass* SpecificSubclass);
+	static COREUOBJECT_API void DeclareCustomVersions(FArchive& Ar, const UClass* SpecificSubclass);
 	/**
 	 * Append config values or settings that can change how instances of the class are cooked, including especially
 	 * values that determine how version upgraded are conducted. Can also append a unique guid when necessary to
 	 * invalidate previous results because serialization changed and no custom version was udpated.
 	 */
-	static void AppendToClassSchema(FAppendToClassSchemaContext& Context);
+	static COREUOBJECT_API void AppendToClassSchema(FAppendToClassSchemaContext& Context);
 	/**
 	 * Declare classes that can be constructed by this class during loading. This declaration is implicitly transitive;
 	 * the caller is responsible for following the graph of ConstructClasses to find all transitive ConstructClasses.
@@ -422,7 +422,7 @@ public:
 	 * @param SpecificSubclass The class on which DeclaredConstructClasses was called. This can differ from the current
 	 *        class because each class calls Super::DeclareConstructClasses.
 	 */
-	static void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
+	static COREUOBJECT_API void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
 #endif
 
 	/** After a critical error, perform any mission-critical cleanup, such as restoring the video mode orreleasing hardware resources. */
@@ -437,7 +437,7 @@ public:
 	 *
 	 * @param PropertyThatWillChange	Property that will be changed
 	 */
-	virtual void PreEditChange(FProperty* PropertyAboutToChange);
+	COREUOBJECT_API virtual void PreEditChange(FProperty* PropertyAboutToChange);
 
 	/**
 	 * This alternate version of PreEditChange is called when properties inside structs are modified.  The property that was actually modified
@@ -445,7 +445,7 @@ public:
 	 *
 	 * @param PropertyAboutToChange the property that is about to be modified
 	 */
-	virtual void PreEditChange( class FEditPropertyChain& PropertyAboutToChange );
+	COREUOBJECT_API virtual void PreEditChange( class FEditPropertyChain& PropertyAboutToChange );
 
 	/**
 	 * Called by the editor to query whether a property of this object is allowed to be modified.
@@ -456,7 +456,7 @@ public:
 	 *
 	 * @return	true if the property can be modified in the editor, otherwise false
 	 */
-	virtual bool CanEditChange( const FProperty* InProperty ) const;
+	COREUOBJECT_API virtual bool CanEditChange( const FProperty* InProperty ) const;
 
 	/**
 	 * Alternate version of CanEditChange that includes the full property chain leading to the property in question.
@@ -467,50 +467,50 @@ public:
 	 *
 	 * @return	true if the property can be modified in the editor, otherwise false
 	 */
-	virtual bool CanEditChange(const FEditPropertyChain& PropertyChain) const;
+	COREUOBJECT_API virtual bool CanEditChange(const FEditPropertyChain& PropertyChain) const;
 
 	/** 
 	 * Intentionally non-virtual as it calls the FPropertyChangedEvent version
 	 */
-	void PostEditChange();
+	COREUOBJECT_API void PostEditChange();
 
 	/**
 	 * Called when a property on this object has been modified externally
 	 *
 	 * @param PropertyThatChanged the property that was modified
 	 */
-	virtual void PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent);
+	COREUOBJECT_API virtual void PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent);
 
 	/**
 	 * This alternate version of PostEditChange is called when properties inside structs are modified.  The property that was actually modified
 	 * is located at the tail of the list.  The head of the list of the FStructProperty member variable that contains the property that was modified.
 	 */
-	virtual void PostEditChangeChainProperty( struct FPropertyChangedChainEvent& PropertyChangedEvent );
+	COREUOBJECT_API virtual void PostEditChangeChainProperty( struct FPropertyChangedChainEvent& PropertyChangedEvent );
 
 	/** Called to set the flags that control how editor change events get propagated to archetype instances. */
-	void SetEditChangePropagationFlags(EEditChangePropagationFlags InFlags);
+	COREUOBJECT_API void SetEditChangePropagationFlags(EEditChangePropagationFlags InFlags);
 
 	/** Called before applying a transaction to the object.  Default implementation simply calls PreEditChange. */
-	virtual void PreEditUndo();
+	COREUOBJECT_API virtual void PreEditUndo();
 
 	/** Called after applying a transaction to the object.  Default implementation simply calls PostEditChange. */
-	virtual void PostEditUndo();
+	COREUOBJECT_API virtual void PostEditUndo();
 
 	/** Called after applying a transaction to the object in cases where transaction annotation was provided. Default implementation simply calls PostEditChange. */
-	virtual void PostEditUndo(TSharedPtr<ITransactionObjectAnnotation> TransactionAnnotation);
+	COREUOBJECT_API virtual void PostEditUndo(TSharedPtr<ITransactionObjectAnnotation> TransactionAnnotation);
 
 	/**
 	 * Called after the object has been transacted in some way.
 	 * TransactionEvent describes what actually happened.
 	 * @note Unlike PostEditUndo (which is called for any object in the transaction), this is only called on objects that are actually changed by the transaction.
 	 */
-	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent);
+	COREUOBJECT_API virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent);
 
 	/** Find or create and populate an annotation object with any external data required for applying a transaction */
-	TSharedPtr<ITransactionObjectAnnotation> FindOrCreateTransactionAnnotation() const;
+	COREUOBJECT_API TSharedPtr<ITransactionObjectAnnotation> FindOrCreateTransactionAnnotation() const;
 
 	/** Create and restore a previously serialized annotation object with any external data required for applying a transaction */
-	TSharedPtr<ITransactionObjectAnnotation> CreateAndRestoreTransactionAnnotation(FArchive& Ar) const;
+	COREUOBJECT_API TSharedPtr<ITransactionObjectAnnotation> CreateAndRestoreTransactionAnnotation(FArchive& Ar) const;
 
 protected:
 	/** Factory a new annotation object and optionally populate it with data */
@@ -523,7 +523,7 @@ protected:
 	 * @return		true if the object is selected, false otherwise.
 	 * @todo UE	 this doesn't belong here, but it doesn't belong anywhere else any better
 	 */
-	virtual bool IsSelectedInEditor() const;
+	COREUOBJECT_API virtual bool IsSelectedInEditor() const;
 
 public:
 #endif // WITH_EDITOR
@@ -556,7 +556,7 @@ public:
 	 *
 	 * @return	true if this object should be loaded on clients
 	 */
-	virtual bool NeedsLoadForClient() const;
+	COREUOBJECT_API virtual bool NeedsLoadForClient() const;
 
 	/**
 	 * Called during saving to determine the load flags to save with the object.
@@ -564,7 +564,7 @@ public:
 	 *
 	 * @return	true if this object should be loaded on servers
 	 */
-	virtual bool NeedsLoadForServer() const;
+	COREUOBJECT_API virtual bool NeedsLoadForServer() const;
 
 	/**
 	 * Called during saving to determine the load flags to save with the object.
@@ -572,7 +572,7 @@ public:
 	 *
 	 * @return	true if this object should be loaded on the target platform
 	 */
-	virtual bool NeedsLoadForTargetPlatform(const class ITargetPlatform* TargetPlatform) const;
+	COREUOBJECT_API virtual bool NeedsLoadForTargetPlatform(const class ITargetPlatform* TargetPlatform) const;
 
 	/**
 	 * Called during saving to include this object in client/servers running in editor builds, even if they wouldn't normally be.
@@ -621,14 +621,14 @@ public:
 	*
 	* @return	true if this object's destructor is thread safe
 	*/
-	virtual bool IsDestructionThreadSafe() const;
+	COREUOBJECT_API virtual bool IsDestructionThreadSafe() const;
 
 	/**
 	* Called during cooking. Must return all objects that will be Preload()ed when this is serialized at load time. Only used by the EDL.
 	*
 	* @param	OutDeps				all objects that will be preloaded when this is serialized at load time
 	*/
-	virtual void GetPreloadDependencies(TArray<UObject*>& OutDeps);
+	COREUOBJECT_API virtual void GetPreloadDependencies(TArray<UObject*>& OutDeps);
 
 	/**
 	* Called during cooking. Returns a list of objects. The packages containing those objects will be prestreamed, when the package containing this is loaded. Only used by the EDL.
@@ -642,18 +642,18 @@ public:
 	/**
 	*	Update the list of classes that we should exclude from dedicated server builds
 	*/
-	static void UpdateClassesExcludedFromDedicatedServer(const TArray<FString>& InClassNames, const TArray<FString>& InModulesNames);
+	static COREUOBJECT_API void UpdateClassesExcludedFromDedicatedServer(const TArray<FString>& InClassNames, const TArray<FString>& InModulesNames);
 
 	/**
 	*	Update the list of classes that we should exclude from dedicated client builds
 	*/
-	static void UpdateClassesExcludedFromDedicatedClient(const TArray<FString>& InClassNames, const TArray<FString>& InModulesNames);
+	static COREUOBJECT_API void UpdateClassesExcludedFromDedicatedClient(const TArray<FString>& InClassNames, const TArray<FString>& InModulesNames);
 
 	/** 
 	 *	Determines if you can create an object from the supplied template in the current context (editor, client only, dedicated server, game/listen) 
 	 *	This calls NeedsLoadForClient & NeedsLoadForServer
 	 */
-	static bool CanCreateInCurrentContext(UObject* Template);
+	static COREUOBJECT_API bool CanCreateInCurrentContext(UObject* Template);
 
 	/**
 	 * Exports the property values for the specified object as text to the output device.
@@ -697,13 +697,13 @@ public:
 	 * @param	NewOuter	New Outer this object will be placed within, if null it will use the current outer
 	 * @param	Flags		Flags to specify what happens during the rename
 	 */
-	virtual bool Rename(const TCHAR* NewName=nullptr, UObject* NewOuter=nullptr, ERenameFlags Flags=REN_None);
+	COREUOBJECT_API virtual bool Rename(const TCHAR* NewName=nullptr, UObject* NewOuter=nullptr, ERenameFlags Flags=REN_None);
 
 	/** Return a one line description of an object for viewing in the thumbnail view of the generic browser */
 	virtual FString GetDesc() { return TEXT( "" ); }
 
 	/** Return the UStruct corresponding to the sidecar data structure that stores data that is constant for all instances of this class. */
-	UScriptStruct* GetSparseClassDataStruct() const;
+	COREUOBJECT_API UScriptStruct* GetSparseClassDataStruct() const;
 
 #if WITH_EDITOR
 	virtual void MoveDataToSparseClassDataStruct() const {}
@@ -715,14 +715,14 @@ public:
 	 * Returns what UWorld this object is contained within. 
 	 * By default this will follow its Outer chain, but it should be overridden if that will not work.
 	 */
-	virtual class UWorld* GetWorld() const;
+	COREUOBJECT_API virtual class UWorld* GetWorld() const;
 
 	/** Internal function used by UEngine::GetWorldFromContextObject() */
-	class UWorld* GetWorldChecked(bool& bSupported) const;
+	COREUOBJECT_API class UWorld* GetWorldChecked(bool& bSupported) const;
 
 #if WITH_EDITOR
 	/** Checks to see if GetWorld() is implemented on a specific class. Optionally overridable in derived classes. */
-	virtual bool ImplementsGetWorld() const;
+	COREUOBJECT_API virtual bool ImplementsGetWorld() const;
 #endif // #if WITH_EDITOR
 
 #endif // #if WITH_ENGINE
@@ -750,7 +750,7 @@ public:
 	 *
 	 * @param	CumulativeResourceSize	Struct used to count up the cumulative size of the resource as to be displayed to artists/LDs in the Editor.
 	 */
-	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize);
+	COREUOBJECT_API virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize);
 
 	/**
 	 * Get the size of the object/resource for use in memory tools or to display to artists/LDs in the Editor
@@ -782,14 +782,14 @@ public:
 	 * @param InThis Object to collect references from.
 	 * @param Collector	FReferenceCollector objects to be used to collect references.
 	 */
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	static COREUOBJECT_API void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 
 	/**
 	 * Helper function to call AddReferencedObjects for this object's class.
 	 *
 	 * @param Collector	FReferenceCollector objects to be used to collect references.
 	 */
-	void CallAddReferencedObjects(FReferenceCollector& Collector);
+	COREUOBJECT_API void CallAddReferencedObjects(FReferenceCollector& Collector);
 
 	/**
 	 * Save information for StaticAllocateObject in the case of overwriting an existing object.
@@ -879,7 +879,7 @@ public:
 	 *
 	 * @param	OutTags		A list of key-value pairs associated with this object and their types
 	 */
-	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const;
+	COREUOBJECT_API virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const;
 
 	UE_DEPRECATED(5.1, "Use the new GetExtendedAssetRegistryTagsForSave that takes a TargetPlatform")
 	virtual void GetExternalActorExtendedAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const {}
@@ -891,18 +891,18 @@ public:
 	 * @param	TargetPlatform	The platform that this object is being saved for.
 	 * @param	OutTags			A list of key-value pairs associated with this object and their types
 	 */
-	virtual void GetExtendedAssetRegistryTagsForSave(const ITargetPlatform* TargetPlatform, TArray<FAssetRegistryTag>& OutTags) const;
+	COREUOBJECT_API virtual void GetExtendedAssetRegistryTagsForSave(const ITargetPlatform* TargetPlatform, TArray<FAssetRegistryTag>& OutTags) const;
 #endif // WITH_EDITOR
 
 	/** Gathers a list of asset registry tags for an FAssetData  */
-	void GetAssetRegistryTags(FAssetData& Out) const;
+	COREUOBJECT_API void GetAssetRegistryTags(FAssetData& Out) const;
 
 	/** Get the common tag name used for all asset source file import paths */
-	static const FName& SourceFileTagName();
+	static COREUOBJECT_API const FName& SourceFileTagName();
 
 #if UE_USE_VERSE_PATHS
 	/** Get the common tag name used for all asset verse paths */
-	static const FName& AssetVersePathTagName();
+	static COREUOBJECT_API const FName& AssetVersePathTagName();
 #endif
 
 #if WITH_EDITOR
@@ -915,7 +915,7 @@ public:
 	 * @param InAssetData Asset data loaded from the AssetRegistry
 	 * @return Pointer to new asset data after fixup or nullptr if no fixup was required
 	 */
-	virtual void PostLoadAssetRegistryTags(const FAssetData& InAssetData, TArray<FAssetRegistryTag>& OutTagsAndValuesToUpdate) const;
+	COREUOBJECT_API virtual void PostLoadAssetRegistryTags(const FAssetData& InAssetData, TArray<FAssetRegistryTag>& OutTagsAndValuesToUpdate) const;
 
 	/**
 	 * Additional data pertaining to asset registry tags used by the editor
@@ -957,41 +957,41 @@ public:
 	};
 
 	/** Gathers a collection of asset registry tag metadata */
-	virtual void GetAssetRegistryTagMetadata(TMap<FName, FAssetRegistryTagMetadata>& OutMetadata) const;
+	COREUOBJECT_API virtual void GetAssetRegistryTagMetadata(TMap<FName, FAssetRegistryTagMetadata>& OutMetadata) const;
 
 	/** The metadata tags to be transferred from the UMetaData to the Asset Registry */
-	static TSet<FName>& GetMetaDataTagsForAssetRegistry();
+	static COREUOBJECT_API TSet<FName>& GetMetaDataTagsForAssetRegistry();
 
 #endif
 
 	/** Returns true if this object is considered an asset. */
-	virtual bool IsAsset() const;
+	COREUOBJECT_API virtual bool IsAsset() const;
 
 	/**
 	 * Returns an Type:Name pair representing the PrimaryAssetId for this object.
 	 * Assets that need to be globally referenced at runtime should return a valid Identifier.
 	 * If this is valid, the object can be referenced by identifier using the AssetManager 
 	 */
-	virtual FPrimaryAssetId GetPrimaryAssetId() const;
+	COREUOBJECT_API virtual FPrimaryAssetId GetPrimaryAssetId() const;
 
 	/** Returns true if this object is considered a localized resource. */
-	virtual bool IsLocalizedResource() const;
+	COREUOBJECT_API virtual bool IsLocalizedResource() const;
 
 	/** Returns true if this object is safe to add to the root set. */
-	virtual bool IsSafeForRootSet() const;
+	COREUOBJECT_API virtual bool IsSafeForRootSet() const;
 
 	/** 
 	 * Tags objects that are part of the same asset with the specified object flag, used for GC checking
 	 *
 	 * @param	ObjectFlags	Object Flags to enable on the related objects
 	 */
-	virtual void TagSubobjects(EObjectFlags NewFlags);
+	COREUOBJECT_API virtual void TagSubobjects(EObjectFlags NewFlags);
 
 	/** Returns properties that are replicated for the lifetime of the actor channel */
-	virtual void GetLifetimeReplicatedProps( TArray< class FLifetimeProperty > & OutLifetimeProps ) const;
+	COREUOBJECT_API virtual void GetLifetimeReplicatedProps( TArray< class FLifetimeProperty > & OutLifetimeProps ) const;
 
 	/** Called when this object begins replicating to initialize the state of custom property conditions */
-	virtual void GetReplicatedCustomConditionState(FCustomPropertyConditionState& OutActiveState) const;
+	COREUOBJECT_API virtual void GetReplicatedCustomConditionState(FCustomPropertyConditionState& OutActiveState) const;
 #if UE_WITH_IRIS
 	/**
 	 * RegisterReplicationFragments is called when we an object is added to the ReplicationSystem, it allows an object to register new or existing ReplicationFragments describing data to be replicated and how it should be accessed
@@ -1000,32 +1000,32 @@ public:
 	 * @param Context Context FFragmentRegistrationContext in which FReplicationFragments could be registered
 	 * @param RegistrationFlags Flags specifying what should be registered in the call
 	 */
-	virtual void RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Context, UE::Net::EFragmentRegistrationFlags RegistrationFlags);
+	COREUOBJECT_API virtual void RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Context, UE::Net::EFragmentRegistrationFlags RegistrationFlags);
 #endif // UE_WITH_IRIS
 
 	/** IsNameStableForNetworking means an object can be referred to its path name (relative to outer) over the network */
-	virtual bool IsNameStableForNetworking() const;
+	COREUOBJECT_API virtual bool IsNameStableForNetworking() const;
 
 	/** IsFullNameStableForNetworking means an object can be referred to its full path name over the network */
-	virtual bool IsFullNameStableForNetworking() const;
+	COREUOBJECT_API virtual bool IsFullNameStableForNetworking() const;
 
 	/** IsSupportedForNetworking means an object can be referenced over the network */
-	virtual bool IsSupportedForNetworking() const;
+	COREUOBJECT_API virtual bool IsSupportedForNetworking() const;
 
 	/** Returns a list of sub-objects that have stable names for networking */
 	virtual void GetSubobjectsWithStableNamesForNetworking(TArray<UObject*> &ObjList) {}
 
 	/** Called right before receiving a bunch */
-	virtual void PreNetReceive();
+	COREUOBJECT_API virtual void PreNetReceive();
 
 	/** Called right after receiving a bunch */
-	virtual void PostNetReceive();
+	COREUOBJECT_API virtual void PostNetReceive();
 
 	/** Called right after calling all OnRep notifies (called even when there are no notifies) */
 	virtual void PostRepNotifies() {}
 
 	/** Called right before being marked for destruction due to network replication */
-	virtual void PreDestroyFromReplication();
+	COREUOBJECT_API virtual void PreDestroyFromReplication();
 
 #if WITH_EDITOR
 	/**
@@ -1035,10 +1035,10 @@ public:
 	 * @return Valid if this object has data validation rules set up for it and the data for this object is valid. Returns Invalid if it does not pass 
 	 *         the rules. Returns NotValidated if no rules are set for this object.
 	 */
-	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const;
+	COREUOBJECT_API virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const;
 
 	UE_DEPRECATED(5.3, "Please use the the const version of IsDataValid(FDataValidationContext&)")
-	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context);
+	COREUOBJECT_API virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context);
 
 	/**
 	 * Generic function to validate objects during changelist validations, etc.
@@ -1048,7 +1048,7 @@ public:
 	 *         the rules. Returns NotValidated if no rules are set for this object.
 	 */
 	UE_DEPRECATED(5.3, "Please use IsDataValid(FDataValidationContext&) const as the FDataValidationContext will allow distinguishing between Warnings and Errors.")
-	virtual EDataValidationResult IsDataValid(TArray<FText>& ValidationErrors);
+	COREUOBJECT_API virtual EDataValidationResult IsDataValid(TArray<FText>& ValidationErrors);
 #endif // WITH_EDITOR
 
 	/*----------------------------------------------------------
@@ -1061,7 +1061,7 @@ public:
 	 * @return		true if the object is selected, false otherwise.
 	 * @todo UE this doesn't belong here, but it doesn't belong anywhere else any better
 	 */
-	bool IsSelected() const;
+	COREUOBJECT_API bool IsSelected() const;
 
 #if WITH_EDITOR
 	/**
@@ -1070,7 +1070,7 @@ public:
 	 * @param	AffectedObjects		the array of objects which have this object in their ObjectArchetype chain and will be affected by the change.
 	 *								Objects which have this object as their direct ObjectArchetype are removed from the list once they're processed.
 	 */
-	void PropagatePreEditChange( TArray<UObject*>& AffectedObjects, FEditPropertyChain& PropertyAboutToChange );
+	COREUOBJECT_API void PropagatePreEditChange( TArray<UObject*>& AffectedObjects, FEditPropertyChain& PropertyAboutToChange );
 
 	/**
 	 * Calls PostEditChange on all instances based on an archetype in AffectedObjects. Recurses on any instances.
@@ -1078,7 +1078,7 @@ public:
 	 * @param	AffectedObjects		the array of objects which have this object in their ObjectArchetype chain and will be affected by the change.
 	 *								Objects which have this object as their direct ObjectArchetype are removed from the list once they're processed.
 	 */
-	void PropagatePostEditChange( TArray<UObject*>& AffectedObjects, FPropertyChangedChainEvent& PropertyChangedEvent );
+	COREUOBJECT_API void PropagatePostEditChange( TArray<UObject*>& AffectedObjects, FPropertyChangedChainEvent& PropertyChangedEvent );
 #endif // WITH_EDITOR
 
 	/**
@@ -1087,7 +1087,7 @@ public:
 	 *
 	 * @param	Ar				the archive to use for serialization
 	 */
-	void SerializeScriptProperties( FArchive& Ar ) const;
+	COREUOBJECT_API void SerializeScriptProperties( FArchive& Ar ) const;
 
 	/**
 	 * Serializes the script property data located at Data.  When saving, only saves those properties which differ from the corresponding
@@ -1095,7 +1095,7 @@ public:
 	 *
 	 * @param	Slot				the archive slot to serialize to
 	 */
-	void SerializeScriptProperties( FStructuredArchive::FSlot Slot ) const;
+	COREUOBJECT_API void SerializeScriptProperties( FStructuredArchive::FSlot Slot ) const;
 
 	/**
 	 * Wrapper function for InitProperties() which handles safely tearing down this object before re-initializing it
@@ -1104,7 +1104,7 @@ public:
 	 * @param	SourceObject	the object to use for initializing property values in this object.  If not specified, uses this object's archetype.
 	 * @param	InstanceGraph	contains the mappings of instanced objects and components to their templates
 	 */
-	void ReinitializeProperties( UObject* SourceObject=NULL, struct FObjectInstancingGraph* InstanceGraph=NULL );
+	COREUOBJECT_API void ReinitializeProperties( UObject* SourceObject=NULL, struct FObjectInstancingGraph* InstanceGraph=NULL );
 
 	/**
 	 * This will return detail info about this specific object. (e.g. AudioComponent will return the name of the cue,
@@ -1114,19 +1114,19 @@ public:
 	 *
 	 * @note	safe to call on NULL object pointers!
 	 */
-	FString GetDetailedInfo() const;
+	COREUOBJECT_API FString GetDetailedInfo() const;
 
 	/**
 	 * Called before destroying the object.  This is called immediately upon deciding to destroy the object, to allow the object to begin an
 	 * asynchronous cleanup process.
 	 */
-	bool ConditionalBeginDestroy();
+	COREUOBJECT_API bool ConditionalBeginDestroy();
 
 	/** Called when an object is actually destroyed, memory should never be accessed again */
-	bool ConditionalFinishDestroy();
+	COREUOBJECT_API bool ConditionalFinishDestroy();
 	
 	/** PostLoad if needed. */
-	void ConditionalPostLoad();
+	COREUOBJECT_API void ConditionalPostLoad();
 
 	/**
 	 * Instances subobjects and components for objects being loaded from disk, if necessary.  Ensures that references
@@ -1135,7 +1135,7 @@ public:
 	 * @param	OuterInstanceGraph	when calling this method on subobjects, specifies the instancing graph which contains all instanced
 	 *								subobjects and components for a subobject root.
 	 */
-	void ConditionalPostLoadSubobjects( struct FObjectInstancingGraph* OuterInstanceGraph=NULL );
+	COREUOBJECT_API void ConditionalPostLoadSubobjects( struct FObjectInstancingGraph* OuterInstanceGraph=NULL );
 
 #if WITH_EDITOR
 	/**
@@ -1224,10 +1224,10 @@ public:
 	inline bool IsBasedOnArchetype( const UObject* const SomeObject ) const;
 
 	/** Returns a UFunction with the specified name, wrapper for UClass::FindFunctionByName() */
-	UFunction* FindFunction( FName InName ) const;
+	COREUOBJECT_API UFunction* FindFunction( FName InName ) const;
 	
 	/** Version of FindFunction() that will assert if the function was not found */
-	UFunction* FindFunctionChecked( FName InName ) const;
+	COREUOBJECT_API UFunction* FindFunctionChecked( FName InName ) const;
 
 	/**
 	 * Given OtherObject (which will be the same type as 'this'), recursively find any matching sub-objects from 'this' that also exist within OtherObject, and add the mappings to ObjectMapping.
@@ -1235,7 +1235,7 @@ public:
 	 * @param	OtherObject		The to find matching sub-objects within.
 	 * @param	ObjectMapping	The complete mapping between this object hierarchy and the other object hierarchy.
 	 */
-	virtual void BuildSubobjectMapping(UObject* OtherObject, TMap<UObject*, UObject*>& ObjectMapping) const;
+	COREUOBJECT_API virtual void BuildSubobjectMapping(UObject* OtherObject, TMap<UObject*, UObject*>& ObjectMapping) const;
 
 	/**
 	 * Uses the TArchiveObjectReferenceCollector to build a list of all components referenced by this object which have this object as the outer
@@ -1244,7 +1244,7 @@ public:
 	 * @param	bIncludeNestedSubobjects	controls whether subobjects which are contained by this object, but do not have this object
 	 *										as its direct Outer should be included
 	 */
-	void CollectDefaultSubobjects( TArray<UObject*>& OutDefaultSubobjects, bool bIncludeNestedSubobjects=false ) const;
+	COREUOBJECT_API void CollectDefaultSubobjects( TArray<UObject*>& OutDefaultSubobjects, bool bIncludeNestedSubobjects=false ) const;
 
 	/**
 	 * Checks default sub-object assumptions.
@@ -1252,19 +1252,19 @@ public:
 	 * @param bForceCheck Force checks even if not enabled globally.
 	 * @return true if the assumptions are met, false otherwise.
 	 */
-	bool CheckDefaultSubobjects(bool bForceCheck = false) const;
+	COREUOBJECT_API bool CheckDefaultSubobjects(bool bForceCheck = false) const;
 
 	/**
 	 * Save configuration out to ini files
 	 * @warning Must be safe to call on class-default object
 	 */
-	void SaveConfig( uint64 Flags=CPF_Config, const TCHAR* Filename=NULL, FConfigCacheIni* Config=GConfig, bool bAllowCopyToDefaultObject=true );
+	COREUOBJECT_API void SaveConfig( uint64 Flags=CPF_Config, const TCHAR* Filename=NULL, FConfigCacheIni* Config=GConfig, bool bAllowCopyToDefaultObject=true );
 
 	/**
 	 * Saves just the section(s) for this class into the default ini file for the class (with just the changes from base)
 	 */
 	UE_DEPRECATED(5.0, "TryUpdateDefaultConfigFile replaces UpdateDefaultConfigFile")
-	void UpdateDefaultConfigFile(const FString& SpecificFileLocation = "");
+	COREUOBJECT_API void UpdateDefaultConfigFile(const FString& SpecificFileLocation = "");
 
 	/**
 	 * Try to Saves just the section(s) for this class into the default ini file for the class (with just the changes from base)
@@ -1273,50 +1273,50 @@ public:
 	 *  @param bWarnIfFail If true and unable to update the Ini file due to being read only log a warning
 	 *  @return true if it was able to write false otherwise
 	 */
-	bool TryUpdateDefaultConfigFile(const FString& SpecificFileLocation = "", bool bWarnIfFail = true);
+	COREUOBJECT_API bool TryUpdateDefaultConfigFile(const FString& SpecificFileLocation = "", bool bWarnIfFail = true);
 
 	/**
 	 * Saves just the section(s) for this class into the global user ini file for the class (with just the changes from base)
 	 */
-	void UpdateGlobalUserConfigFile();
+	COREUOBJECT_API void UpdateGlobalUserConfigFile();
 
 	/**
 	 * Saves just the section(s) for this class into the project user ini file for the class (with just the changes from base)
 	 */
-	void UpdateProjectUserConfigFile();
+	COREUOBJECT_API void UpdateProjectUserConfigFile();
 
 	/**
 	 * Saves just the property into the global user ini file for the class (with just the changes from base)
 	 */
-	void UpdateSinglePropertyInConfigFile(const FProperty* InProperty, const FString& InConfigIniName);
+	COREUOBJECT_API void UpdateSinglePropertyInConfigFile(const FProperty* InProperty, const FString& InConfigIniName);
 
 private:
 	/**
 	 * Saves just the section(s) for this class into the given ini file for the class (with just the changes from base)
 	 */
-	void UpdateSingleSectionOfConfigFile(const FString& ConfigIniName);
+	COREUOBJECT_API void UpdateSingleSectionOfConfigFile(const FString& ConfigIniName);
 
 	/**
 	 * Ensures that current thread is NOT during vtable ptr retrieval process
 	 * of some UClass.
 	 */
-	void EnsureNotRetrievingVTablePtr() const;
+	COREUOBJECT_API void EnsureNotRetrievingVTablePtr() const;
 
 public:
 	/**
 	 * Get the default config filename for the specified UObject
 	 */
-	FString GetDefaultConfigFilename() const;
+	COREUOBJECT_API FString GetDefaultConfigFilename() const;
 
 	/**
 	 * Get the global user override config filename for the specified UObject
 	 */
-	FString GetGlobalUserConfigFilename() const;
+	COREUOBJECT_API FString GetGlobalUserConfigFilename() const;
 
 	/**
 	 * Get the project user override config filename for the specified UObject
 	 */
-	FString GetProjectUserConfigFilename() const;
+	COREUOBJECT_API FString GetProjectUserConfigFilename() const;
 
 	/** Returns the override config hierarchy platform (if NDAd platforms need defaults to not be in Base*.ini but still want editor to load them) */
 	virtual const TCHAR* GetConfigOverridePlatform() const { return nullptr; }
@@ -1343,7 +1343,7 @@ public:
 	 * @param	PropagationFlags	indicates how this call to LoadConfig should be propagated; expects a bitmask of UE::ELoadConfigPropagationFlags values.
 	 * @param	PropertyToLoad		if specified, only the ini value for the specified property will be imported.
 	 */
-	void LoadConfig( UClass* ConfigClass=NULL, const TCHAR* Filename=NULL, uint32 PropagationFlags=UE::LCPF_None, class FProperty* PropertyToLoad=NULL );
+	COREUOBJECT_API void LoadConfig( UClass* ConfigClass=NULL, const TCHAR* Filename=NULL, uint32 PropagationFlags=UE::LCPF_None, class FProperty* PropertyToLoad=NULL );
 
 	/**
 	 * Wrapper method for LoadConfig that is used when reloading the config data for objects at runtime which have already loaded their config data at least once.
@@ -1354,10 +1354,10 @@ public:
 	 * @param	PropagationFlags	indicates how this call to LoadConfig should be propagated; expects a bitmask of UE::ELoadConfigPropagationFlags values.
 	 * @param	PropertyToLoad		if specified, only the ini value for the specified property will be imported
 	 */
-	void ReloadConfig( UClass* ConfigClass=NULL, const TCHAR* Filename=NULL, uint32 PropagationFlags=UE::LCPF_None, class FProperty* PropertyToLoad=NULL );
+	COREUOBJECT_API void ReloadConfig( UClass* ConfigClass=NULL, const TCHAR* Filename=NULL, uint32 PropagationFlags=UE::LCPF_None, class FProperty* PropertyToLoad=NULL );
 
 	/** Import an object from a file. */
-	void ParseParms( const TCHAR* Parms );
+	COREUOBJECT_API void ParseParms( const TCHAR* Parms );
 
 	/**
 	 * Outputs a string to an arbitrary output device, describing the list of objects which are holding references to this one.
@@ -1365,10 +1365,10 @@ public:
 	 * @param	Ar						the output device to send output to
 	 * @param	Referencers				optionally allows the caller to specify the list of references to output.
 	 */
-	void OutputReferencers( FOutputDevice& Ar, FReferencerInformationList* Referencers=NULL );
+	COREUOBJECT_API void OutputReferencers( FOutputDevice& Ar, FReferencerInformationList* Referencers=NULL );
 	
 	/** Called by OutputReferencers() to get the internal list of referencers to write */
-	void RetrieveReferencers( TArray<FReferencerInformation>* OutInternalReferencers, TArray<FReferencerInformation>* OutExternalReferencers);
+	COREUOBJECT_API void RetrieveReferencers( TArray<FReferencerInformation>* OutInternalReferencers, TArray<FReferencerInformation>* OutExternalReferencers);
 
 	/**
 	 * Changes the linker and linker index to the passed in one. A linker of NULL and linker index of INDEX_NONE
@@ -1378,33 +1378,33 @@ public:
 	 * @param LinkerIndex				New LinkerIndex to set
 	 * @param bShouldDetachExisting		If true, detach existing linker and call PostLinkerChange
 	 */
-	void SetLinker( FLinkerLoad* LinkerLoad, int32 LinkerIndex, bool bShouldDetachExisting=true );
+	COREUOBJECT_API void SetLinker( FLinkerLoad* LinkerLoad, int32 LinkerIndex, bool bShouldDetachExisting=true );
 
 	/**
 	 * Return the template that an object with this class, outer and name would be
 	 * 
 	 * @return the archetype for this object
 	 */
-	static UObject* GetArchetypeFromRequiredInfo(const UClass* Class, const UObject* Outer, FName Name, EObjectFlags ObjectFlags);
+	static COREUOBJECT_API UObject* GetArchetypeFromRequiredInfo(const UClass* Class, const UObject* Outer, FName Name, EObjectFlags ObjectFlags);
 
 	/**
 	 * Return the template this object is based on. 
 	 * 
 	 * @return the archetype for this object
 	 */
-	UObject* GetArchetype() const;
+	COREUOBJECT_API UObject* GetArchetype() const;
 
 	/**
 	 * Builds a list of objects which have this object in their archetype chain.
 	 *
 	 * @param	Instances	receives the list of objects which have this one in their archetype chain
 	 */
-	void GetArchetypeInstances( TArray<UObject*>& Instances );
+	COREUOBJECT_API void GetArchetypeInstances( TArray<UObject*>& Instances );
 
 	/**
 	 * Wrapper for calling UClass::InstanceSubobjectTemplates() for this object.
 	 */
-	void InstanceSubobjectTemplates( struct FObjectInstancingGraph* InstanceGraph = NULL );
+	COREUOBJECT_API void InstanceSubobjectTemplates( struct FObjectInstancingGraph* InstanceGraph = NULL );
 
 	/**
 	 * Returns true if this object implements the interface T, false otherwise.
@@ -1418,7 +1418,7 @@ public:
 	-----------------------------*/
 
 	/** Called by VM to execute a UFunction with a filled in UStruct of parameters */
-	virtual void ProcessEvent( UFunction* Function, void* Parms );
+	COREUOBJECT_API virtual void ProcessEvent( UFunction* Function, void* Parms );
 
 	/**
 	 * Return the space this function should be called.   Checks to see if this function should
@@ -1446,10 +1446,10 @@ public:
 	}
 
 	/** Handle calling a function by name when executed from the console or a command line */
-	bool CallFunctionByNameWithArguments( const TCHAR* Cmd, FOutputDevice& Ar, UObject* Executor, bool bForceCallWithNonExec = false );
+	COREUOBJECT_API bool CallFunctionByNameWithArguments( const TCHAR* Cmd, FOutputDevice& Ar, UObject* Executor, bool bForceCallWithNonExec = false );
 
 	/** Internal VM method for executing a function */
-	void CallFunction( FFrame& Stack, RESULT_DECL, UFunction* Function );
+	COREUOBJECT_API void CallFunction( FFrame& Stack, RESULT_DECL, UFunction* Function );
 
 	/**
 	 * Internal function call processing.
@@ -1471,7 +1471,7 @@ public:
 	 * @param Result pointer to where the return value should be written
 	 * @param Function the function being called
 	 */
-	void SkipFunction(FFrame& Stack, RESULT_DECL, UFunction* Function);
+	COREUOBJECT_API void SkipFunction(FFrame& Stack, RESULT_DECL, UFunction* Function);
 
 	/**
 	 * Called on the target when a class is loaded with ClassGeneratedBy is loaded.  Should regenerate the class if needed, and return the updated class
@@ -1482,12 +1482,12 @@ public:
 	/** 
 	 * Returns whether this object is contained in or part of a blueprint object
 	 */
-	bool IsInBlueprint() const;
+	COREUOBJECT_API bool IsInBlueprint() const;
 
 	/** 
 	 *  Destroy properties that won't be destroyed by the native destructor
 	 */
-	void DestroyNonNativeProperties();
+	COREUOBJECT_API void DestroyNonNativeProperties();
 
 	/** Called during subobject creation to mark this component as editor only, which causes it to get stripped in packaged builds */
 	virtual void MarkAsEditorOnlySubobject() { }
@@ -1495,7 +1495,7 @@ public:
 	/**
 	 * Abort with a member function call at the top of the callstack, helping to ensure that most platforms will stuff this object's memory into the resulting minidump.
 	 */
-	void AbortInsideMemberFunction() const;
+	COREUOBJECT_API void AbortInsideMemberFunction() const;
 
 	// UnrealScript intrinsics, do not call directly
 
@@ -1700,17 +1700,17 @@ public:
 
 protected: 
 	/** Checks it's ok to perform subobjects check at this time. */
-	bool CanCheckDefaultSubObjects(bool bForceCheck, bool& bResult) const;
+	COREUOBJECT_API bool CanCheckDefaultSubObjects(bool bForceCheck, bool& bResult) const;
 
 	/**
 	* Checks default sub-object assumptions.
 	*
 	* @return true if the assumptions are met, false otherwise.
 	*/
-	virtual bool CheckDefaultSubobjectsInternal() const;
+	COREUOBJECT_API virtual bool CheckDefaultSubobjectsInternal() const;
 
 private:
-	void ProcessContextOpcode(FFrame& Stack, RESULT_DECL, bool bCanFailSilent);
+	COREUOBJECT_API void ProcessContextOpcode(FFrame& Stack, RESULT_DECL, bool bCanFailSilent);
 
 	/**
 	* Create a component or subobject only to be used with the editor.
@@ -1719,7 +1719,7 @@ private:
 	* @param	SubobjectName				name of the new component
 	* @param	bTransient					true if the component is being assigned to a transient property
 	*/
-	UObject* CreateEditorOnlyDefaultSubobjectImpl(FName SubobjectName, UClass* ReturnType, bool bTransient = false);
+	COREUOBJECT_API UObject* CreateEditorOnlyDefaultSubobjectImpl(FName SubobjectName, UClass* ReturnType, bool bTransient = false);
 
 public:
 

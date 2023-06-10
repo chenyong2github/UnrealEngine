@@ -15,7 +15,7 @@
  * the module manager while a reload is in progress.
  */
 
-class COREUOBJECT_API IReload
+class IReload
 {
 public:
 

@@ -10,18 +10,18 @@
 class FArchive;
 class UObject;
 
-class COREUOBJECT_API FArchiveHasReferences : private FArchiveUObject
+class FArchiveHasReferences : private FArchiveUObject
 {
 public:
-	FArchiveHasReferences(UObject* InTarget, const TSet<UObject*>& InPotentiallyReferencedObjects);
+	COREUOBJECT_API FArchiveHasReferences(UObject* InTarget, const TSet<UObject*>& InPotentiallyReferencedObjects);
 
 	bool HasReferences() const { return Result; }
 
-	static TArray<UObject*> GetAllReferencers(const TArray<UObject*>& Referencees, const TSet<UObject*>* ObjectsToIgnore );
-	static TArray<UObject*> GetAllReferencers(const TSet<UObject*>& Referencees, const TSet<UObject*>* ObjectsToIgnore );
+	static COREUOBJECT_API TArray<UObject*> GetAllReferencers(const TArray<UObject*>& Referencees, const TSet<UObject*>* ObjectsToIgnore );
+	static COREUOBJECT_API TArray<UObject*> GetAllReferencers(const TSet<UObject*>& Referencees, const TSet<UObject*>* ObjectsToIgnore );
 
 private:
-	virtual FArchive& operator<<( UObject*& Obj ) override;
+	COREUOBJECT_API virtual FArchive& operator<<( UObject*& Obj ) override;
 
 	UObject* Target;
 	const TSet<UObject*>& PotentiallyReferencedObjects;

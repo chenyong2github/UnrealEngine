@@ -150,9 +150,9 @@ enum class EPropertyPointerType
 //
 // An UnrealScript variable.
 //
-class COREUOBJECT_API FProperty : public FField
+class FProperty : public FField
 {
-	DECLARE_FIELD(FProperty, FField, CASTCLASS_FProperty)
+	DECLARE_FIELD_API(FProperty, FField, CASTCLASS_FProperty, COREUOBJECT_API)
 
 	// Persistent variables.
 	int32			ArrayDim;
@@ -180,35 +180,35 @@ public:
 
 public:
 	// Constructors.
-	FProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags);
+	COREUOBJECT_API FProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags);
 
 	UE_DEPRECATED(5.1, "Compiled-in property constructor is deprecated, use other constructors instead.")
-	FProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags);
+	COREUOBJECT_API FProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags);
 
 	/**
 	 * Constructor used for constructing compiled-in properties
 	 * @param InOwner Owner of the property
 	 * @param PropBase Pointer to the compiled in structure describing the property
 	 **/
-	FProperty(FFieldVariant InOwner, const UECodeGen_Private::FPropertyParamsBaseWithOffset& Prop, EPropertyFlags AdditionalPropertyFlags = CPF_None);
+	COREUOBJECT_API FProperty(FFieldVariant InOwner, const UECodeGen_Private::FPropertyParamsBaseWithOffset& Prop, EPropertyFlags AdditionalPropertyFlags = CPF_None);
 
 	/**
 	 * Constructor used for constructing compiled-in properties
 	 * @param InOwner Owner of the property
 	 * @param PropBase Pointer to the compiled in structure describing the property
 	 **/
-	FProperty(FFieldVariant InOwner, const UECodeGen_Private::FPropertyParamsBaseWithoutOffset& Prop, EPropertyFlags AdditionalPropertyFlags = CPF_None);
+	COREUOBJECT_API FProperty(FFieldVariant InOwner, const UECodeGen_Private::FPropertyParamsBaseWithoutOffset& Prop, EPropertyFlags AdditionalPropertyFlags = CPF_None);
 
 #if WITH_EDITORONLY_DATA
-	explicit FProperty(UField* InField);
+	COREUOBJECT_API explicit FProperty(UField* InField);
 #endif // WITH_EDITORONLY_DATA
 
 	// UObject interface
-	virtual void Serialize( FArchive& Ar ) override;
+	COREUOBJECT_API virtual void Serialize( FArchive& Ar ) override;
 	// End of UObject interface
 
 	// FField interface
-	virtual void PostDuplicate(const FField& InField) override;
+	COREUOBJECT_API virtual void PostDuplicate(const FField& InField) override;
 
 	/** parses and imports a text definition of a single property's value (if array, may be an individual element)
 	 * also includes parsing of special operations for array properties (Add/Remove/RemoveIndex/Empty)
@@ -221,17 +221,17 @@ public:
 	 * @param DefinedProperties (out)	list of properties/indices that have been parsed by previous calls, so duplicate definitions cause an error
 	 * @return pointer to remaining text in the stream (even on failure, but on failure it may not be advanced past the entire key/value pair)
 	 */
-	static const TCHAR* ImportSingleProperty( const TCHAR* Str, void* DestData, class UStruct* ObjectStruct, UObject* SubobjectOuter, int32 PortFlags,
+	static COREUOBJECT_API const TCHAR* ImportSingleProperty( const TCHAR* Str, void* DestData, class UStruct* ObjectStruct, UObject* SubobjectOuter, int32 PortFlags,
 											FOutputDevice* Warn, TArray<struct FDefinedProperty>& DefinedProperties );
 
 	/** Gets a redirected property name, will return NAME_None if no redirection was found */
-	static FName FindRedirectedPropertyName(UStruct* ObjectStruct, FName OldName);
+	static COREUOBJECT_API FName FindRedirectedPropertyName(UStruct* ObjectStruct, FName OldName);
 
 	// UHT interface
-	void ExportCppDeclaration(FOutputDevice& Out, EExportedDeclaration::Type DeclarationType, const TCHAR* ArrayDimOverride = NULL, uint32 AdditionalExportCPPFlags = 0
+	COREUOBJECT_API void ExportCppDeclaration(FOutputDevice& Out, EExportedDeclaration::Type DeclarationType, const TCHAR* ArrayDimOverride = NULL, uint32 AdditionalExportCPPFlags = 0
 		, bool bSkipParameterName = false, const FString* ActualCppType = nullptr, const FString* ActualExtendedType = nullptr, const FString* ActualParameterName = nullptr) const;
-	virtual FString GetCPPMacroType( FString& ExtendedTypeText ) const;
-	virtual bool PassCPPArgsByRef() const;
+	COREUOBJECT_API virtual FString GetCPPMacroType( FString& ExtendedTypeText ) const;
+	COREUOBJECT_API virtual bool PassCPPArgsByRef() const;
 
 	/**
 	 * Returns the C++ name of the property, including the _DEPRECATED suffix if the 
@@ -239,7 +239,7 @@ public:
 	 *
 	 * @return C++ name of property
 	 */
-	FString GetNameCPP() const;
+	COREUOBJECT_API FString GetNameCPP() const;
 
 	/**
 	 * Returns the text to use for exporting this property to header file.
@@ -247,14 +247,14 @@ public:
 	 * @param	ExtendedTypeText	for property types which use templates, will be filled in with the type
 	 * @param	CPPExportFlags		flags for modifying the behavior of the export
 	 */
-	virtual FString GetCPPType( FString* ExtendedTypeText=NULL, uint32 CPPExportFlags=0 ) const PURE_VIRTUAL(FProperty::GetCPPType,return TEXT(""););
+	COREUOBJECT_API virtual FString GetCPPType( FString* ExtendedTypeText=NULL, uint32 CPPExportFlags=0 ) const PURE_VIRTUAL(FProperty::GetCPPType,return TEXT(""););
 
-	virtual FString GetCPPTypeForwardDeclaration() const PURE_VIRTUAL(FProperty::GetCPPTypeForwardDeclaration, return TEXT(""););
+	COREUOBJECT_API virtual FString GetCPPTypeForwardDeclaration() const PURE_VIRTUAL(FProperty::GetCPPTypeForwardDeclaration, return TEXT(""););
 	// End of UHT interface
 
 #if WITH_EDITORONLY_DATA
 	/** Gets the wrapper object for this property or creates one if it doesn't exist yet */
-	UPropertyWrapper* GetUPropertyWrapper();
+	COREUOBJECT_API UPropertyWrapper* GetUPropertyWrapper();
 #endif
 
 	/** Checks if this property as a native setter function */
@@ -295,19 +295,19 @@ private:
 	/** Set the alignment offset for this property 
 	 * @return the size of the structure including this newly added property
 	*/
-	int32 SetupOffset();
+	COREUOBJECT_API int32 SetupOffset();
 
 protected:
 	friend class FMapProperty;
 	friend class UEProperty_Private::FProperty_DoNotUse;
 
 	/** Set the alignment offset for this property - added for FMapProperty */
-	void SetOffset_Internal(int32 NewOffset);
+	COREUOBJECT_API void SetOffset_Internal(int32 NewOffset);
 
 	/**
 	 * Initializes internal state.
 	 */
-	void Init();
+	COREUOBJECT_API void Init();
 
 public:
 	/** Return offset of property from container base. */
@@ -348,7 +348,7 @@ public:
 	}
 
 protected:
-	virtual void LinkInternal(FArchive& Ar);
+	COREUOBJECT_API virtual void LinkInternal(FArchive& Ar);
 public:
 
 	/**
@@ -364,7 +364,7 @@ public:
 	*			CannotConvert:    the tag is not something that the property can convert.
 	*			UseSerializeItem: no conversion was done on the property - this can mean that the tag is correct and normal serialization applies or that the tag is incompatible.
 	*/
-	virtual EConvertFromTypeResult ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct);
+	COREUOBJECT_API virtual EConvertFromTypeResult ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct);
 
 	/**
 	 * Determines whether the property values are identical.
@@ -375,7 +375,7 @@ public:
 	 *
 	 * @return	true if the property values are identical
 	 */
-	virtual bool Identical( const void* A, const void* B, uint32 PortFlags=0 ) const PURE_VIRTUAL(FProperty::Identical,return false;);
+	COREUOBJECT_API virtual bool Identical( const void* A, const void* B, uint32 PortFlags=0 ) const PURE_VIRTUAL(FProperty::Identical,return false;);
 
 	/**
 	 * Determines whether the property values are identical.
@@ -441,9 +441,9 @@ public:
 		}
 	}
 
-	virtual void SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults = NULL) const PURE_VIRTUAL(FProperty::SerializeItem, );
-	virtual bool NetSerializeItem( FArchive& Ar, UPackageMap* Map, void* Data, TArray<uint8> * MetaData = NULL ) const;
-	virtual bool SupportsNetSharedSerialization() const;
+	COREUOBJECT_API virtual void SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults = NULL) const PURE_VIRTUAL(FProperty::SerializeItem, );
+	COREUOBJECT_API virtual bool NetSerializeItem( FArchive& Ar, UPackageMap* Map, void* Data, TArray<uint8> * MetaData = NULL ) const;
+	COREUOBJECT_API virtual bool SupportsNetSharedSerialization() const;
 
 	UE_DEPRECATED(5.1, "Please use ExportTextItem_InContainer or ExportTextItem_Direct instead.")
 	virtual void ExportTextItem(FString& ValueStr, const void* PropertyValue, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope = nullptr) const
@@ -534,7 +534,7 @@ public:
 	* @param InValue Pointer to the memory that the value will be copied from. Must be at least ElementSize big
 	* @param ArrayIndex Index into the static array to copy the value from. If the property is not a static array it should be 0
 	*/
-	void SetSingleValue_InContainer(void* OutContainer, const void* InValue, int32 ArrayIndex) const;
+	COREUOBJECT_API void SetSingleValue_InContainer(void* OutContainer, const void* InValue, int32 ArrayIndex) const;
 
 	/**
 	* Copies a single value to OutValue even if the property represents a static array of values
@@ -542,13 +542,13 @@ public:
 	* @param OutValue Pointer to the memory that the value will be copied to. Must be at least ElementSize big
 	* @param ArrayIndex Index into the static array to copy the value from. If the property is not a static array it should be 0
 	*/
-	void GetSingleValue_InContainer(const void* InContainer, void* OutValue, int32 ArrayIndex) const;
+	COREUOBJECT_API void GetSingleValue_InContainer(const void* InContainer, void* OutValue, int32 ArrayIndex) const;
 
 	/** Allocates and initializes memory to hold a value this property represents */
-	void* AllocateAndInitializeValue() const;
+	COREUOBJECT_API void* AllocateAndInitializeValue() const;
 
 	/** Destroys and frees memory with a value this property represents */
-	void DestroyAndFreeValue(void* InMemory) const;
+	COREUOBJECT_API void DestroyAndFreeValue(void* InMemory) const;
 
 	/**
 	 * Helper function for setting container / struct property value and performing operation directly on the value memory
@@ -556,7 +556,7 @@ public:
 	 * @param DirectPropertyAddress Direct property value address. Can be null only if OutContainer is a valid pointer.
 	 * @param DirectValueAccessFunc Function that manipulates directly on property value address. The value address can be different than the passed in DirectPropertyAddress if setters and getters are present and OutContainer pointer is valid.
 	 */
-	void PerformOperationWithSetter(void* OutContainer, void* DirectPropertyAddress, TFunctionRef<void(void*)> DirectValueAccessFunc) const;
+	COREUOBJECT_API void PerformOperationWithSetter(void* OutContainer, void* DirectPropertyAddress, TFunctionRef<void(void*)> DirectValueAccessFunc) const;
 
 	/**
 	 * Helper function for getting container / struct property value and performing operation directly on the value memory
@@ -564,7 +564,7 @@ public:
 	 * @param DirectPropertyAddress Direct property value address. Can be null only if OutContainer is a valid pointer.
 	 * @param DirectValueAccessFunc Function that manipulates directly on property value address. The value address can be different than the passed in DirectPropertyAddress if setters and getters are present and OutContainer pointer is valid.
 	 */
-	void PerformOperationWithGetter(void* OutContainer, const void* DirectPropertyAddress, TFunctionRef<void(const void*)> DirectValueAccessFunc) const;
+	COREUOBJECT_API void PerformOperationWithGetter(void* OutContainer, const void* DirectPropertyAddress, TFunctionRef<void(const void*)> DirectValueAccessFunc) const;
 
 	/** 
 	 * Gets value address at given index inside of a static array or container
@@ -572,7 +572,7 @@ public:
 	 * @param Index into the static array or container
 	 * @returns address of the value at given index
 	 */
-	virtual void* GetValueAddressAtIndex_Direct(const FProperty* Inner, void* InValueAddress, int32 Index) const;
+	COREUOBJECT_API virtual void* GetValueAddressAtIndex_Direct(const FProperty* Inner, void* InValueAddress, int32 Index) const;
 
 #if WITH_EDITORONLY_DATA
 	/**
@@ -586,16 +586,16 @@ public:
 	 *                        If true, sub- properties that are editor-only should not be appended to the hash.
 	 *                        This property's base data is appended without regard for bSkipEditorOnly.
 	 */
-	virtual void AppendSchemaHash(FBlake3& Builder, bool bSkipEditorOnly) const;
+	COREUOBJECT_API virtual void AppendSchemaHash(FBlake3& Builder, bool bSkipEditorOnly) const;
 #endif
 protected:
 
-	virtual void ExportText_Internal(FString& ValueStr, const void* PropertyValueOrContainer, EPropertyPointerType PointerType, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope = nullptr) const PURE_VIRTUAL(FProperty::ExportText, );
-	virtual const TCHAR* ImportText_Internal(const TCHAR* Buffer, void* ContainerOrPropertyPtr, EPropertyPointerType PointerType, UObject* OwnerObject, int32 PortFlags, FOutputDevice* ErrorText) const PURE_VIRTUAL(FProperty::ImportText, return nullptr;);
+	COREUOBJECT_API virtual void ExportText_Internal(FString& ValueStr, const void* PropertyValueOrContainer, EPropertyPointerType PointerType, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope = nullptr) const PURE_VIRTUAL(FProperty::ExportText, );
+	COREUOBJECT_API virtual const TCHAR* ImportText_Internal(const TCHAR* Buffer, void* ContainerOrPropertyPtr, EPropertyPointerType PointerType, UObject* OwnerObject, int32 PortFlags, FOutputDevice* ErrorText) const PURE_VIRTUAL(FProperty::ImportText, return nullptr;);
 
 public:
 	
-	bool ExportText_Direct(FString& ValueStr, const void* Data, const void* Delta, UObject* Parent, int32 PortFlags, UObject* ExportRootScope = nullptr) const;
+	COREUOBJECT_API bool ExportText_Direct(FString& ValueStr, const void* Data, const void* Delta, UObject* Parent, int32 PortFlags, UObject* ExportRootScope = nullptr) const;
 	FORCEINLINE bool ExportText_InContainer(int32 Index, FString& ValueStr, const void* Data, const void* Delta, UObject* Parent, int32 PortFlags, UObject* ExportRootScope = nullptr) const
 	{
 		return ExportText_Direct(ValueStr, ContainerPtrToValuePtr<void>(Data, Index), ContainerPtrToValuePtrForDefaults<void>(NULL, Delta, Index), Parent, PortFlags, ExportRootScope);
@@ -766,11 +766,11 @@ public:
 	/**
 	 * Returns the hash value for an element of this property.
 	 */
-	uint32 GetValueTypeHash(const void* Src) const;
+	COREUOBJECT_API uint32 GetValueTypeHash(const void* Src) const;
 
 protected:
-	virtual void CopyValuesInternal( void* Dest, void const* Src, int32 Count  ) const;
-	virtual uint32 GetValueTypeHashInternal(const void* Src) const;
+	COREUOBJECT_API virtual void CopyValuesInternal( void* Dest, void const* Src, int32 Count  ) const;
+	COREUOBJECT_API virtual uint32 GetValueTypeHashInternal(const void* Src) const;
 
 public:
 	/**
@@ -811,7 +811,7 @@ public:
 	 *									SIZE = the ElementSize of this FProperty
 	 * @param	Src					the address of the value to copy from. should be evaluated the same way as Dest
 	 */
-	virtual void CopySingleValueToScriptVM( void* Dest, void const* Src ) const;
+	COREUOBJECT_API virtual void CopySingleValueToScriptVM( void* Dest, void const* Src ) const;
 
 	/**
 	 * Copy the value for all elements of this property. To the script VM.
@@ -821,13 +821,13 @@ public:
 	 *									OFFSET = the Offset of this FProperty
 	 * @param	Src					the address of the value to copy from. should be evaluated the same way as Dest
 	 */
-	virtual void CopyCompleteValueToScriptVM( void* Dest, void const* Src ) const;
+	COREUOBJECT_API virtual void CopyCompleteValueToScriptVM( void* Dest, void const* Src ) const;
 
 	/**
 	 * Equivalent to the above functions, but using the container and aware of getters/setters when the container has them.
 	 */
-	virtual void CopyCompleteValueToScriptVM_InContainer( void* OutValue, void const* InContainer ) const;
-	virtual void CopyCompleteValueFromScriptVM_InContainer( void* OutContainer, void const* InValue ) const;
+	COREUOBJECT_API virtual void CopyCompleteValueToScriptVM_InContainer( void* OutValue, void const* InContainer ) const;
+	COREUOBJECT_API virtual void CopyCompleteValueFromScriptVM_InContainer( void* OutContainer, void const* InValue ) const;
 
 	/**
 	 * Copy the value for a single element of this property. From the script VM.
@@ -839,7 +839,7 @@ public:
 	 *									SIZE = the ElementSize of this FProperty
 	 * @param	Src					the address of the value to copy from. should be evaluated the same way as Dest
 	 */
-	virtual void CopySingleValueFromScriptVM( void* Dest, void const* Src ) const;
+	COREUOBJECT_API virtual void CopySingleValueFromScriptVM( void* Dest, void const* Src ) const;
 
 	/**
 	 * Copy the value for all elements of this property. From the script VM.
@@ -849,7 +849,7 @@ public:
 	 *									OFFSET = the Offset of this FProperty
 	 * @param	Src					the address of the value to copy from. should be evaluated the same way as Dest
 	 */
-	virtual void CopyCompleteValueFromScriptVM( void* Dest, void const* Src ) const;
+	COREUOBJECT_API virtual void CopyCompleteValueFromScriptVM( void* Dest, void const* Src ) const;
 
 	/**
 	 * Zeros the value for this property. The existing data is assumed valid (so for example this calls FString::Empty)
@@ -886,7 +886,7 @@ public:
 		}
 	}
 protected:
-	virtual void ClearValueInternal( void* Data ) const;
+	COREUOBJECT_API virtual void ClearValueInternal( void* Data ) const;
 public:
 	/**
 	 * Destroys the value for this property. The existing data is assumed valid (so for example this calls FString::Empty)
@@ -915,7 +915,7 @@ public:
 		}
 	}
 protected:
-	virtual void DestroyValueInternal( void* Dest ) const;
+	COREUOBJECT_API virtual void DestroyValueInternal( void* Dest ) const;
 public:
 
 	/**
@@ -955,7 +955,7 @@ public:
 		}
 	}
 protected:
-	virtual void InitializeValueInternal( void* Dest ) const;
+	COREUOBJECT_API virtual void InitializeValueInternal( void* Dest ) const;
 public:
 
 	/**
@@ -966,9 +966,9 @@ public:
 	 *
 	 * @return	true if ImportText should be allowed
 	 */
-	bool ValidateImportFlags( uint32 PortFlags, FOutputDevice* ErrorText = NULL ) const;
-	bool ShouldPort( uint32 PortFlags=0 ) const;
-	virtual FName GetID() const;
+	COREUOBJECT_API bool ValidateImportFlags( uint32 PortFlags, FOutputDevice* ErrorText = NULL ) const;
+	COREUOBJECT_API bool ShouldPort( uint32 PortFlags=0 ) const;
+	COREUOBJECT_API virtual FName GetID() const;
 
 	/**
 	 * Creates new copies of components
@@ -978,9 +978,9 @@ public:
 	 * @param	Owner				the object that contains this property's data
 	 * @param	InstanceGraph		contains the mappings of instanced objects and components to their templates
 	 */
-	virtual void InstanceSubobjects( void* Data, void const* DefaultData, UObject* Owner, struct FObjectInstancingGraph* InstanceGraph );
+	COREUOBJECT_API virtual void InstanceSubobjects( void* Data, void const* DefaultData, UObject* Owner, struct FObjectInstancingGraph* InstanceGraph );
 
-	virtual int32 GetMinAlignment() const;
+	COREUOBJECT_API virtual int32 GetMinAlignment() const;
 
 	/**
 	 * Returns true if this property, or in the case of e.g. array or struct properties any sub- property, contains a
@@ -990,7 +990,7 @@ public:
 	 *
 	 * @return true if property (or sub- properties) contains the specified type of UObject reference, false otherwise
 	 */
-	virtual bool ContainsObjectReference(TArray<const FStructProperty*>& EncounteredStructProps, EPropertyObjectReferenceType InReferenceType = EPropertyObjectReferenceType::Strong) const;
+	COREUOBJECT_API virtual bool ContainsObjectReference(TArray<const FStructProperty*>& EncounteredStructProps, EPropertyObjectReferenceType InReferenceType = EPropertyObjectReferenceType::Strong) const;
 
 	/**
 	 * Returns true if this property, or in the case of e.g. array or struct properties any sub- property, contains a
@@ -1019,7 +1019,7 @@ public:
 	 * Emits tokens used by realtime garbage collection code to passed in ReferenceTokenStream. The offset emitted is relative
 	 * to the passed in BaseOffset which is used by e.g. arrays of structs.
 	 */
-	virtual void EmitReferenceInfo(UE::GC::FSchemaBuilder& Schema, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, UE::GC::FPropertyStack& DebugPath);
+	COREUOBJECT_API virtual void EmitReferenceInfo(UE::GC::FSchemaBuilder& Schema, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, UE::GC::FPropertyStack& DebugPath);
 
     // @TODO: Surely this can have an int32 overflow. This should probably return size_t. Just
     // need to audit all callers to make such a change.
@@ -1027,7 +1027,7 @@ public:
 	{
 		return ArrayDim * ElementSize;
 	}
-	bool ShouldSerializeValue( FArchive& Ar ) const;
+	COREUOBJECT_API bool ShouldSerializeValue( FArchive& Ar ) const;
 
 	/**
 	 * Determines whether this property value is eligible for copying when duplicating an object
@@ -1128,20 +1128,20 @@ public:
 	}
 
 	/** returns true, if Other is property of exactly the same type */
-	virtual bool SameType(const FProperty* Other) const;
+	COREUOBJECT_API virtual bool SameType(const FProperty* Other) const;
 
 	ELifetimeCondition GetBlueprintReplicationCondition() const { return BlueprintReplicationCondition; }
 	void SetBlueprintReplicationCondition(ELifetimeCondition InBlueprintReplicationCondition) { BlueprintReplicationCondition = InBlueprintReplicationCondition; }
 };
 
 
-class COREUOBJECT_API FPropertyHelpers
+class FPropertyHelpers
 {
 public:
-	static const TCHAR* ReadToken( const TCHAR* Buffer, FString& Out, bool DottedNames = false);
+	static COREUOBJECT_API const TCHAR* ReadToken( const TCHAR* Buffer, FString& Out, bool DottedNames = false);
 
 	// @param Out Appended to
-	static const TCHAR* ReadToken( const TCHAR* Buffer, FStringBuilderBase& Out, bool DottedNames = false);
+	static COREUOBJECT_API const TCHAR* ReadToken( const TCHAR* Buffer, FStringBuilderBase& Out, bool DottedNames = false);
 };
 
 namespace UEProperty_Private
@@ -1158,7 +1158,7 @@ namespace UEProperty_Private
 		 * 
 		 * Explicitly exposed for this singular case -- DO NOT USE otherwise.
 		 */
-		static COREUOBJECT_API void Unsafe_AlterOffset(FProperty& Property, const int32 OffsetOverride)
+		static void Unsafe_AlterOffset(FProperty& Property, const int32 OffsetOverride)
 		{
 			Property.SetOffset_Internal(OffsetOverride);
 		}
@@ -1166,7 +1166,7 @@ namespace UEProperty_Private
 }
 
 /** reference to a property and optional array index used in property text import to detect duplicate references */
-struct COREUOBJECT_API FDefinedProperty
+struct FDefinedProperty
 {
     FProperty* Property;
     int32 Index;
@@ -1179,7 +1179,7 @@ struct COREUOBJECT_API FDefinedProperty
 /**
  * Creates a temporary object that represents the default constructed value of a FProperty
  */
-class COREUOBJECT_API FDefaultConstructedPropertyElement
+class FDefaultConstructedPropertyElement
 {
 public:
 	FDefaultConstructedPropertyElement() = default;

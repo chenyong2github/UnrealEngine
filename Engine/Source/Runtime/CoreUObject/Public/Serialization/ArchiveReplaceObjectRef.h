@@ -8,7 +8,7 @@
 #include "UObject/SoftObjectPath.h"
 
 /** Base class for object replacement archives */ 
-class COREUOBJECT_API FArchiveReplaceObjectRefBase : public FArchiveUObject
+class FArchiveReplaceObjectRefBase : public FArchiveUObject
 {
 public:
 
@@ -25,7 +25,7 @@ public:
 	/**
 	* Returns a reference to the replaced references map
 	*/
-	const TMap<UObject*, TArray<FProperty*>>& GetReplacedReferences() const;
+	COREUOBJECT_API const TMap<UObject*, TArray<FProperty*>>& GetReplacedReferences() const;
 
 	/**
 	* Returns the name of this archive.
@@ -94,7 +94,7 @@ protected:
 	/**
 	* Serializes a single object
 	*/
-	void SerializeObject(UObject* ObjectToSerialize);
+	COREUOBJECT_API void SerializeObject(UObject* ObjectToSerialize);
 
 	/** Initial object to start the reference search from */
 	UObject* SearchObject = nullptr;

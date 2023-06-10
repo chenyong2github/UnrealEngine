@@ -30,40 +30,40 @@ class ITargetPlatform;
  * List of asset registry tags used by blueprints. These are here so they can be used by both the asset registry and blueprint code
  * These need to be kept in sync with UBlueprint::GetAssetRegistryTags, and any changes there will require resaving content
  */
-struct COREUOBJECT_API FBlueprintTags
+struct FBlueprintTags
 {
 	/** Full path in export form ClassType'/PackagePath/PackageName.ClassName' of generated blueprint class */
-	static const FName GeneratedClassPath;
+	static COREUOBJECT_API const FName GeneratedClassPath;
 	/** Full path in export form ClassType'/PackagePath/PackageName.ClassName' of the immediate parent, may be a blueprint or native class */
-	static const FName ParentClassPath;
+	static COREUOBJECT_API const FName ParentClassPath;
 	/** Full path in export form Class'/Script/ModuleName.ClassName' of the first found parent native class */
-	static const FName NativeParentClassPath;
+	static COREUOBJECT_API const FName NativeParentClassPath;
 	/** Integer representing bitfield EClassFlags */
-	static const FName ClassFlags;
+	static COREUOBJECT_API const FName ClassFlags;
 	/** String representing enum EBlueprintType */
-	static const FName BlueprintType;
+	static COREUOBJECT_API const FName BlueprintType;
 	/** String with user-entered description of blueprint */
-	static const FName BlueprintDescription;
+	static COREUOBJECT_API const FName BlueprintDescription;
 	/** String with user-entered display name for the blueprint class (used in editor along with the description to identify the Blueprint type) */
-	static const FName BlueprintDisplayName;
+	static COREUOBJECT_API const FName BlueprintDisplayName;
 	/** String with user-entered category for the blueprint */
-	static const FName BlueprintCategory;
+	static COREUOBJECT_API const FName BlueprintCategory;
 	/** String set to True/False, set if this is a data only blueprint */
-	static const FName IsDataOnly;
+	static COREUOBJECT_API const FName IsDataOnly;
 	/** List of implemented interfaces, must be converted to FBPInterfaceDescription */
-	static const FName ImplementedInterfaces;
+	static COREUOBJECT_API const FName ImplementedInterfaces;
 	/** Very large string used to store find in blueprint data for the editor */
-	static const FName FindInBlueprintsData;
+	static COREUOBJECT_API const FName FindInBlueprintsData;
 	/** (Deprecated) Legacy tag that was initially used to store find in blueprint data for the editor */
-	static const FName UnversionedFindInBlueprintsData;
+	static COREUOBJECT_API const FName UnversionedFindInBlueprintsData;
 	/** Number of replicated properties */
-	static const FName NumReplicatedProperties;
+	static COREUOBJECT_API const FName NumReplicatedProperties;
 	/** Number of native components */
-	static const FName NumNativeComponents;
+	static COREUOBJECT_API const FName NumNativeComponents;
 	/** Number of blueprint components */
-	static const FName NumBlueprintComponents;
+	static COREUOBJECT_API const FName NumBlueprintComponents;
 	/** The subpath of a blueprint contained within the asset. Used to determine whether, and where a blueprint exists in a package. */
-	static const FName BlueprintPathWithinPackage;
+	static COREUOBJECT_API const FName BlueprintPathWithinPackage;
 };
 
 struct FBlueprintWarningDeclaration
@@ -146,11 +146,11 @@ struct FBlueprintSupport
  * this registers raw addresses for tracking. This is somewhat less safe, make
  * sure to not register addresses that may change
  */
-struct COREUOBJECT_API FScopedPlaceholderRawContainerTracker
+struct FScopedPlaceholderRawContainerTracker
 {
 public:
-	FScopedPlaceholderRawContainerTracker(void* InData);
-	~FScopedPlaceholderRawContainerTracker();
+	COREUOBJECT_API FScopedPlaceholderRawContainerTracker(void* InData);
+	COREUOBJECT_API ~FScopedPlaceholderRawContainerTracker();
 
 private:
 	void* Data;
@@ -165,11 +165,11 @@ private:
  * recompile any classes that may depend on each other a second time to ensure that that functions and properties
  * are properly resolved
  */
-struct COREUOBJECT_API FScopedClassDependencyGather
+struct FScopedClassDependencyGather
 {
 public:
-	FScopedClassDependencyGather(UClass* ClassToGather, FUObjectSerializeContext* InLoadContext);
-	~FScopedClassDependencyGather();
+	COREUOBJECT_API FScopedClassDependencyGather(UClass* ClassToGather, FUObjectSerializeContext* InLoadContext);
+	COREUOBJECT_API ~FScopedClassDependencyGather();
 
 	/**
 	 * Post load, some systems would like an easy list of dependencies. This will
@@ -178,7 +178,7 @@ public:
 	 * 
 	 * @return The most recent array of tracked dependencies.
 	 */
-	static TArray<UClass*> const& GetCachedDependencies();
+	static COREUOBJECT_API TArray<UClass*> const& GetCachedDependencies();
 
 private:
 	/** Whether or not this dependency gather is the dependency authoritative class, and thus should process all dependencies in the destructor */

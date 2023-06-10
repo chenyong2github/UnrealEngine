@@ -44,14 +44,14 @@ public:
 	}
 
 	/** Get the delegate for default token activation */
-	COREUOBJECT_API static FOnMessageTokenActivated& DefaultOnMessageTokenActivated()
+	static FOnMessageTokenActivated& DefaultOnMessageTokenActivated()
 	{
 		return DefaultMessageTokenActivated;
 	}
 
 	/** Get the delegate for displaying the object name */
 	DECLARE_DELEGATE_RetVal_TwoParams(FText, FOnGetDisplayName, const UObject*, bool);
-	COREUOBJECT_API static FOnGetDisplayName& DefaultOnGetObjectDisplayName()
+	static FOnGetDisplayName& DefaultOnGetObjectDisplayName()
 	{
 		return DefaultGetObjectDisplayName;
 	}

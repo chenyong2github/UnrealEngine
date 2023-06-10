@@ -24,7 +24,7 @@ template <typename T> struct TIsWeakPointerType;
 /**
  * Wrapper structure for a GUID that uniquely identifies a UObject
  */
-struct COREUOBJECT_API FUniqueObjectGuid
+struct FUniqueObjectGuid
 {
 	FUniqueObjectGuid()
 	{}
@@ -40,23 +40,23 @@ struct COREUOBJECT_API FUniqueObjectGuid
 	}
 
 	/** Construct from an existing object */
-	explicit FUniqueObjectGuid(const class UObject* InObject);
+	COREUOBJECT_API explicit FUniqueObjectGuid(const class UObject* InObject);
 
 	/** Converts into a string */
-	FString ToString() const;
+	COREUOBJECT_API FString ToString() const;
 
 	/** Converts from a string */
-	void FromString(const FString& From);
+	COREUOBJECT_API void FromString(const FString& From);
 
 	/** Fixes up this UniqueObjectID to add or remove the PIE prefix depending on what is currently active */
-	FUniqueObjectGuid FixupForPIE(int32 PlayInEditorID = GPlayInEditorID) const;
+	COREUOBJECT_API FUniqueObjectGuid FixupForPIE(int32 PlayInEditorID = GPlayInEditorID) const;
 
 	/**
 	 * Attempts to find a currently loaded object that matches this object ID
 	 *
 	 * @return Found UObject, or nullptr if not currently loaded
 	 */
-	class UObject *ResolveObject() const;
+	COREUOBJECT_API class UObject *ResolveObject() const;
 
 	/** Test if this can ever point to a live UObject */
 	FORCEINLINE bool IsValid() const
@@ -112,7 +112,7 @@ struct COREUOBJECT_API FUniqueObjectGuid
 		return 0;
 	}
 
-	static FUniqueObjectGuid GetOrCreateIDForObject(const class UObject *Object);
+	static COREUOBJECT_API FUniqueObjectGuid GetOrCreateIDForObject(const class UObject *Object);
 
 private:
 	/** Guid representing the object, should be unique */

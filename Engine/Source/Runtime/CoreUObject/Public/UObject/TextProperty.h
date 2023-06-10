@@ -20,9 +20,9 @@ struct FPropertyTag;
 // need to break this out a different type so that the DECLARE_CASTED_CLASS_INTRINSIC macro can digest the comma
 typedef TProperty<FText, FProperty> FTextProperty_Super;
 
-class COREUOBJECT_API FTextProperty : public FTextProperty_Super
+class FTextProperty : public FTextProperty_Super
 {
-	DECLARE_FIELD(FTextProperty, FTextProperty_Super, CASTCLASS_FTextProperty)
+	DECLARE_FIELD_API(FTextProperty, FTextProperty_Super, CASTCLASS_FTextProperty, COREUOBJECT_API)
 
 public:
 
@@ -35,7 +35,7 @@ public:
 	}
 
 	UE_DEPRECATED(5.1, "Compiled-in property constructor is deprecated, use other constructors instead.")
-	FTextProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags)
+	COREUOBJECT_API FTextProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags, int32 InOffset, EPropertyFlags InFlags)
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: FTextProperty_Super(InOwner, InName, InObjectFlags, InOffset, InFlags)
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -57,14 +57,14 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif // WITH_EDITORONLY_DATA
 
 	// FProperty interface
-	virtual EConvertFromTypeResult ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct) override;
-	virtual bool Identical( const void* A, const void* B, uint32 PortFlags ) const override;
-	virtual void SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const override;
+	COREUOBJECT_API virtual EConvertFromTypeResult ConvertFromType(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct) override;
+	COREUOBJECT_API virtual bool Identical( const void* A, const void* B, uint32 PortFlags ) const override;
+	COREUOBJECT_API virtual void SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const override;
 protected:
-	virtual void ExportText_Internal( FString& ValueStr, const void* PropertyValueOrContainer, EPropertyPointerType PropertyPointerType, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const override;
-	virtual const TCHAR* ImportText_Internal(const TCHAR* Buffer, void* ContainerOrPropertyPtr, EPropertyPointerType PropertyPointerType, UObject* OwnerObject, int32 PortFlags, FOutputDevice* ErrorText) const override;
+	COREUOBJECT_API virtual void ExportText_Internal( FString& ValueStr, const void* PropertyValueOrContainer, EPropertyPointerType PropertyPointerType, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const override;
+	COREUOBJECT_API virtual const TCHAR* ImportText_Internal(const TCHAR* Buffer, void* ContainerOrPropertyPtr, EPropertyPointerType PropertyPointerType, UObject* OwnerObject, int32 PortFlags, FOutputDevice* ErrorText) const override;
 public:
-	virtual FString GetCPPTypeForwardDeclaration() const override;
+	COREUOBJECT_API virtual FString GetCPPTypeForwardDeclaration() const override;
 	// End of FProperty interface
 
 	enum class EIdenticalLexicalCompareMethod : uint8
@@ -73,8 +73,8 @@ public:
 		SourceString,
 		DisplayString
 	};
-	static bool Identical_Implementation(const FText& A, const FText& B, uint32 PortFlags);
-	static bool Identical_Implementation(const FText& A, const FText& B, uint32 PortFlags, EIdenticalLexicalCompareMethod LexicalCompareMethod);
+	static COREUOBJECT_API bool Identical_Implementation(const FText& A, const FText& B, uint32 PortFlags);
+	static COREUOBJECT_API bool Identical_Implementation(const FText& A, const FText& B, uint32 PortFlags, EIdenticalLexicalCompareMethod LexicalCompareMethod);
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

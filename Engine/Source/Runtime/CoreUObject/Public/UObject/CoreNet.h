@@ -66,7 +66,7 @@ DECLARE_DELEGATE_RetVal_OneParam( bool, FNetObjectIsDynamic, const UObject*);
 //
 // Information about a field.
 //
-class COREUOBJECT_API FFieldNetCache
+class FFieldNetCache
 {
 public:
 	FFieldVariant			Field;
@@ -84,12 +84,12 @@ public:
 //
 // Information about a class, cached for network coordination.
 //
-class COREUOBJECT_API FClassNetCache
+class FClassNetCache
 {
 	friend class FClassNetCacheMgr;
 public:
-	FClassNetCache();
-	FClassNetCache( const UClass* Class );
+	COREUOBJECT_API FClassNetCache();
+	COREUOBJECT_API FClassNetCache( const UClass* Class );
 
 	int32 GetMaxIndex() const
 	{
@@ -141,7 +141,7 @@ public:
 	const FClassNetCache* GetSuper() const { return Super; }
 	const TArray< FFieldNetCache >& GetFields() const { return Fields; }
 
-	void CountBytes(FArchive& Ar) const;
+	COREUOBJECT_API void CountBytes(FArchive& Ar) const;
 
 private:
 	int32								FieldsBase;
@@ -154,26 +154,26 @@ private:
 };
 
 
-class COREUOBJECT_API FClassNetCacheMgr
+class FClassNetCacheMgr
 {
 public:
 	FClassNetCacheMgr() : bDebugChecksum( false ), DebugChecksumIndent( 0 ) { }
 	~FClassNetCacheMgr() { ClearClassNetCache(); }
 
 	/** get the cached field to index mappings for the given class */
-	const FClassNetCache*	GetClassNetCache( UClass* Class );
-	void					ClearClassNetCache();
+	COREUOBJECT_API const FClassNetCache*	GetClassNetCache( UClass* Class );
+	COREUOBJECT_API void					ClearClassNetCache();
 
-	void				SortProperties( TArray< FProperty* >& Properties ) const;
-	uint32				SortedStructFieldsChecksum( const UStruct* Struct, uint32 Checksum ) const;
-	uint32				GetPropertyChecksum( const FProperty* Property, uint32 Checksum, const bool bIncludeChildren ) const;
-	uint32				GetFunctionChecksum( const UFunction* Function, uint32 Checksum ) const;
-	uint32				GetFieldChecksum( const UField* Field, uint32 Checksum ) const;
+	COREUOBJECT_API void				SortProperties( TArray< FProperty* >& Properties ) const;
+	COREUOBJECT_API uint32				SortedStructFieldsChecksum( const UStruct* Struct, uint32 Checksum ) const;
+	COREUOBJECT_API uint32				GetPropertyChecksum( const FProperty* Property, uint32 Checksum, const bool bIncludeChildren ) const;
+	COREUOBJECT_API uint32				GetFunctionChecksum( const UFunction* Function, uint32 Checksum ) const;
+	COREUOBJECT_API uint32				GetFieldChecksum( const UField* Field, uint32 Checksum ) const;
 
 	bool				bDebugChecksum;
 	int					DebugChecksumIndent;
 
-	void CountBytes(FArchive& Ar) const;
+	COREUOBJECT_API void CountBytes(FArchive& Ar) const;
 
 private:
 	TMap< TWeakObjectPtr< const UClass >, FClassNetCache* > ClassFieldIndices;
@@ -183,9 +183,9 @@ private:
 //
 // Maps objects and names to and from indices for network communication.
 //
-class COREUOBJECT_API UPackageMap : public UObject
+class UPackageMap : public UObject
 {
-	DECLARE_CLASS_INTRINSIC(UPackageMap, UObject, CLASS_Transient | CLASS_Abstract | 0, TEXT("/Script/CoreUObject"));
+	DECLARE_CASTED_CLASS_INTRINSIC_WITH_API(UPackageMap, UObject, CLASS_Transient | CLASS_Abstract | 0, TEXT("/Script/CoreUObject"), CASTCLASS_None, COREUOBJECT_API);
 
 	virtual bool		WriteObject( FArchive & Ar, UObject* InOuter, FNetworkGUID NetGUID, FString ObjName ) { return false; }
 
@@ -193,9 +193,9 @@ class COREUOBJECT_API UPackageMap : public UObject
 	virtual bool		SerializeObject( FArchive& Ar, UClass* InClass, UObject*& Obj, FNetworkGUID *OutNetGUID = NULL ) { return false; }
 
 	// @todo document
-	virtual bool		SerializeName( FArchive& Ar, FName& InName );
+	COREUOBJECT_API virtual bool		SerializeName( FArchive& Ar, FName& InName );
 
-	static bool			StaticSerializeName( FArchive& Ar, FName& InName );
+	static COREUOBJECT_API bool			StaticSerializeName( FArchive& Ar, FName& InName );
 
 	virtual UObject*	ResolvePathAndAssignNetGUID( const FNetworkGUID& NetGUID, const FString& PathName ) { return NULL; }
 
@@ -227,7 +227,7 @@ class COREUOBJECT_API UPackageMap : public UObject
 	virtual FNetworkGUID	GetNetGUIDFromObject( const UObject* InObject) const { return FNetworkGUID(); }
 	virtual bool			IsGUIDBroken( const FNetworkGUID& NetGUID, const bool bMustBeRegistered ) const { return false; }
 
-	virtual void Serialize(FArchive& Ar) override;
+	COREUOBJECT_API virtual void Serialize(FArchive& Ar) override;
 
 protected:
 	bool					bShouldTrackUnmappedGuids;
@@ -367,12 +367,12 @@ private:
  *	A bit writer that serializes FNames and UObject* through
  *	a network packagemap.
  */
-class COREUOBJECT_API FNetBitWriter : public FBitWriter
+class FNetBitWriter : public FBitWriter
 {
 public:
-	FNetBitWriter( UPackageMap * InPackageMap, int64 InMaxBits );
-	FNetBitWriter( int64 InMaxBits );
-	FNetBitWriter();
+	COREUOBJECT_API FNetBitWriter( UPackageMap * InPackageMap, int64 InMaxBits );
+	COREUOBJECT_API FNetBitWriter( int64 InMaxBits );
+	COREUOBJECT_API FNetBitWriter();
 
 	class UPackageMap * PackageMap;
 
@@ -380,14 +380,14 @@ public:
 	FNetTraceCollectorDoNotCopyWrapper TraceCollector;
 #endif
 
-	virtual FArchive& operator<<(FName& Name) override;
-	virtual FArchive& operator<<(UObject*& Object) override;
-	virtual FArchive& operator<<(FSoftObjectPath& Value) override;
-	virtual FArchive& operator<<(FSoftObjectPtr& Value) override;
-	virtual FArchive& operator<<(FObjectPtr& Value) override;
-	virtual FArchive& operator<<(struct FWeakObjectPtr& Value) override;
+	COREUOBJECT_API virtual FArchive& operator<<(FName& Name) override;
+	COREUOBJECT_API virtual FArchive& operator<<(UObject*& Object) override;
+	COREUOBJECT_API virtual FArchive& operator<<(FSoftObjectPath& Value) override;
+	COREUOBJECT_API virtual FArchive& operator<<(FSoftObjectPtr& Value) override;
+	COREUOBJECT_API virtual FArchive& operator<<(FObjectPtr& Value) override;
+	COREUOBJECT_API virtual FArchive& operator<<(struct FWeakObjectPtr& Value) override;
 
-	virtual void CountMemory(FArchive& Ar) const override;
+	COREUOBJECT_API virtual void CountMemory(FArchive& Ar) const override;
 };
 
 
@@ -396,7 +396,7 @@ public:
  *	A bit reader that serializes FNames and UObject* through
  *	a network packagemap.
  */
-class COREUOBJECT_API FNetBitReader : public FBitReader
+class FNetBitReader : public FBitReader
 {
 public:
 	UPackageMap*													PackageMap		= nullptr;
@@ -406,16 +406,16 @@ public:
 
 
 public:
-	FNetBitReader(UPackageMap* InPackageMap=nullptr, const uint8* Src=nullptr, int64 CountBits=0);
+	COREUOBJECT_API FNetBitReader(UPackageMap* InPackageMap=nullptr, const uint8* Src=nullptr, int64 CountBits=0);
 
-	virtual FArchive& operator<<(FName& Name) override;
-	virtual FArchive& operator<<(UObject*& Object) override;
-	virtual FArchive& operator<<(FSoftObjectPath& Value) override;
-	virtual FArchive& operator<<(FSoftObjectPtr& Value) override;
-	virtual FArchive& operator<<(FObjectPtr& Value) override;
-	virtual FArchive& operator<<(struct FWeakObjectPtr& Value) override;
+	COREUOBJECT_API virtual FArchive& operator<<(FName& Name) override;
+	COREUOBJECT_API virtual FArchive& operator<<(UObject*& Object) override;
+	COREUOBJECT_API virtual FArchive& operator<<(FSoftObjectPath& Value) override;
+	COREUOBJECT_API virtual FArchive& operator<<(FSoftObjectPtr& Value) override;
+	COREUOBJECT_API virtual FArchive& operator<<(FObjectPtr& Value) override;
+	COREUOBJECT_API virtual FArchive& operator<<(struct FWeakObjectPtr& Value) override;
 
-	virtual void CountMemory(FArchive& Ar) const override;
+	COREUOBJECT_API virtual void CountMemory(FArchive& Ar) const override;
 };
 
 bool FORCEINLINE NetworkGuidSetsAreSame( const TSet< FNetworkGUID >& A, const TSet< FNetworkGUID >& B )
@@ -478,7 +478,7 @@ struct FNetDeltaSerializeInfo;
  *
  * See notes in NetSerialization.h
  */
-class COREUOBJECT_API INetSerializeCB
+class INetSerializeCB
 {
 protected:
 

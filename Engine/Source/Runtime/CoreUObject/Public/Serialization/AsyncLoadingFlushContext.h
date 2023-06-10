@@ -16,14 +16,14 @@ DECLARE_DELEGATE(FOnAsyncLoadingFlushComplete);
 /**
  * Flush the async loader in a non-blocking manner.
  */
-class COREUOBJECT_API FAsyncLoadingFlushContext final : FNoncopyable
+class FAsyncLoadingFlushContext final : FNoncopyable
 {
 public:
-	FAsyncLoadingFlushContext(const FString & Context);
-	FAsyncLoadingFlushContext(FString&& Context);
-	~FAsyncLoadingFlushContext();
+	COREUOBJECT_API FAsyncLoadingFlushContext(const FString & Context);
+	COREUOBJECT_API FAsyncLoadingFlushContext(FString&& Context);
+	COREUOBJECT_API ~FAsyncLoadingFlushContext();
 
-	void Flush(const FOnAsyncLoadingFlushComplete& OnFlushComplete);
+	COREUOBJECT_API void Flush(const FOnAsyncLoadingFlushComplete& OnFlushComplete);
 
 	int32 GetId() const { return Id; }
 
@@ -55,5 +55,5 @@ private:
 	FTSTicker::FDelegateHandle WaitingWarnDelegateHandle;
 
 	/** Increment ids so each instance has a unique id. */
-	static int32 NextId;
+	static COREUOBJECT_API int32 NextId;
 };

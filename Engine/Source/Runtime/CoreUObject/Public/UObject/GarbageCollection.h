@@ -79,11 +79,11 @@ private:
 } // namespace UE::GC
 
 /** Prevent GC from running in the current scope */
-class COREUOBJECT_API FGCScopeGuard
+class FGCScopeGuard
 {
 public:
-	FGCScopeGuard();
-	~FGCScopeGuard();
+	COREUOBJECT_API FGCScopeGuard();
+	COREUOBJECT_API ~FGCScopeGuard();
 };
 
 class FGCObject;

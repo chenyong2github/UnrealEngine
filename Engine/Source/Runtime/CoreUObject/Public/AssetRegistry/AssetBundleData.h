@@ -21,7 +21,7 @@ class FOutputDevice;
 class UObject;
 
 /** A struct representing a single AssetBundle */
-struct COREUOBJECT_API FAssetBundleEntry
+struct FAssetBundleEntry
 {
 	/** Declare constructors inline so this can be a header only class */
 	FORCEINLINE FAssetBundleEntry() {}
@@ -76,12 +76,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return !(*this == Other);
 	}
 
-	bool ExportTextItem(FString& ValueStr, const FAssetBundleEntry& DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const;
-	bool ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText);
+	COREUOBJECT_API bool ExportTextItem(FString& ValueStr, const FAssetBundleEntry& DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const;
+	COREUOBJECT_API bool ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText);
 };
 
 /** A struct with a list of asset bundle entries. If one of these is inside a UObject it will get automatically exported as the asset registry tag AssetBundleData */
-struct COREUOBJECT_API FAssetBundleData
+struct FAssetBundleData
 {
 	/** Declare constructors inline so this can be a header only class */
 	FORCEINLINE FAssetBundleData() {}
@@ -105,7 +105,7 @@ struct COREUOBJECT_API FAssetBundleData
 	}
 
 	/** Returns pointer to an entry with given Scope/Name */
-	FAssetBundleEntry* FindEntry(FName SearchName);
+	COREUOBJECT_API FAssetBundleEntry* FindEntry(FName SearchName);
 	
 	UE_DEPRECATED(4.27, "Bundles scopes are removed, please use FindEntry(FName) instead")
 	FAssetBundleEntry* FindEntry(const FPrimaryAssetId& SearchScope, FName SearchName)
@@ -116,7 +116,7 @@ struct COREUOBJECT_API FAssetBundleData
 
 	/** Adds or updates an entry with the given BundleName -> Path. Scope is empty and will be filled in later */
 	UE_DEPRECATED(5.1, "The contents of an asset bundle now use FTopLevelAssetPath instead of FSoftObjectPath.")
-	void AddBundleAsset(FName BundleName, const FSoftObjectPath& AssetPath);
+	COREUOBJECT_API void AddBundleAsset(FName BundleName, const FSoftObjectPath& AssetPath);
 
 	template< typename T >
 	UE_DEPRECATED(5.1, "The contents of an asset bundle now use FTopLevelAssetPath instead of FSoftObjectPath.")
@@ -127,38 +127,38 @@ struct COREUOBJECT_API FAssetBundleData
 
 	/** Adds multiple assets at once */
 	UE_DEPRECATED(5.1, "The contents of an asset bundle now use FTopLevelAssetPath instead of FSoftObjectPath.")
-	void AddBundleAssets(FName BundleName, const TArray<FSoftObjectPath>& AssetPaths);
+	COREUOBJECT_API void AddBundleAssets(FName BundleName, const TArray<FSoftObjectPath>& AssetPaths);
 
 	/** A fast set of asset bundle assets, will destroy copied in path list */
 	UE_DEPRECATED(5.1, "The contents of an asset bundle now use FTopLevelAssetPath instead of FSoftObjectPath.")
-	void SetBundleAssets(FName BundleName, TArray<FSoftObjectPath>&& AssetPaths);
+	COREUOBJECT_API void SetBundleAssets(FName BundleName, TArray<FSoftObjectPath>&& AssetPaths);
 
 	/** Adds or updates an entry with the given BundleName -> Path.*/
-	void AddBundleAsset(FName BundleName, const FTopLevelAssetPath& AssetPath);
+	COREUOBJECT_API void AddBundleAsset(FName BundleName, const FTopLevelAssetPath& AssetPath);
 
 	/** Adds multiple assets at once */
-	void AddBundleAssets(FName BundleName, const TArray<FTopLevelAssetPath>& AssetPaths);
+	COREUOBJECT_API void AddBundleAssets(FName BundleName, const TArray<FTopLevelAssetPath>& AssetPaths);
 
 	/** A fast set of asset bundle assets, will destroy copied in path list */
-	void SetBundleAssets(FName BundleName, TArray<FTopLevelAssetPath>&& AssetPaths);
+	COREUOBJECT_API void SetBundleAssets(FName BundleName, TArray<FTopLevelAssetPath>&& AssetPaths);
 
 	/** Adds or updates an entry with the given BundleName -> Path, truncating to a top-level asset path if necessary.*/
-	void AddBundleAssetTruncated(FName BundleName, const FSoftObjectPath& AssetPath);
+	COREUOBJECT_API void AddBundleAssetTruncated(FName BundleName, const FSoftObjectPath& AssetPath);
 
 	/** Adds multiple assets at once, truncating to top-level asset paths if necessary */
-	void AddBundleAssetsTruncated(FName BundleName, const TArray<FSoftObjectPath>& AssetPaths);
+	COREUOBJECT_API void AddBundleAssetsTruncated(FName BundleName, const TArray<FSoftObjectPath>& AssetPaths);
 
 	/** Replaces the contents of this bundle with the given assets, truncating to top-level asset paths if necessary. */
-	void SetBundleAssetsTruncated(FName BundleName, const TArray<FSoftObjectPath>& AssetPaths);
+	COREUOBJECT_API void SetBundleAssetsTruncated(FName BundleName, const TArray<FSoftObjectPath>& AssetPaths);
 
 	/** Resets the data to defaults */
-	void Reset();
+	COREUOBJECT_API void Reset();
 
 	/** Override Import/Export to not write out empty structs */
-	bool ExportTextItem(FString& ValueStr, FAssetBundleData const& DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const;
-	bool ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText);
+	COREUOBJECT_API bool ExportTextItem(FString& ValueStr, FAssetBundleData const& DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope) const;
+	COREUOBJECT_API bool ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText);
 
-	FString ToDebugString() const;
+	COREUOBJECT_API FString ToDebugString() const;
 };
 
 template<>

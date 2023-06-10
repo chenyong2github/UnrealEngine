@@ -54,7 +54,7 @@ ENUM_CLASS_FLAGS(EObjectFullNameFlags);
 /**
  * Provides utility functions for UObject, this class should not be used directly
  */
-class COREUOBJECT_API UObjectBaseUtility : public UObjectBase
+class UObjectBaseUtility : public UObjectBase
 {
 	FORCEINLINE void MarkPendingKillOnlyInternal()
 	{
@@ -78,7 +78,7 @@ class COREUOBJECT_API UObjectBaseUtility : public UObjectBase
 	}
 
 	/** If true, objects will never be marked as PendingKill so references to them will not be nulled automatically by the garbage collector */
-	static bool bPendingKillDisabled;
+	static COREUOBJECT_API bool bPendingKillDisabled;
 
 	friend void InitNoPendingKill();
 	friend struct FInternalUObjectBaseUtilityIsValidFlagsChecker;
@@ -426,12 +426,12 @@ public:
 	 *
 	 * @note	safe to call on NULL object pointers!
 	 */
-	FString GetFullName( const UObject* StopOuter=NULL, EObjectFullNameFlags Flags = EObjectFullNameFlags::None ) const;
+	COREUOBJECT_API FString GetFullName( const UObject* StopOuter=NULL, EObjectFullNameFlags Flags = EObjectFullNameFlags::None ) const;
 
 	/**
 	 * Version of GetFullName() that eliminates unnecessary copies.
 	 */
-	void GetFullName( const UObject* StopOuter, FString& ResultString, EObjectFullNameFlags Flags = EObjectFullNameFlags::None ) const;
+	COREUOBJECT_API void GetFullName( const UObject* StopOuter, FString& ResultString, EObjectFullNameFlags Flags = EObjectFullNameFlags::None ) const;
 
 	/**
 	 * Returns the fully qualified pathname for this object as well as the name of the class, in the format:
@@ -444,7 +444,7 @@ public:
 	 *
 	 * @note	safe to call on NULL object pointers!
 	 */
-	void GetFullName(FStringBuilderBase& ResultString, const UObject* StopOuter = NULL, EObjectFullNameFlags Flags = EObjectFullNameFlags::None) const;
+	COREUOBJECT_API void GetFullName(FStringBuilderBase& ResultString, const UObject* StopOuter = NULL, EObjectFullNameFlags Flags = EObjectFullNameFlags::None) const;
 
 	/**
 	 * Returns the fully qualified pathname for this object, in the format:
@@ -455,13 +455,13 @@ public:
 	 *
 	 * @note	safe to call on NULL object pointers!
 	 */
-	FString GetPathName( const UObject* StopOuter=NULL ) const;
+	COREUOBJECT_API FString GetPathName( const UObject* StopOuter=NULL ) const;
 
 	/**
 	 * Versions of GetPathName() that eliminates unnecessary copies and allocations.
 	 */
-	void GetPathName(const UObject* StopOuter, FString& ResultString) const;
-	void GetPathName(const UObject* StopOuter, FStringBuilderBase& ResultString) const;
+	COREUOBJECT_API void GetPathName(const UObject* StopOuter, FString& ResultString) const;
+	COREUOBJECT_API void GetPathName(const UObject* StopOuter, FStringBuilderBase& ResultString) const;
 
 	/** Helper function to access the private bPendingKillDisabled variable */
 	static inline bool IsPendingKillEnabled()
@@ -503,12 +503,12 @@ public:
 	*
 	* @return	true if this object can be inside of a cluster
 	*/
-	virtual bool CanBeInCluster() const;
+	COREUOBJECT_API virtual bool CanBeInCluster() const;
 
 	/**
 	* Called after PostLoad to create UObject cluster
 	*/
-	virtual void CreateCluster();
+	COREUOBJECT_API virtual void CreateCluster();
 
 	/**
 	* Called during Garbage Collection to perform additional cleanup when the cluster is about to be destroyed due to PendingKill flag being set on it.
@@ -520,11 +520,11 @@ public:
 	* @param ClusterRootOrObjectFromCluster Object that belongs to the cluster we want to add this object to.
 	* @param Add this object to the target cluster as a mutable object without adding this object's references.
 	*/
-	void AddToCluster(UObjectBaseUtility* ClusterRootOrObjectFromCluster, bool bAddAsMutableObject = false);
+	COREUOBJECT_API void AddToCluster(UObjectBaseUtility* ClusterRootOrObjectFromCluster, bool bAddAsMutableObject = false);
 
 protected:
 	/** Helper function to create a cluster from UObject */
-	static void CreateClusterFromObject(UObjectBaseUtility* ClusterRootObject, UObjectBaseUtility* ReferencingObject);
+	static COREUOBJECT_API void CreateClusterFromObject(UObjectBaseUtility* ClusterRootObject, UObjectBaseUtility* ReferencingObject);
 
 public:
 	/**
@@ -533,7 +533,7 @@ public:
 	 * @param	bStartWithOuter		whether to include this object's name in the returned string
 	 * @return	string containing the path name for this object, minus the outermost-package's name
 	 */
-	FString GetFullGroupName( bool bStartWithOuter ) const;
+	COREUOBJECT_API FString GetFullGroupName( bool bStartWithOuter ) const;
 
 	/**
 	 * Returns the name of this object (with no path information)
@@ -565,33 +565,33 @@ public:
 	 * Get the object packaging mode.
 	 * @return true if object has a different package than its outer's package
 	 */
-	bool IsPackageExternal() const;
+	COREUOBJECT_API bool IsPackageExternal() const;
 
 	/**
 	 * Utility function to temporarily detach the object external package, if any
 	 * GetPackage will report the outer's package once detached
 	 */
-	void DetachExternalPackage();
+	COREUOBJECT_API void DetachExternalPackage();
 
 	/**
 	 * Utility function to reattach the object external package, if any
 	 * GetPackage will report the object external package if set after this call
 	 */
-	void ReattachExternalPackage();
+	COREUOBJECT_API void ReattachExternalPackage();
 
 	/**
 	 * Walks up the list of outers until it finds the top-level one that isn't a package.
 	 * Will return null if called on a package
 	 * @return outermost non package Outer.
 	 */
-	UObject* GetOutermostObject() const;
+	COREUOBJECT_API UObject* GetOutermostObject() const;
 
 	/**
 	 * Walks up the list of outers until it finds a package directly associated with the object.
 	 *
 	 * @return the package the object is in.
 	 */
-	UPackage* GetPackage() const;
+	COREUOBJECT_API UPackage* GetPackage() const;
 
 #if UE_USE_VERSE_PATHS
 	/**
@@ -599,7 +599,7 @@ public:
 	 *
 	 * @return The VersePath of the object
 	 */
-	UE::Core::FVersePath GetVersePath() const;
+	COREUOBJECT_API UE::Core::FVersePath GetVersePath() const;
 #endif
 
 	/** 
@@ -608,7 +608,7 @@ public:
 	 * @return the package the object is in.
 	 * @see GetPackage
 	 */
-	UPackage* GetOutermost() const;
+	COREUOBJECT_API UPackage* GetOutermost() const;
 
 	/** 
 	 * Finds the outermost package and marks it dirty. 
@@ -616,14 +616,14 @@ public:
 	 *
 	 * @return false if the request to mark the package dirty was suppressed by the editor and true otherwise.
 	 */
-	bool MarkPackageDirty() const;
+	COREUOBJECT_API bool MarkPackageDirty() const;
 
 	/**
 	* Determines whether this object is a template object
 	*
 	* @return	true if this object is a template object (owned by a UClass)
 	*/
-	bool IsTemplate( EObjectFlags TemplateTypes = RF_ArchetypeObject|RF_ClassDefaultObject ) const;
+	COREUOBJECT_API bool IsTemplate( EObjectFlags TemplateTypes = RF_ArchetypeObject|RF_ClassDefaultObject ) const;
 
 	/**
 	 * Traverses the outer chain searching for the next object of a certain type.  (T must be derived from UObject)
@@ -631,7 +631,7 @@ public:
 	 * @param	Target class to search for
 	 * @return	a pointer to the first object in this object's Outer chain which is of the correct type.
 	 */
-	UObject* GetTypedOuter(UClass* Target) const;
+	COREUOBJECT_API UObject* GetTypedOuter(UClass* Target) const;
 
 	/**
 	 * Traverses the outer chain searching for the next object of a certain type.  (T must be derived from UObject)
@@ -666,32 +666,32 @@ public:
 	 * @param	InInterfaceClass	Target interface to search for
 	 * @return	a pointer to the first object in this object's Outer chain which implements the specified interface.
 	 */
-	UObjectBaseUtility* GetImplementingOuterObject(const UClass* InInterfaceClass) const;
+	COREUOBJECT_API UObjectBaseUtility* GetImplementingOuterObject(const UClass* InInterfaceClass) const;
 
 	/** 
 	 * Return the dispatch to `IsInOuter` or `IsInPackage` depending on SomeOuter's class. 
 	 * Legacy function, preferably use IsInOuter or IsInPackage depending on use case.
 	 */
-	bool IsIn( const UObject* SomeOuter ) const;
+	COREUOBJECT_API bool IsIn( const UObject* SomeOuter ) const;
 
 	/** 
 	 * Overload to determine if an object is in the specified package which can now be different than its outer chain.
 	 * Calls IsInPackage.
 	 */
-	bool IsIn(const UPackage* SomePackage) const;
+	COREUOBJECT_API bool IsIn(const UPackage* SomePackage) const;
 
 	/** Returns true if the object is contained in the specified outer. */
-	bool IsInOuter(const UObject* SomeOuter) const;
+	COREUOBJECT_API bool IsInOuter(const UObject* SomeOuter) const;
 
 	/** Returns true if the object is contained in the specified package. */
-	bool IsInPackage(const UPackage* SomePackage) const;
+	COREUOBJECT_API bool IsInPackage(const UPackage* SomePackage) const;
 
 	/**
 	 * Find out if this object is inside (has an outer) that is of the specified class
 	 * @param SomeBaseClass	The base class to compare against
 	 * @return True if this object is in an object of the given type.
 	 */
-	bool IsInA( const UClass* SomeBaseClass ) const;
+	COREUOBJECT_API bool IsInA( const UClass* SomeBaseClass ) const;
 
 	/**
 	 * Checks whether this object's top-most package has any of the specified flags
@@ -700,7 +700,7 @@ public:
 	 *
 	 * @return	true if the PackageFlags member of this object's top-package has any bits from the mask set.
 	 */
-	bool RootPackageHasAnyFlags( uint32 CheckFlagMask ) const;
+	COREUOBJECT_API bool RootPackageHasAnyFlags( uint32 CheckFlagMask ) const;
 
 
 	/*-------------------
@@ -748,7 +748,7 @@ public:
 	 *
 	 * @param	TestClass	the class to find the common base for
 	 */
-	const UClass* FindNearestCommonBaseClass( const UClass* TestClass ) const;
+	COREUOBJECT_API const UClass* FindNearestCommonBaseClass( const UClass* TestClass ) const;
 
 	/**
 	 * Returns a pointer to this object safely converted to a pointer of the specified interface class.
@@ -759,13 +759,13 @@ public:
 	 *			class doesn't implement the interface indicated.  Will be the same value as 'this' if the interface class
 	 *			isn't native.
 	 */
-	void* GetInterfaceAddress( UClass* InterfaceClass );
+	COREUOBJECT_API void* GetInterfaceAddress( UClass* InterfaceClass );
 
 	/** 
 	 *	Returns a pointer to the I* native interface object that this object implements.
 	 *	Returns NULL if this object does not implement InterfaceClass, or does not do so natively.
 	 */
-	void* GetNativeInterfaceAddress(UClass* InterfaceClass);
+	COREUOBJECT_API void* GetNativeInterfaceAddress(UClass* InterfaceClass);
 
 	/** 
 	 *	Returns a pointer to the const I* native interface object that this object implements.
@@ -781,7 +781,7 @@ public:
 	 *
 	 * @return	true if this component was instanced from a template.  false if this component was created manually at runtime.
 	 */
-	bool IsDefaultSubobject() const;
+	COREUOBJECT_API bool IsDefaultSubobject() const;
 	
 
 	/*--------------------------------------------------
@@ -793,7 +793,7 @@ public:
 	 *
 	 * @return	a pointer to the linker for this object, or NULL if this object has no linker
 	 */
-	class FLinkerLoad* GetLinker() const;
+	COREUOBJECT_API class FLinkerLoad* GetLinker() const;
 
 	/**
 	 * Returns this object's LinkerIndex.
@@ -801,7 +801,7 @@ public:
 	 * @return	the index into my linker's ExportMap for the FObjectExport
 	 *			corresponding to this object.
 	 */
-	int32 GetLinkerIndex() const;
+	COREUOBJECT_API int32 GetLinkerIndex() const;
 
 	/**
 	 * Returns the UE version of the linker for this object.
@@ -812,7 +812,7 @@ public:
 	 *			a) this object is a native only class, or
 	 *			b) this object's linker has been detached, in which case it is already fully loaded
 	 */
-	FPackageFileVersion GetLinkerUEVersion() const;
+	COREUOBJECT_API FPackageFileVersion GetLinkerUEVersion() const;
 		
 	UE_DEPRECATED(5.0, "Use GetLinkerUEVersion instead which returns the version as a FPackageFileVersion. See the @FPackageFileVersion documentation for further details")
 	inline int32 GetLinkerUE4Version() const 
@@ -832,7 +832,7 @@ public:
 	 *			a) this object is a native only class, or
 	 *			b) this object's linker has been detached, in which case it is already fully loaded
 	 */
-	int32 GetLinkerLicenseeUEVersion() const;
+	COREUOBJECT_API int32 GetLinkerLicenseeUEVersion() const;
 
 	UE_DEPRECATED(5.0, "Use GetLinkerLicenseeUEVersion instead")
 	inline int32 GetLinkerLicenseeUE4Version() const { return GetLinkerLicenseeUEVersion(); }
@@ -847,7 +847,7 @@ public:
 	 *			a) this object is a native only class, or
 	 *			b) this object's linker has been detached, in which case it is already fully loaded
 	 */
-	int32 GetLinkerCustomVersion(FGuid CustomVersionKey) const;
+	COREUOBJECT_API int32 GetLinkerCustomVersion(FGuid CustomVersionKey) const;
 
 	/** 
 	 * Overloaded < operator. Compares objects by name.

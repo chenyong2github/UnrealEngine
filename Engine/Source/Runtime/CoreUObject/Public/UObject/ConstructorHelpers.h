@@ -74,7 +74,7 @@ namespace ConstructorHelpersInternal
 	}
 }
 
-struct COREUOBJECT_API ConstructorHelpers
+struct ConstructorHelpers
 {
 public:
 	template<class T>
@@ -187,7 +187,7 @@ public:
 
 public:
 	/** If there is an object class, strips it off. */
-	static void StripObjectClass( FString& PathName, bool bAssertOnBadPath = false );
+	static COREUOBJECT_API void StripObjectClass( FString& PathName, bool bAssertOnBadPath = false );
 
 private:
 	static void ValidateObject(UObject *Object, const FString& PathName, const TCHAR* ObjectToFind)
@@ -204,9 +204,9 @@ private:
 #endif
 	}
 
-	static void FailedToFind(const TCHAR* ObjectToFind);
-	static void CheckFoundViaRedirect(UObject *Object, const FString& PathName, const TCHAR* ObjectToFind);
-	static void CheckIfIsInConstructor(const TCHAR* ObjectToFind);
+	static COREUOBJECT_API void FailedToFind(const TCHAR* ObjectToFind);
+	static COREUOBJECT_API void CheckFoundViaRedirect(UObject *Object, const FString& PathName, const TCHAR* ObjectToFind);
+	static COREUOBJECT_API void CheckIfIsInConstructor(const TCHAR* ObjectToFind);
 };
 
 

@@ -22,18 +22,18 @@ namespace FixedTagPrivate
 	 * The AssetRegistry's representation of an FText AssetData Tag value.
 	 * It can be stored and copied without being interpreted as an FText.
 	 */
-	class COREUOBJECT_API FMarshalledText
+	class FMarshalledText
 	{
 	public:
 		FMarshalledText() = default;
-		explicit FMarshalledText(const FString& InString);
-		explicit FMarshalledText(FString&& InString);
-		explicit FMarshalledText(const FText& InText);
-		explicit FMarshalledText(FText&& InText);
+		COREUOBJECT_API explicit FMarshalledText(const FString& InString);
+		COREUOBJECT_API explicit FMarshalledText(FString&& InString);
+		COREUOBJECT_API explicit FMarshalledText(const FText& InText);
+		COREUOBJECT_API explicit FMarshalledText(FText&& InText);
 
-		const FString& GetAsComplexString() const;
-		FText GetAsText() const;
-		int32 CompareToCaseIgnored(const FMarshalledText& Other) const;
+		COREUOBJECT_API const FString& GetAsComplexString() const;
+		COREUOBJECT_API FText GetAsText() const;
+		COREUOBJECT_API int32 CompareToCaseIgnored(const FMarshalledText& Other) const;
 
 	private:
 		FString String;

@@ -21,5 +21,5 @@ struct FTestUndeclaredScriptStructObjectReferencesTest
 
 template<> struct TBaseStructure<FTestUndeclaredScriptStructObjectReferencesTest>
 {
-	COREUOBJECT_API static UScriptStruct* Get();
+	static UScriptStruct* Get();
 };

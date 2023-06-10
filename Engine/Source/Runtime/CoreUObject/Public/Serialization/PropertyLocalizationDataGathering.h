@@ -89,7 +89,7 @@ enum class EPropertyLocalizationGathererResultFlags : uint8
 };
 ENUM_CLASS_FLAGS(EPropertyLocalizationGathererResultFlags);
 
-class COREUOBJECT_API FPropertyLocalizationDataGatherer
+class FPropertyLocalizationDataGatherer
 {
 public:
 	typedef TFunction<void(const UObject* /*Object*/, FPropertyLocalizationDataGatherer& /*PropertyLocalizationDataGatherer*/, const EPropertyLocalizationGathererTextFlags /*GatherTextFlags*/)> FLocalizationDataObjectGatheringCallback;
@@ -114,37 +114,37 @@ public:
 		}
 	};
 
-	FPropertyLocalizationDataGatherer(TArray<FGatherableTextData>& InOutGatherableTextDataArray, const UPackage* const InPackage, EPropertyLocalizationGathererResultFlags& OutResultFlags);
+	COREUOBJECT_API FPropertyLocalizationDataGatherer(TArray<FGatherableTextData>& InOutGatherableTextDataArray, const UPackage* const InPackage, EPropertyLocalizationGathererResultFlags& OutResultFlags);
 
 	// Non-copyable
 	FPropertyLocalizationDataGatherer(const FPropertyLocalizationDataGatherer&) = delete;
 	FPropertyLocalizationDataGatherer& operator=(const FPropertyLocalizationDataGatherer&) = delete;
 
-	void GatherLocalizationDataFromObjectWithCallbacks(const UObject* Object, const EPropertyLocalizationGathererTextFlags GatherTextFlags);
-	void GatherLocalizationDataFromObject(const UObject* Object, const EPropertyLocalizationGathererTextFlags GatherTextFlags);
-	void GatherLocalizationDataFromObjectFields(const FString& PathToParent, const UObject* Object, const EPropertyLocalizationGathererTextFlags GatherTextFlags);
+	COREUOBJECT_API void GatherLocalizationDataFromObjectWithCallbacks(const UObject* Object, const EPropertyLocalizationGathererTextFlags GatherTextFlags);
+	COREUOBJECT_API void GatherLocalizationDataFromObject(const UObject* Object, const EPropertyLocalizationGathererTextFlags GatherTextFlags);
+	COREUOBJECT_API void GatherLocalizationDataFromObjectFields(const FString& PathToParent, const UObject* Object, const EPropertyLocalizationGathererTextFlags GatherTextFlags);
 	
-	void GatherLocalizationDataFromStructWithCallbacks(const FString& PathToParent, const UScriptStruct* Struct, const void* StructData, const void* DefaultStructData, const EPropertyLocalizationGathererTextFlags GatherTextFlags);
-	void GatherLocalizationDataFromStruct(const FString& PathToParent, const UScriptStruct* Struct, const void* StructData, const void* DefaultStructData, const EPropertyLocalizationGathererTextFlags GatherTextFlags);
-	void GatherLocalizationDataFromStructFields(const FString& PathToParent, const UStruct* Struct, const void* StructData, const void* DefaultStructData, const EPropertyLocalizationGathererTextFlags GatherTextFlags);
+	COREUOBJECT_API void GatherLocalizationDataFromStructWithCallbacks(const FString& PathToParent, const UScriptStruct* Struct, const void* StructData, const void* DefaultStructData, const EPropertyLocalizationGathererTextFlags GatherTextFlags);
+	COREUOBJECT_API void GatherLocalizationDataFromStruct(const FString& PathToParent, const UScriptStruct* Struct, const void* StructData, const void* DefaultStructData, const EPropertyLocalizationGathererTextFlags GatherTextFlags);
+	COREUOBJECT_API void GatherLocalizationDataFromStructFields(const FString& PathToParent, const UStruct* Struct, const void* StructData, const void* DefaultStructData, const EPropertyLocalizationGathererTextFlags GatherTextFlags);
 	
-	void GatherLocalizationDataFromChildTextProperties(const FString& PathToParent, const FProperty* const Property, const void* const ValueAddress, const void* const DefaultValueAddress, const EPropertyLocalizationGathererTextFlags GatherTextFlags);
+	COREUOBJECT_API void GatherLocalizationDataFromChildTextProperties(const FString& PathToParent, const FProperty* const Property, const void* const ValueAddress, const void* const DefaultValueAddress, const EPropertyLocalizationGathererTextFlags GatherTextFlags);
 
-	void GatherTextInstance(const FText& Text, const FString& Description, const bool bIsEditorOnly);
-	void GatherScriptBytecode(const FString& PathToScript, const TArray<uint8>& ScriptData, const bool bIsEditorOnly);
+	COREUOBJECT_API void GatherTextInstance(const FText& Text, const FString& Description, const bool bIsEditorOnly);
+	COREUOBJECT_API void GatherScriptBytecode(const FString& PathToScript, const TArray<uint8>& ScriptData, const bool bIsEditorOnly);
 
-	bool IsDefaultTextInstance(const FText& Text) const;
-	void MarkDefaultTextInstance(const FText& Text);
+	COREUOBJECT_API bool IsDefaultTextInstance(const FText& Text) const;
+	COREUOBJECT_API void MarkDefaultTextInstance(const FText& Text);
 
-	bool ShouldProcessObject(const UObject* Object, const EPropertyLocalizationGathererTextFlags GatherTextFlags) const;
-	void MarkObjectProcessed(const UObject* Object, const EPropertyLocalizationGathererTextFlags GatherTextFlags);
+	COREUOBJECT_API bool ShouldProcessObject(const UObject* Object, const EPropertyLocalizationGathererTextFlags GatherTextFlags) const;
+	COREUOBJECT_API void MarkObjectProcessed(const UObject* Object, const EPropertyLocalizationGathererTextFlags GatherTextFlags);
 
-	const FGatherableFieldsForType& GetGatherableFieldsForType(const UStruct* InType);
+	COREUOBJECT_API const FGatherableFieldsForType& GetGatherableFieldsForType(const UStruct* InType);
 
-	static bool ExtractTextIdentity(const FText& Text, FString& OutNamespace, FString& OutKey, const bool bCleanNamespace);
+	static COREUOBJECT_API bool ExtractTextIdentity(const FText& Text, FString& OutNamespace, FString& OutKey, const bool bCleanNamespace);
 
-	static FLocalizationDataObjectGatheringCallbackMap& GetTypeSpecificLocalizationDataObjectGatheringCallbacks();
-	static FLocalizationDataStructGatheringCallbackMap& GetTypeSpecificLocalizationDataStructGatheringCallbacks();
+	static COREUOBJECT_API FLocalizationDataObjectGatheringCallbackMap& GetTypeSpecificLocalizationDataObjectGatheringCallbacks();
+	static COREUOBJECT_API FLocalizationDataStructGatheringCallbackMap& GetTypeSpecificLocalizationDataStructGatheringCallbacks();
 
 	FORCEINLINE TArray<FGatherableTextData>& GetGatherableTextDataArray() const
 	{
@@ -157,8 +157,8 @@ public:
 	}
 
 private:
-	const FGatherableFieldsForType& CacheGatherableFieldsForType(const UStruct* InType);
-	bool CanGatherFromInnerProperty(const FProperty* InInnerProperty);
+	COREUOBJECT_API const FGatherableFieldsForType& CacheGatherableFieldsForType(const UStruct* InType);
+	COREUOBJECT_API bool CanGatherFromInnerProperty(const FProperty* InInnerProperty);
 
 	struct FObjectAndGatherFlags
 	{

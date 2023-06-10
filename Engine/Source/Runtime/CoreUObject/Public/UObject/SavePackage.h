@@ -191,25 +191,25 @@ public:
 	/** Get the default settings by save when none are specified. */
 	COREUOBJECT_API static FSavePackageSettings& GetDefaultSettings();
 
-	COREUOBJECT_API bool IsDefault() const
+	bool IsDefault() const
 	{
 		return ExternalImportValidations.Num() == 0 && ExternalExportValidations.Num() == 0;
 	}
 
-	COREUOBJECT_API const TArray<TFunction<ExternalImportValidationFunc>>& GetExternalImportValidations() const
+	const TArray<TFunction<ExternalImportValidationFunc>>& GetExternalImportValidations() const
 	{
 		return ExternalImportValidations;
 	}
-	COREUOBJECT_API const TArray<TFunction<ExternalExportValidationFunc>>& GetExternalExportValidations() const
+	const TArray<TFunction<ExternalExportValidationFunc>>& GetExternalExportValidations() const
 	{
 		return ExternalExportValidations;
 	}
 
-	COREUOBJECT_API void AddExternalImportValidation(TFunction<ExternalImportValidationFunc> InValidation)
+	void AddExternalImportValidation(TFunction<ExternalImportValidationFunc> InValidation)
 	{
 		ExternalImportValidations.Add(MoveTemp(InValidation));
 	}
-	COREUOBJECT_API void AddExternalExportValidation(TFunction<ExternalExportValidationFunc> InValidation)
+	void AddExternalExportValidation(TFunction<ExternalExportValidationFunc> InValidation)
 	{
 		ExternalExportValidations.Add(MoveTemp(InValidation));
 	}
@@ -247,18 +247,18 @@ public:
 	{
 		return Validator.Get();	
 	}
-	COREUOBJECT_API void SetValidator(TUniquePtr<ISavePackageValidator>&& InValidator)
+	void SetValidator(TUniquePtr<ISavePackageValidator>&& InValidator)
 	{
 		Validator = MoveTemp(InValidator);
 	}
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-	COREUOBJECT_API const TArray<TFunction<FSavePackageSettings::ExternalImportValidationFunc>>& GetExternalImportValidations() const
+	const TArray<TFunction<FSavePackageSettings::ExternalImportValidationFunc>>& GetExternalImportValidations() const
 	{
 		return SavePackageSettings.GetExternalImportValidations();
 	}
 
-	COREUOBJECT_API const TArray<TFunction<FSavePackageSettings::ExternalExportValidationFunc>>& GetExternalExportValidations() const
+	const TArray<TFunction<FSavePackageSettings::ExternalExportValidationFunc>>& GetExternalExportValidations() const
 	{
 		return SavePackageSettings.GetExternalExportValidations();
 	}

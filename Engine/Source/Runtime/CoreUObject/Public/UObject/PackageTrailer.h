@@ -196,7 +196,7 @@ struct FPayloadInfo
  * While saving a package, payloads should be added to a FPackageTrailer via ::AddPayload then once
  * the package has been saved to disk ::BuildAndAppendTrailer should be called. 
  */
-class COREUOBJECT_API FPackageTrailerBuilder
+class FPackageTrailerBuilder
 {
 public:
 	using AdditionalDataCallback = TFunction<void(FLinkerSave& LinkerSave, const class FPackageTrailer& Trailer)>;
@@ -210,7 +210,7 @@ public:
 	 * @param Ar			An archive that the trailer can use to load payloads from 
 	 * @param DebugContext	The name or path of the of the file that owns the trailer. Used for error messages.
 	 */
-	[[nodiscard]] static FPackageTrailerBuilder CreateFromTrailer(const class FPackageTrailer& Trailer, FArchive& Ar, FString DebugContext);
+	[[nodiscard]] static COREUOBJECT_API FPackageTrailerBuilder CreateFromTrailer(const class FPackageTrailer& Trailer, FArchive& Ar, FString DebugContext);
 
 	UE_DEPRECATED(5.1, "Use the overload that takes a FString instead of an FName for the last parameter")
 	static FPackageTrailerBuilder CreateFromTrailer(const class FPackageTrailer& Trailer, FArchive& Ar, const FName& PackageName)
@@ -226,7 +226,7 @@ public:
 	 * @param Trailer		The trailer to create the reference from.
 	 * @param DebugContext	The name or path of the of the file that owns the trailer. Used for error messages.
 	 */
-	[[nodiscard]] static TUniquePtr<UE::FPackageTrailerBuilder> CreateReferenceToTrailer(const class FPackageTrailer& Trailer, FString DebugContext);
+	[[nodiscard]] static COREUOBJECT_API TUniquePtr<UE::FPackageTrailerBuilder> CreateReferenceToTrailer(const class FPackageTrailer& Trailer, FString DebugContext);
 	
 	UE_DEPRECATED(5.1, "Use the overload that takes a FString instead of an FName for the last parameter")
 	static TUniquePtr<UE::FPackageTrailerBuilder> CreateReferenceToTrailer(const class FPackageTrailer& Trailer, const FName& PackageName)
@@ -236,8 +236,8 @@ public:
 
 	FPackageTrailerBuilder() = default;
 	UE_DEPRECATED(5.1, "Use the overload that takes a FString instead of an FName")
-	FPackageTrailerBuilder(const FName& InPackageName);
-	FPackageTrailerBuilder(FString&& DebugContext);
+	COREUOBJECT_API FPackageTrailerBuilder(const FName& InPackageName);
+	COREUOBJECT_API FPackageTrailerBuilder(FString&& DebugContext);
 	~FPackageTrailerBuilder() = default;
 
 	// Methods that can be called while building the trailer
@@ -251,8 +251,8 @@ public:
 	 * @param Flags			The custom flags to be applied to the payload
 	 * @param Callback		This callback will be invoked once the FPackageTrailer has been built and appended to disk.
 	 */
-	void AddPayload(const FIoHash& Identifier, FCompressedBuffer Payload, UE::Virtualization::EPayloadFilterReason Filter, AdditionalDataCallback&& Callback);
-	void AddPayload(const FIoHash& Identifier, FCompressedBuffer Payload, UE::Virtualization::EPayloadFilterReason Filter);
+	COREUOBJECT_API void AddPayload(const FIoHash& Identifier, FCompressedBuffer Payload, UE::Virtualization::EPayloadFilterReason Filter, AdditionalDataCallback&& Callback);
+	COREUOBJECT_API void AddPayload(const FIoHash& Identifier, FCompressedBuffer Payload, UE::Virtualization::EPayloadFilterReason Filter);
 	/**
 	 * Adds an already virtualized payload to the builder to be written to the trailer. When the trailer is written
 	 * the payload will have EPayloadAccessMode::Virtualized set as it's access mode. It is assumed that the payload
@@ -262,7 +262,7 @@ public:
 	 * @param Identifier	The identifier of the payload
 	 * @param RawSize		The size of the payload (in bytes) when uncompressed
 	 */
-	void AddVirtualizedPayload(const FIoHash& Identifier, int64 RawSize);
+	COREUOBJECT_API void AddVirtualizedPayload(const FIoHash& Identifier, int64 RawSize);
 
 	/** 
 	 * Allows the caller to replace a payload in the builder that is already marked as virtualized and replace it
@@ -273,14 +273,14 @@ public:
 	 * 
 	 * @return true if a virtualized payload was replaced, false if the payload was not in the builder at all
 	 */
-	bool UpdatePayloadAsLocal(const FIoHash& Identifier, FCompressedBuffer Payload);
+	COREUOBJECT_API bool UpdatePayloadAsLocal(const FIoHash& Identifier, FCompressedBuffer Payload);
 	
 	/**
 	 * @param ExportsArchive	The linker associated with the package being written to disk.
 	 * @param DataArchive		The archive where the package data has been written to. This is where the FPackageTrailer will be written to
 	 * @return True if the builder was created and appended successfully and false if any error was encountered
 	 */
-	[[nodiscard]] bool BuildAndAppendTrailer(FLinkerSave* Linker, FArchive& DataArchive);
+	[[nodiscard]] COREUOBJECT_API bool BuildAndAppendTrailer(FLinkerSave* Linker, FArchive& DataArchive);
 
 	/**
 	 * @param ExportsArchive	The linker associated with the package being written to disk.
@@ -291,14 +291,14 @@ public:
 	 *        bytes are written to DataArchive.
 	 * @return True if the builder was created and appended successfully and false if any error was encountered
 	 */
-	[[nodiscard]] bool BuildAndAppendTrailer(FLinkerSave* Linker, FArchive& DataArchive, int64& InOutPackageFileOffset);
+	[[nodiscard]] COREUOBJECT_API bool BuildAndAppendTrailer(FLinkerSave* Linker, FArchive& DataArchive, int64& InOutPackageFileOffset);
 
 	/** Returns if the builder has any payload entries or not */
-	[[nodiscard]] bool IsEmpty() const;
+	[[nodiscard]] COREUOBJECT_API bool IsEmpty() const;
 
-	[[nodiscard]] bool IsLocalPayloadEntry(const FIoHash& Identifier) const;
-	[[nodiscard]] bool IsReferencedPayloadEntry(const FIoHash& Identifier) const;
-	[[nodiscard]] bool IsVirtualizedPayloadEntry(const FIoHash& Identifier) const;
+	[[nodiscard]] COREUOBJECT_API bool IsLocalPayloadEntry(const FIoHash& Identifier) const;
+	[[nodiscard]] COREUOBJECT_API bool IsReferencedPayloadEntry(const FIoHash& Identifier) const;
+	[[nodiscard]] COREUOBJECT_API bool IsVirtualizedPayloadEntry(const FIoHash& Identifier) const;
 
 	/** 
 	 * Returns the length of the trailer (in bytes) that the builder would currently create.
@@ -306,17 +306,17 @@ public:
 	 * NOTE: At the moment this is not const as we need to check for and remove duplicate
 	 * payload entries as we do this before building the trailer not when gathering the entry info.
 	 */
-	[[nodiscard]] uint64 CalculateTrailerLength();
+	[[nodiscard]] COREUOBJECT_API uint64 CalculateTrailerLength();
 
 	/** Returns the total number of payload entries in the builder */
-	[[nodiscard]] int32 GetNumPayloads() const;
+	[[nodiscard]] COREUOBJECT_API int32 GetNumPayloads() const;
 	
 	/** Returns the number of payload entries in the builder with the access mode EPayloadAccessMode::Local */
-	[[nodiscard]] int32 GetNumLocalPayloads() const;
+	[[nodiscard]] COREUOBJECT_API int32 GetNumLocalPayloads() const;
 	/** Returns the number of payload entries in the builder with the access mode EPayloadAccessMode::Referenced */
-	[[nodiscard]] int32 GetNumReferencedPayloads() const;
+	[[nodiscard]] COREUOBJECT_API int32 GetNumReferencedPayloads() const;
 	/** Returns the number of payload entries in the builder with the access mode EPayloadAccessMode::Virtualized */
-	[[nodiscard]] int32 GetNumVirtualizedPayloads() const;
+	[[nodiscard]] COREUOBJECT_API int32 GetNumVirtualizedPayloads() const;
 
 	/** Returns the debug context associated with the builder, used for adding further description to error messages */
 	[[nodiscard]] const FString& GetDebugContext() const
@@ -376,11 +376,11 @@ private:
 	};
 
 	/** Returns the total length of the header if we were to build a trailer right now */
-	uint32 CalculatePotentialHeaderSize() const;
+	COREUOBJECT_API uint32 CalculatePotentialHeaderSize() const;
 	/** Returns the total length of all payloads combined if we were to build a trailer right now */
-	uint64 CalculatePotentialPayloadSize() const;
+	COREUOBJECT_API uint64 CalculatePotentialPayloadSize() const;
 
-	void RemoveDuplicateEntries();
+	COREUOBJECT_API void RemoveDuplicateEntries();
 
 	// Members used when building the trailer
 
@@ -403,7 +403,7 @@ private:
  * domain then it's values should be valid, but when loading non-virtualized payloads they need to come from the workspace 
  * domain package.
  */
-class COREUOBJECT_API FPackageTrailer
+class FPackageTrailer
 {
 public:
 	/** 
@@ -418,13 +418,13 @@ public:
 	}
 
 	/** Try to load a trailer from a given package path. Note that it will always try to load the trailer from the workspace domain */
-	[[nodiscard]] static bool TryLoadFromPackage(const FPackagePath& PackagePath, FPackageTrailer& OutTrailer);
+	[[nodiscard]] static COREUOBJECT_API bool TryLoadFromPackage(const FPackagePath& PackagePath, FPackageTrailer& OutTrailer);
 
 	/** Try to load a trailer from a given file path. */
-	[[nodiscard]] static bool TryLoadFromFile(const FString& Path, FPackageTrailer& OutTrailer);
+	[[nodiscard]] static COREUOBJECT_API bool TryLoadFromFile(const FString& Path, FPackageTrailer& OutTrailer);
 
 	/** Try to load a trailer from a given archive. Assumes that the trailer is at the end of the archive */
-	[[nodiscard]] static bool TryLoadFromArchive(FArchive& Ar, FPackageTrailer& OutTrailer);
+	[[nodiscard]] static COREUOBJECT_API bool TryLoadFromArchive(FArchive& Ar, FPackageTrailer& OutTrailer);
 
 	FPackageTrailer() = default;
 	~FPackageTrailer() = default;
@@ -452,7 +452,7 @@ public:
 	 * @return		True if a valid trailer was found and was able to be loaded, otherwise false. If the trailer was found but failed
 	 *				to load then the archive will be set to the error state.
 	 */
-	[[nodiscard]] bool TryLoad(FArchive& Ar);
+	[[nodiscard]] COREUOBJECT_API bool TryLoad(FArchive& Ar);
 
 	/** 
 	 * Serializes the trailer from the given archive BUT assumes that the seek position of the archive is at the end of the trailer
@@ -462,7 +462,7 @@ public:
 	 * @return		True if a valid trailer was found and was able to be loaded, otherwise false. If the trailer was found but failed
 	 *				to load then the archive will be set to the error state.
 	 */
-	[[nodiscard]] bool TryLoadBackwards(FArchive& Ar);
+	[[nodiscard]] COREUOBJECT_API bool TryLoadBackwards(FArchive& Ar);
 
 	/** 
 	 * Loads a payload that is stored locally within the package trailer. Payloads stored externally (either referenced
@@ -474,7 +474,7 @@ public:
 	 * @return	The payload in the form of a FCompressedBuffer. If the payload does not exist in the trailer or is not
 	 *			stored locally in the trailer then the FCompressedBuffer will be null.
 	 */
-	[[nodiscard]] FCompressedBuffer LoadLocalPayload(const FIoHash& Id, FArchive& Ar) const;
+	[[nodiscard]] COREUOBJECT_API FCompressedBuffer LoadLocalPayload(const FIoHash& Id, FArchive& Ar) const;
 
 	/** 
 	 * Calling this indicates that the payload has been virtualized and will no longer be stored on disk. 
@@ -482,38 +482,38 @@ public:
 	 * @param Identifier The payload that has been virtualized
 	 * @return True if the payload was in the trailer, otherwise false
 	 */
-	[[nodiscard]] bool UpdatePayloadAsVirtualized(const FIoHash& Identifier);
+	[[nodiscard]] COREUOBJECT_API bool UpdatePayloadAsVirtualized(const FIoHash& Identifier);
 
 	/**
 	 * Iterates over all payloads in the trailer and invokes the provoided callback on them
 	 */
-	void ForEachPayload(TFunctionRef<void(const FIoHash&, uint64, uint64, EPayloadAccessMode, UE::Virtualization::EPayloadFilterReason)> Callback) const;
+	COREUOBJECT_API void ForEachPayload(TFunctionRef<void(const FIoHash&, uint64, uint64, EPayloadAccessMode, UE::Virtualization::EPayloadFilterReason)> Callback) const;
 
 	/** Attempt to find the status of the given payload. @See EPayloadStatus */
-	[[nodiscard]] EPayloadStatus FindPayloadStatus(const FIoHash& Id) const;
+	[[nodiscard]] COREUOBJECT_API EPayloadStatus FindPayloadStatus(const FIoHash& Id) const;
 
 	/** Returns the absolute offset of the payload in the package file, invalid and virtualized payloads will return INDEX_NONE */
-	[[nodiscard]] int64 FindPayloadOffsetInFile(const FIoHash& Id) const;
+	[[nodiscard]] COREUOBJECT_API int64 FindPayloadOffsetInFile(const FIoHash& Id) const;
 
 	/** Returns the size of the payload on as stored on disk, invalid and virtualized payloads will return INDEX_NONE */
-	[[nodiscard]] int64 FindPayloadSizeOnDisk(const FIoHash& Id) const;
+	[[nodiscard]] COREUOBJECT_API int64 FindPayloadSizeOnDisk(const FIoHash& Id) const;
 
 	/** Returns the total size of the of the trailer on disk in bytes */
-	[[nodiscard]] int64 GetTrailerLength() const;
+	[[nodiscard]] COREUOBJECT_API int64 GetTrailerLength() const;
 
-	[[nodiscard]] FPayloadInfo GetPayloadInfo(const FIoHash& Id) const;
+	[[nodiscard]] COREUOBJECT_API FPayloadInfo GetPayloadInfo(const FIoHash& Id) const;
 
 	/** Returns an array of the payloads with the given storage type. @See EPayloadStoragetype */
-	[[nodiscard]] TArray<FIoHash> GetPayloads(EPayloadStorageType StorageType) const;
+	[[nodiscard]] COREUOBJECT_API TArray<FIoHash> GetPayloads(EPayloadStorageType StorageType) const;
 
 	/** Returns the number of payloads that the trailer owns with the given storage type. @See EPayloadStoragetype */
-	[[nodiscard]] int32 GetNumPayloads(EPayloadStorageType Type) const;
+	[[nodiscard]] COREUOBJECT_API int32 GetNumPayloads(EPayloadStorageType Type) const;
 
 	/** Returns an array of the payloads that match the given filter type. @See EPayloadFilter */
-	[[nodiscard]] TArray<FIoHash> GetPayloads(EPayloadFilter Filter) const;
+	[[nodiscard]] COREUOBJECT_API TArray<FIoHash> GetPayloads(EPayloadFilter Filter) const;
 
 	/** Returns the number of payloads that the trailer owns that match the given filter type. @See EPayloadFilter */
-	[[nodiscard]] int32 GetNumPayloads(EPayloadFilter Filter) const;
+	[[nodiscard]] COREUOBJECT_API int32 GetNumPayloads(EPayloadFilter Filter) const;
 
 	struct FHeader
 	{
@@ -570,7 +570,7 @@ private:
 	friend class FPackageTrailerBuilder;
 
 	/** Create a valid footer for the current trailer */
-	FFooter CreateFooter() const;
+	COREUOBJECT_API FFooter CreateFooter() const;
 
 	/** Where in the workspace domain package file the trailer is located */
 	int64 TrailerPositionInFile = INDEX_NONE;

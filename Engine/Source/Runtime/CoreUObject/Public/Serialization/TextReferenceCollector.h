@@ -14,7 +14,7 @@ class UObject;
 class UPackage;
 
 /** Counts all persistent text references from within a package, using the specified comparison mode */
-class COREUOBJECT_API FTextReferenceCollector
+class FTextReferenceCollector
 {
 public:
 	enum class EComparisonMode : uint8
@@ -30,9 +30,9 @@ public:
 	typedef TFunction<void(UObject*, FArchive&)> FTextReferenceCollectorCallback;
 	typedef TMap<const UClass*, FTextReferenceCollectorCallback> FTextReferenceCollectorCallbackMap;
 
-	FTextReferenceCollector(const UPackage* const InPackage, const EComparisonMode InComparisonMode, const FString& InTextNamespace, const FString& InTextKey, const FString& InTextSource, int32& OutCount);
+	COREUOBJECT_API FTextReferenceCollector(const UPackage* const InPackage, const EComparisonMode InComparisonMode, const FString& InTextNamespace, const FString& InTextKey, const FString& InTextSource, int32& OutCount);
 
-	static FTextReferenceCollectorCallbackMap& GetTypeSpecificTextReferenceCollectorCallbacks();
+	static COREUOBJECT_API FTextReferenceCollectorCallbackMap& GetTypeSpecificTextReferenceCollectorCallbacks();
 };
 
 /** Struct to automatically register a callback when it's constructed */

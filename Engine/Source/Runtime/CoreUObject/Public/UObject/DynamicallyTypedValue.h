@@ -56,9 +56,9 @@ namespace UE
 	};
 
 	// An value stored in some uninterpreted memory and a pointer to a type that contains methods to interpret it.
-	struct COREUOBJECT_API FDynamicallyTypedValue
+	struct FDynamicallyTypedValue
 	{
-		static FDynamicallyTypedValueType& NullType();
+		static COREUOBJECT_API FDynamicallyTypedValueType& NullType();
 
 		FDynamicallyTypedValue() { InitializeToNull(); }
 		FDynamicallyTypedValue(const FDynamicallyTypedValue& Copyee) { InitializeFromCopy(Copyee); }

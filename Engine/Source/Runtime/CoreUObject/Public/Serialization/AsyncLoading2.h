@@ -149,7 +149,7 @@ public:
 		return TypeAndId != Other.TypeAndId;
 	}
 
-	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FPackageObjectIndex& Value)
+	friend FArchive& operator<<(FArchive& Ar, FPackageObjectIndex& Value)
 	{
 		Ar << Value.TypeAndId;
 		return Ar;
