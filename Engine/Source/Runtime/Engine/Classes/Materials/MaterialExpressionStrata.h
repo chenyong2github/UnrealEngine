@@ -330,6 +330,7 @@ class UMaterialExpressionStrataSlabBSDF : public UMaterialExpressionStrataBSDF
 	virtual FStrataOperator* StrataGenerateMaterialTopologyTree(class FMaterialCompiler* Compiler, class UMaterialExpression* Parent, int32 OutputIndex) override;
 	virtual FName GetInputName(int32 InputIndex) const override;
 	virtual void GetConnectorToolTip(int32 InputIndex, int32 OutputIndex, TArray<FString>& OutToolTip) override;
+	virtual void GetExpressionToolTip(TArray<FString>& OutToolTip) override;
 
 	bool HasEdgeColor() const;
 	bool HasFuzz() const;
@@ -341,6 +342,15 @@ class UMaterialExpressionStrataSlabBSDF : public UMaterialExpressionStrataBSDF
 	bool HasAnisotropy() const;
 	bool HasGlint() const;
 	bool HasSpecularProfile() const;
+
+	struct FComplexity
+	{
+		bool bStrataMaterialIsComplexSpecial;
+		bool bStrataMaterialIsComplex;
+		bool bStrataMaterialIsSingle;
+		// If all the above are false, complexity is Simple
+	};
+	FComplexity GetComplexity() const;
 #endif
 	//~ End UMaterialExpression Interface
 };
