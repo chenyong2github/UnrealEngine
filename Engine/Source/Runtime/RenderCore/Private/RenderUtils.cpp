@@ -1583,6 +1583,12 @@ static TAutoConsoleVariable<int32> CVarSubstrateOpaqueMaterialRoughRefraction(
 	TEXT("Enable Substrate opaque material rough refractions effect from top layers over layers below."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarSubstrateSheenQuality(
+	TEXT("r.Substrate.SheenQuality"),
+	1,
+	TEXT("Define Substrate sheen quality (1: Disney-based sheen, 2: Charlie-based sheen, ). r.Substrate.ShadingQuality=2 forces SheenQuality to 2. This variable is read-only."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
+
 static TAutoConsoleVariable<int32> CVarSubstrateShadingQuality(
 	TEXT("r.Substrate.ShadingQuality"),
 	1,
@@ -1743,6 +1749,11 @@ namespace Strata
 	bool Is8bitTileCoordEnabled()
 	{
 		return CVarSubstrateTileCoord8Bits.GetValueOnAnyThread() > 0 ? 1 : 0;
+	}
+
+	uint32 GetSheenQuality()
+	{
+		return CVarSubstrateSheenQuality.GetValueOnAnyThread();
 	}
 
 	uint32 GetShadingQuality()

@@ -1880,17 +1880,22 @@ void FViewInfo::SetupUniformBufferParameters(
 	ViewUniformShaderParameters.RuntimeVirtualTexturePackHeight = FVector2f(ForceInitToZero);
 	ViewUniformShaderParameters.RuntimeVirtualTextureDebugParams = FVector4f(ForceInitToZero);
 
-	// Rect area light
-	if (GSystemTextures.LTCMat.IsValid() && GSystemTextures.LTCAmp.IsValid())
+	// GGX/Sheen LTC (used as BSDF or for rect light integration)
+	if (GSystemTextures.GGXLTCMat.IsValid() && GSystemTextures.GGXLTCAmp.IsValid())
 	{
-		ViewUniformShaderParameters.LTCMatTexture = GSystemTextures.LTCMat->GetRHI();
-		ViewUniformShaderParameters.LTCMatSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-		ViewUniformShaderParameters.LTCAmpTexture = GSystemTextures.LTCAmp->GetRHI();
-		ViewUniformShaderParameters.LTCAmpSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-
+		ViewUniformShaderParameters.GGXLTCMatTexture = GSystemTextures.GGXLTCMat->GetRHI();
+		ViewUniformShaderParameters.GGXLTCAmpTexture = GSystemTextures.GGXLTCAmp->GetRHI();
 	}
-	ViewUniformShaderParameters.LTCMatTexture = OrBlack2DIfNull(ViewUniformShaderParameters.LTCMatTexture);
-	ViewUniformShaderParameters.LTCAmpTexture = OrBlack2DIfNull(ViewUniformShaderParameters.LTCAmpTexture);
+	if (GSystemTextures.SheenLTC.IsValid())
+	{
+		ViewUniformShaderParameters.SheenLTCTexture = GSystemTextures.SheenLTC->GetRHI();
+	}
+	ViewUniformShaderParameters.GGXLTCMatTexture	= OrBlack2DIfNull(ViewUniformShaderParameters.GGXLTCMatTexture);
+	ViewUniformShaderParameters.GGXLTCAmpTexture	= OrBlack2DIfNull(ViewUniformShaderParameters.GGXLTCAmpTexture);
+	ViewUniformShaderParameters.SheenLTCTexture		= OrBlack2DIfNull(ViewUniformShaderParameters.SheenLTCTexture);
+	ViewUniformShaderParameters.GGXLTCMatSampler	= TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	ViewUniformShaderParameters.GGXLTCAmpSampler	= TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	ViewUniformShaderParameters.SheenLTCSampler		= TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 	// Rect light. atlas
 	{

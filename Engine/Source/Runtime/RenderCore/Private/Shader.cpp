@@ -2015,6 +2015,10 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 			KeyString += FString::Printf(TEXT("_STSHQL%u"), Strata::GetShadingQuality(Platform));
 		}
 
+		{
+			KeyString += FString::Printf(TEXT("_SSHEEN%u"), Strata::GetSheenQuality());
+		}
+
 		if (Strata::IsGlintEnabled())
 		{
 			KeyString += FString::Printf(TEXT("_STRTGLT"));

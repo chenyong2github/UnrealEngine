@@ -484,6 +484,8 @@ namespace Strata
 
 	RENDERCORE_API uint32 GetNormalQuality();
 
+	RENDERCORE_API uint32 GetSheenQuality();
+
 	RENDERCORE_API uint32 GetShadingQuality();
 	RENDERCORE_API uint32 GetShadingQuality(EShaderPlatform InPlatform);
 }

@@ -673,11 +673,12 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 
 		} // end Create the PerlinNoise3D texture
 
-		// LTC Textures	(used by Rect Lights)
+		// LTC Textures	(used by Rect Lights and/or BSDF evaluation)
 		{
+			// GGX - LTC matrix coefficients (4-coefficients)
 			{
 				const FRHITextureCreateDesc Desc =
-					FRHITextureCreateDesc::Create2D(TEXT("LTCMat"), LTC_Size, LTC_Size, PF_FloatRGBA)
+					FRHITextureCreateDesc::Create2D(TEXT("GGX.LTCMat"), GGX_LTC_Size, GGX_LTC_Size, PF_FloatRGBA)
 					.SetFlags(ETextureCreateFlags::ShaderResource | ETextureCreateFlags::FastVRAM)
 					.SetClassName(SystemTexturesName);
 
@@ -687,26 +688,27 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 				uint32 DestStride;
 				uint8* DestBuffer = (uint8*)RHICmdList.LockTexture2D(Texture, 0, RLM_WriteOnly, DestStride, false);
     
-				for (int32 y = 0; y < LTC_Size; ++y)
+				for (int32 y = 0; y < GGX_LTC_Size; ++y)
 				{
-					for (int32 x = 0; x < LTC_Size; ++x)
+					for (int32 x = 0; x < GGX_LTC_Size; ++x)
 					{
 						uint16* Dest = (uint16*)(DestBuffer + x * 4 * sizeof(uint16) + y * DestStride);
     
 						for (int k = 0; k < 4; k++)
 						{
-							Dest[k] = FFloat16(LTC_Mat[4 * (x + y * LTC_Size) + k]).Encoded;
+							Dest[k] = FFloat16(GGX_LTC_Mat[4 * (x + y * GGX_LTC_Size) + k]).Encoded;
 						}
 					}
 				}
 				RHICmdList.UnlockTexture2D(Texture, 0, false);
 
-				LTCMat = CreateRenderTarget(Texture, Desc.DebugName);
+				GGXLTCMat = CreateRenderTarget(Texture, Desc.DebugName);
 			}
 
+			// GGX - Split-Sum Amplitude coefficients (2-components)
 			{
 				const FRHITextureCreateDesc Desc =
-					FRHITextureCreateDesc::Create2D(TEXT("LTCAmp"), LTC_Size, LTC_Size, PF_G16R16F)
+					FRHITextureCreateDesc::Create2D(TEXT("GGX.LTCAmp"), GGX_LTC_Size, GGX_LTC_Size, PF_G16R16F)
 					.SetFlags(ETextureCreateFlags::ShaderResource | ETextureCreateFlags::FastVRAM)
 					.SetClassName(SystemTexturesName);
 
@@ -716,21 +718,49 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 				uint32 DestStride;
 				uint8* DestBuffer = (uint8*)RHICmdList.LockTexture2D(Texture, 0, RLM_WriteOnly, DestStride, false);
 
-				for (int32 y = 0; y < LTC_Size; ++y)
+				for (int32 y = 0; y < GGX_LTC_Size; ++y)
 				{
-					for (int32 x = 0; x < LTC_Size; ++x)
+					for (int32 x = 0; x < GGX_LTC_Size; ++x)
 					{
 						uint16* Dest = (uint16*)(DestBuffer + x * 2 * sizeof(uint16) + y * DestStride);
 
 						for (int k = 0; k < 2; k++)
 						{
-							Dest[k] = FFloat16(LTC_Amp[4 * (x + y * LTC_Size) + k]).Encoded;
+							Dest[k] = FFloat16(GGX_LTC_Amp[4 * (x + y * GGX_LTC_Size) + k]).Encoded;
 						}
 					}
 				}
 				RHICmdList.UnlockTexture2D(Texture, 0, false);
 
-				LTCAmp = CreateRenderTarget(Texture, Desc.DebugName);
+				GGXLTCAmp = CreateRenderTarget(Texture, Desc.DebugName);
+			}
+
+			// Sheen - Matrix & directional albedo (3-components)
+			{
+				const FRHITextureCreateDesc Desc =
+					FRHITextureCreateDesc::Create2D(TEXT("Sheen.LTC"), Sheen_LTC_Size, Sheen_LTC_Size, PF_FloatRGBA)
+					.SetFlags(ETextureCreateFlags::ShaderResource | ETextureCreateFlags::FastVRAM);
+
+				FTexture2DRHIRef Texture = RHICreateTexture(Desc);
+
+				// Write the contents of the texture.
+				uint32 DestStride;
+				uint8* DestBuffer = (uint8*)RHICmdList.LockTexture2D(Texture, 0, RLM_WriteOnly, DestStride, false);
+
+				for (int32 y = 0; y < Sheen_LTC_Size; ++y)
+				{
+					for (int32 x = 0; x < Sheen_LTC_Size; ++x)
+					{
+						uint16* Dest = (uint16*)(DestBuffer + x * 4 * sizeof(uint16) + y * DestStride);
+						Dest[0] = FFloat16(Sheen_LTC_Volume[x][y].X).Encoded;
+						Dest[1] = FFloat16(Sheen_LTC_Volume[x][y].Y).Encoded;
+						Dest[2] = FFloat16(Sheen_LTC_Volume[x][y].Z).Encoded;
+						Dest[3] = 0;
+					}
+				}
+				RHICmdList.UnlockTexture2D(Texture, 0, false);
+
+				SheenLTC = CreateRenderTarget(Texture, Desc.DebugName);
 			}
 		}
 	}
@@ -917,8 +947,9 @@ void FSystemTextures::ReleaseRHI()
 	HairLUT0.SafeRelease();
 	HairLUT1.SafeRelease();
 	HairLUT2.SafeRelease();
-	LTCMat.SafeRelease();
-	LTCAmp.SafeRelease();
+	GGXLTCMat.SafeRelease();
+	GGXLTCAmp.SafeRelease();
+	SheenLTC.SafeRelease();
 	MaxFP16Depth.SafeRelease();
 	DepthDummy.SafeRelease();
 	GreenDummy.SafeRelease();

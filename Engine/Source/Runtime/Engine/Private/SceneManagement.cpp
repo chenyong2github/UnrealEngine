@@ -980,11 +980,13 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 	HairScatteringLUTTexture = BlackVolume;
 	HairScatteringLUTSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 
-	// Rect area light
-	LTCMatTexture = GBlackTextureWithSRV->TextureRHI;
-	LTCMatSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-	LTCAmpTexture = GBlackTextureWithSRV->TextureRHI;
-	LTCAmpSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	// GGX/Sheen - Rect area light
+	GGXLTCMatTexture = GBlackTextureWithSRV->TextureRHI;
+	GGXLTCMatSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	GGXLTCAmpTexture = GBlackTextureWithSRV->TextureRHI;
+	GGXLTCAmpSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	SheenLTCTexture = GBlackTextureWithSRV->TextureRHI;
+	SheenLTCSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 	// Shading energy conservation
 	bShadingEnergyConservation = 0u;

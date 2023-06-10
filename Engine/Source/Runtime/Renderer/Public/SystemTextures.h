@@ -128,9 +128,10 @@ public:
 	TRefCountPtr<IPooledRenderTarget> HairLUT0;
 	TRefCountPtr<IPooledRenderTarget> HairLUT1;
 	TRefCountPtr<IPooledRenderTarget> HairLUT2;
-	/** Linearly Transformed Cosines LUTs */
-	TRefCountPtr<IPooledRenderTarget> LTCMat;
-	TRefCountPtr<IPooledRenderTarget> LTCAmp;
+	/** GGX/Sheen Linearly Transformed Cosines LUTs */
+	TRefCountPtr<IPooledRenderTarget> GGXLTCMat;
+	TRefCountPtr<IPooledRenderTarget> GGXLTCAmp;
+	TRefCountPtr<IPooledRenderTarget> SheenLTC;
 	/** Texture that holds a single value containing the maximum depth that can be stored as FP16. */
 	TRefCountPtr<IPooledRenderTarget> MaxFP16Depth;
 	/** Depth texture that holds a single depth value */

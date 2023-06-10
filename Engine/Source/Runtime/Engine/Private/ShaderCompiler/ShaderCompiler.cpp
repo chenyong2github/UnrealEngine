@@ -6669,6 +6669,9 @@ void GlobalBeginCompileShader(
 			const bool bLowQuality = StrataShadingQuality > 1;
 			Input.Environment.SetDefine(TEXT("USE_ACHROMATIC_BXDF_ENERGY"), bLowQuality ? 1u : 0u);
 
+			const uint32 StrataSheenQuality = Strata::GetSheenQuality();
+			Input.Environment.SetDefine(TEXT("STRATA_SHEEN_QUALITY"), bLowQuality ? 2 : StrataSheenQuality);
+
 			const uint32 StrataNormalQuality = Strata::GetNormalQuality();
 			Input.Environment.SetDefine(TEXT("STRATA_NORMAL_QUALITY"), StrataNormalQuality);
 

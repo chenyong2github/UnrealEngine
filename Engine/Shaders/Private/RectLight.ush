@@ -362,23 +362,25 @@ float3 PolygonIrradiance( float3 Poly[4] )
 	return L;
 }
 
-// [ Heitz et al. 2016, "Real-Time Polygonal-Light Shading with Linearly Transformed Cosines" ]
-float3 RectGGXApproxLTC( float Roughness, float3 SpecularColor, half3 N, float3 V, FRect Rect, FRectTexture RectTexture, inout float3 MeanLightWorldDirection)
+struct FRectLTC
+{
+	float3x3 LTC;
+	float3x3 InvLTC;
+	float3 IrradianceScale;
+};
+
+// Return LTC coefficients for GGX-based BSDF
+FRectLTC GetRectLTC_GGX( float Roughness, float3 SpecularColor, half NoV)
 {
 	// F90 is derived as, anything less than 2% is physically impossible and is instead considered to be shadowing
 	const float3 F0  = SpecularColor;
 	const float3 F90 = saturate(50.0 * SpecularColor);
 
-	// No visibile rect light due to barn door occlusion
-	if (Rect.Extent.x == 0 || Rect.Extent.y == 0) return 0;
-
-	float NoV = saturate( abs( dot(N, V) ) + 1e-5 );
-
 	float2 UV = float2( Roughness, sqrt( 1 - NoV ) );
 	UV = UV * (63.0 / 64.0) + (0.5 / 64.0);
    
-	float4 LTCMat = View.LTCMatTexture.SampleLevel( View.LTCMatSampler, UV, 0 );
-	float4 LTCAmp = View.LTCAmpTexture.SampleLevel( View.LTCAmpSampler, UV, 0 );
+	float4 LTCMat = View.GGXLTCMatTexture.SampleLevel( View.GGXLTCMatSampler, UV, 0 );
+	float4 LTCAmp = View.GGXLTCAmpTexture.SampleLevel( View.GGXLTCAmpSampler, UV, 0 );
 
 	float3x3 LTC = {
 		float3( LTCMat.x, 0, LTCMat.z ),
@@ -395,19 +397,64 @@ float3 RectGGXApproxLTC( float Roughness, float3 SpecularColor, half3 N, float3 
 		float3(-InvLTCMat.y, 0, InvLTCMat.x )
 	};
 
+	FRectLTC Out = (FRectLTC)0;
+	Out.LTC = LTC;
+	Out.InvLTC = InvLTC;
+	Out.IrradianceScale = F90 * LTCAmp.y + ( LTCAmp.x - LTCAmp.y ) * F0;
+	return Out;
+}
+
+// Return LTC coefficients for Sheen BSDF
+FRectLTC GetRectLTC_Sheen( float Roughness, half NoV)
+{	
+	const float Alpha = sqrt(Roughness);
+	const float SatNoV = saturate(abs(NoV) + 1e-5);
+	float2 UV = float2(Alpha, SatNoV);
+	UV = UV * (31.0 / 32.0) + (0.5 / 32.0);
+	const float3 SheenLTC = View.SheenLTCTexture.SampleLevel(View.SheenLTCSampler, UV, 0).xyz;
+
+	const float aInv = SheenLTC.x;
+	const float bInv = SheenLTC.y;
+
+	float3x3 LTC = {
+		float3(1/aInv, 0,     -bInv/aInv),    
+		float3(0,      1/aInv, 0),
+		float3(0,      0,      1)
+	};
+
+	float3x3 InvLTC = {
+		float3(aInv, 0,    bInv),
+		float3(0,    aInv, 0),
+		float3(0,    0,    1)
+	};
+
+	FRectLTC Out = (FRectLTC)0;
+	Out.LTC = LTC;
+	Out.InvLTC = InvLTC;
+	Out.IrradianceScale = SheenLTC.z;
+	return Out;
+}
+
+// Integrate a LTC BSDF with a rect light
+// [ Heitz et al. 2016, "Real-Time Polygonal-Light Shading with Linearly Transformed Cosines" ]
+float3 RectApproxLTC(FRectLTC In, half3 N, float3 V, FRect Rect, FRectTexture RectTexture, inout float3 OutMeanLightWorldDirection)
+{	
+	// No visibile rect light due to barn door occlusion
+	if (Rect.Extent.x == 0 || Rect.Extent.y == 0) return 0;
+
 	// Rotate to tangent space
 	float3 T1 = normalize( V - N * dot( N, V ) );
 	float3 T2 = cross( N, T1 );
 	float3x3 TangentBasis = float3x3( T1, T2, N );
 
-	LTC = mul( LTC, TangentBasis );
-	InvLTC = mul( transpose( TangentBasis ), InvLTC );
+	In.LTC = mul( In.LTC, TangentBasis );
+	In.InvLTC = mul( transpose( TangentBasis ), In.InvLTC );
 
 	float3 Poly[4];
-	Poly[0] = mul( LTC, Rect.Origin - Rect.Axis[0] * Rect.Extent.x - Rect.Axis[1] * Rect.Extent.y );
-	Poly[1] = mul( LTC, Rect.Origin + Rect.Axis[0] * Rect.Extent.x - Rect.Axis[1] * Rect.Extent.y );
-	Poly[2] = mul( LTC, Rect.Origin + Rect.Axis[0] * Rect.Extent.x + Rect.Axis[1] * Rect.Extent.y );
-	Poly[3] = mul( LTC, Rect.Origin - Rect.Axis[0] * Rect.Extent.x + Rect.Axis[1] * Rect.Extent.y );
+	Poly[0] = mul( In.LTC, Rect.Origin - Rect.Axis[0] * Rect.Extent.x - Rect.Axis[1] * Rect.Extent.y );
+	Poly[1] = mul( In.LTC, Rect.Origin + Rect.Axis[0] * Rect.Extent.x - Rect.Axis[1] * Rect.Extent.y );
+	Poly[2] = mul( In.LTC, Rect.Origin + Rect.Axis[0] * Rect.Extent.x + Rect.Axis[1] * Rect.Extent.y );
+	Poly[3] = mul( In.LTC, Rect.Origin - Rect.Axis[0] * Rect.Extent.x + Rect.Axis[1] * Rect.Extent.y );
 
 	// Vector irradiance
 	float3 L = PolygonIrradiance( Poly );
@@ -439,22 +486,47 @@ float3 RectGGXApproxLTC( float Roughness, float3 SpecularColor, half3 N, float3 
 	Irradiance = Irradiance * ( 1 - a2*a2 ) + a2 * Falloff * NoL;
 #endif
 	
-	float3 IrradianceScale = F90 * LTCAmp.y + ( LTCAmp.x - LTCAmp.y ) * F0;
-	
 	// Transform to world space
-	L = mul( InvLTC, L );
-	MeanLightWorldDirection = L;
+	L = mul( In.InvLTC, L );
+	OutMeanLightWorldDirection = L;
 
 	float3 LightColor = SampleSourceTexture( L, Rect, RectTexture );
 	
-	return LightColor * Irradiance * IrradianceScale;
+	return LightColor * Irradiance * In.IrradianceScale;
 }
+
+// Integrated a GGX-based BSDF with a rect light using LTC
+float3 RectGGXApproxLTC( float Roughness, float3 SpecularColor, half3 N, float3 V, FRect Rect, FRectTexture RectTexture, inout float3 OutMeanLightWorldDirection)
+{
+	// No visibile rect light due to barn door occlusion
+	if (Rect.Extent.x == 0 || Rect.Extent.y == 0) return 0;
+
+	const float NoV = saturate( abs( dot(N, V) ) + 1e-5 );
+
+	const FRectLTC LTC = GetRectLTC_GGX(Roughness, SpecularColor, NoV);
+	return RectApproxLTC(LTC, N, V, Rect, RectTexture, OutMeanLightWorldDirection);
+}
+
 float3 RectGGXApproxLTC(float Roughness, float3 SpecularColor, half3 N, float3 V, FRect Rect, FRectTexture RectTexture)
 {
 	float3 MeanLightWorldDirection = 0.0f;
 	return RectGGXApproxLTC(Roughness, SpecularColor, N, V, Rect, RectTexture, MeanLightWorldDirection);
 }
 
+// Integrated a Sheen-based BSDF with a rect light using LTC
+float3 RectSheenApproxLTC( float Roughness, half3 N, float3 V, FRect Rect, FRectTexture RectTexture, inout float DirectionalAlbedo)
+{
+	// No visibile rect light due to barn door occlusion
+	if (Rect.Extent.x == 0 || Rect.Extent.y == 0) return 0;
+
+	const float NoV = saturate( abs( dot(N, V) ) + 1e-5 );
+
+	const FRectLTC LTC = GetRectLTC_Sheen(Roughness, NoV);
+	DirectionalAlbedo = LTC.IrradianceScale.x;
+
+	float3 MeanLightWorldDirection = 0.0f;
+	return RectApproxLTC(LTC, N, V, Rect, RectTexture, MeanLightWorldDirection);
+}
 
 // Rectangle projected to a sphere
 // [Urena et al. 2013, "An Area-Preserving Parametrization for Spherical Rectangles"]
