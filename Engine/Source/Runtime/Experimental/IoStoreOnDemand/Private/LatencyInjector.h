@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
+#include "Misc/Build.h"
+
 namespace UE::IO::Private
 {
 

@@ -2,9 +2,10 @@
 
 #include "LatencyInjector.h"
 
+#include "Containers/UnrealString.h"
+#include "HAL/PlatformTime.h"
+#include "Misc/Parse.h"
 #include "String/ParseTokens.h"
-
-UE_DISABLE_OPTIMIZATION
 
 #if IAS_WITH_LATENCY_INJECTOR
 
