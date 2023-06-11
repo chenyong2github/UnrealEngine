@@ -47,7 +47,7 @@ namespace Chaos
 			Keep,
 		};
 		
-		CHAOS_API struct alignas(16) FChildData
+		struct alignas(16) FChildData
 		{
 			FChildData()
 				: ChildOrFaceIndex(INDEX_NONE)
