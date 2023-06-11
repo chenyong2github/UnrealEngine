@@ -37,7 +37,7 @@ class FLevelSet final : public FImplicitObject
 	FLevelSet(std::istream& Stream);
 #endif
 	CHAOS_API FLevelSet(TUniformGrid<FReal, 3>&& Grid, TArrayND<FReal, 3>&& Phi, int32 BandWidth);
-	CHAOS_API FLevelSet(const FLevelSet& Other) = delete;
+	FLevelSet(const FLevelSet& Other) = delete;
 	CHAOS_API FLevelSet(FLevelSet&& Other);
 	CHAOS_API virtual ~FLevelSet();
 
