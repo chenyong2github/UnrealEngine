@@ -94,14 +94,6 @@ FString GOBBFilePathBase;
 FString GOBBMainFilePath;
 // Obb Patch filepath
 FString GOBBPatchFilePath;
-// Obb Overflow1 filepath
-FString GOBBOverflow1FilePath;
-// Obb Overflow2 filepath
-FString GOBBOverflow2FilePath;
-// Obb Overflow3 filepath
-FString GOBBOverflow3FilePath;
-// Obb Overflow2 filepath
-FString GOBBOverflow4FilePath;
 // Internal File Direcory Path (for application) - setup during load
 FString GInternalFilePath;
 // External File Direcory Path (for application) - setup during load
@@ -1250,86 +1242,31 @@ public:
 
 			// Only check for overflow files if we found a patch file
 			if (bHavePatch)
-			{
-				FString Overflow1OBBName = FString::Printf(TEXT("overflow1.%d.%s.obb"), GAndroidPackageVersion, *GPackageName);
-				FString Overflow2OBBName = FString::Printf(TEXT("overflow2.%d.%s.obb"), GAndroidPackageVersion, *GPackageName);
-				FString Overflow3OBBName = FString::Printf(TEXT("overflow3.%d.%s.obb"), GAndroidPackageVersion, *GPackageName);
-				FString Overflow4OBBName = FString::Printf(TEXT("overflow4.%d.%s.obb"), GAndroidPackageVersion, *GPackageName);
+			{	
+				for (int32 OverflowIndex = 1; ; OverflowIndex++)
+				{
+					FString OverflowOBBName = FString::Printf(TEXT("overflow%d.%d.%s.obb"), OverflowIndex, GAndroidPackageVersion, *GPackageName);
 
-				if (!GOBBOverflow1FilePath.IsEmpty() && FileExists(*GOBBOverflow1FilePath, true))
-				{
-					MountOBB(*GOBBOverflow1FilePath);
-					FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mounted overflow1 OBB: %s"), *GOBBOverflow1FilePath);
+					if (FileExists(*(OBBDir1 / OverflowOBBName), true))
+					{
+						FString OBBOverflowFilePath = OBBDir1 / OverflowOBBName;
+						MountOBB(*OBBOverflowFilePath);
+						FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mounted overflow%d OBB: %s"), OverflowIndex, *OBBOverflowFilePath);
+					}
+					else if (FileExists(*(OBBDir2 / OverflowOBBName), true))
+					{
+						FString OBBOverflowFilePath = OBBDir2 / OverflowOBBName;
+						MountOBB(*OBBOverflowFilePath);
+						FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mounted overflow%d OBB: %s"), OverflowIndex, *OBBOverflowFilePath);
+					}
+					else
+					{
+						break;
+					}
 				}
-				else if (FileExists(*(OBBDir1 / Overflow1OBBName), true))
-				{
-					GOBBOverflow1FilePath = OBBDir1 / Overflow1OBBName;
-					MountOBB(*GOBBOverflow1FilePath);
-					FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mounted overflow1 OBB: %s"), *GOBBOverflow1FilePath);
-				}
-				else if (FileExists(*(OBBDir2 / Overflow1OBBName), true))
-				{
-					GOBBOverflow1FilePath = OBBDir2 / Overflow1OBBName;
-					MountOBB(*GOBBOverflow1FilePath);
-					FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mounted overflow1 OBB: %s"), *GOBBOverflow1FilePath);
-				}
-
-				if (!GOBBOverflow2FilePath.IsEmpty() && FileExists(*GOBBOverflow2FilePath, true))
-				{
-					MountOBB(*GOBBOverflow2FilePath);
-					FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mounted overflow2 OBB: %s"), *GOBBOverflow2FilePath);
-				}
-				else if (FileExists(*(OBBDir1 / Overflow2OBBName), true))
-				{
-					GOBBOverflow2FilePath = OBBDir1 / Overflow2OBBName;
-					MountOBB(*GOBBOverflow2FilePath);
-					FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mounted overflow2 OBB: %s"), *GOBBOverflow2FilePath);
-				}
-				else if (FileExists(*(OBBDir2 / Overflow2OBBName), true))
-				{
-					GOBBOverflow2FilePath = OBBDir2 / Overflow2OBBName;
-					MountOBB(*GOBBOverflow2FilePath);
-					FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mounted overflow2 OBB: %s"), *GOBBOverflow2FilePath);
-				}
-
-				if (!GOBBOverflow3FilePath.IsEmpty() && FileExists(*GOBBOverflow3FilePath, true))
-				{
-					MountOBB(*GOBBOverflow3FilePath);
-					FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mounted overflow3 OBB: %s"), *GOBBOverflow3FilePath);
-				}
-				else if (FileExists(*(OBBDir1 / Overflow3OBBName), true))
-				{
-					GOBBOverflow3FilePath = OBBDir1 / Overflow3OBBName;
-					MountOBB(*GOBBOverflow3FilePath);
-					FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mounted overflow3 OBB: %s"), *GOBBOverflow3FilePath);
-				}
-				else if (FileExists(*(OBBDir2 / Overflow3OBBName), true))
-				{
-					GOBBOverflow3FilePath = OBBDir2 / Overflow3OBBName;
-					MountOBB(*GOBBOverflow3FilePath);
-					FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mounted overflow2 OBB: %s"), *GOBBOverflow3FilePath);
-				}
-
-				if (!GOBBOverflow4FilePath.IsEmpty() && FileExists(*GOBBOverflow4FilePath, true))
-				{
-					MountOBB(*GOBBOverflow4FilePath);
-					FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mounted overflow4 OBB: %s"), *GOBBOverflow4FilePath);
-				}
-				else if (FileExists(*(OBBDir1 / Overflow4OBBName), true))
-				{
-					GOBBOverflow4FilePath = OBBDir1 / Overflow4OBBName;
-					MountOBB(*GOBBOverflow4FilePath);
-					FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mounted overflow4 OBB: %s"), *GOBBOverflow4FilePath);
-				}
-				else if (FileExists(*(OBBDir2 / Overflow4OBBName), true))
-				{
-					GOBBOverflow4FilePath = OBBDir2 / Overflow4OBBName;
-					MountOBB(*GOBBOverflow4FilePath);
-					FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Mounted overflow4 OBB: %s"), *GOBBOverflow4FilePath);
-				}
-
 			}
 		}
+
 
 		// make sure the base path directory exists (UnrealGame and UnrealGame/ProjectName)
 		FString FileBaseDir = GFilePathBase + FString(FILEBASE_DIRECTORY);
