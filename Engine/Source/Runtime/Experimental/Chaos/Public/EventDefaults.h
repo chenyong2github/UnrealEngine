@@ -6,14 +6,14 @@
 
 namespace Chaos
 {
-	class CHAOS_API FEventDefaults
+	class FEventDefaults
 	{
 	public:
 
 		/**
 		 * Register default event types
 		 */
-		static void RegisterSystemEvents(FEventManager& EventManager);
+		static CHAOS_API void RegisterSystemEvents(FEventManager& EventManager);
 
 	private:
 

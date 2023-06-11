@@ -4,10 +4,10 @@
 
 #include "Modules/ModuleInterface.h"
 
-class CHAOS_API FChaosEngineModule : public IModuleInterface
+class FChaosEngineModule : public IModuleInterface
 {
 public:
 
-	virtual void StartupModule() override;
-	virtual void ShutdownModule() override;
+	CHAOS_API virtual void StartupModule() override;
+	CHAOS_API virtual void ShutdownModule() override;
 };

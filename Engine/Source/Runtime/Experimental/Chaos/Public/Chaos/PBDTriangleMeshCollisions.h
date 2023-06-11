@@ -12,7 +12,7 @@
 //
 namespace Chaos::Softs
 {
-class CHAOS_API FPBDTriangleMeshCollisions
+class FPBDTriangleMeshCollisions
 {
 public:
 	struct FContourMinimizationIntersection
@@ -153,7 +153,7 @@ public:
 		}
 	}
 
-	void Init(const FSolverParticles& Particles, const FSolverReal MinProximityQueryRadius = (FSolverReal)0.);
+	CHAOS_API void Init(const FSolverParticles& Particles, const FSolverReal MinProximityQueryRadius = (FSolverReal)0.);
 
 	void SetGlobalIntersectionAnalysis(bool bInGlobalIntersectionAnalysis) { bGlobalIntersectionAnalysis = bInGlobalIntersectionAnalysis; }
 	void SetContourMinimization(bool bInContourMinimization) { bContourMinimization = bInContourMinimization; }

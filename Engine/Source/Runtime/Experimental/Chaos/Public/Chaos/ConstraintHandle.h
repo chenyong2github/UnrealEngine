@@ -93,7 +93,7 @@ namespace Chaos
 	 * 
 	 * @see FIndexedConstraintHandle, FIntrusiveConstraintHandle
 	*/
-	class CHAOS_API FConstraintHandle
+	class FConstraintHandle
 	{
 	public:
 		using FGeometryParticleHandle = TGeometryParticleHandle<FReal, 3>;
@@ -168,7 +168,7 @@ namespace Chaos
 		virtual void SetWasAwakened(const bool bInWasAwakened) {}
 
 		// Implemented in ConstraintContainer.h
-		int32 GetContainerId() const;
+		CHAOS_API int32 GetContainerId() const;
 
 		// Implemented in ConstraintContainer.h
 		template<typename T>  T* As();
@@ -178,7 +178,7 @@ namespace Chaos
 		template<typename T>  T* AsUnsafe() { check(As<T>() != nullptr); return static_cast<T*>(this); }
 		template<typename T>  const T* AsUnsafe() const { check(As<T>() != nullptr); return static_cast<const T*>(this); }
 
-		const FConstraintHandleTypeID& GetType() const;
+		CHAOS_API const FConstraintHandleTypeID& GetType() const;
 
 		static const FConstraintHandleTypeID& StaticType()
 		{
@@ -212,7 +212,7 @@ namespace Chaos
 	 * address (as opposed to array-based containers where the array could relocate). The constraint class should inherit
 	 * this handle class. This effectively eliminates the handle, reducing cache misses and allocations.
 	*/
-	class CHAOS_API FIntrusiveConstraintHandle : public FConstraintHandle
+	class FIntrusiveConstraintHandle : public FConstraintHandle
 	{
 	public:
 		FIntrusiveConstraintHandle()
@@ -241,7 +241,7 @@ namespace Chaos
 	 * @tparam T_CONSTRAINT The constraint type
 	*/
 	template<typename T_CONSTRAINT>
-	class CHAOS_API TIntrusiveConstraintHandle : public FIntrusiveConstraintHandle
+	class TIntrusiveConstraintHandle : public FIntrusiveConstraintHandle
 	{
 	public:
 		using FConstraint = T_CONSTRAINT;
@@ -275,7 +275,7 @@ namespace Chaos
 	 * @todo(ccaulfield): block allocator for handles, or support custom allocators in constraint containers.
 	 */
 	template<class T_CONTAINER>
-	class CHAOS_API TConstraintHandleAllocator
+	class TConstraintHandleAllocator
 	{
 	public:
 		using FConstraintContainer = T_CONTAINER;
@@ -292,7 +292,7 @@ namespace Chaos
 	 * This acts as a FConstraintHandle*, but caches some extra debug data useful in tracking
 	 * down dangling pointer issues when they arise.
 	*/
-	class CHAOS_API FConstraintHandleHolder
+	class FConstraintHandleHolder
 	{
 	public:
 		FConstraintHandleHolder()
@@ -329,7 +329,7 @@ namespace Chaos
 		const FGeometryParticleHandle* GetParticle1() const { return Particles[1]; }
 
 	private:
-		void InitDebugData();
+		CHAOS_API void InitDebugData();
 
 		const FConstraintHandleTypeID* ConstraintType;
 		const FGeometryParticleHandle* Particles[2];

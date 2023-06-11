@@ -12,26 +12,26 @@ namespace GeometryCollection::Facades
 	/**
 	 * this class helps reading and writing the packed data used in the managed array
 	 */
-	struct CHAOS_API FRemoveOnBreakData
+	struct FRemoveOnBreakData
 	{
 	public:
 		inline static const FVector4f DisabledPackedData{ -1, 0, 0, 0 };
 
-		FRemoveOnBreakData();
-		FRemoveOnBreakData(const FVector4f& InPackedData);
-		FRemoveOnBreakData(bool bEnable, const FVector2f& BreakTimer, bool bClusterCrumbling, const FVector2f& RemovalTimer);
+		CHAOS_API FRemoveOnBreakData();
+		CHAOS_API FRemoveOnBreakData(const FVector4f& InPackedData);
+		CHAOS_API FRemoveOnBreakData(bool bEnable, const FVector2f& BreakTimer, bool bClusterCrumbling, const FVector2f& RemovalTimer);
 
-		const FVector4f& GetPackedData() const;
+		CHAOS_API const FVector4f& GetPackedData() const;
 
-		bool IsEnabled() const;
-		bool GetClusterCrumbling() const;
-		FVector2f GetBreakTimer() const;
-		FVector2f GetRemovalTimer() const;
+		CHAOS_API bool IsEnabled() const;
+		CHAOS_API bool GetClusterCrumbling() const;
+		CHAOS_API FVector2f GetBreakTimer() const;
+		CHAOS_API FVector2f GetRemovalTimer() const;
 		
-		void SetEnabled(bool bEnable);
-		void SetClusterCrumbling(bool bClusterCrumbling);
-		void SetBreakTimer(float MinTime, float MaxTime);
-		void SetRemovalTimer(float MinTime, float MaxTime);
+		CHAOS_API void SetEnabled(bool bEnable);
+		CHAOS_API void SetClusterCrumbling(bool bClusterCrumbling);
+		CHAOS_API void SetBreakTimer(float MinTime, float MaxTime);
+		CHAOS_API void SetRemovalTimer(float MinTime, float MaxTime);
 
 	private:
 		FVector4f PackedData;
@@ -40,32 +40,32 @@ namespace GeometryCollection::Facades
 	/**
 	 * Provide an API to set and get removal on break data on a collection
 	 */
-	class CHAOS_API FCollectionRemoveOnBreakFacade
+	class FCollectionRemoveOnBreakFacade
 	{
 	public:
-		FCollectionRemoveOnBreakFacade(FManagedArrayCollection& InCollection);
-		FCollectionRemoveOnBreakFacade(const FManagedArrayCollection& InCollection);
+		CHAOS_API FCollectionRemoveOnBreakFacade(FManagedArrayCollection& InCollection);
+		CHAOS_API FCollectionRemoveOnBreakFacade(const FManagedArrayCollection& InCollection);
 
 		/** Create the facade attributes. */
-		void DefineSchema();
+		CHAOS_API void DefineSchema();
 
 		/** remove the facade attributes */
-		void RemoveSchema();
+		CHAOS_API void RemoveSchema();
 
 		/** Valid if related attributes are available */
-		bool IsValid() const;
+		CHAOS_API bool IsValid() const;
 
 		/** Is this facade const access */
-		bool IsConst() const;
+		CHAOS_API bool IsConst() const;
 
 		/** set a specific value to a array of transforms */
-		void SetFromIndexArray(const TArray<int32>& Indices, const FRemoveOnBreakData& Data);
+		CHAOS_API void SetFromIndexArray(const TArray<int32>& Indices, const FRemoveOnBreakData& Data);
 
 		/** set a specific value to all transforms */
-		void SetToAll(const FRemoveOnBreakData& Data);
+		CHAOS_API void SetToAll(const FRemoveOnBreakData& Data);
 
 		/** Get a specific value by index */
-		const FRemoveOnBreakData GetData(int32 Index) const;
+		CHAOS_API const FRemoveOnBreakData GetData(int32 Index) const;
 
 	private:
 		TManagedArrayAccessor<FVector4f> RemoveOnBreakAttribute;

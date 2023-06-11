@@ -23,7 +23,7 @@ namespace Chaos
 		 * Container the storage for the FCollisionConstraintAllocator, as well as the API to create new midphases and collision constraints.
 		 * We have one of these objects per thread on which collisions detection is performed to get lock-free allocations and lists.
 		 */
-		class CHAOS_API FCollisionContextAllocator
+		class FCollisionContextAllocator
 		{
 		public:
 			FCollisionContextAllocator(FPBDCollisionConstraints* InCollisionContainer, const int32 InNumCollisionsPerBlock, const int32 InCurrentEpoch)
@@ -49,7 +49,7 @@ namespace Chaos
 			/**
 			 * Create a constraint (called by the MidPhase)
 			 */
-			FPBDCollisionConstraintPtr CreateConstraint(
+			CHAOS_API FPBDCollisionConstraintPtr CreateConstraint(
 				FGeometryParticleHandle* Particle0,
 				const FImplicitObject* Implicit0,
 				const FPerShapeData* Shape0,
@@ -150,10 +150,10 @@ namespace Chaos
 			}
 
 			// Process all the new midphases from the parallel collision detection
-			void ProcessNewMidPhases(FCollisionConstraintAllocator* Allocator);
+			CHAOS_API void ProcessNewMidPhases(FCollisionConstraintAllocator* Allocator);
 
 			// Process all the activated collisions from the parallel collision detection
-			void ProcessNewConstraints(FCollisionConstraintAllocator* Allocator);
+			CHAOS_API void ProcessNewConstraints(FCollisionConstraintAllocator* Allocator);
 
 			// Find the midphase for the particle pair if it exists. Every particle holds a list of its midphases. We search "SearchParticle" which should be
 			// ideally be the one with fewer midphases on it.
@@ -230,7 +230,7 @@ namespace Chaos
 		 * NOTE: To reduce RBAN memory use, we do not create any collision blocks until the first call to CreateCollisionConstraint
 		 * (see ConstraintPool initialization)
 		*/
-		class CHAOS_API FCollisionConstraintAllocator
+		class FCollisionConstraintAllocator
 		{
 		public:
 			UE_NONCOPYABLE(FCollisionConstraintAllocator);
@@ -476,7 +476,7 @@ namespace Chaos
 			 * @brief Destroy all collision and caches involving the particle
 			 * Called when a particle is destroyed or disabled (not sleeping).
 			*/
-			void RemoveParticle(FGeometryParticleHandle* Particle);
+			CHAOS_API void RemoveParticle(FGeometryParticleHandle* Particle);
 
 			/**
 			 * @brief Iterate over all collisions (read-only), including sleeping ones
@@ -559,7 +559,7 @@ namespace Chaos
 			}
 
 			// Find all midphases that have not been updated this tick (i.e., bounds no longer overlap) and destroy them
-			void PruneExpiredMidPhases();
+			CHAOS_API void PruneExpiredMidPhases();
 
 			// Collect all the constraints activated in the collision tasks and register them (calls ActivateConstraintImp on each)
 			void ProcessNewConstraints()
@@ -589,7 +589,7 @@ namespace Chaos
 				Cookie.LastUsedEpoch = CurrentEpoch;
 			}
 
-			void RemoveActiveConstraint(FPBDCollisionConstraint& Constraint);
+			CHAOS_API void RemoveActiveConstraint(FPBDCollisionConstraint& Constraint);
 
 			// The container that owns the allocator (only needed because new constraints need to know)
 			FPBDCollisionConstraints* CollisionContainer;

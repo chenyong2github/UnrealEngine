@@ -27,7 +27,7 @@ namespace Chaos
 	 * 
 	 * @see FMidPhaseModifier, FContactPairModifier
 	 */
-	class CHAOS_API FCCDModifier
+	class FCCDModifier
 	{
 	public:
 		FCCDModifier()
@@ -44,34 +44,34 @@ namespace Chaos
 		//
 
 		// Whether the two particle actually hit each other in the sweep
-		bool IsSweepHit() const;
+		CHAOS_API bool IsSweepHit() const;
 
 		// Get the time of impact. This is as a fraction of total movement and will be in the range [0,1] if a hit was found
-		FReal GetSweepHitTOI() const;
+		CHAOS_API FReal GetSweepHitTOI() const;
 
 		// Get the sweep impact position for the specified body
 		// NOTE: See class comments.
-		FVec3 GetWorldSweepHitLocation(const int32 ParticleIndex) const;
+		CHAOS_API FVec3 GetWorldSweepHitLocation(const int32 ParticleIndex) const;
 
 		// Get the sweep impact normal
 		// NOTE: See class comments.
-		FVec3 GetWorldSweepHitNormal() const;
+		CHAOS_API FVec3 GetWorldSweepHitNormal() const;
 
-		const FGeometryParticleHandle* GetParticle(const int32 ParticleIndex) const;
-		const FGeometryParticleHandle* GetOtherParticle(const FGeometryParticleHandle* InParticle) const;
+		CHAOS_API const FGeometryParticleHandle* GetParticle(const int32 ParticleIndex) const;
+		CHAOS_API const FGeometryParticleHandle* GetOtherParticle(const FGeometryParticleHandle* InParticle) const;
 
 		//
 		// Modifying functions
 		//
 
 		// Re-enable this contact (if it was previously disabled)
-		void Enable();
+		CHAOS_API void Enable();
 
 		// Disable this contact
-		void Disable();
+		CHAOS_API void Disable();
 
 		// Convert this contact to a probe
-		void ConvertToProbe();
+		CHAOS_API void ConvertToProbe();
 
 	private:
 		FCCDModifier(
@@ -96,7 +96,7 @@ namespace Chaos
 	/*
 	 * Class for iterating over ccd results involving a specific particle
 	 */
-	class CHAOS_API FCCDModifierParticleIterator
+	class FCCDModifierParticleIterator
 	{
 	public:
 		FCCDModifier& operator*()
@@ -136,9 +136,9 @@ namespace Chaos
 		{ 
 		}
 
-		FCCDModifierParticleIterator& MoveToBegin();
-		FCCDModifierParticleIterator& MoveToEnd();
-		FCCDModifierParticleIterator& MoveToNext();
+		CHAOS_API FCCDModifierParticleIterator& MoveToBegin();
+		CHAOS_API FCCDModifierParticleIterator& MoveToEnd();
+		CHAOS_API FCCDModifierParticleIterator& MoveToNext();
 
 		FCCDModifierParticleRange* Range;
 		int32 ConstraintIndex;
@@ -150,22 +150,22 @@ namespace Chaos
 	/*
 	 * Represents all the swept constraints on a particle to allow for iteration.
 	 */
-	class CHAOS_API FCCDModifierParticleRange
+	class FCCDModifierParticleRange
 	{
 	public:
-		FCCDModifierParticleRange(
+		CHAOS_API FCCDModifierParticleRange(
 			FCCDModifierAccessor* InAccessor, 
 			FGeometryParticleHandle* InParticle);
 
-		FCCDModifierParticleIterator begin();
-		FCCDModifierParticleIterator end();
+		CHAOS_API FCCDModifierParticleIterator begin();
+		CHAOS_API FCCDModifierParticleIterator end();
 
 	private:
 		FCCDModifierAccessor* GetAccessor() const { return Accessor; }
 		FGeometryParticleHandle* GetParticle() const { return Particle; }
 		int32 GetNumConstraints() const { return Constraints.Num(); }
 		FPBDCollisionConstraint* GetConstraint(const int32 Index) const { return Constraints[Index]; }
-		void CollectConstraints();
+		CHAOS_API void CollectConstraints();
 
 		FCCDModifierAccessor* Accessor;
 		FGeometryParticleHandle* Particle;
@@ -177,13 +177,13 @@ namespace Chaos
 	/*
 	 * Provides access to CCD modifiers
 	 */
-	class CHAOS_API FCCDModifierAccessor
+	class FCCDModifierAccessor
 	{
 	public:
-		FCCDModifierAccessor(const FReal InDt);
+		CHAOS_API FCCDModifierAccessor(const FReal InDt);
 
 		// Get an object which allows for range iteration over the CCD modifiers for a particle
-		FCCDModifierParticleRange GetModifiers(FGeometryParticleHandle* Particle);
+		CHAOS_API FCCDModifierParticleRange GetModifiers(FGeometryParticleHandle* Particle);
 
 		FReal GetDt() const
 		{

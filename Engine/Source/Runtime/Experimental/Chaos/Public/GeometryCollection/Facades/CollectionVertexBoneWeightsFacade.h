@@ -29,34 +29,34 @@ namespace GeometryCollection::Facades
 	*	- FindAttribute<TArray<float>>(FVertexSetInterface::WeightAttribute, FGeometryCollection::VerticesGroup);
 	* 
 	*/
-	class CHAOS_API FVertexBoneWeightsFacade
+	class FVertexBoneWeightsFacade
 	{
 	public:
 
 		// Attributes
-		static const FName BoneIndexAttributeName;
-		static const FName BoneWeightAttributeName;
+		static CHAOS_API const FName BoneIndexAttributeName;
+		static CHAOS_API const FName BoneWeightAttributeName;
 
 		/**
 		* FVertexBoneWeightsFacade Constuctor
 		*/
-		FVertexBoneWeightsFacade(FManagedArrayCollection& InSelf);
-		FVertexBoneWeightsFacade(const FManagedArrayCollection& InSelf);
+		CHAOS_API FVertexBoneWeightsFacade(FManagedArrayCollection& InSelf);
+		CHAOS_API FVertexBoneWeightsFacade(const FManagedArrayCollection& InSelf);
 
 		/** Define the facade */
-		void DefineSchema();
+		CHAOS_API void DefineSchema();
 
 		/** Is the Facade const */
 		bool IsConst() const { return Collection == nullptr; }
 
 		/** Is the Facade defined on the collection? */
-		bool IsValid() const;
+		CHAOS_API bool IsValid() const;
 
 		/** Add bone weight based on the kinematic bindings. */
-		void AddBoneWeightsFromKinematicBindings();
+		CHAOS_API void AddBoneWeightsFromKinematicBindings();
 
 		/** Add bone weight based on the kinematic bindings. */
-		void AddBoneWeight(int32 VertexIndex, int32 BoneIndex, float BoneWeight);
+		CHAOS_API void AddBoneWeight(int32 VertexIndex, int32 BoneIndex, float BoneWeight);
 
 		/** Return the vertex bone indices from the collection. Null if not initialized.  */
 		const TManagedArray< TArray<int32> >* FindBoneIndices()  const { return BoneIndexAttribute.Find(); }

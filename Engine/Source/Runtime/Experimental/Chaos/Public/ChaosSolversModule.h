@@ -99,25 +99,25 @@ enum class ESolverFlags : uint8
 };
 ENUM_CLASS_FLAGS(ESolverFlags);
 
-class CHAOS_API FChaosSolversModule
+class FChaosSolversModule
 {
 public:
 
-	static FChaosSolversModule* GetModule();
+	static CHAOS_API FChaosSolversModule* GetModule();
 
-	FChaosSolversModule();
+	CHAOS_API FChaosSolversModule();
 
-	void StartupModule();
-	void ShutdownModule();
+	CHAOS_API void StartupModule();
+	CHAOS_API void ShutdownModule();
 
-	void Initialize();
-	void Shutdown();
+	CHAOS_API void Initialize();
+	CHAOS_API void Shutdown();
 
 	/**
 	 * Queries for multithreaded configurations
 	 */
-	bool IsPersistentTaskEnabled() const;
-	bool IsPersistentTaskRunning() const;
+	CHAOS_API bool IsPersistentTaskEnabled() const;
+	CHAOS_API bool IsPersistentTaskRunning() const;
 
 
 	/**
@@ -125,13 +125,13 @@ public:
 	 * using methods and members that the calling context can safely access those fields
 	 * as the task will be running on its own thread.
 	 */
-	Chaos::FPersistentPhysicsTask* GetDedicatedTask() const;
+	CHAOS_API Chaos::FPersistentPhysicsTask* GetDedicatedTask() const;
 
 	/**
 	 * Called to request a sync between the game thread and the currently running physics task
 	 * @param bForceBlockingSync forces this 
 	 */
-	void SyncTask(bool bForceBlockingSync = false);
+	CHAOS_API void SyncTask(bool bForceBlockingSync = false);
 
 	/**
 	 * Create a new solver state storage object to contain a solver and proxy storage object. Intended
@@ -145,13 +145,13 @@ public:
 	 * @param ThreadingMode The desired threading mode the solver will use
 	 * @param bStandalone Whether the solver is standalone (not sent to physics thread - updating left to caller)
 	 */
-	Chaos::FPBDRigidsSolver* CreateSolver(UObject* InOwner, Chaos::FReal InAsyncDt, Chaos::EThreadingMode ThreadingMode = Chaos::EThreadingMode::SingleThread
+	CHAOS_API Chaos::FPBDRigidsSolver* CreateSolver(UObject* InOwner, Chaos::FReal InAsyncDt, Chaos::EThreadingMode ThreadingMode = Chaos::EThreadingMode::SingleThread
 #if CHAOS_DEBUG_NAME
 		, const FName& DebugName = NAME_None
 #endif
 	);
 
-	void MigrateSolver(Chaos::FPhysicsSolverBase* InSolver, const UObject* InNewOwner);
+	CHAOS_API void MigrateSolver(Chaos::FPhysicsSolverBase* InSolver, const UObject* InNewOwner);
 
 	/**
 	 * Sets the actor type which should be AChaosSolverActor::StaticClass() but that is not accessible from engine.
@@ -163,36 +163,36 @@ public:
 		check(IsValidSolverActorClass(SolverActorClass));
 	}
 
-	UClass* GetSolverActorClass() const;
+	CHAOS_API UClass* GetSolverActorClass() const;
 
-	bool IsValidSolverActorClass(UClass* Class) const;
+	CHAOS_API bool IsValidSolverActorClass(UClass* Class) const;
 
 	/**
 	 * Shuts down and destroys a solver state
 	 *
 	 * Should be called on whichever thread currently owns the solver state
 	 */
-	void DestroySolver(Chaos::FPhysicsSolverBase* InState);
+	CHAOS_API void DestroySolver(Chaos::FPhysicsSolverBase* InState);
 
 	/** Retrieve the list of all extant solvers. This contains all owned, unowned and standalone solvers */
-	const TArray<Chaos::FPhysicsSolverBase*>& GetAllSolvers() const;
+	CHAOS_API const TArray<Chaos::FPhysicsSolverBase*>& GetAllSolvers() const;
 
 	/**
 	 * Read access to the current solver-state objects, be aware which thread owns this data when
 	 * attempting to use this. Physics thread will query when spinning up to get current world state
 	 */
-	TArray<const Chaos::FPhysicsSolverBase*> GetSolvers(const UObject* InOwner) const;
-	void GetSolvers(const UObject* InOwner, TArray<const Chaos::FPhysicsSolverBase*>& OutSolvers) const;
+	CHAOS_API TArray<const Chaos::FPhysicsSolverBase*> GetSolvers(const UObject* InOwner) const;
+	CHAOS_API void GetSolvers(const UObject* InOwner, TArray<const Chaos::FPhysicsSolverBase*>& OutSolvers) const;
 
 	/** Non-const access to the solver array is private - only the module should ever modify the storage lists */
-	TArray<Chaos::FPhysicsSolverBase*> GetSolversMutable(const UObject* InOwner);
-	void GetSolversMutable(const UObject* InOwner, TArray<Chaos::FPhysicsSolverBase*>& OutSolvers);
+	CHAOS_API TArray<Chaos::FPhysicsSolverBase*> GetSolversMutable(const UObject* InOwner);
+	CHAOS_API void GetSolversMutable(const UObject* InOwner, TArray<Chaos::FPhysicsSolverBase*>& OutSolvers);
 
 	/**
 	 * Outputs statistics for the solver hierarchies. Currently engine calls into this
 	 * from a console command on demand.
 	 */
-	void DumpHierarchyStats(int32* OutOptMaxCellElements = nullptr);
+	CHAOS_API void DumpHierarchyStats(int32* OutOptMaxCellElements = nullptr);
 
 #if WITH_EDITOR
 	/**
@@ -200,25 +200,25 @@ public:
 	 * This is typically called from a playing editor to pause all solvers.
 	 * @note Game pause must use a different per solver mechanics.
 	 */
-	void PauseSolvers();
+	CHAOS_API void PauseSolvers();
 
 	/**
 	 * Resume solvers. Thread safe.
 	 * This is typically called from a paused editor to resume all solvers.
 	 * @note Game resume must use a different per solver mechanics.
 	 */
-	void ResumeSolvers();
+	CHAOS_API void ResumeSolvers();
 
 	/**
 	 * Single-step advance solvers. Thread safe.
 	 * This is typically called from a paused editor to single step all solvers.
 	 */
-	void SingleStepSolvers();
+	CHAOS_API void SingleStepSolvers();
 
 	/**
 	 * Query whether a particular solver should advance and update its single-step counter. Thread safe.
 	 */
-	bool ShouldStepSolver(int32& InOutSingleStepCounter) const;
+	CHAOS_API bool ShouldStepSolver(int32& InOutSingleStepCounter) const;
 #endif  // #if WITH_EDITOR
 
 	void RegisterSolverActorClassProvider(IChaosSolverActorClassProvider* Provider)
@@ -228,7 +228,7 @@ public:
 
 
 	/** Safe method for always getting a settings provider (from the external caller or an internal default) */
-	const IChaosSettingsProvider& GetSettingsProvider() const;
+	CHAOS_API const IChaosSettingsProvider& GetSettingsProvider() const;
 	void SetSettingsProvider(IChaosSettingsProvider* InProvider)
 	{
 		SettingsProvider = InProvider;
@@ -238,16 +238,16 @@ public:
 	void UnlockSolvers() { SolverLock.Unlock(); }
 
 	/** Events that the material manager will emit for us to update our threaded data */
-	void OnUpdateMaterial(Chaos::FMaterialHandle InHandle);
-	void OnCreateMaterial(Chaos::FMaterialHandle InHandle);
-	void OnDestroyMaterial(Chaos::FMaterialHandle InHandle);
+	CHAOS_API void OnUpdateMaterial(Chaos::FMaterialHandle InHandle);
+	CHAOS_API void OnCreateMaterial(Chaos::FMaterialHandle InHandle);
+	CHAOS_API void OnDestroyMaterial(Chaos::FMaterialHandle InHandle);
 
-	void OnUpdateMaterialMask(Chaos::FMaterialMaskHandle InHandle);
-	void OnCreateMaterialMask(Chaos::FMaterialMaskHandle InHandle);
-	void OnDestroyMaterialMask(Chaos::FMaterialMaskHandle InHandle);
+	CHAOS_API void OnUpdateMaterialMask(Chaos::FMaterialMaskHandle InHandle);
+	CHAOS_API void OnCreateMaterialMask(Chaos::FMaterialMaskHandle InHandle);
+	CHAOS_API void OnDestroyMaterialMask(Chaos::FMaterialMaskHandle InHandle);
 
 	/** Gets a list of pending prerequisites required before proceeding with a solver update */
-	void GetSolverUpdatePrerequisites(FGraphEventArray& InPrerequisiteContainer);
+	CHAOS_API void GetSolverUpdatePrerequisites(FGraphEventArray& InPrerequisiteContainer);
 
 private:
 
@@ -314,7 +314,7 @@ private:
 	FDelegateHandle OnUpdateMaterialMaskHandle;
 };
 
-struct CHAOS_API FChaosScopeSolverLock
+struct FChaosScopeSolverLock
 {
 	FChaosScopeSolverLock()
 	{

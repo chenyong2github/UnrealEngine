@@ -19,11 +19,11 @@ struct ConsModelCaches {
 	//TArray<CorotatedFiberCache> CorotatedFiberCache;
 };
 
-class CHAOS_API FNewtonEvolution : public TArrayCollection
+class FNewtonEvolution : public TArrayCollection
 {
 public:
 	// TODO: Tidy up this constructor (and update Headless Chaos)
-	FNewtonEvolution(
+	CHAOS_API FNewtonEvolution(
 		FSolverParticles&& InParticles,
 		FSolverRigidParticles&& InGeometryParticles,
 		TArray<TVec3<int32>>&& CollisionTriangles,
@@ -46,13 +46,13 @@ public:
 	~FNewtonEvolution() {}
 
 	// Advance one time step. Filter the input time step if specified.
-	void AdvanceOneTimeStep(const FSolverReal Dt, const bool bSmoothDt = true);
+	CHAOS_API void AdvanceOneTimeStep(const FSolverReal Dt, const bool bSmoothDt = true);
 
 	// Remove all particles, will also reset all rules
-	void ResetParticles();
+	CHAOS_API void ResetParticles();
 
 	// Add particles and initialize group ids. Return the index of the first added particle.
-	int32 AddParticleRange(int32 NumParticles, uint32 GroupId, bool bActivate);
+	CHAOS_API int32 AddParticleRange(int32 NumParticles, uint32 GroupId, bool bActivate);
 
 	// Return the number of particles of the block starting at Offset
 	int32 GetParticleRangeSize(int32 Offset) const { return MParticlesActiveView.GetRangeSize(Offset); }
@@ -70,11 +70,11 @@ public:
 	const TArray<uint32>& ParticleGroupIds() const { return MParticleGroupIds; }
 
 	// Remove all collision particles
-	void ResetCollisionParticles(int32 NumParticles = 0);
+	CHAOS_API void ResetCollisionParticles(int32 NumParticles = 0);
 
 	// Add collision particles and initialize group ids. Return the index of the first added particle.
 	// Use INDEX_NONE as GroupId for collision particles that affect all particle groups.
-	int32 AddCollisionParticleRange(int32 NumParticles, uint32 GroupId, bool bActivate);
+	CHAOS_API int32 AddCollisionParticleRange(int32 NumParticles, uint32 GroupId, bool bActivate);
 
 	// Set a block of collision particles active or inactive, using the index of the first added particle to identify the block.
 	void ActivateCollisionParticleRange(int32 Offset, bool bActivate) { MCollisionParticlesActiveView.ActivateRange(Offset, bActivate); }
@@ -101,9 +101,9 @@ public:
 	}
 
 	// Add constraints. Return the index of the first added constraint.
-	int32 AddConstraintInitRange(int32 NumConstraints, bool bActivate);
-	int32 AddConstraintRuleRange(int32 NumConstraints, bool bActivate);
-	int32 AddPostCollisionConstraintRuleRange(int32 NumConstraints, bool bActivate);
+	CHAOS_API int32 AddConstraintInitRange(int32 NumConstraints, bool bActivate);
+	CHAOS_API int32 AddConstraintRuleRange(int32 NumConstraints, bool bActivate);
+	CHAOS_API int32 AddPostCollisionConstraintRuleRange(int32 NumConstraints, bool bActivate);
 
 	// Return the number of particles of the block starting at Offset
 	int32 GetConstraintInitRangeSize(int32 Offset) const { return MConstraintInitsActiveView.GetRangeSize(Offset); }
@@ -178,15 +178,15 @@ public:
 	template<typename Func1, typename Func2, typename Func3, typename Func4, typename Func5, typename Func6>
 	void DoNewtonStep(const int32 max_it_newton, const FSolverReal newton_tol, const int32 max_it_cg, const FSolverReal cg_tol, Func1 P, Func2 dP, const FSolverReal time, const FSolverReal dt, const TArray<TArray<TVector<int32, 2>>>& incident_elements, const TArray<FSolverReal>& nodal_mass, Func3 set_bcs, Func4 project_bcs, Func5 add_external_force, Func6 update_position_based_state, FSolverParticles& InParticles, TArray<FSolverReal>& residual_norm, bool use_cg = false, FSolverReal cg_prctg_reduce = 0, bool no_verbose = false);
 
-	void InitFEM();
+	CHAOS_API void InitFEM();
 
-	void WriteOutputLog(const int32 Frame);
+	CHAOS_API void WriteOutputLog(const int32 Frame);
 
 private:
 	// Add simulation groups and set default values
-	void AddGroups(int32 NumGroups);
+	CHAOS_API void AddGroups(int32 NumGroups);
 	// Reset simulation groups
-	void ResetGroups();
+	CHAOS_API void ResetGroups();
 	// Selected versions of the pre-iteration updates (euler step, force, velocity field. damping updates)..
 	template<bool bForceRule, bool bVelocityField, bool bDampVelocityRule>
 	void PreIterationUpdate(const FSolverReal Dt, const int32 Offset, const int32 Range, const int32 MinParallelBatchSize);

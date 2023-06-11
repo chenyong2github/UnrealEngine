@@ -33,31 +33,31 @@ namespace Chaos
 	using FJointConstraintDirtyFlags = TDirtyFlags<EJointConstraintFlags>;
 	typedef TVector<FTransform, 2> FTransformPair;
 
-	class CHAOS_API FJointConstraint : public FConstraintBase
+	class FJointConstraint : public FConstraintBase
 	{
 	public:
 		using Base = FConstraintBase;
 
 		friend class FPBDRigidsSolver; // friend so we can call ReleaseKinematicEndPoint when unregistering joint.
 
-		FJointConstraint();
+		CHAOS_API FJointConstraint();
 		virtual ~FJointConstraint() override {}
 
 		const FPBDJointSettings& GetJointSettings()const { return JointSettings.Read(); }
 
 		// If we created particle to serve as kinematic endpoint, track so we can release later. This will add particle to solver.
-		void SetKinematicEndPoint(FSingleParticlePhysicsProxy* InParticle, FPBDRigidsSolver* Solver);
+		CHAOS_API void SetKinematicEndPoint(FSingleParticlePhysicsProxy* InParticle, FPBDRigidsSolver* Solver);
 
-		FSingleParticlePhysicsProxy* GetKinematicEndPoint() const;
+		CHAOS_API FSingleParticlePhysicsProxy* GetKinematicEndPoint() const;
 
 		//See JointProperties for API
 		//Each CHAOS_INNER_JOINT_PROPERTY entry will have a Get* and Set*
 #define CHAOS_INNER_JOINT_PROPERTY(OuterProp, FuncName, Inner, InnerType) CONSTRAINT_JOINT_PROPERPETY_IMPL2(InnerType, FuncName, OuterProp, Inner)
 #include "Chaos/JointProperties.inl"
 
-		void SetLinearPositionDriveEnabled(TVector<bool, 3> Enabled);
+		CHAOS_API void SetLinearPositionDriveEnabled(TVector<bool, 3> Enabled);
 
-		void SetLinearVelocityDriveEnabled(TVector<bool, 3> Enabled);
+		CHAOS_API void SetLinearVelocityDriveEnabled(TVector<bool, 3> Enabled);
 
 		struct FOutputData
 		{
@@ -77,15 +77,15 @@ namespace Chaos
 			JointSettings.SyncRemote(Manager, DataIdx, RemoteData);
 		}
 
-		void SetParticleProxies(const FProxyBasePair& InJointParticles);
-		void SetPhysicsBodies(const FPhysicsObjectPair& InBodies);
+		CHAOS_API void SetParticleProxies(const FProxyBasePair& InJointParticles);
+		CHAOS_API void SetPhysicsBodies(const FPhysicsObjectPair& InBodies);
 
 		const FProxyBasePair& GetParticleProxies() const { return  JointProxies.Read().ParticleProxies; }
 		const FPhysicsObjectPair& GetPhysicsBodies() const { return  JointBodies.Read().PhysicsBodies; }
 
 	protected:
 
-		void ReleaseKinematicEndPoint(FPBDRigidsSolver* Solver);
+		CHAOS_API void ReleaseKinematicEndPoint(FPBDRigidsSolver* Solver);
 		
 		TChaosProperty<FProxyBasePairProperty, EChaosProperty::JointParticleProxies> JointProxies;
 		TChaosProperty<FPhysicsObjectPairProperty, EChaosProperty::JointPhysicsObjects> JointBodies;

@@ -13,7 +13,7 @@ namespace Chaos
 	/**
 	 * Solver specific data buffered for use on Game thread
 	 */
-	struct CHAOS_API FPBDRigidDirtyParticlesBufferOut
+	struct FPBDRigidDirtyParticlesBufferOut
 	{
 		TArray<FSingleParticlePhysicsProxy*> DirtyGameThreadParticles;
 		// Some particle types (clustered) only exist on the game thread, but we
@@ -22,19 +22,19 @@ namespace Chaos
 	};
 
 
-	class CHAOS_API FPBDRigidDirtyParticlesBuffer
+	class FPBDRigidDirtyParticlesBuffer
 	{
 		friend class FPBDRigidDirtyParticlesBufferAccessor;
 
 	public:
-		FPBDRigidDirtyParticlesBuffer(const Chaos::EMultiBufferMode& InBufferMode, bool bInSingleThreaded);
+		CHAOS_API FPBDRigidDirtyParticlesBuffer(const Chaos::EMultiBufferMode& InBufferMode, bool bInSingleThreaded);
 
-		void CaptureSolverData(FPBDRigidsSolver* Solver);
+		CHAOS_API void CaptureSolverData(FPBDRigidsSolver* Solver);
 
-		void ReadLock();
-		void ReadUnlock();
-		void WriteLock();
-		void WriteUnlock();
+		CHAOS_API void ReadLock();
+		CHAOS_API void ReadUnlock();
+		CHAOS_API void WriteLock();
+		CHAOS_API void WriteUnlock();
 	
 	private:
 		const FPBDRigidDirtyParticlesBufferOut* GetSolverOutData() const
@@ -45,7 +45,7 @@ namespace Chaos
 		/**
 		 * Fill data from solver destined for the game thread - used to limit the number of objects updated on the game thread
 		 */
-		void BufferPhysicsResults(FPBDRigidsSolver* Solver);
+		CHAOS_API void BufferPhysicsResults(FPBDRigidsSolver* Solver);
 
 		/**
 		 * Flip should be performed on physics thread side non-game thread

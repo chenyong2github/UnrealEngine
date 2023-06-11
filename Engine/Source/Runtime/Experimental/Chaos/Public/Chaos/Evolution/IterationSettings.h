@@ -13,7 +13,7 @@ namespace Chaos
 		 * Iteration counts for use by bodies and constraints. 
 		 * A simulation island will use the maximum number of iterations of any body or constraint in the island.
 		*/
-		class CHAOS_API FIterationSettings
+		class FIterationSettings
 		{
 		private:
 			using FIndexType = int8;

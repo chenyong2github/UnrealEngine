@@ -11,17 +11,17 @@ namespace Chaos::Facades
 	/**
 	 * Provides an API to define anchoring properties on a collection
 	 */
-	class CHAOS_API FCollectionAnchoringFacade
+	class FCollectionAnchoringFacade
 	{
 	public:
-		FCollectionAnchoringFacade(FManagedArrayCollection& InCollection);
-		FCollectionAnchoringFacade(const FManagedArrayCollection& InCollection);
+		CHAOS_API FCollectionAnchoringFacade(FManagedArrayCollection& InCollection);
+		CHAOS_API FCollectionAnchoringFacade(const FManagedArrayCollection& InCollection);
 
 		/** Create the facade attributes. */
 		void DefineSchema() {}
 
 		/** Valid if all accessors arrays are available */
-		bool IsValid() const;
+		CHAOS_API bool IsValid() const;
 
 		/** Is the facade defined from a constant collection. */
 		bool IsConst() const { return InitialDynamicStateAttribute.IsConst(); }
@@ -30,19 +30,19 @@ namespace Chaos::Facades
 		//  Facade Functionality
 		//
 
-		bool HasInitialDynamicStateAttribute() const;
+		CHAOS_API bool HasInitialDynamicStateAttribute() const;
 		
-		EObjectStateType GetInitialDynamicState(int32 TransformIndex) const;
-		void SetInitialDynamicState(int32 TransformIndex, EObjectStateType State);
-		void SetInitialDynamicState(const TArray<int32>& TransformIndices, EObjectStateType State);
+		CHAOS_API EObjectStateType GetInitialDynamicState(int32 TransformIndex) const;
+		CHAOS_API void SetInitialDynamicState(int32 TransformIndex, EObjectStateType State);
+		CHAOS_API void SetInitialDynamicState(const TArray<int32>& TransformIndices, EObjectStateType State);
 		
-		bool HasAnchoredAttribute() const;
-		void AddAnchoredAttribute();
-		void CopyAnchoredAttribute(const FCollectionAnchoringFacade& Other);
+		CHAOS_API bool HasAnchoredAttribute() const;
+		CHAOS_API void AddAnchoredAttribute();
+		CHAOS_API void CopyAnchoredAttribute(const FCollectionAnchoringFacade& Other);
 
-		bool IsAnchored(int32 TransformIndex) const;
-		void SetAnchored(int32 TransformIndex, bool bValue);
-		void SetAnchored(const TArray<int32>& TransformIndices, bool bValue);
+		CHAOS_API bool IsAnchored(int32 TransformIndex) const;
+		CHAOS_API void SetAnchored(int32 TransformIndex, bool bValue);
+		CHAOS_API void SetAnchored(const TArray<int32>& TransformIndices, bool bValue);
 	
 	private:
 		/** Initial dynamic state of a transform ( can be changed at runtime ) */

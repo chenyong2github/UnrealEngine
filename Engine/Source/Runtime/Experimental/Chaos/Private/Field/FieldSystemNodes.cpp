@@ -1809,9 +1809,9 @@ void FCullingField<T>::ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds
 	}
 }
 
-template class CHAOS_API FCullingField<int32>;
-template class CHAOS_API FCullingField<float>;
-template class CHAOS_API FCullingField<FVector>;
+template class FCullingField<int32>;
+template class FCullingField<float>;
+template class FCullingField<FVector>;
 
 
 /**
@@ -1848,6 +1848,6 @@ bool FReturnResultsTerminal<T>::operator==(const FFieldNodeBase& Node)
 	}
 	return false;
 }
-template class CHAOS_API FReturnResultsTerminal<int32>;
-template class CHAOS_API FReturnResultsTerminal<float>;
-template class CHAOS_API FReturnResultsTerminal<FVector>;
+template class FReturnResultsTerminal<int32>;
+template class FReturnResultsTerminal<float>;
+template class FReturnResultsTerminal<FVector>;

@@ -38,7 +38,7 @@ namespace Chaos
 	 * @see FContactPoint, FContactPointf
 	*/
 	template<typename T>
-	class CHAOS_API TContactPoint
+	class TContactPoint
 	{
 	public:
 		using FRealType = T;
@@ -93,7 +93,7 @@ namespace Chaos
 	 * @brief A single point in a contact manifold.
 	 * Each Collision Constraint will have up to 4 of these.
 	*/
-	class CHAOS_API FManifoldPoint
+	class FManifoldPoint
 	{
 	public:
 		union FFlags
@@ -138,7 +138,7 @@ namespace Chaos
 	/**
 	 * World-space contact point data
 	 */
-	class CHAOS_API FWorldContactPoint
+	class FWorldContactPoint
 	{
 	public:
 		// World-space contact point relative to each particle's center of mass
@@ -162,7 +162,7 @@ namespace Chaos
 	 * @brief The friction data for a manifold point
 	 * This is the information that needs to be stored between ticks to implement static friction.
 	*/
-	class CHAOS_API FSavedManifoldPoint
+	class FSavedManifoldPoint
 	{
 	public:
 		FSavedManifoldPoint()
@@ -178,7 +178,7 @@ namespace Chaos
 		FVec3f ShapeContactPoints[2];			// Contact anchor points for friction
 	};
 
-	class CHAOS_API FManifoldPointResult
+	class FManifoldPointResult
 	{
 	public:
 		FManifoldPointResult()

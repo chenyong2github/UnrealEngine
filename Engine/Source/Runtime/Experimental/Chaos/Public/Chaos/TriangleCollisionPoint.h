@@ -13,7 +13,7 @@ namespace Chaos
 	 * @brief Data returned by TriangleMesh point-triangle and edge-edge queries.
 	 */
 	template<typename T>
-	struct CHAOS_API TTriangleCollisionPoint
+	struct TTriangleCollisionPoint
 	{
 		// Type of contact (determines meaning of some properties below such as Indices and BarycentricCoordinates)
 		enum struct EContactType : uint8

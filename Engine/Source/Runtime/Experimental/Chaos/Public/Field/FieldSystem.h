@@ -21,7 +21,7 @@
 *   data package that the nodes will use during evaluation, the context does not assume
 *   ownership of the metadata but assumes it will remain in scope during evaluation.
 */
-struct CHAOS_API FFieldContextIndex
+struct FFieldContextIndex
 {
 	FFieldContextIndex(int32 InSample = INDEX_NONE, int32 InResult = INDEX_NONE)
 		: Sample(InSample)
@@ -75,7 +75,7 @@ enum class EFieldCommandHandlesType : uint8
 };
 
 /** List of datas that will be stored during field evaluation to avoid reallocation */
-struct CHAOS_API FFieldExecutionDatas
+struct FFieldExecutionDatas
 {
 	/** Sample positions to be used to build the context */
 	TArray<FVector> SamplePositions;
@@ -155,7 +155,7 @@ FORCEINLINE void EmptyResultsArrays(const TArray<EFieldCommandOutputType>& Field
 */
 
 
-class CHAOS_API FFieldSystemMetaData {
+class FFieldSystemMetaData {
 public:
 
 	enum EMetaType
@@ -175,7 +175,7 @@ public:
 };
 
 
-class CHAOS_API FFieldSystemMetaDataProcessingResolution : public FFieldSystemMetaData {
+class FFieldSystemMetaDataProcessingResolution : public FFieldSystemMetaData {
 public:
 	FFieldSystemMetaDataProcessingResolution(EFieldResolutionType ProcessingResolutionIn) : ProcessingResolution(ProcessingResolutionIn) {};
 	virtual ~FFieldSystemMetaDataProcessingResolution() {};
@@ -185,7 +185,7 @@ public:
 	EFieldResolutionType ProcessingResolution;
 };
 
-class CHAOS_API FFieldSystemMetaDataFilter : public FFieldSystemMetaData {
+class FFieldSystemMetaDataFilter : public FFieldSystemMetaData {
 public:
 	FFieldSystemMetaDataFilter(EFieldFilterType FilterTypeIn, EFieldObjectType ObjectTypeIn, EFieldPositionType PositionTypeIn) : FilterType(FilterTypeIn), ObjectType(ObjectTypeIn), PositionType(PositionTypeIn)  {};
 	virtual ~FFieldSystemMetaDataFilter() {};
@@ -198,7 +198,7 @@ public:
 };
 
 template<class T>
-class CHAOS_API FFieldSystemMetaDataResults : public FFieldSystemMetaData {
+class FFieldSystemMetaDataResults : public FFieldSystemMetaData {
 public:
 	FFieldSystemMetaDataResults(const TFieldArrayView<T>& ResultsIn) : Results(ResultsIn) {};
 	virtual ~FFieldSystemMetaDataResults() {};
@@ -208,7 +208,7 @@ public:
 	const TFieldArrayView<T>& Results;
 };
 
-class CHAOS_API FFieldSystemMetaDataIteration : public FFieldSystemMetaData {
+class FFieldSystemMetaDataIteration : public FFieldSystemMetaData {
 public:
 	FFieldSystemMetaDataIteration(int32 IterationsIn) : Iterations(IterationsIn) {};
 	virtual ~FFieldSystemMetaDataIteration() {};
@@ -218,7 +218,7 @@ public:
 	int32 Iterations;
 };
 
-class CHAOS_API FFieldSystemMetaDataCulling : public FFieldSystemMetaData
+class FFieldSystemMetaDataCulling : public FFieldSystemMetaData
 {
 public:
 	explicit FFieldSystemMetaDataCulling(TArray<FFieldContextIndex>& CullingIndicesIn)
@@ -241,7 +241,7 @@ public:
 	TArray<FFieldContextIndex>& CullingIndices;
 };
 
-struct CHAOS_API FFieldContext
+struct FFieldContext
 {
 	typedef  TMap<FFieldSystemMetaData::EMetaType, TUniquePtr<FFieldSystemMetaData> > UniquePointerMap;
 	typedef  TMap<FFieldSystemMetaData::EMetaType, FFieldSystemMetaData * > PointerMap;
@@ -369,7 +369,7 @@ FORCEINLINE TArray<int32>& GetResultArray<int32>(FFieldContext& FieldContext)
  * This has the effect of exposing metadata to downstream nodes but making sure
  * upstream nodes cannot see it.
  */
-class CHAOS_API FScopedFieldContextMetaData
+class FScopedFieldContextMetaData
 {
 	FScopedFieldContextMetaData() = delete;
 	FScopedFieldContextMetaData(const FScopedFieldContextMetaData&) = delete;
@@ -403,7 +403,7 @@ private:
 *  Abstract base class for the field node evaluation. 
 *
 */
-class CHAOS_API FFieldNodeBase
+class FFieldNodeBase
 {
 
 public:
@@ -522,7 +522,7 @@ template<> inline FFieldNodeBase::EFieldType FFieldNode<FVector>::StaticType() {
 *   will be passed to the evaluation of the field. 
 *
 */
-class CHAOS_API FFieldSystemCommand
+class FFieldSystemCommand
 {
 public:
 	FFieldSystemCommand()
@@ -603,8 +603,8 @@ public:
 		TimeCreation = (float)TimeSeconds;
 	}
 
-	void Serialize(FArchive& Ar);
-	bool operator==(const FFieldSystemCommand&) const;
+	CHAOS_API void Serialize(FArchive& Ar);
+	CHAOS_API bool operator==(const FFieldSystemCommand&) const;
 	bool operator!=(const FFieldSystemCommand& Other) const { return !this->operator==(Other); }
 
 	FName TargetAttribute;

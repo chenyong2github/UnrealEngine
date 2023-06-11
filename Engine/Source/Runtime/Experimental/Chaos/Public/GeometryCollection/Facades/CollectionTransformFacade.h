@@ -11,23 +11,23 @@ namespace GeometryCollection::Facades
 	/**
 	 * Provides an API to read and manipulate hierarchy in a managed array collection
 	 */
-	class CHAOS_API FCollectionTransformFacade
+	class FCollectionTransformFacade
 	{
 	public:
-		FCollectionTransformFacade(FManagedArrayCollection& InCollection);
-		FCollectionTransformFacade(const FManagedArrayCollection& InCollection);
+		CHAOS_API FCollectionTransformFacade(FManagedArrayCollection& InCollection);
+		CHAOS_API FCollectionTransformFacade(const FManagedArrayCollection& InCollection);
 
 		/** Creates the facade attributes. */
 		void DefineSchema() {}
 
 		/** Valid if parent and children arrays are available */
-		bool IsValid() const;
+		CHAOS_API bool IsValid() const;
 
 		/** Is the facade defined constant. */
 		bool IsConst() const { return ParentAttribute.IsConst(); }
 
 		/** Gets the root index */
-		TArray<int32> GetRootIndices() const;
+		CHAOS_API TArray<int32> GetRootIndices() const;
 
 		/**
 		* Returns the parent indices from the collection. Null if not initialized.
@@ -48,25 +48,25 @@ namespace GeometryCollection::Facades
 		* Returns array of transforms for transforming from bone space to collection space
 		* Vertex(inCollectionSpace) = TransformComputed.TransformPosition(Vertex(inBoneSpace))
 		*/
-		TArray<FTransform> ComputeCollectionSpaceTransforms() const;
+		CHAOS_API TArray<FTransform> ComputeCollectionSpaceTransforms() const;
 
 		/**
 		* Returns the transform for transforming from bone space to collection space for specified bone
 		* Vertex(inCollectionSpace) = TransformComputed.TransformPosition(Vertex(inBoneSpace))
 		*/
-		FTransform ComputeCollectionSpaceTransform(int32 BoneIdx) const;
+		CHAOS_API FTransform ComputeCollectionSpaceTransform(int32 BoneIdx) const;
 
 		/** Transforms the pivot of a collection */
-		void SetPivot(const FTransform& InTransform);
+		CHAOS_API void SetPivot(const FTransform& InTransform);
 
 		/** Transforms collection */
-		void Transform(const FTransform& InTransform);
+		CHAOS_API void Transform(const FTransform& InTransform);
 
 		/** Transforms selected bones in the collection */
-		void Transform(const FTransform& InTransform, const TArray<int32>& InSelection);
+		CHAOS_API void Transform(const FTransform& InTransform, const TArray<int32>& InSelection);
 
 		/** Builds a FMatrix from all the components */
-		static FMatrix BuildMatrix(const FVector& Translate,
+		static CHAOS_API FMatrix BuildMatrix(const FVector& Translate,
 			const uint8 RotationOrder,
 			const FVector& Rotate,
 			const FVector& Scale,
@@ -77,7 +77,7 @@ namespace GeometryCollection::Facades
 			const bool InvertTransformation);
 
 		/** Builds a FTransform from all the components */
-		static FTransform BuildTransform(const FVector& Translate,
+		static CHAOS_API FTransform BuildTransform(const FVector& Translate,
 			const uint8 RotationOrder,
 			const FVector& Rotate,
 			const FVector& Scale,
@@ -87,7 +87,7 @@ namespace GeometryCollection::Facades
 			const bool InvertTransformation);
 
 		/** Sets the selected bone's transform to identity */
-		void SetBoneTransformToIdentity(int32 BoneIdx);
+		CHAOS_API void SetBoneTransformToIdentity(int32 BoneIdx);
 
 	private:
 		TManagedArrayAccessor<int32>		ParentAttribute;

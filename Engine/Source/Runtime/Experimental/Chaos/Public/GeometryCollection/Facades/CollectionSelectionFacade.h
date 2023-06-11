@@ -37,25 +37,25 @@ namespace GeometryCollection::Facades
 	*	- FindAttribute<int32>(FVertexSetInterface::BoneIndexAttribute, <Group>);
 	* 
 	*/
-	class CHAOS_API FSelectionFacade
+	class FSelectionFacade
  	{
-		void InitUnboundedGroup(FName GroupName, FName DependencyGroup);
-		void InitWeightedUnboundedGroup(FName GroupName, FName DependencyGroup);
-		void InitBoundedGroup(FName GroupName, FName DependencyGroup, FName BoneDependencyGroup);
-		void InitWeightedBoundedGroup(FName GroupName, FName DependencyGroup, FName BoneDependencyGroup);
+		CHAOS_API void InitUnboundedGroup(FName GroupName, FName DependencyGroup);
+		CHAOS_API void InitWeightedUnboundedGroup(FName GroupName, FName DependencyGroup);
+		CHAOS_API void InitBoundedGroup(FName GroupName, FName DependencyGroup, FName BoneDependencyGroup);
+		CHAOS_API void InitWeightedBoundedGroup(FName GroupName, FName DependencyGroup, FName BoneDependencyGroup);
 
 	public:
 
 		// groups
-		static const FName UnboundGroup;
-		static const FName WeightedUnboundGroup;
-		static const FName BoundGroup;
-		static const FName WeightedBoundGroup;
+		static CHAOS_API const FName UnboundGroup;
+		static CHAOS_API const FName WeightedUnboundGroup;
+		static CHAOS_API const FName BoundGroup;
+		static CHAOS_API const FName WeightedBoundGroup;
 
 		// Attributes
-		static const FName IndexAttribute;
-		static const FName WeightAttribute;
-		static const FName BoneIndexAttribute;
+		static CHAOS_API const FName IndexAttribute;
+		static CHAOS_API const FName WeightAttribute;
+		static CHAOS_API const FName BoneIndexAttribute;
 
 		struct FSelectionKey {
 			FSelectionKey(int32 InIndex = INDEX_NONE, FName InGroupName = "") :
@@ -67,8 +67,8 @@ namespace GeometryCollection::Facades
 		/**
 		* FSelectionFacade Constuctor
 		*/
-		FSelectionFacade(FManagedArrayCollection& InSelf);
-		FSelectionFacade(const FManagedArrayCollection& InSelf);
+		CHAOS_API FSelectionFacade(FManagedArrayCollection& InSelf);
+		CHAOS_API FSelectionFacade(const FManagedArrayCollection& InSelf);
 
 		/** Is the facade defined constant. */
 		bool IsConst() const { return Collection==nullptr; }
@@ -76,29 +76,29 @@ namespace GeometryCollection::Facades
 		/**
 		* Add the indices to the FVertexSetInterface::UnboundGroup 
 		*/
-		FSelectionKey AddSelection(const TArray<int32>& Indices, FName DependencyGroup);
+		CHAOS_API FSelectionKey AddSelection(const TArray<int32>& Indices, FName DependencyGroup);
 
 		/**
 		* Add the indices to the FVertexSetInterface::WeightedUnboundGroup
 		*/
-		FSelectionKey AddSelection(const TArray<int32>& Indices, const TArray<float>& Weights, FName DependencyGroup);
+		CHAOS_API FSelectionKey AddSelection(const TArray<int32>& Indices, const TArray<float>& Weights, FName DependencyGroup);
 
 		/**
 		* Add the indices to the FVertexSetInterface::BoundGroup
 		*/
-		FSelectionKey AddSelection(const int32 BoneIndex, const TArray<int32>& Indices, FName DependencyGroup, FName BoneDependencyGroup = FName(""));
+		CHAOS_API FSelectionKey AddSelection(const int32 BoneIndex, const TArray<int32>& Indices, FName DependencyGroup, FName BoneDependencyGroup = FName(""));
 
 		/**
 		* Add the indices to the FVertexSetInterface::BoundGroup
 		*/
-		FSelectionKey AddSelection(const int32 BoneIndex, const TArray<int32>& Indices, const TArray<float>& Weights, FName DependencyGroup, FName BoneDependencyGroup = FName(""));
+		CHAOS_API FSelectionKey AddSelection(const int32 BoneIndex, const TArray<int32>& Indices, const TArray<float>& Weights, FName DependencyGroup, FName BoneDependencyGroup = FName(""));
 
 		/**
 		* Return the vertex list from the given key 
 		* @param Key : <GroupName and Index>
 		* @param Indices : Return indices, empty if not found. 
 		*/
-		void GetSelection(const FSelectionKey& Key, TArray<int32>& Indices) const;
+		CHAOS_API void GetSelection(const FSelectionKey& Key, TArray<int32>& Indices) const;
 
 		/**
 		* Return the vertex list, bone index, and weights from the given key
@@ -107,7 +107,7 @@ namespace GeometryCollection::Facades
 		* @param Indices : Return indices, empty if not found.
 		* @param Weights : Return vertex weights, empty if not found.
 		*/
-		void GetSelection(const FSelectionKey& Key, TArray<int32>& Indices, TArray<float>& Weights) const;
+		CHAOS_API void GetSelection(const FSelectionKey& Key, TArray<int32>& Indices, TArray<float>& Weights) const;
 
 		/**
 		* Return the vertex list and bone index from the given key
@@ -115,7 +115,7 @@ namespace GeometryCollection::Facades
 		* @param BoneIndex : Return BoneIndex, INDEX_NONE if not found.
 		* @param Indices : Return indices, empty if not found.
 		*/
-		void GetSelection(const FSelectionKey& Key, int32& BoneIndex, TArray<int32>& Indices) const;
+		CHAOS_API void GetSelection(const FSelectionKey& Key, int32& BoneIndex, TArray<int32>& Indices) const;
 
 		/**
 		* Return the vertex list, bone index, and weights from the given key
@@ -124,7 +124,7 @@ namespace GeometryCollection::Facades
 		* @param Indices : Return indices, empty if not found.
 		* @param Weights : Return vertex weights, empty if not found.
 		*/
-		void GetSelection(const FSelectionKey& Key, int32& BoneIndex, TArray<int32>& Indices, TArray<float>& Weights) const;
+		CHAOS_API void GetSelection(const FSelectionKey& Key, int32& BoneIndex, TArray<int32>& Indices, TArray<float>& Weights) const;
 
 	private:
 

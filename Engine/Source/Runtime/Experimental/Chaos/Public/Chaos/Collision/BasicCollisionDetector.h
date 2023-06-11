@@ -11,7 +11,7 @@
 
 namespace Chaos
 {
-	class CHAOS_API FBasicCollisionDetector : public FCollisionDetector
+	class FBasicCollisionDetector : public FCollisionDetector
 	{
 	public:
 		FBasicCollisionDetector(FBasicBroadPhase& InBroadPhase, FPBDCollisionConstraints& InCollisionContainer)

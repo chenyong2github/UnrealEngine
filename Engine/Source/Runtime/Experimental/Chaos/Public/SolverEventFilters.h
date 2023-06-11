@@ -10,7 +10,7 @@
 
 
 	USTRUCT(Blueprintable)
-	struct CHAOS_API FSolverTrailingFilterSettings
+	struct FSolverTrailingFilterSettings
 	{
 		GENERATED_USTRUCT_BODY()
 
@@ -39,7 +39,7 @@
 	};
 
 	USTRUCT(BlueprintType)
-	struct CHAOS_API FSolverCollisionFilterSettings
+	struct FSolverCollisionFilterSettings
 	{
 		GENERATED_USTRUCT_BODY()
 
@@ -69,7 +69,7 @@
 	};
 
 	USTRUCT(BlueprintType)
-	struct CHAOS_API FSolverBreakingFilterSettings
+	struct FSolverBreakingFilterSettings
 	{
 		GENERATED_USTRUCT_BODY()
 
@@ -98,7 +98,7 @@
 	};
 
 	USTRUCT(BlueprintType)
-	struct CHAOS_API FSolverRemovalFilterSettings
+	struct FSolverRemovalFilterSettings
 	{
 		GENERATED_USTRUCT_BODY()
 
@@ -133,52 +133,52 @@ namespace Chaos
 
 	struct FRemovalData;
 
-	class CHAOS_API FSolverCollisionEventFilter
+	class FSolverCollisionEventFilter
 	{
 	public:
 		FSolverCollisionEventFilter() {}
 		FSolverCollisionEventFilter(const FSolverCollisionFilterSettings& InSettings) : Settings(InSettings) {}
 
-		bool Pass(const Chaos::FCollidingData& InData) const;
+		CHAOS_API bool Pass(const Chaos::FCollidingData& InData) const;
 		bool Enabled() const { return Settings.FilterEnabled; }
 		void UpdateFilterSettings(const FSolverCollisionFilterSettings& InSettings) { Settings = InSettings; }
 
 		FSolverCollisionFilterSettings Settings;
 	};
 
-	class CHAOS_API FSolverTrailingEventFilter
+	class FSolverTrailingEventFilter
 	{
 	public:
 		FSolverTrailingEventFilter() {}
 		FSolverTrailingEventFilter(const FSolverTrailingFilterSettings &InSettings) : Settings(InSettings) {}
 
-		bool Pass(const Chaos::FTrailingData& InData) const;
+		CHAOS_API bool Pass(const Chaos::FTrailingData& InData) const;
 		bool Enabled() const { return Settings.FilterEnabled; }
 		void UpdateFilterSettings(const FSolverTrailingFilterSettings& InSettings) { Settings = InSettings; }
 
 		FSolverTrailingFilterSettings Settings;
 	};
 
-	class CHAOS_API FSolverBreakingEventFilter
+	class FSolverBreakingEventFilter
 	{
 	public:
 		FSolverBreakingEventFilter() {}
 		FSolverBreakingEventFilter(const FSolverBreakingFilterSettings& InSettings) : Settings(InSettings) {}
 
-		bool Pass(const Chaos::FBreakingData& InData) const;
+		CHAOS_API bool Pass(const Chaos::FBreakingData& InData) const;
 		bool Enabled() const { return Settings.FilterEnabled; }
 		void UpdateFilterSettings(const FSolverBreakingFilterSettings& InSettings) { Settings = InSettings; }
 
 		FSolverBreakingFilterSettings Settings;
 	};
 
-	class CHAOS_API FSolverRemovalEventFilter
+	class FSolverRemovalEventFilter
 	{
 	public:
 		FSolverRemovalEventFilter() {}
 		FSolverRemovalEventFilter(const FSolverRemovalFilterSettings& InSettings) : Settings(InSettings) {}
 
-		bool Pass(const Chaos::FRemovalData& InData) const;
+		CHAOS_API bool Pass(const Chaos::FRemovalData& InData) const;
 		bool Enabled() const { return Settings.FilterEnabled; }
 		void UpdateFilterSettings(const FSolverRemovalFilterSettings& InSettings) { Settings = InSettings; }
 

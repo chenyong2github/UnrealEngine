@@ -7,7 +7,7 @@
 namespace Chaos::Softs
 {
 
-class CHAOS_API FPBDSpringConstraints : public FPBDSpringConstraintsBase
+class FPBDSpringConstraints : public FPBDSpringConstraintsBase
 {
 public:
 	template<int32 Valence>
@@ -34,7 +34,7 @@ public:
 
 	virtual ~FPBDSpringConstraints() override {}
 
-	void Apply(FSolverParticles& Particles, const FSolverReal Dt) const;
+	CHAOS_API void Apply(FSolverParticles& Particles, const FSolverReal Dt) const;
 
 	const TArray<int32>& GetConstraintsPerColorStartIndex() const { return ConstraintsPerColorStartIndex; }
 
@@ -46,14 +46,14 @@ protected:
 	using Base::ParticleCount;
 
 private:
-	void InitColor(const FSolverParticles& InParticles);
-	void ApplyHelper(FSolverParticles& Particles, const FSolverReal Dt, const int32 ConstraintIndex, const FSolverReal ExpStiffnessValue) const;
+	CHAOS_API void InitColor(const FSolverParticles& InParticles);
+	CHAOS_API void ApplyHelper(FSolverParticles& Particles, const FSolverReal Dt, const int32 ConstraintIndex, const FSolverReal ExpStiffnessValue) const;
 
 private:
 	TArray<int32> ConstraintsPerColorStartIndex; // Constraints are ordered so each batch is contiguous. This is ColorNum + 1 length so it can be used as start and end.
 };
 
-class CHAOS_API FPBDEdgeSpringConstraints final : public FPBDSpringConstraints
+class FPBDEdgeSpringConstraints final : public FPBDSpringConstraints
 {
 public:
 	static bool IsEnabled(const FCollectionPropertyConstFacade& PropertyCollection)
@@ -100,7 +100,7 @@ public:
 
 	virtual ~FPBDEdgeSpringConstraints() override = default;
 
-	void SetProperties(
+	CHAOS_API void SetProperties(
 		const FCollectionPropertyConstFacade& PropertyCollection,
 		const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps);
 
@@ -116,7 +116,7 @@ private:
 	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(EdgeSpringStiffness, float);
 };
 
-class CHAOS_API FPBDBendingSpringConstraints final : public FPBDSpringConstraints
+class FPBDBendingSpringConstraints final : public FPBDSpringConstraints
 {
 public:
 	static bool IsEnabled(const FCollectionPropertyConstFacade& PropertyCollection)
@@ -163,7 +163,7 @@ public:
 
 	virtual ~FPBDBendingSpringConstraints() override = default;
 
-	void SetProperties(
+	CHAOS_API void SetProperties(
 		const FCollectionPropertyConstFacade& PropertyCollection,
 		const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps);
 

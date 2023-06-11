@@ -6,10 +6,10 @@
 
 namespace Chaos
 {
-	class CHAOS_API FPhysicsObjectInternalInterface : public Chaos::FPhysicsObjectInterface
+	class FPhysicsObjectInternalInterface : public Chaos::FPhysicsObjectInterface
 	{
 	public:
-		static FReadPhysicsObjectInterface_Internal GetRead();
-		static FWritePhysicsObjectInterface_Internal GetWrite();
+		static CHAOS_API FReadPhysicsObjectInterface_Internal GetRead();
+		static CHAOS_API FWritePhysicsObjectInterface_Internal GetWrite();
 	};
 }

@@ -263,11 +263,11 @@ struct FPushPhysicsData
 
 /** Manages data that gets marshaled from GT to PT using a timestamp
 */
-class CHAOS_API FChaosMarshallingManager
+class FChaosMarshallingManager
 {
 public:
-	FChaosMarshallingManager();
-	~FChaosMarshallingManager();
+	CHAOS_API FChaosMarshallingManager();
+	CHAOS_API ~FChaosMarshallingManager();
 
 	/** Grabs the producer data to write into. Should only be called by external thread */
 	FPushPhysicsData* GetProducerData_External()
@@ -296,19 +296,19 @@ public:
 		GetProducerData_External()->SimCallbackInputs.Add(FSimCallbackInputAndObject{ SimCallbackObject, InputData });
 	}
 	/** Step forward using the external delta time. Should only be called by external thread */
-	void Step_External(FReal ExternalDT, const int32 NumSteps = 1, bool bSolverSubstepped = false);
+	CHAOS_API void Step_External(FReal ExternalDT, const int32 NumSteps = 1, bool bSolverSubstepped = false);
 
 	/** Step the internal time forward if possible*/
-	FPushPhysicsData* StepInternalTime_External();
+	CHAOS_API FPushPhysicsData* StepInternalTime_External();
 
 	/** Frees the push data back into the pool. Internal thread should call this when finished processing data*/
-	void FreeData_Internal(FPushPhysicsData* PushData);
+	CHAOS_API void FreeData_Internal(FPushPhysicsData* PushData);
 
 	/** May record data to history, or may free immediately depending on rewind needs. Either way you should assume data is gone after calling this */
-	void FreeDataToHistory_Internal(FPushPhysicsData* PushData);
+	CHAOS_API void FreeDataToHistory_Internal(FPushPhysicsData* PushData);
 
 	/** Frees the pull data back into the pool. External thread should call this when finished processing data*/
-	void FreePullData_External(FPullPhysicsData* PullData);
+	CHAOS_API void FreePullData_External(FPullPhysicsData* PullData);
 
 	/** Returns the timestamp associated with inputs enqueued. */
 	int32 GetExternalTimestamp_External() const { return ExternalTimestamp_External; }
@@ -326,7 +326,7 @@ public:
 	FPullPhysicsData* GetCurrentPullData_Internal() { return CurPullData; }
 
 	/** Hands pull data off to external thread */
-	void FinalizePullData_Internal(int32 LatestExternalTimestampConsumed, FReal SimStartTime, FReal DeltaTime);
+	CHAOS_API void FinalizePullData_Internal(int32 LatestExternalTimestampConsumed, FReal SimStartTime, FReal DeltaTime);
 
 	/** Pops and returns the earliest pull data available. nullptr means results are not ready or no work is pending */
 	FPullPhysicsData* PopPullData_External()
@@ -336,10 +336,10 @@ public:
 		return Result;
 	}
 
-	void SetHistoryLength_Internal(int32 InHistoryLength);
+	CHAOS_API void SetHistoryLength_Internal(int32 InHistoryLength);
 
 	/** Returns the history buffer of the latest NumFrames. The history that comes before these frames is discarded*/
-	TArray<FPushPhysicsData*> StealHistory_Internal(int32 NumFrames);
+	CHAOS_API TArray<FPushPhysicsData*> StealHistory_Internal(int32 NumFrames);
 
 	/** Return the size of the history queue */
 	int32 GetNumHistory_Internal() const {return HistoryQueue_Internal.Num();}
@@ -367,7 +367,7 @@ private:
 
 	int32 HistoryLength;	//how long to keep push data for
 
-	void PrepareExternalQueue_External();
-	void PreparePullData();
+	CHAOS_API void PrepareExternalQueue_External();
+	CHAOS_API void PreparePullData();
 };
 }; // namespace Chaos

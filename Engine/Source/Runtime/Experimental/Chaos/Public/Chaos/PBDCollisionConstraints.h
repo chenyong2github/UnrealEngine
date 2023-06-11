@@ -45,7 +45,7 @@ namespace Private
  * 
  * @todo(chaos): remove handles array
  */
-class CHAOS_API FPBDCollisionConstraints : public FPBDConstraintContainer
+class FPBDCollisionConstraints : public FPBDConstraintContainer
 {
 public:
 	friend class FPBDCollisionConstraintHandle;
@@ -59,7 +59,7 @@ public:
 	// For use by dependent types
 	using FConstraintContainerHandle = FPBDCollisionConstraintHandle;		// Used by constraint rules
 
-	FPBDCollisionConstraints(const FPBDRigidsSOAs& InParticles, 
+	CHAOS_API FPBDCollisionConstraints(const FPBDRigidsSOAs& InParticles, 
 		TArrayCollectionArray<bool>& Collided, 
 		const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PhysicsMaterials, 
 		const TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>>& PerParticlePhysicsMaterials,
@@ -67,7 +67,7 @@ public:
 		const int32 NumCollisionsPerBlock = 1000,
 		const FReal RestitutionThreshold = FReal(2000));
 
-	virtual ~FPBDCollisionConstraints();
+	CHAOS_API virtual ~FPBDCollisionConstraints();
 
 	/**
 	 * Whether this container provides constraint handles (simple solvers do not need them)
@@ -77,7 +77,7 @@ public:
 	/**
 	 * Put the container in "no handles" mode for use with simple solver. Must be called when empty of constraints (ideally right after creation).
 	 */
-	void DisableHandles();
+	CHAOS_API void DisableHandles();
 
 	/**
 	 * @brief Enable or disable determinism.
@@ -92,38 +92,38 @@ public:
 	 *  Clears the list of active constraints.
 	 * @todo(chaos): This is only required because of the way events work (see AdvanceOneTimeStepTask::DoWork)
 	*/
-	void BeginFrame();
+	CHAOS_API void BeginFrame();
 
 	/**
 	*  Destroy all constraints 
 	*/
-	void Reset();
+	CHAOS_API void Reset();
 
 
 	/**
 	 * @brief Called before collision detection to reset contacts
 	*/
-	void BeginDetectCollisions();
+	CHAOS_API void BeginDetectCollisions();
 
 	/**
 	 * @brief Called after collision detection to finalize the contacts
 	*/
-	void EndDetectCollisions();
+	CHAOS_API void EndDetectCollisions();
 
 	/**
 	 * @brief Called after collision resolution in order to detect probes
 	 */
-	void DetectProbeCollisions(FReal Dt);
+	CHAOS_API void DetectProbeCollisions(FReal Dt);
 
 	/**
 	 * Apply modifiers to particle pair midphases
 	 */
-	void ApplyMidPhaseModifier(const TArray<ISimCallbackObject*>& MidPhaseModifiers, FReal Dt);
+	CHAOS_API void ApplyMidPhaseModifier(const TArray<ISimCallbackObject*>& MidPhaseModifiers, FReal Dt);
 
 	/**
 	 * Apply modifiers to CCD results
 	 */
-	void ApplyCCDModifier(const TArray<ISimCallbackObject*>& CCDModifiers, FReal Dt);
+	CHAOS_API void ApplyCCDModifier(const TArray<ISimCallbackObject*>& CCDModifiers, FReal Dt);
 
 
 	/**
@@ -131,18 +131,18 @@ public:
 	 * You would probably call this in the PostComputeCallback. Prefer this to calling RemoveConstraints in a loop,
 	 * so you don't have to worry about constraint iterator/indices changing.
 	 */
-	void ApplyCollisionModifier(const TArray<ISimCallbackObject*>& CollisionModifiers, FReal Dt);
+	CHAOS_API void ApplyCollisionModifier(const TArray<ISimCallbackObject*>& CollisionModifiers, FReal Dt);
 
 
 	/**
 	* Remove the constraints associated with the ParticleHandle.
 	*/
-	void RemoveConstraints(const TSet<FGeometryParticleHandle*>&  ParticleHandle);
+	CHAOS_API void RemoveConstraints(const TSet<FGeometryParticleHandle*>&  ParticleHandle);
 
 	/**
 	 * @brief Remove all constraints associated with the particles - called when particles are destroyed
 	*/
-	virtual void DisconnectConstraints(const TSet<FGeometryParticleHandle*>& ParticleHandles) override;
+	CHAOS_API virtual void DisconnectConstraints(const TSet<FGeometryParticleHandle*>& ParticleHandles) override;
 
 	/**
 	* Disable the constraints associated with the ParticleHandle.
@@ -155,13 +155,13 @@ public:
 	//
 	virtual int32 GetNumConstraints() const override final { return NumConstraints(); }
 	virtual void ResetConstraints() override final { Reset(); }
-	virtual void AddConstraintsToGraph(Private::FPBDIslandManager& IslandManager) override final;
+	CHAOS_API virtual void AddConstraintsToGraph(Private::FPBDIslandManager& IslandManager) override final;
 	virtual void PrepareTick() override final {}
 	virtual void UnprepareTick() override final {}
 
-	virtual TUniquePtr<FConstraintContainerSolver> CreateSceneSolver(const int32 Priority) override final;
+	CHAOS_API virtual TUniquePtr<FConstraintContainerSolver> CreateSceneSolver(const int32 Priority) override final;
 
-	virtual TUniquePtr<FConstraintContainerSolver> CreateGroupSolver(const int32 Priority) override final;
+	CHAOS_API virtual TUniquePtr<FConstraintContainerSolver> CreateGroupSolver(const int32 Priority) override final;
 
 	// The type of solver we are creating
 	Private::ECollisionSolverType GetSolverType() const
@@ -270,14 +270,14 @@ public:
 		return ConstraintAllocator.GetConstraints();
 	}
 
-	FHandles GetConstraintHandles() const;
-	FConstHandles GetConstConstraintHandles() const;
+	CHAOS_API FHandles GetConstraintHandles() const;
+	CHAOS_API FConstHandles GetConstConstraintHandles() const;
 
-	const FPBDCollisionConstraint& GetConstraint(int32 Index) const;
+	CHAOS_API const FPBDCollisionConstraint& GetConstraint(int32 Index) const;
 
 	Private::FCollisionConstraintAllocator& GetConstraintAllocator() { return ConstraintAllocator; }
 
-	void UpdateConstraintMaterialProperties(FPBDCollisionConstraint& Contact);
+	CHAOS_API void UpdateConstraintMaterialProperties(FPBDCollisionConstraint& Contact);
 
 	const FPBDCollisionSolverSettings& GetSolverSettings() const { return SolverSettings; }
 
@@ -300,10 +300,10 @@ public:
 	}
 
 protected:
-	FPBDCollisionConstraint& GetConstraint(int32 Index);
+	CHAOS_API FPBDCollisionConstraint& GetConstraint(int32 Index);
 
 	// Call PruneParticleEdgeCollisions on all particles with ECollisionConstraintFlags::CCF_SmoothEdgeCollisions set in CollisionFlags
-	void PruneEdgeCollisions();
+	CHAOS_API void PruneEdgeCollisions();
 
 private:
 	const FPBDRigidsSOAs& Particles;

@@ -15,7 +15,7 @@ static const FSolverReal XPBDSpringMinStiffness = (FSolverReal)1e-4; // Stiffnes
 UE_DEPRECATED(5.2, "Use FXPBDSpringConstraints::MaxStiffness instead.")
 static const FSolverReal XPBDSpringMaxStiffness = (FSolverReal)1e7;
 
-class CHAOS_API FXPBDSpringConstraints : public FPBDSpringConstraintsBase
+class FXPBDSpringConstraints : public FPBDSpringConstraintsBase
 {
 	typedef FPBDSpringConstraintsBase Base;
 
@@ -99,13 +99,13 @@ public:
 		DampingRatio.ApplyValues();
 	}
 
-	void Apply(FSolverParticles& Particles, const FSolverReal Dt) const;
+	CHAOS_API void Apply(FSolverParticles& Particles, const FSolverReal Dt) const;
 
 	const TArray<int32>& GetConstraintsPerColorStartIndex() const { return ConstraintsPerColorStartIndex; }
 
 private:
-	void InitColor(const FSolverParticles& InParticles);
-	void ApplyHelper(FSolverParticles& Particles, const FSolverReal Dt, const int32 ConstraintIndex, const FSolverReal StiffnessValue, const FSolverReal DampingRatioValue) const;
+	CHAOS_API void InitColor(const FSolverParticles& InParticles);
+	CHAOS_API void ApplyHelper(FSolverParticles& Particles, const FSolverReal Dt, const int32 ConstraintIndex, const FSolverReal StiffnessValue, const FSolverReal DampingRatioValue) const;
 
 	FSolverVec3 GetDelta(const FSolverParticles& Particles, const FSolverReal Dt, const int32 ConstraintIndex, const FSolverReal StiffnessValue, const FSolverReal DampingRatioValue) const
 	{
@@ -162,7 +162,7 @@ private:
 	TArray<int32> ConstraintsPerColorStartIndex; // Constraints are ordered so each batch is contiguous. This is ColorNum + 1 length so it can be used as start and end.
 };
 
-class CHAOS_API FXPBDEdgeSpringConstraints final : public FXPBDSpringConstraints
+class FXPBDEdgeSpringConstraints final : public FXPBDSpringConstraints
 {
 public:
 	static bool IsEnabled(const FCollectionPropertyConstFacade& PropertyCollection)
@@ -214,7 +214,7 @@ public:
 
 	virtual ~FXPBDEdgeSpringConstraints() override = default;
 
-	void SetProperties(
+	CHAOS_API void SetProperties(
 		const FCollectionPropertyConstFacade& PropertyCollection,
 		const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps);
 
@@ -235,7 +235,7 @@ private:
 	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(XPBDEdgeSpringDamping, float);
 };
 
-class CHAOS_API FXPBDBendingSpringConstraints : public FXPBDSpringConstraints
+class FXPBDBendingSpringConstraints : public FXPBDSpringConstraints
 {
 public:
 	static bool IsEnabled(const FCollectionPropertyConstFacade& PropertyCollection)
@@ -287,7 +287,7 @@ public:
 
 	virtual ~FXPBDBendingSpringConstraints() override = default;
 
-	void SetProperties(
+	CHAOS_API void SetProperties(
 		const FCollectionPropertyConstFacade& PropertyCollection,
 		const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps);
 

@@ -16,7 +16,7 @@ struct FStubSkeletalMeshData : public Chaos::FParticleData {
 	void Reset() { };
 };
 
-class CHAOS_API FStaticMeshPhysicsProxy : public TPhysicsProxy<FStaticMeshPhysicsProxy, FStubSkeletalMeshData, FProxyTimestampBase>
+class FStaticMeshPhysicsProxy : public TPhysicsProxy<FStaticMeshPhysicsProxy, FStubSkeletalMeshData, FProxyTimestampBase>
 {
 	typedef  TPhysicsProxy<FStaticMeshPhysicsProxy, FStubSkeletalMeshData, FProxyTimestampBase> Base;
 public:
@@ -71,33 +71,33 @@ public:
 	using FSyncDynamicFunc = TFunction<void(const FTransform&)>;
 
 	FStaticMeshPhysicsProxy() = delete;
-	FStaticMeshPhysicsProxy(UObject* InOwner, FCallbackInitFunc InInitFunc, FSyncDynamicFunc InSyncFunc);
+	CHAOS_API FStaticMeshPhysicsProxy(UObject* InOwner, FCallbackInitFunc InInitFunc, FSyncDynamicFunc InSyncFunc);
 
-	void Initialize();
-	void Reset();
+	CHAOS_API void Initialize();
+	CHAOS_API void Reset();
 
 	/** Stores latest update, to be applied at next opportunity (via UpdateKinematicBodiesCallback). */
-	void BufferKinematicUpdate(const FPhysicsProxyKinematicUpdate& InParamUpdate);
+	CHAOS_API void BufferKinematicUpdate(const FPhysicsProxyKinematicUpdate& InParamUpdate);
 
 	/** Solver Object interface */
-	bool IsSimulating() const;
-	void UpdateKinematicBodiesCallback(const FParticlesType& Particles, const float Dt, const float Time, FKinematicProxy& Proxy);
-	void StartFrameCallback(const float InDt, const float InTime);
-	void EndFrameCallback(const float InDt);
-	void BindParticleCallbackMapping(Chaos::TArrayCollectionArray<PhysicsProxyWrapper> & PhysicsProxyReverseMap, Chaos::TArrayCollectionArray<int32> & ParticleIDReverseMap);
-	void CreateRigidBodyCallback(FParticlesType& InOutParticles);
-	void ParameterUpdateCallback(FParticlesType& InParticles, const float InTime);
-	void DisableCollisionsCallback(TSet<TTuple<int32, int32>>& InPairs);
-	void AddForceCallback(FParticlesType& InParticles, const float InDt, const int32 InIndex);
+	CHAOS_API bool IsSimulating() const;
+	CHAOS_API void UpdateKinematicBodiesCallback(const FParticlesType& Particles, const float Dt, const float Time, FKinematicProxy& Proxy);
+	CHAOS_API void StartFrameCallback(const float InDt, const float InTime);
+	CHAOS_API void EndFrameCallback(const float InDt);
+	CHAOS_API void BindParticleCallbackMapping(Chaos::TArrayCollectionArray<PhysicsProxyWrapper> & PhysicsProxyReverseMap, Chaos::TArrayCollectionArray<int32> & ParticleIDReverseMap);
+	CHAOS_API void CreateRigidBodyCallback(FParticlesType& InOutParticles);
+	CHAOS_API void ParameterUpdateCallback(FParticlesType& InParticles, const float InTime);
+	CHAOS_API void DisableCollisionsCallback(TSet<TTuple<int32, int32>>& InPairs);
+	CHAOS_API void AddForceCallback(FParticlesType& InParticles, const float InDt, const int32 InIndex);
 	void BufferCommand(Chaos::FPhysicsSolver* InSolver, const FFieldSystemCommand& InCommand) {};
 
 	void SyncBeforeDestroy() {};
-	void OnRemoveFromScene();
+	CHAOS_API void OnRemoveFromScene();
 	void PushToPhysicsState(const Chaos::FParticleData*) {};
 	void ClearAccumulatedData() {}
-	void BufferPhysicsResults();
-	void FlipBuffer();
-	bool PullFromPhysicsState(const int32 SolverSyncTimestamp);
+	CHAOS_API void BufferPhysicsResults();
+	CHAOS_API void FlipBuffer();
+	CHAOS_API bool PullFromPhysicsState(const int32 SolverSyncTimestamp);
 	bool IsDirty() { return false; }
 	FStubSkeletalMeshData* NewData() { return nullptr; }
 	EPhysicsProxyType ConcreteType() { return EPhysicsProxyType::StaticMeshType; }

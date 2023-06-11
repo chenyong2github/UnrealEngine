@@ -78,7 +78,7 @@ class FChaosArchive;
 template <typename TPayload, typename T, int d>
 class ISpatialAccelerationCollection;
 
-struct CHAOS_API FEvolutionStats
+struct FEvolutionStats
 {
 	int32 ActiveCollisionPoints;
 	int32 ActiveShapes;
@@ -247,7 +247,7 @@ struct FSpatialAccelerationCacheHandle
 	};
 };
 
-struct CHAOS_API ISpatialAccelerationCollectionFactory
+struct ISpatialAccelerationCollectionFactory
 {
 	//Create an empty acceleration collection with the desired buckets. Chaos enqueues acceleration structure operations per bucket
 	virtual TUniquePtr<ISpatialAccelerationCollection<FAccelerationStructureHandle, FReal, 3>> CreateEmptyCollection() = 0;
@@ -281,7 +281,7 @@ public:
 	CHAOS_API FPBDRigidsEvolutionBase(FPBDRigidsSOAs& InParticles, THandleArray<FChaosPhysicsMaterial>& InSolverPhysicsMaterials, bool InIsSingleThreaded = false);
 	CHAOS_API virtual ~FPBDRigidsEvolutionBase();
 
-	CHAOS_API TArray<FGeometryParticleHandle*> CreateStaticParticles(int32 NumParticles, const FUniqueIdx* ExistingIndices = nullptr, const FGeometryParticleParameters& Params = FGeometryParticleParameters())
+	TArray<FGeometryParticleHandle*> CreateStaticParticles(int32 NumParticles, const FUniqueIdx* ExistingIndices = nullptr, const FGeometryParticleParameters& Params = FGeometryParticleParameters())
 	{
 		auto NewParticles = Particles.CreateStaticParticles(NumParticles, ExistingIndices, Params);
 		for (auto& Particle : NewParticles)
@@ -291,7 +291,7 @@ public:
 		return NewParticles;
 	}
 
-	CHAOS_API TArray<FKinematicGeometryParticleHandle*> CreateKinematicParticles(int32 NumParticles, const FUniqueIdx* ExistingIndices = nullptr, const FKinematicGeometryParticleParameters& Params = FKinematicGeometryParticleParameters())
+	TArray<FKinematicGeometryParticleHandle*> CreateKinematicParticles(int32 NumParticles, const FUniqueIdx* ExistingIndices = nullptr, const FKinematicGeometryParticleParameters& Params = FKinematicGeometryParticleParameters())
 	{
 		auto NewParticles = Particles.CreateKinematicParticles(NumParticles, ExistingIndices, Params);
 		for (auto& Particle : NewParticles)
@@ -301,7 +301,7 @@ public:
 		return NewParticles;
 	}
 
-	CHAOS_API TArray<FPBDRigidParticleHandle*> CreateDynamicParticles(int32 NumParticles, const FUniqueIdx* ExistingIndices = nullptr, const FPBDRigidParticleParameters& Params = FPBDRigidParticleParameters())
+	TArray<FPBDRigidParticleHandle*> CreateDynamicParticles(int32 NumParticles, const FUniqueIdx* ExistingIndices = nullptr, const FPBDRigidParticleParameters& Params = FPBDRigidParticleParameters())
 	{
 		auto NewParticles = Particles.CreateDynamicParticles(NumParticles, ExistingIndices, Params);
 		for (auto& Particle : NewParticles)
@@ -311,7 +311,7 @@ public:
 		return NewParticles;
 	}
 
-	CHAOS_API TArray<TPBDRigidClusteredParticleHandle<FReal, 3>*> CreateClusteredParticles(int32 NumParticles,const FUniqueIdx* ExistingIndices = nullptr,  const FPBDRigidParticleParameters& Params = FPBDRigidParticleParameters())
+	TArray<TPBDRigidClusteredParticleHandle<FReal, 3>*> CreateClusteredParticles(int32 NumParticles,const FUniqueIdx* ExistingIndices = nullptr,  const FPBDRigidParticleParameters& Params = FPBDRigidParticleParameters())
 	{
 		auto NewParticles = Particles.CreateClusteredParticles(NumParticles, ExistingIndices, Params);
 		for (auto& Particle : NewParticles)
@@ -321,7 +321,7 @@ public:
 		return NewParticles;
 	}
 
-	CHAOS_API TArray<TPBDGeometryCollectionParticleHandle<FReal, 3>*> CreateGeometryCollectionParticles(int32 NumParticles,const FUniqueIdx* ExistingIndices = nullptr,  const FPBDRigidParticleParameters& Params = FPBDRigidParticleParameters())
+	TArray<TPBDGeometryCollectionParticleHandle<FReal, 3>*> CreateGeometryCollectionParticles(int32 NumParticles,const FUniqueIdx* ExistingIndices = nullptr,  const FPBDRigidParticleParameters& Params = FPBDRigidParticleParameters())
 	{
 		auto NewParticles = Particles.CreateGeometryCollectionParticles(NumParticles, ExistingIndices, Params);
 		for (auto& Particle : NewParticles)
@@ -331,16 +331,16 @@ public:
 		return NewParticles;
 	}
 
-	CHAOS_API void AddForceFunction(FForceRule ForceFunction) { ForceRules.Add(ForceFunction); }
-	CHAOS_API void AddImpulseFunction(FForceRule ImpulseFunction) { ImpulseRules.Add(ImpulseFunction); }
-	CHAOS_API void SetParticleUpdatePositionFunction(FUpdatePositionRule ParticleUpdate) { ParticleUpdatePosition = ParticleUpdate; }
-	CHAOS_API void SetCaptureRewindDataFunction(FCaptureRewindRule Rule){ CaptureRewindData = Rule; }
+	void AddForceFunction(FForceRule ForceFunction) { ForceRules.Add(ForceFunction); }
+	void AddImpulseFunction(FForceRule ImpulseFunction) { ImpulseRules.Add(ImpulseFunction); }
+	void SetParticleUpdatePositionFunction(FUpdatePositionRule ParticleUpdate) { ParticleUpdatePosition = ParticleUpdate; }
+	void SetCaptureRewindDataFunction(FCaptureRewindRule Rule){ CaptureRewindData = Rule; }
 
-	CHAOS_API TGeometryParticleHandles<FReal, 3>& GetParticleHandles() { return Particles.GetParticleHandles(); }
-	CHAOS_API const TGeometryParticleHandles<FReal, 3>& GetParticleHandles() const { return Particles.GetParticleHandles(); }
+	TGeometryParticleHandles<FReal, 3>& GetParticleHandles() { return Particles.GetParticleHandles(); }
+	const TGeometryParticleHandles<FReal, 3>& GetParticleHandles() const { return Particles.GetParticleHandles(); }
 
-	CHAOS_API FPBDRigidsSOAs& GetParticles() { return Particles; }
-	CHAOS_API const FPBDRigidsSOAs& GetParticles() const { return Particles; }
+	FPBDRigidsSOAs& GetParticles() { return Particles; }
+	const FPBDRigidsSOAs& GetParticles() const { return Particles; }
 
 	/** Reset the collisions warm starting when resimulate. Ideally we should store
 		  that in the RewindData history but probably too expensive for now */
@@ -350,7 +350,7 @@ public:
 	* Register a constraint container with the evolution. Constraints added to the container will be solved during the tick.
 	* @note we do not currently support removing containers. In a few places we assume the ContainerId is persistent and equal to the array index.
 	*/
-	CHAOS_API void AddConstraintContainer(FPBDConstraintContainer& InContainer, const int32 Priority = 0)
+	void AddConstraintContainer(FPBDConstraintContainer& InContainer, const int32 Priority = 0)
 	{
 		const int32 ContainerId = ConstraintContainers.Add(&InContainer);
 		InContainer.SetContainerId(ContainerId);
@@ -362,7 +362,7 @@ public:
 	/**
 	* Set the number of iterations to perform in the constraint position-solve phase
 	*/
-	CHAOS_API void SetNumPositionIterations(int32 InNumIterations)
+	void SetNumPositionIterations(int32 InNumIterations)
 	{
 		IslandGroupManager.SetNumPositionIterations(InNumIterations);
 	}
@@ -370,7 +370,7 @@ public:
 	/**
 	* Get the number of position iterations the solver is running
 	*/
-	CHAOS_API int32 GetNumPositionIterations() const
+	int32 GetNumPositionIterations() const
 	{
 		return IslandGroupManager.GetIterationSettings().GetNumPositionIterations();
 	}
@@ -378,7 +378,7 @@ public:
 	/**
 	* Set the number of iterations to perform in the constraint velocity-solve phase
 	*/
-	CHAOS_API void SetNumVelocityIterations(int32 InNumIterations)
+	void SetNumVelocityIterations(int32 InNumIterations)
 	{
 		IslandGroupManager.SetNumVelocityIterations(InNumIterations);
 	}
@@ -386,7 +386,7 @@ public:
 	/**
 	* Get the number of velocity iterations the solver is running
 	*/
-	CHAOS_API int32 GetNumVelocityIterations() const
+	int32 GetNumVelocityIterations() const
 	{
 		return IslandGroupManager.GetIterationSettings().GetNumVelocityIterations();
 	}
@@ -394,7 +394,7 @@ public:
 	/**
 	* Set the number of iterations to perform in the constraint projection phase
 	*/
-	CHAOS_API void SetNumProjectionIterations(int32 InNumIterations)
+	void SetNumProjectionIterations(int32 InNumIterations)
 	{
 		IslandGroupManager.SetNumProjectionIterations(InNumIterations);
 	}
@@ -402,7 +402,7 @@ public:
 	/**
 	* Get the number of projection iterations the solver is running
 	*/
-	CHAOS_API int32 GetNumProjectionIterations() const
+	int32 GetNumProjectionIterations() const
 	{
 		return IslandGroupManager.GetIterationSettings().GetNumProjectionIterations();
 	}
@@ -410,7 +410,7 @@ public:
 	/**
 	* Set the kinematic target for a particle. This will exist for only one tick - a new target must be set for the next tick if required.
 	*/
-	CHAOS_API void SetParticleKinematicTarget(FKinematicGeometryParticleHandle* KinematicHandle, const FKinematicTarget& NewKinematicTarget)
+	void SetParticleKinematicTarget(FKinematicGeometryParticleHandle* KinematicHandle, const FKinematicTarget& NewKinematicTarget)
 	{
 		if (KinematicHandle)
 		{
@@ -429,7 +429,7 @@ public:
 	* @todo(chaos): We should add a particle creation API to the evolution
 	* @todo(chaos): This is (or could be) very similar to Enable/Disable - do we really need both?
 	*/
-	CHAOS_API void RegisterParticle(FGeometryParticleHandle* Particle)
+	void RegisterParticle(FGeometryParticleHandle* Particle)
 	{
 		// Add to the graph if necessary. Only enabled dynamic particles are added at this stage. Kinematics
 		// and statics are ignored until referenced by a constraint.
@@ -449,7 +449,7 @@ public:
 	* Enable a particle.Only enabled particles are simulated.
 	* If the particle has constraints connected to it they will also be enabled (assuming the other particles in the constraints are also enabled). 
 	*/
-	CHAOS_API void EnableParticle(FGeometryParticleHandle* Particle)
+	void EnableParticle(FGeometryParticleHandle* Particle)
 	{
 		Particles.EnableParticle(Particle);
 		EnableConstraints(Particle);
@@ -460,7 +460,7 @@ public:
 	/**
 	* Disable a particle so that it is no longer simulated. This also disables all constraints connected to the particle.
 	*/
-	CHAOS_API void DisableParticle(FGeometryParticleHandle* Particle)
+	void DisableParticle(FGeometryParticleHandle* Particle)
 	{
 		RemoveParticleFromAccelerationStructure(*Particle);
 		Particles.DisableParticle(Particle);
@@ -472,7 +472,7 @@ public:
 	/**
 	* To be called when a particle geometry changes. We must clear collisions and anything else that may reference the prior shapes.
 	*/
-	CHAOS_API void InvalidateParticle(FGeometryParticleHandle* Particle)
+	void InvalidateParticle(FGeometryParticleHandle* Particle)
 	{
 		// Remove all constraints (collisions, joints etc) from the graph
 		IslandManager.RemoveParticleConstraints(Particle);
@@ -484,7 +484,7 @@ public:
 	
 	CHAOS_API void FlushExternalAccelerationQueue(FAccelerationStructure& Acceleration,FPendingSpatialDataQueue& ExternalQueue);
 
-	CHAOS_API void DisableParticles(TSet<FGeometryParticleHandle*> &ParticlesIn)
+	void DisableParticles(TSet<FGeometryParticleHandle*> &ParticlesIn)
 	{
 		for (FGeometryParticleHandle* Particle : ParticlesIn)
 		{
@@ -563,7 +563,7 @@ public:
 		}
 	}
 
-	CHAOS_API void DestroyParticle(FGeometryParticleHandle* Particle)
+	void DestroyParticle(FGeometryParticleHandle* Particle)
 	{
 		if (MRewindData)
 		{
@@ -580,7 +580,7 @@ public:
 	/**
 	 * Preallocate buffers for creating \p Num particles.
 	 */
-	CHAOS_API void ReserveParticles(const int32 Num)
+	void ReserveParticles(const int32 Num)
 	{
 		if (const int32 NumNew = IslandManager.ReserveParticles(Num))
 		{
@@ -596,7 +596,7 @@ public:
 	CHAOS_API void DisableParticles(const TSet<FGeometryParticleHandle*>& InParticles);
 
 	/** remove a constraint from the constraint graph */
-	CHAOS_API void RemoveConstraintFromConstraintGraph(FConstraintHandle* ConstraintHandle)
+	void RemoveConstraintFromConstraintGraph(FConstraintHandle* ConstraintHandle)
 	{
 		if (ConstraintHandle->IsInConstraintGraph())
 		{
@@ -605,7 +605,7 @@ public:
 	}
 
 	/** remove a list of constraints from the constraint graph */
-	CHAOS_API void RemoveConstraintsFromConstraintGraph(const FConstraintHandleArray& Constraints)
+	void RemoveConstraintsFromConstraintGraph(const FConstraintHandleArray& Constraints)
 	{
 		for (FConstraintHandle* ConstraintHandle : Constraints)
 		{
@@ -620,7 +620,7 @@ public:
 	* @note This only applies to persistent constraints (joints etc), not transient constraints (collisions)
 	* @see DestroyTransientConstraints()
 	*/
-	CHAOS_API void DisconnectConstraints(const TSet<FGeometryParticleHandle*>& RemovedParticles)
+	void DisconnectConstraints(const TSet<FGeometryParticleHandle*>& RemovedParticles)
 	{
 		for (FGeometryParticleHandle* ParticleHandle : RemovedParticles)
 		{
@@ -640,7 +640,7 @@ public:
 	* @note This only applies to persistent constraints (joints etc), not transient constraints (collisions)
 	* @see DestroyTransientConstraints()
 	*/
-	CHAOS_API void DisableConstraints(FGeometryParticleHandle* ParticleHandle)
+	void DisableConstraints(FGeometryParticleHandle* ParticleHandle)
 	{
 		RemoveConstraintsFromConstraintGraph(ParticleHandle->ParticleConstraints());
 
@@ -657,7 +657,7 @@ public:
 	* Enable constraints (all types except collisions) from the enabled particles; constraints will only become enabled if their particle end points are valid.
 	* @note This only applies to persistent constraints (joints etc), not transient constraints (collisons)
 	*/
-	CHAOS_API void EnableConstraints(FGeometryParticleHandle* ParticleHandle)
+	void EnableConstraints(FGeometryParticleHandle* ParticleHandle)
 	{
 		for (FConstraintHandle* Constraint : ParticleHandle->ParticleConstraints())
 		{
@@ -671,7 +671,7 @@ public:
 	/** 
 	* Clear all constraints from the system reeady for shut down 
 	*/
-	CHAOS_API void ResetConstraints()
+	void ResetConstraints()
 	{
 		// Remove all the constraints from the graph
 		GetIslandManager().Reset();
@@ -700,17 +700,17 @@ public:
 
 	const TParticleView<FPBDRigidClusteredParticles>& GetNonDisabledClusteredView() const { return Particles.GetNonDisabledClusteredView(); }
 
-	CHAOS_API TSerializablePtr<FChaosPhysicsMaterial> GetPhysicsMaterial(const FGeometryParticleHandle* Particle) const { return Particle->AuxilaryValue(PhysicsMaterials); }
+	TSerializablePtr<FChaosPhysicsMaterial> GetPhysicsMaterial(const FGeometryParticleHandle* Particle) const { return Particle->AuxilaryValue(PhysicsMaterials); }
 	
-	CHAOS_API const TUniquePtr<FChaosPhysicsMaterial> &GetPerParticlePhysicsMaterial(const FGeometryParticleHandle* Particle) const { return Particle->AuxilaryValue(PerParticlePhysicsMaterials); }
+	const TUniquePtr<FChaosPhysicsMaterial> &GetPerParticlePhysicsMaterial(const FGeometryParticleHandle* Particle) const { return Particle->AuxilaryValue(PerParticlePhysicsMaterials); }
 
-	CHAOS_API void SetPerParticlePhysicsMaterial(FGeometryParticleHandle* Particle, TUniquePtr<FChaosPhysicsMaterial> &InMaterial)
+	void SetPerParticlePhysicsMaterial(FGeometryParticleHandle* Particle, TUniquePtr<FChaosPhysicsMaterial> &InMaterial)
 	{
 		Particle->AuxilaryValue(PerParticlePhysicsMaterials) = MoveTemp(InMaterial);
 		IslandManager.UpdateParticleMaterial(Particle);
 	}
 
-	CHAOS_API void SetPhysicsMaterial(FGeometryParticleHandle* Particle, TSerializablePtr<FChaosPhysicsMaterial> InMaterial)
+	void SetPhysicsMaterial(FGeometryParticleHandle* Particle, TSerializablePtr<FChaosPhysicsMaterial> InMaterial)
 	{
 		check(!Particle->AuxilaryValue(PerParticlePhysicsMaterials)); //shouldn't be setting non unique material if a unique one already exists
 		Particle->AuxilaryValue(PhysicsMaterials) = InMaterial;
@@ -879,13 +879,13 @@ public:
 	CHAOS_API void ComputeIntermediateSpatialAcceleration(bool bBlock = false);
 
 	UE_DEPRECATED(5.2, "Renamed to GetIslandManager")
-	CHAOS_API const Private::FPBDIslandManager& GetConstraintGraph() const { return IslandManager; }
+	const Private::FPBDIslandManager& GetConstraintGraph() const { return IslandManager; }
 	UE_DEPRECATED(5.2, "Renamed to GetIslandManager")
-	CHAOS_API Private::FPBDIslandManager& GetConstraintGraph() { return IslandManager; }
+	Private::FPBDIslandManager& GetConstraintGraph() { return IslandManager; }
 	
-	CHAOS_API Private::FPBDIslandManager& GetIslandManager() { return IslandManager; }
-	CHAOS_API const Private::FPBDIslandManager& GetIslandManager() const { return IslandManager; }
-	CHAOS_API const Private::FPBDIslandGroupManager& GetIslandGroupManager() const { return IslandGroupManager; }
+	Private::FPBDIslandManager& GetIslandManager() { return IslandManager; }
+	const Private::FPBDIslandManager& GetIslandManager() const { return IslandManager; }
+	const Private::FPBDIslandGroupManager& GetIslandGroupManager() const { return IslandGroupManager; }
 
 
 	void SetResim(bool bInResim) { bIsResim = bInResim; }

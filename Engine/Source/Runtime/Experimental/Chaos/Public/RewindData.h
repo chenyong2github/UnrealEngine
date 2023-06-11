@@ -1277,17 +1277,17 @@ public:
 		return Managers[Frame].DeltaTime;
 	}
 
-	void CHAOS_API RemoveObject(const FGeometryParticleHandle* Particle)
+	void RemoveObject(const FGeometryParticleHandle* Particle)
 	{
 		DirtyParticles.Remove(Particle);
 	}
 
-	void CHAOS_API RemoveObject(const FPBDJointConstraintHandle* Joint)
+	void RemoveObject(const FPBDJointConstraintHandle* Joint)
 	{
 		DirtyJoints.Remove(Joint);
 	}
 
-	int32 CHAOS_API GetEarliestFrame_Internal() const { return CurFrame - FramesSaved; }
+	int32 GetEarliestFrame_Internal() const { return CurFrame - FramesSaved; }
 
 	/* Extend the current history size to be sure to include the given frame */
 	void CHAOS_API ExtendHistoryWithFrame(const int32 Frame);
@@ -1303,14 +1303,14 @@ public:
 		const FVector& Position, const FQuat& Quaternion, const FVector& LinVelocity, const FVector& AngVelocity, const bool bShouldSleep);
 
 	/** Extract some history information before cleaning/pushing state*/
-	void CHAOS_API ExtractHistoryState(FGeometryParticleHandle& Handle, int32& PositionValidCount, int32& VelocityValidCount, int32& PositionNextIterator, int32& VelocityNextIterator)
+	void ExtractHistoryState(FGeometryParticleHandle& Handle, int32& PositionValidCount, int32& VelocityValidCount, int32& PositionNextIterator, int32& VelocityNextIterator)
 	{
 		FDirtyParticleInfo& Info = FindOrAddDirtyObj(Handle);
 		Info.GetHistory().ExtractHistoryState(PositionValidCount, VelocityValidCount, PositionNextIterator, VelocityNextIterator);
 	}
 
 	/** Restore some history information after cleaning/pushing state*/
-	void CHAOS_API RestoreHistoryState(FGeometryParticleHandle& Handle, const int32& PositionValidCount, const int32& VelocityValidCount, const int32& PositionNextIterator, const int32& VelocityNextIterator)
+	void RestoreHistoryState(FGeometryParticleHandle& Handle, const int32& PositionValidCount, const int32& VelocityValidCount, const int32& PositionNextIterator, const int32& VelocityNextIterator)
 	{
 		FDirtyParticleInfo& Info = FindOrAddDirtyObj(Handle);
 		Info.GetHistory().RestoreHistoryState(PositionValidCount, VelocityValidCount, PositionNextIterator, VelocityNextIterator);
@@ -1392,25 +1392,25 @@ public:
 	void CHAOS_API SpawnProxyIfNeeded(FSingleParticlePhysicsProxy& Proxy);
 
 	/** Add Inputs history to the rewind datas for future use while resimulating */
-	void CHAOS_API AddInputsHistory(const TSharedPtr<FBaseRewindHistory>& InputsHistory)
+	void AddInputsHistory(const TSharedPtr<FBaseRewindHistory>& InputsHistory)
 	{
 		InputsHistories.Add(InputsHistory.ToWeakPtr());
 	}
 
 	/** Remove Inputs history from the rewind datas */
-	void CHAOS_API RemoveInputsHistory(const TSharedPtr<FBaseRewindHistory>& InputsHistory)
+	void RemoveInputsHistory(const TSharedPtr<FBaseRewindHistory>& InputsHistory)
 	{
 		InputsHistories.Remove(InputsHistory.ToWeakPtr());
 	}
 
 	/** Add states history to the rewind datas for future use while rewinding */
-	void CHAOS_API AddStatesHistory(const TSharedPtr<FBaseRewindHistory>& StatesHistory)
+	void AddStatesHistory(const TSharedPtr<FBaseRewindHistory>& StatesHistory)
 	{
 		StatesHistories.Add(StatesHistory.ToWeakPtr());
 	}
 
 	/** Remove states history from the rewind datas */
-	void CHAOS_API RemoveStatesHistory(const TSharedPtr<FBaseRewindHistory>& StatesHistory)
+	void RemoveStatesHistory(const TSharedPtr<FBaseRewindHistory>& StatesHistory)
 	{
 		StatesHistories.Remove(StatesHistory.ToWeakPtr());
 	}

@@ -18,35 +18,35 @@ namespace Chaos
 
 	class FPBDRigidsEvolutionGBF;
 
-class CHAOS_API FSuspensionConstraintPhysicsProxy : public IPhysicsProxyBase
+class FSuspensionConstraintPhysicsProxy : public IPhysicsProxyBase
 {
 public:
 	using Base = IPhysicsProxyBase;
 	
 	FSuspensionConstraintPhysicsProxy() = delete;
-	FSuspensionConstraintPhysicsProxy(FSuspensionConstraint* InConstraint, FPBDSuspensionConstraintHandle* InHandle, UObject* InOwner = nullptr);
+	CHAOS_API FSuspensionConstraintPhysicsProxy(FSuspensionConstraint* InConstraint, FPBDSuspensionConstraintHandle* InHandle, UObject* InOwner = nullptr);
 
 	bool IsInitialized() const { return bInitialized; }
 	void SetInitialized() { bInitialized = true; }
 
-	static FGeometryParticleHandle* GetParticleHandleFromProxy(IPhysicsProxyBase* ProxyBase);
+	static CHAOS_API FGeometryParticleHandle* GetParticleHandleFromProxy(IPhysicsProxyBase* ProxyBase);
 
 	//
 	//  Lifespan Management
 	//
 
-	void InitializeOnPhysicsThread(FPBDRigidsSolver* InSolver, FDirtyPropertiesManager& Manager, int32 DataIdx, FDirtyChaosProperties& RemoteData);
+	CHAOS_API void InitializeOnPhysicsThread(FPBDRigidsSolver* InSolver, FDirtyPropertiesManager& Manager, int32 DataIdx, FDirtyChaosProperties& RemoteData);
 
 	// Merge to perform a remote sync
-	void PushStateOnGameThread(FDirtyPropertiesManager& Manager, int32 DataIdx, FDirtyChaosProperties& RemoteData);
+	CHAOS_API void PushStateOnGameThread(FDirtyPropertiesManager& Manager, int32 DataIdx, FDirtyChaosProperties& RemoteData);
 
-	void PushStateOnPhysicsThread(FPBDRigidsSolver* InSolver, const FDirtyPropertiesManager& Manager, int32 DataIdx, const FDirtyChaosProperties& RemoteData);
+	CHAOS_API void PushStateOnPhysicsThread(FPBDRigidsSolver* InSolver, const FDirtyPropertiesManager& Manager, int32 DataIdx, const FDirtyChaosProperties& RemoteData);
 	// Merge to perform a remote sync - END
 
-	void DestroyOnGameThread();
-	void DestroyOnPhysicsThread(FPBDRigidsSolver* InSolver);
+	CHAOS_API void DestroyOnGameThread();
+	CHAOS_API void DestroyOnPhysicsThread(FPBDRigidsSolver* InSolver);
 
-	void UpdateTargetOnPhysicsThread(FPBDRigidsSolver* InSolver, const FVector& TargetPos, const FVector& Normal, bool Enabled);
+	CHAOS_API void UpdateTargetOnPhysicsThread(FPBDRigidsSolver* InSolver, const FVector& TargetPos, const FVector& Normal, bool Enabled);
 
 
 	//

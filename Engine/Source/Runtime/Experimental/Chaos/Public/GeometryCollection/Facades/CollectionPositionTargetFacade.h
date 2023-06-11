@@ -9,7 +9,7 @@
 
 namespace GeometryCollection::Facades
 {
-	struct CHAOS_API FPositionTargetsData
+	struct FPositionTargetsData
 	{
 		TArray<int32> TargetIndex;
 		TArray<int32> SourceIndex;
@@ -23,7 +23,7 @@ namespace GeometryCollection::Facades
 	};
 
 	/** Kinematic Facade */
-	class CHAOS_API FPositionTargetFacade
+	class FPositionTargetFacade
 	{
 	public:
 
@@ -32,33 +32,33 @@ namespace GeometryCollection::Facades
 		//
 		// Kinematics
 		//
-		static const FName GroupName;
-		static const FName TargetIndex;
-		static const FName SourceIndex;
-		static const FName Stiffness;
-		static const FName Damping;
-		static const FName SourceName;
-		static const FName TargetName;
-		static const FName TargetWeights;
-		static const FName SourceWeights;
+		static CHAOS_API const FName GroupName;
+		static CHAOS_API const FName TargetIndex;
+		static CHAOS_API const FName SourceIndex;
+		static CHAOS_API const FName Stiffness;
+		static CHAOS_API const FName Damping;
+		static CHAOS_API const FName SourceName;
+		static CHAOS_API const FName TargetName;
+		static CHAOS_API const FName TargetWeights;
+		static CHAOS_API const FName SourceWeights;
 
-		FPositionTargetFacade(FManagedArrayCollection& InCollection);
-		FPositionTargetFacade(const FManagedArrayCollection& InCollection);
+		CHAOS_API FPositionTargetFacade(FManagedArrayCollection& InCollection);
+		CHAOS_API FPositionTargetFacade(const FManagedArrayCollection& InCollection);
 
 		/** Create the facade attributes. */
-		void DefineSchema();
+		CHAOS_API void DefineSchema();
 
 		/** Is the facade defined constant. */
 		bool IsConst() const { return Collection == nullptr; }
 
 		/** Is the Facade defined on the collection? */
-		bool IsValid() const;
+		CHAOS_API bool IsValid() const;
 
 		//
 		//  Skeletal Mesh Bone Bindings
 		//
-		int32 AddPositionTarget(const FPositionTargetsData& InputData);
-		FPositionTargetsData GetPositionTarget(const int32 DataIndex) const;
+		CHAOS_API int32 AddPositionTarget(const FPositionTargetsData& InputData);
+		CHAOS_API FPositionTargetsData GetPositionTarget(const int32 DataIndex) const;
 		int32 NumPositionTargets() const { return TargetIndexAttribute.Num(); }
 
 	private:

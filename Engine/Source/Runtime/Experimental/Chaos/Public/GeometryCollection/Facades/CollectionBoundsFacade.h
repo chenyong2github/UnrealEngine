@@ -18,7 +18,7 @@ namespace GeometryCollection::Facades
 	* Defines common API for calculating the bounding box on a collection
 	* 
 	*/
-	class CHAOS_API FBoundsFacade
+	class FBoundsFacade
 	{
 	public:
 
@@ -26,32 +26,32 @@ namespace GeometryCollection::Facades
 		* FBoundsFacade Constuctor
 		* @param FManagedArrayCollection : Collection input
 		*/
-		FBoundsFacade(FManagedArrayCollection& InSelf);
-		FBoundsFacade(const FManagedArrayCollection& InSelf);
+		CHAOS_API FBoundsFacade(FManagedArrayCollection& InSelf);
+		CHAOS_API FBoundsFacade(const FManagedArrayCollection& InSelf);
 
 		/** Create the facade attributes. */
-		void DefineSchema();
+		CHAOS_API void DefineSchema();
 
 		/** Is the facade defined constant. */
 		bool IsConst() const { return BoundingBoxAttribute.IsConst(); }
 
 		/** Is the Facade defined on the collection? */
-		bool IsValid() const;		
+		CHAOS_API bool IsValid() const;		
 
 		/** UpdateBoundingBox */
-		void UpdateBoundingBox(bool bSkipCheck = false);
+		CHAOS_API void UpdateBoundingBox(bool bSkipCheck = false);
 
 		/** BoundingBox access */
 		const TManagedArray< FBox >& GetBoundingBoxes() const { return BoundingBoxAttribute.Get(); }
 
 		/** Centroids (Centers of BoundingBoxes) access */
-		TArray<FVector> GetCentroids() const;
+		CHAOS_API TArray<FVector> GetCentroids() const;
 
 		/** BoundingBox for the whole collection in Collection space */
-		FBox GetBoundingBoxInCollectionSpace() const;
+		CHAOS_API FBox GetBoundingBoxInCollectionSpace() const;
 
 		/** Returns the positions of the vertices of an FBox */
-		static TArray<FVector> GetBoundingBoxVertexPositions(const FBox& InBox);
+		static CHAOS_API TArray<FVector> GetBoundingBoxVertexPositions(const FBox& InBox);
 
 		/** TransformToGeometryIndex Access */
 		const TManagedArray< int32 >& GetTransformToGeometryIndex() const { return TransformToGeometryIndexAttribute.Get(); }

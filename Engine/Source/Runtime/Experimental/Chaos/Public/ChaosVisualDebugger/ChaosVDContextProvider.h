@@ -11,14 +11,14 @@
 #include "ChaosVDRuntimeModule.h"
 
 /** Chaos Visual Debugger data used to context for logging or debugging purposes */
-struct CHAOS_API FChaosVDContext
+struct FChaosVDContext
 {
 	int32 OwnerID = INDEX_NONE;
 	int32 Id = INDEX_NONE;
 };
 
 /** Singleton class that manages the thread local storage used to store CVD Context data */
-class CHAOS_API FChaosVDThreadContext : public TThreadSingleton<FChaosVDThreadContext>
+class FChaosVDThreadContext : public TThreadSingleton<FChaosVDThreadContext>
 {
 public:
 
@@ -33,19 +33,19 @@ public:
 	/** Copies the Current CVD context data into the provided struct
 	 * @return true if the copy was successful
 	 */
-	bool GetCurrentContext(FChaosVDContext& OutContext);
+	CHAOS_API bool GetCurrentContext(FChaosVDContext& OutContext);
 	
 	/** Gets the current CVD context data -
 	 * Don't use of a function that will recursively push new context data as it might invalidate the pointer
 	 * @return Ptr to the Current CVD context data
 	 */
-	const FChaosVDContext* GetCurrentContext();
+	CHAOS_API const FChaosVDContext* GetCurrentContext();
 	
 	/** Pushed a new CVD Context data to the local cvd context stack */
-	void PushContext(const FChaosVDContext& InContext);
+	CHAOS_API void PushContext(const FChaosVDContext& InContext);
 	
 	/** Removes the CVD Context data at the top of the local cvd context stack */
-	void PopContext();
+	CHAOS_API void PopContext();
 
 protected:
 	TArray<FChaosVDContext, TInlineAllocator<16>> LocalContextStack;
@@ -75,7 +75,7 @@ protected:
 /** Utility Class that will push the provided CVD Context Data to the local thread storage
  * and remove it when it goes out of scope
  */
-struct CHAOS_API FChaosVDScopeContext
+struct FChaosVDScopeContext
 {
 	FChaosVDScopeContext(const FChaosVDContext& InCVDContext)
 	{
@@ -91,7 +91,7 @@ struct CHAOS_API FChaosVDScopeContext
 /** Wrapper class that provides access to the data buffer that should be used to trace CVD (Chaos Visual Debugger) data.
  * It ensures the buffer is cleared on scope exit but keeping a minimum amount of memory allocated
  */
-struct CHAOS_API FChaosVDScopedTLSBufferAccessor
+struct FChaosVDScopedTLSBufferAccessor
 {
 	FChaosVDScopedTLSBufferAccessor() : BufferRef(FChaosVDThreadContext::Get().GetTLSDataBufferRef())
 	{
@@ -150,7 +150,7 @@ struct CHAOS_API FChaosVDScopedTLSBufferAccessor
 
 #endif // WITH_CHAOS_VISUAL_DEBUGGER
 
-struct CHAOS_API FChaosVDContextWrapper
+struct FChaosVDContextWrapper
 {
 	FChaosVDContextWrapper()
 	{

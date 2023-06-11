@@ -16,7 +16,7 @@ enum class EChaosPerfUnits
 	Num
 };
 
-class CHAOS_API FChaosScopedDurationTimeLogger
+class FChaosScopedDurationTimeLogger
 {
 public:
 	explicit FChaosScopedDurationTimeLogger(const TCHAR* InLabel)
@@ -40,9 +40,9 @@ public:
 		}
 	}
 
-	static const TCHAR* GlobalLabel;
+	static CHAOS_API const TCHAR* GlobalLabel;
 
-	static EChaosPerfUnits GlobalUnits;
+	static CHAOS_API EChaosPerfUnits GlobalUnits;
 
 	const TCHAR*   Label;
 	FOutputDevice* Device;

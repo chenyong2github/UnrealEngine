@@ -188,7 +188,7 @@ namespace Chaos
 		CHAOS_API const TArray<TVec2<int32>>& GetEdgeToFaces() const;
 
 		UE_DEPRECATED(5.1, "Non-const access to GetSegmentMesh will be removed. Use const version instead.")
-		CHAOS_API FSegmentMesh& GetSegmentMesh() { return const_cast<FSegmentMesh&>(const_cast<const FTriangleMesh*>(this)->GetSegmentMesh()); }
+		FSegmentMesh& GetSegmentMesh() { return const_cast<FSegmentMesh&>(const_cast<const FTriangleMesh*>(this)->GetSegmentMesh()); }
 
 		/**
 		 * @ret Curvature between adjacent faces, specified on edges in radians.

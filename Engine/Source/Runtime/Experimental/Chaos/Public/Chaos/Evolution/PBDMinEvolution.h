@@ -27,21 +27,21 @@ namespace Chaos
 	 *
 	 * It is single-threaded and does not use a constraint graph or partition the particles into islands.
 	 */
-	class CHAOS_API FPBDMinEvolution
+	class FPBDMinEvolution
 	{
 	public:
 		using FCollisionDetector = FBasicCollisionDetector;
 		using FEvolutionCallback = TFunction<void()>;
 		using FRigidParticleSOAs = FPBDRigidsSOAs;
 
-		FPBDMinEvolution(FRigidParticleSOAs& InParticles, TArrayCollectionArray<FVec3>& InPrevX, TArrayCollectionArray<FRotation3>& InPrevR, FCollisionDetector& InCollisionDetector);
-		~FPBDMinEvolution();
+		CHAOS_API FPBDMinEvolution(FRigidParticleSOAs& InParticles, TArrayCollectionArray<FVec3>& InPrevX, TArrayCollectionArray<FRotation3>& InPrevR, FCollisionDetector& InCollisionDetector);
+		CHAOS_API ~FPBDMinEvolution();
 
-		void AddConstraintContainer(FPBDConstraintContainer& InContainer, const int32 Priority = 0);
-		void SetConstraintContainerPriority(const int32 ContainerId, const int32 Priority);
+		CHAOS_API void AddConstraintContainer(FPBDConstraintContainer& InContainer, const int32 Priority = 0);
+		CHAOS_API void SetConstraintContainerPriority(const int32 ContainerId, const int32 Priority);
 
-		void Advance(const FReal StepDt, const int32 NumSteps, const FReal RewindDt);
-		void AdvanceOneTimeStep(const FReal Dt, const FReal StepFraction);
+		CHAOS_API void Advance(const FReal StepDt, const int32 NumSteps, const FReal RewindDt);
+		CHAOS_API void AdvanceOneTimeStep(const FReal Dt, const FReal StepFraction);
 
 		void SetNumPositionIterations(const int32 NumIts)
 		{
@@ -103,17 +103,17 @@ namespace Chaos
 		}
 
 	private:
-		void PrepareTick();
-		void UnprepareTick();
-		void Rewind(FReal Dt, FReal RewindDt);
-		void Integrate(FReal Dt);
-		void ApplyKinematicTargets(FReal Dt, FReal StepFraction);
-		void DetectCollisions(FReal Dt);
-		void GatherInput(FReal Dt);
-		void ScatterOutput(FReal Dt);
-		void ApplyConstraintsPhase1(FReal Dt);
-		void ApplyConstraintsPhase2(FReal Dt);
-		void ApplyConstraintsPhase3(FReal Dt);
+		CHAOS_API void PrepareTick();
+		CHAOS_API void UnprepareTick();
+		CHAOS_API void Rewind(FReal Dt, FReal RewindDt);
+		CHAOS_API void Integrate(FReal Dt);
+		CHAOS_API void ApplyKinematicTargets(FReal Dt, FReal StepFraction);
+		CHAOS_API void DetectCollisions(FReal Dt);
+		CHAOS_API void GatherInput(FReal Dt);
+		CHAOS_API void ScatterOutput(FReal Dt);
+		CHAOS_API void ApplyConstraintsPhase1(FReal Dt);
+		CHAOS_API void ApplyConstraintsPhase2(FReal Dt);
+		CHAOS_API void ApplyConstraintsPhase3(FReal Dt);
 
 		FRigidParticleSOAs& Particles;
 		FCollisionDetector& CollisionDetector;

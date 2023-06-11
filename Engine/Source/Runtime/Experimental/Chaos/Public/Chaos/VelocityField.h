@@ -10,7 +10,7 @@ namespace Chaos::Softs
 {
 
 // Velocity field used solely for aerodynamics effects, use Chaos Fields for other types of fields.
-class CHAOS_API FVelocityAndPressureField final
+class FVelocityAndPressureField final
 {
 public:
 	static constexpr FSolverReal DefaultDragCoefficient = (FSolverReal)0.5;
@@ -48,7 +48,7 @@ public:
 
 	~FVelocityAndPressureField() {}
 
-	void UpdateForces(const FSolverParticles& InParticles, const FSolverReal /*Dt*/);
+	CHAOS_API void UpdateForces(const FSolverParticles& InParticles, const FSolverReal /*Dt*/);
 
 	inline void Apply(FSolverParticles& InParticles, const FSolverReal Dt, const int32 Index) const
 	{
@@ -61,7 +61,7 @@ public:
 		}
 	}
 
-	void SetProperties(
+	CHAOS_API void SetProperties(
 		const FCollectionPropertyConstFacade& PropertyCollection,
 		const TMap<FString, TConstArrayView<FRealSingle>>& Weightmaps,
 		FSolverReal WorldScale,
@@ -74,7 +74,7 @@ public:
 		SetProperties(PropertyCollection, TMap<FString, TConstArrayView<FRealSingle>>(), WorldScale, bEnableAerodynamics);
 	}
 
-	void SetProperties(
+	CHAOS_API void SetProperties(
 		const FSolverVec2& Drag,
 		const FSolverVec2& Lift,
 		const FSolverReal FluidDensity,
@@ -89,13 +89,13 @@ public:
 				LiftBase > (FSolverReal)0. || LiftRange != (FSolverReal)0.));
 	}
 
-	void SetGeometry(
+	CHAOS_API void SetGeometry(
 		const FTriangleMesh* TriangleMesh,
 		const FCollectionPropertyConstFacade& PropertyCollection,
 		const TMap<FString, TConstArrayView<FRealSingle>>& Weightmaps,
 		FSolverReal WorldScale);
 
-	void SetGeometry(
+	CHAOS_API void SetGeometry(
 		const FTriangleMesh* TriangleMesh,
 		const TConstArrayView<FRealSingle>& DragMultipliers,
 		const TConstArrayView<FRealSingle>& LiftMultipliers,
@@ -109,11 +109,11 @@ public:
 private:
 	bool AreAerodynamicsEnabled() const { return QuarterRho > (FSolverReal)0.; }
 
-	void SetGeometry(const FTriangleMesh* TriangleMesh);
+	CHAOS_API void SetGeometry(const FTriangleMesh* TriangleMesh);
 
-	void SetMultipliers(const FCollectionPropertyConstFacade& PropertyCollection,const TMap<FString, TConstArrayView<FRealSingle>>& Weightmaps);
+	CHAOS_API void SetMultipliers(const FCollectionPropertyConstFacade& PropertyCollection,const TMap<FString, TConstArrayView<FRealSingle>>& Weightmaps);
 
-	void SetMultipliers(
+	CHAOS_API void SetMultipliers(
 		const TConstArrayView<FRealSingle>& DragMultipliers,
 		const TConstArrayView<FRealSingle>& LiftMultipliers,
 		const TConstArrayView<FRealSingle>& PressureMultipliers);

@@ -22,7 +22,7 @@ namespace Chaos
 	};
 }
 
-struct CHAOS_API FCollisionFilterData
+struct FCollisionFilterData
 {
 	uint32 Word0;
 	uint32 Word1;

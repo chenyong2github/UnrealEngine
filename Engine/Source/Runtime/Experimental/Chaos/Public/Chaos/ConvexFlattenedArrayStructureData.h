@@ -27,7 +27,7 @@ namespace Chaos
 		// Base class for TConvexFlattenedArrayStructureData.
 		// NOTE: Deliberately no-virtual destructor so it should never be deleted from a 
 		// base class pointer.
-		class CHAOS_API FConvexFlattenedArrayStructureData
+		class FConvexFlattenedArrayStructureData
 		{
 		public:
 			FConvexFlattenedArrayStructureData() {}
@@ -48,7 +48,7 @@ namespace Chaos
 		//					Max(NumPlanes*AverageVertsPerPlane)
 		//
 		template<typename T_INDEX, typename T_OFFSETINDEX>
-		class CHAOS_API TConvexFlattenedArrayStructureData : public FConvexFlattenedArrayStructureData
+		class TConvexFlattenedArrayStructureData : public FConvexFlattenedArrayStructureData
 		{
 		public:
 			// Everything public - not used outside of legacy loader and unit tests

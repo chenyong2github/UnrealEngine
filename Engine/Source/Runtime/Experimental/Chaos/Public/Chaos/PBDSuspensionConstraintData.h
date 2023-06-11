@@ -30,10 +30,10 @@ namespace Chaos
 
 	using FSuspensionConstraintDirtyFlags = TDirtyFlags<ESuspensionConstraintFlags>;
 
-	class CHAOS_API FSuspensionConstraint : public FConstraintBase
+	class FSuspensionConstraint : public FConstraintBase
 	{
 	public:
-		FSuspensionConstraint();
+		CHAOS_API FSuspensionConstraint();
 		virtual ~FSuspensionConstraint() override {}
 
 

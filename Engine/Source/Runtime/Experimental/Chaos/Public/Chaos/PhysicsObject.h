@@ -19,9 +19,9 @@ namespace Chaos
 	using FConstPhysicsObjectHandle = const FPhysicsObject*;
 	using FPhysicsObjectId = int32;
 
-	struct CHAOS_API FPhysicsObjectDeleter
+	struct FPhysicsObjectDeleter
 	{
-		void operator()(FPhysicsObjectHandle p);
+		CHAOS_API void operator()(FPhysicsObjectHandle p);
 	};
 	using FPhysicsObjectUniquePtr = TUniquePtr<FPhysicsObject, FPhysicsObjectDeleter>;
 

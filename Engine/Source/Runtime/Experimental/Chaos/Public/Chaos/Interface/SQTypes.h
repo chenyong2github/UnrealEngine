@@ -23,12 +23,12 @@ namespace Chaos
 
 namespace ChaosInterface
 {
-	struct CHAOS_API FActorShape
+	struct FActorShape
 	{
 		Chaos::FGeometryParticle* Actor;
 		const Chaos::FPerShapeData* Shape;
 
-		void Serialize(Chaos::FChaosArchive& Ar);
+		CHAOS_API void Serialize(Chaos::FChaosArchive& Ar);
 	};
 
 	inline Chaos::FChaosArchive& operator<<(Chaos::FChaosArchive& Ar, FActorShape& ActorShape)
@@ -37,7 +37,7 @@ namespace ChaosInterface
 		return Ar;
 	}
 
-	struct CHAOS_API FQueryHit : public FActorShape
+	struct FQueryHit : public FActorShape
 	{
 		FQueryHit() : FaceIndex(-1), ElementIndex(-1) {}
 
@@ -50,7 +50,7 @@ namespace ChaosInterface
 
 		int32 ElementIndex; // Currently used to indicate which shape was hit for a particle with multiple shapes.
 
-		void Serialize(Chaos::FChaosArchive& Ar);
+		CHAOS_API void Serialize(Chaos::FChaosArchive& Ar);
 	};
 
 	inline Chaos::FChaosArchive& operator<<(Chaos::FChaosArchive& Ar, FQueryHit& QueryHit)
@@ -59,14 +59,14 @@ namespace ChaosInterface
 		return Ar;
 	}
 
-	struct CHAOS_API FLocationHit : public FQueryHit
+	struct FLocationHit : public FQueryHit
 	{
 		FHitFlags Flags;
 		FVector WorldPosition;
 		FVector WorldNormal;
 		float Distance;	// LWC_TODO: Should be FVector::FReal, but that causes precision issues resulting in collision failures. Investigate!
 
-		void Serialize(Chaos::FChaosArchive& Ar);
+		CHAOS_API void Serialize(Chaos::FChaosArchive& Ar);
 
 		bool operator<(const FLocationHit& Other) const { return Distance < Other.Distance; }
 	};
@@ -77,12 +77,12 @@ namespace ChaosInterface
 		return Ar;
 	}
 
-	struct CHAOS_API FRaycastHit : public FLocationHit
+	struct FRaycastHit : public FLocationHit
 	{
 		float U;
 		float V;
 
-		void Serialize(Chaos::FChaosArchive& Ar);
+		CHAOS_API void Serialize(Chaos::FChaosArchive& Ar);
 
 	};
 
@@ -92,7 +92,7 @@ namespace ChaosInterface
 		return Ar;
 	}
 
-	struct CHAOS_API FOverlapHit : public FQueryHit
+	struct FOverlapHit : public FQueryHit
 	{
 	};
 
@@ -102,7 +102,7 @@ namespace ChaosInterface
 		return Ar;
 	}
 
-	struct CHAOS_API FSweepHit : public FLocationHit
+	struct FSweepHit : public FLocationHit
 	{
 	};
 
@@ -112,13 +112,13 @@ namespace ChaosInterface
 		return Ar;
 	}
 
-	struct CHAOS_API FPTActorShape
+	struct FPTActorShape
 	{
 		Chaos::FGeometryParticleHandle* Actor;
 		const Chaos::FPerShapeData* Shape;
 	};
 
-	struct CHAOS_API FPTQueryHit : public FPTActorShape
+	struct FPTQueryHit : public FPTActorShape
 	{
 		/**
 		Face index of touched triangle, for triangle meshes, convex meshes and height fields. Defaults to -1 if face index is not available
@@ -130,7 +130,7 @@ namespace ChaosInterface
 		int32 ElementIndex = -1; // Currently used to indicate which shape was hit for a particle with multiple shapes.
 	};
 
-	struct CHAOS_API FPTLocationHit : public FPTQueryHit
+	struct FPTLocationHit : public FPTQueryHit
 	{
 		FHitFlags Flags;
 		FVector WorldPosition;
@@ -140,17 +140,17 @@ namespace ChaosInterface
 		bool operator<(const FPTLocationHit& Other) const { return Distance < Other.Distance; }
 	};
 
-	struct CHAOS_API FPTRaycastHit : public FPTLocationHit
+	struct FPTRaycastHit : public FPTLocationHit
 	{
 		float U;
 		float V;
 	};
 
-	struct CHAOS_API FPTOverlapHit : public FPTQueryHit
+	struct FPTOverlapHit : public FPTQueryHit
 	{
 	};
 
-	struct CHAOS_API FPTSweepHit : public FPTLocationHit
+	struct FPTSweepHit : public FPTLocationHit
 	{
 	};
 

@@ -10,7 +10,7 @@ DECLARE_CYCLE_STAT(TEXT("Chaos PBD Long Range Constraint"), STAT_PBD_LongRange, 
 namespace Chaos::Softs
 {
 
-class CHAOS_API FPBDLongRangeConstraints : public FPBDLongRangeConstraintsBase
+class FPBDLongRangeConstraints : public FPBDLongRangeConstraintsBase
 {
 public:
 	typedef FPBDLongRangeConstraintsBase Base;
@@ -91,7 +91,7 @@ public:
 
 	using Base::SetProperties;
 
-	void SetProperties(
+	CHAOS_API void SetProperties(
 		const FCollectionPropertyConstFacade& PropertyCollection,
 		const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps,
 		FSolverReal MeshScale);
@@ -102,7 +102,7 @@ public:
 		SetProperties(PropertyCollection, TMap<FString, TConstArrayView<FRealSingle>>(), (FSolverReal)1.);
 	}
 
-	void Apply(FSolverParticles& Particles, const FSolverReal Dt) const;
+	CHAOS_API void Apply(FSolverParticles& Particles, const FSolverReal Dt) const;
 
 private:
 	using Base::MinTetherScale;

@@ -9,7 +9,7 @@ struct FManagedArrayCollection;
 /**
 * A set of triangles which are rendered with the same material.
 */
-struct CHAOS_API FGeometryCollectionSection
+struct FGeometryCollectionSection
 {
 	/** Constructor. */
 	FGeometryCollectionSection()
@@ -33,7 +33,7 @@ struct CHAOS_API FGeometryCollectionSection
 		return true;
 	}
 
-	static TArray<FGeometryCollectionSection>
+	static CHAOS_API TArray<FGeometryCollectionSection>
 	BuildMeshSections(const FManagedArrayCollection& InCollection, const TArray<FIntVector>& InputIndices, const TArray<int32>& BaseMeshOriginalIndicesIndex, TArray<FIntVector>& RetIndices);
 
 	/** The index of the material with which to render this section. */

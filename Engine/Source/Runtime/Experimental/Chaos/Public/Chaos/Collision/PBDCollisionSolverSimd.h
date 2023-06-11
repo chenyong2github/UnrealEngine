@@ -1092,7 +1092,7 @@ namespace Chaos
 		{
 		public:
 			template<int TNumLanes>
-			static CHAOS_API void SolvePositionNoFriction(
+			static void SolvePositionNoFriction(
 				const TArrayView<TPBDCollisionSolverSimd<TNumLanes>>& Solvers,
 				const TArrayView<TPBDCollisionSolverManifoldPointsSimd<TNumLanes>>& ManifoldPoints,
 				const TArrayView<TSolverBodyPtrPairSimd<TNumLanes>>& SolverBodies,
@@ -1100,7 +1100,7 @@ namespace Chaos
 				const FSolverReal MaxPushOut);
 
 			template<int TNumLanes>
-			static CHAOS_API void SolvePositionWithFriction(
+			static void SolvePositionWithFriction(
 				const TArrayView<TPBDCollisionSolverSimd<TNumLanes>>& Solvers,
 				const TArrayView<TPBDCollisionSolverManifoldPointsSimd<TNumLanes>>& ManifoldPoints,
 				const TArrayView<TSolverBodyPtrPairSimd<TNumLanes>>& SolverBodies,
@@ -1108,14 +1108,14 @@ namespace Chaos
 				const FSolverReal MaxPushOut);
 
 			template<int TNumLanes>
-			static CHAOS_API void SolveVelocityNoFriction(
+			static void SolveVelocityNoFriction(
 				const TArrayView<TPBDCollisionSolverSimd<TNumLanes>>& Solvers,
 				const TArrayView<TPBDCollisionSolverManifoldPointsSimd<TNumLanes>>& ManifoldPoints,
 				const TArrayView<TSolverBodyPtrPairSimd<TNumLanes>>& SolverBodies,
 				const FSolverReal Dt);
 
 			template<int TNumLanes>
-			static CHAOS_API void SolveVelocityWithFriction(
+			static void SolveVelocityWithFriction(
 				const TArrayView<TPBDCollisionSolverSimd<TNumLanes>>& Solvers,
 				const TArrayView<TPBDCollisionSolverManifoldPointsSimd<TNumLanes>>& ManifoldPoints,
 				const TArrayView<TSolverBodyPtrPairSimd<TNumLanes>>& SolverBodies,

@@ -52,16 +52,16 @@ inline FArchive& operator<<(FArchive& Ar, FWeightedLatticeInfluenceData& Value)
 /**
  * Embed the contained shape in a deformable lattice.
  */
-class CHAOS_API FWeightedLatticeImplicitObject : public FImplicitObject
+class FWeightedLatticeImplicitObject : public FImplicitObject
 {
 public:
 	using ObjectType = TUniquePtr<FImplicitObject>;
 	using FImplicitObject::GetTypeName;
 
-	FWeightedLatticeImplicitObject(int32 Flags, EImplicitObjectType InType, TUniformGrid<FReal, 3>&& InGrid,
+	CHAOS_API FWeightedLatticeImplicitObject(int32 Flags, EImplicitObjectType InType, TUniformGrid<FReal, 3>&& InGrid,
 		TArrayND<FWeightedLatticeInfluenceData, 3>&& InBoneData, TArray<FName>&& InUsedBones, TArray<FTransform>&& InReferenceRelativeTransforms);
 
-	FWeightedLatticeImplicitObject(FWeightedLatticeImplicitObject&& Other);
+	CHAOS_API FWeightedLatticeImplicitObject(FWeightedLatticeImplicitObject&& Other);
 	
 	virtual ~FWeightedLatticeImplicitObject() override = default;
 
@@ -74,14 +74,14 @@ public:
 	const TArray<int32>& GetSolverBoneIndices() const { return SolverBoneIndices; }
 	void SetSolverBoneIndices(TArray<int32>&& InSolverBoneIndices) { SolverBoneIndices = MoveTemp(InSolverBoneIndices); }
 
-	virtual void Serialize(FChaosArchive& Ar) override;
+	CHAOS_API virtual void Serialize(FChaosArchive& Ar) override;
 
-	FVec3 GetDeformedPoint(const FVec3& UndeformedPoint) const;
-	void UpdateSpatialHierarchy();
-	void FinalizeConstruction();
-	void DeformPoints(const TArray<FTransform>& RelativeTransforms);
+	CHAOS_API FVec3 GetDeformedPoint(const FVec3& UndeformedPoint) const;
+	CHAOS_API void UpdateSpatialHierarchy();
+	CHAOS_API void FinalizeConstruction();
+	CHAOS_API void DeformPoints(const TArray<FTransform>& RelativeTransforms);
 
-	struct CHAOS_API FEmbeddingCoordinate
+	struct FEmbeddingCoordinate
 	{
 		TVec3<int32> CellIndex = TVec3<int32>(INDEX_NONE, INDEX_NONE, INDEX_NONE);
 		int32 LocalTetrahedron = INDEX_NONE;
@@ -95,7 +95,7 @@ public:
 			:CellIndex(InCellIndex), LocalTetrahedron(InLocalTetrahedron), BarycentricCoordinate(InBarycentric)
 		{}
 
-		FEmbeddingCoordinate(const TVec3<int32>& InCellIndex, const FVec3& TrilinearCoordinate);
+		CHAOS_API FEmbeddingCoordinate(const TVec3<int32>& InCellIndex, const FVec3& TrilinearCoordinate);
 
 		bool IsValid() const
 		{
@@ -135,24 +135,24 @@ public:
 			}
 		}
 
-		FMatrix DeformationTransform(const TArrayND<FVec3, 3>& DeformedPoints, const TUniformGrid<FReal, 3>& Grid) const;
+		CHAOS_API FMatrix DeformationTransform(const TArrayND<FVec3, 3>& DeformedPoints, const TUniformGrid<FReal, 3>& Grid) const;
 		inline FVec3 UndeformedPosition(const TUniformGrid<FReal, 3>& InGrid) const;
 		inline FVec3 DeformedPosition(const TArrayND<FVec3, 3>& InDeformedPoints) const;
 		inline int32 GreatestInfluenceBone(const TArrayND<FWeightedLatticeInfluenceData, 3>& InBoneData) const;
 	};
 
-	bool GetEmbeddingCoordinates(const FVec3& DeformedPoint, TArray<FEmbeddingCoordinate>& CoordinatesOut, bool bFindClosest = false) const;
+	CHAOS_API bool GetEmbeddingCoordinates(const FVec3& DeformedPoint, TArray<FEmbeddingCoordinate>& CoordinatesOut, bool bFindClosest = false) const;
 
 protected:
 	FWeightedLatticeImplicitObject(int32 Flags, EImplicitObjectType InType)
 		:FImplicitObject(Flags, InType | ImplicitObjectType::IsWeightedLattice)
 	{}
 
-	FWeightedLatticeImplicitObject(const FWeightedLatticeImplicitObject& Other);
+	CHAOS_API FWeightedLatticeImplicitObject(const FWeightedLatticeImplicitObject& Other);
 
-	void InitializeDeformedPoints();
-	void SetEmptyCells();
-	uint32 GetTypeHashHelper(const uint32 InHash) const;
+	CHAOS_API void InitializeDeformedPoints();
+	CHAOS_API void SetEmptyCells();
+	CHAOS_API uint32 GetTypeHashHelper(const uint32 InHash) const;
 
 
 	// Serialized data. Only non-const because of serialization
@@ -251,12 +251,12 @@ private:
 	friend ::FKSkinnedLevelSetElem; //needed for serialization
 };
 
-class CHAOS_API FWeightedLatticeImplicitObjectBuilder
+class FWeightedLatticeImplicitObjectBuilder
 {
 public:
 
-	void GenerateGrid(const int32 GridResolution, const TAABB<FReal, 3>& ObjectBBox);
-	void AddInfluence(int32 FlatIndex, uint16 BoneIndex, float Weight, bool bIsOuterWeight);
+	CHAOS_API void GenerateGrid(const int32 GridResolution, const TAABB<FReal, 3>& ObjectBBox);
+	CHAOS_API void AddInfluence(int32 FlatIndex, uint16 BoneIndex, float Weight, bool bIsOuterWeight);
 
 	// BoneIndexToBoneName(int32 BoneIndex)->FName return FName of Bone for given BoneIndex (BoneIndex used by AddInfluence)
 	// BoneIndexToReferenceTransform(int32 BoneIndex)->FTransform return transform of Bone (BoneIndex used by AddInfluence). Should return transform for RootBone (parent of this object) when BoneIndex == INDEX_NONE
@@ -271,7 +271,7 @@ public:
 
 private:
 
-	void NormalizeBoneWeights();
+	CHAOS_API void NormalizeBoneWeights();
 
 	template<typename FBoneIndexToBoneName, typename FBoneIndexToReferenceTransform>
 	inline void CalcUsedBonesAndReIndex(const FBoneIndexToBoneName& BoneIndexToBoneName, const FBoneIndexToReferenceTransform& BoneIndexToReferenceTransform);

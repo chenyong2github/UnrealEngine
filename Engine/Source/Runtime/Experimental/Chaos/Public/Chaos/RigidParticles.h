@@ -80,14 +80,14 @@ public:
     using TParticles<T, d>::X;
     using TGeometryParticles<T, d>::R;
 
-	CHAOS_API TRigidParticles()
+	TRigidParticles()
 	    : TKinematicGeometryParticles<T, d>()
 	{
 		RegisterArrays();
 	}
 
 	TRigidParticles(const TRigidParticles<T, d>& Other) = delete;
-	CHAOS_API TRigidParticles(TRigidParticles<T, d>&& Other)
+	TRigidParticles(TRigidParticles<T, d>&& Other)
 	    : TKinematicGeometryParticles<T, d>(MoveTemp(Other))
 		, CoreData(MoveTemp(Other.CoreData))
 		, MVSmooth(MoveTemp(Other.MVSmooth))
@@ -143,7 +143,7 @@ public:
 
 	}
 
-	CHAOS_API virtual ~TRigidParticles()
+	virtual ~TRigidParticles()
 	{}
 
 	FORCEINLINE const TVector<T, d>& VSmooth(const int32 Index) const { return MVSmooth[Index]; }
@@ -199,8 +199,8 @@ public:
 
 	FORCEINLINE int32 CollisionParticlesSize(int32 Index) const { return MCollisionParticles[Index] == nullptr ? 0 : MCollisionParticles[Index]->Size(); }
 
-	void CHAOS_API CollisionParticlesInitIfNeeded(const int32 Index);
-	void CHAOS_API SetCollisionParticles(const int32 Index, TParticles<T, d>&& Particles);
+	void CollisionParticlesInitIfNeeded(const int32 Index);
+	void SetCollisionParticles(const int32 Index, TParticles<T, d>&& Particles);
 	
 	FORCEINLINE const TUniquePtr<TBVHParticles<T, d>>& CollisionParticles(const int32 Index) const { return MCollisionParticles[Index]; }
 	FORCEINLINE TUniquePtr<TBVHParticles<T, d>>& CollisionParticles(const int32 Index) { return MCollisionParticles[Index]; }
@@ -278,7 +278,7 @@ public:
 			CollisionGroup(Index), Disabled(Index), Sleeping(Index));
 	}
 
-	CHAOS_API virtual void Serialize(FChaosArchive& Ar) override
+	virtual void Serialize(FChaosArchive& Ar) override
 	{
 		TKinematicGeometryParticles<T,d>::Serialize(Ar);
 

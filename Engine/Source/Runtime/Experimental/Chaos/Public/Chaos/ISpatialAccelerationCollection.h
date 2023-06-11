@@ -19,7 +19,7 @@ namespace Chaos
 	class IResimCacheBase;
 
 template <typename TPayloadType, typename T, int d>
-class CHAOS_API ISpatialAccelerationCollection : public ISpatialAcceleration<TPayloadType, T, d>
+class ISpatialAccelerationCollection : public ISpatialAcceleration<TPayloadType, T, d>
 {
 public:
 	UE_NONCOPYABLE(ISpatialAccelerationCollection)

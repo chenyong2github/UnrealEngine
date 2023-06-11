@@ -24,7 +24,7 @@ extern CHAOS_API bool bChaos_PerParticleCollision_ISPC_Enabled;
 namespace Chaos::Softs
 {
 
-class CHAOS_API FPerParticlePBDCollisionConstraint final
+class FPerParticlePBDCollisionConstraint final
 {
 	struct FVelocityConstraint
 	{
@@ -246,7 +246,7 @@ private:
 		}
 	}
 
-	void ApplyHelperISPC(FSolverParticles& Particles, const FSolverReal Dt, const int32 Offset, const int32 Range) const;
+	CHAOS_API void ApplyHelperISPC(FSolverParticles& Particles, const FSolverReal Dt, const int32 Offset, const int32 Range) const;
 
 private:
 	bool bFastPositionBasedFriction;

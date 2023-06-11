@@ -11,29 +11,29 @@ namespace GeometryCollection::Facades
 	/**
 	 * Provides an API to read and manipulate hierarchy in a managed array collection
 	 */
-	class CHAOS_API FCollectionInstancedMeshFacade
+	class FCollectionInstancedMeshFacade
 	{
 	public:
-		FCollectionInstancedMeshFacade(FManagedArrayCollection& InCollection);
-		FCollectionInstancedMeshFacade(const FManagedArrayCollection& InCollection);
+		CHAOS_API FCollectionInstancedMeshFacade(FManagedArrayCollection& InCollection);
+		CHAOS_API FCollectionInstancedMeshFacade(const FManagedArrayCollection& InCollection);
 
 		/** Create the facade attributes. */
-		void DefineSchema();
+		CHAOS_API void DefineSchema();
 
 		/** Valid if parent and children arrays are available */
-		bool IsValid() const;
+		CHAOS_API bool IsValid() const;
 
 		/** Is the facade defined constant. */
-		bool IsConst() const;
+		CHAOS_API bool IsConst() const;
 
 		/** get the total number of indices */
-		int32 GetNumIndices() const;
+		CHAOS_API int32 GetNumIndices() const;
 
 		/** get the instance mesh index for specific transform index */
-		int32 GetIndex(int32 TransformIndex) const;
+		CHAOS_API int32 GetIndex(int32 TransformIndex) const;
 
 		/** set the instance mesh index for specific transform index */
-		void SetIndex(int32 TransformIndex, int32 InstanceMeshIndex);
+		CHAOS_API void SetIndex(int32 TransformIndex, int32 InstanceMeshIndex);
 
 
 	private:

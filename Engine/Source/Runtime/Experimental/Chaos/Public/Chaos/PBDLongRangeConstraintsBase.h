@@ -12,7 +12,7 @@
 namespace Chaos::Softs
 {
 
-class CHAOS_API FPBDLongRangeConstraintsBase
+class FPBDLongRangeConstraintsBase
 {
 public:
 	UE_NONCOPYABLE(FPBDLongRangeConstraintsBase);
@@ -33,7 +33,7 @@ public:
 
 	typedef TTuple<int32, int32, FRealSingle> FTether;
 
-	FPBDLongRangeConstraintsBase(
+	CHAOS_API FPBDLongRangeConstraintsBase(
 		const FSolverParticles& Particles,
 		const int32 InParticleOffset,
 		const int32 InParticleCount,
@@ -100,7 +100,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 protected:
 	// Return the minimum number of long range tethers in a batch to process in parallel
-	static int32 GetMinParallelBatchSize();
+	static CHAOS_API int32 GetMinParallelBatchSize();
 
 	// Return whether the constraint has been setup with a weightmap to interpolate between two low and high values of scales
 	UE_DEPRECATED(5.2, "Use TetherScale.HasWeightMap() instead")

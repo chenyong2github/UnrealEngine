@@ -7,7 +7,7 @@
 namespace Chaos
 {
 template<class T>
-class CHAOS_API TSpatialHash
+class TSpatialHash
 {
  public:
 	TSpatialHash(const TArray<TVec3<T>>& Particles, const T Radius)

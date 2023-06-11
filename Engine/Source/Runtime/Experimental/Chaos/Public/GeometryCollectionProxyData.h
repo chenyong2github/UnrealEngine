@@ -17,12 +17,12 @@
 *
 * Stores per instance data for transforms and hierarchy information
 */
-class CHAOS_API FTransformDynamicCollection : public FManagedArrayCollection
+class FTransformDynamicCollection : public FManagedArrayCollection
 {
 public:
 	typedef FManagedArrayCollection Super;
 
-	FTransformDynamicCollection();
+	CHAOS_API FTransformDynamicCollection();
 	FTransformDynamicCollection(FTransformDynamicCollection&) = delete;
 	FTransformDynamicCollection& operator=(const FTransformDynamicCollection&) = delete;
 	FTransformDynamicCollection(FTransformDynamicCollection&&) = delete;
@@ -38,7 +38,7 @@ public:
 protected:
 
 	/** Construct */
-	void Construct();
+	CHAOS_API void Construct();
 };
 
 
@@ -48,10 +48,10 @@ protected:
 * Stores per instance data for simulation level information
 */
 
-class CHAOS_API FGeometryDynamicCollection : public FTransformDynamicCollection
+class FGeometryDynamicCollection : public FTransformDynamicCollection
 {
 public:
-	FGeometryDynamicCollection();
+	CHAOS_API FGeometryDynamicCollection();
 	FGeometryDynamicCollection(FGeometryDynamicCollection&) = delete;
 	FGeometryDynamicCollection& operator=(const FGeometryDynamicCollection&) = delete;
 	FGeometryDynamicCollection(FGeometryDynamicCollection&&) = delete;
@@ -60,16 +60,16 @@ public:
 	typedef FTransformDynamicCollection Super;
 	typedef TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe> FSharedImplicit;
 
-	static const FName ActiveAttribute;
-	static const FName CollisionGroupAttribute;
-	static const FName CollisionMaskAttribute;
-	static const FName DynamicStateAttribute;
-	static const FName ImplicitsAttribute;
-	static const FName ShapesQueryDataAttribute;
-	static const FName ShapesSimDataAttribute;
-	static const FName SharedImplicitsAttribute;
-	static const FName SimplicialsAttribute;
-	static const FName SimulatableParticlesAttribute;
+	static CHAOS_API const FName ActiveAttribute;
+	static CHAOS_API const FName CollisionGroupAttribute;
+	static CHAOS_API const FName CollisionMaskAttribute;
+	static CHAOS_API const FName DynamicStateAttribute;
+	static CHAOS_API const FName ImplicitsAttribute;
+	static CHAOS_API const FName ShapesQueryDataAttribute;
+	static CHAOS_API const FName ShapesSimDataAttribute;
+	static CHAOS_API const FName SharedImplicitsAttribute;
+	static CHAOS_API const FName SimplicialsAttribute;
+	static CHAOS_API const FName SimulatableParticlesAttribute;
 
 	// Transform Group
 	TManagedArray<bool> Active;
@@ -100,7 +100,7 @@ public:
 	FInitialVelocityFacade GetInitialVelocityFacade() { return FInitialVelocityFacade(*this); }
 	FInitialVelocityFacade GetInitialVelocityFacade() const { return FInitialVelocityFacade(*this); }
 
-	void CopyInitialVelocityAttributesFrom(const FGeometryDynamicCollection& SourceCollection);
+	CHAOS_API void CopyInitialVelocityAttributesFrom(const FGeometryDynamicCollection& SourceCollection);
 };
 
 /**
@@ -108,31 +108,31 @@ public:
  * physics state , broken state, current parent (normal or internal clusters )
  * To be used with the dynamic collection
  */
-class CHAOS_API FGeometryCollectionDynamicStateFacade
+class FGeometryCollectionDynamicStateFacade
 {
 public:
-	FGeometryCollectionDynamicStateFacade(FManagedArrayCollection& InCollection);
+	CHAOS_API FGeometryCollectionDynamicStateFacade(FManagedArrayCollection& InCollection);
 
 	/** returns true if all the necessary attributes are present */
-	bool IsValid() const;
+	CHAOS_API bool IsValid() const;
 
 	/** return true if the transform is in a dynamic or sleeping state */
-	bool IsDynamicOrSleeping(int32 TransformIndex) const;
+	CHAOS_API bool IsDynamicOrSleeping(int32 TransformIndex) const;
 
 	/** return true if the transform is in a sleeping state */
-	bool IsSleeping(int32 TransformIndex) const;
+	CHAOS_API bool IsSleeping(int32 TransformIndex) const;
 
 	/** whether there's children attached to this transfom (Cluster) */
-	bool HasChildren(int32 TransformIndex) const;
+	CHAOS_API bool HasChildren(int32 TransformIndex) const;
 	
 	/** return true if the transform has broken off its parent */
-	bool HasBrokenOff(int32 TransformIndex) const;
+	CHAOS_API bool HasBrokenOff(int32 TransformIndex) const;
 
 	/** return true if the transform has an internal cluster parent */
-	bool HasInternalClusterParent(int32 TransformIndex) const;
+	CHAOS_API bool HasInternalClusterParent(int32 TransformIndex) const;
 
 	/** return true if the transform has an internal cluster parent in a dynamic state */
-	bool HasDynamicInternalClusterParent(int32 TransformIndex) const;
+	CHAOS_API bool HasDynamicInternalClusterParent(int32 TransformIndex) const;
 	
 private:
 	/** Active state, true means that the transform is active or broken off from its parent */

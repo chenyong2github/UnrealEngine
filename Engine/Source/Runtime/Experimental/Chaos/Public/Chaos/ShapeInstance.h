@@ -32,7 +32,7 @@ namespace Chaos
 	 * - change ShapesArray() and all code using it to use ShapeInstance or ShapeInstanceProxy as appropriate
 	 * - deprecate FPerShapeData
 	 */
-	class CHAOS_API FPerShapeData
+	class FPerShapeData
 	{
 	protected:
 		enum class EPerShapeDataType : uint8
@@ -51,15 +51,15 @@ namespace Chaos
 		template<typename TLambda> decltype(auto) DownCast(const TLambda& Lambda);
 		template<typename TLambda> decltype(auto) DownCast(const TLambda& Lambda) const;
 
-		Private::FShapeInstanceExtended* AsShapeInstanceExtended();
-		const Private::FShapeInstanceExtended* AsShapeInstanceExtended() const;
+		CHAOS_API Private::FShapeInstanceExtended* AsShapeInstanceExtended();
+		CHAOS_API const Private::FShapeInstanceExtended* AsShapeInstanceExtended() const;
 
 	public:
 		// Downcasts exposed until we deprecate and remove FPerShapeData
-		FShapeInstanceProxy* AsShapeInstanceProxy();
-		const FShapeInstanceProxy* AsShapeInstanceProxy() const;
-		FShapeInstance* AsShapeInstance();
-		const FShapeInstance* AsShapeInstance() const;
+		CHAOS_API FShapeInstanceProxy* AsShapeInstanceProxy();
+		CHAOS_API const FShapeInstanceProxy* AsShapeInstanceProxy() const;
+		CHAOS_API FShapeInstance* AsShapeInstance();
+		CHAOS_API const FShapeInstance* AsShapeInstance() const;
 
 	public:
 		static constexpr bool AlwaysSerializable = true;
@@ -68,91 +68,91 @@ namespace Chaos
 		static bool RequiresCachedLeafInfo(const FImplicitObject* Geometry) { return false; }
 
 		UE_DEPRECATED(5.3, "Call FShapeInstanceProxy::Make for game thread objects, FShapeInstance::Make for physics thread objects")
-		static TUniquePtr<FPerShapeData> CreatePerShapeData(int32 InShapeIdx, TSerializablePtr<FImplicitObject> InGeometry);
+		static CHAOS_API TUniquePtr<FPerShapeData> CreatePerShapeData(int32 InShapeIdx, TSerializablePtr<FImplicitObject> InGeometry);
 
 		UE_DEPRECATED(5.3, "Call FShapeInstanceProxy::UpdateGeometry for game thread objects, FShapeInstance::UpdateGeometry for physics thread objects")
-		static void UpdateGeometry(TUniquePtr<FPerShapeData>& InOutShapePtr, TSerializablePtr<FImplicitObject> InGeometry);
+		static CHAOS_API void UpdateGeometry(TUniquePtr<FPerShapeData>& InOutShapePtr, TSerializablePtr<FImplicitObject> InGeometry);
 
 
-		static FPerShapeData* SerializationFactory(FChaosArchive& Ar, FPerShapeData*);
+		static CHAOS_API FPerShapeData* SerializationFactory(FChaosArchive& Ar, FPerShapeData*);
 
 		virtual ~FPerShapeData() {}
 
-		virtual void Serialize(FChaosArchive& Ar);
+		CHAOS_API virtual void Serialize(FChaosArchive& Ar);
 
-		void UpdateShapeBounds(const FRigidTransform3& WorldTM, const FVec3& BoundsExpansion = FVec3(0));
+		CHAOS_API void UpdateShapeBounds(const FRigidTransform3& WorldTM, const FVec3& BoundsExpansion = FVec3(0));
 
-		void* GetUserData() const;
-		void SetUserData(void* InUserData);
+		CHAOS_API void* GetUserData() const;
+		CHAOS_API void SetUserData(void* InUserData);
 
-		const FCollisionFilterData& GetQueryData() const;
-		void SetQueryData(const FCollisionFilterData& InQueryData);
+		CHAOS_API const FCollisionFilterData& GetQueryData() const;
+		CHAOS_API void SetQueryData(const FCollisionFilterData& InQueryData);
 
-		const FCollisionFilterData& GetSimData() const;
-		void SetSimData(const FCollisionFilterData& InSimData);
+		CHAOS_API const FCollisionFilterData& GetSimData() const;
+		CHAOS_API void SetSimData(const FCollisionFilterData& InSimData);
 
-		TSerializablePtr<FImplicitObject> GetGeometry() const;
+		CHAOS_API TSerializablePtr<FImplicitObject> GetGeometry() const;
 
-		const TAABB<FReal, 3>& GetWorldSpaceInflatedShapeBounds() const;
+		CHAOS_API const TAABB<FReal, 3>& GetWorldSpaceInflatedShapeBounds() const;
 
-		void UpdateWorldSpaceState(const FRigidTransform3& WorldTransform, const FVec3& BoundsExpansion);
+		CHAOS_API void UpdateWorldSpaceState(const FRigidTransform3& WorldTransform, const FVec3& BoundsExpansion);
 
 		// The leaf shape (with transformed and implicit wrapper removed).
-		const FImplicitObject* GetLeafGeometry() const;
+		CHAOS_API const FImplicitObject* GetLeafGeometry() const;
 
 		// The actor-relative transform of the leaf geometry.
-		FRigidTransform3 GetLeafRelativeTransform() const;
+		CHAOS_API FRigidTransform3 GetLeafRelativeTransform() const;
 
 		// The world-space transform of the leaf geometry.
 		// If we have non-identity leaf relative transform, is cached from the last call to UpdateWorldSpaceState.
 		// If not cahced, is constructed from arguments.
-		FRigidTransform3 GetLeafWorldTransform(const FGeometryParticleHandle* Particle) const;
+		CHAOS_API FRigidTransform3 GetLeafWorldTransform(const FGeometryParticleHandle* Particle) const;
 
-		void UpdateLeafWorldTransform(FGeometryParticleHandle* Particle);
+		CHAOS_API void UpdateLeafWorldTransform(FGeometryParticleHandle* Particle);
 
-		int32 NumMaterials() const;
-		const FMaterialHandle& GetMaterial(const int32 Index) const;
+		CHAOS_API int32 NumMaterials() const;
+		CHAOS_API const FMaterialHandle& GetMaterial(const int32 Index) const;
 
-		const TArray<FMaterialHandle>& GetMaterials() const;
-		void SetMaterial(FMaterialHandle InMaterial);
-		void SetMaterials(const TArray<FMaterialHandle>& InMaterials);
-		void SetMaterials(TArray<FMaterialHandle>&& InMaterials);
+		CHAOS_API const TArray<FMaterialHandle>& GetMaterials() const;
+		CHAOS_API void SetMaterial(FMaterialHandle InMaterial);
+		CHAOS_API void SetMaterials(const TArray<FMaterialHandle>& InMaterials);
+		CHAOS_API void SetMaterials(TArray<FMaterialHandle>&& InMaterials);
 
-		const TArray<FMaterialMaskHandle>& GetMaterialMasks() const;
-		void SetMaterialMasks(const TArray<FMaterialMaskHandle>& InMaterialMasks);
+		CHAOS_API const TArray<FMaterialMaskHandle>& GetMaterialMasks() const;
+		CHAOS_API void SetMaterialMasks(const TArray<FMaterialMaskHandle>& InMaterialMasks);
 
-		const TArray<uint32>& GetMaterialMaskMaps() const;
-		void SetMaterialMaskMaps(const TArray<uint32>& InMaterialMaskMaps);
+		CHAOS_API const TArray<uint32>& GetMaterialMaskMaps() const;
+		CHAOS_API void SetMaterialMaskMaps(const TArray<uint32>& InMaterialMaskMaps);
 
-		const TArray<FMaterialHandle>& GetMaterialMaskMapMaterials() const;
-		void SetMaterialMaskMapMaterials(const TArray<FMaterialHandle>& InMaterialMaskMapMaterials);
+		CHAOS_API const TArray<FMaterialHandle>& GetMaterialMaskMapMaterials() const;
+		CHAOS_API void SetMaterialMaskMapMaterials(const TArray<FMaterialHandle>& InMaterialMaskMapMaterials);
 
-		const FShapeDirtyFlags GetDirtyFlags() const;
+		CHAOS_API const FShapeDirtyFlags GetDirtyFlags() const;
 
-		bool GetQueryEnabled() const;
-		void SetQueryEnabled(const bool bEnable);
+		CHAOS_API bool GetQueryEnabled() const;
+		CHAOS_API void SetQueryEnabled(const bool bEnable);
 
-		bool GetSimEnabled() const;
-		void SetSimEnabled(const bool bEnable);
+		CHAOS_API bool GetSimEnabled() const;
+		CHAOS_API void SetSimEnabled(const bool bEnable);
 
-		bool GetIsProbe() const;
-		void SetIsProbe(const bool bIsProbe);
+		CHAOS_API bool GetIsProbe() const;
+		CHAOS_API void SetIsProbe(const bool bIsProbe);
 
-		EChaosCollisionTraceFlag GetCollisionTraceType() const;
-		void SetCollisionTraceType(const EChaosCollisionTraceFlag InTraceFlag);
+		CHAOS_API EChaosCollisionTraceFlag GetCollisionTraceType() const;
+		CHAOS_API void SetCollisionTraceType(const EChaosCollisionTraceFlag InTraceFlag);
 
-		const FCollisionData& GetCollisionData() const;
-		void SetCollisionData(const FCollisionData& Data);
+		CHAOS_API const FCollisionData& GetCollisionData() const;
+		CHAOS_API void SetCollisionData(const FCollisionData& Data);
 
-		const FMaterialData& GetMaterialData() const;
-		void SetMaterialData(const FMaterialData& Data);
+		CHAOS_API const FMaterialData& GetMaterialData() const;
+		CHAOS_API void SetMaterialData(const FMaterialData& Data);
 
-		void SyncRemoteData(FDirtyPropertiesManager& Manager, int32 ShapeDataIdx, FShapeDirtyData& RemoteData);
+		CHAOS_API void SyncRemoteData(FDirtyPropertiesManager& Manager, int32 ShapeDataIdx, FShapeDirtyData& RemoteData);
 		
-		void SetProxy(IPhysicsProxyBase* InProxy);
+		CHAOS_API void SetProxy(IPhysicsProxyBase* InProxy);
 		
-		int32 GetShapeIndex() const;
-		void ModifyShapeIndex(int32 NewShapeIndex);
+		CHAOS_API int32 GetShapeIndex() const;
+		CHAOS_API void ModifyShapeIndex(int32 NewShapeIndex);
 
 		template <typename Lambda> void ModifySimData(const Lambda& LambdaFunc);
 		template <typename Lambda> void ModifyMaterials(const Lambda& LambdaFunc);
@@ -225,16 +225,16 @@ namespace Chaos
 	 *
 	 * @todo(chaos) : reduce the cost of MaterialData for shapes with one materialand no masks etc.
 	 */
-	class CHAOS_API FShapeInstanceProxy : public FPerShapeData
+	class FShapeInstanceProxy : public FPerShapeData
 	{
 	public:
 		friend class FPerShapeData;
 
-		static TUniquePtr<FShapeInstanceProxy> Make(int32 InShapeIdx, TSerializablePtr<FImplicitObject> InGeometry);
-		static void UpdateGeometry(TUniquePtr<FShapeInstanceProxy>& InOutShapePtr, TSerializablePtr<FImplicitObject> InGeometry);
-		static FShapeInstanceProxy* SerializationFactory(FChaosArchive& Ar, FShapeInstanceProxy*);
+		static CHAOS_API TUniquePtr<FShapeInstanceProxy> Make(int32 InShapeIdx, TSerializablePtr<FImplicitObject> InGeometry);
+		static CHAOS_API void UpdateGeometry(TUniquePtr<FShapeInstanceProxy>& InOutShapePtr, TSerializablePtr<FImplicitObject> InGeometry);
+		static CHAOS_API FShapeInstanceProxy* SerializationFactory(FChaosArchive& Ar, FShapeInstanceProxy*);
 
-		void UpdateShapeBounds(const FRigidTransform3& WorldTM, const FVec3& BoundsExpansion = FVec3(0));
+		CHAOS_API void UpdateShapeBounds(const FRigidTransform3& WorldTM, const FVec3& BoundsExpansion = FVec3(0));
 
 		void* GetUserData() const { return CollisionData.Read().UserData; }
 		void SetUserData(void* InUserData)
@@ -254,19 +254,19 @@ namespace Chaos
 			CollisionData.Modify(true, DirtyFlags, Proxy, ShapeIdx, [InSimData](FCollisionData& Data) { Data.SimData = InSimData; });
 		}
 
-		void UpdateWorldSpaceState(const FRigidTransform3& WorldTransform, const FVec3& BoundsExpansion);
+		CHAOS_API void UpdateWorldSpaceState(const FRigidTransform3& WorldTransform, const FVec3& BoundsExpansion);
 
 		// The leaf shape (with transformed and implicit wrapper removed).
-		const FImplicitObject* GetLeafGeometry() const;
+		CHAOS_API const FImplicitObject* GetLeafGeometry() const;
 
 		// The actor-relative transform of the leaf geometry.
-		FRigidTransform3 GetLeafRelativeTransform() const;
+		CHAOS_API FRigidTransform3 GetLeafRelativeTransform() const;
 
 		// The world-space transform of the leaf geometry.
 		// If we have non-identity leaf relative transform, is cached from the last call to UpdateWorldSpaceState.
 		// If not cahced, is constructed from arguments.
-		FRigidTransform3 GetLeafWorldTransform(const FGeometryParticleHandle* Particle) const;
-		void UpdateLeafWorldTransform(FGeometryParticleHandle* Particle);
+		CHAOS_API FRigidTransform3 GetLeafWorldTransform(const FGeometryParticleHandle* Particle) const;
+		CHAOS_API void UpdateLeafWorldTransform(FGeometryParticleHandle* Particle);
 
 		int32 NumMaterials() const { return Materials.Read(). Materials.Num(); }
 		const FMaterialHandle& GetMaterial(const int32 Index) const { return Materials.Read().Materials[Index]; }
@@ -449,7 +449,7 @@ namespace Chaos
 		{
 		}
 
-		virtual void SerializeMaterials(FChaosArchive& Ar) override final;
+		CHAOS_API virtual void SerializeMaterials(FChaosArchive& Ar) override final;
 
 
 		IPhysicsProxyBase* Proxy;
@@ -746,7 +746,7 @@ namespace Chaos
 		 * 
 		 * NOTE: keep size to a minimum. There can be millions of these in s scene.
 		 */
-		class CHAOS_API FShapeInstanceExtended : public FShapeInstance
+		class FShapeInstanceExtended : public FShapeInstance
 		{
 		public:
 			friend class FShapeInstance;

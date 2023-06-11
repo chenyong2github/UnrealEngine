@@ -7,7 +7,7 @@
 namespace Chaos::Softs
 {
 
-class CHAOS_API FPBDBendingConstraints : public FPBDBendingConstraintsBase
+class FPBDBendingConstraints : public FPBDBendingConstraintsBase
 {
 	typedef FPBDBendingConstraintsBase Base;
 
@@ -89,7 +89,7 @@ public:
 	}
 
 	UE_DEPRECATED(5.2, "Use one of the other constructors instead.")
-	FPBDBendingConstraints(
+	CHAOS_API FPBDBendingConstraints(
 		const FSolverParticles& InParticles,
 		TArray<TVec4<int32>>&& InConstraints,
 		const FSolverReal InStiffness = (FSolverReal)1.)
@@ -101,7 +101,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	using Base::SetProperties;
 
-	void SetProperties(
+	CHAOS_API void SetProperties(
 		const FCollectionPropertyConstFacade& PropertyCollection,
 		const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps);
 
@@ -111,13 +111,13 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		SetProperties(PropertyCollection, TMap<FString, TConstArrayView<FRealSingle>>());
 	}
 
-	void Apply(FSolverParticles& InParticles, const FSolverReal Dt) const;
+	CHAOS_API void Apply(FSolverParticles& InParticles, const FSolverReal Dt) const;
 
 	const TArray<int32>& GetConstraintsPerColorStartIndex() const { return ConstraintsPerColorStartIndex; }
 
 private:
-	void InitColor(const FSolverParticles& InParticles);
-	void ApplyHelper(FSolverParticles& InParticles, const FSolverReal Dt, const int32 ConstraintIndex, const FSolverReal ExpStiffnessValue, const FSolverReal ExpBucklingValue) const;
+	CHAOS_API void InitColor(const FSolverParticles& InParticles);
+	CHAOS_API void ApplyHelper(FSolverParticles& InParticles, const FSolverReal Dt, const int32 ConstraintIndex, const FSolverReal ExpStiffnessValue, const FSolverReal ExpBucklingValue) const;
 
 	using Base::Constraints;
 	using Base::ParticleOffset;

@@ -27,14 +27,14 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 	using TRigidParticles<T, d>::RotationOfMass;
 	using TRigidParticles<T, d>::Sleeping;
 
-	CHAOS_API TPBDRigidParticles()
+	TPBDRigidParticles()
 	    : TRigidParticles<T, d>()
 	{
 		this->MParticleType = EParticleType::Rigid;
 		RegisterArrays();
 	}
 	TPBDRigidParticles(const TPBDRigidParticles<T, d>& Other) = delete;
-	CHAOS_API TPBDRigidParticles(TPBDRigidParticles<T, d>&& Other)
+	TPBDRigidParticles(TPBDRigidParticles<T, d>&& Other)
 	    : TRigidParticles<T, d>(MoveTemp(Other))
 		, MP(MoveTemp(Other.MP))
 		, MQ(MoveTemp(Other.MQ))
@@ -46,7 +46,7 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 		RegisterArrays();
 	}
 
-	CHAOS_API virtual ~TPBDRigidParticles()
+	virtual ~TPBDRigidParticles()
 	{
 	}
 
@@ -65,19 +65,19 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 	FORCEINLINE const TRotation<T, d>& Q(const int32 index) const { return MQ[index]; }
 	FORCEINLINE TRotation<T, d>& Q(const int32 index) { return MQ[index]; }
 
-	CHAOS_API const TVector<T, d>& PreV(const int32 index) const { return MPreV[index]; }
-	CHAOS_API TVector<T, d>& PreV(const int32 index) { return MPreV[index]; }
+	const TVector<T, d>& PreV(const int32 index) const { return MPreV[index]; }
+	TVector<T, d>& PreV(const int32 index) { return MPreV[index]; }
 
-	CHAOS_API const TVector<T, d>& PreW(const int32 index) const { return MPreW[index]; }
-	CHAOS_API TVector<T, d>& PreW(const int32 index) { return MPreW[index]; }
+	const TVector<T, d>& PreW(const int32 index) const { return MPreW[index]; }
+	TVector<T, d>& PreW(const int32 index) { return MPreW[index]; }
 
 	// World-space center of mass location
-	CHAOS_API const TVector<T, d> XCom(const int32 index) const { return this->X(index) + this->R(index).RotateVector(CenterOfMass(index)); }
-	CHAOS_API const TVector<T, d> PCom(const int32 index) const { return this->P(index) + this->Q(index).RotateVector(CenterOfMass(index)); }
+	const TVector<T, d> XCom(const int32 index) const { return this->X(index) + this->R(index).RotateVector(CenterOfMass(index)); }
+	const TVector<T, d> PCom(const int32 index) const { return this->P(index) + this->Q(index).RotateVector(CenterOfMass(index)); }
 
 	// World-space center of mass rotation
-	CHAOS_API const TRotation<T, d> RCom(const int32 index) const { return this->R(index) * RotationOfMass(index); }
-	CHAOS_API const TRotation<T, d> QCom(const int32 index) const { return this->Q(index) * RotationOfMass(index); }
+	const TRotation<T, d> RCom(const int32 index) const { return this->R(index) * RotationOfMass(index); }
+	const TRotation<T, d> QCom(const int32 index) const { return this->Q(index) * RotationOfMass(index); }
 
 	void SetTransformPQCom(const int32 index, const TVector<T, d>& InPCom, const TRotation<T, d>& InQCom)
 	{
@@ -87,8 +87,8 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 
 	// The index into an FSolverBodyContainer (for dynamic particles only), or INDEX_NONE.
 	// \see FSolverBodyContainer
-	CHAOS_API int32 SolverBodyIndex(const int32 index) const { return MSolverBodyIndex[index]; }
-	CHAOS_API void SetSolverBodyIndex(const int32 index, const int32 InSolverBodyIndex) { MSolverBodyIndex[index] = InSolverBodyIndex; }
+	int32 SolverBodyIndex(const int32 index) const { return MSolverBodyIndex[index]; }
+	void SetSolverBodyIndex(const int32 index, const int32 InSolverBodyIndex) { MSolverBodyIndex[index] = InSolverBodyIndex; }
 
     // Must be reinterpret cast instead of static_cast as it's a forward declare
 	typedef TPBDRigidParticleHandle<T, d> THandleType;
@@ -97,7 +97,7 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 	//cannot be reference because double pointer would allow for badness, but still useful to have non const access to handle
 	THandleType* Handle(int32 Index) { return reinterpret_cast<THandleType*>(TGeometryParticles<T, d>::Handle(Index)); }
 
-	CHAOS_API void SetSleeping(int32 Index, bool bSleeping)
+	void SetSleeping(int32 Index, bool bSleeping)
 	{
 		if (Sleeping(Index) && bSleeping == false)
 		{
@@ -136,7 +136,7 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 		}
 	}
 
-	CHAOS_API void SetObjectState(int32 Index, EObjectStateType InObjectState)
+	void SetObjectState(int32 Index, EObjectStateType InObjectState)
 	{
 		const EObjectStateType CurrentState = this->ObjectState(Index);
 
@@ -186,7 +186,7 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 		this->ObjectState(Index) = InObjectState;
 	}
 
-	CHAOS_API void SetSleepType(int32 Index, ESleepType InSleepType)
+	void SetSleepType(int32 Index, ESleepType InSleepType)
 	{
 		if (InSleepType == ESleepType::NeverSleep && this->ObjectState(Index) == EObjectStateType::Sleeping)
 		{
@@ -202,7 +202,7 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 		return FString::Printf(TEXT("%s, MP:%s, MQ:%s, MPreV:%s, MPreW:%s"), *BaseString, *P(index).ToString(), *Q(index).ToString(), *PreV(index).ToString(), *PreW(index).ToString());
 	}
 
-	CHAOS_API virtual void Serialize(FChaosArchive& Ar) override
+	virtual void Serialize(FChaosArchive& Ar) override
 	{
 		TRigidParticles<T, d>::Serialize(Ar);
 		Ar << MP << MQ << MPreV << MPreW;

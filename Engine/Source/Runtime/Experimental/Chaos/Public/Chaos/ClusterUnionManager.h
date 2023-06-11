@@ -50,7 +50,7 @@ namespace Chaos
 		Remove
 	};
 
-	struct CHAOS_API FClusterUnionCreationParameters
+	struct FClusterUnionCreationParameters
 	{
 		FClusterUnionExplicitIndex ExplicitIndex = INDEX_NONE;
 		const FUniqueIdx* UniqueIndex = nullptr;
@@ -58,13 +58,13 @@ namespace Chaos
 		uint32 ComponentId = 0;
 	};
 
-	struct CHAOS_API FClusterUnionParticleProperties
+	struct FClusterUnionParticleProperties
 	{
 		// An auxiliary particle will be removed from the cluster union if FRigidClustering::HandleConnectivityOnReleaseClusterParticle detects an island made up of only auxiliary particles.
 		bool bIsAuxiliaryParticle = false;
 	};
 
-	struct CHAOS_API FClusterUnion
+	struct FClusterUnion
 	{
 		// The root cluster particle that we created internally to represent the cluster.
 		FPBDRigidClusteredParticleHandle* InternalCluster;
@@ -114,7 +114,7 @@ namespace Chaos
 	 * cause one or more clusters to simulate together as a single rigid
 	 * particle.
 	 */
-	class CHAOS_API FClusterUnionManager
+	class FClusterUnionManager
 	{
 	public:
 
@@ -133,56 +133,56 @@ namespace Chaos
 			return TransformedChildGeometry;
 		}
 
-		FClusterUnionManager(FRigidClustering& InClustering, FPBDRigidsEvolutionGBF& InEvolution);
+		CHAOS_API FClusterUnionManager(FRigidClustering& InClustering, FPBDRigidsEvolutionGBF& InEvolution);
 
 		// Creates a new cluster union with an automatically assigned cluster union index.
-		FClusterUnionIndex CreateNewClusterUnion(const FClusterCreationParameters& Parameters, const FClusterUnionCreationParameters& ClusterUnionParameters = FClusterUnionCreationParameters{});
+		CHAOS_API FClusterUnionIndex CreateNewClusterUnion(const FClusterCreationParameters& Parameters, const FClusterUnionCreationParameters& ClusterUnionParameters = FClusterUnionCreationParameters{});
 
 		// Destroy a given cluster union.
-		void DestroyClusterUnion(FClusterUnionIndex Index);
+		CHAOS_API void DestroyClusterUnion(FClusterUnionIndex Index);
 
 		// Add a new operation to the queue. Note that we currently only support the pending/flush operations for explicit operations. The behavior is legacy anyway so this should be fine.
-		void AddPendingExplicitIndexOperation(FClusterUnionExplicitIndex Index, EClusterUnionOperation Op, const TArray<FPBDRigidParticleHandle*>& Particles);
-		void AddPendingClusterIndexOperation(FClusterUnionIndex Index, EClusterUnionOperation Op, const TArray<FPBDRigidParticleHandle*>& Particles);
+		CHAOS_API void AddPendingExplicitIndexOperation(FClusterUnionExplicitIndex Index, EClusterUnionOperation Op, const TArray<FPBDRigidParticleHandle*>& Particles);
+		CHAOS_API void AddPendingClusterIndexOperation(FClusterUnionIndex Index, EClusterUnionOperation Op, const TArray<FPBDRigidParticleHandle*>& Particles);
 
 		// Actually performs the change specified in the FClusterUnionOperationData structure.
-		void HandleAddOperation(FClusterUnionIndex ClusterIndex, const TArray<FPBDRigidParticleHandle*>& Particles, bool bReleaseClustersFirst);
+		CHAOS_API void HandleAddOperation(FClusterUnionIndex ClusterIndex, const TArray<FPBDRigidParticleHandle*>& Particles, bool bReleaseClustersFirst);
 
 		// Removes the specified particles from the specified cluster.
-		void HandleRemoveOperation(FClusterUnionIndex ClusterIndex, const TArray<FPBDRigidParticleHandle*>& Particles, EClusterUnionOperationTiming UpdateClusterPropertiesTiming);
+		CHAOS_API void HandleRemoveOperation(FClusterUnionIndex ClusterIndex, const TArray<FPBDRigidParticleHandle*>& Particles, EClusterUnionOperationTiming UpdateClusterPropertiesTiming);
 
 		// Helper function to remove particles given only the particle handle. This will consult the lookup table to find which cluster the particle is in before doing a normal remove operation.
-		void HandleRemoveOperationWithClusterLookup(const TArray<FPBDRigidParticleHandle*>& InParticles, EClusterUnionOperationTiming UpdateClusterPropertiesTiming);
+		CHAOS_API void HandleRemoveOperationWithClusterLookup(const TArray<FPBDRigidParticleHandle*>& InParticles, EClusterUnionOperationTiming UpdateClusterPropertiesTiming);
 
 		// Performs the queued child to parent modifications.
-		void HandleUpdateChildToParentOperation(FClusterUnionIndex ClusterIndex, const TArray<FPBDRigidParticleHandle*>& Particles);
+		CHAOS_API void HandleUpdateChildToParentOperation(FClusterUnionIndex ClusterIndex, const TArray<FPBDRigidParticleHandle*>& Particles);
 
 		// Will be called at the beginning of every time step to ensure that all the expected cluster unions have been modified.
-		void FlushPendingOperations();
+		CHAOS_API void FlushPendingOperations();
 
 		// Update cluster union properties here if they were deferred. This can be called manually but will otherwise also be handled in FlushPendingOperations.
-		void HandleDeferredClusterUnionUpdateProperties();
+		CHAOS_API void HandleDeferredClusterUnionUpdateProperties();
 
 		// Access the cluster union externally.
-		FClusterUnion* FindClusterUnionFromExplicitIndex(FClusterUnionExplicitIndex Index);
-		FClusterUnion* FindClusterUnion(FClusterUnionIndex Index);
-		FClusterUnion* FindClusterUnionFromParticle(FPBDRigidParticleHandle* Particle);
-		FClusterUnionIndex FindClusterUnionIndexFromParticle(FPBDRigidParticleHandle* Particle);
+		CHAOS_API FClusterUnion* FindClusterUnionFromExplicitIndex(FClusterUnionExplicitIndex Index);
+		CHAOS_API FClusterUnion* FindClusterUnion(FClusterUnionIndex Index);
+		CHAOS_API FClusterUnion* FindClusterUnionFromParticle(FPBDRigidParticleHandle* Particle);
+		CHAOS_API FClusterUnionIndex FindClusterUnionIndexFromParticle(FPBDRigidParticleHandle* Particle);
 
 		// An extension to FindClusterUnionIndexFromParticle to check whether or not the given particle is the cluster union particle itself.
-		bool IsClusterUnionParticle(FPBDRigidClusteredParticleHandle* Particle);
+		CHAOS_API bool IsClusterUnionParticle(FPBDRigidClusteredParticleHandle* Particle);
 
 		// Changes the ChildToParent of a number of particles in a cluster union. bLock will prevent other functions from overriding the ChildToParent (aside from another call to UpdateClusterUnionParticlesChildToParent).
-		void UpdateClusterUnionParticlesChildToParent(FClusterUnionIndex Index, const TArray<FPBDRigidParticleHandle*>& Particles, const TArray<FTransform>& ChildToParent, bool bLock);
+		CHAOS_API void UpdateClusterUnionParticlesChildToParent(FClusterUnionIndex Index, const TArray<FPBDRigidParticleHandle*>& Particles, const TArray<FTransform>& ChildToParent, bool bLock);
 
 		// Update the cluster union's properties after its set of particle changes.
-		void UpdateAllClusterUnionProperties(FClusterUnion& ClusterUnion, EUpdateClusterUnionPropertiesFlags Flags = EUpdateClusterUnionPropertiesFlags::All);
+		CHAOS_API void UpdateAllClusterUnionProperties(FClusterUnion& ClusterUnion, EUpdateClusterUnionPropertiesFlags Flags = EUpdateClusterUnionPropertiesFlags::All);
 
 		// Returns all cluster unions. Really meant only to be used for debugging.
 		const TMap<FClusterUnionIndex, FClusterUnion>& GetAllClusterUnions() const { return ClusterUnions; }
 
 		// Put in a deferred request to update the properties of the specified cluster union. Flags can limit the scope of the update.
-		void RequestDeferredClusterPropertiesUpdate(FClusterUnionIndex ClusterIndex, EUpdateClusterUnionPropertiesFlags Flags);
+		CHAOS_API void RequestDeferredClusterPropertiesUpdate(FClusterUnionIndex ClusterIndex, EUpdateClusterUnionPropertiesFlags Flags);
 	private:
 		FRigidClustering& MClustering;
 		FPBDRigidsEvolutionGBF& MEvolution;
@@ -216,7 +216,7 @@ namespace Chaos
 		// - If a cluster union gets released/destroyed, that index can be reused.
 		// - Otherwise, we use the NextAvailableUnionIndex which is just the max index we've seen + 1.
 		//
-		FClusterUnionIndex ClaimNextUnionIndex();
+		CHAOS_API FClusterUnionIndex ClaimNextUnionIndex();
 		TArray<FClusterUnionIndex> ReusableIndices;
 		FClusterUnionIndex NextAvailableUnionIndex = 1;
 
@@ -225,19 +225,19 @@ namespace Chaos
 		// (i.e. an index that comes in via FClusterUnionOperationData for the first time) to an automatically
 		// generated index (i.e one that would returned via CreateNewClusterUnion).
 		TMap<FClusterUnionExplicitIndex, FClusterUnionIndex> ExplicitIndexMap;
-		FClusterCreationParameters DefaultClusterCreationParameters() const;
+		CHAOS_API FClusterCreationParameters DefaultClusterCreationParameters() const;
 
 		// If no cluster index is set but an explicit index is set, map the explicit index to a regular index.
-		FClusterUnionIndex GetOrCreateClusterUnionIndexFromExplicitIndex(FClusterUnionExplicitIndex InIndex);
+		CHAOS_API FClusterUnionIndex GetOrCreateClusterUnionIndexFromExplicitIndex(FClusterUnionExplicitIndex InIndex);
 
 		// Forcefully recreate the shared geometry on a cluster. Potentially expensive so ideally should be used rarely.
-		TSharedPtr<FImplicitObject, ESPMode::ThreadSafe> ForceRecreateClusterUnionSharedGeometry(const FClusterUnion& Union);
+		CHAOS_API TSharedPtr<FImplicitObject, ESPMode::ThreadSafe> ForceRecreateClusterUnionSharedGeometry(const FClusterUnion& Union);
 
 		// Handles updating the cluster union.
-		void DeferredClusterUnionUpdate(FClusterUnion& Union, EUpdateClusterUnionPropertiesFlags Flags);
+		CHAOS_API void DeferredClusterUnionUpdate(FClusterUnion& Union, EUpdateClusterUnionPropertiesFlags Flags);
 
 		// Flush the cluster union's incremental connectivity operations
-		void FlushIncrementalConnectivityGraphOperations(FClusterUnion& ClusterUnion);
+		CHAOS_API void FlushIncrementalConnectivityGraphOperations(FClusterUnion& ClusterUnion);
 	};
 
 }

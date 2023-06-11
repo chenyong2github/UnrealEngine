@@ -23,7 +23,7 @@ namespace Chaos
 		class FPBDCollisionSolverManifoldPoint;
 	}
 
-	class CHAOS_API FPBDSuspensionConstraintHandle final : public TIndexedContainerConstraintHandle<FPBDSuspensionConstraints>
+	class FPBDSuspensionConstraintHandle final : public TIndexedContainerConstraintHandle<FPBDSuspensionConstraints>
 	{
 	public:
 		using Base = TIndexedContainerConstraintHandle<FPBDSuspensionConstraints>;
@@ -32,12 +32,12 @@ namespace Chaos
 		FPBDSuspensionConstraintHandle() {}
 		FPBDSuspensionConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex);
 
-		FPBDSuspensionSettings& GetSettings();
-		const FPBDSuspensionSettings& GetSettings() const;
+		CHAOS_API FPBDSuspensionSettings& GetSettings();
+		CHAOS_API const FPBDSuspensionSettings& GetSettings() const;
 
-		void SetSettings(const FPBDSuspensionSettings& Settings);
+		CHAOS_API void SetSettings(const FPBDSuspensionSettings& Settings);
 
-		virtual FParticlePair GetConstrainedParticles() const override final;
+		CHAOS_API virtual FParticlePair GetConstrainedParticles() const override final;
 
 		static const FConstraintHandleTypeID& StaticType()
 		{
@@ -49,7 +49,7 @@ namespace Chaos
 		using Base::ConcreteContainer;
 	};
 
-	class CHAOS_API FPBDSuspensionConstraints : public TPBDIndexedConstraintContainer<FPBDSuspensionConstraints>
+	class FPBDSuspensionConstraints : public TPBDIndexedConstraintContainer<FPBDSuspensionConstraints>
 	{
 	public:
 		using Base = TPBDIndexedConstraintContainer<FPBDSuspensionConstraints>;
@@ -93,12 +93,12 @@ namespace Chaos
 		/**
 		 * Add a constraint.
 		 */
-		FConstraintContainerHandle* AddConstraint(TGeometryParticleHandle<FReal, 3>* Particle, const FVec3& InConstraintFrame, const FPBDSuspensionSettings& InConstraintSettings);
+		CHAOS_API FConstraintContainerHandle* AddConstraint(TGeometryParticleHandle<FReal, 3>* Particle, const FVec3& InConstraintFrame, const FPBDSuspensionSettings& InConstraintSettings);
 
 		/**
 		 * Remove a constraint.
 		 */
-		void RemoveConstraint(int ConstraintIndex);
+		CHAOS_API void RemoveConstraint(int ConstraintIndex);
 
 
 		/*
@@ -230,28 +230,28 @@ namespace Chaos
 		//
 		virtual int32 GetNumConstraints() const override final { return NumConstraints(); }
 		virtual void ResetConstraints() override final {}
-		virtual void AddConstraintsToGraph(Private::FPBDIslandManager& IslandManager) override final;
+		CHAOS_API virtual void AddConstraintsToGraph(Private::FPBDIslandManager& IslandManager) override final;
 		virtual void PrepareTick() override final {}
 		virtual void UnprepareTick() override final {}
 
 		//
 		// TSimpleConstraintContainerSolver API - used by RBAN
 		//
-		void AddBodies(FSolverBodyContainer& SolverBodyContainer);
-		void GatherInput(const FReal Dt);
-		void ScatterOutput(const FReal Dt);
-		void ApplyPositionConstraints(const FReal Dt, const int32 It, const int32 NumIts);
-		void ApplyVelocityConstraints(const FReal Dt, const int32 It, const int32 NumIts);
+		CHAOS_API void AddBodies(FSolverBodyContainer& SolverBodyContainer);
+		CHAOS_API void GatherInput(const FReal Dt);
+		CHAOS_API void ScatterOutput(const FReal Dt);
+		CHAOS_API void ApplyPositionConstraints(const FReal Dt, const int32 It, const int32 NumIts);
+		CHAOS_API void ApplyVelocityConstraints(const FReal Dt, const int32 It, const int32 NumIts);
 		void ApplyProjectionConstraints(const FReal Dt, const int32 It, const int32 NumIts) {}
 
 		//
 		// TIndexedConstraintContainerSolver API - used by World solvers
 		//
-		void AddBodies(const TArrayView<int32>& ConstraintIndices, FSolverBodyContainer& SolverBodyContainer);
-		void GatherInput(const TArrayView<int32>& ConstraintIndices, const FReal Dt);
-		void ScatterOutput(const TArrayView<int32>& ConstraintIndices, const FReal Dt);
-		void ApplyPositionConstraints(const TArrayView<int32>& ConstraintIndices, const FReal Dt, const int32 It, const int32 NumIts);
-		void ApplyVelocityConstraints(const TArrayView<int32>& ConstraintIndices, const FReal Dt, const int32 It, const int32 NumIts);
+		CHAOS_API void AddBodies(const TArrayView<int32>& ConstraintIndices, FSolverBodyContainer& SolverBodyContainer);
+		CHAOS_API void GatherInput(const TArrayView<int32>& ConstraintIndices, const FReal Dt);
+		CHAOS_API void ScatterOutput(const TArrayView<int32>& ConstraintIndices, const FReal Dt);
+		CHAOS_API void ApplyPositionConstraints(const TArrayView<int32>& ConstraintIndices, const FReal Dt, const int32 It, const int32 NumIts);
+		CHAOS_API void ApplyVelocityConstraints(const TArrayView<int32>& ConstraintIndices, const FReal Dt, const int32 It, const int32 NumIts);
 		void ApplyProjectionConstraints(const TArrayView<int32>& ConstraintIndices, const FReal Dt, const int32 It, const int32 NumIts) {}
 
 
@@ -260,12 +260,12 @@ namespace Chaos
 		using Base::SetConstraintIndex;
 
 	private:
-		void AddBodies(const int32 ConstraintIndex, FSolverBodyContainer& SolverBodyContainer);
-		void GatherInput(const int32 ConstraintIndex, FReal Dt);
-		void ScatterOutput(const int32 ConstraintIndex, FReal Dt);
-		void ApplyPositionConstraint(const int32 ConstraintIndex, const FReal Dt, const int32 It, const int32 NumIts);
-		void ApplyVelocityConstraint(const int32 ConstraintIndex, const FReal Dt, const int32 It, const int32 NumIts);
-		void ApplySingle(int32 ConstraintIndex, const FReal Dt);
+		CHAOS_API void AddBodies(const int32 ConstraintIndex, FSolverBodyContainer& SolverBodyContainer);
+		CHAOS_API void GatherInput(const int32 ConstraintIndex, FReal Dt);
+		CHAOS_API void ScatterOutput(const int32 ConstraintIndex, FReal Dt);
+		CHAOS_API void ApplyPositionConstraint(const int32 ConstraintIndex, const FReal Dt, const int32 It, const int32 NumIts);
+		CHAOS_API void ApplyVelocityConstraint(const int32 ConstraintIndex, const FReal Dt, const int32 It, const int32 NumIts);
+		CHAOS_API void ApplySingle(int32 ConstraintIndex, const FReal Dt);
 		
 		FPBDSuspensionSolverSettings SolverSettings;
 

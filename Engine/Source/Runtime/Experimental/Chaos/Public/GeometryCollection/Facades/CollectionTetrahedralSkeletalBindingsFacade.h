@@ -16,32 +16,32 @@ namespace GeometryCollection::Facades
 	* tetrahedral meshes. All bindings are stored in a single group, and a lookup table
 	* is aviable to match bindings to specifi meshs by name. 
 	*/
-	class CHAOS_API FTetrahedralSkeletalBindings
+	class FTetrahedralSkeletalBindings
  	{
 	public:
 		// Groups 
-		static const FName MeshBindingsGroupName;
-		static const FName MeshBindingsIdGroupName;
+		static CHAOS_API const FName MeshBindingsGroupName;
+		static CHAOS_API const FName MeshBindingsIdGroupName;
 
 		// Attributes
-		static const FName MeshIdAttributeName;
-		static const FName MeshIndexAttributeName;
-		static const FName TetrahedronIndexAttributeName;
-		static const FName WeightsAttributeName;
-		static const FName SkeletalIndexAttributeName;
+		static CHAOS_API const FName MeshIdAttributeName;
+		static CHAOS_API const FName MeshIndexAttributeName;
+		static CHAOS_API const FName TetrahedronIndexAttributeName;
+		static CHAOS_API const FName WeightsAttributeName;
+		static CHAOS_API const FName SkeletalIndexAttributeName;
 
 		/**
 		* FSelectionFacade Constuctor
 		* @param VertixDependencyGroup : GroupName the index attribute is dependent on. 
 		*/
-		FTetrahedralSkeletalBindings(FManagedArrayCollection& InSelf);
-		FTetrahedralSkeletalBindings(const FManagedArrayCollection& InSelf);
-		virtual ~FTetrahedralSkeletalBindings();
+		CHAOS_API FTetrahedralSkeletalBindings(FManagedArrayCollection& InSelf);
+		CHAOS_API FTetrahedralSkeletalBindings(const FManagedArrayCollection& InSelf);
+		CHAOS_API virtual ~FTetrahedralSkeletalBindings();
 
 		/** 
 		* Create the facade schema. 
 		*/
-		void DefineSchema();
+		CHAOS_API void DefineSchema();
 
 		/** Returns \c true if the facade is operating on a read-only geometry collection. */
 		bool IsConst() const { return MeshIdAttribute.IsConst(); }
@@ -50,16 +50,16 @@ namespace GeometryCollection::Facades
 		* Returns \c true if the Facade defined on the collection, and is initialized to
 		* a valid bindings group.
 		*/
-		bool IsValid() const;
+		CHAOS_API bool IsValid() const;
 
 		//
 		// API
 		//
-		static FString GenerateMeshGroupName(const int32 TetMeshIdx, const FName& SkeletalMeshName, const int32 LOD = INDEX_NONE);
-		void SetBindings(const FString& InMeshGroupIndex, const TArray<int32>& InTetrahedronIndex, const TArray<FVector4f>& WeightsIn, const TArray<int32>& InSkeletalIndex);
+		static CHAOS_API FString GenerateMeshGroupName(const int32 TetMeshIdx, const FName& SkeletalMeshName, const int32 LOD = INDEX_NONE);
+		CHAOS_API void SetBindings(const FString& InMeshGroupIndex, const TArray<int32>& InTetrahedronIndex, const TArray<FVector4f>& WeightsIn, const TArray<int32>& InSkeletalIndex);
 		
 		/** Returns \c false if bindings data was not found, or there was another error; \c true otherwise. */
-		bool CalculateBindings(const FString& InKey, const TArray<FVector3f>& InVertices, TArray<FVector>& OutPosition, TArray<bool>* OutInfluence = nullptr) const;
+		CHAOS_API bool CalculateBindings(const FString& InKey, const TArray<FVector3f>& InVertices, TArray<FVector>& OutPosition, TArray<bool>* OutInfluence = nullptr) const;
 		
 	private:
 		TManagedArrayAccessor<FString> MeshIdAttribute;

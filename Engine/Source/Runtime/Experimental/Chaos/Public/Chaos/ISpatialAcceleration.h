@@ -9,7 +9,7 @@
 namespace Chaos
 {
 
-struct CHAOS_API FQueryFastData
+struct FQueryFastData
 {
 	FQueryFastData(const FVec3& InDir, const FReal InLength)
 		: Dir(InDir)
@@ -59,7 +59,7 @@ protected:
 };
 
 //dummy struct for templatized paths
-struct CHAOS_API FQueryFastDataVoid : public FQueryFastData
+struct FQueryFastDataVoid : public FQueryFastData
 {
 	FQueryFastDataVoid() : FQueryFastData(DummyDir) {}
 	

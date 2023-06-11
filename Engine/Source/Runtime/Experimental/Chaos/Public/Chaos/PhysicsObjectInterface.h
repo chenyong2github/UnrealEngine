@@ -18,7 +18,7 @@ class FChaosScene;
 class IPhysicsProxyBase;
 
 USTRUCT(BlueprintType)
-struct CHAOS_API FClosestPhysicsObjectResult
+struct FClosestPhysicsObjectResult
 {
 	GENERATED_BODY()
 
@@ -34,7 +34,7 @@ struct CHAOS_API FClosestPhysicsObjectResult
 		return PhysicsObject != nullptr;
 	}
 
-	FName HitName() const;
+	CHAOS_API FName HitName() const;
 };
 
 enum ERadialImpulseFalloff : int;
@@ -45,7 +45,7 @@ namespace Chaos
 	class FPerShapeData;
 	struct FMTDInfo;
 
-	struct CHAOS_API FOverlapInfo
+	struct FOverlapInfo
 	{
 		FMTDInfo* MTD = nullptr;
 		FBox* AxisOverlap = nullptr;
@@ -55,53 +55,53 @@ namespace Chaos
 	 * FReadPhysicsObjectInterface will assume that these operations are safe to call (i.e. the relevant scenes have been read locked on the game thread).
 	 */
 	template<EThreadContext Id>
-	class CHAOS_API FReadPhysicsObjectInterface
+	class FReadPhysicsObjectInterface
 	{
 	public:
-		FPhysicsObjectHandle GetRootObject(const FConstPhysicsObjectHandle Object);
-		bool HasChildren(const FConstPhysicsObjectHandle Object);
-		int32 GetClusterHierarchyLevel(const FConstPhysicsObjectHandle Object);
+		CHAOS_API FPhysicsObjectHandle GetRootObject(const FConstPhysicsObjectHandle Object);
+		CHAOS_API bool HasChildren(const FConstPhysicsObjectHandle Object);
+		CHAOS_API int32 GetClusterHierarchyLevel(const FConstPhysicsObjectHandle Object);
 
-		FTransform GetTransform(const FConstPhysicsObjectHandle Object);
-		FVector GetX(const FConstPhysicsObjectHandle Object);
-		FVector GetCoM(const FConstPhysicsObjectHandle Object);
-		FVector GetWorldCoM(const FConstPhysicsObjectHandle Object);
-		FQuat GetR(const FConstPhysicsObjectHandle Object);
-		FVector GetV(const FConstPhysicsObjectHandle Object);
-		FVector GetW(const FConstPhysicsObjectHandle Object);
-		FSpatialAccelerationIdx GetSpatialIndex(const FConstPhysicsObjectHandle Object);
+		CHAOS_API FTransform GetTransform(const FConstPhysicsObjectHandle Object);
+		CHAOS_API FVector GetX(const FConstPhysicsObjectHandle Object);
+		CHAOS_API FVector GetCoM(const FConstPhysicsObjectHandle Object);
+		CHAOS_API FVector GetWorldCoM(const FConstPhysicsObjectHandle Object);
+		CHAOS_API FQuat GetR(const FConstPhysicsObjectHandle Object);
+		CHAOS_API FVector GetV(const FConstPhysicsObjectHandle Object);
+		CHAOS_API FVector GetW(const FConstPhysicsObjectHandle Object);
+		CHAOS_API FSpatialAccelerationIdx GetSpatialIndex(const FConstPhysicsObjectHandle Object);
 
-		TThreadParticle<Id>* GetParticle(const FConstPhysicsObjectHandle Object);
-		TThreadRigidParticle<Id>* GetRigidParticle(const FConstPhysicsObjectHandle Object);
-		TArray<TThreadParticle<Id>*> GetAllParticles(TArrayView<const FConstPhysicsObjectHandle> InObjects);
-		TArray<TThreadRigidParticle<Id>*> GetAllRigidParticles(TArrayView<const FConstPhysicsObjectHandle> InObjects);
+		CHAOS_API TThreadParticle<Id>* GetParticle(const FConstPhysicsObjectHandle Object);
+		CHAOS_API TThreadRigidParticle<Id>* GetRigidParticle(const FConstPhysicsObjectHandle Object);
+		CHAOS_API TArray<TThreadParticle<Id>*> GetAllParticles(TArrayView<const FConstPhysicsObjectHandle> InObjects);
+		CHAOS_API TArray<TThreadRigidParticle<Id>*> GetAllRigidParticles(TArrayView<const FConstPhysicsObjectHandle> InObjects);
 
 		UE_DEPRECATED(5.3, "GetAllShapes has been deprecated. Please use GetAllThreadShapes instead.")
-		TArray<FPerShapeData*> GetAllShapes(TArrayView<const FConstPhysicsObjectHandle> InObjects);
+		CHAOS_API TArray<FPerShapeData*> GetAllShapes(TArrayView<const FConstPhysicsObjectHandle> InObjects);
 
-		TArray<TThreadShapeInstance<Id>*> GetAllThreadShapes(TArrayView<const FConstPhysicsObjectHandle> InObjects);
+		CHAOS_API TArray<TThreadShapeInstance<Id>*> GetAllThreadShapes(TArrayView<const FConstPhysicsObjectHandle> InObjects);
 
 		// Returns true if a shape is found and we can stop iterating.
-		void VisitEveryShape(TArrayView<const FConstPhysicsObjectHandle> InObjects, TFunctionRef<bool(const FConstPhysicsObjectHandle, TThreadShapeInstance<Id>*)> Lambda);
+		CHAOS_API void VisitEveryShape(TArrayView<const FConstPhysicsObjectHandle> InObjects, TFunctionRef<bool(const FConstPhysicsObjectHandle, TThreadShapeInstance<Id>*)> Lambda);
 
 		UE_DEPRECATED(5.3, "GetPhysicsObjectOverlap has been deprecated. Please use the function for the specific overlap metric you wish to compute instead in the FPhysicsObjectCollisionInterface.")
-		bool GetPhysicsObjectOverlap(const FConstPhysicsObjectHandle ObjectA, const FConstPhysicsObjectHandle ObjectB, bool bTraceComplex, Chaos::FOverlapInfo& OutOverlap);
+		CHAOS_API bool GetPhysicsObjectOverlap(const FConstPhysicsObjectHandle ObjectA, const FConstPhysicsObjectHandle ObjectB, bool bTraceComplex, Chaos::FOverlapInfo& OutOverlap);
 
 		UE_DEPRECATED(5.3, "GetPhysicsObjectOverlapWithTransform has been deprecated. Please use the function for the specific overlap metric you wish to compute instead in the FPhysicsObjectCollisionInterface.")
-		bool GetPhysicsObjectOverlapWithTransform(const FConstPhysicsObjectHandle ObjectA, const FTransform& InTransformA, const FConstPhysicsObjectHandle ObjectB, const FTransform& InTransformB, bool bTraceComplex, Chaos::FOverlapInfo& OutOverlap);
+		CHAOS_API bool GetPhysicsObjectOverlapWithTransform(const FConstPhysicsObjectHandle ObjectA, const FTransform& InTransformA, const FConstPhysicsObjectHandle ObjectB, const FTransform& InTransformB, bool bTraceComplex, Chaos::FOverlapInfo& OutOverlap);
 
-		bool AreAllValid(TArrayView<const FConstPhysicsObjectHandle> InObjects);
-		bool AreAllKinematic(TArrayView<const FConstPhysicsObjectHandle> InObjects);
-		bool AreAllSleeping(TArrayView<const FConstPhysicsObjectHandle> InObjects);
-		bool AreAllRigidBody(TArrayView<const FConstPhysicsObjectHandle> InObjects);
-		bool AreAllDynamic(TArrayView<const FConstPhysicsObjectHandle> InObjects);
-		bool AreAllDisabled(TArrayView<const FConstPhysicsObjectHandle> InObjects);
-		bool AreAllShapesQueryEnabled(TArrayView<const FConstPhysicsObjectHandle> InObjects);
-		float GetMass(TArrayView<const FConstPhysicsObjectHandle> InObjects);
-		FBox GetBounds(TArrayView<const FConstPhysicsObjectHandle> InObjects);
-		FBox GetWorldBounds(TArrayView<const FConstPhysicsObjectHandle> InObjects);
-		FClosestPhysicsObjectResult GetClosestPhysicsBodyFromLocation(TArrayView<const FConstPhysicsObjectHandle> InObjects, const FVector& WorldLocation);
-		FAccelerationStructureHandle CreateAccelerationStructureHandle(const FConstPhysicsObjectHandle Handle);
+		CHAOS_API bool AreAllValid(TArrayView<const FConstPhysicsObjectHandle> InObjects);
+		CHAOS_API bool AreAllKinematic(TArrayView<const FConstPhysicsObjectHandle> InObjects);
+		CHAOS_API bool AreAllSleeping(TArrayView<const FConstPhysicsObjectHandle> InObjects);
+		CHAOS_API bool AreAllRigidBody(TArrayView<const FConstPhysicsObjectHandle> InObjects);
+		CHAOS_API bool AreAllDynamic(TArrayView<const FConstPhysicsObjectHandle> InObjects);
+		CHAOS_API bool AreAllDisabled(TArrayView<const FConstPhysicsObjectHandle> InObjects);
+		CHAOS_API bool AreAllShapesQueryEnabled(TArrayView<const FConstPhysicsObjectHandle> InObjects);
+		CHAOS_API float GetMass(TArrayView<const FConstPhysicsObjectHandle> InObjects);
+		CHAOS_API FBox GetBounds(TArrayView<const FConstPhysicsObjectHandle> InObjects);
+		CHAOS_API FBox GetWorldBounds(TArrayView<const FConstPhysicsObjectHandle> InObjects);
+		CHAOS_API FClosestPhysicsObjectResult GetClosestPhysicsBodyFromLocation(TArrayView<const FConstPhysicsObjectHandle> InObjects, const FVector& WorldLocation);
+		CHAOS_API FAccelerationStructureHandle CreateAccelerationStructureHandle(const FConstPhysicsObjectHandle Handle);
 
 		friend class FPhysicsObjectInterface;
 	protected:
@@ -115,17 +115,17 @@ namespace Chaos
 	 * FReadPhysicsObjectInterface will assume that these operations are safe to call (i.e. the relevant scenes have been read locked on the physics thread).
 	 */
 	template<EThreadContext Id>
-	class CHAOS_API FWritePhysicsObjectInterface: public FReadPhysicsObjectInterface<Id>
+	class FWritePhysicsObjectInterface: public FReadPhysicsObjectInterface<Id>
 	{
 	public:
-		void PutToSleep(TArrayView<const FPhysicsObjectHandle> InObjects);
-		void WakeUp(TArrayView<const FPhysicsObjectHandle> InObjects);
-		void AddForce(TArrayView<const FPhysicsObjectHandle> InObjects, const FVector& Force, bool bInvalidate);
-		void AddTorque(TArrayView<const FPhysicsObjectHandle> InObjects, const FVector& Torque, bool bInvalidate);
-		void AddRadialImpulse(TArrayView<const FPhysicsObjectHandle> InObjects, FVector Origin, float Radius, float Strength, enum ERadialImpulseFalloff Falloff, bool bApplyStrain, bool bInvalidate);
+		CHAOS_API void PutToSleep(TArrayView<const FPhysicsObjectHandle> InObjects);
+		CHAOS_API void WakeUp(TArrayView<const FPhysicsObjectHandle> InObjects);
+		CHAOS_API void AddForce(TArrayView<const FPhysicsObjectHandle> InObjects, const FVector& Force, bool bInvalidate);
+		CHAOS_API void AddTorque(TArrayView<const FPhysicsObjectHandle> InObjects, const FVector& Torque, bool bInvalidate);
+		CHAOS_API void AddRadialImpulse(TArrayView<const FPhysicsObjectHandle> InObjects, FVector Origin, float Radius, float Strength, enum ERadialImpulseFalloff Falloff, bool bApplyStrain, bool bInvalidate);
 		
-		void UpdateShapeCollisionFlags(TArrayView<const FPhysicsObjectHandle> InObjects, bool bSimCollision, bool bQueryCollision);
-		void UpdateShapeFilterData(TArrayView<const FPhysicsObjectHandle> InObjects, const FCollisionFilterData& QueryData, const FCollisionFilterData& SimData);
+		CHAOS_API void UpdateShapeCollisionFlags(TArrayView<const FPhysicsObjectHandle> InObjects, bool bSimCollision, bool bQueryCollision);
+		CHAOS_API void UpdateShapeFilterData(TArrayView<const FPhysicsObjectHandle> InObjects, const FCollisionFilterData& QueryData, const FCollisionFilterData& SimData);
 
 		template<typename TPayloadType, typename T, int d>
 		void AddToSpatialAcceleration(TArrayView<const FPhysicsObjectHandle> InObjects, ISpatialAcceleration<TPayloadType, T, d>* SpatialAcceleration)
@@ -159,7 +159,7 @@ namespace Chaos
 			}
 		}
 
-		void AddConnectivityEdgesBetween(TArrayView<const FPhysicsObjectHandle> FromObjects, TArrayView<const FPhysicsObjectHandle> ToObjects, const FClusterCreationParameters& Parameters);
+		CHAOS_API void AddConnectivityEdgesBetween(TArrayView<const FPhysicsObjectHandle> FromObjects, TArrayView<const FPhysicsObjectHandle> ToObjects, const FClusterCreationParameters& Parameters);
 
 		friend class FPhysicsObjectInterface;
 	protected:
@@ -174,17 +174,17 @@ namespace Chaos
 	 * Any operations on the underlying particle/particle handle should use the FReadPhysicsObjectInterface and
 	 * FWritePhysicsObjectInterface.
 	 */
-	class CHAOS_API FPhysicsObjectInterface
+	class FPhysicsObjectInterface
 	{
 	public:
-		static void SetName(const FPhysicsObjectHandle Object, const FName& InName);
-		static FName GetName(const FConstPhysicsObjectHandle Object);
+		static CHAOS_API void SetName(const FPhysicsObjectHandle Object, const FName& InName);
+		static CHAOS_API FName GetName(const FConstPhysicsObjectHandle Object);
 
-		static void SetId(const FPhysicsObjectHandle Object, int32 InId);
-		static int32 GetId(const FConstPhysicsObjectHandle Object);
+		static CHAOS_API void SetId(const FPhysicsObjectHandle Object, int32 InId);
+		static CHAOS_API int32 GetId(const FConstPhysicsObjectHandle Object);
 
-		static FPBDRigidsSolver* GetSolver(TArrayView<const FConstPhysicsObjectHandle> InObjects);
-		static IPhysicsProxyBase* GetProxy(TArrayView<const FConstPhysicsObjectHandle> InObjects);
+		static CHAOS_API FPBDRigidsSolver* GetSolver(TArrayView<const FConstPhysicsObjectHandle> InObjects);
+		static CHAOS_API IPhysicsProxyBase* GetProxy(TArrayView<const FConstPhysicsObjectHandle> InObjects);
 
 	protected:
 		// This function should not be called without an appropriate read-lock on the relevant scene.

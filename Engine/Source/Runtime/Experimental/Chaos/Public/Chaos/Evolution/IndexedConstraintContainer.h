@@ -11,7 +11,7 @@ namespace Chaos
 	/**
 	 * Base class for handles to constraints in an index-based container (e.g., FJointConstraints)
 	 */
-	class CHAOS_API FIndexedConstraintHandle : public FConstraintHandle
+	class FIndexedConstraintHandle : public FConstraintHandle
 	{
 	public:
 		using FGeometryParticleHandle = TGeometryParticleHandle<FReal, 3>;
@@ -64,7 +64,7 @@ namespace Chaos
 	 * Utility base class for FIndexedConstraintHandles
 	 */
 	template<typename T_CONTAINER>
-	class CHAOS_API TIndexedContainerConstraintHandle : public FIndexedConstraintHandle
+	class TIndexedContainerConstraintHandle : public FIndexedConstraintHandle
 	{
 	public:
 		using Base = FIndexedConstraintHandle;
@@ -125,7 +125,7 @@ namespace Chaos
 	 * as determined by the constraint graph.
 	*/
 	template<typename ConstraintContainerType>
-	class CHAOS_API TIndexedConstraintContainerSolver : public FConstraintContainerSolver
+	class TIndexedConstraintContainerSolver : public FConstraintContainerSolver
 	{
 	public:
 		using FConstraintContainerType = ConstraintContainerType;
@@ -228,7 +228,7 @@ namespace Chaos
 	/**
 	* Utility base class for constraint containers usingindexed-based constraint handles (e.g., FJointConstraints)
 	*/
-	class CHAOS_API FPBDIndexedConstraintContainer : public FPBDConstraintContainer
+	class FPBDIndexedConstraintContainer : public FPBDConstraintContainer
 	{
 	public:
 		FPBDIndexedConstraintContainer(FConstraintHandleTypeID InType)
@@ -253,7 +253,7 @@ namespace Chaos
 	};
 
 	template<typename ConstaintContainerType>
-	class CHAOS_API TPBDIndexedConstraintContainer : public FPBDIndexedConstraintContainer
+	class TPBDIndexedConstraintContainer : public FPBDIndexedConstraintContainer
 	{
 	public:
 		using FConstaintContainerType = ConstaintContainerType;

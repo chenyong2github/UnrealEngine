@@ -31,7 +31,7 @@ namespace Chaos
 		* as long as we only have one constraint type in the island group which will do for now.
 		*/
 		template<typename T1, typename T2>
-		class CHAOS_API TABTestingConstraintContainerSolver : public FConstraintContainerSolver
+		class TABTestingConstraintContainerSolver : public FConstraintContainerSolver
 		{
 		public:
 			enum class ESolverPhase

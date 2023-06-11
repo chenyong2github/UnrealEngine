@@ -45,7 +45,7 @@ namespace Chaos
 	};
 	
 
-	class CHAOS_API FClusterUnionPhysicsProxy : public TPhysicsProxy<FClusterUnionPhysicsProxy, void, FClusterUnionProxyTimestamp>
+	class FClusterUnionPhysicsProxy : public TPhysicsProxy<FClusterUnionPhysicsProxy, void, FClusterUnionProxyTimestamp>
 	{
 		using Base = TPhysicsProxy<FClusterUnionPhysicsProxy, void, FClusterUnionProxyTimestamp>;
 	public:
@@ -54,33 +54,33 @@ namespace Chaos
 		using FInternalParticle = TPBDRigidClusteredParticleHandle<Chaos::FReal, 3>;
 
 		FClusterUnionPhysicsProxy() = delete;
-		FClusterUnionPhysicsProxy(UObject* InOwner, const FClusterCreationParameters& InParameters, const FClusterUnionInitData& InInitData);
+		CHAOS_API FClusterUnionPhysicsProxy(UObject* InOwner, const FClusterCreationParameters& InParameters, const FClusterUnionInitData& InInitData);
 
 		// Add physics objects to the cluster union. Should only be called from the game thread.
-		void AddPhysicsObjects_External(const TArray<FPhysicsObjectHandle>& Objects);
+		CHAOS_API void AddPhysicsObjects_External(const TArray<FPhysicsObjectHandle>& Objects);
 		const FClusterUnionSyncedData& GetSyncedData_External() const { return SyncedData_External; }
 
 		// Remove physics objects from the cluster union.
-		void RemovePhysicsObjects_External(const TSet<FPhysicsObjectHandle>& Objects);
+		CHAOS_API void RemovePhysicsObjects_External(const TSet<FPhysicsObjectHandle>& Objects);
 
 		// Set/Remove any anchors on the cluster particle.
-		void SetIsAnchored_External(bool bIsAnchored);
+		CHAOS_API void SetIsAnchored_External(bool bIsAnchored);
 
 		// Set Object State.
-		EObjectStateType GetObjectState_External() const;
-		void SetObjectState_External(EObjectStateType State);
+		CHAOS_API EObjectStateType GetObjectState_External() const;
+		CHAOS_API void SetObjectState_External(EObjectStateType State);
 
 		// Set GT geometry - this is only for smoothing over any changes until the PT syncs back to the GT.
-		void SetSharedGeometry_External(const TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>& Geometry, const TArray<FPBDRigidParticle*>& ShapeParticles);
+		CHAOS_API void SetSharedGeometry_External(const TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>& Geometry, const TArray<FPBDRigidParticle*>& ShapeParticles);
 
 		// Cluster union proxy initialization happens in two first on the game thread (external) then on the
 		// physics thread (internal). Cluster unions are a primarily physics concept so the things exposed to
 		// an external context is just there to be able to safely query the state on the physics thread and to
 		// be able to add/remove things to the proxy itself (rather than to move it, for example).
-		void Initialize_External();
+		CHAOS_API void Initialize_External();
 
 		bool IsInitializedOnPhysicsThread() const { return bIsInitializedOnPhysicsThread; }
-		void Initialize_Internal(FPBDRigidsSolver* RigidsSolver, FPBDRigidsSolver::FParticlesType& Particles);
+		CHAOS_API void Initialize_Internal(FPBDRigidsSolver* RigidsSolver, FPBDRigidsSolver::FParticlesType& Particles);
 
 		FExternalParticle* GetParticle_External() const { return Particle_External.Get(); }
 		FInternalParticle* GetParticle_Internal() const { return Particle_Internal; }
@@ -88,28 +88,28 @@ namespace Chaos
 		FPhysicsObjectHandle GetPhysicsObjectHandle() const { return PhysicsObject.Get(); }
 
 		bool HasChildren_External() const { return !SyncedData_External.ChildParticles.IsEmpty(); }
-		bool HasChildren_Internal() const;
+		CHAOS_API bool HasChildren_Internal() const;
 
 		bool IsAnchored_External() const { return SyncedData_External.bIsAnchored; }
 
-		void SetXR_External(const FVector& X, const FQuat& R);
-		void SetLinearVelocity_External(const FVector& V);
-		void SetAngularVelocity_External(const FVector& W);
-		void SetChildToParent_External(FPhysicsObjectHandle Child, const FTransform& RelativeTransform, bool bLock);
-		void BulkSetChildToParent_External(const TArray<FPhysicsObjectHandle>& Objects, const TArray<FTransform>& Transforms, bool bLock);
+		CHAOS_API void SetXR_External(const FVector& X, const FQuat& R);
+		CHAOS_API void SetLinearVelocity_External(const FVector& V);
+		CHAOS_API void SetAngularVelocity_External(const FVector& W);
+		CHAOS_API void SetChildToParent_External(FPhysicsObjectHandle Child, const FTransform& RelativeTransform, bool bLock);
+		CHAOS_API void BulkSetChildToParent_External(const TArray<FPhysicsObjectHandle>& Objects, const TArray<FTransform>& Transforms, bool bLock);
 
 		//
 		// These functions take care of marshaling data back and forth between the game thread
 		// and the physics thread.
 		//
-		void PushToPhysicsState(const FDirtyPropertiesManager& Manager, int32 DataIdx, const FDirtyProxy& Dirty);
-		bool PullFromPhysicsState(const FDirtyClusterUnionData& PullData, int32 SolverSyncTimestamp, const FDirtyClusterUnionData* NextPullData = nullptr, const FRealSingle* Alpha = nullptr);
+		CHAOS_API void PushToPhysicsState(const FDirtyPropertiesManager& Manager, int32 DataIdx, const FDirtyProxy& Dirty);
+		CHAOS_API bool PullFromPhysicsState(const FDirtyClusterUnionData& PullData, int32 SolverSyncTimestamp, const FDirtyClusterUnionData* NextPullData = nullptr, const FRealSingle* Alpha = nullptr);
 
-		void BufferPhysicsResults_Internal(FDirtyClusterUnionData& BufferData);
-		void BufferPhysicsResults_External(FDirtyClusterUnionData& BufferData);
+		CHAOS_API void BufferPhysicsResults_Internal(FDirtyClusterUnionData& BufferData);
+		CHAOS_API void BufferPhysicsResults_External(FDirtyClusterUnionData& BufferData);
 
-		void SyncRemoteData(FDirtyPropertiesManager& Manager, int32 DataIdx, FDirtyChaosProperties& RemoteData) const;
-		void ClearAccumulatedData();
+		CHAOS_API void SyncRemoteData(FDirtyPropertiesManager& Manager, int32 DataIdx, FDirtyChaosProperties& RemoteData) const;
+		CHAOS_API void ClearAccumulatedData();
 
 		FProxyInterpolationBase& GetInterpolationData() { return InterpolationData; }
 		const FProxyInterpolationBase& GetInterpolationData() const { return InterpolationData; }

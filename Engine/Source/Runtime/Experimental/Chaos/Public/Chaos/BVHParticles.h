@@ -35,7 +35,7 @@ namespace Chaos
 	    CHAOS_API FBVHParticles& operator=(const FBVHParticles& Other);
 	    CHAOS_API FBVHParticles& operator=(FBVHParticles&& Other);
 
-		CHAOS_API FBVHParticles* NewCopy() const
+		FBVHParticles* NewCopy() const
 		{
 			return new FBVHParticles(*this);
 		}
@@ -50,7 +50,7 @@ namespace Chaos
 
 		CHAOS_API void Serialize(FChaosArchive& Ar);
 
-		CHAOS_API void Serialize(FArchive& Ar)
+		void Serialize(FArchive& Ar)
 		{
 			check(false); //Aggregate simplicial require FChaosArchive - check false by default
 		}

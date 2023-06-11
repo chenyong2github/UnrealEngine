@@ -11,7 +11,7 @@ namespace Chaos
 	 * be used to pass a tunable fraction of the world-space movement
 	 * on to the bodies.
 	 */
-	class CHAOS_API FSimulationSpace
+	class FSimulationSpace
 	{
 	public:
 		FSimulationSpace()
@@ -42,7 +42,7 @@ namespace Chaos
 	 *
 	 * https://en.wikipedia.org/wiki/Rotating_reference_frame
 	 */
-	class CHAOS_API FSimulationSpaceSettings
+	class FSimulationSpaceSettings
 	{
 	public:
 		FSimulationSpaceSettings()

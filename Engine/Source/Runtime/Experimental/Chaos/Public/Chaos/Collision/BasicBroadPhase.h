@@ -16,7 +16,7 @@ namespace Chaos
 	 *
 	 * No spatial acceleration, and the order is assumed to be already optimized for cache efficiency.
 	 */
-	class CHAOS_API FBasicBroadPhase
+	class FBasicBroadPhase
 	{
 	public:
 		using FParticleHandle = TGeometryParticleHandle<FReal, 3>;

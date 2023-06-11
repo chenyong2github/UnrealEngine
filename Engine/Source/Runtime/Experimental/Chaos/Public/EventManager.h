@@ -343,7 +343,7 @@ namespace Chaos
 	 */
 	using FEventContainerBasePtr = FEventContainerBase*;
 
-	class CHAOS_API FEventManager
+	class FEventManager
 	{
 		friend class FPBDRigidsSolver;
 
@@ -362,7 +362,7 @@ namespace Chaos
 		/**
 		 * Clears out every handler and container calling destructors on held items
 		 */
-		void Reset();
+		CHAOS_API void Reset();
 
 		/**
 		 * Set the buffer mode to be used within the event containers
@@ -401,7 +401,7 @@ namespace Chaos
 		/**
 		 * Unregister specified event from system
 		 */
-		void UnregisterEvent(const EEventType& EventType);
+		CHAOS_API void UnregisterEvent(const EEventType& EventType);
 
 		/**
 		 * Register a handler that will receive the dispatched events
@@ -430,27 +430,27 @@ namespace Chaos
 		/**
 		 * Unregister the specified event handler
 		 */
-		void UnregisterHandler(const EEventType& EventType, const void* InHandler);
+		CHAOS_API void UnregisterHandler(const EEventType& EventType, const void* InHandler);
 
 		/**
 		 * Called by the solver to invoke the functions that fill the producer side of all the event data buffers
 		 */
-		void FillProducerData(const Chaos::FPBDRigidsSolver* Solver, bool bResetData = true);
+		CHAOS_API void FillProducerData(const Chaos::FPBDRigidsSolver* Solver, bool bResetData = true);
 
 		/**
 		 * Flips the event data buffer if it is of double or triple buffer type
 		 */
-		void FlipBuffersIfRequired();
+		CHAOS_API void FlipBuffersIfRequired();
 
 		/**
 		 * // Dispatch events to the registered handlers
 		 */
-		void DispatchEvents();
+		CHAOS_API void DispatchEvents();
 
 		/** Returns encoded collision index. */
-		static int32 EncodeCollisionIndex(int32 ActualCollisionIndex, bool bSwapOrder);
+		static CHAOS_API int32 EncodeCollisionIndex(int32 ActualCollisionIndex, bool bSwapOrder);
 		/** Returns decoded collision index. */
-		static int32 DecodeCollisionIndex(int32 EncodedCollisionIdx, bool& bSwapOrder);
+		static CHAOS_API int32 DecodeCollisionIndex(int32 EncodedCollisionIdx, bool& bSwapOrder);
 
 
 		template<typename PayloadType>
@@ -466,7 +466,7 @@ namespace Chaos
 
 	private:
 
-		void InternalRegisterInjector(const FEventID& EventID, const FEventContainerBasePtr& Container);
+		CHAOS_API void InternalRegisterInjector(const FEventID& EventID, const FEventContainerBasePtr& Container);
 
 		Chaos::EMultiBufferMode BufferMode;			// specifies the buffer type to be constructed, single, double, triple
 		TArray<FEventContainerBasePtr> EventContainers;	// Array of event types

@@ -25,7 +25,7 @@ template<> struct TGridPrecisionLimit<FRealSingle> { static constexpr FRealSingl
 template<> struct TGridPrecisionLimit<FRealDouble> { static constexpr FRealDouble value = 4.5035e15; };
 
 template<class T, int d>
-class CHAOS_API TUniformGridBase
+class TUniformGridBase
 {
   protected:
 	TUniformGridBase() {}
@@ -263,7 +263,7 @@ class CHAOS_API TUniformGridBase
 };
 
 template<class T, int d>
-class CHAOS_API TUniformGrid : public TUniformGridBase<T, d>
+class TUniformGrid : public TUniformGridBase<T, d>
 {
 	using TUniformGridBase<T, d>::MCells;
 	using TUniformGridBase<T, d>::MMinCorner;
@@ -416,7 +416,7 @@ public:
 
 
 template<class T>
-class CHAOS_API TUniformGrid<T, 3> : public TUniformGridBase<T, 3>
+class TUniformGrid<T, 3> : public TUniformGridBase<T, 3>
 {
 	using TUniformGridBase<T, 3>::MCells;
 	using TUniformGridBase<T, 3>::MMinCorner;
@@ -436,8 +436,8 @@ class CHAOS_API TUniformGrid<T, 3> : public TUniformGridBase<T, 3>
 	    : TUniformGridBase<T, 3>(Stream) {}
 #endif
 	~TUniformGrid() {}
-	TVector<int32, 3> GetIndex(const int32 Index) const;
-	Pair<int32, TVector<int32, 3>> GetFaceIndex(int32 Index) const;
+	CHAOS_API TVector<int32, 3> GetIndex(const int32 Index) const;
+	CHAOS_API Pair<int32, TVector<int32, 3>> GetFaceIndex(int32 Index) const;
 	int32 GetNumFaces() const
 	{
 		return GetNumCells() * 3 + MCells[0] * MCells[1] + MCells[1] * MCells[2] + MCells[0] * MCells[3];
@@ -446,12 +446,12 @@ class CHAOS_API TUniformGrid<T, 3> : public TUniformGridBase<T, 3>
 	{
 		return TUniformGridBase<T, 3>::Location(GetIndex(Index));
 	}
-	TVector<int32, 3> ClampIndex(const TVector<int32, 3>& Index) const;
-	TVector<T, 3> Clamp(const TVector<T, 3>& X) const;
-	TVector<T, 3> ClampMinusHalf(const TVector<T, 3>& X) const;
-	bool IsValid(const TVector<int32, 3>& X) const;
+	CHAOS_API TVector<int32, 3> ClampIndex(const TVector<int32, 3>& Index) const;
+	CHAOS_API TVector<T, 3> Clamp(const TVector<T, 3>& X) const;
+	CHAOS_API TVector<T, 3> ClampMinusHalf(const TVector<T, 3>& X) const;
+	CHAOS_API bool IsValid(const TVector<int32, 3>& X) const;
 
-	TUniformGrid<T, 3> SubGrid(const TVector<int32, 3>& MinCell, const TVector<int32, 3>& MaxCell) const;
+	CHAOS_API TUniformGrid<T, 3> SubGrid(const TVector<int32, 3>& MinCell, const TVector<int32, 3>& MaxCell) const;
 };
 
 

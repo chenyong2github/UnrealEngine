@@ -9,12 +9,12 @@ class FOutputDevice;
 
 namespace Chaos
 {
-	class CHAOS_API FTrackedGeometryManager
+	class FTrackedGeometryManager
 	{
 	public:
-		static FTrackedGeometryManager& Get();
+		static CHAOS_API FTrackedGeometryManager& Get();
 		
-		void DumpMemoryUsage(FOutputDevice* Ar) const;
+		CHAOS_API void DumpMemoryUsage(FOutputDevice* Ar) const;
 		
 	private:
 		TMap<TSerializablePtr<FImplicitObject>, FString> SharedGeometry;
@@ -23,8 +23,8 @@ namespace Chaos
 		friend FImplicitObject;
 		
 		//These are private because of various threading considerations. ImplicitObject does the cleanup because it needs extra information
-		void AddGeometry(TSerializablePtr<FImplicitObject> Geometry, const FString& DebugInfo);
+		CHAOS_API void AddGeometry(TSerializablePtr<FImplicitObject> Geometry, const FString& DebugInfo);
 		
-		void RemoveGeometry(const FImplicitObject* Geometry);
+		CHAOS_API void RemoveGeometry(const FImplicitObject* Geometry);
 	};
 }

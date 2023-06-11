@@ -57,7 +57,7 @@ namespace Chaos
 			FRealType HorizonEpsilon;
 		};
 
-		static CHAOS_API FRealType SuggestEpsilon(const TArray<FVec3Type>& InVertices)
+		static FRealType SuggestEpsilon(const TArray<FVec3Type>& InVertices)
 		{
 			if (ComputeHorizonEpsilonFromMeshExtends == 0)
 			{
@@ -345,7 +345,7 @@ namespace Chaos
 			return FTriangleMesh(MoveTemp(Indices));
 		}
 
-		static CHAOS_API bool IsPerformanceWarning(int32 NumPlanes, int32 NumVertices)
+		static bool IsPerformanceWarning(int32 NumPlanes, int32 NumVertices)
 		{
 			if (!PerformGeometryCheck)
 			{
@@ -355,7 +355,7 @@ namespace Chaos
 			return (NumVertices > VerticesThreshold);
 		}
 
-		static CHAOS_API bool IsGeometryReductionEnabled()
+		static bool IsGeometryReductionEnabled()
 		{
 			return (PerformGeometryReduction>0)?true:false;
 		}
@@ -365,7 +365,7 @@ namespace Chaos
 			return FString::Printf(TEXT("Planes %d, Vertices %d"), NumPlanes, NumVertices);
 		}
 
-		static CHAOS_API void Simplify(TArray<FPlaneType>& InOutPlanes, TArray<TArray<int32>>& InOutFaces, TArray<FVec3Type>& InOutVertices, FAABB3Type& InOutLocalBounds)
+		static void Simplify(TArray<FPlaneType>& InOutPlanes, TArray<TArray<int32>>& InOutFaces, TArray<FVec3Type>& InOutVertices, FAABB3Type& InOutLocalBounds)
 		{
 			struct TPair
 			{

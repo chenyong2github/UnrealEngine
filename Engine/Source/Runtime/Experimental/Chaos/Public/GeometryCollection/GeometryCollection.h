@@ -22,7 +22,7 @@ class FGeometryCollectionProximityPropertiesInterface;
 /**
 * FGeometryCollection (FTransformCollection)
 */
-class CHAOS_API FGeometryCollection : public FTransformCollection, 
+class FGeometryCollection : public FTransformCollection, 
 	public FGeometryCollectionConvexPropertiesInterface,
 	public FGeometryCollectionProximityPropertiesInterface
 {
@@ -30,7 +30,7 @@ class CHAOS_API FGeometryCollection : public FTransformCollection,
 public:
 	typedef FTransformCollection Super;
 
-	FGeometryCollection();
+	CHAOS_API FGeometryCollection();
 	FGeometryCollection(FGeometryCollection &) = delete;
 	FGeometryCollection& operator=(const FGeometryCollection &) = delete;
 	FGeometryCollection(FGeometryCollection &&) = default;
@@ -91,15 +91,15 @@ public:
 		*		 The set of triangles which are rendered with the same material
 		*/
 
-	static const FName VerticesGroup; // Vertices
-	static const FName FacesGroup;	  // Faces
-	static const FName GeometryGroup; // Geometry
-	static const FName BreakingGroup; // Breaking
-	static const FName MaterialGroup; // Materials
+	static CHAOS_API const FName VerticesGroup; // Vertices
+	static CHAOS_API const FName FacesGroup;	  // Faces
+	static CHAOS_API const FName GeometryGroup; // Geometry
+	static CHAOS_API const FName BreakingGroup; // Breaking
+	static CHAOS_API const FName MaterialGroup; // Materials
 
-	static const FName SimulatableParticlesAttribute;
-	static const FName SimulationTypeAttribute;
-	static const FName StatusFlagsAttribute;
+	static CHAOS_API const FName SimulatableParticlesAttribute;
+	static CHAOS_API const FName SimulationTypeAttribute;
+	static CHAOS_API const FName StatusFlagsAttribute;
 
 	enum ESimulationTypes : uint8
 	{
@@ -122,19 +122,19 @@ public:
 
 	};
 
-	static bool AreCollisionParticlesEnabled();
+	static CHAOS_API bool AreCollisionParticlesEnabled();
 
 	/**
 	 * Create a GeometryCollection from Vertex and Indices arrays
 	 */
-	static FGeometryCollection* NewGeometryCollection(const TArray<float>& RawVertexArray, const TArray<int32>& RawIndicesArray, bool ReverseVertexOrder = true);
-	static void Init(FGeometryCollection* Collection, const TArray<float>& RawVertexArray, const TArray<int32>& RawIndicesArray, bool ReverseVertexOrder = true);
-	static void DefineGeometrySchema(FManagedArrayCollection&);
+	static CHAOS_API FGeometryCollection* NewGeometryCollection(const TArray<float>& RawVertexArray, const TArray<int32>& RawIndicesArray, bool ReverseVertexOrder = true);
+	static CHAOS_API void Init(FGeometryCollection* Collection, const TArray<float>& RawVertexArray, const TArray<int32>& RawIndicesArray, bool ReverseVertexOrder = true);
+	static CHAOS_API void DefineGeometrySchema(FManagedArrayCollection&);
 
 	/**
 	* Create a GeometryCollection from Vertex, Indices, BoneMap, Transform, BoneHierarchy arrays
 	*/
-	static FGeometryCollection* NewGeometryCollection(const TArray<float>& RawVertexArray,
+	static CHAOS_API FGeometryCollection* NewGeometryCollection(const TArray<float>& RawVertexArray,
 		const TArray<int32>& RawIndicesArray,
 		const TArray<int32>& RawBoneMapArray,
 		const TArray<FTransform>& RawTransformArray,
@@ -152,95 +152,95 @@ public:
 	/** 
 	* Append a single geometric object to a FGeometryCollection 
 	*/
-	int32 AppendGeometry(const FGeometryCollection & GeometryCollection, int32 MaterialIDOffset = 0, bool ReindexAllMaterials = true, const FTransform& TransformRoot = FTransform::Identity);
+	CHAOS_API int32 AppendGeometry(const FGeometryCollection & GeometryCollection, int32 MaterialIDOffset = 0, bool ReindexAllMaterials = true, const FTransform& TransformRoot = FTransform::Identity);
 
 	/**
 	* Append single embedded geometry. Returns true if the operation succeeds.
 	*/
-	bool AppendEmbeddedInstance(int32 InExemplarIndex, int32 InParentIndex, const FTransform& InTransform = FTransform::Identity);
+	CHAOS_API bool AppendEmbeddedInstance(int32 InExemplarIndex, int32 InParentIndex, const FTransform& InTransform = FTransform::Identity);
 
 	/**
 	 * Reindex exemplar indices to reflect removed exemplars.
 	 */
-	void ReindexExemplarIndices(TArray<int32>& SortedRemovedIndices);
+	CHAOS_API void ReindexExemplarIndices(TArray<int32>& SortedRemovedIndices);
 
 	/**
 	* Remove Geometry and update dependent elements
 	*/
-	virtual void RemoveElements(const FName & Group, const TArray<int32>& DeletionList, FProcessingParameters Params = FProcessingParameters()) override;
+	CHAOS_API virtual void RemoveElements(const FName & Group, const TArray<int32>& DeletionList, FProcessingParameters Params = FProcessingParameters()) override;
 
 	/**
 	* Empty each managed array in each group in order to reset the collection to an initial (empty) state. 
 	*/
-	void Empty();
+	CHAOS_API void Empty();
 
 	/**
 	* reset internal state
 	*/
-	virtual void Reset() override;
+	CHAOS_API virtual void Reset() override;
 
 	/**
 	* Reorders elements in a group. NewOrder must be the same length as the group.
 	*/
-	virtual void ReorderElements(FName Group, const TArray<int32>& NewOrder) override;
+	CHAOS_API virtual void ReorderElements(FName Group, const TArray<int32>& NewOrder) override;
 
 	//
 	//
 	//
 
 	// Initialize any interfaces on the geometry collection (i.e., the FGeometryCollectionConvexPropertiesInterface)
-	virtual void InitializeInterfaces();
+	CHAOS_API virtual void InitializeInterfaces();
 
 
 	/**
 	*  Update bounding box entries for the geometry
 	*/
-	void UpdateBoundingBox();
-	static void UpdateBoundingBox(FManagedArrayCollection&, bool bSkipCheck=false);
+	CHAOS_API void UpdateBoundingBox();
+	static CHAOS_API void UpdateBoundingBox(FManagedArrayCollection&, bool bSkipCheck=false);
 
 	/**  
 	* GetBoundingBox 
 	*/
-	FBoxSphereBounds GetBoundingBox() const;
+	CHAOS_API FBoxSphereBounds GetBoundingBox() const;
 
 	/**
 	 * Update the visibility of specified geometry nodes
 	 */
-	void UpdateGeometryVisibility(const TArray<int32>& NodeList, bool VisibilityState);
+	CHAOS_API void UpdateGeometryVisibility(const TArray<int32>& NodeList, bool VisibilityState);
 
 	/**
 	* Reindex sections to keep polys with same materials together to reduce the number of draw calls
 	*/
-	void ReindexMaterials();
-	static void ReindexMaterials(FManagedArrayCollection&);
+	CHAOS_API void ReindexMaterials();
+	static CHAOS_API void ReindexMaterials(FManagedArrayCollection&);
 
 	/**
 	* Builds mesh sections for a given index buffer that could be a subset.
 	* Currently, this call assumes that the indices are ordered by MaterialID
 	* #todo(dmp): Refactor this and ReindexMaterials to share code
 	*/
-	TArray<FGeometryCollectionSection> BuildMeshSections(const TArray<FIntVector> &Indices, const TArray<int32>& BaseMeshOriginalIndicesIndex, TArray<FIntVector> &RetIndices) const;
+	CHAOS_API TArray<FGeometryCollectionSection> BuildMeshSections(const TArray<FIntVector> &Indices, const TArray<int32>& BaseMeshOriginalIndicesIndex, TArray<FIntVector> &RetIndices) const;
 	//
 	//
 	//
 
 	/** Returns true if there is anything to render */
-	bool HasVisibleGeometry() const;
+	CHAOS_API bool HasVisibleGeometry() const;
 
 	/** Returns true if the vertices are contiguous*/
-	bool HasContiguousVertices() const;
+	CHAOS_API bool HasContiguousVertices() const;
 
 	/** Returns true if the faces are contiguous*/
-	bool HasContiguousFaces() const;
+	CHAOS_API bool HasContiguousFaces() const;
 
 	/** Returns true if the render faces are contiguous*/
-	bool HasContiguousRenderFaces() const;
+	CHAOS_API bool HasContiguousRenderFaces() const;
 
 	/** Returns number of UV layers represented by UV array. A Valid Geometry Collection has the same count for every vertex */
-	int32 NumUVLayers() const;
+	CHAOS_API int32 NumUVLayers() const;
 
 	/** Update a geometry collection to have the target number of UV layers (must be in the range [1, MAX_UV_LAYERS)) */
-	bool SetNumUVLayers(int32 NumLayers);
+	CHAOS_API bool SetNumUVLayers(int32 NumLayers);
 
 	FORCEINLINE bool IsGeometry(int32 Element) const { return TransformToGeometryIndex[Element] != INDEX_NONE; }
 	FORCEINLINE bool IsClustered(int32 Element) const { const TManagedArray<int32>& SimType = SimulationType;  return !!(SimType[Element] == ESimulationTypes::FST_Clustered); }
@@ -251,29 +251,29 @@ public:
 	FORCEINLINE bool HasFlags(int32 Element, int32 InFlags) const { const TManagedArray<int32>& Status = StatusFlags; return (Status[Element] & InFlags) != 0; }
 
 	/** Return true if the Element contains any visible faces. */
-	bool IsVisible(int32 Element) const;
+	CHAOS_API bool IsVisible(int32 Element) const;
 
 	/** Connection of leaf geometry */
-	TArray<TArray<int32>> ConnectionGraph();
+	CHAOS_API TArray<TArray<int32>> ConnectionGraph();
 
 	//
 	//
 	//
 
 	/** Serialize */
-	void Serialize(Chaos::FChaosArchive& Ar);
+	CHAOS_API void Serialize(Chaos::FChaosArchive& Ar);
 
 	/**   */
-	void WriteDataToHeaderFile(const FString &Name, const FString &Path);
+	CHAOS_API void WriteDataToHeaderFile(const FString &Name, const FString &Path);
 
 	/**  */
-	void WriteDataToOBJFile(const FString &Name, const FString &Path, const bool WriteTopology=true, const bool WriteAuxStructures=true);
+	CHAOS_API void WriteDataToOBJFile(const FString &Name, const FString &Path, const bool WriteTopology=true, const bool WriteAuxStructures=true);
 
 	//
 	//
 	//
 
-	virtual void SetDefaults(FName Group, uint32 StartSize, uint32 NumElements) override;
+	CHAOS_API virtual void SetDefaults(FName Group, uint32 StartSize, uint32 NumElements) override;
 
 	// Transform Group
 	TManagedArray<int32>		TransformToGeometryIndex;
@@ -343,34 +343,34 @@ protected:
 		GeometryCollection::UV::MatchUVLayerCount(*this, InCollection);
 	}
 
-	void Construct();
+	CHAOS_API void Construct();
 
 	/**
 	* Remove Geometry elements i.e. verts, faces, etc, leaving the transform nodes intact
 	*/
-	void RemoveGeometryElements(const TArray<int32>& SortedGeometryIndicesToDelete);
+	CHAOS_API void RemoveGeometryElements(const TArray<int32>& SortedGeometryIndicesToDelete);
 
 	/**
 	* Update Face Attributes based on changes in the group.
 	*/
-	bool BuildFaceToGeometryMapping(bool InSaved=false);
-	void UpdateFaceGroupElements();
+	CHAOS_API bool BuildFaceToGeometryMapping(bool InSaved=false);
+	CHAOS_API void UpdateFaceGroupElements();
 
 	/**
 	* Build and Update Vertex Attributes based on changes in the group.
 	*/
-	bool BuildVertexToGeometryMapping(bool InSaved = false);
-	void UpdateVerticesGroupElements();
+	CHAOS_API bool BuildVertexToGeometryMapping(bool InSaved = false);
+	CHAOS_API void UpdateVerticesGroupElements();
 
 	/** 
 	* Reorder geometry elements. i.e. verts faces etc are reordered so we can get contiguous memory access
 	*/
-	void ReorderGeometryElements(const TArray<int32>& NewOrder);
+	CHAOS_API void ReorderGeometryElements(const TArray<int32>& NewOrder);
 
 	/**
 	* Reorder geometry elements based on the new transform order. i.e. verts faces etc are reordered so we can get contiguous memory access
 	*/
-	void ReorderTransformElements(const TArray<int32>& NewOrder);
+	CHAOS_API void ReorderTransformElements(const TArray<int32>& NewOrder);
 
 	/**
 	 * @return the latest Version number used in serialization
@@ -383,7 +383,7 @@ protected:
 
 public:
 	/* Backwards compatibility */
-	void UpdateOldAttributeNames();
+	CHAOS_API void UpdateOldAttributeNames();
 
 
 };

@@ -82,7 +82,7 @@ private:
 	TList<ElementType>* FirstElement;
 };
 
-struct CHAOS_API FLatentDrawCommand
+struct FLatentDrawCommand
 {
 	FVector LineStart;
 	FVector LineEnd;
@@ -251,7 +251,7 @@ struct CHAOS_API FLatentDrawCommand
 };
 
 /** A thread safe way to generate latent debug drawing. (This is picked up later by the geometry collection component which is a total hack for now, but needed to get into an engine world ) */
-class CHAOS_API FDebugDrawQueue
+class FDebugDrawQueue
 {
 public:
 	enum EBuffer
@@ -434,9 +434,9 @@ public:
 		return Bounds.ThickenSymmetrically(FVec3(RadiusOfInterest)).Contains(CenterOfInterest);
 	}
 
-	void SetConsumerActive(void* Consumer, bool bConsumerActive);
+	CHAOS_API void SetConsumerActive(void* Consumer, bool bConsumerActive);
 
-	static FDebugDrawQueue& GetInstance();
+	static CHAOS_API FDebugDrawQueue& GetInstance();
 
 	static bool IsDebugDrawingEnabled()
 	{

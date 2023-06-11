@@ -21,7 +21,7 @@
 namespace Chaos::Softs
 {
 
-	struct CHAOS_API FDeformableXPBDWeakConstraintParams
+	struct FDeformableXPBDWeakConstraintParams
 	{
 		float DebugLineWidth = 5.f;
 		float DebugParticleWidth = 20.f;

@@ -24,7 +24,7 @@ namespace Chaos
 		FSingleParticlePhysicsProxy* ParticleProxy = nullptr;
 	};
 
-	class CHAOS_API FPBDSuspensionSettings
+	class FPBDSuspensionSettings
 	{
 	public:
 
@@ -71,7 +71,7 @@ namespace Chaos
 		FVec3 Normal;
 	};
 
-	class CHAOS_API FPBDSuspensionResults
+	class FPBDSuspensionResults
 	{
 	public:
 		FPBDSuspensionResults()
@@ -91,7 +91,7 @@ namespace Chaos
 		FReal Length;
 	};
 
-	class CHAOS_API FPBDSuspensionSolverSettings
+	class FPBDSuspensionSolverSettings
 	{
 	public:
 

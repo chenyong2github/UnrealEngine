@@ -40,22 +40,22 @@ namespace Chaos
 	 * 
 	 * This is used by FShapePairParticlePairMidPhase
 	 */
-	class CHAOS_API FSingleShapePairCollisionDetector
+	class FSingleShapePairCollisionDetector
 	{
 	public:
 		using FCollisionsArray = TArray<FPBDCollisionConstraint*, TInlineAllocator<1>>;
 
-		FSingleShapePairCollisionDetector(
+		CHAOS_API FSingleShapePairCollisionDetector(
 			FGeometryParticleHandle* InParticle0,
 			const FPerShapeData* InShape0,
 			FGeometryParticleHandle* InParticle1,
 			const FPerShapeData* InShape1,
 			const EContactShapesType InShapePairType, 
 			FParticlePairMidPhase& MidPhase);
-		FSingleShapePairCollisionDetector(FSingleShapePairCollisionDetector&& R);
+		CHAOS_API FSingleShapePairCollisionDetector(FSingleShapePairCollisionDetector&& R);
 		FSingleShapePairCollisionDetector(const FSingleShapePairCollisionDetector& R) = delete;
 		FSingleShapePairCollisionDetector& operator=(const FSingleShapePairCollisionDetector& R) = delete;
-		~FSingleShapePairCollisionDetector();
+		CHAOS_API ~FSingleShapePairCollisionDetector();
 
 		const FPBDCollisionConstraint* GetConstraint() const{ return Constraint.Get(); }
 		FPBDCollisionConstraint* GetConstraint() { return Constraint.Get(); }
@@ -78,7 +78,7 @@ namespace Chaos
 		 * @brief Perform a bounds check and run the narrow phase if necessary
 		 * @return The number of collisions constraints that were activated
 		*/
-		int32 GenerateCollision(
+		CHAOS_API int32 GenerateCollision(
 			const FReal CullDistance,
 			const FReal Dt,
 			const FCollisionContext& Context);
@@ -87,7 +87,7 @@ namespace Chaos
 		 * @brief Generate a SweptConstraint as long as AABBs overlap
 		 * @return The number of collisions constraints that were activated
 		*/
-		int32 GenerateCollisionCCD(
+		CHAOS_API int32 GenerateCollisionCCD(
 			const bool bEnableCCDSweep,
 			const FReal CullDistance,
 			const FReal Dt,
@@ -98,27 +98,27 @@ namespace Chaos
 		 * @parame SleepEpoch The tick on which the particle went to sleep.
 		 * Only constraints that were active when the particle went to sleep should be reactivated.
 		*/
-		void WakeCollision(const int32 SleepEpoch, const int32 CurrentEpoch);
+		CHAOS_API void WakeCollision(const int32 SleepEpoch, const int32 CurrentEpoch);
 
 		/**
 		 * @brief Set the collision from the parameter and activate it
 		 * This is used by the Resim restore functionality
 		*/
-		void SetCollision(const FPBDCollisionConstraint& Constraint, const FCollisionContext& Context);
+		CHAOS_API void SetCollision(const FPBDCollisionConstraint& Constraint, const FCollisionContext& Context);
 
 	private:
-		int32 GenerateCollisionImpl(
+		CHAOS_API int32 GenerateCollisionImpl(
 			const FReal CullDistance, 
 			const FReal Dt,
 			const FCollisionContext& Context);
 			
-		int32 GenerateCollisionCCDImpl(
+		CHAOS_API int32 GenerateCollisionCCDImpl(
 			const bool bEnableCCDSweep,
 			const FReal CullDistance,
 			const FReal Dt,
 			const FCollisionContext& Context);
 
-		int32 GenerateCollisionProbeImpl(
+		CHAOS_API int32 GenerateCollisionProbeImpl(
 			const FReal CullDistance, 
 			const FReal Dt,
 			const FCollisionContext& Context);
@@ -127,12 +127,12 @@ namespace Chaos
 		 * @brief Whether the two shapes are separated by less than CullDistance (i.e., we should run the narrow phase).
 		 * Also returns true if bounds checking is disabled (globally or for this pair)
 		*/
-		bool DoBoundsOverlap(const FReal CullDistance, const int32 CurrentEpoch);
+		CHAOS_API bool DoBoundsOverlap(const FReal CullDistance, const int32 CurrentEpoch);
 
 		/**
 		 * @brief Create a constraint
 		*/
-		void CreateConstraint(const FReal CullDistance, const FCollisionContext& Context);
+		CHAOS_API void CreateConstraint(const FReal CullDistance, const FCollisionContext& Context);
 
 		FParticlePairMidPhase& MidPhase;
 		FPBDCollisionConstraintPtr Constraint;
@@ -172,16 +172,16 @@ namespace Chaos
 	 * @see FShapePairParticlePairMidPhase, FGenericParticlePairMidPhase
 	 * 
 	 */
-	class CHAOS_API FParticlePairMidPhase
+	class FParticlePairMidPhase
 	{
 	public:
-		static EParticlePairMidPhaseType CalculateMidPhaseType(FGeometryParticleHandle* InParticle0, FGeometryParticleHandle* InParticle1);
-		static FParticlePairMidPhase* Make(FGeometryParticleHandle* InParticle0, FGeometryParticleHandle* InParticle1);
+		static CHAOS_API EParticlePairMidPhaseType CalculateMidPhaseType(FGeometryParticleHandle* InParticle0, FGeometryParticleHandle* InParticle1);
+		static CHAOS_API FParticlePairMidPhase* Make(FGeometryParticleHandle* InParticle0, FGeometryParticleHandle* InParticle1);
 
 		UE_NONCOPYABLE(FParticlePairMidPhase);
 
-		FParticlePairMidPhase(const EParticlePairMidPhaseType InMidPhaseType);
-		virtual ~FParticlePairMidPhase();
+		CHAOS_API FParticlePairMidPhase(const EParticlePairMidPhaseType InMidPhaseType);
+		CHAOS_API virtual ~FParticlePairMidPhase();
 
 		EParticlePairMidPhaseType GetMidPhaseType() const
 		{
@@ -194,7 +194,7 @@ namespace Chaos
 		 * the constructor so that we can reduce the time that the lock is held when allocating
 		 * new MidPhases.
 		*/
-		void Init(
+		CHAOS_API void Init(
 			FGeometryParticleHandle* InParticle0,
 			FGeometryParticleHandle* InParticle1,
 			const FCollisionParticlePairKey& InKey,
@@ -233,31 +233,31 @@ namespace Chaos
 		 * If this switches the state to Awake, it will reactivate any collisions between the particle pair that
 		 * were active when they went to sleep.
 		*/
-		void SetIsSleeping(const bool bInIsSleeping, const int32 CurrentEpoch);
+		CHAOS_API void SetIsSleeping(const bool bInIsSleeping, const int32 CurrentEpoch);
 
-		bool IsInConstraintGraph() const;
+		CHAOS_API bool IsInConstraintGraph() const;
 
 		/**
 		 * @brief Destroy all collisions and prevent this midphasae from being used any more. Called when one of its particles is destoyed.
 		 * It will be culled at the next Prune in the CollisionConstraintAllocator. We don't delete it immediately so that we don't
 		 * have to remove it from either Particle's ParticleCollisions array (which is O(N) and unnecessary when the particles are being destroyed)
 		*/
-		void DetachParticle(FGeometryParticleHandle* Particle);
+		CHAOS_API void DetachParticle(FGeometryParticleHandle* Particle);
 
 		/**
 		 * @brief Delete all cached data and collisions. Should be called when a particle changes its shapes
 		*/
-		void Reset();
+		CHAOS_API void Reset();
 
 		/**
 		 *
 		 */
-		void ResetModifications();
+		CHAOS_API void ResetModifications();
 
 		/**
 		 * @brief Create collision constraints for all colliding shape pairs
 		*/
-		void GenerateCollisions(
+		CHAOS_API void GenerateCollisions(
 			const FReal CullDistance,
 			const FReal Dt,
 			const FCollisionContext& Context);
@@ -267,7 +267,7 @@ namespace Chaos
 		 * This is used by the Resim system to restore saved colisions. If there is already a matching constraint
 		 * it will be overwritten, otherwise a new constraint will be added.
 		*/
-		void InjectCollision(const FPBDCollisionConstraint& Constraint, const FCollisionContext& Context);
+		CHAOS_API void InjectCollision(const FPBDCollisionConstraint& Constraint, const FCollisionContext& Context);
 
 		/**
 		 * @brief Call a lambda on each active collision constraint
@@ -400,9 +400,9 @@ namespace Chaos
 		 * @return true if CCD is enabled this tick, false otherwise
 		 * This may return false, even for collisions on CCD-enabled bodies when the bodies are moving slowly
 		 */
-		bool ShouldEnableCCD(const FReal Dt);
+		CHAOS_API bool ShouldEnableCCD(const FReal Dt);
 
-		void InitThresholds();
+		CHAOS_API void InitThresholds();
 
 
 		union FFlags
@@ -448,28 +448,28 @@ namespace Chaos
 	 * does not contain a complex hierarchy. This midphase (compared to FGenericParticlePairMidPhase)
 	 * caches various data like the results of the collision filtering, the shapr pair types, etc.
 	 */
-	class CHAOS_API FShapePairParticlePairMidPhase : public FParticlePairMidPhase
+	class FShapePairParticlePairMidPhase : public FParticlePairMidPhase
 	{
 	public:
 		friend class FParticlePairMidPhase;
 
-		FShapePairParticlePairMidPhase();
+		CHAOS_API FShapePairParticlePairMidPhase();
 
-		virtual void ResetImpl() override final;
-		virtual void BuildDetectorsImpl() override final;
+		CHAOS_API virtual void ResetImpl() override final;
+		CHAOS_API virtual void BuildDetectorsImpl() override final;
 
 	protected:
-		virtual int32 GenerateCollisionsImpl(
+		CHAOS_API virtual int32 GenerateCollisionsImpl(
 			const FReal CullDistance,
 			const FReal Dt,
 			const FCollisionContext& Context) override final;
 
-		virtual void WakeCollisionsImpl(const int32 CurrentEpoch) override final;
+		CHAOS_API virtual void WakeCollisionsImpl(const int32 CurrentEpoch) override final;
 
-		virtual void InjectCollisionImpl(const FPBDCollisionConstraint& Constraint, const FCollisionContext& Context) override final;
+		CHAOS_API virtual void InjectCollisionImpl(const FPBDCollisionConstraint& Constraint, const FCollisionContext& Context) override final;
 
 	private:
-		void TryAddShapePair(
+		CHAOS_API void TryAddShapePair(
 			const FPerShapeData* Shape0,
 			const FPerShapeData* Shape1);
 
@@ -489,23 +489,23 @@ namespace Chaos
 	 * if there is one, so it can be much faster the the FShapePairParticlePairMidPhase
 	 * when the set of potentially colliding pairs is very large.
 	 */
-	class CHAOS_API FGenericParticlePairMidPhase : public FParticlePairMidPhase
+	class FGenericParticlePairMidPhase : public FParticlePairMidPhase
 	{
 	public:
 		friend class FParticlePairMidPhase;
 
-		FGenericParticlePairMidPhase();
-		~FGenericParticlePairMidPhase();
+		CHAOS_API FGenericParticlePairMidPhase();
+		CHAOS_API ~FGenericParticlePairMidPhase();
 
-		virtual void ResetImpl() override final;
-		virtual void BuildDetectorsImpl() override final;
+		CHAOS_API virtual void ResetImpl() override final;
+		CHAOS_API virtual void BuildDetectorsImpl() override final;
 
 		/**
 		 * @brief Callback from the narrow phase to create a collision constraint for this particle pair.
 		 * We should never be asked for a collision for a different particle pair, but the
 		 * implicit objects may be children of the root shape.
 		*/
-		virtual FPBDCollisionConstraint* FindOrCreateConstraint(
+		CHAOS_API virtual FPBDCollisionConstraint* FindOrCreateConstraint(
 			FGeometryParticleHandle* InParticle0,
 			const FImplicitObject* InImplicit0,
 			const int32 InImplicitId0,
@@ -529,21 +529,21 @@ namespace Chaos
 		 * @parame SleepEpoch The tick on which the particle went to sleep.
 		 * Only constraints that were active when the particle went to sleep should be reactivated.
 		*/
-		void WakeCollisionsImpl(const int32 SleepEpoch, const int32 CurrentEpoch);
+		CHAOS_API void WakeCollisionsImpl(const int32 SleepEpoch, const int32 CurrentEpoch);
 
 	protected:
-		virtual int32 GenerateCollisionsImpl(
+		CHAOS_API virtual int32 GenerateCollisionsImpl(
 			const FReal CullDistance,
 			const FReal Dt,
 			const FCollisionContext& Context) override final;
 
-		virtual void WakeCollisionsImpl(const int32 CurrentEpoch) override final;
+		CHAOS_API virtual void WakeCollisionsImpl(const int32 CurrentEpoch) override final;
 
-		virtual void InjectCollisionImpl(const FPBDCollisionConstraint& Constraint, const FCollisionContext& Context) override final;
+		CHAOS_API virtual void InjectCollisionImpl(const FPBDCollisionConstraint& Constraint, const FCollisionContext& Context) override final;
 
 	private:
 		// BVH on ParticleA versus implicit hierarchy of ParticleB
-		void GenerateCollisionsBVH(
+		CHAOS_API void GenerateCollisionsBVH(
 			FGeometryParticleHandle* ParticleA, const Private::FImplicitBVH* BVHA,
 			FGeometryParticleHandle* ParticleB, const FImplicitObject* RootImplicitB,
 			const FReal CullDistance,
@@ -551,7 +551,7 @@ namespace Chaos
 			const FCollisionContext& Context);
 
 		// Implicit hierarchy of particle A versus implicit hierarchy of ParticleB (used when no BVHs present)
-		void GenerateCollisionsImplicit(
+		CHAOS_API void GenerateCollisionsImplicit(
 			FGeometryParticleHandle* ParticleA, const FImplicitObject* RootImplicitA,
 			FGeometryParticleHandle* ParticleB, const FImplicitObject* RootImplicitB,
 			const FReal CullDistance,
@@ -559,7 +559,7 @@ namespace Chaos
 			const FCollisionContext& Context);
 
 		// Leaf Implicit on ParticleA versus implicit hierarchy of ParticleB
-		void GenerateCollisionsShapeHierarchy(
+		CHAOS_API void GenerateCollisionsShapeHierarchy(
 			FGeometryParticleHandle* ParticleA, const FImplicitObject* ImplicitA, const FRigidTransform3 ParticleWorldTransformA, const FRigidTransform3& RelativeTransformA, const FAABB3& RelativeBoundsA, const int32 RootObjectIndexA, const int32 LeafObjectIndexA,
 			FGeometryParticleHandle* ParticleB, const FImplicitObject* RootImplicitB, const FRigidTransform3 ParticleWorldTransformB,
 			const FRigidTransform3 ParticleTransformAToB,
@@ -568,7 +568,7 @@ namespace Chaos
 			const FCollisionContext& Context);
 
 		// Leaf Implicit on ParticleA versus Leaf Implicit of ParticleB
-		void GenerateCollisionsShapeShape(
+		CHAOS_API void GenerateCollisionsShapeShape(
 			FGeometryParticleHandle* ParticleA, const FImplicitObject* ImplicitA, const FShapeInstance* ShapeInstanceA, const FRigidTransform3 ParticleWorldTransformA, const FRigidTransform3& RelativeTransformA, const int32 LeafObjectIndexA,
 			FGeometryParticleHandle* ParticleB, const FImplicitObject* ImplicitB, const FShapeInstance* ShapeInstanceB, const FRigidTransform3 ParticleWorldTransformB, const FRigidTransform3& RelativeTransformB, const int32 LeafObjectIndexB,
 			const FReal CullDistance,
@@ -576,7 +576,7 @@ namespace Chaos
 			const FCollisionContext& Context);
 
 		// A bounds check between two implicits
-		bool DoBoundsOverlap(
+		CHAOS_API bool DoBoundsOverlap(
 			const FImplicitObject* ImplicitA,
 			const FRigidTransform3& ParticleWorldTransformA,
 			const FRigidTransform3& ShapeRelativeTransformA,
@@ -585,9 +585,9 @@ namespace Chaos
 			const FRigidTransform3& ShapeRelativeTransformB,
 			const FReal CullDistance);
 
-		FPBDCollisionConstraint* FindConstraint(const FCollisionParticlePairConstraintKey& Key);
+		CHAOS_API FPBDCollisionConstraint* FindConstraint(const FCollisionParticlePairConstraintKey& Key);
 
-		FPBDCollisionConstraint* CreateConstraint(
+		CHAOS_API FPBDCollisionConstraint* CreateConstraint(
 			FGeometryParticleHandle* Particle0,
 			const FImplicitObject* Implicit0,
 			const FPerShapeData* Shape0,
@@ -604,20 +604,20 @@ namespace Chaos
 			const FCollisionParticlePairConstraintKey& Key,
 			const FCollisionContext& Context);
 
-		int32 ProcessNewConstraints(
+		CHAOS_API int32 ProcessNewConstraints(
 			const FReal CullDistance,
 			const FReal Dt,
 			const FCollisionContext& Context);
 
-		void PruneConstraints(const int32 CurrentEpoch);
+		CHAOS_API void PruneConstraints(const int32 CurrentEpoch);
 
-		void UpdateCollision(
+		CHAOS_API void UpdateCollision(
 			FPBDCollisionConstraint* Constraint,
 			const FReal CullDistance,
 			const FReal Dt,
 			const FCollisionContext& Context);
 
-		void UpdateCollisionCCD(
+		CHAOS_API void UpdateCollisionCCD(
 			FPBDCollisionConstraint* Constraint,
 			const FReal CullDistance,
 			const FReal Dt,

@@ -15,7 +15,7 @@ namespace Chaos
 
 	// Metadata for a convex shape used by the manifold generation system and anything
 	// else that can benefit from knowing which vertices are associated with the faces.
-	class CHAOS_API FConvexStructureData
+	class FConvexStructureData
 	{
 	public:
 		using FConvexStructureDataLarge = FConvexHalfEdgeStructureDataS32;

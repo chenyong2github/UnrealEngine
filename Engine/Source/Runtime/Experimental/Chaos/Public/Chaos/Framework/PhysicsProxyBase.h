@@ -26,7 +26,7 @@ namespace Chaos
 	class FPhysicsSolverBase;
 }
 
-struct CHAOS_API FProxyTimestampBase
+struct FProxyTimestampBase
 {
 	bool bDeleted = false;
 };
@@ -44,7 +44,7 @@ struct TTimestampProperty
 	int32 Timestamp = INDEX_NONE;
 };
 
-struct CHAOS_API FSingleParticleProxyTimestamp: public FProxyTimestampBase
+struct FSingleParticleProxyTimestamp: public FProxyTimestampBase
 {
 	int32 ObjectStateTimestamp = INDEX_NONE;
 	TTimestampProperty<Chaos::FVec3> OverWriteX;
@@ -53,13 +53,13 @@ struct CHAOS_API FSingleParticleProxyTimestamp: public FProxyTimestampBase
 	TTimestampProperty<Chaos::FVec3> OverWriteW;
 };
 
-struct CHAOS_API FGeometryCollectionProxyTimestamp: public FProxyTimestampBase
+struct FGeometryCollectionProxyTimestamp: public FProxyTimestampBase
 {
 	// nothing to add as Geometry collections are driven from the Physics thread only
 	// ( including kinematic targeting )
 };
 
-struct CHAOS_API FClusterUnionProxyTimestamp : public FProxyTimestampBase
+struct FClusterUnionProxyTimestamp : public FProxyTimestampBase
 {
 	TTimestampProperty<Chaos::FVec3> OverWriteX;
 	TTimestampProperty<Chaos::FRotation3> OverWriteR;
@@ -67,7 +67,7 @@ struct CHAOS_API FClusterUnionProxyTimestamp : public FProxyTimestampBase
 	TTimestampProperty<Chaos::FVec3> OverWriteW;
 };
 
-class CHAOS_API IPhysicsProxyBase
+class IPhysicsProxyBase
 {
 public:
 	IPhysicsProxyBase(EPhysicsProxyType InType, UObject* InOwner, TSharedPtr<FProxyTimestampBase,ESPMode::ThreadSafe> InProxyTimeStamp)
@@ -124,7 +124,7 @@ public:
 protected:
 	// Ensures that derived classes can successfully call this destructor
 	// but no one can delete using a IPhysicsProxyBase*
-	virtual ~IPhysicsProxyBase();
+	CHAOS_API virtual ~IPhysicsProxyBase();
 
 	template<typename TProxyTimeStamp>
 	FORCEINLINE_DEBUGGABLE TProxyTimeStamp& GetSyncTimestampAs()
@@ -146,7 +146,7 @@ protected:
 	int32 InitializedOnStep = INDEX_NONE;
 	int32 IgnoreDataOnStep_Internal = INDEX_NONE;
 
-	int32 GetSolverSyncTimestamp_External() const;
+	CHAOS_API int32 GetSolverSyncTimestamp_External() const;
 };
 
 struct PhysicsProxyWrapper

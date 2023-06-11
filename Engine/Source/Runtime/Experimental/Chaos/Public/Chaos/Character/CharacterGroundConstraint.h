@@ -15,18 +15,18 @@ namespace Chaos
 	/// The FCharacterGroundConstraintProxy class, accessible via
 	/// GetProxy(), knows about both representations and marshalls
 	/// the data between them
-	class CHAOS_API FCharacterGroundConstraint : public FConstraintBase
+	class FCharacterGroundConstraint : public FConstraintBase
 	{
 	public:
 		using Base = FConstraintBase;
 		friend class FCharacterGroundConstraintProxy; // For setting the output data
 
-		FCharacterGroundConstraint();
+		CHAOS_API FCharacterGroundConstraint();
 		virtual ~FCharacterGroundConstraint() override {}
 
 		// The constraint requires a character body, which is fixed, but the ground body is
 		// optional and can be changed dynamically using SetGroundParticleProxy
-		void Init(FSingleParticlePhysicsProxy* InCharacterProxy);
+		CHAOS_API void Init(FSingleParticlePhysicsProxy* InCharacterProxy);
 
 		//////////////////////////////////////////////////////////////////////////
 		// Particle proxy
@@ -296,7 +296,7 @@ namespace Chaos
 
 		//////////////////////////////////////////////////////////////////////////
 		// FConstraintBase implementation
-		virtual void SyncRemoteDataImp(FDirtyPropertiesManager& Manager, int32 DataIdx, FDirtyChaosProperties& RemoteData) override;
+		CHAOS_API virtual void SyncRemoteDataImp(FDirtyPropertiesManager& Manager, int32 DataIdx, FDirtyChaosProperties& RemoteData) override;
 
 		TChaosProperty<FParticleProxyProperty, EChaosProperty::CharacterParticleProxy> CharacterProxy;
 		TChaosProperty<FParticleProxyProperty, EChaosProperty::GroundParticleProxy> GroundProxy;

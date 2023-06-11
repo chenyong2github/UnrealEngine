@@ -269,7 +269,7 @@ struct FRecordedFrame
 };
 
 USTRUCT()
-struct CHAOS_API FRecordedTransformTrack
+struct FRecordedTransformTrack
 {
 	GENERATED_BODY()
 
@@ -550,6 +550,6 @@ struct CHAOS_API FRecordedTransformTrack
 		return (Axis * Angle) / SampleWidth;
 	}
 
-	static FRecordedTransformTrack ProcessRawRecordedData(const FRecordedTransformTrack& InCache);
+	static CHAOS_API FRecordedTransformTrack ProcessRawRecordedData(const FRecordedTransformTrack& InCache);
 
 };

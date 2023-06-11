@@ -10,7 +10,7 @@ namespace Chaos
 	class FPBDCollisionConstraints;
 	class FEvolutionResimCache;
 
-	class CHAOS_API FCollisionDetector
+	class FCollisionDetector
 	{
 	public:
 		FCollisionDetector(FPBDCollisionConstraints& InCollisionContainer)
@@ -21,13 +21,13 @@ namespace Chaos
 		virtual ~FCollisionDetector() {}
 
 		UE_DEPRECATED(5.2, "Moved to FPBDCollisionConstraints")
-		const FCollisionDetectorSettings& GetSettings() const;
+		CHAOS_API const FCollisionDetectorSettings& GetSettings() const;
 
 		UE_DEPRECATED(5.2, "Moved to FPBDCollisionConstraints")
-		void SetSettings(const FCollisionDetectorSettings& InSettings);
+		CHAOS_API void SetSettings(const FCollisionDetectorSettings& InSettings);
 
 		UE_DEPRECATED(5.2, "Moved to FPBDCollisionConstraints and renamed to SetCullDistance")
-		void SetBoundsExpansion(const FReal InBoundsExpansion);
+		CHAOS_API void SetBoundsExpansion(const FReal InBoundsExpansion);
 
 		UE_DEPRECATED(5.2, "No longer supported")
 		void SetBoundsVelocityInflation(const FReal InBoundsVelocityInflation) {}

@@ -14,7 +14,7 @@ static const FSolverReal XPBDBendMinStiffness = (FSolverReal)1e-4; // Stiffness 
 UE_DEPRECATED(5.2, "Use FXPBDBendingConstraints::MaxStiffness instead.")
 static const FSolverReal XPBDBendMaxStiffness = (FSolverReal)1e7;
 
-class CHAOS_API FXPBDBendingConstraints final : public FPBDBendingConstraintsBase
+class FXPBDBendingConstraints final : public FPBDBendingConstraintsBase
 {
 	typedef FPBDBendingConstraintsBase Base;
 
@@ -166,7 +166,7 @@ public:
 		FPBDBendingConstraintsBase::Init(InParticles);
 	}
 
-	void SetProperties(
+	CHAOS_API void SetProperties(
 		const FCollectionPropertyConstFacade& PropertyCollection,
 		const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps);
 
@@ -192,13 +192,13 @@ public:
 		DampingRatio.ApplyValues();
 	}
 
-	void Apply(FSolverParticles& Particles, const FSolverReal Dt) const;
+	CHAOS_API void Apply(FSolverParticles& Particles, const FSolverReal Dt) const;
 
 	const TArray<int32>& GetConstraintsPerColorStartIndex() const { return ConstraintsPerColorStartIndex; }
 
 private:
-	void InitColor(const FSolverParticles& InParticles);
-	void ApplyHelper(FSolverParticles& Particles, const FSolverReal Dt, const int32 ConstraintIndex, const FSolverReal ExpStiffnessValue, const FSolverReal ExpBucklingValue, const FSolverReal DampingRatioValue) const;
+	CHAOS_API void InitColor(const FSolverParticles& InParticles);
+	CHAOS_API void ApplyHelper(FSolverParticles& Particles, const FSolverReal Dt, const int32 ConstraintIndex, const FSolverReal ExpStiffnessValue, const FSolverReal ExpBucklingValue, const FSolverReal DampingRatioValue) const;
 
 	using Base::Constraints;
 	using Base::ParticleOffset;

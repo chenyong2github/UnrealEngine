@@ -17,7 +17,7 @@ namespace Chaos
 	 * Also contains the Modifier, which is responsible for iterating over PairModifiers, and
 	 * storing and executing requested modifications.
 	 */
-	class CHAOS_API FMidPhaseModifier
+	class FMidPhaseModifier
 	{
 	public:
 		FMidPhaseModifier()
@@ -44,18 +44,18 @@ namespace Chaos
 		//
 
 		// Disable this midphase entirely
-		void Disable();
+		CHAOS_API void Disable();
 
 		// Disable CCD for this pair
-		void DisableCCD();
+		CHAOS_API void DisableCCD();
 
 		//
 		// Accessor functions
 		//
 
-		void GetParticles(const FGeometryParticleHandle** Particle0, const FGeometryParticleHandle** Particle1) const;
+		CHAOS_API void GetParticles(const FGeometryParticleHandle** Particle0, const FGeometryParticleHandle** Particle1) const;
 
-		const FGeometryParticleHandle* GetOtherParticle(const FGeometryParticleHandle* InParticle) const;
+		CHAOS_API const FGeometryParticleHandle* GetOtherParticle(const FGeometryParticleHandle* InParticle) const;
 
 
 	private:
@@ -67,7 +67,7 @@ namespace Chaos
 	/*
 	 * Class for iterating over midphases involving a specific particle
 	 */
-	class CHAOS_API FMidPhaseModifierParticleIterator
+	class FMidPhaseModifierParticleIterator
 	{
 	public:
 		FMidPhaseModifierParticleIterator(
@@ -121,15 +121,15 @@ namespace Chaos
 		friend class FMidPhaseModifierParticleRange;
 	};
 
-	class CHAOS_API FMidPhaseModifierParticleRange
+	class FMidPhaseModifierParticleRange
 	{
 	public:
 		FMidPhaseModifierParticleRange(
 			FMidPhaseModifierAccessor* InAccessor, FGeometryParticleHandle* InParticle)
 			: Accessor(InAccessor)
 			, Particle(InParticle) { }
-		FMidPhaseModifierParticleIterator begin() const;
-		FMidPhaseModifierParticleIterator end() const;
+		CHAOS_API FMidPhaseModifierParticleIterator begin() const;
+		CHAOS_API FMidPhaseModifierParticleIterator end() const;
 	private:
 		FMidPhaseModifierAccessor* Accessor;
 		FGeometryParticleHandle* Particle;
@@ -138,14 +138,14 @@ namespace Chaos
 	/*
 	 * Provides interface for accessing midphase pair modifiers
 	 */
-	class CHAOS_API FMidPhaseModifierAccessor
+	class FMidPhaseModifierAccessor
 	{
 	public:
 		// Get an object which allows for range iteration over the list of
 		// midphases for a particle
-		FMidPhaseModifierParticleRange GetMidPhases(FGeometryParticleHandle* Particle);
+		CHAOS_API FMidPhaseModifierParticleRange GetMidPhases(FGeometryParticleHandle* Particle);
 
 		// Get a midphase modifier for a particular object pair
-		FMidPhaseModifier GetMidPhase(FGeometryParticleHandle* Particle0, FGeometryParticleHandle* Particle1);
+		CHAOS_API FMidPhaseModifier GetMidPhase(FGeometryParticleHandle* Particle0, FGeometryParticleHandle* Particle1);
 	};
 }

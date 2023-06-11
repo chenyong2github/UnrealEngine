@@ -158,7 +158,7 @@ namespace Chaos
 
 		CHAOS_API static TGeometryParticlesImp<T, d, SimType>* SerializationFactory(FChaosArchive& Ar, TGeometryParticlesImp < T, d, SimType>* Particles);
 		
-		CHAOS_API TGeometryParticlesImp()
+		TGeometryParticlesImp()
 		    : TParticles<T, d>()
 		{
 			MParticleType = EParticleType::Static;
@@ -200,7 +200,7 @@ namespace Chaos
 
 		}
 		TGeometryParticlesImp(const TGeometryParticlesImp<T, d, SimType>& Other) = delete;
-		CHAOS_API TGeometryParticlesImp(TGeometryParticlesImp<T, d, SimType>&& Other)
+		TGeometryParticlesImp(TGeometryParticlesImp<T, d, SimType>&& Other)
 		    : TParticles<T, d>(MoveTemp(Other))
 			, MUniqueIdx(MoveTemp(Other.MUniqueIdx))
 			, MR(MoveTemp(Other.MR))
@@ -272,7 +272,7 @@ namespace Chaos
 
 		static constexpr bool IsRigidBodySim() { return SimType == EGeometryParticlesSimType::RigidBodySim; }
 
-		CHAOS_API TGeometryParticlesImp(TParticles<T, d>&& Other)
+		TGeometryParticlesImp(TParticles<T, d>&& Other)
 		    : TParticles<T, d>(MoveTemp(Other))
 		{
 			MParticleType = EParticleType::Static;
@@ -313,37 +313,37 @@ namespace Chaos
 			}
 		}
 
-		CHAOS_API virtual ~TGeometryParticlesImp()
+		virtual ~TGeometryParticlesImp()
 		{}
 
 		FORCEINLINE const TRotation<T, d>& R(const int32 Index) const { return MR[Index]; }
 		FORCEINLINE TRotation<T, d>& R(const int32 Index) { return MR[Index]; }
 
-		CHAOS_API FUniqueIdx UniqueIdx(const int32 Index) const { return MUniqueIdx[Index]; }
-		CHAOS_API FUniqueIdx& UniqueIdx(const int32 Index) { return MUniqueIdx[Index]; }
+		FUniqueIdx UniqueIdx(const int32 Index) const { return MUniqueIdx[Index]; }
+		FUniqueIdx& UniqueIdx(const int32 Index) { return MUniqueIdx[Index]; }
 
-		CHAOS_API ESyncState& SyncState(const int32 Index) { return MSyncState[Index].State; }
-		CHAOS_API ESyncState SyncState(const int32 Index) const { return MSyncState[Index].State; }
+		ESyncState& SyncState(const int32 Index) { return MSyncState[Index].State; }
+		ESyncState SyncState(const int32 Index) const { return MSyncState[Index].State; }
 
-		CHAOS_API TSerializablePtr<FImplicitObject> Geometry(const int32 Index) const { return MGeometry[Index]; }
+		TSerializablePtr<FImplicitObject> Geometry(const int32 Index) const { return MGeometry[Index]; }
 
-		CHAOS_API const TUniquePtr<FImplicitObject>& DynamicGeometry(const int32 Index) const { return MDynamicGeometry[Index]; }
+		const TUniquePtr<FImplicitObject>& DynamicGeometry(const int32 Index) const { return MDynamicGeometry[Index]; }
 
-		CHAOS_API const TSharedPtr<const FImplicitObject, ESPMode::ThreadSafe>& SharedGeometry(const int32 Index) const { return MSharedGeometry[Index]; }
+		const TSharedPtr<const FImplicitObject, ESPMode::ThreadSafe>& SharedGeometry(const int32 Index) const { return MSharedGeometry[Index]; }
 
-		CHAOS_API bool HasCollision(const int32 Index) const { return MHasCollision[Index]; }
-		CHAOS_API bool& HasCollision(const int32 Index) { return MHasCollision[Index]; }
+		bool HasCollision(const int32 Index) const { return MHasCollision[Index]; }
+		bool& HasCollision(const int32 Index) { return MHasCollision[Index]; }
 
-		CHAOS_API const FShapesArray& ShapesArray(const int32 Index) const { return reinterpret_cast<const FShapesArray&>(MShapesArray[Index]); }
+		const FShapesArray& ShapesArray(const int32 Index) const { return reinterpret_cast<const FShapesArray&>(MShapesArray[Index]); }
 
-		CHAOS_API const FShapeInstanceArray& ShapeInstances(const int32 Index) const { return MShapesArray[Index]; }
+		const FShapeInstanceArray& ShapeInstances(const int32 Index) const { return MShapesArray[Index]; }
 
 #if CHAOS_DETERMINISTIC
-		CHAOS_API FParticleID ParticleID(const int32 Idx) const { return MParticleIDs[Idx]; }
-		CHAOS_API FParticleID& ParticleID(const int32 Idx) { return MParticleIDs[Idx]; }
+		FParticleID ParticleID(const int32 Idx) const { return MParticleIDs[Idx]; }
+		FParticleID& ParticleID(const int32 Idx) { return MParticleIDs[Idx]; }
 #endif
 		// Set a dynamic geometry. Note that X and R must be initialized before calling this function.
-		CHAOS_API void SetDynamicGeometry(const int32 Index, TUniquePtr<FImplicitObject>&& InUnique)
+		void SetDynamicGeometry(const int32 Index, TUniquePtr<FImplicitObject>&& InUnique)
 		{
 			check(!SharedGeometry(Index));	// If shared geometry exists we should not be setting dynamic geometry on top
 			SetGeometryImpl(Index, MakeSerializable(InUnique));
@@ -351,14 +351,14 @@ namespace Chaos
 		}
 
 		// Set a shared geometry. Note that X and R must be initialized before calling this function.
-		CHAOS_API void SetSharedGeometry(const int32 Index, TSharedPtr<const FImplicitObject, ESPMode::ThreadSafe> InShared)
+		void SetSharedGeometry(const int32 Index, TSharedPtr<const FImplicitObject, ESPMode::ThreadSafe> InShared)
 		{
 			check(!DynamicGeometry(Index));	// If dynamic geometry exists we should not be setting shared geometry on top
 			SetGeometryImpl(Index, MakeSerializable(InShared));
 			MSharedGeometry[Index] = InShared;
 		}
 		
-		CHAOS_API void SetGeometry(const int32 Index, TSerializablePtr<FImplicitObject> InGeometry)
+		void SetGeometry(const int32 Index, TSerializablePtr<FImplicitObject> InGeometry)
 		{
 			check(!DynamicGeometry(Index));
 			check(!SharedGeometry(Index));
@@ -366,7 +366,7 @@ namespace Chaos
 		}
 
 	private:
-		CHAOS_API void SetGeometryImpl(const int32 Index, TSerializablePtr<FImplicitObject> InGeometry)
+		void SetGeometryImpl(const int32 Index, TSerializablePtr<FImplicitObject> InGeometry)
 		{
 			MGeometry[Index] = InGeometry;
 
@@ -444,37 +444,37 @@ namespace Chaos
 		}
 	public:
 
-		CHAOS_API const TAABB<T,d>& LocalBounds(const int32 Index) const
+		const TAABB<T,d>& LocalBounds(const int32 Index) const
 		{
 			return MLocalBounds[Index];
 		}
 
-		CHAOS_API TAABB<T, d>& LocalBounds(const int32 Index)
+		TAABB<T, d>& LocalBounds(const int32 Index)
 		{
 			return MLocalBounds[Index];
 		}
 
-		CHAOS_API const TVector<T,d>& CCDAxisThreshold(const int32 Index) const
+		const TVector<T,d>& CCDAxisThreshold(const int32 Index) const
 		{
 			return MCCDAxisThreshold[Index];
 		}
 
-		CHAOS_API bool HasBounds(const int32 Index) const
+		bool HasBounds(const int32 Index) const
 		{
 			return MHasBounds[Index];
 		}
 
-		CHAOS_API bool& HasBounds(const int32 Index)
+		bool& HasBounds(const int32 Index)
 		{
 			return MHasBounds[Index];
 		}
 
-		CHAOS_API FSpatialAccelerationIdx SpatialIdx(const int32 Index) const
+		FSpatialAccelerationIdx SpatialIdx(const int32 Index) const
 		{
 			return MSpatialIdx[Index];
 		}
 
-		CHAOS_API FSpatialAccelerationIdx& SpatialIdx(const int32 Index)
+		FSpatialAccelerationIdx& SpatialIdx(const int32 Index)
 		{
 			return MSpatialIdx[Index];
 		}
@@ -491,12 +491,12 @@ namespace Chaos
 		}
 #endif
 
-		CHAOS_API const TAABB<T, d>& WorldSpaceInflatedBounds(const int32 Index) const
+		const TAABB<T, d>& WorldSpaceInflatedBounds(const int32 Index) const
 		{
 			return MWorldSpaceInflatedBounds[Index];
 		}
 
-		CHAOS_API void UpdateWorldSpaceState(const int32 Index, const FRigidTransform3& WorldTransform, const FVec3& BoundsExpansion)
+		void UpdateWorldSpaceState(const int32 Index, const FRigidTransform3& WorldTransform, const FVec3& BoundsExpansion)
 		{
 			const FShapesArray& Shapes = ShapesArray(Index);
 
@@ -526,17 +526,17 @@ namespace Chaos
 
 		CHAOS_API void SetHandle(int32 Index, FGeometryParticleHandle* Handle);
 		
-		CHAOS_API FGeometryParticle* GTGeometryParticle(const int32 Index) const { return MGeometryParticle[Index]; }
-		CHAOS_API FGeometryParticle*& GTGeometryParticle(const int32 Index) { return MGeometryParticle[Index]; }
+		FGeometryParticle* GTGeometryParticle(const int32 Index) const { return MGeometryParticle[Index]; }
+		FGeometryParticle*& GTGeometryParticle(const int32 Index) { return MGeometryParticle[Index]; }
 
-		CHAOS_API const IPhysicsProxyBase* PhysicsProxy(const int32 Index) const { return MPhysicsProxy[Index];  }
-		CHAOS_API IPhysicsProxyBase* PhysicsProxy(const int32 Index) { return MPhysicsProxy[Index]; }
-		CHAOS_API void SetPhysicsProxy(const int32 Index, IPhysicsProxyBase* InPhysicsProxy)
+		const IPhysicsProxyBase* PhysicsProxy(const int32 Index) const { return MPhysicsProxy[Index];  }
+		IPhysicsProxyBase* PhysicsProxy(const int32 Index) { return MPhysicsProxy[Index]; }
+		void SetPhysicsProxy(const int32 Index, IPhysicsProxyBase* InPhysicsProxy)
 		{
 			MPhysicsProxy[Index] = InPhysicsProxy;
 		}
 
-		CHAOS_API FWeakParticleHandle& WeakParticleHandle(const int32 Index)
+		FWeakParticleHandle& WeakParticleHandle(const int32 Index)
 		{
 			FWeakParticleHandle& WeakHandle = MWeakParticleHandle[Index];
 			if(WeakHandle.IsInitialized())
@@ -551,19 +551,19 @@ namespace Chaos
 		/**
 		 * @brief All of the persistent (non-collision) constraints affecting the particle
 		*/
-		CHAOS_API FConstraintHandleArray& ParticleConstraints(const int32 Index)
+		FConstraintHandleArray& ParticleConstraints(const int32 Index)
 		{
 			return MParticleConstraints[Index];
 		}
 
-		CHAOS_API void AddConstraintHandle(const int32& Index, FConstraintHandle* InConstraintHandle)
+		void AddConstraintHandle(const int32& Index, FConstraintHandle* InConstraintHandle)
 		{
 			CHAOS_ENSURE(!MParticleConstraints[Index].Contains(InConstraintHandle));
 			MParticleConstraints[Index].Add(InConstraintHandle);
 		}
 
 
-		CHAOS_API void RemoveConstraintHandle(const int32& Index, FConstraintHandle* InConstraintHandle)
+		void RemoveConstraintHandle(const int32& Index, FConstraintHandle* InConstraintHandle)
 		{
 			MParticleConstraints[Index].RemoveSingleSwap(InConstraintHandle);
 			CHAOS_ENSURE(!MParticleConstraints[Index].Contains(InConstraintHandle));
@@ -572,7 +572,7 @@ namespace Chaos
 		/**
 		 * @brief All of the collision constraints affecting the particle
 		*/
-		CHAOS_API FParticleCollisions& ParticleCollisions(const int32 Index)
+		FParticleCollisions& ParticleCollisions(const int32 Index)
 		{
 			return MParticleCollisions[Index];
 		}
@@ -596,7 +596,7 @@ namespace Chaos
 
 private:
 		friend THandleType;
-		CHAOS_API void ResetWeakParticleHandle(const int32 Index)
+		void ResetWeakParticleHandle(const int32 Index)
 		{
 			FWeakParticleHandle& WeakHandle = MWeakParticleHandle[Index];
 			if(WeakHandle.IsInitialized())
@@ -612,7 +612,7 @@ public:
 			return FString::Printf(TEXT("%s, MUniqueIdx:%d MR:%s, MGeometry:%s, IsDynamic:%d"), *BaseString, UniqueIdx(index).Idx, *R(index).ToString(), (Geometry(index) ? *(Geometry(index)->ToString()) : TEXT("none")), (DynamicGeometry(index) != nullptr));
 		}
 
-		CHAOS_API virtual void Serialize(FChaosArchive& Ar)
+		virtual void Serialize(FChaosArchive& Ar)
 		{
 			LLM_SCOPE(ELLMTag::ChaosParticles);
 			TParticles<T, d>::Serialize(Ar);

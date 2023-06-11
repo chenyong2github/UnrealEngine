@@ -19,14 +19,14 @@ class FEvent;
 namespace Chaos
 {
 	/** Debug only class used to control the pausing/stepping/substepping of a debug solver thread. */
-	class CHAOS_API FDebugSubstep final
+	class FDebugSubstep final
 	{
 		friend class FDebugSolverTask;
 		friend class FDebugSolverTasks;
 
 	public:
 		FDebugSubstep();
-		~FDebugSubstep();
+		CHAOS_API ~FDebugSubstep();
 
 		/** Return whether debugging mode/pausing to substeps is enabled. */
 		bool IsEnabled() const { return bIsEnabled; }
@@ -40,23 +40,23 @@ namespace Chaos
 		FORCEINLINE void Add(const TCHAR* Label = nullptr) const { Add(false, Label); }
 
 		/** Enable/disable substep pause points. */
-		void Enable(bool bEnable);
+		CHAOS_API void Enable(bool bEnable);
 
 		/** Allow progress to the next substep (only works once this object is enabled). */
-		void ProgressToSubstep();
+		CHAOS_API void ProgressToSubstep();
 
 		/** Allow progress to the next step (only works once this object is enabled). */
-		void ProgressToStep();
+		CHAOS_API void ProgressToStep();
 
 	private:
 		FDebugSubstep(const FDebugSubstep&) = delete;
 		FDebugSubstep& operator=(const FDebugSubstep&) = delete;
 
 		/** Initialize sync events. */
-		void Initialize();
+		CHAOS_API void Initialize();
 
 		/** Shutdown and release sync events. Once released the debug thread cannot be restarted unless Initialize is called first. */
-		void Release();
+		CHAOS_API void Release();
 
 		/** Return true when initialized. */
 		FORCEINLINE bool IsInitialized() const { return !!ProgressEvent && !!SubstepEvent; }
@@ -66,10 +66,10 @@ namespace Chaos
 		 * Not thread safe. Must be called from within the physics thread or with the physics thread locked.
 		 * Once shutdown, the debug thread can still be restarted when SyncAdvance is called.
 		 */
-		void Shutdown();
+		CHAOS_API void Shutdown();
 
 		/** Set the id of the thread the debug substepping will be running in. */
-		void AssumeThisThread();
+		CHAOS_API void AssumeThisThread();
 
 		/**
 		 * Control substepping progress.
@@ -77,23 +77,23 @@ namespace Chaos
 		 * @param bIsSolverEnabled The state of the solver. The substepping will stop when the solver is disabled and delay starting again until re-enabled.
 		 * @return Whether the debug thread needs running.
 		 */
-		bool SyncAdvance(bool bIsSolverEnabled);
+		CHAOS_API bool SyncAdvance(bool bIsSolverEnabled);
 
 		/**
 		 * Add a new step or substep.
 		 * @param bInStep Add a step instead of a substep when this is true (for internal use only in the solver debug thread loop).
 		 * @param Label The reference (if any) that will be used in verbose logs when this point is reached, or nullptr otherwise.
 		 */
-		void Add(bool bInStep, const TCHAR* Label) const;
+		CHAOS_API void Add(bool bInStep, const TCHAR* Label) const;
 
 		/** Set sync events to start the substepping process. */
-		void Start();
+		CHAOS_API void Start();
 
 		/** Trigger/wait for sync events to stop the substepping process. */
-		void Stop();
+		CHAOS_API void Stop();
 
 		/** Trigger/wait for sync events to step/substep. */
-		void Substep(bool bShouldStep);
+		CHAOS_API void Substep(bool bShouldStep);
 
 	private:
 		enum class ECommand { Enable, Disable, ProgressToSubstep, ProgressToStep };

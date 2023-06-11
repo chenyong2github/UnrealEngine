@@ -26,7 +26,7 @@ extern CHAOS_API bool bChaos_Spherical_ISPC_Enabled;
 namespace Chaos::Softs
 {
 
-class CHAOS_API FPBDSphericalConstraint final
+class FPBDSphericalConstraint final
 {
 public:
 	static bool IsEnabled(const FCollectionPropertyConstFacade& PropertyCollection)
@@ -85,7 +85,7 @@ public:
 
 	~FPBDSphericalConstraint() {}
 
-	void SetProperties(
+	CHAOS_API void SetProperties(
 		const FCollectionPropertyConstFacade& PropertyCollection,
 		const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps,
 		FSolverReal MeshScale);
@@ -165,7 +165,7 @@ private:
 		});
 	}
 
-	void ApplyHelperISPC(FSolverParticles& Particles, const FSolverReal Dt) const;
+	CHAOS_API void ApplyHelperISPC(FSolverParticles& Particles, const FSolverReal Dt) const;
 
 protected:
 	const TArray<FSolverVec3>& AnimationPositions;  // Use global indexation (will need adding ParticleOffset)
@@ -183,7 +183,7 @@ private:
 	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(MaxDistance, float);
 };
 
-class CHAOS_API FPBDSphericalBackstopConstraint final
+class FPBDSphericalBackstopConstraint final
 {
 public:
 	static bool IsEnabled(const FCollectionPropertyConstFacade& PropertyCollection)
@@ -261,7 +261,7 @@ public:
 	}
 	~FPBDSphericalBackstopConstraint() {}
 
-	void SetProperties(
+	CHAOS_API void SetProperties(
 		const FCollectionPropertyConstFacade& PropertyCollection,
 		const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps,
 		FSolverReal MeshScale);
@@ -456,8 +456,8 @@ private:
 		});
 	}
 
-	void ApplyLegacyHelperISPC(FSolverParticles& Particles, const FSolverReal Dt) const;
-	void ApplyHelperISPC(FSolverParticles& Particles, const FSolverReal Dt) const;
+	CHAOS_API void ApplyLegacyHelperISPC(FSolverParticles& Particles, const FSolverReal Dt) const;
+	CHAOS_API void ApplyHelperISPC(FSolverParticles& Particles, const FSolverReal Dt) const;
 
 private:
 	const TArray<FSolverVec3>& AnimationPositions;  // Positions of spheres, use global indexation (will need adding ParticleOffset)

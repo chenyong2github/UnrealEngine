@@ -29,33 +29,33 @@ namespace GeometryCollection::Facades
 	*	- FindAttribute<TSet<int32>>(FTransformSource::SourceRootsAttribute, <Group>);
 	* 
 	*/
-	class CHAOS_API FTransformSource
+	class FTransformSource
  	{
 	public:
 
 		// groups
-		static const FName TransformSourceGroupName;
+		static CHAOS_API const FName TransformSourceGroupName;
 
 		// Attributes
-		static const FName SourceNameAttributeName;
-		static const FName SourceGuidAttributeName;
-		static const FName SourceRootsAttributeName;
+		static CHAOS_API const FName SourceNameAttributeName;
+		static CHAOS_API const FName SourceGuidAttributeName;
+		static CHAOS_API const FName SourceRootsAttributeName;
 
 		/**
 		* FSelectionFacade Constuctor
 		* @param VertixDependencyGroup : GroupName the index attribute is dependent on. 
 		*/
-		FTransformSource(FManagedArrayCollection& InSelf);
-		FTransformSource(const FManagedArrayCollection& InSelf);
+		CHAOS_API FTransformSource(FManagedArrayCollection& InSelf);
+		CHAOS_API FTransformSource(const FManagedArrayCollection& InSelf);
 
 		/** Create the facade. */
-		void DefineSchema();
+		CHAOS_API void DefineSchema();
 
 		/** Is the facade defined constant. */
 		bool IsConst() const { return SourceNameAttribute.IsConst(); }
 
 		/** Is the Facade defined on the collection? */
-		bool IsValid() const;
+		CHAOS_API bool IsValid() const;
 
 		/**
 		* Add a transform root mapping.
@@ -63,14 +63,14 @@ namespace GeometryCollection::Facades
 		* @param Guid : Guid of the owner of the transform set.
 		* @param Roots : Root indices of the transform set.
 		*/
-		void AddTransformSource(const FString& Name, const FString& Guid, const TSet<int32>& Roots);
+		CHAOS_API void AddTransformSource(const FString& Name, const FString& Guid, const TSet<int32>& Roots);
 
 		/**
 		* Query for root indices.  
 		* @param Name : Name of the owner of the transform set.  
 		* @param Guid : Guid of the owner of the transform set.
 		*/
-		TSet<int32> GetTransformSource(const FString& Name, const FString& Guid) const;
+		CHAOS_API TSet<int32> GetTransformSource(const FString& Name, const FString& Guid) const;
 
 	private:
 		TManagedArrayAccessor<FString> SourceNameAttribute;

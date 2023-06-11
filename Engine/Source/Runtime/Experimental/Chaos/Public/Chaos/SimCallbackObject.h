@@ -57,7 +57,7 @@ ENUM_CLASS_FLAGS(ESimCallbackOptions)
  * We rely on this to cache results and skip callbacks when possible during a resim.
  * See functions for more details.
  */
-class CHAOS_API ISimCallbackObject
+class ISimCallbackObject
 {
 public:
 
@@ -199,7 +199,7 @@ protected:
 	/**
 	 * Gets the current producer input data. This is what the external thread should be writing to
 	 */
-	FSimCallbackInput* GetProducerInputData_External();
+	CHAOS_API FSimCallbackInput* GetProducerInputData_External();
 
 	void SetCurrentInput_Internal(FSimCallbackInput* NewInput)
 	{

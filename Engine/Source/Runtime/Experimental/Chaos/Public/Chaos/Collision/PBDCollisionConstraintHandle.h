@@ -45,7 +45,7 @@ namespace Chaos
 	 * @note This is an intrusive handle, so you can use a contact pointer as a handle.
 	 * @todo(chaos): remove this class - it can just be a "using FPBDCollisionConstraintHandle = FPBDCollisionConstraint"
 	*/
-	class CHAOS_API FPBDCollisionConstraintHandle : public TIntrusiveConstraintHandle<FPBDCollisionConstraint>
+	class FPBDCollisionConstraintHandle : public TIntrusiveConstraintHandle<FPBDCollisionConstraint>
 	{
 	public:
 		using Base = TIntrusiveConstraintHandle<FPBDCollisionConstraint>;
@@ -58,8 +58,8 @@ namespace Chaos
 		{
 		}
 
-		const FPBDCollisionConstraint& GetContact() const;
-		FPBDCollisionConstraint& GetContact();
+		CHAOS_API const FPBDCollisionConstraint& GetContact() const;
+		CHAOS_API FPBDCollisionConstraint& GetContact();
 
 		UE_DEPRECATED(4.27, "Use GetContact()")
 		const FPBDCollisionConstraint& GetPointContact() const { return GetContact(); }
@@ -73,21 +73,21 @@ namespace Chaos
 		UE_DEPRECATED(4.27, "Use GetContact()")
 		FPBDCollisionConstraint& GetSweptPointContact() { return GetContact(); }
 
-		bool GetCCDEnabled() const;
+		CHAOS_API bool GetCCDEnabled() const;
 
-		virtual void SetEnabled(bool InEnabled) override final;
+		CHAOS_API virtual void SetEnabled(bool InEnabled) override final;
 
-		virtual bool IsEnabled() const override final;
+		CHAOS_API virtual bool IsEnabled() const override final;
 
-		virtual bool IsProbe() const override final;
+		CHAOS_API virtual bool IsProbe() const override final;
 
-		FVec3 GetAccumulatedImpulse() const;
+		CHAOS_API FVec3 GetAccumulatedImpulse() const;
 
 		// Declared final so that TPBDConstraintGraphRuleImpl::AddToGraph() does not need to hit vtable
-		virtual FParticlePair GetConstrainedParticles() const override final;
+		CHAOS_API virtual FParticlePair GetConstrainedParticles() const override final;
 
-		const FPBDCollisionConstraints* ConcreteContainer() const;
-		FPBDCollisionConstraints* ConcreteContainer();
+		CHAOS_API const FPBDCollisionConstraints* ConcreteContainer() const;
+		CHAOS_API FPBDCollisionConstraints* ConcreteContainer();
 
 		static const FConstraintHandleTypeID& StaticType()
 		{

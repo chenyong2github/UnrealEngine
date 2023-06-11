@@ -9,7 +9,7 @@ namespace Chaos
 {
 	class FPBDRigidSpringConstraints;
 
-	class CHAOS_API FPBDRigidSpringConstraintHandle final : public TIndexedContainerConstraintHandle<FPBDRigidSpringConstraints>
+	class FPBDRigidSpringConstraintHandle final : public TIndexedContainerConstraintHandle<FPBDRigidSpringConstraints>
 	{
 	public:
 		using Base = TIndexedContainerConstraintHandle<FPBDRigidSpringConstraints>;
@@ -25,14 +25,14 @@ namespace Chaos
 		{
 		}
 
-		const TVector<FVec3, 2>& GetConstraintPositions() const;
-		void SetConstraintPositions(const TVector<FVec3, 2>& ConstraintPositions);
+		CHAOS_API const TVector<FVec3, 2>& GetConstraintPositions() const;
+		CHAOS_API void SetConstraintPositions(const TVector<FVec3, 2>& ConstraintPositions);
 		
-		virtual FParticlePair GetConstrainedParticles() const override final;
+		CHAOS_API virtual FParticlePair GetConstrainedParticles() const override final;
 
 		// Get the rest length of the spring
-		FReal GetRestLength() const;
-		void SetRestLength(const FReal SpringLength);
+		CHAOS_API FReal GetRestLength() const;
+		CHAOS_API void SetRestLength(const FReal SpringLength);
 
 		static const FConstraintHandleTypeID& StaticType()
 		{

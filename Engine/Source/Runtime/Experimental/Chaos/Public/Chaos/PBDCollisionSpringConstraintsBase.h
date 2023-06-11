@@ -18,14 +18,14 @@ namespace Chaos::Softs
 {
 
 // This is an invertible spring class, typical springs are not invertible aware
-class CHAOS_API FPBDCollisionSpringConstraintsBase
+class FPBDCollisionSpringConstraintsBase
 {
 public:
 	static constexpr FSolverReal BackCompatThickness = (FSolverReal)1.f;
 	static constexpr FSolverReal BackCompatStiffness = (FSolverReal)0.5f;
 	static constexpr FSolverReal BackCompatFrictionCoefficient = (FSolverReal)0.f;
 
-	FPBDCollisionSpringConstraintsBase(
+	CHAOS_API FPBDCollisionSpringConstraintsBase(
 		const int32 InOffset,
 		const int32 InNumParticles,
 		const FTriangleMesh& InTriangleMesh,
@@ -38,12 +38,12 @@ public:
 	virtual ~FPBDCollisionSpringConstraintsBase() {}
 
 	UE_DEPRECATED(5.0, "Use Init(Particles, Spatial, GIAColors) instead.")
-	void Init(const FSolverParticles& Particles);
+	CHAOS_API void Init(const FSolverParticles& Particles);
 
 	template<typename SpatialAccelerator>
 	void Init(const FSolverParticles& Particles, const SpatialAccelerator& Spatial, const TConstArrayView<FPBDTriangleMeshCollisions::FGIAColor>& VertexGIAColors, const TArray<FPBDTriangleMeshCollisions::FGIAColor>& TriangleGIAColors);
 
-	FSolverVec3 GetDelta(const FSolverParticles& InParticles, const int32 i) const;
+	CHAOS_API FSolverVec3 GetDelta(const FSolverParticles& InParticles, const int32 i) const;
 
 	const TArray<TVec4<int32>>& GetConstraints() const { return Constraints;  }
 	const TArray<FSolverVec3>& GetBarys() const { return Barys; }

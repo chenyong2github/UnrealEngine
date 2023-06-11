@@ -12,7 +12,7 @@ namespace GeometryCollection::Facades
 	/**
 	* Transient constraint candidate data.
 	*/
-	struct CHAOS_API FConstraintOverridesCandidateData
+	struct FConstraintOverridesCandidateData
 	{
 		FConstraintOverridesCandidateData()
 			: VertexIndex(INDEX_NONE)
@@ -26,7 +26,7 @@ namespace GeometryCollection::Facades
 	/**
 	* Transient constraint target data.
 	*/
-	struct CHAOS_API FConstraintOverridesTargetData
+	struct FConstraintOverridesTargetData
 	{
 		FConstraintOverridesTargetData()
 			: VertexIndex(INDEX_NONE)
@@ -39,23 +39,23 @@ namespace GeometryCollection::Facades
 	/**
 	* Transient constraint candidates.  Typically stored in the rest collection.
 	*/
-	class CHAOS_API FConstraintOverrideCandidateFacade
+	class FConstraintOverrideCandidateFacade
 	{
 	public:
-		static const FName GroupName;
-		static const FName TargetIndex;
-		static const FName BoneIndex;
+		static CHAOS_API const FName GroupName;
+		static CHAOS_API const FName TargetIndex;
+		static CHAOS_API const FName BoneIndex;
 
-		FConstraintOverrideCandidateFacade(FManagedArrayCollection& InCollection);
-		FConstraintOverrideCandidateFacade(const FManagedArrayCollection& InCollection);
+		CHAOS_API FConstraintOverrideCandidateFacade(FManagedArrayCollection& InCollection);
+		CHAOS_API FConstraintOverrideCandidateFacade(const FManagedArrayCollection& InCollection);
 
-		void DefineSchema();
+		CHAOS_API void DefineSchema();
 		bool IsConst() const { return Collection == nullptr; }
-		bool IsValid() const;
+		CHAOS_API bool IsValid() const;
 
-		int32 Add(FConstraintOverridesCandidateData& InputData);
-		void Clear();
-		FConstraintOverridesCandidateData Get(const int32 Index) const;
+		CHAOS_API int32 Add(FConstraintOverridesCandidateData& InputData);
+		CHAOS_API void Clear();
+		CHAOS_API FConstraintOverridesCandidateData Get(const int32 Index) const;
 		int32 Num() const { return TargetIndexAttribute.Num(); }
 
 	private:
@@ -69,25 +69,25 @@ namespace GeometryCollection::Facades
 	/**
 	* Transient constraint targets.  Typically stored in the simulation collection.
 	*/
-	class CHAOS_API FConstraintOverrideTargetFacade
+	class FConstraintOverrideTargetFacade
 	{
 	public:
-		static const FName GroupName;
-		static const FName TargetIndex;
-		static const FName TargetPosition;
+		static CHAOS_API const FName GroupName;
+		static CHAOS_API const FName TargetIndex;
+		static CHAOS_API const FName TargetPosition;
 
-		FConstraintOverrideTargetFacade(FManagedArrayCollection& InCollection);
-		FConstraintOverrideTargetFacade(const FManagedArrayCollection& InCollection);
+		CHAOS_API FConstraintOverrideTargetFacade(FManagedArrayCollection& InCollection);
+		CHAOS_API FConstraintOverrideTargetFacade(const FManagedArrayCollection& InCollection);
 
-		void DefineSchema();
+		CHAOS_API void DefineSchema();
 		bool IsConst() const { return Collection == nullptr; }
-		bool IsValid() const;
+		CHAOS_API bool IsValid() const;
 
-		int32 Add(FConstraintOverridesTargetData& InputData);
-		void Clear();
-		FConstraintOverridesTargetData Get(const int32 Index) const;
-		int32 GetIndex(const int32 Index) const;
-		const FVector3f& GetPosition(const int32 Index) const;
+		CHAOS_API int32 Add(FConstraintOverridesTargetData& InputData);
+		CHAOS_API void Clear();
+		CHAOS_API FConstraintOverridesTargetData Get(const int32 Index) const;
+		CHAOS_API int32 GetIndex(const int32 Index) const;
+		CHAOS_API const FVector3f& GetPosition(const int32 Index) const;
 		int32 Num() const { return TargetIndexAttribute.Num(); }
 
 	private:

@@ -99,17 +99,17 @@ using FImplicitHierarchyVisitorBool = TFunctionRef<bool(const FImplicitObject* I
 #pragma warning(error : 4820)
 #endif
 #endif // #if DISALLOW_FIMPLICIT_OBJECT_TAIL_PADDING
-class CHAOS_API FImplicitObject
+class FImplicitObject
 {
 public:
 	using TType = FReal;
 	static constexpr int D = 3;
-	static FImplicitObject* SerializationFactory(FChaosArchive& Ar, FImplicitObject* Obj);
+	static CHAOS_API FImplicitObject* SerializationFactory(FChaosArchive& Ar, FImplicitObject* Obj);
 
-	FImplicitObject(int32 Flags, EImplicitObjectType InType = ImplicitObjectType::Unknown);
+	CHAOS_API FImplicitObject(int32 Flags, EImplicitObjectType InType = ImplicitObjectType::Unknown);
 	FImplicitObject(const FImplicitObject&) = delete;
 	FImplicitObject(FImplicitObject&&) = delete;
-	virtual ~FImplicitObject();
+	CHAOS_API virtual ~FImplicitObject();
 
 	template<class T_DERIVED>
 	T_DERIVED* GetObject()
@@ -149,30 +149,30 @@ public:
 	virtual FImplicitObject* Duplicate() const { check(false); return nullptr; }
 
 	virtual EImplicitObjectType GetNestedType() const { return GetType(); }
-	EImplicitObjectType GetType() const;
+	CHAOS_API EImplicitObjectType GetType() const;
 	static int32 GetOffsetOfType() { return offsetof(FImplicitObject, Type); }
 
-	EImplicitObjectType GetCollisionType() const;
+	CHAOS_API EImplicitObjectType GetCollisionType() const;
 	void SetCollisionType(EImplicitObjectType InCollisionType) { CollisionType = InCollisionType; }
 
 	FReal GetMargin() const { return Margin; }
 	static int32 GetOffsetOfMargin() { return offsetof(FImplicitObject, Margin); }
 
-	virtual bool IsValidGeometry() const;
+	CHAOS_API virtual bool IsValidGeometry() const;
 
-	virtual TUniquePtr<FImplicitObject> Copy() const;
-	virtual TUniquePtr<FImplicitObject> CopyWithScale(const FVec3& Scale) const;
+	CHAOS_API virtual TUniquePtr<FImplicitObject> Copy() const;
+	CHAOS_API virtual TUniquePtr<FImplicitObject> CopyWithScale(const FVec3& Scale) const;
 	virtual TUniquePtr<FImplicitObject> DeepCopy() const { return Copy(); }
 	virtual TUniquePtr<FImplicitObject> DeepCopyWithScale(const FVec3& Scale) const { return CopyWithScale(Scale); }
 
 	//This is strictly used for optimization purposes
-	bool IsUnderlyingUnion() const;
+	CHAOS_API bool IsUnderlyingUnion() const;
 
 	// Explicitly non-virtual.  Must cast to derived types to target their implementation.
-	FReal SignedDistance(const FVec3& x) const;
+	CHAOS_API FReal SignedDistance(const FVec3& x) const;
 
 	// Explicitly non-virtual.  Must cast to derived types to target their implementation.
-	FVec3 Normal(const FVec3& x) const;
+	CHAOS_API FVec3 Normal(const FVec3& x) const;
 
 	// Find the closest point on the surface, and return the separating distance and axis
 	virtual FReal PhiWithNormal(const FVec3& x, FVec3& Normal) const = 0;
@@ -190,7 +190,7 @@ public:
 		return ScaledPhi;
 	}
 
-	virtual const FAABB3 BoundingBox() const;
+	CHAOS_API virtual const FAABB3 BoundingBox() const;
 
 	// Calculate the tight-fitting world-space bounding box
 	virtual FAABB3 CalculateTransformedBounds(const FRigidTransform3& Transform) const
@@ -209,7 +209,7 @@ public:
 	
 #if TRACK_CHAOS_GEOMETRY
 	//Turn on memory tracking. Must pass object itself as a serializable ptr so we can save it out
-	void Track(TSerializablePtr<FImplicitObject> This, const FString& DebugInfo);
+	CHAOS_API void Track(TSerializablePtr<FImplicitObject> This, const FString& DebugInfo);
 #endif
 
 	virtual bool IsPerformanceWarning() const { return false; }
@@ -218,9 +218,9 @@ public:
 		return FString::Printf(TEXT("ImplicitObject - No Performance String"));
 	};
 
-	Pair<FVec3, bool> FindDeepestIntersection(const FImplicitObject* Other, const FBVHParticles* Particles, const FMatrix33& OtherToLocalTransform, const FReal Thickness) const;
-	Pair<FVec3, bool> FindDeepestIntersection(const FImplicitObject* Other, const FParticles* Particles, const FMatrix33& OtherToLocalTransform, const FReal Thickness) const;
-	Pair<FVec3, bool> FindClosestIntersection(const FVec3& StartPoint, const FVec3& EndPoint, const FReal Thickness) const;
+	CHAOS_API Pair<FVec3, bool> FindDeepestIntersection(const FImplicitObject* Other, const FBVHParticles* Particles, const FMatrix33& OtherToLocalTransform, const FReal Thickness) const;
+	CHAOS_API Pair<FVec3, bool> FindDeepestIntersection(const FImplicitObject* Other, const FParticles* Particles, const FMatrix33& OtherToLocalTransform, const FReal Thickness) const;
+	CHAOS_API Pair<FVec3, bool> FindClosestIntersection(const FVec3& StartPoint, const FVec3& EndPoint, const FReal Thickness) const;
 
 	//This gives derived types a way to avoid calling PhiWithNormal todo: this api is confusing
 	virtual bool Raycast(const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const FReal Thickness, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex) const
@@ -311,14 +311,14 @@ public:
 		Out.Add(MakePair(This, ParentTM));
 	}
 
-	virtual void FindAllIntersectingObjects(TArray < Pair<const FImplicitObject*, FRigidTransform3>>& Out, const FAABB3& LocalBounds) const;
+	CHAOS_API virtual void FindAllIntersectingObjects(TArray < Pair<const FImplicitObject*, FRigidTransform3>>& Out, const FAABB3& LocalBounds) const;
 
 	virtual FString ToString() const
 	{
 		return FString::Printf(TEXT("ImplicitObject bIsConvex:%d, bDoCollide:%d, bHasBoundingBox:%d"), bIsConvex, bDoCollide, bHasBoundingBox);
 	}
 
-	void SerializeImp(FArchive& Ar);
+	CHAOS_API void SerializeImp(FArchive& Ar);
 
 	constexpr static EImplicitObjectType StaticType()
 	{
@@ -330,15 +330,15 @@ public:
 		check(false);	//Aggregate implicits require FChaosArchive - check false by default
 	}
 
-	virtual void Serialize(FChaosArchive& Ar);
+	CHAOS_API virtual void Serialize(FChaosArchive& Ar);
 	
-	static FArchive& SerializeLegacyHelper(FArchive& Ar, TUniquePtr<FImplicitObject>& Value);
+	static CHAOS_API FArchive& SerializeLegacyHelper(FArchive& Ar, TUniquePtr<FImplicitObject>& Value);
 
 	virtual uint32 GetTypeHash() const = 0;
 
 	virtual FName GetTypeName() const { return GetTypeName(GetType()); }
 
-	static const FName GetTypeName(const EImplicitObjectType InType);
+	static CHAOS_API const FName GetTypeName(const EImplicitObjectType InType);
 
 	virtual uint16 GetMaterialIndex(uint32 HintIndex) const { return 0; }
 
@@ -501,7 +501,7 @@ protected:
 #endif // DISALLOW_FIMPLICIT_OBJECT_TAIL_PADDING
 
 private:
-	virtual Pair<FVec3, bool> FindClosestIntersectionImp(const FVec3& StartPoint, const FVec3& EndPoint, const FReal Thickness) const;
+	CHAOS_API virtual Pair<FVec3, bool> FindClosestIntersectionImp(const FVec3& StartPoint, const FVec3& EndPoint, const FReal Thickness) const;
 };
 #if DISALLOW_FIMPLICIT_OBJECT_TAIL_PADDING
 #if defined(__clang__) || defined(__GNUC__)

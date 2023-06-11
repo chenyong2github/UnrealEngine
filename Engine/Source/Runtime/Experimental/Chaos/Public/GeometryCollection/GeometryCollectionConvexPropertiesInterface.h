@@ -8,28 +8,28 @@
 
 class FGeometryCollection;
 
-class CHAOS_API FGeometryCollectionConvexPropertiesInterface : public FManagedArrayInterface
+class FGeometryCollectionConvexPropertiesInterface : public FManagedArrayInterface
 {
 public :
 	typedef FManagedArrayInterface Super;
 	using FManagedArrayInterface::ManagedCollection;
 
 	// Convex Properties Group Name
-	static const FName ConvexPropertiesGroup; 
+	static CHAOS_API const FName ConvexPropertiesGroup; 
 	// Attribute
-	static const FName ConvexIndexAttribute;
+	static CHAOS_API const FName ConvexIndexAttribute;
 	// Attribute
-	static const FName ConvexEnable;
+	static CHAOS_API const FName ConvexEnable;
 	// Attribute
-	static const FName ConvexFractionRemoveAttribute;
+	static CHAOS_API const FName ConvexFractionRemoveAttribute;
 	// Attribute
-	static const FName ConvexSimplificationThresholdAttribute;
+	static CHAOS_API const FName ConvexSimplificationThresholdAttribute;
 	// Attribute
-	static const FName ConvexCanExceedFractionAttribute;
+	static CHAOS_API const FName ConvexCanExceedFractionAttribute;
 	// Attribute
-	static const FName ConvexRemoveOverlapsMethodAttribute;
+	static CHAOS_API const FName ConvexRemoveOverlapsMethodAttribute;
 	// Attribute
-	static const FName ConvexRemoveOverlapsShrinkAttribute;
+	static CHAOS_API const FName ConvexRemoveOverlapsShrinkAttribute;
 
 
 	struct FConvexCreationProperties {
@@ -41,16 +41,16 @@ public :
 		float OverlapRemovalShrinkPercent = 0.0f;
 	};
 
-	FGeometryCollectionConvexPropertiesInterface(FGeometryCollection* InGeometryCollection);
+	CHAOS_API FGeometryCollectionConvexPropertiesInterface(FGeometryCollection* InGeometryCollection);
 
-	void InitializeInterface() override;
+	CHAOS_API void InitializeInterface() override;
 
-	void CleanInterfaceForCook() override;
+	CHAOS_API void CleanInterfaceForCook() override;
 	
-	void RemoveInterfaceAttributes() override;
+	CHAOS_API void RemoveInterfaceAttributes() override;
 
-	FConvexCreationProperties GetConvexProperties(int TransformGroupIndex = INDEX_NONE) const;
-	void SetConvexProperties(const FConvexCreationProperties&, int TransformGroupIndex = INDEX_NONE);
+	CHAOS_API FConvexCreationProperties GetConvexProperties(int TransformGroupIndex = INDEX_NONE) const;
+	CHAOS_API void SetConvexProperties(const FConvexCreationProperties&, int TransformGroupIndex = INDEX_NONE);
 private:
 
 	void SetDefaultProperty();

@@ -51,7 +51,7 @@ namespace Chaos
 	extern CHAOS_API int32 ForceDisableAsyncPhysics;
 	extern CHAOS_API FRealSingle AsyncInterpolationMultiplier;
 
-	struct CHAOS_API FSubStepInfo
+	struct FSubStepInfo
 	{
 		FSubStepInfo()
 			: PseudoFraction(1.0)
@@ -89,7 +89,7 @@ namespace Chaos
 	/**
 	 * Task responsible for processing the command buffer of a single solver and preparing data before solver task and callbacks are run
 	 */
-	class CHAOS_API FPhysicsSolverProcessPushDataTask
+	class FPhysicsSolverProcessPushDataTask
 	{
 	public:
 
@@ -98,10 +98,10 @@ namespace Chaos
 			, PushData(InPushData){}
 
 		TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(FPhysicsSolverProcessPushDataTask, STATGROUP_TaskGraphTasks); }
-		static ENamedThreads::Type GetDesiredThread();
+		static CHAOS_API ENamedThreads::Type GetDesiredThread();
 		static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
 		void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent) { ProcessPushData(); }
-		void ProcessPushData();
+		CHAOS_API void ProcessPushData();
 
 	private:
 
@@ -112,7 +112,7 @@ namespace Chaos
 	/**
 	 * Task responsible for triggering any game thread callbacks before solver can advance (not scheduled if none are registered)
 	 */
-	class CHAOS_API FPhysicsSolverFrozenGTPreSimCallbacks
+	class FPhysicsSolverFrozenGTPreSimCallbacks
 	{
 	public:
 
@@ -122,7 +122,7 @@ namespace Chaos
 		static ENamedThreads::Type GetDesiredThread() { return ENamedThreads::SetTaskPriority(ENamedThreads::GameThread, ENamedThreads::HighTaskPriority); }
 		static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
 		void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent) { GTPreSimCallbacks(); }
-		void GTPreSimCallbacks();
+		CHAOS_API void GTPreSimCallbacks();
 
 	private:
 
@@ -132,17 +132,17 @@ namespace Chaos
 	/**
 	 * Task responsible for advancing the solver once data has been prepared and GT callbacks have fired
 	 */
-	class CHAOS_API FPhysicsSolverAdvanceTask
+	class FPhysicsSolverAdvanceTask
 	{
 	public:
 
-		FPhysicsSolverAdvanceTask(FPhysicsSolverBase& InSolver, FPushPhysicsData* InPushData);
+		CHAOS_API FPhysicsSolverAdvanceTask(FPhysicsSolverBase& InSolver, FPushPhysicsData* InPushData);
 		
 		TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(FPhysicsSolverAdvanceTask, STATGROUP_TaskGraphTasks); }
-		static ENamedThreads::Type GetDesiredThread();
+		static CHAOS_API ENamedThreads::Type GetDesiredThread();
 		static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
-		void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent);
-		void AdvanceSolver();
+		CHAOS_API void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent);
+		CHAOS_API void AdvanceSolver();
 
 	private:
 
@@ -159,7 +159,7 @@ namespace Chaos
 #endif
 	};
 
-	struct CHAOS_API FAllSolverTasks
+	struct FAllSolverTasks
 	{
 		FAllSolverTasks(FPhysicsSolverBase& InSolver, FPushPhysicsData* PushData)
 			: ProcessPushData(InSolver, PushData)
@@ -173,7 +173,7 @@ namespace Chaos
 		FPhysicsSolverFrozenGTPreSimCallbacks GTPreSimCallbacks;
 		FPhysicsSolverAdvanceTask AdvanceTask;
 
-		void AdvanceSolver();
+		CHAOS_API void AdvanceSolver();
 
 		FPhysicsSolverBase& Solver;
 	};
@@ -192,7 +192,7 @@ namespace Chaos
 	
 	/** Base solver class storing events that will be used by the derived solver during the solve.
 	 * Currently used by caching but could be used for any other pre/post solve works that need to be done.  */
-	class CHAOS_API FPhysicsSolverEvents
+	class FPhysicsSolverEvents
 	{
 
 	public:
@@ -207,20 +207,20 @@ namespace Chaos
 		/** Events */
 		/** WARNING: Events are not threadsafe!*/
 		/** Pre advance is called before any physics processing or simulation happens in a given physics update */
-		FDelegateHandle AddPreAdvanceCallback(FSolverPreAdvance::FDelegate InDelegate);
-		bool            RemovePreAdvanceCallback(FDelegateHandle InHandle);
+		CHAOS_API FDelegateHandle AddPreAdvanceCallback(FSolverPreAdvance::FDelegate InDelegate);
+		CHAOS_API bool            RemovePreAdvanceCallback(FDelegateHandle InHandle);
 
 		/** Pre buffer happens after the simulation has been advanced (particle positions etc. will have been updated) but GT results haven't been prepared yet */
-		FDelegateHandle AddPreBufferCallback(FSolverPreAdvance::FDelegate InDelegate);
-		bool            RemovePreBufferCallback(FDelegateHandle InHandle);
+		CHAOS_API FDelegateHandle AddPreBufferCallback(FSolverPreAdvance::FDelegate InDelegate);
+		CHAOS_API bool            RemovePreBufferCallback(FDelegateHandle InHandle);
 
 		/** Post advance happens after all processing and results generation has been completed */
-		FDelegateHandle AddPostAdvanceCallback(FSolverPostAdvance::FDelegate InDelegate);
-		bool            RemovePostAdvanceCallback(FDelegateHandle InHandle);
+		CHAOS_API FDelegateHandle AddPostAdvanceCallback(FSolverPostAdvance::FDelegate InDelegate);
+		CHAOS_API bool            RemovePostAdvanceCallback(FDelegateHandle InHandle);
 
 		/** Teardown happens as the solver is destroyed or streamed out */
-		FDelegateHandle AddTeardownCallback(FSolverTeardown::FDelegate InDelegate);
-		bool            RemoveTeardownCallback(FDelegateHandle InHandle);
+		CHAOS_API FDelegateHandle AddTeardownCallback(FSolverTeardown::FDelegate InDelegate);
+		CHAOS_API bool            RemoveTeardownCallback(FDelegateHandle InHandle);
 
 		/** Clear all the callbacks*/
 		void            ClearCallbacks() 
@@ -269,7 +269,7 @@ namespace Chaos
 	};
 #endif
 
-	class CHAOS_API FPhysicsSolverBase : public FPhysicsSolverEvents
+	class FPhysicsSolverBase : public FPhysicsSolverEvents
 	{
 	public:
 
@@ -284,7 +284,7 @@ namespace Chaos
 			return (FPBDRigidsSolver&)(*this);
 		}
 
-		void ChangeBufferMode(EMultiBufferMode InBufferMode);
+		CHAOS_API void ChangeBufferMode(EMultiBufferMode InBufferMode);
 
 		void AddDirtyProxy(IPhysicsProxyBase * ProxyBaseIn)
 		{
@@ -363,7 +363,7 @@ namespace Chaos
 			return CallbackObject;
 		}
 
-		void EnqueueSimcallbackRewindRegisteration(ISimCallbackObject* Callback);
+		CHAOS_API void EnqueueSimcallbackRewindRegisteration(ISimCallbackObject* Callback);
 
 		void UnregisterAndFreeSimCallbackObject_External(ISimCallbackObject* SimCallbackObject)
 		{
@@ -386,7 +386,7 @@ namespace Chaos
 			RegisterSimOneShotCallback(MoveTemp(Func));
 		}
 
-		void SetRewindCallback(TUniquePtr<IRewindCallback>&& RewindCallback);
+		CHAOS_API void SetRewindCallback(TUniquePtr<IRewindCallback>&& RewindCallback);
 
 		FRewindData* GetRewindData()
 		{
@@ -471,11 +471,11 @@ namespace Chaos
 
 		bool IsShuttingDown() const { return bIsShuttingDown; }
 
-		void EnableAsyncMode(FReal FixedDt);
+		CHAOS_API void EnableAsyncMode(FReal FixedDt);
 		
 		FReal GetAsyncDeltaTime() const { return AsyncDt; } 
 		
-		void DisableAsyncMode();
+		CHAOS_API void DisableAsyncMode();
 		
 		virtual void ConditionalApplyRewind_Internal(){}
 		virtual bool IsResimming() const {return false;}
@@ -488,7 +488,7 @@ namespace Chaos
 			return ThreadingMode;
 		}
 
-		FGraphEventRef AdvanceAndDispatch_External(FReal InDt);
+		CHAOS_API FGraphEventRef AdvanceAndDispatch_External(FReal InDt);
 
 #if CHAOS_DEBUG_NAME
 		void SetDebugName(const FName& Name)
@@ -541,7 +541,7 @@ namespace Chaos
 			}
 		}
 
-		void UpdateParticleInAccelerationStructure_External(FGeometryParticle* Particle, EPendingSpatialDataOperation InOperation);
+		CHAOS_API void UpdateParticleInAccelerationStructure_External(FGeometryParticle* Particle, EPendingSpatialDataOperation InOperation);
 
 		bool IsPaused_External() const
 		{
@@ -691,12 +691,12 @@ namespace Chaos
 		EThreadingModeTemp ThreadingMode;
 
 		/** Protected construction so callers still have to go through the module to create new instances */
-		FPhysicsSolverBase(const EMultiBufferMode BufferingModeIn,const EThreadingModeTemp InThreadingMode,UObject* InOwner, FReal AsyncDt);
+		CHAOS_API FPhysicsSolverBase(const EMultiBufferMode BufferingModeIn,const EThreadingModeTemp InThreadingMode,UObject* InOwner, FReal AsyncDt);
 
 		/** Only allow construction with valid parameters as well as restricting to module construction */
-		virtual ~FPhysicsSolverBase();
+		CHAOS_API virtual ~FPhysicsSolverBase();
 
-		static void DestroySolver(FPhysicsSolverBase& InSolver);
+		static CHAOS_API void DestroySolver(FPhysicsSolverBase& InSolver);
 
 		FPhysicsSolverBase() = delete;
 		FPhysicsSolverBase(const FPhysicsSolverBase& InCopy) = delete;
@@ -796,8 +796,8 @@ namespace Chaos
 
 	protected:
 
-		void TrackGTParticle_External(FGeometryParticle& Particle);
-		void ClearGTParticle_External(FGeometryParticle& Particle);
+		CHAOS_API void TrackGTParticle_External(FGeometryParticle& Particle);
+		CHAOS_API void ClearGTParticle_External(FGeometryParticle& Particle);
 		
 
 #if !UE_BUILD_SHIPPING
@@ -807,8 +807,8 @@ namespace Chaos
 		bool bStealAdvanceTasksForTesting;
 		TArray<FAllSolverTasks> StolenSolverAdvanceTasks;
 	public:
-		void SetStealAdvanceTasks_ForTesting(bool bInStealAdvanceTasksForTesting);
-		void PopAndExecuteStolenAdvanceTask_ForTesting();
+		CHAOS_API void SetStealAdvanceTasks_ForTesting(bool bInStealAdvanceTasksForTesting);
+		CHAOS_API void PopAndExecuteStolenAdvanceTask_ForTesting();
 #endif
 
 #if WITH_CHAOS_VISUAL_DEBUGGER

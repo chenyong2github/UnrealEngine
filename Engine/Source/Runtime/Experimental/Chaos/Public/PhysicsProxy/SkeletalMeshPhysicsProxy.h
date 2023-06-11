@@ -10,7 +10,7 @@
 
 // @todo(chaos): remove this file
 
-struct CHAOS_API FSkeletalMeshPhysicsProxyParams
+struct FSkeletalMeshPhysicsProxyParams
 {
 	FSkeletalMeshPhysicsProxyParams()
 		: Name("")
@@ -108,7 +108,7 @@ struct FSkeletalMeshPhysicsProxyOutputs : public Chaos::FParticleData
 };
 
 
-class CHAOS_API FSkeletalMeshPhysicsProxy : public TPhysicsProxy<FSkeletalMeshPhysicsProxy, FSkeletalMeshPhysicsProxyOutputs, FProxyTimestampBase>
+class FSkeletalMeshPhysicsProxy : public TPhysicsProxy<FSkeletalMeshPhysicsProxy, FSkeletalMeshPhysicsProxyOutputs, FProxyTimestampBase>
 {
 	typedef TPhysicsProxy<FSkeletalMeshPhysicsProxy, FSkeletalMeshPhysicsProxyOutputs, FProxyTimestampBase> Base;
 public:
@@ -119,32 +119,32 @@ public:
 
 
 	FSkeletalMeshPhysicsProxy() = delete;
-	FSkeletalMeshPhysicsProxy(UObject* InOwner, const FInitFunc& InitFunc);
-	~FSkeletalMeshPhysicsProxy();
+	CHAOS_API FSkeletalMeshPhysicsProxy(UObject* InOwner, const FInitFunc& InitFunc);
+	CHAOS_API ~FSkeletalMeshPhysicsProxy();
 
 	/** Solver Object interface */
-	void Initialize();
-	bool IsSimulating() const;
-	void UpdateKinematicBodiesCallback(const FParticlesType& Particles, const float Dt, const float Time, FKinematicProxy& Proxy);
-	void StartFrameCallback(const float InDt, const float InTime);
-	void EndFrameCallback(const float InDt);
-	void CreateRigidBodyCallback(FParticlesType& InOutParticles);
-	void ParameterUpdateCallback(FParticlesType& InParticles, const float InTime);
-	void DisableCollisionsCallback(TSet<TTuple<int32, int32>>& InPairs);
-	void AddForceCallback(FParticlesType& InParticles, const float InDt, const int32 InIndex);
+	CHAOS_API void Initialize();
+	CHAOS_API bool IsSimulating() const;
+	CHAOS_API void UpdateKinematicBodiesCallback(const FParticlesType& Particles, const float Dt, const float Time, FKinematicProxy& Proxy);
+	CHAOS_API void StartFrameCallback(const float InDt, const float InTime);
+	CHAOS_API void EndFrameCallback(const float InDt);
+	CHAOS_API void CreateRigidBodyCallback(FParticlesType& InOutParticles);
+	CHAOS_API void ParameterUpdateCallback(FParticlesType& InParticles, const float InTime);
+	CHAOS_API void DisableCollisionsCallback(TSet<TTuple<int32, int32>>& InPairs);
+	CHAOS_API void AddForceCallback(FParticlesType& InParticles, const float InDt, const int32 InIndex);
 
-	void BindParticleCallbackMapping(Chaos::TArrayCollectionArray<PhysicsProxyWrapper>& PhysicsProxyReverseMap, Chaos::TArrayCollectionArray<int32>& ParticleIDReverseMap);
+	CHAOS_API void BindParticleCallbackMapping(Chaos::TArrayCollectionArray<PhysicsProxyWrapper>& PhysicsProxyReverseMap, Chaos::TArrayCollectionArray<int32>& ParticleIDReverseMap);
 
 	void BufferCommand(Chaos::FPhysicsSolver* InSolver, const FFieldSystemCommand& InCommmand) {}
 
 	FSkeletalMeshPhysicsProxyOutputs* NewData() { return nullptr; }
-	void SyncBeforeDestroy();
-	void OnRemoveFromScene();
+	CHAOS_API void SyncBeforeDestroy();
+	CHAOS_API void OnRemoveFromScene();
 	void PushToPhysicsState(const Chaos::FParticleData*) {};
 	void ClearAccumulatedData() {}
-	void BufferPhysicsResults();
-	void FlipBuffer();
-	bool PullFromPhysicsState(const int32 SolverSyncTimestamp);
+	CHAOS_API void BufferPhysicsResults();
+	CHAOS_API void FlipBuffer();
+	CHAOS_API bool PullFromPhysicsState(const int32 SolverSyncTimestamp);
 	bool IsDirty() { return false; }
 	EPhysicsProxyType ConcreteType() { return EPhysicsProxyType::SkeletalMeshType; }
 	/** ----------------------- */
@@ -152,13 +152,13 @@ public:
 	/**
 	 *
 	 */
-	void Reset();
+	CHAOS_API void Reset();
 
 	/**
 	 * Capture the current animation pose for use by the physics.
 	 * Called by game thread via the owning component's tick.
 	 */
-	void CaptureInputs(const float Dt, const FInputFunc& InputFunc);
+	CHAOS_API void CaptureInputs(const float Dt, const FInputFunc& InputFunc);
 
 	/** 
 	 */

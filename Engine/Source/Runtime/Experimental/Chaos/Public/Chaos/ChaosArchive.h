@@ -10,7 +10,7 @@
 
 namespace Chaos
 {
-class CHAOS_API FImplicitObject; //needed for legacy serializer
+class FImplicitObject; //needed for legacy serializer
 
 
 #if CHAOS_MEMORY_TRACKING
@@ -68,7 +68,7 @@ class FChaosArchive;
 
 
 
-class CHAOS_API FChaosArchiveContext
+class FChaosArchiveContext
 #if CHAOS_MEMORY_TRACKING
 	: public FChaosArchiveMemoryTrackingContext
 #endif
@@ -80,9 +80,9 @@ public:
 	int32 TagCount;
 
 
-	FChaosArchiveContext();
+	CHAOS_API FChaosArchiveContext();
 
-	~FChaosArchiveContext();
+	CHAOS_API ~FChaosArchiveContext();
 
 	template <typename T, ESPMode Mode>
 	TSharedPtr<T, Mode>& ToSharedPointerHelper(TSerializablePtr<T>& Obj)
@@ -133,7 +133,7 @@ private:
 
 };
 
-class CHAOS_API FChaosArchive : public FArchiveProxy
+class FChaosArchive : public FArchiveProxy
 {
 public:
 	FChaosArchive(FArchive& ArIn)
@@ -281,7 +281,7 @@ private:
 		check(false);
 	}
 
-	void SerializeLegacy(TUniquePtr<FImplicitObject>& Obj);
+	CHAOS_API void SerializeLegacy(TUniquePtr<FImplicitObject>& Obj);
 
 	template <typename T>
 	void StaticSerialize(TSerializablePtr<T>& Serializable)
@@ -309,7 +309,7 @@ private:
 #endif
 };
 
-class CHAOS_API FChaosArchiveScopedMemory
+class FChaosArchiveScopedMemory
 {
 public:
 	FChaosArchiveScopedMemory(FChaosArchive& ArIn, const FName& SectionName, const bool bAbsorbChildren = true)

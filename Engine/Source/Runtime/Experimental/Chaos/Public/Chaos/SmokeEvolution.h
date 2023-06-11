@@ -11,7 +11,7 @@
 namespace Chaos
 {
 template<class T, int d>
-class CHAOS_API TSmokeEvolution
+class TSmokeEvolution
 {
   public:
 	TSmokeEvolution(const TUniformGrid<T, d>& Grid, TKinematicGeometryParticles<T, d>&& GeometryParticles, TKinematicGeometryParticles<T, d>&& SourceParticles)

@@ -29,7 +29,7 @@ namespace Chaos
 	// @todo(chaos): this should be broken out into FIgnoreCollisionManager (PT-only) and FIgnoreCollisionManagerProxy (interop).
 	// E.g., The interop could store sets of particle proxy pairs to enable/disable and call the ParticleHandle API on the PT object. 
 	// Or it could use the solver to map IDs to particle handles like we currently do.
-	class CHAOS_API FIgnoreCollisionManager
+	class FIgnoreCollisionManager
 	{
 	public:
 		using FHandleID = FUniqueIdx;
@@ -63,27 +63,27 @@ namespace Chaos
 		//
 		//
 
-		bool ContainsHandle(FHandleID Body0) const;
+		CHAOS_API bool ContainsHandle(FHandleID Body0) const;
 
-		bool IgnoresCollision(FHandleID Body0, FHandleID Body1) const;
+		CHAOS_API bool IgnoresCollision(FHandleID Body0, FHandleID Body1) const;
 
-		int32 NumIgnoredCollision(FHandleID Body0) const;
+		CHAOS_API int32 NumIgnoredCollision(FHandleID Body0) const;
 
 		/**
 		 * Return true if we should ignore collisions between the two particles
 		 */
-		bool IgnoresCollision(const FGeometryParticleHandle* Particle0, const FGeometryParticleHandle* Particle1) const;
+		CHAOS_API bool IgnoresCollision(const FGeometryParticleHandle* Particle0, const FGeometryParticleHandle* Particle1) const;
 
 		/**
 		 * Add an ignore entry for collisions of Particle0->Particle1.
 		 * Note, this will add an entry for both particles against the other if both particles are dynamic or kinematic.
 		 */
-		void AddIgnoreCollisions(FGeometryParticleHandle* Particle0, FGeometryParticleHandle* Particle1);
+		CHAOS_API void AddIgnoreCollisions(FGeometryParticleHandle* Particle0, FGeometryParticleHandle* Particle1);
 
 		/**
 		 * Remove an ignore entry for collisions of Particle0->Particle1 (in both directions if applicable)
 		 */
-		void RemoveIgnoreCollisions(FGeometryParticleHandle* Particle0, FGeometryParticleHandle* Particle1);
+		CHAOS_API void RemoveIgnoreCollisions(FGeometryParticleHandle* Particle0, FGeometryParticleHandle* Particle1);
 
 		//
 		//
@@ -138,12 +138,12 @@ namespace Chaos
 		/*
 		*
 		*/
-		void ProcessPendingQueues(FPBDRigidsSolver& Solver);
+		CHAOS_API void ProcessPendingQueues(FPBDRigidsSolver& Solver);
 
 		/*
 		*
 		*/
-		void PopStorageData_Internal(int32 ExternalTimestamp);
+		CHAOS_API void PopStorageData_Internal(int32 ExternalTimestamp);
 
 
 		// DEPRECATED
@@ -154,10 +154,10 @@ namespace Chaos
 
 	private:
 
-		FGeometryParticleHandle* GetParticleHandle(FHandleID Body, FPBDRigidsSolver& Solver);
-		void SetIgnoreCollisionFlag(FPBDRigidParticleHandle* Rigid, const bool bUsesIgnoreCollisionManager);
-		void AddIgnoreCollisionsImpl(FHandleID Body0, FHandleID Body1);
-		int32 RemoveIgnoreCollisionsImpl(FHandleID Body0, FHandleID Body1);
+		CHAOS_API FGeometryParticleHandle* GetParticleHandle(FHandleID Body, FPBDRigidsSolver& Solver);
+		CHAOS_API void SetIgnoreCollisionFlag(FPBDRigidParticleHandle* Rigid, const bool bUsesIgnoreCollisionManager);
+		CHAOS_API void AddIgnoreCollisionsImpl(FHandleID Body0, FHandleID Body1);
+		CHAOS_API int32 RemoveIgnoreCollisionsImpl(FHandleID Body0, FHandleID Body1);
 
 		// Multiple sources can request an ignore pair, so we handle a simple count of
 		// ignore requests to ensure we don't prematurely remove an ignore pair

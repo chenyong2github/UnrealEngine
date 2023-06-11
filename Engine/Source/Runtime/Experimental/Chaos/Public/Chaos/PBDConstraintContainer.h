@@ -15,12 +15,12 @@ namespace Chaos
 	 * A Constraint Container holds an array of constraints and provides methods to allocate and deallocate constraints
 	 *as well as the API required to plug into Constraint Rules.
 	 */
-	class CHAOS_API FPBDConstraintContainer
+	class FPBDConstraintContainer
 	{
 	public:
-		FPBDConstraintContainer(FConstraintHandleTypeID InConstraintHandleType);
+		CHAOS_API FPBDConstraintContainer(FConstraintHandleTypeID InConstraintHandleType);
 
-		virtual ~FPBDConstraintContainer();
+		CHAOS_API virtual ~FPBDConstraintContainer();
 
 		/**
 		 * The ContainerId is used to map constraint handles back to their constraint container.

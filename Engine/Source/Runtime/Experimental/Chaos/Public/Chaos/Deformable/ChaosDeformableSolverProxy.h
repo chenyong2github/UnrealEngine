@@ -21,7 +21,7 @@ enum ChaosDeformableSimSpace : uint8
 
 namespace Chaos::Softs
 {
-	class CHAOS_API FThreadingProxy {
+	class FThreadingProxy {
 		const UObject* Owner = nullptr;
 		FName TypeName = FName("");
 
@@ -70,7 +70,7 @@ namespace Chaos::Softs
 		};
 	};
 
-	class CHAOS_API FFleshThreadingProxy : public FThreadingProxy
+	class FFleshThreadingProxy : public FThreadingProxy
 	{
 		typedef FThreadingProxy Super;
 

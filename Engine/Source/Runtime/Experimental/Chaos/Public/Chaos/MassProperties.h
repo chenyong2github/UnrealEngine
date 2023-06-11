@@ -20,7 +20,7 @@ namespace Chaos
 	class TParticles;
 	using FParticles = TParticles<FReal, 3>;
 
-	struct CHAOS_API FMassProperties
+	struct FMassProperties
 	{
 		FMassProperties()
 			: Mass(0)

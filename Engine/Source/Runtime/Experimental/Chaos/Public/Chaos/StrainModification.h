@@ -27,7 +27,7 @@ namespace Chaos
 	//
 	// User-facing api for accessing the proxy of a strained cluster. Provides const access to the
 	// proxy and limited read/write access to its internal strain data.
-	class CHAOS_API FStrainedProxyModifier
+	class FStrainedProxyModifier
 	{
 	public:
 		FStrainedProxyModifier(FRigidClustering& InRigidClustering, FGeometryCollectionPhysicsProxy* InProxy)
@@ -44,28 +44,28 @@ namespace Chaos
 		{ }
 
 		// Get the proxy that owns the strained cluster or clusters
-		const FGeometryCollectionPhysicsProxy* GetProxy() const;
+		CHAOS_API const FGeometryCollectionPhysicsProxy* GetProxy() const;
 
 		// Get the physics handle for the strained parent cluster
-		const Chaos::FPBDRigidParticleHandle* GetRootHandle() const;
+		CHAOS_API const Chaos::FPBDRigidParticleHandle* GetRootHandle() const;
 
 		// Get the number of level-1 strainable entities (number of rest-children in the per-particle
 		// strain model, or number of rest-connections in the edge/area model).
-		int32 GetNumRestBreakables() const;
+		CHAOS_API int32 GetNumRestBreakables() const;
 
 		// Get the number of breaking strains amongst the level-1 strainables
 		// If DoubleCount is true, then add N for each strain which is strong enough to
 		// break a connection N times.
-		int32 GetNumBreakingStrains(bool bDoubleCount = true, const uint8 StrainTypes = EStrainTypes::ExternalStrain | EStrainTypes::CollisionStrain) const;
+		CHAOS_API int32 GetNumBreakingStrains(bool bDoubleCount = true, const uint8 StrainTypes = EStrainTypes::ExternalStrain | EStrainTypes::CollisionStrain) const;
 
 		// Clear strains for all strained cluster children
-		void ClearStrains();
+		CHAOS_API void ClearStrains();
 
 	private:
 
-		static Chaos::FPBDRigidClusteredParticleHandle* InitRootHandle(FGeometryCollectionPhysicsProxy* Proxy);
+		static CHAOS_API Chaos::FPBDRigidClusteredParticleHandle* InitRootHandle(FGeometryCollectionPhysicsProxy* Proxy);
 
-		static const TSet<int32>* InitRestChildren(FGeometryCollectionPhysicsProxy* Proxy);
+		static CHAOS_API const TSet<int32>* InitRestChildren(FGeometryCollectionPhysicsProxy* Proxy);
 
 		FRigidClustering& RigidClustering;
 		FGeometryCollectionPhysicsProxy* Proxy;
@@ -77,7 +77,7 @@ namespace Chaos
 	//
 	// Iterator produced by FStrainedProxyRange, for looping over proxies which are
 	// associated with rigid clusters which have been strained.
-	class CHAOS_API FStrainedProxyIterator
+	class FStrainedProxyIterator
 	{
 	public:
 		FStrainedProxyIterator(FRigidClustering& InRigidClustering, TArray<FGeometryCollectionPhysicsProxy*>& InProxies, int32 InIndex)
@@ -92,9 +92,9 @@ namespace Chaos
 			, Index(Other.Index)
 		{ }
 
-		FStrainedProxyModifier operator*();
-		FStrainedProxyIterator& operator++();
-		bool operator==(const FStrainedProxyIterator& Other) const;
+		CHAOS_API FStrainedProxyModifier operator*();
+		CHAOS_API FStrainedProxyIterator& operator++();
+		CHAOS_API bool operator==(const FStrainedProxyIterator& Other) const;
 		bool operator!=(const FStrainedProxyIterator& Other) const
 		{
 			return !operator==(Other);
@@ -112,10 +112,10 @@ namespace Chaos
 	// Constructor produces filtered array of proxies, and begin and end functions produce
 	// iterators which can modify strain related properties of the clusters associated
 	// with each proxy.
-	class CHAOS_API FStrainedProxyRange
+	class FStrainedProxyRange
 	{
 	public:
-		FStrainedProxyRange(Chaos::FRigidClustering& InRigidClustering, bool bRootLevelOnly);
+		CHAOS_API FStrainedProxyRange(Chaos::FRigidClustering& InRigidClustering, bool bRootLevelOnly);
 
 		FStrainedProxyRange(const FStrainedProxyRange& Other)
 			: RigidClustering(Other.RigidClustering)
@@ -140,7 +140,7 @@ namespace Chaos
 	// FStrainModifierAccessor
 	//
 	// Provides access to strained proxies and clusters
-	class CHAOS_API FStrainModifierAccessor
+	class FStrainModifierAccessor
 	{
 	public:
 
@@ -149,7 +149,7 @@ namespace Chaos
 		// Get an iterable range of unique geometry collection proxies which
 		// correspond to all strained clusters. Optionally, only include proxies
 		// for whom the strained parent is still the original root (ie, unbroken).
-		FStrainedProxyRange GetStrainedProxies(bool bRootLevelOnly = true);
+		CHAOS_API FStrainedProxyRange GetStrainedProxies(bool bRootLevelOnly = true);
 
 	private:
 

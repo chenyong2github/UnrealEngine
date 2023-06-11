@@ -18,7 +18,7 @@ namespace GeometryCollection::Facades
 	* Defines common API for storing rendering data.
 	*
 	*/
-	class CHAOS_API FRenderingFacade
+	class FRenderingFacade
 	{
 	public:
 		typedef FGeometryCollectionSection FTriangleSection;
@@ -27,33 +27,33 @@ namespace GeometryCollection::Facades
 		* FRenderingFacade Constuctor
 		* @param VertexDependencyGroup : GroupName the index attribute is dependent on.
 		*/
-		FRenderingFacade(FManagedArrayCollection& InSelf);
-		FRenderingFacade(const FManagedArrayCollection& InSelf);
+		CHAOS_API FRenderingFacade(FManagedArrayCollection& InSelf);
+		CHAOS_API FRenderingFacade(const FManagedArrayCollection& InSelf);
 
 		/**Create the facade.*/
-		void DefineSchema();
+		CHAOS_API void DefineSchema();
 
 		/** Is the facade defined constant. */
 		bool IsConst() const { return Collection==nullptr; }
 
 		/**Is the Facade defined on the collection?*/
-		bool IsValid() const;
+		CHAOS_API bool IsValid() const;
 
 		/**Does it support rendering surfaces.*/
-		bool CanRenderSurface() const;
+		CHAOS_API bool CanRenderSurface() const;
 
 		//
 		// Facade API
 		//
 
 		/**Number of triangles to render.*/
-		int32 NumTriangles() const;
+		CHAOS_API int32 NumTriangles() const;
 
 		/**Add a triangle to the rendering view.*/
-		void AddTriangle(const Chaos::FTriangle& InTriangle);
+		CHAOS_API void AddTriangle(const Chaos::FTriangle& InTriangle);
 
 		/** Add a surface to the rendering view.*/
-		void AddSurface(TArray<FVector3f>&& InVertices, TArray<FIntVector>&& InIndices, TArray<FVector3f>&& InNormals, TArray<FLinearColor>&& InColors);
+		CHAOS_API void AddSurface(TArray<FVector3f>&& InVertices, TArray<FIntVector>&& InIndices, TArray<FVector3f>&& InNormals, TArray<FLinearColor>&& InColors);
 		
 		/** GetIndices */
 		const TManagedArray< FIntVector >& GetIndices() const { return IndicesAttribute.Get(); }
@@ -65,7 +65,7 @@ namespace GeometryCollection::Facades
 		const TManagedArray< FTriangleSection >& GetTriangleSections() const { return TriangleSectionAttribute.Get(); }
 
 		/** BuildMeshSections */
-		TArray<FTriangleSection> BuildMeshSections(const TArray<FIntVector>& Indices, TArray<int32> BaseMeshOriginalIndicesIndex, TArray<FIntVector>& RetIndices) const;
+		CHAOS_API TArray<FTriangleSection> BuildMeshSections(const TArray<FIntVector>& Indices, TArray<int32> BaseMeshOriginalIndicesIndex, TArray<FIntVector>& RetIndices) const;
 
 
 		//
@@ -98,10 +98,10 @@ namespace GeometryCollection::Facades
 		//
 
 		/** Geometry Group Start : */
-		int32 StartGeometryGroup(FString InName);
+		CHAOS_API int32 StartGeometryGroup(FString InName);
 
 		/** Geometry Group End : */
-		void EndGeometryGroup(int32 InGeometryGroupIndex);
+		CHAOS_API void EndGeometryGroup(int32 InGeometryGroupIndex);
 
 		int32 NumGeometry() const { return GeometryNameAttribute.Num(); }
 
@@ -129,10 +129,10 @@ namespace GeometryCollection::Facades
 		      TManagedArray< int32 >& ModifySelectionState() { check(!IsConst()); return GeometrySelectionAttribute.Modify(); }
 
 		/** NumVerticesOnSelectedGeometry */
-		int32 NumVerticesOnSelectedGeometry() const;
+		CHAOS_API int32 NumVerticesOnSelectedGeometry() const;
 
 		/** GetGeometryNameToIndexMap */
-		FStringIntMap GetGeometryNameToIndexMap() const;
+		CHAOS_API FStringIntMap GetGeometryNameToIndexMap() const;
 
 	private : 
 		const FManagedArrayCollection& ConstCollection;

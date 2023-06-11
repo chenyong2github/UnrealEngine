@@ -15,40 +15,40 @@ namespace GeometryCollection::Facades
 	* Interface for storing and retrieving bindings of surfaces (typically SkeletalMesh or StaticMesh) to
 	* tetrahedral meshes.  Bindings data for each surface is grouped by a mesh id and a level of detail.
 	*/
-	class CHAOS_API FTetrahedralBindings
+	class FTetrahedralBindings
  	{
 	public:
 
 		// groups
-		static const FName MeshBindingsGroupName;
+		static CHAOS_API const FName MeshBindingsGroupName;
 
 		//
 		// Attributes
 		//
 
-		static const FName MeshIdAttributeName;
+		static CHAOS_API const FName MeshIdAttributeName;
 
 		//! Tet or Tri vertex indices.
-		static const FName ParentsAttributeName;
+		static CHAOS_API const FName ParentsAttributeName;
 		//! Barycentric weight of each tet/tri vertex.
-		static const FName WeightsAttributeName;
+		static CHAOS_API const FName WeightsAttributeName;
 		//! Offset vector from barycentric tri position.
-		static const FName OffsetsAttributeName;
+		static CHAOS_API const FName OffsetsAttributeName;
 		//! Per vertex amount for deformer masking.
-		static const FName MaskAttributeName;
+		static CHAOS_API const FName MaskAttributeName;
 
 		/**
 		* FSelectionFacade Constuctor
 		* @param VertixDependencyGroup : GroupName the index attribute is dependent on. 
 		*/
-		FTetrahedralBindings(FManagedArrayCollection& InSelf);
-		FTetrahedralBindings(const FManagedArrayCollection& InSelf);
-		virtual ~FTetrahedralBindings();
+		CHAOS_API FTetrahedralBindings(FManagedArrayCollection& InSelf);
+		CHAOS_API FTetrahedralBindings(const FManagedArrayCollection& InSelf);
+		CHAOS_API virtual ~FTetrahedralBindings();
 
 		/** 
 		* Create the facade schema. 
 		*/
-		void DefineSchema();
+		CHAOS_API void DefineSchema();
 
 		/** Returns \c true if the facade is operating on a read-only geometry collection. */
 		bool IsConst() const { return MeshIdAttribute.IsConst(); }
@@ -57,44 +57,44 @@ namespace GeometryCollection::Facades
 		* Returns \c true if the Facade defined on the collection, and is initialized to
 		* a valid bindings group.
 		*/
-		bool IsValid() const;
+		CHAOS_API bool IsValid() const;
 
 		/**
 		* Given a \p MeshId (by convention \code Mesh->GetPrimaryAssetId() \endcode) and
 		* a Level Of Detail rank, generate the associated bindings group name.
 		*/
-		static FName GenerateMeshGroupName(const int32 TetMeshIdx, const FName& MeshId, const int32 LOD);
+		static CHAOS_API FName GenerateMeshGroupName(const int32 TetMeshIdx, const FName& MeshId, const int32 LOD);
 
 		/**
 		* For a given \p MeshId and \p LOD, return the associated tetrahedral mesh index.
 		*/
-		int32 GetTetMeshIndex(const FName& MeshId, const int32 LOD) const;
+		CHAOS_API int32 GetTetMeshIndex(const FName& MeshId, const int32 LOD) const;
 
 		/**
 		* Returns \c true if the specified bindings group exists.
 		*/
-		bool ContainsBindingsGroup(const int32 TetMeshIdx, const FName& MeshId, const int32 LOD) const;
-		bool ContainsBindingsGroup(const FName& GroupName) const;
+		CHAOS_API bool ContainsBindingsGroup(const int32 TetMeshIdx, const FName& MeshId, const int32 LOD) const;
+		CHAOS_API bool ContainsBindingsGroup(const FName& GroupName) const;
 
 		/**
 		* Create a new bindings group, allocating new arrays.
 		*/
-		void AddBindingsGroup(const int32 TetMeshIdx, const FName& MeshId, const int32 LOD);
-		void AddBindingsGroup(const FName& GroupName);
+		CHAOS_API void AddBindingsGroup(const int32 TetMeshIdx, const FName& MeshId, const int32 LOD);
+		CHAOS_API void AddBindingsGroup(const FName& GroupName);
 		
 		/**
 		* Initialize local arrays to point at a bindings group associated with \p MeshId 
 		* and \p LOD.  Returns \c false if it doesn't exist.
 		*/
-		bool ReadBindingsGroup(const int32 TetMeshIdx, const FName& MeshId, const int32 LOD);
-		bool ReadBindingsGroup(const FName& GroupName);
+		CHAOS_API bool ReadBindingsGroup(const int32 TetMeshIdx, const FName& MeshId, const int32 LOD);
+		CHAOS_API bool ReadBindingsGroup(const FName& GroupName);
 
 		/**
 		* Removes a group from the list of bindings groups, removes the bindings arrays 
 		* from the geometry collection, and removes the group if it's empty.
 		*/
-		void RemoveBindingsGroup(const int32 TetMeshIdx, const FName& MeshId, const int32 LOD);
-		void RemoveBindingsGroup(const FName& GroupName);
+		CHAOS_API void RemoveBindingsGroup(const int32 TetMeshIdx, const FName& MeshId, const int32 LOD);
+		CHAOS_API void RemoveBindingsGroup(const FName& GroupName);
 
 		/**
 		* Authors bindings data.
@@ -107,7 +107,7 @@ namespace GeometryCollection::Facades
 		* \p Mask are per-vertex multipliers on the deformer, 0 for no deformation, 1.0 for 
 		*    full deformation.
 		*/
-		void SetBindingsData(const TArray<FIntVector4>& ParentsIn, const TArray<FVector4f>& WeightsIn, const TArray<FVector3f>& OffsetsIn, const TArray<float>& MaskIn);
+		CHAOS_API void SetBindingsData(const TArray<FIntVector4>& ParentsIn, const TArray<FVector4f>& WeightsIn, const TArray<FVector3f>& OffsetsIn, const TArray<float>& MaskIn);
 		void SetBindingsData(const TArray<FIntVector4>& ParentsIn, const TArray<FVector4f>& WeightsIn, const TArray<FVector3f>& OffsetsIn)
 		{
 			TArray<float> MaskTmp; MaskTmp.SetNum(ParentsIn.Num());

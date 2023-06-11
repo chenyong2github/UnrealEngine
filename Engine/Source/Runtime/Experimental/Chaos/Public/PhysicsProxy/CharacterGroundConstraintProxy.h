@@ -14,12 +14,12 @@ namespace Chaos
 
 	/// Proxy class to manage access to and syncing of character ground constraint data
 	/// between the game thread and physics thread
-	class CHAOS_API FCharacterGroundConstraintProxy : public IPhysicsProxyBase
+	class FCharacterGroundConstraintProxy : public IPhysicsProxyBase
 	{
 	public:
 		using Base = IPhysicsProxyBase;
 
-		FCharacterGroundConstraintProxy(FCharacterGroundConstraint* InConstraintGT, FCharacterGroundConstraintHandle* InConstraintPT = nullptr, UObject* InOwner = nullptr);
+		CHAOS_API FCharacterGroundConstraintProxy(FCharacterGroundConstraint* InConstraintGT, FCharacterGroundConstraintHandle* InConstraintPT = nullptr, UObject* InOwner = nullptr);
 	
 		//////////////////////////////////////////////////////////////////////////
 		/// Member Access
@@ -34,19 +34,19 @@ namespace Chaos
 		/// State Management
 
 		/// Gets the data from the game thread via the RemoteData and creates a constraint on the physics thread
-		void InitializeOnPhysicsThread(FPBDRigidsSolver* InSolver, FDirtyPropertiesManager& Manager, int32 DataIdx, FDirtyChaosProperties& RemoteData);
+		CHAOS_API void InitializeOnPhysicsThread(FPBDRigidsSolver* InSolver, FDirtyPropertiesManager& Manager, int32 DataIdx, FDirtyChaosProperties& RemoteData);
 
 		/// Pushes any changed data from the game thread constraint to the remote data
-		void PushStateOnGameThread(FDirtyPropertiesManager& Manager, int32 DataIdx, FDirtyChaosProperties& RemoteData);
+		CHAOS_API void PushStateOnGameThread(FDirtyPropertiesManager& Manager, int32 DataIdx, FDirtyChaosProperties& RemoteData);
 
 		/// Reads changed data from the game thread constraint into the physics thread constraint via the remote data
-		void PushStateOnPhysicsThread(FPBDRigidsSolver* InSolver, const FDirtyPropertiesManager& Manager, int32 DataIdx, const FDirtyChaosProperties& RemoteData);
+		CHAOS_API void PushStateOnPhysicsThread(FPBDRigidsSolver* InSolver, const FDirtyPropertiesManager& Manager, int32 DataIdx, const FDirtyChaosProperties& RemoteData);
 
 		/// Deletes the game thread constraint
-		void DestroyOnGameThread();
+		CHAOS_API void DestroyOnGameThread();
 
 		/// Removes references to the physics thread constraint and deletes it
-		void DestroyOnPhysicsThread(FPBDRigidsSolver* InSolver);
+		CHAOS_API void DestroyOnPhysicsThread(FPBDRigidsSolver* InSolver);
 
 		//////////////////////////////////////////////////////////////////////////
 		/// IPhysicsProxyBase Implementation
@@ -57,10 +57,10 @@ namespace Chaos
 		/// Manage Output Data
 
 		/// Write the output constraint data from the physics thread to the buffer
-		void BufferPhysicsResults(FDirtyCharacterGroundConstraintData& Buffer);
+		CHAOS_API void BufferPhysicsResults(FDirtyCharacterGroundConstraintData& Buffer);
 
 		/// Write the output constraint data from the buffer to the game thread 
-		bool PullFromPhysicsState(const FDirtyCharacterGroundConstraintData& Buffer, const int32 SolverSyncTimestamp);
+		CHAOS_API bool PullFromPhysicsState(const FDirtyCharacterGroundConstraintData& Buffer, const int32 SolverSyncTimestamp);
 
 	private:
 		FCharacterGroundConstraint* Constraint_GT;

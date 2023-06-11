@@ -23,40 +23,40 @@
 
 CSV_DECLARE_CATEGORY_EXTERN(ChaosPhysicsTimers);
 
-struct CHAOS_API FAABBTreeCVars
+struct FAABBTreeCVars
 {
-	static int32 UpdateDirtyElementPayloadData;
-	static FAutoConsoleVariableRef CVarUpdateDirtyElementPayloadData;
+	static CHAOS_API int32 UpdateDirtyElementPayloadData;
+	static CHAOS_API FAutoConsoleVariableRef CVarUpdateDirtyElementPayloadData;
 
-	static int32 SplitAtAverageCenter;
-	static FAutoConsoleVariableRef CVarSplitAtAverageCenter;
+	static CHAOS_API int32 SplitAtAverageCenter;
+	static CHAOS_API FAutoConsoleVariableRef CVarSplitAtAverageCenter;
 
-	static int32 SplitOnVarianceAxis;
-	static FAutoConsoleVariableRef CVarSplitOnVarianceAxis;
+	static CHAOS_API int32 SplitOnVarianceAxis;
+	static CHAOS_API FAutoConsoleVariableRef CVarSplitOnVarianceAxis;
 
-	static float DynamicTreeBoundingBoxPadding;
-	static FAutoConsoleVariableRef CVarDynamicTreeBoundingBoxPadding;
+	static CHAOS_API float DynamicTreeBoundingBoxPadding;
+	static CHAOS_API FAutoConsoleVariableRef CVarDynamicTreeBoundingBoxPadding;
 
-	static int32 DynamicTreeLeafCapacity;
-	static FAutoConsoleVariableRef CVarDynamicTreeLeafCapacity;
+	static CHAOS_API int32 DynamicTreeLeafCapacity;
+	static CHAOS_API FAutoConsoleVariableRef CVarDynamicTreeLeafCapacity;
 
-	static bool DynamicTreeSkipCheckAuntOnRotate;
-	static FAutoConsoleVariableRef CVarDynamicTreeSkipCheckAuntOnRotate;
+	static CHAOS_API bool DynamicTreeSkipCheckAuntOnRotate;
+	static CHAOS_API FAutoConsoleVariableRef CVarDynamicTreeSkipCheckAuntOnRotate;
 };
 
-struct CHAOS_API FAABBTreeDirtyGridCVars
+struct FAABBTreeDirtyGridCVars
 {
-	static int32 DirtyElementGridCellSize;
-	static FAutoConsoleVariableRef CVarDirtyElementGridCellSize;
+	static CHAOS_API int32 DirtyElementGridCellSize;
+	static CHAOS_API FAutoConsoleVariableRef CVarDirtyElementGridCellSize;
 
-	static int32 DirtyElementMaxGridCellQueryCount;
-	static FAutoConsoleVariableRef CVarDirtyElementMaxGridCellQueryCount;
+	static CHAOS_API int32 DirtyElementMaxGridCellQueryCount;
+	static CHAOS_API FAutoConsoleVariableRef CVarDirtyElementMaxGridCellQueryCount;
 
-	static int32 DirtyElementMaxPhysicalSizeInCells;
-	static FAutoConsoleVariableRef CVarDirtyElementMaxPhysicalSizeInCells;
+	static CHAOS_API int32 DirtyElementMaxPhysicalSizeInCells;
+	static CHAOS_API FAutoConsoleVariableRef CVarDirtyElementMaxPhysicalSizeInCells;
 
-	static int32 DirtyElementMaxCellCapacity;
-	static FAutoConsoleVariableRef CVarDirtyElementMaxCellCapacity;
+	static CHAOS_API int32 DirtyElementMaxCellCapacity;
+	static CHAOS_API FAutoConsoleVariableRef CVarDirtyElementMaxCellCapacity;
 };
 
 namespace Chaos

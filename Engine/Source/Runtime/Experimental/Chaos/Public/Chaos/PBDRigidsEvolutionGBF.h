@@ -168,7 +168,7 @@ namespace Chaos
 		  that in the RewindData history but probably too expensive for now */
 		virtual void ResetCollisions() override;
 
-		CHAOS_API inline void EndFrame(FReal Dt)
+		inline void EndFrame(FReal Dt)
 		{
 			Particles.GetNonDisabledDynamicView().ParallelFor([&](auto& Particle, int32 Index) {
 				Particle.Acceleration() = FVec3(0);
@@ -338,7 +338,7 @@ namespace Chaos
 		CHAOS_API TUniquePtr<IResimCacheBase> CreateExternalResimCache() const;
 		CHAOS_API void SetCurrentStepResimCache(IResimCacheBase* InCurrentStepResimCache);
 
-		CHAOS_API FSpatialAccelerationBroadPhase& GetBroadPhase() { return BroadPhase; }
+		FSpatialAccelerationBroadPhase& GetBroadPhase() { return BroadPhase; }
 
 		CHAOS_API void TransferJointConstraintCollisions();
 

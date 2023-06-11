@@ -65,7 +65,7 @@ namespace Chaos
 	}
 
 	template<class T, int d, EGeometryParticlesSimType SimType>
-	CHAOS_API TGeometryParticlesImp<T, d, SimType>* TGeometryParticlesImp<T, d, SimType>::SerializationFactory(FChaosArchive& Ar, TGeometryParticlesImp<T,d,SimType>* Particles)
+	TGeometryParticlesImp<T, d, SimType>* TGeometryParticlesImp<T, d, SimType>::SerializationFactory(FChaosArchive& Ar, TGeometryParticlesImp<T,d,SimType>* Particles)
 	{
 		int8 ParticleType = Ar.IsLoading() ? 0 : (int8)Particles->ParticleType();
 		Ar << ParticleType;

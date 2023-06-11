@@ -9,7 +9,7 @@
 // Resolve intersections via contour minimization. Contour Minimization data is calculated in PBDTriangleMeshCollisions.
 namespace Chaos::Softs
 {
-class CHAOS_API FPBDTriangleMeshIntersections
+class FPBDTriangleMeshIntersections
 {
 public:
 	static bool IsEnabled(const FCollectionPropertyConstFacade& PropertyCollection)
@@ -29,7 +29,7 @@ public:
 
 	~FPBDTriangleMeshIntersections() = default;
 
-	void Apply(FSolverParticles& Particles, const TArray<FPBDTriangleMeshCollisions::FContourMinimizationIntersection>& Intersections, const FSolverReal Dt) const;
+	CHAOS_API void Apply(FSolverParticles& Particles, const TArray<FPBDTriangleMeshCollisions::FContourMinimizationIntersection>& Intersections, const FSolverReal Dt) const;
 
 private:
 	const FTriangleMesh& TriangleMesh;

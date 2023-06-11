@@ -80,7 +80,7 @@ namespace UE::GeometryCollectionConvexUtility
 
 }
 
-class CHAOS_API FGeometryCollectionConvexUtility
+class FGeometryCollectionConvexUtility
 {
 public:
 
@@ -91,13 +91,13 @@ public:
 	};
 
 	/** Ensure that convex hull data exists for the Geometry Collection and construct it if not (or if some data is missing. */
-	static FGeometryCollectionConvexData GetValidConvexHullData(FGeometryCollection* GeometryCollection);
+	static CHAOS_API FGeometryCollectionConvexData GetValidConvexHullData(FGeometryCollection* GeometryCollection);
 
 	/** Get convex hull data for the Geometry Collection if it is present */
-	static TOptional<FGeometryCollectionConvexData> GetConvexHullDataIfPresent(FManagedArrayCollection* GeometryCollection);
+	static CHAOS_API TOptional<FGeometryCollectionConvexData> GetConvexHullDataIfPresent(FManagedArrayCollection* GeometryCollection);
 
 	/** @return true if convex hull data is present */
-	static bool HasConvexHullData(const FManagedArrayCollection* GeometryCollection);
+	static CHAOS_API bool HasConvexHullData(const FManagedArrayCollection* GeometryCollection);
 
 	/**
 	 Create non-overlapping convex hull data for all transforms in the geometry collection (except transforms where it would be better to just use the hulls of the children) 
@@ -110,7 +110,7 @@ public:
 	 @param OverlapRemovalShrinkPercent			Compute overlaps based on objects shrunk by this percentage, so objects that would not overlap with this value set as their 'Collision Object Reduction Percentage' will not be cut
 	 @param ComputedLeafHullsToModify			Optional pre-computed hulls for geometry of rigid leaves, in the top-level coordinate space of the geometry collection. If passed in, the data will be updated and moved.
 	 */
-	static FGeometryCollectionConvexData CreateNonOverlappingConvexHullData(FGeometryCollection* GeometryCollection, double FractionAllowRemove = .3, double SimplificationDistanceThreshold = 0.0, double CanExceedFraction = .5, 
+	static CHAOS_API FGeometryCollectionConvexData CreateNonOverlappingConvexHullData(FGeometryCollection* GeometryCollection, double FractionAllowRemove = .3, double SimplificationDistanceThreshold = 0.0, double CanExceedFraction = .5, 
 		EConvexOverlapRemoval OverlapRemovalMethod = EConvexOverlapRemoval::All, double OverlapRemovalShrinkPercent = 0.0, UE::GeometryCollectionConvexUtility::FConvexHulls* ComputedLeafHullsToModify = nullptr);
 
 	struct FClusterConvexHullSettings
@@ -127,10 +127,10 @@ public:
 		UE::Geometry::FSphereCovering* EmptySpace = nullptr;
 	};
 
-	static void GenerateClusterConvexHullsFromChildrenHulls(FGeometryCollection& Collection, const FClusterConvexHullSettings& Settings, const TArrayView<const int32> TransformSubset);
-	static void GenerateClusterConvexHullsFromChildrenHulls(FGeometryCollection& Collection, const FClusterConvexHullSettings& Settings);
-	static void GenerateClusterConvexHullsFromLeafHulls(FGeometryCollection& Collection, const FClusterConvexHullSettings& Settings, const TArrayView<const int32> OptionalTransformSubset);
-	static void GenerateClusterConvexHullsFromLeafHulls(FGeometryCollection& Collection, const FClusterConvexHullSettings& Settings);
+	static CHAOS_API void GenerateClusterConvexHullsFromChildrenHulls(FGeometryCollection& Collection, const FClusterConvexHullSettings& Settings, const TArrayView<const int32> TransformSubset);
+	static CHAOS_API void GenerateClusterConvexHullsFromChildrenHulls(FGeometryCollection& Collection, const FClusterConvexHullSettings& Settings);
+	static CHAOS_API void GenerateClusterConvexHullsFromLeafHulls(FGeometryCollection& Collection, const FClusterConvexHullSettings& Settings, const TArrayView<const int32> OptionalTransformSubset);
+	static CHAOS_API void GenerateClusterConvexHullsFromLeafHulls(FGeometryCollection& Collection, const FClusterConvexHullSettings& Settings);
 
 	// Additional settings for filtering when the EGenerateConvexMethod::IntersectExternalWithComputed is applied
 	struct FIntersectionFilters
@@ -203,28 +203,28 @@ public:
 		FConvexDecompositionSettings DecompositionSettings;
 	};
 	
-	static void GenerateLeafConvexHulls(FGeometryCollection& Collection, bool bRestrictToSelection, const TArrayView<const int32> TransformSubset, const FLeafConvexHullSettings& Settings);
+	static CHAOS_API void GenerateLeafConvexHulls(FGeometryCollection& Collection, bool bRestrictToSelection, const TArrayView<const int32> TransformSubset, const FLeafConvexHullSettings& Settings);
 
 	/** Returns the convex hull of the vertices contained in the specified geometry. */
-	static TUniquePtr<Chaos::FConvex> FindConvexHull(const FGeometryCollection* GeometryCollection, int32 GeometryIndex);
+	static CHAOS_API TUniquePtr<Chaos::FConvex> FindConvexHull(const FGeometryCollection* GeometryCollection, int32 GeometryIndex);
 
 	/** Delete the convex hulls pointed at by the transform indices provided. */
-	static void RemoveConvexHulls(FGeometryCollection* GeometryCollection, const TArray<int32>& SortedTransformDeletes);
+	static CHAOS_API void RemoveConvexHulls(FGeometryCollection* GeometryCollection, const TArray<int32>& SortedTransformDeletes);
 
 	/** Delete the convex hulls that are null */
-	static void RemoveEmptyConvexHulls(FManagedArrayCollection& GeometryCollection);
+	static CHAOS_API void RemoveEmptyConvexHulls(FManagedArrayCollection& GeometryCollection);
 
 	/** Set default values for convex hull related managed arrays. */
-	static void SetDefaults(FGeometryCollection* GeometryCollection, FName Group, uint32 StartSize, uint32 NumElements);
+	static CHAOS_API void SetDefaults(FGeometryCollection* GeometryCollection, FName Group, uint32 StartSize, uint32 NumElements);
 
 	/** Get the HasCustomConvex flags.  If they're missing, either add them (if bAddIfMissing) or return nullptr */
-	static TManagedArray<int32>* GetCustomConvexFlags(FGeometryCollection* GeometryCollection, bool bAddIfMissing = false);
+	static CHAOS_API TManagedArray<int32>* GetCustomConvexFlags(FGeometryCollection* GeometryCollection, bool bAddIfMissing = false);
 
 	/** @return true if the GeometryCollection has convex data with no null pointers and no invalid indices */
-	static bool ValidateConvexData(const FGeometryCollection* GeometryCollection);
+	static CHAOS_API bool ValidateConvexData(const FGeometryCollection* GeometryCollection);
 
 	/** Set Volume and Size attributes on the Collection (will be called by CreateNonOverlappingConvexHullData -- Volumes must be up to date for convex calc) */
-	static void SetVolumeAttributes(FManagedArrayCollection* Collection);
+	static CHAOS_API void SetVolumeAttributes(FManagedArrayCollection* Collection);
 
 	/**
 	 * Copy convex hulls from *below* FromTransformIdx over to all live at ToTransformIdx.
@@ -237,13 +237,13 @@ public:
 	 * @param ToTransformIdx	The transform indices whose convexes will be replaced with *copies* of the child convexes.  Must be same length as FromTransformIdx; can be the same array.
 	 * @param bLeafOnly			If true, we will only collect convexes from leaf bones, not from clusters.
 	 */
-	static void CopyChildConvexes(const FGeometryCollection* FromCollection, const TArrayView<const int32>& FromTransformIdx, FGeometryCollection* ToCollection, const TArrayView<const int32>& ToTransformIdx, bool bLeafOnly);
+	static CHAOS_API void CopyChildConvexes(const FGeometryCollection* FromCollection, const TArrayView<const int32>& FromTransformIdx, FGeometryCollection* ToCollection, const TArrayView<const int32>& ToTransformIdx, bool bLeafOnly);
 
 	// Compute just the hulls of the leaf / rigid nodes that hold geometry directly, with no cluster hulls and no overlap removal by cutting
 	// This is an initial step of several algorithms: The CreateNonOverlappingConvexHullData function as well as convex-based proximity detection (TODO: and the auto-embed algorithm?)
 	// (TODO: Make auto-embed use this instead of the full hulls?)
 	// @param GlobalTransformArray		GeometryCollection's transforms to global space, as computed by GeometryCollectionAlgo::GlobalMatrices
-	static UE::GeometryCollectionConvexUtility::FConvexHulls ComputeLeafHulls(FGeometryCollection* GeometryCollection, const TArray<FTransform>& GlobalTransformArray, double SimplificationDistanceThreshold = 0.0, double OverlapRemovalShrinkPercent = 0.0,
+	static CHAOS_API UE::GeometryCollectionConvexUtility::FConvexHulls ComputeLeafHulls(FGeometryCollection* GeometryCollection, const TArray<FTransform>& GlobalTransformArray, double SimplificationDistanceThreshold = 0.0, double OverlapRemovalShrinkPercent = 0.0,
 		TFunction<bool(int32)> SkipBoneFn = nullptr, const FConvexDecompositionSettings* OptionalDecompositionSettings = nullptr);
 
 	struct FTransformedConvex
@@ -256,7 +256,7 @@ public:
 	// suported shapes are scaled / transformed implicits as well as Boxes, convexes, spheres and capsules
 	// levelset, tapered capsule, cylinder, heightfields and trimesh are not supported
 	// array will not be erased and convex will be added if any already exists
-	static void ConvertImplicitToConvexArray(const Chaos::FImplicitObject& InImplicit, const FTransform& Transform, TArray<FTransformedConvex>& InOutConvex);
+	static CHAOS_API void ConvertImplicitToConvexArray(const Chaos::FImplicitObject& InImplicit, const FTransform& Transform, TArray<FTransformedConvex>& InOutConvex);
 
 private:
 	static void ConvertScaledImplicitToConvexArray(

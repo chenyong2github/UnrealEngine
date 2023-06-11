@@ -10,7 +10,7 @@ namespace Chaos
 {
 	class FBVHParticles;
 
-	struct CHAOS_API FClusterCreationParameters
+	struct FClusterCreationParameters
 	{
 		enum EConnectionMethod
 		{

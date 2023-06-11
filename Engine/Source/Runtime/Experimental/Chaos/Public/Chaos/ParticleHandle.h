@@ -1521,7 +1521,7 @@ TGeometryParticleHandleImp<T,d,bPersistent>* TGeometryParticleHandleImp<T,d, bPe
 	return Ar.IsLoading() ? new TGeometryParticleHandleImp<T, d, bPersistent>() : nullptr;
 }
 
-class CHAOS_API FGenericParticleHandleImp
+class FGenericParticleHandleImp
 {
 public:
 	using FDynamicParticleHandleType = FPBDRigidParticleHandle;
@@ -2177,11 +2177,11 @@ public:
 private:
 	FGeometryParticleHandle* MHandle;
 
-	static const FVec3 ZeroVector;
-	static const FRotation3 IdentityRotation;
-	static const FMatrix33 ZeroMatrix;
-	static const TUniquePtr<FBVHParticles> NullBVHParticles;
-	static const FKinematicTarget EmptyKinematicTarget;
+	static CHAOS_API const FVec3 ZeroVector;
+	static CHAOS_API const FRotation3 IdentityRotation;
+	static CHAOS_API const FMatrix33 ZeroMatrix;
+	static CHAOS_API const TUniquePtr<FBVHParticles> NullBVHParticles;
+	static CHAOS_API const FKinematicTarget EmptyKinematicTarget;
 };
 
 template <typename T, int d>
@@ -2195,7 +2195,7 @@ using TGenericParticleHandleHandleImp UE_DEPRECATED(4.27, "Deprecated. this clas
  * you have a particle handle pointer;
 
  */
-class CHAOS_API FGenericParticleHandle
+class FGenericParticleHandle
 {
 public:
 	FGenericParticleHandle() : Imp(nullptr) {}
@@ -2233,7 +2233,7 @@ private:
 template <typename T, int d>
 using TGenericParticleHandle UE_DEPRECATED(4.27, "Deprecated. this class is to be deleted, use FGenericParticleHandle instead") = FGenericParticleHandle;
 
-class CHAOS_API FConstGenericParticleHandle
+class FConstGenericParticleHandle
 {
 public:
 	FConstGenericParticleHandle() : Imp(nullptr) {}

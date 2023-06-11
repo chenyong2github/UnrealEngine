@@ -9,7 +9,7 @@
 namespace Chaos::Softs
 {
 
-class CHAOS_API FPBDAxialSpringConstraints : public FPBDAxialSpringConstraintsBase
+class FPBDAxialSpringConstraints : public FPBDAxialSpringConstraintsBase
 {
 	typedef FPBDAxialSpringConstraintsBase Base;
 	using Base::Barys;
@@ -37,7 +37,7 @@ public:
 
 	virtual ~FPBDAxialSpringConstraints() override {}
 
-	void Apply(FSolverParticles& InParticles, const FSolverReal Dt) const;
+	CHAOS_API void Apply(FSolverParticles& InParticles, const FSolverReal Dt) const;
 
 protected:
 	using Base::Constraints;
@@ -46,13 +46,13 @@ protected:
 	using Base::ParticleCount;
 
 private:
-	void InitColor(const FSolverParticles& InParticles);
-	void ApplyHelper(FSolverParticles& InParticles, const FSolverReal Dt, const int32 ConstraintIndex, const FSolverReal ExpStiffnessValue) const;
+	CHAOS_API void InitColor(const FSolverParticles& InParticles);
+	CHAOS_API void ApplyHelper(FSolverParticles& InParticles, const FSolverReal Dt, const int32 ConstraintIndex, const FSolverReal ExpStiffnessValue) const;
 
 	TArray<int32> ConstraintsPerColorStartIndex; // Constraints are ordered so each batch is contiguous. This is ColorNum + 1 length so it can be used as start and end.
 };
 
-class CHAOS_API FPBDAreaSpringConstraints final : public FPBDAxialSpringConstraints
+class FPBDAreaSpringConstraints final : public FPBDAxialSpringConstraints
 {
 public:
 	static bool IsEnabled(const FCollectionPropertyConstFacade& PropertyCollection)
@@ -99,7 +99,7 @@ public:
 
 	virtual ~FPBDAreaSpringConstraints() override = default;
 
-	void SetProperties(
+	CHAOS_API void SetProperties(
 		const FCollectionPropertyConstFacade& PropertyCollection,
 		const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps);
 

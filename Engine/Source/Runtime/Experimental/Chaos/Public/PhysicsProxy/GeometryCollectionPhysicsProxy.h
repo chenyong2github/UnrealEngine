@@ -137,7 +137,7 @@ private:
  * Class to manage sharing data between the game thread and the simulation thread 
  * (which may not be different than the game thread) for a \c FGeometryDynamicCollection.
  */
-class CHAOS_API FGeometryCollectionPhysicsProxy : public TPhysicsProxy<FGeometryCollectionPhysicsProxy, FStubGeometryCollectionData, FGeometryCollectionProxyTimestamp>
+class FGeometryCollectionPhysicsProxy : public TPhysicsProxy<FGeometryCollectionPhysicsProxy, FStubGeometryCollectionData, FGeometryCollectionProxyTimestamp>
 {
 public:
 	typedef TPhysicsProxy<FGeometryCollectionPhysicsProxy, FStubGeometryCollectionData, FGeometryCollectionProxyTimestamp> Base;
@@ -157,7 +157,7 @@ public:
 	 * \p InCacheSyncFunc callback invoked from \c PullFromPhysicsState().
 	 * \p InFinalSyncFunc callback invoked from \c SyncBeforeDestory().
 	 */
-	FGeometryCollectionPhysicsProxy(
+	CHAOS_API FGeometryCollectionPhysicsProxy(
 		UObject* InOwner, 
 		FGeometryDynamicCollection& GameThreadCollection,
 		const FSimulationParameters& SimulationParameters,
@@ -165,13 +165,13 @@ public:
 		FCollisionFilterData InQueryFilter,
 		FGuid InCollectorGuid = FGuid::NewGuid(),
 		const Chaos::EMultiBufferMode BufferMode=Chaos::EMultiBufferMode::TripleGuarded);
-	virtual ~FGeometryCollectionPhysicsProxy();
+	CHAOS_API virtual ~FGeometryCollectionPhysicsProxy();
 
 	/**
 	 * Construct \c PTDynamicCollection, copying attributes from the game thread, 
 	 * and prepare for simulation.
 	 */
-	void Initialize(Chaos::FPBDRigidsEvolutionBase* Evolution);
+	CHAOS_API void Initialize(Chaos::FPBDRigidsEvolutionBase* Evolution);
 	void Reset() { }
 
 	bool IsInitializedOnPhysicsThread() const { return bIsInitializedOnPhysicsThread; }
@@ -181,12 +181,12 @@ public:
 	 *
 	 * Called by solver command registered by \c FPBDRigidsSolver::RegisterObject().
 	 */
-	void InitializeBodiesPT(
+	CHAOS_API void InitializeBodiesPT(
 		Chaos::FPBDRigidsSolver* RigidsSolver,
 		typename Chaos::FPBDRigidsSolver::FParticlesType& Particles);
 
 	/** */
-	static void InitializeDynamicCollection(FGeometryDynamicCollection& DynamicCollection, const FGeometryCollection& RestCollection, const FSimulationParameters& Params);
+	static CHAOS_API void InitializeDynamicCollection(FGeometryDynamicCollection& DynamicCollection, const FGeometryCollection& RestCollection, const FSimulationParameters& Params);
 
 	/** */
 	bool IsSimulating() const { return Parameters.Simulating; }
@@ -198,39 +198,39 @@ public:
 	 * data transport to the physics thread itself, without allocating memory.
 	 */
 	Chaos::FParticleData* NewData() { BufferGameState(); return nullptr; }
-	void BufferGameState();
+	CHAOS_API void BufferGameState();
 
 	/** Called at the end of \c FPBDRigidsSolver::PushPhysicsStateExec(). */
 	void ClearAccumulatedData() {}
 
 	/** Push PT state into the \c PhysToGameInterchange. */
-	void BufferPhysicsResults_Internal(Chaos::FPBDRigidsSolver* CurrentSolver, Chaos::FDirtyGeometryCollectionData& BufferData);
+	CHAOS_API void BufferPhysicsResults_Internal(Chaos::FPBDRigidsSolver* CurrentSolver, Chaos::FDirtyGeometryCollectionData& BufferData);
 
 	/** Push GT state into the \c PhysToGameInterchange for async physics */
-	void BufferPhysicsResults_External(Chaos::FDirtyGeometryCollectionData& BufferData);
+	CHAOS_API void BufferPhysicsResults_External(Chaos::FDirtyGeometryCollectionData& BufferData);
 
 	/** Push data from the game thread to the physics thread */
-	void PushStateOnGameThread(Chaos::FPBDRigidsSolver* InSolver);
+	CHAOS_API void PushStateOnGameThread(Chaos::FPBDRigidsSolver* InSolver);
 
 	/** apply the state changes on the physics thread */
-	void PushToPhysicsState();
+	CHAOS_API void PushToPhysicsState();
 	
 	/** Does nothing as \c BufferPhysicsResults() already did this. */
-	void FlipBuffer();
+	CHAOS_API void FlipBuffer();
 	
 	/** 
 	 * Pulls data out of the PhysToGameInterchange and updates \c GTDynamicCollection. 
 	 * Called from FPhysScene_ChaosInterface::SyncBodies(), NOT the solver.
 	 */
-	bool PullFromPhysicsState(const Chaos::FDirtyGeometryCollectionData& BufferData, const int32 SolverSyncTimestamp, const Chaos::FDirtyGeometryCollectionData* NextPullData = nullptr, const Chaos::FRealSingle* Alpha= nullptr);
+	CHAOS_API bool PullFromPhysicsState(const Chaos::FDirtyGeometryCollectionData& BufferData, const int32 SolverSyncTimestamp, const Chaos::FDirtyGeometryCollectionData* NextPullData = nullptr, const Chaos::FRealSingle* Alpha= nullptr);
 
 	bool IsDirty() { return false; }
 
 	static EPhysicsProxyType ConcreteType() { return EPhysicsProxyType::GeometryCollectionType; }
 
-	void SyncBeforeDestroy();
-	void OnRemoveFromSolver(Chaos::FPBDRigidsSolver *RBDSolver);
-	void OnRemoveFromScene();
+	CHAOS_API void SyncBeforeDestroy();
+	CHAOS_API void OnRemoveFromSolver(Chaos::FPBDRigidsSolver *RBDSolver);
+	CHAOS_API void OnRemoveFromScene();
 
 	void SetCollisionParticlesPerObjectFraction(float CollisionParticlesPerObjectFractionIn) 
 	{CollisionParticlesPerObjectFraction = CollisionParticlesPerObjectFractionIn;}
@@ -252,11 +252,11 @@ public:
 		Commands.Add(Command); 
 	}
 
-	static void InitializeSharedCollisionStructures(Chaos::FErrorReporter& ErrorReporter, FGeometryCollection& RestCollection, const FSharedSimulationParameters& SharedParams);
+	static CHAOS_API void InitializeSharedCollisionStructures(Chaos::FErrorReporter& ErrorReporter, FGeometryCollection& RestCollection, const FSharedSimulationParameters& SharedParams);
 
-	void FieldForcesUpdateCallback(Chaos::FPBDRigidsSolver* RigidSolver);
+	CHAOS_API void FieldForcesUpdateCallback(Chaos::FPBDRigidsSolver* RigidSolver);
 
-	void FieldParameterUpdateCallback(Chaos::FPBDRigidsSolver* RigidSolver, const bool bUpdateViews = true);
+	CHAOS_API void FieldParameterUpdateCallback(Chaos::FPBDRigidsSolver* RigidSolver, const bool bUpdateViews = true);
 
 	void UpdateKinematicBodiesCallback(const FParticlesType& InParticles, const float InDt, const float InTime, FKinematicProxy& InKinematicProxy) {}
 	void StartFrameCallback(const float InDt, const float InTime) {}
@@ -269,7 +269,7 @@ public:
 	bool IsGTCollectionDirty() const { return GameThreadCollection.IsDirty(); }
 
 	// set the world transform ( this needs to be called on the game thread ) 
-	void SetWorldTransform_External(const FTransform& WorldTransform);
+	CHAOS_API void SetWorldTransform_External(const FTransform& WorldTransform);
 
 	const TArray<FClusterHandle*> GetParticles() const
 	{
@@ -301,16 +301,16 @@ public:
 		return GTParticles;
 	}
 
-	FParticle* GetParticleByIndex_External(int32 Index);
-	const FParticle* GetParticleByIndex_External(int32 Index) const;
+	CHAOS_API FParticle* GetParticleByIndex_External(int32 Index);
+	CHAOS_API const FParticle* GetParticleByIndex_External(int32 Index) const;
 
-	FParticleHandle* GetParticleByIndex_Internal(int32 Index);
-	const FParticleHandle* GetParticleByIndex_Internal(int32 Index) const;
+	CHAOS_API FParticleHandle* GetParticleByIndex_Internal(int32 Index);
+	CHAOS_API const FParticleHandle* GetParticleByIndex_Internal(int32 Index) const;
 
 	/**
 	*  * Get all the geometry collection particle handles based on the processing resolution
 	 */
-	void GetRelevantParticleHandles(
+	CHAOS_API void GetRelevantParticleHandles(
 		TArray<Chaos::TGeometryParticleHandle<Chaos::FReal, 3>*>& Handles,
 		const Chaos::FPBDRigidsSolver* RigidSolver,
 		EFieldResolutionType ResolutionType);
@@ -318,7 +318,7 @@ public:
 	/**
 	 * Get all the geometry collection particle handles filtered by object state
 	 */
-	void GetFilteredParticleHandles(
+	CHAOS_API void GetFilteredParticleHandles(
 		TArray<Chaos::TGeometryParticleHandle<Chaos::FReal, 3>*>& Handles,
 		const Chaos::FPBDRigidsSolver* RigidSolver,
 		const EFieldFilterType FilterType,
@@ -396,38 +396,38 @@ public:
 		return FGeometryCollectionItemIndex::CreateInvalidItemIndex();
 	}
 	
-	FName GetTransformName_External(FGeometryCollectionItemIndex ItemIndex) const;
+	CHAOS_API FName GetTransformName_External(FGeometryCollectionItemIndex ItemIndex) const;
 
 	bool GetIsObjectDynamic() const { return IsObjectDynamic; }
 
-	void DisableParticles_External(TArray<int32>&& TransformGroupIndices);
+	CHAOS_API void DisableParticles_External(TArray<int32>&& TransformGroupIndices);
 
-	void ApplyForceAt_External(FVector Force, FVector WorldLocation);
-	void ApplyImpulseAt_External(FVector Force, FVector WorldLocation);
-	void BreakClusters_External(TArray<FGeometryCollectionItemIndex>&& ItemIndices);
-	void BreakActiveClusters_External();
-	void SetAnchoredByIndex_External(int32 Index, bool bAnchored);
-	void SetAnchoredByTransformedBox_External(const FBox& Box, const FTransform& Transform, bool bAnchored, int32 MaxLevel = INDEX_NONE);
-	void RemoveAllAnchors_External();
-	void ApplyExternalStrain_External(FGeometryCollectionItemIndex ItemIndex, const FVector& WorldLocation, float Radius, int32 PropagationDepth, float PropagationFactor, float StrainValue);
-	void ApplyInternalStrain_External(FGeometryCollectionItemIndex ItemIndex, const FVector& WorldLocation, float Radius, int32 PropagationDepth, float PropagationFactor, float StrainValue);
-	void ApplyBreakingLinearVelocity_External(FGeometryCollectionItemIndex ItemIndex, const FVector& LinearVelocity);
-	void ApplyBreakingAngularVelocity_External(FGeometryCollectionItemIndex ItemIndex, const FVector& AngularVelocity);
-	void ApplyLinearVelocity_External(FGeometryCollectionItemIndex ItemIndex, const FVector& LinearVelocity);
-	void ApplyAngularVelocity_External(FGeometryCollectionItemIndex ItemIndex, const FVector& AngularVelocity);
+	CHAOS_API void ApplyForceAt_External(FVector Force, FVector WorldLocation);
+	CHAOS_API void ApplyImpulseAt_External(FVector Force, FVector WorldLocation);
+	CHAOS_API void BreakClusters_External(TArray<FGeometryCollectionItemIndex>&& ItemIndices);
+	CHAOS_API void BreakActiveClusters_External();
+	CHAOS_API void SetAnchoredByIndex_External(int32 Index, bool bAnchored);
+	CHAOS_API void SetAnchoredByTransformedBox_External(const FBox& Box, const FTransform& Transform, bool bAnchored, int32 MaxLevel = INDEX_NONE);
+	CHAOS_API void RemoveAllAnchors_External();
+	CHAOS_API void ApplyExternalStrain_External(FGeometryCollectionItemIndex ItemIndex, const FVector& WorldLocation, float Radius, int32 PropagationDepth, float PropagationFactor, float StrainValue);
+	CHAOS_API void ApplyInternalStrain_External(FGeometryCollectionItemIndex ItemIndex, const FVector& WorldLocation, float Radius, int32 PropagationDepth, float PropagationFactor, float StrainValue);
+	CHAOS_API void ApplyBreakingLinearVelocity_External(FGeometryCollectionItemIndex ItemIndex, const FVector& LinearVelocity);
+	CHAOS_API void ApplyBreakingAngularVelocity_External(FGeometryCollectionItemIndex ItemIndex, const FVector& AngularVelocity);
+	CHAOS_API void ApplyLinearVelocity_External(FGeometryCollectionItemIndex ItemIndex, const FVector& LinearVelocity);
+	CHAOS_API void ApplyAngularVelocity_External(FGeometryCollectionItemIndex ItemIndex, const FVector& AngularVelocity);
 
-	void SetProxyDirty_External();
+	CHAOS_API void SetProxyDirty_External();
 
-	void SetEnableDamageFromCollision_External(bool bEnable);
-	void SetNotifyBreakings_External(bool bNotify);
-	void SetNotifyRemovals_External(bool bNotify);
-	void SetNotifyCrumblings_External(bool bNotify, bool bIncludeChildren);
+	CHAOS_API void SetEnableDamageFromCollision_External(bool bEnable);
+	CHAOS_API void SetNotifyBreakings_External(bool bNotify);
+	CHAOS_API void SetNotifyRemovals_External(bool bNotify);
+	CHAOS_API void SetNotifyCrumblings_External(bool bNotify, bool bIncludeChildren);
 
-	void SetNotifyGlobalBreakings_External(bool bNotify);
-	void SetNotifyGlobalRemovals_External(bool bNotify);
-	void SetNotifyGlobalCrumblings_External(bool bNotify, bool bIncludeChildren);
+	CHAOS_API void SetNotifyGlobalBreakings_External(bool bNotify);
+	CHAOS_API void SetNotifyGlobalRemovals_External(bool bNotify);
+	CHAOS_API void SetNotifyGlobalCrumblings_External(bool bNotify, bool bIncludeChildren);
 
-	float ComputeMaterialBasedDamageThreshold_Internal(Chaos::FPBDRigidClusteredParticleHandle& ClusteredParticle) const;
+	CHAOS_API float ComputeMaterialBasedDamageThreshold_Internal(Chaos::FPBDRigidClusteredParticleHandle& ClusteredParticle) const;
 
 	FProxyInterpolationBase& GetInterpolationData() { return InterpolationData; }
 	const FProxyInterpolationBase& GetInterpolationData() const { return InterpolationData; }
@@ -442,7 +442,7 @@ public:
 	void SetReplicationMode(EReplicationMode Mode) { ReplicationMode = Mode; }
 	EReplicationMode GetReplicationMode() const { return ReplicationMode; }
 
-	void UpdateFilterData_External(const FCollisionFilterData& NewSimFilter, const FCollisionFilterData& NewQueryFilter);
+	CHAOS_API void UpdateFilterData_External(const FCollisionFilterData& NewSimFilter, const FCollisionFilterData& NewQueryFilter);
 	
 	/** 
 	 * Traverses the parents of TransformGroupIdx counting number of levels,
@@ -450,20 +450,20 @@ public:
 	 * If level is already set, retrieve stored level.
 	 * Uninitialized level array should be correct size and defaulted to zeros.
 	 */
-	static int32 CalculateAndSetLevel(int32 TransformGroupIdx, const TManagedArray<int32>& Parent, TManagedArray<int32>& Levels);
+	static CHAOS_API int32 CalculateAndSetLevel(int32 TransformGroupIdx, const TManagedArray<int32>& Parent, TManagedArray<int32>& Levels);
 
 	void SetPostPhysicsSyncCallback(TFunction<void()> Callback)
 	{
 		PostPhysicsSyncCallback = Callback;
 	}
 	
-	TArray<Chaos::FPhysicsObjectHandle> GetAllPhysicsObjects() const ;
-	TArray<Chaos::FPhysicsObjectHandle> GetAllPhysicsObjectIncludingNulls() const;
-	Chaos::FPhysicsObjectHandle GetPhysicsObjectByIndex(int32 Index) const;
+	CHAOS_API TArray<Chaos::FPhysicsObjectHandle> GetAllPhysicsObjects() const ;
+	CHAOS_API TArray<Chaos::FPhysicsObjectHandle> GetAllPhysicsObjectIncludingNulls() const;
+	CHAOS_API Chaos::FPhysicsObjectHandle GetPhysicsObjectByIndex(int32 Index) const;
 	int32 GetNumParticles() const { return NumParticles; }
 protected:
 
-	float ComputeMaterialBasedDamageThreshold_Internal(int32 TransformIndex) const;
+	CHAOS_API float ComputeMaterialBasedDamageThreshold_Internal(int32 TransformIndex) const;
 
 	/**
 	* Compute user defined damage threshold for a specific transform
@@ -472,15 +472,15 @@ protected:
 	* @param TransformIndex index of the transform to compute the threshold for
 	* #return damage threshold value
 	*/
-	float ComputeUserDefinedDamageThreshold_Internal(int32 TransformIndex) const;
+	CHAOS_API float ComputeUserDefinedDamageThreshold_Internal(int32 TransformIndex) const;
 
 	/** adjust scalar mass to account for per component scale properties ( from material override and world transform scale ) */ 
-	float AdjustMassForScale(float Mass) const;
+	CHAOS_API float AdjustMassForScale(float Mass) const;
 
 	/** adjust inertia to account for per component scale properties ( from material override and world transform scale ) */
-	Chaos::FVec3f AdjustInertiaForScale(const Chaos::FVec3f& Inertia) const;
+	CHAOS_API Chaos::FVec3f AdjustInertiaForScale(const Chaos::FVec3f& Inertia) const;
 
-	Chaos::TPBDGeometryCollectionParticleHandle<Chaos::FReal, 3>* BuildNonClusters_Internal(const uint32 CollectionClusterIndex, Chaos::FPBDRigidsSolver* RigidsSolver, float Mass, Chaos::FVec3f Inertia);
+	CHAOS_API Chaos::TPBDGeometryCollectionParticleHandle<Chaos::FReal, 3>* BuildNonClusters_Internal(const uint32 CollectionClusterIndex, Chaos::FPBDRigidsSolver* RigidsSolver, float Mass, Chaos::FVec3f Inertia);
 
 	/**
 	 * Build a physics thread cluster parent particle.
@@ -490,31 +490,31 @@ protected:
 	 *  \P Parameters - uh, yeah...  Other parameters.
 	 */
 
-	Chaos::FPBDRigidClusteredParticleHandle* BuildClusters_Internal(
+	CHAOS_API Chaos::FPBDRigidClusteredParticleHandle* BuildClusters_Internal(
 		const uint32 CollectionClusterIndex, 
 		TArray<Chaos::FPBDRigidParticleHandle*>& ChildHandles,
 		const TArray<int32>& ChildTransformGroupIndices,
 		const Chaos::FClusterCreationParameters & Parameters,
 		const Chaos::FUniqueIdx* ExistingIndex);
 
-	void SetSleepingState(const Chaos::FPBDRigidsSolver& RigidsSolver);
-	void DirtyAllParticles(const Chaos::FPBDRigidsSolver& RigidsSolver);
+	CHAOS_API void SetSleepingState(const Chaos::FPBDRigidsSolver& RigidsSolver);
+	CHAOS_API void DirtyAllParticles(const Chaos::FPBDRigidsSolver& RigidsSolver);
 
 	/** 
 	 * Traverses the parents of \p TransformIndex in \p GeometryCollection, counting
 	 * the number of levels until the next parent is \c INDEX_NONE.
 	 */
-	static int32 CalculateHierarchyLevel(const FGeometryDynamicCollection& DynamicCollection, int32 TransformIndex);
+	static CHAOS_API int32 CalculateHierarchyLevel(const FGeometryDynamicCollection& DynamicCollection, int32 TransformIndex);
 
-	int32 CalculateEffectiveParticles(const FGeometryDynamicCollection& DynamicCollection, int32 NumTransform, TBitArray<>& EffectiveParticles) const;
+	CHAOS_API int32 CalculateEffectiveParticles(const FGeometryDynamicCollection& DynamicCollection, int32 NumTransform, TBitArray<>& EffectiveParticles) const;
 
-	void SetClusteredParticleKinematicTarget_Internal(Chaos::FPBDRigidClusteredParticleHandle* Handle, const FTransform& WorldTransform);
+	CHAOS_API void SetClusteredParticleKinematicTarget_Internal(Chaos::FPBDRigidClusteredParticleHandle* Handle, const FTransform& WorldTransform);
 
-	void PrepareBufferData(Chaos::FDirtyGeometryCollectionData& BufferData, const FGeometryDynamicCollection& ThreadCollection,  Chaos::FReal SolverLastDt = 0.0);
+	CHAOS_API void PrepareBufferData(Chaos::FDirtyGeometryCollectionData& BufferData, const FGeometryDynamicCollection& ThreadCollection,  Chaos::FReal SolverLastDt = 0.0);
 
-	void CreateNonClusteredParticles(Chaos::FPBDRigidsSolver* RigidsSolver,	const FGeometryCollection& RestCollection, const FGeometryDynamicCollection& DynamicCollection, const TBitArray<>& EffectiveParticles);
+	CHAOS_API void CreateNonClusteredParticles(Chaos::FPBDRigidsSolver* RigidsSolver,	const FGeometryCollection& RestCollection, const FGeometryDynamicCollection& DynamicCollection, const TBitArray<>& EffectiveParticles);
 
-	Chaos::FPBDRigidClusteredParticleHandle* FindClusteredParticleHandleByItemIndex_Internal(FGeometryCollectionItemIndex ItemIndex) const;
+	CHAOS_API Chaos::FPBDRigidClusteredParticleHandle* FindClusteredParticleHandleByItemIndex_Internal(FGeometryCollectionItemIndex ItemIndex) const;
 private:
 
 
@@ -623,7 +623,7 @@ private:
  * the watcher collects runtime data about
  * damage on each piece of the geometry collection 
  */
-struct CHAOS_API FDamageCollector
+struct FDamageCollector
 {
 public:
 	struct FDamageData
@@ -633,7 +633,7 @@ public:
 		bool  bIsBroken = false;
 	};
 
-	void Reset(int32 NumTransforms);
+	CHAOS_API void Reset(int32 NumTransforms);
 	int32 Num() const { return DamageData.Num(); }
 	const FDamageData& operator[](int32 TransformIndex) const 
 	{ 
@@ -642,22 +642,22 @@ public:
 			return DamageData[TransformIndex]; 
 		return DefaultDamageData;
 	}
-	void SampleDamage(int32 TransformIndex, float Damage, float DamageThreshold);
+	CHAOS_API void SampleDamage(int32 TransformIndex, float Damage, float DamageThreshold);
 	
 private:
 	TArray<FDamageData> DamageData;
 };
 
-struct CHAOS_API FRuntimeDataCollector
+struct FRuntimeDataCollector
 {
 public:
-	void Clear();
-	void AddCollector(const FGuid& Guid, int32 TransformNum);
-	void RemoveCollector(const FGuid& Guid);
+	CHAOS_API void Clear();
+	CHAOS_API void AddCollector(const FGuid& Guid, int32 TransformNum);
+	CHAOS_API void RemoveCollector(const FGuid& Guid);
 
-	FDamageCollector* Find(const FGuid& Guid);
+	CHAOS_API FDamageCollector* Find(const FGuid& Guid);
 
-	static FRuntimeDataCollector& GetInstance();
+	static CHAOS_API FRuntimeDataCollector& GetInstance();
 	
 private:
 	// collectors by geometry collection Guids

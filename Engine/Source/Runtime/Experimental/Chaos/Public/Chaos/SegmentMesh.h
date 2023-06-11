@@ -14,22 +14,22 @@ namespace Chaos
 	/**
 	* Mesh structure of connected particles via edges.
 	*/
-	class CHAOS_API FSegmentMesh
+	class FSegmentMesh
 	{
 	public:
 		FSegmentMesh()
 		{}
-		FSegmentMesh(TArray<TVec2<int32>>&& Elements);
+		CHAOS_API FSegmentMesh(TArray<TVec2<int32>>&& Elements);
 		FSegmentMesh(const FSegmentMesh& Other) = delete;
 		FSegmentMesh(FSegmentMesh&& Other)
 		    : MElements(MoveTemp(Other.MElements))
 		    , MPointToEdgeMap(MoveTemp(Other.MPointToEdgeMap))
 		    , MPointToNeighborsMap(MoveTemp(Other.MPointToNeighborsMap))
 		{}
-		~FSegmentMesh();
+		CHAOS_API ~FSegmentMesh();
 
-		void Init(const TArray<TVec2<int32>>& Elements);
-		void Init(TArray<TVec2<int32>>&& Elements);
+		CHAOS_API void Init(const TArray<TVec2<int32>>& Elements);
+		CHAOS_API void Init(TArray<TVec2<int32>>&& Elements);
 
 		int32 GetNumElements() const
 		{
@@ -52,28 +52,28 @@ namespace Chaos
 		/**
 		* @ret A map of each point index to the list of connected points.
 		*/
-		const TMap<int32, TSet<int32>>& GetPointToNeighborsMap() const;
+		CHAOS_API const TMap<int32, TSet<int32>>& GetPointToNeighborsMap() const;
 
 		/**
 		* @ret A map of each point index to the list of connected edges.
 		*/
-		const TMap<int32, TArray<int32>>& GetPointToEdges() const;
+		CHAOS_API const TMap<int32, TArray<int32>>& GetPointToEdges() const;
 
 		/**
 		* @ret Lengths (or lengths squared) of all edges.
 		* @param InParticles - The particle positions to use.  This routine assumes it's sized appropriately.
 		* @param lengthSquared - If true, the squared length is returned, which is faster.
 		*/
-		TArray<FReal> GetEdgeLengths(
+		CHAOS_API TArray<FReal> GetEdgeLengths(
 			const TParticles<FReal, 3>& InParticles, 
 			const bool lengthSquared = false) const;
 
 	private:
-		void _ClearAuxStructures();
+		CHAOS_API void _ClearAuxStructures();
 
-		void _UpdatePointToNeighborsMap() const;
+		CHAOS_API void _UpdatePointToNeighborsMap() const;
 
-		void _UpdatePointToEdgesMap() const;
+		CHAOS_API void _UpdatePointToEdgesMap() const;
 
 	private:
 		// We use TVector rather than FEdge to represent connectivity because

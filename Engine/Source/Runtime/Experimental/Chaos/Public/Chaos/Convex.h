@@ -25,7 +25,7 @@ namespace Chaos
 	// instance wrapper (ImplicitScaled, ImplicitTransformed, or ImplicitInstanced). Usually the
 	// margin on the convex itself is zero.
 	//
-	class CHAOS_API FConvex final : public FImplicitObject
+	class FConvex final : public FImplicitObject
 	{
 	public:
 		using FImplicitObject::GetTypeName;
@@ -169,12 +169,12 @@ namespace Chaos
 			return TUniquePtr<FImplicitObject>(new FConvex(*this));
 		}
 
-		virtual TUniquePtr<FImplicitObject> CopyWithScale(const FVec3& Scale) const override;
+		CHAOS_API virtual TUniquePtr<FImplicitObject> CopyWithScale(const FVec3& Scale) const override;
 
-		void MovePlanesAndRebuild(FRealType InDelta);
+		CHAOS_API void MovePlanesAndRebuild(FRealType InDelta);
 
 	private:
-		void CreateStructureData(TArray<TArray<int32>>&& FaceIndices);
+		CHAOS_API void CreateStructureData(TArray<TArray<int32>>&& FaceIndices);
 
 	public:
 		static constexpr EImplicitObjectType StaticType()
@@ -355,8 +355,8 @@ namespace Chaos
 		 * and \c OutNormal should be.  The burden for detecting this case is deferred to the
 		 * caller. 
 		 */
-		virtual bool Raycast(const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const FReal Thickness, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex) const override;
-		bool RaycastFast(const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const FReal Thickness, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex) const;
+		CHAOS_API virtual bool Raycast(const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const FReal Thickness, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex) const override;
+		CHAOS_API bool RaycastFast(const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const FReal Thickness, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex) const;
 
 		virtual Pair<FVec3, bool> FindClosestIntersectionImp(const FVec3& StartPoint, const FVec3& EndPoint, const FReal Thickness) const override
 		{
@@ -389,14 +389,14 @@ namespace Chaos
 		const FConvexStructureData& GetStructureData() const { return StructureData; }
 
 		// Get the index of the plane that most opposes the normal
-		int32 GetMostOpposingPlane(const FVec3& Normal) const;
+		CHAOS_API int32 GetMostOpposingPlane(const FVec3& Normal) const;
 
 		// Get the index of the plane that most opposes the normal
-		int32 GetMostOpposingPlaneScaled(const FVec3& Normal, const FVec3& Scale) const;
+		CHAOS_API int32 GetMostOpposingPlaneScaled(const FVec3& Normal, const FVec3& Scale) const;
 
 		// Get the nearest point on an edge and the edge vertices
 		// Used for manifold generation
-		FVec3 GetClosestEdge(int32 PlaneIndexHint, const FVec3& Position, FVec3& OutEdgePos0, FVec3& OutEdgePos1) const;
+		CHAOS_API FVec3 GetClosestEdge(int32 PlaneIndexHint, const FVec3& Position, FVec3& OutEdgePos0, FVec3& OutEdgePos1) const;
 
 		// Get the nearest point on an edge of the specified face
 		FVec3 GetClosestEdgePosition(int32 PlaneIndex, const FVec3& Position) const
@@ -405,13 +405,13 @@ namespace Chaos
 			return GetClosestEdge(PlaneIndex, Position, Unused0, Unused1);
 		}
 
-		bool GetClosestEdgeVertices(int32 PlaneIndex, const FVec3& Position, int32& OutVertexIndex0, int32& OutVertexIndex1) const;
+		CHAOS_API bool GetClosestEdgeVertices(int32 PlaneIndex, const FVec3& Position, int32& OutVertexIndex0, int32& OutVertexIndex1) const;
 
 		// Get an array of all the plane indices that belong to a vertex (up to MaxVertexPlanes).
 		// Returns the number of planes found.
-		int32 FindVertexPlanes(int32 VertexIndex, int32* OutVertexPlanes, int32 MaxVertexPlanes) const;
+		CHAOS_API int32 FindVertexPlanes(int32 VertexIndex, int32* OutVertexPlanes, int32 MaxVertexPlanes) const;
 
-		int32 GetVertexPlanes3(int32 VertexIndex, int32& PlaneIndex0, int32& PlaneIndex1, int32& PlaneIndex2) const;
+		CHAOS_API int32 GetVertexPlanes3(int32 VertexIndex, int32& PlaneIndex0, int32& PlaneIndex1, int32& PlaneIndex2) const;
 
 		// The number of vertices that make up the corners of the specified face
 		inline int32 NumPlaneVertices(int32 PlaneIndex) const
@@ -497,9 +497,9 @@ namespace Chaos
 		}
 
 
-		virtual int32 FindMostOpposingFace(const FVec3& Position, const FVec3& UnitDir, int32 HintFaceIndex, FReal SearchDist) const override;
+		CHAOS_API virtual int32 FindMostOpposingFace(const FVec3& Position, const FVec3& UnitDir, int32 HintFaceIndex, FReal SearchDist) const override;
 
-		virtual int32 FindMostOpposingFaceScaled(const FVec3& Position, const FVec3& UnitDir, int32 HintFaceIndex, FReal SearchDist, const FVec3& Scale) const override;
+		CHAOS_API virtual int32 FindMostOpposingFaceScaled(const FVec3& Position, const FVec3& UnitDir, int32 HintFaceIndex, FReal SearchDist, const FVec3& Scale) const override;
 
 		FVec3 FindGeometryOpposingNormal(const FVec3& DenormDir, int32 FaceIndex, const FVec3& OriginalNormal) const
 		{
@@ -514,7 +514,7 @@ namespace Chaos
 			return FVec3(0.f, 0.f, 1.f);
 		}
 
-		virtual int32 FindClosestFaceAndVertices(const FVec3& Position, TArray<FVec3>& FaceVertices, FReal SearchDist = 0.01f) const override;
+		CHAOS_API virtual int32 FindClosestFaceAndVertices(const FVec3& Position, TArray<FVec3>& FaceVertices, FReal SearchDist = 0.01f) const override;
 
 		// Returns a winding order multiplier used in the manifold clipping and required when we have negative scales (See ImplicitObjectScaled)
 		FReal GetWindingOrder() const
@@ -1045,7 +1045,7 @@ namespace Chaos
 #endif // #if INTEL_ISPC
 
 	private:
-		void ComputeUnitMassInertiaTensorAndRotationOfMass(const FReal InVolume);
+		CHAOS_API void ComputeUnitMassInertiaTensorAndRotationOfMass(const FReal InVolume);
 		
 		// IMPORTANT to keep this copy constructor private to avoid unintented expensive copies 
 		FConvex(const FConvex& Other)

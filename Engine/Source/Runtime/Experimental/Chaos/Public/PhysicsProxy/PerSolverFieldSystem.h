@@ -7,7 +7,7 @@
 #include "Chaos/PBDPositionConstraints.h"
 #include "Chaos/Defines.h"
 
-class CHAOS_API FPerSolverFieldSystem
+class FPerSolverFieldSystem
 {
 public:
 
@@ -30,7 +30,7 @@ public:
 	 * EFieldPhysicsType::Field_PositionAnimated
 	 * EFieldPhysicsType::Field_DynamicConstraint
 	 */
-	void FieldParameterUpdateCallback(
+	CHAOS_API void FieldParameterUpdateCallback(
 		Chaos::FPBDRigidsSolver* InSolver, 
 		Chaos::FPBDPositionConstraints& PositionTarget,
 		TMap<int32, int32>& TargetedParticles);
@@ -42,7 +42,7 @@ public:
 	 * EFieldPhysicsType::Field_LinearForce
 	 * EFieldPhysicsType::Field_AngularTorque
 	 */
-	void FieldForcesUpdateCallback(
+	CHAOS_API void FieldForcesUpdateCallback(
 		Chaos::FPBDRigidsSolver* RigidSolver);
 
 	/**
@@ -54,7 +54,7 @@ public:
 	 * EFieldPhysicsType::Field_AngularVelocity
 	 * EFieldPhysicsType::Field_AngularrTorque
 	 */
-	void ComputeFieldRigidImpulse(const Chaos::FReal SolverTime);
+	CHAOS_API void ComputeFieldRigidImpulse(const Chaos::FReal SolverTime);
 
 	/**
 	 * Compute field linear velocity/force given a list of samples (positions + indices)
@@ -63,19 +63,19 @@ public:
 	 * EFieldPhysicsType::Field_LinearVelocity
 	 * EFieldPhysicsType::Field_LinearForce
 	 */
-	void ComputeFieldLinearImpulse(const Chaos::FReal SolverTime);
+	CHAOS_API void ComputeFieldLinearImpulse(const Chaos::FReal SolverTime);
 
 	/** Add the transient field command */
-	void AddTransientCommand(const FFieldSystemCommand& FieldCommand);
+	CHAOS_API void AddTransientCommand(const FFieldSystemCommand& FieldCommand);
 
 	/** Add the persistent field command */
-	void AddPersistentCommand(const FFieldSystemCommand& FieldCommand);
+	CHAOS_API void AddPersistentCommand(const FFieldSystemCommand& FieldCommand);
 
 	/** Remove the transient field command */
-	void RemoveTransientCommand(const FFieldSystemCommand& FieldCommand);
+	CHAOS_API void RemoveTransientCommand(const FFieldSystemCommand& FieldCommand);
 
 	/** Remove the persistent field command */
-	void RemovePersistentCommand(const FFieldSystemCommand& FieldCommand);
+	CHAOS_API void RemovePersistentCommand(const FFieldSystemCommand& FieldCommand);
 
 	/** Get all the non const transient field commands */
 	TArray<FFieldSystemCommand>& GetTransientCommands() { return TransientCommands; }
@@ -98,7 +98,7 @@ public:
 	 * the active clusters are set in the \p IndicesArray.
 	 */
 
-	static void GetRelevantParticleHandles(
+	static CHAOS_API void GetRelevantParticleHandles(
 		TArray<Chaos::FGeometryParticleHandle*>& ParticleHandles,
 		const Chaos::FPBDRigidsSolver* RigidSolver,
 		const EFieldResolutionType ResolutionType);
@@ -110,7 +110,7 @@ public:
 	 * is provided from the \c Particles.X to \c Particles.Attribute.
 	 */
 
-	static void GetFilteredParticleHandles(
+	static CHAOS_API void GetFilteredParticleHandles(
 		TArray<Chaos::FGeometryParticleHandle*>& ParticleHandles,
 		const Chaos::FPBDRigidsSolver* RigidSolver,
 		const EFieldFilterType FilterType,
@@ -140,13 +140,13 @@ public:
 private:
 
 	/** Forces update callback implementation */
-	void FieldForcesUpdateInternal(
+	CHAOS_API void FieldForcesUpdateInternal(
 		Chaos::FPBDRigidsSolver* RigidSolver,
 		TArray<FFieldSystemCommand>& Commands, 
 		const bool IsTransient);
 
 	/** Parameter update callback implementation */
-	void FieldParameterUpdateInternal(
+	CHAOS_API void FieldParameterUpdateInternal(
 		Chaos::FPBDRigidsSolver* RigidSolver,
 		Chaos::FPBDPositionConstraints& PositionTarget,
 		TMap<int32, int32>& PositionTargetedParticles,

@@ -29,7 +29,7 @@ namespace Chaos
 /**
  * Apply an effect to all particles.
  */
-class CHAOS_API FParticleRule
+class FParticleRule
 {
   public:
 	virtual void Apply(FParticles& InParticles, const FReal Dt) const { check(0); }

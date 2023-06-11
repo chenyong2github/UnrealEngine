@@ -22,10 +22,10 @@ namespace Chaos
 
 
 
-class CHAOS_API FCollisionStructureManager
+class FCollisionStructureManager
 {
 public:
-	FCollisionStructureManager();
+	CHAOS_API FCollisionStructureManager();
 	virtual ~FCollisionStructureManager() {}
 
 	typedef TArray<Chaos::FVec3> FPoints;
@@ -38,7 +38,7 @@ public:
 	 * at \p CollisionParticlesMaxInput, and returns a bounding volume hierarchy
 	 * of the remainder.
 	 */
-	static FSimplicial* NewSimplicial(
+	static CHAOS_API FSimplicial* NewSimplicial(
 		const Chaos::FParticles& Vertices,
 		const Chaos::FTriangleMesh& TriMesh,
 		const Chaos::FImplicitObject* Implicit,
@@ -48,7 +48,7 @@ public:
 	 * Culls particles by importance (See \c FTriangleMesh::GetVertexImportanceOrdering()),
 	 * and returns a bounding volume hierarchy of the remainder.
 	 */
-	static FSimplicial* NewSimplicial(
+	static CHAOS_API FSimplicial* NewSimplicial(
 		const Chaos::FParticles& AllParticles,
 		const TManagedArray<int32>& BoneMap,
 		const ECollisionTypeEnum CollisionType,
@@ -59,7 +59,7 @@ public:
 	 * Calls \c SetDoCollide(false) and \c SetConvex(false) on \p Implicit if 
 	 * \p CollisionType is \c ECollisionTypeEnum::Chaos_Surface_Volumetric.
 	 */
-	static void UpdateImplicitFlags(
+	static CHAOS_API void UpdateImplicitFlags(
 		FImplicit* Implicit, 
 		const ECollisionTypeEnum CollisionType);
 
@@ -78,7 +78,7 @@ public:
 	 *	\p CollisionType - param forwarded to \c UpdateImplictFlags().
 	 *	\p ImplicitType - type of implicit shape to build.
 	 */
-	static FImplicit * NewImplicit(
+	static CHAOS_API FImplicit * NewImplicit(
 		Chaos::FErrorReporter ErrorReporter,
 		const Chaos::FParticles& MeshParticles,
 		const Chaos::FTriangleMesh& TriMesh,
@@ -90,28 +90,28 @@ public:
 		const ECollisionTypeEnum CollisionType,
 		const EImplicitTypeEnum ImplicitType);
 
-	static FImplicit* NewImplicitBox(
+	static CHAOS_API FImplicit* NewImplicitBox(
 		const FBox& CollisionBounds,
 		const float CollisionObjectReduction,
 		const ECollisionTypeEnum CollisionType);
 
-	static FImplicit* NewImplicitSphere(
+	static CHAOS_API FImplicit* NewImplicitSphere(
 		const Chaos::FReal Radius,
 		const float CollisionObjectReduction,
 		const ECollisionTypeEnum CollisionType);
 
-	static FImplicit* NewImplicitCapsule(
+	static CHAOS_API FImplicit* NewImplicitCapsule(
 		const Chaos::FReal Radius,
 		const Chaos::FReal Length,
 		const float CollisionObjectReduction,
 		const ECollisionTypeEnum CollisionType);
 
-	static FImplicit* NewImplicitCapsule(
+	static CHAOS_API FImplicit* NewImplicitCapsule(
 		const FBox& CollisionBounds,
 		const float CollisionObjectReduction,
 		const ECollisionTypeEnum CollisionType);
 
-	static FImplicit* NewImplicitConvex(
+	static CHAOS_API FImplicit* NewImplicitConvex(
 		const TArray<int32>& ConvexIndices,
 		const TManagedArray<TUniquePtr<Chaos::FConvex>>* ConvexGeometry,
 		const ECollisionTypeEnum CollisionType,
@@ -119,7 +119,7 @@ public:
 		const Chaos::FReal CollisionMarginFraction,
 		const float CollisionObjectReduction);
 
-	static FImplicit* NewImplicitLevelset(
+	static CHAOS_API FImplicit* NewImplicitLevelset(
 		Chaos::FErrorReporter ErrorReporter,
 		const Chaos::FParticles& MeshParticles,
 		const Chaos::FTriangleMesh& TriMesh,
@@ -129,7 +129,7 @@ public:
 		const float CollisionObjectReduction,
 		const ECollisionTypeEnum CollisionType);
 
-	static Chaos::FLevelSet* NewLevelset(
+	static CHAOS_API Chaos::FLevelSet* NewLevelset(
 		Chaos::FErrorReporter ErrorReporter,
 		const Chaos::FParticles& MeshParticles,
 		const Chaos::FTriangleMesh& TriMesh,
@@ -138,12 +138,12 @@ public:
 		const int32 MaxRes,
 		const ECollisionTypeEnum CollisionType);
 
-	static FVector CalculateUnitMassInertiaTensor(
+	static CHAOS_API FVector CalculateUnitMassInertiaTensor(
 		const FBox& BoundingBox,
 		const Chaos::FReal Radius,
 		const EImplicitTypeEnum ImplicitType);
 
-	static Chaos::FReal CalculateVolume(
+	static CHAOS_API Chaos::FReal CalculateVolume(
 		const FBox& BoundingBox,
 		const Chaos::FReal Radius,
 		const EImplicitTypeEnum ImplicitType);

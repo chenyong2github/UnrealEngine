@@ -10,22 +10,22 @@ namespace GeometryCollection::Facades
 	/**
 	*
 	*/
-	class CHAOS_API FTetrahedralMetrics
+	class FTetrahedralMetrics
 	{
 	public:
 		// Groups
 
 		// Attributes
-		static const FName SignedVolumeAttributeName;
-		static const FName AspectRatioAttributeName;
+		static CHAOS_API const FName SignedVolumeAttributeName;
+		static CHAOS_API const FName AspectRatioAttributeName;
 
-		FTetrahedralMetrics(FManagedArrayCollection& InCollection);
-		FTetrahedralMetrics(const FManagedArrayCollection& InCollection);
-		virtual ~FTetrahedralMetrics();
+		CHAOS_API FTetrahedralMetrics(FManagedArrayCollection& InCollection);
+		CHAOS_API FTetrahedralMetrics(const FManagedArrayCollection& InCollection);
+		CHAOS_API virtual ~FTetrahedralMetrics();
 
-		void DefineSchema();
+		CHAOS_API void DefineSchema();
 		bool IsConst() const { return SignedVolumeAttribute.IsConst(); }
-		bool IsValid() const;
+		CHAOS_API bool IsValid() const;
 
 		const TManagedArrayAccessor<float>& GetSignedVolumeRO() const { return SignedVolumeAttribute; }
 		TManagedArrayAccessor<float>& GetSignedVolume() { check(!IsConst()); return SignedVolumeAttribute; }

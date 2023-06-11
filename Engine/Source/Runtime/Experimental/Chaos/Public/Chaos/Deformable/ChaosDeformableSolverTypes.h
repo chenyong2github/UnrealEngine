@@ -13,7 +13,7 @@ class FFleshCacheAdapter;
 
 namespace Chaos::Softs
 {
-	struct CHAOS_API FDeformableSolverProperties
+	struct FDeformableSolverProperties
 	{
 		FDeformableSolverProperties(
 			int32 InNumSolverSubSteps = 2,
@@ -91,7 +91,7 @@ namespace Chaos::Softs
 	typedef TSharedPtr<const FThreadingProxy::FBuffer> FDataMapValue; // Buffer Pointer
 	typedef TMap<FThreadingProxy::FKey, FDataMapValue > FDeformableDataMap; // <const UObject*,FBufferSharedPtr>
 
-	struct CHAOS_API FDeformablePackage {
+	struct FDeformablePackage {
 		FDeformablePackage()
 		{}
 
@@ -105,7 +105,7 @@ namespace Chaos::Softs
 	};
 
 	/* Accessor for the Game Thread*/
-	class CHAOS_API FGameThreadAccessor
+	class FGameThreadAccessor
 	{
 	public:
 //		friend class UDeformableSolverComponent;
@@ -118,7 +118,7 @@ namespace Chaos::Softs
 
 
 	/* Accessor for the Physics Thread*/
-	class CHAOS_API FPhysicsThreadAccessor
+	class FPhysicsThreadAccessor
 	{
 	public:
 //		friend class UDeformableSolverComponent;
@@ -130,7 +130,7 @@ namespace Chaos::Softs
 	};
 
 
-	struct CHAOS_API FDeformableDebugParams
+	struct FDeformableDebugParams
 	{				
 		bool bDoDrawTetrahedralParticles = false;
 		bool bDoDrawKinematicParticles = false;
@@ -149,7 +149,7 @@ namespace Chaos::Softs
 		}
 	};
 
-	struct CHAOS_API FDeformableXPBDCorotatedParams
+	struct FDeformableXPBDCorotatedParams
 	{
 		int32 XPBDCorotatedBatchSize = 5;
 		int32 XPBDCorotatedBatchThreshold = 5;

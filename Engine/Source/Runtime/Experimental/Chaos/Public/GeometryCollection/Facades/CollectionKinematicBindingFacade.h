@@ -10,7 +10,7 @@
 namespace GeometryCollection::Facades
 {
 	/** Kinematic Facade */
-	class CHAOS_API FKinematicBindingFacade
+	class FKinematicBindingFacade
 	{
 	public:
 
@@ -19,31 +19,31 @@ namespace GeometryCollection::Facades
 		//
 		// Kinematics
 		//
-		static const FName KinematicGroup;
-		static const FName KinematicBoneBindingIndex;
-		static const FName KinematicBoneBindingToGroup;
+		static CHAOS_API const FName KinematicGroup;
+		static CHAOS_API const FName KinematicBoneBindingIndex;
+		static CHAOS_API const FName KinematicBoneBindingToGroup;
 
-		FKinematicBindingFacade(FManagedArrayCollection& InCollection);
-		FKinematicBindingFacade(const FManagedArrayCollection& InCollection);
+		CHAOS_API FKinematicBindingFacade(FManagedArrayCollection& InCollection);
+		CHAOS_API FKinematicBindingFacade(const FManagedArrayCollection& InCollection);
 
 		/** Create the facade attributes. */
-		void DefineSchema();
+		CHAOS_API void DefineSchema();
 
 		/** Is the facade defined constant. */
 		bool IsConst() const { return Collection==nullptr; }
 
 		/** Is the Facade defined on the collection? */
-		bool IsValid() const;
+		CHAOS_API bool IsValid() const;
 
 		//
 		//  Skeletal Mesh Bone Bindings
 		//
-		FBindingKey SetBoneBindings(const int32 BoneIndex, const TArray<int32>& Vertices, const TArray<float>& Weights);
-		void GetBoneBindings(const FBindingKey& Key, int32& OutBoneIndex, TArray<int32>& OutBoneVerts, TArray<float>& OutBoneWeights) const;
+		CHAOS_API FBindingKey SetBoneBindings(const int32 BoneIndex, const TArray<int32>& Vertices, const TArray<float>& Weights);
+		CHAOS_API void GetBoneBindings(const FBindingKey& Key, int32& OutBoneIndex, TArray<int32>& OutBoneVerts, TArray<float>& OutBoneWeights) const;
 
-		int32 AddKinematicBinding(const FBindingKey& Key);
+		CHAOS_API int32 AddKinematicBinding(const FBindingKey& Key);
 		int32 NumKinematicBindings() const { return KinemaitcBoneBindingAttribute.Num(); }
-		FBindingKey GetKinematicBindingKey(int Index) const;
+		CHAOS_API FBindingKey GetKinematicBindingKey(int Index) const;
 
 	private:
 		const FManagedArrayCollection& ConstCollection;

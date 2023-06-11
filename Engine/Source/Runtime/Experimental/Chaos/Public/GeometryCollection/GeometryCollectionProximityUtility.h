@@ -44,17 +44,17 @@ enum class EConnectionContactMethod : uint8
 	ConvexHullContactArea
 };
 
-class CHAOS_API FGeometryCollectionProximityUtility
+class FGeometryCollectionProximityUtility
 {
 public:
-	FGeometryCollectionProximityUtility(FGeometryCollection* InCollection);
+	CHAOS_API FGeometryCollectionProximityUtility(FGeometryCollection* InCollection);
 
-	void UpdateProximity(UE::GeometryCollectionConvexUtility::FConvexHulls* OptionalComputedHulls = nullptr);
+	CHAOS_API void UpdateProximity(UE::GeometryCollectionConvexUtility::FConvexHulls* OptionalComputedHulls = nullptr);
 
 	// Update proximity data if it is not already present
-	void RequireProximity(UE::GeometryCollectionConvexUtility::FConvexHulls* OptionalComputedHulls = nullptr);
+	CHAOS_API void RequireProximity(UE::GeometryCollectionConvexUtility::FConvexHulls* OptionalComputedHulls = nullptr);
 
-	void InvalidateProximity();
+	CHAOS_API void InvalidateProximity();
 
 	// Stores stats about the contact between two geometries
 	struct FGeometryContactEdge
@@ -75,11 +75,11 @@ public:
 		{}
 	};
 	// Note: This computes connections from lower to higher geometry indices, assuming connections are symmetric
-	static TArray<FGeometryContactEdge> ComputeConvexGeometryContactFromProximity(FGeometryCollection* Collection, float DistanceTolerance, UE::GeometryCollectionConvexUtility::FConvexHulls& LocalHulls);
+	static CHAOS_API TArray<FGeometryContactEdge> ComputeConvexGeometryContactFromProximity(FGeometryCollection* Collection, float DistanceTolerance, UE::GeometryCollectionConvexUtility::FConvexHulls& LocalHulls);
 
 	// @param ContactEdges	Optional pre-computed proximity contact edges, to be used for computing contact areas on the connection graph edges
-	void CopyProximityToConnectionGraph(const TArray<FGeometryContactEdge>* ContactEdges = nullptr);
-	void ClearConnectionGraph();
+	CHAOS_API void CopyProximityToConnectionGraph(const TArray<FGeometryContactEdge>* ContactEdges = nullptr);
+	CHAOS_API void ClearConnectionGraph();
 
 private:
 	FGeometryCollection* Collection;

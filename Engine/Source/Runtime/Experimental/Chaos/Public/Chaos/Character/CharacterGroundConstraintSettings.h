@@ -5,7 +5,7 @@
 
 namespace Chaos
 {
-	class CHAOS_API FCharacterGroundConstraintSettings
+	class FCharacterGroundConstraintSettings
 	{
 	public:
 		bool operator==(const FCharacterGroundConstraintSettings& Other) const
@@ -24,7 +24,7 @@ namespace Chaos
 		void* UserData = nullptr;
 	};
 
-	class CHAOS_API FCharacterGroundConstraintDynamicData
+	class FCharacterGroundConstraintDynamicData
 	{
 	public:
 		bool operator==(const FCharacterGroundConstraintDynamicData& Other) const

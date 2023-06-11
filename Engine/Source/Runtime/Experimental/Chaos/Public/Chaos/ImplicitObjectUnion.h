@@ -23,24 +23,24 @@ namespace CVars
 	extern bool bChaosUnionBVHEnabled;
 }
 
-class CHAOS_API FImplicitObjectUnion : public FImplicitObject
+class FImplicitObjectUnion : public FImplicitObject
 {
   public:
 
 	using FImplicitObject::GetTypeName;
 
-	FImplicitObjectUnion(TArray<TUniquePtr<FImplicitObject>>&& Objects);
+	CHAOS_API FImplicitObjectUnion(TArray<TUniquePtr<FImplicitObject>>&& Objects);
 	FImplicitObjectUnion(const FImplicitObjectUnion& Other) = delete;
-	FImplicitObjectUnion(FImplicitObjectUnion&& Other);
-	virtual ~FImplicitObjectUnion();
+	CHAOS_API FImplicitObjectUnion(FImplicitObjectUnion&& Other);
+	CHAOS_API virtual ~FImplicitObjectUnion();
 
 	FORCEINLINE static constexpr EImplicitObjectType StaticType()
 	{
 		return ImplicitObjectType::Union;
 	}
 
-	void Combine(TArray<TUniquePtr<FImplicitObject>>& Objects);
-	void RemoveAt(int32 RemoveIndex);
+	CHAOS_API void Combine(TArray<TUniquePtr<FImplicitObject>>& Objects);
+	CHAOS_API void RemoveAt(int32 RemoveIndex);
 
 	// The total number of root objects in the hierarchy (same as GetObjects().Num())
 	int32 GetNumRootObjects() const
@@ -64,10 +64,10 @@ class CHAOS_API FImplicitObjectUnion : public FImplicitObject
 		}
 	}
 
-	virtual TUniquePtr<FImplicitObject> Copy() const;
-	virtual TUniquePtr<FImplicitObject> CopyWithScale(const FVec3& Scale) const override;
-	virtual TUniquePtr<FImplicitObject> DeepCopy() const;
-	virtual TUniquePtr<FImplicitObject> DeepCopyWithScale(const FVec3& Scale) const override;
+	CHAOS_API virtual TUniquePtr<FImplicitObject> Copy() const;
+	CHAOS_API virtual TUniquePtr<FImplicitObject> CopyWithScale(const FVec3& Scale) const override;
+	CHAOS_API virtual TUniquePtr<FImplicitObject> DeepCopy() const;
+	CHAOS_API virtual TUniquePtr<FImplicitObject> DeepCopyWithScale(const FVec3& Scale) const override;
 	
 	virtual FReal PhiWithNormal(const FVec3& x, FVec3& Normal) const override
 	{
@@ -123,7 +123,7 @@ class CHAOS_API FImplicitObjectUnion : public FImplicitObject
 		}
 	}
 
-	virtual void FindAllIntersectingObjects(TArray < Pair<const FImplicitObject*, FRigidTransform3>>& Out, const FAABB3& LocalBounds) const;
+	CHAOS_API virtual void FindAllIntersectingObjects(TArray < Pair<const FImplicitObject*, FRigidTransform3>>& Out, const FAABB3& LocalBounds) const;
 	
 	virtual void CacheAllImplicitObjects() { RebuildBVH(); }
 
@@ -168,7 +168,7 @@ class CHAOS_API FImplicitObjectUnion : public FImplicitObject
 		return false;
 	}
 
-	virtual void Serialize(FChaosArchive& Ar) override;
+	CHAOS_API virtual void Serialize(FChaosArchive& Ar) override;
 
 	virtual bool IsValidGeometry() const
 	{
@@ -182,7 +182,7 @@ class CHAOS_API FImplicitObjectUnion : public FImplicitObject
 	TArray<TUniquePtr<FImplicitObject>>& GetObjects() { return MObjects; }
 
 	// The lambda returns TRUE if an object was found and iteration should stop.
-	void ForEachObject(TFunctionRef<bool(const FImplicitObject&, const FRigidTransform3&)> Lambda) const;
+	CHAOS_API void ForEachObject(TFunctionRef<bool(const FImplicitObject&, const FRigidTransform3&)> Lambda) const;
 
 	virtual uint32 GetTypeHash() const override
 	{
@@ -253,7 +253,7 @@ protected:
 		return ClosestIntersection;
 	}
 
-	virtual void VisitOverlappingLeafObjectsImpl(
+	CHAOS_API virtual void VisitOverlappingLeafObjectsImpl(
 		const FAABB3& LocalBounds,
 		const FRigidTransform3& ObjectTransform,
 		const int32 RootObjectIndex,
@@ -261,34 +261,34 @@ protected:
 		int32& LeafObjectIndex,
 		const FImplicitHierarchyVisitor& VisitorFunc) const override final;
 
-	virtual void VisitLeafObjectsImpl(
+	CHAOS_API virtual void VisitLeafObjectsImpl(
 		const FRigidTransform3& ObjectTransform,
 		const int32 RootObjectIndex,
 		int32& ObjectIndex,
 		int32& LeafObjectIndex,
 		const FImplicitHierarchyVisitor& VisitorFunc) const override final;
 
-	virtual bool VisitObjectsImpl(
+	CHAOS_API virtual bool VisitObjectsImpl(
 		const FRigidTransform3& ObjectTransform,
 		const int32 RootObjectIndex,
 		int32& ObjectIndex,
 		int32& LeafObjectIndex,
 		const FImplicitHierarchyVisitorBool& VisitorFunc) const override final;
 
-	virtual bool IsOverlappingBoundsImpl(
+	CHAOS_API virtual bool IsOverlappingBoundsImpl(
 		const FAABB3& LocalBounds) const override final;
 
   protected:
 	// Needed for serialization
-	FImplicitObjectUnion();
+	CHAOS_API FImplicitObjectUnion();
 	friend FImplicitObject;
 
-	void SetNumLeafObjects(const int32 InNumLeafObjects);
-	void CreateBVH();
-	void DestroyBVH();
-	void RebuildBVH();
+	CHAOS_API void SetNumLeafObjects(const int32 InNumLeafObjects);
+	CHAOS_API void CreateBVH();
+	CHAOS_API void DestroyBVH();
+	CHAOS_API void RebuildBVH();
 
-	void LegacySerializeBVH(FChaosArchive& Ar);
+	CHAOS_API void LegacySerializeBVH(FChaosArchive& Ar);
 
 	union FFLags
 	{
@@ -327,13 +327,13 @@ struct FLargeUnionClusteredImplicitInfo
 	const FBVHParticles* BVHParticles;
 };
 
-class CHAOS_API FImplicitObjectUnionClustered: public FImplicitObjectUnion
+class FImplicitObjectUnionClustered: public FImplicitObjectUnion
 {
 public:
-	FImplicitObjectUnionClustered();
-	FImplicitObjectUnionClustered(TArray<TUniquePtr<FImplicitObject>>&& Objects, const TArray<FPBDRigidParticleHandle*>& OriginalParticleLookupHack = TArray<FPBDRigidParticleHandle*>());
+	CHAOS_API FImplicitObjectUnionClustered();
+	CHAOS_API FImplicitObjectUnionClustered(TArray<TUniquePtr<FImplicitObject>>&& Objects, const TArray<FPBDRigidParticleHandle*>& OriginalParticleLookupHack = TArray<FPBDRigidParticleHandle*>());
 	FImplicitObjectUnionClustered(const FImplicitObjectUnionClustered& Other) = delete;
-	FImplicitObjectUnionClustered(FImplicitObjectUnionClustered&& Other);
+	CHAOS_API FImplicitObjectUnionClustered(FImplicitObjectUnionClustered&& Other);
 	virtual ~FImplicitObjectUnionClustered() = default;
 
 	FORCEINLINE static constexpr EImplicitObjectType StaticType()
@@ -344,15 +344,15 @@ public:
 	UE_DEPRECATED(5.3, "Not supported")
 	void FindAllIntersectingClusteredObjects(TArray<FLargeUnionClusteredImplicitInfo>& Out, const FAABB3& LocalBounds) const {}
 
-	TArray<FPBDRigidParticleHandle*> FindAllIntersectingChildren(const FAABB3& LocalBounds) const;
+	CHAOS_API TArray<FPBDRigidParticleHandle*> FindAllIntersectingChildren(const FAABB3& LocalBounds) const;
 
 	// DO NOT USE!!
 	// @todo(chaos): we should get rid of this. Instead we should hold the map/whatever on the GeometryParticle that currently owns the geom
-	const FPBDRigidParticleHandle* FindParticleForImplicitObject(const FImplicitObject* Object) const;
+	CHAOS_API const FPBDRigidParticleHandle* FindParticleForImplicitObject(const FImplicitObject* Object) const;
 
 	// DO NOT USE!!
 	// @todo(chaos): move this fucntionality to the geometry particle?
-	const FBVHParticles* GetChildSimplicial(const int32 ChildIndex) const;
+	CHAOS_API const FBVHParticles* GetChildSimplicial(const int32 ChildIndex) const;
 
 private:
 	// Temp hack for finding original particles

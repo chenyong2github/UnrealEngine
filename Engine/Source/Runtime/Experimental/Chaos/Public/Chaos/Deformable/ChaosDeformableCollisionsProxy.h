@@ -21,7 +21,7 @@ namespace Chaos::Softs
 
 	typedef TTuple< const UObject*, ERigidCollisionShapeType, int8> FCollisionObjectKey;
 
-	struct CHAOS_API FCollisionObjectAddedBodies
+	struct FCollisionObjectAddedBodies
 	{
 		FCollisionObjectAddedBodies( FCollisionObjectKey InKey = FCollisionObjectKey(),
 			FTransform InTransform = FTransform::Identity,
@@ -38,18 +38,18 @@ namespace Chaos::Softs
 		FImplicitObject* Shapes = nullptr;
 	};
 
-	struct CHAOS_API FCollisionObjectRemovedBodies
+	struct FCollisionObjectRemovedBodies
 	{
 		FCollisionObjectKey Key = FCollisionObjectKey();
 	};
 
-	struct CHAOS_API FCollisionObjectUpdatedBodies
+	struct FCollisionObjectUpdatedBodies
 	{
 		FCollisionObjectKey Key = FCollisionObjectKey();
 		FTransform Transform = FTransform::Identity;
 	};
 
-	struct CHAOS_API FCollisionObjectParticleHandel
+	struct FCollisionObjectParticleHandel
 	{
 		FCollisionObjectParticleHandel(int32 InParticleIndex = INDEX_NONE,
 									   int32 InActiveViewIndex = INDEX_NONE,
@@ -64,7 +64,7 @@ namespace Chaos::Softs
 	};
 
 
-	class CHAOS_API FCollisionManagerProxy : public FThreadingProxy
+	class FCollisionManagerProxy : public FThreadingProxy
 	{
 	public:
 		typedef FThreadingProxy Super;

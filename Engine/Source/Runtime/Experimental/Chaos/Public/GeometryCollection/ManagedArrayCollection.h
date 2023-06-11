@@ -41,7 +41,7 @@ namespace Chaos
 *
 */
 USTRUCT()
-struct CHAOS_API FManagedArrayCollection
+struct FManagedArrayCollection
 {
 	GENERATED_USTRUCT_BODY()
 	friend FSimulationProperties;
@@ -49,7 +49,7 @@ struct CHAOS_API FManagedArrayCollection
 public:
 
 
-	FManagedArrayCollection();
+	CHAOS_API FManagedArrayCollection();
 	virtual ~FManagedArrayCollection() {}
 
 	FManagedArrayCollection(const FManagedArrayCollection& In) { In.CopyTo(this); }
@@ -57,7 +57,7 @@ public:
 	FManagedArrayCollection(FManagedArrayCollection&&) = default;
 	FManagedArrayCollection& operator=(FManagedArrayCollection&&)= default;
 
-	static int8 Invalid;
+	static CHAOS_API int8 Invalid;
 	typedef EManagedArrayType EArrayType;
 	/**
 	*
@@ -230,18 +230,18 @@ public:
 	* Create a group on the collection. Adding attribute will also create unknown groups.
 	* @param Group - The group name
 	*/
-	void AddGroup(FName Group);
+	CHAOS_API void AddGroup(FName Group);
 
 	/**
 	* Returns the number of attributes in a group.
 	*/
-	int32 NumAttributes(FName Group) const;
+	CHAOS_API int32 NumAttributes(FName Group) const;
 
 	/**
 	* List all the attributes in a group names.
 	* @return list of group names
 	*/
-	TArray<FName> AttributeNames(FName Group) const;
+	CHAOS_API TArray<FName> AttributeNames(FName Group) const;
 
 	/**
 	* Add elements to a group
@@ -249,7 +249,7 @@ public:
 	* @param Group - The group to append entries to.
 	* @return starting index of the new ManagedArray<T> entries.
 	*/
-	int32 AddElements(int32 NumberElements, FName Group);
+	CHAOS_API int32 AddElements(int32 NumberElements, FName Group);
 
 	/**
 	* Insert elements to a group
@@ -258,14 +258,14 @@ public:
 	* @param Group - The group to append entries to.
 	* @return starting index of the new ManagedArray<T> entries (same as Position).
 	*/
-	int32 InsertElements(int32 NumberElements, int32 Position, FName Group);
+	CHAOS_API int32 InsertElements(int32 NumberElements, int32 Position, FName Group);
 
 
 	/**
 	* Append Collection and reindex dependencies on this collection. 
 	* @param InCollection : Collection to add. 
 	*/
-	virtual void Append(const FManagedArrayCollection& Collection);
+	CHAOS_API virtual void Append(const FManagedArrayCollection& Collection);
 
 	/**
 	* Returns attribute(Name) of Type(T) from the group
@@ -380,7 +380,7 @@ public:
 	/**
 	* Remove the element at index and reindex the dependent arrays 
 	*/
-	virtual void RemoveElements(const FName & Group, const TArray<int32> & SortedDeletionList, FProcessingParameters Params = FProcessingParameters());
+	CHAOS_API virtual void RemoveElements(const FName & Group, const TArray<int32> & SortedDeletionList, FProcessingParameters Params = FProcessingParameters());
 
 	/**
 	* Remove the elements at Position and reindex the dependent arrays 
@@ -388,7 +388,7 @@ public:
 	* @param NumberElements - The number of array entries to remove
 	* @param Position - The position from which to remove entries
 	*/
-	virtual void RemoveElements(const FName& Group, int32 NumberElements, int32 Position);
+	CHAOS_API virtual void RemoveElements(const FName& Group, int32 NumberElements, int32 Position);
 
 
 	/**
@@ -396,32 +396,32 @@ public:
 	* @param Name - The name of the attribute
 	* @param Group - The group that manages the attribute
 	*/
-	void RemoveAttribute(FName Name, FName Group);
+	CHAOS_API void RemoveAttribute(FName Name, FName Group);
 
 
 	/**
 	* Remove the group from the collection.
 	* @param Group - The group that manages the attribute
 	*/
-	void RemoveGroup(FName Group);
+	CHAOS_API void RemoveGroup(FName Group);
 
 	/**
 	* List all the group names.
 	*/
-	TArray<FName> GroupNames() const;
+	CHAOS_API TArray<FName> GroupNames() const;
 
 	/**
 	* Check for the existence of a attribute
 	* @param Name - The name of the attribute
 	* @param Group - The group that manages the attribute
 	*/
-	bool HasAttribute(FName Name, FName Group) const;
+	CHAOS_API bool HasAttribute(FName Name, FName Group) const;
 
 	/**
 	* Check for the existence of a attribute
 	* @param TArray<ManagedType> - Attributes to search for
 	*/
-	bool HasAttributes(const TArray<FManagedType>& Types) const;
+	CHAOS_API bool HasAttributes(const TArray<FManagedType>& Types) const;
 
 	/**
 	* Check for the existence of a group
@@ -434,14 +434,14 @@ public:
 	* @param Name - The name of the attribute
 	* @param Group - The group that manages the attribute
 	*/
-	EArrayType GetAttributeType(FName Name, FName Group) const;
+	CHAOS_API EArrayType GetAttributeType(FName Name, FName Group) const;
 
 	/**
 	* Check if an attribute is dirty
 	* @param Name - The name of the attribute
 	* @param Group - The group that manages the attribute
 	*/
-	bool IsAttributeDirty(FName Name, FName Group) const;
+	CHAOS_API bool IsAttributeDirty(FName Name, FName Group) const;
 
 	/**
 	* Check if an attribute is persistent - ie its data will be serialized
@@ -449,24 +449,24 @@ public:
 	* @param Name - The name of the attribute
 	* @param Group - The group that manages the attribute
 	*/
-	bool IsAttributePersistent(FName Name, FName Group) const;
+	CHAOS_API bool IsAttributePersistent(FName Name, FName Group) const;
 	
 	/**
 	*
 	*/
-	void SetDependency(FName Name, FName Group, FName DependencyGroup, bool bAllowCircularDependency = false);
+	CHAOS_API void SetDependency(FName Name, FName Group, FName DependencyGroup, bool bAllowCircularDependency = false);
 
 	/**
 	*
 	*/
-	void RemoveDependencyFor(FName Group);
+	CHAOS_API void RemoveDependencyFor(FName Group);
 
 	/**
 	* Copy an attribute. Will perform an implicit group sync. Attribute must exist in both InCollection and this collection
 	* @param Name - The name of the attribute
 	* @param Group - The group that manages the attribute
 	*/
-	void CopyAttribute(const FManagedArrayCollection& InCollection, FName Name, FName Group);
+	CHAOS_API void CopyAttribute(const FManagedArrayCollection& InCollection, FName Name, FName Group);
 
 	/**
 	* Copy an attribute. Will perform an implicit group sync.
@@ -474,45 +474,45 @@ public:
 	* @param DestName - The name of the attribute being copied to
 	* @param Group - The group that manages the attribute
 	*/
-	void CopyAttribute(const FManagedArrayCollection& InCollection, FName SrcName, FName DestName, FName Group);
+	CHAOS_API void CopyAttribute(const FManagedArrayCollection& InCollection, FName SrcName, FName DestName, FName Group);
 
 	/**
 	* Copy attributes that match the input collection. This is a utility to easily sync collections
 	* @param InCollection - All groups from this collection found in the input will be sized accordingly
 	* @param SkipList - Group/Attrs to skip. Keys are group names, values are attributes in those groups.
 	*/
-	void CopyMatchingAttributesFrom(const FManagedArrayCollection& InCollection, const TMap<FName, TSet<FName>>* SkipList=nullptr);
+	CHAOS_API void CopyMatchingAttributesFrom(const FManagedArrayCollection& InCollection, const TMap<FName, TSet<FName>>* SkipList=nullptr);
 
 	/**
 	* Number of elements in a group
 	* @return the group size, and Zero(0) if group does not exist.
 	*/
-	int32 NumElements(FName Group) const;
+	CHAOS_API int32 NumElements(FName Group) const;
 
 	/**
 	* Resize a group
 	* @param Size - The size of the group
 	* @param Group - The group to resize
 	*/
-	void Resize(int32 Size, FName Group);
+	CHAOS_API void Resize(int32 Size, FName Group);
 
 	/**
 	* Reserve a group
 	* @param Size - The size of the group
 	* @param Group - The group to reserve
 	*/
-	void Reserve(int32 Size, FName Group);
+	CHAOS_API void Reserve(int32 Size, FName Group);
 
 	/**
 	* Empty the group 
 	*  @param Group - The group to empty
 	*/
-	void EmptyGroup(FName Group);
+	CHAOS_API void EmptyGroup(FName Group);
 
 	/**
 	* Reorders elements in a group. NewOrder must be the same length as the group.
 	*/
-	virtual void ReorderElements(FName Group, const TArray<int32>& NewOrder);
+	CHAOS_API virtual void ReorderElements(FName Group, const TArray<int32>& NewOrder);
 #if 0	//not needed until we support per instance serialization
 	/**
 	* Swap elements within a group
@@ -520,7 +520,7 @@ public:
 	* @param Index2 - The second location to be swapped
 	* @param Group - The group to resize
 	*/
-	void SwapElements(int32 Index1, int32 Index2, FName Group);
+	CHAOS_API void SwapElements(int32 Index1, int32 Index2, FName Group);
 #endif
 
 	/**
@@ -533,29 +533,29 @@ public:
 	/**
 	* Serialize
 	*/
-	virtual void Serialize(Chaos::FChaosArchive& Ar);
+	CHAOS_API virtual void Serialize(Chaos::FChaosArchive& Ar);
 
 	/**
 	* Cycle Checking. 
 	* Search for TargetNode from the StartingNode. 
 	*/
-	bool IsConnected(FName StartingNode, FName TargetNode);
+	CHAOS_API bool IsConnected(FName StartingNode, FName TargetNode);
 
 
 	/**
 	* Dump the contents to a FString
 	*/
-	FString ToString() const;
+	CHAOS_API FString ToString() const;
 
 	/**
 	* Get allocated memory size 
 	*/
-	SIZE_T GetAllocatedSize() const;
+	CHAOS_API SIZE_T GetAllocatedSize() const;
 
 	/**
 	 * Get information on the total storage required for each element in each group
 	 */
-	 void GetElementSizeInfoForGroups(TArray<TPair<FName, SIZE_T>>& OutSizeInfo) const;
+	 CHAOS_API void GetElementSizeInfoForGroups(TArray<TPair<FName, SIZE_T>>& OutSizeInfo) const;
 
 private:
 
@@ -670,7 +670,7 @@ private:
 
 protected:
 
-	virtual void SetDefaults(FName Group, uint32 StartSize, uint32 NumElements);
+	CHAOS_API virtual void SetDefaults(FName Group, uint32 StartSize, uint32 NumElements);
 
 	/**
 	 * Virtual helper function called by CopyMatchingAttributesFrom; adds attributes 'default, but optional' attributes that are present in InCollection
@@ -684,7 +684,7 @@ protected:
 	* @param InCollection - The collection we are ordering our group against. 
 	* @param Group - The group that manages the attribute
 	*/
-	void SyncGroupSizeFrom(const FManagedArrayCollection& InCollection, FName Group);
+	CHAOS_API void SyncGroupSizeFrom(const FManagedArrayCollection& InCollection, FName Group);
 
 	/**
 	 * Version to indicate need for conditioning to current expected data layout during serialization loading.
@@ -708,7 +708,7 @@ protected:
 /*
 *  FManagedArrayInterface
 */
-class CHAOS_API FManagedArrayInterface
+class FManagedArrayInterface
 {
 public:
 	FManagedArrayInterface() : ManagedCollection(nullptr) {}

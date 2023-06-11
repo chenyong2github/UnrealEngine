@@ -28,7 +28,7 @@ void FreeObjHelper(T*& RawPtr)
 }
 
 template <typename TPayloadType, typename T, int d>
-struct CHAOS_API TSpatialAccelerationBucketEntry
+struct TSpatialAccelerationBucketEntry
 {
 	TUniquePtr<ISpatialAcceleration<TPayloadType, T, d>> Acceleration;
 	uint16 TypeInnerIdx; // Index in bucket
@@ -78,7 +78,7 @@ TSpatialAccelerationBucketEntry<TPayloadType, T, d> CopyFromHelper(const TSpatia
 
 
 template <typename TObj>
-struct CHAOS_API TSpatialCollectionBucket
+struct TSpatialCollectionBucket
 {
 	TSpatialCollectionBucket() = default;
 	TSpatialCollectionBucket(const TSpatialCollectionBucket<TObj>& Other) = delete;
@@ -374,7 +374,7 @@ typename std::enable_if_t<!std::is_same_v<typename SpatialAccelerationCollection
 }
 
 template <typename ... TSpatialAccelerationTypes>
-class CHAOS_API TSpatialAccelerationCollection : public
+class TSpatialAccelerationCollection : public
 	ISpatialAccelerationCollection<typename std::tuple_element<0, std::tuple< TSpatialAccelerationTypes...>>::type::PayloadType,
 	typename std::tuple_element<0, std::tuple< TSpatialAccelerationTypes...>>::type::TType,
 	std::tuple_element<0, std::tuple< TSpatialAccelerationTypes...>>::type::D>

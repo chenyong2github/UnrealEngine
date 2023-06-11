@@ -16,7 +16,7 @@ class FTriangleMesh;
 namespace Chaos::Softs
 {
 
-class CHAOS_API FXPBDStretchBiasElementConstraints
+class FXPBDStretchBiasElementConstraints
 {
 public:
 	// Stiffness is in kg cm / s^2 for stretch, kg cm^2 / s^2 for Bias
@@ -34,7 +34,7 @@ public:
 		return IsXPBDAnisoStretchStiffnessWarpEnabled(PropertyCollection, false);
 	}
 
-	FXPBDStretchBiasElementConstraints(const FSolverParticles& InParticles,
+	CHAOS_API FXPBDStretchBiasElementConstraints(const FSolverParticles& InParticles,
 		int32 ParticleOffset,
 		int32 ParticleCount,
 		const FTriangleMesh& TriangleMesh,
@@ -43,7 +43,7 @@ public:
 		const FCollectionPropertyConstFacade& PropertyCollection,
 		bool bTrimKinematicConstraints = false);
 
-	FXPBDStretchBiasElementConstraints(const FSolverParticles& InParticles,
+	CHAOS_API FXPBDStretchBiasElementConstraints(const FSolverParticles& InParticles,
 		int32 ParticleOffset,
 		int32 ParticleCount,
 		const FTriangleMesh& TriangleMesh,
@@ -71,7 +71,7 @@ public:
 		Lambdas.AddZeroed(Constraints.Num());
 	}
 
-	void SetProperties(
+	CHAOS_API void SetProperties(
 		const FCollectionPropertyConstFacade& PropertyCollection,
 		const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps);
 
@@ -96,8 +96,8 @@ public:
 		WeftScale.ApplyValues();
 	}
 
-	void Apply(FSolverParticles& Particles, const FSolverReal Dt) const;
-	void CalculateUVStretch(const int32 ConstraintIndex, const FSolverVec3& P0, const FSolverVec3& P1, const FSolverVec3& P2, FSolverVec3& DXDu, FSolverVec3& DXDv) const;
+	CHAOS_API void Apply(FSolverParticles& Particles, const FSolverReal Dt) const;
+	CHAOS_API void CalculateUVStretch(const int32 ConstraintIndex, const FSolverVec3& P0, const FSolverVec3& P1, const FSolverVec3& P2, FSolverVec3& DXDu, FSolverVec3& DXDv) const;
 	
 	const TArray<TVec3<int32>>& GetConstraints() const { return Constraints; }
 	const TArray<FSolverVec2> GetRestStretchLengths() const { return RestStretchLengths; }
@@ -109,10 +109,10 @@ public:
 	const TArray<int32>& GetConstraintsPerColorStartIndex() const { return ConstraintsPerColorStartIndex; }
 
 private:
-	void InitConstraintsAndRestData(const FSolverParticles& InParticles, const FTriangleMesh& TriangleMesh,
+	CHAOS_API void InitConstraintsAndRestData(const FSolverParticles& InParticles, const FTriangleMesh& TriangleMesh,
 		const TArray<TVec3<FVec2f>>& FaceVertexUVs, const bool bUse3dRestLengths, const bool bTrimKinematicConstraints);
-	void InitColor(const FSolverParticles& InParticles);
-	void ApplyHelper(FSolverParticles& Particles, const FSolverReal Dt, const int32 ConstraintIndex, const FSolverVec3& ExpStiffnessValue, const FSolverReal DampingRatioValue, const FSolverReal WarpScaleValue, const FSolverReal WeftScaleValue) const;
+	CHAOS_API void InitColor(const FSolverParticles& InParticles);
+	CHAOS_API void ApplyHelper(FSolverParticles& Particles, const FSolverReal Dt, const int32 ConstraintIndex, const FSolverVec3& ExpStiffnessValue, const FSolverReal DampingRatioValue, const FSolverReal WarpScaleValue, const FSolverReal WeftScaleValue) const;
 
 	TArray<TVec3<int32>> Constraints;
 	const int32 ParticleOffset;

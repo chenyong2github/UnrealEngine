@@ -18,13 +18,13 @@ namespace Chaos
 		 * All constraints in the groups are solved in sequence in a single thread. We can create one of these for 
 		 * each Island (or group of Islands, or subset of a color of constraints) for parallelism.
 		*/
-		class CHAOS_API FPBDConstraintGroupSolver
+		class FPBDConstraintGroupSolver
 		{
 		public:
 			UE_NONCOPYABLE(FPBDConstraintGroupSolver);
 
-			FPBDConstraintGroupSolver();
-			virtual ~FPBDConstraintGroupSolver();
+			CHAOS_API FPBDConstraintGroupSolver();
+			CHAOS_API virtual ~FPBDConstraintGroupSolver();
 
 			/**
 			 * Get the iterations settings for this group of islands
@@ -63,89 +63,89 @@ namespace Chaos
 			/**
 			 * Attach a constraint solver to the specified ContainerId. This must be for the same constraint type as the container with that Id.
 			*/
-			void SetConstraintSolver(const int32 ContainerId, TUniquePtr<FConstraintContainerSolver>&& Solver);
+			CHAOS_API void SetConstraintSolver(const int32 ContainerId, TUniquePtr<FConstraintContainerSolver>&& Solver);
 
 			/**
 			 * Set the solver priority of the specified constraint type
 			*/
-			void SetConstraintSolverPriority(const int32 ContainerId, const int32 Priority);
+			CHAOS_API void SetConstraintSolverPriority(const int32 ContainerId, const int32 Priority);
 
 			/**
 			 * Reset all state - called once per tick
 			*/
-			void Reset();
+			CHAOS_API void Reset();
 
 			/**
 			 * Set up the constraints solvers and body containers with pointers to their constraint and particles, but do not collect any data.
 			*/
-			void AddConstraintsAndBodies();
+			CHAOS_API void AddConstraintsAndBodies();
 
 			/**
 			 * Collect all the data for all solver bodies from their respective particles.
 			*/
-			void GatherBodies(const FReal Dt);
+			CHAOS_API void GatherBodies(const FReal Dt);
 
 			/**
 			 * Collect all the data for the specified range of solver bodies from their respective particles. Will be called from multiple
 			 * threads with different non-overlapping indices.
 			*/
-			void GatherBodies(const FReal Dt, const int32 BeginBodyIndex, const int32 EndBodyIndex);
+			CHAOS_API void GatherBodies(const FReal Dt, const int32 BeginBodyIndex, const int32 EndBodyIndex);
 
 			/**
 			 * Collect all the data for all constraint solvers from their respective constraints.
 			*/
-			void GatherConstraints(const FReal Dt);
+			CHAOS_API void GatherConstraints(const FReal Dt);
 
 			/**
 			 * Collect all the data for the specified range of constraint solvers from their respective constraints. Will be called from multiple
 			 * threads with different non-overlapping indices.
 			*/
-			void GatherConstraints(const FReal Dt, const int32 BeginConstraintIndex, const int32 EndConstraintIndex);
+			CHAOS_API void GatherConstraints(const FReal Dt, const int32 BeginConstraintIndex, const int32 EndConstraintIndex);
 
 			/**
 			 * For additional processing after gathering all the data.
 			 * Calls PreApplyConstraints on each container solver.
 			 */
-			void PreApplyPositionConstraints(const FReal Dt);
-			void PreApplyVelocityConstraints(const FReal Dt);
-			void PreApplyProjectionConstraints(const FReal Dt);
+			CHAOS_API void PreApplyPositionConstraints(const FReal Dt);
+			CHAOS_API void PreApplyVelocityConstraints(const FReal Dt);
+			CHAOS_API void PreApplyProjectionConstraints(const FReal Dt);
 
 			/**
 			 * Apply positional constraints, and set the body velocities
 			*/
-			void ApplyPositionConstraints(const FReal Dt);
+			CHAOS_API void ApplyPositionConstraints(const FReal Dt);
 
 			/**
 			 * Apply any velocity constraints, and update the body velocities
 			*/
-			void ApplyVelocityConstraints(const FReal Dt);
+			CHAOS_API void ApplyVelocityConstraints(const FReal Dt);
 
 			/**
 			 * Apply projection to attempt to fix up any errors left over from the Position and Velocity saolver phases
 			*/
-			void ApplyProjectionConstraints(const FReal Dt);
+			CHAOS_API void ApplyProjectionConstraints(const FReal Dt);
 
 			/**
 			 * Push results from all solver bodies back to their respective particles.
 			*/
-			void ScatterBodies(const FReal Dt);
+			CHAOS_API void ScatterBodies(const FReal Dt);
 
 			/**
 			 * Push results from the specified range of solver bodies back to their respective particles. Will be called from multiple
 			 * threads with different non-overlapping indices.
 			*/
-			void ScatterBodies(const FReal Dt, const int32 BeginBodyIndex, const int32 EndBodyIndex);
+			CHAOS_API void ScatterBodies(const FReal Dt, const int32 BeginBodyIndex, const int32 EndBodyIndex);
 
 			/**
 			 * Push results from all constraint solvers back to their respective constraints.
 			*/
-			void ScatterConstraints(const FReal Dt);
+			CHAOS_API void ScatterConstraints(const FReal Dt);
 
 			/**
 			 * Push results from the specified range of constraint solvers back to their respective constraints.Will be called from multiple
 			 * threads with different non-overlapping indices. The range covers all constraint types.
 			*/
-			void ScatterConstraints(const FReal Dt, const int32 BeginConstraintIndex, const int32 EndConstraintIndex);
+			CHAOS_API void ScatterConstraints(const FReal Dt, const int32 BeginConstraintIndex, const int32 EndConstraintIndex);
 
 		protected:
 
@@ -155,7 +155,7 @@ namespace Chaos
 			void ApplyToConstraintRange(const int32 BeginConstraintIndex, const int32 EndConstraintIndex, const LambdaType& Lambda);
 
 			// Sort the solvers based on Level and other criteria for more stable solving
-			void SortSolverContainers();
+			CHAOS_API void SortSolverContainers();
 
 			// Allow a derived class to perform per-tick reset
 			virtual void ResetImpl() {}
@@ -196,7 +196,7 @@ namespace Chaos
 		 * 
 		 * There will only be one (or zero) FPBDSceneConstraintGroupSolver per simulation world.
 		*/
-		class CHAOS_API FPBDSceneConstraintGroupSolver : public FPBDConstraintGroupSolver
+		class FPBDSceneConstraintGroupSolver : public FPBDConstraintGroupSolver
 		{
 		public:
 			FPBDSceneConstraintGroupSolver(const FIterationSettings& InIterations)
@@ -206,7 +206,7 @@ namespace Chaos
 
 		protected:
 			// The Scene Group Solver adds all constraints from all containers
-			virtual void AddConstraintsImpl() override final;
+			CHAOS_API virtual void AddConstraintsImpl() override final;
 		};
 
 	} // namespace Private

@@ -79,11 +79,11 @@ namespace Chaos
 	/**
 	*
 	*/
-	class CHAOS_API FPBDRigidsSolver : public FPhysicsSolverBase
+	class FPBDRigidsSolver : public FPhysicsSolverBase
 	{
 
-		FPBDRigidsSolver(const EMultiBufferMode BufferingModeIn, UObject* InOwner, FReal AsyncDt);
-		virtual ~FPBDRigidsSolver();
+		CHAOS_API FPBDRigidsSolver(const EMultiBufferMode BufferingModeIn, UObject* InOwner, FReal AsyncDt);
+		CHAOS_API virtual ~FPBDRigidsSolver();
 
 	public:
 
@@ -118,29 +118,29 @@ namespace Chaos
 		// Execution API
 		//
 
-		void ChangeBufferMode(Chaos::EMultiBufferMode InBufferMode);
+		CHAOS_API void ChangeBufferMode(Chaos::EMultiBufferMode InBufferMode);
 
 		//
 		//  Object API
 		//
 
-		void RegisterObject(FSingleParticlePhysicsProxy* Proxy);
-		void UnregisterObject(FSingleParticlePhysicsProxy* Proxy);
+		CHAOS_API void RegisterObject(FSingleParticlePhysicsProxy* Proxy);
+		CHAOS_API void UnregisterObject(FSingleParticlePhysicsProxy* Proxy);
 
-		void RegisterObject(FGeometryCollectionPhysicsProxy* InProxy);
-		void UnregisterObject(FGeometryCollectionPhysicsProxy* InProxy);
+		CHAOS_API void RegisterObject(FGeometryCollectionPhysicsProxy* InProxy);
+		CHAOS_API void UnregisterObject(FGeometryCollectionPhysicsProxy* InProxy);
 
-		void RegisterObject(FClusterUnionPhysicsProxy* Proxy);
-		void UnregisterObject(FClusterUnionPhysicsProxy* Proxy);
+		CHAOS_API void RegisterObject(FClusterUnionPhysicsProxy* Proxy);
+		CHAOS_API void UnregisterObject(FClusterUnionPhysicsProxy* Proxy);
 
-		void RegisterObject(Chaos::FJointConstraint* GTConstraint);
-		void UnregisterObject(Chaos::FJointConstraint* GTConstraint);
+		CHAOS_API void RegisterObject(Chaos::FJointConstraint* GTConstraint);
+		CHAOS_API void UnregisterObject(Chaos::FJointConstraint* GTConstraint);
 
-		void RegisterObject(Chaos::FSuspensionConstraint* GTConstraint);
-		void UnregisterObject(Chaos::FSuspensionConstraint* GTConstraint);
+		CHAOS_API void RegisterObject(Chaos::FSuspensionConstraint* GTConstraint);
+		CHAOS_API void UnregisterObject(Chaos::FSuspensionConstraint* GTConstraint);
 
-		void RegisterObject(Chaos::FCharacterGroundConstraint* GTConstraint);
-		void UnregisterObject(Chaos::FCharacterGroundConstraint* GTConstraint);
+		CHAOS_API void RegisterObject(Chaos::FCharacterGroundConstraint* GTConstraint);
+		CHAOS_API void UnregisterObject(Chaos::FCharacterGroundConstraint* GTConstraint);
 
 		//
 		//  Simulation API
@@ -149,24 +149,24 @@ namespace Chaos
 		/**/
 		FDirtyParticlesBuffer* GetDirtyParticlesBuffer() const { return MDirtyParticlesBuffer.Get(); }
 
-		int32 NumJointConstraints() const;
-		int32 NumCollisionConstraints() const;
+		CHAOS_API int32 NumJointConstraints() const;
+		CHAOS_API int32 NumCollisionConstraints() const;
 
 		//Make friend with unit test code so we can verify some behavior
 		template <typename TSolver>
 		friend void ChaosTest::AdvanceSolverNoPushHelper(TSolver* Solver, FReal Dt);
 
 		/**/
-		void Reset();
+		CHAOS_API void Reset();
 
 		/**/
-		void StartingSceneSimulation();
+		CHAOS_API void StartingSceneSimulation();
 
 		/**/
-		void CompleteSceneSimulation();
+		CHAOS_API void CompleteSceneSimulation();
 
 		/**/
-		void UpdateGameThreadStructures();
+		CHAOS_API void UpdateGameThreadStructures();
 
 
 
@@ -201,14 +201,14 @@ namespace Chaos
 		 * This will be true if determinism is explicitly requested (via SetIsDeterministic()) or if required
 		 * by some other system like Rewind/Resim support.
 		*/
-		bool IsDetemerministic() const;
+		CHAOS_API bool IsDetemerministic() const;
 
 		/**
 		 * @brief Request that the sim be deterministic (or not)
 		 * @note Even if set to false, the sim may still be deterministic if some other feature is enabled and requires it.
 		 * @see IsDetemerministic()
 		*/
-		void SetIsDeterministic(const bool bInIsDeterministic);
+		CHAOS_API void SetIsDeterministic(const bool bInIsDeterministic);
 
 		/**/
 		FJointConstraints& GetJointConstraints() { return MEvolution->GetJointConstraints(); }
@@ -216,12 +216,12 @@ namespace Chaos
 
 		FPBDSuspensionConstraints& GetSuspensionConstraints() { return MEvolution->GetSuspensionConstraints(); }
 		const FPBDSuspensionConstraints& GetSuspensionConstraints() const { return MEvolution->GetSuspensionConstraints(); }
-		void SetSuspensionTarget(Chaos::FSuspensionConstraint* GTConstraint, const FVector& TargetPos, const FVector& Normal, bool Enabled);
+		CHAOS_API void SetSuspensionTarget(Chaos::FSuspensionConstraint* GTConstraint, const FVector& TargetPos, const FVector& Normal, bool Enabled);
 
 		FCharacterGroundConstraintContainer& GetCharacterGroundConstraints() { return MEvolution->GetCharacterGroundConstraints(); }
 		const FCharacterGroundConstraintContainer& GetCharacterGroundConstraints() const { return MEvolution->GetCharacterGroundConstraints(); }
 
-		void EnableRewindCapture(int32 NumFrames, bool InUseCollisionResimCache, TUniquePtr<IRewindCallback>&& RewindCallback = TUniquePtr<IRewindCallback>());
+		CHAOS_API void EnableRewindCapture(int32 NumFrames, bool InUseCollisionResimCache, TUniquePtr<IRewindCallback>&& RewindCallback = TUniquePtr<IRewindCallback>());
 
 		/**/
 		FPBDRigidsEvolution* GetEvolution() { return MEvolution.Get(); }
@@ -238,10 +238,10 @@ namespace Chaos
 		FSolverEventFilters* GetEventFilters() const { return MSolverEventFilters.Get(); }
 
 		/**/
-		void SyncEvents_GameThread();
+		CHAOS_API void SyncEvents_GameThread();
 
 		/**/
-		void PostTickDebugDraw(FReal Dt) const;
+		CHAOS_API void PostTickDebugDraw(FReal Dt) const;
 
 		// Visual debugger (VDB) push methods
 		UE_DEPRECATED(5.4, "This method will be removed in the future")
@@ -263,12 +263,12 @@ namespace Chaos
 		}
 
 		/** Events hooked up to the Chaos material manager */
-		void UpdateMaterial(Chaos::FMaterialHandle InHandle, const Chaos::FChaosPhysicsMaterial& InNewData);
-		void CreateMaterial(Chaos::FMaterialHandle InHandle, const Chaos::FChaosPhysicsMaterial& InNewData);
-		void DestroyMaterial(Chaos::FMaterialHandle InHandle);
-		void UpdateMaterialMask(Chaos::FMaterialMaskHandle InHandle, const Chaos::FChaosPhysicsMaterialMask& InNewData);
-		void CreateMaterialMask(Chaos::FMaterialMaskHandle InHandle, const Chaos::FChaosPhysicsMaterialMask& InNewData);
-		void DestroyMaterialMask(Chaos::FMaterialMaskHandle InHandle);
+		CHAOS_API void UpdateMaterial(Chaos::FMaterialHandle InHandle, const Chaos::FChaosPhysicsMaterial& InNewData);
+		CHAOS_API void CreateMaterial(Chaos::FMaterialHandle InHandle, const Chaos::FChaosPhysicsMaterial& InNewData);
+		CHAOS_API void DestroyMaterial(Chaos::FMaterialHandle InHandle);
+		CHAOS_API void UpdateMaterialMask(Chaos::FMaterialMaskHandle InHandle, const Chaos::FChaosPhysicsMaterialMask& InNewData);
+		CHAOS_API void CreateMaterialMask(Chaos::FMaterialMaskHandle InHandle, const Chaos::FChaosPhysicsMaterialMask& InNewData);
+		CHAOS_API void DestroyMaterialMask(Chaos::FMaterialMaskHandle InHandle);
 
 		/** Access to the internal material mirrors */
 		const THandleArray<FChaosPhysicsMaterial>& GetQueryMaterials_External() const { return QueryMaterials_External; }
@@ -277,22 +277,22 @@ namespace Chaos
 		const THandleArray<FChaosPhysicsMaterialMask>& GetSimMaterialMasks() const { return SimMaterialMasks; }
 
 		/** Copy the simulation material list to the query material list, to be done when the SQ commits an update */
-		void SyncQueryMaterials_External();
+		CHAOS_API void SyncQueryMaterials_External();
 
-		void FinalizeRewindData(const TParticleView<FPBDRigidParticles>& DirtyParticles);
+		CHAOS_API void FinalizeRewindData(const TParticleView<FPBDRigidParticles>& DirtyParticles);
 		bool RewindUsesCollisionResimCache() const { return bUseCollisionResimCache; }
 
 		FPerSolverFieldSystem& GetPerSolverField() { return *PerSolverField; }
 		const FPerSolverFieldSystem& GetPerSolverField() const { return *PerSolverField; }
 
-		void UpdateExternalAccelerationStructure_External(ISpatialAccelerationCollection<FAccelerationStructureHandle,FReal,3>*& ExternalStructure);
+		CHAOS_API void UpdateExternalAccelerationStructure_External(ISpatialAccelerationCollection<FAccelerationStructureHandle,FReal,3>*& ExternalStructure);
 		const ISpatialAccelerationCollection<FAccelerationStructureHandle, FReal, 3>* GetInternalAccelerationStructure_Internal() const
 		{
 			return MEvolution->GetSpatialAcceleration();
 		}
 
 		/** Apply a solver configuration to this solver, set externally by the owner of a solver (see UPhysicsSettings for world solver settings) */
-		void ApplyConfig(const FChaosSolverConfiguration& InConfig);
+		CHAOS_API void ApplyConfig(const FChaosSolverConfiguration& InConfig);
 
 		virtual bool AreAnyTasksPending() const override
 		{
@@ -304,44 +304,44 @@ namespace Chaos
 			return false;
 		}
 
-		void BeginDestroy();
+		CHAOS_API void BeginDestroy();
 
 		/** Update the particles parameters based on field evaluation */
-		void FieldParameterUpdateCallback(
+		CHAOS_API void FieldParameterUpdateCallback(
 			Chaos::FPBDPositionConstraints& PositionTarget,
 			TMap<int32, int32>& TargetedParticles);
 
 		/** Update the particles forces based on field evaluation */
-		void FieldForcesUpdateCallback();
+		CHAOS_API void FieldForcesUpdateCallback();
 
 		// Update the counter in Stats and the CSV profiler
-		void UpdateStatCounters() const;
-		void UpdateExpensiveStatCounters() const;
+		CHAOS_API void UpdateStatCounters() const;
+		CHAOS_API void UpdateExpensiveStatCounters() const;
 
 		// Access particle proxy from physics thread useful for cross thread communication
-		FSingleParticlePhysicsProxy* GetParticleProxy_PT(const FUniqueIdx& Idx);
-		const FSingleParticlePhysicsProxy* GetParticleProxy_PT(const FUniqueIdx& Idx) const;
-		FSingleParticlePhysicsProxy* GetParticleProxy_PT(const FGeometryParticleHandle& Handle);
-		const FSingleParticlePhysicsProxy* GetParticleProxy_PT(const FGeometryParticleHandle& Handle) const;
+		CHAOS_API FSingleParticlePhysicsProxy* GetParticleProxy_PT(const FUniqueIdx& Idx);
+		CHAOS_API const FSingleParticlePhysicsProxy* GetParticleProxy_PT(const FUniqueIdx& Idx) const;
+		CHAOS_API FSingleParticlePhysicsProxy* GetParticleProxy_PT(const FGeometryParticleHandle& Handle);
+		CHAOS_API const FSingleParticlePhysicsProxy* GetParticleProxy_PT(const FGeometryParticleHandle& Handle) const;
 
 		// Interop utilities
-		void SetParticleDynamicMisc(FPBDRigidParticleHandle* Rigid, const FParticleDynamicMisc& DynamicMisc);
+		CHAOS_API void SetParticleDynamicMisc(FPBDRigidParticleHandle* Rigid, const FParticleDynamicMisc& DynamicMisc);
 
 		// Apply callbacks internally 
-		virtual void ApplyCallbacks_Internal() override;
+		CHAOS_API virtual void ApplyCallbacks_Internal() override;
 
 	private:
 
 		/**/
-		void BufferPhysicsResults();
+		CHAOS_API void BufferPhysicsResults();
 	
 		/**/
-		virtual void PrepareAdvanceBy(const FReal DeltaTime) override;
-		virtual void AdvanceSolverBy(const FSubStepInfo& SubStepInfo) override;
-		virtual void PushPhysicsState(const FReal ExternalDt, const int32 NumSteps, const int32 NumExternalSteps) override;
-		virtual void SetExternalTimestampConsumed_Internal(const int32 Timestamp) override;
+		CHAOS_API virtual void PrepareAdvanceBy(const FReal DeltaTime) override;
+		CHAOS_API virtual void AdvanceSolverBy(const FSubStepInfo& SubStepInfo) override;
+		CHAOS_API virtual void PushPhysicsState(const FReal ExternalDt, const int32 NumSteps, const int32 NumExternalSteps) override;
+		CHAOS_API virtual void SetExternalTimestampConsumed_Internal(const int32 Timestamp) override;
 
-		void UpdateIsDeterministic();
+		CHAOS_API void UpdateIsDeterministic();
 
 		//
 		// Solver Data
@@ -398,11 +398,11 @@ namespace Chaos
 		TArray<FClusterUnionPhysicsProxy*> PendingDestroyClusterUnionProxy;
 
 
-		void ProcessSinglePushedData_Internal(FPushPhysicsData& PushData);
-		virtual void ProcessPushedData_Internal(FPushPhysicsData& PushData) override;
-		void DestroyPendingProxies_Internal();
+		CHAOS_API void ProcessSinglePushedData_Internal(FPushPhysicsData& PushData);
+		CHAOS_API virtual void ProcessPushedData_Internal(FPushPhysicsData& PushData) override;
+		CHAOS_API void DestroyPendingProxies_Internal();
 
-		virtual void ConditionalApplyRewind_Internal() override;
+		CHAOS_API virtual void ConditionalApplyRewind_Internal() override;
 
 		/** Check if we are resimming or not */
 		virtual bool IsResimming() const {return GetEvolution()->IsResimming();}

@@ -45,10 +45,10 @@ namespace Chaos::Softs
 	 * This is mainly used for the cloth simulation properties to provide
 	 * weighted values that works in conjunction with weight maps.
 	 */
-	class CHAOS_API FCollectionPropertyConstFacade
+	class FCollectionPropertyConstFacade
 	{
 	public:
-		explicit FCollectionPropertyConstFacade(const TSharedPtr<const FManagedArrayCollection>& InManagedArrayCollection);
+		CHAOS_API explicit FCollectionPropertyConstFacade(const TSharedPtr<const FManagedArrayCollection>& InManagedArrayCollection);
 		virtual ~FCollectionPropertyConstFacade() = default;
 
 		FCollectionPropertyConstFacade() = delete;
@@ -59,7 +59,7 @@ namespace Chaos::Softs
 		FCollectionPropertyConstFacade& operator=(FCollectionPropertyConstFacade&&) = default;
 
 		/** Return whether the facade is defined on the collection. */
-		bool IsValid() const;
+		CHAOS_API bool IsValid() const;
 
 		/** Return the number of properties in this collection. */
 		int32 Num() const { return KeyIndices.Num(); }
@@ -159,13 +159,13 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	protected:
 		// No init constructor for FCollectionPropertyFacade
-		FCollectionPropertyConstFacade(const TSharedPtr<const FManagedArrayCollection>& InManagedArrayCollection, ENoInit);
+		CHAOS_API FCollectionPropertyConstFacade(const TSharedPtr<const FManagedArrayCollection>& InManagedArrayCollection, ENoInit);
 
 		// Update the array views
-		void UpdateArrays();
+		CHAOS_API void UpdateArrays();
 
 		// Rebuild the search map
-		void RebuildKeyIndices();
+		CHAOS_API void RebuildKeyIndices();
 
 		template<typename CallableType, typename ReturnType>
 		ReturnType SafeGet(const FString& Key, CallableType&& Callable, ReturnType Default, int32* OutKeyIndex) const
@@ -187,12 +187,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		bool HasAnyFlags(int32 KeyIndex, ECollectionPropertyFlags Flags) const { return EnumHasAnyFlags(GetValue<ECollectionPropertyFlags, uint8>(KeyIndex, FlagsArray), Flags); }
 
 		// Attribute groups, predefined data member of the collection
-		static const FName PropertyGroup;
-		static const FName KeyName;  // Property key, name to look for
-		static const FName LowValueName;  // Boolean, 24 bit integer (max 16777215), float, or vector value, or value of the lowest weight on the weight map if any
-		static const FName HighValueName;  // Boolean, 24 bit integer (max 16777215), float, or vector value of the highest weight on the weight map if any
-		static const FName StringValueName;  // String value, or weight map name, ...etc.
-		static const FName FlagsName;  // Whether this property is enabled, animatable, ...etc.
+		static CHAOS_API const FName PropertyGroup;
+		static CHAOS_API const FName KeyName;  // Property key, name to look for
+		static CHAOS_API const FName LowValueName;  // Boolean, 24 bit integer (max 16777215), float, or vector value, or value of the lowest weight on the weight map if any
+		static CHAOS_API const FName HighValueName;  // Boolean, 24 bit integer (max 16777215), float, or vector value of the highest weight on the weight map if any
+		static CHAOS_API const FName StringValueName;  // String value, or weight map name, ...etc.
+		static CHAOS_API const FName FlagsName;  // Whether this property is enabled, animatable, ...etc.
 
 		// Property Group array views
 		TConstArrayView<FString> KeyArray;
@@ -215,10 +215,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	 * 
 	 * Note: Int property values are stored as float and therefore limited to 24 bits (-16777215 to 16777215).
 	 */
-	class CHAOS_API FCollectionPropertyFacade : public FCollectionPropertyConstFacade
+	class FCollectionPropertyFacade : public FCollectionPropertyConstFacade
 	{
 	public:
-		explicit FCollectionPropertyFacade(const TSharedPtr<FManagedArrayCollection>& InManagedArrayCollection);
+		CHAOS_API explicit FCollectionPropertyFacade(const TSharedPtr<FManagedArrayCollection>& InManagedArrayCollection);
 		virtual ~FCollectionPropertyFacade() = default;
 
 		FCollectionPropertyFacade() = delete;
@@ -326,11 +326,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			return SafeSet(Key, [this](int32 KeyIndex) { SetStringDirty(KeyIndex); });
 		}
 
-		void ClearDirtyFlags();
+		CHAOS_API void ClearDirtyFlags();
 
 	protected:
 		// No init constructor for FCollectionPropertyMutableFacade
-		FCollectionPropertyFacade(const TSharedPtr<FManagedArrayCollection>& InManagedArrayCollection, ENoInit);
+		CHAOS_API FCollectionPropertyFacade(const TSharedPtr<FManagedArrayCollection>& InManagedArrayCollection, ENoInit);
 
 		// Access to a writeable ManagedArrayCollection is protected, use an FPropertyCollectionMutableAdapter if needed to get a non const pointer
 		TSharedPtr<FManagedArrayCollection> GetManagedArrayCollection() { return ConstCastSharedPtr<FManagedArrayCollection>(ManagedArrayCollection); }
@@ -356,7 +356,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		template<typename T>
 		inline void SetValue(int32 KeyIndex, const TArrayView<T>& ValueArray, const T& Value);
 
-		void EnableFlags(int32 KeyIndex, ECollectionPropertyFlags Flags, bool bEnable);
+		CHAOS_API void EnableFlags(int32 KeyIndex, ECollectionPropertyFlags Flags, bool bEnable);
 	};
 
 	/**
@@ -364,10 +364,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	 * This is mainly used for the cloth simulation properties to provide
 	 * weighted values that works in conjunction with weight maps.
 	 */
-	class CHAOS_API FCollectionPropertyMutableFacade final : public FCollectionPropertyFacade
+	class FCollectionPropertyMutableFacade final : public FCollectionPropertyFacade
 	{
 	public:
-		explicit FCollectionPropertyMutableFacade(const TSharedPtr<FManagedArrayCollection>& InManagedArrayCollection);
+		CHAOS_API explicit FCollectionPropertyMutableFacade(const TSharedPtr<FManagedArrayCollection>& InManagedArrayCollection);
 		virtual ~FCollectionPropertyMutableFacade() = default;
 
 		FCollectionPropertyMutableFacade() = delete;
@@ -378,38 +378,38 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		FCollectionPropertyMutableFacade& operator=(FCollectionPropertyMutableFacade&&) = default;
 
 		/** Create this facade's groups and attributes. */
-		void DefineSchema();
+		CHAOS_API void DefineSchema();
 
 		/** Add a single property, and return its index. */
-		int32 AddProperty(const FString& Key, bool bEnabled = true, bool bAnimatable = false);
+		CHAOS_API int32 AddProperty(const FString& Key, bool bEnabled = true, bool bAnimatable = false);
 
 		/** Add new properties, and return the index of the first added property. */
-		int32 AddProperties(const TArray<FString>& Keys, bool bEnabled = true, bool bAnimatable = false);
+		CHAOS_API int32 AddProperties(const TArray<FString>& Keys, bool bEnabled = true, bool bAnimatable = false);
 
 		/**
 		 * Append all properties and values from an existing collection to this property collection.
 		 * This won't copy any other groups, only data from PropertyGroup.
 		 * Any pre-existing data will be preserved.
 		 */
-		void Append(const FManagedArrayCollection& InManagedArrayCollection);
+		CHAOS_API void Append(const FManagedArrayCollection& InManagedArrayCollection);
 
 		/**
 		 * Copy all properties and values from an existing collection to this property collection.
 		 * This won't copy any other groups, only data from PropertyGroup.
 		 * Any pre-xisting data will be removed/replaced.
 		 */
-		void Copy(const FManagedArrayCollection& InManagedArrayCollection);
+		CHAOS_API void Copy(const FManagedArrayCollection& InManagedArrayCollection);
 
 		//~ Add values
 		template<typename T, TEMPLATE_REQUIRES(TIsWeightedType<T>::Value)>
 		inline int32 AddWeightedValue(const FString& Key, const T& LowValue, const T& HighValue, bool bEnabled = true, bool bAnimatable = false);
 
-		int32 AddWeightedFloatValue(const FString& Key, const FVector2f& Value, bool bEnabled, bool bAnimatable);
+		CHAOS_API int32 AddWeightedFloatValue(const FString& Key, const FVector2f& Value, bool bEnabled, bool bAnimatable);
 
 		template<typename T, TEMPLATE_REQUIRES(TIsWeightedType<T>::Value)>
 		int32 AddValue(const FString& Key, const T& Value, bool bEnabled = true, bool bAnimatable = false) { return AddWeightedValue(Key, Value, Value, bEnabled, bAnimatable); }
 
-		int32 AddStringValue(const FString& Key, const FString& Value, bool bEnabled = true, bool bAnimatable = false);
+		CHAOS_API int32 AddStringValue(const FString& Key, const FString& Value, bool bEnabled = true, bool bAnimatable = false);
 	};
 
 	template<typename T>

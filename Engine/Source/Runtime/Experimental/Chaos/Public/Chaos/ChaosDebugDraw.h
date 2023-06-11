@@ -25,9 +25,9 @@ namespace Chaos
 	{
 #if CHAOS_DEBUG_DRAW
 
-		struct CHAOS_API FChaosDebugDrawColorsByState
+		struct FChaosDebugDrawColorsByState
 		{
-			FChaosDebugDrawColorsByState(
+			CHAOS_API FChaosDebugDrawColorsByState(
 				FColor InDynamicColor,
 				FColor InSleepingColor,
 				FColor InKinematicColor,
@@ -39,12 +39,12 @@ namespace Chaos
 			FColor KinematicColor;
 			FColor StaticColor;
 
-			FColor GetColorFromState(EObjectStateType State) const;
+			CHAOS_API FColor GetColorFromState(EObjectStateType State) const;
 		};
 
-		struct CHAOS_API FChaosDebugDrawColorsByShapeType
+		struct FChaosDebugDrawColorsByShapeType
 		{
-			FChaosDebugDrawColorsByShapeType(
+			CHAOS_API FChaosDebugDrawColorsByShapeType(
 				FColor InSimpleTypeColor,
 				FColor InConvexColor,
 				FColor InHeightFieldColor,
@@ -59,10 +59,10 @@ namespace Chaos
 			FColor TriangleMeshColor;
 			FColor LevelSetColor;
 
-			FColor GetColorFromShapeType(EImplicitObjectType ShapeType) const;
+			CHAOS_API FColor GetColorFromShapeType(EImplicitObjectType ShapeType) const;
 		};
 
-		struct CHAOS_API FChaosDebugDrawSettings
+		struct FChaosDebugDrawSettings
 		{
 		public:
 			FChaosDebugDrawSettings(

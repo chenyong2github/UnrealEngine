@@ -12,7 +12,7 @@ namespace Chaos
 	/**
 	 * @brief Data held alongside contact points when generating contacts against a (likely non-convex) mesh of triangles
 	*/
-	class CHAOS_API FContactTriangle
+	class FContactTriangle
 	{
 	public:
 		// Triangle data

@@ -9,7 +9,7 @@ namespace Chaos
 {
 	class FPBDRigidDynamicSpringConstraints;
 
-	class CHAOS_API FPBDRigidDynamicSpringConstraintHandle final : public TIndexedContainerConstraintHandle<FPBDRigidDynamicSpringConstraints>
+	class FPBDRigidDynamicSpringConstraintHandle final : public TIndexedContainerConstraintHandle<FPBDRigidDynamicSpringConstraints>
 	{
 	public:
 		using Base = TIndexedContainerConstraintHandle<FPBDRigidDynamicSpringConstraints>;
@@ -24,7 +24,7 @@ namespace Chaos
 		{
 		}
 
-		virtual FParticlePair GetConstrainedParticles() const override final;
+		CHAOS_API virtual FParticlePair GetConstrainedParticles() const override final;
 
 		static const FConstraintHandleTypeID& StaticType()
 		{
@@ -37,7 +37,7 @@ namespace Chaos
 		using Base::ConcreteContainer;
 	};
 
-	class CHAOS_API FPBDRigidDynamicSpringConstraints : public TPBDIndexedConstraintContainer<FPBDRigidDynamicSpringConstraints>
+	class FPBDRigidDynamicSpringConstraints : public TPBDIndexedConstraintContainer<FPBDRigidDynamicSpringConstraints>
 	{
 	public:
 		using Base = TPBDIndexedConstraintContainer<FPBDRigidDynamicSpringConstraints>;
@@ -189,34 +189,34 @@ namespace Chaos
 			return Constraints[ConstraintIndex];
 		}
 
-		void UpdatePositionBasedState(const FReal Dt);
+		CHAOS_API void UpdatePositionBasedState(const FReal Dt);
 
 		//
 		// FConstraintContainer Implementation
 		//
 		virtual int32 GetNumConstraints() const override final { return NumConstraints(); }
 		virtual void ResetConstraints() override final {}
-		virtual void AddConstraintsToGraph(Private::FPBDIslandManager& IslandManager) override final;
+		CHAOS_API virtual void AddConstraintsToGraph(Private::FPBDIslandManager& IslandManager) override final;
 		virtual void PrepareTick() override final {}
 		virtual void UnprepareTick() override final {}
 
 		//
 		// TSimpleConstraintContainerSolver API - used by RBAN solvers
 		//
-		void AddBodies(FSolverBodyContainer& SolverBodyContainer);
+		CHAOS_API void AddBodies(FSolverBodyContainer& SolverBodyContainer);
 		void GatherInput(const FReal Dt) {}
-		void ScatterOutput(const FReal Dt);
-		void ApplyPositionConstraints(const FReal Dt, const int32 It, const int32 NumIts);
+		CHAOS_API void ScatterOutput(const FReal Dt);
+		CHAOS_API void ApplyPositionConstraints(const FReal Dt, const int32 It, const int32 NumIts);
 		void ApplyVelocityConstraints(const FReal Dt, const int32 It, const int32 NumIts) {}
 		void ApplyProjectionConstraints(const FReal Dt, const int32 It, const int32 NumIts) {}
 
 		//
 		// TIndexedConstraintContainerSolver API - used by World solvers
 		//
-		void AddBodies(const TArrayView<int32>& ConstraintIndices, FSolverBodyContainer& SolverBodyContainer);
+		CHAOS_API void AddBodies(const TArrayView<int32>& ConstraintIndices, FSolverBodyContainer& SolverBodyContainer);
 		void GatherInput(const TArrayView<int32>& ConstraintIndices, const FReal Dt) {}
-		void ScatterOutput(const TArrayView<int32>& ConstraintIndices, const FReal Dt);
-		void ApplyPositionConstraints(const TArrayView<int32>& ConstraintIndices, const FReal Dt, const int32 It, const int32 NumIts);
+		CHAOS_API void ScatterOutput(const TArrayView<int32>& ConstraintIndices, const FReal Dt);
+		CHAOS_API void ApplyPositionConstraints(const TArrayView<int32>& ConstraintIndices, const FReal Dt, const int32 It, const int32 NumIts);
 		void ApplyVelocityConstraints(const TArrayView<int32>& ConstraintIndices, const FReal Dt, const int32 It, const int32 NumIts) {}
 		void ApplyProjectionConstraints(const TArrayView<int32>& ConstraintIndices, const FReal Dt, const int32 It, const int32 NumIts) {}
 
@@ -225,10 +225,10 @@ namespace Chaos
 		using Base::SetConstraintIndex;
 
 	private:
-		void AddBodies(const int32 ConstraintIndex, FSolverBodyContainer& SolverBodyContainer);
-		void ApplySingle(const FReal Dt, int32 ConstraintIndex) const;
+		CHAOS_API void AddBodies(const int32 ConstraintIndex, FSolverBodyContainer& SolverBodyContainer);
+		CHAOS_API void ApplySingle(const FReal Dt, int32 ConstraintIndex) const;
 
-		FVec3 GetDelta(const FVec3& WorldSpaceX1, const FVec3& WorldSpaceX2, const int32 ConstraintIndex, const int32 SpringIndex) const;
+		CHAOS_API FVec3 GetDelta(const FVec3& WorldSpaceX1, const FVec3& WorldSpaceX2, const int32 ConstraintIndex, const int32 SpringIndex) const;
 
 		TArray<FConstrainedParticlePair> Constraints;
 		TArray<TArray<TVec2<FVec3>>> Distances;

@@ -20,9 +20,9 @@ namespace Chaos
 	 * Handles returned from the material manager are only designed to be used (resolved) on the game thread
 	 * by the physics interface.
 	 */
-	struct CHAOS_API FMaterialHandle
+	struct FMaterialHandle
 	{
-		FChaosPhysicsMaterial* Get() const;
+		CHAOS_API FChaosPhysicsMaterial* Get() const;
 		FChaosMaterialHandle InnerHandle;
 
 		bool IsValid() const { return Get() != nullptr; }
@@ -39,9 +39,9 @@ namespace Chaos
 	 * Handles returned from the material manager are only designed to be used (resolved) on the game thread
 	 * by the physics interface.
 	 */
-	struct CHAOS_API FConstMaterialHandle
+	struct FConstMaterialHandle
 	{
-		const FChaosPhysicsMaterial* Get() const;
+		CHAOS_API const FChaosPhysicsMaterial* Get() const;
 		FChaosConstMaterialHandle InnerHandle;
 
 		bool IsValid() const { return Get() != nullptr; }
@@ -56,9 +56,9 @@ namespace Chaos
 	 * Handles returned from the material manager are only designed to be used (resolved) on the game thread
 	 * by the physics interface.
 	 */
-	struct CHAOS_API FMaterialMaskHandle
+	struct FMaterialMaskHandle
 	{
-		FChaosPhysicsMaterialMask* Get() const;
+		CHAOS_API FChaosPhysicsMaterialMask* Get() const;
 		FChaosMaterialMaskHandle InnerHandle;
 
 		bool IsValid() const { return Get() != nullptr; }
@@ -73,9 +73,9 @@ namespace Chaos
 	 * Handles returned from the material manager are only designed to be used (resolved) on the game thread
 	 * by the physics interface.
 	 */
-	struct CHAOS_API FConstMaterialMaskHandle
+	struct FConstMaterialMaskHandle
 	{
-		const FChaosPhysicsMaterialMask* Get() const;
+		CHAOS_API const FChaosPhysicsMaterialMask* Get() const;
 		FChaosConstMaterialMaskHandle InnerHandle;
 
 		bool IsValid() const { return Get() != nullptr; }
@@ -111,39 +111,39 @@ namespace Chaos
 	 * material pointer. When accessing the internal material always use the handle rather than
 	 * storing the result of Get()
 	 */
-	class CHAOS_API FPhysicalMaterialManager
+	class FPhysicalMaterialManager
 	{
 	public:
 
-		static FPhysicalMaterialManager& Get();
+		static CHAOS_API FPhysicalMaterialManager& Get();
 
 		/** Create a new material, returning a stable handle to it - this should be stored and not the actual material pointer */
-		FMaterialHandle Create();
-		FMaterialMaskHandle CreateMask();
+		CHAOS_API FMaterialHandle Create();
+		CHAOS_API FMaterialMaskHandle CreateMask();
 
 		/** Destroy the material referenced by the provided handle */
-		void Destroy(FMaterialHandle InHandle);
-		void Destroy(FMaterialMaskHandle InHandle);
+		CHAOS_API void Destroy(FMaterialHandle InHandle);
+		CHAOS_API void Destroy(FMaterialMaskHandle InHandle);
 
 		/** Get the actual material from a handle */
-		FChaosPhysicsMaterial* Resolve(FChaosMaterialHandle InHandle) const;
-		const FChaosPhysicsMaterial* Resolve(FChaosConstMaterialHandle InHandle) const;
+		CHAOS_API FChaosPhysicsMaterial* Resolve(FChaosMaterialHandle InHandle) const;
+		CHAOS_API const FChaosPhysicsMaterial* Resolve(FChaosConstMaterialHandle InHandle) const;
 
-		FChaosPhysicsMaterialMask* Resolve(FChaosMaterialMaskHandle InHandle) const;
-		const FChaosPhysicsMaterialMask* Resolve(FChaosConstMaterialMaskHandle InHandle) const;
+		CHAOS_API FChaosPhysicsMaterialMask* Resolve(FChaosMaterialMaskHandle InHandle) const;
+		CHAOS_API const FChaosPhysicsMaterialMask* Resolve(FChaosConstMaterialMaskHandle InHandle) const;
 
 		/** Signals stakeholders that the stored material for the provided handle has changed */
-		void UpdateMaterial(FMaterialHandle InHandle);
-		void UpdateMaterialMask(FMaterialMaskHandle InHandle);
+		CHAOS_API void UpdateMaterial(FMaterialHandle InHandle);
+		CHAOS_API void UpdateMaterialMask(FMaterialMaskHandle InHandle);
 
 		/** Gets the internal list of primary materials representing the current user state of the material data */
 		UE_DEPRECATED(5.1, "GetMasterMaterials_External is deprecated, please use GetPrimaryMaterials_External instead")
-		const THandleArray<FChaosPhysicsMaterial>& GetMasterMaterials_External() const;
+		CHAOS_API const THandleArray<FChaosPhysicsMaterial>& GetMasterMaterials_External() const;
 		UE_DEPRECATED(5.1, "GetMasterMaterialMasks_External is deprecated, please use GetPrimaryMaterialMasks_External instead")
-		const THandleArray<FChaosPhysicsMaterialMask>& GetMasterMaterialMasks_External() const;
+		CHAOS_API const THandleArray<FChaosPhysicsMaterialMask>& GetMasterMaterialMasks_External() const;
 
-		const THandleArray<FChaosPhysicsMaterial>& GetPrimaryMaterials_External() const;
-		const THandleArray<FChaosPhysicsMaterialMask>& GetPrimaryMaterialMasks_External() const;
+		CHAOS_API const THandleArray<FChaosPhysicsMaterial>& GetPrimaryMaterials_External() const;
+		CHAOS_API const THandleArray<FChaosPhysicsMaterialMask>& GetPrimaryMaterialMasks_External() const;
 
 		/** Events */
 		FOnMaterialUpdated OnMaterialUpdated;

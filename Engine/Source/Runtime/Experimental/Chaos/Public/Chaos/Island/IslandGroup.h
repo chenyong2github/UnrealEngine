@@ -15,7 +15,7 @@ namespace Chaos
 		* from several islands, but may be a sub set of constraints of a single island when coloring is enabled for
 		* that island.
 		*/
-		class CHAOS_API FPBDIslandConstraintGroupSolver : public FPBDConstraintGroupSolver
+		class FPBDIslandConstraintGroupSolver : public FPBDConstraintGroupSolver
 		{
 		public:
 			UE_NONCOPYABLE(FPBDIslandConstraintGroupSolver);
@@ -23,13 +23,13 @@ namespace Chaos
 			/**
 			* Init the island group 
 			*/
-			FPBDIslandConstraintGroupSolver(FPBDIslandManager& InIslandManager);
+			CHAOS_API FPBDIslandConstraintGroupSolver(FPBDIslandManager& InIslandManager);
 
 			/**
 			* Add island to the group
 			* @param Island Island to be added
 			*/
-			void AddIsland(FPBDIsland* Island);
+			CHAOS_API void AddIsland(FPBDIsland* Island);
 
 			/**
 			* Return the islands within the group
@@ -54,14 +54,14 @@ namespace Chaos
 			/**
 			 * Update the iteration settings based on the islands in the group, using at least as many as specified in InIterations
 			*/
-			virtual void SetIterationSettings(const FIterationSettings& InIterations) override;
+			CHAOS_API virtual void SetIterationSettings(const FIterationSettings& InIterations) override;
 
 		protected:
 			// Base class overrides
-			virtual void SetConstraintSolverImpl(const int32 ContainerId) override final;
-			virtual void ResetImpl() override final;
-			virtual void AddConstraintsImpl() override final;
-			virtual void GatherBodiesImpl(const FReal Dt, const int32 BeginBodyIndex, const int32 EndBodyIndex) override final;
+			CHAOS_API virtual void SetConstraintSolverImpl(const int32 ContainerId) override final;
+			CHAOS_API virtual void ResetImpl() override final;
+			CHAOS_API virtual void AddConstraintsImpl() override final;
+			CHAOS_API virtual void GatherBodiesImpl(const FReal Dt, const int32 BeginBodyIndex, const int32 EndBodyIndex) override final;
 
 		private:
 			FPBDIslandManager& IslandManager;

@@ -9,28 +9,28 @@
 namespace GeometryCollection::Facades
 {
 
-	class CHAOS_API FCollectionExplodedVectorFacade
+	class FCollectionExplodedVectorFacade
 	{
 	public:
-		FCollectionExplodedVectorFacade(FManagedArrayCollection& InCollection);
-		FCollectionExplodedVectorFacade(const FManagedArrayCollection& InCollection);
+		CHAOS_API FCollectionExplodedVectorFacade(FManagedArrayCollection& InCollection);
+		CHAOS_API FCollectionExplodedVectorFacade(const FManagedArrayCollection& InCollection);
 
 		/**
 		 * returns true if all the necessary attributes are present
 		 * if not then the API can be used to create
 		 */
-		bool IsValid() const;
+		CHAOS_API bool IsValid() const;
 
 		/**
 		 * Add the necessary attributes if they are missing
 		 */
-		void DefineSchema();
+		CHAOS_API void DefineSchema();
 
 		/**
 		 * Adds exploded vector to global matrices translation 
 		 */
-		void UpdateGlobalMatricesWithExplodedVectors(TArray<FMatrix>& InOutGlobalMatrices) const;
-		void UpdateGlobalMatricesWithExplodedVectors(TArray<FTransform>& InOutGlobalTransforms) const;
+		CHAOS_API void UpdateGlobalMatricesWithExplodedVectors(TArray<FMatrix>& InOutGlobalMatrices) const;
+		CHAOS_API void UpdateGlobalMatricesWithExplodedVectors(TArray<FTransform>& InOutGlobalTransforms) const;
 
 	private:
 

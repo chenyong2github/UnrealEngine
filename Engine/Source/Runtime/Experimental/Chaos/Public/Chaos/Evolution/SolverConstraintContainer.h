@@ -25,7 +25,7 @@ namespace Chaos
 	 * RBAN does not attempt to partition its scene into islands and just solves all constraints on its main
 	 * thread, so it only has one FConstraintContainerSolver (per constraint type).
 	*/
-	class CHAOS_API FConstraintContainerSolver
+	class FConstraintContainerSolver
 	{
 	public:
 
@@ -118,7 +118,7 @@ namespace Chaos
 	 * @todo(chaos): really we should split the base class into group and scene versions. See CreateSceneSolver CreateGroupSolver
 	*/
 	template<typename ConstraintContainerType>
-	class CHAOS_API TSimpleConstraintContainerSolver : public FConstraintContainerSolver
+	class TSimpleConstraintContainerSolver : public FConstraintContainerSolver
 	{
 	public:
 		using FConstraintContainerType = ConstraintContainerType;

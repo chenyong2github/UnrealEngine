@@ -10,7 +10,7 @@
 
 namespace Chaos
 {
-	class CHAOS_API FSpatialAccelerationCollisionDetector : public FCollisionDetector
+	class FSpatialAccelerationCollisionDetector : public FCollisionDetector
 	{
 	public:
 		FSpatialAccelerationCollisionDetector(FSpatialAccelerationBroadPhase& InBroadPhase, FPBDCollisionConstraints& InCollisionContainer)
