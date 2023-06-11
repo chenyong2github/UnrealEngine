@@ -39,7 +39,7 @@ namespace SlateAttributePrivate
 
 
 	/** Interface for structure that can be used to contain a SlateAttribute instead of a SWidget. */
-	class SLATECORE_API ISlateAttributeContainer
+	class ISlateAttributeContainer
 	{
 	public:
 		virtual SWidget& GetContainerWidget() const = 0;
@@ -47,8 +47,8 @@ namespace SlateAttributePrivate
 		virtual uint32 GetContainerSortOrder() const = 0;
 
 	protected:
-		void RemoveContainerWidget(SWidget& Widget);
-		void UpdateContainerSortOrder(SWidget& Widget);
+		SLATECORE_API void RemoveContainerWidget(SWidget& Widget);
+		SLATECORE_API void UpdateContainerSortOrder(SWidget& Widget);
 	};
 
 
@@ -80,32 +80,32 @@ namespace SlateAttributePrivate
 
 
 	/** */
-	struct SLATECORE_API FSlateAttributeImpl : public FSlateAttributeBase
+	struct FSlateAttributeImpl : public FSlateAttributeBase
 	{
 	protected:
-		void ProtectedUnregisterAttribute(SWidget& Widget, ESlateAttributeType AttributeType) const;
-		void ProtectedRegisterAttribute(SWidget& Widget, ESlateAttributeType AttributeType, TUniquePtr<ISlateAttributeGetter>&& Wrapper);
-		void ProtectedInvalidateWidget(SWidget& Widget, ESlateAttributeType AttributeType, EInvalidateWidgetReason InvalidationReason) const;
-		bool ProtectedIsBound(const SWidget& Widget, ESlateAttributeType AttributeType) const;
-		ISlateAttributeGetter* ProtectedFindGetter(const SWidget& Widget, ESlateAttributeType AttributeType) const;
-		FDelegateHandle ProtectedFindGetterHandle(const SWidget& Widget, ESlateAttributeType AttributeType) const;
-		void ProtectedUpdateNow(SWidget& Widget, ESlateAttributeType AttributeType);
+		SLATECORE_API void ProtectedUnregisterAttribute(SWidget& Widget, ESlateAttributeType AttributeType) const;
+		SLATECORE_API void ProtectedRegisterAttribute(SWidget& Widget, ESlateAttributeType AttributeType, TUniquePtr<ISlateAttributeGetter>&& Wrapper);
+		SLATECORE_API void ProtectedInvalidateWidget(SWidget& Widget, ESlateAttributeType AttributeType, EInvalidateWidgetReason InvalidationReason) const;
+		SLATECORE_API bool ProtectedIsBound(const SWidget& Widget, ESlateAttributeType AttributeType) const;
+		SLATECORE_API ISlateAttributeGetter* ProtectedFindGetter(const SWidget& Widget, ESlateAttributeType AttributeType) const;
+		SLATECORE_API FDelegateHandle ProtectedFindGetterHandle(const SWidget& Widget, ESlateAttributeType AttributeType) const;
+		SLATECORE_API void ProtectedUpdateNow(SWidget& Widget, ESlateAttributeType AttributeType);
 
 		//~ For Member
-		bool ProtectedIsWidgetInDestructionPath(SWidget* Widget) const;
-		bool ProtectedIsImplemented(const SWidget& Widget) const;
+		SLATECORE_API bool ProtectedIsWidgetInDestructionPath(SWidget* Widget) const;
+		SLATECORE_API bool ProtectedIsImplemented(const SWidget& Widget) const;
 
 		//~ For Manage
-		void ProtectedMoveAttribute(SWidget& Widget, ESlateAttributeType AttributeType, const FSlateAttributeBase* Other);
+		SLATECORE_API void ProtectedMoveAttribute(SWidget& Widget, ESlateAttributeType AttributeType, const FSlateAttributeBase* Other);
 
 		//~ For Contain
-		void ProtectedUnregisterAttribute(ISlateAttributeContainer& Widget, ESlateAttributeType AttributeType) const;
-		void ProtectedRegisterAttribute(ISlateAttributeContainer& Widget, ESlateAttributeType AttributeType, TUniquePtr<ISlateAttributeGetter>&& Wrapper);
-		void ProtectedInvalidateWidget(ISlateAttributeContainer& Widget, ESlateAttributeType AttributeType, EInvalidateWidgetReason InvalidationReason) const;
-		bool ProtectedIsBound(const ISlateAttributeContainer& Widget, ESlateAttributeType AttributeType) const;
-		ISlateAttributeGetter* ProtectedFindGetter(const ISlateAttributeContainer& Widget, ESlateAttributeType AttributeType) const;
-		FDelegateHandle ProtectedFindGetterHandle(const ISlateAttributeContainer& Widget, ESlateAttributeType AttributeType) const;
-		void ProtectedUpdateNow(ISlateAttributeContainer& Widget, ESlateAttributeType AttributeType);
+		SLATECORE_API void ProtectedUnregisterAttribute(ISlateAttributeContainer& Widget, ESlateAttributeType AttributeType) const;
+		SLATECORE_API void ProtectedRegisterAttribute(ISlateAttributeContainer& Widget, ESlateAttributeType AttributeType, TUniquePtr<ISlateAttributeGetter>&& Wrapper);
+		SLATECORE_API void ProtectedInvalidateWidget(ISlateAttributeContainer& Widget, ESlateAttributeType AttributeType, EInvalidateWidgetReason InvalidationReason) const;
+		SLATECORE_API bool ProtectedIsBound(const ISlateAttributeContainer& Widget, ESlateAttributeType AttributeType) const;
+		SLATECORE_API ISlateAttributeGetter* ProtectedFindGetter(const ISlateAttributeContainer& Widget, ESlateAttributeType AttributeType) const;
+		SLATECORE_API FDelegateHandle ProtectedFindGetterHandle(const ISlateAttributeContainer& Widget, ESlateAttributeType AttributeType) const;
+		SLATECORE_API void ProtectedUpdateNow(ISlateAttributeContainer& Widget, ESlateAttributeType AttributeType);
 	};
 
 } // SlateAttributePrivate

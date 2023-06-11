@@ -18,7 +18,7 @@ class FSlateWindowElementList;
  * A LeafWidget is a Widget that has no slots for children.
  * LeafWidgets are usually intended as building blocks for aggregate widgets.
  */
-class SLATECORE_API SLeafWidget
+class SLeafWidget
 	: public SWidget
 {
 public:
@@ -27,7 +27,7 @@ public:
 		bCanHaveChildren = false;
 	}
 
-	virtual void SetVisibility( TAttribute<EVisibility> InVisibility ) override final;
+	SLATECORE_API virtual void SetVisibility( TAttribute<EVisibility> InVisibility ) override final;
 
 private:
 
@@ -59,7 +59,7 @@ private:
 	 *
 	 * Leaf widgets never have children.
 	 */
-	virtual FChildren* GetChildren() override;
+	SLATECORE_API virtual FChildren* GetChildren() override;
 
-	virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
+	SLATECORE_API virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
 };

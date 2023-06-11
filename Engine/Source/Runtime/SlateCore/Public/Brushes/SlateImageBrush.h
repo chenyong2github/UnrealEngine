@@ -10,7 +10,7 @@
 /**
  * Ignores the Margin. Just renders the image. Can tile the image instead of stretching.
  */
-struct SLATECORE_API FSlateImageBrush
+struct FSlateImageBrush
 	: public FSlateBrush
 {
 	/**
@@ -82,7 +82,7 @@ struct SLATECORE_API FSlateImageBrush
 
 };
 
-struct SLATECORE_API FSlateVectorImageBrush
+struct FSlateVectorImageBrush
 	: public FSlateImageBrush
 {
 	FSlateVectorImageBrush(const FString& InImageName, const UE::Slate::FDeprecateVector2DParameter& InImageSize, const FSlateColor& InTint, ESlateBrushTileType::Type InTiling = ESlateBrushTileType::NoTile)

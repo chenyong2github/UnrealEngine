@@ -22,7 +22,7 @@
  *      \/
  *      Y
  */
-class SLATECORE_API FSlateRect
+class FSlateRect
 {
 public:
 
@@ -345,7 +345,7 @@ public:
 	*
 	* @return	A string of the rect coordinates 
 	*/
-	FString ToString() const;
+	SLATECORE_API FString ToString() const;
 
 	/**
 	* Returns a string of containing the coordinates of the rect
@@ -354,7 +354,7 @@ public:
 	*
 	* @return	True if initialized successfully
 	*/
-	bool InitFromString(const FString& InSourceString);
+	SLATECORE_API bool InitFromString(const FString& InSourceString);
 
 	
 	friend FORCEINLINE uint32 GetTypeHash(const FSlateRect& Key)

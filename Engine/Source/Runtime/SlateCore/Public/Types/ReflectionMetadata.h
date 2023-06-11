@@ -15,7 +15,7 @@ class SWidget;
  * additional information about slate widgets that are constructed by UObject
  * classes for UMG.
  */
-class SLATECORE_API FReflectionMetaData : public ISlateMetaData
+class FReflectionMetaData : public ISlateMetaData
 {
 public:
 	SLATE_METADATA_TYPE(FReflectionMetaData, ISlateMetaData)
@@ -42,11 +42,11 @@ public:
 
 public:
 
-	static FString GetWidgetPath(const SWidget* InWidget, bool bShort = true, bool bNativePathOnly = false);
-	static FString GetWidgetPath(const SWidget& InWidget, bool bShort = true, bool bNativePathOnly = false);
+	static SLATECORE_API FString GetWidgetPath(const SWidget* InWidget, bool bShort = true, bool bNativePathOnly = false);
+	static SLATECORE_API FString GetWidgetPath(const SWidget& InWidget, bool bShort = true, bool bNativePathOnly = false);
 
-	static FString GetWidgetDebugInfo(const SWidget* InWidget);
-	static FString GetWidgetDebugInfo(const SWidget& InWidget);
+	static SLATECORE_API FString GetWidgetDebugInfo(const SWidget* InWidget);
+	static SLATECORE_API FString GetWidgetDebugInfo(const SWidget& InWidget);
 
-	static TSharedPtr<FReflectionMetaData> GetWidgetOrParentMetaData(const SWidget* InWidget);
+	static SLATECORE_API TSharedPtr<FReflectionMetaData> GetWidgetOrParentMetaData(const SWidget* InWidget);
 };

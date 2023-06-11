@@ -11,11 +11,11 @@ struct FSlateDynamicImageBrush;
 /**
  * Core slate style
  */
-class SLATECORE_API FStarshipCoreStyle
+class FStarshipCoreStyle
 {
 public:
 
-	static TSharedRef<class ISlateStyle> Create();
+	static SLATECORE_API TSharedRef<class ISlateStyle> Create();
 
 	/** 
 	* @return the Application Style 
@@ -42,24 +42,24 @@ public:
 	}
 
 	/** Get the default font for Slate */
-	static TSharedRef<const FCompositeFont> GetDefaultFont();
+	static SLATECORE_API TSharedRef<const FCompositeFont> GetDefaultFont();
 
 	/** Get a font style using the default for for Slate */
-	static FSlateFontInfo GetDefaultFontStyle(const FName InTypefaceFontName, const int32 InSize, const FFontOutlineSettings& InOutlineSettings = FFontOutlineSettings());
+	static SLATECORE_API FSlateFontInfo GetDefaultFontStyle(const FName InTypefaceFontName, const int32 InSize, const FFontOutlineSettings& InOutlineSettings = FFontOutlineSettings());
 
-	static void ResetToDefault( );
+	static SLATECORE_API void ResetToDefault( );
 
 	/** Used to override the default selection colors */
-	static void SetSelectorColor( const FLinearColor& NewColor );
-	static void SetSelectionColor( const FLinearColor& NewColor );
-	static void SetInactiveSelectionColor( const FLinearColor& NewColor );
-	static void SetPressedSelectionColor( const FLinearColor& NewColor );
-	static void SetFocusBrush(FSlateBrush* NewBrush);
+	static SLATECORE_API void SetSelectorColor( const FLinearColor& NewColor );
+	static SLATECORE_API void SetSelectionColor( const FLinearColor& NewColor );
+	static SLATECORE_API void SetInactiveSelectionColor( const FLinearColor& NewColor );
+	static SLATECORE_API void SetPressedSelectionColor( const FLinearColor& NewColor );
+	static SLATECORE_API void SetFocusBrush(FSlateBrush* NewBrush);
 
 	// todo: jdale - These are only here because of UTouchInterface::Activate and the fact that GetDynamicImageBrush is non-const
-	static const TSharedPtr<FSlateDynamicImageBrush> GetDynamicImageBrush( FName BrushTemplate, FName TextureName, const ANSICHAR* Specifier = nullptr );
-	static const TSharedPtr<FSlateDynamicImageBrush> GetDynamicImageBrush( FName BrushTemplate, const ANSICHAR* Specifier, class UTexture2D* TextureResource, FName TextureName );
-	static const TSharedPtr<FSlateDynamicImageBrush> GetDynamicImageBrush( FName BrushTemplate, class UTexture2D* TextureResource, FName TextureName );
+	static SLATECORE_API const TSharedPtr<FSlateDynamicImageBrush> GetDynamicImageBrush( FName BrushTemplate, FName TextureName, const ANSICHAR* Specifier = nullptr );
+	static SLATECORE_API const TSharedPtr<FSlateDynamicImageBrush> GetDynamicImageBrush( FName BrushTemplate, const ANSICHAR* Specifier, class UTexture2D* TextureResource, FName TextureName );
+	static SLATECORE_API const TSharedPtr<FSlateDynamicImageBrush> GetDynamicImageBrush( FName BrushTemplate, class UTexture2D* TextureResource, FName TextureName );
 
 	static const int32 RegularTextSize = 10;
 	static const int32 SmallTextSize = 8;
@@ -68,26 +68,26 @@ public:
 private:
 	class FStyle;
 
-	static void SetStyle(const TSharedRef<class ISlateStyle>& NewStyle);
+	static SLATECORE_API void SetStyle(const TSharedRef<class ISlateStyle>& NewStyle);
 	
-	static void SetupColors(TSharedRef<FStyle>& Style);
-	static void SetupTextStyles(TSharedRef<FStyle>& Style);
-	static void SetupButtonStyles(TSharedRef<FStyle>& Style);
-	static void SetupComboButtonStyles(TSharedRef<FStyle>& Style);
-	static void SetupCheckboxStyles(TSharedRef<FStyle>& Style);
-	static void SetupDockingStyles(TSharedRef<FStyle>& Style);
-	static void SetupColorPickerStyles(TSharedRef<FStyle>& Style);
-	static void SetupTableViewStyles(TSharedRef<FStyle>& Style);
-	static void SetupMultiboxStyles(TSharedRef<FStyle>& Style);
+	static SLATECORE_API void SetupColors(TSharedRef<FStyle>& Style);
+	static SLATECORE_API void SetupTextStyles(TSharedRef<FStyle>& Style);
+	static SLATECORE_API void SetupButtonStyles(TSharedRef<FStyle>& Style);
+	static SLATECORE_API void SetupComboButtonStyles(TSharedRef<FStyle>& Style);
+	static SLATECORE_API void SetupCheckboxStyles(TSharedRef<FStyle>& Style);
+	static SLATECORE_API void SetupDockingStyles(TSharedRef<FStyle>& Style);
+	static SLATECORE_API void SetupColorPickerStyles(TSharedRef<FStyle>& Style);
+	static SLATECORE_API void SetupTableViewStyles(TSharedRef<FStyle>& Style);
+	static SLATECORE_API void SetupMultiboxStyles(TSharedRef<FStyle>& Style);
 
 private:
 
 	/** Singleton instances of this style. */
-	static TSharedPtr< class ISlateStyle > Instance;
+	static SLATECORE_API TSharedPtr< class ISlateStyle > Instance;
 
 };
 
-struct SLATECORE_API FStyleFonts
+struct FStyleFonts
 {
 
   public:
@@ -114,7 +114,7 @@ struct SLATECORE_API FStyleFonts
 	const FSlateFontInfo HeadingExtraSmall;
 
   private: 
-  	FStyleFonts();
-  	static TUniquePtr<struct FStyleFonts> Instance;
+  	SLATECORE_API FStyleFonts();
+  	static SLATECORE_API TUniquePtr<struct FStyleFonts> Instance;
 };
 

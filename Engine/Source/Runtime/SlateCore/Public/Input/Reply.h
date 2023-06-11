@@ -20,7 +20,7 @@ class FDragDropOperation;
  * For example, a widget may handle an OnMouseDown event by asking the system to give mouse capture to a specific Widget.
  * To do this, return FReply::CaptureMouse( NewMouseCapture ).
  */
-class SLATECORE_API FReply : public TReplyBase<FReply>
+class FReply : public TReplyBase<FReply>
 {
 public:
 		
@@ -45,10 +45,10 @@ public:
 	/**
 	 * An event should return FReply::Handled().SetMousePos to ask Slate to move the mouse cursor to a different location
 	 */
-	FReply& SetMousePos( const FIntPoint& NewMousePos );
+	SLATECORE_API FReply& SetMousePos( const FIntPoint& NewMousePos );
 
 	/** An event should return FReply::Handled().SetUserFocus( SomeWidget ) as a means of asking the system to set users focus to the provided widget*/
-	FReply& SetUserFocus(TSharedRef<SWidget> GiveMeFocus, EFocusCause ReasonFocusIsChanging = EFocusCause::SetDirectly, bool bInAllUsers = false);
+	SLATECORE_API FReply& SetUserFocus(TSharedRef<SWidget> GiveMeFocus, EFocusCause ReasonFocusIsChanging = EFocusCause::SetDirectly, bool bInAllUsers = false);
 
 	/** An event should return a FReply::Handled().ClearUserFocus() to ask the system to clear user focus*/
 	FReply& ClearUserFocus(bool bInAllUsers = false)
@@ -57,14 +57,14 @@ public:
 	}
 
 	/** An event should return a FReply::Handled().ClearUserFocus() to ask the system to clear user focus*/
-	FReply& ClearUserFocus(EFocusCause ReasonFocusIsChanging, bool bInAllUsers = false);
+	SLATECORE_API FReply& ClearUserFocus(EFocusCause ReasonFocusIsChanging, bool bInAllUsers = false);
 
 	/** 
 	 *	An event should rarely invoke FReply::CancelFocusRequest. This will change the reply
 	 *  so that it no longer contains a request for the system to set or clear focus. 
 	 *  This is most useful when a reply has been cached for use in async operations.
 	 */
-	FReply& CancelFocusRequest();
+	SLATECORE_API FReply& CancelFocusRequest();
 
 	/** An event should return FReply::Handled().SetNavigation( NavigationType ) as a means of asking the system to attempt a navigation*/
 	FReply& SetNavigation(EUINavigation InNavigationType, const ENavigationGenesis InNavigationGenesis, const ENavigationSource InNavigationSource = ENavigationSource::FocusedWidget)
@@ -223,7 +223,7 @@ public:
 	const TOptional<FIntPoint>& GetRequestedMousePos() const { return RequestedMousePos; }
 
 	/** Converts the reply into an string representation. */
-	FString ToString();
+	SLATECORE_API FString ToString();
 		
 public:
 

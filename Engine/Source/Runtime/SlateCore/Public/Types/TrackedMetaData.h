@@ -11,15 +11,15 @@ class SWidget;
 /**
  * MetaData used to add and remove widgets to the Slate Widget Tracker for the specified tags.
  */
-class SLATECORE_API FTrackedMetaData : public ISlateMetaData
+class FTrackedMetaData : public ISlateMetaData
 {
 public:
 
 	SLATE_METADATA_TYPE(FTrackedMetaData, ISlateMetaData)
 
-	FTrackedMetaData(const SWidget* InTrackedWidget, TArray<FName>&& InTags);
-	FTrackedMetaData(const SWidget* InTrackedWidget, FName InTags);
-	~FTrackedMetaData();
+	SLATECORE_API FTrackedMetaData(const SWidget* InTrackedWidget, TArray<FName>&& InTags);
+	SLATECORE_API FTrackedMetaData(const SWidget* InTrackedWidget, FName InTags);
+	SLATECORE_API ~FTrackedMetaData();
 
 	FTrackedMetaData(const FTrackedMetaData&) = delete;
 	FTrackedMetaData& operator=(const FTrackedMetaData&) = delete;

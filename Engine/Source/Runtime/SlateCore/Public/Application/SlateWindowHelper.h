@@ -13,7 +13,7 @@ class FWidgetPath;
 /**
  * Implements a manager for Slate windows.
  */
-class SLATECORE_API FSlateWindowHelper
+class FSlateWindowHelper
 {
 public:
 
@@ -23,7 +23,7 @@ public:
 	 * @param Windows The collection of windows to reorder.
 	 * @param WindowToBringToFront The window to bring to the front.
 	 */
-	static void ArrangeWindowToFront( TArray<TSharedRef<SWindow>>& Windows, const TSharedRef<SWindow>& WindowToBringToFront );
+	static SLATECORE_API void ArrangeWindowToFront( TArray<TSharedRef<SWindow>>& Windows, const TSharedRef<SWindow>& WindowToBringToFront );
 
 	/**
 	 * Put 'BringMeToFront' at the font of the list of 'WindowsToReorder'.
@@ -33,7 +33,7 @@ public:
 	 * @param Windows An ordered list of windows.
 	 * @param BingMeToFront The window to bring to front.
 	 */
-	static void BringWindowToFront( TArray<TSharedRef<SWindow>>& Windows, const TSharedRef<SWindow>& BringMeToFront );
+	static SLATECORE_API void BringWindowToFront( TArray<TSharedRef<SWindow>>& Windows, const TSharedRef<SWindow>& BringMeToFront );
 
 	/**
 	 * Checks whether any of the given windows overlap the specified work area.
@@ -42,7 +42,7 @@ public:
 	 * @param WorkAreaRect The work area to check.
 	 * @return true if at least one window overlaps with the work area, false otherwise.
 	 */
-	static bool CheckWorkAreaForWindows( const TArray< TSharedRef<SWindow> >& WindowsToSearch, const FSlateRect& WorkAreaRect );
+	static SLATECORE_API bool CheckWorkAreaForWindows( const TArray< TSharedRef<SWindow> >& WindowsToSearch, const FSlateRect& WorkAreaRect );
 
 	/**
 	 * Checks whether the given collection of windows contains the specified window.
@@ -51,7 +51,7 @@ public:
 	 * @param WindowToFind The window to find.
 	 * @return true if the collection contains the window, false otherwise.
 	 */
-	static bool ContainsWindow( const TArray<TSharedRef<SWindow>>& WindowsToSearch, const TSharedRef<SWindow>& WindowToFind );
+	static SLATECORE_API bool ContainsWindow( const TArray<TSharedRef<SWindow>>& WindowsToSearch, const TSharedRef<SWindow>& WindowToFind );
 
 	/**
 	 * Searches for the specified widget and generates a full path to it.
@@ -63,7 +63,7 @@ public:
 	 * @param VisibilityFilter Widgets must have this type of visibility to be included the path.
 	 * @return True if the widget path was found.
 	 */
-	static bool FindPathToWidget( const TArray<TSharedRef<SWindow>>& WindowsToSearch, TSharedRef<const SWidget> InWidget, FWidgetPath& OutWidgetPath, EVisibility VisibilityFilter = EVisibility::Visible );
+	static SLATECORE_API bool FindPathToWidget( const TArray<TSharedRef<SWindow>>& WindowsToSearch, TSharedRef<const SWidget> InWidget, FWidgetPath& OutWidgetPath, EVisibility VisibilityFilter = EVisibility::Visible );
 
 	/**
 	 * Searches the given collection of windows to find the Slate window that corresponds to the specified platform window.
@@ -72,7 +72,7 @@ public:
 	 * @param PlatformWindow The platform window to find the Slate window for.
 	 * @return The corresponding Slate window, or nullptr if it was not found.
 	 */
-	static TSharedPtr<SWindow> FindWindowByPlatformWindow( const TArray<TSharedRef<SWindow>>& WindowsToSearch, const TSharedRef<FGenericWindow>& PlatformWindow );
+	static SLATECORE_API TSharedPtr<SWindow> FindWindowByPlatformWindow( const TArray<TSharedRef<SWindow>>& WindowsToSearch, const TSharedRef<FGenericWindow>& PlatformWindow );
 
 	/**
 	 * Removes the specified window from the given collection of windows.
@@ -80,7 +80,7 @@ public:
 	 * @param Windows The collection of windows.
 	 * @param WindowToRemove The window to remove.
 	 */
-	static void RemoveWindowFromList( TArray<TSharedRef<SWindow>>& Windows, const TSharedRef<SWindow>& WindowToRemove );
+	static SLATECORE_API void RemoveWindowFromList( TArray<TSharedRef<SWindow>>& Windows, const TSharedRef<SWindow>& WindowToRemove );
 
 protected:
 
@@ -90,5 +90,5 @@ protected:
 	 *
 	 * @return The top-most window whose children were re-arranged
 	 */
-	static TSharedRef<SWindow> BringToFrontInParent( const TSharedRef<SWindow>& WindowToBringToFront );
+	static SLATECORE_API TSharedRef<SWindow> BringToFrontInParent( const TSharedRef<SWindow>& WindowToBringToFront );
 };

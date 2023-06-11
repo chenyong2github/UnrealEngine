@@ -12,20 +12,20 @@
  * Represents the appearance of a toolbar 
  */
 USTRUCT(BlueprintType)
-struct SLATECORE_API FToolBarStyle : public FSlateWidgetStyle
+struct FToolBarStyle : public FSlateWidgetStyle
 {
 	GENERATED_BODY()
 
-	FToolBarStyle();
+	SLATECORE_API FToolBarStyle();
 
 	virtual ~FToolBarStyle() {}
 
-	virtual void GetResources(TArray<const FSlateBrush*>& OutBrushes) const override;
+	SLATECORE_API virtual void GetResources(TArray<const FSlateBrush*>& OutBrushes) const override;
 
-	static const FName TypeName;
+	static SLATECORE_API const FName TypeName;
 	virtual const FName GetTypeName() const override { return TypeName; };
 
-	static const FToolBarStyle& GetDefault();
+	static SLATECORE_API const FToolBarStyle& GetDefault();
 
 	/** The brush used for the background of the toolbar */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)

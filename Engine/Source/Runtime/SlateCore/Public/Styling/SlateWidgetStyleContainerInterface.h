@@ -11,8 +11,8 @@
 
 class UObject;
 
-UINTERFACE()
-class SLATECORE_API USlateWidgetStyleContainerInterface : public UInterface
+UINTERFACE(MinimalAPI)
+class USlateWidgetStyleContainerInterface : public UInterface
 {
 	GENERATED_UINTERFACE_BODY()
 };

@@ -36,7 +36,7 @@ template <typename T> struct TIsPODType;
  * the corresponding parent widget.
  */
 USTRUCT(BlueprintType)
-struct SLATECORE_API FGeometry
+struct FGeometry
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -45,7 +45,7 @@ public:
 	/**
 	 * Default constructor. Creates a geometry with identity transforms.
 	 */
-	FGeometry();
+	SLATECORE_API FGeometry();
 
 	/**
 	 * Copy constructor.
@@ -56,7 +56,7 @@ public:
 	 * !!! HACK!!! We're keeping members of FGeometry const to prevent mutability without making them private, for backward compatibility.
 	 * But this means the assignment operator no longer works. We implement one ourselves now and force a memcpy.
 	 */
-	FGeometry& operator=(const FGeometry& RHS);
+	SLATECORE_API FGeometry& operator=(const FGeometry& RHS);
 
 	/**
 	 * !!! DEPRECATED FUNCTION !!! Use MakeChild taking a layout transform instead!
@@ -255,7 +255,7 @@ public:
 	 *
 	 * @return					The new child geometry.
 	 */
-	FArrangedWidget MakeChild(const TSharedRef<SWidget>& ChildWidget, const FLayoutGeometry& LayoutGeometry) const;
+	SLATECORE_API FArrangedWidget MakeChild(const TSharedRef<SWidget>& ChildWidget, const FLayoutGeometry& LayoutGeometry) const;
 
 	/**
 	 * Create a child geometry+widget relative to this one with a given local space size and layout transform.
@@ -269,7 +269,7 @@ public:
 	 *
 	 * @return					The new child geometry+widget.
 	 */
-	FArrangedWidget MakeChild(const TSharedRef<SWidget>& ChildWidget, const UE::Slate::FDeprecateVector2DParameter& InLocalSize, const FSlateLayoutTransform& LayoutTransform) const;
+	SLATECORE_API FArrangedWidget MakeChild(const TSharedRef<SWidget>& ChildWidget, const UE::Slate::FDeprecateVector2DParameter& InLocalSize, const FSlateLayoutTransform& LayoutTransform) const;
 
 #if UE_ENABLE_SLATE_VECTOR_DEPRECATION_MECHANISMS
 
@@ -305,7 +305,7 @@ public:
 	 *
 	 * @return				The new child geometry+widget.
 	 */
-	FArrangedWidget MakeChild(const TSharedRef<SWidget>& ChildWidget, const UE::Slate::FDeprecateVector2DParameter& ChildOffset, const UE::Slate::FDeprecateVector2DParameter& InLocalSize, float ChildScale = 1.0f) const;
+	SLATECORE_API FArrangedWidget MakeChild(const TSharedRef<SWidget>& ChildWidget, const UE::Slate::FDeprecateVector2DParameter& ChildOffset, const UE::Slate::FDeprecateVector2DParameter& InLocalSize, float ChildScale = 1.0f) const;
 
 	/**
 	 * Create a paint geometry that represents this geometry.
@@ -493,7 +493,7 @@ public:
 	}
 	
 	/** @return A String representation of this Geometry */
-	FString ToString() const;
+	SLATECORE_API FString ToString() const;
 
 	/** 
 	 * !!! DEPRECATED !!! This legacy function does not account for render transforms.

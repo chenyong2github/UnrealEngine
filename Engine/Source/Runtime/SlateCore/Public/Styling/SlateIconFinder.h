@@ -8,7 +8,7 @@
 struct FSlateBrush;
 
 /** Class used for finding icons within a registered set of styles */
-class SLATECORE_API FSlateIconFinder
+class FSlateIconFinder
 {
 public:
 
@@ -19,7 +19,7 @@ public:
 	 * @param InDefaultName		The default icon name to use, if no specialized icon could be found
 	 * @return An FSlateIcon structure defining the class's icon
 	 */
-	static FSlateIcon FindIconForClass(const UClass* InClass, const FName& InDefaultName = FName());
+	static SLATECORE_API FSlateIcon FindIconForClass(const UClass* InClass, const FName& InDefaultName = FName());
 
 	/**
 	 * Find a custom icon to use for the supplied class, according to the specified base style
@@ -29,7 +29,7 @@ public:
 	 * @param InDefaultName		The default icon name to use, if no specialized icon could be found
 	 * @return An FSlateIcon structure defining the class's icon
 	 */
-	static FSlateIcon FindCustomIconForClass(const UClass* InClass, const TCHAR* StyleBasePath, const FName& InDefaultName = FName());
+	static SLATECORE_API FSlateIcon FindCustomIconForClass(const UClass* InClass, const TCHAR* StyleBasePath, const FName& InDefaultName = FName());
 
 	/**
 	 * Find a slate brush to use for the supplied class's icon
@@ -61,5 +61,5 @@ public:
 	 * @param InIconName 		The fully qualified style name of the icon to find
 	 * @return An FSlateIcon structure
 	 */
-	static FSlateIcon FindIcon(const FName& InIconName);
+	static SLATECORE_API FSlateIcon FindIcon(const FName& InIconName);
 };

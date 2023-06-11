@@ -89,20 +89,20 @@ enum class ETextOverflowPolicy : uint8
  * Represents the appearance of an SCheckBox
  */
 USTRUCT(BlueprintType)
-struct SLATECORE_API FCheckBoxStyle : public FSlateWidgetStyle
+struct FCheckBoxStyle : public FSlateWidgetStyle
 {
 	GENERATED_USTRUCT_BODY()
 
-	FCheckBoxStyle();
+	SLATECORE_API FCheckBoxStyle();
 
 	virtual ~FCheckBoxStyle() {}
 
-	virtual void GetResources( TArray< const FSlateBrush* > & OutBrushes ) const override;
+	SLATECORE_API virtual void GetResources( TArray< const FSlateBrush* > & OutBrushes ) const override;
 
-	static const FName TypeName;
+	static SLATECORE_API const FName TypeName;
 	virtual const FName GetTypeName() const override { return TypeName; };
 
-	static const FCheckBoxStyle& GetDefault();
+	static SLATECORE_API const FCheckBoxStyle& GetDefault();
 
 	/** The visual type of the checkbox */	
 	UPROPERTY( EditAnywhere, BlueprintReadWrite, Category=Appearance )
@@ -246,7 +246,7 @@ struct SLATECORE_API FCheckBoxStyle : public FSlateWidgetStyle
 	/**
 	 * Used to upgrade the deprecated FName sound properties into the new-style FSlateSound properties
 	 */	
-	void PostSerialize(const FArchive& Ar);
+	SLATECORE_API void PostSerialize(const FArchive& Ar);
 #endif
 
 	/**
@@ -310,20 +310,20 @@ enum class ETextTransformPolicy : uint8
  * Represents the appearance of an STextBlock
  */
 USTRUCT(BlueprintType)
-struct SLATECORE_API FTextBlockStyle : public FSlateWidgetStyle
+struct FTextBlockStyle : public FSlateWidgetStyle
 {
 	GENERATED_USTRUCT_BODY()
 
-	FTextBlockStyle();
+	SLATECORE_API FTextBlockStyle();
 
 	virtual ~FTextBlockStyle() {}
 
-	virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
+	SLATECORE_API virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
 
-	static const FName TypeName;
+	static SLATECORE_API const FName TypeName;
 	virtual const FName GetTypeName() const override { return TypeName; };
 
-	static const FTextBlockStyle& GetDefault();
+	static SLATECORE_API const FTextBlockStyle& GetDefault();
 
 	/** Font family and size to be used when displaying this text. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
@@ -430,20 +430,20 @@ struct SLATECORE_API FTextBlockStyle : public FSlateWidgetStyle
  * Represents the appearance of an SButton
  */
 USTRUCT(BlueprintType)
-struct SLATECORE_API FButtonStyle : public FSlateWidgetStyle
+struct FButtonStyle : public FSlateWidgetStyle
 {
 	GENERATED_USTRUCT_BODY()
 
-	FButtonStyle();
+	SLATECORE_API FButtonStyle();
 
 	virtual ~FButtonStyle() {}
 
-	virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
+	SLATECORE_API virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
 
-	static const FName TypeName;
+	static SLATECORE_API const FName TypeName;
 	virtual const FName GetTypeName() const override { return TypeName; };
 
-	static const FButtonStyle& GetDefault();
+	static SLATECORE_API const FButtonStyle& GetDefault();
 
 	/** Button appearance when the button is not hovered or pressed */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
@@ -526,7 +526,7 @@ struct SLATECORE_API FButtonStyle : public FSlateWidgetStyle
 	/**
 	 * Used to upgrade the deprecated FName sound properties into the new-style FSlateSound properties
 	 */	
-	void PostSerialize(const FArchive& Ar);
+	SLATECORE_API void PostSerialize(const FArchive& Ar);
 #endif
 
 	/**
@@ -558,20 +558,20 @@ struct TStructOpsTypeTraits<FButtonStyle> : public TStructOpsTypeTraitsBase2<FBu
  * Represents the appearance of an SComboButton
  */
 USTRUCT(BlueprintType)
-struct SLATECORE_API FComboButtonStyle : public FSlateWidgetStyle
+struct FComboButtonStyle : public FSlateWidgetStyle
 {
 	GENERATED_USTRUCT_BODY()
 
-	FComboButtonStyle();
+	SLATECORE_API FComboButtonStyle();
 
 	virtual ~FComboButtonStyle() {}
 
-	virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
+	SLATECORE_API virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
 
-	static const FName TypeName;
+	static SLATECORE_API const FName TypeName;
 	virtual const FName GetTypeName() const override { return TypeName; };
 
-	static const FComboButtonStyle& GetDefault();
+	static SLATECORE_API const FComboButtonStyle& GetDefault();
 
 	/**
 	 * The style to use for our SButton.
@@ -655,20 +655,20 @@ struct SLATECORE_API FComboButtonStyle : public FSlateWidgetStyle
  * Represents the appearance of an SComboBox
  */
 USTRUCT(BlueprintType)
-struct SLATECORE_API FComboBoxStyle : public FSlateWidgetStyle
+struct FComboBoxStyle : public FSlateWidgetStyle
 {
 	GENERATED_USTRUCT_BODY()
 
-	FComboBoxStyle();
+	SLATECORE_API FComboBoxStyle();
 
 	virtual ~FComboBoxStyle() {}
 
-	virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
+	SLATECORE_API virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
 
-	static const FName TypeName;
+	static SLATECORE_API const FName TypeName;
 	virtual const FName GetTypeName() const override { return TypeName; };
 
-	static const FComboBoxStyle& GetDefault();
+	static SLATECORE_API const FComboBoxStyle& GetDefault();
 
 	/**
 	 * The style to use for our SComboButton
@@ -716,7 +716,7 @@ struct SLATECORE_API FComboBoxStyle : public FSlateWidgetStyle
 	/**
 	 * Used to upgrade the deprecated FName sound properties into the new-style FSlateSound properties
 	 */	
-	void PostSerialize(const FArchive& Ar);
+	SLATECORE_API void PostSerialize(const FArchive& Ar);
 #endif
 
 	/**
@@ -745,20 +745,20 @@ struct TStructOpsTypeTraits<FComboBoxStyle> : public TStructOpsTypeTraitsBase2<F
  * Represents the appearance of an SHyperlink
  */
 USTRUCT(BlueprintType)
-struct SLATECORE_API FHyperlinkStyle : public FSlateWidgetStyle
+struct FHyperlinkStyle : public FSlateWidgetStyle
 {
 	GENERATED_USTRUCT_BODY()
 
-	FHyperlinkStyle();
+	SLATECORE_API FHyperlinkStyle();
 
 	virtual ~FHyperlinkStyle() {}
 
-	virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
+	SLATECORE_API virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
 
-	static const FName TypeName;
+	static SLATECORE_API const FName TypeName;
 	virtual const FName GetTypeName() const override { return TypeName; };
 
-	static const FHyperlinkStyle& GetDefault();
+	static SLATECORE_API const FHyperlinkStyle& GetDefault();
 
 	/** Underline style */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
@@ -780,20 +780,20 @@ struct SLATECORE_API FHyperlinkStyle : public FSlateWidgetStyle
  * Represents the appearance of an SEditableText
  */
 USTRUCT(BlueprintType)
-struct SLATECORE_API FEditableTextStyle : public FSlateWidgetStyle
+struct FEditableTextStyle : public FSlateWidgetStyle
 {
 	GENERATED_USTRUCT_BODY()
 
-	FEditableTextStyle();
+	SLATECORE_API FEditableTextStyle();
 
 	virtual ~FEditableTextStyle() {}
 
-	virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
+	SLATECORE_API virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
 
-	static const FName TypeName;
+	static SLATECORE_API const FName TypeName;
 	virtual const FName GetTypeName() const override { return TypeName; }
 
-	static const FEditableTextStyle& GetDefault();
+	static SLATECORE_API const FEditableTextStyle& GetDefault();
 
 	/** Font family and size to be used when displaying this text. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
@@ -841,20 +841,20 @@ struct SLATECORE_API FEditableTextStyle : public FSlateWidgetStyle
  * Represents the appearance of an SScrollBar
  */
 USTRUCT(BlueprintType)
-struct SLATECORE_API FScrollBarStyle : public FSlateWidgetStyle
+struct FScrollBarStyle : public FSlateWidgetStyle
 {
 	GENERATED_USTRUCT_BODY()
 
-	FScrollBarStyle();
+	SLATECORE_API FScrollBarStyle();
 
 	virtual ~FScrollBarStyle() {}
 
-	virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
+	SLATECORE_API virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
 
-	static const FName TypeName;
+	static SLATECORE_API const FName TypeName;
 	virtual const FName GetTypeName() const override { return TypeName; };
 
-	static const FScrollBarStyle& GetDefault();
+	static SLATECORE_API const FScrollBarStyle& GetDefault();
 
 	/** Background image to use when the scrollbar is oriented horizontally */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
@@ -928,25 +928,25 @@ struct SLATECORE_API FScrollBarStyle : public FSlateWidgetStyle
  * Represents the appearance of an SEditableTextBox
  */
 USTRUCT(BlueprintType)
-struct SLATECORE_API FEditableTextBoxStyle : public FSlateWidgetStyle
+struct FEditableTextBoxStyle : public FSlateWidgetStyle
 {
 	GENERATED_USTRUCT_BODY()
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	SLATECORE_API PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FEditableTextBoxStyle();
 	FEditableTextBoxStyle(const FEditableTextBoxStyle&) = default;
 
 	FEditableTextBoxStyle& operator=(const FEditableTextBoxStyle&) = default;
 
 	virtual ~FEditableTextBoxStyle() = default;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	SLATECORE_API PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
 
-	static const FName TypeName;
+	static SLATECORE_API const FName TypeName;
 	virtual const FName GetTypeName() const override { return TypeName; };
 
-	static const FEditableTextBoxStyle& GetDefault();
+	static SLATECORE_API const FEditableTextBoxStyle& GetDefault();
 
 	/** Border background image when the box is not hovered or focused */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
@@ -1045,20 +1045,20 @@ struct SLATECORE_API FEditableTextBoxStyle : public FSlateWidgetStyle
  * Represents the appearance of an SInlineEditableTextBlock
  */
 USTRUCT(BlueprintType)
-struct SLATECORE_API FInlineEditableTextBlockStyle : public FSlateWidgetStyle
+struct FInlineEditableTextBlockStyle : public FSlateWidgetStyle
 {
 	GENERATED_USTRUCT_BODY()
 
-	FInlineEditableTextBlockStyle();
+	SLATECORE_API FInlineEditableTextBlockStyle();
 
 	virtual ~FInlineEditableTextBlockStyle() {}
 
-	virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
+	SLATECORE_API virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
 
-	static const FName TypeName;
+	static SLATECORE_API const FName TypeName;
 	virtual const FName GetTypeName() const override { return TypeName; };
 
-	static const FInlineEditableTextBlockStyle& GetDefault();
+	static SLATECORE_API const FInlineEditableTextBlockStyle& GetDefault();
 
 	/** The style of the editable text box, which dictates the font, color, and shadow options. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
@@ -1076,20 +1076,20 @@ struct SLATECORE_API FInlineEditableTextBlockStyle : public FSlateWidgetStyle
  * Represents the appearance of an SProgressBar
  */
 USTRUCT(BlueprintType)
-struct SLATECORE_API FProgressBarStyle : public FSlateWidgetStyle
+struct FProgressBarStyle : public FSlateWidgetStyle
 {
 	GENERATED_USTRUCT_BODY()
 
-	FProgressBarStyle();
+	SLATECORE_API FProgressBarStyle();
 
 	virtual ~FProgressBarStyle() {}
 
-	virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
+	SLATECORE_API virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
 
-	static const FName TypeName;
+	static SLATECORE_API const FName TypeName;
 	virtual const FName GetTypeName() const override { return TypeName; };
 
-	static const FProgressBarStyle& GetDefault();
+	static SLATECORE_API const FProgressBarStyle& GetDefault();
 
 	/** Background image to use for the progress bar */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
@@ -1129,20 +1129,20 @@ struct SLATECORE_API FProgressBarStyle : public FSlateWidgetStyle
  * Represents the appearance of an SExpandableArea
  */
 USTRUCT()
-struct SLATECORE_API FExpandableAreaStyle : public FSlateWidgetStyle
+struct FExpandableAreaStyle : public FSlateWidgetStyle
 {
 	GENERATED_USTRUCT_BODY()
 
-	FExpandableAreaStyle();
+	SLATECORE_API FExpandableAreaStyle();
 
 	virtual ~FExpandableAreaStyle() {}
 
-	virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
+	SLATECORE_API virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
 
-	static const FName TypeName;
+	static SLATECORE_API const FName TypeName;
 	virtual const FName GetTypeName() const override { return TypeName; };
 
-	static const FExpandableAreaStyle& GetDefault();
+	static SLATECORE_API const FExpandableAreaStyle& GetDefault();
 
 	/** Image to use when the area is collapsed */
 	UPROPERTY(EditAnywhere, Category=Appearance)
@@ -1175,25 +1175,25 @@ struct SLATECORE_API FExpandableAreaStyle : public FSlateWidgetStyle
  * Represents the appearance of an SSearchBox
  */
 USTRUCT()
-struct SLATECORE_API FSearchBoxStyle : public FSlateWidgetStyle
+struct FSearchBoxStyle : public FSlateWidgetStyle
 {
 	GENERATED_USTRUCT_BODY()
 
-	FSearchBoxStyle();
+	SLATECORE_API FSearchBoxStyle();
 
 	virtual ~FSearchBoxStyle() {}
 
-	virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
+	SLATECORE_API virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
 
-	static const FName TypeName;
+	static SLATECORE_API const FName TypeName;
 	virtual const FName GetTypeName() const override { return TypeName; };
 
-	static const FSearchBoxStyle& GetDefault();
+	static SLATECORE_API const FSearchBoxStyle& GetDefault();
 
 	/** Style to use for the text box part of the search box */
 	UPROPERTY(EditAnywhere, Category=Appearance)
 	FEditableTextBoxStyle TextBoxStyle;
-	FSearchBoxStyle& SetTextBoxStyle( const FEditableTextBoxStyle& InTextBoxStyle );
+	SLATECORE_API FSearchBoxStyle& SetTextBoxStyle( const FEditableTextBoxStyle& InTextBoxStyle );
 
 	/** Font to use for the text box part of the search box when a search term is entered*/
 	UPROPERTY(EditAnywhere, Category = Appearance)
@@ -1228,7 +1228,7 @@ struct SLATECORE_API FSearchBoxStyle : public FSlateWidgetStyle
 	/** If true, buttons appear to the left of the search text */
 	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage="Use LeftAlignSearchResultButtons and LeftAlignGlassImageAndClearButton instead"))
 	bool bLeftAlignButtons_DEPRECATED;
-	FSearchBoxStyle& SetLeftAlignButtons(bool bInLeftAlignButtons);
+	SLATECORE_API FSearchBoxStyle& SetLeftAlignButtons(bool bInLeftAlignButtons);
 
 	/** If true, search result buttons appear to the left of the search text */
 	UPROPERTY(EditAnywhere, Category = Appearance)
@@ -1246,20 +1246,20 @@ struct SLATECORE_API FSearchBoxStyle : public FSlateWidgetStyle
  * Represents the appearance of an SSlider
  */
 USTRUCT(BlueprintType)
-struct SLATECORE_API FSliderStyle : public FSlateWidgetStyle
+struct FSliderStyle : public FSlateWidgetStyle
 {
 	GENERATED_USTRUCT_BODY()
 
-	FSliderStyle();
+	SLATECORE_API FSliderStyle();
 
 	virtual ~FSliderStyle() {}
 
-	virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
+	SLATECORE_API virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
 
-	static const FName TypeName;
+	static SLATECORE_API const FName TypeName;
 	virtual const FName GetTypeName() const override { return TypeName; };
 
-	static const FSliderStyle& GetDefault();
+	static SLATECORE_API const FSliderStyle& GetDefault();
 
 	/** Image to use when the slider bar is in its normal state */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
@@ -1315,20 +1315,20 @@ struct SLATECORE_API FSliderStyle : public FSlateWidgetStyle
  * Represents the appearance of an SVolumeControl
  */
 USTRUCT()
-struct SLATECORE_API FVolumeControlStyle : public FSlateWidgetStyle
+struct FVolumeControlStyle : public FSlateWidgetStyle
 {
 	GENERATED_USTRUCT_BODY()
 
-	FVolumeControlStyle();
+	SLATECORE_API FVolumeControlStyle();
 
 	virtual ~FVolumeControlStyle() {}
 
-	virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
+	SLATECORE_API virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
 
-	static const FName TypeName;
+	static SLATECORE_API const FName TypeName;
 	virtual const FName GetTypeName() const override { return TypeName; };
 
-	static const FVolumeControlStyle& GetDefault();
+	static SLATECORE_API const FVolumeControlStyle& GetDefault();
 
 	/** The style of the volume control slider */
 	UPROPERTY(EditAnywhere, Category=Appearance)
@@ -1365,20 +1365,20 @@ struct SLATECORE_API FVolumeControlStyle : public FSlateWidgetStyle
  * Represents the appearance of an inline image used by rich text
  */
 USTRUCT()
-struct SLATECORE_API FInlineTextImageStyle : public FSlateWidgetStyle
+struct FInlineTextImageStyle : public FSlateWidgetStyle
 {
 	GENERATED_USTRUCT_BODY()
 
-	FInlineTextImageStyle();
+	SLATECORE_API FInlineTextImageStyle();
 
 	virtual ~FInlineTextImageStyle() {}
 
-	virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
+	SLATECORE_API virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
 
-	static const FName TypeName;
+	static SLATECORE_API const FName TypeName;
 	virtual const FName GetTypeName() const override { return TypeName; };
 
-	static const FInlineTextImageStyle& GetDefault();
+	static SLATECORE_API const FInlineTextImageStyle& GetDefault();
 
 	/** Image to use when the slider thumb is in its normal state */
 	UPROPERTY(EditAnywhere, Category=Appearance)
@@ -1395,20 +1395,20 @@ struct SLATECORE_API FInlineTextImageStyle : public FSlateWidgetStyle
  * Represents the appearance of an SSpinBox
  */
 USTRUCT(BlueprintType)
-struct SLATECORE_API FSpinBoxStyle : public FSlateWidgetStyle
+struct FSpinBoxStyle : public FSlateWidgetStyle
 {
 	GENERATED_USTRUCT_BODY()
 
-	FSpinBoxStyle();
+	SLATECORE_API FSpinBoxStyle();
 
 	virtual ~FSpinBoxStyle() {}
 
-	virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
+	SLATECORE_API virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
 
-	static const FName TypeName;
+	static SLATECORE_API const FName TypeName;
 	virtual const FName GetTypeName() const override { return TypeName; };
 
-	static const FSpinBoxStyle& GetDefault();
+	static SLATECORE_API const FSpinBoxStyle& GetDefault();
 
 	/** Brush used to draw the background of the spinbox */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
@@ -1481,20 +1481,20 @@ struct SLATECORE_API FSpinBoxStyle : public FSlateWidgetStyle
  * Represents the appearance of an SSplitter
  */
 USTRUCT(BlueprintType)
-struct SLATECORE_API FSplitterStyle : public FSlateWidgetStyle
+struct FSplitterStyle : public FSlateWidgetStyle
 {
 	GENERATED_USTRUCT_BODY()
 
-	FSplitterStyle();
+	SLATECORE_API FSplitterStyle();
 
 	virtual ~FSplitterStyle() {}
 
-	virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
+	SLATECORE_API virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
 
-	static const FName TypeName;
+	static SLATECORE_API const FName TypeName;
 	virtual const FName GetTypeName() const override { return TypeName; };
 
-	static const FSplitterStyle& GetDefault();
+	static SLATECORE_API const FSplitterStyle& GetDefault();
 
 	/** Brush used to draw the handle in its normal state */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
@@ -1512,20 +1512,20 @@ struct SLATECORE_API FSplitterStyle : public FSlateWidgetStyle
  */
 
 USTRUCT(BlueprintType)
-struct SLATECORE_API FTableViewStyle : public FSlateWidgetStyle
+struct FTableViewStyle : public FSlateWidgetStyle
 {
 	GENERATED_USTRUCT_BODY()
 
-	FTableViewStyle();
+	SLATECORE_API FTableViewStyle();
 
 	virtual ~FTableViewStyle() {}
 
-	virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
+	SLATECORE_API virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
 
-	static const FName TypeName;
+	static SLATECORE_API const FName TypeName;
 	virtual const FName GetTypeName() const override { return TypeName; };
 
-	static const FTableViewStyle& GetDefault();
+	static SLATECORE_API const FTableViewStyle& GetDefault();
 
 	/** Brush used when a selected row is active */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
@@ -1547,20 +1547,20 @@ struct SLATECORE_API FTableViewStyle : public FSlateWidgetStyle
  * Represents the appearance of an STableRow
  */
 USTRUCT(BlueprintType)
-struct SLATECORE_API FTableRowStyle : public FSlateWidgetStyle
+struct FTableRowStyle : public FSlateWidgetStyle
 {
 	GENERATED_USTRUCT_BODY()
 
-	FTableRowStyle();
+	SLATECORE_API FTableRowStyle();
 
 	virtual ~FTableRowStyle() {}
 
-	virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
+	SLATECORE_API virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
 
-	static const FName TypeName;
+	static SLATECORE_API const FName TypeName;
 	virtual const FName GetTypeName() const override { return TypeName; };
 
-	static const FTableRowStyle& GetDefault();
+	static SLATECORE_API const FTableRowStyle& GetDefault();
 
 	/** Brush used as a selector when a row is focused */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
@@ -1689,20 +1689,20 @@ struct SLATECORE_API FTableRowStyle : public FSlateWidgetStyle
  * Represents the appearance of an STableColumnHeader
  */
 USTRUCT()
-struct SLATECORE_API FTableColumnHeaderStyle : public FSlateWidgetStyle
+struct FTableColumnHeaderStyle : public FSlateWidgetStyle
 {
 	GENERATED_USTRUCT_BODY()
 
-	FTableColumnHeaderStyle();
+	SLATECORE_API FTableColumnHeaderStyle();
 
 	virtual ~FTableColumnHeaderStyle() {}
 
-	virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
+	SLATECORE_API virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
 
-	static const FName TypeName;
+	static SLATECORE_API const FName TypeName;
 	virtual const FName GetTypeName() const override { return TypeName; };
 
-	static const FTableColumnHeaderStyle& GetDefault();
+	static SLATECORE_API const FTableColumnHeaderStyle& GetDefault();
 
 	/** Image used when a column is primarily sorted in ascending order */
 	UPROPERTY(EditAnywhere, Category=Appearance)
@@ -1755,20 +1755,20 @@ struct SLATECORE_API FTableColumnHeaderStyle : public FSlateWidgetStyle
  * Represents the appearance of an SHeaderRow
  */
 USTRUCT()
-struct SLATECORE_API FHeaderRowStyle : public FSlateWidgetStyle
+struct FHeaderRowStyle : public FSlateWidgetStyle
 {
 	GENERATED_USTRUCT_BODY()
 
-	FHeaderRowStyle();
+	SLATECORE_API FHeaderRowStyle();
 
 	virtual ~FHeaderRowStyle() {}
 
-	virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
+	SLATECORE_API virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
 
-	static const FName TypeName;
+	static SLATECORE_API const FName TypeName;
 	virtual const FName GetTypeName() const override { return TypeName; };
 
-	static const FHeaderRowStyle& GetDefault();
+	static SLATECORE_API const FHeaderRowStyle& GetDefault();
 
 	/** Style of the normal header row columns */
 	UPROPERTY(EditAnywhere, Category=Appearance)
@@ -1817,20 +1817,20 @@ struct SLATECORE_API FHeaderRowStyle : public FSlateWidgetStyle
  * Represents the appearance of an SDockTab
  */
 USTRUCT()
-struct SLATECORE_API FDockTabStyle : public FSlateWidgetStyle
+struct FDockTabStyle : public FSlateWidgetStyle
 {
 	GENERATED_USTRUCT_BODY()
 
-	FDockTabStyle();
+	SLATECORE_API FDockTabStyle();
 
 	virtual ~FDockTabStyle() {}
 
-	virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
+	SLATECORE_API virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
 
-	static const FName TypeName;
+	static SLATECORE_API const FName TypeName;
 	virtual const FName GetTypeName() const override { return TypeName; };
 
-	static const FDockTabStyle& GetDefault();
+	static SLATECORE_API const FDockTabStyle& GetDefault();
 
 	/** Style used for the close button */
 	UPROPERTY(EditAnywhere, Category=Appearance)
@@ -1929,20 +1929,20 @@ struct SLATECORE_API FDockTabStyle : public FSlateWidgetStyle
  * Represents the appearance of an SScrollBox
  */
 USTRUCT(BlueprintType)
-struct SLATECORE_API FScrollBoxStyle : public FSlateWidgetStyle
+struct FScrollBoxStyle : public FSlateWidgetStyle
 {
 	GENERATED_USTRUCT_BODY()
 
-	FScrollBoxStyle();
+	SLATECORE_API FScrollBoxStyle();
 
 	virtual ~FScrollBoxStyle() {}
 
-	virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
+	SLATECORE_API virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
 
-	static const FName TypeName;
+	static SLATECORE_API const FName TypeName;
 	virtual const FName GetTypeName() const override { return TypeName; };
 
-	static const FScrollBoxStyle& GetDefault();
+	static SLATECORE_API const FScrollBoxStyle& GetDefault();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
 	float BarThickness;
@@ -2012,20 +2012,20 @@ struct SLATECORE_API FScrollBoxStyle : public FSlateWidgetStyle
 * Represents the appearance of an FScrollBorderStyle
 */
 USTRUCT(BlueprintType)
-struct SLATECORE_API FScrollBorderStyle : public FSlateWidgetStyle
+struct FScrollBorderStyle : public FSlateWidgetStyle
 {
 	GENERATED_USTRUCT_BODY()
 
-	FScrollBorderStyle();
+	SLATECORE_API FScrollBorderStyle();
 
 	virtual ~FScrollBorderStyle() {}
 
-	virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
+	SLATECORE_API virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
 
-	static const FName TypeName;
+	static SLATECORE_API const FName TypeName;
 	virtual const FName GetTypeName() const override { return TypeName; };
 
-	static const FScrollBorderStyle& GetDefault();
+	static SLATECORE_API const FScrollBorderStyle& GetDefault();
 
 	/** Brush used to draw the top shadow of a scrollborder */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
@@ -2043,20 +2043,20 @@ struct SLATECORE_API FScrollBorderStyle : public FSlateWidgetStyle
  * Represents the appearance of an SWindow
  */
 USTRUCT(BlueprintType)
-struct SLATECORE_API FWindowStyle : public FSlateWidgetStyle
+struct FWindowStyle : public FSlateWidgetStyle
 {
 	GENERATED_USTRUCT_BODY()
 
-	FWindowStyle();
+	SLATECORE_API FWindowStyle();
 
 	virtual ~FWindowStyle() {}
 
-	virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
+	SLATECORE_API virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
 
-	static const FName TypeName;
+	static SLATECORE_API const FName TypeName;
 	virtual const FName GetTypeName() const override { return TypeName; };
 
-	static const FWindowStyle& GetDefault();
+	static SLATECORE_API const FWindowStyle& GetDefault();
 
 	/** Style used to draw the window minimize button */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
@@ -2146,7 +2146,7 @@ struct SLATECORE_API FWindowStyle : public FSlateWidgetStyle
 };
 
 
-class SLATECORE_API FInvalidatableBrushAttribute
+class FInvalidatableBrushAttribute
 {
 public:
 	FInvalidatableBrushAttribute() { }
@@ -2163,7 +2163,7 @@ public:
 
 	const FSlateBrush* Get() const { return Image.Get(); }
 	TAttribute< const FSlateBrush* > GetImage() const { return Image; }
-	void SetImage(SWidget& ThisWidget, const TAttribute< const FSlateBrush* >& InImage);
+	SLATECORE_API void SetImage(SWidget& ThisWidget, const TAttribute< const FSlateBrush* >& InImage);
 
 private:
 	/** The slate brush to draw for the image, or a bound delegate to a brush. */

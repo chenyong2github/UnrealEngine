@@ -16,7 +16,7 @@ class SWindow;
  * a drag drop operation which keeps a decorator window (optionally)
  * Implement derived types with DRAG_DROP_OPERATOR_TYPE (see below)
  */
-class SLATECORE_API FDragDropOperation
+class FDragDropOperation
 	: public TSharedFromThis<FDragDropOperation>
 {
 public:
@@ -24,12 +24,12 @@ public:
 	/**
 	 * Default constructor.
 	 */
-	FDragDropOperation();
+	SLATECORE_API FDragDropOperation();
 
 	/**
 	 * Destructor.
 	 */
-	virtual ~FDragDropOperation( );
+	SLATECORE_API virtual ~FDragDropOperation( );
 
 	/** Check if this drag and drop operation can cast safely to the specified template type */
 	template<class TType> bool IsOfType() const 
@@ -51,17 +51,17 @@ public:
 	 * @param bDropWasHandled   true when the drop was handled by some widget; false otherwise
 	 * @param MouseEvent        The mouse event which caused the on drop to be called.
 	 */
-	virtual void OnDrop( bool bDropWasHandled, const FPointerEvent& MouseEvent );
+	SLATECORE_API virtual void OnDrop( bool bDropWasHandled, const FPointerEvent& MouseEvent );
 
 	/** 
 	 * Called when the mouse was moved during a drag and drop operation
 	 *
 	 * @param DragDropEvent    The event that describes this drag drop operation.
 	 */
-	virtual void OnDragged( const class FDragDropEvent& DragDropEvent );
+	SLATECORE_API virtual void OnDragged( const class FDragDropEvent& DragDropEvent );
 	
 	/** Allows drag/drop operations to override the current cursor */
-	virtual FCursorReply OnCursorQuery();
+	SLATECORE_API virtual FCursorReply OnCursorQuery();
 
 	/**
 	 * Gets the widget that will serve as the decorator unless overridden. 
@@ -73,7 +73,7 @@ public:
 	virtual FVector2D GetDecoratorPosition() const { return FVector2D(0, 0); }
 	
 	/** Alters the visibility of the window */
-	virtual void SetDecoratorVisibility(bool bVisible);
+	SLATECORE_API virtual void SetDecoratorVisibility(bool bVisible);
 
 	/** Is this drag Drop operation going to interact with applications outside of Slate */
 	virtual bool IsExternalOperation() const { return false; }
@@ -86,7 +86,7 @@ public:
 	 * control can give temporary feedback, for example - a slashed circle telling 
 	 * the user 'this can't be dropped here'.
 	 */
-	void SetCursorOverride( TOptional<EMouseCursor::Type> CursorType );
+	SLATECORE_API void SetCursorOverride( TOptional<EMouseCursor::Type> CursorType );
 
 	/**
 	 * Checks whether this drag and drop operation can cast safely to the specified type.
@@ -100,17 +100,17 @@ protected:
 	/**
 	 * Constructs the window and widget if applicable.
 	 */
-	virtual void Construct();
+	SLATECORE_API virtual void Construct();
 
 	/**
 	 * Creates a window for the cursor decorator.
 	 */
-	void CreateCursorDecoratorWindow();
+	SLATECORE_API void CreateCursorDecoratorWindow();
 
 	/**
 	 * Destroys the cursor decorator window.
 	 */
-	void DestroyCursorDecoratorWindow();
+	SLATECORE_API void DestroyCursorDecoratorWindow();
 
 	virtual TSharedPtr<FDragDropOperation> ConvertTo(const FString& TypeId)
 	{
@@ -213,7 +213,7 @@ DECLARE_DELEGATE_OneParam( FOnDragDropUpdate,
  * An external drag and drop operation that originates outside of slate.
  * E.g. an OLE drag and drop.
  */
-class SLATECORE_API FExternalDragOperation : public FDragDropOperation
+class FExternalDragOperation : public FDragDropOperation
 {
 private:
 	/** A private constructor to ensure that the appropriate "New" factory method is used below */
@@ -225,11 +225,11 @@ public:
 	DRAG_DROP_OPERATOR_TYPE(FExternalDragOperation, FDragDropOperation)
 
 	/** Creates a new external text drag operation */
-	static TSharedRef<FExternalDragOperation> NewText( FString InText );
+	static SLATECORE_API TSharedRef<FExternalDragOperation> NewText( FString InText );
 	/** Creates a new external file drag operation */
-	static TSharedRef<FExternalDragOperation> NewFiles( TArray<FString> InFileNames );
+	static SLATECORE_API TSharedRef<FExternalDragOperation> NewFiles( TArray<FString> InFileNames );
 	/** Creates a new external combined drag operation */
-	static TSharedRef<FExternalDragOperation> NewOperation( FString InText, TArray<FString> InFileNames );
+	static SLATECORE_API TSharedRef<FExternalDragOperation> NewOperation( FString InText, TArray<FString> InFileNames );
 
 	/** @return true if this is a text drag operation */
 	bool HasText() const {return !!(DragType & DragText);}
@@ -254,7 +254,7 @@ private:
 };
 
 
-class SLATECORE_API FGameDragDropOperation : public FDragDropOperation
+class FGameDragDropOperation : public FDragDropOperation
 {
 public:
 	DRAG_DROP_OPERATOR_TYPE(FGameDragDropOperation, FDragDropOperation)
@@ -262,9 +262,9 @@ public:
 	/**
 	* Default constructor.
 	*/
-	FGameDragDropOperation();
+	SLATECORE_API FGameDragDropOperation();
 
-	virtual FVector2D GetDecoratorPosition() const override;
+	SLATECORE_API virtual FVector2D GetDecoratorPosition() const override;
 
 protected:
 	/** The absolute position of the decorator. */

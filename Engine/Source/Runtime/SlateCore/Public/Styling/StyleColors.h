@@ -141,8 +141,8 @@ struct FStyleTheme
 	}
 };
 
-UCLASS(Config=EditorSettings)
-class SLATECORE_API USlateThemeManager : public UObject 
+UCLASS(Config=EditorSettings, MinimalAPI)
+class USlateThemeManager : public UObject 
 {
 	GENERATED_BODY()
 public:
@@ -161,12 +161,12 @@ public:
 		return CurrentThemeId; 
 	}
 
-	USlateThemeManager();
+	SLATECORE_API USlateThemeManager();
 
 	/**
 	 * Initializes default colors
 	 */
-	void InitalizeDefaults();
+	SLATECORE_API void InitalizeDefaults();
 
 	/**
 	 * Sets a default color to be used as a fallback if no theme is loaded
@@ -197,52 +197,52 @@ public:
 	/**
 	 * Load all known themes from engine, project, and user directories
 	 */
-	void LoadThemes();
+	SLATECORE_API void LoadThemes();
 
 	/**
 	 * Saves the current theme
 	 * 
 	 * @param The filename to save the current theme as
 	 */
-	void SaveCurrentThemeAs(const FString& Filename);
+	SLATECORE_API void SaveCurrentThemeAs(const FString& Filename);
 
 	/**
 	 * Applies a theme as the active theme
 	 */
-	void ApplyTheme(FGuid ThemeId);
+	SLATECORE_API void ApplyTheme(FGuid ThemeId);
 
 	/**
 	 * Applies the default dark theme as the active theme
 	*/
-	void ApplyDefaultTheme();
+	SLATECORE_API void ApplyDefaultTheme();
 
 	/**
 	* Returns true if the active theme is an engine-specific theme
 	*/
-	bool IsEngineTheme() const;
+	SLATECORE_API bool IsEngineTheme() const;
 
 	/**
 	* Returns true if the active theme is a project-specific theme
 	*/
-	bool IsProjectTheme() const;
+	SLATECORE_API bool IsProjectTheme() const;
 
 	/**
 	 * Removes a theme. 
 	 * Note: The active theme cannot be removed and there must always be an active theme.  Apply a new theme first before removing the current theme.
 	 */
-	void RemoveTheme(FGuid ThemeId);
+	SLATECORE_API void RemoveTheme(FGuid ThemeId);
 
 	/**
 	 * Duplicates the active theme
 	 * 
 	 * @return the id of the new theme
 	 */
-	FGuid DuplicateActiveTheme();
+	SLATECORE_API FGuid DuplicateActiveTheme();
 
 	/**
 	 * Sets the display name for the current theme
 	 */
-	void SetCurrentThemeDisplayName(FText NewDisplayName);
+	SLATECORE_API void SetCurrentThemeDisplayName(FText NewDisplayName);
 
 	/**
 	 * @return the current theme
@@ -257,32 +257,32 @@ public:
 	/**
 	 * Resets an active color to the default color for the curerent theme
 	 */
-	void ResetActiveColorToDefault(EStyleColor Color);
+	SLATECORE_API void ResetActiveColorToDefault(EStyleColor Color);
 
 	/**
 	 * Validate that there is an active loaded theme
 	 */
-	void ValidateActiveTheme();
+	SLATECORE_API void ValidateActiveTheme();
 
 	/**
 	 * @return the engine theme dir.  Engine themes are project agnostic
 	 */
-	FString GetEngineThemeDir() const;
+	SLATECORE_API FString GetEngineThemeDir() const;
 
 	/**
 	 * @return the project theme dir. Project themes can override engine themes
 	 */
-	FString GetProjectThemeDir() const;
+	SLATECORE_API FString GetProjectThemeDir() const;
 
 	/**
 	 * @return the user theme dir. Themes in this dir are per-user and override engine and project themes
 	 */
-	FString GetUserThemeDir() const;
+	SLATECORE_API FString GetUserThemeDir() const;
 		
 	/**
 	 * @return true if the ThemeID already exists in the theme dropdown. 
 	 */
-	bool DoesThemeExist(const FGuid& ThemeID) const;
+	SLATECORE_API bool DoesThemeExist(const FGuid& ThemeID) const;
 
 	DECLARE_EVENT_OneParam(USlateThemeManager, FThemeChangedEvent, FGuid);
 	/**
@@ -295,10 +295,10 @@ public:
 private:
 
 	FStyleTheme& GetMutableCurrentTheme() { return *Themes.FindByKey(CurrentThemeId); }
-	void LoadThemesFromDirectory(const FString& Directory);
-	bool ReadTheme(const FString& ThemeData, FStyleTheme& OutTheme);
-	void EnsureValidCurrentTheme();
-	void LoadThemeColors(FStyleTheme& Theme);
+	SLATECORE_API void LoadThemesFromDirectory(const FString& Directory);
+	SLATECORE_API bool ReadTheme(const FString& ThemeData, FStyleTheme& OutTheme);
+	SLATECORE_API void EnsureValidCurrentTheme();
+	SLATECORE_API void LoadThemeColors(FStyleTheme& Theme);
 
 private:
 	FStyleTheme DefaultDarkTheme;
@@ -330,58 +330,58 @@ private:
  * Common/themeable colors used by all styles
  * Please avoid adding new generic colors to this list without discussion first
  */
-struct SLATECORE_API FStyleColors
+struct FStyleColors
 {
-	static const FSlateColor Transparent;
-	static const FSlateColor Black;
-	static const FSlateColor Title;
-	static const FSlateColor WindowBorder;
-	static const FSlateColor Foldout;
-	static const FSlateColor Input;
-	static const FSlateColor InputOutline;
-	static const FSlateColor Recessed;
-	static const FSlateColor Background;
-	static const FSlateColor Panel;
-	static const FSlateColor Header;
-	static const FSlateColor Dropdown;
-	static const FSlateColor DropdownOutline;
-	static const FSlateColor Hover;
-	static const FSlateColor Hover2;
-	static const FSlateColor White;
-	static const FSlateColor White25;
-	static const FSlateColor Highlight;
+	static SLATECORE_API const FSlateColor Transparent;
+	static SLATECORE_API const FSlateColor Black;
+	static SLATECORE_API const FSlateColor Title;
+	static SLATECORE_API const FSlateColor WindowBorder;
+	static SLATECORE_API const FSlateColor Foldout;
+	static SLATECORE_API const FSlateColor Input;
+	static SLATECORE_API const FSlateColor InputOutline;
+	static SLATECORE_API const FSlateColor Recessed;
+	static SLATECORE_API const FSlateColor Background;
+	static SLATECORE_API const FSlateColor Panel;
+	static SLATECORE_API const FSlateColor Header;
+	static SLATECORE_API const FSlateColor Dropdown;
+	static SLATECORE_API const FSlateColor DropdownOutline;
+	static SLATECORE_API const FSlateColor Hover;
+	static SLATECORE_API const FSlateColor Hover2;
+	static SLATECORE_API const FSlateColor White;
+	static SLATECORE_API const FSlateColor White25;
+	static SLATECORE_API const FSlateColor Highlight;
 
-	static const FSlateColor Primary;
-	static const FSlateColor PrimaryHover;
-	static const FSlateColor PrimaryPress;
-	static const FSlateColor Secondary;
+	static SLATECORE_API const FSlateColor Primary;
+	static SLATECORE_API const FSlateColor PrimaryHover;
+	static SLATECORE_API const FSlateColor PrimaryPress;
+	static SLATECORE_API const FSlateColor Secondary;
 
-	static const FSlateColor Foreground;
-	static const FSlateColor ForegroundHover;
-	static const FSlateColor ForegroundInverted;
-	static const FSlateColor ForegroundHeader;
+	static SLATECORE_API const FSlateColor Foreground;
+	static SLATECORE_API const FSlateColor ForegroundHover;
+	static SLATECORE_API const FSlateColor ForegroundInverted;
+	static SLATECORE_API const FSlateColor ForegroundHeader;
 
-	static const FSlateColor Select;
-	static const FSlateColor SelectInactive;
-	static const FSlateColor SelectParent;
-	static const FSlateColor SelectHover;
+	static SLATECORE_API const FSlateColor Select;
+	static SLATECORE_API const FSlateColor SelectInactive;
+	static SLATECORE_API const FSlateColor SelectParent;
+	static SLATECORE_API const FSlateColor SelectHover;
 
-	static const FSlateColor Notifications;
+	static SLATECORE_API const FSlateColor Notifications;
 
-	static const FSlateColor AccentBlue;
-	static const FSlateColor AccentPurple;
-	static const FSlateColor AccentPink;
-	static const FSlateColor AccentRed;
-	static const FSlateColor AccentOrange;
-	static const FSlateColor AccentYellow;
-	static const FSlateColor AccentGreen;
-	static const FSlateColor AccentBrown;
-	static const FSlateColor AccentBlack;
-	static const FSlateColor AccentGray;
-	static const FSlateColor AccentWhite;
-	static const FSlateColor AccentFolder;
+	static SLATECORE_API const FSlateColor AccentBlue;
+	static SLATECORE_API const FSlateColor AccentPurple;
+	static SLATECORE_API const FSlateColor AccentPink;
+	static SLATECORE_API const FSlateColor AccentRed;
+	static SLATECORE_API const FSlateColor AccentOrange;
+	static SLATECORE_API const FSlateColor AccentYellow;
+	static SLATECORE_API const FSlateColor AccentGreen;
+	static SLATECORE_API const FSlateColor AccentBrown;
+	static SLATECORE_API const FSlateColor AccentBlack;
+	static SLATECORE_API const FSlateColor AccentGray;
+	static SLATECORE_API const FSlateColor AccentWhite;
+	static SLATECORE_API const FSlateColor AccentFolder;
 
-	static const FSlateColor Warning;
-	static const FSlateColor Error;
-	static const FSlateColor Success;
+	static SLATECORE_API const FSlateColor Warning;
+	static SLATECORE_API const FSlateColor Error;
+	static SLATECORE_API const FSlateColor Success;
 };

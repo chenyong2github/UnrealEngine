@@ -12,7 +12,7 @@ class SWidget;
 /**
  *  Metadata to override the navigation behavior or regular SWidget
  */
-class SLATECORE_API FNavigationMetaData : public ISlateMetaData
+class FNavigationMetaData : public ISlateMetaData
 {
 public:
 	SLATE_METADATA_TYPE(FNavigationMetaData, ISlateMetaData)

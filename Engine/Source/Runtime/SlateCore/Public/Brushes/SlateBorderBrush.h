@@ -10,7 +10,7 @@
  * Similar to FSlateBoxBrush but has no middle and the sides tile instead of stretching.
  * The margin is applied exactly as in FSlateBoxBrush.
  */
-struct SLATECORE_API FSlateBorderBrush
+struct FSlateBorderBrush
 	: public FSlateBrush
 {
 	/**
@@ -118,7 +118,7 @@ struct SLATECORE_API FSlateBorderBrush
 
 };
 
-struct SLATECORE_API FSlateVectorBorderBrush
+struct FSlateVectorBorderBrush
 	: public FSlateBorderBrush
 {
 	FSlateVectorBorderBrush(const FString& InImageName, const FMargin& InMargin, const FLinearColor& InColorAndOpacity = FLinearColor(1, 1, 1, 1))

@@ -14,7 +14,7 @@ struct FSlateWidgetStyle;
 /**
  * 
  */
-class SLATECORE_API ISlateStyle
+class ISlateStyle
 {
 public:
 	/** Constructor. */

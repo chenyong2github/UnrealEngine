@@ -10,7 +10,7 @@
  * Widgets that support slots, such as SOverlay and SHorizontalBox should initialize
  * their slots' child widgets to SNullWidget if no user defined widget was provided.
  */
-class SLATECORE_API SNullWidget
+class SNullWidget
 {
 public:
 
@@ -19,5 +19,5 @@ public:
 	 *
 	 * @return The widget.
 	 */
-	static TSharedRef<class SWidget> NullWidget;
+	static SLATECORE_API TSharedRef<class SWidget> NullWidget;
 };

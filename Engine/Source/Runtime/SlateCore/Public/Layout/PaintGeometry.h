@@ -20,7 +20,7 @@
  *
  *		The DrawScale is only applied to the internal aspects of the draw primitives. e.g. Line thickness, 3x3 grid margins, etc.
  */
-struct SLATECORE_API FPaintGeometry
+struct FPaintGeometry
 {
 	/** 
 	 * !!! DEPRECATED!!! Drawing should only happen in local space to ensure render transforms work.

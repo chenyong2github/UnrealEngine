@@ -31,9 +31,9 @@ class FSlateWindowElementList;
  *
  *		Note that SWidget3 will be drawn on top of SWidget2 and SWidget1.
  */
-class SLATECORE_API SOverlay : public SPanel
+class SOverlay : public SPanel
 {
-	SLATE_DECLARE_WIDGET(SOverlay, SPanel)
+	SLATE_DECLARE_WIDGET_API(SOverlay, SPanel, SLATECORE_API)
 public:	
 
 	/** A slot that support alignment of content and padding and z-order */
@@ -76,57 +76,57 @@ public:
 		SLATE_SLOT_ARGUMENT( SOverlay::FOverlaySlot, Slots )
 	SLATE_END_ARGS()
 
-	SOverlay();
+	SLATECORE_API SOverlay();
 
 	/**
 	 * Construct this widget.
 	 *
 	 * @param	InArgs	The declaration data for this widget
 	 */
-	void Construct( const FArguments& InArgs );
+	SLATECORE_API void Construct( const FArguments& InArgs );
 
 	/** Returns the number of child widgets */
-	int32 GetNumWidgets() const;
+	SLATECORE_API int32 GetNumWidgets() const;
 
 	/**
 	 * Removes a widget from this overlay.
 	 *
 	 * @param	Widget	The widget content to remove
 	 */
-	bool RemoveSlot( TSharedRef< SWidget > Widget );
+	SLATECORE_API bool RemoveSlot( TSharedRef< SWidget > Widget );
 
 	using FScopedWidgetSlotArguments = TPanelChildren<FOverlaySlot>::FScopedWidgetSlotArguments;
 	/** Adds a slot at the specified location (ignores Z-order) */
-	FScopedWidgetSlotArguments AddSlot(int32 ZOrder=INDEX_NONE);
+	SLATECORE_API FScopedWidgetSlotArguments AddSlot(int32 ZOrder=INDEX_NONE);
 
 	/** Returns true if there is a child slot with the specified z-order */
-	bool HasSlotWithZOrder(int32 ZOrder) const;
+	SLATECORE_API bool HasSlotWithZOrder(int32 ZOrder) const;
 
 	/** Removes a slot at the specified location */
-	void RemoveSlot(int32 ZOrder=INDEX_NONE);
+	SLATECORE_API void RemoveSlot(int32 ZOrder=INDEX_NONE);
 
 	/** Removes all children from the overlay */
-	void ClearChildren();
+	SLATECORE_API void ClearChildren();
 
 	/**
 	 * @param ZOrder Default z-order of the slot
 	 * @return a new slot. Slots contain children for SOverlay
 	 */
-	static FOverlaySlot::FSlotArguments Slot(int32 ZOrder = 0);
+	static SLATECORE_API FOverlaySlot::FSlotArguments Slot(int32 ZOrder = 0);
 
 	//~ Begin of SWidget interface
-	virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
-	virtual FChildren* GetChildren() override;
-	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
+	SLATECORE_API virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
+	SLATECORE_API virtual FChildren* GetChildren() override;
+	SLATECORE_API virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
 	//~ End of SWidget interface
 
 protected:
 	//~ Begin SWidget overrides.
-	virtual FVector2D ComputeDesiredSize(float) const override;
+	SLATECORE_API virtual FVector2D ComputeDesiredSize(float) const override;
 	//~ End SWidget overrides.
 
 	/** Returns the index of the child slot at the specified z-order */
-	int32 GetChildIndexByZOrder(int32 ZOrder) const;
+	SLATECORE_API int32 GetChildIndexByZOrder(int32 ZOrder) const;
 
 protected:
 	/** The SOverlay's slots; each slot contains a child widget. */

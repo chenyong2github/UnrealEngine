@@ -18,7 +18,7 @@ class FSlateShaderResource;
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnReleaseFontResources, const class FSlateFontCache&);
 
 
-struct SLATECORE_API FSlateFontKey
+struct FSlateFontKey
 {
 public:
 	FSlateFontKey( const FSlateFontInfo& InInfo, const FFontOutlineSettings& InFontOutlineSettings, const float InScale )
@@ -145,28 +145,28 @@ public:
 /** 
  * Representation of a texture for fonts in which characters are packed tightly based on their bounding rectangle 
  */
-class SLATECORE_API FSlateFontAtlas : public ISlateFontTexture, public FSlateTextureAtlas
+class FSlateFontAtlas : public ISlateFontTexture, public FSlateTextureAtlas
 {
 public:
-	FSlateFontAtlas(uint32 InWidth, uint32 InHeight, const bool InIsGrayscale);
-	virtual ~FSlateFontAtlas();
+	SLATECORE_API FSlateFontAtlas(uint32 InWidth, uint32 InHeight, const bool InIsGrayscale);
+	SLATECORE_API virtual ~FSlateFontAtlas();
 
 	//~ ISlateFontTexture interface
-	virtual bool IsGrayscale() const override final;
+	SLATECORE_API virtual bool IsGrayscale() const override final;
 	virtual FSlateShaderResource* GetAtlasTexture() const override { return GetSlateTexture(); }
 	virtual void ReleaseRenderingResources() { ReleaseResources(); }
 
 	/**
 	 * Flushes all cached data.
 	 */
-	void Flush();
+	SLATECORE_API void Flush();
 
 	/** 
 	 * Adds a character to the texture.
 	 *
 	 * @param CharInfo	Information about the size of the character
 	 */
-	const struct FAtlasedTextureSlot* AddCharacter( const FCharacterRenderData& CharInfo );
+	SLATECORE_API const struct FAtlasedTextureSlot* AddCharacter( const FCharacterRenderData& CharInfo );
 };
 
 class ISlateFontAtlasFactory

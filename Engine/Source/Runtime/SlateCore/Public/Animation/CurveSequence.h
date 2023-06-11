@@ -22,7 +22,7 @@ enum class EActiveTimerReturnType : uint8;
  *   FCurveHandle FadeCurve = Sequence.AddCurve( 0.15f, 0.1f );
  *	 Sequence.Play( this->AsShared() );
  */
-struct SLATECORE_API FCurveSequence : public TSharedFromThis<FCurveSequence>
+struct FCurveSequence : public TSharedFromThis<FCurveSequence>
 {
 public:
 
@@ -51,10 +51,10 @@ public:
 	};
 
 	/** Default constructor */
-	FCurveSequence( );
+	SLATECORE_API FCurveSequence( );
 
 	/** Makes sure the active timer is unregistered */
-	~FCurveSequence();
+	SLATECORE_API ~FCurveSequence();
 
 	/**
 	 * Construct by adding a single animation curve to this sequence.  Does not provide access to the curve though.
@@ -64,7 +64,7 @@ public:
 	 * @param InEaseFunction       Easing function to use for this curve.  Defaults to Linear.  Use this to smooth out your animation transitions.
 	 * @return A FCurveHandle that can be used to get the value of this curve after the animation starts playing.
 	 */
-	FCurveSequence( const float InStartTimeSeconds, const float InDurationSeconds, const ECurveEaseFunction InEaseFunction = ECurveEaseFunction::Linear  );
+	SLATECORE_API FCurveSequence( const float InStartTimeSeconds, const float InDurationSeconds, const ECurveEaseFunction InEaseFunction = ECurveEaseFunction::Linear  );
 
 	/**
 	 * Add a new curve at a given time and offset.
@@ -74,7 +74,7 @@ public:
 	 * @param InEaseFunction       Easing function to use for this curve.  Defaults to Linear.  Use this to smooth out your animation transitions.
 	 * @return A FCurveHandle that can be used to get the value of this curve after the animation starts playing.
 	 */
-	FCurveHandle AddCurve( const float InStartTimeSeconds, const float InDurationSeconds, const ECurveEaseFunction InEaseFunction = ECurveEaseFunction::Linear );
+	SLATECORE_API FCurveHandle AddCurve( const float InStartTimeSeconds, const float InDurationSeconds, const ECurveEaseFunction InEaseFunction = ECurveEaseFunction::Linear );
 
 	/**
 	 * Add a new curve relative to the current end of the sequence. Makes stacking easier.
@@ -89,7 +89,7 @@ public:
 	 * @param InDurationSecond     How long this curve lasts.
 	 * @param InEaseFunction       Easing function to use for this curve.  Defaults to Linear.  Use this to smooth out your animation transitions.
 	 */
-	FCurveHandle AddCurveRelative( const float InOffset, const float InDurationSecond, const ECurveEaseFunction InEaseFunction = ECurveEaseFunction::Linear );
+	SLATECORE_API FCurveHandle AddCurveRelative( const float InOffset, const float InDurationSecond, const ECurveEaseFunction InEaseFunction = ECurveEaseFunction::Linear );
 
 	/**
 	 * Start playing this curve sequence. Registers an active timer with the widget being animated.
@@ -99,12 +99,12 @@ public:
 	 * @param StartAtTime The relative time within the animation at which to begin playing (i.e. 0.0f is the beginning).
 	 * @param bRequiresActiveTimer	Whether or not we need to register an active timer on the widget to keep slate ticking while the animation is playing.  If that is not necessary in your use case, you can set it to false for a small performance boost
 	 */
-	void Play( const TSharedRef<SWidget>& InOwnerWidget, bool bPlayLooped = false, const float StartAtTime = 0.0f, bool bRequiresActiveTimer = true);
+	SLATECORE_API void Play( const TSharedRef<SWidget>& InOwnerWidget, bool bPlayLooped = false, const float StartAtTime = 0.0f, bool bRequiresActiveTimer = true);
 
 	/**
 	 * Plays the curve sequence for a ticker, rather than a widget.
 	 */
-	void Play(const FTickerDelegate& InDelegate, bool bPlayLooped = false, const float StartAtTime = 0.0f);
+	SLATECORE_API void Play(const FTickerDelegate& InDelegate, bool bPlayLooped = false, const float StartAtTime = 0.0f);
 
 	/**
 	 * Start playing this curve sequence in reverse. Registers an active timer for the widget using the sequence.
@@ -114,50 +114,50 @@ public:
 	 * @param StartAtTime The relative time within the animation at which to begin playing (i.e. 0.0f is the beginning).
 	 * @param bRequiresActiveTimer	Whether or not we need to register an active timer on the widget to keep slate ticking while the animation is playing.  If that is not necessary in your use case, you can set it to false for a small performance boost
 	 */
-	void PlayReverse( const TSharedRef<SWidget>& InOwnerWidget, bool bPlayLooped = false, const float StartAtTime = 0.0f, bool bRequiresActiveTimer = true);
+	SLATECORE_API void PlayReverse( const TSharedRef<SWidget>& InOwnerWidget, bool bPlayLooped = false, const float StartAtTime = 0.0f, bool bRequiresActiveTimer = true);
 
 	/** Reverse the direction of an in-progress animation */
-	void Reverse( );
+	SLATECORE_API void Reverse( );
 
 	/** Pause this curve sequence. */
-	void Pause();
+	SLATECORE_API void Pause();
 
 	/** Unpause this curve sequence to resume play. */
-	void Resume( );
+	SLATECORE_API void Resume( );
 
 	/** Plays forward if it can, otherwise holds it at the end of the animation, if we play in reverse it will reverse the animation if it can */
-	void PlayRelative(const TSharedRef<SWidget>& InOwnerWidget, bool bForward);
+	SLATECORE_API void PlayRelative(const TSharedRef<SWidget>& InOwnerWidget, bool bForward);
 
 	/**
 	 * Checks whether the sequence is currently playing.
 	 *
 	 * @return true if playing, false otherwise.
 	 */
-	bool IsPlaying( ) const;
+	SLATECORE_API bool IsPlaying( ) const;
 
 	/** @return the current time relative to the beginning of the sequence. */
-	float GetSequenceTime( ) const;
+	SLATECORE_API float GetSequenceTime( ) const;
 
 	/** @return true if the animation is in reverse */
-	bool IsInReverse( ) const;
+	SLATECORE_API bool IsInReverse( ) const;
 
 	/** @return true if the animation is in forward gear */
-	bool IsForward( ) const;
+	SLATECORE_API bool IsForward( ) const;
 
 	/** Jumps immediately to the beginning of the animation sequence */
-	void JumpToStart( );
+	SLATECORE_API void JumpToStart( );
 
 	/** Jumps immediately to the end of the animation sequence */
-	void JumpToEnd( );
+	SLATECORE_API void JumpToEnd( );
 
 	/** Is the sequence at the start? */
-	bool IsAtStart( ) const;
+	SLATECORE_API bool IsAtStart( ) const;
 
 	/** Is the sequence at the end? */
-	bool IsAtEnd( ) const;
+	SLATECORE_API bool IsAtEnd( ) const;
 
 	/** Is the sequence looping? */
-	bool IsLooping() const;
+	SLATECORE_API bool IsLooping() const;
 
 	/**
 	 * For single-curve animations, returns the interpolation alpha for the animation.  If you call this function
@@ -165,19 +165,19 @@ public:
 	 *
 	 * @return A linearly interpolated value between 0 and 1 for this curve.
 	 */
-	float GetLerp() const;
+	SLATECORE_API float GetLerp() const;
 
 	/**
 	 * @param CurveIndex  Index of a curve in the curves array.
 	 *
 	 * @return A curve given the index into the curves array
 	 */
-	const FCurveSequence::FSlateCurve& GetCurve( int32 CurveIndex ) const;
+	SLATECORE_API const FCurveSequence::FSlateCurve& GetCurve( int32 CurveIndex ) const;
 
 protected:
 
 	/** @param InStartTime  when this curve sequence started playing */
-	void SetStartTime( double InStartTime );
+	SLATECORE_API void SetStartTime( double InStartTime );
 
 private:
 	/** Helper to take care of registering the active timer */

@@ -8,25 +8,25 @@
 #include "HAL/Platform.h"
 
 /** Is an entity visible? */
-struct SLATECORE_API EVisibility
+struct EVisibility
 {
 	/** Visible and hit-testable (can interact with cursor). Default value. */
-	static const EVisibility Visible;
+	static SLATECORE_API const EVisibility Visible;
 
 	/** Not visible and takes up no space in the layout (obviously not hit-testable). */
-	static const EVisibility Collapsed;
+	static SLATECORE_API const EVisibility Collapsed;
 
 	/** Not visible but occupies layout space (obviously not hit-testable). */
-	static const EVisibility Hidden;
+	static SLATECORE_API const EVisibility Hidden;
 
 	/** Visible but not hit-testable (cannot interact with cursor) and children in the hierarchy (if any) are also not hit-testable. */
-	static const EVisibility HitTestInvisible;
+	static SLATECORE_API const EVisibility HitTestInvisible;
 
 	/** Visible but not hit-testable (cannot interact with cursor) and doesn't affect hit-testing on children (if any). */
-	static const EVisibility SelfHitTestInvisible;
+	static SLATECORE_API const EVisibility SelfHitTestInvisible;
 
 	/** Any visibility will do */
-	static const EVisibility All;
+	static SLATECORE_API const EVisibility All;
 
 public:
 
@@ -73,7 +73,7 @@ public:
 		return 0 != (InVisibility.Value & InVisibilityFilter.Value);
 	}
 
-	FString ToString() const;
+	SLATECORE_API FString ToString() const;
 
 private:
 

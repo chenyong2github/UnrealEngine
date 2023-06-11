@@ -36,7 +36,7 @@ enum class ECurveEaseFunction : uint8
 /**
  * A handle to curve within a curve sequence.
  */
-struct SLATECORE_API FCurveHandle
+struct FCurveHandle
 {
 	/**
 	 * Creates and initializes a curve handle.
@@ -44,7 +44,7 @@ struct SLATECORE_API FCurveHandle
 	 * @param InOwnerSequence The curve sequence that owns this handle.
 	 * @param InCurveIndex The index of this handle.
 	 */
-	FCurveHandle( const struct FCurveSequence* InOwnerSequence = nullptr, int32 InCurveIndex = 0 );
+	SLATECORE_API FCurveHandle( const struct FCurveSequence* InOwnerSequence = nullptr, int32 InCurveIndex = 0 );
 
 public:
 
@@ -54,7 +54,7 @@ public:
 	 * @return Lerp value.
 	 * @see GetLerpLooping
 	 */
-	float GetLerp( ) const;
+	SLATECORE_API float GetLerp( ) const;
 
 	/**
 	 * Checks whether this handle is initialized.
@@ -70,7 +70,7 @@ public:
 public:
 
 	/** Applies animation easing to lerp value */
-	static float ApplyEasing( float Time, ECurveEaseFunction EaseType );
+	static SLATECORE_API float ApplyEasing( float Time, ECurveEaseFunction EaseType );
 
 private:
 

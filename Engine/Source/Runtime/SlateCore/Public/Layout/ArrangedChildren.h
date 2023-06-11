@@ -11,7 +11,7 @@
  * FArrangedChildren supports a filter that is useful for excluding widgets with unwanted
  * visibilities.
  */
-class SLATECORE_API FArrangedChildren
+class FArrangedChildren
 {
 	private:
 	
@@ -83,9 +83,9 @@ class SLATECORE_API FArrangedChildren
 	 * Add an arranged widget (i.e. widget and its resulting geometry) to the list of Arranged children
 	 * based on the the visibility filter and the arranged widget's visibility
 	 */
-	void AddWidget(const FArrangedWidget& InWidgetGeometry);
+	SLATECORE_API void AddWidget(const FArrangedWidget& InWidgetGeometry);
 
-	void InsertWidget(const FArrangedWidget& InWidgetGeometry, int32 Index);
+	SLATECORE_API void InsertWidget(const FArrangedWidget& InWidgetGeometry, int32 Index);
 
 	FORCEINLINE_DEBUGGABLE void SetFilter(EVisibility InVisibility)
 	{

@@ -24,17 +24,17 @@ public:
 	virtual TOptional<FVirtualPointerPosition> TranslateMouseCoordinateForCustomHitTestChild(const SWidget& ChildWidget, const FGeometry& MyGeometry, const FVector2D ScreenSpaceMouseCoordinate, const FVector2D LastScreenSpaceMouseCoordinate) const = 0;
 };
 
-class SLATECORE_API FHittestGrid : public FNoncopyable
+class FHittestGrid : public FNoncopyable
 {
 public:
 
-	FHittestGrid();
+	SLATECORE_API FHittestGrid();
 
 	/**
 	 * Given a Slate Units coordinate in virtual desktop space, perform a hittest
 	 * and return the path along which the corresponding event would be bubbled.
 	 */
-	TArray<FWidgetAndPointer> GetBubblePath(UE::Slate::FDeprecateVector2DParameter DesktopSpaceCoordinate, float CursorRadius, bool bIgnoreEnabledStatus, int32 UserIndex = INDEX_NONE);
+	SLATECORE_API TArray<FWidgetAndPointer> GetBubblePath(UE::Slate::FDeprecateVector2DParameter DesktopSpaceCoordinate, float CursorRadius, bool bIgnoreEnabledStatus, int32 UserIndex = INDEX_NONE);
 
 	/**
 	 * Set the position and size of the hittest area in desktop coordinates
@@ -44,14 +44,14 @@ public:
 	 *
 	 * @return      Returns true if a clear of the hittest grid was required. 
 	 */
-	bool SetHittestArea(const UE::Slate::FDeprecateVector2DParameter& HittestPositionInDesktop, const UE::Slate::FDeprecateVector2DParameter& HittestDimensions, const UE::Slate::FDeprecateVector2DParameter& HitestOffsetInWindow = FVector2f::ZeroVector);
+	SLATECORE_API bool SetHittestArea(const UE::Slate::FDeprecateVector2DParameter& HittestPositionInDesktop, const UE::Slate::FDeprecateVector2DParameter& HittestDimensions, const UE::Slate::FDeprecateVector2DParameter& HitestOffsetInWindow = FVector2f::ZeroVector);
 
 	/** Insert custom hit test data for a widget already in the grid */
 	UE_DEPRECATED(5.0, "Deprecated. Use the InsertCustomHitTestPath with a pointer.")
-	void InsertCustomHitTestPath(const TSharedRef<SWidget> InWidget, TSharedRef<ICustomHitTestPath> CustomHitTestPath);
+	SLATECORE_API void InsertCustomHitTestPath(const TSharedRef<SWidget> InWidget, TSharedRef<ICustomHitTestPath> CustomHitTestPath);
 
 	/** Insert custom hit test data for a widget already in the grid */
-	void InsertCustomHitTestPath(const SWidget* InWidget, const TSharedRef<ICustomHitTestPath>& CustomHitTestPath);
+	SLATECORE_API void InsertCustomHitTestPath(const SWidget* InWidget, const TSharedRef<ICustomHitTestPath>& CustomHitTestPath);
 
 	/** Sets the current slate user index that should be associated with any added widgets */
 	void SetUserIndex(int32 UserIndex) { CurrentUserIndex = UserIndex; }
@@ -73,42 +73,42 @@ public:
 	 * @param NavigationReply The Navigation Reply to specify a boundary rule for the search.
 	 * @param RuleWidget      The Widget that is applying the boundary rule, used to get the bounds of the Rule.
 	 */
-	TSharedPtr<SWidget> FindNextFocusableWidget(const FArrangedWidget& StartingWidget, const EUINavigation Direction, const FNavigationReply& NavigationReply, const FArrangedWidget& RuleWidget, int32 UserIndex);
+	SLATECORE_API TSharedPtr<SWidget> FindNextFocusableWidget(const FArrangedWidget& StartingWidget, const EUINavigation Direction, const FNavigationReply& NavigationReply, const FArrangedWidget& RuleWidget, int32 UserIndex);
 
 	UE::Slate::FDeprecateVector2DResult GetGridSize() const { return GridSize; }
 	UE::Slate::FDeprecateVector2DResult GetGridOrigin() const { return GridOrigin; }
 	UE::Slate::FDeprecateVector2DResult GetGridWindowOrigin() const { return GridWindowOrigin; }
 
 	/** Clear the grid */
-	void Clear();
+	SLATECORE_API void Clear();
 
 	/** Add SWidget from the HitTest Grid */
 	UE_DEPRECATED(4.27, "Deprecated. Use the AddWidget with the FSlateInvalidationWidgetSortOrder type parameters instead. Passing FSlateInvalidationWidgetSortOrder()")
-	void AddWidget(const TSharedRef<SWidget>& InWidget, int32 InBatchPriorityGroup, int32 InLayerId, int32 InSecondarySort);
+	SLATECORE_API void AddWidget(const TSharedRef<SWidget>& InWidget, int32 InBatchPriorityGroup, int32 InLayerId, int32 InSecondarySort);
 
 	/** Add SWidget from the HitTest Grid */
 	UE_DEPRECATED(5.0, "Deprecated. Use the AddWidget with a pointer.")
-	void AddWidget(const TSharedRef<SWidget>& InWidget, int32 InBatchPriorityGroup, int32 InLayerId, FSlateInvalidationWidgetSortOrder InSecondarySort);
+	SLATECORE_API void AddWidget(const TSharedRef<SWidget>& InWidget, int32 InBatchPriorityGroup, int32 InLayerId, FSlateInvalidationWidgetSortOrder InSecondarySort);
 
 	/** Add SWidget from the HitTest Grid */
-	void AddWidget(const SWidget* InWidget, int32 InBatchPriorityGroup, int32 InLayerId, FSlateInvalidationWidgetSortOrder InSecondarySort);
+	SLATECORE_API void AddWidget(const SWidget* InWidget, int32 InBatchPriorityGroup, int32 InLayerId, FSlateInvalidationWidgetSortOrder InSecondarySort);
 
 	/** Remove SWidget from the HitTest Grid */
 	UE_DEPRECATED(5.0, "Deprecated. Use the RemoveWidget with a pointer.")
-	void RemoveWidget(const TSharedRef<SWidget>& InWidget);
+	SLATECORE_API void RemoveWidget(const TSharedRef<SWidget>& InWidget);
 
 	/** Remove SWidget from the HitTest Grid */
-	void RemoveWidget(const SWidget* InWidget);
+	SLATECORE_API void RemoveWidget(const SWidget* InWidget);
 
 	/** Update the widget SecondarySort without removing it and readding it again. */
 	UE_DEPRECATED(5.0, "Deprecated. Use the UpdateWidget with a pointer.")
-	void UpdateWidget(const TSharedRef<SWidget>& InWidget, FSlateInvalidationWidgetSortOrder InSecondarySort);
+	SLATECORE_API void UpdateWidget(const TSharedRef<SWidget>& InWidget, FSlateInvalidationWidgetSortOrder InSecondarySort);
 	
 	/** Update the widget SecondarySort without removing it and readding it again. */
-	void UpdateWidget(const SWidget* InWidget, FSlateInvalidationWidgetSortOrder InSecondarySort);
+	SLATECORE_API void UpdateWidget(const SWidget* InWidget, FSlateInvalidationWidgetSortOrder InSecondarySort);
 
 	/** Check if SWidget is contained within the HitTest Grid */
-	bool ContainsWidget(const SWidget* InWidget) const;
+	SLATECORE_API bool ContainsWidget(const SWidget* InWidget) const;
 
 	/** Append an already existing grid that occupy the same space. */
 	UE_DEPRECATED(4.26, "Deprecated. Use the FHittestGrid::AddGrid method instead")
@@ -118,13 +118,13 @@ public:
 	 * Add an already existing grid that occupy the same space.
 	 * The grid needs to have an owner, not be this grid and occupy the same space as this grid.
 	 */
-	void AddGrid(const TSharedRef<const FHittestGrid>& OtherGrid);
+	SLATECORE_API void AddGrid(const TSharedRef<const FHittestGrid>& OtherGrid);
 
 	/** Remove a grid that was appended. */
-	void RemoveGrid(const TSharedRef<const FHittestGrid>& OtherGrid);
+	SLATECORE_API void RemoveGrid(const TSharedRef<const FHittestGrid>& OtherGrid);
 
 	/** Remove a grid that was appended. */
-	void RemoveGrid(const SWidget* OtherGridOwner);
+	SLATECORE_API void RemoveGrid(const SWidget* OtherGridOwner);
 
 	struct FDebuggingFindNextFocusableWidgetArgs
 	{
@@ -146,9 +146,9 @@ public:
 
 #if WITH_SLATE_DEBUGGING
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FDebuggingFindNextFocusableWidget, const FHittestGrid* /*HittestGrid*/, const FDebuggingFindNextFocusableWidgetArgs& /*Info*/);
-	static FDebuggingFindNextFocusableWidget OnFindNextFocusableWidgetExecuted;
+	static SLATECORE_API FDebuggingFindNextFocusableWidget OnFindNextFocusableWidgetExecuted;
 
-	void LogGrid() const;
+	SLATECORE_API void LogGrid() const;
 
 	enum class EDisplayGridFlags
 	{
@@ -157,7 +157,7 @@ public:
 		HideUnsupportedKeyboardFocusWidgets = 1 << 1,	// Hide hit box for widgets that have SupportsKeyboardFocus false
 		UseFocusBrush = 1 << 2,
 	};
-	void DisplayGrid(int32 InLayer, const FGeometry& AllottedGeometry, FSlateWindowElementList& WindowElementList, EDisplayGridFlags DisplayFlags = EDisplayGridFlags::UseFocusBrush) const;
+	SLATECORE_API void DisplayGrid(int32 InLayer, const FGeometry& AllottedGeometry, FSlateWindowElementList& WindowElementList, EDisplayGridFlags DisplayFlags = EDisplayGridFlags::UseFocusBrush) const;
 
 	struct FWidgetSortData
 	{
@@ -165,7 +165,7 @@ public:
 		int64 PrimarySort;
 		FSlateInvalidationWidgetSortOrder SecondarySort;
 	};
-	TArray<FWidgetSortData> GetAllWidgetSortDatas() const;
+	SLATECORE_API TArray<FWidgetSortData> GetAllWidgetSortDatas() const;
 #endif
 
 private:
@@ -260,22 +260,22 @@ private:
 	};
 
 	//~ Helper functions
-	bool IsValidCellCoord(const FIntPoint& CellCoord) const;
-	bool IsValidCellCoord(const int32 XCoord, const int32 YCoord) const;
-	void ClearInternal(int32 TotalCells);
+	SLATECORE_API bool IsValidCellCoord(const FIntPoint& CellCoord) const;
+	SLATECORE_API bool IsValidCellCoord(const int32 XCoord, const int32 YCoord) const;
+	SLATECORE_API void ClearInternal(int32 TotalCells);
 
 	/** Return the Index and distance to a hit given the testing params */
-	FIndexAndDistance GetHitIndexFromCellIndex(const FGridTestingParams& Params) const;
+	SLATECORE_API FIndexAndDistance GetHitIndexFromCellIndex(const FGridTestingParams& Params) const;
 
 	/** @returns true if the child is a paint descendant of the provided Parent. */
-	bool IsDescendantOf(const SWidget* Parent, const FWidgetData& ChildData) const;
+	SLATECORE_API bool IsDescendantOf(const SWidget* Parent, const FWidgetData& ChildData) const;
 
 	/** Utility function for searching for the next focusable widget. */
 	template<typename TCompareFunc, typename TSourceSideFunc, typename TDestSideFunc>
 	TSharedPtr<SWidget> FindFocusableWidget(const FSlateRect WidgetRect, const FSlateRect SweptRect, int32 AxisIndex, int32 Increment, const EUINavigation Direction, const FNavigationReply& NavigationReply, TCompareFunc CompareFunc, TSourceSideFunc SourceSideFunc, TDestSideFunc DestSideFunc, int32 UserIndex, TArray<FDebuggingFindNextFocusableWidgetArgs::FWidgetResult>* IntermediatedResultPtr, TSet<TSharedPtr<SWidget>>* DisabledDestinations) const;
 
 	/** Constrains a float position into the grid coordinate. */
-	FIntPoint GetCellCoordinate(UE::Slate::FDeprecateVector2DParameter Position) const;
+	SLATECORE_API FIntPoint GetCellCoordinate(UE::Slate::FDeprecateVector2DParameter Position) const;
 
 	/** Access a cell at coordinates X, Y. Coordinates are row and column indexes. */
 	FORCEINLINE_DEBUGGABLE FCell& CellAt(const int32 X, const int32 Y)
@@ -292,21 +292,21 @@ private:
 	}
 
 	/** Is the other grid compatible with this grid. */
-	bool CanBeAppended(const FHittestGrid* OtherGrid) const;
+	SLATECORE_API bool CanBeAppended(const FHittestGrid* OtherGrid) const;
 
 	/** Are both grid of the same size. */
-	bool SameSize(const FHittestGrid* OtherGrid) const;
+	SLATECORE_API bool SameSize(const FHittestGrid* OtherGrid) const;
 
 	using FCollapsedHittestGridArray = TArray<const FHittestGrid*, TInlineAllocator<16>>;
 	/** Get all the hittest grid appended to this grid. */
-	void GetCollapsedHittestGrid(FCollapsedHittestGridArray& OutResult) const;
+	SLATECORE_API void GetCollapsedHittestGrid(FCollapsedHittestGridArray& OutResult) const;
 
 	using FCollapsedWidgetsArray = TArray<FWidgetIndex, TInlineAllocator<100>>;
 	/** Return the list of all the widget in that cell. */
-	void GetCollapsedWidgets(FCollapsedWidgetsArray& Out, const int32 X, const int32 Y) const;
+	SLATECORE_API void GetCollapsedWidgets(FCollapsedWidgetsArray& Out, const int32 X, const int32 Y) const;
 
 	/** Remove appended hittest grid that are not valid anymore. */
-	void RemoveStaleAppendedHittestGrid();
+	SLATECORE_API void RemoveStaleAppendedHittestGrid();
 
 private:
 	/** Map of all the widgets currently in the hit test grid to their stable index. */

@@ -11,7 +11,7 @@ template< typename ObjectType > class TAttribute;
 /**
  * Contains info about those aspects of widget appearance that should be propagated hierarchically.
  */
-class SLATECORE_API FWidgetStyle
+class FWidgetStyle
 {
 public:
 	
@@ -74,7 +74,7 @@ public:
 	 * @return This instance (for method chaining).
 	 * @see GetForegroundColor
 	 */
-	FWidgetStyle& SetForegroundColor( const TAttribute<FSlateColor>& InForeground );
+	SLATECORE_API FWidgetStyle& SetForegroundColor( const TAttribute<FSlateColor>& InForeground );
 
 public:
 
@@ -119,5 +119,5 @@ private:
 
 private:
 
-	static const float SubdueAmount;
+	static SLATECORE_API const float SubdueAmount;
 };

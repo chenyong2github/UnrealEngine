@@ -13,11 +13,11 @@ class SWidget;
  * Singleton used to retrieve accessible widgets for a given Slate widget. Accessible widgets will persist
  * so longer as the OS is sending accessibility events, after which the platform layer should call ClearAll().
  */
-class SLATECORE_API FSlateAccessibleWidgetCache
+class FSlateAccessibleWidgetCache
 {
 public:
 	/** Empty the cache and release all cached accessible widgets. This should generally only be done with accessibility is turned off. */
-	static void ClearAll();
+	static SLATECORE_API void ClearAll();
 
 	/**
 	 * Callback for when an SWidget is deleted. FSlateAccessibleMessageHandler should be the only thing to call this.
@@ -25,7 +25,7 @@ public:
 	 *
 	 * @param Widget the Slate widget that is being deleted
 	 */
-	static TSharedPtr<FSlateAccessibleWidget> RemoveWidget(SWidget* Widget);
+	static SLATECORE_API TSharedPtr<FSlateAccessibleWidget> RemoveWidget(SWidget* Widget);
 
 	/**
 	 * Get a cached accessible widget for a given Slate widget. This may return nullptr in the case where the
@@ -35,7 +35,7 @@ public:
 	 * @param Widget The Slate widget to get the accessible widget for
 	 * @return The accessible widget for the given Slate widget, or nullptr if the widget is not accessible.
 	 */
-	static TSharedPtr<FSlateAccessibleWidget> GetAccessibleWidgetChecked(const TSharedPtr<SWidget>& Widget);
+	static SLATECORE_API TSharedPtr<FSlateAccessibleWidget> GetAccessibleWidgetChecked(const TSharedPtr<SWidget>& Widget);
 	/**
 	 * Get a cached accessible widget for a given Slate widget. The caller is responsible for making sure
 	 * that the widget is fully accessible in the current Slate widget tree.
@@ -43,7 +43,7 @@ public:
 	 * @param Widget The Slate widget to get the accessible widget for
 	 * @return The accessible widget for the given Slate widget
 	 */
-	static TSharedRef<FSlateAccessibleWidget> GetAccessibleWidget(const TSharedRef<SWidget>& Widget);
+	static SLATECORE_API TSharedRef<FSlateAccessibleWidget> GetAccessibleWidget(const TSharedRef<SWidget>& Widget);
 
 	/**
 	 * Get a cached accessible widget for an identifier that matches the accessible widget's GetId() return value.
@@ -53,12 +53,12 @@ public:
 	 * @param Id The Id of a widget that corresponds to that widget's GetId() function
 	 * @return The accessible widget for the given Id, or nullptr if there is no widget with that Id.
 	 */
-	static TSharedPtr<FSlateAccessibleWidget> GetAccessibleWidgetFromId(AccessibleWidgetId Id);
+	static SLATECORE_API TSharedPtr<FSlateAccessibleWidget> GetAccessibleWidgetFromId(AccessibleWidgetId Id);
 
-	static TMap<SWidget*, TSharedRef<FSlateAccessibleWidget>>::TConstIterator GetAllWidgets();
+	static SLATECORE_API TMap<SWidget*, TSharedRef<FSlateAccessibleWidget>>::TConstIterator GetAllWidgets();
 
 #if !UE_BUILD_SHIPPING
-	static void DumpAccessibilityStats();
+	static SLATECORE_API void DumpAccessibilityStats();
 #endif
 
 private:

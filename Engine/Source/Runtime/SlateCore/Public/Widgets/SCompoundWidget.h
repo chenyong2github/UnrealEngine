@@ -18,9 +18,9 @@ class FSlateWindowElementList;
  * A CompoundWidget is the base from which most non-primitive widgets should be built.
  * CompoundWidgets have a protected member named ChildSlot.
  */
-class SLATECORE_API SCompoundWidget : public SWidget
+class SCompoundWidget : public SWidget
 {
-	SLATE_DECLARE_WIDGET(SCompoundWidget, SWidget)
+	SLATE_DECLARE_WIDGET_API(SCompoundWidget, SWidget, SLATECORE_API)
 
 public:
 
@@ -75,17 +75,17 @@ public:
 public:
 
 	// SWidgetOverrides
-	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
-	virtual FChildren* GetChildren() override;
-	virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
-	virtual FSlateColor GetForegroundColor() const override;
+	SLATECORE_API virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
+	SLATECORE_API virtual FChildren* GetChildren() override;
+	SLATECORE_API virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
+	SLATECORE_API virtual FSlateColor GetForegroundColor() const override;
 
 public:
-	virtual void SetVisibility( TAttribute<EVisibility> InVisibility ) override final;
+	SLATECORE_API virtual void SetVisibility( TAttribute<EVisibility> InVisibility ) override final;
 
 protected:
 	// Begin SWidget overrides.
-	virtual FVector2D ComputeDesiredSize(float) const override;
+	SLATECORE_API virtual FVector2D ComputeDesiredSize(float) const override;
 	// End SWidget overrides.
 
 	/** @return an attribute reference of ContentScale */
@@ -100,7 +100,7 @@ protected:
 protected:
 
 	/** Disallow public construction */
-	SCompoundWidget();
+	SLATECORE_API SCompoundWidget();
 
 	struct FCompoundWidgetOneChildSlot : ::TSingleWidgetChildrenWithBasicLayoutSlot<EInvalidateWidgetReason::None>
 	{

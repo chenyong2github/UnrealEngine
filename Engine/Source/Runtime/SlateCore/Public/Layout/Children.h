@@ -145,14 +145,14 @@ protected:
  * Widgets with no Children can return an instance of FNoChildren.
  * For convenience a shared instance FNoChildren::NoChildrenInstance can be used.
  */
-class SLATECORE_API FNoChildren : public FChildren
+class FNoChildren : public FChildren
 {
 public:
-	static FNoChildren NoChildrenInstance;
+	static SLATECORE_API FNoChildren NoChildrenInstance;
 
 public:
 	UE_DEPRECATED(5.0, "FNoChildren take a valid reference to a SWidget")
-	FNoChildren();
+	SLATECORE_API FNoChildren();
 
 	FNoChildren(SWidget* InOwner)
 		: FChildren(InOwner)

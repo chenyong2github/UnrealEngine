@@ -20,17 +20,17 @@
  *
  */
 
-class SLATECORE_API FAppStyle
+class FAppStyle
 {
 
 public:
 
-	static const ISlateStyle& Get();
+	static SLATECORE_API const ISlateStyle& Get();
 	
-	static const FName GetAppStyleSetName();
-	static void SetAppStyleSetName(const FName& InName);
+	static SLATECORE_API const FName GetAppStyleSetName();
+	static SLATECORE_API void SetAppStyleSetName(const FName& InName);
 
-	static void SetAppStyleSet(const ISlateStyle& InStyle);
+	static SLATECORE_API void SetAppStyleSet(const ISlateStyle& InStyle);
 
 	template< class T >
 	static const T& GetWidgetStyle(FName PropertyName, const ANSICHAR* Specifier = NULL)
@@ -131,6 +131,6 @@ public:
 
 private:
 
-	static FName AppStyleName;
+	static SLATECORE_API FName AppStyleName;
 
 };

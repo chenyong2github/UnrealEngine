@@ -10,11 +10,11 @@ struct FSlateFontMeasureCache;
 typedef class FLRUStringCache FMeasureCache;
 struct FSlateFontMeasureCache;
 
-class SLATECORE_API FSlateFontMeasure final
+class FSlateFontMeasure final
 {
 public:
 
-	static TSharedRef< FSlateFontMeasure > Create( const TSharedRef<class FSlateFontCache>& FontCache );
+	static SLATECORE_API TSharedRef< FSlateFontMeasure > Create( const TSharedRef<class FSlateFontCache>& FontCache );
 
 public:
 
@@ -26,7 +26,7 @@ public:
 	 * @param FontScale	The scale to apply to the font
 	 * @return The width and height of the string.
 	 */
-	UE::Slate::FDeprecateVector2DResult Measure( const FString& Text, const FSlateFontInfo &InFontInfo, float FontScale = 1.0f ) const;
+	SLATECORE_API UE::Slate::FDeprecateVector2DResult Measure( const FString& Text, const FSlateFontInfo &InFontInfo, float FontScale = 1.0f ) const;
 
 	/** 
 	 * Measures the width and height of a passed in text.  The height is the maximum height of the largest character in the font/size pair
@@ -36,7 +36,7 @@ public:
 	 * @param FontScale	The scale to apply to the font
 	 * @return The width and height of the text.
 	 */
-	UE::Slate::FDeprecateVector2DResult Measure( const FText& Text, const FSlateFontInfo &InFontInfo, float FontScale = 1.0f ) const;
+	SLATECORE_API UE::Slate::FDeprecateVector2DResult Measure( const FText& Text, const FSlateFontInfo &InFontInfo, float FontScale = 1.0f ) const;
 	
 	/** 
 	 * Measures the width and height of a passed in string.  The height is the maximum height of the largest character in the font/size pair
@@ -48,7 +48,7 @@ public:
 	 * @param FontScale	The scale to apply to the font
 	 * @return The width and height of the string.
 	 */
-	UE::Slate::FDeprecateVector2DResult Measure( const FString& Text, int32 StartIndex, int32 EndIndex, const FSlateFontInfo &InFontInfo, bool IncludeKerningWithPrecedingChar = true, float FontScale = 1.0f ) const;
+	SLATECORE_API UE::Slate::FDeprecateVector2DResult Measure( const FString& Text, int32 StartIndex, int32 EndIndex, const FSlateFontInfo &InFontInfo, bool IncludeKerningWithPrecedingChar = true, float FontScale = 1.0f ) const;
 
 	/** 
 	 * Finds the last whole character index before the specified position in pixels along the string horizontally
@@ -59,7 +59,7 @@ public:
 	 *
 	 * @return The index of the last whole character before the specified horizontal offset
 	 */
-	int32 FindLastWholeCharacterIndexBeforeOffset( const FString& Text, const FSlateFontInfo& InFontInfo, const int32 HorizontalOffset, float FontScale = 1.0f ) const;
+	SLATECORE_API int32 FindLastWholeCharacterIndexBeforeOffset( const FString& Text, const FSlateFontInfo& InFontInfo, const int32 HorizontalOffset, float FontScale = 1.0f ) const;
 
 	/** 
 	 * Finds the last whole character index before the specified position in pixels along the string horizontally
@@ -70,7 +70,7 @@ public:
 	 *
 	 * @return The index of the last whole character before the specified horizontal offset
 	 */
-	int32 FindLastWholeCharacterIndexBeforeOffset( const FText& Text, const FSlateFontInfo& InFontInfo, const int32 HorizontalOffset, float FontScale = 1.0f ) const;
+	SLATECORE_API int32 FindLastWholeCharacterIndexBeforeOffset( const FText& Text, const FSlateFontInfo& InFontInfo, const int32 HorizontalOffset, float FontScale = 1.0f ) const;
 
 	/** 
 	 * Finds the last whole character index before the specified position in pixels along the text horizontally
@@ -83,7 +83,7 @@ public:
 	 *
 	 * @return The index of the last whole character before the specified horizontal offset
 	 */
-	int32 FindLastWholeCharacterIndexBeforeOffset( const FString& Text, int32 StartIndex, int32 EndIndex, const FSlateFontInfo& InFontInfo, const int32 HorizontalOffset, bool IncludeKerningWithPrecedingChar = true, float FontScale = 1.0f ) const;
+	SLATECORE_API int32 FindLastWholeCharacterIndexBeforeOffset( const FString& Text, int32 StartIndex, int32 EndIndex, const FSlateFontInfo& InFontInfo, const int32 HorizontalOffset, bool IncludeKerningWithPrecedingChar = true, float FontScale = 1.0f ) const;
 
 	/** 
 	 * Finds the first whole character index after the specified position in pixels along the string horizontally
@@ -94,7 +94,7 @@ public:
 	 *
 	 * @return The index of the first whole character after the specified horizontal offset
 	 */
-	int32 FindFirstWholeCharacterIndexAfterOffset( const FString& Text, const FSlateFontInfo& InFontInfo, const int32 HorizontalOffset, float FontScale = 1.0f ) const;
+	SLATECORE_API int32 FindFirstWholeCharacterIndexAfterOffset( const FString& Text, const FSlateFontInfo& InFontInfo, const int32 HorizontalOffset, float FontScale = 1.0f ) const;
 
 	/** 
 	 * Finds the first whole character index after the specified position in pixels along the string horizontally
@@ -105,7 +105,7 @@ public:
 	 *
 	 * @return The index of the first whole character after the specified horizontal offset
 	 */
-	int32 FindFirstWholeCharacterIndexAfterOffset( const FText& Text, const FSlateFontInfo& InFontInfo, const int32 HorizontalOffset, float FontScale = 1.0f ) const;
+	SLATECORE_API int32 FindFirstWholeCharacterIndexAfterOffset( const FText& Text, const FSlateFontInfo& InFontInfo, const int32 HorizontalOffset, float FontScale = 1.0f ) const;
 
 	/** 
 	 * Finds the first whole character index after the specified position in pixels along the string horizontally
@@ -118,7 +118,7 @@ public:
 	 *
 	 * @return The index of the first whole character after the specified horizontal offset
 	 */
-	int32 FindFirstWholeCharacterIndexAfterOffset( const FString& Text, int32 StartIndex, int32 EndIndex, const FSlateFontInfo& InFontInfo, const int32 HorizontalOffset, bool IncludeKerningWithPrecedingChar = true, float FontScale = 1.0f ) const;
+	SLATECORE_API int32 FindFirstWholeCharacterIndexAfterOffset( const FString& Text, int32 StartIndex, int32 EndIndex, const FSlateFontInfo& InFontInfo, const int32 HorizontalOffset, bool IncludeKerningWithPrecedingChar = true, float FontScale = 1.0f ) const;
 
 	/** 
 	 * Finds the character index at the specified position in pixels along the string horizontally
@@ -131,7 +131,7 @@ public:
 	 *
 	 * @return The index of the character closest to the specified horizontal offset
 	 */
-	int32 FindCharacterIndexAtOffset( const FString& Text, const FSlateFontInfo &InFontInfo, const int32 HorizontalOffset, float FontScale = 1.0f ) const;
+	SLATECORE_API int32 FindCharacterIndexAtOffset( const FString& Text, const FSlateFontInfo &InFontInfo, const int32 HorizontalOffset, float FontScale = 1.0f ) const;
 
 	/** 
 	 * Finds the character index at the specified position in pixels along the text horizontally
@@ -144,7 +144,7 @@ public:
 	 *
 	 * @return The index of the character closest to the specified horizontal offset
 	 */
-	int32 FindCharacterIndexAtOffset( const FText& Text, const FSlateFontInfo &InFontInfo, const int32 HorizontalOffset, float FontScale = 1.0f ) const;
+	SLATECORE_API int32 FindCharacterIndexAtOffset( const FText& Text, const FSlateFontInfo &InFontInfo, const int32 HorizontalOffset, float FontScale = 1.0f ) const;
 
 	/** 
 	 * Finds the character index at the specified position in pixels along the string horizontally
@@ -159,7 +159,7 @@ public:
 	 *
 	 * @return The index of the character closest to the specified horizontal offset
 	 */
-	int32 FindCharacterIndexAtOffset( const FString& Text, int32 StartIndex, int32 EndIndex, const FSlateFontInfo &InFontInfo, const int32 HorizontalOffset, bool IncludeKerningWithPrecedingChar = true, float FontScale = 1.0f ) const;
+	SLATECORE_API int32 FindCharacterIndexAtOffset( const FString& Text, int32 StartIndex, int32 EndIndex, const FSlateFontInfo &InFontInfo, const int32 HorizontalOffset, bool IncludeKerningWithPrecedingChar = true, float FontScale = 1.0f ) const;
 
 	/**
 	 * Returns the height of the largest character in the font. 
@@ -169,7 +169,7 @@ public:
 	 * 
 	 * @return The largest character height
 	 */
-	uint16 GetMaxCharacterHeight( const FSlateFontInfo& InFontInfo, float FontScale = 1.0f ) const;
+	SLATECORE_API uint16 GetMaxCharacterHeight( const FSlateFontInfo& InFontInfo, float FontScale = 1.0f ) const;
 
 	/**
 	 * Returns the kerning value for the specified pair of characters.
@@ -181,7 +181,7 @@ public:
 	 *
 	 * @return the kerning value used between the two specified characters
 	 */
-	int8 GetKerning(const FSlateFontInfo& InFontInfo, float FontScale, TCHAR PreviousCharacter, TCHAR CurrentCharacter) const;
+	SLATECORE_API int8 GetKerning(const FSlateFontInfo& InFontInfo, float FontScale, TCHAR PreviousCharacter, TCHAR CurrentCharacter) const;
 
 	/**
 	 * Returns the baseline for the specified font.
@@ -191,9 +191,9 @@ public:
 	 * 
 	 * @return The offset from the bottom of the max character height to the baseline.
 	 */
-	int16 GetBaseline( const FSlateFontInfo& InFontInfo, float FontScale = 1.0f ) const;
+	SLATECORE_API int16 GetBaseline( const FSlateFontInfo& InFontInfo, float FontScale = 1.0f ) const;
 
-	void FlushCache();
+	SLATECORE_API void FlushCache();
 
 
 private:

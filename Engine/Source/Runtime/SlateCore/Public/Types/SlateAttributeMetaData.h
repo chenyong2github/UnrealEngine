@@ -14,7 +14,7 @@
 class SWidget;
 
 /** */
-class SLATECORE_API FSlateAttributeMetaData : public ISlateMetaData
+class FSlateAttributeMetaData : public ISlateMetaData
 {
 	friend SlateAttributePrivate::FSlateAttributeImpl;
 	friend SlateAttributePrivate::ISlateAttributeContainer;
@@ -28,7 +28,7 @@ public:
 
 public:
 	/** @return the instance associated to the SWidget (if it exists). */
-	static FSlateAttributeMetaData* FindMetaData(const SWidget& OwningWidget);
+	static SLATECORE_API FSlateAttributeMetaData* FindMetaData(const SWidget& OwningWidget);
 
 	enum class EInvalidationPermission : uint8
 	{
@@ -48,26 +48,26 @@ public:
 	 * Update all the attributes.
 	 * @param InvalidationStyle if we should invalidate the widget.
 	 */
-	static void UpdateAllAttributes(SWidget& OwningWidget, EInvalidationPermission InvalidationStyle);
+	static SLATECORE_API void UpdateAllAttributes(SWidget& OwningWidget, EInvalidationPermission InvalidationStyle);
 	/**
 	 * Update attributes that are responsible to change visibility of the widget.
 	 * @param InvalidationStyle if we should invalidate the widget.
 	 */
-	static void UpdateOnlyVisibilityAttributes(SWidget& OwningWidget, EInvalidationPermission InvalidationStyle);
+	static SLATECORE_API void UpdateOnlyVisibilityAttributes(SWidget& OwningWidget, EInvalidationPermission InvalidationStyle);
 	/**
 	 * Update attributes that are NOT responsible to change visibility of the widget.
 	 * @param InvalidationStyle if we should invalidate the widget.
 	 */
-	static void UpdateExceptVisibilityAttributes(SWidget& OwningWidget, EInvalidationPermission InvalidationStyle);
+	static SLATECORE_API void UpdateExceptVisibilityAttributes(SWidget& OwningWidget, EInvalidationPermission InvalidationStyle);
 	/**
 	 * Execute UpdateOnlyVisibilityAttributes on every children of the widget.
 	 * @param InvalidationStyle if we should invalidate the widget.
 	 */
-	static void UpdateChildrenOnlyVisibilityAttributes(SWidget& OwningWidget, EInvalidationPermission InvalidationStyle, bool bRecursive);
+	static SLATECORE_API void UpdateChildrenOnlyVisibilityAttributes(SWidget& OwningWidget, EInvalidationPermission InvalidationStyle, bool bRecursive);
 	/**
 	 * Apply any delayed invalidation previously delayed with EInvalidationPermission::DelayInvalidation.
 	 */
-	static void ApplyDelayedInvalidation(SWidget& OwningWidget);
+	static SLATECORE_API void ApplyDelayedInvalidation(SWidget& OwningWidget);
 
 public:
 	bool IsBound(const FSlateAttributeBase& Attribute) const
@@ -86,7 +86,7 @@ public:
 	}
 
 	/** Get the name of all the attributes, if available. */
-	static TArray<FName> GetAttributeNames(const SWidget& OwningWidget);
+	static SLATECORE_API TArray<FName> GetAttributeNames(const SWidget& OwningWidget);
 
 	/**
 	 * Helper function that can be used inside the debuggers watch window.
@@ -99,31 +99,31 @@ private:
 	using ISlateAttributeContainer = SlateAttributePrivate::ISlateAttributeContainer;
 	using ESlateAttributeType = SlateAttributePrivate::ESlateAttributeType;
 	using ISlateAttributeGetter = SlateAttributePrivate::ISlateAttributeGetter;
-	static void RegisterAttribute(SWidget& OwningWidget, FSlateAttributeBase& Attribute, ESlateAttributeType AttributeType, TUniquePtr<ISlateAttributeGetter>&& Wrapper);
-	static void RegisterAttribute(ISlateAttributeContainer& OwningContainer, FSlateAttributeBase& Attribute, ESlateAttributeType AttributeType, TUniquePtr<ISlateAttributeGetter>&& Wrapper);
-	static bool UnregisterAttribute(SWidget& OwningWidget, const FSlateAttributeBase& Attribute);
-	static bool UnregisterAttribute(ISlateAttributeContainer& OwningContainer, const FSlateAttributeBase& Attribute);
-	static void InvalidateWidget(SWidget& OwningWidget, const FSlateAttributeBase& Attribute, ESlateAttributeType AttributeType, EInvalidateWidgetReason Reason);
-	static void InvalidateWidget(ISlateAttributeContainer& OwningContainer, const FSlateAttributeBase& Attribute, ESlateAttributeType AttributeType, EInvalidateWidgetReason Reason);
-	static void UpdateAttribute(SWidget& OwningWidget, FSlateAttributeBase& Attribute);
-	static bool IsAttributeBound(const SWidget& OwningWidget, const FSlateAttributeBase& Attribute);
-	static SlateAttributePrivate::ISlateAttributeGetter* GetAttributeGetter(const SWidget& OwningWidget, const FSlateAttributeBase& Attribute);
-	static FDelegateHandle GetAttributeGetterHandle(const SWidget& OwningWidget, const FSlateAttributeBase& Attribute);
-	static void MoveAttribute(const SWidget& OwningWidget, FSlateAttributeBase& NewAttribute, ESlateAttributeType AttributeType, const FSlateAttributeBase* PreviousAttribute);
+	static SLATECORE_API void RegisterAttribute(SWidget& OwningWidget, FSlateAttributeBase& Attribute, ESlateAttributeType AttributeType, TUniquePtr<ISlateAttributeGetter>&& Wrapper);
+	static SLATECORE_API void RegisterAttribute(ISlateAttributeContainer& OwningContainer, FSlateAttributeBase& Attribute, ESlateAttributeType AttributeType, TUniquePtr<ISlateAttributeGetter>&& Wrapper);
+	static SLATECORE_API bool UnregisterAttribute(SWidget& OwningWidget, const FSlateAttributeBase& Attribute);
+	static SLATECORE_API bool UnregisterAttribute(ISlateAttributeContainer& OwningContainer, const FSlateAttributeBase& Attribute);
+	static SLATECORE_API void InvalidateWidget(SWidget& OwningWidget, const FSlateAttributeBase& Attribute, ESlateAttributeType AttributeType, EInvalidateWidgetReason Reason);
+	static SLATECORE_API void InvalidateWidget(ISlateAttributeContainer& OwningContainer, const FSlateAttributeBase& Attribute, ESlateAttributeType AttributeType, EInvalidateWidgetReason Reason);
+	static SLATECORE_API void UpdateAttribute(SWidget& OwningWidget, FSlateAttributeBase& Attribute);
+	static SLATECORE_API bool IsAttributeBound(const SWidget& OwningWidget, const FSlateAttributeBase& Attribute);
+	static SLATECORE_API SlateAttributePrivate::ISlateAttributeGetter* GetAttributeGetter(const SWidget& OwningWidget, const FSlateAttributeBase& Attribute);
+	static SLATECORE_API FDelegateHandle GetAttributeGetterHandle(const SWidget& OwningWidget, const FSlateAttributeBase& Attribute);
+	static SLATECORE_API void MoveAttribute(const SWidget& OwningWidget, FSlateAttributeBase& NewAttribute, ESlateAttributeType AttributeType, const FSlateAttributeBase* PreviousAttribute);
 
 	//~ For Container
-	static void RemoveContainerWidget(SWidget& Widget, ISlateAttributeContainer& Container);
-	static void UpdateContainerSortOrder(SWidget& Widget, ISlateAttributeContainer& Container);
+	static SLATECORE_API void RemoveContainerWidget(SWidget& Widget, ISlateAttributeContainer& Container);
+	static SLATECORE_API void UpdateContainerSortOrder(SWidget& Widget, ISlateAttributeContainer& Container);
 
 
 private:
-	void RegisterMemberAttributeImpl(SWidget& OwningWidget, FSlateAttributeBase& Attribute, TUniquePtr<ISlateAttributeGetter>&& Getter);
-	void RegisterManagedAttributeImpl(SWidget& OwningWidget, FSlateAttributeBase& Attribute, TUniquePtr<ISlateAttributeGetter>&& Getter);
-	void RegisterContainAttributeImpl(ISlateAttributeContainer& OwningContainer, SWidget& OwningWidget, FSlateAttributeBase& Attribute, TUniquePtr<ISlateAttributeGetter>&& Getter);
-	bool UnregisterAttributeImpl(const FSlateAttributeBase& Attribute);
-	void RemoveMetaDataIfNeeded(SWidget& OwningWidget, bool bRemoved) const;
-	bool InvalidateWidgetAttribute(SWidget& OwningWidget, const FSlateAttributeBase& Attribute, EInvalidateWidgetReason Reason);
-	void UpdateAttributesImpl(SWidget& OwningWidget, EInvalidationPermission InvaldiationStyle, int32 StartIndex, int32 IndexNum);
+	SLATECORE_API void RegisterMemberAttributeImpl(SWidget& OwningWidget, FSlateAttributeBase& Attribute, TUniquePtr<ISlateAttributeGetter>&& Getter);
+	SLATECORE_API void RegisterManagedAttributeImpl(SWidget& OwningWidget, FSlateAttributeBase& Attribute, TUniquePtr<ISlateAttributeGetter>&& Getter);
+	SLATECORE_API void RegisterContainAttributeImpl(ISlateAttributeContainer& OwningContainer, SWidget& OwningWidget, FSlateAttributeBase& Attribute, TUniquePtr<ISlateAttributeGetter>&& Getter);
+	SLATECORE_API bool UnregisterAttributeImpl(const FSlateAttributeBase& Attribute);
+	SLATECORE_API void RemoveMetaDataIfNeeded(SWidget& OwningWidget, bool bRemoved) const;
+	SLATECORE_API bool InvalidateWidgetAttribute(SWidget& OwningWidget, const FSlateAttributeBase& Attribute, EInvalidateWidgetReason Reason);
+	SLATECORE_API void UpdateAttributesImpl(SWidget& OwningWidget, EInvalidationPermission InvaldiationStyle, int32 StartIndex, int32 IndexNum);
 
 private:
 	int32 IndexOfAttribute(const FSlateAttributeBase& Attribute) const

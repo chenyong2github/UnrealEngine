@@ -6,7 +6,7 @@
 #include "Styling/SlateBrush.h"
 #include "Types/SlateVector2.h"
 
-struct SLATECORE_API FSlateRoundedBoxBrush
+struct FSlateRoundedBoxBrush
 	: public FSlateBrush
 {
 

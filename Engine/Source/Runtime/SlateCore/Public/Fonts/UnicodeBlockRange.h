@@ -17,7 +17,7 @@ enum class EUnicodeBlockRange : uint16
 };
 
 /** Pre-defined Unicode block ranges that can be used with the character ranges in sub-fonts */
-struct SLATECORE_API FUnicodeBlockRange
+struct FUnicodeBlockRange
 {
 	/** Index enum of this block */
 	EUnicodeBlockRange Index;
@@ -29,8 +29,8 @@ struct SLATECORE_API FUnicodeBlockRange
 	FInt32Range Range;
 
 	/** Returns an array containing all of the pre-defined block ranges */
-	static TArrayView<const FUnicodeBlockRange> GetUnicodeBlockRanges();
+	static SLATECORE_API TArrayView<const FUnicodeBlockRange> GetUnicodeBlockRanges();
 
 	/** Returns the block corresponding to the given enum */
-	static FUnicodeBlockRange GetUnicodeBlockRange(const EUnicodeBlockRange InBlockIndex);
+	static SLATECORE_API FUnicodeBlockRange GetUnicodeBlockRange(const EUnicodeBlockRange InBlockIndex);
 };

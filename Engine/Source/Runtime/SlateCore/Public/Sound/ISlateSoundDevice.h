@@ -6,7 +6,7 @@
 struct FSlateSound;
 
 /** Interface that Slate uses to play sounds. */
-class SLATECORE_API ISlateSoundDevice
+class ISlateSoundDevice
 {
 public:
 	/** Play the sound resource within the given Slate sound object */

@@ -77,7 +77,7 @@ struct FAtlasedTextureSlot : public TIntrusiveLinkedList<FAtlasedTextureSlot>
 /**
  * Base class texture atlases in Slate
  */
-class SLATECORE_API FSlateTextureAtlas
+class FSlateTextureAtlas
 {
 public:
 	FSlateTextureAtlas( uint32 InWidth, uint32 InHeight, uint32 InBytesPerPixel, ESlateTextureAtlasPaddingStyle InPaddingStyle, bool bInUpdatesAfterInitialization )
@@ -97,12 +97,12 @@ public:
 		InitAtlasData();
 	}
 
-	virtual ~FSlateTextureAtlas();
+	SLATECORE_API virtual ~FSlateTextureAtlas();
 
 	/**
 	 * Clears atlas cpu data.  It does not clear rendering data
 	 */
-	void EmptyAtlasData();
+	SLATECORE_API void EmptyAtlasData();
 
 	/**
 	 * Adds a texture to the atlas
@@ -111,7 +111,7 @@ public:
 	 * @param TextureHeight	Height of the texture
 	 * @param Data			Raw texture data
 	 */
-	const FAtlasedTextureSlot* AddTexture(uint32 TextureWidth, uint32 TextureHeight, const TArray<uint8>& Data);
+	SLATECORE_API const FAtlasedTextureSlot* AddTexture(uint32 TextureWidth, uint32 TextureHeight, const TArray<uint8>& Data);
 
 	/** @return the width of the atlas */
 	uint32 GetWidth() const { return AtlasWidth; }
@@ -119,7 +119,7 @@ public:
 	uint32 GetHeight() const { return AtlasHeight; }
 
 	/** Marks the texture as dirty and needing its rendering resources updated */
-	void MarkTextureDirty();
+	SLATECORE_API void MarkTextureDirty();
 	
 	/**
 	 * Updates the texture used for rendering if needed
@@ -134,7 +134,7 @@ public:
 	virtual FSlateShaderResource* GetAtlasTexture() const = 0;
 
 #if WITH_ATLAS_DEBUGGING
-	const FAtlasedTextureSlot* GetSlotAtPosition(FIntPoint InPosition) const;
+	SLATECORE_API const FAtlasedTextureSlot* GetSlotAtPosition(FIntPoint InPosition) const;
 #endif
 protected:
 	/**
@@ -143,12 +143,12 @@ protected:
 	 * @param Width The width of the texture we are adding
 	 * @param Height The height of the texture we are adding
 	 */
-	const FAtlasedTextureSlot* FindSlotForTexture( uint32 InWidth, uint32 InHeight );
+	SLATECORE_API const FAtlasedTextureSlot* FindSlotForTexture( uint32 InWidth, uint32 InHeight );
 
 	/**
 	 * Creates enough space for a single texture the width and height of the atlas
 	 */
-	void InitAtlasData();
+	SLATECORE_API void InitAtlasData();
 
 	struct FCopyRowData
 	{
@@ -174,7 +174,7 @@ protected:
 	 *
 	 * @param CopyRowData	Information for how to copy a row
 	 */
-	void CopyRow( const FCopyRowData& CopyRowData );
+	SLATECORE_API void CopyRow( const FCopyRowData& CopyRowData );
 
 	/**
 	 * Zeros out a row in the dest texture (used with PaddingStyle == PadWithZero).
@@ -182,7 +182,7 @@ protected:
 	 *
 	 * @param CopyRowData	Information for how to copy a row
 	 */
-	void ZeroRow( const FCopyRowData& CopyRowData );
+	SLATECORE_API void ZeroRow( const FCopyRowData& CopyRowData );
 
 	/** 
 	 * Copies texture data into the atlas at a given slot
@@ -190,7 +190,7 @@ protected:
 	 * @param SlotToCopyTo	The occupied slot in the atlas where texture data should be copied to
 	 * @param Data			The data to copy into the atlas
 	 */
-	void CopyDataIntoSlot( const FAtlasedTextureSlot* SlotToCopyTo, const TArray<uint8>& Data );
+	SLATECORE_API void CopyDataIntoSlot( const FAtlasedTextureSlot* SlotToCopyTo, const TArray<uint8>& Data );
 
 private:
 	/** Returns the amount of padding needed for the current padding style */

@@ -28,7 +28,7 @@ namespace SlateAttributePrivate
 /**
  * Describes the static information about a Widget's type SlateAttributes.
  **/
-class SLATECORE_API FSlateAttributeDescriptor
+class FSlateAttributeDescriptor
 {
 public:
 	/**
@@ -199,28 +199,28 @@ public:
 	};
 
 	/** Internal class to initialize the SlateAttributeDescriptor::FContainer attributes (Add attributes or modify existing attributes). */
-	struct SLATECORE_API FContainerInitializer
+	struct FContainerInitializer
 	{
 	private:
 		friend FSlateAttributeDescriptor;
-		FContainerInitializer(FSlateAttributeDescriptor& InDescriptor, FName ContainerName);
-		FContainerInitializer(FSlateAttributeDescriptor& InDescriptor, const FSlateAttributeDescriptor& ParentDescriptor, FName ContainerName);
+		SLATECORE_API FContainerInitializer(FSlateAttributeDescriptor& InDescriptor, FName ContainerName);
+		SLATECORE_API FContainerInitializer(FSlateAttributeDescriptor& InDescriptor, const FSlateAttributeDescriptor& ParentDescriptor, FName ContainerName);
 
 	public:
 		FContainerInitializer() = delete;
 		FContainerInitializer(const FContainerInitializer&) = delete;
 		FContainerInitializer& operator= (const FContainerInitializer&) = delete;
 
-		struct SLATECORE_API FAttributeEntry
+		struct FAttributeEntry
 		{
-			FAttributeEntry(FSlateAttributeDescriptor& Descriptor, FName ContainerName, int32 AttributeIndex);
+			SLATECORE_API FAttributeEntry(FSlateAttributeDescriptor& Descriptor, FName ContainerName, int32 AttributeIndex);
 
 			/**
 			 * Update the attribute after the prerequisite.
 			 * The order is guaranteed but other attributes may be updated in between.
 			 * No order is guaranteed if the prerequisite or this property is updated manually.
 			 */
-			FAttributeEntry& UpdatePrerequisite(FName Prerequisite);
+			SLATECORE_API FAttributeEntry& UpdatePrerequisite(FName Prerequisite);
 
 			/**
 			 * Notified when the attribute value changed.
@@ -229,7 +229,7 @@ public:
 			 * It will not be called when the SWidget is in its construction phase.
 			 * @see SWidget::IsConstructed
 			 */
-			FAttributeEntry& OnValueChanged(FAttributeValueChangedDelegate Callback);
+			SLATECORE_API FAttributeEntry& OnValueChanged(FAttributeValueChangedDelegate Callback);
 
 		private:
 			FSlateAttributeDescriptor& Descriptor;
@@ -237,17 +237,17 @@ public:
 			int32 AttributeIndex;
 		};
 
-		FAttributeEntry AddContainedAttribute(FName AttributeName, OffsetType Offset, const FInvalidateWidgetReasonAttribute& ReasonGetter);
-		FAttributeEntry AddContainedAttribute(FName AttributeName, OffsetType Offset, FInvalidateWidgetReasonAttribute&& ReasonGetter);
+		SLATECORE_API FAttributeEntry AddContainedAttribute(FName AttributeName, OffsetType Offset, const FInvalidateWidgetReasonAttribute& ReasonGetter);
+		SLATECORE_API FAttributeEntry AddContainedAttribute(FName AttributeName, OffsetType Offset, FInvalidateWidgetReasonAttribute&& ReasonGetter);
 
 	public:
 		/** Change the InvalidationReason of an attribute defined in a base class. */
-		void OverrideInvalidationReason(FName AttributeName, const FInvalidateWidgetReasonAttribute& Reason);
+		SLATECORE_API void OverrideInvalidationReason(FName AttributeName, const FInvalidateWidgetReasonAttribute& Reason);
 		/** Change the InvalidationReason of an attribute defined in a base class. */
-		void OverrideInvalidationReason(FName AttributeName, FInvalidateWidgetReasonAttribute&& Reason);
+		SLATECORE_API void OverrideInvalidationReason(FName AttributeName, FInvalidateWidgetReasonAttribute&& Reason);
 
 		/** Change the FAttributeValueChangedDelegate of an attribute defined in a base class. */
-		void OverrideOnValueChanged(FName AttributeName, ECallbackOverrideType OverrideType, FAttributeValueChangedDelegate Callback);
+		SLATECORE_API void OverrideOnValueChanged(FName AttributeName, ECallbackOverrideType OverrideType, FAttributeValueChangedDelegate Callback);
 
 	private:
 		FSlateAttributeDescriptor& Descriptor;
@@ -255,35 +255,35 @@ public:
 	};
 
 	/** Internal class to initialize the SlateAttributeDescriptor (Add attributes or modify existing attributes). */
-	struct SLATECORE_API FInitializer
+	struct FInitializer
 	{
 	private:
 		friend FSlateWidgetClassData;
-		FInitializer(FSlateAttributeDescriptor& InDescriptor);
-		FInitializer(FSlateAttributeDescriptor& InDescriptor, const FSlateAttributeDescriptor& ParentDescriptor);
+		SLATECORE_API FInitializer(FSlateAttributeDescriptor& InDescriptor);
+		SLATECORE_API FInitializer(FSlateAttributeDescriptor& InDescriptor, const FSlateAttributeDescriptor& ParentDescriptor);
 		FInitializer(const FInitializer&) = delete;
 		FInitializer& operator=(const FInitializer&) = delete;
 
 	public:
-		~FInitializer();
+		SLATECORE_API ~FInitializer();
 
-		struct SLATECORE_API FAttributeEntry
+		struct FAttributeEntry
 		{
-			FAttributeEntry(FSlateAttributeDescriptor& Descriptor, int32 InAttributeIndex);
+			SLATECORE_API FAttributeEntry(FSlateAttributeDescriptor& Descriptor, int32 InAttributeIndex);
 
 			/**
 			 * Update the attribute after the prerequisite.
 			 * The order is guaranteed but other attributes may be updated in between.
 			 * No order is guaranteed if the prerequisite or this property is updated manually.
 			 */
-			FAttributeEntry& UpdatePrerequisite(FName Prerequisite);
+			SLATECORE_API FAttributeEntry& UpdatePrerequisite(FName Prerequisite);
 
 			/**
 			 * The attribute affect the visibility of the widget.
 			 * We only update the attributes that can change the visibility of the widget when the widget is collapsed.
 			 * Attributes that affect visibility must have the Visibility attribute as a Prerequisite or the Visibility attribute must have it as a Prerequisite.
 			 */
-			FAttributeEntry& AffectVisibility();
+			SLATECORE_API FAttributeEntry& AffectVisibility();
 
 			/**
 			 * Notified when the attribute value changed.
@@ -292,29 +292,29 @@ public:
 			 * It will not be called when the SWidget is in its construction phase.
 			 * @see SWidget::IsConstructed
 			 */
-			FAttributeEntry& OnValueChanged(FAttributeValueChangedDelegate Callback);
+			SLATECORE_API FAttributeEntry& OnValueChanged(FAttributeValueChangedDelegate Callback);
 
 		private:
 			FSlateAttributeDescriptor& Descriptor;
 			int32 AttributeIndex;
 		};
 
-		FAttributeEntry AddMemberAttribute(FName AttributeName, OffsetType Offset, const FInvalidateWidgetReasonAttribute& ReasonGetter);
-		FAttributeEntry AddMemberAttribute(FName AttributeName, OffsetType Offset, FInvalidateWidgetReasonAttribute&& ReasonGetter);
+		SLATECORE_API FAttributeEntry AddMemberAttribute(FName AttributeName, OffsetType Offset, const FInvalidateWidgetReasonAttribute& ReasonGetter);
+		SLATECORE_API FAttributeEntry AddMemberAttribute(FName AttributeName, OffsetType Offset, FInvalidateWidgetReasonAttribute&& ReasonGetter);
 
-		FContainerInitializer AddContainer(FName ContainerName, OffsetType Offset);
+		SLATECORE_API FContainerInitializer AddContainer(FName ContainerName, OffsetType Offset);
 
 	public:
 		/** Change the InvalidationReason of an attribute defined in a base class. */
-		void OverrideInvalidationReason(FName AttributeName, const FInvalidateWidgetReasonAttribute& Reason);
+		SLATECORE_API void OverrideInvalidationReason(FName AttributeName, const FInvalidateWidgetReasonAttribute& Reason);
 		/** Change the InvalidationReason of an attribute defined in a base class. */
-		void OverrideInvalidationReason(FName AttributeName, FInvalidateWidgetReasonAttribute&& Reason);
+		SLATECORE_API void OverrideInvalidationReason(FName AttributeName, FInvalidateWidgetReasonAttribute&& Reason);
 
 		/** Change the FAttributeValueChangedDelegate of an attribute defined in a base class. */
-		void OverrideOnValueChanged(FName AttributeName, ECallbackOverrideType OverrideType, FAttributeValueChangedDelegate Callback);
+		SLATECORE_API void OverrideOnValueChanged(FName AttributeName, ECallbackOverrideType OverrideType, FAttributeValueChangedDelegate Callback);
 
 		/** Change the update type of an attribute defined in a base class. */
-		void SetAffectVisibility(FName AttributeName, bool bAffectVisibility);
+		SLATECORE_API void SetAffectVisibility(FName AttributeName, bool bAffectVisibility);
 
 	private:
 		FSlateAttributeDescriptor& Descriptor;
@@ -327,42 +327,42 @@ public:
 	}
 
 	/** @returns the Attribute at the index previously found with IndexOfMemberAttribute */
-	const FAttribute& GetAttributeAtIndex(int32 Index) const;
+	SLATECORE_API const FAttribute& GetAttributeAtIndex(int32 Index) const;
 
 	/** @returns the Container with the corresponding name. */
-	const FContainer* FindContainer(FName ContainerName) const;
+	SLATECORE_API const FContainer* FindContainer(FName ContainerName) const;
 
 	/** @returns the Attribute with the corresponding name. */
-	const FAttribute* FindAttribute(FName AttributeName) const;
+	SLATECORE_API const FAttribute* FindAttribute(FName AttributeName) const;
 
 	/** @returns the Attribute of a SlateAttribute that have the corresponding memory offset. */
-	const FAttribute* FindMemberAttribute(OffsetType AttributeOffset) const;
+	SLATECORE_API const FAttribute* FindMemberAttribute(OffsetType AttributeOffset) const;
 
 	/** @returns the Attribute of a SlateAttribute that have the corresponding memory offset. */
-	const FAttribute* FindContainedAttribute(FName ContainerName, OffsetType AttributeOffset) const;
+	SLATECORE_API const FAttribute* FindContainedAttribute(FName ContainerName, OffsetType AttributeOffset) const;
 
 	/** @returns the index of the Container with the corresponding name. */
-	int32 IndexOfContainer(FName AttributeName) const;
+	SLATECORE_API int32 IndexOfContainer(FName AttributeName) const;
 
 	/** @returns the index of a SlateAttribute that have the corresponding memory offset. */
-	int32 IndexOfAttribute(FName AttributeName) const;
+	SLATECORE_API int32 IndexOfAttribute(FName AttributeName) const;
 
 	/** @returns the index of a SlateAttribute that have the corresponding memory offset. */
-	int32 IndexOfMemberAttribute(OffsetType AttributeOffset) const;
+	SLATECORE_API int32 IndexOfMemberAttribute(OffsetType AttributeOffset) const;
 
 	/** @returns the index of a SlateAttribute that have the corresponding memory offset. */
-	int32 IndexOfContainedAttribute(FName ContainerName, OffsetType AttributeOffset) const;
+	SLATECORE_API int32 IndexOfContainedAttribute(FName ContainerName, OffsetType AttributeOffset) const;
 
 private:
-	FAttribute* FindAttribute(FName AttributeName);
+	SLATECORE_API FAttribute* FindAttribute(FName AttributeName);
 
-	FContainerInitializer AddContainer(FName AttributeName, OffsetType Offset);
-	FInitializer::FAttributeEntry AddMemberAttribute(FName AttributeName, OffsetType Offset, FInvalidateWidgetReasonAttribute ReasonGetter);
-	FContainerInitializer::FAttributeEntry AddContainedAttribute(FName ContainerName, FName AttributeName, OffsetType Offset, FInvalidateWidgetReasonAttribute ReasonGetter);
-	void OverrideInvalidationReason(FName ContainerName, FName AttributeName, FInvalidateWidgetReasonAttribute ReasonGetter);
-	void OverrideOnValueChanged(FName ContainerName, FName AttributeName, ECallbackOverrideType OverrideType, FAttributeValueChangedDelegate Callback);
-	void SetPrerequisite(FName ContainerName, FAttribute& Attribute, FName Prerequisite);
-	void SetAffectVisibility(FAttribute& Attribute, bool bUpdate);
+	SLATECORE_API FContainerInitializer AddContainer(FName AttributeName, OffsetType Offset);
+	SLATECORE_API FInitializer::FAttributeEntry AddMemberAttribute(FName AttributeName, OffsetType Offset, FInvalidateWidgetReasonAttribute ReasonGetter);
+	SLATECORE_API FContainerInitializer::FAttributeEntry AddContainedAttribute(FName ContainerName, FName AttributeName, OffsetType Offset, FInvalidateWidgetReasonAttribute ReasonGetter);
+	SLATECORE_API void OverrideInvalidationReason(FName ContainerName, FName AttributeName, FInvalidateWidgetReasonAttribute ReasonGetter);
+	SLATECORE_API void OverrideOnValueChanged(FName ContainerName, FName AttributeName, ECallbackOverrideType OverrideType, FAttributeValueChangedDelegate Callback);
+	SLATECORE_API void SetPrerequisite(FName ContainerName, FAttribute& Attribute, FName Prerequisite);
+	SLATECORE_API void SetAffectVisibility(FAttribute& Attribute, bool bUpdate);
 
 private:
 	TArray<FAttribute> Attributes;

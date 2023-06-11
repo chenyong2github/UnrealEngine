@@ -12,20 +12,20 @@
  * Represents the appearance of an SSegmentedControl
  */
 USTRUCT(BlueprintType)
-struct SLATECORE_API FSegmentedControlStyle: public FSlateWidgetStyle
+struct FSegmentedControlStyle: public FSlateWidgetStyle
 {
 	GENERATED_USTRUCT_BODY()
 
-	FSegmentedControlStyle();
+	SLATECORE_API FSegmentedControlStyle();
 
 	virtual ~FSegmentedControlStyle() {}
 
-	virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
+	SLATECORE_API virtual void GetResources( TArray< const FSlateBrush* >& OutBrushes ) const override;
 
-	static const FName TypeName;
+	static SLATECORE_API const FName TypeName;
 	virtual const FName GetTypeName() const override { return TypeName; };
 
-	static const FSegmentedControlStyle& GetDefault();
+	static SLATECORE_API const FSegmentedControlStyle& GetDefault();
 
 	/**
 	 * The style to use for our Center Control

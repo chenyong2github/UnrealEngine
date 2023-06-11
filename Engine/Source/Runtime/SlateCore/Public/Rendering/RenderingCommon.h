@@ -201,7 +201,7 @@ struct FShaderParams
 /** 
  * A struct which defines a basic vertex seen by the Slate vertex buffers and shaders
  */
-struct SLATECORE_API FSlateVertex
+struct FSlateVertex
 {
 	/** Texture coordinates.  The first 2 are in xy and the 2nd are in zw */
 	float TexCoords[4]; 

@@ -9,10 +9,10 @@
 struct FSlateSound;
 
 /** Silent implementation of ISlateSoundDevice; it plays nothing. */
-class SLATECORE_API FNullSlateSoundDevice : public ISlateSoundDevice
+class FNullSlateSoundDevice : public ISlateSoundDevice
 {
 public:
-	virtual void PlaySound(const FSlateSound&, int32) const override;
-	virtual float GetSoundDuration(const FSlateSound& Sound) const override;
-	virtual ~FNullSlateSoundDevice();
+	SLATECORE_API virtual void PlaySound(const FSlateSound&, int32) const override;
+	SLATECORE_API virtual float GetSoundDuration(const FSlateSound& Sound) const override;
+	SLATECORE_API virtual ~FNullSlateSoundDevice();
 };

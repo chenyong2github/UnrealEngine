@@ -8,7 +8,7 @@
 #include "Misc/Paths.h"
 #include "Brushes/SlateNoResource.h"
 
-class SLATECORE_API FStyleDefaults
+class FStyleDefaults
 {
 public:
 
@@ -60,13 +60,13 @@ public:
 	/**
 	 * @return - Returns no brush.
 	 */
-	static const FSlateBrush* GetNoBrush();
+	static SLATECORE_API const FSlateBrush* GetNoBrush();
 
 	/**
 	 * Get default font.
 	 * @return - The default font.
 	 */
-	static const FSlateFontInfo GetFontInfo(uint16 Size = 10);
+	static SLATECORE_API const FSlateFontInfo GetFontInfo(uint16 Size = 10);
 
 	/**
 	 * Return the static default sound value.
@@ -79,10 +79,10 @@ public:
 
 private:
 
-	static float DefaultFloat;
-	static FVector2D DefaultFVector2D;
-	static FLinearColor DefaultColor;
-	static FMargin DefaultMargin;
-	static FSlateSound DefaultSound;
-	static FSlateColor DefaultSlateColor;
+	static SLATECORE_API float DefaultFloat;
+	static SLATECORE_API FVector2D DefaultFVector2D;
+	static SLATECORE_API FLinearColor DefaultColor;
+	static SLATECORE_API FMargin DefaultMargin;
+	static SLATECORE_API FSlateSound DefaultSound;
+	static SLATECORE_API FSlateColor DefaultSlateColor;
 };

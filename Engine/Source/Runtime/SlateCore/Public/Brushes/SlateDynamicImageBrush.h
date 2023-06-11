@@ -10,7 +10,7 @@
 /**
  * Ignores the Margin. Just renders the image. Can tile the image instead of stretching.
  */
-struct SLATECORE_API FSlateDynamicImageBrush
+struct FSlateDynamicImageBrush
 	: public FSlateBrush, public TSharedFromThis<FSlateDynamicImageBrush>
 {
 	/**
@@ -87,7 +87,7 @@ struct SLATECORE_API FSlateDynamicImageBrush
 	* @param InTiling			How do we tile if at all?
 	* @param InImageType		The type of image this this is
 	*/
-	static TSharedPtr<FSlateDynamicImageBrush> CreateWithImageData(
+	static SLATECORE_API TSharedPtr<FSlateDynamicImageBrush> CreateWithImageData(
 		const FName InTextureName,
 		const UE::Slate::FDeprecateVector2DParameter& InImageSize,
 		const TArray<uint8>& InImageData,
@@ -98,13 +98,13 @@ struct SLATECORE_API FSlateDynamicImageBrush
 	/**
 	 * Releases the resource when it is safe to do so
 	 */
-	void ReleaseResource();
+	SLATECORE_API void ReleaseResource();
 
 	/** Destructor. */
-	virtual ~FSlateDynamicImageBrush();
+	SLATECORE_API virtual ~FSlateDynamicImageBrush();
 
 private:
-	void ReleaseResourceInternal();
+	SLATECORE_API void ReleaseResourceInternal();
 
 	void InitFromTextureObject(FName InTextureName)
 	{

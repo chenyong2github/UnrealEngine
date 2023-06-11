@@ -14,7 +14,7 @@ namespace UE::Slate::Private
  * Single point of access for various default styles used in UMG for runtime and editor
  * with each style already having it's colors unlinked for reuse
  */
-struct SLATECORE_API FDefaultStyleCache
+struct FDefaultStyleCache
 {
 	/**
 	 * Internal style default holder struct, used so that one can get a bundle of defaults relevant for runtime or editor
@@ -107,11 +107,11 @@ struct SLATECORE_API FDefaultStyleCache
 private:
 
 	/** Singleton getter, however private used since GetRuntime & GetEditor is preferred for styles */
-	static FDefaultStyleCache& Get();
+	static SLATECORE_API FDefaultStyleCache& Get();
 
 	friend ::FLazySingleton;
 
-	FDefaultStyleCache();
+	SLATECORE_API FDefaultStyleCache();
 
 	FStyles Runtime;
 

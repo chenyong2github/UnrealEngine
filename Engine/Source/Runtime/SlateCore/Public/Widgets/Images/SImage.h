@@ -17,10 +17,10 @@ class FSlateWindowElementList;
 /**
  * Implements a widget that displays an image with a desired width and height.
  */
-class SLATECORE_API SImage
+class SImage
 	: public SLeafWidget
 {
-	SLATE_DECLARE_WIDGET(SImage, SLeafWidget)
+	SLATE_DECLARE_WIDGET_API(SImage, SLeafWidget, SLATECORE_API)
 
 public:
 	SLATE_BEGIN_ARGS( SImage )
@@ -46,46 +46,46 @@ public:
 	SLATE_END_ARGS()
 
 	/** Constructor */
-	SImage();
+	SLATECORE_API SImage();
 
 	/**
 	 * Construct this widget
 	 *
 	 * @param	InArgs	The declaration data for this widget
 	 */
-	void Construct( const FArguments& InArgs );
+	SLATECORE_API void Construct( const FArguments& InArgs );
 
 public:
 
 	/** Set the ColorAndOpacity attribute */
-	void SetColorAndOpacity(TAttribute<FSlateColor> InColorAndOpacity);
+	SLATECORE_API void SetColorAndOpacity(TAttribute<FSlateColor> InColorAndOpacity);
 
 	/** See the ColorAndOpacity attribute */
-	void SetColorAndOpacity( FLinearColor InColorAndOpacity );
+	SLATECORE_API void SetColorAndOpacity( FLinearColor InColorAndOpacity );
 
 	/** Set the Image attribute */
-	void SetImage(TAttribute<const FSlateBrush*> InImage);
+	SLATECORE_API void SetImage(TAttribute<const FSlateBrush*> InImage);
 
 	/** Invalidate the Image */
-	void InvalidateImage();
+	SLATECORE_API void InvalidateImage();
 
 	/** Set SizeOverride attribute */
-	void SetDesiredSizeOverride(TAttribute<TOptional<FVector2D>> InDesiredSizeOverride);
+	SLATECORE_API void SetDesiredSizeOverride(TAttribute<TOptional<FVector2D>> InDesiredSizeOverride);
 
 	/** Set FlipForRightToLeftFlowDirection */
-	void FlipForRightToLeftFlowDirection(bool InbFlipForRightToLeftFlowDirection);
+	SLATECORE_API void FlipForRightToLeftFlowDirection(bool InbFlipForRightToLeftFlowDirection);
 
 public:
 
 	// SWidget overrides
-	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
+	SLATECORE_API virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
 #if WITH_ACCESSIBILITY
-	virtual TSharedRef<FSlateAccessibleWidget> CreateAccessibleWidget() override;
+	SLATECORE_API virtual TSharedRef<FSlateAccessibleWidget> CreateAccessibleWidget() override;
 #endif
 
 protected:
 	// Begin SWidget overrides.
-	virtual FVector2D ComputeDesiredSize(float) const override;
+	SLATECORE_API virtual FVector2D ComputeDesiredSize(float) const override;
 	// End SWidget overrides.
 
 	/** @return an attribute reference of Image */

@@ -19,7 +19,7 @@ class FSlateWindowElementList;
  * respect to its parent (i.e. the Panel) and its peers Widgets (i.e. the Panel's other children.)
  * For a simple example see StackPanel.
  */
-class SLATECORE_API SPanel
+class SPanel
 	: public SWidget
 {
 public:	
@@ -62,14 +62,14 @@ public:
 
 	// SWidget overrides
 
-	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
+	SLATECORE_API virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
 
 protected:
 
 	/**
 	 * Just like OnPaint, but takes already arranged children. Can be handy for writing custom SPanels.
 	 */
-	int32 PaintArrangedChildren( const FPaintArgs& Args, const FArrangedChildren& ArrangedChildren, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled  ) const;
+	SLATECORE_API int32 PaintArrangedChildren( const FPaintArgs& Args, const FArrangedChildren& ArrangedChildren, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled  ) const;
 	
 protected:
 
@@ -77,5 +77,5 @@ protected:
 	SPanel( ) { }
 
 public:
-	virtual void SetVisibility( TAttribute<EVisibility> InVisibility ) override final;
+	SLATECORE_API virtual void SetVisibility( TAttribute<EVisibility> InVisibility ) override final;
 };

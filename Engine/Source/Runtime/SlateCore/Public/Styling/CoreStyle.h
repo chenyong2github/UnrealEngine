@@ -11,11 +11,11 @@ struct FSlateDynamicImageBrush;
 /**
  * Core slate style
  */
-class SLATECORE_API FCoreStyle 
+class FCoreStyle 
 {
 public:
 
-	static TSharedRef<class ISlateStyle> Create( const FName& InStyleSetName = "CoreStyle" );
+	static SLATECORE_API TSharedRef<class ISlateStyle> Create( const FName& InStyleSetName = "CoreStyle" );
 
 	/** 
 	* @return the Application Style 
@@ -42,40 +42,40 @@ public:
 	}
 
 	/** Get the default font for Slate */
-	static TSharedRef<const FCompositeFont> GetDefaultFont();
+	static SLATECORE_API TSharedRef<const FCompositeFont> GetDefaultFont();
 
 	/** Get a font style using the default for for Slate */
-	static FSlateFontInfo GetDefaultFontStyle(const FName InTypefaceFontName, const int32 InSize, const FFontOutlineSettings& InOutlineSettings = FFontOutlineSettings());
+	static SLATECORE_API FSlateFontInfo GetDefaultFontStyle(const FName InTypefaceFontName, const int32 InSize, const FFontOutlineSettings& InOutlineSettings = FFontOutlineSettings());
 
-	static void ResetToDefault( );
+	static SLATECORE_API void ResetToDefault( );
 
 	/** Used to override the default selection colors */
-	static void SetSelectorColor( const FLinearColor& NewColor );
-	static void SetSelectionColor( const FLinearColor& NewColor );
-	static void SetInactiveSelectionColor( const FLinearColor& NewColor );
-	static void SetPressedSelectionColor( const FLinearColor& NewColor );
-	static void SetFocusBrush(FSlateBrush* NewBrush);
+	static SLATECORE_API void SetSelectorColor( const FLinearColor& NewColor );
+	static SLATECORE_API void SetSelectionColor( const FLinearColor& NewColor );
+	static SLATECORE_API void SetInactiveSelectionColor( const FLinearColor& NewColor );
+	static SLATECORE_API void SetPressedSelectionColor( const FLinearColor& NewColor );
+	static SLATECORE_API void SetFocusBrush(FSlateBrush* NewBrush);
 
 	// todo: jdale - These are only here because of UTouchInterface::Activate and the fact that GetDynamicImageBrush is non-const
-	static const TSharedPtr<FSlateDynamicImageBrush> GetDynamicImageBrush( FName BrushTemplate, FName TextureName, const ANSICHAR* Specifier = nullptr );
-	static const TSharedPtr<FSlateDynamicImageBrush> GetDynamicImageBrush( FName BrushTemplate, const ANSICHAR* Specifier, class UTexture2D* TextureResource, FName TextureName );
-	static const TSharedPtr<FSlateDynamicImageBrush> GetDynamicImageBrush( FName BrushTemplate, class UTexture2D* TextureResource, FName TextureName );
+	static SLATECORE_API const TSharedPtr<FSlateDynamicImageBrush> GetDynamicImageBrush( FName BrushTemplate, FName TextureName, const ANSICHAR* Specifier = nullptr );
+	static SLATECORE_API const TSharedPtr<FSlateDynamicImageBrush> GetDynamicImageBrush( FName BrushTemplate, const ANSICHAR* Specifier, class UTexture2D* TextureResource, FName TextureName );
+	static SLATECORE_API const TSharedPtr<FSlateDynamicImageBrush> GetDynamicImageBrush( FName BrushTemplate, class UTexture2D* TextureResource, FName TextureName );
 
 	static const int32 RegularTextSize = 9;
 	static const int32 SmallTextSize = 8;
 
-	static bool IsStarshipStyle();
+	static SLATECORE_API bool IsStarshipStyle();
 
 	static bool IsInitialized() { return Instance.IsValid(); }
 
 private:
 
-	static void SetStyle( const TSharedRef< class ISlateStyle >& NewStyle );
+	static SLATECORE_API void SetStyle( const TSharedRef< class ISlateStyle >& NewStyle );
 
 private:
 
 	/** Singleton instances of this style. */
-	static TSharedPtr< class ISlateStyle > Instance;
+	static SLATECORE_API TSharedPtr< class ISlateStyle > Instance;
 };
 
 namespace CoreStyleConstants

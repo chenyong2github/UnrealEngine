@@ -12,14 +12,14 @@ struct FSlateBrush;
  * Base structure for widget styles.
  */
 USTRUCT()
-struct SLATECORE_API FSlateWidgetStyle
+struct FSlateWidgetStyle
 {
 	GENERATED_USTRUCT_BODY()
 
 public:
 
 	/** Default constructor. */
-	FSlateWidgetStyle( );
+	SLATECORE_API FSlateWidgetStyle( );
 
 	/** Virtual Destructor. */
 	virtual ~FSlateWidgetStyle() { }

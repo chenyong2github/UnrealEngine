@@ -9,7 +9,7 @@
 /**
  * A color brush.  Draws a box with no margins that only has a color applied to it                   
  */
-struct SLATECORE_API FSlateColorBrush
+struct FSlateColorBrush
 	: public FSlateBrush
 {
 	/** 

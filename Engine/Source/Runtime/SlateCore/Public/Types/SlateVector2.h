@@ -74,16 +74,16 @@ namespace UE::Slate
 	const FVector2f& CastToVector2f(const FDeprecateSlateVector2D& InValue);
 	const FVector2f& CastToVector2f(const FDeprecateVector2DParameter& InValue);
 
-	struct SLATECORE_API FDeprecateSlateVectorPtrVariant
+	struct FDeprecateSlateVectorPtrVariant
 	{
-		explicit FDeprecateSlateVectorPtrVariant(FDeprecateSlateVector2D* InInstance);
+		SLATECORE_API explicit FDeprecateSlateVectorPtrVariant(FDeprecateSlateVector2D* InInstance);
 
 		UE_SLATE_VECTOR_DEPRECATED_DEFAULT()
-		operator const FVector2D*() const &;
+		SLATECORE_API operator const FVector2D*() const &;
 
-		operator const FVector2f*() const;
+		SLATECORE_API operator const FVector2f*() const;
 
-		operator FVector2f*();
+		SLATECORE_API operator FVector2f*();
 
 		FDeprecateSlateVector2D* Instance;
 		mutable FVector2D DoubleVector;

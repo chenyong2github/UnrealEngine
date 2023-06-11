@@ -39,7 +39,7 @@ namespace ESlateShaderResource
 /** 
  * Base class for all platform independent texture types
  */
-class SLATECORE_API FSlateShaderResource
+class FSlateShaderResource
 {
 public:
 
@@ -109,7 +109,7 @@ public:
  * May point to a full resource or point or to a texture resource in an atlas
  * Note: This class does not free any resources.  Resources should be owned and freed elsewhere
  */
-class SLATECORE_API FSlateShaderResourceProxy
+class FSlateShaderResourceProxy
 {
 public:
 

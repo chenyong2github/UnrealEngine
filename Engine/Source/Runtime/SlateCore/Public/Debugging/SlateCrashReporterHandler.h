@@ -17,14 +17,14 @@ namespace UE::Slate
 #if UE_WITH_SLATE_CRASHREPORTER
 
 /** Helper object allowing easy tracking of Slate code in crash reporter. */
-class SLATECORE_API FSlateCrashReporterScope
+class FSlateCrashReporterScope
 {
 public:
-	static FName NAME_Paint;
-	static FName NAME_Prepass;
+	static SLATECORE_API FName NAME_Paint;
+	static SLATECORE_API FName NAME_Prepass;
 
-	explicit FSlateCrashReporterScope(const SWidget& Widget, FName Context);
-	~FSlateCrashReporterScope();
+	SLATECORE_API explicit FSlateCrashReporterScope(const SWidget& Widget, FName Context);
+	SLATECORE_API ~FSlateCrashReporterScope();
 
 private:
 	uint8 ThreadId = 0;

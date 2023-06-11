@@ -23,9 +23,9 @@ class FArrangedChildren;
 /**
  * A BoxPanel contains one child and describes how that child should be arranged on the screen.
  */
-class SLATECORE_API SBoxPanel : public SPanel
+class SBoxPanel : public SPanel
 {
-	SLATE_DECLARE_WIDGET(SBoxPanel, SPanel)
+	SLATE_DECLARE_WIDGET_API(SBoxPanel, SPanel, SLATECORE_API)
 
 protected:
 	/**
@@ -185,10 +185,10 @@ public:
 	 * @param SlotWidget The widget to match when searching through the slots
 	 * @returns The index in the children array where the slot was removed and -1 if no slot was found matching the widget
 	 */
-	int32 RemoveSlot( const TSharedRef<SWidget>& SlotWidget );
+	SLATECORE_API int32 RemoveSlot( const TSharedRef<SWidget>& SlotWidget );
 
 	/** Removes all children from the box. */
-	void ClearChildren();
+	SLATECORE_API void ClearChildren();
 
 	/** @return the number of slots. */
 	int32 NumSlots() const { return Children.Num(); }
@@ -198,20 +198,20 @@ public:
 
 	//~ Begin SWidget overrides.
 public:
-	virtual void OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const override;
-	virtual FChildren* GetChildren() override;
+	SLATECORE_API virtual void OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const override;
+	SLATECORE_API virtual FChildren* GetChildren() override;
 
 protected:
-	virtual FVector2D ComputeDesiredSize(float) const override;
+	SLATECORE_API virtual FVector2D ComputeDesiredSize(float) const override;
 	//~ End SWidget overrides.
 
 protected:
-	SBoxPanel();
+	SLATECORE_API SBoxPanel();
 	/** A Box Panel's orientation. */
-	SBoxPanel(EOrientation InOrientation);
+	SLATECORE_API SBoxPanel(EOrientation InOrientation);
 
 	/** Set the orientation of the Box. It will do a full invalidation of the widget. */
-	void SetOrientation(EOrientation InOrientation);
+	SLATECORE_API void SetOrientation(EOrientation InOrientation);
 	EOrientation GetOrientation() const
 	{
 		return Orientation;
@@ -227,9 +227,9 @@ protected:
 
 
 /** A Horizontal Box Panel. See SBoxPanel for more info. */
-class SLATECORE_API SHorizontalBox : public SBoxPanel
+class SHorizontalBox : public SBoxPanel
 {
-	SLATE_DECLARE_WIDGET(SHorizontalBox, SBoxPanel)
+	SLATE_DECLARE_WIDGET_API(SHorizontalBox, SBoxPanel, SLATECORE_API)
 public:
 	class FSlot : public SBoxPanel::TSlot<FSlot>
 	{
@@ -311,8 +311,8 @@ public:
 		return FScopedWidgetSlotArguments(MakeUnique<FSlot>(), this->Children, Index);
 	}
 
-	FSlot& GetSlot(int32 SlotIndex);
-	const FSlot& GetSlot(int32 SlotIndex) const;
+	SLATECORE_API FSlot& GetSlot(int32 SlotIndex);
+	SLATECORE_API const FSlot& GetSlot(int32 SlotIndex) const;
 
 	FORCENOINLINE SHorizontalBox()
 		: SBoxPanel( Orient_Horizontal )
@@ -326,13 +326,13 @@ public:
 	 *
 	 * @param	InArgs	The declaration data for this widget
 	 */
-	void Construct( const FArguments& InArgs );
+	SLATECORE_API void Construct( const FArguments& InArgs );
 };
 
 /** A Vertical Box Panel. See SBoxPanel for more info. */
-class SLATECORE_API SVerticalBox : public SBoxPanel
+class SVerticalBox : public SBoxPanel
 {
-	SLATE_DECLARE_WIDGET(SVerticalBox, SBoxPanel)
+	SLATE_DECLARE_WIDGET_API(SVerticalBox, SBoxPanel, SLATECORE_API)
 public:
 	class FSlot : public SBoxPanel::TSlot<FSlot>
 	{
@@ -415,8 +415,8 @@ public:
 		return FScopedWidgetSlotArguments(MakeUnique<FSlot>(), this->Children, Index);
 	}
 
-	FSlot& GetSlot(int32 SlotIndex);
-	const FSlot& GetSlot(int32 SlotIndex) const;
+	SLATECORE_API FSlot& GetSlot(int32 SlotIndex);
+	SLATECORE_API const FSlot& GetSlot(int32 SlotIndex) const;
 
 	FORCENOINLINE SVerticalBox()
 		: SBoxPanel( Orient_Vertical )
@@ -430,13 +430,13 @@ public:
 	 *
 	 * @param	InArgs	The declaration data for this widget
 	 */
-	void Construct( const FArguments& InArgs );
+	SLATECORE_API void Construct( const FArguments& InArgs );
 };
 
 /** A Stack Box Panel that stack vertically or horizontally. See SBoxPanel for more info. */
-class SLATECORE_API SStackBox : public SBoxPanel
+class SStackBox : public SBoxPanel
 {
-	SLATE_DECLARE_WIDGET(SStackBox, SBoxPanel)
+	SLATE_DECLARE_WIDGET_API(SStackBox, SBoxPanel, SLATECORE_API)
 public:
 	class FSlot : public SBoxPanel::TSlot<FSlot>
 	{
@@ -493,8 +493,8 @@ public:
 		return FScopedWidgetSlotArguments(MakeUnique<FSlot>(), this->Children, Index);
 	}
 
-	FSlot& GetSlot(int32 SlotIndex);
-	const FSlot& GetSlot(int32 SlotIndex) const;
+	SLATECORE_API FSlot& GetSlot(int32 SlotIndex);
+	SLATECORE_API const FSlot& GetSlot(int32 SlotIndex) const;
 
 	FORCENOINLINE SStackBox()
 	{
@@ -507,7 +507,7 @@ public:
 	 *
 	 * @param	InArgs	The declaration data for this widget
 	 */
-	void Construct(const FArguments& InArgs);
+	SLATECORE_API void Construct(const FArguments& InArgs);
 
 	using SBoxPanel::SetOrientation;
 	using SBoxPanel::GetOrientation;
@@ -527,7 +527,7 @@ public:
 };
 
 /** A Vertical Box Panel. See SBoxPanel for more info. */
-class SLATECORE_API SDragAndDropVerticalBox : public SVerticalBox
+class SDragAndDropVerticalBox : public SVerticalBox
 {
 public:
 	/**
@@ -578,22 +578,22 @@ public:
 		SLATE_EVENT(FOnDragAndDropVerticalBoxDrop, OnDrop)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
+	SLATECORE_API void Construct(const FArguments& InArgs);
 
 	/** Set the Drop indicators */
 	SDragAndDropVerticalBox& SetDropIndicator_Above(const FSlateBrush& InValue) { DropIndicator_Above = InValue; return *this; }
 	SDragAndDropVerticalBox& SetDropIndicator_Below(const FSlateBrush& InValue) { DropIndicator_Below = InValue; return *this; }
 
 	/** Drag detection and handling */
-	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	SLATECORE_API virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 		
-	virtual FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
-	virtual void OnDragEnter(FGeometry const& MyGeometry, FDragDropEvent const& DragDropEvent) override;
-	virtual void OnDragLeave(FDragDropEvent const& DragDropEvent) override;
-	virtual FReply OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
-	virtual FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
+	SLATECORE_API virtual FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	SLATECORE_API virtual void OnDragEnter(FGeometry const& MyGeometry, FDragDropEvent const& DragDropEvent) override;
+	SLATECORE_API virtual void OnDragLeave(FDragDropEvent const& DragDropEvent) override;
+	SLATECORE_API virtual FReply OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
+	SLATECORE_API virtual FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
 
-	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
+	SLATECORE_API virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
 
 private:
 	/** @see SDragAndDropVerticalBox's OnCanAcceptDrop event */
@@ -626,5 +626,5 @@ private:
 	int32 CurrentDragOverSlotIndex;
 
 	/** @return the zone (above, below) based on where the user is hovering over */
-	EItemDropZone ZoneFromPointerPosition(FVector2f LocalPointerPos, const FGeometry& CurrentGeometry, const FGeometry& StartGeometry) const;
+	SLATECORE_API EItemDropZone ZoneFromPointerPosition(FVector2f LocalPointerPos, const FGeometry& CurrentGeometry, const FGeometry& StartGeometry) const;
 };

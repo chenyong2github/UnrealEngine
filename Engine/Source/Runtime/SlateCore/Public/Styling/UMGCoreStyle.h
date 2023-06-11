@@ -9,11 +9,11 @@
 /**
  * Core slate style
  */
-class SLATECORE_API FUMGCoreStyle
+class FUMGCoreStyle
 {
 public:
 
-	static TSharedRef<class ISlateStyle> Create();
+	static SLATECORE_API TSharedRef<class ISlateStyle> Create();
 
 	static const ISlateStyle& Get()
 	{
@@ -21,19 +21,19 @@ public:
 	}
 
 	/** Get the default font for Slate */
-	static TSharedRef<const FCompositeFont> GetDefaultFont();
+	static SLATECORE_API TSharedRef<const FCompositeFont> GetDefaultFont();
 
 	/** Get a font style using the default for for Slate */
-	static FSlateFontInfo GetDefaultFontStyle(const FName InTypefaceFontName, const int32 InSize, const FFontOutlineSettings& InOutlineSettings = FFontOutlineSettings());
+	static SLATECORE_API FSlateFontInfo GetDefaultFontStyle(const FName InTypefaceFontName, const int32 InSize, const FFontOutlineSettings& InOutlineSettings = FFontOutlineSettings());
 
-	static void ResetToDefault( );
+	static SLATECORE_API void ResetToDefault( );
 
 	/** Used to override the default selection colors */
-	static void SetSelectorColor( const FLinearColor& NewColor );
-	static void SetSelectionColor( const FLinearColor& NewColor );
-	static void SetInactiveSelectionColor( const FLinearColor& NewColor );
-	static void SetPressedSelectionColor( const FLinearColor& NewColor );
-	static void SetFocusBrush(FSlateBrush* NewBrush);
+	static SLATECORE_API void SetSelectorColor( const FLinearColor& NewColor );
+	static SLATECORE_API void SetSelectionColor( const FLinearColor& NewColor );
+	static SLATECORE_API void SetInactiveSelectionColor( const FLinearColor& NewColor );
+	static SLATECORE_API void SetPressedSelectionColor( const FLinearColor& NewColor );
+	static SLATECORE_API void SetFocusBrush(FSlateBrush* NewBrush);
 
 	static const int32 RegularTextSize = 10;
 	static const int32 SmallTextSize = 8;
@@ -41,10 +41,10 @@ public:
 	static bool IsInitialized() { return Instance.IsValid(); }
 private:
 
-	static void SetStyle(const TSharedRef<class ISlateStyle>& NewStyle);
+	static SLATECORE_API void SetStyle(const TSharedRef<class ISlateStyle>& NewStyle);
 
 private:
 
 	/** Singleton instances of this style. */
-	static TSharedPtr< class ISlateStyle > Instance;
+	static SLATECORE_API TSharedPtr< class ISlateStyle > Instance;
 };

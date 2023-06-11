@@ -11,7 +11,7 @@ DECLARE_MEMORY_STAT_EXTERN(TEXT("Texture Data Memory (CPU)"), STAT_SlateTextureD
 /**
  * Holds texture data for upload to a rendering resource
  */
-struct SLATECORE_API FSlateTextureData
+struct FSlateTextureData
 {
 	FSlateTextureData( uint32 InWidth = 0, uint32 InHeight = 0, uint32 InBytesPerPixel = 0, const TArray<uint8>& InBytes = TArray<uint8>() )
 		: Bytes(InBytes)

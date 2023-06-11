@@ -16,7 +16,7 @@
  * We provide a ctor that does the work common to slate drawing, but you could technically
  * create this any way you want.
  */
-struct SLATECORE_API FSlateRotatedRect
+struct FSlateRotatedRect
 {
 public:
 	/** Default ctor. */
@@ -59,17 +59,17 @@ public:
 public:
 
 	/** Convert to a bounding, aligned rect. */
-	FSlateRect ToBoundingRect() const;
+	SLATECORE_API FSlateRect ToBoundingRect() const;
 
 	/** Point-in-rect test. */
-	bool IsUnderLocation(const UE::Slate::FDeprecateVector2DParameter Location) const;
+	SLATECORE_API bool IsUnderLocation(const UE::Slate::FDeprecateVector2DParameter Location) const;
 
 	static FSlateRotatedRect MakeRotatedRect(const FSlateRect& ClipRectInLayoutWindowSpace, const FSlateLayoutTransform& InverseLayoutTransform, const FSlateRenderTransform& RenderTransform)
 	{
 		return MakeRotatedRect(ClipRectInLayoutWindowSpace, Concatenate(InverseLayoutTransform, RenderTransform));
 	}
 
-	static FSlateRotatedRect MakeRotatedRect(const FSlateRect& ClipRectInLayoutWindowSpace, const FTransform2f& LayoutToRenderTransform);
+	static SLATECORE_API FSlateRotatedRect MakeRotatedRect(const FSlateRect& ClipRectInLayoutWindowSpace, const FTransform2f& LayoutToRenderTransform);
 
 	static FSlateRotatedRect MakeSnappedRotatedRect(const FSlateRect& ClipRectInLayoutWindowSpace, const FSlateLayoutTransform& InverseLayoutTransform, const FSlateRenderTransform& RenderTransform)
 	{
@@ -79,7 +79,7 @@ public:
 	/**
 	* Used to construct a rotated rect from an aligned clip rect and a set of layout and render transforms from the geometry, snapped to pixel boundaries. Returns a float or float16 version of the rect based on the typedef.
 	*/
-	static FSlateRotatedRect MakeSnappedRotatedRect(const FSlateRect& ClipRectInLayoutWindowSpace, const FTransform2f& LayoutToRenderTransform);
+	static SLATECORE_API FSlateRotatedRect MakeSnappedRotatedRect(const FSlateRect& ClipRectInLayoutWindowSpace, const FTransform2f& LayoutToRenderTransform);
 };
 
 /**

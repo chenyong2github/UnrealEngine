@@ -641,7 +641,7 @@ public:
 
 	SLATECORE_API int32 PushClip(const FSlateClippingZone& InClipZone);
 	SLATECORE_API int32 GetClippingIndex() const;
-	SLATECORE_API int32 GetClippingStackDepth() const { return ClippingManager.GetStackDepth(); }
+	int32 GetClippingStackDepth() const { return ClippingManager.GetStackDepth(); }
 	SLATECORE_API TOptional<FSlateClippingState> GetClippingState() const;
 	SLATECORE_API void PopClip();
 	SLATECORE_API void PopClipToStackIndex(int32 Index);
@@ -666,14 +666,14 @@ public:
 	 * Some widgets may want to paint their children after after another, loosely-related widget finished painting.
 	 * Or they may want to paint "after everyone".
 	 */
-	struct SLATECORE_API FDeferredPaint
+	struct FDeferredPaint
 	{
 	public:
-		FDeferredPaint(const TSharedRef<const SWidget>& InWidgetToPaint, const FPaintArgs& InArgs, const FGeometry InAllottedGeometry, const FWidgetStyle& InWidgetStyle, bool InParentEnabled);
+		SLATECORE_API FDeferredPaint(const TSharedRef<const SWidget>& InWidgetToPaint, const FPaintArgs& InArgs, const FGeometry InAllottedGeometry, const FWidgetStyle& InWidgetStyle, bool InParentEnabled);
 
-		int32 ExecutePaint(int32 LayerId, FSlateWindowElementList& OutDrawElements, const FSlateRect& MyCullingRect) const;
+		SLATECORE_API int32 ExecutePaint(int32 LayerId, FSlateWindowElementList& OutDrawElements, const FSlateRect& MyCullingRect) const;
 
-		FDeferredPaint Copy(const FPaintArgs& InArgs);
+		SLATECORE_API FDeferredPaint Copy(const FPaintArgs& InArgs);
 
 	private:
 		// Used for making copies.

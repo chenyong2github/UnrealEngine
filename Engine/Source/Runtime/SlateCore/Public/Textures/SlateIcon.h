@@ -9,12 +9,12 @@ struct FSlateBrush;
 /**
  * Struct used to represent an icon in Slate
  */
-struct SLATECORE_API FSlateIcon
+struct FSlateIcon
 {
 	/**
 	 * Default constructor (empty icon).
 	 */
-	FSlateIcon();
+	SLATECORE_API FSlateIcon();
 
 	/**
 	 * Creates and initializes a new icon from a style set and style name
@@ -24,7 +24,7 @@ struct SLATECORE_API FSlateIcon
 	 * @param InSmallStyleName The name of the style for the small icon
 	 * @param InStatusOverlayStyleName The name of the style for a status icon to overlay on the base image
 	 */
-	FSlateIcon(const FName InStyleSetName, const FName InStyleName, const FName InSmallStyleName = NAME_None, const FName InStatusOverlayStyleName = NAME_None);
+	SLATECORE_API FSlateIcon(const FName InStyleSetName, const FName InStyleName, const FName InSmallStyleName = NAME_None, const FName InStatusOverlayStyleName = NAME_None);
 
 public:
 	
@@ -56,14 +56,14 @@ public:
 	 * @return Icon brush, or FStyleDefaults::GetNoBrush() if the icon wasn't found.
 	 * @see GetSmallIcon
 	 */
-	const FSlateBrush* GetIcon( ) const;
+	SLATECORE_API const FSlateBrush* GetIcon( ) const;
 
 	/**
 	 * Optionally gets the resolved icon, returning nullptr if it's not defined
 	 *
 	 * @return Icon brush, or nullptr if the icon wasn't found.
 	 */
-	const FSlateBrush* GetOptionalIcon( ) const;
+	SLATECORE_API const FSlateBrush* GetOptionalIcon( ) const;
 
 	/**
 	 * Gets the resolved small icon.
@@ -71,16 +71,16 @@ public:
 	 * @return Icon brush, or FStyleDefaults::GetNoBrush() if the icon wasn't found.
 	 * @see GetIcon
 	 */
-	const FSlateBrush* GetSmallIcon( ) const;
+	SLATECORE_API const FSlateBrush* GetSmallIcon( ) const;
 
 	/**
 	 * Optionally gets the resolved small icon, returning nullptr if it's not defined
 	 *
 	 * @return Icon brush, or nullptr if the icon wasn't found.
 	 */
-	const FSlateBrush* GetOptionalSmallIcon( ) const;
+	SLATECORE_API const FSlateBrush* GetOptionalSmallIcon( ) const;
 
-	const FSlateBrush* GetOverlayIcon() const;
+	SLATECORE_API const FSlateBrush* GetOverlayIcon() const;
 
 	/**
 	 * Gets the name of the style for the icon.
@@ -110,7 +110,7 @@ public:
 	 * @return Style set, or nullptr if the style set wasn't found.
 	 * @see GetSmallStyleName, GetStyleName, GetStyleSetName
 	 */
-	const class ISlateStyle* GetStyleSet() const;
+	SLATECORE_API const class ISlateStyle* GetStyleSet() const;
 
 	/**
 	 * Gets the name of the style set the icon can be found in.

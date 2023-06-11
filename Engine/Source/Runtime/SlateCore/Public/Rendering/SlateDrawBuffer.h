@@ -15,27 +15,27 @@ class SWindow;
 /**
  * Implements a draw buffer for Slate.
  */
-class SLATECORE_API FSlateDrawBuffer : public FGCObject
+class FSlateDrawBuffer : public FGCObject
 {
 public:
 	/** Default constructor. */
-	FSlateDrawBuffer();
+	SLATECORE_API FSlateDrawBuffer();
 
 	/** Removes all data from the buffer. */
-	void ClearBuffer();
+	SLATECORE_API void ClearBuffer();
 
 	/** Updates renderer resource version to allow the draw buffer to clean up cached resources */
-	void UpdateResourceVersion(uint32 NewResourceVersion);
+	SLATECORE_API void UpdateResourceVersion(uint32 NewResourceVersion);
 
 	/**
 	 * Creates a new FSlateWindowElementList and returns a reference to it so it can have draw elements added to it
 	 *
 	 * @param ForWindow    The window for which we are creating a list of paint elements.
 	 */
-	FSlateWindowElementList& AddWindowElementList(TSharedRef<SWindow> ForWindow);
+	SLATECORE_API FSlateWindowElementList& AddWindowElementList(TSharedRef<SWindow> ForWindow);
 
 	/** Removes any window from the draw buffer that's not in this list or whose window has become invalid. */
-	void RemoveUnusedWindowElement(const TArray<SWindow*>& AllWindows);
+	SLATECORE_API void RemoveUnusedWindowElement(const TArray<SWindow*>& AllWindows);
 
 	/**
 	 * Gets all window element lists in this buffer.
@@ -51,14 +51,14 @@ public:
 	 * @return true if the buffer could be locked.  False otherwise.
 	 * @see Unlock
 	 */
-	bool Lock();
+	SLATECORE_API bool Lock();
 
 	/**
 	 * Unlocks the buffer.  Indicates that the buffer is free.
 	 *
 	 * @see Lock
 	 */
-	void Unlock();
+	SLATECORE_API void Unlock();
 
 	/** @return true if the buffer is locked. */
 	bool IsLocked() const
@@ -67,7 +67,7 @@ public:
 	}
 
 	/** FGCObject Interface */
-	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	SLATECORE_API virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	virtual FString GetReferencerName() const
 	{
 		return TEXT("FSlateDrawBuffer for Uncached Elements");

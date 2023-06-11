@@ -40,7 +40,7 @@ struct FCompareFNewTextureInfoByTextureSize
 /** 
  * Base texture manager class used by a Slate renderer to manage texture resources
  */
-class SLATECORE_API FSlateShaderResourceManager
+class FSlateShaderResourceManager
 {
 public:
 	FSlateShaderResourceManager() {};
@@ -66,8 +66,8 @@ public:
 	 * @param	DrawScale	The scale of the draw element using this brush.  This scale is used to rescale vector graphics only
 	 * @return	The created resource handle.  
 	 */
-	virtual FSlateResourceHandle GetResourceHandle(const FSlateBrush& Brush, FVector2f LocalSize, float DrawScale);
-	virtual FSlateResourceHandle GetResourceHandle(const FSlateBrush& Brush);
+	SLATECORE_API virtual FSlateResourceHandle GetResourceHandle(const FSlateBrush& Brush, FVector2f LocalSize, float DrawScale);
+	SLATECORE_API virtual FSlateResourceHandle GetResourceHandle(const FSlateBrush& Brush);
 
 	virtual FSlateShaderResource* GetFontShaderResource( int32 InTextureAtlasIndex, FSlateShaderResource* FontTextureAtlas, const class UObject* FontMaterial ) { return FontTextureAtlas; }
 
@@ -105,7 +105,7 @@ protected:
 #endif
 private:
 	// Non-copyable
-	FSlateShaderResourceManager(const FSlateShaderResourceManager&);
-	FSlateShaderResourceManager& operator=(const FSlateShaderResourceManager&);
+	SLATECORE_API FSlateShaderResourceManager(const FSlateShaderResourceManager&);
+	SLATECORE_API FSlateShaderResourceManager& operator=(const FSlateShaderResourceManager&);
 
 };

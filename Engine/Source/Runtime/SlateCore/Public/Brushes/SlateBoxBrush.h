@@ -21,7 +21,7 @@
  *                |__|_______________|__|
  *
  */
-struct SLATECORE_API FSlateBoxBrush
+struct FSlateBoxBrush
 	: public FSlateBrush
 {
 	/**
@@ -162,7 +162,7 @@ struct SLATECORE_API FSlateBoxBrush
 };
 
 
-struct SLATECORE_API FSlateVectorBoxBrush
+struct FSlateVectorBoxBrush
 	: public FSlateBoxBrush
 {
 	FSlateVectorBoxBrush(const FString& InImageName, const UE::Slate::FDeprecateVector2DParameter& ImageSize, const FMargin& InMargin, const FLinearColor& InColorAndOpacity = FLinearColor(1, 1, 1, 1))

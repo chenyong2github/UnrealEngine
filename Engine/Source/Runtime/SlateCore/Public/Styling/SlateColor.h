@@ -38,7 +38,7 @@ enum class EStyleColor : uint8;
  * A Slate color can be a directly specified value, or the color can be pulled from a WidgetStyle.
  */
 USTRUCT(BlueprintType)
-struct SLATECORE_API FSlateColor
+struct FSlateColor
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -216,7 +216,7 @@ public:
 
 
 	/** Used to upgrade an FColor or FLinearColor property to an FSlateColor property */
-	bool SerializeFromMismatchedTag(const struct FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
+	SLATECORE_API bool SerializeFromMismatchedTag(const struct FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
 
 protected:
 	
@@ -227,7 +227,7 @@ protected:
 		, ColorTableId()
 	{ }
 
-	const FLinearColor& GetColorFromTable() const;
+	SLATECORE_API const FLinearColor& GetColorFromTable() const;
 protected:
 
 	// The current specified color; only meaningful when ColorToUse == UseColor_Specified.

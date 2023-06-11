@@ -24,59 +24,59 @@ struct FSlateWidgetStyle;
  * A slate style chunk that contains a collection of named properties that guide the appearance of Slate.
  * At the moment, basically FAppStyle.
  */
-class SLATECORE_API FSlateStyleSet : public ISlateStyle
+class FSlateStyleSet : public ISlateStyle
 {
 public:
 	/**
 	 * Construct a style chunk.
 	 * @param InStyleSetName The name used to identity this style set
 	 */
-	FSlateStyleSet(const FName& InStyleSetName);
+	SLATECORE_API FSlateStyleSet(const FName& InStyleSetName);
 
 	/** Destructor. */
-	virtual ~FSlateStyleSet();
+	SLATECORE_API virtual ~FSlateStyleSet();
 
-	virtual const FName& GetStyleSetName() const override;
-	virtual void GetResources(TArray< const FSlateBrush* >& OutResources) const override;
-	virtual TArray<FName> GetEntriesUsingBrush(const FName BrushName) const override;
-	virtual void SetContentRoot(const FString& InContentRootDir);
-	virtual FString RootToContentDir(const ANSICHAR* RelativePath, const TCHAR* Extension);
-	virtual FString RootToContentDir(const WIDECHAR* RelativePath, const TCHAR* Extension);
-	virtual FString RootToContentDir(const FString& RelativePath, const TCHAR* Extension);
-	virtual FString RootToContentDir(const ANSICHAR* RelativePath);
-	virtual FString RootToContentDir(const WIDECHAR* RelativePath);
-	virtual FString RootToContentDir(const FString& RelativePath);
+	SLATECORE_API virtual const FName& GetStyleSetName() const override;
+	SLATECORE_API virtual void GetResources(TArray< const FSlateBrush* >& OutResources) const override;
+	SLATECORE_API virtual TArray<FName> GetEntriesUsingBrush(const FName BrushName) const override;
+	SLATECORE_API virtual void SetContentRoot(const FString& InContentRootDir);
+	SLATECORE_API virtual FString RootToContentDir(const ANSICHAR* RelativePath, const TCHAR* Extension);
+	SLATECORE_API virtual FString RootToContentDir(const WIDECHAR* RelativePath, const TCHAR* Extension);
+	SLATECORE_API virtual FString RootToContentDir(const FString& RelativePath, const TCHAR* Extension);
+	SLATECORE_API virtual FString RootToContentDir(const ANSICHAR* RelativePath);
+	SLATECORE_API virtual FString RootToContentDir(const WIDECHAR* RelativePath);
+	SLATECORE_API virtual FString RootToContentDir(const FString& RelativePath);
 	virtual FString GetContentRootDir() const { return ContentRootDir; }
 
-	virtual void SetCoreContentRoot(const FString& InCoreContentRootDir);
+	SLATECORE_API virtual void SetCoreContentRoot(const FString& InCoreContentRootDir);
 
-	virtual FString RootToCoreContentDir(const ANSICHAR* RelativePath, const TCHAR* Extension);
-	virtual FString RootToCoreContentDir(const WIDECHAR* RelativePath, const TCHAR* Extension);
-	virtual FString RootToCoreContentDir(const FString& RelativePath, const TCHAR* Extension);
-	virtual FString RootToCoreContentDir(const ANSICHAR* RelativePath);
-	virtual FString RootToCoreContentDir(const WIDECHAR* RelativePath);
-	virtual FString RootToCoreContentDir(const FString& RelativePath);
+	SLATECORE_API virtual FString RootToCoreContentDir(const ANSICHAR* RelativePath, const TCHAR* Extension);
+	SLATECORE_API virtual FString RootToCoreContentDir(const WIDECHAR* RelativePath, const TCHAR* Extension);
+	SLATECORE_API virtual FString RootToCoreContentDir(const FString& RelativePath, const TCHAR* Extension);
+	SLATECORE_API virtual FString RootToCoreContentDir(const ANSICHAR* RelativePath);
+	SLATECORE_API virtual FString RootToCoreContentDir(const WIDECHAR* RelativePath);
+	SLATECORE_API virtual FString RootToCoreContentDir(const FString& RelativePath);
 
-	virtual float GetFloat(const FName PropertyName, const ANSICHAR* Specifier = nullptr, float DefaultValue = FStyleDefaults::GetFloat(), const ISlateStyle* RequestingStyle = nullptr) const override;
-	virtual FVector2D GetVector(const FName PropertyName, const ANSICHAR* Specifier = nullptr, FVector2D DefaultValue = FStyleDefaults::GetVector2D(), const ISlateStyle* RequestingStyle = nullptr) const override;
-	virtual const FLinearColor& GetColor(const FName PropertyName, const ANSICHAR* Specifier = nullptr, const FLinearColor& DefaultValue = FStyleDefaults::GetColor(), const ISlateStyle* RequestingStyle = nullptr) const override;
-	virtual const FSlateColor GetSlateColor(const FName PropertyName, const ANSICHAR* Specifier = nullptr, const FSlateColor& DefaultValue = FStyleDefaults::GetSlateColor(), const ISlateStyle* RequestingStyle = nullptr) const override;
-	virtual const FMargin& GetMargin(const FName PropertyName, const ANSICHAR* Specifier = nullptr, const FMargin& DefaultValue = FStyleDefaults::GetMargin(), const ISlateStyle* RequestingStyle = nullptr) const override;
+	SLATECORE_API virtual float GetFloat(const FName PropertyName, const ANSICHAR* Specifier = nullptr, float DefaultValue = FStyleDefaults::GetFloat(), const ISlateStyle* RequestingStyle = nullptr) const override;
+	SLATECORE_API virtual FVector2D GetVector(const FName PropertyName, const ANSICHAR* Specifier = nullptr, FVector2D DefaultValue = FStyleDefaults::GetVector2D(), const ISlateStyle* RequestingStyle = nullptr) const override;
+	SLATECORE_API virtual const FLinearColor& GetColor(const FName PropertyName, const ANSICHAR* Specifier = nullptr, const FLinearColor& DefaultValue = FStyleDefaults::GetColor(), const ISlateStyle* RequestingStyle = nullptr) const override;
+	SLATECORE_API virtual const FSlateColor GetSlateColor(const FName PropertyName, const ANSICHAR* Specifier = nullptr, const FSlateColor& DefaultValue = FStyleDefaults::GetSlateColor(), const ISlateStyle* RequestingStyle = nullptr) const override;
+	SLATECORE_API virtual const FMargin& GetMargin(const FName PropertyName, const ANSICHAR* Specifier = nullptr, const FMargin& DefaultValue = FStyleDefaults::GetMargin(), const ISlateStyle* RequestingStyle = nullptr) const override;
 
-	virtual const FSlateBrush* GetBrush(const FName PropertyName, const ANSICHAR* Specifier = nullptr, const ISlateStyle* RequestingStyle = nullptr) const override;
-	virtual const FSlateBrush* GetOptionalBrush(const FName PropertyName, const ANSICHAR* Specifier = nullptr, const FSlateBrush* const DefaultBrush = FStyleDefaults::GetNoBrush()) const override;
+	SLATECORE_API virtual const FSlateBrush* GetBrush(const FName PropertyName, const ANSICHAR* Specifier = nullptr, const ISlateStyle* RequestingStyle = nullptr) const override;
+	SLATECORE_API virtual const FSlateBrush* GetOptionalBrush(const FName PropertyName, const ANSICHAR* Specifier = nullptr, const FSlateBrush* const DefaultBrush = FStyleDefaults::GetNoBrush()) const override;
 
-	virtual const TSharedPtr<FSlateDynamicImageBrush> GetDynamicImageBrush(const FName BrushTemplate, const FName TextureName, const ANSICHAR* Specifier = nullptr, const ISlateStyle* RequestingStyle = nullptr) const override;
-	virtual const TSharedPtr<FSlateDynamicImageBrush> GetDynamicImageBrush(const FName BrushTemplate, const ANSICHAR* Specifier, UTexture2D* TextureResource, const FName TextureName, const ISlateStyle* RequestingStyle = nullptr) const override;
-	virtual const TSharedPtr<FSlateDynamicImageBrush> GetDynamicImageBrush(const FName BrushTemplate, UTexture2D* TextureResource, const FName TextureName, const ISlateStyle* RequestingStyle = nullptr) const override;
+	SLATECORE_API virtual const TSharedPtr<FSlateDynamicImageBrush> GetDynamicImageBrush(const FName BrushTemplate, const FName TextureName, const ANSICHAR* Specifier = nullptr, const ISlateStyle* RequestingStyle = nullptr) const override;
+	SLATECORE_API virtual const TSharedPtr<FSlateDynamicImageBrush> GetDynamicImageBrush(const FName BrushTemplate, const ANSICHAR* Specifier, UTexture2D* TextureResource, const FName TextureName, const ISlateStyle* RequestingStyle = nullptr) const override;
+	SLATECORE_API virtual const TSharedPtr<FSlateDynamicImageBrush> GetDynamicImageBrush(const FName BrushTemplate, UTexture2D* TextureResource, const FName TextureName, const ISlateStyle* RequestingStyle = nullptr) const override;
 
-	virtual FSlateBrush* GetDefaultBrush() const override;
+	SLATECORE_API virtual FSlateBrush* GetDefaultBrush() const override;
 
-	virtual const FSlateSound& GetSound(const FName PropertyName, const ANSICHAR* Specifier = nullptr, const ISlateStyle* RequestingStyle = nullptr) const override;
-	virtual FSlateFontInfo GetFontStyle(const FName PropertyName, const ANSICHAR* Specifier = nullptr) const override;
+	SLATECORE_API virtual const FSlateSound& GetSound(const FName PropertyName, const ANSICHAR* Specifier = nullptr, const ISlateStyle* RequestingStyle = nullptr) const override;
+	SLATECORE_API virtual FSlateFontInfo GetFontStyle(const FName PropertyName, const ANSICHAR* Specifier = nullptr) const override;
 
 	/** Name a Parent Style to fallback on if the requested styles are specified in this style **/
-	void SetParentStyleName(const FName& InParentStyleName);
+	SLATECORE_API void SetParentStyleName(const FName& InParentStyleName);
 public:
 
 	template< typename DefinitionType >
@@ -200,20 +200,20 @@ protected:
 	friend class FSlateStyleSet;
 	friend class ISlateStyle;
 
-	virtual const FSlateWidgetStyle* GetWidgetStyleInternal(const FName DesiredTypeName, const FName StyleName, const FSlateWidgetStyle* DefaultStyle, bool bWarnIfNotFound) const override;
+	SLATECORE_API virtual const FSlateWidgetStyle* GetWidgetStyleInternal(const FName DesiredTypeName, const FName StyleName, const FSlateWidgetStyle* DefaultStyle, bool bWarnIfNotFound) const override;
 
-	virtual void Log(ISlateStyle::EStyleMessageSeverity Severity, const FText& Message) const override;
+	SLATECORE_API virtual void Log(ISlateStyle::EStyleMessageSeverity Severity, const FText& Message) const override;
 
-	virtual void LogMissingResource(EStyleMessageSeverity Severity, const FText& Message, const FName& MissingResource) const override;
+	SLATECORE_API virtual void LogMissingResource(EStyleMessageSeverity Severity, const FText& Message, const FName& MissingResource) const override;
 
-	virtual const TSharedPtr< FSlateDynamicImageBrush > MakeDynamicImageBrush(const FName BrushTemplate, UTexture2D* TextureResource, const FName TextureName) const override;
+	SLATECORE_API virtual const TSharedPtr< FSlateDynamicImageBrush > MakeDynamicImageBrush(const FName BrushTemplate, UTexture2D* TextureResource, const FName TextureName) const override;
 
-	virtual void LogUnusedBrushResources();
+	SLATECORE_API virtual void LogUnusedBrushResources();
 
-	TSet<FName> GetStyleKeys() const;
+	SLATECORE_API TSet<FName> GetStyleKeys() const;
 protected:
 
-	bool IsBrushFromFile(const FString& FilePath, const FSlateBrush* Brush);
+	SLATECORE_API bool IsBrushFromFile(const FString& FilePath, const FSlateBrush* Brush);
 
 	/** The name used to identity this style set */
 	FName StyleSetName;
@@ -258,6 +258,6 @@ protected:
 	mutable TSet< FName > MissingResources;
 
 	FName ParentStyleName;
-	const ISlateStyle* GetParentStyle() const;
+	SLATECORE_API const ISlateStyle* GetParentStyle() const;
 };
 
