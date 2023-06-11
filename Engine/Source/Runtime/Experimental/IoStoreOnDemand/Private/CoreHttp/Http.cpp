@@ -4,6 +4,7 @@
 
 #if !defined(NO_UE_INCLUDES)
 #include "IO/IoBuffer.h"
+#include "LatencyInjector.h"
 #include "Math/UnrealMathUtility.h"
 #include "Misc/ScopeExit.h"
 #include "Misc/ScopeLock.h"
@@ -65,6 +66,8 @@ enum : SocketType { InvalidSocket = -1 };
 
 namespace UE::HTTP
 {
+
+using FLatencyInjector = UE::IO::Private::FLatencyInjector;
 
 // {{{1 misc ...................................................................
 
@@ -1633,6 +1636,8 @@ int32 FEventLoopInternal::DoRecvContent(FActivity* Activity)
 		Activity->StateParam += Result;
 	}
 
+	FLatencyInjector::Begin(FLatencyInjector::EType::Network, Activity->StateParam);
+
 	Activity->State = FActivity::EState::RecvDone;
 	return 0;
 }
@@ -1640,6 +1645,11 @@ int32 FEventLoopInternal::DoRecvContent(FActivity* Activity)
 ////////////////////////////////////////////////////////////////////////////////
 int32 FEventLoopInternal::DoRecvDone(FActivity* Activity)
 {
+	if (!FLatencyInjector::HasExpired(Activity->StateParam))
+	{
+		return 1;
+	}
+
 	// Notify the user we've received everything
 	FTicketStatus& SinkArg = *(FTicketStatus*)Activity;
 	Activity->Sink(SinkArg);

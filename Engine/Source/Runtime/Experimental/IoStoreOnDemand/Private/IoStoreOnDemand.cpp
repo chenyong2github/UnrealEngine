@@ -3,6 +3,7 @@
 #include "IO/IoStoreOnDemand.h"
 #include "OnDemandIoDispatcherBackend.h"
 #include "EncryptionKeyManager.h"
+#include "LatencyInjector.h"
 
 #include "FileCache.h"
 #include "HAL/PlatformMisc.h"
@@ -441,6 +442,8 @@ void FIoStoreOnDemandModule::StartupModule()
 	{
 		return;
 	}
+
+	FLatencyInjector::Initialize(CommandLine);
 
 	Endpoint.EndpointType = UE::EOnDemandEndpointType::CDN;
 
