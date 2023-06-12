@@ -51,6 +51,12 @@ public:
 	virtual void Serialize(FArchive& Ar) override;
 
 	/**
+	 * Resets this network asset to be empty.
+	 */
+	UFUNCTION(CallInEditor, Category = "LearningAgents")
+	void ResetNetwork();
+
+	/**
 	 * Load this network from a snapshot.
 	 * @param File The snapshot file.
 	 */

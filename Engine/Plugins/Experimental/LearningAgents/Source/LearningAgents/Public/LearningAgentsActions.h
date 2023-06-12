@@ -14,6 +14,7 @@ namespace UE::Learning
 {
 	struct FFeatureObject;
 	struct FFloatFeature;
+	struct FPlanarVelocityFeature;
 	struct FRotationVectorFeature;
 }
 
@@ -87,7 +88,7 @@ public:
 	float GetFloatAction(const int32 AgentId);
 
 	/**
-	 * Sets the data for this action. Call during ULearningAgentsController::EncodeActions event.
+	 * Sets the data for this action. Call during ULearningAgentsController::SetActions event.
 	 * @param AgentId The agent id to set data for.
 	 * @param Value The current action value.
 	 */	
@@ -130,7 +131,7 @@ public:
 	void GetFloatArrayAction(const int32 AgentId, TArray<float>& OutValues);
 
 	/**
-	 * Sets the data for this action. Call during ULearningAgentsController::EncodeActions event.
+	 * Sets the data for this action. Call during ULearningAgentsController::SetActions event.
 	 * @param AgentId The agent id to set data for.
 	 * @param Values The current action values.
 	 */
@@ -174,7 +175,7 @@ public:
 	FVector GetVectorAction(const int32 AgentId);
 
 	/**
-	 * Sets the data for this action. Call during ULearningAgentsController::EncodeActions event.
+	 * Sets the data for this action. Call during ULearningAgentsController::SetActions event.
 	 * @param AgentId The agent id to set data for.
 	 * @param Value The current action values.
 	 */
@@ -217,7 +218,7 @@ public:
 	void GetVectorArrayAction(const int32 AgentId, TArray<FVector>& OutVectors);
 
 	/**
-	 * Sets the data for this action. Call during ULearningAgentsController::EncodeActions event.
+	 * Sets the data for this action. Call during ULearningAgentsController::SetActions event.
 	 * @param AgentId The agent id to set data for.
 	 * @param Vectors The current action values.
 	 */
@@ -233,6 +234,51 @@ public:
 };
 
 //------------------------------------------------------------------
+
+/** A planar velocity action. */
+UCLASS()
+class LEARNINGAGENTS_API UPlanarVelocityAction : public ULearningAgentsAction
+{
+	GENERATED_BODY()
+
+public:
+
+	/**
+	 * Adds a new planar velocity action to the given agent interactor. The axis parameters define the plane.
+	 * Call during ULearningAgentsInteractor::SetupActions event.
+	 * @param InInteractor The agent interactor to add this action to.
+	 * @param Name The name of this new action. Used for debugging.
+	 * @param Scale Used to normalize the data for the action.
+	 * @param Axis0 The forward axis of the plane.
+	 * @param Axis1 The right axis of the plane.
+	 * @return The newly created action.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (DefaultToSelf = "InInteractor"))
+	static UPlanarVelocityAction* AddPlanarVelocityAction(ULearningAgentsInteractor* InInteractor, const FName Name = NAME_None, const float Scale = 200.0f, const FVector Axis0 = FVector::ForwardVector, const FVector Axis1 = FVector::RightVector);
+
+	/**
+	 * Gets the data for this action. Call during ULearningAgentsInteractor::GetActions event.
+	 * @param AgentId The agent id to get data for.
+	 * @return The current action value.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (AgentId = "-1"))
+	FVector GetPlanarVelocityAction(const int32 AgentId);
+
+	/**
+	 * Sets the data for this action. Call during ULearningAgentsController::SetActions event.
+	 * @param AgentId The agent id this data corresponds to.
+	 * @param Velocity The velocity currently being observed.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (AgentId = "-1"))
+	void SetPlanarVelocityAction(const int32 AgentId, const FVector Velocity);
+
+#if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
+	/** Describes this action to the visual logger for debugging purposes. */
+	virtual void VisualLog(const UE::Learning::FIndexSet Instances) const override;
+#endif
+
+	TSharedPtr<UE::Learning::FPlanarVelocityFeature> FeatureObject;
+};
 
 /** A rotation action. */
 UCLASS()

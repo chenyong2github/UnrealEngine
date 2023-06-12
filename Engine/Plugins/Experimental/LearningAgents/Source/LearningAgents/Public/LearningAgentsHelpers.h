@@ -285,4 +285,30 @@ public:
 		const float MaxHeight = 10000.0f,
 		const float MinHeight = -10000.0f,
 		const ECollisionChannel CollisionChannel = ECollisionChannel::ECC_WorldStatic) const;
+
+	/**
+	 * Casts rays out in a radius from a given position.
+	 * @param OutDistances The output array of distances for each ray from the start position.
+	 * @param AgentId The agent id to run the helper for.
+	 * @param Position The central position of the ray cast.
+	 * @param Rotation The orientation of the ray cast.
+	 * @param RayNum The number of rays to cast.
+	 * @param MinAngle The minimum angle to spread the rays.
+	 * @param MaxAngle The maximum angle to spread the rays.
+	 * @param MaxRayDist The maximum distance at which to shoot rays.
+	 * @param CollisionChannel The collision channel to use for the ray-casts.
+	 */
+	UFUNCTION(BlueprintPure = false, Category = "LearningAgents", meta = (AgentId = "-1"))
+	void RayCastRadial(
+		TArray<float>& OutDistances,
+		const int32 AgentId,
+		const FVector Position,
+		const FRotator Rotation,
+		const int32 RayNum = 7,
+		const float MinAngle = -90.0f,
+		const float MaxAngle = 90.0f,
+		const float MaxRayDist = 500.0f,
+		const FVector LocalForward = FVector::ForwardVector,
+		const ECollisionChannel CollisionChannel = ECollisionChannel::ECC_WorldStatic) const;
+
 };

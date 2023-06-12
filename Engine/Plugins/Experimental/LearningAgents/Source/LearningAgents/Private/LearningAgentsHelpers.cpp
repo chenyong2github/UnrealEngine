@@ -724,3 +724,98 @@ void URayCastHelper::RayCastGridHeights(
 	}
 #endif
 }
+
+void URayCastHelper::RayCastRadial(
+	TArray<float>& OutDistances,
+	const int32 AgentId,
+	const FVector Position,
+	const FRotator Rotation,
+	const int32 RayNum,
+	const float MinAngle,
+	const float MaxAngle,
+	const float MaxRayDist,
+	const FVector LocalForward,
+	const ECollisionChannel CollisionChannel) const
+{
+	if (!ManagerComponent->HasAgent(AgentId))
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
+		OutDistances.Empty();
+		return;
+	}
+
+	if (RayNum < 1)
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: Need at least 1 ray."), *GetName());
+		OutDistances.Empty();
+		return;
+	}
+
+	OutDistances.SetNumUninitialized(RayNum);
+
+	TArray<FHitResult, TInlineAllocator<25>> TraceHits;
+	TraceHits.SetNum(RayNum);
+
+
+	for (int32 RayIdx = 0; RayIdx < RayNum; RayIdx++)
+	{
+		const float Alpha = RayNum == 1 ? 0.0f : ((float)RayIdx) / (RayNum - 1);
+		const FRotator YawRotator(0.0f, Rotation.Yaw + Alpha * (MaxAngle - MinAngle) + MinAngle, 0.0f);
+
+		const FVector Start = Position;
+		const FVector End = Position + YawRotator.RotateVector(MaxRayDist * LocalForward.GetSafeNormal(UE_SMALL_NUMBER, FVector::ForwardVector));
+
+		FCollisionObjectQueryParams ObjectQueryParams;
+		ObjectQueryParams.AddObjectTypesToQuery(CollisionChannel);
+
+		const bool bHit = GetWorld()->LineTraceSingleByObjectType(TraceHits[RayIdx], Start, End, ObjectQueryParams);
+
+		if (bHit)
+		{
+			OutDistances[RayIdx] = TraceHits[RayIdx].ImpactPoint.Z;
+		}
+		else
+		{
+			OutDistances[RayIdx] = MaxRayDist;
+		}
+	}
+
+#if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
+	{
+		UE_LEARNING_AGENTS_VLOG_TRANSFORM(this, LogLearning, Display,
+			Position,
+			Rotation,
+			VisualLogColor.ToFColor(true),
+			TEXT(""));
+
+		for (int32 RayIdx = 0; RayIdx < RayNum; RayIdx++)
+		{
+			const float Alpha = RayNum == 1 ? 0.0f : ((float)RayIdx) / (RayNum - 1);
+			const FRotator YawRotator(0.0f, Rotation.Yaw + Alpha * (MaxAngle - MinAngle) + MinAngle, 0.0f);
+
+			const FVector Start = Position;
+			const FVector End = Position + YawRotator.RotateVector(MaxRayDist * LocalForward.GetSafeNormal(UE_SMALL_NUMBER, FVector::ForwardVector));
+
+			const FVector ImpactPoint =
+				TraceHits[RayIdx].bBlockingHit ?
+				TraceHits[RayIdx].ImpactPoint : End;
+
+			UE_LEARNING_AGENTS_VLOG_ARROW(this, LogLearning, Display,
+				Start,
+				End,
+				VisualLogColor.ToFColor(true),
+				TEXT(""));
+
+			UE_LEARNING_AGENTS_VLOG_LOCATION(this, LogLearning, Display,
+				ImpactPoint,
+				2.5f,
+				VisualLogColor.ToFColor(true),
+				TEXT("Agent %i\nRay: %i\nImpact Point: [% 6.1f % 6.1f % 6.1f]\nDistance: [% 6.1f]"),
+				AgentId,
+				RayIdx,
+				ImpactPoint.X, ImpactPoint.Y, ImpactPoint.Z,
+				OutDistances[RayIdx]);
+		}
+	}
+#endif
+}

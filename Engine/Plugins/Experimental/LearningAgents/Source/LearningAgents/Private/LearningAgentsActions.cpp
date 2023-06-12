@@ -364,6 +364,97 @@ void UVectorArrayAction::VisualLog(const UE::Learning::FIndexSet Instances) cons
 
 //------------------------------------------------------------------
 
+
+UPlanarVelocityAction* UPlanarVelocityAction::AddPlanarVelocityAction(ULearningAgentsInteractor* InInteractor, const FName Name, const float Scale, const FVector Axis0, const FVector Axis1)
+{
+	return UE::Learning::Agents::Actions::Private::AddAction<UPlanarVelocityAction, UE::Learning::FPlanarVelocityFeature>(
+		InInteractor, 
+		Name, 
+		TEXT("AddPlanarVelocityAction"), 
+		1, 
+		Scale,
+		Axis0.GetSafeNormal(UE_SMALL_NUMBER, FVector::ForwardVector),
+		Axis1.GetSafeNormal(UE_SMALL_NUMBER, FVector::RightVector));
+}
+
+FVector UPlanarVelocityAction::GetPlanarVelocityAction(const int32 AgentId)
+{
+	if (!Interactor->HasAgent(AgentId))
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
+		return FVector::ZeroVector;
+	}
+
+	const TLearningArrayView<2, const FVector> View = FeatureObject->InstanceData->ConstView(FeatureObject->VelocityHandle);
+
+	AgentGetIteration[AgentId]++;
+
+	return View[AgentId][0];
+}
+
+void UPlanarVelocityAction::SetPlanarVelocityAction(const int32 AgentId, const FVector Velocity)
+{
+	if (!Interactor->HasAgent(AgentId))
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
+		return;
+	}
+
+	const TLearningArrayView<2, FVector> View = FeatureObject->InstanceData->View(FeatureObject->VelocityHandle);
+	View[AgentId][0] = Velocity;
+
+	AgentSetIteration[AgentId]++;
+}
+
+#if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
+void UPlanarVelocityAction::VisualLog(const UE::Learning::FIndexSet Instances) const
+{
+	UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(UPlanarVelocityAction::VisualLog);
+
+	const TLearningArrayView<2, const FVector> VelocityView = FeatureObject->InstanceData->ConstView(FeatureObject->VelocityHandle);
+	const TLearningArrayView<2, const float> FeatureView = FeatureObject->InstanceData->ConstView(FeatureObject->FeatureHandle);
+
+	for (const int32 Instance : Instances)
+	{
+		if (const AActor* Actor = Cast<AActor>(Interactor->GetAgent(Instance)))
+		{
+			const FVector Velocity = VelocityView[Instance][0];
+
+			UE_LEARNING_AGENTS_VLOG_ARROW(this, LogLearning, Display,
+				Actor->GetActorLocation(),
+				Actor->GetActorLocation() + Velocity,
+				VisualLogColor.ToFColor(true),
+				TEXT(""));
+
+			UE_LEARNING_AGENTS_VLOG_STRING(this, LogLearning, Display,
+				Actor->GetActorLocation() + Velocity,
+				VisualLogColor.ToFColor(true),
+				TEXT("Velocity: [% 6.3f % 6.3f % 6.3f]"),
+				Velocity.X, Velocity.Y, Velocity.Z);
+
+			UE_LEARNING_AGENTS_VLOG_PLANE(this, LogLearning, Display,
+				Actor->GetActorLocation(),
+				FQuat::Identity,
+				FeatureObject->Axis0,
+				FeatureObject->Axis1,
+				VisualLogColor.ToFColor(true),
+				TEXT(""));
+
+			UE_LEARNING_AGENTS_VLOG_TRANSFORM(this, LogLearning, Display,
+				Actor->GetActorLocation(),
+				FQuat::Identity,
+				VisualLogColor.ToFColor(true),
+				TEXT("Agent %i\nScale: [% 6.2f]\nEncoded: %s"),
+				Instance,
+				FeatureObject->Scale,
+				*UE::Learning::Array::FormatFloat(FeatureView[Instance]));
+		}
+	}
+}
+#endif
+
+//------------------------------------------------------------------
+
 URotationAction* URotationAction::AddRotationAction(ULearningAgentsInteractor* InInteractor, const FName Name, const float Scale)
 {
 	return UE::Learning::Agents::Actions::Private::AddAction<URotationAction, UE::Learning::FRotationVectorFeature>(InInteractor, Name, TEXT("AddRotationAction"), 1, Scale);

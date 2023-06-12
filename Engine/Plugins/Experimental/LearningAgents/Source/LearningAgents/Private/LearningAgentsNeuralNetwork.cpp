@@ -95,6 +95,12 @@ void ULearningAgentsNeuralNetwork::Serialize(FArchive& Ar)
 	}
 }
 
+void ULearningAgentsNeuralNetwork::ResetNetwork()
+{
+	NeuralNetwork.Reset();
+	ForceMarkDirty();
+}
+
 void ULearningAgentsNeuralNetwork::LoadNetworkFromSnapshot(const FFilePath& File)
 {
 	TArray<uint8> RecordingData;
@@ -127,14 +133,38 @@ void ULearningAgentsNeuralNetwork::LoadNetworkFromSnapshot(const FFilePath& File
 			return;
 		}
 
-		if (!NeuralNetwork)
+		TSharedPtr<UE::Learning::FNeuralNetwork> TempNeuralNetwork = MakeShared<UE::Learning::FNeuralNetwork>();
+		TempNeuralNetwork->DeserializeFromBytes(Offset, RecordingData);
+
+		if (Offset != RecordingData.Num())
 		{
-			NeuralNetwork = MakeShared<UE::Learning::FNeuralNetwork>();
+			UE_LOG(LogLearning, Error, TEXT("%s: Failed to load network. Unexpected end of file."));
+			return;
 		}
 
-		NeuralNetwork->DeserializeFromBytes(Offset, RecordingData);
+		if (NeuralNetwork)
+		{
+			// If we already have a neural network check settings match
 
-		UE_LEARNING_CHECK(Offset == RecordingData.Num());
+			if (TempNeuralNetwork->GetInputNum() != NeuralNetwork->GetInputNum() ||
+				TempNeuralNetwork->GetOutputNum() != NeuralNetwork->GetOutputNum() ||
+				TempNeuralNetwork->GetLayerNum() != NeuralNetwork->GetLayerNum() ||
+				TempNeuralNetwork->ActivationFunction != NeuralNetwork->ActivationFunction)
+			{
+				UE_LOG(LogLearning, Error, TEXT("%s: Failed to load network from snapshot as settings don't match."), *GetName());
+				return;
+			}
+			else
+			{
+				*NeuralNetwork = *TempNeuralNetwork;
+			}
+		}
+		else
+		{
+			// Otherwise use loaded neural network as-is
+
+			NeuralNetwork = TempNeuralNetwork;
+		}
 
 		ForceMarkDirty();
 	}
