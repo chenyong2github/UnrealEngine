@@ -253,8 +253,12 @@ export const HealthPanel: React.FC<{ jobDetails: JobDetailsV2 }> = observer(({ j
 
       if (column.name === "Quarantine") {
 
-         if (!issue.quarantinedByUserInfo) {
+         if (!issue.quarantinedByUserInfo && !issue.workflowThreadUrl) {
             return null;
+         }
+
+         if (issue.workflowThreadUrl) {
+            return <a onClick={(e) => e.stopPropagation()} href={issue.workflowThreadUrl} target="_blank" rel="noreferrer"><Stack style={{ height: "100%" }} horizontalAlign="center" disableShrink={true}  verticalAlign="center" >Slack Thread</Stack></a>
          }
 
          return <Stack horizontalAlign="start" disableShrink={true} verticalAlign="center" ><Text variant={textSize}>Quarantined</Text></Stack>;
