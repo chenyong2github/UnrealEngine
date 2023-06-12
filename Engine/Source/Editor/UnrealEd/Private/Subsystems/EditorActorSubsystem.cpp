@@ -23,6 +23,7 @@
 #include "Engine/Selection.h"
 #include "LevelEditorViewport.h"
 #include "Settings/LevelEditorViewportSettings.h"
+#include "Settings/LevelEditorMiscSettings.h"
 #include "Subsystems/EditorElementSubsystem.h"
 #include "UObject/Stack.h"
 
@@ -285,7 +286,8 @@ void UEditorActorSubsystem::DeleteSelectedActors(UWorld* InWorld)
 	const FScopedTransaction Transaction(bComponentsSelected ? NSLOCTEXT("UnrealEd", "DeleteComponents", "Delete Components") : NSLOCTEXT("UnrealEd", "DeleteActors", "Delete Actors"));
 
 	FEditorDelegates::OnDeleteActorsBegin.Broadcast();
-	GEditor->edactDeleteSelected(InWorld);
+	const bool bCheckRef = GetDefault<ULevelEditorMiscSettings>()->bCheckReferencesOnDelete;
+	GEditor->edactDeleteSelected(InWorld, true, bCheckRef, bCheckRef);
 	FEditorDelegates::OnDeleteActorsEnd.Broadcast();
 }
 

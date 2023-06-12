@@ -1514,7 +1514,12 @@ bool UUnrealEdEngine::Exec_Edit( UWorld* InWorld, const TCHAR* Str, FOutputDevic
 						}
 
 						CommonActions->CopySelectedElements(SelectionSet);
-						CommonActions->DeleteSelectedElements(SelectionSet, InWorld, FTypedElementDeletionOptions());
+						const bool bCheckRef = GetDefault<ULevelEditorMiscSettings>()->bCheckReferencesOnDelete;
+						FTypedElementDeletionOptions Options;
+						Options
+							.SetWarnAboutReferences(bCheckRef)
+							.SetWarnAboutSoftReferences(bCheckRef);
+						CommonActions->DeleteSelectedElements(SelectionSet, InWorld, Options);
 
 						if (!bComponentsSelected)
 						{
@@ -1530,7 +1535,8 @@ bool UUnrealEdEngine::Exec_Edit( UWorld* InWorld, const TCHAR* Str, FOutputDevic
 			const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "Cut", "Cut"));
 
 			edactCopySelected(InWorld);
-			edactDeleteSelected(InWorld);
+			const bool bCheckRef = GetDefault<ULevelEditorMiscSettings>()->bCheckReferencesOnDelete;
+			edactDeleteSelected(InWorld, true, bCheckRef, bCheckRef);
 		}
 		else
 		{
@@ -2587,7 +2593,12 @@ bool UUnrealEdEngine::Exec_Actor( UWorld* InWorld, const TCHAR* Str, FOutputDevi
 					else
 					{
 						FEditorDelegates::OnDeleteActorsBegin.Broadcast();
-						CommonActions->DeleteSelectedElements(SelectionSet, InWorld, FTypedElementDeletionOptions());
+						const bool bCheckRef = GetDefault<ULevelEditorMiscSettings>()->bCheckReferencesOnDelete;
+						FTypedElementDeletionOptions Options;
+						Options
+							.SetWarnAboutReferences(bCheckRef)
+							.SetWarnAboutSoftReferences(bCheckRef);
+						CommonActions->DeleteSelectedElements(SelectionSet, InWorld, Options);
 						FEditorDelegates::OnDeleteActorsEnd.Broadcast();
 					}
 				}
