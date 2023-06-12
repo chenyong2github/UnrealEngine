@@ -843,11 +843,11 @@ struct FMutableRefSocket
 	FName BoneName;
 
 	UPROPERTY()
-	FVector RelativeLocation;
+	FVector RelativeLocation = FVector::ZeroVector;
 	UPROPERTY()
-	FRotator RelativeRotation;
+	FRotator RelativeRotation = FRotator::ZeroRotator;
 	UPROPERTY()
-	FVector RelativeScale;
+	FVector RelativeScale = FVector::ZeroVector;;
 
 	UPROPERTY()
 	bool bForceAlwaysAnimated = false;
@@ -956,7 +956,7 @@ struct FMutableRefSkeletalMeshData
 
 	// Bounding Box
 	UPROPERTY()
-	FBoxSphereBounds Bounds;
+	FBoxSphereBounds Bounds = FBoxSphereBounds(ForceInitToZero);
 
 	// Settings
 	UPROPERTY()

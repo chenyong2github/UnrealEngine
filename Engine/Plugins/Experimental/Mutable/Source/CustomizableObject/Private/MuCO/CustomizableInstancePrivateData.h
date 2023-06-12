@@ -149,7 +149,7 @@ struct FAnimInstanceOverridePhysicsAsset
 	GENERATED_BODY()
 
 	UPROPERTY(Transient)
-	int32 PropertyIndex;
+	int32 PropertyIndex = 0;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UPhysicsAsset> PhysicsAsset;

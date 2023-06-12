@@ -53,7 +53,7 @@ struct FCustomizableObjectClothingAssetData
 	TArray<int32> UsedBoneIndices;
 
 	UPROPERTY()
-	int32 ReferenceBoneIndex;
+	int32 ReferenceBoneIndex = 0;
 
 	UPROPERTY()
 	TArray<FCustomizableObjectClothConfigData> ConfigsData;

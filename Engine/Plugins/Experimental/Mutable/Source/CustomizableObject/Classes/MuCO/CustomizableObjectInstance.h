@@ -80,7 +80,7 @@ struct FUpdateContext
 	GENERATED_BODY()
 
 	UPROPERTY()
-	EUpdateResult UpdateResult;
+	EUpdateResult UpdateResult = EUpdateResult::Success;
 };
 
 

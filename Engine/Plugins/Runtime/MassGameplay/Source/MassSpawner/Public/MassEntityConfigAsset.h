@@ -93,7 +93,7 @@ protected:
 	TObjectPtr<UObject> ConfigOwner = nullptr;
 
 private:
-	UPROPERTY(VisibleAnywhere, Category="Mass")
+	UPROPERTY(VisibleAnywhere, Category="Mass", meta = (IgnoreForMemberInitializationTest))
 	FGuid ConfigGuid;
 
 private:
