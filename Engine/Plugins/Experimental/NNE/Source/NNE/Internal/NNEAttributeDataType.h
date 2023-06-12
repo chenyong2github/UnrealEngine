@@ -23,8 +23,3 @@ enum class ENNEAttributeDataType : uint8
 	String,								//!< built-in FString
 	StringArray							//!< TArray of built-in FString
 };
-
-/**
- * @return ENNEAttributeDataType from the string passed in
- */
-NNE_API void LexFromString(ENNEAttributeDataType& OutValue, const TCHAR* StringVal);
