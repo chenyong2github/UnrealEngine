@@ -33,6 +33,7 @@ public:
 	void ComputeCompensation(UWorld* InWorld, const TSharedPtr<ISequencer>& InSequencer, const FFrameNumber& InTime);
 	void ComputeLocalTransformsForBaking(UWorld* InWorld, const TSharedPtr<ISequencer>& InSequencer, const TArray<FFrameNumber>& InFrames);
 	void CacheTransforms(UWorld* InWorld, const TSharedPtr<ISequencer>& InSequencer, const TArray<FFrameNumber>& InFrames);
+	void ComputeCurrentTransforms(UWorld* InWorld);
 	
 private:
 
@@ -186,9 +187,16 @@ private:
 	/** For the given handle create any movie scene binding for it based upon the current sequencer that's open*/
 	static void CreateBindingIDForHandle(const TSharedPtr<ISequencer>& InSequencer, UTransformableHandle* InHandle);
 
+	/** Compensate scale keys when enabling/disabling scaling for parent constraints. */
 	static void CompensateScale(
 		UTickableParentConstraint* InParentConstraint,
 		const FMovieSceneConstraintChannel& InActiveChannel,
 		const TSharedPtr<ISequencer>& InSequencer,
 		UMovieSceneSection* InSection);
+
+	/** Handle offset modifications so that the child's transform channels are synced. */
+	static void HandleOffsetChanged(
+		UTickableTransformConstraint* InConstraint,
+		const FMovieSceneConstraintChannel& InActiveChannel,
+		const TSharedPtr<ISequencer>& InSequencer);
 };

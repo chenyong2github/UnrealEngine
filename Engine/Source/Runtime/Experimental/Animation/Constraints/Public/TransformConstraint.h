@@ -211,10 +211,12 @@ protected:
 	/** Computes the child's local translation offset in the parent space. */
 	virtual void ComputeOffset() override;
 
+public:
 	/** Defines the local child's translation offset in the parent space. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Offset", meta=(EditCondition="bMaintainOffset"))
 	FVector OffsetTranslation = FVector::ZeroVector;
 
+protected:
 	/** Defines which translation axis is constrained. */
 	UPROPERTY(BlueprintReadWrite, Category = "Axis Filter")
 	FFilterOptionPerAxis AxisFilter;
@@ -257,11 +259,13 @@ protected:
 	
 	/** Computes the child's local rotation offset in the parent space. */
 	virtual void ComputeOffset() override;
-	
+
+public:
 	/** Defines the local child's rotation offset in the parent space. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Offset", meta=(EditCondition="bMaintainOffset"))
 	FQuat OffsetRotation = FQuat::Identity;
 
+protected:
 	/** Defines which rotation axis is constrained. */
 	UPROPERTY(BlueprintReadWrite, Category = "Axis Filter")
 	FFilterOptionPerAxis AxisFilter;
@@ -303,11 +307,13 @@ protected:
 	};
 	mutable FDynamicCache Cache;
 	uint32 CalculateInputHash() const;
-	
+
+public:
 	/** Defines the local child's scale offset in the parent space. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Offset", meta=(EditCondition="bMaintainOffset"))
 	FVector OffsetScale = FVector::OneVector;
 
+protected:
 	/** Defines which scale axis is constrained. */
 	UPROPERTY(BlueprintReadWrite, Category = "Axis Filter")
 	FFilterOptionPerAxis AxisFilter;
@@ -362,10 +368,12 @@ protected:
 	/** Computes the child's local transform offset in the parent space. */
 	virtual void ComputeOffset() override;
 
+public:
 	/** Defines the local child's transform offset in the parent space. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Offset", meta=(EditCondition="bMaintainOffset"))
 	FTransform OffsetTransform = FTransform::Identity;
 
+protected:
 	/** Defines whether we propagate the parent scale. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Properties")
 	bool bScaling = false;

@@ -191,6 +191,7 @@ void FCompensationEvaluator::ComputeLocalTransforms(
 		}
 	}
 }
+
 void FCompensationEvaluator::ComputeLocalTransformsForBaking(UWorld* InWorld, const TSharedPtr<ISequencer>& InSequencer, const TArray<FFrameNumber>& InFrames)
 {
 	if (InFrames.IsEmpty())
@@ -616,6 +617,46 @@ void FCompensationEvaluator::CacheTransforms(UWorld* InWorld, const TSharedPtr<I
 		if (BakeHelper)
 		{
 			BakeHelper->StopBaking(MovieScene);
+		}
+	}
+}
+
+void FCompensationEvaluator::ComputeCurrentTransforms(UWorld* InWorld)
+{
+	ChildLocals = ChildGlobals = SpaceGlobals = {FTransform::Identity};
+
+	using ConstraintPtr = TObjectPtr<UTickableConstraint>;
+	const TArray< ConstraintPtr > Constraints = GetHandleTransformConstraints(InWorld);
+	if (Constraints.IsEmpty())
+	{
+		return;
+	}
+
+	for (const UTickableConstraint* InConstraint : Constraints)
+	{
+		InConstraint->Evaluate();
+	}
+
+	ChildLocals[0] = Handle->GetLocalTransform();
+	ChildGlobals[0] = Handle->GetGlobalTransform();
+	
+	auto GetLastActiveConstraint = [Constraints]()
+	{
+		// find last active constraint in the list that is different than the one we want to compensate for
+		const int32 LastActiveIndex = FTransformConstraintUtils::GetLastActiveConstraintIndex(Constraints);
+
+		// if found, return its parent global transform
+		return LastActiveIndex > INDEX_NONE ? Cast<UTickableTransformConstraint>(Constraints[LastActiveIndex]) : nullptr;
+	};
+	
+	if (const UTickableTransformConstraint* LastConstraint = GetLastActiveConstraint())
+	{
+		SpaceGlobals[0] = LastConstraint->GetParentGlobalTransform();
+		TOptional<FTransform> Relative =
+			FTransformConstraintUtils::GetConstraintsRelativeTransform(Constraints, ChildLocals[0], ChildGlobals[0]);
+		if (Relative)
+		{
+			ChildLocals[0] = *Relative;
 		}
 	}
 }
@@ -1158,6 +1199,14 @@ void FMovieSceneConstraintChannelHelper::HandleConstraintPropertyChanged(
 	{
 		return CompensateScale(Cast<UTickableParentConstraint>(InConstraint), InActiveChannel, InSequencer, InSection);
 	}
+	
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UTickableTranslationConstraint, OffsetTranslation) ||
+		PropertyName == GET_MEMBER_NAME_CHECKED(UTickableRotationConstraint, OffsetRotation) ||
+		PropertyName == GET_MEMBER_NAME_CHECKED(UTickableScaleConstraint, OffsetScale) ||
+		PropertyName == GET_MEMBER_NAME_CHECKED(UTickableParentConstraint, OffsetTransform))
+	{
+		return HandleOffsetChanged(InConstraint, InActiveChannel, InSequencer);
+	}
 }
 
 void FMovieSceneConstraintChannelHelper::CompensateScale(
@@ -1244,4 +1293,49 @@ void FMovieSceneConstraintChannelHelper::CompensateScale(
 
 	// reset scaling to reference value
 	InParentConstraint->SetScaling(bRefScalingValue);
+}
+
+void FMovieSceneConstraintChannelHelper::HandleOffsetChanged(
+	UTickableTransformConstraint* InConstraint,
+	const FMovieSceneConstraintChannel& InActiveChannel,
+	const TSharedPtr<ISequencer>& InSequencer)
+{
+	if (!InConstraint || !InSequencer.IsValid())
+	{
+		return;
+	}
+	
+	TObjectPtr<UTransformableHandle> Handle = InConstraint->ChildTRSHandle;
+	ITransformConstraintChannelInterface* Interface = GetHandleInterface(Handle);
+	if (!Interface)
+	{
+		return;
+	}
+
+	const TArrayView<const FFrameNumber> Times = InActiveChannel.GetTimes();
+	if (Times.IsEmpty())
+	{
+		return;
+	}
+
+	const FFrameRate TickResolution = InSequencer->GetFocusedTickResolution();
+	const FFrameTime FrameTime = InSequencer->GetLocalTime().ConvertTo(TickResolution);
+	const FFrameNumber Time = FrameTime.GetFrame();
+		
+	bool bIsActive = false; InActiveChannel.Evaluate(Time, bIsActive);
+	if (bIsActive)
+	{
+		const EMovieSceneTransformChannel Channels = InConstraint->GetChannelsToKey();
+	
+		// compute the current local value
+		FCompensationEvaluator Evaluator(InConstraint);
+		UWorld* World = GCurrentLevelEditingViewportClient ? GCurrentLevelEditingViewportClient->GetWorld() : nullptr;
+		Evaluator.ComputeCurrentTransforms(World);
+
+		// update key
+		Interface->AddHandleTransformKeys(InSequencer, Handle, {Time}, {Evaluator.ChildLocals[0]}, Channels);
+		
+		// force evaluation so that new local values are evaluated before the constraint 
+		InSequencer->ForceEvaluate();
+	}
 }

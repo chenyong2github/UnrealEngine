@@ -301,9 +301,13 @@ void UTickableTransformConstraint::PostEditChangeProperty(FPropertyChangedEvent&
 
 	if (const FProperty* MemberProperty = PropertyChangedEvent.MemberProperty)
 	{
-		static const FString OffsetStr("Offset");
-		if (MemberProperty->GetFName().ToString().Contains(OffsetStr) )
+		const FName MemberPropertyName = MemberProperty->GetFName();
+		if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(UTickableTranslationConstraint, OffsetTranslation) ||
+			MemberPropertyName == GET_MEMBER_NAME_CHECKED(UTickableRotationConstraint, OffsetRotation) ||
+			MemberPropertyName == GET_MEMBER_NAME_CHECKED(UTickableScaleConstraint, OffsetScale) ||
+			MemberPropertyName == GET_MEMBER_NAME_CHECKED(UTickableParentConstraint, OffsetTransform))
 		{
+			OnConstraintChanged.Broadcast(this, PropertyChangedEvent);
 			Evaluate();
 		}
 	}
