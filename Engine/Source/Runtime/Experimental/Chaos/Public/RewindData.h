@@ -530,19 +530,19 @@ private:
 			{
 				ensure(LatestFrameAndPhase <= FrameAndPhase);	//Must write in growing order so that x_{n+1} >= x_n
 				if (LatestFrameAndPhase == FrameAndPhase)
-	{
+				{
 					//Already wrote once for this FrameAndPhase so skip
 					return nullptr;
 				}
 			}
 
 			ValidateOrder();
-	}
+		}
 
 		T* Result;
 
 		if (Next < Buffer.Num())
-	{
+		{
 			//reuse
 			FPropertyInterval& Interval = Buffer[Next];
 			Interval.FrameAndPhase = FrameAndPhase;
