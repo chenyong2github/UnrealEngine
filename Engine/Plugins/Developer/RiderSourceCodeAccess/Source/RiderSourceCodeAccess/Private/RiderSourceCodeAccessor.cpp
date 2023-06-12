@@ -325,31 +325,23 @@ void FRiderSourceCodeAccessor::CachePathToSln() const
 	}
 	else
 	{
-		CachedSolutionPath = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir());
+			FString PrimaryProjectPath;
+			if (!FFileHelper::LoadFileToString(PrimaryProjectPath, *(FPaths::EngineIntermediateDir() / TEXT("ProjectFiles") / TEXT("PrimaryProjectPath.txt"))))
+			{
+				const FProjectDescriptor* CurrentProject = IProjectManager::Get().GetCurrentProject();
+				const FString ProjectDir = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir());
 
-		if (!FUProjectDictionary(FPaths::RootDir()).IsForeignProject(CachedSolutionPath))
-		{
-			FString PrimaryProjectName;
-			if (!FFileHelper::LoadFileToString(PrimaryProjectName, *(FPaths::EngineIntermediateDir() / TEXT("ProjectFiles/PrimaryProjectName.txt"))))
-			{
-				PrimaryProjectName = "UE5";
+				if ((CurrentProject == nullptr || CurrentProject->Modules.Num() == 0) || !FUProjectDictionary::GetDefault().IsForeignProject(ProjectDir))
+				{
+					PrimaryProjectPath = FPaths::RootDir() / TEXT("UE5");
+				}
+				else
+				{
+					const FString BaseName = FApp::HasProjectName() ? FApp::GetProjectName() : FPaths::GetBaseFilename(ProjectDir);
+					PrimaryProjectPath = ProjectDir / BaseName;
+				}
 			}
-			CachedSolutionPath = FPaths::Combine(FPaths::RootDir(), PrimaryProjectName + TEXT(".sln"));
-		}
-		else
-		{
-			const FProjectDescriptor* CurrentProject = IProjectManager::Get().GetCurrentProject();
-
-			if (CurrentProject == nullptr || CurrentProject->Modules.Num() == 0)
-			{
-				CachedSolutionPath = TEXT("");
-			}
-			else
-			{
-				const FString BaseName = FApp::HasProjectName() ? FApp::GetProjectName() : FPaths::GetBaseFilename(CachedSolutionPath);
-				CachedSolutionPath = FPaths::Combine(CachedSolutionPath, BaseName + TEXT(".sln"));
-			}
-		}
+			CachedSolutionPath = PrimaryProjectPath + TEXT(".sln");
 	}
 }
 

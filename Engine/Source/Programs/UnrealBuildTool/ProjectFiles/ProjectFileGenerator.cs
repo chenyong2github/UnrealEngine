@@ -857,8 +857,6 @@ namespace UnrealBuildTool
 		{
 			bool bSuccess = true;
 
-			bool WritePrimaryProjectNameTxt = false;
-
 			// Parse project generator options
 			bool IncludeAllPlatforms = true;
 			ConfigureProjectFileGeneration(Arguments, ref IncludeAllPlatforms, Logger);
@@ -904,9 +902,6 @@ namespace UnrealBuildTool
 						PrimaryProjectName = NewPrimaryProjectName;
 					}
 				}
-
-				// Write out the name of the primary project file, so the runtime knows to use it
-				WritePrimaryProjectNameTxt = true;
 			}
 
 			// if making a temp primary project, put it in with the rest of the project files
@@ -932,16 +927,13 @@ namespace UnrealBuildTool
 					PrimaryProjectName += SortedPlatform;
 					IntermediateProjectFilesPath = new DirectoryReference(IntermediateProjectFilesPath.FullName + SortedPlatform);
 				}
-
-				// the primary project name is always read from our intermediate directory and not the overriden one for this set of platforms
-				WritePrimaryProjectNameTxt = true;
 			}
 
-			if (WritePrimaryProjectNameTxt)
-			{
-				FileReference PrimaryProjectNameLocation = FileReference.Combine(Unreal.EngineDirectory, "Intermediate", "ProjectFiles", "PrimaryProjectName.txt");
-				Utils.WriteFileIfChanged(PrimaryProjectNameLocation, PrimaryProjectName, Logger);
-			}
+			// Write out the name of the primary project file and it's path, so the runtime knows to use it
+			FileReference PrimaryProjectNameLocation = FileReference.Combine(Unreal.EngineDirectory, "Intermediate", "ProjectFiles", "PrimaryProjectName.txt");
+			Utils.WriteFileIfChanged(PrimaryProjectNameLocation, PrimaryProjectName, Logger);
+			FileReference PrimaryProjectPathLocation = FileReference.Combine(Unreal.EngineDirectory, "Intermediate", "ProjectFiles", "PrimaryProjectPath.txt");
+			Utils.WriteFileIfChanged(PrimaryProjectPathLocation, DirectoryReference.Combine(PrimaryProjectPath, PrimaryProjectName).FullName.Replace("\\", "/", StringComparison.InvariantCultureIgnoreCase), Logger);
 
 			bool bCleanProjectFiles = Arguments.Any(x => x.Equals("-CleanProjects", StringComparison.InvariantCultureIgnoreCase));
 			if (bCleanProjectFiles)
