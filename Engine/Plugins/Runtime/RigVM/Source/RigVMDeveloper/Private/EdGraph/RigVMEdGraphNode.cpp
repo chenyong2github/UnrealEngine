@@ -22,6 +22,7 @@
 #include "RigVMModel/Nodes/RigVMCollapseNode.h"
 #include "RigVMModel/Nodes/RigVMInvokeEntryNode.h"
 #include "RigVMModel/Nodes/RigVMDispatchNode.h"
+#include "Stats/StatsHierarchical.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMEdGraphNode)
 
