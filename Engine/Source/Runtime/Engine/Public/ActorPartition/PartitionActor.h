@@ -26,6 +26,7 @@ public:
 	ENGINE_API virtual TUniquePtr<class FWorldPartitionActorDesc> CreateClassActorDesc() const override;
 	ENGINE_API virtual uint32 GetDefaultGridSize(UWorld* InWorld) const PURE_VIRTUAL(APartitionActor, return 0;)
 	ENGINE_API virtual bool ShouldIncludeGridSizeInName(UWorld * InWorld, const FActorPartitionIdentifier& InIdentifier) const;
+	ENGINE_API virtual bool ShouldIncludeGridSizeInLabel() const { return false; }
 	virtual FGuid GetGridGuid() const { return FGuid(); }
 	ENGINE_API virtual bool IsUserManaged() const override;
 #endif

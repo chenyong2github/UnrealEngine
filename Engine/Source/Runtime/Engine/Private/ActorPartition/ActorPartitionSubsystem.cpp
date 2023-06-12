@@ -272,7 +272,12 @@ public:
 
 			// Once actor is created, update its label
 			TStringBuilderWithBuffer<TCHAR, NAME_SIZE> ActorLabelBuilder;
-			ActorLabelBuilder += FString::Printf(TEXT("%s_%d_%d_%d"), *InActorPartitionId.GetClass()->GetName(), InCellCoord.X, InCellCoord.Y, InCellCoord.Z);
+			ActorLabelBuilder += FString::Printf(TEXT("%s"), *InActorPartitionId.GetClass()->GetName());
+			if (FoundActor->ShouldIncludeGridSizeInLabel())
+			{
+				ActorLabelBuilder += FString::Printf(TEXT("_%u"), InGridSize);
+			}
+			ActorLabelBuilder += FString::Printf(TEXT("_%d_%d_%d"), InCellCoord.X, InCellCoord.Y, InCellCoord.Z);
 			if (InActorPartitionId.GetDataLayerEditorContextHash() != FDataLayerEditorContext::EmptyHash)
 			{
 				ActorLabelBuilder += FString::Printf(TEXT("_%X"), InActorPartitionId.GetDataLayerEditorContextHash());
