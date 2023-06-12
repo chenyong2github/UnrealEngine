@@ -22,3 +22,28 @@ uint GetUnWrappedDispatchThreadId(uint3 GroupId /*SV_GroupID*/, uint GroupThread
 {
 	return GetUnWrappedDispatchGroupId(GroupId) * ThreadGroupSize + GroupThreadIndex;
 }
+
+/**
+* Wrapping number of groups to Y and Z dimension if X group count overflows DimensionLimit.
+* Calculate the linear group index as:
+*  uint LinearGroupId = GroupId.X + (GroupId.Z * WRAPPED_GROUP_STRIDE + GroupId.Y) * WRAPPED_GROUP_STRIDE;
+* Note that you must use an early out because LinearGroupId may be larger than the ideal due to wrapping.
+*/
+uint3 GetGroupCountWrapped(const uint TargetGroupCount, uint2 DimensionLimit)
+{
+	uint3 GroupCount = uint3(TargetGroupCount, 1, 1);
+
+	if (GroupCount.x > DimensionLimit.x)
+	{
+		GroupCount.y = (GroupCount.x + WRAPPED_GROUP_STRIDE - 1u) / WRAPPED_GROUP_STRIDE;
+		GroupCount.x = WRAPPED_GROUP_STRIDE;
+	}
+
+	if (GroupCount.y > DimensionLimit.y)
+	{
+		GroupCount.z = (GroupCount.y + WRAPPED_GROUP_STRIDE - 1u) / WRAPPED_GROUP_STRIDE;
+		GroupCount.y = WRAPPED_GROUP_STRIDE;
+	}
+
+	return GroupCount;
+}

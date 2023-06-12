@@ -3,6 +3,7 @@
 #include "../Common.ush"
 #include "../SceneData.ush"
 #include "../WaveOpUtil.ush"
+#include "../ComputeShaderUtils.ush"
 
 #include "NaniteAttributeDecode.ush"
 
@@ -10,14 +11,22 @@
 	#define RASTER_BIN_COUNT	1
 	#define RASTER_BIN_SCATTER	0
 	#define RASTER_BIN_RESERVE	0
+	#define RASTER_BIN_FINALIZE	0
 #elif (RASTER_BIN_PASS == NANITE_RASTER_BIN_SCATTER)
 	#define RASTER_BIN_COUNT	0
 	#define RASTER_BIN_SCATTER	1
 	#define RASTER_BIN_RESERVE	0
-#else
+	#define RASTER_BIN_FINALIZE	0
+#elif (RASTER_BIN_PASS == NANITE_RASTER_BIN_RESERVE)
 	#define RASTER_BIN_COUNT	0
 	#define RASTER_BIN_SCATTER	0
 	#define RASTER_BIN_RESERVE	1
+	#define RASTER_BIN_FINALIZE	0
+#else
+	#define RASTER_BIN_COUNT	0
+	#define RASTER_BIN_SCATTER	0
+	#define RASTER_BIN_RESERVE	0
+	#define RASTER_BIN_FINALIZE	1
 #endif
 
 #ifndef VIRTUAL_TEXTURE_TARGET
@@ -80,6 +89,39 @@ void RasterBinReserve(uint RasterBinIndex : SV_DispatchThreadID)
 
 		const uint ArgsOffset = (RasterBinIndex * NANITE_RASTERIZER_ARG_COUNT);
 		WriteRasterizerArgsSWHW(OutRasterBinArgsSWHW, ArgsOffset, 0u, 0u);
+	}
+}
+
+#elif RASTER_BIN_FINALIZE
+
+uint RasterBinCount;
+
+RWBuffer<uint> OutRasterBinArgsSWHW;
+
+[numthreads(64, 1, 1)]
+void RasterBinFinalize(uint RasterBinIndex : SV_DispatchThreadID)
+{
+	if (RasterBinIndex < RasterBinCount)
+	{
+		uint Offset = (RasterBinIndex * NANITE_RASTERIZER_ARG_COUNT);
+
+		BRANCH
+		if (RenderFlags & NANITE_RENDER_FLAG_MESH_SHADER)
+		{
+			const uint ClusterCount = OutRasterBinArgsSWHW[Offset + 4u]; // HW: ThreadGroupCountX
+
+			// Need to span the launch size across X,Y,Z so any single dimension does not exceed the 64k
+			// limit as per https://microsoft.github.io/DirectX-Specs/d3d/MeshShader.html#dispatchmesh-api
+			// The product of X*Y*Z can be 2^22, so we convert 1D->3D->1D to work around this limitation.
+			const uint DimensionLimit = (1u << 16u) - 1u;
+
+			const uint3 GroupCount = GetGroupCountWrapped(ClusterCount, DimensionLimit.xx);
+
+			// HW: ThreadGroupCountXYZ
+			OutRasterBinArgsSWHW[Offset + 4u] = GroupCount.x;
+			OutRasterBinArgsSWHW[Offset + 5u] = GroupCount.y;
+			OutRasterBinArgsSWHW[Offset + 6u] = GroupCount.z;
+		}
 	}
 }
 

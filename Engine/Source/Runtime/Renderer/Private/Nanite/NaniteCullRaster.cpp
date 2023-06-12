@@ -958,6 +958,28 @@ class FRasterBinReserve_CS : public FNaniteGlobalShader
 };
 IMPLEMENT_GLOBAL_SHADER(FRasterBinReserve_CS, "/Engine/Private/Nanite/NaniteRasterBinning.usf", "RasterBinReserve", SF_Compute);
 
+class FRasterBinFinalize_CS : public FNaniteGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FRasterBinFinalize_CS);
+	SHADER_USE_PARAMETER_STRUCT(FRasterBinFinalize_CS, FNaniteGlobalShader);
+
+	using FPermutationDomain = TShaderPermutationDomain<>;
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, OutRasterBinArgsSWHW)
+
+		SHADER_PARAMETER(uint32, RasterBinCount)
+		SHADER_PARAMETER(uint32, RenderFlags)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("RASTER_BIN_PASS"), NANITE_RASTER_BIN_FINALIZE);
+	}
+};
+IMPLEMENT_GLOBAL_SHADER(FRasterBinFinalize_CS, "/Engine/Private/Nanite/NaniteRasterBinning.usf", "RasterBinFinalize", SF_Compute);
+
 BEGIN_SHADER_PARAMETER_STRUCT(FGlobalWorkQueueParameters,)
 	SHADER_PARAMETER_RDG_BUFFER_UAV( RWByteAddressBuffer, DataBuffer )
 	SHADER_PARAMETER_RDG_BUFFER_UAV( RWStructuredBuffer< FWorkQueueState >, StateBuffer )
@@ -2913,6 +2935,24 @@ FBinningData FRenderer::AddPass_Binning(
 				PassParameters,
 				PassParameters->IndirectArgs,
 				0
+			);
+		}
+
+		// Finalize Bin Ranges
+		if (RenderFlags & NANITE_RENDER_FLAG_MESH_SHADER) // Only run for mesh shader rasterization for now
+		{
+			FRasterBinFinalize_CS::FParameters* FinalizePassParameters = GraphBuilder.AllocParameters<FRasterBinFinalize_CS::FParameters>();
+			FinalizePassParameters->OutRasterBinArgsSWHW = GraphBuilder.CreateUAV(BinningData.IndirectArgs);
+			FinalizePassParameters->RasterBinCount = BinningData.BinCount;
+			FinalizePassParameters->RenderFlags = RenderFlags;
+
+			auto ComputeShader = SharedContext.ShaderMap->GetShader<FRasterBinFinalize_CS>();
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("RasterBinFinalize"),
+				ComputeShader,
+				FinalizePassParameters,
+				FComputeShaderUtils::GetGroupCountWrapped(BinningData.BinCount, 64)
 			);
 		}
 	}

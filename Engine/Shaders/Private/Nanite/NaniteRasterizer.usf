@@ -6,6 +6,7 @@
 #include "../VirtualShadowMaps/VirtualShadowMapPageOverlap.ush"
 #include "NaniteWritePixel.ush"
 #include "NaniteCullingCommon.ush"
+#include "../ComputeShaderUtils.ush"
 
 #if NANITE_TESSELLATION
 #include "NaniteTessellation.ush"
@@ -1211,7 +1212,7 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 MESH_SHADER_TRIANGLE_ATTRIBUTES(NANITE_MESH_SHADER_TG_SIZE)
 void HWRasterizeMS(
 	uint GroupThreadID : SV_GroupThreadID,
-	uint GroupID : SV_GroupID,
+	uint3 GroupID : SV_GroupID,
 #if NANITE_VERT_REUSE_BATCH
 	MESH_SHADER_VERTEX_EXPORT(VSOut, 32),
 	MESH_SHADER_TRIANGLE_EXPORT(32),
@@ -1223,77 +1224,108 @@ void HWRasterizeMS(
 #endif
 )
 {
-	uint VisibleIndex = GroupID;
-
-	FTriRange TriRange = GetIndexAndTriRangeHW( VisibleIndex );
-
-	FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleIndex, VIRTUAL_TEXTURE_TARGET);
-	FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster.InstanceId, false);
-	FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
-	FNaniteView NaniteView = GetNaniteView(VisibleCluster.ViewId);
-	const bool bReverseWindingOrder = ReverseWindingOrder(NaniteView, PrimitiveData, InstanceData);
-
-#if NANITE_VERTEX_PROGRAMMABLE
-	ResolvedView = ResolveView(NaniteView);
-#endif
-
-	FCluster Cluster = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
-	if( TriRange.Num == 0 )
-		TriRange.Num = Cluster.NumTris;
-
-	const uint TriIndex = TriRange.Start + GroupThreadID;
-
-	uint NumUniqueVerts;
-	uint LaneVertIndex;
-
-	bool bTriValid = GroupThreadID < TriRange.Num;
-
-	uint3 VertIndexes = 0;
-	if (bTriValid)
+	// Avoid overflowing the 64k limit on single dimension of SV_GroupID
+	uint VisibleIndex = GetUnWrappedDispatchGroupId(GroupID);
+	
+	bool bValidIndex = true;
+	
+	BRANCH
+	if (GroupID.y > 0 || GroupID.z > 0)
 	{
-		VertIndexes = DecodeTriangleIndices(Cluster, TriIndex);
-		
-		if( bReverseWindingOrder )
-			VertIndexes.yz = VertIndexes.zy;
+		// Due to wrapping, the visible index can be out of range
+		bValidIndex = (VisibleIndex < RasterBinMeta[ActiveRasterBin].BinHWCount);
 	}
 
-#if NANITE_VERT_REUSE_BATCH
-	DeduplicateVertIndexes(VertIndexes, GroupThreadID, bTriValid, NumUniqueVerts, LaneVertIndex, VertIndexes);
-#else
-	LaneVertIndex = GroupThreadID;
-	NumUniqueVerts = Cluster.NumVerts;
-#endif
+	// NOTE: Doing a simple early out here doesn't work. Likely because divergent control
+	// flow is not allowed around SetMeshOutputCounts, even if the condition is uniform for
+	// the group. The compiler succeeds but corruption occurs.
+
+	FTriRange TriRange;
+	FVisibleCluster VisibleCluster;
+	FInstanceSceneData InstanceData;
+	FPrimitiveSceneData PrimitiveData;
+	FNaniteView NaniteView;
+
+	uint NumUniqueVerts = 0;
+	uint3 VertIndexes = 0;
+	TriRange.Num = 0;
+	uint TriIndex = 0;
+	FCluster Cluster;
+	uint LaneVertIndex = 0;
+	bool bReverseWindingOrder = false;
+
+	BRANCH
+	if (bValidIndex)
+	{
+		TriRange = GetIndexAndTriRangeHW(VisibleIndex);
+		VisibleCluster = GetVisibleCluster(VisibleIndex, VIRTUAL_TEXTURE_TARGET);
+		InstanceData = GetInstanceSceneData(VisibleCluster.InstanceId, false);
+		PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
+		NaniteView = GetNaniteView(VisibleCluster.ViewId);
+		bReverseWindingOrder = ReverseWindingOrder(NaniteView, PrimitiveData, InstanceData);
+
+	#if NANITE_VERTEX_PROGRAMMABLE
+		ResolvedView = ResolveView(NaniteView);
+	#endif
+
+		Cluster = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
+		if( TriRange.Num == 0 )
+			TriRange.Num = Cluster.NumTris;
+
+		TriIndex = TriRange.Start + GroupThreadID;
+
+		bool bTriValid = GroupThreadID < TriRange.Num;
+
+		if (bTriValid)
+		{
+			VertIndexes = DecodeTriangleIndices(Cluster, TriIndex);
+		
+			if( bReverseWindingOrder )
+				VertIndexes.yz = VertIndexes.zy;
+		}
+
+	#if NANITE_VERT_REUSE_BATCH
+		DeduplicateVertIndexes(VertIndexes, GroupThreadID, bTriValid, NumUniqueVerts, LaneVertIndex, VertIndexes);
+	#else
+		LaneVertIndex = GroupThreadID;
+		NumUniqueVerts = Cluster.NumVerts;
+	#endif
+	}
 
 	SetMeshOutputCounts(NumUniqueVerts, TriRange.Num);
 
-	uint PrimExportIndex = GroupThreadID;
-	if (PrimExportIndex < TriRange.Num)
+	BRANCH
+	if (bValidIndex)
 	{
-		MESH_SHADER_WRITE_TRIANGLE(PrimExportIndex, VertIndexes);
+		uint PrimExportIndex = GroupThreadID;
+		if (PrimExportIndex < TriRange.Num)
+		{
+			MESH_SHADER_WRITE_TRIANGLE(PrimExportIndex, VertIndexes);
 
-		PrimitiveAttributes Attributes;
-		Attributes.PackedData.x = VisibleIndex;
-		Attributes.PackedData.y = TriIndex;
-		Attributes.PackedData.z = asuint(NaniteView.ViewSizeAndInvSize.x);
-		Attributes.PackedData.w = asuint(NaniteView.ViewSizeAndInvSize.y);
-		MESH_SHADER_WRITE_PRIMITIVE(PrimExportIndex, Attributes);
-	}
+			PrimitiveAttributes Attributes;
+			Attributes.PackedData.x = VisibleIndex;
+			Attributes.PackedData.y = TriIndex;
+			Attributes.PackedData.z = asuint(NaniteView.ViewSizeAndInvSize.x);
+			Attributes.PackedData.w = asuint(NaniteView.ViewSizeAndInvSize.y);
+			MESH_SHADER_WRITE_PRIMITIVE(PrimExportIndex, Attributes);
+		}
 
-	uint VertExportIndex = GroupThreadID;
-	if (VertExportIndex < Cluster.NumVerts)
-	{
-		VSOut VertexOutput = CommonRasterizerVS(NaniteView, PrimitiveData, InstanceData, VisibleCluster, Cluster, LaneVertIndex, 0u, bReverseWindingOrder);
-		MESH_SHADER_WRITE_VERTEX(VertExportIndex, VertexOutput);
-	}
+		uint VertExportIndex = GroupThreadID;
+		if (VertExportIndex < Cluster.NumVerts)
+		{
+			VSOut VertexOutput = CommonRasterizerVS(NaniteView, PrimitiveData, InstanceData, VisibleCluster, Cluster, LaneVertIndex, 0u, bReverseWindingOrder);
+			MESH_SHADER_WRITE_VERTEX(VertExportIndex, VertexOutput);
+		}
 
-#if NANITE_MESH_SHADER_TG_SIZE == 128
-	VertExportIndex += 128;
-	if (VertExportIndex < Cluster.NumVerts)
-	{
-		VSOut VertexOutput = CommonRasterizerVS(NaniteView, PrimitiveData, InstanceData, VisibleCluster, Cluster, LaneVertIndex + 128, 0u, bReverseWindingOrder);
-		MESH_SHADER_WRITE_VERTEX(VertExportIndex, VertexOutput);
+	#if NANITE_MESH_SHADER_TG_SIZE == 128
+		VertExportIndex += 128;
+		if (VertExportIndex < Cluster.NumVerts)
+		{
+			VSOut VertexOutput = CommonRasterizerVS(NaniteView, PrimitiveData, InstanceData, VisibleCluster, Cluster, LaneVertIndex + 128, 0u, bReverseWindingOrder);
+			MESH_SHADER_WRITE_VERTEX(VertExportIndex, VertexOutput);
+		}
+	#endif
 	}
-#endif
 }
 
 #endif // MESHSHADER
