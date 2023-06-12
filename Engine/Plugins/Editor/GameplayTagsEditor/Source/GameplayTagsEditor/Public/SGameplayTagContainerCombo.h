@@ -90,6 +90,7 @@ private:
 		bool bMultipleValues = false;
 	};
 
+	bool IsValueEnabled() const;
 	void RefreshTagContainers();
 	TSharedRef<ITableRow> MakeTagListViewRow(TSharedPtr<FEditableItem> Item, const TSharedRef<STableViewBase>& OwnerTable);
 	void OnMenuOpenChanged(const bool bOpen);

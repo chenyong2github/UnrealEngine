@@ -97,7 +97,7 @@ void SGameplayTagContainerCombo::Construct(const FArguments& InArgs)
 		[
 			SAssignNew(ComboButton, SComboButton)
 			.ComboButtonStyle(FGameplayTagStyle::Get(), "GameplayTagsContainer.ComboButton")
-			.IsEnabled(!bIsReadOnly)
+			.IsEnabled(this, &SGameplayTagContainerCombo::IsValueEnabled)
 			.HasDownArrow(true)
 			.VAlign(VAlign_Top)
 			.ContentPadding(0)
@@ -158,6 +158,16 @@ void SGameplayTagContainerCombo::Construct(const FArguments& InArgs)
 	];
 }
 
+bool SGameplayTagContainerCombo::IsValueEnabled() const
+{
+	if (PropertyHandle.IsValid())
+	{
+		return !PropertyHandle->IsEditConst();
+	}
+
+	return !bIsReadOnly;
+}
+
 TSharedRef<ITableRow> SGameplayTagContainerCombo::MakeTagListViewRow(TSharedPtr<FEditableItem> Item, const TSharedRef<STableViewBase>& OwnerTable)
 {
 	return SNew(STableRow<TSharedPtr<FEditableItem>>, OwnerTable)
@@ -200,10 +210,12 @@ TSharedRef<SWidget> SGameplayTagContainerCombo::OnGetMenuContent()
 		TagContainersToEdit.Add(CachedTagContainers[0]);
 	}
 
+	const bool bIsPickerReadOnly = !IsValueEnabled();
+
 	TagPicker = SNew(SGameplayTagPicker)
 		.Filter(Filter)
 		.SettingsName(SettingsName)
-		.ReadOnly(bIsReadOnly)
+		.ReadOnly(bIsPickerReadOnly)
 		.ShowMenuItems(true)
 		.MaxHeight(400.0f)
 		.MultiSelect(true)
@@ -216,7 +228,7 @@ TSharedRef<SWidget> SGameplayTagContainerCombo::OnGetMenuContent()
 	{
 		ComboButton->SetMenuContentWidgetToFocus(TagPicker->GetWidgetToFocusOnOpen());
 	}
-				
+
 	return TagPicker.ToSharedRef();
 }
 

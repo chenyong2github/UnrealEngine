@@ -1135,7 +1135,7 @@ void SGameplayTagPicker::OpenAddTagDialog(const EGameplayTagAdd Mode, TSharedPtr
 				AddNewTagDialog
 			]);
     }
-
+	
 	TSharedPtr<SWindow> CurrentWindow = FSlateApplication::Get().FindWidgetWindow(AsShared());
 	FSlateApplication::Get().AddModalWindow(NewTagWindow.ToSharedRef(), CurrentWindow);
 }
@@ -1687,7 +1687,7 @@ EVisibility SGameplayTagPicker::DetermineExpandableUIVisibility() const
 bool SGameplayTagPicker::CanAddNewTag() const
 {
 	const UGameplayTagsManager& Manager = UGameplayTagsManager::Get();
-	return Manager.ShouldImportTagsFromINI();
+	return !bReadOnly && Manager.ShouldImportTagsFromINI();
 }
 
 bool SGameplayTagPicker::CanAddNewSubTag(TSharedPtr<FGameplayTagNode> Node) const

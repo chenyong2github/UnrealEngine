@@ -221,10 +221,12 @@ TSharedRef<SWidget> SGameplayTagCombo::OnGetMenuContent()
 		TagContainers.Add(FGameplayTagContainer(TagToEdit));
 	}
 
+	const bool bIsPickerReadOnly = !IsValueEnabled();
+	
 	TagPicker = SNew(SGameplayTagPicker)
 		.Filter(Filter)
 		.SettingsName(SettingsName)
-		.ReadOnly(IsValueEnabled())
+		.ReadOnly(bIsPickerReadOnly)
 		.ShowMenuItems(true)
 		.MaxHeight(350.0f)
 		.MultiSelect(false)
