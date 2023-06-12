@@ -12,6 +12,8 @@
 
 class FTextLayout;
 class ITextLayoutMarshaller;
+class UFont;
+class UMaterialInterface;
 
 UENUM()
 enum class EText3DVerticalTextAlignment : uint8
@@ -42,7 +44,7 @@ enum class EText3DModifyFlags : uint8
 };
 ENUM_CLASS_FLAGS(EText3DModifyFlags)
 
-UCLASS(ClassGroup = (Text3D), meta=(BlueprintSpawnableComponent))
+UCLASS(ClassGroup = (Text3D), meta = (BlueprintSpawnableComponent))
 class TEXT3D_API UText3DComponent : public USceneComponent
 {
 	GENERATED_BODY()
@@ -50,8 +52,8 @@ class TEXT3D_API UText3DComponent : public USceneComponent
 public:
 	UText3DComponent();
 
-	virtual void PostLoad() override;
 	virtual void BeginDestroy() override;
+	virtual void PostLoad() override;
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;
 
@@ -59,104 +61,6 @@ public:
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
 #endif
-
-	/** Whether to allow automatic refresh/mesh generation */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetRefreshOnChange, Category = "Text3D", AdvancedDisplay)
-	bool bRefreshOnChange = true;
-
-	/** The text to generate a 3d mesh */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetText, Category = "Text3D", meta = (MultiLine = true))
-	FText Text;
-
-	/** Size of the extrude */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetExtrude, Category = "Text3D", Meta = (ClampMin = 0))
-	float Extrude;
-
-	/** Size of bevel */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetBevel, Category = "Text3D", Meta = (EditCondition = "!bOutline", ClampMin = 0))
-	float Bevel;
-
-	/** Bevel Type */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetBevelType, Category = "Text3D", Meta = (EditCondition = "!bOutline"))
-	EText3DBevelType BevelType;
-
-	/** Bevel Segments (Defines the amount of tesselation for the bevel part) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetBevelSegments, Category = "Text3D", Meta = (EditCondition = "!bOutline", ClampMin = 1, ClampMax = 15))
-	int32 BevelSegments;
-
-	/** Generate Outline */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetOutline, Category = "Text3D")
-	bool bOutline;
-
-	/** Outline expand/offset amount */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetOutlineExpand, Category = "Text3D", Meta = (EditCondition = "bOutline"))
-	float OutlineExpand;
-
-	/** Material for the front part */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = "Auto", BlueprintSetter = SetFrontMaterial, Category = "Text3D")
-	TObjectPtr<class UMaterialInterface> FrontMaterial;
-
-	/** Material for the bevel part */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = "Auto", BlueprintSetter = SetBevelMaterial, Category = "Text3D", Meta = (EditCondition = "!bOutline"))
-	TObjectPtr<class UMaterialInterface> BevelMaterial;
-
-	/** Material for the extruded part */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = "Auto", BlueprintSetter = SetExtrudeMaterial, Category = "Text3D")
-	TObjectPtr<class UMaterialInterface> ExtrudeMaterial;
-
-	/** Material for the back part */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = "Auto", BlueprintSetter = SetBackMaterial, Category = "Text3D")
-	TObjectPtr<class UMaterialInterface> BackMaterial;
-
-	/** Text font */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetFont, Category = "Text3D")
-	TObjectPtr<class UFont> Font;
-
-	/** Horizontal text alignment */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetHorizontalAlignment, Category = "Text3D")
-	EText3DHorizontalTextAlignment HorizontalAlignment;
-
-	/** Vertical text alignment */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetVerticalAlignment, Category = "Text3D")
-	EText3DVerticalTextAlignment VerticalAlignment;
-
-	/** Text kerning */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetKerning, Category = "Text3D")
-	float Kerning;
-
-	/** Extra line spacing */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetLineSpacing, Category = "Text3D")
-	float LineSpacing;
-
-	/** Extra word spacing */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetWordSpacing, Category = "Text3D")
-	float WordSpacing;
-
-	/** Enables a maximum width to the 3D Text */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetHasMaxWidth, Category = "Text3D", meta = (InlineEditConditionToggle))
-	bool bHasMaxWidth;
-
-	/** Sets a maximum width to the 3D Text */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetMaxWidth, Category = "Text3D", meta = (EditCondition = "bHasMaxWidth", ClampMin = 1))
-	float MaxWidth;
-
-	/** Enables a maximum height to the 3D Text */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetHasMaxHeight, Category = "Text3D", meta = (InlineEditConditionToggle))
-	bool bHasMaxHeight;
-
-	/** Sets a maximum height to the 3D Text */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetMaxHeight, Category = "Text3D", meta = (EditCondition = "bHasMaxHeight", ClampMin = 1))
-	float MaxHeight;
-
-	/** Should the mesh scale proportionally when Max Width/Height is set */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetScaleProportionally, Category = "Text3D")
-	bool bScaleProportionally;
-
-	// Lighting flags
-	
-	/** Controls whether the text glyphs should cast a shadow or not. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter="SetCastShadow", Category=Lighting)
-	bool bCastShadow = true;
 
 	/**
 	 * Delegate called after text is rebuilt
@@ -169,103 +73,178 @@ public:
 	DECLARE_MULTICAST_DELEGATE(FTextGeneratedNative);
 	FTextGeneratedNative& OnTextGenerated() { return TextGeneratedNativeDelegate; }
 
+	/** Get whether to allow automatic refresh/mesh generation */
+	bool RefreshesOnChange() const;
+
 	/** Set whether to allow automatic refresh/mesh generation */
-	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
-	void SetRefreshOnChange(const bool& Value);
+	void SetRefreshOnChange(const bool Value);
+
+	/** Get the text value and signal the primitives to be rebuilt */
+	const FText& GetText() const;
 
 	/** Set the text value and signal the primitives to be rebuilt */
-	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D", meta = (DeprecatedFunction, DeprecationMessage = "Set the property directly"))
 	void SetText(const FText& Value);
 
-	/** Set the text font and signal the primitives to be rebuilt */
-	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
-	void SetFont(class UFont* const InFont);
+	/** Get the text font and signal the primitives to be rebuilt */
+	const UFont* GetFont() const;
 
-	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
-	void SetOutline(const bool bValue);
-	
-	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
+	/** Set the text font and signal the primitives to be rebuilt */
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D", meta = (DeprecatedFunction, DeprecationMessage = "Set the property directly"))
+	void SetFont(UFont* InFont);
+
+	/** Get whether an outline is applied. */
+	bool HasOutline() const;
+
+	/** Set whether an outline is applied. */
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D", meta = (DeprecatedFunction, DeprecationMessage = "Set the property directly"))
+	void SetHasOutline(const bool bValue);
+
+	/** Get the outline width. */
+	float GetOutlineExpand() const;
+
+	/** Set the outline width. */
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D", meta = (DeprecatedFunction, DeprecationMessage = "Set the property directly"))
 	void SetOutlineExpand(const float Value);
 
+	/** Get the text extrusion size and signal the primitives to be rebuilt */
+	float GetExtrude() const;
+
 	/** Set the text extrusion size and signal the primitives to be rebuilt */
-	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D", meta = (DeprecatedFunction, DeprecationMessage = "Set the property directly"))
 	void SetExtrude(const float Value);
 
+	/** Get the 3d bevel value */
+	float GetBevel() const;
+
 	/** Set the 3d bevel value */
-	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D", meta = (DeprecatedFunction, DeprecationMessage = "Set the property directly"))
 	void SetBevel(const float Value);
 
+	/** Get the 3d bevel type */
+	EText3DBevelType GetBevelType() const;
+
 	/** Set the 3d bevel type */
-	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D", meta = (DeprecatedFunction, DeprecationMessage = "Set the property directly"))
 	void SetBevelType(const EText3DBevelType Value);
 
-	/** Set the amount of segments that will be used to tesselate the Bevel */
-	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
+	/** Get the amount of segments that will be used to tessellate the Bevel */
+	int32 GetBevelSegments() const;
+
+	/** Set the amount of segments that will be used to tessellate the Bevel */
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D", meta = (DeprecatedFunction, DeprecationMessage = "Set the property directly"))
 	void SetBevelSegments(const int32 Value);
 
+	/** Get the text front material */
+	UMaterialInterface* GetFrontMaterial() const;
 
 	/** Set the text front material */
-	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
-	void SetFrontMaterial(class UMaterialInterface* Value);
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D", meta = (DeprecatedFunction, DeprecationMessage = "Set the property directly"))
+	void SetFrontMaterial(UMaterialInterface* Value);
+
+	/** Get the text bevel material */
+	UMaterialInterface* GetBevelMaterial() const;
 
 	/** Set the text bevel material */
-	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
-	void SetBevelMaterial(class UMaterialInterface* Value);
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D", meta = (DeprecatedFunction, DeprecationMessage = "Set the property directly"))
+	void SetBevelMaterial(UMaterialInterface* Value);
+
+	/** Get the text extrude material */
+	UMaterialInterface* GetExtrudeMaterial() const;
 
 	/** Set the text extrude material */
-	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
-	void SetExtrudeMaterial(class UMaterialInterface* Value);
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D", meta = (DeprecatedFunction, DeprecationMessage = "Set the property directly"))
+	void SetExtrudeMaterial(UMaterialInterface* Value);
+
+	/** Get the text back material */
+	UMaterialInterface* GetBackMaterial() const;
 
 	/** Set the text back material */
-	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
-	void SetBackMaterial(class UMaterialInterface* Value);
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D", meta = (DeprecatedFunction, DeprecationMessage = "Set the property directly"))
+	void SetBackMaterial(UMaterialInterface* Value);
+
+	/** Get the kerning value and signal the primitives to be rebuilt */
+	float GetKerning() const;
 
 	/** Set the kerning value and signal the primitives to be rebuilt */
-	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D", meta = (DeprecatedFunction, DeprecationMessage = "Set the property directly"))
 	void SetKerning(const float Value);
 
+	/** Get the line spacing value and signal the primitives to be rebuilt */
+	float GetLineSpacing() const;
+
 	/** Set the line spacing value and signal the primitives to be rebuilt */
-	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D", meta = (DeprecatedFunction, DeprecationMessage = "Set the property directly"))
 	void SetLineSpacing(const float Value);
 
+	/** Get the word spacing value and signal the primitives to be rebuilt */
+	float GetWordSpacing() const;
+
 	/** Set the word spacing value and signal the primitives to be rebuilt */
-	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D", meta = (DeprecatedFunction, DeprecationMessage = "Set the property directly"))
 	void SetWordSpacing(const float Value);
 
+	/** Get the horizontal alignment value and signal the primitives to be rebuilt */
+	EText3DHorizontalTextAlignment GetHorizontalAlignment() const;
+
 	/** Set the horizontal alignment value and signal the primitives to be rebuilt */
-	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D", meta = (DeprecatedFunction, DeprecationMessage = "Set the property directly"))
 	void SetHorizontalAlignment(const EText3DHorizontalTextAlignment value);
 
+	/** Get the vertical alignment and signal the primitives to be rebuilt */
+	EText3DVerticalTextAlignment GetVerticalAlignment() const;
+
 	/** Set the vertical alignment and signal the primitives to be rebuilt */
-	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D", meta = (DeprecatedFunction, DeprecationMessage = "Set the property directly"))
 	void SetVerticalAlignment(const EText3DVerticalTextAlignment value);
 
+	/** Whether a maximum width is specified */
+	bool HasMaxWidth() const;
+
 	/** Enable / Disable a Maximum Width */
-	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D", meta = (DeprecatedFunction, DeprecationMessage = "Set the property directly"))
 	void SetHasMaxWidth(const bool Value);
 
+	/** Get the Maximum Width - If width is larger, mesh will scale down to fit MaxWidth value */
+	float GetMaxWidth() const;
+
 	/** Set the Maximum Width - If width is larger, mesh will scale down to fit MaxWidth value */
-	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D", meta = (DeprecatedFunction, DeprecationMessage = "Set the property directly"))
 	void SetMaxWidth(const float Value);
 
+	/** Whether a maximum height is specified */
+	bool HasMaxHeight() const;
+
 	/** Enable / Disable a Maximum Height */
-	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D", meta = (DeprecatedFunction, DeprecationMessage = "Set the property directly"))
 	void SetHasMaxHeight(const bool Value);
 
+	/** Get the Maximum Height - If height is larger, mesh will scale down to fit MaxHeight value */
+	float GetMaxHeight() const;
+
 	/** Set the Maximum Height - If height is larger, mesh will scale down to fit MaxHeight value */
-	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D", meta = (DeprecatedFunction, DeprecationMessage = "Set the property directly"))
 	void SetMaxHeight(const float Value);
 
+	/** Get if the mesh should scale proportionally when Max Width/Height is set */
+	bool ScalesProportionally() const;
+
 	/** Set if the mesh should scale proportionally when Max Width/Height is set */
-	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D", meta = (DeprecatedFunction, DeprecationMessage = "Set the property directly"))
 	void SetScaleProportionally(const bool Value);
 
 	/** Freeze mesh rebuild, to avoid unnecessary mesh rebuilds when setting a few properties together */
-	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
+	bool IsFrozen() const;
+
+	/** Freeze mesh rebuild, to avoid unnecessary mesh rebuilds when setting a few properties together */
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D", meta = (DeprecatedFunction, DeprecationMessage = "Set the property directly"))
 	void SetFreeze(const bool bFreeze);
 
-	/** Changes the value of CastShadow. */
-	UFUNCTION(BlueprintCallable, Category="Rendering")
+	/** Get the value of CastShadow. */
+	bool CastsShadow() const;
+
+	/** Set the value of CastShadow. */
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D", meta = (DeprecatedFunction, DeprecationMessage = "Set the property directly"))
 	void SetCastShadow(bool NewCastShadow);
 
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
@@ -299,14 +278,117 @@ public:
 	void Rebuild();
 
 protected:
+	/** Whether to allow automatic refresh/mesh generation */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = "RefreshesOnChange", Setter = "SetRefreshOnChange", Category = "Text3D", AdvancedDisplay, meta = (AllowPrivateAccess))
+	bool bRefreshOnChange = true;
+
+	/** The text to generate a 3d mesh */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category = "Text3D", meta = (MultiLine = true, AllowPrivateAccess))
+	FText Text;
+
+	/** Size of the extrude */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category = "Text3D", meta = (ClampMin = 0, AllowPrivateAccess))
+	float Extrude;
+
+	/** Size of bevel */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category = "Text3D", meta = (EditCondition = "!bOutline", ClampMin = 0, AllowPrivateAccess))
+	float Bevel;
+
+	/** Bevel Type */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category = "Text3D", meta = (EditCondition = "!bOutline", AllowPrivateAccess))
+	EText3DBevelType BevelType;
+
+	/** Bevel Segments (Defines the amount of tesselation for the bevel part) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category = "Text3D", meta = (EditCondition = "!bOutline", ClampMin = 1, ClampMax = 15, AllowPrivateAccess))
+	int32 BevelSegments;
+
+	/** Generate Outline */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = "HasOutline", Setter = "SetHasOutline", Category = "Text3D", meta = (AllowPrivateAccess))
+	bool bOutline;
+
+	/** Outline expand/offset amount */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category = "Text3D", meta = (EditCondition = "bOutline", AllowPrivateAccess))
+	float OutlineExpand;
+
+	/** Material for the front part */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category = "Text3D", meta = (AllowPrivateAccess))
+	TObjectPtr<UMaterialInterface> FrontMaterial;
+
+	/** Material for the bevel part */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category = "Text3D", meta = (EditCondition = "!bOutline", AllowPrivateAccess))
+	TObjectPtr<UMaterialInterface> BevelMaterial;
+
+	/** Material for the extruded part */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category = "Text3D", meta = (AllowPrivateAccess))
+	TObjectPtr<UMaterialInterface> ExtrudeMaterial;
+
+	/** Material for the back part */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category = "Text3D", meta = (AllowPrivateAccess))
+	TObjectPtr<UMaterialInterface> BackMaterial;
+
+	/** Text font */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category = "Text3D", meta = (AllowPrivateAccess))
+	TObjectPtr<UFont> Font;
+
+	/** Horizontal text alignment */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category = "Text3D", meta = (AllowPrivateAccess))
+	EText3DHorizontalTextAlignment HorizontalAlignment;
+
+	/** Vertical text alignment */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category = "Text3D", meta = (AllowPrivateAccess))
+	EText3DVerticalTextAlignment VerticalAlignment;
+
+	/** Text kerning */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category = "Text3D", meta = (AllowPrivateAccess))
+	float Kerning;
+
+	/** Extra line spacing */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category = "Text3D", meta = (AllowPrivateAccess))
+	float LineSpacing;
+
+	/** Extra word spacing */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Setter, Category = "Text3D", meta = (AllowPrivateAccess))
+	float WordSpacing;
+
+	/** Enables a maximum width to the 3D Text */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = "HasMaxWidth", Setter = "SetHasMaxWidth", Category = "Text3D", meta = (InlineEditConditionToggle, AllowPrivateAccess))
+	bool bHasMaxWidth;
+
+	/** Sets a maximum width to the 3D Text */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category = "Text3D", meta = (EditCondition = "bHasMaxWidth", ClampMin = 1, AllowPrivateAccess))
+	float MaxWidth;
+
+	/** Enables a maximum height to the 3D Text */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = "HasMaxHeight", Setter = "SetHasMaxHeight", Category = "Text3D", meta = (InlineEditConditionToggle, AllowPrivateAccess))
+	bool bHasMaxHeight;
+
+	/** Sets a maximum height to the 3D Text */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category = "Text3D", meta = (EditCondition = "bHasMaxHeight", ClampMin = 1, AllowPrivateAccess))
+	float MaxHeight;
+
+	/** Should the mesh scale proportionally when Max Width/Height is set */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = "ScalesProportionally", Setter = "SetScaleProportionally", Category = "Text3D", meta = (AllowPrivateAccess))
+	bool bScaleProportionally;
+
+	// Lighting flags
+	
+	/** Controls whether the text glyphs should cast a shadow or not. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = "CastsShadow", Setter = "SetCastShadow", Category = "Lighting", meta = (AllowPrivateAccess))
+	bool bCastShadow = true;
+
+protected:
+	/** Intercept and propagate a change on this component to all children. */
 	virtual void OnVisibilityChanged() override;
+
+	/** Intercept and propagate a change on this component to all children. */
 	virtual void OnHiddenInGameChanged() override;
 
+	/** Clears all generated components and meshes from this component. */
 	void ClearTextMesh();
 
 private:
 	UPROPERTY()
-	TObjectPtr<class USceneComponent> TextRoot;
+	TObjectPtr<USceneComponent> TextRoot;
 
 	UPROPERTY(BlueprintAssignable, Category = Events, meta = (AllowPrivateAccess = true, DisplayName = "On Text Generated"))
 	FTextGenerated TextGeneratedDelegate;
@@ -315,44 +397,61 @@ private:
 
 	/** Flagged as true when the text mesh is being built. */
 	std::atomic<bool> bIsBuilding;
-	
+
+	/** No mesh or layout rebuilds occur while this flag is true, allowing the user to set numerous properties before rebuilding. */
 	bool bFreezeBuild;
+
+	/** Used to determine and selectively perform the the type of rebuild requested. */
 	EText3DModifyFlags ModifyFlags;
 
+	/** Additional scale to apply to the text. */
 	FVector TextScale;
 
-	TSharedPtr<struct FText3DShapedText> ShapedText;
+	/** To uniquely identify and discard duplicate update requests. */
 	TArray<TSharedPtr<int32>> CachedCounterReferences;
 
+	/** Caches the last result of ShapedText, to allow faster updates of layout changes. */
+	TSharedPtr<struct FText3DShapedText> ShapedText;
+
+	/** Stores the text layout calculated by the TextLayoutMarshaller. */
 	TSharedPtr<FTextLayout> TextLayout;
+
+	/** Determines how text is laid out, ie. parsing line breaks. */
 	TSharedPtr<ITextLayoutMarshaller> TextLayoutMarshaller;
 
+	/** Each character mesh is parented to a Kerning component. */
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<USceneComponent>> CharacterKernings;
 
+	/** Each character mesh is held in a component. */
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UStaticMeshComponent>> CharacterMeshes;
 
 	/** Allocates, or shrinks existing components to match the input number. Returns false if nothing modified. */
 	bool AllocateGlyphs(int32 Num);
 
-	class UMaterialInterface* GetMaterial(const EText3DGroupType Type) const;
-	void SetMaterial(const EText3DGroupType Type, class UMaterialInterface* Material);
+	/** Slot based Material accessors. */
+	UMaterialInterface* GetMaterial(const EText3DGroupType Type) const;
+	void SetMaterial(const EText3DGroupType Type, UMaterialInterface* Material);
+	void UpdateMaterial(const EText3DGroupType Type, UMaterialInterface* Material);
 
+	/** Validation and context sensitive limits applied to the current bevel value. */
+	void CheckBevel();
+	float MaxBevel() const;
+
+	/** Selective build functionality (geometry, only layout, etc.) */
 	void UpdateTransforms();
 	void RebuildInternal(const bool& bIsAutoUpdate = true, const bool& bCleanCache = false);
 	void BuildTextMesh(const bool& bCleanCache = false);
 	void BuildTextMeshInternal(const bool& bCleanCache);
-	void CheckBevel();
-	float MaxBevel() const;
 
-	void UpdateMaterial(const EText3DGroupType Type, class UMaterialInterface* Material);
-
+	/** Layout functionality. */
 	void CalculateTextWidth();
 	float GetTextHeight() const;
 	void CalculateTextScale();
 	FVector GetLineLocation(int32 LineIndex);
-	
+
+	/** Convenience functions to set and query ModifyFlags. */
 	bool NeedsMeshRebuild() const;
 	bool NeedsLayoutUpdate() const;
 	void MarkForGeometryUpdate();

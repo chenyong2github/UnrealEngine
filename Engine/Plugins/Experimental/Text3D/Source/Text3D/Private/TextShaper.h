@@ -12,11 +12,16 @@
 class ITextLayoutMarshaller;
 class UFont;
 
+/** Contains a single line of text with sufficient information to fetch and transform each character. */
 struct FShapedGlyphLine
 {
+	/** The corresponding shaped glyph for each character in this line of text. */
 	TArray<FShapedGlyphEntry> GlyphsToRender;
+
+	/** Stored result of CalculateWidth. */
 	float Width = 0.0f;
 
+	/** Get's the offset from the previous character, accounting for kerning and word spacing. */
 	float GetAdvance(const int32 Index, const float Kerning, const float WordSpacing) const
 	{
 		check(Index >= 0 && Index < GlyphsToRender.Num());
@@ -37,6 +42,7 @@ struct FShapedGlyphLine
 		return Advance;
 	}
 
+	/** Calculates the total width of this line. */
 	void CalculateWidth(const float Kerning, const float WordSpacing)
 	{
 		Width = 0.0f;
@@ -47,24 +53,34 @@ struct FShapedGlyphLine
 	}
 };
 
+/** An implementation of FTextLayout, which discards most Slate widget specific functionality. */
 class FText3DLayout : public FTextLayout
 {
 public:
+	/** Optionally provide a custom TextBlock style. */
 	FText3DLayout(const FTextBlockStyle& InStyle = FTextBlockStyle::GetDefault());
 
 protected:
+	/** Parameters relevant to text layout. */
 	FTextBlockStyle TextStyle;
-	
+
+	/** Required but unused override. */
 	virtual TSharedRef<IRun> CreateDefaultTextRun(
 		const TSharedRef<FString>& NewText,
 		const FTextRange& NewRange) const override;
 };
 
+/** A singleton that handles shaping operations and writes the result to a provided TextLayout. */
 class FTextShaper final
 {
 public:
+	/** Returns TextShaper singleton. */
 	static TSharedPtr<FTextShaper> Get();
 
+	/**
+	 * Arranges the provided text to match the requested layout, accounting for scale, offsets etc.
+	 * Analogous to FSlateFontCache::ShapeBidirectionalText.
+	 */
 	void ShapeBidirectionalText(
 		const FTextBlockStyle& Style,
 		const FString& Text,

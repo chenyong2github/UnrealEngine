@@ -3,6 +3,7 @@
 #include "Text3DComponent.h"
 
 #include "Algo/Count.h"
+#include "Algo/IndexOf.h"
 #include "Async/Async.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/Engine.h"
@@ -176,7 +177,7 @@ void UText3DComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 		{ GET_MEMBER_NAME_CHECKED(UText3DComponent, BevelMaterial), EText3DGroupType::Bevel }
 	};
 
-	using FGetter = TDelegate<const TObjectPtr<UMaterialInterface>&()>;
+	using FGetter = TDelegate<UMaterialInterface*()>;
 	static TMap<FName, FGetter> MaterialLookup =
 	{
 		{ GET_MEMBER_NAME_CHECKED(UText3DComponent, FrontMaterial), FGetter::CreateUObject(this, &UText3DComponent::GetFrontMaterial) },
@@ -269,12 +270,22 @@ void UText3DComponent::PostTransacted(const FTransactionObjectEvent& Transaction
 }
 #endif
 
-void UText3DComponent::SetRefreshOnChange(const bool& Value)
+bool UText3DComponent::RefreshesOnChange() const
+{
+	return bRefreshOnChange;
+}
+
+void UText3DComponent::SetRefreshOnChange(const bool Value)
 {
 	if (bRefreshOnChange != Value)
 	{
 		bRefreshOnChange = Value;
 	}
+}
+
+const FText& UText3DComponent::GetText() const
+{
+	return Text;
 }
 
 void UText3DComponent::SetText(const FText& Value)
@@ -287,7 +298,12 @@ void UText3DComponent::SetText(const FText& Value)
 	}
 }
 
-void UText3DComponent::SetFont(UFont* const InFont)
+const UFont* UText3DComponent::GetFont() const
+{
+	return Font;
+}
+
+void UText3DComponent::SetFont(UFont* InFont)
 {
 	if (Font != InFont)
 	{
@@ -297,7 +313,12 @@ void UText3DComponent::SetFont(UFont* const InFont)
 	}
 }
 
-void UText3DComponent::SetOutline(const bool bValue)
+bool UText3DComponent::HasOutline() const
+{
+	return bOutline;
+}
+
+void UText3DComponent::SetHasOutline(const bool bValue)
 {
 	if (bOutline != bValue)
 	{
@@ -305,6 +326,11 @@ void UText3DComponent::SetOutline(const bool bValue)
 		MarkForGeometryUpdate();	
 		RebuildInternal();
 	}
+}
+
+float UText3DComponent::GetOutlineExpand() const
+{
+	return OutlineExpand;
 }
 
 void UText3DComponent::SetOutlineExpand(const float Value)
@@ -316,6 +342,11 @@ void UText3DComponent::SetOutlineExpand(const float Value)
 		MarkForGeometryUpdate();
 		RebuildInternal();
 	}
+}
+
+float UText3DComponent::GetExtrude() const
+{
+	return Extrude;
 }
 
 void UText3DComponent::SetExtrude(const float Value)
@@ -330,16 +361,25 @@ void UText3DComponent::SetExtrude(const float Value)
 	}
 }
 
+float UText3DComponent::GetBevel() const
+{
+	return Bevel;
+}
+
 void UText3DComponent::SetBevel(const float Value)
 {
 	const float NewValue = FMath::Clamp(Value, 0.f, MaxBevel());
-
 	if (!FMath::IsNearlyEqual(Bevel, NewValue))
 	{
 		Bevel = NewValue;
 		MarkForGeometryUpdate();
 		RebuildInternal();
 	}
+}
+
+EText3DBevelType UText3DComponent::GetBevelType() const
+{
+	return BevelType;
 }
 
 void UText3DComponent::SetBevelType(const EText3DBevelType Value)
@@ -350,6 +390,11 @@ void UText3DComponent::SetBevelType(const EText3DBevelType Value)
 		MarkForGeometryUpdate();
 		RebuildInternal();
 	}
+}
+
+int32 UText3DComponent::GetBevelSegments() const
+{
+	return BevelSegments;
 }
 
 void UText3DComponent::SetBevelSegments(const int32 Value)
@@ -369,9 +414,19 @@ void UText3DComponent::SetBevelSegments(const int32 Value)
 	}
 }
 
+UMaterialInterface* UText3DComponent::GetFrontMaterial() const
+{
+	return FrontMaterial;
+}
+
 void UText3DComponent::SetFrontMaterial(UMaterialInterface* Value)
 {
 	SetMaterial(EText3DGroupType::Front, Value);
+}
+
+UMaterialInterface* UText3DComponent::GetBevelMaterial() const
+{
+	return BevelMaterial;
 }
 
 void UText3DComponent::SetBevelMaterial(UMaterialInterface* Value)
@@ -379,9 +434,19 @@ void UText3DComponent::SetBevelMaterial(UMaterialInterface* Value)
 	SetMaterial(EText3DGroupType::Bevel, Value);
 }
 
+UMaterialInterface* UText3DComponent::GetExtrudeMaterial() const
+{
+	return ExtrudeMaterial;
+}
+
 void UText3DComponent::SetExtrudeMaterial(UMaterialInterface* Value)
 {
 	SetMaterial(EText3DGroupType::Extrude, Value);
+}
+
+UMaterialInterface* UText3DComponent::GetBackMaterial() const
+{
+	return BackMaterial;
 }
 
 void UText3DComponent::SetBackMaterial(UMaterialInterface* Value)
@@ -529,6 +594,11 @@ void UText3DComponent::SetMaterial(const EText3DGroupType Type, UMaterialInterfa
 	}
 }
 
+float UText3DComponent::GetKerning() const
+{
+	return Kerning;
+}
+
 void UText3DComponent::SetKerning(const float Value)
 {
 	if (!FMath::IsNearlyEqual(Kerning, Value))
@@ -536,6 +606,11 @@ void UText3DComponent::SetKerning(const float Value)
 		Kerning = Value;
 		UpdateTransforms();
 	}
+}
+
+float UText3DComponent::GetLineSpacing() const
+{
+	return LineSpacing;
 }
 
 void UText3DComponent::SetLineSpacing(const float Value)
@@ -547,6 +622,11 @@ void UText3DComponent::SetLineSpacing(const float Value)
 	}
 }
 
+float UText3DComponent::GetWordSpacing() const
+{
+	return WordSpacing;
+}
+
 void UText3DComponent::SetWordSpacing(const float Value)
 {
 	if (!FMath::IsNearlyEqual(WordSpacing, Value))
@@ -554,6 +634,11 @@ void UText3DComponent::SetWordSpacing(const float Value)
 		WordSpacing = Value;
 		UpdateTransforms();
 	}
+}
+
+EText3DHorizontalTextAlignment UText3DComponent::GetHorizontalAlignment() const
+{
+	return HorizontalAlignment;
 }
 
 void UText3DComponent::SetHorizontalAlignment(const EText3DHorizontalTextAlignment Value)
@@ -565,6 +650,11 @@ void UText3DComponent::SetHorizontalAlignment(const EText3DHorizontalTextAlignme
 	}
 }
 
+EText3DVerticalTextAlignment UText3DComponent::GetVerticalAlignment() const
+{
+	return VerticalAlignment;
+}
+
 void UText3DComponent::SetVerticalAlignment(const EText3DVerticalTextAlignment Value)
 {
 	if (VerticalAlignment != Value)
@@ -574,6 +664,11 @@ void UText3DComponent::SetVerticalAlignment(const EText3DVerticalTextAlignment V
 	}
 }
 
+bool UText3DComponent::HasMaxWidth() const
+{
+	return bHasMaxWidth;
+}
+
 void UText3DComponent::SetHasMaxWidth(const bool Value)
 {
 	if (bHasMaxWidth != Value)
@@ -581,6 +676,11 @@ void UText3DComponent::SetHasMaxWidth(const bool Value)
 		bHasMaxWidth = Value;
 		UpdateTransforms();
 	}
+}
+
+float UText3DComponent::GetMaxWidth() const
+{
+	return MaxWidth;
 }
 
 void UText3DComponent::SetMaxWidth(const float Value)
@@ -593,6 +693,11 @@ void UText3DComponent::SetMaxWidth(const float Value)
 	}
 }
 
+bool UText3DComponent::HasMaxHeight() const
+{
+	return bHasMaxHeight;
+}
+
 void UText3DComponent::SetHasMaxHeight(const bool Value)
 {
 	if (bHasMaxHeight != Value)
@@ -600,6 +705,11 @@ void UText3DComponent::SetHasMaxHeight(const bool Value)
 		bHasMaxHeight = Value;
 		UpdateTransforms();
 	}
+}
+
+float UText3DComponent::GetMaxHeight() const
+{
+	return MaxHeight;
 }
 
 void UText3DComponent::SetMaxHeight(const float Value)
@@ -612,6 +722,11 @@ void UText3DComponent::SetMaxHeight(const float Value)
 	}
 }
 
+bool UText3DComponent::ScalesProportionally() const
+{
+	return bScaleProportionally;
+}
+
 void UText3DComponent::SetScaleProportionally(const bool Value)
 {
 	if (bScaleProportionally != Value)
@@ -619,6 +734,11 @@ void UText3DComponent::SetScaleProportionally(const bool Value)
 		bScaleProportionally = Value;
 		UpdateTransforms();
 	}
+}
+
+bool UText3DComponent::IsFrozen() const
+{
+	return bFreezeBuild;
 }
 
 void UText3DComponent::SetFreeze(const bool bFreeze)
@@ -632,6 +752,11 @@ void UText3DComponent::SetFreeze(const bool bFreeze)
 	{
 		RebuildInternal();
 	}
+}
+
+bool UText3DComponent::CastsShadow() const
+{
+	return bCastShadow;
 }
 
 void UText3DComponent::SetCastShadow(bool NewCastShadow)
@@ -972,7 +1097,7 @@ void UText3DComponent::BuildTextMeshInternal(const bool& bCleanCache)
 		},
 		0);
 
-	TMap<uint32, TSharedPtr<FFreeTypeFace>> GlyphIndexToFontFace;
+	TMap<uint32, const FFreeTypeFace*> GlyphIndexToFontFace;
 	GlyphIndexToFontFace.Reserve(ApproximateGlyphNum);
 
 	for (int32 LineIndex = 0; LineIndex < ShapedText->Lines.Num(); ++LineIndex)
@@ -989,8 +1114,12 @@ void UText3DComponent::BuildTextMeshInternal(const bool& bCleanCache)
 				
 				continue;
 			}
-			
-			GlyphIndexToFontFace.FindOrAdd(GlyphEntry.GlyphIndex, GlyphEntry.FontFaceData->FontFace.Pin());
+
+			if (const TSharedPtr<FFreeTypeFace> FontFacePtr = GlyphEntry.FontFaceData->FontFace.Pin();
+				FontFacePtr.IsValid())
+			{
+				GlyphIndexToFontFace.FindOrAdd(GlyphEntry.GlyphIndex, FontFacePtr.Get());	
+			}
 		}
 	}
 	
@@ -1028,7 +1157,7 @@ void UText3DComponent::BuildTextMeshInternal(const bool& bCleanCache)
 			// Count even when mesh is nullptr (allocation still creates components to avoid mesh building in allocation step)
 			const int32 GlyphId = GlyphIndex++;
 
-			TSharedPtr<FFreeTypeFace> FontFace = GlyphIndexToFontFace[ShapedGlyph.GlyphIndex];
+			const FFreeTypeFace* FontFace = GlyphIndexToFontFace[ShapedGlyph.GlyphIndex];
 			UStaticMesh* CachedMesh = CachedFontData.GetGlyphMesh(ShapedGlyph.GlyphIndex, FGlyphMeshParameters{Extrude, Bevel, BevelType, BevelSegments, bOutline, OutlineExpand}, FontFace);
 			if (!CachedMesh || FMath::IsNearlyZero(CachedMesh->GetBounds().SphereRadius))
 			{

@@ -89,8 +89,8 @@ public:
 	TSharedPtr<int32> GetCacheCounter();
 	TSharedPtr<int32> GetMeshesCacheCounter(const FGlyphMeshParameters& Parameters);
 
-	UStaticMesh* GetGlyphMesh(uint32 GlyphIndex, const FGlyphMeshParameters& Parameters, const TSharedPtr<FFreeTypeFace>& FontFaceData = nullptr);
-	TSharedContourNode GetGlyphContours(uint32 GlyphIndex, const TSharedPtr<FFreeTypeFace>& FontFaceData = nullptr);
+	UStaticMesh* GetGlyphMesh(uint32 GlyphIndex, const FGlyphMeshParameters& Parameters, const FFreeTypeFace* FontFaceData = nullptr);
+	TSharedContourNode GetGlyphContours(uint32 GlyphIndex, const FFreeTypeFace* FontFaceData = nullptr);
 
 	UPROPERTY()
 	TObjectPtr<class UFont> Font;

@@ -195,7 +195,7 @@ TSharedPtr<int32> FCachedFontData::GetMeshesCacheCounter(const FGlyphMeshParamet
 	return CachedMeshes.GetCacheCounter();
 }
 
-UStaticMesh* FCachedFontData::GetGlyphMesh(uint32 GlyphIndex, const FGlyphMeshParameters& Parameters, const TSharedPtr<FFreeTypeFace>& FontFaceData)
+UStaticMesh* FCachedFontData::GetGlyphMesh(uint32 GlyphIndex, const FGlyphMeshParameters& Parameters, const FFreeTypeFace* FontFaceData)
 {
 	const uint32 HashParameters = GetTypeHash(Parameters);
 	FCachedFontMeshes& CachedMeshes = Meshes.FindOrAdd(HashParameters);
@@ -241,9 +241,9 @@ const FString& FCachedFontData::GetFontName()
 	return FontName;
 }
 
-TSharedContourNode FCachedFontData::GetGlyphContours(uint32 GlyphIndex, const TSharedPtr<FFreeTypeFace>& FontFaceData)
+TSharedContourNode FCachedFontData::GetGlyphContours(uint32 GlyphIndex, const FFreeTypeFace* FontFaceData)
 {
-	const FT_Face& GlyphFreeTypeFace = FontFaceData.IsValid() && FontFaceData->IsFaceValid()
+	const FT_Face& GlyphFreeTypeFace = FontFaceData && FontFaceData->IsFaceValid()
 		? FontFaceData->GetFace()
 		: FreeTypeFace;
 	check(GlyphFreeTypeFace);
