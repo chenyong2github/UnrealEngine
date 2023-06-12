@@ -37,7 +37,7 @@ void FAudioInputDevicePropertyCustomization::CustomizeChildren(TSharedRef<IPrope
 			{
 				bool bUseSystemDefault = (NewState == ECheckBoxState::Checked);
 				UseSystemDefaultHandle->SetValue(bUseSystemDefault);
-				UpdateDeviceCombobxEnabled();
+                SynchronizeWidgetStates();
 			})
 		];
 	}
@@ -160,6 +160,11 @@ TSharedRef<SWidget> FAudioInputDevicePropertyCustomization::MakeAudioInputSelect
 			bool bIsDefaultDevice = GetIsDefaultFromInfoProperty(DeviceInfoHandle);
 			FString DeviceId = GetDeviceIdFromInfoProperty(DeviceInfoHandle);
 
+            if (bIsDefaultDevice)
+            {
+                DefaultDeviceId = DeviceId;
+            }
+            
 			if (bIsDefaultDevice && !bHaveCurrentDevice)
 			{
 				CurrentDeviceId = DeviceId;
@@ -227,6 +232,12 @@ void FAudioInputDevicePropertyCustomization::UpdateDeviceCombobxEnabled()
 	if (bEnableWidget != bIsWidgetEnabled)
 	{
 		ComboBox->SetEnabled(bEnableWidget);
+        
+        // If disabling, set the current menu item to default
+        if (!bEnableWidget)
+        {
+            InputDeviceHandle->SetValue(DefaultDeviceId);
+        }
 	}
 }
 

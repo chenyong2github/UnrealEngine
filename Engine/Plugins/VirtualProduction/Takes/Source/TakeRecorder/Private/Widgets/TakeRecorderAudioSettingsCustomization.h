@@ -38,6 +38,7 @@ private:
 	TArray<TSharedPtr<IPropertyHandle>> AudioInputDevices;
 	TSharedPtr<SComboBox<TSharedPtr<IPropertyHandle>>> ComboBox;
 	TSharedPtr<STextBlock> ComboBoxTitleBlock;
+	FString DefaultDeviceId;
 };
 
 class TakeRecorderAudioSettingsUtils
