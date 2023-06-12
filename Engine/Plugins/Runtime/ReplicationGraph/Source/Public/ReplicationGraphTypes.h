@@ -700,7 +700,13 @@ struct FGlobalActorReplicationEvents
 struct FGlobalActorReplicationInfo
 {
 	FGlobalActorReplicationInfo(FClassReplicationInfo& ClassInfo) 
-		: LastPreReplicationFrame(0), WorldLocation(ForceInitToZero), Settings(ClassInfo) { }
+		: LastPreReplicationFrame(0)
+		, WorldLocation(ForceInitToZero)
+		, bWantsToBeDormant(false)
+		, bSwapRolesOnReplicate(false)
+		, bWasWorldLocClamped(false)
+		, Settings(ClassInfo) 
+	{ }
 
 	// -----------------------------------------------------------
 	//	Dynamic state
@@ -716,10 +722,13 @@ struct FGlobalActorReplicationInfo
 	FVector WorldLocation;
 
 	/** Mirrors AActor::NetDormancy > DORM_Awake */
-	bool bWantsToBeDormant = false;
+	uint32 bWantsToBeDormant : 1;
 
 	/** True if we should swap the actor role and remote role before calling ReplicateActor() */
-	bool bSwapRolesOnReplicate = false;
+	uint32 bSwapRolesOnReplicate : 1;
+
+	/** Set when the object is found with an invalid world location */
+	uint32 bWasWorldLocClamped : 1;
 
 	/** Class default mirrors: state that is initialized directly from class defaults (and can be later changed on a per-actor basis) */
 	FClassReplicationInfo Settings;

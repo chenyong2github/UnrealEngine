@@ -1134,6 +1134,48 @@ void LogActorRepList(FReplicationGraphDebugInfo& DebugInfo, FString Prefix, cons
 	DebugInfo.Log(ActorListStr);
 }
 
+void UReplicationGraphNode_GridSpatialization2D::LogNode(FReplicationGraphDebugInfo& DebugInfo, const FString& NodeName) const
+{
+	DebugInfo.Log(NodeName);
+
+	DebugInfo.PushIndent();
+	
+	FString DynamicActorsHeader = FString::Printf(TEXT("Tracking %d dynamic actors:"), DynamicSpatializedActors.Num());
+	DebugInfo.Log(DynamicActorsHeader);	
+	
+	if (DebugInfo.Flags == FReplicationGraphDebugInfo::ShowActors)
+	{
+		FString ActorList; 
+		for (auto& MapIt : DynamicSpatializedActors)
+		{
+			ActorList += GetActorRepListTypeDebugString(MapIt.Key);
+			ActorList += TEXT(" ");
+		}
+
+		DebugInfo.Log(ActorList);
+	}
+	DebugInfo.PopIndent();
+
+	DebugInfo.PushIndent();
+	for (const UReplicationGraphNode* ChildNode : AllChildNodes)
+	{
+		if (DebugInfo.bShowEmptyNodes == false)
+		{
+			TArray<FActorRepListType> TempArray;
+			ChildNode->GetAllActorsInNode_Debugging(TempArray);
+			if (TempArray.Num() == 0)
+			{
+				continue;
+			}
+		}
+
+		ChildNode->LogNode(DebugInfo, ChildNode->GetDebugString());
+	}
+	DebugInfo.PopIndent();
+
+
+}
+
 void UReplicationGraphNode_GridCell::LogNode(FReplicationGraphDebugInfo& DebugInfo, const FString& NodeName) const
 {
 	DebugInfo.Log(NodeName);
