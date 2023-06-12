@@ -126,6 +126,7 @@ FWidgetBlueprintEditor::~FWidgetBlueprintEditor()
 		{
 			Sequencer->OnMovieSceneDataChanged().RemoveAll(this);
 			Sequencer->OnMovieSceneBindingsPasted().RemoveAll(this);
+			Sequencer->Close();
 			Sequencer.Reset();
 		}
 	}
