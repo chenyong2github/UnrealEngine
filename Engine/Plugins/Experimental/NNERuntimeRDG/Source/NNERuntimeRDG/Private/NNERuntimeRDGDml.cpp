@@ -2,15 +2,17 @@
 
 #include "NNERuntimeRDGDml.h"
 
-#include "NNERuntimeRDG.h"
-#include "NNEUtilsModelOptimizer.h"
-#include "NNEModelData.h"
-#include "NNERuntimeFormat.h"
+#include "Algo/Find.h"
+#include "Dml/NNEDmlModel.h"
+#include "EngineAnalytics.h"
 #include "HAL/FileManager.h"
 #include "Interfaces/IPluginManager.h"
-#include "Algo/Find.h"
-
-#include "Dml/NNEDmlModel.h"
+#include "Kismet/GameplayStatics.h"
+#include "Misc/SecureHash.h"
+#include "NNEModelData.h"
+#include "NNERuntimeFormat.h"
+#include "NNERuntimeRDG.h"
+#include "NNEUtilsModelOptimizer.h"
 
 #ifdef NNE_USE_DIRECTML
 
@@ -157,6 +159,16 @@ TUniquePtr<UE::NNECore::IModelRDG> UNNERuntimeRDGDmlImpl::CreateModel(TObjectPtr
 
 	TConstArrayView<uint8> Data = ModelData->GetModelData(GetRuntimeName());
 	FModel* Model = new FModel(Data, Ctx);
+
+	if (FEngineAnalytics::IsAvailable())
+	{
+		TArray<FAnalyticsEventAttribute> Attributes = MakeAnalyticsEventAttributeArray(
+			TEXT("PlatformName"), UGameplayStatics::GetPlatformName(),
+			TEXT("HashedRuntimeName"), FMD5::HashAnsiString(*GetRuntimeName()),
+			TEXT("ModelDataSize"), Data.Num()
+		);
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("NeuralNetworkEngine.CreateModel"), Attributes);
+	}
 
 	return TUniquePtr<UE::NNECore::IModelRDG>(Model);
 #else

@@ -2,6 +2,11 @@
 
 #include "NNE.h"
 
+#include "EngineAnalytics.h"
+#include "Kismet/GameplayStatics.h"
+#include "Misc/CoreDelegates.h"
+#include "Misc/SecureHash.h"
+
 DEFINE_LOG_CATEGORY(LogNNE);
 
 namespace UE::NNECore
@@ -89,6 +94,18 @@ namespace UE::NNECore
 
 	bool RegisterRuntime(TWeakInterfacePtr<INNERuntime> Runtime)
 	{
+		FString RuntimeName = Runtime->GetRuntimeName();
+		FCoreDelegates::OnAllModuleLoadingPhasesComplete.AddLambda([RuntimeName]() {
+			if (FEngineAnalytics::IsAvailable())
+			{
+				TArray<FAnalyticsEventAttribute> Attributes = MakeAnalyticsEventAttributeArray(
+					TEXT("PlatformName"), UGameplayStatics::GetPlatformName(),
+					TEXT("HashedRuntimeName"), FMD5::HashAnsiString(*RuntimeName)
+				);
+				FEngineAnalytics::GetProvider().RecordEvent(TEXT("NeuralNetworkEngine.RegisterRuntime"), Attributes);
+			}
+		});
+
 		return FRegistry::Get()->Add(Runtime);
 	}
 

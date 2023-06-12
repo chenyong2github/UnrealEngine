@@ -1,10 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNEModelDataFactory.h"
+
 #include "Editor.h"
 #include "Editor/EditorEngine.h"
 #include "EditorFramework/AssetImportData.h"
+#include "EngineAnalytics.h"
 #include "HAL/FileManager.h"
+#include "Kismet/GameplayStatics.h"
 #include "NNE.h"
 #include "NNEModelData.h"
 #include "Subsystems/ImportSubsystem.h"
@@ -35,6 +38,16 @@ UObject* UNNEModelDataFactory::FactoryCreateBinary(UClass* Class, UObject* InPar
 
 	ModelData->AssetImportData->Update(GetCurrentFilename());
 	GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostImport(this, ModelData);
+
+	if (FEngineAnalytics::IsAvailable())
+	{
+		TArray<FAnalyticsEventAttribute> Attributes = MakeAnalyticsEventAttributeArray(
+			TEXT("PlatformName"), UGameplayStatics::GetPlatformName(),
+			TEXT("FactoryName"), TEXT("UNNEModelDataFactory"),
+			TEXT("ModelFileSize"), BufferView.Num()
+		);
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("NeuralNetworkEngine.FactoryCreateBinary"), Attributes);
+	}
 
 	return ModelData;
 }
