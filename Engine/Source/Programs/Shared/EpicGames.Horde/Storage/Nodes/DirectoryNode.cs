@@ -799,8 +799,15 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="dataRef">Reference to the file data</param>
 		public FileEntry AddFile(string path, FileEntryFlags flags, long length, NodeRef<ChunkedDataNode> dataRef)
 		{
-			int endIdx = path.LastIndexOf(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-			string name = (endIdx == -1) ? path : path.Substring(endIdx + 1);
+			string name = path;
+			for (int idx = path.Length - 1; idx >= 0; idx--)
+			{
+				if (path[idx] == Path.DirectorySeparatorChar || path[idx] == Path.AltDirectorySeparatorChar)
+				{
+					name = path.Substring(idx + 1);
+					break;
+				}
+			}
 
 			FileEntry entry = new FileEntry(name, flags, length, dataRef);
 			AddFile(path, entry);
