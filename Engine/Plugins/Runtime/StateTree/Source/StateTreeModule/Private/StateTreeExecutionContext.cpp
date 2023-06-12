@@ -1786,10 +1786,16 @@ bool FStateTreeExecutionContext::TriggerTransitions()
 			const EStateTreeRunStatus RunStatus = NextTransition.TargetState.ToCompletionStatus(); 
 			STATETREE_LOG(Verbose, TEXT("Completed subtree '%s' from state '%s' (%s): %s"),
 				*GetSafeStateName(ParentLinkedState), *GetSafeStateName(Exec.ActiveStates.Last()), *GetSafeStateName(NextTransition.SourceState), *UEnum::GetDisplayValueAsText(RunStatus).ToString());
+
+			// Set the parent linked state as last completed state, and update tick status to the status from the transition.
 			Exec.CompletedStateHandle = ParentLinkedState;
 			Exec.LastTickStatus = RunStatus;
 
-			// Not a transition
+			// Clear the transition and return that no transition took place.
+			// Since the LastTickStatus != running, the transition loop will try another transition
+			// now starting from the linked parent state. If we run out of retires in the selection loop (e.g. very deep hierarchy)
+			// we will continue on next tick.
+			NextTransition.Reset();
 			return false;
 		}
 	}
@@ -1824,6 +1830,10 @@ FStateTreeStateHandle FStateTreeExecutionContext::GetParentLinkedStateHandle(con
 		}
 		StateIndex--;
 	}
+
+	// The function result is used to iteratively traverse to the root-most parent linked state.
+	// Skip the start state, as we want to always find a parent state to the start state, or else the iteration will hit infinite loop. 
+	StateIndex--;
 
 	// Find parent linked state.
 	while (StateIndex >= 0)
