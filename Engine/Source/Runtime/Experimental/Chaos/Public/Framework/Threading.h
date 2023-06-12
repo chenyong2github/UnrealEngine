@@ -149,7 +149,7 @@ namespace Chaos
 
 #if PHYSICS_THREAD_CONTEXT
 /** Debug helper to ensure threading mistakes are caught. Do not use for ship */
-class FPhysicsThreadContext : public TThreadSingleton<FPhysicsThreadContext>
+class CHAOS_API FPhysicsThreadContext : public TThreadSingleton<FPhysicsThreadContext>
 {
 public:
 	bool IsInPhysicsSimContext() const

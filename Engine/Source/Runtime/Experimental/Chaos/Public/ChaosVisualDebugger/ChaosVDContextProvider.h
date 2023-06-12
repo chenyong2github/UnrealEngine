@@ -18,7 +18,7 @@ struct FChaosVDContext
 };
 
 /** Singleton class that manages the thread local storage used to store CVD Context data */
-class FChaosVDThreadContext : public TThreadSingleton<FChaosVDThreadContext>
+class CHAOS_API FChaosVDThreadContext : public TThreadSingleton<FChaosVDThreadContext>
 {
 public:
 
@@ -33,19 +33,19 @@ public:
 	/** Copies the Current CVD context data into the provided struct
 	 * @return true if the copy was successful
 	 */
-	CHAOS_API bool GetCurrentContext(FChaosVDContext& OutContext);
+	bool GetCurrentContext(FChaosVDContext& OutContext);
 	
 	/** Gets the current CVD context data -
 	 * Don't use of a function that will recursively push new context data as it might invalidate the pointer
 	 * @return Ptr to the Current CVD context data
 	 */
-	CHAOS_API const FChaosVDContext* GetCurrentContext();
+	const FChaosVDContext* GetCurrentContext();
 	
 	/** Pushed a new CVD Context data to the local cvd context stack */
-	CHAOS_API void PushContext(const FChaosVDContext& InContext);
+	void PushContext(const FChaosVDContext& InContext);
 	
 	/** Removes the CVD Context data at the top of the local cvd context stack */
-	CHAOS_API void PopContext();
+	void PopContext();
 
 protected:
 	TArray<FChaosVDContext, TInlineAllocator<16>> LocalContextStack;
