@@ -521,8 +521,8 @@ namespace Audio
 		ArraySubtractInPlace2(OutRightSampleDataView, LeftTaps4View);
 		ArrayMixIn(LeftTaps6View, OutRightSampleDataView);
 		ArraySubtractInPlace2(OutRightSampleDataView, RightTaps1View);
-		ArraySubtractInPlace2(OutRightSampleDataView, LeftTaps3View);
-		ArraySubtractInPlace2(OutRightSampleDataView, LeftTaps5View);
+		ArraySubtractInPlace2(OutRightSampleDataView, RightTaps3View);
+		ArraySubtractInPlace2(OutRightSampleDataView, RightTaps5View);
 	}
 
 	void FLateReflectionsFast::ApplySettings()

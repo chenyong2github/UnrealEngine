@@ -58,7 +58,7 @@ namespace Audio {
 		}
 
 		Settings = InSettings;
-		ClampSettings(Settings);
+		
 		ApplySettings();
 	}
 
@@ -220,7 +220,7 @@ namespace Audio {
 						// Left and right are flipped.
 						BackLeftSampleData = FrontRightSampleData;
 						BackRightSampleData = FrontLeftSampleData;
-
+						break;
 					case FPlateReverbFastSettings::EQuadBehavior::QuadMatched:
 					default:
 						// Left and right are matched.
