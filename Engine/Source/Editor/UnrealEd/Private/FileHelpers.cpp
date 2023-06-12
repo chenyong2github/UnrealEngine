@@ -958,10 +958,12 @@ static bool SaveWorld(UWorld* World,
 				}
 				else if (bIsTempPackage)
 				{
-					const FBox WorldBounds = RenamedWorldPartition->GetRuntimeWorldBounds();
-					UWorldPartitionEditorLoaderAdapter* EditorLoaderAdapter = RenamedWorldPartition->CreateEditorLoaderAdapter<FLoaderAdapterShape>(World, WorldBounds, TEXT("Loaded Region"));
-					EditorLoaderAdapter->GetLoaderAdapter()->SetUserCreated(true);
-					EditorLoaderAdapter->GetLoaderAdapter()->Load();
+					if (const FBox WorldBounds = RenamedWorldPartition->GetRuntimeWorldBounds(); WorldBounds.IsValid)
+					{
+						UWorldPartitionEditorLoaderAdapter* EditorLoaderAdapter = RenamedWorldPartition->CreateEditorLoaderAdapter<FLoaderAdapterShape>(World, WorldBounds, TEXT("Loaded Region"));
+						EditorLoaderAdapter->GetLoaderAdapter()->SetUserCreated(true);
+						EditorLoaderAdapter->GetLoaderAdapter()->Load();
+					}
 				}
 			}
 		}

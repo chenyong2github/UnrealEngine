@@ -5,6 +5,7 @@
 #include "GameFramework/WorldSettings.h"
 #include "Misc/PackageName.h"
 #include "UObject/Package.h"
+#include "Algo/Transform.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionEditorPerProjectUserSettings)
 
@@ -27,8 +28,8 @@ void UWorldPartitionEditorPerProjectUserSettings::SetEditorLoadedRegions(UWorld*
 	if (ShouldSaveSettings(InWorld))
 	{
 		FWorldPartitionPerWorldSettings& PerWorldSettings = PerWorldEditorSettings.FindOrAdd(TSoftObjectPtr<UWorld>(InWorld));
-		PerWorldSettings.LoadedEditorRegions = InEditorLoadedRegions;
-		
+		PerWorldSettings.LoadedEditorRegions.Empty();
+		Algo::TransformIf(InEditorLoadedRegions, PerWorldSettings.LoadedEditorRegions, [](const FBox& InBox) { return InBox.IsValid; }, [](const FBox& InBox) { return InBox; });		
 		SaveConfig();
 	}
 }

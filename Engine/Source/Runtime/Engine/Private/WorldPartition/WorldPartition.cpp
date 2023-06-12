@@ -1727,7 +1727,7 @@ TArray<FBox> UWorldPartition::GetUserLoadedEditorRegions() const
 	{
 		IWorldPartitionActorLoaderInterface::ILoaderAdapter* LoaderAdapter = EditorLoaderAdapter->GetLoaderAdapter();
 		check(LoaderAdapter);
-		if (LoaderAdapter->IsLoaded() && LoaderAdapter->GetUserCreated())
+		if (LoaderAdapter->GetBoundingBox().IsSet() && LoaderAdapter->IsLoaded() && LoaderAdapter->GetUserCreated())
 		{
 			Result.Add(*LoaderAdapter->GetBoundingBox());
 		}
@@ -1973,11 +1973,14 @@ void UWorldPartition::LoadLastLoadedRegions(const TArray<FBox>& EditorLastLoaded
 {
 	for (const FBox& EditorLastLoadedRegion : EditorLastLoadedRegions)
 	{
-		UWorldPartitionEditorLoaderAdapter* EditorLoaderAdapter = CreateEditorLoaderAdapter<FLoaderAdapterShape>(World, EditorLastLoadedRegion, TEXT("Last Loaded Region"));
-		IWorldPartitionActorLoaderInterface::ILoaderAdapter* LoaderAdapter = EditorLoaderAdapter->GetLoaderAdapter();
-		check(LoaderAdapter);
-		LoaderAdapter->SetUserCreated(true);
-		LoaderAdapter->Load();
+		if (EditorLastLoadedRegion.IsValid)
+		{
+			UWorldPartitionEditorLoaderAdapter* EditorLoaderAdapter = CreateEditorLoaderAdapter<FLoaderAdapterShape>(World, EditorLastLoadedRegion, TEXT("Last Loaded Region"));
+			IWorldPartitionActorLoaderInterface::ILoaderAdapter* LoaderAdapter = EditorLoaderAdapter->GetLoaderAdapter();
+			check(LoaderAdapter);
+			LoaderAdapter->SetUserCreated(true);
+			LoaderAdapter->Load();
+		}
 	}
 }
 

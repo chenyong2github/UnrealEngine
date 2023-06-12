@@ -15,9 +15,12 @@ ILoaderAdapterSpatial::ILoaderAdapterSpatial(UWorld* InWorld)
 
 void ILoaderAdapterSpatial::ForEachActor(TFunctionRef<void(const FWorldPartitionHandle&)> InOperation) const
 {
-	if (UWorldPartition* WorldPartition = GetWorld()->GetWorldPartition())
+	if (GetBoundingBox().IsSet())
 	{
-		HandleIntersectingContainer(WorldPartition, WorldPartition->GetInstanceTransform(), *GetBoundingBox(), InOperation);
+		if (UWorldPartition* WorldPartition = GetWorld()->GetWorldPartition())
+		{
+			HandleIntersectingContainer(WorldPartition, WorldPartition->GetInstanceTransform(), *GetBoundingBox(), InOperation);
+		}
 	}
 }
 

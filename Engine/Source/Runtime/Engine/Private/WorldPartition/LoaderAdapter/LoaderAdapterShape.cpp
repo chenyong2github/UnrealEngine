@@ -7,11 +7,13 @@ FLoaderAdapterShape::FLoaderAdapterShape(UWorld* InWorld, const FBox& InBounding
 	: ILoaderAdapterSpatial(InWorld)
 	, BoundingBox(InBoundingBox)
 	, Label(InLabel)
-{}
+{
+	ensureMsgf(BoundingBox.IsValid, TEXT("Invalid FLoaderAdapterShape: %s"), *InLabel);
+}
 
 TOptional<FBox> FLoaderAdapterShape::GetBoundingBox() const
 {
-	return BoundingBox;
+	return BoundingBox.IsValid? BoundingBox : TOptional<FBox>();
 }
 
 TOptional<FString> FLoaderAdapterShape::GetLabel() const
