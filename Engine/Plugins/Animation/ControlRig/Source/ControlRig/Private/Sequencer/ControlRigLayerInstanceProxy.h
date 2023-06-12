@@ -72,6 +72,7 @@ public:
 	virtual bool Evaluate(FPoseContext& Output) override;
 	virtual void CacheBones() override;
 	virtual void UpdateAnimationNode(const FAnimationUpdateContext& InContext) override;
+	virtual void PreEvaluateAnimation(UAnimInstance* InAnimInstance) override;
 
 	/** Anim Instance Source info - created externally and used here */
 	void SetSourceAnimInstance(UAnimInstance* SourceAnimInstance, FAnimInstanceProxy* SourceAnimInputProxy);

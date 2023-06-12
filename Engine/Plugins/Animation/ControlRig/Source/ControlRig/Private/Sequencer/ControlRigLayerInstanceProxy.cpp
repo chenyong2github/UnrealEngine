@@ -28,6 +28,16 @@ void FControlRigLayerInstanceProxy::CacheBones()
 	}
 }
 
+void FControlRigLayerInstanceProxy::PreEvaluateAnimation(UAnimInstance* InAnimInstance)
+{
+	Super::PreEvaluateAnimation(InAnimInstance);
+
+	if (CurrentSourceAnimInstance)
+	{
+		CurrentSourceAnimInstance->PreEvaluateAnimation();
+	}
+}
+
 bool FControlRigLayerInstanceProxy::Evaluate(FPoseContext& Output)
 {
 	check(CurrentRoot);
