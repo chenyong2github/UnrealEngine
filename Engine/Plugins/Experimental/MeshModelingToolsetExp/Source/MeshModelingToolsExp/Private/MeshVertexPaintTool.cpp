@@ -202,11 +202,16 @@ void UMeshVertexPaintTool::Setup()
 		Octree.Initialize(Mesh);
 	});
 
+	TFuture<void> AABBTreeFuture = Async(VertexPaintToolAsyncExecTarget, [&]()
+	{
+		AABBTree.SetMesh(Mesh, true);
+	});
+
+
 	// initialize render decomposition
 	TUniquePtr<FMeshRenderDecomposition> Decomp = MakeUnique<FMeshRenderDecomposition>();
 	FMeshRenderDecomposition::BuildChunkedDecomposition(Mesh, &MaterialSet, *Decomp);
 	Decomp->BuildAssociations(Mesh);
-	//UE_LOG(LogTemp, Warning, TEXT("Decomposition has %d groups"), Decomp->Num());
 	DynamicMeshComponent->SetExternalDecomposition(MoveTemp(Decomp));
 
 	// initialize brush radius range interval, brush properties
@@ -368,6 +373,7 @@ void UMeshVertexPaintTool::Setup()
 
 	PrecomputeFuture.Wait();
 	OctreeFuture.Wait();
+	AABBTreeFuture.Wait();
 }
 
 void UMeshVertexPaintTool::Shutdown(EToolShutdownType ShutdownType)
@@ -501,11 +507,13 @@ void UMeshVertexPaintTool::OnBeginStroke(const FRay& WorldRay)
 	{
 		PaintBrushOpProperties->Color = BasicProperties->PaintColor;
 		PaintBrushOpProperties->BlendMode = (EVertexColorPaintBrushOpBlendMode)(int32)BasicProperties->BlendMode;
+		PaintBrushOpProperties->bApplyFalloff = (BasicProperties->SubToolType == EMeshVertexPaintInteractionType::Brush);
 	}
 	if (EraseBrushOpProperties)
 	{
 		EraseBrushOpProperties->Color = BasicProperties->EraseColor;
 		EraseBrushOpProperties->BlendMode = EVertexColorPaintBrushOpBlendMode::Lerp;
+		EraseBrushOpProperties->bApplyFalloff = (BasicProperties->SubToolType == EMeshVertexPaintInteractionType::Brush);
 	}
 
 	TUniquePtr<FMeshSculptBrushOp>& UseBrushOp = GetActiveBrushOp();
@@ -582,7 +590,17 @@ void UMeshVertexPaintTool::UpdateROI(const FSculptBrushStamp& BrushStamp)
 
 	TriangleROI.Reset();
 
+	// With Lazy Brush, GetBrushTriangleID() may not necessarily return a triangle that contains BrushPos,
+	// so in that case we will try to find the triangle containing BrushPos. Note that this may not
+	// be correct in some geometric cases...potentially we could check if the initial CenterTID 
+	// contains the BrushPos point first
 	int32 CenterTID = GetBrushTriangleID();
+	if (BrushProperties->Lazyness > 0)
+	{
+		double NearDistSqr;
+		CenterTID = AABBTree.FindNearestTriangle(BrushPos, NearDistSqr);
+	}
+
 	if (Mesh->IsTriangle(CenterTID))
 	{
 		TriangleROI.Add(CenterTID);
@@ -770,7 +788,6 @@ bool UMeshVertexPaintTool::ApplyStamp()
 
 	LastStamp = CurrentStamp;
 	LastStamp.TimeStamp = FDateTime::Now();
-
 	return bUpdated;
 }
 

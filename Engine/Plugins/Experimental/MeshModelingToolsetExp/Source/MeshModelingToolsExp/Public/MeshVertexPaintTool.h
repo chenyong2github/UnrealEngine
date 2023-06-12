@@ -633,7 +633,11 @@ protected:
 	bool UpdateStampPosition(const FRay& WorldRay);
 	bool ApplyStamp();
 
+	// initial code here was ported from MeshVertexSculptTool, which requires an Octree. However since
+	// mesh shape is static, we can actually use an AABBTree, and in one case a required query (nearest-point)
+	// is not supported by Octree (currently). So currently using both (gross)
 	UE::Geometry::FDynamicMeshOctree3 Octree;
+	UE::Geometry::FDynamicMeshAABBTree3 AABBTree;
 
 	bool UpdateBrushPosition(const FRay& WorldRay);
 

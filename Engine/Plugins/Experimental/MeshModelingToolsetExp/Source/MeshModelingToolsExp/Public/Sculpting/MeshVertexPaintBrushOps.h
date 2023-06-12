@@ -133,6 +133,11 @@ public:
 	UPROPERTY(EditAnywhere, Category = PaintBrush)
 	EVertexColorPaintBrushOpBlendMode BlendMode = EVertexColorPaintBrushOpBlendMode::Mix;
 
+	/** If bApplyFalloff is disabled, 1.0 is used as "falloff" for all vertices */
+	UPROPERTY(EditAnywhere, Category = PaintBrush)
+	bool bApplyFalloff = true;
+
+
 	virtual float GetStrength() override { return Strength; }
 	virtual void SetStrength(float NewStrength) override { Strength = FMathf::Clamp(NewStrength, 0.0f, 1.0f); }
 	virtual float GetFalloff() override { return Falloff; }
@@ -233,6 +238,7 @@ public:
 		{
 			SetColor.W = 1.0f;
 		}
+		bool bApplyFalloff = Props->bApplyFalloff;
 
 		int32 NumElements = ElementIDs.Num();
 		ensure(NewColorsOut.Num() == NumElements);
@@ -241,7 +247,7 @@ public:
 			int32 ElementID = ElementIDs[k];
 			int32 VertexID = VertexColors->GetParentVertex(ElementID);
 			FVector3d VertexPos = Mesh->GetVertex(VertexID);
-			double PositionFalloff = GetFalloff().Evaluate(Stamp, VertexPos);
+			double PositionFalloff = (bApplyFalloff) ? GetFalloff().Evaluate(Stamp, VertexPos) : 1.0;
 			double T = PositionFalloff * UsePower;
 
 			if (Props->BlendMode == EVertexColorPaintBrushOpBlendMode::Mix)
