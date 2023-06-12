@@ -816,7 +816,7 @@ struct InvokeMethodWithoutArgsAction {
   Class* const obj_ptr;
   const MethodPtr method_ptr;
 
-  using ReturnType = typename std::result_of<MethodPtr(Class*)>::type;
+  using ReturnType = typename std::invoke_result_t<MethodPtr, Class*>;
 
   template <typename... Args>
   ReturnType operator()(const Args&...) const {
