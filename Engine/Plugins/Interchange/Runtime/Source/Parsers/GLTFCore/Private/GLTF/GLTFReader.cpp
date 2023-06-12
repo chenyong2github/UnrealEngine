@@ -116,39 +116,28 @@ namespace GLTF
 		void SetTransformFromMatrix(FTransform& Transform, const UE::Math::TMatrix<T>& InMatrix)
 		{
 			using namespace UE::Math;
+
 			TMatrix<T> M = InMatrix;
 
 			// Get the 3D scale from the matrix
-			TVector<T> InScale = M.ExtractScaling(0); //we want Precise Scaling with 0 tolerance.
-			TPersistentVectorRegisterType<T> Scale3D = VectorLoadFloat3_W0(&InScale);
+			TVector<T> OutScale3D = M.ExtractScaling(0); //we want Precise Scaling with 0 tolerance.
 
 			// If there is negative scaling going on, we handle that here
 			if (InMatrix.Determinant() < 0.f)
 			{
 				// Assume it is along X and modify transform accordingly. 
 				// It doesn't actually matter which axis we choose, the 'appearance' will be the same
-				//(UE::Math::TTransform<T>::TransformVectorRegister)
-				Scale3D = VectorMultiply(Scale3D, UE::Math::TTransform<T>::TransformVectorRegister(GlobalVectorConstants::FloatMinus1_111));
+				OutScale3D.X *= -1.f;
 				M.SetAxis(0, -M.GetScaledAxis(EAxis::X));
 			}
 
-			TQuat<T> InRotation = TQuat<T>(M);
-			TPersistentVectorRegisterType<T> Rotation = VectorLoadAligned(&InRotation);
-			TVector<T> InTranslation = InMatrix.GetOrigin();
-			TPersistentVectorRegisterType<T> Translation = VectorLoadFloat3_W0(&InTranslation);
+			TQuat<T> OutRotation = TQuat<T>(M);
+			TVector<T> OutTranslation = InMatrix.GetOrigin();
 
 			// Normalize rotation
-			Rotation = VectorNormalizeQuaternion(Rotation);
+			OutRotation.Normalize();
 
-			TVector<T> OutScale3D;
-			VectorStoreFloat3(Scale3D, &OutScale3D);
-
-			TQuat<T> OutRotation;
-			VectorStoreAligned(Rotation, &OutRotation);
 			OutRotation = GLTF::ConvertQuat(OutRotation);
-
-			TVector<T> OutTranslation;
-			VectorStoreFloat3(Translation, &OutTranslation);
 
 			Transform.SetScale3D(OutScale3D);
 			Transform.SetRotation(OutRotation);
