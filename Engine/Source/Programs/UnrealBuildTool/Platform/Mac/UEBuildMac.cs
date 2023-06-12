@@ -446,7 +446,9 @@ namespace UnrealBuildTool
 		public override List<FileReference> FinalizeBinaryPaths(FileReference BinaryName, FileReference? ProjectFile, ReadOnlyTargetRules Target)
 		{
 			List<FileReference> BinaryPaths = new List<FileReference>();
-			if (Target.bIsBuildingConsoleApplication || !String.IsNullOrEmpty(BinaryName.GetExtension()))
+			// ModernXcode now builds binary outside of .app, instead Xcode will be responsible of generating .app
+			if (AppleExports.UseModernXcode(ProjectFile) ||
+				(Target.bIsBuildingConsoleApplication || !String.IsNullOrEmpty(BinaryName.GetExtension())))
 			{
 				BinaryPaths.Add(BinaryName);
 			}

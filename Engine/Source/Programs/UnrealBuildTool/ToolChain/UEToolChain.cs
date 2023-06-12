@@ -214,7 +214,7 @@ namespace UnrealBuildTool
 		{
 		}
 
-		public virtual void ModifyTargetReceipt(TargetReceipt Receipt)
+		public virtual void ModifyTargetReceipt(ReadOnlyTargetRules Target, TargetReceipt Receipt)
 		{
 		}
 

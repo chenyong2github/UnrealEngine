@@ -393,6 +393,27 @@ namespace UnrealBuildTool
 				}
 			}
 
+			// delete outdated workspace files, reduce confusion
+			if (bHasModernProjects)
+			{
+				DirectoryReference OutdatedWorkspaceDirectory = new DirectoryReference(PrimaryProjectPath + "/" + PrimaryProjectNameForPlatform(null) + ".xcworkspace");
+				if (DirectoryReference.Exists(OutdatedWorkspaceDirectory))
+				{
+					DirectoryReference.Delete(OutdatedWorkspaceDirectory, true);
+				}
+			}
+			else
+			{
+				foreach (UnrealTargetPlatform? Platform in WorkspacePlatforms)
+				{
+					DirectoryReference OutdatedWorkspaceDirectory = new DirectoryReference(PrimaryProjectPath + "/" + PrimaryProjectNameForPlatform(Platform) + ".xcworkspace");
+					if (DirectoryReference.Exists(OutdatedWorkspaceDirectory))
+					{
+						DirectoryReference.Delete(OutdatedWorkspaceDirectory, true);
+					}
+				}
+			}
+
 			return bSuccess;
 		}
 

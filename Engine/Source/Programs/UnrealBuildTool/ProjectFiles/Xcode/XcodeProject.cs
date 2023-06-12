@@ -1281,8 +1281,8 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		///       ("BuildCookRun -build -cook -stage -package" can skip the copying until the -package step).
 		///       Also we don't copy anything if this is the engine, no-project, build, and an 
 		/// Mac:
-		///   - UBT will link directly to Foo.app/Contents/MacOS/Foo, for .app bundled apps
-		///   - During normal processing, that's all that is needed, so we don't need to copy anything
+		///   - UBT will link executable next to .app
+		///   - We will copy it into .app here, similar to iOS
 		///   - However, during Archiving, the .app is created in a intermediate location, so then here we copy from Binaries/Mac to the intermediate location
 		///     - Trying to have UBT link directly to the intermeidate location causes various issues, so we copy it like IOS does
 		/// IOS/TVOS:
@@ -1299,12 +1299,6 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		/// <param name="Project"></param>
 		protected void ProcessScripts(XcodeResourcesBuildPhase ResourcesBuildPhase, XcodeProject Project)
 		{
-			// nothing to do for editors
-			if (Project.UnrealData.TargetRules.Type == TargetType.Editor)
-			{
-				return;
-			}
-
 			List<string> CopyScript = new();
 
 			// UBT no longer copies the executable into the .app directory in PostBuild, so we do it here
@@ -1327,6 +1321,15 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				"fi",
 				""
 			});
+
+			// Editor just need the above script to copy executable into .app
+			if (Project.UnrealData.TargetRules.Type == TargetType.Editor)
+			{
+				XcodeShellScriptBuildPhase EditorCopyScriptPhase = new("Copy Executable into .app", CopyScript, new string[] { }, new string[] { $"/dev/null" });
+				BuildPhases.Add(EditorCopyScriptPhase);
+				References.Add(EditorCopyScriptPhase);
+				return;
+			}
 
 			// rsync the Staged build into the .app, unless the UE_SKIP_STAGEDDATA_SYNC var is set to 1
 			// editor builds don't need staged content in them
@@ -1790,19 +1793,8 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				// hook up the Buildconfig that matches this info to this xcconfig file
 				XcconfigFile ConfigXcconfig = MatchedConfig.Xcconfig!;
 
-				FileReference PlatformExecutablePath;
 				string ExecutableName = XcodeUtils.MakeExecutableFileName(Config.ExeName, Platform, Config.BuildConfig, TargetRules.Architectures, TargetRules.UndecoratedConfiguration);
-				if (Platform == UnrealTargetPlatform.Mac)
-				{
-					// Mac builds right into the .app
-					PlatformExecutablePath = FileReference.Combine(ConfigBuildDir, ExecutableName + ".app", "Contents", "MacOS", ExecutableName);
-				}
-				else // IOS,TVOS
-				{
-					// IOS and TVOS build to outside of the .app
-					PlatformExecutablePath = FileReference.Combine(ConfigBuildDir, ExecutableName);
-				}
-				string ExetuableSubPath = PlatformExecutablePath.MakeRelativeTo(ConfigBuildDir);
+				string ExetuableSubPath = FileReference.Combine(ConfigBuildDir, ExecutableName).MakeRelativeTo(ConfigBuildDir);
 				string ProductName = ExecutableName;
 				string ExecutableKey = $"UE_{Platform.ToString().ToUpper()}_EXECUTABLE_NAME";
 
