@@ -1602,7 +1602,11 @@ static void OnAppCommandCB(struct android_app* app, int32_t cmd)
 		{
 			FGraphEventRef WillTerminateTask = FFunctionGraphTask::CreateAndDispatchWhenReady([]()
 			{
+				PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				FCoreDelegates::ApplicationWillTerminateDelegate.Broadcast();
+				PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+				FCoreDelegates::GetApplicationWillTerminateDelegate().Broadcast();
 			}, TStatId(), NULL, ENamedThreads::GameThread);
 			FTaskGraphInterface::Get().WaitUntilTaskCompletes(WillTerminateTask);
 			FAndroidMisc::NonReentrantRequestExit();

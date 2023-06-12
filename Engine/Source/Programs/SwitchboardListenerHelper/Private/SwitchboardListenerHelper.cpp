@@ -88,7 +88,7 @@ namespace UE::SwitchboardListenerHelper
 	static void MainLoop()
 	{
 		// We need a chance to handle service being terminated and not leave the GPU clocks locked if not desired.
-		FCoreDelegates::ApplicationWillTerminateDelegate.AddStatic(&HandleApplicationWillTerminate);
+		FCoreDelegates::GetApplicationWillTerminateDelegate().AddStatic(&HandleApplicationWillTerminate);
 
 		double LastTime = FPlatformTime::Seconds();
 		const float MinFrameTimeSeconds = 0.1;

@@ -19,7 +19,7 @@ void UApplicationLifecycleComponent::OnRegister()
 	FCoreDelegates::ApplicationHasReactivatedDelegate.AddUObject(this, &UApplicationLifecycleComponent::ApplicationHasReactivatedDelegate_Handler);
 	FCoreDelegates::ApplicationWillEnterBackgroundDelegate.AddUObject(this, &UApplicationLifecycleComponent::ApplicationWillEnterBackgroundDelegate_Handler);
 	FCoreDelegates::ApplicationHasEnteredForegroundDelegate.AddUObject(this, &UApplicationLifecycleComponent::ApplicationHasEnteredForegroundDelegate_Handler);
-	FCoreDelegates::ApplicationWillTerminateDelegate.AddUObject(this, &UApplicationLifecycleComponent::ApplicationWillTerminateDelegate_Handler);
+	FCoreDelegates::GetApplicationWillTerminateDelegate().AddUObject(this, &UApplicationLifecycleComponent::ApplicationWillTerminateDelegate_Handler);
 	FCoreDelegates::ApplicationShouldUnloadResourcesDelegate.AddUObject(this, &UApplicationLifecycleComponent::ApplicationShouldUnloadResourcesDelegate_Handler);
 	FCoreDelegates::ApplicationReceivedStartupArgumentsDelegate.AddUObject(this, &UApplicationLifecycleComponent::ApplicationReceivedStartupArgumentsDelegate_Handler);
 
@@ -35,7 +35,7 @@ void UApplicationLifecycleComponent::OnUnregister()
  	FCoreDelegates::ApplicationHasReactivatedDelegate.RemoveAll(this);
  	FCoreDelegates::ApplicationWillEnterBackgroundDelegate.RemoveAll(this);
  	FCoreDelegates::ApplicationHasEnteredForegroundDelegate.RemoveAll(this);
- 	FCoreDelegates::ApplicationWillTerminateDelegate.RemoveAll(this);
+ 	FCoreDelegates::GetApplicationWillTerminateDelegate().RemoveAll(this);
  	FCoreDelegates::ApplicationShouldUnloadResourcesDelegate.RemoveAll(this);
  	FCoreDelegates::ApplicationReceivedStartupArgumentsDelegate.RemoveAll(this);
 	FCoreDelegates::OnTemperatureChange.RemoveAll(this);

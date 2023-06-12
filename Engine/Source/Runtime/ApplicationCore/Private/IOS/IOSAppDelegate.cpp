@@ -1483,7 +1483,11 @@ extern double GCStartTime;
 	 Save data if appropriate.
 	 See also applicationDidEnterBackground:.
 	 */
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FCoreDelegates::ApplicationWillTerminateDelegate.Broadcast();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	
+	FCoreDelegates::GetApplicationWillTerminateDelegate().Broadcast();
     
     // note that we are shutting down
     // TODO: fix the reason why we are hanging when asked to shutdown

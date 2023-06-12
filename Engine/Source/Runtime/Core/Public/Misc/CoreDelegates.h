@@ -300,7 +300,10 @@ public:
 	// This *may* be called when the application is getting terminated by the OS.
 	// There is no guarantee that this will ever be called on a mobile device,
 	// save state when ApplicationWillEnterBackgroundDelegate is called instead.
+	UE_DEPRECATED(5.3, "This delegate is not thread safe while it can be used concurrently. Please use to GetApplicationWillTerminateDelegate() instead.")
 	static TMulticastDelegate<void()> ApplicationWillTerminateDelegate;
+
+	static TTSMulticastDelegate<void()>& GetApplicationWillTerminateDelegate();
 
 	// Some platform have a System UI Overlay that can draw on top of the application.
 	// The game might want to be notified so it can pause, etc...

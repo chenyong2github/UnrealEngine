@@ -635,7 +635,13 @@ static BOOL WINAPI ConsoleCtrlHandler(DWORD CtrlType)
 	if (!AppTermDelegateBroadcast)
 	{
 		RequestEngineExit(TEXT("ConsoleCtrl RequestExit"));
+
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		FCoreDelegates::ApplicationWillTerminateDelegate.Broadcast();
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+		FCoreDelegates::GetApplicationWillTerminateDelegate().Broadcast();
+
 		AppTermDelegateBroadcast = true;
 	}
 
@@ -1020,7 +1026,12 @@ void FWindowsPlatformMisc::RequestExitWithStatus(bool Force, uint8 ReturnCode, c
 #endif
 
 	RequestEngineExit(TEXT("Win RequestExit"));
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FCoreDelegates::ApplicationWillTerminateDelegate.Broadcast();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	FCoreDelegates::GetApplicationWillTerminateDelegate().Broadcast();
 
 	if (Force)
 	{

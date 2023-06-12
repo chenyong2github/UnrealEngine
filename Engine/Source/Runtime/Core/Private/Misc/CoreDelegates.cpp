@@ -125,7 +125,17 @@ TMulticastDelegate<void()> FCoreDelegates::ApplicationWillDeactivateDelegate;
 TMulticastDelegate<void()> FCoreDelegates::ApplicationHasReactivatedDelegate;
 TMulticastDelegate<void()> FCoreDelegates::ApplicationWillEnterBackgroundDelegate;
 TMulticastDelegate<void()> FCoreDelegates::ApplicationHasEnteredForegroundDelegate;
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 TMulticastDelegate<void()> FCoreDelegates::ApplicationWillTerminateDelegate;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+TTSMulticastDelegate<void()>& FCoreDelegates::GetApplicationWillTerminateDelegate()
+{
+	static TTSMulticastDelegate<void()> Singleton;
+	return Singleton;
+}
+
 TMulticastDelegate<void()> FCoreDelegates::ApplicationShouldUnloadResourcesDelegate;
 TMulticastDelegate<void(float)> FCoreDelegates::MobileBackgroundTickDelegate;
 

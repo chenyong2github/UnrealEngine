@@ -64,7 +64,7 @@ void UDisplayClusterGameEngine::Init(class IEngineLoop* InEngineLoop)
 	// This is required to prevent GameThread dead-locking when Alt+F4 is used
 	// to terminate p-node of a 2+ nodes cluster. This gets called before
 	// virtual PreExit which allows to unlock GameThread in advance.
-	FCoreDelegates::ApplicationWillTerminateDelegate.AddLambda([this]()
+	FCoreDelegates::GetApplicationWillTerminateDelegate().AddLambda([this]()
 	{
 		PreExitImpl();
 	});

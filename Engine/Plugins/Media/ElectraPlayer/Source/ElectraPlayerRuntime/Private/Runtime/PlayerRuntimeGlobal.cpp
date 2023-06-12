@@ -83,7 +83,7 @@ namespace Electra
 	{
 		if (!ApplicationTerminatingDelegate.IsValid())
 		{
-			ApplicationTerminatingDelegate = FCoreDelegates::ApplicationWillTerminateDelegate.AddStatic(&HandleApplicationWillTerminate);
+			ApplicationTerminatingDelegate = FCoreDelegates::GetApplicationWillTerminateDelegate().AddStatic(&HandleApplicationWillTerminate);
 		}
 		if (!ApplicationSuspendedDelegate.IsValid())
 		{
@@ -126,7 +126,7 @@ namespace Electra
 		}
 		if (ApplicationTerminatingDelegate.IsValid())
 		{
-			FCoreDelegates::ApplicationWillTerminateDelegate.Remove(ApplicationTerminatingDelegate);
+			FCoreDelegates::GetApplicationWillTerminateDelegate().Remove(ApplicationTerminatingDelegate);
 		}
 	}
 

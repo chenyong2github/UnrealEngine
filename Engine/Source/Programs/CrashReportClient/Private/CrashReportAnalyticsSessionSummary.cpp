@@ -295,7 +295,7 @@ void FCrashReportAnalyticsSessionSummary::Initialize(const FString& ProcessGroup
 			PropertyStore = SessionSummaryManager->MakeStore(ReservedFileCapacity);
 			if (PropertyStore)
 			{
-				FCoreDelegates::ApplicationWillTerminateDelegate.AddRaw(this, &FCrashReportAnalyticsSessionSummary::OnApplicationWillTerminate);
+				FCoreDelegates::GetApplicationWillTerminateDelegate().AddRaw(this, &FCrashReportAnalyticsSessionSummary::OnApplicationWillTerminate);
 				FCoreDelegates::OnHandleSystemError.AddRaw(this, &FCrashReportAnalyticsSessionSummary::OnHandleSystemError);
 
 				CrcAnalyticsProperties::EngineVersion.Set(PropertyStore.Get(), FEngineVersion::Current().ToString(EVersionComponent::Changelist));
@@ -393,7 +393,7 @@ void FCrashReportAnalyticsSessionSummary::Shutdown(IAnalyticsProviderET* Analyti
 	LogEvent(FString::Printf(TEXT("CRC/Shutdown:%s:%.1fs"), *FDateTime::UtcNow().ToString(), FPlatformTime::Seconds() - SessionStartTimeSecs));
 
 	// Unregister from the core.
-	FCoreDelegates::ApplicationWillTerminateDelegate.RemoveAll(this);
+	FCoreDelegates::GetApplicationWillTerminateDelegate().RemoveAll(this);
 	FCoreDelegates::OnHandleSystemError.RemoveAll(this);
 	GLog->RemoveOutputDevice(this);
 
