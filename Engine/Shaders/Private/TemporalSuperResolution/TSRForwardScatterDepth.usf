@@ -18,7 +18,6 @@ uint2 PrevSubpixelDepthViewportMin;
 uint2 PrevSubpixelDepthViewportMax;
 FScreenTransform InputPixelPosToPrevScreenPosition;
 FScreenTransform ScreenPosToOutputPixelPos;
-uint MaxDepthAge;
 
 Texture2D<uint> PrevSubpixelDepthTexture;
 
@@ -43,7 +42,7 @@ void MainCS(
 	uint CompressedPrevSubpixelDepth = PrevSubpixelDepthTexture[InputPixelPos];
 	FTSRSubpixelDepth PrevScatteredSubpixelDepth = UncompressSubpixelDepth(CompressedPrevSubpixelDepth);
 		
-	const bool bEarlyReturn = PrevScatteredSubpixelDepth.DeviceZ == 0.0 || PrevScatteredSubpixelDepth.Age >= MaxDepthAge || any(InputPixelPos > PrevSubpixelDepthViewportMax);
+	const bool bEarlyReturn = PrevScatteredSubpixelDepth.DeviceZ == 0.0 || PrevScatteredSubpixelDepth.RemainingLifetime == 0 || any(InputPixelPos > PrevSubpixelDepthViewportMax);
 #if CONFIG_EARLY_RETURN && !DEBUG_INTERLOCK_ALL
 	BRANCH
 	if (bEarlyReturn)
@@ -52,23 +51,19 @@ void MainCS(
 	}
 #endif
 	
-	float3 PreViewTranslationOffset = LWCToFloat(LWCSubtract(PrimaryView.PreViewTranslation, PrimaryView.PrevPreViewTranslation));
- 
-	// Compute position of the history in world space.
-	float PrevSceneDepth = ConvertFromDeviceZ(PrevScatteredSubpixelDepth.DeviceZ);
 	float2 PrevScreenPosition = ApplyScreenTransform(float2(InputPixelPos), InputPixelPosToPrevScreenPosition);
-	float3 TranslatedWorldPosition = mul(float4(PrevScreenPosition * PrevSceneDepth, PrevSceneDepth, 1), View.PrevScreenToTranslatedWorld).xyz + PreViewTranslationOffset;
 	
-	// Reproject the world position into new viewport.
-	float4 ClipPos = mul(float4(TranslatedWorldPosition, 1.0), View.TranslatedWorldToClip);
-	float2 ScreenPos = ClipPos.xy / ClipPos.w;
-	float2 DesiredPixelPos = ApplyScreenTransform(ScreenPos, ScreenPosToOutputPixelPos);
+	// Reproject static depth from previous frame to current frame.
+	float2 ScreenPos;
+	float SceneDepth;
+	ForwardReprojectStaticDepth(PrevScreenPosition, PrevScatteredSubpixelDepth.DeviceZ, /* out */ ScreenPos, /* out */ SceneDepth);
 
+	float2 DesiredPixelPos = ApplyScreenTransform(ScreenPos, ScreenPosToOutputPixelPos);
 	float2 ActualPixelPos = floor(DesiredPixelPos);
 	float2 NewOffset = DesiredPixelPos - (ActualPixelPos + 0.5);
 
 	int2 OutputPixelPos = int2(ActualPixelPos);
-	bool bIsValidOutputPixelPos = all(and(OutputPixelPos >= InputInfo_ViewportMin, OutputPixelPos < InputInfo_ViewportMax)) && ClipPos.w > 0.0;
+	bool bIsValidOutputPixelPos = all(and(OutputPixelPos >= InputInfo_ViewportMin, OutputPixelPos < InputInfo_ViewportMax)) && SceneDepth > 0.0;
 
 #if !CONFIG_EARLY_RETURN
 	const bool bScatter = !bEarlyReturn && bIsValidOutputPixelPos;
@@ -82,9 +77,9 @@ void MainCS(
 #endif
 	{
 		FTSRSubpixelDepth FinalSubpixelDepth;
-		FinalSubpixelDepth.DeviceZ = ConvertToDeviceZ(ClipPos.w);
+		FinalSubpixelDepth.DeviceZ = ConvertToDeviceZ(SceneDepth);
 		FinalSubpixelDepth.Offset = NewOffset;
-		FinalSubpixelDepth.Age = PrevScatteredSubpixelDepth.Age + 1;
+		FinalSubpixelDepth.RemainingLifetime = PrevScatteredSubpixelDepth.RemainingLifetime - 1;
 
 		uint CompressedSubpixelDepth = CompressSubpixelDepth(FinalSubpixelDepth);
 	

@@ -1214,8 +1214,8 @@ struct FTSRSubpixelDepth
 	/** Offset of the depth from the center of pixel. */
 	float2 Offset;
 	
-	/** Depth of the pixel in number of frames. */
-	uint Age;
+	/** Number of reprojected frame remaining before this depth is to be discarded. */
+	uint RemainingLifetime;
 };
 
 uint CompressSubpixelDepth(FTSRSubpixelDepth SubpixelDepth)
@@ -1224,7 +1224,7 @@ uint CompressSubpixelDepth(FTSRSubpixelDepth SubpixelDepth)
 	CompressedSubpixelDepth |= f32tof16(SubpixelDepth.DeviceZ) << 17u;
 	CompressedSubpixelDepth |= uint(fastClamp(int(round(SubpixelDepth.Offset.x * 16.00 + 16.0)), 0, 31)) << 12u;
 	CompressedSubpixelDepth |= uint(fastClamp(int(round(SubpixelDepth.Offset.y * 16.00 + 16.0)), 0, 31)) <<  7u;
-	CompressedSubpixelDepth |= (SubpixelDepth.Age) << 0u;
+	CompressedSubpixelDepth |= (SubpixelDepth.RemainingLifetime) << 0u;
 	return CompressedSubpixelDepth;
 }
 
@@ -1234,6 +1234,21 @@ FTSRSubpixelDepth UncompressSubpixelDepth(uint CompressedSubpixelDepth)
 	SubpixelDepth.DeviceZ  = f16tof32(CompressedSubpixelDepth >> 17u);
 	SubpixelDepth.Offset.x = float((CompressedSubpixelDepth >> 12u) & 0x1Fu) * rcp(16.0) - 1.0;
 	SubpixelDepth.Offset.y = float((CompressedSubpixelDepth >>  7u) & 0x1Fu) * rcp(16.0) - 1.0;
-	SubpixelDepth.Age      = CompressedSubpixelDepth & 0x7Fu;
+	SubpixelDepth.RemainingLifetime = CompressedSubpixelDepth & 0x7Fu;
 	return SubpixelDepth;
+}
+
+void ForwardReprojectStaticDepth(float2 PrevScreenPosition, float PrevDeviceZ, out float2 ScreenPos, out float SceneDepth)
+{
+	float3 PreViewTranslationOffset = LWCToFloat(LWCSubtract(PrimaryView.PreViewTranslation, PrimaryView.PrevPreViewTranslation));
+ 
+	// Compute position of the history in world space.
+	float PrevSceneDepth = ConvertFromDeviceZ(PrevDeviceZ);
+	float3 TranslatedWorldPosition = mul(float4(PrevScreenPosition * PrevSceneDepth, PrevSceneDepth, 1), View.PrevScreenToTranslatedWorld).xyz + PreViewTranslationOffset;
+	
+	// Reproject the world position into new viewport.
+	float4 ClipPos = mul(float4(TranslatedWorldPosition, 1.0), View.TranslatedWorldToClip);
+	
+	ScreenPos = ClipPos.xy / ClipPos.w;
+	SceneDepth = ClipPos.w;
 }

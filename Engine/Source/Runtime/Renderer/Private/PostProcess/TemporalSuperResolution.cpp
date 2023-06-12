@@ -555,7 +555,6 @@ class FTSRForwardScatterDepthCS : public FTSRShader
 		SHADER_PARAMETER(FIntPoint, PrevSubpixelDepthViewportMax)
 		SHADER_PARAMETER(FScreenTransform, InputPixelPosToPrevScreenPosition)
 		SHADER_PARAMETER(FScreenTransform, ScreenPosToOutputPixelPos)
-		SHADER_PARAMETER(int32, MaxDepthAge)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PrevSubpixelDepthTexture)
 
@@ -585,6 +584,7 @@ class FTSRDilateVelocityCS : public FTSRShader
 		SHADER_PARAMETER(float, InvFlickeringMaxParralaxVelocity)
 		SHADER_PARAMETER(int32, bOutputIsMovingTexture)
 		SHADER_PARAMETER(int32, bIncludeDynamicDepthInSubpixelDetails)
+		SHADER_PARAMETER(int32, SubpixelDepthLifetime)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneDepthTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneVelocityTexture)
@@ -1099,6 +1099,9 @@ FDefaultTemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 {
 	const FTSRHistory& InputHistory = View.PrevViewInfo.TSRHistory;
 
+	// Maximum depth lifetime encodable in FTSRSubpixelDepth::RemainingLifetime
+	const int32 kMaxDepthLifetime = (1 << 7) - 1;
+
 #if COMPILE_TSR_DEBUG_PASSES
 	const bool bSetupDebugPasses = CVarTSRSetupDebugPasses.GetValueOnRenderThread() != 0;
 #endif
@@ -1562,7 +1565,6 @@ FDefaultTemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		PassParameters->ScreenPosToOutputPixelPos = FScreenTransform::ChangeTextureBasisFromTo(
 			InputExtent, InputRect,
 			FScreenTransform::ETextureBasis::ScreenPosition, FScreenTransform::ETextureBasis::TexelPosition);
-		PassParameters->MaxDepthAge = FMath::Clamp(CVarTSRSubpixelDepthMaxAge.GetValueOnRenderThread(), 1, (1 << 7) - 1);
 
 		PassParameters->PrevSubpixelDepthTexture = PrevHistory.SubpixelDepth;
 		PassParameters->SubpixelDepthOutput = GraphBuilder.CreateUAV(PrevScatteredSubpixelDepthTexture);
@@ -1641,6 +1643,7 @@ FDefaultTemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		}
 		PassParameters->bOutputIsMovingTexture = bOutputIsMovingTexture;
 		PassParameters->bIncludeDynamicDepthInSubpixelDetails = SubpixelMethod == ETSRSubpixelMethod::ClosestDepth && CVarTSRSubpixelIncludeMovingDepth.GetValueOnRenderThread();
+		PassParameters->SubpixelDepthLifetime = FMath::Clamp(CVarTSRSubpixelDepthMaxAge.GetValueOnRenderThread(), 1, kMaxDepthLifetime);
 
 		PassParameters->SceneDepthTexture = PassInputs.SceneDepth.Texture;
 		PassParameters->SceneVelocityTexture = PassInputs.SceneVelocity.Texture;

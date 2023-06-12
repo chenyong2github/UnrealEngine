@@ -49,6 +49,7 @@ float VelocityExtrapolationMultiplier;
 float InvFlickeringMaxParralaxVelocity;
 uint bOutputIsMovingTexture;
 uint bIncludeDynamicDepthInSubpixelDetails;
+uint SubpixelDepthLifetime;
 
 Texture2D<float> SceneDepthTexture;
 Texture2D SceneVelocityTexture;
@@ -376,7 +377,7 @@ void MainCS(
 			FTSRSubpixelDepth FinalSubpixelDepth;
 			FinalSubpixelDepth.DeviceZ = DeviceZ;
 			FinalSubpixelDepth.Offset = 0.0;
-			FinalSubpixelDepth.Age = 0;
+			FinalSubpixelDepth.RemainingLifetime = SubpixelDepthLifetime;
 
 			CompressedSubpixelDepth = CompressSubpixelDepth(FinalSubpixelDepth);
 
@@ -391,8 +392,6 @@ void MainCS(
 		float2 VelocityPolar;
 		ReduceVelocityFlattenTile(GroupThreadIndex, FinalScreenVelocity.xy, /* out */ VelocityPolarRange, /* out */ VelocityPolar);
 	#endif
-
-	Debug.rg = VelocityPixelOffset * 0.5 + 0.5;
 
 	{
 		bool bValidOutputPixel = all(InputPixelPos < InputInfo_ViewportMax);
