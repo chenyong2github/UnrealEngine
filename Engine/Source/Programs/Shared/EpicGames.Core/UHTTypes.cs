@@ -42,8 +42,7 @@ namespace EpicGames.Core
 	};
 
 	/// <summary>
-	/// This MUST be kept in sync with EPackageOverrideType defined in 
-	/// Engine\Source\Programs\UnrealHeaderTool\Public\IScriptGeneratorPluginInterface.h
+	/// Build module override type to add additional PKG flags if necessary, mirrored in ModuleRules.cs, enum PackageOverrideType
 	/// </summary>
 	public enum EPackageOverrideType
 	{
@@ -57,9 +56,6 @@ namespace EpicGames.Core
 
 	/// <summary>
 	/// Type of module. This should be sorted by the order in which we expect modules to be built.
-	/// 
-	/// This MUST be kept in sync with EBuildModuleType defined in 
-	/// Engine\Source\Programs\UnrealHeaderTool\Public\IScriptGeneratorPluginInterface.h
 	/// </summary>
 	public enum UHTModuleType
 	{
