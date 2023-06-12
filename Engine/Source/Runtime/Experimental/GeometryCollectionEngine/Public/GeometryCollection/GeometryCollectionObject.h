@@ -590,6 +590,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter=SetEnableNanite, Category = "Nanite")
 	bool EnableNanite;
 
+	UFUNCTION(BlueprintCallable, Category = "Rendering")
+	void SetConvertVertexColorsToSRGB(bool bValue);
+
+	/**
+	 * Convert vertex colors to sRGB for rendering. Exposed to avoid changing vertex color rendering for legacy assets; should typically be true for new geometry collections.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter=SetConvertVertexColorsToSRGB, Category = "Rendering")
+	bool bConvertVertexColorsToSRGB = true;
+
 #if WITH_EDITORONLY_DATA
 	/*
 	*  CollisionType defines how to initialize the rigid collision structures.

@@ -116,7 +116,7 @@ public:
 	~FGeometryCollectionRenderData();
 
 #if WITH_EDITOR
-	static TUniquePtr<FGeometryCollectionRenderData> Create(FGeometryCollection& InCollection, bool bInEnableNanite, bool bInUseFullPrecisionUVs);
+	static TUniquePtr<FGeometryCollectionRenderData> Create(FGeometryCollection& InCollection, bool bInEnableNanite, bool bInUseFullPrecisionUVs, bool bConvertVertexColorsToSRGB);
 #endif
 
 	bool IsInitialized()

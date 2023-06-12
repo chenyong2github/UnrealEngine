@@ -10,6 +10,7 @@
 #include "Materials/Material.h"
 #include "UObject/DestructionObjectVersion.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
 #include "Serialization/ArchiveCountMem.h"
 #include "HAL/IConsoleManager.h"
 #include "Interfaces/ITargetPlatform.h"
@@ -774,6 +775,7 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
 	Ar.UsingCustomVersion(FPhysicsObjectVersion::GUID);
+	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 	
 	Chaos::FChaosArchive ChaosAr(Ar);
 
@@ -1034,6 +1036,13 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 		EnsureDataIsCooked(true /*bInitResources*/, Ar.IsTransacting(), Ar.IsPersistent(), false /*bAllowCopyFromDDC*/);
 	}
 #endif
+
+	if (Ar.IsLoading() && Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::GeometryCollectionConvertVertexColorToSRGB)
+	{
+		// disable sRGB conversion for old assets to keep the default behavior from before this setting existed
+		// (new assets will default-enable the conversion, because that matches static meshes and is the more-expected behavior)
+		bConvertVertexColorsToSRGB = false;
+	}
 }
 
 const TCHAR* UGeometryCollection::GetSelectedMaterialPath()
@@ -1046,6 +1055,18 @@ void UGeometryCollection::SetEnableNanite(bool bValue)
 	if (EnableNanite != bValue)
 	{
 		EnableNanite = bValue;
+
+#if WITH_EDITOR
+		RebuildRenderData();
+#endif
+	}
+}
+
+void UGeometryCollection::SetConvertVertexColorsToSRGB(bool bValue)
+{
+	if (bConvertVertexColorsToSRGB != bValue)
+	{
+		bConvertVertexColorsToSRGB = bValue;
 
 #if WITH_EDITOR
 		RebuildRenderData();
@@ -1174,7 +1195,7 @@ void UGeometryCollection::RebuildRenderData()
 	if (RenderDataGuid != StateGuid)
 	{
 		ReleaseResources();
-		RenderData = FGeometryCollectionRenderData::Create(*GetGeometryCollection(), EnableNanite, bUseFullPrecisionUVs);
+		RenderData = FGeometryCollectionRenderData::Create(*GetGeometryCollection(), EnableNanite, bUseFullPrecisionUVs, bConvertVertexColorsToSRGB);
 		InitResources();
 		PropagateMarkDirtyToComponents();
 		RenderDataGuid = StateGuid;
@@ -1465,6 +1486,10 @@ void UGeometryCollection::PostEditChangeProperty(struct FPropertyChangedEvent& P
 		else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UGeometryCollection, bUseFullPrecisionUVs))
 		{
 			bDoInvalidateCollection = true;
+			bRebuildRenderData = true;
+		}
+		else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UGeometryCollection, bConvertVertexColorsToSRGB))
+		{
 			bRebuildRenderData = true;
 		}
 		else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UGeometryCollection, SizeSpecificData))

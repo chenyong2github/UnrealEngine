@@ -333,6 +333,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 
 		WaterBodyStaticMeshRename,
 
+		// Geometry Collection now by-default converts vertex colors to sRGB when creating render data
+		GeometryCollectionConvertVertexColorToSRGB,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

@@ -156,7 +156,7 @@ struct FGeometryCollectionBuiltMeshData
 };
 
 /** Get the data needed to build render data from a Geometry Collection. */
-bool BuildMeshDataFromGeometryCollection(FGeometryCollection& InCollection, FGeometryCollectionBuiltMeshData& OutMeshData)
+bool BuildMeshDataFromGeometryCollection(FGeometryCollection& InCollection, FGeometryCollectionBuiltMeshData& OutMeshData, bool bConvertVertexColorsToSRGB)
 {
 	// Vertices Group
 	const TManagedArray<FVector3f>& VertexArray = InCollection.Vertex;
@@ -240,7 +240,7 @@ bool BuildMeshDataFromGeometryCollection(FGeometryCollection& InCollection, FGeo
 
 				if (bHasColors)
 				{
-					BuildVertexData.Color[DestVertexStart + VertexIndex] = ColorArray[VertexStart + VertexIndex].ToFColor(false /* sRGB */);
+					BuildVertexData.Color[DestVertexStart + VertexIndex] = ColorArray[VertexStart + VertexIndex].ToFColor(bConvertVertexColorsToSRGB /* sRGB */);
 				}
 
 				for (int32 TexCoord = 0; TexCoord < NumTexCoords; ++TexCoord)
@@ -685,14 +685,14 @@ void CreateNaniteData(FGeometryCollectionBuiltMeshData&& InMeshData, FGeometryCo
 	}
 }
 
-TUniquePtr<FGeometryCollectionRenderData> FGeometryCollectionRenderData::Create(FGeometryCollection& InCollection, bool bInEnableNanite, bool bInUseFullPrecisionUVs)
+TUniquePtr<FGeometryCollectionRenderData> FGeometryCollectionRenderData::Create(FGeometryCollection& InCollection, bool bInEnableNanite, bool bInUseFullPrecisionUVs, bool bConvertVertexColorsToSRGB)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FGeometryCollectionRenderData::Create);
 
 	TUniquePtr<FGeometryCollectionRenderData> RenderData = MakeUnique<FGeometryCollectionRenderData>();
 
 	FGeometryCollectionBuiltMeshData MeshBuildData;
-	if (BuildMeshDataFromGeometryCollection(InCollection, MeshBuildData))
+	if (BuildMeshDataFromGeometryCollection(InCollection, MeshBuildData, bConvertVertexColorsToSRGB))
 	{
 	{
 		if (bInEnableNanite)
