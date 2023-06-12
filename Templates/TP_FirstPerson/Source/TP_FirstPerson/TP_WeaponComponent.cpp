@@ -66,7 +66,9 @@ void UTP_WeaponComponent::Fire()
 void UTP_WeaponComponent::AttachWeapon(ATP_FirstPersonCharacter* TargetCharacter)
 {
 	Character = TargetCharacter;
-	if (Character == nullptr)
+
+	// Check that the character is valid, and has no rifle yet
+	if (Character == nullptr || Character->GetHasRifle())
 	{
 		return;
 	}
