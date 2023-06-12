@@ -1,22 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Modules/ModuleManager.h"
+#include "Online/OnlineServicesEOSModule.h"
 
+#include "Modules/ModuleManager.h"
 #include "Online/OnlineExecHandler.h"
-#include "Online/OnlineServicesRegistry.h"
-#include "Online/OnlineServicesEOS.h"
 #include "Online/OnlineIdEOS.h"
+#include "Online/OnlineServicesEOS.h"
+#include "Online/OnlineServicesEOSGSModule.h"
+#include "Online/OnlineServicesRegistry.h"
 
 namespace UE::Online
 {
-
-class FOnlineServicesEOSModule : public IModuleInterface
-{
-public:
-	virtual void StartupModule() override;
-	virtual void ShutdownModule() override;
-protected:
-};
 
 class FOnlineServicesFactoryEOS : public IOnlineServicesFactory
 {
@@ -26,8 +20,12 @@ public:
 	{
 		return MakeShared<FOnlineServicesEOS>(InInstanceName);
 	}
-protected:
 };
+
+int FOnlineServicesEOSModule::GetRegistryPriority()
+{
+	return FOnlineServicesEOSGSModule::GetRegistryPriority() + 1;
+}
 
 void FOnlineServicesEOSModule::StartupModule()
 {
@@ -44,18 +42,14 @@ void FOnlineServicesEOSModule::StartupModule()
 		FModuleManager::Get().LoadModuleChecked(OnlineServicesInterfaceModuleName);
 	}
 
-	// Make this higher priority that EOSGS
-	const int Priority = 1;
-	FOnlineServicesRegistry::Get().RegisterServicesFactory(EOnlineServices::Epic, MakeUnique<FOnlineServicesFactoryEOS>(), Priority);
-	FOnlineIdRegistryRegistry::Get().RegisterAccountIdRegistry(EOnlineServices::Epic, &FOnlineAccountIdRegistryEOS::Get(), Priority);
+	FOnlineServicesRegistry::Get().RegisterServicesFactory(EOnlineServices::Epic, MakeUnique<FOnlineServicesFactoryEOS>(), GetRegistryPriority());
+	FOnlineIdRegistryRegistry::Get().RegisterAccountIdRegistry(EOnlineServices::Epic, &FOnlineAccountIdRegistryEOS::Get(), GetRegistryPriority());
 }
 
 void FOnlineServicesEOSModule::ShutdownModule()
 {
-	// Make this higher priority that EOSGS
-	const int Priority = 1;
-	FOnlineServicesRegistry::Get().UnregisterServicesFactory(EOnlineServices::Epic, Priority);
-	FOnlineIdRegistryRegistry::Get().UnregisterAccountIdRegistry(EOnlineServices::Epic, Priority);
+	FOnlineServicesRegistry::Get().UnregisterServicesFactory(EOnlineServices::Epic, GetRegistryPriority());
+	FOnlineIdRegistryRegistry::Get().UnregisterAccountIdRegistry(EOnlineServices::Epic, GetRegistryPriority());
 }
 
 /* UE::Online */ }

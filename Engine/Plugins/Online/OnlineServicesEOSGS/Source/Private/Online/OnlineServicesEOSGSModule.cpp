@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "Online/OnlineServicesEOSGSModule.h"
+
 #include "Modules/ModuleManager.h"
 #include "Online/OnlineIdEOSGS.h"
 #include "Online/OnlineServicesEOSGS.h"
@@ -7,17 +9,8 @@
 #include "Online/OnlineServicesEOSGSPlatformFactory.h"
 #include "Online/SessionsEOSGS.h"
 
-
 namespace UE::Online
 {
-
-class FOnlineServicesEOSGSModule : public IModuleInterface
-{
-public:
-	virtual void StartupModule() override;
-	virtual void ShutdownModule() override;
-protected:
-};
 
 class FOnlineServicesFactoryEOSGS : public IOnlineServicesFactory
 {
@@ -27,8 +20,12 @@ public:
 	{
 		return MakeShared<FOnlineServicesEOSGS>(InInstanceName);
 	}
-protected:
 };
+
+int FOnlineServicesEOSGSModule::GetRegistryPriority()
+{
+	return 0;
+}
 
 void FOnlineServicesEOSGSModule::StartupModule()
 {
@@ -39,10 +36,10 @@ void FOnlineServicesEOSGSModule::StartupModule()
 		FModuleManager::Get().LoadModuleChecked(OnlineServicesInterfaceModuleName);
 	}
 
-	FOnlineServicesRegistry::Get().RegisterServicesFactory(EOnlineServices::Epic, MakeUnique<FOnlineServicesFactoryEOSGS>());
-	FOnlineIdRegistryRegistry::Get().RegisterAccountIdRegistry(EOnlineServices::Epic, &FOnlineAccountIdRegistryEOSGS::Get());
-	FOnlineIdRegistryRegistry::Get().RegisterSessionIdRegistry(EOnlineServices::Epic, &FOnlineSessionIdRegistryEOSGS::Get());
-	FOnlineIdRegistryRegistry::Get().RegisterSessionInviteIdRegistry(EOnlineServices::Epic, &FOnlineSessionInviteIdRegistryEOSGS::Get());
+	FOnlineServicesRegistry::Get().RegisterServicesFactory(EOnlineServices::Epic, MakeUnique<FOnlineServicesFactoryEOSGS>(), GetRegistryPriority());
+	FOnlineIdRegistryRegistry::Get().RegisterAccountIdRegistry(EOnlineServices::Epic, &FOnlineAccountIdRegistryEOSGS::Get(), GetRegistryPriority());
+	FOnlineIdRegistryRegistry::Get().RegisterSessionIdRegistry(EOnlineServices::Epic, &FOnlineSessionIdRegistryEOSGS::Get(), GetRegistryPriority());
+	FOnlineIdRegistryRegistry::Get().RegisterSessionInviteIdRegistry(EOnlineServices::Epic, &FOnlineSessionInviteIdRegistryEOSGS::Get(), GetRegistryPriority());
 
 	// Initialize the platform factory on startup.  This is necessary for the SDK to bind to rendering and input very early.
 	FOnlineServicesEOSGSPlatformFactory::Get();
@@ -50,10 +47,10 @@ void FOnlineServicesEOSGSModule::StartupModule()
 
 void FOnlineServicesEOSGSModule::ShutdownModule()
 {
-	FOnlineServicesRegistry::Get().UnregisterServicesFactory(EOnlineServices::Epic);
-	FOnlineIdRegistryRegistry::Get().UnregisterAccountIdRegistry(EOnlineServices::Epic);
-	FOnlineIdRegistryRegistry::Get().UnregisterSessionIdRegistry(EOnlineServices::Epic);
-	FOnlineIdRegistryRegistry::Get().UnregisterSessionInviteIdRegistry(EOnlineServices::Epic);
+	FOnlineServicesRegistry::Get().UnregisterServicesFactory(EOnlineServices::Epic, GetRegistryPriority());
+	FOnlineIdRegistryRegistry::Get().UnregisterAccountIdRegistry(EOnlineServices::Epic, GetRegistryPriority());
+	FOnlineIdRegistryRegistry::Get().UnregisterSessionIdRegistry(EOnlineServices::Epic, GetRegistryPriority());
+	FOnlineIdRegistryRegistry::Get().UnregisterSessionInviteIdRegistry(EOnlineServices::Epic, GetRegistryPriority());
 
 	UE::Online::FOnlineServicesEOSGSPlatformFactory::TearDown();
 }
