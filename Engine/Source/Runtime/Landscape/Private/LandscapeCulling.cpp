@@ -508,12 +508,13 @@ void SetupMeshBatch(const FLandscapeSharedBuffers& SharedBuffers, FMeshBatch& Me
 	{
 		return;
 	}
-		
-	if (MeshBatch.LODIndex == 0)
+
+	// TileVertexFactory can be temporarily null when we switch conditions on landscape culling. In this
+	// case, we just fallback to the non landscape culling path.
+	if (MeshBatch.LODIndex == 0 && SharedBuffers.TileVertexFactory != nullptr)
 	{
 		uint32 SubsectionSizeQuads = (SharedBuffers.SubsectionSizeVerts - 1);
 
-		check(SharedBuffers.TileVertexFactory);
 
 		MeshBatch.bViewDependentArguments = true;
 		MeshBatch.VertexFactory = SharedBuffers.TileVertexFactory;
