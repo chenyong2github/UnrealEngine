@@ -102,6 +102,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Sharing")
 	void SetUniqueName(const FString& NewUniqueName);
 
+protected:
+
+#if WITH_EDITOR // Bulk wrap with WITH_EDITOR until preview is supported in other modes.
+
+	//~ UActorComponent interface begin
+	virtual void OnRegister() override;
+	//~ UActorComponent interface end
+
+#endif // WITH_EDITOR
+
 public:
 
 #if WITH_EDITORONLY_DATA
