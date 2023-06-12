@@ -7,8 +7,6 @@ This is a collection of tests for web features like http, websocket, ssl etc.
 
 ## Run the WebServer(NOTE: This WebServer is created for TEST PURPOSE ONLY, it's not production ready!!!):
 	In ./WebServer folder:
-		install python3.x
-		> pip install -r requirements.txt
 		> runserver.bat
 	Or if you use docker:
 		> dockerbuildandrun.bat
