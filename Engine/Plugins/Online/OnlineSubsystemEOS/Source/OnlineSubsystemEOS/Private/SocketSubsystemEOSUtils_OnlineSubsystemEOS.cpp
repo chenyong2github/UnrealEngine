@@ -19,7 +19,7 @@ EOS_ProductUserId FSocketSubsystemEOSUtils_OnlineSubsystemEOS::GetLocalUserId()
 {
 	EOS_ProductUserId Result = nullptr;
 
-	Result = SubsystemEOS.UserManager->GetLocalProductUserId();
+	Result = SubsystemEOS.UserManager->GetLocalProductUserId(SubsystemEOS.UserManager->GetDefaultLocalUser());
 
 	return Result;
 }

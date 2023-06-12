@@ -393,7 +393,7 @@ bool FOnlineStoreEOS::HandleEcomExec(UWorld* InWorld, const TCHAR* Cmd, FOutputD
 {
 	if (FParse::Command(&Cmd, TEXT("OFFERS")))
 	{
-		QueryOffers(*EOSSubsystem->UserManager->GetLocalUniqueNetIdEOS(),
+		QueryOffers(*EOSSubsystem->UserManager->GetLocalUniqueNetIdEOS(EOSSubsystem->UserManager->GetDefaultLocalUser()),
 			FOnQueryOnlineStoreOffersComplete::CreateLambda([this](bool bWasSuccessful, const TArray<FUniqueOfferId>& OfferIds, const FString& ErrorStr)
 		{
 			UE_LOG_ONLINE(Error, TEXT("QueryOffers: %s with error (%s)"), bWasSuccessful ? TEXT("succeeded") : TEXT("failed"), *ErrorStr);
@@ -407,7 +407,7 @@ bool FOnlineStoreEOS::HandleEcomExec(UWorld* InWorld, const TCHAR* Cmd, FOutputD
 	}
 	else if (FParse::Command(&Cmd, TEXT("RECEIPTS")))
 	{
-		QueryReceipts(*EOSSubsystem->UserManager->GetLocalUniqueNetIdEOS(), false,
+		QueryReceipts(*EOSSubsystem->UserManager->GetLocalUniqueNetIdEOS(EOSSubsystem->UserManager->GetDefaultLocalUser()), false,
 			FOnQueryReceiptsComplete::CreateLambda([this](const FOnlineError& Result)
 		{
 			UE_LOG_ONLINE(Log, TEXT("QueryReceipts: %s with error (%s)"), Result.WasSuccessful() ? TEXT("succeeded") : TEXT("failed"), *Result.GetErrorRaw());

@@ -97,7 +97,7 @@ void FOnlineTitleFileEOS::DeleteCachedFiles(bool bSkipEnumerated)
 	EOS_TitleStorage_DeleteCacheOptions DeleteCacheOptions = { };
 	DeleteCacheOptions.ApiVersion = 1;
 	UE_EOS_CHECK_API_MISMATCH(EOS_TITLESTORAGE_DELETECACHEOPTIONS_API_LATEST, 1);
-	DeleteCacheOptions.LocalUserId = EOSSubsystem->UserManager->GetLocalProductUserId();	// Get a local user if one is available, but this is not required
+	DeleteCacheOptions.LocalUserId = EOSSubsystem->UserManager->GetLocalProductUserId(EOSSubsystem->UserManager->GetDefaultLocalUser());	// Get a local user if one is available, but this is not required
 
 	FDeleteCacheCompleteCallback* CallbackObj = new FDeleteCacheCompleteCallback(FOnlineTitleFileEOSWeakPtr(AsShared()));
 	CallbackObj->CallbackLambda = [this](const EOS_TitleStorage_DeleteCacheCallbackInfo* Data)
@@ -167,7 +167,7 @@ bool FOnlineTitleFileEOS::EnumerateFiles(const FPagedQuery& Page)
 	EOS_TitleStorage_QueryFileListOptions QueryFileListOptions = { };
 	QueryFileListOptions.ApiVersion = 1;
 	UE_EOS_CHECK_API_MISMATCH(EOS_TITLESTORAGE_QUERYFILELISTOPTIONS_API_LATEST, 1);
-	QueryFileListOptions.LocalUserId = EOSSubsystem->UserManager->GetLocalProductUserId();	// Get a local user if one is available, but this is not required
+	QueryFileListOptions.LocalUserId = EOSSubsystem->UserManager->GetLocalProductUserId(EOSSubsystem->UserManager->GetDefaultLocalUser());	// Get a local user if one is available, but this is not required
 	QueryFileListOptions.ListOfTags = const_cast<const char**>(AnsiTags.GetData());
 	QueryFileListOptions.ListOfTagsCount = AnsiTags.Num();
 
@@ -344,7 +344,7 @@ bool FOnlineTitleFileEOS::ReadFile(const FString& FileName)
 	EOS_TitleStorage_ReadFileOptions ReadFileOptions = { };
 	ReadFileOptions.ApiVersion = 1;
 	UE_EOS_CHECK_API_MISMATCH(EOS_TITLESTORAGE_READFILEOPTIONS_API_LATEST, 1);
-	ReadFileOptions.LocalUserId = EOSSubsystem->UserManager->GetLocalProductUserId();	// Get a local user if one is available, but this is not required
+	ReadFileOptions.LocalUserId = EOSSubsystem->UserManager->GetLocalProductUserId(EOSSubsystem->UserManager->GetDefaultLocalUser());	// Get a local user if one is available, but this is not required
 	ReadFileOptions.Filename = AnsiFileName;
 	ReadFileOptions.ReadChunkLengthBytes = (uint32)ReadChunkSize;
 	ReadFileOptions.ReadFileDataCallback = CallbackObj->GetNested1CallbackPtr();

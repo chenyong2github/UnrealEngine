@@ -920,7 +920,7 @@ void FUserManagerEOS::FullLoginCallback(int32 LocalUserNum, EOS_EpicAccountId Ac
 			if (EpicAccountIdToOnlineUserMap.Contains(Data->PresenceUserId))
 			{
 				// Update the presence data to the most recent
-				UpdatePresence(Data->PresenceUserId);
+				UpdatePresence(LocalUserNum, Data->PresenceUserId);
 				return;
 			}
 		};
@@ -1154,11 +1154,6 @@ const FUniqueNetIdEOSPtr FUserManagerEOS::GetLocalUniqueNetIdEOS(int32 LocalUser
 	return nullptr;
 }
 
-const FUniqueNetIdEOSPtr FUserManagerEOS::GetLocalUniqueNetIdEOS() const
-{
-	return GetLocalUniqueNetIdEOS(DefaultLocalUser);
-}
-
 EOS_EpicAccountId FUserManagerEOS::GetLocalEpicAccountId(int32 LocalUserNum) const
 {
 	if (FUniqueNetIdEOSPtr UniqueNetId = GetLocalUniqueNetIdEOS(LocalUserNum))
@@ -1169,11 +1164,6 @@ EOS_EpicAccountId FUserManagerEOS::GetLocalEpicAccountId(int32 LocalUserNum) con
 	return nullptr;
 }
 
-EOS_EpicAccountId FUserManagerEOS::GetLocalEpicAccountId() const
-{
-	return GetLocalEpicAccountId(DefaultLocalUser);
-}
-
 EOS_ProductUserId FUserManagerEOS::GetLocalProductUserId(int32 LocalUserNum) const
 {
 	if (FUniqueNetIdEOSPtr UniqueNetId = GetLocalUniqueNetIdEOS(LocalUserNum))
@@ -1182,11 +1172,6 @@ EOS_ProductUserId FUserManagerEOS::GetLocalProductUserId(int32 LocalUserNum) con
 	}
 
 	return nullptr;
-}
-
-EOS_ProductUserId FUserManagerEOS::GetLocalProductUserId() const
-{
-	return GetLocalProductUserId(DefaultLocalUser);
 }
 
 int32 FUserManagerEOS::GetLocalUserNumFromUniqueNetId(const FUniqueNetId& NetId) const
@@ -1296,7 +1281,7 @@ typedef TEOSCallback<EOS_Connect_OnQueryProductUserIdMappingsCallback, EOS_Conne
  *
  * @return true if the operation was successful, false otherwise
  */
-bool FUserManagerEOS::GetEpicAccountIdFromProductUserId(const EOS_ProductUserId& ProductUserId, EOS_EpicAccountId& OutEpicAccountId) const
+bool FUserManagerEOS::GetEpicAccountIdFromProductUserId(int32 LocalUserNum, const EOS_ProductUserId& ProductUserId, EOS_EpicAccountId& OutEpicAccountId) const
 {
 	bool bResult = false;
 
@@ -1307,7 +1292,7 @@ bool FUserManagerEOS::GetEpicAccountIdFromProductUserId(const EOS_ProductUserId&
 	Options.ApiVersion = 1;
 	UE_EOS_CHECK_API_MISMATCH(EOS_CONNECT_GETPRODUCTUSERIDMAPPING_API_LATEST, 1);
 	Options.AccountIdType = EOS_EExternalAccountType::EOS_EAT_EPIC;
-	Options.LocalUserId = GetLocalProductUserId();
+	Options.LocalUserId = GetLocalProductUserId(LocalUserNum);
 	Options.TargetProductUserId = ProductUserId;
 
 	EOS_EResult Result = EOS_Connect_GetProductUserIdMapping(EOSSubsystem->ConnectHandle, &Options, EpicIdStr, &EpicIdStrSize);
@@ -1324,7 +1309,7 @@ bool FUserManagerEOS::GetEpicAccountIdFromProductUserId(const EOS_ProductUserId&
 	return bResult;
 }
 
-void FUserManagerEOS::ResolveUniqueNetId(const EOS_ProductUserId& ProductUserId, const FResolveUniqueNetIdCallback& Callback) const
+void FUserManagerEOS::ResolveUniqueNetId(int32 LocalUserNum, const EOS_ProductUserId& ProductUserId, const FResolveUniqueNetIdCallback& Callback) const
 {
 	TArray<EOS_ProductUserId> ProductUserIds = { const_cast<EOS_ProductUserId>(ProductUserId) };
 
@@ -1332,10 +1317,10 @@ void FUserManagerEOS::ResolveUniqueNetId(const EOS_ProductUserId& ProductUserId,
 		OriginalCallback(ResolvedUniqueNetIds[ProductUserId]);
 	};
 
-	ResolveUniqueNetIds(ProductUserIds, GroupCallback);
+	ResolveUniqueNetIds(LocalUserNum, ProductUserIds, GroupCallback);
 }
 
-void FUserManagerEOS::ResolveUniqueNetIds(const TArray<EOS_ProductUserId>& ProductUserIds, const FResolveUniqueNetIdsCallback& Callback) const
+void FUserManagerEOS::ResolveUniqueNetIds(int32 LocalUserNum, const TArray<EOS_ProductUserId>& ProductUserIds, const FResolveUniqueNetIdsCallback& Callback) const
 {
 	TMap<EOS_ProductUserId, FUniqueNetIdEOSRef> ResolvedUniqueNetIds;
 	TArray<EOS_ProductUserId> ProductUserIdsToResolve;
@@ -1345,7 +1330,7 @@ void FUserManagerEOS::ResolveUniqueNetIds(const TArray<EOS_ProductUserId>& Produ
 		EOS_EpicAccountId EpicAccountId;
 
 		// We check first if the Product User Id has already been queried, which would allow us to retrieve its Epic Account Id directly
-		if (GetEpicAccountIdFromProductUserId(ProductUserId, EpicAccountId))
+		if (GetEpicAccountIdFromProductUserId(LocalUserNum, ProductUserId, EpicAccountId))
 		{
 			const FUniqueNetIdEOSRef UniqueNetId = FUniqueNetIdEOSRegistry::FindOrAdd(EpicAccountId, ProductUserId).ToSharedRef();
 
@@ -1368,7 +1353,7 @@ void FUserManagerEOS::ResolveUniqueNetIds(const TArray<EOS_ProductUserId>& Produ
 		QueryProductUserIdMappingsOptions.ProductUserIdCount = ProductUserIdsToResolve.Num();
 
 		FConnectQueryProductUserIdMappingsCallback* CallbackObj = new FConnectQueryProductUserIdMappingsCallback(FUserManagerEOSConstWeakPtr(AsShared()));
-		CallbackObj->CallbackLambda = [this, ProductUserIdsToResolve, ResolvedUniqueNetIds = MoveTemp(ResolvedUniqueNetIds), Callback](const EOS_Connect_QueryProductUserIdMappingsCallbackInfo* Data) mutable
+		CallbackObj->CallbackLambda = [this, LocalUserNum, ProductUserIdsToResolve, ResolvedUniqueNetIds = MoveTemp(ResolvedUniqueNetIds), Callback](const EOS_Connect_QueryProductUserIdMappingsCallbackInfo* Data) mutable
 		{
 			if (Data->ResultCode != EOS_EResult::EOS_Success)
 			{
@@ -1379,7 +1364,7 @@ void FUserManagerEOS::ResolveUniqueNetIds(const TArray<EOS_ProductUserId>& Produ
 			{
 				EOS_EpicAccountId EpicAccountId = nullptr;
 
-				GetEpicAccountIdFromProductUserId(ProductUserId, EpicAccountId);
+				GetEpicAccountIdFromProductUserId(LocalUserNum, ProductUserId, EpicAccountId);
 
 				const FUniqueNetIdEOSRef UniqueNetId = FUniqueNetIdEOSRegistry::FindOrAdd(EpicAccountId, ProductUserId).ToSharedRef();
 
@@ -2610,7 +2595,7 @@ void FUserManagerEOS::QueryPresence(const FUniqueNetId& UserId, const FOnPresenc
 	EOS_Presence_HasPresenceOptions HasOptions = { };
 	HasOptions.ApiVersion = 1;
 	UE_EOS_CHECK_API_MISMATCH(EOS_PRESENCE_HASPRESENCE_API_LATEST, 1);
-	HasOptions.LocalUserId = GetLocalEpicAccountId();
+	HasOptions.LocalUserId = GetLocalEpicAccountId(DefaultLocalUser);
 	HasOptions.TargetUserId = AccountId;
 	EOS_Bool bHasPresence = EOS_Presence_HasPresence(EOSSubsystem->PresenceHandle, &HasOptions);
 	if (bHasPresence == EOS_FALSE)
@@ -2621,7 +2606,7 @@ void FUserManagerEOS::QueryPresence(const FUniqueNetId& UserId, const FOnPresenc
 			if (Data->ResultCode == EOS_EResult::EOS_Success && EpicAccountIdToOnlineUserMap.Contains(Data->TargetUserId))
 			{
 				// Update the presence data to the most recent
-				UpdatePresence(Data->TargetUserId);
+				UpdatePresence(DefaultLocalUser, Data->TargetUserId);
 				FOnlineUserPtr OnlineUser = EpicAccountIdToOnlineUserMap[Data->TargetUserId];
 				Delegate.ExecuteIfBound(*OnlineUser->GetUserId(), true);
 				return;
@@ -2642,18 +2627,18 @@ void FUserManagerEOS::QueryPresence(const FUniqueNetId& UserId, const FOnPresenc
 	}
 
 	// Update the presence data to the most recent
-	UpdatePresence(HasOptions.TargetUserId);
+	UpdatePresence(DefaultLocalUser, HasOptions.TargetUserId);
 	// It's already present so trigger that it's done
 	Delegate.ExecuteIfBound(UserId, true);
 }
 
-void FUserManagerEOS::UpdatePresence(EOS_EpicAccountId AccountId)
+void FUserManagerEOS::UpdatePresence(int32 LocalUserNum, EOS_EpicAccountId AccountId)
 {
 	EOS_Presence_Info* PresenceInfo = nullptr;
 	EOS_Presence_CopyPresenceOptions Options = { };
 	Options.ApiVersion = 3;
 	UE_EOS_CHECK_API_MISMATCH(EOS_PRESENCE_COPYPRESENCE_API_LATEST, 3);
-	Options.LocalUserId = GetLocalEpicAccountId();
+	Options.LocalUserId = GetLocalEpicAccountId(LocalUserNum);
 	Options.TargetUserId = AccountId;
 	EOS_EResult CopyResult = EOS_Presence_CopyPresence(EOSSubsystem->PresenceHandle, &Options, &PresenceInfo);
 	if (CopyResult == EOS_EResult::EOS_Success)
