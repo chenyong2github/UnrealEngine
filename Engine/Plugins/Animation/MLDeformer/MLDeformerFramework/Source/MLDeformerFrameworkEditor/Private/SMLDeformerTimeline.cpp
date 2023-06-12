@@ -1346,8 +1346,8 @@ namespace UE::MLDeformer
 		Model = WeakModel;
 		OnReceivedFocus = InArgs._OnReceivedFocus;
 
-		const int32 TickResolutionValue = Model.Pin()->GetTickResolution();
-		const int32 SequenceFrameRate = FMath::RoundToInt(Model.Pin()->GetFrameRate());
+		const int32 TickResolutionValue = Model.IsValid() ? Model.Pin()->GetTickResolution() : 1000 * 30;	// 1000*30 is ticks per frame multiplied by 30 fps.
+		const int32 SequenceFrameRate = FMath::RoundToInt(Model.IsValid() ? Model.Pin()->GetFrameRate() : 30);
 
 		ViewRange = MakeAttributeLambda([this]()
 		{
@@ -1407,7 +1407,12 @@ namespace UE::MLDeformer
 			TimeSliderArgs.DisplayRate = DisplayRate;
 			TimeSliderArgs.TickResolution = TickResolution;
 			TimeSliderArgs.OnViewRangeChanged = FOnViewRangeChanged::CreateSP(this, &SMLDeformerTimeline::HandleViewRangeChanged);
-			TimeSliderArgs.OnClampRangeChanged = FOnTimeRangeChanged::CreateSP(Model.Pin().Get(), &FMLDeformerEditorModel::HandleWorkingRangeChanged);
+
+			if (Model.IsValid())
+			{
+				TimeSliderArgs.OnClampRangeChanged = FOnTimeRangeChanged::CreateSP(Model.Pin().Get(), &FMLDeformerEditorModel::HandleWorkingRangeChanged);
+			}
+
 			TimeSliderArgs.IsPlaybackRangeLocked = true;
 			TimeSliderArgs.PlaybackStatus = EMovieScenePlayerStatus::Stopped;
 			TimeSliderArgs.NumericTypeInterface = NumericTypeInterface;

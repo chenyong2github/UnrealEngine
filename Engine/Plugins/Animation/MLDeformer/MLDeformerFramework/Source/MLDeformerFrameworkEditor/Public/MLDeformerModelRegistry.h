@@ -80,7 +80,6 @@ namespace UE::MLDeformer
 		 */
 		int32 GetPriorityForModel(UClass* ModelType) const;
 
-	private:
 		/**
 		 * Get the read-only map of registered models.
 		 * @return The map of registered models that have been registered through RegisterEditorModel.
@@ -100,6 +99,7 @@ namespace UE::MLDeformer
 		 */
 		int32 GetHighestPriorityModelIndex() const;
 
+	private:
 		/**
 		 * Update the highest priority model by looking at the priority map.
 		 * This updates the value returned by GetHighestPriorityModel().

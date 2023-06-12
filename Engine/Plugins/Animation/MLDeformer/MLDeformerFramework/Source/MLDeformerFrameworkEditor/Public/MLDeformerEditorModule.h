@@ -27,8 +27,15 @@ namespace UE::MLDeformer
 		 * You use this to see what kind of model types ther are, register new models, or create editor models for specific types of runtime models.
 		 * @return A reference to the ML Deformer model registry.
 		 */
-		FMLDeformerEditorModelRegistry& GetModelRegistry()				{ return ModelRegistry; }
-		const FMLDeformerEditorModelRegistry& GetModelRegistry() const	{ return ModelRegistry; }
+		FMLDeformerEditorModelRegistry& GetModelRegistry()						{ return ModelRegistry; }
+		const FMLDeformerEditorModelRegistry& GetModelRegistry() const			{ return ModelRegistry; }
+
+		/**
+		 * Manually assign a new model registry.
+		 * This can be used in some automated tests where we want to test with different registries, for example an empty one.
+		 * @param Registry The model registry to use.
+		 */
+		void SetModelRegistry(const FMLDeformerEditorModelRegistry& Registry)	{ ModelRegistry = Registry; }
 
 	private:
 		/** The model registry, which keeps track of all model types and instances created of these models, and how to create the editor models for specific runtime model types. */

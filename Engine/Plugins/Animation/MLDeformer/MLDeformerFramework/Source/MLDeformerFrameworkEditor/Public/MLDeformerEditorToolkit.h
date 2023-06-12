@@ -43,6 +43,9 @@ namespace UE::MLDeformer
 		friend class FMLDeformerApplicationMode;
 		friend struct FMLDeformerVizSettingsTabSummoner;
 
+
+		~FMLDeformerEditorToolkit();
+
 		/** Initialize the asset editor. This will register the application mode, init the preview scene, etc. */
 		void InitAssetEditor(
 			const EToolkitMode::Type Mode,
@@ -60,45 +63,68 @@ namespace UE::MLDeformer
 		// ~END FAssetEditorToolkit overrides.
 
 		// FGCObject overrides.
-		virtual FString GetReferencerName() const override { return TEXT("FMLDeformerEditorToolkit"); }
+		virtual FString GetReferencerName() const override							{ return TEXT("FMLDeformerEditorToolkit"); }
 		virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 		// ~END FGCObject overrides.
 
 		// FTickableEditorObject overrides.
 		virtual void Tick(float DeltaTime) override {};
-		virtual ETickableTickType GetTickableTickType() const override { return ETickableTickType::Always; }
+		virtual ETickableTickType GetTickableTickType() const override				{ return ETickableTickType::Always; }
 		virtual TStatId GetStatId() const override;
 		// ~END FTickableEditorObject overrides.
 
 		// IHasPersonaToolkit overrides.
 		virtual TSharedRef<IPersonaToolkit> GetPersonaToolkit() const override;
-		IPersonaToolkit* GetPersonaToolkitPointer() const { return PersonaToolkit.Get(); }
+		IPersonaToolkit* GetPersonaToolkitPointer() const							{ return PersonaToolkit.Get(); }
 		// ~END IHasPersonaToolkit overrides.
 
-		void SetVizSettingsDetailsView(TSharedPtr<IDetailsView> InDetailsView) { VizSettingsDetailsView = InDetailsView; }
+		void SetVizSettingsDetailsView(TSharedPtr<IDetailsView> InDetailsView)		{ VizSettingsDetailsView = InDetailsView; }
+		IDetailsView* GetVizSettingsDetailsView() const;
 
 		IDetailsView* GetModelDetailsView() const;
-		IDetailsView* GetVizSettingsDetailsView() const;
 
 		void SetTimeSlider(TSharedPtr<SMLDeformerTimeline> InTimeSlider);
 		SMLDeformerTimeline* GetTimeSlider() const;
 
-		UMLDeformerAsset* GetDeformerAsset() const { return DeformerAsset.Get(); }
-		FMLDeformerEditorModel* GetActiveModel() { return ActiveModel.Get(); }
-
-		TWeakPtr<FMLDeformerEditorModel> GetActiveModelPointer(){ return TWeakPtr<FMLDeformerEditorModel>(ActiveModel); }
-		const FMLDeformerEditorModel* GetActiveModel() const { return ActiveModel.Get(); }
-
-		FMLDeformerApplicationMode* GetApplicationMode() const { return ApplicationMode; }
+		UMLDeformerAsset* GetDeformerAsset() const									{ return DeformerAsset.Get(); }
+		FMLDeformerEditorModel* GetActiveModel()									{ return ActiveModel.Get(); }
+		TWeakPtr<FMLDeformerEditorModel> GetActiveModelPointer()					{ return TWeakPtr<FMLDeformerEditorModel>(ActiveModel); }
+		const FMLDeformerEditorModel* GetActiveModel() const						{ return ActiveModel.Get(); }
+		FMLDeformerApplicationMode* GetApplicationMode() const						{ return ApplicationMode; }
+		TSharedPtr<IPersonaViewport> GetViewport() const							{ return PersonaViewport; }
 
 		double CalcTimelinePosition() const;
 		void OnTimeSliderScrubPositionChanged(double NewScrubTime, bool bIsScrubbing);
 		void UpdateTimeSliderRange();
 		void SetTimeSliderRange(double StartTime, double EndTime);
 
-		TSharedPtr<IPersonaViewport> GetViewport() const { return PersonaViewport; }
+		/**
+		 * Switch the editor to a given model type.
+		 * @param ModelType The model type you want to switch to, for example something like: UNeuralMorphModel::StaticClass().
+		 * @param bForceChange Force changing to this model? This will suppress any UI popups.
+		 * @return Returns true in case we successfully switched model types, or otherwise false is returned.
+		 */
+		bool SwitchModelType(UClass* ModelType, bool bForceChange);
+
+		/**
+		 * Switch the editor's visualization mode.
+		 * This essentially allows you to switch the UI between testing and training modes.
+		 * @param Mode The mode to switch to.
+		 */
+		void SwitchVizMode(EMLDeformerVizMode Mode);
+
+		bool Train(bool bSuppressDialogs);
+		bool IsTrainButtonEnabled() const;
+		bool IsTraining() const;
 
 	private:
+		UE_DEPRECATED(5.3, "Please use the OnModelChanged that takes two parameters instead.")
+		void OnModelChanged(int Index);
+		void OnModelChanged(int Index, bool bForceChange);
+
+		UE_DEPRECATED(5.3, "Please use the SwitchVizMode instead.")
+		void OnVizModeChanged(EMLDeformerVizMode Mode);
+
 		/* Toolbar related. */
 		void ExtendToolbar();
 		void FillToolbar(FToolBarBuilder& ToolbarBuilder);
@@ -113,9 +139,7 @@ namespace UE::MLDeformer
 		void ShowNotification(const FText& Message, SNotificationItem::ECompletionState State, bool PlaySound) const;
 		FText GetOverlayText() const;
 		void OnSwitchedVisualizationMode();
-		bool HandleTrainingResult(ETrainingResult TrainingResult, double TrainingDuration, bool& bOutUsePartiallyTrained);
-		void OnModelChanged(int Index);
-		void OnVizModeChanged(EMLDeformerVizMode Mode);
+		bool HandleTrainingResult(ETrainingResult TrainingResult, double TrainingDuration, bool& bOutUsePartiallyTrained, bool bSuppressDialogs, bool& bOutSuccess);
 		FText GetActiveModelName() const;
 		FText GetCurrentVizModeName() const;
 		FText GetVizModeName(EMLDeformerVizMode Mode) const;
@@ -151,5 +175,8 @@ namespace UE::MLDeformer
 
 		/** Has the asset editor been initialized? */
 		bool bIsInitialized = false;
+
+		/** Are we currently in a training process? */
+		bool bIsTraining = false;
 	};
 }	// namespace UE::MLDeformer

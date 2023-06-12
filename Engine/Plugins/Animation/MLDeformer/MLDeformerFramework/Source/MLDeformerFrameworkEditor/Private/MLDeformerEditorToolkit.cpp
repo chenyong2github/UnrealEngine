@@ -36,6 +36,11 @@ namespace UE::MLDeformer
 	const FName MLDeformerEditorModes::Editor("MLDeformerEditorMode");
 	const FName MLDeformerEditorAppName = FName(TEXT("MLDeformerEditorApp"));
 
+	FMLDeformerEditorToolkit::~FMLDeformerEditorToolkit()
+	{
+		ActiveModel.Reset();
+	}
+
 	void FMLDeformerEditorToolkit::InitAssetEditor(
 		const EToolkitMode::Type Mode,
 		const TSharedPtr<IToolkitHost>& InitToolkitHost,
@@ -57,7 +62,7 @@ namespace UE::MLDeformer
 			if (ModelRegistry.GetNumRegisteredModels() > 0)
 			{
 				const int32 HighestPriorityIndex = ModelRegistry.GetHighestPriorityModelIndex();
-				OnModelChanged(HighestPriorityIndex);
+				OnModelChanged(HighestPriorityIndex, true);
 				DeformerModel = DeformerAsset->GetModel();
 			}
 		}
@@ -131,7 +136,7 @@ namespace UE::MLDeformer
 		{
 			const EAppReturnType::Type ReturnType = FMessageDialog::Open(
 				EAppMsgType::Ok, 
-				LOCTEXT("NoModelsFoundWarningMessage", "No ML Deformer models have been registered.\nPlease load a model plugin.\n\nThere is nothing to do inside this editor, until you load a model plugin."),
+				FText(LOCTEXT("NoModelsFoundWarningMessage", "No ML Deformer models have been registered.\nPlease load a model plugin.\n\nThere is nothing to do inside this editor, until you load a model plugin.")),
 				LOCTEXT("NoModelsFoundWarningTitle", "No ML Deformer Models Found"));
 		}
 	}
@@ -173,10 +178,10 @@ namespace UE::MLDeformer
 		const bool bShouldCloseWindowAfterMenuSelection = true;
 		FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, InCommandList);
 
-		FUIAction TrainItemAction(FExecuteAction::CreateSP(this, &FMLDeformerEditorToolkit::OnVizModeChanged, EMLDeformerVizMode::TrainingData));
+		FUIAction TrainItemAction(FExecuteAction::CreateSP(this, &FMLDeformerEditorToolkit::SwitchVizMode, EMLDeformerVizMode::TrainingData));
 		MenuBuilder.AddMenuEntry(GetVizModeName(EMLDeformerVizMode::TrainingData), TAttribute<FText>(), FSlateIcon(), TrainItemAction);
 
-		FUIAction TestItemAction(FExecuteAction::CreateSP(this, &FMLDeformerEditorToolkit::OnVizModeChanged, EMLDeformerVizMode::TestData));
+		FUIAction TestItemAction(FExecuteAction::CreateSP(this, &FMLDeformerEditorToolkit::SwitchVizMode, EMLDeformerVizMode::TestData));
 		MenuBuilder.AddMenuEntry(GetVizModeName(EMLDeformerVizMode::TestData), TAttribute<FText>(), FSlateIcon(), TestItemAction);
 
 		return MenuBuilder.MakeWidget();
@@ -221,14 +226,14 @@ namespace UE::MLDeformer
 				}
 			}
 
-			FUIAction ItemAction(FExecuteAction::CreateSP(this, &FMLDeformerEditorToolkit::OnModelChanged, UnsortedModelIndex));
+			FUIAction ItemAction(FExecuteAction::CreateSP(this, &FMLDeformerEditorToolkit::OnModelChanged, UnsortedModelIndex, false));
 			MenuBuilder.AddMenuEntry(FText::FromString(ModelNames[ModelIndex]), TAttribute<FText>(), FSlateIcon(), ItemAction);
 		}
 
 		return MenuBuilder.MakeWidget();
 	}
 
-	void FMLDeformerEditorToolkit::OnVizModeChanged(EMLDeformerVizMode Mode)
+	void FMLDeformerEditorToolkit::SwitchVizMode(EMLDeformerVizMode Mode)
 	{
 		if (!ActiveModel.IsValid())
 		{
@@ -239,9 +244,21 @@ namespace UE::MLDeformer
 		OnSwitchedVisualizationMode();
 	}
 
+	// Deprecated, use SwitchVizMode.
+	void FMLDeformerEditorToolkit::OnVizModeChanged(EMLDeformerVizMode Mode)
+	{
+		SwitchVizMode(Mode);
+	}
+
+	// Deprecated, use OnModelChanged with two parameters.
 	void FMLDeformerEditorToolkit::OnModelChanged(int Index)
 	{
-		if (ActiveModel)
+		OnModelChanged(Index, true);
+	}
+
+	void FMLDeformerEditorToolkit::OnModelChanged(int Index, bool bForceChange)
+	{
+		if (ActiveModel && !bForceChange)
 		{
 			const EAppReturnType::Type ReturnType = FMessageDialog::Open(
 				EAppMsgType::YesNo, 
@@ -349,74 +366,96 @@ namespace UE::MLDeformer
 		return LOCTEXT("SelectModel", "<Select a Model>");
 	}
 
+	bool FMLDeformerEditorToolkit::IsTraining() const
+	{
+		return bIsTraining;
+	}
+
+	bool FMLDeformerEditorToolkit::Train(bool bSuppressDialogs)
+	{
+		check(ActiveModel);
+		bIsTraining = true;
+
+		// Ask if we want to retrain the network if we already have something trained.
+		UMLDeformerModel* Model = ActiveModel->GetModel();
+		if (ActiveModel->IsTrained() && !bSuppressDialogs)
+		{
+			const EAppReturnType::Type ConfirmReturnType = FMessageDialog::Open(
+				EAppMsgType::YesNo, 
+				LOCTEXT("RetrainConfirmationMessage", "This asset already has been trained.\n\nAre you sure you would like to re-train the network with your current settings?"),
+				LOCTEXT("RetrainConfirmationTitle", "Re-train the network?"));
+
+			if (ConfirmReturnType == EAppReturnType::No || ConfirmReturnType == EAppReturnType::Cancel)
+			{
+				bIsTraining = false;
+				return true;
+			}
+		}
+
+		ShowNotification(LOCTEXT("StartTraining", "Starting training process"), SNotificationItem::ECompletionState::CS_Pending, true);
+
+		ActiveModel->OnPreTraining();
+
+		// Change the interpolation type for the training sequence to step.
+		if (UAnimSequence* AnimSequence = Model->GetAnimSequence())
+		{
+			AnimSequence->Interpolation = EAnimInterpolationType::Step;
+		}
+
+		// Initialize the training inputs.
+		ActiveModel->UpdateEditorInputInfo();
+
+		// Make sure we have something to train on.
+		// If this triggers, the train button most likely was enabled while it shouldn't be.
+		check(!ActiveModel->GetEditorInputInfo()->IsEmpty());
+
+		// Train the model, which executes the Python code's "train" function.
+		const double StartTime = FPlatformTime::Seconds();
+		const ETrainingResult TrainingResult = ActiveModel->Train();
+		const double TrainingDuration = FPlatformTime::Seconds() - StartTime;
+		bool bUsePartiallyTrained = true;	// Will get modified by the HandleTrainingResult function below.
+		bool bSuccess = true;
+		const bool bMarkDirty = HandleTrainingResult(TrainingResult, TrainingDuration, bUsePartiallyTrained, bSuppressDialogs, bSuccess);
+		ActiveModel->OnPostTraining(TrainingResult, bUsePartiallyTrained);
+
+		const bool NeedsResamplingBackup = ActiveModel->GetResamplingInputOutputsNeeded();
+		ActiveModel->SetResamplingInputOutputsNeeded(NeedsResamplingBackup);
+		ActiveModel->RefreshMLDeformerComponents();
+		ActiveModel->SetHeatMapMaterialEnabled(Model->GetVizSettings()->GetShowHeatMap());
+
+		if (bMarkDirty)
+		{
+			DeformerAsset->Modify();
+		}
+
+		GetModelDetailsView()->ForceRefresh();
+		GetVizSettingsDetailsView()->ForceRefresh();
+
+		bIsTraining = false;
+		return bSuccess;
+	}
+
+	bool FMLDeformerEditorToolkit::IsTrainButtonEnabled() const
+	{
+		return ActiveModel.Get() ? ActiveModel->IsReadyForTraining() : false;
+	}
+
 	void FMLDeformerEditorToolkit::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 	{
 		ToolbarBuilder.BeginSection("Training");
 		{
 			ToolbarBuilder.AddToolBarButton(
-				FUIAction(
-					FExecuteAction::CreateLambda([this]()
-					{
-						check(ActiveModel);
-
-						// Ask if we want to retrain the network if we already have something trained.
-						UMLDeformerModel* Model = ActiveModel->GetModel();
-						if (ActiveModel->IsTrained())
+				FUIAction
+				(
+					//FExecuteAction::CreateRaw(this, &FMLDeformerEditorToolkit::Train, false),
+					FExecuteAction::CreateLambda
+					(
+						[this]()
 						{
-							const EAppReturnType::Type ConfirmReturnType = FMessageDialog::Open(
-								EAppMsgType::YesNo, 
-								LOCTEXT("RetrainConfirmationMessage", "This asset already has been trained.\n\nAre you sure you would like to re-train the network with your current settings?"),
-								LOCTEXT("RetrainConfirmationTitle", "Re-train the network?"));
-
-							if (ConfirmReturnType == EAppReturnType::No || ConfirmReturnType == EAppReturnType::Cancel)
-							{
-								return;
-							}
+							Train(/*bSuppressDialogs*/false);
 						}
-
-						ShowNotification(LOCTEXT("StartTraining", "Starting training process"), SNotificationItem::ECompletionState::CS_Pending, true);
-
-						ActiveModel->OnPreTraining();
-
-						// Change the interpolation type for the training sequence to step.
-						if (UAnimSequence* AnimSequence = Model->GetAnimSequence())
-						{
-							AnimSequence->Interpolation = EAnimInterpolationType::Step;
-						}
-
-						// Initialize the training inputs.
-						ActiveModel->UpdateEditorInputInfo();
-
-						// Make sure we have something to train on.
-						// If this triggers, the train button most likely was enabled while it shouldn't be.
-						check(!ActiveModel->GetEditorInputInfo()->IsEmpty());
-
-						// Train the model, which executes the Python code's "train" function.
-						const double StartTime = FPlatformTime::Seconds();
-						const ETrainingResult TrainingResult = ActiveModel->Train();
-						const double TrainingDuration = FPlatformTime::Seconds() - StartTime;
-						bool bUsePartiallyTrained = true;	// Will get modified by the HandleTrainingResult function below.
-						const bool bMarkDirty = HandleTrainingResult(TrainingResult, TrainingDuration, bUsePartiallyTrained);
-						ActiveModel->OnPostTraining(TrainingResult, bUsePartiallyTrained);
-
-						const bool NeedsResamplingBackup = ActiveModel->GetResamplingInputOutputsNeeded();
-						ActiveModel->SetResamplingInputOutputsNeeded(NeedsResamplingBackup);
-						ActiveModel->RefreshMLDeformerComponents();
-						ActiveModel->SetHeatMapMaterialEnabled(Model->GetVizSettings()->GetShowHeatMap());
-
-						if (bMarkDirty)
-						{
-							DeformerAsset->Modify();
-						}
-
-						GetModelDetailsView()->ForceRefresh();
-						GetVizSettingsDetailsView()->ForceRefresh();
-					}),
-					FCanExecuteAction::CreateLambda(
-						[this]() 
-						{
-							return ActiveModel.Get() ? ActiveModel->IsReadyForTraining() : false;
-						})
+					),
+					FCanExecuteAction::CreateRaw(this, &FMLDeformerEditorToolkit::IsTrainButtonEnabled)
 				),
 				NAME_None,
 				LOCTEXT("TrainModel", "Train Model"),
@@ -445,11 +484,11 @@ namespace UE::MLDeformer
 		ToolbarBuilder.EndSection();
 	}
 
-	bool FMLDeformerEditorToolkit::HandleTrainingResult(ETrainingResult TrainingResult, double TrainingDuration, bool& bOutUsePartiallyTrained)
+	bool FMLDeformerEditorToolkit::HandleTrainingResult(ETrainingResult TrainingResult, double TrainingDuration, bool& bOutUsePartiallyTrained, bool bSuppressDialogs, bool& bOutSuccess)
 	{
+		bOutSuccess = false;
 		bOutUsePartiallyTrained = true;
 
-		FText WindowTitle(LOCTEXT("TrainingResultsWindowTitle", "Training Results"));
 		FText WindowMessage;
 
 		// Calculate hours, minutes and seconds.
@@ -491,6 +530,7 @@ namespace UE::MLDeformer
 					WindowMessage = FText::Format(LOCTEXT("TrainingSuccess", "Training completed successfully!\n\nTraining time: {Duration}"), SuccessArgs);
 					ActiveModel->InitInputInfo(ActiveModel->GetModel()->GetInputInfo());
 					bMarkDirty = true;
+					bOutSuccess = true;
 				}
 			}
 			break;
@@ -499,10 +539,15 @@ namespace UE::MLDeformer
 			case ETrainingResult::Aborted:
 			{
 				ActiveModel->SetResamplingInputOutputsNeeded(false);
-				const EAppReturnType::Type ReturnType = FMessageDialog::Open(
-					EAppMsgType::YesNo, 
-					LOCTEXT("TrainingAbortedMessage", "Training has been aborted.\nThe neural network has only been partially trained.\nWould you like to use this partially trained network?"),
-					LOCTEXT("TrainingAbortedMessageTitle", "Use partially trained network?"));
+
+				EAppReturnType::Type ReturnType = EAppReturnType::No;	// When we suppress dialogs, do not use the the partially trained network on abort.
+				if (!bSuppressDialogs)
+				{
+					ReturnType = FMessageDialog::Open(
+						EAppMsgType::YesNo, 
+						LOCTEXT("TrainingAbortedMessage", "Training has been aborted.\nThe neural network has only been partially trained.\nWould you like to use this partially trained network?"),
+						LOCTEXT("TrainingAbortedMessageTitle", "Use partially trained network?"));
+				}
 
 				if (ReturnType == EAppReturnType::Yes)
 				{
@@ -522,6 +567,8 @@ namespace UE::MLDeformer
 					bOutUsePartiallyTrained = false;
 					ShowNotification(LOCTEXT("TrainingAborted", "Training aborted!"), SNotificationItem::ECompletionState::CS_None, true);
 				}
+
+				bOutSuccess = true;
 			}
 			break;
 
@@ -555,9 +602,9 @@ namespace UE::MLDeformer
 		}
 
 		// Show a message window.
-		if (!WindowMessage.IsEmpty())
+		if (!WindowMessage.IsEmpty() && !bSuppressDialogs)
 		{
-			FMessageDialog::Open(EAppMsgType::Ok, WindowMessage, WindowTitle);
+			FMessageDialog::Open(EAppMsgType::Ok, WindowMessage, LOCTEXT("TrainingResultsWindowTitle", "Training Results"));
 		}
 
 		ActiveModel->UpdateDeformerGraph();
@@ -836,6 +883,26 @@ namespace UE::MLDeformer
 		{
 			ActiveModel->SetViewRange(ViewRange);
 		}
+	}
+
+	bool FMLDeformerEditorToolkit::SwitchModelType(UClass* ModelType, bool bForceChange)
+	{
+		FMLDeformerEditorModule& EditorModule = FModuleManager::GetModuleChecked<FMLDeformerEditorModule>("MLDeformerFrameworkEditor");
+		FMLDeformerEditorModelRegistry& ModelRegistry = EditorModule.GetModelRegistry();
+
+		// Get the list of all registered model types.
+		TArray<UClass*> ModelTypes;
+		ModelRegistry.GetRegisteredModels().GenerateKeyArray(ModelTypes);
+
+		// Find the model index for this type.
+		const int32 Index = ModelTypes.Find(ModelType);
+		if (Index == INDEX_NONE)
+		{
+			return false;
+		}
+
+		OnModelChanged(Index, bForceChange);
+		return true;
 	}
 }	// namespace UE::MLDeformer
 

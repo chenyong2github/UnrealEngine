@@ -138,7 +138,7 @@ TArray<UDebugSkelMeshComponent*> FAnimationEditorPreviewScene::GetAllPreviewMesh
 {
 	TArray<UDebugSkelMeshComponent*> PreviewMeshComponents;
 	const AActor* MyActor = GetActor();
-	if (ensure(MyActor))
+	if (MyActor)
 	{
 		MyActor->GetComponents(PreviewMeshComponents, true);
 	}
@@ -149,7 +149,7 @@ void FAnimationEditorPreviewScene::ForEachPreviewMesh(TFunction<void (UDebugSkel
 {
 	TArray<UDebugSkelMeshComponent*> PreviewMeshComponents;
 	const AActor* MyActor = GetActor();
-	if (ensure(MyActor))
+	if (MyActor)
 	{
 		MyActor->GetComponents(PreviewMeshComponents, true);
 		for (UDebugSkelMeshComponent* PreviewMesh : PreviewMeshComponents)
