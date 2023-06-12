@@ -73,8 +73,6 @@ AWaterBody::AWaterBody(const FObjectInitializer& ObjectInitializer)
 	TargetWaveMaskDepth_DEPRECATED = 2048.f;
 	bCanAffectNavigation_DEPRECATED = false;
 	bFillCollisionUnderWaterBodiesForNavmesh_DEPRECATED = false;
-
-	OnPackagingModeChanged.AddUObject(this, &AWaterBody::PackagingModeChanged);
 #endif // WITH_EDITORONLY_DATA
 
 }
@@ -518,6 +516,22 @@ void AWaterBody::DeprecateData()
 		// Some deprecated data on the actor were also later deprecated on the component (e.g. bFillCollisionUnderWaterBodiesForNavmesh_DEPRECATED), make sure it runs its own deprecation operations on it : 
 		WaterBodyComponent->DeprecateData();
 	}
+
+	// With this version bump, we introduced a fix that allows water static meshes to be outered to the actor and still avoid the cost of duplicating them for PIE. It is now safe to rename them back to have a proper outer chain with the actor as the outer.
+	if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WaterBodyStaticMeshRename)
+	{
+		TArray<TObjectPtr<UWaterBodyMeshComponent>> MeshComponents = { WaterInfoMeshComponent, DilatedWaterInfoMeshComponent };
+		MeshComponents.Append(WaterBodyStaticMeshComponents);
+
+		for (TObjectPtr<UWaterBodyMeshComponent> MeshComponent : MeshComponents)
+		{
+			if (IsValid(MeshComponent) && IsValid(MeshComponent->GetStaticMesh()))
+			{
+				UStaticMesh* StaticMesh = MeshComponent->GetStaticMesh();
+				StaticMesh->Rename(nullptr, this, REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
+			}
+		}
+	}
 #endif // WITH_EDITORONLY_DATA
 }
 
@@ -627,6 +641,24 @@ bool AWaterBody::IsHLODRelevant() const
 }
 
 #if WITH_EDITOR
+void AWaterBody::PopulatePIEDuplicationSeed(AActor::FDuplicationSeedInterface& DuplicationSeed)
+{
+	Super::PopulatePIEDuplicationSeed(DuplicationSeed);
+
+	// Avoid copying expensive UStaticMesh when entering pie, instead use the duplication seed to have the PIE instance share the same mesh pointer.
+	TArray<TObjectPtr<UWaterBodyMeshComponent>> MeshComponents = { WaterInfoMeshComponent, DilatedWaterInfoMeshComponent };
+	MeshComponents.Append(WaterBodyStaticMeshComponents);
+
+	for (TObjectPtr<UWaterBodyMeshComponent> MeshComponent : MeshComponents)
+	{
+		if (IsValid(MeshComponent) && IsValid(MeshComponent->GetStaticMesh()))
+		{
+			UStaticMesh* StaticMesh = MeshComponent->GetStaticMesh();
+			DuplicationSeed.AddEntry(StaticMesh, StaticMesh);
+		}
+	}
+}
+
 void AWaterBody::SetActorHiddenInGame(bool bNewHidden)
 {
 	// It's kinda sad that being hidden in game for the actor doesn't end up calling OnHiddenInGameChanged on the component but intercepting it on the actor, we can inform the component that it needs
@@ -681,27 +713,6 @@ void AWaterBody::GetActorDescProperties(FPropertyPairsMap& PropertyPairsMap) con
 	}
 }
 
-void AWaterBody::PackagingModeChanged(AActor* Actor, bool bIsExternal)
-{
-	// This callback is needed in the editor to ensure the static meshes follow the package of the actor. This is handled by the world partition system during cook for WP maps and DetachExternalPackage for non-WP case.
-	if (!IsRunningCookCommandlet())
-	{
-		// All the UStaticMesh are outered to the package, we need to make sure they remain so after the packaging mode of this actor is changed.
-		// If the actor used to be non-external and is now external, we need to ensure the UStaticMesh is outered to the external package of the actor and not the world.
-		// The inverse is true from external -> non external
-		TArray<TObjectPtr<UWaterBodyMeshComponent>> MeshComponents = { WaterInfoMeshComponent, DilatedWaterInfoMeshComponent };
-		MeshComponents.Append(WaterBodyStaticMeshComponents);
-
-		for (TObjectPtr<UWaterBodyMeshComponent> MeshComponent : MeshComponents)
-		{
-			if (IsValid(MeshComponent) && IsValid(MeshComponent->GetStaticMesh()))
-			{
-				MeshComponent->GetStaticMesh()->Rename(nullptr, GetPackage(), REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
-			}
-		}
-	}
-}
-
 void AWaterBody::PostActorCreated()
 {
 	FOnWaterBodyChangedParams Params;
@@ -711,40 +722,6 @@ void AWaterBody::PostActorCreated()
 	Params.bUserTriggered = false;
 	
 	WaterBodyComponent->OnWaterBodyChanged(Params);
-}
-
-void AWaterBody::OnDetachExternalPackage()
-{
-	// All the UStaticMesh are outered to the package, we need to make sure they remain so after the packaging mode of this actor is changed.
-	// If the actor used to be non-external and is now external, we need to ensure the UStaticMesh is outered to the external package of the actor and not the world.
-	// The inverse is true from external -> non external
-	TArray<TObjectPtr<UWaterBodyMeshComponent>> MeshComponents = { WaterInfoMeshComponent, DilatedWaterInfoMeshComponent };
-	MeshComponents.Append(WaterBodyStaticMeshComponents);
-
-	for (TObjectPtr<UWaterBodyMeshComponent> MeshComponent : MeshComponents)
-	{
-		if (IsValid(MeshComponent) && IsValid(MeshComponent->GetStaticMesh()))
-		{
-			MeshComponent->GetStaticMesh()->Rename(nullptr, GetLevel()->GetPackage(), REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
-		}
-	}
-}
-
-void AWaterBody::OnReattachExternalPackage()
-{
-	// All the UStaticMesh are outered to the package, we need to make sure they remain so after the packaging mode of this actor is changed.
-	// If the actor used to be non-external and is now external, we need to ensure the UStaticMesh is outered to the external package of the actor and not the world.
-	// The inverse is true from external -> non external
-	TArray<TObjectPtr<UWaterBodyMeshComponent>> MeshComponents = { WaterInfoMeshComponent, DilatedWaterInfoMeshComponent };
-	MeshComponents.Append(WaterBodyStaticMeshComponents);
-
-	for (TObjectPtr<UWaterBodyMeshComponent> MeshComponent : MeshComponents)
-	{
-		if (IsValid(MeshComponent) && IsValid(MeshComponent->GetStaticMesh()))
-		{
-			MeshComponent->GetStaticMesh()->Rename(nullptr, GetPackage(), REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
-		}
-	}
 }
 
 #endif // WITH_EDITOR

@@ -1308,6 +1308,18 @@ void ULevel::PreDuplicate(FObjectDuplicationParameters& DupParams)
 	Super::PreDuplicate(DupParams);
 
 #if WITH_EDITOR
+	if (DupParams.DuplicateMode == EDuplicateMode::PIE)
+	{
+		AActor::FDuplicationSeedInterface DuplicationSeedInterface(DupParams.DuplicationSeed);
+		for (AActor* Actor : Actors)
+		{
+			if (Actor != nullptr)
+			{
+				Actor->PopulatePIEDuplicationSeed(DuplicationSeedInterface);
+			}
+		}
+	}
+
 	if (DupParams.DuplicateMode != EDuplicateMode::PIE && DupParams.bAssignExternalPackages)
 	{
 		UPackage* SrcPackage = GetPackage();

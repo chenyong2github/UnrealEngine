@@ -124,6 +124,18 @@ FGuid FActorInstanceGuidMapper::MapGuid(FName InPackageName, const FGuid& InGuid
 	}
 	return InGuid;
 }
+
+AActor::FDuplicationSeedInterface::FDuplicationSeedInterface(TMap<UObject*, UObject*>& InDuplicationSeed)
+	: DuplicationSeed(InDuplicationSeed)
+{
+}
+
+void AActor::FDuplicationSeedInterface::AddEntry(UObject* Source, UObject* Destination)
+{	
+	DuplicationSeed.Emplace(Source, Destination);
+}
+
+
 #endif
 
 uint32 AActor::BeginPlayCallDepth = 0;
@@ -6414,4 +6426,3 @@ void AActor::ForEachComponentOfActorClassDefault(const TSubclassOf<AActor>& Acto
 
 
 #undef LOCTEXT_NAMESPACE
-

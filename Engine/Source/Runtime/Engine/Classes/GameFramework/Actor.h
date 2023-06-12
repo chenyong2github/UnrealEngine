@@ -2175,6 +2175,22 @@ public:
 	ENGINE_API virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
 	ENGINE_API virtual bool IsSelectedInEditor() const override;
 
+	/** DuplicationSeedInterface prevents exposing the entire DupSeed map to every actor and provides a method to do so instead. */
+	struct FDuplicationSeedInterface
+	{
+	public:
+		FDuplicationSeedInterface(TMap<UObject*, UObject*>& InDuplicationSeed);
+
+		/** Add a new entry to the duplication seed. */
+		ENGINE_API void AddEntry(UObject* Source, UObject* Dest);
+
+	private:
+		TMap<UObject*, UObject*>& DuplicationSeed;
+	};
+
+	/** Populate the duplication seed when duplicating the actor for PIE. This allows objects to be remapped to existing objects rather than duplicating. */
+	virtual void PopulatePIEDuplicationSeed(FDuplicationSeedInterface& DupSeed) {}
+
 	/** Defines if preview should be shown when you select an actor, but none of its children */
 	virtual bool IsDefaultPreviewEnabled() const
 	{

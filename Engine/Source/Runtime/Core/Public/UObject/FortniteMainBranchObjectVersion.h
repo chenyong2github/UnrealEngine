@@ -331,6 +331,8 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// WorldPartition HLOD now contains a source actors object
 		WorldPartitionHLODSourceActorsRefactor,
 
+		WaterBodyStaticMeshRename,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

@@ -65,12 +65,9 @@ public:
 	virtual bool SetIsHiddenEdLayer(bool bIsHiddenEdLayer) override;
 	virtual void GetActorDescProperties(FPropertyPairsMap& PropertyPairsMap) const override;
 
-	void PackagingModeChanged(AActor* Actor, bool bIsExternal);
-
-	virtual void OnReattachExternalPackage() override;
-	virtual void OnDetachExternalPackage() override;
-
 	virtual void PostActorCreated() override;
+
+	virtual void PopulatePIEDuplicationSeed(AActor::FDuplicationSeedInterface& DuplicationSeed) override;
 #endif // WITH_EDITOR
 	
 	/** Returns the type of body */

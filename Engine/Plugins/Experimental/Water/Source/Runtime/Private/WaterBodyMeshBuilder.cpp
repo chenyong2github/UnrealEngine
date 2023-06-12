@@ -43,7 +43,7 @@ void FWaterBodyMeshBuilder::BuildWaterInfoMeshes(UWaterBodyComponent* WaterBodyC
 	GetDynamicMesh(WaterBodyComponent, WaterBodyMesh, &WaterBodyDilatedMesh);
 
 	UMaterialInterface* WaterInfoMID = WaterBodyComponent->GetWaterInfoMaterialInstance();
-	UObject* Outer = WaterBodyComponent->GetPackage();
+	UObject* Outer = WaterBodyComponent->GetOwner();
 
 	auto BuildWaterInfoMesh = [this, Outer, WaterInfoMID](const FDynamicMesh3& DynamicMesh, UWaterBodyInfoMeshComponent* MeshComponent, FName BaseName) -> UStaticMesh*
 	{
@@ -382,7 +382,7 @@ TArray<TObjectPtr<UWaterBodyStaticMeshComponent>> FWaterBodyMeshBuilder::BuildWa
 
 	UMaterialInterface* WaterStaticMeshMID = WaterBodyComponent->GetWaterStaticMeshMaterialInstance();
 
-	UObject* MeshComponentOuter = WaterBodyComponent->GetPackage();
+	UObject* MeshComponentOuter = WaterBodyComponent->GetOwner();
 
 	int32 StaticMeshComponentIndex = 0;
 	{
