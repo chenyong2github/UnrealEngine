@@ -365,12 +365,35 @@ public class Engine : ModuleRules
 
 		if (Target.bBuildEditor == true)
 		{
-			PublicDependencyModuleNames.AddRange(
+			PublicIncludePathModuleNames.AddRange(
 				new string[] {
+					"InterchangeCore",
+					"Kismet",
+					"ToolMenus",
 					"UnrealEd",
-					"Kismet"
 				}
-			);  // @todo api: Only public because of WITH_EDITOR and UNREALED_API
+			);
+
+			PrivateIncludePathModuleNames.AddRange(
+				new string[] {
+					"AssetTools",
+					"AssetDefinition",
+					"Documentation",
+					"HierarchicalLODUtilities",
+					"MeshBuilder",
+					"NaniteBuilder",
+					"PIEPreviewDeviceProfileSelector",
+				}
+			);
+
+			PrivateDependencyModuleNames.AddRange(
+				new string[] {
+					"DerivedDataCache",
+					"Kismet",
+					"TextureCompressor",
+					"UnrealEd"
+				}
+			);
 
 			CircularlyReferencedDependentModules.AddRange(
 				new string[] {
@@ -378,28 +401,17 @@ public class Engine : ModuleRules
 					"Kismet"
 				}
 			);
+			
 
-			PrivateDependencyModuleNames.Add("DerivedDataCache");
-			PrivateDependencyModuleNames.Add("TextureCompressor");
-
-			PrivateIncludePathModuleNames.Add("TextureCompressor");
-
-			PrivateIncludePathModuleNames.Add("HierarchicalLODUtilities");
-			DynamicallyLoadedModuleNames.Add("HierarchicalLODUtilities");
-
-			DynamicallyLoadedModuleNames.Add("AnimationModifiers");
-
-			PrivateIncludePathModuleNames.Add("AssetTools");
-			DynamicallyLoadedModuleNames.Add("AssetTools");
-
-			PrivateIncludePathModuleNames.Add("PIEPreviewDeviceProfileSelector");
-
-			PrivateIncludePathModuleNames.Add("NaniteBuilder");
-			DynamicallyLoadedModuleNames.Add("NaniteBuilder");
-
-			DynamicallyLoadedModuleNames.Add("LevelInstanceEditor");
-
-			PublicIncludePathModuleNames.Add("UnrealEd");
+			DynamicallyLoadedModuleNames.AddRange(
+				new string[] {
+					"AnimationModifiers",
+					"AssetTools",
+					"HierarchicalLODUtilities",
+					"LevelInstanceEditor",
+					"NaniteBuilder"
+				}
+			);
 		}
 
 		SetupModulePhysicsSupport(Target);

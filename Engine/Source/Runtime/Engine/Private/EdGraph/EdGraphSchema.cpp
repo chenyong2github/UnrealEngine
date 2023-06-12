@@ -1057,6 +1057,13 @@ void UEdGraphSchema::GetGraphDisplayInformation(const UEdGraph& Graph, /*out*/ F
 	DisplayInfo.DisplayName = DisplayInfo.PlainName;
 }
 
+#if WITH_EDITOR
+TSharedPtr<INameValidatorInterface> UEdGraphSchema::GetNameValidator(const UBlueprint* InBlueprintObj, const FName& InOriginalName, const UStruct* InValidationScope, const FName& InActionTypeId) const
+{
+	return MakeShareable(new FKismetNameValidator(InBlueprintObj, InOriginalName, InValidationScope));
+}
+#endif	//#if WITH_EDITOR
+
 void UEdGraphSchema::GetContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
 {
 	// Instructions: Implement GetParentContextMenuName() with return NAME_None in classes that do not want UEdGraphSchema's menu entries

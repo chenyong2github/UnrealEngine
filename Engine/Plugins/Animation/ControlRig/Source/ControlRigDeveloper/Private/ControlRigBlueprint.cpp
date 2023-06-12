@@ -1575,7 +1575,7 @@ void UControlRigBlueprint::HandleReportFromCompiler(EMessageSeverity::Type InSev
 		}
 	}
 
-	FCompilerResultsLog* Log = CurrentMessageLog ? CurrentMessageLog : &CompileLog;
+	ICompilerResultsLog* Log = CurrentMessageLog ? CurrentMessageLog : &CompileLog;
 	if (InSeverity == EMessageSeverity::Error)
 	{
 		Status = BS_Error;
@@ -1584,7 +1584,7 @@ void UControlRigBlueprint::HandleReportFromCompiler(EMessageSeverity::Type InSev
 		// see UnitTest "ControlRig.Basics.OrphanedPins" to learn why errors are suppressed this way
 		if (VMCompileSettings.SurpressErrors)
 		{
-			Log->bSilentMode = true;
+			Log->SetSilentMode(true);
 		}
 
 		if(InMessage.Contains(TEXT("@@")))

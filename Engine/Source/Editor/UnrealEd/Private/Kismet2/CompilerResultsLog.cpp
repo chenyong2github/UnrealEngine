@@ -218,6 +218,26 @@ bool FCompilerResultsLog::IsMessageEnabled(FName ID)
 	return true;
 }
 
+void FCompilerResultsLog::FEdGraphToken_Create(const UObject* InObject, FTokenizedMessage& OutMessage, TArray<UEdGraphNode*>& OutSourceNodes)
+{
+	FEdGraphToken::Create(InObject, this, OutMessage, OutSourceNodes);
+}
+
+void FCompilerResultsLog::FEdGraphToken_Create(const UEdGraphPin* InPin, FTokenizedMessage& OutMessage, TArray<UEdGraphNode*>& OutSourceNodes)
+{
+	FEdGraphToken::Create(InPin, this, OutMessage, OutSourceNodes);
+}
+
+void FCompilerResultsLog::FEdGraphToken_Create(const TCHAR* String, FTokenizedMessage& OutMessage, TArray<UEdGraphNode*>& OutSourceNodes)
+{
+	FEdGraphToken::Create(String, this, OutMessage, OutSourceNodes);
+}
+
+void FCompilerResultsLog::FEdGraphToken_Create(const FField* InField, FTokenizedMessage& OutMessage, TArray<UEdGraphNode*>& OutSourceNodes)
+{
+	FEdGraphToken::Create(InField, this, OutMessage, OutSourceNodes);
+}
+
 void FCompilerResultsLog::InternalLogSummary()
 {
 	if(CurrentEventScope.IsValid())

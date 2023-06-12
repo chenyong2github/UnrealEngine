@@ -1332,10 +1332,7 @@ class UEdGraphSchema : public UObject
 	 * @param InActionTypeId The type of object that is being named.
 	 * @param NameValidator The name validator to use when naming this object.
 	 */
-	virtual TSharedPtr<INameValidatorInterface> GetNameValidator(const UBlueprint* InBlueprintObj, const FName& InOriginalName, const UStruct* InValidationScope, const FName& InActionTypeId) const
-	{
-		return MakeShareable(new FKismetNameValidator(InBlueprintObj, InOriginalName, InValidationScope));
-	}
+	ENGINE_API virtual TSharedPtr<INameValidatorInterface> GetNameValidator(const UBlueprint* InBlueprintObj, const FName& InOriginalName, const UStruct* InValidationScope, const FName& InActionTypeId) const;
 #endif
 	
 #if WITH_EDITORONLY_DATA
