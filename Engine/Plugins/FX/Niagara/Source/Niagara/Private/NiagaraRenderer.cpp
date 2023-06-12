@@ -351,12 +351,7 @@ FNiagaraDataBuffer* FNiagaraDynamicDataBase::GetParticleDataToRender(bool bIsLow
 	return Ret;
 }
 
-void FNiagaraDynamicDataBase::SetVertexFactoryData(class FNiagaraVertexFactoryBase& VertexFactory)
-{
-}
-
 //////////////////////////////////////////////////////////////////////////
-
 
 FNiagaraRenderer::FNiagaraRenderer(ERHIFeatureLevel::Type InFeatureLevel, const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter)
 	: DynamicDataRender(nullptr)

@@ -2051,8 +2051,6 @@ inline void FNiagaraRendererRibbons::SetupMeshBatchAndCollectorResourceForView(c
 	check(MaterialRenderProxy);
 	
 	// Set common data on vertex factory
-	DynamicDataRibbon->SetVertexFactoryData(RenderingViewResources->VertexFactory);
-
 	FNiagaraRibbonVFLooseParameters VFLooseParams;
 	VFLooseParams.SortedIndices = VertexBuffers.SortedIndicesBuffer.SRV;
 	VFLooseParams.TangentsAndDistances = VertexBuffers.TangentsAndDistancesBuffer.SRV;
