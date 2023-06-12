@@ -121,15 +121,15 @@ public:
 	}
 };
 
-FTextureWithSRV* GWhiteTextureWithSRV = new TGlobalResource<FColoredTexture<255, 255, 255, 255> >;
-FTextureWithSRV* GBlackTextureWithSRV = new TGlobalResource<FBlackTextureWithSRV>();
-FTextureWithSRV* GTransparentBlackTextureWithSRV = new TGlobalResource<FColoredTexture<0, 0, 0, 0> >;
+FTextureWithSRV* GWhiteTextureWithSRV = new TGlobalResource<FColoredTexture<255, 255, 255, 255>, FRenderResource::EInitPhase::Pre>;
+FTextureWithSRV* GBlackTextureWithSRV = new TGlobalResource<FBlackTextureWithSRV, FRenderResource::EInitPhase::Pre>();
+FTextureWithSRV* GTransparentBlackTextureWithSRV = new TGlobalResource<FColoredTexture<0, 0, 0, 0>, FRenderResource::EInitPhase::Pre>;
 FTexture* GWhiteTexture = GWhiteTextureWithSRV;
 FTexture* GBlackTexture = GBlackTextureWithSRV;
 FTexture* GTransparentBlackTexture = GTransparentBlackTextureWithSRV;
 
-FVertexBufferWithSRV* GEmptyVertexBufferWithUAV = new TGlobalResource<FEmptyVertexBuffer>;
-FVertexBufferWithSRV* GEmptyStructuredBufferWithUAV = new TGlobalResource<FEmptyStructuredBuffer>;
+FVertexBufferWithSRV* GEmptyVertexBufferWithUAV = new TGlobalResource<FEmptyVertexBuffer, FRenderResource::EInitPhase::Pre>;
+FVertexBufferWithSRV* GEmptyStructuredBufferWithUAV = new TGlobalResource<FEmptyStructuredBuffer, FRenderResource::EInitPhase::Pre>;
 
 class FWhiteVertexBuffer : public FVertexBufferWithSRV
 {
@@ -150,7 +150,7 @@ public:
 	}
 };
 
-FVertexBufferWithSRV* GWhiteVertexBufferWithSRV = new TGlobalResource<FWhiteVertexBuffer>;
+FVertexBufferWithSRV* GWhiteVertexBufferWithSRV = new TGlobalResource<FWhiteVertexBuffer, FRenderResource::EInitPhase::Pre>;
 
 class FWhiteVertexBufferWithRDG : public FBufferWithRDG
 {
@@ -169,7 +169,7 @@ public:
 	}
 };
 
-FBufferWithRDG* GWhiteVertexBufferWithRDG = new TGlobalResource<FWhiteVertexBufferWithRDG>();
+FBufferWithRDG* GWhiteVertexBufferWithRDG = new TGlobalResource<FWhiteVertexBufferWithRDG, FRenderResource::EInitPhase::Pre>();
 
 /**
  * A class representing a 1x1x1 black volume texture.
@@ -216,11 +216,11 @@ public:
 };
 
 /** Global black volume texture resource. */
-FTexture* GBlackVolumeTexture = new TGlobalResource<FBlackVolumeTexture<PF_B8G8R8A8, 0>>();
-FTexture* GBlackAlpha1VolumeTexture = new TGlobalResource<FBlackVolumeTexture<PF_B8G8R8A8, 255>>();
+FTexture* GBlackVolumeTexture = new TGlobalResource<FBlackVolumeTexture<PF_B8G8R8A8, 0>, FRenderResource::EInitPhase::Pre>();
+FTexture* GBlackAlpha1VolumeTexture = new TGlobalResource<FBlackVolumeTexture<PF_B8G8R8A8, 255>, FRenderResource::EInitPhase::Pre>();
 
 /** Global black volume texture resource. */
-FTexture* GBlackUintVolumeTexture = new TGlobalResource<FBlackVolumeTexture<PF_R8G8B8A8_UINT, 0>>();
+FTexture* GBlackUintVolumeTexture = new TGlobalResource<FBlackVolumeTexture<PF_R8G8B8A8_UINT, 0>, FRenderResource::EInitPhase::Pre>();
 
 class FBlackArrayTexture : public FTexture
 {
@@ -247,7 +247,7 @@ public:
 	virtual uint32 GetSizeY() const override { return 1; }
 };
 
-FTexture* GBlackArrayTexture = new TGlobalResource<FBlackArrayTexture>;
+FTexture* GBlackArrayTexture = new TGlobalResource<FBlackArrayTexture, FRenderResource::EInitPhase::Pre>;
 
 //
 // FMipColorTexture implementation
@@ -400,13 +400,13 @@ private:
 };
 
 /** A white cube texture. */
-FTexture* GWhiteTextureCube = new TGlobalResource<FSolidColorTextureCube>(FColor::White);
+FTexture* GWhiteTextureCube = new TGlobalResource<FSolidColorTextureCube, FRenderResource::EInitPhase::Pre>(FColor::White);
 
 /** A black cube texture. */
-FTexture* GBlackTextureCube = new TGlobalResource<FSolidColorTextureCube>(FColor::Black);
+FTexture* GBlackTextureCube = new TGlobalResource<FSolidColorTextureCube, FRenderResource::EInitPhase::Pre>(FColor::Black);
 
 /** A black cube texture. */
-FTexture* GBlackTextureDepthCube = new TGlobalResource<FSolidColorTextureCube>(PF_ShadowDepth);
+FTexture* GBlackTextureDepthCube = new TGlobalResource<FSolidColorTextureCube, FRenderResource::EInitPhase::Pre>(PF_ShadowDepth);
 
 class FBlackCubeArrayTexture : public FTexture
 {
@@ -444,7 +444,7 @@ public:
 	virtual uint32 GetSizeX() const override { return 1; }
 	virtual uint32 GetSizeY() const override { return 1; }
 };
-FTexture* GBlackCubeArrayTexture = new TGlobalResource<FBlackCubeArrayTexture>;
+FTexture* GBlackCubeArrayTexture = new TGlobalResource<FBlackCubeArrayTexture, FRenderResource::EInitPhase::Pre>;
 
 /**
  * A UINT 1x1 texture.
@@ -520,7 +520,7 @@ protected:
 	}
 };
 
-FTexture* GBlackUintTexture = new TGlobalResource< FUintTexture<PF_R32G32B32A32_UINT> >;
+FTexture* GBlackUintTexture = new TGlobalResource<FUintTexture<PF_R32G32B32A32_UINT>, FRenderResource::EInitPhase::Pre>;
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -551,7 +551,7 @@ void FNullColorVertexBuffer::ReleaseRHI()
 }
 
 /** The global null color vertex buffer, which is set with a stride of 0 on meshes without a color component. */
-TGlobalResource<FNullColorVertexBuffer> GNullColorVertexBuffer;
+TGlobalResource<FNullColorVertexBuffer, FRenderResource::EInitPhase::Pre> GNullColorVertexBuffer;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // FNullVertexBuffer
@@ -578,7 +578,7 @@ void FNullVertexBuffer::ReleaseRHI()
 }
 
 /** The global null vertex buffer, which is set with a stride of 0 on meshes */
-TGlobalResource<FNullVertexBuffer> GNullVertexBuffer;
+TGlobalResource<FNullVertexBuffer, FRenderResource::EInitPhase::Pre> GNullVertexBuffer;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // FScreenSpaceVertexBuffer
@@ -600,7 +600,7 @@ void FScreenSpaceVertexBuffer::InitRHI()
 	RHIUnlockBuffer(VertexBufferRHI);
 }
 
-TGlobalResource<FScreenSpaceVertexBuffer> GScreenSpaceVertexBuffer;
+TGlobalResource<FScreenSpaceVertexBuffer, FRenderResource::EInitPhase::Pre> GScreenSpaceVertexBuffer;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // FTileVertexDeclaration
@@ -621,7 +621,7 @@ void FTileVertexDeclaration::ReleaseRHI()
 	VertexDeclarationRHI.SafeRelease();
 }
 
-TGlobalResource<FTileVertexDeclaration> GTileVertexDeclaration;
+TGlobalResource<FTileVertexDeclaration, FRenderResource::EInitPhase::Pre> GTileVertexDeclaration;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // FCubeIndexBuffer
@@ -636,7 +636,7 @@ void FCubeIndexBuffer::InitRHI()
 	RHIUnlockBuffer(IndexBufferRHI);
 }
 
-TGlobalResource<FCubeIndexBuffer> GCubeIndexBuffer;
+TGlobalResource<FCubeIndexBuffer, FRenderResource::EInitPhase::Pre> GCubeIndexBuffer;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // FTwoTrianglesIndexBuffer
@@ -652,7 +652,7 @@ void FTwoTrianglesIndexBuffer::InitRHI()
 	RHIUnlockBuffer(IndexBufferRHI);
 }
 
-TGlobalResource<FTwoTrianglesIndexBuffer> GTwoTrianglesIndexBuffer;
+TGlobalResource<FTwoTrianglesIndexBuffer, FRenderResource::EInitPhase::Pre> GTwoTrianglesIndexBuffer;
 
 /*------------------------------------------------------------------------------
 	FGlobalDynamicVertexBuffer implementation.
@@ -847,7 +847,7 @@ private:
 	}
 };
 
-static TGlobalResource<FDynamicVertexBufferPool> GDynamicVertexBufferPool;
+static TGlobalResource<FDynamicVertexBufferPool, FRenderResource::EInitPhase::Pre> GDynamicVertexBufferPool;
 
 FGlobalDynamicVertexBuffer::FAllocation FGlobalDynamicVertexBuffer::Allocate(uint32 SizeInBytes)
 {

@@ -87,7 +87,7 @@ public:
 };
 
 /** The global null color vertex buffer, which is set with a stride of 0 on meshes without a color component. */
-extern RENDERCORE_API TGlobalResource<FNullColorVertexBuffer> GNullColorVertexBuffer;
+extern RENDERCORE_API TGlobalResource<FNullColorVertexBuffer, FRenderResource::EInitPhase::Pre> GNullColorVertexBuffer;
 
 /**
 * A vertex buffer with a single zero float3 component.
@@ -105,7 +105,7 @@ public:
 };
 
 /** The global null vertex buffer, which is set with a stride of 0 on meshes */
-extern RENDERCORE_API TGlobalResource<FNullVertexBuffer> GNullVertexBuffer;
+extern RENDERCORE_API TGlobalResource<FNullVertexBuffer, FRenderResource::EInitPhase::Pre> GNullVertexBuffer;
 
 class FScreenSpaceVertexBuffer : public FVertexBuffer
 {
@@ -116,7 +116,7 @@ public:
 	RENDERCORE_API virtual void InitRHI() override;
 };
 
-extern RENDERCORE_API TGlobalResource<FScreenSpaceVertexBuffer> GScreenSpaceVertexBuffer;
+extern RENDERCORE_API TGlobalResource<FScreenSpaceVertexBuffer, FRenderResource::EInitPhase::Pre> GScreenSpaceVertexBuffer;
 
 class FTileVertexDeclaration : public FRenderResource
 {
@@ -130,7 +130,7 @@ public:
 	FVertexDeclarationRHIRef VertexDeclarationRHI;
 };
 
-extern RENDERCORE_API TGlobalResource<FTileVertexDeclaration> GTileVertexDeclaration;
+extern RENDERCORE_API TGlobalResource<FTileVertexDeclaration, FRenderResource::EInitPhase::Pre> GTileVertexDeclaration;
 
 class FCubeIndexBuffer : public FIndexBuffer
 {
@@ -140,7 +140,7 @@ public:
 	*/
 	virtual void InitRHI() override;
 };
-extern RENDERCORE_API TGlobalResource<FCubeIndexBuffer> GCubeIndexBuffer;
+extern RENDERCORE_API TGlobalResource<FCubeIndexBuffer, FRenderResource::EInitPhase::Pre> GCubeIndexBuffer;
 
 class FTwoTrianglesIndexBuffer : public FIndexBuffer
 {
@@ -150,7 +150,7 @@ public:
 	*/
 	virtual void InitRHI() override;
 };
-extern RENDERCORE_API TGlobalResource<FTwoTrianglesIndexBuffer> GTwoTrianglesIndexBuffer;
+extern RENDERCORE_API TGlobalResource<FTwoTrianglesIndexBuffer, FRenderResource::EInitPhase::Pre> GTwoTrianglesIndexBuffer;
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

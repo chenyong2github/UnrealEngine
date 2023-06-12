@@ -709,7 +709,7 @@ void FDeferredShadingSceneRenderer::RenderPrePassHMD(FRDGBuilder& GraphBuilder, 
 				ERDGPassFlags::Raster,
 				[this, &View, HMDDevice](FRHICommandList& RHICmdList)
 			{
-				extern TGlobalResource<FFilterVertexDeclaration> GFilterVertexDeclaration;
+				extern TGlobalResource<FFilterVertexDeclaration, FRenderResource::EInitPhase::Pre> GFilterVertexDeclaration;
 
 				TShaderMapRef<TOneColorVS<true>> VertexShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
 

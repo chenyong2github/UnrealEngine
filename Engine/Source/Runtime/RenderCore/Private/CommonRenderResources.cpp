@@ -9,11 +9,11 @@
 #include "StereoRenderUtils.h"
 
 
-TGlobalResource<FFilterVertexDeclaration> GFilterVertexDeclaration;
-TGlobalResource<FEmptyVertexDeclaration> GEmptyVertexDeclaration;
+TGlobalResource<FFilterVertexDeclaration, FRenderResource::EInitPhase::Pre> GFilterVertexDeclaration;
+TGlobalResource<FEmptyVertexDeclaration, FRenderResource::EInitPhase::Pre> GEmptyVertexDeclaration;
 
-TGlobalResource<FScreenRectangleVertexBuffer> GScreenRectangleVertexBuffer;
-TGlobalResource<FScreenRectangleIndexBuffer> GScreenRectangleIndexBuffer;
+TGlobalResource<FScreenRectangleVertexBuffer, FRenderResource::EInitPhase::Pre> GScreenRectangleVertexBuffer;
+TGlobalResource<FScreenRectangleIndexBuffer, FRenderResource::EInitPhase::Pre> GScreenRectangleIndexBuffer;
 
 IMPLEMENT_GLOBAL_SHADER(FScreenVertexShaderVS, "/Engine/Private/Tools/FullscreenVertexShader.usf", "MainVS", SF_Vertex);
 IMPLEMENT_GLOBAL_SHADER(FInstancedScreenVertexShaderVS, "/Engine/Private/Tools/FullscreenVertexShader.usf", "MainVS", SF_Vertex);

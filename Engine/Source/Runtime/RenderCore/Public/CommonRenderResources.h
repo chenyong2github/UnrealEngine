@@ -56,7 +56,7 @@ public:
 	}
 };
 
-extern RENDERCORE_API TGlobalResource<FFilterVertexDeclaration> GFilterVertexDeclaration;
+extern RENDERCORE_API TGlobalResource<FFilterVertexDeclaration, FRenderResource::EInitPhase::Pre> GFilterVertexDeclaration;
 
 /** The empty vertex declaration resource type. */
 class FEmptyVertexDeclaration : public FRenderResource
@@ -79,11 +79,11 @@ public:
 	}
 };
 
-extern RENDERCORE_API TGlobalResource<FEmptyVertexDeclaration> GEmptyVertexDeclaration;
+extern RENDERCORE_API TGlobalResource<FEmptyVertexDeclaration, FRenderResource::EInitPhase::Pre> GEmptyVertexDeclaration;
 
 /**
- * Static vertex and index buffer used for 2D screen rectangles.
- */
+* Static vertex and index buffer used for 2D screen rectangles.
+*/
 class FScreenRectangleVertexBuffer : public FVertexBuffer
 {
 public:
@@ -91,7 +91,7 @@ public:
 	void InitRHI() override;
 };
 
-extern RENDERCORE_API TGlobalResource<FScreenRectangleVertexBuffer> GScreenRectangleVertexBuffer;
+extern RENDERCORE_API TGlobalResource<FScreenRectangleVertexBuffer, FRenderResource::EInitPhase::Pre> GScreenRectangleVertexBuffer;
 
 
 class FScreenRectangleIndexBuffer : public FIndexBuffer
@@ -101,7 +101,7 @@ public:
 	void InitRHI() override;
 };
 
-extern RENDERCORE_API TGlobalResource<FScreenRectangleIndexBuffer> GScreenRectangleIndexBuffer;
+extern RENDERCORE_API TGlobalResource<FScreenRectangleIndexBuffer, FRenderResource::EInitPhase::Pre> GScreenRectangleIndexBuffer;
 
 
 /** Vertex shader to draw a screen quad that works on all platforms. Does not have any shader parameters.

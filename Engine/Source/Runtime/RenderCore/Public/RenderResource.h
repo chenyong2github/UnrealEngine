@@ -58,22 +58,25 @@ enum class ERayTracingMode : uint8
 
 /**
  * A rendering resource which is owned by the rendering thread.
- * NOTE - Adding new virtual methods to this class may require stubs added to FViewport/FDummyViewport, otherwise certain modules may have link errors
  */
 class FRenderResource
 {
 public:
 	////////////////////////////////////////////////////////////////////////////////////
-	// The following methods may not be called while asynchronously initializing / releasing render resources.
+
+	/** Controls initialization order of render resources. Early engine resources utilize the 'Pre' phase to avoid static init ordering issues. */
+	enum class EInitPhase : uint8
+	{
+		Pre,
+		Default,
+		MAX
+	};
 
 	/** Release all render resources that are currently initialized. */
 	static RENDERCORE_API void ReleaseRHIForAllResources();
 
 	/** Initialize all resources initialized before the RHI was initialized. */
 	static RENDERCORE_API void InitPreRHIResources();
-
-	/** Call periodically to coalesce the render resource list. */
-	static RENDERCORE_API void CoalesceResourceList();
 
 	/** Reinitializes render resources at a new feature level. */
 	static RENDERCORE_API void ChangeFeatureLevel(ERHIFeatureLevel::Type NewFeatureLevel);
@@ -149,6 +152,7 @@ public:
 	FORCEINLINE bool IsInitialized() const { return ListIndex != INDEX_NONE; }
 
 	int32 GetListIndex() const { return ListIndex; }
+	EInitPhase GetInitPhase() const { return InitPhase; }
 
 	/** SetOwnerName should be called before BeginInitResource for the owner name to be successfully tracked. */
 	RENDERCORE_API void SetOwnerName(const FName& InOwnerName);
@@ -185,6 +189,13 @@ protected:
 		return Buffer;
 	}
 
+	void SetInitPhase(EInitPhase InInitPhase)
+	{
+		check(InInitPhase != EInitPhase::MAX);
+		check(!IsInitialized());
+		InitPhase = InInitPhase;
+	}
+
 private:
 	static RENDERCORE_API bool ShouldFreeResourceObject(void* ResourceObject, FResourceArrayInterface* ResourceArray);
 	static RENDERCORE_API FBufferRHIRef CreateRHIBufferInternal(
@@ -203,6 +214,7 @@ private:
 
 	int32 ListIndex;
 	TEnumAsByte<ERHIFeatureLevel::Type> FeatureLevel;
+	EInitPhase InitPhase = EInitPhase::Default;
 
 public:
 	ERenderResourceState ResourceState = ERenderResourceState::Default;
@@ -506,7 +518,7 @@ public:
 };
 
 /** Used to declare a render resource that is initialized/released by static initialization/destruction. */
-template<class ResourceType>
+template<class ResourceType, FRenderResource::EInitPhase InInitPhase = FRenderResource::EInitPhase::Default>
 class TGlobalResource : public ResourceType
 {
 public:
@@ -537,6 +549,8 @@ private:
 	 */
 	void InitGlobalResource()
 	{
+		ResourceType::SetInitPhase(InInitPhase);
+
 		if (IsInRenderingThread())
 		{
 			// If the resource is constructed in the rendering thread, directly initialize it.

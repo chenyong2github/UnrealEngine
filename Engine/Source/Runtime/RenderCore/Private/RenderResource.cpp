@@ -27,10 +27,22 @@ FAutoConsoleVariableRef CVarFreeStructuresOnRHIBufferCreation(
 class FRenderResourceList
 {
 public:
+	template <FRenderResource::EInitPhase>
 	static FRenderResourceList& Get()
 	{
 		static FRenderResourceList Instance;
 		return Instance;
+	}
+
+	static FRenderResourceList& Get(FRenderResource::EInitPhase InitPhase)
+	{
+		switch (InitPhase)
+		{
+		case FRenderResource::EInitPhase::Pre:
+			return Get<FRenderResource::EInitPhase::Pre>();
+		default:
+			return Get<FRenderResource::EInitPhase::Default>();
+		}
 	}
 
 	int32 Allocate(FRenderResource* Resource)
@@ -105,28 +117,29 @@ private:
 	TArray<FRenderResource*> ResourceList;
 };
 
-void FRenderResource::CoalesceResourceList()
-{
-}
-
 void FRenderResource::ReleaseRHIForAllResources()
 {
-	FRenderResourceList& ResourceList = FRenderResourceList::Get();
-	ResourceList.ForEachReverse([](FRenderResource* Resource) { check(Resource->IsInitialized()); Resource->ReleaseRHI(); });
+	const auto Lambda = [](FRenderResource* Resource) { check(Resource->IsInitialized()); Resource->ReleaseRHI(); };
+	FRenderResourceList::Get<FRenderResource::EInitPhase::Default>().ForEachReverse(Lambda);
+	FRenderResourceList::Get<FRenderResource::EInitPhase::Pre>().ForEachReverse(Lambda);
 }
 
 /** Initialize all resources initialized before the RHI was initialized */
 void FRenderResource::InitPreRHIResources()
 {
-	FRenderResourceList& ResourceList = FRenderResourceList::Get();
-
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 
+	FRenderResourceList& PreResourceList = FRenderResourceList::Get<FRenderResource::EInitPhase::Pre>();
+	FRenderResourceList& DefaultResourceList = FRenderResourceList::Get<FRenderResource::EInitPhase::Default>();
+
 	// Notify all initialized FRenderResources that there's a valid RHI device to create their RHI resources for now.
-	ResourceList.ForEach([&](FRenderResource* Resource) { Resource->InitRHI(RHICmdList); });
+	const auto Lambda = [&](FRenderResource* Resource) { Resource->InitRHI(RHICmdList); };
+	PreResourceList.ForEach(Lambda);
+	DefaultResourceList.ForEach(Lambda);
 
 #if !PLATFORM_NEEDS_RHIRESOURCELIST
-	ResourceList.Clear();
+	PreResourceList.Clear();
+	DefaultResourceList.Clear();
 #endif
 }
 
@@ -135,7 +148,7 @@ void FRenderResource::ChangeFeatureLevel(ERHIFeatureLevel::Type NewFeatureLevel)
 	ENQUEUE_RENDER_COMMAND(FRenderResourceChangeFeatureLevel)(
 		[NewFeatureLevel](FRHICommandList& RHICmdList)
 	{
-		FRenderResourceList::Get().ForEach([NewFeatureLevel](FRenderResource* Resource)
+		const auto Lambda = [NewFeatureLevel](FRenderResource* Resource)
 		{
 			// Only resources configured for a specific feature level need to be updated
 			if (Resource->HasValidFeatureLevel() && (Resource->FeatureLevel != NewFeatureLevel))
@@ -144,7 +157,10 @@ void FRenderResource::ChangeFeatureLevel(ERHIFeatureLevel::Type NewFeatureLevel)
 				Resource->FeatureLevel = NewFeatureLevel;
 				Resource->InitRHI();
 			}
-		});
+		};
+
+		FRenderResourceList::Get<FRenderResource::EInitPhase::Pre>().ForEach(Lambda);
+		FRenderResourceList::Get<FRenderResource::EInitPhase::Default>().ForEach(Lambda);
 	});
 }
 
@@ -158,7 +174,7 @@ void FRenderResource::InitResource()
 		if (PLATFORM_NEEDS_RHIRESOURCELIST || !GIsRHIInitialized)
 		{
 			LLM_SCOPE(ELLMTag::SceneRender);
-			LocalListIndex = FRenderResourceList::Get().Allocate(this);
+			LocalListIndex = FRenderResourceList::Get(InitPhase).Allocate(this);
 		}
 		else
 		{
@@ -187,7 +203,7 @@ void FRenderResource::InitResource(FRHICommandList& RHICmdList)
 		if (PLATFORM_NEEDS_RHIRESOURCELIST || !GIsRHIInitialized)
 		{
 			LLM_SCOPE(ELLMTag::SceneRender);
-			LocalListIndex = FRenderResourceList::Get().Allocate(this);
+			LocalListIndex = FRenderResourceList::Get(InitPhase).Allocate(this);
 		}
 		else
 		{
@@ -218,7 +234,7 @@ void FRenderResource::ReleaseResource()
 			}
 
 #if PLATFORM_NEEDS_RHIRESOURCELIST
-			FRenderResourceList::Get().Deallocate(ListIndex);
+			FRenderResourceList::Get(InitPhase).Deallocate(ListIndex);
 #endif
 			ListIndex = INDEX_NONE;
 		}

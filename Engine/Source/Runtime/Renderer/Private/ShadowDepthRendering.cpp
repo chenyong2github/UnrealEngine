@@ -849,7 +849,7 @@ void FProjectedShadowInfo::CopyCachedShadowMap(
 		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<true, CF_Always>::GetRHI();
 		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
-		extern TGlobalResource<FFilterVertexDeclaration> GFilterVertexDeclaration;
+		extern TGlobalResource<FFilterVertexDeclaration, FRenderResource::EInitPhase::Pre> GFilterVertexDeclaration;
 		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
 
 		if (CacheMode == SDCM_MovablePrimitivesOnly)

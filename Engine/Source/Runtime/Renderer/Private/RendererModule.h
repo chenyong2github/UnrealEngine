@@ -24,7 +24,7 @@ struct FMeshBatch;
 struct FSynthBenchmarkResults;
 struct FSceneTextures;
 
-template<class ResourceType> class TGlobalResource;
+template<class ResourceType, FRenderResource::EInitPhase> class TGlobalResource;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogRenderer, Log, All);
 
