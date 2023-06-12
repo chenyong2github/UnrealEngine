@@ -44,23 +44,17 @@ namespace mtlpp
 #endif
     }
 
-    CommandBuffer CommandQueue::CommandBufferWithUnretainedReferences()
-    {
-        Validate();
-#if MTLPP_CONFIG_IMP_CACHE
-		return mtlpp::CommandBuffer(m_table->CommandBufferWithUnretainedReferences(m_ptr), m_table->TableCache);
-#else
-        return [(id<MTLCommandQueue>)m_ptr commandBufferWithUnretainedReferences];
-#endif
-    }
-
-    CommandBuffer CommandQueue::CommandBuffer()
+    CommandBuffer CommandQueue::CommandBuffer(bool retainReferences, bool gpuEncoderErrors)
     {
         Validate();
 #if MTLPP_CONFIG_IMP_CACHE
 		return mtlpp::CommandBuffer(m_table->CommandBuffer(m_ptr), m_table->TableCache);
 #else
-        return [(id<MTLCommandQueue>)m_ptr commandBuffer];
+        MTLCommandBufferDescriptor* desc = [MTLCommandBufferDescriptor new];
+        desc.retainedReferences = retainReferences;
+        desc.errorOptions = gpuEncoderErrors ? MTLCommandBufferErrorOptionEncoderExecutionStatus : 0;
+        
+        return [(id<MTLCommandQueue>)m_ptr commandBufferWithDescriptor:desc];
 #endif
     }
 
@@ -74,17 +68,10 @@ namespace mtlpp
 #endif
     }
 	
-#if MTLPP_CONFIG_VALIDATE
-	class CommandBuffer ValidatedCommandQueue::CommandBufferWithUnretainedReferences()
+#if MTLPP_CONFIG_VALIDATE	
+	class CommandBuffer ValidatedCommandQueue::CommandBuffer(bool retainReferences, bool gpuEncoderErrors)
 	{
-		class CommandBuffer Buf = CommandQueue::CommandBufferWithUnretainedReferences();
-		CommandBufferValidationTable Validator(Buf);
-		return Buf;
-	}
-	
-	class CommandBuffer ValidatedCommandQueue::CommandBuffer()
-	{
-		class CommandBuffer Buf = CommandQueue::CommandBuffer();
+		class CommandBuffer Buf = CommandQueue::CommandBuffer(retainReferences, gpuEncoderErrors);
 		CommandBufferValidationTable Validator(Buf);
 		return Buf;
 	}

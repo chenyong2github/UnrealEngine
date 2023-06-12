@@ -31,6 +31,19 @@ FMetalCommandList::~FMetalCommandList(void)
 	
 #pragma mark - Public Command List Mutators -
 
+static const TCHAR* StringFromCommandEncoderError(MTLCommandEncoderErrorState ErrorState)
+{
+    switch (ErrorState)
+    {
+        case MTLCommandEncoderErrorStateUnknown: return TEXT("Unknown");
+        case MTLCommandEncoderErrorStateAffected: return TEXT("Affected");
+        case MTLCommandEncoderErrorStateCompleted: return TEXT("Completed");
+        case MTLCommandEncoderErrorStateFaulted: return TEXT("Faulted");
+        case MTLCommandEncoderErrorStatePending: return TEXT("Pending");
+    }
+    return TEXT("Unknown");
+}
+
 extern CORE_API bool GIsGPUCrashed;
 static void ReportMetalCommandBufferFailure(mtlpp::CommandBuffer const& CompletedBuffer, TCHAR const* ErrorType, bool bDoCheck=true)
 {
@@ -165,6 +178,26 @@ static void ReportMetalCommandBufferFailure(mtlpp::CommandBuffer const& Complete
 			}
 		}
 		
+        // Dump GPU fault information for the GPU encoders
+        if (&MTLCommandBufferEncoderInfoErrorKey != nullptr)
+        {
+            if (NSArray<id<MTLCommandBufferEncoderInfo>>* EncoderInfoArray = [CompletedBuffer.GetError() userInfo][MTLCommandBufferEncoderInfoErrorKey]) {
+                UE_LOG(LogMetal, Warning, TEXT("GPU Encoder Crash Info:"));
+                for (id<MTLCommandBufferEncoderInfo> EncoderInfo in EncoderInfoArray)
+                {
+                    UE_LOG(LogMetal, Warning, TEXT("MTLCommandBufferEncoder - Label: %s, State: %s"), *FString(EncoderInfo.label), StringFromCommandEncoderError(EncoderInfo.errorState));
+                    if (EncoderInfo.debugSignposts.count > 0)
+                    {
+                        UE_LOG(LogMetal, Warning, TEXT("    Signposts:"));
+                        for (NSString* Signpost in EncoderInfo.debugSignposts)
+                        {
+                            UE_LOG(LogMetal, Warning, TEXT("    - %s"), *FString(Signpost));
+                        }
+                    }
+                }
+            }
+        }
+        
 #if PLATFORM_IOS
         UE_LOG(LogMetal, Warning, TEXT("Command Buffer %s Failed with %s Error! Error Domain: %s Code: %d Description %s %s %s"), *LabelString, ErrorType, *DomainString, Code, *ErrorString, *FailureString, *RecoveryString);
         FIOSPlatformMisc::GPUAssert();

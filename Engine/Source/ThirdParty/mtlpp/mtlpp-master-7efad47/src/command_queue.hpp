@@ -47,8 +47,7 @@ namespace mtlpp
 
         void SetLabel(const ns::String& label);
 
-        MTLPP_VALIDATED class CommandBuffer CommandBufferWithUnretainedReferences();
-        MTLPP_VALIDATED class CommandBuffer CommandBuffer();
+        MTLPP_VALIDATED class CommandBuffer CommandBuffer(bool retainReferences, bool gpuEncoderErrors);
         void                InsertDebugCaptureBoundary() MTLPP_DEPRECATED(10_11, 10_13, 8_0, 11_0);
     }
     MTLPP_AVAILABLE(10_11, 8_0);
@@ -66,8 +65,7 @@ namespace mtlpp
 		{
 		}
 		
-		MTLPP_VALIDATED class CommandBuffer CommandBufferWithUnretainedReferences();
-		MTLPP_VALIDATED class CommandBuffer CommandBuffer();
+		MTLPP_VALIDATED class CommandBuffer CommandBuffer(bool retainReferences, bool gpuEncoderErrors);
 	};
 	
 	template <>

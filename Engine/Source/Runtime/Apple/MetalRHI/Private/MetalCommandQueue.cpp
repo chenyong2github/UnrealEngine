@@ -74,7 +74,7 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 		Features |= EMetalFeaturesFences;
 	}
 					
-					if (FParse::Param(FCommandLine::Get(),TEXT("metalheap")))
+    if (FParse::Param(FCommandLine::Get(),TEXT("metalheap")))
 	{
 		Features |= EMetalFeaturesHeaps;
 	}
@@ -86,9 +86,9 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 		Features |= EMetalFeaturesCountingQueries | EMetalFeaturesBaseVertexInstance | EMetalFeaturesIndirectBuffer | EMetalFeaturesMSAADepthResolve;
 	}
 		
-		if(Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily3_v2) || Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily2_v3) || Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily1_v3))
+    if(Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily3_v2) || Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily2_v3) || Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily1_v3))
 	{
-			if (FParse::Param(FCommandLine::Get(),TEXT("metalfence")))
+        if (FParse::Param(FCommandLine::Get(),TEXT("metalfence")))
 		{
 			Features |= EMetalFeaturesFences;
 		}
@@ -121,7 +121,7 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 		Features |= EMetalFeaturesFences;
 	}
                     
-                    if (!FParse::Param(FCommandLine::Get(),TEXT("nometalheap")))
+    if (!FParse::Param(FCommandLine::Get(),TEXT("nometalheap")))
 	{
 		Features |= EMetalFeaturesHeaps;
 	}
@@ -192,7 +192,7 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 		}
             
 		IConsoleVariable* GPUCrashDebuggingCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashDebugging"));
-            GMetalCommandBufferDebuggingEnabled = (GPUCrashDebuggingCVar && GPUCrashDebuggingCVar->GetInt() != 0) || FParse::Param(FCommandLine::Get(),TEXT("metalgpudebug"));
+        GMetalCommandBufferDebuggingEnabled = (GPUCrashDebuggingCVar && GPUCrashDebuggingCVar->GetInt() != 0) || FParse::Param(FCommandLine::Get(),TEXT("metalgpudebug"));
             
 		// The editor spawns so many viewports and preview icons that we can run out of hardware fences!
 		// Need to figure out a way to safely flush the rendering and reuse the fences when that happens.
@@ -200,13 +200,13 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 		if (!GIsEditor)
 #endif
 		{
-				if (FParse::Param(FCommandLine::Get(),TEXT("metalfence")))
+            if (FParse::Param(FCommandLine::Get(),TEXT("metalfence")))
 			{
 				Features |= EMetalFeaturesFences;
 			}
 				
 			// There are still too many driver bugs to use MTLHeap on macOS - nothing works without causing random, undebuggable GPU hangs that completely deadlock the Mac and don't generate any validation errors or command-buffer failures
-				if (FParse::Param(FCommandLine::Get(),TEXT("forcemetalheap")))
+            if (FParse::Param(FCommandLine::Get(),TEXT("forcemetalheap")))
 			{
 				Features |= EMetalFeaturesHeaps;
 			}
@@ -293,7 +293,7 @@ mtlpp::CommandBuffer FMetalCommandQueue::CreateCommandBuffer(void)
 	mtlpp::CommandBuffer CmdBuffer;
 	@autoreleasepool
 	{
-		CmdBuffer = bUnretainedRefs ? MTLPP_VALIDATE(mtlpp::CommandQueue, CommandQueue, SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, CommandBufferWithUnretainedReferences()) : MTLPP_VALIDATE(mtlpp::CommandQueue, CommandQueue, SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, CommandBuffer());
+		CmdBuffer = bUnretainedRefs ? MTLPP_VALIDATE(mtlpp::CommandQueue, CommandQueue, SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, CommandBuffer(false, GMetalCommandBufferDebuggingEnabled)) : MTLPP_VALIDATE(mtlpp::CommandQueue, CommandQueue, SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, CommandBuffer(true, GMetalCommandBufferDebuggingEnabled));
 		
 		if (RuntimeDebuggingLevel > EMetalDebugLevelOff)
 		{			
