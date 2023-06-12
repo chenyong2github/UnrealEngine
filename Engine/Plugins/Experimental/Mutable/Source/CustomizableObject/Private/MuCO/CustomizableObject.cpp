@@ -749,7 +749,7 @@ bool UCustomizableObject::ConditionalAutoCompile()
 	// Don't compile if we're running game, Compile and/or if AutoCompile is disabled
 	if (IsRunningGame() || System->IsCompilationDisabled() || !System->IsAutoCompileEnabled())
 	{
-		System->AddUncompiledCOWarning(this);
+		System->AddUncompiledCOWarning(*this);
 		return false;
 	}
 
@@ -929,6 +929,19 @@ bool UCustomizableObject::IsCompiled() const
 	bool IsCompiled = PrivateData->GetModel() != nullptr;
 
 	return IsCompiled;
+}
+
+
+void UCustomizableObject::AddUncompiledCOWarning(const FString& AdditionalLoggingInfo)
+{
+	// Send a warning (on-screen notification, log error, and in-editor notification)
+	UCustomizableObjectSystem* System = UCustomizableObjectSystem::GetInstance();
+	if (!System || !System->IsValidLowLevel() || System->HasAnyFlags(RF_BeginDestroyed))
+	{
+		return;
+	}
+
+	System->AddUncompiledCOWarning(*this, &AdditionalLoggingInfo);
 }
 
 
@@ -1369,8 +1382,8 @@ void UCustomizableObject::UpdateParameterPropertiesFromModel()
 	}
 	else
 	{
-		ParameterProperties.Reset();
-		ParameterPropertiesLookupTable.Reset();
+		ParameterProperties.Empty();
+		ParameterPropertiesLookupTable.Empty();
 	}
 }
 

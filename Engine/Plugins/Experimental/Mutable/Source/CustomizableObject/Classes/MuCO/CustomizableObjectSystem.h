@@ -302,7 +302,7 @@ public:
     
 	// Show a warning on-screen and via a notification (if in Editor) and log an error when a CustomizableObject is
 	// being used and it's not compiled.  Callers can add additional information to the error log.
-	void AddUncompiledCOWarning(UCustomizableObject* InObject, FString const* OptionalLogInfo = nullptr);
+	void AddUncompiledCOWarning(const UCustomizableObject& InObject, FString const* OptionalLogInfo = nullptr);
 
 	// Enables the collection of internal mutabe performance data. It has a performance cost.
 	void EnableBenchmark();

@@ -1453,6 +1453,8 @@ private:
 
 public:
 
+	void AddUncompiledCOWarning(const FString& AdditionalLoggingInfo);
+
 #if WITH_EDITOR
 	
 	// Compile the object if Automatic Compilation is enabled and the object can be compiled.

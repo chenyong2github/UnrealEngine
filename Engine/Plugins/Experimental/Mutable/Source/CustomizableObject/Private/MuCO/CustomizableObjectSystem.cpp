@@ -2884,34 +2884,29 @@ void UCustomizableObjectSystem::SetOnlyGenerateRequestedLODsEnabled(bool bIsEnab
 }
 
 
-void UCustomizableObjectSystem::AddUncompiledCOWarning(UCustomizableObject* InObject, FString const* OptionalLogInfo)
+void UCustomizableObjectSystem::AddUncompiledCOWarning(const UCustomizableObject& InObject, FString const* OptionalLogInfo)
 {
-	if (!InObject)
-	{
-		return;
-	}
-
 	FString Msg;
-	Msg += FString::Printf(TEXT("Warning: Customizable Object [%s] not compiled. Please compile and save the object."), *InObject->GetName());
-	GEngine->AddOnScreenDebugMessage((uint64)((PTRINT)InObject), 10.0f, FColor::Red, Msg);
+	Msg += FString::Printf(TEXT("Warning: Customizable Object [%s] not compiled. Please compile and save the object."), *InObject.GetName());
+	GEngine->AddOnScreenDebugMessage((uint64)((PTRINT)&InObject), 10.0f, FColor::Red, Msg);
 
 #if WITH_EDITOR
 	const FString ErrorString = FString::Printf(
 		TEXT("Customizable Object [%s] not compiled.  Compile via the editor or via code before instancing.  %s"),
-						   *InObject->GetName(), OptionalLogInfo ? **OptionalLogInfo : TEXT(""));
+						   *InObject.GetName(), OptionalLogInfo ? **OptionalLogInfo : TEXT(""));
 #else // !WITH_EDITOR
 	const FString ErrorString = FString::Printf(
 		TEXT("Customizable Object [%s] not compiled.  This is not an Editor build, so this is an unrecoverable bad state; could be due to code or a cook failure.  %s"),
-						   *InObject->GetName(), OptionalLogInfo ? **OptionalLogInfo : TEXT(""));
+						   *InObject.GetName(), OptionalLogInfo ? **OptionalLogInfo : TEXT(""));
 #endif
 
 	// Also log an error so if this happens as part of a bug report we'll have this info.
 	UE_LOG(LogMutable, Error, TEXT("%s"), *ErrorString);
 
 #if WITH_EDITOR
-	if (UncompiledCustomizableObjectIds.Find(InObject->GetVersionId()) == INDEX_NONE)
+	if (UncompiledCustomizableObjectIds.Find(InObject.GetVersionId()) == INDEX_NONE)
 	{
-		UncompiledCustomizableObjectIds.Add(InObject->GetVersionId());
+		UncompiledCustomizableObjectIds.Add(InObject.GetVersionId());
 
 		FMessageLog MessageLog("Mutable");
 		MessageLog.Warning(FText::FromString(Msg));
