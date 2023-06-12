@@ -79,9 +79,14 @@ private:
 //////////////////////////////////////////////////////////////////////////
 // SplineMeshSceneProxy
 
+/** Helper to update the parameters of the specified spline mesh scene proxy */
+ENGINE_API void UpdateSplineMeshParams_RenderThread(FPrimitiveSceneProxy* SceneProxy, const FSplineMeshShaderParams& Params);
+
 /** Scene proxy for SplineMesh instance */
 class FSplineMeshSceneProxy final : public FStaticMeshSceneProxy
 {
+	friend void UpdateSplineMeshParams_RenderThread(FPrimitiveSceneProxy* SceneProxy, const FSplineMeshShaderParams& Params);
+
 public:
 	FSplineMeshSceneProxy(USplineMeshComponent* InComponent);
 	void InitVertexFactory(USplineMeshComponent* InComponent, int32 InLODIndex, FColorVertexBuffer*);
@@ -121,6 +126,8 @@ private:
 /** Scene proxy for SplineMesh instance for Nanite */
 class FNaniteSplineMeshSceneProxy final : public Nanite::FSceneProxy
 {
+	friend void UpdateSplineMeshParams_RenderThread(FPrimitiveSceneProxy* SceneProxy, const FSplineMeshShaderParams& Params);
+	
 public:
 	FNaniteSplineMeshSceneProxy(const Nanite::FMaterialAudit& MaterialAudit, USplineMeshComponent* InComponent);
 

@@ -706,25 +706,10 @@ void USplineMeshComponent::UpdateRenderStateAndCollision_Internal(bool bConcurre
 			MarkRenderTransformDirty();
 		}
 
-		FSplineMeshShaderParams* DestParams = nullptr;
-		if (SceneProxy->IsNaniteMesh())
-		{
-			DestParams = &static_cast<FNaniteSplineMeshSceneProxy*>(SceneProxy)->SplineParams;
-		}
-		else
-		{
-			DestParams = &static_cast<FSplineMeshSceneProxy*>(SceneProxy)->SplineParams;
-		}
-
 		ENQUEUE_RENDER_COMMAND(UpdateSplineParamsRTCommand)(
-			[SceneProxy=SceneProxy, DestParams, SrcParams=CalculateShaderParams()](FRHICommandList&)
+			[SceneProxy=SceneProxy, Params=CalculateShaderParams()](FRHICommandList&)
 			{
-				*DestParams = SrcParams;
-
-				// Request a GPU scene update for this primitive so it updates its instance data
-				FSceneInterface& Scene = SceneProxy->GetScene();
-				FPrimitiveSceneInfo& SceneInfo = *SceneProxy->GetPrimitiveSceneInfo();
-				Scene.RequestGPUSceneUpdate(SceneInfo, EPrimitiveDirtyState::ChangedOther);
+				UpdateSplineMeshParams_RenderThread(SceneProxy, Params);
 			}
 		);
 	}

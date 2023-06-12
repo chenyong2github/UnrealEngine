@@ -325,3 +325,33 @@ void FNaniteSplineMeshSceneProxy::OnTransformChanged()
 	check(InstanceLocalBounds.Num() == 1);
 	SetInstanceLocalBounds(0, GetLocalBounds(), false);
 }
+
+void UpdateSplineMeshParams_RenderThread(FPrimitiveSceneProxy* SceneProxy, const FSplineMeshShaderParams& Params)
+{
+	check(SceneProxy->IsSplineMesh());
+
+	TArrayView<FVector4f> InstancePayloadExtension;
+	if (SceneProxy->IsNaniteMesh())
+	{
+		auto* Proxy = static_cast<FNaniteSplineMeshSceneProxy*>(SceneProxy);
+		Proxy->SplineParams = Params;
+		InstancePayloadExtension = Proxy->InstancePayloadExtension;
+	}
+	else
+	{
+		auto* Proxy = static_cast<FSplineMeshSceneProxy*>(SceneProxy);
+		Proxy->SplineParams = Params;
+		InstancePayloadExtension = Proxy->InstancePayloadExtension;
+	}
+
+	// Re-pack the shader params and request a GPU Scene update for this primitive so it updates its instance data
+	// NOTE: The payload extension could be empty if not using GPU Scene
+	if (InstancePayloadExtension.Num() == SPLINE_MESH_PARAMS_FLOAT4_SIZE)
+	{
+		PackSplineMeshParams(Params, InstancePayloadExtension);
+
+		FSceneInterface& Scene = SceneProxy->GetScene();
+		FPrimitiveSceneInfo& SceneInfo = *SceneProxy->GetPrimitiveSceneInfo();
+		Scene.RequestGPUSceneUpdate(SceneInfo, EPrimitiveDirtyState::ChangedOther);
+	}
+}
