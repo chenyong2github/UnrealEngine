@@ -2156,6 +2156,7 @@ bool UnrealToUsd::ConvertMaterialOverrides(
 	int32 HighestLOD
 )
 {
+#if WITH_EDITOR
 	if (!UsdPrim)
 	{
 		return false;
@@ -2446,6 +2447,7 @@ bool UnrealToUsd::ConvertMaterialOverrides(
 		ensure(false);
 		return false;
 	}
+#endif // WITH_EDITOR
 
 	return true;
 }

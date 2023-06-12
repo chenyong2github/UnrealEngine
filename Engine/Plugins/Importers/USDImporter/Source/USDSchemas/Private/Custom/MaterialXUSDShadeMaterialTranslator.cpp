@@ -51,6 +51,7 @@ FName FMaterialXUsdShadeMaterialTranslator::MaterialXRenderContext = TEXT("mtlx"
 
 namespace UE::USDMaterialXTranslator::Private
 {
+#if WITH_EDITOR
 	TArray<FString> GetMaterialXFilePaths(const pxr::UsdPrim& Prim)
 	{
 		TArray<FString> Result;
@@ -268,6 +269,7 @@ namespace UE::USDMaterialXTranslator::Private
 
 		return Manager.ImportAsset(TempPackagePath, SourceData, InterchangeParameters);
 	}
+#endif // WITH_EDITOR
 }
 
 void FMaterialXUsdShadeMaterialTranslator::CreateAssets()
