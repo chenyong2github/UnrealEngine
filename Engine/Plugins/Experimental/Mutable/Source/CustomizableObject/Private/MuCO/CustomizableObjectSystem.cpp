@@ -993,58 +993,68 @@ bool UCustomizableObjectSystem::LockObject(const class UCustomizableObject* InOb
 	check(!InObject->GetPrivate()->bLocked);
 	check(IsInGameThread() && !IsInParallelGameThread());
 
-	// If the current instance is for this object, make the lock fail by returning false
-	if (Private->CurrentInstanceBeingUpdated &&
-		Private->CurrentInstanceBeingUpdated->GetCustomizableObject() == InObject)
+	if (InObject && InObject->GetPrivate() && Private)
 	{
-		UE_LOG(LogMutable, Warning, TEXT("---- failed to lock object %s"), *InObject->GetName());
+		// If the current instance is for this object, make the lock fail by returning false
+		if (Private->CurrentInstanceBeingUpdated &&
+			Private->CurrentInstanceBeingUpdated->GetCustomizableObject() == InObject)
+		{
+			UE_LOG(LogMutable, Warning, TEXT("---- failed to lock object %s"), *InObject->GetName());
+
+			return false;
+		}
+
+		FString Message = FString::Printf(TEXT("Customizable Object %s has pending texture streaming operations. Please wait a few seconds and try again."),
+			*InObject->GetName());
+
+		// Pre-check pending operations before locking. This check is redundant and incomplete because it's checked again after locking 
+		// and some operations may start between here and the actual lock. But in the CO Editor preview it will prevent some 
+		// textures getting stuck at low resolution when they try to update mips and are cancelled when the user presses 
+		// the compile button but the compilation quits anyway because there are pending operations
+		if (CheckIfDiskOrMipUpdateOperationsPending(*InObject))
+		{
+			UE_LOG(LogMutable, Warning, TEXT("%s"), *Message);
+
+			return false;
+		}
+
+		// Lock the object, no new file or mip streaming operations should start from this point
+		InObject->GetPrivate()->bLocked = true;
+
+		// But some could have started between the first CheckIfDiskOrMipUpdateOperationsPending and the lock a few lines back, so check again
+		if (CheckIfDiskOrMipUpdateOperationsPending(*InObject))
+		{
+			UE_LOG(LogMutable, Warning, TEXT("%s"), *Message);
+
+			// Unlock and return because the pending operations cannot be easily stopped now, the compilation hasn't started and the CO
+			// hasn't changed state yet. It's simpler to quit the compilation, unlock and let the user try to compile again
+			InObject->GetPrivate()->bLocked = false;
+
+			return false;
+		}
+
+		// Ensure that we don't try to handle any further streaming operations for this object
+		check(GetPrivate() != nullptr);
+		if (GetPrivate()->Streamer)
+		{
+			GetPrivate()->Streamer->CancelStreamingForObject(InObject);
+		}
+
+		// Clear the cache for the instance, since we will remake it
+		FMutableResourceCache& Cache = GetPrivate()->GetObjectCache(InObject);
+		Cache.Clear();
+
+		check(InObject->GetPrivate()->bLocked);
+
+		return true;
+	}
+	else
+	{
+		FString ObjectName = InObject ? InObject->GetName() : FString("null");
+		UE_LOG(LogMutable, Warning, TEXT("Failed to lock the object [%s] because it was null or the system was null or partially destroyed."), *ObjectName);
 
 		return false;
 	}
-
-	FString Message = FString::Printf(TEXT("Customizable Object %s has pending texture streaming operations. Please wait a few seconds and try again."), 
-		*InObject->GetName());
-
-	// Pre-check pending operations before locking. This check is redundant and incomplete because it's checked again after locking 
-	// and some operations may start between here and the actual lock. But in the CO Editor preview it will prevent some 
-	// textures getting stuck at low resolution when they try to update mips and are cancelled when the user presses 
-	// the compile button but the compilation quits anyway because there are pending operations
-	if (CheckIfDiskOrMipUpdateOperationsPending(*InObject))
-	{
-		UE_LOG(LogMutable, Warning, TEXT("%s"), *Message);
-
-		return false;
-	}
-
-	// Lock the object, no new file or mip streaming operations should start from this point
-	InObject->GetPrivate()->bLocked = true;
-
-	// But some could have started between the first CheckIfDiskOrMipUpdateOperationsPending and the lock a few lines back, so check again
-	if (CheckIfDiskOrMipUpdateOperationsPending(*InObject))
-	{
-		UE_LOG(LogMutable, Warning, TEXT("%s"), *Message);
-
-		// Unlock and return because the pending operations cannot be easily stopped now, the compilation hasn't started and the CO
-		// hasn't changed state yet. It's simpler to quit the compilation, unlock and let the user try to compile again
-		InObject->GetPrivate()->bLocked = false;
-
-		return false;
-	}
-
-	// Ensure that we don't try to handle any further streaming operations for this object
-	check(GetPrivate() != nullptr);
-	if (GetPrivate()->Streamer)
-	{
-		GetPrivate()->Streamer->CancelStreamingForObject(InObject);
-	}
-
-	// Clear the cache for the instance, since we will remake it
-	FMutableResourceCache& Cache = GetPrivate()->GetObjectCache(InObject);
-	Cache.Clear();
-
-	check(InObject->GetPrivate()->bLocked);
-
-	return true;
 }
 
 
@@ -1053,7 +1063,11 @@ void UCustomizableObjectSystem::UnlockObject(const class UCustomizableObject* Ob
 	check(Obj != nullptr);
 	check(Obj->GetPrivate()->bLocked);
 	check(IsInGameThread() && !IsInParallelGameThread());
-	Obj->GetPrivate()->bLocked = false;
+	
+	if (Obj && Obj->GetPrivate())
+	{
+		Obj->GetPrivate()->bLocked = false;
+	}
 }
 
 

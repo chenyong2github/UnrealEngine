@@ -125,7 +125,7 @@ private:
 	// Cache configuration settings from ini files 
 	ECustomizableObjectNumBoneInfluences CustomizableObjectNumBoneInfluences = ECustomizableObjectNumBoneInfluences::Four;
 
-	// TODO: add references
+	// Protected from GC with FCustomizableObjectCompiler::AddReferencedObjects
 	UCustomizableObject* CurrentObject = nullptr;
 
 	/** Array where to put the names of the already processed child in ProcessChildObjectsRecursively */

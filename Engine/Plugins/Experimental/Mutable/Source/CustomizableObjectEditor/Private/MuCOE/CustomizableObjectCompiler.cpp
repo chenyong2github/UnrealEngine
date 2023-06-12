@@ -293,6 +293,11 @@ void FCustomizableObjectCompiler::AddReferencedObjects(FReferenceCollector& Coll
 	{
 		Collector.AddReferencedObject(ArrayGCProtect[i]);
 	}
+
+	if (CurrentObject)
+	{
+		Collector.AddReferencedObject(CurrentObject);
+	}
 }
 
 
@@ -1481,14 +1486,25 @@ void FCustomizableObjectCompiler::ForceFinishCompilation()
 		CleanCachedReferencers();
 		UpdateArrayGCProtect();
 
-		UCustomizableObjectSystem::GetInstance()->UnlockObject(CurrentObject);
+		UCustomizableObjectSystem* System = UCustomizableObjectSystem::GetInstance();
+
+		// Check the system has not started BeginDestroy, it can crash during a GC during a compilation forced shutdown without this check
+		if (!System->HasAnyFlags(EObjectFlags::RF_BeginDestroyed))
+		{
+			System->UnlockObject(CurrentObject);
+		}
 	}
 
 	else if (SaveDDTask.IsValid())
 	{
 		SaveDDThread->WaitForCompletion();
 
-		UCustomizableObjectSystem::GetInstance()->UnlockObject(CurrentObject);
+		UCustomizableObjectSystem* System = UCustomizableObjectSystem::GetInstance();
+
+		if (!System->HasAnyFlags(EObjectFlags::RF_BeginDestroyed))
+		{
+			System->UnlockObject(CurrentObject);
+		}
 	}
 
 	RemoveCompileNotification();
