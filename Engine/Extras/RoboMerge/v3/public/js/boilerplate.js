@@ -1158,7 +1158,8 @@ function preRenderStatusCell_Edge(nodeData, edgeData) {
 					msg += ` (opens: ${(new Date(timestamp)).toLocaleString()})`
 				}
 			}
-			$('<div>').addClass('status-msg').text(msg).appendTo(statusCell)
+			let statusMsg = edgeData.waitingForCISLink ? $(`<a href="${edgeData.waitingForCISLink}">`).prop('target', '_blank') : $("<div>")
+			statusMsg.addClass('status-msg').text(msg).appendTo(statusCell)
 		}
 	}
 

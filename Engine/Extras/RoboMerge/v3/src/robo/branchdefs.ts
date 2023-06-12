@@ -86,6 +86,7 @@ export type IntegrationWindowPane = {
 
 export const commonOptionFieldsPrototype = {
 	lastGoodCLPath: 0 as string | number,
+	waitingForCISLink: "",
 	pauseCISUnlessAtGate: false,
 
 	initialCL: 0,

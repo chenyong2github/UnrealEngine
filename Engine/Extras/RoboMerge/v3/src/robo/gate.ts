@@ -396,6 +396,10 @@ export class Gate {
 			outStatus.gateClosedMessage = closedMessage
 		}
 
+		if (this.context.options.waitingForCISLink) {
+			outStatus.waitingForCISLink = this.context.options.waitingForCISLink
+		}
+
 		if (this.nextWindowOpenTime) {
 			outStatus.nextWindowOpenTime = this.nextWindowOpenTime
 		}

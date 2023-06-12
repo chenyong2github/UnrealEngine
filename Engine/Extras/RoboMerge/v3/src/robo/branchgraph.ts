@@ -84,6 +84,7 @@ if (botname === '__TEST__') {
 			['additionalSlackChannelForBlockages', 'additionalSlackChannel', null],
 			['postMessagesToAdditionalChannelOnly', 'postOnlyToAdditionalChannel', null],
 			['lastGoodCLPath', 'lastGoodCLPath', null],
+			['waitingForCISLink', 'waitingForCISLink', null],
 			['disallowSkip', 'disallowSkip', null],
 			['incognitoMode', 'incognitoMode', null],
 			['excludeAuthors', 'excludeAuthors', 'override'],

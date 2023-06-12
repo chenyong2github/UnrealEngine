@@ -117,6 +117,7 @@ export type EdgeStatusFields = BotStatusFields & {
 	lastGoodCL?: number
 	lastGoodCLJobLink?: string
 	lastGoodCLDate?: Date
+	waitingForCISLink?: string
 
 	num_changes_remaining: number
 }
