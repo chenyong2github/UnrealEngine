@@ -725,6 +725,8 @@ void FD3D12DynamicRHI::UnlockBuffer(FRHICommandListBase& RHICmdList, FD3D12Buffe
 
 			for (FD3D12Buffer::FLinkedObjectIterator CurrentBuffer(Buffer); CurrentBuffer; ++CurrentBuffer)
 			{
+				SCOPED_GPU_MASK((FRHIComputeCommandList&)RHICmdList, FRHIGPUMask::FromIndex(CurrentBuffer->GetParentGPUIndex()));
+
 				// If we are on the render thread, queue up the copy on the RHIThread so it happens at the correct time.
 				if (RHICmdList.IsTopOfPipe())
 				{

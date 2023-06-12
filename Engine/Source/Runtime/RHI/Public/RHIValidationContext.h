@@ -310,6 +310,16 @@ public:
 		RHIContext->RHIWriteGPUFence(FenceRHI);
 	}
 
+	virtual void RHISetGPUMask(FRHIGPUMask GPUMask) override final
+	{
+		RHIContext->RHISetGPUMask(GPUMask);
+	}
+
+	virtual FRHIGPUMask RHIGetGPUMask() const override final
+	{
+		return RHIContext->RHIGetGPUMask();
+	}
+
 	virtual void RHICopyToStagingBuffer(FRHIBuffer* SourceBufferRHI, FRHIStagingBuffer* DestinationStagingBufferRHI, uint32 InOffset, uint32 InNumBytes) override final;
 
 #if WITH_MGPU
@@ -1122,6 +1132,16 @@ public:
 	virtual void RHIWriteGPUFence(FRHIGPUFence* FenceRHI) override final
 	{
 		RHIContext->RHIWriteGPUFence(FenceRHI);
+	}
+
+	virtual void RHISetGPUMask(FRHIGPUMask GPUMask) override final
+	{
+		RHIContext->RHISetGPUMask(GPUMask);
+	}
+
+	virtual FRHIGPUMask RHIGetGPUMask() const override final
+	{
+		return RHIContext->RHIGetGPUMask();
 	}
 
 	virtual void RHICopyToStagingBuffer(FRHIBuffer* SourceBufferRHI, FRHIStagingBuffer* DestinationStagingBufferRHI, uint32 InOffset, uint32 InNumBytes) override final;
