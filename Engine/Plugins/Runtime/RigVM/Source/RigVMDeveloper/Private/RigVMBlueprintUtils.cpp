@@ -7,6 +7,7 @@
 #include "EdGraph/RigVMEdGraphNode.h"
 #include "RigVMBlueprint.h"
 #include "Kismet2/Kismet2NameValidators.h"
+#include "Stats/StatsHierarchical.h"
 
 #define LOCTEXT_NAMESPACE "RigVMBlueprintUtils"
 
