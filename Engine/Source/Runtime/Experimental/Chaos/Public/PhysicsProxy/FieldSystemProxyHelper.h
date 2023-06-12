@@ -400,10 +400,6 @@ namespace Chaos
 				if (bHasStateChanged)
 				{
 					UpdateSolverParticlesState(RigidSolver, EvaluatedSamples, ParticleHandles);
-					for (Chaos::FGeometryParticleHandle* ParticleHandle : ParticleHandles)
-					{
-						RigidSolver->GetEvolution()->EnableParticle(ParticleHandle);
-					}
 				}
 			}
 		}
