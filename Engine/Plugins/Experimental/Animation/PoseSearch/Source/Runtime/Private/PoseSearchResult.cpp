@@ -102,4 +102,33 @@ const FSearchIndexAsset* FSearchResult::GetSearchIndexAsset(bool bMandatory) con
 	return &Database->GetSearchIndex().GetAssetForPose(PoseIdx);
 }
 
+bool FSearchResult::CanAdvance(float DeltaTime) const
+{
+	bool bCanAdvance = false;
+	if (IsValid())
+	{
+		float SteppedTime = AssetTime;
+		const FSearchIndexAsset* SearchIndexAsset = GetSearchIndexAsset(true);
+		const FInstancedStruct& DatabaseAsset = Database->GetAnimationAssetStruct(*SearchIndexAsset);
+		if (const FPoseSearchDatabaseBlendSpace* DatabaseBlendSpace = DatabaseAsset.GetPtr<FPoseSearchDatabaseBlendSpace>())
+		{
+			TArray<FBlendSampleData> BlendSamples;
+			int32 TriangulationIndex = 0;
+			DatabaseBlendSpace->BlendSpace->GetSamplesFromBlendInput(SearchIndexAsset->BlendParameters, BlendSamples, TriangulationIndex, true);
+
+			const float PlayLength = DatabaseBlendSpace->BlendSpace->GetAnimationLengthFromSampleData(BlendSamples);
+
+			// Asset player time for blend spaces is normalized [0, 1] so we need to convert it back to real time before we advance it
+			SteppedTime = AssetTime * PlayLength;
+			bCanAdvance = ETAA_Finished != FAnimationRuntime::AdvanceTime(DatabaseBlendSpace->IsLooping(), DeltaTime, SteppedTime, PlayLength);
+		}
+		else if (const FPoseSearchDatabaseAnimationAssetBase* DatabaseAnimationAssetBase = DatabaseAsset.GetPtr<FPoseSearchDatabaseAnimationAssetBase>())
+		{
+			const float AssetLength = DatabaseAnimationAssetBase->GetAnimationAsset()->GetPlayLength();
+			bCanAdvance = ETAA_Finished != FAnimationRuntime::AdvanceTime(DatabaseAnimationAssetBase->IsLooping(), DeltaTime, SteppedTime, AssetLength);
+		}
+	}
+	return bCanAdvance;
+}
+
 } // namespace UE::PoseSearch

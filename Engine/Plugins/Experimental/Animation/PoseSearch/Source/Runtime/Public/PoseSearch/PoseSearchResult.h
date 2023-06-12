@@ -62,6 +62,8 @@ struct FSearchResult
 	void Reset();
 
 	const FSearchIndexAsset* GetSearchIndexAsset(bool bMandatory = false) const;
+	
+	bool CanAdvance(float DeltaTime) const;
 };
 
 } // namespace UE::PoseSearch
