@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "NNECoreTypes.h"
-#include "NNECoreTensor.h"
+#include "NNETypes.h"
+#include "NNETensor.h"
 
 namespace UE::NNECore { class FAttributeMap; }
 struct FNNEAttributeValue;

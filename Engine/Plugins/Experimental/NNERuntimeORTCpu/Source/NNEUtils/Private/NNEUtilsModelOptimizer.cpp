@@ -2,9 +2,9 @@
 
 #include "NNEUtilsModelOptimizer.h"
 
-#include "NNECore.h"
-#include "NNECoreModelOptimizerInterface.h"
-#include "NNECoreRuntimeFormat.h"
+#include "NNE.h"
+#include "NNEModelOptimizerInterface.h"
+#include "NNERuntimeFormat.h"
 #include "NNEUtilsModelBuilder.h"
 
 #ifdef PLATFORM_NNE_MICROSOFT

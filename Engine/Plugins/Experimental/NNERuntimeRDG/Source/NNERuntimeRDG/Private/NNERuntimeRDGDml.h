@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "NNECoreRuntime.h"
-#include "NNECoreRuntimeRDG.h"
+#include "NNERuntime.h"
+#include "NNERuntimeRDG.h"
 #include "Templates/UniquePtr.h"
 #include "UObject/Class.h"
 #include "UObject/Object.h"

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NNECoreTypes.h"
-#include "NNECore.h"
+#include "NNETypes.h"
+#include "NNE.h"
 
 namespace UE::NNECore::TypesUtils
 {

@@ -25,7 +25,7 @@ public class NNERuntimeRDG : ModuleRules
 
         PrivateDependencyModuleNames.AddRange(new string[]
         {
-            "NNECore",
+            "NNE",
 			"NNEUtils",
 			"NNEHlslShaders",
             "RHI",

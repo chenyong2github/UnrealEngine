@@ -3,8 +3,8 @@
 #include "NNERuntimeRDGInstanceNormalization.h"
 #include "NNEHlslShadersInstanceNormalizationCS.h"
 #include "NNERuntimeRDGHlslHelper.h"
-#include "NNECoreTensor.h"
-#include "NNECoreTypes.h"
+#include "NNETensor.h"
+#include "NNETypes.h"
 
 namespace
 {

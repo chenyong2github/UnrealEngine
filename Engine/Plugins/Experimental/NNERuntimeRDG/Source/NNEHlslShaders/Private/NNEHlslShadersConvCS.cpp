@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNEHlslShadersConvCS.h"
-#include "NNECore.h"
+#include "NNE.h"
 
 namespace UE::NNEHlslShaders::Internal
 {

@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNEHlslShadersInstanceNormalizationCS.h"
-#include "NNECore.h"
-#include "NNECoreTensor.h"
+#include "NNE.h"
+#include "NNETensor.h"
 
 namespace UE::NNEHlslShaders::Internal
 {

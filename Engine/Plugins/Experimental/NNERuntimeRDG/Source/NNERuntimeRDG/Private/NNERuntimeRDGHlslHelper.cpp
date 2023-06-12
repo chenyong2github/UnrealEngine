@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNERuntimeRDGHlslHelper.h"
-#include "NNECoreTypes.h"
-#include "NNECoreTensor.h"
+#include "NNETypes.h"
+#include "NNETensor.h"
 #include "RHI.h"
 
 namespace UE::NNERuntimeRDG::Private::Hlsl

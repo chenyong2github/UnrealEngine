@@ -3,10 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "NNECoreRuntime.h"
+#include "NNERuntime.h"
 #include "UObject/WeakInterfacePtr.h"
 
-NNECORE_API DECLARE_LOG_CATEGORY_EXTERN(LogNNE, Log, All);
+NNE_API DECLARE_LOG_CATEGORY_EXTERN(LogNNE, Log, All);
 
 namespace UE::NNECore
 {
@@ -18,7 +18,7 @@ namespace UE::NNECore
 	 * @param Runtime A weak interface pointer to the runtime to be registered.
 	 * @return True if the runtime has been registered successfully, false otherwise.
 	 */
-	NNECORE_API bool RegisterRuntime(TWeakInterfacePtr<INNERuntime> Runtime);
+	NNE_API bool RegisterRuntime(TWeakInterfacePtr<INNERuntime> Runtime);
 
 	/**
 	 * Unregister a registered runtime.
@@ -26,14 +26,14 @@ namespace UE::NNECore
 	 * @param Runtime A weak interface pointer to the runtime to be unregistered.
 	 * @return True if the runtime has been unregistered successfully, false otherwise (e.g. if the runtime has not been registered).
 	 */
-	NNECORE_API bool UnregisterRuntime(TWeakInterfacePtr<INNERuntime> Runtime);
+	NNE_API bool UnregisterRuntime(TWeakInterfacePtr<INNERuntime> Runtime);
 	
 	/**
 	 * List and return all registered runtimes.
 	 *
 	 * @return An array containing weak pointers to all registered runtimes.
 	 */
-	NNECORE_API TArrayView<TWeakInterfacePtr<INNERuntime>> GetAllRuntimes();
+	NNE_API TArrayView<TWeakInterfacePtr<INNERuntime>> GetAllRuntimes();
 
 	/**
 	 * Find and return a runtime by name and interface.

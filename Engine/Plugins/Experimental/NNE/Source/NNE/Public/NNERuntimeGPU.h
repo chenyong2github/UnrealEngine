@@ -3,11 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "NNECoreRuntime.h"
-#include "NNECoreTypes.h"
+#include "NNERuntime.h"
+#include "NNETypes.h"
 #include "UObject/Interface.h"
 
-#include "NNECoreRuntimeGPU.generated.h"
+#include "NNERuntimeGPU.generated.h"
 
 class UNNEModelData;
 
@@ -19,7 +19,7 @@ namespace UE::NNECore
  *
  * Memory is owned by the caller. The caller must make sure the buffer is large enough and at least as large as SizeInBytes.
  */
-struct NNECORE_API FTensorBindingGPU
+struct NNE_API FTensorBindingGPU
 {
 	void*	Data;
 	uint64	SizeInBytes;
@@ -31,7 +31,7 @@ struct NNECORE_API FTensorBindingGPU
  * Use UE::NNECore::IModelGPU::CreateModelInstance() to get a model instance.
  * Use UE::NNECore::GetRuntime<INNERuntimeGPU>(RuntimeName) to get a runtime capable of creating GPU models.
  */
-class NNECORE_API IModelInstanceGPU
+class NNE_API IModelInstanceGPU
 {
 public:
 
@@ -102,7 +102,7 @@ public:
  *
  * Use UE::NNECore::GetRuntime<INNERuntimeGPU>(RuntimeName) to get a runtime capable of creating GPU models.
  */
-class NNECORE_API IModelGPU
+class NNE_API IModelGPU
 {
 public:
 
@@ -122,7 +122,7 @@ public:
 } // UE::NNECore
 
 UINTERFACE()
-class NNECORE_API UNNERuntimeGPU : public UInterface
+class NNE_API UNNERuntimeGPU : public UInterface
 {
 	GENERATED_BODY()
 };
@@ -132,7 +132,7 @@ class NNECORE_API UNNERuntimeGPU : public UInterface
  *
  * Call UE::NNECore::GetRuntime<INNERuntimeGPU>(RuntimeName) to get a runtime implementing this interface.
  */
-class NNECORE_API INNERuntimeGPU
+class NNE_API INNERuntimeGPU
 {
 	GENERATED_BODY()
 	

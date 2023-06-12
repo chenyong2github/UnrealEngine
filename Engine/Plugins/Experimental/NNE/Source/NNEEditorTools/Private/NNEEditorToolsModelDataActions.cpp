@@ -2,7 +2,7 @@
 
 #include "NNEEditorToolsModelDataActions.h"
 #include "EditorFramework/AssetImportData.h"
-#include "NNECoreModelData.h"
+#include "NNEModelData.h"
 #include "NNEEditorToolsModelDataEditorToolkit.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"

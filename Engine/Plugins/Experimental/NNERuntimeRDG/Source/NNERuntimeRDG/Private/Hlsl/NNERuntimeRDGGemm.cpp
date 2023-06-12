@@ -3,9 +3,9 @@
 #include "NNERuntimeRDGGemm.h"
 #include "NNEHlslShadersGemmCS.h"
 #include "NNERuntimeRDGHlslHelper.h"
-#include "NNECoreAttributeMap.h"
-#include "NNECoreTensor.h"
-#include "NNECoreTypes.h"
+#include "NNEAttributeMap.h"
+#include "NNETensor.h"
+#include "NNETypes.h"
 
 namespace UE::NNERuntimeRDG::Private::Hlsl
 {

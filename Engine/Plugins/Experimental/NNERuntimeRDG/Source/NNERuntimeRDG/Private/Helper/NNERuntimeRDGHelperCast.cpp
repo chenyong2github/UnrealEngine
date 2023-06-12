@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNERuntimeRDGHelperCast.h"
-#include "NNECoreTensor.h"
+#include "NNETensor.h"
 
 namespace UE::NNERuntimeRDG::Internal::CPUHelper::Cast
 {

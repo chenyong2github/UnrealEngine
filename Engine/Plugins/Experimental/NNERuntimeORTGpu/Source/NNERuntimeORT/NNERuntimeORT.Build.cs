@@ -22,7 +22,7 @@ public class NNERuntimeORT : ModuleRules
 				"Core",
 				"Engine",
 				"Projects",
-				"NNECore",
+				"NNE",
 				"NNEProfiling",
 			}
 		);

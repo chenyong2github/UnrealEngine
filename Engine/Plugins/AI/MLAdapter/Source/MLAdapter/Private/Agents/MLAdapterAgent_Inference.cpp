@@ -3,8 +3,8 @@
 #include "Agents/MLAdapterAgent_Inference.h"
 #include "HAL/UnrealMemory.h"
 #include "MLAdapterTypes.h"
-#include "NNECore.h"
-#include "NNECoreTypes.h"
+#include "NNE.h"
+#include "NNETypes.h"
 
 void UMLAdapterAgent_Inference::PostInitProperties()
 {

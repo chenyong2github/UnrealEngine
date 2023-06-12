@@ -3,10 +3,10 @@
 #pragma once
 
 #include "HAL/UnrealMemory.h"
-#include "NNECore.h"
-#include "NNECoreRuntimeGPU.h"
-#include "NNECoreTypes.h"
-#include "NNECoreTensor.h"
+#include "NNE.h"
+#include "NNERuntimeGPU.h"
+#include "NNETypes.h"
+#include "NNETensor.h"
 #include "NNEThirdPartyWarningDisabler.h"
 NNE_THIRD_PARTY_INCLUDES_START
 #undef check

@@ -15,7 +15,7 @@ public class NNEHlslShaders : ModuleRules
 				"Projects",
 				"RenderCore",
 				"RHI",
-				"NNECore"
+				"NNE"
 			}
 		);
 	}

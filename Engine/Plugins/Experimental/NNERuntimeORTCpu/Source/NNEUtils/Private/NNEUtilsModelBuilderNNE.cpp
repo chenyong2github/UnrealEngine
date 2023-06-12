@@ -2,9 +2,9 @@
 
 #include "NNEUtilsModelBuilder.h"
 
-#include "NNECore.h"
-#include "NNECoreAttributeMap.h"
-#include "NNECoreRuntimeFormat.h"
+#include "NNE.h"
+#include "NNEAttributeMap.h"
+#include "NNERuntimeFormat.h"
 #include "Misc/StringBuilder.h"
 #include "Serialization/MemoryWriter.h"
 

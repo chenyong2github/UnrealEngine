@@ -5,8 +5,8 @@
 #include "VertexDeltaModelVizSettings.h"
 #include "VertexDeltaTrainingModel.h"
 #include "MLDeformerAsset.h"
-#include "NNECore.h"
-#include "NNECoreModelData.h"
+#include "NNE.h"
+#include "NNEModelData.h"
 #include "Misc/Paths.h"
 #include "Misc/FileHelper.h"
 

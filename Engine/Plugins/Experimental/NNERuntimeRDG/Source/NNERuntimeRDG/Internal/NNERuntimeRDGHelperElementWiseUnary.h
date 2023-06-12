@@ -3,7 +3,7 @@
 #pragma once 
 
 #include "CoreMinimal.h"
-#include "NNECoreOperator.h"
+#include "NNEOperator.h"
 
 namespace UE::NNECore::Internal { class FTensor; }
 

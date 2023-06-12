@@ -8,9 +8,9 @@
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Rendering/SkeletalMeshLODRenderData.h"
 #include "SkeletalRenderPublic.h"
-#include "NNECore.h"
-#include "NNECoreModelData.h"
-#include "NNECoreRuntimeRDG.h"
+#include "NNE.h"
+#include "NNEModelData.h"
+#include "NNERuntimeRDG.h"
 #include "VertexDeltaGraphDataInterface.generated.h"
 
 class FRDGBuffer;

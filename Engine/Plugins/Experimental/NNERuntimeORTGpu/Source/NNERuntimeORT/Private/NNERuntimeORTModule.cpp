@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNERuntimeORTModule.h"
-#include "NNECore.h"
+#include "NNE.h"
 #include "NNERuntimeORT.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformProcess.h"

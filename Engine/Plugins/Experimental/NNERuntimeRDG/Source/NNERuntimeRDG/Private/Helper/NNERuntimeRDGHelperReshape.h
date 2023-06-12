@@ -6,8 +6,8 @@
 #include "Algo/Count.h"
 #include "CoreMinimal.h"
 #include "Misc/EnumerateRange.h"
-#include "NNECoreTensor.h"
-#include "NNECoreTypes.h"
+#include "NNETensor.h"
+#include "NNETypes.h"
 
 namespace UE::NNERuntimeRDG::Private::ShapeHelper::Reshape
 {

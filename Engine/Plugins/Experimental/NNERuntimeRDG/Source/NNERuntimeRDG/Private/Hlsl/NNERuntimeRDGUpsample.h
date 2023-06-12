@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "NNERuntimeRDG.h"
+#include "NNERuntimeRDGBase.h"
 #include "NNERuntimeRDGHlslOp.h"
 
 namespace UE::NNERuntimeRDG::Private::Hlsl

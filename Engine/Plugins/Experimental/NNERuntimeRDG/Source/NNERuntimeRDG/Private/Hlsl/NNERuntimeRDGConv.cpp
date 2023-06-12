@@ -2,9 +2,9 @@
 
 #include "NNERuntimeRDGConv.h"
 #include "Algo/AnyOf.h"
-#include "NNECoreAttributeMap.h"
-#include "NNECoreTensor.h"
-#include "NNECoreTypes.h"
+#include "NNEAttributeMap.h"
+#include "NNETensor.h"
+#include "NNETypes.h"
 #include "NNEHlslShadersConvCS.h"
 #include "NNEHlslShadersConvMatmulCS.h"
 #include "NNERuntimeRDGHelperTranspose.h"

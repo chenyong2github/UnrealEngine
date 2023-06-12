@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNERuntimeORTCpuModule.h"
-#include "NNECore.h"
+#include "NNE.h"
 #include "NNERuntimeORTCpu.h"
 #include "UObject/WeakInterfacePtr.h"
 

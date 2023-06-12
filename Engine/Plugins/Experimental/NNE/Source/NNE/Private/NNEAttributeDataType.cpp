@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NNECoreAttributeDataType.h"
+#include "NNEAttributeDataType.h"
 
 void LexFromString(ENNEAttributeDataType& OutValue, const TCHAR* StringVal)
 {

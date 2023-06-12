@@ -2,8 +2,8 @@
 
 #include "NNERuntimeRDGCast.h"
 #include "NNERuntimeRDGHelperCast.h"
-#include "NNECoreTensor.h"
-#include "NNECoreTypes.h"
+#include "NNETensor.h"
+#include "NNETypes.h"
 #include "NNEUtilsLogHelper.h"
 
 namespace UE::NNERuntimeRDG::Private::Hlsl

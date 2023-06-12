@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "NNECoreTypes.h"
+#include "NNETypes.h"
 
 namespace UE::NNEUtils::Internal
 {

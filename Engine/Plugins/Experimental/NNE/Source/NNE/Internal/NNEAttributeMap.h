@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "NNECoreAttributeValue.h"
+#include "NNEAttributeValue.h"
 
 namespace UE::NNECore
 {

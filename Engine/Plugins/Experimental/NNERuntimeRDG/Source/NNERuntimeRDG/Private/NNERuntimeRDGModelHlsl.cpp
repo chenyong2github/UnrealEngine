@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNERuntimeRDGModelHlsl.h"
-#include "NNECoreTensor.h"
+#include "NNETensor.h"
 #include "NNERuntimeRDGHlsl.h"
 #include "NNERuntimeRDGHlslOp.h"
 #include "RenderGraphBuilder.h"

@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNEEditorToolsModelDataEditorToolkit.h"
-#include "NNECore.h"
-#include "NNECoreModelData.h"
+#include "NNE.h"
+#include "NNEModelData.h"
 #include "SNNEEditorToolsRuntimesWidget.h"
 #include "Widgets/Docking/SDockTab.h"
 

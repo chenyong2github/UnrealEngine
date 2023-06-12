@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NNECore.h"
+#include "NNE.h"
 #include "NNEUtilsModelBuilder.h"
-#include "NNECoreAttributeMap.h"
-#include "NNECoreRuntimeFormat.h"
+#include "NNEAttributeMap.h"
+#include "NNERuntimeFormat.h"
 
 #include "NNEThirdPartyWarningDisabler.h"
 NNE_THIRD_PARTY_INCLUDES_START

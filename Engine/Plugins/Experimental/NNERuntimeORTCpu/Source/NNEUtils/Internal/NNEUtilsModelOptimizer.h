@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "NNECoreRuntimeFormat.h"
+#include "NNERuntimeFormat.h"
 
 namespace UE::NNECore { class FAttributeMap; }
 namespace UE::NNECore::Internal { class IModelOptimizer; }

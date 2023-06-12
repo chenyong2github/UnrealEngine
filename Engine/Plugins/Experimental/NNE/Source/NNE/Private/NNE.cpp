@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NNECore.h"
+#include "NNE.h"
 
 DEFINE_LOG_CATEGORY(LogNNE);
 

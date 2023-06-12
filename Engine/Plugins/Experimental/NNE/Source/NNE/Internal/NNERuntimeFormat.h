@@ -3,10 +3,10 @@
 #pragma once
 
 #include "UObject/Object.h"
-#include "NNECoreAttributeValue.h"
-#include "NNECoreTypes.h"
+#include "NNEAttributeValue.h"
+#include "NNETypes.h"
 
-#include "NNECoreRuntimeFormat.generated.h"
+#include "NNERuntimeFormat.generated.h"
 
 UENUM()
 enum class ENNEFormatTensorType : uint8

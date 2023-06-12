@@ -5,8 +5,8 @@
 #include "Editor/EditorEngine.h"
 #include "EditorFramework/AssetImportData.h"
 #include "HAL/FileManager.h"
-#include "NNECore.h"
-#include "NNECoreModelData.h"
+#include "NNE.h"
+#include "NNEModelData.h"
 #include "Subsystems/ImportSubsystem.h"
 
 

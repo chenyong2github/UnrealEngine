@@ -4,8 +4,8 @@
 
 #include "NNERuntimeRDG.h"
 #include "NNEUtilsModelOptimizer.h"
-#include "NNECoreModelData.h"
-#include "NNECoreRuntimeFormat.h"
+#include "NNEModelData.h"
+#include "NNERuntimeFormat.h"
 #include "HAL/FileManager.h"
 #include "Interfaces/IPluginManager.h"
 #include "Algo/Find.h"

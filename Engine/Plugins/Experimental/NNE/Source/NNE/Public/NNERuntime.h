@@ -5,10 +5,10 @@
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 
-#include "NNECoreRuntime.generated.h"
+#include "NNERuntime.generated.h"
 
 UINTERFACE()
-class NNECORE_API UNNERuntime : public UInterface
+class NNE_API UNNERuntime : public UInterface
 {
 	GENERATED_BODY()
 };
@@ -20,7 +20,7 @@ class NNECORE_API UNNERuntime : public UInterface
  * The model data is then stored inside UNNEModelData which then can be used in game to create an inferable model.
  * See INNERuntimeCPU and INNERuntimeRDG on how to create a model given a UNNEModelData asset.
  */
-class NNECORE_API INNERuntime
+class NNE_API INNERuntime
 {
 	GENERATED_BODY()
 

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SNNEEditorToolsRuntimesWidget.h"
-#include "NNECore.h"
+#include "NNE.h"
 #include "SlateOptMacros.h"
 #include "Styling/AppStyle.h"
 #include "Widgets/Input/SCheckBox.h"

@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNERuntimeRDGHlsl.h"
-#include "NNECoreAttributeMap.h"
-#include "NNECoreModelData.h"
-#include "NNECoreModelOptimizerInterface.h"
+#include "NNEAttributeMap.h"
+#include "NNEModelData.h"
+#include "NNEModelOptimizerInterface.h"
 #include "NNERuntimeRDG.h"
 #include "NNERuntimeRDGHlslHelper.h"
 #include "NNERuntimeRDGModelHlsl.h"

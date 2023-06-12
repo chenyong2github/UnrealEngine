@@ -3,8 +3,8 @@
 #include "NNERuntimeRDGUpsample.h"
 #include "NNEHlslShadersUpsampleCS.h"
 #include "NNERuntimeRDGHlslHelper.h"
-#include "NNECoreTypes.h"
-#include "NNECoreTensor.h"
+#include "NNETypes.h"
+#include "NNETensor.h"
 
 namespace UE::NNERuntimeRDG::Private::Hlsl
 {

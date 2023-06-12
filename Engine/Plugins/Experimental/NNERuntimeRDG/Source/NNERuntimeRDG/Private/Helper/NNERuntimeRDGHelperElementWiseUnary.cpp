@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNERuntimeRDGHelperElementWiseUnary.h"
-#include "NNECoreTensor.h"
+#include "NNETensor.h"
 #include "Math/UnrealMathUtility.h"
 
 namespace UE::NNERuntimeRDG::Internal::CPUHelper::ElementWiseUnary

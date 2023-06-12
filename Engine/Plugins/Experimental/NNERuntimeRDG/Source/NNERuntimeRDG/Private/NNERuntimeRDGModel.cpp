@@ -2,7 +2,7 @@
 
 #include "NNERuntimeRDGModel.h"
 
-#include "NNECoreRuntimeFormat.h"
+#include "NNERuntimeFormat.h"
 #include "NNEUtilsModelOptimizer.h"
 #include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"

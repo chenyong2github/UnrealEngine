@@ -5,8 +5,8 @@
 #include "Templates/UniquePtr.h"
 #include "UObject/SoftObjectPath.h"
 #include "Agents/MLAdapterAgent.h"
-#include "NNECoreModelData.h"
-#include "NNECoreRuntimeCPU.h"
+#include "NNEModelData.h"
+#include "NNERuntimeCPU.h"
 #include "MLAdapterAgent_Inference.generated.h"
 
 /**

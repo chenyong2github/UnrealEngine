@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NNECoreModelData.h"
+#include "NNEModelData.h"
 
-#include "NNECore.h"
-#include "NNECoreAttributeMap.h"
-#include "NNECoreModelOptimizerInterface.h"
-#include "NNECoreRuntimeFormat.h"
+#include "NNE.h"
+#include "NNEAttributeMap.h"
+#include "NNEModelOptimizerInterface.h"
+#include "NNERuntimeFormat.h"
 #include "Serialization/CustomVersion.h"
 #include "UObject/WeakInterfacePtr.h"
 #include "EditorFramework/AssetImportData.h"

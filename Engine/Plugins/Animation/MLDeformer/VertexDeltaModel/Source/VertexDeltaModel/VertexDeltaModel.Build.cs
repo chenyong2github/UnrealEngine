@@ -38,7 +38,7 @@ public class VertexDeltaModel : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"GeometryCache",
-				"NNECore",
+				"NNE",
 				"NNERuntimeRDG",
 				"NNEUtils",
 				"OptimusCore",

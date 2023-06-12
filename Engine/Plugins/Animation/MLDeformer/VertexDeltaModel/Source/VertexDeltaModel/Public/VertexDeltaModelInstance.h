@@ -3,10 +3,10 @@
 #pragma once
 
 #include "MLDeformerModelInstance.h"
-#include "NNECore.h"
-#include "NNECoreRuntime.h"
-#include "NNECoreModelData.h"
-#include "NNECoreRuntimeRDG.h"
+#include "NNE.h"
+#include "NNERuntime.h"
+#include "NNEModelData.h"
+#include "NNERuntimeRDG.h"
 #include "RenderGraphResources.h"
 #include "VertexDeltaModelInstance.generated.h"
 

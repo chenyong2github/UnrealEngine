@@ -3,7 +3,7 @@
 #pragma once
 
 #include "NNERuntimeRDGModel.h"
-#include "NNECoreTypes.h"
+#include "NNETypes.h"
 
 class FRDGBuilder;
 

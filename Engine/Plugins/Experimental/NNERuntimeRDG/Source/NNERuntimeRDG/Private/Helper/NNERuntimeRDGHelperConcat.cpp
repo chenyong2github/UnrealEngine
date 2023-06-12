@@ -2,7 +2,7 @@
 
 #include "NNERuntimeRDGHelperConcat.h"
 
-#include "NNECoreTypes.h"
+#include "NNETypes.h"
 #include "NNERuntimeRDGTensorIdxIterator.h"
 
 namespace UE::NNERuntimeRDG::Internal::CPUHelper::Concat

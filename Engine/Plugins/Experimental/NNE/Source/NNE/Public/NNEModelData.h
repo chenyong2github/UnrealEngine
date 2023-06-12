@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-#include "NNECoreModelData.generated.h"
+#include "NNEModelData.generated.h"
 
 /**
  * This class represents assets that store neural network model data.
@@ -14,7 +14,7 @@
  * An INNERuntime object retrieved by UE::NNECore::GetRuntime<T>(const FString& Name) can be used to create an inferable neural network model.
  */
 UCLASS(BlueprintType, Category = "NNE")
-class NNECORE_API UNNEModelData : public UObject
+class NNE_API UNNEModelData : public UObject
 {
 	GENERATED_BODY()
 

@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Class.h"
 
-#include "NNECoreTypes.generated.h"
+#include "NNETypes.generated.h"
 
 /**
  * The enum lists all tensor data types used in NNE 
@@ -40,7 +40,7 @@ namespace UE::NNECore
 	 * 
 	 * The variable dimensions are represented by -1 values. 
 	 */
-	class NNECORE_API FSymbolicTensorShape
+	class NNE_API FSymbolicTensorShape
 	{
 	public:
 		/**
@@ -122,7 +122,7 @@ namespace UE::NNECore
 	 *
 	 * Concrete tensor shapes are well defined through strictly positive values and thus have a defined volume.
 	 */
-	class NNECORE_API FTensorShape
+	class NNE_API FTensorShape
 	{
 	public:
 		/**
@@ -222,7 +222,7 @@ namespace UE::NNECore
 	 * @param InType the type of the element to consider.
 	 * @return the data size in bytes of an element.
 	 */
-	size_t NNECORE_API GetTensorDataTypeSizeInBytes(ENNETensorDataType InType);
+	size_t NNE_API GetTensorDataTypeSizeInBytes(ENNETensorDataType InType);
 
 	/**
 	 * The descriptor for a tensor as model inputs and output.
@@ -230,7 +230,7 @@ namespace UE::NNECore
 	 * A tensor is described by its name, the type of data it contains and it's shape.
 	 * Since input and output tensors of a neural network can have dynamic shapes, Shape is symbolic.
 	 */
-	class NNECORE_API FTensorDesc
+	class NNE_API FTensorDesc
 	{
 		FString					Name;
 		ENNETensorDataType		DataType;

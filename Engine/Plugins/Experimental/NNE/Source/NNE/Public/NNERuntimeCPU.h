@@ -3,11 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "NNECoreRuntime.h"
-#include "NNECoreTypes.h"
+#include "NNERuntime.h"
+#include "NNETypes.h"
 #include "UObject/Interface.h"
 
-#include "NNECoreRuntimeCPU.generated.h"
+#include "NNERuntimeCPU.generated.h"
 
 class UNNEModelData;
 
@@ -19,7 +19,7 @@ namespace UE::NNECore
  *
  * Memory is owned by the caller. The caller must make sure the buffer is large enough and at least as large as SizeInBytes.
  */
-struct NNECORE_API FTensorBindingCPU
+struct NNE_API FTensorBindingCPU
 {
 	void*	Data;
 	uint64	SizeInBytes;
@@ -31,7 +31,7 @@ struct NNECORE_API FTensorBindingCPU
  * Use UE::NNECore::IModelCPU::CreateModelInstance() to get a model instance.
  * Use UE::NNECore::GetRuntime<INNERuntimeCPU>(RuntimeName) to get a runtime capable of creating CPU models.
  */
-class NNECORE_API IModelInstanceCPU
+class NNE_API IModelInstanceCPU
 {
 public:
 
@@ -102,7 +102,7 @@ public:
  *
  * Use UE::NNECore::GetRuntime<INNERuntimeCPU>(RuntimeName) to get a runtime capable of creating CPU models.
  */
-class NNECORE_API IModelCPU
+class NNE_API IModelCPU
 {
 public:
 
@@ -122,7 +122,7 @@ public:
 } // UE::NNECore
 
 UINTERFACE()
-class NNECORE_API UNNERuntimeCPU : public UInterface
+class NNE_API UNNERuntimeCPU : public UInterface
 {
 	GENERATED_BODY()
 };
@@ -132,7 +132,7 @@ class NNECORE_API UNNERuntimeCPU : public UInterface
  *
  * Call UE::NNECore::GetRuntime<INNERuntimeCPU>(RuntimeName) to get a runtime implementing this interface.
  */
-class NNECORE_API INNERuntimeCPU
+class NNE_API INNERuntimeCPU
 {
 	GENERATED_BODY()
 	

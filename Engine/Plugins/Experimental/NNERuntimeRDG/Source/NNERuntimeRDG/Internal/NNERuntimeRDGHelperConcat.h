@@ -3,7 +3,7 @@
 #pragma once 
 
 #include "CoreMinimal.h"
-#include "NNECoreTensor.h"
+#include "NNETensor.h"
 
 namespace UE::NNERuntimeRDG::Internal::CPUHelper::Concat
 {

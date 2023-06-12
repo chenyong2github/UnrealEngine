@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NNERuntimeRDG.h"
+#include "NNERuntimeRDGBase.h"
 
-#include "NNECoreRuntimeFormat.h"
+#include "NNERuntimeFormat.h"
 #include "NNEUtilsLogHelper.h"
 #include "NNEUtilsModelOptimizer.h"
 #include "RenderGraphBuilder.h"

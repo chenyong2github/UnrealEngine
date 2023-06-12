@@ -22,7 +22,7 @@ namespace UnrealBuildTool.Rules
                     "Json",
                     "JsonUtilities",
                     "GameplayAbilities",
-					"NNECore"
+					"NNE"
 				}
             );
 

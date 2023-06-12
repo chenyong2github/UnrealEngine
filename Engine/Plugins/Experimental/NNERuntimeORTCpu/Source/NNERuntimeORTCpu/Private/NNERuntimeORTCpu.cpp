@@ -2,9 +2,9 @@
 
 #include "NNERuntimeORTCpu.h"
 
-#include "NNECoreAttributeMap.h"
-#include "NNECoreModelData.h"
-#include "NNECoreModelOptimizerInterface.h"
+#include "NNEAttributeMap.h"
+#include "NNEModelData.h"
+#include "NNEModelOptimizerInterface.h"
 #include "NNEProfilingTimer.h"
 #include "NNERuntimeORTCpuModel.h"
 #include "NNERuntimeORTCpuUtils.h"

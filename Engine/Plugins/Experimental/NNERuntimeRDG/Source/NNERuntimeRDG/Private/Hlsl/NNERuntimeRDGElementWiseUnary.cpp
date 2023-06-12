@@ -4,9 +4,9 @@
 #include "NNERuntimeRDGHelperElementWiseUnary.h"
 #include "NNEHlslShadersElementWiseUnaryCS.h"
 #include "NNERuntimeRDGHlslHelper.h"
-#include "NNECoreAttributeMap.h"
-#include "NNECoreTypes.h"
-#include "NNECoreTensor.h"
+#include "NNEAttributeMap.h"
+#include "NNETypes.h"
+#include "NNETensor.h"
 
 namespace UE::NNERuntimeRDG::Private::Hlsl
 {

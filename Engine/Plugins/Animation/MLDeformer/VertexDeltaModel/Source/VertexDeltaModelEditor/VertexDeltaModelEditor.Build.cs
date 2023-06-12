@@ -31,7 +31,7 @@ namespace UnrealBuildTool.Rules
 					"MLDeformerFrameworkEditor",
 					"VertexDeltaModel",
 					"PropertyEditor",
-					"NNECore",
+					"NNE",
 					"NNERuntimeRDG",
 					"NNEUtils",
 					"ToolWidgets",

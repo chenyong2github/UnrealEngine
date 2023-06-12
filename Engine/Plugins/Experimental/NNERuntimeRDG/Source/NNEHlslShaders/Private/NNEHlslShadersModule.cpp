@@ -4,7 +4,7 @@
 #include "Interfaces/IPluginManager.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
-#include "NNECore.h"
+#include "NNE.h"
 #include "ShaderCore.h"
 
 class FNNEHlslShadersModule : public IModuleInterface

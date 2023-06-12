@@ -2,13 +2,13 @@
 
 #pragma once
 
-#include "NNECoreAttributeMap.h"
-#include "NNECoreAttributeValue.h"
-#include "NNECoreTensor.h"
-#include "NNECoreTypes.h"
-#include "NNECore.h"
-#include "NNECoreModelOptimizerInterface.h"
-#include "NNECoreRuntimeFormat.h"
+#include "NNEAttributeMap.h"
+#include "NNEAttributeValue.h"
+#include "NNETensor.h"
+#include "NNETypes.h"
+#include "NNE.h"
+#include "NNEModelOptimizerInterface.h"
+#include "NNERuntimeFormat.h"
 #include "RenderGraphResources.h"
 #include "Serialization/MemoryReader.h"
 #include "ShaderParameterUtils.h"

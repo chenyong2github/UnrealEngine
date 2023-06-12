@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "NNECoreAttributeDataType.h"
+#include "NNEAttributeDataType.h"
 
 template<typename T> struct TNNEAttributeValueTraits
 {

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "NNECoreTypes.h"
+#include "NNETypes.h"
 
 namespace UE::NNECore::Internal
 {

@@ -2,8 +2,8 @@
 
 #include "NNERuntimeRDGHelperElementWiseBinary.h"
 #include "NNERuntimeRDGTensorIdxIterator.h"
-#include "NNECoreTypes.h"
-#include "NNECoreTensor.h"
+#include "NNETypes.h"
+#include "NNETensor.h"
 #include "Math/UnrealMathUtility.h"
 #include "MathUtil.h"
 

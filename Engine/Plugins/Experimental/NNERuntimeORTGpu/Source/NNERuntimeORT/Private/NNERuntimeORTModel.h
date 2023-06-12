@@ -3,10 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "NNECoreModelBase.h"
-#include "NNECoreRuntimeGPU.h"
-#include "NNECoreTensor.h"
-#include "NNECoreTypes.h"
+#include "NNEModelBase.h"
+#include "NNERuntimeGPU.h"
+#include "NNETensor.h"
+#include "NNETypes.h"
 #include "NNEProfilingStatistics.h"
 
 #include "NNEThirdPartyWarningDisabler.h"

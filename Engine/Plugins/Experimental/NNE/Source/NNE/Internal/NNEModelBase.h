@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "NNECore.h"
-#include "NNECoreTypes.h"
+#include "NNE.h"
+#include "NNETypes.h"
 
 namespace UE::NNECore::Internal
 {

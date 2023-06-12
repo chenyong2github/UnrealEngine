@@ -5,7 +5,7 @@
 #include "UObject/Class.h"
 #include "UObject/Object.h"
 
-#include "NNECoreAttributeDataType.generated.h"
+#include "NNEAttributeDataType.generated.h"
 
 /**
  * Attribute data types
@@ -27,4 +27,4 @@ enum class ENNEAttributeDataType : uint8
 /**
  * @return ENNEAttributeDataType from the string passed in
  */
-NNECORE_API void LexFromString(ENNEAttributeDataType& OutValue, const TCHAR* StringVal);
+NNE_API void LexFromString(ENNEAttributeDataType& OutValue, const TCHAR* StringVal);

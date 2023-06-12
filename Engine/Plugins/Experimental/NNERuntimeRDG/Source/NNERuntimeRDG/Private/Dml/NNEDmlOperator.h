@@ -5,10 +5,10 @@
 #ifdef NNE_USE_DIRECTML
 
 #include "NNEDmlCommon.h"
-#include "NNECoreTypes.h"
-#include "NNECoreTensor.h"
-#include "NNECoreAttributeMap.h"
-#include "NNERuntimeRDG.h"
+#include "NNETypes.h"
+#include "NNETensor.h"
+#include "NNEAttributeMap.h"
+#include "NNERuntimeRDGBase.h"
 
 #define NNE_DML_REGISTER_OP(OpName) \
 struct FDmlOperator##OpName##Registrator \

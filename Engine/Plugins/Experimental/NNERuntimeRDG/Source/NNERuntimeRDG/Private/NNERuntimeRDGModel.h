@@ -3,11 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "NNECoreModelBase.h"
-#include "NNECoreRuntimeRDG.h"
-#include "NNECoreTensor.h"
-#include "NNECoreTypes.h"
+#include "NNEModelBase.h"
 #include "NNERuntimeRDG.h"
+#include "NNETensor.h"
+#include "NNETypes.h"
+#include "NNERuntimeRDGBase.h"
 
 namespace UE::NNERuntimeRDG::Private
 {

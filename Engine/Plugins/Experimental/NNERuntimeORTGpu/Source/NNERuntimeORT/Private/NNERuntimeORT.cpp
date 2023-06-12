@@ -4,9 +4,9 @@
 #include "NNERuntimeORTModel.h"
 #include "NNERuntimeORTUtils.h"
 #include "NNEUtilsModelOptimizer.h"
-#include "NNECoreAttributeMap.h"
-#include "NNECoreModelData.h"
-#include "NNECoreModelOptimizerInterface.h"
+#include "NNEAttributeMap.h"
+#include "NNEModelData.h"
+#include "NNEModelOptimizerInterface.h"
 #include "NNEProfilingTimer.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NNERuntimeORT)

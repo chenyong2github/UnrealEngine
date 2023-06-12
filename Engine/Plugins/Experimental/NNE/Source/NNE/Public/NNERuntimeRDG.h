@@ -3,11 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "NNECoreTypes.h"
+#include "NNETypes.h"
 #include "RenderGraphFwd.h"
 #include "UObject/Interface.h"
 
-#include "NNECoreRuntimeRDG.generated.h"
+#include "NNERuntimeRDG.generated.h"
 
 class UNNEModelData;
 
@@ -19,7 +19,7 @@ namespace UE::NNECore
  *
  * Memory is owned by the caller. The caller must make sure the buffer is large enough.
  */
-struct NNECORE_API FTensorBindingRDG
+struct NNE_API FTensorBindingRDG
 {
 	FRDGBufferRef Buffer;
 };
@@ -30,7 +30,7 @@ struct NNECORE_API FTensorBindingRDG
  * Use UE::NNECore::IModelRDG::CreateModelInstance() to get a model instance.
  * Use UE::NNECore::GetRuntime<INNERuntimeRDG>(RuntimeName) to get a runtime capable of creating RDG models.
  */
-class NNECORE_API IModelInstanceRDG
+class NNE_API IModelInstanceRDG
 {
 public:
 
@@ -102,7 +102,7 @@ public:
  *
  * Use UE::NNECore::GetRuntime<INNERuntimeRDG>(RuntimeName) to get a runtime capable of creating RDG models.
  */
-class NNECORE_API IModelRDG
+class NNE_API IModelRDG
 {
 public:
 
@@ -122,7 +122,7 @@ public:
 } // UE::NNECore
 
 UINTERFACE()
-class NNECORE_API UNNERuntimeRDG : public UInterface
+class NNE_API UNNERuntimeRDG : public UInterface
 {
 	GENERATED_BODY()
 };
@@ -132,7 +132,7 @@ class NNECORE_API UNNERuntimeRDG : public UInterface
  *
  * Call UE::NNECore::GetRuntime<INNERuntimeRDG>(RuntimeName) to get a runtime implementing this interface.
  */
-class NNECORE_API INNERuntimeRDG
+class NNE_API INNERuntimeRDG
 {
 	GENERATED_BODY()
 
