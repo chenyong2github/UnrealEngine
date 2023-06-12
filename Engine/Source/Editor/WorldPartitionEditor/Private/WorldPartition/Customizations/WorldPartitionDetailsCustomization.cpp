@@ -59,24 +59,6 @@ void FWorldPartitionDetails::CustomizeDetails(IDetailLayoutBuilder& InDetailBuil
 	// Disable world partition button
 	if (GetDefault<UWorldPartitionEditorSettings>()->bAdvancedMode)
 	{
-		// Can be used by level instance checkbox
-		WorldPartitionCategory.AddCustomRow(LOCTEXT("CanBeUsedByLevelInstance", "Can Be Used By Level Instance"), false)
-			.RowTag(TEXT("CanBeUsedByLevelInstance"))
-			.NameContent()
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("WorldPartitionCanBeUsedByLevelInstance", "Can Be Used By Level Instance"))
-				.ToolTipText(LOCTEXT("WorldPartitionCanBeUsedByLevelInstance_ToolTip", "Whether Level Instance can reference this partition."))
-				.Font(IDetailLayoutBuilder::GetDetailFont())
-			]
-			.ValueContent()
-			[
-				SNew(SCheckBox)
-				.IsChecked(MakeAttributeLambda([this]() { return WorldPartition.IsValid() && WorldPartition->CanBeUsedByLevelInstance() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; }))
-				.OnCheckStateChanged(this, &FWorldPartitionDetails::HandleWorldPartitionCanBeUsedByLevelInstanceChanged)
-			]
-			.Visibility(TAttribute<EVisibility>::CreateLambda([this]() { return WorldPartition.IsValid() && !WorldPartition->IsStreamingEnabled() ? EVisibility::Visible : EVisibility::Hidden; }));
-
 		// Default world partition settings
 		WorldPartitionCategory.AddCustomRow(LOCTEXT("DefaultWorldPartitionSettingsRow", "DefaultWorldPartitionSettings"), true)
 			.NameContent()
@@ -164,14 +146,6 @@ void FWorldPartitionDetails::HandleWorldPartitionEnableStreamingChanged(ECheckBo
 {
 	if (InCheckState == ECheckBoxState::Checked)
 	{
-		if (WorldPartition->CanBeUsedByLevelInstance())
-		{
-			if (FMessageDialog::Open(EAppMsgType::YesNo, LOCTEXT("WorldPartitionConfirmEnableStreamingOnLevelReferencedByLevelInstance", "You are about to enable streaming on a level that could be used by level instances. Continuing will invalidate level instances referencing this level. Continue?")) == EAppReturnType::No)
-			{
-				return;
-			}
-		}
-
 		if (!WorldPartition->bStreamingWasEnabled)
 		{
 			if (FMessageDialog::Open(EAppMsgType::YesNo, LOCTEXT("WorldPartitionConfirmEnableStreaming", "You are about to enable streaming for the first time, the world will be setup to stream. Continue?")) == EAppReturnType::No)
@@ -203,11 +177,6 @@ void FWorldPartitionDetails::HandleWorldPartitionEnableStreamingChanged(ECheckBo
 			WorldPartition->SetEnableStreaming(false);
 		}
 	}
-}
-
-void FWorldPartitionDetails::HandleWorldPartitionCanBeUsedByLevelInstanceChanged(ECheckBoxState InCheckState)
-{
-	WorldPartition->SetCanBeUsedByLevelInstance((InCheckState == ECheckBoxState::Checked));
 }
 
 void FWorldPartitionDetails::HandleWorldPartitionRuntimeHashClassChanged(const UClass* InRuntimeHashClass)

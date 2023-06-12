@@ -1074,22 +1074,23 @@ ILevelInstanceInterface* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const 
 	ULevelStreamingLevelInstanceEditor* LevelStreaming = nullptr;
 	{
 		const bool bIsPartitioned = GetWorld()->IsPartitionedWorld();
+		const bool bEnableStreaming = CreationParams.bEnableStreaming;
 
 		// We want to properly setup the world partition prior to its initialization
-		FDelegateHandle PreWorldInit = FWorldDelegates::OnPreWorldInitialization.AddLambda([&bIsPartitioned](UWorld* World, const UWorld::InitializationValues IVS)
+		FDelegateHandle PreWorldInit = FWorldDelegates::OnPreWorldInitialization.AddLambda([bIsPartitioned, bEnableStreaming](UWorld* World, const UWorld::InitializationValues IVS)
 		{
 			if (bIsPartitioned)
 			{
 				UWorldPartition* WorldPartition = World->GetWorldPartition();
 				if (ensure(WorldPartition))
 				{
-					WorldPartition->SetCanBeUsedByLevelInstance(true);
+					WorldPartition->bEnableStreaming = bEnableStreaming;
 				}
 			}
 		});
 
 		LevelStreaming = StaticCast<ULevelStreamingLevelInstanceEditor*>(EditorLevelUtils::CreateNewStreamingLevelForWorld(
-		*GetWorld(), ULevelStreamingLevelInstanceEditor::StaticClass(), CreationParams.UseExternalActors(), LevelFilename, &ActorsToMove, CreationParams.TemplateWorld, /*bUseSaveAs*/true, bIsPartitioned, [this, bIsPartitioned, &ActorsToMove](ULevel* InLevel)
+		*GetWorld(), ULevelStreamingLevelInstanceEditor::StaticClass(), CreationParams.UseExternalActors(), LevelFilename, &ActorsToMove, CreationParams.TemplateWorld, /*bUseSaveAs*/true, bIsPartitioned, [this, bIsPartitioned, bEnableStreaming, &ActorsToMove](ULevel* InLevel)
 		{
 			if (InLevel->IsUsingExternalActors())
 			{
@@ -1106,8 +1107,7 @@ ILevelInstanceInterface* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const 
 				UWorldPartition* WorldPartition = InLevel->GetWorldPartition();
 				// Validations
 				check(WorldPartition);
-				check(WorldPartition->CanBeUsedByLevelInstance());
-				check(!WorldPartition->IsStreamingEnabled());
+				check(WorldPartition->IsStreamingEnabled() == bEnableStreaming);
 				check(InLevel->IsUsingActorFolders());
 
 				// Reset HLOD Layer (no defaults needed for Level Instances)
@@ -1807,21 +1807,6 @@ bool ULevelInstanceSubsystem::CanEditLevelInstance(const ILevelInstanceInterface
 		return false;
 	}
 
-	if (ULevel* LevelInstanceLevel = GetLevelInstanceLevel(LevelInstance))
-	{
-		if (UWorldPartition* WorldPartition = LevelInstanceLevel->GetWorldPartition())
-		{
-			if (!WorldPartition->CanBeUsedByLevelInstance())
-			{
-				if (OutReason)
-				{
-					*OutReason = FText::Format(LOCTEXT("CanEditPartitionedLevelInstance", "LevelInstance doesn't support partitioned world {0}, make sure to flag world partition's 'Can be Used by Level Instance'."), FText::FromString(LevelInstance->GetWorldAssetPackage()));
-				}
-				return false;
-			}
-		}
-	}
-	
 	if (LevelInstanceEdit)
 	{
 		if (LevelInstanceEdit->GetLevelInstance() == LevelInstance)
@@ -2419,11 +2404,6 @@ bool ULevelInstanceSubsystem::CheckForLoop(const ILevelInstanceInterface* LevelI
 	return bValid;
 }
 
-bool ULevelInstanceSubsystem::CanUsePackage(FName InPackageName)
-{
-	return !ULevel::GetIsLevelPartitionedFromPackage(InPackageName) || ULevel::GetPartitionedLevelCanBeUsedByLevelInstanceFromPackage(InPackageName);
-}
-
 bool ULevelInstanceSubsystem::CanUseWorldAsset(const ILevelInstanceInterface* LevelInstance, TSoftObjectPtr<UWorld> WorldAsset, FString* OutReason)
 {
 	// Do not validate when running convert commandlet as package might not exist yet.
@@ -2449,16 +2429,6 @@ bool ULevelInstanceSubsystem::CanUseWorldAsset(const ILevelInstanceInterface* Le
 
 	TArray<TPair<FText, TSoftObjectPtr<UWorld>>> LoopInfo;
 	const ILevelInstanceInterface* LoopStart = nullptr;
-
-	if (!ULevelInstanceSubsystem::CanUsePackage(*WorldAsset.GetLongPackageName()))
-	{
-		if (OutReason)
-		{
-			*OutReason = FString::Format(TEXT("LevelInstance doesn't support partitioned world {0}, make sure to flag world partition's 'Can be Used by Level Instance'.\n"), { WorldAsset.GetLongPackageName() });
-		}
-
-		return false;
-	}
 
 	if (!CheckForLoop(LevelInstance, WorldAsset, OutReason ? &LoopInfo : nullptr, OutReason ? &LoopStart : nullptr))
 	{

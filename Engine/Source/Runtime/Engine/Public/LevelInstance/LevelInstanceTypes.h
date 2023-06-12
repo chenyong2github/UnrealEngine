@@ -109,6 +109,9 @@ struct FNewLevelInstanceParams
 	UPROPERTY()
 	TSubclassOf<AActor> LevelInstanceClass;
 
+	UPROPERTY()
+	bool bEnableStreaming = false;
+
 private:
 	UPROPERTY(EditAnywhere, Category = Default, meta = (EditCondition = "!bForceExternalActors", EditConditionHides, HideEditConditionToggle))
 	bool bExternalActors = true;

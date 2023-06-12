@@ -340,6 +340,7 @@ namespace LevelInstanceMenuUtils
 				
 				CreationParams.TemplateWorld = TemplatePackage ? UWorld::FindWorldInPackage(TemplatePackage) : nullptr;
 				CreationParams.LevelInstanceClass = GetDefaultLevelInstanceClass(CreationType);
+				CreationParams.bEnableStreaming = LevelInstanceEditorSettings->bEnableStreaming;
 
 				if (!LevelInstanceSubsystem->CreateLevelInstanceFrom(ActorsToMove, CreationParams))
 				{
@@ -617,7 +618,6 @@ namespace LevelInstanceMenuUtils
 		FWorldPartitionConverter::FParameters Parameters;
 		Parameters.bConvertSubLevels = false;
 		Parameters.bEnableStreaming = false;
-		Parameters.bCanBeUsedByLevelInstance = true;
 		Parameters.bUseActorFolders = true;
 
 		if (FWorldPartitionConverter::Convert(WorldAsset, Parameters))
@@ -658,7 +658,7 @@ namespace LevelInstanceMenuUtils
 	void AddPartitionedStreamingSupportFromMenu(UToolMenu* Menu, FAssetData WorldAsset)
 	{
 		FName WorldAssetName = WorldAsset.PackageName;
-		if (!ULevel::GetIsLevelPartitionedFromPackage(WorldAssetName) || !ULevel::GetPartitionedLevelCanBeUsedByLevelInstanceFromPackage(WorldAssetName))
+		if (!ULevel::GetIsLevelPartitionedFromPackage(WorldAssetName))
 		{
 			FToolMenuSection& Section = CreateLevelSection(Menu);
 			FToolUIAction UIAction;

@@ -171,7 +171,7 @@ bool FLevelInstanceActorDesc::IsContainerInstanceInternal() const
 		return false;
 	}
 
-	return ULevelInstanceSubsystem::CanUsePackage(GetContainerPackage());
+	return true;
 }
 
 bool FLevelInstanceActorDesc::GetContainerInstance(FContainerInstance& OutContainerInstance) const
@@ -211,7 +211,7 @@ void FLevelInstanceActorDesc::CheckForErrors(IStreamingGenerationErrorHandler* E
 	}
 	else if (ULevel::GetIsLevelPartitionedFromPackage(GetContainerPackage()))
 	{
-		if ((DesiredRuntimeBehavior != ELevelInstanceRuntimeBehavior::Partitioned) || !ULevel::GetPartitionedLevelCanBeUsedByLevelInstanceFromPackage(GetContainerPackage()))
+		if (DesiredRuntimeBehavior != ELevelInstanceRuntimeBehavior::Partitioned)
 		{
 			ErrorHandler->OnLevelInstanceInvalidWorldAsset(this, GetContainerPackage(), IStreamingGenerationErrorHandler::ELevelInstanceInvalidReason::WorldAssetImcompatiblePartitioned);
 		}

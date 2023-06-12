@@ -68,10 +68,6 @@ void ALevelInstance::PostRegisterAllComponents()
 {
 	Super::PostRegisterAllComponents();
 
-#if WITH_EDITOR
-	ResetUnsupportedWorldAsset();
-#endif
-
 	if (GetLocalRole() == ENetRole::ROLE_Authority && GetWorld()->IsGameWorld())
 	{
 #if !WITH_EDITOR
@@ -312,16 +308,6 @@ void ALevelInstance::PushLevelInstanceEditingStateToProxies(bool bInEditingState
 	Super::PushLevelInstanceEditingStateToProxies(bInEditingState);
 
 	LevelInstanceActorImpl.PushLevelInstanceEditingStateToProxies(bInEditingState);
-}
-
-void ALevelInstance::ResetUnsupportedWorldAsset()
-{
-	if (!ULevelInstanceSubsystem::CanUsePackage(*WorldAsset.GetLongPackageName()))
-	{
-		UE_LOG(LogLevelInstance, Warning, TEXT("LevelInstance doesn't support partitioned world %s, make sure to flag world partition's 'Can be Used by Level Instance'."), *WorldAsset.GetLongPackageName());
-		WorldAsset.Reset();
-		UpdateCookedAsset();
-	}
 }
 
 void ALevelInstance::UpdateCookedAsset()

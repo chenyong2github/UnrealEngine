@@ -106,7 +106,6 @@ public:
 
 private:
 	ENGINE_API void UpdateCookedAsset();
-	ENGINE_API void ResetUnsupportedWorldAsset();
 #endif
 };
 

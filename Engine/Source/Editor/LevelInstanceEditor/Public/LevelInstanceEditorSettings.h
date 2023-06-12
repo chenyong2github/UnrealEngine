@@ -10,8 +10,8 @@
 #include "LevelInstance/LevelInstanceTypes.h"
 #include "LevelInstanceEditorSettings.generated.h"
 
-UCLASS(config = Editor)
-class ULevelInstanceEditorSettings : public UObject
+UCLASS(config = Editor, defaultconfig, meta = (DisplayName = "Level Instance"))
+class ULevelInstanceEditorSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
 
@@ -24,6 +24,9 @@ public:
 
 	UPROPERTY(config)
 	FString LevelInstanceClassName;
+
+	UPROPERTY(config, EditAnywhere, Category="World Partition", meta = (ToolTip="Create World Partition Level Instances with Streaming Enabled/Disabled by default"))
+	bool bEnableStreaming;
 };
 
 UCLASS(config = EditorPerProjectUserSettings, meta = (DisplayName = "Level Instance"))

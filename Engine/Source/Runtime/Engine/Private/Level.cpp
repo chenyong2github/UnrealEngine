@@ -2508,26 +2508,6 @@ bool ULevel::GetLevelScriptExternalActorsReferencesFromPackage(FName LevelPackag
 	});
 }
 
-bool ULevel::GetPartitionedLevelCanBeUsedByLevelInstanceFromAsset(const FAssetData& Asset)
-{
-	FString PartitionedLevelCanBeUsedByLevelInstanceStr;
-	static const FName NAME_PartitionedLevelCanBeUsedByLevelInstance(TEXT("PartitionedLevelCanBeUsedByLevelInstance"));
-	if (Asset.GetTagValue(NAME_PartitionedLevelCanBeUsedByLevelInstance, PartitionedLevelCanBeUsedByLevelInstanceStr))
-	{
-		check(PartitionedLevelCanBeUsedByLevelInstanceStr == TEXT("1"));
-		return true;
-	}
-	return false;
-}
-
-bool ULevel::GetPartitionedLevelCanBeUsedByLevelInstanceFromPackage(FName LevelPackage)
-{
-	return LevelAssetRegistryHelper::GetLevelInfoFromAssetRegistry(LevelPackage, [](const FAssetData& Asset)
-	{
-		return GetPartitionedLevelCanBeUsedByLevelInstanceFromAsset(Asset);
-	});
-}
-
 bool ULevel::GetLevelBoundsFromAsset(const FAssetData& Asset, FBox& OutLevelBounds)
 {
 	FString LevelBoundsLocationStr;
@@ -2986,15 +2966,6 @@ void ULevel::OnLevelLoaded()
 	FixupActorFolders();
 #endif
 
-	auto IsValidLevelInstanceWorldPartition = [](UWorldPartition* InWorldPartition)
-	{
-#if WITH_EDITOR
-		return InWorldPartition->CanBeUsedByLevelInstance();
-#else
-		return false;
-#endif
-	};
-
 	// Find associated level streaming for this level
 	const ULevelStreaming* LevelStreaming = FLevelUtils::FindStreamingLevel(this);
 
@@ -3019,13 +2990,12 @@ void ULevel::OnLevelLoaded()
 			//
 			const bool bIsOwningWorldGameWorld = OwningWorld->IsGameWorld();
 			const bool bIsOwningWorldPartitioned = OwningWorld->IsPartitionedWorld();
-			const bool bIsValidLevelInstance = IsValidLevelInstanceWorldPartition(WorldPartition);
 			const bool bIsMainWorldLevel = OwningWorld->PersistentLevel == this;
-			const bool bInitializeForEditor = !bIsOwningWorldGameWorld && bIsValidLevelInstance;
+			const bool bInitializeForEditor = !bIsOwningWorldGameWorld;
 			const bool bInitializeForGame = bIsOwningWorldGameWorld;
 
-			UE_LOG(LogWorldPartition, Log, TEXT("ULevel::OnLevelLoaded(%s)(bIsOwningWorldGameWorld=%d, bIsOwningWorldPartitioned=%d, bIsValidLevelInstance=%d, InitializeForMainWorld=%d, InitializeForEditor=%d, InitializeForGame=%d)"), 
-				*GetTypedOuter<UWorld>()->GetName(), bIsOwningWorldGameWorld ? 1 : 0, bIsOwningWorldPartitioned ? 1 : 0, bIsValidLevelInstance ? 1 : 0, bIsMainWorldLevel ? 1 : 0, bInitializeForEditor ? 1 : 0, bInitializeForGame ? 1 : 0);
+			UE_LOG(LogWorldPartition, Log, TEXT("ULevel::OnLevelLoaded(%s)(bIsOwningWorldGameWorld=%d, bIsOwningWorldPartitioned=%d, InitializeForMainWorld=%d, InitializeForEditor=%d, InitializeForGame=%d)"), 
+				*GetTypedOuter<UWorld>()->GetName(), bIsOwningWorldGameWorld ? 1 : 0, bIsOwningWorldPartitioned ? 1 : 0, bIsMainWorldLevel ? 1 : 0, bInitializeForEditor ? 1 : 0, bInitializeForGame ? 1 : 0);
 
 			if (bIsMainWorldLevel || bInitializeForEditor)
 			{

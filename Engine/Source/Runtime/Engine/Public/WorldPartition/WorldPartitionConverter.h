@@ -22,7 +22,6 @@ public:
 		: bConvertSubLevels(true)
 		, bEnableStreaming(true)
 		, bEnableLoadingInEditor(true)
-		, bCanBeUsedByLevelInstance(false)
 		, bUseActorFolders(true)
 		, EditorHashClass(nullptr)
 		, RuntimeHashClass(nullptr)
@@ -31,7 +30,6 @@ public:
 		bool bConvertSubLevels;
 		bool bEnableStreaming;
 		bool bEnableLoadingInEditor;
-		bool bCanBeUsedByLevelInstance;
 		bool bUseActorFolders;
 		TSubclassOf<UWorldPartitionEditorHash> EditorHashClass;
 		TSubclassOf<UWorldPartitionRuntimeHash> RuntimeHashClass;

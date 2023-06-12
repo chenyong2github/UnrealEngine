@@ -270,7 +270,6 @@ UWorldPartition::UWorldPartition(const FObjectInitializer& ObjectInitializer)
 	, WorldPartitionEditor(nullptr)
 	, bStreamingWasEnabled(true)
 	, bShouldCheckEnableStreamingWarning(false)
-	, bCanBeUsedByLevelInstance(false)
 	, bForceGarbageCollection(false)
 	, bForceGarbageCollectionPurge(false)
 	, bEnablingStreamingJustified(false)
@@ -1280,27 +1279,6 @@ void UWorldPartition::SetEnableStreaming(bool bInEnableStreaming)
 	}
 }
 
-bool UWorldPartition::CanBeUsedByLevelInstance() const
-{
-	return bCanBeUsedByLevelInstance && !IsStreamingEnabled();
-}
-
-void UWorldPartition::SetCanBeUsedByLevelInstance(bool bInCanBeUsedByLevelInstance)
-{
-	if (bCanBeUsedByLevelInstance != bInCanBeUsedByLevelInstance)
-	{
-		const FScopedTransaction Transaction(LOCTEXT("EditorWorldPartitionCanBeUsedByLevelInstance", "Set WorldPartition CanBeUsedByLevelInstance"));
-
-		SetFlags(RF_Transactional);
-		Modify();
-		bCanBeUsedByLevelInstance = bInCanBeUsedByLevelInstance;
-		if (bCanBeUsedByLevelInstance)
-		{
-			bEnableStreaming = false;
-		}
-	}
-}
-
 void UWorldPartition::OnEnableStreamingChanged()
 {
 	for (FActorDescContainerCollection::TIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
@@ -1820,12 +1798,6 @@ void UWorldPartition::AppendAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags
 	{
 		static const FName NAME_LevelHasStreamingDisabled(TEXT("LevelHasStreamingDisabled"));
 		OutTags.Add(FAssetRegistryTag(NAME_LevelHasStreamingDisabled, TEXT("1"), FAssetRegistryTag::TT_Hidden));
-	}
-
-	if (CanBeUsedByLevelInstance())
-	{
-		static const FName NAME_PartitionedLevelCanBeUsedByLevelInstance(TEXT("PartitionedLevelCanBeUsedByLevelInstance"));
-		OutTags.Add(FAssetRegistryTag(NAME_PartitionedLevelCanBeUsedByLevelInstance, TEXT("1"), FAssetRegistryTag::TT_Hidden));
 	}
 
 	// Append level script references so we can perform changelists validations without loading the world

@@ -28,9 +28,6 @@ private:
 	// Callback for changes in the world partition enable streaming.
 	void HandleWorldPartitionEnableStreamingChanged(ECheckBoxState InCheckState);
 
-	// Callback for changes in the world partition can be used by level instance.
-	void HandleWorldPartitionCanBeUsedByLevelInstanceChanged(ECheckBoxState InCheckState);
-
 	// Callback for changes in the world partition runtime hash class.
 	void HandleWorldPartitionRuntimeHashClassChanged(const UClass* InRuntimeHashClass);
 

@@ -123,8 +123,12 @@ public:
 
 public:
 	ENGINE_API void SetEnableStreaming(bool bInEnableStreaming);
-	ENGINE_API bool CanBeUsedByLevelInstance() const;
-	ENGINE_API void SetCanBeUsedByLevelInstance(bool bInCanBeUsedByLevelInstance);
+
+	UE_DEPRECATED(5.3, "CanBeUsedByLevelInstance is deprecated.")
+	ENGINE_API bool CanBeUsedByLevelInstance() const { return true; }
+	UE_DEPRECATED(5.3, "SetCanBeUsedByLevelInstance is deprecated.")
+	ENGINE_API void SetCanBeUsedByLevelInstance(bool bInCanBeUsedByLevelInstance) {}
+
 	ENGINE_API void OnEnableStreamingChanged();
 
 private:
@@ -390,10 +394,6 @@ private:
 
 	/** Used to know if we need to recheck if the user should enable streaming based on world size. */
 	bool bShouldCheckEnableStreamingWarning;
-
-	/** Whether Level Instance can reference this partition. */
-	UPROPERTY()
-	bool bCanBeUsedByLevelInstance;
 #endif
 
 public:
