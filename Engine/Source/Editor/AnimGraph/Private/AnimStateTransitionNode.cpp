@@ -698,7 +698,7 @@ void UAnimStateTransitionNode::ValidateNodeDuringCompilation(class FCompilerResu
 			{
 				if (UEdGraph* PreviousStateGraph = PreviousState->GetBoundGraph())
 				{
-					if (UAnimGraphNode_StateResult* PreviousStateGraphResultNode = CastChecked<UAnimationStateGraph>(PreviousStateGraph)->GetResultNode())
+					if (UAnimGraphNode_StateResult* PreviousStateGraphResultNode = Cast<UAnimationStateGraph>(PreviousStateGraph)->GetResultNode())
 					{
 						for (UEdGraphPin* TestPin : PreviousStateGraphResultNode->Pins)
 						{
