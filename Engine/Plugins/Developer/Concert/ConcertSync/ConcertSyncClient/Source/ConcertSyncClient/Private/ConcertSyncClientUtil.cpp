@@ -576,8 +576,6 @@ void HotReloadPackages(TArrayView<const FName> InPackageNames)
 		}
 	}
 
-	FlushRenderingCommands();
-
 	bool bAddPersistentLevel = false;
 
 	// Find the packages in-memory to content hot-reload
@@ -613,6 +611,8 @@ void HotReloadPackages(TArrayView<const FName> InPackageNames)
 
 	if (ExistingPackages.Num() > 0)
 	{
+		FlushRenderingCommands();
+
 		FText ErrorMessage;
 		UPackageTools::ReloadPackages(ExistingPackages, ErrorMessage, GetDefault<UConcertSyncConfig>()->bInteractiveHotReload ? UPackageTools::EReloadPackagesInteractionMode::Interactive : UPackageTools::EReloadPackagesInteractionMode::AssumePositive);
 
