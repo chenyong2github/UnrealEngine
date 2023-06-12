@@ -449,4 +449,15 @@ namespace UE::Tasks
 		ETaskPriority Priority;
 		EExtendedTaskPriority ExtendedPriority;
 	};
+
+	// creates and returns an already completed task holding a result value constructed from given args
+	template<typename ResultType, typename... ArgTypes>
+	TTask<ResultType> MakeCompletedTask(ArgTypes&&... Args)
+	{
+		return Launch(
+			UE_SOURCE_LOCATION,
+			[&] { return ResultType(Forward<ArgTypes>(Args)...); },
+			ETaskPriority::Default, // doesn't matter
+			EExtendedTaskPriority::Inline);
+	}
 }

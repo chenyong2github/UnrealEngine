@@ -7,6 +7,7 @@
 #include "HAL/Thread.h"
 #include "Async/ParallelFor.h"
 #include "Tests/TestHarnessAdapter.h"
+#include "Containers/UnrealString.h"
 
 #include <atomic>
 
@@ -1376,6 +1377,56 @@ namespace UE { namespace TasksTests
 		FTask FinalTask = Pipe.Launch(UE_SOURCE_LOCATION, [] {});
 		check(FinalTask.Wait(FTimespan::FromMilliseconds(100)));
 
+	}
+
+	TEST_CASE_NAMED(FTasksMakeCompletedTask, "System::Core::Tasks::MakeCompletedTask", "[.][ApplicationContextMask][EngineFilter]")
+	{
+		{	// basic
+			TTask<int> Task = MakeCompletedTask<int>(42);
+			check(Task.GetResult() == 42);
+		}
+
+		{	// move-only result
+			TTask<TUniquePtr<int>> Task = MakeCompletedTask<TUniquePtr<int>>(MakeUnique<int>(42));
+			check(*Task.GetResult() == 42);
+		}
+
+		{	// copy-only result
+			struct FCopyOnly
+			{
+				FCopyOnly() = default;
+				FCopyOnly(const FCopyOnly&) = default;
+				FCopyOnly& operator=(const FCopyOnly&) = default;
+			};
+
+			TTask<FCopyOnly> Task = MakeCompletedTask<FCopyOnly>(FCopyOnly{});
+		}
+
+		{ // non-movable result
+			struct FNonMovable
+			{
+				UE_NONCOPYABLE(FNonMovable);
+				FNonMovable() = default;
+			};
+
+			TTask<FNonMovable> Task = MakeCompletedTask<FNonMovable>();
+		}
+
+		{	// result construction from multiple args
+			struct FDummy
+			{
+				int Int;
+				FString Str;
+
+				FDummy(int InInt, const FString& InStr)
+					: Int(InInt)
+					, Str(InStr)
+				{}
+			};
+
+			TTask<FDummy> Task = MakeCompletedTask<FDummy>(42, TEXT("Test"));
+			check(Task.GetResult().Int == 42 && Task.GetResult().Str == TEXT("Test"));
+		}
 	}
 }}
 
