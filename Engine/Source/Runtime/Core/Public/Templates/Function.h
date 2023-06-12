@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Misc/AssertionMacros.h"
+#include "Misc/IntrusiveUnsetOptionalState.h"
 #include "HAL/UnrealMemory.h"
 #include "Templates/AndOrNot.h"
 #include "Templates/ChooseClass.h"
@@ -640,10 +641,20 @@ namespace UE::Core::Private::Function
 			Storage.Unbind();
 		}
 
+		void Reset()
+		{
+			if (Callable)
+			{
+				Storage.Unbind();
+				Callable = nullptr;
+			}
+		}
+
 	protected:
 		bool IsSet() const
 		{
-			static_assert(StorageType::bCanBeNull, "Nullable storage cannot be unset");
+			// Normally we'd assert that bCanBeNull here because it should always be true, but we reuse this
+			// function to test that a `TOptional<TFunctionRef>` with an intrusive state is unset.
 
 			return !!Callable;
 		}
@@ -802,7 +813,7 @@ namespace UE::Core::Private::Function
  * }
  */
 template <typename FuncType>
-class TFunctionRef : public UE::Core::Private::Function::TFunctionRefBase<UE::Core::Private::Function::FFunctionRefStoragePolicy, FuncType>
+class TFunctionRef final : public UE::Core::Private::Function::TFunctionRefBase<UE::Core::Private::Function::FFunctionRefStoragePolicy, FuncType>
 {
 	using Super = UE::Core::Private::Function::TFunctionRefBase<UE::Core::Private::Function::FFunctionRefStoragePolicy, FuncType>;
 
@@ -824,6 +835,27 @@ public:
 	{
 		// This constructor is disabled for TFunctionRef types so it isn't incorrectly selected as copy/move constructors.
 	}
+
+	/////////////////////////////////////////////////////
+	// Start - intrusive TOptional<TFunctionRef> state //
+	/////////////////////////////////////////////////////
+	constexpr static bool bHasIntrusiveUnsetOptionalState = true;
+	using IntrusiveUnsetOptionalStateType = TFunctionRef;
+
+	explicit TFunctionRef(FIntrusiveUnsetOptionalState)
+	{
+	}
+	void operator=(FIntrusiveUnsetOptionalState)
+	{
+		Super::Reset();
+	}
+	bool operator==(FIntrusiveUnsetOptionalState) const
+	{
+		return !Super::IsSet();
+	}
+	///////////////////////////////////////////////////
+	// End - intrusive TOptional<TFunctionRef> state //
+	///////////////////////////////////////////////////
 
 	TFunctionRef(const TFunctionRef&) = default;
 

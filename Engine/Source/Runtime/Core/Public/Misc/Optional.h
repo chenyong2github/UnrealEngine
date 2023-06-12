@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Misc/AssertionMacros.h"
+#include "Misc/IntrusiveUnsetOptionalState.h"
 #include "Misc/OptionalFwd.h"
 #include "Templates/UnrealTemplate.h"
 #include "Serialization/Archive.h"
@@ -12,12 +13,38 @@ inline constexpr FNullOpt NullOpt{0};
 
 namespace UE::Core::Private
 {
+	struct CIntrusiveUnsettable
+	{
+		template <typename T>
+		auto Requires(bool& b) -> decltype(
+			b = std::decay_t<typename T::IntrusiveUnsetOptionalStateType>::bHasIntrusiveUnsetOptionalState
+		);
+	};
+
 	template <size_t N>
-	struct TOptionalStorage
+	struct TNonIntrusiveOptionalStorage
 	{
 		uint8 Storage[N];
 		bool bIsSet;
 	};
+}
+
+template <typename T>
+constexpr bool HasIntrusiveUnsetOptionalState()
+{
+	if constexpr (!TModels<UE::Core::Private::CIntrusiveUnsettable, T>::Value)
+	{
+		return false;
+	}
+	// Derived types are not guaranteed to have an intrusive state, so ensure IntrusiveUnsetOptionalStateType matches the type in the optional
+	else if constexpr (!std::is_same_v<const typename T::IntrusiveUnsetOptionalStateType, const T>)
+	{
+		return false;
+	}
+	else
+	{
+		return T::bHasIntrusiveUnsetOptionalState;
+	}
 }
 
 /**
@@ -27,6 +54,9 @@ namespace UE::Core::Private
 template<typename OptionalType>
 struct TOptional
 {
+private:
+	static constexpr bool bUsingIntrusiveUnsetState = HasIntrusiveUnsetOptionalState<OptionalType>();
+
 public:
 	using ElementType = OptionalType;
 	
@@ -63,7 +93,11 @@ public:
 		//     TOptional<FMyType> Opt(InPlace, FMyType::FPrivateToken{}, 5, 3.14f, TEXT("Banana"));
 		//
 		new(&Value) OptionalType(Forward<ArgTypes>(Args)...);
-		Value.bIsSet = true;
+
+		if constexpr (!bUsingIntrusiveUnsetState)
+		{
+			Value.bIsSet = true;
+		}
 	}
 	
 	/** Construct an OptionalType with an invalid value. */
@@ -75,7 +109,14 @@ public:
 	/** Construct an OptionalType with no value; i.e. unset */
 	TOptional()
 	{
-		Value.bIsSet = false;
+		if constexpr (bUsingIntrusiveUnsetState)
+		{
+			new (&Value) OptionalType(FIntrusiveUnsetOptionalState{});
+		}
+		else
+		{
+			Value.bIsSet = false;
+		}
 	}
 
 	~TOptional()
@@ -86,22 +127,28 @@ public:
 	/** Copy/Move construction */
 	TOptional(const TOptional& Other)
 	{
-		bool bLocalIsSet = Other.Value.bIsSet;
-		Value.bIsSet = bLocalIsSet;
-		if (!bLocalIsSet)
+		if constexpr (!bUsingIntrusiveUnsetState)
 		{
-			return;
+			bool bLocalIsSet = Other.Value.bIsSet;
+			Value.bIsSet = bLocalIsSet;
+			if (!bLocalIsSet)
+			{
+				return;
+			}
 		}
 
 		new(&Value) OptionalType(*(const OptionalType*)&Other.Value);
 	}
 	TOptional(TOptional&& Other)
 	{
-		bool bLocalIsSet = Other.Value.bIsSet;
-		Value.bIsSet = bLocalIsSet;
-		if (!bLocalIsSet)
+		if constexpr (!bUsingIntrusiveUnsetState)
 		{
-			return;
+			bool bLocalIsSet = Other.Value.bIsSet;
+			Value.bIsSet = bLocalIsSet;
+			if (!bLocalIsSet)
+			{
+				return;
+			}
 		}
 
 		new(&Value) OptionalType(MoveTempIfPossible(*(OptionalType*)&Other.Value));
@@ -111,11 +158,18 @@ public:
 	{
 		if (&Other != this)
 		{
-			Reset();
-			if (Other.Value.bIsSet)
+			if constexpr (bUsingIntrusiveUnsetState)
 			{
-				new(&Value) OptionalType(*(const OptionalType*)&Other.Value);
-				Value.bIsSet = true;
+				*(OptionalType*)&Value = *(const OptionalType*)&Other.Value;
+			}
+			else
+			{
+				Reset();
+				if (Other.Value.bIsSet)
+				{
+					new(&Value) OptionalType(*(const OptionalType*)&Other.Value);
+					Value.bIsSet = true;
+				}
 			}
 		}
 		return *this;
@@ -124,11 +178,18 @@ public:
 	{
 		if (&Other != this)
 		{
-			Reset();
-			if (Other.Value.bIsSet)
+			if constexpr (bUsingIntrusiveUnsetState)
 			{
-				new(&Value) OptionalType(MoveTempIfPossible(*(OptionalType*)&Other.Value));
-				Value.bIsSet = true;
+				*(OptionalType*)&Value = MoveTempIfPossible(*(OptionalType*)&Other.Value);
+			}
+			else
+			{
+				Reset();
+				if (Other.Value.bIsSet)
+				{
+					new(&Value) OptionalType(MoveTempIfPossible(*(OptionalType*)&Other.Value));
+					Value.bIsSet = true;
+				}
 			}
 		}
 		return *this;
@@ -153,20 +214,38 @@ public:
 
 	void Reset()
 	{
-		if (Value.bIsSet)
+		if constexpr (bUsingIntrusiveUnsetState)
 		{
-			Value.bIsSet = false;
+			*(OptionalType*)&Value = FIntrusiveUnsetOptionalState{};
+		}
+		else
+		{
+			if (Value.bIsSet)
+			{
+				Value.bIsSet = false;
 
-			// We need a typedef here because VC won't compile the destructor call below if OptionalType itself has a member called OptionalType
-			typedef OptionalType OptionalDestructOptionalType;
-			((OptionalType*)&Value)->OptionalDestructOptionalType::~OptionalDestructOptionalType();
+				// We need a typedef here because VC won't compile the destructor call below if OptionalType itself has a member called OptionalType
+				typedef OptionalType OptionalDestructOptionalType;
+				((OptionalType*)&Value)->OptionalDestructOptionalType::~OptionalDestructOptionalType();
+			}
 		}
 	}
 
 	template <typename... ArgsType>
 	OptionalType& Emplace(ArgsType&&... Args)
 	{
-		Reset();
+		if constexpr (bUsingIntrusiveUnsetState)
+		{
+			// Destroy the member in-place before replacing it - a bit nasty, but it'll work since we don't support exceptions
+
+			// We need a typedef here because VC won't compile the destructor call below if OptionalType itself has a member called OptionalType
+			typedef OptionalType OptionalDestructOptionalType;
+			((OptionalType*)&Value)->OptionalDestructOptionalType::~OptionalDestructOptionalType();
+		}
+		else
+		{
+			Reset();
+		}
 
 		// If this fails to compile when trying to call Emplace with a non-public constructor,
 		// do not make TOptional a friend.
@@ -191,22 +270,31 @@ public:
 		//     Opt.Emplace(FMyType::FPrivateToken{}, 5, 3.14f, TEXT("Banana"));
 		//
 		OptionalType* Result = new(&Value) OptionalType(Forward<ArgsType>(Args)...);
-		Value.bIsSet = true;
+
+		if constexpr (!bUsingIntrusiveUnsetState)
+		{
+			Value.bIsSet = true;
+		}
+
 		return *Result;
 	}
 
 	friend bool operator==(const TOptional& Lhs, const TOptional& Rhs)
 	{
-		bool bIsLhsSet = Lhs.Value.bIsSet;
-		bool bIsRhsSet = Rhs.Value.bIsSet;
-		if (bIsLhsSet != bIsRhsSet)
+		if constexpr (!bUsingIntrusiveUnsetState)
 		{
-			return false;
+			bool bIsLhsSet = Lhs.Value.bIsSet;
+			bool bIsRhsSet = Rhs.Value.bIsSet;
+			if (bIsLhsSet != bIsRhsSet)
+			{
+				return false;
+			}
+			if (!bIsLhsSet) // both unset
+			{
+				return true;
+			}
 		}
-		if (!bIsLhsSet) // both unset
-		{
-			return true;
-		}
+
 		return (*(const OptionalType*)&Lhs.Value) == (*(const OptionalType*)&Rhs.Value);
 	}
 
@@ -248,7 +336,14 @@ public:
 	/** @return true when the value is meaningful; false if calling GetValue() is undefined. */
 	bool IsSet() const
 	{
-		return Value.bIsSet;
+		if constexpr (bUsingIntrusiveUnsetState)
+		{
+			return !(*(const OptionalType*)&Value == FIntrusiveUnsetOptionalState{});
+		}
+		else
+		{
+			return Value.bIsSet;
+		}
 	}
 	FORCEINLINE explicit operator bool() const
 	{
@@ -301,7 +396,7 @@ public:
 	}
 
 private:
-	using ValueStorageType = UE::Core::Private::TOptionalStorage<sizeof(OptionalType)>;
+	using ValueStorageType = std::conditional_t<bUsingIntrusiveUnsetState, uint8[sizeof(OptionalType)], UE::Core::Private::TNonIntrusiveOptionalStorage<sizeof(OptionalType)>>;
 	alignas(OptionalType) ValueStorageType Value;
 };
 

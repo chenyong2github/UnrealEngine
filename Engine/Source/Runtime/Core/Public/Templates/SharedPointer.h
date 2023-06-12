@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Misc/IntrusiveUnsetOptionalState.h"
 #include "Templates/PointerIsConvertibleFromTo.h"
 #include "Misc/AssertionMacros.h"
 #include "HAL/UnrealMemory.h"
@@ -546,6 +547,29 @@ public:
 	{
 		return SharedReferenceCount.IsUnique();
 	}
+
+	/////////////////////////////////////////////////////
+	// Start - intrusive TOptional<TSharedRef> state //
+	/////////////////////////////////////////////////////
+	constexpr static bool bHasIntrusiveUnsetOptionalState = true;
+	using IntrusiveUnsetOptionalStateType = TSharedRef;
+
+	explicit TSharedRef(FIntrusiveUnsetOptionalState)
+		: Object(nullptr)
+	{
+	}
+	void operator=(FIntrusiveUnsetOptionalState)
+	{
+		Object = nullptr;
+		SharedReferenceCount = {};
+	}
+	bool operator==(FIntrusiveUnsetOptionalState) const
+	{
+		return !IsValid();
+	}
+	/////////////////////////////////////////////////
+	// End - intrusive TOptional<TSharedRef> state //
+	/////////////////////////////////////////////////
 
 private:
 	template<class OtherType>
