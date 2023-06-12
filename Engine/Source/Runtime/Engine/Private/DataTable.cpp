@@ -278,7 +278,7 @@ void UDataTable::AddReferencedObjects(UObject* InThis, FReferenceCollector& Coll
 		{
 			if (uint8* RowData = Pair.Value)
 			{
-				Collector.AddPropertyReferences(This->RowStruct, RowData, This);
+				Collector.AddPropertyReferencesWithStructARO(This->RowStruct, RowData, This);
 			}
 		}
 	}

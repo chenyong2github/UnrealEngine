@@ -1129,7 +1129,7 @@ void UDataRegistry::AddReferencedObjects(UObject* InThis, FReferenceCollector& C
 
 			if (Item && Item->ItemMemory)
 			{
-				Collector.AddPropertyReferences(ItemStruct, Item->ItemMemory, This);
+				Collector.AddPropertyReferencesWithStructARO(ItemStruct, Item->ItemMemory, This);
 			}
 		}
 	}
