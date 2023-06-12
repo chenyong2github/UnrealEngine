@@ -23,6 +23,12 @@ public:
 		return new FOperatorDmlActivationUnary();
 	}
 
+	static bool Validate(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputShapes)
+	{
+		//TODO
+		return true;
+	}
+
 	virtual ~FOperatorDmlActivationUnary() = default;
 
 private:
@@ -179,6 +185,12 @@ public:
 	static FOperatorDml* Create()
 	{
 		return new FOperatorDmlActivationBinary();
+	}
+
+	static bool Validate(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputShapes)
+	{
+		//TODO
+		return true;
 	}
 
 private:

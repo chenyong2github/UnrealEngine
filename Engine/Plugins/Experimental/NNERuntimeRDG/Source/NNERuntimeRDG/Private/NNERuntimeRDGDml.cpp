@@ -11,7 +11,7 @@
 #include "Misc/SecureHash.h"
 #include "NNEModelData.h"
 #include "NNERuntimeFormat.h"
-#include "NNERuntimeRDG.h"
+#include "NNERuntimeRDGBase.h"
 #include "NNEUtilsModelOptimizer.h"
 
 #ifdef NNE_USE_DIRECTML
@@ -109,6 +109,9 @@ TArray<uint8> UNNERuntimeRDGDmlImpl::CreateModelData(FString FileType, TConstArr
 	}
 
 	TUniquePtr<UE::NNECore::Internal::IModelOptimizer> Optimizer = UE::NNEUtils::Internal::CreateONNXToNNEModelOptimizer();
+#ifdef NNE_USE_DIRECTML
+	Optimizer->AddValidator(MakeShared<FModelValidatorDml>());
+#endif
 
 	FNNEModelRaw InputModel;
 	InputModel.Data = FileData;

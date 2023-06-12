@@ -27,6 +27,12 @@ public:
 		return new FOperatorDmlBatchNormalization();
 	}
 
+	static bool Validate(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputShapes)
+	{
+		//TODO
+		return true;
+	}
+
 	//
 	//
 	//

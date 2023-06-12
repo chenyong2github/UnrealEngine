@@ -15,7 +15,7 @@ struct FDmlOperator##OpName##Registrator \
 { \
 	FDmlOperator##OpName##Registrator() \
 	{ \
-		FOperatorRegistryDml::Get()->OpAdd(TEXT(#OpName), FOperatorDml##OpName##::Create); \
+		FOperatorRegistryDml::Get()->OpAdd(TEXT(#OpName), FOperatorDml##OpName##::Create, FOperatorDml##OpName##::Validate); \
 	} \
 }; \
 \
@@ -312,7 +312,7 @@ protected:
  * DirectML ML operator registry
  */
 using FOperatorRegistryDml = TOperatorRegistryRDG<FOperatorDml>;
-
+using FModelValidatorDml = TModelValidatorRDG<FOperatorDml>;
 
 } // namespace UE::NNERuntimeRDG::Private::Dml
 

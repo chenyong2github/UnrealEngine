@@ -23,6 +23,12 @@ public:
 		return new FOperatorDmlElementWiseUnary();
 	}
 
+	static bool Validate(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputShapes)
+	{
+		//TODO
+		return true;
+	}
+
 	virtual ~FOperatorDmlElementWiseUnary() = default;
 
 private:

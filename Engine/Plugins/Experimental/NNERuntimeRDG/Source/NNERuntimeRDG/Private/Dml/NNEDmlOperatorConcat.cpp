@@ -23,6 +23,12 @@ public:
 		return new FOperatorDmlConcat();
 	}
 
+	static bool Validate(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputShapes)
+	{
+		//TODO
+		return true;
+	}
+
 	//
 	//
 	//
