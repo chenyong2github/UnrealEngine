@@ -337,9 +337,10 @@ void ScatterTilesToObjects(
 
 FIntPoint GetTileListGroupSizeForView(const FViewInfo& View)
 {
+	const FIntPoint AOBufferSize = GetBufferSizeForAO(View);
 	return FIntPoint(
-		FMath::DivideAndRoundUp(FMath::Max(View.ViewRect.Size().X / GAODownsampleFactor, 1), GDistanceFieldAOTileSizeX),
-		FMath::DivideAndRoundUp(FMath::Max(View.ViewRect.Size().Y / GAODownsampleFactor, 1), GDistanceFieldAOTileSizeY));
+		FMath::DivideAndRoundUp(FMath::Max(AOBufferSize.X, 1), GDistanceFieldAOTileSizeX),
+		FMath::DivideAndRoundUp(FMath::Max(AOBufferSize.Y, 1), GDistanceFieldAOTileSizeY));
 }
 
 void BuildTileObjectLists(
