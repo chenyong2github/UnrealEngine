@@ -33,6 +33,9 @@ private:
 	UPROPERTY()
 	int8 ProxyLOD;
 
+	UPROPERTY()
+	uint32 LODGroupKey;
+
 public:
 	LANDSCAPE_API void InitializeForLandscape(ALandscapeProxy* Landscape, int8 InProxyLOD);
 	

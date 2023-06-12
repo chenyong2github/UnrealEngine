@@ -454,6 +454,7 @@ FLandscapeRenderSystem::FLandscapeRenderSystem()
 	, Size(EForceInit::ForceInitToZero)
 	, ReferenceCount(0)
 	, ForcedLODOverride(-1)
+	, SectionsRemovedSinceLastCompact(0)
 {
 	SectionLODBiases.SetAllowCPUAccess(true);
 
@@ -512,26 +513,61 @@ void FLandscapeRenderSystem::CreateResources_Internal(FLandscapeSectionInfo* Sec
 	check(IsInRenderingThread());
 	check(SectionInfo != nullptr);
 	check(!SectionInfo->bRegistered);
+	check(!SectionInfo->bResourcesCreated);
 
-	if (!SectionInfos.IsEmpty())
+	SectionInfo->RenderCoord = SectionInfo->ComponentBase;
+	SectionInfo->bResourcesCreated = true;
+
+	if (SectionInfo->LODGroupKey != 0)
 	{
-		// Calculate new bounding rect of landscape components
-		FIntPoint OriginalMin = Min;
-		FIntPoint OriginalMax = Min + Size - FIntPoint(1, 1);
-		FIntPoint NewMin(FMath::Min(Min.X, SectionInfo->ComponentBase.X), FMath::Min(Min.Y, SectionInfo->ComponentBase.Y));
-		FIntPoint NewMax(FMath::Max(OriginalMax.X, SectionInfo->ComponentBase.X), FMath::Max(OriginalMax.Y, SectionInfo->ComponentBase.Y));
-
-		FIntPoint SizeRequired = (NewMax - NewMin) + FIntPoint(1, 1);
-
-		if (NewMin != Min || Size != SizeRequired)
+		// Record and check settings (resolution, scale and orientation) that need to match across landscapes in an LOD Group
+		int32 SectionComponentResolution = SectionInfo->GetComponentResolution();
+		if (SectionComponentResolution > 0)
 		{
-			ResizeAndMoveTo(NewMin, SizeRequired);
+			FBoxSphereBounds LocalBounds;
+			FMatrix LocalToWorld;
+			SectionInfo->GetSectionBoundsAndLocalToWorld(LocalBounds, LocalToWorld);
+
+			FVector SectionCenterWorldSpace = LocalToWorld.TransformPosition(LocalBounds.Origin);
+			FVector SectionXVector = LocalToWorld.TransformVector(FVector::XAxisVector) * SectionComponentResolution;
+			FVector SectionYVector = LocalToWorld.TransformVector(FVector::YAxisVector) * SectionComponentResolution;
+
+			if (ComponentResolution < 0)
+			{
+				// the first component with a resolution -- record its information
+				ComponentResolution = SectionComponentResolution;
+				ComponentOrigin = SectionCenterWorldSpace;
+				ComponentXVector = SectionXVector;
+				ComponentYVector = SectionYVector;
+			}
+			else
+			{
+				// validate matching resolution
+				bool bResolutionMatches = (ComponentResolution == SectionComponentResolution);
+				bool bXVectorMatches = (SectionXVector - ComponentXVector).IsNearlyZero();
+				bool bYVectorMatches = (SectionYVector - ComponentYVector).IsNearlyZero();
+				if (!(bResolutionMatches && bXVectorMatches && bYVectorMatches))
+				{
+					UE_LOG(LogLandscape, Warning, TEXT("Landscapes in LOD Group %d do not have matching resolution (%d == %d), scale (%f == %f, %f == %f) and/or rotation; geometry seam artifacts may appear."),
+						SectionInfo->LODGroupKey,
+						ComponentResolution, SectionComponentResolution,
+						ComponentXVector.Length(), SectionXVector.Length(),
+						ComponentYVector.Length(), SectionYVector.Length());
+				}
+			}
+			
+			// project onto the Component X/Y plane to calculate the render coordinates
+			FVector Delta = SectionCenterWorldSpace - ComponentOrigin;
+			SectionInfo->RenderCoord.X = FMath::RoundToInt32(Delta.Dot(ComponentXVector) / ComponentXVector.SquaredLength());
+			SectionInfo->RenderCoord.Y = FMath::RoundToInt32(Delta.Dot(ComponentYVector) / ComponentXVector.SquaredLength());
 		}
 	}
-	else
-	{
-		ResizeAndMoveTo(SectionInfo->ComponentBase, FIntPoint(1, 1));
-	}
+
+	// we changed the RenderCoord, need to update the uniform buffer
+	SectionInfo->OnRenderCoordsChanged();
+
+	check(SectionInfo->RenderCoord.X > INT32_MIN);
+	ResizeToInclude(SectionInfo->RenderCoord);
 
 	ReferenceCount++;
 }
@@ -541,8 +577,23 @@ void FLandscapeRenderSystem::DestroyResources_Internal(FLandscapeSectionInfo* Se
 	check(IsInRenderingThread());
 	check(SectionInfo != nullptr);
 	check(!SectionInfo->bRegistered);
+	check(SectionInfo->bResourcesCreated);
 
 	ReferenceCount--;
+
+	SectionInfo->bResourcesCreated = false;
+
+	// try to compact the map every once in a while
+	SectionsRemovedSinceLastCompact++;
+	if (SectionsRemovedSinceLastCompact >= 128)
+	{
+		// if there are at least 128 free entries, run a compact step
+		if (Size.X * Size.Y - ReferenceCount >= 128)
+		{
+			CompactMap();
+		}
+		SectionsRemovedSinceLastCompact = 0;
+	}
 }
 
 void FLandscapeRenderSystem::RegisterSection(FLandscapeSectionInfo* SectionInfo)
@@ -558,10 +609,11 @@ void FLandscapeRenderSystem::RegisterSection(FLandscapeSectionInfo* SectionInfo)
 	// properly restore a previously registered section info.
 
 	FLandscapeRenderSystem*& LandscapeRenderSystem = LandscapeRenderSystems.FindChecked(SectionInfo->LandscapeKey);
-	FLandscapeSectionInfo* ExistingSection = LandscapeRenderSystem->GetSectionInfo(SectionInfo->ComponentBase);
+
+	FLandscapeSectionInfo* ExistingSection = LandscapeRenderSystem->GetSectionInfo(SectionInfo->RenderCoord);
 	if (ExistingSection == nullptr)
 	{
-		LandscapeRenderSystem->SetSectionInfo(SectionInfo->ComponentBase, SectionInfo);
+		LandscapeRenderSystem->SetSectionInfo(SectionInfo->RenderCoord, SectionInfo);
 	}
 	else
 	{
@@ -587,7 +639,7 @@ void FLandscapeRenderSystem::RegisterSection(FLandscapeSectionInfo* SectionInfo)
 		else if (CurrentSection == ExistingSection)
 		{
 			// Set as head
-			LandscapeRenderSystem->SetSectionInfo(SectionInfo->ComponentBase, SectionInfo);
+			LandscapeRenderSystem->SetSectionInfo(SectionInfo->RenderCoord, SectionInfo);
 		}
 	}
 
@@ -602,10 +654,11 @@ void FLandscapeRenderSystem::UnregisterSection(FLandscapeSectionInfo* SectionInf
 	if (SectionInfo->bRegistered)
 	{
 		FLandscapeRenderSystem* LandscapeRenderSystem = LandscapeRenderSystems.FindChecked(SectionInfo->LandscapeKey);
-		FLandscapeSectionInfo* ExistingSection = LandscapeRenderSystem->GetSectionInfo(SectionInfo->ComponentBase);
+
+		FLandscapeSectionInfo* ExistingSection = LandscapeRenderSystem->GetSectionInfo(SectionInfo->RenderCoord);
 		if (ExistingSection == SectionInfo)
 		{
-			LandscapeRenderSystem->SetSectionInfo(SectionInfo->ComponentBase, SectionInfo->GetNextLink());
+			LandscapeRenderSystem->SetSectionInfo(SectionInfo->RenderCoord, SectionInfo->GetNextLink());
 		}
 
 		SectionInfo->Unlink();
@@ -614,37 +667,137 @@ void FLandscapeRenderSystem::UnregisterSection(FLandscapeSectionInfo* SectionInf
 	}
 }
 
-void FLandscapeRenderSystem::ResizeAndMoveTo(FIntPoint NewMin, FIntPoint NewSize)
+void FLandscapeRenderSystem::ResizeAndMoveTo(FIntPoint NewMin, FIntPoint NewMax)
 {
-	SectionLODBiasBuffer.SafeRelease();
+	// chunk size reduces the number of times we need to reallocate the section map when resizing it. should be a power of two
+	static constexpr int32 SectionMapChunkSize = 4;
 
-	TResourceArray<float> NewSectionLODBiases;
-	TArray<FLandscapeSectionInfo*> NewSectionInfos;
+	// round down to multiple of SectionMapChunkSize
+	NewMin.X = (NewMin.X) & ~(SectionMapChunkSize - 1);
+	NewMin.Y = (NewMin.Y) & ~(SectionMapChunkSize - 1);
 
-	NewSectionLODBiases.AddZeroed(NewSize.X * NewSize.Y);
-	NewSectionInfos.AddZeroed(NewSize.X * NewSize.Y);
+	// round up to multiple of SectionMapChunkSize (note that before this operation NewMax is inclusive, but after it is exclusive)
+	NewMax.X = (NewMax.X + SectionMapChunkSize) & ~(SectionMapChunkSize - 1);
+	NewMax.Y = (NewMax.Y + SectionMapChunkSize) & ~(SectionMapChunkSize - 1);
 
-	for (int32 Y = 0; Y < Size.Y; Y++)
+	FIntPoint NewSize = (NewMax - NewMin);
+	if (NewMin != Min || Size != NewSize)
 	{
-		for (int32 X = 0; X < Size.X; X++)
+		check((Size.X & (SectionMapChunkSize-1)) == 0);
+		check((Size.Y & (SectionMapChunkSize-1)) == 0);
+
+		SectionLODBiasBuffer.SafeRelease();
+
+		TResourceArray<float> NewSectionLODBiases;
+		TArray<FLandscapeSectionInfo*> NewSectionInfos;
+
+		NewSectionLODBiases.AddZeroed(NewSize.X * NewSize.Y);
+		NewSectionInfos.AddZeroed(NewSize.X * NewSize.Y);
+
+		for (int32 OldY = 0; OldY < Size.Y; OldY++)
+		{
+			int32 Y = OldY + Min.Y;
+			int32 NewY = Y - NewMin.Y;
+			if ((NewY >= 0) && (NewY < NewSize.Y))
+			{
+				int32 OldYBase = OldY * Size.X;
+				int32 NewYBase = NewY * NewSize.X;
+				for (int32 OldX = 0; OldX < Size.X; OldX++)
+				{
+					int32 X = OldX + Min.X;
+					int32 NewX = X - NewMin.X;
+					if ((NewX >= 0) && (NewX < NewSize.X))
+					{
+						int32 OldLinearIndex = OldYBase + OldX;
+						int32 NewLinearIndex = NewYBase + NewX;
+						NewSectionLODBiases[NewLinearIndex] = SectionLODBiases[OldLinearIndex];
+						NewSectionInfos[NewLinearIndex] = SectionInfos[OldLinearIndex];
+					}
+				}
+			}
+		}
+
+		Min = NewMin;
+		Size = NewSize;
+		SectionLODBiases = MoveTemp(NewSectionLODBiases);
+		SectionInfos = MoveTemp(NewSectionInfos);
+
+		SectionLODBiases.SetAllowCPUAccess(true);
+	}
+}
+
+void FLandscapeRenderSystem::ResizeToInclude(const FIntPoint& NewCoord)
+{
+	if (!SectionInfos.IsEmpty())
+	{
+		// Calculate new bounding rect of landscape components
+		FIntPoint OriginalMin = Min;
+		FIntPoint OriginalMax = Min + Size - FIntPoint(1, 1);
+
+		FIntPoint NewMin(FMath::Min(OriginalMin.X, NewCoord.X), FMath::Min(OriginalMin.Y, NewCoord.Y));
+		FIntPoint NewMax(FMath::Max(OriginalMax.X, NewCoord.X), FMath::Max(OriginalMax.Y, NewCoord.Y));
+
+		ResizeAndMoveTo(NewMin, NewMax);
+	}
+	else
+	{
+		ResizeAndMoveTo(NewCoord, NewCoord);
+	}
+}
+
+void FLandscapeRenderSystem::CompactMap()
+{
+	FIntPoint NewMin = Min;
+	FIntPoint NewMax = Min + Size - FIntPoint(1, 1);
+
+	// Shrink Min X 
+	while ((NewMin.X < NewMax.X) &&
+		!AnySectionsInRangeInclusive(FIntPoint(NewMin.X, NewMin.Y), FIntPoint(NewMin.X, NewMax.Y)))
+	{
+		NewMin.X++;
+	}
+
+	// Shrink Max X 
+	while ((NewMin.X < NewMax.X) &&
+		!AnySectionsInRangeInclusive(FIntPoint(NewMax.X, NewMin.Y), FIntPoint(NewMax.X, NewMax.Y)))
+	{
+		NewMax.X--;
+	}
+
+	// Shrink Min Y
+	while ((NewMin.Y < NewMax.Y) &&
+		!AnySectionsInRangeInclusive(FIntPoint(NewMin.X, NewMin.Y), FIntPoint(NewMax.X, NewMin.Y)))
+	{
+		NewMin.Y++;
+	}
+
+	// Shrink Max Y
+	while ((NewMin.Y < NewMax.Y) &&
+		!AnySectionsInRangeInclusive(FIntPoint(NewMin.X, NewMax.Y), FIntPoint(NewMax.X, NewMax.Y)))
+	{
+		NewMax.Y--;
+	}
+
+	ResizeAndMoveTo(NewMin, NewMax);
+}
+
+bool FLandscapeRenderSystem::AnySectionsInRangeInclusive(FIntPoint RangeMin, FIntPoint RangeMax)
+{
+	// convert to range relative to Min
+	RangeMin -= Min;
+	RangeMax -= Min;
+	for (int32 Y = RangeMin.Y; Y <= RangeMax.Y; Y++)
+	{
+		for (int32 X = RangeMin.X; X <= RangeMax.X; X++)
 		{
 			int32 LinearIndex = Y * Size.X + X;
-			int32 NewLinearIndex = (Y + (Min.Y - NewMin.Y)) * NewSize.X + (X + (Min.X - NewMin.X));
-
-			if (NewLinearIndex >= 0 && NewLinearIndex < NewSize.X * NewSize.Y)
+			if (SectionInfos[LinearIndex] != nullptr)
 			{
-				NewSectionLODBiases[NewLinearIndex] = SectionLODBiases[LinearIndex];
-				NewSectionInfos[NewLinearIndex] = SectionInfos[LinearIndex];
+				return true;
 			}
 		}
 	}
-
-	Min = NewMin;
-	Size = NewSize;
-	SectionLODBiases = MoveTemp(NewSectionLODBiases);
-	SectionInfos = MoveTemp(NewSectionInfos);
-
-	SectionLODBiases.SetAllowCPUAccess(true);
+	return false;
 }
 
 const TResourceArray<float>& FLandscapeRenderSystem::ComputeSectionsLODForView(const FSceneView& InView)
@@ -902,7 +1055,7 @@ bool FLandscapeVisibilityHelper::OnRemoveFromWorld()
 
 FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent* InComponent)
 	: FPrimitiveSceneProxy(InComponent, NAME_LandscapeResourceNameForDebugging)
-	, FLandscapeSectionInfo(InComponent->GetWorld(), InComponent->GetLandscapeProxy()->GetLandscapeGuid(), InComponent->GetSectionBase() / InComponent->ComponentSizeQuads)
+	, FLandscapeSectionInfo(InComponent->GetWorld(), InComponent->GetLandscapeProxy()->GetLandscapeGuid(), InComponent->GetSectionBase() / InComponent->ComponentSizeQuads, InComponent->GetLandscapeProxy()->LODGroupKey)
 	, MaxLOD(static_cast<int8>(FMath::CeilLogTwo(InComponent->SubsectionSizeQuads + 1) - 1))
 	, NumWeightmapLayerAllocations(static_cast<int8>(InComponent->GetWeightmapLayerAllocations().Num()))
 	, StaticLightingLOD(static_cast<uint8>(InComponent->GetLandscapeProxy()->StaticLightingLOD))
@@ -1207,7 +1360,7 @@ void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 
 	if (VisibilityHelper.ShouldBeVisible())
 	{
-		RegisterSection();
+		FLandscapeRenderSystem::RegisterSection(this);
 	}
 
 	auto FeatureLevel = GetScene().GetFeatureLevel();
@@ -1749,6 +1902,14 @@ namespace DebugColorMask
 
 void FLandscapeComponentSceneProxy::OnTransformChanged()
 {
+	// resource creation will call OnTransformChanged(), so don't bother updating everything here if resources haven't been created yet
+	if (!bResourcesCreated)
+	{
+		return;
+	}
+	
+	check(RenderCoord.X > INT32_MIN);
+
 	// Set Lightmap ScaleBias
 	int32 PatchExpandCountX = 0;
 	int32 PatchExpandCountY = 0;
@@ -1773,8 +1934,8 @@ void FLandscapeComponentSceneProxy::OnTransformChanged()
 
 	// Set FLandscapeUniformVSParameters for this subsection
 	FLandscapeUniformShaderParameters LandscapeParams;
-	LandscapeParams.ComponentBaseX = ComponentBase.X;
-	LandscapeParams.ComponentBaseY = ComponentBase.Y;
+	LandscapeParams.ComponentBaseX = RenderCoord.X;
+	LandscapeParams.ComponentBaseY = RenderCoord.Y;
 	LandscapeParams.SubsectionSizeVerts = SubsectionSizeVerts;
 	LandscapeParams.NumSubsections = NumSubsections;
 	LandscapeParams.LastLOD = LastLOD;
@@ -2073,7 +2234,7 @@ void FLandscapeComponentSceneProxy::GetDynamicMeshElements(const TArray<const FS
 
 			const FSceneView* View = Views[ViewIndex];
 
-			int32 LODToRender = static_cast<int32>(RenderSystem.GetSectionLODValue(*View, ComponentBase));
+			int32 LODToRender = static_cast<int32>(RenderSystem.GetSectionLODValue(*View, RenderCoord));
 
 			FMeshBatch& Mesh = Collector.AllocateMesh();
 			GetStaticMeshElement(LODToRender, false, Mesh, ParameterArray.ElementParams);
@@ -2459,7 +2620,8 @@ void FLandscapeComponentSceneProxy::GetDynamicMeshElements(const TArray<const FS
 void FLandscapeComponentSceneProxy::ApplyViewDependentMeshArguments(const FSceneView& View, FMeshBatch& ViewDependentMeshBatch) const
 {
 	Culling::FArguments CullingArgs{};
-	if (Culling::GetViewArguments(View, LandscapeKey, ComponentBase, ViewDependentMeshBatch.LODIndex, CullingArgs))
+	check(RenderCoord.X > INT32_MIN);
+	if (Culling::GetViewArguments(View, LandscapeKey, RenderCoord, ViewDependentMeshBatch.LODIndex, CullingArgs))
 	{
 		ViewDependentMeshBatch.Elements[0].NumPrimitives = 0;
 		ViewDependentMeshBatch.Elements[0].NumInstances = 0;
@@ -2485,7 +2647,7 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 	}
 	FLandscapeRayTracingState* RayTracingState = RayTracingImpl.Get()->FindOrCreateRayTracingState(SceneView.State, NumSubsections, SubsectionSizeVerts);
 
-	int32 LODToRender = static_cast<int32>(RenderSystem.GetSectionLODValue(SceneView, ComponentBase));
+	int32 LODToRender = static_cast<int32>(RenderSystem.GetSectionLODValue(SceneView, RenderCoord));
 
 	FLandscapeElementParamArray& ParameterArray = Context.RayTracingMeshResourceCollector.AllocateOneFrameResource<FLandscapeElementParamArray>();
 	ParameterArray.ElementParams.AddDefaulted(NumSubsections * NumSubsections);
@@ -2570,13 +2732,13 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 					RayTracingState->Sections[SubSectionIdx].CurrentLOD = CurrentLOD;
 					RayTracingState->Sections[SubSectionIdx].RayTracingDynamicVertexBuffer.Release();
 				}
-				if (RayTracingState->Sections[SubSectionIdx].HeightmapLODBias != RenderSystem.GetSectionLODBias(ComponentBase))
+				if (RayTracingState->Sections[SubSectionIdx].HeightmapLODBias != RenderSystem.GetSectionLODBias(RenderCoord))
 				{
 					bNeedsRayTracingGeometryUpdate = true;
-					RayTracingState->Sections[SubSectionIdx].HeightmapLODBias = RenderSystem.GetSectionLODBias(ComponentBase);
+					RayTracingState->Sections[SubSectionIdx].HeightmapLODBias = RenderSystem.GetSectionLODBias(RenderCoord);
 				}
 
-				const float PendingFractionalLOD = RenderSystem.GetSectionLODValue(SceneView, ComponentBase);
+				const float PendingFractionalLOD = RenderSystem.GetSectionLODValue(SceneView, RenderCoord);
 				const float FractionLODAbsoluteDifference = FMath::Abs(RayTracingState->Sections[SubSectionIdx].FractionalLOD - PendingFractionalLOD);
 				if (FractionLODAbsoluteDifference > GLandscapeRayTracingGeometryFractionalLODUpdateThreshold)
 				{
@@ -2976,7 +3138,8 @@ void FLandscapeVertexFactoryVertexShaderParameters::GetElementShaderBindings(
 		// TileVF is used only for LOD0
 		int32 LODIndex = 0; 
 		Culling::FArguments CullingArgs{};
-		if (Culling::GetViewArguments(*InView, SceneProxy->LandscapeKey, SceneProxy->ComponentBase, LODIndex, CullingArgs))
+
+		if (Culling::GetViewArguments(*InView, SceneProxy->LandscapeKey, SceneProxy->RenderCoord, LODIndex, CullingArgs))
 		{
 			check(VertexStreams.IsValidIndex(1));
 			VertexStreams[1].Offset = CullingArgs.TileDataOffset;
@@ -3965,12 +4128,23 @@ float FLandscapeComponentSceneProxy::ComputeLODBias() const
 	return ComputedLODBias;
 }
 
+void FLandscapeComponentSceneProxy::OnRenderCoordsChanged()
+{
+	// need to rebuild the uniforms that contain render coords
+	OnTransformChanged();
+}
+
 double FLandscapeComponentSceneProxy::ComputeSectionResolution() const
 {
 	// ComponentMaxExtend is the max(length,width) of the component, in world units
 	const double ComponentFullExtent = ComponentMaxExtend;
 	const double ComponentQuads = ComponentSizeVerts - 1.0;		// verts = quads + 1
 	return ComponentFullExtent / ComponentQuads;
+}
+
+int32 FLandscapeComponentSceneProxy::GetComponentResolution() const
+{
+	return ComponentSizeVerts;
 }
 
 void FLandscapeComponentSceneProxy::GetSectionBoundsAndLocalToWorld(FBoxSphereBounds& OutLocalBounds, FMatrix& OutLocalToWorld) const
@@ -3982,21 +4156,14 @@ void FLandscapeComponentSceneProxy::GetSectionBoundsAndLocalToWorld(FBoxSphereBo
 //
 // FLandscapeSectionInfo
 //
-FLandscapeSectionInfo::FLandscapeSectionInfo(const UWorld* InWorld, const FGuid& InLandscapeGuid, const FIntPoint& InSectionBase)
-	: LandscapeKey(HashCombine(GetTypeHash(InWorld), GetTypeHash(InLandscapeGuid)))
-	, ComponentBase(InSectionBase)
+FLandscapeSectionInfo::FLandscapeSectionInfo(const UWorld* InWorld, const FGuid& InLandscapeGuid, const FIntPoint& InComponentBase, uint32 LODGroupKey)
+	: LandscapeKey(HashCombine(GetTypeHash(InWorld), (LODGroupKey != 0) ? LODGroupKey : GetTypeHash(InLandscapeGuid)))    // use LODGroupKey instead of LandscapeGUID when LODGroupKey is non-zero
+	, LODGroupKey(LODGroupKey)
+	, RenderCoord(INT32_MIN, INT32_MIN)
+	, ComponentBase(InComponentBase)
+	, bResourcesCreated(false)
 	, bRegistered(false)
 {
-}
-
-void FLandscapeSectionInfo::RegisterSection()
-{
-	FLandscapeRenderSystem::RegisterSection(this);
-}
-
-void FLandscapeSectionInfo::UnregisterSection()
-{
-	FLandscapeRenderSystem::UnregisterSection(this);
 }
 
 //
@@ -4005,8 +4172,8 @@ void FLandscapeSectionInfo::UnregisterSection()
 class FLandscapeProxySectionInfo : public FLandscapeSectionInfo
 {
 public:
-	FLandscapeProxySectionInfo(const UWorld* InWorld, const FGuid& InLandscapeGuid, const FIntPoint& InSectionBase, int8 InProxyLOD)
-		: FLandscapeSectionInfo(InWorld, InLandscapeGuid, InSectionBase)
+	FLandscapeProxySectionInfo(const UWorld* InWorld, const FGuid& InLandscapeGuid, const FIntPoint& InComponentBase, int8 InProxyLOD, uint32 LODGroupKey)
+		: FLandscapeSectionInfo(InWorld, InLandscapeGuid, InComponentBase, LODGroupKey)
 		, ProxyLOD(InProxyLOD)
 	{
 	}
@@ -4032,6 +4199,10 @@ public:
 		LocalToWorld = FMatrix::Identity;
 	}
 
+	virtual void OnRenderCoordsChanged()
+	{
+	}
+
 private:
 	int8 ProxyLOD;
 };
@@ -4039,7 +4210,7 @@ private:
 //
 // FLandscapeMeshProxySceneProxy
 //
-FLandscapeMeshProxySceneProxy::FLandscapeMeshProxySceneProxy(UStaticMeshComponent* InComponent, const FGuid& InLandscapeGuid, const TArray<FIntPoint>& InProxySectionsBases, int8 InProxyLOD)
+FLandscapeMeshProxySceneProxy::FLandscapeMeshProxySceneProxy(UStaticMeshComponent* InComponent, const FGuid& InLandscapeGuid, const TArray<FIntPoint>& InProxySectionsBases, int8 InProxyLOD, uint32 InLODGroupKey)
 	: FStaticMeshSceneProxy(InComponent, false)
 {
 	VisibilityHelper.Init(InComponent, this);
@@ -4052,7 +4223,7 @@ FLandscapeMeshProxySceneProxy::FLandscapeMeshProxySceneProxy(UStaticMeshComponen
 	ProxySectionsInfos.Empty(InProxySectionsBases.Num());
 	for (FIntPoint SectionBase : InProxySectionsBases)
 	{
-		ProxySectionsInfos.Emplace(MakeUnique<FLandscapeProxySectionInfo>(InComponent->GetWorld(), InLandscapeGuid, SectionBase, InProxyLOD));
+		ProxySectionsInfos.Emplace(MakeUnique<FLandscapeProxySectionInfo>(InComponent->GetWorld(), InLandscapeGuid, SectionBase, InProxyLOD, InLODGroupKey));
 	}
 }
 
@@ -4060,7 +4231,7 @@ void FLandscapeMeshProxySceneProxy::RegisterSections()
 {
 	for (auto& Info : ProxySectionsInfos)
 	{
-		Info->RegisterSection();
+		FLandscapeRenderSystem::RegisterSection(Info.Get());
 	}
 }
 
@@ -4068,7 +4239,7 @@ void FLandscapeMeshProxySceneProxy::UnregisterSections()
 {
 	for (auto& Info : ProxySectionsInfos)
 	{
-		Info->UnregisterSection();
+		FLandscapeRenderSystem::UnregisterSection(Info.Get());
 	}
 }
 
@@ -4137,7 +4308,7 @@ FPrimitiveSceneProxy* ULandscapeMeshProxyComponent::CreateSceneProxy()
 		return nullptr;
 	}
 
-	return new FLandscapeMeshProxySceneProxy(this, LandscapeGuid, ProxyComponentBases, ProxyLOD);
+	return new FLandscapeMeshProxySceneProxy(this, LandscapeGuid, ProxyComponentBases, ProxyLOD, LODGroupKey);
 }
 
 class FLandscapeNaniteSceneProxy : public ::Nanite::FSceneProxy

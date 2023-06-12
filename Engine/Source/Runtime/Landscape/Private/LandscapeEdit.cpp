@@ -93,12 +93,6 @@ DEFINE_LOG_CATEGORY(LogLandscapeBP);
 
 #define LOCTEXT_NAMESPACE "Landscape"
 
-static TAutoConsoleVariable<int32> CVarMobileCompressLanscapeWeightMaps(
-    TEXT("r.Mobile.CompressLandscapeWeightMaps"),
-	0,
-    TEXT("Whether to compress the terrain weight maps for mobile."),
-	ECVF_ReadOnly);
-
 static TAutoConsoleVariable<int32> CVarLandscapeApplyPhysicalMaterialChangesImmediately(
     TEXT("landscape.ApplyPhysicalMaterialChangesImmediately"),
 	1,
@@ -5401,11 +5395,13 @@ bool ALandscapeProxy::CanEditChange(const FProperty* InProperty) const
 	{
 		FName PropertyName = InProperty ? InProperty->GetFName() : NAME_None;
 
-		if ((PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, MaxLODLevel))
+		if (   (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, MaxLODLevel))
 			|| (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, ComponentScreenSizeToUseSubSections))
 			|| (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LODDistributionSetting))
 			|| (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LOD0DistributionSetting))
 			|| (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LOD0ScreenSize))
+			|| (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LODGroupKey))
+			|| (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, bUseCompressedHeightmapStorage))
 			|| (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, TargetDisplayOrder))
 			|| (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, TargetDisplayOrderList))
 			|| (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, bEnableNanite))
@@ -5534,6 +5530,7 @@ void ALandscapeProxy::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		|| (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, bCastDynamicShadow))
 		|| (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, ShadowCacheInvalidationBehavior))
 		|| (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, bCastStaticShadow))
+		|| (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, bCastContactShadow))
 		|| (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, bCastFarShadow))
 		|| (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, bCastHiddenShadow))
 		|| (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, bCastShadowAsTwoSided))
@@ -5963,6 +5960,7 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 	bool bNeedsRecalcBoundingBox = false;
 	bool bChangedLighting = false;
 	bool bPropagateToProxies = false;
+	bool bMarkAllLandscapeRenderStateDirty = false;
 	bool bNaniteToggled = false;
 
 	ULandscapeInfo* Info = GetLandscapeInfo();
@@ -6117,6 +6115,12 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 		UpdateRenderingMethod();
 		MarkComponentsRenderStateDirty();
 	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscape, LODGroupKey))
+	{
+		// need to invoke GetSharedProperties to copy this change down to the proxies
+		bPropagateToProxies = true;
+		bMarkAllLandscapeRenderStateDirty = true;
+	}
 
 	// Must do this *after* clamping values
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -6137,6 +6141,11 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 					Proxy->PostEditChangeProperty(PropertyChangedEvent);
 				}
 			}
+		}
+
+		if (bMarkAllLandscapeRenderStateDirty)
+		{
+			MarkAllLandscapeRenderStateDirty();
 		}
 
 		// Update normals if DrawScale3D is changed

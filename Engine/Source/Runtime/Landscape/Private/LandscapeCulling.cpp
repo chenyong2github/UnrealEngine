@@ -406,7 +406,7 @@ IMPLEMENT_GLOBAL_SHADER(FBuildLandscapeTileDataCS, "/Engine/Private/Landscape/La
 struct FViewStateIntermediateData
 {
 	FRDGBufferRef SectionsBufferRDG;
-	TArray<FIntPoint, TInlineAllocator<8>> SectionBases;
+	TArray<FIntPoint, TInlineAllocator<8>> SectionRenderCoords;
 };
 
 struct FDispatchIntermediates
@@ -418,19 +418,19 @@ struct FDispatchIntermediates
 struct FArgumentsKey
 {
 	const void* ViewPtr;
-	FIntPoint SectionBase;
+	FIntPoint RenderCoord;
 	uint32 ViewStateKey;
 
 	bool operator==(const FArgumentsKey& Other) const
 	{
-		return ViewPtr == Other.ViewPtr && SectionBase == Other.SectionBase && ViewStateKey == Other.ViewStateKey;
+		return ViewPtr == Other.ViewPtr && RenderCoord == Other.RenderCoord && ViewStateKey == Other.ViewStateKey;
 	}
 };
 
 uint32 GetTypeHash(const FArgumentsKey& Key)
 {
 	uint32 Hash = PointerHash(Key.ViewPtr);
-	Hash = HashCombine(Hash, GetTypeHash(Key.SectionBase));
+	Hash = HashCombine(Hash, GetTypeHash(Key.RenderCoord));
 	Hash = HashCombine(Hash, ::GetTypeHash(Key.ViewStateKey));
 	return Hash;
 }
@@ -573,7 +573,7 @@ void UnregisterLandscape(uint32 LandscapeKey)
 	}
 }
 
-static float ComputeNeighborsMaxLOD(const FLandscapeRenderSystem& RenderSystem, const TResourceArray<float>& SectionLODValues, FIntPoint SectionBase)
+static float ComputeNeighborsMaxLOD(const FLandscapeRenderSystem& RenderSystem, const TResourceArray<float>& SectionLODValues, FIntPoint RenderCoord)
 {
 	static const FIntPoint NeightborBaseOffsets[4]
 	{
@@ -583,7 +583,7 @@ static float ComputeNeighborsMaxLOD(const FLandscapeRenderSystem& RenderSystem, 
 	float NeighborsMaxLOD = 0.f;
 	for (int32 i = 0; i < UE_ARRAY_COUNT(NeightborBaseOffsets); ++i)
 	{
-		int32 SectionIdx = RenderSystem.GetSectionLinearIndex(SectionBase + NeightborBaseOffsets[i]);
+		int32 SectionIdx = RenderSystem.GetSectionLinearIndex(RenderCoord + NeightborBaseOffsets[i]);
 		if (SectionLODValues.IsValidIndex(SectionIdx))
 		{
 			NeighborsMaxLOD = FMath::Max(SectionLODValues[SectionIdx], NeighborsMaxLOD);
@@ -628,7 +628,7 @@ static void ComputeSectionIntermediateData(FRDGBuilder& GraphBuilder, TArrayView
 					FMatrix SectionLocalToWorld;
 					SectionInfo->GetSectionBoundsAndLocalToWorld(SectionLocalBounds, SectionLocalToWorld);
 					const FLargeWorldRenderPosition SectionAbsoluteOrigin(SectionLocalToWorld.GetOrigin());
-					const int32 NeighborsMaxLOD = static_cast<int32>(FMath::RoundFromZero(ComputeNeighborsMaxLOD(RenderSystem, SectionLODValues, SectionInfo->ComponentBase)));
+					const int32 NeighborsMaxLOD = static_cast<int32>(FMath::RoundFromZero(ComputeNeighborsMaxLOD(RenderSystem, SectionLODValues, SectionInfo->RenderCoord)));
 
 					Section.LocalToRelativeWorld = FLargeWorldRenderScalar::MakeToRelativeWorldMatrix(SectionAbsoluteOrigin.GetTileOffset(), SectionLocalToWorld);
 					Section.TilePosition = SectionAbsoluteOrigin.GetTile();
@@ -637,7 +637,7 @@ static void ComputeSectionIntermediateData(FRDGBuilder& GraphBuilder, TArrayView
 					// How many quads to add to each tile extent to compensate for a neighbors LOD
 					Section.NeighborLODExtent = static_cast<float>((1 << NeighborsMaxLOD) - 1); 
 
-					ViewStateIntermediates.SectionBases.Add(SectionInfo->ComponentBase);
+					ViewStateIntermediates.SectionRenderCoords.Add(SectionInfo->RenderCoord);
 				}
 			}
 
@@ -694,7 +694,7 @@ static void DispatchCulling(FRDGBuilder& GraphBuilder, TArrayView<const FSceneVi
 			FViewStateIntermediateData& ViewStateIntermediates = CullingEntry.IntermediateData[ViewStateIdx];
 
 			uint32 NumCullingViews = CullingViewsData.Num();
-			uint32 NumCullingSections = ViewStateIntermediates.SectionBases.Num();
+			uint32 NumCullingSections = ViewStateIntermediates.SectionRenderCoords.Num();
 			uint32 NumCullingItems = NumCullingSections * NumCullingViews;
 			if (NumCullingItems == 0)
 			{
@@ -761,10 +761,11 @@ static void DispatchCulling(FRDGBuilder& GraphBuilder, TArrayView<const FSceneVi
 			for (int32 ViewIdx = 0; ViewIdx < FilteredViews.Num(); ++ViewIdx)
 			{
 				const FSceneView* ViewPtr = FilteredViews[ViewIdx];
-				for (int32 SectionIdx = 0; SectionIdx < ViewStateIntermediates.SectionBases.Num(); ++SectionIdx)
+				for (int32 SectionIdx = 0; SectionIdx < ViewStateIntermediates.SectionRenderCoords.Num(); ++SectionIdx)
 				{
-					FIntPoint SectionBase = ViewStateIntermediates.SectionBases[SectionIdx];
-					FArguments& Args = CullingEntry.CullingArguments.Add(FArgumentsKey{ ViewPtr, SectionBase, ViewStateKey });
+					FIntPoint RenderCoord = ViewStateIntermediates.SectionRenderCoords[SectionIdx];
+					check(RenderCoord.X > INT32_MIN);
+					FArguments& Args = CullingEntry.CullingArguments.Add(FArgumentsKey{ ViewPtr, RenderCoord, ViewStateKey });
 					Args.IndirectArgsBuffer = IndirectArgsBufferRHI;
 					Args.TileDataVertexBuffer = TileDataBufferRHI;
 					// offsets are in bytes
@@ -812,7 +813,7 @@ void InitShadowViews(FRDGBuilder& GraphBuilder, TArrayView<const FSceneView*> Sh
 	DispatchCulling(GraphBuilder, ShadowDepthViews, ShadowViewMatrices, false);
 }
 
-bool GetViewArguments(const FSceneView& View, uint32 LandscapeKey, FIntPoint SectionBase, int32 LODIndex, FArguments& Args)
+bool GetViewArguments(const FSceneView& View, uint32 LandscapeKey, FIntPoint RenderCoord, int32 LODIndex, FArguments& Args)
 {
 	if (LODIndex != 0 || 
 		GCullingSystem.Landscapes.Num() == 0 ||
@@ -829,7 +830,9 @@ bool GetViewArguments(const FSceneView& View, uint32 LandscapeKey, FIntPoint Sec
 	{
 		return false;
 	}
-	FArgumentsKey ArgumentsKey{ &View, SectionBase, View.GetViewKey() };
+
+	check(RenderCoord.X > INT32_MIN);
+	FArgumentsKey ArgumentsKey{ &View, RenderCoord, View.GetViewKey() };
 	const FArguments* ArgsPtr = CullingEntryPtr->CullingArguments.Find(ArgumentsKey);
 	if (ArgsPtr)
 	{

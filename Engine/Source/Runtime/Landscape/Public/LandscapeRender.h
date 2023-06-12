@@ -394,11 +394,8 @@ public:
 class FLandscapeSectionInfo : public TIntrusiveLinkedList<FLandscapeSectionInfo>
 {
 public:
-	FLandscapeSectionInfo(const UWorld* InWorld, const FGuid& InLandscapeGuid, const FIntPoint& InSectionBase);
+	FLandscapeSectionInfo(const UWorld* InWorld, const FGuid& InLandscapeGuid, const FIntPoint& InComponentBase, uint32 LODGroupKey);
 	virtual ~FLandscapeSectionInfo() = default;
-
-	void RegisterSection();
-	void UnregisterSection();
 
 	virtual float ComputeLODForView(const FSceneView& InView) const = 0;
 	virtual float ComputeLODBias() const = 0;
@@ -408,9 +405,20 @@ public:
 	virtual double ComputeSectionResolution() const { return -1.0; }
 	
 	virtual void GetSectionBoundsAndLocalToWorld(FBoxSphereBounds& LocalBounds, FMatrix& LocalToWorld) const = 0;
+
+	/* return the resolution of a component, in vertices (-1 for any sections that are not grid based, i.e. mesh sections) */
+	virtual int32 GetComponentResolution() const { return -1; }
+
+	/* Used to notify derived classes when render coords are calculated */
+	virtual void OnRenderCoordsChanged() = 0;
+
 public:
-	uint32 LandscapeKey;
-	FIntPoint ComponentBase;
+	uint32 LandscapeKey;					// a hash of the world and (LandscapeGUID or LOD Group Key)
+	uint32 LODGroupKey;						// LOD Group Key (0 if no group)
+	FIntPoint RenderCoord;					// coordinate in the RenderSystem
+	FIntPoint ComponentBase;				// component base coordinate (relative to the ALandscape actor)
+
+	bool bResourcesCreated;
 	bool bRegistered;
 };
 
@@ -473,6 +481,15 @@ struct FLandscapeRenderSystem
 	/** Forced LOD level which overrides the ForcedLOD level of all the sections under this LandscapeRenderSystem. */
 	int8 ForcedLODOverride;
 
+	//  Resolution, Origin and Size, for use in LOD Groups to verify that all landscapes are of matching resolutions, orientation and scale
+	int32 ComponentResolution = -1;
+	FVector ComponentOrigin = FVector::ZeroVector;		// world space position of the center of the origin component (render coord 0,0)
+	FVector ComponentXVector = FVector::ZeroVector;		// world space vector in the direction of component local X
+	FVector ComponentYVector = FVector::ZeroVector;		// world space vector in the direction of component local Y
+
+	// Counter used to reduce how often we call compact on the map when removing sections
+	int32 SectionsRemovedSinceLastCompact;
+
 	FLandscapeRenderSystem();
 	~FLandscapeRenderSystem();
 
@@ -482,30 +499,37 @@ struct FLandscapeRenderSystem
 	static void RegisterSection(FLandscapeSectionInfo* SectionInfo);
 	static void UnregisterSection(FLandscapeSectionInfo* SectionInfo);
 
-	int32 GetSectionLinearIndex(FIntPoint InSectionBase) const
+	int32 GetSectionLinearIndex(FIntPoint InRenderCoord) const
 	{
-		return (InSectionBase.Y - Min.Y) * Size.X + InSectionBase.X - Min.X;
+		check(InRenderCoord.X >= Min.X && InRenderCoord.X < Min.X + Size.X);
+		check(InRenderCoord.Y >= Min.Y && InRenderCoord.Y < Min.Y + Size.Y);
+		int32 LinearIndex = (InRenderCoord.Y - Min.Y) * Size.X + InRenderCoord.X - Min.X;
+		return LinearIndex;
 	}
-	void ResizeAndMoveTo(FIntPoint NewMin, FIntPoint NewSize);
+	
+	void ResizeAndMoveTo(FIntPoint NewMin, FIntPoint NewMax);
+	void ResizeToInclude(const FIntPoint& NewCoord);
+	void CompactMap();
+	bool AnySectionsInRangeInclusive(FIntPoint RangeMin, FIntPoint RangeMax);
 
-	void SetSectionInfo(FIntPoint InSectionBase, FLandscapeSectionInfo* InSectionInfo)
+	void SetSectionInfo(FIntPoint InRenderCoord, FLandscapeSectionInfo* InSectionInfo)
 	{
-		SectionInfos[GetSectionLinearIndex(InSectionBase)] = InSectionInfo;
-	}
-
-	FLandscapeSectionInfo* GetSectionInfo(FIntPoint InSectionBase)
-	{
-		return SectionInfos[GetSectionLinearIndex(InSectionBase)];
-	}
-
-	float GetSectionLODValue(const FSceneView& SceneView, FIntPoint InSectionBase) const
-	{
-		return CachedSectionLODValues[SceneView.GetViewKey()][GetSectionLinearIndex(InSectionBase)];
+		SectionInfos[GetSectionLinearIndex(InRenderCoord)] = InSectionInfo;
 	}
 
-	float GetSectionLODBias(FIntPoint InSectionBase) const
+	FLandscapeSectionInfo* GetSectionInfo(FIntPoint InRenderCoord)
 	{
-		return SectionLODBiases[GetSectionLinearIndex(InSectionBase)];
+		return SectionInfos[GetSectionLinearIndex(InRenderCoord)];
+	}
+
+	float GetSectionLODValue(const FSceneView& SceneView, FIntPoint InRenderCoord) const
+	{
+		return CachedSectionLODValues[SceneView.GetViewKey()][GetSectionLinearIndex(InRenderCoord)];
+	}
+
+	float GetSectionLODBias(FIntPoint InRenderCoord) const
+	{
+		return SectionLODBiases[GetSectionLinearIndex(InRenderCoord)];
 	}
 
 	const TResourceArray<float>& ComputeSectionsLODForView(const FSceneView& InView);
@@ -618,7 +642,7 @@ class FLandscapeMeshProxySceneProxy final : public FStaticMeshSceneProxy
 public:
 	SIZE_T GetTypeHash() const override;
 
-	FLandscapeMeshProxySceneProxy(UStaticMeshComponent* InComponent, const FGuid& InLandscapeGuid, const TArray<FIntPoint>& InProxySectionsBases, int8 InProxyLOD);
+	FLandscapeMeshProxySceneProxy(UStaticMeshComponent* InComponent, const FGuid& InLandscapeGuid, const TArray<FIntPoint>& InProxySectionsBases, int8 InProxyLOD, uint32 InLODGroupKey);
 	virtual void CreateRenderThreadResources() override;
 	virtual void DestroyRenderThreadResources() override;
 	virtual bool OnLevelAddedToWorld_RenderThread() override;
@@ -688,14 +712,14 @@ public:
 	static TMap<uint32, FLandscapeSharedBuffers*> SharedBuffersMap;
 
 protected:
-	int8						MaxLOD;		// Maximum LOD level, user override possible
+	int8						MaxLOD;						// Maximum LOD level, user override possible
 	int8						NumWeightmapLayerAllocations;
 	uint8						StaticLightingLOD;
 	uint8						VirtualTexturePerPixelHeight;
 	float						WeightmapSubsectionOffset;
 	TArray<float>				LODScreenRatioSquared;		// Table of valid screen size -> LOD index
-	int32						FirstLOD;	// First LOD we have batch elements for
-	int32						LastLOD;	// Last LOD we have batch elements for
+	int32						FirstLOD;					// First LOD we have batch elements for
+	int32						LastLOD;					// Last LOD we have batch elements for
 	int32						FirstVirtualTextureLOD;
 	int32						LastVirtualTextureLOD;
 	float						ComponentMaxExtend; 		// The max extend value in any axis
@@ -723,7 +747,7 @@ protected:
 	/** Address of the component within the parent Landscape in unique height texels. */
 	FIntPoint					SectionBase;
 
-	const ULandscapeComponent* LandscapeComponent;
+	const ULandscapeComponent*	LandscapeComponent;
 
 	FMatrix						LocalToWorldNoScaling;
 
@@ -867,6 +891,9 @@ public:
 	// FLandscapeSectionInfo interface
 	virtual float ComputeLODForView(const FSceneView& InView) const override;
 	virtual float ComputeLODBias() const override;
+	virtual void OnRenderCoordsChanged() override;
+	virtual int32 GetComponentResolution() const override;
+
 	virtual double ComputeSectionResolution() const override;
 	virtual void GetSectionBoundsAndLocalToWorld(FBoxSphereBounds& LocalBounds, FMatrix& LocalToWorld) const override;
 };
