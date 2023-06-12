@@ -498,7 +498,7 @@ export class BotNotifications implements BotEventHandler {
 
 		const userEmail = await blockage.ownerEmail
 		const slackUser = userEmail ? await this.slackMessages.getSlackUser(userEmail) : null
-		const channelPing = slackUser ? `<@${slackUser}>` : `@${blockage.owner}`
+		const channelPing = slackUser ? `<@${slackUser}>` : blockage.owner.startsWith('@') ? blockage.owner : `@${blockage.owner}`
 
 		const isBotUser = isUserAKnownBot(blockage.owner)
 		const text =

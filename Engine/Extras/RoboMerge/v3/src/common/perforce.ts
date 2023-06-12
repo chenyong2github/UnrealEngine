@@ -1228,9 +1228,12 @@ export class PerforceContext {
 
 	// get the email (according to P4) for a specific user
 	async getEmail(username: string) {
-		const output = await this._execP4(null, ['user', '-o', username]);
-		// look for the email field
-		let m = output.match(/\nEmail:\s+([^\n]+)\n/);
+		let m = null
+		if (!username.startsWith('@')) {
+			const output = await this._execP4(null, ['user', '-o', username]);
+			// look for the email field
+			m = output.match(/\nEmail:\s+([^\n]+)\n/);
+		}
 		return m && m[1];
 	}
 

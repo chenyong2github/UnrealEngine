@@ -304,9 +304,8 @@ class EdgeBotImpl extends PerforceStatefulBot {
 	private async handlePostIntegrationFailure(failure: Failure, pending: PendingChange) {
 		const logMessage = `Post-integration failure while integrating CL ${pending.change.cl} to ${this.branch.name}`
 
-		const owner = getIntegrationOwner(pending) || pending.change.author
-
 		if (pending.change.userRequest) {
+			const owner = getIntegrationOwner(pending) || pending.change.author
 			const shelfMsg = `${owner}, please merge this change by hand.\nMore info at ${this.sourceNode.getBotUrl()}\n\n` + failure.description
 			await this.shelveChangelist(pending, false, shelfMsg)
 			this.edgeBotLogger.info(`${logMessage}. Shelved CL ${pending.newCl} for ${owner} to resolve manually (from reconsider).`)
