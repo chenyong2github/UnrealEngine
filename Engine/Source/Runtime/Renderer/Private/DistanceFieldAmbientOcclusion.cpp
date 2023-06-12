@@ -810,6 +810,13 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldLighting(
 
 	FRDGTextureRef BentNormalOutput = nullptr;
 
+	{
+		const FIntPoint BufferSize = GetActiveSceneTexturesConfig().Extent / GAODownsampleFactor;
+		const FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(BufferSize, PF_FloatRGBA, FClearValueBinding::None, GFastVRamConfig.DistanceFieldAOBentNormal | TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV);
+		BentNormalOutput = GraphBuilder.CreateTexture(Desc, TEXT("DistanceFieldBentNormalAO"));
+		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(BentNormalOutput), FLinearColor::Black);
+	}
+
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 	{
 		const FViewInfo& View = Views[ViewIndex];
@@ -851,6 +858,10 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldLighting(
 			BuildTileObjectLists(GraphBuilder, Scene, View, SceneTextures.UniformBuffer, ObjectIndirectArguments, CulledObjectBufferParameters, TileIntersectionParameters, DistanceFieldNormal, Parameters);
 		}
 
+		// Render to a per-view BentNormal first because it also needs to be stored by the view history.
+		// The per-view output can be copied back to the appropriate region in the output BentNormal texture.
+		FRDGTextureRef PerViewBentNormal = nullptr;
+
 		RenderDistanceFieldAOScreenGrid(
 			GraphBuilder,
 			SceneTextures,
@@ -860,7 +871,9 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldLighting(
 			TileIntersectionParameters,
 			Parameters,
 			DistanceFieldNormal,
-			BentNormalOutput);
+			PerViewBentNormal);
+
+		AddCopyTexturePass(GraphBuilder, PerViewBentNormal, BentNormalOutput, FIntPoint::ZeroValue, View.ViewRect.Min / GAODownsampleFactor, View.ViewRect.Size() / GAODownsampleFactor);
 	}
 
 	RenderCapsuleShadowsForMovableSkylight(GraphBuilder, SceneTextures.UniformBuffer, BentNormalOutput);
