@@ -7,6 +7,7 @@
 #include "Action/RCPropertyAction.h"
 #include "Behaviour/Builtin/Path/RCSetAssetByPathBehaviour.h"
 #include "Behaviour/RCBehaviour.h"
+#include "Containers/Ticker.h"
 #include "Controller/RCController.h"
 #include "Controller/RCCustomControllerUtilities.h"
 #include "IRemoteControlModule.h"
