@@ -97,7 +97,7 @@ public:
 	 * Save this policy's weights into a snapshot.
 	 * @param File The snapshot file.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (RelativePath))
+	UFUNCTION(BlueprintCallable, BlueprintPure = false, Category = "LearningAgents", meta = (RelativePath))
 	void SavePolicyToSnapshot(const FFilePath& File) const;
 
 	/**

@@ -90,7 +90,7 @@ public:
 	 * Save this critic's weights into a snapshot.
 	 * @param File The snapshot file.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (RelativePath))
+	UFUNCTION(BlueprintCallable, BlueprintPure = false, Category = "LearningAgents", meta = (RelativePath))
 	void SaveCriticToSnapshot(const FFilePath& File) const;
 
 	/**
