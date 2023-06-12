@@ -8,14 +8,14 @@
 
 class UStruct;
 class UBlueprint;
-class UControlRigGraphNode;
+class URigVMEdGraphNode;
 class UEdGraph;
 class UEdGraphPin;
 
-struct CONTROLRIGDEVELOPER_API FControlRigBlueprintUtils
+struct RIGVMDEVELOPER_API FRigVMBlueprintUtils
 {
 /** Call a function for each valid rig unit struct */
-static void ForAllRigUnits(TFunction<void(UScriptStruct*)> InFunction);
+static void ForAllRigVMStructs(TFunction<void(UScriptStruct*)> InFunction);
 
 /** Handle blueprint node reconstruction */
 static void HandleReconstructAllNodes(UBlueprint* InBlueprint);
@@ -24,7 +24,7 @@ static void HandleReconstructAllNodes(UBlueprint* InBlueprint);
 static void HandleRefreshAllNodes(UBlueprint* InBlueprint);
 
 /** remove the variable if not used by anybody else but ToBeDeleted*/
-static void RemoveMemberVariableIfNotUsed(UBlueprint* Blueprint, const FName VarName, UControlRigGraphNode* ToBeDeleted);
+static void RemoveMemberVariableIfNotUsed(UBlueprint* Blueprint, const FName VarName);
 
 static FName ValidateName(UBlueprint* InBlueprint, const FString& InName);
 };

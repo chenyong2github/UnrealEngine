@@ -14,7 +14,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/STextBlock.h"
 #include "K2Node_VariableGet.h"
-#include "ControlRigBlueprintUtils.h"
+#include "RigVMBlueprintUtils.h"
 #include "ControlRigHierarchyCommands.h"
 #include "ControlRigBlueprint.h"
 #include "Graph/ControlRigGraph.h"

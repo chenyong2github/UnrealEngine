@@ -141,6 +141,20 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "RigVM")
 	virtual bool Execute(const FName& InEventName);
 
+#if WITH_EDITOR
+
+	/** Bindable event for external objects to be notified that a control rig is fully end-loaded*/
+	DECLARE_EVENT_OneParam(URigVMHost, FOnEndLoadPackage, URigVMHost*);
+
+	// these are needed so that sequencer can have a chance to update its 
+	// ControlRig instances after the package is fully end-loaded
+	void BroadCastEndLoadPackage() { EndLoadPackageEvent.Broadcast(this); }
+	FOnEndLoadPackage& OnEndLoadPackage() { return EndLoadPackageEvent; }
+
+private:
+	FOnEndLoadPackage EndLoadPackageEvent;
+
+#endif
 
 protected:
 
@@ -402,6 +416,7 @@ protected:
 	uint64 AccumulatedCycles;
 #endif
 
+	friend class URigVMBlueprint;
 	friend class URigVMBlueprintGeneratedClass;
 };
 

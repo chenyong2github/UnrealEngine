@@ -71,6 +71,7 @@ private:
 	friend class URigVMController;
 	friend class FRigVMParserAST;
 	friend class UControlRigBlueprint;
+	friend class URigVMBlueprint;
 	friend struct FRigVMClient;
 	friend struct EngineTestRigVMFramework;
 };

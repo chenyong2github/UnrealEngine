@@ -13,7 +13,7 @@
 #include "EditorCategoryUtils.h"
 #include "K2Node_Variable.h"
 #include "BlueprintNodeTemplateCache.h"
-#include "ControlRigBlueprintUtils.h"
+#include "RigVMBlueprintUtils.h"
 #include "ScopedTransaction.h"
 #include "ControlRig.h"
 #include "RigVMModel/Nodes/RigVMDispatchNode.h"
@@ -187,7 +187,7 @@ UControlRigGraphNode* UControlRigTemplateNodeSpawner::SpawnNode(UEdGraph* Parent
 		const int32 NotationHash = (int32)GetTypeHash(InNotation);
 		const FString TemplateName = TEXT("RigVMTemplate_") + FString::FromInt(NotationHash);
 
-		FName Name = bIsTemplateNode ? *TemplateName : FControlRigBlueprintUtils::ValidateName(RigBlueprint, Template->GetName().ToString());
+		FName Name = bIsTemplateNode ? *TemplateName : FRigVMBlueprintUtils::ValidateName(RigBlueprint, Template->GetName().ToString());
 		URigVMController* Controller = bIsTemplateNode ? RigGraph->GetTemplateController() : RigBlueprint->GetController(ParentGraph);
 
 		if (!bIsTemplateNode)

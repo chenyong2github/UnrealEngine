@@ -13,6 +13,7 @@ public class RigVMDeveloper : ModuleRules
                 "Engine",
                 "RigVM",
                 "VisualGraphUtils",
+                "KismetCompiler",
             }
         );
 
@@ -27,8 +28,10 @@ public class RigVMDeveloper : ModuleRules
 					"SlateCore",
 					
 					"MessageLog",
-					"BlueprintGraph"
-				}
+					"BlueprintGraph",
+					"GraphEditor",
+					"Kismet",
+                }
 			);
         }
     }

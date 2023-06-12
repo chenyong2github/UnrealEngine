@@ -1,17 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ControlRigBlueprintUtils.h"
+#include "RigVMBlueprintUtils.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "Units/RigUnit.h"
+#include "RigVMCore/RigVMStruct.h"
 #include "UObject/UObjectIterator.h"
-#include "ControlRig.h"
-#include "Graph/ControlRigGraphNode.h"
-#include "ControlRigBlueprint.h"
+#include "EdGraph/RigVMEdGraphNode.h"
+#include "RigVMBlueprint.h"
 #include "Kismet2/Kismet2NameValidators.h"
 
-#define LOCTEXT_NAMESPACE "ControlRigBlueprintUtils"
+#define LOCTEXT_NAMESPACE "RigVMBlueprintUtils"
 
-FName FControlRigBlueprintUtils::ValidateName(UBlueprint* InBlueprint, const FString& InName)
+FName FRigVMBlueprintUtils::ValidateName(UBlueprint* InBlueprint, const FString& InName)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
@@ -19,6 +18,10 @@ FName FControlRigBlueprintUtils::ValidateName(UBlueprint* InBlueprint, const FSt
 	if (Name.StartsWith(TEXT("RigUnit_")))
 	{
 		Name.RightChopInline(8, false);
+	}
+	else if (Name.StartsWith(TEXT("RigVMStruct_")))
+	{
+		Name.RightChopInline(12, false);
 	}
 
 	TSharedPtr<FKismetNameValidator> NameValidator;
@@ -68,7 +71,7 @@ FName FControlRigBlueprintUtils::ValidateName(UBlueprint* InBlueprint, const FSt
 	return *Name;
 }
 
-void FControlRigBlueprintUtils::ForAllRigUnits(TFunction<void(UScriptStruct*)> InFunction)
+void FRigVMBlueprintUtils::ForAllRigVMStructs(TFunction<void(UScriptStruct*)> InFunction)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
@@ -77,7 +80,7 @@ void FControlRigBlueprintUtils::ForAllRigUnits(TFunction<void(UScriptStruct*)> I
 	{
 		if (*StructIt)
 		{
-			if(StructIt->IsChildOf(FRigUnit::StaticStruct()) && !StructIt->HasMetaData(FRigVMStruct::AbstractMetaName))
+			if(StructIt->IsChildOf(FRigVMStruct::StaticStruct()) && !StructIt->HasMetaData(FRigVMStruct::AbstractMetaName))
 			{
 				if (UScriptStruct* ScriptStruct = Cast<UScriptStruct>(*StructIt))
 				{
@@ -88,14 +91,14 @@ void FControlRigBlueprintUtils::ForAllRigUnits(TFunction<void(UScriptStruct*)> I
 	}
 }
 
-void FControlRigBlueprintUtils::HandleReconstructAllNodes(UBlueprint* InBlueprint)
+void FRigVMBlueprintUtils::HandleReconstructAllNodes(UBlueprint* InBlueprint)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
 	return HandleRefreshAllNodes(InBlueprint);
 }
 
-void FControlRigBlueprintUtils::HandleRefreshAllNodes(UBlueprint* InBlueprint)
+void FRigVMBlueprintUtils::HandleRefreshAllNodes(UBlueprint* InBlueprint)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 #ifdef WITH_EDITORONLY_DATA
@@ -105,27 +108,27 @@ void FControlRigBlueprintUtils::HandleRefreshAllNodes(UBlueprint* InBlueprint)
 		return;
 	}
 	
-	if(UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(InBlueprint))
+	if(const URigVMBlueprint* RigVMBlueprint = Cast<URigVMBlueprint>(InBlueprint))
 	{
-		if (RigBlueprint->GetDefaultModel() == nullptr)
+		if (RigVMBlueprint->GetDefaultModel() == nullptr)
 		{
 			return;
 		}
 
-		TArray<UControlRigGraphNode*> AllNodes;
-		FBlueprintEditorUtils::GetAllNodesOfClass(RigBlueprint, AllNodes);
+		TArray<URigVMEdGraphNode*> AllNodes;
+		FBlueprintEditorUtils::GetAllNodesOfClass(RigVMBlueprint, AllNodes);
 
-		for (UControlRigGraphNode* Node : AllNodes)
+		for (URigVMEdGraphNode* Node : AllNodes)
 		{
 			Node->SetFlags(RF_Transient);
 		}
 
-		for(UControlRigGraphNode* Node : AllNodes)
+		for(URigVMEdGraphNode* Node : AllNodes)
 		{
 			Node->ReconstructNode();
 		}
 
-		for (UControlRigGraphNode* Node : AllNodes)
+		for (URigVMEdGraphNode* Node : AllNodes)
 		{
 			Node->ClearFlags(RF_Transient);
 		}
@@ -133,11 +136,11 @@ void FControlRigBlueprintUtils::HandleRefreshAllNodes(UBlueprint* InBlueprint)
 #endif
 }
 
-void FControlRigBlueprintUtils::RemoveMemberVariableIfNotUsed(UBlueprint* Blueprint, const FName VarName, UControlRigGraphNode* ToBeDeleted)
+void FRigVMBlueprintUtils::RemoveMemberVariableIfNotUsed(UBlueprint* Blueprint, const FName VarName)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	if (Blueprint->IsA<UControlRigBlueprint>())
+	if (Blueprint->IsA<URigVMBlueprint>())
 	{
 		FBlueprintEditorUtils::RemoveMemberVariable(Blueprint, VarName);
 	}

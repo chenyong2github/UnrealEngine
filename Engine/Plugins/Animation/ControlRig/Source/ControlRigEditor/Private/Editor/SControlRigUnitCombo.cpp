@@ -13,7 +13,7 @@
 #include "Units/RigUnit.h"
 #include "UObject/UObjectIterator.h"
 #include "Styling/AppStyle.h"
-#include "ControlRigBlueprintUtils.h"
+#include "RigVMBlueprintUtils.h"
 #include "SGraphEditorActionMenu.h"
 #include "Graph/ControlRigGraph.h"
 
@@ -125,7 +125,7 @@ void SControlRigUnitCombo::OnSelectionChanged(TSharedPtr<FRigUnitTypeItem> InIte
 
 void SControlRigUnitCombo::BuildUnitTypesList()
 {
-	FControlRigBlueprintUtils::ForAllRigUnits([this](UStruct* InStruct)
+	FRigVMBlueprintUtils::ForAllRigVMStructs([this](UStruct* InStruct)
 	{
 		UnitTypeList.Add(MakeShared<FRigUnitTypeItem>(InStruct));
 	});

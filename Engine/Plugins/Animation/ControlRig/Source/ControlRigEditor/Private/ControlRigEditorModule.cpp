@@ -58,7 +58,7 @@
 #include "EdGraphUtilities.h"
 #include "Graph/ControlRigGraphPanelNodeFactory.h"
 #include "Graph/ControlRigGraphPanelPinFactory.h"
-#include "ControlRigBlueprintUtils.h"
+#include "RigVMBlueprintUtils.h"
 #include "ControlRigBlueprintCommands.h"
 #include "ControlRigHierarchyCommands.h"
 #include "ControlRigStackCommands.h"
@@ -240,8 +240,8 @@ void FControlRigEditorModule::StartupModule()
 	ControlRigGraphPanelPinFactory = MakeShared<FControlRigGraphPanelPinFactory>();
 	FEdGraphUtilities::RegisterVisualPinFactory(ControlRigGraphPanelPinFactory);
 
-	ReconstructAllNodesDelegateHandle = FBlueprintEditorUtils::OnReconstructAllNodesEvent.AddStatic(&FControlRigBlueprintUtils::HandleReconstructAllNodes);
-	RefreshAllNodesDelegateHandle = FBlueprintEditorUtils::OnRefreshAllNodesEvent.AddStatic(&FControlRigBlueprintUtils::HandleRefreshAllNodes);
+	ReconstructAllNodesDelegateHandle = FBlueprintEditorUtils::OnReconstructAllNodesEvent.AddStatic(&FRigVMBlueprintUtils::HandleReconstructAllNodes);
+	RefreshAllNodesDelegateHandle = FBlueprintEditorUtils::OnRefreshAllNodesEvent.AddStatic(&FRigVMBlueprintUtils::HandleRefreshAllNodes);
 
 	ICurveEditorModule& CurveEditorModule = FModuleManager::LoadModuleChecked<ICurveEditorModule>("CurveEditor");
 	FControlRigSpaceChannelCurveModel::ViewID = CurveEditorModule.RegisterView(FOnCreateCurveEditorView::CreateStatic(

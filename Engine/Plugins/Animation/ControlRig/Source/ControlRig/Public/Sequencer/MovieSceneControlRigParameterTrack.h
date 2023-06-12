@@ -64,7 +64,7 @@ public:
 #if WITH_EDITOR
 	void HandlePackageDone(const FEndLoadPackageContext& Context);
 	// control Rigs are ready only after its package is fully end-loaded
-	void HandleControlRigPackageDone(UControlRig* InControlRig);
+	void HandleControlRigPackageDone(URigVMHost* InControlRig);
 #endif
 
 public:

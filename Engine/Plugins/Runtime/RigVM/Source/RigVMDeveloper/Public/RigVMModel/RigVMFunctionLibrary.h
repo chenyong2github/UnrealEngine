@@ -93,5 +93,6 @@ private:
 	friend class URigVMController;
 	friend class URigVMCompiler;
 	friend class UControlRigBlueprint;
+	friend class URigVMBlueprint;
 };
 

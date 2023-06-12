@@ -1,31 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Graph/ControlRigGraphNode.h"
+#include "EdGraph/RigVMEdGraphNode.h"
 #include "EdGraph/EdGraphPin.h"
-#include "Graph/ControlRigGraph.h"
-#include "Graph/ControlRigGraphSchema.h"
+#include "EdGraph/RigVMEdGraph.h"
+#include "EdGraph/RigVMEdGraphSchema.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/KismetDebugUtilities.h"
 #include "Kismet2/WatchedPin.h"
 #include "KismetCompiler.h"
 #include "BlueprintNodeSpawner.h"
-#include "EditorCategoryUtils.h"
 #include "BlueprintActionDatabaseRegistrar.h"
-#include "ControlRig.h"
 #include "Textures/SlateIcon.h"
-#include "Units/RigUnit.h"
-#include "ControlRigBlueprint.h"
+#include "RigVMBlueprint.h"
 #include "PropertyPathHelpers.h"
-#include "Kismet2/Kismet2NameValidators.h"
-#include "ScopedTransaction.h"
-#include "StructReference.h"
-#include "UObject/PropertyPortFlags.h"
 #include "RigVMBlueprintUtils.h"
-#include "Curves/CurveFloat.h"
 #include "RigVMCore/RigVMExecuteContext.h"
-#include "ControlRigDeveloper.h"
-#include "ControlRigObjectVersion.h"
-#include "GraphEditAction.h"
 #include "RigVMModel/Nodes/RigVMAggregateNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionReferenceNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionEntryNode.h"
@@ -34,17 +23,13 @@
 #include "RigVMModel/Nodes/RigVMInvokeEntryNode.h"
 #include "RigVMModel/Nodes/RigVMDispatchNode.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigGraphNode)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMEdGraphNode)
 
-#if WITH_EDITOR
-#include "IControlRigEditorModule.h"
-#endif //WITH_EDITOR
+#define LOCTEXT_NAMESPACE "RigVMEdGraphNode"
 
-#define LOCTEXT_NAMESPACE "ControlRigGraphNode"
+TAutoConsoleVariable<bool> CVarRigVMDisableCompactNodes(TEXT("RigVM.Graph.DisableCompactNodes"), false, TEXT("When true all nodes are going to be drawn as full nodes."));
 
-TAutoConsoleVariable<bool> CVarControlRigDisableCompactNodes(TEXT("ControlRig.Graph.DisableCompactNodes"), false, TEXT("When true all nodes are going to be drawn as full nodes."));
-
-UControlRigGraphNode::UControlRigGraphNode()
+URigVMEdGraphNode::URigVMEdGraphNode()
 : Dimensions(0.0f, 0.0f)
 , NodeTitle(FText::GetEmpty())
 , FullNodeTitle(FText::GetEmpty())
@@ -60,22 +45,22 @@ UControlRigGraphNode::UControlRigGraphNode()
 	ErrorType = (int32)EMessageSeverity::Info + 1;
 }
 
-FText UControlRigGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
+FText URigVMEdGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
 	if(NodeTitle.IsEmpty())
 	{
 		FString SubTitle;
 		if(URigVMNode* ModelNode = GetModelNode())
 		{
-			if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(ModelNode))
+			if (const URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(ModelNode))
 			{
 				const UScriptStruct* ScriptStruct = UnitNode->GetScriptStruct();
 				if (ScriptStruct && ScriptStruct->IsChildOf(FRigVMStruct::StaticStruct()))
 				{
-					if (TSharedPtr<FStructOnScope> StructOnScope = UnitNode->ConstructStructInstance())
+					if (const TSharedPtr<FStructOnScope> StructOnScope = UnitNode->ConstructStructInstance())
 					{
-						FRigVMStruct* RigUnit = (FRigVMStruct*)StructOnScope->GetStructMemory();
-						NodeTitle = FText::FromString(RigUnit->GetUnitLabel());
+						const FRigVMStruct* RigVMStruct = (const FRigVMStruct*)StructOnScope->GetStructMemory();
+						NodeTitle = FText::FromString(RigVMStruct->GetUnitLabel());
 					}
 				}
 			}
@@ -195,16 +180,16 @@ FText UControlRigGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 	return NodeTitle;
 }
 
-void UControlRigGraphNode::ReconstructNode()
+void URigVMEdGraphNode::ReconstructNode()
 {
 	ReconstructNode_Internal();
 }
 
-void UControlRigGraphNode::ReconstructNode_Internal(bool bForce)
+void URigVMEdGraphNode::ReconstructNode_Internal(bool bForce)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	UControlRigGraph* RigGraph = Cast<UControlRigGraph>(GetOuter()); 
+	URigVMEdGraph* RigGraph = Cast<URigVMEdGraph>(GetOuter()); 
 	if (RigGraph && !bForce)
 	{
 		if (RigGraph->bIsTemporaryGraphForCopyPaste)
@@ -212,6 +197,8 @@ void UControlRigGraphNode::ReconstructNode_Internal(bool bForce)
 			return;
 		}
 
+		/*
+		 * todoooooooo
 		// if this node has been saved prior to our custom version,
 		// don't reset the node
 		int32 LinkerVersion = RigGraph->GetLinkerCustomVersion(FControlRigObjectVersion::GUID);
@@ -219,13 +206,14 @@ void UControlRigGraphNode::ReconstructNode_Internal(bool bForce)
 		{
 			return;
 		}
+		*/
 	}
 
 #if WITH_EDITOR
 	bEnableProfiling = false;
 	if(RigGraph)
 	{
-		if(UControlRigBlueprint* RigBlueprint = RigGraph->GetBlueprint())
+		if(URigVMBlueprint* RigBlueprint = RigGraph->GetBlueprint())
 		{
 			bEnableProfiling = RigBlueprint->VMRuntimeSettings.bEnableProfiling;
 		}
@@ -252,9 +240,9 @@ void UControlRigGraphNode::ReconstructNode_Internal(bool bForce)
 	ReallocatePinsDuringReconstruction(LastEdGraphPins);
 
 	// Maintain watches up to date
-	if (URigVMNode* Node = GetModelNode())
+	if (const URigVMNode* Node = GetModelNode())
 	{
-		UBlueprint* Blueprint = GetBlueprint();
+		const UBlueprint* RigVMBlueprint = GetBlueprint();
 		for (UEdGraphPin* NewPin : Pins)
 		{
 			const FString PinName = NewPin->GetName();
@@ -264,7 +252,7 @@ void UControlRigGraphNode::ReconstructNode_Internal(bool bForce)
 			{
 				if (ModelPin->RequiresWatch())
 				{
-					FKismetDebugUtilities::AddPinWatch(Blueprint, FBlueprintWatchedPin(NewPin));
+					FKismetDebugUtilities::AddPinWatch(RigVMBlueprint, FBlueprintWatchedPin(NewPin));
 				}
 			}
 		}
@@ -294,7 +282,7 @@ void UControlRigGraphNode::ReconstructNode_Internal(bool bForce)
 	}
 }
 
-bool UControlRigGraphNode::IsDeprecated() const
+bool URigVMEdGraphNode::IsDeprecated() const
 {
 	if(URigVMNode* ModelNode = GetModelNode())
 	{
@@ -306,7 +294,7 @@ bool UControlRigGraphNode::IsDeprecated() const
 	return Super::IsDeprecated();
 }
 
-FEdGraphNodeDeprecationResponse UControlRigGraphNode::GetDeprecationResponse(EEdGraphNodeDeprecationType DeprecationType) const
+FEdGraphNodeDeprecationResponse URigVMEdGraphNode::GetDeprecationResponse(EEdGraphNodeDeprecationType DeprecationType) const
 {
 	FEdGraphNodeDeprecationResponse Response = Super::GetDeprecationResponse(DeprecationType);
 
@@ -319,7 +307,7 @@ FEdGraphNodeDeprecationResponse UControlRigGraphNode::GetDeprecationResponse(EEd
 			{
 				FFormatNamedArguments Args;
 				Args.Add(TEXT("DeprecatedMetadata"), FText::FromString(DeprecatedMetadata));
-				Response.MessageText = FText::Format(LOCTEXT("ControlRigGraphNodeDeprecationMessage", "Warning: This node is deprecated from: {DeprecatedMetadata}"), Args);
+				Response.MessageText = FText::Format(LOCTEXT("RigVMEdGraphNodeDeprecationMessage", "Warning: This node is deprecated from: {DeprecatedMetadata}"), Args);
 			}
 		}
 	}
@@ -327,12 +315,12 @@ FEdGraphNodeDeprecationResponse UControlRigGraphNode::GetDeprecationResponse(EEd
 	return Response;
 }
 
-void UControlRigGraphNode::ReallocatePinsDuringReconstruction(const TArray<UEdGraphPin*>& OldPins)
+void URigVMEdGraphNode::ReallocatePinsDuringReconstruction(const TArray<UEdGraphPin*>& OldPins)
 {
 	AllocateDefaultPins();
 }
 
-void UControlRigGraphNode::RewireOldPinsToNewPins(TArray<UEdGraphPin*>& InOldPins, TArray<UEdGraphPin*>& InNewPins)
+void URigVMEdGraphNode::RewireOldPinsToNewPins(TArray<UEdGraphPin*>& InOldPins, TArray<UEdGraphPin*>& InNewPins)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
@@ -359,11 +347,11 @@ void UControlRigGraphNode::RewireOldPinsToNewPins(TArray<UEdGraphPin*>& InOldPin
 	DestroyPinList(InOldPins);
 }
 
-void UControlRigGraphNode::DestroyPinList(TArray<UEdGraphPin*>& InPins)
+void URigVMEdGraphNode::DestroyPinList(TArray<UEdGraphPin*>& InPins)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	UBlueprint* Blueprint = GetBlueprint();
+	const UBlueprint* Blueprint = GetBlueprint();
 	bool bNotify = false;
 	if (Blueprint != nullptr)
 	{
@@ -383,7 +371,7 @@ void UControlRigGraphNode::DestroyPinList(TArray<UEdGraphPin*>& InPins)
 	}
 }
 
-void UControlRigGraphNode::PostReconstructNode()
+void URigVMEdGraphNode::PostReconstructNode()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
@@ -400,14 +388,14 @@ void UControlRigGraphNode::PostReconstructNode()
 	}
 }
 
-void UControlRigGraphNode::SetColorFromModel(const FLinearColor& InColor)
+void URigVMEdGraphNode::SetColorFromModel(const FLinearColor& InColor)
 {
 	static const FLinearColor TitleToNodeColor(0.35f, 0.35f, 0.35f, 1.f);
 	CachedNodeColor = InColor * TitleToNodeColor;
 	CachedTitleColor = InColor;
 }
 
-void UControlRigGraphNode::HandleClearArray(FString InPinPath)
+void URigVMEdGraphNode::HandleClearArray(FString InPinPath)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
@@ -417,7 +405,7 @@ void UControlRigGraphNode::HandleClearArray(FString InPinPath)
 	}
 }
 
-void UControlRigGraphNode::HandleAddArrayElement(FString InPinPath)
+void URigVMEdGraphNode::HandleAddArrayElement(FString InPinPath)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
@@ -431,7 +419,7 @@ void UControlRigGraphNode::HandleAddArrayElement(FString InPinPath)
 	}
 }
 
-void UControlRigGraphNode::HandleRemoveArrayElement(FString InPinPath)
+void URigVMEdGraphNode::HandleRemoveArrayElement(FString InPinPath)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
@@ -441,18 +429,18 @@ void UControlRigGraphNode::HandleRemoveArrayElement(FString InPinPath)
 	}
 }
 
-void UControlRigGraphNode::HandleInsertArrayElement(FString InPinPath)
+void URigVMEdGraphNode::HandleInsertArrayElement(FString InPinPath)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
 	if (URigVMController* Controller = GetController())
 	{
-		if (URigVMPin* ArrayElementPin = GetModelPinFromPinPath(InPinPath))
+		if (const URigVMPin* ArrayElementPin = GetModelPinFromPinPath(InPinPath))
+		{
+			if (ArrayElementPin->GetParentPin())
 			{
-			if (URigVMPin* ArrayPin = ArrayElementPin->GetParentPin())
-				{
 				Controller->OpenUndoBracket(TEXT("Add Array Pin"));
-				FString PinPath = Controller->InsertArrayPin(InPinPath, ArrayElementPin->GetPinIndex() + 1, FString(), true, true);
+				const FString PinPath = Controller->InsertArrayPin(InPinPath, ArrayElementPin->GetPinIndex() + 1, FString(), true, true);
 				Controller->SetPinExpansion(InPinPath, true);
 				Controller->SetPinExpansion(PinPath, true);
 				Controller->CloseUndoBracket();
@@ -461,16 +449,16 @@ void UControlRigGraphNode::HandleInsertArrayElement(FString InPinPath)
 	}
 }
 
-int32 UControlRigGraphNode::GetInstructionIndex(bool bAsInput) const
+int32 URigVMEdGraphNode::GetInstructionIndex(bool bAsInput) const
 {
-	if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(GetGraph()))
+	if (URigVMEdGraph* RigGraph = Cast<URigVMEdGraph>(GetGraph()))
 	{
 		return RigGraph->GetInstructionIndex(this, bAsInput);
 	}
 	return INDEX_NONE;
 }
 
-const FRigVMTemplate* UControlRigGraphNode::GetTemplate() const
+const FRigVMTemplate* URigVMEdGraphNode::GetTemplate() const
 {
 	if(CachedTemplate == nullptr)
 	{
@@ -487,16 +475,16 @@ const FRigVMTemplate* UControlRigGraphNode::GetTemplate() const
 	return CachedTemplate;
 }
 
-void UControlRigGraphNode::ClearErrorInfo()
+void URigVMEdGraphNode::ClearErrorInfo()
 {
 	bHasCompilerMessage = false;
-	// SControlRigGraphNode only updates if the error types do not match so we have
-	// clear the error type as well, see SControlRigGraphNode::RefreshErrorInfo()
+	// SRigVMEdGraphNode only updates if the error types do not match so we have
+	// clear the error type as well, see SRigVMEdGraphNode::RefreshErrorInfo()
 	ErrorType = (int32)EMessageSeverity::Info + 1;
 	ErrorMsg = FString();	
 }
 
-URigVMPin* UControlRigGraphNode::FindModelPinFromGraphPin(const UEdGraphPin* InGraphPin) const
+URigVMPin* URigVMEdGraphNode::FindModelPinFromGraphPin(const UEdGraphPin* InGraphPin) const
 {
 	if(InGraphPin == nullptr)
 	{
@@ -515,7 +503,7 @@ URigVMPin* UControlRigGraphNode::FindModelPinFromGraphPin(const UEdGraphPin* InG
 	return GetModelPinFromPinPath(InGraphPin->GetName());
 }
 
-UEdGraphPin* UControlRigGraphNode::FindGraphPinFromModelPin(const URigVMPin* InModelPin, bool bAsInput) const
+UEdGraphPin* URigVMEdGraphNode::FindGraphPinFromModelPin(const URigVMPin* InModelPin, bool bAsInput) const
 {
 	if(InModelPin == nullptr)
 	{
@@ -542,7 +530,7 @@ UEdGraphPin* UControlRigGraphNode::FindGraphPinFromModelPin(const URigVMPin* InM
 	return nullptr;
 }
 
-void UControlRigGraphNode::SynchronizeGraphPinNameWithModelPin(const URigVMPin* InModelPin, bool bNotify)
+void URigVMEdGraphNode::SynchronizeGraphPinNameWithModelPin(const URigVMPin* InModelPin, bool bNotify)
 {
 	auto SyncGraphPinLambda = [this](const URigVMPin* InModelPin, bool bAsInput) -> bool
 	{
@@ -592,7 +580,7 @@ void UControlRigGraphNode::SynchronizeGraphPinNameWithModelPin(const URigVMPin* 
 	}
 }
 
-void UControlRigGraphNode::SynchronizeGraphPinValueWithModelPin(const URigVMPin* InModelPin)
+void URigVMEdGraphNode::SynchronizeGraphPinValueWithModelPin(const URigVMPin* InModelPin)
 {
 	auto SyncGraphPinLambda = [this](const URigVMPin* InModelPin, bool bAsInput)
 	{
@@ -607,7 +595,7 @@ void UControlRigGraphNode::SynchronizeGraphPinValueWithModelPin(const URigVMPin*
 	SyncGraphPinLambda(InModelPin, false);
 }
 
-void UControlRigGraphNode::SynchronizeGraphPinTypeWithModelPin(const URigVMPin* InModelPin)
+void URigVMEdGraphNode::SynchronizeGraphPinTypeWithModelPin(const URigVMPin* InModelPin)
 {
 	bool bNotify = false;
 
@@ -664,17 +652,17 @@ void UControlRigGraphNode::SynchronizeGraphPinTypeWithModelPin(const URigVMPin* 
 	}
 }
 
-void UControlRigGraphNode::SynchronizeGraphPinExpansionWithModelPin(const URigVMPin* InModelPin)
+void URigVMEdGraphNode::SynchronizeGraphPinExpansionWithModelPin(const URigVMPin* InModelPin)
 {
 	OnNodePinExpansionChanged().Broadcast();
 }
 
-void UControlRigGraphNode::SyncGraphNodeTitleWithModelNodeTitle()
+void URigVMEdGraphNode::SyncGraphNodeTitleWithModelNodeTitle()
 {
 	InvalidateNodeTitle();
 }
 
-void UControlRigGraphNode::SyncGraphNodeNameWithModelNodeName(const URigVMNode* InModelNode)
+void URigVMEdGraphNode::SyncGraphNodeNameWithModelNodeName(const URigVMNode* InModelNode)
 {
 	Rename(*InModelNode->GetName());
 	ModelNodePath = InModelNode->GetNodePath();
@@ -687,7 +675,7 @@ void UControlRigGraphNode::SyncGraphNodeNameWithModelNodeName(const URigVMNode* 
 	}
 }
 
-bool UControlRigGraphNode::CreateGraphPinFromModelPin(const URigVMPin* InModelPin, EEdGraphPinDirection InDirection,
+bool URigVMEdGraphNode::CreateGraphPinFromModelPin(const URigVMPin* InModelPin, EEdGraphPinDirection InDirection,
 	UEdGraphPin* InParentPin)
 {
 	// don't create output pins for array elements
@@ -769,7 +757,7 @@ bool UControlRigGraphNode::CreateGraphPinFromModelPin(const URigVMPin* InModelPi
 	return Pair.IsValid() && bResult;
 }
 
-void UControlRigGraphNode::RemoveGraphSubPins(UEdGraphPin* InParentPin, const TArray<UEdGraphPin*>& InPinsToKeep)
+void URigVMEdGraphNode::RemoveGraphSubPins(UEdGraphPin* InParentPin, const TArray<UEdGraphPin*>& InPinsToKeep)
 {
 	TArray<UEdGraphPin*> SubPins = InParentPin->SubPins;
 
@@ -823,7 +811,7 @@ void UControlRigGraphNode::RemoveGraphSubPins(UEdGraphPin* InParentPin, const TA
 	InParentPin->SubPins.Reset();
 }
 
-bool UControlRigGraphNode::ModelPinsChanged(bool bForce)
+bool URigVMEdGraphNode::ModelPinsChanged(bool bForce)
 {
 	UpdatePinLists();
 
@@ -948,7 +936,7 @@ bool UControlRigGraphNode::ModelPinsChanged(bool bForce)
 	return bResult;
 }
 
-bool UControlRigGraphNode::ModelPinAdded(const URigVMPin* InModelPin)
+bool URigVMEdGraphNode::ModelPinAdded(const URigVMPin* InModelPin)
 {
 	if(InModelPin == nullptr)
 	{
@@ -965,7 +953,7 @@ bool UControlRigGraphNode::ModelPinAdded(const URigVMPin* InModelPin)
 	return bResult;
 }
 
-bool UControlRigGraphNode::ModelPinAdded_Internal(const URigVMPin* InModelPin)
+bool URigVMEdGraphNode::ModelPinAdded_Internal(const URigVMPin* InModelPin)
 {
 	bool bResult = false;
 
@@ -1003,7 +991,7 @@ bool UControlRigGraphNode::ModelPinAdded_Internal(const URigVMPin* InModelPin)
 	return bResult;
 }
 
-bool UControlRigGraphNode::ModelPinRemoved(const URigVMPin* InModelPin)
+bool URigVMEdGraphNode::ModelPinRemoved(const URigVMPin* InModelPin)
 {
 	if(InModelPin == nullptr)
 	{
@@ -1020,9 +1008,9 @@ bool UControlRigGraphNode::ModelPinRemoved(const URigVMPin* InModelPin)
 	return bResult;
 }
 
-bool UControlRigGraphNode::DrawAsCompactNode() const
+bool URigVMEdGraphNode::DrawAsCompactNode() const
 {
-	if(CVarControlRigDisableCompactNodes.GetValueOnAnyThread())
+	if(CVarRigVMDisableCompactNodes.GetValueOnAnyThread())
 	{
 		return false;
 	}
@@ -1074,7 +1062,7 @@ bool UControlRigGraphNode::DrawAsCompactNode() const
 	return DrawAsCompactNodeCache.GetValue();
 }
 
-bool UControlRigGraphNode::ModelPinRemoved_Internal(const URigVMPin* InModelPin)
+bool URigVMEdGraphNode::ModelPinRemoved_Internal(const URigVMPin* InModelPin)
 {
 	auto RemoveGraphPin = [this](const URigVMPin* InModelPin, bool bAsInput)
 	{
@@ -1093,18 +1081,18 @@ bool UControlRigGraphNode::ModelPinRemoved_Internal(const URigVMPin* InModelPin)
 	return bResult;
 }
 
-FLinearColor UControlRigGraphNode::GetNodeProfilingColor() const
+FLinearColor URigVMEdGraphNode::GetNodeProfilingColor() const
 {
 #if WITH_EDITOR
 	if(bEnableProfiling)
 	{
-		if(UControlRigBlueprint* Blueprint = GetTypedOuter<UControlRigBlueprint>())
+		if(URigVMBlueprint* Blueprint = GetTypedOuter<URigVMBlueprint>())
 		{
-			if(UControlRig* DebuggedControlRig = Cast<UControlRig>(Blueprint->GetObjectBeingDebugged()))
+			if(URigVMHost* DebuggedHost = Cast<URigVMHost>(Blueprint->GetObjectBeingDebugged()))
 			{
-				if(URigVMNode* ModelNode = GetModelNode())
+				if(const URigVMNode* ModelNode = GetModelNode())
 				{
-					const double MicroSeconds = ModelNode->GetInstructionMicroSeconds(DebuggedControlRig->GetExtendedExecuteContext(), DebuggedControlRig->GetVM(), FRigVMASTProxy());
+					const double MicroSeconds = ModelNode->GetInstructionMicroSeconds(DebuggedHost->GetExtendedExecuteContext(), DebuggedHost->GetVM(), FRigVMASTProxy());
 					if(MicroSeconds >= 0.0)
 					{
 						if(Blueprint->RigGraphDisplaySettings.bAutoDetermineRange)
@@ -1140,7 +1128,7 @@ FLinearColor UControlRigGraphNode::GetNodeProfilingColor() const
 	return FLinearColor::Black;
 }
 
-void UControlRigGraphNode::UpdatePinLists()
+void URigVMEdGraphNode::UpdatePinLists()
 {
 	ExecutePins.Reset();
 	InputPins.Reset();
@@ -1185,7 +1173,7 @@ void UControlRigGraphNode::UpdatePinLists()
 	}
 }
 
-void UControlRigGraphNode::AllocateDefaultPins()
+void URigVMEdGraphNode::AllocateDefaultPins()
 {
 	UpdatePinLists();
 
@@ -1220,36 +1208,33 @@ void UControlRigGraphNode::AllocateDefaultPins()
 	}
 }
 
-UClass* UControlRigGraphNode::GetControlRigGeneratedClass() const
+UClass* URigVMEdGraphNode::GetRigVMGeneratedClass() const
 {
-	const UControlRigBlueprint* Blueprint = GetTypedOuter<UControlRigBlueprint>();
-	if(Blueprint)
+	if(const URigVMBlueprint* Blueprint = GetTypedOuter<URigVMBlueprint>())
 	{
 		if (Blueprint->GeneratedClass)
 		{
-			check(Blueprint->GeneratedClass->IsChildOf(UControlRig::StaticClass()));
+			check(Blueprint->GeneratedClass->IsChildOf(URigVMHost::StaticClass()));
 			return Blueprint->GeneratedClass;
 		}
 	}
-
 	return nullptr;
 }
 
-UClass* UControlRigGraphNode::GetControlRigSkeletonGeneratedClass() const
+UClass* URigVMEdGraphNode::GetRigVMSkeletonGeneratedClass() const
 {
-	const UControlRigBlueprint* Blueprint = GetTypedOuter<UControlRigBlueprint>();
-	if(Blueprint)
+	if(const URigVMBlueprint* Blueprint = GetTypedOuter<URigVMBlueprint>())
 	{
 		if (Blueprint->SkeletonGeneratedClass)
 		{
-			check(Blueprint->SkeletonGeneratedClass->IsChildOf(UControlRig::StaticClass()));
+			check(Blueprint->SkeletonGeneratedClass->IsChildOf(URigVMHost::StaticClass()));
 			return Blueprint->SkeletonGeneratedClass;
 		}
 	}
 	return nullptr;
 }
 
-FLinearColor UControlRigGraphNode::GetNodeOpacityColor() const
+FLinearColor URigVMEdGraphNode::GetNodeOpacityColor() const
 {
 	if (URigVMNode* ModelNode = GetModelNode())
 	{
@@ -1266,13 +1251,13 @@ FLinearColor UControlRigGraphNode::GetNodeOpacityColor() const
 	return FLinearColor::White;
 }
 
-FLinearColor UControlRigGraphNode::GetNodeTitleColor() const
+FLinearColor URigVMEdGraphNode::GetNodeTitleColor() const
 {
 	// return a darkened version of the default node's color
 	return CachedTitleColor * GetNodeOpacityColor();
 }
 
-FLinearColor UControlRigGraphNode::GetNodeBodyTintColor() const
+FLinearColor URigVMEdGraphNode::GetNodeBodyTintColor() const
 {
 #if WITH_EDITOR
 	if(bEnableProfiling)
@@ -1284,7 +1269,7 @@ FLinearColor UControlRigGraphNode::GetNodeBodyTintColor() const
 	return CachedNodeColor * GetNodeOpacityColor();
 }
 
-bool UControlRigGraphNode::ShowPaletteIconOnNode() const
+bool URigVMEdGraphNode::ShowPaletteIconOnNode() const
 {
 	if (URigVMNode* ModelNode = GetModelNode())
 	{
@@ -1301,7 +1286,7 @@ bool UControlRigGraphNode::ShowPaletteIconOnNode() const
 	return false;
 }
 
-FSlateIcon UControlRigGraphNode::GetIconAndTint(FLinearColor& OutColor) const
+FSlateIcon URigVMEdGraphNode::GetIconAndTint(FLinearColor& OutColor) const
 {
 	OutColor = FLinearColor::White;
 
@@ -1414,15 +1399,16 @@ FSlateIcon UControlRigGraphNode::GetIconAndTint(FLinearColor& OutColor) const
 	return FunctionIcon;
 }
 
-void UControlRigGraphNode::GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const
+void URigVMEdGraphNode::GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const
 {
 #if WITH_EDITOR
-	const UControlRigGraphSchema* Schema = Cast<UControlRigGraphSchema>(GetSchema());
-	IControlRigEditorModule::Get().GetContextMenuActions(Schema, Menu, Context);
+	// toodoooo
+	// const URigVMEdGraphSchema* Schema = Cast<URigVMEdGraphSchema>(GetSchema());
+	// IControlRigEditorModule::Get().GetContextMenuActions(Schema, Menu, Context);
 #endif
 }
 
-bool UControlRigGraphNode::IsPinExpanded(const FString& InPinPath)
+bool URigVMEdGraphNode::IsPinExpanded(const FString& InPinPath)
 {
 	if (URigVMPin* ModelPin = GetModelPinFromPinPath(InPinPath))
 	{
@@ -1431,20 +1417,20 @@ bool UControlRigGraphNode::IsPinExpanded(const FString& InPinPath)
 	return false;
 }
 
-void UControlRigGraphNode::DestroyNode()
+void URigVMEdGraphNode::DestroyNode()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	if(UControlRigGraph* Graph = Cast<UControlRigGraph>(GetOuter()))
+	if(URigVMEdGraph* Graph = Cast<URigVMEdGraph>(GetOuter()))
 	{
 		BreakAllNodeLinks();
 		
-		UControlRigBlueprint* ControlRigBlueprint = Cast<UControlRigBlueprint>(Graph->GetOuter());
-		if(ControlRigBlueprint)
+		URigVMBlueprint* RigVMBlueprint = Cast<URigVMBlueprint>(Graph->GetOuter());
+		if(RigVMBlueprint)
 		{
 			if(PropertyName_DEPRECATED.IsValid())
 			{
-				FRigVMBlueprintUtils::RemoveMemberVariableIfNotUsed(ControlRigBlueprint, PropertyName_DEPRECATED);
+				FRigVMBlueprintUtils::RemoveMemberVariableIfNotUsed(RigVMBlueprint, PropertyName_DEPRECATED);
 			}
 		}
 	}
@@ -1452,12 +1438,12 @@ void UControlRigGraphNode::DestroyNode()
 	UEdGraphNode::DestroyNode();
 }
 
-void UControlRigGraphNode::PinDefaultValueChanged(UEdGraphPin* Pin)
+void URigVMEdGraphNode::PinDefaultValueChanged(UEdGraphPin* Pin)
 {
 	CopyPinDefaultsToModel(Pin, true, true);
 }
 
-void UControlRigGraphNode::CopyPinDefaultsToModel(UEdGraphPin* Pin, bool bUndo, bool bPrintPythonCommand)
+void URigVMEdGraphNode::CopyPinDefaultsToModel(UEdGraphPin* Pin, bool bUndo, bool bPrintPythonCommand)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
@@ -1466,8 +1452,7 @@ void UControlRigGraphNode::CopyPinDefaultsToModel(UEdGraphPin* Pin, bool bUndo, 
 		return;
 	}
 
-	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
-	if (URigVMPin* ModelPin = FindModelPinFromGraphPin(Pin))
+	if (const URigVMPin* ModelPin = FindModelPinFromGraphPin(Pin))
 	{
 		if (ModelPin->GetSubPins().Num() > 0)
 		{
@@ -1504,41 +1489,36 @@ void UControlRigGraphNode::CopyPinDefaultsToModel(UEdGraphPin* Pin, bool bUndo, 
 	}
 }
 
-UControlRigBlueprint* UControlRigGraphNode::GetBlueprint() const
+URigVMBlueprint* URigVMEdGraphNode::GetBlueprint() const
 {
-	if(UControlRigGraph* Graph = Cast<UControlRigGraph>(GetOuter()))
+	if(const URigVMEdGraph* Graph = Cast<URigVMEdGraph>(GetOuter()))
 	{
 		return Graph->GetBlueprint();
-		if (UControlRigGraph* OuterGraph = Cast<UControlRigGraph>(Graph->GetOuter()))
-		{
-			return OuterGraph->GetBlueprint();
-		}
-		return Cast<UControlRigBlueprint>(Graph->GetOuter());
 	}
 	return nullptr;
 }
 
-URigVMGraph* UControlRigGraphNode::GetModel() const
+URigVMGraph* URigVMEdGraphNode::GetModel() const
 {
-	if (UControlRigGraph* Graph = Cast<UControlRigGraph>(GetOuter()))
+	if (URigVMEdGraph* Graph = Cast<URigVMEdGraph>(GetOuter()))
 	{
 		return Graph->GetModel();
 	}
 	return nullptr;
 }
 
-URigVMController* UControlRigGraphNode::GetController() const
+URigVMController* URigVMEdGraphNode::GetController() const
 {
-	if (UControlRigGraph* Graph = Cast<UControlRigGraph>(GetOuter()))
+	if (URigVMEdGraph* Graph = Cast<URigVMEdGraph>(GetOuter()))
 	{
 		return Graph->GetController();
 	}
 	return nullptr;
 }
 
-URigVMNode* UControlRigGraphNode::GetModelNode() const
+URigVMNode* URigVMEdGraphNode::GetModelNode() const
 {
-	UControlRigGraphNode* MutableThis = (UControlRigGraphNode*)this;
+	URigVMEdGraphNode* MutableThis = (URigVMEdGraphNode*)this;
 	if (CachedModelNode.IsValid())
 	{
 		if (CachedModelNode.Get()->GetOuter() == GetTransientPackage())
@@ -1551,7 +1531,7 @@ URigVMNode* UControlRigGraphNode::GetModelNode() const
 		}
 	}
 
-	if (UControlRigGraph* Graph = Cast<UControlRigGraph>(GetOuter()))
+	if (URigVMEdGraph* Graph = Cast<URigVMEdGraph>(GetOuter()))
 	{
 #if WITH_EDITOR
 
@@ -1573,7 +1553,7 @@ URigVMNode* UControlRigGraphNode::GetModelNode() const
 	return nullptr;
 }
 
-FName UControlRigGraphNode::GetModelNodeName() const
+FName URigVMEdGraphNode::GetModelNodeName() const
 {
 	if (URigVMNode* ModelNode = GetModelNode())
 	{
@@ -1582,7 +1562,7 @@ FName UControlRigGraphNode::GetModelNodeName() const
 	return NAME_None;
 }
 
-URigVMPin* UControlRigGraphNode::GetModelPinFromPinPath(const FString& InPinPath) const
+URigVMPin* URigVMEdGraphNode::GetModelPinFromPinPath(const FString& InPinPath) const
 {
 	if (TWeakObjectPtr<URigVMPin> const* CachedModelPinPtr = PinPathToModelPin.Find(InPinPath))
 	{
@@ -1602,7 +1582,7 @@ URigVMPin* UControlRigGraphNode::GetModelPinFromPinPath(const FString& InPinPath
 		URigVMPin* ModelPin = ModelNode->FindPin(PinPath);
 		if (ModelPin)
 		{
-			UControlRigGraphNode* MutableThis = (UControlRigGraphNode*)this;
+			URigVMEdGraphNode* MutableThis = (URigVMEdGraphNode*)this;
 			MutableThis->PinPathToModelPin.FindOrAdd(InPinPath) = ModelPin;
 		}
 		return ModelPin;
@@ -1611,7 +1591,7 @@ URigVMPin* UControlRigGraphNode::GetModelPinFromPinPath(const FString& InPinPath
 	return nullptr;
 }
 
-void UControlRigGraphNode::HandleAddAggregateElement(const FString& InNodePath)
+void URigVMEdGraphNode::HandleAddAggregateElement(const FString& InNodePath)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
@@ -1621,7 +1601,7 @@ void UControlRigGraphNode::HandleAddAggregateElement(const FString& InNodePath)
 	}	
 }
 
-void UControlRigGraphNode::SetupPinDefaultsFromModel(UEdGraphPin* Pin, const URigVMPin* InModelPin)
+void URigVMEdGraphNode::SetupPinDefaultsFromModel(UEdGraphPin* Pin, const URigVMPin* InModelPin)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
@@ -1655,7 +1635,7 @@ void UControlRigGraphNode::SetupPinDefaultsFromModel(UEdGraphPin* Pin, const URi
 	}
 }
 
-FText UControlRigGraphNode::GetTooltipText() const
+FText URigVMEdGraphNode::GetTooltipText() const
 {
 	if(URigVMNode* ModelNode = GetModelNode())
 	{
@@ -1664,29 +1644,29 @@ FText UControlRigGraphNode::GetTooltipText() const
 	return FText::FromString(ModelNodePath);
 }
 
-void UControlRigGraphNode::InvalidateNodeTitle() const
+void URigVMEdGraphNode::InvalidateNodeTitle() const
 {
 	NodeTitle = FText();
 	FullNodeTitle = FText();
 	NodeTitleDirtied.Broadcast();
 }
 
-bool UControlRigGraphNode::CanCreateUnderSpecifiedSchema(const UEdGraphSchema* InSchema) const
+bool URigVMEdGraphNode::CanCreateUnderSpecifiedSchema(const UEdGraphSchema* InSchema) const
 {
-	return InSchema->IsA<UControlRigGraphSchema>();
+	return InSchema->IsA<URigVMEdGraphSchema>();
 }
 
-void UControlRigGraphNode::AutowireNewNode(UEdGraphPin* FromPin)
+void URigVMEdGraphNode::AutowireNewNode(UEdGraphPin* FromPin)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
 	Super::AutowireNewNode(FromPin);
 
-	const UControlRigGraphSchema* Schema = GetDefault<UControlRigGraphSchema>();
+	const URigVMEdGraphSchema* Schema = GetDefault<URigVMEdGraphSchema>();
 	Schema->AutowireNewNode(this, FromPin);
 }
 
-bool UControlRigGraphNode::IsSelectedInEditor() const
+bool URigVMEdGraphNode::IsSelectedInEditor() const
 {
 	URigVMNode* ModelNode = GetModelNode();
 	if (ModelNode)
@@ -1696,7 +1676,7 @@ bool UControlRigGraphNode::IsSelectedInEditor() const
 	return false;
 }
 
-bool UControlRigGraphNode::ShouldDrawNodeAsControlPointOnly(int32& OutInputPinIndex, int32& OutOutputPinIndex) const
+bool URigVMEdGraphNode::ShouldDrawNodeAsControlPointOnly(int32& OutInputPinIndex, int32& OutOutputPinIndex) const
 {
 	if (Cast<URigVMRerouteNode>(GetModelNode()))
 	{
@@ -1719,7 +1699,7 @@ bool UControlRigGraphNode::ShouldDrawNodeAsControlPointOnly(int32& OutInputPinIn
 	return false;
 }
 
-void UControlRigGraphNode::BeginDestroy()
+void URigVMEdGraphNode::BeginDestroy()
 {
 	for(UEdGraphPin* Pin : Pins)
 	{
@@ -1728,14 +1708,14 @@ void UControlRigGraphNode::BeginDestroy()
 	Super::BeginDestroy();
 }
 
-FEdGraphPinType UControlRigGraphNode::GetPinTypeForModelPin(const URigVMPin* InModelPin)
+FEdGraphPinType URigVMEdGraphNode::GetPinTypeForModelPin(const URigVMPin* InModelPin)
 {
 	FEdGraphPinType PinType = RigVMTypeUtils::PinTypeFromCPPType(*InModelPin->GetCPPType(), InModelPin->GetCPPTypeObject());
 	PinType.bIsConst = InModelPin->IsDefinedAsConstant();
 	return PinType;
 }
 
-void UControlRigGraphNode::ConfigurePin(UEdGraphPin* EdGraphPin, const URigVMPin* ModelPin)
+void URigVMEdGraphNode::ConfigurePin(UEdGraphPin* EdGraphPin, const URigVMPin* ModelPin)
 {
 	const bool bConnectable =
 		ModelPin->GetDirection() == ERigVMPinDirection::Input ||
@@ -1759,7 +1739,7 @@ void UControlRigGraphNode::ConfigurePin(UEdGraphPin* EdGraphPin, const URigVMPin
 	EdGraphPin->bDisplayAsMutableRef = ModelPin->IsWildCard();
 }
 
-TArray<URigVMPin*>& UControlRigGraphNode::PinListForPin(const URigVMPin* InModelPin)
+TArray<URigVMPin*>& URigVMEdGraphNode::PinListForPin(const URigVMPin* InModelPin)
 {
 	if(IsValid(InModelPin))
 	{

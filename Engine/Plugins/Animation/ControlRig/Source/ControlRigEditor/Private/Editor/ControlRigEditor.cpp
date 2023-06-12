@@ -30,7 +30,7 @@
 #include "ControlRig.h"
 #include "Editor/ControlRigSkeletalMeshComponent.h"
 #include "ControlRigObjectBinding.h"
-#include "ControlRigBlueprintUtils.h"
+#include "RigVMBlueprintUtils.h"
 #include "EditorViewportClient.h"
 #include "AnimationEditorPreviewActor.h"
 #include "Misc/MessageDialog.h"
@@ -565,7 +565,7 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 		OpenGraphAndBringToFront(ActiveGraph, true);
 	}
 
-	FControlRigBlueprintUtils::HandleRefreshAllNodes(InControlRigBlueprint);
+	FRigVMBlueprintUtils::HandleRefreshAllNodes(InControlRigBlueprint);
 
 	bControlRigEditorInitialized = true;
 
@@ -6629,7 +6629,7 @@ void FControlRigEditor::HandleMakeElementGetterSetter(ERigElementGetterSetterTyp
 			NodePositionIncrement = FVector2D(380.f, 0.f);
 		}
 
-		FName Name = FControlRigBlueprintUtils::ValidateName(GetControlRigBlueprint(), StructTemplate->GetName());
+		FName Name = FRigVMBlueprintUtils::ValidateName(GetControlRigBlueprint(), StructTemplate->GetName());
 		if (URigVMUnitNode* ModelNode = GetFocusedController()->AddUnitNode(StructTemplate, FRigUnit::GetMethodName(), NodePosition, FString(), true, true))
 		{
 			FString ItemTypeStr = StaticEnum<ERigElementType>()->GetDisplayNameTextByValue((int64)Key.Type).ToString();

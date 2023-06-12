@@ -12,7 +12,7 @@
 #include "EditorCategoryUtils.h"
 #include "K2Node_Variable.h"
 #include "BlueprintNodeTemplateCache.h"
-#include "ControlRigBlueprintUtils.h"
+#include "RigVMBlueprintUtils.h"
 #include "ScopedTransaction.h"
 #include "Units/Execution/RigUnit_BeginExecution.h"
 #include "ControlRig.h"
@@ -172,7 +172,7 @@ UControlRigGraphNode* UControlRigUnitNodeSpawner::SpawnNode(UEdGraph* ParentGrap
 		bool const bIsTemplateNode = FBlueprintNodeTemplateCache::IsTemplateOuter(ParentGraph);
 		bool const bIsUserFacingNode = !bIsTemplateNode;
 
-		FName Name = bIsTemplateNode ? *StructTemplate->GetStructCPPName() : FControlRigBlueprintUtils::ValidateName(RigBlueprint, StructTemplate->GetFName().ToString());
+		FName Name = bIsTemplateNode ? *StructTemplate->GetStructCPPName() : FRigVMBlueprintUtils::ValidateName(RigBlueprint, StructTemplate->GetFName().ToString());
 
 		FStructOnScope StructScope(StructTemplate);
 		const FRigVMStruct* StructInstance = (const FRigVMStruct*)StructScope.GetStructMemory();

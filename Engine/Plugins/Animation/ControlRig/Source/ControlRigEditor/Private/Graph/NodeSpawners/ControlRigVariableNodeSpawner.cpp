@@ -13,7 +13,6 @@
 #include "BlueprintNodeTemplateCache.h"
 #include "RigVMModel/RigVMController.h"
 #include "ControlRigBlueprint.h"
-#include "ControlRigBlueprintUtils.h"
 #include "RigVMModel/Nodes/RigVMVariableNode.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigVariableNodeSpawner)

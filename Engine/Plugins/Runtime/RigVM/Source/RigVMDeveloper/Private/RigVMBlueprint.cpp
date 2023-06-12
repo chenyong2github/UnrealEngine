@@ -1,68 +1,49 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ControlRigBlueprint.h"
+#include "RigVMBlueprint.h"
 
 #include "RigVMBlueprintGeneratedClass.h"
 #include "EdGraph/EdGraph.h"
 #include "EdGraphNode_Comment.h"
-#include "Modules/ModuleManager.h"
-#include "Engine/SkeletalMesh.h"
 #include "BlueprintActionDatabaseRegistrar.h"
-#include "ControlRig.h"
-#include "Graph/ControlRigGraph.h"
-#include "Graph/ControlRigGraphNode.h"
-#include "Graph/ControlRigGraphSchema.h"
+#include "EdGraph/RigVMEdGraph.h"
+#include "EdGraph/RigVMEdGraphNode.h"
+#include "EdGraph/RigVMEdGraphSchema.h"
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/UObjectGlobals.h"
-#include "ControlRigObjectVersion.h"
-#include "ControlRigDeveloper.h"
-#include "Curves/CurveFloat.h"
+#include "RigVMObjectVersion.h"
 #include "BlueprintCompilationManager.h"
 #include "RigVMCompiler/RigVMCompiler.h"
 #include "RigVMCore/RigVMRegistry.h"
-#include "Units/Execution/RigUnit_BeginExecution.h"
-#include "Units/Hierarchy/RigUnit_SetBoneTransform.h"
-#include "Async/TaskGraphInterfaces.h"
-#include "Misc/CoreDelegates.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "RigVMPythonUtils.h"
 #include "RigVMTypeUtils.h"
 #include "Algo/Count.h"
-#include "Algo/Transform.h"
 #include "RigVMModel/Nodes/RigVMAggregateNode.h"
-#include "Units/ControlRigNodeWorkflow.h"
-#include "Rigs/RigControlHierarchy.h"
 #include "RigVMModel/Nodes/RigVMDispatchNode.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
-#include "ControlRigSchema.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigBlueprint)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMBlueprint)
 
 #if WITH_EDITOR
-#include "IControlRigEditorModule.h"
 #include "Kismet2/KismetDebugUtilities.h"
 #include "Kismet2/WatchedPin.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "RigVMBlueprintUtils.h"
-#include "Settings/ControlRigSettings.h"
-#include "UnrealEdGlobals.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Editor/Transactor.h"
 #include "CookOnTheSide/CookOnTheFlyServer.h"
-#include "Widgets/Notifications/SNotificationList.h"
-#include "Framework/Notifications/NotificationManager.h"
-#include "ScopedTransaction.h"
 #endif//WITH_EDITOR
 
-#define LOCTEXT_NAMESPACE "ControlRigBlueprint"
+#define LOCTEXT_NAMESPACE "RigVMBlueprint"
 
-TAutoConsoleVariable<bool> CVarEnablePreLoadFiltering(
-	TEXT("ControlRig.EnablePreLoadFiltering"),
+TAutoConsoleVariable<bool> CVarRigVMEnablePreLoadFiltering(
+	TEXT("RigVM.EnablePreLoadFiltering"),
 	true,
 	TEXT("When true the RigVMGraphs will be skipped during preload to speed up load times."));
 
-TAutoConsoleVariable<bool> CVarEnablePostLoadHashing(
-	TEXT("ControlRig.EnablePostLoadHashing"),
+TAutoConsoleVariable<bool> CVarRigVMEnablePostLoadHashing(
+	TEXT("RigVM.EnablePostLoadHashing"),
 	true,
 	TEXT("When true refreshing the RigVMGraphs will be skipped if the hash matches the serialized hash."));
 
@@ -83,45 +64,10 @@ static TArray<UClass*> GetClassObjectsInPackage(UPackage* InPackage)
 	return ClassObjects;
 }
 
-FEdGraphPinType FControlRigPublicFunctionArg::GetPinType() const
-{
-	FRigVMExternalVariable Variable;
-	Variable.Name = Name;
-	Variable.bIsArray = bIsArray;
-	Variable.TypeName = CPPType;
-	
-	if(CPPTypeObjectPath.IsValid())
-	{
-		Variable.TypeObject = RigVMTypeUtils::FindObjectFromCPPTypeObjectPath(CPPTypeObjectPath.ToString());
-	}
+FSoftObjectPath URigVMBlueprint::PreDuplicateAssetPath;
+FSoftObjectPath URigVMBlueprint::PreDuplicateHostPath;
 
-	return RigVMTypeUtils::PinTypeFromExternalVariable(Variable);
-}
-
-bool FControlRigPublicFunctionData::IsMutable() const
-{
-	for(const FControlRigPublicFunctionArg& Arg : Arguments)
-	{
-		if(!Arg.CPPTypeObjectPath.IsNone())
-		{
-			if(UScriptStruct* Struct = Cast<UScriptStruct>(
-				RigVMTypeUtils::FindObjectFromCPPTypeObjectPath(Arg.CPPTypeObjectPath.ToString())))
-			{
-				if(Struct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
-				{
-					return true;
-				}
-			}
-		}
-	}
-	return false;
-}
-
-TArray<UControlRigBlueprint*> UControlRigBlueprint::sCurrentlyOpenedRigBlueprints;
-FSoftObjectPath UControlRigBlueprint::PreDuplicateAssetPath;
-FSoftObjectPath UControlRigBlueprint::PreDuplicateHostPath;
-
-UControlRigBlueprint::UControlRigBlueprint(const FObjectInitializer& ObjectInitializer)
+URigVMBlueprint::URigVMBlueprint(const FObjectInitializer& ObjectInitializer)
 {
 	bSuspendModelNotificationsForSelf = false;
 	bSuspendModelNotificationsForOthers = false;
@@ -131,8 +77,6 @@ UControlRigBlueprint::UControlRigBlueprint(const FObjectInitializer& ObjectIniti
 
 #if WITH_EDITORONLY_DATA
 	ReferencedObjectPathsStored = false;
-	GizmoLibrary_DEPRECATED = nullptr;
-	ShapeLibraries.Add(UControlRigSettings::Get()->DefaultShapeLibrary);
 #endif
 
 	bRecompileOnLoad = 0;
@@ -141,17 +85,17 @@ UControlRigBlueprint::UControlRigBlueprint(const FObjectInitializer& ObjectIniti
 	bIsCompiling = false;
 	VMRecompilationBracket = 0;
 
-	RigVMClient.SetOuterClientHost(this, GET_MEMBER_NAME_CHECKED(UControlRigBlueprint, RigVMClient));
-	RigVMClient.SetSchemaClass(UControlRigSchema::StaticClass());
+	RigVMClient.SetOuterClientHost(this, GET_MEMBER_NAME_CHECKED(URigVMBlueprint, RigVMClient));
+	RigVMClient.SetSchemaClass(GetRigVMSchemaClass());
 	{
 		TGuardValue<bool> DisableClientNotifs(RigVMClient.bSuspendNotifications, true);
 		RigVMClient.GetOrCreateFunctionLibrary(false, &ObjectInitializer, false);
 		RigVMClient.AddModel(FRigVMClient::RigVMModelPrefix, false, &ObjectInitializer, false);
 	}
-	RigVMClient.SetExecuteContextStruct(FControlRigExecuteContext::StaticStruct());
+	RigVMClient.SetExecuteContextStruct(GetRigVMExecuteContextStruct());
 	
-	FunctionLibraryEdGraph = ObjectInitializer.CreateDefaultSubobject<UControlRigGraph>(this, TEXT("RigVMFunctionLibraryEdGraph"));
-	FunctionLibraryEdGraph->Schema = UControlRigGraphSchema::StaticClass();
+	FunctionLibraryEdGraph = Cast<URigVMEdGraph>(ObjectInitializer.CreateDefaultSubobject(this, TEXT("RigVMFunctionLibraryEdGraph"), GetRigVMEdGraphClass(), GetRigVMEdGraphClass()));
+	FunctionLibraryEdGraph->Schema = GetRigVMEdGraphSchemaClass();
 	FunctionLibraryEdGraph->bAllowRenaming = 0;
 	FunctionLibraryEdGraph->bEditable = 0;
 	FunctionLibraryEdGraph->bAllowDeletion = 0;
@@ -159,37 +103,27 @@ UControlRigBlueprint::UControlRigBlueprint(const FObjectInitializer& ObjectIniti
 	FunctionLibraryEdGraph->ModelNodePath = RigVMClient.GetFunctionLibrary()->GetNodePath();
 	FunctionLibraryEdGraph->Initialize(this);
 
-	Validator = ObjectInitializer.CreateDefaultSubobject<UControlRigValidator>(this, TEXT("ControlRigValidator"));
-
-	DebugBoneRadius = 1.f;
-
 	bUpdatingExternalVariables = false;
 	
 	bDirtyDuringLoad = false;
 	bErrorsDuringCompilation = false;
 
 	SupportedEventNames.Reset();
-	bExposesAnimatableControls = false;
 
-	VMCompileSettings.ASTSettings.ReportDelegate.BindUObject(this, &UControlRigBlueprint::HandleReportFromCompiler);
+	VMCompileSettings.ASTSettings.ReportDelegate.BindUObject(this, &URigVMBlueprint::HandleReportFromCompiler);
 
 #if WITH_EDITOR
 	CompileLog.SetSourcePath(GetPathName());
 	CompileLog.bLogDetailedResults = false;
 	CompileLog.EventDisplayThresholdMs = false;
 #endif
-
-	Hierarchy = CreateDefaultSubobject<URigHierarchy>(TEXT("Hierarchy"));
-	URigHierarchyController* Controller = Hierarchy->GetController(true);
-	// give BP a chance to propagate hierarchy changes to available control rig instances
-	Controller->OnModified().AddUObject(this, &UControlRigBlueprint::HandleHierarchyModified);
 }
 
-UControlRigBlueprint::UControlRigBlueprint()
+URigVMBlueprint::URigVMBlueprint()
 {
 }
 
-void UControlRigBlueprint::InitializeModelIfRequired(bool bRecompileVM)
+void URigVMBlueprint::InitializeModelIfRequired(bool bRecompileVM)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
@@ -204,9 +138,8 @@ void UControlRigBlueprint::InitializeModelIfRequired(bool bRecompileVM)
 		bool bRecompileRequired = false;
 		for (int32 i = 0; i < UbergraphPages.Num(); ++i)
 		{
-			if (UControlRigGraph* Graph = Cast<UControlRigGraph>(UbergraphPages[i]))
+			if (URigVMEdGraph* Graph = Cast<URigVMEdGraph>(UbergraphPages[i]))
 			{
-				PopulateModelFromGraphForBackwardsCompatibility(Graph);
 				if (bRecompileVM)
 				{
 					bRecompileRequired = true;
@@ -225,40 +158,38 @@ void UControlRigBlueprint::InitializeModelIfRequired(bool bRecompileVM)
 	}
 }
 
-URigVMBlueprintGeneratedClass* UControlRigBlueprint::GetControlRigBlueprintGeneratedClass() const
+URigVMBlueprintGeneratedClass* URigVMBlueprint::GetRigVMBlueprintGeneratedClass() const
 {
 	URigVMBlueprintGeneratedClass* Result = Cast<URigVMBlueprintGeneratedClass>(*GeneratedClass);
 	return Result;
 }
 
-URigVMBlueprintGeneratedClass* UControlRigBlueprint::GetControlRigBlueprintSkeletonClass() const
+URigVMBlueprintGeneratedClass* URigVMBlueprint::GetRigVMBlueprintSkeletonClass() const
 {
 	URigVMBlueprintGeneratedClass* Result = Cast<URigVMBlueprintGeneratedClass>(*SkeletonGeneratedClass);
 	return Result;
 }
 
-UClass* UControlRigBlueprint::GetBlueprintClass() const
+UClass* URigVMBlueprint::GetBlueprintClass() const
 {
 	return URigVMBlueprintGeneratedClass::StaticClass();
 }
 
-UClass* UControlRigBlueprint::RegenerateClass(UClass* ClassToRegenerate, UObject* PreviousCDO)
+UClass* URigVMBlueprint::RegenerateClass(UClass* ClassToRegenerate, UObject* PreviousCDO)
 {
-	UClass* Result = nullptr;
+	UClass* Result;
 	{
 		TGuardValue<bool> NotificationGuard(bSuspendAllNotifications, true);
 		Result = Super::RegenerateClass(ClassToRegenerate, PreviousCDO);
 	}
-	Hierarchy->CleanupInvalidCaches();
-	PropagateHierarchyFromBPToInstances();
 	return Result;
 }
 
-void UControlRigBlueprint::LoadModulesRequiredForCompilation() 
+void URigVMBlueprint::LoadModulesRequiredForCompilation() 
 {
 }
 
-bool UControlRigBlueprint::ExportGraphToText(UEdGraph* InEdGraph, FString& OutText)
+bool URigVMBlueprint::ExportGraphToText(UEdGraph* InEdGraph, FString& OutText)
 {
 	OutText.Empty();
 
@@ -279,24 +210,26 @@ bool UControlRigBlueprint::ExportGraphToText(UEdGraph* InEdGraph, FString& OutTe
 	return true;
 }
 
-bool UControlRigBlueprint::CanImportGraphFromText(const FString& InClipboardText)
+bool URigVMBlueprint::CanImportGraphFromText(const FString& InClipboardText)
 {
 	return GetTemplateController(true)->CanImportNodesFromText(InClipboardText);
 }
 
-bool UControlRigBlueprint::RequiresForceLoadMembers(UObject* InObject) const
+bool URigVMBlueprint::RequiresForceLoadMembers(UObject* InObject) const
 {
 	// only filter if the console variable is enabled
-	if(!CVarEnablePreLoadFiltering->GetBool())
+	if(!CVarRigVMEnablePreLoadFiltering->GetBool())
 	{
 		return UBlueprint::RequiresForceLoadMembers(InObject);
 	}
 
+	/* todoooo
 	// old assets don't support preload filtering
 	if (GetLinkerCustomVersion(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::RemoveParameters)
 	{
 		return UBlueprint::RequiresForceLoadMembers(InObject);
 	}
+	*/
 	
 	// we can stop traversing when hitting a URigVMNode
 	// except for collapse nodes - since they contain a graphs again
@@ -312,33 +245,13 @@ bool UControlRigBlueprint::RequiresForceLoadMembers(UObject* InObject) const
 	return UBlueprint::RequiresForceLoadMembers(InObject);
 }
 
-void UControlRigBlueprint::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
+void URigVMBlueprint::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeChainProperty(PropertyChangedEvent);
 	PostEditChangeChainPropertyEvent.Broadcast(PropertyChangedEvent);
-
-	// Propagate shape libraries
-	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigBlueprint, ShapeLibraries))
-	{
-		URigVMBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
-		UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(false /* create if needed */));
-
-		TArray<UObject*> ArchetypeInstances;
-		CDO->GetArchetypeInstances(ArchetypeInstances);
-		ArchetypeInstances.Add(CDO);
-
-		// Propagate libraries to archetypes
-		for (UObject* Instance : ArchetypeInstances)
-		{
-			if (UControlRig* InstanceRig = Cast<UControlRig>(Instance))
-			{
-				InstanceRig->ShapeLibraries = ShapeLibraries;
-			}
-		}
-	}
 }
 
-void UControlRigBlueprint::PostRename(UObject* OldOuter, const FName OldName)
+void URigVMBlueprint::PostRename(UObject* OldOuter, const FName OldName)
 {
 	Super::PostRename(OldOuter, OldName);
 
@@ -359,7 +272,7 @@ void UControlRigBlueprint::PostRename(UObject* OldOuter, const FName OldName)
 	}
 }
 
-void UControlRigBlueprint::GetPreloadDependencies(TArray<UObject*>& OutDeps)
+void URigVMBlueprint::GetPreloadDependencies(TArray<UObject*>& OutDeps)
 {
 	Super::GetPreloadDependencies(OutDeps);
 
@@ -374,27 +287,27 @@ void UControlRigBlueprint::GetPreloadDependencies(TArray<UObject*>& OutDeps)
 	}
 }
 
-FRigVMClient* UControlRigBlueprint::GetRigVMClient()
+FRigVMClient* URigVMBlueprint::GetRigVMClient()
 {
 	return &RigVMClient;
 }
 
-const FRigVMClient* UControlRigBlueprint::GetRigVMClient() const
+const FRigVMClient* URigVMBlueprint::GetRigVMClient() const
 {
 	return &RigVMClient;
 }
 
-IRigVMGraphFunctionHost* UControlRigBlueprint::GetRigVMGraphFunctionHost() 
+IRigVMGraphFunctionHost* URigVMBlueprint::GetRigVMGraphFunctionHost() 
 {
-	return GetControlRigBlueprintGeneratedClass();
+	return GetRigVMBlueprintGeneratedClass();
 }
 
-const IRigVMGraphFunctionHost* UControlRigBlueprint::GetRigVMGraphFunctionHost() const 
+const IRigVMGraphFunctionHost* URigVMBlueprint::GetRigVMGraphFunctionHost() const 
 {
-	return GetControlRigBlueprintGeneratedClass();
+	return GetRigVMBlueprintGeneratedClass();
 }
 
-UObject* UControlRigBlueprint::GetEditorObjectForRigVMGraph(URigVMGraph* InVMGraph) const
+UObject* URigVMBlueprint::GetEditorObjectForRigVMGraph(URigVMGraph* InVMGraph) const
 {
 	if(InVMGraph)
 	{
@@ -419,7 +332,7 @@ UObject* UControlRigBlueprint::GetEditorObjectForRigVMGraph(URigVMGraph* InVMGra
 
 		for (UEdGraph* EdGraph : EdGraphs)
 		{
-			if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(EdGraph))
+			if (URigVMEdGraph* RigGraph = Cast<URigVMEdGraph>(EdGraph))
 			{
 				if (RigGraph->bIsFunctionDefinition != bIsFunctionDefinition)
 				{
@@ -438,7 +351,7 @@ UObject* UControlRigBlueprint::GetEditorObjectForRigVMGraph(URigVMGraph* InVMGra
 	return nullptr;
 }
 
-void UControlRigBlueprint::HandleRigVMGraphAdded(const FRigVMClient* InClient, const FString& InNodePath)
+void URigVMBlueprint::HandleRigVMGraphAdded(const FRigVMClient* InClient, const FString& InNodePath)
 {
 	if(URigVMGraph* Model = InClient->GetModel(InNodePath))
 	{
@@ -461,7 +374,7 @@ void UControlRigBlueprint::HandleRigVMGraphAdded(const FRigVMClient* InClient, c
 	}
 }
 
-void UControlRigBlueprint::HandleRigVMGraphRemoved(const FRigVMClient* InClient, const FString& InNodePath)
+void URigVMBlueprint::HandleRigVMGraphRemoved(const FRigVMClient* InClient, const FString& InNodePath)
 {
 	if(URigVMGraph* Model = InClient->GetModel(InNodePath))
 	{
@@ -480,16 +393,16 @@ void UControlRigBlueprint::HandleRigVMGraphRemoved(const FRigVMClient* InClient,
 	}
 }
 
-void UControlRigBlueprint::HandleRigVMGraphRenamed(const FRigVMClient* InClient, const FString& InOldNodePath, const FString& InNewNodePath)
+void URigVMBlueprint::HandleRigVMGraphRenamed(const FRigVMClient* InClient, const FString& InOldNodePath, const FString& InNewNodePath)
 {
-	if(URigVMGraph* Model = InClient->GetModel(InNewNodePath))
+	if(InClient->GetModel(InNewNodePath))
 	{
 		TArray<UEdGraph*> EdGraphs;
 		GetAllGraphs(EdGraphs);
 
 		for (UEdGraph* EdGraph : EdGraphs)
 		{
-			if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(EdGraph))
+			if (URigVMEdGraph* RigGraph = Cast<URigVMEdGraph>(EdGraph))
 			{
 				RigGraph->HandleRigVMGraphRenamed(InOldNodePath, InNewNodePath);
 			}
@@ -499,12 +412,12 @@ void UControlRigBlueprint::HandleRigVMGraphRenamed(const FRigVMClient* InClient,
 	}
 }
 
-void UControlRigBlueprint::HandleConfigureRigVMController(const FRigVMClient* InClient,
+void URigVMBlueprint::HandleConfigureRigVMController(const FRigVMClient* InClient,
 	URigVMController* InControllerToConfigure)
 {
-	InControllerToConfigure->OnModified().AddUObject(this, &UControlRigBlueprint::HandleModifiedEvent);
+	InControllerToConfigure->OnModified().AddUObject(this, &URigVMBlueprint::HandleModifiedEvent);
 
-	TWeakObjectPtr<UControlRigBlueprint> WeakThis(this);
+	TWeakObjectPtr<URigVMBlueprint> WeakThis(this);
 
 	// this delegate is used by the controller to determine variable validity
 	// during a bind process. the controller itself doesn't own the variables,
@@ -513,11 +426,11 @@ void UControlRigBlueprint::HandleConfigureRigVMController(const FRigVMClient* In
 
 		if (InGraph)
 		{
-			if(UControlRigBlueprint* Blueprint = InGraph->GetTypedOuter<UControlRigBlueprint>())
+			if(URigVMBlueprint* Blueprint = InGraph->GetTypedOuter<URigVMBlueprint>())
 			{
-				if (URigVMBlueprintGeneratedClass* RigClass = Blueprint->GetControlRigBlueprintGeneratedClass())
+				if (URigVMBlueprintGeneratedClass* RigClass = Blueprint->GetRigVMBlueprintGeneratedClass())
 				{
-                    if (UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */)))
+                    if (URigVMHost* CDO = Cast<URigVMHost>(RigClass->GetDefaultObject(true /* create if needed */)))
                     {
                         return CDO->GetExternalVariablesImpl(true /* rely on variables within blueprint */);
                     }
@@ -534,13 +447,13 @@ void UControlRigBlueprint::HandleConfigureRigVMController(const FRigVMClient* In
 
 		if (WeakThis.IsValid())
 		{
-			if (URigVMBlueprintGeneratedClass* RigClass = WeakThis->GetControlRigBlueprintGeneratedClass())
+			if (URigVMBlueprintGeneratedClass* RigClass = WeakThis->GetRigVMBlueprintGeneratedClass())
 			{
-				if (UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(false)))
+				if (URigVMHost* CDO = Cast<URigVMHost>(RigClass->GetDefaultObject(false)))
 				{
-					if (CDO->VM)
+					if (URigVM* VM = CDO->GetVM())
 					{
-						return &CDO->VM->GetByteCode();
+						return &VM->GetByteCode();
 					}
 				}
 			}
@@ -561,7 +474,7 @@ void UControlRigBlueprint::HandleConfigureRigVMController(const FRigVMClient* In
 		[WeakThis](FRigVMExternalVariable InVariableToCreate, FString InDefaultValue) -> FName {
 			if (WeakThis.IsValid())
 			{
-				return WeakThis->AddCRMemberVariableFromExternal(InVariableToCreate, InDefaultValue);
+				return WeakThis->AddHostMemberVariableFromExternal(InVariableToCreate, InDefaultValue);
 			}
 			return NAME_None;
 		}
@@ -572,7 +485,7 @@ void UControlRigBlueprint::HandleConfigureRigVMController(const FRigVMClient* In
 	{
 		if(WeakThis.IsValid() && WeakController.IsValid())
 		{
-			UControlRigBlueprint* StrongThis = WeakThis.Get();
+			URigVMBlueprint* StrongThis = WeakThis.Get();
             URigVMController* StrongController = WeakController.Get();
             if(StrongThis->OnRequestBulkEditDialog().IsBound())
 			{
@@ -586,7 +499,7 @@ void UControlRigBlueprint::HandleConfigureRigVMController(const FRigVMClient* In
 	{
 		if(WeakThis.IsValid() && WeakController.IsValid())
 		{
-			UControlRigBlueprint* StrongThis = WeakThis.Get();
+			URigVMBlueprint* StrongThis = WeakThis.Get();
 			if(StrongThis->OnRequestBreakLinksDialog().IsBound())
 			{
 				return StrongThis->OnRequestBreakLinksDialog().Execute(InLinks);
@@ -599,7 +512,7 @@ void UControlRigBlueprint::HandleConfigureRigVMController(const FRigVMClient* In
 	{
 		if(WeakThis.IsValid())
 		{
-			UControlRigBlueprint* StrongThis = WeakThis.Get();
+			URigVMBlueprint* StrongThis = WeakThis.Get();
 			if(StrongThis->OnRequestPinTypeSelectionDialog().IsBound())
 			{
 				return StrongThis->OnRequestPinTypeSelectionDialog().Execute(InTypes);
@@ -636,7 +549,7 @@ void UControlRigBlueprint::HandleConfigureRigVMController(const FRigVMClient* In
 	{
 		if (WeakThis.IsValid())
 		{
-			UControlRigBlueprint* StrongThis = WeakThis.Get();
+			URigVMBlueprint* StrongThis = WeakThis.Get();
 			if(StrongThis->OnRequestJumpToHyperlink().IsBound())
 			{
 				StrongThis->OnRequestJumpToHyperlink().Execute(InSubject);
@@ -644,6 +557,8 @@ void UControlRigBlueprint::HandleConfigureRigVMController(const FRigVMClient* In
 		}
 	});
 
+	/*
+	 * todooooo
 	InControllerToConfigure->ConfigureWorkflowOptionsDelegate.BindLambda([WeakThis](URigVMUserWorkflowOptions* Options)
 	{
 		if(UControlRigWorkflowOptions* ControlRigNodeWorkflowOptions = Cast<UControlRigWorkflowOptions>(Options))
@@ -651,7 +566,7 @@ void UControlRigBlueprint::HandleConfigureRigVMController(const FRigVMClient* In
 			ControlRigNodeWorkflowOptions->Hierarchy = nullptr;
 			ControlRigNodeWorkflowOptions->Selection.Reset();
 			
-			if(const UControlRigBlueprint* StrongThis = WeakThis.Get())
+			if(const URigVMBlueprint* StrongThis = WeakThis.Get())
 			{
 				if(UControlRig* ControlRig = Cast<UControlRig>(StrongThis->GetObjectBeingDebugged()))
 				{
@@ -661,11 +576,12 @@ void UControlRigBlueprint::HandleConfigureRigVMController(const FRigVMClient* In
 			}
 		}
 	});
+	*/
 
 #endif
 }
 
-bool UControlRigBlueprint::TryImportGraphFromText(const FString& InClipboardText, UEdGraph** OutGraphPtr)
+bool URigVMBlueprint::TryImportGraphFromText(const FString& InClipboardText, UEdGraph** OutGraphPtr)
 {
 	if (OutGraphPtr)
 	{
@@ -710,44 +626,15 @@ bool UControlRigBlueprint::TryImportGraphFromText(const FString& InClipboardText
 	return true;
 }
 
-USkeletalMesh* UControlRigBlueprint::GetPreviewMesh() const
+void URigVMBlueprint::Serialize(FArchive& Ar)
 {
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-
-#if WITH_EDITORONLY_DATA
-	if (!PreviewSkeletalMesh.IsValid())
-	{
-		PreviewSkeletalMesh.LoadSynchronous();
-	}
-
-	return PreviewSkeletalMesh.Get();
-#else
-	return nullptr;
-#endif
-}
-
-void UControlRigBlueprint::SetPreviewMesh(USkeletalMesh* PreviewMesh, bool bMarkAsDirty/*=true*/)
-{
-#if WITH_EDITORONLY_DATA
-	if(bMarkAsDirty)
-	{
-		Modify();
-	}
-
-	PreviewSkeletalMesh = PreviewMesh;
-#endif
-}
-
-void UControlRigBlueprint::Serialize(FArchive& Ar)
-{
-	RigVMClient.SetOuterClientHost(this, GET_MEMBER_NAME_CHECKED(UControlRigBlueprint, RigVMClient));
+	RigVMClient.SetOuterClientHost(this, GET_MEMBER_NAME_CHECKED(URigVMBlueprint, RigVMClient));
 	
 	Super::Serialize(Ar);
 
 	if(Ar.IsObjectReferenceCollector())
 	{
-		Ar.UsingCustomVersion(FControlRigObjectVersion::GUID);
-
+		Ar.UsingCustomVersion(FRigVMObjectVersion::GUID);
 
 #if WITH_EDITORONLY_DATA
 		if (Ar.IsCooking() && ReferencedObjectPathsStored)
@@ -769,15 +656,6 @@ void UControlRigBlueprint::Serialize(FArchive& Ar)
 					Ar << BPGeneratedClass;
 				}
 			}
-
-			for(const TSoftObjectPtr<UControlRigShapeLibrary>& ShapeLibraryPtr : ShapeLibraries)
-			{
-				if(ShapeLibraryPtr.IsValid())
-				{
-					UControlRigShapeLibrary* ShapeLibrary = ShapeLibraryPtr.Get();
-					Ar << ShapeLibrary;
-				}
-			}
 		}
 	}
 
@@ -791,23 +669,23 @@ void UControlRigBlueprint::Serialize(FArchive& Ar)
 	}
 }
 
-void UControlRigBlueprint::PreSave(const class ITargetPlatform* TargetPlatform)
+void URigVMBlueprint::PreSave(const class ITargetPlatform* TargetPlatform)
 {
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 	Super::PreSave(TargetPlatform);
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 }
 
-void UControlRigBlueprint::PreSave(FObjectPreSaveContext ObjectSaveContext)
+void URigVMBlueprint::PreSave(FObjectPreSaveContext ObjectSaveContext)
 {
 	Super::PreSave(ObjectSaveContext);
 
 	RigVMClient.PreSave(ObjectSaveContext);
 
 	SupportedEventNames.Reset();
-	if (URigVMBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass())
+	if (URigVMBlueprintGeneratedClass* RigClass = GetRigVMBlueprintGeneratedClass())
 	{
-		if (UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */)))
+		if (const URigVMHost* CDO = Cast<URigVMHost>(RigClass->GetDefaultObject(true /* create if needed */)))
 		{
 			SupportedEventNames = CDO->GetSupportedEvents();
 		}
@@ -832,27 +710,8 @@ void UControlRigBlueprint::PreSave(FObjectPreSaveContext ObjectSaveContext)
 		}
 	}
 
-	for(const TSoftObjectPtr<UControlRigShapeLibrary>& ShapeLibraryPtr : ShapeLibraries)
-	{
-		if(ShapeLibraryPtr.IsValid())
-		{
-			UControlRigShapeLibrary* ShapeLibrary = ShapeLibraryPtr.Get();
-			ReferencedObjectPaths.AddUnique(ShapeLibrary);
-		}
-	}
 	ReferencedObjectPathsStored = true;
 #endif
-
-	bExposesAnimatableControls = false;
-	Hierarchy->ForEach<FRigControlElement>([this](FRigControlElement* ControlElement) -> bool
-    {
-		if (Hierarchy->IsAnimatable(ControlElement))
-		{
-			bExposesAnimatableControls = true;
-			return false;
-		}
-		return true;
-	});
 
 	FunctionReferenceNodeData = GetReferenceNodeData();
 	IAssetRegistry::GetChecked().AssetTagsFinalized(*this);
@@ -860,7 +719,7 @@ void UControlRigBlueprint::PreSave(FObjectPreSaveContext ObjectSaveContext)
 	CachedAssetTags.Reset();
 }
 
-void UControlRigBlueprint::PostLoad()
+void URigVMBlueprint::PostLoad()
 {
 	Super::PostLoad();
 
@@ -886,52 +745,11 @@ void UControlRigBlueprint::PostLoad()
 		// temporarily disable default value validation during load time, serialized values should always be accepted
 		TGuardValue<bool> DisablePinDefaultValueValidation(GetOrCreateController()->bValidatePinDefaults, false);
 
-		// correct the offset transforms
-		if (GetLinkerCustomVersion(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::ControlOffsetTransform)
-		{
-			HierarchyContainer_DEPRECATED.ControlHierarchy.PostLoad();
-			if (HierarchyContainer_DEPRECATED.ControlHierarchy.Num() > 0)
-			{
-				bDirtyDuringLoad = true;
-			}
-
-			for (FRigControl& Control : HierarchyContainer_DEPRECATED.ControlHierarchy)
-			{
-				const FTransform PreviousOffsetTransform = Control.GetTransformFromValue(ERigControlValueType::Initial);
-				Control.OffsetTransform = PreviousOffsetTransform;
-				Control.InitialValue = Control.Value;
-
-				if (Control.ControlType == ERigControlType::Transform)
-				{
-					Control.InitialValue = FRigControlValue::Make<FTransform>(FTransform::Identity);
-				}
-				else if (Control.ControlType == ERigControlType::TransformNoScale)
-				{
-					Control.InitialValue = FRigControlValue::Make<FTransformNoScale>(FTransformNoScale::Identity);
-				}
-				else if (Control.ControlType == ERigControlType::EulerTransform)
-				{
-					Control.InitialValue = FRigControlValue::Make<FEulerTransform>(FEulerTransform::Identity);
-				}
-			}
-		}
-
-		// convert the hierarchy from V1 to V2
-		if (GetLinkerCustomVersion(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::RigHierarchyV2)
-		{
-			Modify();
-			
-			TGuardValue<bool> SuspendNotifGuard(Hierarchy->GetSuspendNotificationsFlag(), true);
-			
-			Hierarchy->Reset();
-			GetHierarchyController()->ImportFromHierarchyContainer(HierarchyContainer_DEPRECATED, false);
-		}
-
 		// remove all non-controlrig-graphs
 		TArray<UEdGraph*> NewUberGraphPages;
 		for (UEdGraph* Graph : UbergraphPages)
 		{
-			UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph);
+			URigVMEdGraph* RigGraph = Cast<URigVMEdGraph>(Graph);
 			if (RigGraph)
 			{
 				NewUberGraphPages.Add(RigGraph);
@@ -966,9 +784,8 @@ void UControlRigBlueprint::PostLoad()
 			PatchFunctionReferencesOnLoad();
 			PatchVariableNodesOnLoad();
 			PatchVariableNodesWithIncorrectType();
-			PatchRigElementKeyCacheOnLoad();
+			PathDomainSpecificContentOnLoad();
 			PatchBoundVariables();
-			PatchPropagateToChildren();
 			PatchParameterNodesOnLoad();
 			PatchLinksWithCast();
 			PatchFunctionsOnLoad();
@@ -986,12 +803,12 @@ void UControlRigBlueprint::PostLoad()
 			// any pin that references the struct needs to be regenerated
 			RefreshAllModels();
 		}
-
+		
 		// at this point we may still have links which are detached. we may or may not be able to 
 		// reattach them.
 		GetRigVMClient()->ProcessDetachedLinks();
 
-		GetControlRigBlueprintGeneratedClass()->GetRigVMGraphFunctionStore()->RemoveAllCompilationData();
+		GetRigVMBlueprintGeneratedClass()->GetRigVMGraphFunctionStore()->RemoveAllCompilationData();
 
 		// perform backwards compat value upgrades
 		TArray<URigVMGraph*> GraphsToValidate = GetAllModels();
@@ -1012,23 +829,6 @@ void UControlRigBlueprint::PostLoad()
 				
 			for(URigVMNode* Node : GraphToValidate->GetNodes())
 			{
-				TArray<URigVMPin*> Pins = Node->GetAllPinsRecursively();
-				for(URigVMPin* Pin : Pins)
-				{
-					if(Pin->GetCPPTypeObject() == StaticEnum<ERigElementType>())
-					{
-						if(Pin->GetDefaultValue() == TEXT("Space"))
-						{
-							if(URigVMController* Controller = GetController(GraphToValidate))
-							{
-								FRigVMControllerNotifGuard NotifGuard(Controller, true);
-								Controller->SetPinDefaultValue(Pin->GetPinPath(), TEXT("Null"), false, false, false);
-							}
-						}
-					}
-				}
-
-				
 				// avoid function reference related validation for temp assets, a temp asset may get generated during
 				// certain content validation process. It is usually just a simple file-level copy of the source asset
 				// so these references are usually not fixed-up properly. Thus, it is meaningless to validate them.
@@ -1051,55 +851,21 @@ void UControlRigBlueprint::PostLoad()
 #endif
 	}
 
-	// upgrade the gizmo libraries to shape libraries
-	if(!GizmoLibrary_DEPRECATED.IsNull() || GetLinkerCustomVersion(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::RenameGizmoToShape)
-	{
-		// if it's an older file and it doesn't have the GizmoLibrary stored,
-		// refer to the previous default.
-		ShapeLibraries.Reset();
-
-		if(!GizmoLibrary_DEPRECATED.IsNull())
-		{
-			ShapeLibrariesToLoadOnPackageLoaded.Add(GizmoLibrary_DEPRECATED.ToString());
-		}
-		else
-		{
-			static const FString DefaultGizmoLibraryPath = TEXT("/ControlRig/Controls/DefaultGizmoLibrary.DefaultGizmoLibrary");
-			ShapeLibrariesToLoadOnPackageLoaded.Add(DefaultGizmoLibraryPath);
-		}
-
-		URigVMBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
-		UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(false /* create if needed */));
-
-		TArray<UObject*> ArchetypeInstances;
-		CDO->GetArchetypeInstances(ArchetypeInstances);
-		ArchetypeInstances.Insert(CDO, 0);
-
-		for (UObject* Instance : ArchetypeInstances)
-		{
-			if (UControlRig* InstanceRig = Cast<UControlRig>(Instance))
-			{
-				InstanceRig->ShapeLibraries.Reset();
-				InstanceRig->GizmoLibrary_DEPRECATED.Reset();
-			}
-		}
-	}
-
 #if WITH_EDITOR
 	if(GIsEditor)
 	{
 		// delay compilation until the package has been loaded
-		FCoreUObjectDelegates::OnEndLoadPackage.AddUObject(this, &UControlRigBlueprint::HandlePackageDone);
+		FCoreUObjectDelegates::OnEndLoadPackage.AddUObject(this, &URigVMBlueprint::HandlePackageDone);
 	}
 #else
 	RecompileVMIfRequired();
 #endif
-	RequestControlRigInit();
+	RequestRigVMInit();
 
 	FCoreUObjectDelegates::OnObjectModified.RemoveAll(this);
 	OnChanged().RemoveAll(this);
-	FCoreUObjectDelegates::OnObjectModified.AddUObject(this, &UControlRigBlueprint::OnPreVariableChange);
-	OnChanged().AddUObject(this, &UControlRigBlueprint::OnPostVariableChange);
+	FCoreUObjectDelegates::OnObjectModified.AddUObject(this, &URigVMBlueprint::OnPreVariableChange);
+	OnChanged().AddUObject(this, &URigVMBlueprint::OnPostVariableChange);
 
 	if (UPackage* Package = GetOutermost())
 	{
@@ -1118,13 +884,13 @@ void UControlRigBlueprint::PostLoad()
 	// RigVMRegistry changes can be triggered when new user defined types(structs/enums) are added/removed
 	// in which case we have to refresh the model
 	FRigVMRegistry::Get().OnRigVMRegistryChanged().RemoveAll(this);
-	FRigVMRegistry::Get().OnRigVMRegistryChanged().AddUObject(this, &UControlRigBlueprint::OnRigVMRegistryChanged);
+	FRigVMRegistry::Get().OnRigVMRegistryChanged().AddUObject(this, &URigVMBlueprint::OnRigVMRegistryChanged);
 	
 	UEdGraphPin::ResolveAllPinReferences();
 }
 
 #if WITH_EDITORONLY_DATA
-void UControlRigBlueprint::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
+void URigVMBlueprint::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
 {
 	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);
 	OutConstructClasses.Add(FTopLevelAssetPath(URigVMController::StaticClass()));
@@ -1132,7 +898,7 @@ void UControlRigBlueprint::DeclareConstructClasses(TArray<FTopLevelAssetPath>& O
 #endif
 
 #if WITH_EDITOR
-void UControlRigBlueprint::HandlePackageDone(const FEndLoadPackageContext& Context)
+void URigVMBlueprint::HandlePackageDone(const FEndLoadPackageContext& Context)
 {
 	if (!Context.LoadedPackages.Contains(GetPackage()))
 	{
@@ -1141,34 +907,9 @@ void UControlRigBlueprint::HandlePackageDone(const FEndLoadPackageContext& Conte
 	HandlePackageDone();
 }
 
-void UControlRigBlueprint::HandlePackageDone()
+void URigVMBlueprint::HandlePackageDone()
 {
 	FCoreUObjectDelegates::OnEndLoadPackage.RemoveAll(this);
-
-	if (ShapeLibrariesToLoadOnPackageLoaded.Num() > 0)
-	{
-		for(const FString& ShapeLibraryToLoadOnPackageLoaded : ShapeLibrariesToLoadOnPackageLoaded)
-		{
-			ShapeLibraries.Add(LoadObject<UControlRigShapeLibrary>(nullptr, *ShapeLibraryToLoadOnPackageLoaded));
-		}
-
-		URigVMBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
-		UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(false /* create if needed */));
-
-		TArray<UObject*> ArchetypeInstances;
-		CDO->GetArchetypeInstances(ArchetypeInstances);
-		ArchetypeInstances.Insert(CDO, 0);
-
-		for (UObject* Instance : ArchetypeInstances)
-		{
-			if (UControlRig* InstanceRig = Cast<UControlRig>(Instance))
-			{
-				InstanceRig->ShapeLibraries = ShapeLibraries;
-			}
-		}
-
-		ShapeLibrariesToLoadOnPackageLoaded.Reset();
-	}
 
 	if(URigVMBuildData* BuildData = URigVMBuildData::Get())
 	{
@@ -1198,11 +939,11 @@ void UControlRigBlueprint::HandlePackageDone()
 						// if the asset has never been loaded - make sure to load it once and mark as dirty
 						if(AssetData.IsValid() && !AssetData.IsAssetLoaded())
 						{
-							if(UControlRigBlueprint* Dependent = Cast<UControlRigBlueprint>(AssetData.GetAsset()))
+							if(URigVMBlueprint* Dependent = Cast<URigVMBlueprint>(AssetData.GetAsset()))
 							{
 								if(Dependent != this)
 								{
-									Dependent->MarkPackageDirty();
+									(void)Dependent->MarkPackageDirty();
 								}
 							}
 						}
@@ -1210,7 +951,7 @@ void UControlRigBlueprint::HandlePackageDone()
 				}
 				
 				FunctionLibrary->FunctionReferences_DEPRECATED.Reset();
-				MarkPackageDirty();
+				(void)MarkPackageDirty();
 			}
 		}
 
@@ -1224,33 +965,32 @@ void UControlRigBlueprint::HandlePackageDone()
 		BuildData->ClearInvalidReferences();
 	}
 	
-	PropagateHierarchyFromBPToInstances();
 	RemoveDeprecatedVMMemoryClass();
 	RecompileVM();
-	RequestControlRigInit();
-	BroadcastControlRigPackageDone();
+	RequestRigVMInit();
+	BroadcastRigVMPackageDone();
 }
 
-void UControlRigBlueprint::BroadcastControlRigPackageDone()
+void URigVMBlueprint::BroadcastRigVMPackageDone()
 {
-	if (URigVMBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass())
+	if (URigVMBlueprintGeneratedClass* RigClass = GetRigVMBlueprintGeneratedClass())
 	{
-		UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */));
+		URigVMHost* CDO = Cast<URigVMHost>(RigClass->GetDefaultObject(true /* create if needed */));
 		CDO->BroadCastEndLoadPackage();
 
 		TArray<UObject*> ArchetypeInstances;
 		CDO->GetArchetypeInstances(ArchetypeInstances);
 		for (UObject* Instance : ArchetypeInstances)
 		{
-			if (UControlRig* InstanceRig = Cast<UControlRig>(Instance))
+			if (URigVMHost* InstanceHost = Cast<URigVMHost>(Instance))
 			{
-				InstanceRig->BroadCastEndLoadPackage();
+				InstanceHost->BroadCastEndLoadPackage();
 			}
 		}
 	}
 }
 
-void UControlRigBlueprint::RemoveDeprecatedVMMemoryClass() const
+void URigVMBlueprint::RemoveDeprecatedVMMemoryClass() const
 {
 	TArray<UObject*> Objects;
 	GetObjectsWithOuter(this, Objects, false);
@@ -1265,14 +1005,14 @@ void UControlRigBlueprint::RemoveDeprecatedVMMemoryClass() const
 }
 #endif
 
-void UControlRigBlueprint::RecompileVM()
+void URigVMBlueprint::RecompileVM()
 {
 	if(bIsCompiling)
 	{
 		return;
 	}
 
-	URigVMBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
+	URigVMBlueprintGeneratedClass* RigClass = GetRigVMBlueprintGeneratedClass();
 	if(RigClass == nullptr)
 	{
 		return;
@@ -1285,7 +1025,7 @@ void UControlRigBlueprint::RecompileVM()
 	RigGraphDisplaySettings.MinMicroSeconds = RigGraphDisplaySettings.LastMinMicroSeconds = DBL_MAX;
 	RigGraphDisplaySettings.MaxMicroSeconds = RigGraphDisplaySettings.LastMaxMicroSeconds = (double)INDEX_NONE;
 
-	UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */));
+	URigVMHost* CDO = Cast<URigVMHost>(RigClass->GetDefaultObject(true /* create if needed */));
 	if (CDO && CDO->VM != nullptr)
 	{
 		TGuardValue<bool> ReentrantGuardSelf(bSuspendModelNotificationsForSelf, true);
@@ -1293,7 +1033,6 @@ void UControlRigBlueprint::RecompileVM()
 
 		CDO->PostInitInstanceIfRequired();
 		CDO->VMRuntimeSettings = VMRuntimeSettings;
-		CDO->GetHierarchy()->CopyHierarchy(Hierarchy);
 
 		if (!HasAnyFlags(RF_Transient | RF_Transactional))
 		{
@@ -1310,7 +1049,7 @@ void UControlRigBlueprint::RecompileVM()
 
 		for (UEdGraph* Graph : EdGraphs)
 		{
-			UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph);
+			URigVMEdGraph* RigGraph = Cast<URigVMEdGraph>(Graph);
 			if (RigGraph == nullptr)
 			{
 				continue;
@@ -1318,9 +1057,9 @@ void UControlRigBlueprint::RecompileVM()
 
 			for (UEdGraphNode* GraphNode : Graph->Nodes)
 			{
-				if (UControlRigGraphNode* ControlRigGraphNode = Cast<UControlRigGraphNode>(GraphNode))
+				if (URigVMEdGraphNode* RigVMEdGraphNode = Cast<URigVMEdGraphNode>(GraphNode))
 				{
-					ControlRigGraphNode->ClearErrorInfo();
+					RigVMEdGraphNode->ClearErrorInfo();
 				}
 			}
 		}
@@ -1349,16 +1088,16 @@ void UControlRigBlueprint::RecompileVM()
 		CDO->GetArchetypeInstances(ArchetypeInstances);
 		for (UObject* Instance : ArchetypeInstances)
 		{
-			if (UControlRig* InstanceRig = Cast<UControlRig>(Instance))
+			if (URigVMHost* InstanceHost = Cast<URigVMHost>(Instance))
 			{
 				// No objects should be created during load, so PostInitInstanceIfRequired, which creates a new VM and
 				// DynamicHierarchy, should not be called during load
-				if (!InstanceRig->HasAllFlags(RF_NeedPostLoad))
+				if (!InstanceHost->HasAllFlags(RF_NeedPostLoad))
 				{
-					InstanceRig->PostInitInstanceIfRequired();
+					InstanceHost->PostInitInstanceIfRequired();
 				}
-				InstanceRig->InstantiateVMFromCDO();
-				InstanceRig->CopyExternalVariableDefaultValuesFromCDO();
+				InstanceHost->InstantiateVMFromCDO();
+				InstanceHost->CopyExternalVariableDefaultValuesFromCDO();
 			}
 		}
 
@@ -1371,7 +1110,7 @@ void UControlRigBlueprint::RecompileVM()
 	}
 }
 
-void UControlRigBlueprint::RecompileVMIfRequired()
+void URigVMBlueprint::RecompileVMIfRequired()
 {
 	if (bVMRecompilationRequired)
 	{
@@ -1379,7 +1118,7 @@ void UControlRigBlueprint::RecompileVMIfRequired()
 	}
 }
 
-void UControlRigBlueprint::RequestAutoVMRecompilation()
+void URigVMBlueprint::RequestAutoVMRecompilation()
 {
 	bVMRecompilationRequired = true;
 	if (bAutoRecompileVM && VMRecompilationBracket == 0)
@@ -1388,12 +1127,12 @@ void UControlRigBlueprint::RequestAutoVMRecompilation()
 	}
 }
 
-void UControlRigBlueprint::IncrementVMRecompileBracket()
+void URigVMBlueprint::IncrementVMRecompileBracket()
 {
 	VMRecompilationBracket++;
 }
 
-void UControlRigBlueprint::DecrementVMRecompileBracket()
+void URigVMBlueprint::DecrementVMRecompileBracket()
 {
 	if (VMRecompilationBracket == 1)
 	{
@@ -1409,12 +1148,12 @@ void UControlRigBlueprint::DecrementVMRecompileBracket()
 	}
 }
 
-void UControlRigBlueprint::RefreshAllModels(EControlRigBlueprintLoadType InLoadType)
+void URigVMBlueprint::RefreshAllModels(ERigVMBlueprintLoadType InLoadType)
 {
-	const bool bIsPostLoad = InLoadType == EControlRigBlueprintLoadType::PostLoad;
+	const bool bIsPostLoad = InLoadType == ERigVMBlueprintLoadType::PostLoad;
 
 	// avoid any compute if the current structure hashes match with the serialized ones
-	if(CVarEnablePostLoadHashing->GetBool() && RigVMClient.GetStructureHash() == RigVMClient.GetSerializedStructureHash())
+	if(CVarRigVMEnablePostLoadHashing->GetBool() && RigVMClient.GetStructureHash() == RigVMClient.GetSerializedStructureHash())
 	{
 		if(bIsPostLoad)
 		{
@@ -1550,7 +1289,7 @@ void UControlRigBlueprint::RefreshAllModels(EControlRigBlueprintLoadType InLoadT
 	}
 }
 
-void UControlRigBlueprint::OnRigVMRegistryChanged()
+void URigVMBlueprint::OnRigVMRegistryChanged()
 {
 	RefreshAllModels();
 	RebuildGraphFromModel();
@@ -1558,14 +1297,14 @@ void UControlRigBlueprint::OnRigVMRegistryChanged()
 	FRigVMBlueprintUtils::HandleRefreshAllNodes(this);
 }
 
-void UControlRigBlueprint::HandleReportFromCompiler(EMessageSeverity::Type InSeverity, UObject* InSubject, const FString& InMessage)
+void URigVMBlueprint::HandleReportFromCompiler(EMessageSeverity::Type InSeverity, UObject* InSubject, const FString& InMessage)
 {
 	UObject* SubjectForMessage = InSubject;
 	if(URigVMNode* ModelNode = Cast<URigVMNode>(SubjectForMessage))
 	{
-		if(UControlRigBlueprint* RigBlueprint = ModelNode->GetTypedOuter<UControlRigBlueprint>())
+		if(URigVMBlueprint* RigBlueprint = ModelNode->GetTypedOuter<URigVMBlueprint>())
 		{
-			if(UControlRigGraph* EdGraph = Cast<UControlRigGraph>(RigBlueprint->GetEdGraph(ModelNode->GetGraph())))
+			if(URigVMEdGraph* EdGraph = Cast<URigVMEdGraph>(RigBlueprint->GetEdGraph(ModelNode->GetGraph())))
 			{
 				if(UEdGraphNode* EdNode = EdGraph->FindNodeForModelNodeName(ModelNode->GetFName()))
 				{
@@ -1579,7 +1318,7 @@ void UControlRigBlueprint::HandleReportFromCompiler(EMessageSeverity::Type InSev
 	if (InSeverity == EMessageSeverity::Error)
 	{
 		Status = BS_Error;
-		MarkPackageDirty();
+		(void)MarkPackageDirty();
 
 		// see UnitTest "ControlRig.Basics.OrphanedPins" to learn why errors are suppressed this way
 		if (VMCompileSettings.SurpressErrors)
@@ -1631,10 +1370,10 @@ void UControlRigBlueprint::HandleReportFromCompiler(EMessageSeverity::Type InSev
 			Log->Note(*InMessage);
 		}
 
-		UE_LOG(LogControlRigDeveloper, Display, TEXT("%s"), *InMessage);
+		UE_LOG(LogRigVMDeveloper, Display, TEXT("%s"), *InMessage);
 	}
 
-	if (UControlRigGraphNode* EdGraphNode = Cast<UControlRigGraphNode>(SubjectForMessage))
+	if (URigVMEdGraphNode* EdGraphNode = Cast<URigVMEdGraphNode>(SubjectForMessage))
 	{
 		EdGraphNode->ErrorType = (int32)InSeverity;
 		EdGraphNode->ErrorMsg = InMessage;
@@ -1642,7 +1381,7 @@ void UControlRigBlueprint::HandleReportFromCompiler(EMessageSeverity::Type InSev
 	}
 }
 
-TArray<IRigVMGraphFunctionHost*> UControlRigBlueprint::GetReferencedFunctionHosts(bool bForceLoad)
+TArray<IRigVMGraphFunctionHost*> URigVMBlueprint::GetReferencedFunctionHosts(bool bForceLoad)
 {
 	TArray<IRigVMGraphFunctionHost*> ReferencedBlueprints;
 	
@@ -1652,7 +1391,7 @@ TArray<IRigVMGraphFunctionHost*> UControlRigBlueprint::GetReferencedFunctionHost
 	{
 		for(UEdGraphNode* Node : EdGraph->Nodes)
 		{
-			if(UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node))
+			if(URigVMEdGraphNode* RigNode = Cast<URigVMEdGraphNode>(Node))
 			{
 				if(URigVMFunctionReferenceNode* FunctionRefNode = Cast<URigVMFunctionReferenceNode>(RigNode->GetModelNode()))
 				{
@@ -1678,7 +1417,7 @@ TArray<IRigVMGraphFunctionHost*> UControlRigBlueprint::GetReferencedFunctionHost
 						}
 					}
 
-					if (Host != nullptr && Host != GetControlRigBlueprintGeneratedClass())
+					if (Host != nullptr && Host != GetRigVMBlueprintGeneratedClass())
 					{
 						ReferencedBlueprints.Add(Host);
 					}
@@ -1692,7 +1431,7 @@ TArray<IRigVMGraphFunctionHost*> UControlRigBlueprint::GetReferencedFunctionHost
 
 #if WITH_EDITOR
 
-void UControlRigBlueprint::ClearBreakpoints()
+void URigVMBlueprint::ClearBreakpoints()
 {
 	for(URigVMNode* Node : RigVMBreakpointNodes)
 	{
@@ -1703,7 +1442,7 @@ void UControlRigBlueprint::ClearBreakpoints()
 	RefreshControlRigBreakpoints();
 }
 
-bool UControlRigBlueprint::AddBreakpoint(const FString& InBreakpointNodePath)
+bool URigVMBlueprint::AddBreakpoint(const FString& InBreakpointNodePath)
 {
 	URigVMLibraryNode* FunctionNode = nullptr;
 	
@@ -1733,7 +1472,7 @@ bool UControlRigBlueprint::AddBreakpoint(const FString& InBreakpointNodePath)
 	return false;
 }
 
-bool UControlRigBlueprint::AddBreakpoint(URigVMNode* InBreakpointNode, URigVMLibraryNode* LibraryNode)
+bool URigVMBlueprint::AddBreakpoint(URigVMNode* InBreakpointNode, URigVMLibraryNode* LibraryNode)
 {
 	if (InBreakpointNode == nullptr)
 	{
@@ -1752,7 +1491,7 @@ bool UControlRigBlueprint::AddBreakpoint(URigVMNode* InBreakpointNode, URigVMLib
 				continue;
 			}
 
-			UControlRigBlueprint* ReferenceBlueprint = Reference->GetTypedOuter<UControlRigBlueprint>();
+			URigVMBlueprint* ReferenceBlueprint = Reference->GetTypedOuter<URigVMBlueprint>();
 
 			// If the reference is not inside another function, add a breakpoint in the blueprint containing the
 			// reference, without a function specified
@@ -1794,10 +1533,10 @@ bool UControlRigBlueprint::AddBreakpoint(URigVMNode* InBreakpointNode, URigVMLib
 	return bSuccess;
 }
 
-bool UControlRigBlueprint::AddBreakpointToControlRig(URigVMNode* InBreakpointNode)
+bool URigVMBlueprint::AddBreakpointToControlRig(URigVMNode* InBreakpointNode)
 {
-	URigVMBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
-	UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(false));
+	URigVMBlueprintGeneratedClass* RigClass = GetRigVMBlueprintGeneratedClass();
+	URigVMHost* CDO = Cast<URigVMHost>(RigClass->GetDefaultObject(false));
 	const FRigVMByteCode* ByteCode = GetController()->GetCurrentByteCode();
 	TSet<FString> AddedCallpaths;
 
@@ -1843,7 +1582,7 @@ bool UControlRigBlueprint::AddBreakpointToControlRig(URigVMNode* InBreakpointNod
 	return false;
 }
 
-bool UControlRigBlueprint::RemoveBreakpoint(const FString& InBreakpointNodePath)
+bool URigVMBlueprint::RemoveBreakpoint(const FString& InBreakpointNodePath)
 {
 	// Find the node in the graph
 	URigVMNode* BreakpointNode = nullptr;
@@ -1874,9 +1613,9 @@ bool UControlRigBlueprint::RemoveBreakpoint(const FString& InBreakpointNodePath)
 		bool bSuccess = RemoveBreakpoint(BreakpointNode);
 
 		// Remove the breakpoint from all the loaded dependent blueprints
-		TArray<UControlRigBlueprint*> DependentBlueprints = GetDependentBlueprints(true, true);
+		TArray<URigVMBlueprint*> DependentBlueprints = GetDependentBlueprints(true, true);
 		DependentBlueprints.Remove(this);
-		for (UControlRigBlueprint* Dependent : DependentBlueprints)
+		for (URigVMBlueprint* Dependent : DependentBlueprints)
 		{
 			bSuccess &= Dependent->RemoveBreakpoint(BreakpointNode);
 		}
@@ -1886,7 +1625,7 @@ bool UControlRigBlueprint::RemoveBreakpoint(const FString& InBreakpointNodePath)
 	return false;
 }
 
-bool UControlRigBlueprint::RemoveBreakpoint(URigVMNode* InBreakpointNode)
+bool URigVMBlueprint::RemoveBreakpoint(URigVMNode* InBreakpointNode)
 {
 	if (RigVMBreakpointNodes.Contains(InBreakpointNode))
 	{
@@ -1905,11 +1644,11 @@ bool UControlRigBlueprint::RemoveBreakpoint(URigVMNode* InBreakpointNode)
 }
 
 
-void UControlRigBlueprint::RefreshControlRigBreakpoints()
+void URigVMBlueprint::RefreshControlRigBreakpoints()
 {
-	if (URigVMBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass())
+	if (URigVMBlueprintGeneratedClass* RigClass = GetRigVMBlueprintGeneratedClass())
 	{
-		UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(false));
+		URigVMHost* CDO = Cast<URigVMHost>(RigClass->GetDefaultObject(false));
 		CDO->GetDebugInfo().Reset();
 		for (URigVMNode* Node : RigVMBreakpointNodes)
 		{
@@ -1918,7 +1657,7 @@ void UControlRigBlueprint::RefreshControlRigBreakpoints()
 	}
 }
 
-TArray<FRigVMReferenceNodeData> UControlRigBlueprint::GetReferenceNodeData() const
+TArray<FRigVMReferenceNodeData> URigVMBlueprint::GetReferenceNodeData() const
 {
 	TArray<FRigVMReferenceNodeData> Data;
 	
@@ -1938,26 +1677,26 @@ TArray<FRigVMReferenceNodeData> UControlRigBlueprint::GetReferenceNodeData() con
 
 #endif
 
-void UControlRigBlueprint::RequestControlRigInit()
+void URigVMBlueprint::RequestRigVMInit()
 {
-	if (URigVMBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass())
+	if (URigVMBlueprintGeneratedClass* RigClass = GetRigVMBlueprintGeneratedClass())
 	{
-		UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */));
+		URigVMHost* CDO = Cast<URigVMHost>(RigClass->GetDefaultObject(true /* create if needed */));
 		CDO->RequestInit();
 
 		TArray<UObject*> ArchetypeInstances;
 		CDO->GetArchetypeInstances(ArchetypeInstances);
 		for (UObject* Instance : ArchetypeInstances)
 		{
-			if (UControlRig* InstanceRig = Cast<UControlRig>(Instance))
+			if (URigVMHost* InstanceHost = Cast<URigVMHost>(Instance))
 			{
-				InstanceRig->RequestInit();
+				InstanceHost->RequestInit();
 			}
 		}
 	}
 }
 
-URigVMGraph* UControlRigBlueprint::GetModel(const UEdGraph* InEdGraph) const
+URigVMGraph* URigVMBlueprint::GetModel(const UEdGraph* InEdGraph) const
 {
 	if (InEdGraph == nullptr)
 	{
@@ -1976,32 +1715,32 @@ URigVMGraph* UControlRigBlueprint::GetModel(const UEdGraph* InEdGraph) const
 	}
 #endif
 
-	const UControlRigGraph* RigGraph = Cast< UControlRigGraph>(InEdGraph);
+	const URigVMEdGraph* RigGraph = Cast< URigVMEdGraph>(InEdGraph);
 	check(RigGraph);
 	return GetModel(RigGraph->ModelNodePath);
 }
 
-URigVMGraph* UControlRigBlueprint::GetModel(const FString& InNodePath) const
+URigVMGraph* URigVMBlueprint::GetModel(const FString& InNodePath) const
 {
 	return RigVMClient.GetModel(InNodePath);
 }
 
-URigVMGraph* UControlRigBlueprint::GetDefaultModel() const
+URigVMGraph* URigVMBlueprint::GetDefaultModel() const
 {
 	return RigVMClient.GetDefaultModel();
 }
 
-TArray<URigVMGraph*> UControlRigBlueprint::GetAllModels() const
+TArray<URigVMGraph*> URigVMBlueprint::GetAllModels() const
 {
 	return RigVMClient.GetAllModels(true, true);
 }
 
-URigVMFunctionLibrary* UControlRigBlueprint::GetLocalFunctionLibrary() const
+URigVMFunctionLibrary* URigVMBlueprint::GetLocalFunctionLibrary() const
 {
 	return RigVMClient.GetFunctionLibrary();
 }
 
-URigVMGraph* UControlRigBlueprint::AddModel(FString InName, bool bSetupUndoRedo, bool bPrintPythonCommand)
+URigVMGraph* URigVMBlueprint::AddModel(FString InName, bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
 	const FString DesiredName = FString::Printf(TEXT("%s %s"),
     	FRigVMClient::RigVMModelPrefix, *InName);
@@ -2010,13 +1749,13 @@ URigVMGraph* UControlRigBlueprint::AddModel(FString InName, bool bSetupUndoRedo,
 	return RigVMClient.AddModel(*DesiredName, bSetupUndoRedo);
 }
 
-bool UControlRigBlueprint::RemoveModel(FString InName, bool bSetupUndoRedo, bool bPrintPythonCommand)
+bool URigVMBlueprint::RemoveModel(FString InName, bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
 	TGuardValue<bool> EnablePythonPrint(bSuspendPythonMessagesForRigVMClient, !bPrintPythonCommand);
 	return RigVMClient.RemoveModel(InName, bSetupUndoRedo);
 }
 
-URigVMGraph* UControlRigBlueprint::GetFocusedModel() const
+URigVMGraph* URigVMBlueprint::GetFocusedModel() const
 {
 #if WITH_EDITOR
 	if(OnGetFocusedGraphDelegate.IsBound())
@@ -2027,12 +1766,12 @@ URigVMGraph* UControlRigBlueprint::GetFocusedModel() const
 	return RigVMClient.GetDefaultModel();
 }
 
-URigVMController* UControlRigBlueprint::GetController(const URigVMGraph* InGraph) const
+URigVMController* URigVMBlueprint::GetController(const URigVMGraph* InGraph) const
 {
 	return RigVMClient.GetController(InGraph);
 }
 
-URigVMController* UControlRigBlueprint::GetControllerByName(const FString InGraphName) const
+URigVMController* URigVMBlueprint::GetControllerByName(const FString InGraphName) const
 {
 	if(InGraphName.IsEmpty())
 	{
@@ -2053,22 +1792,22 @@ URigVMController* UControlRigBlueprint::GetControllerByName(const FString InGrap
 	return nullptr;
 }
 
-URigVMController* UControlRigBlueprint::GetOrCreateController(URigVMGraph* InGraph)
+URigVMController* URigVMBlueprint::GetOrCreateController(URigVMGraph* InGraph)
 {
 	return RigVMClient.GetOrCreateController(InGraph);
 }
 
-URigVMController* UControlRigBlueprint::GetController(const UEdGraph* InEdGraph) const
+URigVMController* URigVMBlueprint::GetController(const UEdGraph* InEdGraph) const
 {
 	return RigVMClient.GetController(InEdGraph);
 }
 
-URigVMController* UControlRigBlueprint::GetOrCreateController(const UEdGraph* InEdGraph)
+URigVMController* URigVMBlueprint::GetOrCreateController(const UEdGraph* InEdGraph)
 {
 	return RigVMClient.GetOrCreateController(InEdGraph);
 }
 
-TArray<FString> UControlRigBlueprint::GeneratePythonCommands(const FString InNewBlueprintName)
+TArray<FString> URigVMBlueprint::GeneratePythonCommands(const FString InNewBlueprintName)
 {
 	TArray<FString> InternalCommands;
 	InternalCommands.Add(TEXT("unreal.load_module('ControlRigDeveloper')"));
@@ -2080,10 +1819,6 @@ TArray<FString> UControlRigBlueprint::GeneratePythonCommands(const FString InNew
 	InternalCommands.Add(TEXT("hierarchy_controller = hierarchy.get_controller()"));
 	InternalCommands.Add(TEXT("blueprint.set_auto_vm_recompile(False)"));
 	
-
-	// Hierarchy
-	InternalCommands.Append(Hierarchy->GetController(true)->GeneratePythonCommands());
-		
 	// Add variables
 	for (const FBPVariableDescription& Variable : NewVariables)
 	{
@@ -2134,7 +1869,7 @@ TArray<FString> UControlRigBlueprint::GeneratePythonCommands(const FString InNew
 				{
 					if (URigVMFunctionReferenceNode* Reference = Cast<URigVMFunctionReferenceNode>(Node))
 					{
-						if (Reference->GetReferencedFunctionHeader().LibraryPointer.HostObject != GetControlRigBlueprintGeneratedClass())
+						if (Reference->GetReferencedFunctionHeader().LibraryPointer.HostObject != GetRigVMBlueprintGeneratedClass())
 						{
 							continue;
 						}
@@ -2308,12 +2043,6 @@ TArray<FString> UControlRigBlueprint::GeneratePythonCommands(const FString InNew
 		}
 	}
 
-#if WITH_EDITORONLY_DATA
-	FString PreviewMeshPath = GetPreviewMesh()->GetPathName();
-	InternalCommands.Add(FString::Printf(TEXT("blueprint.set_preview_mesh(unreal.load_object(name='%s', outer=None))"),
-		*PreviewMeshPath));
-#endif
-
 	InternalCommands.Add(TEXT("blueprint.set_auto_vm_recompile(True)"));
 
 	// Split multiple commands into different array elements
@@ -2343,7 +2072,7 @@ TArray<FString> UControlRigBlueprint::GeneratePythonCommands(const FString InNew
 }
 
 
-URigVMGraph* UControlRigBlueprint::GetTemplateModel(bool bIsFunctionLibrary)
+URigVMGraph* URigVMBlueprint::GetTemplateModel(bool bIsFunctionLibrary)
 {
 #if WITH_EDITORONLY_DATA
 	if (TemplateModel == nullptr)
@@ -2365,7 +2094,7 @@ URigVMGraph* UControlRigBlueprint::GetTemplateModel(bool bIsFunctionLibrary)
 #endif
 }
 
-URigVMController* UControlRigBlueprint::GetTemplateController(bool bIsFunctionLibrary)
+URigVMController* URigVMBlueprint::GetTemplateController(bool bIsFunctionLibrary)
 {
 #if WITH_EDITORONLY_DATA
 	if (TemplateController == nullptr)
@@ -2382,12 +2111,12 @@ URigVMController* UControlRigBlueprint::GetTemplateController(bool bIsFunctionLi
 #endif
 }
 
-UEdGraph* UControlRigBlueprint::GetEdGraph(URigVMGraph* InModel) const
+UEdGraph* URigVMBlueprint::GetEdGraph(URigVMGraph* InModel) const
 {
 	return Cast<UEdGraph>(GetEditorObjectForRigVMGraph(InModel));
 }
 
-UEdGraph* UControlRigBlueprint::GetEdGraph(const FString& InNodePath) const
+UEdGraph* URigVMBlueprint::GetEdGraph(const FString& InNodePath) const
 {
 	if (URigVMGraph* ModelForNodePath = GetModel(InNodePath))
 	{
@@ -2396,12 +2125,12 @@ UEdGraph* UControlRigBlueprint::GetEdGraph(const FString& InNodePath) const
 	return nullptr;
 }
 
-bool UControlRigBlueprint::IsFunctionPublic(const FName& InFunctionName) const
+bool URigVMBlueprint::IsFunctionPublic(const FName& InFunctionName) const
 {
 	return GetLocalFunctionLibrary()->IsFunctionPublic(InFunctionName);	
 }
 
-void UControlRigBlueprint::MarkFunctionPublic(const FName& InFunctionName, bool bIsPublic)
+void URigVMBlueprint::MarkFunctionPublic(const FName& InFunctionName, bool bIsPublic)
 {
 	if(IsFunctionPublic(InFunctionName) == bIsPublic)
 	{
@@ -2412,9 +2141,9 @@ void UControlRigBlueprint::MarkFunctionPublic(const FName& InFunctionName, bool 
 	Controller->MarkFunctionAsPublic(InFunctionName, bIsPublic);
 }
 
-TArray<UControlRigBlueprint*> UControlRigBlueprint::GetDependencies(bool bRecursive) const
+TArray<URigVMBlueprint*> URigVMBlueprint::GetDependencies(bool bRecursive) const
 {
-	TArray<UControlRigBlueprint*> Dependencies;
+	TArray<URigVMBlueprint*> Dependencies;
 
 	TArray<URigVMGraph*> Graphs = GetAllModels();
 	for(URigVMGraph* Graph : Graphs)
@@ -2425,7 +2154,7 @@ TArray<UControlRigBlueprint*> UControlRigBlueprint::GetDependencies(bool bRecurs
 			{
 				if(const URigVMLibraryNode* LibraryNode = FunctionReferenceNode->LoadReferencedNode())
 				{
-					if(UControlRigBlueprint* DependencyBlueprint = LibraryNode->GetTypedOuter<UControlRigBlueprint>())
+					if(URigVMBlueprint* DependencyBlueprint = LibraryNode->GetTypedOuter<URigVMBlueprint>())
 					{
 						if(DependencyBlueprint != this)
 						{
@@ -2435,8 +2164,8 @@ TArray<UControlRigBlueprint*> UControlRigBlueprint::GetDependencies(bool bRecurs
 
 								if(bRecursive)
 								{
-									TArray<UControlRigBlueprint*> ChildDependencies = DependencyBlueprint->GetDependencies(true);
-									for(UControlRigBlueprint* ChildDependency : ChildDependencies)
+									TArray<URigVMBlueprint*> ChildDependencies = DependencyBlueprint->GetDependencies(true);
+									for(URigVMBlueprint* ChildDependency : ChildDependencies)
 									{
 										Dependencies.AddUnique(ChildDependency);
 									}
@@ -2452,7 +2181,7 @@ TArray<UControlRigBlueprint*> UControlRigBlueprint::GetDependencies(bool bRecurs
 	return Dependencies;
 }
 
-TArray<FAssetData> UControlRigBlueprint::GetDependentAssets() const
+TArray<FAssetData> URigVMBlueprint::GetDependentAssets() const
 {
 	TArray<FAssetData> Dependents;
 	TArray<FSoftObjectPath> AssetPaths;
@@ -2471,7 +2200,7 @@ TArray<FAssetData> UControlRigBlueprint::GetDependentAssets() const
 				{
 					if (const URigVMFunctionReferenceNode* ReferencePtr = Reference.Get())
 					{
-						if (const UControlRigBlueprint* ControlRigBlueprint = ReferencePtr->GetTypedOuter<UControlRigBlueprint>())
+						if (const URigVMBlueprint* ControlRigBlueprint = ReferencePtr->GetTypedOuter<URigVMBlueprint>())
 						{
 							const TSoftObjectPtr<UPackage> Blueprint = ControlRigBlueprint;
 							const FSoftObjectPath AssetPath = Blueprint.ToSoftObjectPath();
@@ -2500,16 +2229,16 @@ TArray<FAssetData> UControlRigBlueprint::GetDependentAssets() const
 	return Dependents;
 }
 
-TArray<UControlRigBlueprint*> UControlRigBlueprint::GetDependentBlueprints(bool bRecursive, bool bOnlyLoaded) const
+TArray<URigVMBlueprint*> URigVMBlueprint::GetDependentBlueprints(bool bRecursive, bool bOnlyLoaded) const
 {
 	TArray<FAssetData> Assets = GetDependentAssets();
-	TArray<UControlRigBlueprint*> Dependents;
+	TArray<URigVMBlueprint*> Dependents;
 
 	for(const FAssetData& Asset : Assets)
 	{
 		if (!bOnlyLoaded || Asset.IsAssetLoaded())
 		{
-			if(UControlRigBlueprint* Dependent = Cast<UControlRigBlueprint>(Asset.GetAsset()))
+			if(URigVMBlueprint* Dependent = Cast<URigVMBlueprint>(Asset.GetAsset()))
 			{
 				if(!Dependents.Contains(Dependent))
 				{
@@ -2517,8 +2246,8 @@ TArray<UControlRigBlueprint*> UControlRigBlueprint::GetDependentBlueprints(bool 
 
 					if(bRecursive && Dependent != this)
 					{
-						TArray<UControlRigBlueprint*> ParentDependents = Dependent->GetDependentBlueprints(true);
-						for(UControlRigBlueprint* ParentDependent : ParentDependents)
+						TArray<URigVMBlueprint*> ParentDependents = Dependent->GetDependentBlueprints(true);
+						for(URigVMBlueprint* ParentDependent : ParentDependents)
 						{
 							Dependents.AddUnique(ParentDependent);
 						}
@@ -2531,23 +2260,25 @@ TArray<UControlRigBlueprint*> UControlRigBlueprint::GetDependentBlueprints(bool 
 	return Dependents;
 }
 
-void UControlRigBlueprint::GetTypeActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const
+void URigVMBlueprint::GetTypeActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	IControlRigEditorModule::Get().GetTypeActions((UControlRigBlueprint*)this, ActionRegistrar);
+	// todooooo
+	// IControlRigEditorModule::Get().GetTypeActions((URigVMBlueprint*)this, ActionRegistrar);
 }
 
-void UControlRigBlueprint::GetInstanceActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const
+void URigVMBlueprint::GetInstanceActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	IControlRigEditorModule::Get().GetInstanceActions((UControlRigBlueprint*)this, ActionRegistrar);
+	// todooooo
+	// IControlRigEditorModule::Get().GetInstanceActions((URigVMBlueprint*)this, ActionRegistrar);
 }
 
-void UControlRigBlueprint::SetObjectBeingDebugged(UObject* NewObject)
+void URigVMBlueprint::SetObjectBeingDebugged(UObject* NewObject)
 {
-	UControlRig* PreviousRigBeingDebugged = Cast<UControlRig>(GetObjectBeingDebugged());
+	URigVMHost* PreviousRigBeingDebugged = Cast<URigVMHost>(GetObjectBeingDebugged());
 	if (PreviousRigBeingDebugged && PreviousRigBeingDebugged != NewObject)
 	{
 		PreviousRigBeingDebugged->DrawInterface.Reset();
@@ -2555,17 +2286,9 @@ void UControlRigBlueprint::SetObjectBeingDebugged(UObject* NewObject)
 	}
 
 	Super::SetObjectBeingDebugged(NewObject);
-
-	if (Validator)
-	{
-		if (Validator->GetControlRig() != nullptr)
-		{
-			Validator->SetControlRig(Cast<UControlRig>(GetObjectBeingDebugged()));
-		}
-	}
 }
 
-void UControlRigBlueprint::PostTransacted(const FTransactionObjectEvent& TransactionEvent)
+void URigVMBlueprint::PostTransacted(const FTransactionObjectEvent& TransactionEvent)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 	Super::PostTransacted(TransactionEvent);
@@ -2573,55 +2296,23 @@ void UControlRigBlueprint::PostTransacted(const FTransactionObjectEvent& Transac
 	if (TransactionEvent.GetEventType() == ETransactionObjectEventType::UndoRedo)
 	{
 		TArray<FName> PropertiesChanged = TransactionEvent.GetChangedProperties();
-		if (PropertiesChanged.Contains(GET_MEMBER_NAME_CHECKED(UControlRigBlueprint, Hierarchy)))
-		{
-			int32 TransactionIndex = GEditor->Trans->FindTransactionIndex(TransactionEvent.GetTransactionId());
-			const FTransaction* Transaction = GEditor->Trans->GetTransaction(TransactionIndex);
 
-			if (Transaction->GetTitle().BuildSourceString() == TEXT("Transform Gizmo"))
-			{
-				PropagatePoseFromBPToInstances();
-				return;
-			}
-
-			PropagateHierarchyFromBPToInstances();
-
-			// make sure the bone name list is up 2 date for the editor graph
-			for (UEdGraph* Graph : UbergraphPages)
-			{
-				UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph);
-				if (RigGraph == nullptr)
-				{
-					continue;
-				}
-				RigGraph->CacheNameLists(Hierarchy, &DrawContainer, ShapeLibraries);
-			}
-
-			RequestAutoVMRecompilation();
-			MarkPackageDirty();
-		}
-
-		if (PropertiesChanged.Contains(GET_MEMBER_NAME_CHECKED(UControlRigBlueprint, DrawContainer)))
-		{
-			PropagateDrawInstructionsFromBPToInstances();
-		}
-
-		if (PropertiesChanged.Contains(GET_MEMBER_NAME_CHECKED(UControlRigBlueprint, VMRuntimeSettings)))
+		if (PropertiesChanged.Contains(GET_MEMBER_NAME_CHECKED(URigVMBlueprint, VMRuntimeSettings)))
 		{
 			PropagateRuntimeSettingsFromBPToInstances();
 		}
 
-		if (PropertiesChanged.Contains(GET_MEMBER_NAME_CHECKED(UControlRigBlueprint, NewVariables)))
+		if (PropertiesChanged.Contains(GET_MEMBER_NAME_CHECKED(URigVMBlueprint, NewVariables)))
 		{
 			if (RefreshEditorEvent.IsBound())
 			{
 				RefreshEditorEvent.Broadcast(this);
 			}
-			MarkPackageDirty();			
+			(void)MarkPackageDirty();			
 		}
 
-		if (PropertiesChanged.Contains(GET_MEMBER_NAME_CHECKED(UControlRigBlueprint, RigVMClient)) ||
-			PropertiesChanged.Contains(GET_MEMBER_NAME_CHECKED(UControlRigBlueprint, UbergraphPages)))
+		if (PropertiesChanged.Contains(GET_MEMBER_NAME_CHECKED(URigVMBlueprint, RigVMClient)) ||
+			PropertiesChanged.Contains(GET_MEMBER_NAME_CHECKED(URigVMBlueprint, UbergraphPages)))
 		{
 			UbergraphPages.RemoveAll([](const UEdGraph* UberGraph) -> bool
 			{
@@ -2630,32 +2321,32 @@ void UControlRigBlueprint::PostTransacted(const FTransactionObjectEvent& Transac
 			RigVMClient.PostTransacted(TransactionEvent);
 
 			RecompileVM();
-			MarkPackageDirty();			
+			(void)MarkPackageDirty();			
 		}
 	}
 }
 
-void UControlRigBlueprint::ReplaceDeprecatedNodes()
+void URigVMBlueprint::ReplaceDeprecatedNodes()
 {
 	TArray<UEdGraph*> EdGraphs;
 	GetAllGraphs(EdGraphs);
 
 	for (UEdGraph* EdGraph : EdGraphs)
 	{
-		if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(EdGraph))
+		if (URigVMEdGraph* RigGraph = Cast<URigVMEdGraph>(EdGraph))
 		{
-			RigGraph->Schema = UControlRigGraphSchema::StaticClass();
+			RigGraph->Schema = URigVMEdGraphSchema::StaticClass();
 		}
 	}
 
 	Super::ReplaceDeprecatedNodes();
 }
 
-void UControlRigBlueprint::PreDuplicate(FObjectDuplicationParameters& DupParams)
+void URigVMBlueprint::PreDuplicate(FObjectDuplicationParameters& DupParams)
 {
 	Super::PreDuplicate(DupParams);
 	PreDuplicateAssetPath = GetPathName();
-	if(URigVMBlueprintGeneratedClass* CRGeneratedClass = GetControlRigBlueprintGeneratedClass())
+	if(URigVMBlueprintGeneratedClass* CRGeneratedClass = GetRigVMBlueprintGeneratedClass())
 	{
 		PreDuplicateHostPath = FSoftObjectPath(CRGeneratedClass->GetPathName());
 	}
@@ -2666,7 +2357,7 @@ void UControlRigBlueprint::PreDuplicate(FObjectDuplicationParameters& DupParams)
 
 }
 
-void UControlRigBlueprint::PostDuplicate(bool bDuplicateForPIE)
+void URigVMBlueprint::PostDuplicate(bool bDuplicateForPIE)
 {
 	// assuming PostDuplicate is always followed by a PostLoad:
 	// so theoretically, PostDuplicate just makes corrections to the serialized data and does nothing more,
@@ -2682,12 +2373,6 @@ void UControlRigBlueprint::PostDuplicate(bool bDuplicateForPIE)
 		Super::PostDuplicate(bDuplicateForPIE);
 	}
 	
-	if (URigHierarchyController* Controller = Hierarchy->GetController(true))
-	{
-		Controller->OnModified().RemoveAll(this);
-		Controller->OnModified().AddUObject(this, &UControlRigBlueprint::HandleHierarchyModified);
-	}
-
 	auto UpdateFunctionHeaders = [this](const FString& InOldPath, const FString& InNewPath)
 	{
 		if(InOldPath.IsEmpty() || InNewPath.IsEmpty())
@@ -2696,7 +2381,7 @@ void UControlRigBlueprint::PostDuplicate(bool bDuplicateForPIE)
 		}
 		if(!InNewPath.Equals(InOldPath, ESearchCase::CaseSensitive))
 		{
-			if(URigVMBlueprintGeneratedClass* CRGeneratedClass = GetControlRigBlueprintGeneratedClass())
+			if(URigVMBlueprintGeneratedClass* CRGeneratedClass = GetRigVMBlueprintGeneratedClass())
 			{
 				FRigVMGraphFunctionStore& Store = CRGeneratedClass->GraphFunctionStore;
 				// technically not needed, the store should be empty, it will not be populated until PostLoad
@@ -2714,7 +2399,7 @@ void UControlRigBlueprint::PostDuplicate(bool bDuplicateForPIE)
 	// make sure all function headers pointing to things in the old BP are changed to
 	// point to their duplicates in the new BP
 	UpdateFunctionHeaders(PreDuplicateAssetPath.ToString(), GetPathName());
-	if(const URigVMBlueprintGeneratedClass* CRGeneratedClass = GetControlRigBlueprintGeneratedClass())
+	if(const URigVMBlueprintGeneratedClass* CRGeneratedClass = GetRigVMBlueprintGeneratedClass())
 	{
 		UpdateFunctionHeaders(PreDuplicateHostPath.ToString(), CRGeneratedClass->GetPathName());
 	}
@@ -2729,7 +2414,7 @@ void UControlRigBlueprint::PostDuplicate(bool bDuplicateForPIE)
 	check(HasAnyFlags(RF_NeedPostLoad));
 }
 
-void UControlRigBlueprint::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
+void URigVMBlueprint::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 {
 	if (CachedAssetTags.IsEmpty())
 	{
@@ -2742,40 +2427,35 @@ void UControlRigBlueprint::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTa
 	}
 }
 
-FRigVMGraphModifiedEvent& UControlRigBlueprint::OnModified()
+FRigVMGraphModifiedEvent& URigVMBlueprint::OnModified()
 {
 	return ModifiedEvent;
 }
 
 
-FOnVMCompiledEvent& UControlRigBlueprint::OnVMCompiled()
+FOnVMCompiledEvent& URigVMBlueprint::OnVMCompiled()
 {
 	return VMCompiledEvent;
 }
 
-TArray<UControlRigBlueprint*> UControlRigBlueprint::GetCurrentlyOpenRigBlueprints()
-{
-	return sCurrentlyOpenedRigBlueprints;
-}
-
-UClass* UControlRigBlueprint::GetControlRigClass()
+UClass* URigVMBlueprint::GetRigVMHostClass()
 {
 	return GeneratedClass;
 }
 
-UControlRig* UControlRigBlueprint::CreateControlRig()
+URigVMHost* URigVMBlueprint::CreateRigVMHost()
 {
 	RecompileVMIfRequired();
 
-	UControlRig* Rig = NewObject<UControlRig>(this, GetControlRigClass());
-	Rig->Initialize(true);
-	return Rig;
+	URigVMHost* Host = NewObject<URigVMHost>(this, GetRigVMHostClass());
+	Host->Initialize(true);
+	return Host;
 }
 
-TArray<UStruct*> UControlRigBlueprint::GetAvailableRigUnits()
+TArray<UStruct*> URigVMBlueprint::GetAvailableRigVMStructs() const
 {
 	TArray<UStruct*> Structs;
-	UStruct* BaseStruct = FRigUnit::StaticStruct();
+	UStruct* BaseStruct = FRigVMStruct::StaticStruct();
 
 	for (const FRigVMFunction& Function : FRigVMRegistry::Get().GetFunctions())
 	{
@@ -2784,6 +2464,8 @@ TArray<UStruct*> UControlRigBlueprint::GetAvailableRigUnits()
 			if (Function.Struct->IsChildOf(BaseStruct))
 			{
 				Structs.Add(Function.Struct);
+				// todo: filter by available types
+				// todo: filter by execute context
 			}
 		}
 	}
@@ -2793,7 +2475,7 @@ TArray<UStruct*> UControlRigBlueprint::GetAvailableRigUnits()
 
 #if WITH_EDITOR
 
-TArray<FRigVMGraphVariableDescription> UControlRigBlueprint::GetMemberVariables() const
+TArray<FRigVMGraphVariableDescription> URigVMBlueprint::GetMemberVariables() const
 {
 	TArray<FRigVMGraphVariableDescription> Variables;
 	for (const FBPVariableDescription& BPVariable : NewVariables)
@@ -2812,10 +2494,10 @@ TArray<FRigVMGraphVariableDescription> UControlRigBlueprint::GetMemberVariables(
 	return Variables;
 }
 
-FName UControlRigBlueprint::AddMemberVariable(const FName& InName, const FString& InCPPType, bool bIsPublic, bool bIsReadOnly, FString InDefaultValue)
+FName URigVMBlueprint::AddMemberVariable(const FName& InName, const FString& InCPPType, bool bIsPublic, bool bIsReadOnly, FString InDefaultValue)
 {
 	FRigVMExternalVariable Variable = RigVMTypeUtils::ExternalVariableFromCPPTypePath(InName, InCPPType, bIsPublic, bIsReadOnly);
-	FName Result = AddCRMemberVariableFromExternal(Variable, InDefaultValue);
+	FName Result = AddHostMemberVariableFromExternal(Variable, InDefaultValue);
 	if (!Result.IsNone())
 	{
 		FBPCompileRequest Request(this, EBlueprintCompileOptions::None, nullptr);
@@ -2824,7 +2506,7 @@ FName UControlRigBlueprint::AddMemberVariable(const FName& InName, const FString
 	return Result;
 }
 
-bool UControlRigBlueprint::RemoveMemberVariable(const FName& InName)
+bool URigVMBlueprint::RemoveMemberVariable(const FName& InName)
 {
 	const int32 VarIndex = FBlueprintEditorUtils::FindNewVariableIndex(this, InName);
 	if (VarIndex == INDEX_NONE)
@@ -2836,7 +2518,7 @@ bool UControlRigBlueprint::RemoveMemberVariable(const FName& InName)
 	return true;
 }
 
-bool UControlRigBlueprint::RenameMemberVariable(const FName& InOldName, const FName& InNewName)
+bool URigVMBlueprint::RenameMemberVariable(const FName& InOldName, const FName& InNewName)
 {
 	int32 VarIndex = FBlueprintEditorUtils::FindNewVariableIndex(this, InOldName);
 	if (VarIndex == INDEX_NONE)
@@ -2854,7 +2536,7 @@ bool UControlRigBlueprint::RenameMemberVariable(const FName& InOldName, const FN
 	return true;
 }
 
-bool UControlRigBlueprint::ChangeMemberVariableType(const FName& InName, const FString& InCPPType, bool bIsPublic,
+bool URigVMBlueprint::ChangeMemberVariableType(const FName& InName, const FString& InCPPType, bool bIsPublic,
 	bool bIsReadOnly, FString InDefaultValue)
 {
 	int32 VarIndex = FBlueprintEditorUtils::FindNewVariableIndex(this, InName);
@@ -2871,7 +2553,7 @@ bool UControlRigBlueprint::ChangeMemberVariableType(const FName& InName, const F
 	FString CPPType = InCPPType;
 	if (CPPType.StartsWith(TEXT("TMap<")))
 	{
-		UE_LOG(LogControlRigDeveloper, Warning, TEXT("TMap Variables are not supported."));
+		UE_LOG(LogRigVMDeveloper, Warning, TEXT("TMap Variables are not supported."));
 		return false;
 	}
 
@@ -2935,516 +2617,9 @@ bool UControlRigBlueprint::ChangeMemberVariableType(const FName& InName, const F
 	return true;
 }
 
-const FControlRigShapeDefinition* UControlRigBlueprint::GetControlShapeByName(const FName& InName) const
-{
-	TMap<FString, FString> LibraryNameMap;
-	if(UControlRig* ControlRig = Cast<UControlRig>(GetObjectBeingDebugged()))
-	{
-		LibraryNameMap = ControlRig->ShapeLibraryNameMap;
-	}
-	return UControlRigShapeLibrary::GetShapeByName(InName, ShapeLibraries, LibraryNameMap);
-}
-
-FName UControlRigBlueprint::AddTransientControl(URigVMPin* InPin)
-{
-	TUniquePtr<FControlValueScope> ValueScope;
-	if (!UControlRigEditorSettings::Get()->bResetControlsOnPinValueInteraction) // if we need to retain the controls
-	{
-		ValueScope = MakeUnique<FControlValueScope>(this);
-	}
-
-	// for now we only allow one pin control at the same time
-	ClearTransientControls();
-
-	URigVMBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
-	UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */));
-
-	FRigElementKey SpaceKey;
-	FTransform OffsetTransform = FTransform::Identity;
-	if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(InPin->GetPinForLink()->GetNode()))
-	{
-		if (TSharedPtr<FStructOnScope> DefaultStructScope = UnitNode->ConstructStructInstance())
-		{
-			FRigUnit* DefaultStruct = (FRigUnit*)DefaultStructScope->GetStructMemory();
-
-			FString PinPath = InPin->GetPinForLink()->GetPinPath();
-			FString Left, Right;
-
-			if (URigVMPin::SplitPinPathAtStart(PinPath, Left, Right))
-			{
-				SpaceKey = DefaultStruct->DetermineSpaceForPin(Right, Hierarchy);
-				
-				URigHierarchy* RigHierarchy = Hierarchy;
-
-				// use the active rig instead of the CDO rig because we want to access the evaluation result of the rig graph
-				// to calculate the offset transform, for example take a look at RigUnit_ModifyTransform
-				if (UControlRig* RigBeingDebugged = Cast<UControlRig>(GetObjectBeingDebugged()))
-				{
-					RigHierarchy = RigBeingDebugged->GetHierarchy();
-				}
-				
-				OffsetTransform = DefaultStruct->DetermineOffsetTransformForPin(Right, RigHierarchy);
-			}
-		}
-	}
-
-	FName ReturnName = NAME_None;
-	TArray<UObject*> ArchetypeInstances;
-	CDO->GetArchetypeInstances(ArchetypeInstances);
-	for (UObject* ArchetypeInstance : ArchetypeInstances)
-	{
-		UControlRig* InstancedControlRig = Cast<UControlRig>(ArchetypeInstance);
-		if (InstancedControlRig)
-		{
-			FName ControlName = InstancedControlRig->AddTransientControl(InPin, SpaceKey, OffsetTransform);
-			if (ReturnName == NAME_None)
-			{
-				ReturnName = ControlName;
-			}
-		}
-	}
-
-	return ReturnName;
-}
-
-FName UControlRigBlueprint::RemoveTransientControl(URigVMPin* InPin)
-{
-	TUniquePtr<FControlValueScope> ValueScope;
-	if (!UControlRigEditorSettings::Get()->bResetControlsOnPinValueInteraction) // if we need to retain the controls
-	{
-		ValueScope = MakeUnique<FControlValueScope>(this);
-	}
-
-	URigVMBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
-	UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */));
-
-	FName RemovedName = NAME_None;
-	TArray<UObject*> ArchetypeInstances;
-	CDO->GetArchetypeInstances(ArchetypeInstances);
-	for (UObject* ArchetypeInstance : ArchetypeInstances)
-	{
-		UControlRig* InstancedControlRig = Cast<UControlRig>(ArchetypeInstance);
-		if (InstancedControlRig)
-		{
-			FName Name = InstancedControlRig->RemoveTransientControl(InPin);
-			if (RemovedName == NAME_None)
-	{
-				RemovedName = Name;
-			}
-		}
-	}
-
-	return RemovedName;
-}
-
-FName UControlRigBlueprint::AddTransientControl(const FRigElementKey& InElement)
-{
-	TUniquePtr<FControlValueScope> ValueScope;
-	if (!UControlRigEditorSettings::Get()->bResetControlsOnPinValueInteraction) // if we need to retain the controls
-	{
-		ValueScope = MakeUnique<FControlValueScope>(this);
-	}
-	URigVMBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
-	UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */));
-
-	FName ReturnName = NAME_None;
-	TArray<UObject*> ArchetypeInstances;
-	CDO->GetArchetypeInstances(ArchetypeInstances);
-
-	// hierarchy transforms will be reset when ClearTransientControls() is called,
-	// so to retain any bone transform modifications we have to save them
-	TMap<UObject*, FTransform> SavedElementLocalTransforms;
-	for (UObject* ArchetypeInstance : ArchetypeInstances)
-	{
-		UControlRig* InstancedControlRig = Cast<UControlRig>(ArchetypeInstance);
-		if (InstancedControlRig)
-		{
-			if (InstancedControlRig->DynamicHierarchy)
-			{ 
-				SavedElementLocalTransforms.FindOrAdd(InstancedControlRig) = InstancedControlRig->DynamicHierarchy->GetLocalTransform(InElement);
-			}
-		}
-	}
-
-	// for now we only allow one pin control at the same time
-	ClearTransientControls();
-	
-	for (UObject* ArchetypeInstance : ArchetypeInstances)
-	{
-		UControlRig* InstancedControlRig = Cast<UControlRig>(ArchetypeInstance);
-		if (InstancedControlRig)
-		{
-			// restore the element transforms so that transient controls are created at the right place
-			if (const FTransform* SavedTransform = SavedElementLocalTransforms.Find(InstancedControlRig))
-			{
-				if (InstancedControlRig->DynamicHierarchy)
-				{ 
-					InstancedControlRig->DynamicHierarchy->SetLocalTransform(InElement, *SavedTransform);
-				}
-			}
-			
-			FName ControlName = InstancedControlRig->AddTransientControl(InElement);
-			if (ReturnName == NAME_None)
-			{
-				ReturnName = ControlName;
-			}
-		}
-	}
-
-	return ReturnName;
-
-}
-
-FName UControlRigBlueprint::RemoveTransientControl(const FRigElementKey& InElement)
-{
-	TUniquePtr<FControlValueScope> ValueScope;
-	if (!UControlRigEditorSettings::Get()->bResetControlsOnPinValueInteraction) // if we need to retain the controls
-	{
-		ValueScope = MakeUnique<FControlValueScope>(this);
-	}
-
-	URigVMBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
-	UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */));
-
-	FName RemovedName = NAME_None;
-	TArray<UObject*> ArchetypeInstances;
-	CDO->GetArchetypeInstances(ArchetypeInstances);
-	for (UObject* ArchetypeInstance : ArchetypeInstances)
-	{
-		UControlRig* InstancedControlRig = Cast<UControlRig>(ArchetypeInstance);
-		if (InstancedControlRig)
-		{
-			FName Name = InstancedControlRig->RemoveTransientControl(InElement);
-			if (RemovedName == NAME_None)
-			{
-				RemovedName = Name;
-			}
-		}
-	}
-
-	return RemovedName;
-}
-
-void UControlRigBlueprint::ClearTransientControls()
-{
-	TUniquePtr<FControlValueScope> ValueScope;
-	if (!UControlRigEditorSettings::Get()->bResetControlsOnPinValueInteraction) // if we need to retain the controls
-	{
-		ValueScope = MakeUnique<FControlValueScope>(this);
-	}
-
-	if (URigVMBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass())
-	{
-		UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */));
-
-		TArray<UObject*> ArchetypeInstances;
-		CDO->GetArchetypeInstances(ArchetypeInstances);
-		for (UObject* ArchetypeInstance : ArchetypeInstances)
-		{
-			UControlRig* InstancedControlRig = Cast<UControlRig>(ArchetypeInstance);
-			if (InstancedControlRig)
-			{
-				InstancedControlRig->ClearTransientControls();
-			}
-		}
-	}
-}
-
 #endif
 
-void UControlRigBlueprint::PopulateModelFromGraphForBackwardsCompatibility(UControlRigGraph* InGraph)
-{
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-	
-	
-
-	// temporarily disable default value validation during load time, serialized values should always be accepted
-	TGuardValue<bool> DisablePinDefaultValueValidation(GetOrCreateController()->bValidatePinDefaults, false);
-
-	int32 LinkerVersion = GetLinkerCustomVersion(FControlRigObjectVersion::GUID);
-	if (LinkerVersion >= FControlRigObjectVersion::SwitchedToRigVM)
-	{
-		return;
-	}
-
-	bDirtyDuringLoad = true;
-
-	if (LinkerVersion < FControlRigObjectVersion::RemovalOfHierarchyRefPins)
-	{
-		UE_LOG(LogControlRigDeveloper, Warning, TEXT("Control Rig is too old (prior 4.23) - cannot automatically upgrade. Clearing graph."));
-		RebuildGraphFromModel();
-		return;
-	}
-
-	TGuardValue<bool> ReentrantGuardSelf(bSuspendModelNotificationsForSelf, true);
-	{
-		TGuardValue<bool> ReentrantGuardOthers(bSuspendModelNotificationsForOthers, true);
-
-		struct LocalHelpers
-		{
-			static FString FixUpPinPath(const FString& InPinPath)
-			{
-				FString PinPath = InPinPath;
-				if (!PinPath.Contains(TEXT(".")))
-				{
-					PinPath += TEXT(".Value");
-				}
-
-				PinPath = PinPath.Replace(TEXT("["), TEXT("."), ESearchCase::IgnoreCase);
-				PinPath = PinPath.Replace(TEXT("]"), TEXT(""), ESearchCase::IgnoreCase);
-
-				return PinPath;
-			}
-		};
-
-		for (UEdGraphNode* Node : InGraph->Nodes)
-		{
-			if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node))
-			{
-				FName PropertyName = RigNode->PropertyName_DEPRECATED;
-				FVector2D NodePosition = FVector2D((float)RigNode->NodePosX, (float)RigNode->NodePosY);
-				FString StructPath = RigNode->StructPath_DEPRECATED;
-
-				if (StructPath.IsEmpty() && PropertyName != NAME_None)
-				{
-					if(FStructProperty* StructProperty = CastField<FStructProperty>(GetControlRigBlueprintGeneratedClass()->FindPropertyByName(PropertyName)))
-					{
-						StructPath = StructProperty->Struct->GetPathName();
-					}
-					else
-					{
-						// at this point the BP skeleton might not have been compiled,
-						// we should look into the new variables array to find the property
-						for (FBPVariableDescription NewVariable : NewVariables)
-						{
-							if (NewVariable.VarName == PropertyName && NewVariable.VarType.PinCategory == UEdGraphSchema_K2::PC_Struct)
-							{
-								if (UScriptStruct* Struct = Cast<UScriptStruct>(NewVariable.VarType.PinSubCategoryObject))
-								{
-									StructPath = Struct->GetPathName();
-									break;
-								}
-							}
-						}
-					}
-				}
-
-				URigVMNode* ModelNode = nullptr;
-
-				UScriptStruct* UnitStruct = RigVMTypeUtils::FindObjectFromCPPTypeObjectPath<UScriptStruct>(StructPath);
-				if (UnitStruct && UnitStruct->IsChildOf(FRigVMStruct::StaticStruct()))
-				{ 
-					ModelNode = GetOrCreateController()->AddUnitNode(UnitStruct, FRigUnit::GetMethodName(), NodePosition, PropertyName.ToString(), false);
-				}
-				else if (PropertyName != NAME_None) // check if this is a variable
-				{
-					bool bHasInputLinks = false;
-					bool bHasOutputLinks = false;
-					FString DefaultValue;
-
-					FEdGraphPinType PinType = RigNode->PinType_DEPRECATED;
-					if (RigNode->Pins.Num() > 0)
-				{
-						for (UEdGraphPin* Pin : RigNode->Pins)
-						{
-							if (!Pin->GetName().Contains(TEXT(".")))
-							{
-								PinType = Pin->PinType;
-
-								if (Pin->Direction == EGPD_Input)
-								{
-									bHasInputLinks = Pin->LinkedTo.Num() > 0;
-									DefaultValue = Pin->DefaultValue;
-								}
-								else if (Pin->Direction == EGPD_Output)
-								{
-									bHasOutputLinks = Pin->LinkedTo.Num() > 0;
-								}
-							}
-						}
-					}
-
-					FName DataType = PinType.PinCategory;
-
-					if (PinType.PinCategory == UEdGraphSchema_K2::PC_Real)
-					{
-						if (PinType.PinSubCategory == UEdGraphSchema_K2::PC_Float)
-						{
-							DataType = TEXT("float");
-						}
-						else if (PinType.PinSubCategory == UEdGraphSchema_K2::PC_Double)
-						{
-							DataType = TEXT("double");
-						}
-						else
-						{
-							ensure(false);
-						}
-					}
-
-					UObject* DataTypeObject = nullptr;
-					if (DataType == NAME_None)
-					{
-						continue;
-					}
-					if (DataType == UEdGraphSchema_K2::PC_Struct)
-					{
-						DataType = NAME_None;
-						if (UScriptStruct* DataStruct = Cast<UScriptStruct>(PinType.PinSubCategoryObject))
-						{
-							DataTypeObject = DataStruct;
-							DataType = *DataStruct->GetStructCPPName();
-						}
-					}
-
-					if (DataType == TEXT("int"))
-					{
-						DataType = TEXT("int32");
-					}
-					else if (DataType == TEXT("name"))
-						{
-						DataType = TEXT("FName");
-						}
-					else if (DataType == TEXT("string"))
-					{
-						DataType = TEXT("FString");
-					}
-
-					FProperty* ParameterProperty = GetControlRigBlueprintGeneratedClass()->FindPropertyByName(PropertyName);
-					if(ParameterProperty)
-					{
-						bool bIsInput = true;
-
-						if (ParameterProperty->HasMetaData(TEXT("AnimationInput")) || bHasOutputLinks)
-					{
-							bIsInput = true;
-						}
-						else if (ParameterProperty->HasMetaData(TEXT("AnimationOutput")))
-						{
-							bIsInput = false;
-						}
-
-						ModelNode = GetOrCreateController()->AddVariableNode(PropertyName, DataType.ToString(), DataTypeObject, bIsInput, FString(), NodePosition, PropertyName.ToString(), false);
-					}
-				}
-				else
-				{
-					continue;
-				}
-
-				if (ModelNode)
-				{
-					bool bWasReportingEnabled = GetOrCreateController()->IsReportingEnabled();
-					GetOrCreateController()->EnableReporting(false);
-
-					for (UEdGraphPin* Pin : RigNode->Pins)
-					{
-							FString PinPath = LocalHelpers::FixUpPinPath(Pin->GetName());
-
-							// check the material + mesh pins for deprecated control nodes
-							if (URigVMUnitNode* ModelUnitNode = Cast<URigVMUnitNode>(ModelNode))
-							{
-								const UScriptStruct* ScriptStruct = ModelUnitNode->GetScriptStruct();
-								if (ScriptStruct && ScriptStruct->IsChildOf(FRigUnit_Control::StaticStruct()))
-								{
-									if (Pin->GetName().EndsWith(TEXT(".StaticMesh")) || Pin->GetName().EndsWith(TEXT(".Materials")))
-									{
-										continue;
-									}
-								}
-							}
-
-						if (Pin->Direction == EGPD_Input && Pin->PinType.ContainerType == EPinContainerType::Array)
-						{
-							int32 ArraySize = Pin->SubPins.Num();
-							GetOrCreateController()->SetArrayPinSize(PinPath, ArraySize, FString(), false);
-						}
-
-						if (RigNode->ExpandedPins_DEPRECATED.Find(Pin->GetName()) != INDEX_NONE)
-						{
-								GetOrCreateController()->SetPinExpansion(PinPath, true, false);
-						}
-
-						if (Pin->SubPins.Num() == 0 && !Pin->DefaultValue.IsEmpty() && Pin->Direction == EGPD_Input)
-						{
-								GetOrCreateController()->SetPinDefaultValue(PinPath, Pin->DefaultValue, false, false, false);
-						}
-					}
-
-					GetOrCreateController()->EnableReporting(bWasReportingEnabled);
-				}
-
-				const int32 VarIndex = FBlueprintEditorUtils::FindNewVariableIndex(this, PropertyName);
-				if (VarIndex != INDEX_NONE)
-				{
-					// only remove the variable if it was backing up a rig unit
-					if(UnitStruct != nullptr)
-					{
-						NewVariables.RemoveAt(VarIndex);
-					}
-					FBlueprintEditorUtils::RemoveVariableNodes(this, PropertyName);
-				}
-			}
-			else if (const UEdGraphNode_Comment* CommentNode = Cast<UEdGraphNode_Comment>(Node))
-			{
-				FVector2D NodePosition = FVector2D((float)CommentNode->NodePosX, (float)CommentNode->NodePosY);
-				FVector2D NodeSize = FVector2D((float)CommentNode->NodeWidth, (float)CommentNode->NodeHeight);
-				GetOrCreateController()->AddCommentNode(CommentNode->NodeComment, NodePosition, NodeSize, CommentNode->CommentColor, CommentNode->GetName(), false);
-			}
-		}
-
-		SetupPinRedirectorsForBackwardsCompatibility();
-
-		for (UEdGraphNode* Node : InGraph->Nodes)
-		{
-			if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node))
-			{
-				for (UEdGraphPin* Pin : RigNode->Pins)
-				{
-					if (Pin->Direction == EGPD_Input)
-					{
-						continue;
-					}
-
-					for (UEdGraphPin* LinkedPin : Pin->LinkedTo)
-					{
-						UControlRigGraphNode* LinkedRigNode = Cast<UControlRigGraphNode>(LinkedPin->GetOwningNode());
-						if (LinkedRigNode != nullptr)
-						{
-							FString SourcePinPath = LocalHelpers::FixUpPinPath(Pin->GetName());
-							FString TargetPinPath = LocalHelpers::FixUpPinPath(LinkedPin->GetName());
-							GetOrCreateController()->AddLink(SourcePinPath, TargetPinPath, false);
-						}
-					}
-				}
-			}
-		}
-	}
-
-	RebuildGraphFromModel();
-}
-
-void UControlRigBlueprint::SetupPinRedirectorsForBackwardsCompatibility()
-{
-	for(URigVMGraph* Model : RigVMClient)
-	{
-		for (URigVMNode* Node : Model->GetNodes())
-		{
-			if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(Node))
-			{
-				UScriptStruct* Struct = UnitNode->GetScriptStruct();
-				if (Struct == FRigUnit_SetBoneTransform::StaticStruct())
-				{
-					URigVMPin* TransformPin = UnitNode->FindPin(TEXT("Transform"));
-					URigVMPin* ResultPin = UnitNode->FindPin(TEXT("Result"));
-					GetOrCreateController()->AddPinRedirector(false, true, TransformPin->GetPinPath(), ResultPin->GetPinPath());
-				}
-			}
-		}
-	}
-}
-
-void UControlRigBlueprint::RebuildGraphFromModel()
+void URigVMBlueprint::RebuildGraphFromModel()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
@@ -3464,7 +2639,7 @@ void UControlRigBlueprint::RebuildGraphFromModel()
 			Graph->RemoveNode(Node);
 		}
 
-		if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph))
+		if (URigVMEdGraph* RigGraph = Cast<URigVMEdGraph>(Graph))
 		{
 			if (RigGraph->bIsFunctionDefinition)
 			{
@@ -3497,26 +2672,14 @@ void UControlRigBlueprint::RebuildGraphFromModel()
 			}
 		}
 	}
-
-	EdGraphs.Reset();
-	GetAllGraphs(EdGraphs);
-
-	for (UEdGraph* Graph : EdGraphs)
-	{
-		if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph))
-		{
-			RigGraph->CacheNameLists(Hierarchy, &DrawContainer, ShapeLibraries);
-		}
-	}
-
 }
 
-void UControlRigBlueprint::Notify(ERigVMGraphNotifType InNotifType, UObject* InSubject)
+void URigVMBlueprint::Notify(ERigVMGraphNotifType InNotifType, UObject* InSubject)
 {
 	GetOrCreateController()->Notify(InNotifType, InSubject);
 }
 
-void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject)
+void URigVMBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
@@ -3612,8 +2775,8 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 						{
 							const FString DefaultValue = RootPin->GetDefaultValue();
 
-							URigVMBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
-							UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */));
+							URigVMBlueprintGeneratedClass* RigClass = GetRigVMBlueprintGeneratedClass();
+							URigVMHost* CDO = Cast<URigVMHost>(RigClass->GetDefaultObject(true /* create if needed */));
 							if (CDO->VM != nullptr)
 							{
 								CDO->VM->SetPropertyValueFromString(*Operand, DefaultValue);
@@ -3623,12 +2786,12 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 							CDO->GetArchetypeInstances(ArchetypeInstances);
 							for (UObject* ArchetypeInstance : ArchetypeInstances)
 							{
-								UControlRig* InstancedControlRig = Cast<UControlRig>(ArchetypeInstance);
-								if (InstancedControlRig)
+								URigVMHost* InstancedHost = Cast<URigVMHost>(ArchetypeInstance);
+								if (InstancedHost)
 								{
-									if (InstancedControlRig->VM)
+									if (InstancedHost->VM)
 									{
-										InstancedControlRig->VM->SetPropertyValueFromString(*Operand, DefaultValue);
+										InstancedHost->VM->SetPropertyValueFromString(*Operand, DefaultValue);
 									}
 								}
 							}
@@ -3636,7 +2799,7 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 							if (Pin->IsDefinedAsConstant() || Pin->GetRootPin()->IsDefinedAsConstant())
 							{
 								// re-init the rigs
-								RequestControlRigInit();
+								RequestRigVMInit();
 								bRequiresRecompile = true;
 							}
 						}
@@ -3650,55 +2813,8 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 					{
 						RequestAutoVMRecompilation();
 					}
-
-					// check if this pin is part of an injected node, and if it is a visual debug node,
-					// we might need to recreate the control pin
-					if (UClass* MyControlRigClass = GeneratedClass)
-					{
-						if (UControlRig* DefaultObject = Cast<UControlRig>(MyControlRigClass->GetDefaultObject(false)))
-						{
-							TArray<UObject*> ArchetypeInstances;
-							DefaultObject->GetArchetypeInstances(ArchetypeInstances);
-							
-							for (UObject* ArchetypeInstance : ArchetypeInstances)
-							{
-								if (UControlRig* InstanceRig = Cast<UControlRig>(ArchetypeInstance))
-								{
-									Hierarchy->ForEach<FRigControlElement>([this, InstanceRig, Pin](FRigControlElement* ControlElement) -> bool
-                                    {
-										if(!ControlElement->Settings.bIsTransientControl)
-										{
-											return true;
-										}
-
-										for(URigVMGraph* Model : RigVMClient)
-										{
-											if (URigVMPin* ControlledPin = Model->FindPin(ControlElement->GetName().ToString()))
-											{
-												URigVMPin* ControlledPinForLink = ControlledPin->GetPinForLink();
-
-												if(ControlledPin->GetRootPin() == Pin->GetRootPin() ||
-												   ControlledPinForLink->GetRootPin() == Pin->GetRootPin())
-												{
-													InstanceRig->SetTransientControlValue(ControlledPin->GetPinForLink());
-												}
-												else if (ControlledPin->GetNode() == Pin->GetNode() ||
-														 ControlledPinForLink->GetNode() == Pin->GetNode())
-												{
-													InstanceRig->ClearTransientControls();
-													InstanceRig->AddTransientControl(ControlledPin);
-												}
-												return false;
-											}
-										}
-										return true;
-									});
-								}
-							}
-						}
-					}
 				}
-				MarkPackageDirty();
+				(void)MarkPackageDirty();
 				break;
 			}
 			case ERigVMGraphNotifType::NodeAdded:
@@ -3733,10 +2849,9 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 						// Controllers.Remove(CollapseNode->GetContainedGraph();
 					}
 
-					ClearTransientControls();
 					RequestAutoVMRecompilation();
 
-					MarkPackageDirty();
+					(void)MarkPackageDirty();
 					MarkBlueprintAsStructurallyModified();
 					break;
 				}
@@ -3748,7 +2863,7 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 						// let the UI know the title for the graph may have changed.
 						RigVMClient.NotifyOuterOfPropertyChange();
 
-						if(UControlRigGraph* EdGraph = Cast<UControlRigGraph>(GetEdGraph(RigVMNode->GetGraph())))
+						if(URigVMEdGraph* EdGraph = Cast<URigVMEdGraph>(GetEdGraph(RigVMNode->GetGraph())))
 						{
 							// decide if this graph should be renameable
 							const int32 NumberOfEvents = Algo::CountIf(RigVMNode->GetGraph()->GetNodes(), [](const URigVMNode* NodeToCount) -> bool
@@ -3766,9 +2881,8 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 			case ERigVMGraphNotifType::PinArraySizeChanged:
 			case ERigVMGraphNotifType::PinDirectionChanged:
 			{
-				ClearTransientControls();
 				RequestAutoVMRecompilation();
-				MarkPackageDirty();
+				(void)MarkPackageDirty();
 
 				// we don't need to mark the blueprint as modified since we only
 				// need to recompile the VM here - unless we don't auto recompile.
@@ -3780,7 +2894,7 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 			}
 			case ERigVMGraphNotifType::PinWatchedChanged:
 			{
-				if (UControlRig* CR = Cast<UControlRig>(GetObjectBeingDebugged()))
+				if (URigVMHost* DebuggedHost = Cast<URigVMHost>(GetObjectBeingDebugged()))
 				{
 					URigVMPin* Pin = CastChecked<URigVMPin>(InSubject)->GetRootPin(); 
 					URigVMCompiler* Compiler = URigVMCompiler::StaticClass()->GetDefaultObject<URigVMCompiler>();
@@ -3791,27 +2905,27 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 					if(Pin->RequiresWatch())
 					{
 						// check if the node is optimized out - in that case we need to recompile
-						if(CR->GetVM()->GetByteCode().GetFirstInstructionIndexForSubject(Pin->GetNode()) == INDEX_NONE)
+						if(DebuggedHost->GetVM()->GetByteCode().GetFirstInstructionIndexForSubject(Pin->GetNode()) == INDEX_NONE)
 						{
 							RequestAutoVMRecompilation();
-							MarkPackageDirty();
+							(void)MarkPackageDirty();
 						}
 						else
 						{
-							if(CR->GetVM()->GetDebugMemory()->Num() == 0)
+							if(DebuggedHost->GetVM()->GetDebugMemory()->Num() == 0)
 							{
 								RequestAutoVMRecompilation();
-								MarkPackageDirty();
+								(void)MarkPackageDirty();
 							}
 							else
 							{
-								Compiler->MarkDebugWatch(true, Pin, CR->GetVM(), &PinToOperandMap, RuntimeAST);
+								Compiler->MarkDebugWatch(true, Pin, DebuggedHost->GetVM(), &PinToOperandMap, RuntimeAST);
 							}
 						}
 					}
 					else
 					{
-						Compiler->MarkDebugWatch(false, Pin, CR->GetVM(), &PinToOperandMap, RuntimeAST);
+						Compiler->MarkDebugWatch(false, Pin, DebuggedHost->GetVM(), &PinToOperandMap, RuntimeAST);
 					}
 				}
 				// break; fall through
@@ -3822,8 +2936,8 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 				if (URigVMPin* ModelPin = Cast<URigVMPin>(InSubject))
 				{
 					if (UEdGraph* EdGraph = GetEdGraph(InGraph))
-					{
-						if (UControlRigGraph* Graph = Cast<UControlRigGraph>(EdGraph))
+					{							
+						if (URigVMEdGraph* Graph = Cast<URigVMEdGraph>(EdGraph))
 						{
 							if (UEdGraphNode* EdNode = Graph->FindNodeForModelNodeName(ModelPin->GetNode()->GetFName()))
 							{
@@ -3846,7 +2960,7 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 										return;
 									}
 									RequestAutoVMRecompilation();
-									MarkPackageDirty();
+									(void)MarkPackageDirty();
 								}
 							}
 						}
@@ -3877,7 +2991,7 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 			case ERigVMGraphNotifType::VariableRemappingChanged:
 			{
 				RequestAutoVMRecompilation();
-				MarkPackageDirty();
+				(void)MarkPackageDirty();
 				break;
 			}
 			case ERigVMGraphNotifType::NodeRenamed:
@@ -3929,7 +3043,7 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 #endif
 }
 
-void UControlRigBlueprint::SuspendNotifications(bool bSuspendNotifs)
+void URigVMBlueprint::SuspendNotifications(bool bSuspendNotifs)
 {
 	if (bSuspendAllNotifications == bSuspendNotifs)
 	{
@@ -3945,26 +3059,11 @@ void UControlRigBlueprint::SuspendNotifications(bool bSuspendNotifs)
 	}
 }
 
-void UControlRigBlueprint::CreateMemberVariablesOnLoad()
+void URigVMBlueprint::CreateMemberVariablesOnLoad()
 {
 #if WITH_EDITOR
 
-	int32 LinkerVersion = GetLinkerCustomVersion(FControlRigObjectVersion::GUID);
-	if (LinkerVersion < FControlRigObjectVersion::SwitchedToRigVM)
-	{
-		// ignore errors during the first potential compile of the VM
-		// since that this point variable nodes may still be ill-formed.
-		TGuardValue<FRigVMReportDelegate> SuspendReportDelegate(VMCompileSettings.ASTSettings.ReportDelegate,
-			FRigVMReportDelegate::CreateLambda([](EMessageSeverity::Type,  UObject*, const FString&)
-			{
-				// do nothing
-			})
-		);
-		InitializeModelIfRequired();
-	}
-
 	AddedMemberVariableMap.Reset();
-
 	for (int32 VariableIndex = 0; VariableIndex < NewVariables.Num(); VariableIndex++)
 	{
 		AddedMemberVariableMap.Add(NewVariables[VariableIndex].VarName, VariableIndex);
@@ -3975,89 +3074,12 @@ void UControlRigBlueprint::CreateMemberVariablesOnLoad()
 		return;
 	}
 
-	// setup variables on the blueprint based on the previous "parameters"
-	if (GetLinkerCustomVersion(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::BlueprintVariableSupport)
-	{
-		TSharedPtr<FKismetNameValidator> NameValidator = MakeShareable(new FKismetNameValidator(this, NAME_None, nullptr));
-
-		for(URigVMGraph* Model : RigVMClient)
-		{
-			TArray<URigVMNode*> Nodes = Model->GetNodes();
-			for (URigVMNode* Node : Nodes)
-			{
-				if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(Node))
-				{
-					if (URigVMPin* VariablePin = VariableNode->FindPin(TEXT("Variable")))
-					{
-						if (VariablePin->GetDirection() != ERigVMPinDirection::Visible)
-						{
-							continue;
-						}
-					}
-
-					FRigVMGraphVariableDescription Description = VariableNode->GetVariableDescription();
-					if (AddedMemberVariableMap.Contains(Description.Name))
-					{
-						continue;
-					}
-
-					FEdGraphPinType PinType = RigVMTypeUtils::PinTypeFromExternalVariable(Description.ToExternalVariable());
-					if (!PinType.PinCategory.IsValid())
-					{
-						continue;
-					}
-
-					FName VarName = FindCRMemberVariableUniqueName(NameValidator, Description.Name.ToString());
-					int32 VariableIndex = AddCRMemberVariable(this, VarName, PinType, false, false, FString());
-					if (VariableIndex != INDEX_NONE)
-					{
-						AddedMemberVariableMap.Add(Description.Name, VariableIndex);
-						bDirtyDuringLoad = true;
-					}
-				}
-
-				// Leaving this for backwards compatibility, even though we don't support parameters anymore
-				// When a parameter node is found, we will create a variable
-				if (URigVMParameterNode* ParameterNode = Cast<URigVMParameterNode>(Node))
-				{
-					if (URigVMPin* ParameterPin = ParameterNode->FindPin(TEXT("Parameter")))
-					{
-						if (ParameterPin->GetDirection() != ERigVMPinDirection::Visible)
-						{
-							continue;
-						}
-					}
-
-					FRigVMGraphParameterDescription Description = ParameterNode->GetParameterDescription();
-					if (AddedMemberVariableMap.Contains(Description.Name))
-					{
-						continue;
-					}
-
-					FEdGraphPinType PinType = RigVMTypeUtils::PinTypeFromExternalVariable(Description.ToExternalVariable());
-					if (!PinType.PinCategory.IsValid())
-					{
-						continue;
-					}
-
-					FName VarName = FindCRMemberVariableUniqueName(NameValidator, Description.Name.ToString());
-					int32 VariableIndex = AddCRMemberVariable(this, VarName, PinType, true, !Description.bIsInput, FString());
-					if (VariableIndex != INDEX_NONE)
-					{
-						AddedMemberVariableMap.Add(Description.Name, VariableIndex);
-						bDirtyDuringLoad = true;
-					}
-				}
-			}
-		}
-	}
-
 #endif
 }
 
 #if WITH_EDITOR
 
-FName UControlRigBlueprint::FindCRMemberVariableUniqueName(TSharedPtr<FKismetNameValidator> InNameValidator, const FString& InBaseName)
+FName URigVMBlueprint::FindHostMemberVariableUniqueName(TSharedPtr<FKismetNameValidator> InNameValidator, const FString& InBaseName)
 {
 	FString BaseName = InBaseName;
 	if (InNameValidator->IsValid(BaseName) == EValidatorResult::ContainsInvalidCharacters)
@@ -4088,7 +3110,7 @@ FName UControlRigBlueprint::FindCRMemberVariableUniqueName(TSharedPtr<FKismetNam
 	return *KismetName;
 }
 
-int32 UControlRigBlueprint::AddCRMemberVariable(UControlRigBlueprint* InBlueprint, const FName& InVarName, FEdGraphPinType InVarType, bool bIsPublic, bool bIsReadOnly, FString InDefaultValue)
+int32 URigVMBlueprint::AddHostMemberVariable(URigVMBlueprint* InBlueprint, const FName& InVarName, FEdGraphPinType InVarType, bool bIsPublic, bool bIsReadOnly, FString InDefaultValue)
 {
 	FBPVariableDescription NewVar;
 
@@ -4126,7 +3148,7 @@ int32 UControlRigBlueprint::AddCRMemberVariable(UControlRigBlueprint* InBlueprin
 	return InBlueprint->NewVariables.Add(NewVar);
 }
 
-FName UControlRigBlueprint::AddCRMemberVariableFromExternal(FRigVMExternalVariable InVariableToCreate, FString InDefaultValue)
+FName URigVMBlueprint::AddHostMemberVariableFromExternal(FRigVMExternalVariable InVariableToCreate, FString InDefaultValue)
 {
 	FEdGraphPinType PinType = RigVMTypeUtils::PinTypeFromExternalVariable(InVariableToCreate);
 	if (!PinType.PinCategory.IsValid())
@@ -4137,8 +3159,8 @@ FName UControlRigBlueprint::AddCRMemberVariableFromExternal(FRigVMExternalVariab
 	Modify();
 
 	TSharedPtr<FKismetNameValidator> NameValidator = MakeShareable(new FKismetNameValidator(this, NAME_None, nullptr));
-	FName VarName = FindCRMemberVariableUniqueName(NameValidator, InVariableToCreate.Name.ToString());
-	int32 VariableIndex = AddCRMemberVariable(this, VarName, PinType, InVariableToCreate.bIsPublic, InVariableToCreate.bIsReadOnly, InDefaultValue);
+	FName VarName = FindHostMemberVariableUniqueName(NameValidator, InVariableToCreate.Name.ToString());
+	int32 VariableIndex = AddHostMemberVariable(this, VarName, PinType, InVariableToCreate.bIsPublic, InVariableToCreate.bIsReadOnly, InDefaultValue);
 	if (VariableIndex != INDEX_NONE)
 	{
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(this);
@@ -4148,7 +3170,7 @@ FName UControlRigBlueprint::AddCRMemberVariableFromExternal(FRigVMExternalVariab
 	return NAME_None;
 }
 
-void UControlRigBlueprint::PatchFunctionReferencesOnLoad()
+void URigVMBlueprint::PatchFunctionReferencesOnLoad()
 {
 	// If the asset was copied from one project to another, the function referenced might have a different
 	// path, even if the function is internal to the contorl rig. In that case, let's try to find the function
@@ -4169,7 +3191,7 @@ void UControlRigBlueprint::PatchFunctionReferencesOnLoad()
 			{
 				if (!FunctionReferenceNode->ReferencedNodePtr_DEPRECATED.IsValid())
 				{
-					FunctionReferenceNode->ReferencedNodePtr_DEPRECATED.LoadSynchronous();
+					(void)FunctionReferenceNode->ReferencedNodePtr_DEPRECATED.LoadSynchronous();
 				}
 				if (!FunctionReferenceNode->ReferencedNodePtr_DEPRECATED)
 				{
@@ -4215,135 +3237,19 @@ void UControlRigBlueprint::PatchFunctionReferencesOnLoad()
 
 #endif
 
-void UControlRigBlueprint::PatchVariableNodesOnLoad()
+void URigVMBlueprint::PatchVariableNodesOnLoad()
 {
 #if WITH_EDITOR
-
-	// setup variables on the blueprint based on the previous "parameters"
-	if (GetLinkerCustomVersion(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::BlueprintVariableSupport)
-	{
-		TGuardValue<bool> GuardNotifsSelf(bSuspendModelNotificationsForSelf, true);
-
-		check(GetDefaultModel());
-
-		for(URigVMGraph* Model : RigVMClient)
-		{
-			TArray<URigVMNode*> Nodes = Model->GetNodes();
-			for (URigVMNode* Node : Nodes)
-			{
-				if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(Node))
-				{
-					FRigVMGraphVariableDescription Description = VariableNode->GetVariableDescription();
-					if (!AddedMemberVariableMap.Contains(Description.Name))
-					{
-						continue;
-					}
-
-					int32 VariableIndex = AddedMemberVariableMap.FindChecked(Description.Name);
-					FName VarName = NewVariables[VariableIndex].VarName;
-
-					URigVMController* Controller = GetOrCreateController(Model);
-					Controller->RefreshVariableNode(VariableNode->GetFName(), VarName, Description.CPPType, Description.CPPTypeObject, false);
-					bDirtyDuringLoad = true;
-				}
-
-				if (URigVMParameterNode* ParameterNode = Cast<URigVMParameterNode>(Node))
-				{
-					FRigVMGraphParameterDescription Description = ParameterNode->GetParameterDescription();
-					if (!AddedMemberVariableMap.Contains(Description.Name))
-					{
-						continue;
-					}
-
-					int32 VariableIndex = AddedMemberVariableMap.FindChecked(Description.Name);
-					FName VarName = NewVariables[VariableIndex].VarName;
-					URigVMController* Controller = GetOrCreateController(Model);
-					Controller->ReplaceParameterNodeWithVariable(ParameterNode->GetFName(), VarName, Description.CPPType, Description.CPPTypeObject, false);
-					bDirtyDuringLoad = true;
-				}
-			}
-		}
-	}
-
 	AddedMemberVariableMap.Reset();
 	LastNewVariables = NewVariables;
-
 #endif
 }
 
-void UControlRigBlueprint::PatchRigElementKeyCacheOnLoad()
+void URigVMBlueprint::PatchBoundVariables()
 {
-	if (GetLinkerCustomVersion(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::RigElementKeyCache)
-	{
-		for (URigVMGraph* Graph : GetAllModels())
-		{
-			URigVMController* Controller = GetOrCreateController(Graph);
-			TGuardValue<bool> DisablePinDefaultValueValidation(Controller->bValidatePinDefaults, false);
-			FRigVMControllerNotifGuard NotifGuard(Controller, true);
-			for (URigVMNode* Node : Graph->GetNodes())
-			{
-				if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(Node))
-				{
-					UScriptStruct* ScriptStruct = UnitNode->GetScriptStruct();
-					FString FunctionName = FString::Printf(TEXT("%s::%s"), *ScriptStruct->GetStructCPPName(), *UnitNode->GetMethodName().ToString());
-					const FRigVMFunction* Function = FRigVMRegistry::Get().FindFunction(*FunctionName);
-					check(Function);
-					for (TFieldIterator<FProperty> It(Function->Struct); It; ++It)
-					{
-						if (It->GetCPPType() == TEXT("FCachedRigElement"))
-						{
-							if (URigVMPin* Pin = Node->FindPin(It->GetName()))
-							{
-								int32 BoneIndex = FCString::Atoi(*Pin->GetDefaultValue());
-								FRigElementKey Key = Hierarchy->GetKey(BoneIndex);
-								FCachedRigElement DefaultValueElement(Key, Hierarchy);
-								FString Result;
-								TBaseStructure<FCachedRigElement>::Get()->ExportText(Result, &DefaultValueElement, nullptr, nullptr, PPF_None, nullptr);								
-								Controller->SetPinDefaultValue(Pin->GetPinPath(), Result, true, false, false);
-								bDirtyDuringLoad = true;
-							}							
-						}
-					}
-				}
-			}
-		}
-	}
 }
 
-void UControlRigBlueprint::PatchBoundVariables()
-{
-	if (GetLinkerCustomVersion(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::BoundVariableWithInjectionNode)
-	{
-		TGuardValue<bool> GuardNotifsSelf(bSuspendModelNotificationsForSelf, true);
-		
-		for (URigVMGraph* Graph : GetAllModels())
-		{
-			URigVMController* Controller = GetOrCreateController(Graph);
-			TArray<URigVMNode*> Nodes = Graph->GetNodes();
-			for (URigVMNode* Node : Nodes)
-			{
-				for (URigVMPin* Pin : Node->GetPins())
-				{
-					for (URigVMInjectionInfo* Info : Pin->GetInjectedNodes())
-					{
-						Info->Node = Info->UnitNode_DEPRECATED;
-						Info->UnitNode_DEPRECATED = nullptr;
-						bDirtyDuringLoad = true;						
-					}
-					
-					if (!Pin->BoundVariablePath_DEPRECATED.IsEmpty())
-					{
-						Controller->BindPinToVariable(Pin->GetPinPath(), Pin->BoundVariablePath_DEPRECATED, false);
-						Pin->BoundVariablePath_DEPRECATED = FString();
-						bDirtyDuringLoad = true;
-					}
-				}
-			}
-		}
-	}
-}
-
-void UControlRigBlueprint::PatchVariableNodesWithIncorrectType()
+void URigVMBlueprint::PatchVariableNodesWithIncorrectType()
 {
 	TGuardValue<bool> GuardNotifsSelf(bSuspendModelNotificationsForSelf, true);
 
@@ -4419,163 +3325,7 @@ void UControlRigBlueprint::PatchVariableNodesWithIncorrectType()
 	}
 }
 
-// change the default value form False to True for transform nodes
-void UControlRigBlueprint::PatchPropagateToChildren()
-{
-	// no need to update default value past this version
-	if (GetLinkerCustomVersion(FControlRigObjectVersion::GUID) >= FControlRigObjectVersion::RenameGizmoToShape)
-	{
-		return;
-	}
-	
-	auto IsNullOrControl = [](const URigVMPin* InPin)
-	{
-		const bool bHasItem = InPin->GetCPPTypeObject() == FRigElementKey::StaticStruct() && InPin->GetName() == "Item";
-		if (!bHasItem)
-		{
-			return false;
-		}
-
-		if (const URigVMPin* TypePin = InPin->FindSubPin(TEXT("Type")))
-		{
-			const FString& TypeValue = TypePin->GetDefaultValue();
-			return TypeValue == TEXT("Null") || TypeValue == TEXT("Space") || TypeValue == TEXT("Control");
-		}
-		
-		return false;
-	};
-
-	auto IsPropagateChildren = [](const URigVMPin* InPin)
-	{
-		return InPin->GetCPPType() == TEXT("bool") && InPin->GetName() == TEXT("bPropagateToChildren");
-	};
-
-	auto FindPropagatePin = [IsNullOrControl, IsPropagateChildren](const URigVMNode* InNode)-> URigVMPin*
-	{
-		URigVMPin* PropagatePin = nullptr;
-		URigVMPin* ItemPin = nullptr;  
-		for (URigVMPin* Pin: InNode->GetPins())
-		{
-			// look for Item pin
-			if (!ItemPin && IsNullOrControl(Pin))
-			{
-				ItemPin = Pin;
-			}
-
-			// look for bPropagateToChildren pin
-			if (!PropagatePin && IsPropagateChildren(Pin))
-			{
-				PropagatePin = Pin;
-			}
-
-			// return propagation pin if both found
-			if (ItemPin && PropagatePin)
-			{
-				return PropagatePin;
-			}
-		}
-		return nullptr;
-	};
-
-	for (URigVMGraph* Graph : GetAllModels())
-	{
-		TArray< const URigVMPin* > PinsToUpdate;
-		for (const URigVMNode* Node : Graph->GetNodes())
-		{
-			if (const URigVMPin* PropagatePin = FindPropagatePin(Node))
-			{
-				PinsToUpdate.Add(PropagatePin);
-			}
-		}
-		
-		if (URigVMController* Controller = GetOrCreateController(Graph))
-		{
-			FRigVMControllerNotifGuard NotifGuard(Controller, true);
-			for (const URigVMPin* Pin: PinsToUpdate)
-			{
-				Controller->SetPinDefaultValue(Pin->GetPinPath(), TEXT("True"), false, false, false);
-			}
-		}
-	}
-}
-
-void UControlRigBlueprint::PatchParameterNodesOnLoad()
-{	
-#if WITH_EDITOR
-
-	// setup variables on the blueprint based on the previous "parameters"
-	if (GetLinkerCustomVersion(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::RemoveParameters)
-	{
-		
-		TGuardValue<bool> GuardNotifsSelf(bSuspendModelNotificationsForSelf, true);
-
-		check(GetDefaultModel());
-
-		for(URigVMGraph* Model : RigVMClient)
-		{
-			TArray<URigVMNode*> Nodes = Model->GetNodes();
-			for (URigVMNode* Node : Nodes)
-			{
-				if (URigVMParameterNode* ParameterNode = Cast<URigVMParameterNode>(Node))
-				{
-					FRigVMGraphParameterDescription Description = ParameterNode->GetParameterDescription();
-
-					const FEdGraphPinType PinType = RigVMTypeUtils::PinTypeFromCPPType(*Description.CPPType, Description.CPPTypeObject);
-
-					int32 VariableIndex = INDEX_NONE;
-					bool bFoundName = false;
-					for (int32 i=0; i<NewVariables.Num(); ++i)
-					{
-						if (NewVariables[i].VarName == Description.Name)
-						{
-							if (NewVariables[i].VarType == PinType &&
-								NewVariables[i].DefaultValue == Description.DefaultValue)
-							{
-								VariableIndex = i;
-							}
-							bFoundName = true;
-							break;
-						}
-					}
-
-					if (VariableIndex == INDEX_NONE)
-					{
-						FName NewVariableName = Description.Name;
-						if (bFoundName)
-						{
-							bool bFound = true;
-							int32 Count = 0;
-							while (bFound)
-							{
-								bFound = false;
-								for (int32 i=0; i<NewVariables.Num(); ++i)
-								{
-									if (NewVariables[i].VarName == NewVariableName)
-									{
-										bFound = true;
-										NewVariableName = *FString::Printf(TEXT("%s_%d"), *Description.Name.ToString(), ++Count);
-										break;
-									}
-								}
-							}
-						}
-						
-						VariableIndex = AddCRMemberVariable(this, NewVariableName, PinType, false, false, Description.DefaultValue);
-					}
-					
-					FName VarName = NewVariables[VariableIndex].VarName;
-					GetOrCreateController()->ReplaceParameterNodeWithVariable(ParameterNode->GetFName(), VarName, Description.CPPType, Description.CPPTypeObject, false);
-					bDirtyDuringLoad = true;
-				}
-			}
-		}
-		LastNewVariables = NewVariables;
-	}
-
-#endif	
-}
-
-void UControlRigBlueprint::PatchLinksWithCast()
+void URigVMBlueprint::PatchLinksWithCast()
 {
 #if WITH_EDITOR
 
@@ -4626,7 +3376,7 @@ void UControlRigBlueprint::PatchLinksWithCast()
 			Controller->BreakLink(Tuple.Get<2>(), Tuple.Get<3>(), false);
 
 			// notify the user that the link has been broken.
-			UE_LOG(LogControlRigDeveloper, Warning,
+			UE_LOG(LogRigVMDeveloper, Warning,
 				TEXT("A link was removed in %s (%s) - it contained different types on source and target pin (former cast link?)."),
 				*Controller->GetGraph()->GetNodePath(),
 				*URigVMLink::GetPinPathRepresentation(Tuple.Get<2>(), Tuple.Get<3>())
@@ -4636,9 +3386,9 @@ void UControlRigBlueprint::PatchLinksWithCast()
 #endif
 }
 
-void UControlRigBlueprint::PatchFunctionsOnLoad()
+void URigVMBlueprint::PatchFunctionsOnLoad()
 {
-	URigVMBlueprintGeneratedClass* CRGeneratedClass = GetControlRigBlueprintGeneratedClass();
+	URigVMBlueprintGeneratedClass* CRGeneratedClass = GetRigVMBlueprintGeneratedClass();
 	FRigVMGraphFunctionStore& Store = CRGeneratedClass->GraphFunctionStore;
 	const URigVMFunctionLibrary* Library = GetLocalFunctionLibrary();
 
@@ -4646,23 +3396,13 @@ void UControlRigBlueprint::PatchFunctionsOnLoad()
 
 	// Backwards compatibility. Store public access in the model
 	TArray<FName> BackwardsCompatiblePublicFunctions;
-	if (GetLinkerCustomVersion(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::StoreFunctionsInGeneratedClass)
+	if (GetLinkerCustomVersion(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::RigVMSaveFunctionAccessInModel)
 	{
-		for (const FControlRigPublicFunctionData& Data : PublicFunctions_DEPRECATED)
+		for (const FRigVMGraphFunctionData& FunctionData : Store.PublicFunctions)
 		{
-			BackwardsCompatiblePublicFunctions.Add(Data.Name);
-		}
-	}
-	else
-	{
-		if (GetLinkerCustomVersion(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::RigVMSaveFunctionAccessInModel)
-		{
-			for (const FRigVMGraphFunctionData& FunctionData : Store.PublicFunctions)
-			{
-				BackwardsCompatiblePublicFunctions.Add(FunctionData.Header.Name);
-				URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(FunctionData.Header.LibraryPointer.LibraryNode.ResolveObject());
-				OldHeaders.Add(LibraryNode, FunctionData.Header);
-			}
+			BackwardsCompatiblePublicFunctions.Add(FunctionData.Header.Name);
+			URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(FunctionData.Header.LibraryPointer.LibraryNode.ResolveObject());
+			OldHeaders.Add(LibraryNode, FunctionData.Header);
 		}
 	}
 
@@ -4716,104 +3456,11 @@ void UControlRigBlueprint::PatchFunctionsOnLoad()
 	}
 }
 
-void UControlRigBlueprint::PropagatePoseFromInstanceToBP(UControlRig* InControlRig)
+void URigVMBlueprint::PropagateRuntimeSettingsFromBPToInstances()
 {
-	check(InControlRig);
-	// current transforms in BP and CDO are meaningless, no need to copy them
-	// we use BP hierarchy to initialize CDO and instances' hierarchy, 
-	// so it should always be in the initial state.
-	Hierarchy->CopyPose(InControlRig->GetHierarchy(), false, true, false, true);
-}
-
-void UControlRigBlueprint::PropagatePoseFromBPToInstances()
-{
-	if (UClass* MyControlRigClass = GeneratedClass)
+	if (const UClass* MyControlRigClass = GeneratedClass)
 	{
-		if (UControlRig* DefaultObject = Cast<UControlRig>(MyControlRigClass->GetDefaultObject(false)))
-		{
-			DefaultObject->PostInitInstanceIfRequired();
-			DefaultObject->GetHierarchy()->CopyPose(Hierarchy, true, true, true);
-
-			TArray<UObject*> ArchetypeInstances;
-			DefaultObject->GetArchetypeInstances(ArchetypeInstances);
-			for (UObject* ArchetypeInstance : ArchetypeInstances)
-			{
-				if (UControlRig* InstanceRig = Cast<UControlRig>(ArchetypeInstance))
-				{
-					InstanceRig->PostInitInstanceIfRequired();
-					InstanceRig->GetHierarchy()->CopyPose(Hierarchy, true, true, true);
-				}
-			}
-		}
-	}
-}
-
-void UControlRigBlueprint::PropagateHierarchyFromBPToInstances()
-{
-	if (UClass* MyControlRigClass = GeneratedClass)
-	{
-		if (UControlRig* DefaultObject = Cast<UControlRig>(MyControlRigClass->GetDefaultObject(false)))
-		{
-			DefaultObject->PostInitInstanceIfRequired();
-			DefaultObject->GetHierarchy()->CopyHierarchy(Hierarchy);
-			DefaultObject->HierarchySettings = HierarchySettings;
-			DefaultObject->Initialize(true);
-
-			TArray<UObject*> ArchetypeInstances;
-			DefaultObject->GetArchetypeInstances(ArchetypeInstances);
-			for (UObject* ArchetypeInstance : ArchetypeInstances)
-			{
-				if (UControlRig* InstanceRig = Cast<UControlRig>(ArchetypeInstance))
-				{
-					InstanceRig->PostInitInstanceIfRequired();
-					InstanceRig->GetHierarchy()->CopyHierarchy(Hierarchy);
-					InstanceRig->HierarchySettings = HierarchySettings;
-					InstanceRig->Initialize(true);
-				}
-			}
-		}
-	}
-}
-
-void UControlRigBlueprint::PropagateDrawInstructionsFromBPToInstances()
-{
-	if (UClass* MyControlRigClass = GeneratedClass)
-	{
-		if (UControlRig* DefaultObject = Cast<UControlRig>(MyControlRigClass->GetDefaultObject(false)))
-	{
-			DefaultObject->DrawContainer = DrawContainer;
-
-			TArray<UObject*> ArchetypeInstances;
-			DefaultObject->GetArchetypeInstances(ArchetypeInstances);
-
-			for (UObject* ArchetypeInstance : ArchetypeInstances)
-			{
-				if (UControlRig* InstanceRig = Cast<UControlRig>(ArchetypeInstance))
-	{
-					InstanceRig->DrawContainer = DrawContainer;
-				}
-			}
-		}
-	}
-
-
-	// make sure the bone name list is up 2 date for the editor graph
-	for (UEdGraph* Graph : UbergraphPages)
-	{
-		UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph);
-		if (RigGraph == nullptr)
-		{
-			continue;
-		}
-		RigGraph->CacheNameLists(Hierarchy, &DrawContainer, ShapeLibraries);
-	}
-}
-
-void UControlRigBlueprint::PropagateRuntimeSettingsFromBPToInstances()
-{
-	if (UClass* MyControlRigClass = GeneratedClass)
-	{
-		if (UControlRig* DefaultObject = Cast<UControlRig>(MyControlRigClass->GetDefaultObject(false)))
+		if (URigVMHost* DefaultObject = Cast<URigVMHost>(MyControlRigClass->GetDefaultObject(false)))
 		{
 			DefaultObject->VMRuntimeSettings = VMRuntimeSettings;
 
@@ -4822,9 +3469,9 @@ void UControlRigBlueprint::PropagateRuntimeSettingsFromBPToInstances()
 
 			for (UObject* ArchetypeInstance : ArchetypeInstances)
 			{
-				if (UControlRig* InstanceRig = Cast<UControlRig>(ArchetypeInstance))
+				if (URigVMHost* InstanceHost = Cast<URigVMHost>(ArchetypeInstance))
 				{
-					InstanceRig->VMRuntimeSettings = VMRuntimeSettings;
+					InstanceHost->VMRuntimeSettings = VMRuntimeSettings;
 				}
 			}
 		}
@@ -4838,7 +3485,7 @@ void UControlRigBlueprint::PropagateRuntimeSettingsFromBPToInstances()
 		TArray<UEdGraphNode*> Nodes = Graph->Nodes;
 		for (UEdGraphNode* Node : Nodes)
 		{
-			if(UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node))
+			if(URigVMEdGraphNode* RigNode = Cast<URigVMEdGraphNode>(Node))
 			{
 				RigNode->ReconstructNode_Internal(true);
 			}
@@ -4846,166 +3493,9 @@ void UControlRigBlueprint::PropagateRuntimeSettingsFromBPToInstances()
 	}
 }
 
-void UControlRigBlueprint::PropagatePropertyFromBPToInstances(FRigElementKey InRigElement, const FProperty* InProperty)
-{
-	int32 ElementIndex = Hierarchy->GetIndex(InRigElement);
-	ensure(ElementIndex != INDEX_NONE);
-	check(InProperty);
-
-	if (UClass* MyControlRigClass = GeneratedClass)
-	{
-		if (UControlRig* DefaultObject = Cast<UControlRig>(MyControlRigClass->GetDefaultObject(false)))
-		{
-			TArray<UObject*> ArchetypeInstances;
-			DefaultObject->GetArchetypeInstances(ArchetypeInstances);
-
-			const int32 PropertyOffset = InProperty->GetOffset_ReplaceWith_ContainerPtrToValuePtr();
-			const int32 PropertySize = InProperty->GetSize();
-
-			uint8* Source = ((uint8*)Hierarchy->Get(ElementIndex)) + PropertyOffset;
-			for (UObject* ArchetypeInstance : ArchetypeInstances)
-			{
-				if (UControlRig* InstanceRig = Cast<UControlRig>(ArchetypeInstance))
-				{
-					InstanceRig->PostInitInstanceIfRequired();
-					uint8* Dest = ((uint8*)InstanceRig->GetHierarchy()->Get(ElementIndex)) + PropertyOffset;
-					FMemory::Memcpy(Dest, Source, PropertySize);
-				}
-			}
-		}
-	}
-}
-
-void UControlRigBlueprint::PropagatePropertyFromInstanceToBP(FRigElementKey InRigElement, const FProperty* InProperty, UControlRig* InInstance)
-{
-	const int32 ElementIndex = Hierarchy->GetIndex(InRigElement);
-	ensure(ElementIndex != INDEX_NONE);
-	check(InProperty);
-
-	const int32 PropertyOffset = InProperty->GetOffset_ReplaceWith_ContainerPtrToValuePtr();
-	const int32 PropertySize = InProperty->GetSize();
-	uint8* Source = ((uint8*)InInstance->GetHierarchy()->Get(ElementIndex)) + PropertyOffset;
-	uint8* Dest = ((uint8*)Hierarchy->Get(ElementIndex)) + PropertyOffset;
-	FMemory::Memcpy(Dest, Source, PropertySize);
-}
-
-
-void UControlRigBlueprint::HandleHierarchyModified(ERigHierarchyNotification InNotification, URigHierarchy* InHierarchy, const FRigBaseElement* InElement)
-{
 #if WITH_EDITOR
 
-	if(bSuspendAllNotifications)
-	{
-		return;
-	}
-
-	switch(InNotification)
-	{
-		case ERigHierarchyNotification::ElementRemoved:
-		{
-			Modify();
-			Influences.OnKeyRemoved(InElement->GetKey());
-			PropagateHierarchyFromBPToInstances();
-			break;
-		}
-		case ERigHierarchyNotification::ElementRenamed:
-		{
-			Modify();
-			Influences.OnKeyRenamed(FRigElementKey(InHierarchy->GetPreviousName(InElement->GetKey()), InElement->GetType()), InElement->GetKey());
-			PropagateHierarchyFromBPToInstances();
-			break;
-		}
-		case ERigHierarchyNotification::ElementAdded:
-		case ERigHierarchyNotification::ParentChanged:
-		case ERigHierarchyNotification::ElementReordered:
-		case ERigHierarchyNotification::HierarchyReset:
-		{
-			Modify();
-			PropagateHierarchyFromBPToInstances();
-			break;
-		}
-		case ERigHierarchyNotification::ElementSelected:
-		{
-			bool bClearTransientControls = true;
-			if (const FRigControlElement* ControlElement = Cast<FRigControlElement>(InElement))
-			{
-				if (ControlElement->Settings.bIsTransientControl)
-				{
-					bClearTransientControls = false;
-				}
-			}
-
-			if(bClearTransientControls)
-			{
-				if(UControlRig* RigBeingDebugged = Cast<UControlRig>(GetObjectBeingDebugged()))
-				{
-					const FName TransientControlName = UControlRig::GetNameForTransientControl(InElement->GetKey());
-					const FRigElementKey TransientControlKey(TransientControlName, ERigElementType::Control);
-					if (const FRigControlElement* ControlElement = RigBeingDebugged->GetHierarchy()->Find<FRigControlElement>(TransientControlKey))
-					{
-						if (ControlElement->Settings.bIsTransientControl)
-						{
-							bClearTransientControls = false;
-						}
-					}
-				}
-			}
-
-			if(bClearTransientControls)
-			{
-				ClearTransientControls();
-			}
-			break;
-		}
-		default:
-		{
-			break;
-		}
-	}
-
-	HierarchyModifiedEvent.Broadcast(InNotification, InHierarchy, InElement);
-	
-#endif
-}
-
-UControlRigBlueprint::FControlValueScope::FControlValueScope(UControlRigBlueprint* InBlueprint)
-: Blueprint(InBlueprint)
-{
-#if WITH_EDITOR
-	check(Blueprint);
-
-	if (UControlRig* CR = Cast<UControlRig>(Blueprint->GetObjectBeingDebugged()))
-	{
-		TArray<FRigControlElement*> Controls = CR->AvailableControls();
-		for (FRigControlElement* ControlElement : Controls)
-		{
-			ControlValues.Add(ControlElement->GetName(), CR->GetControlValue(ControlElement->GetName()));
-		}
-	}
-#endif
-}
-
-UControlRigBlueprint::FControlValueScope::~FControlValueScope()
-{
-#if WITH_EDITOR
-	check(Blueprint);
-
-	if (UControlRig* CR = Cast<UControlRig>(Blueprint->GetObjectBeingDebugged()))
-	{
-		for (const TPair<FName, FRigControlValue>& Pair : ControlValues)
-		{
-			if (CR->FindControl(Pair.Key))
-			{
-				CR->SetControlValue(Pair.Key, Pair.Value);
-			}
-		}
-	}
-#endif
-}
-
-#if WITH_EDITOR
-
-void UControlRigBlueprint::OnPreVariableChange(UObject* InObject)
+void URigVMBlueprint::OnPreVariableChange(UObject* InObject)
 {
 	if (InObject != this)
 	{
@@ -5014,7 +3504,7 @@ void UControlRigBlueprint::OnPreVariableChange(UObject* InObject)
 	LastNewVariables = NewVariables;
 }
 
-void UControlRigBlueprint::OnPostVariableChange(UBlueprint* InBlueprint)
+void URigVMBlueprint::OnPostVariableChange(UBlueprint* InBlueprint)
 {
 	if (InBlueprint != this)
 	{
@@ -5074,7 +3564,7 @@ void UControlRigBlueprint::OnPostVariableChange(UBlueprint* InBlueprint)
 	LastNewVariables = NewVariables;
 }
 
-void UControlRigBlueprint::OnVariableAdded(const FName& InVarName)
+void URigVMBlueprint::OnVariableAdded(const FName& InVarName)
 {
 	FBPVariableDescription Variable;
 	for (FBPVariableDescription& NewVariable : NewVariables)
@@ -5116,7 +3606,7 @@ void UControlRigBlueprint::OnVariableAdded(const FName& InVarName)
 	BroadcastExternalVariablesChangedEvent();
 }
 
-void UControlRigBlueprint::OnVariableRemoved(const FName& InVarName)
+void URigVMBlueprint::OnVariableRemoved(const FName& InVarName)
 {
 	TArray<URigVMGraph*> AllGraphs = GetAllModels();
 	for (URigVMGraph* Graph : AllGraphs)
@@ -5139,7 +3629,7 @@ void UControlRigBlueprint::OnVariableRemoved(const FName& InVarName)
 	BroadcastExternalVariablesChangedEvent();
 }
 
-void UControlRigBlueprint::OnVariableRenamed(const FName& InOldVarName, const FName& InNewVarName)
+void URigVMBlueprint::OnVariableRenamed(const FName& InOldVarName, const FName& InNewVarName)
 {
 	TArray<URigVMGraph*> AllGraphs = GetAllModels();
 	for (URigVMGraph* Graph : AllGraphs)
@@ -5163,7 +3653,7 @@ void UControlRigBlueprint::OnVariableRenamed(const FName& InOldVarName, const FN
 	BroadcastExternalVariablesChangedEvent();
 }
 
-void UControlRigBlueprint::OnVariableTypeChanged(const FName& InVarName, FEdGraphPinType InOldPinType, FEdGraphPinType InNewPinType)
+void URigVMBlueprint::OnVariableTypeChanged(const FName& InVarName, FEdGraphPinType InOldPinType, FEdGraphPinType InNewPinType)
 {
 	FString CPPType;
 	UObject* CPPTypeObject = nullptr;
@@ -5223,45 +3713,45 @@ void UControlRigBlueprint::OnVariableTypeChanged(const FName& InVarName, FEdGrap
 	BroadcastExternalVariablesChangedEvent();
 }
 
-void UControlRigBlueprint::BroadcastExternalVariablesChangedEvent()
+void URigVMBlueprint::BroadcastExternalVariablesChangedEvent()
 {
-	if (URigVMBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass())
+	if (URigVMBlueprintGeneratedClass* RigClass = GetRigVMBlueprintGeneratedClass())
 	{
-		if (UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */)))
+		if (URigVMHost* CDO = Cast<URigVMHost>(RigClass->GetDefaultObject(true /* create if needed */)))
 		{
 			ExternalVariablesChangedEvent.Broadcast(CDO->GetExternalVariables());
 		}
 	}
 }
 
-void UControlRigBlueprint::BroadcastNodeDoubleClicked(URigVMNode* InNode)
+void URigVMBlueprint::BroadcastNodeDoubleClicked(URigVMNode* InNode)
 {
 	NodeDoubleClickedEvent.Broadcast(this, InNode);
 }
 
-void UControlRigBlueprint::BroadcastGraphImported(UEdGraph* InGraph)
+void URigVMBlueprint::BroadcastGraphImported(UEdGraph* InGraph)
 {
 	GraphImportedEvent.Broadcast(InGraph);
 }
 
-void UControlRigBlueprint::BroadcastPostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedChainEvent)
+void URigVMBlueprint::BroadcastPostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedChainEvent)
 {
 	PostEditChangeChainPropertyEvent.Broadcast(PropertyChangedChainEvent);
 }
 
-void UControlRigBlueprint::BroadcastRequestLocalizeFunctionDialog(FRigVMGraphFunctionIdentifier InFunction, bool bForce)
+void URigVMBlueprint::BroadcastRequestLocalizeFunctionDialog(FRigVMGraphFunctionIdentifier InFunction, bool bForce)
 {
 	RequestLocalizeFunctionDialog.Broadcast(InFunction, this, bForce);
 }
 
-void UControlRigBlueprint::BroadCastReportCompilerMessage(EMessageSeverity::Type InSeverity, UObject* InSubject, const FString& InMessage)
+void URigVMBlueprint::BroadCastReportCompilerMessage(EMessageSeverity::Type InSeverity, UObject* InSubject, const FString& InMessage)
 {
 	ReportCompilerMessageEvent.Broadcast(InSeverity, InSubject, InMessage);
 }
 
 #endif
 
-UEdGraph* UControlRigBlueprint::CreateEdGraph(URigVMGraph* InModel, bool bForce)
+UEdGraph* URigVMBlueprint::CreateEdGraph(URigVMGraph* InModel, bool bForce)
 {
 	check(InModel);
 
@@ -5283,26 +3773,26 @@ UEdGraph* UControlRigBlueprint::CreateEdGraph(URigVMGraph* InModel, bool bForce)
 
 	if(GraphName.IsEmpty())
 	{
-		GraphName = UControlRigGraphSchema::GraphName_ControlRig.ToString();
+		GraphName = URigVMEdGraphSchema::GraphName_RigVM.ToString();
 	}
 
 	GraphName = RigVMClient.GetUniqueName(*GraphName).ToString();
 
-	UControlRigGraph* ControlRigGraph = NewObject<UControlRigGraph>(this, *GraphName, RF_Transactional);
-	ControlRigGraph->Schema = UControlRigGraphSchema::StaticClass();
-	ControlRigGraph->bAllowDeletion = true;
-	ControlRigGraph->ModelNodePath = InModel->GetNodePath();
-	ControlRigGraph->Initialize(this);
+	URigVMEdGraph* RigVMEdGraph = NewObject<URigVMEdGraph>(this, *GraphName, RF_Transactional);
+	RigVMEdGraph->Schema = URigVMEdGraphSchema::StaticClass();
+	RigVMEdGraph->bAllowDeletion = true;
+	RigVMEdGraph->ModelNodePath = InModel->GetNodePath();
+	RigVMEdGraph->Initialize(this);
 	
-	FBlueprintEditorUtils::AddUbergraphPage(this, ControlRigGraph);
-	LastEditedDocuments.AddUnique(ControlRigGraph);
+	FBlueprintEditorUtils::AddUbergraphPage(this, RigVMEdGraph);
+	LastEditedDocuments.AddUnique(RigVMEdGraph);
 
-	return ControlRigGraph;
+	return RigVMEdGraph;
 }
 
-bool UControlRigBlueprint::RemoveEdGraph(URigVMGraph* InModel)
+bool URigVMBlueprint::RemoveEdGraph(URigVMGraph* InModel)
 {
-	if(UControlRigGraph* RigGraph = Cast<UControlRigGraph>(GetEdGraph(InModel)))
+	if(URigVMEdGraph* RigGraph = Cast<URigVMEdGraph>(GetEdGraph(InModel)))
 	{
 		if(UbergraphPages.Contains(RigGraph))
 		{
@@ -5315,12 +3805,12 @@ bool UControlRigBlueprint::RemoveEdGraph(URigVMGraph* InModel)
 	return false;
 }
 
-void UControlRigBlueprint::DestroyObject(UObject* InObject)
+void URigVMBlueprint::DestroyObject(UObject* InObject)
 {
 	RigVMClient.DestroyObject(InObject);
 }
 
-void UControlRigBlueprint::RenameGraph(const FString& InNodePath, const FName& InNewName)
+void URigVMBlueprint::RenameGraph(const FString& InNodePath, const FName& InNewName)
 {
 	FName OldName = NAME_None;
 	UEdGraph* EdGraph = GetEdGraph(InNodePath);
@@ -5337,7 +3827,7 @@ void UControlRigBlueprint::RenameGraph(const FString& InNodePath, const FName& I
 	}
 }
 
-void UControlRigBlueprint::CreateEdGraphForCollapseNodeIfNeeded(URigVMCollapseNode* InNode, bool bForce)
+void URigVMBlueprint::CreateEdGraphForCollapseNodeIfNeeded(URigVMCollapseNode* InNode, bool bForce)
 {
 	check(InNode);
 
@@ -5353,7 +3843,7 @@ void UControlRigBlueprint::CreateEdGraphForCollapseNodeIfNeeded(URigVMCollapseNo
 			bool bFunctionGraphExists = false;
 			for (UEdGraph* FunctionGraph : FunctionGraphs)
 			{
-				if (UControlRigGraph* RigFunctionGraph = Cast<UControlRigGraph>(FunctionGraph))
+				if (URigVMEdGraph* RigFunctionGraph = Cast<URigVMEdGraph>(FunctionGraph))
 				{
 					if (RigFunctionGraph->ModelNodePath == ContainedGraph->GetNodePath())
 					{
@@ -5366,8 +3856,8 @@ void UControlRigBlueprint::CreateEdGraphForCollapseNodeIfNeeded(URigVMCollapseNo
 			if (!bFunctionGraphExists)
 			{
 				// create a sub graph
-				UControlRigGraph* RigFunctionGraph = NewObject<UControlRigGraph>(this, *InNode->GetEditorSubGraphName(), RF_Transactional);
-				RigFunctionGraph->Schema = UControlRigGraphSchema::StaticClass();
+				URigVMEdGraph* RigFunctionGraph = NewObject<URigVMEdGraph>(this, *InNode->GetName(), RF_Transactional);
+				RigFunctionGraph->Schema = URigVMEdGraphSchema::StaticClass();
 				RigFunctionGraph->bAllowRenaming = 1;
 				RigFunctionGraph->bEditable = 1;
 				RigFunctionGraph->bAllowDeletion = 1;
@@ -5383,14 +3873,14 @@ void UControlRigBlueprint::CreateEdGraphForCollapseNodeIfNeeded(URigVMCollapseNo
 
 		}
 	}
-	else if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(GetEdGraph(InNode->GetGraph())))
+	else if (URigVMEdGraph* RigGraph = Cast<URigVMEdGraph>(GetEdGraph(InNode->GetGraph())))
 	{
 		if (URigVMGraph* ContainedGraph = InNode->GetContainedGraph())
 		{
 			bool bSubGraphExists = false;
 			for (UEdGraph* SubGraph : RigGraph->SubGraphs)
 			{
-				if (UControlRigGraph* SubRigGraph = Cast<UControlRigGraph>(SubGraph))
+				if (URigVMEdGraph* SubRigGraph = Cast<URigVMEdGraph>(SubGraph))
 				{
 					if (SubRigGraph->ModelNodePath == ContainedGraph->GetNodePath())
 					{
@@ -5409,8 +3899,8 @@ void UControlRigBlueprint::CreateEdGraphForCollapseNodeIfNeeded(URigVMCollapseNo
 				}
 				
 				// create a sub graph
-				UControlRigGraph* SubRigGraph = NewObject<UControlRigGraph>(RigGraph, *InNode->GetEditorSubGraphName(), RF_Transactional);
-				SubRigGraph->Schema = UControlRigGraphSchema::StaticClass();
+				URigVMEdGraph* SubRigGraph = NewObject<URigVMEdGraph>(RigGraph, *InNode->GetEditorSubGraphName(), RF_Transactional);
+				SubRigGraph->Schema = URigVMEdGraphSchema::StaticClass();
 				SubRigGraph->bAllowRenaming = 1;
 				SubRigGraph->bEditable = bEditable;
 				SubRigGraph->bAllowDeletion = 1;
@@ -5427,7 +3917,7 @@ void UControlRigBlueprint::CreateEdGraphForCollapseNodeIfNeeded(URigVMCollapseNo
 	}
 }
 
-bool UControlRigBlueprint::RemoveEdGraphForCollapseNode(URigVMCollapseNode* InNode, bool bNotify)
+bool URigVMBlueprint::RemoveEdGraphForCollapseNode(URigVMCollapseNode* InNode, bool bNotify)
 {
 	check(InNode);
 
@@ -5437,7 +3927,7 @@ bool UControlRigBlueprint::RemoveEdGraphForCollapseNode(URigVMCollapseNode* InNo
 		{
 			for (UEdGraph* FunctionGraph : FunctionGraphs)
 			{
-				if (UControlRigGraph* RigFunctionGraph = Cast<UControlRigGraph>(FunctionGraph))
+				if (URigVMEdGraph* RigFunctionGraph = Cast<URigVMEdGraph>(FunctionGraph))
 				{
 					if (RigFunctionGraph->ModelNodePath == ContainedGraph->GetNodePath())
 					{
@@ -5460,13 +3950,13 @@ bool UControlRigBlueprint::RemoveEdGraphForCollapseNode(URigVMCollapseNode* InNo
 			}
 		}
 	}
-	else if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(GetEdGraph(InNode->GetGraph())))
+	else if (URigVMEdGraph* RigGraph = Cast<URigVMEdGraph>(GetEdGraph(InNode->GetGraph())))
 	{
 		if (URigVMGraph* ContainedGraph = InNode->GetContainedGraph())
 		{
 			for (UEdGraph* SubGraph : RigGraph->SubGraphs)
 			{
-				if (UControlRigGraph* SubRigGraph = Cast<UControlRigGraph>(SubGraph))
+				if (URigVMEdGraph* SubRigGraph = Cast<URigVMEdGraph>(SubGraph))
 				{
 					if (SubRigGraph->ModelNodePath == ContainedGraph->GetNodePath())
 					{

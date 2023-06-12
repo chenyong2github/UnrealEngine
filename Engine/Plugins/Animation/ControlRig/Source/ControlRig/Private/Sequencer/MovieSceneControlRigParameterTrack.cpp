@@ -583,7 +583,7 @@ void UMovieSceneControlRigParameterTrack::HandlePackageDone(const FEndLoadPackag
 	FCoreUObjectDelegates::OnEndLoadPackage.RemoveAll(this);
 }
 
-void UMovieSceneControlRigParameterTrack::HandleControlRigPackageDone(UControlRig* InControlRig)
+void UMovieSceneControlRigParameterTrack::HandleControlRigPackageDone(URigVMHost* InControlRig)
 {
 	if (ensure(ControlRig == InControlRig))
 	{

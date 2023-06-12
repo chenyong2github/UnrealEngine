@@ -799,7 +799,6 @@ void URigVMSchema::SetExecuteContextStruct(UScriptStruct* InExecuteContextStruct
 			// only allow the default execute context on the base class.
 			// please create a child class of URigVMSchema for your use case.
 			verify(InExecuteContextStruct == FRigVMExecuteContext::StaticStruct());
-			return;
 		}
 		
 		ExecuteContextStruct = InExecuteContextStruct;

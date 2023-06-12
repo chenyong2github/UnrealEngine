@@ -13,7 +13,7 @@
 #include "EditorCategoryUtils.h"
 #include "K2Node_Variable.h"
 #include "BlueprintNodeTemplateCache.h"
-#include "ControlRigBlueprintUtils.h"
+#include "RigVMBlueprintUtils.h"
 #include "ScopedTransaction.h"
 #include "Units/Execution/RigUnit_BeginExecution.h"
 #include "ControlRig.h"
@@ -331,7 +331,7 @@ UControlRigGraphNode* UControlRigFunctionRefNodeSpawner::SpawnNode(UEdGraph* Par
 		bool const bIsTemplateNode = FBlueprintNodeTemplateCache::IsTemplateOuter(ParentGraph);
 		bool const bIsUserFacingNode = !bIsTemplateNode;
 
-		FName Name = bIsTemplateNode ? InFunction.Name : FControlRigBlueprintUtils::ValidateName(RigBlueprint, InFunction.Name.ToString());
+		FName Name = bIsTemplateNode ? InFunction.Name : FRigVMBlueprintUtils::ValidateName(RigBlueprint, InFunction.Name.ToString());
 		URigVMController* Controller = bIsTemplateNode ? RigGraph->GetTemplateController() : RigBlueprint->GetController(ParentGraph);
 
 		if (!bIsTemplateNode)

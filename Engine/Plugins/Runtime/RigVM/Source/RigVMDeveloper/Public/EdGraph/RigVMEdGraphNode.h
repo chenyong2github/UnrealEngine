@@ -4,35 +4,31 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "UObject/WeakObjectPtrTemplates.h"
-#include "EdGraph/EdGraphNodeUtils.h"
-#include "K2Node.h"
-#include "UObject/SoftObjectPath.h"
-#include "EdGraphSchema_K2.h"
 #include "RigVMModel/RigVMGraph.h"
-#include "ControlRigGraphNode.generated.h"
+#include "RigVMEdGraphNode.generated.h"
 
 class FBlueprintActionDatabaseRegistrar;
 class UEdGraph;
 struct FSlateIcon;
-class UControlRigBlueprint;
+class URigVMBlueprint;
 
-/** Base class for animation ControlRig-related nodes */
+/** Base class for RigVM editor side nodes */
 UCLASS()
-class CONTROLRIGDEVELOPER_API UControlRigGraphNode : public UEdGraphNode
+class RIGVMDEVELOPER_API URigVMEdGraphNode : public UEdGraphNode
 {
 	GENERATED_BODY()
 
-	friend class FControlRigGraphNodeDetailsCustomization;
-	friend class FControlRigBlueprintCompilerContext;
-	friend class UControlRigGraph;
-	friend class UControlRigGraphSchema;
-	friend class UControlRigBlueprint;
-	friend class FControlRigGraphTraverser;
-	friend class FControlRigGraphPanelPinFactory;
-	friend class FControlRigEditor;
-	friend class SControlRigGraphPinCurveFloat;
+	friend class FRigVMEdGraphNodeDetailsCustomization;
+	friend class FRigVMBlueprintCompilerContext;
+	friend class URigVMEdGraph;
+	friend class URigVMEdGraphSchema;
+	friend class URigVMBlueprint;
+	friend class FRigVMEdGraphTraverser;
+	friend class FRigVMEdGraphPanelPinFactory;
+	friend class FRigVMEditor;
+	friend struct FRigVMBlueprintUtils;
+	friend class SRigVMEdGraphPinCurveFloat;
 
 private:
 
@@ -94,7 +90,7 @@ public:
 		bool IsValid() const { return InputPin != nullptr || OutputPin != nullptr; }
 	};
 
-	UControlRigGraphNode();
+	URigVMEdGraphNode();
 
 	// UObject Interface.
 #if WITH_EDITOR
@@ -137,7 +133,7 @@ public:
 	void CopyPinDefaultsToModel(UEdGraphPin* Pin, bool bUndo = false, bool bPrintPythonCommand = false);
 
 	/** Get the blueprint that this node is contained within */
-	UControlRigBlueprint* GetBlueprint() const;
+	URigVMBlueprint* GetBlueprint() const;
 
 	/** Get the VM model this node lives within */
 	URigVMGraph* GetModel() const;
@@ -237,8 +233,8 @@ protected:
 	/** Sets the body + title color from a color provided by the model */
 	void SetColorFromModel(const FLinearColor& InColor);
 
-	UClass* GetControlRigGeneratedClass() const;
-	UClass* GetControlRigSkeletonGeneratedClass() const;
+	UClass* GetRigVMGeneratedClass() const;
+	UClass* GetRigVMSkeletonGeneratedClass() const;
 
 	static FEdGraphPinType GetPinTypeForModelPin(const URigVMPin* InModelPin);
 
@@ -274,11 +270,11 @@ private:
 	mutable const FRigVMTemplate* CachedTemplate;
 	mutable TOptional<bool> DrawAsCompactNodeCache;
 
-	friend class SControlRigGraphNode;
-	friend class FControlRigArgumentLayout;
-	friend class FControlRigGraphDetails;
-	friend class UControlRigTemplateNodeSpawner;
-	friend class UControlRigArrayNodeSpawner;
-	friend class UControlRigIfNodeSpawner;
-	friend class UControlRigSelectNodeSpawner;
+	friend class SRigVMEdGraphNode;
+	friend class FRigVMArgumentLayout;
+	friend class FRigVMEdGraphDetails;
+	friend class URigVMTemplateNodeSpawner;
+	friend class URigVMArrayNodeSpawner;
+	friend class URigVMIfNodeSpawner;
+	friend class URigVMSelectNodeSpawner;
 };

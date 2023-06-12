@@ -170,6 +170,7 @@ protected:
 
 	friend class URigVMController;
 	friend class UControlRigBlueprint;
+	friend class URigVMBlueprint;
 	friend struct FRigVMSetTemplateFilteredPermutationsAction;
 	friend struct FRigVMSetPreferredTemplatePermutationsAction;
 	friend struct FRigVMRemoveNodeAction;
