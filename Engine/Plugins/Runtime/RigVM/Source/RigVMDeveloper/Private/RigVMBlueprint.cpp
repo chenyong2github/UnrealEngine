@@ -22,6 +22,7 @@
 #include "RigVMModel/Nodes/RigVMAggregateNode.h"
 #include "RigVMModel/Nodes/RigVMDispatchNode.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
+#include "Stats/StatsHierarchical.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMBlueprint)
 

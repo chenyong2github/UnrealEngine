@@ -11,6 +11,7 @@
 #include "RigVMModel/Nodes/RigVMFunctionEntryNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionReturnNode.h"
 #include "RigVMModel/Nodes/RigVMRerouteNode.h"
+#include "Stats/StatsHierarchical.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMEdGraph)
 
