@@ -1282,6 +1282,13 @@ void ULandscapeComponent::PostLoad()
 	}
 #endif // UE_BUILD_SHIPPING
 
+
+	// May have been saved without mobile layer allocations, but those are serialized now
+	if (MobileWeightmapLayerAllocations.Num() == 0)
+	{
+		GenerateMobileWeightmapLayerAllocations();
+	}
+
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
 		FSceneInterface* SceneInterface = GetScene();
@@ -2043,6 +2050,19 @@ TArray<FWeightmapLayerAllocationInfo>& ULandscapeComponent::GetWeightmapLayerAll
 #endif
 
 	return WeightmapLayerAllocations;
+}
+
+const TArray<FWeightmapLayerAllocationInfo>& ULandscapeComponent::GetCurrentRuntimeWeightmapLayerAllocations() const
+{
+
+	bool bIsMobile = GetWorld()->GetFeatureLevel() == ERHIFeatureLevel::ES3_1;
+	return bIsMobile ? MobileWeightmapLayerAllocations : WeightmapLayerAllocations;
+}
+
+TArray<FWeightmapLayerAllocationInfo>& ULandscapeComponent::GetCurrentRuntimeWeightmapLayerAllocations()
+{
+	bool bIsMobile = GetWorld()->GetFeatureLevel() == ERHIFeatureLevel::ES3_1;
+	return bIsMobile ? MobileWeightmapLayerAllocations : WeightmapLayerAllocations;
 }
 
 #if WITH_EDITOR
