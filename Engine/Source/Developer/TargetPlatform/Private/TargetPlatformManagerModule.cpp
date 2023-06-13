@@ -480,7 +480,7 @@ public:
 					if (Module != nullptr)
 					{
 						FormatType* Format = HelperType::GetFormatFromModule(Module);
-						if (!Results.Contains(Format))
+						if (Format && !Results.Contains(Format))
 						{
 							// remember the module
 							Results.Add(Format);
