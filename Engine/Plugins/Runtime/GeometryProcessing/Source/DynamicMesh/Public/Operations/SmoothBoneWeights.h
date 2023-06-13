@@ -198,6 +198,19 @@ public:
 	 */
 	bool SmoothWeightsAtVertex(const int32 VertexID, const float VertexFalloff);
 
+	/**
+	 * Compute smoothed weights at vertices and neighbors within distance and write the result into 
+	 * FDynamicMeshVertexSkinWeightsAttribute passed upon construction.
+	 *
+	 * @param Vertices		  		Array of vertex IDs we are smoothing weights for.
+	 * @param Strength 				The lerp value between the old and the new weight.
+	 * @param FloodFillUpToDistance	For every vertex in Vertices, find vertices that are within FloodFillUpToDistance 
+	 * 								geodesic distance away and smooth them as well.
+	 *
+	 * @return true if the algorithm succeeds, false if it failed or was canceled by the user.
+	 */
+	bool SmoothWeightsAtVerticesWithinDistance(const TArray<int32>& Vertices, const float Strength, const double FloodFillUpToDistance);
+
 protected:
 	TUniquePtr<TBoneWeightsDataSource<FBoneIndexType, float>> SkinWeightsAttributeDataSource = nullptr;
 	FDynamicMeshVertexSkinWeightsAttribute* Attribute = nullptr;

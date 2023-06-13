@@ -164,6 +164,20 @@ public:
 		return (Node != nullptr && Node->bFrozen);
 	}
 
+	/**
+	 * @return Array of points with set UVs. 
+	 */
+	void GetPointsWithUV(TArray<int32>& Points) const 
+	{
+		Points.Empty(AllocatedNodes.Num());
+		for (const FGraphNode& Node : AllocatedNodes)
+		{
+			if (Node.bFrozen)
+			{
+				Points.Add(Node.PointID);
+			}
+		}
+	}
 
 	/**
 	 * @return the UV calculated for index PointID

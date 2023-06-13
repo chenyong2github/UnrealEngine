@@ -8,6 +8,8 @@
 #include "Util/ProgressCancel.h"
 #include "BoneWeights.h"
 #include "Math/UnrealMathUtility.h"
+#include "Parameterization/MeshLocalParam.h"
+#include "DynamicMesh/MeshNormals.h"
 
 using namespace UE::AnimationCore;
 using namespace UE::Geometry;
@@ -260,6 +262,66 @@ bool FSmoothDynamicMeshVertexSkinWeights::SmoothWeightsAtVertex(const int32 Vert
 	return false;
 }
 
+bool FSmoothDynamicMeshVertexSkinWeights::SmoothWeightsAtVerticesWithinDistance(const TArray<int32>& Vertices, 
+																  				const float Strength, 
+																  				const double FloodFillUpToDistance)
+{
+	TSet<int32> VerticesToSmooth;
+	VerticesToSmooth.Append(Vertices);
+
+	const double FloodFillUpToDistanceSquared = FloodFillUpToDistance * FloodFillUpToDistance;
+
+	// We want to add vertices to the VerticesToSmooth within FloodFillUpToDistance away from each vertex in the 
+	// Vertices array
+	if (FloodFillUpToDistance > 0)
+	{
+		for (const int32 SeedVID : Vertices)
+		{	
+			if (Cancelled()) 
+			{
+				return false;
+			}
+
+			// If at least one neighboring vertex is not part of the set of vertices to smooth then we need to flood
+			bool bNeedToFlood = false;
+			for (const int32 NeighborVertexID : SourceMesh->VtxVerticesItr(SeedVID))
+			{
+				if (!VerticesToSmooth.Contains(NeighborVertexID) && 
+					DistanceSquared(SourceMesh->GetVertex(SeedVID), SourceMesh->GetVertex(NeighborVertexID)) < FloodFillUpToDistanceSquared)
+				{
+					bNeedToFlood = true;
+					break;
+				}
+			}
+
+			if (bNeedToFlood)
+			{
+				FVector3d Normal = FMeshNormals::ComputeVertexNormal(*SourceMesh, SeedVID);
+				FFrame3d SeedFrame = SourceMesh->GetVertexFrame(SeedVID, false, &Normal);
+
+				TMeshLocalParam<FDynamicMesh3> Param(SourceMesh);
+				Param.ParamMode = ELocalParamTypes::ExponentialMapUpwindAvg;
+				Param.ComputeToMaxDistance(SeedVID, SeedFrame, FloodFillUpToDistance);
+
+				// Only points within FloodFillUpToDistance should have UVs set
+				TArray<int32> PointsWithinDistance;
+				Param.GetPointsWithUV(PointsWithinDistance);
+
+				VerticesToSmooth.Append(PointsWithinDistance);
+			}
+		}
+	}
+
+	for (const int32 VertexID : VerticesToSmooth)
+	{
+		if (!FSmoothDynamicMeshVertexSkinWeights::SmoothWeightsAtVertex(VertexID, Strength))
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
 
 
 // template instantiation
