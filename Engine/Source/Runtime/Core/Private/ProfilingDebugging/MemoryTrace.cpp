@@ -207,11 +207,6 @@ uint32 FMallocWrapper::GetActualAlignment(SIZE_T Size, uint32 Alignment)
 ////////////////////////////////////////////////////////////////////////////////
 void* FMallocWrapper::Malloc(SIZE_T Size, uint32 Alignment)
 {
-	if (Size == 0)
-	{
-		return nullptr;
-	}
-
 	uint32 ActualAlignment = GetActualAlignment(Size, Alignment);
 	void* Address = InnerMalloc->Malloc(Size, Alignment);
 
@@ -227,12 +222,6 @@ void* FMallocWrapper::Realloc(void* PrevAddress, SIZE_T NewSize, uint32 Alignmen
 	if (PrevAddress == nullptr)
 	{
 		return Malloc(NewSize, Alignment);
-	}
-
-	if (NewSize == 0)
-	{
-		Free(PrevAddress);
-		return nullptr;
 	}
 
 	MemoryTrace_ReallocFree((uint64)PrevAddress);
