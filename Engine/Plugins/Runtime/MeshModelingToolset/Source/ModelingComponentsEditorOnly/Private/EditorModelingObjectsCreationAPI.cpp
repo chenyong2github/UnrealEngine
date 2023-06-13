@@ -37,6 +37,7 @@
 
 using namespace UE::Geometry;
 
+extern UNREALED_API UEditorEngine* GEditor;
 
 UEditorModelingObjectsCreationAPI* UEditorModelingObjectsCreationAPI::Register(UInteractiveToolsContext* ToolsContext)
 {
@@ -103,8 +104,14 @@ FCreateMaterialObjectResult UEditorModelingObjectsCreationAPI::CreateMaterialObj
 {
 	FCreateMaterialObjectParams LocalParams = CreateMaterialParams;
 	return CreateMaterialObject(MoveTemp(LocalParams));
-
 }
+
+FCreateActorResult UEditorModelingObjectsCreationAPI::CreateNewActor(const FCreateActorParams& CreateActorParams)
+{
+	FCreateActorParams LocalParams = CreateActorParams;
+	return CreateNewActor(MoveTemp(LocalParams));
+}
+
 
 
 FCreateMeshObjectResult UEditorModelingObjectsCreationAPI::CreateMeshObject(FCreateMeshObjectParams&& CreateMeshParams)
@@ -489,6 +496,37 @@ FCreateMaterialObjectResult UEditorModelingObjectsCreationAPI::CreateMaterialObj
 
 	return ResultOut;
 }
+
+
+
+
+FCreateActorResult UEditorModelingObjectsCreationAPI::CreateNewActor(FCreateActorParams&& CreateActorParams)
+{
+	// create new Actor
+	AActor* NewActor = nullptr;
+	if (GEditor)
+	{
+		if (UActorFactory* const ActorFactory = GEditor->FindActorFactoryForActorClass(CreateActorParams.TemplateActor->GetClass()))
+		{
+			NewActor = ActorFactory->CreateActor(nullptr, CreateActorParams.TargetWorld->GetCurrentLevel(), CreateActorParams.Transform);
+			FActorLabelUtilities::SetActorLabelUnique(NewActor, CreateActorParams.BaseName);
+		}
+	}
+
+	if (!NewActor)
+	{
+		return FCreateActorResult{ ECreateModelingObjectResult::Failed_ActorCreationFailed };
+	}
+
+	FCreateActorResult ResultOut;
+	ResultOut.ResultCode = ECreateModelingObjectResult::Ok;
+	ResultOut.NewActor = NewActor;
+
+	OnModelingActorCreated.Broadcast(ResultOut);
+
+	return ResultOut;
+}
+
 
 
 ECreateModelingObjectResult UEditorModelingObjectsCreationAPI::GetNewAssetPath(

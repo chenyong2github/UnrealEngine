@@ -377,6 +377,64 @@ struct MODELINGCOMPONENTS_API FCreateMaterialObjectResult
 
 
 
+/**
+ * FCreateActorParams is a collection of input data intended to be passed to
+ * UModelingObjectsCreationAPI::CreateNewActor().
+ */
+USTRUCT(Blueprintable)
+struct MODELINGCOMPONENTS_API FCreateActorParams
+{
+	GENERATED_BODY()
+
+	//
+	// Base data
+	//
+
+	/** 
+	 * The World/Level the new Actor should be created in (if known).
+	 */
+	UPROPERTY(Category = "CreateActorParams", EditAnywhere)
+	TObjectPtr<UWorld> TargetWorld = nullptr;
+
+	/** The base name of the new Actor */
+	UPROPERTY(Category = "CreateActorParams", EditAnywhere)
+	FString BaseName;
+
+	/** The 3D local-to-world transform for the new actor */
+	UPROPERTY(Category = "CreateActorParams", EditAnywhere)
+	FTransform Transform;
+
+	//
+	// input data
+	//
+
+	/** A template Actor the new Actor is based on */
+	UPROPERTY(Category = "CreateActorParams", EditAnywhere)
+	TObjectPtr<AActor> TemplateActor = nullptr;
+};
+
+
+/**
+ * FCreateActorResult is returned by UModelingObjectsCreationAPI::FCreateActorParams()
+ * to indicate success/failure and provide information about created actors
+ */
+USTRUCT(BlueprintType)
+struct MODELINGCOMPONENTS_API FCreateActorResult
+{
+	GENERATED_BODY()
+
+	/** Success/Failure status for the requested operation */
+	UPROPERTY(Category = "CreateMaterialObjectResult", VisibleAnywhere)
+	ECreateModelingObjectResult ResultCode = ECreateModelingObjectResult::Ok;
+
+	/** A pointer to a newly-created Actor */
+	UPROPERTY(Category="CreateMeshObjectResult", VisibleAnywhere)
+	TObjectPtr<AActor> NewActor = nullptr;
+
+
+	bool IsOK() const { return ResultCode == ECreateModelingObjectResult::Ok; }
+};
+
 
 
 
@@ -427,6 +485,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Modeling Objects")
 	virtual FCreateMaterialObjectResult CreateMaterialObject(const FCreateMaterialObjectParams& CreateMaterialParams) { return FCreateMaterialObjectResult{ ECreateModelingObjectResult::Failed_Unknown }; }
 
+	/**
+	 * Create a new material object based on the data in CreateMaterialParams
+	 * @return a results data structure, containing a result code and information about any new objects created
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Modeling Objects")
+	virtual FCreateActorResult CreateNewActor(const FCreateActorParams& CreateActorParams) { return FCreateActorResult{ ECreateModelingObjectResult::Failed_Unknown }; }
 
 	//
 	// Non-UFunction variants that support std::move operators
@@ -441,6 +505,7 @@ public:
 	virtual FCreateMeshObjectResult CreateMeshObject(FCreateMeshObjectParams&& CreateMeshParams) { return FCreateMeshObjectResult{ ECreateModelingObjectResult::Failed_Unknown }; }
 	virtual FCreateTextureObjectResult CreateTextureObject(FCreateTextureObjectParams&& CreateTexParams) { return FCreateTextureObjectResult{ ECreateModelingObjectResult::Failed_Unknown }; }
 	virtual FCreateMaterialObjectResult CreateMaterialObject(FCreateMaterialObjectParams&& CreateMaterialParams) { return FCreateMaterialObjectResult{ ECreateModelingObjectResult::Failed_Unknown }; }
+	virtual FCreateActorResult CreateNewActor(FCreateActorParams&& CreateActorParams) { return FCreateActorResult{ ECreateModelingObjectResult::Failed_Unknown }; }
 
 };
 
@@ -478,6 +543,15 @@ MODELINGCOMPONENTS_API FCreateTextureObjectResult CreateTextureObject(UInteracti
  * @return a results data structure, containing a result code and information about any new objects created
  */
 MODELINGCOMPONENTS_API FCreateMaterialObjectResult CreateMaterialObject(UInteractiveToolManager* ToolManager, FCreateMaterialObjectParams&& CreateMaterialParams);
+
+
+/**
+ * Create a new actor based on the data in CreateActorParams.
+ * This is a convenience function that will try to locate a UModelingObjectsCreationAPI instance in the ToolManager's ContextObjectStore,
+ * and then call UModelingObjectsCreationAPI::CreateNewActor()
+ * @return a results data structure, containing a result code and information about any new objects created
+ */
+MODELINGCOMPONENTS_API FCreateActorResult CreateNewActor(UInteractiveToolManager* ToolManager, FCreateActorParams&& CreateActorParams);
 
 
 

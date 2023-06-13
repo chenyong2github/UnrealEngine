@@ -40,6 +40,9 @@ public:
 	// UFUNCTION(BlueprintCallable, Category = "Modeling Objects")
 	virtual FCreateMaterialObjectResult CreateMaterialObject(const FCreateMaterialObjectParams& CreateMaterialParams) override;
 
+	// UFUNCTION(BlueprintCallable, Category = "Modeling Objects")
+	virtual FCreateActorResult CreateNewActor(const FCreateActorParams& CreateActorParams) override;
+
 	//
 	// Non-UFunction variants that support std::move operators
 	//
@@ -51,6 +54,8 @@ public:
 	virtual FCreateTextureObjectResult CreateTextureObject(FCreateTextureObjectParams&& CreateTexParams) override;
 
 	virtual FCreateMaterialObjectResult CreateMaterialObject(FCreateMaterialObjectParams&& CreateMaterialParams) override;
+
+	virtual FCreateActorResult CreateNewActor(FCreateActorParams&& CreateActorParams) override;
 
 
 	//
@@ -69,7 +74,8 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FModelingMaterialCreatedSignature, const FCreateMaterialObjectResult& CreatedInfo);
 	FModelingMaterialCreatedSignature OnModelingMaterialCreated;
 
-
+	DECLARE_MULTICAST_DELEGATE_OneParam(FModelingActorCreatedSignature, const FCreateActorResult& CreatedInfo);
+	FModelingActorCreatedSignature OnModelingActorCreated;
 
 	//
 	// Utility functions to handle registration/unregistration

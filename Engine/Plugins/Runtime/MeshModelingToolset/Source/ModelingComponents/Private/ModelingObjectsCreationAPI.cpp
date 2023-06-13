@@ -131,6 +131,30 @@ FCreateMaterialObjectResult UE::Modeling::CreateMaterialObject(UInteractiveToolM
 
 
 
+FCreateActorResult UE::Modeling::CreateNewActor(UInteractiveToolManager* ToolManager, FCreateActorParams&& CreateActorParams)
+{
+	if (ensure(ToolManager))
+	{
+		UModelingObjectsCreationAPI* UseAPI = ToolManager->GetContextObjectStore()->FindContext<UModelingObjectsCreationAPI>();
+		if (UseAPI)
+		{
+			if (UseAPI->HasMoveVariants())
+			{
+				return UseAPI->CreateNewActor(MoveTemp(CreateActorParams));
+			}
+			else
+			{
+				return UseAPI->CreateNewActor(CreateActorParams);
+			}
+		}
+	}
+	return FCreateActorResult{ ECreateModelingObjectResult::Failed_NoAPIFound };
+}
+
+
+
+
+
 
 
 
