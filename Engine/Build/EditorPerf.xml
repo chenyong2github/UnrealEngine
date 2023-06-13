@@ -80,23 +80,10 @@
 	<!-- Full Map Asset Path to run for tests per project -->
 	<Option Name="SpecificArgsPerProjects" DefaultValue="" Description="Hat (^) separated pair of project and commandline arg for it (i.e. 'Juno^-TargetFortReleaseVersion=26.00'), each pair are semicolon separated "/>
 
-	<!-- Project Map Args - do to not being able to export property in an outer scope, these needs to be predefined -->
-	<Property Name="AncientGameMapArgs" Value=""/>
-	<Property Name="CitySampleMapArgs" Value=""/>
-	<Property Name="EngineTestMapArgs" Value=""/>
-	<Property Name="FortniteGameMapArgs" Value=""/>
-	<Property Name="LyraMapArgs" Value=""/>
-	<Property Name="ShooterGameMapArgs" Value=""/>
-	<Property Name="JunoMapArgs" Value="-ini:Engine:[/Script/Engine.AutomationTestSettings]:MapsToPIETest=\&quot;/JunoGame/Maps/Juno_World_Inception\&quot;"/>
-
-	<Property Name="AncientGameSpecificArgs" Value=""/>
-	<Property Name="CitySampleSpecificArgs" Value=""/>
-	<Property Name="EngineTestSpecificArgs" Value=""/>
-	<Property Name="FortniteGameSpecificArgs" Value=""/>
-	<Property Name="LyraSpecificArgs" Value=""/>
-	<Property Name="ShooterGameSpecificArgs" Value=""/>
-	<Property Name="JunoSpecificArgs" Value="-TargetFortReleaseVersion=26.00 -ExecCmds=\&quot;Juno.World.TilesEnabled 1\&quot; -ini:EditorPerProjectUserSettings:[/Script/FortniteGame.AthenaDeveloperSettings]:Playlist=\&quot;/JunoGame/Playlists/Playlist_Juno\&quot; "/>
-
+	<!-- Inject internal projects default argument at the global scope -->
+	<Option Name="IsLicensee" Restrict="true|false" DefaultValue="false" Description="Define to true if this script is used externally."/>
+	<Include Script="../Restricted/NotForLicensees/Build/EditorPerfInternalArgs.xml" If="!$(IsLicensee)" />
+	
 	<!-- Set Project Map Args based on MapAssetPerProjects list -->
 	<ForEach Name="ProjectPair" Values="$(MapAssetPerProjects)" Separator=";">
 		<!-- Split the Pair -->
