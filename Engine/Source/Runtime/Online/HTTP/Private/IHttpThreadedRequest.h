@@ -13,7 +13,7 @@ public:
 	virtual bool IsThreadedRequestComplete() = 0;
 	virtual void TickThreadedRequest(float DeltaSeconds) = 0;
 
-	// Called on game thread
+	// Can be called on game thread or http thread depend on the delegate thread policy
 	virtual void FinishRequest() = 0;
 
 protected:
