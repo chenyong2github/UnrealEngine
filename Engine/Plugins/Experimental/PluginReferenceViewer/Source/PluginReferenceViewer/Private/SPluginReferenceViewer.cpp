@@ -8,10 +8,12 @@
 #include "Features/IModularFeatures.h"
 #include "Features/IPluginsEditorFeature.h"
 #include "Interfaces/IPluginManager.h"
-#include "PluginReferenceViewerSchema.h"
 #include "PluginReferenceViewerCommands.h"
+#include "PluginReferenceViewerSchema.h"
+#include "PluginReferenceViewerStyle.h"
 #include "ToolMenus.h"
 #include "Widgets/Input/SSpinBox.h"
+#include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Layout/SBorder.h"
 
 #define LOCTEXT_NAMESPACE "PluginReferenceViewer"
@@ -34,6 +36,10 @@ void SPluginReferenceViewer::Construct(const FArguments& InArgs)
 
 	RegisterActions();
 
+	// Set up the history manager
+	HistoryManager.SetOnApplyHistoryData(FOnApplyHistoryData::CreateSP(this, &SPluginReferenceViewer::OnApplyHistoryData));
+	HistoryManager.SetOnUpdateHistoryData(FOnUpdateHistoryData::CreateSP(this, &SPluginReferenceViewer::OnUpdateHistoryData));
+
 	// Create the graph
 	GraphObj = NewObject<UEdGraph_PluginReferenceViewer>();
 	GraphObj->Schema = UPluginReferenceViewerSchema::StaticClass();
@@ -48,7 +54,9 @@ void SPluginReferenceViewer::Construct(const FArguments& InArgs)
 		.AdditionalCommands(PluginReferenceViewerActions)
 		.GraphToEdit(GraphObj)
 		.GraphEvents(GraphEvents)
-		.ShowGraphStateOverlay(false);
+		.ShowGraphStateOverlay(false)
+		.OnNavigateHistoryBack(FSimpleDelegate::CreateSP(this, &SPluginReferenceViewer::GraphNavigateHistoryBack))
+		.OnNavigateHistoryForward(FSimpleDelegate::CreateSP(this, &SPluginReferenceViewer::GraphNavigateHistoryForward));
 
 	GraphObj->CachePluginDependencies(IPluginManager::Get().GetDiscoveredPlugins());
 
@@ -56,6 +64,7 @@ void SPluginReferenceViewer::Construct(const FArguments& InArgs)
 	[
 		SNew(SVerticalBox)
 
+		// Path and history
 		+SVerticalBox::Slot()
 		.AutoHeight()
 		[
@@ -69,6 +78,25 @@ void SPluginReferenceViewer::Construct(const FArguments& InArgs)
 				.Padding(4, 0)
 				[
 					MakeToolBar()
+				]
+
+				// Path
+				+SHorizontalBox::Slot()
+				.Padding(0, 0, 4, 0)
+				.FillWidth(1.f)
+				.VAlign(VAlign_Center)
+				[
+					SNew(SBorder)
+					.BorderImage( FAppStyle::GetBrush("ToolPanel.GroupBorder") )
+					[
+						SNew(SEditableTextBox)
+						.Text(this, &SPluginReferenceViewer::GetAddressBarText)
+						.OnTextCommitted(this, &SPluginReferenceViewer::OnAddressBarTextCommitted)
+						.OnTextChanged(this, &SPluginReferenceViewer::OnAddressBarTextChanged)
+						.SelectAllTextWhenFocused(true)
+						.SelectAllTextOnCommit(true)
+						.Style(FAppStyle::Get(), "ReferenceViewer.PathText")
+					]
 				]
 			]
 		]
@@ -204,13 +232,18 @@ void SPluginReferenceViewer::Construct(const FArguments& InArgs)
 	];
 }
 
-void SPluginReferenceViewer::SetGraphRoot(const TArray<FPluginIdentifier>& GraphRootIdentifiers)
+void SPluginReferenceViewer::SetGraphRootIdentifiers(const TArray<FPluginIdentifier>& NewGraphRootIdentifiers)
 {
-	GraphObj->SetGraphRoot(GraphRootIdentifiers);
+	GraphObj->SetGraphRoot(NewGraphRootIdentifiers);
 
 	GraphObj->RebuildGraph();
 
 	GraphEditorPtr->ZoomToFit(false);
+
+	// Set the initial history data
+	HistoryManager.AddHistoryData();
+
+	TemporaryPathBeingEdited = NewGraphRootIdentifiers.Num() > 0 ? FText() : FText(LOCTEXT("NoPluginsFound", "No Plugins Found"));
 }
 
 void SPluginReferenceViewer::OnOpenPluginProperties()
@@ -237,6 +270,37 @@ void SPluginReferenceViewer::OnOpenPluginProperties()
 	}
 }
 
+void SPluginReferenceViewer::OnApplyHistoryData(const FPluginReferenceViewerHistoryData& History)
+{
+	if (GraphObj)
+	{
+		GraphObj->SetGraphRoot(History.Identifiers);
+		UEdGraphNode_PluginReference* NewRootNode = GraphObj->RebuildGraph();
+
+		if (NewRootNode && ensure(GraphEditorPtr.IsValid()))
+		{
+			GraphEditorPtr->SetNodeSelection(NewRootNode, true);
+		}
+
+		TemporaryPathBeingEdited = FText();
+	}
+}
+
+void SPluginReferenceViewer::OnUpdateHistoryData(FPluginReferenceViewerHistoryData& HistoryData) const
+{
+	if (GraphObj)
+	{
+		const TArray<FPluginIdentifier>& CurrentGraphRootIdentifiers = GraphObj->GetCurrentGraphRootIdentifiers();
+		HistoryData.HistoryDesc = GetAddressBarText();
+		HistoryData.Identifiers = CurrentGraphRootIdentifiers;
+	}
+	else
+	{
+		HistoryData.HistoryDesc = FText::GetEmpty();
+		HistoryData.Identifiers.Empty();
+	}
+}
+
 bool SPluginReferenceViewer::HasAtLeastOneRealNodeSelected()
 {
 	return true;
@@ -255,6 +319,28 @@ void SPluginReferenceViewer::OpenPluginProperties(const FString& PluginName)
 TSharedRef<SWidget> SPluginReferenceViewer::MakeToolBar()
 {
 	FToolBarBuilder ToolBarBuilder(PluginReferenceViewerActions, FMultiBoxCustomization::None, TSharedPtr<FExtender>(), true);
+
+	ToolBarBuilder.AddToolBarButton(
+		FUIAction(
+			FExecuteAction::CreateSP(this, &SPluginReferenceViewer::BackClicked),
+			FCanExecuteAction::CreateSP(this, &SPluginReferenceViewer::IsBackEnabled)
+		),
+		NAME_None,
+		TAttribute<FText>(),
+		TAttribute<FText>::CreateSP(this, &SPluginReferenceViewer::GetHistoryBackTooltip),
+		FSlateIcon(FPluginReferenceViewerStyle::Get().GetStyleSetName(), "Icons.ArrowLeft"));
+
+	ToolBarBuilder.AddToolBarButton(
+		FUIAction(
+			FExecuteAction::CreateSP(this, &SPluginReferenceViewer::ForwardClicked),
+			FCanExecuteAction::CreateSP(this, &SPluginReferenceViewer::IsForwardEnabled)
+		),
+		NAME_None,
+		TAttribute<FText>(),
+		TAttribute<FText>::CreateSP(this, &SPluginReferenceViewer::GetHistoryForwardTooltip),
+		FSlateIcon(FPluginReferenceViewerStyle::Get().GetStyleSetName(), "Icons.ArrowRight"));
+
+	ToolBarBuilder.AddSeparator();
 
 	ToolBarBuilder.AddComboButton(
 		FUIAction(),
@@ -283,6 +369,115 @@ TSharedRef<SWidget> SPluginReferenceViewer::GetShowMenuContent()
 void SPluginReferenceViewer::RebuildGraph()
 {
 	GraphObj->RebuildGraph();
+}
+
+bool SPluginReferenceViewer::IsBackEnabled() const
+{
+	return HistoryManager.CanGoBack();
+}
+
+bool SPluginReferenceViewer::IsForwardEnabled() const
+{
+	return HistoryManager.CanGoForward();
+}
+
+void SPluginReferenceViewer::BackClicked()
+{
+	HistoryManager.GoBack();
+}
+
+void SPluginReferenceViewer::ForwardClicked()
+{
+	HistoryManager.GoForward();
+}
+
+void SPluginReferenceViewer::RefreshClicked()
+{
+	RebuildGraph();
+	ZoomToFit();
+}
+
+void SPluginReferenceViewer::GraphNavigateHistoryBack()
+{
+	BackClicked();
+}
+
+void SPluginReferenceViewer::GraphNavigateHistoryForward()
+{
+	ForwardClicked();
+}
+
+FText SPluginReferenceViewer::GetHistoryBackTooltip() const
+{
+	if (HistoryManager.CanGoBack())
+	{
+		return FText::Format(LOCTEXT("HistoryBackTooltip", "Back to {0}"), HistoryManager.GetBackDesc());
+	}
+	return FText::GetEmpty();
+}
+
+FText SPluginReferenceViewer::GetHistoryForwardTooltip() const
+{
+	if (HistoryManager.CanGoForward())
+	{
+		return FText::Format(LOCTEXT("HistoryForwardTooltip", "Forward to {0}"), HistoryManager.GetForwardDesc());
+	}
+	return FText::GetEmpty();
+}
+
+FText SPluginReferenceViewer::GetAddressBarText() const
+{
+	if (GraphObj)
+	{
+		if (TemporaryPathBeingEdited.IsEmpty())
+		{
+			const TArray<FPluginIdentifier>& CurrentGraphRootIdentifiers = GraphObj->GetCurrentGraphRootIdentifiers();
+			if (CurrentGraphRootIdentifiers.Num() == 1)
+			{
+				TSharedPtr<const IPlugin> Plugin = IPluginManager::Get().FindPlugin(CurrentGraphRootIdentifiers[0].ToString());
+				FString PluginPath = Plugin->GetBaseDir();
+				FPaths::MakePathRelativeTo(PluginPath, *FPaths::RootDir());
+
+				return FText::FromString(PluginPath);
+			}
+			else if (CurrentGraphRootIdentifiers.Num() > 1)
+			{
+				return FText::Format(LOCTEXT("AddressBarMultiplePackagesText", "{0} and {1} others"), FText::FromString(CurrentGraphRootIdentifiers[0].ToString()), FText::AsNumber(CurrentGraphRootIdentifiers.Num()));
+			}
+		}
+		else
+		{
+			return TemporaryPathBeingEdited;
+		}
+	}
+
+	return FText();
+}
+
+void SPluginReferenceViewer::OnAddressBarTextCommitted(const FText& NewText, ETextCommit::Type CommitInfo)
+{
+	if (CommitInfo == ETextCommit::OnEnter)
+	{
+		TArray<FPluginIdentifier> NewPaths;
+
+		// Plugins are identified by their unique name. The rest of the path is not important but it is displayed
+		// in the address bar for added clarity.
+		FString PluginName = FPaths::GetCleanFilename(NewText.ToString());
+
+		TSharedPtr<const IPlugin> Plugin = IPluginManager::Get().FindPlugin(PluginName);
+		if (Plugin != nullptr)
+		{
+			FPluginIdentifier NewPath = FPluginIdentifier::FromString(Plugin->GetName());
+			NewPaths.Add(NewPath);
+		}
+
+		SetGraphRootIdentifiers(NewPaths);
+	}
+}
+
+void SPluginReferenceViewer::OnAddressBarTextChanged(const FText& NewText)
+{
+	TemporaryPathBeingEdited = NewText;
 }
 
 void SPluginReferenceViewer::ZoomToFit()
@@ -321,6 +516,9 @@ void SPluginReferenceViewer::ReCenterGraphOnNodes(const TSet<UObject*>& Nodes)
 			GraphEditorPtr->ClearSelectionSet();
 			GraphEditorPtr->SetNodeSelection(NewRootNode, true);
 		}
+
+		// Set the initial history data
+		HistoryManager.AddHistoryData();
 	}
 }
 
@@ -373,7 +571,7 @@ void SPluginReferenceViewer::RegisterActions()
 		FCanExecuteAction());
 }
 
-bool SPluginReferenceViewer::IsCompactModeChecked()
+bool SPluginReferenceViewer::IsCompactModeChecked() const
 {
 	return Settings.bIsCompactMode;
 }

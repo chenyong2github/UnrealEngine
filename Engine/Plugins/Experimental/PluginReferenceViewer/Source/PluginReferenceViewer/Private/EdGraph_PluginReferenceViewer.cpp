@@ -51,13 +51,18 @@ void UEdGraph_PluginReferenceViewer::SetGraphRoot(const TArray<FPluginIdentifier
 	CurrentGraphRootOrigin = GraphRootOrigin;
 }
 
+const TArray<FPluginIdentifier>& UEdGraph_PluginReferenceViewer::GetCurrentGraphRootIdentifiers() const
+{
+	return CurrentGraphRootIdentifiers;
+}
+
 void UEdGraph_PluginReferenceViewer::CachePluginDependencies(const TArray<TSharedRef<IPlugin>>& Plugins)
 {
 	PluginMap.Empty();
 
 	for (const TSharedRef<IPlugin>& Plugin : Plugins)
 	{
-		PluginMap.Add(FPluginIdentifier(Plugin->GetName()), Plugin);
+		PluginMap.Add(FPluginIdentifier::FromString(Plugin->GetName()), Plugin);
 	}
 
 	struct FDependencyNodeBuilder
@@ -74,7 +79,8 @@ void UEdGraph_PluginReferenceViewer::CachePluginDependencies(const TArray<TShare
 		{
 			for (const TSharedRef<IPlugin>& Plugin : Plugins)
 			{
-				Nodes.Add(FPluginIdentifier(Plugin->GetName()), MakeUnique<FPluginDependsNode>(Plugin->GetName()));
+				FPluginIdentifier NewPluginIdentifier = FPluginIdentifier::FromString(Plugin->GetName());
+				Nodes.Add(NewPluginIdentifier, MakeUnique<FPluginDependsNode>(NewPluginIdentifier));
 			}
 
 			for (const TSharedRef<IPlugin>& Plugin : Plugins)
@@ -85,14 +91,15 @@ void UEdGraph_PluginReferenceViewer::CachePluginDependencies(const TArray<TShare
 				for (const FPluginReferenceDescriptor& Item : PluginDescriptor.Plugins)
 				{
 					FPluginDependsNode* ChildNode = nullptr;
-					TUniquePtr<FPluginDependsNode>* FoundNodePtr = Nodes.Find(FPluginIdentifier(Item.Name));
+					TUniquePtr<FPluginDependsNode>* FoundNodePtr = Nodes.Find(FPluginIdentifier::FromString(Item.Name));
 					if (FoundNodePtr != nullptr)
 					{
 						ChildNode = FoundNodePtr->Get();
 					}
 					else
 					{
-						ChildNode = Nodes.Add(FPluginIdentifier(Item.Name), MakeUnique<FPluginDependsNode>(Item.Name)).Get();
+						FPluginIdentifier NewPluginIdentifier = FPluginIdentifier::FromString(Item.Name);
+						ChildNode = Nodes.Add(NewPluginIdentifier, MakeUnique<FPluginDependsNode>(NewPluginIdentifier)).Get();
 					}
 
 					ParentNode->Dependencies.Add(ChildNode);
@@ -109,60 +116,50 @@ void UEdGraph_PluginReferenceViewer::CachePluginDependencies(const TArray<TShare
 
 UEdGraphNode_PluginReference* UEdGraph_PluginReferenceViewer::ConstructNodes(const TArray<FPluginIdentifier>& GraphRootIdentifiers, const FIntPoint& GraphRootOrigin)
 {
-	const bool bIsCompactMode = PluginReferenceViewer.Pin()->IsCompactModeChecked();
-	const int32 SettingsReferencerMaxDepth = PluginReferenceViewer.Pin()->GetSearchReferencerDepthCount();
-	const int32 SettingsDependencyMaxDepth = PluginReferenceViewer.Pin()->GetSearchDependencyDepthCount();
-
-	TMap<FPluginIdentifier, FPluginReferenceNodeInfo> NewReferenceNodeInfos;
-	for (const FPluginIdentifier& RootIdentifier : GraphRootIdentifiers)
+	if (!GraphRootIdentifiers.IsEmpty())
 	{
-		FPluginReferenceNodeInfo& RootNodeInfo = NewReferenceNodeInfos.FindOrAdd(RootIdentifier, FPluginReferenceNodeInfo(RootIdentifier, true));
-		RootNodeInfo.Parents.Emplace(NAME_None);
+		const int32 SettingsReferencerMaxDepth = PluginReferenceViewer.Pin()->GetSearchReferencerDepthCount();
+		const int32 SettingsDependencyMaxDepth = PluginReferenceViewer.Pin()->GetSearchDependencyDepthCount();
+
+		TMap<FPluginIdentifier, FPluginReferenceNodeInfo> NewReferenceNodeInfos;
+		for (const FPluginIdentifier& RootIdentifier : GraphRootIdentifiers)
+		{
+			FPluginReferenceNodeInfo& RootNodeInfo = NewReferenceNodeInfos.FindOrAdd(RootIdentifier, FPluginReferenceNodeInfo(RootIdentifier, true));
+			RootNodeInfo.Parents.Emplace(NAME_None);
+		}
+
+		RecursivelyPopulateNodeInfos(true, GraphRootIdentifiers, NewReferenceNodeInfos, 0, SettingsReferencerMaxDepth);
+
+		TMap<FPluginIdentifier, FPluginReferenceNodeInfo> NewDependencyNodeInfos;
+		for (const FPluginIdentifier& RootIdentifier : GraphRootIdentifiers)
+		{
+			FPluginReferenceNodeInfo& DRootNodeInfo = NewDependencyNodeInfos.FindOrAdd(RootIdentifier, FPluginReferenceNodeInfo(RootIdentifier, false));
+			DRootNodeInfo.Parents.Emplace(NAME_None);
+		}
+
+		RecursivelyPopulateNodeInfos(false, GraphRootIdentifiers, NewDependencyNodeInfos, 0, SettingsDependencyMaxDepth);
+
+		// Store the Plugin in the NodeInfos
+		for (TPair<FPluginIdentifier, FPluginReferenceNodeInfo>& InfoPair : NewReferenceNodeInfos)
+		{
+			InfoPair.Value.Plugin = PluginMap.FindChecked(InfoPair.Key);
+		}
+
+		for (TPair<FPluginIdentifier, FPluginReferenceNodeInfo>& InfoPair : NewDependencyNodeInfos)
+		{
+			InfoPair.Value.Plugin = PluginMap.FindChecked(InfoPair.Key);
+		}
+
+		ReferencerNodeInfos = NewReferenceNodeInfos;
+		DependencyNodeInfos = NewDependencyNodeInfos;
+	}
+	else
+	{
+		ReferencerNodeInfos.Empty();
+		DependencyNodeInfos.Empty();
 	}
 
-	RecursivelyPopulateNodeInfos(true, GraphRootIdentifiers, NewReferenceNodeInfos, 0, SettingsReferencerMaxDepth);
-
-	TMap<FPluginIdentifier, FPluginReferenceNodeInfo> NewDependencyNodeInfos;
-	for (const FPluginIdentifier& RootIdentifier : GraphRootIdentifiers)
-	{
-		FPluginReferenceNodeInfo& DRootNodeInfo = NewDependencyNodeInfos.FindOrAdd(RootIdentifier, FPluginReferenceNodeInfo(RootIdentifier, false));
-		DRootNodeInfo.Parents.Emplace(NAME_None);
-	}
-
-	RecursivelyPopulateNodeInfos(false , GraphRootIdentifiers, NewDependencyNodeInfos, 0, SettingsDependencyMaxDepth);
-
-	// Store the Plugin in the NodeInfos
-	for (TPair<FPluginIdentifier, FPluginReferenceNodeInfo>& InfoPair : NewReferenceNodeInfos)
-	{
-		InfoPair.Value.Plugin = PluginMap.FindChecked(InfoPair.Key);
-	}
-
-	for (TPair<FPluginIdentifier, FPluginReferenceNodeInfo>& InfoPair : NewDependencyNodeInfos)
-	{
-		InfoPair.Value.Plugin = PluginMap.FindChecked(InfoPair.Key);
-	}
-
-	ReferencerNodeInfos = NewReferenceNodeInfos;
-	DependencyNodeInfos = NewDependencyNodeInfos;
-
-	RemoveAllNodes();
-
-	UEdGraphNode_PluginReference* RootNode = nullptr;
-
-	if (GraphRootIdentifiers.Num() > 0 && (!ReferencerNodeInfos.IsEmpty() || !DependencyNodeInfos.IsEmpty()))
-	{
-		FPluginIdentifier FirstGraphRootIdentifier = GraphRootIdentifiers[0];
-
-		const FPluginReferenceNodeInfo& NodeInfo = ReferencerNodeInfos[FirstGraphRootIdentifier];
-		RootNode = CreatePluginReferenceNode();
-		RootNode->SetupPluginReferenceNode(CurrentGraphRootOrigin, NodeInfo.Identifier, NodeInfo.Plugin, !bIsCompactMode);
-
-		RecursivelyCreateNodes(true, FirstGraphRootIdentifier, CurrentGraphRootOrigin, FirstGraphRootIdentifier, RootNode, ReferencerNodeInfos, 0, SettingsReferencerMaxDepth, /*bIsRoot*/ true);
-		
-		RecursivelyCreateNodes(false, FirstGraphRootIdentifier, CurrentGraphRootOrigin, FirstGraphRootIdentifier, RootNode, DependencyNodeInfos, 0, SettingsDependencyMaxDepth, /*bIsRoot*/ true);
-	}
-
-	return RootNode;
+	return RefilterGraph();
 }
 
 UEdGraphNode_PluginReference* UEdGraph_PluginReferenceViewer::RecursivelyCreateNodes(bool bInReferencers, const FPluginIdentifier& InPluginId, const FIntPoint& InNodeLoc, const FPluginIdentifier& InParentId, UEdGraphNode_PluginReference* InParentNode, TMap<FPluginIdentifier, FPluginReferenceNodeInfo>& InNodeInfos, int32 InCurrentDepth, int32 InMaxDepth, bool bIsRoot)
@@ -308,6 +305,36 @@ UEdGraphNode_PluginReference* UEdGraph_PluginReferenceViewer::RebuildGraph()
 
 	UEdGraphNode_PluginReference* NewRootNode = ConstructNodes(CurrentGraphRootIdentifiers, CurrentGraphRootOrigin);
 	return NewRootNode;
+}
+
+UEdGraphNode_PluginReference* UEdGraph_PluginReferenceViewer::RefilterGraph()
+{
+	RemoveAllNodes();
+
+	UEdGraphNode_PluginReference* RootNode = nullptr;
+
+	if (CurrentGraphRootIdentifiers.Num() > 0 && (!ReferencerNodeInfos.IsEmpty() || !DependencyNodeInfos.IsEmpty()))
+	{
+		const TSharedPtr<const SPluginReferenceViewer> LocalPluginReferenceViewer = PluginReferenceViewer.Pin();
+
+		const bool bIsCompactMode = LocalPluginReferenceViewer->IsCompactModeChecked();
+		const int32 SettingsReferencerMaxDepth = LocalPluginReferenceViewer->GetSearchReferencerDepthCount();
+		const int32 SettingsDependencyMaxDepth = LocalPluginReferenceViewer->GetSearchDependencyDepthCount();
+
+		FPluginIdentifier FirstGraphRootIdentifier = CurrentGraphRootIdentifiers[0];
+
+		const FPluginReferenceNodeInfo& NodeInfo = ReferencerNodeInfos[FirstGraphRootIdentifier];
+		RootNode = CreatePluginReferenceNode();
+		RootNode->SetupPluginReferenceNode(CurrentGraphRootOrigin, NodeInfo.Identifier, NodeInfo.Plugin, !bIsCompactMode);
+
+		// Show referencers
+		RecursivelyCreateNodes(true, FirstGraphRootIdentifier, CurrentGraphRootOrigin, FirstGraphRootIdentifier, RootNode, ReferencerNodeInfos, 0, SettingsReferencerMaxDepth, /*bIsRoot*/ true);
+
+		// Show dependencies
+		RecursivelyCreateNodes(false, FirstGraphRootIdentifier, CurrentGraphRootOrigin, FirstGraphRootIdentifier, RootNode, DependencyNodeInfos, 0, SettingsDependencyMaxDepth, /*bIsRoot*/ true);
+	}
+
+	return RootNode;
 }
 
 UEdGraphNode_PluginReference* UEdGraph_PluginReferenceViewer::CreatePluginReferenceNode()

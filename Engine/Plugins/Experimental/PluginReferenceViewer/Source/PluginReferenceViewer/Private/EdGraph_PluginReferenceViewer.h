@@ -26,11 +26,6 @@ struct FPluginIdentifier
 	{
 	}
 
-	FPluginIdentifier(const FString& InName)
-		: Name(InName)
-	{
-	}
-
 	friend inline bool operator==(const FPluginIdentifier& A, const FPluginIdentifier& B)
 	{
 		return A.Name == B.Name;
@@ -39,6 +34,21 @@ struct FPluginIdentifier
 	friend inline uint32 GetTypeHash(const FPluginIdentifier& Key)
 	{
 		return GetTypeHash(Key.Name);
+	}
+
+	bool IsValid() const
+	{
+		return Name != NAME_None;
+	}
+
+	FString ToString() const
+	{
+		return Name.ToString();
+	}
+
+	static FPluginIdentifier FromString(const FString& String)
+	{
+		return FPluginIdentifier(FName(String));
 	}
 };
 
@@ -88,6 +98,8 @@ public:
 	/** Set reference viewer to focus on these assets */
 	void SetGraphRoot(const TArray<FPluginIdentifier>& GraphRootIdentifiers, const FIntPoint& GraphRootOrigin = FIntPoint(ForceInitToZero));
 
+	const TArray<FPluginIdentifier>& GetCurrentGraphRootIdentifiers() const;
+
 	UEdGraphNode_PluginReference* ConstructNodes(const TArray<FPluginIdentifier>& GraphRootIdentifiers, const FIntPoint& GraphRootOrigin);
 
 	UEdGraphNode_PluginReference* RecursivelyCreateNodes(bool bInReferencers, const FPluginIdentifier& InPluginId, const FIntPoint& InNodeLoc, const FPluginIdentifier& InParentId, UEdGraphNode_PluginReference* InParentNode, TMap<FPluginIdentifier, FPluginReferenceNodeInfo>& InNodeInfos, int32 InCurrentDepth, int32 InMaxDepth, bool bIsRoot = false);
@@ -97,7 +109,7 @@ public:
 	void GetSortedLinks(const TArray<FPluginIdentifier>& Identifiers, bool bReferencers, TMap<FPluginIdentifier, EPluginReferencePinCategory>& OutLinks) const;
 
 	/** Force the graph to rebuild */
-	class UEdGraphNode_PluginReference* RebuildGraph();
+	UEdGraphNode_PluginReference* RebuildGraph();
 
 	UEdGraphNode_PluginReference* CreatePluginReferenceNode();
 	void RemoveAllNodes();
@@ -121,6 +133,8 @@ private:
 
 	void GetPluginDependencies(const FPluginIdentifier& PluginIdentifier, TArray<FPluginDependency>& OutDependencies) const;
 	void GetPluginReferencers(const FPluginIdentifier& PluginIdentifier, TArray<FPluginDependency>& OutReferencers) const;
+
+	UEdGraphNode_PluginReference* RefilterGraph();
 
 private:
 	/** Editor for this pool */

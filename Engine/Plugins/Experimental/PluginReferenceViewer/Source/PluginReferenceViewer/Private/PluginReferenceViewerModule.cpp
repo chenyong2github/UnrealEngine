@@ -75,7 +75,7 @@ void FPluginReferenceViewerModule::OpenPluginReferenceViewerUI(const TSharedRef<
 	if (TSharedPtr<SDockTab> NewTab = FGlobalTabmanager::Get()->TryInvokeTab(PluginReferenceViewerTabName))
 	{
 		TSharedRef<SPluginReferenceViewer> PluginReferenceViewer = StaticCastSharedRef<SPluginReferenceViewer>(NewTab->GetContent());
-		PluginReferenceViewer->SetGraphRoot(NewGraphRootNames);
+		PluginReferenceViewer->SetGraphRootIdentifiers(NewGraphRootNames);
 	}
 }
 
