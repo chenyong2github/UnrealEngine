@@ -3,11 +3,11 @@
 
 #include "UObject/SavePackage/PackageHarvester.h"
 
+#include "Interfaces/ITargetPlatform.h"
 #include "UObject/SavePackage/SaveContext.h"
 #include "UObject/SavePackage/SavePackageUtilities.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/UObjectHash.h"
-#include "Interfaces/ITargetPlatform.h"
 
 EObjectMark GenerateMarksForObject(const UObject* InObject, const ITargetPlatform* TargetPlatform)
 {
@@ -674,6 +674,16 @@ void FPackageHarvester::ProcessImport(TObjectPtr<UObject> InObject)
 	if (Package && Package != InObject)
 	{
 		*this << Package;
+
+		// The package needs to be included in the SaveContext's HarvestingRealm, or ValidateImports will log an error:
+		// "Missing import package name...". Log it here instead with an explanation for why it's not included.
+		// It's possible the package will be marked as editoronly by not including it in the game realm, so don't check
+		// all CurrentExportHarvestingRealms, just check the SaveContext's HarvestingRealm.
+		if (SaveContext.IsIncluded(InObject) && !SaveContext.IsIncluded(Package))
+		{
+			SaveContext.RecordIllegalReference(CurrentExportDependencies.CurrentExport, InObject,
+				EIllegalRefReason::ExternalPackage, Package->GetName());
+		}
 	}
 	else
 	{

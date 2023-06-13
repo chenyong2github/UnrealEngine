@@ -90,6 +90,7 @@ enum class EIllegalRefReason : uint8
 	ReferenceFromOptionalToMissingGameExport,
 	UnsaveableClass,
 	UnsaveableOuter,
+	ExternalPackage,
 };
 
 /** Small struct to store illegal references harvested during save */

@@ -493,6 +493,24 @@ ESavePackageResult ValidateRealms(FSaveContext& SaveContext)
 					Reference.To ? *Reference.To->GetPathName() : TEXT("Unknown"),
 					*Reference.FormatStringArg);
 				break;
+			case EIllegalRefReason::ExternalPackage:
+				if (Reference.From->GetOutermostObject() == Reference.To->GetOutermostObject() && SaveContext.IsCooking())
+				{
+					ErrorMessage = FString::Printf(TEXT("Can't save %s: export (%s) has a reference to export (%s) which still has its external package set to (%s)."),
+						SaveContext.GetFilename(),
+						Reference.From ? *Reference.From->GetPathName() : TEXT("Unknown"),
+						Reference.To ? *Reference.To->GetPathName() : TEXT("Unknown"),
+						!Reference.FormatStringArg.IsEmpty() ? *Reference.FormatStringArg : TEXT("Unknown"));
+				}
+				else
+				{
+					ErrorMessage = FString::Printf(TEXT("Can't save %s: export (%s) has a reference to import (%s), but the import is in ExternalPackage (%s) which was marked unsaveable."),
+						SaveContext.GetFilename(),
+						Reference.From ? *Reference.From->GetPathName() : TEXT("Unknown"),
+						Reference.To ? *Reference.To->GetPathName() : TEXT("Unknown"),
+						!Reference.FormatStringArg.IsEmpty() ? *Reference.FormatStringArg : TEXT("Unknown"));
+				}
+				break;
 			default:
 				ErrorMessage = FString::Printf(TEXT("Can't save %s: Unknown Illegal reference from object (%s) to object (%s)"),
 					SaveContext.GetFilename(),
