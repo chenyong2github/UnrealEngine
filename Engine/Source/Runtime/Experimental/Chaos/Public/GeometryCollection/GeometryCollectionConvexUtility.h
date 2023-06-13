@@ -132,15 +132,6 @@ public:
 	static CHAOS_API void GenerateClusterConvexHullsFromLeafHulls(FGeometryCollection& Collection, const FClusterConvexHullSettings& Settings, const TArrayView<const int32> OptionalTransformSubset);
 	static CHAOS_API void GenerateClusterConvexHullsFromLeafHulls(FGeometryCollection& Collection, const FClusterConvexHullSettings& Settings);
 
-	struct FMergeConvexHullSettings
-	{
-		int32 MaxConvexCount = -1;
-		double ErrorToleranceInCm = 0.0;
-		UE::Geometry::FSphereCovering* EmptySpace = nullptr;
-	};
-	// Merge convex hulls that are currently on each (selected) transform. If convex hulls are not present, does nothing.
-	static void MergeHullsOnTransforms(FManagedArrayCollection& Collection, const FMergeConvexHullSettings& Settings, bool bRestrictToSelection, const TArrayView<const int32> OptionalTransformSelection);
-
 	// Additional settings for filtering when the EGenerateConvexMethod::IntersectExternalWithComputed is applied
 	struct FIntersectionFilters
 	{

@@ -58,7 +58,7 @@ namespace UE::FractureEngine::Convex
 	 * Compute negative space for the convex hulls on a geometry collection
 	 * @return true if any negative space was found
 	 */
-	bool FRACTUREENGINE_API ComputeConvexHullsNegativeSpace(FManagedArrayCollection& Collection, UE::Geometry::FSphereCovering& OutNegativeSpace, const UE::Geometry::FNegativeSpaceSampleSettings& Settings, bool bRestrictToSelection = false, const TArrayView<const int32> TransformSelection = TArrayView<const int32>(), bool bFromRigidTransforms = true);
+	bool FRACTUREENGINE_API ComputeConvexHullsNegativeSpace(FManagedArrayCollection& Collection, UE::Geometry::FSphereCovering& OutNegativeSpace, const UE::Geometry::FNegativeSpaceSampleSettings& Settings, bool bRestrictToSelection = false, const TArrayView<const int32> TransformSelection = TArrayView<const int32>());
 
 }
 

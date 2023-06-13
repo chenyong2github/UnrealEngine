@@ -60,15 +60,6 @@ struct FNegativeSpaceSampleSettings
 
 	// Ignore spheres with smaller radius than this
 	double MinRadius = 10.0;
-
-	// Make sure the settings values are in valid ranges
-	void Sanitize()
-	{
-		TargetNumSamples = FMath::Max(1, TargetNumSamples);
-		MinSpacing = FMath::Max(0.0, MinSpacing);
-		ReduceRadiusMargin = FMath::Max(0.0, ReduceRadiusMargin);
-		MinRadius = FMath::Max(0.0, MinRadius);
-	}
 };
 
 // Define a volume with a set of spheres
