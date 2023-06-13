@@ -89,25 +89,11 @@ public:
 		/** Called when the roll value is committed */
 		SLATE_EVENT( FOnNumericValueCommitted, OnRollCommitted )
 
-		FSimpleDelegate ConvertOnBeginSliderMovement(const FSimpleDelegate& LegacyDelegate)
-		{
-			return FSimpleDelegate::CreateLambda([LegacyDelegate]()
-			{
-				return LegacyDelegate.Execute();
-			});
-		}
 		/** Called when the slider begins to move on any axis */
-		SLATE_EVENT_DEPRECATED(5.3, "Use the new OnPitchBeginSliderMovement()/OnYawBeginSliderMovement()/OnRollBeginSliderMovement() event instead", FSimpleDelegate, OnBeginSliderMovement, OnPitchBeginSliderMovement, ConvertOnBeginSliderMovement)
+		SLATE_EVENT(FSimpleDelegate, OnBeginSliderMovement)
 
-		FOnNumericValueChanged ConvertOnEndSliderMovement(const FOnNumericValueChanged& LegacyDelegate)
-		{
-			return FOnNumericValueChanged::CreateLambda([LegacyDelegate](const NumericType& Value)
-			{
-				return LegacyDelegate.Execute(Value);
-			});
-		}
 		/** Called when the slider for any axis is released */
-		SLATE_EVENT_DEPRECATED(5.3, "Use the new OnPitchEndSliderMovement()/OnYawEndSliderMovement()/OnRollEndSliderMovement() event instead", FOnNumericValueChanged, OnEndSliderMovement, OnPitchEndSliderMovement, ConvertOnEndSliderMovement)
+		SLATE_EVENT(FOnNumericValueChanged, OnEndSliderMovement)
 	
 		/** Called when the slider begins to move on pitch */
 		SLATE_EVENT( FSimpleDelegate, OnPitchBeginSliderMovement )
@@ -214,8 +200,8 @@ public:
 				.Value( InArgs._Pitch )
 				.OnValueChanged( InArgs._OnPitchChanged )
 				.OnValueCommitted( InArgs._OnPitchCommitted )
-				.OnBeginSliderMovement( InArgs._OnPitchBeginSliderMovement )
-				.OnEndSliderMovement( InArgs._OnPitchEndSliderMovement )
+				.OnBeginSliderMovement( CreatePerComponentSliderMovementEvent( InArgs._OnBeginSliderMovement, InArgs._OnPitchBeginSliderMovement ) )
+				.OnEndSliderMovement( CreatePerComponentSliderMovementEvent< FOnNumericValueChanged, NumericType >( InArgs._OnEndSliderMovement, InArgs._OnPitchEndSliderMovement ) )
 				.UndeterminedString( NSLOCTEXT("SRotatorInputBox", "MultipleValues", "Multiple Values") )
 				.ToolTipText_Lambda([PitchAttr = InArgs._Pitch]
 				{
@@ -264,7 +250,27 @@ public:
 			]
 		];
 
-	}	
+	}
+
+	/**
+	 * Creates a lambda to react to a begin/end slider movement event
+	 */
+	template<typename EventType, typename... ArgsType>
+	EventType CreatePerComponentSliderMovementEvent(
+		const EventType OnSliderMovement,
+		const EventType OnComponentSliderMovement)
+	{
+		if(OnSliderMovement.IsBound())
+		{
+			return EventType::CreateLambda(
+				[OnSliderMovement, OnComponentSliderMovement](ArgsType... Args)
+				{
+					OnSliderMovement.ExecuteIfBound(Args...);
+					OnComponentSliderMovement.ExecuteIfBound(Args...);
+				});
+		}
+		return OnComponentSliderMovement;
+	}
 };
 
 /**

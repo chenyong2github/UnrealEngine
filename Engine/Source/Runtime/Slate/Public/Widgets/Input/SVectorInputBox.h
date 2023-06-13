@@ -40,12 +40,6 @@ public:
 	/** Delegate to constrain the vector during a change */
 	DECLARE_DELEGATE_ThreeParams(FOnConstrainVector, int32 /* Component */, VectorType /* old */ , VectorType& /* new */);
 
-	/** Notification for vector value slider began movement */
-	DECLARE_DELEGATE(FOnBeginSliderMovement);
-
-	/** Notification for vector value slider ended movement */
-	DECLARE_DELEGATE_OneParam(FOnEndSliderMovement, NumericType);
-
 	struct FArguments;
 
 private:
@@ -80,10 +74,10 @@ private:
 		SLATE_EVENT(FMenuExtensionDelegate, ContextMenuExtenderX)
 
 		/** Called when the x value of the vector slider began movement */
-		SLATE_EVENT(FOnBeginSliderMovement, OnXBeginSliderMovement)
+		SLATE_EVENT(FSimpleDelegate, OnXBeginSliderMovement)
 
 		/** Called when the x value of the vector slider ended movement */
-		SLATE_EVENT(FOnEndSliderMovement, OnXEndSliderMovement)
+		SLATE_EVENT(FOnNumericValueChanged, OnXEndSliderMovement)
 	};
 
 	struct FVectorYArgumentsEmpty {};
@@ -115,10 +109,10 @@ private:
 		SLATE_EVENT(FMenuExtensionDelegate, ContextMenuExtenderY)
 
 		/** Called when the y value of the vector slider began movement */
-		SLATE_EVENT(FOnBeginSliderMovement, OnYBeginSliderMovement)
+		SLATE_EVENT(FSimpleDelegate, OnYBeginSliderMovement)
 
 		/** Called when the y value of the vector slider ended movement */
-		SLATE_EVENT(FOnEndSliderMovement, OnYEndSliderMovement)
+		SLATE_EVENT(FOnNumericValueChanged, OnYEndSliderMovement)
 	};
 
 	struct FVectorZArgumentsEmpty {};
@@ -150,10 +144,10 @@ private:
 		SLATE_EVENT(FMenuExtensionDelegate, ContextMenuExtenderZ)
 
 		/** Called when the z value of the vector slider began movement */
-		SLATE_EVENT(FOnBeginSliderMovement, OnZBeginSliderMovement)
+		SLATE_EVENT(FSimpleDelegate, OnZBeginSliderMovement)
 
 		/** Called when the z value of the vector slider ended movement */
-		SLATE_EVENT(FOnEndSliderMovement, OnZEndSliderMovement)
+		SLATE_EVENT(FOnNumericValueChanged, OnZEndSliderMovement)
 	};
 
 	struct FVectorWArgumentsEmpty {};
@@ -185,10 +179,10 @@ private:
 		SLATE_EVENT(FMenuExtensionDelegate, ContextMenuExtenderW)
 
 		/** Called when the w value of the vector slider began movement */
-		SLATE_EVENT(FOnBeginSliderMovement, OnWBeginSliderMovement)
+		SLATE_EVENT(FSimpleDelegate, OnWBeginSliderMovement)
 
 		/** Called when the w value of the vector slider ended movement */
-		SLATE_EVENT(FOnEndSliderMovement, OnWEndSliderMovement)
+		SLATE_EVENT(FOnNumericValueChanged, OnWEndSliderMovement)
 	};
 
 public:
@@ -421,8 +415,8 @@ private:
 		const TAttribute<ECheckBoxState> ToggleChecked,
 		const FOnCheckStateChanged& OnToggleChanged,
 		const FMenuExtensionDelegate& OnContextMenuExtenderComponent,
-		const FSimpleDelegate& OnBeginSliderMovement,
-		const FOnNumericValueChanged& OnEndSliderMovement)
+		const FSimpleDelegate& OnComponentBeginSliderMovement,
+		const FOnNumericValueChanged& OnComponentEndSliderMovement)
 	{
 		TSharedRef<SWidget> LabelWidget = SNullWidget::NullWidget;
 		if (InArgs._bColorAxisLabels)
@@ -462,8 +456,8 @@ private:
 			.MaxSliderValue(CreatePerComponentGetter(ComponentIndex, TOptional<NumericType>(), InArgs._MaxSliderVector))
 			.LinearDeltaSensitivity(InArgs._LinearDeltaSensitivity)
 			.Delta(InArgs._SpinDelta)
-			.OnBeginSliderMovement(OnBeginSliderMovement)
-			.OnEndSliderMovement(OnEndSliderMovement)
+			.OnBeginSliderMovement(CreatePerComponentSliderMovementEvent(InArgs._OnBeginSliderMovement, OnComponentBeginSliderMovement))
+			.OnEndSliderMovement(CreatePerComponentSliderMovementEvent<FOnNumericValueChanged, NumericType>(InArgs._OnEndSliderMovement, OnComponentEndSliderMovement))
 			.LabelPadding(FMargin(3.f))
 			.LabelLocation(SNumericEntryBox<NumericType>::ELabelLocation::Inside)
 			.Label()
@@ -649,6 +643,26 @@ private:
 				});
 		}
 		return OnComponentCommitted;
+	}
+
+	/**
+	 * Creates a lambda to react to a begin/end slider movement event
+	 */
+	template<typename EventType, typename... ArgsType>
+	EventType CreatePerComponentSliderMovementEvent(
+		const EventType OnSliderMovement,
+		const EventType OnComponentSliderMovement)
+	{
+		if(OnSliderMovement.IsBound())
+		{
+			return EventType::CreateLambda(
+				[OnSliderMovement, OnComponentSliderMovement](ArgsType... Args)
+				{
+					OnSliderMovement.ExecuteIfBound(Args...);
+					OnComponentSliderMovement.ExecuteIfBound(Args...);
+				});
+		}
+		return OnComponentSliderMovement;
 	}
 
 	bool bUseVectorGetter = true;

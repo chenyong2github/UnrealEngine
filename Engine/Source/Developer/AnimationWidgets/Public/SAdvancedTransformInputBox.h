@@ -478,22 +478,22 @@ public:
 					); 
 				}
 
-				typename SNumericVectorInputBox3::FOnBeginSliderMovement XBeginSlide, YBeginSlide, ZBeginSlide;
+				FSimpleDelegate XBeginSlide, YBeginSlide, ZBeginSlide;
 				if(OnBeginSliderMovement.IsBound())
 				{
-					XBeginSlide = SNumericVectorInputBox3::FOnBeginSliderMovement::CreateLambda(
+					XBeginSlide = FSimpleDelegate::CreateLambda(
 						[OnBeginSliderMovement, InComponent]()
 						{
 							OnBeginSliderMovement.Execute(InComponent, ESlateRotationRepresentation::EulerXYZ, ESlateTransformSubComponent::X);
 						}
 					); 
-					YBeginSlide = SNumericVectorInputBox3::FOnBeginSliderMovement::CreateLambda(
+					YBeginSlide = FSimpleDelegate::CreateLambda(
 						[OnBeginSliderMovement, InComponent]()
 						{
 							OnBeginSliderMovement.Execute(InComponent, ESlateRotationRepresentation::EulerXYZ, ESlateTransformSubComponent::Y);
 						}
 					); 
-					ZBeginSlide = SNumericVectorInputBox3::FOnBeginSliderMovement::CreateLambda(
+					ZBeginSlide = FSimpleDelegate::CreateLambda(
 						[OnBeginSliderMovement, InComponent]()
 						{
 							OnBeginSliderMovement.Execute(InComponent, ESlateRotationRepresentation::EulerXYZ, ESlateTransformSubComponent::Z);
@@ -501,22 +501,22 @@ public:
 					); 
 				}
 
-				typename SNumericVectorInputBox3::FOnEndSliderMovement XEndSlide, YEndSlide, ZEndSlide;
+				typename SNumericVectorInputBox3::FOnNumericValueChanged XEndSlide, YEndSlide, ZEndSlide;
 				if(OnEndSliderMovement.IsBound())
 				{
-					XEndSlide = SNumericVectorInputBox3::FOnEndSliderMovement::CreateLambda(
+					XEndSlide = SNumericVectorInputBox3::FOnNumericValueChanged::CreateLambda(
 						[OnEndSliderMovement, InComponent](NumericType InValue)
 						{
 							OnEndSliderMovement.Execute(InComponent, ESlateRotationRepresentation::EulerXYZ, ESlateTransformSubComponent::X, InValue);
 						}
 					); 
-					YEndSlide = SNumericVectorInputBox3::FOnEndSliderMovement::CreateLambda(
+					YEndSlide = SNumericVectorInputBox3::FOnNumericValueChanged::CreateLambda(
 						[OnEndSliderMovement, InComponent](NumericType InValue)
 						{
 							OnEndSliderMovement.Execute(InComponent, ESlateRotationRepresentation::EulerXYZ, ESlateTransformSubComponent::Y, InValue);
 						}
 					); 
-					ZEndSlide = SNumericVectorInputBox3::FOnEndSliderMovement::CreateLambda(
+					ZEndSlide = SNumericVectorInputBox3::FOnNumericValueChanged::CreateLambda(
 						[OnEndSliderMovement, InComponent](NumericType InValue)
 						{
 							OnEndSliderMovement.Execute(InComponent, ESlateRotationRepresentation::EulerXYZ, ESlateTransformSubComponent::Z, InValue);
