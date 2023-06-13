@@ -30,7 +30,7 @@ void FActorElementLevelEditorViewportInteractionCustomization::GizmoManipulation
 	}
 }
 
-void FActorElementLevelEditorViewportInteractionCustomization::GizmoManipulationDeltaUpdate(const TTypedElement<ITypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode, const EAxisList::Type InDragAxis, const FInputDeviceState& InInputState, const FTransform& InDeltaTransform, const FVector& InPivotLocation, ETypedElementViewportInteractionDragMovementType GizmoDeltaType)
+void FActorElementLevelEditorViewportInteractionCustomization::GizmoManipulationDeltaUpdate(const TTypedElement<ITypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode, const EAxisList::Type InDragAxis, const FInputDeviceState& InInputState, const FTransform& InDeltaTransform, const FVector& InPivotLocation)
 {
 	AActor* Actor = ActorElementDataUtil::GetActorFromHandleChecked(InElementWorldHandle);
 
@@ -55,7 +55,7 @@ void FActorElementLevelEditorViewportInteractionCustomization::GizmoManipulation
 		ModifiedDeltaTransform.SetScale3D(AdjustedScale);
 	}
 
-	FActorElementEditorViewportInteractionCustomization::GizmoManipulationDeltaUpdate(InElementWorldHandle, InWidgetMode, InDragAxis, InInputState, ModifiedDeltaTransform, InPivotLocation, GizmoDeltaType);
+	FActorElementEditorViewportInteractionCustomization::GizmoManipulationDeltaUpdate(InElementWorldHandle, InWidgetMode, InDragAxis, InInputState, ModifiedDeltaTransform, InPivotLocation);
 
 	// Update the cameras from their locked actor (if any) only if the viewport is real-time enabled
 	GetMutableLevelEditorViewportClient()->UpdateLockedActorViewports(Actor, true);

@@ -2921,7 +2921,7 @@ void UEditorEngine::ApplyDeltaToActor(AActor* InActor,
 	FInputDeviceState InputState;
 	InputState.SetModifierKeyStates(bShiftDown, bAltDown, bControlDown, false);
 
-	FActorElementEditorViewportInteractionCustomization::ApplyDeltaToActor(InActor, bDelta, InTrans, InRot, InScale, GLevelEditorModeTools().PivotLocation, InputState, ETypedElementViewportInteractionDragMovementType::None);
+	FActorElementEditorViewportInteractionCustomization::ApplyDeltaToActor(InActor, bDelta, InTrans, InRot, InScale, GLevelEditorModeTools().PivotLocation, InputState);
 }
 
 void UEditorEngine::ApplyDeltaToComponent(USceneComponent* InComponent,

@@ -13,15 +13,190 @@
 #include "Elements/Interfaces/TypedElementHierarchyInterface.h"
 #include "Elements/Framework/TypedElementRegistry.h"
 
-void FActorElementEditorViewportInteractionCustomization::GizmoManipulationDeltaUpdate(const TTypedElement<ITypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode, const EAxisList::Type InDragAxis, const FInputDeviceState& InInputState, const FTransform& InDeltaTransform, const FVector& InPivotLocation, ETypedElementViewportInteractionDragMovementType GizmoDeltaType)
+void FActorElementEditorViewportInteractionCustomization::GizmoManipulationStarted(
+	const TTypedElement<ITypedElementWorldInterface>& InElementWorldHandle,
+	const UE::Widget::EWidgetMode InWidgetMode)
 {
-	AActor* Actor = ActorElementDataUtil::GetActorFromHandleChecked(InElementWorldHandle);
+	AActor* RootActor = ActorElementDataUtil::GetActorFromHandleChecked(InElementWorldHandle);
+	
+	FTypedElementViewportInteractionCustomization::GizmoManipulationStarted(InElementWorldHandle, InWidgetMode);
+
+	TArray<AActor*> AffectedActors;
+	AffectedActors.Add(RootActor);
+	
+	// grab all attached actors to invalidate everybody 	
+	RootActor->GetAttachedActors(AffectedActors, /*bResetArray*/ false, /*bRecursivelyIncludeAttachedActors*/ true );
+
+	if (GEditor->IsDeltaModificationEnabled())
+	{
+		for (AActor* Actor : AffectedActors)
+		{
+			Actor->Modify();
+		}
+	}
+
+	if (!GIsDemoMode)
+	{
+		for (AActor* Actor : AffectedActors)
+		{
+			// We don't know at this point if it is translation only
+			constexpr bool bTranslationOnly = false;
+			Actor->InvalidateLightingCacheDetailed(bTranslationOnly);
+		}
+	}
+}
+
+void FActorElementEditorViewportInteractionCustomization::GizmoManipulationDeltaUpdate(const TTypedElement<ITypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode, const EAxisList::Type InDragAxis, const FInputDeviceState& InInputState, const FTransform& InDeltaTransform, const FVector& InPivotLocation)
+{
+	AActor* RootActor = ActorElementDataUtil::GetActorFromHandleChecked(InElementWorldHandle);
+	
+	TArray<AActor*> AffectedActors;
+	AffectedActors.Add(RootActor);
+	
+	// grab all attached actors to invalidate everybody 	
+	RootActor->GetAttachedActors(AffectedActors, /*bResetArray*/ false, /*bRecursivelyIncludeAttachedActors*/ true );
 
 	const FVector DeltaTranslation = InDeltaTransform.GetTranslation();
 	const FRotator DeltaRotation = InDeltaTransform.Rotator();
 	const FVector DeltaScale3D = InDeltaTransform.GetScale3D();
+	
+	const bool bIsSimulatingInEditor = GEditor->IsSimulatingInEditor();
 
-	FActorElementEditorViewportInteractionCustomization::ApplyDeltaToActor(Actor, /*bDelta*/true, &DeltaTranslation, &DeltaRotation, &DeltaScale3D, InPivotLocation, InInputState, GizmoDeltaType);
+	FNavigationLockContext LockNavigationUpdates(RootActor->GetWorld(), ENavigationLockReason::ContinuousEditorMove);
+
+	///////////////////
+	// Rotation
+	
+	const bool bRotatingActor = !DeltaRotation.IsZero();
+	if (bRotatingActor)
+	{			
+		if (RootActor->GetRootComponent())
+		{
+			const FRotator OriginalRotation = RootActor->GetRootComponent()->GetComponentRotation();
+
+			RootActor->EditorApplyRotation(DeltaRotation, InInputState.bAltKeyDown, InInputState.bShiftKeyDown, InInputState.bCtrlKeyDown);
+
+			// Check to see if we should transform the rigid body
+			UPrimitiveComponent* RootPrimitiveComponent = Cast<UPrimitiveComponent>(RootActor->GetRootComponent());
+			if (bIsSimulatingInEditor && GIsPlayInEditorWorld && RootPrimitiveComponent)
+			{
+				FRotator ActorRotWind, ActorRotRem;
+				OriginalRotation.GetWindingAndRemainder(ActorRotWind, ActorRotRem);
+
+				const FQuat ActorQ = ActorRotRem.Quaternion();
+				const FQuat DeltaQ = DeltaRotation.Quaternion();
+				const FQuat ResultQ = DeltaQ * ActorQ;
+
+				const FRotator NewActorRotRem = FRotator(ResultQ);
+				FRotator DeltaRot = NewActorRotRem - ActorRotRem;
+				DeltaRot.Normalize();
+
+				// @todo SIE: Not taking into account possible offset between root component and actor
+				RootPrimitiveComponent->SetWorldRotation(OriginalRotation + DeltaRot);
+			}
+		}
+
+		FVector NewActorLocation = RootActor->GetActorLocation();
+		NewActorLocation -= InPivotLocation;
+		NewActorLocation = FRotationMatrix(DeltaRotation).TransformPosition(NewActorLocation);
+		NewActorLocation += InPivotLocation;
+		NewActorLocation -= RootActor->GetActorLocation();
+		RootActor->EditorApplyTranslation(NewActorLocation, InInputState.bAltKeyDown, InInputState.bShiftKeyDown, InInputState.bCtrlKeyDown);
+	}
+
+	///////////////////
+	// Translation
+	if (RootActor->GetRootComponent())
+	{
+		const FVector OriginalLocation = RootActor->GetRootComponent()->GetComponentLocation();
+
+		RootActor->EditorApplyTranslation(DeltaTranslation, InInputState.bAltKeyDown, InInputState.bShiftKeyDown, InInputState.bCtrlKeyDown);
+
+		// Check to see if we should transform the rigid body
+		UPrimitiveComponent* RootPrimitiveComponent = Cast<UPrimitiveComponent>(RootActor->GetRootComponent());
+		if (bIsSimulatingInEditor && GIsPlayInEditorWorld && RootPrimitiveComponent)
+		{
+			// @todo SIE: Not taking into account possible offset between root component and actor
+			RootPrimitiveComponent->SetWorldLocation(OriginalLocation + DeltaTranslation);
+		}
+	}
+
+	///////////////////
+	// Scaling
+	const bool bScalingActor = !DeltaScale3D.IsNearlyZero(0.000001f);
+	if (bScalingActor)
+	{
+		FVector ModifiedScale = DeltaScale3D;
+
+		// Note: With the new additive scaling method, this is handled in FLevelEditorViewportClient::ModifyScale
+		if (GEditor->UsePercentageBasedScaling())
+		{
+			// Get actor box extents
+			const FBox BoundingBox = RootActor->GetComponentsBoundingBox(true);
+			const FVector BoundsExtents = BoundingBox.GetExtent();
+
+			// Make sure scale on actors is clamped to a minimum and maximum size.
+			const float MinThreshold = 1.0f;
+
+			for (int32 Idx = 0; Idx < 3; Idx++)
+			{
+				if ((FMath::Pow(BoundsExtents[Idx], 2)) > BIG_NUMBER)
+				{
+					ModifiedScale[Idx] = 0.0f;
+				}
+				else if (SMALL_NUMBER < BoundsExtents[Idx])
+				{
+					const bool bBelowAllowableScaleThreshold = ((DeltaScale3D[Idx] + 1.0f) * BoundsExtents[Idx]) < MinThreshold;
+
+					if (bBelowAllowableScaleThreshold)
+					{
+						ModifiedScale[Idx] = (MinThreshold / BoundsExtents[Idx]) - 1.0f;
+					}
+				}
+			}
+		}
+		
+		// Flag actors to use old-style scaling or not
+		// @todo: Remove this hack once we have decided on the scaling method to use.
+		AActor::bUsePercentageBasedScaling = GEditor->UsePercentageBasedScaling();
+
+		RootActor->EditorApplyScale(
+			ModifiedScale,
+			&InPivotLocation,
+			InInputState.bAltKeyDown,
+			InInputState.bShiftKeyDown,
+			InInputState.bCtrlKeyDown
+			);
+	}
+
+	for (AActor* Actor : AffectedActors)
+	{
+		Actor->PostEditMove(false);
+	}
+}
+
+void FActorElementEditorViewportInteractionCustomization::GizmoManipulationStopped(
+	const TTypedElement<ITypedElementWorldInterface>& InElementWorldHandle,
+	const UE::Widget::EWidgetMode InWidgetMode,
+	const ETypedElementViewportInteractionGizmoManipulationType InManipulationType)
+{
+	FTypedElementViewportInteractionCustomization::GizmoManipulationStopped(
+		InElementWorldHandle, InWidgetMode, InManipulationType);
+
+	AActor* RootActor = ActorElementDataUtil::GetActorFromHandleChecked(InElementWorldHandle);
+	
+	TArray<AActor*> AffectedActors;
+	AffectedActors.Add(RootActor);
+	
+	// grab all attached actors to invalidate everybody 	
+	RootActor->GetAttachedActors(AffectedActors, /*bResetArray*/ false, /*bRecursivelyIncludeAttachedActors*/ true );
+
+	InElementWorldHandle.NotifyMovementEnded();
+	// Update the actor before leaving.
+	for (AActor* Actor : AffectedActors)
+	{
+		Actor->MarkPackageDirty();
+	}
 }
 
 void FActorElementEditorViewportInteractionCustomization::MirrorElement(const TTypedElement<ITypedElementWorldInterface>& InElementWorldHandle, const FVector& InMirrorScale, const FVector& InPivotLocation)
@@ -132,7 +307,7 @@ bool FActorElementEditorViewportInteractionCustomization::GetFocusBounds( const 
 	return true;
 }
 
-void FActorElementEditorViewportInteractionCustomization::ApplyDeltaToActor(AActor* InActor, const bool InIsDelta, const FVector* InDeltaTranslationPtr, const FRotator* InDeltaRotationPtr, const FVector* InDeltaScalePtr, const FVector& InPivotLocation, const FInputDeviceState& InInputState, ETypedElementViewportInteractionDragMovementType GizmoDeltaType)
+void FActorElementEditorViewportInteractionCustomization::ApplyDeltaToActor(AActor* InActor, const bool InIsDelta, const FVector* InDeltaTranslationPtr, const FRotator* InDeltaRotationPtr, const FVector* InDeltaScalePtr, const FVector& InPivotLocation, const FInputDeviceState& InInputState)
 {
 	const bool bIsSimulatingInEditor = GEditor->IsSimulatingInEditor();
 
@@ -304,8 +479,7 @@ void FActorElementEditorViewportInteractionCustomization::ApplyDeltaToActor(AAct
 		Actor->MarkPackageDirty();
 	}
 	
-	// Don't need to invalidate lighting cache if this is a subsequent delta movement of the same actors
-	if (!GIsDemoMode && GizmoDeltaType != ETypedElementViewportInteractionDragMovementType::SubsequentMove)
+	if (!GIsDemoMode)
 	{
 		for (AActor* Actor : AffectedActors)
 		{
