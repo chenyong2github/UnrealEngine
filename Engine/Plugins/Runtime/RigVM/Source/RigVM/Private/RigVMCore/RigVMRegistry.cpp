@@ -1128,7 +1128,7 @@ bool FRigVMRegistry::IsAllowedType(const UStruct* InStruct)
 
 bool FRigVMRegistry::IsAllowedType(const UClass* InClass)
 {
-	if(InClass->HasAnyClassFlags(CLASS_Hidden | CLASS_Abstract))
+	if(!InClass || InClass->HasAnyClassFlags(CLASS_Hidden | CLASS_Abstract))
 	{
 		return false;
 	}
