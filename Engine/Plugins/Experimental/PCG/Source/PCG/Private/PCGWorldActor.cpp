@@ -60,6 +60,65 @@ void APCGWorldActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
+void APCGWorldActor::CreateGridGuidsIfNecessary(const PCGHiGenGrid::FSizeArray& InGridSizes)
+{
+	// Check if any need adding
+	ensure(!InGridSizes.IsEmpty());
+	PCGHiGenGrid::FSizeArray GridSizesToAdd;
+	{
+		FReadScopeLock ReadLock(GridGuidsLock);
+		for (uint32 GridSize : InGridSizes)
+		{
+			if (!GridGuids.Contains(GridSize))
+			{
+				GridSizesToAdd.Push(GridSize);
+			}
+		}
+	}
+
+	if (GridSizesToAdd.Num() > 0)
+	{
+		FWriteScopeLock WriteLock(GridGuidsLock);
+
+		bool bModified = false;
+		for (uint32 GridSize : GridSizesToAdd)
+		{
+			if (!GridGuids.Contains(GridSize))
+			{
+				GridGuids.Add(GridSize, FGuid::NewGuid());
+				bModified = true;
+			}
+		}
+
+		if (bModified)
+		{
+			// Set dirty flag if we added guids. Unfortunately if the guids are not up to date, this will produce save prompts
+			// to users. However, this was needed to ensure the guids are saved - without this guids were lost and PAs were leaked.
+			// The alternative would be to ensure this never happens automatically, but rather only happens when user clicks Generate
+			// or etc. However we take a very proactive approach to creating PAs in editor because they can't be created at runtime.
+
+			// Schedule dirtying rather than do immediately because dirtying is a no-op during level load
+			if (UPCGSubsystem* PCGSubsystem = UPCGSubsystem::GetInstance(GetWorld()))
+			{
+				PCGSubsystem->ScheduleGeneric([this]()
+				{
+					this->MarkPackageDirty();
+				return true;
+				}, nullptr, {});
+			}
+		}
+	}
+}
+
+void APCGWorldActor::GetGridGuids(PCGHiGenGrid::FSizeToGuidMap& OutSizeToGuidMap) const
+{
+	FReadScopeLock ReadLock(GridGuidsLock);
+	for (const TPair<uint32, FGuid>& SizeGuid : GridGuids)
+	{
+		OutSizeToGuidMap.Add(SizeGuid.Key, SizeGuid.Value);
+	}
+}
+
 #if WITH_EDITOR
 APCGWorldActor* APCGWorldActor::CreatePCGWorldActor(UWorld* InWorld)
 {
@@ -140,6 +199,19 @@ void APCGWorldActor::OnPartitionGridSizeChanged()
 		check(PCGComponent);
 		PCGComponent->DirtyGenerated();
 		PCGComponent->Refresh();
+	}
+}
+
+void APCGWorldActor::PostLoad()
+{
+	Super::PostLoad();
+
+	// Deprecation - PAs used to be placed on a grid with guid=0. If no grid guids are registered,
+	// register a 0 guid now for the current grid size, and this will result in already existing PAs
+	// being reused.
+	if (GridGuids.IsEmpty())
+	{
+		GridGuids.Add(PartitionGridSize, FGuid());
 	}
 }
 

@@ -119,3 +119,49 @@ namespace PCGFeatureSwitches
 {
 	extern PCG_API TAutoConsoleVariable<bool> CVarCheckSamplerMemory;
 }
+
+/** Describes one or more target execution grids. */
+UENUM(meta = (Bitflags))
+enum class EPCGHiGenGrid : uint32
+{
+	Uninitialized = 0 UMETA(Hidden),
+
+	// NOTE: When adding new grids, increment PCGHiGenGrid::NumGridValues below.
+	Grid32 = 32 UMETA(DisplayName = "3200"),
+	Grid64 = 64 UMETA(DisplayName = "6400"),
+	Grid128 = 128 UMETA(DisplayName = "12800"),
+	Grid256 = 256 UMETA(DisplayName = "25600"),
+	Grid512 = 512 UMETA(DisplayName = "51200"),
+	Grid1024 = 1024 UMETA(DisplayName = "102400"),
+	Grid2048 = 2048 UMETA(DisplayName = "204800"),
+	
+	GridMin = Grid32 UMETA(Hidden),
+	GridMax = Grid2048 UMETA(Hidden),
+
+	// Should execute once rather than executing on any grid
+	Unbounded = 2 * GridMax,
+
+	// Flag for grid not known yet. Represents the default grid size (which can be changed at runtime on PCGWorldActor)
+	GenerationDefault = 2 * Unbounded UMETA(Hidden),
+};
+ENUM_CLASS_FLAGS(EPCGHiGenGrid);
+
+namespace PCGHiGenGrid
+{
+	// Number of unique values of EPCGHiGenGrid, const so it can be used for the inline allocator below.
+	constexpr uint32 NumGridValues = 10;
+
+	// Alias for array which is allocated on the stack (we have a strong idea of the max required elements).
+	using FSizeArray = TArray<uint32, TInlineAllocator<PCGHiGenGrid::NumGridValues>>;
+
+	// Alias for grid size to guid map allocated on the stack, which is unlikely to have a large number of elements.
+	using FSizeToGuidMap = TMap<uint32, FGuid, TInlineSetAllocator<32>>;
+
+	PCG_API bool IsValidGridSize(uint32 InGridSize);
+	PCG_API bool IsValidGrid(EPCGHiGenGrid InGrid);
+	PCG_API uint32 GridToGridSize(EPCGHiGenGrid InGrid);
+	PCG_API EPCGHiGenGrid GridSizeToGrid(uint32 InGridSize);
+
+	PCG_API uint32 UninitializedGridSize();
+	PCG_API uint32 UnboundedGridSize();
+}

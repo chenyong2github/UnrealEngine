@@ -68,6 +68,9 @@ struct PCG_API FPCGContext
 	EPCGExecutionPhase CurrentPhase = EPCGExecutionPhase::NotExecuted;
 	int32 BypassedOutputCount = 0;
 
+	/** Used by grid size data linkages to store/retrieve data. */
+	EPCGHiGenGrid GenerationGrid = EPCGHiGenGrid::Uninitialized;
+
 	/** The current call stack. */
 	const FPCGStack* Stack = nullptr;
 

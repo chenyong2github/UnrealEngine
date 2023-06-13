@@ -3,6 +3,7 @@
 #include "PCGSubsystem.h"
 
 #include "PCGComponent.h"
+#include "PCGGraph.h"
 #include "PCGModule.h"
 #include "PCGWorldActor.h"
 #include "Graph/PCGGraphCache.h"
@@ -99,7 +100,7 @@ namespace PCGSubsystemConsole
 #if WITH_EDITOR
 namespace PCGSubsystem
 {
-	FPCGTaskId ForEachIntersectingCell(FPCGGraphExecutor* GraphExecutor, UWorld* World, const FBox& InBounds, bool bCreateActor, bool bLoadCell, bool bSaveActors, TFunctionRef<FPCGTaskId(APCGPartitionActor*, const FBox&, const TArray<FPCGTaskId>&)> InOperation);
+	FPCGTaskId ForEachIntersectingCell(FPCGGraphExecutor* GraphExecutor, UWorld* World, const FBox& InBounds, const PCGHiGenGrid::FSizeArray& InGridSizes, bool bCreateActor, bool bLoadCell, bool bSaveActors, TFunctionRef<FPCGTaskId(APCGPartitionActor*, const FBox&, const TArray<FPCGTaskId>&)> InOperation);
 }
 #endif
 
@@ -278,7 +279,9 @@ FPCGTaskId UPCGSubsystem::ScheduleComponent(UPCGComponent* PCGComponent, bool bS
 		// Note: This is an immediate operation, as we need the PA for the generation.
 		auto ScheduleTask = [](APCGPartitionActor* PCGActor, const FBox& InIntersectedBounds, const TArray<FPCGTaskId>& TaskDependencies) { return InvalidPCGTaskId; };
 
-		PCGSubsystem::ForEachIntersectingCell(GraphExecutor, PCGComponent->GetWorld(), PCGComponent->GetGridBounds(), /*bCreateActor=*/true, /*bLoadCell=*/false, /*bSave=*/false, ScheduleTask);
+		PCGHiGenGrid::FSizeArray GridSizes;
+		ensure(PCGHelpers::GetGenerationGridSizes(PCGComponent->GetGraph(), GetPCGWorldActor(), GridSizes));
+		PCGSubsystem::ForEachIntersectingCell(GraphExecutor, PCGComponent->GetWorld(), PCGComponent->GetGridBounds(), GridSizes, /*bCreateActor=*/true, /*bLoadCell=*/false, /*bSave=*/false, ScheduleTask);
 
 		ActorAndComponentMapping.UpdateMappingPCGComponentPartitionActor(PCGComponent);
 	}
@@ -570,7 +573,7 @@ bool UPCGSubsystem::GetOutputData(FPCGTaskId TaskId, FPCGDataCollection& OutData
 
 namespace PCGSubsystem
 {
-	FPCGTaskId ForEachIntersectingCell(FPCGGraphExecutor* GraphExecutor, UWorld* World, const FBox& InBounds, bool bCreateActor, bool bLoadCell, bool bSaveActors, TFunctionRef<FPCGTaskId(APCGPartitionActor*, const FBox&, const TArray<FPCGTaskId>&)> InOperation)
+	FPCGTaskId ForEachIntersectingCell(FPCGGraphExecutor* GraphExecutor, UWorld* World, const FBox& InBounds, const PCGHiGenGrid::FSizeArray& InGridSizes, bool bCreateActor, bool bLoadCell, bool bSaveActors, TFunctionRef<FPCGTaskId(APCGPartitionActor*, const FBox&, const TArray<FPCGTaskId>&)> InOperation)
 	{
 		if (!GraphExecutor || !World)
 		{
@@ -578,154 +581,182 @@ namespace PCGSubsystem
 			return InvalidPCGTaskId;
 		}
 
-		APCGWorldActor* PCGWorldActor = PCGHelpers::GetPCGWorldActor(World);
+		PCGHiGenGrid::FSizeArray GridSizes = InGridSizes;
+		// We have no use for unbounded grids as this is a grid-centric function.
+		GridSizes.Remove(static_cast<uint32>(EPCGHiGenGrid::Unbounded));
+		ensure(!GridSizes.IsEmpty());
+		if (GridSizes.IsEmpty())
+		{
+			return InvalidPCGTaskId;
+		}
+		// Descend down hierarchy
+		GridSizes.Sort([](const uint32& A, const uint32& B) { return A > B; });
 
+		APCGWorldActor* PCGWorldActor = PCGHelpers::GetPCGWorldActor(World);
 		check(PCGWorldActor);
 
-		// In case of 2D grid, we are clamping our bounds in Z to be within 0 and PartitionGridSize
-		// By doing so, WP will tie all the partition actors to [0, PartitionGridSize[ interval, generating a "2D grid" instead of 3D.
-		FBox ModifiedInBounds = InBounds;
-		if (PCGWorldActor->bUse2DGrid)
-		{
-			FVector MinBounds = InBounds.Min;
-			FVector MaxBounds = InBounds.Max;
+		PCGWorldActor->CreateGridGuidsIfNecessary(GridSizes);
 
-			MinBounds.Z = 0;
-			MaxBounds.Z = FMath::Max<FVector::FReal>(0.0, PCGWorldActor->PartitionGridSize - 1.0); // -1 to be just below the PartitionGridSize
-			ModifiedInBounds = FBox(MinBounds, MaxBounds);
-		}
-
+		PCGHiGenGrid::FSizeToGuidMap GridSizeToGuid;
+		PCGWorldActor->GetGridGuids(GridSizeToGuid);
+		
 		TArray<FPCGTaskId> CellTasks;
-
-		auto CellLambda = [&CellTasks, GraphExecutor, World, bCreateActor, bLoadCell, bSaveActors, ModifiedInBounds, &InOperation](const UActorPartitionSubsystem::FCellCoord& CellCoord, const FBox& CellBounds)
+		for (uint32 GridSize : GridSizes)
 		{
-			UActorPartitionSubsystem* PartitionSubsystem = UWorld::GetSubsystem<UActorPartitionSubsystem>(World);
-			FBox IntersectedBounds = ModifiedInBounds.Overlap(CellBounds);
-
-			if (IntersectedBounds.IsValid)
+			ensure(PCGHiGenGrid::IsValidGridSize(GridSize));
+			const FGuid* GuidPtr = GridSizeToGuid.Find(GridSize);
+			if (!ensure(GuidPtr))
 			{
-				TSharedPtr<TSet<FWorldPartitionReference>> ActorReferences = MakeShared<TSet<FWorldPartitionReference>>();
+				continue;
+			}
+			const FGuid GridGuid = *GuidPtr;
 
-				auto PostCreation = [](APartitionActor* Actor) { CastChecked<APCGPartitionActor>(Actor)->PostCreation(); };
+			// In case of 2D grid, we are clamping our bounds in Z to be within 0 and GridSize
+			// By doing so, WP will tie all the partition actors to [0, GridSize[ interval, generating a "2D grid" instead of 3D.
+			FBox ModifiedInBounds = InBounds;
+			if (PCGWorldActor->bUse2DGrid)
+			{
+				FVector MinBounds = InBounds.Min;
+				FVector MaxBounds = InBounds.Max;
 
-				const bool bInBoundsSearch = true;
-				const FGuid DefaultGridGuid;
-				const uint32 DefaultGridSize = 0;
-
-				APCGPartitionActor* PCGActor = Cast<APCGPartitionActor>(PartitionSubsystem->GetActor(APCGPartitionActor::StaticClass(), CellCoord, bCreateActor, DefaultGridGuid, DefaultGridSize, bInBoundsSearch, PostCreation));
-
-				// At this point, if bCreateActor was true, then it exists, but it is not currently loaded; make sure it is loaded
-				// Otherwise, we still need to load it if it exists
-				// TODO: Revisit after API review on the WP side, we shouldn't have to load here or get the actor desc directly
-				if (!PCGActor && bSaveActors)
-				{
-					const FWorldPartitionActorDesc* PCGActorDesc = nullptr;
-					auto FindFirst = [&CellCoord, &PCGActorDesc](const FWorldPartitionActorDesc* ActorDesc) {
-						FPartitionActorDesc* PartitionActorDesc = (FPartitionActorDesc*)ActorDesc;
-
-						if (PartitionActorDesc &&
-							PartitionActorDesc->GridIndexX == CellCoord.X &&
-							PartitionActorDesc->GridIndexY == CellCoord.Y &&
-							PartitionActorDesc->GridIndexZ == CellCoord.Z)
-						{
-							PCGActorDesc = ActorDesc;
-							return false;
-						}
-						else
-						{
-							return true;
-						}
-					};
-
-					FWorldPartitionHelpers::ForEachIntersectingActorDesc<APCGPartitionActor>(World->GetWorldPartition(), CellBounds, FindFirst);
-
-					check(!bCreateActor || PCGActorDesc);
-					if (PCGActorDesc)
-					{
-						ActorReferences->Add(FWorldPartitionReference(World->GetWorldPartition(), PCGActorDesc->GetGuid()));
-						PCGActor = Cast<APCGPartitionActor>(PCGActorDesc->GetActor());
-					}
-				}
-				else if(PCGActor)
-				{
-					// We still need to keep a reference on the PCG actor - note that newly created PCG actors will not have a reference here, but won't be unloaded
-					ActorReferences->Add(FWorldPartitionReference(World->GetWorldPartition(), PCGActor->GetActorGuid()));
-				}
-
-				if (!PCGActor)
-				{
-					return true;
-				}
-
-				TArray<FPCGTaskId> PreviousTasks;
-
-				auto SetPreviousTaskIfValid = [&PreviousTasks](FPCGTaskId TaskId){
-					if (TaskId != InvalidPCGTaskId)
-					{
-						PreviousTasks.Reset();
-						PreviousTasks.Add(TaskId);
-					}
-				};
-
-				// We'll need to make sure actors in the bounds are loaded only if we need them.
-				if (bLoadCell)
-				{
-					auto WorldPartitionLoadActorsInBounds = [World, ActorReferences](const FWorldPartitionActorDesc* ActorDesc) {
-						check(ActorDesc);
-						ActorReferences->Add(FWorldPartitionReference(World->GetWorldPartition(), ActorDesc->GetGuid()));
-						// Load actor if not already loaded
-						ActorDesc->GetActor();
-						return true;
-					};
-
-					auto LoadActorsTask = [World, IntersectedBounds, WorldPartitionLoadActorsInBounds]() {
-						FWorldPartitionHelpers::ForEachIntersectingActorDesc(World->GetWorldPartition(), IntersectedBounds, WorldPartitionLoadActorsInBounds);
-						return true;
-					};
-
-					FPCGTaskId LoadTaskId = GraphExecutor->ScheduleGeneric(LoadActorsTask, nullptr, {});
-					SetPreviousTaskIfValid(LoadTaskId);
-				}
-
-				// Execute
-				FPCGTaskId ExecuteTaskId = InOperation(PCGActor, IntersectedBounds, PreviousTasks);
-				SetPreviousTaskIfValid(ExecuteTaskId);
-
-				// Save changes; note that there's no need to save if the operation was cancelled
-				if (bSaveActors && ExecuteTaskId != InvalidPCGTaskId)
-				{
-					auto SaveActorTask = [PCGActor, GraphExecutor]() {
-						GraphExecutor->AddToDirtyActors(PCGActor);
-						return true;
-					};
-
-					FPCGTaskId SaveTaskId = GraphExecutor->ScheduleGeneric(SaveActorTask, nullptr, PreviousTasks);
-					SetPreviousTaskIfValid(SaveTaskId);
-				}
-
-				if (bLoadCell)
-				{
-					// Unload actors from cell (or the pcg actor refered here)
-					auto UnloadActorsTask = [GraphExecutor, ActorReferences]() {
-						GraphExecutor->AddToUnusedActors(*ActorReferences);
-						return true;
-					};
-
-					// Schedule after the save (if valid), then the execute so we can queue this after the load.
-					FPCGTaskId UnloadTaskId = GraphExecutor->ScheduleGeneric(UnloadActorsTask, nullptr, PreviousTasks);
-					SetPreviousTaskIfValid(UnloadTaskId);
-				}
-
-				// Finally, mark "last" valid task in the cell tasks.
-				CellTasks.Append(PreviousTasks);
+				MinBounds.Z = 0;
+				MaxBounds.Z = FMath::Max<FVector::FReal>(0.0, GridSize - 1.0); // -1 to be just below the GridSize
+				ModifiedInBounds = FBox(MinBounds, MaxBounds);
 			}
 
-			return true;
-		};
+			auto CellLambda = [&CellTasks, GraphExecutor, World, bCreateActor, bLoadCell, bSaveActors, ModifiedInBounds, &InOperation, GridSize, &GridGuid, PCGWorldActor](const UActorPartitionSubsystem::FCellCoord& CellCoord, const FBox& CellBounds)
+			{
+				UActorPartitionSubsystem* PartitionSubsystem = UWorld::GetSubsystem<UActorPartitionSubsystem>(World);
+				FBox IntersectedBounds = ModifiedInBounds.Overlap(CellBounds);
 
-		// TODO: accumulate last phases of every cell + run a GC at the end?
-		//  or add some mechanism on the graph executor side to run GC every now and then
-		FActorPartitionGridHelper::ForEachIntersectingCell(APCGPartitionActor::StaticClass(), ModifiedInBounds, World->PersistentLevel, CellLambda);
+				if (IntersectedBounds.IsValid)
+				{
+					TSharedPtr<TSet<FWorldPartitionReference>> ActorReferences = MakeShared<TSet<FWorldPartitionReference>>();
+
+					auto PostCreation = [GridSize, &GridGuid](APartitionActor* Actor) { CastChecked<APCGPartitionActor>(Actor)->PostCreation(GridGuid); };
+
+					APCGPartitionActor* PCGActor = Cast<APCGPartitionActor>(PartitionSubsystem->GetActor(
+						APCGPartitionActor::StaticClass(),
+						CellCoord,
+						bCreateActor,
+						GridGuid,
+						GridSize,
+						/*bInBoundsSearch=*/true,
+						PostCreation));
+
+					// At this point, if bCreateActor was true, then it exists, but it is not currently loaded; make sure it is loaded
+					// Otherwise, we still need to load it if it exists
+					// TODO: Revisit after API review on the WP side, we shouldn't have to load here or get the actor desc directly
+					if (!PCGActor && bSaveActors)
+					{
+						const FWorldPartitionActorDesc* PCGActorDesc = nullptr;
+						auto FindFirst = [&CellCoord, &PCGActorDesc](const FWorldPartitionActorDesc* ActorDesc) {
+							FPartitionActorDesc* PartitionActorDesc = (FPartitionActorDesc*)ActorDesc;
+
+							if (PartitionActorDesc &&
+								PartitionActorDesc->GridIndexX == CellCoord.X &&
+								PartitionActorDesc->GridIndexY == CellCoord.Y &&
+								PartitionActorDesc->GridIndexZ == CellCoord.Z)
+							{
+								PCGActorDesc = ActorDesc;
+								return false;
+							}
+							else
+							{
+								return true;
+							}
+						};
+
+						FWorldPartitionHelpers::ForEachIntersectingActorDesc<APCGPartitionActor>(World->GetWorldPartition(), CellBounds, FindFirst);
+
+						check(!bCreateActor || PCGActorDesc);
+						if (PCGActorDesc)
+						{
+							ActorReferences->Add(FWorldPartitionReference(World->GetWorldPartition(), PCGActorDesc->GetGuid()));
+							PCGActor = Cast<APCGPartitionActor>(PCGActorDesc->GetActor());
+						}
+					}
+					else if(PCGActor)
+					{
+						// We still need to keep a reference on the PCG actor - note that newly created PCG actors will not have a reference here, but won't be unloaded
+						ActorReferences->Add(FWorldPartitionReference(World->GetWorldPartition(), PCGActor->GetActorGuid()));
+					}
+
+					if (!PCGActor)
+					{
+						return true;
+					}
+
+					TArray<FPCGTaskId> PreviousTasks;
+
+					auto SetPreviousTaskIfValid = [&PreviousTasks](FPCGTaskId TaskId){
+						if (TaskId != InvalidPCGTaskId)
+						{
+							PreviousTasks.Reset();
+							PreviousTasks.Add(TaskId);
+						}
+					};
+
+					// We'll need to make sure actors in the bounds are loaded only if we need them.
+					if (bLoadCell)
+					{
+						auto WorldPartitionLoadActorsInBounds = [World, ActorReferences](const FWorldPartitionActorDesc* ActorDesc) {
+							check(ActorDesc);
+							ActorReferences->Add(FWorldPartitionReference(World->GetWorldPartition(), ActorDesc->GetGuid()));
+							// Load actor if not already loaded
+							ActorDesc->GetActor();
+							return true;
+						};
+
+						auto LoadActorsTask = [World, IntersectedBounds, WorldPartitionLoadActorsInBounds]() {
+							FWorldPartitionHelpers::ForEachIntersectingActorDesc(World->GetWorldPartition(), IntersectedBounds, WorldPartitionLoadActorsInBounds);
+							return true;
+						};
+
+						FPCGTaskId LoadTaskId = GraphExecutor->ScheduleGeneric(LoadActorsTask, nullptr, {});
+						SetPreviousTaskIfValid(LoadTaskId);
+					}
+
+					// Execute
+					FPCGTaskId ExecuteTaskId = InOperation(PCGActor, IntersectedBounds, PreviousTasks);
+					SetPreviousTaskIfValid(ExecuteTaskId);
+
+					// Save changes; note that there's no need to save if the operation was cancelled
+					if (bSaveActors && ExecuteTaskId != InvalidPCGTaskId)
+					{
+						auto SaveActorTask = [PCGActor, GraphExecutor]() {
+							GraphExecutor->AddToDirtyActors(PCGActor);
+							return true;
+						};
+
+						FPCGTaskId SaveTaskId = GraphExecutor->ScheduleGeneric(SaveActorTask, nullptr, PreviousTasks);
+						SetPreviousTaskIfValid(SaveTaskId);
+					}
+
+					if (bLoadCell)
+					{
+						// Unload actors from cell (or the pcg actor refered here)
+						auto UnloadActorsTask = [GraphExecutor, ActorReferences]() {
+							GraphExecutor->AddToUnusedActors(*ActorReferences);
+							return true;
+						};
+
+						// Schedule after the save (if valid), then the execute so we can queue this after the load.
+						FPCGTaskId UnloadTaskId = GraphExecutor->ScheduleGeneric(UnloadActorsTask, nullptr, PreviousTasks);
+						SetPreviousTaskIfValid(UnloadTaskId);
+					}
+
+					// Finally, mark "last" valid task in the cell tasks.
+					CellTasks.Append(PreviousTasks);
+				}
+
+				return true;
+			};
+
+			// TODO: accumulate last phases of every cell + run a GC at the end?
+			//  or add some mechanism on the graph executor side to run GC every now and then
+			FActorPartitionGridHelper::ForEachIntersectingCell(APCGPartitionActor::StaticClass(), ModifiedInBounds, World->PersistentLevel, CellLambda, GridSize);
+		}
 
 		// Finally, create a dummy generic task to wait on all cells
 		if (!CellTasks.IsEmpty())
@@ -740,7 +771,7 @@ namespace PCGSubsystem
 
 } // end namepsace PCGSubsystem
 
-void UPCGSubsystem::CreatePartitionActorsWithinBounds(const FBox& InBounds)
+void UPCGSubsystem::CreatePartitionActorsWithinBounds(const FBox& InBounds, const PCGHiGenGrid::FSizeArray& InGridSizes)
 {
 	if (!PCGHelpers::IsRuntimeOrPIE())
 	{
@@ -751,7 +782,7 @@ void UPCGSubsystem::CreatePartitionActorsWithinBounds(const FBox& InBounds)
 		UWorld* World = GetWorld();
 		if (ensure(World && !World->bIsRunningConstructionScript))
 		{
-			PCGSubsystem::ForEachIntersectingCell(GraphExecutor, World, InBounds, /*bCreateActor=*/true, /*bLoadCell=*/false, /*bSave=*/false, ScheduleTask);
+			PCGSubsystem::ForEachIntersectingCell(GraphExecutor, World, InBounds, InGridSizes, /*bCreateActor=*/true, /*bLoadCell=*/false, /*bSave=*/false, ScheduleTask);
 		}
 	}
 }
@@ -847,7 +878,9 @@ FPCGTaskId UPCGSubsystem::ProcessGraph(UPCGComponent* Component, const FBox& InP
 
 	if (UnionBounds.IsValid)
 	{
-		ProcessAllCellsTaskId = PCGSubsystem::ForEachIntersectingCell(GraphExecutor, Component->GetWorld(), UnionBounds, bCreateActors, bLoadCell, bSaveActors, ScheduleTask);
+		PCGHiGenGrid::FSizeArray GridSizes;
+		ensure(PCGHelpers::GetGenerationGridSizes(Component->GetGraph(), GetPCGWorldActor(), GridSizes));
+		ProcessAllCellsTaskId = PCGSubsystem::ForEachIntersectingCell(GraphExecutor, Component->GetWorld(), UnionBounds, GridSizes, bCreateActors, bLoadCell, bSaveActors, ScheduleTask);
 	}
 
 	// Finally, call PostProcessGraph if something happened
@@ -865,7 +898,7 @@ FPCGTaskId UPCGSubsystem::ProcessGraph(UPCGComponent* Component, const FBox& InP
 	}
 	else
 	{
-		if(Component)
+		if (Component)
 		{
 			Component->OnProcessGraphAborted();
 		}
@@ -914,7 +947,9 @@ FPCGTaskId UPCGSubsystem::CleanupGraph(UPCGComponent* Component, const FBox& InB
 		return InvalidPCGTaskId;
 	};
 
-	FPCGTaskId ProcessAllCellsTaskId = PCGSubsystem::ForEachIntersectingCell(GraphExecutor, Component->GetWorld(), InBounds, /*bCreateActor=*/false, /*bLoadCell=*/false, bSave, ScheduleTask);
+	PCGHiGenGrid::FSizeArray GridSizes;
+	ensure(PCGHelpers::GetGenerationGridSizes(Component->GetGraph(), GetPCGWorldActor(), GridSizes));
+	FPCGTaskId ProcessAllCellsTaskId = PCGSubsystem::ForEachIntersectingCell(GraphExecutor, Component->GetWorld(), InBounds, GridSizes, /*bCreateActor=*/false, /*bLoadCell=*/false, bSave, ScheduleTask);
 
 	// Finally, call PostCleanupGraph if something happened
 	if (ProcessAllCellsTaskId != InvalidPCGTaskId)
@@ -967,7 +1002,7 @@ void UPCGSubsystem::CleanupPartitionActors(const FBox& InBounds)
 		return GraphExecutor->ScheduleGeneric(CleanupTask, nullptr, TaskDependencies);
 	};
 
-	PCGSubsystem::ForEachIntersectingCell(GraphExecutor, GetWorld(), InBounds, /*bCreateActor=*/false, /*bLoadCell=*/false, /*bSave=*/false, ScheduleTask);
+	PCGSubsystem::ForEachIntersectingCell(GraphExecutor, GetWorld(), InBounds, {}, /*bCreateActor=*/false, /*bLoadCell=*/false, /*bSave=*/false, ScheduleTask);
 }
 
 void UPCGSubsystem::ClearPCGLink(UPCGComponent* InComponent, const FBox& InBounds, AActor* InNewActor)
@@ -990,7 +1025,9 @@ void UPCGSubsystem::ClearPCGLink(UPCGComponent* InComponent, const FBox& InBound
 		return GraphExecutor->ScheduleGeneric(MoveTask, ComponentPtr.Get(), TaskDependencies);
 	};
 
-	FPCGTaskId TaskId = PCGSubsystem::ForEachIntersectingCell(GraphExecutor, GetWorld(), InBounds, /*bCreateActor=*/false, /*bLoadCell=*/false, /*bSave=*/false, ScheduleTask);
+	PCGHiGenGrid::FSizeArray GridSizes;
+	ensure(PCGHelpers::GetGenerationGridSizes(InComponent->GetGraph(), GetPCGWorldActor(), GridSizes));
+	FPCGTaskId TaskId = PCGSubsystem::ForEachIntersectingCell(GraphExecutor, GetWorld(), InBounds, GridSizes, /*bCreateActor=*/false, /*bLoadCell=*/false, /*bSave=*/false, ScheduleTask);
 
 	// Verify if the NewActor has some components attached to its root or attached actors. If not, destroy it.
 	// Return false if the new actor is not valid or destroyed.
@@ -1108,25 +1145,28 @@ void UPCGSubsystem::DeletePartitionActors(bool bOnlyDeleteUnused)
 	if (bOnlyDeleteUnused)
 	{		
 		// Need to copy to avoid deadlock
-		TMap<FIntVector, TObjectPtr<APCGPartitionActor>> PartitionActorsMapCopy;
+		TMap<uint32, TMap<FIntVector, TObjectPtr<APCGPartitionActor>>> PartitionActorsMapCopy;
 		{
 			FReadScopeLock ReadLock(ActorAndComponentMapping.PartitionActorsMapLock);
 			PartitionActorsMapCopy = ActorAndComponentMapping.PartitionActorsMap;
 		}
 
-		for (const TPair<FIntVector, TObjectPtr<APCGPartitionActor>>& Item : PartitionActorsMapCopy)
+		for (const TPair<uint32, TMap<FIntVector, TObjectPtr<APCGPartitionActor>>>& GridItem : PartitionActorsMapCopy)
 		{
-			if (APCGPartitionActor* PartitionActor = Item.Value)
+			for (const TPair<FIntVector, TObjectPtr<APCGPartitionActor>>& Item : GridItem.Value)
 			{
-				bool bIntersectWithOneComponent = false;
-
-				auto FoundComponents = [&bIntersectWithOneComponent](UPCGComponent*) { bIntersectWithOneComponent = true; };
-
-				ActorAndComponentMapping.ForAllIntersectingComponents(PartitionActor->GetFixedBounds(), FoundComponents);
-
-				if (!bIntersectWithOneComponent)
+				if (APCGPartitionActor* PartitionActor = Item.Value)
 				{
-					GatherAndDestroyLoadedActors(PartitionActor);
+					bool bIntersectWithOneComponent = false;
+
+					auto FoundComponents = [&bIntersectWithOneComponent](UPCGComponent*) { bIntersectWithOneComponent = true; };
+
+					ActorAndComponentMapping.ForAllIntersectingComponents(PartitionActor->GetFixedBounds(), FoundComponents);
+
+					if (!bIntersectWithOneComponent)
+					{
+						GatherAndDestroyLoadedActors(PartitionActor);
+					}
 				}
 			}
 		}

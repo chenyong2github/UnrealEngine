@@ -21,6 +21,9 @@ public:
 
 	static void OffsetNodeIds(TArray<FPCGGraphTask>& Tasks, FPCGTaskId Offset, FPCGTaskId ParentId);
 
+	/** Propagates grid sizes through a graph's compiled tasks. */
+	void ResolveGridSizes(TArray<FPCGGraphTask>& InOutCompiledTasks, const FPCGStackContext& InStackContext) const;
+
 #if WITH_EDITOR
 	void NotifyGraphChanged(UPCGGraph* InGraph);
 #endif
@@ -28,6 +31,9 @@ public:
 private:
 	TArray<FPCGGraphTask> CompileGraph(UPCGGraph* InGraph, FPCGTaskId& NextId, FPCGStackContext& InOutStackContext);
 	void CompileTopGraph(UPCGGraph* InGraph);
+
+	/** Returns the grid for InCompiledTaskId which will be a concrete grid size or GenerationDefault if it cannot be determined statically. */
+	EPCGHiGenGrid CalculateGridRecursive(FPCGTaskId InTaskId, const FPCGStackContext& InStackContext, TArray<FPCGGraphTask>& InOutCompiledTasks) const;
 
 	mutable FRWLock GraphToTaskMapLock;
 	TMap<UPCGGraph*, TArray<FPCGGraphTask>> GraphToTaskMap;

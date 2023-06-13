@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "PCGCommon.h"
+
 #include "Math/Box.h"
 
 class AActor;
@@ -9,6 +11,7 @@ class APCGWorldActor;
 class ALandscape;
 class ALandscapeProxy;
 class UPCGComponent;
+class UPCGGraph;
 class UWorld;
 
 namespace PCGHelpers
@@ -57,4 +60,7 @@ namespace PCGHelpers
 	* Use the bCheckHierarchy flag to true to go up the object hierarchy if you want to check for this situation.
 	*/
 	PCG_API bool IsNewObjectAndNotDefault(const UObject* InObject, bool bCheckHierarchy = false);
+
+	/** If hierarchical generation is enabled, returns all relevant grid sizes for the graph, otherwise returns partition grid size from world actor. */
+	PCG_API bool GetGenerationGridSizes(const UPCGGraph* InGraph, const APCGWorldActor* InWorldActor, PCGHiGenGrid::FSizeArray& OutGridSizes);
 };

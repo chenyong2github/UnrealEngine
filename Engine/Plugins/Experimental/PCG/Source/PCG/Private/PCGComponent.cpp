@@ -267,6 +267,11 @@ void UPCGComponent::GenerateLocal(bool bForce)
 	GenerateInternal(bForce, EPCGComponentGenerationTrigger::GenerateOnDemand, {});
 }
 
+FPCGTaskId UPCGComponent::GenerateLocalGetTaskId(bool bForce)
+{
+	return GenerateInternal(bForce, EPCGComponentGenerationTrigger::GenerateOnDemand, {});
+}
+
 FPCGTaskId UPCGComponent::GenerateInternal(bool bForce, EPCGComponentGenerationTrigger RequestedGenerationTrigger, const TArray<FPCGTaskId>& Dependencies)
 {
 	if (IsGenerating() || !GetSubsystem() || !ShouldGenerate(bForce, RequestedGenerationTrigger))
@@ -645,6 +650,24 @@ AActor* UPCGComponent::ClearPCGLink(UClass* TemplateActor)
 	}
 
 	return NewActor;
+}
+
+void UPCGComponent::StoreOutputDataForPin(const FString& InResourceKey, const FPCGDataCollection& InData)
+{
+	FReadScopeLock ScopedWriteLock(PerPinGeneratedOutputLock);
+	PerPinGeneratedOutput.FindOrAdd(InResourceKey) = InData;
+}
+
+const FPCGDataCollection* UPCGComponent::RetrieveOutputDataForPin(const FString& InResourceKey)
+{
+	FReadScopeLock ScopedReadLock(PerPinGeneratedOutputLock);
+	return PerPinGeneratedOutput.Find(InResourceKey);
+}
+
+void UPCGComponent::ClearPerPinGeneratedOutput()
+{
+	FReadScopeLock ScopedWriteLock(PerPinGeneratedOutputLock);
+	PerPinGeneratedOutput.Reset();
 }
 
 bool UPCGComponent::MoveResourcesToNewActor(AActor* InNewActor, bool bCreateChild)
@@ -1623,6 +1646,8 @@ void UPCGComponent::DirtyGenerated(EPCGComponentDirtyFlag DirtyFlag, const bool 
 	}
 
 	bDirtyGenerated = true;
+
+	ClearPerPinGeneratedOutput();
 
 	// Dirty data as a waterfall from basic values
 	if (!!(DirtyFlag & EPCGComponentDirtyFlag::Actor))

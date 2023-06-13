@@ -118,8 +118,8 @@ private:
 	/** Octree tracking all partitioned pcg components */
 	FPCGComponentOctreeAndMap PartitionedOctree;
 
-	/** Grid mapping for partition actors. We can only have 1 partition actor per grid cell. */
-	TMap<FIntVector, TObjectPtr<APCGPartitionActor>> PartitionActorsMap;
+	/** Mapping from grid size and grid coords to partition actor. We can only have 1 partition actor per grid cell. */
+	TMap<uint32, TMap<FIntVector, TObjectPtr<APCGPartitionActor>>> PartitionActorsMap;
 	mutable FRWLock PartitionActorsMapLock;
 
 	/** Mapping between original components and its overlapping partition actors. */

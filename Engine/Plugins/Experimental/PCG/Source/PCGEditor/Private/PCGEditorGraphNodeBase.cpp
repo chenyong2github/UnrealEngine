@@ -2,6 +2,7 @@
 
 #include "PCGEditorGraphNodeBase.h"
 
+#include "PCGComponent.h"
 #include "PCGEditor.h"
 #include "PCGEditorCommands.h"
 #include "PCGEditorCommon.h"
@@ -11,6 +12,8 @@
 #include "PCGGraph.h"
 #include "PCGPin.h"
 #include "PCGSubsystem.h"
+#include "PCGWorldActor.h"
+#include "Helpers/PCGHelpers.h"
 
 #include "GraphEditorActions.h"
 #include "ToolMenu.h"
@@ -279,7 +282,7 @@ void UPCGEditorGraphNodeBase::OnNodeChanged(UPCGNode* InNode, EPCGChangeType Cha
 			}
 		}
 
-		UpdateErrorsAndWarnings();
+		ChangeType |= UpdateErrorsAndWarnings();
 
 		if (!!(ChangeType & (EPCGChangeType::Structural | EPCGChangeType::Node | EPCGChangeType::Edge | EPCGChangeType::Cosmetic)))
 		{
@@ -288,9 +291,9 @@ void UPCGEditorGraphNodeBase::OnNodeChanged(UPCGNode* InNode, EPCGChangeType Cha
 	}
 }
 
-void UPCGEditorGraphNodeBase::UpdateErrorsAndWarnings()
+EPCGChangeType UPCGEditorGraphNodeBase::UpdateErrorsAndWarnings()
 {
-	bool bNodeChanged = false;
+	EPCGChangeType ChangeType = EPCGChangeType::None;
 
 	// Pull current errors/warnings state from PCG subsystem.
 	if (const UPCGSubsystem* Subsystem = UPCGSubsystem::GetActiveEditorInstance())
@@ -321,13 +324,78 @@ void UPCGEditorGraphNodeBase::UpdateErrorsAndWarnings()
 			ErrorType = 0;
 		}
 
-		bNodeChanged = (bHasCompilerMessage != bOldHasCompilerMessage) || (ErrorType != OldErrorType) || (ErrorMsg != OldErrorMsg);
+		if ((bHasCompilerMessage != bOldHasCompilerMessage) || (ErrorType != OldErrorType) || (ErrorMsg != OldErrorMsg))
+		{
+			ChangeType = EPCGChangeType::Cosmetic;
+		}
 	}
 
-	if (bNodeChanged)
+	return ChangeType;
+}
+
+EPCGChangeType UPCGEditorGraphNodeBase::UpdateGridSizeVisualisation(UPCGComponent* InComponentBeingDebugged)
+{
+	if (!PCGNode)
 	{
-		OnNodeChangedDelegate.ExecuteIfBound();
+		return EPCGChangeType::None;
 	}
+
+	EPCGChangeType ChangeType = EPCGChangeType::None;
+	const uint32 InspectingGridSize = (InComponentBeingDebugged && InComponentBeingDebugged->IsLocalComponent()) ?
+		InComponentBeingDebugged->GetGenerationGridSize() : PCGHiGenGrid::UninitializedGridSize();
+
+	if (InspectingGridSize == PCGHiGenGrid::UninitializedGridSize())
+	{
+		if (IsDisplayAsDisabledForced())
+		{
+			SetForceDisplayAsDisabled(false);
+			ChangeType |= EPCGChangeType::Cosmetic;
+		}
+
+		if (IsHighlighted())
+		{
+			SetIsHighlighted(false);
+			ChangeType |= EPCGChangeType::Cosmetic;
+		}
+	}
+	else if (UPCGGraph* Graph = PCGNode->GetGraph())
+	{
+		uint32 DefaultGridSize;
+		UPCGSubsystem* Subsystem = UPCGSubsystem::GetActiveEditorInstance();
+		if (Graph->IsHierarchicalGenerationEnabled())
+		{
+			DefaultGridSize = Graph->GetDefaultGridSize();
+		}
+		else if (Subsystem && Subsystem->GetPCGWorldActor())
+		{
+			DefaultGridSize = Subsystem->GetPCGWorldActor()->PartitionGridSize;
+		}
+		else
+		{
+			// Fallback, should not be hit
+			ensure(false);
+			DefaultGridSize = APCGWorldActor::DefaultPartitionGridSize;
+		}
+		const uint32 NodeGridSize = Graph->GetNodeGenerationGridSize(PCGNode, DefaultGridSize);
+
+		// Disable nodes that are on a smaller grid
+		const bool bForceDisable = NodeGridSize < InspectingGridSize;
+		if (IsDisplayAsDisabledForced() != bForceDisable)
+		{
+			SetForceDisplayAsDisabled(bForceDisable);
+			ChangeType |= EPCGChangeType::Cosmetic;
+		}
+
+		// If node is on larger grid than current, highlight it to indicate that its data is available for use
+		const bool bHighlight = NodeGridSize > InspectingGridSize;
+		if (IsHighlighted() != bHighlight)
+		{
+			SetIsHighlighted(bHighlight);
+			ChangeType |= EPCGChangeType::Cosmetic;
+		}
+	}
+
+	return ChangeType;
 }
 
 bool UPCGEditorGraphNodeBase::ShouldDrawCompact() const
@@ -456,7 +524,7 @@ FLinearColor UPCGEditorGraphNodeBase::GetNodeBodyTintColor() const
 		}
 	}
 
-	return Super::GetNodeBodyTintColor();
+	return IsHighlighted() ? GetDefault<UPCGEditorSettings>()->HighlightedNodeBodyTintColor : Super::GetNodeBodyTintColor();
 }
 
 FEdGraphPinType UPCGEditorGraphNodeBase::GetPinType(const UPCGPin* InPin)

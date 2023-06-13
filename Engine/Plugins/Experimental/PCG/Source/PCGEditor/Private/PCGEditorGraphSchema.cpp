@@ -647,24 +647,28 @@ void FPCGEditorConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* Output
 		Params.WireColor = GetDefault<UPCGEditorSettings>()->GetPinColor(OutputPin->PinType);
 	}
 
-	// Desaturate and connection if the node is disabled and the data on this wire won't be used
+	// Desaturate connection if downstream node is disabled or if the data on this wire won't be used
 	if (InputPin && OutputPin)
 	{
 		const UPCGEditorGraphNodeBase* EditorNode = CastChecked<const UPCGEditorGraphNodeBase>(InputPin->GetOwningNode());
 		const UPCGNode* PCGNode = EditorNode ? EditorNode->GetPCGNode() : nullptr;
 		const UPCGPin* PCGPin = PCGNode ? PCGNode->GetInputPin(InputPin->GetFName()) : nullptr;
 		const UPCGEditorGraphNodeBase* UpstreamEditorNode = CastChecked<const UPCGEditorGraphNodeBase>(OutputPin->GetOwningNode());
+		const UPCGEditorGraphNodeBase* DownstreamEditorNode = CastChecked<const UPCGEditorGraphNodeBase>(InputPin->GetOwningNode());
 
-		if (PCGPin && UpstreamEditorNode)
+		if (PCGPin && UpstreamEditorNode && DownstreamEditorNode)
 		{
+			const bool bDownstreamNodeForceDisabled = DownstreamEditorNode->IsDisplayAsDisabledForced() && !DownstreamEditorNode->IsHighlighted();
+
 			// Look for the PCG edge that correlates with passed in (OutputPin, InputPin) edge
 			const TObjectPtr<UPCGEdge>* PCGEdge = PCGPin->Edges.FindByPredicate([UpstreamEditorNode, OutputPin](const UPCGEdge* ConnectedPCGEdge)
 			{
 				return UpstreamEditorNode->GetPCGNode() == ConnectedPCGEdge->InputPin->Node && ConnectedPCGEdge->InputPin->Properties.Label == OutputPin->GetFName();
 			});
+			const bool bDownstreamNodeDoesNotUseData = PCGEdge && !PCGNode->IsEdgeUsedByNodeExecution(*PCGEdge);
 
 			// If edge found and is not used, gray it out
-			if (PCGEdge && !PCGNode->IsEdgeUsedByNodeExecution(*PCGEdge))
+			if (bDownstreamNodeForceDisabled || bDownstreamNodeDoesNotUseData)
 			{
 				Params.WireColor = Params.WireColor.Desaturate(0.7f);
 			}

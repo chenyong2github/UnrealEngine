@@ -3,6 +3,7 @@
 #include "PCGActorAndComponentMapping.h"
 
 #include "PCGComponent.h"
+#include "PCGGraph.h"
 #include "PCGModule.h"
 #include "PCGSubsystem.h"
 #include "PCGWorldActor.h"
@@ -139,7 +140,9 @@ bool UPCGActorAndComponentMapping::RegisterOrUpdatePartitionedPCGComponent(UPCGC
 	// sure to update the runtime flow, for them to also create PA if they need to.
 	if (bComponentHasChanged || bComponentWasAdded)
 	{
-		PCGSubsystem->CreatePartitionActorsWithinBounds(Bounds);
+		PCGHiGenGrid::FSizeArray GridSizes;
+		ensure(PCGHelpers::GetGenerationGridSizes(InComponent ? InComponent->GetGraph() : nullptr, PCGSubsystem->GetPCGWorldActor(), GridSizes));
+		PCGSubsystem->CreatePartitionActorsWithinBounds(Bounds, GridSizes);
 	}
 #endif // WITH_EDITOR
 
@@ -327,12 +330,13 @@ void UPCGActorAndComponentMapping::RegisterPartitionActor(APCGPartitionActor* Ac
 	{
 		FWriteScopeLock WriteLock(PartitionActorsMapLock);
 
-		if (PartitionActorsMap.Contains(GridCoord))
+		TMap<FIntVector, TObjectPtr<APCGPartitionActor>>& PartitionActorsMapGrid = PartitionActorsMap.FindOrAdd(Actor->GetGridSize());
+		if (PartitionActorsMapGrid.Contains(GridCoord))
 		{
 			return;
 		}
 
-		PartitionActorsMap.Add(GridCoord, Actor);
+		PartitionActorsMapGrid.Add(GridCoord, Actor);
 	}
 
 	// For deprecration: bUse2DGrid is now true by default. But if we already have Partition Actors that were created when the flag was false by default,
@@ -372,9 +376,10 @@ void UPCGActorAndComponentMapping::UnregisterPartitionActor(APCGPartitionActor* 
 
 	FIntVector GridCoord = Actor->GetGridCoord();
 
+	if (TMap<FIntVector, TObjectPtr<APCGPartitionActor>>* PartitionActorsMapGrid = PartitionActorsMap.Find(Actor->GetGridSize()))
 	{
 		FWriteScopeLock WriteLock(PartitionActorsMapLock);
-		PartitionActorsMap.Remove(GridCoord);
+		PartitionActorsMapGrid->Remove(GridCoord);
 	}
 
 	// And then unregister itself to all the components that intersect with it
@@ -401,17 +406,22 @@ void UPCGActorAndComponentMapping::ForAllIntersectingPartitionActors(const FBox&
 		return;
 	}
 
-	const uint32 GridSize = PCGWorldActor->PartitionGridSize;
-	const bool bUse2DGrid = PCGWorldActor->bUse2DGrid;
-	FIntVector MinCellCoords = UPCGActorHelpers::GetCellCoord(InBounds.Min, GridSize, bUse2DGrid);
-	FIntVector MaxCellCoords = UPCGActorHelpers::GetCellCoord(InBounds.Max, GridSize, bUse2DGrid);
-
+	PCGHiGenGrid::FSizeToGuidMap GridSizeToGuid;
+	PCGWorldActor->GetGridGuids(GridSizeToGuid);
+	for (const TPair<uint32, FGuid>& SizeAndGuid : GridSizeToGuid)
 	{
+		const uint32 GridSize = SizeAndGuid.Key;
+
+		const bool bUse2DGrid = PCGWorldActor->bUse2DGrid;
+		FIntVector MinCellCoords = UPCGActorHelpers::GetCellCoord(InBounds.Min, GridSize, bUse2DGrid);
+		FIntVector MaxCellCoords = UPCGActorHelpers::GetCellCoord(InBounds.Max, GridSize, bUse2DGrid);
+
 		FReadScopeLock ReadLock(PartitionActorsMapLock);
 
-		if (PartitionActorsMap.IsEmpty())
+		const TMap<FIntVector, TObjectPtr<APCGPartitionActor>>* PartitionActorsMapGrid = PartitionActorsMap.Find(GridSize);
+		if (!PartitionActorsMapGrid || PartitionActorsMapGrid->IsEmpty())
 		{
-			return;
+			continue;
 		}
 
 		for (int32 z = MinCellCoords.Z; z <= MaxCellCoords.Z; z++)
@@ -421,7 +431,7 @@ void UPCGActorAndComponentMapping::ForAllIntersectingPartitionActors(const FBox&
 				for (int32 x = MinCellCoords.X; x <= MaxCellCoords.X; x++)
 				{
 					FIntVector CellCoords(x, y, z);
-					if (const TObjectPtr<APCGPartitionActor>* ActorPtr = PartitionActorsMap.Find(CellCoords))
+					if (const TObjectPtr<APCGPartitionActor>* ActorPtr = PartitionActorsMapGrid->Find(CellCoords))
 					{
 						if (APCGPartitionActor* Actor = ActorPtr->Get())
 						{

@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "PCGCommon.h"
 #include "PCGNode.h"
 #include "PCGSettings.h"
 
@@ -89,7 +90,7 @@ public:
 
 	bool IsInstance() const;
 
-	/** A graph interface is equivalent to another graph interface if they are the same (same ptr), or if they have the same graph. Will be overriden when graph instance supports overrides. */
+	/** A graph interface is equivalent to another graph interface if they are the same (same ptr), or if they have the same graph. Will be overridden when graph instance supports overrides. */
 	virtual bool IsEquivalent(const UPCGGraphInterface* Other) const;
 
 #if WITH_EDITOR
@@ -127,6 +128,11 @@ public:
 	virtual UPCGGraph* GetGraph() override { return this; }
 	virtual const UPCGGraph* GetGraph() const override { return this; }
 	/** ~End UPCGGraphInterface interface */
+
+	// Default grid size for generation. For hierarchical generation, nodes outside of grid size graph ranges will generate on this grid.
+	EPCGHiGenGrid GetDefaultGrid() const { ensure(IsHierarchicalGenerationEnabled()); return HiGenGridSize; }
+	uint32 GetDefaultGridSize() const { ensure(IsHierarchicalGenerationEnabled()); return PCGHiGenGrid::GridToGridSize(HiGenGridSize); }
+	bool IsHierarchicalGenerationEnabled() const { return bHierarchicalGenerationEnabled; }
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = AssetInfo, AssetRegistrySearchable)
@@ -193,6 +199,9 @@ public:
 	bool RemoveInboundEdges(UPCGNode* InNode, const FName& InboundLabel);
 	bool RemoveOutboundEdges(UPCGNode* InNode, const FName& OutboundLabel);
 
+	/** Determine the relevant grid sizes by inspecting all HiGenGridSize nodes. */
+	void GetGridSizes(PCGHiGenGrid::FSizeArray& OutGridSizes) const;
+
 #if WITH_EDITOR
 	void DisableNotificationsForEditor();
 	void EnableNotificationsForEditor();
@@ -214,9 +223,15 @@ public:
 	void GetTrackedTagsToSettings(FPCGTagToSettingsMap& OutTagsToSettings, TArray<TObjectPtr<const UPCGGraph>>& OutVisitedGraphs) const;
 #endif
 
+	/** Size of grid on which this node should be executed. Nodes execute at the minimum of all input grid sizes. */
+	uint32 GetNodeGenerationGridSize(const UPCGNode* InNode, uint32 InDefaultGridSize) const;
+
 protected:
 	void OnNodeAdded(UPCGNode* InNode);
 	void OnNodeRemoved(UPCGNode* InNode);
+
+	/** Calculates node grid size. Not thread safe, called within write lock. */
+	uint32 CalculateNodeGridSizeRecursive_Unsafe(const UPCGNode* InNode, uint32 InDefaultGridSize) const;
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = Graph)
 	TArray<TObjectPtr<UPCGNode>> Nodes;
@@ -237,6 +252,16 @@ protected:
 	// Parameters
 	UPROPERTY(EditAnywhere, Category = Instance, meta = (DisplayName = "Parameters", NoResetToDefault))
 	FInstancedPropertyBag UserParameters;
+
+	UPROPERTY(EditAnywhere, Category = Settings)
+	bool bHierarchicalGenerationEnabled = false;
+
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (DisplayName = "HiGen Default Grid Size", EditCondition = "bHierarchicalGenerationEnabled"))
+	EPCGHiGenGrid HiGenGridSize = EPCGHiGenGrid::Grid256;
+
+	/** Execution grid size for nodes. */
+	mutable TMap<const UPCGNode*, uint32> NodeToGridSize;
+	mutable FRWLock NodeToGridSizeLock;
 
 public:
 	virtual const FInstancedPropertyBag* GetUserParametersStruct() const override { return &UserParameters; }

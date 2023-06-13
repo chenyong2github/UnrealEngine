@@ -2,8 +2,10 @@
 
 #pragma once
 
-#include "GameFramework/Actor.h"
+#include "PCGCommon.h"
 
+#include "GameFramework/Actor.h"
+#include "Misc/Guid.h"
 
 #include "PCGWorldActor.generated.h"
 
@@ -23,6 +25,10 @@ public:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
+	/* Returns the grid GUIDs used for the partitioned actors, one per grid size. */
+	void CreateGridGuidsIfNecessary(const PCGHiGenGrid::FSizeArray& InGridSizes);
+	void GetGridGuids(PCGHiGenGrid::FSizeToGuidMap& OutSizeToGuidMap) const;
+
 #if WITH_EDITOR	
 	virtual bool CanChangeIsSpatiallyLoadedFlag() const { return false; }
 	virtual bool IsUserManaged() const override { return false; }
@@ -36,12 +42,13 @@ public:
 
 	//~ Begin UObject Interface.
 #if WITH_EDITOR	
+	virtual void PostLoad() override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 	//~ End UObject Interface.
 
-	/** Size of the grid for PCG partition actors */
-	UPROPERTY(config, EditAnywhere, Category = WorldPartition)
+	/** Size of the PCG partition actor grid for non-hierarchical-generation graphs. */
+	UPROPERTY(config, EditAnywhere, Category = GenerationSettings)
 	uint32 PartitionGridSize;
 
 	/** Contains all the PCG data required to query the landscape complete. Serialized in cooked builds only */
@@ -49,7 +56,7 @@ public:
 	TObjectPtr<UPCGLandscapeCache> LandscapeCacheObject = nullptr;
 
 	/** Disable creation of Partition Actors on the Z axis. Can improve performances if 3D partitioning is not needed. */
-	UPROPERTY(config, EditAnywhere, Category = WorldPartition)
+	UPROPERTY(config, EditAnywhere, Category = GenerationSettings)
 	bool bUse2DGrid = true;
 
 private:
@@ -59,6 +66,11 @@ private:
 #if WITH_EDITOR	
 	void OnPartitionGridSizeChanged();
 #endif
+
+	/** GUIDs of the partitioned actor grids, one per grid size. */
+	UPROPERTY()
+	TMap<uint32, FGuid> GridGuids;
+	mutable FRWLock GridGuidsLock;
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

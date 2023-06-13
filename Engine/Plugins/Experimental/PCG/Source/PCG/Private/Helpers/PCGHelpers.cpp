@@ -3,8 +3,10 @@
 #include "Helpers/PCGHelpers.h"
 
 #include "PCGComponent.h"
+#include "PCGGraph.h"
 #include "PCGModule.h"
 #include "PCGSubsystem.h"
+#include "PCGWorldActor.h"
 #include "Grid/PCGPartitionActor.h"
 
 #include "Landscape.h"
@@ -404,5 +406,25 @@ namespace PCGHelpers
 		// In some cases, where the component is a default sub object (like APCGVolume), it has no loading flags
 		// even if it is loading, so we use the outer found above.
 		return CurrentInspectedObject && !CurrentInspectedObject->HasAnyFlags(RF_ClassDefaultObject | RF_NeedLoad | RF_NeedPostLoad);
+	}
+
+	bool GetGenerationGridSizes(const UPCGGraph* InGraph, const APCGWorldActor* InWorldActor, PCGHiGenGrid::FSizeArray& OutGridSizes)
+	{
+		if (InGraph && InGraph->IsHierarchicalGenerationEnabled())
+		{
+			InGraph->GetGridSizes(OutGridSizes);
+			return true;
+		}
+		else if (InWorldActor)
+		{
+			OutGridSizes.Add(InWorldActor->PartitionGridSize);
+			return true;
+		}
+		else
+		{
+			ensure(false);
+			OutGridSizes.Add(PCGHiGenGrid::UninitializedGridSize());
+			return false;
+		}
 	}
 }

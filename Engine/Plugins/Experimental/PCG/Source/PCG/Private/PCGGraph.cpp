@@ -10,6 +10,7 @@
 #include "PCGPin.h"
 #include "PCGSubsystem.h"
 #include "PCGSubgraph.h"
+#include "Elements/PCGHiGenGridSize.h"
 #include "Elements/PCGUserParameterGet.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGGraph)
@@ -676,6 +677,45 @@ void UPCGGraph::PostNodeUndo(UPCGNode* InPCGNode)
 }
 #endif
 
+void UPCGGraph::GetGridSizes(PCGHiGenGrid::FSizeArray& OutGridSizes) const
+{
+	const uint32 GraphDefaultGridSize = GetDefaultGridSize();
+	if (!IsHierarchicalGenerationEnabled())
+	{
+		OutGridSizes.Add(GraphDefaultGridSize);
+		return;
+	}
+
+	bool bHasUninitialized = false;
+	for (const UPCGNode* Node : Nodes)
+	{
+		const uint32 GridSize = GetNodeGenerationGridSize(Node, GraphDefaultGridSize);
+		if (PCGHiGenGrid::IsValidGridSize(GridSize))
+		{
+			if (!OutGridSizes.Contains(GridSize))
+			{
+				OutGridSizes.Add(GridSize);
+			}
+		}
+		else if (GridSize == PCGHiGenGrid::UninitializedGridSize())
+		{
+			// Outside nodes will not have a concrete grid set
+			bHasUninitialized = true;
+		}
+	}
+
+	if (bHasUninitialized)
+	{
+		// Nodes outside grid ranges will execute at graph default
+		OutGridSizes.Add(GraphDefaultGridSize);
+	}
+
+	// Descending
+	OutGridSizes.Sort([](const uint32& A, const uint32& B) { return A > B; });
+
+	return;
+}
+
 #if WITH_EDITOR
 void UPCGGraph::DisableNotificationsForEditor()
 {
@@ -803,7 +843,12 @@ void UPCGGraph::NotifyGraphParametersChanged(EPCGGraphParameterEvent InChangeTyp
 
 void UPCGGraph::OnNodeChanged(UPCGNode* InNode, EPCGChangeType ChangeType)
 {
-	if((ChangeType & ~EPCGChangeType::Cosmetic) != EPCGChangeType::None)
+	if (ChangeType != EPCGChangeType::Cosmetic)
+	{
+		NodeToGridSize.Reset();
+	}
+
+	if ((ChangeType & ~EPCGChangeType::Cosmetic) != EPCGChangeType::None)
 	{
 		NotifyGraphChanged(ChangeType);
 	}
@@ -864,6 +909,12 @@ void UPCGGraph::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEve
 	else if (PropertyChangedEvent.MemberProperty && PropertyChangedEvent.MemberProperty->GetOwnerStruct() == UserParameters.GetPropertyBagStruct())
 	{
 		OnGraphParametersChanged(EPCGGraphParameterEvent::ValueModifiedLocally, MemberPropertyName);
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UPCGGraph, HiGenGridSize)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(UPCGGraph, bHierarchicalGenerationEnabled))
+	{
+		// The higen settings change the structure of the graph (presence or absence of links between grid levels).
+		NotifyGraphChanged(EPCGChangeType::Structural);
 	}
 
 	NumberOfUserParametersPreEdit = 0;
@@ -930,6 +981,63 @@ void UPCGGraph::OnGraphParametersChanged(EPCGGraphParameterEvent InChangeType, F
 }
 
 #endif // WITH_EDITOR
+
+uint32 UPCGGraph::GetNodeGenerationGridSize(const UPCGNode* InNode, uint32 InDefaultGridSize) const
+{
+	{
+		FReadScopeLock ScopedReadLock(NodeToGridSizeLock);
+		if (const uint32* CachedGridSize = NodeToGridSize.Find(InNode))
+		{
+			return *CachedGridSize;
+		}
+	}
+
+	{
+		FWriteScopeLock ScopedWriteLock(NodeToGridSizeLock);
+		return CalculateNodeGridSizeRecursive_Unsafe(InNode, InDefaultGridSize);
+	}
+}
+
+uint32 UPCGGraph::CalculateNodeGridSizeRecursive_Unsafe(const UPCGNode* InNode, uint32 InDefaultGridSize) const
+{
+	uint32 GridSize = PCGHiGenGrid::UninitializedGridSize();
+	if (const UPCGHiGenGridSizeSettings* GridSizeSettings = Cast<UPCGHiGenGridSizeSettings>(InNode->GetSettings()))
+	{
+		GridSize = GridSizeSettings->GetGridSize();
+	}
+	else
+	{
+		// Grid size for a node is the minimum of the grid sizes of connected upstream nodes.
+		uint32 MinGenerationSize = std::numeric_limits<uint32>::max();
+		for (const UPCGPin* Pin : InNode->GetInputPins())
+		{
+			if (Pin)
+			{
+				for (const UPCGEdge* Edge : Pin->Edges)
+				{
+					const UPCGPin* OtherPin = Edge ? Edge->InputPin : nullptr;
+					if (OtherPin && OtherPin->Node.Get())
+					{
+						const uint32 InputGridSize = CalculateNodeGridSizeRecursive_Unsafe(OtherPin->Node, InDefaultGridSize);
+						if (PCGHiGenGrid::IsValidGridSize(InputGridSize))
+						{
+							MinGenerationSize = FMath::Min(MinGenerationSize, InputGridSize);
+						}
+					}
+				}
+			}
+		}
+
+		GridSize = (MinGenerationSize == std::numeric_limits<uint32>::max()) ? InDefaultGridSize : MinGenerationSize;
+	}
+
+	if (GridSize != PCGHiGenGrid::UninitializedGridSize())
+	{
+		NodeToGridSize.Add(InNode, GridSize);
+	}
+
+	return GridSize;
+}
 
 /****************************
 * UPCGGraphInstance

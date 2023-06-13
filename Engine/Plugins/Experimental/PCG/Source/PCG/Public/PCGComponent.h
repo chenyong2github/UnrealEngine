@@ -8,6 +8,8 @@
 #include "PCGSettings.h"
 #include "Utils/PCGExtraCapture.h"
 
+#include "Containers/Map.h"
+
 #include "PCGComponent.generated.h"
 
 namespace EEndPlayReason { enum Type : int; }
@@ -126,6 +128,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = PCG)
 	void GenerateLocal(bool bForce);
 
+	FPCGTaskId GenerateLocalGetTaskId(bool bForce);
+
 	/** Cleans up the generation from a local (vs. remote) standpoint. Will not be replicated. Will be delayed. */
 	UFUNCTION(BlueprintCallable, Category = PCG)
 	void CleanupLocal(bool bRemoveComponents, bool bSave = false);
@@ -155,6 +159,18 @@ public:
 	/** Move all generated resources under a new actor, following a template (AActor if not provided), clearing all link to this PCG component. Returns the new actor.*/
 	UFUNCTION(BlueprintCallable, Category = PCG)
 	AActor* ClearPCGLink(UClass* TemplateActor = nullptr);
+
+	uint32 GetGenerationGridSize() const { return GenerationGridSize; }
+	void SetGenerationGridSize(uint32 InGenerationGridSize) { GenerationGridSize = InGenerationGridSize; }
+
+	/** Store data with a resource key that identifies the pin. */
+	void StoreOutputDataForPin(const FString& InResourceKey, const FPCGDataCollection& InData);
+
+	/** Lookup data using a resource key that identifies the pin. */
+	const FPCGDataCollection* RetrieveOutputDataForPin(const FString& InResourceKey);
+
+	/** Clear any data stored for any pins. */
+	void ClearPerPinGeneratedOutput();
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	EPCGComponentInput InputType = EPCGComponentInput::Actor;
@@ -199,7 +215,7 @@ public:
 	FOnPCGGraphCleaned OnPCGGraphCleanedDelegate;
 #endif
 
-	/** Can specify a list of functions from the owner of this component to be called when generation is done, in order. 
+	/** Can specify a list of functions from the owner of this component to be called when generation is done, in order.
 	*   Need to take (and only take) a PCGDataCollection as parameter and with "CallInEditor" flag enabled.
 	*/
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, AdvancedDisplay, Category = Properties)
@@ -267,6 +283,9 @@ public:
 protected:
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = PCG, Instanced, meta = (NoResetToDefault))
 	TObjectPtr<UPCGGraphInstance> GraphInstance;
+
+	UPROPERTY(Transient, VisibleAnywhere, AdvancedDisplay, Category = Properties)
+	uint32 GenerationGridSize = PCGHiGenGrid::UnboundedGridSize();
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
@@ -380,6 +399,12 @@ private:
 
 	UPROPERTY()
 	FPCGDataCollection GeneratedGraphOutput;
+
+	/** If any graph edges cross execution grid sizes, data on the edge is stored / retrieved from this map. */
+	UPROPERTY(Transient, VisibleAnywhere, Category = Properties, AdvancedDisplay)
+	TMap<FString, FPCGDataCollection> PerPinGeneratedOutput;
+
+	mutable FRWLock PerPinGeneratedOutputLock;
 
 	FPCGTaskId CurrentGenerationTask = InvalidPCGTaskId;
 	FPCGTaskId CurrentCleanupTask = InvalidPCGTaskId;

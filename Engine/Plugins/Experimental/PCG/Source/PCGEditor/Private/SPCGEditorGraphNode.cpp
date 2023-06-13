@@ -373,7 +373,9 @@ void SPCGEditorGraphNode::UpdateGraphNode()
 
 const FSlateBrush* SPCGEditorGraphNode::GetNodeBodyBrush() const
 {
-	if (PCGEditorGraphNode && PCGEditorGraphNode->GetPCGNode() && PCGEditorGraphNode->GetPCGNode()->IsInstance())
+	const bool bNeedsTint = PCGEditorGraphNode &&
+		((PCGEditorGraphNode->GetPCGNode() && PCGEditorGraphNode->GetPCGNode()->IsInstance()) || PCGEditorGraphNode->IsHighlighted());
+	if (bNeedsTint)
 	{
 		return FAppStyle::GetBrush("Graph.Node.TintedBody");
 	}

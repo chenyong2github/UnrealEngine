@@ -187,7 +187,13 @@ void FPCGEditor::SetComponentAndStackBeingInspected(UPCGComponent* InPCGComponen
 			if (UPCGEditorGraphNodeBase* PCGNode = Cast<UPCGEditorGraphNodeBase>(Node))
 			{
 				// Update now that component has changed. Will fire OnNodeChanged if necessary.
-				PCGNode->UpdateErrorsAndWarnings();
+				EPCGChangeType ChangeType = PCGNode->UpdateErrorsAndWarnings();
+				ChangeType |= PCGNode->UpdateGridSizeVisualisation(InPCGComponent);
+
+				if (ChangeType != EPCGChangeType::None)
+				{
+					PCGNode->ReconstructNode();
+				}
 			}
 		}
 	}

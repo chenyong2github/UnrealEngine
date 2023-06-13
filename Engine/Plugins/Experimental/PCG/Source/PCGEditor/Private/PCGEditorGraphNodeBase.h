@@ -56,10 +56,17 @@ public:
 	void DisableDeferredReconstruct();
 
 	/** Pulls current errors/warnings state from PCG subsystem. */
-	void UpdateErrorsAndWarnings();
+	EPCGChangeType UpdateErrorsAndWarnings();
+
+	/** If the currently inspected grid size is smaller than the grid size of this node, display transparent. */
+	EPCGChangeType UpdateGridSizeVisualisation(class UPCGComponent* InComponentBeingDebugged);
 
 	/** Puts node title on node body, reducing overall node size */
 	bool ShouldDrawCompact() const;
+
+	// Highlighted nodes draw with a light tint. Currently used to indicate nodes from hi-gen grids that are available for use.
+	void SetIsHighlighted(bool bInIsHighlighted) { bIsHighlighted = bInIsHighlighted; }
+	bool IsHighlighted() const { return bIsHighlighted; }
 
 	DECLARE_DELEGATE(FOnPCGEditorGraphNodeChanged);
 	FOnPCGEditorGraphNodeChanged OnNodeChangedDelegate;
@@ -88,4 +95,5 @@ protected:
 	bool bDeferredReconstruct = false;
 	bool bDisableReconstructFromNode = false;
 	bool bIsInspected = false;
+	bool bIsHighlighted = false;
 };

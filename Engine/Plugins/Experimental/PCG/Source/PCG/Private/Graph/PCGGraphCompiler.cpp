@@ -2,11 +2,12 @@
 
 #include "PCGGraphCompiler.h"
 
-#include "PCGGraph.h"
 #include "PCGEdge.h"
+#include "PCGGraph.h"
 #include "PCGModule.h"
 #include "PCGPin.h"
 #include "PCGSubgraph.h"
+#include "Elements/PCGHiGenGridSize.h"
 #include "Graph/PCGGraphExecutor.h"
 
 #include "Misc/ScopeRWLock.h"
@@ -292,6 +293,117 @@ TArray<FPCGGraphTask> FPCGGraphCompiler::GetPrecompiledTasks(UPCGGraph* InGraph,
 	return ExistingTasks ? *ExistingTasks : TArray<FPCGGraphTask>();
 }
 
+void FPCGGraphCompiler::ResolveGridSizes(TArray<FPCGGraphTask>& InOutCompiledTasks, const FPCGStackContext& InStackContext) const
+{
+	// The stack is used to form the ResourceKey - a string that provides a path to the data from top graph down to specific pin.
+	// This will be used by link tasks as store/retrieve keys to marshal data for edges that cross grid size boundaries.
+	const FPCGStack* CurrentStack = InStackContext.GetStack(InStackContext.GetCurrentStackIndex());
+	if (InOutCompiledTasks.Num() == 0 || !ensure(CurrentStack))
+	{
+		return;
+	}
+
+	// Calculate execution grid values for each task.
+	for (FPCGGraphTask& Task : InOutCompiledTasks)
+	{
+		CalculateGridRecursive(Task.NodeId, InStackContext, InOutCompiledTasks);
+	}
+
+	// Now add link tasks - if a Grid256 task depends on data from a Grid512 task, inject a link
+	// task that looks up the Grid512 component, schedules its execution if it does not have data, and
+	// then uses its output data.
+	const int32 NumCompiledTasksBefore = InOutCompiledTasks.Num();
+	for (FPCGTaskId TaskId = 0; TaskId < NumCompiledTasksBefore; ++TaskId)
+	{
+		const EPCGHiGenGrid GraphGenerationGrid = InOutCompiledTasks[TaskId].GraphGenerationGrid;
+		for (FPCGGraphTaskInput& TaskInput : InOutCompiledTasks[TaskId].Inputs)
+		{
+			if (!TaskInput.InPin)
+			{
+				// Don't link if we don't have a upstream pin to retrieve data from
+				continue;
+			}
+
+			const EPCGHiGenGrid InputGraphGenerationGrid = InOutCompiledTasks[TaskInput.TaskId].GraphGenerationGrid;
+			// Register linkage task if grid sizes don't match - either way! This allows us to generate an execution-time error if going from
+			// small grid to large grid.
+			if (InputGraphGenerationGrid != EPCGHiGenGrid::Uninitialized && InputGraphGenerationGrid > GraphGenerationGrid)
+			{
+				// Build a string identifier for the data
+				FString ResourceKey;
+				if (!ensure(CurrentStack->CreateStackFramePath(ResourceKey, TaskInput.InPin->Node, TaskInput.InPin)))
+				{
+					continue;
+				}
+
+				// Build task & element to hold the operation to perform
+				FPCGGraphTask& LinkTask = InOutCompiledTasks.Emplace_GetRef();
+				LinkTask.NodeId = InOutCompiledTasks.Num() - 1;
+				LinkTask.StackIndex = InOutCompiledTasks[TaskId].StackIndex;
+
+				LinkTask.Inputs.Emplace(TaskInput.TaskId, TaskInput.InPin, nullptr, /*bConsumeInputData=*/true);
+
+				const EPCGHiGenGrid FromGrid = InOutCompiledTasks[TaskInput.TaskId].GraphGenerationGrid;
+				const EPCGHiGenGrid ToGrid = InOutCompiledTasks[TaskId].GraphGenerationGrid;
+
+				// This lambda runs at execution time and attempts to retrieve the data from a larger grid. Capture by value is intentional.
+				auto GridLinkageOperation = [FromGrid, ToGrid, ResourceKey, OutputPinLabel = TaskInput.InPin->Properties.Label,
+					DownstreamNode = InOutCompiledTasks[TaskId].Node](FPCGContext* InContext)
+				{
+					return PCGGraphExecutor::ExecuteGridLinkage(FromGrid, ToGrid, ResourceKey, OutputPinLabel, DownstreamNode, static_cast<FPCGGridLinkageContext*>(InContext));
+				};
+				FPCGGenericElement::FContextAllocator ContextAllocator = [](const FPCGDataCollection&, TWeakObjectPtr<UPCGComponent>, const UPCGNode*)
+				{
+					return new FPCGGridLinkageContext();
+				};
+				LinkTask.Element = MakeShared<FPCGGenericElement>(GridLinkageOperation, ContextAllocator);
+
+				// Now splice in the new task - redirect the downstream task to grab its input from the link task.
+				TaskInput.TaskId = LinkTask.NodeId;
+
+				// The link needs to execute at both FROM grid size (store) and TO grid size (retrieve).
+				LinkTask.GraphGenerationGrid = FromGrid | ToGrid;
+			}
+		}
+	}
+}
+
+EPCGHiGenGrid FPCGGraphCompiler::CalculateGridRecursive(FPCGTaskId InTaskId, const FPCGStackContext& InStackContext, TArray<FPCGGraphTask>& InOutCompiledTasks) const
+{
+	if (InOutCompiledTasks[InTaskId].GraphGenerationGrid != EPCGHiGenGrid::Uninitialized)
+	{
+		return InOutCompiledTasks[InTaskId].GraphGenerationGrid;
+	}
+
+	// GenerationDefault as default - means we don't know at compilation-time. Any tasks with this unknown value
+	// will receive the graph default grid size at schedule-time.
+	EPCGHiGenGrid Grid = EPCGHiGenGrid::GenerationDefault;
+
+	const UPCGNode* Node = InOutCompiledTasks[InTaskId].Node;
+	const UPCGSettings* Settings = Node ? Node->GetSettings() : nullptr;
+	const UPCGHiGenGridSizeSettings* Gate = Cast<UPCGHiGenGridSizeSettings>(Settings);
+	if (Gate && Gate->bEnabled)
+	{
+		Grid = Gate->GetGrid();
+	}
+	else
+	{
+		// Grid of this task is minimum of all input grids. We can link in data from a larger grid, but not from a finer grid (this goes against hierarchy).
+		for (FPCGGraphTaskInput InputTask : InOutCompiledTasks[InTaskId].Inputs)
+		{
+			const EPCGHiGenGrid InputGrid = CalculateGridRecursive(InputTask.TaskId, InStackContext, InOutCompiledTasks);
+			if (PCGHiGenGrid::IsValidGrid(InputGrid))
+			{
+				Grid = FMath::Min(InputGrid, Grid);
+			}
+		}
+	}
+
+	InOutCompiledTasks[InTaskId].GraphGenerationGrid = Grid;
+
+	return Grid;
+}
+
 TArray<FPCGGraphTask> FPCGGraphCompiler::GetCompiledTasks(UPCGGraph* InGraph, FPCGStackContext& OutStackContext, bool bIsTopGraph)
 {
 	TArray<FPCGGraphTask> CompiledTasks;
@@ -369,6 +481,13 @@ void FPCGGraphCompiler::CompileTopGraph(UPCGGraph* InGraph)
 	if (CompiledTasks.Num() == 0)
 	{
 		return;
+	}
+
+	if (InGraph->IsHierarchicalGenerationEnabled())
+	{
+		// Operates on compiled tasks before pre/post task added, as it may add tasks for linkages
+		// and the pre/post task need to reside at the end of the compiled task array.
+		ResolveGridSizes(CompiledTasks, StackContext);
 	}
 
 	const int TaskNum = CompiledTasks.Num();
