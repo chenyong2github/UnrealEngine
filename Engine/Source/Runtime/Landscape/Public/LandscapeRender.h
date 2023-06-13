@@ -534,7 +534,7 @@ struct FLandscapeRenderSystem
 
 	const TResourceArray<float>& ComputeSectionsLODForView(const FSceneView& InView);
 	void FetchHeightmapLODBiases();
-	void UpdateBuffers();
+	void UpdateBuffers(FRHICommandListBase& RHICmdList);
 
 private:
 	void CreateResources_Internal(FLandscapeSectionInfo* InSectionInfo);
