@@ -120,6 +120,18 @@ void UPCGBlueprintElement::PostEditChangeProperty(FPropertyChangedEvent& Propert
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
+	// Disable multiple connections on single data pins
+	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(FPCGPinProperties, bAllowMultipleData))
+	{
+		for (FPCGPinProperties& Pin : CustomInputPins)
+		{
+			if (!Pin.bAllowMultipleData)
+			{
+				Pin.bAllowMultipleConnections = false;
+			}
+		}
+	}
+
 	// Since we don't really know what changed, let's just rebuild our data dependencies
 	DataDependencies = PCGBlueprintHelper::GetDataDependencies(this, DependencyParsingDepth);
 
