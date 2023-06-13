@@ -18,8 +18,15 @@ class IDetailLayoutBuilder;
  * Slate widgets customizer for the "Import Export" tool
  */
 
+namespace LandscapeTestUtils
+{
+	struct LandscapeTestCommands;
+} //namespace LandscapeTestUtils
+
 class FLandscapeEditorDetailCustomization_ImportExport : public FLandscapeEditorDetailCustomization_Base
 {
+	// So tests have access to private members
+	friend struct LandscapeTestUtils::LandscapeTestCommands;
 public:
 	FLandscapeEditorDetailCustomization_ImportExport()
 	{}
