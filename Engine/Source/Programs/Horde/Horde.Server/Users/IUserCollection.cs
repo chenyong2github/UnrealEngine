@@ -91,8 +91,9 @@ namespace Horde.Server.Users
 		/// <param name="dashboardSettings">Opaque settings object for the dashboard</param>
 		/// <param name="addPinnedJobIds"></param>
 		/// <param name="removePinnedJobIds"></param>
+		/// <param name="templateOptions"></param>
 		/// <returns>Updated user object</returns>
-		Task UpdateSettingsAsync(UserId userId, bool? enableExperimentalFeatures = null, BsonValue? dashboardSettings = null, IEnumerable<JobId>? addPinnedJobIds = null, IEnumerable<JobId>? removePinnedJobIds = null);
+		Task UpdateSettingsAsync(UserId userId, bool? enableExperimentalFeatures = null, BsonValue? dashboardSettings = null, IEnumerable<JobId>? addPinnedJobIds = null, IEnumerable<JobId>? removePinnedJobIds = null, UpdateUserJobTemplateOptions? templateOptions = null);
 	}
 
 	/// <summary>

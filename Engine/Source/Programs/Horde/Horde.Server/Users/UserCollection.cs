@@ -42,6 +42,8 @@ namespace Horde.Server.Users
 
 			UserId IUserSettings.UserId => Id;
 			IReadOnlyList<JobId> IUserSettings.PinnedJobIds => PinnedJobIds;
+
+			IReadOnlyList<IUserJobTemplateSettings>? IUserSettings.JobTemplateSettings => null;
 		}
 
 		class ClaimDocument : IUserClaim
@@ -155,7 +157,7 @@ namespace Horde.Server.Users
 		}
 
 		/// <inheritdoc/>
-		public async Task UpdateSettingsAsync(UserId userId, bool? enableExperimentalFeatures, BsonValue? dashboardSettings = null, IEnumerable<JobId>? addPinnedJobIds = null, IEnumerable<JobId>? removePinnedJobIds = null)
+		public async Task UpdateSettingsAsync(UserId userId, bool? enableExperimentalFeatures, BsonValue? dashboardSettings = null, IEnumerable<JobId>? addPinnedJobIds = null, IEnumerable<JobId>? removePinnedJobIds = null, UpdateUserJobTemplateOptions? templateOptions = null)
 		{
 			if (addPinnedJobIds != null)
 			{

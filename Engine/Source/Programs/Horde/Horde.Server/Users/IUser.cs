@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.Collections.Generic;
 using Horde.Server.Jobs;
-using Horde.Server.Utilities;
+using Horde.Server.Streams;
 using MongoDB.Bson;
 
 namespace Horde.Server.Users
@@ -61,6 +62,64 @@ namespace Horde.Server.Users
 	}
 
 	/// <summary>
+	/// 
+	/// </summary>
+	public interface IUserJobTemplateSettings
+	{
+		/// <summary>
+		/// The stream the job was run in
+		/// </summary>
+		public StreamId StreamId { get; }
+
+		/// <summary>
+		/// The template id of the job
+		/// </summary>
+		public TemplateId TemplateId { get; }
+
+		/// <summary>
+		/// The hash of the template definition
+		/// </summary>
+		public string TemplateHash { get; }
+
+		/// <summary>
+		/// The arguments defined when creating the job
+		/// </summary>
+		public IReadOnlyList<string> Arguments { get; }
+
+		/// <summary>
+		/// The last time the job template was used
+		/// </summary>
+		public DateTime UpdateTimeUtc { get; }
+	}
+
+	/// <summary>
+	/// Settings for updating job template user preference
+	/// </summary>
+	public class UpdateUserJobTemplateOptions
+	{
+		/// <summary>
+		/// The stream the job was run in
+		/// </summary>
+		public StreamId StreamId { get; set; }
+
+		/// <summary>
+		/// The template id of the job
+		/// </summary>
+		public TemplateId TemplateId { get; set; }
+
+		/// <summary>
+		/// The hash of the template definition
+		/// </summary>
+		public string TemplateHash { get; set; } = String.Empty;
+
+		/// <summary>
+		/// The arguments defined when creating the job
+		/// </summary>
+		public IReadOnlyList<string> Arguments { get; set; } = new List<string>();
+	}
+
+
+	/// <summary>
 	/// User settings document
 	/// </summary>
 	public interface IUserSettings
@@ -84,5 +143,11 @@ namespace Horde.Server.Users
 		/// List of pinned jobs
 		/// </summary>
 		public IReadOnlyList<JobId> PinnedJobIds { get; }
+
+		/// <summary>
+		/// List of job template preferences
+		/// </summary>
+		public IReadOnlyList<IUserJobTemplateSettings>? JobTemplateSettings { get; }
+
 	}
 }

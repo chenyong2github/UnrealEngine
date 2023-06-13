@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Horde.Server.Jobs;
 using Horde.Server.Server;
+using Horde.Server.Streams;
 using Horde.Server.Utilities;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
@@ -83,6 +84,42 @@ namespace Horde.Server.Users
 			}
 		}
 
+		class JobTemplateSettingsDocument : IUserJobTemplateSettings
+		{
+			public StreamId StreamId { get; set; }
+
+			public TemplateId TemplateId { get; set; } 
+
+			public string TemplateHash { get; set; } = String.Empty;
+
+			public List<string> Arguments { get; set; } = new List<string>();
+			IReadOnlyList<string> IUserJobTemplateSettings.Arguments => Arguments;
+
+			public DateTime UpdateTimeUtc { get; set; }
+
+			[BsonConstructor]
+			private JobTemplateSettingsDocument()
+			{
+
+			}
+
+			/// <summary>
+			/// Constructor
+			/// </summary>
+			/// <param name="streamId"></param>
+			/// <param name="templateId"></param>
+			/// <param name="templateHash"></param>
+			/// <param name="arguments"></param>
+			public JobTemplateSettingsDocument(StreamId streamId, TemplateId templateId, string templateHash, List<string> arguments)
+			{
+				StreamId = streamId;
+				TemplateId = templateId;
+				TemplateHash = templateHash;
+				Arguments = arguments;
+				UpdateTimeUtc= DateTime.UtcNow;
+			}
+		}
+
 		class UserSettingsDocument : IUserSettings
 		{
 			public UserId Id { get; set; }
@@ -95,6 +132,9 @@ namespace Horde.Server.Users
 
 			UserId IUserSettings.UserId => Id;
 			IReadOnlyList<JobId> IUserSettings.PinnedJobIds => PinnedJobIds;
+
+			public List<JobTemplateSettingsDocument> JobTemplateSettings { get; set; } = new List<JobTemplateSettingsDocument>();
+			IReadOnlyList<IUserJobTemplateSettings>? IUserSettings.JobTemplateSettings => JobTemplateSettings;
 
 			[BsonConstructor]
 			private UserSettingsDocument()
@@ -312,7 +352,7 @@ namespace Horde.Server.Users
 		}
 
 		/// <inheritdoc/>
-		public async Task UpdateSettingsAsync(UserId userId, bool? enableExperimentalFeatures = null, BsonValue? dashboardSettings = null, IEnumerable<JobId>? addPinnedJobIds = null, IEnumerable<JobId>? removePinnedJobIds = null)
+		public async Task UpdateSettingsAsync(UserId userId, bool? enableExperimentalFeatures = null, BsonValue? dashboardSettings = null, IEnumerable<JobId>? addPinnedJobIds = null, IEnumerable<JobId>? removePinnedJobIds = null, UpdateUserJobTemplateOptions? templateOptions = null)
 		{
 			List<UpdateDefinition<UserSettingsDocument>> updates = new List<UpdateDefinition<UserSettingsDocument>>();
 			if (enableExperimentalFeatures != null)
@@ -331,6 +371,18 @@ namespace Horde.Server.Users
 			{
 				updates.Add(Builders<UserSettingsDocument>.Update.PullAll(x => x.PinnedJobIds, removePinnedJobIds));
 			}
+
+			if (templateOptions != null)
+			{
+				JobTemplateSettingsDocument doc = new JobTemplateSettingsDocument(templateOptions.StreamId, templateOptions.TemplateId, templateOptions.TemplateHash, templateOptions.Arguments.ToList());
+				FilterDefinition<UserSettingsDocument> filter = Builders<UserSettingsDocument>.Filter.Eq(x => x.Id, userId) & Builders<UserSettingsDocument>.Filter.ElemMatch(x => x.JobTemplateSettings, t => t.StreamId == templateOptions.StreamId && t.TemplateId == templateOptions.TemplateId);
+				UpdateResult result = await _userSettings.UpdateOneAsync(filter, Builders<UserSettingsDocument>.Update.Set(x => x.JobTemplateSettings[-1], doc));
+				if (result.ModifiedCount == 0)
+				{
+					updates.Add(Builders<UserSettingsDocument>.Update.PushEach(x => x.JobTemplateSettings, new[] { doc }, -100));
+				}
+			}
+
 			if (updates.Count > 0)
 			{
 				await _userSettings.UpdateOneAsync<UserSettingsDocument>(x => x.Id == userId, Builders<UserSettingsDocument>.Update.Combine(updates), new UpdateOptions { IsUpsert = true });

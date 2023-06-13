@@ -222,7 +222,7 @@ namespace Horde.Server.Jobs
 
 			if (options.StartedByUserId != null)
 			{
-				await _userCollection.UpdateSettingsAsync(options.StartedByUserId.Value, addPinnedJobIds: new[] { newJob.Id });
+				await _userCollection.UpdateSettingsAsync(options.StartedByUserId.Value, addPinnedJobIds: new[] { newJob.Id }, templateOptions: new UpdateUserJobTemplateOptions { StreamId = streamConfig.Id, TemplateId = templateRefId, TemplateHash = templateHash.ToString(), Arguments = options.Arguments });
 			}
 
 			await AbortAnyDuplicateJobs(newJob);

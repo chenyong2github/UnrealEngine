@@ -1,13 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
 using System.Collections.Generic;
-using System.Runtime.InteropServices;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using EpicGames.Horde.Common;
 using Horde.Server.Agents;
 using Horde.Server.Agents.Pools;
 using Horde.Server.Jobs;
@@ -19,7 +17,6 @@ using Horde.Server.Projects;
 using Horde.Server.Server;
 using Horde.Server.Streams;
 using Horde.Server.Users;
-using Horde.Server.Utilities;
 using HordeCommon;
 using Microsoft.CodeAnalysis;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -144,6 +141,41 @@ namespace Horde.Server.Tests
 			Assert.IsNull(differentTplHash.AbortedByUserId);
 			Assert.IsNull(differentUserName.AbortedByUserId);
 			Assert.IsNull(differentArgs.AbortedByUserId);
+
+			//IUser user = await UserCollection.FindOrAddUserByLoginAsync("elvis");
+			//IUserSettings settings = await UserCollection.GetSettingsAsync(user!.Id);
+		}
+
+		[TestMethod]
+		public async Task TestJobTemplateSettings()
+		{
+			// Scenario: User creates a number of preflights
+			// Expected: The users job template settings are populated and updated in place
+
+			Fixture fixture = await CreateFixtureAsync();
+			await CreatePreflightJob(fixture, "tpl-ref-1", "tpl-hash-1", "elvis", 1000, new[] { "-Target=targeta" });
+			await CreatePreflightJob(fixture, "tpl-ref-1", "tpl-hash-1", "julia", 1000, new[] { "-Target=targeta" });
+			await CreatePreflightJob(fixture, "tpl-ref-other", "tpl-hash-1", "elvis", 1001, new[] { "-Target=targetb" });
+			await CreatePreflightJob(fixture, "tpl-ref-1", "tpl-hash-1", "elvis", 1002, new[] { "-Target=targetc" });
+			await CreatePreflightJob(fixture, "tpl-ref-1", "tpl-hash-1", "elvis", 1003, new[] { "-Target=targetd" });
+			await CreatePreflightJob(fixture, "tpl-ref-other", "tpl-hash-1", "julia", 1004, new[] { "-Target=targete" });
+			await CreatePreflightJob(fixture, "tpl-ref-other", "tpl-hash-1", "elvis", 1004, new[] { "-Target=targete" });
+
+			IUser user = await UserCollection.FindOrAddUserByLoginAsync("elvis")!;
+			IUserSettings settings = await UserCollection.GetSettingsAsync(user!.Id)!;
+
+			Assert.IsNotNull(settings.JobTemplateSettings);
+			Assert.AreEqual(settings.JobTemplateSettings!.Count, 2);
+
+			TemplateId templateRef1 = new TemplateId("tpl-ref-1");			
+			IUserJobTemplateSettings? templateSettings = settings.JobTemplateSettings.FirstOrDefault(x => x.TemplateId ==templateRef1);
+			Assert.IsNotNull(templateSettings);
+			Assert.AreEqual(templateSettings.Arguments[0], "-Target=targetd" );
+
+			TemplateId templateRefOther = new TemplateId("tpl-ref-other");
+			templateSettings = settings.JobTemplateSettings.FirstOrDefault(x => x.TemplateId == templateRefOther);
+			Assert.IsNotNull(templateSettings);
+			Assert.AreEqual(templateSettings.Arguments[0], "-Target=targete");
 		}
 
 		private async Task<IJob> CreatePreflightJob(Fixture fixture, string templateRefId, string templateHash, string startedByUserName, int preflightChange, string[] arguments)
