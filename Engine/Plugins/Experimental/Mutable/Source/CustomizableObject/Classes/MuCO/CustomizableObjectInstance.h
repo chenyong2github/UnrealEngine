@@ -765,7 +765,7 @@ private:
    	TMap<FName, FMultilayerProjector> MultilayerProjectors_DEPRECATED;
 
 	/** If this is set to true, when updating the instance an additional step will be performed to calculate the list of instance parameters that are relevant for the current parameter vaules. */
-	bool bBuildParameterRelevancy = false;
+	bool bBuildParameterRelevancy_DEPRECATED = false;
 };
 
 #if WITH_EDITOR

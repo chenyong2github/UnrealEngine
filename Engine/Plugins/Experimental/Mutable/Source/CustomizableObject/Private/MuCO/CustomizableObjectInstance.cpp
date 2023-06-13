@@ -639,13 +639,13 @@ bool UCustomizableObjectInstance::GetBuildParameterRelevancy() const
 #if WITH_EDITOR
 	return true;
 #endif
-	return bBuildParameterRelevancy;
+	return Descriptor.bBuildParameterRelevancy;
 }
 
 
 void UCustomizableObjectInstance::SetBuildParameterRelevancy(bool Value)
 {
-	bBuildParameterRelevancy = Value;
+	Descriptor.SetBuildParameterRelevancy(Value);
 }
 
 
