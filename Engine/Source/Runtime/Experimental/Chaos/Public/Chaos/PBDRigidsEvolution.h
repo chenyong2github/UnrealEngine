@@ -68,7 +68,7 @@ extern CHAOS_API FBroadPhaseConfig BroadPhaseConfig;
 
 namespace CVars
 {
-	extern bool bDisallowSetKinematicTargetOnDynamics;
+	extern CHAOS_API bool bDisallowSetKinematicTargetOnDynamics;
 }
 
 namespace Collisions

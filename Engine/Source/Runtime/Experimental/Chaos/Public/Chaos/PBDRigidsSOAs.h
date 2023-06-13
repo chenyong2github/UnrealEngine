@@ -9,7 +9,7 @@ namespace Chaos
 {
 namespace CVars
 {
-	extern bool bRemoveParticleFromMovingKinematicsOnDisable;
+	extern CHAOS_API bool bRemoveParticleFromMovingKinematicsOnDisable;
 }
 
 class IParticleUniqueIndices
