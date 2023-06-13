@@ -27,14 +27,28 @@ FAESGCMHandlerComponent::FAESGCMHandlerComponent()
 
 void FAESGCMHandlerComponent::SetEncryptionData(const FEncryptionData& EncryptionData)
 {
+	Decryptor.Reset(nullptr);
+	Encryptor.Reset(nullptr);
+
 	if (EncryptionData.Key.Num() != KeySizeInBytes)
 	{
-		UE_LOG(PacketHandlerLog, Log, TEXT("FAESGCMHandlerComponent::SetEncryptionKey. NewKey is not %d bytes long, ignoring."), KeySizeInBytes);
+		UE_LOG(PacketHandlerLog, Log, TEXT("FAESGCMHandlerComponent::SetEncryptionData. NewKey is not %d bytes long, ignoring."), KeySizeInBytes);
 		return;
 	}
 
-	Key.Reset(KeySizeInBytes);
-	Key.Append(EncryptionData.Key.GetData(), EncryptionData.Key.Num());
+	// Generate random bytes used for encryption packets
+	EPlatformCryptoResult RandResult = EncryptionContext->CreateRandomBytes(OutIV);
+	if (RandResult == EPlatformCryptoResult::Failure)
+	{
+		UE_LOG(PacketHandlerLog, Log, TEXT("FAESGCMHandlerComponent::SetEncryptionData: failed to generate IV."));
+		return;
+	}
+	
+	// Dummy IV and AuthTag values, Decrytor/Encryptor will be reset with actual values before each use
+	uint8 DummyIV[IVSizeInBytes] = { 0 };
+	uint8 DummyAuth[AuthTagSizeInBytes] = { 0 };
+	Decryptor = EncryptionContext->CreateDecryptor_AES_256_GCM(EncryptionData.Key, DummyIV, DummyAuth);
+	Encryptor = EncryptionContext->CreateEncryptor_AES_256_GCM(EncryptionData.Key, DummyIV);
 }
 
 void FAESGCMHandlerComponent::EnableEncryption()
@@ -85,17 +99,16 @@ void FAESGCMHandlerComponent::Incoming(FIncomingPacketRef PacketRef)
 		if (Packet.ReadBit() != 0)
 		{
 			// If the key hasn't been set yet, we can't decrypt, so ignore this packet. We don't set an error in this case because it may just be an out-of-order packet.
-			if (Key.Num() == 0)
+			if (!Decryptor.IsValid())
 			{
 				UE_LOG(PacketHandlerLog, Log, TEXT("FAESGCMHandlerComponent::Incoming: received encrypted packet before key was set, ignoring."));
 				Packet.SetData(nullptr, 0);
 				return;
 			}
 
+			TStaticArray<uint8, IVSizeInBytes> IV;
 			if (Packet.GetBytesLeft() >= IVSizeInBytes)
 			{
-				IV.Reset();
-				IV.AddUninitialized(IVSizeInBytes);
 				Packet.SerializeBits(IV.GetData(), IV.Num() * 8);
 			}
 			else
@@ -108,10 +121,9 @@ void FAESGCMHandlerComponent::Incoming(FIncomingPacketRef PacketRef)
 				return;
 			}
 
+			TStaticArray<uint8, AuthTagSizeInBytes> AuthTag;
 			if (Packet.GetBytesLeft() >= AuthTagSizeInBytes)
 			{
-				AuthTag.Reset();
-				AuthTag.AddUninitialized(AuthTagSizeInBytes);
 				Packet.SerializeBits(AuthTag.GetData(), AuthTag.Num() * 8);
 			}
 			else
@@ -146,7 +158,7 @@ void FAESGCMHandlerComponent::Incoming(FIncomingPacketRef PacketRef)
 			UE_LOG(PacketHandlerLog, VeryVerbose, TEXT("AESGCM packet handler received %ld bytes before decryption."), Ciphertext.Num());
 
 			EPlatformCryptoResult DecryptResult = EPlatformCryptoResult::Failure;
-			TArray<uint8> Plaintext = EncryptionContext->Decrypt_AES_256_GCM(Ciphertext, Key, IV, AuthTag, DecryptResult);
+			TArray<uint8> Plaintext = Decrypt(Ciphertext, IV, AuthTag, DecryptResult);
 
 			if (DecryptResult == EPlatformCryptoResult::Failure)
 			{
@@ -225,20 +237,16 @@ void FAESGCMHandlerComponent::Outgoing(FBitWriter& Packet, FOutPacketTraits& Tra
 				return;
 			}
 
-			TArray<uint8> OutIV;
-			OutIV.AddUninitialized(IVSizeInBytes);
-			EPlatformCryptoResult RandResult = EncryptionContext->CreateRandomBytes(OutIV);
-			if (RandResult == EPlatformCryptoResult::Failure)
-			{
-				UE_LOG(PacketHandlerLog, Log, TEXT("FAESGCMHandlerComponent::Outgoing: failed to generate IV."));
-				Packet.SetError();
-				return;
-			}
+			// Prepare new IV values for encryption.
+			// This place does not need completely new random value every time, just a unique value for each packet.
+			// Incrementing IV bytes as 64-bit integer with wrap-around is enough for this use case.
+			uint64 Counter = INTEL_ORDER64(FPlatformMemory:: ReadUnaligned<uint64>(OutIV.GetData()));
+			FPlatformMemory::WriteUnaligned(OutIV.GetData(), INTEL_ORDER64(Counter + 1));
 
-			TArray<uint8> OutAuthTag;
+			TStaticArray<uint8, AuthTagSizeInBytes> OutAuthTag;
 
 			EPlatformCryptoResult EncryptResult = EPlatformCryptoResult::Failure;
-			TArray<uint8> OutCiphertext = EncryptionContext->Encrypt_AES_256_GCM(TArrayView<uint8>(Packet.GetData(), Packet.GetNumBytes()), Key, OutIV, OutAuthTag, EncryptResult);
+			TArray<uint8> OutCiphertext = Encrypt(TArrayView<uint8>(Packet.GetData(), Packet.GetNumBytes()), OutIV, OutAuthTag, EncryptResult);
 
 			if (EncryptResult == EPlatformCryptoResult::Failure)
 			{
@@ -271,6 +279,71 @@ void FAESGCMHandlerComponent::Outgoing(FBitWriter& Packet, FOutPacketTraits& Tra
 	}
 }
 
+TArray<uint8> FAESGCMHandlerComponent::Decrypt(const TArrayView<const uint8> InCiphertext, const TArrayView<const uint8> IV, const TArrayView<const uint8> AuthTag, EPlatformCryptoResult& DecryptResult)
+{
+	DecryptResult = EPlatformCryptoResult::Failure;
+
+	TArray<uint8> OutPlaintext;
+
+	EPlatformCryptoResult Result = Decryptor->Reset(IV);
+	if (Result == EPlatformCryptoResult::Success)
+	{
+		Result = Decryptor->SetAuthTag(AuthTag);
+		if (Result == EPlatformCryptoResult::Success)
+		{
+			OutPlaintext.AddUninitialized(Decryptor->GetUpdateBufferSizeBytes(InCiphertext) + Decryptor->GetFinalizeBufferSizeBytes());
+
+			int32 UpdateBytesWritten = 0;
+			Result = Decryptor->Update(InCiphertext, OutPlaintext, UpdateBytesWritten);
+			if (Result == EPlatformCryptoResult::Success)
+			{
+				int32 FinalizeBytesWritten = 0;
+				Result = Decryptor->Finalize(TArrayView<uint8>(OutPlaintext.GetData() + UpdateBytesWritten, OutPlaintext.Num() - UpdateBytesWritten), FinalizeBytesWritten);
+				if (Result == EPlatformCryptoResult::Success)
+				{
+					OutPlaintext.SetNum(UpdateBytesWritten + FinalizeBytesWritten);
+					DecryptResult = EPlatformCryptoResult::Success;
+				}
+			}
+		}
+	}
+
+	return OutPlaintext;
+}
+
+TArray<uint8> FAESGCMHandlerComponent::Encrypt(const TArrayView<const uint8> InPlaintext, const TArrayView<const uint8> IV, TArrayView<uint8> OutAuthTag, EPlatformCryptoResult& EncryptResult)
+{
+	EncryptResult = EPlatformCryptoResult::Failure;
+
+	TArray<uint8> OutCiphertext;
+
+	EPlatformCryptoResult Result = Encryptor->Reset(IV);
+	if (Result == EPlatformCryptoResult::Success)
+	{
+		OutCiphertext.AddUninitialized(Encryptor->GetUpdateBufferSizeBytes(InPlaintext) + Encryptor->GetFinalizeBufferSizeBytes());
+
+		int32 UpdateBytesWritten = 0;
+		Result = Encryptor->Update(InPlaintext, OutCiphertext, UpdateBytesWritten);
+		if (Result == EPlatformCryptoResult::Success)
+		{
+			int32 FinalizeBytesWritten = 0;
+			Result = Encryptor->Finalize(TArrayView<uint8>(OutCiphertext.GetData() + UpdateBytesWritten, OutCiphertext.Num() - UpdateBytesWritten), FinalizeBytesWritten);
+			if (Result == EPlatformCryptoResult::Success)
+			{
+				int32 AuthTagBytesWritten = 0;
+				Result = Encryptor->GenerateAuthTag(OutAuthTag, AuthTagBytesWritten);
+				if (Result == EPlatformCryptoResult::Success)
+				{
+					OutCiphertext.SetNum(UpdateBytesWritten + FinalizeBytesWritten);
+					EncryptResult = EPlatformCryptoResult::Success;
+				}
+			}
+		}
+	}
+
+	return OutCiphertext;
+}
+
 int32 FAESGCMHandlerComponent::GetReservedPacketBits() const
 {
 	// Worst case includes the encryption enabled bit, the termination bit, padding up to the next whole byte, and a block of padding.
@@ -295,6 +368,5 @@ void FAESGCMHandlerComponent::CountBytes(FArchive& Ar) const
 	}
 	*/
 
-	Key.CountBytes(Ar);
 	Ciphertext.CountBytes(Ar);
 }

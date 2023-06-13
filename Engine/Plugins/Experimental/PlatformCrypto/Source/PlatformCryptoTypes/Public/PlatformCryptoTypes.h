@@ -102,6 +102,14 @@ public:
 	 * @return Success if input was valid and the final block was encrypted successfully, or Failure otherwise
 	 */
 	virtual EPlatformCryptoResult Finalize(const TArrayView<uint8> OutCiphertext, int32& OutCiphertextBytesWritten) = 0;
+
+	/**
+	 * Resets block cipher. This allows to reuse encryption cipher with the same key for different stream with different InitializationVector.
+	 *
+	 * @param Optional IV bytes. Will be used only for block modes that requires InitializationVector
+	 * @return Success if cipher was reset successfully, or Failure otherwise
+	 */
+	virtual EPlatformCryptoResult Reset(const TArrayView<const uint8> InitializationVector) = 0;
 };
 
 /**
@@ -186,6 +194,14 @@ public:
 	 * @return Success if input was valid and the final block was decrypted successfully, or Failure otherwise
 	 */
 	virtual EPlatformCryptoResult Finalize(const TArrayView<uint8> OutPlaintext, int32& OutPlaintextBytesWritten) = 0;
+
+	/**
+	 * Resets block cipher. This allows to reuse decryption cipher with the same key for different stream with different InitializationVector.
+	 *
+	 * @param Optional IV bytes. Will be used only for block modes that requires InitializationVector
+	 * @return Success if cipher was reset successfully, or Failure otherwise
+	 */
+	virtual EPlatformCryptoResult Reset(const TArrayView<const uint8> InitializationVector) = 0;
 };
 
 /**

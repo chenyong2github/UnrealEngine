@@ -134,6 +134,33 @@ EPlatformCryptoResult FPlatformCryptoDecryptor_AES_Base_OpenSSL::Finalize(const 
 	return EPlatformCryptoResult::Success;
 }
 
+EPlatformCryptoResult FPlatformCryptoDecryptor_AES_Base_OpenSSL::Reset(const TArrayView<const uint8> InitializationVector)
+{
+	if (State != EDecryptorState::Initialized && State != EDecryptorState::Finalized)
+	{
+		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FPlatformCryptoDecryptor_AES_Base_OpenSSL::Reset: Invalid state. Was %s, but should be Initialized or Finalized"), LexToString(State));
+		return EPlatformCryptoResult::Failure;
+	}
+
+	const int32 IVExpectedLength = EVP_CIPHER_CTX_iv_length(EVPContext.Get());
+	if (InitializationVector.Num() < IVExpectedLength)
+	{
+		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FPlatformCryptoDecryptor_AES_Base_OpenSSL::Reset: Invalid InitializationVector Size. InitializationVectorSize=[%d] Expected=[%d]"), InitializationVector.Num(), IVExpectedLength);
+		return EPlatformCryptoResult::Failure;
+	}
+
+	const uint8* InitializationVectorPtr = InitializationVector.Num() == 0 ? nullptr : InitializationVector.GetData();
+	const int InitResult = EVP_DecryptInit_ex(EVPContext.Get(), nullptr, nullptr, nullptr, InitializationVectorPtr);
+	if (InitResult != OPENSSL_CIPHER_SUCCESS)
+	{
+		UE_LOG(LogPlatformCryptoOpenSSL, Warning, TEXT("FPlatformCryptoDecryptor_AES_Base_OpenSSL::Reset: EVP_DecryptInit_ex failed. Result=[%d]"), InitResult);
+		return EPlatformCryptoResult::Failure;
+	}
+
+	State = EDecryptorState::Initialized;
+	return EPlatformCryptoResult::Success;
+}
+
 EPlatformCryptoResult FPlatformCryptoDecryptor_AES_Base_OpenSSL::Reset()
 {
 	const int ResetResult = EVP_CIPHER_CTX_reset(EVPContext.Get());

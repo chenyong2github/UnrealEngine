@@ -38,6 +38,7 @@ public:
 	virtual EPlatformCryptoResult GenerateAuthTag(const TArrayView<uint8> OutAuthTag, int32& OutAuthTagBytesWritten) const override final;
 	virtual EPlatformCryptoResult Update(const TArrayView<const uint8> Plaintext, const TArrayView<uint8> OutCiphertext, int32& OutCiphertextBytesWritten) override final;
 	virtual EPlatformCryptoResult Finalize(const TArrayView<uint8> OutCiphertext, int32& OutCiphertextBytesWritten) override final;
+	virtual EPlatformCryptoResult Reset(const TArrayView<const uint8> InitializationVector) override final;
 	//~ End IPlatformCryptoEncryptor Interface
 
 	/**

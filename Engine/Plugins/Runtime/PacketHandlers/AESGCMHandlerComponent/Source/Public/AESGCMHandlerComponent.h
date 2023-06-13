@@ -5,6 +5,7 @@
 #include "EncryptionComponent.h"
 #include "AESGCMFaultHandler.h"
 #include "IPlatformCrypto.h" // IWYU pragma: keep
+#include "Containers/StaticArray.h"
 
 struct FBitWriter;
 struct FEncryptionData;
@@ -56,17 +57,22 @@ public:
 private:
 	TUniquePtr<FEncryptionContext> EncryptionContext;
 
-	TArray<uint8> Key;
+	TUniquePtr<IPlatformCryptoDecryptor> Decryptor;
+	TUniquePtr<IPlatformCryptoEncryptor> Encryptor;
 	
 	// Avoid per packet allocations
 	TArray<uint8> Ciphertext;
-	TArray<uint8> IV;
-	TArray<uint8> AuthTag;
+
+	// IV used for encryption
+	TStaticArray<uint8, IVSizeInBytes> OutIV;
 
 	bool bEncryptionEnabled;
 
 	/** Fault handler for AESGCM-specific errors, that may trigger NetConnection Close */
 	FAESGCMFaultHandler AESGCMFaultHandler;
+
+	TArray<uint8> Decrypt(const TArrayView<const uint8> InCiphertext, const TArrayView<const uint8> IV, const TArrayView<const uint8> AuthTag, EPlatformCryptoResult& DecryptResult);
+	TArray<uint8> Encrypt(const TArrayView<const uint8> InPlaintext, const TArrayView<const uint8> IV, TArrayView<uint8> OutAuthTag, EPlatformCryptoResult& EncryptResult);
 };
 
 

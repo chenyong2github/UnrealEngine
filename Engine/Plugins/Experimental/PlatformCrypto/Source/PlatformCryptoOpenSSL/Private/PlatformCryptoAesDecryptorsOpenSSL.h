@@ -36,6 +36,7 @@ public:
 	virtual int32 GetCipherInitializationVectorSizeBytes() const override final;
 	virtual EPlatformCryptoResult Update(const TArrayView<const uint8> Ciphertext, const TArrayView<uint8> OutPlaintext, int32& OutPlaintextBytesWritten) override final;
 	virtual EPlatformCryptoResult Finalize(const TArrayView<uint8> OutPlaintext, int32& OutPlaintextBytesWritten) override final;
+	virtual EPlatformCryptoResult Reset(const TArrayView<const uint8> InitializationVector) override final;
 	//~ End IPlatformCryptoDecryptor Interface
 
 	/**
