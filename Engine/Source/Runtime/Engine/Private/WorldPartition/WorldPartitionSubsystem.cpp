@@ -435,6 +435,7 @@ void UWorldPartitionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		FLevelStreamingDelegates::OnLevelBeginMakingVisible.AddUObject(this, &UWorldPartitionSubsystem::OnLevelBeginMakingVisible);
 		FLevelStreamingDelegates::OnLevelBeginMakingInvisible.AddUObject(this, &UWorldPartitionSubsystem::OnLevelBeginMakingInvisible);
 		FLevelStreamingDelegates::OnLevelStreamingTargetStateChanged.AddUObject(this, &UWorldPartitionSubsystem::OnLevelStreamingTargetStateChanged);
+		FLevelStreamingDelegates::OnLevelStreamingStateChanged.AddUObject(this, &UWorldPartitionSubsystem::OnLevelStreamingStateChanged);
 	}
 }
 
@@ -455,6 +456,7 @@ void UWorldPartitionSubsystem::Deinitialize()
 		FLevelStreamingDelegates::OnLevelBeginMakingVisible.RemoveAll(this);
 		FLevelStreamingDelegates::OnLevelBeginMakingInvisible.RemoveAll(this);
 		FLevelStreamingDelegates::OnLevelStreamingTargetStateChanged.RemoveAll(this);
+		FLevelStreamingDelegates::OnLevelStreamingStateChanged.RemoveAll(this);
 	}
 
 	// At this point World Partition should be uninitialized
@@ -508,6 +510,31 @@ void UWorldPartitionSubsystem::OnWorldPartitionUninitialized(UWorldPartition* In
 {
 	check(RegisteredWorldPartitions.Contains(InWorldPartition));
 	RegisteredWorldPartitions.Remove(InWorldPartition);
+	const UWorld* OwningWorld = GetWorld();
+	if (OwningWorld->IsGameWorld())
+	{
+		TOptional<TSet<TWeakObjectPtr<ULevelStreaming>>*> PendingStreamingLevels;
+		auto GetPendingStreamingLevels = [this, InWorldPartition, &PendingStreamingLevels]() -> TSet<TWeakObjectPtr<ULevelStreaming>>&
+		{
+			if (!PendingStreamingLevels.IsSet())
+			{
+				PendingStreamingLevels = &WorldPartitionUninitializationPendingStreamingLevels.FindOrAdd(FSoftObjectPath(InWorldPartition));
+			}
+			return *PendingStreamingLevels.GetValue();
+		};
+
+		const UWorld* WorldPartitionOuterWorld = InWorldPartition->GetTypedOuter<UWorld>();
+		if (WorldPartitionOuterWorld != OwningWorld)
+		{
+			for (ULevelStreaming* StreamingLevel : OwningWorld->GetStreamingLevels())
+			{
+				if (StreamingLevel->GetStreamingWorld() == WorldPartitionOuterWorld)
+				{
+					GetPendingStreamingLevels().Add(StreamingLevel);
+				}
+			}
+		}
+	}
 	NumWorldPartitionServerStreamingEnabled -= InWorldPartition->IsServerStreamingEnabled() ? 1 : 0;
 	check(NumWorldPartitionServerStreamingEnabled >= 0);
 
@@ -523,6 +550,44 @@ void UWorldPartitionSubsystem::OnWorldPartitionUninitialized(UWorldPartition* In
 		{
 			UDebugDrawService::Unregister(DrawHandle);
 			DrawHandle.Reset();
+		}
+	}
+}
+
+bool UWorldPartitionSubsystem::HasUninitializationPendingStreamingLevels(const UWorldPartition* InWorldPartition) const
+{
+	if (const TSet<TWeakObjectPtr<ULevelStreaming>>* PendingStreamingLevels = InWorldPartition ? WorldPartitionUninitializationPendingStreamingLevels.Find(FSoftObjectPath(InWorldPartition)) : nullptr)
+	{
+		if (ensure(!PendingStreamingLevels->IsEmpty()))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+void UWorldPartitionSubsystem::OnLevelStreamingStateChanged(UWorld* InWorld, const ULevelStreaming* InStreamingLevel, ULevel* LevelIfLoaded, ELevelStreamingState PreviousState, ELevelStreamingState NewState)
+{
+	if (InWorld != GetWorld())
+	{
+		return;
+	}
+
+	if (NewState == ELevelStreamingState::Removed)
+	{
+		const UWorld* OuterWorld = InStreamingLevel->GetStreamingWorld();
+		if (const UWorldPartition* OuterWorldPartition = OuterWorld && OuterWorld->IsGameWorld() ? OuterWorld->GetWorldPartition() : nullptr)
+		{
+			if (TSet<TWeakObjectPtr<ULevelStreaming>>* PendingStreamingLevels = WorldPartitionUninitializationPendingStreamingLevels.Find(FSoftObjectPath(OuterWorldPartition)))
+			{
+				if (PendingStreamingLevels->Remove(InStreamingLevel))
+				{
+					if (PendingStreamingLevels->IsEmpty())
+					{
+						WorldPartitionUninitializationPendingStreamingLevels.Remove(OuterWorldPartition);
+					}
+				}
+			}
 		}
 	}
 }

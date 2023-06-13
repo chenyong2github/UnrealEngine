@@ -32,6 +32,7 @@
 #include "Serialization/LoadTimeTrace.h"
 #include "Streaming/LevelStreamingDelegates.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "WorldPartition/WorldPartition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LevelStreaming)
 
@@ -795,12 +796,20 @@ bool ULevelStreaming::CanMakeInvisible()
 
 bool ULevelStreaming::CanMakeVisible()
 {
-	// Once the Level becomes the current pending visibility level, this function must return true or else it could
-	// block indefinitely if called inside UWorld::BlockTillLevelStreamingCompleted (same reason as CanMakeInvisible but with World's CurrentLevelPendingVisibility)
 	UWorld* World = GetWorld();
-	if (World && World->IsGameWorld() && LoadedLevel && (LoadedLevel == World->GetCurrentLevelPendingVisibility()))
+	if (World && World->IsGameWorld() && LoadedLevel)
 	{
-		return true;
+		// Once the Level becomes the current pending visibility level, this function must return true or else it could
+		// block indefinitely if called inside UWorld::BlockTillLevelStreamingCompleted (same reason as CanMakeInvisible but with World's CurrentLevelPendingVisibility)
+		if (LoadedLevel == World->GetCurrentLevelPendingVisibility())
+		{
+			return true;
+		}
+		// Delay AddToWorld of a partition world if this same partitioned world hasn't finished removing it's sub-levels triggered by a prior RemoveFromWorld
+		else if (const UWorldPartition* WorldPartition = LoadedLevel->GetWorldPartition(); WorldPartition && !WorldPartition->CanInitialize(World))
+		{
+			return false;
+		}
 	}
 
 	const bool bCanMakeVisible = RequestVisibilityChange(true);

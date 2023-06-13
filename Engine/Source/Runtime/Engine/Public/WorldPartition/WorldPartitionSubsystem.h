@@ -163,16 +163,18 @@ private:
 	ENGINE_API void GetStreamingSources(const UWorldPartition* InWorldPartition, TArray<FWorldPartitionStreamingSource>& OutStreamingSources) const;
 	uint32 GetStreamingSourcesHash() const { return StreamingSourcesHash; }
 
-	ENGINE_API void OnWorldPartitionInitialized(UWorldPartition* InWorldPartition);
-	ENGINE_API void OnWorldPartitionUninitialized(UWorldPartition* InWorldPartition);
-	ENGINE_API void OnLevelStreamingTargetStateChanged(UWorld* InWorld, const ULevelStreaming* InStreamingLevel, ULevel* InLevelIfLoaded, ELevelStreamingState InCurrentState, ELevelStreamingTargetState InPrevTarget, ELevelStreamingTargetState InNewTarget);
-	ENGINE_API void OnLevelBeginMakingVisible(UWorld* InWorld, const ULevelStreaming* InStreamingLevel, ULevel* InLoadedLevel);
-	ENGINE_API void OnLevelBeginMakingInvisible(UWorld* InWorld, const ULevelStreaming* InStreamingLevel, ULevel* InLoadedLevel);
+	void OnWorldPartitionInitialized(UWorldPartition* InWorldPartition);
+	void OnWorldPartitionUninitialized(UWorldPartition* InWorldPartition);
+	void OnLevelStreamingStateChanged(UWorld* InWorld, const ULevelStreaming* InStreamingLevel, ULevel* LevelIfLoaded, ELevelStreamingState PreviousState, ELevelStreamingState NewState);
+	void OnLevelStreamingTargetStateChanged(UWorld* InWorld, const ULevelStreaming* InStreamingLevel, ULevel* InLevelIfLoaded, ELevelStreamingState InCurrentState, ELevelStreamingTargetState InPrevTarget, ELevelStreamingTargetState InNewTarget);
+	void OnLevelBeginMakingVisible(UWorld* InWorld, const ULevelStreaming* InStreamingLevel, ULevel* InLoadedLevel);
+	void OnLevelBeginMakingInvisible(UWorld* InWorld, const ULevelStreaming* InStreamingLevel, ULevel* InLoadedLevel);
 
 	static ENGINE_API void UpdateStreamingStateInternal(const UWorld* InWorld, const TArray<TObjectPtr<UWorldPartition>>& InWorldPartitions);
 
 	ENGINE_API bool IsServer() const;
 	ENGINE_API bool HasAnyWorldPartitionServerStreamingEnabled() const;
+	ENGINE_API bool HasUninitializationPendingStreamingLevels(const UWorldPartition* InWorldPartition) const;
 
 	ENGINE_API UWorldPartition* GetWorldPartition();
 	ENGINE_API const UWorldPartition* GetWorldPartition() const;
@@ -200,6 +202,9 @@ private:
 	// GC backup values
 	int32 LevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurge;
 	int32 LevelStreamingForceGCAfterLevelStreamedOut;
+
+	// Tracks streaming levels of uninitialized world partition used to delay next initialization until they're done being removed
+	TMap<FSoftObjectPath, TSet<TWeakObjectPtr<ULevelStreaming>>> WorldPartitionUninitializationPendingStreamingLevels;
 
 #if WITH_EDITOR
 	bool bIsRunningConvertWorldPartitionCommandlet;

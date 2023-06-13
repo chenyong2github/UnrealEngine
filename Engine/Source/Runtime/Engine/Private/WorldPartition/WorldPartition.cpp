@@ -453,6 +453,22 @@ FName UWorldPartition::GetWorldPartitionEditorName() const
 }
 #endif
 
+bool UWorldPartition::CanInitialize(UWorld* InWorld) const
+{
+	check(InWorld);
+	if (!IsInitialized() && InWorld->IsGameWorld())
+	{
+		if (UWorldPartitionSubsystem* WorldPartitionSubsystem = InWorld->GetSubsystem<UWorldPartitionSubsystem>())
+		{
+			if (WorldPartitionSubsystem->HasUninitializationPendingStreamingLevels(this))
+			{
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
 void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 {
 	UE_SCOPED_TIMER(TEXT("WorldPartition initialize"), LogWorldPartition, Display);
@@ -470,6 +486,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 	}
 
 	check(InWorld);
+	check(CanInitialize(InWorld));
 	World = InWorld;
 
 	if (!InTransform.Equals(FTransform::Identity))
