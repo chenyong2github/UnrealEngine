@@ -4818,6 +4818,12 @@ void FDeferredShadingSceneRenderer::BeginInitViews(
 
 	PreVisibilityFrameSetup(GraphBuilder);
 
+	// Attempt to launch dynamic shadow tasks early before finalizing visibility.
+	if (GetRendererOutput() == ERendererOutput::FinalSceneColor)
+	{
+		BeginInitDynamicShadows(TaskDatas);
+	}
+
 	FRHICommandListImmediate& RHICmdList = GraphBuilder.RHICmdList;
 
 	// Create GPU-side representation of the view for instance culling.
@@ -4845,6 +4851,7 @@ void FDeferredShadingSceneRenderer::BeginInitViews(
 
 	TaskDatas.VisibilityTaskData->ProcessRenderThreadTasks(BasePassDepthStencilAccess, InstanceCullingManager, VirtualTextureUpdater);
 
+	// Make a second attempt to launch shadow tasks it wasn't able to the first time due to visibility being deferred.
 	if (GetRendererOutput() == ERendererOutput::FinalSceneColor)
 	{
 		BeginInitDynamicShadows(TaskDatas);
