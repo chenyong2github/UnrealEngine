@@ -77,7 +77,6 @@ void UAnimationModifier::ApplyToAnimationSequence(class UAnimSequence* AnimSeque
 
 	{
 		// Group the OnRevert & OnApply operation into one Bracket to reduce compression request
-		IAnimationDataModel::FEvaluationAndModificationLock EvaluationAndModificationLock2(*AnimSequence->GetDataModelInterface());
 		IAnimationDataController::FScopedBracket ScopedBracket(AnimSequence->GetController(), LOCTEXT("ApplyModifierBracket", "Applying Animation Modifier"));
 
 		/** In case this modifier has been previously applied, revert it using the serialised out version at the time */
