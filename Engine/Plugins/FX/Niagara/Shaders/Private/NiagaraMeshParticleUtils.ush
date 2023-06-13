@@ -257,8 +257,7 @@ float3x3 NiagaraGetMeshFacingMatrix(FLWCVector3 ParticleSimPosition, NiagaraMesh
 			break;
 		}
 
-		default:
-		case MESH_FACING_CAMERA_PLANE:
+		default: // case MESH_FACING_DEFAULT and MESH_FACING_CAMERA_PLANE
 		{
 			FacingDir = NiagaraWorldToSimVec(-Params.CameraForwardDir, Params);
 			break;
