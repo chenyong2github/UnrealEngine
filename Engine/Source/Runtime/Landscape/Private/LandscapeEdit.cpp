@@ -5708,7 +5708,7 @@ void ALandscapeStreamingProxy::PostEditChangeProperty(FPropertyChangedEvent& Pro
 
 void ALandscapeStreamingProxy::PostRegisterAllComponents()
 {
-	ALandscapeProxy::PostRegisterAllComponents();
+	Super::PostRegisterAllComponents();
 
 #if WITH_EDITORONLY_DATA
 	// If the landscape actor is not set yet and we're transferring the property from the lazy object pointer it was previously stored as to the soft object ptr it is now stored as :

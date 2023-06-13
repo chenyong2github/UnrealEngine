@@ -246,27 +246,33 @@ void ULandscapeSubsystem::Tick(float DeltaTime)
 
 	Super::Tick(DeltaTime);
 
-#if WITH_EDITOR
-	AppCurrentDateTime = FDateTime::Now();
-
-	//Check if we need to start or stop creating Collision SceneProxies
-	ILandscapeModule& LandscapeModule = FModuleManager::GetModuleChecked<ILandscapeModule>("Landscape");
-	int32 NumViewsWithShowCollision = LandscapeModule.GetLandscapeSceneViewExtension()->GetNumViewsWithShowCollision();
-	bool bNewShowCollisions = NumViewsWithShowCollision > 0;
-    bool bCollisionChanged = bNewShowCollisions != bAnyViewShowCollisions;
-    bAnyViewShowCollisions = bNewShowCollisions;
-        
-	if (bCollisionChanged)
-	{
-		for (ULandscapeHeightfieldCollisionComponent* LandscapeHeightfieldCollisionComponent : TObjectRange<ULandscapeHeightfieldCollisionComponent>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::Garbage))
-		{
-			LandscapeHeightfieldCollisionComponent->MarkRenderStateDirty();
-		}
-	}
-#endif
-	
 	UWorld* World = GetWorld();
 
+#if WITH_EDITOR
+	AppCurrentDateTime = FDateTime::Now();
+	uint32 FrameNumber = World->Scene->GetFrameNumber();
+	const bool bIsTimeOnlyTick = (FrameNumber == LastTickFrameNumber);
+
+	ILandscapeModule& LandscapeModule = FModuleManager::GetModuleChecked<ILandscapeModule>("Landscape");
+	// Check if we need to start or stop creating Collision SceneProxies. Don't do this on time-only ticks as the viewport (therefore the scenes) are not drawn in that case, which would lead to wrongly
+	//  assume that no view needed collision this frame
+	if (!bIsTimeOnlyTick)
+	{
+		int32 NumViewsWithShowCollision = LandscapeModule.GetLandscapeSceneViewExtension()->GetNumViewsWithShowCollision();
+		const bool bNewShowCollisions = NumViewsWithShowCollision > 0;
+		const bool bShowCollisionChanged = (bNewShowCollisions != bAnyViewShowCollisions);
+		bAnyViewShowCollisions = bNewShowCollisions;
+        
+		if (bShowCollisionChanged)
+		{
+			for (ULandscapeHeightfieldCollisionComponent* LandscapeHeightfieldCollisionComponent : TObjectRange<ULandscapeHeightfieldCollisionComponent>(RF_ClassDefaultObject | RF_ArchetypeObject, true, EInternalObjectFlags::Garbage))
+			{
+				LandscapeHeightfieldCollisionComponent->MarkRenderStateDirty();
+			}
+		}
+	}
+#endif // WITH_EDITOR
+	
 	static TArray<FVector> OldCameras;
 	TArray<FVector>* Cameras = nullptr;
 	if (GUseStreamingManagerForCameras == 0)
@@ -308,7 +314,7 @@ void ULandscapeSubsystem::Tick(float DeltaTime)
 		NumMeshesToUpdate = NumNaniteMeshUpdatesAvailable;
 		NumNaniteMeshUpdatesAvailable -= NumMeshesToUpdate;
 	}
-#endif
+#endif // WITH_EDITOR
 	for (TWeakObjectPtr<ALandscapeProxy> ProxyPtr : Proxies)
 	{
 		if (ALandscapeProxy* Proxy = ProxyPtr.Get())
@@ -346,7 +352,7 @@ void ULandscapeSubsystem::Tick(float DeltaTime)
 
 #if !WITH_EDITOR
 			if (GUpdateProxyActorRenderMethodOnTickAtRuntime)
-#endif
+#endif // WITH_EDITOR
 			{
 				Proxy->UpdateRenderingMethod();
 			}
@@ -366,7 +372,8 @@ void ULandscapeSubsystem::Tick(float DeltaTime)
 
 	NaniteMeshBuildEvents.RemoveAllSwap([](const FGraphEventRef& Ref) -> bool { return Ref->IsComplete(); });
 
-#endif
+	LastTickFrameNumber = FrameNumber;
+#endif // WITH_EDITOR
 }
 
 void ULandscapeSubsystem::ForEachLandscapeInfo(TFunctionRef<bool(ULandscapeInfo*)> ForEachLandscapeInfoFunc) const

@@ -3453,11 +3453,6 @@ bool ULandscapeInfo::UpdateLayerInfoMapInternal(ALandscapeProxy* Proxy, bool bIn
 				});
 			}
 		}
-
-		//if (GCallbackEvent)
-		//{
-		//	GCallbackEvent->Send( CALLBACK_EditorPostModal );
-		//}
 	}
 	return bHasCollision;
 }

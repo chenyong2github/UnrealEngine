@@ -143,11 +143,11 @@ private:
 	FOnHeightmapStreamedDelegate OnHeightmapStreamed;
 	bool bAnyViewShowCollisions = false;
 	FDateTime AppCurrentDateTime; // Represents FDateTime::Now(), at the beginning of the frame (useful to get a human-readable date/time that is fixed during the frame)
+	int32 LastTickFrameNumber = -1;
 
 	TArray<FGraphEventRef> NaniteMeshBuildEvents;
 	float NumNaniteMeshUpdatesAvailable = 0.0f;
 
 	std::atomic<int32> NaniteBuildsInFlight;
-	
 #endif // WITH_EDITOR
 };
