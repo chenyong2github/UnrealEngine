@@ -4220,6 +4220,12 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 			}
 			else
 			{
+				// Even when we're not displaying error/warning summaries in the log, still return an non-zero code if errors were logged
+				if ((ErrorLevel == 0) && (GWarn->GetNumErrors() > 0))
+				{
+					ErrorLevel = 1;
+				}
+
 				UE_LOG(LogInit, Display, TEXT("Finished.") );
 			}
 
