@@ -232,10 +232,10 @@ public:
 	}
 
 	/** Returns the engine-global network protocol version for this archive. */
-	uint32 EngineNetVer() const;
+	virtual uint32 EngineNetVer() const;
 
 	/** Returns the game-specific network protocol version for this archive. */
-	uint32 GameNetVer() const;
+	virtual uint32 GameNetVer() const;
 
 	/**
 	 * Queries a custom version from the archive.  If the archive is being used to write, the custom version must have already been registered.

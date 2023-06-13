@@ -10,8 +10,7 @@
 #include "Net/Core/Trace/NetTrace.h"
 #include "Net/Core/Trace/Private/NetTraceInternal.h"
 
-const int32 MAX_BUNCH_SIZE = 1024 * 1024; 
-
+const int32 MAX_BUNCH_SIZE = 1024 * 1024;
 
 /*-----------------------------------------------------------------------------
 	FInBunch implementation.
@@ -41,9 +40,6 @@ FInBunch::FInBunch( UNetConnection* InConnection, uint8* Src, int64 CountBits )
 	check(Connection);
 	// Match the byte swapping settings of the connection
 	SetByteSwapping(Connection->bNeedsByteSwapping);
-
-	// Copy network version info
-	Connection->SetNetVersionsOnArchive(*this);
 }
 
 /** Copy constructor but with optional parameter to not copy buffer */
@@ -66,10 +62,6 @@ FInBunch::FInBunch( FInBunch &InBunch, bool CopyBuffer )
 	bHasMustBeMappedGUIDs =	InBunch.bHasMustBeMappedGUIDs;
 	bIgnoreRPCs = InBunch.bIgnoreRPCs;
 	CloseReason = InBunch.CloseReason;
-
-	// Copy network version info
-	SetNetVersionsFromArchive(InBunch);
-
 	PackageMap = InBunch.PackageMap;
 
 	if (CopyBuffer)
@@ -89,6 +81,26 @@ void FInBunch::CountMemory(FArchive& Ar) const
 		const SIZE_T MemberSize = sizeof(*this) - sizeof(FNetBitReader);
 		Ar.CountBytes(MemberSize, MemberSize);
 	}
+}
+
+uint32 FInBunch::EngineNetVer() const
+{
+	return Connection->GetNetworkCustomVersion(FEngineNetworkCustomVersion::Guid);
+}
+
+uint32 FInBunch::GameNetVer() const
+{
+	return Connection->GetNetworkCustomVersion(FGameNetworkCustomVersion::Guid);
+}
+
+void FInBunch::SetEngineNetVer(const uint32 InEngineNetVer)
+{
+	ensureMsgf(false, TEXT("SetEngineNetVer should not be called on FInBunch"));
+}
+
+void FInBunch::SetGameNetVer(const uint32 InGameNetVer)
+{
+	ensureMsgf(false, TEXT("SetGameNetVer should not be called on FInBunch"));
 }
 
 /*-----------------------------------------------------------------------------

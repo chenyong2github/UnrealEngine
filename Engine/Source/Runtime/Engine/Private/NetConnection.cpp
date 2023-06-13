@@ -2564,7 +2564,7 @@ void UNetConnection::WriteFinalPacketInfo(FBitWriter& Writer, const double Packe
 	CurrentMark.PopWithoutClear(Writer);
 }
 
-bool UNetConnection::ReadPacketInfo(FBitReader& Reader, bool bHasPacketInfoPayload)
+bool UNetConnection::ReadPacketInfo(FBitReader& Reader, bool bHasPacketInfoPayload, FEngineNetworkCustomVersion::Type EngineNetVer)
 {
 	using namespace UE::Net;
 
@@ -2593,7 +2593,7 @@ bool UNetConnection::ReadPacketInfo(FBitReader& Reader, bool bHasPacketInfoPaylo
 		bLastHasServerFrameTime = bHasServerFrameTime;
 	}
 
-	if (Reader.EngineNetVer() < FEngineNetworkCustomVersion::JitterInHeader)
+	if (EngineNetVer < FEngineNetworkCustomVersion::JitterInHeader)
 	{
 		uint8 RemoteInKBytesPerSecondByte = 0;
 		Reader << RemoteInKBytesPerSecondByte;
@@ -2760,6 +2760,8 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 
 	FChannelsToClose ChannelsToClose;
 
+	const FEngineNetworkCustomVersion::Type PacketEngineNetVer = static_cast<FEngineNetworkCustomVersion::Type>(Reader.EngineNetVer());
+
 	if (IsInternalAck())
 	{
 		++InPacketId;
@@ -2779,7 +2781,7 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 
 		bool bHasPacketInfoPayload = true;
 
-		if (Reader.EngineNetVer() >= FEngineNetworkCustomVersion::JitterInHeader)
+		if (PacketEngineNetVer >= FEngineNetworkCustomVersion::JitterInHeader)
 		{
 			bHasPacketInfoPayload = Reader.ReadBit() == 1u;
 
@@ -2940,7 +2942,7 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 		PacketNotify.Update(Header, HandlePacketNotification);
 
 		// Extra information associated with the header (read only after acks have been processed)
-		if (PacketSequenceDelta > 0 && !ReadPacketInfo(Reader, bHasPacketInfoPayload))
+		if (PacketSequenceDelta > 0 && !ReadPacketInfo(Reader, bHasPacketInfoPayload, PacketEngineNetVer))
 		{
 			UE_LOG(LogNet, Warning, TEXT("Failed to read extra PacketHeader information"));
 
@@ -2990,7 +2992,7 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 		while( !Reader.AtEnd() && GetConnectionState()!=USOCK_Closed )
 		{
 			// For demo backwards compatibility, old replays still have this bit
-			if (IsInternalAck() && GetNetworkCustomVersion(FEngineNetworkCustomVersion::Guid) < FEngineNetworkCustomVersion::AcksIncludedInHeader)
+			if (IsInternalAck() && PacketEngineNetVer < FEngineNetworkCustomVersion::AcksIncludedInHeader)
 			{
 				const bool IsAckDummy = Reader.ReadBit() == 1u;
 			}
@@ -3008,7 +3010,7 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 				Bunch.bOpen					= bControl ? Reader.ReadBit() : 0;
 				Bunch.bClose				= bControl ? Reader.ReadBit() : 0;
 			
-				if (Bunch.EngineNetVer() < FEngineNetworkCustomVersion::ChannelCloseReason)
+				if (PacketEngineNetVer < FEngineNetworkCustomVersion::ChannelCloseReason)
 				{
 					const uint8 bDormant = Bunch.bClose ? Reader.ReadBit() : 0;
 					Bunch.CloseReason = bDormant ? EChannelCloseReason::Dormancy : EChannelCloseReason::Destroyed;
@@ -3025,7 +3027,7 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				Bunch.bReliable				= Reader.ReadBit();
 
-				if (Bunch.EngineNetVer() < FEngineNetworkCustomVersion::MaxActorChannelsCustomization)
+				if (PacketEngineNetVer < FEngineNetworkCustomVersion::MaxActorChannelsCustomization)
 				{
 					static const int OLD_MAX_ACTOR_CHANNELS = 10240;
 					Bunch.ChIndex = Reader.ReadInt(OLD_MAX_ACTOR_CHANNELS);
@@ -3051,7 +3053,7 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 
 				// if flag is set, remap channel index values, we're fast forwarding a replay checkpoint
 				// and there should be no bunches for existing channels
-				if (IsInternalAck() && bAllowExistingChannelIndex && (Bunch.EngineNetVer() >= FEngineNetworkCustomVersion::ReplayDormancy))
+				if (IsInternalAck() && bAllowExistingChannelIndex && (PacketEngineNetVer >= FEngineNetworkCustomVersion::ReplayDormancy))
 				{
 					if (ChannelIndexMap.Contains(Bunch.ChIndex))
 					{
@@ -3130,7 +3132,7 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 				Bunch.bPartialInitial = Bunch.bPartial ? Reader.ReadBit() : 0;
 				Bunch.bPartialFinal = Bunch.bPartial ? Reader.ReadBit() : 0;
 
-				if (Bunch.EngineNetVer() < FEngineNetworkCustomVersion::ChannelNames)
+				if (PacketEngineNetVer < FEngineNetworkCustomVersion::ChannelNames)
 				{
 					uint32 ChType = (Bunch.bReliable || Bunch.bOpen) ? Reader.ReadInt(CHTYPE_MAX) : CHTYPE_None;
 					switch (ChType)
@@ -3308,7 +3310,7 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 				// In that case, we can generally ignore these bunches.
 				if (IsInternalAck() && bAllowExistingChannelIndex)
 				{
-					if (Bunch.EngineNetVer() < FEngineNetworkCustomVersion::ReplayDormancy)
+					if (PacketEngineNetVer < FEngineNetworkCustomVersion::ReplayDormancy)
 					{
 						if (Channel)
 						{
@@ -5457,6 +5459,7 @@ void UNetConnection::NotifyActorChannelCleanedUp(UActorChannel* Channel, EChanne
 
 void UNetConnection::SetNetVersionsOnArchive(FArchive& Ar) const
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_NetSetVersionsOnArchive);
 	Ar.SetEngineNetVer(GetNetworkCustomVersion(FEngineNetworkCustomVersion::Guid));
 	Ar.SetGameNetVer(GetNetworkCustomVersion(FGameNetworkCustomVersion::Guid));
 

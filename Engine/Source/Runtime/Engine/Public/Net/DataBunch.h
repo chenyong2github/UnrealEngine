@@ -182,6 +182,11 @@ public:
 	ENGINE_API PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	virtual void CountMemory(FArchive& Ar) const override;
+		
+	virtual uint32 EngineNetVer() const override;
+	virtual uint32 GameNetVer() const override;
+	virtual void SetEngineNetVer(const uint32 InEngineNetVer) override;
+	virtual void SetGameNetVer(const uint32 InGameNetVer) override;
 };
 
 /** out bunch for the control channel (special restrictions) */

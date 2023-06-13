@@ -1584,7 +1584,7 @@ private:
 	void WriteFinalPacketInfo(FBitWriter& Writer, double PacketSentTimeInS);
 	
 	/** Read extended packet header information (ServerFrameTime) */
-	bool ReadPacketInfo(FBitReader& Reader, bool bHasPacketInfoPayload);
+	bool ReadPacketInfo(FBitReader& Reader, bool bHasPacketInfoPayload, FEngineNetworkCustomVersion::Type EngineNetVer);
 
 	/** Packet was acknowledged as delivered */
 	void ReceivedAck(int32 AckPacketId, FChannelsToClose& OutChannelsToClose);
