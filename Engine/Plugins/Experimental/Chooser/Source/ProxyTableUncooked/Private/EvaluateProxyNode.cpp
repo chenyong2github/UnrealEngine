@@ -207,7 +207,7 @@ void UK2Node_EvaluateProxy::ExpandNode(class FKismetCompilerContext& CompilerCon
 
 		UEdGraphPin* OutputPin = CallFunction->GetReturnValuePin();
 
-		if (Proxy->Type)
+		if (Proxy && Proxy->Type)
 		{
 			UEdGraphPin* OutputClassPin = CallFunction->FindPin(TEXT("ObjectClass"));
 			CallFunction->GetSchema()->TrySetDefaultObject(*OutputClassPin, Proxy->Type);
