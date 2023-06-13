@@ -7,6 +7,11 @@
 
 namespace Chaos
 {
+namespace CVars
+{
+	extern bool bRemoveParticleFromMovingKinematicsOnDisable;
+}
+
 class IParticleUniqueIndices
 {
 public:
@@ -438,6 +443,10 @@ public:
 			// All active particles RIGID particles
 			{
 				RemoveFromActiveArray(PBDRigid, /*bStillDirty=*/false);
+				if (CVars::bRemoveParticleFromMovingKinematicsOnDisable)
+				{
+					MovingKinematicsMapArray.Remove(PBDRigid);
+				}
 			}
 		}
 		else if (Particle->CastToKinematicParticle())
@@ -534,7 +543,8 @@ public:
 		{
 			ActivateParticle(Particle, true);
 		}
-			UpdateViews();
+		
+		UpdateViews();
 	}
 
 	/**
@@ -602,6 +612,10 @@ public:
 		{
 			Particle->MoveToSOA(*DynamicDisabledParticles);
 			RemoveFromActiveArray(Particle->CastToRigidParticle(), /*bStillDirty=*/ false);
+			if (CVars::bRemoveParticleFromMovingKinematicsOnDisable)
+			{
+				MovingKinematicsMapArray.Remove(Particle);
+			}
 		}
 		else
 		{

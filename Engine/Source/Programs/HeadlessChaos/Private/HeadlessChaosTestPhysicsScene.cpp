@@ -1926,4 +1926,100 @@ namespace ChaosTest {
 
 		EXPECT_TRUE(HitBuffer.HasBlockingHit());
 	}
+
+	// Disable a moving kinematic particle and switch it to dynamic while disabled. Verify that when
+	// disabled it is not in any active lists, and that when re-enabled it is not duplicated
+	//
+	// There was a (benign) bug where particles were not removed from the MovingKinematics list until the
+	// next call to ApplyKinematicTargets, which means they can be included in collision detection.
+	//
+	GTEST_TEST(EvolutionTests, TestDisableKinematicEnableDynamic)
+	{
+		const FReal Dt = FReal(1.0 / 60.0);
+		FParticleUniqueIndicesMultithreaded UniqueIndices;
+		FPBDRigidsSOAs Particles(UniqueIndices);
+		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
+		FPBDRigidsEvolutionGBF Evolution(Particles, PhysicalMaterials);
+
+		Evolution.GetGravityForces().SetAcceleration(FVec3(0), 0);
+
+		// Create a moving kinematic particle
+		TArray<FPBDRigidParticleHandle*> ParticleHandles = Evolution.CreateDynamicParticles(1);
+		Evolution.EnableParticle(ParticleHandles[0]);
+		Evolution.SetParticleObjectState(ParticleHandles[0], EObjectStateType::Kinematic);
+		Evolution.SetParticleKinematicTarget(ParticleHandles[0], FKinematicTarget::MakePositionTarget(FVec3(10,0,0), FRotation3::FromIdentity()));
+
+		Evolution.AdvanceOneTimeStep(Dt);
+
+		EXPECT_FALSE(ParticleHandles[0]->IsDynamic());
+		EXPECT_TRUE(ParticleHandles[0]->IsKinematic());
+
+		// Check that it is in the moving kinematics list
+		{
+			const TParticleView<TPBDRigidParticles<FReal, 3>>& DynamicSleepingView = Particles.GetNonDisabledDynamicView();
+			const TParticleView<TPBDRigidParticles<FReal, 3>>& DynamicMovingKinematicView = Particles.GetActiveDynamicMovingKinematicParticlesView();
+			EXPECT_EQ(DynamicSleepingView.Num(), 0);
+			EXPECT_EQ(DynamicMovingKinematicView.Num(), 1);
+		}
+
+		// Disable the kinematic
+		Evolution.DisableParticle(ParticleHandles[0]);
+
+		// It should not be in any active views now
+		{
+			const TParticleView<TPBDRigidParticles<FReal, 3>>& DynamicSleepingView = Particles.GetNonDisabledDynamicView();
+			const TParticleView<TPBDRigidParticles<FReal, 3>>& DynamicMovingKinematicView = Particles.GetActiveDynamicMovingKinematicParticlesView();
+			EXPECT_EQ(DynamicSleepingView.Num(), 0);
+			EXPECT_EQ(DynamicMovingKinematicView.Num(), 0);
+		}
+
+		// Make the particle dynamic and enable it
+		Evolution.SetParticleObjectState(ParticleHandles[0], EObjectStateType::Dynamic);
+		Evolution.EnableParticle(ParticleHandles[0]);
+
+		// Check that it is in the active views, but not duplicated in either
+		{
+			const TParticleView<TPBDRigidParticles<FReal, 3>>& DynamicSleepingView = Particles.GetNonDisabledDynamicView();
+			const TParticleView<TPBDRigidParticles<FReal, 3>>& DynamicMovingKinematicView = Particles.GetActiveDynamicMovingKinematicParticlesView();
+			EXPECT_EQ(DynamicSleepingView.Num(), 1);
+			EXPECT_EQ(DynamicMovingKinematicView.Num(), 1);
+		}
+	}
+
+	// Check that we cannot set a kinematic target on a dynamic particle.
+	//
+	// This would cause the dynamic particle to be added to the MovingKinematics
+	// list which means it would appear twice in the GetActiveDynamicMovingKinematicParticlesView
+	// which can result in a race condition in collision detection as a particle pair will be
+	// considered twice and possibly on different threads.
+	GTEST_TEST(EvolutionTests, TestKinematicTargetOnDynamic)
+	{
+		const FReal Dt = FReal(1.0 / 60.0);
+		FParticleUniqueIndicesMultithreaded UniqueIndices;
+		FPBDRigidsSOAs Particles(UniqueIndices);
+		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
+		FPBDRigidsEvolutionGBF Evolution(Particles, PhysicalMaterials);
+
+		Evolution.GetGravityForces().SetAcceleration(FVec3(0), 0);
+
+		// Create a dynamic particle
+		TArray<FPBDRigidParticleHandle*> ParticleHandles = Evolution.CreateDynamicParticles(1);
+		Evolution.EnableParticle(ParticleHandles[0]);
+
+		// Set the kinematic target
+		Evolution.SetParticleKinematicTarget(ParticleHandles[0], FKinematicTarget::MakePositionTarget(FVec3(10, 0, 0), FRotation3::FromIdentity()));
+
+		// We should not have a kinematic target
+		EXPECT_FALSE(ParticleHandles[0]->KinematicTarget().IsSet());
+
+		Evolution.AdvanceOneTimeStep(Dt);
+
+		// Check that it is in the active views, but not duplicated in either
+		{
+			const TParticleView<TPBDRigidParticles<FReal, 3>>& DynamicSleepingView = Particles.GetNonDisabledDynamicView();
+			const TParticleView<TPBDRigidParticles<FReal, 3>>& DynamicMovingKinematicView = Particles.GetActiveDynamicMovingKinematicParticlesView();
+			EXPECT_EQ(DynamicSleepingView.Num(), 1);
+			EXPECT_EQ(DynamicMovingKinematicView.Num(), 1);
+		}
+	}
 }

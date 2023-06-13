@@ -66,6 +66,11 @@ struct FBroadPhaseConfig
 
 extern CHAOS_API FBroadPhaseConfig BroadPhaseConfig;
 
+namespace CVars
+{
+	extern bool bDisallowSetKinematicTargetOnDynamics;
+}
+
 namespace Collisions
 {
 	void CHAOS_API ResetChaosCollisionCounters();
@@ -412,7 +417,16 @@ public:
 	*/
 	void SetParticleKinematicTarget(FKinematicGeometryParticleHandle* KinematicHandle, const FKinematicTarget& NewKinematicTarget)
 	{
-		if (KinematicHandle)
+		if (KinematicHandle == nullptr)
+		{
+			return;
+		}
+
+		// NOTE: We ignore SetKinematicTarget if called on a dynamic body since this is not supported
+		// and if we callMarkMovingKinematic(KinematicHandle) on a dynamic the particle will end up
+		// in two mutally exlcusivbe particle lists, leading to a collision detection race condition.
+		// @todo(chaos): maybe we should ensure that this is not called for dynamics
+		if ((KinematicHandle->ObjectState() == EObjectStateType::Kinematic) || !CVars::bDisallowSetKinematicTargetOnDynamics)
 		{
 			// optimization : we keep track of moving kinematic targets ( list gets clear every frame )
 			if (NewKinematicTarget.GetMode() != EKinematicTargetMode::None)
