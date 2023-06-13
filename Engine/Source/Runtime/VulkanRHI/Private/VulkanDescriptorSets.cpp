@@ -241,20 +241,6 @@ bool FVulkanBindlessDescriptorManager::VerifySupport(FVulkanDevice* Device)
 		return false;
 	}
 
-	extern TAutoConsoleVariable<int32> GDynamicGlobalUBs;
-	if (GDynamicGlobalUBs->GetInt() != 0)  // :todo-jn:
-	{
-		UE_LOG(LogRHI, Warning, TEXT("Please disable Dynamic Uniform Buffers (r.Vulkan.DynamicGlobalUBs=0) if you want to use Bindless in Vulkan."));
-		return false;
-	}
-
-	extern int32 GVulkanEnableDefrag;
-	if (GVulkanEnableDefrag != 0)  // :todo-jn:
-	{
-		UE_LOG(LogRHI, Warning, TEXT("Please disable memory defrag (r.Vulkan.EnableDefrag=0) if you want to use Bindless in Vulkan."));
-		return false;
-	}
-
 	const bool bFullyEnabled =
 		(RHIGetRuntimeBindlessResourcesConfiguration(GMaxRHIShaderPlatform) == ERHIBindlessConfiguration::AllShaders) &&
 		(RHIGetRuntimeBindlessSamplersConfiguration(GMaxRHIShaderPlatform) == ERHIBindlessConfiguration::AllShaders);
@@ -281,6 +267,19 @@ bool FVulkanBindlessDescriptorManager::VerifySupport(FVulkanDevice* Device)
 
 			if (bMeetsPropertiesRequirements)
 			{
+				extern TAutoConsoleVariable<int32> GDynamicGlobalUBs;
+				if (GDynamicGlobalUBs->GetInt() != 0)
+				{
+					UE_LOG(LogRHI, Warning, TEXT("Dynamic Uniform Buffers are enabled, but they will not be used with Vulkan bindless."));
+				}
+
+				extern int32 GVulkanEnableDefrag;
+				if (GVulkanEnableDefrag != 0)  // :todo-jn: to be turned back on with new defragger
+				{
+					UE_LOG(LogRHI, Warning, TEXT("Memory defrag is enabled, but it will not be used with Vulkan bindless."));
+					GVulkanEnableDefrag = 0;
+				}
+
 				return true;
 			}
 			else
