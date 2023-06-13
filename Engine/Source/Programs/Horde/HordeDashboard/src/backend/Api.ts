@@ -3143,6 +3143,26 @@ export type GetDashboardFeaturesResponse = {
 	showTests?: boolean;
 }
 
+/// Job template settings for the current user
+export type GetJobTemplateSettingsResponse = {
+
+	/// The stream the job was run in	
+	streamId: string;
+
+	/// The template id of the job	
+	templateId: string;
+
+	/// The hash of the template definition	
+	templateHash: string;
+
+	/// The arguments defined when creating the job	
+	arguments: string[];
+
+	/// The last update time of the job template	
+	updateTimeUtc: Date | string;
+
+}
+
 /**  Response describing the current user */
 export type GetUserResponse = {
 
@@ -3180,6 +3200,9 @@ export type GetUserResponse = {
 	/// Settings for whether various dashboard features should be shown for the current user
 	/// </summary>
 	dashboardFeatures?: GetDashboardFeaturesResponse;
+
+	// array of user job templates settings
+	jobTemplateSettings?: GetJobTemplateSettingsResponse[];
 
 	/** List of pinned job ids */
 	pinnedJobIds?: string[];

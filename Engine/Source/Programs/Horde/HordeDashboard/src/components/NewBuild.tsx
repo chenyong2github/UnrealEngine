@@ -12,6 +12,7 @@ import { ErrorHandler } from "../components/ErrorHandler";
 import { hordeClasses, modeColors } from '../styles/Styles';
 import { useQuery } from './JobDetailCommon';
 import { JobDetailsV2 } from './jobDetailsV2/JobDetailsViewCommon';
+import dashboard from '../backend/Dashboard';
 
 let toolTipId = 0;
 
@@ -788,6 +789,13 @@ export const NewBuild: React.FC<{ streamId: string; show: boolean; onClose: (new
          }
       }
 
+      if (!t) {
+         const pref = dashboard.lastJobTemplateSettings;
+         if (pref) {
+            t = templates.find(t => stream.id === pref.streamId && t.id === pref.templateId)
+         }
+      }      
+
       // default to sane template when all are shown
       if (!t && (showAllTemplates) && stream.tabs.length > 0) {
          const stab = stream.tabs[0] as JobsTabData;
@@ -1390,6 +1398,11 @@ export const NewBuild: React.FC<{ streamId: string; show: boolean; onClose: (new
                console.log("Updating notifications")
                try {
                   await backend.updateNotification({ slack: true }, "job", data.id);
+                  const user = await backend.getCurrentUser();
+                  if (user.jobTemplateSettings) {
+                     dashboard.jobTemplateSettings = user.jobTemplateSettings;
+                  }
+                  
                } catch (reason) {
                   console.log(`Error on updating notifications: ${reason}`);
                }

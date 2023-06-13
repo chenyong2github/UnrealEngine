@@ -222,10 +222,12 @@ export const ErrorDialog: React.FC = observer(() => {
 
    let fontSize = 13;
 
+   let width = 800;
    if (message?.length) {
       try {
          const exception = JSON.parse(message);
          if (exception?.exception?.message && exception?.exception?.trace) {
+            width = 1380;
             fontSize = 11
             message = `${exception?.exception?.message}\n${exception?.exception?.trace}`
          }
@@ -236,7 +238,7 @@ export const ErrorDialog: React.FC = observer(() => {
 
    return (
       <Dialog
-         minWidth={1380}
+         minWidth={width}
          hidden={!error}
          onDismiss={() => ErrorHandler.clear()}
          modalProps={{

@@ -3,7 +3,7 @@
 import { getTheme } from "@fluentui/react";
 import { action, makeObservable, observable } from 'mobx';
 import backend from '.';
-import { DashboardPreference, GetDashboardConfigResponse, GetUserResponse, UserClaim } from './Api';
+import { DashboardPreference, GetDashboardConfigResponse, GetJobTemplateSettingsResponse, GetUserResponse, UserClaim } from './Api';
 
 const theme = getTheme();
 
@@ -114,23 +114,23 @@ export class Dashboard {
     }
 
     get preview(): boolean {
-        
-        try {            
+
+        try {
             return !!(process.env.REACT_APP_HORDE_DEBUG_PREVIEW) || window?.location?.hostname?.indexOf("preview") !== -1;
         } catch (reason) {
             console.error(reason);
         }
-        return false;        
+        return false;
     }
 
     get development(): boolean {
 
-        try {            
+        try {
             return window?.location?.hostname?.indexOf("devtools-dev") !== -1;
         } catch (reason) {
             console.error(reason);
         }
-        return false;        
+        return false;
     }
 
     get browser(): WebBrowser {
@@ -176,6 +176,31 @@ export class Dashboard {
     get pinnedJobsIds(): string[] {
 
         return this.data.pinnedJobIds ?? [];
+    }
+
+    get lastJobTemplateSettings(): GetJobTemplateSettingsResponse | undefined {
+
+        try {            
+            if (!this.data.jobTemplateSettings?.length) {
+                return undefined;
+            }
+
+            const sorted = this.data.jobTemplateSettings.sort((a, b) => {
+                return new Date(b.updateTimeUtc).getTime() - new Date(a.updateTimeUtc).getTime();
+            });
+
+            return sorted[0];
+        } catch (error) {
+            console.error(error);
+        }
+
+        return undefined;
+    }
+
+    set jobTemplateSettings(settings: GetJobTemplateSettingsResponse[]) {
+        if (this.data) {
+            this.data.jobTemplateSettings = settings;
+        }
     }
 
     get experimentalFeatures(): boolean {
@@ -281,9 +306,9 @@ export class Dashboard {
             return true;
         }
         */
-        
+
         const value = this.preferences.get(DashboardPreference.LocalCache) !== 'false';
-        
+
         if (value && !this.hasLoggedLocalCache) {
             this.hasLoggedLocalCache = true;
             console.log("Local graph and template caching is enabled")
