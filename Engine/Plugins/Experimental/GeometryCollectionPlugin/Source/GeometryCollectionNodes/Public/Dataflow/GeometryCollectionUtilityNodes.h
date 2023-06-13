@@ -365,6 +365,65 @@ public:
 
 };
 
+
+/** Merge convex hulls on transforms with multiple hulls */
+USTRUCT(meta = (DataflowGeometryCollection))
+struct FMergeConvexHullsDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FMergeConvexHullsDataflowNode, "MergeConvexHulls", "GeometryCollection|Utilities", "")
+
+public:
+	UPROPERTY(meta = (DataflowInput, DataflowOutput))
+	FManagedArrayCollection Collection;
+
+	// A representation of the negative space protected by the 'protect negative space' option. If negative space is not protected, this will contain zero spheres.
+	UPROPERTY(meta = (DataflowOutput))
+	FDataflowSphereCovering SphereCovering;
+
+	/** Maximum number of convex to generate per transform. Ignored if < 0. */
+	UPROPERTY(EditAnywhere, Category = "Convex", meta = (DataflowInput))
+	int32 MaxConvexCount = -1;
+
+	/**
+	* Error tolerance to use to decide to merge leaf convex together.
+	* This is in centimeters and represents the side of a cube, the volume of which will be used as threshold
+	* to know if the volume of the generated convex is too large compared to the sum of the volume of the leaf convex
+	*/
+	UPROPERTY(EditAnywhere, Category = "Convex", meta = (DataflowInput, ClampMin = "0", UIMax = "100.", Units = cm))
+	double ErrorTolerance = 0.0;
+
+	/** Optional transform selection to compute cluster hulls on -- if not provided, all cluster hulls will be computed. */
+	UPROPERTY(meta = (DataflowInput, DataflowIntrinsic))
+	FDataflowTransformSelection OptionalSelectionFilter;
+
+	/** Whether to use a sphere cover to define negative space that should not be covered by convex hulls */
+	UPROPERTY(EditAnywhere, Category = NegativeSpace, meta = (DataflowInput))
+	bool bProtectNegativeSpace = false;
+
+	/** Approximate number of spheres to consider when covering negative space */
+	UPROPERTY(EditAnywhere, Category = NegativeSpace, meta = (DataflowInput, ClampMin = 1, EditCondition = "bProtectNegativeSpace", EditConditionHides))
+	int32 TargetNumSamples = 50;
+
+	/** Minimum desired spacing between spheres; if > 0, will attempt not to place sphere centers closer than this */
+	UPROPERTY(EditAnywhere, Category = NegativeSpace, meta = (DataflowInput, ClampMin = 0, Units = cm, EditCondition = "bProtectNegativeSpace", EditConditionHides))
+	double MinSampleSpacing = 1.0;
+
+	/** Amount of space to leave between convex hulls and protected negative space */
+	UPROPERTY(EditAnywhere, Category = NegativeSpace, meta = (DataflowInput, ClampMin = .01, UIMin = .1, Units = cm, EditCondition = "bProtectNegativeSpace", EditConditionHides))
+	double NegativeSpaceTolerance = 2.0;
+
+	/** Spheres smaller than this are not included in the negative space */
+	UPROPERTY(EditAnywhere, Category = NegativeSpace, meta = (DataflowInput, ClampMin = 0, Units = cm, EditCondition = "bProtectNegativeSpace", EditConditionHides))
+	double MinRadius = 10.0;
+
+	FMergeConvexHullsDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid());
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+};
+
+
 /**
  *
  * Update the Volume and Size attributes on the target Collection (and add them if they were not present)
