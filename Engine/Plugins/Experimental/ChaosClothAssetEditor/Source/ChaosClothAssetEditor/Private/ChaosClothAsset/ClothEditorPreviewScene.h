@@ -83,9 +83,12 @@ public:
 
 private:
 
-	// (Re)attach the cloth component to the skeletal mesh component, if it exists. 
-	// Create the PreviewAnimationInstance if the AnimationAsset and SkeletalMesh both exist.
-	void ReattachSkeletalMeshAndAnimation();
+	// Create the PreviewAnimationInstance if the AnimationAsset and SkeletalMesh both exist, and set the animation to run on the SkeletalMeshComponent
+	void UpdateSkeletalMeshAnimation();
+
+	// Attach the cloth component to the skeletal mesh component, if it exists
+	void UpdateClothComponentAttachment();
+
 
 	void SkeletalMeshTransformChanged(USceneComponent* UpdatedComponent, EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport);
 

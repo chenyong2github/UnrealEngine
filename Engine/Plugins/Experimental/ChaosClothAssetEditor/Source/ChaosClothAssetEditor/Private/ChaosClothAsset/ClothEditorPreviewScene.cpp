@@ -8,6 +8,8 @@
 #include "Elements/Framework/EngineElementsLibrary.h"
 #include "Animation/AnimSingleNodeInstance.h"
 #include "ComponentReregisterContext.h"
+#include "ChaosClothAsset/ClothAsset.h"
+#include "SkinnedAssetCompiler.h"
 
 #define LOCTEXT_NAMESPACE "UChaosClothEditorPreviewScene"
 
@@ -38,7 +40,7 @@ FChaosClothPreviewScene::FChaosClothPreviewScene(FPreviewScene::ConstructionValu
 	if (PreviewSceneDescription->SkeletalMeshAsset)
 	{
 		CreateSkeletalMeshComponent();
-		ReattachSkeletalMeshAndAnimation();
+		UpdateSkeletalMeshAnimation();
 	}
 }
 
@@ -70,7 +72,7 @@ void FChaosClothPreviewScene::AddReferencedObjects(FReferenceCollector& Collecto
 }
 
 
-void FChaosClothPreviewScene::ReattachSkeletalMeshAndAnimation()
+void FChaosClothPreviewScene::UpdateSkeletalMeshAnimation()
 {
 	if (SkeletalMeshComponent)
 	{
@@ -94,24 +96,14 @@ void FChaosClothPreviewScene::ReattachSkeletalMeshAndAnimation()
 			SkeletalMeshComponent->AnimScriptInstance = nullptr;
 		}
 	}
+}
 
-	if (ClothComponent && SkeletalMeshComponent)
+void FChaosClothPreviewScene::UpdateClothComponentAttachment()
+{
+	if (ClothComponent && SkeletalMeshComponent && !ClothComponent->IsAttachedTo(SkeletalMeshComponent))
 	{
-		const bool bWasSimming = !ClothComponent->IsSimulationSuspended();
-		ClothComponent->SuspendSimulation();
-
 		ClothComponent->AttachToComponent(SkeletalMeshComponent, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
-
-		// hard reset and resume simulation if it was running prior
-		{
-			const FComponentReregisterContext Context(ClothComponent);
-		}
-		if (bWasSimming)
-		{
-			ClothComponent->ResumeSimulation();
-		}
 	}
-
 }
 
 void FChaosClothPreviewScene::SceneDescriptionPropertyChanged(struct FPropertyChangedEvent& PropertyChangedEvent)
@@ -126,6 +118,8 @@ void FChaosClothPreviewScene::SceneDescriptionPropertyChanged(struct FPropertyCh
 		{
 			DeleteSkeletalMeshComponent();
 		}
+		UpdateSkeletalMeshAnimation();
+		UpdateClothComponentAttachment();
 	}
 
 	if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UChaosClothPreviewSceneDescription, SkeletalMeshTransform))
@@ -142,9 +136,9 @@ void FChaosClothPreviewScene::SceneDescriptionPropertyChanged(struct FPropertyCh
 		{
 			PreviewAnimInstance = nullptr;
 		}
+		UpdateSkeletalMeshAnimation();
 	}
-
-	ReattachSkeletalMeshAndAnimation();
+	
 }
 
 UChaosClothComponent* FChaosClothPreviewScene::GetClothComponent()
@@ -253,37 +247,32 @@ void FChaosClothPreviewScene::SetClothAsset(UChaosClothAsset* Asset)
 	check(Asset);
 	check(SceneActor);
 
-	bool bShouldClothBeRootComponent = true;
 	if (ClothComponent)
 	{
-		if (SceneActor->GetRootComponent() == ClothComponent)
+		ClothComponent->SetClothAsset(Asset);
+	}
+	else
+	{
+		ClothComponent = NewObject<UChaosClothComponent>(SceneActor);
+		ClothComponent->SetClothAsset(Asset);
+		ClothComponent->SelectionOverrideDelegate = UPrimitiveComponent::FSelectionOverride::CreateRaw(this, &FChaosClothPreviewScene::IsComponentSelected);
+
+		if (SkeletalMeshComponent)
 		{
-			SceneActor->SetRootComponent(nullptr);
+			check(SceneActor->GetRootComponent() == SkeletalMeshComponent);
 		}
 		else
 		{
-			// SkeletalMesh is the RootComponent, so don't change it
-			bShouldClothBeRootComponent = false;
+			SceneActor->SetRootComponent(ClothComponent);
 		}
 
-		ClothComponent->SelectionOverrideDelegate.Unbind();
-		SceneActor->RemoveOwnedComponent(ClothComponent);
-		ClothComponent->DestroyComponent();
+		SceneActor->RegisterAllComponents();
 	}
 
-	ClothComponent = NewObject<UChaosClothComponent>(SceneActor);
-	ClothComponent->SetClothAsset(Asset);
+	UpdateClothComponentAttachment();
 
-	ClothComponent->SelectionOverrideDelegate = UPrimitiveComponent::FSelectionOverride::CreateRaw(this, &FChaosClothPreviewScene::IsComponentSelected);
-
-	if (bShouldClothBeRootComponent)
-	{
-		SceneActor->SetRootComponent(ClothComponent);
-	}
-
-	SceneActor->RegisterAllComponents();
-
-	ReattachSkeletalMeshAndAnimation();
+	FSkinnedAssetCompilingManager::Get().FinishCompilation(TArrayView<USkinnedAsset* const>{Asset});
+	ClothComponent->UpdateBounds();
 }
 
 UAnimSingleNodeInstance* FChaosClothPreviewScene::GetPreviewAnimInstance()

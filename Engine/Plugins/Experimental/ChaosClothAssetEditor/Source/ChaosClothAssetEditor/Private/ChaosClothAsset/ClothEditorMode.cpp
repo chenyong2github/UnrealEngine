@@ -61,6 +61,7 @@
 #include "Materials/Material.h"
 #include "MaterialDomain.h"
 #include "Dataflow/DataflowSNode.h"
+#include "Components/SkeletalMeshComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ClothEditorMode)
 
@@ -618,17 +619,6 @@ void UChaosClothAssetEditorMode::InitializeTargets(const TArray<TObjectPtr<UObje
 
 	UBaseCharacterFXEditorMode::InitializeTargets(AssetsIn);
 
-	for (TObjectPtr<UObject> Asset : AssetsIn)
-	{
-		if (UChaosClothAsset* ChaosClothAsset = Cast<UChaosClothAsset>(Asset))
-		{
-			PreviewScene->SetClothAsset(ChaosClothAsset);
-			break;
-		}
-	}
-
-	ReinitializeDynamicMeshComponents();
-
 	DataflowComponent = NewObject<UDataflowComponent>();
 	DataflowComponent->RegisterComponentWithWorld(PreviewScene->GetWorld());
 }
@@ -803,13 +793,19 @@ FBox UChaosClothAssetEditorMode::SelectionBoundingBox() const
 
 FBox UChaosClothAssetEditorMode::PreviewBoundingBox() const
 {
-	if (PreviewScene->GetClothComponent())
+	FBox Bounds(ForceInit);
+
+	if (const UChaosClothComponent* const Cloth = PreviewScene->GetClothComponent())
 	{
-		FBoxSphereBounds Bounds = PreviewScene->GetClothComponent()->Bounds;
-		return Bounds.GetBox();
+		Bounds += Cloth->Bounds.GetBox();
 	}
 
-	return FBox(ForceInitToZero);
+	if (const USkeletalMeshComponent* const SkeletalMesh = PreviewScene->GetSkeletalMeshComponent())
+	{
+		Bounds += SkeletalMesh->Bounds.GetBox();
+	}
+
+	return Bounds;
 }
 
 void UChaosClothAssetEditorMode::SetConstructionViewMode(UE::Chaos::ClothAsset::EClothPatternVertexType InMode)
