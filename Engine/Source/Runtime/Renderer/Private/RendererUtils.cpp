@@ -256,3 +256,16 @@ void FStructuredBufferScatterUploader::UploadTo(FRDGBuilder& GraphBuilder, FRDGB
 	FScatterCopyParams ScatterCopyParams { NumScatters, NumBytesPerElement, NumValuesPerScatter };
 	ScatterCopyResource(GraphBuilder, DestBuffer, GraphBuilder.CreateSRV(ScatterOffsets), GraphBuilder.CreateSRV(Values), ScatterCopyParams);
 }
+
+TGlobalResource<FTileTexCoordVertexBuffer> GOneTileQuadVertexBuffer(1);
+TGlobalResource<FTileIndexBuffer> GOneTileQuadIndexBuffer(1);
+
+RENDERER_API FBufferRHIRef& GetOneTileQuadVertexBuffer()
+{
+	return GOneTileQuadVertexBuffer.VertexBufferRHI;
+}
+
+RENDERER_API FBufferRHIRef& GetOneTileQuadIndexBuffer()
+{
+	return GOneTileQuadIndexBuffer.IndexBufferRHI;
+}

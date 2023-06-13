@@ -112,13 +112,6 @@ FAutoConsoleVariableRef CVarCapsuleMinSkyAngle(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
-// Nvidia has lower vertex throughput when only processing a few verts per instance
-// Disabled as it hasn't been tested
-static const int32 NumTileQuadsInBuffer = 1;
-
-TGlobalResource<FTileTexCoordVertexBuffer> GTileTexCoordVertexBuffer(NumTileQuadsInBuffer);
-TGlobalResource<FTileIndexBuffer> GTileIndexBuffer(NumTileQuadsInBuffer);
-
 const int32 GComputeLightDirectionFromVolumetricLightmapGroupSize = 64;
 
 class FComputeLightDirectionFromVolumetricLightmapCS : public FGlobalShader
@@ -319,7 +312,7 @@ class FCapsuleShadowingUpsampleVS : public FGlobalShader
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		OutEnvironment.SetDefine(TEXT("TILES_PER_INSTANCE"), NumTileQuadsInBuffer);
+		OutEnvironment.SetDefine(TEXT("TILES_PER_INSTANCE"), 1);
 	}
 };
 
@@ -669,14 +662,14 @@ bool FDeferredShadingSceneRenderer::RenderCapsuleDirectShadows(
 					SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), PassParameters->VS);
 					SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters->PS);
 
-					RHICmdList.SetStreamSource(0, GTileTexCoordVertexBuffer.VertexBufferRHI, 0);
-					RHICmdList.DrawIndexedPrimitive(GTileIndexBuffer.IndexBufferRHI, 
+					RHICmdList.SetStreamSource(0, GetOneTileQuadVertexBuffer(), 0);
+					RHICmdList.DrawIndexedPrimitive(GetOneTileQuadIndexBuffer(),
 						0, 
 						0, 
 						4,
 						0,
-						2 * NumTileQuadsInBuffer,
-						FMath::DivideAndRoundUp(GroupSize.X * GroupSize.Y, NumTileQuadsInBuffer));
+						2,
+						FMath::DivideAndRoundUp(GroupSize.X * GroupSize.Y, 1));
 				});
 			}
 		}
@@ -1166,14 +1159,14 @@ void FDeferredShadingSceneRenderer::RenderIndirectCapsuleShadows(FRDGBuilder& Gr
 					SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), PassParameters->VS);
 					SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters->PS);
 
-					RHICmdList.SetStreamSource(0, GTileTexCoordVertexBuffer.VertexBufferRHI, 0);
-					RHICmdList.DrawIndexedPrimitive(GTileIndexBuffer.IndexBufferRHI,
+					RHICmdList.SetStreamSource(0, GetOneTileQuadVertexBuffer(), 0);
+					RHICmdList.DrawIndexedPrimitive(GetOneTileQuadIndexBuffer(),
 						0,
 						0,
 						4,
 						0,
-						2 * NumTileQuadsInBuffer,
-						FMath::DivideAndRoundUp(GroupSize.X * GroupSize.Y, NumTileQuadsInBuffer));
+						2,
+						FMath::DivideAndRoundUp(GroupSize.X * GroupSize.Y, 1));
 				});
 			}
 		}

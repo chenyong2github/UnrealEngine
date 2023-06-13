@@ -586,8 +586,8 @@ RENDERCORE_API bool IsMobileMovableSpotlightShadowsEnabled(const FStaticShaderPl
 
 RENDERCORE_API bool MobileForwardEnableLocalLights(const FStaticShaderPlatform Platform)
 {
-	static FShaderPlatformCachedIniValue<bool> MobileForwardEnableLocalLightsIniValue(TEXT("r.Mobile.Forward.EnableLocalLights"));
-	return MobileForwardEnableLocalLightsIniValue.Get(Platform);
+	static FShaderPlatformCachedIniValue<int32> MobileForwardEnableLocalLightsIniValue(TEXT("r.Mobile.Forward.EnableLocalLights"));
+	return MobileForwardEnableLocalLightsIniValue.Get(Platform) > 0;
 }
 
 RENDERCORE_API bool MobileForwardEnableClusteredReflections(const FStaticShaderPlatform Platform)

@@ -7,6 +7,72 @@
 #include "LightGridCommon.ush"
 #include "DeferredLightingCommon.ush"
 
+uint2 GroupSize;
+
+RWBuffer<int> RWTileInfo;
+[numthreads(THREADGROUP_SIZEX, 1, 1)]
+void MainCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	if(DispatchThreadId.x > (GroupSize.x * GroupSize.y))
+	{
+		return;
+	}
+
+	const uint GridX = DispatchThreadId.x % GroupSize.x;
+	const uint GridY = DispatchThreadId.x / GroupSize.x;
+	const uint EyeIndex = 0;
+	const FLightGridData GridData = GetLightGridData(EyeIndex);
+	uint LocalNumLights = 0;
+	LOOP
+	for (int SliceIt = 0; SliceIt < GridData.CulledGridSize.z; SliceIt++)
+	{
+		const uint GridIndex = ComputeLightGridCellIndex(uint3(GridX, GridY, SliceIt), EyeIndex);
+		const FCulledLightsGridData CulledLightsGrid = GetCulledLightsGrid(GridIndex, EyeIndex);
+		
+		LocalNumLights = CulledLightsGrid.NumLocalLights;
+
+		if(LocalNumLights > 0)
+		{
+			break;
+		}
+	}
+
+	if(LocalNumLights > 0)
+	{
+		RWTileInfo[2 * DispatchThreadId.x] = GridX;
+		RWTileInfo[2 * DispatchThreadId.x + 1] = GridY;
+	}
+	else
+	{
+		RWTileInfo[2 * DispatchThreadId.x] = -1;
+		RWTileInfo[2 * DispatchThreadId.x + 1] = -1;
+	}
+}
+
+int LightGridPixelSize;
+Buffer<int> TileInfo;
+void MainVS(
+	float2 TexCoord : ATTRIBUTE0,
+	uint VertexId : SV_VertexID,
+	uint InstanceId : SV_InstanceID,
+	out float4 OutPosition : SV_POSITION)
+{
+	float YPos = TileInfo[2 * InstanceId + 1] + TexCoord.y;
+	float XPos = TileInfo[2 * InstanceId] + TexCoord.x;
+
+	float2 ScreenUV = float2(XPos, YPos) * LightGridPixelSize * View.BufferSizeAndInvSize.zw;
+	float2 ScreenPosition = (ScreenUV.xy - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+	OutPosition = float4(ScreenPosition, 0, 1);
+
+	if(TileInfo[2 * InstanceId] < 0)
+	{
+		OutPosition.xy = 0;
+	}
+}
+
 void Main(float4 SvPosition : SV_POSITION, out float3 OutColorA : SV_Target0, out float4 OutColorB : SV_Target1)
 {
 	const uint2 PixelPos = SvPosition.xy;

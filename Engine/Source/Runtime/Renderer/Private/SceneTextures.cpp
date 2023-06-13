@@ -615,14 +615,14 @@ void FSceneTextures::InitializeViewFamily(FRDGBuilder& GraphBuilder, FViewFamily
 	}
 #endif
 
+	extern bool MobileForwardEnablePrepassLocalLights(const FStaticShaderPlatform Platform);
+	if(MobileForwardEnablePrepassLocalLights(Config.ShaderPlatform))
 	{
-		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(Config.Extent, PF_FloatR11G11B10, FClearValueBinding::Transparent, TexCreate_RenderTargetable | TexCreate_ShaderResource);
-		SceneTextures.MobileLocalLightTextureA = GraphBuilder.CreateTexture(Desc, TEXT("MobileLocalLightTextureA"));
-	}
+		FRDGTextureDesc MobileLocalLightTextureADesc = FRDGTextureDesc::Create2D(Config.Extent, PF_FloatR11G11B10, FClearValueBinding::Transparent, TexCreate_RenderTargetable | TexCreate_ShaderResource);
+		SceneTextures.MobileLocalLightTextureA = GraphBuilder.CreateTexture(MobileLocalLightTextureADesc, TEXT("MobileLocalLightTextureA"));
 
-	{
-		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(Config.Extent, PF_A2B10G10R10, FClearValueBinding::Transparent, TexCreate_RenderTargetable | TexCreate_ShaderResource);
-		SceneTextures.MobileLocalLightTextureB = GraphBuilder.CreateTexture(Desc, TEXT("MobileLocalLightTextureB"));
+		FRDGTextureDesc MobileLocalLightTextureBDesc = FRDGTextureDesc::Create2D(Config.Extent, PF_A2B10G10R10, FClearValueBinding::Transparent, TexCreate_RenderTargetable | TexCreate_ShaderResource);
+		SceneTextures.MobileLocalLightTextureB = GraphBuilder.CreateTexture(MobileLocalLightTextureBDesc, TEXT("MobileLocalLightTextureB"));
 	}
 
 #if WITH_DEBUG_VIEW_MODES

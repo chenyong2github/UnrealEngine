@@ -65,6 +65,11 @@ public:
 	const uint32 NumTileQuadsInBuffer;
 };
 
+/** One Tile Quad Vertex Buffer*/
+RENDERER_API FBufferRHIRef& GetOneTileQuadVertexBuffer();
+/** One Tile Quad Index Buffer*/
+RENDERER_API FBufferRHIRef& GetOneTileQuadIndexBuffer();
+
 template <typename ReadbackProcessingLambdaType>
 void AddBufferLockReadbackPass(FRDGBuilder& GraphBuilder, TRefCountPtr<FRDGPooledBuffer> SourceBuffer, uint32 NumBytes, ReadbackProcessingLambdaType &&ReadbackProcessingLambda)
 {
