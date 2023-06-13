@@ -10,10 +10,11 @@
 #include "DisplayClusterConfigurationTypes.h"
 #include "DisplayClusterLightCardActor.h"
 #include "DisplayClusterRootActor.h"
+
 #if WITH_EDITOR
 #include "Filters/CustomClassFilterData.h"
-#endif
 #include "LevelEditor.h"
+#endif
 
 #include "Misc/DisplayClusterGlobals.h"
 #include "Misc/DisplayClusterLog.h"

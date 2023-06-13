@@ -4,11 +4,13 @@
 
 #include "ColorCorrectRegion.h"
 #include "ColorCorrectWindow.h"
+
 #if WITH_EDITOR
 #include "Filters/CustomClassFilterData.h"
-#endif
-#include "Interfaces/IPluginManager.h"
 #include "LevelEditor.h"
+#endif
+
+#include "Interfaces/IPluginManager.h"
 #include "Misc/Paths.h"
 #include "ShaderCore.h"
 
