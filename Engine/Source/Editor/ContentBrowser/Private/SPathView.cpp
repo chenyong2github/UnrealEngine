@@ -2377,6 +2377,7 @@ void SFavoritePathView::SaveSettings(const FString& IniFilename, const FString& 
 	}
 
 	GConfig->SetString(*IniSection, TEXT("FavoritePaths"), *FavoritePathsString, IniFilename);
+	GConfig->Flush(false, IniFilename);
 }
 
 void SFavoritePathView::LoadSettings(const FString& IniFilename, const FString& IniSection, const FString& SettingsString)
