@@ -1575,7 +1575,7 @@ void UControlRigBlueprint::HandleReportFromCompiler(EMessageSeverity::Type InSev
 		}
 	}
 
-	ICompilerResultsLog* Log = CurrentMessageLog ? CurrentMessageLog : &CompileLog;
+	FCompilerResultsLog* Log = CurrentMessageLog ? CurrentMessageLog : &CompileLog;
 	if (InSeverity == EMessageSeverity::Error)
 	{
 		Status = BS_Error;
