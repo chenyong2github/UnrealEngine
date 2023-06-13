@@ -137,7 +137,10 @@ namespace AutomationTool
 					ChoicesStr += ". Choices=[";
 					foreach (var Value in ValidChoices)
 					{
-						ChoicesStr += Value.ToString() + (MultiSelectSeparator != null ? MultiSelectSeparator : "|");
+						if (Value != null)
+						{
+							ChoicesStr += Value.ToString() + (MultiSelectSeparator != null ? MultiSelectSeparator : "|");
+						}
 					}
 					ChoicesStr = ChoicesStr.Remove(ChoicesStr.Length - 1);
 					ChoicesStr += "]";
