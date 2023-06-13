@@ -173,12 +173,6 @@ void USkeletonEditingTool::Setup()
 		AddInputBehavior(ClickDragBehavior);
 	}
 
-	if (EditorContext.IsValid())
-	{
-		EditorContext->HideSkeleton();
-		EditorContext->BindTo(this);
-	}
-	
 	// setup gizmo
 	if (GizmoContext.IsValid())
 	{
@@ -242,7 +236,12 @@ void USkeletonEditingTool::Setup()
 		UpdateGizmo();
 	},
 	ToolsContextQueries->GetCurrentCoordinateSystem());
-	
+
+	if (EditorContext.IsValid())
+	{
+		EditorContext->HideSkeleton();
+		EditorContext->BindTo(this);
+	}
 }
 
 void USkeletonEditingTool::UpdateGizmo() const
