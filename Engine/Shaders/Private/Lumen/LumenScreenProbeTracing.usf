@@ -118,6 +118,13 @@ void ScreenProbeTraceScreenTexturesCS(
 			}
 
 			float3 TranslatedRayOrigin = TranslatedWorldPosition + NormalBias * ScreenProbeNormal;
+			float4 RayStartClip = mul(float4(TranslatedRayOrigin, 1.0f), View.TranslatedWorldToClip);
+
+			// Skip screen traces if the normal bias pushed our starting point off-screen, as TraceScreen() doesn't handle this
+			if (any(RayStartClip.xy < -RayStartClip.w) || any(RayStartClip.xy > RayStartClip.w))
+			{
+				return;
+			}
 
 			//@todo - this should be applied with the hit UV, not the origin, but still works for self-shadowing
 			float DepthThresholdScale = GetScreenTraceDepthThresholdScale(ScreenUV);

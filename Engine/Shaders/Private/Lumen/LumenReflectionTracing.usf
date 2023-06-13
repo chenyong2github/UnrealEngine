@@ -81,6 +81,14 @@ void ReflectionTraceScreenTexturesCS(
 				// Project texel corner onto normal
 				float NormalBias = abs(dot(CornerTranslatedWorldPosition - TranslatedWorldPosition, WorldNormal)) * 2;
 				TranslatedRayOrigin += NormalBias * WorldNormal;
+
+				float4 RayStartClip = mul(float4(TranslatedRayOrigin, 1.0f), View.TranslatedWorldToClip);
+
+				// Skip screen traces if the normal bias pushed our starting point off-screen, as TraceScreen() doesn't handle this
+				if (any(RayStartClip.xy < -RayStartClip.w) || any(RayStartClip.xy > RayStartClip.w))
+				{
+					return;
+				}
 			}
 #endif
 
