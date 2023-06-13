@@ -5,8 +5,10 @@
 #include "Commandlets/Commandlet.h"
 #include "GameFeatureVersePathMapperCommandlet.generated.h"
 
+class FAssetRegistryState;
+
 USTRUCT()
-struct FVersePathGfpMapEntry
+struct FJsonVersePathGfpMapEntry
 {
 	GENERATED_BODY()
 
@@ -14,25 +16,25 @@ struct FVersePathGfpMapEntry
 	FString VersePath;
 
 	UPROPERTY()
-	TSet<FString> GfpUriList;
-
-	UPROPERTY()
-	TSet<FString> GfpUriDependencyList;
+	TArray<FString> GfpUriList;
 };
 
 USTRUCT()
-struct FVersePathGfpMap
+struct FJsonVersePathGfpMap
 {
 	GENERATED_BODY()
 
 	UPROPERTY()
-	TArray<FVersePathGfpMapEntry> MapEntries;
+	TArray<FJsonVersePathGfpMapEntry> MapEntries;
 };
 
 UCLASS(config = Editor)
 class UGameFeatureVersePathMapperCommandlet : public UCommandlet
 {
 	GENERATED_BODY()
+
+public:
+	static GAMEFEATURES_API TOptional<TMap<FString, TArray<FString>>> BuildLookup(const ITargetPlatform* TargetPlatform = nullptr, const FAssetRegistryState* DevAR = nullptr);
 
 	virtual int32 Main(const FString& CmdLineParams) override;
 };

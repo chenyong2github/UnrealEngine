@@ -90,10 +90,13 @@ namespace GameFeatureVersePathMapper
 		TMap<FString, FString> RegexMatchCache;
 
 	public:
-		FInstallBundleResolver(const TCHAR* IniPlatformName)
+		FInstallBundleResolver(const TCHAR* IniPlatformName = nullptr)
 		{
 			FConfigFile MaybeLoadedConfig;
-			const FConfigFile* InstallBundleConfig = GConfig->FindOrLoadPlatformConfig(MaybeLoadedConfig, *GInstallBundleIni, IniPlatformName);
+			const FConfigFile* InstallBundleConfig = IniPlatformName ?
+				GConfig->FindOrLoadPlatformConfig(MaybeLoadedConfig, *GInstallBundleIni, IniPlatformName) :
+				GConfig->FindConfigFile(GInstallBundleIni);
+
 			BundleRegexList = InstallBundleUtil::LoadBundleRegexFromConfig(
 				*InstallBundleConfig, InstallBundleUtil::IsPlatformInstallBundlePredicate);
 		}
@@ -154,7 +157,8 @@ namespace GameFeatureVersePathMapper
 		return {};
 	}
 
-	TMap<FString, int32> FindGFPChunks(const FAssetRegistryState& DevAR)
+	template<class EnumeratorFunc>
+	TMap<FString, int32> FindGFPChunksImpl(const EnumeratorFunc& Enumerator)
 	{
 		const IAssetRegistry& AR = IAssetRegistry::GetChecked();
 
@@ -188,10 +192,183 @@ namespace GameFeatureVersePathMapper
 			return true;
 		};
 
-		DevAR.EnumerateAssets(Filter, {}, FindGFDChunks);
+		Enumerator(Filter, FindGFDChunks);
 
 		return GFPChunks;
 	}
+
+	TMap<FString, int32> FindGFPChunks(const FAssetRegistryState& DevAR)
+	{
+		return FindGFPChunksImpl([&DevAR](const FARCompiledFilter& Filter, TFunctionRef<bool(const FAssetData&)> Callback)
+		{
+			DevAR.EnumerateAssets(Filter, {}, Callback);
+		});
+	}
+
+	TMap<FString, int32> FindGFPChunks()
+	{
+		const IAssetRegistry& AR = IAssetRegistry::GetChecked();
+		return FindGFPChunksImpl([&AR](const FARCompiledFilter& Filter, TFunctionRef<bool(const FAssetData&)> Callback)
+		{
+			AR.EnumerateAssets(Filter, Callback);
+		});
+	}
+
+	class FDepthFirstPluginSorter
+	{
+		enum class EVisitState : uint8
+		{
+			None,
+			Visiting,
+			Visited
+		};
+
+		const TMap<FString, int32>& GFPChunks;
+		TMap<TSharedPtr<IPlugin>, EVisitState> VisitedPlugins;
+
+		bool Visit(const TSharedPtr<IPlugin>& Plugin, TArray<TSharedPtr<IPlugin>>& OutPlugins)
+		{
+			// Add a scope here to make sure VisitState isn't used later. It can become invalid if VisitedPlugins is resized
+			{
+				EVisitState& VisitState = VisitedPlugins.FindOrAdd(Plugin, EVisitState::None);
+				if (VisitState == EVisitState::Visiting)
+				{
+					UE_LOGFMT(LogGameFeatureVersePathMapper, Error, "Cycle detected in plugin dependencies with {PluginName}", Plugin->GetName());
+					return false;
+				}
+
+				if (VisitState == EVisitState::Visited)
+				{
+					return true;
+				}
+
+				VisitState = EVisitState::Visiting;
+			}
+
+			IPluginManager& PluginMan = IPluginManager::Get();
+
+			for (const FPluginReferenceDescriptor& Dependency : Plugin->GetDescriptor().Plugins)
+			{
+				// Currently GameFeatureSubsystem only checks bEnabled to determine if it should wait on a dependency, so match that logic here
+				if (!Dependency.bEnabled)
+				{
+					continue;
+				}
+
+				if (!GFPChunks.Contains(Dependency.Name))
+				{
+					continue;
+				} // Dependency is not a GFP
+
+				const TSharedPtr<IPlugin> DepPlugin = PluginMan.FindPlugin(Dependency.Name);
+				if (!DepPlugin)
+				{
+					UE_LOGFMT(LogGameFeatureVersePathMapper, Error, "Could not find dependency uplugin {DepPluginName} for {PluginName}, skipping", Dependency.Name, Plugin->GetName());
+					return false;
+				}
+
+				if (!Visit(DepPlugin, OutPlugins))
+				{
+					return false;
+				}
+			}
+
+			VisitedPlugins.Add(Plugin, EVisitState::Visited);
+			OutPlugins.Add(Plugin);
+			return true;
+		};
+
+	public:
+		// InGFPChunks is used to determine if dependencies are actually GFPs
+		// Non-GFP dependencies are ignored
+		FDepthFirstPluginSorter(const TMap<FString, int32>& InGFPChunks) : GFPChunks(InGFPChunks) {}
+
+		bool Sort(const TArray<TSharedPtr<IPlugin>>& RootPlugins, TArray<TSharedPtr<IPlugin>>& OutPlugins)
+		{
+			for (const TSharedPtr<IPlugin>& RootPlugin : RootPlugins)
+			{
+				if (!Visit(RootPlugin, OutPlugins))
+				{
+					return false;
+				}
+			}
+			return true;
+		}
+	};
+}
+
+TOptional<TMap<FString, TArray<FString>>> UGameFeatureVersePathMapperCommandlet::BuildLookup(
+	const ITargetPlatform* TargetPlatform /*= nullptr*/, const FAssetRegistryState* DevAR /*= nullptr*/)
+{
+	TOptional<TMap<FString, TArray<FString>>> Output;
+
+	const TMap<FString, int32> GFPChunks = DevAR ?
+		GameFeatureVersePathMapper::FindGFPChunks(*DevAR) :
+		GameFeatureVersePathMapper::FindGFPChunks();
+
+	IPluginManager& PluginMan = IPluginManager::Get();
+
+	TMap<FString, TArray<TSharedPtr<IPlugin>>> PluginRootSets;
+
+	// Add the root plugins for each verse paths
+	for (const TPair<FString, int32>& Pair : GFPChunks)
+	{
+		TSharedPtr<IPlugin> Plugin = PluginMan.FindPlugin(Pair.Key);
+		if (!Plugin)
+		{
+			UE_LOGFMT(LogGameFeatureVersePathMapper, Error, "Could not find uplugin {PluginName}, skipping", Pair.Key);
+			return Output;
+		}
+
+		if (!Plugin->GetVersePath().IsEmpty())
+		{
+			PluginRootSets.FindOrAdd(Plugin->GetVersePath()).Add(Plugin);
+		}
+	}
+
+	// Discover and sort all dependencies
+	TMap<FString, TArray<TSharedPtr<IPlugin>>> SortedPluginSets;
+	SortedPluginSets.Reserve(PluginRootSets.Num());
+	for (const TPair<FString, TArray<TSharedPtr<IPlugin>>>& RootSetPair : PluginRootSets)
+	{
+		TArray<TSharedPtr<IPlugin>>& SortedPlugins = SortedPluginSets.Add(RootSetPair.Key);
+
+		GameFeatureVersePathMapper::FDepthFirstPluginSorter Sorter(GFPChunks);
+		if (!Sorter.Sort(RootSetPair.Value, SortedPlugins))
+		{
+			return Output;
+		}
+	}
+
+	Output.Emplace();
+	Output->Reserve(SortedPluginSets.Num());
+
+	// Create URIs for each GFP
+	GameFeatureVersePathMapper::FInstallBundleResolver InstallBundleResolver(TargetPlatform ? *TargetPlatform->IniPlatformName() : nullptr);
+	for (const TPair<FString, TArray<TSharedPtr<IPlugin>>>& SortedPair : SortedPluginSets)
+	{
+		TArray<FString>& UriList = Output->Add(SortedPair.Key);
+		UriList.Reserve(SortedPair.Value.Num());
+
+		for (const TSharedPtr<IPlugin>& Plugin : SortedPair.Value)
+		{
+			const FString DescriptorFileName = FPaths::CreateStandardFilename(Plugin->GetDescriptorFileName());
+
+			const int32 Chunk = GFPChunks.FindChecked(Plugin->GetName()); // Must exist
+			const FString ChunkPattern = Chunk > 0 ? GameFeatureVersePathMapper::GetChunkPattern(Chunk) : FString();
+			const FString InstallBundleName = InstallBundleResolver.Resolve(ChunkPattern);
+			if (InstallBundleName.IsEmpty())
+			{
+				UriList.Add(UGameFeaturesSubsystem::GetPluginURL_FileProtocol(DescriptorFileName));
+			}
+			else
+			{
+				UriList.Add(UGameFeaturesSubsystem::GetPluginURL_InstallBundleProtocol(DescriptorFileName, InstallBundleName));
+			}
+		}
+	}
+
+	return Output;
 }
 
 int32 UGameFeatureVersePathMapperCommandlet::Main(const FString& CmdLineParams)
@@ -218,109 +395,23 @@ int32 UGameFeatureVersePathMapperCommandlet::Main(const FString& CmdLineParams)
 		return 1;
 	}
 
-	const TMap<FString, int32> GFPChunks = GameFeatureVersePathMapper::FindGFPChunks(DevAR);
-	
-	IPluginManager& PluginMan = IPluginManager::Get();
-
-	struct FPluginMetadata
+	FJsonVersePathGfpMap Output;
 	{
-		TSharedPtr<IPlugin> Plugin;
-		FString ChunkPattern;
-	};
-	TMap<FString, TArray<FPluginMetadata>> PluginVersePaths;
-
-	for (const TPair<FString, int32>& Pair : GFPChunks)
-	{
-		TSharedPtr<IPlugin> Plugin = PluginMan.FindPlugin(Pair.Key);
-		if (!Plugin)
+		TOptional<TMap<FString, TArray<FString>>> MaybeLookup = BuildLookup(Args.TargetPlatform, &DevAR);
+		if (!MaybeLookup)
 		{
-			UE_LOGFMT(LogGameFeatureVersePathMapper, Warning, "Could not find uplugin {PluginName}, skipping", Pair.Key);
-			continue;
+			// BuildLookup will emit errors
+			return 1;
 		}
 
-		if (!Plugin->GetVersePath().IsEmpty())
+		Output.MapEntries.Reserve(MaybeLookup->Num());
+		for(TPair<FString, TArray<FString>>& VersePathPair : *MaybeLookup)
 		{
-			FPluginMetadata& Metadata = PluginVersePaths.FindOrAdd(Plugin->GetVersePath()).Emplace_GetRef();
-			Metadata.Plugin = Plugin;
-
-			// Chunk 0 or -1 will use file protocol
-			if (Pair.Value > 0)
-			{
-				Metadata.ChunkPattern = GameFeatureVersePathMapper::GetChunkPattern(Pair.Value);
-			}
+			FJsonVersePathGfpMapEntry& OutputEntry = Output.MapEntries.Emplace_GetRef();
+			OutputEntry.VersePath = VersePathPair.Key;
+			OutputEntry.GfpUriList = MoveTemp(VersePathPair.Value);
 		}
 	}
-
-	FVersePathGfpMap Output;
-
-	// Build the URI List for each verse path
-	GameFeatureVersePathMapper::FInstallBundleResolver InstallBundleResolver(*Args.TargetPlatform->IniPlatformName());
-	for (const TPair<FString, TArray<FPluginMetadata>>& VersePathPair : PluginVersePaths)
-	{
-		FVersePathGfpMapEntry& OutputEntry = Output.MapEntries.Emplace_GetRef();
-		OutputEntry.VersePath = VersePathPair.Key;
-
-		for (const FPluginMetadata& Metadata : VersePathPair.Value)
-		{
-			// Resolve GFP URI
-			const FString DescriptorFileName = FPaths::CreateStandardFilename(Metadata.Plugin->GetDescriptorFileName());
-
-			const FString InstallBundleName = InstallBundleResolver.Resolve(Metadata.ChunkPattern);
-			if (InstallBundleName.IsEmpty())
-			{
-				OutputEntry.GfpUriList.Add(UGameFeaturesSubsystem::GetPluginURL_FileProtocol(DescriptorFileName));
-			}
-			else
-			{
-				OutputEntry.GfpUriList.Add(UGameFeaturesSubsystem::GetPluginURL_InstallBundleProtocol(DescriptorFileName, InstallBundleName));
-			}
-		}
-	}
-
-	// Add dependency URIs in a second pass to make sure none are added if they are already in the GfpUriList
-	check(PluginVersePaths.Num() == Output.MapEntries.Num());
-	int32 iEntry = 0;
-	for (const TPair<FString, TArray<FPluginMetadata>>& VersePathPair : PluginVersePaths)
-	{
-		FVersePathGfpMapEntry& OutputEntry = Output.MapEntries[iEntry++];
-
-		for (const FPluginMetadata& Metadata : VersePathPair.Value)
-		{
-			for (const FPluginReferenceDescriptor& Dependency : Metadata.Plugin->GetDescriptor().Plugins)
-			{
-				// Currently GameFeatureSubsystem only checks bEnabled to determine if it should wait on a dependency, so match that logic here
-				if (!Dependency.bEnabled)
-				{	continue; }
-
-				const int32* MaybeDepChunk = GFPChunks.Find(Dependency.Name);
-				if(!MaybeDepChunk)
-				{	continue; } // Dependency is not a GFP
-
-				const int32 DepChunk = *MaybeDepChunk;
-				const FString DepChunkPattern = DepChunk > 0 ? GameFeatureVersePathMapper::GetChunkPattern(DepChunk) : FString();
-
-				const TSharedPtr<IPlugin> DepPlugin = PluginMan.FindPlugin(Dependency.Name);
-				if (!DepPlugin)
-				{
-					UE_LOGFMT(LogGameFeatureVersePathMapper, Error, "Could not find dependency uplugin {DepPluginName} for {PluginName}, skipping", Dependency.Name, Metadata.Plugin->GetName());
-					continue;
-				}
-
-				const FString DepDescriptorFileName = FPaths::CreateStandardFilename(DepPlugin->GetDescriptorFileName());
-
-				const FString DepInstallBundleName = InstallBundleResolver.Resolve(DepChunkPattern);
-				FString DepGfpUri = DepInstallBundleName.IsEmpty() ?
-					UGameFeaturesSubsystem::GetPluginURL_FileProtocol(DepDescriptorFileName) : 
-					UGameFeaturesSubsystem::GetPluginURL_InstallBundleProtocol(DepDescriptorFileName, DepInstallBundleName);
-
-				if (!OutputEntry.GfpUriList.Contains(DepGfpUri))
-				{
-					OutputEntry.GfpUriDependencyList.Add(MoveTemp(DepGfpUri));
-				}
-			}
-		}
-	}
-
 
 	TSharedPtr<FJsonObject> JsonObject = FJsonObjectConverter::UStructToJsonObject(Output);
 	if (!JsonObject)
