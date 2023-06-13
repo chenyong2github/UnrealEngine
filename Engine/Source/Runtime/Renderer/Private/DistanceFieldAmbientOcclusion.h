@@ -14,13 +14,11 @@ class FRDGBuffer;
 class FRDGBuilder;
 class FRDGTexture;
 class FScene;
-class FSceneTextureUniformParameters;
 class FSceneViewFamily;
 class FViewInfo;
 struct FShaderCompilerEnvironment;
 using FRDGBufferRef = FRDGBuffer*;
 using FRDGTextureRef = FRDGTexture*;
-template <typename TUniformStruct> using TRDGUniformBufferRef = TRDGUniformBuffer<TUniformStruct>*;
 
 /** Base downsample factor that all distance field AO operations are done at. */
 const int32 GAODownsampleFactor = 2;
@@ -109,8 +107,7 @@ extern bool ShouldDoReflectionEnvironment(const FScene* Scene, const FSceneViewF
 extern void CullObjectsToView(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo& View, const FDistanceFieldAOParameters& Parameters, FDistanceFieldCulledObjectBufferParameters& CulledObjectBuffers);
 extern void BuildTileObjectLists(FRDGBuilder& GraphBuilder,
 	FScene* Scene,
-	const FViewInfo& View,
-	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+	TArray<FViewInfo>& Views,
 	FRDGBufferRef ObjectIndirectArguments,
 	const FDistanceFieldCulledObjectBufferParameters& CulledObjectBufferParameters,
 	FTileIntersectionParameters TileIntersectionParameters,
