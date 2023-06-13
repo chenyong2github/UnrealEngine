@@ -2054,7 +2054,7 @@ namespace UnrealBuildTool
 		/// The weight(cpu/memory utilization) of a MSVC compile action
 		/// </summary>
 		[XmlConfigFile(Category = "BuildConfiguration")]
-		public float MSVCCompileActionWeight = 1.5f;
+		public float MSVCCompileActionWeight = 1.0f;
 
 		/// <summary>
 		/// The weight(cpu/memory utilization) of a clang compile action
