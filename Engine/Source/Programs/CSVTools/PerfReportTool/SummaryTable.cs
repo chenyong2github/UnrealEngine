@@ -710,11 +710,26 @@ namespace PerfSummaries
 				return;
 			}
 
+			double averageValue = totalValue / validCount;
+			double range = maxValue - minValue;
+
+			// Disable colorization where values are very similar
+			// The range has to be outside 0.25% of the average and >0.01 to get colorized
+			double colorizationRangeThreshold = Math.Max( Math.Abs(averageValue) * 0.0025, 0.01 ); 
+			if (range < colorizationRangeThreshold)
+			{
+				return;
+			}
+
+			// Adjust Min/Max value to ensure close values are not just binary red/green. If min/max is within 1% of the average or 0.02, adjust accordingly
+			double minColorizationRangeExtent = Math.Max( Math.Abs(averageValue) * 0.01, 0.02); 
+			maxValue = Math.Max(maxValue, averageValue + minColorizationRangeExtent);
+			minValue = Math.Min(minValue, averageValue - minColorizationRangeExtent);
+
 			Colour green = Colour.Green;
 			Colour yellow = Colour.Yellow;
 			Colour red = Colour.Red;
 
-			double averageValue = totalValue / validCount; // TODO: Weighted average 
 			colourThresholdOverride = new ColourThresholdList();
 			colourThresholdOverride.Add(new ThresholdInfo(minValue, (autoColorizeMode == AutoColorizeMode.HighIsBad) ? green : red));
 			colourThresholdOverride.Add(new ThresholdInfo(averageValue, yellow));
