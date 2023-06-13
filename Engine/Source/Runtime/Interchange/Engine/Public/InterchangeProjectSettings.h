@@ -74,7 +74,7 @@ struct FInterchangeContentImportSettings : public FInterchangeImportSettings
 	TMap<EInterchangeTranslatorAssetType, bool> ShowPipelineStacksConfigurationDialogOverride;
 };
 
-UCLASS(config=Engine, meta=(DisplayName=Interchange), MinimalAPI)
+UCLASS(config=Interchange, meta=(DisplayName=Interchange), MinimalAPI)
 class UInterchangeProjectSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
