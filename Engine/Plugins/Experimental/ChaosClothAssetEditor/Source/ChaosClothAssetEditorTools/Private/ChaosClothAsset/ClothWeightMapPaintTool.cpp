@@ -12,6 +12,7 @@
 #include "MeshWeights.h"
 #include "DynamicMesh/MeshNormals.h"
 #include "DynamicMesh/MeshIndexUtil.h"
+#include "DynamicMesh/NonManifoldMappingSupport.h"
 #include "Util/BufferUtil.h"
 #include "Util/ColorConstants.h"
 #include "Selections/MeshConnectedComponents.h"
@@ -302,11 +303,34 @@ void UClothEditorWeightMapPaintTool::Setup()
 		if (TSharedPtr<const FManagedArrayCollection> ClothCollection = ClothEditorContextObject->GetSelectedClothCollection().Pin())
 		{
 			using namespace UE::Chaos::ClothAsset;
-			bHaveDynamicMeshToWeightConversion = ClothEditorContextObject->GetConstructionViewMode() == EClothPatternVertexType::Sim2D;
-			if (bHaveDynamicMeshToWeightConversion)
+			const FNonManifoldMappingSupport NonManifoldMapping(*Mesh);
+
+			const bool bHasNonManifoldMapping = NonManifoldMapping.IsNonManifoldVertexInSource();
+			const bool bHas2D3DConversion = ClothEditorContextObject->GetConstructionViewMode() == EClothPatternVertexType::Sim2D;
+
+			bHaveDynamicMeshToWeightConversion = bHasNonManifoldMapping || bHas2D3DConversion;
+
+			FCollectionClothConstFacade Cloth(ClothCollection);
+			check(Cloth.IsValid());
+			if (bHasNonManifoldMapping)
 			{
-				FCollectionClothConstFacade Cloth(ClothCollection);
-				check(Cloth.IsValid());
+				const TConstArrayView<int32> SimVertex3DLookup = Cloth.GetSimVertex3DLookup();
+
+				DynamicMeshToWeight.SetNumUninitialized(Mesh->VertexCount());
+				WeightToDynamicMesh.Reset();
+				WeightToDynamicMesh.SetNum(Cloth.GetNumSimVertices3D());
+				for (int32 DynamicMeshVert = 0; DynamicMeshVert < Mesh->VertexCount(); ++DynamicMeshVert)
+				{
+					DynamicMeshToWeight[DynamicMeshVert] = NonManifoldMapping.GetOriginalNonManifoldVertexID(DynamicMeshVert);
+					if (bHas2D3DConversion)
+					{
+						DynamicMeshToWeight[DynamicMeshVert] = SimVertex3DLookup[DynamicMeshToWeight[DynamicMeshVert]];
+					}
+					WeightToDynamicMesh[DynamicMeshToWeight[DynamicMeshVert]].Add(DynamicMeshVert);
+				}
+			}
+			else if (bHas2D3DConversion)
+			{
 				DynamicMeshToWeight = Cloth.GetSimVertex3DLookup();
 				WeightToDynamicMesh = Cloth.GetSimVertex2DLookup();
 			}
