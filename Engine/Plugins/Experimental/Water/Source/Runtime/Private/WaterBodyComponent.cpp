@@ -417,6 +417,12 @@ AWaterZone* UWaterBodyComponent::GetWaterZone() const
 	return OwningWaterZone.Get();
 }
 
+void UWaterBodyComponent::SetWaterZoneOverride(const TSoftObjectPtr<AWaterZone>& InWaterZoneOverride)
+{
+	WaterZoneOverride = InWaterZoneOverride;
+	UpdateWaterZones();
+}
+
 FPostProcessVolumeProperties UWaterBodyComponent::GetPostProcessProperties() const
 {
 	FPostProcessVolumeProperties Ret;
@@ -2061,3 +2067,4 @@ void UWaterBodyComponent::SetHLODMaterial(UMaterialInterface* InMaterial)
 #endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE
+

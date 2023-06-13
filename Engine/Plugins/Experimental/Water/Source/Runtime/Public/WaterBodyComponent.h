@@ -384,6 +384,10 @@ public:
 	/** Gets the water zone to which this component belongs */
 	AWaterZone* GetWaterZone() const;
 
+	/** Override the default behavior of water bodies finding their water zone based on bounds and set a specific water zone to which this water body should register. */
+	UFUNCTION(BlueprintCallable, Category=Water)
+	void SetWaterZoneOverride(const TSoftObjectPtr<AWaterZone>& InWaterZoneOverride);
+
 	/** Registers or this water body with corresponding overlapping water zones and unregisters it from any old zones if they are no longer overlapping. */
 	void UpdateWaterZones();
 
