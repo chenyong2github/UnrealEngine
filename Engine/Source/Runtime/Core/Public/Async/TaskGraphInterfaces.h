@@ -634,11 +634,6 @@ public:
 		return FConstructor(Prerequisites);
 	}
 
-	FORCENOINLINE virtual ~TGraphTask() override
-	{
-		DestructItem(TaskStorage.GetTypedPtr());
-	}
-
 	static void* operator new(size_t Size);
 	static void operator delete(void* Ptr, size_t Size);
 
@@ -664,6 +659,7 @@ private:
 				ENamedThreads::Type ThreadIndex = ENamedThreads::GetThreadIndex(TaskObject->GetDesiredThread());
 
 				TaskObject->DoTask(ThreadIndex, GraphEventRef);
+				DestructItem(TaskObject);
 			}
 		);
 	}
