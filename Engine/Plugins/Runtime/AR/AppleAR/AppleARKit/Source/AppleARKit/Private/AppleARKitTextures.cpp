@@ -754,7 +754,7 @@ void UAppleARKitOcclusionTexture::SetMetalTexture(float InTimestamp, id<MTLTextu
 			if (MetalTexture)
 			{
 				CFRetain(MetalTexture);
-				Size = FVector2D(MetalTexture.width, MetalTexture.height);
+				Size = FVector2f(MetalTexture.width, MetalTexture.height);
 			}
 		}
 	}
