@@ -852,7 +852,7 @@ bool UNiagaraDataInterfaceRenderTargetVolume::SimCacheReadFrame(UObject* Storage
 		ENQUEUE_RENDER_COMMAND(NDIRenderTargetVolumeUpdate)
 			(
 				[RT_Proxy, RT_InstanceID = SystemInstance->GetId(),
-				RT_VolumeResolution = VolumeResolution, RT_SVTRenderResources = SVTFrame->GetTextureRenderResources(),
+				RT_VolumeResolution = VolumeResolution, RT_SVTRenderResources = SVTFrame ? SVTFrame->GetTextureRenderResources() : nullptr,
 				FeatureLevel = SystemInstance->GetFeatureLevel()](FRHICommandListImmediate& RHICmdList)
 				{
 					if (RT_SVTRenderResources == nullptr)
