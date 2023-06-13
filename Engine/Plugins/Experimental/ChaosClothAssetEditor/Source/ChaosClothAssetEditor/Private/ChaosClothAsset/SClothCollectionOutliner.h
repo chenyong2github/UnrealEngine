@@ -4,6 +4,7 @@
 
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/SListView.h"
+#include "Widgets/Input/SComboBox.h"
 
 struct FManagedArrayCollection;
 
@@ -45,13 +46,13 @@ class SClothCollectionOutliner : public SCompoundWidget
 public:
 
 	SLATE_BEGIN_ARGS(SClothCollectionOutliner) {}
-		SLATE_ARGUMENT(TWeakPtr<FManagedArrayCollection>, ClothCollection)
+		SLATE_ARGUMENT(TSharedPtr<FManagedArrayCollection>, ClothCollection)
 		SLATE_ARGUMENT(FName, SelectedGroupName)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
 
-	void SetClothCollection(TWeakPtr<FManagedArrayCollection> ClothCollection);
+	void SetClothCollection(TSharedPtr<FManagedArrayCollection> ClothCollection);
 
 	///  Changing the selected group name will also automatically rebuild the header and all rows
 	void SetSelectedGroupName(const FName& SelectedGroupName);
@@ -62,8 +63,13 @@ public:
 
 private:
 
-	TWeakPtr<FManagedArrayCollection> ClothCollection;
+	TSharedPtr<FManagedArrayCollection> ClothCollection;
+
+	TSharedPtr<SComboBox<FName>> SelectedGroupNameComboBox;
+	TArray<FName> ClothCollectionGroupNames;		// Data source for SelectedGroupNameComboBox
+
 	FName SelectedGroupName;
+	FName SavedLastValidGroupName;
 
 	TSharedPtr<SListView<TSharedPtr<const FClothCollectionItem>>> ListView;
 	TArray<TSharedPtr<const FClothCollectionItem>> ListItems;

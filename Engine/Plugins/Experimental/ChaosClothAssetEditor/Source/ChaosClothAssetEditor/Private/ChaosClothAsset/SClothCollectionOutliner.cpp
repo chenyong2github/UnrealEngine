@@ -61,6 +61,32 @@ void SClothCollectionOutliner::Construct(const FArguments& InArgs)
 	ChildSlot
 	[
 		SNew(SVerticalBox)
+
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			SAssignNew(SelectedGroupNameComboBox, SComboBox<FName>)
+			.OptionsSource(&ClothCollectionGroupNames)
+			.OnSelectionChanged(SComboBox<FName>::FOnSelectionChanged::CreateLambda(
+				[this](FName SelectedName, ESelectInfo::Type)
+				{
+					SetSelectedGroupName(SelectedName);
+				}))
+			.OnGenerateWidget(SComboBox<FName>::FOnGenerateWidget::CreateLambda(
+				[](FName Item)
+				{
+					return SNew(STextBlock)
+						.Text(FText::FromName(Item));
+				}))
+			[
+				SNew(STextBlock)
+				.Text_Lambda([this]()
+				{
+					return FText::FromName(GetSelectedGroupName());
+				})
+			]
+		]
+
 		+ SVerticalBox::Slot()
 		.Padding(FMargin(0.0f, 3.f))
 		[
@@ -77,14 +103,34 @@ void SClothCollectionOutliner::Construct(const FArguments& InArgs)
 	];
 }
 
-void SClothCollectionOutliner::SetClothCollection(TWeakPtr<FManagedArrayCollection> InClothCollection)
+void SClothCollectionOutliner::SetClothCollection(TSharedPtr<FManagedArrayCollection> InClothCollection)
 {
-	if (ClothCollection != InClothCollection)
+	if (!InClothCollection.IsValid() && ClothCollection.IsValid())
 	{
-		ClothCollection = InClothCollection;
+		// Going from valid node selected to no node selected
+		SavedLastValidGroupName = SelectedGroupName;
+	}
+	else if (InClothCollection.IsValid() && !ClothCollection.IsValid())
+	{
+		// Going from no node selected to a valid node selected
+		SelectedGroupName = SavedLastValidGroupName;
+	}
 
+	ClothCollection = InClothCollection;
+
+	if (ClothCollection.IsValid())
+	{
+		ClothCollectionGroupNames = ClothCollection->GroupNames();
 		RegenerateHeader();
 		RepopulateListView();
+	}
+	else
+	{
+		ClothCollectionGroupNames.Reset();
+		HeaderRowWidget->ClearColumns();
+		HeaderData->AttributeNames.Empty();
+		ListItems.Empty();
+		SelectedGroupName = FName();
 	}
 }
 
@@ -105,9 +151,7 @@ void SClothCollectionOutliner::RegenerateHeader()
 {
 	constexpr float CustomFillWidth = 2.0f;
 
-	TSharedPtr<FManagedArrayCollection> PinnedClothCollection = ClothCollection.Pin();
-
-	if (!PinnedClothCollection.IsValid())
+	if (!ClothCollection.IsValid())
 	{
 		return;
 	}
@@ -116,7 +160,7 @@ void SClothCollectionOutliner::RegenerateHeader()
 
 	HeaderData = MakeShared<FClothCollectionHeaderData>();
 	HeaderData->AttributeNames.Add(FClothCollectionHeaderData::ColumnZeroName);
-	HeaderData->AttributeNames.Append(PinnedClothCollection->AttributeNames(SelectedGroupName));
+	HeaderData->AttributeNames.Append(ClothCollection->AttributeNames(SelectedGroupName));
 
 	for (int32 AttributeNameIndex = 0; AttributeNameIndex < HeaderData->AttributeNames.Num(); ++AttributeNameIndex)
 	{
@@ -243,14 +287,12 @@ void SClothCollectionOutliner::RepopulateListView()
 {
 	ListItems.Empty();
 
-	const TSharedPtr<const FManagedArrayCollection> PinnedClothCollection = ClothCollection.Pin();
-
-	if (!PinnedClothCollection.IsValid())
+	if (!ClothCollection.IsValid())
 	{
 		return;
 	}
 
-	const int32 NumElements = PinnedClothCollection->NumElements(SelectedGroupName);
+	const int32 NumElements = ClothCollection->NumElements(SelectedGroupName);
 
 	for (int32 ElementIndex = 0; ElementIndex < NumElements; ++ElementIndex)
 	{
@@ -266,7 +308,7 @@ void SClothCollectionOutliner::RepopulateListView()
 			}
 			else
 			{
-				NewItem->AttributeValues[AttributeNameIndex] = ClothCollectionOutlinerHelpers::AttributeValueToString(*PinnedClothCollection, AttributeName, SelectedGroupName, ElementIndex);
+				NewItem->AttributeValues[AttributeNameIndex] = ClothCollectionOutlinerHelpers::AttributeValueToString(*ClothCollection, AttributeName, SelectedGroupName, ElementIndex);
 			}
 		}
 

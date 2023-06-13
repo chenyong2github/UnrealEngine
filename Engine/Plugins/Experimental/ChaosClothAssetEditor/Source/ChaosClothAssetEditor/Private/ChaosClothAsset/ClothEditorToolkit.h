@@ -109,7 +109,6 @@ private:
 	void InitDetailsViewPanel();
 	void OnFinishedChangingAssetProperties(const FPropertyChangedEvent&);
 
-	void PopulateOutliner();
 	void OnClothAssetChanged();
 	void InvalidateViews();
 
@@ -142,10 +141,6 @@ private:
 	TSharedPtr<SWidget> AdvancedPreviewSettingsWidget;
 
 	TSharedPtr<SClothCollectionOutliner> Outliner;
-
-	TSharedPtr<SComboBox<FName>> SelectedGroupNameComboBox;
-	TArray<FName> ClothCollectionGroupNames;		// Data source for SelectedGroupNameComboBox
-
 
 	// Dataflow
 	UDataflow* Dataflow = nullptr;

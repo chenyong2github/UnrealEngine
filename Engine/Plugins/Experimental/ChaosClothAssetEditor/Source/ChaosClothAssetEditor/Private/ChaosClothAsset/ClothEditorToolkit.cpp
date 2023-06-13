@@ -632,46 +632,9 @@ TSharedRef<SDockTab> FChaosClothAssetEditorToolkit::SpawnTab_ClothPreview(const 
 
 TSharedRef<SDockTab> FChaosClothAssetEditorToolkit::SpawnTab_Outliner(const FSpawnTabArgs& Args)
 {
-
 	TSharedRef<SDockTab> DockableTab = SNew(SDockTab)
 	[
 		SNew(SVerticalBox)
-
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		[
-			SAssignNew(SelectedGroupNameComboBox, SComboBox<FName>)
-			.OptionsSource(&ClothCollectionGroupNames)
-			.OnSelectionChanged(SComboBox<FName>::FOnSelectionChanged::CreateLambda(
-				[this](FName SelectedName, ESelectInfo::Type)
-				{
-					if (Outliner)
-					{
-						Outliner->SetSelectedGroupName(SelectedName);	// this will also rebuild the table
-					}
-				}))
-			.OnGenerateWidget(SComboBox<FName>::FOnGenerateWidget::CreateLambda(
-				[](FName Item)
-				{
-					return SNew(STextBlock)
-						.Text(FText::FromName(Item));
-				}))
-			[
-				SNew(STextBlock)
-				.Text_Lambda([this]()
-				{
-					if (Outliner)
-					{
-						return FText::FromName(Outliner->GetSelectedGroupName());
-					}
-					else
-					{
-						return LOCTEXT("NoSelectedGroup", "");
-					}
-				})
-			]
-		]
-
 		+ SVerticalBox::Slot()
 		[
 			SAssignNew(Outliner, SClothCollectionOutliner)
@@ -747,37 +710,8 @@ void FChaosClothAssetEditorToolkit::InitDetailsViewPanel()
 		PreviewSceneDockTab->SetContent(AdvancedPreviewSettingsWidget.ToSharedRef());
 	}
 
-	PopulateOutliner();
 }
 
-void FChaosClothAssetEditorToolkit::PopulateOutliner()
-{
-	TSharedPtr<FManagedArrayCollection> ClothCollection;
-	if (const TObjectPtr<UChaosClothComponent> ClothComponent = ClothPreviewScene->GetClothComponent())
-	{
-		if (UChaosClothAsset* const ClothAsset = ClothComponent->GetClothAsset())
-		{
-			// TODO: handle multiple LODs
-			if (ClothAsset->GetClothCollections().Num())
-			{
-				ClothCollection = ClothAsset->GetClothCollections()[0];
-			}
-		}
-	}
-	
-	if (Outliner.IsValid() && ClothCollection.IsValid())
-	{
-		ClothCollectionGroupNames = ClothCollection->GroupNames();
-		if (ClothCollectionGroupNames.Num())
-		{
-			const FName& SelectedGroupName = ClothCollectionGroupNames[0];
-	
-			Outliner->SetClothCollection(ClothCollection);
-			Outliner->SetSelectedGroupName(SelectedGroupName);
-		}
-
-	}
-}
 
 void FChaosClothAssetEditorToolkit::OnFinishedChangingAssetProperties(const FPropertyChangedEvent& Event)
 {
@@ -1071,8 +1005,6 @@ void FChaosClothAssetEditorToolkit::OnClothAssetChanged()
 			// Focus on the cloth component if this is the first time adding one
 			ClothPreviewViewportClient->FocusViewportOnBox(ClothMode->PreviewBoundingBox());
 		}
-
-		PopulateOutliner();
 	}
 
 	if (bWasSimulationSuspended)
