@@ -1315,7 +1315,7 @@ namespace UsdSkelRootTranslatorImpl
 				Options.RenderContext = RenderContextToken;
 				Options.MaterialPurpose = MaterialPurposeToken;
 
-				const bool bContinueTaskChain = UsdSkelRootTranslatorImpl::LoadAllSkeletalData(
+				bool bContinueTaskChain = UsdSkelRootTranslatorImpl::LoadAllSkeletalData(
 					SkeletonCache.Get(),
 					pxr::UsdSkelRoot( GetPrim() ),
 					LODIndexToSkeletalMeshImportData,
@@ -1328,6 +1328,31 @@ namespace UsdSkelRootTranslatorImpl
 					Context->bAllowInterpretingLODs,
 					Options
 				);
+
+				int32 NumRootBones = 0;
+				for (const SkeletalMeshImportData::FBone& Bone : SkeletonBones)
+				{
+					if (Bone.ParentIndex == -1)
+					{
+						NumRootBones++;
+					}
+
+					if (NumRootBones > 1)
+					{
+						break;
+					}
+				}
+
+				if (NumRootBones != 1)
+				{
+					UE_LOG(
+						LogUsd,
+						Warning,
+						TEXT("Ignoring SkelRoot '%s' as the bound Skeleton prim must have exactly one root bone!"),
+						*PrimPath.GetString()
+					);
+					bContinueTaskChain = false;
+				}
 
 				return bContinueTaskChain;
 			} );
