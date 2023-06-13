@@ -94,7 +94,7 @@ bool FPCGCreateSplineElement::ExecuteInternal(FPCGContext* Context) const
 		AActor* TargetActor = PointData->TargetActor.Get();
 		if (!TargetActor)
 		{
-			PCGE_LOG(Error, GraphAndLog, LOCTEXT("InvalidTargetActor", "Invalid target actor"));
+			PCGE_LOG(Error, GraphAndLog, LOCTEXT("InvalidTargetActor", "Invalid target actor. Ensure TargetActor member is initialized when creating SpatialData."));
 			continue;
 		}
 

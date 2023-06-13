@@ -135,6 +135,7 @@ public:
 	/** Find the first concrete (non-composite) shape in the network. Depth first search. */
 	virtual const UPCGSpatialData* FindFirstConcreteShapeFromNetwork() const { return !!(GetDataType() & EPCGDataType::Concrete) ? this : nullptr; }
 
+	/** Recipient of any artifacts generated using this data. */
 	UPROPERTY(Transient, BlueprintReadWrite, EditAnywhere, Category = Data)
 	TWeakObjectPtr<AActor> TargetActor = nullptr;
 
