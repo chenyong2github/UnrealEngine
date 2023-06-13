@@ -313,7 +313,7 @@ void AVREditorAvatarActor::TickManually( const float DeltaTime )
 			const FVector ScaleIndicatorEndPosition = RightHandInteractor->GetTransform( ).GetLocation( );
 			const FVector ScaleIndicatorDirection = ( ScaleIndicatorEndPosition - ScaleIndicatorStartPosition ).GetSafeNormal( );
 
-			const float ScaleIndicatorLength = FMath::Max( 0.000001f, ( ScaleIndicatorEndPosition - ScaleIndicatorStartPosition ).Size( ) );
+			const float ScaleIndicatorLength = FMath::Max( 0.000001f, (float)( ScaleIndicatorEndPosition - ScaleIndicatorStartPosition ).Size() );
 			const float Radius = ( VREd::ScaleProgressBarRadius->GetFloat( ) * WorldScaleFactor );
 			const float ProgressbarLength = VREd::ScaleProgressBarLength->GetFloat( );
 			const float Scale = WorldScaleFactor;
@@ -385,11 +385,11 @@ void AVREditorAvatarActor::TickManually( const float DeltaTime )
 				}
 				else if ( ( LeftHandInteractor->GetLastDraggingMode() == EViewportInteractionDraggingMode::World && !LeftHandInteractor->GetDragTranslationVelocity().IsNearlyZero( VREd::GridMovementTolerance->GetFloat() ) ) )
 				{
-					GoalOpacity = FMath::Clamp( LeftHandInteractor->GetDragTranslationVelocity().Size() / VREd::GridFadeStartVelocity->GetFloat(), 0.0f, 1.0f );
+					GoalOpacity = FMath::Clamp( (float)LeftHandInteractor->GetDragTranslationVelocity().Size() / VREd::GridFadeStartVelocity->GetFloat(), 0.0f, 1.0f );
 				}
 				else if ( ( RightHandInteractor->GetLastDraggingMode() == EViewportInteractionDraggingMode::World && !RightHandInteractor->GetDragTranslationVelocity().IsNearlyZero( VREd::GridMovementTolerance->GetFloat() ) ) )
 				{
-					GoalOpacity = FMath::Clamp( RightHandInteractor->GetDragTranslationVelocity().Size() / VREd::GridFadeStartVelocity->GetFloat(), 0.0f, 1.0f );
+					GoalOpacity = FMath::Clamp( (float)RightHandInteractor->GetDragTranslationVelocity().Size() / VREd::GridFadeStartVelocity->GetFloat(), 0.0f, 1.0f );
 				}
 
 				// Check the current opacity and add or subtract to reach the goal

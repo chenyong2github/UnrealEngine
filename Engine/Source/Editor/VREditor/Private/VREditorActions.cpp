@@ -273,7 +273,7 @@ void FVREditorActionCallbacks::SimulateKeyDown(const FKey Key, const bool bRepea
 
 	if (CharCodePtr)
 	{
-		FCharacterEvent CharacterEvent( CharCode, FModifierKeysState(), 0, bRepeat );
+		FCharacterEvent CharacterEvent( (TCHAR)CharCode, FModifierKeysState(), 0, bRepeat );
 		FSlateApplication::Get().ProcessKeyCharEvent( CharacterEvent );
 	}
 }

@@ -459,7 +459,7 @@ const void AVREditorRadialFloatingUI::HighlightSlot(const FVector2D& TrackpadPos
 	}
 
 	const float AnglePerItem = 360.0f / NumberOfEntries;
-	float Angle = FRotator::NormalizeAxis(FMath::RadiansToDegrees(FMath::Atan2(TrackpadPosition.X, TrackpadPosition.Y)));
+	float Angle = (float) FRotator::NormalizeAxis(FMath::RadiansToDegrees(FMath::Atan2(TrackpadPosition.X, TrackpadPosition.Y)));
 
 	// first element of the menu is at 90
 	float ArrowAngle = Angle - 90.0f;
@@ -483,7 +483,7 @@ const void AVREditorRadialFloatingUI::HighlightSlot(const FVector2D& TrackpadPos
 		Angle = Angle - 360.0f;
 	}
 	ArrowMeshComponent->SetRelativeRotation(FRotator(0.0f, ArrowAngle, 0.0f).Quaternion());
-	float NewArrowScaleFactor = TrackpadPosition.Size();
+	float NewArrowScaleFactor = (float) TrackpadPosition.Size();
 	if (TrackpadPosition.GetAbsMax() > VREd::MinJoystickOffsetBeforeRadialMenu->GetFloat())
 	{
 		ArrowMeshComponent->SetVisibility(true);
@@ -502,7 +502,7 @@ const void AVREditorRadialFloatingUI::HighlightSlot(const FVector2D& TrackpadPos
 	const FPointerEvent& SimulatedPointer = FPointerEvent();
 	const FGeometry& ChildGeometry = FGeometry();
 	TSharedRef<SWidget> TestWidget = SNullWidget::NullWidget;
-	const int32 Index = (Angle / AnglePerItem);
+	const int32 Index = (int32) (Angle / AnglePerItem);
 	// Make sure we are checking for a valid radial menu widget
 	if (WidgetComponents.IsValidIndex(Index) && WidgetComponents[Index]->GetSlateWidget())
 	{

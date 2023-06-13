@@ -628,11 +628,11 @@ void UVREditorMode::PostTick( float DeltaTime )
 		const float MaxLocationVelocity = VREd::HeadLocationMaxVelocity->GetFloat();	// cm/s
 		const float MaxRotationVelocity = VREd::HeadRotationMaxVelocity->GetFloat();	// degrees/s
 
-		const float LocationVelocity = ( LastRoomSpaceHeadToWorld.GetLocation() / LastWorldScaleFactor - RoomSpaceHeadToWorld.GetLocation() / WorldScaleFactor ).Size() / DeltaTime;
+		const float LocationVelocity = (float) ( LastRoomSpaceHeadToWorld.GetLocation() / LastWorldScaleFactor - RoomSpaceHeadToWorld.GetLocation() / WorldScaleFactor ).Size() / DeltaTime;
 
-		const float YawVelocity = FMath::Abs( FMath::FindDeltaAngleDegrees( LastRoomSpaceHeadToWorld.GetRotation().Rotator().Yaw, RoomSpaceHeadToWorld.GetRotation().Rotator().Yaw ) ) / DeltaTime;
-		const float PitchVelocity = FMath::Abs( FMath::FindDeltaAngleDegrees( LastRoomSpaceHeadToWorld.GetRotation().Rotator().Pitch, RoomSpaceHeadToWorld.GetRotation().Rotator().Pitch ) ) / DeltaTime;
-		const float RollVelocity = FMath::Abs( FMath::FindDeltaAngleDegrees( LastRoomSpaceHeadToWorld.GetRotation().Rotator().Roll, RoomSpaceHeadToWorld.GetRotation().Rotator().Roll ) ) / DeltaTime;
+		const float YawVelocity = (float) FMath::Abs( FMath::FindDeltaAngleDegrees( LastRoomSpaceHeadToWorld.GetRotation().Rotator().Yaw, RoomSpaceHeadToWorld.GetRotation().Rotator().Yaw ) ) / DeltaTime;
+		const float PitchVelocity = (float) FMath::Abs( FMath::FindDeltaAngleDegrees( LastRoomSpaceHeadToWorld.GetRotation().Rotator().Pitch, RoomSpaceHeadToWorld.GetRotation().Rotator().Pitch ) ) / DeltaTime;
+		const float RollVelocity = (float) FMath::Abs( FMath::FindDeltaAngleDegrees( LastRoomSpaceHeadToWorld.GetRotation().Rotator().Roll, RoomSpaceHeadToWorld.GetRotation().Rotator().Roll ) ) / DeltaTime;
 		const float RotationVelocity = YawVelocity + PitchVelocity + RollVelocity;
 
 		static float LastLocationVelocity = LocationVelocity;
@@ -904,7 +904,7 @@ bool UVREditorMode::IsHandAimingTowardsCapsule(UViewportInteractor* Interactor, 
 
 		if( false )	// @todo vreditor debug
 		{
-			const float RenderCapsuleLength = ( CapsuleEnd - CapsuleStart ).Size() + CapsuleRadius * 2.0f;
+			const float RenderCapsuleLength = (float) ( CapsuleEnd - CapsuleStart ).Size() + CapsuleRadius * 2.0f;
 			// @todo vreditor:  This capsule draws with the wrong orientation
 			if( false )
 			{
@@ -927,7 +927,7 @@ bool UVREditorMode::IsHandAimingTowardsCapsule(UViewportInteractor* Interactor, 
 				DrawDebugLine( GetWorld(), CapsuleTransform.TransformPosition( FVector::ZeroVector ), CapsuleTransform.TransformPosition( -LaserPointerDirectionInCapsuleSpace * 5.0f ), FColor::Purple, false, 0.0f );
 			}
 
-			const float Dot = FVector::DotProduct( CapsuleFrontDirection, -LaserPointerDirectionInCapsuleSpace );
+			const float Dot = (float) FVector::DotProduct( CapsuleFrontDirection, -LaserPointerDirectionInCapsuleSpace );
 			if( Dot >= MinDotForAimingAtCapsule )
 			{
 				bIsAimingTowards = true;

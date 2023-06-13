@@ -373,7 +373,7 @@ void AVREditorTeleporter::UpdateTeleportAim(const float DeltaTime)
 			{
 				// Calculate an offset with the impact normal, so the teleporter will show up on-top, underneath or next to where laser is aiming at.
 				OffsetDistance = HitResult.ImpactNormal * (50 * TeleportGoalScale);
-				float OffsetFromImpactNormalZ = (HitResult.ImpactNormal.Z - 1);
+				double OffsetFromImpactNormalZ = (HitResult.ImpactNormal.Z - 1.0f);
 				OffsetFromImpactNormalZ -= (OffsetFromImpactNormalZ * VREd::TeleportOffsetMultiplier->GetFloat());
 				OffsetDistance.Z = OffsetFromImpactNormalZ * (((VRMode->GetHeadTransform().GetLocation().Z - VRMode->GetRoomTransform().GetLocation().Z) / VRMode->GetWorldScaleFactor())  * TeleportGoalScale);
 
@@ -551,7 +551,7 @@ float AVREditorTeleporter::GetSlideDelta_Implementation(UVREditorInteractor* Int
 	float Result = 0.0f;
 	if (FMath::Abs(SlideDelta[Axis]) > FMath::Abs(SlideDelta[!Axis]))
 	{
-		Result = SlideDelta[Axis];
+		Result = (float) SlideDelta[Axis];
 	}
 
 	return Result;

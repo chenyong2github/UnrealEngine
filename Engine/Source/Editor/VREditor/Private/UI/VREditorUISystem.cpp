@@ -235,7 +235,7 @@ void UVREditorUISystem::Shutdown()
 		AVREditorFloatingUI* SequencerPanel = GetPanel(SequencerPanelID);
 		if (SequencerPanel != nullptr)
 		{
-			SequencerPanel->SetSlateWidget(*this, SequencerPanelID, SNullWidget::NullWidget, FIntPoint(VREd::SequencerUIResolutionX->GetFloat(), VREd::SequencerUIResolutionY->GetFloat()), VREd::EditorUISize->GetFloat(), AVREditorFloatingUI::EDockedTo::Nothing);
+			SequencerPanel->SetSlateWidget(*this, SequencerPanelID, SNullWidget::NullWidget, FIntPoint((int32)VREd::SequencerUIResolutionX->GetFloat(), (int32)VREd::SequencerUIResolutionY->GetFloat()), VREd::EditorUISize->GetFloat(), AVREditorFloatingUI::EDockedTo::Nothing);
 		}
 		FVREditorActionCallbacks::CloseSequencer(GetOwner().GetCurrentSequencer()->GetRootMovieSceneSequence());
 	}
@@ -671,12 +671,12 @@ void UVREditorUISystem::OnVRHoverUpdate(UViewportInteractor* Interactor, FVector
 									if( bIsAbsolute )
 									{
 										const float ScrollSpeed = VREd::UIAbsoluteScrollSpeed->GetFloat();
-										ScrollDelta = ( VREditorInteractor->GetTrackpadPosition().Y - VREditorInteractor->GetLastTrackpadPosition().Y ) * ScrollSpeed;
+										ScrollDelta = (float) ( VREditorInteractor->GetTrackpadPosition().Y - VREditorInteractor->GetLastTrackpadPosition().Y ) * ScrollSpeed;
 									}
 									else
 									{
 										const float ScrollSpeed = VREd::UIRelativeScrollSpeed->GetFloat();
-										ScrollDelta = VREditorInteractor->GetTrackpadPosition().Y * ScrollSpeed;
+										ScrollDelta = (float) VREditorInteractor->GetTrackpadPosition().Y * ScrollSpeed;
 									}
 								}
 
@@ -737,7 +737,7 @@ void UVREditorUISystem::OnVRHoverUpdate(UViewportInteractor* Interactor, FVector
 									FVector ScrollVelocityVector( VREditorInteractor->GetUIScrollVelocity(), 0.0f, 0.0f );
 									const bool bVelocitySensitive = false;
 									GetOwner().GetWorldInteraction().ApplyVelocityDamping( ScrollVelocityVector, bVelocitySensitive );
-									VREditorInteractor->SetUIScrollVelocity( ScrollVelocityVector.X );
+									VREditorInteractor->SetUIScrollVelocity( (float)ScrollVelocityVector.X );
 								}
 								else
 								{
@@ -924,7 +924,7 @@ void UVREditorUISystem::CreateUIs()
 
 			const bool bWithSceneComponent = false;
 			AVREditorFloatingUI* SequencerUI = GetOwner().SpawnTransientSceneActor<AVREditorDockableWindow>(TEXT("SequencerUI"), bWithSceneComponent);
-			SequencerUI->SetSlateWidget(*this, SequencerPanelID, WidgetToDraw, FIntPoint(VREd::SequencerUIResolutionX->GetFloat(), VREd::SequencerUIResolutionY->GetFloat()), VREd::EditorUISize->GetFloat(), AVREditorFloatingUI::EDockedTo::Nothing);
+			SequencerUI->SetSlateWidget(*this, SequencerPanelID, WidgetToDraw, FIntPoint((int32)VREd::SequencerUIResolutionX->GetFloat(), (int32)VREd::SequencerUIResolutionY->GetFloat()), VREd::EditorUISize->GetFloat(), AVREditorFloatingUI::EDockedTo::Nothing);
 			SequencerUI->ShowUI(false);
 			FloatingUIs.Add(SequencerPanelID, SequencerUI);
 		}
@@ -1096,7 +1096,7 @@ void UVREditorUISystem::ShowEditorUIPanel(AVREditorFloatingUI* Panel, UVREditorI
 			{
 				if (GetOwner().GetCurrentSequencer() != nullptr)
 				{
-					Panel->SetSlateWidget(*this, SequencerPanelID, SNullWidget::NullWidget, FIntPoint(VREd::SequencerUIResolutionX->GetFloat(), VREd::SequencerUIResolutionY->GetFloat()), VREd::EditorUISize->GetFloat(), AVREditorFloatingUI::EDockedTo::Nothing);
+					Panel->SetSlateWidget(*this, SequencerPanelID, SNullWidget::NullWidget, FIntPoint((int32)VREd::SequencerUIResolutionX->GetFloat(), (int32)VREd::SequencerUIResolutionY->GetFloat()), VREd::EditorUISize->GetFloat(), AVREditorFloatingUI::EDockedTo::Nothing);
 					FVREditorActionCallbacks::CloseSequencer(GetOwner().GetCurrentSequencer()->GetRootMovieSceneSequence());
 				}
 			}
@@ -1440,7 +1440,7 @@ void UVREditorUISystem::MakeUniformGridMenu(const TSharedRef<FMultiBox>& MultiBo
 		{
 			TSharedRef<SWidget> BlockWidget = Block->MakeWidget(MultiBoxWidget, EMultiBlockLocation::Middle, true, nullptr)->AsWidget();
 		
-			int32 Column = FMath::Fmod(static_cast<float>(Index), static_cast<float>(Columns));
+			int32 Column = (int32) FMath::Fmod(static_cast<float>(Index), static_cast<float>(Columns));
 			Row = FMath::DivideAndRoundDown(Index, Columns);
 			TSharedRef<SOverlay> TestOverlay = SNew(SOverlay);
 			GridPanel->AddSlot(Column, Row)
@@ -1561,7 +1561,7 @@ void UVREditorUISystem::MakeRadialBoxMenu(const TSharedRef<FMultiBox>& MultiBox,
 	}
 	MultiBox.Get().SetStyle(&FVREditorStyle::Get(), StyleName);
 
-	QuickRadialMenu->SetNumberOfEntries(NumItems);
+	QuickRadialMenu->SetNumberOfEntries((float)NumItems);
 
 	for (const TSharedRef<const FMultiBlock>& MultiBlock : Blocks)
 	{
@@ -1949,7 +1949,7 @@ void UVREditorUISystem::UpdateSequencerUI()
 				];
 
 			const bool bWithSceneComponent = false;
-			SequencerPanel->SetSlateWidget(*this, SequencerPanelID, WidgetToDraw, FIntPoint(VREd::SequencerUIResolutionX->GetFloat(), VREd::SequencerUIResolutionY->GetFloat()), VREd::EditorUISize->GetFloat(), AVREditorFloatingUI::EDockedTo::Nothing);
+			SequencerPanel->SetSlateWidget(*this, SequencerPanelID, WidgetToDraw, FIntPoint((int32)VREd::SequencerUIResolutionX->GetFloat(), (int32)VREd::SequencerUIResolutionY->GetFloat()), VREd::EditorUISize->GetFloat(), AVREditorFloatingUI::EDockedTo::Nothing);
 	
 			if (bSequencerOpenedFromRadialMenu == true)
 			{
@@ -2016,7 +2016,7 @@ void UVREditorUISystem::UpdateActorPreviewUI( TSharedRef<SWidget> InWidget, int3
 		return;
 	}
 
-	const FIntPoint ViewfinderSize = FIntPoint(VREd::DefaultCameraUIResolutionX->GetFloat(), VREd::DefaultCameraUIResolutionY->GetFloat());
+	const FIntPoint ViewfinderSize = FIntPoint((int32)VREd::DefaultCameraUIResolutionX->GetFloat(), (int32)VREd::DefaultCameraUIResolutionY->GetFloat());
 
 	// If a widget is sent but no panel exists, create one.
 	if (Actor && PreviewPanel == nullptr)
@@ -2092,7 +2092,7 @@ void UVREditorUISystem::UpdateDetachedActorPreviewUI(TSharedRef<SWidget> InWidge
 		VRMode->DestroyTransientActor(PreviewPanel);
 		return;
 	}
-	FIntPoint ViewfinderSize = FIntPoint(VREd::DefaultCameraUIResolutionX->GetFloat(), VREd::DefaultCameraUIResolutionY->GetFloat());
+	FIntPoint ViewfinderSize = FIntPoint((int32)VREd::DefaultCameraUIResolutionX->GetFloat(), (int32)VREd::DefaultCameraUIResolutionY->GetFloat());
 
 	// If a widget is sent but no panel exists, create one.
 	if (PreviewPanel == nullptr)
@@ -2178,7 +2178,7 @@ void UVREditorUISystem::UpdateExternalUMGUI(const FVREditorFloatingUICreationCon
 		}
 				
 		FloatingUIs.Add(PreviewPanelID, ExternalPanel);
-		ExternalPanel->SetUMGWidget(*this, PreviewPanelID, nullptr, FIntPoint(VREd::DefaultEditorUIResolutionX->GetFloat(), VREd::DefaultEditorUIResolutionY->GetFloat()), VREd::EditorUISize->GetFloat(), AVREditorFloatingUI::EDockedTo::Nothing);
+		ExternalPanel->SetUMGWidget(*this, PreviewPanelID, nullptr, FIntPoint((int32)VREd::DefaultEditorUIResolutionX->GetFloat(), (int32)VREd::DefaultEditorUIResolutionY->GetFloat()), VREd::EditorUISize->GetFloat(), AVREditorFloatingUI::EDockedTo::Nothing);
 		ExternalPanel->ShowUI(true);
 	}
 
@@ -2188,10 +2188,10 @@ void UVREditorUISystem::UpdateExternalUMGUI(const FVREditorFloatingUICreationCon
 		UWorld* World = GetOwner().GetWorld();
 		if (World != NULL)
 		{
-			FIntPoint UISize = FIntPoint(VREd::DefaultEditorUIResolutionX->GetFloat(), VREd::DefaultEditorUIResolutionY->GetFloat());
+			FIntPoint UISize = FIntPoint((int32)VREd::DefaultEditorUIResolutionX->GetFloat(), (int32)VREd::DefaultEditorUIResolutionY->GetFloat());
 			if (CreationContext.PanelSize != FVector2D::ZeroVector) 
 			{
-				UISize = FIntPoint(CreationContext.PanelSize.X, CreationContext.PanelSize.Y);
+				UISize = FIntPoint((int32)CreationContext.PanelSize.X, (int32)CreationContext.PanelSize.Y);
 			}
 			
 			// @todo: Currently passes CreationContext params into SetUMGWidget(). AVREditorFloatingUI has the context and should use it instead (deprecate the old individual vars)
@@ -2229,7 +2229,7 @@ void UVREditorUISystem::UpdateExternalSlateUI(TSharedRef<SWidget> InWidget, FNam
 		const bool bWithSceneComponent = false;
 		ExternalPanel = GetOwner().SpawnTransientSceneActor<AVREditorDockableWindow>(TEXT("ActorPreviewUI"), bWithSceneComponent);
 		FloatingUIs.Add(PreviewPanelID, ExternalPanel);
-		ExternalPanel->SetSlateWidget(*this, PreviewPanelID, SNullWidget::NullWidget, FIntPoint(VREd::DefaultEditorUIResolutionX->GetFloat(), VREd::DefaultEditorUIResolutionY->GetFloat()), VREd::EditorUISize->GetFloat(), AVREditorFloatingUI::EDockedTo::Nothing);
+		ExternalPanel->SetSlateWidget(*this, PreviewPanelID, SNullWidget::NullWidget, FIntPoint((int32)VREd::DefaultEditorUIResolutionX->GetFloat(), (int32)VREd::DefaultEditorUIResolutionY->GetFloat()), VREd::EditorUISize->GetFloat(), AVREditorFloatingUI::EDockedTo::Nothing);
 		ExternalPanel->ShowUI(true);
 	}
 
@@ -2239,10 +2239,10 @@ void UVREditorUISystem::UpdateExternalSlateUI(TSharedRef<SWidget> InWidget, FNam
 		UWorld* World = GetOwner().GetWorld();
 		if (World != NULL)
 		{
-			FIntPoint UISize = FIntPoint(VREd::DefaultEditorUIResolutionX->GetFloat(), VREd::DefaultEditorUIResolutionY->GetFloat());
+			FIntPoint UISize = FIntPoint((int32)VREd::DefaultEditorUIResolutionX->GetFloat(), (int32)VREd::DefaultEditorUIResolutionY->GetFloat());
 			if (InSize != FVector2D::ZeroVector)
 			{
-				UISize = FIntPoint(InSize.X, InSize.Y);
+				UISize = FIntPoint((int32)InSize.X, (int32)InSize.Y);
 			}
 			ExternalPanel->SetSlateWidget(*this, PreviewPanelID, InWidget, UISize, VREd::EditorUISize->GetFloat(), AVREditorFloatingUI::EDockedTo::Nothing);
 			const bool bDragFromOpen = ShouldPreviewPanel();

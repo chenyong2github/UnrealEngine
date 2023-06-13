@@ -31,7 +31,7 @@ void UARTrackedGeometry::DebugDraw( UWorld* World, const FLinearColor& OutlineCo
 	const FVector Location = WorldTrans.GetLocation();
 	const FRotator Rotation = FRotator(WorldTrans.GetRotation());
 	const FVector Scale3D = WorldTrans.GetScale3D();
-	DrawDebugCoordinateSystem(World, Location, Rotation, Scale3D.X, true, PersistForSeconds, 0, OutlineThickness);
+	DrawDebugCoordinateSystem(World, Location, Rotation, (float)Scale3D.X, true, PersistForSeconds, 0, OutlineThickness);
 }
 
 void UARTrackedGeometry::GetNetworkPayload(FARMeshUpdatePayload& Payload)
@@ -114,7 +114,7 @@ void UARTrackedGeometry::SetName(const FString& InName)
 
 float UARTrackedGeometry::GetLastUpdateTimestamp() const
 {
-	return LastUpdateTimestamp;
+	return (float)LastUpdateTimestamp;
 }
 void UARTrackedGeometry::UpdateTrackedGeometryNoMove(const TSharedRef<FARSupportInterface, ESPMode::ThreadSafe>& InTrackingSystem, uint32 FrameNumber, double Timestamp)
 {
@@ -219,10 +219,10 @@ void UARPlaneGeometry::DebugDraw( UWorld* World, const FLinearColor& OutlineColo
 		for (int32 i=1; i<BoundaryPolygon.Num(); ++i)
 		{
 			const FVector NewVert = LocalToWorldTransform.TransformPosition(BoundaryPolygon[i]);
-			DrawDebugLine(World, LastVert, NewVert, OutlineRGB, PersistForSeconds > 0 ? true : false, PersistForSeconds, OutlineThickness);
+			DrawDebugLine(World, LastVert, NewVert, OutlineRGB, PersistForSeconds > 0 ? true : false, PersistForSeconds, 0, OutlineThickness);
 			LastVert = NewVert;
 		}
-		DrawDebugLine(World, LastVert, LocalToWorldTransform.TransformPosition(BoundaryPolygon[0]), OutlineRGB, PersistForSeconds > 0 ? true : false, PersistForSeconds, OutlineThickness);
+		DrawDebugLine(World, LastVert, LocalToWorldTransform.TransformPosition(BoundaryPolygon[0]), OutlineRGB, PersistForSeconds > 0 ? true : false, PersistForSeconds, 0, OutlineThickness);
 	}
 
 	const FVector WorldSpaceCenter = LocalToWorldTransform.TransformPosition(Center);

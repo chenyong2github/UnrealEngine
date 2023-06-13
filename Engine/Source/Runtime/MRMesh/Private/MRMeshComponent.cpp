@@ -474,7 +474,7 @@ private:
 						const auto& BrickBounds = BrickVisibility.Value.Key;
 						FColor BoundsColor(BrickVisibility.Value.Value ? FColor::Green : ColorGray);
 						FPrimitiveDrawInterface *PDI = Collector.GetPDI(ViewIndex);
-						DrawWireBox(PDI, BrickBounds, BoundsColor, GetDepthPriorityGroup(Views[ViewIndex]));
+						DrawWireBox(PDI, BrickBounds, BoundsColor, (uint8)GetDepthPriorityGroup(Views[ViewIndex]));
 					}
 				}
 			}
@@ -505,7 +505,7 @@ private:
 
 	uint32 GetAllocatedSize(void) const
 	{
-		return(FPrimitiveSceneProxy::GetAllocatedSize());
+		return((uint32)FPrimitiveSceneProxy::GetAllocatedSize());
 	}
 
 private:

@@ -185,8 +185,8 @@ void AVREditorDockableWindow::TickManually( float DeltaTime )
 
 			const FVector UICapsuleStart = FVector( 0.0f, 0.0f, -Size.Y * 0.4f ) * CurrentScaleFactor * AnimatedScale;
 			const FVector UICapsuleEnd = FVector( 0.0f, 0.0f, Size.Y * 0.4f ) * CurrentScaleFactor * AnimatedScale;
-			const float UICapsuleLocalRadius = Size.X * 0.5f * CurrentScaleFactor * AnimatedScale.Y;
-			const float MinDistanceToUICapsule = 10.0f * CurrentScaleFactor * AnimatedScale.Y;	// @todo vreditor tweak
+			const float UICapsuleLocalRadius = (float)Size.X * 0.5f * CurrentScaleFactor * (float)AnimatedScale.Y;
+			const float MinDistanceToUICapsule = 10.0f * CurrentScaleFactor * (float)AnimatedScale.Y;	// @todo vreditor tweak
 			const FVector UIForwardVector = FVector::ForwardVector;
 			const float MinDotForAimingAtOtherHand = -1.1f;	// @todo vreditor tweak
 
@@ -391,7 +391,7 @@ void AVREditorDockableWindow::OnPressed( UViewportInteractor* Interactor, const 
 		else if(InHitResult.Component == GetSelectionBarMeshComponent() && !GetOwner().IsDraggingPanelFromOpen())
 		{
 			bOutResultedInDrag = true;
-			SetDockSelectDistance((InHitResult.TraceStart - InHitResult.Location ).Size());
+			SetDockSelectDistance((float)(InHitResult.TraceStart - InHitResult.Location ).Size());
 			GetOwner().StartDraggingDockUI(this, VREditorInteractor, DockSelectDistance);
 		}
 	}

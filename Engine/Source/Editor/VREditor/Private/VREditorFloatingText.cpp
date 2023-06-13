@@ -193,7 +193,7 @@ void AFloatingText::Update( const FVector OrientateToward )
 	// @todo vreditor tweak
 	const float LineRadius = 0.1f;
 	const float FirstLineLength = 4.0f;	   // Default line length (note that socket scale can affect this!)
-	const float SecondLineLength = TextComponent->GetTextLocalSize().Y;	// The second line "underlines" the text
+	const float SecondLineLength = (float) TextComponent->GetTextLocalSize().Y;	// The second line "underlines" the text
 
 
 	// NOTE: The origin of the actor will be the designated target of the text

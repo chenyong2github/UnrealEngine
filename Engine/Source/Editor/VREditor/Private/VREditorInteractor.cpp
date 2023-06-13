@@ -919,8 +919,8 @@ void UVREditorInteractor::PreviewInputKey( class FEditorViewportClient& Viewport
 
 			// Detect swipe on trackpad.
 			const FVector2D SwipeDelta = LastTrackpadPosition - InitialTouchPosition;
-			const float AbsSwipeDeltaX = FMath::Abs( SwipeDelta.X );
-			const float AbsSwipeDeltaY = FMath::Abs( SwipeDelta.Y );
+			const float AbsSwipeDeltaX = FMath::Abs( (float)SwipeDelta.X );
+			const float AbsSwipeDeltaY = FMath::Abs( (float)SwipeDelta.Y );
 			if (!FMath::IsNearlyZero( SwipeDelta.X, 1.0f ) && AbsSwipeDeltaX > AbsSwipeDeltaY)
 			{
 				if (SwipeDelta.X > 0)
@@ -1107,8 +1107,8 @@ void UVREditorInteractor::HandleInputAxis( FEditorViewportClient& ViewportClient
 				Right,
 			};
 
-			const float Magnitude = TrackpadPosition.Size();
-			const float Angle = FMath::Atan2(TrackpadPosition.Y, TrackpadPosition.X);
+			const float Magnitude = (float) TrackpadPosition.Size();
+			const float Angle = FMath::Atan2((float)TrackpadPosition.Y, (float)TrackpadPosition.X);
 
 			auto IsDpadDirectionPressed = [&](EDpadDirection Dir) -> bool
 			{
@@ -1251,11 +1251,11 @@ float UVREditorInteractor::GetTrackpadSlideDelta( const bool Axis /*= 1*/ ) cons
 	{
 		if (bIsAbsolute)
 		{
-			SlideDelta = ((TrackpadPosition[Axis] - LastTrackpadPosition[Axis]) * VREd::TrackpadAbsoluteDragSpeed->GetFloat());
+			SlideDelta = (float) ((TrackpadPosition[Axis] - LastTrackpadPosition[Axis]) * VREd::TrackpadAbsoluteDragSpeed->GetFloat());
 		}
 		else
 		{
-			SlideDelta = (TrackpadPosition[Axis] * VREd::TrackpadRelativeDragSpeed->GetFloat());
+			SlideDelta = (float) (TrackpadPosition[Axis] * VREd::TrackpadRelativeDragSpeed->GetFloat());
 		}
 	}
 
@@ -1490,7 +1490,7 @@ void UVREditorInteractor::UpdateHelpLabels()
 	const FTransform HeadTransform = GetVRMode().GetHeadTransform();
 
 	// Only show help labels if the hand is pretty close to the face
-	const float DistanceToHead = (GetTransform().GetLocation() - HeadTransform.GetLocation()).Size();
+	const float DistanceToHead = (float) (GetTransform().GetLocation() - HeadTransform.GetLocation()).Size();
 	const float MinDistanceToHeadForHelp = VREd::HelpLabelFadeDistance->GetFloat() * GetVRMode().GetWorldScaleFactor();	// (in cm)
 	bool bShowHelp = VREd::ShowControllerHelpLabels->GetInt() != 0 && DistanceToHead <= MinDistanceToHeadForHelp;
 
@@ -1665,7 +1665,7 @@ void UVREditorInteractor::UpdateSplineLaser( const FVector& InStartLocation, con
 		LaserSplineComponent->ClearSplinePoints( true );
 
 		const FVector SmoothLaserDirection = InEndLocation - InStartLocation;
-		float Distance = SmoothLaserDirection.Size();
+		float Distance = (float) SmoothLaserDirection.Size();
 		const FVector StraightLaserEndLocation = InStartLocation + (InForward * Distance);
 		const int32 NumLaserSplinePoints = LaserSplineMeshComponents.Num();
 
@@ -1756,7 +1756,7 @@ void UVREditorInteractor::UpdateRadialMenuInput( const float DeltaTime )
 				const FVector2D ReturnToCenter = FVector2D::ZeroVector;
 				UISystem.GetRadialMenuFloatingUI()->HighlightSlot( ReturnToCenter );
 
-				const float NewPlayRate = FMath::GetMappedRangeValueClamped( FVector2D( -1.0f, 1.0f ), FVector2D( -1.0f*VREd::SequencerScrubMax->GetFloat(), VREd::SequencerScrubMax->GetFloat() ), TrackpadPosition.X );
+				const float NewPlayRate = (float) FMath::GetMappedRangeValueClamped( FVector2D( -1.0f, 1.0f ), FVector2D( -1.0f*VREd::SequencerScrubMax->GetFloat(), VREd::SequencerScrubMax->GetFloat() ), TrackpadPosition.X );
 				FVREditorActionCallbacks::PlaySequenceAtRate( VRMode, NewPlayRate );
 			}
 			else

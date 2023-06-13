@@ -618,7 +618,7 @@ void UMockDataMeshTrackerComponent::UpdateBlock(int32 BlockIndex)
 			// Hack because blueprints don't support uint32.
 			TArray<int32> Triangles(reinterpret_cast<const int32*>(CurrentMeshDataCache->
 				Triangles.GetData()), CurrentMeshDataCache->Triangles.Num());
-			OnMeshTrackerUpdated.Broadcast(CurrentMeshDataCache->BrickId, CurrentMeshDataCache->OffsetVertices,
+			OnMeshTrackerUpdated.Broadcast((int32)CurrentMeshDataCache->BrickId, CurrentMeshDataCache->OffsetVertices,
 				Triangles, CurrentMeshDataCache->Normals, CurrentMeshDataCache->Confidence);
 		}
 	}

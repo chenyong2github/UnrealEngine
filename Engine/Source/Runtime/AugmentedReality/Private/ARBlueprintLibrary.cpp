@@ -708,9 +708,9 @@ namespace UARBlueprintLibraryNamespace
 
 		FORCEINLINE void SetColumn(int32 Index, FVector Axis)
 		{
-			M[Index][0] = Axis.X;
-			M[Index][1] = Axis.Y;
-			M[Index][2] = Axis.Z;
+			M[Index][0] = (float) Axis.X;
+			M[Index][1] = (float) Axis.Y;
+			M[Index][2] = (float) Axis.Z;
 		};
 
 		FORCEINLINE FVector GetColumn(int32 Index) const
@@ -792,12 +792,12 @@ void UARBlueprintLibrary::CalculateClosestIntersection(const TArray<FVector>& St
 	{
 		FVector NormView = (EndPoints[PointIdx] - StartPoints[PointIdx]).GetSafeNormal();
 
-		float XX = (NormView.X * NormView.X) - 1.0;
-		float YY = (NormView.Y * NormView.Y) - 1.0;
-		float ZZ = (NormView.Z * NormView.Z) - 1.0;
-		float XY = (NormView.X * NormView.Y);
-		float XZ = (NormView.X * NormView.Z);
-		float YZ = (NormView.Y * NormView.Z);
+		float XX = ((float)NormView.X * (float)NormView.X) - 1.0f;
+		float YY = ((float)NormView.Y * (float)NormView.Y) - 1.0f;
+		float ZZ = ((float)NormView.Z * (float)NormView.Z) - 1.0f;
+		float XY = ((float)NormView.X * (float)NormView.Y);
+		float XZ = ((float)NormView.X * (float)NormView.Z);
+		float YZ = ((float)NormView.Y * (float)NormView.Z);
 
 		SXX += XX;
 		SYY += YY;
@@ -806,17 +806,17 @@ void UARBlueprintLibrary::CalculateClosestIntersection(const TArray<FVector>& St
 		SXZ += XZ;
 		SYZ += YZ;
 
-		CX += (StartPoints[PointIdx].X * XX) +
-			(StartPoints[PointIdx].Y * XY) +
-			(StartPoints[PointIdx].Z * XZ);
+		CX += ((float)StartPoints[PointIdx].X * XX) +
+			((float)StartPoints[PointIdx].Y * XY) +
+			((float)StartPoints[PointIdx].Z * XZ);
 
-		CY += (StartPoints[PointIdx].X * XY) +
-			(StartPoints[PointIdx].Y * YY) +
-			(StartPoints[PointIdx].Z * YZ);
+		CY += ((float)StartPoints[PointIdx].X * XY) +
+			((float)StartPoints[PointIdx].Y * YY) +
+			((float)StartPoints[PointIdx].Z * YZ);
 
-		CZ += (StartPoints[PointIdx].X * XZ) +
-			(StartPoints[PointIdx].Y * YZ) +
-			(StartPoints[PointIdx].Z * ZZ);
+		CZ += ((float)StartPoints[PointIdx].X * XZ) +
+			((float)StartPoints[PointIdx].Y * YZ) +
+			((float)StartPoints[PointIdx].Z * ZZ);
 	}
 	UARBlueprintLibraryNamespace::FSquareMatrix3 S;
 	S.SetColumn(0, { SXX, SXY, SXZ });
@@ -914,7 +914,7 @@ float UARBlueprintLibrary::GetARWorldScale()
 {
 	const auto AlignmentTransform = GetAlignmentTransform();
 	// Assuming the scale is uniform
-	return 1.f / AlignmentTransform.GetScale3D().X;
+	return 1.f / (float)AlignmentTransform.GetScale3D().X;
 }
 
 FTransform UARBlueprintLibrary::GetAlignmentTransform()

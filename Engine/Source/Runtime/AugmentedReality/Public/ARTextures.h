@@ -67,7 +67,7 @@ public:
 
 	/** The width and height of the texture */
 	UPROPERTY(BlueprintReadOnly, Category="AR AugmentedReality", meta=(Experimental))
-	FVector2D Size;
+	FVector2f Size;
 };
 
 /**
@@ -152,5 +152,5 @@ public:
 	
 	/** The width and height of the texture */
 	UPROPERTY(BlueprintReadOnly, Category="AR AugmentedReality", meta=(Experimental))
-	FVector2D Size;
+	FVector2f Size;
 };
