@@ -201,6 +201,9 @@ namespace Chaos
 			if (!RigidHandle->Disabled())
 			{
 				RigidSolver->GetEvolution()->GetIslandManager().AddParticle(RigidHandle);
+
+				// This is mainly just to refresh the views. Note that we do not want to enable disabled particles.
+				RigidSolver->GetEvolution()->GetParticles().EnableParticle(RigidHandle);
 			}
 		}
 	}
