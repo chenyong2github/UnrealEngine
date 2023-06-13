@@ -9965,7 +9965,7 @@ void FSequencer::DuplicateSelection()
 
 		// Offset by a visible amount
 		FFrameNumber FrameOffset = FFrameNumber((int32)GetDisplayRateDeltaFrameCount());
-
+		TSet<UMovieSceneSection*> ModifiedSections;
 		FKeySelection NewSelection;
 		for (FKeyHandle KeyHandle : ViewModel->GetSelection()->KeySelection)
 		{
@@ -9973,11 +9973,23 @@ void FSequencer::DuplicateSelection()
 			if (Channel)
 			{
 				TSharedPtr<IKeyArea> KeyArea = Channel->GetKeyArea();
+				UMovieSceneSection* Section = KeyArea->GetOwningSection();
 
-				FKeyHandle NewKeyHandle = KeyArea->DuplicateKey(KeyHandle);
-				KeyArea->SetKeyTime(NewKeyHandle, KeyArea->GetKeyTime(KeyHandle) + FrameOffset);
+				bool bModified = ModifiedSections.Contains(Section);
+				if (!bModified)
+				{
+					bModified = Section->TryModify();
+				}
 
-				NewSelection.Select(Channel, NewKeyHandle);
+				if (bModified)
+				{
+					ModifiedSections.Add(Section);
+
+					FKeyHandle NewKeyHandle = KeyArea->DuplicateKey(KeyHandle);
+					KeyArea->SetKeyTime(NewKeyHandle, KeyArea->GetKeyTime(KeyHandle) + FrameOffset);
+
+					NewSelection.Select(Channel, NewKeyHandle);
+				}
 			}
 		}
 
