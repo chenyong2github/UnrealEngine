@@ -17,7 +17,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 		TConstArrayView<FTensorRDGRef> InputTensors,
 		const FTensorRDG& OutputTensor,
 		bool OutputAsInput,
-		NNECore::Internal::EElementWiseVariadicOperatorType OpType,
+		NNE::Internal::EElementWiseVariadicOperatorType OpType,
 		float Scale)
 	{
 		static_assert(FElementWiseVariadicConstants::MAX_NUM_INPUT == 4, "This algorithm need to be adapted to math the shader.");
@@ -84,7 +84,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 	/**
 	 * Variadic Element-wise ML operator implementation
 	 */
-	template<NNECore::Internal::EElementWiseVariadicOperatorType OpType>
+	template<NNE::Internal::EElementWiseVariadicOperatorType OpType>
 	class TElementWiseVariadic : public FOperatorHlsl
 	{
 	public:
@@ -94,7 +94,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 
 	public:
 
-		virtual int PrepareOutputs(TConstArrayView<NNECore::Internal::FTensorRef> InputTensors, TArrayView<NNECore::Internal::FTensorRef> OutputTensors) const override
+		virtual int PrepareOutputs(TConstArrayView<NNE::Internal::FTensorRef> InputTensors, TArrayView<NNE::Internal::FTensorRef> OutputTensors) const override
 		{
 			check(InputTensors.Num() > 0);
 			check(OutputTensors.Num() == 1);
@@ -127,14 +127,14 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 				OutputShapeData[OutputRank - 1 - i] = OutputValue;
 			}
 
-			NNECore::FTensorShape OutputShape = NNECore::FTensorShape::Make(OutputShapeData);
+			NNE::FTensorShape OutputShape = NNE::FTensorShape::Make(OutputShapeData);
 
 			OutputTensors[0]->SetShape(OutputShape);
 
 			return 0;
 		}
 		
-		virtual bool Initialize(TConstArrayView<NNECore::FTensorDesc> InputTensorDescs, TConstArrayView<NNECore::FTensorDesc> OutputTensorDescs, const NNECore::FAttributeMap& Attributes) override
+		virtual bool Initialize(TConstArrayView<NNE::FTensorDesc> InputTensorDescs, TConstArrayView<NNE::FTensorDesc> OutputTensorDescs, const NNE::FAttributeMap& Attributes) override
 		{
 			check(InputTensorDescs.Num() > 0);
 			check(OutputTensorDescs.Num() == 1);
@@ -165,7 +165,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 					PassInputTensors[i] = InInputTensors[InputOffset + i];
 				}
 
-				if (OpType == NNECore::Internal::EElementWiseVariadicOperatorType::Mean && bIsLastPass)
+				if (OpType == NNE::Internal::EElementWiseVariadicOperatorType::Mean && bIsLastPass)
 				{
 					Scale = 1.0f / InInputTensors.Num();
 				}
@@ -179,7 +179,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 		}
 	};
 
-	bool ValidateElementWiseVariadicOperator(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputShapes)
+	bool ValidateElementWiseVariadicOperator(const NNE::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNE::FSymbolicTensorShape> InputShapes)
 	{
 		bool bIsValid = true;
 
@@ -203,7 +203,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 		return bIsValid;
 	}
 
-	template<NNECore::Internal::EElementWiseVariadicOperatorType OpType>
+	template<NNE::Internal::EElementWiseVariadicOperatorType OpType>
 	FOperatorHlsl* CreateElementWiseVariadicOperator()
 	{
 		return new TElementWiseVariadic<OpType>();
@@ -211,7 +211,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 
 	bool RegisterElementWiseVariadicOperators(FOperatorRegistryHlsl& Registry)
 	{
-#define OP(Name) Registry.OpAdd(TEXT(#Name), CreateElementWiseVariadicOperator<NNECore::Internal::EElementWiseVariadicOperatorType::Name>)
+#define OP(Name) Registry.OpAdd(TEXT(#Name), CreateElementWiseVariadicOperator<NNE::Internal::EElementWiseVariadicOperatorType::Name>)
 		OP(Max);
 		OP(Min);
 		OP(Mean);

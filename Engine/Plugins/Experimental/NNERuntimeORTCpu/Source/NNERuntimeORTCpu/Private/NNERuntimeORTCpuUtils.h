@@ -118,8 +118,8 @@ namespace UE::NNERuntimeORTCpu::Private
 	}
 
 	inline void BindTensorsToORT(
-		TConstArrayView<NNECore::FTensorBindingCPU> InBindingTensors,
-		TConstArrayView<NNECore::Internal::FTensor> InTensors,
+		TConstArrayView<NNE::FTensorBindingCPU> InBindingTensors,
+		TConstArrayView<NNE::Internal::FTensor> InTensors,
 		TConstArrayView<ONNXTensorElementDataType> InTensorsORTType,
 		const Ort::MemoryInfo* InAllocatorInfo,
 		TArray<Ort::Value>& OutOrtTensors
@@ -136,8 +136,8 @@ namespace UE::NNERuntimeORTCpu::Private
 
 		for (uint32 Index = 0; Index < NumBinding; ++Index)
 		{
-			const NNECore::FTensorBindingCPU& Binding = InBindingTensors[Index];
-			const NNECore::Internal::FTensor& Tensor = InTensors[Index];
+			const NNE::FTensorBindingCPU& Binding = InBindingTensors[Index];
+			const NNE::Internal::FTensor& Tensor = InTensors[Index];
 			const ONNXTensorElementDataType CurrentORTType = InTensorsORTType[Index];
 
 			TUniquePtr<int64_t[]> SizesInt64t;
@@ -164,9 +164,9 @@ namespace UE::NNERuntimeORTCpu::Private
 
 	inline void CopyFromORTToBindings(
 		TConstArrayView<Ort::Value> InOrtTensors,
-		TConstArrayView<NNECore::FTensorBindingCPU> InBindingTensors,
-		TConstArrayView<NNECore::FTensorDesc> InTensorDescs,
-		TArray<NNECore::Internal::FTensor>& OutTensors
+		TConstArrayView<NNE::FTensorBindingCPU> InBindingTensors,
+		TConstArrayView<NNE::FTensorDesc> InTensorDescs,
+		TArray<NNE::Internal::FTensor>& OutTensors
 	)
 	{
 		const uint32 NumBinding = InOrtTensors.Num();
@@ -180,8 +180,8 @@ namespace UE::NNERuntimeORTCpu::Private
 
 		for (uint32 Index = 0; Index < NumBinding; ++Index)
 		{
-			const NNECore::FTensorBindingCPU& Binding = InBindingTensors[Index];
-			const NNECore::FTensorDesc& TensorDesc = InTensorDescs[Index];
+			const NNE::FTensorBindingCPU& Binding = InBindingTensors[Index];
+			const NNE::FTensorDesc& TensorDesc = InTensorDescs[Index];
 			const Ort::Value& OrtTensor = InOrtTensors[Index];
 			const std::vector<int64_t>& OrtShape = OrtTensor.GetTensorTypeAndShapeInfo().GetShape();
 
@@ -192,8 +192,8 @@ namespace UE::NNERuntimeORTCpu::Private
 				ShapeData.Add(OrtShape[DimIndex]);
 			}
 
-			NNECore::FTensorShape Shape = NNECore::FTensorShape::Make(ShapeData);
-			NNECore::Internal::FTensor Tensor = NNECore::Internal::FTensor::Make(TensorDesc.GetName(), Shape, TensorDesc.GetDataType());
+			NNE::FTensorShape Shape = NNE::FTensorShape::Make(ShapeData);
+			NNE::Internal::FTensor Tensor = NNE::Internal::FTensor::Make(TensorDesc.GetName(), Shape, TensorDesc.GetDataType());
 			OutTensors.Emplace(Tensor);
 
 			const void* OrtTensorData = OrtTensor.GetTensorData<void>();

@@ -25,7 +25,7 @@ namespace UE::NNERuntimeORT::Private
 		EThreadPriority ThreadPriority = EThreadPriority::TPri_Normal;
 	};
 
-	class FModelInstanceORT : public NNECore::Internal::FModelInstanceBase<NNECore::IModelInstanceGPU>
+	class FModelInstanceORT : public NNE::Internal::FModelInstanceBase<NNE::IModelInstanceGPU>
 	{
 
 	public:
@@ -33,8 +33,8 @@ namespace UE::NNERuntimeORT::Private
 		FModelInstanceORT(Ort::Env* InORTEnvironment, const FRuntimeConf& InRuntimeConf);
 		virtual ~FModelInstanceORT() = default;
 
-		virtual int SetInputTensorShapes(TConstArrayView<NNECore::FTensorShape> InInputShapes) override;
-		virtual int RunSync(TConstArrayView<NNECore::FTensorBindingGPU> InInputBindings, TConstArrayView<NNECore::FTensorBindingGPU> InOutputBindings) override;
+		virtual int SetInputTensorShapes(TConstArrayView<NNE::FTensorShape> InInputShapes) override;
+		virtual int RunSync(TConstArrayView<NNE::FTensorBindingGPU> InInputBindings, TConstArrayView<NNE::FTensorBindingGPU> InOutputBindings) override;
 
 		bool Init(TConstArrayView<uint8> ModelData);
 		bool IsLoaded() const;
@@ -66,8 +66,8 @@ namespace UE::NNERuntimeORT::Private
 		TArray<char*> InputTensorNames;
 		TArray<char*> OutputTensorNames;
 
-		TArray<NNECore::Internal::FTensor> InputTensors;
-		TArray<NNECore::Internal::FTensor> OutputTensors;
+		TArray<NNE::Internal::FTensor> InputTensors;
+		TArray<NNE::Internal::FTensor> OutputTensors;
 	
 		virtual bool InitializedAndConfigureMembers();
 		bool ConfigureTensors(const bool InIsInput);
@@ -101,26 +101,26 @@ namespace UE::NNERuntimeORT::Private
 		virtual bool InitializedAndConfigureMembers() override;
 	};
 
-	class FModelORTDml : public NNECore::IModelGPU
+	class FModelORTDml : public NNE::IModelGPU
 	{
 	public:
 		FModelORTDml(Ort::Env* InORTEnvironment, TConstArrayView<uint8> ModelData);
 		virtual ~FModelORTDml() {};
 
-		virtual TUniquePtr<UE::NNECore::IModelInstanceGPU> CreateModelInstance() override;
+		virtual TUniquePtr<UE::NNE::IModelInstanceGPU> CreateModelInstance() override;
 
 	private:
 		Ort::Env* ORTEnvironment;
 		TArray<uint8> ModelData;
 	};
 
-	class FModelORTCuda : public NNECore::IModelGPU
+	class FModelORTCuda : public NNE::IModelGPU
 	{
 	public:
 		FModelORTCuda(Ort::Env* InORTEnvironment, TConstArrayView<uint8> ModelData);
 		virtual ~FModelORTCuda() {};
 
-		virtual TUniquePtr<UE::NNECore::IModelInstanceGPU> CreateModelInstance() override;
+		virtual TUniquePtr<UE::NNE::IModelInstanceGPU> CreateModelInstance() override;
 
 	private:
 		Ort::Env* ORTEnvironment;

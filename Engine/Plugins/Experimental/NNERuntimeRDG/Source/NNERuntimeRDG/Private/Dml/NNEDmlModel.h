@@ -64,7 +64,7 @@ private:
 
 	bool InitCompiledOp(TConstArrayView<int32> OpInputIndices, uint64 TensorDataSize);
 
-	FOperatorDml* OpCreate(const FString& Name, TArrayView<const NNECore::Internal::FTensor> InputTensorDesc, TArrayView<const NNECore::Internal::FTensor> OutputTensorDescs, const NNECore::FAttributeMap& Attributes);
+	FOperatorDml* OpCreate(const FString& Name, TArrayView<const NNE::Internal::FTensor> InputTensorDesc, TArrayView<const NNE::Internal::FTensor> OutputTensorDescs, const NNE::FAttributeMap& Attributes);
 
 	FBufferRHIRef CreateRHIBuffer(FRHICommandListImmediate& RHICmdList, uint32 Size, EBufferUsageFlags Usage, ERHIAccess Access, const TCHAR* DbgName);
 	ID3D12Resource* CreateD3D12Buffer(uint32 Size, D3D12_RESOURCE_STATES ResourceState = D3D12_RESOURCE_STATE_COMMON, D3D12_HEAP_TYPE HeapType = D3D12_HEAP_TYPE_DEFAULT, const TCHAR* DebugName = nullptr);
@@ -97,13 +97,13 @@ private:
 	ID3D12DynamicRHI*					DynamicRHI;
 };
 
-class FModel : public NNECore::IModelRDG
+class FModel : public NNE::IModelRDG
 {
 public:
 	FModel(TConstArrayView<uint8> InModelData, FDmlDeviceContext* InDevCtx);
 	virtual ~FModel() {};
 
-	virtual TUniquePtr<UE::NNECore::IModelInstanceRDG> CreateModelInstance() override;
+	virtual TUniquePtr<UE::NNE::IModelInstanceRDG> CreateModelInstance() override;
 
 private:
 	TArray<uint8> ModelData;

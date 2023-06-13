@@ -23,7 +23,7 @@ public:
 		return new FOperatorDmlActivationUnary();
 	}
 
-	static bool Validate(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputShapes)
+	static bool Validate(const NNE::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNE::FSymbolicTensorShape> InputShapes)
 	{
 		//TODO
 		return true;
@@ -46,10 +46,10 @@ public:
 	//
 	//
 	//
-	virtual bool Initialize(IDMLDevice* Device, TArrayView<const NNECore::Internal::FTensor> InputTensors, TArrayView<const NNECore::Internal::FTensor> OutputTensors, const NNECore::FAttributeMap& Attributes) override
+	virtual bool Initialize(IDMLDevice* Device, TArrayView<const NNE::Internal::FTensor> InputTensors, TArrayView<const NNE::Internal::FTensor> OutputTensors, const NNE::FAttributeMap& Attributes) override
 	{
-		const NNECore::Internal::FTensor& InputTensor = InputTensors[0];
-		const NNECore::Internal::FTensor& OutputTensor = OutputTensors[0];
+		const NNE::Internal::FTensor& InputTensor = InputTensors[0];
+		const NNE::Internal::FTensor& OutputTensor = OutputTensors[0];
 
 		if constexpr (std::is_same_v<DmlActivationOpDescType, DML_ACTIVATION_SOFTMAX1_OPERATOR_DESC> ||
 					  std::is_same_v<DmlActivationOpDescType, DML_ACTIVATION_LOG_SOFTMAX1_OPERATOR_DESC>)
@@ -187,7 +187,7 @@ public:
 		return new FOperatorDmlActivationBinary();
 	}
 
-	static bool Validate(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputShapes)
+	static bool Validate(const NNE::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNE::FSymbolicTensorShape> InputShapes)
 	{
 		//TODO
 		return true;
@@ -202,11 +202,11 @@ public:
 	//
 	//
 	//
-	virtual bool Initialize(IDMLDevice* Device, TArrayView<const NNECore::Internal::FTensor> InputTensors, TArrayView<const NNECore::Internal::FTensor> OutputTensors, const NNECore::FAttributeMap& Attributes) override
+	virtual bool Initialize(IDMLDevice* Device, TArrayView<const NNE::Internal::FTensor> InputTensors, TArrayView<const NNE::Internal::FTensor> OutputTensors, const NNE::FAttributeMap& Attributes) override
 	{
-		const NNECore::Internal::FTensor& InputATensor = InputTensors[0];
-		const NNECore::Internal::FTensor& InputBTensor = InputTensors[1];
-		const NNECore::Internal::FTensor& OutputTensor = OutputTensors[0];
+		const NNE::Internal::FTensor& InputATensor = InputTensors[0];
+		const NNE::Internal::FTensor& InputBTensor = InputTensors[1];
+		const NNE::Internal::FTensor& OutputTensor = OutputTensors[0];
 
 		// Initialize tensor descriptors
 		FTensorDescDml	DmlInputATensorDesc;

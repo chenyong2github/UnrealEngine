@@ -126,7 +126,7 @@ void SRuntimesWidget::InitCheckBoxNames()
 
 	CheckBoxNames.Add(TEXT("All"));
 
-	for (TWeakInterfacePtr<INNERuntime> Runtime : UE::NNECore::GetAllRuntimes())
+	for (TWeakInterfacePtr<INNERuntime> Runtime : UE::NNE::GetAllRuntimes())
 	{
 		CheckBoxNames.Add(Runtime->GetRuntimeName());
 	}

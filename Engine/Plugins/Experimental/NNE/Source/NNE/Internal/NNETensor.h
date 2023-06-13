@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "NNETypes.h"
 
-namespace UE::NNECore::Internal
+namespace UE::NNE::Internal
 {
 	/** Concrete tensor with data accessible by graph scheduling */
 	class FTensor
@@ -107,4 +107,4 @@ namespace UE::NNECore::Internal
 
 	using FTensorRef = FTensor*;
 
-} // namespace UE::NNECore::Internal
+} // namespace UE::NNE::Internal

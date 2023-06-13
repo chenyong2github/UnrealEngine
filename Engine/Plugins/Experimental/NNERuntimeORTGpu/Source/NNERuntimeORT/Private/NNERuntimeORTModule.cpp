@@ -68,7 +68,7 @@ void FNNERuntimeORTModule::StartupModule()
 
 		NNERuntimeORTCuda->Init(ENNERuntimeORTGpuProvider::Cuda);
 		NNERuntimeORTCuda->AddToRoot();
-		UE::NNECore::RegisterRuntime(RuntimeCudaInterface);
+		UE::NNE::RegisterRuntime(RuntimeCudaInterface);
 	}
 	
 	// NNE runtime ORT Dml startup
@@ -79,7 +79,7 @@ void FNNERuntimeORTModule::StartupModule()
 
 		NNERuntimeORTDml->Init(ENNERuntimeORTGpuProvider::Dml);
 		NNERuntimeORTDml->AddToRoot();
-		UE::NNECore::RegisterRuntime(RuntimeDmlInterface);
+		UE::NNE::RegisterRuntime(RuntimeDmlInterface);
 	}
 #endif
 }
@@ -92,7 +92,7 @@ void FNNERuntimeORTModule::ShutdownModule()
 	{
 		TWeakInterfacePtr<INNERuntime> RuntimeDmlInterface(NNERuntimeORTDml.Get());
 
-		UE::NNECore::UnregisterRuntime(RuntimeDmlInterface);
+		UE::NNE::UnregisterRuntime(RuntimeDmlInterface);
 		NNERuntimeORTDml->RemoveFromRoot();
 		NNERuntimeORTDml = TWeakObjectPtr<UNNERuntimeORTGpuImpl>(nullptr);
 	}
@@ -102,7 +102,7 @@ void FNNERuntimeORTModule::ShutdownModule()
 	{
 		TWeakInterfacePtr<INNERuntime> RuntimeCudaInterface(NNERuntimeORTCuda.Get());
 
-		UE::NNECore::UnregisterRuntime(RuntimeCudaInterface);
+		UE::NNE::UnregisterRuntime(RuntimeCudaInterface);
 		NNERuntimeORTCuda->RemoveFromRoot();
 		NNERuntimeORTCuda = TWeakObjectPtr<UNNERuntimeORTGpuImpl>(nullptr);
 	}

@@ -9,13 +9,13 @@ namespace UE::NNERuntimeRDG::Private
 {
 	class TensorIdxIterator
 	{
-		const NNECore::FTensorShape& TensorShape;
-		TArray<uint32, TInlineAllocator<NNECore::FTensorShape::MaxRank>> CurrentPosition;
+		const NNE::FTensorShape& TensorShape;
+		TArray<uint32, TInlineAllocator<NNE::FTensorShape::MaxRank>> CurrentPosition;
 
 	public:
-		TensorIdxIterator(const NNECore::FTensorShape& InTensorShape);
+		TensorIdxIterator(const NNE::FTensorShape& InTensorShape);
 		bool Advance();
-		int32 GetIndexToBroadcastedShape(const NNECore::FTensorShape& InTensorShape) const;
+		int32 GetIndexToBroadcastedShape(const NNE::FTensorShape& InTensorShape) const;
 		int32 GetIndex() const;
 		TConstArrayView<uint32> GetPositions() const;
 		int32 GetIndexFromPosition(TConstArrayView<uint32> Position) const;

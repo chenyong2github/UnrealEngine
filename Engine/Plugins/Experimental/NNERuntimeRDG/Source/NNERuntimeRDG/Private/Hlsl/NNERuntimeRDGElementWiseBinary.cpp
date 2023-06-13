@@ -17,7 +17,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 	/**
 	 * Binary element-wise operator implementation
 	 */
-	template<NNECore::Internal::EElementWiseBinaryOperatorType OpType>
+	template<NNE::Internal::EElementWiseBinaryOperatorType OpType>
 	class TElementWiseBinary : public FOperatorHlsl
 	{
 	public:
@@ -27,13 +27,13 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 
 	public:
 
-		virtual int PrepareOutputs(TConstArrayView<NNECore::Internal::FTensorRef> InputTensors, TArrayView<NNECore::Internal::FTensorRef> OutputTensors) const override
+		virtual int PrepareOutputs(TConstArrayView<NNE::Internal::FTensorRef> InputTensors, TArrayView<NNE::Internal::FTensorRef> OutputTensors) const override
 		{
 			check(InputTensors.Num() == 2);
 			check(OutputTensors.Num() == 1);
 			
-			const NNECore::FTensorShape& LHSInput = InputTensors[0]->GetShape();
-			const NNECore::FTensorShape& RHSInput = InputTensors[1]->GetShape();
+			const NNE::FTensorShape& LHSInput = InputTensors[0]->GetShape();
+			const NNE::FTensorShape& RHSInput = InputTensors[1]->GetShape();
 			const int32 OutputRank = FMath::Max(LHSInput.Rank(), RHSInput.Rank());
 			TArray<uint32> OutputShapeData;
 			
@@ -54,7 +54,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 				OutputShapeData[OutputRank - 1 - i] = OutputValue;
 			}
 
-			NNECore::FTensorShape OutputShape = NNECore::FTensorShape::Make(OutputShapeData);
+			NNE::FTensorShape OutputShape = NNE::FTensorShape::Make(OutputShapeData);
 			
 			OutputTensors[0]->SetShape(OutputShape);
 
@@ -69,7 +69,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 			return 0;
 		}
 		
-		virtual bool Initialize(TConstArrayView<NNECore::FTensorDesc> InputTensorDescs, TConstArrayView<NNECore::FTensorDesc> OutputTensorDescs, const NNECore::FAttributeMap& Attributes) override
+		virtual bool Initialize(TConstArrayView<NNE::FTensorDesc> InputTensorDescs, TConstArrayView<NNE::FTensorDesc> OutputTensorDescs, const NNE::FAttributeMap& Attributes) override
 		{
 			check(InputTensorDescs.Num() == 2);
 			check(OutputTensorDescs.Num() == 1);
@@ -127,7 +127,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 		}
 	};
 
-	bool ValidateElementWiseBinaryOperator(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputShapes)
+	bool ValidateElementWiseBinaryOperator(const NNE::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNE::FSymbolicTensorShape> InputShapes)
 	{
 		bool bIsValid = true;
 
@@ -145,7 +145,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 		return bIsValid;
 	}
 
-	template<NNECore::Internal::EElementWiseBinaryOperatorType OpType>
+	template<NNE::Internal::EElementWiseBinaryOperatorType OpType>
 	FOperatorHlsl* CreateElementWiseBinaryOperator()
 	{
 		return new TElementWiseBinary<OpType>();
@@ -153,7 +153,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 
 	bool RegisterElementWiseBinaryOperators(FOperatorRegistryHlsl& Registry)
 	{
-#define OP(Name) Registry.OpAdd(TEXT(#Name), CreateElementWiseBinaryOperator<NNECore::Internal::EElementWiseBinaryOperatorType::Name>, ValidateElementWiseBinaryOperator)
+#define OP(Name) Registry.OpAdd(TEXT(#Name), CreateElementWiseBinaryOperator<NNE::Internal::EElementWiseBinaryOperatorType::Name>, ValidateElementWiseBinaryOperator)
 		OP(Add);
 		//OP(And);
 		OP(Div);

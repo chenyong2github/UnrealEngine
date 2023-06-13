@@ -46,36 +46,36 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 
 	public:
 
-		virtual int PrepareOutputs(TConstArrayView<NNECore::Internal::FTensorRef> InputTensors, TArrayView<NNECore::Internal::FTensorRef> OutputTensors) const override
+		virtual int PrepareOutputs(TConstArrayView<NNE::Internal::FTensorRef> InputTensors, TArrayView<NNE::Internal::FTensorRef> OutputTensors) const override
 		{
 			check(InputTensors.Num() >= 2 && InputTensors.Num() <= 3);
 			check(OutputTensors.Num() == 1);
 
-			const NNECore::FTensorShape& Input = InputTensors[0]->GetShape();
-			const NNECore::FTensorShape& Weights = InputTensors[1]->GetShape();
+			const NNE::FTensorShape& Input = InputTensors[0]->GetShape();
+			const NNE::FTensorShape& Weights = InputTensors[1]->GetShape();
 
 			const TArray<int32> OutputShapeData = NNEHlslShaders::Internal::FConvCS::GetOutputShape(Input.GetData(), Weights.GetData(), AutoPad, Dilations, Strides, Pads);
-			const NNECore::FSymbolicTensorShape OutputShape = NNECore::FSymbolicTensorShape::Make(OutputShapeData);
+			const NNE::FSymbolicTensorShape OutputShape = NNE::FSymbolicTensorShape::Make(OutputShapeData);
 			
 			if (!OutputShape.IsConcrete())
 			{
 				return -1;
 			}
-			OutputTensors[0]->SetShape(NNECore::FTensorShape::MakeFromSymbolic(OutputShape));
+			OutputTensors[0]->SetShape(NNE::FTensorShape::MakeFromSymbolic(OutputShape));
 
 			return 0;
 		};
 
-		virtual bool Initialize(TConstArrayView<NNECore::FTensorDesc> InputTensorDescs, TConstArrayView<NNECore::FTensorDesc> OutputTensorDescs, const NNECore::FAttributeMap& Attributes) override
+		virtual bool Initialize(TConstArrayView<NNE::FTensorDesc> InputTensorDescs, TConstArrayView<NNE::FTensorDesc> OutputTensorDescs, const NNE::FAttributeMap& Attributes) override
 		{
             using namespace UE::NNEHlslShaders::Internal;
 
 			check(InputTensorDescs.Num() >= 2 && InputTensorDescs.Num() <= 3);
 			check(OutputTensorDescs.Num() == 1);
 
-            const NNECore::FTensorDesc& Input = InputTensorDescs[0];
-			const NNECore::FTensorDesc& Weights = InputTensorDescs[1];
-			const NNECore::FTensorDesc& Output = OutputTensorDescs[0];
+            const NNE::FTensorDesc& Input = InputTensorDescs[0];
+			const NNE::FTensorDesc& Weights = InputTensorDescs[1];
+			const NNE::FTensorDesc& Output = OutputTensorDescs[0];
 			
 			if (Input.GetShape().Rank() < 2)
 			{
@@ -298,7 +298,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 		};
 	};
 
-	bool ValidateConvOperator(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputShapes)
+	bool ValidateConvOperator(const NNE::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNE::FSymbolicTensorShape> InputShapes)
 	{
 		bool bIsValid = true;
 

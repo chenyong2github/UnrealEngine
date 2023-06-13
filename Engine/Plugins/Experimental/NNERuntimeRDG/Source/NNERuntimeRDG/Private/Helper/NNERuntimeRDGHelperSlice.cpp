@@ -5,7 +5,7 @@
 
 namespace UE::NNERuntimeRDG::Internal::CPUHelper::Slice
 {
-	template<typename TData> void ApplyResolvedInputType(const NNECore::Internal::FTensor& InputTensor, NNECore::Internal::FTensor& OutputTensor, TConstArrayView<int32> Starts)
+	template<typename TData> void ApplyResolvedInputType(const NNE::Internal::FTensor& InputTensor, NNE::Internal::FTensor& OutputTensor, TConstArrayView<int32> Starts)
 	{
 		check(InputTensor.HasPreparedData());
 		check(InputTensor.GetShape().Rank() == Starts.Num());
@@ -33,9 +33,9 @@ namespace UE::NNERuntimeRDG::Internal::CPUHelper::Slice
 		OutputTensor.SetPreparedData<TData>(OutputData);
 	}
 
-	void Apply(const NNECore::Internal::FTensor& InputTensor, NNECore::Internal::FTensor& OutputTensor, TConstArrayView<int32> Starts)
+	void Apply(const NNE::Internal::FTensor& InputTensor, NNE::Internal::FTensor& OutputTensor, TConstArrayView<int32> Starts)
 	{
-		static constexpr int32 MaxItemInOutputTensor = NNECore::FTensorShape::MaxRank * 2;
+		static constexpr int32 MaxItemInOutputTensor = NNE::FTensorShape::MaxRank * 2;
 
 		if (OutputTensor.GetVolume() >= MaxItemInOutputTensor)
 		{

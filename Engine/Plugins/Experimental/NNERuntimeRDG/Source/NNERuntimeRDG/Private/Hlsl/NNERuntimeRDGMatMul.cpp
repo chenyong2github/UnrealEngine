@@ -22,13 +22,13 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 
 	public:
 
-		virtual int PrepareOutputs(TConstArrayView<NNECore::Internal::FTensorRef> InputTensors, TArrayView<NNECore::Internal::FTensorRef> OutputTensors) const override
+		virtual int PrepareOutputs(TConstArrayView<NNE::Internal::FTensorRef> InputTensors, TArrayView<NNE::Internal::FTensorRef> OutputTensors) const override
 		{
 			check(InputTensors.Num() == 2);
 			check(OutputTensors.Num() == 1);
 
-			const NNECore::FTensorShape& InputA = InputTensors[0]->GetShape();
-			const NNECore::FTensorShape& InputB = InputTensors[1]->GetShape();
+			const NNE::FTensorShape& InputA = InputTensors[0]->GetShape();
+			const NNE::FTensorShape& InputB = InputTensors[1]->GetShape();
 
 			if (InputA.Rank() < 2)
 			{
@@ -65,20 +65,20 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 			OutputShapeData[OutputRank - 2] = InputA.GetData()[InputA.Rank() - 2];
 			OutputShapeData[OutputRank - 1] = InputB.GetData()[InputB.Rank() - 1];
 
-			NNECore::FTensorShape OutputShape = NNECore::FTensorShape::Make(OutputShapeData);
+			NNE::FTensorShape OutputShape = NNE::FTensorShape::Make(OutputShapeData);
 
 			OutputTensors[0]->SetShape(OutputShape);
 
 			return 0;
 		};
 
-		virtual bool Initialize(TConstArrayView<NNECore::FTensorDesc> InputTensorDescs, TConstArrayView<NNECore::FTensorDesc> OutputTensorDescs, const NNECore::FAttributeMap& Attributes) override
+		virtual bool Initialize(TConstArrayView<NNE::FTensorDesc> InputTensorDescs, TConstArrayView<NNE::FTensorDesc> OutputTensorDescs, const NNE::FAttributeMap& Attributes) override
 		{
 			check(InputTensorDescs.Num() == 2);
 			check(OutputTensorDescs.Num() == 1);
 
-			const NNECore::FTensorDesc& InputA = InputTensorDescs[0];
-			const NNECore::FTensorDesc& InputB = InputTensorDescs[1];
+			const NNE::FTensorDesc& InputA = InputTensorDescs[0];
+			const NNE::FTensorDesc& InputB = InputTensorDescs[1];
 
 			if (InputA.GetShape().Rank() < 2)
 			{
@@ -139,7 +139,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 		}
 	};
 
-	bool ValidateMatMulOperator(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputShapes)
+	bool ValidateMatMulOperator(const NNE::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNE::FSymbolicTensorShape> InputShapes)
 	{
 		bool bIsValid = true;
 

@@ -7,5 +7,5 @@
 
 namespace UE::NNERuntimeRDG::Internal::CPUHelper::Concat
 {
-	void NNERUNTIMERDG_API Apply(TConstArrayView<NNECore::Internal::FTensorRef> InputTensors, NNECore::Internal::FTensor& OutputTensor, int32 Axis);
+	void NNERUNTIMERDG_API Apply(TConstArrayView<NNE::Internal::FTensorRef> InputTensors, NNE::Internal::FTensor& OutputTensor, int32 Axis);
 } // UE::NNERuntimeRDG::Internal::CPUHelper::Concat

@@ -17,9 +17,9 @@ namespace UE::NNERuntimeRDG::Private
 //
 //
 bool AlwaysValidValidationFunction(
-	const NNECore::FAttributeMap& AttributeMap, 
+	const NNE::FAttributeMap& AttributeMap, 
 	TConstArrayView<ENNETensorDataType> InputTensorTypes,
-	TConstArrayView<NNECore::FSymbolicTensorShape> InputShapes)
+	TConstArrayView<NNE::FSymbolicTensorShape> InputShapes)
 {
 	return true;
 }
@@ -106,7 +106,7 @@ void FAttributeValidator::AddRequired(const FString& Name, ENNEAttributeDataType
 	RequiredAttributes.Emplace(Name, Type);
 }
 
-bool FAttributeValidator::Validate(const NNECore::FAttributeMap& AttributesToValidate)
+bool FAttributeValidator::Validate(const NNE::FAttributeMap& AttributesToValidate)
 {
 	bool bAreAttributesValid = true;
 

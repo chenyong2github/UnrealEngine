@@ -100,7 +100,7 @@ TArray<uint8> UNNERuntimeRDGHlslImpl::CreateModelData(FString FileType, TConstAr
 		return {};
 	}
 
-	TUniquePtr<UE::NNECore::Internal::IModelOptimizer> Optimizer = UE::NNEUtils::Internal::CreateONNXToNNEModelOptimizer();
+	TUniquePtr<UE::NNE::Internal::IModelOptimizer> Optimizer = UE::NNEUtils::Internal::CreateONNXToNNEModelOptimizer();
 	Optimizer->AddValidator(MakeShared<FModelValidatorHlsl>());
 
 	FNNEModelRaw InputModel;
@@ -122,11 +122,11 @@ TArray<uint8> UNNERuntimeRDGHlslImpl::CreateModelData(FString FileType, TConstAr
 	return Result;
 };
 
-TUniquePtr<UE::NNECore::IModelRDG> UNNERuntimeRDGHlslImpl::CreateModel(TObjectPtr<UNNEModelData> ModelData)
+TUniquePtr<UE::NNE::IModelRDG> UNNERuntimeRDGHlslImpl::CreateModel(TObjectPtr<UNNEModelData> ModelData)
 {
 	if (!CanCreateModelRDG(ModelData))
 	{
-		return TUniquePtr<UE::NNECore::IModelRDG>();
+		return TUniquePtr<UE::NNE::IModelRDG>();
 	}
 
 	TConstArrayView<uint8> Data = ModelData->GetModelData(GetRuntimeName());
@@ -142,5 +142,5 @@ TUniquePtr<UE::NNECore::IModelRDG> UNNERuntimeRDGHlslImpl::CreateModel(TObjectPt
 		FEngineAnalytics::GetProvider().RecordEvent(TEXT("NeuralNetworkEngine.CreateModel"), Attributes);
 	}
 
-	return TUniquePtr<UE::NNECore::IModelRDG>(Model);
+	return TUniquePtr<UE::NNE::IModelRDG>(Model);
 }

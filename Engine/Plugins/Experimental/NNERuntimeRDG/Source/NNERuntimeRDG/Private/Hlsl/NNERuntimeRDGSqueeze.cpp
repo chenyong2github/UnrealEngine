@@ -23,12 +23,12 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 
 	public:
 
-		virtual int PrepareOutputs(TConstArrayView<NNECore::Internal::FTensorRef> InputTensors, TArrayView<NNECore::Internal::FTensorRef> OutputTensors) const override
+		virtual int PrepareOutputs(TConstArrayView<NNE::Internal::FTensorRef> InputTensors, TArrayView<NNE::Internal::FTensorRef> OutputTensors) const override
 		{
 			check(InputTensors.Num() == 1);
 			check(OutputTensors.Num() == 1);
 
-			const NNECore::Internal::FTensor& X = *InputTensors[0];
+			const NNE::Internal::FTensor& X = *InputTensors[0];
 			TArray<uint32> OutputShapeData(X.GetShape().GetData());
 
 			for (int32 Idx = Axes.Num() - 1; Idx >= 0; --Idx)
@@ -44,7 +44,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 				OutputShapeData.RemoveAt(Axe);
 			}
 			
-			NNECore::FTensorShape OutputShape = NNECore::FTensorShape::Make(OutputShapeData);
+			NNE::FTensorShape OutputShape = NNE::FTensorShape::Make(OutputShapeData);
 			
 			OutputTensors[0]->SetShape(OutputShape);
 			if (X.HasPreparedData())
@@ -55,7 +55,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 			return 0;
 		};
 
-		virtual bool Initialize(TConstArrayView<NNECore::FTensorDesc> InputTensorDescs, TConstArrayView<NNECore::FTensorDesc> OutputTensorDescs, const NNECore::FAttributeMap& Attributes) override
+		virtual bool Initialize(TConstArrayView<NNE::FTensorDesc> InputTensorDescs, TConstArrayView<NNE::FTensorDesc> OutputTensorDescs, const NNE::FAttributeMap& Attributes) override
 		{
 			check(InputTensorDescs.Num() == 1);
 			check(OutputTensorDescs.Num() == 1);
@@ -97,7 +97,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 		}
 	};
 
-	bool ValidateSqueezeOperator(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputSqueezes)
+	bool ValidateSqueezeOperator(const NNE::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNE::FSymbolicTensorShape> InputSqueezes)
 	{
 		bool bIsValid = true;
 

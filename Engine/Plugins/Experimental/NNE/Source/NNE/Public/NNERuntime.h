@@ -14,7 +14,7 @@ class NNE_API UNNERuntime : public UInterface
 };
 
 /**
- * The base interface of a neural network runtime. It is returned by UE::NNECore::GetAllRuntimes() giving access to all available runtimes.
+ * The base interface of a neural network runtime. It is returned by UE::NNE::GetAllRuntimes() giving access to all available runtimes.
  *
  * This interface is mainly used internally by UNNEModelData to cook a model given in a file format (e.g. .onnx) into runtime specific model data.
  * The model data is then stored inside UNNEModelData which then can be used in game to create an inferable model.

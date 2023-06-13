@@ -4,9 +4,9 @@
 
 #include "CoreMinimal.h"
 
-namespace UE::NNECore::Internal { class FTensor; }
+namespace UE::NNE::Internal { class FTensor; }
 
 namespace UE::NNERuntimeRDG::Internal::CPUHelper::Slice
 {
-	void NNERUNTIMERDG_API Apply(const NNECore::Internal::FTensor& InputTensor, NNECore::Internal::FTensor& OutputTensor, TConstArrayView<int32> Starts);
+	void NNERUNTIMERDG_API Apply(const NNE::Internal::FTensor& InputTensor, NNE::Internal::FTensor& OutputTensor, TConstArrayView<int32> Starts);
 } // UE::NNERuntimeRDG::Internal::CPUHelper::Slice

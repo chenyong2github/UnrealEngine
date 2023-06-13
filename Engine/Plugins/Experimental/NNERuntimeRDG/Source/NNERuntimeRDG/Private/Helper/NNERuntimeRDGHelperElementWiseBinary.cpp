@@ -9,36 +9,36 @@
 
 namespace UE::NNERuntimeRDG::Internal::CPUHelper::ElementWiseBinary
 {
-	template<NNECore::Internal::EElementWiseBinaryOperatorType OpType, typename TData> TData Apply(TData X, TData Y);
+	template<NNE::Internal::EElementWiseBinaryOperatorType OpType, typename TData> TData Apply(TData X, TData Y);
 
-	template<> float Apply<NNECore::Internal::EElementWiseBinaryOperatorType::Add, float>(float X, float Y) { return X + Y; }
-	template<> float Apply<NNECore::Internal::EElementWiseBinaryOperatorType::Div, float>(float X, float Y) { return X / Y; }
-	template<> float Apply<NNECore::Internal::EElementWiseBinaryOperatorType::Mod, float>(float X, float Y) { return FMath::Fmod(X, Y); }
-	template<> float Apply<NNECore::Internal::EElementWiseBinaryOperatorType::Mul, float>(float X, float Y) { return X * Y; }
-	template<> float Apply<NNECore::Internal::EElementWiseBinaryOperatorType::Prelu, float>(float X, float Y) { return (X < 0.0f) ? (Y * X) : X; }
-	template<> float Apply<NNECore::Internal::EElementWiseBinaryOperatorType::Pow, float>(float X, float Y) { return FMath::Pow(X, Y); }
-	template<> float Apply<NNECore::Internal::EElementWiseBinaryOperatorType::Sub, float>(float X, float Y) { return X - Y; }
+	template<> float Apply<NNE::Internal::EElementWiseBinaryOperatorType::Add, float>(float X, float Y) { return X + Y; }
+	template<> float Apply<NNE::Internal::EElementWiseBinaryOperatorType::Div, float>(float X, float Y) { return X / Y; }
+	template<> float Apply<NNE::Internal::EElementWiseBinaryOperatorType::Mod, float>(float X, float Y) { return FMath::Fmod(X, Y); }
+	template<> float Apply<NNE::Internal::EElementWiseBinaryOperatorType::Mul, float>(float X, float Y) { return X * Y; }
+	template<> float Apply<NNE::Internal::EElementWiseBinaryOperatorType::Prelu, float>(float X, float Y) { return (X < 0.0f) ? (Y * X) : X; }
+	template<> float Apply<NNE::Internal::EElementWiseBinaryOperatorType::Pow, float>(float X, float Y) { return FMath::Pow(X, Y); }
+	template<> float Apply<NNE::Internal::EElementWiseBinaryOperatorType::Sub, float>(float X, float Y) { return X - Y; }
 
-	template<> int32 Apply<NNECore::Internal::EElementWiseBinaryOperatorType::Add, int32>(int32 X, int32 Y) { return X + Y; }
-	template<> int32 Apply<NNECore::Internal::EElementWiseBinaryOperatorType::Div, int32>(int32 X, int32 Y) { return X / Y; }
-	template<> int32 Apply<NNECore::Internal::EElementWiseBinaryOperatorType::Mod, int32>(int32 X, int32 Y) { return X % Y; }
-	template<> int32 Apply<NNECore::Internal::EElementWiseBinaryOperatorType::Mul, int32>(int32 X, int32 Y) { return X * Y; }
-	template<> int32 Apply<NNECore::Internal::EElementWiseBinaryOperatorType::Prelu, int32>(int32 X, int32 Y) { return (X < 0.0f) ? (Y * X) : X; }
-	template<> int32 Apply<NNECore::Internal::EElementWiseBinaryOperatorType::Pow, int32>(int32 X, int32 Y) { return (int32)FMath::Pow((float)X, (float)Y); }
-	template<> int32 Apply<NNECore::Internal::EElementWiseBinaryOperatorType::Sub, int32>(int32 X, int32 Y) { return X - Y; }
+	template<> int32 Apply<NNE::Internal::EElementWiseBinaryOperatorType::Add, int32>(int32 X, int32 Y) { return X + Y; }
+	template<> int32 Apply<NNE::Internal::EElementWiseBinaryOperatorType::Div, int32>(int32 X, int32 Y) { return X / Y; }
+	template<> int32 Apply<NNE::Internal::EElementWiseBinaryOperatorType::Mod, int32>(int32 X, int32 Y) { return X % Y; }
+	template<> int32 Apply<NNE::Internal::EElementWiseBinaryOperatorType::Mul, int32>(int32 X, int32 Y) { return X * Y; }
+	template<> int32 Apply<NNE::Internal::EElementWiseBinaryOperatorType::Prelu, int32>(int32 X, int32 Y) { return (X < 0.0f) ? (Y * X) : X; }
+	template<> int32 Apply<NNE::Internal::EElementWiseBinaryOperatorType::Pow, int32>(int32 X, int32 Y) { return (int32)FMath::Pow((float)X, (float)Y); }
+	template<> int32 Apply<NNE::Internal::EElementWiseBinaryOperatorType::Sub, int32>(int32 X, int32 Y) { return X - Y; }
 
-	template<> int64 Apply<NNECore::Internal::EElementWiseBinaryOperatorType::Add, int64>(int64 X, int64 Y) { return X + Y; }
-	template<> int64 Apply<NNECore::Internal::EElementWiseBinaryOperatorType::Div, int64>(int64 X, int64 Y) { return X / Y; }
-	template<> int64 Apply<NNECore::Internal::EElementWiseBinaryOperatorType::Mod, int64>(int64 X, int64 Y) { return X % Y; }
-	template<> int64 Apply<NNECore::Internal::EElementWiseBinaryOperatorType::Mul, int64>(int64 X, int64 Y) { return X * Y; }
-	template<> int64 Apply<NNECore::Internal::EElementWiseBinaryOperatorType::Prelu, int64>(int64 X, int64 Y) { return (X < 0.0f) ? (Y * X) : X; }
-	template<> int64 Apply<NNECore::Internal::EElementWiseBinaryOperatorType::Pow, int64>(int64 X, int64 Y) { return (int64)FMath::Pow((float)X, (float)Y); }
-	template<> int64 Apply<NNECore::Internal::EElementWiseBinaryOperatorType::Sub, int64>(int64 X, int64 Y) { return X - Y; }
+	template<> int64 Apply<NNE::Internal::EElementWiseBinaryOperatorType::Add, int64>(int64 X, int64 Y) { return X + Y; }
+	template<> int64 Apply<NNE::Internal::EElementWiseBinaryOperatorType::Div, int64>(int64 X, int64 Y) { return X / Y; }
+	template<> int64 Apply<NNE::Internal::EElementWiseBinaryOperatorType::Mod, int64>(int64 X, int64 Y) { return X % Y; }
+	template<> int64 Apply<NNE::Internal::EElementWiseBinaryOperatorType::Mul, int64>(int64 X, int64 Y) { return X * Y; }
+	template<> int64 Apply<NNE::Internal::EElementWiseBinaryOperatorType::Prelu, int64>(int64 X, int64 Y) { return (X < 0.0f) ? (Y * X) : X; }
+	template<> int64 Apply<NNE::Internal::EElementWiseBinaryOperatorType::Pow, int64>(int64 X, int64 Y) { return (int64)FMath::Pow((float)X, (float)Y); }
+	template<> int64 Apply<NNE::Internal::EElementWiseBinaryOperatorType::Sub, int64>(int64 X, int64 Y) { return X - Y; }
 
-	template<NNECore::Internal::EElementWiseBinaryOperatorType OpType, typename TData> void Apply(const NNECore::Internal::FTensor& LHSTensor, const NNECore::Internal::FTensor& RHSTensor, NNECore::Internal::FTensor& OutputTensor)
+	template<NNE::Internal::EElementWiseBinaryOperatorType OpType, typename TData> void Apply(const NNE::Internal::FTensor& LHSTensor, const NNE::Internal::FTensor& RHSTensor, NNE::Internal::FTensor& OutputTensor)
 	{
 		//Heuristic to avoid unexpected performance hit. This helper being intended for shape related arithmetic only.
-		static constexpr int32 MaxItemInInputTensors = NNECore::FTensorShape::MaxRank * 2;
+		static constexpr int32 MaxItemInInputTensors = NNE::FTensorShape::MaxRank * 2;
 
 		if (LHSTensor.HasPreparedData() && 
 			RHSTensor.HasPreparedData() && 
@@ -65,37 +65,37 @@ namespace UE::NNERuntimeRDG::Internal::CPUHelper::ElementWiseBinary
 		}
 	}
 
-	template<typename TData> void ApplyResolvedDataType(NNECore::Internal::EElementWiseBinaryOperatorType OpType, const NNECore::Internal::FTensor& LHSTensor, const NNECore::Internal::FTensor& RHSTensor, NNECore::Internal::FTensor& OutputTensor)
+	template<typename TData> void ApplyResolvedDataType(NNE::Internal::EElementWiseBinaryOperatorType OpType, const NNE::Internal::FTensor& LHSTensor, const NNE::Internal::FTensor& RHSTensor, NNE::Internal::FTensor& OutputTensor)
 	{
 		switch (OpType)
 		{
-		case NNECore::Internal::EElementWiseBinaryOperatorType::Add:
-			Apply<NNECore::Internal::EElementWiseBinaryOperatorType::Add, TData>(LHSTensor, RHSTensor, OutputTensor);
+		case NNE::Internal::EElementWiseBinaryOperatorType::Add:
+			Apply<NNE::Internal::EElementWiseBinaryOperatorType::Add, TData>(LHSTensor, RHSTensor, OutputTensor);
 			break;
-		case NNECore::Internal::EElementWiseBinaryOperatorType::Div:
-			Apply<NNECore::Internal::EElementWiseBinaryOperatorType::Div, TData>(LHSTensor, RHSTensor, OutputTensor);
+		case NNE::Internal::EElementWiseBinaryOperatorType::Div:
+			Apply<NNE::Internal::EElementWiseBinaryOperatorType::Div, TData>(LHSTensor, RHSTensor, OutputTensor);
 			break;
-		case NNECore::Internal::EElementWiseBinaryOperatorType::Mod:
-			Apply<NNECore::Internal::EElementWiseBinaryOperatorType::Mod, TData>(LHSTensor, RHSTensor, OutputTensor);
+		case NNE::Internal::EElementWiseBinaryOperatorType::Mod:
+			Apply<NNE::Internal::EElementWiseBinaryOperatorType::Mod, TData>(LHSTensor, RHSTensor, OutputTensor);
 			break;
-		case NNECore::Internal::EElementWiseBinaryOperatorType::Mul:
-			Apply<NNECore::Internal::EElementWiseBinaryOperatorType::Mul, TData>(LHSTensor, RHSTensor, OutputTensor);
+		case NNE::Internal::EElementWiseBinaryOperatorType::Mul:
+			Apply<NNE::Internal::EElementWiseBinaryOperatorType::Mul, TData>(LHSTensor, RHSTensor, OutputTensor);
 			break;
-		case NNECore::Internal::EElementWiseBinaryOperatorType::Prelu:
-			Apply<NNECore::Internal::EElementWiseBinaryOperatorType::Prelu, TData>(LHSTensor, RHSTensor, OutputTensor);
+		case NNE::Internal::EElementWiseBinaryOperatorType::Prelu:
+			Apply<NNE::Internal::EElementWiseBinaryOperatorType::Prelu, TData>(LHSTensor, RHSTensor, OutputTensor);
 			break;
-		case NNECore::Internal::EElementWiseBinaryOperatorType::Pow:
-			Apply<NNECore::Internal::EElementWiseBinaryOperatorType::Pow, TData>(LHSTensor, RHSTensor, OutputTensor);
+		case NNE::Internal::EElementWiseBinaryOperatorType::Pow:
+			Apply<NNE::Internal::EElementWiseBinaryOperatorType::Pow, TData>(LHSTensor, RHSTensor, OutputTensor);
 			break;
-		case NNECore::Internal::EElementWiseBinaryOperatorType::Sub:
-			Apply<NNECore::Internal::EElementWiseBinaryOperatorType::Sub, TData>(LHSTensor, RHSTensor, OutputTensor);
+		case NNE::Internal::EElementWiseBinaryOperatorType::Sub:
+			Apply<NNE::Internal::EElementWiseBinaryOperatorType::Sub, TData>(LHSTensor, RHSTensor, OutputTensor);
 			break;
 		default:
 			break;
 		}
 	}
 
-	void Apply(NNECore::Internal::EElementWiseBinaryOperatorType OpType, const NNECore::Internal::FTensor& LHSTensor, const NNECore::Internal::FTensor& RHSTensor, NNECore::Internal::FTensor& OutputTensor)
+	void Apply(NNE::Internal::EElementWiseBinaryOperatorType OpType, const NNE::Internal::FTensor& LHSTensor, const NNE::Internal::FTensor& RHSTensor, NNE::Internal::FTensor& OutputTensor)
 	{
 		switch (OutputTensor.GetDataType())
 		{

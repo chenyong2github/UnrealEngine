@@ -18,7 +18,7 @@ public:
 		return new FOperatorDmlMatMul();
 	}
 
-	static bool Validate(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputShapes)
+	static bool Validate(const NNE::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNE::FSymbolicTensorShape> InputShapes)
 	{
 		//TODO
 		return true;
@@ -27,16 +27,16 @@ public:
 	//
 	//
 	//
-	virtual bool Initialize(IDMLDevice* Device, TArrayView<const NNECore::Internal::FTensor> InputTensors, TArrayView<const NNECore::Internal::FTensor> OutputTensors, const NNECore::FAttributeMap& Attributes) override
+	virtual bool Initialize(IDMLDevice* Device, TArrayView<const NNE::Internal::FTensor> InputTensors, TArrayView<const NNE::Internal::FTensor> OutputTensors, const NNE::FAttributeMap& Attributes) override
 	{
 		check(InputTensors.Num() == 2);
 		check(OutputTensors.Num() == 1);
 
-		using namespace UE::NNECore;
+		using namespace UE::NNE;
 
-		const NNECore::Internal::FTensor& ATensor = InputTensors[0];
-		const NNECore::Internal::FTensor& BTensor = InputTensors[1];
-		const NNECore::Internal::FTensor& OutTensor = OutputTensors[0];
+		const NNE::Internal::FTensor& ATensor = InputTensors[0];
+		const NNE::Internal::FTensor& BTensor = InputTensors[1];
+		const NNE::Internal::FTensor& OutTensor = OutputTensors[0];
 
 		auto TrimMatrixStackLeadingOnes = [](TConstArrayView<uint32>&& Input) -> TConstArrayView<uint32>
 		{

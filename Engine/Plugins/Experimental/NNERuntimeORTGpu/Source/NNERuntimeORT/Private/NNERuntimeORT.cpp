@@ -30,13 +30,13 @@ TArray<uint8> UNNERuntimeORTGpuImpl::CreateModelData(FString FileType, TConstArr
 		return {};
 	}
 
-	TUniquePtr<UE::NNECore::Internal::IModelOptimizer> Optimizer = UE::NNEUtils::Internal::CreateONNXToONNXModelOptimizer();
+	TUniquePtr<UE::NNE::Internal::IModelOptimizer> Optimizer = UE::NNEUtils::Internal::CreateONNXToONNXModelOptimizer();
 
 	FNNEModelRaw InputModel;
 	InputModel.Data = FileData;
 	InputModel.Format = ENNEInferenceFormat::ONNX;
 	FNNEModelRaw OutputModel;
-	UE::NNECore::Internal::FOptimizerOptionsMap Options;
+	UE::NNE::Internal::FOptimizerOptionsMap Options;
 	if (!Optimizer->Optimize(InputModel, OutputModel, Options))
 	{
 		return {};
@@ -93,30 +93,30 @@ bool UNNERuntimeORTGpuImpl::CanCreateModelGPU(TObjectPtr<UNNEModelData> ModelDat
 	return bResult;
 }
 
-TUniquePtr<UE::NNECore::IModelGPU> UNNERuntimeORTGpuImpl::CreateModel(TObjectPtr<UNNEModelData> ModelData)
+TUniquePtr<UE::NNE::IModelGPU> UNNERuntimeORTGpuImpl::CreateModel(TObjectPtr<UNNEModelData> ModelData)
 {
 	check(ModelData != nullptr);
 	check(ORTEnvironment.IsValid());
 
 	if (!CanCreateModelGPU(ModelData))
 	{
-		return TUniquePtr<UE::NNECore::IModelGPU>();
+		return TUniquePtr<UE::NNE::IModelGPU>();
 	}
 
-	UE::NNECore::IModelGPU* IModel = nullptr;
+	UE::NNE::IModelGPU* IModel = nullptr;
 	TConstArrayView<uint8> Data = ModelData->GetModelData(GetRuntimeName());
 
 	switch (Provider)
 	{
 		case ENNERuntimeORTGpuProvider::Dml:  
-			IModel = static_cast<UE::NNECore::IModelGPU*>(new UE::NNERuntimeORT::Private::FModelORTDml(ORTEnvironment.Get(), Data));
+			IModel = static_cast<UE::NNE::IModelGPU*>(new UE::NNERuntimeORT::Private::FModelORTDml(ORTEnvironment.Get(), Data));
 			break;
 		case ENNERuntimeORTGpuProvider::Cuda: 
-			IModel = static_cast<UE::NNECore::IModelGPU*>(new UE::NNERuntimeORT::Private::FModelORTCuda(ORTEnvironment.Get(), Data));
+			IModel = static_cast<UE::NNE::IModelGPU*>(new UE::NNERuntimeORT::Private::FModelORTCuda(ORTEnvironment.Get(), Data));
 			break;
 		default:
 			UE_LOG(LogNNE, Error, TEXT("Failed to create model for ORT GPU runtime, unsupported provider. Runtime will not be functional."));
-			return TUniquePtr<UE::NNECore::IModelGPU>();
+			return TUniquePtr<UE::NNE::IModelGPU>();
 	}
 
 	if (FEngineAnalytics::IsAvailable())
@@ -129,7 +129,7 @@ TUniquePtr<UE::NNECore::IModelGPU> UNNERuntimeORTGpuImpl::CreateModel(TObjectPtr
 		FEngineAnalytics::GetProvider().RecordEvent(TEXT("NeuralNetworkEngine.CreateModel"), Attributes);
 	}
 
-	return TUniquePtr<UE::NNECore::IModelGPU>(IModel);
+	return TUniquePtr<UE::NNE::IModelGPU>(IModel);
 }
 
 #else // PLATFORM_WINDOWS
@@ -139,9 +139,9 @@ bool UNNERuntimeORTGpuImpl::CanCreateModelGPU(TObjectPtr<UNNEModelData> ModelDat
 	return false;
 }
 
-TUniquePtr<UE::NNECore::IModelGPU> UNNERuntimeORTGpuImpl::CreateModelGPU(TObjectPtr<UNNEModelData> ModelData)
+TUniquePtr<UE::NNE::IModelGPU> UNNERuntimeORTGpuImpl::CreateModelGPU(TObjectPtr<UNNEModelData> ModelData)
 {
-	return TUniquePtr<UE::NNECore::IModelGPU>();
+	return TUniquePtr<UE::NNE::IModelGPU>();
 }
 
 #endif // PLATFORM_WINDOWS

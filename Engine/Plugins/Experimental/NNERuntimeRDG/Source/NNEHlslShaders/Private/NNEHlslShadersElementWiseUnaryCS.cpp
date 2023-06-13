@@ -18,16 +18,16 @@ namespace UE::NNEHlslShaders::Internal
 		OutEnvironment.SetDefine(TEXT("ELEMENTWISE_OP(X)"), *OpFunc);
 	}
 
-	const FString TElementWiseUnaryCS::GetOpFunc(NNECore::Internal::EElementWiseUnaryOperatorType OpType)
+	const FString TElementWiseUnaryCS::GetOpFunc(NNE::Internal::EElementWiseUnaryOperatorType OpType)
 	{
-		FString OpTable[(int32) NNECore::Internal::EElementWiseUnaryOperatorType::MAX];
+		FString OpTable[(int32) NNE::Internal::EElementWiseUnaryOperatorType::MAX];
 
-		for (int32 Idx = 0; Idx < (int32) NNECore::Internal::EElementWiseUnaryOperatorType::MAX; ++Idx)
+		for (int32 Idx = 0; Idx < (int32) NNE::Internal::EElementWiseUnaryOperatorType::MAX; ++Idx)
 		{
 			OpTable[Idx] = FString("");
 		}
 
-#define OP(OpName, OpFunc) OpTable[(int32) NNECore::Internal::EElementWiseUnaryOperatorType::OpName] = OpFunc
+#define OP(OpName, OpFunc) OpTable[(int32) NNE::Internal::EElementWiseUnaryOperatorType::OpName] = OpFunc
 		OP(Abs,         TEXT("abs(X)"));
 		OP(Acos,        TEXT("acos(X)"));
 		OP(Acosh,       TEXT("acosh(X)"));

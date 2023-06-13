@@ -121,7 +121,7 @@ namespace UE::NNERuntimeORTCpu::Private
 
 		const uint32 NumberTensors = bIsInput ? Session->GetInputCount() : Session->GetOutputCount();
 
-		TArray<NNECore::FTensorDesc>& SymbolicTensorDescs = bIsInput ? InputSymbolicTensors : OutputSymbolicTensors;
+		TArray<NNE::FTensorDesc>& SymbolicTensorDescs = bIsInput ? InputSymbolicTensors : OutputSymbolicTensors;
 		TArray<ONNXTensorElementDataType>& TensorsORTType = bIsInput ? InputTensorsORTType : OutputTensorsORTType;
 		TArray<Ort::AllocatedStringPtr>& TensorNames = bIsInput ? InputTensorNames : OutputTensorNames;
 		TArray<const char*>& TensorNamePtrs = bIsInput ? InputTensorNamePtrs : OutputTensorNamePtrs;
@@ -152,8 +152,8 @@ namespace UE::NNERuntimeORTCpu::Private
 				ShapeData.Add((int32)CurrentTensorSize);
 			}
 
-			NNECore::FSymbolicTensorShape Shape = NNECore::FSymbolicTensorShape::Make(ShapeData);
-			NNECore::FTensorDesc SymbolicTensorDesc = NNECore::FTensorDesc::Make(FString(CurTensorNamePtr), Shape, TypeAndSize.first);
+			NNE::FSymbolicTensorShape Shape = NNE::FSymbolicTensorShape::Make(ShapeData);
+			NNE::FTensorDesc SymbolicTensorDesc = NNE::FTensorDesc::Make(FString(CurTensorNamePtr), Shape, TypeAndSize.first);
 
 			check(SymbolicTensorDesc.GetElemByteSize() == TypeAndSize.second);
 			SymbolicTensorDescs.Emplace(SymbolicTensorDesc);
@@ -162,7 +162,7 @@ namespace UE::NNERuntimeORTCpu::Private
 		return true;
 	}
 	
-	int FModelInstanceCPU::SetInputTensorShapes(TConstArrayView<NNECore::FTensorShape> InInputShapes)
+	int FModelInstanceCPU::SetInputTensorShapes(TConstArrayView<NNE::FTensorShape> InInputShapes)
 	{
 		InputTensors.Reset();
 		OutputTensors.Reset();
@@ -177,7 +177,7 @@ namespace UE::NNERuntimeORTCpu::Private
 		// Setup concrete input tensor
 		for (int i = 0; i < InputSymbolicTensors.Num(); ++i)
 		{
-			NNECore::Internal::FTensor Tensor = NNECore::Internal::FTensor::Make(InputSymbolicTensors[i].GetName(), InInputShapes[i], InputSymbolicTensors[i].GetDataType());
+			NNE::Internal::FTensor Tensor = NNE::Internal::FTensor::Make(InputSymbolicTensors[i].GetName(), InInputShapes[i], InputSymbolicTensors[i].GetDataType());
 			InputTensors.Emplace(Tensor);
 		}
 
@@ -185,11 +185,11 @@ namespace UE::NNERuntimeORTCpu::Private
 		// this would allow to resolve output shapes here rather than during inference.
 
 		// Setup concrete output shapes only if all model output shapes are concretes, otherwise it will be set during Run()
-		for (NNECore::FTensorDesc SymbolicTensorDesc : OutputSymbolicTensors)
+		for (NNE::FTensorDesc SymbolicTensorDesc : OutputSymbolicTensors)
 		{
 			if (SymbolicTensorDesc.GetShape().IsConcrete())
 			{
-				NNECore::Internal::FTensor Tensor = NNECore::Internal::FTensor::MakeFromSymbolicDesc(SymbolicTensorDesc);
+				NNE::Internal::FTensor Tensor = NNE::Internal::FTensor::MakeFromSymbolicDesc(SymbolicTensorDesc);
 				OutputTensors.Emplace(Tensor);
 				OutputTensorShapes.Emplace(Tensor.GetShape());
 			}
@@ -203,7 +203,7 @@ namespace UE::NNERuntimeORTCpu::Private
 		return 0;
 	}
 
-	int FModelInstanceCPU::RunSync(TConstArrayView<NNECore::FTensorBindingCPU> InInputBindings, TConstArrayView<NNECore::FTensorBindingCPU> InOutputBindings)
+	int FModelInstanceCPU::RunSync(TConstArrayView<NNE::FTensorBindingCPU> InInputBindings, TConstArrayView<NNE::FTensorBindingCPU> InOutputBindings)
 	{
 		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FModelInstanceCPU_Run"), STAT_FModelInstanceCPU_Run, STATGROUP_NNE);
 
@@ -300,7 +300,7 @@ namespace UE::NNERuntimeORTCpu::Private
 		InputTransferStatisticsEstimator.ResetStats();
 	}
 
-	TUniquePtr<UE::NNECore::IModelInstanceCPU> FModelCPU::CreateModelInstance()
+	TUniquePtr<UE::NNE::IModelInstanceCPU> FModelCPU::CreateModelInstance()
 	{
 		const UE::NNERuntimeORTCpu::Private::FRuntimeConf InConf;
 		UE::NNERuntimeORTCpu::Private::FModelInstanceCPU* ModelInstance = new UE::NNERuntimeORTCpu::Private::FModelInstanceCPU(ORTEnvironment, InConf);
@@ -308,11 +308,11 @@ namespace UE::NNERuntimeORTCpu::Private
 		if (!ModelInstance->Init(ModelData))
 		{
 			delete ModelInstance;
-			return TUniquePtr<UE::NNECore::IModelInstanceCPU>();
+			return TUniquePtr<UE::NNE::IModelInstanceCPU>();
 		}
 
-		UE::NNECore::IModelInstanceCPU* IModelInstance = static_cast<UE::NNECore::IModelInstanceCPU*>(ModelInstance);
-		return TUniquePtr<UE::NNECore::IModelInstanceCPU>(IModelInstance);
+		UE::NNE::IModelInstanceCPU* IModelInstance = static_cast<UE::NNE::IModelInstanceCPU*>(ModelInstance);
+		return TUniquePtr<UE::NNE::IModelInstanceCPU>(IModelInstance);
 	}
 
 	FModelCPU::FModelCPU(Ort::Env* InORTEnvironment, TConstArrayView<uint8> InModelData) :

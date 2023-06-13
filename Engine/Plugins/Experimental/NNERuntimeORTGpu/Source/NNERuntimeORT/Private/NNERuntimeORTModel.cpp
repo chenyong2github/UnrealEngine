@@ -149,7 +149,7 @@ namespace UE::NNERuntimeORT::Private
 
 		const uint32 NumberTensors = bIsInput ? Session->GetInputCount() : Session->GetOutputCount();
 
-		TArray<NNECore::FTensorDesc>& SymbolicTensorDescs = bIsInput ? InputSymbolicTensors : OutputSymbolicTensors;
+		TArray<NNE::FTensorDesc>& SymbolicTensorDescs = bIsInput ? InputSymbolicTensors : OutputSymbolicTensors;
 		TArray<ONNXTensorElementDataType>& TensorsORTType = bIsInput ? InputTensorsORTType : OutputTensorsORTType;
 		TArray<char*>& TensorNames = bIsInput ? InputTensorNames : OutputTensorNames;
 		TArray<Ort::AllocatedStringPtr>& TensorNameValues = bIsInput ? InputTensorNameValues : OutputTensorNameValues;
@@ -178,8 +178,8 @@ namespace UE::NNERuntimeORT::Private
 				ShapeData.Add((int32)CurrentTensorSize);
 			}
 
-			NNECore::FSymbolicTensorShape Shape = NNECore::FSymbolicTensorShape::Make(ShapeData);
-			NNECore::FTensorDesc SymbolicTensorDesc = NNECore::FTensorDesc::Make(FString(TensorNames.Last()), Shape, TypeAndSize.first);
+			NNE::FSymbolicTensorShape Shape = NNE::FSymbolicTensorShape::Make(ShapeData);
+			NNE::FTensorDesc SymbolicTensorDesc = NNE::FTensorDesc::Make(FString(TensorNames.Last()), Shape, TypeAndSize.first);
 
 			check(SymbolicTensorDesc.GetElemByteSize() == TypeAndSize.second);
 			SymbolicTensorDescs.Emplace(SymbolicTensorDesc);
@@ -188,7 +188,7 @@ namespace UE::NNERuntimeORT::Private
 		return true;
 	}
 	
-	int FModelInstanceORT::SetInputTensorShapes(TConstArrayView<NNECore::FTensorShape> InInputShapes)
+	int FModelInstanceORT::SetInputTensorShapes(TConstArrayView<NNE::FTensorShape> InInputShapes)
 	{
 		InputTensors.Reset();
 		OutputTensors.Reset();
@@ -203,7 +203,7 @@ namespace UE::NNERuntimeORT::Private
 		// Setup concrete input tensor
 		for (int i = 0; i < InputSymbolicTensors.Num(); ++i)
 		{
-			NNECore::Internal::FTensor Tensor = NNECore::Internal::FTensor::Make(InputSymbolicTensors[i].GetName(), InInputShapes[i], InputSymbolicTensors[i].GetDataType());
+			NNE::Internal::FTensor Tensor = NNE::Internal::FTensor::Make(InputSymbolicTensors[i].GetName(), InInputShapes[i], InputSymbolicTensors[i].GetDataType());
 			InputTensors.Emplace(Tensor);
 		}
 
@@ -211,11 +211,11 @@ namespace UE::NNERuntimeORT::Private
 		// this would allow to resolve output shapes here rather than during inference.
 
 		// Setup concrete output shapes only if all model output shapes are concretes, otherwise it will be set during Run()
-		for (NNECore::FTensorDesc SymbolicTensorDesc : OutputSymbolicTensors)
+		for (NNE::FTensorDesc SymbolicTensorDesc : OutputSymbolicTensors)
 		{
 			if (SymbolicTensorDesc.GetShape().IsConcrete())
 			{
-				NNECore::Internal::FTensor Tensor = NNECore::Internal::FTensor::MakeFromSymbolicDesc(SymbolicTensorDesc);
+				NNE::Internal::FTensor Tensor = NNE::Internal::FTensor::MakeFromSymbolicDesc(SymbolicTensorDesc);
 				OutputTensors.Emplace(Tensor);
 				OutputTensorShapes.Emplace(Tensor.GetShape());
 			}
@@ -229,7 +229,7 @@ namespace UE::NNERuntimeORT::Private
 		return 0;
 	}
 
-	int FModelInstanceORT::RunSync(TConstArrayView<NNECore::FTensorBindingGPU> InInputBindings, TConstArrayView<NNECore::FTensorBindingGPU> InOutputBindings)
+	int FModelInstanceORT::RunSync(TConstArrayView<NNE::FTensorBindingGPU> InInputBindings, TConstArrayView<NNE::FTensorBindingGPU> InOutputBindings)
 	{
 		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FModelORT_Run"), STAT_FModelORT_Run, STATGROUP_NNE);
 
@@ -328,7 +328,7 @@ namespace UE::NNERuntimeORT::Private
 
 #if PLATFORM_WINDOWS
 
-	TUniquePtr<UE::NNECore::IModelInstanceGPU> FModelORTDml::CreateModelInstance()
+	TUniquePtr<UE::NNE::IModelInstanceGPU> FModelORTDml::CreateModelInstance()
 	{
 		const FRuntimeConf InConf;
 		FModelInstanceORTDml* ModelInstance = new FModelInstanceORTDml(ORTEnvironment, InConf);
@@ -336,11 +336,11 @@ namespace UE::NNERuntimeORT::Private
 		if (!ModelInstance->Init(ModelData))
 		{
 			delete ModelInstance;
-			return TUniquePtr<UE::NNECore::IModelInstanceGPU>();
+			return TUniquePtr<UE::NNE::IModelInstanceGPU>();
 		}
 
-		UE::NNECore::IModelInstanceGPU* IModelInstance = static_cast<UE::NNECore::IModelInstanceGPU*>(ModelInstance);
-		return TUniquePtr<UE::NNECore::IModelInstanceGPU>(IModelInstance);
+		UE::NNE::IModelInstanceGPU* IModelInstance = static_cast<UE::NNE::IModelInstanceGPU*>(ModelInstance);
+		return TUniquePtr<UE::NNE::IModelInstanceGPU>(IModelInstance);
 	}
 
 	FModelORTDml::FModelORTDml(Ort::Env* InORTEnvironment, TConstArrayView<uint8> InModelData) :
@@ -350,7 +350,7 @@ namespace UE::NNERuntimeORT::Private
 
 	}
 
-	TUniquePtr<UE::NNECore::IModelInstanceGPU> FModelORTCuda::CreateModelInstance()
+	TUniquePtr<UE::NNE::IModelInstanceGPU> FModelORTCuda::CreateModelInstance()
 	{
 		const FRuntimeConf InConf;
 		FModelInstanceORTCuda* ModelInstance = new FModelInstanceORTCuda(ORTEnvironment, InConf);
@@ -358,11 +358,11 @@ namespace UE::NNERuntimeORT::Private
 		if (!ModelInstance->Init(ModelData))
 		{
 			delete ModelInstance;
-			return TUniquePtr<UE::NNECore::IModelInstanceGPU>();
+			return TUniquePtr<UE::NNE::IModelInstanceGPU>();
 		}
 
-		UE::NNECore::IModelInstanceGPU* IModelInstance = static_cast<UE::NNECore::IModelInstanceGPU*>(ModelInstance);
-		return TUniquePtr<UE::NNECore::IModelInstanceGPU>(IModelInstance);
+		UE::NNE::IModelInstanceGPU* IModelInstance = static_cast<UE::NNE::IModelInstanceGPU*>(ModelInstance);
+		return TUniquePtr<UE::NNE::IModelInstanceGPU>(IModelInstance);
 	}
 
 	FModelORTCuda::FModelORTCuda(Ort::Env* InORTEnvironment, TConstArrayView<uint8> InModelData) :

@@ -60,9 +60,9 @@ namespace Util
 {
 	
 template<typename T>
-using FSmallArray = TArray<T, TInlineAllocator<NNECore::FTensorShape::MaxRank>>;
-using FSmallIntArray = TArray<int32, TInlineAllocator<NNECore::FTensorShape::MaxRank>>;
-using FSmallUIntArray = TArray<uint32, TInlineAllocator<NNECore::FTensorShape::MaxRank>>;
+using FSmallArray = TArray<T, TInlineAllocator<NNE::FTensorShape::MaxRank>>;
+using FSmallIntArray = TArray<int32, TInlineAllocator<NNE::FTensorShape::MaxRank>>;
+using FSmallUIntArray = TArray<uint32, TInlineAllocator<NNE::FTensorShape::MaxRank>>;
 
 template<typename InputType, typename OutputType>
 inline bool IsOverflowing(InputType Input)
@@ -136,7 +136,7 @@ inline bool GetArrayAttributeNoOverflow(
 	return true;
 }
 
-extern bool IsSameShape(const NNECore::Internal::FTensor& Left, const NNECore::Internal::FTensor& Right);
+extern bool IsSameShape(const NNE::Internal::FTensor& Left, const NNE::Internal::FTensor& Right);
 extern bool IsSameShape(const FTensorDescDml& Left, const FTensorDescDml& Right);
 extern DML_TENSOR_DATA_TYPE GetTensorDataType(ENNETensorDataType DataType);
 
@@ -156,7 +156,7 @@ public:
 	FTensorDescDml& SetShape(TConstArrayView<uint32> Shape);
 
 	// Utility method that calls SetShape(Shape)
-	FTensorDescDml& SetShape(const UE::NNECore::FTensorShape& Shape)
+	FTensorDescDml& SetShape(const UE::NNE::FTensorShape& Shape)
 	{
 		return SetShape(Shape.GetData());
 	}
@@ -165,7 +165,7 @@ public:
 	FTensorDescDml& SetShape(TConstArrayView<uint32> Shape, int32 Rank);
 
 	// Utility method that calls SetShape(Shape, Rank)
-	FTensorDescDml& SetShape(const UE::NNECore::FTensorShape& Shape, int32 Rank)
+	FTensorDescDml& SetShape(const UE::NNE::FTensorShape& Shape, int32 Rank)
 	{
 		return SetShape(Shape.GetData(), Rank);
 	}
@@ -174,7 +174,7 @@ public:
 	FTensorDescDml& SetShape(TConstArrayView<uint32> Shape, TConstArrayView<uint32> BroadcastShape);
 
 	// Utility method that calles SetShape() from above
-	FTensorDescDml& SetShape(const UE::NNECore::FTensorShape& Shape, const UE::NNECore::FTensorShape& BroadcastShape)
+	FTensorDescDml& SetShape(const UE::NNE::FTensorShape& Shape, const UE::NNE::FTensorShape& BroadcastShape)
 	{
 		return SetShape(Shape.GetData(), BroadcastShape.GetData());
 	}
@@ -186,7 +186,7 @@ public:
 	FTensorDescDml& SetStridesFromShape(TConstArrayView<uint32> Shape);
 
 	// Set strides computed from shape (used for broadcasting)
-	FTensorDescDml& SetStridesFromShape(const UE::NNECore::FTensorShape& Shape)
+	FTensorDescDml& SetStridesFromShape(const UE::NNE::FTensorShape& Shape)
 	{
 		return SetStridesFromShape(Shape.GetData());
 	}
@@ -201,7 +201,7 @@ public:
 	FTensorDescDml& SetDataOwnedByDml(bool bSetOwnedByDml);
 
 	// Utility method to use FTensor to set all the members
-	FTensorDescDml& SetFromTensor(const UE::NNECore::Internal::FTensor& Tensor)
+	FTensorDescDml& SetFromTensor(const UE::NNE::Internal::FTensor& Tensor)
 	{
 		return SetShape(Tensor.GetShape())
 			.SetDataType(Tensor.GetDataType())
@@ -209,7 +209,7 @@ public:
 	}
 
 	// Utility method to use FTensor to set all the members
-	FTensorDescDml& SetFromTensor(const UE::NNECore::Internal::FTensor& Tensor, int32 Rank)
+	FTensorDescDml& SetFromTensor(const UE::NNE::Internal::FTensor& Tensor, int32 Rank)
 	{
 		return SetShape(Tensor.GetShape(), Rank)
 			.SetDataType(Tensor.GetDataType())
@@ -217,7 +217,7 @@ public:
 	}
 
 	// Utility method to use FTensor to set all the members
-	FTensorDescDml& SetFromTensorBroadcast(const UE::NNECore::Internal::FTensor& Tensor, const UE::NNECore::FTensorShape& BroadcastShape)
+	FTensorDescDml& SetFromTensorBroadcast(const UE::NNE::Internal::FTensor& Tensor, const UE::NNE::FTensorShape& BroadcastShape)
 	{
 		return SetShape(Tensor.GetShape(), BroadcastShape)
 			.SetDataType(Tensor.GetDataType())
@@ -225,7 +225,7 @@ public:
 	}
 
 	// Utility method to use FTensor to set all the members
-	FTensorDescDml& SetFromTensor1D(const UE::NNECore::Internal::FTensor& Tensor, int32 Rank)
+	FTensorDescDml& SetFromTensor1D(const UE::NNE::Internal::FTensor& Tensor, int32 Rank)
 	{
 		return SetShape1D(Tensor.GetShape().GetData()[0], Rank)
 			.SetDataType(Tensor.GetDataType())
@@ -291,7 +291,7 @@ public:
 
 	virtual ~FOperatorDml() = default;
 
-	virtual bool Initialize(IDMLDevice* Device, TArrayView<const NNECore::Internal::FTensor> InputTensors, TArrayView<const NNECore::Internal::FTensor> OutputTensors, const NNECore::FAttributeMap& Attributes) = 0;
+	virtual bool Initialize(IDMLDevice* Device, TArrayView<const NNE::Internal::FTensor> InputTensors, TArrayView<const NNE::Internal::FTensor> OutputTensors, const NNE::FAttributeMap& Attributes) = 0;
 
 	virtual TConstArrayView<int32> GetConstantCPUInputs() const;
 

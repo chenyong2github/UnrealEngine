@@ -5,7 +5,7 @@
 
 namespace UE::NNERuntimeRDG::Internal::CPUHelper::Transpose
 {
-	bool TransposePreparedData(NNECore::Internal::FTensor& Tensor, TConstArrayView<int32> Perms)
+	bool TransposePreparedData(NNE::Internal::FTensor& Tensor, TConstArrayView<int32> Perms)
 	{
 		if (!Tensor.HasPreparedData())
 		{
@@ -34,7 +34,7 @@ namespace UE::NNERuntimeRDG::Internal::CPUHelper::Transpose
 		TransposedPosition.SetNumUninitialized(TransposedShape.Num());
 
 		Private::TensorIdxIterator it(Tensor.GetShape());
-		const Private::TensorIdxIterator itTransposed(NNECore::FTensorShape::Make(TransposedShape));
+		const Private::TensorIdxIterator itTransposed(NNE::FTensorShape::Make(TransposedShape));
 
 		do
 		{

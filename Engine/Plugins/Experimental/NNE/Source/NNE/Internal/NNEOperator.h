@@ -4,7 +4,7 @@
 
 #include "HAL/Platform.h"
 
-namespace UE::NNECore::Internal
+namespace UE::NNE::Internal
 {
 
 	//One input element-wise operators
@@ -86,4 +86,4 @@ namespace UE::NNECore::Internal
 		MAX
 	};
 
-} // namespace UE::NNECore::Internal
+} // namespace UE::NNE::Internal

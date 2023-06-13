@@ -9,7 +9,7 @@
 
 DEFINE_LOG_CATEGORY(LogNNE);
 
-namespace UE::NNECore
+namespace UE::NNE
 {
 	class FRegistry
 	{

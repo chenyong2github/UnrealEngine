@@ -17,7 +17,7 @@ public:
 		return new FOperatorDmlSplit();
 	}
 
-	static bool Validate(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputShapes)
+	static bool Validate(const NNE::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNE::FSymbolicTensorShape> InputShapes)
 	{
 		//TODO
 		return true;
@@ -26,10 +26,10 @@ public:
 	//
 	//
 	//
-	virtual bool Initialize(IDMLDevice* Device, TArrayView<const NNECore::Internal::FTensor> InputTensors, TArrayView<const NNECore::Internal::FTensor> OutputTensors, const NNECore::FAttributeMap& Attributes) override
+	virtual bool Initialize(IDMLDevice* Device, TArrayView<const NNE::Internal::FTensor> InputTensors, TArrayView<const NNE::Internal::FTensor> OutputTensors, const NNE::FAttributeMap& Attributes) override
 	{
 		check(InputTensors.Num() == 1);
-		const NNECore::Internal::FTensor& InputTensor = InputTensors[0];
+		const NNE::Internal::FTensor& InputTensor = InputTensors[0];
 
 		int Axis = Attributes.GetValueOrDefault<int>(TEXT("axis"), 0);
 

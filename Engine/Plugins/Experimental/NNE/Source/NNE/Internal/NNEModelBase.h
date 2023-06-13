@@ -6,7 +6,7 @@
 #include "NNE.h"
 #include "NNETypes.h"
 
-namespace UE::NNECore::Internal
+namespace UE::NNE::Internal
 {
 	template <class ModelInterface> class FModelInstanceBase : public ModelInterface
 	{
@@ -14,11 +14,11 @@ namespace UE::NNECore::Internal
 
 		virtual ~FModelInstanceBase() = default;
 
-		virtual TConstArrayView<NNECore::FTensorDesc> GetInputTensorDescs() const override;
-		virtual TConstArrayView<NNECore::FTensorDesc> GetOutputTensorDescs() const override;
-		virtual TConstArrayView<NNECore::FTensorShape> GetInputTensorShapes() const override;
-		virtual TConstArrayView<NNECore::FTensorShape> GetOutputTensorShapes() const override;
-		virtual int SetInputTensorShapes(TConstArrayView<NNECore::FTensorShape> InInputShapes) override;
+		virtual TConstArrayView<NNE::FTensorDesc> GetInputTensorDescs() const override;
+		virtual TConstArrayView<NNE::FTensorDesc> GetOutputTensorDescs() const override;
+		virtual TConstArrayView<NNE::FTensorShape> GetInputTensorShapes() const override;
+		virtual TConstArrayView<NNE::FTensorShape> GetOutputTensorShapes() const override;
+		virtual int SetInputTensorShapes(TConstArrayView<NNE::FTensorShape> InInputShapes) override;
 
 	protected:
 
@@ -77,4 +77,4 @@ namespace UE::NNECore::Internal
 		return 0;
 	}
 
-} // namespace UE::NNECore::Internal
+} // namespace UE::NNE::Internal

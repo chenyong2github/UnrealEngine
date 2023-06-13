@@ -11,7 +11,7 @@
 
 class UNNEModelData;
 
-namespace UE::NNECore
+namespace UE::NNE
 {
 
 /**
@@ -28,8 +28,8 @@ struct NNE_API FTensorBindingCPU
 /**
  * The interface of a model instance that can run on CPU.
  *
- * Use UE::NNECore::IModelCPU::CreateModelInstance() to get a model instance.
- * Use UE::NNECore::GetRuntime<INNERuntimeCPU>(RuntimeName) to get a runtime capable of creating CPU models.
+ * Use UE::NNE::IModelCPU::CreateModelInstance() to get a model instance.
+ * Use UE::NNE::GetRuntime<INNERuntimeCPU>(RuntimeName) to get a runtime capable of creating CPU models.
  */
 class NNE_API IModelInstanceCPU
 {
@@ -100,7 +100,7 @@ public:
 /**
  * The interface of a model capable of creating model instance that can run on CPU.
  *
- * Use UE::NNECore::GetRuntime<INNERuntimeCPU>(RuntimeName) to get a runtime capable of creating CPU models.
+ * Use UE::NNE::GetRuntime<INNERuntimeCPU>(RuntimeName) to get a runtime capable of creating CPU models.
  */
 class NNE_API IModelCPU
 {
@@ -116,10 +116,10 @@ public:
 	 *
 	 * @return A caller owned model representing the neural network instance created.
 	 */
-	virtual TUniquePtr<UE::NNECore::IModelInstanceCPU> CreateModelInstance() = 0;
+	virtual TUniquePtr<UE::NNE::IModelInstanceCPU> CreateModelInstance() = 0;
 };
 
-} // UE::NNECore
+} // UE::NNE
 
 UINTERFACE()
 class NNE_API UNNERuntimeCPU : public UInterface
@@ -130,7 +130,7 @@ class NNE_API UNNERuntimeCPU : public UInterface
 /**
  * The interface of a neural network runtime capable of creating CPU models.
  *
- * Call UE::NNECore::GetRuntime<INNERuntimeCPU>(RuntimeName) to get a runtime implementing this interface.
+ * Call UE::NNE::GetRuntime<INNERuntimeCPU>(RuntimeName) to get a runtime implementing this interface.
  */
 class NNE_API INNERuntimeCPU
 {
@@ -156,5 +156,5 @@ public:
 	 * @param ModelData The model data for which to create a model.
 	 * @return A caller owned model representing the neural network created from ModelData.
 	 */
-	virtual TUniquePtr<UE::NNECore::IModelCPU> CreateModel(TObjectPtr<UNNEModelData> ModelData) = 0;
+	virtual TUniquePtr<UE::NNE::IModelCPU> CreateModel(TObjectPtr<UNNEModelData> ModelData) = 0;
 };

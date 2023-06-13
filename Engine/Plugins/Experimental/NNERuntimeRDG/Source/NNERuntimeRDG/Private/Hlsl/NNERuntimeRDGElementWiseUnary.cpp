@@ -18,7 +18,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 	/**
 	 * Unary element-wise operator implementation
 	 */
-	template<NNECore::Internal::EElementWiseUnaryOperatorType OpType>
+	template<NNE::Internal::EElementWiseUnaryOperatorType OpType>
 	class TElementWiseUnary : public FOperatorHlsl
 	{
 	public:
@@ -34,20 +34,20 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 
 	public:
 
-		virtual int PrepareOutputs(TConstArrayView<NNECore::Internal::FTensorRef> InputTensors, TArrayView<NNECore::Internal::FTensorRef> OutputTensors) const override
+		virtual int PrepareOutputs(TConstArrayView<NNE::Internal::FTensorRef> InputTensors, TArrayView<NNE::Internal::FTensorRef> OutputTensors) const override
 		{
 			check(InputTensors.Num() == 1);
 			check(OutputTensors.Num() == 1);
 			OutputTensors[0]->SetShape(InputTensors[0]->GetShape());
 
-			const NNECore::Internal::FTensor& X = *InputTensors[0];
+			const NNE::Internal::FTensor& X = *InputTensors[0];
 
 			Internal::CPUHelper::ElementWiseUnary::Apply(OpType, X, Alpha, Beta, Gamma, *OutputTensors[0]);
 			
 			return 0;
 		}
 
-		virtual bool Initialize(TConstArrayView<NNECore::FTensorDesc> InputTensorDescs, TConstArrayView<NNECore::FTensorDesc> OutputTensorDescs, const NNECore::FAttributeMap& Attributes) override
+		virtual bool Initialize(TConstArrayView<NNE::FTensorDesc> InputTensorDescs, TConstArrayView<NNE::FTensorDesc> OutputTensorDescs, const NNE::FAttributeMap& Attributes) override
 		{
 			check(InputTensorDescs.Num() == 1);
 			check(OutputTensorDescs.Num() == 1);
@@ -97,27 +97,27 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 		}
 	};
 
-	template<> TElementWiseUnary<NNECore::Internal::EElementWiseUnaryOperatorType::Selu>::TElementWiseUnary()
+	template<> TElementWiseUnary<NNE::Internal::EElementWiseUnaryOperatorType::Selu>::TElementWiseUnary()
 		: Alpha(1.67326319217681884765625f), Beta(0.0f), Gamma(1.05070102214813232421875f)
 	{
 	}
 
-	template<> TElementWiseUnary<NNECore::Internal::EElementWiseUnaryOperatorType::Elu>::TElementWiseUnary()
+	template<> TElementWiseUnary<NNE::Internal::EElementWiseUnaryOperatorType::Elu>::TElementWiseUnary()
 		: Alpha(1.0f), Beta(0.0f), Gamma(0.0f) 
 	{
 	}
 
-	template<> TElementWiseUnary<NNECore::Internal::EElementWiseUnaryOperatorType::HardSigmoid>::TElementWiseUnary()
+	template<> TElementWiseUnary<NNE::Internal::EElementWiseUnaryOperatorType::HardSigmoid>::TElementWiseUnary()
 		: Alpha(0.2f), Beta(0.5f), Gamma(0.0f)
 	{
 	}
 
-	template<> TElementWiseUnary<NNECore::Internal::EElementWiseUnaryOperatorType::LeakyRelu>::TElementWiseUnary()
+	template<> TElementWiseUnary<NNE::Internal::EElementWiseUnaryOperatorType::LeakyRelu>::TElementWiseUnary()
 		: Alpha(0.01f), Beta(0.0f), Gamma(0.0f)
 	{
 	}
 
-	template<> bool TElementWiseUnary<NNECore::Internal::EElementWiseUnaryOperatorType::Clip>::Initialize(TConstArrayView<NNECore::FTensorDesc> InputTensorDescs, TConstArrayView<NNECore::FTensorDesc> OutputTensorDescs, const NNECore::FAttributeMap& Attributes)
+	template<> bool TElementWiseUnary<NNE::Internal::EElementWiseUnaryOperatorType::Clip>::Initialize(TConstArrayView<NNE::FTensorDesc> InputTensorDescs, TConstArrayView<NNE::FTensorDesc> OutputTensorDescs, const NNE::FAttributeMap& Attributes)
 	{
 		check(InputTensorDescs.Num() == 1);
 		check(OutputTensorDescs.Num() == 1);
@@ -127,14 +127,14 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 		return true;
 	}
 
-	template<NNECore::Internal::EElementWiseUnaryOperatorType OpType>
+	template<NNE::Internal::EElementWiseUnaryOperatorType OpType>
 	FOperatorHlsl* CreateElementWiseUnaryOperator()
 	{
 		return new TElementWiseUnary<OpType>();
 	}
 
-	template<NNECore::Internal::EElementWiseUnaryOperatorType OpType>
-	bool ValidateElementWiseUnaryOperator(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputShapes)
+	template<NNE::Internal::EElementWiseUnaryOperatorType OpType>
+	bool ValidateElementWiseUnaryOperator(const NNE::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNE::FSymbolicTensorShape> InputShapes)
 	{
 		bool bIsValid = true;
 
@@ -150,7 +150,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 	}
 
 	template<>
-	bool ValidateElementWiseUnaryOperator<NNECore::Internal::EElementWiseUnaryOperatorType::Selu>(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputShapes)
+	bool ValidateElementWiseUnaryOperator<NNE::Internal::EElementWiseUnaryOperatorType::Selu>(const NNE::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNE::FSymbolicTensorShape> InputShapes)
 	{
 		bool bIsValid = true;
 
@@ -168,7 +168,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 	}
 
 	template<>
-	bool ValidateElementWiseUnaryOperator<NNECore::Internal::EElementWiseUnaryOperatorType::Elu>(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputShapes)
+	bool ValidateElementWiseUnaryOperator<NNE::Internal::EElementWiseUnaryOperatorType::Elu>(const NNE::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNE::FSymbolicTensorShape> InputShapes)
 	{
 		bool bIsValid = true;
 
@@ -185,7 +185,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 	}
 
 	template<>
-	bool ValidateElementWiseUnaryOperator<NNECore::Internal::EElementWiseUnaryOperatorType::HardSigmoid>(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputShapes)
+	bool ValidateElementWiseUnaryOperator<NNE::Internal::EElementWiseUnaryOperatorType::HardSigmoid>(const NNE::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNE::FSymbolicTensorShape> InputShapes)
 	{
 		bool bIsValid = true;
 
@@ -203,7 +203,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 	}
 
 	template<>
-	bool ValidateElementWiseUnaryOperator<NNECore::Internal::EElementWiseUnaryOperatorType::LeakyRelu>(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputShapes)
+	bool ValidateElementWiseUnaryOperator<NNE::Internal::EElementWiseUnaryOperatorType::LeakyRelu>(const NNE::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNE::FSymbolicTensorShape> InputShapes)
 	{
 		bool bIsValid = true;
 
@@ -220,7 +220,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 	}
 
 	template<>
-	bool ValidateElementWiseUnaryOperator<NNECore::Internal::EElementWiseUnaryOperatorType::Clip>(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputShapes)
+	bool ValidateElementWiseUnaryOperator<NNE::Internal::EElementWiseUnaryOperatorType::Clip>(const NNE::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNE::FSymbolicTensorShape> InputShapes)
 	{
 		bool bIsValid = true;
 
@@ -241,7 +241,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 	
 	bool RegisterElementWiseUnaryOperators(FOperatorRegistryHlsl& Registry)
 	{
-#define OP(Name) Registry.OpAdd(TEXT(#Name), CreateElementWiseUnaryOperator<NNECore::Internal::EElementWiseUnaryOperatorType::Name>, ValidateElementWiseUnaryOperator<NNECore::Internal::EElementWiseUnaryOperatorType::Name>)
+#define OP(Name) Registry.OpAdd(TEXT(#Name), CreateElementWiseUnaryOperator<NNE::Internal::EElementWiseUnaryOperatorType::Name>, ValidateElementWiseUnaryOperator<NNE::Internal::EElementWiseUnaryOperatorType::Name>)
 		OP(Abs);
 		OP(Acos);
 		OP(Acosh);

@@ -4,7 +4,7 @@
 
 namespace UE::NNERuntimeRDG::Private
 {
-	TensorIdxIterator::TensorIdxIterator(const NNECore::FTensorShape& InTensorShape) : TensorShape(InTensorShape)
+	TensorIdxIterator::TensorIdxIterator(const NNE::FTensorShape& InTensorShape) : TensorShape(InTensorShape)
 	{
 		CurrentPosition.Init(0, InTensorShape.Rank());
 	}
@@ -28,7 +28,7 @@ namespace UE::NNERuntimeRDG::Private
 		return CurrentPosition;
 	}
 
-	int32 TensorIdxIterator::GetIndexToBroadcastedShape(const NNECore::FTensorShape& InTensorShape) const
+	int32 TensorIdxIterator::GetIndexToBroadcastedShape(const NNE::FTensorShape& InTensorShape) const
 	{
 		int32 Index = 0;
 		int32 DimBaseOffset = 1;

@@ -8,7 +8,7 @@
 
 NNE_API DECLARE_LOG_CATEGORY_EXTERN(LogNNE, Log, All);
 
-namespace UE::NNECore
+namespace UE::NNE
 {
 	/**
 	 * Register a runtime to make it accessible to NNE clients.

@@ -11,7 +11,7 @@
 
 class UNNEModelData;
 
-namespace UE::NNECore
+namespace UE::NNE
 {
 
 /**
@@ -28,8 +28,8 @@ struct NNE_API FTensorBindingGPU
 /**
  * The interface of a model instance that can run on GPU.
  *
- * Use UE::NNECore::IModelGPU::CreateModelInstance() to get a model instance.
- * Use UE::NNECore::GetRuntime<INNERuntimeGPU>(RuntimeName) to get a runtime capable of creating GPU models.
+ * Use UE::NNE::IModelGPU::CreateModelInstance() to get a model instance.
+ * Use UE::NNE::GetRuntime<INNERuntimeGPU>(RuntimeName) to get a runtime capable of creating GPU models.
  */
 class NNE_API IModelInstanceGPU
 {
@@ -100,7 +100,7 @@ public:
 /**
  * The interface of a model capable of creating model instance that can run on GPU.
  *
- * Use UE::NNECore::GetRuntime<INNERuntimeGPU>(RuntimeName) to get a runtime capable of creating GPU models.
+ * Use UE::NNE::GetRuntime<INNERuntimeGPU>(RuntimeName) to get a runtime capable of creating GPU models.
  */
 class NNE_API IModelGPU
 {
@@ -116,10 +116,10 @@ public:
 	 *
 	 * @return A caller owned model representing the neural network instance created.
 	 */
-	virtual TUniquePtr<UE::NNECore::IModelInstanceGPU> CreateModelInstance() = 0;
+	virtual TUniquePtr<UE::NNE::IModelInstanceGPU> CreateModelInstance() = 0;
 };
 
-} // UE::NNECore
+} // UE::NNE
 
 UINTERFACE()
 class NNE_API UNNERuntimeGPU : public UInterface
@@ -130,7 +130,7 @@ class NNE_API UNNERuntimeGPU : public UInterface
 /**
  * The interface of a neural network runtime capable of creating GPU models.
  *
- * Call UE::NNECore::GetRuntime<INNERuntimeGPU>(RuntimeName) to get a runtime implementing this interface.
+ * Call UE::NNE::GetRuntime<INNERuntimeGPU>(RuntimeName) to get a runtime implementing this interface.
  */
 class NNE_API INNERuntimeGPU
 {
@@ -156,5 +156,5 @@ public:
 	 * @param ModelData The model data for which to create a model.
 	 * @return A caller owned model representing the neural network created from ModelData.
 	 */
-	virtual TUniquePtr<UE::NNECore::IModelGPU> CreateModel(TObjectPtr<UNNEModelData> ModelData) = 0;
+	virtual TUniquePtr<UE::NNE::IModelGPU> CreateModel(TObjectPtr<UNNEModelData> ModelData) = 0;
 };

@@ -16,7 +16,7 @@ namespace UE::NNERuntimeRDG::Internal::CPUHelper::Cast
 		}
 	}
 
-	template<typename TOutput> void ApplyWithResolvedOutputType(const NNECore::Internal::FTensor& Tensor, NNECore::Internal::FTensor& OutputTensor)
+	template<typename TOutput> void ApplyWithResolvedOutputType(const NNE::Internal::FTensor& Tensor, NNE::Internal::FTensor& OutputTensor)
 	{
 		ENNETensorDataType SourceType = Tensor.GetDataType();
 		TArray<TOutput> OutputData;
@@ -43,10 +43,10 @@ namespace UE::NNERuntimeRDG::Internal::CPUHelper::Cast
 		OutputTensor.SetPreparedData<TOutput>(OutputData);
 	}
 
-	void Apply(const NNECore::Internal::FTensor& Tensor, NNECore::Internal::FTensor& OutputTensor)
+	void Apply(const NNE::Internal::FTensor& Tensor, NNE::Internal::FTensor& OutputTensor)
 	{
 		//Heuristic to avoid unexpected performance hit. This helper being intended for shape related arithmetic only.
-		static constexpr int32 MaxItemInInputTensors = NNECore::FTensorShape::MaxRank * 2;
+		static constexpr int32 MaxItemInInputTensors = NNE::FTensorShape::MaxRank * 2;
 
 		if (Tensor.HasPreparedData() && (Tensor.GetVolume() <= MaxItemInInputTensors))
 		{

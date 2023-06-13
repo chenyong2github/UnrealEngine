@@ -65,7 +65,7 @@ static Util::FSmallUIntArray KernelPadding(
 
 static void ComputeStartEndPaddings(
     TConstArrayView<uint32> InputShape,
-    const NNECore::FAttributeMap& Attributes, 
+    const NNE::FAttributeMap& Attributes, 
     Util::FSmallUIntArray &OutStartPadding, 
 	Util::FSmallUIntArray &OutEndPadding,
     TConstArrayView<uint32> Padding)

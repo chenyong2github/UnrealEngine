@@ -110,7 +110,7 @@ public:
 
 	virtual HTensor AddTensor(const FString& Name, ENNETensorDataType DataType, TArrayView<const int32> Shape, const void* Data, uint64 DataSize)
 	{
-		TArray<int32, TInlineAllocator<NNECore::FTensorShape::MaxRank>> NNEShape;
+		TArray<int32, TInlineAllocator<NNE::FTensorShape::MaxRank>> NNEShape;
 		for (int i = 0; i < Shape.Num(); ++i)
 		{
 			//ORT Graph return 0 for variable dimensions for inputs/outputs, NNE use -1.

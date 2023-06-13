@@ -56,7 +56,7 @@ public:
 		return new FOperatorDmlResample<IsResize>();
 	}
 
-	static bool Validate(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputShapes)
+	static bool Validate(const NNE::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNE::FSymbolicTensorShape> InputShapes)
 	{
 		//TODO
 		return true;
@@ -65,14 +65,14 @@ public:
 	//
 	//
 	//
-	virtual bool Initialize(IDMLDevice* Device, TArrayView<const NNECore::Internal::FTensor> InputTensors, TArrayView<const NNECore::Internal::FTensor> OutputTensors, const NNECore::FAttributeMap& Attributes) override
+	virtual bool Initialize(IDMLDevice* Device, TArrayView<const NNE::Internal::FTensor> InputTensors, TArrayView<const NNE::Internal::FTensor> OutputTensors, const NNE::FAttributeMap& Attributes) override
 	{
 		check(InputTensors.Num() >= 1 && InputTensors.Num() < 4);
 		check(OutputTensors.Num() == 1);
 
-		const NNECore::Internal::FTensor& InputTensor = InputTensors[0];
-		const NNECore::Internal::FTensor& ScaleTensor = (InputTensors.Num() == 2)?InputTensors[1]:InputTensors[2];//Upsample have scale at position 1, while Resize at 2.
-		const NNECore::Internal::FTensor& OutputTensor = OutputTensors[0];
+		const NNE::Internal::FTensor& InputTensor = InputTensors[0];
+		const NNE::Internal::FTensor& ScaleTensor = (InputTensors.Num() == 2)?InputTensors[1]:InputTensors[2];//Upsample have scale at position 1, while Resize at 2.
+		const NNE::Internal::FTensor& OutputTensor = OutputTensors[0];
 
 		if (InputTensors.Num() == 3 && InputTensors[2].GetDataType() == ENNETensorDataType::Int64)
 		{
@@ -139,7 +139,7 @@ public:
 				{
 					// NOTE: no tests for this, ORT erroneously puts all 0.0fs in the output tensor in this case.
 					
-					const NNECore::Internal::FTensor& RoiTensor = InputTensors[1];
+					const NNE::Internal::FTensor& RoiTensor = InputTensors[1];
 					if (!RoiTensor.HasPreparedData())
 					{
 						UE_LOG(LogNNE, Warning, TEXT("roi should be a constant tensor, it is here a variable tensor of name %s."), *RoiTensor.GetName());

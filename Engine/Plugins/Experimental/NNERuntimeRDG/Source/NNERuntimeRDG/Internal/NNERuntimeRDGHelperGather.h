@@ -4,9 +4,9 @@
 
 #include "CoreMinimal.h"
 
-namespace UE::NNECore::Internal { class FTensor; }
+namespace UE::NNE::Internal { class FTensor; }
 
 namespace UE::NNERuntimeRDG::Internal::CPUHelper::Gather
 {
-	void NNERUNTIMERDG_API Apply(const NNECore::Internal::FTensor& DataTensor, const NNECore::Internal::FTensor& IndicesTensor, int32 Axis, NNECore::Internal::FTensor& OutputTensor);
+	void NNERUNTIMERDG_API Apply(const NNE::Internal::FTensor& DataTensor, const NNE::Internal::FTensor& IndicesTensor, int32 Axis, NNE::Internal::FTensor& OutputTensor);
 } // UE::NNERuntimeRDG::Internal::CPUHelper::Gather

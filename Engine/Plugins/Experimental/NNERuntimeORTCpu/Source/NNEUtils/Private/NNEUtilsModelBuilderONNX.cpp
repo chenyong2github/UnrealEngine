@@ -324,7 +324,7 @@ private:
 //
 //
 //
-void BuildShapeForModel(bool ConvertToVariadicShape, const NNECore::FTensorShape& InShape, TArray<int32>& OutShape)
+void BuildShapeForModel(bool ConvertToVariadicShape, const NNE::FTensorShape& InShape, TArray<int32>& OutShape)
 {
 	OutShape.Reset();
 	for (int32 Idx = 0; Idx < InShape.Rank(); ++Idx)
@@ -344,7 +344,7 @@ void BuildShapeForModel(bool ConvertToVariadicShape, const NNECore::FTensorShape
 NNEUTILS_API bool CreateONNXModelForOperator(bool UseVariadicShapeForModel, const FString& OperatorName,
 	TConstArrayView<FTensor> InInputTensors, TConstArrayView<FTensor> InOutputTensors,
 	TConstArrayView<FTensor> InWeightTensors, TConstArrayView<TArray<char>> InWeightTensorsData,
-	const UE::NNECore::FAttributeMap& Attributes, FNNEModelRaw& Model)
+	const UE::NNE::FAttributeMap& Attributes, FNNEModelRaw& Model)
 {
 	Model = FNNEModelRaw{};
 	

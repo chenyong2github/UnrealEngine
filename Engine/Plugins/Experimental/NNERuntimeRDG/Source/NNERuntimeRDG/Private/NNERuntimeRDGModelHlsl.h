@@ -35,13 +35,13 @@ private:
 	TArray<TRefCountPtr<FRDGPooledBuffer>> ConstantsExternalRDGResources;
 };
 
-class FModel : public NNECore::IModelRDG
+class FModel : public NNE::IModelRDG
 {
 public:
 	FModel(TConstArrayView<uint8> ModelData);
 	virtual ~FModel() {};
 
-	virtual TUniquePtr<UE::NNECore::IModelInstanceRDG> CreateModelInstance() override;
+	virtual TUniquePtr<UE::NNE::IModelInstanceRDG> CreateModelInstance() override;
 
 private:
 	TArray<uint8> ModelData;

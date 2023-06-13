@@ -26,7 +26,7 @@ namespace UE::NNEHlslShaders::Internal
 		}
 	}
 
-	void TInstanceNormalizationCS::FillInParameters(float Epsilon, const  UE::NNECore::Internal::FTensor& Input, TInstanceNormalizationCS::FParameters& Parameters)
+	void TInstanceNormalizationCS::FillInParameters(float Epsilon, const  UE::NNE::Internal::FTensor& Input, TInstanceNormalizationCS::FParameters& Parameters)
 	{
 		check(Input.GetShape().Rank() >= 3);
 		

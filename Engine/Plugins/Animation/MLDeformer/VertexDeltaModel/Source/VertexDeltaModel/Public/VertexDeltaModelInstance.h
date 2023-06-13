@@ -34,7 +34,7 @@ public:
 	 * Get the RDG Neural Network Model Instance
 	 * @return The IModelInstanceRDG if successfully created, or nullptr
 	 */
-	UE::NNECore::IModelInstanceRDG* GetNNEModelInstanceRDG() const;
+	UE::NNE::IModelInstanceRDG* GetNNEModelInstanceRDG() const;
 
 	/**
 	 * Get the output vertex delta buffer
@@ -46,11 +46,11 @@ public:
 	 * Get the render graph buffer description required for the output of a neural network. Return false if a flat buffer is not appropriate
 	 * @return True if the OutputTensorDescs can be represented by a flat float  FRDGBuffer
 	 */
-	bool GetRDGVertexBufferDesc(TConstArrayView<UE::NNECore::FTensorDesc>& InOutputTensorDescs, FRDGBufferDesc& OutBufferDesc);
+	bool GetRDGVertexBufferDesc(TConstArrayView<UE::NNE::FTensorDesc>& InOutputTensorDescs, FRDGBufferDesc& OutBufferDesc);
 
 private:
 
-	void CreateRDGBuffers(TConstArrayView<UE::NNECore::FTensorDesc>& OutputTensorDescs);
+	void CreateRDGBuffers(TConstArrayView<UE::NNE::FTensorDesc>& OutputTensorDescs);
 	void CreateNNEModel();
 
 	// Input Buffer for Joint Matrices / Curve Floats
@@ -60,7 +60,7 @@ private:
 	TRefCountPtr<FRDGPooledBuffer> RDGVertexDeltaBuffer;
 
 	// The NNE RDG Model 
-	TUniquePtr<UE::NNECore::IModelInstanceRDG> ModelInstanceRDG;
+	TUniquePtr<UE::NNE::IModelInstanceRDG> ModelInstanceRDG;
 	
 	// The CPU Input Tensor Buffer
 	TArray<float> NNEInputTensorBuffer;

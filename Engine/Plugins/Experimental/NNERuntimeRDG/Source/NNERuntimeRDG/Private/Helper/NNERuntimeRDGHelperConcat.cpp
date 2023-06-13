@@ -7,9 +7,9 @@
 
 namespace UE::NNERuntimeRDG::Internal::CPUHelper::Concat
 {
-	void Apply(TConstArrayView<NNECore::Internal::FTensorRef> InputTensors, NNECore::Internal::FTensor& OutputTensor, int32 Axis)
+	void Apply(TConstArrayView<NNE::Internal::FTensorRef> InputTensors, NNE::Internal::FTensor& OutputTensor, int32 Axis)
 	{
-		static constexpr int32 MaxItemInOutputTensor = NNECore::FTensorShape::MaxRank * 2;
+		static constexpr int32 MaxItemInOutputTensor = NNE::FTensorShape::MaxRank * 2;
 		
 		if (OutputTensor.GetVolume() >= MaxItemInOutputTensor)
 		{
@@ -21,7 +21,7 @@ namespace UE::NNERuntimeRDG::Internal::CPUHelper::Concat
 			return;
 		}
 		
-		for (NNECore::Internal::FTensorRef InputTensor : InputTensors)
+		for (NNE::Internal::FTensorRef InputTensor : InputTensors)
 		{
 			check(InputTensor != nullptr);
 			if (!InputTensor->HasPreparedData())
@@ -38,7 +38,7 @@ namespace UE::NNERuntimeRDG::Internal::CPUHelper::Concat
 
 		OutputData.SetNumUninitialized(OutputTensor.GetVolume());
 		
-		for (NNECore::Internal::FTensorRef InputTensor : InputTensors)
+		for (NNE::Internal::FTensorRef InputTensor : InputTensors)
 		{
 			TConstArrayView<float> InputData = InputTensor->GetPreparedData<float>();
 			Private::TensorIdxIterator itInput(InputTensor->GetShape());

@@ -4,10 +4,10 @@
 
 #include "CoreMinimal.h"
 
-namespace UE::NNECore::Internal { class FTensor; }
+namespace UE::NNE::Internal { class FTensor; }
 
 namespace UE::NNERuntimeRDG::Internal::CPUHelper::Cast
 {
-	void NNERUNTIMERDG_API Apply(const NNECore::Internal::FTensor& Tensor, NNECore::Internal::FTensor& OutputTensor);
+	void NNERUNTIMERDG_API Apply(const NNE::Internal::FTensor& Tensor, NNE::Internal::FTensor& OutputTensor);
 
 } // UE::NNERuntimeRDG::Internal::CPUHelper::Cast

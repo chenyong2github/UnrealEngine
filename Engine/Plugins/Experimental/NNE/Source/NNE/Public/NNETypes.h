@@ -32,7 +32,7 @@ enum class ENNETensorDataType : uint8
 	BFloat16							//!< 16-bit floating number
 };
 
-namespace UE::NNECore
+namespace UE::NNE
 {
 
 	/**
@@ -277,4 +277,4 @@ namespace UE::NNECore
 		inline const FSymbolicTensorShape& GetShape() const { return Shape; }
 	};
 
-} // namespace UE::NNECore
+} // namespace UE::NNE

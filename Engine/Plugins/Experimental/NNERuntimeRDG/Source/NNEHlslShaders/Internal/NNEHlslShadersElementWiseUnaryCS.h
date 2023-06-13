@@ -21,7 +21,7 @@ namespace UE::NNEHlslShaders::Internal
 		DECLARE_GLOBAL_SHADER(TElementWiseUnaryCS);
 		SHADER_USE_PARAMETER_STRUCT(TElementWiseUnaryCS, FHlslShaderBase)
 
-		class FOperatorType : SHADER_PERMUTATION_ENUM_CLASS("OP_TYPENAME", NNECore::Internal::EElementWiseUnaryOperatorType);
+		class FOperatorType : SHADER_PERMUTATION_ENUM_CLASS("OP_TYPENAME", NNE::Internal::EElementWiseUnaryOperatorType);
 		using FPermutationDomain = TShaderPermutationDomain<FOperatorType>;
 
 	public:
@@ -40,6 +40,6 @@ namespace UE::NNEHlslShaders::Internal
 
 	private:
 
-		static const FString GetOpFunc(NNECore::Internal::EElementWiseUnaryOperatorType OpType);
+		static const FString GetOpFunc(NNE::Internal::EElementWiseUnaryOperatorType OpType);
 	};
 } // UE::NNEHlslShaders::Internal

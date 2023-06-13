@@ -25,7 +25,7 @@ namespace UE::NNERuntimeORTCpu::Private
 		EThreadPriority ThreadPriority = EThreadPriority::TPri_Normal;
 	};
 
-	class FModelInstanceCPU : public NNECore::Internal::FModelInstanceBase<NNECore::IModelInstanceCPU>
+	class FModelInstanceCPU : public NNE::Internal::FModelInstanceBase<NNE::IModelInstanceCPU>
 	{
 
 	public:
@@ -33,8 +33,8 @@ namespace UE::NNERuntimeORTCpu::Private
 		FModelInstanceCPU(Ort::Env* InORTEnvironment, const FRuntimeConf& InRuntimeConf);
 		virtual ~FModelInstanceCPU() {};
 
-		virtual int SetInputTensorShapes(TConstArrayView<NNECore::FTensorShape> InInputShapes) override;
-		virtual int RunSync(TConstArrayView<NNECore::FTensorBindingCPU> InInputBindings, TConstArrayView<NNECore::FTensorBindingCPU> InOutputBindings) override;
+		virtual int SetInputTensorShapes(TConstArrayView<NNE::FTensorShape> InInputShapes) override;
+		virtual int RunSync(TConstArrayView<NNE::FTensorBindingCPU> InInputBindings, TConstArrayView<NNE::FTensorBindingCPU> InOutputBindings) override;
 
 		bool Init(TConstArrayView<uint8> ModelData);
 		bool IsLoaded() const;
@@ -66,8 +66,8 @@ namespace UE::NNERuntimeORTCpu::Private
 		TArray<const char*> InputTensorNamePtrs;
 		TArray<const char*> OutputTensorNamePtrs;
 
-		TArray<NNECore::Internal::FTensor> InputTensors;
-		TArray<NNECore::Internal::FTensor> OutputTensors;
+		TArray<NNE::Internal::FTensor> InputTensors;
+		TArray<NNE::Internal::FTensor> OutputTensors;
 
 		bool InitializedAndConfigureMembers();
 		bool ConfigureTensors(const bool InIsInput);
@@ -80,13 +80,13 @@ namespace UE::NNERuntimeORTCpu::Private
 
 	};
 
-	class FModelCPU : public NNECore::IModelCPU
+	class FModelCPU : public NNE::IModelCPU
 	{
 	public:
 		FModelCPU(Ort::Env* InORTEnvironment, TConstArrayView<uint8> ModelData);
 		virtual ~FModelCPU() {};
 
-		virtual TUniquePtr<UE::NNECore::IModelInstanceCPU> CreateModelInstance() override;
+		virtual TUniquePtr<UE::NNE::IModelInstanceCPU> CreateModelInstance() override;
 
 	private:
 		Ort::Env* ORTEnvironment;

@@ -22,7 +22,7 @@ END_SHADER_PARAMETER_STRUCT()
 class FRDGBuilder;
 struct FNNEModelRaw;
 
-namespace UE::NNECore { class FTensorDesc; }
+namespace UE::NNE { class FTensorDesc; }
 
 namespace UE::NNERuntimeRDG::Private
 {
@@ -33,7 +33,7 @@ namespace UE::NNERuntimeRDG::Private
 struct IPrepareOperator
 {
 	virtual ~IPrepareOperator() = default;
-	virtual int PrepareOutputs(TConstArrayView<NNECore::Internal::FTensorRef> InputTensors, TArrayView<NNECore::Internal::FTensorRef> OutputTensors) const = 0;
+	virtual int PrepareOutputs(TConstArrayView<NNE::Internal::FTensorRef> InputTensors, TArrayView<NNE::Internal::FTensorRef> OutputTensors) const = 0;
 };
 
 /**
@@ -44,12 +44,12 @@ struct IOperatorRDG
 	virtual ~IOperatorRDG() = default;
 };
 
-class FTensorRDG : public NNECore::Internal::FTensor
+class FTensorRDG : public NNE::Internal::FTensor
 {
 	FRDGBufferRef Buffer{};
 	
 public:
-	static FTensorRDG Make(const NNECore::FTensorDesc& TensorDesc, const NNECore::FTensorShape& Shape, FRDGBufferRef Buffer)
+	static FTensorRDG Make(const NNE::FTensorDesc& TensorDesc, const NNE::FTensorShape& Shape, FRDGBufferRef Buffer)
 	{
 		check(Shape.IsCompatibleWith(TensorDesc.GetShape()));
 		FTensorRDG TensorRDG;
@@ -58,7 +58,7 @@ public:
 		TensorRDG.DataType = TensorDesc.GetDataType();
 		TensorRDG.Shape = Shape;
 		TensorRDG.Volume = Shape.Volume();
-		TensorRDG.DataSize = (uint64)NNECore::GetTensorDataTypeSizeInBytes(TensorRDG.DataType) * TensorRDG.Volume;
+		TensorRDG.DataSize = (uint64)NNE::GetTensorDataTypeSizeInBytes(TensorRDG.DataType) * TensorRDG.Volume;
 		TensorRDG.Buffer = Buffer;
 		check(TensorRDG.Volume <= TNumericLimits<uint32>::Max());
 		return TensorRDG;
@@ -74,7 +74,7 @@ using FTensorRDGArray = TArray<FTensorRDG, TInlineAllocator<16>>;
 using FTensorRDGRefArray = TArray<FTensorRDGRef, TInlineAllocator<64>>;
 using FIntArray = TArray<int32, TInlineAllocator<16>>;
 
-bool AlwaysValidValidationFunction(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputShapes);
+bool AlwaysValidValidationFunction(const NNE::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNE::FSymbolicTensorShape> InputShapes);
 
 class FInputValidator
 {
@@ -98,7 +98,7 @@ class FAttributeValidator
 public:
 	void AddOptional(const FString& Name, ENNEAttributeDataType Type);
 	void AddRequired(const FString& Name, ENNEAttributeDataType Type);
-	bool Validate(const NNECore::FAttributeMap& AttributesToValidate);
+	bool Validate(const NNE::FAttributeMap& AttributesToValidate);
 
 private:
 	struct FEntry
@@ -129,7 +129,7 @@ class TOperatorRegistryRDG
 public:
 
 	typedef TOperatorType* (*OperatorCreateFunc)();
-	typedef bool (*OperatorValidateFunc)(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputShapes);
+	typedef bool (*OperatorValidateFunc)(const NNE::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNE::FSymbolicTensorShape> InputShapes);
 
 	static TOperatorRegistryRDG* Get()
 	{
@@ -187,7 +187,7 @@ private:
  * Validator for RDG ML operators
  */
 template<class TOperatorType>
-class TModelValidatorRDG : public UE::NNECore::Internal::IModelValidator
+class TModelValidatorRDG : public UE::NNE::Internal::IModelValidator
 {
 public:
 	virtual FString GetName() const 
@@ -195,7 +195,7 @@ public:
 		return TEXT("RDG Model validator");
 	}
 	
-	virtual bool ValidateModel(const FNNEModelRaw& InputModel, const UE::NNECore::Internal::FOptimizerOptionsMap& Options) const override
+	virtual bool ValidateModel(const FNNEModelRaw& InputModel, const UE::NNE::Internal::FOptimizerOptionsMap& Options) const override
 	{
 		FNNERuntimeFormat	Format;
 
@@ -215,13 +215,13 @@ public:
 		for (int32 Idx = 0; Idx < Format.Operators.Num(); ++Idx)
 		{
 			TArray<ENNETensorDataType> InputTensorTypes;
-			TArray<NNECore::FSymbolicTensorShape> InputTensorShapes;
-			NNECore::FAttributeMap AttributeMap;
+			TArray<NNE::FSymbolicTensorShape> InputTensorShapes;
+			NNE::FAttributeMap AttributeMap;
 			
 			for (int32 InputTensorIndex: Format.Operators[Idx].InTensors)
 			{
 				InputTensorTypes.Add(Format.Tensors[InputTensorIndex].DataType);
-				InputTensorShapes.Add(NNECore::FSymbolicTensorShape::Make(Format.Tensors[InputTensorIndex].Shape));
+				InputTensorShapes.Add(NNE::FSymbolicTensorShape::Make(Format.Tensors[InputTensorIndex].Shape));
 			}
 			for (const FNNEFormatAttributeDesc& Desc : Format.Operators[Idx].Attributes)
 			{

@@ -29,15 +29,15 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 
 	public:
 
-		virtual int PrepareOutputs(TConstArrayView<NNECore::Internal::FTensorRef> InputTensors, TArrayView<NNECore::Internal::FTensorRef> OutputTensors) const override
+		virtual int PrepareOutputs(TConstArrayView<NNE::Internal::FTensorRef> InputTensors, TArrayView<NNE::Internal::FTensorRef> OutputTensors) const override
 		{
 			check(InputTensors.Num() == 2)
 			check(OutputTensors.Num() == 1)
 
-			const NNECore::Internal::FTensor& Data = *InputTensors[0];
-			const NNECore::Internal::FTensor& Indices = *InputTensors[1];
-			const NNECore::FTensorShape& DataShape = Data.GetShape();
-			const NNECore::FTensorShape& IndicesShape = Indices.GetShape();
+			const NNE::Internal::FTensor& Data = *InputTensors[0];
+			const NNE::Internal::FTensor& Indices = *InputTensors[1];
+			const NNE::FTensorShape& DataShape = Data.GetShape();
+			const NNE::FTensorShape& IndicesShape = Indices.GetShape();
 
 			const int32 OutputRank = IndicesShape.Rank() + DataShape.Rank() - 1;
 			TArray<uint32> OutputShapeData;
@@ -57,7 +57,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 				OutputShapeData.Add(DataShape.GetData()[DataRankIdx]);
 			}
 
-			NNECore::FTensorShape OutputShape = NNECore::FTensorShape::Make(OutputShapeData);
+			NNE::FTensorShape OutputShape = NNE::FTensorShape::Make(OutputShapeData);
 
 			check(OutputShape.Rank() == OutputRank);
 			OutputTensors[0]->SetShape(OutputShape);
@@ -73,16 +73,16 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 			return 0;
 		};
 		
-		virtual bool Initialize(TConstArrayView<NNECore::FTensorDesc> InputTensorDescs, TConstArrayView<NNECore::FTensorDesc> OutputTensorDescs, const NNECore::FAttributeMap& Attributes) override
+		virtual bool Initialize(TConstArrayView<NNE::FTensorDesc> InputTensorDescs, TConstArrayView<NNE::FTensorDesc> OutputTensorDescs, const NNE::FAttributeMap& Attributes) override
 		{
 			const int32 MaxNumDimensions = NNEHlslShaders::Internal::FGatherConstants::MAX_NUM_DIMENSIONS;
 			
 			check(InputTensorDescs.Num() == 2)
 			check(OutputTensorDescs.Num() == 1)
 
-			const NNECore::FTensorDesc& Data = InputTensorDescs[0];
-			const NNECore::FTensorDesc& Indices = InputTensorDescs[1];
-			const NNECore::FTensorDesc& Output = OutputTensorDescs[0];
+			const NNE::FTensorDesc& Data = InputTensorDescs[0];
+			const NNE::FTensorDesc& Indices = InputTensorDescs[1];
+			const NNE::FTensorDesc& Output = OutputTensorDescs[0];
 
 			if (Output.GetShape().Rank() > MaxNumDimensions)
 			{
@@ -159,7 +159,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 		}
 	};
 
-	bool ValidateGatherOperator(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputShapes)
+	bool ValidateGatherOperator(const NNE::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNE::FSymbolicTensorShape> InputShapes)
 	{
 		bool bIsValid = true;
 

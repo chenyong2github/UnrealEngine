@@ -13,7 +13,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 namespace ModelUtils
 {
 
-FOperatorHlsl* OpCreate(const FString& OpName, TConstArrayView<NNECore::FTensorDesc> InputTensorDescs, TConstArrayView<NNECore::FTensorDesc> OutputTensorDescs, const NNECore::FAttributeMap& AttributeMap)
+FOperatorHlsl* OpCreate(const FString& OpName, TConstArrayView<NNE::FTensorDesc> InputTensorDescs, TConstArrayView<NNE::FTensorDesc> OutputTensorDescs, const NNE::FAttributeMap& AttributeMap)
 {
 	FOperatorRegistryHlsl::OperatorCreateFunc CreateFn = FOperatorRegistryHlsl::Get()->OpFind(OpName);
 
@@ -116,8 +116,8 @@ bool FModelInstance::Init(TConstArrayView<uint8> ModelData)
 		return false;
 	}
 
-	TArray<NNECore::FTensorDesc> Inputs;
-	TArray<NNECore::FTensorDesc> Outputs;
+	TArray<NNE::FTensorDesc> Inputs;
+	TArray<NNE::FTensorDesc> Outputs;
 	TArray<FTensorRDGRef> InputsAsWeights;
 
 	// Loop over all operators in the model and create them
@@ -127,7 +127,7 @@ bool FModelInstance::Init(TConstArrayView<uint8> ModelData)
 		Inputs.Reset();
 		Outputs.Reset();
 		InputsAsWeights.Reset();
-		UE::NNECore::FAttributeMap AttributeMap;
+		UE::NNE::FAttributeMap AttributeMap;
 
 		for (int32 InputTensorIndex : Format.Operators[Idx].InTensors)
 		{
@@ -220,8 +220,8 @@ int FModelInstance::PrepareTensorShapesAndData()
 	// Run model preparation (including shape inference) on all operators
 	// This loop could be abstracted to a different runtime/system as it apply on FTensorRef & IPrepareOperator witch are RDG agnostics.
 	static constexpr int32 MaxExpectedInput = 10;
-	TArray<NNECore::Internal::FTensorRef, TInlineAllocator<MaxExpectedInput>> InputTensors;
-	TArray<NNECore::Internal::FTensorRef> OutputTensors;
+	TArray<NNE::Internal::FTensorRef, TInlineAllocator<MaxExpectedInput>> InputTensors;
+	TArray<NNE::Internal::FTensorRef> OutputTensors;
 	TArray<bool> AllInitializedTensors;
 
 	checkCode(
@@ -364,18 +364,18 @@ bool FModelInstance::PrepareWeights()
 	return true;
 }
 
-TUniquePtr<UE::NNECore::IModelInstanceRDG> FModel::CreateModelInstance()
+TUniquePtr<UE::NNE::IModelInstanceRDG> FModel::CreateModelInstance()
 {
 	FModelInstance* ModelInstance = new FModelInstance();
 
 	if (!ModelInstance->Init(ModelData))
 	{
 		delete ModelInstance;
-		return TUniquePtr<UE::NNECore::IModelInstanceRDG>();
+		return TUniquePtr<UE::NNE::IModelInstanceRDG>();
 	}
 
-	UE::NNECore::IModelInstanceRDG* IModelInstance = static_cast<UE::NNECore::IModelInstanceRDG*>(ModelInstance);
-	return TUniquePtr<UE::NNECore::IModelInstanceRDG>(IModelInstance);
+	UE::NNE::IModelInstanceRDG* IModelInstance = static_cast<UE::NNE::IModelInstanceRDG*>(ModelInstance);
+	return TUniquePtr<UE::NNE::IModelInstanceRDG>(IModelInstance);
 }
 
 FModel::FModel(TConstArrayView<uint8> InModelData) : ModelData(InModelData) {}

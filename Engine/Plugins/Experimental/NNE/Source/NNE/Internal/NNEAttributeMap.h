@@ -4,7 +4,7 @@
 
 #include "NNEAttributeValue.h"
 
-namespace UE::NNECore
+namespace UE::NNE
 {
 
 class FAttributeMap
@@ -77,4 +77,4 @@ private:
 	TArray<FEntry> Attributes;
 };
 
-} // namespace UE::NNECore
+} // namespace UE::NNE

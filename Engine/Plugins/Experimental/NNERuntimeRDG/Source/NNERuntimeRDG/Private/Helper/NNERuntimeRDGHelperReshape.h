@@ -13,13 +13,13 @@ namespace UE::NNERuntimeRDG::Private::ShapeHelper::Reshape
 {
 	template<typename DataType, class OutputShapeType >
 	bool ReshapeTensor(
-		const NNECore::FTensorShape& InputTensorShape,
-		const NNECore::Internal::FTensor& ShapeTensor,
+		const NNE::FTensorShape& InputTensorShape,
+		const NNE::Internal::FTensor& ShapeTensor,
 		bool bAllowZero,
 		OutputShapeType& OutShape)
 	{
 
-		TArray<DataType, TInlineAllocator<NNECore::FTensorShape::MaxRank>> ReshapedShape(ShapeTensor.GetPreparedData<DataType>());
+		TArray<DataType, TInlineAllocator<NNE::FTensorShape::MaxRank>> ReshapedShape(ShapeTensor.GetPreparedData<DataType>());
 
 		if (!bAllowZero)
 		{

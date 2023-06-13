@@ -5,7 +5,7 @@
 
 namespace UE::NNERuntimeRDG::Internal::CPUHelper::Gather
 {
-	template <typename TData, typename TInd> void Gather1DResolvedTypes(const NNECore::Internal::FTensor& DataTensor, const NNECore::Internal::FTensor& IndicesTensor, NNECore::Internal::FTensor& OutputTensor)
+	template <typename TData, typename TInd> void Gather1DResolvedTypes(const NNE::Internal::FTensor& DataTensor, const NNE::Internal::FTensor& IndicesTensor, NNE::Internal::FTensor& OutputTensor)
 	{
 		TConstArrayView<TData> DataData = DataTensor.GetPreparedData<TData>();
 		TConstArrayView<TInd> IndicesData = IndicesTensor.GetPreparedData<TInd>();
@@ -22,7 +22,7 @@ namespace UE::NNERuntimeRDG::Internal::CPUHelper::Gather
 		OutputTensor.SetPreparedData<TData>(OutputData);
 	}
 
-	template <typename TInd> void Gather1DResolvedIndices(const NNECore::Internal::FTensor& DataTensor, const NNECore::Internal::FTensor& IndicesTensor, NNECore::Internal::FTensor& OutputTensor)
+	template <typename TInd> void Gather1DResolvedIndices(const NNE::Internal::FTensor& DataTensor, const NNE::Internal::FTensor& IndicesTensor, NNE::Internal::FTensor& OutputTensor)
 	{
 		switch (DataTensor.GetDataType())
 		{
@@ -38,9 +38,9 @@ namespace UE::NNERuntimeRDG::Internal::CPUHelper::Gather
 		}
 	}
 
-	void Apply(const NNECore::Internal::FTensor& DataTensor, const NNECore::Internal::FTensor& IndicesTensor, int32 Axis, NNECore::Internal::FTensor& OutputTensor)
+	void Apply(const NNE::Internal::FTensor& DataTensor, const NNE::Internal::FTensor& IndicesTensor, int32 Axis, NNE::Internal::FTensor& OutputTensor)
 	{
-		static constexpr int32 MaxItemInOutputTensor = NNECore::FTensorShape::MaxRank * 2;
+		static constexpr int32 MaxItemInOutputTensor = NNE::FTensorShape::MaxRank * 2;
 
 		if (OutputTensor.GetVolume() >= MaxItemInOutputTensor)
 		{

@@ -18,7 +18,7 @@ public:
 		return new FOperatorDmlGemm();
 	}
 
-	static bool Validate(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputShapes)
+	static bool Validate(const NNE::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNE::FSymbolicTensorShape> InputShapes)
 	{
 		//TODO
 		return true;
@@ -27,7 +27,7 @@ public:
 	//
 	//
 	//
-	virtual bool Initialize(IDMLDevice* Device, TArrayView<const NNECore::Internal::FTensor> InputTensors, TArrayView<const NNECore::Internal::FTensor> OutputTensors, const NNECore::FAttributeMap& Attributes) override
+	virtual bool Initialize(IDMLDevice* Device, TArrayView<const NNE::Internal::FTensor> InputTensors, TArrayView<const NNE::Internal::FTensor> OutputTensors, const NNE::FAttributeMap& Attributes) override
 	{
 		// Setup attributes
 		float Alpha = 1.0f;
@@ -40,9 +40,9 @@ public:
 		TransA = Attributes.GetValueOrDefault(TEXT("transA"), TransA);
 		TransB = Attributes.GetValueOrDefault(TEXT("transB"), TransB);
 		
-		const NNECore::Internal::FTensor& InputATensor = InputTensors[0];
-		const NNECore::Internal::FTensor& InputBTensor = InputTensors[1];
-		const NNECore::Internal::FTensor& OutputTensor = OutputTensors[0];
+		const NNE::Internal::FTensor& InputATensor = InputTensors[0];
+		const NNE::Internal::FTensor& InputBTensor = InputTensors[1];
+		const NNE::Internal::FTensor& OutputTensor = OutputTensors[0];
 
 		// Initialize tensor descriptors
 		FTensorDescDml	DmlInputATensorDesc;
@@ -70,7 +70,7 @@ public:
 
 		if (InputTensors.Num() > 2)
 		{
-			const NNECore::Internal::FTensor& InputCTensor = InputTensors[2];
+			const NNE::Internal::FTensor& InputCTensor = InputTensors[2];
 
 			if (!DmlInputCTensorDesc
 					.SetTensorRank(2, 4)

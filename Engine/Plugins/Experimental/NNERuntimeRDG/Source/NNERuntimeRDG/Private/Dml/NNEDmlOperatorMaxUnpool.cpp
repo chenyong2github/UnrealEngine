@@ -18,7 +18,7 @@ public:
 		return new FOperatorDmlMaxUnpool();
 	}
 
-	static bool Validate(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputShapes)
+	static bool Validate(const NNE::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNE::FSymbolicTensorShape> InputShapes)
 	{
 		//TODO
 		return true;
@@ -27,7 +27,7 @@ public:
 	//
 	//
 	//
-	virtual bool Initialize(IDMLDevice* Device, TArrayView<const NNECore::Internal::FTensor> InputTensors, TArrayView<const NNECore::Internal::FTensor> OutputTensors, const NNECore::FAttributeMap& Attributes) override
+	virtual bool Initialize(IDMLDevice* Device, TArrayView<const NNE::Internal::FTensor> InputTensors, TArrayView<const NNE::Internal::FTensor> OutputTensors, const NNE::FAttributeMap& Attributes) override
 	{
 		check(InputTensors.Num() == 2 || InputTensors.Num() == 3);
 		check(OutputTensors.Num() == 1);
@@ -37,9 +37,9 @@ public:
 			ConstantCPUInputs.Add(2);
 		}
 
-		const NNECore::Internal::FTensor& InputTensor = InputTensors[0];
-		const NNECore::Internal::FTensor& IndicesTensor = InputTensors[1];
-		const NNECore::Internal::FTensor& OutputTensor = OutputTensors[0];
+		const NNE::Internal::FTensor& InputTensor = InputTensors[0];
+		const NNE::Internal::FTensor& IndicesTensor = InputTensors[1];
+		const NNE::Internal::FTensor& OutputTensor = OutputTensors[0];
 
 		FTensorDescDml	DmlInputTensorDesc;
 		FTensorDescDml	DmlIndicesTensorDesc;

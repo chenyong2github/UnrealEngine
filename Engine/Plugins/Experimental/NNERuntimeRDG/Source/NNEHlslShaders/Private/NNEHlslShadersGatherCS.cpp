@@ -16,7 +16,7 @@ namespace UE::NNEHlslShaders::Internal
 	}
 
 	//template <typename DataElementType, typename IndicesElementType>
-	void TGatherCS::FillInParameters(int32 Axis, const NNECore::Internal::FTensor& Data, const NNECore::Internal::FTensor& Indices, FParameters& Parameters)
+	void TGatherCS::FillInParameters(int32 Axis, const NNE::Internal::FTensor& Data, const NNE::Internal::FTensor& Indices, FParameters& Parameters)
 	{
 		Parameters.Axis = Axis;
 

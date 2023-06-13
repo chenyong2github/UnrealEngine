@@ -33,13 +33,13 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 
 	public:
 
-		virtual int PrepareOutputs(TConstArrayView<NNECore::Internal::FTensorRef> InputTensors, TArrayView<NNECore::Internal::FTensorRef> OutputTensors) const override
+		virtual int PrepareOutputs(TConstArrayView<NNE::Internal::FTensorRef> InputTensors, TArrayView<NNE::Internal::FTensorRef> OutputTensors) const override
 		{
 			check(InputTensors.Num() >= 2 && InputTensors.Num() <= 3);
 			check(OutputTensors.Num() == 1);
 
-			const NNECore::FTensorShape& InputA = InputTensors[0]->GetShape();
-			const NNECore::FTensorShape& InputB = InputTensors[1]->GetShape();
+			const NNE::FTensorShape& InputA = InputTensors[0]->GetShape();
+			const NNE::FTensorShape& InputB = InputTensors[1]->GetShape();
 			if (InputA.Rank() != 2 || InputB.Rank() != 2)
 			{
 				return -1;
@@ -52,19 +52,19 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 			OutputShapeData.Emplace(M);
 			OutputShapeData.Emplace(N);
 			
-			NNECore::FTensorShape OutputShape = NNECore::FTensorShape::Make(OutputShapeData);
+			NNE::FTensorShape OutputShape = NNE::FTensorShape::Make(OutputShapeData);
 			
 			OutputTensors[0]->SetShape(OutputShape);
 			return 0;
 		};
 		
-		virtual bool Initialize(TConstArrayView<NNECore::FTensorDesc> InputTensorDescs, TConstArrayView<NNECore::FTensorDesc> OutputTensorDescs, const NNECore::FAttributeMap& Attributes) override
+		virtual bool Initialize(TConstArrayView<NNE::FTensorDesc> InputTensorDescs, TConstArrayView<NNE::FTensorDesc> OutputTensorDescs, const NNE::FAttributeMap& Attributes) override
 		{
 			check(InputTensorDescs.Num() >= 2 && InputTensorDescs.Num() <= 3);
 			check(OutputTensorDescs.Num() == 1);
 
-            const NNECore::FTensorDesc& InputA = InputTensorDescs[0];
-			const NNECore::FTensorDesc& InputB = InputTensorDescs[1];
+            const NNE::FTensorDesc& InputA = InputTensorDescs[0];
+			const NNE::FTensorDesc& InputB = InputTensorDescs[1];
 
 			if (InputA.GetShape().Rank() != 2)
 			{
@@ -78,7 +78,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 			}
 			if (InputTensorDescs.Num() == 3)
 			{
-				const NNECore::FTensorDesc& InputC = InputTensorDescs[2];
+				const NNE::FTensorDesc& InputC = InputTensorDescs[2];
 				if (InputC.GetShape().Rank() > 2)
 				{
 					UE_LOG(LogNNE, Warning, TEXT("Gemm third input should be of rank 2 or less"));
@@ -159,7 +159,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 		}
 	};
 
-	bool ValidateGemmOperator(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputShapes)
+	bool ValidateGemmOperator(const NNE::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNE::FSymbolicTensorShape> InputShapes)
 	{
 		bool bIsValid = true;
 

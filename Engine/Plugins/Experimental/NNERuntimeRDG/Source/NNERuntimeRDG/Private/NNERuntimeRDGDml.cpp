@@ -108,7 +108,7 @@ TArray<uint8> UNNERuntimeRDGDmlImpl::CreateModelData(FString FileType, TConstArr
 		return {};
 	}
 
-	TUniquePtr<UE::NNECore::Internal::IModelOptimizer> Optimizer = UE::NNEUtils::Internal::CreateONNXToNNEModelOptimizer();
+	TUniquePtr<UE::NNE::Internal::IModelOptimizer> Optimizer = UE::NNEUtils::Internal::CreateONNXToNNEModelOptimizer();
 #ifdef NNE_USE_DIRECTML
 	Optimizer->AddValidator(MakeShared<FModelValidatorDml>());
 #endif
@@ -152,12 +152,12 @@ bool UNNERuntimeRDGDmlImpl::CanCreateModelRDG(TObjectPtr<UNNEModelData> ModelDat
 #endif
 };
 
-TUniquePtr<UE::NNECore::IModelRDG> UNNERuntimeRDGDmlImpl::CreateModel(TObjectPtr<UNNEModelData> ModelData)
+TUniquePtr<UE::NNE::IModelRDG> UNNERuntimeRDGDmlImpl::CreateModel(TObjectPtr<UNNEModelData> ModelData)
 {
 #ifdef NNE_USE_DIRECTML
 	if (!CanCreateModelRDG(ModelData))
 	{
-		return TUniquePtr<UE::NNECore::IModelRDG>();
+		return TUniquePtr<UE::NNE::IModelRDG>();
 	}
 
 	TConstArrayView<uint8> Data = ModelData->GetModelData(GetRuntimeName());
@@ -173,9 +173,9 @@ TUniquePtr<UE::NNECore::IModelRDG> UNNERuntimeRDGDmlImpl::CreateModel(TObjectPtr
 		FEngineAnalytics::GetProvider().RecordEvent(TEXT("NeuralNetworkEngine.CreateModel"), Attributes);
 	}
 
-	return TUniquePtr<UE::NNECore::IModelRDG>(Model);
+	return TUniquePtr<UE::NNE::IModelRDG>(Model);
 #else
-	return TUniquePtr<UE::NNECore::IModelRDG>();
+	return TUniquePtr<UE::NNE::IModelRDG>();
 #endif
 }
 

@@ -3,7 +3,7 @@
 #include "NNETypes.h"
 #include "NNE.h"
 
-namespace UE::NNECore::TypesUtils
+namespace UE::NNE::TypesUtils
 {
 	template <class T> bool AreShapeEqual(const T& lhs, const T& rhs)
 	{
@@ -22,7 +22,7 @@ namespace UE::NNECore::TypesUtils
 	}
 }
 
-namespace UE::NNECore
+namespace UE::NNE
 {
 
 bool FSymbolicTensorShape::IsConcrete() const
@@ -173,4 +173,4 @@ FTensorDesc FTensorDesc::Make(const FString& Name, const FSymbolicTensorShape& S
 	return Desc;
 }
 
-} // namespace UE::NNECore
+} // namespace UE::NNE

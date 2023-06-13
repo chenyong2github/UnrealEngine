@@ -18,7 +18,7 @@ void UMLAdapterAgent_Inference::PostInitProperties()
 		return;
 	}
 
-	TWeakInterfacePtr<INNERuntimeCPU> Runtime = UE::NNECore::GetRuntime<INNERuntimeCPU>(RuntimeName);
+	TWeakInterfacePtr<INNERuntimeCPU> Runtime = UE::NNE::GetRuntime<INNERuntimeCPU>(RuntimeName);
 	if (!Runtime.IsValid())
 	{
 		UE_LOG(LogMLAdapter, Warning, TEXT("Runtime %s is not valid!"), *RuntimeName);
@@ -27,7 +27,7 @@ void UMLAdapterAgent_Inference::PostInitProperties()
 
 	Brain = Runtime->CreateModel(ModelData)->CreateModelInstance();
 
-	TConstArrayView<UE::NNECore::FTensorDesc> InputTensorDescs = Brain->GetInputTensorDescs();
+	TConstArrayView<UE::NNE::FTensorDesc> InputTensorDescs = Brain->GetInputTensorDescs();
 	if (InputTensorDescs.Num() != 1)
 	{
 		UE_LOG(LogMLAdapter, Warning, TEXT("Brain accepts only single tensor input."));
@@ -39,18 +39,18 @@ void UMLAdapterAgent_Inference::PostInitProperties()
 		return;
 	}
 
-	UE::NNECore::FTensorShape InputTensorShape = UE::NNECore::FTensorShape::MakeFromSymbolic(InputTensorDescs[0].GetShape());
+	UE::NNE::FTensorShape InputTensorShape = UE::NNE::FTensorShape::MakeFromSymbolic(InputTensorDescs[0].GetShape());
 
 	Brain->SetInputTensorShapes({ InputTensorShape });
 
-	TConstArrayView<UE::NNECore::FTensorDesc> OutputTensorDescs = Brain->GetOutputTensorDescs();
+	TConstArrayView<UE::NNE::FTensorDesc> OutputTensorDescs = Brain->GetOutputTensorDescs();
 	if (OutputTensorDescs.Num() != 1)
 	{
 		UE_LOG(LogMLAdapter, Warning, TEXT("Brain accepts only single tensor output."));
 		return;
 	}
 
-	TConstArrayView<UE::NNECore::FTensorShape> OutputTensorShapes = Brain->GetOutputTensorShapes();
+	TConstArrayView<UE::NNE::FTensorShape> OutputTensorShapes = Brain->GetOutputTensorShapes();
 	if (OutputTensorShapes.Num() != 1)
 	{
 		UE_LOG(LogMLAdapter, Warning, TEXT("Brain could not resolve output shapes."));
@@ -106,8 +106,8 @@ void UMLAdapterAgent_Inference::Think(const float DeltaTime)
 	TArray<uint8> OutputBuffer;
 	OutputBuffer.SetNumUninitialized(OutputTensorSizeInBytes);
 
-	UE::NNECore::FTensorBindingCPU InputTensorBinding{Buffer.GetData(), Buffer.Num()};
-	UE::NNECore::FTensorBindingCPU OutputTensorBinding{OutputBuffer.GetData(), OutputBuffer.Num()};
+	UE::NNE::FTensorBindingCPU InputTensorBinding{Buffer.GetData(), Buffer.Num()};
+	UE::NNE::FTensorBindingCPU OutputTensorBinding{OutputBuffer.GetData(), OutputBuffer.Num()};
 
 	Brain->RunSync({InputTensorBinding}, {OutputTensorBinding});
 

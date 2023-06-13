@@ -28,7 +28,7 @@ TArray<uint8> UNNERuntimeORTCpuImpl::CreateModelData(FString FileType, TConstArr
 		return {};
 	}
 
-	TUniquePtr<UE::NNECore::Internal::IModelOptimizer> Optimizer = UE::NNEUtils::Internal::CreateONNXToONNXModelOptimizer();
+	TUniquePtr<UE::NNE::Internal::IModelOptimizer> Optimizer = UE::NNEUtils::Internal::CreateONNXToONNXModelOptimizer();
 
 	FNNEModelRaw InputModel;
 	InputModel.Data = FileData;
@@ -68,18 +68,18 @@ bool UNNERuntimeORTCpuImpl::CanCreateModelCPU(TObjectPtr<UNNEModelData> ModelDat
 	return bResult;
 }
 
-TUniquePtr<UE::NNECore::IModelCPU> UNNERuntimeORTCpuImpl::CreateModel(TObjectPtr<UNNEModelData> ModelData)
+TUniquePtr<UE::NNE::IModelCPU> UNNERuntimeORTCpuImpl::CreateModel(TObjectPtr<UNNEModelData> ModelData)
 {
 	check(ModelData != nullptr);
 	
 	if (!CanCreateModelCPU(ModelData))
 	{
-		return TUniquePtr<UE::NNECore::IModelCPU>();
+		return TUniquePtr<UE::NNE::IModelCPU>();
 	}
 
 	TConstArrayView<uint8> Data = ModelData->GetModelData(GetRuntimeName());
 	UE::NNERuntimeORTCpu::Private::FModelCPU* Model = new UE::NNERuntimeORTCpu::Private::FModelCPU(&NNEEnvironmentCPU, Data);
-	UE::NNECore::IModelCPU* IModel = static_cast<UE::NNECore::IModelCPU*>(Model);
+	UE::NNE::IModelCPU* IModel = static_cast<UE::NNE::IModelCPU*>(Model);
 
 	if (FEngineAnalytics::IsAvailable())
 	{
@@ -91,5 +91,5 @@ TUniquePtr<UE::NNECore::IModelCPU> UNNERuntimeORTCpuImpl::CreateModel(TObjectPtr
 		FEngineAnalytics::GetProvider().RecordEvent(TEXT("NeuralNetworkEngine.CreateModel"), Attributes);
 	}
 
-	return TUniquePtr<UE::NNECore::IModelCPU>(IModel);
+	return TUniquePtr<UE::NNE::IModelCPU>(IModel);
 }

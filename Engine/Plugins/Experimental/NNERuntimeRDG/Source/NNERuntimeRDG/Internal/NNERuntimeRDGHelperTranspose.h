@@ -4,9 +4,9 @@
 
 #include "CoreMinimal.h"
 
-namespace UE::NNECore::Internal { class FTensor; }
+namespace UE::NNE::Internal { class FTensor; }
 
 namespace UE::NNERuntimeRDG::Internal::CPUHelper::Transpose
 {
-	bool NNERUNTIMERDG_API TransposePreparedData(NNECore::Internal::FTensor& Tensor, TConstArrayView<int32> Perms);
+	bool NNERUNTIMERDG_API TransposePreparedData(NNE::Internal::FTensor& Tensor, TConstArrayView<int32> Perms);
 } // UE::NNERuntimeRDG::Internal::CPUHelper::Transpose

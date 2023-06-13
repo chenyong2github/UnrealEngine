@@ -39,8 +39,8 @@ bool FModelInstanceRDG::LoadModel(TConstArrayView<uint8> ModelData, FNNERuntimeF
 	{
 		const FNNEFormatTensorDesc& FormatTensorDesc = Format.Tensors[Idx];
 
-		const NNECore::FSymbolicTensorShape SymbolicShape = NNECore::FSymbolicTensorShape::Make(FormatTensorDesc.Shape);
-		const NNECore::FTensorDesc SymbolicTensor = NNECore::FTensorDesc::Make(FormatTensorDesc.Name, SymbolicShape, FormatTensorDesc.DataType);
+		const NNE::FSymbolicTensorShape SymbolicShape = NNE::FSymbolicTensorShape::Make(FormatTensorDesc.Shape);
+		const NNE::FTensorDesc SymbolicTensor = NNE::FTensorDesc::Make(FormatTensorDesc.Name, SymbolicShape, FormatTensorDesc.DataType);
 
 		AllSymbolicTensorDescs.Emplace(SymbolicTensor);
 
@@ -67,7 +67,7 @@ bool FModelInstanceRDG::LoadModel(TConstArrayView<uint8> ModelData, FNNERuntimeF
 				return false;
 			}
 
-			const NNECore::FTensorShape TensorShape = NNECore::FTensorShape::MakeFromSymbolic(SymbolicTensor.GetShape());
+			const NNE::FTensorShape TensorShape = NNE::FTensorShape::MakeFromSymbolic(SymbolicTensor.GetShape());
 			FTensorRDG& WeightRDG = WeightTensorRDGs.Emplace_GetRef(FTensorRDG::Make(SymbolicTensor, TensorShape, nullptr));
 
 			if (WeightRDG.GetDataSize() != FormatTensorDesc.DataSize)
@@ -96,12 +96,12 @@ bool FModelInstanceRDG::LoadModel(TConstArrayView<uint8> ModelData, FNNERuntimeF
 
 
 
-int FModelInstanceRDG::SetInputTensorShapes(TConstArrayView<NNECore::FTensorShape> InInputShapes)
+int FModelInstanceRDG::SetInputTensorShapes(TConstArrayView<NNE::FTensorShape> InInputShapes)
 {
 	OutputTensorShapes.Reset(OutputTensorIndices.Num());
 
 	//Verify input shape are valid for the model and set InputTensorShapes
-	if (FModelInstanceBase<NNECore::IModelInstanceRDG>::SetInputTensorShapes(InInputShapes) != 0)
+	if (FModelInstanceBase<NNE::IModelInstanceRDG>::SetInputTensorShapes(InInputShapes) != 0)
 	{
 		return -1;
 	}
@@ -113,8 +113,8 @@ int FModelInstanceRDG::SetInputTensorShapes(TConstArrayView<NNECore::FTensorShap
 	for (int32 i = 0; i < InputTensorIndices.Num(); ++i)
 	{
 		const int32 Idx = InputTensorIndices[i];
-		const NNECore::FTensorDesc& TensorDesc = InputSymbolicTensors[i];
-		const NNECore::FTensorShape& TensorShape = InputTensorShapes[i];
+		const NNE::FTensorDesc& TensorDesc = InputSymbolicTensors[i];
+		const NNE::FTensorShape& TensorShape = InputTensorShapes[i];
 
 		InputTensorRDGs.Emplace(FTensorRDG::Make(TensorDesc, TensorShape, nullptr));
 		AllTensorRDGRefs[Idx] = &InputTensorRDGs[i];
@@ -131,8 +131,8 @@ int FModelInstanceRDG::SetInputTensorShapes(TConstArrayView<NNECore::FTensorShap
 	for (int32 i = 0; i < IntermediateTensorIndices.Num(); ++i)
 	{
 		const int32 Idx = IntermediateTensorIndices[i];
-		const NNECore::FTensorDesc& TensorDesc = AllSymbolicTensorDescs[Idx];
-		const NNECore::FTensorShape TensorShape = NNECore::FTensorShape::MakeFromSymbolic(TensorDesc.GetShape());
+		const NNE::FTensorDesc& TensorDesc = AllSymbolicTensorDescs[Idx];
+		const NNE::FTensorShape TensorShape = NNE::FTensorShape::MakeFromSymbolic(TensorDesc.GetShape());
 
 		IntermediateTensorRDGs.Emplace(FTensorRDG::Make(TensorDesc, TensorShape, nullptr));
 		AllTensorRDGRefs[Idx] = &IntermediateTensorRDGs[i];
@@ -142,8 +142,8 @@ int FModelInstanceRDG::SetInputTensorShapes(TConstArrayView<NNECore::FTensorShap
 	for (int32 i = 0; i < OutputTensorIndices.Num(); ++i)
 	{
 		const int32 Idx = OutputTensorIndices[i];
-		const NNECore::FTensorDesc& TensorDesc = OutputSymbolicTensors[i];
-		const NNECore::FTensorShape TensorShape = NNECore::FTensorShape::MakeFromSymbolic(TensorDesc.GetShape());
+		const NNE::FTensorDesc& TensorDesc = OutputSymbolicTensors[i];
+		const NNE::FTensorShape TensorShape = NNE::FTensorShape::MakeFromSymbolic(TensorDesc.GetShape());
 
 		OutputTensorRDGs.Emplace(FTensorRDG::Make(TensorDesc, TensorShape, nullptr));
 		AllTensorRDGRefs[Idx] = &OutputTensorRDGs[i];
@@ -197,7 +197,7 @@ FRDGBufferDesc CreateRDGBufferDescForTensorRDG(const FTensorRDG& Tensor)
 /**
  * Enqueue operators to RDG, the caller will run the GraphBuilder.Execute()
  */
-int FModelInstanceRDG::EnqueueRDG(FRDGBuilder& RDGBuilder, TConstArrayView<NNECore::FTensorBindingRDG> InInputBindings, TConstArrayView<NNECore::FTensorBindingRDG> InOutputBindings)
+int FModelInstanceRDG::EnqueueRDG(FRDGBuilder& RDGBuilder, TConstArrayView<NNE::FTensorBindingRDG> InInputBindings, TConstArrayView<NNE::FTensorBindingRDG> InOutputBindings)
 {
 	check(IsInRenderingThread());
 
@@ -253,14 +253,14 @@ int FModelInstanceRDG::EnqueueRDG(FRDGBuilder& RDGBuilder, TConstArrayView<NNECo
 	return 0;
 }
 
-int FModelInstanceRDG::SetTensors(FRDGBuilder& GraphBuilder, FTensorRDGArray& InTensorRDGs, TConstArrayView<NNECore::FTensorBindingRDG> InBindings)
+int FModelInstanceRDG::SetTensors(FRDGBuilder& GraphBuilder, FTensorRDGArray& InTensorRDGs, TConstArrayView<NNE::FTensorBindingRDG> InBindings)
 {
 	check(InBindings.Num() == InTensorRDGs.Num());
 	
 	for (int32 Idx = 0; Idx < InBindings.Num(); ++Idx)
 	{
 		FTensorRDG& TensorRDG = InTensorRDGs[Idx];
-		const NNECore::FTensorBindingRDG& Binding = InBindings[Idx];
+		const NNE::FTensorBindingRDG& Binding = InBindings[Idx];
 		if (Binding.Buffer == nullptr)
 		{
 			return Idx;

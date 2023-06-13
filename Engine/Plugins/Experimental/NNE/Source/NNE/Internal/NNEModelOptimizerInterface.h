@@ -3,14 +3,14 @@
 #pragma once
 
 struct FNNEModelRaw;
-namespace UE::NNECore { class FAttributeMap; }
+namespace UE::NNE { class FAttributeMap; }
 
-namespace UE::NNECore::Internal
+namespace UE::NNE::Internal
 {
 	
 //Note: create a dedicated FOptimizerOptionsMap when function diverge with FAttributeMap
 //example introduction of sparse tensor to FAttribute witch make no sense as an optimizer attribute
-using FOptimizerOptionsMap = UE::NNECore::FAttributeMap;
+using FOptimizerOptionsMap = UE::NNE::FAttributeMap;
 
 /** Interface class for NNE model validator */
 class IModelValidator
@@ -49,4 +49,4 @@ public:
 	virtual bool Optimize(const FNNEModelRaw& InputModel, FNNEModelRaw& OutModel, const FOptimizerOptionsMap& Options) = 0;
 };
 
-} // namespace UE::NNECore::Internal
+} // namespace UE::NNE::Internal

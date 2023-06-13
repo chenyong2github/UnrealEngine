@@ -18,7 +18,7 @@ static bool IsSameShape(TConstArrayView<uint32> Left, TConstArrayView<uint32> Ri
 	return Algo::Compare(Left, Right);
 }
 
-bool IsSameShape(const NNECore::Internal::FTensor& Left, const NNECore::Internal::FTensor& Right)
+bool IsSameShape(const NNE::Internal::FTensor& Left, const NNE::Internal::FTensor& Right)
 {
 	return IsSameShape(Left.GetShape().GetData(), Right.GetShape().GetData());
 }
@@ -248,7 +248,7 @@ FTensorDescDml& FTensorDescDml::SetDataType(ENNETensorDataType DataType)
 		DML_TENSOR_DATA_TYPE DmlDataType = Util::GetTensorDataType(DataType);
 		check(DmlDataType != DML_TENSOR_DATA_TYPE_UNKNOWN);
 	
-		uint64 ElemByteSize = UE::NNECore::GetTensorDataTypeSizeInBytes(DataType);
+		uint64 ElemByteSize = UE::NNE::GetTensorDataTypeSizeInBytes(DataType);
 		check(ElemByteSize > 0)
 
 		BuffDesc.DataType = DmlDataType;

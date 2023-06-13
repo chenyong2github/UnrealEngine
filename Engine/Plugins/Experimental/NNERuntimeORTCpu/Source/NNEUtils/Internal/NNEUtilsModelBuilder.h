@@ -4,13 +4,13 @@
 #include "NNETypes.h"
 #include "NNETensor.h"
 
-namespace UE::NNECore { class FAttributeMap; }
+namespace UE::NNE { class FAttributeMap; }
 struct FNNEAttributeValue;
 struct FNNEModelRaw;
 
 namespace UE::NNEUtils::Internal
 {
-using FTensor = NNECore::Internal::FTensor;
+using FTensor = NNE::Internal::FTensor;
 
 class IModelBuilder
 {
@@ -92,7 +92,7 @@ NNEUTILS_API IModelBuilder* CreateONNXModelBuilder(int64 IrVersion = OnnxIrVersi
 NNEUTILS_API bool CreateONNXModelForOperator(bool UseVariadicShapeForModel, const FString& OperatorName, 
 	TConstArrayView<FTensor> InInputTensors, TConstArrayView<FTensor> InOutputTensors,
 	TConstArrayView<FTensor> InWeightTensors, TConstArrayView<TArray<char>> InWeightTensorsData,
-	const UE::NNECore::FAttributeMap& Attributes, FNNEModelRaw& ModelData);
+	const UE::NNE::FAttributeMap& Attributes, FNNEModelRaw& ModelData);
 
 /**
  * Create an instance of NNE model builder that creates NNE model/format in memory

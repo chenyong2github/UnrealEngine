@@ -5,7 +5,7 @@
 #include "Misc/CoreDelegates.h"
 #include "Modules/ModuleManager.h"
 
-class FNNECoreModule : public IModuleInterface
+class FNNEModule : public IModuleInterface
 {
 public:
 
@@ -29,4 +29,4 @@ public:
 
 };
 
-IMPLEMENT_MODULE(FNNECoreModule, NNECore)
+IMPLEMENT_MODULE(FNNEModule, NNE)

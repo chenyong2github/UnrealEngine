@@ -321,7 +321,7 @@ public:
 
 	struct FGraphDesc
 	{
-		TConstArrayView<NNECore::Internal::FTensor>	AllTensors;
+		TConstArrayView<NNE::Internal::FTensor>	AllTensors;
 		TConstArrayView<int32>		InputIndices;
 		TConstArrayView<int32>		OutputIndices;
 		TConstArrayView<int32>		WeightIndices;
@@ -862,12 +862,12 @@ bool FModelInstance::Init(TConstArrayView<uint8> ModelData, FDmlDeviceContext* I
 
 	// DirectML requires all tensors to be concrete
 	// Notes: to handle dynamic tensor desc, op should init from symbolic shapes
-	TArray<NNECore::Internal::FTensor>	Tensors;
+	TArray<NNE::Internal::FTensor>	Tensors;
 
 	Tensors.Reset(AllSymbolicTensorDescs.Num());
-	for (const NNECore::FTensorDesc& TensorDesc : AllSymbolicTensorDescs)
+	for (const NNE::FTensorDesc& TensorDesc : AllSymbolicTensorDescs)
 	{
-		Tensors.Emplace(NNECore::Internal::FTensor::MakeFromSymbolicDesc(TensorDesc));
+		Tensors.Emplace(NNE::Internal::FTensor::MakeFromSymbolicDesc(TensorDesc));
 	}
 
 	TArray<FGraphBuilder::FOpDesc>	DmlGraphOperators;
@@ -881,9 +881,9 @@ bool FModelInstance::Init(TConstArrayView<uint8> ModelData, FDmlDeviceContext* I
 		const FString TypeName = Format.Operators[Idx].TypeName;
 
 		FGraphBuilder::FOpDesc					OpDesc;
-		TArray<NNECore::Internal::FTensor>		OpInputTensors;
-		TArray<NNECore::Internal::FTensor>		OpOutputTensors;
-		NNECore::FAttributeMap					AttributeMap;
+		TArray<NNE::Internal::FTensor>		OpInputTensors;
+		TArray<NNE::Internal::FTensor>		OpOutputTensors;
+		NNE::FAttributeMap					AttributeMap;
 
 		OpDesc.InputStart = OpInputIndices.Num();
 		OpDesc.OutputStart = OpOutputIndices.Num();
@@ -900,9 +900,9 @@ bool FModelInstance::Init(TConstArrayView<uint8> ModelData, FDmlDeviceContext* I
 			}
 			else
 			{
-				NNECore::FTensorDesc SymbolicTensorDesc = AllSymbolicTensorDescs[InputTensorIndex];
+				NNE::FTensorDesc SymbolicTensorDesc = AllSymbolicTensorDescs[InputTensorIndex];
 				// Notes: to handle dynamic tensor desc, op should init from symbolic shapes
-				OpInputTensors.Emplace(NNECore::Internal::FTensor::MakeFromSymbolicDesc(SymbolicTensorDesc));
+				OpInputTensors.Emplace(NNE::Internal::FTensor::MakeFromSymbolicDesc(SymbolicTensorDesc));
 			}
 
 			OpInputIndices.Emplace(InputTensorIndex);
@@ -910,9 +910,9 @@ bool FModelInstance::Init(TConstArrayView<uint8> ModelData, FDmlDeviceContext* I
 
 		for (int32 OutputTensorIndex : Format.Operators[Idx].OutTensors)
 		{
-			NNECore::FTensorDesc SymbolicTensorDesc = AllSymbolicTensorDescs[OutputTensorIndex];
+			NNE::FTensorDesc SymbolicTensorDesc = AllSymbolicTensorDescs[OutputTensorIndex];
 			// Notes: to handle dynamic tensor desc, op should init from symbolic shapes
-			OpOutputTensors.Emplace(NNECore::Internal::FTensor::MakeFromSymbolicDesc(SymbolicTensorDesc));
+			OpOutputTensors.Emplace(NNE::Internal::FTensor::MakeFromSymbolicDesc(SymbolicTensorDesc));
 			OpOutputIndices.Emplace(OutputTensorIndex);
 		}
 
@@ -1299,7 +1299,7 @@ void FModelInstance::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder)
 //
 // Create operator
 //
-FOperatorDml* FModelInstance::OpCreate(const FString& OpName, TArrayView<const NNECore::Internal::FTensor> InputTensorDescs, TArrayView<const NNECore::Internal::FTensor> OutputTensorDescs, const NNECore::FAttributeMap& Attributes)
+FOperatorDml* FModelInstance::OpCreate(const FString& OpName, TArrayView<const NNE::Internal::FTensor> InputTensorDescs, TArrayView<const NNE::Internal::FTensor> OutputTensorDescs, const NNE::FAttributeMap& Attributes)
 {
 	FOperatorRegistryDml::OperatorCreateFunc CreateFn = FOperatorRegistryDml::Get()->OpFind(OpName);
 
@@ -1374,7 +1374,7 @@ ID3D12Resource* FModelInstance::CreateD3D12Buffer(uint32 Size, D3D12_RESOURCE_ST
 //
 int FModelInstance::PrepareTensorShapesAndData()
 {
-	for (NNECore::FTensorDesc SymbolicTensorDesc : AllSymbolicTensorDescs)
+	for (NNE::FTensorDesc SymbolicTensorDesc : AllSymbolicTensorDescs)
 	{
 		if (!SymbolicTensorDesc.GetShape().IsConcrete())
 		{
@@ -1386,18 +1386,18 @@ int FModelInstance::PrepareTensorShapesAndData()
 	return 0;
 }
 
-TUniquePtr<UE::NNECore::IModelInstanceRDG> FModel::CreateModelInstance()
+TUniquePtr<UE::NNE::IModelInstanceRDG> FModel::CreateModelInstance()
 {
 	FModelInstance* ModelInstance = new FModelInstance();
 
 	if (!ModelInstance->Init(ModelData, DevCtx))
 	{
 		delete ModelInstance;
-		return TUniquePtr<UE::NNECore::IModelInstanceRDG>();
+		return TUniquePtr<UE::NNE::IModelInstanceRDG>();
 	}
 
-	UE::NNECore::IModelInstanceRDG* IModelInstance = static_cast<UE::NNECore::IModelInstanceRDG*>(ModelInstance);
-	return TUniquePtr<UE::NNECore::IModelInstanceRDG>(IModelInstance);
+	UE::NNE::IModelInstanceRDG* IModelInstance = static_cast<UE::NNE::IModelInstanceRDG*>(ModelInstance);
+	return TUniquePtr<UE::NNE::IModelInstanceRDG>(IModelInstance);
 }
 
 FModel::FModel(TConstArrayView<uint8> InModelData, FDmlDeviceContext* InDevCtx) 

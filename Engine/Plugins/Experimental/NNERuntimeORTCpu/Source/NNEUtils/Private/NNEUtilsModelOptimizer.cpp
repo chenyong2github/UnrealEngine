@@ -265,11 +265,11 @@ ENNETensorDataType GetDataTypeFromGraphTensor(Ort::GraphTensorDataType TensorDat
 
 #undef CASE
 
-class FModelOptimizerBase : public NNECore::Internal::IModelOptimizer
+class FModelOptimizerBase : public NNE::Internal::IModelOptimizer
 {
 protected:
-	TArray<TSharedPtr<NNECore::Internal::IModelOptimizerPass>> OptimizationPasses;
-	TArray<TSharedPtr<NNECore::Internal::IModelValidator>> Validators;
+	TArray<TSharedPtr<NNE::Internal::IModelOptimizerPass>> OptimizationPasses;
+	TArray<TSharedPtr<NNE::Internal::IModelValidator>> Validators;
 
 	virtual bool ValidateInputModel(const FNNEModelRaw& InputModel)
 	{
@@ -290,7 +290,7 @@ protected:
 	}
 	
 public:
-	virtual void AddOptimizationPass(TSharedPtr<NNECore::Internal::IModelOptimizerPass> ModelOptimizerPass) override
+	virtual void AddOptimizationPass(TSharedPtr<NNE::Internal::IModelOptimizerPass> ModelOptimizerPass) override
 	{
 		if (ModelOptimizerPass.IsValid())
 		{
@@ -298,7 +298,7 @@ public:
 		}
 	}
 
-	virtual void AddValidator(TSharedPtr<NNECore::Internal::IModelValidator> ModelValidator) override
+	virtual void AddValidator(TSharedPtr<NNE::Internal::IModelValidator> ModelValidator) override
 	{
 		if (ModelValidator.IsValid())
 		{
@@ -310,7 +310,7 @@ public:
 	{
 		bool bIsModelValid = true;
 
-		for (TSharedPtr<NNECore::Internal::IModelValidator>& Validator : Validators)
+		for (TSharedPtr<NNE::Internal::IModelValidator>& Validator : Validators)
 		{
 			check(Validator.IsValid());
 			if (!Validator->ValidateModel(ModelToValidate, Options))
@@ -330,7 +330,7 @@ public:
 			return false;
 		}
 		
-		for (TSharedPtr<NNECore::Internal::IModelOptimizerPass>& Pass : OptimizationPasses)
+		for (TSharedPtr<NNE::Internal::IModelOptimizerPass>& Pass : OptimizationPasses)
 		{
 			check(Pass.IsValid());
 			
@@ -363,7 +363,7 @@ public:
 	}
 };
 
-class FONNXModelValidator : public NNECore::Internal::IModelValidator
+class FONNXModelValidator : public NNE::Internal::IModelValidator
 {
 public:
 	virtual FString GetName() const
@@ -699,7 +699,7 @@ private:
 };
 
 /** Create a model optimizer */
-NNEUTILS_API TUniquePtr<NNECore::Internal::IModelOptimizer> CreateModelOptimizer(ENNEInferenceFormat InputFormat, ENNEInferenceFormat OutputFormat)
+NNEUTILS_API TUniquePtr<NNE::Internal::IModelOptimizer> CreateModelOptimizer(ENNEInferenceFormat InputFormat, ENNEInferenceFormat OutputFormat)
 {
 	if (InputFormat == ENNEInferenceFormat::ONNX)
 	{

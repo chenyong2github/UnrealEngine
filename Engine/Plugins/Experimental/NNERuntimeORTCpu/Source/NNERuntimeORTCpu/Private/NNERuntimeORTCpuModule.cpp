@@ -14,7 +14,7 @@ void FNNERuntimeORTCpuModule::StartupModule()
 		TWeakInterfacePtr<INNERuntime> RuntimeCPUInterface(NNERuntimeORTCpu.Get());
 		
 		NNERuntimeORTCpu->AddToRoot();
-		UE::NNECore::RegisterRuntime(RuntimeCPUInterface);
+		UE::NNE::RegisterRuntime(RuntimeCPUInterface);
 	}
 }
 
@@ -25,7 +25,7 @@ void FNNERuntimeORTCpuModule::ShutdownModule()
 	{
 		TWeakInterfacePtr<INNERuntime> RuntimeCPUInterface(NNERuntimeORTCpu.Get());
 		
-		UE::NNECore::UnregisterRuntime(RuntimeCPUInterface);
+		UE::NNE::UnregisterRuntime(RuntimeCPUInterface);
 		NNERuntimeORTCpu->RemoveFromRoot();
 		NNERuntimeORTCpu = TWeakObjectPtr<UNNERuntimeORTCpuImpl>(nullptr);
 	}

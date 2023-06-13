@@ -23,7 +23,7 @@ namespace UE::NNEHlslShaders::Internal
 		DECLARE_GLOBAL_SHADER(TElementWiseVariadicCS);
 		SHADER_USE_PARAMETER_STRUCT(TElementWiseVariadicCS, FHlslShaderBase)
 
-		class FOperatorType : SHADER_PERMUTATION_ENUM_CLASS("OP_TYPENAME", NNECore::Internal::EElementWiseVariadicOperatorType);
+		class FOperatorType : SHADER_PERMUTATION_ENUM_CLASS("OP_TYPENAME", NNE::Internal::EElementWiseVariadicOperatorType);
 		class FApplyScale : SHADER_PERMUTATION_BOOL("APPLYSCALE");
 		class FOutputAsInput : SHADER_PERMUTATION_BOOL("OUTPUTASINPUT");
 		class FNumInput : SHADER_PERMUTATION_RANGE_INT("NUMINPUT", 1, FElementWiseVariadicConstants::MAX_NUM_INPUT);
@@ -49,6 +49,6 @@ namespace UE::NNEHlslShaders::Internal
 
 	private:
 
-		static const FString GetOpFunc(NNECore::Internal::EElementWiseVariadicOperatorType OpType);
+		static const FString GetOpFunc(NNE::Internal::EElementWiseVariadicOperatorType OpType);
 	};
 } // UE::NNEHlslShaders::Internal

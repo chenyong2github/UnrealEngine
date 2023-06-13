@@ -71,7 +71,7 @@ inline void PutIntoDDC(const FGuid& FileDataId, const FString& RuntimeName, FSha
 
 inline TArray<uint8> CreateRuntimeDataBlob(const FString& RuntimeName, FString FileType, const TArray<uint8>& FileData)
 {
-	TWeakInterfacePtr<INNERuntime> NNERuntime = UE::NNECore::GetRuntime<INNERuntime>(RuntimeName);
+	TWeakInterfacePtr<INNERuntime> NNERuntime = UE::NNE::GetRuntime<INNERuntime>(RuntimeName);
 	if (NNERuntime.IsValid())
 	{
 		return NNERuntime->CreateModelData(FileType, FileData);
@@ -79,7 +79,7 @@ inline TArray<uint8> CreateRuntimeDataBlob(const FString& RuntimeName, FString F
 	else
 	{
 		UE_LOG(LogNNE, Error, TEXT("UNNEModelData: No runtime '%s' found. Valid runtimes are: "), *RuntimeName);
-		TArrayView<TWeakInterfacePtr<INNERuntime>> Runtimes = UE::NNECore::GetAllRuntimes();
+		TArrayView<TWeakInterfacePtr<INNERuntime>> Runtimes = UE::NNE::GetAllRuntimes();
 		for (int i = 0; i < Runtimes.Num(); i++)
 		{
 			UE_LOG(LogNNE, Error, TEXT("- %s"), *Runtimes[i]->GetRuntimeName());
@@ -168,7 +168,7 @@ void UNNEModelData::Serialize(FArchive& Ar)
 		//No target runtime means all currently registered ones.
 		if (GetTargetRuntimes().IsEmpty())
 		{
-			for (const TWeakInterfacePtr<INNERuntime>& Runtime : UE::NNECore::GetAllRuntimes())
+			for (const TWeakInterfacePtr<INNERuntime>& Runtime : UE::NNE::GetAllRuntimes())
 			{
 				CookedRuntimeNames.Add(Runtime->GetRuntimeName());
 			}
@@ -242,7 +242,7 @@ void UNNEModelData::Serialize(FArchive& Ar)
 }
 
 #if WITH_EDITORONLY_DATA
-namespace UE::NNECore::ModelDataHelpers
+namespace UE::NNE::ModelDataHelpers
 {
 	FString GetRuntimesAsString(TArrayView<const FString> Runtimes)
 	{
@@ -265,7 +265,7 @@ namespace UE::NNECore::ModelDataHelpers
 		}
 		return RuntimesAsOneString;
 	}
-} // UE::NNECore::ModelDataHelpers
+} // UE::NNE::ModelDataHelpers
 
 void UNNEModelData::PostInitProperties()
 {
@@ -283,7 +283,7 @@ void UNNEModelData::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) con
 		OutTags.Add(FAssetRegistryTag(SourceFileTagName(), AssetImportData->GetSourceData().ToJson(), FAssetRegistryTag::TT_Hidden));
 	}
 
-	OutTags.Add(FAssetRegistryTag("TargetRuntimes", UE::NNECore::ModelDataHelpers::GetRuntimesAsString(GetTargetRuntimes()), FAssetRegistryTag::TT_Alphabetical));
+	OutTags.Add(FAssetRegistryTag("TargetRuntimes", UE::NNE::ModelDataHelpers::GetRuntimesAsString(GetTargetRuntimes()), FAssetRegistryTag::TT_Alphabetical));
 
 	Super::GetAssetRegistryTags(OutTags);
 }
