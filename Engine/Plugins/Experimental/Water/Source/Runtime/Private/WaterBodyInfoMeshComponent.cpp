@@ -27,6 +27,9 @@ UWaterBodyInfoMeshComponent::UWaterBodyInfoMeshComponent(const FObjectInitialize
 {
 	bAffectDistanceFieldLighting = false;
 	bSelectable = false;
+	
+	// Skip computing the bounds for this component since it should always be attached to the water body component and those bounds are the proper bounds for the info meshes.
+	bUseAttachParentBound = true;
 }
 
 FPrimitiveSceneProxy* UWaterBodyInfoMeshComponent::CreateSceneProxy()
