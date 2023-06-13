@@ -472,6 +472,46 @@ namespace UE::Chaos::ClothAsset
 		ManagedArrayCollection->RemoveElements(Group, SortedDeletionList);
 	}
 
+	void FClothCollection::RemoveElements(const FName& GroupName, const TArray<int32>& SortedDeletionList, TManagedArray<int32>* StartArray, TManagedArray<int32>* EndArray, int32 ArrayIndex)
+	{
+		if (SortedDeletionList.IsEmpty())
+		{
+			return;
+		}
+
+		check(IsValid());
+
+		check(StartArray && StartArray->GetConstArray().IsValidIndex(ArrayIndex));
+		check(EndArray && EndArray->GetConstArray().IsValidIndex(ArrayIndex));
+
+		int32& Start = (*StartArray)[ArrayIndex];
+		int32& End = (*EndArray)[ArrayIndex];
+		check(Start != INDEX_NONE && End != INDEX_NONE);
+
+		const int32 OrigStart = Start;
+		const int32 OrigNumElements = End - Start + 1;
+
+		check(SortedDeletionList[0] >= Start);
+		check(SortedDeletionList.Last() <= End);
+		check(OrigNumElements >= SortedDeletionList.Num());
+
+		ManagedArrayCollection->RemoveElements(GroupName, SortedDeletionList);
+
+		if (SortedDeletionList.Num() == OrigNumElements)
+		{
+			Start = End = INDEX_NONE;
+		}
+		else
+		{
+			const int32 NewNumElements = OrigNumElements - SortedDeletionList.Num();
+			const int32 NewEnd = OrigStart + NewNumElements - 1;
+			check(Start == OrigStart || Start == INDEX_NONE);
+			check(End == NewEnd || End == INDEX_NONE);
+			Start = OrigStart;
+			End = NewEnd;
+		}
+	}
+
 	int32 FClothCollection::GetElementsOffset(const TManagedArray<int32>* StartArray, int32 BaseElementIndex, int32 ElementIndex)
 	{
 		while ((*StartArray)[BaseElementIndex] == INDEX_NONE && BaseElementIndex < ElementIndex)

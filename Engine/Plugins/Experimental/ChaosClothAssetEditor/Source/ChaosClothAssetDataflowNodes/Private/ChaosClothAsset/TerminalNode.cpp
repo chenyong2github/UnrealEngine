@@ -4,6 +4,7 @@
 #include "ChaosClothAsset/DataflowNodes.h"
 #include "ChaosClothAsset/ClothAsset.h"
 #include "ChaosClothAsset/CollectionClothFacade.h"
+#include "ChaosClothAsset/ClothGeometryTools.h"
 #include "Chaos/CollectionPropertyFacade.h"
 #include "Animation/Skeleton.h"
 #include "Engine/SkinnedAssetCommon.h"
@@ -63,6 +64,7 @@ void FChaosClothAssetTerminalNode::SetAssetValue(TObjectPtr<UObject> Asset, Data
 
 				// Copy input LOD to current output LOD
 				ClothFacade.Initialize(InClothFacade);
+				FClothGeometryTools::CleanupAndCompactMesh(ClothCollection);
 
 				// Add this LOD's materials to the asset
 				const int32 NumLodMaterials = ClothFacade.GetNumRenderPatterns();

@@ -41,6 +41,9 @@ namespace UE::Chaos::ClothAsset
 		TConstArrayView<FIntVector3> GetSimIndices2D() const;
 		TConstArrayView<FIntVector3> GetSimIndices3D() const;
 
+		/** Whether or not this pattern is empty. */
+		bool IsEmpty() const;
+
 		/** Return the Pattern index this facade has been created with. */
 		int32 GetPatternIndex() const { return PatternIndex; }
 
@@ -91,6 +94,7 @@ namespace UE::Chaos::ClothAsset
 		/** This will remove the 2D vertices, but the associated seams and 3D vertices will still exist, and point to INDEX_NONE */
 		void RemoveSimVertices2D(int32 NumSimVertices);
 		void RemoveAllSimVertices2D() { RemoveSimVertices2D(GetNumSimVertices2D()); }
+		void RemoveSimVertices2D(const TArray<int32>& SortedDeletionList);
 
 		//~ Sim Faces Group
 		// Note: SimIndices points to the collection arrays, not the pattern arrays
@@ -98,6 +102,7 @@ namespace UE::Chaos::ClothAsset
 		void SetNumSimFaces(int32 NumSimFaces);
 		TArrayView<FIntVector3> GetSimIndices2D();
 		TArrayView<FIntVector3> GetSimIndices3D();
+		void RemoveSimFaces(const TArray<int32>& SortedDeletionList);
 
 	private:
 		friend class FCollectionClothFacade;

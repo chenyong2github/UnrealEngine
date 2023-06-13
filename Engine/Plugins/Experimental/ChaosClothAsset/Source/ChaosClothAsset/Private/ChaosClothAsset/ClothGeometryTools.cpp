@@ -771,4 +771,190 @@ namespace UE::Chaos::ClothAsset
 			AddSeam(Cloth, Seam);
 		}
 	}
+
+	void FClothGeometryTools::CleanupAndCompactMesh(const TSharedPtr<FManagedArrayCollection>& ClothCollection)
+	{
+		FCollectionClothFacade Cloth(ClothCollection);
+
+		TArray<int32> SimPatternsToRemove;
+		for (int32 PatternIndex = 0; PatternIndex < Cloth.GetNumSimPatterns(); ++PatternIndex)
+		{
+			FCollectionClothSimPatternFacade Pattern = Cloth.GetSimPattern(PatternIndex);
+			{
+				// Remove any triangles that are topologically degenerate
+				TArray<int32> FacesToRemove;
+				TConstArrayView<FIntVector3> SimIndices3D = Pattern.GetSimIndices3D();
+				TConstArrayView<FIntVector3> SimIndices2D = Pattern.GetSimIndices2D();
+				for (int32 FaceIndex = 0; FaceIndex < SimIndices3D.Num(); ++FaceIndex)
+				{
+					if (SimIndices3D[FaceIndex][0] == INDEX_NONE ||
+						SimIndices3D[FaceIndex][1] == INDEX_NONE ||
+						SimIndices3D[FaceIndex][2] == INDEX_NONE ||
+
+						SimIndices2D[FaceIndex][0] == INDEX_NONE ||
+						SimIndices2D[FaceIndex][1] == INDEX_NONE ||
+						SimIndices2D[FaceIndex][2] == INDEX_NONE ||
+
+						SimIndices3D[FaceIndex][0] == SimIndices3D[FaceIndex][1] ||
+						SimIndices3D[FaceIndex][0] == SimIndices3D[FaceIndex][2] ||
+						SimIndices3D[FaceIndex][1] == SimIndices3D[FaceIndex][2] ||
+
+						SimIndices2D[FaceIndex][0] == SimIndices2D[FaceIndex][1] ||
+						SimIndices2D[FaceIndex][0] == SimIndices2D[FaceIndex][2] ||
+						SimIndices2D[FaceIndex][1] == SimIndices2D[FaceIndex][2])
+					{
+						FacesToRemove.Add(FaceIndex);
+					}
+				}
+
+				if (FacesToRemove.Num())
+				{
+					Pattern.RemoveSimFaces(FacesToRemove);
+				}
+			}
+			{
+				// Remove any 2D vertices that are not used in a face.
+				TConstArrayView<FIntVector3> SimIndices2D = Pattern.GetSimIndices2D();
+				const int32 SimVertex2DOffset = Pattern.GetSimVertices2DOffset();
+				TBitArray SimVertex2DToRemove;
+				SimVertex2DToRemove.Init(true, Pattern.GetNumSimVertices2D());
+				for (const FIntVector3& Face : SimIndices2D)
+				{
+					SimVertex2DToRemove[Face[0] - SimVertex2DOffset] = false;
+					SimVertex2DToRemove[Face[1] - SimVertex2DOffset] = false;
+					SimVertex2DToRemove[Face[2] - SimVertex2DOffset] = false;
+				}
+
+				TArray<int32> SimVertex2DToRemoveList;
+				for (TConstSetBitIterator ToRemoveIter(SimVertex2DToRemove); ToRemoveIter; ++ToRemoveIter)
+				{
+					SimVertex2DToRemoveList.Add(ToRemoveIter.GetIndex());
+				}
+
+				if (SimVertex2DToRemoveList.Num())
+				{
+					Pattern.RemoveSimVertices2D(SimVertex2DToRemoveList);
+				}
+			}
+
+			if (Pattern.IsEmpty())
+			{
+				SimPatternsToRemove.Add(PatternIndex);
+			}
+		}
+		if (!SimPatternsToRemove.IsEmpty())
+		{
+			Cloth.RemoveSimPatterns(SimPatternsToRemove);
+		}
+
+		// Remove any unused 3D vertices
+		{
+			TConstArrayView<FIntVector3> SimIndices3D = Cloth.GetSimIndices3D();
+			TBitArray SimVertex3DToRemove;
+			SimVertex3DToRemove.Init(true, Cloth.GetNumSimVertices3D());
+			for (const FIntVector3& Face : SimIndices3D)
+			{
+				SimVertex3DToRemove[Face[0]] = false;
+				SimVertex3DToRemove[Face[1]] = false;
+				SimVertex3DToRemove[Face[2]] = false;
+			}
+
+			TArray<int32> SimVertex3DToRemoveList;
+			for (TConstSetBitIterator ToRemoveIter(SimVertex3DToRemove); ToRemoveIter; ++ToRemoveIter)
+			{
+				SimVertex3DToRemoveList.Add(ToRemoveIter.GetIndex());
+			}
+
+			if (SimVertex3DToRemoveList.Num())
+			{
+				Cloth.RemoveSimVertices3D(SimVertex3DToRemoveList);
+			}
+		}
+		{
+			// Clean up any references to vertices that no longer exist.
+			// NOTE: should not need to clean up 2D vertices pointing to INDEX_NONE 3D vertices since this should have
+			// meant the 2D vertex either was unused in the faces, or was associated with an invalid face (it should already be cleaned up).
+			// NOTE: not cleaning up seam references for now as they aren't exported as part of the final mesh/sim data.
+			Cloth.CompactSimVertex2DLookup();
+
+			TArrayView<TArray<int32>> TetherKinematicIndex = Cloth.GetTetherKinematicIndex();
+			TArrayView<TArray<float>> TetherReferenceLength = Cloth.GetTetherReferenceLength();
+			const int32 NumVertices = TetherKinematicIndex.Num();
+			for (int32 VertexIdx = 0; VertexIdx < NumVertices; ++VertexIdx)
+			{
+				const int32 NumTethers = TetherKinematicIndex[VertexIdx].Num();
+				for (int32 TetherIdx = NumTethers - 1; TetherIdx >= 0; --TetherIdx)
+				{
+					if (TetherKinematicIndex[VertexIdx][TetherIdx] == INDEX_NONE)
+					{
+						TetherKinematicIndex[VertexIdx].RemoveAtSwap(TetherIdx);
+						TetherReferenceLength[VertexIdx].RemoveAtSwap(TetherIdx);
+					}
+				}
+			}
+		}
+
+		TArray<int32> RenderPatternsToRemove;
+		for (int32 PatternIndex = 0; PatternIndex < Cloth.GetNumRenderPatterns(); ++PatternIndex)
+		{
+			FCollectionClothRenderPatternFacade Pattern = Cloth.GetRenderPattern(PatternIndex);
+			{
+				// Remove any triangles that are topologically degenerate
+				TArray<int32> FacesToRemove;
+				TConstArrayView<FIntVector3> RenderIndices = Pattern.GetRenderIndices();
+				for (int32 FaceIndex = 0; FaceIndex < RenderIndices.Num(); ++FaceIndex)
+				{
+					if (RenderIndices[FaceIndex][0] == INDEX_NONE ||
+						RenderIndices[FaceIndex][1] == INDEX_NONE ||
+						RenderIndices[FaceIndex][2] == INDEX_NONE ||
+
+						RenderIndices[FaceIndex][0] == RenderIndices[FaceIndex][1] ||
+						RenderIndices[FaceIndex][0] == RenderIndices[FaceIndex][2] ||
+						RenderIndices[FaceIndex][1] == RenderIndices[FaceIndex][2])
+					{
+						FacesToRemove.Add(FaceIndex);
+					}
+				}
+
+				if (FacesToRemove.Num())
+				{
+					Pattern.RemoveRenderFaces(FacesToRemove);
+				}
+			}
+
+			{
+				// Remove any vertices that are not used in a face.
+				TConstArrayView<FIntVector3> RenderIndices = Pattern.GetRenderIndices();
+				const int32 RenderVertexOffset = Pattern.GetRenderVerticesOffset();
+				TBitArray RenderVertexToRemove;
+				RenderVertexToRemove.Init(true, Pattern.GetNumRenderVertices());
+				for (const FIntVector3& Face : RenderIndices)
+				{
+					RenderVertexToRemove[Face[0] - RenderVertexOffset] = false;
+					RenderVertexToRemove[Face[1] - RenderVertexOffset] = false;
+					RenderVertexToRemove[Face[2] - RenderVertexOffset] = false;
+				}
+
+				TArray<int32> RenderVertexToRemoveList;
+				for (TConstSetBitIterator ToRemoveIter(RenderVertexToRemove); ToRemoveIter; ++ToRemoveIter)
+				{
+					RenderVertexToRemoveList.Add(ToRemoveIter.GetIndex());
+				}
+
+				if (RenderVertexToRemoveList.Num())
+				{
+					Pattern.RemoveRenderVertices(RenderVertexToRemoveList);
+				}
+			}
+
+			if (Pattern.IsEmpty())
+			{
+				RenderPatternsToRemove.Add(PatternIndex);
+			}
+		}
+		if (!RenderPatternsToRemove.IsEmpty())
+		{
+			Cloth.RemoveRenderPatterns(RenderPatternsToRemove);
+		}
+	}
 }  // End namespace UE::Chaos::ClothAsset

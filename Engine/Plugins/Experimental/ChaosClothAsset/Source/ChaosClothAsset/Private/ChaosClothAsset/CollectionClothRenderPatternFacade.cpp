@@ -126,6 +126,11 @@ namespace UE::Chaos::ClothAsset
 			GetElementIndex());
 	}
 
+	bool FCollectionClothRenderPatternConstFacade::IsEmpty() const
+	{
+		return GetNumRenderVertices() == 0 && GetNumRenderFaces() == 0;
+	}
+
 	FCollectionClothRenderPatternConstFacade::FCollectionClothRenderPatternConstFacade(const TSharedPtr<const FClothCollection>& ClothCollection, int32 InPatternIndex)
 		: ClothCollection(ClothCollection)
 		, PatternIndex(InPatternIndex)
@@ -179,6 +184,25 @@ namespace UE::Chaos::ClothAsset
 			GetClothCollection()->GetRenderVerticesEnd(),
 			GetElementIndex());
 	}
+
+	void FCollectionClothRenderPatternFacade::RemoveRenderVertices(const TArray<int32>& SortedDeletionList)
+	{
+		TArray<int32> GlobalIndexSortedDeletionList;
+		const int32 Offset = GetRenderVerticesOffset();
+		GlobalIndexSortedDeletionList.SetNumUninitialized(SortedDeletionList.Num());
+		for (int32 Idx = 0; Idx < SortedDeletionList.Num(); ++Idx)
+		{
+			GlobalIndexSortedDeletionList[Idx] = SortedDeletionList[Idx] + Offset;
+		}
+
+		GetClothCollection()->RemoveElements(
+			FClothCollection::RenderVerticesGroup,
+			GlobalIndexSortedDeletionList,
+			GetClothCollection()->GetRenderVerticesStart(),
+			GetClothCollection()->GetRenderVerticesEnd(),
+			GetElementIndex());
+	}
+
 	TArrayView<FVector3f> FCollectionClothRenderPatternFacade::GetRenderPosition()
 	{
 		return GetClothCollection()->GetElements(
@@ -256,6 +280,24 @@ namespace UE::Chaos::ClothAsset
 		GetClothCollection()->SetNumElements(
 			NumRenderFaces,
 			FClothCollection::RenderFacesGroup,
+			GetClothCollection()->GetRenderFacesStart(),
+			GetClothCollection()->GetRenderFacesEnd(),
+			GetElementIndex());
+	}
+
+	void FCollectionClothRenderPatternFacade::RemoveRenderFaces(const TArray<int32>& SortedDeletionList)
+	{
+		TArray<int32> GlobalIndexSortedDeletionList;
+		const int32 Offset = GetRenderFacesOffset();
+		GlobalIndexSortedDeletionList.SetNumUninitialized(SortedDeletionList.Num());
+		for (int32 Idx = 0; Idx < SortedDeletionList.Num(); ++Idx)
+		{
+			GlobalIndexSortedDeletionList[Idx] = SortedDeletionList[Idx] + Offset;
+		}
+
+		GetClothCollection()->RemoveElements(
+			FClothCollection::RenderFacesGroup,
+			GlobalIndexSortedDeletionList,
 			GetClothCollection()->GetRenderFacesStart(),
 			GetClothCollection()->GetRenderFacesEnd(),
 			GetElementIndex());

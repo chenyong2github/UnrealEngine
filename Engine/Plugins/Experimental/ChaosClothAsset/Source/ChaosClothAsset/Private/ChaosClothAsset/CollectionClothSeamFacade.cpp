@@ -455,9 +455,9 @@ namespace UE::Chaos::ClothAsset
 			check(SimIndices2D.Num() == SimIndices3D.Num());
 			for (int32 FaceIndex = 0; FaceIndex < SimIndices3D.Num(); ++FaceIndex)
 			{
-				SimIndices3D[FaceIndex][0] = SimVertex3DLookup[SimIndices2D[FaceIndex][0]];
-				SimIndices3D[FaceIndex][1] = SimVertex3DLookup[SimIndices2D[FaceIndex][1]];
-				SimIndices3D[FaceIndex][2] = SimVertex3DLookup[SimIndices2D[FaceIndex][2]];
+				SimIndices3D[FaceIndex][0] = SimIndices2D[FaceIndex][0] == INDEX_NONE ? INDEX_NONE : SimVertex3DLookup[SimIndices2D[FaceIndex][0]];
+				SimIndices3D[FaceIndex][1] = SimIndices2D[FaceIndex][1] == INDEX_NONE ? INDEX_NONE : SimVertex3DLookup[SimIndices2D[FaceIndex][1]];
+				SimIndices3D[FaceIndex][2] = SimIndices2D[FaceIndex][2] == INDEX_NONE ? INDEX_NONE : SimVertex3DLookup[SimIndices2D[FaceIndex][2]];
 			}
 		}
 

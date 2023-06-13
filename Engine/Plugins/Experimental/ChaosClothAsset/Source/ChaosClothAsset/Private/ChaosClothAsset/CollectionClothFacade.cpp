@@ -453,6 +453,26 @@ namespace UE::Chaos::ClothAsset
 		GetClothCollection()->SetNumElements(NumSimVertices - InNumSimVertices, FClothCollection::SimVertices3DGroup);
 	}
 
+	void FCollectionClothFacade::RemoveSimVertices3D(const TArray<int32>& SortedDeletionList)
+	{
+		GetClothCollection()->RemoveElements(FClothCollection::SimVertices3DGroup, SortedDeletionList);
+	}
+
+	void FCollectionClothFacade::CompactSimVertex2DLookup()
+	{
+		TArrayView<TArray<int32>> SimVertex2DLookup = GetSimVertex2DLookupPrivate();
+		for (TArray<int32>& VertexLookup : SimVertex2DLookup)
+		{
+			for (int32 Idx = VertexLookup.Num() - 1; Idx >= 0; --Idx)
+			{
+				if (VertexLookup[Idx] == INDEX_NONE)
+				{
+					VertexLookup.RemoveAtSwap(Idx);
+				}
+			}
+		}
+	}
+
 	TArrayView<FIntVector3> FCollectionClothFacade::GetSimIndices2D()
 	{
 		return GetClothCollection()->GetElements(GetClothCollection()->GetSimIndices2D());
@@ -492,6 +512,16 @@ namespace UE::Chaos::ClothAsset
 		return FCollectionClothSimPatternFacade(GetClothCollection(), PatternIndex);
 	}
 
+	void FCollectionClothFacade::RemoveSimPatterns(const TArray<int32>& SortedDeletionList)
+	{
+		for (const int32 PatternToRemove : SortedDeletionList)
+		{
+			GetSimPattern(PatternToRemove).Reset();
+		}
+
+		GetClothCollection()->RemoveElements(FClothCollection::SimPatternsGroup, SortedDeletionList);
+	}
+
 	void FCollectionClothFacade::SetNumRenderPatterns(int32 InNumPatterns)
 	{
 		const int32 NumPatterns = GetNumRenderPatterns();
@@ -519,6 +549,16 @@ namespace UE::Chaos::ClothAsset
 	FCollectionClothRenderPatternFacade FCollectionClothFacade::GetRenderPattern(int32 PatternIndex)
 	{
 		return FCollectionClothRenderPatternFacade(GetClothCollection(), PatternIndex);
+	}
+
+	void FCollectionClothFacade::RemoveRenderPatterns(const TArray<int32>& SortedDeletionList)
+	{
+		for (const int32 PatternToRemove : SortedDeletionList)
+		{
+			GetRenderPattern(PatternToRemove).Reset();
+		}
+
+		GetClothCollection()->RemoveElements(FClothCollection::RenderPatternsGroup, SortedDeletionList);
 	}
 
 	TArrayView<FString> FCollectionClothFacade::GetRenderMaterialPathName()
@@ -553,6 +593,15 @@ namespace UE::Chaos::ClothAsset
 	FCollectionClothSeamFacade FCollectionClothFacade::GetSeam(int32 SeamIndex)
 	{
 		return FCollectionClothSeamFacade(GetClothCollection(), SeamIndex);
+	}
+
+	void FCollectionClothFacade::RemoveSeams(const TArray<int32>& SortedDeletionList)
+	{
+		for (const int32 SeamToRemove : SortedDeletionList)
+		{
+			GetSeam(SeamToRemove).Reset();
+		}
+		GetClothCollection()->RemoveElements(FClothCollection::SeamsGroup, SortedDeletionList);
 	}
 
 	//~ Render Vertices Group

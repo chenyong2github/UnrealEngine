@@ -183,6 +183,9 @@ namespace UE::Chaos::ClothAsset
 		/** This will remove the 3D vertices, but the associated seams and 2D vertices will still exist, and point to INDEX_NONE */
 		void RemoveSimVertices3D(int32 NumSimVertices);
 		void RemoveAllSimVertices3D() { RemoveSimVertices3D(GetNumSimVertices3D()); }
+		void RemoveSimVertices3D(const TArray<int32>& SortedDeletionList);
+		/** Compact SimVertex2DLookup to remove any references to INDEX_NONE that may have been created by deleting 2D vertices. */
+		void CompactSimVertex2DLookup();
 
 		//~ Pattern Sim Faces Group
 		/** SetNumSimFaces per pattern within pattern facade. */
@@ -198,6 +201,8 @@ namespace UE::Chaos::ClothAsset
 		FCollectionClothSimPatternFacade GetSimPattern(int32 PatternIndex);
 		/** Add a new pattern to this cloth LOD, and return the cloth pattern facade set to its index. */
 		FCollectionClothSimPatternFacade AddGetSimPattern() { return GetSimPattern(AddSimPattern()); }
+		/** Remove a sorted list of sim patterns. */
+		void RemoveSimPatterns(const TArray<int32>& SortedDeletionList);
 
 		//~ Render Patterns Group
 		/** Set the new number of patterns to this cloth LOD. */
@@ -208,6 +213,8 @@ namespace UE::Chaos::ClothAsset
 		FCollectionClothRenderPatternFacade GetRenderPattern(int32 PatternIndex);
 		/** Add a new pattern to this cloth LOD, and return the cloth pattern facade set to its index. */
 		FCollectionClothRenderPatternFacade AddGetRenderPattern() { return GetRenderPattern(AddRenderPattern()); }
+		/** Remove a sorted list of render patterns. */
+		void RemoveRenderPatterns(const TArray<int32>& SortedDeletionList);
 		/** Return a view of all the render materials used on this collection across all patterns. */
 		TArrayView<FString> GetRenderMaterialPathName();
 
@@ -220,6 +227,8 @@ namespace UE::Chaos::ClothAsset
 		FCollectionClothSeamFacade GetSeam(int32 SeamIndex);
 		/** Add a new seam to this cloth and return the seam facade set to its index. */
 		FCollectionClothSeamFacade AddGetSeam() { return GetSeam(AddSeam()); }
+		/** Remove a sorted list of seams. */
+		void RemoveSeams(const TArray<int32>& SortedDeletionList);
 
 		//~ Render Vertices Group
 		/** SetNumRenderVertices per pattern within pattern facade. */

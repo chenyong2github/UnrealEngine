@@ -75,6 +75,11 @@ namespace UE::Chaos::ClothAsset
 			GetElementIndex());
 	}
 
+	bool FCollectionClothSimPatternConstFacade::IsEmpty() const
+	{
+		return GetNumSimFaces() == 0 && GetNumSimVertices2D() == 0;
+	}
+
 	FCollectionClothSimPatternConstFacade::FCollectionClothSimPatternConstFacade(const TSharedPtr<const FClothCollection>& ClothCollection, int32 InPatternIndex)
 		: ClothCollection(ClothCollection)
 		, PatternIndex(InPatternIndex)
@@ -219,6 +224,24 @@ namespace UE::Chaos::ClothAsset
 		SetNumSimVertices2D(NumSimVertices - InNumSimVertices);
 	}
 
+	void FCollectionClothSimPatternFacade::RemoveSimVertices2D(const TArray<int32>& SortedDeletionList)
+	{
+		TArray<int32> GlobalIndexSortedDeletionList;
+		const int32 Offset = GetSimVertices2DOffset();
+		GlobalIndexSortedDeletionList.SetNumUninitialized(SortedDeletionList.Num());
+		for (int32 Idx = 0; Idx < SortedDeletionList.Num(); ++Idx)
+		{
+			GlobalIndexSortedDeletionList[Idx] = SortedDeletionList[Idx] + Offset;
+		}
+
+		GetClothCollection()->RemoveElements(
+			FClothCollection::SimVertices2DGroup,
+			GlobalIndexSortedDeletionList,
+			GetClothCollection()->GetSimVertices2DStart(),
+			GetClothCollection()->GetSimVertices2DEnd(),
+			GetElementIndex());
+	}
+
 	void FCollectionClothSimPatternFacade::SetNumSimFaces(int32 NumSimFaces)
 	{
 		GetClothCollection()->SetNumElements(
@@ -242,6 +265,24 @@ namespace UE::Chaos::ClothAsset
 	{
 		return GetClothCollection()->GetElements(
 			GetClothCollection()->GetSimIndices3D(),
+			GetClothCollection()->GetSimFacesStart(),
+			GetClothCollection()->GetSimFacesEnd(),
+			GetElementIndex());
+	}
+
+	void FCollectionClothSimPatternFacade::RemoveSimFaces(const TArray<int32>& SortedDeletionList)
+	{
+		TArray<int32> GlobalIndexSortedDeletionList;
+		const int32 Offset = GetSimFacesOffset();
+		GlobalIndexSortedDeletionList.SetNumUninitialized(SortedDeletionList.Num());
+		for (int32 Idx = 0; Idx < SortedDeletionList.Num(); ++Idx)
+		{
+			GlobalIndexSortedDeletionList[Idx] = SortedDeletionList[Idx] + Offset;
+		}
+
+		GetClothCollection()->RemoveElements(
+			FClothCollection::SimFacesGroup,
+			GlobalIndexSortedDeletionList,
 			GetClothCollection()->GetSimFacesStart(),
 			GetClothCollection()->GetSimFacesEnd(),
 			GetElementIndex());

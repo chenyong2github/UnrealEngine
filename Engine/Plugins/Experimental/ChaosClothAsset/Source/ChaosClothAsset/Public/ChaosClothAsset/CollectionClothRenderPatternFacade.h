@@ -51,6 +51,8 @@ namespace UE::Chaos::ClothAsset
 		int32 GetRenderFacesOffset() const;
 		TConstArrayView<FIntVector3> GetRenderIndices() const;
 
+		bool IsEmpty() const;
+
 		/** Return the Pattern index this facade has been created with. */
 		int32 GetPatternIndex() const { return PatternIndex; }
 
@@ -97,6 +99,7 @@ namespace UE::Chaos::ClothAsset
 		// Note: Use the FCollectionClothFacade accessors instead of these for the array indices to match the RenderIndices values
 		/** Grow or shrink the space reserved for render vertices for this pattern within the cloth collection and return its start index. */
 		void SetNumRenderVertices(int32 NumRenderVertices);
+		void RemoveRenderVertices(const TArray<int32>& SortedDeletionList);
 		TArrayView<FVector3f> GetRenderPosition();
 		TArrayView<FVector3f> GetRenderNormal();
 		TArrayView<FVector3f> GetRenderTangentU();
@@ -109,6 +112,7 @@ namespace UE::Chaos::ClothAsset
 		//~ Render Faces Group
 		/** Grow or shrink the space reserved for render faces for this pattern within the cloth collection and return its start index. */
 		void SetNumRenderFaces(int32 NumRenderFaces);
+		void RemoveRenderFaces(const TArray<int32>& SortedDeletionList);
 		TArrayView<FIntVector3> GetRenderIndices();
 
 	protected:

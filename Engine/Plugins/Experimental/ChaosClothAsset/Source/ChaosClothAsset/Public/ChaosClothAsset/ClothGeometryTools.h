@@ -59,5 +59,11 @@ namespace UE::Chaos::ClothAsset
 		static void BuildSimMeshFromDynamicMesh(
 			const TSharedPtr<FManagedArrayCollection>& ClothCollection,
 			const UE::Geometry::FDynamicMesh3& DynamicMesh, int32 UVChannelIndex, const FVector2f& UVScale, bool bAppend);
+
+		/**
+		* Remove (topologically) degenerate triangles. Remove any vertices that aren't in a triangle. Compact any lookup arrays that contain INDEX_NONEs.
+		* Remove any empty patterns.
+		*/
+		static void CleanupAndCompactMesh(const TSharedPtr<FManagedArrayCollection>& ClothCollection);
 	};
 }  // End namespace UE::Chaos::ClothAsset

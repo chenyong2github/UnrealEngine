@@ -64,6 +64,9 @@ namespace UE::Chaos::ClothAsset
 		/** Remove Elements */
 		void RemoveElements(const FName& Group, const TArray<int32>& SortedDeletionList);
 
+		/** Remove Elements. SortedDeletionList should be global indices. */
+		void RemoveElements(const FName& GroupName, const TArray<int32>& SortedDeletionList, TManagedArray<int32>* StartArray, TManagedArray<int32>* EndArray, int32 Index);
+
 		template<typename T>
 		static inline TConstArrayView<T> GetElements(const TManagedArray<T>* ElementArray, const TManagedArray<int32>* StartArray, const TManagedArray<int32>* EndArray, int32 ArrayIndex);
 
