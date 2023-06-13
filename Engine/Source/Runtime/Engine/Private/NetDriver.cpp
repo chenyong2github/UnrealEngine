@@ -1484,32 +1484,7 @@ bool UNetDriver::InitBase(bool bInitAsClient, FNetworkNotify* InNotify, const FU
 #if UE_WITH_IRIS
 	if (IsUsingIrisReplication() && !ReplicationSystem)
 	{
-		LLM_SCOPE_BYTAG(Iris);
-
-		if (ensureAlways(InitReplicationBridgeClass()))
-		{
-			const bool bAllowSend = !bInitAsClient;
-
-			UReplicationBridge* ReplicationBridge = NewObject<UActorReplicationBridge>(GetTransientPackage(), ReplicationBridgeClass);
-			if (ReplicationBridge)
-			{
-				ReplicationBridge->SetNetDriver(this);
-
-				// Create ReplicationSystem
-				UReplicationSystem::FReplicationSystemParams Params;
-				Params.ReplicationBridge = ReplicationBridge;
-				Params.bIsServer = !bInitAsClient;
-				Params.bAllowObjectReplication = !bInitAsClient;
-
-				UE::Net::Private::ApplyReplicationSystemConfig(ReplicationSystemConfig, Params);
-
-				SetReplicationSystem(UE::Net::FReplicationSystemFactory::CreateReplicationSystem(Params));
-			}
-			else
-			{
-				UE_LOG(LogNet, Error, TEXT("Failed to initialize ReplicationSystem"));
-			}
-		}
+		CreateReplicationSystem(bInitAsClient);
 	}
 #endif // UE_WITH_IRIS
 	
@@ -6286,6 +6261,61 @@ void UNetDriver::RestoreIrisSystem(UReplicationSystem* InReplicationSystem)
 	
 	// World Actors have already been registered in this IrisSystem, prevent adding them twice when the World gets set.
 	bSkipBeginReplicationForWorld = true;
+}
+
+void UNetDriver::RestartIrisSystem()
+{
+	if (ReplicationSystem == nullptr)
+	{
+		ensureMsgf(false, TEXT("RestartIrisSystem called while no system existed."));
+		return;
+	}
+
+	if (ClientConnections.Num() > 0)
+	{
+		ensureMsgf(false, TEXT("RestartIrisSystem called while there were active connections."));
+		return;
+	}
+
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_NetDriver_RestartIrisSystem);
+
+	UE::Net::FReplicationSystemFactory::DestroyReplicationSystem(ReplicationSystem);
+	ReplicationSystem = nullptr;
+
+	CreateReplicationSystem(!IsServer());
+}
+
+void UNetDriver::CreateReplicationSystem(bool bInitAsClient)
+{
+	LLM_SCOPE_BYTAG(Iris);
+
+	const bool bBridgeClassExists = InitReplicationBridgeClass();
+
+	if (!bBridgeClassExists)
+	{
+		ensureMsgf(false, TEXT("InitReplicationBridgeClass could not load configured class %s"), *ReplicationBridgeClassName);
+		return;
+	}
+
+	UReplicationBridge* ReplicationBridge = NewObject<UActorReplicationBridge>(GetTransientPackage(), ReplicationBridgeClass);
+	if (ReplicationBridge)
+	{
+		ReplicationBridge->SetNetDriver(this);
+
+		// Create ReplicationSystem
+		UReplicationSystem::FReplicationSystemParams Params;
+		Params.ReplicationBridge = ReplicationBridge;
+		Params.bIsServer = !bInitAsClient;
+		Params.bAllowObjectReplication = !bInitAsClient;
+
+		UE::Net::Private::ApplyReplicationSystemConfig(ReplicationSystemConfig, Params);
+
+		SetReplicationSystem(UE::Net::FReplicationSystemFactory::CreateReplicationSystem(Params));
+	}
+	else
+	{
+		UE_LOG(LogNet, Error, TEXT("Failed to initialize ReplicationSystem"));
+	}
 }
 
 void UNetDriver::UpdateReplicationViews() const

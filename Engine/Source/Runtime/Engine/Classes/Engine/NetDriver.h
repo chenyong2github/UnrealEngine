@@ -1785,6 +1785,13 @@ public:
 
 	/** Set a previously initialized IrisSystem into this NetDriver */
 	ENGINE_API void RestoreIrisSystem(UReplicationSystem* InReplicationSystem);
+
+	/**
+	 * Destroy and recreate the iris replication system for an active netdrive.
+	 * This will re-add all existing replicated actors back in the system.
+	 * Useful if you need to reapply hotfix configs downloaded post-initialization.
+	 */
+	ENGINE_API void RestartIrisSystem();
 #endif // UE_WITH_IRIS
 
 	template<class T>
@@ -2069,6 +2076,7 @@ private:
 #if UE_WITH_IRIS
 	void InitIrisSettings(FName NewDriverName);
 	void SetReplicationSystem(UReplicationSystem* ReplicationSystem);
+	void CreateReplicationSystem(bool bInitAsClient);
 	void UpdateReplicationViews() const;
 	void SendClientMoveAdjustments();
 #endif
