@@ -366,7 +366,7 @@ EReimportResult::Type UReimportHairStrandsFactory::Reimport(UObject* Obj)
 		GroomReimportOptions->InterpolationSettings.Init(FHairGroupsInterpolation(), GroupCount);
 		for (uint32 GroupIndex = 0; GroupIndex < GroupCount; ++GroupIndex)
 		{
-			GroomReimportOptions->InterpolationSettings[GroupIndex] = HairAsset->HairGroupsInterpolation[GroupIndex];
+			GroomReimportOptions->InterpolationSettings[GroupIndex] = HairAsset->GetHairGroupsInterpolation()[GroupIndex];
 		}
 	}
 

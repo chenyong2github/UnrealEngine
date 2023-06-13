@@ -21,8 +21,8 @@ UObject* UGroomFactory::FactoryCreateNew(UClass* InClass, UObject* InParent, FNa
 
 	// Groom has to have at least one group to edit with one cards LOD
 	Groom->SetNumGroup(1);
-	Groom->HairGroupsLOD[0].LODs[0].GeometryType = EGroomGeometryType::Cards;
-	Groom->HairGroupsInterpolation[0].InterpolationSettings.bUseUniqueGuide = true;
+	Groom->GetHairGroupsLOD()[0].LODs[0].GeometryType = EGroomGeometryType::Cards;
+	Groom->GetHairGroupsInterpolation()[0].InterpolationSettings.bUseUniqueGuide = true;
 
 	Groom->UpdateHairGroupsInfo();
 	Groom->UpdateCachedSettings();

@@ -160,18 +160,18 @@ void DumpLoadedGroomAssets(IConsoleVariable* InCVarPakTesterEnabled)
 	{
 		if (AssetIt)
 		{
-			const uint32 GroupCount = AssetIt->HairGroupsPlatformData.Num();
+			const uint32 GroupCount = AssetIt->GetHairGroupsPlatformData().Num();
 			for (uint32 GroupIt = 0; GroupIt < GroupCount; ++GroupIt)
 			{
-				const uint32 CPUMemorySize_Guides  = AssetIt->HairGroupsPlatformData[GroupIt].Guides.GetDataSize();
-				const uint32 CPUMemorySize_Strands = AssetIt->HairGroupsPlatformData[GroupIt].Strands.GetDataSize();
-				const uint32 CPUMemorySize_Cards   = AssetIt->HairGroupsPlatformData[GroupIt].Cards.GetDataSize();
-				const uint32 CPUMemorySize_Meshes  = AssetIt->HairGroupsPlatformData[GroupIt].Meshes.GetDataSize();
+				const uint32 CPUMemorySize_Guides  = AssetIt->GetHairGroupsPlatformData()[GroupIt].Guides.GetDataSize();
+				const uint32 CPUMemorySize_Strands = AssetIt->GetHairGroupsPlatformData()[GroupIt].Strands.GetDataSize();
+				const uint32 CPUMemorySize_Cards   = AssetIt->GetHairGroupsPlatformData()[GroupIt].Cards.GetDataSize();
+				const uint32 CPUMemorySize_Meshes  = AssetIt->GetHairGroupsPlatformData()[GroupIt].Meshes.GetDataSize();
 
-				const uint32 GPUMemorySize_Guides  = AssetIt->HairGroupsPlatformData[GroupIt].Guides.GetResourcesSize();
-				const uint32 GPUMemorySize_Strands = AssetIt->HairGroupsPlatformData[GroupIt].Strands.GetResourcesSize();
-				const uint32 GPUMemorySize_Cards   = AssetIt->HairGroupsPlatformData[GroupIt].Cards.GetResourcesSize();
-				const uint32 GPUMemorySize_Meshes  = AssetIt->HairGroupsPlatformData[GroupIt].Meshes.GetResourcesSize();
+				const uint32 GPUMemorySize_Guides  = AssetIt->GetHairGroupsPlatformData()[GroupIt].Guides.GetResourcesSize();
+				const uint32 GPUMemorySize_Strands = AssetIt->GetHairGroupsPlatformData()[GroupIt].Strands.GetResourcesSize();
+				const uint32 GPUMemorySize_Cards   = AssetIt->GetHairGroupsPlatformData()[GroupIt].Cards.GetResourcesSize();
+				const uint32 GPUMemorySize_Meshes  = AssetIt->GetHairGroupsPlatformData()[GroupIt].Meshes.GetResourcesSize();
 
 				uint32 CPUMemorySize = 0;
 				uint32 GPUMemorySize = 0;
@@ -194,7 +194,7 @@ void DumpLoadedGroomAssets(IConsoleVariable* InCVarPakTesterEnabled)
 				Total_GPUMemorySize_Cards  += GPUMemorySize_Cards;
 				Total_GPUMemorySize_Meshes += GPUMemorySize_Meshes;
 
-				const uint32 LODCount = AssetIt->HairGroupsLOD[GroupIt].LODs.Num();
+				const uint32 LODCount = AssetIt->GetHairGroupsLOD()[GroupIt].LODs.Num();
 				if (bDetails)
 				{
 //					UE_LOG(LogHairStrands, Log, TEXT("--  No.  - LOD -    CPU Total (     Guides|    Strands|      Cards|     Meshes) -    GPU Total (     Guides|    Strands|      Cards|     Meshes) - Asset Name "));
@@ -495,8 +495,8 @@ static bool BuildHairGroup(
 	const int32 GroupIndex,
 	const bool bNeedInterpolationData,
 	const FHairDescriptionGroups& HairDescriptionGroups, 
-	const TArray<FHairGroupsInterpolation>& HairGroupsInterpolation,
-	const TArray<FHairGroupsLOD>& HairGroupsLOD,
+	const TArray<FHairGroupsInterpolation>& InHairGroupsInterpolation,
+	const TArray<FHairGroupsLOD>& InHairGroupsLOD,
 	TArray<FHairGroupInfoWithVisibility>& OutHairGroupsInfo,
 	TArray<FHairGroupPlatformData>& OutHairGroupsData)
 {
@@ -509,7 +509,7 @@ static bool BuildHairGroup(
 
 		FHairStrandsDatas StrandsData;
 		FHairStrandsDatas GuidesData;
-		FGroomBuilder::BuildData(HairGroup, HairGroupsInterpolation[GroupIndex], OutHairGroupsInfo[GroupIndex], StrandsData, GuidesData);
+		FGroomBuilder::BuildData(HairGroup, InHairGroupsInterpolation[GroupIndex], OutHairGroupsInfo[GroupIndex], StrandsData, GuidesData);
 
 		FGroomBuilder::BuildBulkData(HairGroup.Info, GuidesData, OutHairGroupsData[GroupIndex].Guides.BulkData);
 		FGroomBuilder::BuildBulkData(HairGroup.Info, StrandsData, OutHairGroupsData[GroupIndex].Strands.BulkData);
@@ -518,7 +518,7 @@ static bool BuildHairGroup(
 		if (bNeedInterpolationData)
 		{
 			FHairStrandsInterpolationDatas InterpolationData;
-			FGroomBuilder::BuildInterplationData(HairGroup.Info, StrandsData, GuidesData, HairGroupsInterpolation[GroupIndex].InterpolationSettings, InterpolationData);
+			FGroomBuilder::BuildInterplationData(HairGroup.Info, StrandsData, GuidesData, InHairGroupsInterpolation[GroupIndex].InterpolationSettings, InterpolationData);
 			FGroomBuilder::BuildInterplationBulkData(GuidesData, InterpolationData, OutHairGroupsData[GroupIndex].Strands.InterpolationBulkData);
 		}
 		else
@@ -526,7 +526,7 @@ static bool BuildHairGroup(
 			OutHairGroupsData[GroupIndex].Strands.InterpolationBulkData.Reset();
 		}
 
-		FGroomBuilder::BuildClusterBulkData(StrandsData, HairDescriptionGroups.Bounds.SphereRadius, HairGroupsLOD[GroupIndex], OutHairGroupsData[GroupIndex].Strands.ClusterCullingBulkData);
+		FGroomBuilder::BuildClusterBulkData(StrandsData, HairDescriptionGroups.Bounds.SphereRadius, InHairGroupsLOD[GroupIndex], OutHairGroupsData[GroupIndex].Strands.ClusterCullingBulkData);
 	}
 	return bIsValid;
 }
@@ -537,23 +537,23 @@ static bool BuildHairGroup(
 // Guides and strands data are all transient
 static bool BuildHairGroupCluster(
 	const int32 GroupIndex,
-	const FHairDescriptionGroups& HairDescriptionGroups,
-	const TArray<FHairGroupsInterpolation>& HairGroupsInterpolation,
-	const TArray<FHairGroupsLOD>& HairGroupsLOD,
+	const FHairDescriptionGroups& InHairDescriptionGroups,
+	const TArray<FHairGroupsInterpolation>& InHairGroupsInterpolation,
+	const TArray<FHairGroupsLOD>& InHairGroupsLOD,
 	TArray<FHairGroupInfoWithVisibility>& OutHairGroupsInfo,
 	TArray<FHairGroupPlatformData>& OutHairGroupsData)
 {
-	const bool bIsValid = HairDescriptionGroups.IsValid();
+	const bool bIsValid = InHairDescriptionGroups.IsValid();
 	if (bIsValid)
 	{
-		const FHairDescriptionGroup& HairGroup = HairDescriptionGroups.HairGroups[GroupIndex];
-		check(GroupIndex <= HairDescriptionGroups.HairGroups.Num());
+		const FHairDescriptionGroup& HairGroup = InHairDescriptionGroups.HairGroups[GroupIndex];
+		check(GroupIndex <= InHairDescriptionGroups.HairGroups.Num());
 		check(GroupIndex == HairGroup.Info.GroupID);
 
 		FHairStrandsDatas StrandsData;
 		FHairStrandsDatas GuidesData;
-		FGroomBuilder::BuildData(HairGroup, HairGroupsInterpolation[GroupIndex], OutHairGroupsInfo[GroupIndex], StrandsData, GuidesData);
-		FGroomBuilder::BuildClusterBulkData(StrandsData, HairDescriptionGroups.Bounds.SphereRadius, HairGroupsLOD[GroupIndex], OutHairGroupsData[GroupIndex].Strands.ClusterCullingBulkData);
+		FGroomBuilder::BuildData(HairGroup, InHairGroupsInterpolation[GroupIndex], OutHairGroupsInfo[GroupIndex], StrandsData, GuidesData);
+		FGroomBuilder::BuildClusterBulkData(StrandsData, InHairDescriptionGroups.Bounds.SphereRadius, InHairGroupsLOD[GroupIndex], OutHairGroupsData[GroupIndex].Strands.ClusterCullingBulkData);
 	}
 	return bIsValid;
 }
@@ -583,17 +583,17 @@ uint8 UGroomAsset::GenerateClassStripFlags(FArchive& Ar)
 		}
 
 		// Determine the platform min LOD if the stripping hasn't been disabled
-		const bool bDisableMinLODStrip = DisableBelowMinLodStripping.GetValueForPlatform(*CookTarget->IniPlatformName());
+		const bool bDisableMinLODStrip = GetDisableBelowMinLodStripping().GetValueForPlatform(*CookTarget->IniPlatformName());
 		int32 PlatformMinLOD = 0;
 		if (!bDisableMinLODStrip)
 		{
-			PlatformMinLOD = MinLOD.GetValueForPlatform(*CookTarget->IniPlatformName());
+			PlatformMinLOD = GetMinLOD().GetValueForPlatform(*CookTarget->IniPlatformName());
 		}
 
 		bIsLODStripped = (PlatformMinLOD > 0) && !bDisableMinLODStrip;
 		if (bIsLODStripped)
 		{
-			for (const FHairGroupsLOD& GroupsLOD : HairGroupsLOD)
+			for (const FHairGroupsLOD& GroupsLOD : GetHairGroupsLOD())
 			{
 				for (int32 LODIndex = 0; LODIndex < PlatformMinLOD && LODIndex < GroupsLOD.LODs.Num(); ++LODIndex)
 				{
@@ -638,19 +638,19 @@ void UGroomAsset::ApplyStripFlags(uint8 StripFlags, const ITargetPlatform* CookT
 		return;
 	}
 
-	const bool bDisableMinLodStrip = DisableBelowMinLodStripping.GetValueForPlatform(*CookTarget->IniPlatformName()); 
+	const bool bDisableMinLodStrip = GetDisableBelowMinLodStripping().GetValueForPlatform(*CookTarget->IniPlatformName()); 
 	int32 PlatformMinLOD = 0;
 	if (!bDisableMinLodStrip)
 	{
-		PlatformMinLOD = MinLOD.GetValueForPlatform(*CookTarget->IniPlatformName());
+		PlatformMinLOD = GetMinLOD().GetValueForPlatform(*CookTarget->IniPlatformName());
 	}
 
 	const bool bIsStrandsStrippedForCook = !!(StripFlags & CDSF_StrandsStripped);
 
 	// Set the CookedOut flags as appropriate and compute the value for EffectiveLODBias
-	for (int32 GroupIndex = 0; GroupIndex < HairGroupsPlatformData.Num(); ++GroupIndex)
+	for (int32 GroupIndex = 0; GroupIndex < GetHairGroupsPlatformData().Num(); ++GroupIndex)
 	{
-		FHairGroupPlatformData& GroupData = HairGroupsPlatformData[GroupIndex];
+		FHairGroupPlatformData& GroupData = GetHairGroupsPlatformData()[GroupIndex];
 		GroupData.Strands.bIsCookedOut = bIsStrandsStrippedForCook;
 
 		// Determine the max LOD for strands since they are cooked out if the platform doesn't support them
@@ -658,7 +658,7 @@ void UGroomAsset::ApplyStripFlags(uint8 StripFlags, const ITargetPlatform* CookT
 		int32 StrandsMaxLOD = -1;
 		if (bIsStrandsStrippedForCook)
 		{
-			const FHairGroupsLOD& GroupsLOD = HairGroupsLOD[GroupIndex];
+			const FHairGroupsLOD& GroupsLOD = GetHairGroupsLOD()[GroupIndex];
 			for (int32 LODIndex = 0; LODIndex < GroupsLOD.LODs.Num(); ++LODIndex)
 			{
 				const FHairLODSettings& LODSetting = GroupsLOD.LODs[LODIndex];
@@ -671,7 +671,7 @@ void UGroomAsset::ApplyStripFlags(uint8 StripFlags, const ITargetPlatform* CookT
 		
 		// The MinLOD for stripping this group, taking into account the possibility of strands being cooked out
 		const int32 MinStrippedLOD = FMath::Max(StrandsMaxLOD + 1, PlatformMinLOD);
-		EffectiveLODBias[GroupIndex] = MinStrippedLOD;
+		GetEffectiveLODBias()[GroupIndex] = MinStrippedLOD;
 
 		for (int32 Index = 0; Index < GroupData.Cards.LODs.Num(); ++Index)
 		{
@@ -790,7 +790,7 @@ void UGroomAsset::Serialize(FArchive& Ar)
 	// For older assets, force width override to preserve prior to fixing the imported groom's width.
 	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::GroomAssetWidthOverride && Ar.IsLoading())
 	{
-		for (FHairGroupsRendering& Group : HairGroupsRendering)
+		for (FHairGroupsRendering& Group : GetHairGroupsRendering())
 		{
 			Group.GeometrySettings.HairWidth_Override = true;
 		}
@@ -812,7 +812,7 @@ void UGroomAsset::Serialize(FArchive& Ar)
 		if (StripFlags.IsEditorDataStripped())
 		{
 			// When cooking data or loading cooked data
-			InternalSerializePlatformDatas(Ar, this, HairGroupsPlatformData);
+			InternalSerializePlatformDatas(Ar, this, GetHairGroupsPlatformData());
 		}
 		else if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::GroomAssetRemoveInAssetSerialization && Ar.IsLoading() && !bHasImportedStrands)
 		{
@@ -850,17 +850,17 @@ UGroomAsset::UGroomAsset(const FObjectInitializer& ObjectInitializer)
 {
 	bIsInitialized = false;
 
-	MinLOD.Default = 0;
-	DisableBelowMinLodStripping.Default = false;
+	SetMinLOD(0);
+	SetDisableBelowMinLodStripping(false);
 }
 
 bool UGroomAsset::HasGeometryType(uint32 GroupIndex, EGroomGeometryType Type) const
 {
-	check(GroupIndex < uint32(HairGroupsLOD.Num()));
-	const uint32 LODCount = HairGroupsLOD[GroupIndex].LODs.Num();
+	check(GroupIndex < uint32(GetHairGroupsLOD().Num()));
+	const uint32 LODCount = GetHairGroupsLOD()[GroupIndex].LODs.Num();
 	for (uint32 LODIt=0;LODIt<LODCount;++LODIt)
 	{
-		if (HairGroupsLOD[GroupIndex].LODs[LODIt].GeometryType == Type)
+		if (GetHairGroupsLOD()[GroupIndex].LODs[LODIt].GeometryType == Type)
 			return true;
 	}
 	return false;
@@ -868,7 +868,7 @@ bool UGroomAsset::HasGeometryType(uint32 GroupIndex, EGroomGeometryType Type) co
 
 bool UGroomAsset::HasGeometryType(EGroomGeometryType Type) const
 {
-	const uint32 GroupCount = HairGroupsLOD.Num();
+	const uint32 GroupCount = GetHairGroupsLOD().Num();
 	for (uint32 GroupIt = 0; GroupIt < GroupCount; ++GroupIt)
 	{
 		if (HasGeometryType(GroupIt, Type))
@@ -901,11 +901,11 @@ TArray<FHairVertexFactoryTypesPerMaterialData> UGroomAsset::CollectVertexFactory
 	const int32 GroupCount = GetNumHairGroups();
 	for (int32 GroupIt = 0; GroupIt < GroupCount; GroupIt++)
 	{
-		const FHairGroupPlatformData& InGroupData = HairGroupsPlatformData[GroupIt];
+		const FHairGroupPlatformData& InGroupData = GetHairGroupsPlatformData()[GroupIt];
 
 		// Strands
 		{
-			const int32 MaterialIndex = GetMaterialIndex(HairGroupsRendering[GroupIt].MaterialSlotName);
+			const int32 MaterialIndex = GetMaterialIndex(GetHairGroupsRendering()[GroupIt].MaterialSlotName);
 			AddVFPerMaterial(MaterialIndex, EHairGeometryType::Strands, &FHairStrandsVertexFactory::StaticType);
 		}
 
@@ -919,7 +919,7 @@ TArray<FHairVertexFactoryTypesPerMaterialData> UGroomAsset::CollectVertexFactory
 				{
 					// Material
 					int32 MaterialIndex = INDEX_NONE;
-					for (const FHairGroupsCardsSourceDescription& Desc : HairGroupsCards)
+					for (const FHairGroupsCardsSourceDescription& Desc : GetHairGroupsCards())
 					{
 						if (Desc.GroupIndex == GroupIt && Desc.LODIndex == CardsLODIndex)
 						{
@@ -942,7 +942,7 @@ TArray<FHairVertexFactoryTypesPerMaterialData> UGroomAsset::CollectVertexFactory
 				{
 					// Material
 					int32 MaterialIndex = INDEX_NONE;
-					for (const FHairGroupsMeshesSourceDescription& Desc : HairGroupsMeshes)
+					for (const FHairGroupsMeshesSourceDescription& Desc : GetHairGroupsMeshes())
 					{
 						if (Desc.GroupIndex == GroupIt && Desc.LODIndex == MeshesLODIndex)
 						{
@@ -1000,11 +1000,11 @@ void UGroomAsset::UpdateResource()
 	uint32 AllChangeType = 0;
 	for (uint32 GroupIndex = 0, GroupCount = GetNumHairGroups(); GroupIndex < GroupCount; ++GroupIndex)
 	{
-		uint32 ChangeType = (CachedHairGroupsLOD[GroupIndex] == HairGroupsLOD[GroupIndex] ? 0 : GroomChangeType_LOD);
+		uint32 ChangeType = (CachedHairGroupsLOD[GroupIndex] == GetHairGroupsLOD()[GroupIndex] ? 0 : GroomChangeType_LOD);
 		AllChangeType = AllChangeType | ChangeType;
 
 		check(GroupIndex < uint32(GetNumHairGroups()));
-		FHairGroupPlatformData& GroupData = HairGroupsPlatformData[GroupIndex];
+		FHairGroupPlatformData& GroupData = GetHairGroupsPlatformData()[GroupIndex];
 		if (GroupData.Guides.RestResource)
 		{
 			InternalUpdateResource(GroupData.Guides.RestResource);
@@ -1026,10 +1026,10 @@ void UGroomAsset::UpdateResource()
 				BuildHairGroupCluster(
 					GroupIndex,
 					LocalHairDescriptionGroups,
-					HairGroupsInterpolation,
-					HairGroupsLOD,
-					HairGroupsInfo,
-					HairGroupsPlatformData);
+					GetHairGroupsInterpolation(),
+					GetHairGroupsLOD(),
+					GetHairGroupsInfo(),
+					GetHairGroupsPlatformData());
 
 				GroupData.Strands.ClusterCullingResource = new FHairStrandsClusterCullingResource(GroupData.Strands.ClusterCullingBulkData, FHairResourceName(GetFName(), GroupIndex), GetAssetPathName());
 			}
@@ -1093,8 +1093,8 @@ void UGroomAsset::ReleaseResource()
 
 void UGroomAsset::ReleaseGuidesResource(uint32 GroupIndex)
 {
-	if (GroupIndex >= uint32(HairGroupsPlatformData.Num())) return;
-	FHairGroupPlatformData& GroupData = HairGroupsPlatformData[GroupIndex];
+	if (GroupIndex >= uint32(GetHairGroupsPlatformData().Num())) return;
+	FHairGroupPlatformData& GroupData = GetHairGroupsPlatformData()[GroupIndex];
 	if (GroupData.Guides.IsValid())
 	{
 		InternalReleaseResource(GroupData.Guides.RestResource);
@@ -1103,8 +1103,8 @@ void UGroomAsset::ReleaseGuidesResource(uint32 GroupIndex)
 
 void UGroomAsset::ReleaseStrandsResource(uint32 GroupIndex)
 {
-	if (GroupIndex >= uint32(HairGroupsPlatformData.Num())) return;
-	FHairGroupPlatformData& GroupData = HairGroupsPlatformData[GroupIndex];
+	if (GroupIndex >= uint32(GetHairGroupsPlatformData().Num())) return;
+	FHairGroupPlatformData& GroupData = GetHairGroupsPlatformData()[GroupIndex];
 	if (GroupData.Strands.IsValid())
 	{
 		InternalReleaseResource(GroupData.Strands.RestResource);
@@ -1118,8 +1118,8 @@ void UGroomAsset::ReleaseStrandsResource(uint32 GroupIndex)
 
 void UGroomAsset::ReleaseCardsResource(uint32 GroupIndex)
 {
-	if (GroupIndex >= uint32(HairGroupsPlatformData.Num())) return;
-	FHairGroupPlatformData& GroupData = HairGroupsPlatformData[GroupIndex];
+	if (GroupIndex >= uint32(GetHairGroupsPlatformData().Num())) return;
+	FHairGroupPlatformData& GroupData = GetHairGroupsPlatformData()[GroupIndex];
 	for (FHairGroupPlatformData::FCards::FLOD& LOD : GroupData.Cards.LODs)
 	{
 		InternalReleaseResource(LOD.RestResource);
@@ -1134,8 +1134,8 @@ void UGroomAsset::ReleaseCardsResource(uint32 GroupIndex)
 
 void UGroomAsset::ReleaseMeshesResource(uint32 GroupIndex)
 {
-	if (GroupIndex >= uint32(HairGroupsPlatformData.Num())) return;
-	FHairGroupPlatformData& GroupData = HairGroupsPlatformData[GroupIndex];
+	if (GroupIndex >= uint32(GetHairGroupsPlatformData().Num())) return;
+	FHairGroupPlatformData& GroupData = GetHairGroupsPlatformData()[GroupIndex];
 	for (FHairGroupPlatformData::FMeshes::FLOD& LOD : GroupData.Meshes.LODs)
 	{
 		InternalReleaseResource(LOD.RestResource);
@@ -1151,13 +1151,13 @@ void UGroomAsset::ReleaseMeshesResource(uint32 GroupIndex)
 void UGroomAsset::UpdateHairGroupsInfo()
 {
 	const uint32 GroupCount = GetNumHairGroups();
-	const bool bForceReset = HairGroupsInfo.Num() != GroupCount;
-	HairGroupsInfo.SetNum(GroupCount);
+	const bool bForceReset = GetHairGroupsInfo().Num() != GroupCount;
+	GetHairGroupsInfo().SetNum(GroupCount);
 
 	uint32 GroupIndex = 0;
-	for (FHairGroupPlatformData& Data: HairGroupsPlatformData)
+	for (FHairGroupPlatformData& Data: GetHairGroupsPlatformData())
 	{
-		FHairGroupInfoWithVisibility& Info = HairGroupsInfo[GroupIndex];
+		FHairGroupInfoWithVisibility& Info = GetHairGroupsInfo()[GroupIndex];
 		Info.GroupID = GroupIndex;
 		Info.NumCurves = Data.Strands.BulkData.GetNumCurves();
 		Info.NumGuides = Data.Guides.BulkData.GetNumCurves();
@@ -1173,7 +1173,7 @@ void UGroomAsset::UpdateHairGroupsInfo()
 }
 
 template<typename T>
-bool ConvertMaterial(TArray<T>& Groups, TArray<FHairGroupsMaterial>& HairGroupsMaterials)
+bool ConvertMaterial(TArray<T>& Groups, TArray<FHairGroupsMaterial>& InHairGroupsMaterials)
 {
 	bool bNeedSaving = false;
 	for (T& Group : Groups)
@@ -1182,7 +1182,7 @@ bool ConvertMaterial(TArray<T>& Groups, TArray<FHairGroupsMaterial>& HairGroupsM
 		{
 			FName MaterialSlotName = Group.Material->GetFName();
 			bool bFound = false;
-			for (FHairGroupsMaterial& Material : HairGroupsMaterials)
+			for (FHairGroupsMaterial& Material : InHairGroupsMaterials)
 			{
 				if (Material.SlotName == MaterialSlotName)
 				{
@@ -1194,7 +1194,7 @@ bool ConvertMaterial(TArray<T>& Groups, TArray<FHairGroupsMaterial>& HairGroupsM
 
 			if (!bFound)
 			{
-				FHairGroupsMaterial& MaterialEntry = HairGroupsMaterials.AddDefaulted_GetRef();
+				FHairGroupsMaterial& MaterialEntry = InHairGroupsMaterials.AddDefaulted_GetRef();
 				MaterialEntry.Material = Group.Material;
 				MaterialEntry.SlotName = MaterialSlotName;
 				Group.MaterialSlotName = MaterialSlotName;
@@ -1215,7 +1215,7 @@ void UGroomAsset::PostLoad()
 
 	// Legacy asset are missing rendering or interpolation settings
 #if WITH_EDITORONLY_DATA
-	const bool bIsLegacyAsset = HairGroupsInterpolation.Num() == 0;
+	const bool bIsLegacyAsset = GetHairGroupsInfo().Num() == 0;
 	if (bIsLegacyAsset)
 	{
 		if (HairDescriptionBulkData[HairDescriptionType])
@@ -1234,7 +1234,7 @@ void UGroomAsset::PostLoad()
 	}
 #endif
 	// Convert old rigging/guide override
-	for (FHairGroupsInterpolation& Group : HairGroupsInterpolation)
+	for (FHairGroupsInterpolation& Group : GetHairGroupsInterpolation())
 	{
 		const bool bNeedLegacyConversion = Group.InterpolationSettings.bOverrideGuides_DEPRECATED || Group.RiggingSettings.bEnableRigging_DEPRECATED;
 		if (bNeedLegacyConversion)
@@ -1263,7 +1263,7 @@ void UGroomAsset::PostLoad()
 	bool bSucceed = true;
 	{
 		// Interpolation settings are used for building the interpolation data, and per se defined the number of groups
-		const uint32 GroupCount = HairGroupsInterpolation.Num();
+		const uint32 GroupCount = GetHairGroupsInterpolation().Num();
 		if (uint32(GetNumHairGroups()) != GroupCount)
 		{
 			SetNumGroup(GroupCount);
@@ -1341,25 +1341,25 @@ void UGroomAsset::PostLoad()
 	{
 		const FHairDescriptionGroups& LocalHairDescriptionGroups = GetHairDescriptionGroups();
 
-		const int32 GroupCount = HairGroupsInterpolation.Num();
+		const int32 GroupCount = GetHairGroupsInterpolation().Num();
 		check(LocalHairDescriptionGroups.HairGroups.Num() == GroupCount);
 		for (int32 GroupIndex = 0; GroupIndex < GroupCount; ++GroupIndex)
 		{
 			const bool bNeedInterpoldationData = NeedsInterpolationData(GroupIndex);
 			const bool bNeedToBuildData = 
-				(HairGroupsPlatformData[GroupIndex].Guides.BulkData.GetNumCurves() == 0 ||
-				 (bNeedInterpoldationData && HairGroupsPlatformData[GroupIndex].Strands.InterpolationBulkData.GetPointCount() == 0)) &&
-				 HairGroupsPlatformData[GroupIndex].Strands.BulkData.GetNumCurves() > 0; // Empty groom has no data to build
+				(GetHairGroupsPlatformData()[GroupIndex].Guides.BulkData.GetNumCurves() == 0 ||
+				 (bNeedInterpoldationData && GetHairGroupsPlatformData()[GroupIndex].Strands.InterpolationBulkData.GetPointCount() == 0)) &&
+				 GetHairGroupsPlatformData()[GroupIndex].Strands.BulkData.GetNumCurves() > 0; // Empty groom has no data to build
 			if (bNeedToBuildData)
 			{
 				BuildHairGroup(
 					GroupIndex,
 					bNeedInterpoldationData,
 					LocalHairDescriptionGroups,
-					HairGroupsInterpolation,
-					HairGroupsLOD,
-					HairGroupsInfo,
-					HairGroupsPlatformData);
+					GetHairGroupsInterpolation(),
+					GetHairGroupsLOD(),
+					GetHairGroupsInfo(),
+					GetHairGroupsPlatformData());
 			}
 		}
 	}
@@ -1369,9 +1369,9 @@ void UGroomAsset::PostLoad()
 	{
 		// Strands
 		bool bNeedSaving = false;
-		bNeedSaving = bNeedSaving || ConvertMaterial(HairGroupsRendering,	HairGroupsMaterials);
-		bNeedSaving = bNeedSaving || ConvertMaterial(HairGroupsCards,		HairGroupsMaterials);
-		bNeedSaving = bNeedSaving || ConvertMaterial(HairGroupsMeshes,		HairGroupsMaterials);
+		bNeedSaving = bNeedSaving || ConvertMaterial(GetHairGroupsRendering(),	GetHairGroupsMaterials());
+		bNeedSaving = bNeedSaving || ConvertMaterial(GetHairGroupsCards(),		GetHairGroupsMaterials());
+		bNeedSaving = bNeedSaving || ConvertMaterial(GetHairGroupsMeshes(),		GetHairGroupsMaterials());
 
 		if (bNeedSaving)
 		{
@@ -1402,7 +1402,7 @@ void UGroomAsset::PostLoad()
 		FPSOPrecacheParams PrecachePSOParams;
 		for (FHairVertexFactoryTypesPerMaterialData& VFsPerMaterial : VFsPerMaterials)
 		{
-			UMaterialInterface* MaterialInterface = HairGroupsMaterials[VFsPerMaterial.MaterialIndex].Material;
+			UMaterialInterface* MaterialInterface = GetHairGroupsMaterials()[VFsPerMaterial.MaterialIndex].Material;
 			if (MaterialInterface)
 			{
 				MaterialInterface->PrecachePSOs(VFsPerMaterial.VertexFactoryDataList, PrecachePSOParams, EPSOPrecachePriority::Medium, RequestIDs);
@@ -1428,7 +1428,7 @@ void UGroomAsset::PreSave(FObjectPreSaveContext ObjectSaveContext)
 
 	for (uint32 GroupIt = 0; GroupIt < GroupCount; ++GroupIt)
 	{
-		if (!(CachedHairGroupsInterpolation[GroupIt] == HairGroupsInterpolation[GroupIt]))
+		if (!(CachedHairGroupsInterpolation[GroupIt] == GetHairGroupsInterpolation()[GroupIt]))
 		{
 			ChangeType = ChangeType | GroomChangeType_Interpolation;
 			break;
@@ -1437,7 +1437,7 @@ void UGroomAsset::PreSave(FObjectPreSaveContext ObjectSaveContext)
 
 	for (uint32 GroupIt = 0; GroupIt < GroupCount; ++GroupIt)
 	{
-		if (!(CachedHairGroupsLOD[GroupIt] == HairGroupsLOD[GroupIt]))
+		if (!(CachedHairGroupsLOD[GroupIt] == GetHairGroupsLOD()[GroupIt]))
 		{
 			ChangeType = ChangeType | GroomChangeType_LOD;
 			break;
@@ -1453,8 +1453,8 @@ void UGroomAsset::PreSave(FObjectPreSaveContext ObjectSaveContext)
 			FGroomComponentRecreateRenderStateContext RecreateRenderContext(this);
 			for (uint32 GroupIt = 0; GroupIt < GroupCount; ++GroupIt)
 			{
-				const bool bHasInterpolationChanged = !(CachedHairGroupsInterpolation[GroupIt] == HairGroupsInterpolation[GroupIt]);
-				const bool bHasLODChanged = !(CachedHairGroupsLOD[GroupIt] == HairGroupsLOD[GroupIt]);
+				const bool bHasInterpolationChanged = !(CachedHairGroupsInterpolation[GroupIt] == GetHairGroupsInterpolation()[GroupIt]);
+				const bool bHasLODChanged = !(CachedHairGroupsLOD[GroupIt] == GetHairGroupsLOD()[GroupIt]);
 				const bool bNeedInterpoldationData = NeedsInterpolationData(GroupIt);
 
 				if (bHasInterpolationChanged)
@@ -1463,20 +1463,20 @@ void UGroomAsset::PreSave(FObjectPreSaveContext ObjectSaveContext)
 						GroupIt,
 						bNeedInterpoldationData,
 						LocalHairDescriptionGroups,
-						HairGroupsInterpolation,
-						HairGroupsLOD,
-						HairGroupsInfo,
-						HairGroupsPlatformData);
+						GetHairGroupsInterpolation(),
+						GetHairGroupsLOD(),
+						GetHairGroupsInfo(),
+						GetHairGroupsPlatformData());
 				}
 				else if (bHasLODChanged)
 				{
 					BuildHairGroupCluster(
 						GroupIt,
 						LocalHairDescriptionGroups,
-						HairGroupsInterpolation,
-						HairGroupsLOD,
-						HairGroupsInfo,
-						HairGroupsPlatformData);
+						GetHairGroupsInterpolation(),
+						GetHairGroupsLOD(),
+						GetHairGroupsInfo(),
+						GetHairGroupsPlatformData());
 				}
 			}
 		}
@@ -1538,8 +1538,8 @@ static bool IsStrandsInterpolationAttributes(const FName PropertyName)
 
 
 		// Add dependency on simulation and per LOD-simulation/global-interpolation to strip-out interpolation data if there are not needed
-		|| PropertyName == GET_MEMBER_NAME_CHECKED(UGroomAsset, EnableGlobalInterpolation)
-		|| PropertyName == GET_MEMBER_NAME_CHECKED(UGroomAsset, EnableSimulationCache)
+		|| PropertyName == UGroomAsset::GetEnableGlobalInterpolationMemberName()
+		|| PropertyName == UGroomAsset::GetEnableSimulationCacheMemberName()
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairSolverSettings, EnableSimulation)
 
 		// Decimation control needs to force a rebuild
@@ -1566,7 +1566,7 @@ static bool IsStrandsLODAttributes(const FName PropertyName)
 {
 	return
 		// LOD count needs for cluster rebuilding
-		PropertyName == GET_MEMBER_NAME_CHECKED(UGroomAsset, HairGroupsLOD)
+		PropertyName == UGroomAsset::GetHairGroupsLODMemberName()
 
 		// LOD groups needs for cluster rebuilding
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupsLOD, ClusterWorldSize)
@@ -1596,12 +1596,12 @@ static bool IsRiggingSettings(const FName PropertyName)
 
 static bool IsCardsAttributes(const FName PropertyName)
 {
-	return PropertyName == GET_MEMBER_NAME_CHECKED(UGroomAsset, HairGroupsCards);
+	return PropertyName == UGroomAsset::GetHairGroupsCardsMemberName();
 }
 
 static bool IsMeshesAttributes(const FName PropertyName)
 {
-	return PropertyName == GET_MEMBER_NAME_CHECKED(UGroomAsset, HairGroupsMeshes);
+	return PropertyName == UGroomAsset::GetHairGroupsMeshesMemberName();
 }
 
 void UGroomAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -1614,19 +1614,19 @@ void UGroomAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 	if (bGeometryTypeChanged)
 	{
 		// If the asset didn't have any mesh or cards, we need to create/allocate the cards/mesh groups
-		const uint32 GroupCount = HairGroupsPlatformData.Num();
-		if (IsHairStrandsEnabled(EHairStrandsShaderType::Cards) && HasGeometryType(EGroomGeometryType::Cards) && HairGroupsCards.Num() == 0)
+		const uint32 GroupCount = GetHairGroupsPlatformData().Num();
+		if (IsHairStrandsEnabled(EHairStrandsShaderType::Cards) && HasGeometryType(EGroomGeometryType::Cards) && GetHairGroupsCards().Num() == 0)
 		{
-			HairGroupsCards.Init(FHairGroupsCardsSourceDescription(), GroupCount);
+			GetHairGroupsCards().Init(FHairGroupsCardsSourceDescription(), GroupCount);
 			FHairGroupsCardsSourceDescription Dirty;
 			Dirty.ProceduralSettings.ClusterSettings.ClusterDecimation = 0;
 			Dirty.SourceType = HasImportedStrandsData() ? EHairCardsSourceType::Procedural : EHairCardsSourceType::Imported;
 			CachedHairGroupsCards.Init(Dirty, GroupCount);
 		}
 
-		if (IsHairStrandsEnabled(EHairStrandsShaderType::Meshes) && HasGeometryType(EGroomGeometryType::Meshes) && HairGroupsMeshes.Num() == 0)
+		if (IsHairStrandsEnabled(EHairStrandsShaderType::Meshes) && HasGeometryType(EGroomGeometryType::Meshes) && GetHairGroupsMeshes().Num() == 0)
 		{
-			HairGroupsMeshes.Init(FHairGroupsMeshesSourceDescription(), GroupCount);
+			GetHairGroupsMeshes().Init(FHairGroupsMeshesSourceDescription(), GroupCount);
 			FHairGroupsMeshesSourceDescription Dirty;
 			Dirty.ImportedMesh = nullptr;
 			CachedHairGroupsMeshes.Init(Dirty, GroupCount);
@@ -1644,10 +1644,10 @@ void UGroomAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 		CacheDerivedDatas();
 	}
 	
-	const bool bCardsArrayChanged = PropertyName == GET_MEMBER_NAME_CHECKED(UGroomAsset, HairGroupsCards);
+	const bool bCardsArrayChanged = PropertyName == UGroomAsset::GetHairGroupsCardsMemberName();
 	if (bCardsArrayChanged && PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayAdd)
 	{
-		HairGroupsCards.Last().SourceType = HasImportedStrandsData() ? EHairCardsSourceType::Procedural : EHairCardsSourceType::Imported;
+		GetHairGroupsCards().Last().SourceType = HasImportedStrandsData() ? EHairCardsSourceType::Procedural : EHairCardsSourceType::Imported;
 	}
 
 	SavePendingProceduralAssets();
@@ -1678,13 +1678,13 @@ void UGroomAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 	if (bRiggingChanged)
 	{
 		bool bUpdateRiggedMesh = false;
-		for (const FHairGroupsInterpolation& Interpolation : HairGroupsInterpolation)
+		for (const FHairGroupsInterpolation& Interpolation : GetHairGroupsInterpolation())
 		{
 			bUpdateRiggedMesh |= Interpolation.InterpolationSettings.GuideType == EGroomGuideType::Rigged;
 		}
 		if (bUpdateRiggedMesh)
 		{
-			RiggedSkeletalMesh = FGroomDeformerBuilder::CreateSkeletalMesh(this);
+			SetRiggedSkeletalMesh(FGroomDeformerBuilder::CreateSkeletalMesh(this));
 		}
 	}
 
@@ -1733,7 +1733,7 @@ void UGroomAsset::PostInitProperties()
 
 int32 UGroomAsset::GetNumHairGroups() const
 {
-	return HairGroupsPlatformData.Num();
+	return GetHairGroupsPlatformData().Num();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1957,13 +1957,13 @@ bool UGroomAsset::CanRebuildFromDescription() const
 
 bool UGroomAsset::AreGroupsValid() const
 {
-	const uint32 GroupCount = HairGroupsInterpolation.Num();
+	const uint32 GroupCount = GetHairGroupsInterpolation().Num();
 	return
 		GroupCount > 0 &&
-		HairGroupsPlatformData.Num() == GroupCount &&
-		HairGroupsPhysics.Num() == GroupCount &&
-		HairGroupsRendering.Num() == GroupCount &&
-		HairGroupsLOD.Num() == GroupCount;
+		GetHairGroupsPlatformData().Num() == GroupCount &&
+		GetHairGroupsPhysics().Num() == GroupCount &&
+		GetHairGroupsRendering().Num() == GroupCount &&
+		GetHairGroupsLOD().Num() == GroupCount;
 }
 
 void UGroomAsset::SetNumGroup(uint32 InGroupCount, bool bResetGroupData, bool bResetOtherData)
@@ -1971,64 +1971,64 @@ void UGroomAsset::SetNumGroup(uint32 InGroupCount, bool bResetGroupData, bool bR
 	ReleaseResource();
 	if (bResetGroupData)
 	{
-		HairGroupsPlatformData.Reset();
+		GetHairGroupsPlatformData().Reset();
 	}
 
 	// In order to preserve the existing asset settings, the settings are only reset if the group count has changed.
-	if (InGroupCount != HairGroupsPlatformData.Num())
+	if (InGroupCount != GetHairGroupsPlatformData().Num())
 	{
-		HairGroupsPlatformData.Init(FHairGroupPlatformData(), InGroupCount);
+		GetHairGroupsPlatformData().Init(FHairGroupPlatformData(), InGroupCount);
 	}
 
-	if (InGroupCount != HairGroupsPhysics.Num())
+	if (InGroupCount != GetHairGroupsPhysics().Num())
 	{
 		if (bResetOtherData)
 		{
-			HairGroupsPhysics.Init(FHairGroupsPhysics(), InGroupCount);
+			GetHairGroupsPhysics().Init(FHairGroupsPhysics(), InGroupCount);
 		}
 		else
 		{
-			HairGroupsPhysics.SetNum(InGroupCount);
+			GetHairGroupsPhysics().SetNum(InGroupCount);
 		}
 	}
 
-	if (InGroupCount != HairGroupsRendering.Num())
+	if (InGroupCount != GetHairGroupsRendering().Num())
 	{
 		if (bResetOtherData)
 		{
-			HairGroupsRendering.Init(FHairGroupsRendering(), InGroupCount);
+			GetHairGroupsRendering().Init(FHairGroupsRendering(), InGroupCount);
 		}
 		else
 		{
-			HairGroupsRendering.SetNum(InGroupCount);
+			GetHairGroupsRendering().SetNum(InGroupCount);
 		}
 	}
 
-	if (InGroupCount != HairGroupsInterpolation.Num())
+	if (InGroupCount != GetHairGroupsInterpolation().Num())
 	{
 		if (bResetOtherData)
 		{
-			HairGroupsInterpolation.Init(FHairGroupsInterpolation(), InGroupCount);
+			GetHairGroupsInterpolation().Init(FHairGroupsInterpolation(), InGroupCount);
 		}
 		else
 		{
-			HairGroupsInterpolation.SetNum(InGroupCount);
+			GetHairGroupsInterpolation().SetNum(InGroupCount);
 		}
 	}
 
-	if (InGroupCount != HairGroupsLOD.Num())
+	if (InGroupCount != GetHairGroupsLOD().Num())
 	{
 		if (bResetOtherData)
 		{
-			HairGroupsLOD.Init(FHairGroupsLOD(), InGroupCount);
+			GetHairGroupsLOD().Init(FHairGroupsLOD(), InGroupCount);
 		}
 		else
 		{
-			HairGroupsLOD.SetNum(InGroupCount);
+			GetHairGroupsLOD().SetNum(InGroupCount);
 		}
 
 		// Insure that each group has at least one LOD
-		for (FHairGroupsLOD& GroupLOD : HairGroupsLOD)
+		for (FHairGroupsLOD& GroupLOD : GetHairGroupsLOD())
 		{
 			if (GroupLOD.LODs.IsEmpty())
 			{
@@ -2039,24 +2039,24 @@ void UGroomAsset::SetNumGroup(uint32 InGroupCount, bool bResetGroupData, bool bR
 		}
 	}
 
-	if (InGroupCount != HairGroupsInfo.Num())
+	if (InGroupCount != GetHairGroupsInfo().Num())
 	{
 		if (bResetOtherData)
 		{
-			HairGroupsInfo.Init(FHairGroupInfoWithVisibility(), InGroupCount);
+			GetHairGroupsInfo().Init(FHairGroupInfoWithVisibility(), InGroupCount);
 		}
 		else
 		{
-			HairGroupsInfo.SetNum(InGroupCount);
+			GetHairGroupsInfo().SetNum(InGroupCount);
 		}
 	}
 
 	// The following groups remain unchanged:
 	// * HairGroupsCards
-	// * HairGroupsMeshes
-	// * HairGroupsMaterials
+	// * GetHairGroupsMeshes()
+	// * GetHairGroupsMaterials()
 
-	EffectiveLODBias.SetNum(InGroupCount);
+	GetEffectiveLODBias().SetNum(InGroupCount);
 
 #if WITH_EDITORONLY_DATA
 	StrandsDerivedDataKey.SetNum(InGroupCount);
@@ -2067,7 +2067,7 @@ void UGroomAsset::SetNumGroup(uint32 InGroupCount, bool bResetGroupData, bool bR
 
 void UGroomAsset::SetStableRasterization(bool bEnable)
 {
-	for (FHairGroupsRendering& Group : HairGroupsRendering)
+	for (FHairGroupsRendering& Group : GetHairGroupsRendering())
 	{
 		Group.AdvancedSettings.bUseStableRasterization = bEnable;
 	}
@@ -2075,7 +2075,7 @@ void UGroomAsset::SetStableRasterization(bool bEnable)
 
 void UGroomAsset::SetScatterSceneLighting(bool bEnable)
 {
-	for (FHairGroupsRendering& Group : HairGroupsRendering)
+	for (FHairGroupsRendering& Group : GetHairGroupsRendering())
 	{
 		Group.AdvancedSettings.bScatterSceneLighting = bEnable;
 	}
@@ -2083,7 +2083,7 @@ void UGroomAsset::SetScatterSceneLighting(bool bEnable)
 
 void UGroomAsset::SetHairWidth(float Width)
 {
-	for (FHairGroupsRendering& Group : HairGroupsRendering)
+	for (FHairGroupsRendering& Group : GetHairGroupsRendering())
 	{
 		Group.GeometrySettings.HairWidth = Width;
 	}
@@ -2131,7 +2131,7 @@ namespace GroomDerivedDataCacheUtils
 			return FString();
 		}
 
-		if (Desc.GroupIndex >= GroomAsset->HairGroupsPlatformData.Num() || Desc.LODIndex >= GroomAsset->HairGroupsPlatformData[Desc.GroupIndex].Cards.LODs.Num())
+		if (Desc.GroupIndex >= GroomAsset->GetHairGroupsPlatformData().Num() || Desc.LODIndex >= GroomAsset->GetHairGroupsPlatformData()[Desc.GroupIndex].Cards.LODs.Num())
 		{
 			return FString();
 		}
@@ -2305,7 +2305,7 @@ bool UGroomAsset::IsFullyCached()
 {
 	// Check if all the groom derived data for strands, cards and meshes are already stored in the DDC
 	TArray<FString> CacheKeys;
-	const uint32 GroupCount = HairGroupsInterpolation.Num();
+	const uint32 GroupCount = GetHairGroupsInterpolation().Num();
 	for (uint32 GroupIndex = 0; GroupIndex < GroupCount; ++GroupIndex)
 	{
 		const FString StrandsDDCKey = UGroomAsset::GetDerivedDataKeyForStrands(GroupIndex);
@@ -2314,17 +2314,17 @@ bool UGroomAsset::IsFullyCached()
 		// Some cards and meshes LOD settings may not produce any derived data so those must be excluded
 		bool bHasCardsLODs = false;
 		bool bHasMeshesLODs = false;
-		const uint32 LODCount = HairGroupsLOD[GroupIndex].LODs.Num();
+		const uint32 LODCount = GetHairGroupsLOD()[GroupIndex].LODs.Num();
 		for (uint32 LODIt = 0; LODIt < LODCount; ++LODIt)
 		{
 			int32 SourceIt = 0;
 			// GetSourceDescription will cross-check the LOD settings with the cards/meshes settings to see if they would produce any data
-			if (const FHairGroupsCardsSourceDescription* Desc = GetSourceDescription(HairGroupsCards, GroupIndex, LODIt, SourceIt))
+			if (const FHairGroupsCardsSourceDescription* Desc = GetSourceDescription(GetHairGroupsCards(), GroupIndex, LODIt, SourceIt))
 			{
 				Desc->HasMeshChanged(); // this query will trigger a load of the mesh dependency, which has to be done in the game thread
 				bHasCardsLODs = true;
 			}
-			if (const FHairGroupsMeshesSourceDescription* Desc = GetSourceDescription(HairGroupsMeshes, GroupIndex, LODIt, SourceIt))
+			if (const FHairGroupsMeshesSourceDescription* Desc = GetSourceDescription(GetHairGroupsMeshes(), GroupIndex, LODIt, SourceIt))
 			{
 				Desc->HasMeshChanged(); // this query will trigger a load of the mesh dependency, which has to be done in the game thread
 				bHasMeshesLODs = true;
@@ -2333,14 +2333,14 @@ bool UGroomAsset::IsFullyCached()
 
 		if (bHasCardsLODs)
 		{
-			const FString CardsKeySuffix = GroomDerivedDataCacheUtils::BuildCardsDerivedDataKeySuffix(GroupIndex, HairGroupsLOD[GroupIndex].LODs, HairGroupsCards);
+			const FString CardsKeySuffix = GroomDerivedDataCacheUtils::BuildCardsDerivedDataKeySuffix(GroupIndex, GetHairGroupsLOD()[GroupIndex].LODs, GetHairGroupsCards());
 			const FString CardsDDCKey = StrandsDDCKey + CardsKeySuffix;
 			CacheKeys.Add(CardsDDCKey);
 		}
 
 		if (bHasMeshesLODs)
 		{
-			const FString MeshesKeySuffix = GroomDerivedDataCacheUtils::BuildMeshesDerivedDataKeySuffix(GroupIndex, HairGroupsLOD[GroupIndex].LODs, HairGroupsMeshes);
+			const FString MeshesKeySuffix = GroomDerivedDataCacheUtils::BuildMeshesDerivedDataKeySuffix(GroupIndex, GetHairGroupsLOD()[GroupIndex].LODs, GetHairGroupsMeshes());
 			const FString MeshesDDCKey = GroomDerivedDataCacheUtils::BuildGroomDerivedDataKey(MeshesKeySuffix);
 			CacheKeys.Add(MeshesDDCKey);
 		}
@@ -2370,22 +2370,22 @@ FString UGroomAsset::GetDerivedDataKey(bool bUseStrandCachedKey)
 
 FString UGroomAsset::GetDerivedDataKeyForCards(uint32 GroupIndex, const FString& StrandsKey)
 {
-	const FString KeySuffix = GroomDerivedDataCacheUtils::BuildCardsDerivedDataKeySuffix(GroupIndex, HairGroupsLOD[GroupIndex].LODs, HairGroupsCards);
+	const FString KeySuffix = GroomDerivedDataCacheUtils::BuildCardsDerivedDataKeySuffix(GroupIndex, GetHairGroupsLOD()[GroupIndex].LODs, GetHairGroupsCards());
 	const FString DerivedDataKey = StrandsKey + KeySuffix;
 	return DerivedDataKey;
 }
 
 FString UGroomAsset::GetDerivedDataKeyForMeshes(uint32 GroupIndex)
 {
-	const FString KeySuffix = GroomDerivedDataCacheUtils::BuildMeshesDerivedDataKeySuffix(GroupIndex, HairGroupsLOD[GroupIndex].LODs, HairGroupsMeshes);
+	const FString KeySuffix = GroomDerivedDataCacheUtils::BuildMeshesDerivedDataKeySuffix(GroupIndex, GetHairGroupsLOD()[GroupIndex].LODs, GetHairGroupsMeshes());
 	const FString DerivedDataKey = GroomDerivedDataCacheUtils::BuildGroomDerivedDataKey(KeySuffix);
 	return DerivedDataKey;
 }
 
 FString UGroomAsset::GetDerivedDataKeyForStrands(uint32 GroupIndex)
 {
-	const FHairGroupsInterpolation& InterpolationSettings = HairGroupsInterpolation[GroupIndex];
-	const FHairGroupsLOD& LODSettings = HairGroupsLOD[GroupIndex];
+	const FHairGroupsInterpolation& InterpolationSettings = GetHairGroupsInterpolation()[GroupIndex];
+	const FHairGroupsLOD& LODSettings = GetHairGroupsLOD()[GroupIndex];
 
 	// If simulation or global interpolation is enabled, then interpolation data are required. Otherwise they can be skipped
 	const bool bNeedInterpolationData = NeedsInterpolationData(GroupIndex);
@@ -2450,7 +2450,7 @@ bool UGroomAsset::CacheDerivedDatas()
 	const bool bIsGameThread = IsInGameThread();
 	FGroomComponentRecreateRenderStateContext RecreateContext(bIsGameThread ? this : nullptr);
 
-	const uint32 GroupCount = HairGroupsInterpolation.Num();
+	const uint32 GroupCount = GetHairGroupsInterpolation().Num();
 	for (uint32 GroupIndex = 0; GroupIndex < GroupCount; ++GroupIndex)
 	{
 		bool bSucceed = CacheDerivedData(GroupIndex);
@@ -2476,7 +2476,7 @@ bool UGroomAsset::CacheDerivedData(uint32 GroupIndex)
 		return false;
 	}
 
-	const uint32 GroupCount = HairGroupsInterpolation.Num();
+	const uint32 GroupCount = GetHairGroupsInterpolation().Num();
 	check(GroupIndex < GroupCount);
 	if (GroupIndex >= GroupCount)
 	{
@@ -2500,7 +2500,7 @@ bool UGroomAsset::CacheStrandsData(uint32 GroupIndex, FString& OutDerivedDataKey
 	{
 		// Groom having only cards/meshes (i.e., not containing imported strands) don't have hair description
 		bool bHasStrands = false;
-		for (const FHairLODSettings& LOD : HairGroupsLOD[GroupIndex].LODs)
+		for (const FHairLODSettings& LOD : GetHairGroupsLOD()[GroupIndex].LODs)
 		{
 			if (LOD.GeometryType == EGroomGeometryType::Strands)
 			{
@@ -2539,7 +2539,7 @@ bool UGroomAsset::CacheStrandsData(uint32 GroupIndex, FString& OutDerivedDataKey
 		In.Strands.ClusterCullingBulkData.DerivedDataKey = DerivedDataKey + FString(TEXT("_ClusterCullingData"));
 	};
 
-	FHairGroupPlatformData& PlatformData = HairGroupsPlatformData[GroupIndex];
+	FHairGroupPlatformData& PlatformData = GetHairGroupsPlatformData()[GroupIndex];
 
 	bool bSuccess = true;
 	if (Data)
@@ -2579,10 +2579,10 @@ bool UGroomAsset::CacheStrandsData(uint32 GroupIndex, FString& OutDerivedDataKey
 			GroupIndex,
 			NeedsInterpolationData(GroupIndex),
 			LocalHairDescriptionGroups,
-			HairGroupsInterpolation,
-			HairGroupsLOD,
-			HairGroupsInfo,
-			HairGroupsPlatformData);
+			GetHairGroupsInterpolation(),
+			GetHairGroupsLOD(),
+			GetHairGroupsInfo(),
+			GetHairGroupsPlatformData());
 		
 		if (bSuccess)
 		{
@@ -2641,14 +2641,14 @@ bool UGroomAsset::CacheStrandsData(uint32 GroupIndex, FString& OutDerivedDataKey
 
 bool UGroomAsset::HasValidMeshesData(uint32 GroupIndex) const
 {
-	const FHairGroupPlatformData& HairGroupData = HairGroupsPlatformData[GroupIndex];
-	const FHairGroupsLOD& GroupsLOD = HairGroupsLOD[GroupIndex];
+	const FHairGroupPlatformData& HairGroupData = GetHairGroupsPlatformData()[GroupIndex];
+	const FHairGroupsLOD& GroupsLOD = GetHairGroupsLOD()[GroupIndex];
 	for (int32 LODIt = 0; LODIt < GroupsLOD.LODs.Num(); ++LODIt)
 	{
 		if (GroupsLOD.LODs[LODIt].GeometryType == EGroomGeometryType::Meshes)
 		{
 			int32 SourceIt = 0;
-			if (const FHairGroupsMeshesSourceDescription* Desc = GetSourceDescription(HairGroupsMeshes, GroupIndex, LODIt, SourceIt))
+			if (const FHairGroupsMeshesSourceDescription* Desc = GetSourceDescription(GetHairGroupsMeshes(), GroupIndex, LODIt, SourceIt))
 			{
 				if (Desc->ImportedMesh)
 				{
@@ -2662,15 +2662,15 @@ bool UGroomAsset::HasValidMeshesData(uint32 GroupIndex) const
 
 bool UGroomAsset::HasValidCardsData(uint32 GroupIndex) const
 {
-	const FHairGroupPlatformData& HairGroupData = HairGroupsPlatformData[GroupIndex];
-	const FHairGroupsLOD& GroupsLOD = HairGroupsLOD[GroupIndex];
+	const FHairGroupPlatformData& HairGroupData = GetHairGroupsPlatformData()[GroupIndex];
+	const FHairGroupsLOD& GroupsLOD = GetHairGroupsLOD()[GroupIndex];
 	for (int32 LODIt = 0; LODIt < GroupsLOD.LODs.Num(); ++LODIt)
 	{
 		// Note: We don't condition/filter resource allocation based on GeometryType == EGroomGeometryType::Cards, because 
 		// geometry type can be switched at runtime (between cards/strands)
 		{
 			int32 SourceIt = 0;
-			if (const FHairGroupsCardsSourceDescription* Desc = GetSourceDescription(HairGroupsCards, GroupIndex, LODIt, SourceIt))
+			if (const FHairGroupsCardsSourceDescription* Desc = GetSourceDescription(GetHairGroupsCards(), GroupIndex, LODIt, SourceIt))
 			{
 				if (Desc->GetMesh())
 				{
@@ -2693,7 +2693,7 @@ bool UGroomAsset::CacheCardsData(uint32 GroupIndex, const FString& StrandsKey)
 		return bNeedReset;
 	}
 
-	const FString KeySuffix = GroomDerivedDataCacheUtils::BuildCardsDerivedDataKeySuffix(GroupIndex, HairGroupsLOD[GroupIndex].LODs, HairGroupsCards);
+	const FString KeySuffix = GroomDerivedDataCacheUtils::BuildCardsDerivedDataKeySuffix(GroupIndex, GetHairGroupsLOD()[GroupIndex].LODs, GetHairGroupsCards());
 	const FString DerivedDataKey = StrandsKey + KeySuffix;
 
 	if (CardsDerivedDataKey[GroupIndex] == DerivedDataKey)
@@ -2702,17 +2702,17 @@ bool UGroomAsset::CacheCardsData(uint32 GroupIndex, const FString& StrandsKey)
 		return false;
 	}
 
-	FHairGroupPlatformData& HairGroupData = HairGroupsPlatformData[GroupIndex];
+	FHairGroupPlatformData& HairGroupData = GetHairGroupsPlatformData()[GroupIndex];
 
 	// We should never query the DDC for something that we won't be able to build. So check that first.
 	// The goal is to avoid paying the price of a guaranteed failure on high-latency DDC backends every run.
 	bool bDataCanBeBuilt = false;
 
-	const FHairGroupsLOD& GroupsLOD = HairGroupsLOD[GroupIndex];
+	const FHairGroupsLOD& GroupsLOD = GetHairGroupsLOD()[GroupIndex];
 	for (int32 LODIt = 0; LODIt < GroupsLOD.LODs.Num(); ++LODIt)
 	{
 		int32 SourceIt = 0;
-		if (FHairGroupsCardsSourceDescription* Desc = GetSourceDescription(HairGroupsCards, GroupIndex, LODIt, SourceIt))
+		if (FHairGroupsCardsSourceDescription* Desc = GetSourceDescription(GetHairGroupsCards(), GroupIndex, LODIt, SourceIt))
 		{
 			// Note: We don't condition/filter resource allocation based on GeometryType == EGroomGeometryType::Cards, because 
 			// geometry type can be switched at runtime (between cards/strands)
@@ -2772,13 +2772,13 @@ bool UGroomAsset::CacheCardsData(uint32 GroupIndex, const FString& StrandsKey)
 
 	// Handle the case where the cards data is already cached in the DDC
 	// Need to populate the strands data with it
-	FHairGroupPlatformData& GroupData = HairGroupsPlatformData[GroupIndex];
+	FHairGroupPlatformData& GroupData = GetHairGroupsPlatformData()[GroupIndex];
 	if (StrandsDerivedDataKey[GroupIndex].IsEmpty() && GroupData.Strands.BulkData.GetNumPoints() == 0)
 	{
 		for (int32 LODIt = 0; LODIt < GroupData.Cards.LODs.Num(); ++LODIt)
 		{
 			int32 SourceIt = 0;
-			if (FHairGroupsCardsSourceDescription* Desc = GetSourceDescription(HairGroupsCards, GroupIndex, LODIt, SourceIt))
+			if (FHairGroupsCardsSourceDescription* Desc = GetSourceDescription(GetHairGroupsCards(), GroupIndex, LODIt, SourceIt))
 			{
 				FHairGroupPlatformData::FCards::FLOD& LOD = GroupData.Cards.LODs[LODIt];
 				GroupData.Strands.BulkData = LOD.Guides.BulkData;
@@ -2792,7 +2792,7 @@ bool UGroomAsset::CacheCardsData(uint32 GroupIndex, const FString& StrandsKey)
 	for (int32 LODIt = 0; LODIt < GroupData.Cards.LODs.Num(); ++LODIt)
 	{
 		int32 SourceIt = 0;
-		if (FHairGroupsCardsSourceDescription* Desc = GetSourceDescription(HairGroupsCards, GroupIndex, LODIt, SourceIt))
+		if (FHairGroupsCardsSourceDescription* Desc = GetSourceDescription(GetHairGroupsCards(), GroupIndex, LODIt, SourceIt))
 		{
 			Desc->UpdateMeshKey();
 		}
@@ -2814,7 +2814,7 @@ bool UGroomAsset::CacheMeshesData(uint32 GroupIndex)
 		return bNeedReset;
 	}
 
-	const FString KeySuffix = GroomDerivedDataCacheUtils::BuildMeshesDerivedDataKeySuffix(GroupIndex, HairGroupsLOD[GroupIndex].LODs, HairGroupsMeshes);
+	const FString KeySuffix = GroomDerivedDataCacheUtils::BuildMeshesDerivedDataKeySuffix(GroupIndex, GetHairGroupsLOD()[GroupIndex].LODs, GetHairGroupsMeshes());
 	const FString DerivedDataKey = GroomDerivedDataCacheUtils::BuildGroomDerivedDataKey(KeySuffix);
 
 	if (MeshesDerivedDataKey[GroupIndex] == DerivedDataKey)
@@ -2823,17 +2823,17 @@ bool UGroomAsset::CacheMeshesData(uint32 GroupIndex)
 		return false;
 	}
 
-	FHairGroupPlatformData& HairGroupData = HairGroupsPlatformData[GroupIndex];
+	FHairGroupPlatformData& HairGroupData = GetHairGroupsPlatformData()[GroupIndex];
 
 	// We should never query the DDC for something that we won't be able to build. So check that first.
 	// The goal is to avoid paying the price of a guaranteed failure on high-latency DDC backends every run.
 	bool bDataCanBeBuilt = false;
 
-	const FHairGroupsLOD& GroupsLOD = HairGroupsLOD[GroupIndex];
+	const FHairGroupsLOD& GroupsLOD = GetHairGroupsLOD()[GroupIndex];
 	for (int32 LODIt = 0; LODIt < GroupsLOD.LODs.Num(); ++LODIt)
 	{
 		int32 SourceIt = 0;
-		if (FHairGroupsMeshesSourceDescription* Desc = GetSourceDescription(HairGroupsMeshes, GroupIndex, LODIt, SourceIt))
+		if (FHairGroupsMeshesSourceDescription* Desc = GetSourceDescription(GetHairGroupsMeshes(), GroupIndex, LODIt, SourceIt))
 		{
 			if (GroupsLOD.LODs[LODIt].GeometryType == EGroomGeometryType::Meshes)
 			{
@@ -2895,24 +2895,24 @@ bool UGroomAsset::BuildCardsData(uint32 GroupIndex)
 {
 	LLM_SCOPE_BYTAG(Groom);
 
-	if (!IsHairStrandsEnabled(EHairStrandsShaderType::Cards) || HairGroupsCards.Num() == 0 || !CanRebuildFromDescription())
+	if (!IsHairStrandsEnabled(EHairStrandsShaderType::Cards) || GetHairGroupsCards().Num() == 0 || !CanRebuildFromDescription())
 	{
 		return false;
 	}
 
-	bool bHasChanged = HairGroupsCards.Num() != CachedHairGroupsCards.Num();
+	bool bHasChanged = GetHairGroupsCards().Num() != CachedHairGroupsCards.Num();
 
 	check(GroupIndex < uint32(GetNumHairGroups()));
-	FHairGroupPlatformData& GroupData = HairGroupsPlatformData[GroupIndex];
+	FHairGroupPlatformData& GroupData = GetHairGroupsPlatformData()[GroupIndex];
 
 	// The settings might have been previously cached without the data having been built
-	const uint32 LODCount = HairGroupsLOD[GroupIndex].LODs.Num();
+	const uint32 LODCount = GetHairGroupsLOD()[GroupIndex].LODs.Num();
 	TArray<bool> bIsAlreadyBuilt;
 	bIsAlreadyBuilt.SetNum(LODCount);
 	for (uint32 LODIt = 0; LODIt < LODCount; ++LODIt)
 	{
 		int32 SourceIt = 0;
-		if (const FHairGroupsCardsSourceDescription* Desc = GetSourceDescription(HairGroupsCards, GroupIndex, LODIt, SourceIt))
+		if (const FHairGroupsCardsSourceDescription* Desc = GetSourceDescription(GetHairGroupsCards(), GroupIndex, LODIt, SourceIt))
 		{
 			bIsAlreadyBuilt[LODIt] = GroupData.Strands.HasValidData() && Desc->CardsInfo.NumCardVertices > 0 && !Desc->HasMeshChanged();
 			bHasChanged |= !bIsAlreadyBuilt[LODIt];
@@ -2921,9 +2921,9 @@ bool UGroomAsset::BuildCardsData(uint32 GroupIndex)
 
 	if (!bHasChanged)
 	{
-		for (uint32 SourceIt = 0, SourceCount = HairGroupsCards.Num(); SourceIt < SourceCount; ++SourceIt)
+		for (uint32 SourceIt = 0, SourceCount = GetHairGroupsCards().Num(); SourceIt < SourceCount; ++SourceIt)
 		{
-			const bool bEquals = CachedHairGroupsCards[SourceIt] == HairGroupsCards[SourceIt];
+			const bool bEquals = CachedHairGroupsCards[SourceIt] == GetHairGroupsCards()[SourceIt];
 			if (!bEquals)
 			{
 				bHasChanged = true;
@@ -2934,7 +2934,7 @@ bool UGroomAsset::BuildCardsData(uint32 GroupIndex)
 				// content is up to date with what has been saved.
 				if (IsInGameThread())
 				{
-					FHairGroupCardsTextures& Textures = HairGroupsCards[SourceIt].Textures;
+					FHairGroupCardsTextures& Textures = GetHairGroupsCards()[SourceIt].Textures;
 					if (Textures.DepthTexture != nullptr)		Textures.DepthTexture->UpdateResource();
 					if (Textures.TangentTexture != nullptr)		Textures.TangentTexture->UpdateResource();
 					if (Textures.AttributeTexture != nullptr)	Textures.AttributeTexture->UpdateResource();
@@ -2953,11 +2953,11 @@ bool UGroomAsset::BuildCardsData(uint32 GroupIndex)
 
 	bool bDataBuilt = false;
 	GroupData.Cards.LODs.SetNum(LODCount);
-	const FHairGroupsLOD& GroupsLOD = HairGroupsLOD[GroupIndex];
+	const FHairGroupsLOD& GroupsLOD = GetHairGroupsLOD()[GroupIndex];
 	for (uint32 LODIt = 0; LODIt < LODCount; ++LODIt)
 	{
 		int32 SourceIt = 0;
-		if (FHairGroupsCardsSourceDescription* Desc = GetSourceDescription(HairGroupsCards, GroupIndex, LODIt, SourceIt))
+		if (FHairGroupsCardsSourceDescription* Desc = GetSourceDescription(GetHairGroupsCards(), GroupIndex, LODIt, SourceIt))
 		{
 			// #hair_todo: add finer culling granularity to rebuild only what is necessary
 			const FHairGroupsCardsSourceDescription* CachedDesc = SourceIt < CachedHairGroupsCards.Num() ? &CachedHairGroupsCards[SourceIt] : nullptr;
@@ -3051,7 +3051,7 @@ bool UGroomAsset::BuildCardsData(uint32 GroupIndex)
 
 				// Create own interpolation settings for cards.
 				// Force closest guides as this is the most relevant matching metric for cards, due to their coarse geometry
-				FHairInterpolationSettings CardsInterpolationSettings = HairGroupsInterpolation[GroupIndex].InterpolationSettings;
+				FHairInterpolationSettings CardsInterpolationSettings = GetHairGroupsInterpolation()[GroupIndex].InterpolationSettings;
 				CardsInterpolationSettings.GuideType = EGroomGuideType::Imported;
 				CardsInterpolationSettings.bUseUniqueGuide = true;
 				CardsInterpolationSettings.bRandomizeGuide = false;
@@ -3078,7 +3078,7 @@ bool UGroomAsset::BuildCardsData(uint32 GroupIndex)
 				check(LocalHairDescriptionGroups.IsValid());
 				FHairStrandsDatas SimGuidesData;
 				FHairStrandsDatas RenStrandsData; // Dummy, not used
-				FGroomBuilder::BuildData(LocalHairDescriptionGroups.HairGroups[GroupIndex], HairGroupsInterpolation[GroupIndex], DummyInfo, RenStrandsData, SimGuidesData);
+				FGroomBuilder::BuildData(LocalHairDescriptionGroups.HairGroups[GroupIndex], GetHairGroupsInterpolation()[GroupIndex], DummyInfo, RenStrandsData, SimGuidesData);
 
 				// 3. Compute interpolation data & bulk data between the sim guides and the cards guides
 				FHairStrandsInterpolationDatas LODGuideInterpolationData;
@@ -3118,7 +3118,7 @@ bool UGroomAsset::BuildCardsData()
 		InitGuideResources();
 
 		// When building cards in an empty groom, the strands resources need to be initialized once
-		FHairGroupPlatformData& GroupData = HairGroupsPlatformData[0];
+		FHairGroupPlatformData& GroupData = GetHairGroupsPlatformData()[0];
 		if (!GroupData.Strands.ClusterCullingResource)
 		{
 			InitStrandsResources();
@@ -3148,23 +3148,23 @@ bool UGroomAsset::BuildMeshesData()
 
 bool UGroomAsset::BuildMeshesData(uint32 GroupIndex)
 {
-	if (!IsHairStrandsEnabled(EHairStrandsShaderType::Meshes) || HairGroupsMeshes.Num() == 0)
+	if (!IsHairStrandsEnabled(EHairStrandsShaderType::Meshes) || GetHairGroupsMeshes().Num() == 0)
 	{
 		return false;
 	}
 
-	bool bHasChanged = HairGroupsMeshes.Num() != CachedHairGroupsMeshes.Num();
+	bool bHasChanged = GetHairGroupsMeshes().Num() != CachedHairGroupsMeshes.Num();
 
-	FHairGroupPlatformData& GroupData = HairGroupsPlatformData[GroupIndex];
+	FHairGroupPlatformData& GroupData = GetHairGroupsPlatformData()[GroupIndex];
 
 	// The settings might have been previously cached without the data having been built
-	const uint32 LODCount = HairGroupsLOD[GroupIndex].LODs.Num();
+	const uint32 LODCount = GetHairGroupsLOD()[GroupIndex].LODs.Num();
 	TArray<bool> bIsAlreadyBuilt;
 	bIsAlreadyBuilt.SetNum(LODCount);
 	for (uint32 LODIt = 0; LODIt < LODCount; ++LODIt)
 	{
 		int32 SourceIt = 0;
-		if (const FHairGroupsMeshesSourceDescription* Desc = GetSourceDescription(HairGroupsMeshes, GroupIndex, LODIt, SourceIt))
+		if (const FHairGroupsMeshesSourceDescription* Desc = GetSourceDescription(GetHairGroupsMeshes(), GroupIndex, LODIt, SourceIt))
 		{
 			bIsAlreadyBuilt[LODIt] = GroupData.Meshes.LODs.IsValidIndex(LODIt) && GroupData.Meshes.LODs[LODIt].BulkData.GetNumVertices() > 0 && !Desc->HasMeshChanged();
 			bHasChanged |= !bIsAlreadyBuilt[LODIt];
@@ -3173,9 +3173,9 @@ bool UGroomAsset::BuildMeshesData(uint32 GroupIndex)
 
 	if (!bHasChanged)
 	{
-		for (uint32 SourceIt = 0, SourceCount = HairGroupsMeshes.Num(); SourceIt < SourceCount; ++SourceIt)
+		for (uint32 SourceIt = 0, SourceCount = GetHairGroupsMeshes().Num(); SourceIt < SourceCount; ++SourceIt)
 		{
-			const bool bEquals = CachedHairGroupsMeshes[SourceIt] == HairGroupsMeshes[SourceIt];
+			const bool bEquals = CachedHairGroupsMeshes[SourceIt] == GetHairGroupsMeshes()[SourceIt];
 			if (!bEquals)
 			{
 				bHasChanged = true;
@@ -3186,9 +3186,9 @@ bool UGroomAsset::BuildMeshesData(uint32 GroupIndex)
 
 	if (!bHasChanged)
 	{
-		for (uint32 SourceIt = 0, SourceCount = HairGroupsMeshes.Num(); SourceIt < SourceCount; ++SourceIt)
+		for (uint32 SourceIt = 0, SourceCount = GetHairGroupsMeshes().Num(); SourceIt < SourceCount; ++SourceIt)
 		{
-			const bool bEquals = CachedHairGroupsMeshes[SourceIt] == HairGroupsMeshes[SourceIt];
+			const bool bEquals = CachedHairGroupsMeshes[SourceIt] == GetHairGroupsMeshes()[SourceIt];
 			if (!bEquals)
 			{
 				bHasChanged = true;
@@ -3199,7 +3199,7 @@ bool UGroomAsset::BuildMeshesData(uint32 GroupIndex)
 				// content is up to date with what has been saved.
 				if (IsInGameThread())
 				{
-					FHairGroupCardsTextures& Textures = HairGroupsMeshes[SourceIt].Textures;
+					FHairGroupCardsTextures& Textures = GetHairGroupsMeshes()[SourceIt].Textures;
 					if (Textures.DepthTexture != nullptr)		Textures.DepthTexture->UpdateResource();
 					if (Textures.TangentTexture != nullptr)		Textures.TangentTexture->UpdateResource();
 					if (Textures.AttributeTexture != nullptr)	Textures.AttributeTexture->UpdateResource();
@@ -3218,11 +3218,11 @@ bool UGroomAsset::BuildMeshesData(uint32 GroupIndex)
 
 	bool bDataBuilt = false;
 	GroupData.Meshes.LODs.SetNum(LODCount);
-	const FHairGroupsLOD& GroupsLOD = HairGroupsLOD[GroupIndex];
+	const FHairGroupsLOD& GroupsLOD = GetHairGroupsLOD()[GroupIndex];
 	for (uint32 LODIt = 0; LODIt < LODCount; ++LODIt)
 	{
 		int32 SourceIt = 0;
-		if (const FHairGroupsMeshesSourceDescription* Desc = GetSourceDescription(HairGroupsMeshes, GroupIndex, LODIt, SourceIt))
+		if (const FHairGroupsMeshesSourceDescription* Desc = GetSourceDescription(GetHairGroupsMeshes(), GroupIndex, LODIt, SourceIt))
 		{
 			const FHairGroupsMeshesSourceDescription* CachedDesc = SourceIt < CachedHairGroupsMeshes.Num() ? &CachedHairGroupsMeshes[SourceIt] : nullptr;
 			const bool bLODHasChanged = CachedDesc == nullptr || !(*CachedDesc == *Desc);
@@ -3264,7 +3264,7 @@ bool UGroomAsset::BuildMeshesData(uint32 GroupIndex)
 	for (int32 LODIt = 0; LODIt < GroupData.Meshes.LODs.Num(); ++LODIt)
 	{
 		int32 SourceIt = 0;
-		if (FHairGroupsMeshesSourceDescription* Desc = GetSourceDescription(HairGroupsMeshes, GroupIndex, LODIt, SourceIt))
+		if (FHairGroupsMeshesSourceDescription* Desc = GetSourceDescription(GetHairGroupsMeshes(), GroupIndex, LODIt, SourceIt))
 		{
 			Desc->UpdateMeshKey();
 		}
@@ -3276,12 +3276,12 @@ bool UGroomAsset::BuildMeshesData(uint32 GroupIndex)
 void UGroomAsset::UpdateCachedSettings()
 {
 #if WITH_EDITORONLY_DATA
-	CachedHairGroupsRendering		= HairGroupsRendering;
-	CachedHairGroupsPhysics			= HairGroupsPhysics;
-	CachedHairGroupsInterpolation	= HairGroupsInterpolation;
-	CachedHairGroupsLOD				= HairGroupsLOD;
-	CachedHairGroupsCards			= HairGroupsCards;
-	CachedHairGroupsMeshes			= HairGroupsMeshes;
+	CachedHairGroupsRendering		= GetHairGroupsRendering();
+	CachedHairGroupsPhysics			= GetHairGroupsPhysics();
+	CachedHairGroupsInterpolation	= GetHairGroupsInterpolation();
+	CachedHairGroupsLOD				= GetHairGroupsLOD();
+	CachedHairGroupsCards			= GetHairGroupsCards();
+	CachedHairGroupsMeshes			= GetHairGroupsMeshes();
 #endif
 }
 #endif // WITH_EDITORONLY_DATA
@@ -3300,7 +3300,7 @@ FHairStrandsRestResource* UGroomAsset::AllocateGuidesResources(uint32 GroupIndex
 {
 	if (GroupIndex < uint32(GetNumHairGroups()))
 	{
-		FHairGroupPlatformData& GroupData = HairGroupsPlatformData[GroupIndex];
+		FHairGroupPlatformData& GroupData = GetHairGroupsPlatformData()[GroupIndex];
 		if (GroupData.Guides.HasValidData())
 		{
 			if (GroupData.Guides.RestResource == nullptr)
@@ -3317,7 +3317,7 @@ FHairStrandsInterpolationResource* UGroomAsset::AllocateInterpolationResources(u
 {
 	if (GroupIndex < uint32(GetNumHairGroups()))
 	{
-		FHairGroupPlatformData& GroupData = HairGroupsPlatformData[GroupIndex];
+		FHairGroupPlatformData& GroupData = GetHairGroupsPlatformData()[GroupIndex];
 		check(GroupData.Guides.IsValid());
 		if (GroupData.Strands.InterpolationResource == nullptr)
 		{
@@ -3331,9 +3331,9 @@ FHairStrandsInterpolationResource* UGroomAsset::AllocateInterpolationResources(u
 #if RHI_RAYTRACING
 FHairStrandsRaytracingResource* UGroomAsset::AllocateCardsRaytracingResources(uint32 GroupIndex, uint32 LODIndex)
 {
-	if (IsRayTracingAllowed() && GroupIndex < uint32(GetNumHairGroups()) && LODIndex < uint32(HairGroupsLOD[GroupIndex].LODs.Num()))
+	if (IsRayTracingAllowed() && GroupIndex < uint32(GetNumHairGroups()) && LODIndex < uint32(GetHairGroupsLOD()[GroupIndex].LODs.Num()))
 	{
-		FHairGroupPlatformData& GroupData = HairGroupsPlatformData[GroupIndex];
+		FHairGroupPlatformData& GroupData = GetHairGroupsPlatformData()[GroupIndex];
 		FHairGroupPlatformData::FCards::FLOD& LOD = GroupData.Cards.LODs[LODIndex];
 		check(LOD.BulkData.IsValid());
 
@@ -3348,9 +3348,9 @@ FHairStrandsRaytracingResource* UGroomAsset::AllocateCardsRaytracingResources(ui
 
 FHairStrandsRaytracingResource* UGroomAsset::AllocateMeshesRaytracingResources(uint32 GroupIndex, uint32 LODIndex)
 {
-	if (IsRayTracingAllowed() && GroupIndex < uint32(GetNumHairGroups()) && LODIndex < uint32(HairGroupsLOD[GroupIndex].LODs.Num()))
+	if (IsRayTracingAllowed() && GroupIndex < uint32(GetNumHairGroups()) && LODIndex < uint32(GetHairGroupsLOD()[GroupIndex].LODs.Num()))
 	{
-		FHairGroupPlatformData& GroupData = HairGroupsPlatformData[GroupIndex];
+		FHairGroupPlatformData& GroupData = GetHairGroupsPlatformData()[GroupIndex];
 		FHairGroupPlatformData::FMeshes::FLOD& LOD = GroupData.Meshes.LODs[LODIndex];
 		check(LOD.BulkData.IsValid());
 
@@ -3367,7 +3367,7 @@ FHairStrandsRaytracingResource* UGroomAsset::AllocateStrandsRaytracingResources(
 {
 	if (IsRayTracingAllowed() && GroupIndex < uint32(GetNumHairGroups()))
 	{
-		FHairGroupPlatformData& GroupData = HairGroupsPlatformData[GroupIndex];
+		FHairGroupPlatformData& GroupData = GetHairGroupsPlatformData()[GroupIndex];
 		check(GroupData.Strands.HasValidData());
 
 		if (GroupData.Strands.RaytracingResource == nullptr)
@@ -3398,7 +3398,7 @@ void UGroomAsset::InitStrandsResources()
 
 	for (uint32 GroupIndex = 0, GroupCount = GetNumHairGroups(); GroupIndex < GroupCount; ++GroupIndex)
 	{
-		FHairGroupPlatformData& GroupData = HairGroupsPlatformData[GroupIndex];
+		FHairGroupPlatformData& GroupData = GetHairGroupsPlatformData()[GroupIndex];
 
 		if (GroupData.Strands.HasValidData())
 		{
@@ -3418,16 +3418,16 @@ void UGroomAsset::InitStrandsResources()
 
 static void InitCardsTextureResources(UGroomAsset* GroomAsset)
 {
-	if (!GroomAsset || !IsHairStrandsEnabled(EHairStrandsShaderType::Cards) || GroomAsset->HairGroupsCards.Num() == 0)
+	if (!GroomAsset || !IsHairStrandsEnabled(EHairStrandsShaderType::Cards) || GroomAsset->GetHairGroupsCards().Num() == 0)
 	{
 		return;
 	}
 
 	for (uint32 GroupIndex = 0, GroupCount = GroomAsset->GetNumHairGroups(); GroupIndex < GroupCount; ++GroupIndex)
 	{
-		FHairGroupPlatformData& GroupData = GroomAsset->HairGroupsPlatformData[GroupIndex];
+		FHairGroupPlatformData& GroupData = GroomAsset->GetHairGroupsPlatformData()[GroupIndex];
 
-		const uint32 LODCount = GroomAsset->HairGroupsLOD[GroupIndex].LODs.Num();
+		const uint32 LODCount = GroomAsset->GetHairGroupsLOD()[GroupIndex].LODs.Num();
 		GroupData.Cards.LODs.SetNum(LODCount);
 
 		for (uint32 LODIt = 0; LODIt < LODCount; ++LODIt)
@@ -3435,7 +3435,7 @@ static void InitCardsTextureResources(UGroomAsset* GroomAsset)
 			FHairGroupPlatformData::FCards::FLOD& LOD = GroupData.Cards.LODs[LODIt];
 
 			int32 SourceIt = 0;
-			const FHairGroupsCardsSourceDescription* Desc = GetSourceDescription(GroomAsset->HairGroupsCards, GroupIndex, LODIt, SourceIt);
+			const FHairGroupsCardsSourceDescription* Desc = GetSourceDescription(GroomAsset->GetHairGroupsCards(), GroupIndex, LODIt, SourceIt);
 			if (!Desc)
 			{
 				continue;
@@ -3465,16 +3465,16 @@ void UGroomAsset::InitCardsResources()
 {
 	LLM_SCOPE_BYTAG(Groom);
 
-	if (!IsHairStrandsEnabled(EHairStrandsShaderType::Cards) || HairGroupsCards.Num() == 0)
+	if (!IsHairStrandsEnabled(EHairStrandsShaderType::Cards) || GetHairGroupsCards().Num() == 0)
 	{
 		return;
 	}
 
 	for (uint32 GroupIndex = 0, GroupCount = GetNumHairGroups(); GroupIndex < GroupCount; ++GroupIndex)
 	{
-		FHairGroupPlatformData& GroupData = HairGroupsPlatformData[GroupIndex];
+		FHairGroupPlatformData& GroupData = GetHairGroupsPlatformData()[GroupIndex];
 
-		const uint32 LODCount = HairGroupsLOD[GroupIndex].LODs.Num();
+		const uint32 LODCount = GetHairGroupsLOD()[GroupIndex].LODs.Num();
 		GroupData.Cards.LODs.SetNum(LODCount);
 
 		for (uint32 LODIt = 0; LODIt < LODCount; ++LODIt)
@@ -3482,7 +3482,7 @@ void UGroomAsset::InitCardsResources()
 			FHairGroupPlatformData::FCards::FLOD& LOD = GroupData.Cards.LODs[LODIt];
 
 			int32 SourceIt = 0;
-			const FHairGroupsCardsSourceDescription* Desc = GetSourceDescription(HairGroupsCards, GroupIndex, LODIt, SourceIt);
+			const FHairGroupsCardsSourceDescription* Desc = GetSourceDescription(GetHairGroupsCards(), GroupIndex, LODIt, SourceIt);
 			if (!Desc)
 			{
 				continue;
@@ -3536,13 +3536,13 @@ void UGroomAsset::InitMeshesResources()
 
 	for (uint32 GroupIndex = 0, GroupCount = GetNumHairGroups(); GroupIndex < GroupCount; ++GroupIndex)
 	{
-		FHairGroupPlatformData& GroupData = HairGroupsPlatformData[GroupIndex];
+		FHairGroupPlatformData& GroupData = GetHairGroupsPlatformData()[GroupIndex];
 
 		const uint32 LODCount = GroupData.Meshes.LODs.Num();
 		for (uint32 LODIt = 0; LODIt < LODCount; ++LODIt)
 		{
 			int32 SourceIt = 0;
-			const FHairGroupsMeshesSourceDescription* Desc = GetSourceDescription(HairGroupsMeshes, GroupIndex, LODIt, SourceIt);
+			const FHairGroupsMeshesSourceDescription* Desc = GetSourceDescription(GetHairGroupsMeshes(), GroupIndex, LODIt, SourceIt);
 			if (!Desc)
 			{
 				continue;
@@ -3572,74 +3572,74 @@ void UGroomAsset::InitMeshesResources()
 
 EGroomGeometryType UGroomAsset::GetGeometryType(int32 GroupIndex, int32 LODIndex) const
 {
-	if (GroupIndex < 0 || GroupIndex >= HairGroupsLOD.Num())
+	if (GroupIndex < 0 || GroupIndex >= GetHairGroupsLOD().Num())
 	{
 		return EGroomGeometryType::Strands;
 	}
 
-	if (LODIndex < 0 || LODIndex >= HairGroupsLOD[GroupIndex].LODs.Num())
+	if (LODIndex < 0 || LODIndex >= GetHairGroupsLOD()[GroupIndex].LODs.Num())
 	{
 		return EGroomGeometryType::Strands;
 	}
 
-	return HairGroupsLOD[GroupIndex].LODs[LODIndex].GeometryType;
+	return GetHairGroupsLOD()[GroupIndex].LODs[LODIndex].GeometryType;
 }
 
 EGroomBindingType UGroomAsset::GetBindingType(int32 GroupIndex, int32 LODIndex) const
 {
-	if (GroupIndex < 0 || GroupIndex >= HairGroupsLOD.Num() || !IsHairStrandsBindingEnable())
+	if (GroupIndex < 0 || GroupIndex >= GetHairGroupsLOD().Num() || !IsHairStrandsBindingEnable())
 	{
 		return EGroomBindingType::Rigid; // Fallback to rigid by default
 	}
 
-	if (LODIndex < 0 || LODIndex >= HairGroupsLOD[GroupIndex].LODs.Num())
+	if (LODIndex < 0 || LODIndex >= GetHairGroupsLOD()[GroupIndex].LODs.Num())
 	{
 		return EGroomBindingType::Rigid; // Fallback to rigid by default
 	}
 
-	return HairGroupsLOD[GroupIndex].LODs[LODIndex].BindingType;
+	return GetHairGroupsLOD()[GroupIndex].LODs[LODIndex].BindingType;
 }
 
 bool UGroomAsset::IsVisible(int32 GroupIndex, int32 LODIndex) const
 {
-	if (GroupIndex < 0 || GroupIndex >= HairGroupsLOD.Num())
+	if (GroupIndex < 0 || GroupIndex >= GetHairGroupsLOD().Num())
 	{
 		return false;
 	}
 
-	if (LODIndex < 0 || LODIndex >= HairGroupsLOD[GroupIndex].LODs.Num())
+	if (LODIndex < 0 || LODIndex >= GetHairGroupsLOD()[GroupIndex].LODs.Num())
 	{
 		return false;
 	}
 
-	return HairGroupsLOD[GroupIndex].LODs[LODIndex].bVisible;
+	return GetHairGroupsLOD()[GroupIndex].LODs[LODIndex].bVisible;
 }
 
 bool UGroomAsset::IsDeformationEnable(int32 GroupIndex) const
 {
 	return 
-		HairGroupsInterpolation.IsValidIndex(GroupIndex) && 
-		HairGroupsInterpolation[GroupIndex].InterpolationSettings.GuideType == EGroomGuideType::Rigged;
+		GetHairGroupsInterpolation().IsValidIndex(GroupIndex) && 
+		GetHairGroupsInterpolation()[GroupIndex].InterpolationSettings.GuideType == EGroomGuideType::Rigged;
 }
 
 bool UGroomAsset::IsSimulationEnable(int32 GroupIndex, int32 LODIndex) const 
 {
-	if (GroupIndex < 0 || GroupIndex >= HairGroupsLOD.Num() || !IsHairStrandsSimulationEnable())
+	if (GroupIndex < 0 || GroupIndex >= GetHairGroupsLOD().Num() || !IsHairStrandsSimulationEnable())
 	{
 		return false;
 	}
 
-	if (LODIndex >= HairGroupsLOD[GroupIndex].LODs.Num())
+	if (LODIndex >= GetHairGroupsLOD()[GroupIndex].LODs.Num())
 	{
 		return false;
 	}
 
-	check(HairGroupsPhysics.Num() == HairGroupsLOD.Num());
+	check(GetHairGroupsPhysics().Num() == GetHairGroupsLOD().Num());
 
 	// If the LOD index is not forced, then its value could be -1. In this case we return the 'global' asset value
 	if (LODIndex < 0)
 	{
-		return HairGroupsPhysics[GroupIndex].SolverSettings.EnableSimulation;
+		return GetHairGroupsPhysics()[GroupIndex].SolverSettings.EnableSimulation;
 	}
 
 	if (!IsHairLODSimulationEnabled(LODIndex))
@@ -3647,19 +3647,19 @@ bool UGroomAsset::IsSimulationEnable(int32 GroupIndex, int32 LODIndex) const
 		return false;
 	}
 
-	return HairGroupsLOD[GroupIndex].LODs[LODIndex].bVisible && (
-		HairGroupsLOD[GroupIndex].LODs[LODIndex].Simulation == EGroomOverrideType::Enable ||
-		(HairGroupsLOD[GroupIndex].LODs[LODIndex].Simulation == EGroomOverrideType::Auto && HairGroupsPhysics[GroupIndex].SolverSettings.EnableSimulation));
+	return GetHairGroupsLOD()[GroupIndex].LODs[LODIndex].bVisible && (
+		GetHairGroupsLOD()[GroupIndex].LODs[LODIndex].Simulation == EGroomOverrideType::Enable ||
+		(GetHairGroupsLOD()[GroupIndex].LODs[LODIndex].Simulation == EGroomOverrideType::Auto && GetHairGroupsPhysics()[GroupIndex].SolverSettings.EnableSimulation));
 }
 
 bool UGroomAsset::IsGlobalInterpolationEnable(int32 GroupIndex, int32 LODIndex) const
 {
-	if (GroupIndex < 0 || GroupIndex >= HairGroupsLOD.Num())
+	if (GroupIndex < 0 || GroupIndex >= GetHairGroupsLOD().Num())
 	{
 		return false;
 	}
 
-	if (LODIndex < 0 || LODIndex >= HairGroupsLOD[GroupIndex].LODs.Num())
+	if (LODIndex < 0 || LODIndex >= GetHairGroupsLOD()[GroupIndex].LODs.Num())
 	{
 		return false;
 	}
@@ -3667,19 +3667,19 @@ bool UGroomAsset::IsGlobalInterpolationEnable(int32 GroupIndex, int32 LODIndex) 
 	// If the LOD index is not forced, then its value could be -1. In this case we return the 'global' asset value
 	if (LODIndex < 0)
 	{
-		return EnableGlobalInterpolation;
+		return GetEnableGlobalInterpolation();
 	}
 
 	return
-		HairGroupsLOD[GroupIndex].LODs[LODIndex].GlobalInterpolation == EGroomOverrideType::Enable ||
-		(HairGroupsLOD[GroupIndex].LODs[LODIndex].GlobalInterpolation == EGroomOverrideType::Auto && EnableGlobalInterpolation);
+		GetHairGroupsLOD()[GroupIndex].LODs[LODIndex].GlobalInterpolation == EGroomOverrideType::Enable ||
+		(GetHairGroupsLOD()[GroupIndex].LODs[LODIndex].GlobalInterpolation == EGroomOverrideType::Auto && GetEnableGlobalInterpolation());
 }
 
 bool UGroomAsset::IsSimulationEnable() const
 {
-	for (int32 GroupIndex = 0; GroupIndex < HairGroupsPlatformData.Num(); ++GroupIndex)
+	for (int32 GroupIndex = 0; GroupIndex < GetHairGroupsPlatformData().Num(); ++GroupIndex)
 	{
-		for (int32 LODIt = 0; LODIt < HairGroupsLOD.Num(); ++LODIt)
+		for (int32 LODIt = 0; LODIt < GetHairGroupsLOD().Num(); ++LODIt)
 		{
 			if (IsSimulationEnable(GroupIndex, LODIt))
 			{
@@ -3693,9 +3693,9 @@ bool UGroomAsset::IsSimulationEnable() const
 
 bool UGroomAsset::NeedsInterpolationData(int32 GroupIndex) const
 {
-	for (int32 LODIt = 0; LODIt < HairGroupsLOD.Num(); ++LODIt)
+	for (int32 LODIt = 0; LODIt < GetHairGroupsLOD().Num(); ++LODIt)
 	{
-		if (IsSimulationEnable(GroupIndex, LODIt) || IsGlobalInterpolationEnable(GroupIndex, LODIt) || EnableSimulationCache)
+		if (IsSimulationEnable(GroupIndex, LODIt) || IsGlobalInterpolationEnable(GroupIndex, LODIt) || GetEnableSimulationCache())
 		{
 			return true;
 		}
@@ -3706,7 +3706,7 @@ bool UGroomAsset::NeedsInterpolationData(int32 GroupIndex) const
 
 bool UGroomAsset::NeedsInterpolationData() const
 {
-	for (int32 GroupIndex = 0; GroupIndex < HairGroupsPlatformData.Num(); ++GroupIndex)
+	for (int32 GroupIndex = 0; GroupIndex < GetHairGroupsPlatformData().Num(); ++GroupIndex)
 	{
 		if (NeedsInterpolationData(GroupIndex))
 		{
@@ -3733,7 +3733,7 @@ bool FHairDescriptionGroups::IsValid() const
 int32 UGroomAsset::GetLODCount() const
 {
 	int32 MaxLODCount = -1;
-	for (const FHairGroupsLOD& S : HairGroupsLOD)
+	for (const FHairGroupsLOD& S : GetHairGroupsLOD())
 	{
 		MaxLODCount = FMath::Max(MaxLODCount, S.LODs.Num());
 	}
@@ -3750,7 +3750,7 @@ void UGroomAsset::StripLODs(const TArray<int32>& LODsToKeep, bool bRebuildResour
 		return;
 	}
 
-	const int32 GroupCount = HairGroupsLOD.Num();
+	const int32 GroupCount = GetHairGroupsLOD().Num();
 	int32 LODsTOKeepIndex = LODsToKeep.Num()-1;
 
 	// Remove the LOD settings prior to rebuild the LOD data
@@ -3764,7 +3764,7 @@ void UGroomAsset::StripLODs(const TArray<int32>& LODsToKeep, bool bRebuildResour
 
 		for (int32 GroupIt = 0; GroupIt < GroupCount; ++GroupIt)
 		{
-			HairGroupsLOD[GroupIt].LODs.RemoveAt(LODIt);
+			GetHairGroupsLOD()[GroupIt].LODs.RemoveAt(LODIt);
 		}
 
 		--LODsTOKeepIndex;
@@ -3776,16 +3776,16 @@ void UGroomAsset::StripLODs(const TArray<int32>& LODsToKeep, bool bRebuildResour
 		const FHairDescriptionGroups& LocalHairDescriptionGroups = GetHairDescriptionGroups();
 		for (int32 GroupIt = 0; GroupIt < GroupCount; ++GroupIt)
 		{
-			FHairGroupPlatformData& GroupData = HairGroupsPlatformData[GroupIt];
+			FHairGroupPlatformData& GroupData = GetHairGroupsPlatformData()[GroupIt];
 			InternalReleaseResource(GroupData.Strands.ClusterCullingResource);
 
 			BuildHairGroupCluster(
 				GroupIt,
 				LocalHairDescriptionGroups,
-				HairGroupsInterpolation,
-				HairGroupsLOD,
-				HairGroupsInfo,
-				HairGroupsPlatformData);
+				GetHairGroupsInterpolation(),
+				GetHairGroupsLOD(),
+				GetHairGroupsInfo(),
+				GetHairGroupsPlatformData());
 		}
 	}
 }
@@ -3795,7 +3795,7 @@ bool UGroomAsset::HasDebugData() const
 {
 	for (uint32 GroupIndex = 0, GroupCount = GetNumHairGroups(); GroupIndex < GroupCount; ++GroupIndex)
 	{
-		if (!HairGroupsPlatformData[GroupIndex].Debug.Data.IsValid())
+		if (!GetHairGroupsPlatformData()[GroupIndex].Debug.Data.IsValid())
 		{
 			return false;
 		}
@@ -3817,9 +3817,9 @@ void UGroomAsset::CreateDebugData()
 		FHairGroupInfo DummyInfo;
 		FHairStrandsDatas StrandsData;
 		FHairStrandsDatas GuidesData;
-		FGroomBuilder::BuildData(LocalHairDescriptionGroups.HairGroups[GroupIndex], HairGroupsInterpolation[GroupIndex], DummyInfo, StrandsData, GuidesData);
+		FGroomBuilder::BuildData(LocalHairDescriptionGroups.HairGroups[GroupIndex], GetHairGroupsInterpolation()[GroupIndex], DummyInfo, StrandsData, GuidesData);
 
-		FHairGroupPlatformData& GroupData = HairGroupsPlatformData[GroupIndex];
+		FHairGroupPlatformData& GroupData = GetHairGroupsPlatformData()[GroupIndex];
 		CreateHairStrandsDebugDatas(StrandsData, GroupData.Debug.Data);
 
 		if (GroupData.Debug.Data.IsValid())
@@ -3842,10 +3842,10 @@ void UGroomAsset::CreateDebugData()
 
 int32 UGroomAsset::GetMaterialIndex(FName MaterialSlotName) const
 {
-	const int32 SlotCount = HairGroupsMaterials.Num();
+	const int32 SlotCount = GetHairGroupsMaterials().Num();
 	for (int32 SlotIt = 0; SlotIt < SlotCount; ++SlotIt)
 	{
-		if (HairGroupsMaterials[SlotIt].SlotName == MaterialSlotName)
+		if (GetHairGroupsMaterials()[SlotIt].SlotName == MaterialSlotName)
 		{
 			return SlotIt;
 		}
@@ -3862,7 +3862,7 @@ bool UGroomAsset::IsMaterialSlotNameValid(FName MaterialSlotName) const
 TArray<FName> UGroomAsset::GetMaterialSlotNames() const
 {
 	TArray<FName> MaterialNames;
-	for (const FHairGroupsMaterial& Material : HairGroupsMaterials)
+	for (const FHairGroupsMaterial& Material : GetHairGroupsMaterials())
 	{
 		MaterialNames.Add(Material.SlotName);
 	}
@@ -3887,14 +3887,14 @@ bool InternalIsMaterialUsed(const TArray<T>& Groups, const FName& MaterialSlotNa
 
 bool UGroomAsset::IsMaterialUsed(int32 MaterialIndex) const
 {
-	if (MaterialIndex < 0 || MaterialIndex >= HairGroupsMaterials.Num())
+	if (MaterialIndex < 0 || MaterialIndex >= GetHairGroupsMaterials().Num())
 		return false;
 
-	const FName MaterialSlotName = HairGroupsMaterials[MaterialIndex].SlotName;
+	const FName MaterialSlotName = GetHairGroupsMaterials()[MaterialIndex].SlotName;
 	return 
-		InternalIsMaterialUsed(HairGroupsRendering, MaterialSlotName) ||
-		InternalIsMaterialUsed(HairGroupsCards, MaterialSlotName) ||
-		InternalIsMaterialUsed(HairGroupsMeshes, MaterialSlotName);
+		InternalIsMaterialUsed(GetHairGroupsRendering(), MaterialSlotName) ||
+		InternalIsMaterialUsed(GetHairGroupsCards(), MaterialSlotName) ||
+		InternalIsMaterialUsed(GetHairGroupsMeshes(), MaterialSlotName);
 }
 
 #if WITH_EDITOR
@@ -3926,14 +3926,14 @@ void UGroomAsset::SaveProceduralCards(uint32 DescIndex)
 
 	LLM_SCOPE_BYTAG(Groom);
 
-	if (DescIndex >= uint32(HairGroupsCards.Num()))
+	if (DescIndex >= uint32(GetHairGroupsCards().Num()))
 		return;
 
-	FHairGroupsCardsSourceDescription* Desc = &HairGroupsCards[DescIndex];
+	FHairGroupsCardsSourceDescription* Desc = &GetHairGroupsCards()[DescIndex];
 
 	const int32 GroupIndex = Desc->GroupIndex;
 	const int32 LODIndex = Desc->LODIndex;
-	if (GroupIndex >= HairGroupsPlatformData.Num())
+	if (GroupIndex >= GetHairGroupsPlatformData().Num())
 		return;
 
 	// 1. Convert old parameters (ClusterDecimation, bUseCards) to new parameters (GenerationType & CardsCount)
@@ -3943,7 +3943,7 @@ void UGroomAsset::SaveProceduralCards(uint32 DescIndex)
 		const bool bNeedConversion = ClusterSettings.ClusterDecimation > 0;
 		if (bNeedConversion)
 		{
-			const int32 MaxCardCount = HairGroupsPlatformData[GroupIndex].Strands.BulkData.GetNumCurves();
+			const int32 MaxCardCount = GetHairGroupsPlatformData()[GroupIndex].Strands.BulkData.GetNumCurves();
 
 			GeometrySettings.GenerationType = ClusterSettings.bUseGuide ? EHairCardsGenerationType::UseGuides : EHairCardsGenerationType::CardsCount;
 			GeometrySettings.CardsCount = FMath::Clamp(FMath::CeilToInt(ClusterSettings.ClusterDecimation * MaxCardCount), 1, MaxCardCount);
@@ -3966,7 +3966,7 @@ void UGroomAsset::SaveProceduralCards(uint32 DescIndex)
 		FHairGroupInfo DummyInfo;
 		FHairStrandsDatas StrandsData;
 		FHairStrandsDatas GuidesData;
-		FGroomBuilder::BuildData(LocalHairDescriptionGroups.HairGroups[GroupIndex], HairGroupsInterpolation[GroupIndex], DummyInfo, StrandsData, GuidesData);
+		FGroomBuilder::BuildData(LocalHairDescriptionGroups.HairGroups[GroupIndex], GetHairGroupsInterpolation()[GroupIndex], DummyInfo, StrandsData, GuidesData);
 
 		// 2.2 Build cards geometry
 		FHairCardsBuilder::BuildGeometry(
@@ -3994,11 +3994,11 @@ void UGroomAsset::SaveProceduralCards(uint32 DescIndex)
 	// 4. Save output asset (geometry, and enqueue texture saving)
 	{
 		// Create a static meshes with the vertex data
-		if (HairGroupsCards[DescIndex].ProceduralMesh == nullptr)
+		if (GetHairGroupsCards()[DescIndex].ProceduralMesh == nullptr)
 		{
 			const FString PackageName = GetOutermost()->GetName();
 			const FString SuffixName = FText::Format(LOCTEXT("CardsStatisMesh", "_CardsMesh_Group{0}_LOD{1}"), FText::AsNumber(GroupIndex), FText::AsNumber(LODIndex)).ToString();
-			HairGroupsCards[DescIndex].ProceduralMesh = FHairStrandsCore::CreateStaticMesh(PackageName, SuffixName);
+			GetHairGroupsCards()[DescIndex].ProceduralMesh = FHairStrandsCore::CreateStaticMesh(PackageName, SuffixName);
 		}
 
 		// Convert procedural cards data to cards data prior to export
@@ -4007,9 +4007,9 @@ void UGroomAsset::SaveProceduralCards(uint32 DescIndex)
 			CardData.Cards = Q.ProceduralData.Cards;
 		}
 
-		FHairCardsBuilder::ExportGeometry(CardData, HairGroupsCards[DescIndex].ProceduralMesh);
-		FHairStrandsCore::SaveAsset(HairGroupsCards[DescIndex].ProceduralMesh);
-		HairGroupsCards[DescIndex].ProceduralMeshKey = GroomDerivedDataCacheUtils::BuildCardsDerivedDataKeySuffix(this, *Desc);
+		FHairCardsBuilder::ExportGeometry(CardData, GetHairGroupsCards()[DescIndex].ProceduralMesh);
+		FHairStrandsCore::SaveAsset(GetHairGroupsCards()[DescIndex].ProceduralMesh);
+		GetHairGroupsCards()[DescIndex].ProceduralMeshKey = GroomDerivedDataCacheUtils::BuildCardsDerivedDataKeySuffix(this, *Desc);
 	}
 }
 
@@ -4071,7 +4071,7 @@ bool UGroomAsset::GetHairStrandsDatas(
 		check(GroupIndex == HairGroup.Info.GroupID);
 
 		FHairGroupInfo DummyInfo;
-		FGroomBuilder::BuildData(HairGroup, HairGroupsInterpolation[GroupIndex], DummyInfo, OutStrandsData, OutGuidesData);
+		FGroomBuilder::BuildData(HairGroup, GetHairGroupsInterpolation()[GroupIndex], DummyInfo, OutStrandsData, OutGuidesData);
 	}
 	return bIsValid;
 }
@@ -4090,7 +4090,7 @@ bool UGroomAsset::GetHairCardsGuidesDatas(
 	}
 
 	int32 SourceIt = 0;
-	if (FHairGroupsCardsSourceDescription* Desc = GetSourceDescription(HairGroupsCards, GroupIndex, LODIndex, SourceIt))
+	if (FHairGroupsCardsSourceDescription* Desc = GetSourceDescription(GetHairGroupsCards(), GroupIndex, LODIndex, SourceIt))
 	{
 		// 1. Load geometry data, if any
 		UStaticMesh* CardsMesh = nullptr;
@@ -4121,16 +4121,16 @@ bool UGroomAsset::GetHairCardsGuidesDatas(
 
 void UGroomAsset::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 {
-	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(HairGroupsRendering.GetAllocatedSize());
-	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(HairGroupsPhysics.GetAllocatedSize());
-	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(HairGroupsInterpolation.GetAllocatedSize());
-	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(HairGroupsLOD.GetAllocatedSize());
-	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(HairGroupsCards.GetAllocatedSize());
-	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(HairGroupsMeshes.GetAllocatedSize());
-	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(HairGroupsMaterials.GetAllocatedSize());
-	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(HairGroupsPlatformData.GetAllocatedSize());
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(GetHairGroupsRendering().GetAllocatedSize());
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(GetHairGroupsPhysics().GetAllocatedSize());
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(GetHairGroupsInterpolation().GetAllocatedSize());
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(GetHairGroupsLOD().GetAllocatedSize());
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(GetHairGroupsCards().GetAllocatedSize());
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(GetHairGroupsMeshes().GetAllocatedSize());
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(GetHairGroupsMaterials().GetAllocatedSize());
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(GetHairGroupsPlatformData().GetAllocatedSize());
 	
-	for (const FHairGroupPlatformData & GroupData : HairGroupsPlatformData)
+	for (const FHairGroupPlatformData & GroupData : GetHairGroupsPlatformData())
 	{		
 		CumulativeResourceSize.AddDedicatedVideoMemoryBytes(GroupData.Guides.GetResourcesSize());
 		CumulativeResourceSize.AddDedicatedVideoMemoryBytes(GroupData.Strands.GetResourcesSize());
@@ -4162,3 +4162,73 @@ FName UGroomAsset::GetAssetPathName(int32 LODIndex)
 
 #undef LOCTEXT_NAMESPACE
 
+#define GROOMASSET_DEFINE_MEMBER_NAME(Name) \
+	FName UGroomAsset::Get##Name##MemberName()\
+	{\
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS\
+		return FName(TEXT(#Name));\
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS\
+	}
+
+#define GROOMASSET_DEFINE_GET(Type, Name, Access, Const0, Const1) \
+	Const0 Type Access UGroomAsset::Get##Name() Const1\
+	{\
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS\
+		return Name;\
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS\
+	}
+
+#define GROOMASSET_DEFINE_SET(Type, Name, Access, Const) \
+	void UGroomAsset::Set##Name(Const Type Access In##Name)\
+	{\
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS\
+		Name = In##Name;\
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS\
+	}
+
+#define DEFINE_GROOM_MEMBER_ACCESSOR_BP(Type, Name)\
+	GROOMASSET_DEFINE_MEMBER_NAME(Name)\
+	UFUNCTION(BlueprintGetter)\
+	GROOMASSET_DEFINE_GET(Type, Name, , , const)\
+	UFUNCTION(BlueprintSetter)\
+	GROOMASSET_DEFINE_SET(Type, Name, , )
+
+#define DEFINE_GROOM_MEMBER_ACCESSOR_BP_ARRAY(Type, Name)\
+	GROOMASSET_DEFINE_MEMBER_NAME(Name)\
+	UFUNCTION(BlueprintGetter)\
+	GROOMASSET_DEFINE_GET(Type, Name, &, , )\
+	UFUNCTION(BlueprintSetter)\
+	GROOMASSET_DEFINE_SET(Type, Name, &, const)\
+	GROOMASSET_DEFINE_GET(Type, Name, &, const, const)
+
+#define DEFINE_GROOM_MEMBER_ACCESSOR(Type, Name)\
+	GROOMASSET_DEFINE_MEMBER_NAME(Name)\
+	GROOMASSET_DEFINE_GET(Type, Name, , , const)\
+	GROOMASSET_DEFINE_SET(Type, Name, , )
+
+#define DEFINE_GROOM_MEMBER_ACCESSOR_ARRAY(Type, Name)\
+	GROOMASSET_DEFINE_MEMBER_NAME(Name)\
+	GROOMASSET_DEFINE_GET(Type, Name, &, , )\
+	GROOMASSET_DEFINE_SET(Type, Name, &, const)\
+	GROOMASSET_DEFINE_GET(Type, Name, &, const, const)
+
+// Define most of the groom member accessor
+DEFINE_GROOM_MEMBER_ACCESSOR_BP_ARRAY(TArray<FHairGroupsRendering>, HairGroupsRendering);
+DEFINE_GROOM_MEMBER_ACCESSOR_BP_ARRAY(TArray<FHairGroupsPhysics>, HairGroupsPhysics);
+DEFINE_GROOM_MEMBER_ACCESSOR_BP_ARRAY(TArray<FHairGroupsInterpolation>, HairGroupsInterpolation);
+DEFINE_GROOM_MEMBER_ACCESSOR_BP_ARRAY(TArray<FHairGroupsLOD>, HairGroupsLOD);
+DEFINE_GROOM_MEMBER_ACCESSOR_BP_ARRAY(TArray<FHairGroupsCardsSourceDescription>, HairGroupsCards);
+DEFINE_GROOM_MEMBER_ACCESSOR_BP_ARRAY(TArray<FHairGroupsMeshesSourceDescription>, HairGroupsMeshes);
+DEFINE_GROOM_MEMBER_ACCESSOR_BP_ARRAY(TArray<FHairGroupsMaterial>, HairGroupsMaterials);
+DEFINE_GROOM_MEMBER_ACCESSOR_BP_ARRAY(TArray<int32>, DeformedGroupSections);
+
+DEFINE_GROOM_MEMBER_ACCESSOR_BP(bool, EnableGlobalInterpolation);
+DEFINE_GROOM_MEMBER_ACCESSOR_BP(bool, EnableSimulationCache);
+DEFINE_GROOM_MEMBER_ACCESSOR_BP(EGroomInterpolationType, HairInterpolationType);
+DEFINE_GROOM_MEMBER_ACCESSOR_BP(USkeletalMesh*, RiggedSkeletalMesh);
+
+DEFINE_GROOM_MEMBER_ACCESSOR(FPerPlatformInt, MinLOD);
+DEFINE_GROOM_MEMBER_ACCESSOR(FPerPlatformBool, DisableBelowMinLodStripping);
+DEFINE_GROOM_MEMBER_ACCESSOR_ARRAY(TArray<float>, EffectiveLODBias);
+DEFINE_GROOM_MEMBER_ACCESSOR_ARRAY(TArray<FHairGroupPlatformData>, HairGroupsPlatformData);
+DEFINE_GROOM_MEMBER_ACCESSOR_ARRAY(TArray<FHairGroupInfoWithVisibility>, HairGroupsInfo);

@@ -2090,11 +2090,11 @@ static bool InternalBuildBinding_CPU(UGroomBindingAsset* BindingAsset, uint32 In
 		const uint32 GroupCount = GroomAsset->GetNumHairGroups();
 		const uint32 MeshLODCount = TargetMeshData->GetNumLODs();
 
-		check(InGroupIndex < uint32(GroomAsset->HairGroupsPlatformData.Num()));
+		check(InGroupIndex < uint32(GroomAsset->GetHairGroupsPlatformData().Num()));
 
 		// Check if root data are needs for strands
 		bool bNeedStrandsRoot = false;
-		for (const FHairLODSettings& LODSettings : GroomAsset->HairGroupsLOD[InGroupIndex].LODs)
+		for (const FHairLODSettings& LODSettings : GroomAsset->GetHairGroupsLOD()[InGroupIndex].LODs)
 		{
 			if (LODSettings.GeometryType == EGroomGeometryType::Strands)
 			{
@@ -2109,7 +2109,7 @@ static bool InternalBuildBinding_CPU(UGroomBindingAsset* BindingAsset, uint32 In
 		GroomAsset->GetHairStrandsDatas(InGroupIndex, StrandsData, GuidesData);
 
 		// 1.2 Init root data for guides/strands/cards
-		const FHairGroupPlatformData& GroupData = GroomAsset->HairGroupsPlatformData[InGroupIndex];
+		const FHairGroupPlatformData& GroupData = GroomAsset->GetHairGroupsPlatformData()[InGroupIndex];
 		{
 			// Guides
 			InitHairStrandsRootData(OutData.SimRootData, &GuidesData, MeshLODCount, NumInterpolationPoints);
@@ -2205,7 +2205,7 @@ static bool InternalBuildBinding_CPU(UGroomBindingAsset* BindingAsset, uint32 In
 			const uint32 CardsLODCount = OutData.CardsRootData.Num();
 			for (uint32 CardsLODIt = 0; CardsLODIt < CardsLODCount; ++CardsLODIt)
 			{
-				if (BindingAsset->GetGroom()->HairGroupsPlatformData[InGroupIndex].Cards.IsValid(CardsLODIt))
+				if (BindingAsset->GetGroom()->GetHairGroupsPlatformData()[InGroupIndex].Cards.IsValid(CardsLODIt))
 				{
 					FHairStrandsDatas LODGuidesData;
 					const bool bIsValid = GroomAsset->GetHairCardsGuidesDatas(InGroupIndex, CardsLODIt, LODGuidesData);

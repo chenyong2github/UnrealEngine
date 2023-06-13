@@ -256,9 +256,9 @@ void FGroomComponentDetailsCustomization::OnGenerateElementForHairGroup(TSharedR
 	if (GroomComponentPtr != nullptr && GroupIndex>=0 && GroupIndex < GroomComponentPtr->GroomGroupsDesc.Num())
 	{
 		FHairGroupInfo Infos;
-		if (GroomComponentPtr->GroomAsset && GroupIndex < GroomComponentPtr->GroomAsset->HairGroupsInfo.Num())
+		if (GroomComponentPtr->GroomAsset && GroupIndex < GroomComponentPtr->GroomAsset->GetHairGroupsInfo().Num())
 		{
-			Infos = GroomComponentPtr->GroomAsset->HairGroupsInfo[GroupIndex];
+			Infos = GroomComponentPtr->GroomAsset->GetHairGroupsInfo()[GroupIndex];
 		}
 		ChildrenBuilder.AddCustomRow(LOCTEXT("HairInfo_Separator", "Separator"))
 		.ValueContent()

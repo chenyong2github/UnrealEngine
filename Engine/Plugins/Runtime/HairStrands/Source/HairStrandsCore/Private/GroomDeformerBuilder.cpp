@@ -89,7 +89,7 @@ static FVector AddRootBone(UGroomAsset* GroomAsset, USkeletalMesh* SkeletalMesh,
 	{
 		FHairStrandsDatas StrandsData;
 		FHairStrandsDatas& GuidesData = GuidesDatas[GroupIndex];
-		FGroomBuilder::BuildData(HairGroup, GroomAsset->HairGroupsInterpolation[GroupIndex], GroomAsset->HairGroupsInfo[GroupIndex], StrandsData, GuidesData);
+		FGroomBuilder::BuildData(HairGroup, GroomAsset->GetHairGroupsInterpolation()[GroupIndex], GroomAsset->GetHairGroupsInfo()[GroupIndex], StrandsData, GuidesData);
 		
 		if(GroomAsset->IsDeformationEnable(GroupIndex))
 		{
@@ -361,7 +361,7 @@ static USkeletalMesh* BuildSkeletalMesh(UGroomAsset* GroomAsset)
 	
 	// Create package for the skeletal mesh
 	UPackage* PackageSkeletalMesh = CreatePackage(*PackageNameSkeletalMesh);
-	USkeletalMesh* SkeletalMesh = GroomAsset->RiggedSkeletalMesh ? GroomAsset->RiggedSkeletalMesh.Get() :
+	USkeletalMesh* SkeletalMesh = GroomAsset->GetRiggedSkeletalMesh() ? GroomAsset->GetRiggedSkeletalMesh() :
 		NewObject<USkeletalMesh>(PackageSkeletalMesh, *NameSkeletalMesh, RF_Public | RF_Standalone | RF_Transactional);
 
 	// Reset the skeletal mesh
@@ -379,7 +379,7 @@ static USkeletalMesh* BuildSkeletalMesh(UGroomAsset* GroomAsset)
 	BuildSkeletonBones(GroomAsset, SkeletalMesh, LodRenderData, BonesPositions, BonesOffsets, GroupsOffsets);
 
 	// Build the mesh section
-	BuildMeshSection(GroomAsset, SkeletalMesh, LodRenderData, BonesPositions, BonesOffsets, GroupsOffsets, GroomAsset->DeformedGroupSections);
+	BuildMeshSection(GroomAsset, SkeletalMesh, LodRenderData, BonesPositions, BonesOffsets, GroupsOffsets, GroomAsset->GetDeformedGroupSections());
 
 	// Build the physics asset
 	BuildPhysicsAsset(GroomAsset, SkeletalMesh, LodRenderData);

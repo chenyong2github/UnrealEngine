@@ -429,69 +429,167 @@ class HAIRSTRANDSCORE_API UGroomAsset : public UObject, public IInterface_AssetU
 	DECLARE_MULTICAST_DELEGATE(FOnGroomAsyncLoadFinished);
 #endif
 
-public:
-	
+private:
+	UE_DEPRECATED(5.3, "Please do not access this member directly; use UGroomAsset accessor.")
 	UPROPERTY(EditAnywhere, Transient, EditFixedSize, Category = "HairInfo", meta = (DisplayName = "Group"))
 	TArray<FHairGroupInfoWithVisibility> HairGroupsInfo;
 
-	UPROPERTY(EditAnywhere, EditFixedSize, BlueprintReadWrite, Category = "HairRendering", meta = (DisplayName = "Group"))
+	UE_DEPRECATED(5.3, "Please do not access this member directly; use UGroomAsset accessor.")
+	UPROPERTY(EditAnywhere, EditFixedSize, BlueprintGetter = GetHairGroupsRendering, BlueprintSetter = SetHairGroupsRendering, Category = "HairRendering", meta = (DisplayName = "Group"))
 	TArray<FHairGroupsRendering> HairGroupsRendering;
 
-	UPROPERTY(EditAnywhere, EditFixedSize, BlueprintReadWrite, Category = "HairPhysics", meta = (DisplayName = "Group"))
+	UE_DEPRECATED(5.3, "Please do not access this member directly; use UGroomAsset accessor.")
+	UPROPERTY(EditAnywhere, EditFixedSize, BlueprintGetter = GetHairGroupsPhysics, BlueprintSetter = SetHairGroupsPhysics, Category = "HairPhysics", meta = (DisplayName = "Group"))
 	TArray<FHairGroupsPhysics> HairGroupsPhysics;
 
-	UPROPERTY(EditAnywhere, EditFixedSize, BlueprintReadWrite, Category = "HairInterpolation", meta = (DisplayName = "Group"))
+	UE_DEPRECATED(5.3, "Please do not access this member directly; use UGroomAsset accessor.")
+	UPROPERTY(EditAnywhere, EditFixedSize, BlueprintGetter = GetHairGroupsInterpolation, BlueprintSetter = SetHairGroupsInterpolation, Category = "HairInterpolation", meta = (DisplayName = "Group"))
 	TArray<FHairGroupsInterpolation> HairGroupsInterpolation;
 
-	UPROPERTY(EditAnywhere, EditFixedSize, BlueprintReadWrite, Category = "HairLOD", meta = (DisplayName = "Group"))
+	UE_DEPRECATED(5.3, "Please do not access this member directly; use UGroomAsset accessor.")
+	UPROPERTY(EditAnywhere, EditFixedSize, BlueprintGetter = GetHairGroupsLOD, BlueprintSetter = SetHairGroupsLOD, Category = "HairLOD", meta = (DisplayName = "Group"))
 	TArray<FHairGroupsLOD> HairGroupsLOD;
 
 	/** Cards - Source description data */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HairCards", meta = (DisplayName = "Group"))
+	UE_DEPRECATED(5.3, "Please do not access this member directly; use UGroomAsset accessor.")
+	UPROPERTY(EditAnywhere, BlueprintGetter = GetHairGroupsCards, BlueprintSetter = SetHairGroupsCards, Category = "HairCards", meta = (DisplayName = "Group"))
 	TArray<FHairGroupsCardsSourceDescription> HairGroupsCards;
 
 	/** Meshes - Source description data */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HairMeshes", meta = (DisplayName = "Group"))
+	UE_DEPRECATED(5.3, "Please do not access this member directly; use UGroomAsset accessor.")
+	UPROPERTY(EditAnywhere, BlueprintGetter = GetHairGroupsMeshes, BlueprintSetter = SetHairGroupsMeshes, Category = "HairMeshes", meta = (DisplayName = "Group"))
 	TArray<FHairGroupsMeshesSourceDescription> HairGroupsMeshes;
 
 	/** Meshes - Source description data */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HairMaterials", meta = (DisplayName = "Group"))
+	UE_DEPRECATED(5.3, "Please do not access this member directly; use UGroomAsset accessor.")
+		UPROPERTY(EditAnywhere, BlueprintGetter = GetHairGroupsMaterials, BlueprintSetter = SetHairGroupsMaterials, Category = "HairMaterials", meta = (DisplayName = "Group"))
 	TArray<FHairGroupsMaterial> HairGroupsMaterials;
 
-	/** Store strands/cards/meshes data */
-	TArray<FHairGroupPlatformData> HairGroupsPlatformData;
-
 	/** Enable radial basis function interpolation to be used instead of the local skin rigid transform */
-	UPROPERTY(EditAnywhere, EditFixedSize, BlueprintReadWrite, Category = "HairInterpolation", meta = (ToolTip = "Enable radial basis function interpolation to be used instead of the local skin rigid transform (WIP)", DisplayName = "RBF Interpolation"))
+	UE_DEPRECATED(5.3, "Please do not access this member directly; use UGroomAsset accessor.")
+	UPROPERTY(EditAnywhere, EditFixedSize, BlueprintGetter = GetEnableGlobalInterpolation, BlueprintSetter = SetEnableGlobalInterpolation, Category = "HairInterpolation", meta = (ToolTip = "Enable radial basis function interpolation to be used instead of the local skin rigid transform (WIP)", DisplayName = "RBF Interpolation"))
 	bool EnableGlobalInterpolation = false;
 
 	/** Enable guide-cache support. This allows to attach a guide-cache dynamically at runtime */
-	UPROPERTY(EditAnywhere, EditFixedSize, BlueprintReadWrite, Category = "HairInterpolation", meta = (ToolTip = "Enable guide-cache support. This allows to attach a simulation-cache dynamically at runtime", DisplayName = "Enable Guide-Cache Support"))
+	UE_DEPRECATED(5.3, "Please do not access this member directly; use UGroomAsset accessor.")
+	UPROPERTY(EditAnywhere, EditFixedSize, BlueprintGetter = GetEnableSimulationCache, BlueprintSetter = SetEnableSimulationCache, Category = "HairInterpolation", meta = (ToolTip = "Enable guide-cache support. This allows to attach a simulation-cache dynamically at runtime", DisplayName = "Enable Guide-Cache Support"))
 	bool EnableSimulationCache = false;
 
 	/** Type of interpolation used */
-	UPROPERTY(EditAnywhere, EditFixedSize, BlueprintReadWrite, Category = "HairInterpolation", meta = (ToolTip = "Type of interpolation used (WIP)"))
+	UE_DEPRECATED(5.3, "Please do not access this member directly; use UGroomAsset accessor.")
+	UPROPERTY(EditAnywhere, EditFixedSize, BlueprintGetter = GetHairInterpolationType, BlueprintSetter = SetHairInterpolationType, Category = "HairInterpolation", meta = (ToolTip = "Type of interpolation used (WIP)"))
 	EGroomInterpolationType HairInterpolationType = EGroomInterpolationType::SmoothTransform;
 
 	/** Deformed skeletal mesh that will drive the groom deformation/simulation. For creating this skeletal mesh, enable EnableDeformation within the interpolation settings*/
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "HairInterpolation")
+	UE_DEPRECATED(5.3, "Please do not access this member directly; use UGroomAsset accessor.")
+	UPROPERTY(VisibleAnywhere, BlueprintGetter = GetRiggedSkeletalMesh, BlueprintSetter = SetRiggedSkeletalMesh, Category = "HairInterpolation")
 	TObjectPtr<USkeletalMesh> RiggedSkeletalMesh;
 
 	/** Deformed skeletal mesh mapping from groups to sections */
+	UE_DEPRECATED(5.3, "Please do not access this member directly; use UGroomAsset accessor.")
 	UPROPERTY()
 	TArray<int32> DeformedGroupSections;
 
 	/** Minimum LOD to cook */
+	UE_DEPRECATED(5.3, "Please do not access this member directly; use UGroomAsset accessor.")
 	UPROPERTY(EditAnywhere, Category = "LOD", meta = (DisplayName = "Minimum LOD"))
 	FPerPlatformInt MinLOD;
 
 	/** When true all LODs below MinLod will still be cooked */
+	UE_DEPRECATED(5.3, "Please do not access this member directly; use UGroomAsset accessor.")
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "LOD")
 	FPerPlatformBool DisableBelowMinLodStripping;
 
 	/** The LOD bias to use after LOD stripping, regardless of MinLOD. Computed at cook time */
+	UE_DEPRECATED(5.3, "Please do not access this member directly; use UGroomAsset accessor.")
 	UPROPERTY()
 	TArray<float> EffectiveLODBias;
+
+	/** Store strands/cards/meshes data */
+	UE_DEPRECATED(5.3, "Please do not access this member directly; use UGroomAsset accessor.")
+	TArray<FHairGroupPlatformData> HairGroupsPlatformData;
+
+public:
+	static FName GetHairGroupsRenderingMemberName();
+	UFUNCTION(BlueprintGetter) TArray<FHairGroupsRendering>& GetHairGroupsRendering();
+	UFUNCTION(BlueprintSetter) void SetHairGroupsRendering(const TArray<FHairGroupsRendering>& In);
+	const TArray<FHairGroupsRendering>& GetHairGroupsRendering() const;
+
+	static FName GetHairGroupsPhysicsMemberName();
+	UFUNCTION(BlueprintGetter) TArray<FHairGroupsPhysics>& GetHairGroupsPhysics();
+	UFUNCTION(BlueprintSetter) void SetHairGroupsPhysics(const TArray<FHairGroupsPhysics>& In);
+	const TArray<FHairGroupsPhysics>& GetHairGroupsPhysics() const;
+
+	static FName GetHairGroupsInterpolationMemberName();
+	UFUNCTION(BlueprintGetter) TArray<FHairGroupsInterpolation>& GetHairGroupsInterpolation();
+	UFUNCTION(BlueprintSetter) void SetHairGroupsInterpolation(const TArray<FHairGroupsInterpolation>& In);
+	const TArray<FHairGroupsInterpolation>& GetHairGroupsInterpolation() const;
+
+	static FName GetHairGroupsLODMemberName();
+	UFUNCTION(BlueprintGetter) TArray<FHairGroupsLOD>& GetHairGroupsLOD();
+	UFUNCTION(BlueprintSetter) void SetHairGroupsLOD(const TArray<FHairGroupsLOD>& In);
+	const TArray<FHairGroupsLOD>& GetHairGroupsLOD() const;
+
+	static FName GetHairGroupsCardsMemberName();
+	UFUNCTION(BlueprintGetter) TArray<FHairGroupsCardsSourceDescription>& GetHairGroupsCards();
+	UFUNCTION(BlueprintSetter) void SetHairGroupsCards(const TArray<FHairGroupsCardsSourceDescription>& In);
+	const TArray<FHairGroupsCardsSourceDescription>& GetHairGroupsCards() const;
+
+	static FName GetHairGroupsMeshesMemberName();
+	UFUNCTION(BlueprintGetter) TArray<FHairGroupsMeshesSourceDescription>& GetHairGroupsMeshes();
+	UFUNCTION(BlueprintSetter) void SetHairGroupsMeshes(const TArray<FHairGroupsMeshesSourceDescription>& In);
+	const TArray<FHairGroupsMeshesSourceDescription>& GetHairGroupsMeshes() const;
+
+	static FName GetHairGroupsMaterialsMemberName();
+	UFUNCTION(BlueprintGetter) TArray<FHairGroupsMaterial>& GetHairGroupsMaterials();
+	UFUNCTION(BlueprintSetter) void SetHairGroupsMaterials(const TArray<FHairGroupsMaterial>& In);
+	const TArray<FHairGroupsMaterial>& GetHairGroupsMaterials() const;
+
+	static FName GetEnableGlobalInterpolationMemberName();
+	UFUNCTION(BlueprintGetter) bool GetEnableGlobalInterpolation() const;
+	UFUNCTION(BlueprintSetter) void SetEnableGlobalInterpolation(bool In);
+
+	static FName GetEnableSimulationCacheMemberName();
+	UFUNCTION(BlueprintGetter) bool GetEnableSimulationCache() const;
+	UFUNCTION(BlueprintSetter) void SetEnableSimulationCache(bool In);
+
+	static FName GetHairInterpolationTypeMemberName();
+	UFUNCTION(BlueprintGetter) EGroomInterpolationType GetHairInterpolationType() const;
+	UFUNCTION(BlueprintSetter) void SetHairInterpolationType(EGroomInterpolationType In);
+
+	static FName GetRiggedSkeletalMeshMemberName();
+	UFUNCTION(BlueprintGetter) USkeletalMesh* GetRiggedSkeletalMesh() const;
+	UFUNCTION(BlueprintSetter) void SetRiggedSkeletalMesh(USkeletalMesh* In);
+
+	static FName GetDeformedGroupSectionsMemberName();
+	UFUNCTION(BlueprintGetter) TArray<int32>& GetDeformedGroupSections();
+	UFUNCTION(BlueprintSetter) void SetDeformedGroupSections(const TArray<int32>& In);
+	const TArray<int32>& GetDeformedGroupSections() const;
+
+	static FName GetMinLODMemberName();
+	FPerPlatformInt GetMinLOD() const;
+	void SetMinLOD(FPerPlatformInt In);
+
+	static FName GetDisableBelowMinLodStrippingMemberName();
+	FPerPlatformBool GetDisableBelowMinLodStripping() const;
+	void SetDisableBelowMinLodStripping(FPerPlatformBool In);
+
+	static FName GetEffectiveLODBiasMemberName();
+	TArray<float>& GetEffectiveLODBias();
+	void SetEffectiveLODBias(const TArray<float>& In);
+	const TArray<float>& GetEffectiveLODBias() const;
+
+	static FName GetHairGroupsPlatformDataMemberName();
+	TArray<FHairGroupPlatformData>& GetHairGroupsPlatformData();
+	const TArray<FHairGroupPlatformData>& GetHairGroupsPlatformData() const;
+	void SetHairGroupsPlatformData(const TArray<FHairGroupPlatformData>& In);
+
+	static FName GetHairGroupsInfoMemberName();
+	TArray<FHairGroupInfoWithVisibility>& GetHairGroupsInfo();
+	const TArray<FHairGroupInfoWithVisibility>& GetHairGroupsInfo() const;
+	void SetHairGroupsInfo(const TArray<FHairGroupInfoWithVisibility>& In);
+
+public:
 
 	//~ Begin UObject Interface.
 	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;

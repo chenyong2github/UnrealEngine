@@ -166,7 +166,7 @@ void ConvertFromGroomAsset(UGroomAsset* InGroom, FEditableGroom* OutGroom)
 		FHairGroupInfo GroupInfo;
 		FHairStrandsDatas StrandsData;
 		FHairStrandsDatas GuidesData;
-		FGroomBuilder::BuildData(HairDescriptionGroups.HairGroups[GroupIndex], In.HairGroupsInterpolation[GroupIndex], GroupInfo, StrandsData, GuidesData);
+		FGroomBuilder::BuildData(HairDescriptionGroups.HairGroups[GroupIndex], In.GetHairGroupsInterpolation()[GroupIndex], GroupInfo, StrandsData, GuidesData);
 
 		Out.Groups[GroupIndex].GroupID = GroupInfo.GroupID;
 		Out.Groups[GroupIndex].GroupName = GroupInfo.GroupName;

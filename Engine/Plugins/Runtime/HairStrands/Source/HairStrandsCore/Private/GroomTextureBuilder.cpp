@@ -271,7 +271,7 @@ static void InternalBuildFollicleTexture_CPU(const TArray<FFollicleInfo>& InInfo
 		}
 
 		uint32 GroupIndex = 0;
-		for (const FHairGroupPlatformData& HairGroupData : Info.GroomAsset->HairGroupsPlatformData)
+		for (const FHairGroupPlatformData& HairGroupData : Info.GroomAsset->GetHairGroupsPlatformData())
 		{
 			FHairStrandsDatas StrandsData;
 			FHairStrandsDatas GuidesData;
@@ -982,8 +982,8 @@ static bool TraceTextures(
 			continue;
 		}
 
-		FHairGroupPlatformData& GroupData = InInfo.GroomAsset->HairGroupsPlatformData[GroupIndex];
-		FHairGroupsRendering& RenderingData = InInfo.GroomAsset->HairGroupsRendering[GroupIndex];
+		FHairGroupPlatformData& GroupData = InInfo.GroomAsset->GetHairGroupsPlatformData()[GroupIndex];
+		FHairGroupsRendering& RenderingData = InInfo.GroomAsset->GetHairGroupsRendering()[GroupIndex];
 
 		FRDGBufferRef VoxelOffsetAndCount = GraphBuilder.RegisterExternalBuffer(GroupData.Debug.Resource->VoxelOffsetAndCount);
 		FRDGBufferRef VoxelData = GraphBuilder.RegisterExternalBuffer(GroupData.Debug.Resource->VoxelData);

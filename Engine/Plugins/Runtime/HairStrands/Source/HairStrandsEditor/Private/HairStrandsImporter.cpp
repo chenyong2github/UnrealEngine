@@ -48,7 +48,7 @@ UGroomAsset* FHairStrandsImporter::ImportHair(const FHairImportContext& ImportCo
 	{
 		// Insure the interpolation settings matches between the importer and the actual asset
 		const FHairGroupsInterpolation& InterpolationSettings = ImportContext.ImportOptions->InterpolationSettings[GroupIndex];
-		OutHairAsset->HairGroupsInterpolation[GroupIndex] = InterpolationSettings;
+		OutHairAsset->GetHairGroupsInterpolation()[GroupIndex] = InterpolationSettings;
 	}
 
 	const bool bSucceeded = OutHairAsset->CacheDerivedDatas();

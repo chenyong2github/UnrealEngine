@@ -185,7 +185,7 @@ FText FGroomMaterialDetails::GetMaterialSlotNameText(int32 MaterialIndex) const
 {	
 	if (IsMaterialValid(MaterialIndex))
 	{
-		return FText::FromName(GroomAsset->HairGroupsMaterials[MaterialIndex].SlotName);
+		return FText::FromName(GroomAsset->GetHairGroupsMaterials()[MaterialIndex].SlotName);
 	}
 
 	return LOCTEXT("HairMaterial_InvalidIndex", "Invalid Material Index");
@@ -200,18 +200,18 @@ void FGroomMaterialDetails::CustomizeDetails( IDetailLayoutBuilder& DetailLayout
 
 	// Hide all properties
 	{
-		DetailLayout.HideProperty(DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UGroomAsset, HairGroupsInterpolation), UGroomAsset::StaticClass()));
-		DetailLayout.HideProperty(DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UGroomAsset, HairGroupsRendering), UGroomAsset::StaticClass()));
-		DetailLayout.HideProperty(DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UGroomAsset, HairGroupsPhysics), UGroomAsset::StaticClass()));
-		DetailLayout.HideProperty(DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UGroomAsset, HairGroupsCards), UGroomAsset::StaticClass()));
-		DetailLayout.HideProperty(DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UGroomAsset, HairGroupsMeshes), UGroomAsset::StaticClass()));
-		DetailLayout.HideProperty(DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UGroomAsset, HairGroupsMaterials), UGroomAsset::StaticClass()));
-		DetailLayout.HideProperty(DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UGroomAsset, HairGroupsLOD), UGroomAsset::StaticClass()));
-		DetailLayout.HideProperty(DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UGroomAsset, HairGroupsInfo), UGroomAsset::StaticClass()));
-		DetailLayout.HideProperty(DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UGroomAsset, EnableGlobalInterpolation), UGroomAsset::StaticClass()));
-		DetailLayout.HideProperty(DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UGroomAsset, HairInterpolationType), UGroomAsset::StaticClass()));
-		DetailLayout.HideProperty(DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UGroomAsset, MinLOD), UGroomAsset::StaticClass()));
-		DetailLayout.HideProperty(DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UGroomAsset, DisableBelowMinLodStripping), UGroomAsset::StaticClass()));
+		DetailLayout.HideProperty(DetailLayout.GetProperty(UGroomAsset::GetHairGroupsInterpolationMemberName(), UGroomAsset::StaticClass()));
+		DetailLayout.HideProperty(DetailLayout.GetProperty(UGroomAsset::GetHairGroupsRenderingMemberName(), UGroomAsset::StaticClass()));
+		DetailLayout.HideProperty(DetailLayout.GetProperty(UGroomAsset::GetHairGroupsPhysicsMemberName(), UGroomAsset::StaticClass()));
+		DetailLayout.HideProperty(DetailLayout.GetProperty(UGroomAsset::GetHairGroupsCardsMemberName(), UGroomAsset::StaticClass()));
+		DetailLayout.HideProperty(DetailLayout.GetProperty(UGroomAsset::GetHairGroupsMeshesMemberName(), UGroomAsset::StaticClass()));
+		DetailLayout.HideProperty(DetailLayout.GetProperty(UGroomAsset::GetHairGroupsMaterialsMemberName(), UGroomAsset::StaticClass()));
+		DetailLayout.HideProperty(DetailLayout.GetProperty(UGroomAsset::GetHairGroupsLODMemberName(), UGroomAsset::StaticClass()));
+		DetailLayout.HideProperty(DetailLayout.GetProperty(UGroomAsset::GetHairGroupsInfoMemberName(), UGroomAsset::StaticClass()));
+		DetailLayout.HideProperty(DetailLayout.GetProperty(UGroomAsset::GetEnableGlobalInterpolationMemberName(), UGroomAsset::StaticClass()));
+		DetailLayout.HideProperty(DetailLayout.GetProperty(UGroomAsset::GetHairInterpolationTypeMemberName(), UGroomAsset::StaticClass()));
+		DetailLayout.HideProperty(DetailLayout.GetProperty(UGroomAsset::GetMinLODMemberName(), UGroomAsset::StaticClass()));
+		DetailLayout.HideProperty(DetailLayout.GetProperty(UGroomAsset::GetDisableBelowMinLodStrippingMemberName(), UGroomAsset::StaticClass()));
 	}
 
 	GroomDetailLayout = &DetailLayout;
@@ -223,9 +223,9 @@ void FGroomMaterialDetails::OnGetMaterialsForArray(class IMaterialListBuilder& O
 	if (!GroomAsset)
 		return;
 
-	for (int32 MaterialIndex = 0; MaterialIndex < GroomAsset->HairGroupsMaterials.Num(); ++MaterialIndex)
+	for (int32 MaterialIndex = 0; MaterialIndex < GroomAsset->GetHairGroupsMaterials().Num(); ++MaterialIndex)
 	{
-		OutMaterials.AddMaterial(MaterialIndex, GroomAsset->HairGroupsMaterials[MaterialIndex].Material, true);
+		OutMaterials.AddMaterial(MaterialIndex, GroomAsset->GetHairGroupsMaterials()[MaterialIndex].Material, true);
 	}
 }
 
@@ -240,36 +240,36 @@ void FGroomMaterialDetails::OnMaterialArrayChanged(UMaterialInterface* NewMateri
 	FProperty* MaterialProperty = FindFProperty<FProperty>(UGroomAsset::StaticClass(), "HairGroupsMaterials");
 	check(MaterialProperty);
 	GroomAsset->PreEditChange(MaterialProperty);
-	check(GroomAsset->HairGroupsMaterials.Num() > SlotIndex)
+	check(GroomAsset->GetHairGroupsMaterials().Num() > SlotIndex)
 
 	if (NewMaterial != PrevMaterial)
 	{
 		GEditor->BeginTransaction(LOCTEXT("GroomEditorMaterialChanged", "Groom editor: material changed"));
 		bMadeTransaction = true;
 		GroomAsset->Modify();
-		GroomAsset->HairGroupsMaterials[SlotIndex].Material = NewMaterial;
+		GroomAsset->GetHairGroupsMaterials()[SlotIndex].Material = NewMaterial;
 
 		// Add a default name to the material slot if this slot was manually add and there is no name yet
-		if (NewMaterial != nullptr && GroomAsset->HairGroupsMaterials[SlotIndex].SlotName == NAME_None)
+		if (NewMaterial != nullptr && GroomAsset->GetHairGroupsMaterials()[SlotIndex].SlotName == NAME_None)
 		{
-			if (GroomAsset->HairGroupsMaterials[SlotIndex].SlotName == NAME_None)
+			if (GroomAsset->GetHairGroupsMaterials()[SlotIndex].SlotName == NAME_None)
 			{					
-				GroomAsset->HairGroupsMaterials[SlotIndex].SlotName = NewMaterial->GetFName();
+				GroomAsset->GetHairGroupsMaterials()[SlotIndex].SlotName = NewMaterial->GetFName();
 			}
 
 			//Ensure the imported material slot name is unique
-			if (GroomAsset->HairGroupsMaterials[SlotIndex].SlotName == NAME_None)
+			if (GroomAsset->GetHairGroupsMaterials()[SlotIndex].SlotName == NAME_None)
 			{
 				UGroomAsset* LocalGroomAsset = GroomAsset;
 				auto IsMaterialNameUnique = [&LocalGroomAsset, SlotIndex](const FName TestName)
 				{
-					for (int32 MaterialIndex = 0; MaterialIndex < LocalGroomAsset->HairGroupsMaterials.Num(); ++MaterialIndex)
+					for (int32 MaterialIndex = 0; MaterialIndex < LocalGroomAsset->GetHairGroupsMaterials().Num(); ++MaterialIndex)
 					{
 						if (MaterialIndex == SlotIndex)
 						{
 							continue;
 						}
-						if (LocalGroomAsset->HairGroupsMaterials[MaterialIndex].SlotName == TestName)
+						if (LocalGroomAsset->GetHairGroupsMaterials()[MaterialIndex].SlotName == TestName)
 						{
 							return false;
 						}
@@ -290,7 +290,7 @@ void FGroomMaterialDetails::OnMaterialArrayChanged(UMaterialInterface* NewMateri
 						MaterialSlotName = NewMaterial->GetName() + TEXT("_") + FString::FromInt(MatchNameCounter);
 					}
 				}
-				GroomAsset->HairGroupsMaterials[SlotIndex].SlotName = FName(*MaterialSlotName);
+				GroomAsset->GetHairGroupsMaterials()[SlotIndex].SlotName = FName(*MaterialSlotName);
 			}
 		}
 	}
@@ -326,7 +326,7 @@ FReply FGroomMaterialDetails::AddMaterialSlot()
 	do
 	{
 		bHasUniqueName = true;
-		for (const FHairGroupsMaterial& Group : GroomAsset->HairGroupsMaterials)
+		for (const FHairGroupsMaterial& Group : GroomAsset->GetHairGroupsMaterials())
 		{
 			if (Group.SlotName == SlotName)
 			{
@@ -340,7 +340,7 @@ FReply FGroomMaterialDetails::AddMaterialSlot()
 
 	// Add new material
 	NewMaterial.SlotName = SlotName;
-	GroomAsset->HairGroupsMaterials.Add(NewMaterial);
+	GroomAsset->GetHairGroupsMaterials().Add(NewMaterial);
 	GroomAsset->PostEditChange();
 
 	return FReply::Handled();
@@ -352,7 +352,7 @@ FText FGroomMaterialDetails::GetMaterialArrayText() const
 	int32 SlotNumber = 0;
 	if (GroomAsset)
 	{
-		SlotNumber = GroomAsset->HairGroupsMaterials.Num();
+		SlotNumber = GroomAsset->GetHairGroupsMaterials().Num();
 	}
 	MaterialArrayText = FString::FromInt(SlotNumber) + MaterialArrayText;
 	return FText::FromString(MaterialArrayText);
@@ -362,7 +362,7 @@ FText FGroomMaterialDetails::GetMaterialNameText(int32 MaterialIndex) const
 {
 	if (IsMaterialValid(MaterialIndex))
 	{
-		return FText::FromName(GroomAsset->HairGroupsMaterials[MaterialIndex].SlotName);
+		return FText::FromName(GroomAsset->GetHairGroupsMaterials()[MaterialIndex].SlotName);
 	}
 	return FText::FromName(NAME_None);
 }
@@ -370,7 +370,7 @@ FText FGroomMaterialDetails::GetMaterialNameText(int32 MaterialIndex) const
 void FGroomMaterialDetails::OnMaterialNameCommitted(const FText& InValue, ETextCommit::Type CommitType, int32 MaterialIndex)
 {
 	FName NewSlotName = FName(*(InValue.ToString()));
-	if (IsMaterialValid(MaterialIndex) && NewSlotName != GroomAsset->HairGroupsMaterials[MaterialIndex].SlotName)
+	if (IsMaterialValid(MaterialIndex) && NewSlotName != GroomAsset->GetHairGroupsMaterials()[MaterialIndex].SlotName)
 	{
 		FScopedTransaction ScopeTransaction(LOCTEXT("PersonaMaterialSlotNameChanged", "Persona editor: Material slot name change"));
 
@@ -379,22 +379,22 @@ void FGroomMaterialDetails::OnMaterialNameCommitted(const FText& InValue, ETextC
 		GroomAsset->PreEditChange(ChangedProperty);
 
 		// Rename group which were using the old slot name
-		FName PreviousSlotName = GroomAsset->HairGroupsMaterials[MaterialIndex].SlotName;
-		for (FHairGroupsRendering& Group : GroomAsset->HairGroupsRendering)
+		FName PreviousSlotName = GroomAsset->GetHairGroupsMaterials()[MaterialIndex].SlotName;
+		for (FHairGroupsRendering& Group : GroomAsset->GetHairGroupsRendering())
 		{
 			if (PreviousSlotName == Group.MaterialSlotName)
 			{
 				Group.MaterialSlotName = NewSlotName;
 			}
 		}
-		for (FHairGroupsCardsSourceDescription& Group : GroomAsset->HairGroupsCards)
+		for (FHairGroupsCardsSourceDescription& Group : GroomAsset->GetHairGroupsCards())
 		{
 			if (PreviousSlotName == Group.MaterialSlotName)
 			{
 				Group.MaterialSlotName = NewSlotName;
 			}
 		}
-		for (FHairGroupsMeshesSourceDescription& Group : GroomAsset->HairGroupsMeshes)
+		for (FHairGroupsMeshesSourceDescription& Group : GroomAsset->GetHairGroupsMeshes())
 		{
 			if (PreviousSlotName == Group.MaterialSlotName)
 			{
@@ -402,7 +402,7 @@ void FGroomMaterialDetails::OnMaterialNameCommitted(const FText& InValue, ETextC
 			}
 		}
 
-		GroomAsset->HairGroupsMaterials[MaterialIndex].SlotName = NewSlotName;
+		GroomAsset->GetHairGroupsMaterials()[MaterialIndex].SlotName = NewSlotName;
 
 		FPropertyChangedEvent PropertyUpdateStruct(ChangedProperty);
 		GroomAsset->PostEditChangeProperty(PropertyUpdateStruct);
@@ -428,7 +428,7 @@ TSharedRef<SWidget> FGroomMaterialDetails::OnGenerateCustomMaterialWidgetsForMat
 
 bool FGroomMaterialDetails::IsMaterialValid(int32 MaterialIndex) const
 {
-	return GroomAsset && MaterialIndex >= 0 && MaterialIndex < GroomAsset->HairGroupsMaterials.Num();
+	return GroomAsset && MaterialIndex >= 0 && MaterialIndex < GroomAsset->GetHairGroupsMaterials().Num();
 }
 
 bool FGroomMaterialDetails::CanDeleteMaterialSlot(int32 MaterialIndex) const
@@ -457,7 +457,7 @@ void FGroomMaterialDetails::OnDeleteMaterialSlot(int32 MaterialIndex)
 		}
 		bDeleteWarningConsumed = true;
 	}
-	GroomAsset->HairGroupsMaterials.RemoveAt(MaterialIndex);
+	GroomAsset->GetHairGroupsMaterials().RemoveAt(MaterialIndex);
 
 	FScopedTransaction Transaction(LOCTEXT("PersonaOnDeleteMaterialSlotTransaction", "Persona editor: Delete material slot"));
 	GroomAsset->Modify();

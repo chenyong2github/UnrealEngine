@@ -115,12 +115,12 @@ void ExecuteRebuild(const FToolMenuContext& InContext)
 					{
 						FGroomHairGroupPreview& OutGroup = GroupsPreview->Groups.AddDefaulted_GetRef();
 						OutGroup.GroupID    	= GroupIndex;
-						OutGroup.GroupName		= GroomAsset->HairGroupsInfo[GroupIndex].GroupName;
-						OutGroup.CurveCount 	= GroomAsset->HairGroupsPlatformData[GroupIndex].Strands.BulkData.GetNumCurves();
-						OutGroup.GuideCount 	= GroomAsset->HairGroupsPlatformData[GroupIndex].Guides.BulkData.GetNumCurves();
+						OutGroup.GroupName		= GroomAsset->GetHairGroupsInfo()[GroupIndex].GroupName;
+						OutGroup.CurveCount 	= GroomAsset->GetHairGroupsPlatformData()[GroupIndex].Strands.BulkData.GetNumCurves();
+						OutGroup.GuideCount 	= GroomAsset->GetHairGroupsPlatformData()[GroupIndex].Guides.BulkData.GetNumCurves();
 						OutGroup.Attributes 	= HairDescriptionGroups.HairGroups[GroupIndex].GetHairAttributes();
 						OutGroup.AttributeFlags = HairDescriptionGroups.HairGroups[GroupIndex].GetHairAttributeFlags();
-						OutGroup.InterpolationSettings = GroomAsset->HairGroupsInterpolation[GroupIndex];
+						OutGroup.InterpolationSettings = GroomAsset->GetHairGroupsInterpolation()[GroupIndex];
 					}
 				}
 				TSharedPtr<SGroomImportOptionsWindow> GroomOptionWindow = SGroomImportOptionsWindow::DisplayRebuildOptions(CurrentOptions, GroupsPreview, Filename);
@@ -134,8 +134,8 @@ void ExecuteRebuild(const FToolMenuContext& InContext)
 				bool bEnableRigging = false;
 				for (uint32 GroupIndex = 0; GroupIndex < GroupCount; ++GroupIndex)
 				{
-					GroomAsset->HairGroupsInterpolation[GroupIndex] = GroupsPreview->Groups[GroupIndex].InterpolationSettings;
-					bEnableRigging |= GroomAsset->HairGroupsInterpolation[GroupIndex].InterpolationSettings.GuideType == EGroomGuideType::Rigged;
+					GroomAsset->GetHairGroupsInterpolation()[GroupIndex] = GroupsPreview->Groups[GroupIndex].InterpolationSettings;
+					bEnableRigging |= GroomAsset->GetHairGroupsInterpolation()[GroupIndex].InterpolationSettings.GuideType == EGroomGuideType::Rigged;
 				}
 
 				bool bSucceeded = GroomAsset->CacheDerivedDatas();
@@ -143,7 +143,7 @@ void ExecuteRebuild(const FToolMenuContext& InContext)
 				{
 					if(bEnableRigging)
 					{
-						GroomAsset->RiggedSkeletalMesh = FGroomDeformerBuilder::CreateSkeletalMesh(GroomAsset);
+						GroomAsset->SetRiggedSkeletalMesh(FGroomDeformerBuilder::CreateSkeletalMesh(GroomAsset));
 					}
 					// Move the transient ImportOptions to the asset package and set it on the GroomAssetImportData for serialization
 					CurrentOptions->Rename(nullptr, GroomAssetImportData);

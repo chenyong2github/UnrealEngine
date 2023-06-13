@@ -123,7 +123,7 @@ namespace UE::UsdGroomTranslatorUtils::Private
 				GroomBinding->SetSourceGeometryCache(Cast<UGeometryCache>(Settings.SourceMesh));
 				GroomBinding->SetTargetGeometryCache(Cast<UGeometryCache>(Settings.TargetMesh));
 			}
-			GroomBinding->GetHairGroupsPlatformData().Reserve(Settings.Groom->HairGroupsPlatformData.Num());
+			GroomBinding->GetHairGroupsPlatformData().Reserve(Settings.Groom->GetHairGroupsPlatformData().Num());
 			GroomBinding->SetNumInterpolationPoints(Settings.NumInterpolationPoints);
 			GroomBinding->SetMatchingSection(Settings.MatchingSection);
 

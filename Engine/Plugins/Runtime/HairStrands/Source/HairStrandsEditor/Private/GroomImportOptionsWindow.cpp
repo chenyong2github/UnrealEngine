@@ -114,7 +114,7 @@ void SGroomImportOptionsWindow::UpdateStatus(UGroomHairGroupsPreview* Descriptio
 			return;
 		}
 
-		const TArray<FHairGroupPlatformData>& GroomHairGroupsData = GroomAssetForCache->HairGroupsPlatformData;
+		const TArray<FHairGroupPlatformData>& GroomHairGroupsData = GroomAssetForCache->GetHairGroupsPlatformData();
 		if (GroomHairGroupsData.Num() != Description->Groups.Num())
 		{
 			CurrentStatus = bGuidesOnly ? EHairDescriptionStatus::GuidesOnlyIncompatible : EHairDescriptionStatus::GroomCacheIncompatible;

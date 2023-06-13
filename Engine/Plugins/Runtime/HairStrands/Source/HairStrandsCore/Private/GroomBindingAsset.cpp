@@ -552,7 +552,7 @@ static bool DoesGroomNeedStrandsBinding(const UGroomAsset* InGroom, uint32 InGro
 {
 	if (IsHairStrandsEnabled(EHairStrandsShaderType::Strands))
 	{
-		for (const FHairLODSettings& LODSettings : InGroom->HairGroupsLOD[InGroupIndex].LODs)
+		for (const FHairLODSettings& LODSettings : InGroom->GetHairGroupsLOD()[InGroupIndex].LODs)
 		{
 			if (LODSettings.bVisible && LODSettings.GeometryType == EGroomGeometryType::Strands)
 			{
@@ -603,7 +603,7 @@ bool UGroomBindingAsset::IsCompatible(const UGroomAsset* InGroom, const UGroomBi
 		{
 			// Guides
 			{
-				const uint32 GroomCount = InGroom->HairGroupsPlatformData[GroupIt].Guides.BulkData.GetNumCurves();
+				const uint32 GroomCount = InGroom->GetHairGroupsPlatformData()[GroupIt].Guides.BulkData.GetNumCurves();
 				const uint32 BindingCount = InBinding->GetGroupInfos()[GroupIt].SimRootCount;
 
 				if (GroomCount != 0 && GroomCount != BindingCount)
@@ -622,7 +622,7 @@ bool UGroomBindingAsset::IsCompatible(const UGroomAsset* InGroom, const UGroomBi
 			const bool bNeedStrandsRoot = DoesGroomNeedStrandsBinding(InGroom, GroupIt);
 			if (bNeedStrandsRoot)
 			{
-				const uint32 GroomCount = InGroom->HairGroupsPlatformData[GroupIt].Strands.BulkData.GetNumCurves();
+				const uint32 GroomCount = InGroom->GetHairGroupsPlatformData()[GroupIt].Strands.BulkData.GetNumCurves();
 				const uint32 BindingCount = InBinding->GetGroupInfos()[GroupIt].RenRootCount;
 
 				// Groom may have stripped strands data so GroomCount would be 0
