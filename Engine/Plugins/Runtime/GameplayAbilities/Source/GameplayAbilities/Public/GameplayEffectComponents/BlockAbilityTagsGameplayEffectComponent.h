@@ -13,8 +13,8 @@ class GAMEPLAYABILITIES_API UBlockAbilityTagsGameplayEffectComponent : public UG
 	GENERATED_BODY()
 	
 public:
-	/** Constructor to set the EditorFriendlyName */
-	UBlockAbilityTagsGameplayEffectComponent();
+	/** Setup an EditorFriendlyName and do some initialization */
+	virtual void PostInitProperties() override;
 
 	/** Needed to properly apply FInheritedTagContainer properties */
 	virtual void OnGameplayEffectChanged() const override;

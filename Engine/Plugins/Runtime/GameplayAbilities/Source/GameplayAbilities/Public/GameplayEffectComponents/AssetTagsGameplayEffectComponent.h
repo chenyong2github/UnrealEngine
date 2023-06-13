@@ -13,7 +13,7 @@ class GAMEPLAYABILITIES_API UAssetTagsGameplayEffectComponent : public UGameplay
 	GENERATED_BODY()
 
 public:
-	/** Setup a better EditorFriendlyName */
+	/** Setup a better EditorFriendlyName and do some initialization */
 	virtual void PostInitProperties() override;
 
 	/** Needed to properly apply FInheritedTagContainer properties */

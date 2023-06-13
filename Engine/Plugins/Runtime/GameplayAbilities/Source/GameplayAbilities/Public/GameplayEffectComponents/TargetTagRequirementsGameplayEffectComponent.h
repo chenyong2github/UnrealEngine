@@ -29,7 +29,7 @@ public:
 
 #if WITH_EDITOR
 	/**
-	 * Validate incompatable configurations
+	 * Validate incompatible configurations
 	 */
 	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) const override;
 #endif // WITH_EDITOR

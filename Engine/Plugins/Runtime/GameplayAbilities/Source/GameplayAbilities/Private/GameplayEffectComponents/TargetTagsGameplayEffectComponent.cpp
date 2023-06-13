@@ -2,8 +2,15 @@
 
 #include "GameplayEffectComponents/TargetTagsGameplayEffectComponent.h"
 
-UTargetTagsGameplayEffectComponent::UTargetTagsGameplayEffectComponent()
+void UTargetTagsGameplayEffectComponent::PostInitProperties()
 {
+	Super::PostInitProperties();
+
+	// Try to find the parent and update the inherited tags.  We do this 'early' because this is the only function
+	// we can use for creation of the object (and this runs post-constructor).
+	const UTargetTagsGameplayEffectComponent* Parent = FindParentComponent(*this);
+	InheritableGrantedTagsContainer.UpdateInheritedTagProperties(Parent ? &Parent->InheritableGrantedTagsContainer : nullptr);
+
 #if WITH_EDITORONLY_DATA
 	EditorFriendlyName = TEXT("Target Tags (Granted to Actor)");
 #endif // WITH_EDITORONLY_DATA

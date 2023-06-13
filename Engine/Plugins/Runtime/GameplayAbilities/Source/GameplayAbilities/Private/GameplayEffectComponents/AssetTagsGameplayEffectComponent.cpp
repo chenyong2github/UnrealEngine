@@ -8,6 +8,11 @@ void UAssetTagsGameplayEffectComponent::PostInitProperties()
 {
 	Super::PostInitProperties();
 
+	// Try to find the parent and update the inherited tags.  We do this 'early' because this is the only function
+	// we can use for creation of the object (and this runs post-constructor).
+	const UAssetTagsGameplayEffectComponent* Parent = FindParentComponent(*this);
+	InheritableAssetTags.UpdateInheritedTagProperties(Parent ? &Parent->InheritableAssetTags : nullptr);
+
 #if WITH_EDITORONLY_DATA
 	if (GetOwner())
 	{

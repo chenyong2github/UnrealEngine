@@ -13,8 +13,8 @@ class GAMEPLAYABILITIES_API UTargetTagsGameplayEffectComponent : public UGamepla
 	GENERATED_BODY()
 
 public:
-	/** Constructor that sets EditorFriendlyName */
-	UTargetTagsGameplayEffectComponent();
+	/** Setup an EditorFriendlyName and do some initialization */
+	virtual void PostInitProperties() override;
 
 	/** Needed to properly load FInheritedTagContainer properties */
 	virtual void OnGameplayEffectChanged() const override;
