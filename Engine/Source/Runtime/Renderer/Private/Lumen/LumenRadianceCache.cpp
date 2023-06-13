@@ -74,6 +74,14 @@ FAutoConsoleVariableRef GVarLumenRadianceCacheFilterMaxRadianceHitAngle(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+int32 GLumenRadianceCacheForceUniformTraceTileLevel = -1;
+FAutoConsoleVariableRef CVarLumenRadianceCacheForceUniformTraceTileLevel(
+	TEXT("r.Lumen.RadianceCache.ForceUniformTraceTileLevel"),
+	GLumenRadianceCacheForceUniformTraceTileLevel,
+	TEXT("When set to >= 0, forces a uniform trace tile level for debugging, and overrides trace tile BRDF importance sampling.  Valid range is [0, 2].  0 = half res, 1 = full res, 2 = supersampled"),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 float GLumenRadianceCacheSupersampleTileBRDFThreshold = .1f;
 FAutoConsoleVariableRef CVarLumenRadianceCacheSupersampleTileBRDFThreshold(
 	TEXT("r.Lumen.RadianceCache.SupersampleTileBRDFThreshold"),
@@ -82,7 +90,7 @@ FAutoConsoleVariableRef CVarLumenRadianceCacheSupersampleTileBRDFThreshold(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-float GLumenRadianceCacheSupersampleDistanceFromCamera = 2000.0f;
+float GLumenRadianceCacheSupersampleDistanceFromCamera = 0;
 FAutoConsoleVariableRef CVarLumenRadianceCacheSupersampleDistanceFromCamera(
 	TEXT("r.Lumen.RadianceCache.SupersampleDistanceFromCamera"),
 	GLumenRadianceCacheSupersampleDistanceFromCamera,
@@ -714,6 +722,7 @@ class FGenerateProbeTraceTilesCS : public FGlobalShader
 		SHADER_PARAMETER(float, SupersampleTileBRDFThreshold)
 		SHADER_PARAMETER(float, SupersampleDistanceFromCameraSq)
 		SHADER_PARAMETER(float, DownsampleDistanceFromCameraSq)
+		SHADER_PARAMETER(int32, ForcedUniformLevel)
 
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, RWDebugBRDFProbabilityDensityFunction)
 		SHADER_PARAMETER(uint32, DebugProbeBRDFOctahedronResolution)
@@ -1089,6 +1098,16 @@ bool UpdateRadianceCacheState(FRDGBuilder& GraphBuilder, const FViewInfo& View, 
 
 namespace LumenRadianceCache
 {
+
+bool ShouldImportanceSampleBRDF(const FUpdateInputs& Inputs)
+{
+	return Inputs.ScreenProbeParameters && Inputs.BRDFProbabilityDensityFunctionSH && GLumenRadianceCacheForceUniformTraceTileLevel < 0;
+}
+
+float GetSupersampleDistanceFromCamera(const FUpdateInputs& Inputs)
+{
+	return ShouldImportanceSampleBRDF(Inputs) ? GLumenRadianceCacheSupersampleDistanceFromCamera : 0;
+}
 
 class FRadianceCacheSetup
 {
@@ -1551,7 +1570,7 @@ void UpdateRadianceCaches(
 				PassParameters->View = View.ViewUniformBuffer;
 				PassParameters->ProbeFreeList = Setup.bPersistentCache ? GraphBuilder.CreateSRV(FRDGBufferSRVDesc(ProbeFreeList[RadianceCacheIndex], PF_R32_UINT)) : nullptr;
 				PassParameters->FirstClipmapWorldExtentRcp = 1.0f / FMath::Max(RadianceCacheInputs.ClipmapWorldExtent, 1.0f);
-				PassParameters->SupersampleDistanceFromCameraSq = GLumenRadianceCacheSupersampleDistanceFromCamera * GLumenRadianceCacheSupersampleDistanceFromCamera;
+				PassParameters->SupersampleDistanceFromCameraSq = GetSupersampleDistanceFromCamera(Inputs) * GetSupersampleDistanceFromCamera(Inputs);
 				PassParameters->DownsampleDistanceFromCameraSq = GLumenRadianceCacheDownsampleDistanceFromCamera * GLumenRadianceCacheDownsampleDistanceFromCamera;
 				PassParameters->FrameNumber = View.ViewState ? View.ViewState->GetFrameIndex() : View.Family->FrameNumber;
 				PassParameters->MaxNumProbes = MaxNumProbes;
@@ -1636,7 +1655,7 @@ void UpdateRadianceCaches(
 				PassParameters->ProbeLastUsedFrame = GraphBuilder.CreateSRV(ProbeLastUsedFrame[RadianceCacheIndex], PF_R32_UINT);
 				PassParameters->View = View.ViewUniformBuffer;
 				PassParameters->ProbeFreeList = Setup.bPersistentCache ? GraphBuilder.CreateSRV(FRDGBufferSRVDesc(ProbeFreeList[RadianceCacheIndex], PF_R32_UINT)) : nullptr;
-				PassParameters->SupersampleDistanceFromCameraSq = GLumenRadianceCacheSupersampleDistanceFromCamera * GLumenRadianceCacheSupersampleDistanceFromCamera;
+				PassParameters->SupersampleDistanceFromCameraSq = GetSupersampleDistanceFromCamera(Inputs) * GetSupersampleDistanceFromCamera(Inputs);
 				PassParameters->DownsampleDistanceFromCameraSq = GLumenRadianceCacheDownsampleDistanceFromCamera * GLumenRadianceCacheDownsampleDistanceFromCamera;
 				PassParameters->FirstClipmapWorldExtentRcp = 1.0f / FMath::Max(RadianceCacheInputs.ClipmapWorldExtent, 1.0f);
 				PassParameters->FrameNumber = View.ViewState ? View.ViewState->GetFrameIndex() : View.Family->FrameNumber;
@@ -1767,7 +1786,7 @@ void UpdateRadianceCaches(
 			FRadianceCacheState& RadianceCacheState = Outputs.RadianceCacheState;
 			FRadianceCacheInterpolationParameters& RadianceCacheParameters = Outputs.RadianceCacheParameters;
 
-			const bool bGenerateBRDF_PDF = Inputs.ScreenProbeParameters && Inputs.BRDFProbabilityDensityFunctionSH;
+			const bool bGenerateBRDF_PDF = ShouldImportanceSampleBRDF(Inputs);
 
 			if (bGenerateBRDF_PDF)
 			{
@@ -1863,6 +1882,7 @@ void UpdateRadianceCaches(
 				PassParameters->SupersampleTileBRDFThreshold = GLumenRadianceCacheSupersampleTileBRDFThreshold;
 				PassParameters->SupersampleDistanceFromCameraSq = GLumenRadianceCacheSupersampleDistanceFromCamera * GLumenRadianceCacheSupersampleDistanceFromCamera;
 				PassParameters->DownsampleDistanceFromCameraSq = GLumenRadianceCacheDownsampleDistanceFromCamera * GLumenRadianceCacheDownsampleDistanceFromCamera;
+				PassParameters->ForcedUniformLevel = FMath::Clamp<int32>(GLumenRadianceCacheForceUniformTraceTileLevel, 0, 2);
 
 				PassParameters->RWDebugBRDFProbabilityDensityFunction = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(DebugBRDFProbabilityDensityFunction));
 				PassParameters->DebugProbeBRDFOctahedronResolution = DebugProbeBRDFOctahedronResolution;

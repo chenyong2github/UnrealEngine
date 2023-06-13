@@ -395,7 +395,7 @@ void MarkRadianceProbesUsedByScreenProbesCS(
 
 		if (SceneDepth > 0)
 		{
-			uint ClipmapIndex = GetRadianceProbeClipmapForMark(WorldPosition, InterleavedGradientNoise(ScreenProbeAtlasCoord.xy, GENERAL_TEMPORAL_INDEX));
+			uint ClipmapIndex = GetRadianceProbeClipmapForMark(WorldPosition, 0);
 
 			if (IsValidRadianceCacheClipmapForMark(ClipmapIndex))
 			{

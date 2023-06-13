@@ -379,7 +379,7 @@ void ScreenProbeComputeLightingProbabilityDensityFunctionCS(
 				float3 WorldConeDirection = EquiAreaSphericalMapping(ProbeUV);
 				float ConeHalfAngle = acosFast(1.0f - 1.0f / (float)(ScreenProbeTracingOctahedronResolution * ScreenProbeTracingOctahedronResolution));
 
-				FRadianceCacheCoverage Coverage = GetRadianceCacheCoverage(WorldPosition, WorldConeDirection, InterleavedGradientNoise(ScreenTileCoord, View.StateFrameIndexMod8));
+				FRadianceCacheCoverage Coverage = GetRadianceCacheCoverage(WorldPosition, WorldConeDirection, 0);
 				
 				if (Coverage.bValid)
 				{

@@ -16,6 +16,7 @@ uint GetProbeTraceCostBudget()
 	return NumProbesToTraceBudget * 4;
 }
 
+// Note: should match GenerateProbeTraceTilesCS as closely as possible
 uint GetProbeTraceCost(float3 ProbeWorldPosition)
 {
 	float3 CameraVector = LWCHackToFloat(PrimaryView.WorldCameraOrigin) - ProbeWorldPosition;

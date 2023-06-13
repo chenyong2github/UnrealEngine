@@ -190,6 +190,12 @@ void LumenRadianceCacheHardwareRayTracingCommon(uint ThreadIndex)
 				Result.Radiance = TraceResult.Lighting;
 			}
 
+			#define DEBUG_VISUALIZE_SAMPLING_RESOLUTION 0
+			#if DEBUG_VISUALIZE_SAMPLING_RESOLUTION
+				// Set r.Lumen.RadianceCache.SpatialFilterProbes 0 for raw output
+				Result.Radiance = TraceTileLevel == 0 ? float3(0, 1, 0) : (TraceTileLevel == 1 ? float3(1, 0, 0) : float3(1, 0, 1));
+			#endif
+
 			if (TraceTileIndex < TempAtlasNumTraceTiles)
 			{
 				uint2 TraceAtlasCoord = GetTraceTileAtlasCoord(TraceTileIndex, TexelCoord);

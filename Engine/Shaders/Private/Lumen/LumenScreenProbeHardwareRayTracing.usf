@@ -131,9 +131,8 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenScreenProbeGatherHardwareRayTracing)
 
 		#if DIM_RADIANCE_CACHE
 		{
-			float ClipmapDitherRandom = InterleavedGradientNoise(ScreenTileCoord, View.StateFrameIndexMod8);
 			float3 RayOriginWorldPos = Ray.Origin - LWCHackToFloat(PrimaryView.PreViewTranslation);
-			FRadianceCacheCoverage Coverage = GetRadianceCacheCoverage(RayOriginWorldPos, Ray.Direction, ClipmapDitherRandom); // LUMEN_LWC_TODO
+			FRadianceCacheCoverage Coverage = GetRadianceCacheCoverage(RayOriginWorldPos, Ray.Direction, 0); // LUMEN_LWC_TODO
 			if (Coverage.bValid)
 			{
 				Ray.TMax = min(Ray.TMax, Coverage.MinTraceDistanceBeforeInterpolation);
@@ -155,7 +154,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenScreenProbeGatherHardwareRayTracing)
 			bMoving = IsTraceMoving(TranslatedWorldPosition, SceneDepth, ScreenProbeAtlasCoord, HitTranslatedWorldPosition, Result.WorldVelocity);
 		}
 
-		Result.Radiance += GetSkylightLeaking(Ray.Direction, TraceHitDistance);
+		Result.Radiance += GetSkylightLeaking(Ray.Direction, Result.TraceHitDistance);
 		Result.Radiance *= View.PreExposure;
 
 		if (SampleHeightFog > 0)

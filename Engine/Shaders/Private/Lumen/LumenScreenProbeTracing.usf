@@ -125,7 +125,7 @@ void ScreenProbeTraceScreenTexturesCS(
 			{
 				bool bCoveredByRadianceCache = false;
 				#if RADIANCE_CACHE
-					FRadianceCacheCoverage Coverage = GetRadianceCacheCoverage(TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation), RayWorldDirection, InterleavedGradientNoise(ScreenTileCoord, GENERAL_TEMPORAL_INDEX));
+					FRadianceCacheCoverage Coverage = GetRadianceCacheCoverage(TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation), RayWorldDirection, 0);
 
 					if (Coverage.bValid)
 					{
@@ -679,7 +679,7 @@ void TraceVoxels(
 			FRadianceCacheCoverage Coverage;
 			Coverage.bValid = false;
 #if RADIANCE_CACHE
-			Coverage = GetRadianceCacheCoverage(WorldPosition, RayWorldDirection, InterleavedGradientNoise(ScreenTileCoord, GENERAL_TEMPORAL_INDEX));
+			Coverage = GetRadianceCacheCoverage(WorldPosition, RayWorldDirection, 0);
 
 			if (Coverage.bValid)
 			{
