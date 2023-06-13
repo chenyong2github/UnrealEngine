@@ -587,12 +587,11 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 				{
 					if (DepAction.DependantAction && DepAction.DependantAction == DelegateAction)
 					{
-						bCanTrigger = !TriggeredActionsThisTick.Contains(DepAction.SourceAction);
+						bCanTrigger &= !TriggeredActionsThisTick.Contains(DepAction.SourceAction);
 						if(!bCanTrigger)
 						{
 							UE_LOG(LogEnhancedInput, Warning, TEXT("'%s' action was cancelled, its dependant on '%s'"), *DelegateAction->GetName(), *DepAction.SourceAction->GetName());
 						}
-						break;
 					}
 				}
 			}
