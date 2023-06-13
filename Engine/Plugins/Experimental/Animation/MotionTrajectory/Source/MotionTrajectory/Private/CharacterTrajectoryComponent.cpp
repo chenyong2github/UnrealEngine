@@ -248,5 +248,13 @@ FRotator UCharacterTrajectoryComponent::CalculateControllerRotationRate(float De
 	const FRotator DesiredRotationDelta = DesiredControllerRotation - DesiredControllerRotationLastUpdate;
 	DesiredControllerRotationLastUpdate = DesiredControllerRotation;
 
-	return DesiredRotationDelta.GetNormalized() * (1.f / DeltaSeconds);
+	FRotator ControllerRotationRate = DesiredRotationDelta.GetNormalized() * (1.f / DeltaSeconds);
+	if (MaxControllerRotationRate >= 0.f)
+	{
+		ControllerRotationRate.Pitch = FMath::Sign(ControllerRotationRate.Pitch) * FMath::Min(FMath::Abs(ControllerRotationRate.Pitch), MaxControllerRotationRate);
+		ControllerRotationRate.Yaw = FMath::Sign(ControllerRotationRate.Yaw) * FMath::Min(FMath::Abs(ControllerRotationRate.Yaw), MaxControllerRotationRate);
+		ControllerRotationRate.Roll = FMath::Sign(ControllerRotationRate.Roll) * FMath::Min(FMath::Abs(ControllerRotationRate.Roll), MaxControllerRotationRate);
+	}
+
+	return ControllerRotationRate;
 }
