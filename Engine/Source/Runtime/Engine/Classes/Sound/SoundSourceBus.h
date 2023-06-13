@@ -54,8 +54,23 @@ public:
 	}
 
 	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+
+	// Override the SoundWave behavior so that we don't ask DDC for compressed data.
+	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform) override {};
+	virtual bool IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform) override { return true; };
+	virtual void ClearCachedCookedPlatformData(const ITargetPlatform* TargetPlatform) override {};
+
 #endif // WITH_EDITOR
 	//~ End UObject Interface.
+
+	//~ Begin USoundWave Interface
+#if WITH_EDITORONLY_DATA
+	virtual void CachePlatformData(bool bAsyncCache = false) override {};
+	virtual void BeginCachePlatformData() override {}
+	virtual void FinishCachePlatformData() override {};	
+#endif	//WITH_EDITOR_ONLY_DATA
+	virtual void SerializeCookedPlatformData(FArchive& Ar) override {}
+	//~ End USoundWave Interface
 
 	//~ Begin USoundBase Interface.
 	ENGINE_API virtual bool IsPlayable() const override;

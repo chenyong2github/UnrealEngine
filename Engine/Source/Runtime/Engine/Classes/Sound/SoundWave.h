@@ -1158,7 +1158,7 @@ public:
 	/**
 	 * Serializes cooked platform data.
 	 */
-	ENGINE_API void SerializeCookedPlatformData(class FArchive& Ar);
+	ENGINE_API virtual void SerializeCookedPlatformData(class FArchive& Ar);
 
 	/*
 	* Returns a sample rate if there is a specific sample rate override for this platform, -1.0 otherwise.
@@ -1213,17 +1213,17 @@ public:
 	/**
 	 * Caches platform data for the sound.
 	 */
-	ENGINE_API void CachePlatformData(bool bAsyncCache = false);
+	ENGINE_API virtual void CachePlatformData(bool bAsyncCache = false);
 
 	/**
 	 * Begins caching platform data in the background.
 	 */
-	ENGINE_API void BeginCachePlatformData();
+	ENGINE_API virtual void BeginCachePlatformData();
 
 	/**
 	 * Blocks on async cache tasks and prepares platform data for use.
 	 */
-	ENGINE_API void FinishCachePlatformData();
+	ENGINE_API virtual void FinishCachePlatformData();
 
 	/**
 	 * Forces platform data to be rebuilt.
