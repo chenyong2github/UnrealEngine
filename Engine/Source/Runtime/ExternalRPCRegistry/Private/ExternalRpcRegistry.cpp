@@ -239,6 +239,10 @@ bool UExternalRpcRegistry::HttpListOpenRoutes(const FHttpServerRequest& Request,
 			JsonWriter->WriteArrayStart(TEXT("args"));
 			for (const FExternalRpcArgumentDesc* ArgDesc : RegisteredRoutes[RouteKey].ExpectedArguments)
 			{
+				if (ArgDesc == nullptr)
+				{
+					continue;
+				}
 				JsonWriter->WriteObjectStart();
 				JsonWriter->WriteValue(TEXT("name"), ArgDesc->Name);
 				JsonWriter->WriteValue(TEXT("type"), ArgDesc->Type);
