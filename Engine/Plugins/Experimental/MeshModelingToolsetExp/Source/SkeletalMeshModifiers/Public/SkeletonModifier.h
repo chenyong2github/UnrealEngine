@@ -60,6 +60,9 @@ struct SKELETALMESHMODIFIERS_API FOrientOptions
 	TEnumAsByte<EAxis::Type> Secondary = EAxis::Y;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Orient")
+	bool bUsePlaneAsSecondary = true;
+	
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Orient")
 	FVector SecondaryTarget = FVector::YAxisVector;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Orient")

@@ -838,7 +838,9 @@ bool USkeletonModifier::SetBonesTransforms(
 		FReferenceSkeletonModifier Modifier(*ReferenceSkeleton, nullptr);
 		for (int32 Index = 0; Index < BoneIndices.Num(); Index++)
 		{
-			Modifier.UpdateRefPoseTransform(BoneIndices[Index], InNewTransforms[Offsets[Index]]);
+			FTransform NewTransform = InNewTransforms[Offsets[Index]];
+			NewTransform.NormalizeRotation();
+			Modifier.UpdateRefPoseTransform(BoneIndices[Index], NewTransform);
 
 			// invalidate cached global transform
 			TransformComposer->Invalidate(BoneIndices[Index]);
@@ -852,7 +854,8 @@ bool USkeletonModifier::SetBonesTransforms(
 				const int32 ChildrenIndex = ChildrenToFix[Index];
 				const int32 ParentIndex = ReferenceSkeleton->GetRawParentIndex(ChildrenIndex);
 				const FTransform& NewParentGlobal = TransformComposer->GetGlobalTransform(ParentIndex);
-				const FTransform& NewLocal = GlobalTransforms[Index].GetRelativeTransform(NewParentGlobal);
+				FTransform NewLocal = GlobalTransforms[Index].GetRelativeTransform(NewParentGlobal);
+				NewLocal.NormalizeRotation();
 				Modifier.UpdateRefPoseTransform(ChildrenIndex, NewLocal);
 				TransformComposer->Invalidate(ChildrenIndex);
 			}
@@ -1118,6 +1121,22 @@ bool USkeletonModifier::OrientBones(const TArray<FName>& InBoneNames, const FOri
 		if (Direction.IsNearlyZero())
 		{
 			return BoneGlobal;
+		}
+
+		// compute the secondary target based on the plane formed by the bones if needed
+		if (InOptions.bUsePlaneAsSecondary)
+		{
+			const FVector SecondaryDirection = (BoneGlobal.GetLocation() - ParentGlobal.GetLocation()).GetSafeNormal();
+			if (!SecondaryDirection.IsNearlyZero())
+			{
+				const bool bComputePlane = (FMath::Abs(FVector::DotProduct(Direction, SecondaryDirection)) - 1.0f) < KINDA_SMALL_NUMBER;
+				if (bComputePlane)
+				{ // use the plane normal as the secondary target, otherwise use InOptions' SecondaryTarget
+					FOrientOptions Options = InOptions;
+					Options.SecondaryTarget = FVector::CrossProduct(Direction, SecondaryDirection);
+					return Options.OrientTransform(Direction, BoneGlobal);
+				}
+			}
 		}
 
 		return InOptions.OrientTransform(Direction, BoneGlobal);
