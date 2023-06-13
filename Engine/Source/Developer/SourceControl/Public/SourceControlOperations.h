@@ -329,6 +329,16 @@ public:
 		return bHeadRevision;
 	}
 
+	void SetTransferSize(const int32 InTransferSize)
+	{
+		TransferSize = InTransferSize;
+	}
+
+	int32 GetTransferSize() const
+	{
+		return TransferSize;
+	}
+
 	void SetAffectedFiles(TArray<FString>&& InAffectedFiles)
 	{
 		AffectedFiles = MoveTemp(InAffectedFiles);
@@ -345,6 +355,9 @@ protected:
 
 	/** Flag abstracting if the operation aims to preview a sync to head */
 	bool bHeadRevision = false;
+
+	/** Number of bytes that need to be transferred for the sync operation */
+	int32 TransferSize = 0;
 
 	/** Array of files that would be affected by the sync operation */
 	TArray<FString> AffectedFiles;
