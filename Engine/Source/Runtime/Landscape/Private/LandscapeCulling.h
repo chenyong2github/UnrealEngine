@@ -14,6 +14,7 @@ class FSceneViewFamily;
 class FSceneView;
 class FRDGBuilder;
 struct FViewMatrices;
+class FRHICommandListBase;
 
 /**
 * Landscape GPU culling implementation
