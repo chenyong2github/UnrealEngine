@@ -37,6 +37,7 @@ DECLARE_CYCLE_STAT(TEXT("Niagara Manager Tick [GT]"), STAT_NiagaraWorldManTick, 
 DECLARE_CYCLE_STAT(TEXT("Niagara Manager Wait On Render [GT]"), STAT_NiagaraWorldManWaitOnRender, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Niagara Manager Wait Pre Garbage Collect [GT]"), STAT_NiagaraWorldManWaitPreGC, STATGROUP_Niagara); 
 DECLARE_CYCLE_STAT(TEXT("Niagara Manager Refresh Owner Allows Scalability"), STAT_NiagaraWorldManRefreshOwnerAllowsScalability, STATGROUP_Niagara);
+DECLARE_CYCLE_STAT(TEXT("Niagara Manager Tick Parameter Collections [GT]"), STAT_NiagaraWorldManTickParamCollections, STATGROUP_Niagara);
 
 static int GNiagaraAllowAsyncWorkToEndOfFrame = 1;
 static FAutoConsoleVariableRef CVarNiagaraAllowAsyncWorkToEndOfFrame(
@@ -496,6 +497,18 @@ UNiagaraCullProxyComponent* FNiagaraWorldManager::GetCullProxy(UNiagaraComponent
 		return CullProxy;
 	}
 	return nullptr;
+}
+
+void FNiagaraWorldManager::TickParameterCollections()
+{
+	SCOPE_CYCLE_COUNTER(STAT_NiagaraWorldManTickParamCollections);
+
+	//-TODO: Do we need to do this per tick group?
+	for (TPair<UNiagaraParameterCollection*, UNiagaraParameterCollectionInstance*> CollectionInstPair : ParameterCollections)
+	{
+		check(CollectionInstPair.Value);
+		CollectionInstPair.Value->Tick(World);
+	}
 }
 
 UNiagaraParameterCollectionInstance* FNiagaraWorldManager::GetParameterCollection(UNiagaraParameterCollection* Collection)
@@ -1237,13 +1250,7 @@ void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELe
 
 		UpdateScalabilityManagers(DeltaSeconds, false);
 
-		//Tick our collections to push any changes to bound stores.
-		//-TODO: Do we need to do this per tick group?
-		for (TPair<UNiagaraParameterCollection*, UNiagaraParameterCollectionInstance*> CollectionInstPair : ParameterCollections)
-		{
-			check(CollectionInstPair.Value);
-			CollectionInstPair.Value->Tick(World);
-		}
+		TickParameterCollections();
 	}
 
 	// If we are in paused don't do anything
