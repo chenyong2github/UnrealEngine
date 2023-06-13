@@ -2,6 +2,8 @@
 
 #include "ISoundfieldEndpoint.h"
 
+#include "AudioExtentionsModule.h"
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ISoundfieldEndpoint)
 
 ISoundfieldEndpoint::ISoundfieldEndpoint(int32 NumRenderCallbacksToBuffer)
@@ -136,6 +138,9 @@ ISoundfieldEndpointFactory* ISoundfieldEndpointFactory::Get(const FName& InName)
 
 TArray<FName> ISoundfieldEndpointFactory::GetAllSoundfieldEndpointTypes()
 {
+	// Ensure the module is loaded. This will cause any platform extension modules to load and register. 
+	ensure(FAudioExtensionsModule::Get() != nullptr);
+	
 	TArray<FName> SoundfieldFormatNames;
 
 	SoundfieldFormatNames.Add(DefaultSoundfieldEndpointName());

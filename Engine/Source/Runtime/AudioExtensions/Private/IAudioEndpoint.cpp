@@ -2,6 +2,8 @@
 
 #include "IAudioEndpoint.h"
 
+#include "AudioExtentionsModule.h"
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(IAudioEndpoint)
 
 DEFINE_LOG_CATEGORY(LogAudioEndpoints);
@@ -180,6 +182,9 @@ IAudioEndpointFactory* IAudioEndpointFactory::Get(const FName& InName)
 
 TArray<FName> IAudioEndpointFactory::GetAvailableEndpointTypes()
 {
+	// Ensure the module is loaded. This will cause any platform extension modules to load and register.
+	ensure(FAudioExtensionsModule::Get() != nullptr);
+	
 	TArray<FName> EndpointNames;
 
 	EndpointNames.Add(GetTypeNameForDefaultEndpoint());
