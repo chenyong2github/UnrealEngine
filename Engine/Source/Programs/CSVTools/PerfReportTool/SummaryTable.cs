@@ -688,8 +688,8 @@ namespace PerfSummaries
 			colourThresholds = new List<ColourThresholdList>();
 			double maxValue = -double.MaxValue;
 			double minValue = double.MaxValue;
-			double totalValue = 0.0f;
-			double validCount = 0.0f;
+			double totalValue = 0.0;
+			double validCount = 0.0;
 			for (int i = 0; i < doubleValues.Count; i++)
 			{
 				if (IsDiffRow(i))
@@ -702,10 +702,10 @@ namespace PerfSummaries
 					maxValue = Math.Max(val, maxValue);
 					minValue = Math.Min(val, minValue);
 					totalValue += val;
-					validCount += 1.0f;
+					validCount += 1.0;
 				}
 			}
-			if (minValue == maxValue)
+			if (minValue == maxValue || validCount == 0.0)
 			{
 				return;
 			}
