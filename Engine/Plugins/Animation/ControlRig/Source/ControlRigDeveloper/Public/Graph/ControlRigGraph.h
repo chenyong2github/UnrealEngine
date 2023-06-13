@@ -95,6 +95,10 @@ public:
 	UPROPERTY()
 	bool bIsFunctionDefinition;
 
+protected:
+	using Super::AddNode;
+	virtual void AddNode(UEdGraphNode* NodeToAdd, bool bUserAction = false, bool bSelectNewNode = true) override;
+
 private:
 
 	template<class T>

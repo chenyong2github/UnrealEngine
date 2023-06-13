@@ -3658,18 +3658,6 @@ void FControlRigEditor::OnSelectedNodesChangedImpl(const TSet<class UObject*>& N
 			}
 			else if(UEdGraphNode* Node = Cast<UEdGraphNode>(Object))
 			{
-				if (UEdGraphNode_Comment* CommentNode = Cast<UEdGraphNode_Comment>(Node))
-				{
-					URigVMNode* ModelNode = GetFocusedModel()->FindNodeByName(Node->GetFName());
-					if (ModelNode == nullptr)
-					{
-						TGuardValue<bool> BlueprintNotifGuard(ControlRigBlueprint->bSuspendModelNotificationsForOthers, true);
-						FVector2D NodePos(CommentNode->NodePosX, CommentNode->NodePosY);
-						FVector2D NodeSize(CommentNode->NodeWidth, CommentNode->NodeHeight);
-						FLinearColor NodeColor = CommentNode->CommentColor;
-						GetFocusedController()->AddCommentNode(CommentNode->NodeComment, NodePos, NodeSize, NodeColor, CommentNode->GetName(), true, true);
-					}
-				}
 				NodeNamesToSelect.Add(Node->GetFName());
 			}
 		}

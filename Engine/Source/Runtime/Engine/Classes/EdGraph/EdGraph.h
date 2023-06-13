@@ -145,7 +145,7 @@ public:
 	 * @param bUserAction	true if the node was added as the result of a direct user action
 	 * @param bSelectNewNode	Whether or not to select the new node being created
 	 */
-	ENGINE_API void AddNode( UEdGraphNode* NodeToAdd, bool bUserAction = false, bool bSelectNewNode = true );
+	ENGINE_API virtual void AddNode( UEdGraphNode* NodeToAdd, bool bUserAction = false, bool bSelectNewNode = true );
 
 	/**
 	 * Queues up a select operation for a series of nodes in this graph.

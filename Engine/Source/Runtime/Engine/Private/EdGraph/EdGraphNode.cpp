@@ -855,6 +855,12 @@ UEdGraphPin* UEdGraphNode::GetPinWithDirectionAt(int32 PinIndex, EEdGraphPinDire
 
 void UEdGraphNode::AddSearchMetaDataInfo(TArray<struct FSearchTagDataPair>& OutTaggedMetaData) const
 {
+	if (GetSchema() == nullptr)
+	{
+		ensure(false);
+		return;
+	}
+
 	// Searchable - Primary label for the item in the search results
 	OutTaggedMetaData.Add(FSearchTagDataPair(FFindInBlueprintSearchTags::FiB_Name, GetNodeTitle(ENodeTitleType::ListView)));
 
