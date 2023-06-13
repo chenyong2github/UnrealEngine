@@ -2190,6 +2190,21 @@ void FLowLevelMemTracker::SetTagAmountForTracker(ELLMTracker Tracker, ELLMTag Ta
 	GetTracker(Tracker)->SetTagAmountExternal(TagData, Amount, bAddToTotal);
 }
 
+void FLowLevelMemTracker::SetTagAmountForTracker(ELLMTracker Tracker, FName Tag, ELLMTagSet TagSet, int64 Amount, bool bAddToTotal)
+{
+	using namespace UE::LLMPrivate;
+
+	if (bIsDisabled)
+	{
+		return;
+	}
+	BootstrapInitialise();
+	const FTagData* TagData = FindOrAddTagData(Tag, TagSet);
+
+	FScopeLock UpdateScopeLock(&UpdateLock); // uses of TagSizes are guarded by the UpdateLock
+	GetTracker(Tracker)->SetTagAmountExternal(TagData, Amount, bAddToTotal);
+}
+
 int64 FLowLevelMemTracker::GetActiveTag(ELLMTracker Tracker)
 {
 	using namespace UE::LLMPrivate;

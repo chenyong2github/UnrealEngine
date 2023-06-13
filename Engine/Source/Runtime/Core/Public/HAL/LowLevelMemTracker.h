@@ -644,6 +644,9 @@ public:
 	/** Set the amount of memory for an ELLMTag for a given tracker and optionally update the total tracked memory. */
 	void SetTagAmountForTracker(ELLMTracker Tracker, ELLMTag Tag, int64 Amount, bool bAddToTotal);
 
+	/** Set the amount of memory for an tag name for a given tracker and optionally update the total tracked memory. */
+	void SetTagAmountForTracker(ELLMTracker Tracker, FName Tag, ELLMTagSet TagSet, int64 Amount, bool bAddToTotal);
+	
 	/** Dump the display name of the current TagData for the given tracker to the output. */
 	uint64 DumpTag(ELLMTracker Tracker, const char* FileName, int LineNumber);
 
