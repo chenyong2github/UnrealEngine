@@ -26,6 +26,7 @@
 #include "Misc/ScopedSlowTask.h"
 #include "Templates/NonNullPointer.h"
 #include "UObject/Package.h"
+#include "UObject/SoftObjectPath.h"
 #if WITH_EDITOR
 #include "Editor.h"
 #include "Editor/EditorEngine.h"
@@ -209,7 +210,14 @@ namespace UE::LevelSnapshots::Private::Internal
 #endif
 }
 
-void UE::LevelSnapshots::Private::ApplyToWorld(FWorldSnapshotData& WorldData, FSnapshotDataCache& Cache, UWorld* WorldToApplyTo, UPackage* LocalisationSnapshotPackage, const FPropertySelectionMap& PropertiesToSerialize)
+void UE::LevelSnapshots::Private::ApplyToWorld(
+	FWorldSnapshotData& WorldData,
+	FSnapshotDataCache& Cache,
+	UWorld* WorldToApplyTo,
+	UPackage* LocalisationSnapshotPackage,
+	const FPropertySelectionMap& PropertiesToSerialize,
+	TFunctionRef<void()> OnPreApply,
+	TFunctionRef<void()> OnPostApply)
 {
 	check(WorldToApplyTo);
 	
@@ -229,11 +237,8 @@ void UE::LevelSnapshots::Private::ApplyToWorld(FWorldSnapshotData& WorldData, FS
 #endif
 
 	// It's important to call these events after the transaction has been started
-	FLevelSnapshotsModule::GetInternalModuleInstance().OnPreApplySnapshot({ PropertiesToSerialize });
-	ON_SCOPE_EXIT
-	{
-		FLevelSnapshotsModule::GetInternalModuleInstance().OnPostApplySnapshot({ PropertiesToSerialize });
-	};
+	OnPreApply();
+	ON_SCOPE_EXIT { OnPostApply(); };
 
 	// Clear editor world subobject cache from previous ApplyToWorld
 	for (auto SubobjectIt = Cache.SubobjectCache.CreateIterator(); SubobjectIt; ++SubobjectIt)

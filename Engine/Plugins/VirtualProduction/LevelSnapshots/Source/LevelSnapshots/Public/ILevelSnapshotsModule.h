@@ -36,6 +36,11 @@ namespace UE::LevelSnapshots
 		{
 			return FModuleManager::Get().GetModuleChecked<ILevelSnapshotsModule>("LevelSnapshots");
 		}
+
+		static bool IsAvailable()
+		{
+			return FModuleManager::Get().IsModuleLoaded("LevelSnapshots");
+		}
 		
 
 		DECLARE_EVENT_OneParam(ILevelSnapshotsModule, FPreTakeSnapshotEvent, const FPreTakeSnapshotEventData&);

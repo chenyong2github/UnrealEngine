@@ -46,7 +46,7 @@ namespace UE::LevelSnapshots::Foliage::Private
 		//~ End ICustomObjectSnapshotSerializer Interface
 		
 		//~ Begin IRestorationListener Interface
-		virtual void PostApplySnapshot(const FApplySnapshotParams& Params) override;
+		virtual void PostApplySnapshot(const FPostApplySnapshotParams& Params) override;
 		virtual void PostApplySnapshotToActor(const FApplySnapshotToActorParams& Params) override;
 		virtual void PreApplySnapshotProperties(const FApplySnapshotPropertiesParams& Params) override;
 		virtual void PostApplySnapshotProperties(const FApplySnapshotPropertiesParams& Params) override;

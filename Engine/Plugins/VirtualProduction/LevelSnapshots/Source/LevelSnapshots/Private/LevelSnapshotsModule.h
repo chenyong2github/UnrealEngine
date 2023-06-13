@@ -74,8 +74,8 @@ namespace UE::LevelSnapshots::Private
 
 		void OnPostLoadSnapshotObject(const FPostLoadSnapshotObjectParams& Params);
 
-		void OnPreApplySnapshot(const FApplySnapshotParams& Params);
-		void OnPostApplySnapshot(const FApplySnapshotParams& Params);
+		void OnPreApplySnapshot(const FPreApplySnapshotParams& Params);
+		void OnPostApplySnapshot(const FPostApplySnapshotParams& Params);
 		
 		void OnPreApplySnapshotProperties(const FApplySnapshotPropertiesParams& Params);
 		void OnPostApplySnapshotProperties(const FApplySnapshotPropertiesParams& Params);

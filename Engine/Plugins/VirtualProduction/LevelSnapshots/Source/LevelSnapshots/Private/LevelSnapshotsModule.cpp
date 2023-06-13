@@ -409,7 +409,7 @@ void UE::LevelSnapshots::Private::FLevelSnapshotsModule::OnPostLoadSnapshotObjec
 	}
 }
 
-void UE::LevelSnapshots::Private::FLevelSnapshotsModule::OnPreApplySnapshot(const FApplySnapshotParams& Params)
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::OnPreApplySnapshot(const FPreApplySnapshotParams& Params)
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(RestorationListeners);
 	
@@ -419,7 +419,7 @@ void UE::LevelSnapshots::Private::FLevelSnapshotsModule::OnPreApplySnapshot(cons
 	}
 }
 
-void UE::LevelSnapshots::Private::FLevelSnapshotsModule::OnPostApplySnapshot(const FApplySnapshotParams& Params)
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::OnPostApplySnapshot(const FPostApplySnapshotParams& Params)
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(RestorationListeners);
 	

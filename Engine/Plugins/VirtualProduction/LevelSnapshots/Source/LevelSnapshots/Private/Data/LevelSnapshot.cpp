@@ -43,9 +43,19 @@ void ULevelSnapshot::ApplySnapshotToWorld(UWorld* TargetWorld, const FPropertySe
 	};
 	
 	EnsureWorldInitialised();
-	
+
+	using namespace UE::LevelSnapshots;
+	using namespace UE::LevelSnapshots::Private;
 	OnPreApplySnapshotDelegate.Broadcast();
-	UE::LevelSnapshots::Private::ApplyToWorld(SerializedData, Cache, TargetWorld, GetPackage(), SelectionSet);
+	ApplyToWorld(
+		SerializedData,
+		Cache,
+		TargetWorld,
+		GetPackage(),
+		SelectionSet,
+		[this, &SelectionSet](){ FLevelSnapshotsModule::GetInternalModuleInstance().OnPreApplySnapshot({FApplySnapshotSharedParams{ *this, SelectionSet }}); },
+		[this, &SelectionSet](){ FLevelSnapshotsModule::GetInternalModuleInstance().OnPostApplySnapshot({ FApplySnapshotSharedParams{ *this, SelectionSet }}); }
+		);
 	OnPostApplySnapshotDelegate.Broadcast();
 }
 

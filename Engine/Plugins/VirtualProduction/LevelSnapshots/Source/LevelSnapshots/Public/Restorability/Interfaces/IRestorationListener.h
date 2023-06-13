@@ -7,6 +7,7 @@
 #include "Engine/World.h"
 #include "Templates/SubclassOf.h"
 
+class ULevelSnapshot;
 class AActor;
 class UActorComponent;
 
@@ -15,28 +16,37 @@ struct FPropertySelectionMap;
 
 namespace UE::LevelSnapshots
 {
-	struct FApplySnapshotParams
+	struct FRestorationListenerBaseParams
 	{
 		/** All of the user's selected properties */
 		const FPropertySelectionMap& SelectedProperties;
-
-		FApplySnapshotParams(const FPropertySelectionMap& SelectedProperties)
+		
+		FRestorationListenerBaseParams(const FPropertySelectionMap& SelectedProperties)
 			: SelectedProperties(SelectedProperties)
 		{}
 	};
 
-	struct FPreRemoveActorParams : FApplySnapshotParams
+	struct FApplySnapshotSharedParams : FRestorationListenerBaseParams
+	{
+		ULevelSnapshot& LevelSnapshot;
+		FApplySnapshotSharedParams(ULevelSnapshot& LevelSnapshot, const FPropertySelectionMap& SelectedProperties)
+			: FRestorationListenerBaseParams(SelectedProperties)
+			, LevelSnapshot(LevelSnapshot)
+		{}
+	};
+	struct FPreApplySnapshotParams : FApplySnapshotSharedParams {};
+	struct FPostApplySnapshotParams : FApplySnapshotSharedParams {};
+
+	struct FPreRemoveActorParams : FRestorationListenerBaseParams
 	{
 		AActor* ActorToRemove;
 
 		FPreRemoveActorParams(const FPropertySelectionMap& SelectedProperties, AActor* ActorToRemove)
-			: FApplySnapshotParams(SelectedProperties),
+			: FRestorationListenerBaseParams(SelectedProperties),
 			  ActorToRemove(ActorToRemove)
 		{}
 	};
-
-	struct FPostRemoveActorsParams : FApplySnapshotParams
-	{};
+	struct FPostRemoveActorsParams : FRestorationListenerBaseParams {};
 	
 	struct FApplySnapshotPropertiesParams
 	{
@@ -132,10 +142,10 @@ namespace UE::LevelSnapshots
 	public:
 
 		/** Called before the snapshot is applied. Except for the changes made by this event, the world has not been changed, yet. */
-		virtual void PreApplySnapshot(const FApplySnapshotParams& Params) {}
+		virtual void PreApplySnapshot(const FPreApplySnapshotParams& Params) {}
 		
 		/** Called after all snapshot data was applied. The world is nearly completely changed (the only thing remaining is executing this event). */
-		virtual void PostApplySnapshot(const FApplySnapshotParams& Params) {}
+		virtual void PostApplySnapshot(const FPostApplySnapshotParams& Params) {}
 
 
 		
