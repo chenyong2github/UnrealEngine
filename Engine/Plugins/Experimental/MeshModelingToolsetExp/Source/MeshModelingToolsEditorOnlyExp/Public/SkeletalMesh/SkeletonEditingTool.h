@@ -301,6 +301,8 @@ public:
 	
 	UPROPERTY(EditAnywhere, Category = "Project")
 	EProjectionType ProjectionType = EProjectionType::WithinMesh;
+
+	FViewCameraState CameraState;
 	
 private:
 	TWeakObjectPtr<UPreviewMesh> PreviewMesh = nullptr;
