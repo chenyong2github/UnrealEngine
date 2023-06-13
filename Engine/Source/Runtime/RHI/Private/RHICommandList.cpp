@@ -1340,6 +1340,13 @@ void FRHICommandListImmediate::BeginFrame()
 void FRHICommandListImmediate::EndFrame()
 {
 	check(IsImmediate() && IsInRenderingThread());
+
+	// Flush any queued fence candidates by injecting a fence. This is to handle cases where no parallel translates happened within the frame.
+	if (!PersistentState.QueuedFenceCandidates.IsEmpty())
+	{
+		RHIThreadFence(true);
+	}
+
 	if (Bypass())
 	{
 		GetContext().RHIEndFrame();
