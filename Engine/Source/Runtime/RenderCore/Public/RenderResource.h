@@ -116,7 +116,7 @@ public:
 	 * This is only called by the rendering thread.
 	 */
 	virtual void InitRHI() {}
-	virtual void InitRHI(FRHICommandList& RHICmdList) { InitRHI(); }
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) { InitRHI(); }
 
 	/**
 	 * Releases the RHI resources used by this resource.
@@ -129,8 +129,9 @@ public:
 	 * Initializes the resource.
 	 * This is only called by the rendering thread.
 	 */
-	RENDERCORE_API virtual void InitResource();
-	RENDERCORE_API virtual void InitResource(FRHICommandList& RHICmdList);
+	UE_DEPRECATED(5.3, "InitResource now requires a command list.")
+	virtual void InitResource() final { InitResource(GetCommandList()); }
+	RENDERCORE_API virtual void InitResource(FRHICommandListBase& RHICmdList);
 
 	/**
 	 * Prepares the resource for deletion.
@@ -142,8 +143,9 @@ public:
 	 * If the resource's RHI resources have been initialized, then release and reinitialize it.  Otherwise, do nothing.
 	 * This is only called by the rendering thread.
 	 */
+	UE_DEPRECATED(5.3, "UpdateRHI now requires a command list.")
 	RENDERCORE_API void UpdateRHI();
-	RENDERCORE_API void UpdateRHI(FRHICommandList& RHICmdList);
+	RENDERCORE_API void UpdateRHI(FRHICommandListBase& RHICmdList);
 
 	/** @return The resource's friendly name.  Typically a UObject name. */
 	virtual FString GetFriendlyName() const { return TEXT("undefined"); }
@@ -188,6 +190,8 @@ protected:
 
 		return Buffer;
 	}
+
+	static RENDERCORE_API FRHICommandListBase& GetCommandList();
 
 	void SetInitPhase(EInitPhase InInitPhase)
 	{
@@ -554,7 +558,7 @@ private:
 		if (IsInRenderingThread())
 		{
 			// If the resource is constructed in the rendering thread, directly initialize it.
-			((ResourceType*)this)->InitResource();
+			((ResourceType*)this)->InitResource(FRenderResource::GetCommandList());
 		}
 		else
 		{

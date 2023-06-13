@@ -23,7 +23,7 @@ FCanvasTriangleRendererItem::FTriangleVertexFactory::FTriangleVertexFactory(
 	, VertexBuffers(InVertexBuffers)
 {}
 
-void FCanvasTriangleRendererItem::FTriangleVertexFactory::InitResource()
+void FCanvasTriangleRendererItem::FTriangleVertexFactory::InitResource(FRHICommandListBase& RHICmdList)
 {
 	FLocalVertexFactory::FDataType VertexData;
 	VertexBuffers->PositionVertexBuffer.BindPositionVertexBuffer(this, VertexData);
@@ -33,7 +33,7 @@ void FCanvasTriangleRendererItem::FTriangleVertexFactory::InitResource()
 	VertexBuffers->ColorVertexBuffer.BindColorVertexBuffer(this, VertexData);
 	SetData(VertexData);
 
-	FLocalVertexFactory::InitResource();
+	FLocalVertexFactory::InitResource(RHICmdList);
 }
 
 FMeshBatch* FCanvasTriangleRendererItem::FRenderData::AllocTriangleMeshBatch(FCanvasRenderContext& InRenderContext, FHitProxyId InHitProxyId)
@@ -69,7 +69,7 @@ uint32 FCanvasTriangleRendererItem::FRenderData::GetNumIndices() const
 	return Triangles.Num() * 3;
 }
 
-void FCanvasTriangleRendererItem::FRenderData::InitTriangleMesh(const FSceneView& View)
+void FCanvasTriangleRendererItem::FRenderData::InitTriangleMesh(FRHICommandListBase& RHICmdList, const FSceneView& View)
 {
 	const uint32 NumIndices = GetNumIndices();
 	const uint32 NumVertices = GetNumIndices();
@@ -112,11 +112,11 @@ void FCanvasTriangleRendererItem::FRenderData::InitTriangleMesh(const FSceneView
 		StaticMeshVertexBuffers.ColorVertexBuffer.VertexColor(StartIndex + 2) = Tri.V2_Color.ToFColor(true);
 	}
 
-	StaticMeshVertexBuffers.PositionVertexBuffer.InitResource();
-	StaticMeshVertexBuffers.StaticMeshVertexBuffer.InitResource();
-	StaticMeshVertexBuffers.ColorVertexBuffer.InitResource();
-	IndexBuffer.InitResource();
-	VertexFactory.InitResource();
+	StaticMeshVertexBuffers.PositionVertexBuffer.InitResource(RHICmdList);
+	StaticMeshVertexBuffers.StaticMeshVertexBuffer.InitResource(RHICmdList);
+	StaticMeshVertexBuffers.ColorVertexBuffer.InitResource(RHICmdList);
+	IndexBuffer.InitResource(RHICmdList);
+	VertexFactory.InitResource(RHICmdList);
 };
 
 void FCanvasTriangleRendererItem::FRenderData::ReleaseTriangleMesh()
@@ -148,7 +148,7 @@ void FCanvasTriangleRendererItem::FRenderData::RenderTriangles(
 
 	IRendererModule& RendererModule = GetRendererModule();
 
-	InitTriangleMesh(View);
+	InitTriangleMesh(RenderContext.GraphBuilder.RHICmdList, View);
 
 
 	// We know we have at least 1 triangle so prep up a new batch right away : 

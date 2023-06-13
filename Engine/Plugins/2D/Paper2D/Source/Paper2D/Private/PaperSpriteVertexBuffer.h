@@ -56,7 +56,7 @@ public:
 	// FRenderResource interface
 	virtual void InitRHI() override;
 	virtual void ReleaseRHI() override;
-	virtual void InitResource() override;
+	virtual void InitResource(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseResource() override;
 	// End of FRenderResource interface
 

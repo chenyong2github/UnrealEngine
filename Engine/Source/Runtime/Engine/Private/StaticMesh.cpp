@@ -980,7 +980,7 @@ void FStaticMeshVertexFactories::InitVertexFactory(
 			Data.StaticMesh				= Params.StaticMesh;
 		#endif
 			Params.VertexFactory->SetData(Data);
-			Params.VertexFactory->InitResource();
+			Params.VertexFactory->InitResource(RHICmdList);
 		});
 }
 
@@ -1089,13 +1089,15 @@ float FStaticMeshAreaWeightedSectionSampler::GetWeights(TArray<float>& OutWeight
 
 static inline void InitOrUpdateResource(FRenderResource* Resource)
 {
+	FRHICommandListImmediate& RHICmdList = FRHICommandListImmediate::Get();
+
 	if (!Resource->IsInitialized())
 	{
-		Resource->InitResource();
+		Resource->InitResource(RHICmdList);
 	}
 	else
 	{
-		Resource->UpdateRHI();
+		Resource->UpdateRHI(RHICmdList);
 	}
 }
 
@@ -1912,7 +1914,7 @@ void FStaticMeshRenderData::InitResources(ERHIFeatureLevel::Type InFeatureLevel,
 	if (IsRayTracingAllowed())
 	{
 		ENQUEUE_RENDER_COMMAND(InitRayTracingGeometryForInlinedLODs)(
-			[this](FRHICommandListImmediate&)
+			[this](FRHICommandListImmediate& RHICmdList)
 			{
 				for (int32 LODIndex = 0; LODIndex < LODResources.Num(); ++LODIndex)
 				{
@@ -1924,7 +1926,7 @@ void FStaticMeshRenderData::InitResources(ERHIFeatureLevel::Type InFeatureLevel,
 							LODResources[LODIndex].RayTracingGeometry.Initializer.Type = ERayTracingGeometryInitializerType::StreamingDestination;
 						}
 
-						LODResources[LODIndex].RayTracingGeometry.InitResource();
+						LODResources[LODIndex].RayTracingGeometry.InitResource(RHICmdList);
 					}
 				}
 			}

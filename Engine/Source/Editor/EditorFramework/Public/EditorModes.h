@@ -63,7 +63,7 @@ public:
 	}
 
 	// FDynamicPrimitiveResource interface.
-	virtual void InitPrimitiveResource()
+	virtual void InitPrimitiveResource(FRHICommandListBase& RHICmdList)
 	{
 	}
 	virtual void ReleasePrimitiveResource()

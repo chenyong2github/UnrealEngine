@@ -27,7 +27,7 @@ FCanvasTileRendererItem::FTileVertexFactory::FTileVertexFactory(
 	, VertexBuffers(InVertexBuffers)
 {}
 
-void FCanvasTileRendererItem::FTileVertexFactory::InitResource()
+void FCanvasTileRendererItem::FTileVertexFactory::InitResource(FRHICommandListBase& RHICmdList)
 {
 	FLocalVertexFactory::FDataType VertexData;
 	VertexBuffers->PositionVertexBuffer.BindPositionVertexBuffer(this, VertexData);
@@ -37,7 +37,7 @@ void FCanvasTileRendererItem::FTileVertexFactory::InitResource()
 	VertexBuffers->ColorVertexBuffer.BindColorVertexBuffer(this, VertexData);
 	SetData(VertexData);
 
-	FLocalVertexFactory::InitResource();
+	FLocalVertexFactory::InitResource(RHICmdList);
 }
 
 FMeshBatch* FCanvasTileRendererItem::FRenderData::AllocTileMeshBatch(FCanvasRenderContext& InRenderContext, FHitProxyId InHitProxyId)
@@ -81,7 +81,7 @@ uint32 FCanvasTileRendererItem::FRenderData::GetNumIndices() const
 	return Tiles.Num() * CanvasTileIndexCount;
 }
 
-void FCanvasTileRendererItem::FRenderData::InitTileMesh(const FSceneView& View)
+void FCanvasTileRendererItem::FRenderData::InitTileMesh(FRHICommandListBase& RHICmdList, const FSceneView& View)
 {
 	static_assert(CanvasTileVertexCount == 4, "Invalid tile tri-list size.");
 	static_assert(CanvasTileIndexCount == 6, "Invalid tile tri-list size.");
@@ -136,11 +136,11 @@ void FCanvasTileRendererItem::FRenderData::InitTileMesh(const FSceneView& View)
 		}
 	}
 
-	StaticMeshVertexBuffers.PositionVertexBuffer.InitResource();
-	StaticMeshVertexBuffers.StaticMeshVertexBuffer.InitResource();
-	StaticMeshVertexBuffers.ColorVertexBuffer.InitResource();
-	IndexBuffer.InitResource();
-	VertexFactory.InitResource();
+	StaticMeshVertexBuffers.PositionVertexBuffer.InitResource(RHICmdList);
+	StaticMeshVertexBuffers.StaticMeshVertexBuffer.InitResource(RHICmdList);
+	StaticMeshVertexBuffers.ColorVertexBuffer.InitResource(RHICmdList);
+	IndexBuffer.InitResource(RHICmdList);
+	VertexFactory.InitResource(RHICmdList);
 }
 
 void FCanvasTileRendererItem::FRenderData::ReleaseTileMesh()
@@ -173,7 +173,7 @@ void FCanvasTileRendererItem::FRenderData::RenderTiles(
 
 	IRendererModule& RendererModule = GetRendererModule();
 
-	InitTileMesh(View);
+	InitTileMesh(RenderContext.GraphBuilder.RHICmdList, View);
 
 	// We know we have at least 1 tile so prep up a new batch right away : 
 	FMeshBatch* CurrentMeshBatch = AllocTileMeshBatch(RenderContext, Tiles[0].HitProxyId);

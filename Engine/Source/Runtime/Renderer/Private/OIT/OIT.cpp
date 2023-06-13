@@ -272,9 +272,10 @@ public:
 		const EPixelFormat Format = BytesPerElement == 2 ? PF_R16_UINT : PF_R32_UINT;
 
 		FRHIResourceCreateInfo CreateInfo(DebugName);
-		IndexBufferRHI = RHICreateIndexBuffer(BytesPerElement /*Stride*/, NumIndices * BytesPerElement, BUF_UnorderedAccess | BUF_ShaderResource, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
-		SortedIndexUAV = RHICreateUnorderedAccessView(IndexBufferRHI, Format);
-		SourceIndexSRV = RHICreateShaderResourceView(SourceIndexBuffer, BytesPerElement, Format);
+		FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
+		IndexBufferRHI = RHICmdList.CreateBuffer(NumIndices * BytesPerElement, BUF_UnorderedAccess | BUF_ShaderResource | BUF_IndexBuffer, BytesPerElement /*Stride*/, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
+		SortedIndexUAV = RHICmdList.CreateUnorderedAccessView(IndexBufferRHI, Format);
+		SourceIndexSRV = RHICmdList.CreateShaderResourceView(SourceIndexBuffer, BytesPerElement, Format);
 	}
 
 	virtual void ReleaseRHI() override
@@ -327,9 +328,8 @@ static void TrimSortedIndexBuffers(TArray<FSortedIndexBuffer*>& FreeBuffers, uin
 	}
 }
 
-FSortedTriangleData FOITSceneData::Allocate(const FIndexBuffer* InSource, EPrimitiveType PrimitiveType, uint32 InFirstIndex, uint32 InNumPrimitives)
+FSortedTriangleData FOITSceneData::Allocate(FRHICommandListBase& RHICmdList, const FIndexBuffer* InSource, EPrimitiveType PrimitiveType, uint32 InFirstIndex, uint32 InNumPrimitives)
 {
-	check(IsInRenderingThread());
 	check(InSource && InSource->IndexBufferRHI);
 	check(PrimitiveType == PT_TriangleList || PrimitiveType == PT_TriangleStrip);
 
@@ -370,7 +370,7 @@ FSortedTriangleData FOITSceneData::Allocate(const FIndexBuffer* InSource, EPrimi
 	if (OITIndexBuffer == nullptr)
 	{
 		OITIndexBuffer = new FSortedIndexBuffer(FreeSlot, InSource->IndexBufferRHI, NumIndices, TEXT("OIT::SortedIndexBuffer"));
-		OITIndexBuffer->InitResource();	
+		OITIndexBuffer->InitResource(RHICmdList);	
 	}
 	Out->NumPrimitives = InNumPrimitives;
 	Out->NumIndices = NumIndices;

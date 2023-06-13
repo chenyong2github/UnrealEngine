@@ -21,7 +21,7 @@ namespace DisplayClusterRenderTargetResourcesPool
 		{
 			for (FDisplayClusterViewportResource* ResourceIt : NewResources)
 			{
-				ResourceIt->InitResource();
+				ResourceIt->InitResource(RHICmdList);
 			}
 		});
 	}

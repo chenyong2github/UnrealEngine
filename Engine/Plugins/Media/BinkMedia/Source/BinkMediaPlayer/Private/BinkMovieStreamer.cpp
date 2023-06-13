@@ -111,10 +111,11 @@ bool FBinkMovieStreamer::Tick(float DeltaTime)
 		FVector2D destUpperLeft = GetDefault<UBinkMoviePlayerSettings>()->BinkDestinationUpperLeft; 
 		FVector2D destLowerRight = GetDefault<UBinkMoviePlayerSettings>()->BinkDestinationLowerRight;
 
-		check( IsInRenderingThread() );
+		FRHICommandListImmediate& RHICmdList = FRHICommandListImmediate::Get();
+
 		if( !CurrentTexture->IsInitialized() ) 
 		{
-			CurrentTexture->InitResource();
+			CurrentTexture->InitResource(RHICmdList);
 		}
 
 		FTexture2DRHIRef tex = CurrentTexture->GetTypedResource();
@@ -165,8 +166,6 @@ bool FBinkMovieStreamer::Tick(float DeltaTime)
 
 		BinkPluginScheduleToTexture(bnk, ulx, uly, lrx, lry, 0, tex.GetReference(), binkw, binkh);
 
-		auto& RHICmdList = GRHICommandList.GetImmediateCommandList();
-		
 		BINKPLUGINFRAMEINFO FrameInfo = {};
 		FrameInfo.cmdBuf = &RHICmdList;
 		BinkPluginSetPerFrameInfo(&FrameInfo);
@@ -298,7 +297,7 @@ bool FBinkMovieStreamer::OpenNextMovie()
 
 			ENQUEUE_RENDER_COMMAND(InitMovieTexture)([ref](FRHICommandListImmediate& RHICmdList) 
 			{ 
-				ref->InitResource();
+				ref->InitResource(RHICmdList);
 			});
 		}
 	}

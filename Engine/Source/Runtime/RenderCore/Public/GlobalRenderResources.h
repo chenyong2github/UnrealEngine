@@ -187,7 +187,7 @@ public:
 	 * @param SizeInBytes - The amount of memory to allocate in bytes.
 	 * @returns An FAllocation with information regarding the allocated memory.
 	 */
-	RENDERCORE_API FAllocation Allocate(FRHICommandList& RHICmdList, uint32 SizeInBytes);
+	RENDERCORE_API FAllocation Allocate(FRHICommandListBase& RHICmdList, uint32 SizeInBytes);
 	RENDERCORE_API FAllocation Allocate(uint32 SizeInBytes);
 
 	/**
@@ -195,7 +195,7 @@ public:
 	 *		WARNING: Once this buffer has been committed to the GPU, allocations
 	 *		remain valid only until the next call to Allocate!
 	 */
-	RENDERCORE_API void Commit(FRHICommandList& RHICmdList);
+	RENDERCORE_API void Commit(FRHICommandListBase& RHICmdList);
 	RENDERCORE_API void Commit();
 
 	static RENDERCORE_API void GarbageCollect();

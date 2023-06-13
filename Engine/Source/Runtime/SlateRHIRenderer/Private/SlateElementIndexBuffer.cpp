@@ -25,7 +25,7 @@ void FSlateElementIndexBuffer::Init( int32 MinNumIndices )
 
 	if ( IsInRenderingThread() )
 	{
-		InitResource();
+		InitResource(FRHICommandListImmediate::Get());
 	}
 	else
 	{

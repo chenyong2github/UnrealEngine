@@ -2359,14 +2359,16 @@ void FVertexFactoryResource::InitRHI()
 {
 	if (DoesPlatformSupportNanite(GMaxRHIShaderPlatform))
 	{
+		FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
+	
 		LLM_SCOPE_BYTAG(Nanite);
 		VertexFactory = new FVertexFactory(ERHIFeatureLevel::SM5);
-		VertexFactory->InitResource();
+		VertexFactory->InitResource(RHICmdList);
 
 		if (NaniteComputeMaterialsSupported())
 		{
 			VertexFactory2 = new FNaniteVertexFactory(ERHIFeatureLevel::SM5);
-			VertexFactory2->InitResource();
+			VertexFactory2->InitResource(RHICmdList);
 		}
 	}
 }

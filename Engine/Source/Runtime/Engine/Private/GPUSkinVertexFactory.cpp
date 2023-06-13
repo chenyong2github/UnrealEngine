@@ -531,7 +531,7 @@ void FGPUBaseSkinVertexFactory::SetData(const FGPUSkinDataType* InData)
 	}
 
 	*Data = *InData;
-	UpdateRHI();
+	UpdateRHI(FRHICommandListImmediate::Get());
 }
 
 void FGPUBaseSkinVertexFactory::CopyDataTypeForLocalVertexFactory(FLocalVertexFactory::FDataType& OutDestData) const
@@ -1255,7 +1255,7 @@ void TGPUSkinAPEXClothVertexFactory<BoneInfluenceType>::SetData(const FGPUSkinDa
 	}
 
 	*ClothDataPtr = *InClothData;
-	FGPUBaseSkinVertexFactory::UpdateRHI();
+	FGPUBaseSkinVertexFactory::UpdateRHI(FRHICommandListImmediate::Get());
 }
 
 /**
@@ -1491,7 +1491,7 @@ void FGPUSkinPassthroughVertexFactory::SetVertexAttributes(FGPUBaseSkinVertexFac
 
 		// Rebuild the vertex declaration.
 		// This will also update the uniform buffer.
-		UpdateRHI();
+		UpdateRHI(FRHICommandListImmediate::Get());
 
 		// Rebuild the vertex stream indices.
 		BuildStreamIndices();

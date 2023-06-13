@@ -111,7 +111,7 @@ private:
 			}
 
 			Data = NewData;
-			InitResource();
+			InitResource(FRHICommandListImmediate::Get());
 		}
 	} VertexFactory;
 	class FLidarPointCloudCollisionVertexBuffer : public FVertexBuffer
@@ -125,7 +125,7 @@ private:
 			Data = InData;
 			DataLength = InDataLength;
 
-			InitResource();
+			InitResource(FRHICommandListImmediate::Get());
 		}
 
 		virtual void InitRHI() override
@@ -150,7 +150,7 @@ private:
 			Data = InData;
 			DataLength = InDataLength;
 
-			InitResource();
+			InitResource(FRHICommandListImmediate::Get());
 		}
 
 		virtual void InitRHI() override

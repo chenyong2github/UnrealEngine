@@ -115,9 +115,9 @@ public:
 		ENQUEUE_RENDER_COMMAND(LineSetVertexBuffersInit)(
 			[this](FRHICommandListImmediate& RHICmdList)
 		{
-			VertexBuffers.PositionVertexBuffer.InitResource();
-			VertexBuffers.StaticMeshVertexBuffer.InitResource();
-			VertexBuffers.ColorVertexBuffer.InitResource();
+			VertexBuffers.PositionVertexBuffer.InitResource(RHICmdList);
+			VertexBuffers.StaticMeshVertexBuffer.InitResource(RHICmdList);
+			VertexBuffers.ColorVertexBuffer.InitResource(RHICmdList);
 
 			FLocalVertexFactory::FDataType Data;
 			VertexBuffers.PositionVertexBuffer.BindPositionVertexBuffer(&VertexFactory, Data);
@@ -126,8 +126,8 @@ public:
 			VertexBuffers.ColorVertexBuffer.BindColorVertexBuffer(&VertexFactory, Data);
 			VertexFactory.SetData(Data);
 
-			VertexFactory.InitResource();
-			IndexBuffer.InitResource();
+			VertexFactory.InitResource(RHICmdList);
+			IndexBuffer.InitResource(RHICmdList);
 		});
 	}
 

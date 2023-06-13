@@ -487,7 +487,7 @@ void FVirtualHeightfieldMeshSceneProxy::CreateRenderThreadResources()
 
 				// Create vertex factory.
 				VertexFactory = new FVirtualHeightfieldMeshVertexFactory(GetScene().GetFeatureLevel(), UniformParams);
-				VertexFactory->InitResource();
+				VertexFactory->InitResource(FRHICommandListImmediate::Get());
 			}
 		}
 	}

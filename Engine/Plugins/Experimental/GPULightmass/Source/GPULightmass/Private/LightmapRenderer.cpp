@@ -1001,7 +1001,7 @@ bool FSceneRenderState::SetupRayTracingScene(FRDGBuilder& GraphBuilder, int32 LO
 
 							Landscape.SectionRayTracingStates[SubSectionIdx] = MakeUnique<FLandscapeRenderState::FLandscapeSectionRayTracingState>();
 							Landscape.SectionRayTracingStates[SubSectionIdx]->Geometry.SetInitializer(GeometryInitializer);
-							Landscape.SectionRayTracingStates[SubSectionIdx]->Geometry.InitResource();
+							Landscape.SectionRayTracingStates[SubSectionIdx]->Geometry.InitResource(GraphBuilder.RHICmdList);
 
 							FRayTracingDynamicGeometryCollection DynamicGeometryCollection;
 

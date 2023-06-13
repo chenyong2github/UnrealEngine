@@ -208,7 +208,7 @@ static void InitVertexFactory(FLocalVertexFactory* VertexFactory, const FMRMeshP
 		}
 
 		VertexFactory->SetData(NewData);
-		VertexFactory->InitResource();
+		VertexFactory->InitResource(RHICmdList);
 	});
 }
 
@@ -246,6 +246,7 @@ public:
 	void RenderThread_UploadNewSection(IMRMesh::FSendBrickDataArgs Args)
 	{
 		check(IsInRenderingThread() || IsInRHIThread());
+		FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
 
 		FMRMeshProxySection* NewSection = new FMRMeshProxySection(Args.BrickId, FeatureLevel);
 		ProxySections.Add(NewSection);
@@ -258,14 +259,14 @@ public:
 
 		// POSITION BUFFER
 		{
-			NewSection->PositionBuffer.InitResource();
+			NewSection->PositionBuffer.InitResource(RHICmdList);
 			NewSection->PositionBuffer.InitRHIWith(Args.PositionData);
 			NewSection->PositionBufferSRV = RHICreateShaderResourceView(NewSection->PositionBuffer.VertexBufferRHI, sizeof(float), PF_R32_FLOAT);
 		}
 
 		// TEXTURE COORDS BUFFER
 		{
-			NewSection->UVBuffer.InitResource();
+			NewSection->UVBuffer.InitResource(RHICmdList);
 			if (Args.UVData.Num())
 			{
 				NewSection->UVBuffer.InitRHIWith(Args.UVData);
@@ -275,7 +276,7 @@ public:
 
 		// TANGENTS BUFFER
 		{
-			NewSection->TangentXZBuffer.InitResource();
+			NewSection->TangentXZBuffer.InitResource(RHICmdList);
 			if (Args.TangentXZData.Num())
 			{
 				NewSection->TangentXZBuffer.InitRHIWith(Args.TangentXZData);
@@ -289,7 +290,7 @@ public:
 
 		// COLOR
 		{
-			NewSection->ColorBuffer.InitResource();
+			NewSection->ColorBuffer.InitResource(RHICmdList);
 			if (Args.ColorData.Num())
 			{
 				NewSection->ColorBuffer.InitRHIWith(Args.ColorData);
@@ -299,7 +300,7 @@ public:
 
 		// INDEX BUFFER
 		{
-			NewSection->IndexBuffer.InitResource();
+			NewSection->IndexBuffer.InitResource(RHICmdList);
 			NewSection->IndexBuffer.InitRHIWith(Args.Indices);
 		}
 

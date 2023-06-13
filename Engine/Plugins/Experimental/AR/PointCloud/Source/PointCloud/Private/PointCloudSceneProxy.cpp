@@ -138,7 +138,7 @@ void FPointCloudSceneProxy::CreateRenderThreadResources()
 {
 	SCOPE_CYCLE_COUNTER(STAT_PointCloud_CreateRenderThreadResources);
 
-	PointCloudVertexFactory.InitResource();
+	PointCloudVertexFactory.InitResource(FRHICommandListImmediate::Get());
 	PointCloudIndexBuffer.InitRHIWithSize(Points.Num());
 
 	// We either use a single color or the color array

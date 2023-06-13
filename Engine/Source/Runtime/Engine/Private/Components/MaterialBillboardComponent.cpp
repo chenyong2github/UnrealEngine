@@ -97,9 +97,9 @@ public:
 		ENQUEUE_RENDER_COMMAND(FMaterialSpriteSceneProxyInit)(
 			[Self](FRHICommandListImmediate& RHICmdList)
 		{
-			Self->StaticMeshVertexBuffers.PositionVertexBuffer.InitResource();
-			Self->StaticMeshVertexBuffers.StaticMeshVertexBuffer.InitResource();
-			Self->StaticMeshVertexBuffers.ColorVertexBuffer.InitResource();
+			Self->StaticMeshVertexBuffers.PositionVertexBuffer.InitResource(RHICmdList);
+			Self->StaticMeshVertexBuffers.StaticMeshVertexBuffer.InitResource(RHICmdList);
+			Self->StaticMeshVertexBuffers.ColorVertexBuffer.InitResource(RHICmdList);
 
 			FLocalVertexFactory::FDataType Data;
 			Self->StaticMeshVertexBuffers.PositionVertexBuffer.BindPositionVertexBuffer(&Self->VertexFactory, Data);
@@ -109,7 +109,7 @@ public:
 			Self->StaticMeshVertexBuffers.ColorVertexBuffer.BindColorVertexBuffer(&Self->VertexFactory, Data);
 			Self->VertexFactory.SetData(Data);
 
-			Self->VertexFactory.InitResource();
+			Self->VertexFactory.InitResource(RHICmdList);
 		});
 	}
 
@@ -242,9 +242,9 @@ public:
 			ENQUEUE_RENDER_COMMAND(FMaterialSpriteSceneProxyLegacyInit)(
 				[VertexFactoryPtr, Self](FRHICommandListImmediate& RHICmdList)
 			{
-				Self->StaticMeshVertexBuffers.PositionVertexBuffer.UpdateRHI();
-				Self->StaticMeshVertexBuffers.StaticMeshVertexBuffer.UpdateRHI();
-				Self->StaticMeshVertexBuffers.ColorVertexBuffer.UpdateRHI();
+				Self->StaticMeshVertexBuffers.PositionVertexBuffer.UpdateRHI(RHICmdList);
+				Self->StaticMeshVertexBuffers.StaticMeshVertexBuffer.UpdateRHI(RHICmdList);
+				Self->StaticMeshVertexBuffers.ColorVertexBuffer.UpdateRHI(RHICmdList);
 
 				FLocalVertexFactory::FDataType Data;
 				Self->StaticMeshVertexBuffers.PositionVertexBuffer.BindPositionVertexBuffer(VertexFactoryPtr, Data);
@@ -254,7 +254,7 @@ public:
 				Self->StaticMeshVertexBuffers.ColorVertexBuffer.BindColorVertexBuffer(VertexFactoryPtr, Data);
 				VertexFactoryPtr->SetData(Data);
 
-				VertexFactoryPtr->UpdateRHI();
+				VertexFactoryPtr->UpdateRHI(RHICmdList);
 			});
 		}
 	}

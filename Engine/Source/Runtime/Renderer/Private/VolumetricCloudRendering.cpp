@@ -1003,15 +1003,14 @@ public:
 
 	virtual void InitRHI() override
 	{
-		Buffers.PositionVertexBuffer.InitResource();
-		Buffers.StaticMeshVertexBuffer.InitResource();
+		FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
+		Buffers.PositionVertexBuffer.InitResource(RHICmdList);
+		Buffers.StaticMeshVertexBuffer.InitResource(RHICmdList);
 	}
 
 	virtual void ReleaseRHI() override
 	{
-		Buffers.PositionVertexBuffer.ReleaseRHI();
 		Buffers.PositionVertexBuffer.ReleaseResource();
-		Buffers.StaticMeshVertexBuffer.ReleaseRHI();
 		Buffers.StaticMeshVertexBuffer.ReleaseResource();
 	}
 };
@@ -1552,8 +1551,8 @@ void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder, boo
 			delete GSingleTriangleMeshVertexFactory;
 		}
 		GSingleTriangleMeshVertexFactory = new FSingleTriangleMeshVertexFactory(ViewFamily.GetFeatureLevel());
-		GSingleTriangleMeshVertexBuffer.UpdateRHI();
-		GSingleTriangleMeshVertexFactory->InitResource();
+		GSingleTriangleMeshVertexBuffer.UpdateRHI(GraphBuilder.RHICmdList);
+		GSingleTriangleMeshVertexFactory->InitResource(GraphBuilder.RHICmdList);
 	}
 
 	if (Scene)

@@ -270,7 +270,7 @@ public:
 
 protected:
 	/** Setup a geometry collection vertex factory. */
-	void SetupVertexFactory(FGeometryCollectionVertexFactory& GeometryCollectionVertexFactory, FColorVertexBuffer* ColorOverride = nullptr) const;
+	void SetupVertexFactory(FRHICommandListBase& RHICmdList, FGeometryCollectionVertexFactory& GeometryCollectionVertexFactory, FColorVertexBuffer* ColorOverride = nullptr) const;
 	/** Update skinned position buffer used by mobile CPU skinning path. */
 	void UpdateSkinnedPositions(TArray<FMatrix44f> const& Transforms);
 	/** Get material proxy from material ID */

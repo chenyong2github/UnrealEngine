@@ -109,9 +109,9 @@ FHeterogeneousVolumeSceneProxy::FHeterogeneousVolumeSceneProxy(UHeterogeneousVol
 	ENQUEUE_RENDER_COMMAND(FHeterogeneousVolumeSceneProxyInit)(
 		[Self](FRHICommandListImmediate& RHICmdList)
 		{
-			Self->StaticMeshVertexBuffers.PositionVertexBuffer.InitResource();
-			Self->StaticMeshVertexBuffers.StaticMeshVertexBuffer.InitResource();
-			Self->StaticMeshVertexBuffers.ColorVertexBuffer.InitResource();
+			Self->StaticMeshVertexBuffers.PositionVertexBuffer.InitResource(RHICmdList);
+			Self->StaticMeshVertexBuffers.StaticMeshVertexBuffer.InitResource(RHICmdList);
+			Self->StaticMeshVertexBuffers.ColorVertexBuffer.InitResource(RHICmdList);
 
 			FLocalVertexFactory::FDataType Data;
 			Self->StaticMeshVertexBuffers.PositionVertexBuffer.BindPositionVertexBuffer(&Self->VertexFactory, Data);
@@ -121,7 +121,7 @@ FHeterogeneousVolumeSceneProxy::FHeterogeneousVolumeSceneProxy(UHeterogeneousVol
 			Self->StaticMeshVertexBuffers.ColorVertexBuffer.BindColorVertexBuffer(&Self->VertexFactory, Data);
 			Self->VertexFactory.SetData(Data);
 
-			Self->VertexFactory.InitResource();
+			Self->VertexFactory.InitResource(RHICmdList);
 		}
 	);
 }

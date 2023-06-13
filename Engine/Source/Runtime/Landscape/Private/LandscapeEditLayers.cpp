@@ -1652,8 +1652,8 @@ public:
 		InRHICmdList.Transition(FRHITransitionInfo(ViewFamily.RenderTarget->GetRenderTargetTexture(), ERHIAccess::SRVMask, ERHIAccess::RTV));
 
 		// Init VB/IB Resource
-		VertexDeclaration.InitResource();
-		VertexBufferResource.InitResource();
+		VertexDeclaration.InitResource(InRHICmdList);
+		VertexBufferResource.InitResource(InRHICmdList);
 
 		// Setup Pipeline
 		FGraphicsPipelineStateInitializer GraphicsPSOInit;

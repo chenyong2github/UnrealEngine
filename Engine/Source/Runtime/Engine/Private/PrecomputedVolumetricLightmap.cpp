@@ -413,7 +413,7 @@ ENGINE_API void FPrecomputedVolumetricLightmapData::AddToSceneData(FPrecomputedV
 
 			if (!IsInitialized())
 			{
-				InitResource();
+				InitResource(RHICmdList);
 			}
 
 			if (!IndirectionTexture.Texture)
@@ -743,7 +743,7 @@ void FPrecomputedVolumetricLightmap::SetData(FPrecomputedVolumetricLightmapData*
 
 		if (Scene->GetFeatureLevel() >= ERHIFeatureLevel::SM5)
 		{
-			Data->InitResource();
+			Data->InitResource(FRHICommandListImmediate::Get());
 		}
 	}
 }

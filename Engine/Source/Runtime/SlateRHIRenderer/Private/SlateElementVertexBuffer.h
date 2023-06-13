@@ -34,7 +34,7 @@ public:
 
 		if ( IsInRenderingThread() )
 		{
-			InitResource();
+			InitResource(FRenderResource::GetCommandList());
 		}
 		else
 		{

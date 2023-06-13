@@ -175,7 +175,7 @@ bool FMediaFoundationMovieStreamer::Tick(float DeltaTime)
 
 	if (CurrentTexture && !CurrentTexture->IsInitialized())
 	{
-		CurrentTexture->InitResource();
+		CurrentTexture->InitResource(FRHICommandListImmediate::Get());
 	}
 
 	if (CurrentTexture && SampleGrabberCallback->GetIsSampleReadyToUpdate())
@@ -290,7 +290,7 @@ bool FMediaFoundationMovieStreamer::OpenNextMovie()
 			ENQUEUE_RENDER_COMMAND(InitMovieTexture)(
 				[TextureRHIRef](FRHICommandListImmediate& RHICmdList)
 				{
-					TextureRHIRef->InitResource();
+					TextureRHIRef->InitResource(RHICmdList);
 				});
 		}
 

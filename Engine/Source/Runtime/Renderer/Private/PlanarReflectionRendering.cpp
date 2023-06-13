@@ -561,7 +561,7 @@ void FScene::UpdatePlanarReflectionContents(UPlanarReflectionComponent* CaptureC
 					// Don't create the RenderTarget's RHI if it is used for mobile pixel projected reflection
 					if (!bIsMobilePixelProjectedReflectionEnabled)
 					{
-						RenderTarget->InitResource();
+						RenderTarget->InitResource(RHICmdList);
 					}
 					SceneProxy->RenderTarget = nullptr;
 				});

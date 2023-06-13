@@ -508,7 +508,7 @@ FD3DGPUProfiler::FD3DGPUProfiler(class FD3D11DynamicRHI* InD3DRHI) :
 	D3D11RHI(InD3DRHI)
 {
 	// Initialize Buffered timestamp queries 
-	FrameTiming.InitResource();
+	FrameTiming.InitResource(FRHICommandListImmediate::Get());
 	CachedStrings.Emplace(EventDeepCRC, EventDeepString);
 }
 

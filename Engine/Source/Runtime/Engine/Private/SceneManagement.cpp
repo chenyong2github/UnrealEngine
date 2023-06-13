@@ -280,13 +280,18 @@ void FSimpleElementCollector::DrawPoint(
 		);
 }
 
+void FDynamicPrimitiveResource::InitPrimitiveResource()
+{
+	InitPrimitiveResource(FRHICommandListImmediate::Get());
+}
+
 void FSimpleElementCollector::RegisterDynamicResource(FDynamicPrimitiveResource* DynamicResource)
 {
 	// Add the dynamic resource to the list of resources to cleanup on destruction.
 	DynamicResources.Add(DynamicResource);
 
 	// Initialize the dynamic resource immediately.
-	DynamicResource->InitPrimitiveResource();
+	DynamicResource->InitPrimitiveResource(FRHICommandListImmediate::Get());
 }
 
 void FSimpleElementCollector::DrawBatchedElements(FRHICommandList& RHICmdList, const FMeshPassProcessorRenderState& DrawRenderState, const FSceneView& InView, EBlendModeFilter::Type Filter, ESceneDepthPriorityGroup DepthPriorityGroup) const
@@ -491,7 +496,7 @@ void FDynamicPrimitiveUniformBuffer::Set(
 			.CustomPrimitiveData(CustomPrimitiveData)
 		.Build()
 	);
-	UniformBuffer.InitResource();
+	UniformBuffer.InitResource(FRHICommandListImmediate::Get());
 }
 
 void FDynamicPrimitiveUniformBuffer::Set(

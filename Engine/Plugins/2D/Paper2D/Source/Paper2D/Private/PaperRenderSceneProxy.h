@@ -156,7 +156,7 @@ protected:
 	virtual void DebugDrawBodySetup(const FSceneView* View, int32 ViewIndex, FMeshElementCollector& Collector, UBodySetup* BodySetup, const FMatrix& GeomTransform, const FLinearColor& CollisionColor, bool bDrawSolid) const;
 
 	// Call this if you modify BatchedSections or Vertices after the proxy has already been created
-	void RecreateCachedRenderData();
+	void RecreateCachedRenderData(FRHICommandListBase& RHICmdList);
 
 	FSpriteTextureOverrideRenderProxy* GetCachedMaterialProxyForSection(int32 SectionIndex, FMaterialRenderProxy* ParentMaterialProxy) const;
 

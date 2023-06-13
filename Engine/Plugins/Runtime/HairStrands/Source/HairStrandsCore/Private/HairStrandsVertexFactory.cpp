@@ -202,9 +202,8 @@ void FHairStrandsVertexFactory::ValidateCompiledResult(const FVertexFactoryType*
 
 void FHairStrandsVertexFactory::SetData(const FDataType& InData)
 {
-	check(IsInRenderingThread());
 	Data = InData;
-	UpdateRHI();
+	UpdateRHI(FRHICommandListImmediate::Get());
 }
 
 /**
@@ -223,12 +222,12 @@ void FHairStrandsVertexFactory::Copy(const FHairStrandsVertexFactory& Other)
 	BeginUpdateResourceRHI(this);
 }
 
-void FHairStrandsVertexFactory::InitResources()
+void FHairStrandsVertexFactory::InitResources(FRHICommandListBase& RHICmdList)
 {
 	if (bIsInitialized)
 		return;
 
-	FVertexFactory::InitResource(); //Call VertexFactory/RenderResources::InitResource() to mark the resource as initialized();
+	FVertexFactory::InitResource(RHICmdList); //Call VertexFactory/RenderResources::InitResource() to mark the resource as initialized();
 
 	bIsInitialized = true;
 	bNeedsDeclaration = false;

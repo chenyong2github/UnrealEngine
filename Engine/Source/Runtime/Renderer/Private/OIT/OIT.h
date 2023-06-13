@@ -71,7 +71,7 @@ struct FOITData
 struct FOITSceneData
 {
 	/* Allocate sorted-triangle data for a instance */
-	FSortedTriangleData Allocate(const FIndexBuffer* InSource, EPrimitiveType PrimitiveType, uint32 InFirstIndex, uint32 InNumPrimitives);
+	FSortedTriangleData Allocate(FRHICommandListBase& RHICmdList, const FIndexBuffer* InSource, EPrimitiveType PrimitiveType, uint32 InFirstIndex, uint32 InNumPrimitives);
 
 	/* Deallocate sorted-triangle data */
 	void Deallocate(FIndexBuffer* IndexBuffer);

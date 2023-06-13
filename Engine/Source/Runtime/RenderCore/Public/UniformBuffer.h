@@ -49,7 +49,7 @@ public:
 	void SetContents(const TBufferStruct& NewContents)
 	{
 		SetContentsNoUpdate(NewContents);
-		UpdateRHI();
+		UpdateRHI(FRenderResource::GetCommandList());
 	}
 	/** Sets the contents of the uniform buffer to all zeros. */
 	void SetContentsToZero()
@@ -59,7 +59,7 @@ public:
 			Contents = (uint8*)FMemory::Malloc(sizeof(TBufferStruct), SHADER_PARAMETER_STRUCT_ALIGNMENT);
 		}
 		FMemory::Memzero(Contents, sizeof(TBufferStruct));
-		UpdateRHI();
+		UpdateRHI(FRenderResource::GetCommandList());
 	}
 
 	const uint8* GetContents() const 

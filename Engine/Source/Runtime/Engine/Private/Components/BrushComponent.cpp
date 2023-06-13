@@ -390,7 +390,7 @@ public:
 	virtual void CreateRenderThreadResources() override
 	{
 #if WITH_EDITORONLY_DATA
-		WireIndexBuffer.InitResource();
+		WireIndexBuffer.InitResource(FRHICommandListImmediate::Get());
 #endif
 
 	}

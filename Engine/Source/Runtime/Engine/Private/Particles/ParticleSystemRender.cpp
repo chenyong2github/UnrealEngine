@@ -844,7 +844,7 @@ void FDynamicSpriteEmitterData::GetDynamicMeshElementsEmitter(const FParticleSys
 			SpriteVertexFactory->SetParticleFactoryType(PVFT_Sprite);
 			SpriteVertexFactory->SetNumVertsInInstanceBuffer(SourceData->RequiredModule->bCutoutTexureIsValid ? SourceData->RequiredModule->NumBoundingVertices : 4);
 			SpriteVertexFactory->SetUsesDynamicParameter(bUsesDynamicParameter, bUsesDynamicParameter ? GetDynamicParameterVertexStride() : 0);
-			SpriteVertexFactory->InitResource();
+			SpriteVertexFactory->InitResource(FRHICommandListImmediate::Get());
 
 			if (SourceData->bUseLocalSpace == false)
 			{
@@ -1338,7 +1338,7 @@ void FDynamicMeshEmitterData::GetDynamicMeshElementsEmitter(const FParticleSyste
 			SetupVertexFactory(MeshVertexFactory, LODModel, ChosenLODIdx);
 
 			MeshVertexFactory->SetStrides(InstanceVertexStride, bUsesDynamicParameter ? DynamicParameterVertexStride : 0);
-			MeshVertexFactory->InitResource();
+			MeshVertexFactory->InitResource(FRHICommandListImmediate::Get());
 
 			const FDynamicSpriteEmitterReplayDataBase* SourceData = GetSourceData();
 			FMeshParticleUniformParameters UniformParameters;
@@ -2399,7 +2399,7 @@ void FDynamicBeam2EmitterData::GetDynamicMeshElementsEmitter(const FParticleSyst
 	FParticleBeamTrailVertexFactory* BeamTrailVertexFactory = &CollectorResources.VertexFactory;
 	BeamTrailVertexFactory->SetParticleFactoryType(PVFT_BeamTrail);
 	BeamTrailVertexFactory->SetUsesDynamicParameter(bUsesDynamicParameter);
-	BeamTrailVertexFactory->InitResource();
+	BeamTrailVertexFactory->InitResource(FRHICommandListImmediate::Get());
 
 	// Create and set the uniform buffer for this emitter.
 	BeamTrailVertexFactory->SetBeamTrailUniformBuffer(CreateBeamTrailUniformBuffer(Proxy, &Source, View));
@@ -5158,7 +5158,7 @@ void FDynamicTrailsEmitterData::GetDynamicMeshElementsEmitter(const FParticleSys
 	FParticleBeamTrailVertexFactory* BeamTrailVertexFactory = &CollectorResources.VertexFactory;
 	BeamTrailVertexFactory->SetParticleFactoryType(PVFT_BeamTrail);
 	BeamTrailVertexFactory->SetUsesDynamicParameter(bUsesDynamicParameter);
-	BeamTrailVertexFactory->InitResource();
+	BeamTrailVertexFactory->InitResource(FRHICommandListImmediate::Get());
 
 	// Create and set the uniform buffer for this emitter.
 	BeamTrailVertexFactory->SetBeamTrailUniformBuffer(CreateBeamTrailUniformBuffer(Proxy, SourcePointer, View));
@@ -6839,8 +6839,6 @@ void FParticleSystemSceneProxy::OnTransformChanged()
 
 void FParticleSystemSceneProxy::UpdateWorldSpacePrimitiveUniformBuffer() const
 {
-	check(IsInRenderingThread());
-
 	// Hash custom floats because we need to invalidate this UB if they don't match otherwise updates to the buffer won't work
 	uint32 NewWorldSpaceUBHash = 0;
 	const FCustomPrimitiveData* LocalCustomPrimitiveData = GetCustomPrimitiveData();
@@ -6873,7 +6871,7 @@ void FParticleSystemSceneProxy::UpdateWorldSpacePrimitiveUniformBuffer() const
 
 	if ( bNeedsInit)
 	{
-		WorldSpacePrimitiveUniformBuffer.InitResource();
+		WorldSpacePrimitiveUniformBuffer.InitResource(FRHICommandListImmediate::Get());
 	}
 }
 

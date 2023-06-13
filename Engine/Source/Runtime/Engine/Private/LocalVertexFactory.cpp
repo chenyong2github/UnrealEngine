@@ -378,8 +378,6 @@ void FLocalVertexFactory::GetVertexElements(ERHIFeatureLevel::Type FeatureLevel,
 
 void FLocalVertexFactory::SetData(const FDataType& InData)
 {
-	check(IsInRenderingThread());
-
 	{
 		//const int NumTexCoords = InData.NumTexCoords;
 		//const int LightMapCoordinateIndex = InData.LightMapCoordinateIndex;
@@ -396,7 +394,7 @@ void FLocalVertexFactory::SetData(const FDataType& InData)
 	check((InData.ColorComponent.Type == VET_None) || (InData.ColorComponent.Type == VET_Color));
 
 	Data = InData;
-	UpdateRHI();
+	UpdateRHI(FRHICommandListImmediate::Get());
 }
 
 /**

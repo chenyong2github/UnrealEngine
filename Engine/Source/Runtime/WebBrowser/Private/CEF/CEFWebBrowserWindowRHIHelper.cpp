@@ -74,7 +74,7 @@ FSlateUpdatableTexture *FCEFWebBrowserWindowRHIHelper::CreateTexture(void* Share
 	FSlateTexture2DRHIRef* NewTexture = new FSlateTexture2DRHIRef(TexDesc.Width, TexDesc.Height, PF_R8G8B8A8, nullptr, TexCreate_Dynamic, true);
 	if (IsInRenderingThread())
 	{
-		NewTexture->InitResource();
+		NewTexture->InitResource(FRHICommandListImmediate::Get());
 	}
 	else
 	{

@@ -222,9 +222,8 @@ void FNiagaraMeshVertexFactory::GetVertexElements(ERHIFeatureLevel::Type Feature
 
 void FNiagaraMeshVertexFactory::SetData(const FStaticMeshDataType& InData)
 {
-	check(IsInRenderingThread());
 	Data = InData;
-	UpdateRHI();
+	UpdateRHI(FRHICommandListImmediate::Get());
 }
 
 #if NIAGARA_ENABLE_GPU_SCENE_MESHES

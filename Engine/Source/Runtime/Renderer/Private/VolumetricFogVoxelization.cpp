@@ -110,15 +110,14 @@ public:
 
 	virtual void InitRHI() override
 	{
-		Buffers.PositionVertexBuffer.InitResource();
-		Buffers.StaticMeshVertexBuffer.InitResource();
+		FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
+		Buffers.PositionVertexBuffer.InitResource(RHICmdList);
+		Buffers.StaticMeshVertexBuffer.InitResource(RHICmdList);
 	}
 
 	virtual void ReleaseRHI() override
 	{
-		Buffers.PositionVertexBuffer.ReleaseRHI();
 		Buffers.PositionVertexBuffer.ReleaseResource();
-		Buffers.StaticMeshVertexBuffer.ReleaseRHI();
 		Buffers.StaticMeshVertexBuffer.ReleaseResource();
 	}
 };
@@ -645,8 +644,8 @@ void FSceneRenderer::VoxelizeFogVolumePrimitives(
 				delete GQuadMeshVertexFactory;
 			}
 			GQuadMeshVertexFactory = new FQuadMeshVertexFactory(View.GetFeatureLevel());
-			GQuadMeshVertexBuffer.UpdateRHI();
-			GQuadMeshVertexFactory->InitResource();
+			GQuadMeshVertexBuffer.UpdateRHI(GraphBuilder.RHICmdList);
+			GQuadMeshVertexFactory->InitResource(GraphBuilder.RHICmdList);
 		}
 
 		GraphBuilder.AddPass(

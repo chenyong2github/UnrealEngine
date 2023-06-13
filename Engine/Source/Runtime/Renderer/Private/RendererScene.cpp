@@ -337,7 +337,7 @@ FSceneViewState::FSceneViewState(ERHIFeatureLevel::Type FeatureLevel, FSceneView
 	}
 	else
 	{
-		InitResource();
+		InitResource(FRHICommandListImmediate::Get());
 	}
 	CachedVisibilityChunk = NULL;
 	CachedVisibilityHandlerId = INDEX_NONE;

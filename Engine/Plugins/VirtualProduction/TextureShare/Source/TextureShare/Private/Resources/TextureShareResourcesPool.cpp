@@ -51,7 +51,7 @@ FTextureShareResource* FTextureShareResourcesPool::CreateTextureShareResource_Re
 	if (FTextureShareResource* NewResource = new FTextureShareResource(InCoreObject, InResourceDesc, InResourceSettings))
 	{
 		TextureResources.Add(NewResource);
-		NewResource->InitResource();
+		NewResource->InitResource(FRHICommandListImmediate::Get());
 
 		return NewResource;
 	}

@@ -93,9 +93,8 @@ public:
 	//
 	void SetData(const FDataType& InData)
 	{
-		check(IsInRenderingThread());
 		Data = InData;
-		UpdateRHI();
+		UpdateRHI(FRHICommandListImmediate::Get());
 	}
 
 	//

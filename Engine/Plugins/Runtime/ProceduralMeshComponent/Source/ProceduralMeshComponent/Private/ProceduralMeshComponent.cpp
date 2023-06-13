@@ -188,7 +188,7 @@ public:
 						Initializer.bAllowUpdate = false;
 
 						NewSection->RayTracingGeometry.SetInitializer(Initializer);
-						NewSection->RayTracingGeometry.InitResource();
+						NewSection->RayTracingGeometry.InitResource(RHICmdList);
 
 						NewSection->RayTracingGeometry.Initializer.IndexBuffer = NewSection->IndexBuffer.IndexBufferRHI;
 						NewSection->RayTracingGeometry.Initializer.TotalPrimitiveCount = NewSection->IndexBuffer.Indices.Num() / 3;
@@ -201,7 +201,7 @@ public:
 
 						//#dxr_todo: add support for segments?
 						
-						NewSection->RayTracingGeometry.UpdateRHI();
+						NewSection->RayTracingGeometry.UpdateRHI(RHICmdList);
 					});
 				}
 #endif
@@ -299,6 +299,8 @@ public:
 #if RHI_RAYTRACING
 				if (IsRayTracingEnabled())
 				{
+					FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
+
 					Section->RayTracingGeometry.ReleaseResource();
 
 					FRayTracingGeometryInitializer Initializer;
@@ -309,7 +311,7 @@ public:
 					Initializer.bAllowUpdate = false;
 
 					Section->RayTracingGeometry.SetInitializer(Initializer);
-					Section->RayTracingGeometry.InitResource();
+					Section->RayTracingGeometry.InitResource(RHICmdList);
 
 					FRayTracingGeometrySegment Segment;
 					Segment.VertexBuffer = Section->VertexBuffers.PositionVertexBuffer.VertexBufferRHI;
@@ -317,7 +319,7 @@ public:
 					Segment.MaxVertices = Section->VertexBuffers.PositionVertexBuffer.GetNumVertices();
 					Section->RayTracingGeometry.Initializer.Segments.Add(Segment);
 
-					Section->RayTracingGeometry.UpdateRHI();
+					Section->RayTracingGeometry.UpdateRHI(RHICmdList);
 				}
 #endif
 			}

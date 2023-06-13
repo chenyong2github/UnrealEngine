@@ -47,9 +47,9 @@ public:
 		ENQUEUE_RENDER_COMMAND(FWidgetBillboardProxyInit)(
 			[this](FRHICommandListImmediate& RHICmdList)
 		{
-			this->StaticMeshVertexBuffers.PositionVertexBuffer.InitResource();
-			this->StaticMeshVertexBuffers.StaticMeshVertexBuffer.InitResource();
-			this->StaticMeshVertexBuffers.ColorVertexBuffer.InitResource();
+			this->StaticMeshVertexBuffers.PositionVertexBuffer.InitResource(RHICmdList);
+			this->StaticMeshVertexBuffers.StaticMeshVertexBuffer.InitResource(RHICmdList);
+			this->StaticMeshVertexBuffers.ColorVertexBuffer.InitResource(RHICmdList);
 
 			FLocalVertexFactory::FDataType Data;
 			this->StaticMeshVertexBuffers.PositionVertexBuffer.BindPositionVertexBuffer(&this->VertexFactory, Data);
@@ -59,7 +59,7 @@ public:
 			this->StaticMeshVertexBuffers.ColorVertexBuffer.BindColorVertexBuffer(&this->VertexFactory, Data);
 			this->VertexFactory.SetData(Data);
 
-			this->VertexFactory.InitResource();
+			this->VertexFactory.InitResource(RHICmdList);
 		});
 	}
 
@@ -175,9 +175,9 @@ public:
 			ENQUEUE_RENDER_COMMAND(FWidgetBillboardProxyLegacyInit)(
 				[VertexFactoryPtr, this](FRHICommandListImmediate& RHICmdList)
 			{
-				this->StaticMeshVertexBuffers.PositionVertexBuffer.UpdateRHI();
-				this->StaticMeshVertexBuffers.StaticMeshVertexBuffer.UpdateRHI();
-				this->StaticMeshVertexBuffers.ColorVertexBuffer.UpdateRHI();
+				this->StaticMeshVertexBuffers.PositionVertexBuffer.UpdateRHI(RHICmdList);
+				this->StaticMeshVertexBuffers.StaticMeshVertexBuffer.UpdateRHI(RHICmdList);
+				this->StaticMeshVertexBuffers.ColorVertexBuffer.UpdateRHI(RHICmdList);
 
 				FLocalVertexFactory::FDataType Data;
 				this->StaticMeshVertexBuffers.PositionVertexBuffer.BindPositionVertexBuffer(VertexFactoryPtr, Data);
@@ -187,7 +187,7 @@ public:
 				this->StaticMeshVertexBuffers.ColorVertexBuffer.BindColorVertexBuffer(VertexFactoryPtr, Data);
 				VertexFactoryPtr->SetData(Data);
 
-				VertexFactoryPtr->UpdateRHI();
+				VertexFactoryPtr->UpdateRHI(RHICmdList);
 			});
 		}
 	}

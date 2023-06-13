@@ -1576,8 +1576,10 @@ private:
 class FDynamicPrimitiveResource
 {
 public:
+	UE_DEPRECATED(5.3, "InitPrimitiveResource now requires a command list.")
+	ENGINE_API void InitPrimitiveResource();
 
-	virtual void InitPrimitiveResource() = 0;
+	virtual void InitPrimitiveResource(FRHICommandListBase& RHICmdList) = 0;
 	virtual void ReleasePrimitiveResource() = 0;
 };
 

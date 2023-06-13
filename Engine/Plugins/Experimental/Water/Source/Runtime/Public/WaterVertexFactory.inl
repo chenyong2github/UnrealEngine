@@ -43,8 +43,9 @@ void TWaterVertexFactory<bWithWaterSelectionSupport>::InitRHI()
 	SetupUniformDataForGroup(EWaterMeshRenderGroupType::RG_RenderUnselectedWaterTilesOnly);
 #endif // WITH_WATER_SELECTION_SUPPORT
 
-	VertexBuffer->InitResource();
-	IndexBuffer->InitResource();
+	FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
+	VertexBuffer->InitResource(RHICmdList);
+	IndexBuffer->InitResource(RHICmdList);
 
 	// No streams should currently exist.
 	check(Streams.Num() == 0);

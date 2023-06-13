@@ -287,9 +287,6 @@ private:
 	ENGINE_API virtual void InitRHI() override;
 	ENGINE_API virtual void ReleaseRHI() override;
 
-	// @todo DLL: Without these functions we get unresolved linker errors with FRenderResource
-	virtual void InitResource() override { FViewport::InitResource(); }
-	virtual void ReleaseResource() override { FViewport::ReleaseResource(); }
 	virtual FString GetFriendlyName() const override { return FString(TEXT("FSlateSceneViewport"));}
 
 	/**

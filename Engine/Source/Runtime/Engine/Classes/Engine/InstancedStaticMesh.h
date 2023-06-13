@@ -131,7 +131,7 @@ public:
 	// FRenderResource interface.
 	virtual void InitRHI() override;
 	virtual void ReleaseRHI() override;
-	virtual void InitResource() override;
+	virtual void InitResource(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseResource() override;
 	virtual FString GetFriendlyName() const override { return TEXT("Static-mesh instances"); }
 	SIZE_T GetResourceSize() const;
@@ -142,7 +142,8 @@ public:
 	 * Call to flush any pending GPU data copies, if bFlushToGPUPending is false it does nothing. Should be called by the Proxy on the render thread
 	 * for example in CreateRenderThreadResources().
 	 */
-	void FlushGPUUpload();
+	void FlushGPUUpload(FRHICommandListBase& RHICmdList);
+
 public:
 	/** The vertex data storage type */
 	TSharedPtr<FStaticMeshInstanceData, ESPMode::ThreadSafe> InstanceData;
@@ -305,7 +306,7 @@ public:
 		{
 			InstanceData = *InInstanceData;
 		}
-		UpdateRHI();
+		UpdateRHI(FRenderResource::GetCommandList());
 	}
 
 	/**

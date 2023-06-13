@@ -1275,7 +1275,7 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 				VertexFactory.SetMeshIndex(MeshIndex);
 				VertexFactory.SetLODIndex(LODModel.LODIndex);
 				VertexFactory.EnablePrimitiveIDElement(ParticleMeshRenderData.bUseGPUScene);
-				VertexFactory.InitResource();
+				VertexFactory.InitResource(FRHICommandListImmediate::Get());
 				MeshData.RenderableMesh->SetupVertexFactory(VertexFactory, LODModel);
 
 				PreparePerMeshData(ParticleMeshRenderData, VertexFactory, *SceneProxy, MeshData);
@@ -1429,7 +1429,7 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 		VertexFactory.SetMeshIndex(MeshIndex);
 		VertexFactory.SetLODIndex(LODModel.LODIndex);
 		VertexFactory.EnablePrimitiveIDElement(ParticleMeshRenderData.bUseGPUScene);
-		VertexFactory.InitResource();
+		VertexFactory.InitResource(Context.GraphBuilder.RHICmdList);
 		MeshData.RenderableMesh->SetupVertexFactory(VertexFactory, LODModel);
 
 		PreparePerMeshData(ParticleMeshRenderData, VertexFactory, *SceneProxy, MeshData);

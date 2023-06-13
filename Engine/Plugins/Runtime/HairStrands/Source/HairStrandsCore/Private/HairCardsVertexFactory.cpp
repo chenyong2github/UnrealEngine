@@ -262,9 +262,8 @@ void FHairCardsVertexFactory::GetPSOPrecacheVertexFetchElements(EVertexInputStre
 
 void FHairCardsVertexFactory::SetData(const FDataType& InData)
 {
-	check(IsInRenderingThread());
 	Data = InData;
-	UpdateRHI();
+	UpdateRHI(FRHICommandListImmediate::Get());
 }
 
 /**
@@ -283,12 +282,12 @@ void FHairCardsVertexFactory::Copy(const FHairCardsVertexFactory& Other)
 	BeginUpdateResourceRHI(this);
 }
 
-void FHairCardsVertexFactory::InitResources()
+void FHairCardsVertexFactory::InitResources(FRHICommandListBase& RHICmdList)
 {
 	if (bIsInitialized)
 		return;
 
-	FVertexFactory::InitResource(); //Call VertexFactory/RenderResources::InitResource() to mark the resource as initialized();
+	FVertexFactory::InitResource(RHICmdList); //Call VertexFactory/RenderResources::InitResource() to mark the resource as initialized();
 
 	bIsInitialized = true;
 	bNeedsDeclaration = true;

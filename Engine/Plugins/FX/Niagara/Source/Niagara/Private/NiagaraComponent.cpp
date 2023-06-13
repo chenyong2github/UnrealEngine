@@ -399,7 +399,7 @@ TUniformBuffer<FPrimitiveUniformShaderParameters>* FNiagaraSceneProxy::GetCustom
 
 		CustomUBRef = new TUniformBuffer<FPrimitiveUniformShaderParameters>();
 		CustomUBRef->SetContents(UBBuilder.Build());
-		CustomUBRef->InitResource();
+		CustomUBRef->InitResource(FRHICommandListImmediate::Get());
 	}
 
 	return CustomUBRef;

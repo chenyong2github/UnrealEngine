@@ -181,14 +181,14 @@ void FPaperSpriteVertexBuffer::ReleaseRHI()
 	PositionBufferSRV.SafeRelease();
 }
 
-void FPaperSpriteVertexBuffer::InitResource()
+void FPaperSpriteVertexBuffer::InitResource(FRHICommandListBase& RHICmdList)
 {
-	FRenderResource::InitResource();
-	PositionBuffer.InitResource();
-	TangentBuffer.InitResource();
-	TexCoordBuffer.InitResource();
-	ColorBuffer.InitResource();
-	IndexBuffer.InitResource();
+	FRenderResource::InitResource(RHICmdList);
+	PositionBuffer.InitResource(RHICmdList);
+	TangentBuffer.InitResource(RHICmdList);
+	TexCoordBuffer.InitResource(RHICmdList);
+	ColorBuffer.InitResource(RHICmdList);
+	IndexBuffer.InitResource(RHICmdList);
 }
 
 void FPaperSpriteVertexBuffer::ReleaseResource()
@@ -233,7 +233,7 @@ void FPaperSpriteVertexFactory::Init(const FPaperSpriteVertexBuffer* InVertexBuf
 		SetData(VertexData);
 		VertexBuffer = InVertexBuffer;
 
-		InitResource();
+		InitResource(FRHICommandListImmediate::Get());
 	}
 	else
 	{

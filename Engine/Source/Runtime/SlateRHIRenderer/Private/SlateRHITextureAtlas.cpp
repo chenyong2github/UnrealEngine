@@ -47,7 +47,7 @@ void FSlateTextureAtlasRHI::UpdateTexture_RenderThread( FSlateTextureData* Rende
 
 	if (!AtlasTexture->IsInitialized())
 	{
-		AtlasTexture->InitResource();
+		AtlasTexture->InitResource(FRHICommandListImmediate::Get());
 	}
 
 	check(AtlasTexture->IsInitialized());

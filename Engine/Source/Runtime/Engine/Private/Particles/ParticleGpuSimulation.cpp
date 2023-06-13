@@ -363,10 +363,10 @@ public:
 		FParticleSimulationResources* ParticleResources = this;
 		ENQUEUE_RENDER_COMMAND(FInitParticleSimulationResourcesCommand)([ParticleResources](FRHICommandList& RHICmdList)
 		{
-			ParticleResources->StateTextures[0].InitResource();
-			ParticleResources->StateTextures[1].InitResource();
-			ParticleResources->RenderAttributesTexture.InitResource();
-			ParticleResources->SimulationAttributesTexture.InitResource();
+			ParticleResources->StateTextures[0].InitResource(RHICmdList);
+			ParticleResources->StateTextures[1].InitResource(RHICmdList);
+			ParticleResources->RenderAttributesTexture.InitResource(RHICmdList);
+			ParticleResources->SimulationAttributesTexture.InitResource(RHICmdList);
 
 			RHICmdList.Transition({ 
 				FRHITransitionInfo(ParticleResources->RenderAttributesTexture.TextureRHI, ERHIAccess::Unknown, ERHIAccess::SRVMask),
@@ -2110,10 +2110,9 @@ public:
 	 */
 	void Init( const TArray<uint32>& Tiles )
 	{
-		check( IsInRenderingThread() );
 		TileCount = Tiles.Num();
 		AlignedTileCount = ComputeAlignedTileCount(TileCount);
-		InitResource();
+		InitResource(FRHICommandListImmediate::Get());
 		if (Tiles.Num())
 		{
 			int32 BufferAlignedTileCount = (GMaxRHIFeatureLevel <= ERHIFeatureLevel::ES3_1 ? TileCount : AlignedTileCount);
@@ -2173,9 +2172,8 @@ public:
 	 */
 	void Init( const TArray<uint32>& Tiles )
 	{
-		check( IsInRenderingThread() );
 		ParticleCount = Tiles.Num() * GParticlesPerTile;
-		InitResource();
+		InitResource(FRHICommandListImmediate::Get());
 		if ( Tiles.Num() )
 		{
 			BuildParticleVertexBuffer( VertexBufferRHI, Tiles );
@@ -2299,13 +2297,12 @@ public:
 	/**
 	 * Create and initializes a visualization vertex factory if needed.
 	 */
-	void CreateVectorFieldVisualizationVertexFactory(ERHIFeatureLevel::Type InFeatureLevel)
+	void CreateVectorFieldVisualizationVertexFactory(FRHICommandListBase& RHICmdList, ERHIFeatureLevel::Type InFeatureLevel)
 	{
 		if (VectorFieldVisualizationVertexFactory == NULL)
 		{
-			check(IsInRenderingThread());
 			VectorFieldVisualizationVertexFactory = new FVectorFieldVisualizationVertexFactory(InFeatureLevel);
-			VectorFieldVisualizationVertexFactory->InitResource();
+			VectorFieldVisualizationVertexFactory->InitResource(RHICmdList);
 		}
 	}
 
@@ -2465,7 +2462,7 @@ void FParticleSimulationGPU::InitResources(const TArray<uint32>& Tiles, FGPUSpri
 				// If a visualization vertex factory has been created, initialize it.
 				if (Simulation->VectorFieldVisualizationVertexFactory)
 				{
-					Simulation->VectorFieldVisualizationVertexFactory->InitResource();
+					Simulation->VectorFieldVisualizationVertexFactory->InitResource(RHICmdList);
 				}
 		});
 	}
@@ -2686,11 +2683,13 @@ public:
 				const bool bAllowSorting = FXConsoleVariables::bAllowGPUSorting
 					&& bTranslucent;
 
+				FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
+
 				// Iterate over views and assign parameters for each.
 				FParticleSimulationResources* SimulationResources = FXSystem->GetParticleSimulationResources();
 				FGPUSpriteCollectorResources& CollectorResources = Collector.AllocateOneFrameResource<FGPUSpriteCollectorResources>(FeatureLevel);
 				FGPUSpriteVertexFactory& VertexFactory = CollectorResources.VertexFactory;
-				VertexFactory.InitResource();
+				VertexFactory.InitResource(RHICmdList);
 
 				// Do here rather than in CreateRenderThreadResources because in some cases Render can be called before CreateRenderThreadResources
 				// Create per-emitter uniform buffer for dynamic parameters
@@ -2763,7 +2762,7 @@ public:
 				if (bHaveLocalVectorField && ViewFamily.EngineShowFlags.VectorFields)
 				{
 					// Create a vertex factory for visualization if needed.
-					Simulation->CreateVectorFieldVisualizationVertexFactory(FeatureLevel);
+					Simulation->CreateVectorFieldVisualizationVertexFactory(RHICmdList, FeatureLevel);
 					check(Simulation->VectorFieldVisualizationVertexFactory);
 					DrawVectorFieldBounds(Collector.GetPDI(ViewIndex), View, &Simulation->LocalVectorField);
 					GetVectorFieldMesh(Simulation->VectorFieldVisualizationVertexFactory, &Simulation->LocalVectorField, ViewIndex, Collector);

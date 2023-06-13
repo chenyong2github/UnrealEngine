@@ -89,7 +89,7 @@ private:
 	{
 	public:
 		FTileVertexFactory(const FStaticMeshVertexBuffers* VertexBuffers, ERHIFeatureLevel::Type InFeatureLevel);
-		void InitResource() override;
+		void InitResource(FRHICommandListBase& RHICmdList) override;
 
 	private:
 		const FStaticMeshVertexBuffers* VertexBuffers;
@@ -124,7 +124,7 @@ private:
 
 	private:
 		FMeshBatch* AllocTileMeshBatch(FCanvasRenderContext& InRenderContext, FHitProxyId InHitProxyId);
-		void InitTileMesh(const FSceneView& View);
+		void InitTileMesh(FRHICommandListBase& RHICmdList, const FSceneView& View);
 		void ReleaseTileMesh();
 
 		FRawIndexBuffer16or32 IndexBuffer;
@@ -247,7 +247,7 @@ private:
 	{
 	public:
 		FTriangleVertexFactory(const FStaticMeshVertexBuffers* VertexBuffers, ERHIFeatureLevel::Type InFeatureLevel);
-		void InitResource() override;
+		void InitResource(FRHICommandListBase& RHICmdList) override;
 
 	private:
 		const FStaticMeshVertexBuffers* VertexBuffers;
@@ -294,7 +294,7 @@ private:
 
 	private:
 		FMeshBatch* AllocTriangleMeshBatch(FCanvasRenderContext& InRenderContext, FHitProxyId InHitProxyId);
-		void InitTriangleMesh(const FSceneView& View);
+		void InitTriangleMesh(FRHICommandListBase& RHICmdList, const FSceneView& View);
 		void ReleaseTriangleMesh();
 
 		FRawIndexBuffer16or32 IndexBuffer;

@@ -313,7 +313,7 @@ void FSkeletalMeshObjectCPUSkin::CacheVertices(int32 LODIndex, bool bForce) cons
 			MeshLODptr->MeshObjectColorBuffer->BindColorVertexBuffer(VertexFactoryPtr, Data);
 
 			VertexFactoryPtr->SetData(Data);
-			VertexFactoryPtr->InitResource();
+			VertexFactoryPtr->InitResource(RHICmdList);
 		});
 	}
 }
@@ -365,7 +365,7 @@ void FSkeletalMeshObjectCPUSkin::FSkeletalMeshObjectLOD::InitResources(FSkelMesh
 			Self->MeshObjectColorBuffer->BindColorVertexBuffer(VertexFactoryPtr, Data);
 
 			VertexFactoryPtr->SetData(Data);
-			VertexFactoryPtr->InitResource();
+			VertexFactoryPtr->InitResource(RHICmdList);
 		});
 
 #if RHI_RAYTRACING
@@ -424,7 +424,7 @@ void FSkeletalMeshObjectCPUSkin::FSkeletalMeshObjectLOD::InitResources(FSkelMesh
 				Initializer.SourceGeometry = SourceGeometry.RayTracingGeometryRHI;
 
 				RayTracingGeometry.SetInitializer(Initializer);
-				RayTracingGeometry.InitResource();
+				RayTracingGeometry.InitResource(RHICmdList);
 			}
 		);
 	}

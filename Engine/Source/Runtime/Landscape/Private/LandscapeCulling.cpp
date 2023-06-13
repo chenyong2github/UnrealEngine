@@ -50,7 +50,7 @@ public:
 	{
 		FLandscapeVertexFactory::Data = InData;
 		Data = InData;
-		UpdateRHI();
+		UpdateRHI(FRHICommandListImmediate::Get());
 	}
 
 	/**
@@ -200,9 +200,9 @@ FVertexFactoryType* GetTileVertexFactoryType()
 class FLandscapeTileMesh final : public FRenderResource
 {
 public:
-	FLandscapeTileMesh()
+	FLandscapeTileMesh(FRHICommandListBase& RHICmdList)
 	{
-		InitResource();
+		InitResource(RHICmdList);
 	}
 
 	/** Destructor. */
@@ -211,7 +211,7 @@ public:
 		ReleaseResource();
 	}
 
-	virtual void InitResource() override;
+	virtual void InitResource(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseResource() override;
 	virtual void InitRHI() override;
 
@@ -221,11 +221,11 @@ public:
 };
 
 
-void FLandscapeTileMesh::InitResource()
+void FLandscapeTileMesh::InitResource(FRHICommandListBase& RHICmdList)
 {
-	FRenderResource::InitResource();
-	VertexBuffer.InitResource();
-	IndexBuffer.InitResource();
+	FRenderResource::InitResource(RHICmdList);
+	VertexBuffer.InitResource(RHICmdList);
+	IndexBuffer.InitResource(RHICmdList);
 }
 
 void FLandscapeTileMesh::ReleaseResource()
@@ -302,11 +302,11 @@ class FLandscapeTileDataBuffer final : public FVertexBuffer
 	uint32 SubsectionSizeQuads;
 public:
 
-	FLandscapeTileDataBuffer(uint32 InNumSubsections, uint32 InSubsectionSizeQuads)
+	FLandscapeTileDataBuffer(FRHICommandListBase& RHICmdList, uint32 InNumSubsections, uint32 InSubsectionSizeQuads)
 		: NumSubsections(InNumSubsections)
 		, SubsectionSizeQuads(InSubsectionSizeQuads)
 	{
-		InitResource();
+		InitResource(RHICmdList);
 	}
 
 	/** Destructor. */
@@ -320,14 +320,16 @@ public:
 
 void FLandscapeTileDataBuffer::InitRHI()
 {
+	FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
+
 	const uint32 SubsectionTilesRow = FMath::DivideAndRoundUp(SubsectionSizeQuads, LANDSCAPE_TILE_QUADS);
 	const uint32 SubsectionTiles = SubsectionTilesRow * SubsectionTilesRow;
 	const uint32 ComponentTiles = SubsectionTiles * NumSubsections * NumSubsections;
 	const uint32 Stride = TILE_DATA_ENTRY_NUM_BYTES;
 
 	FRHIResourceCreateInfo CreateInfo(TEXT("FLandscapeTileVertexBuffer"));
-	VertexBufferRHI = RHICreateBuffer(ComponentTiles * Stride, BUF_Static | BUF_VertexBuffer, Stride, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
-	uint8* TileData = (uint8*)RHILockBuffer(VertexBufferRHI, 0, ComponentTiles * Stride, RLM_WriteOnly);
+	VertexBufferRHI = RHICmdList.CreateBuffer(ComponentTiles * Stride, BUF_Static | BUF_VertexBuffer, Stride, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
+	uint8* TileData = (uint8*)RHICmdList.LockBuffer(VertexBufferRHI, 0, ComponentTiles * Stride, RLM_WriteOnly);
 
 	for (uint32 SubY = 0; SubY < NumSubsections; SubY++)
 	{
@@ -347,7 +349,7 @@ void FLandscapeTileDataBuffer::InitRHI()
 		}
 	}
 
-	RHIUnlockBuffer(VertexBufferRHI);
+	RHICmdList.UnlockBuffer(VertexBufferRHI);
 }
 
 class FBuildLandscapeTileDataCS : public FGlobalShader
@@ -399,7 +401,7 @@ public:
 		SHADER_PARAMETER(uint32, SubsectionSizeTiles)
 		SHADER_PARAMETER(uint32, NumSubsections)
 		SHADER_PARAMETER(uint32, NearClip)
-		END_SHADER_PARAMETER_STRUCT()
+	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_GLOBAL_SHADER(FBuildLandscapeTileDataCS, "/Engine/Private/Landscape/LandscapeCulling.usf", "BuildLandscapeTileDataCS", SF_Compute);
 
@@ -480,21 +482,21 @@ void PreRenderViewFamily(FSceneViewFamily& InViewFamily)
 	ResetIntermediateData();
 }
 
-void InitSharedBuffers(FLandscapeSharedBuffers& SharedBuffers, const ERHIFeatureLevel::Type InFeatureLevel)
+void InitSharedBuffers(FRHICommandListBase& RHICmdList, FLandscapeSharedBuffers& SharedBuffers, const ERHIFeatureLevel::Type InFeatureLevel)
 {
 	if (SharedBuffers.TileVertexFactory == nullptr)
 	{
 		uint32 SubsectionSizeQuads = (SharedBuffers.SubsectionSizeVerts - 1);
 
-		FLandscapeTileMesh* TileMesh = new FLandscapeTileMesh();
-		FLandscapeTileDataBuffer* TileDataBuffer = new FLandscapeTileDataBuffer(SharedBuffers.NumSubsections, SubsectionSizeQuads);
+		FLandscapeTileMesh* TileMesh = new FLandscapeTileMesh(RHICmdList);
+		FLandscapeTileDataBuffer* TileDataBuffer = new FLandscapeTileDataBuffer(RHICmdList, SharedBuffers.NumSubsections, SubsectionSizeQuads);
 		FLandscapeTileVertexFactory* TileVF = new FLandscapeTileVertexFactory(InFeatureLevel);
 
 		uint32 TileDataStride = TILE_DATA_ENTRY_NUM_BYTES;
 
 		TileVF->Data.PositionComponent = FVertexStreamComponent(&TileMesh->VertexBuffer, 0, sizeof(FLandscapeVertex), VET_UByte4);
 		TileVF->Data.TileDataComponent = FVertexStreamComponent(TileDataBuffer, 0, TileDataStride, VET_UByte4, EVertexStreamUsage::Instancing);
-		TileVF->InitResource();
+		TileVF->InitResource(RHICmdList);
 
 		SharedBuffers.TileMesh = TileMesh;
 		SharedBuffers.TileVertexFactory = TileVF;
@@ -529,14 +531,14 @@ void SetupMeshBatch(const FLandscapeSharedBuffers& SharedBuffers, FMeshBatch& Me
 	}
 }
 
-void RegisterLandscape(FLandscapeSharedBuffers& SharedBuffers, ERHIFeatureLevel::Type FeatureLevel, uint32 LandscapeKey, int32 SubsectionSizeVerts, int32 NumSubsections)
+void RegisterLandscape(FRHICommandListBase& RHICmdList, FLandscapeSharedBuffers& SharedBuffers, ERHIFeatureLevel::Type FeatureLevel, uint32 LandscapeKey, int32 SubsectionSizeVerts, int32 NumSubsections)
 {
 	if (!EnableGPUCullingForSection(SubsectionSizeVerts, NumSubsections))
 	{
 		return;
 	}
 
-	InitSharedBuffers(SharedBuffers, FeatureLevel);
+	InitSharedBuffers(RHICmdList, SharedBuffers, FeatureLevel);
 
 	FCullingEntry* CullingEntryPtr = GCullingSystem.Landscapes.FindByPredicate([LandscapeKey](const FCullingEntry& Other) {
 		return Other.LandscapeKey == LandscapeKey;

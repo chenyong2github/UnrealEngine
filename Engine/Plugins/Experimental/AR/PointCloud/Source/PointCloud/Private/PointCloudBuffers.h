@@ -45,9 +45,9 @@ public:
 	}
 
 protected:
-	void InitWith(const void* InVertexData, uint32 InNumVerts, uint32 InSizeInBytes)
+	void InitWith(FRHICommandListBase& RHICmdList, const void* InVertexData, uint32 InNumVerts, uint32 InSizeInBytes)
 	{
-		InitResource();
+		InitResource(RHICmdList);
 
 		NumVerts = InNumVerts;
 
@@ -65,18 +65,18 @@ class FPointCloudColorVertexBuffer :
 	public FPointCloudVertexBufferBase
 {
 public:
-	void InitRHIWith(const TArray<FColor>& RawColorData)
+	void InitRHIWith(FRHICommandListBase& RHICmdList, const TArray<FColor>& RawColorData)
 	{
-		InitWith(RawColorData.GetData(), (uint32)RawColorData.Num(), RawColorData.Num() * sizeof(FColor));
-		BufferSRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(FColor), PF_R8G8B8A8);
+		InitWith(RHICmdList, RawColorData.GetData(), (uint32)RawColorData.Num(), RawColorData.Num() * sizeof(FColor));
+		BufferSRV = RHICmdList.CreateShaderResourceView(VertexBufferRHI, sizeof(FColor), PF_R8G8B8A8);
 		// We have a full stream so we can index safely
 		ColorMask = ~0;
 	}
 
-	void InitRHIWith(const FColor& RawColor)
+	void InitRHIWith(FRHICommandListBase& RHICmdList, const FColor& RawColor)
 	{
-		InitWith((const void*)&RawColor, 1, sizeof(FColor));
-		BufferSRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(FColor), PF_R8G8B8A8);
+		InitWith(RHICmdList, (const void*)&RawColor, 1, sizeof(FColor));
+		BufferSRV = RHICmdList.CreateShaderResourceView(VertexBufferRHI, sizeof(FColor), PF_R8G8B8A8);
 	}
 
 	inline uint32 GetColorMask() const
@@ -93,10 +93,10 @@ class FPointCloudLocationVertexBuffer :
 	public FPointCloudVertexBufferBase
 {
 public:
-	void InitRHIWith(const TArray<FVector>& RawLocationData)
+	void InitRHIWith(FRHICommandListBase& RHICmdList, const TArray<FVector>& RawLocationData)
 	{
-		InitWith(RawLocationData.GetData(), RawLocationData.Num(), RawLocationData.Num() * sizeof(FVector));
-		BufferSRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(float), PF_R32_FLOAT);
+		InitWith(RHICmdList, RawLocationData.GetData(), RawLocationData.Num(), RawLocationData.Num() * sizeof(FVector));
+		BufferSRV = RHICmdList.CreateShaderResourceView(VertexBufferRHI, sizeof(float), PF_R32_FLOAT);
 	}
 };
 
@@ -127,15 +127,15 @@ public:
 
 	/** Generates a quad list when available on the platform */
 	template <typename INDEX_TYPE>
-	void CreateQuadList()
+	void CreateQuadList(FRHICommandListBase& RHICmdList)
 	{
 		bIsQuadList = true;
 		NumPrimitives = NumPoints;
 		const uint32 Size = sizeof(INDEX_TYPE) * 4 * NumPoints;
 		const uint32 Stride = sizeof(INDEX_TYPE);
 		FRHIResourceCreateInfo CreateInfo(TEXT("PointCloudQuadList"));
-		IndexBufferRHI = RHICreateBuffer( Size, BUF_Static | BUF_IndexBuffer, Stride, ERHIAccess::VertexOrIndexBuffer, CreateInfo );
-		INDEX_TYPE* Indices = (INDEX_TYPE*)RHILockBuffer( IndexBufferRHI, 0, Size, RLM_WriteOnly );
+		IndexBufferRHI = RHICmdList.CreateBuffer( Size, BUF_Static | BUF_IndexBuffer, Stride, ERHIAccess::VertexOrIndexBuffer, CreateInfo );
+		INDEX_TYPE* Indices = (INDEX_TYPE*)RHICmdList.LockBuffer( IndexBufferRHI, 0, Size, RLM_WriteOnly );
 		for (uint32 SpriteIndex = 0; SpriteIndex < NumPoints; ++SpriteIndex)
 		{
 			Indices[SpriteIndex * 4 + 0] = SpriteIndex * 4 + 0;
@@ -143,19 +143,19 @@ public:
 			Indices[SpriteIndex * 4 + 2] = SpriteIndex * 4 + 3;
 			Indices[SpriteIndex * 4 + 3] = SpriteIndex * 4 + 2;
 		}
-		RHIUnlockBuffer( IndexBufferRHI );
+		RHICmdList.UnlockBuffer( IndexBufferRHI );
 	}
 
 	/** Generates a tri list when quad lists are not available on the platform */
 	template <typename INDEX_TYPE>
-	void CreateTriList()
+	void CreateTriList(FRHICommandListBase& RHICmdList)
 	{
 		NumPrimitives = 2 * NumPoints;
 		const uint32 Size = sizeof(INDEX_TYPE) * 6 * NumPoints;
 		const uint32 Stride = sizeof(INDEX_TYPE);
 		FRHIResourceCreateInfo CreateInfo(TEXT("PointCloudTriList"));
-		IndexBufferRHI = RHICreateBuffer( Size, BUF_Static | BUF_IndexBuffer, Stride, ERHIAccess::VertexOrIndexBuffer, CreateInfo );
-		INDEX_TYPE* Indices = (INDEX_TYPE*)RHILockBuffer( IndexBufferRHI, 0, Size, RLM_WriteOnly );
+		IndexBufferRHI = RHICmdList.CreateBuffer( Size, BUF_Static | BUF_IndexBuffer, Stride, ERHIAccess::VertexOrIndexBuffer, CreateInfo );
+		INDEX_TYPE* Indices = (INDEX_TYPE*)RHICmdList.LockBuffer( IndexBufferRHI, 0, Size, RLM_WriteOnly );
 		for (uint32 SpriteIndex = 0; SpriteIndex < NumPoints; ++SpriteIndex)
 		{
 			Indices[SpriteIndex * 6 + 0] = SpriteIndex * 4 + 0;
@@ -165,11 +165,13 @@ public:
 			Indices[SpriteIndex * 6 + 4] = SpriteIndex * 4 + 1;
 			Indices[SpriteIndex * 6 + 5] = SpriteIndex * 4 + 3;
 		}
-		RHIUnlockBuffer( IndexBufferRHI );
+		RHICmdList.UnlockBuffer( IndexBufferRHI );
 	}
 
 	virtual void InitRHI() override
 	{
+		FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
+	
 		check(NumPoints > 0 && MaxIndex > 0);
 //@todo joeg - cvar quad vs tri in addition to platform support
 		const bool bShouldUseQuadList = GRHISupportsQuadTopology;
@@ -178,31 +180,31 @@ public:
 		{
 			if (bShouldUseQuadList)
 			{
-				CreateQuadList<uint32>();
+				CreateQuadList<uint32>(RHICmdList);
 			}
 			else
 			{
-				CreateTriList<uint32>();
+				CreateTriList<uint32>(RHICmdList);
 			}
 		}
 		else
 		{
 			if (bShouldUseQuadList)
 			{
-				CreateQuadList<uint16>();
+				CreateQuadList<uint16>(RHICmdList);
 			}
 			else
 			{
-				CreateTriList<uint16>();
+				CreateTriList<uint16>(RHICmdList);
 			}
 		}
 	}
 
-	void InitRHIWithSize(uint32 InNumPoints)
+	void InitRHIWithSize(FRHICommandListBase& RHICmdList, uint32 InNumPoints)
 	{
 		NumPoints = InNumPoints;
 		MaxIndex = (4 * InNumPoints) - 1;
-		InitResource();
+		InitResource(RHICmdList);
 	}
 
 	inline bool IsQuadList() const

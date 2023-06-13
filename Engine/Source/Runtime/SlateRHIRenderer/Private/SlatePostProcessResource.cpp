@@ -25,7 +25,7 @@ void FSlatePostProcessResource::Update(const FIntPoint& NewSize, EPixelFormat Re
 	{
 		if(!IsInitialized())
 		{
-			InitResource();
+			InitResource(FRHICommandListImmediate::Get());
 		}
 
 		FIntPoint NewMaxSize(FMath::Max(NewSize.X, RenderTargetSize.X), FMath::Max(NewSize.Y, RenderTargetSize.Y));

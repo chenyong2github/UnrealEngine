@@ -252,7 +252,7 @@ public:
 	void SetData(const FDataType& InData)
 	{
 		Data = InData;
-		UpdateRHI();
+		UpdateRHI(FRHICommandListImmediate::Get());
 	}
 
 	/** stream component data bound to this vertex factory */
@@ -312,14 +312,14 @@ class FLandscapeVertexBuffer final : public FVertexBuffer
 public:
 
 	/** Constructor. */
-	FLandscapeVertexBuffer(ERHIFeatureLevel::Type InFeatureLevel, int32 InNumVertices, int32 InSubsectionSizeVerts, int32 InNumSubsections, const FName& InOwnerName)
+	FLandscapeVertexBuffer(FRHICommandListBase& RHICmdList, ERHIFeatureLevel::Type InFeatureLevel, int32 InNumVertices, int32 InSubsectionSizeVerts, int32 InNumSubsections, const FName& InOwnerName)
 		: FeatureLevel(InFeatureLevel)
 		, NumVertices(InNumVertices)
 		, SubsectionSizeVerts(InSubsectionSizeVerts)
 		, NumSubsections(InNumSubsections)
 	{
 		SetOwnerName(InOwnerName);
-		InitResource();
+		InitResource(RHICmdList);
 	}
 
 	/** Destructor. */
@@ -374,14 +374,14 @@ public:
 	TArray<FIndexBuffer*> ZeroOffsetIndexBuffers;
 #endif
 
-	FLandscapeSharedBuffers(int32 SharedBuffersKey, int32 SubsectionSizeQuads, int32 NumSubsections, ERHIFeatureLevel::Type FeatureLevel, const FName& OwnerName = NAME_None);
+	FLandscapeSharedBuffers(FRHICommandListBase& RHICmdList, int32 SharedBuffersKey, int32 SubsectionSizeQuads, int32 NumSubsections, ERHIFeatureLevel::Type FeatureLevel, const FName& OwnerName = NAME_None);
 
 	template <typename INDEX_TYPE>
-	void CreateIndexBuffers(const FName& OwnerName);
+	void CreateIndexBuffers(FRHICommandListBase& RHICmdList, const FName& OwnerName);
 	
 #if WITH_EDITOR
 	template <typename INDEX_TYPE>
-	void CreateGrassIndexBuffer(const FName& InOwnerName);
+	void CreateGrassIndexBuffer(FRHICommandListBase& RHICmdList, const FName& InOwnerName);
 #endif
 
 	virtual ~FLandscapeSharedBuffers();

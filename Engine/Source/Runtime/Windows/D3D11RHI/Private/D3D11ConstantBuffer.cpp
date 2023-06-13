@@ -10,7 +10,7 @@
 FD3D11ConstantBuffer::FD3D11ConstantBuffer(FD3D11DynamicRHI* InD3DRHI)
 	: D3DRHI(InD3DRHI)
 {
-	InitResource();
+	InitResource(FRHICommandListImmediate::Get());
 }
 
 FD3D11ConstantBuffer::~FD3D11ConstantBuffer()

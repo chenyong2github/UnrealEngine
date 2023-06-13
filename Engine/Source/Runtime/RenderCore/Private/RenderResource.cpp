@@ -127,7 +127,7 @@ void FRenderResource::ReleaseRHIForAllResources()
 /** Initialize all resources initialized before the RHI was initialized */
 void FRenderResource::InitPreRHIResources()
 {
-	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+	FRHICommandListBase& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 
 	FRenderResourceList& PreResourceList = FRenderResourceList::Get<FRenderResource::EInitPhase::Pre>();
 	FRenderResourceList& DefaultResourceList = FRenderResourceList::Get<FRenderResource::EInitPhase::Default>();
@@ -164,37 +164,13 @@ void FRenderResource::ChangeFeatureLevel(ERHIFeatureLevel::Type NewFeatureLevel)
 	});
 }
 
-void FRenderResource::InitResource()
+FRHICommandListBase& FRenderResource::GetCommandList()
 {
 	check(IsInRenderingThread());
-	if (ListIndex == INDEX_NONE)
-	{
-		int32 LocalListIndex = INDEX_NONE;
-
-		if (PLATFORM_NEEDS_RHIRESOURCELIST || !GIsRHIInitialized)
-		{
-			LLM_SCOPE(ELLMTag::SceneRender);
-			LocalListIndex = FRenderResourceList::Get(InitPhase).Allocate(this);
-		}
-		else
-		{
-			// Mark this resource as initialized
-			LocalListIndex = 0;
-		}
-
-		if (GIsRHIInitialized)
-		{
-			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(InitRenderResource);
-			FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-			InitRHI(RHICmdList);
-		}
-
-		FPlatformMisc::MemoryBarrier(); // there are some multithreaded reads of ListIndex
-		ListIndex = LocalListIndex;
-	}
+	return FRHICommandListExecutor::GetImmediateCommandList();
 }
 
-void FRenderResource::InitResource(FRHICommandList& RHICmdList)
+void FRenderResource::InitResource(FRHICommandListBase& RHICmdList)
 {
 	if (ListIndex == INDEX_NONE)
 	{
@@ -247,7 +223,7 @@ void FRenderResource::UpdateRHI()
 	UpdateRHI(FRHICommandListExecutor::GetImmediateCommandList());
 }
 
-void FRenderResource::UpdateRHI(FRHICommandList& RHICmdList)
+void FRenderResource::UpdateRHI(FRHICommandListBase& RHICmdList)
 {
 	if (IsInitialized() && GIsRHIInitialized)
 	{
@@ -334,7 +310,7 @@ void BeginInitResource(FRenderResource* Resource)
 	ENQUEUE_RENDER_COMMAND(InitCommand)(
 		[Resource](FRHICommandListImmediate& RHICmdList)
 		{
-			Resource->InitResource();
+			Resource->InitResource(RHICmdList);
 		});
 }
 
@@ -343,7 +319,7 @@ void BeginUpdateResourceRHI(FRenderResource* Resource)
 	ENQUEUE_RENDER_COMMAND(UpdateCommand)(
 		[Resource](FRHICommandListImmediate& RHICmdList)
 		{
-			Resource->UpdateRHI();
+			Resource->UpdateRHI(RHICmdList);
 		});
 }
 

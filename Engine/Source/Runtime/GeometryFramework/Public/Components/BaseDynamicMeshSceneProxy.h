@@ -132,7 +132,7 @@ public:
 	 */
 	void Upload()
 	{
-		check(IsInRenderingThread());
+		FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
 
 		if (TriangleCount == 0)
 		{
@@ -153,18 +153,18 @@ public:
 		this->VertexFactory.SetData(Data);
 
 		InitOrUpdateResource(&this->VertexFactory);
-		PositionVertexBuffer.InitResource();
-		StaticMeshVertexBuffer.InitResource();
-		ColorVertexBuffer.InitResource();
-		VertexFactory.InitResource();
+		PositionVertexBuffer.InitResource(RHICmdList);
+		StaticMeshVertexBuffer.InitResource(RHICmdList);
+		ColorVertexBuffer.InitResource(RHICmdList);
+		VertexFactory.InitResource(RHICmdList);
 
 		if (IndexBuffer.Indices.Num() > 0)
 		{
-			IndexBuffer.InitResource();
+			IndexBuffer.InitResource(RHICmdList);
 		}
 		if (bEnableSecondaryIndexBuffer && SecondaryIndexBuffer.Indices.Num() > 0)
 		{
-			SecondaryIndexBuffer.InitResource();
+			SecondaryIndexBuffer.InitResource(RHICmdList);
 		}
 
 		InvalidateRayTracingData();
@@ -321,6 +321,7 @@ protected:
 		// do we always want to do this?
 		PrimaryRayTracingGeometry.ReleaseResource();		
 		SecondaryRayTracingGeometry.ReleaseResource();
+		FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
 			
 		for (int32 k = 0; k < 2; ++k)
 		{
@@ -340,7 +341,7 @@ protected:
 			Initializer.bAllowUpdate = false;
 
 			RayTracingGeometry.SetInitializer(Initializer);
-			RayTracingGeometry.InitResource();
+			RayTracingGeometry.InitResource(RHICmdList);
 
 			FRayTracingGeometrySegment Segment;
 			Segment.VertexBuffer = PositionVertexBuffer.VertexBufferRHI;
@@ -348,7 +349,7 @@ protected:
 			Segment.MaxVertices = PositionVertexBuffer.GetNumVertices();
 			RayTracingGeometry.Initializer.Segments.Add(Segment);
 
-			RayTracingGeometry.UpdateRHI();
+			RayTracingGeometry.UpdateRHI(RHICmdList);
 		}
 #endif
 	}
@@ -361,15 +362,15 @@ protected:
 	 */
 	void InitOrUpdateResource(FRenderResource* Resource)
 	{
-		check(IsInRenderingThread());
+		FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
 
 		if (!Resource->IsInitialized())
 		{
-			Resource->InitResource();
+			Resource->InitResource(RHICmdList);
 		}
 		else
 		{
-			Resource->UpdateRHI();
+			Resource->UpdateRHI(RHICmdList);
 		}
 	}
 

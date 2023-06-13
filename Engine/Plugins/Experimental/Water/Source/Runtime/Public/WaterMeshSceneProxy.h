@@ -89,7 +89,7 @@ private:
 	FWaterLODParams GetWaterLODParams(const FVector& Position) const;
 
 #if RHI_RAYTRACING
-	void SetupRayTracingInstances(int32 NumInstances, uint32 DensityIndex);
+	void SetupRayTracingInstances(FRHICommandListBase& RHICmdList, int32 NumInstances, uint32 DensityIndex);
 #endif
 
 	void OnTessellatedWaterMeshBoundsChanged_RenderThread(const FBox2D& InTessellatedWaterMeshBounds);

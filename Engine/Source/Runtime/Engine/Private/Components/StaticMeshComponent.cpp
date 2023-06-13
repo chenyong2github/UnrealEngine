@@ -1778,7 +1778,7 @@ void UStaticMeshComponent::UpdatePreCulledData(int32 LODIndex, const TArray<uint
 		check(IsInRenderingThread());
 		LODData[LODIndex].PreCulledIndexBuffer.ReleaseResource();
 		LODData[LODIndex].PreCulledIndexBuffer.SetIndices(PreCulledData, EIndexBufferStride::AutoDetect);
-		LODData[LODIndex].PreCulledIndexBuffer.InitResource();
+		LODData[LODIndex].PreCulledIndexBuffer.InitResource(FRHICommandListImmediate::Get());
 
 		INC_DWORD_STAT_BY(STAT_StaticMeshPreCulledIndexMemory, LODData[LODIndex].PreCulledIndexBuffer.GetAllocatedSize());
 		LODData[LODIndex].PreCulledSections.Empty(StaticMeshLODResources.Sections.Num());

@@ -118,7 +118,7 @@ void FSlateFontAtlasRHI::ConditionalUpdateTexture()
 	{
 		if (IsInRenderingThread())
 		{
-			FontTexture->InitResource();
+			FontTexture->InitResource(FRHICommandListImmediate::Get());
 
 			uint32 DestStride;
 			uint8* TempData = (uint8*)RHILockTexture2D( FontTexture->GetTypedResource(), 0, RLM_WriteOnly, /*out*/ DestStride, false );
@@ -153,7 +153,7 @@ FSlateFontTextureRHI::FSlateFontTextureRHI(const uint32 InWidth, const uint32 In
 {
 	if (IsInRenderingThread())
 	{
-		FontTexture->InitResource();
+		FontTexture->InitResource(FRHICommandListImmediate::Get());
 		UpdateTextureFromSource(InWidth, InHeight, InRawData);
 	}
 	else

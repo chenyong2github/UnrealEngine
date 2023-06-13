@@ -18,6 +18,7 @@
 #include "NiagaraSystemInstance.h"
 #include "ParticleResources.h"
 #include "RayTracingInstance.h"
+#include "RenderGraphBuilder.h"
 
 DECLARE_DWORD_COUNTER_STAT(TEXT("NumSprites"), STAT_NiagaraNumSprites, STATGROUP_Niagara);
 
@@ -203,7 +204,8 @@ void FNiagaraRendererSprites::ReleaseRenderThreadResources()
 void FNiagaraRendererSprites::CreateRenderThreadResources()
 {
 	FNiagaraRenderer::CreateRenderThreadResources();
-	CutoutVertexBuffer.InitResource();
+	FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
+	CutoutVertexBuffer.InitResource(RHICmdList);
 
 #if RHI_RAYTRACING
 	if (IsRayTracingAllowed())
@@ -217,7 +219,7 @@ void FNiagaraRendererSprites::CreateRenderThreadResources()
 		Initializer.bFastBuild = true;
 		Initializer.bAllowUpdate = false;
 		RayTracingGeometry.SetInitializer(Initializer);
-		RayTracingGeometry.InitResource();
+		RayTracingGeometry.InitResource(RHICmdList);
 	}
 #endif
 }
@@ -470,7 +472,7 @@ void FNiagaraRendererSprites::InitializeSortInfo(FParticleSpriteRenderData& Part
 	}
 }
 
-void FNiagaraRendererSprites::SetupVertexFactory(FParticleSpriteRenderData& ParticleSpriteRenderData, FNiagaraSpriteVertexFactory& VertexFactory) const
+void FNiagaraRendererSprites::SetupVertexFactory(FRHICommandListBase& RHICmdList, FParticleSpriteRenderData& ParticleSpriteRenderData, FNiagaraSpriteVertexFactory& VertexFactory) const
 {
 	VertexFactory.SetParticleFactoryType(NVFT_Sprite);
 
@@ -518,7 +520,7 @@ void FNiagaraRendererSprites::SetupVertexFactory(FParticleSpriteRenderData& Part
 	}
 	
 	// The InitResource needs to happen at the end here as SetVertexBufferOverride will set the UV buffers.
-	VertexFactory.InitResource();
+	VertexFactory.InitResource(RHICmdList);
 }
 
 FNiagaraSpriteUniformBufferRef FNiagaraRendererSprites::CreateViewUniformBuffer(FParticleSpriteRenderData& ParticleSpriteRenderData, const FSceneView& View, const FSceneViewFamily& ViewFamily, const FNiagaraSceneProxy& SceneProxy, FNiagaraSpriteVertexFactory& VertexFactory) const
@@ -948,6 +950,8 @@ void FNiagaraRendererSprites::GetDynamicMeshElements(const TArray<const FSceneVi
 	check(SceneProxy);
 	PARTICLE_PERF_STAT_CYCLES_RT(SceneProxy->GetProxyDynamicData().PerfStatsContext, GetDynamicMeshElements);
 
+	FRHICommandListBase& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+
 	// Prepare our particle render data
 	// This will also determine if we have anything to render
 	// ENiagaraGpuComputeTickStage::Last is used as the GPU ready stage as we can support reading translucent data after PostRenderOpaque sims have run
@@ -1038,7 +1042,7 @@ void FNiagaraRendererSprites::GetDynamicMeshElements(const TArray<const FSceneVi
 
 			if (NumInstances > 0)
 			{
-				SetupVertexFactory(ParticleSpriteRenderData, VertexFactory);
+				SetupVertexFactory(RHICmdList, ParticleSpriteRenderData, VertexFactory);
 				CollectorResources->UniformBuffer = CreateViewUniformBuffer(ParticleSpriteRenderData, *View, ViewFamily, *SceneProxy, VertexFactory);
 				VertexFactory.SetSpriteUniformBuffer(CollectorResources->UniformBuffer);
 
@@ -1120,7 +1124,7 @@ void FNiagaraRendererSprites::GetDynamicRayTracingInstances(FRayTracingMaterialG
 
 	if (NumInstances > 0)
 	{
-		SetupVertexFactory(ParticleSpriteRenderData, VertexFactory);
+		SetupVertexFactory(Context.GraphBuilder.RHICmdList, ParticleSpriteRenderData, VertexFactory);
 		CollectorResources->UniformBuffer = CreateViewUniformBuffer(ParticleSpriteRenderData, *Context.ReferenceView, Context.ReferenceViewFamily, *SceneProxy, VertexFactory);
 		VertexFactory.SetSpriteUniformBuffer(CollectorResources->UniformBuffer);
 

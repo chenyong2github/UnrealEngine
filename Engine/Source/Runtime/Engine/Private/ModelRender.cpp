@@ -214,26 +214,26 @@ public:
 			FColor(157,149,223,255))
 #endif
 	{
-		ENQUEUE_RENDER_COMMAND(InitOrUpdateVertexBufferCmd)([VertexBuffer = &InComponent->GetModel()->VertexBuffer](FRHICommandList&)
+		ENQUEUE_RENDER_COMMAND(InitOrUpdateVertexBufferCmd)([VertexBuffer = &InComponent->GetModel()->VertexBuffer](FRHICommandList& RHICmdList)
 		{
 			if (!VertexBuffer->Buffers.PositionVertexBuffer.IsInitialized())
 			{
-				VertexBuffer->Buffers.PositionVertexBuffer.InitResource();
+				VertexBuffer->Buffers.PositionVertexBuffer.InitResource(RHICmdList);
 			}
 			else if (VertexBuffer->RefCount == 0)
 			{
 				// Only allow update when no other FModelSceneProxy's is using the vertex buffer
 				// otherwise their resources will become invalid
-				VertexBuffer->Buffers.PositionVertexBuffer.UpdateRHI();
+				VertexBuffer->Buffers.PositionVertexBuffer.UpdateRHI(RHICmdList);
 			}
 
 			if (!VertexBuffer->Buffers.StaticMeshVertexBuffer.IsInitialized())
 			{
-				VertexBuffer->Buffers.StaticMeshVertexBuffer.InitResource();
+				VertexBuffer->Buffers.StaticMeshVertexBuffer.InitResource(RHICmdList);
 			}
 			else if (VertexBuffer->RefCount == 0)
 			{
-				VertexBuffer->Buffers.StaticMeshVertexBuffer.UpdateRHI();
+				VertexBuffer->Buffers.StaticMeshVertexBuffer.UpdateRHI(RHICmdList);
 			}
 		});
 		InComponent->GetModel()->VertexBuffer.Buffers.InitModelVF(&VertexFactory);

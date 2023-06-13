@@ -115,7 +115,7 @@ void FNiagaraRendererVolumes::CreateRenderThreadResources()
 	VFData.ColorComponentsSRV = GNullColorVertexBuffer.VertexBufferSRV;
 
 	VertexFactory.SetData(VFData);
-	VertexFactory.InitResource();
+	VertexFactory.InitResource(FRHICommandListImmediate::Get());
 }
 
 void FNiagaraRendererVolumes::ReleaseRenderThreadResources()

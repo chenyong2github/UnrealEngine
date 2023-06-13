@@ -170,7 +170,7 @@ void FMorphVertexBufferPool::EnableDoubleBuffer()
 	bDoubleBuffer = true;
 	if (!MorphVertexBuffers[1].VertexBufferRHI.IsValid())
 	{
-		MorphVertexBuffers[1].InitResource();
+		MorphVertexBuffers[1].InitResource(FRHICommandListImmediate::Get());
 	}
 }
 
@@ -1814,12 +1814,12 @@ static FGPUBaseSkinVertexFactory* CreateVertexFactory(TArray<TUniquePtr<FGPUBase
 
 	// update vertex factory components and sync it
 	ENQUEUE_RENDER_COMMAND(InitGPUSkinVertexFactory)(
-		[VertexUpdateData](FRHICommandList& CmdList)
+		[VertexUpdateData](FRHICommandList& RHICmdList)
 		{
 			FGPUSkinDataType Data;
 			InitGPUSkinVertexFactoryComponents(&Data, VertexUpdateData.VertexBuffers, VertexUpdateData.VertexFactory);
 			VertexUpdateData.VertexFactory->SetData(&Data);
-			VertexUpdateData.VertexFactory->InitResource();
+			VertexUpdateData.VertexFactory->InitResource(RHICmdList);
 		}
 	);
 
@@ -1863,7 +1863,7 @@ static void CreatePassthroughVertexFactory(ERHIFeatureLevel::Type InFeatureLevel
 			FLocalVertexFactory::FDataType Data;
 			SourceVertexFactory->CopyDataTypeForLocalVertexFactory(Data);
 			NewPassthroughVertexFactory->SetData(Data);
-			NewPassthroughVertexFactory->InitResource();
+			NewPassthroughVertexFactory->InitResource(RHICmdList);
 		}
 	);
 }
@@ -1899,7 +1899,7 @@ static void CreateVertexFactoryMorph(TArray<TUniquePtr<FGPUBaseSkinVertexFactory
 			InitGPUSkinVertexFactoryComponents(&Data, VertexUpdateData.VertexBuffers, VertexUpdateData.VertexFactory);
 			InitMorphVertexFactoryComponents(&Data, VertexUpdateData.VertexBuffers.MorphVertexBufferPool);
 			VertexUpdateData.VertexFactory->SetData(&Data);
-			VertexUpdateData.VertexFactory->InitResource();
+			VertexUpdateData.VertexFactory->InitResource(RHICmdList);
 		}
 	);
 }
@@ -1978,7 +1978,7 @@ static void CreateVertexFactoryCloth(TArray<TUniquePtr<FGPUBaseSkinAPEXClothVert
 			InitGPUSkinVertexFactoryComponents(&Data, VertexUpdateData.VertexBuffers, VertexUpdateData.VertexFactory);
 			InitAPEXClothVertexFactoryComponents(&Data, VertexUpdateData.VertexBuffers);
 			VertexUpdateData.VertexFactory->SetData(&Data);
-			VertexUpdateData.VertexFactory->InitResource();
+			VertexUpdateData.VertexFactory->InitResource(RHICmdList);
 		}
 	);
 }

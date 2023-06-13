@@ -1356,6 +1356,8 @@ void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 
 	check(HeightmapTexture != nullptr);
 
+	FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
+
 	FLandscapeRenderSystem::CreateResources(this);
 
 	if (VisibilityHelper.ShouldBeVisible())
@@ -1369,7 +1371,7 @@ void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 	if (SharedBuffers == nullptr)
 	{
 		SharedBuffers = new FLandscapeSharedBuffers(
-			SharedBuffersKey, SubsectionSizeQuads, NumSubsections, FeatureLevel, FName(LandscapeComponent->GetPathName()));
+			RHICmdList, SharedBuffersKey, SubsectionSizeQuads, NumSubsections, FeatureLevel, FName(LandscapeComponent->GetPathName()));
 
 		FLandscapeComponentSceneProxy::SharedBuffersMap.Add(SharedBuffersKey, SharedBuffers);
 
@@ -1377,14 +1379,14 @@ void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 		{
 			FLandscapeVertexFactory* LandscapeVertexFactory = new FLandscapeVertexFactory(FeatureLevel);
 			LandscapeVertexFactory->Data.PositionComponent = FVertexStreamComponent(SharedBuffers->VertexBuffer, 0, sizeof(FLandscapeVertex), VET_UByte4);
-			LandscapeVertexFactory->InitResource();
+			LandscapeVertexFactory->InitResource(RHICmdList);
 			SharedBuffers->VertexFactory = LandscapeVertexFactory;
 		}
 		else
 		{
 			FLandscapeXYOffsetVertexFactory* LandscapeXYOffsetVertexFactory = new FLandscapeXYOffsetVertexFactory(FeatureLevel);
 			LandscapeXYOffsetVertexFactory->Data.PositionComponent = FVertexStreamComponent(SharedBuffers->VertexBuffer, 0, sizeof(FLandscapeVertex), VET_UByte4);
-			LandscapeXYOffsetVertexFactory->InitResource();
+			LandscapeXYOffsetVertexFactory->InitResource(RHICmdList);
 			SharedBuffers->VertexFactory = LandscapeXYOffsetVertexFactory;
 		}
 
@@ -1400,7 +1402,7 @@ void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 			//todo[vt]: We will need a version of this to support XYOffsetmapTexture
 			FLandscapeFixedGridVertexFactory* LandscapeVertexFactory = new FLandscapeFixedGridVertexFactory(FeatureLevel);
 			LandscapeVertexFactory->Data.PositionComponent = FVertexStreamComponent(SharedBuffers->VertexBuffer, 0, sizeof(FLandscapeVertex), VET_UByte4);
-			LandscapeVertexFactory->InitResource();
+			LandscapeVertexFactory->InitResource(RHICmdList);
 			SharedBuffers->FixedGridVertexFactory = LandscapeVertexFactory;
 		}
 	}
@@ -1413,11 +1415,11 @@ void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 
 	if (!bNaniteActive && Culling::UseCulling(GetScene().GetShaderPlatform()))
 	{
-		Culling::RegisterLandscape(*SharedBuffers, FeatureLevel, LandscapeKey, SubsectionSizeVerts, NumSubsections);
+		Culling::RegisterLandscape(RHICmdList, *SharedBuffers, FeatureLevel, LandscapeKey, SubsectionSizeVerts, NumSubsections);
 	}
 	
 	// Assign LandscapeUniformShaderParameters
-	LandscapeUniformShaderParameters.InitResource();
+	LandscapeUniformShaderParameters.InitResource(RHICmdList);
 
 	// Create per Lod uniform buffers
 	const int32 NumMips = FMath::CeilLogTwo(SubsectionSizeVerts);
@@ -1425,7 +1427,7 @@ void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 	LandscapeFixedGridUniformShaderParameters.AddDefaulted(NumMips);
 	for (int32 LodIndex = 0; LodIndex < NumMips; ++LodIndex)
 	{
-		LandscapeFixedGridUniformShaderParameters[LodIndex].InitResource();
+		LandscapeFixedGridUniformShaderParameters[LodIndex].InitResource(RHICmdList);
 		FLandscapeFixedGridUniformShaderParameters Parameters;
 		Parameters.LodValues = FVector4f(
 			static_cast<float>(LodIndex),
@@ -1540,6 +1542,8 @@ FLandscapeRayTracingState* FLandscapeRayTracingImpl::FindOrCreateRayTracingState
 	// Initialize rendering data
 	RayTracingState->NumSubsections = NumSubsections;
 
+	FRHICommandListImmediate& RHICmdList = FRHICommandListImmediate::Get();
+
 	for (int32 SubY = 0; SubY < NumSubsections; SubY++)
 	{
 		for (int32 SubX = 0; SubX < NumSubsections; SubX++)
@@ -1561,7 +1565,7 @@ FLandscapeRayTracingState* FLandscapeRayTracingImpl::FindOrCreateRayTracingState
 			Segment.MaxVertices = FMath::Square(SubsectionSizeVerts);
 			Initializer.Segments.Add(Segment);
 			RayTracingState->Sections[SubSectionIdx].Geometry.SetInitializer(Initializer);
-			RayTracingState->Sections[SubSectionIdx].Geometry.InitResource();
+			RayTracingState->Sections[SubSectionIdx].Geometry.InitResource(RHICmdList);
 
 			FLandscapeVertexFactoryMVFParameters UniformBufferParams;
 			UniformBufferParams.SubXY = FIntPoint(SubX, SubY);
@@ -2809,14 +2813,15 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 void FLandscapeVertexBuffer::InitRHI()
 {
 	SCOPED_LOADTIMER(FLandscapeVertexBuffer_InitRHI);
+	FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
 
 	// create a static vertex buffer
 	FRHIResourceCreateInfo CreateInfo(TEXT("FLandscapeVertexBuffer"));
 	const static FLazyName ClassName(TEXT("FLandscapeVertexBuffer"));
 	CreateInfo.ClassName = ClassName;
 	CreateInfo.OwnerName = GetOwnerName();
-	VertexBufferRHI = RHICreateBuffer(NumVertices * sizeof(FLandscapeVertex), BUF_Static | BUF_VertexBuffer, 0, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
-	FLandscapeVertex* Vertex = (FLandscapeVertex*)RHILockBuffer(VertexBufferRHI, 0, NumVertices * sizeof(FLandscapeVertex), RLM_WriteOnly);
+	VertexBufferRHI = RHICmdList.CreateBuffer(NumVertices * sizeof(FLandscapeVertex), BUF_Static | BUF_VertexBuffer, 0, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
+	FLandscapeVertex* Vertex = (FLandscapeVertex*)RHICmdList.LockBuffer(VertexBufferRHI, 0, NumVertices * sizeof(FLandscapeVertex), RLM_WriteOnly);
 	int32 VertexIndex = 0;
 	for (int32 SubY = 0; SubY < NumSubsections; SubY++)
 	{
@@ -2837,7 +2842,7 @@ void FLandscapeVertexBuffer::InitRHI()
 		}
 	}
 	check(NumVertices == VertexIndex);
-	RHIUnlockBuffer(VertexBufferRHI);
+	RHICmdList.UnlockBuffer(VertexBufferRHI);
 }
 
 //
@@ -2845,7 +2850,7 @@ void FLandscapeVertexBuffer::InitRHI()
 //
 
 template <typename INDEX_TYPE>
-void FLandscapeSharedBuffers::CreateIndexBuffers(const FName& InOwnerName)
+void FLandscapeSharedBuffers::CreateIndexBuffers(FRHICommandListBase& RHICmdList, const FName& InOwnerName)
 {
 	TArray<INDEX_TYPE> VertexToIndexMap;
 	VertexToIndexMap.AddUninitialized(FMath::Square(SubsectionSizeVerts * NumSubsections));
@@ -2928,7 +2933,7 @@ void FLandscapeSharedBuffers::CreateIndexBuffers(const FName& InOwnerName)
 		}
 		IndexBuffer->AssignNewBuffer(NewIndices);
 		IndexBuffer->SetOwnerName(InOwnerName);
-		IndexBuffer->InitResource();
+		IndexBuffer->InitResource(RHICmdList);
 
 		IndexBuffers[Mip] = IndexBuffer;
 
@@ -2958,7 +2963,7 @@ void FLandscapeSharedBuffers::CreateIndexBuffers(const FName& InOwnerName)
 
 			FRawStaticIndexBuffer16or32<INDEX_TYPE>* ZeroOffsetIndexBuffer = new FRawStaticIndexBuffer16or32<INDEX_TYPE>(false);
 			ZeroOffsetIndexBuffer->AssignNewBuffer(ZeroOffsetIndices);
-			ZeroOffsetIndexBuffer->InitResource();
+			ZeroOffsetIndexBuffer->InitResource(RHICmdList);
 			ZeroOffsetIndexBuffers[Mip] = ZeroOffsetIndexBuffer;
 		}
 #endif
@@ -2967,7 +2972,7 @@ void FLandscapeSharedBuffers::CreateIndexBuffers(const FName& InOwnerName)
 
 #if WITH_EDITOR
 template <typename INDEX_TYPE>
-void FLandscapeSharedBuffers::CreateGrassIndexBuffer(const FName& InOwnerName)
+void FLandscapeSharedBuffers::CreateGrassIndexBuffer(FRHICommandListBase& RHICmdList, const FName& InOwnerName)
 {
 	TArray<INDEX_TYPE> NewIndices;
 
@@ -3008,12 +3013,12 @@ void FLandscapeSharedBuffers::CreateGrassIndexBuffer(const FName& InOwnerName)
 	FRawStaticIndexBuffer16or32<INDEX_TYPE>* IndexBuffer = new FRawStaticIndexBuffer16or32<INDEX_TYPE>(false);
 	IndexBuffer->AssignNewBuffer(NewIndices);
 	IndexBuffer->SetOwnerName(InOwnerName);
-	IndexBuffer->InitResource();
+	IndexBuffer->InitResource(RHICmdList);
 	GrassIndexBuffer = IndexBuffer;
 }
 #endif
 
-FLandscapeSharedBuffers::FLandscapeSharedBuffers(const int32 InSharedBuffersKey, const int32 InSubsectionSizeQuads, const int32 InNumSubsections, const ERHIFeatureLevel::Type InFeatureLevel, const FName& InOwnerName)
+FLandscapeSharedBuffers::FLandscapeSharedBuffers(FRHICommandListBase& RHICmdList, const int32 InSharedBuffersKey, const int32 InSubsectionSizeQuads, const int32 InNumSubsections, const ERHIFeatureLevel::Type InFeatureLevel, const FName& InOwnerName)
 	: SharedBuffersKey(InSharedBuffersKey)
 	, NumIndexBuffers(FMath::CeilLogTwo(InSubsectionSizeQuads + 1))
 	, SubsectionSizeVerts(InSubsectionSizeQuads + 1)
@@ -3032,7 +3037,7 @@ FLandscapeSharedBuffers::FLandscapeSharedBuffers(const int32 InSharedBuffersKey,
 {
 	NumVertices = FMath::Square(SubsectionSizeVerts) * FMath::Square(NumSubsections);
 	
-	VertexBuffer = new FLandscapeVertexBuffer(InFeatureLevel, NumVertices, SubsectionSizeVerts, NumSubsections, InOwnerName);
+	VertexBuffer = new FLandscapeVertexBuffer(RHICmdList, InFeatureLevel, NumVertices, SubsectionSizeVerts, NumSubsections, InOwnerName);
 
 	IndexBuffers = new FIndexBuffer * [NumIndexBuffers];
 	FMemory::Memzero(IndexBuffers, sizeof(FIndexBuffer*) * NumIndexBuffers);
@@ -3049,21 +3054,21 @@ FLandscapeSharedBuffers::FLandscapeSharedBuffers(const int32 InSharedBuffersKey,
 	if (NumVertices > 65535)
 	{
 		bUse32BitIndices = true;
-		CreateIndexBuffers<uint32>(InOwnerName);
+		CreateIndexBuffers<uint32>(RHICmdList, InOwnerName);
 #if WITH_EDITOR
 		if (InFeatureLevel > ERHIFeatureLevel::ES3_1)
 		{
-			CreateGrassIndexBuffer<uint32>(InOwnerName);
+			CreateGrassIndexBuffer<uint32>(RHICmdList, InOwnerName);
 		}
 #endif
 	}
 	else
 	{
-		CreateIndexBuffers<uint16>(InOwnerName);
+		CreateIndexBuffers<uint16>(RHICmdList, InOwnerName);
 #if WITH_EDITOR
 		if (InFeatureLevel > ERHIFeatureLevel::ES3_1)
 		{
-			CreateGrassIndexBuffer<uint16>(InOwnerName);
+			CreateGrassIndexBuffer<uint16>(RHICmdList, InOwnerName);
 		}
 #endif
 	}

@@ -339,9 +339,8 @@ void FMeshParticleVertexFactory::GetPSOPrecacheVertexFetchElements(EVertexInputS
 
 void FMeshParticleVertexFactory::SetData(const FDataType& InData)
 {
-	check(IsInRenderingThread());
 	Data = InData;
-	UpdateRHI();
+	UpdateRHI(FRHICommandListImmediate::Get());
 }
 
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FMeshParticleVertexFactory, SF_Vertex, FMeshParticleVertexFactoryShaderParameters);

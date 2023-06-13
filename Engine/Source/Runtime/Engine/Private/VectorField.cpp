@@ -269,7 +269,7 @@ public:
 				Resource->VolumeData = UpdateParams.VolumeData;
 
 				// Update RHI resources.
-				Resource->UpdateRHI();
+				Resource->UpdateRHI(RHICmdList);
 			});
 	}
 
@@ -729,7 +729,7 @@ public:
 	 */
 	virtual void CreateRenderThreadResources() override
 	{
-		VisualizationVertexFactory.InitResource();
+		VisualizationVertexFactory.InitResource(FRHICommandListImmediate::Get());
 	}
 
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override
@@ -748,7 +748,7 @@ public:
 				if (IsSelected() || View->Family->EngineShowFlags.VectorFields)
 				{
 					FVectorFieldCollectorResources& CollectorResources = Collector.AllocateOneFrameResource<FVectorFieldCollectorResources>(View->GetFeatureLevel());
-					CollectorResources.VisualizationVertexFactory.InitResource();
+					CollectorResources.VisualizationVertexFactory.InitResource(FRHICommandListImmediate::Get());
 
 					GetVectorFieldMesh(&CollectorResources.VisualizationVertexFactory, VectorFieldInstance, ViewIndex, Collector);
 				}

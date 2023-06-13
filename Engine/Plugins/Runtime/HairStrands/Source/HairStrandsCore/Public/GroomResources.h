@@ -576,8 +576,8 @@ struct FHairCardsRestResource : public FHairCommonResource
 {
 	/** Build the hair strands resource */
 	FHairCardsRestResource(const FHairCardsBulkData& InBulkData, const FHairResourceName& ResourceName, const FName& OwnerName);
-
-	virtual void InitResource() override;
+	
+	virtual void InitResource(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseResource() override;
 
 	/* Init/release buffers */
@@ -746,7 +746,7 @@ struct FHairMeshesRestResource : public FHairCommonResource
 	/** Build the hair strands resource */
 	FHairMeshesRestResource(const FHairMeshesBulkData& BulkData, const FHairResourceName& ResourceName, const FName& OwnerName);
 
-	virtual void InitResource() override;
+	virtual void InitResource(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseResource() override;
 
 	/* Init/release buffers */

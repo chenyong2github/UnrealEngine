@@ -108,8 +108,10 @@ namespace
 
 		virtual void CreateRenderThreadResources() override
 		{
+			FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
+
 			BuildMesh();
-			IndexBuffer.InitResource();
+			IndexBuffer.InitResource(RHICmdList);
 #if RHI_RAYTRACING
 			if (IsRayTracingEnabled())
 			{
@@ -122,7 +124,7 @@ namespace
 				Initializer.bAllowUpdate = false;
 
 				RayTracingGeometry.SetInitializer(Initializer);
-				RayTracingGeometry.InitResource();
+				RayTracingGeometry.InitResource(RHICmdList);
 
 				RayTracingGeometry.Initializer.IndexBuffer = IndexBuffer.IndexBufferRHI;
 				RayTracingGeometry.Initializer.TotalPrimitiveCount = IndexBuffer.Indices.Num() / 3;
@@ -133,7 +135,7 @@ namespace
 				Segment.MaxVertices = VertexBuffers.PositionVertexBuffer.GetNumVertices();
 				RayTracingGeometry.Initializer.Segments.Add(Segment);
 
-				RayTracingGeometry.UpdateRHI();
+				RayTracingGeometry.UpdateRHI(RHICmdList);
 			}
 #endif
 		}

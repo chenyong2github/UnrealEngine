@@ -1116,7 +1116,7 @@ void FKAggregateGeom::GetAggGeom(const FTransform& Transform, const FColor Color
 					&& OutVerts.Num() > 0
 					&& ThisGeom.RenderInfo->IndexBuffer->Indices.Num() > 0)
 				{
-					ThisGeom.RenderInfo->IndexBuffer->InitResource();
+					ThisGeom.RenderInfo->IndexBuffer->InitResource(FRHICommandListImmediate::Get());
 
 					ThisGeom.RenderInfo->CollisionVertexFactory = new FLocalVertexFactory(Collector.GetFeatureLevel(), "FKAggregateGeom");
 					ThisGeom.RenderInfo->VertexBuffers->InitFromDynamicVertex(ThisGeom.RenderInfo->CollisionVertexFactory, OutVerts);

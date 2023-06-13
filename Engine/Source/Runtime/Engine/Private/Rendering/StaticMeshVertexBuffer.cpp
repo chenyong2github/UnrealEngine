@@ -360,11 +360,11 @@ void FStaticMeshVertexBuffer::ReleaseRHI()
 	TexCoordVertexBuffer.ReleaseRHI();
 }
 
-void FStaticMeshVertexBuffer::InitResource()
+void FStaticMeshVertexBuffer::InitResource(FRHICommandListBase& RHICmdList)
 {
-	FRenderResource::InitResource();
-	TangentsVertexBuffer.InitResource();
-	TexCoordVertexBuffer.InitResource();
+	FRenderResource::InitResource(RHICmdList);
+	TangentsVertexBuffer.InitResource(RHICmdList);
+	TexCoordVertexBuffer.InitResource(RHICmdList);
 }
 
 void FStaticMeshVertexBuffer::ReleaseResource()

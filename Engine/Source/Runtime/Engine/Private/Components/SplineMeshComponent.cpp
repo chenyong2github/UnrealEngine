@@ -297,7 +297,7 @@ void FSplineMeshSceneProxy::InitVertexFactory(USplineMeshComponent* InComponent,
 		FLocalVertexFactory::FDataType Data;
 		InitSplineMeshVertexFactoryComponents(RenderData2->VertexBuffers, VertexFactory, LightMapCoordinateIndex, bOverrideColorVertexBuffer, Data);
 		VertexFactory->SetData(Data);
-		VertexFactory->InitResource();
+		VertexFactory->InitResource(RHICmdList);
 	});
 }
 

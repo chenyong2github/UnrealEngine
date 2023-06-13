@@ -590,7 +590,7 @@ void FTextureRenderTarget2DResource::ClampSize(int32 MaxSizeX,int32 MaxSizeY)
 		TargetSizeY = NewSizeY;
 		// reinit the resource with new TargetSizeX,TargetSizeY
 		check(TargetSizeX >= 0 && TargetSizeY >= 0);
-		UpdateRHI();
+		UpdateRHI(FRHICommandListImmediate::Get());
 	}	
 }
 
@@ -753,7 +753,7 @@ void FTextureRenderTarget2DResource::Resize(int32 NewSizeX, int32 NewSizeY)
 	{
 		TargetSizeX = NewSizeX;
 		TargetSizeY = NewSizeY;
-		UpdateRHI();
+		UpdateRHI(FRHICommandListImmediate::Get());
 	}
 }
 

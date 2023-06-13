@@ -1133,7 +1133,7 @@ void FStreamingManager::AddInternal(FRDGBuilder& GraphBuilder, FNewSparseVolumeT
 		const FIntVector3 TileDataVolumeResolutionInTiles = TileDataVolumeResolution / SPARSE_VOLUME_TILE_RES_PADDED;
 
 		SVTInfo.TileDataTexture = MakeUnique<FTileDataTexture>(TileDataVolumeResolutionInTiles, SVTInfo.FormatA, SVTInfo.FormatB);
-		SVTInfo.TileDataTexture->InitResource();
+		SVTInfo.TileDataTexture->InitResource(GraphBuilder.RHICmdList);
 
 		// Create streaming info buffer
 		{

@@ -20,6 +20,7 @@
 #include "RHIDefinitions.h"
 #include "ComponentReregisterContext.h"
 #include "ComponentRecreateRenderStateContext.h"
+#include "RenderGraphBuilder.h"
 
 #if RHI_RAYTRACING
 #include "RayTracingInstance.h"
@@ -256,7 +257,7 @@ static void UpdateLooseParameter(
 	VertexFactory.LooseParameterUniformBuffer = FGCBoneLooseParametersRef::CreateUniformBufferImmediate(LooseParameters, UniformBufferUsage);
 }
 
-void FGeometryCollectionSceneProxy::SetupVertexFactory(FGeometryCollectionVertexFactory& GeometryCollectionVertexFactory, FColorVertexBuffer* ColorOverride) const
+void FGeometryCollectionSceneProxy::SetupVertexFactory(FRHICommandListBase& RHICmdList, FGeometryCollectionVertexFactory& GeometryCollectionVertexFactory, FColorVertexBuffer* ColorOverride) const
 {
 	FGeometryCollectionVertexFactory::FDataType Data;
 	
@@ -288,16 +289,18 @@ void FGeometryCollectionSceneProxy::SetupVertexFactory(FGeometryCollectionVertex
 
 	if (!GeometryCollectionVertexFactory.IsInitialized())
 	{
-		GeometryCollectionVertexFactory.InitResource();
+		GeometryCollectionVertexFactory.InitResource(RHICmdList);
 	}
 	else
 	{
-		GeometryCollectionVertexFactory.UpdateRHI();
+		GeometryCollectionVertexFactory.UpdateRHI(RHICmdList);
 	}
 }
 
 void FGeometryCollectionSceneProxy::CreateRenderThreadResources()
 {
+	FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
+
 	if (bSupportsManualVertexFetch)
 	{
 		// Initialize transform buffers and upload rest transforms.
@@ -306,8 +309,8 @@ void FGeometryCollectionSceneProxy::CreateRenderThreadResources()
 
 		TransformBuffers[0].NumTransforms = NumTransforms;
 		PrevTransformBuffers[0].NumTransforms = NumTransforms;
-		TransformBuffers[0].InitResource();
-		PrevTransformBuffers[0].InitResource();
+		TransformBuffers[0].InitResource(RHICmdList);
+		PrevTransformBuffers[0].InitResource(RHICmdList);
 
 		const bool bLocalGeometryCollectionTripleBufferUploads = (GGeometryCollectionTripleBufferUploads != 0) && bSupportsTripleBufferVertexUpload;
 		const EResourceLockMode LockMode = bLocalGeometryCollectionTripleBufferUploads ? RLM_WriteOnly_NoOverwrite : RLM_WriteOnly;
@@ -321,18 +324,18 @@ void FGeometryCollectionSceneProxy::CreateRenderThreadResources()
 	{
 		// Initialize CPU skinning buffer with rest transforms.
 		SkinnedPositionVertexBuffer.Init(MeshResource.PositionVertexBuffer.GetNumVertices(), false);
-		SkinnedPositionVertexBuffer.InitResource();
+		SkinnedPositionVertexBuffer.InitResource(RHICmdList);
 		UpdateSkinnedPositions(RestTransforms);
 	}
 
-	SetupVertexFactory(VertexFactory);
+	SetupVertexFactory(RHICmdList, VertexFactory);
 
 #if WITH_EDITOR
 	if (bShowBoneColors || bEnableBoneSelection)
 	{
 		// Initialize debug color buffer and associated vertex factory.
-		ColorVertexBuffer.InitResource();
-		SetupVertexFactory(VertexFactoryDebugColor, &ColorVertexBuffer);
+		ColorVertexBuffer.InitResource(RHICmdList);
+		SetupVertexFactory(RHICmdList, VertexFactoryDebugColor, &ColorVertexBuffer);
 	}
 #endif
 
@@ -341,7 +344,7 @@ void FGeometryCollectionSceneProxy::CreateRenderThreadResources()
 	{
 		// Create buffer containing per vertex hit proxy IDs.
 		HitProxyIdBuffer.Init(MeshDescription.NumVertices);
-		HitProxyIdBuffer.InitResource();
+		HitProxyIdBuffer.InitResource(RHICmdList);
 
 		uint16 const* BoneMapData = &MeshResource.BoneMapVertexBuffer.BoneIndex(0);
 		ParallelFor(MeshDescription.NumVertices, [&](int32 i)
@@ -354,9 +357,9 @@ void FGeometryCollectionSceneProxy::CreateRenderThreadResources()
 			HitProxyIdBuffer.VertexColor(i) = HitProxies[ProxyIndex]->Id.GetColor();
 		});
 
-		void* VertexBufferData = RHILockBuffer(HitProxyIdBuffer.VertexBufferRHI, 0, HitProxyIdBuffer.GetNumVertices() * HitProxyIdBuffer.GetStride(), RLM_WriteOnly);
+		void* VertexBufferData = RHICmdList.LockBuffer(HitProxyIdBuffer.VertexBufferRHI, 0, HitProxyIdBuffer.GetNumVertices() * HitProxyIdBuffer.GetStride(), RLM_WriteOnly);
 		FMemory::Memcpy(VertexBufferData, HitProxyIdBuffer.GetVertexData(), HitProxyIdBuffer.GetNumVertices() * HitProxyIdBuffer.GetStride());
-		RHIUnlockBuffer(HitProxyIdBuffer.VertexBufferRHI);
+		RHICmdList.UnlockBuffer(HitProxyIdBuffer.VertexBufferRHI);
 	}
 #endif
 
@@ -371,7 +374,7 @@ void FGeometryCollectionSceneProxy::CreateRenderThreadResources()
 		Initializer.TotalPrimitiveCount = 0;
 
 		RayTracingGeometry.SetInitializer(Initializer);
-		RayTracingGeometry.InitResource();
+		RayTracingGeometry.InitResource(RHICmdList);
 
 		bGeometryResourceUpdated = true;
 	}
@@ -417,6 +420,7 @@ void FGeometryCollectionSceneProxy::DestroyRenderThreadResources()
 void FGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryCollectionDynamicData* NewDynamicData)
 {
 	check(IsInRenderingThread());
+	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 	if (DynamicData)
 	{
 		GDynamicDataPool.Release(DynamicData);
@@ -448,8 +452,8 @@ void FGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryCollect
 			{
 				TransformBuffers[i].NumTransforms = NumTransforms;
 				PrevTransformBuffers[i].NumTransforms = NumTransforms;
-				TransformBuffers[i].InitResource();
-				PrevTransformBuffers[i].InitResource();
+				TransformBuffers[i].InitResource(RHICmdList);
+				PrevTransformBuffers[i].InitResource(RHICmdList);
 			}
 		}
 
@@ -815,7 +819,7 @@ void FGeometryCollectionSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 		return;
 	}
 
-	SetupVertexFactory(GeometryCollectionVertexFactory);
+	SetupVertexFactory(Context.GraphBuilder.RHICmdList, GeometryCollectionVertexFactory);
 
 	// If not dynamic then use the section array with interior fracture surfaces removed.
 	const bool bRemoveInternalFaces = DynamicData != nullptr && !DynamicData->IsDynamic && MeshDescription.SectionsNoInternal.Num();

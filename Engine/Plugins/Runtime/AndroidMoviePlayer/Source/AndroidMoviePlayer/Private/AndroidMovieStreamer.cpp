@@ -105,6 +105,8 @@ bool FAndroidMediaPlayerStreamer::Tick(float DeltaTime)
 
 	if (IsInRenderingThread())
 	{
+		FRHICommandListImmediate& RHICommandList = GetImmediateCommandList_ForRenderCommand();
+
 		int32 NextPosition = JavaMediaPlayer->GetCurrentPosition();
 		if (CurrentPosition != NextPosition)
 		{
@@ -113,14 +115,13 @@ bool FAndroidMediaPlayerStreamer::Tick(float DeltaTime)
 
 			if (!CurrentTexture->IsInitialized())
 			{
-				CurrentTexture->InitResource();
+				CurrentTexture->InitResource(RHICommandList);
 			}
 
 			if (!FAndroidMisc::ShouldUseVulkan())
 			{
 				if (IsRunningRHIInSeparateThread())
 				{
-					FRHICommandListImmediate &RHICommandList = GetImmediateCommandList_ForRenderCommand();
 					new (RHICommandList.AllocCommand<FRHICommandUpdateTextureMovieSample>()) FRHICommandUpdateTextureMovieSample(JavaMediaPlayer, CurrentTexture);
 				}
 				else
@@ -288,7 +289,7 @@ bool FAndroidMediaPlayerStreamer::StartNextMovie()
 		ENQUEUE_RENDER_COMMAND(InitMovieTexture)(
 			[TextureRHIRef, FrameBytes](FRHICommandListImmediate& RHICmdList)
 			{
-				TextureRHIRef->InitResource();
+				TextureRHIRef->InitResource(RHICmdList);
 	
 				// clear texture to black
 				uint32 Stride = 0;

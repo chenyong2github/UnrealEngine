@@ -2764,7 +2764,7 @@ void FGPUOcclusion::Unmap(FRHICommandListImmediate& RHICmdListImmediate)
 		}
 		else if (GOcclusionFeedback_Enable != 0 && !ViewState.OcclusionFeedback.IsInitialized())
 		{
-			ViewState.OcclusionFeedback.InitResource();
+			ViewState.OcclusionFeedback.InitResource(RHICmdListImmediate);
 		}
 	}
 

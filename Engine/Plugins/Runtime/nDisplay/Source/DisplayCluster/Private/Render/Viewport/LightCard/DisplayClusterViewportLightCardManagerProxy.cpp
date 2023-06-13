@@ -59,7 +59,7 @@ void FDisplayClusterViewportLightCardManagerProxy::ImplUpdateUVLightCardResource
 		UVLightCardMapResource = InUVLightCardMapResource;
 		if (UVLightCardMapResource.IsValid())
 		{
-			UVLightCardMapResource->InitResource();
+			UVLightCardMapResource->InitResource(FRHICommandListImmediate::Get());
 		}
 	}
 }

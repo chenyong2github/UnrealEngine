@@ -149,7 +149,7 @@ void FVirtualHeightfieldMeshVertexFactory::InitRHI()
 {
 	UniformBuffer = FVirtualHeightfieldMeshVertexFactoryBufferRef::CreateUniformBufferImmediate(Params, UniformBuffer_MultiFrame);
 
-	IndexBuffer->InitResource();
+	IndexBuffer->InitResource(FRHICommandListImmediate::Get());
 
 	FVertexStream NullVertexStream;
 	NullVertexStream.VertexBuffer = nullptr;

@@ -196,7 +196,7 @@ FGeometryCacheSceneProxy::FGeometryCacheSceneProxy(UGeometryCacheComponent* Comp
 						}
 
 						Section->RayTracingGeometry.SetInitializer(Initializer);
-						Section->RayTracingGeometry.InitResource();
+						Section->RayTracingGeometry.InitResource(RHICmdList);
 					}
 				}
 			});
@@ -723,10 +723,12 @@ void FGeometryCacheSceneProxy::UpdateAnimation(float NewTime, bool bNewLooping, 
 
 				if (Segments.Num() > 0)
 				{
+					FRHICommandList& RHICmdList = FRHICommandListImmediate::Get();
+
 					if (bRequireRecreate)
 					{
-					Section->RayTracingGeometry.UpdateRHI();
-				}
+						Section->RayTracingGeometry.UpdateRHI(RHICmdList);
+					}
 					else
 					{
 						// Request full build on same geometry because data might have changed to much for update call?
@@ -734,7 +736,7 @@ void FGeometryCacheSceneProxy::UpdateAnimation(float NewTime, bool bNewLooping, 
 						BuildParams.Geometry = Section->RayTracingGeometry.RayTracingGeometryRHI;
 						BuildParams.BuildMode = EAccelerationStructureBuildMode::Build;
 						BuildParams.Segments = Section->RayTracingGeometry.Initializer.Segments;
-						FRHICommandListExecutor::GetImmediateCommandList().BuildAccelerationStructures(MakeArrayView(&BuildParams, 1));
+						RHICmdList.BuildAccelerationStructures(MakeArrayView(&BuildParams, 1));
 					}
 				}
 			}

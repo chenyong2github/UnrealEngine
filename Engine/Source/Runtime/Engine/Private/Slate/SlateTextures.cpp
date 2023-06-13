@@ -112,10 +112,9 @@ void FSlateTexture2DRHIRef::ReleaseRHI()
 
 void FSlateTexture2DRHIRef::Resize( uint32 InWidth, uint32 InHeight )
 {
-	check( IsInRenderingThread() );
 	Width = InWidth;
 	Height = InHeight;
-	UpdateRHI();
+	UpdateRHI(FRHICommandListImmediate::Get());
 }
 
 void FSlateTexture2DRHIRef::SetRHIRef( FTexture2DRHIRef InRHIRef, uint32 InWidth, uint32 InHeight )
@@ -288,21 +287,17 @@ FSlateTextureRenderTarget2DResource::FSlateTextureRenderTarget2DResource(const F
 
 void FSlateTextureRenderTarget2DResource::SetSize(int32 InSizeX,int32 InSizeY)
 {
-	check(IsInRenderingThread());
-
 	if (InSizeX != TargetSizeX || InSizeY != TargetSizeY)
 	{
 		TargetSizeX = InSizeX;
 		TargetSizeY = InSizeY;
 		// reinit the resource with new TargetSizeX,TargetSizeY
-		UpdateRHI();
+		UpdateRHI(FRHICommandListImmediate::Get());
 	}	
 }
 
 void FSlateTextureRenderTarget2DResource::ClampSize(int32 MaxSizeX,int32 MaxSizeY)
 {
-	check(IsInRenderingThread());
-
 	// upsize to go back to original or downsize to clamp to max
 	int32 NewSizeX = FMath::Min<int32>(TargetSizeX,MaxSizeX);
 	int32 NewSizeY = FMath::Min<int32>(TargetSizeY,MaxSizeY);
@@ -311,7 +306,7 @@ void FSlateTextureRenderTarget2DResource::ClampSize(int32 MaxSizeX,int32 MaxSize
 		TargetSizeX = NewSizeX;
 		TargetSizeY = NewSizeY;
 		// reinit the resource with new TargetSizeX,TargetSizeY
-		UpdateRHI();
+		UpdateRHI(FRHICommandListImmediate::Get());
 	}	
 }
 

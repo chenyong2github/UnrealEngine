@@ -685,7 +685,7 @@ void FHairCommonResource::Allocate(FRDGBuilder& GraphBuilder, EHairResourceLoadi
 	{
 		if (!bIsInitialized)
 		{
-			FRenderResource::InitResource(); // Call RenderResource InitResource() so that the resources is marked as initialized
+			FRenderResource::InitResource(GraphBuilder.RHICmdList); // Call RenderResource InitResource() so that the resources is marked as initialized
 		}
 		if (!bIsInitialized || !InternalIsLODDataLoaded(InRequestedCurveCount, InRequestedPointCount, InLODIndex))
 		{
@@ -711,7 +711,7 @@ void FHairCommonResource::Allocate(FRDGBuilder& GraphBuilder, EHairResourceLoadi
 			// 2.1 Curve data are availble, and update GPU resources
 			if (!bIsInitialized)
 			{
-				FRenderResource::InitResource(); // Call RenderResource InitResource() so that the resources is marked as initialized
+				FRenderResource::InitResource(GraphBuilder.RHICmdList); // Call RenderResource InitResource() so that the resources is marked as initialized
 			}
 			InternalAllocate(GraphBuilder, StreamingRequest.CurveCount, StreamingRequest.LODIndex);
 			bIsInitialized = true;
@@ -805,14 +805,14 @@ void FHairCardsRestResource::InternalRelease()
 {
 }
 
-void FHairCardsRestResource::InitResource()
+void FHairCardsRestResource::InitResource(FRHICommandListBase& RHICmdList)
 {
-	FRenderResource::InitResource();
-	RestIndexBuffer.InitResource();
-	RestPositionBuffer.InitResource();
-	NormalsBuffer.InitResource();
-	UVsBuffer.InitResource();
-	MaterialsBuffer.InitResource();
+	FRenderResource::InitResource(RHICmdList);
+	RestIndexBuffer.InitResource(RHICmdList);
+	RestPositionBuffer.InitResource(RHICmdList);
+	NormalsBuffer.InitResource(RHICmdList);
+	UVsBuffer.InitResource(RHICmdList);
+	MaterialsBuffer.InitResource(RHICmdList);
 }
 
 void FHairCardsRestResource::ReleaseResource()
@@ -942,13 +942,13 @@ void FHairMeshesRestResource::InternalRelease()
 
 }
 
-void FHairMeshesRestResource::InitResource()
+void FHairMeshesRestResource::InitResource(FRHICommandListBase& RHICmdList)
 {
-	FRenderResource::InitResource();
-	IndexBuffer.InitResource();
-	RestPositionBuffer.InitResource();
-	NormalsBuffer.InitResource();
-	UVsBuffer.InitResource();
+	FRenderResource::InitResource(RHICmdList);
+	IndexBuffer.InitResource(RHICmdList);
+	RestPositionBuffer.InitResource(RHICmdList);
+	NormalsBuffer.InitResource(RHICmdList);
+	UVsBuffer.InitResource(RHICmdList);
 }
 
 void FHairMeshesRestResource::ReleaseResource()

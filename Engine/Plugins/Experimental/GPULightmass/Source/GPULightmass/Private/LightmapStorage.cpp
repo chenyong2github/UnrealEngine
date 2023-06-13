@@ -209,7 +209,7 @@ void CreateLightmapPreviewVirtualTexture(FLightmapRenderStateRef LightmapRenderS
 {
 	LightmapRenderState->LightmapPreviewVirtualTexture = new FLightmapPreviewVirtualTexture(LightmapRenderState, LightmapRenderer);
 	LightmapRenderState->ResourceCluster->AllocatedVT = LightmapRenderState->LightmapPreviewVirtualTexture->AllocatedVT;
-	LightmapRenderState->ResourceCluster->InitResource();
+	LightmapRenderState->ResourceCluster->InitResource(FRHICommandListImmediate::Get());
 
 	{
 		IAllocatedVirtualTexture* AllocatedVT = LightmapRenderState->LightmapPreviewVirtualTexture->AllocatedVT;

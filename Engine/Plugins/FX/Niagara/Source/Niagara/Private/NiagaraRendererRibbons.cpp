@@ -258,7 +258,7 @@ struct FNiagaraRibbonIndexBuffer final : FIndexBuffer
 	// CPU allocation path
 	void Initialize(FGlobalDynamicIndexBuffer::FAllocationEx& IndexAllocation)
 	{
-		InitResource();
+		InitResource(FRHICommandListImmediate::Get());
 
 		IndexBufferRHI = IndexAllocation.IndexBuffer->IndexBufferRHI;
 		FirstIndex = IndexAllocation.FirstIndex;
@@ -267,7 +267,7 @@ struct FNiagaraRibbonIndexBuffer final : FIndexBuffer
 	// GPU allocation path assumes 32 bit indicies
 	void Initialize(const uint32 NumElements)
 	{
-		InitResource();
+		InitResource(FRHICommandListImmediate::Get());
 
 		FRHIResourceCreateInfo CreateInfo(TEXT("NiagaraRibbonIndexBuffer"));
 		IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint32), sizeof(uint32) * NumElements, BUF_Static | BUF_UnorderedAccess, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
@@ -725,22 +725,24 @@ void FNiagaraRendererRibbons::CreateRenderThreadResources()
 {
 	FNiagaraRenderer::CreateRenderThreadResources();
 
+	FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
+
 	{
 		// Initialize the shape vertex buffer. This doesn't change frame-to-frame, so we can set it up once
 		const int32 NumElements = ShapeState.SliceTriangleToVertexIds.Num();
 		ShapeState.SliceTriangleToVertexIdsBuffer.Initialize(TEXT("SliceTriangleToVertexIdsBuffer"), sizeof(uint32), NumElements, EPixelFormat::PF_R32_UINT, BUF_Static);
-		void* SliceTriangleToVertexIdsBufferPtr = RHILockBuffer(ShapeState.SliceTriangleToVertexIdsBuffer.Buffer, 0, sizeof(uint32) * NumElements, RLM_WriteOnly);
+		void* SliceTriangleToVertexIdsBufferPtr = RHICmdList.LockBuffer(ShapeState.SliceTriangleToVertexIdsBuffer.Buffer, 0, sizeof(uint32) * NumElements, RLM_WriteOnly);
 		FMemory::Memcpy(SliceTriangleToVertexIdsBufferPtr, ShapeState.SliceTriangleToVertexIds.GetData(), sizeof(uint32) * NumElements);
-		RHIUnlockBuffer(ShapeState.SliceTriangleToVertexIdsBuffer.Buffer);
+		RHICmdList.UnlockBuffer(ShapeState.SliceTriangleToVertexIdsBuffer.Buffer);
 	}
 
 	{
 		// Initialize the shape vertex buffer. This doesn't change frame-to-frame, so we can set it up once
 		const int32 NumElements = ShapeState.SliceVertexData.Num() * FNiagaraRibbonShapeGeometryData::FVertex::NumElements;
 		ShapeState.SliceVertexDataBuffer.Initialize(TEXT("NiagaraShapeVertexDataBuffer"), sizeof(float), NumElements, EPixelFormat::PF_R32_FLOAT, BUF_Static);
-		void* SliceVertexDataBufferPtr = RHILockBuffer(ShapeState.SliceVertexDataBuffer.Buffer, 0, sizeof(float) * NumElements, RLM_WriteOnly);
+		void* SliceVertexDataBufferPtr = RHICmdList.LockBuffer(ShapeState.SliceVertexDataBuffer.Buffer, 0, sizeof(float) * NumElements, RLM_WriteOnly);
 		FMemory::Memcpy(SliceVertexDataBufferPtr, ShapeState.SliceVertexData.GetData(), sizeof(float) * NumElements);
-		RHIUnlockBuffer(ShapeState.SliceVertexDataBuffer.Buffer);
+		RHICmdList.UnlockBuffer(ShapeState.SliceVertexDataBuffer.Buffer);
 	}
 	
 	
@@ -757,7 +759,7 @@ void FNiagaraRendererRibbons::CreateRenderThreadResources()
 		Initializer.bFastBuild = true;
 		Initializer.bAllowUpdate = false;
 		RayTracingGeometry.SetInitializer(Initializer);
-		RayTracingGeometry.InitResource();
+		RayTracingGeometry.InitResource(RHICmdList);
 	}
 #endif
 }
@@ -823,6 +825,8 @@ void FNiagaraRendererRibbons::GetDynamicMeshElements(const TArray<const FSceneVi
 		}
 	}
 
+	FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
+
 #if STATS
 	FScopeCycleCounter EmitterStatsCounter(EmitterStatID);
 #endif
@@ -859,7 +863,7 @@ void FNiagaraRendererRibbons::GetDynamicMeshElements(const TArray<const FSceneVi
 			
 			SetupPerViewUniformBuffer(RenderingViewResources->IndexGenerationSettings, View, ViewFamily, SceneProxy, RenderingViewResources->UniformBuffer);
 			
-			SetupMeshBatchAndCollectorResourceForView(RenderingViewResources->IndexGenerationSettings, DynamicData, SourceParticleData, View, ViewFamily, SceneProxy, RenderingResources.RibbonResources, RenderingViewResources, MeshBatch, DynamicData->bUseGPUInit);
+			SetupMeshBatchAndCollectorResourceForView(RHICmdList, RenderingViewResources->IndexGenerationSettings, DynamicData, SourceParticleData, View, ViewFamily, SceneProxy, RenderingResources.RibbonResources, RenderingViewResources, MeshBatch, DynamicData->bUseGPUInit);
 
 			Collector.AddMesh(ViewIndex, MeshBatch);
 		}
@@ -1066,7 +1070,7 @@ void FNiagaraRendererRibbons::GetDynamicRayTracingInstances(FRayTracingMaterialG
 	
 	FMeshBatch MeshBatch;
 	
-	SetupMeshBatchAndCollectorResourceForView(RenderingViewResources->IndexGenerationSettings, DynamicDataRibbon, SourceParticleData, View, ViewFamily, SceneProxy, RenderingResources.RibbonResources, RenderingViewResources, MeshBatch, DynamicDataRibbon->bUseGPUInit);
+	SetupMeshBatchAndCollectorResourceForView(Context.GraphBuilder.RHICmdList, RenderingViewResources->IndexGenerationSettings, DynamicDataRibbon, SourceParticleData, View, ViewFamily, SceneProxy, RenderingResources.RibbonResources, RenderingViewResources, MeshBatch, DynamicDataRibbon->bUseGPUInit);
 
 	RayTracingInstance.Materials.Add(MeshBatch);
 	
@@ -2042,7 +2046,7 @@ void FNiagaraRendererRibbons::SetupPerViewUniformBuffer(FNiagaraIndexGenerationI
 	OutUniformBuffer = FNiagaraRibbonUniformBufferRef::CreateUniformBufferImmediate(PerViewUniformParameters, UniformBuffer_SingleFrame);
 }
 
-inline void FNiagaraRendererRibbons::SetupMeshBatchAndCollectorResourceForView(const FNiagaraIndexGenerationInput& GeneratedData, FNiagaraDynamicDataRibbon* DynamicDataRibbon, const FNiagaraDataBuffer* SourceParticleData, const FSceneView* View,
+inline void FNiagaraRendererRibbons::SetupMeshBatchAndCollectorResourceForView(FRHICommandListBase& RHICmdList, const FNiagaraIndexGenerationInput& GeneratedData, FNiagaraDynamicDataRibbon* DynamicDataRibbon, const FNiagaraDataBuffer* SourceParticleData, const FSceneView* View,
     const FSceneViewFamily& ViewFamily, const FNiagaraSceneProxy* SceneProxy, const TSharedPtr<FNiagaraRibbonRenderingFrameResources>& RenderingResources, const TSharedPtr<FNiagaraRibbonRenderingFrameViewResources>& RenderingViewResources,
     FMeshBatch& OutMeshBatch, bool bShouldUseGPUInitIndices) const
 {
@@ -2070,7 +2074,7 @@ inline void FNiagaraRendererRibbons::SetupMeshBatchAndCollectorResourceForView(c
 	// Collector.AllocateOneFrameResource uses default ctor, initialize the vertex factory
 	RenderingViewResources->VertexFactory.SetParticleFactoryType(NVFT_Ribbon);
 	RenderingViewResources->VertexFactory.LooseParameterUniformBuffer = FNiagaraRibbonVFLooseParametersRef::CreateUniformBufferImmediate(VFLooseParams, UniformBuffer_SingleFrame);
-	RenderingViewResources->VertexFactory.InitResource();
+	RenderingViewResources->VertexFactory.InitResource(RHICmdList);
 	RenderingViewResources->VertexFactory.SetRibbonUniformBuffer(RenderingViewResources->UniformBuffer);
 
 

@@ -442,7 +442,7 @@ void FMaterialRenderProxy::EvaluateUniformExpressions(FUniformExpressionCache& O
 void FMaterialRenderProxy::CacheUniformExpressions(bool bRecreateUniformBuffer)
 {
 	// Register the render proxy's as a render resource so it can receive notifications to free the uniform buffer.
-	InitResource();
+	InitResource(FRHICommandListImmediate::Get());
 
 	bool bUsingNewLoader = FPlatformProperties::RequiresCookedData();
 

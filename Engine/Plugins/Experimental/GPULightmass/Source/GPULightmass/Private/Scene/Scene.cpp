@@ -1261,6 +1261,7 @@ void FScene::AddGeometryInstanceFromComponent(ULandscapeComponent* InComponent)
 		if (InstanceRenderState.SharedBuffers == nullptr)
 		{
 			InstanceRenderState.SharedBuffers = new FLandscapeSharedBuffers(
+				RHICmdList,
 				InstanceRenderState.SharedBuffersKey, Initializer.SubsectionSizeQuads, Initializer.NumSubsections,
 				LocalFeatureLevel);
 
@@ -1268,7 +1269,7 @@ void FScene::AddGeometryInstanceFromComponent(ULandscapeComponent* InComponent)
 
 			FLandscapeFixedGridVertexFactory* LandscapeVertexFactory = new FLandscapeFixedGridVertexFactory(LocalFeatureLevel);
 			LandscapeVertexFactory->Data.PositionComponent = FVertexStreamComponent(InstanceRenderState.SharedBuffers->VertexBuffer, 0, sizeof(FLandscapeVertex), VET_Float4);
-			LandscapeVertexFactory->InitResource();
+			LandscapeVertexFactory->InitResource(RHICmdList);
 			InstanceRenderState.SharedBuffers->FixedGridVertexFactory = LandscapeVertexFactory;
 		}
 		check(InstanceRenderState.SharedBuffers);
@@ -1283,7 +1284,7 @@ void FScene::AddGeometryInstanceFromComponent(ULandscapeComponent* InComponent)
 		InstanceRenderStateRef->LandscapeFixedGridUniformShaderParameters.AddDefaulted(MaxLOD + 1);
 		for (int32 LodIndex = 0; LodIndex <= MaxLOD; ++LodIndex)
 		{
-			InstanceRenderStateRef->LandscapeFixedGridUniformShaderParameters[LodIndex].InitResource();
+			InstanceRenderStateRef->LandscapeFixedGridUniformShaderParameters[LodIndex].InitResource(RHICmdList);
 			FLandscapeFixedGridUniformShaderParameters Parameters;
 			Parameters.LodValues = FVector4f(
 				LodIndex,
@@ -1354,7 +1355,7 @@ void FScene::AddGeometryInstanceFromComponent(ULandscapeComponent* InComponent)
 			LandscapeParams.XYOffsetmapTextureSampler = GBlackTexture->SamplerStateRHI;
 
 			InstanceRenderStateRef->LandscapeUniformShaderParameters = MakeUnique<TUniformBuffer<FLandscapeUniformShaderParameters>>();
-			InstanceRenderStateRef->LandscapeUniformShaderParameters->InitResource();
+			InstanceRenderStateRef->LandscapeUniformShaderParameters->InitResource(RHICmdList);
 			InstanceRenderStateRef->LandscapeUniformShaderParameters->SetContents(LandscapeParams);
 		}
 

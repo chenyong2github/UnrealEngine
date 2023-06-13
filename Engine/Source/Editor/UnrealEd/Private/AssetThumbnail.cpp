@@ -1324,7 +1324,7 @@ bool FAssetThumbnailPool::LoadThumbnail(TSharedRef<FThumbnailInfo> ThumbnailInfo
 				}
 
 				ThumbInfo.ThumbnailTexture->SetTextureData(MakeShareable(BulkData));
-				ThumbInfo.ThumbnailTexture->UpdateRHI();
+				ThumbInfo.ThumbnailTexture->UpdateRHI(RHICmdList);
 			});
 
 			return true;

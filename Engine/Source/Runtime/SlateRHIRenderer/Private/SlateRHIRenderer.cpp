@@ -1986,7 +1986,7 @@ FSlateUpdatableTexture* FSlateRHIRenderer::CreateUpdatableTexture(uint32 Width, 
 	FSlateTexture2DRHIRef* NewTexture = new FSlateTexture2DRHIRef(Width, Height, GetSlateRecommendedColorFormat(), nullptr, TexCreate_Dynamic, bCreateEmptyTexture);
 	if (IsInRenderingThread())
 	{
-		NewTexture->InitResource();
+		NewTexture->InitResource(FRHICommandListImmediate::Get());
 	}
 	else
 	{

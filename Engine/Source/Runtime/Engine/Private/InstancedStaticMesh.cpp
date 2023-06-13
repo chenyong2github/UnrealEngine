@@ -625,7 +625,7 @@ void FStaticMeshInstanceBuffer::UpdateFromCommandBuffer_RenderThread(FInstanceUp
 
 	if (!CondSetFlushToGPUPending())
 	{
-		UpdateRHI();
+		UpdateRHI(FRHICommandListImmediate::Get());
 	}
 }
 
@@ -681,13 +681,13 @@ void FStaticMeshInstanceBuffer::ReleaseRHI()
 	InstanceCustomDataBuffer.ReleaseRHI();
 }
 
-void FStaticMeshInstanceBuffer::InitResource()
+void FStaticMeshInstanceBuffer::InitResource(FRHICommandListBase& RHICmdList)
 {
-	FRenderResource::InitResource();
-	InstanceOriginBuffer.InitResource();
-	InstanceTransformBuffer.InitResource();
-	InstanceLightmapBuffer.InitResource();
-	InstanceCustomDataBuffer.InitResource();
+	FRenderResource::InitResource(RHICmdList);
+	InstanceOriginBuffer.InitResource(RHICmdList);
+	InstanceTransformBuffer.InitResource(RHICmdList);
+	InstanceLightmapBuffer.InitResource(RHICmdList);
+	InstanceCustomDataBuffer.InitResource(RHICmdList);
 }
 
 void FStaticMeshInstanceBuffer::ReleaseResource()
@@ -788,7 +788,7 @@ void FStaticMeshInstanceBuffer::BindInstanceVertexBuffer(const class FVertexFact
 	}
 }
 
-void FStaticMeshInstanceBuffer::FlushGPUUpload()
+void FStaticMeshInstanceBuffer::FlushGPUUpload(FRHICommandListBase& RHICmdList)
 {
 	if (bFlushToGPUPending)
 	{
@@ -796,11 +796,11 @@ void FStaticMeshInstanceBuffer::FlushGPUUpload()
 
 		if (!IsInitialized())
 		{
-			InitResource();
+			InitResource(RHICmdList);
 		}
 		else
 		{
-			UpdateRHI();
+			UpdateRHI(RHICmdList);
 		}
 		bFlushToGPUPending = false;
 	}
@@ -1220,13 +1220,14 @@ void FInstancedStaticMeshRenderData::BindBuffersToVertexFactories()
 	TRACE_CPUPROFILER_EVENT_SCOPE_STR("FInstancedStaticMeshRenderData::BindBuffersToVertexFactories");
 
 	check(IsInRenderingThread());
-	
+	FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
+
 	FStaticMeshInstanceBuffer* InstanceBuffer = nullptr;
 	const bool bRHISupportsManualVertexFetch = RHISupportsManualVertexFetch(GShaderPlatformForFeatureLevel[FeatureLevel]);
 	const bool bCanUseGPUScene = UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel);
 	if (!bCanUseGPUScene)
 	{
-		PerInstanceRenderData->InstanceBuffer.FlushGPUUpload();
+		PerInstanceRenderData->InstanceBuffer.FlushGPUUpload(RHICmdList);
 		InstanceBuffer = &PerInstanceRenderData->InstanceBuffer;
 	}
 
@@ -1245,7 +1246,7 @@ void FInstancedStaticMeshRenderData::BindBuffersToVertexFactories()
 		}
 		InitInstancedStaticMeshVertexFactoryComponents(RenderData->VertexBuffers, ColorVertexBuffer, InstanceBuffer, &VertexFactory, LightMapCoordinateIndex, bRHISupportsManualVertexFetch, Data, InstanceData);
 		VertexFactory.SetData(Data, InstanceBuffer ? &InstanceData : nullptr);
-		VertexFactory.InitResource();
+		VertexFactory.InitResource(RHICmdList);
 	}
 }
 
@@ -1325,7 +1326,7 @@ void FPerInstanceRenderData::UpdateFromPreallocatedData(FStaticMeshInstanceData&
 			InInstanceBuffer->InstanceData = InInstanceBufferDataPtr;
 			if (!InInstanceBuffer->CondSetFlushToGPUPending())
 			{
-				InInstanceBuffer->UpdateRHI();
+				InInstanceBuffer->UpdateRHI(RHICmdList);
 			}
 			UpdateBoundsTransforms_Concurrent();
 		}
@@ -1910,7 +1911,7 @@ void FInstancedStaticMeshSceneProxy::CreateRenderThreadResources()
 		FStaticMeshInstanceBuffer& InstanceBuffer = InstancedRenderData.PerInstanceRenderData->InstanceBuffer;
 		if (!bCanUseGPUScene)
 		{
-			InstanceBuffer.FlushGPUUpload();
+			InstanceBuffer.FlushGPUUpload(FRHICommandListImmediate::Get());
 		}
 	}
 
@@ -2515,7 +2516,7 @@ void FInstancedStaticMeshSceneProxy::SetupRayTracingDynamicInstances(int32 NumDy
 			Initializer.bAllowUpdate = true;
 			Initializer.bFastBuild = true;
 
-			DynamicData.DynamicGeometry.InitResource();
+			DynamicData.DynamicGeometry.InitResource(FRHICommandListImmediate::Get());
 		}
 	}
 

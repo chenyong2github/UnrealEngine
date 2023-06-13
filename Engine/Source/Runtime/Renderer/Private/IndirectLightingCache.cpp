@@ -764,7 +764,7 @@ void FIndirectLightingCache::UpdateBlocks(FScene* Scene, FViewInfo* DebugDrawing
 {
 	if (BlocksToUpdate.Num() > 0 && !IsInitialized())
 	{
-		InitResource();
+		InitResource(FRHICommandListImmediate::Get());
 	}
 
 	INC_DWORD_STAT_BY(STAT_IndirectLightingCacheUpdates, BlocksToUpdate.Num());

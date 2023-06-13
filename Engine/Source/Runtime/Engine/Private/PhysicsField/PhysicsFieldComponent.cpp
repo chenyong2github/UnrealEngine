@@ -652,7 +652,7 @@ void FPhysicsFieldInstance::InitInstance( const TArray<EFieldPhysicsType>& Targe
 		ENQUEUE_RENDER_COMMAND(FInitPhysicsFieldResourceCommand)(
 			[LocalFieldResource](FRHICommandList& RHICmdList)
 			{
-				LocalFieldResource->InitResource();
+				LocalFieldResource->InitResource(RHICmdList);
 			});
 	}
 }

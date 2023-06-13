@@ -201,7 +201,10 @@ void FDynamicMeshIndexBuffer32::InitRHI()
 	FRHIResourceCreateInfo CreateInfo(TEXT("FDynamicMeshIndexBuffer32"));
 	IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint32), Indices.Num() * sizeof(uint32), BUF_Static, CreateInfo);
 
-	UpdateRHI();
+	// Copy the index data into the index buffer.
+	void* Buffer = RHILockBuffer(IndexBufferRHI, 0, Indices.Num() * sizeof(uint32), RLM_WriteOnly);
+	FMemory::Memcpy(Buffer, Indices.GetData(), Indices.Num() * sizeof(uint32));
+	RHIUnlockBuffer(IndexBufferRHI);
 }
 
 void FDynamicMeshIndexBuffer16::InitRHI()
@@ -209,19 +212,6 @@ void FDynamicMeshIndexBuffer16::InitRHI()
 	FRHIResourceCreateInfo CreateInfo(TEXT("FDynamicMeshIndexBuffer16"));
 	IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint16), Indices.Num() * sizeof(uint16), BUF_Static, CreateInfo);
 
-	UpdateRHI();
-}
-
-void FDynamicMeshIndexBuffer32::UpdateRHI()
-{
-	// Copy the index data into the index buffer.
-	void* Buffer = RHILockBuffer(IndexBufferRHI, 0, Indices.Num() * sizeof(uint32), RLM_WriteOnly);
-	FMemory::Memcpy(Buffer, Indices.GetData(), Indices.Num() * sizeof(uint32));
-	RHIUnlockBuffer(IndexBufferRHI);
-}
-
-void FDynamicMeshIndexBuffer16::UpdateRHI()
-{
 	// Copy the index data into the index buffer.
 	void* Buffer = RHILockBuffer(IndexBufferRHI, 0, Indices.Num() * sizeof(uint16), RLM_WriteOnly);
 	FMemory::Memcpy(Buffer, Indices.GetData(), Indices.Num() * sizeof(uint16));
@@ -366,9 +356,9 @@ public:
 	}
 
 	// FDynamicPrimitiveResource interface.
-	virtual void InitPrimitiveResource() override
+	virtual void InitPrimitiveResource(FRHICommandListBase& RHICmdList) override
 	{
-		InitResource();
+		InitResource(RHICmdList);
 	}
 	virtual void ReleasePrimitiveResource() override
 	{
@@ -476,13 +466,13 @@ public:
 		}
 	}
 
-	void InitResource() override
+	void InitResource(FRHICommandListBase& RHICmdList) override
 	{
-		FRenderResource::InitResource();
-		PositionBuffer.InitResource();
-		TangentBuffer.InitResource();
-		TexCoordBuffer.InitResource();
-		ColorBuffer.InitResource();
+		FRenderResource::InitResource(RHICmdList);
+		PositionBuffer.InitResource(RHICmdList);
+		TangentBuffer.InitResource(RHICmdList);
+		TexCoordBuffer.InitResource(RHICmdList);
+		ColorBuffer.InitResource(RHICmdList);
 	}
 
 	void ReleaseResource() override
@@ -503,9 +493,9 @@ public:
 	}
 
 	// FDynamicPrimitiveResource interface.
-	virtual void InitPrimitiveResource() override
+	virtual void InitPrimitiveResource(FRHICommandListBase& RHICmdList) override
 	{
-		InitResource();
+		InitResource(RHICmdList);
 	}
 
 	virtual void ReleasePrimitiveResource() override
@@ -544,7 +534,7 @@ public:
 	/** Initialization constructor. */
 	FPooledDynamicMeshVertexFactory(ERHIFeatureLevel::Type InFeatureLevel, const FPooledDynamicMeshVertexBuffer* InVertexBuffer) : FLocalVertexFactory(InFeatureLevel, "FPooledDynamicMeshVertexFactory"), VertexBuffer(InVertexBuffer) {}
 
-	void InitResource() override
+	void InitResource(FRHICommandListBase& RHICmdList) override
 	{
 		FLocalVertexFactory* VertexFactory = this;
 		const FPooledDynamicMeshVertexBuffer* PooledVertexBuffer = VertexBuffer;
@@ -620,13 +610,13 @@ public:
 			VertexFactory->SetData(Data);
 		});
 
-		FLocalVertexFactory::InitResource();
+		FLocalVertexFactory::InitResource(RHICmdList);
 	}
 
 	// FDynamicPrimitiveResource interface.
-	void InitPrimitiveResource() override
+	void InitPrimitiveResource(FRHICommandListBase& RHICmdList) override
 	{
-		InitResource();
+		InitResource(RHICmdList);
 	}
 
 	void ReleasePrimitiveResource() override
@@ -646,9 +636,9 @@ class FDynamicMeshPrimitiveUniformBuffer : public FDynamicPrimitiveResource, pub
 public:
 	
 	// FDynamicPrimitiveResource interface.
-	virtual void InitPrimitiveResource()
+	virtual void InitPrimitiveResource(FRHICommandListBase& RHICmdList)
 	{
-		InitResource();
+		InitResource(RHICmdList);
 	}
 	virtual void ReleasePrimitiveResource()
 	{
@@ -830,6 +820,8 @@ void FDynamicMeshBuilder::GetMesh(
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDynamicMeshBuilder::GetMesh)
 
+	FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
+
 	// Only draw non-empty meshes.
 	if((VertexBuffer && VertexBuffer->Vertices.Num() > 0) || (DrawOffset != nullptr))
 	{
@@ -844,14 +836,14 @@ void FDynamicMeshBuilder::GetMesh(
 
 			if (OneFrameResources->VertexBuffer)
 			{
-				OneFrameResources->VertexBuffer->InitResource();
+				OneFrameResources->VertexBuffer->InitResource(RHICmdList);
 			}
 			if (OneFrameResources->IndexBuffer && IndexBuffer->Indices.Num())
 			{
-				OneFrameResources->IndexBuffer->InitResource();
+				OneFrameResources->IndexBuffer->InitResource(RHICmdList);
 			}
 			OneFrameResources->VertexFactory = new FPooledDynamicMeshVertexFactory(FeatureLevel, VertexBuffer);
-			OneFrameResources->VertexFactory->InitResource();
+			OneFrameResources->VertexFactory->InitResource(RHICmdList);
 
 			// Create the primitive uniform buffer.
 			OneFrameResources->PrimitiveUniformBuffer = new FDynamicMeshPrimitiveUniformBuffer();
@@ -875,7 +867,7 @@ void FDynamicMeshBuilder::GetMesh(
 				OneFrameResources->PrimitiveUniformBuffer->SetContents(PrimitiveParams);
 			}
 
-			OneFrameResources->PrimitiveUniformBuffer->InitResource();
+			OneFrameResources->PrimitiveUniformBuffer->InitResource(RHICmdList);
 
 			// Clear the resource pointers so they cannot be overwritten accidentally.
 			// These resources will be released by the PDI.
@@ -932,6 +924,8 @@ void FDynamicMeshBuilder::GetMeshElement(const FPrimitiveUniformShaderParameters
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDynamicMeshBuilder::GetMeshElement)
 
+	FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
+
 	// Only draw non-empty meshes.
 	if (VertexBuffer->Vertices.Num() > 0)
 	{
@@ -942,15 +936,15 @@ void FDynamicMeshBuilder::GetMeshElement(const FPrimitiveUniformShaderParameters
 
 			if (OneFrameResource.VertexBuffer)
 			{
-				OneFrameResource.VertexBuffer->InitResource();
+				OneFrameResource.VertexBuffer->InitResource(RHICmdList);
 			}
 			if (OneFrameResource.IndexBuffer && IndexBuffer->Indices.Num())
 			{
-				OneFrameResource.IndexBuffer->InitResource();
+				OneFrameResource.IndexBuffer->InitResource(RHICmdList);
 			}
 
 			OneFrameResource.VertexFactory = new FPooledDynamicMeshVertexFactory(FeatureLevel, VertexBuffer);
-			OneFrameResource.VertexFactory->InitResource();
+			OneFrameResource.VertexFactory->InitResource(RHICmdList);
 
 			// Create the primitive uniform buffer.
 			OneFrameResource.PrimitiveUniformBuffer = new FDynamicMeshPrimitiveUniformBuffer();
@@ -964,7 +958,7 @@ void FDynamicMeshBuilder::GetMeshElement(const FPrimitiveUniformShaderParameters
 				OneFrameResource.PrimitiveUniformBuffer->SetContents(PrimitiveParams);
 			}
 
-			OneFrameResource.PrimitiveUniformBuffer->InitResource();
+			OneFrameResource.PrimitiveUniformBuffer->InitResource(RHICmdList);
 
 			// Clear the resource pointers so they cannot be overwritten accidentally.
 			// These resources will be released by the PDI.

@@ -593,14 +593,16 @@ void FReflectionEnvironmentCubemapArray::UpdateMaxCubemaps(uint32 InMaxCubemaps,
 	MaxCubemaps = InMaxCubemaps;
 	CubemapSize = InCubemapSize;
 
+	FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
+
 	// Reallocate the cubemap array
 	if (IsInitialized())
 	{
-		UpdateRHI();
+		UpdateRHI(RHICmdList);
 	}
 	else
 	{
-		InitResource();
+		InitResource(RHICmdList);
 	}
 }
 

@@ -449,7 +449,7 @@ public:
 	// FRenderResource interface.
 	ENGINE_API virtual void InitRHI() override;
 	ENGINE_API virtual void ReleaseRHI() override;
-	ENGINE_API virtual void InitResource() override;
+	ENGINE_API virtual void InitResource(FRHICommandListBase& RHICmdList) override;
 	ENGINE_API virtual void ReleaseResource() override;
 	virtual FString GetFriendlyName() const override { return TEXT("Static-mesh vertices"); }
 

@@ -147,6 +147,8 @@ void FDataflowEngineSceneProxy::CreateMeshRenderThreadResources()
 	const FDataflowSelectionState& State = DataflowComponent->GetSelectionState();
 	check(Facade.CanRenderSurface());
 
+	FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
+
 	const int32 NumTriangleVertices = Facade.NumTriangles();
 	const int32 NumTriangleIndices = Facade.NumTriangles();
 	const int32 TotalNumVertices = NumTriangleVertices * 3;
@@ -232,9 +234,9 @@ void FDataflowEngineSceneProxy::CreateMeshRenderThreadResources()
 	}
 
 
-	VertexBuffers.PositionVertexBuffer.InitResource();
-	VertexBuffers.StaticMeshVertexBuffer.InitResource();
-	VertexBuffers.ColorVertexBuffer.InitResource();
+	VertexBuffers.PositionVertexBuffer.InitResource(RHICmdList);
+	VertexBuffers.StaticMeshVertexBuffer.InitResource(RHICmdList);
+	VertexBuffers.ColorVertexBuffer.InitResource(RHICmdList);
 
 	FLocalVertexFactory::FDataType Data;
 	VertexBuffers.PositionVertexBuffer.BindPositionVertexBuffer(&VertexFactory, Data);
@@ -243,8 +245,8 @@ void FDataflowEngineSceneProxy::CreateMeshRenderThreadResources()
 	VertexBuffers.ColorVertexBuffer.BindColorVertexBuffer(&VertexFactory, Data);
 	VertexFactory.SetData(Data);
 
-	VertexFactory.InitResource();
-	IndexBuffer.InitResource();
+	VertexFactory.InitResource(RHICmdList);
+	IndexBuffer.InitResource(RHICmdList);
 }
 
 
@@ -328,6 +330,9 @@ void FDataflowEngineSceneProxy::CreateInstancedVertexRenderThreadResources()
 
 			if (NumRenderedVerts)
 			{
+				check(IsInRenderingThread());
+				FRHICommandListBase& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+
 				BoxVertexBuffers.PositionVertexBuffer.Init(TotalNumElements);
 				BoxVertexBuffers.StaticMeshVertexBuffer.Init(TotalNumElements, NumTextureCoordinates);
 				BoxVertexBuffers.ColorVertexBuffer.Init(TotalNumElements);
@@ -382,9 +387,9 @@ void FDataflowEngineSceneProxy::CreateInstancedVertexRenderThreadResources()
 					}
 				}
 
-				BoxVertexBuffers.PositionVertexBuffer.InitResource();
-				BoxVertexBuffers.StaticMeshVertexBuffer.InitResource();
-				BoxVertexBuffers.ColorVertexBuffer.InitResource();
+				BoxVertexBuffers.PositionVertexBuffer.InitResource(RHICmdList);
+				BoxVertexBuffers.StaticMeshVertexBuffer.InitResource(RHICmdList);
+				BoxVertexBuffers.ColorVertexBuffer.InitResource(RHICmdList);
 
 				FLocalVertexFactory::FDataType Data;
 				BoxVertexBuffers.PositionVertexBuffer.BindPositionVertexBuffer(&VertexFactory, Data);
@@ -393,8 +398,8 @@ void FDataflowEngineSceneProxy::CreateInstancedVertexRenderThreadResources()
 				BoxVertexBuffers.ColorVertexBuffer.BindColorVertexBuffer(&VertexFactory, Data);
 				BoxVertexFactory.SetData(Data);
 
-				BoxVertexFactory.InitResource();
-				BoxIndexBuffer.InitResource();
+				BoxVertexFactory.InitResource(RHICmdList);
+				BoxIndexBuffer.InitResource(RHICmdList);
 			}
 		}
 	}

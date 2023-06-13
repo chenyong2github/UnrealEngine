@@ -755,7 +755,7 @@ void FStaticMeshSceneProxy::CreateDynamicRayTracingGeometries()
 	for (int32 i = 0; i < DynamicRayTracingGeometries.Num(); i++)
 	{
 		auto& Geometry = DynamicRayTracingGeometries[i];
-		Geometry.InitResource();
+		Geometry.InitResource(FRHICommandListImmediate::Get());
 	}
 }
 

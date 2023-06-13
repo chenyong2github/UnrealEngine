@@ -157,7 +157,7 @@ bool FMediaMovieStreamer::Tick(float DeltaTime)
 					{
 						if (!CurrentTexture->IsInitialized())
 						{
-							CurrentTexture->InitResource();
+							CurrentTexture->InitResource(FRHICommandListImmediate::Get());
 						}
 
 						// Update the slate texture.

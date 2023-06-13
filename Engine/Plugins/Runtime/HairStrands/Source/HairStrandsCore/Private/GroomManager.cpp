@@ -65,12 +65,12 @@ DEFINE_LOG_CATEGORY_STATIC(LogGroomManager, Log, All);
 
 void FHairGroupInstance::FCards::FLOD::InitVertexFactory()
 {
-	VertexFactory->InitResources();
+	VertexFactory->InitResources(FRHICommandListImmediate::Get());
 }
 
 void FHairGroupInstance::FMeshes::FLOD::InitVertexFactory()
 {
-	VertexFactory->InitResources();
+	VertexFactory->InitResources(FRHICommandListImmediate::Get());
 }
 
 static bool IsInstanceFrustumCullingEnable()
@@ -1035,7 +1035,7 @@ static void RunHairLODSelection(
 				if (bHasPathTracingView)						{ AllocateRaytracingResources(Instance); }
 				if (Instance->Strands.RenRaytracingResource)	{ Instance->Strands.RenRaytracingResource->Allocate(GraphBuilder, LoadingType, ResourceStatus); }
 				#endif
-				Instance->Strands.VertexFactory->InitResources();
+				Instance->Strands.VertexFactory->InitResources(GraphBuilder.RHICmdList);
 
 				// Early initialization, so that when filtering MeshBatch block in SceneVisiblity, we can use this value to know 
 				// if the hair instance is visible or not (i.e., HairLengthScale > 0)

@@ -225,7 +225,6 @@ public:
 	TArray<uint32> Indices;
 
 	ENGINE_API virtual void InitRHI() override;
-	ENGINE_API void UpdateRHI();
 };
 
 class FDynamicMeshIndexBuffer16 : public FIndexBuffer
@@ -234,5 +233,4 @@ public:
 	TArray<uint16> Indices;
 
 	ENGINE_API virtual void InitRHI() override;
-	ENGINE_API void UpdateRHI();
 };

@@ -26,7 +26,7 @@ struct FBinkMediaPlayerEditorTexture : public FTickableGameObject
 		{
 			if (!SlateTexture->IsInitialized())
 			{
-				SlateTexture->InitResource();
+				SlateTexture->InitResource(RHICmdList);
 			}
 			FTexture2DRHIRef tex = SlateTexture->GetTypedResource();
 			if (!tex.GetReference())

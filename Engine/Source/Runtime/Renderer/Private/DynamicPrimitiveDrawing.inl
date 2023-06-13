@@ -61,13 +61,13 @@ inline void FViewElementPDI::RegisterDynamicResource(FDynamicPrimitiveResource* 
 			[InViewInfo, DynamicResource](FRHICommandListImmediate& RHICmdList)
 			{
 				InViewInfo->DynamicResources.Add(DynamicResource);
-				DynamicResource->InitPrimitiveResource();
+				DynamicResource->InitPrimitiveResource(RHICmdList);
 			});
 	}
 	else
 	{
 		ViewInfo->DynamicResources.Add(DynamicResource);
-		DynamicResource->InitPrimitiveResource();
+		DynamicResource->InitPrimitiveResource(FRHICommandListImmediate::Get());
 	}
 }
 

@@ -472,7 +472,7 @@ void UMapBuildDataRegistry::HandleAssetPostCompileEvent(const TArray<FAssetCompi
 			{
 				for (FLightmapResourceCluster* Cluster : ClustersToUpdate)
 				{
-					Cluster->UpdateRHI();
+					Cluster->UpdateRHI(RHICmdList);
 				}
 			});
 

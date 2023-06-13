@@ -89,11 +89,11 @@ void FTrackEditorThumbnail::AssignFrom(TSharedRef<FSlateTextureData, ESPMode::Th
 			InThumbnailTexture->SetTextureData(InTextureData);
 			if (InThumbnailTexture->IsInitialized())
 			{
-				InThumbnailTexture->UpdateRHI();
+				InThumbnailTexture->UpdateRHI(RHICmdList);
 			}
 			else
 			{
-				InThumbnailTexture->InitResource();
+				InThumbnailTexture->InitResource(RHICmdList);
 			}
 		}
 	);
@@ -177,8 +177,8 @@ void FTrackEditorThumbnail::ResizeRenderTarget(const FIntPoint& InSize)
 		{
 			if (InThumbnailTexture && InThumbnailRenderTarget)
 			{
-				InThumbnailTexture->InitResource();
-				InThumbnailRenderTarget->InitResource();
+				InThumbnailTexture->InitResource(RHICmdList);
+				InThumbnailRenderTarget->InitResource(RHICmdList);
 				InThumbnailTexture->SetRHIRef(InThumbnailRenderTarget->GetTextureRHI(), InThumbnailRenderTarget->GetSizeX(), InThumbnailRenderTarget->GetSizeY());
 			}
 		}

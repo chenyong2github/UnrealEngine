@@ -686,7 +686,7 @@ public:
 	/**
 	 * Locks the vertex buffer so it may be written to.
 	 */
-	void Lock(FRHICommandList& RHICmdList)
+	void Lock(FRHICommandListBase& RHICmdList)
 	{
 		check(MappedBuffer == NULL);
 		check(AllocatedByteCount == 0);
@@ -697,7 +697,7 @@ public:
 	/**
 	 * Unocks the buffer so the GPU may read from it.
 	 */
-	void Unlock(FRHICommandList& RHICmdList)
+	void Unlock(FRHICommandListBase& RHICmdList)
 	{
 		check(MappedBuffer != NULL);
 		check(IsValidRef(VertexBufferRHI));
@@ -707,7 +707,7 @@ public:
 	}
 
 	// FRenderResource interface.
-	virtual void InitRHI(FRHICommandList& RHICmdList) override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		check(!IsValidRef(VertexBufferRHI));
 		FRHIResourceCreateInfo CreateInfo(TEXT("FDynamicVertexBuffer"));
@@ -742,7 +742,7 @@ struct FDynamicVertexBufferPool : public FRenderResource
 	std::atomic_uint32_t TotalAllocatedMemory{0};
 	uint32 CurrentCycle = 0;
 
-	FDynamicVertexBuffer* Acquire(FRHICommandList& RHICmdList, uint32 SizeInBytes)
+	FDynamicVertexBuffer* Acquire(FRHICommandListBase& RHICmdList, uint32 SizeInBytes)
 	{
 		const uint32 MinimumBufferSize = 65536u;
 		SizeInBytes = FMath::Max(SizeInBytes, MinimumBufferSize);
@@ -793,7 +793,7 @@ struct FDynamicVertexBufferPool : public FRenderResource
 		return FoundBuffer;
 	}
 
-	void Forfeit(FRHICommandList& RHICmdList, TConstArrayView<FDynamicVertexBuffer*> BuffersToForfeit)
+	void Forfeit(FRHICommandListBase& RHICmdList, TConstArrayView<FDynamicVertexBuffer*> BuffersToForfeit)
 	{
 		for (FDynamicVertexBuffer* Buffer : BuffersToForfeit)
 		{
@@ -854,7 +854,7 @@ FGlobalDynamicVertexBuffer::FAllocation FGlobalDynamicVertexBuffer::Allocate(uin
 	return Allocate(FRHICommandListExecutor::GetImmediateCommandList(), SizeInBytes);
 }
 
-FGlobalDynamicVertexBuffer::FAllocation FGlobalDynamicVertexBuffer::Allocate(FRHICommandList& RHICmdList, uint32 SizeInBytes)
+FGlobalDynamicVertexBuffer::FAllocation FGlobalDynamicVertexBuffer::Allocate(FRHICommandListBase& RHICmdList, uint32 SizeInBytes)
 {
 	FAllocation Allocation;
 
@@ -878,7 +878,7 @@ bool FGlobalDynamicVertexBuffer::IsRenderAlarmLoggingEnabled() const
 	return GDynamicVertexBufferPool.IsRenderAlarmLoggingEnabled();
 }
 
-void FGlobalDynamicVertexBuffer::Commit(FRHICommandList& RHICmdList)
+void FGlobalDynamicVertexBuffer::Commit(FRHICommandListBase& RHICmdList)
 {
 	GDynamicVertexBufferPool.Forfeit(RHICmdList, VertexBuffers);
 	VertexBuffers.Reset();
@@ -1050,7 +1050,7 @@ FGlobalDynamicIndexBuffer::FAllocation FGlobalDynamicIndexBuffer::Allocate(uint3
 		{
 			IndexBuffer = new FDynamicIndexBuffer(SizeInBytes, Pool->BufferStride);
 			Pool->IndexBuffers.Add(IndexBuffer);
-			IndexBuffer->InitResource();
+			IndexBuffer->InitResource(FRHICommandListImmediate::Get());
 		}
 
 		// Lock the buffer if needed.

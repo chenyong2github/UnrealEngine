@@ -221,7 +221,7 @@ public:
 	{
 		if (bUsesComputeShader != bInUsesComputeShader)
 		{
-			UpdateRHI();
+			UpdateRHI(FRHICommandListImmediate::Get());
 		}
 	}
 

@@ -111,7 +111,7 @@ void FSkeletalMeshObjectStatic::InitResources(USkinnedMeshComponent* InMeshCompo
 
 							if (LODIndex >= SkelMeshRenderData->CurrentFirstLODIdx) // According to GetMeshElementsConditionallySelectable(), non-resident LODs should just be skipped
 							{
-								RayTracingGeometry.InitResource();
+								RayTracingGeometry.InitResource(RHICmdList);
 							}
 
 							bReferencedByStaticSkeletalMeshObjects_RenderThread = true;
@@ -208,9 +208,9 @@ void FSkeletalMeshObjectStatic::FSkeletalMeshObjectLOD::InitResources(FSkelMeshC
 		[VertexFactoryPtr, PositionVertexBufferPtr, StaticMeshVertexBufferPtr, ColorVertexBufferPtr](FRHICommandListImmediate& RHICmdList)
 		{
 			FLocalVertexFactory::FDataType Data;
-			PositionVertexBufferPtr->InitResource();
-			StaticMeshVertexBufferPtr->InitResource();
-			ColorVertexBufferPtr->InitResource();
+			PositionVertexBufferPtr->InitResource(RHICmdList);
+			StaticMeshVertexBufferPtr->InitResource(RHICmdList);
+			ColorVertexBufferPtr->InitResource(RHICmdList);
 
 			PositionVertexBufferPtr->BindPositionVertexBuffer(VertexFactoryPtr, Data);
 			StaticMeshVertexBufferPtr->BindTangentVertexBuffer(VertexFactoryPtr, Data);
@@ -219,7 +219,7 @@ void FSkeletalMeshObjectStatic::FSkeletalMeshObjectLOD::InitResources(FSkelMeshC
 			ColorVertexBufferPtr->BindColorVertexBuffer(VertexFactoryPtr, Data);
 
 			VertexFactoryPtr->SetData(Data);
-			VertexFactoryPtr->InitResource();
+			VertexFactoryPtr->InitResource(RHICmdList);
 		});
 
 	bResourcesInitialized = true;

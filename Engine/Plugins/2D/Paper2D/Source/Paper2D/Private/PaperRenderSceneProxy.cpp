@@ -90,7 +90,7 @@ public:
 	}
 
 	// FDynamicPrimitiveResource interface.
-	virtual void InitPrimitiveResource() override
+	virtual void InitPrimitiveResource(FRHICommandListBase& RHICmdList) override
 	{
 	}
 	virtual void ReleasePrimitiveResource() override
@@ -229,7 +229,7 @@ void FPaperRenderSceneProxy::DebugDrawBodySetup(const FSceneView* View, int32 Vi
 	}
 }
 
-void FPaperRenderSceneProxy::RecreateCachedRenderData()
+void FPaperRenderSceneProxy::RecreateCachedRenderData(FRHICommandListBase& RHICmdList)
 {
 	int32 BatchIndex = 0;
 	for (FSpriteTextureOverrideRenderProxy* Proxy : MaterialTextureOverrideProxies)
@@ -260,7 +260,7 @@ void FPaperRenderSceneProxy::RecreateCachedRenderData()
 		}
 		else
 		{
-			VertexBuffer.InitResource();
+			VertexBuffer.InitResource(RHICmdList);
 			VertexFactory.Init(&VertexBuffer);
 		}
 	}
@@ -273,7 +273,7 @@ void FPaperRenderSceneProxy::CreateRenderThreadResources()
 		VertexBuffer.Vertices = Vertices;
 
 		// Init the resources
-		VertexBuffer.InitResource();
+		VertexBuffer.InitResource(FRHICommandListImmediate::Get());
 		VertexFactory.Init(&VertexBuffer);
 	}
 }
@@ -643,7 +643,6 @@ FPaperRenderSceneProxy_SpriteBase::FPaperRenderSceneProxy_SpriteBase(const UMesh
 void FPaperRenderSceneProxy_SpriteBase::SetSprite_RenderThread(const FSpriteDrawCallRecord& NewDynamicData, int32 SplitIndex)
 {
 	SCOPE_CYCLE_COUNTER(STAT_PaperRender_SetSpriteRT);
-	check(IsInRenderingThread());
 
 	BatchedSections.Reset();
 	Vertices.Reset();
@@ -668,6 +667,6 @@ void FPaperRenderSceneProxy_SpriteBase::SetSprite_RenderThread(const FSpriteDraw
 		Section.AddVerticesFromDrawCallRecord(NewDynamicData, 0, NewDynamicData.RenderVerts.Num(), Vertices);
 	}
 
-	RecreateCachedRenderData();
+	RecreateCachedRenderData(FRHICommandListImmediate::Get());
 }
 

@@ -50,7 +50,7 @@ public:
 	*/
 	void Copy(const FHairCardsVertexFactory& Other);
 
-	void InitResources();
+	void InitResources(FRHICommandListBase& RHICmdList);
 
 	// FRenderResource interface.
 	virtual void InitRHI() override;

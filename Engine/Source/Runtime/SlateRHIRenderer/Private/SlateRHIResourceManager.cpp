@@ -746,7 +746,7 @@ TSharedPtr<FSlateDynamicTextureResource> FSlateRHIResourceManager::MakeDynamicTe
 			}
 
 			// Initialize and link the rendering resource
-			InTextureResource->RHIRefTexture->InitResource();
+			InTextureResource->RHIRefTexture->InitResource(RHICmdList);
 		});
 
 	// Map the new resource so we don't have to load again

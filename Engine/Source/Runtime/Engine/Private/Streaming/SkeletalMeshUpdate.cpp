@@ -210,6 +210,8 @@ void FSkeletalMeshStreamIn::DoFinishUpdate(const FContext& Context)
 		}
 
 #if RHI_RAYTRACING
+		FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
+
 		// Must happen after the batched updates have been flushed
 		if (IsRayTracingAllowed())
 		{
@@ -221,7 +223,7 @@ void FSkeletalMeshStreamIn::DoFinishUpdate(const FContext& Context)
 					if (RenderData->LODRenderData[LODIndex].bReferencedByStaticSkeletalMeshObjects_RenderThread)
 					{
 						ensure(!RenderData->LODRenderData[LODIndex].StaticRayTracingGeometry.IsInitialized());
-						RenderData->LODRenderData[LODIndex].StaticRayTracingGeometry.InitResource();
+						RenderData->LODRenderData[LODIndex].StaticRayTracingGeometry.InitResource(RHICmdList);
 					}
 				}
 			}
