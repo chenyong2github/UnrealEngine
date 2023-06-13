@@ -1072,7 +1072,8 @@ void FNiagaraSystemSimulation::FlushTickBatch(FNiagaraSystemSimulationTickContex
 
 			for (FNiagaraSystemInstance* Inst : TickBatch)
 			{
-				Inst->ConcurrentTickGraphEvent = InstanceAsyncGraphEvent;
+				Inst->ConcurrentTickGraphEvent = nullptr;
+				Inst->ConcurrentTickBatchGraphEvent = InstanceAsyncGraphEvent;
 			}
 
 			// Queue finalize task which will run after the instances are complete, track with our all completion event
@@ -2155,6 +2156,7 @@ void FNiagaraSystemSimulation::RemoveInstance(FNiagaraSystemInstance* Instance)
 
 	// We did not finalize and will not so clear the reference
 	Instance->ConcurrentTickGraphEvent = nullptr;
+	Instance->ConcurrentTickBatchGraphEvent = nullptr;
 	Instance->FinalizeRef.ConditionalClear();
 
 	// Remove the instance if it is still valid

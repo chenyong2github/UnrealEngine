@@ -590,6 +590,7 @@ private:
 
 	/** Graph event to track pending concurrent work. */
 	FGraphEventRef ConcurrentTickGraphEvent;
+	FGraphEventRef ConcurrentTickBatchGraphEvent;
 
 	/** When using concurrent ticking this will be valid until it's complete. */
 	FNiagaraSystemInstanceFinalizeRef FinalizeRef;
