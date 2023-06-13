@@ -67,19 +67,47 @@ public:
 
     FQuadraticProgramming(const FSparseMatrixD* InMatrixQ, const FColumnVectorD* InVectorF = nullptr);
 
+    /** If true, will solve for each column x \in X in parallel. By default, parallelization is enabled. */
+    void SetEnableParallelization(const bool bEnable);
+
+    /** Set the fixed constraints either via a sparse or a dense matrix. Calls are mutually exclusive. */
     bool SetFixedConstraints(const TArray<int>* InFixedRowIndices, const FSparseMatrixD* InFixedValues);
+    bool SetFixedConstraints(const TArray<int>* InFixedRowIndices, const FDenseMatrixD* InFixedValues);
 
-    /**  Pre-factorizes the matrices and sets up the solver. */
+    /** Pre-factorizes the matrices and sets up the solver. */
     bool PreFactorize();
+    
+    /**
+     * @param Solution The result of the solve as a dense matrix.
+	 * @param bVariablesOnly If true, the Solution matrix only contains the rows for non-fixed (variable) rows (set via SetFixedConstraints function).
+     */
+    bool Solve(FDenseMatrixD& Solution, const bool bVariablesOnly = false);
 
-    //TODO: Allow to solve for sparse matrices with a passed float threshold value that determines if the value is close enough to 0 
-    bool Solve(FDenseMatrixD& Solution);
+    /**
+     * @param Solution The result of the solve as a sparse matrix.
+	 * @param bVariablesOnly If true, the Solution matrix only contains the rows for non-fixed (variable) rows (set via SetFixedConstraints function).
+     * @param Tolerance Convert dense solution to sparse by pruning any values with their absolute value below the Tolerance.
+     */
+    bool Solve(FSparseMatrixD& Solution, const bool bVariablesOnly = false, const double Tolerance = SMALL_NUMBER);
 
 
     // 
     // Helper "one-function call" methods for setting up and solving the QP problems
     //
-    static bool SolveWithFixedConstraints(const FSparseMatrixD& MatrixQ, const FColumnVectorD& VectorF, const TArray<int>& FixedRowIndices, const FSparseMatrixD& FixedValues, FDenseMatrixD& Solution);
+
+    static bool SolveWithFixedConstraints(const FSparseMatrixD& MatrixQ, const FColumnVectorD* VectorF, const TArray<int>& FixedRowIndices, const FSparseMatrixD& FixedValues, FDenseMatrixD& Solution, const bool bVariablesOnly = false, TArray<int>* VariableRowIndices = nullptr);
+    static bool SolveWithFixedConstraints(const FSparseMatrixD& MatrixQ, const FColumnVectorD* VectorF, const TArray<int>& FixedRowIndices, const FSparseMatrixD& FixedValues, FSparseMatrixD& Solution, const bool bVariablesOnly = false, const double Tolerance = SMALL_NUMBER, TArray<int>* VariableRowIndices = nullptr);
+
+
+    //
+    // Solver stats
+    // 
+
+    /** How long did the last call to Solve() take in seconds. */
+    double GetSolveTimeElapsedInSec() const;
+
+    /** Array of row indices into MatrixQ representing variables (non-fixed). */
+    TArray<int> GetVariableRowIndices() const;
 
 protected:
 
@@ -87,12 +115,23 @@ protected:
     const FColumnVectorD* VectorF = nullptr; // Column vector of linear coefficients
 
     // Fixed constraints
-    bool bFixedConstraintsSet = false;  // set to true if SetFixedConstraints is called and successful
-    const TArray<int>* FixedRowIndices = nullptr;  // row indices of the fixed parameters, set by the user when calling SetFixedConstraints
-    const FSparseMatrixD* FixedValues = nullptr;   // matrix of fixed values, set by the user when calling SetFixedConstraints
+    bool bFixedConstraintsSet = false;                  // set to true if SetFixedConstraints is called and successful
+    const TArray<int>* FixedRowIndices = nullptr;       // row indices of the fixed parameters, set by the user when calling SetFixedConstraints
+    const FSparseMatrixD* FixedValuesSparse = nullptr;  // matrix of fixed values, set by the user when calling SetFixedConstraints
+    const FDenseMatrixD* FixedValuesDense = nullptr;    // matrix of fixed values, set by the user when calling SetFixedConstraints
+
     TArray<int> VariableRowIndices;  // row indices of the variable parameters, computed internally by the call to PreFactorize()
 
     TUniquePtr<IMatrixSolverBase> Solver = nullptr; // PreFactorize() method pre-factorizes the matrices and setups the solver
+
+    bool bUseParallel = true; // if true when solving for X, will solve for each column x \in X in parallel
+
+
+    //
+    // Debug solver stats
+    //
+    
+    double SolveTimeElapsedInSec = 0.0; // Set every time Solve() is called
 };
 
 }

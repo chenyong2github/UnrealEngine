@@ -10,7 +10,7 @@ namespace Geometry
 IMatrixSolverBase::~IMatrixSolverBase() {};
 IIterativeMatrixSolverBase::~IIterativeMatrixSolverBase() {};
 
-TUniquePtr<IMatrixSolverBase> ContructMatrixSolver(const EMatrixSolverType& MatrixSolverType)
+TUniquePtr<IMatrixSolverBase> ConstructMatrixSolver(const EMatrixSolverType& MatrixSolverType)
 {
 	TUniquePtr<IMatrixSolverBase> ResultPtr;
 

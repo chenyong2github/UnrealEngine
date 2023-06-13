@@ -38,7 +38,7 @@ namespace UE
 namespace Geometry
 {
 // Matrix Solver Factory
-TUniquePtr<IMatrixSolverBase> ContructMatrixSolver(const EMatrixSolverType& MatrixSolverType);
+TUniquePtr<IMatrixSolverBase> ConstructMatrixSolver(const EMatrixSolverType& MatrixSolverType);
 
 template <typename DirectSolverType>
 class TMatrixSolver : public IMatrixSolverBase

@@ -130,7 +130,7 @@ void FMeshDiffusionIntegrator::Integrate_BackwardEuler(const EMatrixSolverType M
 
 	SparseMatrix.makeCompressed();
 
-	TUniquePtr<IMatrixSolverBase> MatrixSolver = ContructMatrixSolver(MatrixSolverType);
+	TUniquePtr<IMatrixSolverBase> MatrixSolver = ConstructMatrixSolver(MatrixSolverType);
 
 	MatrixSolver->SetUp(SparseMatrix, bIsSymmetric);
 

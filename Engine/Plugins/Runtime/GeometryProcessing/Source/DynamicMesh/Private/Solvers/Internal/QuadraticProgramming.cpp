@@ -2,6 +2,8 @@
 
 #include "Solvers/Internal/QuadraticProgramming.h"
 #include "MatrixSolver.h"
+#include "Async/ParallelFor.h"
+#include <vector>
 
 using namespace UE::Geometry;
 
@@ -13,6 +15,11 @@ VectorF(InVectorF)
     checkSlow(InMatrixQ);
 }
 
+void FQuadraticProgramming::SetEnableParallelization(const bool bEnable)
+{
+    bUseParallel = bEnable;
+}
+
 bool FQuadraticProgramming::SetFixedConstraints(const TArray<int>* InFixedRowIndices, const FSparseMatrixD* InFixedValues)
 {
     if (InFixedRowIndices && InFixedValues && InFixedRowIndices->Num() == InFixedValues->rows())
@@ -20,7 +27,26 @@ bool FQuadraticProgramming::SetFixedConstraints(const TArray<int>* InFixedRowInd
         if (InFixedRowIndices->Num() <= MatrixQ->rows() && InFixedValues->rows() <= MatrixQ->rows())
         {
             FixedRowIndices = InFixedRowIndices;
-            FixedValues = InFixedValues;
+            FixedValuesSparse = InFixedValues; // dense and sparse constraints are mutually exclusive
+            FixedValuesDense = nullptr;
+            bFixedConstraintsSet = true; 
+            
+			return true;
+        }
+    }
+
+    return false;
+}
+
+bool FQuadraticProgramming::SetFixedConstraints(const TArray<int>* InFixedRowIndices, const FDenseMatrixD* InFixedValues)
+{
+    if (InFixedRowIndices && InFixedValues && InFixedRowIndices->Num() == InFixedValues->rows())
+    {
+        if (InFixedRowIndices->Num() <= MatrixQ->rows() && InFixedValues->rows() <= MatrixQ->rows())
+        {
+            FixedRowIndices = InFixedRowIndices;
+            FixedValuesDense = InFixedValues; // dense and sparse constraints are mutually exclusive
+            FixedValuesSparse = nullptr;
             bFixedConstraintsSet = true; 
             
 			return true;
@@ -93,7 +119,7 @@ bool FQuadraticProgramming::PreFactorize()
         // Construct a linear solver for a symmetric positive (semi-)definite matrix
         const EMatrixSolverType MatrixSolverType = EMatrixSolverType::FastestPSD;
         const bool bIsSymmetric = true;
-        Solver = ContructMatrixSolver(MatrixSolverType);
+        Solver = ConstructMatrixSolver(MatrixSolverType);
         Solver->SetUp(VariablesQ, bIsSymmetric);
         if (!ensure(Solver->bSucceeded())) 
         {
@@ -107,14 +133,24 @@ bool FQuadraticProgramming::PreFactorize()
     return false;
 }
 
-bool FQuadraticProgramming::Solve(FDenseMatrixD& Solution)
+bool FQuadraticProgramming::Solve(FDenseMatrixD& Solution, const bool bVariablesOnly)
 {
+    FDateTime StartTime = FDateTime::UtcNow();
     if (bFixedConstraintsSet)
     {   
         if (!ensureMsgf(Solver, TEXT("Solver was not setup. Call the SetUp() method first.")))
         {
             return false;
         }
+
+        if (!ensureMsgf((FixedValuesSparse == nullptr && FixedValuesDense != nullptr) || 
+                        (FixedValuesSparse != nullptr && FixedValuesDense == nullptr),
+                        TEXT("Either the fixed constraints were not setup or both sparse and dense constraints are setup.")))
+        {
+            return false;
+        }
+
+        const int32 FixedValuesCols = FixedValuesSparse ? (int32)FixedValuesSparse->cols() : (int32)FixedValuesDense->cols();
 
         // The Q_vf matrix
         FSparseMatrixD VariablesFixedQ;
@@ -127,12 +163,42 @@ bool FQuadraticProgramming::Solve(FDenseMatrixD& Solution)
 			SliceDenseMatrix(*VectorF, VariableRowIndices, VariablesF);
 		}
 		
-        Solution.resize(MatrixQ->rows(), FixedValues->cols());
+        // Matrix that will hold the final solution values. Optionally, omit fixed rows and only store variables.
+        const FDenseMatrixD::Index SolutionRows = bVariablesOnly ? static_cast<FDenseMatrixD::Index>(VariableRowIndices.Num()) : MatrixQ->rows();
+        Solution.resize(SolutionRows, FixedValuesCols);
+        Solution.setZero();
 
-        // We can iterate over every column of X and solve for each column individually
-        for (int ColIdx = 0; ColIdx < Solution.cols(); ++ColIdx) //TODO: Parallelize
+		// If FixedValues is a sparse matrix then we can check which columns are non-zero and 
+		// skip the solve for zero columns when VectorF is null
+        TArray<int32> NonZeroFixedValuesCols;
+        if (FixedValuesSparse)
         {
-            const FColumnVectorD FixedVector = FixedValues->col(ColIdx);
+            for (int32 ColdIdx = 0; ColdIdx < FixedValuesSparse->outerSize(); ++ColdIdx)
+            {
+                if (!VectorF && FixedValuesSparse->innerVector(ColdIdx).nonZeros() > 0)
+                {
+                    NonZeroFixedValuesCols.Add(ColdIdx);
+                }
+            }
+        }
+
+		// Solve for each non-zero column in parallel (if bUseParallel == true)
+        TArray<bool> SolveSucceeded; // track for which columns we failed to solve
+        SolveSucceeded.Init(true, static_cast<int32>(Solution.cols()));
+        const int32 NumIterations = FixedValuesSparse ? NonZeroFixedValuesCols.Num() : FixedValuesCols;
+        ParallelFor(NumIterations, [&](int32 IterIdx)
+        {
+            const int32 ColIdx = FixedValuesSparse ? NonZeroFixedValuesCols[IterIdx] : IterIdx;
+			FColumnVectorD FixedVector;
+			if (FixedValuesSparse)
+			{
+				FixedVector = FixedValuesSparse->col(ColIdx);
+			}
+			else
+			{
+				FixedVector = FixedValuesDense->col(ColIdx);
+			}
+
 
 			// The -(f_v + Q_vf * x_f) vector. If the linear coefficients were not specified, skip f_v.
             FColumnVectorD VectorB;
@@ -149,36 +215,90 @@ bool FQuadraticProgramming::Solve(FDenseMatrixD& Solution)
             Solver->Solve(VectorB, VariablesVector);
             if (ensure(Solver->bSucceeded()))
             {   
-                // Copy over the fixed and variable values to the solution matrix
-                for (int RowIdx = 0; RowIdx < FixedRowIndices->Num(); ++RowIdx)
+                if (bVariablesOnly)
                 {
-                    Solution((*FixedRowIndices)[RowIdx], ColIdx) = FixedVector(RowIdx);
+                    // Copy over only the variable values to the solution matrix
+                    Solution.col(ColIdx) = VariablesVector;
                 }
-
-                for (int RowIdx = 0; RowIdx < VariableRowIndices.Num(); ++RowIdx)
+                else
                 {
-                    Solution(VariableRowIndices[RowIdx], ColIdx) = VariablesVector(RowIdx);
+                    // Copy over the fixed and variable values to the solution matrix
+                    for (int RowIdx = 0; RowIdx < FixedRowIndices->Num(); ++RowIdx)
+                    {
+                        Solution((*FixedRowIndices)[RowIdx], ColIdx) = FixedVector(RowIdx);
+                    }
+
+                    for (int RowIdx = 0; RowIdx < VariableRowIndices.Num(); ++RowIdx)
+                    {
+                        Solution(VariableRowIndices[RowIdx], ColIdx) = VariablesVector(RowIdx);
+                    }
                 }
             }
 			else 
 			{
-				return false;
+				SolveSucceeded[ColIdx] = false;
 			}
-        }
+        }, bUseParallel ? EParallelForFlags::None : EParallelForFlags::ForceSingleThread);
 
-		return true;
+        // Check if all solves were successful
+        for (const bool bSuccess : SolveSucceeded)
+        {
+            if (!bSuccess)
+            {
+                return false;
+            }
+        }
     }
 
-	return false;
+    SolveTimeElapsedInSec = (FDateTime::UtcNow() - StartTime).GetTotalSeconds();
+
+	return true;
 }
 
+bool FQuadraticProgramming::Solve(FSparseMatrixD& Solution, const bool bVariablesOnly, const double Tolerance)
+{
+    // Eigen library has a sparseView() function but it prunes all values below a Tolerance, even negative values. 
+    // We want to keep the values whose absolute value is above the Tolerance. 
+
+    FDenseMatrixD SolutionDense;
+    if (!Solve(SolutionDense, bVariablesOnly))
+    {
+        return false;
+    }
+
+    std::vector<Eigen::Triplet<FSparseMatrixD::Scalar>> Triplets;
+    for (int32 ColIdx = 0; ColIdx < SolutionDense.cols(); ++ColIdx)
+    {
+        for (int32 RowIdx = 0; RowIdx < SolutionDense.rows(); ++RowIdx)
+        {
+            FDenseMatrixD::Scalar Value = SolutionDense(RowIdx, ColIdx);
+            if (FMath::Abs<FDenseMatrixD::Scalar>(Value) > (FDenseMatrixD::Scalar)Tolerance)
+            {
+                Triplets.emplace_back(RowIdx, ColIdx, Value);
+            }
+        }
+    }
+
+    Solution.resize(SolutionDense.rows(), SolutionDense.cols());
+    Solution.setFromTriplets(Triplets.begin(), Triplets.end());
+
+    return true;
+}
+
+
+// 
+// Helper "one-function call" methods for setting up and solving the QP problems
+//
+
 bool FQuadraticProgramming::SolveWithFixedConstraints(const FSparseMatrixD& MatrixQ, 
-                                                      const FColumnVectorD& VectorF, 
+                                                      const FColumnVectorD* VectorF, 
                                                       const TArray<int>& FixedRowIndices, 
                                                       const FSparseMatrixD& FixedValues, 
-                                                      FDenseMatrixD& Solution)
+                                                      FDenseMatrixD& Solution,
+                                                      const bool bVariablesOnly,
+                                                      TArray<int>* VariableRowIndices)
 {
-    FQuadraticProgramming QP(&MatrixQ, &VectorF);
+    FQuadraticProgramming QP(&MatrixQ, VectorF);
     if (!QP.SetFixedConstraints(&FixedRowIndices, &FixedValues))
     {
         return false;
@@ -189,5 +309,46 @@ bool FQuadraticProgramming::SolveWithFixedConstraints(const FSparseMatrixD& Matr
         return false;
     }
 
-    return QP.Solve(Solution);
+    *VariableRowIndices = QP.GetVariableRowIndices();
+    return QP.Solve(Solution, bVariablesOnly);
+}
+
+bool FQuadraticProgramming::SolveWithFixedConstraints(const FSparseMatrixD& MatrixQ,
+                                                      const FColumnVectorD* VectorF,
+                                                      const TArray<int>& FixedRowIndices,
+                                                      const FSparseMatrixD& FixedValues,
+                                                      FSparseMatrixD& Solution,
+                                                      const bool bVariablesOnly,
+                                                      const double Tolerance,
+                                                      TArray<int>* VariableRowIndices)
+{
+    FQuadraticProgramming QP(&MatrixQ, VectorF);
+    if (!QP.SetFixedConstraints(&FixedRowIndices, &FixedValues))
+    {
+        return false;
+    }
+    
+    if (!QP.PreFactorize())
+    {
+        return false;
+    }
+
+    *VariableRowIndices = QP.GetVariableRowIndices();
+
+    return QP.Solve(Solution, bVariablesOnly, Tolerance);
+}
+
+
+//
+// Solver stats
+//
+
+double FQuadraticProgramming::GetSolveTimeElapsedInSec() const 
+{ 
+    return SolveTimeElapsedInSec; 
+}
+
+TArray<int> FQuadraticProgramming::GetVariableRowIndices() const
+{
+    return VariableRowIndices;
 }

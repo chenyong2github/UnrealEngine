@@ -345,7 +345,7 @@ bool FLeastSquaresConformalMeshUVSolver::SolveParameterization(const FSparseMatr
 	const int32 NumVerts = VtxLinearization.NumVerts();
 	
 	// create a suitable matrix solver
-	TUniquePtr<IMatrixSolverBase> MatrixSolver = ContructMatrixSolver(InSolverType);
+	TUniquePtr<IMatrixSolverBase> MatrixSolver = ConstructMatrixSolver(InSolverType);
 	MatrixSolver->SetUp(InSystemMatrix, false);
 	if (MatrixSolver->bSucceeded() == false)  // check that the factorization succeeded 
 	{

@@ -63,7 +63,7 @@ public:
 		SymmetricMatrixPtr.Reset(SymmatrixMatrixOperator.Release());
 
 		bMatrixSolverDirty = true;
-		MatrixSolver = ContructMatrixSolver(MatrixSolverType);
+		MatrixSolver = ConstructMatrixSolver(MatrixSolverType);
 	}
 
 
