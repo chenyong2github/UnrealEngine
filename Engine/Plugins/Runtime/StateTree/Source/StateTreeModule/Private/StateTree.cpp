@@ -433,7 +433,7 @@ bool UStateTree::Link()
 			SourceStructs[ParametersDataViewIndex.Get()].Struct = Parameters.GetPropertyBagStruct();
 		}
 		
-		for (const FCompactStateTreeState& State : States)
+		for (FCompactStateTreeState& State : States)
 		{
 			if (State.Type == EStateTreeStateType::Subtree)
 			{
@@ -477,6 +477,39 @@ bool UStateTree::Link()
 				{
 					FStateTreePropertyCopyBatch& Batch = CopyBatches[Params.BindingsBatch.Get()];
 					Batch.TargetStruct.Struct = Params.Parameters.GetPropertyBagStruct();
+				}
+			}
+
+			// Update instance data num for each state.
+			State.TaskInstanceStructNum = 0;
+			State.TaskInstanceObjectNum = 0;
+
+			if (State.Type == EStateTreeStateType::Linked)
+			{
+				// Linked state parameters.
+				State.TaskInstanceStructNum++;
+			}
+			
+			for (int32 TaskIndex = (State.TasksBegin + State.TasksNum) - 1; TaskIndex >= State.TasksBegin; TaskIndex--)
+			{
+				const FStateTreeTaskBase& Task = Nodes[TaskIndex].Get<const FStateTreeTaskBase>();
+				if (Task.bInstanceIsObject)
+				{
+					if (State.TaskInstanceObjectNum == MAX_uint8)
+					{
+						UE_LOG(LogStateTree, Error, TEXT("%s: State '%s' has more than %d struct based task instances."), *GetFullName(), *State.Name.ToString(), (int32)MAX_uint8);
+						return false;
+					}
+					State.TaskInstanceObjectNum++;
+				}
+				else
+				{
+					if (State.TaskInstanceStructNum == MAX_uint8)
+					{
+						UE_LOG(LogStateTree, Error, TEXT("%s: State '%s' has more than %d object based task instances."), *GetFullName(), *State.Name.ToString(), (int32)MAX_uint8);
+						return false;
+					}
+					State.TaskInstanceStructNum++;
 				}
 			}
 		}

@@ -692,6 +692,14 @@ struct STATETREEMODULE_API FCompactStateTreeState
 	UPROPERTY()
 	uint8 TasksNum = 0;
 
+	/** Number of tasks with struct instance data. */
+	UPROPERTY()
+	uint8 TaskInstanceStructNum = 0;
+
+	/** Number of tasks with object instance data. */
+	UPROPERTY()
+	uint8 TaskInstanceObjectNum = 0;
+
 	/** Type of the state */
 	UPROPERTY()
 	EStateTreeStateType Type = EStateTreeStateType::State;
