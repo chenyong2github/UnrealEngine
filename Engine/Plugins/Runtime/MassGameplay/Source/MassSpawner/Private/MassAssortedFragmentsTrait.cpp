@@ -16,13 +16,26 @@ void UMassAssortedFragmentsTrait::BuildTemplate(FMassEntityTemplateBuildContext&
 			{
 				BuildContext.AddFragment(Fragment);
 			}
-			else if (Type->IsChildOf(FMassTag::StaticStruct()))
+			else
+			{
+				UE_LOG(LogMass, Error, TEXT("Struct type %s is not a child of FMassFragment"), *GetPathNameSafe(Type));
+			}
+		}
+	}
+	
+	for (const FInstancedStruct& Tag : Tags)
+	{
+		if (Tag.IsValid())
+		{
+			const UScriptStruct* Type = Tag.GetScriptStruct();
+			CA_ASSUME(Type);
+			if (Type->IsChildOf(FMassTag::StaticStruct()))
 			{
 				BuildContext.AddTag(*Type);
 			}
 			else
 			{
-				UE_LOG(LogMass, Error, TEXT("Invalid fragment type found: '%s', nor a data fragment nor a tag"), *GetPathNameSafe(Type));
+				UE_LOG(LogMass, Error, TEXT("Struct type %s is not a child of FMassTag"), *GetPathNameSafe(Type));
 			}
 		}
 	}
