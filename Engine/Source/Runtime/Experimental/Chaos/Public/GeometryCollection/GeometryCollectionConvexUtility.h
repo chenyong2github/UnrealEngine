@@ -132,6 +132,15 @@ public:
 	static CHAOS_API void GenerateClusterConvexHullsFromLeafHulls(FGeometryCollection& Collection, const FClusterConvexHullSettings& Settings, const TArrayView<const int32> OptionalTransformSubset);
 	static CHAOS_API void GenerateClusterConvexHullsFromLeafHulls(FGeometryCollection& Collection, const FClusterConvexHullSettings& Settings);
 
+	struct FMergeConvexHullSettings
+	{
+		int32 MaxConvexCount = -1;
+		double ErrorToleranceInCm = 0.0;
+		UE::Geometry::FSphereCovering* EmptySpace = nullptr;
+	};
+	// Merge convex hulls that are currently on each (selected) transform. If convex hulls are not present, does nothing.
+	static CHAOS_API void MergeHullsOnTransforms(FManagedArrayCollection& Collection, const FGeometryCollectionConvexUtility::FMergeConvexHullSettings& Settings, bool bRestrictToSelection, const TArrayView<const int32> OptionalTransformSelection);
+
 	// Additional settings for filtering when the EGenerateConvexMethod::IntersectExternalWithComputed is applied
 	struct FIntersectionFilters
 	{
@@ -221,7 +230,7 @@ public:
 	static CHAOS_API TManagedArray<int32>* GetCustomConvexFlags(FGeometryCollection* GeometryCollection, bool bAddIfMissing = false);
 
 	/** @return true if the GeometryCollection has convex data with no null pointers and no invalid indices */
-	static CHAOS_API bool ValidateConvexData(const FGeometryCollection* GeometryCollection);
+	static CHAOS_API bool ValidateConvexData(const FManagedArrayCollection* GeometryCollection);
 
 	/** Set Volume and Size attributes on the Collection (will be called by CreateNonOverlappingConvexHullData -- Volumes must be up to date for convex calc) */
 	static CHAOS_API void SetVolumeAttributes(FManagedArrayCollection* Collection);

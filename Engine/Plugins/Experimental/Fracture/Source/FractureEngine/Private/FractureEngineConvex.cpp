@@ -373,7 +373,7 @@ namespace UE::FractureEngine::Convex
 		return true;
 	}
 
-	bool ComputeConvexHullsNegativeSpace(FManagedArrayCollection& Collection, UE::Geometry::FSphereCovering& OutNegativeSpace, const UE::Geometry::FNegativeSpaceSampleSettings& Settings, bool bRestrictToSelection, const TArrayView<const int32> TransformSelection)
+	bool ComputeConvexHullsNegativeSpace(FManagedArrayCollection& Collection, UE::Geometry::FSphereCovering& OutNegativeSpace, const UE::Geometry::FNegativeSpaceSampleSettings& Settings, bool bRestrictToSelection, const TArrayView<const int32> TransformSelection, bool bFromRigidTransforms)
 	{
 		if (!FGeometryCollectionConvexUtility::HasConvexHullData(&Collection))
 		{
@@ -387,15 +387,18 @@ namespace UE::FractureEngine::Convex
 
 		GeometryCollection::Facades::FCollectionTransformFacade TransformFacade(Collection);
 		GeometryCollection::Facades::FCollectionTransformSelectionFacade SelectionFacade(Collection);
-		TArray<int> RigidSelection;
+		TArray<int> UseSelection;
 		if (!bRestrictToSelection)
 		{
-			RigidSelection = SelectionFacade.SelectLeaf();
+			UseSelection = bFromRigidTransforms ? SelectionFacade.SelectLeaf() : SelectionFacade.SelectAll();
 		}
 		else
 		{
-			RigidSelection.Append(TransformSelection);
-			SelectionFacade.ConvertSelectionToRigidNodes(RigidSelection);
+			UseSelection.Append(TransformSelection);
+			if (bFromRigidTransforms)
+			{
+				SelectionFacade.ConvertSelectionToRigidNodes(UseSelection);
+			}
 		}
 		
 		TArray<FTransform> GlobalTransformArray = TransformFacade.ComputeCollectionSpaceTransforms();
@@ -417,7 +420,7 @@ namespace UE::FractureEngine::Convex
 		};
 
 		bool bNoFailures = true;
-		for (int32 BoneIdx : RigidSelection)
+		for (int32 BoneIdx : UseSelection)
 		{
 			bool bSuccess = ProcessBone(BoneIdx);
 			bNoFailures = bNoFailures && bSuccess;

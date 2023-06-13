@@ -1329,7 +1329,7 @@ void FConvexDecomposition3::InitializeFromHulls(int32 NumHulls, TFunctionRef<dou
 int32 FConvexDecomposition3::MergeBest(int32 InTargetNumParts, double MaxErrorTolerance, double MinThicknessToleranceWorldSpace, bool bAllowCompact, bool bRequireHullTriangles, int32 MaxOutputHulls,
 	const FSphereCovering* OptionalNegativeSpace, const FTransform* OptionalTransformIntoNegativeSpace)
 {
-	int32 TargetNumParts = InTargetNumParts;
+	int32 TargetNumParts = FMath::Max(1, InTargetNumParts);
 	const bool bHasValidMaxHulls = MaxOutputHulls > 0;
 	if (bHasValidMaxHulls)
 	{
