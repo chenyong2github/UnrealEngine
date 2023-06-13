@@ -194,7 +194,7 @@ FAutoConsoleVariableRef CVarLumenScreenProbeTemporalFastUpdateModeUseNeighborhoo
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
-int32 GLumenScreenProbeTemporalRejectBasedOnNormal = 1;
+int32 GLumenScreenProbeTemporalRejectBasedOnNormal = 0;
 FAutoConsoleVariableRef CVarLumenScreenProbeTemporalRejectBasedOnNormal(
 	TEXT("r.Lumen.ScreenProbeGather.Temporal.RejectBasedOnNormal"),
 	GLumenScreenProbeTemporalRejectBasedOnNormal,
@@ -1368,8 +1368,10 @@ void UpdateHistoryScreenProbeGather(
 		TRefCountPtr<IPooledRenderTarget>* HistoryNumFramesAccumulated = &ScreenProbeGatherState.NumFramesAccumulatedRT;
 		TRefCountPtr<IPooledRenderTarget>* FastUpdateModeHistoryState = &ScreenProbeGatherState.FastUpdateModeHistoryRT;
 		TRefCountPtr<IPooledRenderTarget>& NormalHistoryState = ScreenProbeGatherState.NormalHistoryRT;
-		const bool bRejectBasedOnNormal = GLumenScreenProbeTemporalRejectBasedOnNormal != 0 && NormalHistoryState
+
+		const bool bWantToRejectBasedOnNormal = GLumenScreenProbeTemporalRejectBasedOnNormal != 0
 			&& !Strata::IsStrataEnabled(); // STRATA_TODO provide Lumen with a valid normal
+		const bool bRejectBasedOnNormal = bWantToRejectBasedOnNormal && NormalHistoryState;
 		const bool bSupportBackfaceDiffuse = BackfaceDiffuseIndirect != nullptr;
 		const bool bOverflowTileHistoryValid = Strata::IsStrataEnabled() ? View.StrataViewData.MaxBSDFCount == ScreenProbeGatherState.HistoryStrataMaxBSDFCount : true;
 
@@ -1588,7 +1590,7 @@ void UpdateHistoryScreenProbeGather(
 			ScreenProbeGatherState.HistoryEffectiveResolution = EffectiveResolution;
 			ScreenProbeGatherState.HistorySceneTexturesExtent = SceneTextures.Config.Extent;
 
-			if (bRejectBasedOnNormal)
+			if (bWantToRejectBasedOnNormal)
 			{
 				if (Strata::IsStrataEnabled())
 				{
