@@ -499,10 +499,15 @@ struct FLandscapeRenderSystem
 	static void RegisterSection(FLandscapeSectionInfo* SectionInfo);
 	static void UnregisterSection(FLandscapeSectionInfo* SectionInfo);
 
+	bool IsValidCoord(FIntPoint InRenderCoord) const
+	{
+		return	InRenderCoord.X >= Min.X && InRenderCoord.X < Min.X + Size.X &&
+				InRenderCoord.Y >= Min.Y && InRenderCoord.Y < Min.Y + Size.Y;
+	}
+
 	int32 GetSectionLinearIndex(FIntPoint InRenderCoord) const
 	{
-		check(InRenderCoord.X >= Min.X && InRenderCoord.X < Min.X + Size.X);
-		check(InRenderCoord.Y >= Min.Y && InRenderCoord.Y < Min.Y + Size.Y);
+		check(IsValidCoord(InRenderCoord));
 		int32 LinearIndex = (InRenderCoord.Y - Min.Y) * Size.X + InRenderCoord.X - Min.X;
 		return LinearIndex;
 	}

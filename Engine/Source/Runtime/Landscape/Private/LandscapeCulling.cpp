@@ -586,10 +586,13 @@ static float ComputeNeighborsMaxLOD(const FLandscapeRenderSystem& RenderSystem, 
 	float NeighborsMaxLOD = 0.f;
 	for (int32 i = 0; i < UE_ARRAY_COUNT(NeightborBaseOffsets); ++i)
 	{
-		int32 SectionIdx = RenderSystem.GetSectionLinearIndex(RenderCoord + NeightborBaseOffsets[i]);
-		if (SectionLODValues.IsValidIndex(SectionIdx))
+		if (RenderSystem.IsValidCoord(RenderCoord + NeightborBaseOffsets[i]))
 		{
-			NeighborsMaxLOD = FMath::Max(SectionLODValues[SectionIdx], NeighborsMaxLOD);
+			int32 SectionIdx = RenderSystem.GetSectionLinearIndex(RenderCoord + NeightborBaseOffsets[i]);
+			if (SectionLODValues.IsValidIndex(SectionIdx))
+			{
+				NeighborsMaxLOD = FMath::Max(SectionLODValues[SectionIdx], NeighborsMaxLOD);
+			}
 		}
 	}
 
