@@ -2170,8 +2170,6 @@ void FGeometryCollectionConvexUtility::MergeHullsOnTransforms(FManagedArrayColle
 
 	// remove empty or null convex hulls
 	RemoveEmptyConvexHulls(Collection);
-
-	checkSlow(FGeometryCollectionConvexUtility::ValidateConvexData(&Collection));
 }
 
 bool FGeometryCollectionConvexUtility::ValidateConvexData(const FGeometryCollection* GeometryCollection)
