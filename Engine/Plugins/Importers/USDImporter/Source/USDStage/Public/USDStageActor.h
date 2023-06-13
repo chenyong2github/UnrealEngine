@@ -289,7 +289,7 @@ protected:
 	void LoadUsdStage();
 	void UnloadUsdStage();
 
-	void EnsureAssetCache();
+	void SetupAssetCacheIfNeeded();
 
 	bool HasAuthorityOverStage() const;
 

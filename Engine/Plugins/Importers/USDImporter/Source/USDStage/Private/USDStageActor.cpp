@@ -1192,13 +1192,12 @@ void AUsdStageActor::OnUsdObjectsChanged(const UsdUtils::FObjectChangesByPath& I
 		}
 	}
 
-	EnsureAssetCache();
-
-	TOptional<FUsdScopedAssetCacheReferencer> ScopedReferencer;
-	if (UsdAssetCache)
+	SetupAssetCacheIfNeeded();
+	if (!UsdAssetCache)
 	{
-		ScopedReferencer.Emplace(UsdAssetCache, this);
+		return;
 	}
+	FUsdScopedAssetCacheReferencer ScopedReferencer{UsdAssetCache, this};
 
 	// Mark the level as dirty since we received a notice about our stage having changed in some way.
 	// The main goal of this is to trigger the "save layers" dialog if we then save the UE level
@@ -1678,7 +1677,7 @@ void AUsdStageActor::OnUsdObjectsChanged(const UsdUtils::FObjectChangesByPath& I
 		FUsdStageActorImpl::RepairExternalSequencerBindings();
 	}
 
-	if (bHasLoadedOrAbandonedAssets && UsdAssetCache)
+	if (bHasLoadedOrAbandonedAssets)
 	{
 		UsdAssetCache->RefreshStorage();
 	}
@@ -2504,7 +2503,23 @@ void AUsdStageActor::LoadUsdStage()
 	// Ensure an asset cache if we're going to load something
 	if (!RootLayer.FilePath.IsEmpty())
 	{
-		EnsureAssetCache();
+		SetupAssetCacheIfNeeded();
+
+		// The only way we're coming out of SetupAssetCacheIfNeeded without an asset cache is if the user canceled the
+		// asset cache dialog. In that case let's just abort loading this stage entirely and revert our RootLayer
+		// to empty
+		if (!UsdAssetCache)
+		{
+			UE_LOG(
+				LogUsd,
+				Log,
+				TEXT("Cancelling the loading of USD Stage '%s' as the Asset Cache setup was explicitly canceled."),
+				*RootLayer.FilePath
+			);
+
+			RootLayer.FilePath.Empty();
+			return;
+		}
 	}
 
 	double StartTime = FPlatformTime::Cycles64();
@@ -2700,7 +2715,7 @@ void AUsdStageActor::UnloadUsdStage()
 	CloseUsdStage();
 }
 
-void AUsdStageActor::EnsureAssetCache()
+void AUsdStageActor::SetupAssetCacheIfNeeded()
 {
 	if (!UsdAssetCache)
 	{
@@ -2725,7 +2740,11 @@ void AUsdStageActor::EnsureAssetCache()
 		{
 			if (ProjectSettings->bShowCreateDefaultAssetCacheDialog)
 			{
-				if (UUsdAssetCache2* NewCache = IUsdClassesEditorModule::ShowMissingDefaultAssetCacheDialog())
+				bool bOutUserAccepted = false;
+				UUsdAssetCache2* NewCache = nullptr;
+				IUsdClassesEditorModule::ShowMissingDefaultAssetCacheDialog(NewCache, bOutUserAccepted);
+
+				if (bOutUserAccepted)
 				{
 					ProjectSettings->DefaultAssetCache = NewCache;
 					ProjectSettings->SaveConfig();
@@ -2736,6 +2755,10 @@ void AUsdStageActor::EnsureAssetCache()
 						*GetPathName(),
 						*UsdAssetCache->GetPathName()
 					);
+				}
+				else
+				{
+					return;
 				}
 			}
 		}
