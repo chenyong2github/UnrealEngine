@@ -22,7 +22,9 @@
 #include "GameplayEffectCustomApplicationRequirement.h"
 #include "GameplayEffectUIData.h"
 #include "Misc/DataValidation.h"
+#include "HAL/IConsoleManager.h"
 
+#include "GameplayEffectComponents/AbilitiesGameplayEffectComponent.h"
 #include "GameplayEffectComponents/AssetTagsGameplayEffectComponent.h"
 #include "GameplayEffectComponents/BlockAbilityTagsGameplayEffectComponent.h"
 #include "GameplayEffectComponents/ChanceToApplyGameplayEffectComponent.h"
@@ -62,6 +64,28 @@ DECLARE_CYCLE_STAT(TEXT("MakeQuery"), STAT_MakeGameplayEffectQuery, STATGROUP_Ab
 	if (Scalable.Curve.CurveTable) const_cast<UCurveTable*>(ToRawPtr(Scalable.Curve.CurveTable))->ConditionalPostLoad(); \
 	SCALABLEFLOAT_REPORTERROR_WITHPATHNAME(Scalable, PathNameString);
 #endif // WITH_EDITOR
+
+namespace UE::GameplayEffect
+{
+	TAutoConsoleVariable<int32> CVarGameplayEffectMaxVersion(TEXT("AbilitySystem.GameplayEffects.MaxVersion"), (int32)EGameplayEffectVersion::Current, TEXT("Override the Gameplay Effect Current Version (disabling upgrade code paths)"), ECVF_Default);
+
+#if WITH_EDITOR
+	namespace EditorOnly
+	{
+		// Helper function that allows us to guard against upgrading versions (in case a bug is discovered while the product is live)
+		static bool ShouldUpgradeVersion(EGameplayEffectVersion FromVersion, EGameplayEffectVersion ToVersion)
+		{
+			EGameplayEffectVersion MaxVersion = static_cast<EGameplayEffectVersion>(CVarGameplayEffectMaxVersion.GetValueOnGameThread() & 0xff);
+			if (MaxVersion < ToVersion)
+			{
+				return false;
+			}
+
+			return FromVersion < ToVersion;
+		}
+	}
+#endif
+}
 
 // Versioning code
 bool FGameplayEffectVersion::Serialize(FStructuredArchive::FSlot Slot)
@@ -200,7 +224,7 @@ void UGameplayEffect::PostLoad()
 	IsDataValid(DataValidationContext);
 
 	// We're done loading (and therefore upgrading), boost the version.
-	SetVersion(EGameplayEffectVersion::Current);
+	SetVersion( static_cast<EGameplayEffectVersion>(UE::GameplayEffect::CVarGameplayEffectMaxVersion.GetValueOnGameThread()) );
 #endif // WITH_EDITOR
 }
 
@@ -294,6 +318,7 @@ void UGameplayEffect::PostCDOCompiled(const FPostCDOCompiledContext& Context)
 	PostCDOCompiledFixupSubobjects();
 
 	// Move any data from deprecated properties into components, create components as needed
+	ConvertAbilitiesComponent();
 	ConvertAdditionalEffectsComponent();
 	ConvertAssetTagsComponent();
 	ConvertBlockByTagsComponent();
@@ -312,21 +337,44 @@ void UGameplayEffect::PostCDOCompiled(const FPostCDOCompiledContext& Context)
 	}
 }
 
-bool UGameplayEffect::VersionAllowsCreateGEComponentsDuringUpgrade() const
-{
-	return (GetVersion() < EGameplayEffectVersion::Modular53);
-}
-
 // Upgrade Code Section.  Lots of uses of deprecated variables (because we're upgrading them)
 // So just disable it throughout this section.
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
+void UGameplayEffect::ConvertAbilitiesComponent()
+{
+	// Get the archetype to compare to
+	const UGameplayEffect* Archetype = CastChecked<UGameplayEffect>(GetArchetype());
+
+	const bool bChanged = !(GrantedAbilities == Archetype->GrantedAbilities);
+	if (bChanged && UE::GameplayEffect::EditorOnly::ShouldUpgradeVersion(GetVersion(), EGameplayEffectVersion::AbilitiesComponent53))
+	{
+		UAbilitiesGameplayEffectComponent& AbilitiesComponent = FindOrAddComponent<UAbilitiesGameplayEffectComponent>();
+		for (const FGameplayAbilitySpecDef& GASpecDef : GrantedAbilities)
+		{
+			FGameplayAbilitySpecConfig GASpecConfig;
+			GASpecConfig.Ability = GASpecDef.Ability;
+			GASpecConfig.InputID = GASpecDef.InputID;
+			GASpecConfig.LevelScalableFloat = GASpecDef.LevelScalableFloat;
+			GASpecConfig.RemovalPolicy = GASpecDef.RemovalPolicy;
+
+			UE_CLOG(GASpecConfig.LevelScalableFloat.GetValue() <= 0.0f, LogGameplayEffects, Error, TEXT("Converted AbilitiesComponent on %s has scale %.2f"), *GetName(), GASpecConfig.LevelScalableFloat.GetValue());
+
+			// This function is smart enough to not add duplicates (handles the inheritance case)
+			AbilitiesComponent.AddGrantedAbilityConfig(GASpecConfig);
+		}
+
+		// We should empty these because the old code path that executes them is still around.
+		GrantedAbilities.Empty();
+	}
+}
+
 void UGameplayEffect::ConvertCustomCanApplyComponent()
 {
 	// Get the archetype to compare to
 	const UGameplayEffect* Archetype = CastChecked<UGameplayEffect>(GetArchetype());
 
 	const bool bChanged = !(ApplicationRequirements_DEPRECATED == Archetype->ApplicationRequirements_DEPRECATED);
-	if (bChanged && VersionAllowsCreateGEComponentsDuringUpgrade())
+	if (bChanged && UE::GameplayEffect::EditorOnly::ShouldUpgradeVersion(GetVersion(), EGameplayEffectVersion::Modular53))
 	{
 		UCustomCanApplyGameplayEffectComponent& ApplicationComponent = FindOrAddComponent<UCustomCanApplyGameplayEffectComponent>();
 		ApplicationComponent.ApplicationRequirements.Append(ApplicationRequirements_DEPRECATED);
@@ -348,7 +396,7 @@ void UGameplayEffect::ConvertChanceToApplyComponent()
 	bool bChanged = (ChanceToApplyToTarget_DEPRECATED != Archetype->ChanceToApplyToTarget_DEPRECATED);
 	bChanged = bChanged || !(ApplicationRequirements_DEPRECATED == Archetype->ApplicationRequirements_DEPRECATED);
 
-	if (bChanged && VersionAllowsCreateGEComponentsDuringUpgrade())
+	if (bChanged && UE::GameplayEffect::EditorOnly::ShouldUpgradeVersion(GetVersion(), EGameplayEffectVersion::Modular53))
 	{
 		UChanceToApplyGameplayEffectComponent& ChanceToApplyComponent = FindOrAddComponent<UChanceToApplyGameplayEffectComponent>();
 		ChanceToApplyComponent.SetChanceToApplyToTarget(ChanceToApplyToTarget_DEPRECATED);
@@ -368,7 +416,7 @@ void UGameplayEffect::ConvertAssetTagsComponent()
 	const UGameplayEffect* Archetype = Cast<UGameplayEffect>(GetArchetype());
 
 	bool bChanged = InheritableGameplayEffectTags.CombinedTags != Archetype->InheritableGameplayEffectTags.CombinedTags;
-	if (bChanged && VersionAllowsCreateGEComponentsDuringUpgrade())
+	if (bChanged && UE::GameplayEffect::EditorOnly::ShouldUpgradeVersion(GetVersion(), EGameplayEffectVersion::Modular53))
 	{
 		UAssetTagsGameplayEffectComponent& AssetTagsComponent = FindOrAddComponent<UAssetTagsGameplayEffectComponent>();
 		AssetTagsComponent.SetAndApplyAssetTagChanges(InheritableGameplayEffectTags);
@@ -393,7 +441,7 @@ void UGameplayEffect::ConvertAdditionalEffectsComponent()
 	bool bRoutineChanged = (RoutineExpirationEffectClasses != Archetype->RoutineExpirationEffectClasses);
 
 	bool bChanged = bConditionalChanged || bPrematureChanged || bRoutineChanged;
-	if (bChanged && VersionAllowsCreateGEComponentsDuringUpgrade())
+	if (bChanged && UE::GameplayEffect::EditorOnly::ShouldUpgradeVersion(GetVersion(), EGameplayEffectVersion::Modular53))
 	{
 		UAdditionalEffectsGameplayEffectComponent& ConditionalEffectsComponent = FindOrAddComponent<UAdditionalEffectsGameplayEffectComponent>();
 
@@ -429,7 +477,7 @@ void UGameplayEffect::ConvertBlockByTagsComponent()
 	const UGameplayEffect* Archetype = Cast<UGameplayEffect>(GetArchetype());
 
 	bool bChanged = InheritableBlockedAbilityTagsContainer.CombinedTags != Archetype->InheritableBlockedAbilityTagsContainer.CombinedTags;
-	if (bChanged && VersionAllowsCreateGEComponentsDuringUpgrade())
+	if (bChanged && UE::GameplayEffect::EditorOnly::ShouldUpgradeVersion(GetVersion(), EGameplayEffectVersion::Modular53))
 	{
 		UBlockAbilityTagsGameplayEffectComponent& BlockByTagsComponent = FindOrAddComponent<UBlockAbilityTagsGameplayEffectComponent>();
 		BlockByTagsComponent.SetAndApplyBlockedAbilityTagChanges(InheritableBlockedAbilityTagsContainer);
@@ -450,7 +498,7 @@ void UGameplayEffect::ConvertTargetTagsComponent()
 	const UGameplayEffect* Archetype = Cast<UGameplayEffect>(GetArchetype());
 
 	bool bChanged = InheritableOwnedTagsContainer.CombinedTags != Archetype->InheritableOwnedTagsContainer.CombinedTags;
-	if (bChanged && VersionAllowsCreateGEComponentsDuringUpgrade())
+	if (bChanged && UE::GameplayEffect::EditorOnly::ShouldUpgradeVersion(GetVersion(), EGameplayEffectVersion::Modular53))
 	{
 		UTargetTagsGameplayEffectComponent& TargetTagsComponent = FindOrAddComponent<UTargetTagsGameplayEffectComponent>();
 		TargetTagsComponent.SetAndApplyTargetTagChanges(InheritableOwnedTagsContainer);
@@ -474,7 +522,7 @@ void UGameplayEffect::ConvertImmunityComponent()
 	const bool bQueryChanged (GrantedApplicationImmunityQuery != Archetype->GrantedApplicationImmunityQuery);
 
 	const bool bChanged = bTagsChanged || bQueryChanged;
-	if (bChanged && VersionAllowsCreateGEComponentsDuringUpgrade())
+	if (bChanged && UE::GameplayEffect::EditorOnly::ShouldUpgradeVersion(GetVersion(), EGameplayEffectVersion::Modular53))
 	{
 		UImmunityGameplayEffectComponent& ImmunityComponent = FindOrAddComponent<UImmunityGameplayEffectComponent>();
 
@@ -542,7 +590,7 @@ void UGameplayEffect::ConvertRemoveOtherComponent()
 	const bool bQueryChanged = RemoveGameplayEffectQuery != Archetype->RemoveGameplayEffectQuery;
 
 	const bool bChanged = bTagsChanged || bQueryChanged;
-	if (bChanged && VersionAllowsCreateGEComponentsDuringUpgrade())
+	if (bChanged && UE::GameplayEffect::EditorOnly::ShouldUpgradeVersion(GetVersion(), EGameplayEffectVersion::Modular53))
 	{
 		URemoveOtherGameplayEffectComponent& RemoveOtherComponent = FindOrAddComponent<URemoveOtherGameplayEffectComponent>();
 		
@@ -584,7 +632,7 @@ void UGameplayEffect::ConvertTagRequirementsComponent()
 	bool bOngoingChanged = OngoingTagRequirements != Archetype->OngoingTagRequirements;
 
 	const bool bChanged = bApplicationChanged || bRemovalChanged || bOngoingChanged;
-	if (bChanged && VersionAllowsCreateGEComponentsDuringUpgrade())
+	if (bChanged && UE::GameplayEffect::EditorOnly::ShouldUpgradeVersion(GetVersion(), EGameplayEffectVersion::Modular53))
 	{
 		UTargetTagRequirementsGameplayEffectComponent& TagRequirementsComponent = FindOrAddComponent<UTargetTagRequirementsGameplayEffectComponent>();
 
@@ -620,7 +668,7 @@ void UGameplayEffect::ConvertUIComponent()
 	const UGameplayEffect* Archetype = Cast<UGameplayEffect>(GetArchetype());
 
 	const bool bChanged = (UIData != Archetype->UIData);
-	if (bChanged && VersionAllowsCreateGEComponentsDuringUpgrade())
+	if (bChanged && UE::GameplayEffect::EditorOnly::ShouldUpgradeVersion(GetVersion(), EGameplayEffectVersion::Modular53))
 	{
 		const UGameplayEffectUIData* UIComponent = FindComponent<UGameplayEffectUIData>();
 		if (!UIComponent && UIData)
@@ -1376,11 +1424,13 @@ void FGameplayEffectSpec::Initialize(const UGameplayEffect* InDef, const FGamepl
 	// Prepare source tags before accessing them in the Components
 	CaptureDataFromSource();
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	// ------------------------------------------------
 	//	Granted Abilities
 	// ------------------------------------------------
 
 	// Make Granted AbilitySpecs (caller may modify these specs after creating spec, which is why we dont just reference them from the def)
+	// Note: These are going to be deprecated in the future in favor of immutable GameplayEffectComponents.
 	GrantedAbilitySpecs = InDef->GrantedAbilities;
 
 	// if we're granting abilities and they don't specify a source object use the source of this GE
@@ -1391,6 +1441,7 @@ void FGameplayEffectSpec::Initialize(const UGameplayEffect* InDef, const FGamepl
 			AbilitySpecDef.SourceObject = InEffectContext.GetSourceObject();
 		}
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void FGameplayEffectSpec::InitializeFromLinkedSpec(const UGameplayEffect* InDef, const FGameplayEffectSpec& OriginalSpec)
@@ -3547,25 +3598,24 @@ FActiveGameplayEffect* FActiveGameplayEffectsContainer::ApplyGameplayEffectSpec(
 		// re-registered later below, as necessary.
 		ExistingSpec.CapturedRelevantAttributes.UnregisterLinkedAggregatorCallbacks(ExistingStackableGE->Handle);
 
-		// @todo: If dynamically granted tags differ (which they shouldn't), we'll actually have to diff them
+		// @todo: If dynamically granted/asset tags differ (which they shouldn't), we'll actually have to diff them
 		// and cause a removal and add of only the ones that have changed. For now, ensure on this happening and come
 		// back to this later.
 		ensureMsgf(ExistingSpec.DynamicGrantedTags == Spec.DynamicGrantedTags, TEXT("While adding a stack of the gameplay effect: %s, the old stack and the new application had different dynamically granted tags, which is currently not resolved properly!"), *Spec.Def->GetName());
-		
+		ensureMsgf(ExistingSpec.GetDynamicAssetTags() == Spec.GetDynamicAssetTags(), TEXT("While adding a stack of the gameplay effect: %s, the old stack and the new application had different dynamic asset tags, which is currently not resolved properly! Existing: %s. New: %s"), *Spec.Def->GetName(), *ExistingSpec.GetDynamicAssetTags().ToStringSimple(), *Spec.GetDynamicAssetTags().ToStringSimple());
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		// We only grant abilities on the first apply. So we *dont* want the new spec's GrantedAbilitySpecs list
 		TArray<FGameplayAbilitySpecDef>	GrantedSpecTempArray(MoveTemp(ExistingStackableGE->Spec.GrantedAbilitySpecs));
 
-		// @todo: If dynamic asset tags differ (which they shouldn't), we'll actually have to diff them
-		// and cause a removal and add of only the ones that have changed. For now, ensure on this happening and come
-		// back to this later.
-		ensureMsgf(ExistingSpec.GetDynamicAssetTags() == Spec.GetDynamicAssetTags(), TEXT("While adding a stack of the gameplay effect: %s, the old stack and the new application had different dynamic asset tags, which is currently not resolved properly! Existing: %s. New: %s"), *Spec.Def->GetName(), *ExistingSpec.GetDynamicAssetTags().ToStringSimple(), *Spec.GetDynamicAssetTags().ToStringSimple() );
-
 		ExistingStackableGE->Spec = Spec;
-		ExistingStackableGE->Spec.SetStackCount(NewStackCount);
 
 		// Swap in old granted ability spec
 		ExistingStackableGE->Spec.GrantedAbilitySpecs = MoveTemp(GrantedSpecTempArray);
-		
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+		ExistingStackableGE->Spec.SetStackCount(NewStackCount);
+
 		AppliedActiveGE = ExistingStackableGE;
 
 		const UGameplayEffect* GEDef = ExistingSpec.Def;
@@ -3874,7 +3924,7 @@ void FActiveGameplayEffectsContainer::AddActiveGameplayEffectGrantedTagsAndModif
 		Owner->AddMinimalReplicationGameplayTags(Effect.Spec.DynamicGrantedTags);
 	}
 
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	// Grant abilities
 	if (IsNetAuthority() && !Owner->bSuppressGrantAbility)
 	{
@@ -3891,6 +3941,7 @@ void FActiveGameplayEffectsContainer::AddActiveGameplayEffectGrantedTagsAndModif
 			}
 		}	
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Update GameplayCue tags and events
 	if (!Owner->bSuppressGameplayCues)
@@ -4162,6 +4213,7 @@ void FActiveGameplayEffectsContainer::RemoveActiveGameplayEffectGrantedTagsAndMo
 		Owner->RemoveMinimalReplicationGameplayTags(Effect.Spec.DynamicGrantedTags);
 	}
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	// Cancel/remove granted abilities
 	if (IsNetAuthority())
 	{
@@ -4190,6 +4242,7 @@ void FActiveGameplayEffectsContainer::RemoveActiveGameplayEffectGrantedTagsAndMo
 			}
 		}
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Update GameplayCue tags and events
 	if (!Owner->bSuppressGameplayCues)

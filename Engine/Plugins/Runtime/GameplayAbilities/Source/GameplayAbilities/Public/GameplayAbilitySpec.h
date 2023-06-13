@@ -246,8 +246,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	UPROPERTY()
 	TArray<TObjectPtr<UGameplayAbility>> ReplicatedInstances;
 
-	/** Handle to GE that granted us (usually invalid). FActiveGameplayEffectHandles are not synced across the network. */
-	UE_DEPRECATED(5.3, "GameplayEffectHandle was never replicated across the network. If you need FGameplayAbilitySpec -> FActiveGameplayEffect then use AbilitySystemComponent::FindActiveGameplayEffectHandle")
+	/**
+	 * Handle to GE that granted us (usually invalid). FActiveGameplayEffectHandles are not synced across the network and this is valid only on Authority.
+	 * If you need FGameplayAbilitySpec -> FActiveGameplayEffectHandle, then use AbilitySystemComponent::FindActiveGameplayEffectHandle.
+	 */
 	UPROPERTY(NotReplicated)
 	FActiveGameplayEffectHandle	GameplayEffectHandle;
 

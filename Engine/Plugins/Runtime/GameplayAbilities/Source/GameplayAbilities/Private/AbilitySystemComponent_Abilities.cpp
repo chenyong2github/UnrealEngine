@@ -501,6 +501,22 @@ void UAbilitySystemComponent::OnGiveAbility(FGameplayAbilitySpec& Spec)
 		}
 	}
 
+	// If this Ability Spec specified that it was created from an Active Gameplay Effect, then link the handle to the Active Gameplay Effect.
+	if (Spec.GameplayEffectHandle.IsValid())
+	{
+		UAbilitySystemComponent* SourceASC = Spec.GameplayEffectHandle.GetOwningAbilitySystemComponent();
+		UE_CLOG(!SourceASC, LogAbilitySystem, Error, TEXT("OnGiveAbility Spec '%s' GameplayEffectHandle had invalid Owning Ability System Component"), *Spec.GetDebugString());
+		if (SourceASC)
+		{
+			FActiveGameplayEffect* SourceActiveGE = SourceASC->ActiveGameplayEffects.GetActiveGameplayEffect(Spec.GameplayEffectHandle);
+			UE_CLOG(!SourceActiveGE, LogAbilitySystem, Error, TEXT("OnGiveAbility Spec '%s' GameplayEffectHandle was not active on Owning Ability System Component '%s'"), *Spec.GetDebugString(), *SourceASC->GetName());
+			if (SourceActiveGE)
+			{
+				SourceActiveGE->GrantedAbilityHandles.AddUnique(Spec.Handle);
+			}
+		}
+	}
+
 	for (const FAbilityTriggerData& TriggerData : Spec.Ability->AbilityTriggers)
 	{
 		FGameplayTag EventTag = TriggerData.TriggerTag;
@@ -605,6 +621,22 @@ void UAbilitySystemComponent::OnRemoveAbility(FGameplayAbilitySpec& Spec)
 		Spec.Ability->OnRemoveAbility(AbilityActorInfo.Get(), Spec);
 	}
 
+	// If this Ability Spec specified that it was created from an Active Gameplay Effect, then unlink the handle to the Active Gameplay Effect.
+	// Note: It's possible (maybe even likely) that the ActiveGE is no longer considered active by this point.
+	if (Spec.GameplayEffectHandle.IsValid())
+	{
+		UAbilitySystemComponent* SourceASC = Spec.GameplayEffectHandle.GetOwningAbilitySystemComponent();
+		UE_CLOG(!SourceASC, LogAbilitySystem, Error, TEXT("OnRemoveAbility Spec '%s' GameplayEffectHandle had invalid Owning Ability System Component"), *Spec.GetDebugString());
+		if (SourceASC)
+		{
+			FActiveGameplayEffect* SourceActiveGE = SourceASC->ActiveGameplayEffects.GetActiveGameplayEffect(Spec.GameplayEffectHandle);
+			if (SourceActiveGE)
+			{
+				SourceActiveGE->GrantedAbilityHandles.Remove(Spec.Handle);
+			}
+		}
+	}
+
 	Spec.ReplicatedInstances.Empty();
 	Spec.NonReplicatedInstances.Empty();
 }
@@ -678,7 +710,9 @@ void UAbilitySystemComponent::CheckForClearedAbilities()
 	// Clear any out of date ability spec handles on active gameplay effects
 	for (FActiveGameplayEffect& ActiveGE : &ActiveGameplayEffects)
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		for (FGameplayAbilitySpecDef& AbilitySpec : ActiveGE.Spec.GrantedAbilitySpecs)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{
 			if (AbilitySpec.AssignedHandle.IsValid() && FindAbilitySpecFromHandle(AbilitySpec.AssignedHandle) == nullptr)
 			{
