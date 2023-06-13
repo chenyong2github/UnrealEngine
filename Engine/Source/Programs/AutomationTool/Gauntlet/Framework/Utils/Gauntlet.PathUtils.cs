@@ -9,6 +9,31 @@ namespace Gauntlet
 	public class PathUtils
 	{
 		/// <summary>
+		/// Converts a path to the long path format if it's not already.
+		/// </summary>
+		/// <param name="InPath">The path to convert.</param>
+		/// <returns>The converted path.</returns>
+		public static string MakeLongPath(string InPath)
+		{
+			string LongPathPrefix = @"\\?\";
+			if (!InPath.StartsWith(LongPathPrefix))
+			{
+				InPath = LongPathPrefix + InPath;
+			}
+			return InPath;
+		}
+
+		/// <summary>
+		/// Similar to Path.Combine but creates a long path instead.
+		/// </summary>
+		/// <param name="Paths">The parts of the path to combine.</param>
+		/// <returns>The full long path.</returns>
+		public static string CombineLongPath(params string[] Paths)
+		{
+			return MakeLongPath(Path.Combine(Paths));
+		}
+
+		/// <summary>
 		/// Find a path that includes specific directories in the given order, but could also include unknown intermediate directories.
 		/// </summary>
 		/// <param name="BasePath">The absolute path to the root directory where we will begin our search</param>
