@@ -84,25 +84,10 @@ void GenerateLUTPS(
 Texture2D<uint> UIWriteMaskTexture;
 #endif
 
-#ifndef DISPLAY_MAPPING_PS_FROM_ARRAY
-	#define DISPLAY_MAPPING_PS_FROM_ARRAY 0
-#endif // DISPLAY_MAPPING_PS_FROM_ARRAY
-
-#if DISPLAY_MAPPING_PS_FROM_ARRAY
-	// if source is an array, we only need the first slice
-	#define TextureOrArray2D						Texture2DArray
-	#define TexOrArr2DSample(Tex, S, UV)			Tex.Sample(S, float3(UV.x, UV.y, 0))
-	#define TexOrArr2DSampleLevel(Tex, S, UV, L)	Tex.SampleLevel(S, float3(UV.x, UV.y, 0), L)
-#else
-	#define TextureOrArray2D						Texture2D
-	#define TexOrArr2DSample(Tex, S, UV)			Texture2DSample(Tex, S, UV)
-	#define TexOrArr2DSampleLevel(Tex, S, UV, L)	Texture2DSampleLevel(Tex, S, UV, L)
-#endif
-
 Texture2D UITexture;
 SamplerState UISampler;
 
-TextureOrArray2D SceneTexture;
+Texture2D SceneTexture;
 SamplerState SceneSampler;
 
 Texture3D ColorSpaceLUT;
@@ -142,7 +127,7 @@ void HDRBackBufferConvertPS(
 	)
 {
 	OutColor = 0;
-	float3 SceneColor = TexOrArr2DSample(SceneTexture, SceneSampler, Input.UV).xyz ;
+	float3 SceneColor = Texture2DSample(SceneTexture, SceneSampler, Input.UV).xyz ;
 	SceneColor = ST2084ToLinear( SceneColor ) / ScRGBScaleFactor; 
 	OutColor.rgb = SceneColor;
 }
@@ -155,7 +140,7 @@ void HDREditorConvert(
 	)
 {
 	OutColor = 0;
-	float3 SceneColor = TexOrArr2DSample(SceneTexture, SceneSampler, Input.UV).xyz ;
+	float3 SceneColor = Texture2DSample(SceneTexture, SceneSampler, Input.UV).xyz ;
 
 	// Get color into Rec2020 space
 	SceneColor = sRGBToLinear( SceneColor) ;
@@ -267,7 +252,7 @@ void Main(
 	}
 #endif
 
-	float3 SceneColor = TexOrArr2DSample(SceneTexture, SceneSampler, Input.UV).xyz;
+	float3 SceneColor = Texture2DSample(SceneTexture, SceneSampler, Input.UV).xyz;
 	SceneColor = ComputeHDRSceneColor(SceneColor);
 	OutColor.xyz = ComposeUIAndScene(SceneColor.xyz, UIColor, UILevel);
 
@@ -342,33 +327,6 @@ void CompositeUICS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 #endif
 
-#if DISPLAY_MAPPING_PS
-float4x4 TextureToOutputGamutMatrix;
-
-// Currently hard-coded to go from G2.2 to either PQ/Rec2020 or sRGB
-void DisplayMappingPS(
-	FScreenVertexOutput Input,
-	out float4 OutColor : SV_Target0
-	)
-{
-	const float4 SceneColor = TexOrArr2DSampleLevel(SceneTexture, SceneSampler, Input.UV, 0);
-	OutColor = SceneColor;
-
-	float3 LinearSceneColor = pow(SceneColor.rgb, 2.2);
-	LinearSceneColor = mul((float3x3)TextureToOutputGamutMatrix, LinearSceneColor);
-	
-	if(OutputDevice == TONEMAPPER_OUTPUT_ACES1000nitST2084 || OutputDevice == TONEMAPPER_OUTPUT_ACES2000nitST2084)
-	{
-		OutColor.xyz = LinearToST2084(LinearSceneColor*300.f);
-	}
-	else
-	{
-		OutColor.xyz = LinearToSrgbBranchless(saturate(LinearSceneColor));
-	}
-}
-
-#endif
-
 #if BLIT_UI_TO_HDR
 
 float2 UITextureSize;
@@ -389,7 +347,7 @@ void BlitUIToHDRPS(
 	}
 #endif
 
-	float3 SceneColor = TexOrArr2DSample(SceneTexture, UISampler, Input.UV).xyz;
+	float3 SceneColor = Texture2DSample(SceneTexture, UISampler, Input.UV).xyz;
 	SceneColor = ComputeHDRSceneColor(SceneColor);
 	OutColor.xyz = ComposeUIAndScene(SceneColor.xyz, UIColor, UILevel) / ScRGBScaleFactor;
 	OutColor.a = 1;

@@ -3439,19 +3439,13 @@ class FDisplayMappingPS : public FGlobalShader
 public:
 
 	class FArraySource : SHADER_PERMUTATION_BOOL("DISPLAY_MAPPING_PS_FROM_ARRAY");
-	using FPermutationDomain = TShaderPermutationDomain<FArraySource>;
+	class FLinearInput : SHADER_PERMUTATION_BOOL("DISPLAY_MAPPING_INPUT_IS_LINEAR");
+	using FPermutationDomain = TShaderPermutationDomain<FArraySource, FLinearInput>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		return true;
 	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("DISPLAY_MAPPING_PS"), 1);
-	}
-
 
 	FDisplayMappingPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
 		FGlobalShader(Initializer)
@@ -3560,7 +3554,7 @@ public:
 
 	static const TCHAR* GetSourceFilename()
 	{
-		return TEXT("/Engine/Private/CompositeUIPixelShader.usf");
+		return TEXT("/Engine/Private/DisplayMappingPixelShader.usf");
 	}
 
 	static const TCHAR* GetFunctionName()
@@ -3576,7 +3570,7 @@ private:
 	LAYOUT_FIELD(FShaderResourceParameter, SceneSampler);
 };
 
-IMPLEMENT_SHADER_TYPE(, FDisplayMappingPS, TEXT("/Engine/Private/CompositeUIPixelShader.usf"), TEXT("DisplayMappingPS"), SF_Pixel);
+IMPLEMENT_SHADER_TYPE(, FDisplayMappingPS, TEXT("/Engine/Private/DisplayMappingPixelShader.usf"), TEXT("DisplayMappingPS"), SF_Pixel);
 
 // We use CopyTexture for a number of subtley different use cases.
 // * SpectatorScreen, background layer - optional clear to black, opaque
@@ -3678,6 +3672,7 @@ void FOpenXRHMD::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, 
 		TShaderRef<FScreenPS> ScreenPS;
 
 		bool bNeedsDisplayMapping = false;
+		bool bIsInputLinear = false;
 		EDisplayOutputFormat TVDisplayOutputFormat = EDisplayOutputFormat::SDR_sRGB;
 		EDisplayColorGamut HMDColorGamut = EDisplayColorGamut::sRGB_D65;
 		EDisplayColorGamut TVColorGamut = EDisplayColorGamut::sRGB_D65;
@@ -3697,6 +3692,15 @@ void FOpenXRHMD::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, 
 					bNeedsDisplayMapping = true;
 				}
 			}
+
+			// In Android Vulkan preview, when the sRGB swapchain texture is sampled, the data is converted to linear and written to the RGBA10A2_UNORM texture.
+			// However, D3D interprets integer-valued display formats as containing sRGB data, so we need to convert the linear data back to sRGB.
+			if (!IsMobileHDR() && IsMobilePlatform(GetConfiguredShaderPlatform()) && IsSimulatedPlatform(GetConfiguredShaderPlatform()))
+			{
+				bNeedsDisplayMapping = true;
+				TVDisplayOutputFormat = EDisplayOutputFormat::SDR_sRGB;
+				bIsInputLinear = true;
+			}
 		}
 
 		bNeedsDisplayMapping &= IsFeatureLevelSupported(GetConfiguredShaderPlatform(), ERHIFeatureLevel::ES3_1);
@@ -3707,10 +3711,9 @@ void FOpenXRHMD::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, 
 		{
 			FDisplayMappingPS::FPermutationDomain PermutationVector;
 			PermutationVector.Set<FDisplayMappingPS::FArraySource>(bIsArraySource);
+			PermutationVector.Set<FDisplayMappingPS::FLinearInput>(bIsInputLinear);
 
 			TShaderMapRef<FDisplayMappingPS> DisplayMappingPSRef(ShaderMap, PermutationVector);
-
-			ensureMsgf(!bIsArraySource, TEXT("Stub implementation for array source exists, but this path is not fully supported because post-processing not working with MMV"));
 
 			DisplayMappingPS = DisplayMappingPSRef;
 			PixelShader = DisplayMappingPSRef;
