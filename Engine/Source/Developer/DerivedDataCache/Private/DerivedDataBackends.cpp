@@ -70,7 +70,7 @@ TTuple<ILegacyCacheStore*, ECacheStoreFlags> CreateHttpCacheStore(const TCHAR* N
 void CreateMemoryCacheStore(IMemoryCacheStore*& OutCache, const TCHAR* Name, ICacheStoreOwner* Owner, int64 MaxCacheSize, bool bCanBeDisabled);
 IPakFileCacheStore* CreatePakFileCacheStore(const TCHAR* Name, const TCHAR* Filename, bool bWriting, bool bCompressed, ICacheStoreOwner* Owner);
 ILegacyCacheStore* CreateS3CacheStore(const TCHAR* RootManifestPath, const TCHAR* BaseUrl, const TCHAR* Region, const TCHAR* CanaryObjectKey, const TCHAR* CachePath);
-TTuple<ILegacyCacheStore*, ECacheStoreFlags> CreateZenCacheStore(const TCHAR* NodeName, const TCHAR* Config);
+ILegacyCacheStore* CreateZenCacheStore(const TCHAR* NodeName, const TCHAR* Config, ICacheStoreOwner* Owner);
 ILegacyCacheStore* TryCreateCacheStoreReplay(ILegacyCacheStore* InnerCache);
 
 /**
@@ -322,10 +322,8 @@ public:
 				}
 				else if (NodeType == TEXT("Zen"))
 				{
-					TTuple<ILegacyCacheStore*, ECacheStoreFlags> Node = CreateZenCacheStore(*NodeName, *Entry);
-					if (Node.Key)
+					if (CreateZenCacheStore(*NodeName, *Entry, this))
 					{
-						NodeOwner->Add(Node.Key, Node.Value);
 						return true;
 					}
 				}

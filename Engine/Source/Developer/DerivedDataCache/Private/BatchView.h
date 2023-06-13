@@ -23,6 +23,8 @@ template <typename T>
 class TBatchView
 {
 public:
+	TBatchView() = default;
+
 	/**
 	 * Constructor from list of elements and a function that is called on each element
 	 * to decide whether to add the element to the current batch.
