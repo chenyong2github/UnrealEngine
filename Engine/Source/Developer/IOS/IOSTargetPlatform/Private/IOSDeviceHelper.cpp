@@ -104,7 +104,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogIOSDeviceHelper, Log, All);
             {
 				if (OutStdErrInfo.Contains("Could not connect to lockdownd"))
 				{
-					UE_LOG(LogIOSDeviceHelper, Warning, TEXT("Could not pair with connected iOS/tvOS device. Trust this computer by accepting the popup on device."));
+					// UE_LOG(LogIOSDeviceHelper, Warning, TEXT("Could not pair with connected iOS/tvOS device. Trust this computer by accepting the popup on device."));
 					FString LibimobileDevicePair = GetLibImobileDeviceExe("idevicepair");
 					FString PairArguments = "-u " + DeviceUDID + " pair";
 					FPlatformProcess::ExecProcess(*LibimobileDevicePair, *PairArguments, &ReturnCodeInfo, &OutStdOutInfo, &OutStdErrInfo, NULL, true);
