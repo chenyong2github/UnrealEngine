@@ -2662,6 +2662,8 @@ void UGeometryCollectionComponent::TickComponent(float DeltaTime, enum ELevelTic
 
 void UGeometryCollectionComponent::AsyncPhysicsTickComponent(float DeltaTime, float SimTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(GeometryCollectionComponent_AsyncPhysicsTick);
+
 	if (!PhysicsProxy || !PhysicsProxy->IsInitializedOnPhysicsThread())
 	{
 		return;

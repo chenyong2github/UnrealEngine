@@ -410,6 +410,8 @@ void UNetworkPhysicsComponent::UpdatePackageMap()
 
 void UNetworkPhysicsComponent::AsyncPhysicsTickComponent(float DeltaTime, float SimTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(NetworkPhysicsComponent_AsyncPhysicsTick);
+
 	Super ::AsyncPhysicsTickComponent(DeltaTime, SimTime);
 #if DEBUG_NETWORK_PHYSICS
 	if(HasServerWorld() && !HasLocalController() && InputsHistory)

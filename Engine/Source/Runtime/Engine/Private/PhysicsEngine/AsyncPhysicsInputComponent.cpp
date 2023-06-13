@@ -137,6 +137,8 @@ void UAsyncPhysicsInputComponent::SetDataClass(TSubclassOf<UAsyncPhysicsData> In
 
 void UAsyncPhysicsInputComponent::AsyncPhysicsTickComponent(float DeltaTime, float SimTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(AsyncPhysicsInputComponent_AsyncPhysicsTick);
+
 	Super::AsyncPhysicsTickComponent(DeltaTime, SimTime);
 	ensureMsgf(DataClass != nullptr, TEXT("You must call SetDataClass after creating the component"));
 
