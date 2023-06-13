@@ -15,6 +15,7 @@
 #include "IVPUtilitiesEditorModule.h"
 #include "LevelEditor.h"
 #include "LevelEditorOutlinerSettings.h"
+#include "VirtualCameraActor.h"
 
 #define LOCTEXT_NAMESPACE "FVirtualCameraEditorModule"
 
@@ -71,14 +72,21 @@ private:
 
 	void RegisterOutlinerFilters()
 	{
-		FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
-		if (const TSharedPtr<FFilterCategory> VPFilterCategory = LevelEditorModule.GetOutlinerFilterCategory(FLevelEditorOutlinerBuiltInCategories::VirtualProduction()))
+		if (FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>(TEXT("LevelEditor")))
 		{
-			TSharedRef<FCustomClassFilterData> CineCameraActorClassData = MakeShared<FCustomClassFilterData>(ACineCameraActor::StaticClass(), VPFilterCategory, FLinearColor::White);
-			LevelEditorModule.AddCustomClassFilterToOutliner(CineCameraActorClassData);
+			if (const TSharedPtr<FFilterCategory> VPFilterCategory = LevelEditorModule->GetOutlinerFilterCategory(FLevelEditorOutlinerBuiltInCategories::VirtualProduction()))
+			{
+				TSharedRef<FCustomClassFilterData> CineCameraActorClassData =
+					MakeShared<FCustomClassFilterData>(ACineCameraActor::StaticClass(), VPFilterCategory, FLinearColor::White);
+				LevelEditorModule->AddCustomClassFilterToOutliner(CineCameraActorClassData);
+
+				TSharedRef<FCustomClassFilterData> VirtualCameraActorClassData =
+					MakeShared<FCustomClassFilterData>(AVirtualCameraActor::StaticClass(), VPFilterCategory, FLinearColor::White);
+				LevelEditorModule->AddCustomClassFilterToOutliner(VirtualCameraActorClassData);
+			}
 		}
 	}
-
+	
 	void RegisterSettings()
 	{
 		ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");

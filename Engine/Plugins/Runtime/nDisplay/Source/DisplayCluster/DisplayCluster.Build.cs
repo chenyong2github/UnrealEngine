@@ -52,6 +52,7 @@ public class DisplayCluster : ModuleRules
 			PublicIncludePathModuleNames.Add("DisplayClusterConfigurator");
 
 			PrivateDependencyModuleNames.Add("UnrealEd");
+			PrivateDependencyModuleNames.Add("EditorWidgets");
 			PrivateDependencyModuleNames.Add("LevelEditor");
 		}
 

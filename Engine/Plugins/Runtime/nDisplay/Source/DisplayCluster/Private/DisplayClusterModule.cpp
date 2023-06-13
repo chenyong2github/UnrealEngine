@@ -8,6 +8,12 @@
 #include "Render/DisplayClusterRenderManager.h"
 
 #include "DisplayClusterConfigurationTypes.h"
+#include "DisplayClusterLightCardActor.h"
+#include "DisplayClusterRootActor.h"
+#if WITH_EDITOR
+#include "Filters/CustomClassFilterData.h"
+#endif
+#include "LevelEditor.h"
 
 #include "Misc/DisplayClusterGlobals.h"
 #include "Misc/DisplayClusterLog.h"
@@ -39,6 +45,10 @@ FDisplayClusterModule::~FDisplayClusterModule()
 void FDisplayClusterModule::StartupModule()
 {
 	UE_LOG(LogDisplayClusterModule, Log, TEXT("DisplayCluster module has been started"));
+
+#if WITH_EDITOR
+	RegisterOutlinerFilters();
+#endif
 }
 
 void FDisplayClusterModule::ShutdownModule()
@@ -47,6 +57,24 @@ void FDisplayClusterModule::ShutdownModule()
 	Release();
 }
 
+#if WITH_EDITOR
+void FDisplayClusterModule::RegisterOutlinerFilters()
+{
+	if (FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>(TEXT("LevelEditor")))
+	{
+		if (const TSharedPtr<FFilterCategory> FilterCategory = LevelEditorModule->GetOutlinerFilterCategory(FLevelEditorOutlinerBuiltInCategories::VirtualProduction()))
+		{
+			const TSharedRef<FCustomClassFilterData> LightCardActorClassData =
+				MakeShared<FCustomClassFilterData>(ADisplayClusterLightCardActor::StaticClass(), FilterCategory, FLinearColor::White);
+			LevelEditorModule->AddCustomClassFilterToOutliner(LightCardActorClassData);
+
+			const TSharedRef<FCustomClassFilterData> RootActorClassData =
+				MakeShared<FCustomClassFilterData>(ADisplayClusterRootActor::StaticClass(), FilterCategory, FLinearColor::White);
+			LevelEditorModule->AddCustomClassFilterToOutliner(RootActorClassData);
+		}
+	}
+}
+#endif
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IPDisplayCluster

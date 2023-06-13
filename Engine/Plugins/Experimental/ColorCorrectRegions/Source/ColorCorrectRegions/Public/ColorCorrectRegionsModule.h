@@ -15,4 +15,8 @@ public:
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 	/** IModuleInterface implementation end */
+
+#if WITH_EDITOR
+	void RegisterOutlinerFilters();
+#endif
 };

@@ -78,6 +78,10 @@ private:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
+	
+#if WITH_EDITOR
+	void RegisterOutlinerFilters();
+#endif
 
 private:
 	// Is module initialized.

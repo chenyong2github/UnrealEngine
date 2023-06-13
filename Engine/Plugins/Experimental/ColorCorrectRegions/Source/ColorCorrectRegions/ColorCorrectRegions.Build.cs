@@ -36,7 +36,7 @@ public class ColorCorrectRegions : ModuleRules
 				"SlateCore",
 				"Renderer",
 				"Projects",
-				"RenderCore",
+				"RenderCore"
 			}
 		);
 
@@ -44,6 +44,7 @@ public class ColorCorrectRegions : ModuleRules
 		{
 			PublicDependencyModuleNames.Add("UnrealEd");
 			PrivateDependencyModuleNames.Add("UnrealEd");
+			PrivateDependencyModuleNames.Add("EditorWidgets");
 		}
 	}
 }
