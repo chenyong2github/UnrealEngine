@@ -851,7 +851,7 @@ void FWindowsTextInputMethodSystem::ActivateContext(const TSharedRef<ITextInputM
 	const TSharedPtr<FGenericWindow> GenericWindow = Context->GetWindow();
 	InternalContext.WindowHandle = GenericWindow.IsValid() ? reinterpret_cast<HWND>(GenericWindow->GetOSWindowHandle()) : nullptr;
 
-	if (InternalContext.WindowHandle)
+	if (InternalContext.WindowHandle && ::IsWindowEnabled(InternalContext.WindowHandle))
 	{
 		// IMM Implementation
 		InternalContext.IMMContext.IsComposing = false;
