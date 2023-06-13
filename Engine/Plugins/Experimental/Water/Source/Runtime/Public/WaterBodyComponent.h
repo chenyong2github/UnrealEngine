@@ -449,7 +449,7 @@ protected:
 	virtual void OnUpdateBody(bool bWithExclusionVolumes) {}
 
 	/** Called when the WaterBodyActor has had all its components registered. */
-	virtual void OnPostRegisterAllComponents() {}
+	virtual void OnPostRegisterAllComponents();
 
 	/** Returns navigation area class */
 	TSubclassOf<UNavAreaBase> GetNavAreaClass() const { return WaterNavAreaClass; }

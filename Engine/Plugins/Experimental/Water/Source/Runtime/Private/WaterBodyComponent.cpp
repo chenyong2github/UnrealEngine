@@ -1439,6 +1439,20 @@ void UWaterBodyComponent::UpdateAll(const FOnWaterBodyChangedParams& InParams)
 	}
 }
 
+void UWaterBodyComponent::OnPostRegisterAllComponents()
+{
+#if WITH_EDITOR
+	// Before this version, we always updated the water zone pointer on load. This no longer occurs so any water body which doesn't have a serialized pointer needs to set it now
+	if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WaterOwningZonePointerFixup)
+	{
+		if (OwningWaterZone.IsNull())
+		{
+			UpdateWaterZones();
+		}
+	}
+#endif // WITH_EDITOR
+}
+
 void UWaterBodyComponent::UpdateSplineComponent()
 {
 	if (UWaterSplineComponent* WaterSpline = GetWaterSpline())

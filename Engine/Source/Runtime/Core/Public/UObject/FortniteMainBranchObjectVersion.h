@@ -336,6 +336,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Geometry Collection now by-default converts vertex colors to sRGB when creating render data
 		GeometryCollectionConvertVertexColorToSRGB,
 
+		// Water bodies before this version need to update their water zone on load since they won't have been serialized yet.
+		WaterOwningZonePointerFixup,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
