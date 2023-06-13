@@ -93,6 +93,7 @@ void USkeletonEditingTool::Init(const FToolBuilderState& InSceneState)
 	const UContextObjectStore* ContextObjectStore = InSceneState.ToolManager->GetContextObjectStore();
 	ViewContext = ContextObjectStore->FindContext<UGizmoViewContext>();
 	GizmoContext = ContextObjectStore->FindContext<USkeletalMeshGizmoContextObjectBase>();
+	EditorContext = ContextObjectStore->FindContext<USkeletalMeshEditorContextObjectBase>();
 }
 
 void USkeletonEditingTool::Setup()
@@ -172,6 +173,12 @@ void USkeletonEditingTool::Setup()
 		AddInputBehavior(ClickDragBehavior);
 	}
 
+	if (EditorContext.IsValid())
+	{
+		EditorContext->HideSkeleton();
+		EditorContext->BindTo(this);
+	}
+	
 	// setup gizmo
 	if (GizmoContext.IsValid())
 	{
@@ -331,6 +338,12 @@ void USkeletonEditingTool::Shutdown(EToolShutdownType ShutdownType)
 	if (GizmoWrapper)
 	{
 		GizmoWrapper->Clear();
+	}
+	
+	if (EditorContext.IsValid())
+	{
+		EditorContext->ShowSkeleton();
+		EditorContext->UnbindFrom(this);
 	}
 }
 

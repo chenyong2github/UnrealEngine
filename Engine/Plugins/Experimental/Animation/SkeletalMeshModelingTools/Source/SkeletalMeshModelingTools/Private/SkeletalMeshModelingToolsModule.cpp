@@ -152,7 +152,7 @@ void FSkeletalMeshModelingToolsModule::OnToggleEditingToolsMode(TWeakPtr<ISkelet
 			UEdMode* ActiveMode = EditorModeManager.GetActiveScriptableMode(USkeletalMeshModelingToolsEditorMode::Id);
 			if (USkeletalMeshModelingToolsEditorMode* SkeletalMeshMode = CastChecked<USkeletalMeshModelingToolsEditorMode>(ActiveMode))
 			{
-				SkeletalMeshMode->SetEditorBinding(SkeletalMeshEditor->GetBinding());
+				SkeletalMeshMode->SetEditorBinding(SkeletalMeshEditor);
 			}
 		}
 		else

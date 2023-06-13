@@ -302,6 +302,8 @@ public:
 	virtual void OnUpdateDrag(const FRay& Ray) override;
 	virtual void OnEndDrag(const FRay& Ray) override;
 	virtual bool OnUpdateHover(const FInputDeviceRay& DevicePos) override;
+
+	void Init(const FToolBuilderState& InSceneState);
 	
 	// UInteractiveTool
 	virtual void Setup() override;
@@ -413,6 +415,9 @@ protected:
 	TUniquePtr<UE::Geometry::FDynamicMeshAABBTree3> MeshSpatial = nullptr;
 	TUniquePtr<UE::Geometry::FTriangleGroupTopology> SelectionTopology = nullptr;
 	void OnSelectionModified();
+
+	UPROPERTY()
+	TWeakObjectPtr<USkeletalMeshEditorContextObjectBase> EditorContext = nullptr;
 
 	friend SkinPaintTool::FSkinToolDeformer;
 };

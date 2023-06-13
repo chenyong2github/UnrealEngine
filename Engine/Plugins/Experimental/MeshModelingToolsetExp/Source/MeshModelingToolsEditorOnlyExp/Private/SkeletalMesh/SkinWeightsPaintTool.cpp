@@ -24,6 +24,7 @@
 #include "Spatial/PointSetHashTable.h"
 #include "Util/ColorConstants.h"
 #include "Operations/SmoothBoneWeights.h"
+#include "ContextObjectStore.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SkinWeightsPaintTool)
 
@@ -611,7 +612,15 @@ void FMeshSkinWeightsChange::AddBoneWeightEdit(const FSingleBoneWeightEdits& Bon
 
 UMeshSurfacePointTool* USkinWeightsPaintToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
-	return NewObject<USkinWeightsPaintTool>(SceneState.ToolManager);
+	USkinWeightsPaintTool* Tool = NewObject<USkinWeightsPaintTool>(SceneState.ToolManager);
+	Tool->Init(SceneState);
+	return Tool;
+}
+
+void USkinWeightsPaintTool::Init(const FToolBuilderState& InSceneState)
+{
+	const UContextObjectStore* ContextObjectStore = InSceneState.ToolManager->GetContextObjectStore();
+	EditorContext = ContextObjectStore->FindContext<USkeletalMeshEditorContextObjectBase>();
 }
 
 void USkinWeightsPaintTool::Setup()
@@ -715,6 +724,11 @@ void USkinWeightsPaintTool::Setup()
 	SmoothWeightsDataSource = MakeUnique<FPaintToolWeightsDataSource>(&Weights);
 	SmoothWeightsOp = MakeUnique<UE::Geometry::TSmoothBoneWeights<int32, float>>(PreviewMesh->GetMesh(), SmoothWeightsDataSource.Get());
 	SmoothWeightsOp->MinimumWeightThreshold = MinimumWeightThreshold;
+
+	if (EditorContext.IsValid())
+	{
+		EditorContext->BindTo(this);
+	}
 	
 	// inform user of tool keys
 	// TODO talk with UX team about viewport overlay to show hotkeys
@@ -1355,6 +1369,11 @@ void USkinWeightsPaintTool::OnShutdown(EToolShutdownType ShutdownType)
 		GetToolManager()->BeginUndoTransaction(LOCTEXT("SkinWeightsPaintTool", "Paint Skin Weights"));
 		UE::ToolTarget::CommitMeshDescriptionUpdate(Target, EditedMesh.Get());
 		GetToolManager()->EndUndoTransaction();
+	}
+
+	if (EditorContext.IsValid())
+	{
+		EditorContext->UnbindFrom(this);
 	}
 }
 

@@ -19,6 +19,7 @@
 #include "ModelingToolTargetUtil.h"
 #include "SkinningOps/SkinBindingOp.h"
 #include "Spatial/OccupancyGrid3.h"
+#include "ContextObjectStore.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SkinWeightsBindingTool)
 
@@ -34,16 +35,10 @@ bool USkinWeightsBindingToolBuilder::CanBuildTool(const FToolBuilderState& Scene
 
 UMultiSelectionMeshEditingTool* USkinWeightsBindingToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
-	return NewObject<USkinWeightsBindingTool>(SceneState.ToolManager);
+	USkinWeightsBindingTool* Tool = NewObject<USkinWeightsBindingTool>(SceneState.ToolManager);
+	Tool->Init(SceneState);
+	return Tool;
 }
-
-
-USkeleton* USkinWeightsBindingToolProperties::GetSkeleton(bool& bInvalidSkeletonIsError, const IPropertyHandle* PropertyHandle)
-{
-	bInvalidSkeletonIsError = false;
-	return SkeletalMesh ? SkeletalMesh->GetSkeleton() : nullptr;
-}
-
 
 USkinWeightsBindingTool::USkinWeightsBindingTool()
 {
@@ -57,6 +52,11 @@ USkinWeightsBindingTool::~USkinWeightsBindingTool()
 {
 }
 
+void USkinWeightsBindingTool::Init(const FToolBuilderState& InSceneState)
+{
+	const UContextObjectStore* ContextObjectStore = InSceneState.ToolManager->GetContextObjectStore();
+	EditorContext = ContextObjectStore->FindContext<USkeletalMeshEditorContextObjectBase>();
+}
 
 void USkinWeightsBindingTool::Setup()
 {
@@ -77,21 +77,8 @@ void USkinWeightsBindingTool::Setup()
 	if (SkeletalMeshComponent && SkeletalMeshComponent->GetSkeletalMeshAsset())
 	{
 		USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->GetSkeletalMeshAsset();
-
 		ReferenceSkeleton = SkeletalMesh->GetRefSkeleton();
-		
-		// Initialize the bone browser
-		const UE::Anim::FCurveFilterSettings CurveFilterSettings = SkeletalMeshComponent->GetCurveFilterSettings(0 /* Always use the highest LOD */);
-		TArray<FBoneIndexType> AllBones;
-		AllBones.Reserve(ReferenceSkeleton.GetRawBoneNum());
-		for (int32 BoneIndex = 0; BoneIndex < ReferenceSkeleton.GetRawBoneNum(); BoneIndex++)
-		{
-			AllBones.Add(static_cast<FBoneIndexType>(BoneIndex));
-		}
-		BoneContainer.InitializeTo(AllBones, CurveFilterSettings, *SkeletalMesh);
-
-		Properties->SkeletalMesh = SkeletalMesh;
-		Properties->CurrentBone.Initialize(BoneContainer);
+		Properties->CurrentBone = ReferenceSkeleton.GetBoneName(0);
 	}
 	
 	UE::ToolTarget::HideSourceObject(Targets[0]);
@@ -128,7 +115,7 @@ void USkinWeightsBindingTool::Setup()
 		UpdateVisualization();
 	};
 
-	Properties->WatchProperty(Properties->CurrentBone.BoneName,
+	Properties->WatchProperty(Properties->CurrentBone,
 							  [HandlePropertyChange](FName) { HandlePropertyChange(false); });
 	Properties->WatchProperty(Properties->BindingType,
 							  [HandlePropertyChange](ESkinWeightsBindType) { HandlePropertyChange(true); });
@@ -169,6 +156,11 @@ void USkinWeightsBindingTool::Setup()
 
 	Preview->InvalidateResult();
 
+	if (EditorContext.IsValid())
+	{
+		EditorContext->BindTo(this);
+	}
+	
 	SetToolDisplayName(LOCTEXT("ToolName", "Bind Skin"));
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("OnStartTool", "Creates a rigid binding for the skin weights."),
@@ -186,6 +178,11 @@ void USkinWeightsBindingTool::OnShutdown(EToolShutdownType ShutdownType)
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
 		GenerateAsset(Result);
+	}
+
+	if (EditorContext.IsValid())
+	{
+		EditorContext->UnbindFrom(this);
 	}
 }
 
@@ -320,7 +317,7 @@ void USkinWeightsBindingTool::UpdateVisualization(bool bInForce)
 	using namespace UE::AnimationCore;
 	using namespace UE::Geometry;
 
-	const int32 RawBoneIndex = ReferenceSkeleton.FindRawBoneIndex(Properties->CurrentBone.BoneName);
+	const int32 RawBoneIndex = ReferenceSkeleton.FindRawBoneIndex(Properties->CurrentBone);
 	if ((bInForce || Preview->HaveValidNonEmptyResult()) && RawBoneIndex != INDEX_NONE)
 	{
 		const FBoneIndexType BoneIndex = static_cast<FBoneIndexType>(RawBoneIndex);
@@ -364,6 +361,25 @@ void USkinWeightsBindingTool::UpdateVisualization(bool bInForce)
 	}
 }
 
+void USkinWeightsBindingTool::HandleSkeletalMeshModified(const TArray<FName>& InBoneNames, const ESkeletalMeshNotifyType InNotifyType)
+{
+	switch (InNotifyType)
+	{
+	case ESkeletalMeshNotifyType::BonesAdded:
+		break;
+	case ESkeletalMeshNotifyType::BonesRemoved:
+		break;
+	case ESkeletalMeshNotifyType::BonesMoved:
+		break;
+	case ESkeletalMeshNotifyType::BonesSelected:
+		{
+			Properties->CurrentBone = InBoneNames.IsEmpty() ? NAME_None : InBoneNames[0];
+		}
+		break;
+	default:
+		checkNoEntry();
+	}
+}
 
 #undef LOCTEXT_NAMESPACE
 

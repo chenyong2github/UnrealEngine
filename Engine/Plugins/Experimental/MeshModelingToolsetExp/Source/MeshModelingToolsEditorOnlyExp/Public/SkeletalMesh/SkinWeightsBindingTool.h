@@ -7,6 +7,7 @@
 #include "BoneContainer.h"
 #include "InteractiveToolBuilder.h"
 #include "ModelingOperators.h"
+#include "SkeletalMeshEditionInterface.h"
 #include "BaseTools/MultiSelectionMeshEditingTool.h"
 #include "Interfaces/Interface_BoneReferenceSkeletonProvider.h"
 
@@ -45,13 +46,12 @@ enum class ESkinWeightsBindType : uint8
 
 UCLASS()
 class MESHMODELINGTOOLSEDITORONLYEXP_API USkinWeightsBindingToolProperties : 
-	public UInteractiveToolPropertySet,
-	public IBoneReferenceSkeletonProvider
+	public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 public:
-	UPROPERTY(VisibleAnywhere, Category = Skeleton)
-	FBoneReference CurrentBone;
+	UPROPERTY()
+	FName CurrentBone = NAME_None;
 
 	/** Binding type to use */
 	UPROPERTY(EditAnywhere, Category = Binding)
@@ -71,11 +71,6 @@ public:
 	
 	// UPROPERTY(EditAnywhere, Category = Debug)
 	bool bDebugDraw = false;
-	
-	// IBoneReferenceSkeletonProvider
-	virtual USkeleton* GetSkeleton(bool& bInvalidSkeletonIsError, const IPropertyHandle* PropertyHandle) override;
-
-	TObjectPtr<USkeletalMesh> SkeletalMesh;
 };
 
 /**
@@ -84,13 +79,16 @@ public:
 UCLASS()
 class MESHMODELINGTOOLSEDITORONLYEXP_API USkinWeightsBindingTool :
 	public UMultiSelectionMeshEditingTool,
-	public UE::Geometry::IDynamicMeshOperatorFactory
+	public UE::Geometry::IDynamicMeshOperatorFactory,
+	public ISkeletalMeshEditingInterface
 {
 	GENERATED_BODY()
 
 public:
 	USkinWeightsBindingTool();
 	virtual ~USkinWeightsBindingTool() override;
+
+	void Init(const FToolBuilderState& InSceneState);
 	
 	virtual void Setup() override;
 	virtual void OnShutdown(EToolShutdownType ShutdownType) override;
@@ -117,10 +115,15 @@ protected:
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
 
 	FReferenceSkeleton ReferenceSkeleton;
-	FBoneContainer BoneContainer;
 	
 	void GenerateAsset(const FDynamicMeshOpResult& Result);
 
 	static FVector4f WeightToColor(float Value);
 	void UpdateVisualization(bool bInForce = false);
+
+	UPROPERTY()
+	TWeakObjectPtr<USkeletalMeshEditorContextObjectBase> EditorContext = nullptr;
+
+	// ISkeletalMeshEditionInterface
+	virtual void HandleSkeletalMeshModified(const TArray<FName>& InBoneNames, const ESkeletalMeshNotifyType InNotifyType) override;
 };

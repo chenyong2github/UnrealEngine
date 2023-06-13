@@ -31,6 +31,7 @@
 #include "EditMeshPolygonsTool.h"
 #include "EditorInteractiveGizmoManager.h"
 #include "HoleFillTool.h"
+#include "ISkeletalMeshEditor.h"
 #include "LatticeDeformerTool.h"
 #include "MeshAttributePaintTool.h"
 #include "MeshSpaceDeformerTool.h"
@@ -42,6 +43,7 @@
 #include "RemeshMeshTool.h"
 #include "RemoveOccludedTrianglesTool.h"
 #include "SimplifyMeshTool.h"
+#include "SkeletalMeshEditorUtils.h"
 #include "SmoothMeshTool.h"
 #include "ToolTargetManager.h"
 #include "WeldMeshEdgesTool.h"
@@ -190,6 +192,7 @@ void USkeletalMeshModelingToolsEditorMode::Enter()
 	// register gizmo helper
 	UE::TransformGizmoUtil::RegisterTransformGizmoContextObject(InteractiveToolsContext);
 	UE::SkeletalMeshGizmoUtils::RegisterTransformGizmoContextObject(InteractiveToolsContext);
+	UE::SkeletalMeshEditorUtils::RegisterEditorContextObject(InteractiveToolsContext);
 
 	const FModelingToolsManagerCommands& ToolManagerCommands = FModelingToolsManagerCommands::Get();
 
@@ -251,6 +254,8 @@ void USkeletalMeshModelingToolsEditorMode::Exit()
 	UEditorInteractiveToolsContext* InteractiveToolsContext = GetInteractiveToolsContext();
 	UE::TransformGizmoUtil::DeregisterTransformGizmoContextObject(InteractiveToolsContext);
 	UE::SkeletalMeshGizmoUtils::UnregisterTransformGizmoContextObject(InteractiveToolsContext);
+	UE::SkeletalMeshEditorUtils::UnregisterEditorContextObject(InteractiveToolsContext);
+	
 #if ENABLE_STYLUS_SUPPORT
 	StylusStateTracker = nullptr;
 #endif
@@ -352,20 +357,26 @@ bool USkeletalMeshModelingToolsEditorMode::ComputeBoundingBoxForViewportFocus(AA
 void USkeletalMeshModelingToolsEditorMode::OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
 {
 	FSkeletalMeshModelingToolsActionCommands::UpdateToolCommandBinding(Tool, Toolkit->GetToolkitCommands(), false);
-	
-	ConnectTool(Tool);
 }
 
 void USkeletalMeshModelingToolsEditorMode::OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
 {
 	FSkeletalMeshModelingToolsActionCommands::UpdateToolCommandBinding(Tool, Toolkit->GetToolkitCommands(), true);
-	
-	DisconnectTool(Tool);
 }
 
-void USkeletalMeshModelingToolsEditorMode::SetEditorBinding(TSharedPtr<ISkeletalMeshEditorBinding> InBinding)
+void USkeletalMeshModelingToolsEditorMode::SetEditorBinding(const TWeakPtr<ISkeletalMeshEditor>& InSkeletalMeshEditor)
 {
-	Binding = InBinding;
+	if (!InSkeletalMeshEditor.IsValid())
+	{
+		return;
+	}
+	
+	Binding = InSkeletalMeshEditor.Pin()->GetBinding();
+
+	if (USkeletalMeshEditorContextObject* ContextObject = UE::SkeletalMeshEditorUtils::GetEditorContextObject(GetInteractiveToolsContext()))
+	{
+		ContextObject->Init(InSkeletalMeshEditor);
+	}
 }
 
 ISkeletalMeshEditingInterface* USkeletalMeshModelingToolsEditorMode::GetSkeletonInterface(UInteractiveTool* InTool)
@@ -375,65 +386,6 @@ ISkeletalMeshEditingInterface* USkeletalMeshModelingToolsEditorMode::GetSkeleton
 		return nullptr;
 	}
 	return static_cast<ISkeletalMeshEditingInterface*>(InTool->GetInterfaceAddress(USkeletalMeshEditingInterface::StaticClass()));
-}
-
-void USkeletalMeshModelingToolsEditorMode::ConnectTool(UInteractiveTool* InTool)
-{
-	ISkeletalMeshEditingInterface* SkeletonInterface = GetSkeletonInterface(InTool);
-	if (!SkeletonInterface)
-	{
-		return;
-	}
-
-	// binding
-	if (Binding.IsValid())
-	{
-		TSharedPtr<ISkeletalMeshEditorBinding> BindingPtr = Binding.Pin();
-
-		SkeletonInterface->BindTo(BindingPtr);
-
-		// connect external interface to tool (ie skeletal mesh editor -> tool)
-		if (!ToToolNotifierHandle.IsValid())
-		{
-			ToToolNotifierHandle = BindingPtr->GetNotifier().Delegate().AddLambda([SkeletonInterface](const TArray<FName>& BoneNames, const ESkeletalMeshNotifyType InNotifyType)
-			{
-				SkeletonInterface->GetNotifier().HandleNotification(BoneNames, InNotifyType);
-			});
-		}
-
-		// connect too to external interface (ie tool -> skeletal mesh editor)
-		if (!FromToolNotifierHandle.IsValid())
-		{
-			FromToolNotifierHandle = SkeletonInterface->GetNotifier().Delegate().AddLambda([BindingPtr](const TArray<FName>& BoneNames, const ESkeletalMeshNotifyType InNotifyType)
-			{
-				BindingPtr->GetNotifier().HandleNotification(BoneNames, InNotifyType);
-			});
-		}
-
-		SkeletonInterface->GetNotifier().HandleNotification(BindingPtr->GetSelectedBones(), ESkeletalMeshNotifyType::BonesSelected);
-	}
-}
-
-void USkeletalMeshModelingToolsEditorMode::DisconnectTool(UInteractiveTool* InTool)
-{
-	if (ToToolNotifierHandle.IsValid())
-	{
-		// check that
-		if (Binding.IsValid())
-		{
-			Binding.Pin()->GetNotifier().Delegate().Remove(ToToolNotifierHandle);
-		}
-		ToToolNotifierHandle.Reset();
-	}
-
-	if (FromToolNotifierHandle.IsValid())
-	{
-		ISkeletalMeshEditingInterface* SkeletonInterface = GetSkeletonInterface(InTool);
-		check(SkeletonInterface);
-		SkeletonInterface->GetNotifier().Delegate().Remove(FromToolNotifierHandle);
-		FromToolNotifierHandle.Reset();
-		SkeletonInterface->Unbind();
-	}
 }
 
 bool USkeletalMeshModelingToolsEditorMode::NeedsTransformGizmo() const

@@ -195,6 +195,9 @@ protected:
 	UPROPERTY()
 	TObjectPtr<USkeletalMeshGizmoWrapperBase> GizmoWrapper = nullptr;
 
+	UPROPERTY()
+	TWeakObjectPtr<USkeletalMeshEditorContextObjectBase> EditorContext = nullptr;
+
 	void UpdateGizmo() const;
 	
 	// ref skeleton transactions

@@ -15,6 +15,7 @@ class ISkeletalMeshEditorBinding;
 class ISkeletalMeshEditingInterface;
 class HHitProxy;
 class UDebugSkelMeshComponent;
+class ISkeletalMeshEditor;
 
 UCLASS()
 class USkeletalMeshModelingToolsEditorMode : 
@@ -45,7 +46,7 @@ public:
 	virtual bool UsesToolkits() const override { return true; }
 
 	// binding
-	void SetEditorBinding(TSharedPtr<ISkeletalMeshEditorBinding> InBinding);
+	void SetEditorBinding(const TWeakPtr<ISkeletalMeshEditor>& InSkeletalMeshEditor);
 		
 protected:
 	virtual void OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
@@ -58,9 +59,6 @@ private:
 	static ISkeletalMeshEditingInterface* GetSkeletonInterface(UInteractiveTool* InTool);
 
 	UDebugSkelMeshComponent* GetSkelMeshComponent() const;
-
-	void ConnectTool(UInteractiveTool* InTool);
-	void DisconnectTool(UInteractiveTool* InTool);
 
 	bool NeedsTransformGizmo() const;
 

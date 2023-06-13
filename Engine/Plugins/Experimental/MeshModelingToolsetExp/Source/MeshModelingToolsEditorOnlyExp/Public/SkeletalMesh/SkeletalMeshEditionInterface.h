@@ -135,3 +135,20 @@ public:
 	UPROPERTY()
 	TWeakObjectPtr<USceneComponent> Component;
 };
+
+/**
+ * USkeletalMeshEditorContextObjectBase
+ */
+
+UCLASS(Abstract)
+class MESHMODELINGTOOLSEDITORONLYEXP_API USkeletalMeshEditorContextObjectBase : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	virtual void HideSkeleton() PURE_VIRTUAL(USkeletalMeshEditorContextObjectBase::HideSkeleton, return;)
+	virtual void ShowSkeleton() PURE_VIRTUAL(USkeletalMeshEditorContextObjectBase::ShowSkeleton, return;)
+	
+	virtual void BindTo(ISkeletalMeshEditingInterface* InEditingInterface) PURE_VIRTUAL(USkeletalMeshEditorContextObjectBase::BindTo, return;)
+	virtual void UnbindFrom(ISkeletalMeshEditingInterface* InEditingInterface) PURE_VIRTUAL(USkeletalMeshEditorContextObjectBase::UnbindFrom, return;)
+};
