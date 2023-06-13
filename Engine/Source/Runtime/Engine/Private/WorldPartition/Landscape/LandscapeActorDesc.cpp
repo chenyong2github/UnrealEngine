@@ -13,9 +13,7 @@ void FLandscapeActorDesc::Init(const AActor* InActor)
 
 	const ALandscapeProxy* LandscapeProxy = CastChecked<ALandscapeProxy>(InActor);
 	check(LandscapeProxy);
-	GridIndexX = LandscapeProxy->LandscapeSectionOffset.X / (int32)LandscapeProxy->GridSize;
-	GridIndexY = LandscapeProxy->LandscapeSectionOffset.Y / (int32)LandscapeProxy->GridSize;
-	GridIndexZ = 0;
+	SetGridIndices(LandscapeProxy->LandscapeSectionOffset.X, LandscapeProxy->LandscapeSectionOffset.Y, 0);
 
 	if (!bIsDefaultActorDesc)
 	{
@@ -38,8 +36,7 @@ void FLandscapeActorDesc::Serialize(FArchive& Ar)
 	{
 		if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::FLandscapeActorDescFixupGridIndices)
 		{
-			GridIndexX = (int32)(GridIndexX * GridSize) / (int32)GridSize;
-			GridIndexY = (int32)(GridIndexY * GridSize) / (int32)GridSize;
+			SetGridIndices(GridIndexX * GridSize, GridIndexY * GridSize, 0);
 		}
 
 		if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) >= FUE5ReleaseStreamObjectVersion::WorldPartitionLandscapeActorDescSerializeLandscapeActorGuid)

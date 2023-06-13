@@ -27,9 +27,7 @@ void FPartitionActorDesc::Init(const AActor* InActor)
 		GridGuid = PartitionActor->GetGridGuid();
 	
 		const FVector ActorLocation = InActor->GetActorLocation();
-		GridIndexX = FMath::FloorToInt(ActorLocation.X / GridSize);
-		GridIndexY = FMath::FloorToInt(ActorLocation.Y / GridSize);
-		GridIndexZ = FMath::FloorToInt(ActorLocation.Z / GridSize);
+		SetGridIndices(ActorLocation.X, ActorLocation.Y, ActorLocation.Z);
 	}
 }
 
@@ -83,6 +81,20 @@ void FPartitionActorDesc::TransferWorldData(const FWorldPartitionActorDesc* From
 	GridIndexX = FromPartitionActorDesc->GridIndexX;
 	GridIndexY = FromPartitionActorDesc->GridIndexY;
 	GridIndexZ = FromPartitionActorDesc->GridIndexZ;
+}
+
+void FPartitionActorDesc::SetGridIndices(double X, double Y, double Z)
+{
+	if (GridSize > 0)
+	{
+		GridIndexX = FMath::FloorToInt(X / GridSize);
+		GridIndexY = FMath::FloorToInt(Y / GridSize);
+		GridIndexZ = FMath::FloorToInt(Z / GridSize);
+	}
+	else
+	{
+		GridIndexX = GridIndexY = GridIndexZ = 0;
+	}
 }
 
 #endif
