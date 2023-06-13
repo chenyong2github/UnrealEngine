@@ -93,7 +93,8 @@ public:
 	{
 		Automatic = 0,
 		VoxelBasedSolidApproximation = 1,
-		SweptPlanarProjection = 2
+		SweptPlanarProjection = 2,
+		IntersectSweptPlanarProjections = 3
 	};
 
 	enum class EVertexColorMappingMode
@@ -214,6 +215,14 @@ public:
 		bool bEnableBudgetStrategy_PartLODPromotion = false;
 		// Multiplier on LOD Budgets for PartLODPromotion strategy. This can be used to compensate for hidden-geometry removal and other optimizations done after the strategy is applied.
 		double PartLODPromotionBudgetMultiplier = 2.0;
+
+
+
+		//
+		// 
+		//
+		bool bAutoGenerateMissingUVs = false;
+		bool bAutoGenerateTangents = false;
 
 
 		//
