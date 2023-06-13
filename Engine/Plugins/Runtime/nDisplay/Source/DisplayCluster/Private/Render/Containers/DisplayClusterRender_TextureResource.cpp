@@ -109,7 +109,7 @@ void FDisplayClusterRender_TextureResource::InitializeRenderResource()
 	// Initialize on render thread
 	ENQUEUE_RENDER_COMMAND(DisplayClusterRenderTextureResource_Initialize)([This = SharedThis(this)](FRHICommandListImmediate& RHICmdList)
 	{
-		This->InitResource();
+		This->InitResource(RHICmdList);
 	});
 }
 
