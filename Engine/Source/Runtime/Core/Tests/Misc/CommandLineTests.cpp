@@ -10,7 +10,7 @@
 
 #include <catch2/generators/catch_generators.hpp>
 
-TEST_CASE("CommandLine::Filtering::FilterCLIInplace", "[Smoke]")
+TEST_CASE("CommandLine::Filtering::FilterMove", "[Smoke]")
 {
 	TArray<FString> AllowedList{ { "cmd_a", "-cmd_b" } };
 
@@ -31,7 +31,7 @@ TEST_CASE("CommandLine::Filtering::FilterCLIInplace", "[Smoke]")
 		}));
 		TCHAR Result[256]{};
 
-		CHECK(FCommandLine::FilterCLIUsingGrammarBasedParser(Result, UE_ARRAY_COUNT(Result), Input, AllowedList));
+		CHECK(FCommandLine::FilterMove(Result, UE_ARRAY_COUNT(Result), Input, AllowedList));
 		CHECK(FStringView{ Result } == FStringView{ Expected });
 	}
 
@@ -45,7 +45,7 @@ TEST_CASE("CommandLine::Filtering::FilterCLIInplace", "[Smoke]")
 			}));
 		TCHAR Result[256]{};
 
-		CHECK(FCommandLine::FilterCLIUsingGrammarBasedParser(Result, UE_ARRAY_COUNT(Result), Input, AllowedList));
+		CHECK(FCommandLine::FilterMove(Result, UE_ARRAY_COUNT(Result), Input, AllowedList));
 		CHECK(FStringView{ Result } == FStringView{ Expected });
 	}
 
@@ -71,7 +71,7 @@ TEST_CASE("CommandLine::Filtering::FilterCLIInplace", "[Smoke]")
 		TCHAR SourceAndResult[256]{};
 		
 		FCString::Strcpy(SourceAndResult, Input);
-		CHECK(FCommandLine::FilterCLIUsingGrammarBasedParser(SourceAndResult, UE_ARRAY_COUNT(SourceAndResult), SourceAndResult, AllowedList));
+		CHECK(FCommandLine::FilterMove(SourceAndResult, UE_ARRAY_COUNT(SourceAndResult), SourceAndResult, AllowedList));
 		CHECK(FStringView{ SourceAndResult } == FStringView{ Expected });
 	}
 
@@ -80,7 +80,7 @@ TEST_CASE("CommandLine::Filtering::FilterCLIInplace", "[Smoke]")
 		const TCHAR* Input = TEXT("-cmd_a --cmd_b");
 		TCHAR Result[256] = TEXT("Not Empty");
 
-		CHECK(FCommandLine::FilterCLIUsingGrammarBasedParser(Result, UE_ARRAY_COUNT(Result), Input, {}));
+		CHECK(FCommandLine::FilterMove(Result, UE_ARRAY_COUNT(Result), Input, {}));
 		CHECK(Result[0] == TCHAR(0));
 	}
 
@@ -89,7 +89,7 @@ TEST_CASE("CommandLine::Filtering::FilterCLIInplace", "[Smoke]")
 		const TCHAR* Input = TEXT("-cmd_a --cmd_b");
 		TCHAR Result[5]{};
 
-		CHECK(false == FCommandLine::FilterCLIUsingGrammarBasedParser(Result, UE_ARRAY_COUNT(Result), Input, AllowedList));
+		CHECK(false == FCommandLine::FilterMove(Result, UE_ARRAY_COUNT(Result), Input, AllowedList));
 		CHECK(Result[0] == TCHAR(0));
 	}
 
@@ -126,7 +126,7 @@ TEST_CASE("CommandLine::Filtering::FilterCLIInplace", "[Smoke]")
 		TCHAR SourceAndResult[256]{};
 
 		FCString::Strcpy(SourceAndResult, Input);
-		CHECK(FCommandLine::FilterCLIUsingGrammarBasedParser(SourceAndResult, UE_ARRAY_COUNT(SourceAndResult), SourceAndResult, ApprovedArgs));
+		CHECK(FCommandLine::FilterMove(SourceAndResult, UE_ARRAY_COUNT(SourceAndResult), SourceAndResult, ApprovedArgs));
 		CHECK(FStringView{ SourceAndResult } == FStringView{ Expected });
 	}
 
