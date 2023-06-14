@@ -790,12 +790,11 @@ export const NewBuild: React.FC<{ streamId: string; show: boolean; onClose: (new
       }
 
       if (!t) {
-         const pref = dashboard.lastJobTemplateSettings;
+         const pref = dashboard.getLastJobTemplateSettings(stream.id, templates.map(t => t.id));
          if (pref) {
             t = templates.find(t => stream.id === pref.streamId && t.id === pref.templateId)
          }
-      }      
-
+      }
       // default to sane template when all are shown
       if (!t && (showAllTemplates) && stream.tabs.length > 0) {
          const stab = stream.tabs[0] as JobsTabData;

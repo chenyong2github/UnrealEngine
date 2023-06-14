@@ -178,14 +178,17 @@ export class Dashboard {
         return this.data.pinnedJobIds ?? [];
     }
 
-    get lastJobTemplateSettings(): GetJobTemplateSettingsResponse | undefined {
+    getLastJobTemplateSettings(streamId: string, templateIds: string[]): GetJobTemplateSettingsResponse | undefined {
 
-        try {            
-            if (!this.data.jobTemplateSettings?.length) {
+        try {
+            
+            const streamTemplates = this.data?.jobTemplateSettings?.filter(t => t.streamId === streamId && templateIds.indexOf(t.templateId) !== -1)
+
+            if (!streamTemplates?.length) {
                 return undefined;
             }
 
-            const sorted = this.data.jobTemplateSettings.sort((a, b) => {
+            const sorted = streamTemplates.sort((a, b) => {
                 return new Date(b.updateTimeUtc).getTime() - new Date(a.updateTimeUtc).getTime();
             });
 
