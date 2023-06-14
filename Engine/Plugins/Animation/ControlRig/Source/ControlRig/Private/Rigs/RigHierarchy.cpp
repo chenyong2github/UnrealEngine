@@ -2749,6 +2749,7 @@ FTransform URigHierarchy::GetTransform(FRigTransformElement* InTransformElement,
 			{
 				const FTransform NewTransform = ComputeLocalControlValue(ControlElement, ControlElement->Pose.Get(OpposedType), GlobalType);
 				ControlElement->Pose.Set(InTransformType, NewTransform);
+				/** from mikez we do not want geting a pose to set these preferred angles
 				switch(ControlElement->Settings.ControlType)
 				{
 					case ERigControlType::Rotator:
@@ -2763,7 +2764,8 @@ FTransform URigHierarchy::GetTransform(FRigTransformElement* InTransformElement,
 					{
 						break;
 					}
-				}
+					
+				}*/
 			}
 			else if(FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(InTransformElement))
 			{
