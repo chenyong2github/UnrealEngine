@@ -2653,11 +2653,14 @@ int32 UCustomizableObjectInstance::FindProjectorParameterNameIndex(const FString
 	return Descriptor.FindProjectorParameterNameIndex(ParamName);
 }
 
-
 void UCustomizableObjectInstance::SetRandomValues()
 {
-	Descriptor.SetRandomValues();
+	Descriptor.SetRandomValues(FMath::Rand());
+}
 
+void UCustomizableObjectInstance::SetRandomValues(const int32 InRandomizationSeed)
+{
+	Descriptor.SetRandomValues(InRandomizationSeed);
 }
 
 

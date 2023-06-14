@@ -280,7 +280,7 @@ struct CUSTOMIZABLEOBJECT_API FCustomizableObjectInstanceDescriptor
 
 	// ------------------------------------------------------------
 	
-	void SetRandomValues();
+	void SetRandomValues(const int32& InRandomizationSeed);
 
 	// ------------------------------------------------------------
 	// Multilayer Projectors

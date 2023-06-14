@@ -255,9 +255,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance)
 	bool HasAnyParameters() const;
 	
-	//! Set random values to the parameters. Useful for testing only.
+	/** Set random values to the parameters. Useful for testing only. */
 	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance)
 	void SetRandomValues();
+
+	/**  Set random values to the parameters using a seed. Useful for testing only. */
+	void SetRandomValues(const int32 InRandomizationSeed);
 
 	// Utilities to manage saving and loading parameters from profiles.
 	bool LoadParametersFromProfile(int32 ProfileIndex);

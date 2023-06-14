@@ -13,7 +13,11 @@ namespace UnrealBuildTool.Rules
 
 			DefaultBuildSettings = BuildSettingsVersion.V2;
 
-			PublicDependencyModuleNames.AddRange(new string[] { "Settings" });
+			PublicDependencyModuleNames.AddRange(
+				new string[] {
+					"Settings", 
+					"Engine"
+				});
 			
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {

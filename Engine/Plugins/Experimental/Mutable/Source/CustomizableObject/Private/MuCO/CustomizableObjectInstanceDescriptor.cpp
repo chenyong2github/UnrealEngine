@@ -2182,11 +2182,14 @@ void FCustomizableObjectInstanceDescriptor::SetCurrentState(const FString& State
 }
 
 
-void FCustomizableObjectInstanceDescriptor::SetRandomValues()
+void FCustomizableObjectInstanceDescriptor::SetRandomValues(const int32& InRandomizationSeed)
 {
 	check(CustomizableObject);
 	RETURN_ON_UNCOMPILED_CO(CustomizableObject, TEXT("Error: Cannot set random values"))
 
+	// Set seed for deterministic behaviour
+	FMath::SRandInit(InRandomizationSeed);
+	
 	for (int32 i = 0; i < FloatParameters.Num(); ++i)
 	{
 		FloatParameters[i].ParameterValue = FMath::SRand();
@@ -2194,7 +2197,7 @@ void FCustomizableObjectInstanceDescriptor::SetRandomValues()
 
 	for (int32 i = 0; i < BoolParameters.Num(); ++i)
 	{
-		BoolParameters[i].ParameterValue = FMath::Rand() % 2 == 0;
+		BoolParameters[i].ParameterValue = (int32)FMath::SRand() % 2 == 0;
 	}
 
 	for (int32 i = 0; i < IntParameters.Num(); ++i)
@@ -2207,7 +2210,7 @@ void FCustomizableObjectInstanceDescriptor::SetRandomValues()
 			const int32 NumValues = CustomizableObject->GetIntParameterNumOptions(ParameterIndexInCO);
 			if (NumValues > 0)
 			{
-				const int32 Index = FMath::Rand() % NumValues;
+				const int32 Index = (int32)FMath::SRand() % NumValues;
 				FString Option = CustomizableObject->GetIntParameterAvailableOption(ParameterIndexInCO, Index);
 				SetIntParameterSelectedOption(i, Option);
 			}
