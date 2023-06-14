@@ -7,6 +7,8 @@
 #include "MetasoundBuildError.h"
 #include "MetasoundBuilderInterface.h"
 #include "MetasoundBuildError.h"
+#include "MetasoundDynamicOperator.h"
+#include "MetasoundDynamicOperatorTransactor.h"
 #include "MetasoundGraphAlgo.h"
 #include "MetasoundGraphAlgoPrivate.h"
 #include "MetasoundGraphLinter.h"
@@ -29,7 +31,6 @@ namespace Metasound
 			const FDirectedGraphAlgoAdapter& AlgoAdapter;
 			const FOperatorSettings& Settings;
 			const FMetasoundEnvironment& Environment;
-			const FOperatorBuilderSettings& BuilderSettings;
 			
 			FBuildResults& Results;
 			TUniquePtr<DirectedGraphAlgo::FGraphOperatorData> GraphOperatorData;
@@ -39,13 +40,11 @@ namespace Metasound
 				const FDirectedGraphAlgoAdapter& InAlgoAdapter,
 				const FOperatorSettings& InSettings,
 				const FMetasoundEnvironment& InEnvironment,
-				const FOperatorBuilderSettings& bInBuilderSettings,
 				FBuildResults& OutResults)
 			: Graph(InGraph)
 			, AlgoAdapter(InAlgoAdapter)
 			, Settings(InSettings)
 			, Environment(InEnvironment)
-			, BuilderSettings(bInBuilderSettings)
 			, Results(OutResults)
 			, GraphOperatorData(MakeUnique<DirectedGraphAlgo::FGraphOperatorData>(InSettings))
 			{
@@ -79,9 +78,39 @@ namespace Metasound
 
 	TUniquePtr<IOperator> FOperatorBuilder::BuildGraphOperator(const FBuildGraphOperatorParams& InParams, FBuildResults& OutResults) const
 	{
+		TUniquePtr<DirectedGraphAlgo::FGraphOperatorData> GraphData = BuildGraphOperatorData(InParams, OutResults);
+
+		if (GraphData.IsValid())
+		{
+			// Create graph operator from collection of node operators.
+			return CreateGraphOperator(MoveTemp(GraphData));
+		}
+
+		return TUniquePtr<IOperator>(nullptr);
+	}
+
+	TUniquePtr<IOperator> FOperatorBuilder::BuildDynamicGraphOperator(const FBuildGraphOperatorParams& InParams, DynamicGraph::FDynamicOperatorTransactor& InTransactor, FBuildResults& OutResults)
+	{
+		using namespace DynamicGraph;
+
+		TUniquePtr<DirectedGraphAlgo::FGraphOperatorData> GraphData = BuildGraphOperatorData(InParams, OutResults);
+
+		if (GraphData.IsValid())
+		{
+			TSharedRef<TSpscQueue<TUniquePtr<IDynamicOperatorTransform>>> TransformQueue = InTransactor.CreateTransformQueue(InParams.OperatorSettings, InParams.Environment);
+
+			return MakeUnique<FDynamicOperator>(MoveTemp(*GraphData), TransformQueue);
+		}
+
+		return TUniquePtr<IOperator>(nullptr);
+	}
+
+	TUniquePtr<DirectedGraphAlgo::FGraphOperatorData> FOperatorBuilder::BuildGraphOperatorData(const FBuildGraphOperatorParams& InParams, FBuildResults& OutResults) const
+	{
 		METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(Metasound::FOperatorBuilder::BuildGraphOperator);
 
 		using namespace OperatorBuilderPrivate;
+		using namespace DirectedGraphAlgo;
 
 		FBuildStatus BuildStatus = FBuildStatus::NoError;
 
@@ -116,7 +145,7 @@ namespace Metasound
 		// Possible early exit if edge validation fails.
 		if (BuildStatus > GetMaxErrorLevel())
 		{
-			return TUniquePtr<IOperator>(nullptr);
+			return TUniquePtr<FGraphOperatorData>(nullptr);
 		}
 
 		// Create algo adapter view of graph to cache graph operations.
@@ -125,10 +154,10 @@ namespace Metasound
 		if (!AlgoAdapter.IsValid())
 		{
 			AddBuildError<FInternalError>(OutResults.Errors, __FILE__, __LINE__);
-			return TUniquePtr<IOperator>(nullptr);
+			return TUniquePtr<FGraphOperatorData>(nullptr);
 		}
 
-		OperatorBuilder::FBuildContext BuildContext(InParams.Graph, *AlgoAdapter, InParams.OperatorSettings, InParams.Environment, BuilderSettings, OutResults);
+		OperatorBuilder::FBuildContext BuildContext(InParams.Graph, *AlgoAdapter, InParams.OperatorSettings, InParams.Environment, OutResults);
 
 		TArray<const INode*> SortedNodes;
 
@@ -143,7 +172,7 @@ namespace Metasound
 		// Check build status in case build routine should be exited early.
 		if (BuildStatus > GetMaxErrorLevel())
 		{
-			return TUniquePtr<IOperator>(nullptr);
+			return TUniquePtr<FGraphOperatorData>(nullptr);
 		}
 
 		InitializeOperatorInfo(InParams.Graph, SortedNodes, *BuildContext.GraphOperatorData);
@@ -154,7 +183,7 @@ namespace Metasound
 		// Check build status in case build routine should be exited early.
 		if (BuildStatus > GetMaxErrorLevel())
 		{
-			return TUniquePtr<IOperator>(nullptr);
+			return TUniquePtr<FGraphOperatorData>(nullptr);
 		}
 
 		// Create node operators from factories.
@@ -162,7 +191,7 @@ namespace Metasound
 
 		if (BuildStatus > GetMaxErrorLevel())
 		{
-			return TUniquePtr<IOperator>(nullptr);
+			return TUniquePtr<FGraphOperatorData>(nullptr);
 		}
 
 		if (BuilderSettings.bPopulateInternalDataReferences)
@@ -170,8 +199,15 @@ namespace Metasound
 			GatherInternalGraphDataReferences(BuildContext, SortedNodes, BuildContext.Results.InternalDataReferences);
 		}
 
-		// Create graph operator from collection of node operators.
-		return CreateGraphOperator(BuildContext);
+		// Gather the inputs for the graph data. 
+		BuildStatus |= GatherGraphDataReferences(BuildContext, BuildContext.GraphOperatorData->VertexData);
+
+		if (BuildStatus > GetMaxErrorLevel())
+		{
+			return TUniquePtr<FGraphOperatorData>(nullptr);
+		}
+
+		return MoveTemp(BuildContext.GraphOperatorData);
 	}
 
 	FOperatorBuilder::FBuildStatus FOperatorBuilder::DepthFirstTopologicalSort(OperatorBuilder::FBuildContext& InOutContext, TArray<const INode*>& OutNodes) const
@@ -540,25 +576,19 @@ namespace Metasound
 		return BuildStatus;
 	}
 
-	TUniquePtr<IOperator> FOperatorBuilder::CreateGraphOperator(OperatorBuilder::FBuildContext& InOutContext) const
+	TUniquePtr<IOperator> FOperatorBuilder::CreateGraphOperator(TUniquePtr<DirectedGraphAlgo::FGraphOperatorData>&& InGraphOperatorData) const
 	{
 		METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(Metasound::FOperatorBuilder::CreateGraphOperator);
-		FBuildStatus BuildStatus = GatherGraphDataReferences(InOutContext, InOutContext.GraphOperatorData->VertexData);
 
 		TUniquePtr<IOperator> GraphOperator;
 
-		if (BuildStatus > GetMaxErrorLevel())
+		if (BuilderSettings.bEnableOperatorRebind)
 		{
-			return GraphOperator;
-		}
-
-		if (InOutContext.BuilderSettings.bEnableOperatorRebind)
-		{
-			 GraphOperator = MakeUnique<FRebindableGraphOperator>(MoveTemp(InOutContext.GraphOperatorData));
+			 GraphOperator = MakeUnique<FRebindableGraphOperator>(MoveTemp(*InGraphOperatorData));
 		}
 		else
 		{
-			 GraphOperator = MakeUnique<FGraphOperator>(MoveTemp(InOutContext.GraphOperatorData));
+			 GraphOperator = MakeUnique<FGraphOperator>(MoveTemp(InGraphOperatorData));
 		}
 
 		return GraphOperator;

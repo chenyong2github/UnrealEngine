@@ -28,6 +28,11 @@ namespace Metasound
 	{
 		class FParameterRouter;
 	}
+
+	namespace DynamicGraph
+	{
+		class FDynamicOperatorTransactor;
+	}
 } // namespace Metasound
 
 namespace Audio
@@ -230,6 +235,7 @@ private:
 		return RootMetasoundDocument;
 	}
 
+
 	bool IsParameterValid(const FAudioParameter& InParameter, const TMap<FName, FMetasoundFrontendVertex>& InInputNameVertexMap) const;
 
 	static Metasound::SourcePrivate::FParameterRouter& GetParameterRouter();
@@ -244,4 +250,23 @@ private:
 	TSortedMap<uint64, TWeakPtr<Metasound::FMetasoundGenerator>> Generators;
 	void TrackGenerator(uint64 Id, TSharedPtr<Metasound::FMetasoundGenerator> Generator);
 	void ForgetGenerator(ISoundGeneratorPtr Generator);
+
+	/** Enable dynamic generator. 
+	 *
+	 * Once a dynamic generator is enabled, all changes to the MetaSound should be applied to the
+	 * FDynamicOperatorTransactor in order to keep parity between the document and active graph.
+	 *
+	 * Note: Disabling the dynamic generator will sever the communication between any active generators
+	 * even if the dynamic generator is re-enabled. 
+	 */
+	TSharedPtr<Metasound::DynamicGraph::FDynamicOperatorTransactor> EnableDynamicGenerators(bool bInIsEnabled);
+
+	/** Get dynamic transactor
+	 *
+	 * If dynamic generators are enabled, this will return a valid pointer to a dynamic transactor. 
+	 * Changes to this transactor will be forwarded to any active Dynamic MetaSound Generators.
+	 */
+	TSharedPtr<Metasound::DynamicGraph::FDynamicOperatorTransactor> GetDynamicGeneratorTransactor() const;
+
+	TSharedPtr<Metasound::DynamicGraph::FDynamicOperatorTransactor> DynamicTransactor;
 };

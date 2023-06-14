@@ -84,6 +84,7 @@ namespace Metasound
 		TArray<FAudioParameter> DefaultParameters;
 		bool bBuildSynchronous = false;
 		TSharedPtr<TSpscQueue<FMetaSoundParameterTransmitter::FParameter>> DataChannel;
+		TSharedPtr<Metasound::DynamicGraph::FDynamicOperatorTransactor> DynamicOperatorTransactor;
 
 		void Release();
 	};

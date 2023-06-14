@@ -597,6 +597,12 @@ namespace Metasound
 		/** Return the vertex associated with the vertex name. */
 		const FInputDataVertex& GetVertex(const FVertexName& InVertexName) const;
 
+		/** Add a vertex. VertexInterfaceData must be unfrozen. */
+		void AddVertex(const FInputDataVertex& InVertex);
+
+		/** Remove a vertex. VertexInterfaceData must be unfrozen. */
+		void RemoveVertex(const FVertexName& InVertexName);
+
 		/** Returns true if a vertex with the given vertex name exists and is bound
 		 * to a data reference. */
 		bool IsVertexBound(const FVertexName& InVertexName) const;
@@ -907,6 +913,12 @@ namespace Metasound
 
 		/** Return the vertex associated with the vertex name. */
 		const FOutputDataVertex& GetVertex(const FVertexName& InVertexName) const;
+
+		/** Add a vertex. VertexInterfaceData must be unfrozen. */
+		void AddVertex(const FOutputDataVertex& InVertex);
+
+		/** Remove a vertex. VertexInterfaceData must be unfrozen. */
+		void RemoveVertex(const FVertexName& InVertexName);
 
 		/** Returns the access type of a bound vertex. If the vertex does not exist
 		 * or if it is unbound, this will return EDataReferenceAccessType::None

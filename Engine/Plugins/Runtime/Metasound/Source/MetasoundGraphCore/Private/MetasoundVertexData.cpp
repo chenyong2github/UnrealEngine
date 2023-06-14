@@ -72,8 +72,6 @@ namespace Metasound
 			Set(MoveTemp(InReference));
 		}
 
-
-
 		void FInputBinding::Set(FAnyDataReference&& InAnyDataReference)
 		{
 			check(Vertex.DataTypeName == InAnyDataReference.GetDataTypeName());
@@ -502,6 +500,30 @@ namespace Metasound
 		return FindChecked(InVertexName)->GetVertex();
 	}
 
+	void FInputVertexInterfaceData::AddVertex(const FInputDataVertex& InVertex)
+	{
+		if (IsVertexInterfaceFrozen())
+		{
+			UE_LOG(LogMetaSound, Warning, TEXT("Cannot add vertex with name '%s'. Vertex interface is frozen"), *InVertex.VertexName.ToString());
+		}
+		else
+		{
+			Bindings.Emplace(InVertex);
+		}
+	}
+
+	void FInputVertexInterfaceData::RemoveVertex(const FVertexName& InVertexName)
+	{
+		if (IsVertexInterfaceFrozen())
+		{
+			UE_LOG(LogMetaSound, Warning, TEXT("Cannot remove vertex with name '%s'. Vertex interface is frozen"), *InVertexName.ToString());
+		}
+		else
+		{
+			Bindings.RemoveAll([&](const FInputBinding& Binding) { return InVertexName == Binding.GetVertex().VertexName; });
+		}
+	}
+
 	EDataReferenceAccessType FInputVertexInterfaceData::GetVertexDataAccessType(const FVertexName& InVertexName) const
 	{
 		return MetasoundVertexDataPrivate::GetVertexDataAccessType(Bindings, InVertexName);
@@ -638,6 +660,30 @@ namespace Metasound
 	const FOutputDataVertex& FOutputVertexInterfaceData::GetVertex(const FVertexName& InVertexName) const
 	{
 		return FindChecked(InVertexName)->GetVertex();
+	}
+
+	void FOutputVertexInterfaceData::AddVertex(const FOutputDataVertex& InVertex)
+	{
+		if (IsVertexInterfaceFrozen())
+		{
+			UE_LOG(LogMetaSound, Warning, TEXT("Cannot add vertex with name '%s'. Vertex interface is frozen"), *InVertex.VertexName.ToString());
+		}
+		else
+		{
+			Bindings.Emplace(InVertex);
+		}
+	}
+
+	void FOutputVertexInterfaceData::RemoveVertex(const FVertexName& InVertexName)
+	{
+		if (IsVertexInterfaceFrozen())
+		{
+			UE_LOG(LogMetaSound, Warning, TEXT("Cannot remove vertex with name '%s'. Vertex interface is frozen"), *InVertexName.ToString());
+		}
+		else
+		{
+			Bindings.RemoveAll([&](const FOutputBinding& Binding) { return InVertexName == Binding.GetVertex().VertexName; });
+		}
 	}
 
 	EDataReferenceAccessType FOutputVertexInterfaceData::GetVertexDataAccessType(const FVertexName& InVertexName) const

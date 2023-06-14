@@ -26,6 +26,11 @@ namespace Metasound
 		struct FBuildContext;
 	}
 
+	namespace DynamicGraph
+	{
+		class FDynamicOperatorTransactor;
+	}
+
 	/** FOperatorBuilder builds an IOperator from an IGraph. */
 	class METASOUNDGRAPHCORE_API FOperatorBuilder : public IOperatorBuilder
 	{
@@ -49,7 +54,20 @@ namespace Metasound
 			 */
 			virtual TUniquePtr<IOperator> BuildGraphOperator(const FBuildGraphOperatorParams& InParams, FBuildResults& OutResults) const override;
 
+			/** Create an dynamic IOperator from an IGraph.
+			 *
+			 * @param InParams     - Params of the current build
+			 * @param InTransactor - A dynamic operator transactor for communicating to the operator.
+			 * @param OutResults   - Results data pertaining to the given build operator result.
+			 *
+			 * @return A TUniquePtr to an IOperator. If the processes was unsuccessful, 
+			 *         the returned pointer will contain a nullptr and be invalid.
+			 */
+			TUniquePtr<IOperator> BuildDynamicGraphOperator(const FBuildGraphOperatorParams& InParams, DynamicGraph::FDynamicOperatorTransactor& InTransactor, FBuildResults& OutResults);
+
 		private:
+
+			TUniquePtr<DirectedGraphAlgo::FGraphOperatorData> BuildGraphOperatorData(const FBuildGraphOperatorParams& InParams, FBuildResults& OutResults) const;
 
 			// Handles build status of current build operation.
 			struct FBuildStatus
@@ -126,7 +144,7 @@ namespace Metasound
 			FBuildStatus CreateOperators(OperatorBuilder::FBuildContext& InOutContext, const TArray<const INode*>& InSortedNodes, const FInputVertexInterfaceData& InExternalInputData) const;
 
 			// Create the final graph operator from the provided build context.
-			TUniquePtr<IOperator> CreateGraphOperator(OperatorBuilder::FBuildContext& InOutContext) const;
+			TUniquePtr<IOperator> CreateGraphOperator(TUniquePtr<DirectedGraphAlgo::FGraphOperatorData>&& InGraphOperatorData) const;
 
 			FBuildStatus::EStatus GetMaxErrorLevel() const;
 

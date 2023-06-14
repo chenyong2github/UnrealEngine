@@ -304,7 +304,6 @@ namespace Metasound
 
 	namespace DirectedGraphAlgo
 	{
-		
 		TPimplPtr<FDirectedGraphAlgoAdapter> CreateDirectedGraphAlgoAdapter(const IGraph& InGraph)
 		{
 			return MakePimpl<FDirectedGraphAlgoAdapter>(InGraph);
@@ -475,68 +474,6 @@ namespace Metasound
 			OutNodes = NodesFromInput.Union(NodesFromOutput);
 		}
 
-		namespace GraphAlgoPrivate
-		{
-			struct FInputToUpdate
-			{
-				FOperatorID OperatorID;
-				FVertexName VertexName;
-				FAnyDataReference DataReference;
-			};
-
-			// Apply updates to data references through all the operators by following connections described in the FOperatorInfo map.
-			void PropagateBindUpdate(FOperatorID InInitialOperatorID, const FVertexName& InVertexName, const FAnyDataReference& InNewReference, TSortedMap<FOperatorID, FGraphOperatorData::FOperatorInfo>& InOperatorInfoMap, FOnPostOperatorRebind OnPostOperatorRebind)
-			{
-				TArray<FInputToUpdate> UpdateStack;
-				UpdateStack.Emplace(FInputToUpdate{InInitialOperatorID, InVertexName, InNewReference});
-
-				TArray<FVertexDataState> InitialOutputState;
-				TSortedVertexNameMap<FAnyDataReference> OutputUpdates;
-				while (UpdateStack.Num())
-				{
-					FInputToUpdate Current = UpdateStack.Pop();
-					if (FGraphOperatorData::FOperatorInfo* OpInfo = InOperatorInfoMap.Find(Current.OperatorID))
-					{
-						// Get current outputs
-						InitialOutputState.Reset();
-						GetVertexInterfaceDataState(OpInfo->VertexData.GetOutputs(), InitialOutputState);
-
-						// Set new input.
-						OpInfo->VertexData.GetInputs().SetVertex(Current.VertexName, MoveTemp(Current.DataReference));
-
-						// Bind inputs and outputs
-						OpInfo->Operator->BindInputs(OpInfo->VertexData.GetInputs());
-						OpInfo->Operator->BindOutputs(OpInfo->VertexData.GetOutputs());
-						OnPostOperatorRebind(Current.OperatorID, *(OpInfo->Operator));
-
-						// See if binding altered the outputs. 
-						OutputUpdates.Reset();
-						CompareVertexInterfaceDataToPriorState(OpInfo->VertexData.GetOutputs(), InitialOutputState, OutputUpdates);
-
-						// Any updates to the outputs need to be propagated through the graph.
-						for (const TPair<FVertexName, FAnyDataReference>& OutputUpdate : OutputUpdates)
-						{
-							const FVertexName& OutputVertexName = OutputUpdate.Get<0>();
-							const FAnyDataReference& OutputDataReference = OutputUpdate.Get<1>();
-
-							if (const TArray<FGraphOperatorData::FVertexDestination>* Destinations = OpInfo->OutputConnections.Find(OutputVertexName))
-							{
-								for (const FGraphOperatorData::FVertexDestination& Destination : *Destinations)
-								{
-									UpdateStack.Push({Destination.OperatorID, Destination.VertexName, OutputDataReference});
-								}
-							}
-						}
-					}
-					else
-					{
-						UE_LOG(LogMetaSound, Error, TEXT("Failed to rebind graph operator state. Could not find operator info with ID %s"), *LexToString(Current.OperatorID));
-					}
-				}
-			}
-
-		}
-
 		FOperatorID GetOperatorID(const INode& InNode)
 		{
 			return GetOperatorID(&InNode);
@@ -550,64 +487,6 @@ namespace Metasound
 		FGraphOperatorData::FGraphOperatorData(const FOperatorSettings& InOperatorSettings)
 		: OperatorSettings(InOperatorSettings)
 		{
-		}
-		
-		void RebindGraphInputs(FInputVertexInterfaceData& InOutVertexData, FRebindGraphDataParams& InParams, FOnPostOperatorRebind OnPostOperatorRebind)
-		{
-			// Bind and diff the graph's interface to determine if there is an update to any vertices
-			FInputVertexInterfaceData& InputVertexData = InParams.VertexData.GetInputs();
-			TArray<FVertexDataState> InitialVertexDataState;
-			GetVertexInterfaceDataState(InputVertexData, InitialVertexDataState);
-
-			InOutVertexData.Bind(InputVertexData);
-
-			TSortedVertexNameMap<FAnyDataReference> GraphInputsToUpdate;
-			CompareVertexInterfaceDataToPriorState(InputVertexData, InitialVertexDataState, GraphInputsToUpdate);
-
-			if (GraphInputsToUpdate.Num() > 0)
-			{
-				// Update the graph data by propagating the updates through the inputs nodes. 
-				for (const TPair<FVertexName, FAnyDataReference>& InputToUpdate : GraphInputsToUpdate)
-				{
-					const FVertexName& VertexName = InputToUpdate.Get<0>();
-					if (const FOperatorID* OperatorID = InParams.InputVertexMap.Find(VertexName))
-					{
-						GraphAlgoPrivate::PropagateBindUpdate(*OperatorID, VertexName, InputToUpdate.Get<1>(), InParams.OperatorMap, OnPostOperatorRebind);
-					}
-					else
-					{
-						UE_LOG(LogMetaSound, Error, TEXT("No input operator exists for input vertex %s"), *VertexName.ToString());
-					}
-				}
-
-				// Refresh output vertex interface data.
-				for (const TPair<FVertexName, FOperatorID>& OutputVertexInfo : InParams.OutputVertexMap)
-				{
-					const FVertexName& VertexName = OutputVertexInfo.Get<0>();
-					const FOperatorID& OperatorID = OutputVertexInfo.Get<1>();
-
-					if (const FGraphOperatorData::FOperatorInfo* OperatorInfo = InParams.OperatorMap.Find(OperatorID))
-					{
-						if (const FAnyDataReference* Ref = OperatorInfo->VertexData.GetOutputs().FindDataReference(OutputVertexInfo.Get<0>()))
-						{
-							InParams.VertexData.GetOutputs().SetVertex(VertexName, *Ref);
-						}
-						else if (InParams.VertexData.GetOutputs().IsVertexBound(VertexName))
-						{
-							UE_LOG(LogMetaSound, Error, TEXT("Output vertex (%s) lost data reference after rebinding graph"), *VertexName.ToString());
-						}
-					}
-					else
-					{
-						UE_LOG(LogMetaSound, Error, TEXT("Failed to rebind graph operator state outputs. Could not find output operator info with ID %s"), *LexToString(OperatorID));
-					}
-				}
-			}
-		}
-
-		void RebindGraphOutputs(FOutputVertexInterfaceData& InOutVertexData, FRebindGraphDataParams& InParams, FOnPostOperatorRebind OnPostOperatorRebind)
-		{
-			InOutVertexData.Bind(InParams.VertexData.GetOutputs());
 		}
 	}
 }

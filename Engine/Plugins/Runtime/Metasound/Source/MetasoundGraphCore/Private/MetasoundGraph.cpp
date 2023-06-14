@@ -5,6 +5,16 @@
 
 namespace Metasound
 {
+	FGraph::FGraph(const IGraph& InOther)
+	: InstanceName(InOther.GetInstanceName())
+	, InstanceID(InOther.GetInstanceID())
+	, Metadata(InOther.GetMetadata())
+	, Edges(InOther.GetDataEdges())
+	, InputDestinations(InOther.GetInputDataDestinations())
+	, OutputSources(InOther.GetOutputDataSources())
+	{
+	}
+
 	FGraph::FGraph(const FString& InInstanceName, const FGuid& InInstanceID)
 	: InstanceName(InInstanceName)
 	, InstanceID(InInstanceID)
@@ -47,6 +57,24 @@ namespace Metasound
 		InputDestinations.Add(MakeDestinationDataVertexKey(InDestination), InDestination);
 	}
 
+	bool FGraph::RemoveInputDataDestination(const FVertexName& InVertexName)
+	{
+		bool bSuccessRemoveFromInterface = Metadata.DefaultInterface.GetInputInterface().Remove(InVertexName);
+
+		FInputDataDestinationCollection::TIterator Iter = InputDestinations.CreateIterator();
+		bool bSuccessRemoveFromDestinations = false;
+		do
+		{
+			if (Iter.Value().Vertex.VertexName == InVertexName)
+			{
+				Iter.RemoveCurrent();
+				bSuccessRemoveFromDestinations = true;
+			}
+		} while(++Iter);
+
+		return bSuccessRemoveFromInterface && bSuccessRemoveFromDestinations;
+	}
+
 	const FInputDataDestinationCollection& FGraph::GetInputDataDestinations() const
 	{
 		return InputDestinations;
@@ -70,6 +98,24 @@ namespace Metasound
 	{
 		Metadata.DefaultInterface.GetOutputInterface().Add(InSource.Vertex);
 		OutputSources.Add(MakeSourceDataVertexKey(InSource), InSource);
+	}
+
+	bool FGraph::RemoveOutputDataSource(const FVertexName& InVertexName)
+	{
+		bool bSuccessRemoveFromInterface = Metadata.DefaultInterface.GetOutputInterface().Remove(InVertexName);
+
+		FOutputDataSourceCollection::TIterator Iter = OutputSources.CreateIterator();
+		bool bSuccessRemoveFromSources = false;
+		do
+		{
+			if (Iter.Value().Vertex.VertexName == InVertexName)
+			{
+				Iter.RemoveCurrent();
+				bSuccessRemoveFromSources = true;
+			}
+		} while(++Iter);
+
+		return bSuccessRemoveFromInterface && bSuccessRemoveFromSources;
 	}
 
 	const FOutputDataSourceCollection& FGraph::GetOutputDataSources() const
@@ -111,6 +157,26 @@ namespace Metasound
 		AddDataEdge(Edge);
 
 		return true;
+	}
+
+	bool FGraph::RemoveDataEdge(const INode& FromNode, const FVertexName& FromVertexKey, const INode& ToNode, const FVertexName& ToVertexKey)
+	{
+		auto IsTargetDataEdge = [&](const FDataEdge& InEdge)
+		{
+			return (InEdge.To.Node == &ToNode) && (InEdge.To.Vertex.VertexName == ToVertexKey) && (InEdge.From.Node == &FromNode) && (InEdge.From.Vertex.VertexName == FromVertexKey);
+		};
+		int32 NumRemoved = Edges.RemoveAllSwap(IsTargetDataEdge);
+
+		return (NumRemoved > 0);
+	}
+
+	void FGraph::RemoveDataEdgesWithNode(const INode& InNode)
+	{
+		auto ContainsNode = [&](const FDataEdge& InEdge)
+		{
+			return (InEdge.To.Node == &InNode) || (InEdge.From.Node == &InNode);
+		};
+		Edges.RemoveAllSwap(ContainsNode);
 	}
 
 	const TArray<FDataEdge>& FGraph::GetDataEdges() const

@@ -13,6 +13,7 @@
 #include "MetasoundAssetManager.h"
 #include "MetasoundAudioFormats.h"
 #include "MetasoundBuilderSubsystem.h"
+#include "MetasoundDynamicOperatorTransactor.h"
 #include "MetasoundEngineAsset.h"
 #include "MetasoundEngineEnvironment.h"
 #include "MetasoundEnvironment.h"
@@ -1014,5 +1015,34 @@ Metasound::SourcePrivate::FParameterRouter& UMetaSoundSource::GetParameterRouter
 	return Router;
 }
 
+TSharedPtr<Metasound::DynamicGraph::FDynamicOperatorTransactor> UMetaSoundSource::EnableDynamicGenerators(bool bInIsEnabled)
+{
+	using namespace Metasound;
+	using namespace Metasound::DynamicGraph;
+
+	if (bInIsEnabled && (!DynamicTransactor.IsValid()))
+	{
+		TSharedPtr<IGraph> CurrentGraph = GetRuntimeData().Graph;
+		if (CurrentGraph.IsValid())
+		{
+			DynamicTransactor = MakeShared<FDynamicOperatorTransactor>(*CurrentGraph);
+		}
+		else
+		{
+			DynamicTransactor = MakeShared<FDynamicOperatorTransactor>();
+		}
+	}
+	else
+	{
+		DynamicTransactor.Reset();
+	}
+
+	return DynamicTransactor;
+}
+
+TSharedPtr<Metasound::DynamicGraph::FDynamicOperatorTransactor> UMetaSoundSource::GetDynamicGeneratorTransactor() const
+{
+	return DynamicTransactor;
+}
 
 #undef LOCTEXT_NAMESPACE // MetaSound

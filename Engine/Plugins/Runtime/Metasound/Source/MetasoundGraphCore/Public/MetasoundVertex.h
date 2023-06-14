@@ -323,7 +323,7 @@ namespace Metasound
 			{
 			}
 
-			bool operator()(const VertexType& InOther)
+			bool operator()(const VertexType& InOther) const
 			{
 				return InOther.VertexName == NameRef;
 			}

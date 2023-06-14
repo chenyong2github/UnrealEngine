@@ -177,7 +177,16 @@ namespace Metasound
 			// Create an instance of the new graph
 			FBuildGraphOperatorParams BuildParams { *InInitParams.Graph, InInitParams.OperatorSettings, InputData, InInitParams.Environment };
 			FOperatorAndInputs OpAndInputs;
-			OpAndInputs.Operator = FOperatorBuilder(InInitParams.BuilderSettings).BuildGraphOperator(BuildParams, OutBuildResults);
+			FOperatorBuilder Builder(InInitParams.BuilderSettings);
+
+			if (InInitParams.DynamicOperatorTransactor.IsValid())
+			{
+				OpAndInputs.Operator = Builder.BuildDynamicGraphOperator(BuildParams, *InInitParams.DynamicOperatorTransactor, OutBuildResults);
+			}
+			else
+			{
+				OpAndInputs.Operator = Builder.BuildGraphOperator(BuildParams, OutBuildResults);
+			}
 			OpAndInputs.Inputs = InputData;
 
 			return OpAndInputs;

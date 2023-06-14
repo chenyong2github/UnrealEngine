@@ -62,26 +62,5 @@ namespace Metasound
 			// Map with output vertex name as key, and OperatorID of output node as value.
 			TSortedVertexNameMap<FOperatorID> OutputVertexMap;
 		};
-
-		// Arguments for calling Rebind
-		struct FRebindGraphDataParams
-		{
-			FVertexInterfaceData& VertexData; 											//< Current vertex data of graph
-			TSortedMap<FOperatorID, FGraphOperatorData::FOperatorInfo>& OperatorMap; 	//< Map of operator data in graph
-			TSortedVertexNameMap<FOperatorID>& InputVertexMap; 							//< Map of graph input nodes
-			TSortedVertexNameMap<FOperatorID>& OutputVertexMap; 						//< Map of graph output nodes
-		};
-
-		using FOnPostOperatorRebind = TFunctionRef<void(FOperatorID, IOperator&)>;
-
-		// Rebind the graph inputs, updating internal operator bindings as needed
-		//
-		// When an internal node is rebound, the OnPostOperatorRebind will be called. 
-		void RebindGraphInputs(FInputVertexInterfaceData& InOutVertexData, FRebindGraphDataParams& InOutParams, FOnPostOperatorRebind OnPostOperatorRebind);
-
-		// Rebind the graph inputs, updating internal operator bindings as needed
-		//
-		// When an internal node is rebound, the OnPostOperatorRebind will be called. 
-		void RebindGraphOutputs(FOutputVertexInterfaceData& InOutVertexData, FRebindGraphDataParams& InOutParams, FOnPostOperatorRebind OnPostOperatorRebind);
 	}
 }

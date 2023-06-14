@@ -210,6 +210,8 @@ namespace Metasound
 		MetaSoundName = {};
 		AudioOutputNames = {};
 		DefaultParameters = {};
+		DataChannel.Reset();
+		DynamicOperatorTransactor.Reset();
 	}
 
 	FMetasoundGenerator::FMetasoundGenerator(FMetasoundGeneratorInitParams&& InParams)
@@ -235,6 +237,8 @@ namespace Metasound
 		NumFramesPerExecute = InParams.OperatorSettings.GetNumFramesPerBlock();
 		NumSamplesPerExecute = NumChannels * NumFramesPerExecute;
 
+		const bool bIsDynamic = InParams.DynamicOperatorTransactor.IsValid();
+
 		// Create the routing for parameter packs
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		ParameterPackSendAddress = UMetasoundParameterPack::CreateSendAddressFromEnvironment(InParams.Environment);
@@ -243,7 +247,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		// attempt to use operator cache instead of building a new operator.
 		bool bDidUseCachedOperator = false;
-		if (ConsoleVariables::bEnableExperimentalOneShotOperatorCache || ConsoleVariables::bEnableExperimentalOperatorCache)
+		const bool bIsOperatorCacheEnabled = ConsoleVariables::bEnableExperimentalOneShotOperatorCache || ConsoleVariables::bEnableExperimentalOperatorCache;
+		// Dynamic operators cannot use the operator cache because they can change their internal structure. 
+		// The operator cache assumes that the operator is unchanged from it's original structure. 
+		if (bIsOperatorCacheEnabled && !bIsDynamic)
 		{
 			bUseOperatorCache = ConsoleVariables::bEnableExperimentalOperatorCache || MetasoundGeneratorPrivate::HasOneShotInterface(InParams.Graph->GetVertexInterface());
 
