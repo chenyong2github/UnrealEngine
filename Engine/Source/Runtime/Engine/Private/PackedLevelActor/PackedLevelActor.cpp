@@ -174,21 +174,6 @@ TUniquePtr<class FWorldPartitionActorDesc> APackedLevelActor::CreateClassActorDe
 	return TUniquePtr<FWorldPartitionActorDesc>(new FPackedLevelActorDesc());
 }
 
-bool APackedLevelActor::CreateOrUpdateBlueprint(ALevelInstance* InLevelInstance, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave, bool bPromptForSave)
-{
-	return FPackedLevelActorBuilder::CreateDefaultBuilder()->CreateOrUpdateBlueprint(InLevelInstance, InBlueprintAsset, bCheckoutAndSave, bPromptForSave);
-}
-
-bool APackedLevelActor::CreateOrUpdateBlueprint(TSoftObjectPtr<UWorld> InWorldAsset, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave, bool bPromptForSave)
-{
-	return FPackedLevelActorBuilder::CreateDefaultBuilder()->CreateOrUpdateBlueprint(InWorldAsset, InBlueprintAsset, bCheckoutAndSave, bPromptForSave);
-}
-
-void APackedLevelActor::UpdateBlueprint(UBlueprint* InBlueprint, bool bCheckoutAndSave)
-{
-	FPackedLevelActorBuilder::CreateDefaultBuilder()->UpdateBlueprint(InBlueprint, bCheckoutAndSave);
-}
-
 FName APackedLevelActor::GetPackedComponentTag()
 {
 	static FName PackedComponentTag("PackedComponent");

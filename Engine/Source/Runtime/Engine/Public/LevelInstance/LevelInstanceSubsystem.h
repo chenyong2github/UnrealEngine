@@ -67,8 +67,11 @@ public:
 	ENGINE_API void OnExitEditorMode();
 	ENGINE_API void OnTryExitEditorMode();
 	ENGINE_API bool OnExitEditorModeInternal(bool bForceExit);
-	ENGINE_API void PackAllLoadedActors();
-	ENGINE_API bool CanPackAllLoadedActors() const;
+
+	UE_DEPRECATED(5.3, "Use FPackedLevelActorUtils::PackAllLoadedActors")
+	ENGINE_API void PackAllLoadedActors() {}
+	UE_DEPRECATED(5.3, "Use FPackedLevelActorUtils::CanPackAllLoadedActors")
+	ENGINE_API bool CanPackAllLoadedActors() const { return false;}
 
 	ENGINE_API ILevelInstanceInterface* GetEditingLevelInstance() const;
 	ENGINE_API bool CanEditLevelInstance(const ILevelInstanceInterface* LevelInstance, FText* OutReason = nullptr) const;

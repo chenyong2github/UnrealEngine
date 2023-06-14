@@ -11,6 +11,7 @@
 #include "UObject/SoftObjectPtr.h"
 #include "Containers/Set.h"
 
+class ILevelInstanceInterface;
 class APackedLevelActor;
 class ALevelInstance;
 class AActor;
@@ -30,14 +31,14 @@ public:
 	static ENGINE_API TSharedPtr<FPackedLevelActorBuilder> CreateDefaultBuilder();
 	
 	/* Packs InPackedLevelActor using InLevelInstanceToPack as its source level actor */
-	ENGINE_API bool PackActor(APackedLevelActor* InPackedLevelActor, ALevelInstance* InLevelInstanceToPack);
+	ENGINE_API bool PackActor(APackedLevelActor* InPackedLevelActor, ILevelInstanceInterface* InLevelInstanceToPack);
 	/* Packs InPackedLevelActor using itself as the source level actor */
 	ENGINE_API bool PackActor(APackedLevelActor* InPackedLevelActor);
 	/* Packs InPackedLevelActor using InWorldAsset as the source level */
 	ENGINE_API bool PackActor(APackedLevelActor* InPackedLevelActor, TSoftObjectPtr<UWorld> InWorldAsset);
 
 	/* Creates/Updates a APackedLevelActor Blueprint from InLevelInstance (will overwrite existing asset or show a dialog if InBlueprintAsset is null) */
-	ENGINE_API bool CreateOrUpdateBlueprint(ALevelInstance* InLevelInstance, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave = true, bool bPromptForSave = true);
+	ENGINE_API bool CreateOrUpdateBlueprint(ILevelInstanceInterface* InLevelInstance, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave = true, bool bPromptForSave = true);
 	/* Creates/Updates a APackedLeveInstance Blueprint from InWorldAsset (will overwrite existing asset or show a dialog if InBlueprintAsset is null) */
 	ENGINE_API bool CreateOrUpdateBlueprint(TSoftObjectPtr<UWorld> InWorldAsset, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave = true, bool bPromptForSave = true);
 	/* Update existing Blueprint */
@@ -55,7 +56,7 @@ private:
 	/* Create/Updates a APackedLevelActor Blueprint from InPackedActor (will overwrite existing asset or show a dialog if InBlueprintAsset is null) */
 	ENGINE_API bool CreateOrUpdateBlueprintFromPacked(APackedLevelActor* InPackedActor, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave, bool bPromptForSave);
 	/* Creates/Updates a APackedLevelActor Blueprint from InLevelInstance (will overwrite existing asset or show a dialog if InBlueprintAsset is null) */
-	ENGINE_API bool CreateOrUpdateBlueprintFromUnpacked(ALevelInstance* InPackedActor, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave, bool bPromptForSave);
+	ENGINE_API bool CreateOrUpdateBlueprintFromUnpacked(ILevelInstanceInterface* InLevelInstance, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave, bool bPromptForSave);
 	/* Creates and loads a ALevelInstance so it can be used for packing */
 	ENGINE_API ALevelInstance* CreateTransientLevelInstanceForPacking(TSoftObjectPtr<UWorld> InWorldAsset, const FVector& InLocation, const FRotator& InRotator, const FWorldPartitionActorFilter& InFilter);
 
@@ -75,7 +76,7 @@ private:
 class FPackedLevelActorBuilderContext
 {
 public:
-	FPackedLevelActorBuilderContext(const FPackedLevelActorBuilder& InBuilder, APackedLevelActor* InPackedLevelActor, ALevelInstance* InLevelInstanceToPack) 
+	FPackedLevelActorBuilderContext(const FPackedLevelActorBuilder& InBuilder, APackedLevelActor* InPackedLevelActor, ILevelInstanceInterface* InLevelInstanceToPack) 
 		: Builders(InBuilder.Builders), ClassDiscards(InBuilder.ClassDiscards), PackedLevelActor(InPackedLevelActor), LevelInstanceToPack(InLevelInstanceToPack), RelativePivotTransform(FTransform::Identity) {}
 
 	/* Interface for IPackedLevelActorBuilder's to use */
@@ -92,13 +93,13 @@ public:
 	bool ShouldPackComponent(UActorComponent* InActorComponent) const;
 
 	APackedLevelActor* GetPackedLevelActor() const { return PackedLevelActor; }
-	ALevelInstance* GetLevelInstanceToPack() const { return LevelInstanceToPack; }
+	ILevelInstanceInterface* GetLevelInstanceToPack() const { return LevelInstanceToPack; }
 private:
 	const TMap<FPackedLevelActorBuilderID, TUniquePtr<IPackedLevelActorBuilder>>& Builders;
 	const TSet<UClass*>& ClassDiscards;
 
 	APackedLevelActor* PackedLevelActor;
-	ALevelInstance* LevelInstanceToPack;
+	ILevelInstanceInterface* LevelInstanceToPack;
 	
 	TMap<FPackedLevelActorBuilderClusterID, TArray<UActorComponent*>> Clusters;
 

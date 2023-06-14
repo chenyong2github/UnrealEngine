@@ -2,6 +2,7 @@
 #include "LevelInstanceEditorModule.h"
 #include "LevelInstanceActorDetails.h"
 #include "LevelInstancePivotDetails.h"
+#include "PackedLevelActorUtils.h"
 #include "LevelInstanceFilterPropertyTypeCustomization.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "LevelInstance/LevelInstanceInterface.h"
@@ -495,13 +496,13 @@ namespace LevelInstanceMenuUtils
 					{
 						FToolUIAction UIAction;
 						UIAction.ExecuteAction.BindLambda([ContextLevelInstance, BlueprintAsset](const FToolMenuContext& MenuContext)
-							{
-								APackedLevelActor::CreateOrUpdateBlueprint(ContextLevelInstance->GetWorldAsset(), BlueprintAsset);
-							});
+						{
+							FPackedLevelActorUtils::CreateOrUpdateBlueprint(ContextLevelInstance->GetWorldAsset(), BlueprintAsset);
+						});
 						UIAction.CanExecuteAction.BindLambda([](const FToolMenuContext& MenuContext)
-							{
-								return GEditor->GetSelectedActorCount() > 0;
-							});
+						{
+							return FPackedLevelActorUtils::CanPack() && GEditor->GetSelectedActorCount() > 0;
+						});
 
 						Section.AddMenuEntry(
 							"UpdatePackedBlueprint",
@@ -567,7 +568,7 @@ namespace LevelInstanceMenuUtils
 			
 			if (NewBlueprint->GeneratedClass->IsChildOf<APackedLevelActor>())
 			{
-				APackedLevelActor::UpdateBlueprint(NewBlueprint);
+				FPackedLevelActorUtils::UpdateBlueprint(NewBlueprint);
 			}
 
 			FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
@@ -593,7 +594,7 @@ namespace LevelInstanceMenuUtils
 			"CreateLevelInstanceBlueprint",
 			LOCTEXT("CreateLevelInstanceBlueprint", "New Blueprint..."),
 			TAttribute<FText>(),
-			TAttribute<FSlateIcon>(),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.LevelInstance"),
 			UIAction);
 	}
 
@@ -653,6 +654,37 @@ namespace LevelInstanceMenuUtils
 		{
 			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("AddPartitionedLevelInstanceStreamingSupportError", "An error occured when adding partitioned level instance streaming support, check logs for details.."));
 		}
+	}
+
+	void UpdatePackedBlueprintsFromMenu(UToolMenu* Menu, FAssetData WorldAsset)
+	{
+		FToolMenuSection& Section = CreateLevelSection(Menu);
+		FToolUIAction UIAction;
+		UIAction.CanExecuteAction.BindLambda([](const FToolMenuContext& MenuContext)
+		{
+			return FPackedLevelActorUtils::CanPack();
+		});
+		UIAction.ExecuteAction.BindLambda([WorldAsset](const FToolMenuContext& MenuContext)
+		{
+			FScopedSlowTask SlowTask(0.0f, LOCTEXT("UpdatePackedBlueprintsProgress", "Updating Packed Blueprints..."));
+			TSet<TSoftObjectPtr<UBlueprint>> BlueprintAssets;
+			FPackedLevelActorUtils::GetPackedBlueprintsForWorldAsset(TSoftObjectPtr<UWorld>(WorldAsset.GetSoftObjectPath()), BlueprintAssets, false);
+			for (TSoftObjectPtr<UBlueprint> BlueprintAsset : BlueprintAssets)
+			{
+				if (UBlueprint* Blueprint = BlueprintAsset.Get())
+				{
+					FPackedLevelActorUtils::UpdateBlueprint(Blueprint, false);
+				}
+			}
+		});
+
+		Section.AddMenuEntry(
+			"UpdatePackedBlueprintsFromMenu",
+			LOCTEXT("UpdatePackedBlueprintsFromMenu", "Update Packed Blueprints"),
+			TAttribute<FText>(),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.PackedLevelActor"),
+			UIAction
+		);
 	}
 
 	void AddPartitionedStreamingSupportFromMenu(UToolMenu* Menu, FAssetData WorldAsset)
@@ -815,20 +847,11 @@ void FLevelInstanceEditorModule::ExtendContextMenu()
 		FUIAction PackAction(
 			FExecuteAction::CreateLambda([]() 
 			{
-				UWorld* World = GEditor->GetEditorWorldContext().World();
-				if (ULevelInstanceSubsystem* LevelInstanceSubsystem = World->GetSubsystem<ULevelInstanceSubsystem>())
-				{
-					LevelInstanceSubsystem->PackAllLoadedActors();
-				}
+				FPackedLevelActorUtils::PackAllLoadedActors();
 			}), 
 			FCanExecuteAction::CreateLambda([]()
 			{
-				UWorld* World = GEditor->GetEditorWorldContext().World();
-				if (ULevelInstanceSubsystem* LevelInstanceSubsystem = World->GetSubsystem<ULevelInstanceSubsystem>())
-				{
-					return LevelInstanceSubsystem->CanPackAllLoadedActors();
-				}
-				return false;
+				return FPackedLevelActorUtils::CanPack();
 			}),
 			FIsActionChecked(),
 			FIsActionButtonVisible::CreateLambda([]() 
@@ -842,6 +865,11 @@ void FLevelInstanceEditorModule::ExtendContextMenu()
 
 	auto AddDynamicSection = [](UToolMenu* ToolMenu)
 	{				
+		if (GEditor->GetPIEWorldContext())
+		{
+			return;
+		}
+
 		if (ULevelEditorContextMenuContext* LevelEditorMenuContext = ToolMenu->Context.FindContext<ULevelEditorContextMenuContext>())
 		{
 			// Use the actor under the cursor if available (e.g. right-click menu).
@@ -881,6 +909,11 @@ void FLevelInstanceEditorModule::ExtendContextMenu()
 	{
 		FToolMenuSection& Section = WorldAssetMenu->AddDynamicSection("ActorLevelInstance", FNewToolMenuDelegate::CreateLambda([this](UToolMenu* ToolMenu)
 		{
+			if (GEditor->GetPIEWorldContext())
+			{
+				return;
+			}
+
 			if(!GetDefault<UEditorExperimentalSettings>()->bLevelInstance)
 			{
 				return;
@@ -899,6 +932,7 @@ void FLevelInstanceEditorModule::ExtendContextMenu()
 					if (AssetMenuContext->SelectedAssets[0].IsInstanceOf<UWorld>())
 					{
 						LevelInstanceMenuUtils::CreateBlueprintFromMenu(ToolMenu, WorldAsset);
+						LevelInstanceMenuUtils::UpdatePackedBlueprintsFromMenu(ToolMenu, WorldAsset);
 						LevelInstanceMenuUtils::AddPartitionedStreamingSupportFromMenu(ToolMenu, WorldAsset);
 					}
 				}

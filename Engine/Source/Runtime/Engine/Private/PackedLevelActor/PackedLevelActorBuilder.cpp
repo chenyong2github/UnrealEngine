@@ -11,6 +11,7 @@
 #include "PackedLevelActor/PackedLevelActorRecursiveBuilder.h"
 
 #include "LevelInstance/LevelInstanceSubsystem.h"
+#include "LevelInstance/LevelInstanceInterface.h"
 
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Engine/SCS_Node.h"
@@ -160,7 +161,7 @@ bool FPackedLevelActorBuilder::PackActor(APackedLevelActor* InPackedLevelActor)
 	return PackActor(InPackedLevelActor, InPackedLevelActor);
 }
 
-bool FPackedLevelActorBuilder::PackActor(APackedLevelActor* InPackedLevelActor, ALevelInstance* InLevelInstanceToPack)
+bool FPackedLevelActorBuilder::PackActor(APackedLevelActor* InPackedLevelActor, ILevelInstanceInterface* InLevelInstanceToPack)
 {
 	FPackedLevelActorBuilderContext Context(*this, InPackedLevelActor, InLevelInstanceToPack);
 	return PackActor(Context);
@@ -192,7 +193,7 @@ bool FPackedLevelActorBuilder::PackActor(FPackedLevelActorBuilderContext& InCont
 	FTransform RelativePivotTransform(NewPivotTransform.GetRelativeTransform(CurrentPivotTransform));
 		
 	InContext.SetRelativePivotTransform(RelativePivotTransform);	
-	InContext.ClusterLevelActor(InContext.GetLevelInstanceToPack());
+	InContext.ClusterLevelActor(CastChecked<AActor>(InContext.GetLevelInstanceToPack()));
 
 	for (const auto& Pair : InContext.GetClusters())
 	{
@@ -348,7 +349,7 @@ bool FPackedLevelActorBuilder::CreateOrUpdateBlueprint(TSoftObjectPtr<UWorld> In
 	return bResult;
 }
 
-bool FPackedLevelActorBuilder::CreateOrUpdateBlueprint(ALevelInstance* InLevelInstance, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave, bool bPromptForSave)
+bool FPackedLevelActorBuilder::CreateOrUpdateBlueprint(ILevelInstanceInterface* InLevelInstance, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave, bool bPromptForSave)
 {
 	if (APackedLevelActor* PackedLevelActor = Cast<APackedLevelActor>(InLevelInstance))
 	{
@@ -358,10 +359,11 @@ bool FPackedLevelActorBuilder::CreateOrUpdateBlueprint(ALevelInstance* InLevelIn
 	return CreateOrUpdateBlueprintFromUnpacked(InLevelInstance, InBlueprintAsset, bCheckoutAndSave, bPromptForSave);
 }
 
-bool FPackedLevelActorBuilder::CreateOrUpdateBlueprintFromUnpacked(ALevelInstance* InActor, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave, bool bPromptForSave)
+bool FPackedLevelActorBuilder::CreateOrUpdateBlueprintFromUnpacked(ILevelInstanceInterface* InLevelInstance, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave, bool bPromptForSave)
 {
 	bool bResult = true;
-	
+	AActor* LevelInstanceActor = CastChecked<AActor>(InLevelInstance);
+
 	// Create Temp Actor for Packing
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.bCreateActorPackage = false;
@@ -370,18 +372,18 @@ bool FPackedLevelActorBuilder::CreateOrUpdateBlueprintFromUnpacked(ALevelInstanc
 	SpawnParams.ObjectFlags |= RF_Transient;
 	SpawnParams.ObjectFlags &= ~RF_Transactional;
 	
-	UWorld* World = InActor->GetWorld();
+	UWorld* World = LevelInstanceActor->GetWorld();
 	SpawnParams.OverrideLevel = World->PersistentLevel;
 
-	APackedLevelActor* PackedLevelActor = World->SpawnActor<APackedLevelActor>(InActor->GetActorLocation(), InActor->GetActorRotation(), SpawnParams);	
-	PackedLevelActor->SetWorldAsset(InActor->GetWorldAsset());
-	PackedLevelActor->SetFilter(InActor->GetFilter());
+	APackedLevelActor* PackedLevelActor = World->SpawnActor<APackedLevelActor>(LevelInstanceActor->GetActorLocation(), LevelInstanceActor->GetActorRotation(), SpawnParams);
+	PackedLevelActor->SetWorldAsset(InLevelInstance->GetWorldAsset());
+	PackedLevelActor->SetFilter(InLevelInstance->GetFilter());
 	ON_SCOPE_EXIT
 	{
-		InActor->GetWorld()->DestroyActor(PackedLevelActor);
+		LevelInstanceActor->GetWorld()->DestroyActor(PackedLevelActor);
 	};
 
-	if (!PackActor(PackedLevelActor, InActor))
+	if (!PackActor(PackedLevelActor, InLevelInstance))
 	{
 		return false;
 	}
