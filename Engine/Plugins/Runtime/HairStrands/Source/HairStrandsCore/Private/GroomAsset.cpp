@@ -1215,7 +1215,7 @@ void UGroomAsset::PostLoad()
 
 	// Legacy asset are missing rendering or interpolation settings
 #if WITH_EDITORONLY_DATA
-	const bool bIsLegacyAsset = GetHairGroupsInfo().Num() == 0;
+	const bool bIsLegacyAsset = GetHairGroupsInterpolation().Num() == 0;
 	if (bIsLegacyAsset)
 	{
 		if (HairDescriptionBulkData[HairDescriptionType])

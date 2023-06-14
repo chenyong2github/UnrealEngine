@@ -429,7 +429,7 @@ class HAIRSTRANDSCORE_API UGroomAsset : public UObject, public IInterface_AssetU
 	DECLARE_MULTICAST_DELEGATE(FOnGroomAsyncLoadFinished);
 #endif
 
-private:
+public:
 	UE_DEPRECATED(5.3, "Please do not access this member directly; use UGroomAsset accessor.")
 	UPROPERTY(EditAnywhere, Transient, EditFixedSize, Category = "HairInfo", meta = (DisplayName = "Group"))
 	TArray<FHairGroupInfoWithVisibility> HairGroupsInfo;
