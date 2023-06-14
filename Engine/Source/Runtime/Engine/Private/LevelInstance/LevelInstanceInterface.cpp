@@ -318,11 +318,11 @@ const TMap<FActorContainerID, TSet<FGuid>>& ILevelInstanceInterface::GetFiltered
 	return NoFilteredActors;
 }
 
-void ILevelInstanceInterface::SetFilter(const FWorldPartitionActorFilter& InFilter)
+void ILevelInstanceInterface::SetFilter(const FWorldPartitionActorFilter& InFilter, bool bNotify)
 {
 	if (ULevelInstanceComponent* LevelInstanceComponent = GetLevelInstanceComponent())
 	{
-		LevelInstanceComponent->SetFilter(InFilter);
+		LevelInstanceComponent->SetFilter(InFilter, bNotify);
 	}
 }
 

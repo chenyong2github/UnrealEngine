@@ -42,7 +42,7 @@ public:
 	ENGINE_API void OnCommit();
 
 	const FWorldPartitionActorFilter& GetFilter() const { return IsEditFilter() ? EditFilter : Filter; }
-	ENGINE_API void SetFilter(const FWorldPartitionActorFilter& InFilter);
+	ENGINE_API void SetFilter(const FWorldPartitionActorFilter& InFilter, bool bNotify = true);
 	ENGINE_API const TMap<FActorContainerID, TSet<FGuid>>& GetFilteredActorsPerContainer() const;
 	ENGINE_API void UpdateEditFilter();
 private:

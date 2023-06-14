@@ -36,19 +36,6 @@
 
 #define LOCTEXT_NAMESPACE "FPackedLevelActorBuilder"
 
-void FPackedLevelActorBuilderContext::ClusterLevelActor(AActor* InActor)
-{
-	if (!ActorDiscards.Contains(InActor))
-	{
-		PerActorClusteredComponents.FindOrAdd(InActor);
-
-		for (const auto& Pair : Builders)
-		{
-			Pair.Value->GetPackClusters(*this, InActor);
-		}
-	}
-}
-
 void FPackedLevelActorBuilderContext::FindOrAddCluster(FPackedLevelActorBuilderClusterID&& InClusterID, UActorComponent* InComponent)
 {
 	TArray<UActorComponent*>& ClusterComponents = Clusters.FindOrAdd(MoveTemp(InClusterID));
@@ -139,7 +126,6 @@ TSharedPtr<FPackedLevelActorBuilder> FPackedLevelActorBuilder::CreateDefaultBuil
 
 	// Class Discards are used to validate the packing result.
 	// Components or Actor classes in this set will not generate warnings
-	Builder->ClassDiscards.Add(ALevelBounds::StaticClass());
 	// Avoid dependency (find class)
 	UClass* ChaosDebugClass = FindObject<UClass>(nullptr, TEXT("/Script/ChaosSolverEngine.ChaosDebugDrawComponent"));
 	if (ChaosDebugClass)
@@ -150,10 +136,23 @@ TSharedPtr<FPackedLevelActorBuilder> FPackedLevelActorBuilder::CreateDefaultBuil
 	// Root Components that are SceneComponents (not child class of)
 	Builder->ClassDiscards.Add(USceneComponent::StaticClass());
 	
-	Builder->Builders.Add(FPackedLevelActorRecursiveBuilder::BuilderID, MakeUnique<FPackedLevelActorRecursiveBuilder>());
-	Builder->Builders.Add(FPackedLevelActorISMBuilder::BuilderID, MakeUnique<FPackedLevelActorISMBuilder>());
+	Builder->AddBuilder<FPackedLevelActorRecursiveBuilder>();
+	Builder->AddBuilder<FPackedLevelActorISMBuilder>();
 
 	return Builder;
+}
+
+void FPackedLevelActorBuilder::ClusterActor(FPackedLevelActorBuilderContext& InContext, AActor* InActor)
+{
+	if (!InContext.ActorDiscards.Contains(InActor))
+	{
+		InContext.PerActorClusteredComponents.FindOrAdd(InActor);
+
+		for (const auto& Pair : Builders)
+		{
+			Pair.Value->GetPackClusters(InContext, InActor);
+		}
+	}
 }
 
 bool FPackedLevelActorBuilder::PackActor(APackedLevelActor* InPackedLevelActor)
@@ -163,7 +162,7 @@ bool FPackedLevelActorBuilder::PackActor(APackedLevelActor* InPackedLevelActor)
 
 bool FPackedLevelActorBuilder::PackActor(APackedLevelActor* InPackedLevelActor, ILevelInstanceInterface* InLevelInstanceToPack)
 {
-	FPackedLevelActorBuilderContext Context(*this, InPackedLevelActor, InLevelInstanceToPack);
+	FPackedLevelActorBuilderContext Context(InPackedLevelActor, InLevelInstanceToPack, ClassDiscards);
 	return PackActor(Context);
 }
 
@@ -193,7 +192,7 @@ bool FPackedLevelActorBuilder::PackActor(FPackedLevelActorBuilderContext& InCont
 	FTransform RelativePivotTransform(NewPivotTransform.GetRelativeTransform(CurrentPivotTransform));
 		
 	InContext.SetRelativePivotTransform(RelativePivotTransform);	
-	InContext.ClusterLevelActor(CastChecked<AActor>(InContext.GetLevelInstanceToPack()));
+	ClusterActor(InContext, CastChecked<AActor>(InContext.GetLevelInstanceToPack()));
 
 	for (const auto& Pair : InContext.GetClusters())
 	{
@@ -297,7 +296,7 @@ ALevelInstance* FPackedLevelActorBuilder::CreateTransientLevelInstanceForPacking
 	check(World);
 	SpawnParams.OverrideLevel = World->PersistentLevel;
 	APackedLevelActor* LevelInstance = World->SpawnActor<APackedLevelActor>(InLocation, InRotator, SpawnParams);
-	LevelInstance->SetFilter(InFilter);
+	LevelInstance->SetFilter(InFilter, false);
 	LevelInstance->SetShouldLoadForPacking(true);
 	LevelInstance->SetWorldAsset(InWorldAsset);
 
@@ -376,8 +375,8 @@ bool FPackedLevelActorBuilder::CreateOrUpdateBlueprintFromUnpacked(ILevelInstanc
 	SpawnParams.OverrideLevel = World->PersistentLevel;
 
 	APackedLevelActor* PackedLevelActor = World->SpawnActor<APackedLevelActor>(LevelInstanceActor->GetActorLocation(), LevelInstanceActor->GetActorRotation(), SpawnParams);
+	PackedLevelActor->SetFilter(InLevelInstance->GetFilter(), false);
 	PackedLevelActor->SetWorldAsset(InLevelInstance->GetWorldAsset());
-	PackedLevelActor->SetFilter(InLevelInstance->GetFilter());
 	ON_SCOPE_EXIT
 	{
 		LevelInstanceActor->GetWorld()->DestroyActor(PackedLevelActor);
@@ -472,8 +471,7 @@ bool FPackedLevelActorBuilder::CreateOrUpdateBlueprintFromPacked(APackedLevelAct
 
 		PackedLevelActor->Modify(false);
 		PackedLevelActor->SetWorldAsset(InActor->GetWorldAsset());
-		PackedLevelActor->SetFilter(InActor->GetFilter());
-		PackedLevelActor->PackedBPDependencies = InActor->PackedBPDependencies;
+		PackedLevelActor->SetFilter(InActor->GetFilter(), false);
 		PackedLevelActor->SetPackedVersion(NewVersion);
 		// match root component mobility to source actor
 		USceneComponent* Root = PackedLevelActor->GetRootComponent();
@@ -488,6 +486,8 @@ bool FPackedLevelActorBuilder::CreateOrUpdateBlueprintFromPacked(APackedLevelAct
 			
 	// Synchronous compile
 	FKismetEditorUtilities::CompileBlueprint(BP, EBlueprintCompileOptions::SkipGarbageCollection);
+	FMessageLog Log("PackedLevelActor");
+	Log.Info(FText::Format(LOCTEXT("PackedBlueprintUpdated", "Updated Packed Blueprint '{0}'"), FText::FromString(InBlueprintAsset.ToString())));
 
 	if (bCheckoutAndSave)
 	{

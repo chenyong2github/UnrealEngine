@@ -50,6 +50,14 @@ public:
 	/* Creates a new APackedLevelActor Blueprint using InPackagePath/InAssetName */
 	static ENGINE_API UBlueprint* CreatePackedLevelActorBlueprint(TSoftObjectPtr<UBlueprint> InBlueprintAsset, TSoftObjectPtr<UWorld> InWorldAsset, bool bInCompile);
 	
+	template<class T>
+	void AddBuilder()
+	{
+		check(!Builders.Contains(T::BuilderID));
+		Builders.Add(T::BuilderID, MakeUnique<T>(*this));
+	}
+
+	void ClusterActor(FPackedLevelActorBuilderContext& InContext, AActor* InActor);
 private:
 	ENGINE_API bool PackActor(FPackedLevelActorBuilderContext& InContext);
 
@@ -76,11 +84,10 @@ private:
 class FPackedLevelActorBuilderContext
 {
 public:
-	FPackedLevelActorBuilderContext(const FPackedLevelActorBuilder& InBuilder, APackedLevelActor* InPackedLevelActor, ILevelInstanceInterface* InLevelInstanceToPack) 
-		: Builders(InBuilder.Builders), ClassDiscards(InBuilder.ClassDiscards), PackedLevelActor(InPackedLevelActor), LevelInstanceToPack(InLevelInstanceToPack), RelativePivotTransform(FTransform::Identity) {}
+	FPackedLevelActorBuilderContext(APackedLevelActor* InPackedLevelActor, ILevelInstanceInterface* InLevelInstanceToPack, const TSet<UClass*>& InClassDiscards) 
+		: ClassDiscards(InClassDiscards), PackedLevelActor(InPackedLevelActor), LevelInstanceToPack(InLevelInstanceToPack), RelativePivotTransform(FTransform::Identity) {}
 
 	/* Interface for IPackedLevelActorBuilder's to use */
-	void ClusterLevelActor(AActor* InLevelActor);
 	void FindOrAddCluster(FPackedLevelActorBuilderClusterID&& InClusterID, UActorComponent* InComponent = nullptr);
 	void DiscardActor(AActor* InActor);
 	void Report(FMessageLog& Log) const;
@@ -95,7 +102,6 @@ public:
 	APackedLevelActor* GetPackedLevelActor() const { return PackedLevelActor; }
 	ILevelInstanceInterface* GetLevelInstanceToPack() const { return LevelInstanceToPack; }
 private:
-	const TMap<FPackedLevelActorBuilderID, TUniquePtr<IPackedLevelActorBuilder>>& Builders;
 	const TSet<UClass*>& ClassDiscards;
 
 	APackedLevelActor* PackedLevelActor;
@@ -107,6 +113,8 @@ private:
 	TSet<AActor*> ActorDiscards;
 
 	FTransform RelativePivotTransform;
+
+	friend FPackedLevelActorBuilder;
 };
 
 #endif

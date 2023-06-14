@@ -125,7 +125,7 @@ class ILevelInstanceInterface
 
 	ENGINE_API virtual const TMap<FActorContainerID, TSet<FGuid>>& GetFilteredActorsPerContainer() const;
 
-	ENGINE_API virtual void SetFilter(const FWorldPartitionActorFilter& InFilter);
+	ENGINE_API virtual void SetFilter(const FWorldPartitionActorFilter& InFilter, bool bNotify = true);
 
 	virtual void OnFilterChanged() {}
 

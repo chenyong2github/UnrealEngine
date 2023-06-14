@@ -26,9 +26,6 @@ void FPackedLevelActorRecursiveBuilder::GetPackClusters(FPackedLevelActorBuilder
 {
 	if (ILevelInstanceInterface* LevelInstance = Cast<ILevelInstanceInterface>(InActor))
 	{
-		FPackedLevelActorBuilderClusterID ClusterID(MakeUnique<FPackedLevelActorRecursiveBuilderCluster>(GetID(), LevelInstance));
-		InContext.FindOrAddCluster(MoveTemp(ClusterID));
-
 		// This Actor can be safely discarded without warning because it is a container
 		InContext.DiscardActor(InActor);
 
@@ -40,58 +37,20 @@ void FPackedLevelActorRecursiveBuilder::GetPackClusters(FPackedLevelActorBuilder
 			{
 				if (LevelActor)
 				{
-					if (LevelActor == Level->GetDefaultBrush())
-					{
-						InContext.DiscardActor(LevelActor);
-					}
-					else if (LevelActor == Level->GetWorldSettings())
+					if (LevelActor == Level->GetDefaultBrush() || 
+						LevelActor == Level->GetWorldSettings() ||
+						LevelActor->IsMainWorldOnly())
 					{
 						InContext.DiscardActor(LevelActor);
 					}
 					else
 					{
-						InContext.ClusterLevelActor(LevelActor);
+						Owner.ClusterActor(InContext, LevelActor);
 					}
 				}
 			}
 		}
 	}
-}
-
-void FPackedLevelActorRecursiveBuilder::PackActors(FPackedLevelActorBuilderContext& InContext, const FPackedLevelActorBuilderClusterID& InClusterID, const TArray<UActorComponent*>& InComponents) const
-{
-	check(InClusterID.GetBuilderID() == GetID());
-	FPackedLevelActorRecursiveBuilderCluster* LevelInstanceCluster = (FPackedLevelActorRecursiveBuilderCluster*)InClusterID.GetData();
-	check(LevelInstanceCluster);
-
-	if (APackedLevelActor* PackedLevelActor = Cast<APackedLevelActor>(LevelInstanceCluster->LevelInstance))
-	{
-		if (UBlueprint* GeneratedBy = PackedLevelActor->GetRootBlueprint())
-		{
-			InContext.GetPackedLevelActor()->PackedBPDependencies.AddUnique(GeneratedBy);
-		}
-	}
-}
-
-FPackedLevelActorRecursiveBuilderCluster::FPackedLevelActorRecursiveBuilderCluster(FPackedLevelActorBuilderID InBuilderID, ILevelInstanceInterface* InLevelInstance)
-	: FPackedLevelActorBuilderCluster(InBuilderID), LevelInstance(InLevelInstance)
-{
-}
-
-bool FPackedLevelActorRecursiveBuilderCluster::Equals(const FPackedLevelActorBuilderCluster& InOther) const
-{
-	if (!FPackedLevelActorBuilderCluster::Equals(InOther))
-	{
-		return false;
-	}
-
-	const FPackedLevelActorRecursiveBuilderCluster& LevelInstanceCluster = (const FPackedLevelActorRecursiveBuilderCluster&)InOther;
-	return LevelInstance == LevelInstanceCluster.LevelInstance;
-}
-	
-uint32 FPackedLevelActorRecursiveBuilderCluster::ComputeHash() const
-{
-	return FCrc::TypeCrc32(LevelInstance->GetLevelInstanceID(), FPackedLevelActorBuilderCluster::ComputeHash());
 }
 
 #endif

@@ -71,14 +71,18 @@ void ULevelInstanceComponent::OnRegister()
 #endif //WITH_EDITORONLY_DATA
 }
 
-void ULevelInstanceComponent::SetFilter(const FWorldPartitionActorFilter& InFilter)
+void ULevelInstanceComponent::SetFilter(const FWorldPartitionActorFilter& InFilter, bool bNotify)
 {
 	if (GetFilter() != InFilter)
 	{
 		Modify(!IsEditFilter());
 		SetActiveFilter(InFilter);
 		OnFilterChanged();
-		FWorldPartitionActorFilter::GetOnWorldPartitionActorFilterChanged().Broadcast();
+
+		if (bNotify)
+		{
+			FWorldPartitionActorFilter::GetOnWorldPartitionActorFilterChanged().Broadcast();
+		}
 	}
 }
 

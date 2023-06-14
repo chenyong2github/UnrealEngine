@@ -13,6 +13,9 @@ class UStaticMeshComponent;
 class FPackedLevelActorISMBuilder : public IPackedLevelActorBuilder
 {
 public:
+	FPackedLevelActorISMBuilder(FPackedLevelActorBuilder& InOwner)
+		: IPackedLevelActorBuilder(InOwner){}
+
 	static FPackedLevelActorBuilderID BuilderID;
 
 	virtual FPackedLevelActorBuilderID GetID() const override;

@@ -90,9 +90,6 @@ public:
 #endif
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY()
-	TArray<TSoftObjectPtr<UBlueprint>> PackedBPDependencies;
-
 private:
 	UPROPERTY()
 	FGuid PackedVersion;
