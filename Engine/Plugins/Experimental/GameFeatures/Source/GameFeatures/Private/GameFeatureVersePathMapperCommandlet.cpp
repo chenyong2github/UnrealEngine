@@ -163,7 +163,6 @@ namespace GameFeatureVersePathMapper
 		const IAssetRegistry& AR = IAssetRegistry::GetChecked();
 
 		FARFilter RawFilter;
-		RawFilter.bIncludeOnlyOnDiskAssets = true;
 		RawFilter.bRecursiveClasses = true;
 		RawFilter.ClassPaths.Add(UGameFeatureData::StaticClass()->GetClassPathName());
 
