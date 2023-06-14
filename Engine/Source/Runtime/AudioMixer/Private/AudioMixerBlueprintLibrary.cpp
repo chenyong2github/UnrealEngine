@@ -137,6 +137,7 @@ int32 UAudioMixerBlueprintLibrary::AddSubmixEffect(const UObject* WorldContextOb
 	if (Audio::FMixerDevice* MixerDevice = FAudioDeviceManager::GetAudioMixerDeviceFromWorldContext(WorldContextObject))
 	{
 		FSoundEffectSubmixInitData InitData;
+		InitData.DeviceID = MixerDevice->DeviceID;
 		InitData.SampleRate = MixerDevice->GetSampleRate();
 		InitData.ParentPresetUniqueId = SubmixEffectPreset->GetUniqueID();
 
@@ -219,6 +220,7 @@ void UAudioMixerBlueprintLibrary::SetSubmixEffectChainOverride(const UObject* Wo
 			if (SubmixEffectPreset)
 			{
 				FSoundEffectSubmixInitData InitData;
+				InitData.DeviceID = MixerDevice->DeviceID;
 				InitData.SampleRate = MixerDevice->GetSampleRate();
 				InitData.ParentPresetUniqueId = SubmixEffectPreset->GetUniqueID();
 
