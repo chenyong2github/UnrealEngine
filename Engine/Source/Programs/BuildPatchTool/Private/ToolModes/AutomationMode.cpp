@@ -100,7 +100,8 @@ public:
 		}
 
 		// Check for failures and exit.
-		bool bSuccess = !GIsCriticalError && RecursiveCheckReports(AutomationControllerManager->GetReports());
+		TArray<TSharedPtr<IAutomationReport>> Reports = AutomationControllerManager->GetEnabledReports();
+		bool bSuccess = !GIsCriticalError && RecursiveCheckReports(Reports);
 		return bSuccess ? EReturnCode::OK : EReturnCode::ToolFailure;
 	}
 
