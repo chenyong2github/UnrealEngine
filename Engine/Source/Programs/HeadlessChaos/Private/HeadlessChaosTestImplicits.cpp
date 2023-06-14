@@ -2148,4 +2148,42 @@ namespace ChaosTest {
 
 	}
 
+	GTEST_TEST(ImplicitTests, TestImplicitCasts)
+	{
+		TUniquePtr<FImplicitObject> Sphere = MakeUnique<FImplicitSphere3>(FVec3(0), 100.0);
+		const FImplicitObject* ConstSphere = Sphere.Get();
+
+		TArray<TUniquePtr<FImplicitObject>> UnionObjects;
+		UnionObjects.Emplace(MakeUnique<FImplicitSphere3>(FVec3(0), 100.0));
+
+		TArray<TUniquePtr<FImplicitObject>> UnionClusteredObjects;
+		UnionClusteredObjects.Emplace(MakeUnique<FImplicitSphere3>(FVec3(0), 100.0));
+
+		TUniquePtr<FImplicitObject> Union = MakeUnique<FImplicitObjectUnion>(MoveTemp(UnionObjects));
+		TUniquePtr<FImplicitObject> UnionClustered = MakeUnique<FImplicitObjectUnionClustered>(MoveTemp(UnionClusteredObjects));
+
+		// We can cast an implicit object to its exact type (const and non-const)
+		FImplicitSphere3* SphereCast = Sphere->AsA<FImplicitSphere3>();
+		EXPECT_NE(SphereCast, nullptr);
+
+		FImplicitSphere3* SphereCastChecked = Sphere->AsAChecked<FImplicitSphere3>();
+		EXPECT_NE(SphereCastChecked, nullptr);
+
+		const FImplicitSphere3* ConstSphereCast = ConstSphere->AsA<FImplicitSphere3>();
+		EXPECT_NE(ConstSphereCast, nullptr);
+
+		const FImplicitSphere3* ConstSphereCastChecked = ConstSphere->AsAChecked<FImplicitSphere3>();
+		EXPECT_NE(ConstSphereCastChecked, nullptr);
+
+		FImplicitObjectUnion* UnionCast = Union->AsA<FImplicitObjectUnion>();
+		EXPECT_NE(UnionCast, nullptr);
+
+		FImplicitObjectUnionClustered* UnionClusteredCast = UnionClustered->AsA<FImplicitObjectUnionClustered>();
+		EXPECT_NE(UnionClusteredCast, nullptr);
+
+		// We can cast a Clustered Union to a Union
+		FImplicitObjectUnion* UnionClusteredUpCast = UnionClustered->AsA<FImplicitObjectUnion>();
+		EXPECT_NE(UnionClusteredUpCast, nullptr);
+
+	}
 }

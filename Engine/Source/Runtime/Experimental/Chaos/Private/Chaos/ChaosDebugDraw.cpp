@@ -826,12 +826,7 @@ namespace Chaos
 
 		void DrawParticleBVHImpl(const FRigidTransform3& SpaceTransform, const FGeometryParticleHandle* Particle, const FColor& InColor, const FChaosDebugDrawSettings& Settings)
 		{
-			const FImplicitObjectUnion* Union = Particle->Geometry()->GetObject<FImplicitObjectUnion>();
-			if (Union == nullptr)
-			{
-				Union = Particle->Geometry()->GetObject<FImplicitObjectUnionClustered>();
-			}
-			if (Union != nullptr)
+			if (const FImplicitObjectUnion* Union = Particle->Geometry()->template AsA<FImplicitObjectUnion>())
 			{
 				if (Union->GetBVH() != nullptr)
 				{

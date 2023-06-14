@@ -89,7 +89,7 @@ namespace Chaos
 
 	bool FImplicitObject::IsUnderlyingUnion() const
 	{
-		return Type == ImplicitObjectType::Union;
+		return (Type == ImplicitObjectType::Union) || (Type == ImplicitObjectType::UnionClustered);
 	}
 
 	FReal FImplicitObject::SignedDistance(const FVec3& x) const

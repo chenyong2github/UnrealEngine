@@ -95,14 +95,7 @@ namespace Chaos
 			// All implicit excepts unions have 1 leaf
 			NumImplicits = 1;
 
-			// @todo(chaos): we need better downcasting in FImplicitObject
-			const FImplicitObjectUnion* Union = Implicit->template GetObject<FImplicitObjectUnion>();
-			if (Union == nullptr)
-			{
-				Union = Implicit->template GetObject<FImplicitObjectUnionClustered>();
-			}
-
-			if (Union != nullptr)
+			if (const FImplicitObjectUnion* Union = Implicit->template AsA<FImplicitObjectUnion>())
 			{
 				NumImplicits = Union->GetNumLeafObjects();
 			}
@@ -1080,11 +1073,11 @@ namespace Chaos
 		const Private::FImplicitBVH* BVH1 = nullptr;
 		if (CVars::bChaosUnionBVHEnabled)
 		{
-			if (const FImplicitObjectUnion* Union0 = Implicit0->template GetObject<FImplicitObjectUnion>())
+			if (const FImplicitObjectUnion* Union0 = Implicit0->template AsA<FImplicitObjectUnion>())
 			{
 				BVH0 = Union0->GetBVH();
 			}
-			if (const FImplicitObjectUnion* Union1 = Implicit1->template GetObject<FImplicitObjectUnion>())
+			if (const FImplicitObjectUnion* Union1 = Implicit1->template AsA<FImplicitObjectUnion>())
 			{
 				BVH1 = Union1->GetBVH();
 			}

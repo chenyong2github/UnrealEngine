@@ -71,6 +71,19 @@ using FImplicitHierarchyVisitor = TFunctionRef<void(const FImplicitObject* Impli
 using FImplicitHierarchyVisitorBool = TFunctionRef<bool(const FImplicitObject* Implicit, const FRigidTransform3& Transform, const int32 RootObjectIndex, const int32 ObjectIndex, const int32 LeafObjectIndex)>;
 
 
+// Specialized for derived classes so that we can downcast to non-leaf types in the class hierarchy
+// @see TImplicitTypeInfo<FImplicitObjectUnion>
+template<typename T>
+struct TImplicitTypeInfo
+{
+	// Return true if implicits of type InType can be cast to T.
+	// I.e., is T a base class (or the class) of InType.
+	static bool IsBaseOf(const EImplicitObjectType InType)
+	{
+		return (T::StaticType() == InType);
+	}
+};
+
 /*
  * Base class for implicit collision geometry such as spheres, capsules, boxes, etc.
  * 
@@ -110,6 +123,49 @@ public:
 	FImplicitObject(const FImplicitObject&) = delete;
 	FImplicitObject(FImplicitObject&&) = delete;
 	CHAOS_API virtual ~FImplicitObject();
+
+	// Can this object be cast to type T_DERIVED?
+	template<typename TargetType>
+	bool IsA() const
+	{
+		return TImplicitTypeInfo<TargetType>::IsBaseOf(GetType());
+	}
+
+	// Dynamic cast to type T_DERIVED. Returns null if T_DERIVED is not a valid cast for this object.
+	template<typename TargetType>
+	const TargetType* AsA() const
+	{
+		if (IsA<TargetType>())
+		{
+			return static_cast<const TargetType*>(this);
+		}
+		return nullptr;
+	}
+
+	template<typename TargetType>
+	TargetType* AsA()
+	{
+		if (IsA<TargetType>())
+		{
+			return static_cast<TargetType*>(this);
+		}
+		return nullptr;
+	}
+
+	template<typename TargetType>
+	const TargetType* AsAChecked() const
+	{
+		check(IsA<TargetType>());
+		return static_cast<const TargetType*>(this);
+	}
+
+	template<typename TargetType>
+	TargetType* AsAChecked()
+	{
+		check(IsA<TargetType>());
+		return static_cast<TargetType*>(this);
+	}
+
 
 	template<class T_DERIVED>
 	T_DERIVED* GetObject()

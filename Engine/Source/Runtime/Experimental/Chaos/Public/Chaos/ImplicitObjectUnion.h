@@ -359,4 +359,18 @@ private:
 	TArray<FPBDRigidParticleHandle*> MOriginalParticleLookupHack;	
 	TMap<const FImplicitObject*,FPBDRigidParticleHandle*> MCollisionParticleLookupHack;	//temp hack for finding collision particles
 };
+
+template<>
+struct TImplicitTypeInfo<FImplicitObjectUnion>
+{
+	// @todo(chaos): this is a bit topsy-turvy because the base class needs to know about all derived classes. 
+	// Ideally we would have a function like GetBaseType(InType) and implement TImplicitTypeInfo<FImplicitObjectUnionClustered> 
+	// but then we'd need a runtime of type->basetype for all valid types (and then there's the bitmask complication)
+	static bool IsBaseOf(const EImplicitObjectType InType)
+	{
+		return (InType == FImplicitObjectUnion::StaticType()) || TImplicitTypeInfo<FImplicitObjectUnionClustered>::IsBaseOf(InType);
+	}
+};
+
+
 }
