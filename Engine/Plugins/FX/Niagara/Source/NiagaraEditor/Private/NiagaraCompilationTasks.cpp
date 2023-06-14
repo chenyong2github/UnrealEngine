@@ -311,6 +311,24 @@ namespace NiagaraCompilationCopyImpl
 			Output.AddUnique(InputValue);
 		}
 	}
+
+	const UNiagaraGraph* GetGraphFromScriptSource(const UNiagaraScriptSourceBase* ScriptSourceBase)
+	{
+		if (const UNiagaraScriptSource* ScriptSource = CastChecked<const UNiagaraScriptSource>(ScriptSourceBase))
+		{
+			return ScriptSource->NodeGraph;
+		}
+		return nullptr;
+	}
+
+	const UNiagaraGraph* GetGraphFromScript(const UNiagaraScript* Script)
+	{
+		if (Script)
+		{
+			return GetGraphFromScriptSource(Script->GetLatestSource());
+		}
+		return nullptr;
+	}
 } // NiagaraCompilationCopyImpl
 
 FNiagaraSystemCompilationTask::FNiagaraSystemCompilationTask(FNiagaraCompilationTaskHandle InTaskHandle, UNiagaraSystem* InSystem)
@@ -383,7 +401,10 @@ void FNiagaraSystemCompilationTask::FCompileGroupInfo::InstantiateCompileGraph(c
 		{
 			const FNiagaraPrecompileData* EmitterRequestData = static_cast<const FNiagaraPrecompileData*>(ParentTask.SystemPrecompileData->GetDependentRequest(EmitterIt).Get());
 
-			EmitterPtr->InstantiateCompilationCopy(EmitterInfo.SourceGraphHandle, EmitterRequestData, ENiagaraScriptUsage::EmitterSpawnScript, EmitterInfo.ConstantResolver);
+			if (const FNiagaraCompilationGraph* SourceGraph = EmitterInfo.SourceGraph.Get())
+			{
+				EmitterPtr->InstantiateCompilationCopy(*SourceGraph, EmitterRequestData, ENiagaraScriptUsage::EmitterSpawnScript, EmitterInfo.ConstantResolver);
+			}
 		}
 		EmitterPtr->ValidUsages = BasePtr.ValidUsages;
 		BasePtr.EmitterData.Add(EmitterPtr);
@@ -397,7 +418,11 @@ void FNiagaraSystemCompilationTask::FCompileGroupInfo::InstantiateCompileGraph(c
 		// skip the deep copy if we're not compiling the system scripts
 		if (BasePtr.ValidUsages.Contains(ENiagaraScriptUsage::SystemSpawnScript))
 		{
-			BasePtr.InstantiateCompilationCopy(ParentTask.SystemInfo.SystemSourceGraphHandle, ParentTask.SystemPrecompileData.Get(), ENiagaraScriptUsage::SystemSpawnScript, ParentTask.SystemInfo.ConstantResolver);
+			if (const FNiagaraCompilationGraph* SourceGraph = ParentTask.SystemInfo.SystemSourceGraph.Get())
+			{
+				BasePtr.InstantiateCompilationCopy(*SourceGraph, ParentTask.SystemPrecompileData.Get(), ENiagaraScriptUsage::SystemSpawnScript, ParentTask.SystemInfo.ConstantResolver);
+			}
+
 			BasePtr.CreateParameterMapHistory(ParentTask, EncounterableSystemVariables, ParentTask.SystemInfo.StaticVariableResults, ParentTask.SystemInfo.ConstantResolver, {});
 
 			// bubble up the referenced DI classes to the system
@@ -806,14 +831,26 @@ void FNiagaraSystemCompilationTask::FDispatchDataCachePutRequests::Launch(FNiaga
 
 void FNiagaraSystemCompilationTask::DigestSystemInfo()
 {
+	using namespace NiagaraCompilationCopyImpl;
+
+	FNiagaraDigestDatabase& DigestDatabase = FNiagaraDigestDatabase::Get();
+	const UNiagaraScript* SystemSpawnScript = System_GT->GetSystemSpawnScript();
+	const UNiagaraScript* SystemUpdateScript = System_GT->GetSystemUpdateScript();
+
+	const UNiagaraGraph* SystemGraph = GetGraphFromScript(SystemSpawnScript);
+	check(SystemGraph == GetGraphFromScript(SystemUpdateScript));
+
+	FNiagaraGraphChangeIdBuilder ChangeIdBuilder;
+	ChangeIdBuilder.ParseReferencedGraphs(SystemGraph);
+
 	SystemInfo.SystemName = System_GT->GetName();
 	SystemInfo.SystemPackageName = System_GT->GetOutermost()->GetFName();
 	SystemInfo.bUseRapidIterationParams = System_GT->ShouldUseRapidIterationParameters();
 	SystemInfo.bDisableDebugSwitches = System_GT->ShouldDisableDebugSwitches();
-	SystemInfo.SystemSourceGraphHandle = FNiagaraCompilationGraphHandle(System_GT->GetSystemSpawnScript()->GetLatestSource());
 	SystemInfo.ConstantResolver = FNiagaraFixedConstantResolver(FCompileConstantResolver(System_GT.Get(), ENiagaraScriptUsage::SystemSpawnScript));
-	SystemInfo.OwnedScriptKeys = { System_GT->GetSystemSpawnScript(), System_GT->GetSystemUpdateScript() };
-
+	SystemInfo.OwnedScriptKeys = { SystemSpawnScript, SystemUpdateScript };
+	SystemInfo.SystemSourceGraph = DigestDatabase.CreateGraphDigest(SystemGraph, ChangeIdBuilder);
+	
 	{
 		TArray<FNiagaraVariable> StaticVariablesFromEmitters;
 
@@ -835,12 +872,15 @@ void FNiagaraSystemCompilationTask::DigestSystemInfo()
 		FEmitterInfo& EmitterInfo = SystemInfo.EmitterInfo.AddDefaulted_GetRef();
 		const FVersionedNiagaraEmitter& HandleInstance = Handle.GetInstance();
 
+		const UNiagaraGraph* EmitterGraph = GetGraphFromScriptSource(Handle.GetEmitterData()->GraphSource);
+		ChangeIdBuilder.ParseReferencedGraphs(EmitterGraph);
+
 		EmitterInfo.UniqueEmitterName = HandleInstance.Emitter->GetUniqueEmitterName();
-		EmitterInfo.SourceGraphHandle = FNiagaraCompilationGraphHandle(Handle.GetEmitterData()->GraphSource);
 		EmitterInfo.UniqueInstanceName = Handle.GetUniqueInstanceName();
 		EmitterInfo.Enabled = Handle.GetIsEnabled();
 		EmitterInfo.ConstantResolver = FNiagaraFixedConstantResolver(FCompileConstantResolver(HandleInstance, ENiagaraScriptUsage::EmitterSpawnScript));
 		EmitterInfo.EmitterIndex = EmitterIndex;
+		EmitterInfo.SourceGraph = DigestDatabase.CreateGraphDigest(EmitterGraph, ChangeIdBuilder);
 
 		{
 			constexpr bool bCompilableOnly = false;
@@ -893,25 +933,6 @@ void FNiagaraSystemCompilationTask::DigestSystemInfo()
 	}
 
 	System_GT->GetExposedParameters().GetParameters(SystemInfo.OriginalExposedParams);
-}
-
-void FNiagaraSystemCompilationTask::DigestGraphs(TConstArrayView<UNiagaraScript*> Scripts)
-{
-	const FGuid ScriptVersion = FGuid();
-	DigestedScriptGraphs.Reserve(Scripts.Num());
-	for (UNiagaraScript* Script : Scripts)
-	{
-		if (Script)
-		{
-			if (const UNiagaraScriptSource* ScriptSource = Cast<const UNiagaraScriptSource>(Script->GetSource(ScriptVersion)))
-			{
-				if (const UNiagaraGraph* Graph = ScriptSource->NodeGraph)
-				{
-					DigestedScriptGraphs.Add(Script, FNiagaraDigestDatabase::Get().CreateCompilationCopy(Graph));
-				}
-			}
-		}
-	}
 }
 
 void FNiagaraSystemCompilationTask::DigestParameterCollections(TConstArrayView<TWeakObjectPtr<UNiagaraParameterCollection>> Collections)
@@ -1154,7 +1175,7 @@ void FNiagaraSystemCompilationTask::Precompile()
 
 	SystemPrecompileData->SourceName = SystemInfo.SystemName;
 
-	SystemPrecompileData->SourceGraphHandle = SystemInfo.SystemSourceGraphHandle;
+	SystemPrecompileData->DigestedSourceGraph = SystemInfo.SystemSourceGraph;
 	SystemPrecompileData->bUseRapidIterationParams = SystemInfo.bUseRapidIterationParams;
 	SystemPrecompileData->bDisableDebugSwitches = SystemInfo.bDisableDebugSwitches;
 
@@ -1171,7 +1192,7 @@ void FNiagaraSystemCompilationTask::Precompile()
 		TSharedPtr<FNiagaraPrecompileData, ESPMode::ThreadSafe> EmitterPtr = MakeShared<FNiagaraPrecompileData, ESPMode::ThreadSafe>();
 		EmitterPtr->EmitterUniqueName = EmitterInfo.UniqueEmitterName;
 		EmitterPtr->SourceName = SystemPrecompileData->SourceName;
-		EmitterPtr->SourceGraphHandle = EmitterInfo.SourceGraphHandle;
+		EmitterPtr->DigestedSourceGraph = EmitterInfo.SourceGraph;
 		EmitterPtr->bUseRapidIterationParams = SystemPrecompileData->bUseRapidIterationParams;
 		EmitterPtr->bDisableDebugSwitches = SystemPrecompileData->bDisableDebugSwitches;
 		EmitterPtr->SharedCompileDataInterfaceData = SystemPrecompileData->SharedCompileDataInterfaceData;
@@ -1289,7 +1310,7 @@ struct FNiagaraSystemCompilationTask::FCollectStaticVariablesTaskBuilder
 	FCollectStaticVariablesTaskBuilder(FNiagaraSystemCompilationTask& CompilationTask)
 	: FoundStaticVariables(CompilationTask.SystemInfo.StaticVariableResults)
 	{
-		if (FNiagaraCompilationGraph* SystemGraph = CompilationTask.SystemInfo.SystemSourceGraphHandle.Resolve().Get())
+		if (FNiagaraCompilationGraph* SystemGraph = CompilationTask.SystemInfo.SystemSourceGraph.Get())
 		{
 			FStaticVariableBuilderTaskHandle BuilderTask = MakeShared<FStaticVariableBuilderTask, ESPMode::ThreadSafe>();
 			BuilderTask->CompilationTask = &CompilationTask;
@@ -1306,7 +1327,7 @@ struct FNiagaraSystemCompilationTask::FCollectStaticVariablesTaskBuilder
 	FCollectStaticVariablesTaskBuilder(const FNiagaraSystemCompilationTask& CompilationTask, FEmitterInfo& EmitterInfo)
 	: FoundStaticVariables(EmitterInfo.StaticVariableResults)
 	{
-		if (FNiagaraCompilationGraph* EmitterGraph = EmitterInfo.SourceGraphHandle.Resolve().Get())
+		if (FNiagaraCompilationGraph* EmitterGraph = EmitterInfo.SourceGraph.Get())
 		{
 			TArray<const FNiagaraCompilationNodeOutput*> OutputNodes;
 			EmitterGraph->FindOutputNodes(OutputNodes);
@@ -1430,6 +1451,7 @@ struct FNiagaraSystemCompilationTask::FCollectStaticVariablesTaskBuilder
 						BuilderTask->CompilationTask->GetAvailableCollections(Builder.AvailableCollections->EditCollections());
 						Builder.BeginTranslation(FNiagaraConstants::EmitterNamespaceString);
 						Builder.EnableScriptAllowList(true, OutputNode->Usage);
+						Builder.IncludeStaticVariablesOnly();
 						Builder.BeginUsage(OutputNode->Usage, BuilderTask->StageNames[OutputNodeIt]);
 						Builder.BuildParameterMaps(OutputNode, true);
 						Builder.EndUsage();
@@ -1483,7 +1505,7 @@ struct FNiagaraSystemCompilationTask::FBuildRapidIterationTaskBuilder
 	
 		if (ScriptInfo.EmitterIndex == INDEX_NONE)
 		{
-			Graph = CompilationTask.SystemInfo.SystemSourceGraphHandle.Resolve().Get();
+			Graph = CompilationTask.SystemInfo.SystemSourceGraph.Get();
 			FoundStaticVariables = &CompilationTask.SystemInfo.StaticVariableResults;
 			ConstantResolver = CompilationTask.SystemInfo.ConstantResolver;
 		}
@@ -1491,7 +1513,7 @@ struct FNiagaraSystemCompilationTask::FBuildRapidIterationTaskBuilder
 		{
 			FEmitterInfo& EmitterInfo = CompilationTask.SystemInfo.EmitterInfo[ScriptInfo.EmitterIndex];
 
-			Graph = EmitterInfo.SourceGraphHandle.Resolve().Get();
+			Graph = EmitterInfo.SourceGraph.Get();
 			FoundStaticVariables = &EmitterInfo.StaticVariableResults;
 			UniqueEmitterName = EmitterInfo.UniqueEmitterName;
 			ConstantResolver = EmitterInfo.ConstantResolver;

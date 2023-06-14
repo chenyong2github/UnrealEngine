@@ -44,12 +44,14 @@ NIAGARA_GRAPH_DIGEST_NODE_TYPE_LIST;
 
 struct FNiagaraCompilationGraphCreateContext
 {
-	FNiagaraCompilationGraphCreateContext(FNiagaraCompilationGraph& InParentGraph)
+	FNiagaraCompilationGraphCreateContext(FNiagaraCompilationGraph& InParentGraph, const FNiagaraGraphChangeIdBuilder& InChangeIdBuilder)
 		: ParentGraph(InParentGraph)
+		, ChangeIdBuilder(InChangeIdBuilder)
 	{
 	}
 
 	FNiagaraCompilationGraph& ParentGraph;
+	const FNiagaraGraphChangeIdBuilder& ChangeIdBuilder;
 };
 
 struct FNiagaraCompilationGraphDuplicateContext
@@ -462,7 +464,74 @@ bool GetStaticSwitchValueFromPin(FNiagaraCompilationGraphInstanceContext& Contex
 
 }; // NiagaraCompilationImpl
 
-void FNiagaraCompilationGraph::Create(const UNiagaraGraph* InGraph)
+void FNiagaraGraphChangeIdBuilder::ParseReferencedGraphs(const UNiagaraGraph* Graph)
+{
+	TSet<const UNiagaraGraph*> CurrentGraphChain;
+	RecursiveBuildGraphChangeId(Graph, CurrentGraphChain);
+}
+
+FGuid FNiagaraGraphChangeIdBuilder::FindChangeId(const UNiagaraGraph* Graph) const
+{
+	const FGuid* ChangeId = ChangeIdMap.Find(Graph);
+	if (ensure(ChangeId))
+	{
+		return *ChangeId;
+	}
+
+	return FGuid();
+}
+
+FGuid FNiagaraGraphChangeIdBuilder::RecursiveBuildGraphChangeId(const UNiagaraGraph* Graph, TSet<const UNiagaraGraph*>& CurrentGraphChain)
+{
+	if (!Graph)
+	{
+		return FGuid();
+	}
+
+	// see if the graph has already been processed
+	if (const FGuid* ExistingChangeId = ChangeIdMap.Find(Graph))
+	{
+		return *ExistingChangeId;
+	}
+
+	FGuid ChangeId = Graph->GetChangeID();
+
+	// check for a cycle in the graph chain we're currently processing
+	const bool bCycleInGraphChain = CurrentGraphChain.Contains(Graph);
+	if (bCycleInGraphChain)
+	{
+		ensure(false);
+		return ChangeId;
+	}
+
+	CurrentGraphChain.Add(Graph);
+
+	for (const UEdGraphNode* Node : Graph->Nodes)
+	{
+		const UNiagaraGraph* SubGraph = nullptr;
+
+		if (const UNiagaraNodeFunctionCall* FunctionCallNode = Cast<const UNiagaraNodeFunctionCall>(Node))
+		{
+			SubGraph = FunctionCallNode->GetCalledGraph();
+		}
+		else if (const UNiagaraNodeEmitter* EmitterNode = Cast<const UNiagaraNodeEmitter>(Node))
+		{
+			SubGraph = EmitterNode->GetCalledGraph();
+		}
+
+		if (SubGraph)
+		{
+			ChangeId = FGuid::Combine(ChangeId, SubGraph->GetChangeID());
+			ChangeId = FGuid::Combine(ChangeId, RecursiveBuildGraphChangeId(SubGraph, CurrentGraphChain));
+		}
+	}
+
+	ChangeIdMap.Add(Graph, ChangeId);
+
+	return ChangeId;
+}
+
+void FNiagaraCompilationGraph::Create(const UNiagaraGraph* InGraph, const FNiagaraGraphChangeIdBuilder& ChangeIdBuilder)
 {
 	using namespace NiagaraCompilationImpl;
 
@@ -477,7 +546,7 @@ void FNiagaraCompilationGraph::Create(const UNiagaraGraph* InGraph)
 
 	TMap<const UEdGraphNode*, int32> NodeIndexMap;
 
-	FNiagaraCompilationGraphCreateContext NodeContext(*this);
+	FNiagaraCompilationGraphCreateContext NodeContext(*this, ChangeIdBuilder);
 
 	for (const UEdGraphNode* SourceNode : InGraph->Nodes)
 	{
@@ -1932,7 +2001,7 @@ FNiagaraCompilationNodeEmitter::FNiagaraCompilationNodeEmitter(const UNiagaraNod
 
 	if (const UNiagaraGraph* DependentGraph = InNode->GetCalledGraph())
 	{
-		CalledGraph = FNiagaraDigestDatabase::Get().CreateCompilationCopy(DependentGraph).Resolve();
+		CalledGraph = FNiagaraDigestDatabase::Get().CreateGraphDigest(DependentGraph, Context.ChangeIdBuilder);
 	}
 
 	Usage = InNode->GetUsage();
@@ -2168,7 +2237,7 @@ FNiagaraCompilationNodeFunctionCall::FNiagaraCompilationNodeFunctionCall(const U
 {
 	if (const UNiagaraGraph* DependentGraph = InNode->GetCalledGraph())
 	{
-		CalledGraph = FNiagaraDigestDatabase::Get().CreateCompilationCopy(DependentGraph).Resolve();
+		CalledGraph = FNiagaraDigestDatabase::Get().CreateGraphDigest(DependentGraph, Context.ChangeIdBuilder);
 	}
 
 	// Top level functions (functions invoked in the root graph) will use the serialized DebugState value, all others will

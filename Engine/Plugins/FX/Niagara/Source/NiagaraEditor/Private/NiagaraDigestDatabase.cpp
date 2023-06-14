@@ -14,22 +14,13 @@
 namespace NiagaraGraphDigestDatabaseImpl
 {
 
-// todo - two tiered cache for digested objects (see NiagaraDigestDatabase.h)
-//static int GDigestGraphCacheSize = 256;
-//static FAutoConsoleVariableRef CVarDigestGraphCacheSize(
-//	TEXT("fx.Niagara.DigestGraphCacheSize"),
-//	GDigestGraphCacheSize,
-//	TEXT("Defines the size of the cache for digested Niagara graphs."),
-//	ECVF_ReadOnly
-//);
-//
-//static int GDigestCollectionCacheSize = 32;
-//static FAutoConsoleVariableRef CVarDigestCollectionCacheSize(
-//	TEXT("fx.Niagara.DigestCollectionCacheSize"),
-//	GDigestCollectionCacheSize,
-//	TEXT("Defines the size of the cache for digested Niagara parameter collections."),
-//	ECVF_ReadOnly
-//);
+static int32 GDigestGraphCacheSize = 512;
+static FAutoConsoleVariableRef CVarDigestGraphCacheSize(
+	TEXT("fx.Niagara.DigestGraphCacheSize"),
+	GDigestGraphCacheSize,
+	TEXT("Defines the size of the cache for digested Niagara graphs."),
+	ECVF_ReadOnly
+);
 
 FNiagaraDigestDatabase* GDigestDatabase = nullptr;
 
@@ -51,9 +42,7 @@ void FNiagaraDigestDatabase::Shutdown()
 }
 
 FNiagaraDigestDatabase::FNiagaraDigestDatabase()
-	// todo - two tiered cache for digested objects (see NiagaraDigestDatabase.h)
-	//: CompilationGraphCache(NiagaraGraphDigestDatabaseImpl::GDigestGraphCacheSize)
-	//, CompilationNPCCache(NiagaraGraphDigestDatabaseImpl::GDigestCollectionCacheSize)
+	: CompilationGraphCache(NiagaraGraphDigestDatabaseImpl::GDigestGraphCacheSize)
 {
 
 }
@@ -95,71 +84,42 @@ FString FNiagaraDigestDatabase::GetReferencerName() const
 //////////////////////////////////////////////////////////////////////////
 /// Digested graphs
 
-FNiagaraCompilationGraphHandle FNiagaraDigestDatabase::CreateCompilationCopy(const UNiagaraGraph* Graph)
+FNiagaraDigestedGraphPtr FNiagaraDigestDatabase::CreateGraphDigest(const UNiagaraGraph* Graph, const FNiagaraGraphChangeIdBuilder& Digester)
 {
 	check(IsInGameThread());
-	FNiagaraCompilationGraphHandle GraphHash(Graph);
-	FNiagaraCompilationGraph* PendingGraph = nullptr;
+	FNiagaraCompilationGraphHandle GraphHash(Graph, Digester);
+	FNiagaraDigestedGraphPtr PendingGraph;
 
 	{
 		FWriteScopeLock WriteScope(DigestCacheLock);
 
-		if (const FNiagaraCompilationGraphHandle::FGraphPtr* CompilationGraph = CompilationGraphCache.Find(GraphHash))
+		if (const FNiagaraDigestedGraphPtr* CompilationGraph = CompilationGraphCache.FindAndTouch(GraphHash))
 		{
 			++GraphCacheHits;
-			return GraphHash;
+			return *CompilationGraph;
 		}
 
 		++GraphCacheMisses;
-		FNiagaraCompilationGraphHandle::FGraphPtr CompilationGraph = MakeShared<FNiagaraCompilationGraphHandle::FGraphPtr::ElementType, FNiagaraCompilationGraphHandle::FGraphPtr::Mode>();
-		PendingGraph = CompilationGraph.Get();
+		PendingGraph = MakeShared<FNiagaraDigestedGraphPtr::ElementType, FNiagaraDigestedGraphPtr::Mode>();
 
-		CompilationGraphCache.Add(GraphHash, CompilationGraph);
+		CompilationGraphCache.Add(GraphHash, PendingGraph);
 	}
 
 	if (PendingGraph)
 	{
-		PendingGraph->Create(Graph);
+		PendingGraph->Create(Graph, Digester);
 	}
 
-	return GraphHash;
+	return PendingGraph;
 }
 
-FNiagaraCompilationGraphHandle::FGraphPtr FNiagaraDigestDatabase::Resolve(const FNiagaraCompilationGraphHandle& Handle) const
-{
-	FNiagaraCompilationGraphHandle::FGraphPtr GraphRef;
 
-	{
-		FReadScopeLock ReadScope(DigestCacheLock);
-		GraphRef = CompilationGraphCache.FindRef(Handle);
-	}
-
-	check(GraphRef.IsValid());
-
-	return GraphRef;
-}
-
-FNiagaraCompilationGraphHandle::FNiagaraCompilationGraphHandle(const UNiagaraScriptSourceBase* ScriptSourceBase)
-{
-	if (const UNiagaraScriptSource* ScriptSource = CastChecked<const UNiagaraScriptSource>(ScriptSourceBase))
-	{
-		if (const UNiagaraGraph* Graph = ScriptSource->NodeGraph)
-		{
-			AssetKey = Graph;
-			Hash = Graph->GetChangeID();
-		}
-	}
-}
-
-FNiagaraCompilationGraphHandle::FNiagaraCompilationGraphHandle(const UNiagaraGraph* Graph)
+FNiagaraCompilationGraphHandle::FNiagaraCompilationGraphHandle(const UNiagaraGraph* Graph, const FNiagaraGraphChangeIdBuilder& Builder)
 {
 	AssetKey = Graph;
-	Hash = Graph ? Graph->GetChangeID() : FGuid();
-}
 
-FNiagaraCompilationGraphHandle::FGraphPtr FNiagaraCompilationGraphHandle::Resolve() const
-{
-	return FNiagaraDigestDatabase::Get().Resolve(*this);
+	// generate the hash key based on the provided ChangeIdBuilder
+	Hash = Builder.FindChangeId(Graph);
 }
 
 //////////////////////////////////////////////////////////////////////////

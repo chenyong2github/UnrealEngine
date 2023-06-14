@@ -139,7 +139,7 @@ public:
 	TArray<FNiagaraVariable> EncounteredVariables;
 	FString EmitterUniqueName;
 	TArray<FSharedPrecompileData> EmitterData;
-	FNiagaraCompilationGraphHandle SourceGraphHandle;
+	FNiagaraDigestedGraphPtr DigestedSourceGraph;
 	FString SourceName;
 	bool bUseRapidIterationParams = true;
 	bool bDisableDebugSwitches = false;
@@ -176,7 +176,7 @@ public:
 	TArray<FParameterMapHistory>& GetPrecomputedHistories() { return PrecompiledHistories; }
 	const TArray<FParameterMapHistory>& GetPrecomputedHistories() const { return PrecompiledHistories; }
 
-	void InstantiateCompilationCopy(FNiagaraCompilationGraphHandle GraphHandle, const FNiagaraPrecompileData* PrecompileData, ENiagaraScriptUsage InUsage, FNiagaraFixedConstantResolver ConstantResolver);
+	void InstantiateCompilationCopy(const FNiagaraCompilationGraph& SourceGraph, const FNiagaraPrecompileData* PrecompileData, ENiagaraScriptUsage InUsage, FNiagaraFixedConstantResolver ConstantResolver);
 	void CreateParameterMapHistory(const FNiagaraSystemCompilationTask& CompilationTask, const TArray<FNiagaraVariable>& EncounterableVariables, const TArray<FNiagaraVariable>& InStaticVariables, FNiagaraFixedConstantResolver ConstantResolver, TConstArrayView<FNiagaraSimulationStageInfo> SimStages);
 
 	int32 GetDependentRequestCount() const { return EmitterData.Num(); }

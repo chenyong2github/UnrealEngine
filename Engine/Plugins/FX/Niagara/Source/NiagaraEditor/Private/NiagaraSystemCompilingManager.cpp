@@ -195,8 +195,7 @@ FNiagaraCompilationTaskHandle FNiagaraSystemCompilingManager::AddSystem(UNiagara
 
 	CompilationTask->PrepareStartTime = FPlatformTime::Seconds();
 
-	// we're going to have to compile something so let's digest all the graphs and build our compilation task
-	CompilationTask->DigestGraphs(AllScripts);
+	// we're going to have to compile something so let's digest all the collections and build our compilation task
 	CompilationTask->DigestParameterCollections(CompileOptions.ParameterCollections);
 	CompilationTask->DigestSystemInfo();
 

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/LruCache.h"
 #include "NiagaraCompileHash.h"
 #include "NiagaraGraphDigest.h"
 #include "UObject/GCObject.h"
@@ -12,48 +13,27 @@ class UNiagaraGraph;
 class UNiagaraParameterCollection;
 class UNiagaraScriptSourceBase;
 
-// base class used to reference a digested version of a UObject.  
-template<typename AssetType, typename DigestType, typename HashType>
-class FNiagaraDigestedAssetHandle
+using FNiagaraDigestedGraphPtr = TSharedPtr<FNiagaraCompilationGraph, ESPMode::ThreadSafe>;
+
+class FNiagaraCompilationGraphHandle
 {
 public:
-	using FDigestPtr = TSharedPtr<DigestType, ESPMode::ThreadSafe>;
-	FNiagaraDigestedAssetHandle() = default;
-	virtual ~FNiagaraDigestedAssetHandle() = default;
-	FNiagaraDigestedAssetHandle(const FNiagaraDigestedAssetHandle& Handle) = default;
-
-	bool IsValid() const
-	{
-		return Resolve().IsValid();
-	}
-	virtual FDigestPtr Resolve() const = 0;
+	FNiagaraCompilationGraphHandle() = default;
+	FNiagaraCompilationGraphHandle(const UNiagaraGraph* Graph, const FNiagaraGraphChangeIdBuilder& ChangeIdBuilder);
 
 protected:
-	TObjectKey<AssetType> AssetKey;
-	HashType Hash;
+	TObjectKey<UNiagaraGraph> AssetKey;
+	FGuid Hash;
 
-	friend FORCEINLINE uint32 GetTypeHash(const FNiagaraDigestedAssetHandle& CompilationCopy)
+	friend FORCEINLINE uint32 GetTypeHash(const FNiagaraCompilationGraphHandle& CompilationCopy)
 	{
 		return HashCombine(GetTypeHash(CompilationCopy.AssetKey), GetTypeHash(CompilationCopy.Hash));
 	}
 
-	friend FORCEINLINE bool operator==(const FNiagaraDigestedAssetHandle& Lhs, const FNiagaraDigestedAssetHandle& Rhs)
+	friend FORCEINLINE bool operator==(const FNiagaraCompilationGraphHandle& Lhs, const FNiagaraCompilationGraphHandle& Rhs)
 	{
 		return Lhs.AssetKey == Rhs.AssetKey && Lhs.Hash == Rhs.Hash;
 	}
-};
-
-class FNiagaraCompilationGraphHandle : public FNiagaraDigestedAssetHandle<UNiagaraGraph, FNiagaraCompilationGraph, FGuid>
-{
-public:
-	using Super = FNiagaraDigestedAssetHandle<UNiagaraGraph, FNiagaraCompilationGraph, FGuid>;
-	using FGraphPtr = Super::FDigestPtr;
-
-	FNiagaraCompilationGraphHandle() = default;
-	FNiagaraCompilationGraphHandle(const UNiagaraScriptSourceBase* ScriptSource);
-	FNiagaraCompilationGraphHandle(const UNiagaraGraph* Graph);
-
-	virtual FGraphPtr Resolve() const override;
 };
 
 class FNiagaraCompilationNPC
@@ -72,18 +52,37 @@ public:
 	TMap<FNiagaraVariableBase, UNiagaraDataInterface*> DefaultDataInterfaces;
 };
 
-class FNiagaraCompilationNPCHandle : public FNiagaraDigestedAssetHandle<UNiagaraParameterCollection, FNiagaraCompilationNPC, FNiagaraCompileHash>
+class FNiagaraCompilationNPCHandle
 {
 public:
-	using Super = FNiagaraDigestedAssetHandle<UNiagaraParameterCollection, FNiagaraCompilationNPC, FNiagaraCompileHash>;
+	using FDigestPtr = TSharedPtr<FNiagaraCompilationNPC, ESPMode::ThreadSafe>;
 
 	FNiagaraCompilationNPCHandle() = default;
 	FNiagaraCompilationNPCHandle(const FNiagaraCompilationNPCHandle& Handle) = default;
 	FNiagaraCompilationNPCHandle(const UNiagaraParameterCollection* Collection);
 
-	virtual FDigestPtr Resolve() const override;
+	bool IsValid() const
+	{
+		return Resolve().IsValid();
+	}
+
+	FDigestPtr Resolve() const;
 
 	FName Namespace = NAME_None;
+
+protected:
+	TObjectKey<UNiagaraParameterCollection> AssetKey;
+	FNiagaraCompileHash Hash;
+
+	friend FORCEINLINE uint32 GetTypeHash(const FNiagaraCompilationNPCHandle& CompilationCopy)
+	{
+		return HashCombine(GetTypeHash(CompilationCopy.AssetKey), GetTypeHash(CompilationCopy.Hash));
+	}
+
+	friend FORCEINLINE bool operator==(const FNiagaraCompilationNPCHandle& Lhs, const FNiagaraCompilationNPCHandle& Rhs)
+	{
+		return Lhs.AssetKey == Rhs.AssetKey && Lhs.Hash == Rhs.Hash;
+	}
 };
 
 class FNiagaraDigestedParameterCollections
@@ -109,8 +108,7 @@ public:
 	static FNiagaraDigestDatabase& Get();
 	static void Shutdown();
 
-	FNiagaraCompilationGraphHandle CreateCompilationCopy(const UNiagaraGraph* Graph);
-	FNiagaraCompilationGraphHandle::FGraphPtr Resolve(const FNiagaraCompilationGraphHandle& Handle) const;
+	FNiagaraDigestedGraphPtr CreateGraphDigest(const UNiagaraGraph* Graph, const FNiagaraGraphChangeIdBuilder& Digester);
 
 	FNiagaraCompilationNPCHandle CreateCompilationCopy(const UNiagaraParameterCollection* Collection);
 	FNiagaraCompilationNPCHandle::FDigestPtr Resolve(const FNiagaraCompilationNPCHandle& Handle) const;
@@ -127,11 +125,7 @@ protected:
 	uint32 CollectionCacheHits = 0;
 	uint32 CollectionCacheMisses = 0;
 
-	// todo - replace these maps with some kind of two tiered system where we've got an TLruCache backing
-	// those objects we've digested recently and then another layer of digested objects that we've got pinned
-	// for the lifetime of a compilation task.  For now we'll just have an ever growing map
-
-	using FCompilationGraphCache = TMap<FNiagaraCompilationGraphHandle, FNiagaraCompilationGraphHandle::FGraphPtr>;
+	using FCompilationGraphCache = TLruCache<FNiagaraCompilationGraphHandle, FNiagaraDigestedGraphPtr>;
 	FCompilationGraphCache CompilationGraphCache;
 
 	using FCompilationNPCCache = TMap<FNiagaraCompilationNPCHandle, FNiagaraCompilationNPCHandle::FDigestPtr>;

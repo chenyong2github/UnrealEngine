@@ -171,12 +171,11 @@ void FNiagaraPrecompileData::FinishPrecompile(
 	ENiagaraScriptCompileStatusEnum = StaticEnum<ENiagaraScriptCompileStatus>();
 	ENiagaraScriptUsageEnum = StaticEnum<ENiagaraScriptUsage>();
 
-	FNiagaraCompilationGraphHandle::FGraphPtr SourceGraph = SourceGraphHandle.Resolve();
 	TArray<const FNiagaraCompilationNodeOutput*> OutputNodes;
 
-	if (SourceGraph)
+	if (DigestedSourceGraph)
 	{
-		SourceGraph->FindOutputNodes(OutputNodes);
+		DigestedSourceGraph->FindOutputNodes(OutputNodes);
 	}
 
 	SortOutputNodesByDependencies(OutputNodes, SimStages);
@@ -246,7 +245,7 @@ void FNiagaraPrecompileData::FinishPrecompile(
 			// Map all for this output node
 			FParameterMapHistoryWithMetaDataBuilder Builder;
 			*Builder.ConstantResolver = ConstantResolver;
-			Builder.AddGraphToCallingGraphContextStack(SourceGraph.Get());
+			Builder.AddGraphToCallingGraphContextStack(DigestedSourceGraph.Get());
 			Builder.RegisterEncounterableVariables(EncounterableVariables);
 			Builder.RegisterExternalStaticVariables(StaticVariables);
 			CompilationTask.GetAvailableCollections(Builder.AvailableCollections->EditCollections());
@@ -499,9 +498,9 @@ UNiagaraDataInterface* FNiagaraCompilationCopyData::GetDuplicatedDataInterfaceCD
 	return nullptr;
 }
 
-void FNiagaraCompilationCopyData::InstantiateCompilationCopy(FNiagaraCompilationGraphHandle GraphHandle, const FNiagaraPrecompileData* PrecompileData, ENiagaraScriptUsage InUsage, FNiagaraFixedConstantResolver ConstantResolver)
+void FNiagaraCompilationCopyData::InstantiateCompilationCopy(const FNiagaraCompilationGraph& SourceGraph, const FNiagaraPrecompileData* PrecompileData, ENiagaraScriptUsage InUsage, FNiagaraFixedConstantResolver ConstantResolver)
 {
-	InstantiatedGraph = GraphHandle.Resolve()->Instantiate(PrecompileData, this, ValidUsages, ConstantResolver);
+	InstantiatedGraph = SourceGraph.Instantiate(PrecompileData, this, ValidUsages, ConstantResolver);
 
 	if (InstantiatedGraph)
 	{

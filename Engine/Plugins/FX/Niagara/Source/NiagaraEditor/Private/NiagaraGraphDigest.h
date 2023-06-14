@@ -234,12 +234,28 @@ protected:
 	bool CompileInputPins(FTranslator* Translator, TArray<int32>& OutInputResults) const;
 };
 
+// Helper class which can recursively generate the effective ChangeIds for a graph and all graphs that it
+// references.  With our current setup for digested graph, this new ChangeId reflects the fact that if a
+// graph references a changed graph (through function call or emitter node) then we'll need to re-digest
+// both caller and callee
+class FNiagaraGraphChangeIdBuilder
+{
+public:
+	void ParseReferencedGraphs(const UNiagaraGraph* Graph);
+	FGuid FindChangeId(const UNiagaraGraph* Graph) const;
+
+protected:
+	FGuid RecursiveBuildGraphChangeId(const UNiagaraGraph* Graph, TSet<const UNiagaraGraph*>& CurrentGraphChain);
+
+	TMap<const UNiagaraGraph*, FGuid> ChangeIdMap;
+};
+
 class FNiagaraCompilationGraph
 {
 public:
 	using FSharedPtr = TSharedPtr<FNiagaraCompilationGraph, ESPMode::ThreadSafe>;
 
-	void Create(const UNiagaraGraph* InGraph);
+	void Create(const UNiagaraGraph* InGraph, const FNiagaraGraphChangeIdBuilder& Digester);
 	bool IsValid() const { return true; } // todo - when creation is offloaded to a task we'll need this to synchronize completion
 
 	TArray<TUniquePtr<FNiagaraCompilationNode>> Nodes;

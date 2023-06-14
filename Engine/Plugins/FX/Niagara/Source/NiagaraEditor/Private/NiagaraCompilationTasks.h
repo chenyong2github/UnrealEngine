@@ -31,7 +31,6 @@ struct FNiagaraSystemCompilationTask
 	void Abort();
 
 	void DigestSystemInfo();
-	void DigestGraphs(TConstArrayView<UNiagaraScript*> Scripts);
 	void DigestParameterCollections(TConstArrayView<TWeakObjectPtr<UNiagaraParameterCollection>> Collections);
 	void AddScript(int32 EmitterIndex, UNiagaraScript* ScriptToCompile, bool bRequiresCompilation);
 	UE::Tasks::FTask BeginTasks();
@@ -62,7 +61,7 @@ struct FNiagaraSystemCompilationTask
 	{
 		FString UniqueEmitterName;
 		FString UniqueInstanceName;
-		FNiagaraCompilationGraphHandle SourceGraphHandle;
+		FNiagaraDigestedGraphPtr SourceGraph;
 		TArray<FNiagaraVariable> InitialStaticVariables;
 		TArray<FNiagaraVariable> StaticVariableResults;
 		TArray<FNiagaraSimulationStageInfo> SimStages;
@@ -82,7 +81,7 @@ struct FNiagaraSystemCompilationTask
 		TArray<FNiagaraVariable> InitialStaticVariables;
 		TArray<FNiagaraVariable> StaticVariableResults;
 		TArray<FNiagaraVariable> OriginalExposedParams;
-		FNiagaraCompilationGraphHandle SystemSourceGraphHandle;
+		FNiagaraDigestedGraphPtr SystemSourceGraph;
 		FNiagaraFixedConstantResolver ConstantResolver;
 		TArray<TObjectKey<UNiagaraScript>> OwnedScriptKeys;
 
@@ -191,8 +190,8 @@ private:
 	TUniquePtr<FDispatchDataCachePutRequests> PutRequestHelper;
 
 	TMap<TObjectKey<UNiagaraScript>, FScriptInfo> DigestedScriptInfo;
+	TSet<FNiagaraDigestedGraphPtr> DigestedGraphs;
 
-	TMap<TObjectKey<UNiagaraScript>, FNiagaraCompilationGraphHandle> DigestedScriptGraphs;
 	TMap<TObjectKey<UNiagaraParameterCollection>, FNiagaraCompilationNPCHandle> DigestedParameterCollections;
 
 	UE::Tasks::FTaskEvent CompileCompletionEvent = UE::Tasks::FTaskEvent(UE_SOURCE_LOCATION);
