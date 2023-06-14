@@ -1142,6 +1142,36 @@ void ULandscapeComponent::PostLoad()
 			UpdateMaterialInstances();
 		}
 	}
+
+	auto DropMipChain = [](UTexture2D* InTexture) 
+	{
+		if (InTexture->Source.GetNumMips() <= 1)
+		{
+			return;
+		}
+
+		uint64 NumBytes = InTexture->Source.GetSizeX() * InTexture->Source.GetSizeY() * FTextureSource::GetBytesPerPixel(InTexture->Source.GetFormat());
+		uint8* MipDataCopy = static_cast<uint8*>(FMemory::Malloc(NumBytes));
+		uint8 const* MipData = InTexture->Source.LockMipReadOnly(0);
+		FMemory::Memcpy(MipDataCopy, MipData, NumBytes);
+
+		InTexture->Source.Init(InTexture->Source.GetSizeX(), InTexture->Source.GetSizeY(), 1, 1, InTexture->Source.GetFormat(), MipDataCopy);
+		InTexture->UpdateResource();
+
+		FMemory::Free(MipDataCopy);
+
+	};
+
+	// Remove Non zero mip levels found in layer textures
+	for (auto& LayerIt : LayersData)
+	{
+		DropMipChain(LayerIt.Value.HeightmapData.Texture);
+		for (int32 i = 0; i < LayerIt.Value.WeightmapData.Textures.Num(); ++i)
+		{
+			DropMipChain(LayerIt.Value.WeightmapData.Textures[i]);
+		}
+	}
+	
 #endif
 
 	auto ReparentObject = [this](UObject* Object)
@@ -1203,7 +1233,7 @@ void ULandscapeComponent::PostLoad()
 		}
 	}
 
-	for (UMaterialInstance* MobileCombinationMaterialInstance : MobileCombinationMaterialInstances)
+ 	for (UMaterialInstance* MobileCombinationMaterialInstance : MobileCombinationMaterialInstances)
 	{
 		while (ReparentObject(MobileCombinationMaterialInstance))
 		{
@@ -2172,10 +2202,9 @@ void ULandscapeComponent::AddDefaultLayerData(const FGuid& InLayerGuid, const TA
 
 		if (LayerHeightmap == nullptr)
 		{
-			UTexture2D* NewLayerHeightmap = GetLandscapeProxy()->CreateLandscapeTexture(ComponentHeightmap->Source.GetSizeX(), ComponentHeightmap->Source.GetSizeY(), TEXTUREGROUP_Terrain_Heightmap, ComponentHeightmap->Source.GetFormat());
+			// No mipchain required as these layer weight maps are used in layer compositing to generate a final set of weight maps to be used for rendering
+			UTexture2D* NewLayerHeightmap = GetLandscapeProxy()->CreateLandscapeTexture(ComponentHeightmap->Source.GetSizeX(), ComponentHeightmap->Source.GetSizeY(), TEXTUREGROUP_Terrain_Heightmap, ComponentHeightmap->Source.GetFormat(), /* OptionalOverrideOuter = */ nullptr, /* bCompress = */ false, /* bMipChain = */ false);
 			LayerHeightmap = &InOutCreatedHeightmapTextures.Add(ComponentHeightmap, NewLayerHeightmap);
-
-			ULandscapeComponent::CreateEmptyTextureMips(NewLayerHeightmap, true);
 
 			// Init Mip0 to be at 32768 which is equal to "0"
 			TArrayView<FColor> Mip0Data((FColor*)NewLayerHeightmap->Source.LockMip(0), NewLayerHeightmap->Source.GetSizeX() * NewLayerHeightmap->Source.GetSizeY());

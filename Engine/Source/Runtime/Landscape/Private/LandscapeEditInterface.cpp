@@ -1831,6 +1831,8 @@ void ULandscapeComponent::FillLayer(ULandscapeLayerInfoObject* LayerInfo, FLands
 
 	FGuid EditLayerGuid = LandscapeEdit.GetEditLayer();
 
+	const bool bIsFinalWeightmap = !EditLayerGuid.IsValid();
+
 	ALandscapeProxy* Proxy = Component->GetLandscapeProxy();
 	Component->Modify(LandscapeEdit.GetShouldDirtyPackage());
 	Proxy->Modify(LandscapeEdit.GetShouldDirtyPackage());
@@ -1954,23 +1956,26 @@ void ULandscapeComponent::FillLayer(ULandscapeLayerInfoObject* LayerInfo, FLands
 	// e.g. if you start with 4 blended layers (in one texture) and a non-blended layer (in a 2nd), and fill one weight-blended layer (deleting the other three)
 	// this can also happen with normal painting I believe
 
-	// update mips
-	for (int32 TextureIdx = 0; TextureIdx < ComponentWeightmapTextures.Num(); ++TextureIdx)
+	// update mips if this texture isn't used in the layer compositing 
+	if (bIsFinalWeightmap)
 	{
-		UTexture2D* WeightmapTexture = ComponentWeightmapTextures[TextureIdx];
-		FLandscapeTextureDataInfo* WeightmapDataInfo = LandscapeEdit.GetTextureDataInfo(WeightmapTexture);
-
-		const int32 NumMips = WeightmapTexture->Source.GetNumMips();
-		TArray<FColor*> WeightmapTextureMipData;
-		WeightmapTextureMipData.AddUninitialized(NumMips);
-		for (int32 MipIdx = 0; MipIdx < NumMips; MipIdx++)
+		for (int32 TextureIdx = 0; TextureIdx < ComponentWeightmapTextures.Num(); ++TextureIdx)
 		{
-			WeightmapTextureMipData[MipIdx] = (FColor*)WeightmapDataInfo->GetMipData(MipIdx);
+			UTexture2D* WeightmapTexture = ComponentWeightmapTextures[TextureIdx];
+			FLandscapeTextureDataInfo* WeightmapDataInfo = LandscapeEdit.GetTextureDataInfo(WeightmapTexture);
+
+			const int32 NumMips = WeightmapTexture->Source.GetNumMips();
+			TArray<FColor*> WeightmapTextureMipData;
+			WeightmapTextureMipData.AddUninitialized(NumMips);
+			for (int32 MipIdx = 0; MipIdx < NumMips; MipIdx++)
+			{
+				WeightmapTextureMipData[MipIdx] = (FColor*)WeightmapDataInfo->GetMipData(MipIdx);
+			}
+
+			ULandscapeComponent::UpdateWeightmapMips(NumSubsections, SubsectionSizeQuads, WeightmapTexture, WeightmapTextureMipData, 0, 0, MAX_int32, MAX_int32, WeightmapDataInfo);
+
+			WeightmapDataInfo->AddMipUpdateRegion(0, 0, 0, WeightmapTexture->Source.GetSizeX() - 1, WeightmapTexture->Source.GetSizeY() - 1);
 		}
-
-		ULandscapeComponent::UpdateWeightmapMips(NumSubsections, SubsectionSizeQuads, WeightmapTexture, WeightmapTextureMipData, 0, 0, MAX_int32, MAX_int32, WeightmapDataInfo);
-
-		WeightmapDataInfo->AddMipUpdateRegion(0, 0, 0, WeightmapTexture->Source.GetSizeX() - 1, WeightmapTexture->Source.GetSizeY() - 1);
 	}
 
 	// Update the shaders for this component

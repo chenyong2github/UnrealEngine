@@ -5319,7 +5319,8 @@ void ALandscape::SplitHeightmap(ULandscapeComponent* Comp, ALandscapeProxy* Targ
 				// Restore new heightmap scale/bias
 				Comp->HeightmapScaleBias = NewHeightmapScaleBias;
 				{
-					UTexture2D* LayerHeightmapTexture = DstProxy->CreateLandscapeTexture(HeightmapSizeU, HeightmapSizeV, TEXTUREGROUP_Terrain_Heightmap, TSF_BGRA8);
+					// no mipchain required as these layer weight maps are used in layer compositing to generate a final set of weight maps to be used for rendering
+					UTexture2D* LayerHeightmapTexture = DstProxy->CreateLandscapeTexture(HeightmapSizeU, HeightmapSizeV, TEXTUREGROUP_Terrain_Heightmap, TSF_BGRA8, /* OptionalOverrideOuter = */ nullptr, /* bCompress = */ false, /* bMipChain = */ false);
 					ULandscapeComponent::CreateEmptyTextureMips(LayerHeightmapTexture, true);
 					LayerHeightmapTexture->PostEditChange();
 					// Set Layer heightmap texture
@@ -6431,6 +6432,8 @@ void ULandscapeComponent::ReallocateWeightmapsInternal(FLandscapeEditDataInterfa
 	int32 NeededNewChannels = 0;
 	ALandscapeProxy* TargetProxy = InTargetProxy ? InTargetProxy : GetLandscapeProxy();
 	
+	const bool bIsFinalWeightmap = !InEditLayerGuid.IsValid();
+
 	if (InEditLayerGuid.IsValid())
 	{
 		check(TargetProxy->HasLayersContent());
@@ -6604,10 +6607,13 @@ void ULandscapeComponent::ReallocateWeightmapsInternal(FLandscapeEditDataInterfa
 			int32 WeightmapSize = (SubsectionSizeQuads + 1) * NumSubsections;
 
 			// We need a new weightmap texture
-			CurrentWeightmapTexture = TargetProxy->CreateLandscapeTexture(WeightmapSize, WeightmapSize, TEXTUREGROUP_Terrain_Weightmap, TSF_BGRA8);
+			CurrentWeightmapTexture = TargetProxy->CreateLandscapeTexture(WeightmapSize, WeightmapSize, TEXTUREGROUP_Terrain_Weightmap, TSF_BGRA8, nullptr, false, bIsFinalWeightmap); //dmb-nomips
 
 			// Alloc dummy mips
-			CreateEmptyTextureMips(CurrentWeightmapTexture, true);
+			if (bIsFinalWeightmap)
+			{
+				CreateEmptyTextureMips(CurrentWeightmapTexture, true);
+			}
 
 			CurrentWeightmapTexture->PostEditChange();
 
@@ -6669,7 +6675,7 @@ void ULandscapeComponent::ReallocateWeightmapsInternal(FLandscapeEditDataInterfa
 		}
 	}
 
-	if (DataInterface)
+	if (DataInterface && bIsFinalWeightmap)
 	{
 		// Update the mipmaps for the textures we edited
 		for (int32 Idx = 0; Idx < NewWeightmapTextures.Num(); Idx++)
@@ -7236,15 +7242,23 @@ FName ALandscapeProxy::GenerateUniqueLandscapeTextureName(UObject* InOuter, Text
 	return MakeUniqueObjectName(InOuter, UTexture2D::StaticClass(), BaseName);
 }
 
-UTexture2D* ALandscapeProxy::CreateLandscapeTexture(int32 InSizeX, int32 InSizeY, TextureGroup InLODGroup, ETextureSourceFormat InFormat, UObject* OptionalOverrideOuter, bool bCompress) const
+UTexture2D* ALandscapeProxy::CreateLandscapeTexture(int32 InSizeX, int32 InSizeY, TextureGroup InLODGroup, ETextureSourceFormat InFormat, UObject* OptionalOverrideOuter, bool bCompress, bool bMipChain) const
 {
 	UObject* TexOuter = OptionalOverrideOuter ? OptionalOverrideOuter : const_cast<ALandscapeProxy*>(this);
 	UTexture2D* NewTexture = NewObject<UTexture2D>(TexOuter, GenerateUniqueLandscapeTextureName(TexOuter, InLODGroup));
-	NewTexture->Source.Init2DWithMipChain(InSizeX, InSizeY, InFormat);
+	if (bMipChain)
+	{
+		NewTexture->Source.Init2DWithMipChain(InSizeX, InSizeY, InFormat);
+	}
+	else
+	{
+		NewTexture->Source.Init(InSizeX, InSizeY, 1, 1, InFormat);
+	}
+	
 	NewTexture->SRGB = false;
 	NewTexture->CompressionNone = !bCompress;
 	NewTexture->CompressionQuality = TCQ_Highest;
-	NewTexture->MipGenSettings = TMGS_LeaveExistingMips;
+	NewTexture->MipGenSettings = bMipChain ? TMGS_LeaveExistingMips : TMGS_NoMipmaps;
 	NewTexture->AddressX = TA_Clamp;
 	NewTexture->AddressY = TA_Clamp;
 	NewTexture->LODGroup = InLODGroup;
