@@ -321,9 +321,9 @@ using FVerifiedAuthTicketId = TOnlineId<OnlineIdHandleTags::FVerifiedAuthTicket>
 using FVerifiedAuthSessionId = TOnlineId<OnlineIdHandleTags::FVerifiedAuthSession>;
 
 COREONLINE_API FString ToString(const FAccountId& Id);
+COREONLINE_API FString ToString(const FOnlineSessionId& Id);
 // TODO
 // COREONLINE_API FString ToString(const FLobbyId& Id);
-// COREONLINE_API FString ToString(const FOnlineSessionId& Id);
 // COREONLINE_API FString ToString(const FSessionInviteId& Id);
 // COREONLINE_API FString ToString(const FVerifiedAuthTicketId& Id);
 // COREONLINE_API FString ToString(const FVerifiedAuthSessionId& Id);
@@ -415,6 +415,7 @@ public:
 	 */
 	COREONLINE_API void UnregisterSessionIdRegistry(EOnlineServices OnlineServices, int32 Priority = 0);
 
+	COREONLINE_API FString ToString(const FOnlineSessionId& SessionId) const;
 	COREONLINE_API FString ToLogString(const FOnlineSessionId& SessionId) const;
 	COREONLINE_API TArray<uint8> ToReplicationData(const FOnlineSessionId& SessionId) const;
 	COREONLINE_API FOnlineSessionId ToSessionId(EOnlineServices Services, const TArray<uint8>& RepData) const;

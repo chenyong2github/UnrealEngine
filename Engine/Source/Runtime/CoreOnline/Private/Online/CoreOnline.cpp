@@ -321,6 +321,16 @@ void FOnlineIdRegistryRegistry::UnregisterSessionIdRegistry(EOnlineServices Onli
 	}
 }
 
+FString FOnlineIdRegistryRegistry::ToString(const FOnlineSessionId& SessionId) const
+{
+	FString Result;
+	if (IOnlineSessionIdRegistry* Registry = GetSessionIdRegistry(SessionId.GetOnlineServicesType()))
+	{
+		Result = Registry->ToString(SessionId);
+	}
+	return Result;
+}
+
 FString FOnlineIdRegistryRegistry::ToLogString(const FOnlineSessionId& SessionId) const
 {
 	FString Result;
@@ -426,9 +436,9 @@ FString ToStringImpl(const IdType& Id)
 }
 
 FString ToString(const FAccountId& Id) { return ToStringImpl(Id); }
+FString ToString(const FOnlineSessionId& Id) { return ToStringImpl(Id); }
 // TODO
 //FString ToString(const FLobbyId& Id) { return ToStringImpl(Id); }
-//FString ToString(const FOnlineSessionId& Id) { return ToStringImpl(Id); }
 //FString ToString(const FSessionInviteId& Id) { return ToStringImpl(Id); }
 //FString ToString(const FVerifiedAuthTicketId& Id) { return ToStringImpl(Id); }
 //FString ToString(const FVerifiedAuthSessionId& Id) { return ToStringImpl(Id); }
