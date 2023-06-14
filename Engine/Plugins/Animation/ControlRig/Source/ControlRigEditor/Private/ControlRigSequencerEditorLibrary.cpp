@@ -1038,7 +1038,7 @@ static void LocalSetControlRigWorldTransforms(ULevelSequence* LevelSequence,UCon
 						const FFrameNumber& FrameNumber = Frames[Index];
 						Context.LocalTime = TickResolution.AsSeconds(FFrameTime(FrameNumber));
 						FTransform GlobalTransform = WorldTransforms[Index].GetRelativeTransform(ControlRigParentWorldTransforms[Index]);
-						ControlRig->SetControlGlobalTransform(ControlName, GlobalTransform, true, Context);
+						ControlRig->SetControlGlobalTransform(ControlName, GlobalTransform, true, Context, false /*undo*/, false /*bPrintPython*/, true/* bFixEulerFlips*/);
 					}
 				}
 			}

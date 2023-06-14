@@ -22,6 +22,7 @@
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "TransformConstraint.h"
 #include "TransformableHandle.h"
+#include "AnimationCoreLibrary.h"
 #include "UObject/ObjectSaveContext.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneControlRigParameterSection)
@@ -608,6 +609,7 @@ struct FParameterTransformChannelEditorData
 	static TOptional<FRotator> GetRotator(UControlRig* ControlRig, FName ParameterName, UObject& InObject, FTrackInstancePropertyBindings* Bindings)
 	{
 		if (ControlRig)
+
 		{
 			FRigControlElement* ControlElement = ControlRig->FindControl(ParameterName);
 			if (ControlElement)
@@ -623,7 +625,9 @@ struct FParameterTransformChannelEditorData
 					}
 				}
 				
-				return ControlRig->GetHierarchy()->GetControlPreferredRotator(ControlElement);
+				FVector Vector = ControlRig->GetHierarchy()->GetControlSpecifiedEulerAngle(ControlElement);
+				FRotator Rotation = FRotator(Vector.Y, Vector.Z, Vector.X);
+				return Rotation;
 			}
 		}
 		return TOptional<FRotator>();
@@ -2581,6 +2585,94 @@ void UMovieSceneControlRigParameterSection::SetControlRig(UControlRig* InControl
 {
 	ControlRig = InControlRig;
 	ControlRigClass = ControlRig ? ControlRig->GetClass() : nullptr;
+}
+
+void UMovieSceneControlRigParameterSection::ChangeControlRotationOrder(const FName& InControlName, const  TOptional<EEulerRotationOrder>& OldOrder,
+	const  TOptional<EEulerRotationOrder>& NewOrder, EMovieSceneKeyInterpolation Interpolation)
+{
+	FChannelMapInfo* pChannelIndex = ControlChannelMap.Find(InControlName);
+	if (pChannelIndex == nullptr || GetControlRig() == nullptr)
+	{
+		return;
+	}
+	int32 ChannelIndex = pChannelIndex->ChannelIndex;
+	TArrayView<FMovieSceneFloatChannel*> FloatChannels = GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
+	if (FRigControlElement* ControlElement = GetControlRig()->FindControl(InControlName))
+	{
+		if (ControlElement->Settings.ControlType == ERigControlType::Rotator ||
+			ControlElement->Settings.ControlType == ERigControlType::EulerTransform ||
+			ControlElement->Settings.ControlType == ERigControlType::Transform ||
+			ControlElement->Settings.ControlType == ERigControlType::TransformNoScale)
+		{
+
+			auto AddArrayToSortedMap = [](const TArray<FFrameNumber>& InFrames, TSortedMap<FFrameNumber, FFrameNumber>& OutFrameMap)
+			{
+				for (const FFrameNumber& Frame : InFrames)
+				{
+					OutFrameMap.Add(Frame, Frame);
+				}
+			};
+
+			const int32 StartIndex = (ControlElement->Settings.ControlType == ERigControlType::Rotator) ? 0 : 3;
+			const int32 XIndex = StartIndex + ChannelIndex;
+			const int32 YIndex = XIndex + 1;
+			const int32 ZIndex = XIndex + 2;
+
+			TSortedMap<FFrameNumber, FFrameNumber> AllKeys;
+			TArray<FFrameNumber> KeyTimes;
+			TArray<FKeyHandle> Handles;
+			for (int32 Index = XIndex; Index < XIndex + 3; ++Index)
+			{
+				KeyTimes.SetNum(0);
+				Handles.SetNum(0);
+				FloatChannels[Index]->GetKeys(TRange<FFrameNumber>(), &KeyTimes, &Handles);
+				AddArrayToSortedMap(KeyTimes, AllKeys);
+			}
+			KeyTimes.SetNum(0);
+			AllKeys.GenerateKeyArray(KeyTimes);
+			if (KeyTimes.Num() <= 0)
+			{
+				//no keys so bail
+				return;
+			}
+			FRotator Rotator(0.0f, 0.0f, 0.0f);
+			const FFrameNumber StartFrame = KeyTimes[0];
+			const FFrameNumber EndFrame = KeyTimes[KeyTimes.Num() - 1];
+			for (const FFrameNumber& Frame : KeyTimes)
+			{
+				float Roll = 0.0f, Pitch = 0.0f, Yaw = 0.0f;
+				FloatChannels[XIndex]->Evaluate(Frame, Roll);
+				FloatChannels[YIndex]->Evaluate(Frame, Pitch);
+				FloatChannels[ZIndex]->Evaluate(Frame, Yaw);
+				Rotator = FRotator(Pitch, Yaw, Roll);
+				FQuat Quat;
+				//if set use animation core conversion, else use rotator conversion
+				if (OldOrder.IsSet())
+				{
+					FVector Vector = Rotator.Euler();
+					Quat = AnimationCore::QuatFromEuler(Vector, OldOrder.GetValue(),true);
+				}
+				else
+				{
+					Quat = FQuat(Rotator);
+				}
+				if (NewOrder.IsSet())
+				{
+					FVector Vector = AnimationCore::EulerFromQuat(Quat, NewOrder.GetValue(), true);
+					Rotator = FRotator::MakeFromEuler(Vector);
+				}
+				else
+				{
+					Rotator = FRotator(Quat);
+				}
+				//this will reuse tangent like we want and only add if new
+				AddKeyToChannel(FloatChannels[XIndex], Frame, Rotator.Roll, Interpolation);
+				AddKeyToChannel(FloatChannels[YIndex], Frame, Rotator.Pitch, Interpolation);
+				AddKeyToChannel(FloatChannels[ZIndex], Frame, Rotator.Yaw, Interpolation);
+			}
+			FixRotationWinding(InControlName, StartFrame, EndFrame);
+		}
+	}
 }
 
 void UMovieSceneControlRigParameterSection::FixRotationWinding(const FName& ControlName, FFrameNumber StartFrame, FFrameNumber EndFrame)

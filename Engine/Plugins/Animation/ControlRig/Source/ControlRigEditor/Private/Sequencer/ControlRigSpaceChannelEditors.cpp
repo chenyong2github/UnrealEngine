@@ -453,7 +453,7 @@ FKeyHandle FControlRigSpaceChannelHelpers::SequencerKeyControlRigSpaceChannel(UC
 			Sequencer->GetEvaluationTemplate().EvaluateSynchronousBlocking(SceneContext, *Sequencer);
 
 			Context.LocalTime = TickResolution.AsSeconds(FFrameTime(Time - 1));
-			ControlRig->SetControlGlobalTransform(ControlKey.Name, ControlWorldTransforms[0], true, Context);
+			ControlRig->SetControlGlobalTransform(ControlKey.Name, ControlWorldTransforms[0], true, Context, false /*undo*/, false /*bPrintPython*/, true/* bFixEulerFlips*/);
 
 			//need to do this after eval
 			FChannelMapInfo* pChannelIndex = nullptr;
@@ -484,7 +484,7 @@ FKeyHandle FControlRigSpaceChannelHelpers::SequencerKeyControlRigSpaceChannel(UC
 
 			ControlRig->Evaluate_AnyThread();
 			Context.LocalTime = TickResolution.AsSeconds(FFrameTime(Frame));
-			ControlRig->SetControlGlobalTransform(ControlKey.Name, ControlWorldTransforms[FramesIndex], true, Context);
+			ControlRig->SetControlGlobalTransform(ControlKey.Name, ControlWorldTransforms[FramesIndex], true, Context, false /*undo*/, false /*bPrintPython*/, true/* bFixEulerFlips*/);
 
 			//need to do this after eval
 			FChannelMapInfo* pChannelIndex = nullptr;
@@ -709,7 +709,7 @@ void  FControlRigSpaceChannelHelpers::SequencerSpaceChannelKeyDeleted(UControlRi
 			Context.LocalTime = TickResolution.AsSeconds(FFrameTime(Frame));
 			//make sure we only add keys to those that exist since they may be getting deleted also.
 			Context.KeyMask = (uint32)GetCurrentTransformKeysAtThisTime(ControlRig, ControlKey.Name, SectionToKey, Frame);
-			ControlRig->SetControlGlobalTransform(ControlKey.Name, ControlWorldTransforms[FramesIndex++], true, Context);
+			ControlRig->SetControlGlobalTransform(ControlKey.Name, ControlWorldTransforms[FramesIndex++], true, Context, false /*undo*/, false /*bPrintPython*/, true/* bFixEulerFlips*/);
 		}
 		//now delete any extra TimeOfDelete -1
 		FControlRigSpaceChannelHelpers::DeleteTransformKeysAtThisTime(ControlRig, SectionToKey, ControlName, TimeOfDeletion - 1);
@@ -1105,7 +1105,7 @@ void FControlRigSpaceChannelHelpers::SequencerBakeControlInSpace(UControlRig* Co
 				{
 					Context.KeyMask = (uint32)EControlRigContextChannelToKey::AllTransform;
 				}
-				ControlRig->SetControlGlobalTransform(ControlKey.Name, GlobalTransform, true, Context);
+				ControlRig->SetControlGlobalTransform(ControlKey.Name, GlobalTransform, true, Context, false /*undo*/, false /*bPrintPython*/, true/* bFixEulerFlips*/);
 			}
 
 			//if end compensated set the space that was active previously and set the compensated global value
@@ -1140,7 +1140,7 @@ void FControlRigSpaceChannelHelpers::SequencerBakeControlInSpace(UControlRig* Co
 				const FTransform GlobalTransform = ControlWorldTransforms[Frames.Num() - 1];
 				Context.LocalTime = TickResolution.AsSeconds(FFrameTime(EndFrame));
 				Context.KeyMask = (uint32)EControlRigContextChannelToKey::AllTransform;
-				ControlRig->SetControlGlobalTransform(ControlKey.Name, GlobalTransform, true, Context);
+				ControlRig->SetControlGlobalTransform(ControlKey.Name, GlobalTransform, true, Context, false /*undo*/, false /*bPrintPython*/, true/* bFixEulerFlips*/);
 			}
 			//Fix tangents at removed space switches if needed
 			for (TPair<FFrameNumber, TArray<FMovieSceneTangentData>>& StoredTangent : StoredTangents)
@@ -1346,7 +1346,7 @@ void FControlRigSpaceChannelHelpers::CompensateIfNeeded(
 							//now set time -1 frame value
 							ControlRig->Evaluate_AnyThread();
 							KeyframeContext.LocalTime = TickResolution.AsSeconds(FFrameTime(Time - 1));
-							ControlRig->SetControlGlobalTransform(Control->GetName(), ControlWorldTransforms[0], true, KeyframeContext);
+							ControlRig->SetControlGlobalTransform(Control->GetName(), ControlWorldTransforms[0], true, KeyframeContext, false /*undo*/, false /*bPrintPython*/, true/* bFixEulerFlips*/);
 							
 							bDidIt = true;
 						}

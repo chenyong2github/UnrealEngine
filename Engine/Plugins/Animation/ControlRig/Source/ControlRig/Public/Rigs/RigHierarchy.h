@@ -2238,6 +2238,100 @@ public:
 		}
 	}
 
+	bool GetUsePreferredRotationOrder(const FRigControlElement* InControlElement) const
+	{
+		if (InControlElement)
+		{
+			{
+				return InControlElement->Settings.bUsePreferredRotationOrder;
+			}
+		}
+		return false;
+	}
+
+	void  SetUsePreferredRotationOrder(FRigControlElement* InControlElement, bool bVal)
+	{
+		if (InControlElement)
+		{
+			{
+				InControlElement->Settings.bUsePreferredRotationOrder = bVal;
+			}
+		}
+	}
+
+	FVector GetControlSpecifiedEulerAngle(const FRigControlElement* InControlElement, bool bIsInitial = false) const
+	{
+		FVector EulerAngle = FVector::ZeroVector;
+		if (InControlElement)
+		{
+			if (bIsInitial == false && GetUsePreferredRotationOrder(InControlElement))
+			{
+				EEulerRotationOrder RotationOrder = GetControlPreferredEulerRotationOrder(InControlElement);
+				EulerAngle = InControlElement->PreferredEulerAngles.GetAngles(false, RotationOrder);
+			}
+			else
+			{
+				FRotator Rotator = GetControlPreferredRotator(InControlElement);
+				EulerAngle = FVector(Rotator.Roll, Rotator.Pitch, Rotator.Yaw);
+			}
+		}
+		return EulerAngle;
+	}
+	
+	void SetControlSpecifiedEulerAngle(FRigControlElement* InControlElement, const FVector& InEulerAngle, bool bIsInitial = false)
+	{
+		if (InControlElement)
+		{
+			if (GetUsePreferredRotationOrder(InControlElement))
+			{
+				EEulerRotationOrder RotationOrder = GetControlPreferredEulerRotationOrder(InControlElement);
+				SetControlPreferredEulerAngles(InControlElement, InEulerAngle, RotationOrder, bIsInitial);
+			}
+			else
+			{
+				FRotator Rotator(InEulerAngle[1], InEulerAngle[2], InEulerAngle[0]);
+				SetControlPreferredRotator(InControlElement, Rotator, bIsInitial, false /* fix euler flips*/); //test fix todo mikez
+			}
+		}
+	}
+
+	FQuat GetControlQuaternion(const FRigControlElement* InControlElement, const FVector& InEulerAngle) const
+	{
+		if (InControlElement)
+		{
+			FRotator Rotator(InEulerAngle[1], InEulerAngle[2], InEulerAngle[0]);
+
+			if (GetUsePreferredRotationOrder(InControlElement))
+			{
+				return InControlElement->PreferredEulerAngles.GetQuatFromRotator(Rotator);
+			}
+			else
+			{
+				return Rotator.Quaternion();
+			}
+		}
+		return FQuat();
+	}
+
+	FVector GetControlAnglesFromQuat(const FRigControlElement* InControlElement, const FQuat& InQuat) const
+	{
+		FVector Angle(0, 0, 0);
+		if (InControlElement)
+		{
+
+			if (GetUsePreferredRotationOrder(InControlElement))
+			{
+				FRotator Rotator = InControlElement->PreferredEulerAngles.GetRotatorFromQuat(InQuat);
+				Angle = Rotator.Euler();
+			}
+			else
+			{
+				FRotator Rotator(InQuat);
+				Angle = Rotator.Euler();
+			}
+		}
+		return Angle;
+	}
 	/**
 	 * Returns the pin type to use for a control
 	 * @param InControlElement The control to return the pin type for

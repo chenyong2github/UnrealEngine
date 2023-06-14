@@ -208,7 +208,8 @@ void UControlRigTransformControlProxy::PostEditChangeChainProperty(struct FPrope
 			//MUST set through ControlRig
 			const FTransform RealTransform = Transform.ToFTransform(); //Transform is FEulerTransform
 			ControlRig->SetControlValue<FRigControlValue::FTransform_Float>(ControlName, RealTransform, true, EControlRigSetKey::DoNotCare,false);
-			ControlRig->GetHierarchy()->SetControlPreferredRotator(ControlElement, Transform.Rotation);
+			FVector EulerAngle(Transform.Rotation.Roll, Transform.Rotation.Pitch, Transform.Rotation.Yaw);
+			ControlRig->GetHierarchy()->SetControlSpecifiedEulerAngle(ControlElement, EulerAngle);
 			ControlRig->Evaluate_AnyThread();
 
 		}
@@ -239,7 +240,8 @@ void UControlRigTransformControlProxy::PostEditUndo()
 		ControlRig->SelectControl(ControlName, bSelected);
 		const FTransform RealTransform = Transform.ToFTransform(); //Transform is FEulerTransform
 		ControlRig->SetControlValue<FRigControlValue::FTransform_Float>(ControlName, RealTransform, true, EControlRigSetKey::Never,false);
-		ControlRig->GetHierarchy()->SetControlPreferredRotator(ControlElement, Transform.Rotation);
+		FVector EulerAngle(Transform.Rotation.Roll, Transform.Rotation.Pitch, Transform.Rotation.Yaw);
+		ControlRig->GetHierarchy()->SetControlSpecifiedEulerAngle(ControlElement, EulerAngle);
 	}
 }
 #endif
@@ -265,7 +267,8 @@ void UControlRigTransformControlProxy::SetKey(const IPropertyHandle& KeyedProper
 		}
 		const FTransform RealTransform = Transform.ToFTransform(); //Transform is FEulerTransform
 		ControlRig->SetControlValue<FRigControlValue::FTransform_Float>(ControlName, RealTransform, true, Context, false);
-		ControlRig->GetHierarchy()->SetControlPreferredRotator(ControlElement, Transform.Rotation);
+		FVector EulerAngle(Transform.Rotation.Roll, Transform.Rotation.Pitch, Transform.Rotation.Yaw);
+		ControlRig->GetHierarchy()->SetControlSpecifiedEulerAngle(ControlElement, EulerAngle);
 	}
 }
 
@@ -355,8 +358,14 @@ void UControlRigEulerTransformControlProxy::PostEditChangeChainProperty(struct F
 		FRigControlElement* ControlElement = GetControlElement();
 		if (ControlElement && ControlRig.IsValid())
 		{
-			//MUST set through ControlRig
-			ControlRig->SetControlValue<FRigControlValue::FEulerTransform_Float>(ControlName, Transform, true, EControlRigSetKey::DoNotCare,false);
+			FVector EulerAngle(Transform.Rotation.Roll, Transform.Rotation.Pitch, Transform.Rotation.Yaw);
+			FQuat Quat = ControlRig->GetHierarchy()->GetControlQuaternion(ControlElement, EulerAngle);
+			ControlRig->GetHierarchy()->SetControlSpecifiedEulerAngle(ControlElement, EulerAngle);
+			FRotator UERotator(Quat);
+			FEulerTransform UETransform = Transform;
+			UETransform.Rotation = UERotator;
+
+			ControlRig->SetControlValue<FRigControlValue::FEulerTransform_Float>(ControlName, UETransform, true, EControlRigSetKey::DoNotCare,false);
 			ControlRig->Evaluate_AnyThread();
 
 		}
@@ -371,8 +380,8 @@ void UControlRigEulerTransformControlProxy::ValueChanged()
 		Modify();
 		const FName PropertyName("Transform");
 		FTrackInstancePropertyBindings Binding(PropertyName, PropertyName.ToString());
-		const FEulerTransform NewTransform = ControlRig.Get()->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FEulerTransform_Float>().ToTransform();
-
+		FEulerTransform NewTransform = ControlRig.Get()->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FEulerTransform_Float>().ToTransform();
+		NewTransform.Rotation = ControlRig->GetHierarchy()->GetControlPreferredRotator(ControlElement);
 		Binding.CallFunction<FEulerTransform>(*this, NewTransform);
 
 	}
@@ -386,6 +395,8 @@ void UControlRigEulerTransformControlProxy::PostEditUndo()
 	{
 		ControlRig->SelectControl(ControlName, bSelected);
 		ControlRig->SetControlValue<FRigControlValue::FEulerTransform_Float>(ControlName, Transform, true, EControlRigSetKey::Never,false);
+		FVector EulerAngle(Transform.Rotation.Roll, Transform.Rotation.Pitch, Transform.Rotation.Yaw);
+		ControlRig->GetHierarchy()->SetControlSpecifiedEulerAngle(ControlElement, EulerAngle);
 	}
 }
 #endif
@@ -410,6 +421,8 @@ void UControlRigEulerTransformControlProxy::SetKey(const IPropertyHandle& KeyedP
 			Context.KeyMask = (uint32)EControlRigContextChannelToKey::Scale;
 		}
 		ControlRig->SetControlValue<FRigControlValue::FEulerTransform_Float>(ControlName, Transform, true, Context,false);
+		FVector EulerAngle(Transform.Rotation.Roll, Transform.Rotation.Pitch, Transform.Rotation.Yaw);
+		ControlRig->GetHierarchy()->SetControlSpecifiedEulerAngle(ControlElement, EulerAngle);
 	}
 }
 

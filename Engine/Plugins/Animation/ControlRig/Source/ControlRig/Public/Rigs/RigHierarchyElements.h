@@ -473,6 +473,10 @@ struct CONTROLRIG_API FRigPreferredEulerAngles
 	void SetAngles(const FVector& InValue, bool bInitial = false, EEulerRotationOrder InRotationOrder = DefaultRotationOrder, bool bFixEulerFlips = false);
 	void SetRotationOrder(EEulerRotationOrder InRotationOrder);
 
+
+	FRotator GetRotatorFromQuat(const FQuat& InQuat) const;
+	FQuat GetQuatFromRotator(const FRotator& InRotator) const;
+	
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Pose")
 	EEulerRotationOrder RotationOrder;
 
@@ -1189,11 +1193,45 @@ struct CONTROLRIG_API FRigControlSettings
 	TArray<ERigControlTransformChannel> FilteredChannels;
 
 	/**
-	 * The euler rotation order this control prefers for animation
+	 * The euler rotation order this control prefers for animation, if we aren't using default UE rotator
 	 */
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Animation)
 	EEulerRotationOrder PreferredRotationOrder;
 
+	/**
+	* Whether to use a specfied rotation order or just use the default FRotator order and conversion functions
+	*/
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Animation)
+	bool bUsePreferredRotationOrder;
+
+	/**
+	* The euler rotation order this control prefers for animation if it is active. If not set then we use the default UE rotator.
+	*/
+	TOptional<EEulerRotationOrder> GetRotationOrder() const
+	{
+		TOptional<EEulerRotationOrder> RotationOrder;
+		if (bUsePreferredRotationOrder)
+		{
+			RotationOrder = PreferredRotationOrder;
+		}
+		return RotationOrder;
+	}
+
+	/**
+	*  Set the rotation order if the rotation is set otherwise use default rotator
+	*/
+	void SetRotationOrder(const TOptional<EEulerRotationOrder>& EulerRotation)
+	{
+		if (EulerRotation.IsSet())
+		{
+			bUsePreferredRotationOrder = true;
+			PreferredRotationOrder = EulerRotation.GetValue();
+		}
+		else
+		{
+			bUsePreferredRotationOrder = false;
+		}
+	}
 #if WITH_EDITORONLY_DATA
 	/**
 	 * Deprecated properties.
@@ -1356,11 +1394,11 @@ public:
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = RigElement)
 	FRigCurrentAndInitialTransform Shape;
 
-protected:
-
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = RigElement)
 	FRigPreferredEulerAngles PreferredEulerAngles;
 	
+protected:
+
 	static bool IsClassOf(const FRigBaseElement* InElement)
 	{
 		return InElement->GetType() == ERigElementType::Control;

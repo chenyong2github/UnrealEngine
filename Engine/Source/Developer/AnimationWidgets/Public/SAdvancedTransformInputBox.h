@@ -308,6 +308,7 @@ public:
 		FOnEndSliderMovement OnEndSliderMovement = InArgs._OnEndSliderMovement;
 		FOnGetToggleChecked OnGetToggleChecked = InArgs._OnGetToggleChecked;
 		FOnToggleChanged OnToggleChanged = InArgs._OnToggleChanged;
+		FOnRotationRepresentationChanged OnRotationRepresentationChanged = InArgs._OnRotationRepresentationChanged;
 		const bool UseQuaternionForRotation = InArgs._UseQuaternionForRotation;
 
 		auto OnGetLocation = [Transform, OnGetNumericValue]() -> TOptional<FVector>
@@ -1380,7 +1381,7 @@ public:
 					case ESlateRotationRepresentation::EulerZYX:
 					{
 						const int32 RotationOrder = int32(Representation) - int32(ESlateRotationRepresentation::EulerXYZ);
-						const FVector Euler = AnimationCore::EulerFromQuat(Transform.GetRotation(), EEulerRotationOrder(RotationOrder));
+						const FVector Euler = AnimationCore::EulerFromQuat(Transform.GetRotation(), EEulerRotationOrder(RotationOrder), true);
 						switch(SubComponent)
 						{
 							case ESlateTransformSubComponent::X:
@@ -1529,7 +1530,7 @@ public:
 								break;
 							}
 						}
-						Transform.SetRotation(AnimationCore::QuatFromEuler(Euler, EEulerRotationOrder(RotationOrder)));
+						Transform.SetRotation(AnimationCore::QuatFromEuler(Euler, EEulerRotationOrder(RotationOrder), true));
 						break;
 					}
 					case ESlateRotationRepresentation::Rotator:

@@ -188,11 +188,17 @@ FTransform SolveConstraints(const FTransform& CurrentTransform, const FTransform
 	return BlendedLocalTransform * CurrentParentTransform;
 }
 
-FQuat QuatFromEuler(const FVector& XYZAnglesInDegrees, EEulerRotationOrder RotationOrder)
+FQuat QuatFromEuler(const FVector& XYZAnglesInDegrees, EEulerRotationOrder RotationOrder, bool bUseUEHandyness)
 {
 	double X = FMath::DegreesToRadians(XYZAnglesInDegrees.X);
 	double Y = FMath::DegreesToRadians(XYZAnglesInDegrees.Y);
 	double Z = FMath::DegreesToRadians(XYZAnglesInDegrees.Z);
+
+	if (bUseUEHandyness)
+	{
+		X = -X;
+		Y = -Y;
+	}
 
 	double CosX = FMath::Cos( X * 0.5 );
 	double CosY = FMath::Cos( Y * 0.5 );
@@ -254,7 +260,7 @@ FQuat QuatFromEuler(const FVector& XYZAnglesInDegrees, EEulerRotationOrder Rotat
 	return FQuat::Identity;
 }
 
-FVector EulerFromQuat(const FQuat& Rotation, EEulerRotationOrder RotationOrder)
+FVector EulerFromQuat(const FQuat& Rotation, EEulerRotationOrder RotationOrder, bool bUseUEHandyness)
 {
 	double X = Rotation.X;
 	double Y = Rotation.Y;
@@ -382,19 +388,25 @@ FVector EulerFromQuat(const FQuat& Rotation, EEulerRotationOrder RotationOrder)
 			Result.Z = 0.0;
 		}
 	}
+	if (bUseUEHandyness)
+	{
+		Result.X = -Result.X;
+		Result.Y = -Result.Y;
+	}
 
 	return Result * 180.0 / DOUBLE_PI;
 }
 
-FVector ChangeEulerRotationOrder(const FVector& XYZAnglesInDegrees, EEulerRotationOrder SourceRotationOrder, EEulerRotationOrder TargetRotationOrder)
+FVector ChangeEulerRotationOrder(const FVector& XYZAnglesInDegrees, EEulerRotationOrder SourceRotationOrder, EEulerRotationOrder TargetRotationOrder, bool bUseUEHandyness)
 {
 	if(SourceRotationOrder == TargetRotationOrder)
 	{
 		return XYZAnglesInDegrees;
 	}
 	
-	const FQuat Quaternion = QuatFromEuler(XYZAnglesInDegrees, SourceRotationOrder);
-	return EulerFromQuat(Quaternion, TargetRotationOrder); 
+	const FQuat Quaternion = QuatFromEuler(XYZAnglesInDegrees, SourceRotationOrder, bUseUEHandyness);
+	return EulerFromQuat(Quaternion, TargetRotationOrder, bUseUEHandyness);
+
 }
 
 }

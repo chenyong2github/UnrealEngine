@@ -95,12 +95,12 @@ void UTransformableControlHandle::SetGlobalTransform(const FTransform& InGlobal)
 		return;
 	}
 	
-	URigHierarchy* Hierarchy = ControlRig->GetHierarchy();
 	const FRigElementKey& ControlKey = ControlElement->GetKey();
-	const int32 CtrlIndex = Hierarchy->GetIndex(ControlKey);
 	
 	const FTransform& ComponentTransform = SkeletalMeshComponent->GetComponentTransform();
-	Hierarchy->SetGlobalTransform(CtrlIndex, InGlobal.GetRelativeTransform(ComponentTransform));
+	//use this function so we don't set the preferred angles
+	ControlRig->SetControlGlobalTransform(ControlKey.Name, InGlobal.GetRelativeTransform(ComponentTransform), false/*bNotify*/, FRigControlModifiedContext(), false/*bSetupUndo*/, false /*bPrintPython*/, false/* bFixEulerFlips*/);
+
 }
 
 void UTransformableControlHandle::SetLocalTransform(const FTransform& InLocal) const

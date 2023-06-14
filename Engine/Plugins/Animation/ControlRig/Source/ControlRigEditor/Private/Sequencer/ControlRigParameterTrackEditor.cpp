@@ -1779,23 +1779,28 @@ static void EvaluateThisControl(UMovieSceneControlRigParameterSection* Section, 
 				{
 					if (ControlElement->Settings.ControlType == ERigControlType::Transform)
 					{
+						FVector EulerAngle(Value.GetValue().Rotation.Roll, Value.GetValue().Rotation.Pitch, Value.GetValue().Rotation.Yaw);
+						RigHierarchy->SetControlSpecifiedEulerAngle(ControlElement, EulerAngle);
 						ControlRig->SetControlValue<FRigControlValue::FTransform_Float>(ControlName, Value.GetValue().ToFTransform(), true, EControlRigSetKey::Never, bSetupUndo);
-						// @MikeZ here we want to call SetControlPreferredEulerAngles instead
-						RigHierarchy->SetControlPreferredRotator(ControlElement, Value.GetValue().Rotation);
 					}
 					else if (ControlElement->Settings.ControlType == ERigControlType::TransformNoScale)
 					{
 						FTransformNoScale NoScale = Value.GetValue().ToFTransform();
+						FVector EulerAngle(Value.GetValue().Rotation.Roll, Value.GetValue().Rotation.Pitch, Value.GetValue().Rotation.Yaw);
+						RigHierarchy->SetControlSpecifiedEulerAngle(ControlElement, EulerAngle);
 						ControlRig->SetControlValue<FRigControlValue::FTransformNoScale_Float>(ControlName, NoScale, true, EControlRigSetKey::Never, bSetupUndo);
-						// @MikeZ here we want to call SetControlPreferredEulerAngles instead
-						RigHierarchy->SetControlPreferredRotator(ControlElement, Value.GetValue().Rotation);
 					}
 					else if (ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
 					{
 						const FEulerTransform& Euler = Value.GetValue();
-						ControlRig->SetControlValue<FRigControlValue::FEulerTransform_Float>(ControlName, Euler, true, EControlRigSetKey::Never, bSetupUndo);
-						// @MikeZ here we want to call SetControlPreferredEulerAngles instead
-						RigHierarchy->SetControlPreferredRotator(ControlElement, Euler.Rotation);
+						FVector EulerAngle(Euler.Rotation.Roll, Euler.Rotation.Pitch, Euler.Rotation.Yaw);
+						FQuat Quat = ControlRig->GetHierarchy()->GetControlQuaternion(ControlElement, EulerAngle);
+						ControlRig->GetHierarchy()->SetControlSpecifiedEulerAngle(ControlElement, EulerAngle);
+						FRotator UERotator(Quat);
+						FEulerTransform Transform = Euler;
+						Transform.Rotation = UERotator;
+						ControlRig->SetControlValue<FRigControlValue::FEulerTransform_Float>(ControlName, Transform, true, EControlRigSetKey::Never, bSetupUndo);
+
 					}
 				}
 				break;
@@ -3359,8 +3364,8 @@ void FControlRigParameterTrackEditor::GetControlRigKeys(
 			case ERigControlType::EulerTransform:
 			{
 				FVector Translation, Scale(1.0f, 1.0f, 1.0f);
-				FRotator Rotation = InControlRig->GetHierarchy()->GetControlPreferredRotator(ControlElement);
-
+				FVector Vector = InControlRig->GetHierarchy()->GetControlSpecifiedEulerAngle(ControlElement);
+				FRotator Rotation = FRotator(Vector.Y, Vector.Z, Vector.X);
 				if (ControlElement->Settings.ControlType == ERigControlType::TransformNoScale)
 				{
 					FTransformNoScale NoScale = ControlValue.Get<FRigControlValue::FTransformNoScale_Float>().ToTransform();
@@ -3379,7 +3384,6 @@ void FControlRigParameterTrackEditor::GetControlRigKeys(
 					Scale = Val.GetScale3D();
 				}
 
-				// switch values to constraint space?
 				if (bInConstraintSpace)
 				{
 					const uint32 ControlHash = UTransformableControlHandle::ComputeHash(InControlRig, ControlElement->GetName());
@@ -3387,10 +3391,23 @@ void FControlRigParameterTrackEditor::GetControlRigKeys(
 					if (Transform)
 					{
 						Translation = Transform->GetTranslation();
-						Rotation = Transform->GetRotation().Rotator();
+						if (InControlRig->GetHierarchy()->GetUsePreferredRotationOrder(ControlElement))
+						{
+							Rotation = ControlElement->PreferredEulerAngles.GetRotatorFromQuat(Transform->GetRotation());
+							FVector Angle = Rotation.Euler();
+							//need to wind rotators still
+							ControlElement->PreferredEulerAngles.SetAngles(Angle, false, ControlElement->PreferredEulerAngles.RotationOrder, true);
+							Angle = InControlRig->GetHierarchy()->GetControlSpecifiedEulerAngle(ControlElement);
+							Rotation = FRotator(Vector.Y, Vector.Z, Vector.X);
+						}
+						else
+						{
+							Rotation = Transform->GetRotation().Rotator();
+						}
 						Scale = Transform->GetScale3D();
 					}
 				}
+				
 					
 				FVector3f CurrentVector = (FVector3f)Translation;
 				bool bKeyX = bSetKey && EnumHasAnyFlags(ChannelsToKey, EControlRigContextChannelToKey::TranslationX);
@@ -4604,7 +4621,7 @@ bool FControlRigParameterTrackEditor::CollapseAllLayers(TSharedPtr<ISequencer>&S
 						{
 							for (TPair<FName, TArray<FTransform>>& TrailControlTransform : ControlLocalTransforms)
 							{
-								ControlRig->SetControlLocalTransform(TrailControlTransform.Key, TrailControlTransform.Value[Index], false, Context, false);
+								ControlRig->SetControlLocalTransform(TrailControlTransform.Key, TrailControlTransform.Value[Index], false, Context, false /*undo*/, true/* bFixEulerFlips*/);
 							}
 						}
 						ControlRig->Evaluate_AnyThread();

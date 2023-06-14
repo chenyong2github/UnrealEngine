@@ -523,7 +523,7 @@ private:
 						case ESlateRotationRepresentation::EulerZYX:
 						{
 								const int32 RotationOrder = int32(Repr) - int32(ESlateRotationRepresentation::EulerXYZ);
-								const FVector Euler = AnimationCore::EulerFromQuat(Quat.GetValue(), EEulerRotationOrder(RotationOrder));
+								const FVector Euler = AnimationCore::EulerFromQuat(Quat.GetValue(), EEulerRotationOrder(RotationOrder), true);
 								switch(InSubComponent)
 								{
 									case ESlateTransformSubComponent::X:
@@ -685,7 +685,7 @@ private:
 				case ESlateRotationRepresentation::EulerZYX:
 				{
 						const int32 RotationOrder = int32(Repr) - int32(ESlateRotationRepresentation::EulerXYZ);
-						FVector Euler = AnimationCore::EulerFromQuat(Quat.GetValue(), EEulerRotationOrder(RotationOrder));
+						FVector Euler = AnimationCore::EulerFromQuat(Quat.GetValue(), EEulerRotationOrder(RotationOrder), true);
 						switch(InSubComponent)
 						{
 							case ESlateTransformSubComponent::X:
@@ -708,7 +708,7 @@ private:
 								break;
 							}
 						}
-						Quat = AnimationCore::QuatFromEuler(Euler, EEulerRotationOrder(RotationOrder));
+						Quat = AnimationCore::QuatFromEuler(Euler, EEulerRotationOrder(RotationOrder), true);
 						Rot = Quat->Rotator();
 						break;
 				}

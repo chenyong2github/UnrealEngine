@@ -211,6 +211,10 @@ public:
 	const FName& FindControlNameFromConstraintChannel(const FMovieSceneConstraintChannel* InConstraintChannel) const;
 		
 	bool RenameParameterName(const FName& OldParameterName, const FName& NewParameterName);
+
+	void ChangeControlRotationOrder(const FName& InControlName, const TOptional<EEulerRotationOrder>& CurrentOrder, 
+		const  TOptional<EEulerRotationOrder>& NewOrder, EMovieSceneKeyInterpolation Interpolation);
+
 private:
 
 	FSpaceChannelAddedEvent OnSpaceChannelAdded;

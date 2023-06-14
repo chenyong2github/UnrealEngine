@@ -2922,7 +2922,7 @@ void FControlRigEditMode::ResetTransforms(bool bSelectionOnly)
 			}
 			if (ControlElement)
 			{
-				ControlRig->SetControlLocalTransform(ElementToReset.Name, InitialLocalTransform, true);
+				ControlRig->SetControlLocalTransform(ElementToReset.Name, InitialLocalTransform, true, FRigControlModifiedContext(), true, true);
 				NotifyDrivenControls(ControlRig, ElementToReset);
 				if (bHasNonDefaultParent == false)
 				{
@@ -4012,7 +4012,6 @@ void FControlRigEditMode::MoveControlShape(AControlRigShapeActor* ShapeActor, co
 	bool bUseLocal, bool bCalcLocal, FTransform& InOutLocal)
 {
 	bool bTransformChanged = false;
-
 	//first case is where we do all controls by the local diff.
 	if (bUseLocal)
 	{
@@ -4632,7 +4631,7 @@ void FControlRigEditMode::NotifyDrivenControls(UControlRig* InControlRig, const 
 				if(DrivenKey.Type == ERigElementType::Control)
 				{
 					const FTransform DrivenTransform = InControlRig->GetHierarchy()->GetLocalTransform(DrivenKey);
-					InControlRig->SetControlLocalTransform(DrivenKey.Name, DrivenTransform, true, Context, false);
+					InControlRig->SetControlLocalTransform(DrivenKey.Name, DrivenTransform, true, Context, false /*undo*/, true/* bFixEulerFlips*/);
 				}
 			}
 		}

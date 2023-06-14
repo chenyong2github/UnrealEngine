@@ -1574,7 +1574,7 @@ void UControlRig::SetControlLocalTransform(const FName& InControlName, const FTr
 			OnFilterControl.Broadcast(this, ControlElement, Value);
 			
 		}
-		SetControlValue(InControlName, Value, bNotify, Context, bSetupUndo, bFixEulerFlips);
+		SetControlValue(InControlName, Value, bNotify, Context, bSetupUndo, false /*bPrintPython not defined!*/, bFixEulerFlips);
 	}
 }
 

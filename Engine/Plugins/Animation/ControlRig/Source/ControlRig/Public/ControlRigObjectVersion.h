@@ -90,6 +90,9 @@ struct CONTROLRIG_API FControlRigObjectVersion
 		// Control supporting preferred rotation order
 		RigHierarchyControlPreferredRotationOrder,
 
+		// Last bit required for Control supporting preferred rotation order
+		RigHierarchyControlPreferredRotationOrderFlag,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

@@ -1543,7 +1543,7 @@ FDetailWidgetRow& FRigTransformElementDetails::CreateEulerTransformValueWidgetRo
 
 	const TSharedPtr<ESlateRotationRepresentation::Type> RotationRepresentationStorage = Settings.RotationRepresentation;
 	TransformWidgetArgs.RotationRepresentation(RotationRepresentationStorage);
-	
+
 	auto IsComponentRelative = [TransformWidgetArgs](int32 Component) -> bool
 	{
 		if(TransformWidgetArgs._OnGetIsComponentRelative.IsBound())
@@ -1892,7 +1892,8 @@ FDetailWidgetRow& FRigTransformElementDetails::CreateEulerTransformValueWidgetRo
 					case ERigControlType::Transform:
 					case ERigControlType::TransformNoScale:
 					{
-						RelativeTransform.Rotation = Hierarchy->GetControlPreferredRotator(ControlElement, bInitial);
+						FVector Vector = Hierarchy->GetControlSpecifiedEulerAngle(ControlElement, bInitial);
+						RelativeTransform.Rotation =  FRotator(Vector.Y, Vector.Z, Vector.X);
 						break;
 					}
 					default:
@@ -2066,7 +2067,8 @@ FDetailWidgetRow& FRigTransformElementDetails::CreateEulerTransformValueWidgetRo
 							case ERigControlType::Transform:
 							case ERigControlType::TransformNoScale:
 							{
-								HierarchyToUpdate->SetControlPreferredRotator(ControlElement, InTransform.Rotator(), bInitial);
+								FVector EulerAngle(InTransform.Rotator().Roll, InTransform.Rotator().Pitch, InTransform.Rotator().Yaw);
+								HierarchyToUpdate->SetControlSpecifiedEulerAngle(ControlElement, EulerAngle, bInitial);
 								break;
 							}
 							default:
@@ -3027,6 +3029,10 @@ void FRigControlElementDetails::CustomizeControl(IDetailLayoutBuilder& DetailBui
 	{
 		if(IsAnyControlOfValueType(ERigControlType::EulerTransform))
 		{
+			const TSharedPtr<IPropertyHandle> UsePreferredRotationOrderHandle = SettingsHandle->GetChildHandle(TEXT("bUsePreferredRotationOrder"));
+			ControlCategory.AddProperty(UsePreferredRotationOrderHandle.ToSharedRef()).DisplayName(FText::FromString(TEXT("Use Preferred Rotation Order")))
+				.IsEnabled(bIsEnabled);
+
 			const TSharedPtr<IPropertyHandle> PreferredRotationOrderHandle = SettingsHandle->GetChildHandle(TEXT("PreferredRotationOrder"));
 			ControlCategory.AddProperty(PreferredRotationOrderHandle.ToSharedRef()).DisplayName(FText::FromString(TEXT("Preferred Rotation Order")))
 			.IsEnabled(bIsEnabled);

@@ -62,16 +62,18 @@ namespace AnimationCore
 
 	/**
 	 * Converts a euler rotation represented by a vector of rotations in degrees and a rotation order to a quaternion
+	 * bUseUEHandyness If True will use UE handyness with right handed X and Y angles left handed Z, if False all are left handed
 	 */
-	ANIMATIONCORE_API FQuat QuatFromEuler(const FVector& XYZAnglesInDegrees, EEulerRotationOrder RotationOrderr = EEulerRotationOrder::ZYX);
+	ANIMATIONCORE_API FQuat QuatFromEuler(const FVector& XYZAnglesInDegrees, EEulerRotationOrder RotationOrderr = EEulerRotationOrder::ZYX, bool bUseUEHandyness = false);
 
 	/**
-	 * Converts a quaternion to a euler rotation represented by a vector of rotations in degrees and a rotation order
-	 */
-	ANIMATIONCORE_API FVector EulerFromQuat(const FQuat& Rotation, EEulerRotationOrder RotationOrder = EEulerRotationOrder::ZYX);
+	* Converts a quaternion to a euler rotation represented by a vector of rotations in degrees and a rotation order
+	* bUseUEHandyness If True will use UE handyness with right handed X and Y angles left handed Z, if False all are left handed
+	*/
+	ANIMATIONCORE_API FVector EulerFromQuat(const FQuat& Rotation, EEulerRotationOrder RotationOrder = EEulerRotationOrder::ZYX, bool bUseUEHandyness = false);
 
 	/**
 	 * Converts a euler rotation from one rotation order to another
 	 */
-	ANIMATIONCORE_API FVector ChangeEulerRotationOrder(const FVector& XYZAnglesInDegrees, EEulerRotationOrder SourceRotationOrder, EEulerRotationOrder TargetRotationOrder);
+	ANIMATIONCORE_API FVector ChangeEulerRotationOrder(const FVector& XYZAnglesInDegrees, EEulerRotationOrder SourceRotationOrder, EEulerRotationOrder TargetRotationOrder, bool bUseUEHandyness = false);
 }

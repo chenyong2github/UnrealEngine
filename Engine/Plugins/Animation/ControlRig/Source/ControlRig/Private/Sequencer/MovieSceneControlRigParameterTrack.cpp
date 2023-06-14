@@ -17,6 +17,13 @@
 
 #define LOCTEXT_NAMESPACE "MovieSceneParameterControlRigTrack"
 
+FControlRotationOrder::FControlRotationOrder()
+	:RotationOrder(EEulerRotationOrder::YZX),
+	bOverrideSetting(false)
+
+{
+
+}
 
 UMovieSceneControlRigParameterTrack::UMovieSceneControlRigParameterTrack(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -536,6 +543,11 @@ void UMovieSceneControlRigParameterTrack::HandleOnInitialized_GameThread()
 				}
 			}
 		}
+		if (SortedControls.Num() > 0) //really set up
+		{
+			TArray<FName> Names = GetControlsWithDifferentRotationOrders();
+			ResetControlsToSettingsRotationOrder(Names);
+		}
 	}
 }
 
@@ -620,6 +632,12 @@ void UMovieSceneControlRigParameterTrack::RenameParameterName(const FName& OldPa
 				CRSection->RenameParameterName(OldParameterName, NewParameterName);
 			}
 		}
+		if (FControlRotationOrder* RotationOrder = ControlsRotationOrder.Find(OldParameterName))
+		{
+			FControlRotationOrder NewRotationOrder = *RotationOrder;
+			ControlsRotationOrder.Remove(OldParameterName);
+			ControlsRotationOrder.Add(NewParameterName, NewRotationOrder);
+		}
 	}
 }
 
@@ -655,6 +673,107 @@ void UMovieSceneControlRigParameterTrack::ReplaceControlRig(UControlRig* NewCont
 			}
 		}
 	}
+}
+TOptional<EEulerRotationOrder> UMovieSceneControlRigParameterTrack::GetControlRotationOrder(const FRigControlElement* ControlElement,
+	bool bCurrent) const
+{
+	TOptional<EEulerRotationOrder> Order;
+	if (bCurrent)
+	{
+		const FControlRotationOrder* RotationOrder = ControlsRotationOrder.Find(ControlElement->GetName());
+		if (RotationOrder)
+		{
+			Order = RotationOrder->RotationOrder;
+		}
+	}
+	else //use setting
+	{
+		if (ControlRig->GetHierarchy()->GetUsePreferredRotationOrder(ControlElement))
+		{
+			Order = ControlRig->GetHierarchy()->GetControlPreferredEulerRotationOrder(ControlElement);
+		}
+	}
+	return Order;
+}
+
+TArray<FName> UMovieSceneControlRigParameterTrack::GetControlsWithDifferentRotationOrders() const
+{
+	TArray<FName> Names;
+	if (ControlRig && ControlRig->GetHierarchy())
+	{
+		URigHierarchy* Hierarchy = ControlRig->GetHierarchy();
+		TArray<FRigControlElement*> SortedControls;
+		ControlRig->GetControlsInOrder(SortedControls);
+		for (const FRigControlElement* ControlElement : SortedControls)
+		{
+			if (!Hierarchy->IsAnimatable(ControlElement))
+			{
+				continue;
+			}
+			TOptional<EEulerRotationOrder> Current = GetControlRotationOrder(ControlElement, true);
+			TOptional<EEulerRotationOrder> Setting = GetControlRotationOrder(ControlElement, false);
+			if (Current != Setting)
+			{
+				Names.Add(ControlElement->GetName());
+			}
+
+		}
+	}
+	return Names;
+}
+
+void UMovieSceneControlRigParameterTrack::ResetControlsToSettingsRotationOrder(const TArray<FName>& Names, EMovieSceneKeyInterpolation Interpolation)
+{
+	if (ControlRig && ControlRig->GetHierarchy())
+	{
+		for (const FName& Name : Names)
+		{
+			if (FRigControlElement* ControlElement = GetControlRig()->FindControl(Name))
+			{
+
+				TOptional<EEulerRotationOrder> Current = GetControlRotationOrder(ControlElement, true);
+				TOptional<EEulerRotationOrder> Setting = GetControlRotationOrder(ControlElement, false);
+				if (Current != Setting)
+				{
+					ChangeControlRotationOrder(Name, Setting, Interpolation);
+				}
+			}
+		}
+	}
+}
+void UMovieSceneControlRigParameterTrack::ChangeControlRotationOrder(const FName& InControlName, const TOptional<EEulerRotationOrder>& NewOrder, EMovieSceneKeyInterpolation Interpolation)
+{
+	if (ControlRig && ControlRig->GetHierarchy())
+	{
+		if (FRigControlElement* ControlElement = GetControlRig()->FindControl(InControlName))
+		{
+			TOptional<EEulerRotationOrder> Current = GetControlRotationOrder(ControlElement, true);
+			if (Current != NewOrder)
+			{
+				if (NewOrder.IsSet())
+				{
+					FControlRotationOrder& RotationOrder = ControlsRotationOrder.FindOrAdd(InControlName);
+					RotationOrder.RotationOrder = NewOrder.GetValue();
+					TOptional<EEulerRotationOrder> Setting = GetControlRotationOrder(ControlElement, false);
+					if (Setting != NewOrder)
+					{
+						RotationOrder.bOverrideSetting = true;
+					}
+				}
+				else //no longer set so just remove
+				{
+					ControlsRotationOrder.Remove(InControlName);
+				}
+				for (UMovieSceneSection* Section : Sections)
+				{
+					if (UMovieSceneControlRigParameterSection* CRSection = Cast<UMovieSceneControlRigParameterSection>(Section))
+					{
+						CRSection->ChangeControlRotationOrder(InControlName, Current, NewOrder, Interpolation);
+					}
+				}
+			}
+		}
+	}	
 }
 
 void UMovieSceneControlRigParameterTrack::GetSelectedNodes(TArray<FName>& SelectedControlNames)

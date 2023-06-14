@@ -24,6 +24,7 @@
 #include "Rigs/RigHierarchy.h"
 #include "TransformConstraint.h"
 #include "TransformableHandle.h"
+#include "AnimationCoreLibrary.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneControlRigParameterTemplate)
 
@@ -805,22 +806,24 @@ struct FControlRigParameterPreAnimatedTokenProducer : IMovieScenePreAnimatedToke
 										case ERigControlType::Transform:
 										{
 											ControlRig->SetControlValue<FRigControlValue::FTransform_Float>(Value.Name, Value.Value.ToFTransform(), true, FRigControlModifiedContext(EControlRigSetKey::Never), bSetupUndo);
-											// @MikeZ here we want to call SetControlPreferredEulerAngles instead
-											ControlRig->GetHierarchy()->SetControlPreferredRotator(ControlElement, Value.Value.Rotation);
+											FVector EulerAngle(Value.Value.Rotation.Roll, Value.Value.Rotation.Pitch, Value.Value.Rotation.Yaw);
+											RigHierarchy->SetControlSpecifiedEulerAngle(ControlElement, EulerAngle);
 											break;
 										}
 										case ERigControlType::TransformNoScale:
 										{
 											FTransformNoScale NoScale = Value.Value.ToFTransform();
 											ControlRig->SetControlValue<FRigControlValue::FTransformNoScale_Float>(Value.Name, NoScale, true, FRigControlModifiedContext(EControlRigSetKey::Never), bSetupUndo);
-											// @MikeZ here we want to call SetControlPreferredEulerAngles instead
-											ControlRig->GetHierarchy()->SetControlPreferredRotator(ControlElement, Value.Value.Rotation);
+											FVector EulerAngle(Value.Value.Rotation.Roll, Value.Value.Rotation.Pitch, Value.Value.Rotation.Yaw);
+											RigHierarchy->SetControlSpecifiedEulerAngle(ControlElement, EulerAngle);
 											break;
 										}
 										case ERigControlType::EulerTransform:
 										{
 											FEulerTransform EulerTransform = Value.Value;
 											ControlRig->SetControlValue<FRigControlValue::FEulerTransform_Float>(Value.Name, EulerTransform, true, FRigControlModifiedContext(EControlRigSetKey::Never), bSetupUndo);
+											FVector EulerAngle(Value.Value.Rotation.Roll, Value.Value.Rotation.Pitch, Value.Value.Rotation.Yaw);
+											RigHierarchy->SetControlSpecifiedEulerAngle(ControlElement, EulerAngle);
 											break;
 										}
 										default:
@@ -940,7 +943,8 @@ struct FControlRigParameterPreAnimatedTokenProducer : IMovieScenePreAnimatedToke
 						Token.SpaceValues.Add(FControlSpaceAndValue(ControlElement->GetName(), SpaceValue));
 						const FTransform Val = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FTransform_Float>().ToTransform();
 						FEulerTransform EulerTransform(Val);
-						EulerTransform.Rotation = ControlRig->GetHierarchy()->GetControlPreferredRotator(ControlElement);
+						FVector Vector = ControlRig->GetHierarchy()->GetControlSpecifiedEulerAngle(ControlElement);
+						EulerTransform.Rotation = FRotator(Vector.Y, Vector.Z, Vector.X);
 						Token.TransformValues.Add(TNameAndValue<FEulerTransform>{ ControlElement->GetName(), EulerTransform });
 						break;
 					}
@@ -950,15 +954,18 @@ struct FControlRigParameterPreAnimatedTokenProducer : IMovieScenePreAnimatedToke
 							ControlRig->GetHierarchy()
 							->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FTransformNoScale_Float>().ToTransform();
 						FEulerTransform EulerTransform(NoScale.ToFTransform());
-						EulerTransform.Rotation = ControlRig->GetHierarchy()->GetControlPreferredRotator(ControlElement);
+						FVector Vector = ControlRig->GetHierarchy()->GetControlSpecifiedEulerAngle(ControlElement);
+						EulerTransform.Rotation = FRotator(Vector.Y, Vector.Z, Vector.X);
 						Token.TransformValues.Add(TNameAndValue<FEulerTransform>{ ControlElement->GetName(), EulerTransform });
 						break;
 					}
 					case ERigControlType::EulerTransform:
 					{
-						const FEulerTransform EulerTransform = 
+						FEulerTransform EulerTransform = 
 							ControlRig->GetHierarchy()
 							->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FEulerTransform_Float>().ToTransform();
+						FVector Vector = ControlRig->GetHierarchy()->GetControlSpecifiedEulerAngle(ControlElement);
+						EulerTransform.Rotation = FRotator(Vector.Y, Vector.Z, Vector.X);
 						Token.TransformValues.Add(TNameAndValue<FEulerTransform>{ ControlElement->GetName(), EulerTransform });
 						break;
 					}
@@ -1611,7 +1618,8 @@ struct TControlRigParameterActuatorTransform : TMovieSceneBlendingActuator<FCont
 				{
 					const FTransform Val = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FTransform_Float>().ToTransform();
 					FEulerTransform EulerTransform(Val);
-					EulerTransform.Rotation = ControlRig->GetHierarchy()->GetControlPreferredRotator(ControlElement);
+					FVector Vector = ControlRig->GetHierarchy()->GetControlSpecifiedEulerAngle(ControlElement);
+					EulerTransform.Rotation = FRotator(Vector.Y, Vector.Z, Vector.X);
 					return FControlRigTrackTokenTransform(EulerTransform);
 				}
 				else if (ControlElement && ControlElement->Settings.ControlType == ERigControlType::TransformNoScale)
@@ -1619,12 +1627,15 @@ struct TControlRigParameterActuatorTransform : TMovieSceneBlendingActuator<FCont
 					FTransformNoScale ValNoScale = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FTransformNoScale_Float>().ToTransform();
 					FTransform Val = ValNoScale;
 					FEulerTransform EulerTransform(Val);
-					EulerTransform.Rotation = ControlRig->GetHierarchy()->GetControlPreferredRotator(ControlElement);
+					FVector Vector = ControlRig->GetHierarchy()->GetControlSpecifiedEulerAngle(ControlElement);
+					EulerTransform.Rotation = FRotator(Vector.Y, Vector.Z, Vector.X);
 					return FControlRigTrackTokenTransform(EulerTransform);
 				}
 				else if (ControlElement && ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
 				{
 					FEulerTransform EulerTransform = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FEulerTransform_Float>().ToTransform();
+					FVector Vector = ControlRig->GetHierarchy()->GetControlSpecifiedEulerAngle(ControlElement);
+					EulerTransform.Rotation = FRotator(Vector.Y, Vector.Z, Vector.X);
 					return FControlRigTrackTokenTransform(EulerTransform);
 				}
 			}
@@ -1661,19 +1672,25 @@ struct TControlRigParameterActuatorTransform : TMovieSceneBlendingActuator<FCont
 					if (ControlElement && ControlElement->Settings.ControlType == ERigControlType::Transform)
 					{
 						ControlRig->SetControlValue<FRigControlValue::FTransform_Float>(ParameterName, InFinalValue.Value.ToFTransform(), true, EControlRigSetKey::Never, bSetupUndo);
-						// @MikeZ here we want to call SetControlPreferredEulerAngles instead
-						ControlRig->GetHierarchy()->SetControlPreferredRotator(ControlElement, InFinalValue.Value.Rotator());
+						FVector EulerAngle(InFinalValue.Value.Rotation.Roll, InFinalValue.Value.Rotation.Pitch, InFinalValue.Value.Rotation.Yaw);
+						ControlRig->GetHierarchy()->SetControlSpecifiedEulerAngle(ControlElement, EulerAngle);
 					}
 					else if (ControlElement && ControlElement->Settings.ControlType == ERigControlType::TransformNoScale)
 					{
 						const FTransformNoScale NoScale = InFinalValue.Value.ToFTransform();
 						ControlRig->SetControlValue<FRigControlValue::FTransformNoScale_Float>(ParameterName, NoScale, true, EControlRigSetKey::Never, bSetupUndo);
-						// @MikeZ here we want to call SetControlPreferredEulerAngles instead
-						ControlRig->GetHierarchy()->SetControlPreferredRotator(ControlElement, InFinalValue.Value.Rotator());
+						FVector EulerAngle(InFinalValue.Value.Rotation.Roll, InFinalValue.Value.Rotation.Pitch, InFinalValue.Value.Rotation.Yaw);
+						ControlRig->GetHierarchy()->SetControlSpecifiedEulerAngle(ControlElement, EulerAngle);
 					}
 					else if (ControlElement && ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
 					{
-						ControlRig->SetControlValue<FRigControlValue::FEulerTransform_Float>(ParameterName, InFinalValue.Value, true, EControlRigSetKey::Never, bSetupUndo);
+						FVector EulerAngle(InFinalValue.Value.Rotation.Roll, InFinalValue.Value.Rotation.Pitch, InFinalValue.Value.Rotation.Yaw);
+						FQuat Quat = ControlRig->GetHierarchy()->GetControlQuaternion(ControlElement, EulerAngle);
+						ControlRig->GetHierarchy()->SetControlSpecifiedEulerAngle(ControlElement, EulerAngle);
+						FRotator UERotator(Quat);
+						FEulerTransform Transform = InFinalValue.Value;
+						Transform.Rotation = UERotator;
+						ControlRig->SetControlValue<FRigControlValue::FEulerTransform_Float>(ParameterName, Transform, true, EControlRigSetKey::Never, bSetupUndo);	
 					}
 				}
 			}

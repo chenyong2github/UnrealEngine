@@ -757,7 +757,7 @@ bool FMovieSceneControlRigTransformTrail::ApplyDelta(const FVector& Pos, const F
 				NewTransform = NewTransform.GetRelativeTransform(KeyInfo->ParentTransform);
 				GetSequencer()->GetEvaluationTemplate().EvaluateSynchronousBlocking(MovieSceneContext, *Player);
 				ControlRig->Evaluate_AnyThread();
-				ControlRig->SetControlGlobalTransform(ControlName, NewTransform, true, Context, false);
+				ControlRig->SetControlGlobalTransform(ControlName, NewTransform, true, Context, false /*undo*/, false /*bPrintPython*/, true/* bFixEulerFlips*/);
 			}
 		};
 
@@ -853,7 +853,7 @@ bool FMovieSceneControlRigTransformTrail::HandleAltClick(FEditorViewportClient* 
 	GetSequencer()->GetEvaluationTemplate().EvaluateSynchronousBlocking(MovieSceneContext, *Player);
 	ControlRig->Evaluate_AnyThread();
 	FTransform NewTransform(ControlRig->GetControlGlobalTransform(ControlName));
-	ControlRig->SetControlGlobalTransform(ControlName, NewTransform, true, Context, false);
+	ControlRig->SetControlGlobalTransform(ControlName, NewTransform, true, Context, false /*undo*/, false /*bPrintPython*/, true/* bFixEulerFlips*/);
 
 	//eval back at current time
 	FFrameTime StartTime = GetSequencer()->GetLocalTime().Time;

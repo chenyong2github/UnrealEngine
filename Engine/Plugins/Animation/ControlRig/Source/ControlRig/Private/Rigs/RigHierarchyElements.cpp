@@ -365,31 +365,12 @@ void FRigPreferredEulerAngles::Reset()
 
 FRotator FRigPreferredEulerAngles::GetRotator(bool bInitial) const
 {
-	return FRotator::MakeFromEuler(GetAngles(bInitial, DefaultRotationOrder));
+	return FRotator::MakeFromEuler(GetAngles(bInitial, RotationOrder));
 }
 
 FRotator FRigPreferredEulerAngles::SetRotator(const FRotator& InValue, bool bInitial, bool bFixEulerFlips)
 {
-	if(RotationOrder == DefaultRotationOrder)
-	{
-		if(bFixEulerFlips)
-		{
-			const FRotator CurrentValue = GetRotator(bInitial);
-			
-			//Find Diff of the rotation from current and just add that instead of setting so we can go over/under -180
-			FRotator CurrentWinding;
-			FRotator CurrentRotRemainder;
-			CurrentValue.GetWindingAndRemainder(CurrentWinding, CurrentRotRemainder);
-
-			FRotator DeltaRot = InValue - CurrentRotRemainder;
-			DeltaRot.Normalize();
-			const FRotator FixedValue = CurrentValue + DeltaRot;
-
-			SetAngles(FixedValue.Euler(), bInitial, DefaultRotationOrder);
-			return FixedValue;
-		}
-	}
-	SetAngles(InValue.Euler(), bInitial, DefaultRotationOrder, false);
+	SetAngles(InValue.Euler(), bInitial, RotationOrder, bFixEulerFlips);
 	return InValue;
 }
 
@@ -412,23 +393,21 @@ void FRigPreferredEulerAngles::SetAngles(const FVector& InValue, bool bInitial, 
 
 	if(bFixEulerFlips)
 	{
-		// @MikeZ we need something here as well for euler values
-		// Do you think we can rely on the same mechanism?
-		/*
-		const FRotator CurrentValue = GetRotator(bInitial);
-			
+		const FRotator CurrentRotator = FRotator::MakeFromEuler(GetAngles(bInitial, RotationOrder));
+		const FRotator InRotator = FRotator::MakeFromEuler(Value);
+
 		//Find Diff of the rotation from current and just add that instead of setting so we can go over/under -180
 		FRotator CurrentWinding;
 		FRotator CurrentRotRemainder;
-		CurrentValue.GetWindingAndRemainder(CurrentWinding, CurrentRotRemainder);
+		CurrentRotator.GetWindingAndRemainder(CurrentWinding, CurrentRotRemainder);
 
-		FRotator DeltaRot = InValue - CurrentRotRemainder;
+		FRotator DeltaRot = InRotator - CurrentRotRemainder;
 		DeltaRot.Normalize();
-		const FRotator FixedValue = CurrentValue + DeltaRot;
+		const FRotator FixedValue = CurrentRotator + DeltaRot;
 
-		SetAngles(FixedValue.Euler(), bInitial, DefaultRotationOrder);
-		return FixedValue;
-		*/
+		Get(bInitial) = FixedValue.Euler();
+		return;
+
 	}
 	
 	Get(bInitial) = Value;
@@ -446,6 +425,19 @@ void FRigPreferredEulerAngles::SetRotationOrder(EEulerRotationOrder InRotationOr
 		SetAngles(PreviousAnglesInitial, true, PreviousRotationOrder);
 	}
 }
+
+FRotator FRigPreferredEulerAngles::GetRotatorFromQuat(const FQuat& InQuat) const
+{
+	FVector Vector = AnimationCore::EulerFromQuat(InQuat, RotationOrder, true);
+	return FRotator::MakeFromEuler(Vector);
+}
+
+FQuat FRigPreferredEulerAngles::GetQuatFromRotator(const FRotator& InRotator) const
+{
+	FVector Vector = InRotator.Euler();
+	return AnimationCore::QuatFromEuler(Vector, RotationOrder, true);
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // FRigElementHandle
@@ -778,8 +770,9 @@ FRigControlSettings::FRigControlSettings()
 , ControlEnum(nullptr)
 , Customization()
 , bGroupWithParentControl(false)
-, bRestrictSpaceSwitching(false)
+, bRestrictSpaceSwitching(false) 
 , PreferredRotationOrder(FRigPreferredEulerAngles::DefaultRotationOrder)
+, bUsePreferredRotationOrder(false) 
 {
 	// rely on the default provided by the shape definition
 	ShapeName = FControlRigShapeDefinition().ShapeName; 
@@ -826,6 +819,8 @@ void FRigControlSettings::Save(FArchive& Ar)
 	Ar << bRestrictSpaceSwitching;
 	Ar << FilteredChannels;
 	Ar << PreferredRotationOrder;
+	Ar << bUsePreferredRotationOrder;
+
 }
 
 void FRigControlSettings::Load(FArchive& Ar)
@@ -1003,6 +998,16 @@ void FRigControlSettings::Load(FArchive& Ar)
 	{
 		PreferredRotationOrder = FRigPreferredEulerAngles::DefaultRotationOrder;
 	}
+
+	if (Ar.CustomVer(FControlRigObjectVersion::GUID) >= FControlRigObjectVersion::RigHierarchyControlPreferredRotationOrderFlag)
+	{
+		Ar << bUsePreferredRotationOrder;
+	}
+	else
+	{
+		bUsePreferredRotationOrder = false;
+	}
+
 }
 
 uint32 GetTypeHash(const FRigControlSettings& Settings)
@@ -1112,6 +1117,11 @@ bool FRigControlSettings::operator==(const FRigControlSettings& InOther) const
 	{
 		return false;
 	}
+	if (bUsePreferredRotationOrder != InOther.bUsePreferredRotationOrder)
+	{
+		return false;
+	}
+
 
 	const FTransform MinimumTransform = MinimumValue.GetAsTransform(ControlType, PrimaryAxis);
 	const FTransform OtherMinimumTransform = InOther.MinimumValue.GetAsTransform(ControlType, PrimaryAxis);
