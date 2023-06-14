@@ -100,7 +100,8 @@ namespace UE::RivermaxCore::Private
 		}
 
 		//Otherwise, prepare next free frame
-		if (NextFrame = GetFreeFrame())
+		NextFrame = GetFreeFrame();
+		if (NextFrame)
 		{
 			NextFrame->Reset();
 			NextFrame->FrameIdentifier = NextFrameIdentifier;
