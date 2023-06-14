@@ -460,6 +460,15 @@ namespace Chaos
 				Properties.bIsAuxiliaryParticle = false;
 				Cluster->ChildProperties.Add(Particle, Properties);
 			}
+
+			// Need to set a temporary ChildToParent on the particle. If this ChildToParent doesn't exist, and the particle goes through the removal process BEFORE
+			// the deferred cluster union update properties is called, the position of the particle will get reset to the position of the cluster union.
+			if (FPBDRigidClusteredParticleHandle* ClusterParticle = Particle->CastToClustered())
+			{
+				const FRigidTransform3 ClusterWorldTM(Cluster->InternalCluster->X(), Cluster->InternalCluster->R());
+				const FRigidTransform3 Frame = GetParticleRigidFrameInClusterUnion(Particle, ClusterWorldTM);
+				ClusterParticle->SetChildToParent(Frame);
+			}
 		}
 
 		MClustering.AddParticlesToCluster(Cluster->InternalCluster, FinalParticlesToAdd, ChildToParentMap);
