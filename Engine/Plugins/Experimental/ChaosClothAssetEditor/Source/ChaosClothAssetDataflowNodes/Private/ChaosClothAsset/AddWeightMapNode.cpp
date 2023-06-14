@@ -25,7 +25,7 @@ void FChaosClothAssetAddWeightMapNode::Evaluate(Dataflow::FContext& Context, con
 	if (Out->IsA<FManagedArrayCollection>(&Collection))
 	{
 		// Evaluate in collection
-		const FString InNameString = GetValue<FString>(Context, &Name);
+		FString InNameString = GetValue<FString>(Context, &Name);
 
 		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		const TSharedRef<FManagedArrayCollection> ClothCollection = MakeShared<FManagedArrayCollection>(MoveTemp(InCollection));
@@ -44,14 +44,14 @@ void FChaosClothAssetAddWeightMapNode::Evaluate(Dataflow::FContext& Context, con
 						VertexWeights.Num(),
 						ClothWeights.Num()));
 			}
-				
+
 			for (int32 VertexID = 0; VertexID < MaxWeightIndex; ++VertexID)
 			{
 				ClothWeights[VertexID] = VertexWeights[VertexID];
 			}
 		}
-		SetValue<FManagedArrayCollection>(Context, *ClothCollection, &Collection);
-		SetValue<FString>(Context, InNameString, &Name);
+		SetValue(Context, MoveTemp(*ClothCollection), &Collection);
+		SetValue(Context, MoveTemp(InNameString), &Name);
 	}
 }
 

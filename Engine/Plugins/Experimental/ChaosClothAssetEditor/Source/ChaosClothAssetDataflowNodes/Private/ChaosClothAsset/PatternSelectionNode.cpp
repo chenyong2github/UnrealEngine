@@ -18,8 +18,8 @@ void FChaosClothAssetPatternSelectionNode::Evaluate(Dataflow::FContext& Context,
 	if (Out->IsA<TArray<int32>>(&Patterns))
 	{
 		// Init with empty pattern indices
-		const TArray<int32> Selection;
-		SetValue<TArray<int32>>(Context, Selection, &Patterns);
+		TArray<int32> Selection;
+		SetValue(Context, MoveTemp(Selection), &Patterns);
 	}
 }
 

@@ -36,7 +36,7 @@ void FChaosClothAssetReverseNormalsNode::Evaluate(Dataflow::FContext& Context, c
 			GetValue<TArray<int32>>(Context, &SimPatterns),
 			GetValue<TArray<int32>>(Context, &RenderPatterns));
 
-		SetValue<FManagedArrayCollection>(Context, *ClothCollection, &Collection);
+		SetValue(Context, MoveTemp(*ClothCollection), &Collection);
 	}
 }
 

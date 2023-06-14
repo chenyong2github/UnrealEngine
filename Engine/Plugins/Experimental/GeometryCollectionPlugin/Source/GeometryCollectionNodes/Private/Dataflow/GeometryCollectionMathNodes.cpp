@@ -80,8 +80,8 @@ void FAddDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutp
 		const float InFloatA = GetValue<float>(Context, &FloatA, FloatA);
 		const float InFloatB = GetValue<float>(Context, &FloatB, FloatB);
 
-		float Result = InFloatA + InFloatB;
-		SetValue<float>(Context, Result, &ReturnValue);
+		const float Result = InFloatA + InFloatB;
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -92,8 +92,8 @@ void FSubtractDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflo
 		const float InFloatA = GetValue<float>(Context, &FloatA, FloatA);
 		const float InFloatB = GetValue<float>(Context, &FloatB, FloatB);
 
-		float Result = InFloatA - InFloatB;
-		SetValue<float>(Context, Result, &ReturnValue);
+		const float Result = InFloatA - InFloatB;
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -104,8 +104,8 @@ void FMultiplyDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflo
 		const float InFloatA = GetValue<float>(Context, &FloatA, FloatA);
 		const float InFloatB = GetValue<float>(Context, &FloatB, FloatB);
 
-		float Result = InFloatA * InFloatB;
-		SetValue<float>(Context, Result, &ReturnValue);
+		const float Result = InFloatA * InFloatB;
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -121,7 +121,7 @@ void FSafeDivideDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataf
 		{
 			Result = InFloatA / InFloatB;
 		}
-		SetValue<float>(Context, Result, &ReturnValue);
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -141,8 +141,8 @@ void FDivisionDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflo
 			Result = (int32)(InDividend / InDivisor);
 			ResultRemainder = InDividend - (float)Result * InDivisor;
 		}
-		SetValue<float>(Context, ResultRemainder, &Remainder);
-		SetValue<int32>(Context, Result, &ReturnValue);
+		SetValue(Context, ResultRemainder, &Remainder);
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -157,7 +157,7 @@ void FSafeReciprocalDataflowNode::Evaluate(Dataflow::FContext& Context, const FD
 		{
 			Result = 1.f / InFloat;
 		}
-		SetValue<float>(Context, Result, &ReturnValue);
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -167,8 +167,8 @@ void FSquareDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowO
 	{
 		const float InFloat = GetValue<float>(Context, &Float, Float);
 
-		float Result = InFloat * InFloat;
-		SetValue<float>(Context, Result, &ReturnValue);
+		const float Result = InFloat * InFloat;
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -183,7 +183,7 @@ void FSquareRootDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataf
 		{
 			Result = FMath::Sqrt(InFloat);
 		}
-		SetValue<float>(Context, Result, &ReturnValue);
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -198,7 +198,7 @@ void FInverseSqrtDataflowNode::Evaluate(Dataflow::FContext& Context, const FData
 		{
 			Result = FMath::InvSqrt(InFloat);
 		}
-		SetValue<float>(Context, Result, &ReturnValue);
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -208,8 +208,8 @@ void FCubeDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOut
 	{
 		const float InFloat = GetValue<float>(Context, &Float, Float);
 
-		float Result = InFloat * InFloat * InFloat;
-		SetValue<float>(Context, Result, &ReturnValue);
+		const float Result = InFloat * InFloat * InFloat;
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -219,8 +219,8 @@ void FNegateDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowO
 	{
 		const float InFloat = GetValue<float>(Context, &Float, Float);
 
-		float Result = -1.f * InFloat;
-		SetValue<float>(Context, Result, &ReturnValue);
+		const float Result = -1.f * InFloat;
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -230,8 +230,8 @@ void FAbsDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutp
 	{
 		const float InFloat = GetValue<float>(Context, &Float, Float);
 
-		float Result = FMath::Abs(InFloat);
-		SetValue<float>(Context, Result, &ReturnValue);
+		const float Result = FMath::Abs(InFloat);
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -241,8 +241,8 @@ void FFloorDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOu
 	{
 		const float InFloat = GetValue<float>(Context, &Float, Float);
 
-		float Result = FMath::Floor(InFloat);
-		SetValue<float>(Context, Result, &ReturnValue);
+		const float Result = FMath::Floor(InFloat);
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -253,7 +253,7 @@ void FCeilDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOut
 		const float InFloat = GetValue<float>(Context, &Float, Float);
 
 		float Result = FMath::CeilToFloat(InFloat);
-		SetValue<float>(Context, Result, &ReturnValue);
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -264,7 +264,7 @@ void FRoundDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOu
 		const float InFloat = GetValue<float>(Context, &Float, Float);
 
 		float Result = FMath::RoundToFloat(InFloat);
-		SetValue<float>(Context, Result, &ReturnValue);
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -274,8 +274,8 @@ void FTruncDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOu
 	{
 		const float InFloat = GetValue<float>(Context, &Float, Float);
 
-		float Result = FMath::TruncToFloat(InFloat);
-		SetValue<float>(Context, Result, &ReturnValue);
+		const float Result = FMath::TruncToFloat(InFloat);
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -285,8 +285,8 @@ void FFracDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOut
 	{
 		const float InFloat = GetValue<float>(Context, &Float, Float);
 
-		float Result = FMath::Frac(InFloat);
-		SetValue<float>(Context, Result, &ReturnValue);
+		const float Result = FMath::Frac(InFloat);
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -297,8 +297,8 @@ void FMinDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutp
 		const float InFloatA = GetValue<float>(Context, &FloatA, FloatA);
 		const float InFloatB = GetValue<float>(Context, &FloatB, FloatB);
 
-		float Result = FMath::Min(InFloatA, InFloatB);
-		SetValue<float>(Context, Result, &ReturnValue);
+		const float Result = FMath::Min(InFloatA, InFloatB);
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -309,8 +309,8 @@ void FMaxDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutp
 		const float InFloatA = GetValue<float>(Context, &FloatA, FloatA);
 		const float InFloatB = GetValue<float>(Context, &FloatB, FloatB);
 
-		float Result = FMath::Max(InFloatA, InFloatB);
-		SetValue<float>(Context, Result, &ReturnValue);
+		const float Result = FMath::Max(InFloatA, InFloatB);
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -322,8 +322,8 @@ void FMin3DataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOut
 		const float InFloatB = GetValue<float>(Context, &FloatB, FloatB);
 		const float InFloatC = GetValue<float>(Context, &FloatC, FloatB);
 
-		float Result = FMath::Min3(InFloatA, InFloatB, InFloatC);
-		SetValue<float>(Context, Result, &ReturnValue);
+		const float Result = FMath::Min3(InFloatA, InFloatB, InFloatC);
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -335,8 +335,8 @@ void FMax3DataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOut
 		const float InFloatB = GetValue<float>(Context, &FloatB, FloatB);
 		const float InFloatC = GetValue<float>(Context, &FloatC, FloatB);
 
-		float Result = FMath::Max3(InFloatA, InFloatB, InFloatC);
-		SetValue<float>(Context, Result, &ReturnValue);
+		const float Result = FMath::Max3(InFloatA, InFloatB, InFloatC);
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -346,8 +346,8 @@ void FSignDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOut
 	{
 		const float InFloat = GetValue<float>(Context, &Float, Float);
 
-		float Result = FMath::Sign(InFloat);
-		SetValue<float>(Context, Result, &ReturnValue);
+		const float Result = FMath::Sign(InFloat);
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -359,8 +359,8 @@ void FClampDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOu
 		const float InMin = GetValue<float>(Context, &Min, Min);
 		const float InMax = GetValue<float>(Context, &Max, Max);
 
-		float Result = FMath::Clamp(InFloat, InMin, InMax);
-		SetValue<float>(Context, Result, &ReturnValue);
+		const float Result = FMath::Clamp(InFloat, InMin, InMax);
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -381,7 +381,7 @@ void FFitDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutp
 			float Q = (InFloat - InOldMin) / (InOldMax - InOldMin);
 			Result = InNewMin + Q * (InNewMax - InNewMin);
 		}
-		SetValue<float>(Context, Result, &ReturnValue);
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -401,7 +401,7 @@ void FEFitDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOut
 			float Q = (InFloat - InOldMin) / (InOldMax - InOldMin);
 			Result = InNewMin + Q * (InNewMax - InNewMin);
 		}
-		SetValue<float>(Context, Result, &ReturnValue);
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -412,8 +412,8 @@ void FPowDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutp
 		const float InBase = GetValue<float>(Context, &Base, Base);
 		const float InExp = GetValue<float>(Context, &Exp, Exp);
 
-		float Result = FMath::Pow(InBase, InExp);
-		SetValue<float>(Context, Result, &ReturnValue);
+		const float Result = FMath::Pow(InBase, InExp);
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -429,7 +429,7 @@ void FLogDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutp
 		{
 			Result = FMath::LogX(InBase, A);
 		}
-		SetValue<float>(Context, Result, &ReturnValue);
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -439,8 +439,8 @@ void FLogeDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOut
 	{
 		const float InA = GetValue<float>(Context, &A, A);
 
-		float Result = FMath::Loge(A);
-		SetValue<float>(Context, Result, &ReturnValue);
+		const float Result = FMath::Loge(A);
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -457,7 +457,7 @@ void FLerpDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOut
 		{
 			Result = FMath::Lerp(InA, InB, InAlpha);
 		}
-		SetValue<float>(Context, Result, &ReturnValue);
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -474,7 +474,7 @@ void FWrapDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOut
 		{
 			Result = FMath::Wrap(InFloat, InMin, InMax);
 		}
-		SetValue<float>(Context, Result, &ReturnValue);
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -484,8 +484,8 @@ void FExpDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutp
 	{
 		const float InFloat = GetValue<float>(Context, &Float, Float);
 
-		float Result = FMath::Exp(InFloat);
-		SetValue<float>(Context, Result, &ReturnValue);
+		const float Result = FMath::Exp(InFloat);
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -495,8 +495,8 @@ void FSinDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutp
 	{
 		const float InFloat = GetValue<float>(Context, &Float, Float);
 
-		float Result = FMath::Sin(InFloat);
-		SetValue<float>(Context, Result, &ReturnValue);
+		const float Result = FMath::Sin(InFloat);
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -511,7 +511,7 @@ void FArcSinDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowO
 		{
 			Result = FMath::Asin(InFloat);
 		}
-		SetValue<float>(Context, Result, &ReturnValue);
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -521,8 +521,8 @@ void FCosDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutp
 	{
 		const float InFloat = GetValue<float>(Context, &Float, Float);
 
-		float Result = FMath::Cos(InFloat);
-		SetValue<float>(Context, Result, &ReturnValue);
+		const float Result = FMath::Cos(InFloat);
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -537,7 +537,7 @@ void FArcCosDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowO
 		{
 			Result = FMath::Acos(InFloat);
 		}
-		SetValue<float>(Context, Result, &ReturnValue);
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -547,8 +547,8 @@ void FTanDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutp
 	{
 		const float InFloat = GetValue<float>(Context, &Float, Float);
 
-		float Result = FMath::Tan(InFloat);
-		SetValue<float>(Context, Result, &ReturnValue);
+		const float Result = FMath::Tan(InFloat);
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -558,8 +558,8 @@ void FArcTanDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowO
 	{
 		const float InFloat = GetValue<float>(Context, &Float, Float);
 
-		float Result = FMath::Atan(InFloat);
-		SetValue<float>(Context, Result, &ReturnValue);
+		const float Result = FMath::Atan(InFloat);
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -570,8 +570,8 @@ void FArcTan2DataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflow
 		const float InY = GetValue<float>(Context, &Y, Y);
 		const float InX = GetValue<float>(Context, &X, X);
 
-		float Result = FMath::Atan2(InY, InX);
-		SetValue<float>(Context, Result, &ReturnValue);
+		const float Result = FMath::Atan2(InY, InX);
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -602,7 +602,7 @@ void FNormalizeToRangeDataflowNode::Evaluate(Dataflow::FContext& Context, const 
 		}
 		Result = (InFloat - IRangeMin) / (InRangeMax - IRangeMin);
 
-		SetValue<float>(Context, Result, &ReturnValue);
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -626,8 +626,8 @@ void FDotProductDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataf
 		const FVector InVectorA = GetValue<FVector>(Context, &VectorA, VectorA);
 		const FVector InVectorB = GetValue<FVector>(Context, &VectorB, VectorB);
 
-		float Result = FVector::DotProduct(InVectorA, InVectorB);
-		SetValue<float>(Context, Result, &ReturnValue);
+		const float Result = FVector::DotProduct(InVectorA, InVectorB);
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -638,8 +638,8 @@ void FCrossProductDataflowNode::Evaluate(Dataflow::FContext& Context, const FDat
 		const FVector InVectorA = GetValue<FVector>(Context, &VectorA, VectorA);
 		const FVector InVectorB = GetValue<FVector>(Context, &VectorB, VectorB);
 
-		FVector Result = FVector::CrossProduct(InVectorA, InVectorB);
-		SetValue<FVector>(Context, Result, &ReturnValue);
+		const FVector Result = FVector::CrossProduct(InVectorA, InVectorB);
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -650,8 +650,8 @@ void FNormalizeDataflowNode::Evaluate(Dataflow::FContext& Context, const FDatafl
 		const FVector InVectorA = GetValue<FVector>(Context, &VectorA, VectorA);
 		const float InTolerance = GetValue<float>(Context, &Tolerance, Tolerance);
 
-		FVector Result = InVectorA.GetSafeNormal(Tolerance);
-		SetValue<FVector>(Context, Result, &ReturnValue);
+		const FVector Result = InVectorA.GetSafeNormal(Tolerance);
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -661,8 +661,8 @@ void FLengthDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowO
 	{
 		const FVector InVector = GetValue<FVector>(Context, &Vector, Vector);
 
-		float Result = InVector.Length();
-		SetValue<float>(Context, Result, &ReturnValue);
+		const float Result = InVector.Length();
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -673,8 +673,8 @@ void FDistanceDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflo
 		const FVector InPointA = GetValue<FVector>(Context, &PointA, PointA);
 		const FVector InPointB = GetValue<FVector>(Context, &PointB, PointB);
 
-		float Result = (InPointB - InPointA).Length();
-		SetValue<float>(Context, Result, &ReturnValue);
+		const float Result = (InPointB - InPointA).Length();
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -684,8 +684,8 @@ void FIsNearlyZeroDataflowNode::Evaluate(Dataflow::FContext& Context, const FDat
 	{
 		const float InFloat = GetValue<float>(Context, &Float, Float);
 
-		bool Result = FMath::IsNearlyZero(InFloat);
-		SetValue<bool>(Context, Result, &ReturnValue);
+		const bool Result = FMath::IsNearlyZero(InFloat);
+		SetValue(Context, Result, &ReturnValue);
 	}
 }
 
@@ -695,14 +695,14 @@ void FRandomFloatDataflowNode::Evaluate(Dataflow::FContext& Context, const FData
 	{
 		if (bDeterministic)
 		{
-			float RandomSeedVal = GetValue<float>(Context, &RandomSeed);
+			const float RandomSeedVal = GetValue<float>(Context, &RandomSeed);
 
-			FRandomStream Stream(RandomSeedVal);
-			SetValue<float>(Context, Stream.FRand(), &ReturnValue);
+			const FRandomStream Stream(RandomSeedVal);
+			SetValue(Context, Stream.FRand(), &ReturnValue);
 		}
 		else
 		{
-			SetValue<float>(Context, FMath::FRand(), &ReturnValue);
+			SetValue(Context, FMath::FRand(), &ReturnValue);
 		}
 	}
 }
@@ -716,14 +716,14 @@ void FRandomFloatInRangeDataflowNode::Evaluate(Dataflow::FContext& Context, cons
 
 		if (bDeterministic)
 		{
-			float RandomSeedVal = GetValue<float>(Context, &RandomSeed);
+			const float RandomSeedVal = GetValue<float>(Context, &RandomSeed);
 
-			FRandomStream Stream(RandomSeedVal);
-			SetValue<float>(Context, Stream.FRandRange(MinVal, MaxVal), &ReturnValue);
+			const FRandomStream Stream(RandomSeedVal);
+			SetValue(Context, (float)Stream.FRandRange(MinVal, MaxVal), &ReturnValue);
 		}
 		else
 		{
-			SetValue<float>(Context, FMath::FRandRange(MinVal, MaxVal), &ReturnValue);
+			SetValue(Context, FMath::FRandRange(MinVal, MaxVal), &ReturnValue);
 		}
 	}
 }
@@ -734,14 +734,14 @@ void FRandomUnitVectorDataflowNode::Evaluate(Dataflow::FContext& Context, const 
 	{
 		if (bDeterministic)
 		{
-			float RandomSeedVal = GetValue<float>(Context, &RandomSeed);
+			const float RandomSeedVal = GetValue<float>(Context, &RandomSeed);
 
-			FRandomStream Stream(RandomSeedVal);
-			SetValue<FVector>(Context, Stream.VRand(), &ReturnValue);
+			const FRandomStream Stream(RandomSeedVal);
+			SetValue(Context, Stream.VRand(), &ReturnValue);
 		}
 		else
 		{
-			SetValue<FVector>(Context, FMath::VRand(), &ReturnValue);
+			SetValue(Context, FMath::VRand(), &ReturnValue);
 		}
 	}
 }
@@ -755,14 +755,14 @@ void FRandomUnitVectorInConeDataflowNode::Evaluate(Dataflow::FContext& Context, 
 
 		if (bDeterministic)
 		{
-			float RandomSeedVal = GetValue<float>(Context, &RandomSeed);
+			const float RandomSeedVal = GetValue<float>(Context, &RandomSeed);
 
-			FRandomStream Stream(RandomSeedVal);
-			SetValue<FVector>(Context, Stream.VRandCone(ConeDirectionVal, ConeHalfAngleVal), &ReturnValue);
+			const FRandomStream Stream(RandomSeedVal);
+			SetValue(Context, Stream.VRandCone(ConeDirectionVal, ConeHalfAngleVal), &ReturnValue);
 		}
 		else
 		{
-			SetValue<FVector>(Context, FMath::VRandCone(ConeDirectionVal, ConeHalfAngleVal), &ReturnValue);
+			SetValue(Context, FMath::VRandCone(ConeDirectionVal, ConeHalfAngleVal), &ReturnValue);
 		}
 	}
 }
@@ -771,7 +771,7 @@ void FRadiansToDegreesDataflowNode::Evaluate(Dataflow::FContext& Context, const 
 {
 	if (Out->IsA<float>(&Degrees))
 	{
-		SetValue<float>(Context, FMath::RadiansToDegrees(GetValue<float>(Context, &Radians)), &Degrees);
+		SetValue(Context, FMath::RadiansToDegrees(GetValue<float>(Context, &Radians)), &Degrees);
 	}
 }
 
@@ -779,7 +779,7 @@ void FDegreesToRadiansDataflowNode::Evaluate(Dataflow::FContext& Context, const 
 {
 	if (Out->IsA<float>(&Radians))
 	{
-		SetValue<float>(Context, FMath::DegreesToRadians(GetValue<float>(Context, &Degrees)), &Radians);
+		SetValue(Context, FMath::DegreesToRadians(GetValue<float>(Context, &Degrees)), &Radians);
 	}
 }
 
@@ -789,59 +789,59 @@ void FMathConstantsDataflowNode::Evaluate(Dataflow::FContext& Context, const FDa
 	{
 		if (Constant == EMathConstantsEnum::Dataflow_MathConstants_Pi)
 		{
-			SetValue<float>(Context, FMathf::Pi, &ReturnValue);
+			SetValue(Context, FMathf::Pi, &ReturnValue);
 		}
 		else if (Constant == EMathConstantsEnum::Dataflow_MathConstants_HalfPi)
 		{
-			SetValue<float>(Context, FMathf::HalfPi, &ReturnValue);
+			SetValue(Context, FMathf::HalfPi, &ReturnValue);
 		}
 		else if (Constant == EMathConstantsEnum::Dataflow_MathConstants_TwoPi)
 		{
-			SetValue<float>(Context, FMathf::TwoPi, &ReturnValue);
+			SetValue(Context, FMathf::TwoPi, &ReturnValue);
 		}
 		else if (Constant == EMathConstantsEnum::Dataflow_MathConstants_FourPi)
 		{
-			SetValue<float>(Context, FMathf::FourPi, &ReturnValue);
+			SetValue(Context, FMathf::FourPi, &ReturnValue);
 		}
 		else if (Constant == EMathConstantsEnum::Dataflow_MathConstants_InvPi)
 		{
-			SetValue<float>(Context, FMathf::InvPi, &ReturnValue);
+			SetValue(Context, FMathf::InvPi, &ReturnValue);
 		}
 		else if (Constant == EMathConstantsEnum::Dataflow_MathConstants_InvTwoPi)
 		{
-			SetValue<float>(Context, FMathf::InvTwoPi, &ReturnValue);
+			SetValue(Context, FMathf::InvTwoPi, &ReturnValue);
 		}
 		else if (Constant == EMathConstantsEnum::Dataflow_MathConstants_Sqrt2)
 		{
-			SetValue<float>(Context, FMathf::Sqrt2, &ReturnValue);
+			SetValue(Context, FMathf::Sqrt2, &ReturnValue);
 		}
 		else if (Constant == EMathConstantsEnum::Dataflow_MathConstants_InvSqrt2)
 		{
-			SetValue<float>(Context, FMathf::InvSqrt2, &ReturnValue);
+			SetValue(Context, FMathf::InvSqrt2, &ReturnValue);
 		}
 		else if (Constant == EMathConstantsEnum::Dataflow_MathConstants_Sqrt3)
 		{
-			SetValue<float>(Context, FMathf::Sqrt3, &ReturnValue);
+			SetValue(Context, FMathf::Sqrt3, &ReturnValue);
 		}
 		else if (Constant == EMathConstantsEnum::Dataflow_MathConstants_InvSqrt3)
 		{
-			SetValue<float>(Context, FMathf::InvSqrt3, &ReturnValue);
+			SetValue(Context, FMathf::InvSqrt3, &ReturnValue);
 		}
 		else if (Constant == EMathConstantsEnum::Dataflow_FloatToInt_Function_E)
 		{
-			SetValue<float>(Context, 2.71828182845904523536f, &ReturnValue);
+			SetValue(Context, 2.71828182845904523536f, &ReturnValue);
 		}
 		else if (Constant == EMathConstantsEnum::Dataflow_FloatToInt_Function_Gamma)
 		{
-			SetValue<float>(Context, 0.577215664901532860606512090082f, &ReturnValue);
+			SetValue(Context, 0.577215664901532860606512090082f, &ReturnValue);
 		}
 		else if (Constant == EMathConstantsEnum::Dataflow_FloatToInt_Function_GoldenRatio)
 		{
-			SetValue<float>(Context, 1.618033988749894f, &ReturnValue);
+			SetValue(Context, 1.618033988749894f, &ReturnValue);
 		}
 		else if (Constant == EMathConstantsEnum::Dataflow_FloatToInt_Function_ZeroTolerance)
 		{
-			SetValue<float>(Context, FMathf::ZeroTolerance, &ReturnValue);
+			SetValue(Context, FMathf::ZeroTolerance, &ReturnValue);
 		}
 	}
 }

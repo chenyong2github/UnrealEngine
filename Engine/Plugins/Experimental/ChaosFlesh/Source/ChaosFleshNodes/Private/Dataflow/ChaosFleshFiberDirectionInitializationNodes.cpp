@@ -23,7 +23,7 @@ void FGenerateFiberDirectionsDataflowNode::Evaluate(Dataflow::FContext& Context,
 		// @todo(dataflow) : Implemention fiber direction
 		//
 
-		SetValue<DataType>(Context, InCollection, &Collection);
+		SetValue(Context, MoveTemp(InCollection), &Collection);
 	}
 }
 

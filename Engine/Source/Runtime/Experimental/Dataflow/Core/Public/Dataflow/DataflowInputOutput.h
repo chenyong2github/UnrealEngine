@@ -126,11 +126,11 @@ public:
 	}
  
 	template<class T>
-	void SetValue(const T& InVal, Dataflow::FContext& Context) const
+	void SetValue(T&& InVal, Dataflow::FContext& Context) const
 	{
 		if (Property)
 		{
-			Context.SetData(CacheKey(), Property, InVal);
+			Context.SetData(CacheKey(), Property, Forward<T>(InVal));
 		}
 	}
 
@@ -201,8 +201,8 @@ bool FDataflowOutput::Evaluate(Dataflow::FContext& Context) const
 	else if(const FDataflowInput* PassthroughInput = OwningNode->FindInput(GetPassthroughRealAddress()))
 	{
 		// @todo(dataflow) would be nice if the passthrough does not overwrite the existing cache value.
-		T PassthroughData = PassthroughInput->GetValue<T>(Context, *reinterpret_cast<const T*>(PassthroughInput->RealAddress()));
-		SetValue<T>(PassthroughData, Context);
+		const T& PassthroughData = PassthroughInput->GetValue<T>(Context, *reinterpret_cast<const T*>(PassthroughInput->RealAddress()));
+		SetValue(PassthroughData, Context);
 		return true;
 	}
  

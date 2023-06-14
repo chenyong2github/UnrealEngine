@@ -36,7 +36,7 @@ void FGetFleshAssetDataflowNode::Evaluate(Dataflow::FContext& Context, const FDa
 	if (Out->IsA<FManagedArrayCollection>(&Output))
 	{
 		FManagedArrayCollection Collection;
-		SetValue<FManagedArrayCollection>(Context, Collection, &Output);
+		SetValue(Context, MoveTemp(Collection), &Output);
 
 		const UFleshAsset* FleshAssetValue = FleshAsset;
 		if (!FleshAssetValue)
@@ -51,7 +51,7 @@ void FGetFleshAssetDataflowNode::Evaluate(Dataflow::FContext& Context, const FDa
 		{
 			if (const FFleshCollection* AssetCollection = FleshAssetValue->GetCollection())
 			{
-				SetValue<FManagedArrayCollection>(Context, *AssetCollection, &Output);
+				SetValue(Context, (const FManagedArrayCollection&)(*AssetCollection), &Output);
 			}
 		}
 	}
@@ -69,7 +69,7 @@ void FFleshAssetTerminalDataflowNode::SetAssetValue(TObjectPtr<UObject> Asset, D
 void FFleshAssetTerminalDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
 	const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
-	SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
+	SetValue(Context, InCollection, &Collection);
 }
 
 template <class T> using MType = FManagedArrayCollection::TManagedType<T>;
@@ -208,7 +208,7 @@ void FSetFleshDefaultPropertiesNode::Evaluate(Dataflow::FContext& Context, const
 					MinV, AvgV, MaxV);
 			}
 		}
-		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
+		SetValue(Context, MoveTemp(InCollection), &Collection);
 	}
 }
 
@@ -232,7 +232,7 @@ void FComputeFiberFieldNode::Evaluate(Dataflow::FContext& Context, const FDatafl
 			UE_LOG(LogChaosFlesh, Warning,
 				TEXT("ComputeFiberFieldNode: Failed to find geometry collection attr '%s' in group '%s'"),
 				*FTetrahedralCollection::TetrahedronAttribute.ToString(), *FTetrahedralCollection::TetrahedralGroup.ToString());
-			Out->SetValue<FManagedArrayCollection>(InCollection, Context);
+			Out->SetValue(MoveTemp(InCollection), Context);
 			return;
 		}
 
@@ -242,7 +242,7 @@ void FComputeFiberFieldNode::Evaluate(Dataflow::FContext& Context, const FDatafl
 		{
 			UE_LOG(LogChaosFlesh, Warning,
 				TEXT("ComputeFiberFieldNode: Failed to find geometry collection attr 'Vertex' in group 'Vertices'"));
-			Out->SetValue<FManagedArrayCollection>(InCollection, Context);
+			Out->SetValue(MoveTemp(InCollection), Context);
 			return;
 		}
 
@@ -254,7 +254,7 @@ void FComputeFiberFieldNode::Evaluate(Dataflow::FContext& Context, const FDatafl
 			UE_LOG(LogChaosFlesh, Warning,
 				TEXT("ComputeFiberFieldNode: Failed to find geometry collection attr '%s' in group '%s'"),
 				*FTetrahedralCollection::IncidentElementsAttribute.ToString(), *FGeometryCollection::VerticesGroup.ToString());
-			Out->SetValue<FManagedArrayCollection>(InCollection, Context);
+			Out->SetValue(MoveTemp(InCollection), Context);
 			return;
 		}
 		TManagedArray<TArray<int32>>* IncidentElementsLocalIndex = InCollection.FindAttribute<TArray<int32>>(
@@ -264,7 +264,7 @@ void FComputeFiberFieldNode::Evaluate(Dataflow::FContext& Context, const FDatafl
 			UE_LOG(LogChaosFlesh, Warning,
 				TEXT("ComputeFiberFieldNode: Failed to find geometry collection attr '%s' in group '%s'"),
 				*FTetrahedralCollection::IncidentElementsLocalIndexAttribute.ToString(), *FGeometryCollection::VerticesGroup.ToString());
-			Out->SetValue<FManagedArrayCollection>(InCollection, Context);
+			Out->SetValue(MoveTemp(InCollection), Context);
 			return;
 		}
 
@@ -282,7 +282,7 @@ void FComputeFiberFieldNode::Evaluate(Dataflow::FContext& Context, const FDatafl
 			if (OriginInsertionGroupName.IsEmpty())
 			{
 				UE_LOG(LogChaosFlesh, Warning, TEXT("ComputeFiberFieldNode: Attr 'OriginInsertionGroupName' cannot be empty."));
-				Out->SetValue<FManagedArrayCollection>(InCollection, Context);
+				Out->SetValue(MoveTemp(InCollection), Context);
 				return;
 			}
 
@@ -292,7 +292,7 @@ void FComputeFiberFieldNode::Evaluate(Dataflow::FContext& Context, const FDatafl
 				if (OriginVertexFieldName.IsEmpty())
 				{
 					UE_LOG(LogChaosFlesh, Warning, TEXT("ComputeFiberFieldNode: Attr 'OriginVertexFieldName' cannot be empty."));
-					Out->SetValue<FManagedArrayCollection>(InCollection, Context);
+					Out->SetValue(MoveTemp(InCollection), Context);
 					return;
 				}
 				Origin = InCollection.FindAttribute<int32>(FName(OriginVertexFieldName), FName(OriginInsertionGroupName));
@@ -301,7 +301,7 @@ void FComputeFiberFieldNode::Evaluate(Dataflow::FContext& Context, const FDatafl
 					UE_LOG(LogChaosFlesh, Warning,
 						TEXT("ComputeFiberFieldNode: Failed to find geometry collection attr '%s' in group '%s'"),
 						*OriginVertexFieldName, *OriginInsertionGroupName);
-					Out->SetValue<FManagedArrayCollection>(InCollection, Context);
+					Out->SetValue(MoveTemp(InCollection), Context);
 					return;
 				}
 			}
@@ -312,7 +312,7 @@ void FComputeFiberFieldNode::Evaluate(Dataflow::FContext& Context, const FDatafl
 				if (InsertionVertexFieldName.IsEmpty())
 				{
 					UE_LOG(LogChaosFlesh, Warning, TEXT("ComputeFiberFieldNode: Attr 'InsertionVertexFieldName' cannot be empty."));
-					Out->SetValue<FManagedArrayCollection>(InCollection, Context);
+					Out->SetValue(MoveTemp(InCollection), Context);
 					return;
 				}
 				Insertion = InCollection.FindAttribute<int32>(FName(InsertionVertexFieldName), FName(OriginInsertionGroupName));
@@ -321,7 +321,7 @@ void FComputeFiberFieldNode::Evaluate(Dataflow::FContext& Context, const FDatafl
 					UE_LOG(LogChaosFlesh, Warning,
 						TEXT("ComputeFiberFieldNode: Failed to find geometry collection attr '%s' in group '%s'"),
 						*InsertionVertexFieldName, *OriginInsertionGroupName);
-					Out->SetValue<FManagedArrayCollection>(InCollection, Context);
+					Out->SetValue(MoveTemp(InCollection), Context);
 					return;
 				}
 			}
@@ -349,7 +349,7 @@ void FComputeFiberFieldNode::Evaluate(Dataflow::FContext& Context, const FDatafl
 		}
 		(*FiberDirections) = MoveTemp(FiberDirs);
 
-		Out->SetValue<FManagedArrayCollection>(InCollection, Context);
+		Out->SetValue(MoveTemp(InCollection), Context);
 	}
 }
 
@@ -436,7 +436,7 @@ void FComputeIslandsNode::Evaluate(Dataflow::FContext& Context, const FDataflowO
 			}
 		}
 		
-		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
+		SetValue(Context, MoveTemp(InCollection), &Collection);
 	}
 }
 
@@ -462,7 +462,7 @@ void FGenerateOriginInsertionNode::Evaluate(Dataflow::FContext& Context, const F
 			UE_LOG(LogChaosFlesh, Warning,
 				TEXT("GenerateOriginInsertionNode: Failed to find geometry collection attr '%s' in group '%s'"),
 				*FTetrahedralCollection::TetrahedronAttribute.ToString(), *FTetrahedralCollection::TetrahedralGroup.ToString());
-			Out->SetValue<FManagedArrayCollection>(InCollection, Context);
+			Out->SetValue(MoveTemp(InCollection), Context);
 			return;
 		}
 
@@ -473,7 +473,7 @@ void FGenerateOriginInsertionNode::Evaluate(Dataflow::FContext& Context, const F
 		{
 			UE_LOG(LogChaosFlesh, Warning,
 				TEXT("GenerateOriginInsertionNode: Failed to find geometry collection attr 'Vertex' in group 'Vertices'"));
-			Out->SetValue<FManagedArrayCollection>(InCollection, Context);
+			Out->SetValue(MoveTemp(InCollection), Context);
 			return;
 		}
 
@@ -485,7 +485,7 @@ void FGenerateOriginInsertionNode::Evaluate(Dataflow::FContext& Context, const F
 			UE_LOG(LogChaosFlesh, Warning,
 				TEXT("GenerateOriginInsertionNode: Failed to find geometry collection attr '%s' in group '%s'"),
 				*FTetrahedralCollection::IncidentElementsAttribute.ToString(), *FGeometryCollection::VerticesGroup.ToString());
-			Out->SetValue<FManagedArrayCollection>(InCollection, Context);
+			Out->SetValue(MoveTemp(InCollection), Context);
 			return;
 		}
 		TManagedArray<TArray<int32>>* IncidentElementsLocalIndex = InCollection.FindAttribute<TArray<int32>>(
@@ -495,7 +495,7 @@ void FGenerateOriginInsertionNode::Evaluate(Dataflow::FContext& Context, const F
 			UE_LOG(LogChaosFlesh, Warning,
 				TEXT("GenerateOriginInsertionNode: Failed to find geometry collection attr '%s' in group '%s'"),
 				*FTetrahedralCollection::IncidentElementsLocalIndexAttribute.ToString(), *FGeometryCollection::VerticesGroup.ToString());
-			Out->SetValue<FManagedArrayCollection>(InCollection, Context);
+			Out->SetValue(MoveTemp(InCollection), Context);
 			return;
 		}
 
@@ -553,9 +553,9 @@ void FGenerateOriginInsertionNode::Evaluate(Dataflow::FContext& Context, const F
 		// Set output(s)
 		//
 
-		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
-		SetValue<TArray<int32>>(Context, OutOriginIndices, &OriginIndicesOut);
-		SetValue<TArray<int32>>(Context, OutInsertionIndices, &InsertionIndicesOut);
+		SetValue(Context, MoveTemp(InCollection), &Collection);
+		SetValue(Context, MoveTemp(OutOriginIndices), &OriginIndicesOut);
+		SetValue(Context, MoveTemp(OutInsertionIndices), &InsertionIndicesOut);
 	}
 }
 
@@ -597,7 +597,7 @@ void FIsolateComponentNode::Evaluate(Dataflow::FContext& Context, const FDataflo
 			DeleteList.Sort();
 			InCollection.RemoveElements(FGeometryCollection::FacesGroup, DeleteList);
 		}
-		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
+		SetValue(Context, MoveTemp(InCollection), &Collection);
 	}
 }
 
@@ -643,5 +643,5 @@ void FGetSurfaceIndicesNode::Evaluate(Dataflow::FContext& Context, const FDatafl
 			}
 		}
 	}
-	SetValue<TArray<int32>>(Context, SurfaceIndicesLocal, &SurfaceIndicesOut);
+	SetValue(Context, MoveTemp(SurfaceIndicesLocal), &SurfaceIndicesOut);
 }

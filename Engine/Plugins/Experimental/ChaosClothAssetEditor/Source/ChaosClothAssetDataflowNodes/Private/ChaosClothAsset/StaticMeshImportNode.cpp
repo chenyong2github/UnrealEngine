@@ -167,7 +167,7 @@ void FChaosClothAssetStaticMeshImportNode::Evaluate(Dataflow::FContext& Context,
 			}
 		}
 
-		SetValue<FManagedArrayCollection>(Context, *ClothCollection, &Collection);
+		SetValue(Context, MoveTemp(*ClothCollection), &Collection);
 	}
 }
 

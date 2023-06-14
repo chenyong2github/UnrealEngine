@@ -123,7 +123,7 @@ void FChaosClothAssetDatasmithImportNode::Evaluate(Dataflow::FContext& Context, 
 				}
 			}
 		}
-		SetValue<FManagedArrayCollection>(Context, ImportCache, &Collection);
+		SetValue(Context, ImportCache, &Collection);
 	}
 }
 

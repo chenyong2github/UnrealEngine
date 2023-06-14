@@ -102,7 +102,7 @@ void FFloatArrayToIntArrayDataflowNode::Evaluate(Dataflow::FContext& Context, co
 			RetVal.SetNum(RetValIndex);
 		}
 
-		SetValue<TArray<int32>>(Context, RetVal, &IntArray);
+		SetValue(Context, MoveTemp(RetVal), &IntArray);
 	}
 }
 
@@ -113,11 +113,11 @@ void FGetArrayElementDataflowNode::Evaluate(Dataflow::FContext& Context, const F
 		const TArray<FVector>& Array = GetValue<TArray<FVector>>(Context, &Points);
 		if (Array.Num() > 0 && Index >= 0 && Index < Array.Num())
 		{
-			SetValue<FVector>(Context, Array[Index], &Point);
+			SetValue(Context, Array[Index], &Point);
 			return;
 		}
 
-		SetValue<FVector>(Context, FVector(0.f), &Point);
+		SetValue(Context, FVector(0.f), &Point);
 	}
 }
 
@@ -127,26 +127,26 @@ void FGetNumArrayElementsDataflowNode::Evaluate(Dataflow::FContext& Context, con
 	{
 		if (IsConnected<TArray<float>>(&FloatArray))
 		{
-			SetValue<int32>(Context, GetValue<TArray<float>>(Context, &FloatArray).Num(), &NumElements);
+			SetValue(Context, GetValue<TArray<float>>(Context, &FloatArray).Num(), &NumElements);
 			return;
 		}
 		else if (IsConnected<TArray<int32>>(&IntArray))
 		{
-			SetValue<int32>(Context, GetValue<TArray<int32>>(Context, &IntArray).Num(), &NumElements);
+			SetValue(Context, GetValue<TArray<int32>>(Context, &IntArray).Num(), &NumElements);
 			return;
 		}
 		else if (IsConnected<TArray<FVector>>(&Points))
 		{
-			SetValue<int32>(Context, GetValue<TArray<FVector>>(Context, &Points).Num(), &NumElements);
+			SetValue(Context, GetValue<TArray<FVector>>(Context, &Points).Num(), &NumElements);
 			return;
 		}
 		else if (IsConnected<TArray<FVector3f>>(&Vector3fArray))
 		{
-			SetValue<int32>(Context, GetValue<TArray<FVector3f>>(Context, &Vector3fArray).Num(), &NumElements);
+			SetValue(Context, GetValue<TArray<FVector3f>>(Context, &Vector3fArray).Num(), &NumElements);
 			return;
 		}
 
-		SetValue<int32>(Context, 0, &NumElements);
+		SetValue(Context, 0, &NumElements);
 	}
 }
 
@@ -160,7 +160,7 @@ void FBoolArrayToFaceSelectionDataflowNode::Evaluate(Dataflow::FContext& Context
 		NewFaceSelection.Initialize(InBoolAttributeData.Num(), false);
 		NewFaceSelection.SetFromArray(InBoolAttributeData);
 
-		SetValue<FDataflowFaceSelection>(Context, NewFaceSelection, &FaceSelection);
+		SetValue(Context, MoveTemp(NewFaceSelection), &FaceSelection);
 	}
 }
 
@@ -213,7 +213,7 @@ void FFloatArrayToVertexSelectionDataflowNode::Evaluate(Dataflow::FContext& Cont
 			}
 		}
 
-		SetValue<FDataflowVertexSelection>(Context, NewVertexSelection, &VertexSelection);
+		SetValue(Context, MoveTemp(NewVertexSelection), &VertexSelection);
 	}
 }
 
@@ -266,7 +266,7 @@ void FFloatArrayNormalizeDataflowNode::Evaluate(Dataflow::FContext& Context, con
 					}
 				}
 
-				SetValue<TArray<float>>(Context, NewFloatArray, &OutFloatArray);
+				SetValue(Context, MoveTemp(NewFloatArray), &OutFloatArray);
 				return;
 			}
 		}
@@ -297,11 +297,11 @@ void FFloatArrayNormalizeDataflowNode::Evaluate(Dataflow::FContext& Context, con
 				NewFloatArray[Idx] = InMinRange + NewFloatArray[Idx] * (InMaxRange - InMinRange);
 			}
 
-			SetValue<TArray<float>>(Context, NewFloatArray, &OutFloatArray);
+			SetValue(Context, MoveTemp(NewFloatArray), &OutFloatArray);
 			return;
 		}
 
-		SetValue<TArray<float>>(Context, TArray<float>(), &OutFloatArray);
+		SetValue(Context, TArray<float>(), &OutFloatArray);
 	}
 }
 
@@ -335,7 +335,7 @@ void FVectorArrayNormalizeDataflowNode::Evaluate(Dataflow::FContext& Context, co
 					}
 				}
 
-				SetValue<TArray<FVector>>(Context, NewVectorArray, &OutVectorArray);
+				SetValue(Context, MoveTemp(NewVectorArray), &OutVectorArray);
 				return;
 			}
 		}
@@ -350,7 +350,7 @@ void FVectorArrayNormalizeDataflowNode::Evaluate(Dataflow::FContext& Context, co
 				NewVectorArray[Idx] = Vector;
 			}
 
-			SetValue<TArray<FVector>>(Context, NewVectorArray, &OutVectorArray);
+			SetValue(Context, MoveTemp(NewVectorArray), &OutVectorArray);
 			return;
 		}
 
@@ -373,7 +373,7 @@ void FUnionIntArraysDataflowNode::Evaluate(Dataflow::FContext& Context, const FD
 		{
 			OutputArray.AddUnique(Array2[i]);
 		}
-		SetValue<TArray<int32>>(Context, OutputArray, &OutArray);
+		SetValue(Context, MoveTemp(OutputArray), &OutArray);
 	}
 }
 

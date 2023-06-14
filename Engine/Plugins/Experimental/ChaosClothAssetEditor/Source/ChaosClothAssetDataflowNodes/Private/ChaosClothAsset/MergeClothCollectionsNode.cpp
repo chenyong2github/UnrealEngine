@@ -38,7 +38,7 @@ void FChaosClothAssetMergeClothCollectionsNode::Evaluate(Dataflow::FContext& Con
 			ClothFacade.Append(OtherClothFacade);
 		}
 
-		SetValue<FManagedArrayCollection>(Context, *ClothCollection, &Collection);
+		SetValue(Context, MoveTemp(*ClothCollection), &Collection);
 	}
 }
 

@@ -28,7 +28,7 @@ void FGetSkeletalMeshDataflowNode::Evaluate(Dataflow::FContext& Context, const F
 	typedef TObjectPtr<const USkeletalMesh> DataType;
 	if (Out->IsA<DataType>(&SkeletalMesh))
 	{
-		SetValue<DataType>(Context, SkeletalMesh, &SkeletalMesh);
+		SetValue(Context, SkeletalMesh, &SkeletalMesh);
 
 		if (!SkeletalMesh)
 		{
@@ -50,7 +50,7 @@ void FGetSkeletonDataflowNode::Evaluate(Dataflow::FContext& Context, const FData
 	typedef TObjectPtr<const USkeleton> DataType;
 	if (Out->IsA<DataType>(&Skeleton))
 	{
-		SetValue<DataType>(Context, Skeleton, &Skeleton);
+		SetValue(Context, Skeleton, &Skeleton);
 
 		if (!Skeleton)
 		{
@@ -85,7 +85,7 @@ void FSkeletalMeshBoneDataflowNode::Evaluate(Dataflow::FContext& Context, const 
 			}
 
 			int32 Index = InSkeletalMesh->GetRefSkeleton().FindBoneIndex(LocalBoneName);
-			SetValue<int>(Context, Index, &BoneIndexOut);
+			SetValue(Context, Index, &BoneIndexOut);
 		}
 
 	}
@@ -97,7 +97,7 @@ void FSkeletalMeshReferenceTransformDataflowNode::Evaluate(Dataflow::FContext& C
 	typedef TObjectPtr<const USkeletalMesh> InDataType;
 	if (Out->IsA<FTransform>(&TransformOut))
 	{
-		SetValue<FTransform>(Context, FTransform::Identity, &TransformOut);
+		SetValue(Context, FTransform::Identity, &TransformOut);
 		
 		int32 BoneIndex = GetValue<int32>(Context, &BoneIndexIn);
 		if (0 <= BoneIndex)
@@ -108,8 +108,7 @@ void FSkeletalMeshReferenceTransformDataflowNode::Evaluate(Dataflow::FContext& C
 				Dataflow::Animation::GlobalTransforms(SkeletalMesh->GetRefSkeleton(), ComponentPose);
 				if (BoneIndex < ComponentPose.Num())
 				{
-					SetValue<FTransform>(Context, ComponentPose[BoneIndex], &TransformOut);
-
+					SetValue(Context, ComponentPose[BoneIndex], &TransformOut);
 				}
 			}
 		}

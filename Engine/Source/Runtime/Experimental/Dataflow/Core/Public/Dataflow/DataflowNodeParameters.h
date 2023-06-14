@@ -60,17 +60,13 @@ namespace Dataflow
 	template<class T>
 	struct FContextCacheElement : public FContextCacheElementBase 
 	{
-		FContextCacheElement(FProperty* InProperty, const T& InData, FTimestamp Timestamp)
-			: FContextCacheElementBase(InProperty, Timestamp)
-			, Data(InData)
-		{}
-
 		FContextCacheElement(FProperty* InProperty, T&& InData, FTimestamp Timestamp)
 			: FContextCacheElementBase(InProperty, Timestamp)
-			, Data(InData)
+			, Data(Forward<T>(InData))
 		{}
 		
-		const T Data;
+		typedef typename TDecay<T>::Type FDataType;  // Using universal references here means T could be either const& or an rvalue reference
+		const FDataType Data;                        // Decaying T removes any reference and gets the correct underlying storage data type
 	};
 
 	template<class T>
@@ -124,15 +120,6 @@ namespace Dataflow
 
 		virtual void SetDataImpl(int64 Key, TUniquePtr<FContextCacheElementBase>&& DataStoreEntry) = 0;
 		
-		template<typename T>
-		void SetData(size_t Key, FProperty* Property, const T& Value)
-		{
-			int64 IntKey = (int64)Key;
-			TUniquePtr<FContextCacheElement<T>> DataStoreEntry = MakeUnique<FContextCacheElement<T>>(Property, Value, FTimestamp::Current());
-
-			SetDataImpl(IntKey, MoveTemp(DataStoreEntry));
-		}
-
 		template<typename T>
 		void SetData(size_t Key, FProperty* Property, T&& Value)
 		{

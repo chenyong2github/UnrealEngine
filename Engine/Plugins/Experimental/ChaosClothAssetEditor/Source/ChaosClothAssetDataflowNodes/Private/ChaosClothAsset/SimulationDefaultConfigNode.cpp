@@ -60,7 +60,7 @@ void FChaosClothAssetSimulationDefaultConfigNode::Evaluate(Dataflow::FContext& C
 
 		UE::Chaos::ClothAsset::FClothEngineTools::GenerateTethers(ClothCollection, MaxDistanceName, bUseGeodesicTethers);
 
-		SetValue<FManagedArrayCollection>(Context, *ClothCollection, &Collection);
+		SetValue(Context, MoveTemp(*ClothCollection), &Collection);
 	}
 }
 

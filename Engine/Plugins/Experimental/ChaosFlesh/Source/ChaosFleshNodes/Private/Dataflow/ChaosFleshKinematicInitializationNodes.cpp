@@ -143,7 +143,7 @@ void FKinematicTetrahedralBindingsDataflowNode::Evaluate(Dataflow::FContext& Con
 			GeometryCollection::Facades::FVertexBoneWeightsFacade(InCollection).AddBoneWeightsFromKinematicBindings();
 		}
 
-		SetValue<DataType>(Context, InCollection, &Collection);
+		SetValue(Context, MoveTemp(InCollection), &Collection);
 	}
 }
 
@@ -247,7 +247,7 @@ void FKinematicInitializationDataflowNode::Evaluate(Dataflow::FContext& Context,
 				}
 			}
 		}
-		SetValue<DataType>(Context, InCollection, &Collection);
+		SetValue(Context, MoveTemp(InCollection), &Collection);
 	}
 }
 
@@ -372,7 +372,7 @@ void FKinematicOriginInsertionInitializationDataflowNode::Evaluate(Dataflow::FCo
 				}
 			}
 		}
-		SetValue<DataType>(Context, InCollection, &Collection);
+		SetValue(Context, MoveTemp(InCollection), &Collection);
 	}
 }
 
@@ -425,7 +425,7 @@ void FSetVerticesKinematicDataflowNode::Evaluate(Dataflow::FContext& Context, co
 			GeometryCollection::Facades::FKinematicBindingFacade Kinematics(InCollection);
 			Kinematics.AddKinematicBinding(Kinematics.SetBoneBindings(INDEX_NONE, BoundVerts, BoundWeights));
 		}
-		SetValue<DataType>(Context, InCollection, &Collection);
+		SetValue(Context, MoveTemp(InCollection), &Collection);
 	}
 }
 
@@ -493,7 +493,7 @@ void FKinematicBodySetupInitializationDataflowNode::Evaluate(Dataflow::FContext&
 				GeometryCollection::Facades::FVertexBoneWeightsFacade(InCollection).AddBoneWeightsFromKinematicBindings();
 			}
 		}
-		SetValue<DataType>(Context, InCollection, &Collection);
+		SetValue(Context, MoveTemp(InCollection), &Collection);
 	}
 }
 
@@ -579,8 +579,8 @@ void FKinematicSkeletalMeshInitializationDataflowNode::Evaluate(Dataflow::FConte
 				GeometryCollection::Facades::FVertexBoneWeightsFacade(InCollection).AddBoneWeightsFromKinematicBindings();
 			}
 		}
-		SetValue<DataType>(Context, InCollection, &Collection);
-		SetValue<TArray<int32>>(Context, Indices, &IndicesOut);
+		SetValue(Context, MoveTemp(InCollection), &Collection);
+		SetValue(Context, MoveTemp(Indices), &IndicesOut);
 	}
 }
 
@@ -615,7 +615,7 @@ FBindVerticesToSkeleton::Evaluate(Dataflow::FContext& Context, const FDataflowOu
 			}
 		}
 		
-		SetValue<DataType>(Context, InCollection, &Collection);
+		SetValue(Context, MoveTemp(InCollection), &Collection);
 	}
 }
 
@@ -693,7 +693,7 @@ FAuthorSceneCollisionCandidates::Evaluate(Dataflow::FContext& Context, const FDa
 		UE_LOG(LogKinematicInit, Display,
 			TEXT("'%s' - Added %d scene collision candidates."),
 			*GetName().ToString(), Num);
-		SetValue<DataType>(Context, InCollection, &Collection);
+		SetValue(Context, MoveTemp(InCollection), &Collection);
 	}
 }
 
@@ -717,6 +717,6 @@ FAppendToCollectionTransformAttributeDataflowNode::Evaluate(Dataflow::FContext& 
 			TManagedArray<FTransform>& Transforms = CollectionValue.ModifyAttribute<FTransform>(FName(AttributeName), FName(GroupName));
 			Transforms[Index] = Transform;
 		}
-		SetValue<DataType>(Context, CollectionValue, &Collection);
+		SetValue(Context, MoveTemp(CollectionValue), &Collection);
 	}
 }

@@ -66,7 +66,7 @@ void FPruneInCollectionDataflowNode::Evaluate(Dataflow::FContext& Context, const
 
 					FFractureEngineEdit::DeleteBranch(*GeomCollection, BoneIndices);
 
-					SetValue<FManagedArrayCollection>(Context, (const FManagedArrayCollection&)(*GeomCollection), &Collection);
+					SetValue(Context, MoveTemp((FManagedArrayCollection&)(*GeomCollection)), &Collection);
 					return;
 				}
 			}
@@ -78,7 +78,7 @@ void FPruneInCollectionDataflowNode::Evaluate(Dataflow::FContext& Context, const
 			UE_LOG(LogTemp, Error, TEXT("[Dataflow ERROR] %s"), *ErrorStr);
 		}
 
-		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
+		SetValue(Context, InCollection, &Collection);
 	}
 }
 
@@ -104,7 +104,7 @@ void FSetVisibilityInCollectionDataflowNode::Evaluate(Dataflow::FContext& Contex
 
 					FFractureEngineEdit::SetVisibilityInCollectionFromTransformSelection(InCollection, BoneIndices, Visibility == EVisibiltyOptionsEnum::Dataflow_VisibilityOptions_Visible);
 
-					SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
+					SetValue(Context, MoveTemp(InCollection), &Collection);
 					return;
 				}
 			}
@@ -129,7 +129,7 @@ void FSetVisibilityInCollectionDataflowNode::Evaluate(Dataflow::FContext& Contex
 
 					FFractureEngineEdit::SetVisibilityInCollectionFromFaceSelection(InCollection, FaceIndexArr, Visibility == EVisibiltyOptionsEnum::Dataflow_VisibilityOptions_Visible);
 
-					SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
+					SetValue(Context, MoveTemp(InCollection), &Collection);
 					return;
 				}
 			}
@@ -148,7 +148,7 @@ void FSetVisibilityInCollectionDataflowNode::Evaluate(Dataflow::FContext& Contex
 		}
 
 		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
-		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
+		SetValue(Context, InCollection, &Collection);
 	}
 }
 
@@ -157,7 +157,7 @@ void FMergeInCollectionDataflowNode::Evaluate(Dataflow::FContext& Context, const
 {
 	if (Out->IsA<FManagedArrayCollection>(&Collection))
 	{
-		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		const FDataflowTransformSelection& InTransformSelection = GetValue<FDataflowTransformSelection>(Context, &TransformSelection);
 
 		const int32 NumTransforms = InCollection.NumElements(FGeometryCollection::TransformGroup);
@@ -172,7 +172,7 @@ void FMergeInCollectionDataflowNode::Evaluate(Dataflow::FContext& Context, const
 
 					FFractureEngineEdit::Merge(*GeomCollection, BoneIndices);
 
-					SetValue<FManagedArrayCollection>(Context, (const FManagedArrayCollection&)(*GeomCollection), &Collection);
+					SetValue(Context, MoveTemp((FManagedArrayCollection&)(*GeomCollection)), &Collection);
 					return;
 				}
 			}
@@ -184,6 +184,6 @@ void FMergeInCollectionDataflowNode::Evaluate(Dataflow::FContext& Context, const
 			UE_LOG(LogTemp, Error, TEXT("[Dataflow ERROR] %s"), *ErrorStr);
 		}
 
-		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
+		SetValue(Context, InCollection, &Collection);
 	}
 }

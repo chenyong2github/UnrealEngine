@@ -27,7 +27,7 @@ void FChaosClothAssetBindToRootBoneNode::Evaluate(Dataflow::FContext& Context, c
 
 		FClothGeometryTools::BindMeshToRootBone(ClothCollection, bBindSimMesh, bBindRenderMesh);
 
-		SetValue<FManagedArrayCollection>(Context, *ClothCollection, &Collection);
+		SetValue(Context, MoveTemp(*ClothCollection), &Collection);
 	}
 }
 

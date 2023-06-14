@@ -28,7 +28,7 @@ void FSelectionSetDataflowNode::Evaluate(Dataflow::FContext& Context, const FDat
 			}
 		}
 
-		Out->SetValue<DataType>(IntArray, Context);
+		Out->SetValue<DataType>(MoveTemp(IntArray), Context);
 	}
 }
 

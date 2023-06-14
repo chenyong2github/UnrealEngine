@@ -18,18 +18,18 @@ void FGetStaticMeshDataflowNode::Evaluate(Dataflow::FContext& Context, const FDa
 	typedef TObjectPtr<const UStaticMesh> DataType;
 	if (Out->IsA<DataType>(&StaticMesh))
 	{
-		SetValue<DataType>(Context, StaticMesh, &StaticMesh); // prime to avoid ensure
+		SetValue(Context, StaticMesh, &StaticMesh); // prime to avoid ensure
 
 		if (StaticMesh)
 		{
-			SetValue<DataType>(Context, StaticMesh, &StaticMesh);
+			SetValue(Context, StaticMesh, &StaticMesh);
 		}
 		else if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>())
 		{
 			if (const UStaticMesh* StaticMeshFromOwner = Dataflow::Reflection::FindObjectPtrProperty<UStaticMesh>(
 				EngineContext->Owner, PropertyName))
 			{
-				SetValue<DataType>(Context, DataType(StaticMeshFromOwner), &StaticMesh);
+				SetValue(Context, DataType(StaticMeshFromOwner), &StaticMesh);
 
 			}
 		}

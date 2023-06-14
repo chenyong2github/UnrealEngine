@@ -179,6 +179,6 @@ FGenerateSkeletalBindings::Evaluate(Dataflow::FContext& Context, const FDataflow
 				}
 			} // end for TetMeshIdx
 		}
-		SetValue<DataType>(Context, OutCollection, &Collection);
+		SetValue(Context, MoveTemp(OutCollection), &Collection);
 	}
 }

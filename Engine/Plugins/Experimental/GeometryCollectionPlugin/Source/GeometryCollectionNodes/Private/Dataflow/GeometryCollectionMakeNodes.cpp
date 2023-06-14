@@ -66,7 +66,7 @@ void FMakeLiteralStringDataflowNode::Evaluate(Dataflow::FContext& Context, const
 {
 	if (Out->IsA<FString>(&String))
 	{
-		SetValue<FString>(Context, Value, &String);
+		SetValue(Context, Value, &String);
 	}
 }
 
@@ -74,7 +74,7 @@ void FMakePointsDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataf
 {
 	if (Out->IsA<TArray<FVector>>(&Points))
 	{
-		SetValue<TArray<FVector>>(Context, Point, &Points);
+		SetValue(Context, Point, &Points);
 	}
 }
 
@@ -87,14 +87,14 @@ void FMakeBoxDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflow
 			FVector MinVal = GetValue<FVector>(Context, &Min);
 			FVector MaxVal = GetValue<FVector>(Context, &Max);
 
-			SetValue<FBox>(Context, FBox(MinVal, MaxVal), &Box);
+			SetValue(Context, FBox(MinVal, MaxVal), &Box);
 		}
 		else if (DataType == EMakeBoxDataTypeEnum::Dataflow_MakeBox_DataType_CenterSize)
 		{
 			FVector CenterVal = GetValue<FVector>(Context, &Center);
 			FVector SizeVal = GetValue<FVector>(Context, &Size);
 
-			SetValue<FBox>(Context, FBox(CenterVal - 0.5 * SizeVal, CenterVal + 0.5 * SizeVal), &Box);
+			SetValue(Context, FBox(CenterVal - 0.5 * SizeVal, CenterVal + 0.5 * SizeVal), &Box);
 		}
 	}
 }
@@ -107,7 +107,7 @@ void FMakeSphereDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataf
 		FVector CenterVal = GetValue<FVector>(Context, &Center);
 		float RadiusVal = GetValue<float>(Context, &Radius);
 
-		SetValue<FSphere>(Context, FSphere(CenterVal, RadiusVal), &Sphere);
+		SetValue(Context, FSphere(CenterVal, RadiusVal), &Sphere);
 	}
 }
 
@@ -116,7 +116,7 @@ void FMakeLiteralFloatDataflowNode::Evaluate(Dataflow::FContext& Context, const 
 {
 	if (Out->IsA<float>(&Float))
 	{
-		SetValue<float>(Context, Value, &Float);
+		SetValue(Context, Value, &Float);
 	}
 }
 
@@ -124,7 +124,7 @@ void FMakeLiteralIntDataflowNode::Evaluate(Dataflow::FContext& Context, const FD
 {
 	if (Out->IsA<int32>(&Int))
 	{
-		SetValue<int32>(Context, Value, &Int);
+		SetValue(Context, Value, &Int);
 	}
 }
 
@@ -132,7 +132,7 @@ void FMakeLiteralBoolDataflowNode::Evaluate(Dataflow::FContext& Context, const F
 {
 	if (Out->IsA<bool>(&Bool))
 	{
-		SetValue<bool>(Context, Value, &Bool);
+		SetValue(Context, Value, &Bool);
 	}
 }
 
@@ -140,8 +140,8 @@ void FMakeLiteralVectorDataflowNode::Evaluate(Dataflow::FContext& Context, const
 {
 	if (Out->IsA<FVector>(&Vector))
 	{
-		FVector Value(GetValue<float>(Context, &X, X), GetValue<float>(Context, &Y, Y), GetValue<float>(Context, &Z, Z));
-		SetValue<FVector>(Context, Value, &Vector);
+		const FVector Value(GetValue<float>(Context, &X, X), GetValue<float>(Context, &Y, Y), GetValue<float>(Context, &Z, Z));
+		SetValue(Context, Value, &Vector);
 	}
 }
 
@@ -149,7 +149,7 @@ void FMakeTransformDataflowNode::Evaluate(Dataflow::FContext& Context, const FDa
 {
 	if (Out->IsA<FTransform>(&OutTransform))
 	{
-		SetValue<FTransform>(Context,
+		SetValue(Context,
 			FTransform(FQuat::MakeFromEuler(GetValue<FVector>(Context, &InRotation))
 				, GetValue<FVector>(Context, &InTranslation)
 				, GetValue<FVector>(Context, &InScale))
@@ -161,8 +161,8 @@ void FMakeQuaternionDataflowNode::Evaluate(Dataflow::FContext& Context, const FD
 {
 	if (Out->IsA<FQuat>(&Quaternion))
 	{
-		FQuat Value(GetValue<float>(Context, &X, X), GetValue<float>(Context, &Y, Y), GetValue<float>(Context, &Z, Z), GetValue<float>(Context, &W, W));
-		SetValue<FQuat>(Context, Value, &Quaternion);
+		const FQuat Value(GetValue<float>(Context, &X, X), GetValue<float>(Context, &Y, Y), GetValue<float>(Context, &Z, Z), GetValue<float>(Context, &W, W));
+		SetValue(Context, Value, &Quaternion);
 	}
 }
 

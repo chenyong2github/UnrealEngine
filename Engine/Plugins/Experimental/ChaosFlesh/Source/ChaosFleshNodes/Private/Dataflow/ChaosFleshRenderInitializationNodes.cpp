@@ -25,7 +25,7 @@ void FBindForRenderToSkeletalMeshDataflowNode::Evaluate(Dataflow::FContext& Cont
 		// @todo(dataflow) : Implemention binding for optimus deformation pipeline. 
 		//
 
-		SetValue<DataType>(Context, InCollection, &Collection);
+		SetValue(Context, MoveTemp(InCollection), &Collection);
 	}
 }
 

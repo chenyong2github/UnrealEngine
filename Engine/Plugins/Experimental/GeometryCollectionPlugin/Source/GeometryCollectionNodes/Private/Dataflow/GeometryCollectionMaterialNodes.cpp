@@ -110,8 +110,8 @@ void FAddMaterialToCollectionDataflowNode::Evaluate(Dataflow::FContext& Context,
 			}
 		}
 
-		SetValue<TArray<TObjectPtr<UMaterial>>>(Context, MoveTemp(InMaterials), &Materials);
-		SetValue<FManagedArrayCollection>(Context, MoveTemp(InCollection), &Collection);
+		SetValue(Context, MoveTemp(InMaterials), &Materials);
+		SetValue(Context, MoveTemp(InCollection), &Collection);
 	}
 }
 
@@ -170,8 +170,8 @@ void FReAssignMaterialInCollectionDataflowNode::Evaluate(Dataflow::FContext& Con
 		}
 
 		// move the collection to the output to avoid making another copy
-		SetValue<FManagedArrayCollection>(Context, MoveTemp(InCollection), &Collection);
-		SetValue<TArray<TObjectPtr<UMaterial>>>(Context, InMaterials, &Materials);
+		SetValue(Context, MoveTemp(InCollection), &Collection);
+		SetValue(Context, InMaterials, &Materials);
 	}
 }
 
@@ -197,7 +197,7 @@ void FMaterialsInfoDataflowNode::Evaluate(Dataflow::FContext& Context, const FDa
 
 		OutputStr.Appendf(TEXT("----------------------------------------\n"));
 
-		SetValue<FString>(Context, OutputStr, &String);
+		SetValue(Context, OutputStr, &String);
 	}
 }
 
@@ -213,13 +213,13 @@ void FGetMaterialFromMaterialsArrayDataflowNode::Evaluate(Dataflow::FContext& Co
 		{
 			if (InMaterialIdx >= 0 && InMaterialIdx < InMaterials.Num())
 			{
-				SetValue<TObjectPtr<UMaterial>>(Context, InMaterials[InMaterialIdx], &Material);
+				SetValue(Context, InMaterials[InMaterialIdx], &Material);
 
 				return;
 			}
 		}
 
-		SetValue<TObjectPtr<UMaterial>>(Context, TObjectPtr<UMaterial>(), &Material);
+		SetValue(Context, TObjectPtr<UMaterial>(), &Material);
 	}
 }
 
@@ -244,7 +244,7 @@ void FSetMaterialInMaterialsArrayDataflowNode::Evaluate(Dataflow::FContext& Cont
 			}
 		}
 
-		SetValue<TArray<TObjectPtr<UMaterial>>>(Context, MoveTemp(InMaterials), &Materials);
+		SetValue(Context, MoveTemp(InMaterials), &Materials);
 	}
 }
 
@@ -253,7 +253,7 @@ void FMakeMaterialDataflowNode::Evaluate(Dataflow::FContext& Context, const FDat
 {
 	if (Out->IsA<TObjectPtr<UMaterial>>(&Material))
 	{
-		SetValue<TObjectPtr<UMaterial>>(Context, InMaterial, &Material);
+		SetValue(Context, InMaterial, &Material);
 	}
 }
 
@@ -262,7 +262,7 @@ void FMakeMaterialsArrayDataflowNode::Evaluate(Dataflow::FContext& Context, cons
 {
 	if (Out->IsA<TArray<TObjectPtr<UMaterial>>>(&Materials))
 	{
-		SetValue<TArray<TObjectPtr<UMaterial>>>(Context, TArray<TObjectPtr<UMaterial>>(), &Materials);
+		SetValue(Context, TArray<TObjectPtr<UMaterial>>(), &Materials);
 	}
 }
 

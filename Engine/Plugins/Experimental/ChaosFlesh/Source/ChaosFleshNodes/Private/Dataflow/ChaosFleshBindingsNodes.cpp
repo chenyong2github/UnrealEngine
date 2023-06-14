@@ -555,6 +555,6 @@ FGenerateSurfaceBindings::Evaluate(Dataflow::FContext& Context, const FDataflowO
 				}
 			} // end for TetMeshIdx
 		}
-		SetValue<DataType>(Context, OutCollection, &Collection);
+		SetValue(Context, MoveTemp(OutCollection), &Collection);
 	}
 }

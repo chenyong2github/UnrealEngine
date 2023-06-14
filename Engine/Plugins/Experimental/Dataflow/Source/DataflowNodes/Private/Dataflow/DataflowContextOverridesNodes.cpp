@@ -24,7 +24,7 @@ void FFloatOverrideDataflowNode::Evaluate(Dataflow::FContext& Context, const FDa
 			FString Result = Dataflow::Reflection::FindOverrideProperty< FString >(EngineContext->Owner, PropertyName, KeyName);
 			Value = FCString::Atof(*Result);
 		}
-		SetValue<float>(Context, Value, &ValueOut);
+		SetValue(Context, Value, &ValueOut);
 	}
 }
 

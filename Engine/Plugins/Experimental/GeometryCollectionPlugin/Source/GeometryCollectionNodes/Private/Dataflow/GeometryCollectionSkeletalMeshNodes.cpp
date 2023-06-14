@@ -27,8 +27,8 @@ void FSkeletonToCollectionDataflowNode::Evaluate(Dataflow::FContext& Context, co
 		{
 			FGeometryCollectionEngineConversion::AppendSkeleton(SkeletonValue.Get(), FTransform::Identity, &OutCollection);
 		}
-		SetValue<DataType>(Context, OutCollection, &Collection);
+		SetValue(Context, MoveTemp(OutCollection), &Collection);
 	}
 }
 
-									
+

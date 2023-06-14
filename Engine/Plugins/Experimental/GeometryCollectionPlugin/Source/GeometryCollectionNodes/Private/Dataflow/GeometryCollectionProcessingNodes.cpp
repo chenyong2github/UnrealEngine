@@ -24,7 +24,7 @@ void FCloseGeometryOnCollectionDataflowNode::Evaluate(Dataflow::FContext& Contex
 		// @todo(dataflow) : Implemention that closes the geometry on the collection
 		//
 
-		SetValue<DataType>(Context, InCollection, &Collection);
+		SetValue(Context, MoveTemp(InCollection), &Collection);
 	}
 }
 

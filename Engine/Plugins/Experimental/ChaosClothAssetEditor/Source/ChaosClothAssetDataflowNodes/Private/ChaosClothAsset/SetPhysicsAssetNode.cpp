@@ -30,7 +30,7 @@ void FChaosClothAssetSetPhysicsAssetNode::Evaluate(Dataflow::FContext& Context, 
 		FCollectionClothFacade CollectionClothFacade(ClothCollection);
 		CollectionClothFacade.SetPhysicsAssetPathName(PhysicsAsset.GetPathName());
 
-		SetValue<FManagedArrayCollection>(Context, *ClothCollection, &Collection);
+		SetValue(Context, MoveTemp(*ClothCollection), &Collection);
 	}
 }
 

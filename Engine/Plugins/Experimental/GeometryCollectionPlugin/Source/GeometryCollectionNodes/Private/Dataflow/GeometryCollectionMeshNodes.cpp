@@ -75,13 +75,13 @@ void FPointsToMeshDataflowNode::Evaluate(Dataflow::FContext& Context, const FDat
 				DynMesh.AppendVertex(Point);
 			}
 
-			SetValue<TObjectPtr<UDynamicMesh>>(Context, DynamicMesh, &Mesh);
-			SetValue<int32>(Context, DynamicMesh->GetTriangleCount(), &TriangleCount);
+			SetValue(Context, DynamicMesh, &Mesh);
+			SetValue(Context, DynamicMesh->GetTriangleCount(), &TriangleCount);
 		}
 		else
 		{
-			SetValue<TObjectPtr<UDynamicMesh>>(Context, NewObject<UDynamicMesh>(), &Mesh);
-			SetValue<int32>(Context, 0, &TriangleCount);
+			SetValue(Context, TObjectPtr<UDynamicMesh>(NewObject<UDynamicMesh>()), &Mesh);
+			SetValue(Context, 0, &TriangleCount);
 		}
 	}
 }
@@ -104,8 +104,8 @@ void FBoxToMeshDataflowNode::Evaluate(Dataflow::FContext& Context, const FDatafl
 		FFractureEngineUtility::ConvertBoxToVertexAndTriangleData(InBox, Vertices, Triangles);
 		FFractureEngineUtility::ConstructMesh(DynMesh, Vertices, Triangles);
 
-		SetValue<TObjectPtr<UDynamicMesh>>(Context, NewMesh, &Mesh);
-		SetValue<int32>(Context, NewMesh->GetTriangleCount(), &TriangleCount);
+		SetValue(Context, NewMesh, &Mesh);
+		SetValue(Context, NewMesh->GetTriangleCount(), &TriangleCount);
 	}
 }
 
@@ -118,11 +118,11 @@ void FMeshInfoDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflo
 		{
 			const UE::Geometry::FDynamicMesh3& DynMesh = InMesh->GetMeshRef();
 
-			SetValue<FString>(Context, DynMesh.MeshInfoString(), &InfoString);
+			SetValue(Context, DynMesh.MeshInfoString(), &InfoString);
 		}
 		else
 		{
-			SetValue<FString>(Context, FString(""), &InfoString);
+			SetValue(Context, FString(""), &InfoString);
 		}
 	}
 }
@@ -151,13 +151,13 @@ void FMeshToCollectionDataflowNode::Evaluate(Dataflow::FContext& Context, const 
 				FManagedArrayCollection NewCollection = FManagedArrayCollection();
 				NewGeometryCollection.CopyTo(&NewCollection);
 
-				SetValue<FManagedArrayCollection>(Context, NewCollection, &Collection);
+				SetValue(Context, MoveTemp(NewCollection), &Collection);
 
 				return;
 			}
 		}
 
-		SetValue<FManagedArrayCollection>(Context, FManagedArrayCollection(), &Collection);
+		SetValue(Context, FManagedArrayCollection(), &Collection);
 	}
 }
 
@@ -201,13 +201,13 @@ void FCollectionToMeshDataflowNode::Evaluate(Dataflow::FContext& Context, const 
 					ConverterToDynamicMesh.Convert(&MeshDescription, DynMesh);
 				}
 
-				SetValue<TObjectPtr<UDynamicMesh>>(Context, NewMesh, &Mesh);
+				SetValue(Context, NewMesh, &Mesh);
 
 				return;
 			}
 		}
 
-		SetValue<TObjectPtr<UDynamicMesh>>(Context, NewObject<UDynamicMesh>(), &Mesh);
+		SetValue(Context, TObjectPtr<UDynamicMesh>(NewObject<UDynamicMesh>()), &Mesh);
 	}
 #endif
 }
@@ -229,11 +229,11 @@ void FStaticMeshToMeshDataflowNode::Evaluate(Dataflow::FContext& Context, const 
 				ConverterToDynamicMesh.Convert(MeshDescription, DynMesh);
 			}
 
-			SetValue<TObjectPtr<UDynamicMesh>>(Context, NewMesh, &Mesh);
+			SetValue(Context, NewMesh, &Mesh);
 		}
 		else
 		{
-			SetValue<TObjectPtr<UDynamicMesh>>(Context, NewObject<UDynamicMesh>(), &Mesh);
+			SetValue(Context, TObjectPtr<UDynamicMesh>(NewObject<UDynamicMesh>()), &Mesh);
 		}
 	}
 #endif
@@ -266,14 +266,14 @@ void FMeshAppendDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataf
 					UE::Geometry::FMeshIndexMappings IndexMaps2;
 					MeshEditor.AppendMesh(&DynMesh2, IndexMaps2);
 
-					SetValue<TObjectPtr<UDynamicMesh>>(Context, NewMesh, &Mesh);
+					SetValue(Context, NewMesh, &Mesh);
 
 					return;
 				}
 			}
 		}
 
-		SetValue<TObjectPtr<UDynamicMesh>>(Context, NewObject<UDynamicMesh>(), &Mesh);
+		SetValue(Context, TObjectPtr<UDynamicMesh>(NewObject<UDynamicMesh>()), &Mesh);
 	}
 }
 
@@ -318,7 +318,7 @@ void FMeshBooleanDataflowNode::Evaluate(Dataflow::FContext& Context, const FData
 
 					if (Boolean.Compute())
 					{
-						SetValue<TObjectPtr<UDynamicMesh>>(Context, NewMesh, &Mesh);
+						SetValue(Context, NewMesh, &Mesh);
 
 						return;
 					}
@@ -326,7 +326,7 @@ void FMeshBooleanDataflowNode::Evaluate(Dataflow::FContext& Context, const FData
 			}
 		}
 
-		SetValue<TObjectPtr<UDynamicMesh>>(Context, NewObject<UDynamicMesh>(), &Mesh);
+		SetValue(Context, TObjectPtr<UDynamicMesh>(NewObject<UDynamicMesh>()), &Mesh);
 	}
 }
 
@@ -366,13 +366,13 @@ void FMeshCopyToPointsDataflowNode::Evaluate(Dataflow::FContext& Context, const 
 					MeshEditor.AppendMesh(&DynMeshTemp, IndexMaps);
 				}
 
-				SetValue<TObjectPtr<UDynamicMesh>>(Context, NewMesh, &Mesh);
+				SetValue(Context, NewMesh, &Mesh);
 
 				return;
 			}
 		}
 
-		SetValue<TObjectPtr<UDynamicMesh>>(Context, NewObject<UDynamicMesh>(), &Mesh);
+		SetValue(Context, TObjectPtr<UDynamicMesh>(NewObject<UDynamicMesh>()), &Mesh);
 	}
 }
 
@@ -383,33 +383,33 @@ void FGetMeshDataDataflowNode::Evaluate(Dataflow::FContext& Context, const FData
 	{
 		if (const TObjectPtr<const UDynamicMesh> InMesh = GetValue<TObjectPtr<UDynamicMesh>>(Context, &Mesh))
 		{
-			SetValue<int32>(Context, InMesh->GetMeshRef().VertexCount(), &VertexCount);
+			SetValue(Context, InMesh->GetMeshRef().VertexCount(), &VertexCount);
 		}
 		else
 		{
-			SetValue<int32>(Context, 0, &VertexCount);
+			SetValue(Context, 0, &VertexCount);
 		}
 	}
 	else if (Out->IsA<int32>(&EdgeCount))
 	{
 		if (const TObjectPtr<const UDynamicMesh> InMesh = GetValue<TObjectPtr<UDynamicMesh>>(Context, &Mesh))
 		{
-			SetValue<int32>(Context, InMesh->GetMeshRef().EdgeCount(), &EdgeCount);
+			SetValue(Context, InMesh->GetMeshRef().EdgeCount(), &EdgeCount);
 		}
 		else
 		{
-			SetValue<int32>(Context, 0, &EdgeCount);
+			SetValue(Context, 0, &EdgeCount);
 		}
 	}
 	else if (Out->IsA<int32>(&TriangleCount))
 	{
 		if (const TObjectPtr<const UDynamicMesh> InMesh = GetValue<TObjectPtr<UDynamicMesh>>(Context, &Mesh))
 		{
-			SetValue<int32>(Context, InMesh->GetMeshRef().TriangleCount(), &TriangleCount);
+			SetValue(Context, InMesh->GetMeshRef().TriangleCount(), &TriangleCount);
 		}
 		else
 		{
-			SetValue<int32>(Context, 0, &TriangleCount);
+			SetValue(Context, 0, &TriangleCount);
 		}
 	}
 }

@@ -189,16 +189,22 @@ struct DATAFLOWCORE_API FDataflowNode
 	/**
 	*   SetValue(...)
 	*
-	*	Set the value of the Reference output.
+	*   Set the value of the Reference output.
+	* 
+	*   Note: If the compiler errors out with "You cannot bind an lvalue to an rvalue reference", then simply remove
+	*         the explicit template parameter from the function call to allow for a const reference type to be deducted.
+	*         const int32 Value = 0; SetValue<int32>(Context, Value, &Reference);  // Error: You cannot bind an lvalue to an rvalue reference
+	*         const int32 Value = 0; SetValue(Context, Value, &Reference);  // Fine
+	*         const int32 Value = 0; SetValue<const int32&>(Context, Value, &Reference);  // Fine
 	* 
 	*   @param Context : The evaluation context that holds the data store.
 	*   @param Value : The value to store in the contexts data store. 
 	*   @param Reference : Pointer to a member of this node that corresponds with the output to set. 
 	*/
-	template<class T> void SetValue(Dataflow::FContext& Context, const T& Value, const T* Reference) const
+	template<class T> void SetValue(Dataflow::FContext& Context, T&& Value, const typename TDecay<T>::Type* Reference) const
 	{
 		checkSlow(FindOutput(Reference));
-		FindOutput(Reference)->template SetValue<T>(Value, Context);
+		FindOutput(Reference)->SetValue(Forward<T>(Value), Context);
 	}
 
 	/**

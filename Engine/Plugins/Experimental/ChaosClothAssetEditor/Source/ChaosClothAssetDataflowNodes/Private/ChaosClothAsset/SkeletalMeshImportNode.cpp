@@ -37,7 +37,7 @@ void FChaosClothAssetSkeletalMeshImportNode::Evaluate(Dataflow::FContext& Contex
 			const bool bIsValidLOD = ImportedModel && ImportedModel->LODModels.IsValidIndex(LODIndex);
 			if (!ensureAlways(bIsValidLOD))
 			{
-				SetValue<FManagedArrayCollection>(Context, *ClothCollection, &Collection);
+				SetValue(Context, MoveTemp(*ClothCollection), &Collection);
 				return;
 			}
 			const FSkeletalMeshLODModel &LODModel = ImportedModel->LODModels[LODIndex];
@@ -45,7 +45,7 @@ void FChaosClothAssetSkeletalMeshImportNode::Evaluate(Dataflow::FContext& Contex
 			const bool bIsValidSection = LODModel.Sections.IsValidIndex(SectionIndex);;
 			if (!ensureAlways(bIsValidSection))
 			{
-				SetValue<FManagedArrayCollection>(Context, *ClothCollection, &Collection);	
+				SetValue(Context, MoveTemp(*ClothCollection), &Collection);
 				return;
 			}
 
@@ -75,7 +75,7 @@ void FChaosClothAssetSkeletalMeshImportNode::Evaluate(Dataflow::FContext& Contex
 				ClothFacade.SetSkeletonAssetPathName(Skeleton->GetPathName());
 			}
 		}
-		SetValue<FManagedArrayCollection>(Context, *ClothCollection, &Collection);	
+		SetValue(Context, MoveTemp(*ClothCollection), &Collection);
 	}
 }
 

@@ -36,7 +36,7 @@ void FTransformCollectionAttributeDataflowNode::Evaluate(Dataflow::FContext& Con
 				Vertices[i] = UEVertf(FinalTransform.TransformPosition(UEVertd(Vertices[i])));
 			}
 		}
-		SetValue<DataType>(Context, CollectionValue, &Collection);
+		SetValue(Context, MoveTemp(CollectionValue), &Collection);
 
 	}
 }

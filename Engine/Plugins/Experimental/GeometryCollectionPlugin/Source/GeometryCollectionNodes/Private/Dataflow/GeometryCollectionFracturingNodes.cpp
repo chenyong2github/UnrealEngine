@@ -68,12 +68,12 @@ void FUniformScatterPointsDataflowNode::Evaluate(Dataflow::FContext& Context, co
 				PointsArr.Emplace(BBox.Min + FVector(RandStream.FRand(), RandStream.FRand(), RandStream.FRand()) * Extent);
 			}
 
-			SetValue<TArray<FVector>>(Context, PointsArr, &Points);
+			SetValue(Context, MoveTemp(PointsArr), &Points);
 		}
 		else
 		{
 			// ERROR: Invalid BoundingBox input
-			SetValue<TArray<FVector>>(Context, TArray<FVector>(), &Points);
+			SetValue(Context, TArray<FVector>(), &Points);
 		}
 	}
 }
@@ -104,7 +104,7 @@ void FRadialScatterPointsDataflowNode::Evaluate(Dataflow::FContext& Context, con
 			}
 		}
 
-		SetValue<TArray<FVector>>(Context, PointsArr, &Points);
+		SetValue(Context, MoveTemp(PointsArr), &Points);
 	}
 }
 
@@ -137,14 +137,14 @@ void FVoronoiFractureDataflowNode::Evaluate(Dataflow::FContext& Context, const F
 					AddSamplesForCollision,
 					GetValue<float>(Context, &CollisionSampleSpacing));
 
-				SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
+				SetValue(Context, MoveTemp(InCollection), &Collection);
 
 				return;
 			}
 		}
 
 		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
-		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
+		SetValue(Context, InCollection, &Collection);
 	}
 }
 
@@ -176,14 +176,14 @@ void FPlaneCutterDataflowNode::Evaluate(Dataflow::FContext& Context, const FData
 					GetValue<bool>(Context, &AddSamplesForCollision),
 					GetValue<float>(Context, &CollisionSampleSpacing));
 
-				SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
+				SetValue(Context, MoveTemp(InCollection), &Collection);
 
 				return;
 			}
 		}
 
 		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
-		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
+		SetValue(Context, InCollection, &Collection);
 	}
 }
 

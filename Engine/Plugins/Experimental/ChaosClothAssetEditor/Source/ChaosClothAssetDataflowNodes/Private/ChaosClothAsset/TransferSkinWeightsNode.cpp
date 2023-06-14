@@ -206,7 +206,7 @@ void FChaosClothAssetTransferSkinWeightsNode::Evaluate(Dataflow::FContext& Conte
 			if (!InputSkeletalMesh->IsValidLODIndex(SkeletalMeshLOD))
 			{
 				UE::Chaos::ClothAsset::DataflowNodes::LogAndToastWarning(LOCTEXT("Warning_TransferWeightsInvalidSkeletalMeshLOD", "TransferSkinWeightsNode: The specified input SkeletalMesh LOD is not valid."));
-				SetValue<FManagedArrayCollection>(Context, *ClothCollection, &Collection);
+				SetValue(Context, MoveTemp(*ClothCollection), &Collection);
 				return;
 			}
 
@@ -248,7 +248,7 @@ void FChaosClothAssetTransferSkinWeightsNode::Evaluate(Dataflow::FContext& Conte
 			}
 		}
 
-		SetValue<FManagedArrayCollection>(Context, *ClothCollection, &Collection);
+		SetValue(Context, MoveTemp(*ClothCollection), &Collection);
 	}
 }
 

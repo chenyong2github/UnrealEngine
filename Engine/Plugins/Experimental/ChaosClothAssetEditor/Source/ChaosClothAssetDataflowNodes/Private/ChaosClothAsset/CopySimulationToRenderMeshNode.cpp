@@ -38,7 +38,7 @@ void FChaosClothAssetCopySimulationToRenderMeshNode::Evaluate(Dataflow::FContext
 		// Copy the mesh data
 		FClothGeometryTools::CopySimMeshToRenderMesh(ClothCollection, MaterialPathName, bGenerateSingleRenderPattern);
 
-		SetValue<FManagedArrayCollection>(Context, *ClothCollection, &Collection);
+		SetValue(Context, MoveTemp(*ClothCollection), &Collection);
 	}
 }
 

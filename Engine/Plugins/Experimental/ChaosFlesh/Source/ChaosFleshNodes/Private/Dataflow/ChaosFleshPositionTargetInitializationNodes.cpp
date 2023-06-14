@@ -145,8 +145,8 @@ void FAddKinematicParticlesDataflowNode::Evaluate(Dataflow::FContext& Context, c
 				}
 			}
 		}
-		SetValue<DataType>(Context, InCollection, &Collection);
-		SetValue<TArray<int32>>(Context, TargetIndices, &TargetIndicesOut);
+		SetValue(Context, MoveTemp(InCollection), &Collection);
+		SetValue(Context, MoveTemp(TargetIndices), &TargetIndicesOut);
 	}
 }
 
@@ -263,7 +263,7 @@ void FSetVertexVertexPositionTargetBindingDataflowNode::Evaluate(Dataflow::FCont
 			}
 			
 		}
-		SetValue<DataType>(Context, InCollection, &Collection);
+		SetValue(Context, MoveTemp(InCollection), &Collection);
 	}
 }
 
@@ -379,7 +379,7 @@ void FSetVertexTetrahedraPositionTargetBindingDataflowNode::Evaluate(Dataflow::F
 				}
 			}
 		}
-		SetValue<DataType>(Context, InCollection, &Collection);
+		SetValue(Context, MoveTemp(InCollection), &Collection);
 	}
 
 
@@ -557,7 +557,7 @@ void FSetVertexTrianglePositionTargetBindingDataflowNode::Evaluate(Dataflow::FCo
 					}
 				}
 		}
-		SetValue<DataType>(Context, InCollection, &Collection);
+		SetValue(Context, MoveTemp(InCollection), &Collection);
 	}
 }
 
@@ -888,6 +888,6 @@ void FSetFleshBonePositionTargetBindingDataflowNode::Evaluate(Dataflow::FContext
 				}
 			}
 		}
-		SetValue<DataType>(Context, InCollection, &Collection);
+		SetValue(Context, MoveTemp(InCollection), &Collection);
 	}
 }

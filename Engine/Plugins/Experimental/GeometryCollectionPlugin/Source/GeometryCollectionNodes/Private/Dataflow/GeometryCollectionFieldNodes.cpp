@@ -254,9 +254,9 @@ void FRadialFalloffFieldDataflowNode::Evaluate(Dataflow::FContext& Context, cons
 				NewFieldFloatResult);
 
 			// Set the outputs
-			SetValue<TArray<float>>(Context, NewFieldFloatResult, &FieldFloatResult);
+			SetValue<TArray<float>>(Context, MoveTemp(NewFieldFloatResult), &FieldFloatResult);
 			SetValue<TArray<int32>>(Context, TArray<int32>(), &FieldRemap);
-			SetValue<FDataflowVertexSelection>(Context, NewFieldSelectionMask, &FieldSelectionMask);
+			SetValue<FDataflowVertexSelection>(Context, MoveTemp(NewFieldSelectionMask), &FieldSelectionMask);
 			SetValue<int32>(Context, InSamplePositions.Num(), &NumSamplePositions);
 
 			return;
@@ -298,9 +298,9 @@ void FRadialFalloffFieldDataflowNode::Evaluate(Dataflow::FContext& Context, cons
 					NewFieldFloatResult);
 
 				// Set the outputs
-				SetValue<TArray<float>>(Context, NewFieldFloatResult, &FieldFloatResult);
-				SetValue<TArray<int32>>(Context, NewRemapArray, &FieldRemap);
-				SetValue<FDataflowVertexSelection>(Context, NewFieldSelectionMask, &FieldSelectionMask);
+				SetValue<TArray<float>>(Context, MoveTemp(NewFieldFloatResult), &FieldFloatResult);
+				SetValue<TArray<int32>>(Context, MoveTemp(NewRemapArray), &FieldRemap);
+				SetValue<FDataflowVertexSelection>(Context, MoveTemp(NewFieldSelectionMask), &FieldSelectionMask);
 				SetValue<int32>(Context, InSamplePositions.Num(), &NumSamplePositions);
 
 				return;
@@ -482,9 +482,9 @@ void FBoxFalloffFieldDataflowNode::Evaluate(Dataflow::FContext& Context, const F
 				NewFieldFloatResult);
 
 			// Set the outputs
-			SetValue<TArray<float>>(Context, NewFieldFloatResult, &FieldFloatResult);
+			SetValue<TArray<float>>(Context, MoveTemp(NewFieldFloatResult), &FieldFloatResult);
 			SetValue<TArray<int32>>(Context, TArray<int32>(), &FieldRemap);
-			SetValue<FDataflowVertexSelection>(Context, NewFieldSelectionMask, &FieldSelectionMask);
+			SetValue<FDataflowVertexSelection>(Context, MoveTemp(NewFieldSelectionMask), &FieldSelectionMask);
 			SetValue<int32>(Context, InSamplePositions.Num(), &NumSamplePositions);
 
 			return;
@@ -526,9 +526,9 @@ void FBoxFalloffFieldDataflowNode::Evaluate(Dataflow::FContext& Context, const F
 					NewFieldFloatResult);
 
 				// Set the outputs
-				SetValue<TArray<float>>(Context, NewFieldFloatResult, &FieldFloatResult);
-				SetValue<TArray<int32>>(Context, NewRemapArray, &FieldRemap);
-				SetValue<FDataflowVertexSelection>(Context, NewFieldSelectionMask, &FieldSelectionMask);
+				SetValue<TArray<float>>(Context, MoveTemp(NewFieldFloatResult), &FieldFloatResult);
+				SetValue<TArray<int32>>(Context, MoveTemp(NewRemapArray), &FieldRemap);
+				SetValue<FDataflowVertexSelection>(Context, MoveTemp(NewFieldSelectionMask), &FieldSelectionMask);
 				SetValue<int32>(Context, InSamplePositions.Num(), &NumSamplePositions);
 
 				return;
@@ -702,9 +702,9 @@ void FPlaneFalloffFieldDataflowNode::Evaluate(Dataflow::FContext& Context, const
 				NewFieldFloatResult);
 
 			// Set the outputs
-			SetValue<TArray<float>>(Context, NewFieldFloatResult, &FieldFloatResult);
+			SetValue<TArray<float>>(Context, MoveTemp(NewFieldFloatResult), &FieldFloatResult);
 			SetValue<TArray<int32>>(Context, TArray<int32>(), &FieldRemap);
-			SetValue<FDataflowVertexSelection>(Context, NewFieldSelectionMask, &FieldSelectionMask);
+			SetValue<FDataflowVertexSelection>(Context, MoveTemp(NewFieldSelectionMask), &FieldSelectionMask);
 			SetValue<int32>(Context, InSamplePositions.Num(), &NumSamplePositions);
 
 			return;
@@ -748,9 +748,9 @@ void FPlaneFalloffFieldDataflowNode::Evaluate(Dataflow::FContext& Context, const
 					NewFieldFloatResult);
 
 				// Set the outputs
-				SetValue<TArray<float>>(Context, NewFieldFloatResult, &FieldFloatResult);
-				SetValue<TArray<int32>>(Context, NewRemapArray, &FieldRemap);
-				SetValue<FDataflowVertexSelection>(Context, NewFieldSelectionMask, &FieldSelectionMask);
+				SetValue<TArray<float>>(Context, MoveTemp(NewFieldFloatResult), &FieldFloatResult);
+				SetValue<TArray<int32>>(Context, MoveTemp(NewRemapArray), &FieldRemap);
+				SetValue<FDataflowVertexSelection>(Context, MoveTemp(NewFieldSelectionMask), &FieldSelectionMask);
 				SetValue<int32>(Context, InSamplePositions.Num(), &NumSamplePositions);
 
 				return;
@@ -864,7 +864,7 @@ void FRadialIntMaskFieldDataflowNode::Evaluate(Dataflow::FContext& Context, cons
 				NewFieldIntResult);
 
 			// Set the outputs
-			SetValue<TArray<int32>>(Context, NewFieldIntResult, &FieldIntResult);
+			SetValue<TArray<int32>>(Context, MoveTemp(NewFieldIntResult), &FieldIntResult);
 			SetValue<TArray<int32>>(Context, TArray<int32>(), &FieldRemap);
 			SetValue<int32>(Context, InSamplePositions.Num(), &NumSamplePositions);
 
@@ -896,8 +896,8 @@ void FRadialIntMaskFieldDataflowNode::Evaluate(Dataflow::FContext& Context, cons
 					NewFieldIntResult);
 
 				// Set the outputs
-				SetValue<TArray<int32>>(Context, NewFieldIntResult, &FieldIntResult);
-				SetValue<TArray<int32>>(Context, NewRemapArray, &FieldRemap);
+				SetValue<TArray<int32>>(Context, MoveTemp(NewFieldIntResult), &FieldIntResult);
+				SetValue<TArray<int32>>(Context, MoveTemp(NewRemapArray), &FieldRemap);
 				SetValue<int32>(Context, InSamplePositions.Num(), &NumSamplePositions);
 
 				return;
@@ -984,7 +984,7 @@ void FUniformScalarFieldDataflowNode::Evaluate(Dataflow::FContext& Context, cons
 			UniformScalarFieldProcess(InSamplePositions, InMagnitude, NewFieldFloatResult);
 
 			// Set the outputs
-			SetValue<TArray<float>>(Context, NewFieldFloatResult, &FieldFloatResult);
+			SetValue<TArray<float>>(Context, MoveTemp(NewFieldFloatResult), &FieldFloatResult);
 			SetValue<TArray<int32>>(Context, TArray<int32>(), &FieldRemap);
 			SetValue<int32>(Context, InSamplePositions.Num(), &NumSamplePositions);
 
@@ -1009,8 +1009,8 @@ void FUniformScalarFieldDataflowNode::Evaluate(Dataflow::FContext& Context, cons
 				UniformScalarFieldProcess(NewSamplePositions, InMagnitude, NewFieldFloatResult);
 
 				// Set the outputs
-				SetValue<TArray<float>>(Context, NewFieldFloatResult, &FieldFloatResult);
-				SetValue<TArray<int32>>(Context, NewRemapArray, &FieldRemap);
+				SetValue<TArray<float>>(Context, MoveTemp(NewFieldFloatResult), &FieldFloatResult);
+				SetValue<TArray<int32>>(Context, MoveTemp(NewRemapArray), &FieldRemap);
 				SetValue<int32>(Context, InSamplePositions.Num(), &NumSamplePositions);
 
 				return;
@@ -1100,7 +1100,7 @@ void FUniformVectorFieldDataflowNode::Evaluate(Dataflow::FContext& Context, cons
 			UniformVectorFieldProcess(InSamplePositions, InMagnitude, InDirection, NewFieldVectorResult);
 
 			// Set the outputs
-			SetValue<TArray<FVector>>(Context, NewFieldVectorResult, &FieldVectorResult);
+			SetValue<TArray<FVector>>(Context, MoveTemp(NewFieldVectorResult), &FieldVectorResult);
 			SetValue<TArray<int32>>(Context, TArray<int32>(), &FieldRemap);
 			SetValue<int32>(Context, InSamplePositions.Num(), &NumSamplePositions);
 
@@ -1125,8 +1125,8 @@ void FUniformVectorFieldDataflowNode::Evaluate(Dataflow::FContext& Context, cons
 				UniformVectorFieldProcess(NewSamplePositions, InMagnitude, InDirection, NewFieldVectorResult);
 
 				// Set the outputs
-				SetValue<TArray<FVector>>(Context, NewFieldVectorResult, &FieldVectorResult);
-				SetValue<TArray<int32>>(Context, NewRemapArray, &FieldRemap);
+				SetValue<TArray<FVector>>(Context, MoveTemp(NewFieldVectorResult), &FieldVectorResult);
+				SetValue<TArray<int32>>(Context, MoveTemp(NewRemapArray), &FieldRemap);
 				SetValue<int32>(Context, InSamplePositions.Num(), &NumSamplePositions);
 
 				return;
@@ -1216,7 +1216,7 @@ void FRadialVectorFieldDataflowNode::Evaluate(Dataflow::FContext& Context, const
 			RadialVectorFieldProcess(InSamplePositions, InMagnitude, InPosition, NewFieldVectorResult);
 
 			// Set the outputs
-			SetValue<TArray<FVector>>(Context, NewFieldVectorResult, &FieldVectorResult);
+			SetValue<TArray<FVector>>(Context, MoveTemp(NewFieldVectorResult), &FieldVectorResult);
 			SetValue<TArray<int32>>(Context, TArray<int32>(), &FieldRemap);
 			SetValue<int32>(Context, InSamplePositions.Num(), &NumSamplePositions);
 
@@ -1241,8 +1241,8 @@ void FRadialVectorFieldDataflowNode::Evaluate(Dataflow::FContext& Context, const
 				RadialVectorFieldProcess(NewSamplePositions, InMagnitude, InPosition, NewFieldVectorResult);
 
 				// Set the outputs
-				SetValue<TArray<FVector>>(Context, NewFieldVectorResult, &FieldVectorResult);
-				SetValue<TArray<int32>>(Context, NewRemapArray, &FieldRemap);
+				SetValue<TArray<FVector>>(Context, MoveTemp(NewFieldVectorResult), &FieldVectorResult);
+				SetValue<TArray<int32>>(Context, MoveTemp(NewRemapArray), &FieldRemap);
 				SetValue<int32>(Context, InSamplePositions.Num(), &NumSamplePositions);
 
 				return;
@@ -1329,7 +1329,7 @@ void FRandomVectorFieldDataflowNode::Evaluate(Dataflow::FContext& Context, const
 			RandomVectorFieldProcess(InSamplePositions, InMagnitude, NewFieldVectorResult);
 
 			// Set the outputs
-			SetValue<TArray<FVector>>(Context, NewFieldVectorResult, &FieldVectorResult);
+			SetValue<TArray<FVector>>(Context, MoveTemp(NewFieldVectorResult), &FieldVectorResult);
 			SetValue<TArray<int32>>(Context, TArray<int32>(), &FieldRemap);
 			SetValue<int32>(Context, InSamplePositions.Num(), &NumSamplePositions);
 
@@ -1354,8 +1354,8 @@ void FRandomVectorFieldDataflowNode::Evaluate(Dataflow::FContext& Context, const
 				RandomVectorFieldProcess(NewSamplePositions, InMagnitude, NewFieldVectorResult);
 
 				// Set the outputs
-				SetValue<TArray<FVector>>(Context, NewFieldVectorResult, &FieldVectorResult);
-				SetValue<TArray<int32>>(Context, NewRemapArray, &FieldRemap);
+				SetValue<TArray<FVector>>(Context, MoveTemp(NewFieldVectorResult), &FieldVectorResult);
+				SetValue<TArray<int32>>(Context, MoveTemp(NewRemapArray), &FieldRemap);
 				SetValue<int32>(Context, InSamplePositions.Num(), &NumSamplePositions);
 
 				return;
@@ -1448,7 +1448,7 @@ void FNoiseFieldDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataf
 			NoiseFieldProcess(InSamplePositions, InMinRange, InMaxRange, InTransform, NewFieldFloatResult);
 
 			// Set the outputs
-			SetValue<TArray<float>>(Context, NewFieldFloatResult, &FieldFloatResult);
+			SetValue<TArray<float>>(Context, MoveTemp(NewFieldFloatResult), &FieldFloatResult);
 			SetValue<TArray<int32>>(Context, TArray<int32>(), &FieldRemap);
 			SetValue<int32>(Context, InSamplePositions.Num(), &NumSamplePositions);
 
@@ -1473,8 +1473,8 @@ void FNoiseFieldDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataf
 				NoiseFieldProcess(NewSamplePositions, InMinRange, InMaxRange, InTransform, NewFieldFloatResult);
 
 				// Set the outputs
-				SetValue<TArray<float>>(Context, NewFieldFloatResult, &FieldFloatResult);
-				SetValue<TArray<int32>>(Context, NewRemapArray, &FieldRemap);
+				SetValue<TArray<float>>(Context, MoveTemp(NewFieldFloatResult), &FieldFloatResult);
+				SetValue<TArray<int32>>(Context, MoveTemp(NewRemapArray), &FieldRemap);
 				SetValue<int32>(Context, InSamplePositions.Num(), &NumSamplePositions);
 
 				return;
@@ -1561,7 +1561,7 @@ void FUniformIntegerFieldDataflowNode::Evaluate(Dataflow::FContext& Context, con
 			UniformIntegerFieldProcess(InSamplePositions, InMagnitude, NewFieldIntResult);
 
 			// Set the outputs
-			SetValue<TArray<int32>>(Context, NewFieldIntResult, &FieldIntResult);
+			SetValue<TArray<int32>>(Context, MoveTemp(NewFieldIntResult), &FieldIntResult);
 			SetValue<TArray<int32>>(Context, TArray<int32>(), &FieldRemap);
 			SetValue<int32>(Context, InSamplePositions.Num(), &NumSamplePositions);
 
@@ -1586,8 +1586,8 @@ void FUniformIntegerFieldDataflowNode::Evaluate(Dataflow::FContext& Context, con
 				UniformIntegerFieldProcess(NewSamplePositions, InMagnitude, NewFieldIntResult);
 
 				// Set the outputs
-				SetValue<TArray<int32>>(Context, NewFieldIntResult, &FieldIntResult);
-				SetValue<TArray<int32>>(Context, NewRemapArray, &FieldRemap);
+				SetValue<TArray<int32>>(Context, MoveTemp(NewFieldIntResult), &FieldIntResult);
+				SetValue<TArray<int32>>(Context, MoveTemp(NewRemapArray), &FieldRemap);
 				SetValue<int32>(Context, InSamplePositions.Num(), &NumSamplePositions);
 
 				return;
@@ -1704,7 +1704,7 @@ void FWaveScalarFieldDataflowNode::Evaluate(Dataflow::FContext& Context, const F
 				NewFieldFloatResult);
 
 			// Set the outputs
-			SetValue<TArray<float>>(Context, NewFieldFloatResult, &FieldFloatResult);
+			SetValue<TArray<float>>(Context, MoveTemp(NewFieldFloatResult), &FieldFloatResult);
 			SetValue<TArray<int32>>(Context, TArray<int32>(), &FieldRemap);
 			SetValue<int32>(Context, InSamplePositions.Num(), &NumSamplePositions);
 
@@ -1737,8 +1737,8 @@ void FWaveScalarFieldDataflowNode::Evaluate(Dataflow::FContext& Context, const F
 					NewFieldFloatResult);
 
 				// Set the outputs
-				SetValue<TArray<float>>(Context, NewFieldFloatResult, &FieldFloatResult);
-				SetValue<TArray<int32>>(Context, NewRemapArray, &FieldRemap);
+				SetValue<TArray<float>>(Context, MoveTemp(NewFieldFloatResult), &FieldFloatResult);
+				SetValue<TArray<int32>>(Context, MoveTemp(NewRemapArray), &FieldRemap);
 				SetValue<int32>(Context, InSamplePositions.Num(), &NumSamplePositions);
 
 				return;
@@ -1908,8 +1908,8 @@ void FSumScalarFieldDataflowNode::Evaluate(Dataflow::FContext& Context, const FD
 					Magnitude,
 					bSwapInputs);
 
-				SetValue<TArray<float>>(Context, NewFieldFloatOutput, &FieldFloatResult);
-				SetValue<TArray<int32>>(Context, NewRemapArray, &FieldRemap);
+				SetValue<TArray<float>>(Context, MoveTemp(NewFieldFloatOutput), &FieldFloatResult);
+				SetValue<TArray<int32>>(Context, MoveTemp(NewRemapArray), &FieldRemap);
 
 				return;
 			}
@@ -1933,7 +1933,7 @@ void FSumScalarFieldDataflowNode::Evaluate(Dataflow::FContext& Context, const FD
 					Magnitude,
 					bSwapInputs);
 
-				SetValue<TArray<float>>(Context, NewFieldFloatOutput, &FieldFloatResult);
+				SetValue<TArray<float>>(Context, MoveTemp(NewFieldFloatOutput), &FieldFloatResult);
 				SetValue<TArray<int32>>(Context, TArray<int32>(), &FieldRemap);
 
 				return;
@@ -2149,8 +2149,8 @@ void FSumVectorFieldDataflowNode::Evaluate(Dataflow::FContext& Context, const FD
 						Magnitude,
 						bSwapVectorInputs);
 
-					SetValue<TArray<FVector>>(Context, NewFieldVectorResult, &FieldVectorResult);
-					SetValue<TArray<int32>>(Context, NewRemapArray, &FieldRemap);
+					SetValue<TArray<FVector>>(Context, MoveTemp(NewFieldVectorResult), &FieldVectorResult);
+					SetValue<TArray<int32>>(Context, MoveTemp(NewRemapArray), &FieldRemap);
 
 					return;
 				}
@@ -2175,7 +2175,7 @@ void FSumVectorFieldDataflowNode::Evaluate(Dataflow::FContext& Context, const FD
 						Magnitude,
 						bSwapVectorInputs);
 
-					SetValue<TArray<FVector>>(Context, NewFieldVectorResult, &FieldVectorResult);
+					SetValue<TArray<FVector>>(Context, MoveTemp(NewFieldVectorResult), &FieldVectorResult);
 					SetValue<TArray<int32>>(Context, TArray<int32>(), &FieldRemap);
 
 					return;
@@ -2236,8 +2236,8 @@ void FSumVectorFieldDataflowNode::Evaluate(Dataflow::FContext& Context, const FD
 						Magnitude,
 						bSwapVectorInputs);
 
-					SetValue<TArray<FVector>>(Context, NewFieldVectorResult, &FieldVectorResult);
-					SetValue<TArray<int32>>(Context, NewRemapArray, &FieldRemap);
+					SetValue<TArray<FVector>>(Context, MoveTemp(NewFieldVectorResult), &FieldVectorResult);
+					SetValue<TArray<int32>>(Context, MoveTemp(NewRemapArray), &FieldRemap);
 
 					return;
 				}
@@ -2262,7 +2262,7 @@ void FSumVectorFieldDataflowNode::Evaluate(Dataflow::FContext& Context, const FD
 						Magnitude,
 						bSwapVectorInputs);
 
-					SetValue<TArray<FVector>>(Context, NewFieldVectorResult, &FieldVectorResult);
+					SetValue<TArray<FVector>>(Context, MoveTemp(NewFieldVectorResult), &FieldVectorResult);
 					SetValue<TArray<int32>>(Context, TArray<int32>(), &FieldRemap);
 
 					return;
@@ -2322,8 +2322,8 @@ void FSumVectorFieldDataflowNode::Evaluate(Dataflow::FContext& Context, const FD
 						Magnitude,
 						bSwapVectorInputs);
 
-					SetValue<TArray<FVector>>(Context, NewFieldVectorResult, &FieldVectorResult);
-					SetValue<TArray<int32>>(Context, NewRemapArray, &FieldRemap);
+					SetValue<TArray<FVector>>(Context, MoveTemp(NewFieldVectorResult), &FieldVectorResult);
+					SetValue<TArray<int32>>(Context, MoveTemp(NewRemapArray), &FieldRemap);
 
 					return;
 				}
@@ -2348,7 +2348,7 @@ void FSumVectorFieldDataflowNode::Evaluate(Dataflow::FContext& Context, const FD
 						Magnitude,
 						bSwapVectorInputs);
 
-					SetValue<TArray<FVector>>(Context, NewFieldVectorResult, &FieldVectorResult);
+					SetValue<TArray<FVector>>(Context, MoveTemp(NewFieldVectorResult), &FieldVectorResult);
 					SetValue<TArray<int32>>(Context, TArray<int32>(), &FieldRemap);
 
 					return;
@@ -2415,8 +2415,8 @@ void FSumVectorFieldDataflowNode::Evaluate(Dataflow::FContext& Context, const FD
 						Magnitude,
 						bSwapVectorInputs);
 
-					SetValue<TArray<FVector>>(Context, NewFieldVectorResult, &FieldVectorResult);
-					SetValue<TArray<int32>>(Context, NewRemapArray, &FieldRemap);
+					SetValue<TArray<FVector>>(Context, MoveTemp(NewFieldVectorResult), &FieldVectorResult);
+					SetValue<TArray<int32>>(Context, MoveTemp(NewRemapArray), &FieldRemap);
 
 					return;
 				}
@@ -2442,7 +2442,7 @@ void FSumVectorFieldDataflowNode::Evaluate(Dataflow::FContext& Context, const FD
 						Magnitude,
 						bSwapVectorInputs);
 
-					SetValue<TArray<FVector>>(Context, NewFieldVectorResult, &FieldVectorResult);
+					SetValue<TArray<FVector>>(Context, MoveTemp(NewFieldVectorResult), &FieldVectorResult);
 					SetValue<TArray<int32>>(Context, TArray<int32>(), &FieldRemap);
 
 					return;
@@ -2479,7 +2479,7 @@ void FFieldMakeDenseFloatArrayDataflowNode::Evaluate(Dataflow::FContext& Context
 				}
 			}
 
-			SetValue<TArray<float>>(Context, NewFieldFloatOutput, &FieldFloatResult);
+			SetValue<TArray<float>>(Context, MoveTemp(NewFieldFloatOutput), &FieldFloatResult);
 
 			return;
 		}

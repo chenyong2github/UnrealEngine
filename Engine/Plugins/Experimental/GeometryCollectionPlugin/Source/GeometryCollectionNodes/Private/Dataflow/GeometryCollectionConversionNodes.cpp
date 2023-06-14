@@ -33,7 +33,7 @@ void FVectorToStringDataflowNode::Evaluate(Dataflow::FContext& Context, const FD
 	if (Out->IsA<FString>(&String))
 	{
 		FString Value = GetValue<FVector>(Context, &Vector).ToString();
-		SetValue<FString>(Context, Value, &String);
+		SetValue(Context, Value, &String);
 	}
 }
 
@@ -42,7 +42,7 @@ void FFloatToStringDataflowNode::Evaluate(Dataflow::FContext& Context, const FDa
 	if (Out->IsA<FString>(&String))
 	{
 		FString Value = FString::Printf(TEXT("%f"), GetValue<float>(Context, &Float));
-		SetValue<FString>(Context, Value, &String);
+		SetValue(Context, Value, &String);
 	}
 }
 
@@ -51,7 +51,7 @@ void FIntToStringDataflowNode::Evaluate(Dataflow::FContext& Context, const FData
 	if (Out->IsA<FString>(&String))
 	{
 		FString Value = FString::Printf(TEXT("%d"), GetValue<int32>(Context, &Int));
-		SetValue<FString>(Context, Value, &String);
+		SetValue(Context, Value, &String);
 	}
 }
 
@@ -60,7 +60,7 @@ void FBoolToStringDataflowNode::Evaluate(Dataflow::FContext& Context, const FDat
 	if (Out->IsA<FString>(&String))
 	{
 		FString Value = FString::Printf(TEXT("%s"), GetValue<bool>(Context, &Bool) ? TEXT("true") : TEXT("false"));
-		SetValue<FString>(Context, Value, &String);
+		SetValue(Context, Value, &String);
 	}
 }
 
@@ -120,7 +120,7 @@ void FIntToBoolDataflowNode::Evaluate(Dataflow::FContext& Context, const FDatafl
 	if (Out->IsA<bool>(&Bool))
 	{
 		bool Value = GetValue<int32>(Context, &Int, Int) == 0 ? false : true;
-		SetValue<bool>(Context, Value, &Bool);
+		SetValue(Context, Value, &Bool);
 	}
 }
 
@@ -129,7 +129,7 @@ void FBoolToIntDataflowNode::Evaluate(Dataflow::FContext& Context, const FDatafl
 	if (Out->IsA<int32>(&Int))
 	{
 		int32 Value = (int32)GetValue<bool>(Context, &Bool, Bool);
-		SetValue<int32>(Context, Value, &Int);
+		SetValue(Context, Value, &Int);
 	}
 }
 

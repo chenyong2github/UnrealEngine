@@ -105,16 +105,16 @@ void FGetCollectionFromAssetDataflowNode::Evaluate(Dataflow::FContext& Context, 
 		{
 			if (const TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> AssetCollection = CollectionAsset->GetGeometryCollection())
 			{
-				SetValue<FManagedArrayCollection>(Context, (const FManagedArrayCollection&)(*AssetCollection), &Collection);
+				SetValue(Context, (const FManagedArrayCollection&)(*AssetCollection), &Collection);
 			}
 			else
 			{
-				SetValue<FManagedArrayCollection>(Context, FManagedArrayCollection(), &Collection);
+				SetValue(Context, FManagedArrayCollection(), &Collection);
 			}
 		}
 		else
 		{
-			SetValue<FManagedArrayCollection>(Context, FManagedArrayCollection(), &Collection);
+			SetValue(Context, FManagedArrayCollection(), &Collection);
 		}
 	}
 }
@@ -132,13 +132,13 @@ void FAppendCollectionAssetsDataflowNode::Evaluate(Dataflow::FContext& Context, 
 			GeometryGroupGuidsLocal1 = GuidArray1->GetConstArray();
 		}
 		InCollection1.Append(InCollection2);
-		SetValue<DataType>(Context, InCollection1, &Collection1);
+		SetValue(Context, MoveTemp(InCollection1), &Collection1);
 		if (const TManagedArray<FString>* GuidArray2 = InCollection2.FindAttribute<FString>("Guid", FGeometryCollection::GeometryGroup))
 		{
 			GeometryGroupGuidsLocal2 = GuidArray2->GetConstArray();
 		}
-		SetValue<TArray<FString>>(Context, GeometryGroupGuidsLocal1, &GeometryGroupGuidsOut1);
-		SetValue<TArray<FString>>(Context, GeometryGroupGuidsLocal2, &GeometryGroupGuidsOut2);
+		SetValue(Context, MoveTemp(GeometryGroupGuidsLocal1), &GeometryGroupGuidsOut1);
+		SetValue(Context, MoveTemp(GeometryGroupGuidsLocal2), &GeometryGroupGuidsOut2);
 	}
 }
 
@@ -177,7 +177,7 @@ void FBoundingBoxDataflowNode::Evaluate(Dataflow::FContext& Context, const FData
 		GeometryCollection::Facades::FBoundsFacade BoundsFacade(InCollection);
 		const FBox& BoundingBoxInCollectionSpace = BoundsFacade.GetBoundingBoxInCollectionSpace();
 
-		SetValue<FBox>(Context, BoundingBoxInCollectionSpace, &BoundingBox);
+		SetValue(Context, BoundingBoxInCollectionSpace, &BoundingBox);
 	}
 }
 
@@ -188,23 +188,23 @@ void FExpandBoundingBoxDataflowNode::Evaluate(Dataflow::FContext& Context, const
 
 	if (Out->IsA<FVector>(&Min))
 	{
-		SetValue<FVector>(Context, BBox.Min, &Min);
+		SetValue(Context, BBox.Min, &Min);
 	}
 	else if (Out->IsA<FVector>(&Max))
 	{
-		SetValue<FVector>(Context, BBox.Max, &Max);
+		SetValue(Context, BBox.Max, &Max);
 	}
 	else if (Out->IsA<FVector>(&Center))
 	{
-		SetValue<FVector>(Context, BBox.GetCenter(), &Center);
+		SetValue(Context, BBox.GetCenter(), &Center);
 	}
 	else if (Out->IsA<FVector>(&HalfExtents))
 	{
-		SetValue<FVector>(Context, BBox.GetExtent(), &HalfExtents);
+		SetValue(Context, BBox.GetExtent(), &HalfExtents);
 	}
 	else if (Out->IsA<float>(&Volume))
 	{
-		SetValue<float>(Context, BBox.GetVolume(), &Volume);
+		SetValue(Context, (float)BBox.GetVolume(), &Volume);
 	}
 }
 
@@ -215,15 +215,15 @@ void FExpandVectorDataflowNode::Evaluate(Dataflow::FContext& Context, const FDat
 
 	if (Out->IsA<float>(&X))
 	{
-		SetValue<float>(Context, VectorVal.X, &X);
+		SetValue(Context, (float)VectorVal.X, &X);
 	}
 	else if (Out->IsA<float>(&Y))
 	{
-		SetValue<float>(Context, VectorVal.Y, &Y);
+		SetValue(Context, (float)VectorVal.Y, &Y);
 	}
 	else if (Out->IsA<float>(&Z))
 	{
-		SetValue<float>(Context, VectorVal.Z, &Z);
+		SetValue(Context, (float)VectorVal.Z, &Z);
 	}
 }
 
@@ -231,8 +231,8 @@ void FStringAppendDataflowNode::Evaluate(Dataflow::FContext& Context, const FDat
 {
 	if (Out->IsA<FString>(&String))
 	{
-		const FString StringOut = GetValue<FString>(Context, &String1) + GetValue<FString>(Context, &String2);
-		SetValue<FString>(Context, StringOut, &String);
+		FString StringOut = GetValue<FString>(Context, &String1) + GetValue<FString>(Context, &String2);
+		SetValue(Context, MoveTemp(StringOut), &String);
 	}
 }
 
@@ -241,7 +241,7 @@ void FHashStringDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataf
 {
 	if (Out->IsA<int32>(&Hash))
 	{
-		SetValue<int32>(Context, GetTypeHash(GetValue<FString>(Context, &String)), &Hash);
+		SetValue(Context, (int32)GetTypeHash(GetValue<FString>(Context, &String)), &Hash);
 	}
 }
 
@@ -249,7 +249,7 @@ void FHashVectorDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataf
 {
 	if (Out->IsA<int32>(&Hash))
 	{
-		SetValue<int32>(Context, GetTypeHash(GetValue<FVector>(Context, &Vector)), &Hash);
+		SetValue(Context, (int32)GetTypeHash(GetValue<FVector>(Context, &Vector)), &Hash);
 	}
 }
 
@@ -289,7 +289,7 @@ void FGetBoundingBoxesFromCollectionDataflowNode::Evaluate(Dataflow::FContext& C
 
 		}
 
-		SetValue<TArray<FBox>>(Context, BoundingBoxesArr, &BoundingBoxes);
+		SetValue(Context, MoveTemp(BoundingBoxesArr), &BoundingBoxes);
 	}
 }
 
@@ -338,7 +338,7 @@ void FGetCentroidsFromCollectionDataflowNode::Evaluate(Dataflow::FContext& Conte
 			}
 		}
 
-		SetValue<TArray<FVector>>(Context, CentroidsArr, &Centroids);
+		SetValue(Context, MoveTemp(CentroidsArr), &Centroids);
 	}
 }
 
@@ -361,7 +361,7 @@ void FTransformCollectionDataflowNode::Evaluate(Dataflow::FContext& Context, con
 		GeometryCollection::Facades::FCollectionTransformFacade TransformFacade(InCollection);
 		TransformFacade.Transform(NewTransform);
 
-		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
+		SetValue(Context, MoveTemp(InCollection), &Collection);
 	}
 }
 
@@ -385,7 +385,7 @@ void FBakeTransformsInCollectionDataflowNode::Evaluate(Dataflow::FContext& Conte
 			TransformFacade.SetBoneTransformToIdentity(TransformIdx);
 		}
 
-		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
+		SetValue(Context, MoveTemp(InCollection), &Collection);
 	}
 }
 
@@ -413,11 +413,11 @@ void FTransformMeshDataflowNode::Evaluate(Dataflow::FContext& Context, const FDa
 
 			MeshTransforms::ApplyTransform(DynamicMesh, UE::Geometry::FTransformSRT3d(NewTransform), true);
 
-			SetValue<TObjectPtr<UDynamicMesh>>(Context, NewMesh, &Mesh);
+			SetValue(Context, NewMesh, &Mesh);
 		}
 		else
 		{
-			SetValue<TObjectPtr<UDynamicMesh>>(Context, NewObject<UDynamicMesh>(), &Mesh);
+			SetValue(Context, TObjectPtr<UDynamicMesh>(NewObject<UDynamicMesh>()), &Mesh);
 		}
 	}
 }
@@ -453,11 +453,11 @@ void FCompareIntDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataf
 {
 	if (Out->IsA<bool>(&Result))
 	{
-		int32 IntAValue = GetValue<int32>(Context, &IntA);
-		int32 IntBValue = GetValue<int32>(Context, &IntB);
-		bool ResultValue = ApplyDataflowOperationComparison(IntAValue, IntBValue, Operation);
+		const int32 IntAValue = GetValue<int32>(Context, &IntA);
+		const int32 IntBValue = GetValue<int32>(Context, &IntB);
+		const bool ResultValue = ApplyDataflowOperationComparison(IntAValue, IntBValue, Operation);
 
-		SetValue<bool>(Context, ResultValue, &Result);
+		SetValue(Context, ResultValue, &Result);
 	}
 }
 
@@ -466,11 +466,11 @@ void FCompareFloatDataflowNode::Evaluate(Dataflow::FContext& Context, const FDat
 {
 	if (Out->IsA(&Result))
 	{
-		float AValue = GetValue(Context, &FloatA);
-		float BValue = GetValue(Context, &FloatB);
-		bool ResultValue = ApplyDataflowOperationComparison(AValue, BValue, Operation);
+		const float AValue = GetValue(Context, &FloatA);
+		const float BValue = GetValue(Context, &FloatB);
+		const bool ResultValue = ApplyDataflowOperationComparison(AValue, BValue, Operation);
 
-		SetValue<bool>(Context, ResultValue, &Result);
+		SetValue(Context, ResultValue, &Result);
 	}
 }
 
@@ -485,7 +485,7 @@ void FBranchDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowO
 		{
 			if (TObjectPtr<UDynamicMesh> InMeshA = GetValue<TObjectPtr<UDynamicMesh>>(Context, &MeshA))
 			{
-				SetValue<TObjectPtr<UDynamicMesh>>(Context, InMeshA, &Mesh);
+				SetValue(Context, InMeshA, &Mesh);
 
 				return;
 			}
@@ -494,13 +494,13 @@ void FBranchDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowO
 		{
 			if (TObjectPtr<UDynamicMesh> InMeshB = GetValue<TObjectPtr<UDynamicMesh>>(Context, &MeshB))
 			{
-				SetValue<TObjectPtr<UDynamicMesh>>(Context, InMeshB, &Mesh);
+				SetValue(Context, InMeshB, &Mesh);
 
 				return;
 			}
 		}
 
-		SetValue<TObjectPtr<UDynamicMesh>>(Context, NewObject<UDynamicMesh>(), &Mesh);
+		SetValue(Context, TObjectPtr<UDynamicMesh>(NewObject<UDynamicMesh>()), &Mesh);
 	}
 }
 
@@ -578,7 +578,7 @@ void FGetSchemaDataflowNode::Evaluate(Dataflow::FContext& Context, const FDatafl
 		}
 		OutputStr.Appendf(TEXT("----------------------------------------\n"));
 
-		SetValue<FString>(Context, OutputStr, &String);
+		SetValue(Context, MoveTemp(OutputStr), &String);
 	}
 }
 
@@ -618,7 +618,7 @@ void FRemoveOnBreakDataflowNode::Evaluate(Dataflow::FContext& Context, const FDa
 		}
 
 		// move the collection to the output to avoid making another copy
-		SetValue<FManagedArrayCollection>(Context, MoveTemp(InCollection), &Collection);
+		SetValue(Context, MoveTemp(InCollection), &Collection);
 	}
 }
 
@@ -649,7 +649,7 @@ void FSetAnchorStateDataflowNode::Evaluate(Dataflow::FContext& Context, const FD
 				AnchoringFacade.SetAnchored(BoneIndices, !bAnchored);
 			}
 
-			SetValue<FManagedArrayCollection>(Context, (const FManagedArrayCollection&)(*GeomCollection), &Collection);
+			SetValue(Context, MoveTemp((FManagedArrayCollection&)(*GeomCollection)), &Collection);
 		}
 	}
 }
@@ -679,7 +679,7 @@ void FProximityDataflowNode::Evaluate(Dataflow::FContext& Context, const FDatafl
 			ProximityUtility.InvalidateProximity();
 			ProximityUtility.UpdateProximity();
 
-			SetValue<FManagedArrayCollection>(Context, (const FManagedArrayCollection&)(*GeomCollection), &Collection);
+			SetValue(Context, MoveTemp((FManagedArrayCollection&)(*GeomCollection)), &Collection);
 		}
 	}
 }
@@ -695,7 +695,7 @@ void FCollectionSetPivotDataflowNode::Evaluate(Dataflow::FContext& Context, cons
 		GeometryCollection::Facades::FCollectionTransformFacade TransformFacade(InCollection);
 		TransformFacade.SetPivot(InTransform);
 
-		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
+		SetValue(Context, MoveTemp(InCollection), &Collection);
 	}
 }
 
@@ -844,7 +844,7 @@ void FAddCustomCollectionAttributeDataflowNode::Evaluate(Dataflow::FContext& Con
 			}
 		}
 
-		SetValue<FManagedArrayCollection>(Context, MoveTemp(InCollection), &Collection);
+		SetValue(Context, MoveTemp(InCollection), &Collection);
 	}
 }
 
@@ -875,7 +875,7 @@ void FGetNumElementsInCollectionGroupDataflowNode::Evaluate(Dataflow::FContext& 
 			}
 		}
 
-		SetValue<int32>(Context, OutNumElements, &NumElements);
+		SetValue(Context, OutNumElements, &NumElements);
 	}
 }
 
@@ -902,13 +902,13 @@ void FGetCollectionAttributeDataTypedDataflowNode::Evaluate(Dataflow::FContext& 
 			GroupNameToUse = FName(*CustomGroupName);
 		}
 
-		SetValue<TArray<bool>>(Context, TArray<bool>(), &BoolAttributeData);
-		SetValue<TArray<float>>(Context, TArray<float>(), &FloatAttributeData);
-		SetValue<TArray<double>>(Context, TArray<double>(), &DoubleAttributeData);
-		SetValue<TArray<int32>>(Context, TArray<int32>(), &Int32AttributeData);
-		SetValue<TArray<FString>>(Context, TArray<FString>(), &StringAttributeData);
-		SetValue<TArray<FVector3f>>(Context, TArray<FVector3f>(), &Vector3fAttributeData);
-		SetValue<TArray<FVector3d>>(Context, TArray<FVector3d>(), &Vector3dAttributeData);
+		SetValue(Context, TArray<bool>(), &BoolAttributeData);
+		SetValue(Context, TArray<float>(), &FloatAttributeData);
+		SetValue(Context, TArray<double>(), &DoubleAttributeData);
+		SetValue(Context, TArray<int32>(), &Int32AttributeData);
+		SetValue(Context, TArray<FString>(), &StringAttributeData);
+		SetValue(Context, TArray<FVector3f>(), &Vector3fAttributeData);
+		SetValue(Context, TArray<FVector3d>(), &Vector3dAttributeData);
 
 		if (GroupNameToUse.GetStringLength() > 0 && AttrName.Len() > 0)
 		{
@@ -922,37 +922,37 @@ void FGetCollectionAttributeDataTypedDataflowNode::Evaluate(Dataflow::FContext& 
 					{
 						const TManagedArray<bool>& AttributeArr = InCollection.GetAttribute<bool>(FName(*AttrName), GroupNameToUse);
 						TArray<bool> BoolArray = AttributeArr.GetAsBoolArray();
-						SetValue<TArray<bool>>(Context, MoveTemp(BoolArray), &BoolAttributeData);
+						SetValue(Context, MoveTemp(BoolArray), &BoolAttributeData);
 					}
 					else if (TypeStr == FString("Float"))
 					{
 						const TManagedArray<float>& AttributeArr = InCollection.GetAttribute<float>(FName(*AttrName), GroupNameToUse);
-						SetValue<TArray<float>>(Context, AttributeArr.GetConstArray(), &FloatAttributeData);
+						SetValue(Context, AttributeArr.GetConstArray(), &FloatAttributeData);
 					}
 					else if (TypeStr == FString("Double"))
 					{
 						const TManagedArray<double>& AttributeArr = InCollection.GetAttribute<double>(FName(*AttrName), GroupNameToUse);
-						SetValue<TArray<double>>(Context, AttributeArr.GetConstArray(), &DoubleAttributeData);
+						SetValue(Context, AttributeArr.GetConstArray(), &DoubleAttributeData);
 					}
 					else if (TypeStr == FString("Int32"))
 					{
 						const TManagedArray<int32>& AttributeArr = InCollection.GetAttribute<int32>(FName(*AttrName), GroupNameToUse);
-						SetValue<TArray<int32>>(Context, AttributeArr.GetConstArray(), &Int32AttributeData);
+						SetValue(Context, AttributeArr.GetConstArray(), &Int32AttributeData);
 					}
 					else if (TypeStr == FString("String"))
 					{
 						const TManagedArray<FString>& AttributeArr = InCollection.GetAttribute<FString>(FName(*AttrName), GroupNameToUse);
-						SetValue<TArray<FString>>(Context, AttributeArr.GetConstArray(), &StringAttributeData);
+						SetValue(Context, AttributeArr.GetConstArray(), &StringAttributeData);
 					}
 					else if (TypeStr == FString("Vector"))
 					{
 						const TManagedArray<FVector3f>& AttributeArr = InCollection.GetAttribute<FVector3f>(FName(*AttrName), GroupNameToUse);
-						SetValue<TArray<FVector3f>>(Context, AttributeArr.GetConstArray(), &Vector3fAttributeData);
+						SetValue(Context, AttributeArr.GetConstArray(), &Vector3fAttributeData);
 					}
 					else if (TypeStr == FString("Vector3d"))
 					{
 						const TManagedArray<FVector3d>& AttributeArr = InCollection.GetAttribute<FVector3d>(FName(*AttrName), GroupNameToUse);
-						SetValue<TArray<FVector3d>>(Context, AttributeArr.GetConstArray(), &Vector3dAttributeData);
+						SetValue(Context, AttributeArr.GetConstArray(), &Vector3dAttributeData);
 					}
 				}
 			}
@@ -1035,7 +1035,7 @@ void FSetCollectionAttributeDataTypedDataflowNode::Evaluate(Dataflow::FContext& 
 			}
 		}
 
-		SetValue<FManagedArrayCollection>(Context, MoveTemp(InCollection), &Collection);
+		SetValue(Context, MoveTemp(InCollection), &Collection);
 	}
 }
 
@@ -1070,14 +1070,14 @@ void FSetVertexColorInCollectionFromVertexSelectionDataflowNode::Evaluate(Datafl
 			}
 		}
 
-		SetValue<FManagedArrayCollection>(Context, MoveTemp(InCollection), &Collection);
+		SetValue(Context, MoveTemp(InCollection), &Collection);
 	}
 }
 
 void FSelectionToVertexListDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
 	const FDataflowVertexSelection& InVertexSelection = GetValue<FDataflowVertexSelection>(Context, &VertexSelection);
-	SetValue< TArray<int32> >(Context, InVertexSelection.AsArray(), &VertexList);
+	SetValue(Context, InVertexSelection.AsArray(), &VertexList);
 }
 
 void FSetVertexColorInCollectionFromFloatArrayDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
@@ -1100,7 +1100,7 @@ void FSetVertexColorInCollectionFromFloatArrayDataflowNode::Evaluate(Dataflow::F
 			}
 		}
 
-		SetValue<FManagedArrayCollection>(Context, MoveTemp(InCollection), &Collection);
+		SetValue(Context, MoveTemp(InCollection), &Collection);
 	}
 }
 
@@ -1110,7 +1110,7 @@ void FMultiplyTransformDataflowNode::Evaluate(Dataflow::FContext& Context, const
 {
 	if (Out->IsA<FTransform>(&OutTransform))
 	{
-		SetValue<FTransform>(Context,
+		SetValue(Context,
 			GetValue<FTransform>(Context, &InLeftTransform, FTransform::Identity)
 			*GetValue<FTransform>(Context, &InRightTransform, FTransform::Identity)
 			, &OutTransform);
@@ -1121,9 +1121,9 @@ void FInvertTransformDataflowNode::Evaluate(Dataflow::FContext& Context, const F
 {
 	if (Out->IsA<FTransform>(&OutTransform))
 	{
-		FTransform InXf = GetValue<FTransform>(Context, &InTransform, FTransform::Identity);
-		FTransform OutXf = InXf.Inverse();
-		SetValue<FTransform>(Context, OutXf, &OutTransform);
+		const FTransform InXf = GetValue<FTransform>(Context, &InTransform, FTransform::Identity);
+		const FTransform OutXf = InXf.Inverse();
+		SetValue(Context, OutXf, &OutTransform);
 	}
 }
 
