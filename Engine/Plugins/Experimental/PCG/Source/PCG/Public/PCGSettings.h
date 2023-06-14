@@ -44,7 +44,8 @@ enum class EPCGSettingsType : uint8
 	Subgraph,
 	Debug,
 	Generic,
-	Param
+	Param,
+	HierarchicalGeneration,
 };
 
 #if WITH_EDITOR

@@ -23,9 +23,9 @@ UPCGEditorSettings::UPCGEditorSettings(const FObjectInitializer& ObjectInitializ
 	SubgraphNodeColor = FLinearColor(1.0f, 0.05f, 0.05f);
 	ParamDataNodeColor = FLinearColor(1.0f, 0.38f, 0.02f);
 	DebugNodeColor = FLinearColor(1.0f, 0.0f, 1.0f);
+	HierarchicalGenerationNodeColor = FLinearColor(1.0f, 0.4f, 0.0f);
 
 	DefaultPinColor = FLinearColor(0.29f, 0.29f, 0.29f);
-
 	SpatialDataPinColor = FLinearColor(1.0f, 1.0f, 1.0f);
 	ConcreteDataPinColor = FLinearColor(0.45f, 0.38f, 0.96f);
 	PointDataPinColor = FLinearColor(0.05f, 0.25f, 1.0f);
@@ -55,7 +55,7 @@ FLinearColor UPCGEditorSettings::GetColor(UPCGSettings* Settings) const
 		return *Override;
 	}
 	// Otherwise, check against the classes we know
-	else if(Settings->GetType() == EPCGSettingsType::InputOutput)
+	else if (Settings->GetType() == EPCGSettingsType::InputOutput)
 	{
 		return InputOutputNodeColor;
 	}
@@ -98,6 +98,10 @@ FLinearColor UPCGEditorSettings::GetColor(UPCGSettings* Settings) const
 	else if (Settings->GetType() == EPCGSettingsType::Param)
 	{
 		return ParamDataNodeColor;
+	}
+	else if (Settings->GetType() == EPCGSettingsType::HierarchicalGeneration)
+	{
+		return HierarchicalGenerationNodeColor;
 	}
 	else
 	{
