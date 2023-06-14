@@ -4,8 +4,6 @@
 
 #include "Elements/IO/PCGExternalDataContext.h"
 
-class UPCGPointData;
-
 #if WITH_EDITOR
 #include "AbcImportSettings.h"
 #include "AbcUtilities.h"
