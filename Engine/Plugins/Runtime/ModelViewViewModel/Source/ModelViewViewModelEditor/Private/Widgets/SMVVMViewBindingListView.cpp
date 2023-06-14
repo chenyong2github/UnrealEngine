@@ -3,6 +3,7 @@
 #include "Widgets/SMVVMViewBindingListView.h"
 
 #include "Bindings/MVVMBindingHelper.h"
+#include "Blueprint/WidgetTree.h"
 #include "BlueprintEditor.h"
 #include "Details/WidgetPropertyDragDropOp.h"
 #include "Dialog/SCustomDialog.h"
@@ -774,7 +775,16 @@ private:
 					{
 						if (UWidget* OwnerWidgetPtr = WidgetPropertyDragDropOp->OwnerWidget.Get())
 						{
-							PropertyPath.SetWidgetName(OwnerWidgetPtr->GetFName());
+							// Search for the widget by its name in the widget tree
+							// If the widget is not found, we know it is the root preview widget so we use the blueprint name.
+							if (WidgetBlueprintPtr->WidgetTree->FindWidget(OwnerWidgetPtr->GetFName()))
+							{
+								PropertyPath.SetWidgetName(OwnerWidgetPtr->GetFName());
+							}
+							else
+							{
+								PropertyPath.SetWidgetName(WidgetBlueprintPtr->GetFName());
+							}
 						}
 					}
 
