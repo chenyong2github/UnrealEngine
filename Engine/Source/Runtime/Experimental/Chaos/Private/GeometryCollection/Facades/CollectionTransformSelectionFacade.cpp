@@ -628,8 +628,16 @@ namespace GeometryCollection::Facades
 		InOutSelection.SetNum(NewNumElements);
 	}
 
-	TArray<int32> FCollectionTransformSelectionFacade::SelectBySize(float SizeMin, float SizeMax, bool bInclusive, bool bInsideRange) const
+	TArray<int32> FCollectionTransformSelectionFacade::SelectBySize(float SizeMin, float SizeMax, bool bInclusive, bool bInsideRange, bool bUseRelativeSize) const
 	{
+		// if not using relative size, convert sizes to volumes and select by volume
+		if (!bUseRelativeSize)
+		{
+			float VolumeMin = SizeMin * SizeMin * SizeMin;
+			float VolumeMax = SizeMax * SizeMax * SizeMax;
+			return SelectByVolume(VolumeMin, VolumeMax, bInclusive, bInsideRange);
+		}
+
 		TArray<int32> OutSelection;
 
 		// TODO: (See also SelectByVolume) We should add a method to get the volumes without modifying the collection, and then remove this full geometrycollection copy

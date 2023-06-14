@@ -686,6 +686,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Size")
 	bool bInclusive = true;
 
+	/** Whether to use the 'Relative Size' -- i.e., the Size / Largest Bone Size. Otherwise, Size is the cube root of Volume. */
+	UPROPERTY(EditAnywhere, Category = "Size")
+	bool bUseRelativeSize = true;
+
 	/** Array of the selected bone indicies */
 	UPROPERTY(meta = (DataflowOutput, DisplayName = "TransformSelection"))
 	FDataflowTransformSelection TransformSelection;
