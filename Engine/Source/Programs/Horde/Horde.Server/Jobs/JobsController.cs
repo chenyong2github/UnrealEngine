@@ -415,7 +415,7 @@ namespace Horde.Server.Jobs
 			}
 
 			IGraph graph = await _jobService.GetGraphAsync(job);
-			bool includeCosts = streamConfig.Authorize(AdminAclAction.ViewCosts, User);
+			bool includeCosts = streamConfig.Authorize(ServerAclAction.ViewCosts, User);
 			return await CreateJobResponseAsync(job, graph, includeCosts, filter);
 		}
 
@@ -825,7 +825,7 @@ namespace Horde.Server.Jobs
 				StreamConfig? streamConfig;
 				if (_globalConfig.Value.TryGetStream(grouping.Key, out streamConfig) && streamConfig.Authorize(JobAclAction.ViewJob, User))
 				{
-					bool includeCosts = streamConfig.Authorize(AdminAclAction.ViewCosts, User);
+					bool includeCosts = streamConfig.Authorize(ServerAclAction.ViewCosts, User);
 					foreach (IJob job in grouping)
 					{
 						IGraph graph = await _jobService.GetGraphAsync(job);
@@ -1047,7 +1047,7 @@ namespace Horde.Server.Jobs
 				return Forbid(JobAclAction.ViewJob, job.StreamId);
 			}
 
-			bool includeCosts = streamConfig.Authorize(AdminAclAction.ViewCosts, User);
+			bool includeCosts = streamConfig.Authorize(ServerAclAction.ViewCosts, User);
 
 			List<object> responses = new List<object>();
 			foreach (IJobStepBatch batch in job.Batches)
@@ -1124,7 +1124,7 @@ namespace Horde.Server.Jobs
 				return Forbid(JobAclAction.ViewJob, job.StreamId);
 			}
 
-			bool includeCosts = streamConfig.Authorize(AdminAclAction.ViewCosts, User);
+			bool includeCosts = streamConfig.Authorize(ServerAclAction.ViewCosts, User);
 			foreach (IJobStepBatch batch in job.Batches)
 			{
 				if (batch.Id == batchId)

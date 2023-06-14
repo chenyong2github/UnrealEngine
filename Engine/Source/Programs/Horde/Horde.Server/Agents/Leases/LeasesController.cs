@@ -69,7 +69,7 @@ namespace Horde.Server.Agents.Leases
 				return Forbid(LeaseAclAction.ViewLeases);
 			}
 
-			bool includeCosts = _globalConfig.Value.Authorize(AdminAclAction.ViewCosts, User);
+			bool includeCosts = _globalConfig.Value.Authorize(ServerAclAction.ViewCosts, User);
 
 			List<ILease> leases;
 			if (minFinishTime == null && maxFinishTime == null)
@@ -131,7 +131,7 @@ namespace Horde.Server.Agents.Leases
 			}
 
 			double? agentRate = null;
-			if (_globalConfig.Value.Authorize(AdminAclAction.ViewCosts, User))
+			if (_globalConfig.Value.Authorize(ServerAclAction.ViewCosts, User))
 			{
 				agentRate = await _agentService.GetRateAsync(agent.Id);
 			}

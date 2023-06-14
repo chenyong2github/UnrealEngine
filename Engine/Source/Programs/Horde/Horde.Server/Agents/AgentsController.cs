@@ -100,7 +100,7 @@ namespace Horde.Server.Agents
 		async ValueTask<object> GetAgentResponseAsync(IAgent agent, PropertyFilter? filter = null)
 		{
 			double? rate = null;
-			if (_globalConfig.Value.Authorize(AdminAclAction.ViewCosts, User))
+			if (_globalConfig.Value.Authorize(ServerAclAction.ViewCosts, User))
 			{
 				rate = await _agentService.GetRateAsync(agent.Id);
 			}
@@ -317,7 +317,7 @@ namespace Horde.Server.Agents
 			List<ILease> leases = await _agentService.FindLeasesAsync(agentId, sessionId, startTime?.UtcDateTime, finishTime?.UtcDateTime, index, count);
 
 			double? agentRate = null;
-			if (_globalConfig.Value.Authorize(AdminAclAction.ViewCosts, User))
+			if (_globalConfig.Value.Authorize(ServerAclAction.ViewCosts, User))
 			{
 				agentRate = await _agentService.GetRateAsync(agentId);
 			}
@@ -360,7 +360,7 @@ namespace Horde.Server.Agents
 			}
 
 			double? agentRate = null;
-			if (_globalConfig.Value.Authorize(AdminAclAction.ViewCosts, User))
+			if (_globalConfig.Value.Authorize(ServerAclAction.ViewCosts, User))
 			{
 				agentRate = await _agentService.GetRateAsync(agentId);
 			}

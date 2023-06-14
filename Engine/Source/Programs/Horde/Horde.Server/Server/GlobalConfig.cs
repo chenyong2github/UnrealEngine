@@ -380,7 +380,7 @@ namespace Horde.Server.Server
 			}
 			else
 			{
-				return this.Authorize(AdminAclAction.Impersonate, user);
+				return this.Authorize(ServerAclAction.Impersonate, user);
 			}
 		}
 

@@ -131,7 +131,7 @@ namespace Horde.Server.Notifications
 				{
 					return BadRequest($"Invalid user id: '{subscription.UserId}'.");
 				}
-				if (authorizedUsers.Add(newUserId) && !_globalConfig.Value.Authorize(AdminAclAction.Impersonate, User))
+				if (authorizedUsers.Add(newUserId) && !_globalConfig.Value.Authorize(ServerAclAction.Impersonate, User))
 				{
 					return Forbid();
 				}

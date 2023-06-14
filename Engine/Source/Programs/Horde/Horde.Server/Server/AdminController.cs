@@ -4,8 +4,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Horde.Server.Acls;
+using Horde.Server.Projects;
+using Horde.Server.Secrets;
 using Horde.Server.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -75,27 +78,12 @@ namespace Horde.Server.Server
 		[Route("/api/v1/admin/token")]
 		public async Task<ActionResult<string>> GetTokenAsync()
 		{
-			if (!_globalConfig.Value.Authorize(AdminAclAction.IssueBearerToken, User))
+			if (!_globalConfig.Value.Authorize(ServerAclAction.IssueBearerToken, User))
 			{
-				return Forbid(AdminAclAction.IssueBearerToken);
+				return Forbid(ServerAclAction.IssueBearerToken);
 			}
 
 			return await _aclService.IssueBearerTokenAsync(User.Claims, GetDefaultExpiryTime());
-		}
-
-		/// <summary>
-		/// Returns the fully parsed config object.
-		/// </summary>
-		[HttpGet]
-		[Route("/api/v1/admin/config")]
-		public ActionResult<object> GetConfig()
-		{
-			if (!_globalConfig.Value.Authorize(AdminAclAction.AdminRead, User))
-			{
-				return Forbid(AdminAclAction.AdminRead);
-			}
-
-			return _globalConfig.Value;
 		}
 
 		/// <summary>

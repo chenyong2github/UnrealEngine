@@ -20,6 +20,7 @@ using Horde.Server.Jobs;
 using Horde.Server.Jobs.Graphs;
 using Horde.Server.Jobs.Templates;
 using Horde.Server.Logs;
+using Horde.Server.Projects;
 using Horde.Server.Utilities;
 using JetBrains.Profiler.SelfApi;
 using Microsoft.AspNetCore.Authorization;
@@ -241,14 +242,12 @@ namespace Horde.Server.Server
 	/// </summary>
 	[ApiController]
 	[Authorize]
-	public class SecureDebugController : ControllerBase
+	public class SecureDebugController : HordeControllerBase
 	{
 		private static readonly Random s_random = new ();
 		
-		private readonly AclService _aclService;
 		private readonly MongoService _mongoService;
 		private readonly JobTaskSource _jobTaskSource;
-		private readonly ITemplateCollection _templateCollection;
 		private readonly IGraphCollection _graphCollection;
 		private readonly ILogFileCollection _logFileCollection;
 		private readonly IOptions<ServerSettings> _settings;
@@ -258,14 +257,12 @@ namespace Horde.Server.Server
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public SecureDebugController(AclService aclService, MongoService mongoService, JobTaskSource jobTaskSource,
-			ITemplateCollection templateCollection, IGraphCollection graphCollection,
+		public SecureDebugController(MongoService mongoService, JobTaskSource jobTaskSource,
+			IGraphCollection graphCollection,
 			ILogFileCollection logFileCollection, IOptions<ServerSettings> settings, IOptionsSnapshot<GlobalConfig> globalConfig, ILogger<SecureDebugController> logger)
 		{
-			_aclService = aclService;
 			_mongoService = mongoService;
 			_jobTaskSource = jobTaskSource;
-			_templateCollection = templateCollection;
 			_graphCollection = graphCollection;
 			_logFileCollection = logFileCollection;
 			_settings = settings;
@@ -316,26 +313,44 @@ namespace Horde.Server.Server
 		}
 
 		/// <summary>
-		/// Returns the complete config Horde uses
+		/// Returns the fully parsed config object.
 		/// </summary>
-		/// <returns>Information about the config</returns>
 		[HttpGet]
-		[Route("/api/v1/debug/config")]
-		public ActionResult GetConfig()
+		[Route("/api/v1/server/debug/appsettings")]
+		public ActionResult<object> GetAppSettings()
 		{
-			if (!_globalConfig.Value.Authorize(AdminAclAction.AdminRead, User))
+			if (!_globalConfig.Value.Authorize(ServerAclAction.ViewConfig, User))
 			{
-				return Forbid();
+				return Forbid(ServerAclAction.ViewConfig);
 			}
 
-			JsonSerializerOptions options = new JsonSerializerOptions();
-			options.WriteIndented = true;
-
-			Startup.ConfigureJsonSerializer(options);
-
-			return Ok(JsonSerializer.Serialize(_settings.Value, options));
+			return _globalConfig.Value.ServerSettings;
 		}
-		
+
+		/// <summary>
+		/// Returns the fully parsed config object.
+		/// </summary>
+		[HttpGet]
+		[Route("/api/v1/server/debug/config")]
+		public ActionResult<object> GetConfig()
+		{
+			if (!_globalConfig.Value.Authorize(ServerAclAction.ViewConfig, User))
+			{
+				return Forbid(ServerAclAction.ViewConfig);
+			}
+
+			// Duplicate the config, so we can redact stuff that we don't want to return through the browser
+			byte[] data = JsonSerializer.SerializeToUtf8Bytes(_globalConfig.Value);
+			GlobalConfig config = JsonSerializer.Deserialize<GlobalConfig>(data)!;
+
+			foreach (ProjectConfig project in config.Projects)
+			{
+				project.Logo = null;
+			}
+
+			return config;
+		}
+
 		/// <summary>
 		/// Generate log message of varying size
 		/// </summary>

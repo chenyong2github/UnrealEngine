@@ -2,9 +2,13 @@
 
 using System.Diagnostics;
 using System.Reflection;
+using System.Text.Json;
 using System.Threading.Tasks;
+using Horde.Server.Acls;
 using Horde.Server.Agents;
+using Horde.Server.Projects;
 using Horde.Server.Tools;
+using Horde.Server.Utilities;
 using HordeCommon;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -20,7 +24,7 @@ namespace Horde.Server.Server
 	[ApiController]
 	[Authorize]
 	[Route("[controller]")]
-	public class ServerController : ControllerBase
+	public class ServerController : HordeControllerBase
 	{
 		readonly IToolCollection _toolCollection;
 		readonly IClock _clock;
@@ -35,7 +39,7 @@ namespace Horde.Server.Server
 			_clock = clock;
 			_globalConfig = globalConfig;
 		}
-		
+
 		/// <summary>
 		/// Get server version
 		/// </summary>
