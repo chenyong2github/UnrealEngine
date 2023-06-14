@@ -40,6 +40,7 @@ public class MLDeformerFramework : ModuleRules
 				"RHI",
 				"GeometryCache",
 				"OptimusCore",
+				"RenderCore",
 				"ComputeFramework",
 				"Projects"
 			}
