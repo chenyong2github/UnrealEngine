@@ -503,6 +503,9 @@ public:
 	/** Determines the name(s) of the branches downstream from FromNode, starting at FromPin. */
 	TArray<FString> GetDownstreamBranchNames(UMovieGraphNode* FromNode, const UMovieGraphPin* FromPin) const;
 
+	/** Determines the name(s) of the branches upstream from FromNode, starting at FromPin. */
+	TArray<FString> GetUpstreamBranchNames(UMovieGraphNode* FromNode, const UMovieGraphPin* FromPin) const;
+
 protected:
 	/** Copies properties in FromNode that are marked for override into ToNode, but only if ToNode doesn't already override that value. */
 	void CopyOverriddenProperties(UMovieGraphNode* FromNode, UMovieGraphNode* ToNode, const FMovieGraphTraversalContext* InContext);

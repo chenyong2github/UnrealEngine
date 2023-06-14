@@ -126,62 +126,64 @@ bool UMovieGraphSchema::IsConnectionToBranchAllowed(const UEdGraphPin* InputPin,
 	const UMovieGraphPin* FromPin = UE::MovieGraph::Private::GetGraphPinFromEdPin(OutputPin);
 	const UMovieGraphConfig* GraphConfig = UE::MovieGraph::Private::GetGraphFromEdPin(InputPin);
 
-	// Early exit if a Globals output is not being connected to a Globals input.
-	if ((FromPin->Properties.Label == UMovieGraphNode::GlobalsPinName) && (ToPin->Properties.Label != UMovieGraphNode::GlobalsPinName))
+	// Get all upstream/downstream nodes that occur on the connection -- these are the nodes that need to be checked for branch restrictions.
+	// FromNode/ToNode themselves also needs to be part of the validation checks.
+	TArray<UMovieGraphNode*> NodesToCheck = {FromNode, ToNode};
+	GraphConfig->VisitUpstreamNodes(FromNode, UMovieGraphConfig::FVisitNodesCallback::CreateLambda(
+		[&NodesToCheck](UMovieGraphNode* VisitedNode, const UMovieGraphPin* VisitedPin)
+		{
+			NodesToCheck.Add(VisitedNode);
+		}));
+
+	GraphConfig->VisitDownstreamNodes(ToNode, UMovieGraphConfig::FVisitNodesCallback::CreateLambda(
+		[&NodesToCheck](UMovieGraphNode* VisitedNode, const UMovieGraphPin* VisitedPin)
+		{
+			NodesToCheck.Add(VisitedNode);
+		}));
+
+	// Determine which branch(es) are connected to this node up/downstream.
+	const TArray<FString> DownstreamBranchNames = GraphConfig->GetDownstreamBranchNames(ToNode, ToPin);
+	const TArray<FString> UpstreamBranchNames = GraphConfig->GetUpstreamBranchNames(FromNode, FromPin);
+	const bool bGlobalsIsDownstream = DownstreamBranchNames.Contains(UMovieGraphNode::GlobalsPinNameString);
+	const bool bGlobalsIsUpstream = UpstreamBranchNames.Contains(UMovieGraphNode::GlobalsPinNameString);
+	const bool bDownstreamBranchExistsAndIsntOnlyGlobals =
+		!DownstreamBranchNames.IsEmpty() && ((DownstreamBranchNames.Num() != 1) || (DownstreamBranchNames[0] != UMovieGraphNode::GlobalsPinNameString));
+	const bool bUpstreamBranchExistsAndIsntOnlyGlobals =
+		!UpstreamBranchNames.IsEmpty() && ((UpstreamBranchNames.Num() != 1) || (UpstreamBranchNames[0] != UMovieGraphNode::GlobalsPinNameString));
+
+	// Globals branches can only be connected to Globals branches
+	if ((bGlobalsIsDownstream && bUpstreamBranchExistsAndIsntOnlyGlobals) || (bGlobalsIsUpstream && bDownstreamBranchExistsAndIsntOnlyGlobals))
 	{
 		OutError = NSLOCTEXT("MoviePipeline", "GlobalsBranchMismatchError", "Globals branches can only be connected to other Globals branches.");
 		return false;
 	}
 
-	// Early exit if a non-Globals output is being connected to a Globals input.
-	if ((FromPin->Properties.Label != UMovieGraphNode::GlobalsPinName) && (ToPin->Properties.Label == UMovieGraphNode::GlobalsPinName))
+	// Error out if any of the nodes that are part of the connection cannot be connected to the upstream/downstream branches.
+	for (const UMovieGraphNode* NodeToCheck : NodesToCheck)
 	{
-		OutError = FText::Format(
-			NSLOCTEXT("MoviePipeline", "NonGlobalsBranchMismatchError", "The branch '{0}' cannot be connected to the Globals branch."),
-				FText::FromName(FromPin->Properties.Label));
-		return false;
-	}
-
-	// Get all upstream nodes for FromNode -- these are the nodes that need to be checked for branch restrictions.
-	// FromNode itself also needs to be part of the validation checks.
-	TArray<UMovieGraphNode*> UpstreamNodes = {FromNode};
-	GraphConfig->VisitUpstreamNodes(FromNode, UMovieGraphConfig::FVisitNodesCallback::CreateLambda(
-		[&UpstreamNodes](UMovieGraphNode* VisitedNode, const UMovieGraphPin* VisitedPin)
+		if (NodeToCheck->GetBranchRestriction() == EMovieGraphBranchRestriction::Globals)
 		{
-			UpstreamNodes.Add(VisitedNode);
-		}));
-
-	// Determine which branch(es) are connected to this node downstream.
-	const TArray<FString> UpstreamBranchNames = GraphConfig->GetDownstreamBranchNames(ToNode, ToPin);
-	const bool bGlobalsIsOnlyDownstreamBranch = (UpstreamBranchNames.Num() == 1) && (UpstreamBranchNames[0] == UMovieGraphNode::GlobalsPinNameString);
-	const bool bGlobalsIsDownstream = UpstreamBranchNames.Contains(UMovieGraphNode::GlobalsPinNameString);
-
-	// Error out if any of the upstream nodes cannot be connected to the downstream branch(es).
-	for (const UMovieGraphNode* UpstreamNode : UpstreamNodes)
-	{
-		if (UpstreamNode->GetBranchRestriction() == EMovieGraphBranchRestriction::Globals)
-		{
-			// Globals-specific nodes have to be connected such that the only upstream branch is Globals, OR the group
-			// of nodes is not yet connected to a branch (and this restriction will be enforced when they are).
-			if (bGlobalsIsOnlyDownstreamBranch || UpstreamBranchNames.IsEmpty())
+			// Globals-specific nodes have to be connected such that the only upstream/downstream branches are Globals.
+			// If either the upstream/downstream branches are empty (ie, the node isn't connected to Inputs/Outputs yet)
+			// then the connection is OK for now -- the branch restriction will be enforced when nodes are connected to
+			// Inputs/Outputs.
+			if (bDownstreamBranchExistsAndIsntOnlyGlobals || bUpstreamBranchExistsAndIsntOnlyGlobals)
 			{
-				continue;
+				OutError = FText::Format(
+					NSLOCTEXT("MoviePipeline", "GlobalsBranchRestrictionError", "The node '{0}' can only be connected to the Globals branch."),
+						NodeToCheck->GetNodeTitle());
+				return false;
 			}
-
-			OutError = FText::Format(
-				NSLOCTEXT("MoviePipeline", "GlobalsBranchRestrictionError", "The node '{0}' can only be connected to the Globals branch."),
-					UpstreamNode->GetNodeTitle());
-			return false;
 		}
 
 		// Check that render-layer-only nodes aren't connected to Globals.
-		if (UpstreamNode->GetBranchRestriction() == EMovieGraphBranchRestriction::RenderLayer)
+		if (NodeToCheck->GetBranchRestriction() == EMovieGraphBranchRestriction::RenderLayer)
 		{
-			if (bGlobalsIsDownstream)
+			if (bGlobalsIsDownstream || bGlobalsIsUpstream)
 			{
 				OutError = FText::Format(
 					NSLOCTEXT("MoviePipeline", "RenderLayerBranchRestrictionError", "The node '{0}' can only be connected to a render layer branch."),
-						UpstreamNode->GetNodeTitle());
+						NodeToCheck->GetNodeTitle());
 				return false;
 			}
 		}

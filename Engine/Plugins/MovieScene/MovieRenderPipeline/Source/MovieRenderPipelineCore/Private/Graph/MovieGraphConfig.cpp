@@ -819,6 +819,28 @@ TArray<FString> UMovieGraphConfig::GetDownstreamBranchNames(UMovieGraphNode* Fro
 	return BranchNames;
 }
 
+TArray<FString> UMovieGraphConfig::GetUpstreamBranchNames(UMovieGraphNode* FromNode, const UMovieGraphPin* FromPin) const
+{
+	TArray<FString> BranchNames;
+
+	// FromNode itself might be the Inputs node, so check before visiting the upstream nodes
+	if (FromNode->IsA<UMovieGraphInputNode>() && FromPin)
+	{
+		BranchNames.Add(FromPin->Properties.Label.ToString());
+	}
+
+	VisitUpstreamNodes(FromNode, FVisitNodesCallback::CreateLambda(
+		[&BranchNames](UMovieGraphNode* VisitedNode, const UMovieGraphPin* VisitedPin)
+		{
+			if (VisitedNode->IsA<UMovieGraphInputNode>() && VisitedPin)
+			{
+				BranchNames.Add(VisitedPin->Properties.Label.ToString());
+			}
+		}));
+
+	return BranchNames;
+}
+
 void UMovieGraphConfig::InitializeFlattenedNode(UMovieGraphNode* InNode)
 {
 	// We go through each of the bOverride_ properties on this new instance and set
