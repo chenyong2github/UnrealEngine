@@ -215,7 +215,7 @@ void UTypedElementDatabaseCompatibility::Reset()
 void UTypedElementDatabaseCompatibility::CreateStandardArchetypes()
 {
 	StandardActorTable = Storage->RegisterTable(TTypedElementColumnTypeList<
-			FMassActorFragment, FTypedElementClassTypeInfoColumn,
+			FMassActorFragment, FTypedElementUObjectColumn, FTypedElementClassTypeInfoColumn,
 			FTypedElementLabelColumn, FTypedElementLabelHashColumn,
 			FTypedElementPackagePathColumn, FTypedElementPackageLoadedPathColumn,
 			FTypedElementSyncFromWorldTag>(), 
@@ -375,9 +375,9 @@ void UTypedElementDatabaseCompatibility::TickPendingActorRegistration(UWorld* Ed
 					ActorStore->SetNoHandleMapUpdate(FMassEntityHandle::FromNumber(Row), Actor, bIsOwnedByMass);
 					ActorSubsystem->SetHandleForActor(Actor, FMassEntityHandle::FromNumber(Row));
 
+					Storage->AddOrGetColumn<FTypedElementUObjectColumn>(Row, FTypedElementUObjectColumn{ .Object = ActorPtr });
 					Storage->AddOrGetColumn<FTypedElementClassTypeInfoColumn>(Row, FTypedElementClassTypeInfoColumn{ .TypeInfo = Actor->GetClass() });
-					checkf(ActorStore, TEXT("Failed to retrieve or add FTypedElementClassTypeInfoColumn to newly created row."));
-
+					
 					// Make sure the new row is tagged for update.
 					Storage->AddColumn<FTypedElementSyncFromWorldTag>(Row);
 				});

@@ -5,15 +5,15 @@
 #include "Elements/Interfaces/TypedElementDataStorageFactory.h"
 #include "UObject/ObjectMacros.h"
 
-#include "TypedElementActorPackagePathToColumnQueries.generated.h"
+#include "TypedElementUObjectPackagePathToColumnQueries.generated.h"
 
 UCLASS()
-class UTypedElementActorPackagePathFactory : public UTypedElementDataStorageFactory
+class UTypedElementUObjectPackagePathFactory : public UTypedElementDataStorageFactory
 {
 	GENERATED_BODY()
 
 public:
-	~UTypedElementActorPackagePathFactory() override = default;
+	~UTypedElementUObjectPackagePathFactory() override = default;
 
 	void RegisterQueries(ITypedElementDataStorageInterface& DataStorage) const override;
 };
