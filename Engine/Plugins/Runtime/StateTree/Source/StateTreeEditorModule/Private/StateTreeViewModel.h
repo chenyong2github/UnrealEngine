@@ -75,7 +75,8 @@ public:
 	void CopySelectedStates();
 	bool CanPasteStatesFromClipboard() const;
 	void PasteStatesFromClipboard(UStateTreeState* AfterState);
-	void PasteStatesAsChildrenFromClipboard(UStateTreeState* ParentState, const int32 Index = INDEX_NONE);
+	void PasteStatesAsChildrenFromClipboard(UStateTreeState* ParentState);
+	void DuplicateSelectedStates();
 	void MoveSelectedStatesBefore(UStateTreeState* TargetState);
 	void MoveSelectedStatesAfter(UStateTreeState* TargetState);
 	void MoveSelectedStatesInto(UStateTreeState* TargetState);
@@ -116,6 +117,8 @@ public:
 protected:
 	void GetExpandedStatesRecursive(UStateTreeState* State, TSet<TWeakObjectPtr<UStateTreeState>>& ExpandedStates);
 	void MoveSelectedStates(UStateTreeState* TargetState, const FStateTreeViewModelInsert RelativeLocation);
+
+	void PasteStatesAsChildrenFromText(const FString& TextToImport, UStateTreeState* ParentState, const int32 IndexToInsertAt);
 
 	void HandleIdentifierChanged(const UStateTree& StateTree) const;
 

@@ -586,8 +586,7 @@ void SStateTreeView::HandleDuplicateSelectedStates()
 {
 	if (StateTreeViewModel)
 	{
-		StateTreeViewModel->CopySelectedStates();
-		StateTreeViewModel->PasteStatesFromClipboard(GetFirstSelectedState());
+		StateTreeViewModel->DuplicateSelectedStates();
 	}
 }
 

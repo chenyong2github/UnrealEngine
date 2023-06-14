@@ -654,21 +654,37 @@ void FStateTreeViewModel::PasteStatesFromClipboard(UStateTreeState* AfterState)
 		const int32 Index = AfterState->Parent ? AfterState->Parent->Children.Find(AfterState) : TreeData->SubTrees.Find(AfterState);
 		if (Index != INDEX_NONE)
 		{
-			PasteStatesAsChildrenFromClipboard(AfterState->Parent, Index + 1);
+			FString TextToImport;
+			FPlatformApplicationMisc::ClipboardPaste(TextToImport);
+			
+			const FScopedTransaction Transaction(LOCTEXT("PasteStatesTransaction", "Paste State(s)"));
+			PasteStatesAsChildrenFromText(TextToImport, AfterState->Parent, Index + 1);
 		}
 	}
 }
 
-void FStateTreeViewModel::PasteStatesAsChildrenFromClipboard(UStateTreeState* ParentState, const int32 Index)
+void FStateTreeViewModel::PasteStatesAsChildrenFromClipboard(UStateTreeState* ParentState)
 {
 	UStateTreeEditorData* TreeData = TreeDataWeak.Get();
 	if (TreeData == nullptr)
 	{
 		return;
 	}
-
+	
 	FString TextToImport;
 	FPlatformApplicationMisc::ClipboardPaste(TextToImport);
+
+	const FScopedTransaction Transaction(LOCTEXT("PasteStatesTransaction", "Paste State(s)"));
+	PasteStatesAsChildrenFromText(TextToImport, ParentState, INDEX_NONE);
+}
+
+void FStateTreeViewModel::PasteStatesAsChildrenFromText(const FString& TextToImport, UStateTreeState* ParentState, const int32 IndexToInsertAt)
+{
+	UStateTreeEditorData* TreeData = TreeDataWeak.Get();
+	if (TreeData == nullptr)
+	{
+		return;
+	}
 
 	UObject* Outer = ParentState ? static_cast<UObject*>(ParentState) : static_cast<UObject*>(TreeData);
 	Outer->Modify();
@@ -677,7 +693,7 @@ void FStateTreeViewModel::PasteStatesAsChildrenFromClipboard(UStateTreeState* Pa
 	Factory.ProcessBuffer(Outer, RF_Transactional, TextToImport);
 
 	TArray<TObjectPtr<UStateTreeState>>& ParentArray = ParentState ? ParentState->Children : TreeData->SubTrees;
-	const int32 TargetIndex = (Index == INDEX_NONE) ? ParentArray.Num() : Index;
+	const int32 TargetIndex = (IndexToInsertAt == INDEX_NONE) ? ParentArray.Num() : IndexToInsertAt;
 	ParentArray.Insert(Factory.States, TargetIndex);
 
 	TArray<FStateTreeStateLink*> Links;
@@ -730,6 +746,40 @@ void FStateTreeViewModel::PasteStatesAsChildrenFromClipboard(UStateTreeState* Pa
 		OnStateAdded.Broadcast(State->Parent, State);
 	}
 }
+
+void FStateTreeViewModel::DuplicateSelectedStates()
+{
+	UStateTreeEditorData* TreeData = TreeDataWeak.Get();
+	if (TreeData == nullptr)
+	{
+		return;
+	}
+
+	TArray<UStateTreeState*> States;
+	GetSelectedStates(States);
+	UE::StateTree::Editor::RemoveContainedChildren(States);
+
+	if (States.IsEmpty())
+	{
+		return;
+	}
+	
+	FString ExportedText = UE::StateTree::Editor::ExportStatesToText(TreeData, States);
+
+	// Place duplicates after first selected state.
+	UStateTreeState* AfterState = States[0];
+	
+	const int32 Index = AfterState->Parent ? AfterState->Parent->Children.Find(AfterState) : TreeData->SubTrees.Find(AfterState);
+	if (Index != INDEX_NONE)
+	{
+		FString TextToImport;
+		FPlatformApplicationMisc::ClipboardPaste(TextToImport);
+			
+		const FScopedTransaction Transaction(LOCTEXT("DuplicateStatesTransaction", "Duplicate State(s)"));
+		PasteStatesAsChildrenFromText(TextToImport, AfterState->Parent, Index + 1);
+	}
+}
+
 
 void FStateTreeViewModel::MoveSelectedStatesBefore(UStateTreeState* TargetState)
 {
