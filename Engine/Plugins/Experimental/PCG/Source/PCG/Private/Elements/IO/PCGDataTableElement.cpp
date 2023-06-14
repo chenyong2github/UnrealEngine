@@ -7,6 +7,8 @@
 #include "Data/PCGPointData.h"
 #include "Elements/IO/PCGExternalDataContext.h"
 
+#include "Engine/DataTable.h"
+
 #define LOCTEXT_NAMESPACE "PCGLoadDataTable"
 
 #if WITH_EDITOR

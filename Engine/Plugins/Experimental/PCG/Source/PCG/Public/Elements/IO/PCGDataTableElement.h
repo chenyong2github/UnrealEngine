@@ -4,6 +4,8 @@
 
 #include "PCGExternalData.h"
 
+class UDataTable;
+
 #include "PCGDataTableElement.generated.h"
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))

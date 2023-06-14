@@ -4,6 +4,7 @@
 
 #include "PCGContext.h"
 #include "Data/PCGPointData.h"
+#include "Metadata/PCGAttributePropertySelector.h"
 #include "Metadata/Accessors/IPCGAttributeAccessor.h"
 #include "Metadata/Accessors/PCGAttributeAccessorHelpers.h"
 #include "Metadata/Accessors/PCGAttributeAccessorKeys.h"
