@@ -291,7 +291,7 @@ FNiagaraHierarchyItemViewModelBase::FCanPerformActionResults FNiagaraHierarchyCa
 			{
 				bool bContainsSiblingWithSameName = SiblingCategories.ContainsByPredicate([DraggedItem](TSharedPtr<FNiagaraHierarchyCategoryViewModel> HierarchyCategoryViewModel)
 					{
-						return DraggedItem->ToString() == HierarchyCategoryViewModel->ToString();
+						return DraggedItem->ToString() == HierarchyCategoryViewModel->ToString() && DraggedItem != HierarchyCategoryViewModel;
 					});
 
 				if(bContainsSiblingWithSameName)
