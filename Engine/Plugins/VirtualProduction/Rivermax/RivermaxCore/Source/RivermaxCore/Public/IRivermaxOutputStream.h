@@ -18,6 +18,7 @@ namespace UE::RivermaxCore
 		uint32 Width = 0;
 		uint32 Stride = 0;
 		void* VideoBuffer = nullptr;
+		FBufferRHIRef GPUBuffer;
 	};
 
 	class RIVERMAXCORE_API IRivermaxOutputStreamListener
@@ -54,10 +55,21 @@ namespace UE::RivermaxCore
 		virtual bool PushVideoFrame(const FRivermaxOutputVideoFrameInfo& NewFrame) = 0;
 		
 		/** Pushes a frame to be captured from GPU memory */
-		virtual bool PushGPUVideoFrame(const FRivermaxOutputVideoFrameInfo& NewFrame, FBufferRHIRef CapturedBuffer) = 0;
+		UE_DEPRECATED("5.3", "Use PushVideoFrame instead and fill GPUBuffer with Capturedbuffer")
+		virtual bool PushGPUVideoFrame(const FRivermaxOutputVideoFrameInfo& NewFrame, FBufferRHIRef CapturedBuffer) final
+		{
+			return false;
+		}
 
 		/** Returns true if GPUDirect is supported */
 		virtual bool IsGPUDirectSupported() const = 0;
+
+		/** 
+		 * Tries to reserve a frame for the next capture 
+		 * If FRivermaxOutputStreamOptions::EFrameLockingMode equals BlockOnReservation, 
+		 * this method will block until a free frame is found. 
+		 */
+		virtual bool ReserveFrame(uint32 FrameIdentifier) const = 0;
 	};
 }
 

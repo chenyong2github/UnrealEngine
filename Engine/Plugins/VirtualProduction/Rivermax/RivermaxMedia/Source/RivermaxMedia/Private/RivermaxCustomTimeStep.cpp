@@ -2,6 +2,7 @@
 
 #include "RivermaxCustomTimeStep.h"
 
+#include "IRivermaxBoundaryMonitor.h"
 #include "IRivermaxCoreModule.h"
 #include "IRivermaxManager.h"
 #include "RivermaxMediaLog.h"
@@ -47,6 +48,7 @@ void URivermaxCustomTimeStep::Shutdown(UEngine* InEngine)
 	IRivermaxCoreModule* RivermaxModule = FModuleManager::GetModulePtr<IRivermaxCoreModule>("RivermaxCore");
 	if (RivermaxModule)
 	{
+		DisableMonitoring();
 		RivermaxModule->GetRivermaxManager()->OnPostRivermaxManagerInit().RemoveAll(this);
 	}
 }
@@ -167,6 +169,9 @@ void URivermaxCustomTimeStep::PostEditChangeChainProperty(struct FPropertyChange
 	{
 		// If frame rate is changing live, reset frame number tracking to somewhat reinitialize our state
 		bIsPreviousFrameNumberValid = false;
+
+		// Cleanup and restart monitoring to match frame rate
+		EnableMonitoring();
 	}
 
 	Super::PostEditChangeChainProperty(PropertyChangedEvent);
@@ -207,8 +212,6 @@ bool URivermaxCustomTimeStep::WaitForNextFrame()
 		}
 	}
 
-	TRACE_BOOKMARK(TEXT("PTP genlock at %llu"), TargetTimeNanosec);
-
 	return ActualWaitTime < TimeoutSec;
 }
 
@@ -233,7 +236,38 @@ void URivermaxCustomTimeStep::OnRivermaxManagerInitialized()
 			return;
 		}
 
+		EnableMonitoring();
+
 		State = ECustomTimeStepSynchronizationState::Synchronized;
+	}
+}
+
+void URivermaxCustomTimeStep::EnableMonitoring()
+{
+	if (IRivermaxCoreModule* RivermaxModule = FModuleManager::GetModulePtr<IRivermaxCoreModule>("RivermaxCore"))
+	{
+		if (FrameRate != CachedFrameRate)
+		{
+			DisableMonitoring();
+
+			if (FrameRate.IsValid())
+			{
+				BoundaryMonitorListener = RivermaxModule->GetRivermaxBoundaryMonitor().StartMonitoring(FrameRate);
+				CachedFrameRate = FrameRate;
+			}
+		}
+	}
+}
+
+void URivermaxCustomTimeStep::DisableMonitoring()
+{
+	if (IRivermaxCoreModule* RivermaxModule = FModuleManager::GetModulePtr<IRivermaxCoreModule>("RivermaxCore"))
+	{
+		if (BoundaryMonitorListener.IsValid())
+		{
+			RivermaxModule->GetRivermaxBoundaryMonitor().StopMonitoring(BoundaryMonitorListener, CachedFrameRate);
+			BoundaryMonitorListener.Invalidate();
+		}
 	}
 }
 

@@ -12,6 +12,7 @@
 namespace UE::RivermaxCore
 {
 	class IRivermaxManager;
+	class IRivermaxBoundaryMonitor;
 }
 
 
@@ -40,5 +41,8 @@ public:
 
 	/** Returns Rivermax manager singleton to query for stats, status, etc... */
 	virtual TSharedPtr<UE::RivermaxCore::IRivermaxManager> GetRivermaxManager() = 0;
+
+	/** Returns frame boundary monitor */
+	virtual UE::RivermaxCore::IRivermaxBoundaryMonitor& GetRivermaxBoundaryMonitor() = 0;
 };
 

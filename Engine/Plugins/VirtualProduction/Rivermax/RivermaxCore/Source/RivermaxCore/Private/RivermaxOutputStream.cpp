@@ -4,10 +4,11 @@
 
 #include "Async/Async.h"
 #include "CudaModule.h"
-#include "ID3D12DynamicRHI.h"
 #include "IRivermaxCoreModule.h"
+#include "IRivermaxBoundaryMonitor.h"
 #include "IRivermaxManager.h"
 #include "Misc/ByteSwap.h"
+#include "RivermaxFrameManager.h"
 #include "RivermaxLog.h"
 #include "RivermaxPTPUtils.h"
 #include "RivermaxTypes.h"
@@ -320,25 +321,18 @@ namespace UE::RivermaxCore::Private
 			return false;
 		}
 
-		// We do (try) to make gpu allocations here to let the capturer know if we require it or not.
-		if (RivermaxModule->GetRivermaxManager()->IsGPUDirectOutputSupported() && Options.bUseGPUDirect)
+		if (!SetupFrameManagement())
 		{
-			bUseGPUDirect = AllocateGPUBuffers();
+			return false;
 		}
+
+		// Enable frame boundary monitoring
+		MonitoringGuid = RivermaxModule->GetRivermaxBoundaryMonitor().StartMonitoring(Options.FrameRate);
 
 		Async(EAsyncExecution::TaskGraph, [this]()
 		{
-			//Create event to wait on when no frames are available to send
-			ReadyToSendEvent = FPlatformProcess::GetSynchEventFromPool();
-
 			TAnsiStringBuilder<2048> SDPDescription;
 			UE::RivermaxCore::Private::Utils::StreamOptionsToSDPDescription(Options, SDPDescription);
-
-			// Initialize buffers in system memory if we're not using gpudirect
-			if(bUseGPUDirect == false)
-			{
-				AllocateSystemBuffers();
-			}
 
 			// Initialize internal memory and rivermax configuration 
 			if(InitializeStreamMemoryConfig())
@@ -380,7 +374,7 @@ namespace UE::RivermaxCore::Private
 							, bUseGPUDirect ? TEXT(" using GPUDirect") : TEXT(""));
 
 						bIsActive = true;
-						RivermaxThread.Reset(FRunnableThread::Create(this, TEXT("Rmax OutputStream Thread"), 128 * 1024, TPri_AboveNormal, FPlatformAffinity::GetPoolThreadMask()));
+						RivermaxThread.Reset(FRunnableThread::Create(this, TEXT("Rmax OutputStream Thread"), 128 * 1024, TPri_TimeCritical, FPlatformAffinity::GetPoolThreadMask()));
 					}
 				}
 				else
@@ -401,17 +395,16 @@ namespace UE::RivermaxCore::Private
 		{
 			Stop();
 			
-			ReadyToSendEvent->Trigger();
+			FrameAvailableSignal->Trigger();
+			FrameReadyToSendSignal->Trigger();
 			RivermaxThread->Kill(true);
-			
 			RivermaxThread.Reset();
 
+			CleanupFrameManagement();
 
-			FPlatformProcess::ReturnSynchEventToPool(ReadyToSendEvent);
-			ReadyToSendEvent = nullptr;
+			RivermaxModule->GetRivermaxBoundaryMonitor().StopMonitoring(MonitoringGuid, Options.FrameRate);
+			
 			UE_LOG(LogRivermax, Log, TEXT("Rivermax Output stream has shutdown"));
-
-			DeallocateBuffers();
 		}
 	}
 
@@ -419,29 +412,13 @@ namespace UE::RivermaxCore::Private
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FRivermaxOutputStream::PushVideoFrame);
 
-		// Notify owner that new frame is about to be enqueued
-		Listener->OnPreFrameEnqueue();
-
-		if (TSharedPtr<FRivermaxOutputFrame> AvailableFrame = GetNextAvailableFrame(NewFrame.FrameIdentifier))
+		const bool bSuccess = FrameManager->SetFrameData(NewFrame);
+		if (!bSuccess)
 		{
-			const int32 Stride = GetStride();
-			FMemory::Memcpy(AvailableFrame->VideoBuffer, NewFrame.VideoBuffer, Options.AlignedResolution.Y * Stride);
-
-			AvailableFrame->bIsVideoBufferReady = true;
-
-			//If Frame ready to be sent
-			if(AvailableFrame->IsReadyToBeSent())
-			{
-				const FString TraceName = FString::Format(TEXT("FRivermaxOutputStream::PushFrame {0}"), { AvailableFrame->FrameIndex });
-				TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*TraceName);
-
-				MarkFrameToBeSent(MoveTemp(AvailableFrame));
-			}
-
-			return true;
+			Listener->OnStreamError();
 		}
-		
-		return false;
+
+		return bSuccess;
 	}
 
 	void FRivermaxOutputStream::Process_AnyThread()
@@ -485,6 +462,8 @@ namespace UE::RivermaxCore::Private
 
 			const FString TraceName = FString::Format(TEXT("RmaxOutput::SendFrame {0}"), { CurrentFrame->FrameIndex });
 			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*TraceName);
+			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("MediaCapturePipe: %u"), CurrentFrame->FrameIdentifier));
+
 			do 
 			{
 				if (bIsActive)
@@ -514,27 +493,6 @@ namespace UE::RivermaxCore::Private
 
 			Stats.MemoryBlockSentCounter++;
 			StreamData.bHasFrameFirstChunkBeenFetched = false;
-		}
-	}
-
-	void FRivermaxOutputStream::AllocateSystemBuffers()
-	{
-		const int32 Stride = GetStride();
-		const int32 FrameAllocSize = Options.AlignedResolution.Y * Stride;
-		AvailableFrames.Reserve(Options.NumberOfBuffers);
-
-		const auto SystemDeallocator = [](void* Buffer)
-		{
-			FMemory::Free(Buffer);
-		};
-
-		for (int32 Index = 0; Index < Options.NumberOfBuffers; ++Index)
-		{
-			TSharedPtr<FRivermaxOutputFrame> Frame = MakeShared<FRivermaxOutputFrame>(Index, SystemDeallocator);
-
-			constexpr uint32 CacheLineSize = PLATFORM_CACHE_LINE_SIZE;
-			Frame->VideoBuffer = FMemory::Malloc(FrameAllocSize, CacheLineSize);
-			AvailableFrames.Add(MoveTemp(Frame));
 		}
 	}
 
@@ -653,7 +611,7 @@ namespace UE::RivermaxCore::Private
 			Block.chunks_num = StreamMemory.ChunksPerMemoryBlock;
 			Block.app_hdr_size_arr = StreamMemory.HeaderSizes.GetData();
 			Block.data_size_arr = StreamMemory.PayloadSizes.GetData();
-			Block.data_ptr = AvailableFrames[BlockIndex]->VideoBuffer;
+			Block.data_ptr = FrameManager->GetFrame(BlockIndex)->VideoBuffer;
 			
 			StreamMemory.RTPHeaders[BlockIndex].SetNumZeroed(StreamMemory.PacketsPerFrame);
 			Block.app_hdr_ptr = &StreamMemory.RTPHeaders[BlockIndex][0];
@@ -672,68 +630,6 @@ namespace UE::RivermaxCore::Private
 		NextFrame->HeaderPtr = nullptr;
 	}
 
-	TSharedPtr<FRivermaxOutputFrame> FRivermaxOutputStream::GetNextFrameToSend()
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(FRivermaxOutputStream::GetNextFrameToSend);
-
-		TSharedPtr<FRivermaxOutputFrame> FrameToSend;
-
-		FScopeLock Lock(&FrameCriticalSection);
-		if (FramesToSend.IsEmpty() == false)
-		{
-			// Pick oldest frame of the lot. 
-			// Todo Sort array when modified to always pick first item.
-			uint32 OldestIdentifier = TNumericLimits<uint32>::Max();
-			TArray<TSharedPtr<FRivermaxOutputFrame>>::TIterator It = FramesToSend.CreateIterator();
-			for (It; It; ++It)
-			{
-				TSharedPtr<FRivermaxOutputFrame>& ItFrame = *It;
-				if (ItFrame->FrameIdentifier < OldestIdentifier)
-				{
-					FrameToSend = *It;
-					OldestIdentifier = FrameToSend->FrameIdentifier;
-				}
-			}
-
-			if (ensure(FrameToSend))
-			{
-				FramesToSend.Remove(FrameToSend);
-				InitializeNextFrame(FrameToSend);
-			}
-		}
-
-		return FrameToSend;
-	}
-
-	TSharedPtr<FRivermaxOutputFrame> FRivermaxOutputStream::GetNextAvailableFrame(uint32 InFrameIdentifier)
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(FRivermaxOutputStream::GetNextAvailableFrame);
-		
-		TSharedPtr<FRivermaxOutputFrame> NextFrame;
-
-		{
-			FScopeLock Lock(&FrameCriticalSection);
-
-			//Find matching frame identifier
-			if(TSharedPtr<FRivermaxOutputFrame>* MatchingFrame = AvailableFrames.FindByPredicate([InFrameIdentifier](const TSharedPtr<FRivermaxOutputFrame>& Other){ return Other->FrameIdentifier == InFrameIdentifier; }))
-			{
-				NextFrame = *MatchingFrame;
-			}
-			else if(TSharedPtr<FRivermaxOutputFrame>* EmptyFrame = AvailableFrames.FindByPredicate([](const TSharedPtr<FRivermaxOutputFrame>& Other){ return Other->FrameIdentifier == FRivermaxOutputFrame::InvalidIdentifier; })) //Find an empty frame
-			{
-				NextFrame = *EmptyFrame;
-				NextFrame->FrameIdentifier = InFrameIdentifier;
-			}
-			else
-			{
-				// Could reuse a frame not yet ready to be sent
-				// Could also look into stealing a frame ready to be sent bot not sent yet
-			}
-		}
-
-		return NextFrame;
-	}
-
 	void FRivermaxOutputStream::BuildRTPHeader(FRawRTPHeader& OutHeader) const
 	{
 		using namespace UE::RivermaxCore::Private::Utils;
@@ -747,7 +643,7 @@ namespace UE::RivermaxCore::Private
 
 		// For now, in order to be able to use a framelocked input, we pipe frame number in the timestamp for a UE-UE interaction
 		// Follow up work to investigate adding this in RTP header
-		uint64 InputTime = StreamData.NextAlignmentPointNanosec;
+		uint64 InputTime = StreamData.NextScheduleTimeNanosec;
 		if (Options.bDoFrameCounterTimestamping)
 		{
 			InputTime = UE::RivermaxCore::GetAlignmentPointFromFrameNumber(CurrentFrame->FrameIdentifier, Options.FrameRate);
@@ -939,7 +835,7 @@ namespace UE::RivermaxCore::Private
 			{
 				UE_LOG(LogRivermax, Error, TEXT("Invalid error happened while trying to get next chunks. Status: %d"), Status);
 				Listener->OnStreamError();
-				bIsActive = false;
+				Stop();
 			}
 		} while (Status != RMAX_OK && bIsActive);
 	}
@@ -970,7 +866,7 @@ namespace UE::RivermaxCore::Private
 			const rmax_commit_flags_t CommitFlags{};
 			if (ScheduleTime != 0)
 			{
-				TRACE_BOOKMARK(TEXT("Sched A: %llu, C: %llu"), StreamData.NextAlignmentPointNanosec, CurrentTimeNanosec);
+				//TRACE_BOOKMARK(TEXT("Sched A: %llu, C: %llu"), StreamData.NextAlignmentPointNanosec, CurrentTimeNanosec);
 				if (ScheduleTime <= CurrentTimeNanosec)
 				{
 					ScheduleTime = 0;
@@ -994,13 +890,13 @@ namespace UE::RivermaxCore::Private
 			{
 				UE_LOG(LogRivermax, Error, TEXT("Completion issue while trying to commit next round of chunks."));
 				Listener->OnStreamError();
-				bIsActive = false;
+				Stop();
 			}
 			else
 			{
 				UE_LOG(LogRivermax, Error, TEXT("Unhandled error (%d) while trying to commit next round of chunks."), Status);
 				Listener->OnStreamError();
-				bIsActive = false;
+				Stop();
 			}
 
 		} while (Status != RMAX_OK && bIsActive);
@@ -1027,8 +923,8 @@ namespace UE::RivermaxCore::Private
 	{
 		// Initial wait for a frame to be produced
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(FRivermaxOutputStream::InitialWait);
-			ReadyToSendEvent->Wait();
+			TRACE_CPUPROFILER_EVENT_SCOPE(Rmax::InitialWait);
+			FrameReadyToSendSignal->Wait();
 		}
 
 		while (bIsActive)
@@ -1054,105 +950,120 @@ namespace UE::RivermaxCore::Private
 
 	void FRivermaxOutputStream::PrepareNextFrame()
 	{
-		// We always want to send out a frame at the desired interval. If a new frame is not ready, reuse last one. 
-		bool bHasFrameToSend = false;
+		switch (Options.AlignmentMode)
 		{
-			FScopeLock Lock(&FrameCriticalSection);
-			bHasFrameToSend = FramesToSend.IsEmpty() == false;
+			case ERivermaxAlignmentMode::FrameCreation:
+			{
+				PrepareNextFrame_FrameCreation();
+				break;
+			}
+			case ERivermaxAlignmentMode::AlignmentPoint:
+			{
+				PrepareNextFrame_AlignmentPoint();
+				break;
+			}
+			default:
+			{
+				checkNoEntry();
+			}
 		}
+	}
 
-		const uint64 CurrentTimeNanosec = RivermaxModule->GetRivermaxManager()->GetTime();
-
-		// Different scenarios here.
+	void FRivermaxOutputStream::PrepareNextFrame_FrameCreation()
+	{
 		// When aligning on frame creation, we will always wait for a frame to be available.
-		// When aligning on alignment points, we either repeat the last one if none is available and continuous mode is on
-		// or skip sending one if continuous mode is off.
-		if (Options.AlignmentMode == ERivermaxAlignmentMode::FrameCreation)
+		TRACE_CPUPROFILER_EVENT_SCOPE(Rmax::WaitForReadyFrame);
+		TSharedPtr<FRivermaxOutputFrame> NextFrameToSend = FrameManager->GetReadyFrame();
+		while (!NextFrameToSend && bIsActive)
 		{
-			if (!bHasFrameToSend)
-			{
-				// No frame in this mode means we are going to wait for it
-				//First iteration before first frame available
-				TRACE_CPUPROFILER_EVENT_SCOPE(FRivermaxOutputStream::WaitForNewFrame);
-				do
-				{
-					FPlatformProcess::SleepNoStats(SleepTimeSeconds);
-
-					// Early exit if stream isn't active anymore
-					if (!bIsActive)
-					{
-						return;
-					}
-
-					{
-						FScopeLock Lock(&FrameCriticalSection);
-						bHasFrameToSend = FramesToSend.IsEmpty() == false;
-					}
-
-				} while (bHasFrameToSend == false);
-			}
+			FrameReadyToSendSignal->Wait();
+			NextFrameToSend = FrameManager->GetReadyFrame();
 		}
 
+		// In frame creation alignment, we always release the last frame sent
+		if (CurrentFrame.IsValid())
 		{
+			FrameManager->MarkAsSent(CurrentFrame);
+		}
+
+		// Make the next frame to send the current one and update its state
+		if (NextFrameToSend)
+		{
+			CurrentFrame = MoveTemp(NextFrameToSend);
+			FrameManager->MarkAsSending(CurrentFrame);
+
+			InitializeNextFrame(CurrentFrame);
+		}
+	}
+
+	void FRivermaxOutputStream::PrepareNextFrame_AlignmentPoint()
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(Rmax::GetNextFrame_AlignmentPoint);
+
+		// When aligning on alignment points:
+		// We prepare to send the next frame that is ready if there is one available
+		// if none are available and bDoContinuousOutput == true
+		//		Repeat the last frame
+		// if none are available and bDoContinuousOutput == false
+		//		Don't send a frame and go back waiting for the next alignment point
+		
+		TSharedPtr<FRivermaxOutputFrame> NextFrameToSend = FrameManager->GetReadyFrame();
+
+		// If we have a new frame, release the previous one
+		// If we don't have a frame and we're not doing continuous output, we release it and we won't send a new one
+		// If we don't have a frame but we are doing continuous output, we will reschedule the current one, so no release.
+		if (!Options.bDoContinuousOutput || NextFrameToSend)
+		{
+			if (CurrentFrame)
 			{
-				FScopeLock Lock(&FrameCriticalSection);
-				bHasFrameToSend = FramesToSend.IsEmpty() == false;
+				FrameManager->MarkAsSent(CurrentFrame);
+				CurrentFrame.Reset();
 			}
 
-			// If we have a frame or we're not doing continuous output, we always release the last frame.
-			if (!Options.bDoContinuousOutput || bHasFrameToSend)
+			// Make the next frame to send the current one and update its state
+			if (NextFrameToSend)
 			{
-				// Not doing a continuous output and no frame to send, release the last one sent if any and move on waiting
-				if (CurrentFrame.IsValid())
+				CurrentFrame = MoveTemp(NextFrameToSend);
+				FrameManager->MarkAsSending(CurrentFrame);
+				InitializeNextFrame(CurrentFrame);
+			}
+		}
+		else
+		{
+			// We will resend the last one so just reinitialize it to resend
+			InitializeNextFrame(CurrentFrame);
+			
+			// No frame to send, keep last one and restart its internal counters
+			UE_LOG(LogRivermax, Verbose, TEXT("No frame to send. Reusing last frame '%d' with Id %u"), CurrentFrame->FrameIndex, CurrentFrame->FrameIdentifier);
+
+			// Since we want to resend last frame, we need to fast forward chunk pointer to re-point to the one we just sent
+			rmax_status_t Status;
+			bool bHasAddedTrace = false;
+			do
+			{
+				Status = rmax_out_skip_chunks(StreamId, StreamMemory.ChunksPerFrameField * (Options.NumberOfBuffers - 1));
+				if (Status != RMAX_OK)
 				{
-					//Release last frame sent. We keep hold to avoid overwriting it as rivermax is sending it
-					CurrentFrame->Reset();
+					if (Status == RMAX_ERR_NO_FREE_CHUNK)
 					{
-						FScopeLock Lock(&FrameCriticalSection);
-						AvailableFrames.Add(MoveTemp(CurrentFrame));
-						CurrentFrame.Reset();
+						// Wait until there are enough free chunk to be skipped
+						if (!bHasAddedTrace)
+						{
+							UE_LOG(LogRivermax, Warning, TEXT("No chunks ready to skip. Waiting"));
+							TRACE_CPUPROFILER_EVENT_SCOPE(PrepareNextFrame::NoFreeChunk);
+							bHasAddedTrace = true;
+						}
+					}
+					else
+					{
+						ensure(false);
+						UE_LOG(LogRivermax, Error, TEXT("Invalid error happened while trying to skip chunks. Status: %d."), Status);
+						Listener->OnStreamError();
+						Stop();
 					}
 				}
-
-				CurrentFrame = GetNextFrameToSend();
-			}
-			else
-			{
-				// No frame to send, keep last one and restarts its internal counters
-				UE_LOG(LogRivermax, Verbose, TEXT("No frame to send. Reusing last frame '%d'"), CurrentFrame->FrameIndex);
-				InitializeNextFrame(CurrentFrame);
-
-				// Since we want to resend last frame, we need to fast forward chunk pointer to re-point to the one we just sent
-				rmax_status_t Status;
-				bool bHasAddedTrace = false;
-				do
-				{
-					Status = rmax_out_skip_chunks(StreamId, StreamMemory.ChunksPerFrameField * (Options.NumberOfBuffers - 1));
-					if (Status != RMAX_OK)
-					{
-						if (Status == RMAX_ERR_NO_FREE_CHUNK)
-						{
-							// Wait until there are enough free chunk to be skipped
-							if (!bHasAddedTrace)
-							{
-								UE_LOG(LogRivermax, Warning, TEXT("No chunks ready to skip. Waiting"));
-								TRACE_CPUPROFILER_EVENT_SCOPE(PrepareNextFrame::NoFreeChunk);
-								bHasAddedTrace = true;
-							}
-						}
-						else
-						{
-							ensure(false);
-							UE_LOG(LogRivermax, Error, TEXT("Invalid error happened while trying to skip chunks. Status: %d."), Status);
-							Listener->OnStreamError();
-							bIsActive = false;
-						}
-					}
-				} while (Status != RMAX_OK && bIsActive);
-			}
+			} while (Status != RMAX_OK && bIsActive);
 		}
-
-		//TRACE_BOOKMARK(TEXT("Schedulin %llu"), GetTimestampFromTime(StreamData.NextAlignmentPointNanosec, MediaClockSampleRate));
 	}
 
 	void FRivermaxOutputStream::InitializeStreamTimingSettings()
@@ -1249,352 +1160,53 @@ namespace UE::RivermaxCore::Private
 		}
 	}
 
-	bool FRivermaxOutputStream::PushGPUVideoFrame(const FRivermaxOutputVideoFrameInfo& NewFrame, FBufferRHIRef CapturedBuffer)
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(FRivermaxOutputStream::PushGPUVideoFrame);
-
-		const int32 Stride = GetStride();
-		if (TSharedPtr<FRivermaxOutputFrame> AvailableFrame = GetNextAvailableFrame(NewFrame.FrameIdentifier))
-		{
-			const FString TraceName = FString::Format(TEXT("FRivermaxOutputStream::PushFrame {0}|{1}"), { AvailableFrame->FrameIndex, NewFrame.FrameIdentifier });
-			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*TraceName);
-
-			FCUDAModule& CudaModule = FModuleManager::GetModuleChecked<FCUDAModule>("CUDA");
-			CUresult Result = CudaModule.DriverAPI()->cuCtxPushCurrent(CudaModule.GetCudaContext());
-			
-			void* MappedPointer = GetMappedAddress(CapturedBuffer);
-			if (MappedPointer == nullptr)
-			{
-				UE_LOG(LogRivermax, Error, TEXT("Failed to find a mapped memory address for captured buffer. Stopping capture."));
-				Listener->OnStreamError();
-				return false;
-			}
-
-			const CUdeviceptr CudaMemoryPointer = reinterpret_cast<CUdeviceptr>(MappedPointer);
-			Result = CudaModule.DriverAPI()->cuMemcpyDtoDAsync(reinterpret_cast<CUdeviceptr>(AvailableFrame->VideoBuffer), CudaMemoryPointer, Options.AlignedResolution.Y * Stride, reinterpret_cast<CUstream>(GPUStream));
-			if (Result != CUDA_SUCCESS)
-			{
-				UE_LOG(LogRivermax, Error, TEXT("Failed to copy captured bufer to cuda memory. Stopping capture. Error: %d"), Result);
-				Listener->OnStreamError();
-				return false;
-			}
-
-
-			// Callback called by Cuda when stream work has completed on cuda engine (MemCpy -> Callback)
-			// Once Memcpy has been done, we know we can mark that memory as available to be sent. 
-			
-			auto CudaCallback = [](void* userData)
-			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(CudaWorkDoneCallback);
-
-				FRivermaxOutputStream* Stream = reinterpret_cast<FRivermaxOutputStream*>(userData);
-
-				// Notify owner that new frame is about to be enqueued
-				Stream->Listener->OnPreFrameEnqueue();
-
-				TOptional<uint32> TargetFrameIdentifier = Stream->PendingIdentifiers.Dequeue();
-				if (TargetFrameIdentifier.IsSet())
-				{
-					if (TSharedPtr<FRivermaxOutputFrame> AvailableFrame = Stream->GetNextAvailableFrame(TargetFrameIdentifier.GetValue()))
-					{
-						AvailableFrame->bIsVideoBufferReady = true;
-						if (AvailableFrame->IsReadyToBeSent())
-						{
-							const FString TraceName = FString::Format(TEXT("FRivermaxOutputStream::PushFrame {0}"), { AvailableFrame->FrameIndex });
-							TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*TraceName);
-
-							Stream->MarkFrameToBeSent(MoveTemp(AvailableFrame));
-						}
-					}
-				}
-			};
-			
-			// Add pending frame for cuda callback 
-			PendingIdentifiers.Enqueue(AvailableFrame->FrameIdentifier);
-
-			// Schedule a callback to make the frame available
-			CudaModule.DriverAPI()->cuLaunchHostFunc(reinterpret_cast<CUstream>(GPUStream), CudaCallback, this);
-			
-			FCUDAModule::CUDA().cuCtxPopCurrent(nullptr);
-
-			return true;
-		}
-
-		return false;
-	}
-
 	bool FRivermaxOutputStream::IsGPUDirectSupported() const
 	{
 		return bUseGPUDirect;
 	}
 
-	bool FRivermaxOutputStream::AllocateGPUBuffers()
+	bool FRivermaxOutputStream::SetupFrameManagement()
 	{
-		// Allocate a single memory space that will contain all frame buffers
-		
-		TRACE_CPUPROFILER_EVENT_SCOPE(FRivermaxOutputStream::AllocateGPUBuffers);
+		TRACE_CPUPROFILER_EVENT_SCOPE(FRivermaxOutputStream::SetupFrameManagement);
 
-		const ERHIInterfaceType RHIType = RHIGetInterfaceType();
-		if (RHIType != ERHIInterfaceType::D3D12)
+		FrameManager = MakeUnique<FFrameManager>();
+
+		// We do (try) to make gpu allocations here to let the capturer know if we require it or not.
+		bool bTryGPUDirect = RivermaxModule->GetRivermaxManager()->IsGPUDirectOutputSupported() && Options.bUseGPUDirect;
+		if (bTryGPUDirect)
 		{
-			UE_LOG(LogRivermax, Warning, TEXT("Can't initialize output to use GPUDirect. RHI is %d but only Dx12 is supported at the moment."), int(RHIType));
-			return false;
+			const ERHIInterfaceType RHIType = RHIGetInterfaceType();
+			if (RHIType != ERHIInterfaceType::D3D12)
+			{
+				UE_LOG(LogRivermax, Warning, TEXT("Can't initialize output to use GPUDirect. RHI is %d but only Dx12 is supported at the moment."), RHIType);
+				bTryGPUDirect = false;
+			}
 		}
 
-		const int32 Stride = GetStride();
-		const int32 FrameAllocSize = Options.AlignedResolution.Y * Stride;
+		FFrameManagerSetupArgs FrameManagerArgs;
+		FrameManagerArgs.Resolution = Options.AlignedResolution;
+		FrameManagerArgs.bTryGPUAllocation = bTryGPUDirect;
+		FrameManagerArgs.NumberOfFrames = Options.NumberOfBuffers;
+		FrameManagerArgs.Stride = GetStride();
+		FrameManagerArgs.OnFreeFrameDelegate = FOnFrameReadyDelegate::CreateRaw(this, &FRivermaxOutputStream::OnFrameReadyToBeUsed);
+		FrameManagerArgs.OnPreFrameReadyDelegate = FOnFrameReadyDelegate::CreateRaw(this, &FRivermaxOutputStream::OnPreFrameReadyToBeSent);
+		FrameManagerArgs.OnFrameReadyDelegate = FOnFrameReadyDelegate::CreateRaw(this, &FRivermaxOutputStream::OnFrameReadyToBeSent);
+		const EFrameMemoryLocation FrameLocation = FrameManager->Initialize(FrameManagerArgs);
+		bUseGPUDirect = FrameLocation == EFrameMemoryLocation::GPU;
 
-		FCUDAModule& CudaModule = FModuleManager::GetModuleChecked<FCUDAModule>("CUDA");
-		CudaModule.DriverAPI()->cuCtxPushCurrent(CudaModule.GetCudaContext());
-
-		// Todo: Add support for mgpu. For now, this will not work unless the memcpy does implicitely a cross gpu transfer.
-		const int GPUIndex = CudaModule.GetCudaDeviceIndex();
-		CUdevice CudaDevice;
-		CUresult Status = CudaModule.DriverAPI()->cuDeviceGet(&CudaDevice, GPUIndex);
-		if(Status != CUDA_SUCCESS)
-		{
-			UE_LOG(LogRivermax, Warning, TEXT("Can't initialize output to use GPUDirect. Failed to get a Cuda device for GPU %d. Status: %d"), GPUIndex, Status);
-			return false;
-		}
-
-		CUmemAllocationProp AllocationProperties = {};
-		AllocationProperties.type = CU_MEM_ALLOCATION_TYPE_PINNED;
-		AllocationProperties.allocFlags.gpuDirectRDMACapable = 1;
-		AllocationProperties.allocFlags.usage = 0;
-		AllocationProperties.location.type = CU_MEM_LOCATION_TYPE_DEVICE;
-		AllocationProperties.location.id = CudaDevice;
-
-		// Get memory granularity required for cuda device. We need to align allocation with this.
-		size_t Granularity;
-		Status = CudaModule.DriverAPI()->cuMemGetAllocationGranularity(&Granularity, &AllocationProperties, CU_MEM_ALLOC_GRANULARITY_RECOMMENDED);
-		if(Status != CUDA_SUCCESS)
-		{
-			UE_LOG(LogRivermax, Warning, TEXT("Can't initialize output to use GPUDirect. Failed to get allocation granularity. Status: %d"), Status);
-			return false;
-		}
-
-		// Cuda requires allocated memory to be aligned with a certain granularity
-		// We align each frame size to the desired granularity and multiply that by number of buffer
-		// This causes more memory to be allocated but doing a single allocation fails rmax stream creation
-		const size_t CudaAlignedFrameSize = (FrameAllocSize % Granularity) ? FrameAllocSize + (Granularity - (FrameAllocSize % Granularity)) : FrameAllocSize;
-		const size_t TotalCudaAllocSize = CudaAlignedFrameSize * Options.NumberOfBuffers;
-
-		// Reserve contiguous memory to contain required number of buffers. 
-		CUdeviceptr CudaBaseAddress;
-		constexpr CUdeviceptr InitialAddress = 0;
-		constexpr int32 Flags = 0;
-		Status = CudaModule.DriverAPI()->cuMemAddressReserve(&CudaBaseAddress, TotalCudaAllocSize, Granularity, InitialAddress, Flags);
-		if (Status != CUDA_SUCCESS)
-		{
-			UE_LOG(LogRivermax, Warning, TEXT("Can't initialize output to use GPUDirect. Failed to reserve memory for %d bytes. Status: %d"), TotalCudaAllocSize, Status);
-			return false;
-		}
-
-		// Make the allocation on device memory
-		CUmemGenericAllocationHandle Handle;
-		Status = CudaModule.DriverAPI()->cuMemCreate(&Handle, TotalCudaAllocSize, &AllocationProperties, Flags);
-		if (Status != CUDA_SUCCESS)
-		{
-			UE_LOG(LogRivermax, Warning, TEXT("Can't initialize output to use GPUDirect. Failed to create memory on device. Status: %d"), Status);
-			return false;
-		}
-		
-		bool bExit = false;
-		constexpr int32 Offset = 0;
-		Status = CudaModule.DriverAPI()->cuMemMap(CudaBaseAddress, TotalCudaAllocSize, Offset, Handle, Flags);
-		if (Status != CUDA_SUCCESS)
-		{
-			UE_LOG(LogRivermax, Warning, TEXT("Can't initialize output to use GPUDirect. Failed to map memory. Status: %d"), Status);
-			// Need to release handle no matter what
-			bExit = true;
-		}
-		
-		// Cache to know we need to unmap/deallocate even if it fails down the road
-		CudaAllocatedMemory = TotalCudaAllocSize;
-		CudaAllocatedMemoryBaseAddress = reinterpret_cast<void*>(CudaBaseAddress);
-
-		Status = CudaModule.DriverAPI()->cuMemRelease(Handle);
-		if (Status != CUDA_SUCCESS)
-		{
-			UE_LOG(LogRivermax, Warning, TEXT("Can't initialize output to use GPUDirect. Failed to release handle. Status: %d"), Status);
-			return false;
-		}
-
-		if(bExit)
-		{
-			return false;
-		}
-
-		// Setup access description.
-		CUmemAccessDesc MemoryAccessDescription = {};
-		MemoryAccessDescription.flags = CU_MEM_ACCESS_FLAGS_PROT_READWRITE;
-		MemoryAccessDescription.location.type = CU_MEM_LOCATION_TYPE_DEVICE;
-		MemoryAccessDescription.location.id = CudaDevice;
-		constexpr int32 Count = 1;
-		Status = CudaModule.DriverAPI()->cuMemSetAccess(CudaBaseAddress, TotalCudaAllocSize, &MemoryAccessDescription, Count);
-		if (Status != CUDA_SUCCESS)
-		{
-			UE_LOG(LogRivermax, Warning, TEXT("Can't initialize output to use GPUDirect. Failed to configure memory access. Status: %d"), Status);
-			return false;
-		}
-
-		CUstream CudaStream;
-		Status = CudaModule.DriverAPI()->cuStreamCreate(&CudaStream, CU_STREAM_NON_BLOCKING);
-		if (Status != CUDA_SUCCESS)
-		{
-			UE_LOG(LogRivermax, Warning, TEXT("Can't initialize output to use GPUDirect. Failed to create its stream. Status: %d"), Status);
-			return false;
-		}
-
-		GPUStream = CudaStream;
-		
-		Status = CudaModule.DriverAPI()->cuCtxSynchronize();
-		if (Status != CUDA_SUCCESS)
-		{
-			UE_LOG(LogRivermax, Warning, TEXT("Can't initialize output to use GPUDirect. Failed to synchronize context. Status: %d"), Status);
-			return false;
-		}
-
-		// Now that Cuda memory was allocated, we can allocate our buffers with an address in cuda space
-		AvailableFrames.Reserve(Options.NumberOfBuffers);
-		for (int32 Index = 0; Index < Options.NumberOfBuffers; ++Index)
-		{
-			TFunction<void(void*)> DeallocatorFunc = nullptr; // We handle a single deallocation for gpu memory
-			TSharedPtr<FRivermaxOutputFrame> Frame = MakeShared<FRivermaxOutputFrame>(Index, DeallocatorFunc);
-			Frame->VideoBuffer = reinterpret_cast<void*>(CudaBaseAddress + (Index * CudaAlignedFrameSize));
-			AvailableFrames.Add(MoveTemp(Frame));
-		}		
-
-		CudaModule.DriverAPI()->cuCtxPopCurrent(nullptr);
-
-		return true;
+		return FrameLocation != EFrameMemoryLocation::None;
 	}
 
-	void FRivermaxOutputStream::DeallocateBuffers()
+	void FRivermaxOutputStream::CleanupFrameManagement()
 	{
-		if (CudaAllocatedMemory > 0)
-		{
-			FCUDAModule& CudaModule = FModuleManager::GetModuleChecked<FCUDAModule>("CUDA");
-			CudaModule.DriverAPI()->cuCtxPushCurrent(CudaModule.GetCudaContext());
-
-			const CUdeviceptr BaseAddress = reinterpret_cast<CUdeviceptr>(CudaAllocatedMemoryBaseAddress);
-			CUresult Status = CudaModule.DriverAPI()->cuMemUnmap(BaseAddress, CudaAllocatedMemory);
-			if (Status != CUDA_SUCCESS)
-			{
-				UE_LOG(LogRivermax, Warning, TEXT("Failed to unmap cuda memory. Status: %d"), Status);
-			}
-
-			Status = CudaModule.DriverAPI()->cuMemAddressFree(BaseAddress, CudaAllocatedMemory);
-			if (Status != CUDA_SUCCESS)
-			{
-				UE_LOG(LogRivermax, Warning, TEXT("Failed to free cuda memory. Status: %d"), Status);
-			}
-
-			for (const TPair<FBufferRHIRef, void*>& Entry : BufferCudaMemoryMap)
-			{
-				if(Entry.Value)
-				{
-					CudaModule.DriverAPI()->cuMemFree(reinterpret_cast<CUdeviceptr>(Entry.Value));
-				}
-			}
-			BufferCudaMemoryMap.Empty();
-
-			Status = CudaModule.DriverAPI()->cuStreamDestroy(reinterpret_cast<CUstream>(GPUStream));
-			if (Status != CUDA_SUCCESS)
-			{
-				UE_LOG(LogRivermax, Warning, TEXT("Failed to destroy cuda stream. Status: %d"), Status);
-			}
-			GPUStream = nullptr;
-
-			CudaModule.DriverAPI()->cuCtxPopCurrent(nullptr);
-		}
+		FrameManager->Cleanup();
+		FrameManager.Reset();
 	}
 
 	int32 FRivermaxOutputStream::GetStride() const
 	{
 		check(FormatInfo.PixelGroupCoverage != 0);
 		return (Options.AlignedResolution.X / FormatInfo.PixelGroupCoverage) * FormatInfo.PixelGroupSize;
-	}
-
-	void* FRivermaxOutputStream::GetMappedAddress(const FBufferRHIRef& InBuffer)
-	{
-		// If we are here, d3d12 had to have been validated
-		const ERHIInterfaceType RHIType = RHIGetInterfaceType();
-		check(RHIType == ERHIInterfaceType::D3D12);
-
-		//Do we already have a mapped address for this buffer
-		if (BufferCudaMemoryMap.Find((InBuffer)) == nullptr)
-		{
-			int64 BufferMemorySize = 0;
-			CUexternalMemory MappedExternalMemory = nullptr;
-			HANDLE D3D12BufferHandle = 0;
-			CUDA_EXTERNAL_MEMORY_HANDLE_DESC CudaExtMemHandleDesc = {};
-
-			// Create shared handle for our buffer
-			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(Rmax_D3D12CreateSharedHandle);
-
-				ID3D12Resource* NativeD3D12Resource = GetID3D12DynamicRHI()->RHIGetResource(InBuffer);
-				BufferMemorySize = GetID3D12DynamicRHI()->RHIGetResourceMemorySize(InBuffer);
-
-				TRefCountPtr<ID3D12Device> OwnerDevice;
-				HRESULT QueryResult;
-				if ((QueryResult = NativeD3D12Resource->GetDevice(IID_PPV_ARGS(OwnerDevice.GetInitReference()))) != S_OK)
-				{
-					UE_LOG(LogRivermax, Error, TEXT("Failed to get D3D12 device for captured buffer ressource: %d)"), QueryResult);
-					return nullptr;
-				}
-
-				if ((QueryResult = OwnerDevice->CreateSharedHandle(NativeD3D12Resource, NULL, GENERIC_ALL, NULL, &D3D12BufferHandle)) != S_OK)
-				{
-					UE_LOG(LogRivermax, Error, TEXT("Failed to create shared handle for captured buffer ressource: %d"), QueryResult);
-					return nullptr;
-				}
-
-				CudaExtMemHandleDesc.type = CU_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE;
-				CudaExtMemHandleDesc.handle.win32.name = nullptr;
-				CudaExtMemHandleDesc.handle.win32.handle = D3D12BufferHandle;
-				CudaExtMemHandleDesc.size = BufferMemorySize;
-				CudaExtMemHandleDesc.flags |= CUDA_EXTERNAL_MEMORY_DEDICATED;
-			}
-
-			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(Rmax_CudaImportMemory);
-
-				const CUresult Result = FCUDAModule::CUDA().cuImportExternalMemory(&MappedExternalMemory, &CudaExtMemHandleDesc);
-				
-				if (D3D12BufferHandle)
-				{
-					CloseHandle(D3D12BufferHandle);
-				}
-
-				if (Result != CUDA_SUCCESS)
-				{
-					UE_LOG(LogRivermax, Error, TEXT("Failed to import shared buffer. Error: %d"), Result);
-					return nullptr;
-				}
-			}
-
-			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(Rmax_MapCudaMemory);
-
-				CUDA_EXTERNAL_MEMORY_BUFFER_DESC BufferDescription = {};
-				BufferDescription.offset = 0;
-				BufferDescription.size = BufferMemorySize;
-				CUdeviceptr NewMemory;
-				const CUresult Result = FCUDAModule::CUDA().cuExternalMemoryGetMappedBuffer(&NewMemory, MappedExternalMemory, &BufferDescription);
-				if(Result != CUDA_SUCCESS || NewMemory == 0)
-				{
-					UE_LOG(LogRivermax, Error, TEXT("Failed to get shared buffer mapped memory. Error: %d"), Result);
-					return nullptr;
-				}
-				
-				BufferCudaMemoryMap.Add(InBuffer, reinterpret_cast<void*>(NewMemory));
-			}
-		}
-
-		// At this point, we have the mapped buffer in cuda space and we can use it to schedule a memcpy on cuda engine.
-		return BufferCudaMemoryMap[InBuffer];
 	}
 
 	void FRivermaxOutputStream::CalculateNextScheduleTime_AlignementPoints(uint64 CurrentClockTimeNanosec, uint64 CurrentFrameNumber)
@@ -1641,7 +1253,6 @@ namespace UE::RivermaxCore::Private
 					{
 						NextFrameNumber = CurrentFrameNumber + 1;
 					}
-
 				}
 				else
 				{
@@ -1682,15 +1293,34 @@ namespace UE::RivermaxCore::Private
 		}
 	}
 
-	void FRivermaxOutputStream::MarkFrameToBeSent(TSharedPtr<FRivermaxOutputFrame> ReadyFrame)
+	bool FRivermaxOutputStream::ReserveFrame(uint32 FrameIdentifier) const
 	{
-		// Make frame available to be sent
-		FScopeLock Lock(&FrameCriticalSection);
-		ReadyFrame->ReadyTimestamp = RivermaxModule->GetRivermaxManager()->GetTime();
-		AvailableFrames.Remove(ReadyFrame);
-		FramesToSend.Add(MoveTemp(ReadyFrame));
-		ReadyToSendEvent->Trigger();
+		TSharedPtr<FRivermaxOutputFrame> ReservedFrame = FrameManager->GetFreeFrame();
+		if (!ReservedFrame && Options.FrameLockingMode == EFrameLockingMode::BlockOnReservation)
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(Rmax::WaitForAvailableFrame);
+			while(!ReservedFrame && bIsActive)
+			{
+				FrameAvailableSignal->Wait();
+				ReservedFrame = FrameManager->GetFreeFrame();
+			}
+		}
+		return ReservedFrame != nullptr;
 	}
 
+	void FRivermaxOutputStream::OnFrameReadyToBeSent()
+	{	
+		FrameReadyToSendSignal->Trigger();
+	}
+
+	void FRivermaxOutputStream::OnFrameReadyToBeUsed()
+	{
+		FrameAvailableSignal->Trigger();
+	}
+
+	void FRivermaxOutputStream::OnPreFrameReadyToBeSent()
+	{
+		Listener->OnPreFrameEnqueue();
+	}
 }
 

@@ -17,6 +17,8 @@ class IRivermaxCoreModule;
 
 namespace UE::RivermaxCore::Private
 {
+	class FFrameManager;
+
 	using UE::RivermaxCore::FRivermaxOutputStreamOptions;
 	using UE::RivermaxCore::FRivermaxOutputVideoFrameInfo;
 
@@ -97,8 +99,8 @@ namespace UE::RivermaxCore::Private
 		virtual bool Initialize(const FRivermaxOutputStreamOptions& Options, IRivermaxOutputStreamListener& InListener) override;
 		virtual void Uninitialize() override;
 		virtual bool PushVideoFrame(const FRivermaxOutputVideoFrameInfo& NewFrame) override;
-		virtual bool PushGPUVideoFrame(const FRivermaxOutputVideoFrameInfo& NewFrame, FBufferRHIRef CapturedBuffer) override;
 		virtual bool IsGPUDirectSupported() const override;
+		virtual bool ReserveFrame(uint32 FrameIdentifier) const override;
 		//~ End IRivermaxOutputStream interface
 
 		void Process_AnyThread();
@@ -118,23 +120,14 @@ namespace UE::RivermaxCore::Private
 		/** Initializes timing setup for this stream. TRO, frame interval etc... */
 		void InitializeStreamTimingSettings();
 
-		/** Allocates buffers on gpu for gpudirect usage */
-		bool AllocateGPUBuffers();
+		/** Sets up frame management taking care of allocation, special cuda handling, etc... */
+		bool SetupFrameManagement();
 
-		/** Allocates buffers on system memory */
-		void AllocateSystemBuffers();
-
-		/** Clean up allocated buffers */
-		void DeallocateBuffers();
+		/** Clean up frames */
+		void CleanupFrameManagement();
 
 		/** Resets NextFrame to be ready to send it out */
 		void InitializeNextFrame(const TSharedPtr<FRivermaxOutputFrame>& NextFrame);
-
-		/** Returns next frame ready to be sent */
-		TSharedPtr<FRivermaxOutputFrame> GetNextFrameToSend();
-
-		/** Returns next frame ready to be filled / written by the capture */
-		TSharedPtr<FRivermaxOutputFrame> GetNextAvailableFrame(uint32 InFrameIdentifier);
 
 		/** Fills RTP and SRD header using current state */
 		void BuildRTPHeader(FRawRTPHeader& OutHeader) const;
@@ -163,6 +156,12 @@ namespace UE::RivermaxCore::Private
 		/** Fetches next frame to send and prepares it for sending */
 		void PrepareNextFrame();
 
+		/** Returns next frame to send for frame creation alignment */
+		void PrepareNextFrame_FrameCreation();
+
+		/** Returns next frame to send for alignement point method. Can return nullptr */
+		void PrepareNextFrame_AlignmentPoint();
+
 		/** If enabled, print stats related to this stream */
 		void ShowStats();
 
@@ -172,11 +171,14 @@ namespace UE::RivermaxCore::Private
 		/** Get row stride for the current stream configuration */
 		int32 GetStride() const;
 
-		/** Get mapped address in cuda space for a given buffer. Cache will be updated if not found */
-		void* GetMappedAddress(const FBufferRHIRef& InBuffer);
+		/** Used to notify the listener that a frame is ready to be enqueued for transmission */
+		void OnPreFrameReadyToBeSent();
+		
+		/** Used to detect when a frame is now ready to be sent */
+		void OnFrameReadyToBeSent();
 
-		/** Makes a frame available to be sent, i.e. moved to the right container and mark its arrival time */
-		void MarkFrameToBeSent(TSharedPtr<FRivermaxOutputFrame> ReadyFrame);
+		/** Used to know when a frame is ready to be used and receive new data */
+		void OnFrameReadyToBeUsed();
 
 	private:
 
@@ -196,25 +198,25 @@ namespace UE::RivermaxCore::Private
 		rmax_stream_id StreamId;
 
 		/** Critical section to protect frames access */
-		FCriticalSection FrameCriticalSection;
+		mutable FCriticalSection FrameCriticalSection;
 
 		/** Current frame being sent */
 		TSharedPtr<FRivermaxOutputFrame> CurrentFrame;
 
-		/** Available frames to write memory to (Ready to be written) */
-		TArray<TSharedPtr<FRivermaxOutputFrame>> AvailableFrames;
-
-		/** Frames ready to be sent to rivermax (Ready to be read) */
-		TArray<TSharedPtr<FRivermaxOutputFrame>> FramesToSend;
-
 		/** Thread scheduling frame output */
 		TUniquePtr<FRunnableThread> RivermaxThread;
+
+		/** Manages allocation and memory manipulation of video frames */
+		TUniquePtr<FFrameManager> FrameManager;
 
 		/** Whether stream is active or not */
 		std::atomic<bool> bIsActive;
 
 		/** Event used to let scheduler that a frame is ready to be sent */
-		FEvent* ReadyToSendEvent = nullptr;
+		FEventRef FrameReadyToSendSignal = FEventRef(EEventMode::AutoReset);
+
+		/** Event used to unblock frame reservation as soon as one is free */
+		FEventRef FrameAvailableSignal = FEventRef(EEventMode::AutoReset);
 
 		/** Listener for this stream events */
 		IRivermaxOutputStreamListener* Listener = nullptr;
@@ -234,23 +236,11 @@ namespace UE::RivermaxCore::Private
 		/** Whether stream is using gpudirect to host memory consumed by Rivermax */
 		bool bUseGPUDirect = false;
 
-		/** Allocated memory base address used when it's time to free */
-		void* CudaAllocatedMemoryBaseAddress = nullptr;
-
-		/** Total allocated gpu memory. */
-		int32 CudaAllocatedMemory = 0;
-
-		/** Map between buffer we are sending and their mapped address in gpu space */
-		TMap<FBufferRHIRef, void*> BufferCudaMemoryMap;
-
-		/** Queued identifiers to be consumed by cuda callback when work has been completed */
-		TSpscQueue<uint32> PendingIdentifiers;
-
-		/** Cuda stream used for our operations */
-		void* GPUStream = nullptr;
-
 		/** Our own module pointer kept for ease of use */
 		IRivermaxCoreModule* RivermaxModule = nullptr;
+
+		/** Guid given by boundary monitoring handler to unregister ourselves */
+		FGuid MonitoringGuid;
 
 		/** Time to sleep when waiting for an operation to complete */
 		static constexpr double SleepTimeSeconds = 50.0 * 1E-6;

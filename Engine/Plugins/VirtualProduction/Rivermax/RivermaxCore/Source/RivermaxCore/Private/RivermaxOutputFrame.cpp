@@ -4,20 +4,11 @@
 
 namespace UE::RivermaxCore::Private
 {
-	FRivermaxOutputFrame::FRivermaxOutputFrame(uint32 InFrameIndex, TFunction<void(void*)> InDeallocationFunction)
+	FRivermaxOutputFrame::FRivermaxOutputFrame(uint32 InFrameIndex)
 		: FrameIndex(InFrameIndex)
 		, VideoBuffer(nullptr)
-		, DeallocationFunc(InDeallocationFunction)
 	{
 		Clear();
-	}
-
-	FRivermaxOutputFrame::~FRivermaxOutputFrame()
-	{
-		if (DeallocationFunc)
-		{
-			DeallocationFunc(VideoBuffer);
-		}
 	}
 
 	bool FRivermaxOutputFrame::IsReadyToBeSent() const

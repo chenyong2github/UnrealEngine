@@ -207,6 +207,11 @@ struct FFrameRate
 	{
 		return Rate.AsFrameTime(TimeInSeconds);
 	}
+
+	friend inline uint32 GetTypeHash(const FFrameRate& Rate)
+	{
+		return HashCombine(GetTypeHash(Rate.Numerator), GetTypeHash(Rate.Denominator));
+	}
 	
 	friend CORE_API FArchive& operator<<(FArchive& Ar, FFrameRate& FrameRate);
 

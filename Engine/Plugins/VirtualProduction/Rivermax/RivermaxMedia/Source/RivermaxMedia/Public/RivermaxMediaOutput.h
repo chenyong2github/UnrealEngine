@@ -36,6 +36,19 @@ enum class ERivermaxMediaAlignmentMode : uint8
 	FrameCreation,
 };
 
+/** 
+ * Controls how rivermax capture behaves when there are no buffers available to capture into
+ */
+UENUM()
+enum class ERivermaxFrameLockingMode : uint8
+{
+	/** If no frame available, continue */
+	FreeRun,
+
+	/** Blocks RHI thread prior to capture the current frame if no space is available. */
+	BlockOnReservation,
+};
+
 
 /**
  * Output information for a Rivermax media capture.
@@ -76,6 +89,14 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output", meta = (EditCondition = "AlignmentMode != ERivermaxMediaAlignmentMode::FrameCreation"))
 	bool bDoContinuousOutput = true;
+
+	/** For alignment point mode, controls whether we stall engine before capturing if there are no buffer available to capture into */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output", meta = (EditCondition = "AlignmentMode != ERivermaxMediaAlignmentMode::FrameCreation"))
+	ERivermaxFrameLockingMode FrameLockingMode = ERivermaxFrameLockingMode::FreeRun;
+
+	/** Number of frames that can be queued / used in output queue. Frame being sent counts for 1. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output", meta = (ClampMin = "2", ClampMax = "8", UIMin = "2", UIMax = "8"))
+	int32 PresentationQueueSize = 2;
 
 	/** 
 	 * Experimental flag to use frame counter instead of using NVIDIA Rivermax clock for timestamping output frames

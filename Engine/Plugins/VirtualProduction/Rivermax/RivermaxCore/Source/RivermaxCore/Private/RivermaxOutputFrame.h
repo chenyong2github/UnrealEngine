@@ -14,8 +14,7 @@ namespace UE::RivermaxCore::Private
 	 */
 	struct FRivermaxOutputFrame
 	{
-		FRivermaxOutputFrame(uint32 InFrameIndex, TFunction<void(void*)> InDeallocationFunction);
-		~FRivermaxOutputFrame();
+		FRivermaxOutputFrame(uint32 InFrameIndex);
 		FRivermaxOutputFrame(const FRivermaxOutputFrame&) = delete;
 		FRivermaxOutputFrame& operator=(const FRivermaxOutputFrame&) = delete;
 
@@ -64,10 +63,6 @@ namespace UE::RivermaxCore::Private
 		/** Time at which this frame was made available to be sent */
 		uint64 ReadyTimestamp = 0;
 
-	private:
-
-		/** Method called to deallocate memory. */
-		TFunction<void(void*)> DeallocationFunc;
 	};
 }
 

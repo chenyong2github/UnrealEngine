@@ -32,6 +32,7 @@ DECLARE_CYCLE_STAT(TEXT("Rivermax MediaPlayer Request frame"), STAT_Rivermax_Med
 DECLARE_CYCLE_STAT(TEXT("Rivermax MediaPlayer Process frame"), STAT_Rivermax_MediaPlayer_ProcessFrame, STATGROUP_Media);
 
 DECLARE_GPU_STAT_NAMED(RivermaxMedia_SampleUsageFence, TEXT("RivermaxMedia_SampleUsageFence"));
+DECLARE_GPU_STAT_NAMED(Rmax_WaitForPixels, TEXT("Rmax_WaitForPixels"));
 
 
 namespace UE::RivermaxMedia
@@ -1133,9 +1134,17 @@ namespace UE::RivermaxMedia
 					}
 				);
 			}
-
+			
 			// Setup requirements for sample to be ready to be rendered
-			FRHICommandListImmediate & RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+			FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+
+			SCOPED_GPU_STAT(RHICmdList, Rmax_WaitForPixels);
+			SCOPED_DRAW_EVENT(RHICmdList, Rmax_WaitForPixels);
+
+			// Since we are going to enqueue a lambda that can potentially sleep in the RHI thread if the pixels haven't arrived,
+			// we dispatch the existing commands (including the draw event start timing in the SCOPED_DRAW_EVENT above) before any potential sleep.
+			RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+
 			RHICmdList.EnqueueLambda(
 				[NextFrameExpectations, this](FRHICommandList& RHICmdList)
 				{

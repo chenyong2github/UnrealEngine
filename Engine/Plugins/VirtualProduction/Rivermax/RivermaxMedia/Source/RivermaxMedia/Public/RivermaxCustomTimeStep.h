@@ -46,6 +46,12 @@ private:
 	/** We wait for Rivermax Manager to be initialized to do final verification before going to Synchronized state` */
 	void OnRivermaxManagerInitialized();
 
+	/** Adds current frame rate to boundary monitor */
+	void EnableMonitoring();
+
+	/** Removes current frame rate to boundary monitor */
+	void DisableMonitoring();
+
 public:
 
 	/** Target frame rate to which to genlock. Uses ST2059 standard to align PTP time to standard genlock */
@@ -73,4 +79,10 @@ private:
 	bool bIsPreviousFrameNumberValid = false;
 	uint64 PreviousFrameNumber = 0;
 	uint64 DeltaFrameNumber = 0;
+
+	/** Frame boundary monitoring ID */
+	FGuid BoundaryMonitorListener;
+
+	/** Cached frame rate used for boundary monitoring */
+	FFrameRate CachedFrameRate;
 };

@@ -243,4 +243,26 @@ namespace UE::RivermaxMediaUtils::Private
 		}
 	}
 
+	UE::RivermaxCore::EFrameLockingMode MediaOutputFrameLockingToRivermax(ERivermaxFrameLockingMode InFrameLockingMode)
+	{
+		using namespace UE::RivermaxCore;
+
+		switch (InFrameLockingMode)
+		{
+		case ERivermaxFrameLockingMode::FreeRun:
+		{
+			return EFrameLockingMode::FreeRun;
+		}
+		case ERivermaxFrameLockingMode::BlockOnReservation:
+		{
+			return EFrameLockingMode::BlockOnReservation;
+		}
+		default:
+		{
+			checkNoEntry();
+			return EFrameLockingMode::FreeRun;
+		}
+		}
+	}
+
 }
