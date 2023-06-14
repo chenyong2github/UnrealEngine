@@ -1739,6 +1739,7 @@ void UGeometryCollectionComponent::UpdateRepData()
 	
 	if (Owner && GetIsReplicated() && Owner->GetLocalRole() == ROLE_Authority)
 	{
+		const bool bReplicateMovement = Owner->IsReplicatingMovement();
 		bool bFirstUpdate = false;
 		if(ClustersToRep == nullptr)
 		{
@@ -1870,61 +1871,64 @@ void UGeometryCollectionComponent::UpdateRepData()
 
 		INC_DWORD_STAT_BY(STAT_GCReplicatedFractures, RepData.OneOffActivated.Num());
 		
-		//build up clusters to replicate and compare with previous frame
+		//Build up clusters to replicate and compare with previous frame
 		TArray<FGeometryCollectionClusterRep> Clusters;
 
-		//remove disabled clusters and update rep data if needed
-		for (auto Itr = ClustersToRep->CreateIterator(); Itr; ++Itr)
+		if (bReplicateMovement)
 		{
-			FPBDRigidClusteredParticleHandle* Cluster = *Itr;
-
-			const TArray<FPBDRigidParticleHandle*>& Children = RigidClustering.GetChildrenMap().FindRef(Cluster);
-			const bool bIsInternalCluster = Cluster->InternalCluster();
-			const bool bChildrenEmpty = Children.IsEmpty();
-			if (Cluster->Disabled() || (bIsInternalCluster && bChildrenEmpty))
+			//remove disabled clusters and update rep data if needed
+			for (auto Itr = ClustersToRep->CreateIterator(); Itr; ++Itr)
 			{
-				Itr.RemoveCurrent();
-			}
-			else
-			{
-				Clusters.AddDefaulted();
-				FGeometryCollectionClusterRep& ClusterRep = Clusters.Last();
+				FPBDRigidClusteredParticleHandle* Cluster = *Itr;
 
-				ClusterRep.Position = Cluster->X();
-				ClusterRep.Rotation = Cluster->R();
-				ClusterRep.LinearVelocity = Cluster->V();
-				ClusterRep.AngularVelocity = Cluster->W();
-				ClusterRep.ClusterState.SetObjectState(Cluster->ObjectState());
-				ClusterRep.ClusterState.SetInternalCluster(Cluster->InternalCluster());
-				int32 TransformGroupIdx;
-				if(Cluster->InternalCluster())
+				const TArray<FPBDRigidParticleHandle*>& Children = RigidClustering.GetChildrenMap().FindRef(Cluster);
+				const bool bIsInternalCluster = Cluster->InternalCluster();
+				const bool bChildrenEmpty = Children.IsEmpty();
+				if (Cluster->Disabled() || (bIsInternalCluster && bChildrenEmpty))
 				{
-					
-					ensureMsgf(Children.Num(), TEXT("Internal cluster yet we have no children? [Num %d vs Cached Empty %d]"), Children.Num(), bChildrenEmpty);
-					TransformGroupIdx = PhysicsProxy->GetTransformGroupIndexFromHandle(Children[0]);
+					Itr.RemoveCurrent();
 				}
 				else
 				{
-					// not internal so we can just use the cluster's ID. On client we'll know based on the parent whether to use this index or the parent
-					TransformGroupIdx = PhysicsProxy->GetTransformGroupIndexFromHandle(Cluster);
-				}
+					Clusters.AddDefaulted();
+					FGeometryCollectionClusterRep& ClusterRep = Clusters.Last();
 
-				ensureMsgf(TransformGroupIdx < TNumericLimits<uint16>::Max(), TEXT("Trying to replicate GC with more than 65k pieces. We assumed uint16 would suffice"));
-				ClusterRep.ClusterIdx = TransformGroupIdx;
+					ClusterRep.Position = Cluster->X();
+					ClusterRep.Rotation = Cluster->R();
+					ClusterRep.LinearVelocity = Cluster->V();
+					ClusterRep.AngularVelocity = Cluster->W();
+					ClusterRep.ClusterState.SetObjectState(Cluster->ObjectState());
+					ClusterRep.ClusterState.SetInternalCluster(Cluster->InternalCluster());
+					int32 TransformGroupIdx;
+					if (Cluster->InternalCluster())
+					{
 
-				if(!bClustersChanged)
-				{
-					//compare to previous frame data
-					// this could be more efficient by having a way to find back the data from the idx
-					auto Predicate = [TransformGroupIdx](const FGeometryCollectionClusterRep& Entry)
+						ensureMsgf(Children.Num(), TEXT("Internal cluster yet we have no children? [Num %d vs Cached Empty %d]"), Children.Num(), bChildrenEmpty);
+						TransformGroupIdx = PhysicsProxy->GetTransformGroupIndexFromHandle(Children[0]);
+					}
+					else
 					{
-						return Entry.ClusterIdx == TransformGroupIdx;
-					};
-					if (const FGeometryCollectionClusterRep* PrevClusterData = RepData.Clusters.FindByPredicate(Predicate))
+						// not internal so we can just use the cluster's ID. On client we'll know based on the parent whether to use this index or the parent
+						TransformGroupIdx = PhysicsProxy->GetTransformGroupIndexFromHandle(Cluster);
+					}
+
+					ensureMsgf(TransformGroupIdx < TNumericLimits<uint16>::Max(), TEXT("Trying to replicate GC with more than 65k pieces. We assumed uint16 would suffice"));
+					ClusterRep.ClusterIdx = TransformGroupIdx;
+
+					if (!bClustersChanged)
 					{
-						if (ClusterRep.ClusterChanged(*PrevClusterData))
+						//compare to previous frame data
+						// this could be more efficient by having a way to find back the data from the idx
+						auto Predicate = [TransformGroupIdx](const FGeometryCollectionClusterRep& Entry)
 						{
-							bClustersChanged = true;
+							return Entry.ClusterIdx == TransformGroupIdx;
+						};
+						if (const FGeometryCollectionClusterRep* PrevClusterData = RepData.Clusters.FindByPredicate(Predicate))
+						{
+							if (ClusterRep.ClusterChanged(*PrevClusterData))
+							{
+								bClustersChanged = true;
+							}
 						}
 					}
 				}
@@ -1995,7 +1999,7 @@ bool UGeometryCollectionComponent::ProcessRepData(const float DeltaTime, const f
 {
 	using namespace Chaos;
 
-	if(!PhysicsProxy || !PhysicsProxy->IsInitializedOnPhysicsThread() || PhysicsProxy->GetReplicationMode() != FGeometryCollectionPhysicsProxy::EReplicationMode::Client)
+	if (!PhysicsProxy || !PhysicsProxy->IsInitializedOnPhysicsThread() || PhysicsProxy->GetReplicationMode() != FGeometryCollectionPhysicsProxy::EReplicationMode::Client)
 	{
 		return false;
 	}
@@ -2043,39 +2047,39 @@ bool UGeometryCollectionComponent::ProcessRepData(const float DeltaTime, const f
 	if (bGeometryCollectionDebugDrawRep)
 	{
 		ForEachClusterPair([RepExtrapTime](const FGeometryCollectionClusterRep& RepCluster, Chaos::FPBDRigidParticleHandle& Cluster)
-		{
-			// Don't bother debug drawing if the delta is too small
-			if ((Cluster.X() - RepCluster.Position).SizeSquared() < .1f)
 			{
-				FVector Axis;
-				float Angle;
-				(RepCluster.Rotation.Inverse() * Cluster.R()).ToAxisAndAngle(Axis, Angle);
-				if (FMath::Abs(Angle) < .1f)
+				// Don't bother debug drawing if the delta is too small
+				if ((Cluster.X() - RepCluster.Position).SizeSquared() < .1f)
 				{
-					return;
+					FVector Axis;
+					float Angle;
+					(RepCluster.Rotation.Inverse() * Cluster.R()).ToAxisAndAngle(Axis, Angle);
+					if (FMath::Abs(Angle) < .1f)
+					{
+						return;
+					}
 				}
-			}
 
-			Chaos::FDebugDrawQueue& DrawQueue = Chaos::FDebugDrawQueue::GetInstance();
-			DrawQueue.DrawDebugCoordinateSystem(Cluster.X(), FRotator(Cluster.R()), 100.f, false, -1, -1, 1.f);
-			DrawQueue.DrawDebugBox(Cluster.X() + Cluster.LocalBounds().Center(), Cluster.LocalBounds().Extents(), Cluster.R(), FColor::White, false, -1, -1, 1.f);
-			DrawQueue.DrawDebugBox(RepCluster.Position + Cluster.LocalBounds().Center(), Cluster.LocalBounds().Extents(), RepCluster.Rotation, FColor::Green, false, -1, -1, 1.f);
+				Chaos::FDebugDrawQueue& DrawQueue = Chaos::FDebugDrawQueue::GetInstance();
+				DrawQueue.DrawDebugCoordinateSystem(Cluster.X(), FRotator(Cluster.R()), 100.f, false, -1, -1, 1.f);
+				DrawQueue.DrawDebugBox(Cluster.X() + Cluster.LocalBounds().Center(), Cluster.LocalBounds().Extents(), Cluster.R(), FColor::White, false, -1, -1, 1.f);
+				DrawQueue.DrawDebugBox(RepCluster.Position + Cluster.LocalBounds().Center(), Cluster.LocalBounds().Extents(), RepCluster.Rotation, FColor::Green, false, -1, -1, 1.f);
 
-			if (bGeometryCollectionRepUseClusterVelocityMatch)
-			{
-				const FVector RepVel = RepCluster.LinearVelocity;
-				const FVector RepAngVel = RepCluster.AngularVelocity;
-				const FVector RepExtrapPos = RepCluster.Position + (RepVel * RepExtrapTime);
-				const Chaos::FRotation3 RepExtrapAng = Chaos::FRotation3::IntegrateRotationWithAngularVelocity(RepCluster.Rotation, RepAngVel, RepExtrapTime);
-				DrawQueue.DrawDebugCoordinateSystem(RepExtrapPos, FRotator(RepExtrapAng), 100.f, false, -1, -1, 1.f);
-				DrawQueue.DrawDebugDirectionalArrow(Cluster.X(), RepExtrapPos, 10.f, FColor::White, false, -1, -1, 1.f);
-				DrawQueue.DrawDebugBox(RepExtrapPos + Cluster.LocalBounds().Center(), Cluster.LocalBounds().Extents(), RepExtrapAng, FColor::Orange, false, -1, -1, 1.f);
-			}
-			else
-			{
-				DrawQueue.DrawDebugCoordinateSystem(RepCluster.Position, FRotator(RepCluster.Rotation), 100.f, false, -1, -1, 1.f);
-			}
-		});
+				if (bGeometryCollectionRepUseClusterVelocityMatch)
+				{
+					const FVector RepVel = RepCluster.LinearVelocity;
+					const FVector RepAngVel = RepCluster.AngularVelocity;
+					const FVector RepExtrapPos = RepCluster.Position + (RepVel * RepExtrapTime);
+					const Chaos::FRotation3 RepExtrapAng = Chaos::FRotation3::IntegrateRotationWithAngularVelocity(RepCluster.Rotation, RepAngVel, RepExtrapTime);
+					DrawQueue.DrawDebugCoordinateSystem(RepExtrapPos, FRotator(RepExtrapAng), 100.f, false, -1, -1, 1.f);
+					DrawQueue.DrawDebugDirectionalArrow(Cluster.X(), RepExtrapPos, 10.f, FColor::White, false, -1, -1, 1.f);
+					DrawQueue.DrawDebugBox(RepExtrapPos + Cluster.LocalBounds().Center(), Cluster.LocalBounds().Extents(), RepExtrapAng, FColor::Orange, false, -1, -1, 1.f);
+				}
+				else
+				{
+					DrawQueue.DrawDebugCoordinateSystem(RepCluster.Position, FRotator(RepCluster.Rotation), 100.f, false, -1, -1, 1.f);
+				}
+			});
 	}
 #endif
 
@@ -2112,35 +2116,42 @@ bool UGeometryCollectionComponent::ProcessRepData(const float DeltaTime, const f
 		}
 	}
 
+	AActor* Owner = GetOwner();
+	const bool bReplicateMovement = Owner ? GetOwner()->IsReplicatingMovement() : true;
+
 	bool bHardSnap = false;
-	const int64 CurrentTimeInMs = FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64());
 
-	// Always hard snap on the very first version received
-	if (VersionProcessed == 0)
+	if (bReplicateMovement)
 	{
-		bHardSnap = true;
-	}
-	else if (VersionProcessed < RepData.Version)
-	{
-		//TODO: this will not really work if a fracture happens and then immediately goes to sleep without updating client enough times
-		//A time method would work better here, but is limited to async mode. Maybe we can support both
-		bHardSnap = (RepData.Version - VersionProcessed) > GeometryCollectionHardMissingUpdatesSnapThreshold;
+		const int64 CurrentTimeInMs = FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64());
 
-		if (!bGeometryCollectionRepUseClusterVelocityMatch)
+		// Always hard snap on the very first version received
+		if (VersionProcessed == 0)
 		{
-			// When not doing velocity match for clusters, instead we do periodic hard snapping
-			bHardSnap |= (CurrentTimeInMs - LastHardsnapTimeInMs) > GeometryCollectionHardsnapThresholdMs;
+			bHardSnap = true;
 		}
-	}
-	else if (VersionProcessed > RepData.Version)
-	{
-		//rollover so just treat as hard snap - this case is extremely rare and a one off
-		bHardSnap = true;
-	}
+		else if (VersionProcessed < RepData.Version)
+		{
+			//TODO: this will not really work if a fracture happens and then immediately goes to sleep without updating client enough times
+			//A time method would work better here, but is limited to async mode. Maybe we can support both
+			bHardSnap = (RepData.Version - VersionProcessed) > GeometryCollectionHardMissingUpdatesSnapThreshold;
 
-	if (bHardSnap)
-	{
-		LastHardsnapTimeInMs = CurrentTimeInMs;
+			if (!bGeometryCollectionRepUseClusterVelocityMatch)
+			{
+				// When not doing velocity match for clusters, instead we do periodic hard snapping
+				bHardSnap |= (CurrentTimeInMs - LastHardsnapTimeInMs) > GeometryCollectionHardsnapThresholdMs;
+			}
+		}
+		else if (VersionProcessed > RepData.Version)
+		{
+			//rollover so just treat as hard snap - this case is extremely rare and a one off
+			bHardSnap = true;
+		}
+
+		if (bHardSnap)
+		{
+			LastHardsnapTimeInMs = CurrentTimeInMs;
+		}
 	}
 
 	FPBDRigidsSolver* Solver = PhysicsProxy->GetSolver<Chaos::FPBDRigidsSolver>();
@@ -2175,64 +2186,66 @@ bool UGeometryCollectionComponent::ProcessRepData(const float DeltaTime, const f
 	// Keep track of whether we did some "work" on this frame so we can turn off the async tick after
 	// multiple frames of not doing anything.
 	bool bProcessed = false;
-
-	ForEachClusterPair([Solver, DeltaTime, RepExtrapTime, bHardSnap, &bProcessed](const FGeometryCollectionClusterRep& RepCluster, Chaos::FPBDRigidParticleHandle& Cluster)
+	if (bReplicateMovement)
 	{
-		bool bWake = false;
-
-		if (bHardSnap)
-		{
-			Cluster.SetX(RepCluster.Position);
-			Cluster.SetR(RepCluster.Rotation);
-			Cluster.SetV(RepCluster.LinearVelocity);
-			Cluster.SetW(RepCluster.AngularVelocity);
-			bWake = true;
-		}
-		else if (bGeometryCollectionRepUseClusterVelocityMatch)
-		{
-			//
-			// Match linear velocity
-			//
-			const FVector RepVel = RepCluster.LinearVelocity;
-			const FVector RepExtrapPos = RepCluster.Position + (RepVel * RepExtrapTime);
-			const FVec3 DeltaX = RepExtrapPos - Cluster.X();
-			const float DeltaXMagSq = DeltaX.SizeSquared();
-			if (DeltaXMagSq > SMALL_NUMBER && GeometryCollectionRepLinearMatchStrength > SMALL_NUMBER)
+		ForEachClusterPair([Solver, DeltaTime, RepExtrapTime, bHardSnap, &bProcessed](const FGeometryCollectionClusterRep& RepCluster, Chaos::FPBDRigidParticleHandle& Cluster)
 			{
-				bWake = true;
-				//
-				// DeltaX * MatchStrength is an acceleration, m/s^2, which is integrated
-				// by multiplying by DeltaTime.
-				//
-				// It's formulated this way to get a larger correction for a longer time
-				// step, ie. correction velocities are framerate independent.
-				//
-				Cluster.SetV(RepVel + (DeltaX * GeometryCollectionRepLinearMatchStrength * DeltaTime));
-			}
+				bool bWake = false;
 
-			//
-			// Match angular velocity
-			//
-			const FVector RepAngVel = RepCluster.AngularVelocity;
-			const Chaos::FRotation3 RepExtrapAng = Chaos::FRotation3::IntegrateRotationWithAngularVelocity(RepCluster.Rotation, RepAngVel, RepExtrapTime);
-			const FVector AngVel = Chaos::FRotation3::CalculateAngularVelocity(Cluster.R(), RepExtrapAng, GeometryCollectionRepAngularMatchTime);
-			if (AngVel.SizeSquared() > SMALL_NUMBER)
-			{
-				Cluster.SetW(RepAngVel + AngVel);
-				bWake = true;
-			}
-		}
+				if (bHardSnap)
+				{
+					Cluster.SetX(RepCluster.Position);
+					Cluster.SetR(RepCluster.Rotation);
+					Cluster.SetV(RepCluster.LinearVelocity);
+					Cluster.SetW(RepCluster.AngularVelocity);
+					bWake = true;
+				}
+				else if (bGeometryCollectionRepUseClusterVelocityMatch)
+				{
+					//
+					// Match linear velocity
+					//
+					const FVector RepVel = RepCluster.LinearVelocity;
+					const FVector RepExtrapPos = RepCluster.Position + (RepVel * RepExtrapTime);
+					const FVec3 DeltaX = RepExtrapPos - Cluster.X();
+					const float DeltaXMagSq = DeltaX.SizeSquared();
+					if (DeltaXMagSq > SMALL_NUMBER && GeometryCollectionRepLinearMatchStrength > SMALL_NUMBER)
+					{
+						bWake = true;
+						//
+						// DeltaX * MatchStrength is an acceleration, m/s^2, which is integrated
+						// by multiplying by DeltaTime.
+						//
+						// It's formulated this way to get a larger correction for a longer time
+						// step, ie. correction velocities are framerate independent.
+						//
+						Cluster.SetV(RepVel + (DeltaX * GeometryCollectionRepLinearMatchStrength * DeltaTime));
+					}
 
-		bProcessed |= bWake;
+					//
+					// Match angular velocity
+					//
+					const FVector RepAngVel = RepCluster.AngularVelocity;
+					const Chaos::FRotation3 RepExtrapAng = Chaos::FRotation3::IntegrateRotationWithAngularVelocity(RepCluster.Rotation, RepAngVel, RepExtrapTime);
+					const FVector AngVel = Chaos::FRotation3::CalculateAngularVelocity(Cluster.R(), RepExtrapAng, GeometryCollectionRepAngularMatchTime);
+					if (AngVel.SizeSquared() > SMALL_NUMBER)
+					{
+						Cluster.SetW(RepAngVel + AngVel);
+						bWake = true;
+					}
+				}
 
-		//
-		// Wake up particle if it's sleeping and there's a delta to correct
-		//
-		if (bWake && Cluster.IsSleeping())
-		{
-			Solver->GetEvolution()->SetParticleObjectState(&Cluster, Chaos::EObjectStateType::Dynamic);
-		}
-	});
+				bProcessed |= bWake;
+
+				//
+				// Wake up particle if it's sleeping and there's a delta to correct
+				//
+				if (bWake && Cluster.IsSleeping())
+				{
+					Solver->GetEvolution()->SetParticleObjectState(&Cluster, Chaos::EObjectStateType::Dynamic);
+				}
+			});
+	}
 
 	VersionProcessed = RepData.Version;
 	return bProcessed;

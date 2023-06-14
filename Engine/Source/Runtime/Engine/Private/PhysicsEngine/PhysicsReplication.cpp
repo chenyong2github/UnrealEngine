@@ -89,11 +89,11 @@ namespace PhysicsReplicationCVars
 
 	namespace PredictiveInterpolationCVars
 	{
-		static float PosCorrectionTimeMultiplier = 1.0f;
+		static float PosCorrectionTimeMultiplier = 0.5f;
 		static FAutoConsoleVariableRef CVarPosCorrectionTimeMultiplier(TEXT("np2.PredictiveInterpolation.PosCorrectionTimeMultiplier"), PosCorrectionTimeMultiplier, TEXT("Multiplier to adjust the time to correct positional offset over, which is based on the clients forward predicted time ahead of the server."));
 
 		static float InterpolationTimeMultiplier = 1.1f;
-		static FAutoConsoleVariableRef CVarInterpolationTimeMultiplier(TEXT("np2.PredictiveInterpolation.InterpolationTimeMultiplier"), InterpolationTimeMultiplier, TEXT("Multiplier to adjust the replication interpolation time which is based on the clients forward predicted time ahead of the server."));
+		static FAutoConsoleVariableRef CVarInterpolationTimeMultiplier(TEXT("np2.PredictiveInterpolation.InterpolationTimeMultiplier"), InterpolationTimeMultiplier, TEXT("Multiplier to adjust the replication interpolation time which is based on the sendrate of replication data from the server."));
 
 		static float ExtrapolationTimeMultiplier = 1.5f;
 		static FAutoConsoleVariableRef CVarExtrapolationTimeMultiplier(TEXT("np2.PredictiveInterpolation.ExtrapolationTimeMultiplier"), ExtrapolationTimeMultiplier, TEXT("Multiplier to adjust the time to extrapolate the target forward over, the time is based on current send-rate."));
@@ -1132,7 +1132,7 @@ bool FPhysicsReplicationAsync::PredictiveInterpolation(Chaos::FPBDRigidParticleH
 	const float SendRate = (Target.ServerFrame - Target.PrevServerFrame) * DeltaSeconds;
 
 	const float PosCorrectionTime = PredictedTime * PhysicsReplicationCVars::PredictiveInterpolationCVars::PosCorrectionTimeMultiplier;
-	const float InterpolationTime = PredictedTime * PhysicsReplicationCVars::PredictiveInterpolationCVars::InterpolationTimeMultiplier;
+	const float InterpolationTime = SendRate * PhysicsReplicationCVars::PredictiveInterpolationCVars::InterpolationTimeMultiplier;
 
 	// CurrentState
 	FRigidBodyState CurrentState;
@@ -1179,6 +1179,13 @@ bool FPhysicsReplicationAsync::PredictiveInterpolation(Chaos::FPBDRigidParticleH
 	}
 	else // Velocity-based Replication
 	{
+		const Chaos::EObjectStateType ObjectState = Handle->ObjectState();
+		if (ObjectState != Chaos::EObjectStateType::Dynamic)
+		{
+			RigidsSolver->GetEvolution()->SetParticleObjectState(Handle, Chaos::EObjectStateType::Dynamic);
+		}
+
+
 		// --- Velocity Replication ---
 		// Get PosDiff
 		const FVector PosDiff = TargetPos - CurrentState.Position;
