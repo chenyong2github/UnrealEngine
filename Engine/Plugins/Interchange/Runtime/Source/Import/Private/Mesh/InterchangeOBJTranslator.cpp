@@ -1160,14 +1160,14 @@ namespace ObjTranslatorUtils
 			return false;
 		}
 
-		AddTexturedColoredInput(BaseNodeContainer, ShaderGraphNode, Materials::PBR::Parameters::BaseColor.ToString(), MaterialData.DiffuseColor, MaterialData.DiffuseTexture);
-		AddTexturedWeightedInput(BaseNodeContainer, ShaderGraphNode, Materials::PBR::Parameters::Metallic.ToString(), MaterialData.Metallic, MaterialData.MetallicTexture);
+		AddTexturedColoredInput(BaseNodeContainer, ShaderGraphNode, Materials::PBRMR::Parameters::BaseColor.ToString(), MaterialData.DiffuseColor, MaterialData.DiffuseTexture);
+		AddTexturedWeightedInput(BaseNodeContainer, ShaderGraphNode, Materials::PBRMR::Parameters::Metallic.ToString(), MaterialData.Metallic, MaterialData.MetallicTexture);
 
 		const float SpecularValue = (MaterialData.SpecularColor.X + MaterialData.SpecularColor.Y + MaterialData.SpecularColor.Z) / 3;
-		AddTexturedWeightedInput(BaseNodeContainer, ShaderGraphNode, Materials::PBR::Parameters::Specular.ToString(), SpecularValue, MaterialData.SpecularTexture);
+		AddTexturedWeightedInput(BaseNodeContainer, ShaderGraphNode, Materials::PBRMR::Parameters::Specular.ToString(), SpecularValue, MaterialData.SpecularTexture);
 
 		// Roughness (Glossiness, Shininess, Specular Power/Exponent in non-PBR terms)
-		AddTexturedWeightedInput(BaseNodeContainer, ShaderGraphNode, Materials::PBR::Parameters::Roughness.ToString(), MaterialData.Roughness, MaterialData.RoughnessTexture);
+		AddTexturedWeightedInput(BaseNodeContainer, ShaderGraphNode, Materials::PBRMR::Parameters::Roughness.ToString(), MaterialData.Roughness, MaterialData.RoughnessTexture);
 
 		if (IsScalarInitialized(MaterialData.ClearCoatThickness) && !FMath::IsNearlyZero(MaterialData.ClearCoatThickness))
 		{
@@ -1181,7 +1181,7 @@ namespace ObjTranslatorUtils
 
 		if (IsScalarInitialized(MaterialData.Anisotropy)  && !FMath::IsNearlyZero(MaterialData.Anisotropy))
 		{
-			ShaderGraphNode->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(Materials::PBR::Parameters::Anisotropy.ToString()), MaterialData.Anisotropy);
+			ShaderGraphNode->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(Materials::PBRMR::Parameters::Anisotropy.ToString()), MaterialData.Anisotropy);
 		}
 
 		return true;
@@ -1429,13 +1429,20 @@ bool UInterchangeOBJTranslator::Translate(UInterchangeBaseNodeContainer& BaseNod
 						}
 						else if (IsScalarInitialized(MaterialData.SpecularExponent))
 						{
-							ShaderGraphNode->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(Materials::Phong::Parameters::Shininess.ToString()), MaterialData.SpecularExponent * SpecularExponentToShininessFactor);
+							ShaderGraphNode->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(Materials::Phong::Parameters::Shininess.ToString()), MaterialData.SpecularExponent);
 						}
 					}
 
+					const FString AmbientColorPropertyName = Materials::Phong::Parameters::AmbientColor.ToString();
 					if (bReflectionMetal)
 					{
-						ShaderGraphNode->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(Materials::PBR::Parameters::Metallic.ToString()), 1.0);
+						// Set ambient to white as it drives the metallic parameter of UE Pbr material.
+						ShaderGraphNode->AddLinearColorAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(AmbientColorPropertyName), FLinearColor::White);
+					}
+					else
+					{
+						const FVector3f AmbientColor = MaterialData.AmbientColor.GetMin() < 0.f ? FVector3f(0.8f, 0.8f, 0.8f) : MaterialData.AmbientColor;
+						AddTexturedColoredInput(BaseNodeContainer, ShaderGraphNode, AmbientColorPropertyName, AmbientColor, MaterialData.AmbientTexture);
 					}
 				}
 			}

@@ -294,6 +294,7 @@ namespace Interchange
 				const FName IndexOfRefraction = TEXT("IOR"); // Type: float
 				const FName BxDF = TEXT("BxDF"); // input/output of BSDF or BRDF or BXDF or BTDF data
 				const FName Refraction = TEXT("Refraction"); // input/output of BSDF or BRDF or BXDF or BTDF data
+				const FName Anisotropy = TEXT("Anisotropy"); // Type: float
 			}
 		}
 
@@ -315,10 +316,25 @@ namespace Interchange
 
 				const FName SpecularColor = TEXT("SpecularColor"); // Type: linear color
 				const FName Shininess = TEXT("Shininess"); // Type: float, this is the specular exponent, expected range: 2-100
+				const FName AmbientColor = TEXT("AmbientColor"); // Type: linear color
 			}
 		}
 
-		namespace PBR
+		/** PBR Specular/Glossiness model */
+		namespace PBRSG
+		{
+			namespace Parameters
+			{
+				using namespace Common::Parameters;
+
+				const FName DiffuseColor = TEXT("DiffuseColor"); // Type: vector3
+				const FName SpecularColor = TEXT("SpecularColor"); // Type: vector3
+				const FName Glossiness = TEXT("Glossiness"); // Type: float
+			}
+		}
+
+		/** PBR Metallic/Roughness model */
+		namespace PBRMR
 		{
 			namespace Parameters
 			{
@@ -328,7 +344,6 @@ namespace Interchange
 				const FName Metallic = TEXT("Metallic"); // Type: float
 				const FName Specular = TEXT("Specular"); // Type: float
 				const FName Roughness = TEXT("Roughness"); // Type: float
-				const FName Anisotropy = TEXT("Anisotropy"); // Type: float
 			}
 		}
 
@@ -336,8 +351,6 @@ namespace Interchange
 		{
 			namespace Parameters
 			{
-				using namespace PBR::Parameters;
-
 				const FName ClearCoat = TEXT("ClearCoat"); // Type: float
 				const FName ClearCoatRoughness = TEXT("ClearCoatRoughness"); // Type: float
 				const FName ClearCoatNormal = TEXT("ClearCoatNormal"); // Type: vector3
@@ -348,8 +361,6 @@ namespace Interchange
 		{
 			namespace Parameters
 			{
-				using namespace PBR::Parameters;
-
 				const FName TransmissionColor = TEXT("TransmissionColor"); // Type: vector3
 			}
 		}
@@ -358,8 +369,6 @@ namespace Interchange
 		{
 			namespace Parameters
 			{
-				using namespace PBR::Parameters;
-
 				const FName SheenColor = TEXT("SheenColor"); // Type: vector3
 				const FName SheenRoughness = TEXT("SheenRoughness"); // Type: float
 			}
@@ -369,8 +378,6 @@ namespace Interchange
 		{
 			namespace Parameters
 			{
-				using namespace PBR::Parameters;
-
 				const FName SubsurfaceColor = TEXT("SubsurfaceColor"); // Type: linear color
 			}
 		}

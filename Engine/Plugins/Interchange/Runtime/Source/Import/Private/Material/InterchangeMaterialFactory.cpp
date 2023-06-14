@@ -1575,16 +1575,16 @@ void UInterchangeMaterialFunctionFactory::SetupMaterial(UMaterialFunction* Mater
 	// Only material functions with BSDF output are supported for now
 	if (!ConnectInput(Common::Parameters::BxDF.ToString(), Attrib->GetInput(0)))
 	{
-		ConnectInput(PBR::Parameters::BaseColor.ToString(), &Attrib->BaseColor);
-		ConnectInput(PBR::Parameters::Metallic.ToString(), &Attrib->Metallic);
-		ConnectInput(PBR::Parameters::Specular.ToString(), &Attrib->Specular);
-		ConnectInput(PBR::Parameters::Roughness.ToString(), &Attrib->Roughness);
-		ConnectInput(PBR::Parameters::EmissiveColor.ToString(), &Attrib->EmissiveColor);
-		ConnectInput(PBR::Parameters::Normal.ToString(), &Attrib->Normal);
-		ConnectInput(PBR::Parameters::Anisotropy.ToString(), &Attrib->Anisotropy);
-		ConnectInput(PBR::Parameters::Tangent.ToString(), &Attrib->Tangent);
-		ConnectInput(PBR::Parameters::IndexOfRefraction.ToString(), &Attrib->Refraction);
-		ConnectInput(PBR::Parameters::Occlusion.ToString(), &Attrib->AmbientOcclusion);
+		ConnectInput(PBRMR::Parameters::BaseColor.ToString(), &Attrib->BaseColor);
+		ConnectInput(PBRMR::Parameters::Metallic.ToString(), &Attrib->Metallic);
+		ConnectInput(PBRMR::Parameters::Specular.ToString(), &Attrib->Specular);
+		ConnectInput(PBRMR::Parameters::Roughness.ToString(), &Attrib->Roughness);
+		ConnectInput(PBRMR::Parameters::EmissiveColor.ToString(), &Attrib->EmissiveColor);
+		ConnectInput(PBRMR::Parameters::Normal.ToString(), &Attrib->Normal);
+		ConnectInput(PBRMR::Parameters::Anisotropy.ToString(), &Attrib->Anisotropy);
+		ConnectInput(PBRMR::Parameters::Tangent.ToString(), &Attrib->Tangent);
+		ConnectInput(PBRMR::Parameters::IndexOfRefraction.ToString(), &Attrib->Refraction);
+		ConnectInput(PBRMR::Parameters::Occlusion.ToString(), &Attrib->AmbientOcclusion);
 		ConnectInput(ClearCoat::Parameters::ClearCoat.ToString(), &Attrib->ClearCoat);
 		ConnectInput(ClearCoat::Parameters::ClearCoatRoughness.ToString(), &Attrib->ClearCoatRoughness);
 		ConnectInput(Subsurface::Parameters::SubsurfaceColor.ToString(), &Attrib->SubsurfaceColor);

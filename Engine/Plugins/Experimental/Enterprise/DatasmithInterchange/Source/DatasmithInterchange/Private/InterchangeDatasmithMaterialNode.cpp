@@ -665,23 +665,23 @@ namespace UE::DatasmithInterchange::MaterialUtils
 		}
 		else
 		{
-			ConnectOutputToInput(MaterialElement.GetBaseColor(), PBR::Parameters::BaseColor);
+			ConnectOutputToInput(MaterialElement.GetBaseColor(), PBRMR::Parameters::BaseColor);
 
-			ConnectOutputToInput(MaterialElement.GetMetallic(), PBR::Parameters::Metallic);
+			ConnectOutputToInput(MaterialElement.GetMetallic(), PBRMR::Parameters::Metallic);
 
-			ConnectOutputToInput(MaterialElement.GetSpecular(), PBR::Parameters::Specular);
+			ConnectOutputToInput(MaterialElement.GetSpecular(), PBRMR::Parameters::Specular);
 
-			ConnectOutputToInput(MaterialElement.GetRoughness(), PBR::Parameters::Roughness);
+			ConnectOutputToInput(MaterialElement.GetRoughness(), PBRMR::Parameters::Roughness);
 
-			ConnectOutputToInput(MaterialElement.GetEmissiveColor(), PBR::Parameters::EmissiveColor);
+			ConnectOutputToInput(MaterialElement.GetEmissiveColor(), PBRMR::Parameters::EmissiveColor);
 
-			ConnectOutputToInput(MaterialElement.GetAmbientOcclusion(), PBR::Parameters::Occlusion);
+			ConnectOutputToInput(MaterialElement.GetAmbientOcclusion(), PBRMR::Parameters::Occlusion);
 
-			ConnectOutputToInput(MaterialElement.GetNormal(), PBR::Parameters::Normal);
+			ConnectOutputToInput(MaterialElement.GetNormal(), PBRMR::Parameters::Normal);
 
-			ConnectOutputToInput(MaterialElement.GetOpacity(), PBR::Parameters::Opacity);
+			ConnectOutputToInput(MaterialElement.GetOpacity(), PBRMR::Parameters::Opacity);
 
-			ConnectOutputToInput(MaterialElement.GetRefraction(), PBR::Parameters::IndexOfRefraction);
+			ConnectOutputToInput(MaterialElement.GetRefraction(), PBRMR::Parameters::IndexOfRefraction);
 
 			ConnectOutputToInput(MaterialElement.GetClearCoat(), ClearCoat::Parameters::ClearCoat);
 

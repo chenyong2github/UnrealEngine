@@ -527,7 +527,7 @@ void UInterchangeGLTFTranslator::HandleGltfMaterial( UInterchangeBaseNodeContain
 			TVariant< FLinearColor, float > OpacityFactor;
 			OpacityFactor.Set< float >(GltfMaterial.BaseColorFactor.W);
 
-			HandleGltfMaterialParameter(NodeContainer, GltfMaterial.BaseColor, ShaderGraphNode, PBR::Parameters::Opacity.ToString(),
+			HandleGltfMaterialParameter(NodeContainer, GltfMaterial.BaseColor, ShaderGraphNode, PBRMR::Parameters::Opacity.ToString(),
 				OpacityFactor, Standard::Nodes::TextureSample::Outputs::A.ToString());
 		}
 
@@ -546,7 +546,7 @@ void UInterchangeGLTFTranslator::HandleGltfMaterial( UInterchangeBaseNodeContain
 			TVariant< FLinearColor, float > BaseColorFactor;
 			BaseColorFactor.Set< FLinearColor >( FLinearColor( GltfMaterial.BaseColorFactor ) );
 
-			HandleGltfMaterialParameter( NodeContainer, GltfMaterial.BaseColor, ShaderGraphNode, PBR::Parameters::BaseColor.ToString(),
+			HandleGltfMaterialParameter( NodeContainer, GltfMaterial.BaseColor, ShaderGraphNode, PBRMR::Parameters::BaseColor.ToString(),
 				BaseColorFactor, Standard::Nodes::TextureSample::Outputs::RGB.ToString(), false, false, bUseVertexColor );
 		}
 
@@ -555,7 +555,7 @@ void UInterchangeGLTFTranslator::HandleGltfMaterial( UInterchangeBaseNodeContain
 			TVariant< FLinearColor, float > MetallicFactor;
 			MetallicFactor.Set< float >( GltfMaterial.MetallicRoughness.MetallicFactor );
 
-			HandleGltfMaterialParameter( NodeContainer, GltfMaterial.MetallicRoughness.Map, ShaderGraphNode, PBR::Parameters::Metallic.ToString(),
+			HandleGltfMaterialParameter( NodeContainer, GltfMaterial.MetallicRoughness.Map, ShaderGraphNode, PBRMR::Parameters::Metallic.ToString(),
 				MetallicFactor, Standard::Nodes::TextureSample::Outputs::B.ToString() );
 		}
 
@@ -564,7 +564,7 @@ void UInterchangeGLTFTranslator::HandleGltfMaterial( UInterchangeBaseNodeContain
 			TVariant< FLinearColor, float > RoughnessFactor;
 			RoughnessFactor.Set< float >( GltfMaterial.MetallicRoughness.RoughnessFactor );
 
-			HandleGltfMaterialParameter( NodeContainer, GltfMaterial.MetallicRoughness.Map, ShaderGraphNode, PBR::Parameters::Roughness.ToString(),
+			HandleGltfMaterialParameter( NodeContainer, GltfMaterial.MetallicRoughness.Map, ShaderGraphNode, PBRMR::Parameters::Roughness.ToString(),
 				RoughnessFactor, Standard::Nodes::TextureSample::Outputs::G.ToString() );
 		}
 
@@ -574,7 +574,7 @@ void UInterchangeGLTFTranslator::HandleGltfMaterial( UInterchangeBaseNodeContain
 			TVariant< FLinearColor, float > SpecularFactor;
 			SpecularFactor.Set< float >( GltfMaterial.Specular.SpecularFactor );
 
-			HandleGltfMaterialParameter( NodeContainer, GltfMaterial.Specular.SpecularMap, ShaderGraphNode, PBR::Parameters::Specular.ToString(),
+			HandleGltfMaterialParameter( NodeContainer, GltfMaterial.Specular.SpecularMap, ShaderGraphNode, PBRMR::Parameters::Specular.ToString(),
 				SpecularFactor, Standard::Nodes::TextureSample::Outputs::RGB.ToString() );
 		}
 	}
@@ -585,7 +585,7 @@ void UInterchangeGLTFTranslator::HandleGltfMaterial( UInterchangeBaseNodeContain
 			TVariant< FLinearColor, float > DiffuseColorFactor;
 			DiffuseColorFactor.Set< FLinearColor >( FLinearColor( GltfMaterial.BaseColorFactor ) );
 
-			HandleGltfMaterialParameter( NodeContainer, GltfMaterial.BaseColor, ShaderGraphNode, Phong::Parameters::DiffuseColor.ToString(),
+			HandleGltfMaterialParameter( NodeContainer, GltfMaterial.BaseColor, ShaderGraphNode, PBRSG::Parameters::DiffuseColor.ToString(),
 				DiffuseColorFactor, Standard::Nodes::TextureSample::Outputs::RGB.ToString(), false, false, bUseVertexColor );
 		}
 
@@ -594,7 +594,7 @@ void UInterchangeGLTFTranslator::HandleGltfMaterial( UInterchangeBaseNodeContain
 			TVariant< FLinearColor, float > SpecularColorFactor;
 			SpecularColorFactor.Set< FLinearColor >( FLinearColor( GltfMaterial.SpecularGlossiness.SpecularFactor ) );
 
-			HandleGltfMaterialParameter( NodeContainer, GltfMaterial.SpecularGlossiness.Map, ShaderGraphNode, Phong::Parameters::SpecularColor.ToString(),
+			HandleGltfMaterialParameter( NodeContainer, GltfMaterial.SpecularGlossiness.Map, ShaderGraphNode, PBRSG::Parameters::SpecularColor.ToString(),
 				SpecularColorFactor, Standard::Nodes::TextureSample::Outputs::RGB.ToString() );
 		}
 
@@ -603,9 +603,8 @@ void UInterchangeGLTFTranslator::HandleGltfMaterial( UInterchangeBaseNodeContain
 			TVariant< FLinearColor, float > GlossinessFactor;
 			GlossinessFactor.Set< float >( GltfMaterial.SpecularGlossiness.GlossinessFactor );
 
-			const bool bInverse = true;
-			HandleGltfMaterialParameter( NodeContainer, GltfMaterial.SpecularGlossiness.Map, ShaderGraphNode, PBR::Parameters::Roughness.ToString(),
-				GlossinessFactor, Standard::Nodes::TextureSample::Outputs::A.ToString(), bInverse );
+			HandleGltfMaterialParameter( NodeContainer, GltfMaterial.SpecularGlossiness.Map, ShaderGraphNode, PBRSG::Parameters::Glossiness.ToString(),
+				GlossinessFactor, Standard::Nodes::TextureSample::Outputs::A.ToString() );
 		}
 	}
 
@@ -640,7 +639,7 @@ void UInterchangeGLTFTranslator::HandleGltfMaterial( UInterchangeBaseNodeContain
 			TVariant< FLinearColor, float > OcclusionFactor;
 			OcclusionFactor.Set< float >( GltfMaterial.OcclusionStrength );
 
-			HandleGltfMaterialParameter( NodeContainer, GltfMaterial.Occlusion, ShaderGraphNode, PBR::Parameters::Occlusion.ToString(),
+			HandleGltfMaterialParameter( NodeContainer, GltfMaterial.Occlusion, ShaderGraphNode, PBRMR::Parameters::Occlusion.ToString(),
 				OcclusionFactor, Standard::Nodes::TextureSample::Outputs::R.ToString() );
 		}
 
@@ -650,7 +649,7 @@ void UInterchangeGLTFTranslator::HandleGltfMaterial( UInterchangeBaseNodeContain
 			TVariant< FLinearColor, float > OpacityFactor;
 			OpacityFactor.Set< float >( GltfMaterial.BaseColorFactor.W );
 
-			HandleGltfMaterialParameter( NodeContainer, GltfMaterial.BaseColor, ShaderGraphNode, PBR::Parameters::Opacity.ToString(),
+			HandleGltfMaterialParameter( NodeContainer, GltfMaterial.BaseColor, ShaderGraphNode, PBRMR::Parameters::Opacity.ToString(),
 				OpacityFactor, Standard::Nodes::TextureSample::Outputs::A.ToString() );
 		}
 
@@ -663,7 +662,7 @@ void UInterchangeGLTFTranslator::HandleGltfMaterial( UInterchangeBaseNodeContain
 		// IOR
 		if ( GltfMaterial.bHasIOR )
 		{
-			ShaderGraphNode.AddFloatAttribute( UInterchangeShaderPortsAPI::MakeInputValueKey( PBR::Parameters::IndexOfRefraction.ToString() ), GltfMaterial.IOR );
+			ShaderGraphNode.AddFloatAttribute( UInterchangeShaderPortsAPI::MakeInputValueKey( PBRMR::Parameters::IndexOfRefraction.ToString() ), GltfMaterial.IOR );
 		}
 	}
 
@@ -804,7 +803,7 @@ void UInterchangeGLTFTranslator::HandleGltfTransmission( UInterchangeBaseNodeCon
 			FString MetallicNodeUid;
 			FString MetallicNodeOutput;
 
-			if ( UInterchangeShaderPortsAPI::GetInputConnection( &ShaderGraphNode, PBR::Parameters::Metallic.ToString(), MetallicNodeUid, MetallicNodeOutput ) )
+			if ( UInterchangeShaderPortsAPI::GetInputConnection( &ShaderGraphNode, PBRMR::Parameters::Metallic.ToString(), MetallicNodeUid, MetallicNodeOutput ) )
 			{
 				const FString MetallicLerpNodeName =  TEXT("OpacityMetallicLerp");
 				UInterchangeShaderNode* LerpMetallicNode = UInterchangeShaderNode::Create( &NodeContainer, MetallicLerpNodeName, ShaderGraphNode.GetUniqueID() );
@@ -822,7 +821,7 @@ void UInterchangeGLTFTranslator::HandleGltfTransmission( UInterchangeBaseNodeCon
 
 		if ( GltfMaterial.AlphaMode != GLTF::FMaterial::EAlphaMode::Opaque )
 		{
-			if ( UInterchangeShaderPortsAPI::GetInputConnection( &ShaderGraphNode, PBR::Parameters::Opacity.ToString(), OpacityNodeUid, OpacityNodeOutput ) )
+			if ( UInterchangeShaderPortsAPI::GetInputConnection( &ShaderGraphNode, PBRMR::Parameters::Opacity.ToString(), OpacityNodeUid, OpacityNodeOutput ) )
 			{
 				const FString OpacityLerpNodeName =  TEXT("OpacityLerp");
 				UInterchangeShaderNode* OpacityLerpNode = UInterchangeShaderNode::Create( &NodeContainer, OpacityLerpNodeName, ShaderGraphNode.GetUniqueID() );
@@ -851,7 +850,7 @@ void UInterchangeGLTFTranslator::HandleGltfTransmission( UInterchangeBaseNodeCon
 		FString BaseColorNodeUid;
 		FString BaseColorNodeOutput;
 
-		if ( UInterchangeShaderPortsAPI::GetInputConnection( CurrentNode, PBR::Parameters::BaseColor.ToString(), BaseColorNodeUid, BaseColorNodeOutput ) )
+		if ( UInterchangeShaderPortsAPI::GetInputConnection( CurrentNode, PBRMR::Parameters::BaseColor.ToString(), BaseColorNodeUid, BaseColorNodeOutput ) )
 		{
 			CurrentNode = NodeContainer.GetNode( BaseColorNodeUid );
 			CurrentOuput = BaseColorNodeOutput;
@@ -859,7 +858,7 @@ void UInterchangeGLTFTranslator::HandleGltfTransmission( UInterchangeBaseNodeCon
 		else
 		{
 			FLinearColor BaseColor;
-			if ( ShaderGraphNode.GetLinearColorAttribute( UInterchangeShaderPortsAPI::MakeInputValueKey( PBR::Parameters::BaseColor.ToString() ), BaseColor ) )
+			if ( ShaderGraphNode.GetLinearColorAttribute( UInterchangeShaderPortsAPI::MakeInputValueKey( PBRMR::Parameters::BaseColor.ToString() ), BaseColor ) )
 			{
 				CurrentNode = nullptr;
 				CurrentColor = BaseColor;

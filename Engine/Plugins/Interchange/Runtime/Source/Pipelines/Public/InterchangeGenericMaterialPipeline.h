@@ -87,21 +87,46 @@ private:
 	UInterchangeMaterialInstanceFactoryNode* CreateMaterialInstanceFactoryNode(const UInterchangeShaderGraphNode* ShaderGraphNode);
 
 	/** True if the shader graph has a clear coat input. */
-	bool IsClearCoatModel(const UInterchangeShaderGraphNode* ShaderGraphNode) const;
+	bool HasClearCoat(const UInterchangeShaderGraphNode* ShaderGraphNode) const;
+	UE_DEPRECATED(5.3, "Deprecated. Use HasClearCoat.")
+	bool IsClearCoatModel(const UInterchangeShaderGraphNode* ShaderGraphNode) const
+	{
+		return HasClearCoat(ShaderGraphNode);
+	}
 
 	/** True if the shader graph has a sheen color input. */
-	bool IsSheenModel(const UInterchangeShaderGraphNode* ShaderGraphNode) const;
+	bool HasSheen(const UInterchangeShaderGraphNode* ShaderGraphNode) const;
+	UE_DEPRECATED(5.3, "Deprecated. Use HasSheen.")
+	bool IsSheenModel(const UInterchangeShaderGraphNode* ShaderGraphNode) const
+	{
+		return HasSheen(ShaderGraphNode);
+	}
 
 	/** True if the shader graph has a subsurface color input. */
-	bool IsSubsurfaceModel(const UInterchangeShaderGraphNode* ShaderGraphNode) const;
+	bool HasSubsurface(const UInterchangeShaderGraphNode* ShaderGraphNode) const;
+	UE_DEPRECATED(5.3, "Deprecated. Use HasSubsurface.")
+	bool IsSubsurfaceModel(const UInterchangeShaderGraphNode* ShaderGraphNode) const
+	{
+		return HasSubsurface(ShaderGraphNode);
+	}
 
 	/** True if the shader graph has a transmission color input. */
-	bool IsThinTranslucentModel(const UInterchangeShaderGraphNode* ShaderGraphNode) const;
+	bool HasThinTranslucency(const UInterchangeShaderGraphNode* ShaderGraphNode) const;
+	UE_DEPRECATED(5.3, "Deprecated. Use HasThinTranslucency.")
+	bool IsThinTranslucentModel(const UInterchangeShaderGraphNode* ShaderGraphNode) const
+	{
+		return HasThinTranslucency(ShaderGraphNode);
+	}
 
-	/** True if the shader graph has a base color input. */
-	bool IsPBRModel(const UInterchangeShaderGraphNode* ShaderGraphNode) const;
+	/** True if the shader graph has a base color input (Metallic/Roughness model. */
+	bool IsMetalRoughModel(const UInterchangeShaderGraphNode* ShaderGraphNode) const;
+	UE_DEPRECATED(5.3, "Deprecated. Use IsMetalRoughModel and IsSpecGlossModel to identify the correct PBR model.")
+	bool IsPBRModel(const UInterchangeShaderGraphNode* ShaderGraphNode) const
+	{
+		return IsMetalRoughModel(ShaderGraphNode);
+	}
 
-	/** True if the shader graph has diffuse color and specular color inputs. */
+	/** True if the shader graph has diffuse color and specular inputs. */
 	bool IsPhongModel(const UInterchangeShaderGraphNode* ShaderGraphNode) const;
 
 	/** True if the shader graph has a diffuse color input. */
@@ -116,9 +141,12 @@ private:
 	/** True if the shader graph has an unlit color input. */
 	bool IsUnlitModel(const UInterchangeShaderGraphNode* ShaderGraphNode) const;
 
+	/** True if the shader graph has specular color and glossiness scalar inputs. */
+	bool IsSpecGlossModel(const UInterchangeShaderGraphNode* ShaderGraphNode) const;
+
 	bool HandlePhongModel(const UInterchangeShaderGraphNode* ShaderGraphNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode);
 	bool HandleLambertModel(const UInterchangeShaderGraphNode* ShaderGraphNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode);
-	bool HandlePBRModel(const UInterchangeShaderGraphNode* ShaderGraphNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode);
+	bool HandleMetalRoughnessModel(const UInterchangeShaderGraphNode* ShaderGraphNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode);
 	bool HandleClearCoat(const UInterchangeShaderGraphNode* ShaderGraphNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode);
 	bool HandleSubsurface(const UInterchangeShaderGraphNode* ShaderGraphNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode);
 	bool HandleSheen(const UInterchangeShaderGraphNode* ShaderGraphNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode);
@@ -126,6 +154,7 @@ private:
 	void HandleCommonParameters(const UInterchangeShaderGraphNode* ShaderGraphNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode);
 	bool HandleBxDFInput(const UInterchangeShaderGraphNode* ShaderGraphNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode);
 	bool HandleUnlitModel(const UInterchangeShaderGraphNode* ShaderGraphNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode);
+	bool HandleSpecGlossModel(const UInterchangeShaderGraphNode* ShaderGraphNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode);
 
 	void HandleFlattenNormalNode(const UInterchangeShaderNode* ShaderNode, UInterchangeBaseMaterialFactoryNode* MaterialFactoryNode, UInterchangeMaterialExpressionFactoryNode* FlattenNormalFactoryNode);
 	void HandleNormalFromHeightMapNode(const UInterchangeShaderNode* ShaderNode, UInterchangeBaseMaterialFactoryNode* MaterialFactoryNode, UInterchangeMaterialExpressionFactoryNode* NormalFromHeightMapFactoryNode);

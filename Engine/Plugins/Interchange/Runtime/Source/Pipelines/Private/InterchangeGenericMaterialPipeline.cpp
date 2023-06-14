@@ -118,6 +118,7 @@ namespace UE::Interchange::InterchangeGenericMaterialPipeline::Private
 			TEXT("MaterialFunction'/Engine/Functions/Engine_MaterialFunctions01/Texturing/FlattenNormal.FlattenNormal'"),
 			TEXT("MaterialFunction'/Engine/Functions/Engine_MaterialFunctions02/Utility/MakeFloat3.MakeFloat3'"),
 			TEXT("MaterialFunction'/Engine/Functions/Engine_MaterialFunctions02/Texturing/CustomRotator.CustomRotator'"),
+			TEXT("MaterialFunction'/Interchange/Functions/MF_PhongToMetalRoughness.MF_PhongToMetalRoughness'"),
 		};
 
 		static const bool bRequiredPackagesLoaded = ArePackagesLoaded(RequiredPackages);
@@ -530,7 +531,7 @@ UInterchangeBaseMaterialFactoryNode* UInterchangeGenericMaterialPipeline::Create
 	return MaterialFactoryNode;
 }
 
-bool UInterchangeGenericMaterialPipeline::IsClearCoatModel(const UInterchangeShaderGraphNode* ShaderGraphNode) const
+bool UInterchangeGenericMaterialPipeline::HasClearCoat(const UInterchangeShaderGraphNode* ShaderGraphNode) const
 {
 	using namespace UE::Interchange::Materials::ClearCoat;
 
@@ -539,7 +540,7 @@ bool UInterchangeGenericMaterialPipeline::IsClearCoatModel(const UInterchangeSha
 	return bHasClearCoatInput;
 }
 
-bool UInterchangeGenericMaterialPipeline::IsSheenModel(const UInterchangeShaderGraphNode* ShaderGraphNode) const
+bool UInterchangeGenericMaterialPipeline::HasSheen(const UInterchangeShaderGraphNode* ShaderGraphNode) const
 {
 	using namespace UE::Interchange::Materials::Sheen;
 
@@ -548,7 +549,7 @@ bool UInterchangeGenericMaterialPipeline::IsSheenModel(const UInterchangeShaderG
 	return bHasSheenColorInput;
 }
 
-bool UInterchangeGenericMaterialPipeline::IsSubsurfaceModel(const UInterchangeShaderGraphNode* ShaderGraphNode) const
+bool UInterchangeGenericMaterialPipeline::HasSubsurface(const UInterchangeShaderGraphNode* ShaderGraphNode) const
 {
 	using namespace UE::Interchange::Materials::Subsurface;
 
@@ -557,7 +558,7 @@ bool UInterchangeGenericMaterialPipeline::IsSubsurfaceModel(const UInterchangeSh
 	return bHasSubsurfaceColorInput;
 }
 
-bool UInterchangeGenericMaterialPipeline::IsThinTranslucentModel(const UInterchangeShaderGraphNode* ShaderGraphNode) const
+bool UInterchangeGenericMaterialPipeline::HasThinTranslucency(const UInterchangeShaderGraphNode* ShaderGraphNode) const
 {
 	using namespace UE::Interchange::Materials::ThinTranslucent;
 
@@ -566,13 +567,23 @@ bool UInterchangeGenericMaterialPipeline::IsThinTranslucentModel(const UIntercha
 	return bHasTransmissionColorInput;
 }
 
-bool UInterchangeGenericMaterialPipeline::IsPBRModel(const UInterchangeShaderGraphNode* ShaderGraphNode) const
+bool UInterchangeGenericMaterialPipeline::IsMetalRoughModel(const UInterchangeShaderGraphNode* ShaderGraphNode) const
 {
-	using namespace UE::Interchange::Materials::PBR;
+	using namespace UE::Interchange::Materials::PBRMR;
 
 	const bool bHasBaseColorInput = UInterchangeShaderPortsAPI::HasInput(ShaderGraphNode, Parameters::BaseColor);
 
 	return bHasBaseColorInput;
+}
+
+bool UInterchangeGenericMaterialPipeline::IsSpecGlossModel(const UInterchangeShaderGraphNode* ShaderGraphNode) const
+{
+	using namespace UE::Interchange::Materials::PBRSG;
+
+	const bool bHasSpecularInput = UInterchangeShaderPortsAPI::HasInput(ShaderGraphNode, Parameters::SpecularColor);
+	const bool bHasGlossinessInput = UInterchangeShaderPortsAPI::HasInput(ShaderGraphNode, Parameters::Glossiness);
+
+	return bHasSpecularInput && bHasGlossinessInput;
 }
 
 bool UInterchangeGenericMaterialPipeline::IsPhongModel(const UInterchangeShaderGraphNode* ShaderGraphNode) const
@@ -622,6 +633,71 @@ bool UInterchangeGenericMaterialPipeline::IsSurfaceUnlitModel(const UInterchange
 	return false;
 }
 
+
+bool UInterchangeGenericMaterialPipeline::HandleSpecGlossModel(const UInterchangeShaderGraphNode* ShaderGraphNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode)
+{
+	using namespace UE::Interchange::Materials;
+	using namespace UE::Interchange::InterchangeGenericMaterialPipeline::Private;
+
+	if (IsSpecGlossModel(ShaderGraphNode))
+	{
+		// ConvertFromDiffSpec function call
+		const FString MaterialFunctionPath = TEXT("MaterialFunction'/Engine/Functions/Engine_MaterialFunctions01/Shading/ConvertFromDiffSpec.ConvertFromDiffSpec'");
+		UInterchangeMaterialExpressionFactoryNode* FunctionCallExpression = CreateExpressionWithMaterialFunction(BaseNodeContainer, MaterialFactoryNode, TEXT("DiffSpecFunc"), MaterialFunctionPath);
+
+		const FString FunctionCallExpressionUid = FunctionCallExpression->GetUniqueID();
+		MaterialFactoryNode->ConnectOutputToBaseColor(FunctionCallExpressionUid, PBRMR::Parameters::BaseColor.ToString());
+		MaterialFactoryNode->ConnectOutputToMetallic(FunctionCallExpressionUid, PBRMR::Parameters::Metallic.ToString());
+		MaterialFactoryNode->ConnectOutputToSpecular(FunctionCallExpressionUid, PBRMR::Parameters::Specular.ToString());
+
+		// DiffuseColor
+		{
+			TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> DiffuseExpressionFactoryNode =
+				CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderGraphNode, PBRSG::Parameters::DiffuseColor.ToString(), FunctionCallExpressionUid);
+
+			if (DiffuseExpressionFactoryNode.Get<0>())
+			{
+				UInterchangeShaderPortsAPI::ConnectOuputToInputByName(FunctionCallExpression, PBRSG::Parameters::DiffuseColor.ToString(),
+					DiffuseExpressionFactoryNode.Get<0>()->GetUniqueID(), DiffuseExpressionFactoryNode.Get<1>());
+			}
+		}
+
+		// Specular Color
+		{
+			TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> SpecularExpressionFactoryNode =
+				CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderGraphNode, PBRSG::Parameters::SpecularColor.ToString(), FunctionCallExpressionUid);
+
+			if (SpecularExpressionFactoryNode.Get<0>())
+			{
+				UInterchangeShaderPortsAPI::ConnectOuputToInputByName(FunctionCallExpression, PBRSG::Parameters::SpecularColor.ToString(),
+					SpecularExpressionFactoryNode.Get<0>()->GetUniqueID(), SpecularExpressionFactoryNode.Get<1>());
+			}
+		}
+
+		// Glossiness
+		{
+			TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> GlossinessExpressionFactoryNode =
+				CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderGraphNode, PBRSG::Parameters::Glossiness.ToString(), MaterialFactoryNode->GetUniqueID());
+
+			if (UInterchangeMaterialExpressionFactoryNode* GlossinessFactoryNode = GlossinessExpressionFactoryNode.Get<0>())
+			{
+				UInterchangeMaterialExpressionFactoryNode* OneMinusNode =
+					CreateExpressionNode(TEXT("InverseGlossiness"), MaterialFactoryNode->GetUniqueID(), UMaterialExpressionOneMinus::StaticClass());
+
+				const FString OneMinusNodeInput = GET_MEMBER_NAME_CHECKED(UMaterialExpressionOneMinus, Input).ToString();
+				const FString OutputName = GlossinessExpressionFactoryNode.Get<1>();
+				UInterchangeShaderPortsAPI::ConnectOuputToInputByName(OneMinusNode, OneMinusNodeInput, GlossinessFactoryNode->GetUniqueID(), OutputName);
+
+				MaterialFactoryNode->ConnectOutputToRoughness(OneMinusNode->GetUniqueID(), PBRMR::Parameters::Roughness.ToString());
+			}
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
 bool UInterchangeGenericMaterialPipeline::HandlePhongModel(const UInterchangeShaderGraphNode* ShaderGraphNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode)
 {
 	using namespace UE::Interchange::Materials::Phong;
@@ -630,72 +706,35 @@ bool UInterchangeGenericMaterialPipeline::HandlePhongModel(const UInterchangeSha
 	if (IsPhongModel(ShaderGraphNode))
 	{
 		// ConvertFromDiffSpec function call
-		const FString MaterialFunctionPath = TEXT("MaterialFunction'/Engine/Functions/Engine_MaterialFunctions01/Shading/ConvertFromDiffSpec.ConvertFromDiffSpec'");
+		const FString MaterialFunctionPath = TEXT("MaterialFunction'/Interchange/Functions/MF_PhongToMetalRoughness.MF_PhongToMetalRoughness'");
 		UInterchangeMaterialExpressionFactoryNode* FunctionCallExpression = CreateExpressionWithMaterialFunction(BaseNodeContainer, MaterialFactoryNode, TEXT("DiffSpecFunc"), MaterialFunctionPath);
 
 		const FString FunctionCallExpressionUid = FunctionCallExpression->GetUniqueID();
-		MaterialFactoryNode->ConnectOutputToBaseColor(FunctionCallExpressionUid, UE::Interchange::Materials::PBR::Parameters::BaseColor.ToString());
-		MaterialFactoryNode->ConnectOutputToMetallic(FunctionCallExpressionUid, UE::Interchange::Materials::PBR::Parameters::Metallic.ToString());
-		MaterialFactoryNode->ConnectOutputToSpecular(FunctionCallExpressionUid, UE::Interchange::Materials::PBR::Parameters::Specular.ToString());
-		
-		// Diffuse
+		MaterialFactoryNode->ConnectOutputToBaseColor(FunctionCallExpressionUid, UE::Interchange::Materials::PBRMR::Parameters::BaseColor.ToString());
+		MaterialFactoryNode->ConnectOutputToMetallic(FunctionCallExpressionUid, UE::Interchange::Materials::PBRMR::Parameters::Metallic.ToString());
+		MaterialFactoryNode->ConnectOutputToSpecular(FunctionCallExpressionUid, UE::Interchange::Materials::PBRMR::Parameters::Specular.ToString());
+		MaterialFactoryNode->ConnectOutputToRoughness(FunctionCallExpressionUid, UE::Interchange::Materials::PBRMR::Parameters::Roughness.ToString());
+
 		{
-			TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> DiffuseExpressionFactoryNode =
-				CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderGraphNode, Parameters::DiffuseColor.ToString(), FunctionCallExpression->GetUniqueID());
+			const FString UniqueID = FunctionCallExpression->GetUniqueID();
 
-			if (DiffuseExpressionFactoryNode.Get<0>())
+			TFunction<void(const FString&)> ConnectInput;
+			ConnectInput = [&](const FString& InputName) -> void
 			{
-				UInterchangeShaderPortsAPI::ConnectOuputToInputByName(FunctionCallExpression, Parameters::DiffuseColor.ToString(),
-					DiffuseExpressionFactoryNode.Get<0>()->GetUniqueID(), DiffuseExpressionFactoryNode.Get<1>());
-			}
-		}
+				TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> ExpressionFactoryNode =
+					this->CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderGraphNode, InputName, UniqueID);
 
-		// Specular Color
-		{
-			TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> SpecularExpressionFactoryNode =
-				CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderGraphNode, Parameters::SpecularColor.ToString(), FunctionCallExpression->GetUniqueID());
-
-			if (SpecularExpressionFactoryNode.Get<0>())
-			{
-				UInterchangeShaderPortsAPI::ConnectOuputToInputByName(FunctionCallExpression, Parameters::SpecularColor.ToString(),
-					SpecularExpressionFactoryNode.Get<0>()->GetUniqueID(), SpecularExpressionFactoryNode.Get<1>());
-			}
-		}
-		
-		// Shininess
-		{
-			const bool bHasShininessInput = UInterchangeShaderPortsAPI::HasInput(ShaderGraphNode, Parameters::Shininess);
-			if (bHasShininessInput)
-			{
-				TGuardValue<EMaterialInputType> InputTypeBeingProcessedGuard(MaterialCreationContext.InputTypeBeingProcessed, EMaterialInputType::Scalar);
-
-				TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> ShininessExpressionFactoryNode =
-					CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderGraphNode, Parameters::Shininess.ToString(), MaterialFactoryNode->GetUniqueID());
-
-				if (ShininessExpressionFactoryNode.Get<0>())
+				if (ExpressionFactoryNode.Get<0>())
 				{
-					UInterchangeMaterialExpressionFactoryNode* DivideShininessNode =
-						CreateExpressionNode(TEXT("DivideShininess"), ShininessExpressionFactoryNode.Get<0>()->GetUniqueID(), UMaterialExpressionDivide::StaticClass());
-
-					const float ShininessScale = 100.f; // Divide shininess by 100 to bring it into a 0-1 range for roughness.
-					const FName ShininessScaleParameterName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionDivide, ConstB);
-					DivideShininessNode->AddFloatAttribute(ShininessScaleParameterName.ToString(), ShininessScale);
-					DivideShininessNode->AddApplyAndFillDelegates<float>(ShininessScaleParameterName.ToString(), UMaterialExpressionDivide::StaticClass(), GET_MEMBER_NAME_CHECKED(UMaterialExpressionDivide, ConstB));
-
-					// Connect Shininess to Divide
-					UInterchangeShaderPortsAPI::ConnectOuputToInputByName(DivideShininessNode, GET_MEMBER_NAME_CHECKED(UMaterialExpressionDivide, A).ToString(),
-						ShininessExpressionFactoryNode.Get<0>()->GetUniqueID(), ShininessExpressionFactoryNode.Get<1>());
-
-					UInterchangeMaterialExpressionFactoryNode* InverseShininessNode =
-						CreateExpressionNode(TEXT("InverseShininess"), ShininessExpressionFactoryNode.Get<0>()->GetUniqueID(), UMaterialExpressionOneMinus::StaticClass());
-
-					// Connect Divide to Inverse
-					UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(InverseShininessNode, GET_MEMBER_NAME_CHECKED(UMaterialExpressionOneMinus, Input).ToString(),
-						DivideShininessNode->GetUniqueID());
-
-					MaterialFactoryNode->ConnectToRoughness(InverseShininessNode->GetUniqueID());
+					UInterchangeShaderPortsAPI::ConnectOuputToInputByName(FunctionCallExpression, InputName,
+						ExpressionFactoryNode.Get<0>()->GetUniqueID(), ExpressionFactoryNode.Get<1>());
 				}
-			}
+			};
+
+			ConnectInput(Parameters::AmbientColor.ToString());
+			ConnectInput(Parameters::DiffuseColor.ToString());
+			ConnectInput(Parameters::Shininess.ToString());
+			ConnectInput(Parameters::SpecularColor.ToString());
 		}
 
 		return true;
@@ -724,9 +763,9 @@ bool UInterchangeGenericMaterialPipeline::HandleLambertModel(const UInterchangeS
 	return false;
 }
 
-bool UInterchangeGenericMaterialPipeline::HandlePBRModel(const UInterchangeShaderGraphNode* ShaderGraphNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode)
+bool UInterchangeGenericMaterialPipeline::HandleMetalRoughnessModel(const UInterchangeShaderGraphNode* ShaderGraphNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode)
 {
-	using namespace UE::Interchange::Materials::PBR;
+	using namespace UE::Interchange::Materials::PBRMR;
 
 	bool bShadingModelHandled = false;
 
@@ -802,26 +841,6 @@ bool UInterchangeGenericMaterialPipeline::HandlePBRModel(const UInterchangeShade
 			if (ExpressionFactoryNode.Get<0>())
 			{
 				MaterialFactoryNode->ConnectOutputToRoughness(ExpressionFactoryNode.Get<0>()->GetUniqueID(), ExpressionFactoryNode.Get<1>());
-			}
-
-			bShadingModelHandled = true;
-		}
-	}
-
-	// Anisotropy
-	{
-		const bool bHasInput = UInterchangeShaderPortsAPI::HasInput(ShaderGraphNode, Parameters::Anisotropy);
-
-		if(bHasInput)
-		{
-			TGuardValue<EMaterialInputType> InputTypeBeingProcessedGuard(MaterialCreationContext.InputTypeBeingProcessed, EMaterialInputType::Scalar);
-
-			TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> ExpressionFactoryNode =
-				CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderGraphNode, Parameters::Anisotropy.ToString(), MaterialFactoryNode->GetUniqueID());
-
-			if(ExpressionFactoryNode.Get<0>())
-			{
-				MaterialFactoryNode->ConnectOutputToAnisotropy(ExpressionFactoryNode.Get<0>()->GetUniqueID(), ExpressionFactoryNode.Get<1>());
 			}
 
 			bShadingModelHandled = true;
@@ -1027,11 +1046,29 @@ void UInterchangeGenericMaterialPipeline::HandleCommonParameters(const UIntercha
 	using namespace UE::Interchange::Materials::Common;
 
 	// Two sidedness (ignored for thin translucency as it looks wrong)
-	if (!IsThinTranslucentModel(ShaderGraphNode))
+	if (!HasThinTranslucency(ShaderGraphNode))
 	{
 		bool bTwoSided = false;
 		ShaderGraphNode->GetCustomTwoSided(bTwoSided);
 		MaterialFactoryNode->SetCustomTwoSided(bTwoSided);
+	}
+
+	// Anisotropy
+	{
+		const bool bHasInput = UInterchangeShaderPortsAPI::HasInput(ShaderGraphNode, Parameters::Anisotropy);
+
+		if (bHasInput)
+		{
+			TGuardValue<EMaterialInputType> InputTypeBeingProcessedGuard(MaterialCreationContext.InputTypeBeingProcessed, EMaterialInputType::Scalar);
+
+			TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> ExpressionFactoryNode =
+				CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderGraphNode, Parameters::Anisotropy.ToString(), MaterialFactoryNode->GetUniqueID());
+
+			if (ExpressionFactoryNode.Get<0>())
+			{
+				MaterialFactoryNode->ConnectOutputToAnisotropy(ExpressionFactoryNode.Get<0>()->GetUniqueID(), ExpressionFactoryNode.Get<1>());
+			}
+		}
 	}
 
 	// Emissive
@@ -2306,13 +2343,17 @@ UInterchangeMaterialFactoryNode* UInterchangeGenericMaterialPipeline::CreateMate
 		return MaterialFactoryNode;
 	}
 
-	if (!HandlePhongModel(ShaderGraphNode, MaterialFactoryNode))
+	if (!HandleMetalRoughnessModel(ShaderGraphNode, MaterialFactoryNode))
 	{
-		HandleLambertModel(ShaderGraphNode, MaterialFactoryNode);
+		if (!HandleSpecGlossModel(ShaderGraphNode, MaterialFactoryNode))
+		{
+			if (!HandlePhongModel(ShaderGraphNode, MaterialFactoryNode))
+			{
+				HandleLambertModel(ShaderGraphNode, MaterialFactoryNode);
+			}
+		}
 	}
 
-	HandlePBRModel(ShaderGraphNode, MaterialFactoryNode); // Always process the PBR parameters. If they were already assigned from Phong or Lambert, they will be ignored.
-	
 	// Can't have different shading models
 	// Favor translucency over coats (clear coat, sheen, etc.) since it tends to have a bigger impact visually
 	if (!HandleThinTranslucent(ShaderGraphNode, MaterialFactoryNode))
@@ -2336,29 +2377,46 @@ UInterchangeMaterialInstanceFactoryNode* UInterchangeGenericMaterialPipeline::Cr
 	UInterchangeMaterialInstanceFactoryNode* MaterialInstanceFactoryNode =
 		Cast<UInterchangeMaterialInstanceFactoryNode>( CreateBaseMaterialFactoryNode(ShaderGraphNode, UInterchangeMaterialInstanceFactoryNode::StaticClass()) );
 
+	TFunction<void(const FString&)> ChooseParent = [this, MaterialInstanceFactoryNode, ShaderGraphNode](const FString& Model) -> void
+	{
+		FString ParentRootName;
+
+		if (HasThinTranslucency(ShaderGraphNode))
+		{
+			ParentRootName = TEXT("ThinTranslucentMaterial_");
+		}
+		else if (HasClearCoat(ShaderGraphNode))
+		{
+			ParentRootName = TEXT("ClearCoatMaterial_");
+		}
+		else if (HasSheen(ShaderGraphNode))
+		{
+			ParentRootName = TEXT("SheenMaterial_");
+		}
+		else if (HasSubsurface(ShaderGraphNode))
+		{
+			ParentRootName = TEXT("SubsurfaceMaterial_");
+		}
+		else
+		{
+			ParentRootName = TEXT("PBRSurfaceMaterial_");
+		}
+
+		const FString ParentAssetPath = TEXT("Material'/Interchange/Materials/") + ParentRootName + Model + TEXT(".") + ParentRootName + Model + TEXT("'");
+		MaterialInstanceFactoryNode->SetCustomParent(ParentAssetPath);
+	};
+
 	if (UMaterialInterface* ParentMaterialObj = Cast<UMaterialInterface>(ParentMaterial.TryLoad()))
 	{
 		MaterialInstanceFactoryNode->SetCustomParent(ParentMaterialObj->GetPathName());
 	}
-	else if (IsThinTranslucentModel(ShaderGraphNode))
+	else if (IsSpecGlossModel(ShaderGraphNode))
 	{
-		MaterialInstanceFactoryNode->SetCustomParent(TEXT("Material'/Interchange/Materials/ThinTranslucentMaterial.ThinTranslucentMaterial'"));
+		ChooseParent(TEXT("SG"));
 	}
-	else if (IsClearCoatModel(ShaderGraphNode))
+	else if (IsMetalRoughModel(ShaderGraphNode))
 	{
-		MaterialInstanceFactoryNode->SetCustomParent(TEXT("Material'/Interchange/Materials/ClearCoatMaterial.ClearCoatMaterial'"));
-	}
-	else if (IsSheenModel(ShaderGraphNode))
-	{
-		MaterialInstanceFactoryNode->SetCustomParent(TEXT("Material'/Interchange/Materials/SheenMaterial.SheenMaterial'"));
-	}
-	else if(IsSubsurfaceModel(ShaderGraphNode))
-	{
-		MaterialInstanceFactoryNode->SetCustomParent(TEXT("Material'/Interchange/Materials/SubsurfaceMaterial.SubsurfaceMaterial'"));
-	}
-	else if (IsPBRModel(ShaderGraphNode))
-	{
-		MaterialInstanceFactoryNode->SetCustomParent(TEXT("Material'/Interchange/Materials/PBRSurfaceMaterial.PBRSurfaceMaterial'"));
+		ChooseParent(TEXT("MR"));
 	}
 	else if (IsPhongModel(ShaderGraphNode))
 	{
@@ -2437,6 +2495,8 @@ UInterchangeMaterialInstanceFactoryNode* UInterchangeGenericMaterialPipeline::Cr
 
 			const FString MapWeightName(MapName + TEXT("Weight"));
 			MaterialInstanceFactoryNode->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(MapWeightName), 1.f);
+
+			MaterialInstanceFactoryNode->AddFactoryDependencyUid(InputValue.Get<FString>());
 		}
 	}
 

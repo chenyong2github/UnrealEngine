@@ -163,14 +163,14 @@ TSet<FName> UMaterialXPipelineSettings::StandardSurfaceInputs
 TSet<FName> UMaterialXPipelineSettings::StandardSurfaceOutputs
 {
 	TEXT("Base Color"), // MX_StandardSurface has BaseColor with a whitespace, this should be fixed in further release
-	UE::Interchange::Materials::PBR::Parameters::Metallic,
-	UE::Interchange::Materials::PBR::Parameters::Specular,
-	UE::Interchange::Materials::PBR::Parameters::Roughness,
-	UE::Interchange::Materials::PBR::Parameters::Anisotropy,
-	UE::Interchange::Materials::PBR::Parameters::EmissiveColor,
-	UE::Interchange::Materials::PBR::Parameters::Opacity,
-	UE::Interchange::Materials::PBR::Parameters::Normal,
-	UE::Interchange::Materials::PBR::Parameters::Tangent,
+	UE::Interchange::Materials::PBRMR::Parameters::Metallic,
+	UE::Interchange::Materials::PBRMR::Parameters::Specular,
+	UE::Interchange::Materials::PBRMR::Parameters::Roughness,
+	UE::Interchange::Materials::PBRMR::Parameters::Anisotropy,
+	UE::Interchange::Materials::PBRMR::Parameters::EmissiveColor,
+	UE::Interchange::Materials::PBRMR::Parameters::Opacity,
+	UE::Interchange::Materials::PBRMR::Parameters::Normal,
+	UE::Interchange::Materials::PBRMR::Parameters::Tangent,
 	UE::Interchange::Materials::Sheen::Parameters::SheenRoughness,
 	UE::Interchange::Materials::Sheen::Parameters::SheenColor,
 	UE::Interchange::Materials::Subsurface::Parameters::SubsurfaceColor,
@@ -216,16 +216,16 @@ TSet<FName> UMaterialXPipelineSettings::TransmissionSurfaceInputs
 
 TSet<FName> UMaterialXPipelineSettings::TransmissionSurfaceOutputs
 {
-	UE::Interchange::Materials::PBR::Parameters::BaseColor,
-	UE::Interchange::Materials::PBR::Parameters::Metallic,
-	UE::Interchange::Materials::PBR::Parameters::Specular,
-	UE::Interchange::Materials::PBR::Parameters::Roughness,
-	UE::Interchange::Materials::PBR::Parameters::Anisotropy,
-	UE::Interchange::Materials::PBR::Parameters::EmissiveColor,
-	UE::Interchange::Materials::PBR::Parameters::Opacity,
-	UE::Interchange::Materials::PBR::Parameters::Normal,
-	UE::Interchange::Materials::PBR::Parameters::Tangent,
-	UE::Interchange::Materials::PBR::Parameters::Refraction,
+	UE::Interchange::Materials::PBRMR::Parameters::BaseColor,
+	UE::Interchange::Materials::PBRMR::Parameters::Metallic,
+	UE::Interchange::Materials::PBRMR::Parameters::Specular,
+	UE::Interchange::Materials::PBRMR::Parameters::Roughness,
+	UE::Interchange::Materials::PBRMR::Parameters::Anisotropy,
+	UE::Interchange::Materials::PBRMR::Parameters::EmissiveColor,
+	UE::Interchange::Materials::PBRMR::Parameters::Opacity,
+	UE::Interchange::Materials::PBRMR::Parameters::Normal,
+	UE::Interchange::Materials::PBRMR::Parameters::Tangent,
+	UE::Interchange::Materials::PBRMR::Parameters::Refraction,
 	UE::Interchange::Materials::ThinTranslucent::Parameters::TransmissionColor
 };
 
@@ -264,13 +264,13 @@ TSet<FName> UMaterialXPipelineSettings::UsdPreviewSurfaceInputs
 
 TSet<FName> UMaterialXPipelineSettings::UsdPreviewSurfaceOutputs
 {
-	UE::Interchange::Materials::PBR::Parameters::BaseColor,
-	UE::Interchange::Materials::PBR::Parameters::Metallic,
-	UE::Interchange::Materials::PBR::Parameters::Specular,
-	UE::Interchange::Materials::PBR::Parameters::Roughness,
-	UE::Interchange::Materials::PBR::Parameters::EmissiveColor,
-	UE::Interchange::Materials::PBR::Parameters::Opacity,
-	UE::Interchange::Materials::PBR::Parameters::Normal,
+	UE::Interchange::Materials::PBRMR::Parameters::BaseColor,
+	UE::Interchange::Materials::PBRMR::Parameters::Metallic,
+	UE::Interchange::Materials::PBRMR::Parameters::Specular,
+	UE::Interchange::Materials::PBRMR::Parameters::Roughness,
+	UE::Interchange::Materials::PBRMR::Parameters::EmissiveColor,
+	UE::Interchange::Materials::PBRMR::Parameters::Opacity,
+	UE::Interchange::Materials::PBRMR::Parameters::Normal,
 	UE::Interchange::Materials::Common::Parameters::Refraction,
 	UE::Interchange::Materials::Common::Parameters::Occlusion,
 	UE::Interchange::Materials::ClearCoat::Parameters::ClearCoat,

@@ -48,7 +48,56 @@ namespace UE
 				return TextureNode;
 			}
 
-			void FFbxMaterial::ConvertPropertyToShaderNode(UInterchangeBaseNodeContainer& NodeContainer, UInterchangeShaderGraphNode* ShaderGraphNode, FbxProperty& Property, float Factor, FName InputName,
+			UInterchangeShaderNode* FFbxMaterial::CreateTextureSampler(FbxFileTexture* FbxTexture, UInterchangeBaseNodeContainer& NodeContainer, const FString& ShaderUniqueID)
+			{
+				using namespace Materials::Standard::Nodes;
+
+				if (!FbxTexture)
+				{
+					return nullptr;
+				}
+
+				const FString TextureFilename = FbxTexture ? UTF8_TO_TCHAR(FbxTexture->GetFileName()) : TEXT("");
+				const FString TextureName = FPaths::GetBaseFilename(TextureFilename);
+
+				UInterchangeShaderNode* TextureSampleShader = UInterchangeShaderNode::Create(&NodeContainer, TextureName, ShaderUniqueID);
+				TextureSampleShader->SetCustomShaderType(TextureSample::Name.ToString());
+
+				// Return incomplete texture sampler if texture file does not exist
+				if (TextureFilename.IsEmpty() || !FPaths::FileExists(TextureFilename))
+				{
+					const UInterchangeBaseNode* ShaderGraphNode = NodeContainer.GetNode(ShaderUniqueID);
+					UInterchangeResultTextureWarning_TextureFileDoNotExist* Message = Parser.AddMessage<UInterchangeResultTextureWarning_TextureFileDoNotExist>();
+					Message->TextureName = TextureFilename;
+					Message->MaterialName = ShaderGraphNode ? ShaderGraphNode->GetDisplayLabel() : TEXT("Unknown");
+
+					return TextureSampleShader;
+				}
+
+				const UInterchangeTexture2DNode* TextureNode = Cast<const UInterchangeTexture2DNode>(NodeContainer.GetNode(UInterchangeTextureNode::MakeNodeUid(TextureName)));
+
+				if (!TextureNode)
+				{
+					TextureNode = CreateTexture2DNode(NodeContainer, TextureFilename);
+				}
+
+				TextureSampleShader->AddStringAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(TextureSample::Inputs::Texture.ToString()), TextureNode->GetUniqueID());
+
+				if (!FMath::IsNearlyEqual(FbxTexture->GetScaleU(), 1.0) || !FMath::IsNearlyEqual(FbxTexture->GetScaleV(), 1.0))
+				{
+					UInterchangeShaderNode* TextureCoordinateShader = UInterchangeShaderNode::Create(&NodeContainer, TextureName + TEXT("_Coordinate"), ShaderUniqueID);
+					TextureCoordinateShader->SetCustomShaderType(TextureCoordinate::Name.ToString());
+
+					TextureCoordinateShader->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(TextureCoordinate::Inputs::UTiling.ToString()), (float)FbxTexture->GetScaleU());
+					TextureCoordinateShader->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(TextureCoordinate::Inputs::VTiling.ToString()), (float)FbxTexture->GetScaleV());
+
+					UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(TextureSampleShader, TextureSample::Inputs::Coordinates.ToString(), TextureCoordinateShader->GetUniqueID());
+				}
+
+				return TextureSampleShader;
+			}
+
+			bool FFbxMaterial::ConvertPropertyToShaderNode(UInterchangeBaseNodeContainer& NodeContainer, UInterchangeShaderGraphNode* ShaderGraphNode, FbxProperty& Property, float Factor, FName InputName,
 				TVariant<FLinearColor, float> DefaultValue, bool bInverse)
 			{
 				using namespace Materials::Standard::Nodes;
@@ -99,41 +148,17 @@ namespace UE
 				if (TextureCount > 0)
 				{
 					FbxFileTexture* FbxTexture = Property.GetSrcObject<FbxFileTexture>(0);
-					FString TextureFilename = UTF8_TO_TCHAR(FbxTexture->GetFileName());
-					//Only import texture that exist on disk
-					if(!TextureFilename.IsEmpty() && FPaths::FileExists(TextureFilename))
+					if (UInterchangeShaderNode* TextureSampleShader = CreateTextureSampler(FbxTexture, NodeContainer, ShaderGraphNode->GetUniqueID()))
 					{
-						FString TextureName = FPaths::GetBaseFilename(TextureFilename);
-						UInterchangeShaderNode* TextureSampleShader = UInterchangeShaderNode::Create(&NodeContainer, TextureName, ShaderGraphNode->GetUniqueID());
-						TextureSampleShader->SetCustomShaderType(TextureSample::Name.ToString());
-
-						const UInterchangeTexture2DNode* TextureNode = Cast<const UInterchangeTexture2DNode>(NodeContainer.GetNode(UInterchangeTextureNode::MakeNodeUid(TextureName)));
-
-						if (!TextureNode)
-						{
-							TextureNode = CreateTexture2DNode(NodeContainer, TextureFilename);
-						}
-
-						TextureSampleShader->AddStringAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(TextureSample::Inputs::Texture.ToString()), TextureNode->GetUniqueID());
-
-						if (!FMath::IsNearlyEqual(FbxTexture->GetScaleU(), 1.0) || !FMath::IsNearlyEqual(FbxTexture->GetScaleV(), 1.0))
-						{
-							UInterchangeShaderNode* TextureCoordinateShader = UInterchangeShaderNode::Create(&NodeContainer, TextureName + TEXT("_Coordinate"), ShaderGraphNode->GetUniqueID());
-							TextureCoordinateShader->SetCustomShaderType(TextureCoordinate::Name.ToString());
-
-							TextureCoordinateShader->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(TextureCoordinate::Inputs::UTiling.ToString()), (float)FbxTexture->GetScaleU());
-							TextureCoordinateShader->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(TextureCoordinate::Inputs::VTiling.ToString()), (float)FbxTexture->GetScaleV());
-
-							UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(TextureSampleShader, TextureSample::Inputs::Coordinates.ToString(), TextureCoordinateShader->GetUniqueID());
-						}
-
 						UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(NodeToConnectTo, InputToConnectTo, TextureSampleShader->GetUniqueID());
 					}
 					else
 					{
 						UInterchangeResultTextureWarning_TextureFileDoNotExist* Message = Parser.AddMessage<UInterchangeResultTextureWarning_TextureFileDoNotExist>();
-						Message->TextureName = TextureFilename;
+						Message->TextureName = FbxTexture ? UTF8_TO_TCHAR(FbxTexture->GetFileName()) : TEXT("Undefined");
 						Message->MaterialName = ShaderGraphNode->GetDisplayLabel();
+
+						return false;
 					}
 				}
 				else if (DataType.GetType() == eFbxDouble || DataType.GetType() == eFbxFloat || DataType.GetType() == eFbxInt)
@@ -154,11 +179,57 @@ namespace UE
 						NodeToConnectTo->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(InputToConnectTo), PropertyValue.R);
 					}
 				}
+
+				return true;
 			}
+
+			void FFbxMaterial::ConvertShininessToShaderNode(FbxSurfaceMaterial& SurfaceMaterial, UInterchangeBaseNodeContainer& NodeContainer, UInterchangeShaderGraphNode* ShaderGraphNode)
+			{
+				using namespace UE::Interchange::Materials;
+				using namespace UE::Interchange::Materials::Standard::Nodes;
+
+				FBXSDK_NAMESPACE::FbxProperty MaterialProperty = SurfaceMaterial.FindProperty(FbxSurfaceMaterial::sShininess);
+
+				if (!MaterialProperty.IsValid())
+				{
+					return;
+				}
+
+				const FString InputName = Phong::Parameters::Shininess.ToString();
+
+				if (MaterialProperty.GetSrcObjectCount<FBXSDK_NAMESPACE::FbxTexture>() > 0)
+				{
+					FbxFileTexture* FbxTexture = MaterialProperty.GetSrcObject<FbxFileTexture>(0);
+					if (UInterchangeShaderNode* TextureSampleShader = CreateTextureSampler(FbxTexture, NodeContainer, ShaderGraphNode->GetUniqueID()))
+					{
+						FString MultiplyNodeName = Phong::Parameters::Shininess.ToString() + TEXT("_Multiply");
+						UInterchangeShaderNode* MultiplyNode = UInterchangeShaderNode::Create(&NodeContainer, MultiplyNodeName, ShaderGraphNode->GetUniqueID());
+						MultiplyNode->SetCustomShaderType(Multiply::Name.ToString());
+						
+						UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(ShaderGraphNode, InputName, MultiplyNode->GetUniqueID());
+
+						// Scale texture output from [0-1] to [0-1000]
+						MultiplyNode->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(Multiply::Inputs::B.ToString()), 1000.0f);
+
+						UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(MultiplyNode, Multiply::Inputs::A.ToString(), TextureSampleShader->GetUniqueID());
+					}
+				}
+				else if (!FBXSDK_NAMESPACE::FbxProperty::HasDefaultValue(MaterialProperty))
+				{
+					const FString InputValueKey = UInterchangeShaderPortsAPI::MakeInputValueKey(InputName);
+					ShaderGraphNode->AddFloatAttribute(InputValueKey, MaterialProperty.Get<float>());
+				}
+			}
+
 
 			const UInterchangeShaderGraphNode* FFbxMaterial::AddShaderGraphNode(FbxSurfaceMaterial* SurfaceMaterial, UInterchangeBaseNodeContainer& NodeContainer)
 			{
 				using namespace UE::Interchange::Materials;
+
+				if (!SurfaceMaterial)
+				{
+					return nullptr;
+				}
 
 				//Create a material node
 				FString MaterialName = Parser.GetFbxHelper()->GetFbxObjectName(SurfaceMaterial);
@@ -182,78 +253,123 @@ namespace UE
 					return nullptr;
 				}
 
-				// for each material property, add an input value or a shader node
-				FbxProperty CurrentProperty = SurfaceMaterial->GetFirstProperty();
-				while (CurrentProperty.IsValid())
+				// If not a Lambert nor a Phong material, match legacy FBX import
+				// Use random color because there may be multiple materials, then they can be different
+				if (!SurfaceMaterial->Is<FbxSurfaceLambert>())
 				{
-					if (CurrentProperty.Modified())
-					{
-						const FName PropertyName(CurrentProperty.GetNameAsCStr());
+					FLinearColor BaseColor;
+					BaseColor.R = 0.5f + 0.5f * FMath::FRand();
+					BaseColor.G = 0.5f + 0.5f * FMath::FRand();
+					BaseColor.B = 0.5f + 0.5f * FMath::FRand();
 
-						// Convert FBX property names to standard Interchange Phong parameter names when possible
+					const FString InputValueKey = UInterchangeShaderPortsAPI::MakeInputValueKey(Phong::Parameters::DiffuseColor.ToString());
+					ShaderGraphNode->AddLinearColorAttribute(InputValueKey, BaseColor);
+
+					return ShaderGraphNode;
+				}
+
+				TFunction<bool(FBXSDK_NAMESPACE::FbxProperty&)> ShouldConvertProperty = [&](FBXSDK_NAMESPACE::FbxProperty& MaterialProperty) -> bool
+				{
+					bool bShouldConvertProperty = false;
+
+					if (MaterialProperty.IsValid())
+					{
+						// FbxProperty::HasDefaultValue(..) can return true while the property has textures attached to it.
+						bShouldConvertProperty = MaterialProperty.GetSrcObjectCount<FBXSDK_NAMESPACE::FbxTexture>() > 0
+							|| !FBXSDK_NAMESPACE::FbxProperty::HasDefaultValue(MaterialProperty);
+					}
+
+					return bShouldConvertProperty;
+				};
+
+				TFunction<bool(FName, const char*, float , TVariant<FLinearColor, float>&, bool)>  ConnectInput;
+				ConnectInput = [&](FName InputName, const char* FbxPropertyName, float Factor, TVariant<FLinearColor, float>& DefaultValue, bool bInverse) -> bool
+				{
+					FBXSDK_NAMESPACE::FbxProperty MaterialProperty = SurfaceMaterial->FindProperty(FbxPropertyName);
+					if (ShouldConvertProperty(MaterialProperty))
+					{
+						return ConvertPropertyToShaderNode(NodeContainer, ShaderGraphNode, MaterialProperty, Factor, InputName, DefaultValue, bInverse);
+					}
+
+					return false;
+				};
+
+				// Diffuse
+				{
+					const float Factor = (float)((FbxSurfaceLambert*)SurfaceMaterial)->DiffuseFactor.Get();
+					TVariant<FLinearColor, float> DefaultValue;
+					DefaultValue.Set<FLinearColor>(FLinearColor::Black);
+					if (!ConnectInput(Phong::Parameters::DiffuseColor, FbxSurfaceMaterial::sDiffuse, Factor, DefaultValue, false))
+					{
+						// Nothing to retrieve from the Diffuse property, get Diffuse directly from the class
+						const FbxDouble3 DiffuseColor = ((FbxSurfaceLambert*)SurfaceMaterial)->Diffuse.Get();
+						const FString InputValueKey = UInterchangeShaderPortsAPI::MakeInputValueKey(Phong::Parameters::DiffuseColor.ToString());
+						ShaderGraphNode->AddLinearColorAttribute(InputValueKey, FFbxConvert::ConvertColor(DiffuseColor));
+					}
+				}
+
+				// Ambient
+				{
+					const float Factor = (float)((FbxSurfacePhong*)SurfaceMaterial)->AmbientFactor.Get();
+					TVariant<FLinearColor, float> DefaultValue;
+					DefaultValue.Set<FLinearColor>(FLinearColor::Black);
+					ConnectInput(Phong::Parameters::AmbientColor, FbxSurfaceMaterial::sAmbient, Factor, DefaultValue, false);
+				}
+
+				// Emissive
+				{
+					const float Factor = (float)((FbxSurfaceLambert*)SurfaceMaterial)->EmissiveFactor.Get();
+					TVariant<FLinearColor, float> DefaultValue;
+					DefaultValue.Set<FLinearColor>(FLinearColor::Black);
+					ConnectInput(Phong::Parameters::EmissiveColor, FbxSurfaceMaterial::sEmissive, Factor, DefaultValue, false);
+				}
+
+				// Normal
+				{
+					// FbxSurfaceMaterial can have either a normal map or a bump map, check for both
+					float Factor = 1.f;
+					const char* PropertyName = FbxSurfaceMaterial::sNormalMap;
+					FBXSDK_NAMESPACE::FbxProperty MaterialProperty = SurfaceMaterial->FindProperty(PropertyName);
+					if (!MaterialProperty.IsValid() || MaterialProperty.GetSrcObjectCount<FbxTexture>() < 1)
+					{
+						PropertyName = FbxSurfaceMaterial::sBump;
+						Factor = (float)((FbxSurfaceLambert*)SurfaceMaterial)->BumpFactor.Get();
+						MaterialProperty = SurfaceMaterial->FindProperty(PropertyName);
+						if (!MaterialProperty.IsValid() || MaterialProperty.GetSrcObjectCount<FbxTexture>() < 1)
 						{
-							if (PropertyName == FbxSurfaceMaterial::sDiffuse && SurfaceMaterial->Is<FbxSurfaceLambert>())
-							{
-								const float Factor = (float)((FbxSurfaceLambert*)SurfaceMaterial)->DiffuseFactor.Get();
-								TVariant<FLinearColor, float> DefaultValue;
-								DefaultValue.Set<FLinearColor>(FLinearColor::Black);
-								ConvertPropertyToShaderNode(NodeContainer, ShaderGraphNode, CurrentProperty, Factor, PBR::Parameters::BaseColor, DefaultValue);
-							}
-							else if (PropertyName == FbxSurfaceMaterial::sSpecular && SurfaceMaterial->Is<FbxSurfacePhong>())
-							{
-								const float Factor = (float)((FbxSurfacePhong*)SurfaceMaterial)->SpecularFactor.Get();
-								TVariant<FLinearColor, float> DefaultValue;
-								DefaultValue.Set<FLinearColor>(FLinearColor::Black);
-								ConvertPropertyToShaderNode(NodeContainer, ShaderGraphNode, CurrentProperty, Factor, Phong::Parameters::SpecularColor, DefaultValue);
-							}
-							else if (PropertyName == FbxSurfaceMaterial::sShininess)
-							{
-								const float Factor = 1.f;
-								TVariant<FLinearColor, float> DefaultValue;
-								DefaultValue.Set<float>(0.2f);
-								ConvertPropertyToShaderNode(NodeContainer, ShaderGraphNode, CurrentProperty, Factor, Phong::Parameters::Shininess, DefaultValue);
-							}
-							else if (PropertyName == FbxSurfaceMaterial::sEmissive && SurfaceMaterial->Is<FbxSurfaceLambert>())
-							{
-								const float Factor = (float)((FbxSurfaceLambert*)SurfaceMaterial)->EmissiveFactor.Get();
-								TVariant<FLinearColor, float> DefaultValue;
-								DefaultValue.Set<FLinearColor>(FLinearColor::Black);
-								ConvertPropertyToShaderNode(NodeContainer, ShaderGraphNode, CurrentProperty, Factor, Phong::Parameters::EmissiveColor, DefaultValue);
-							}
-							else if (PropertyName == FbxSurfaceMaterial::sNormalMap)
-							{
-								const float Factor = 1.f;
-								TVariant<FLinearColor, float> DefaultValue;
-								DefaultValue.Set<FLinearColor>(FLinearColor(FVector::UpVector));
-								ConvertPropertyToShaderNode(NodeContainer, ShaderGraphNode, CurrentProperty, Factor, Phong::Parameters::Normal, DefaultValue);
-							}
-							else if (PropertyName == FbxSurfaceMaterial::sTransparentColor && SurfaceMaterial->Is<FbxSurfaceLambert>())
-							{
-								const float TransparencyFactor = (float)((FbxSurfaceLambert*)SurfaceMaterial)->TransparencyFactor.Get();
-								TVariant<FLinearColor, float> DefaultValue;
-								DefaultValue.Set<float>(0.f); // Opaque
-								const bool bInverse = true;
-								ConvertPropertyToShaderNode(NodeContainer, ShaderGraphNode, CurrentProperty, TransparencyFactor, Phong::Parameters::Opacity, DefaultValue, bInverse);
-							}
-							else if (PropertyName == FbxSurfaceMaterial::sDiffuseFactor || PropertyName == FbxSurfaceMaterial::sSpecularFactor ||
-										PropertyName == FbxSurfaceMaterial::sEmissiveFactor || PropertyName == FbxSurfaceMaterial::sTransparencyFactor)
-							{
-								// Skip factors as they were processed with their corresponding inputs
-							}
-							else
-							{
-								if (!UInterchangeShaderPortsAPI::HasInput(ShaderGraphNode, PropertyName))
-								{
-									const float DummyFactor = 1.f;
-									TVariant<FLinearColor, float> DummyDefaultValue;
-									DummyDefaultValue.Set<float>(1.f); // Will be ignored because we have a factor of 1
-									ConvertPropertyToShaderNode(NodeContainer, ShaderGraphNode, CurrentProperty, DummyFactor, PropertyName, DummyDefaultValue);
-								}
-							}
+							PropertyName = nullptr;
 						}
 					}
 
-					CurrentProperty = SurfaceMaterial->GetNextProperty(CurrentProperty);
+					if (PropertyName)
+					{
+						TVariant<FLinearColor, float> DefaultValue;
+						DefaultValue.Set<FLinearColor>(FLinearColor(FVector::UpVector));
+						ConvertPropertyToShaderNode(NodeContainer, ShaderGraphNode, MaterialProperty, Factor, Phong::Parameters::Normal, DefaultValue);
+					}
+				}
+
+				// Opacity
+				{
+					const float TransparencyFactor = (float)((FbxSurfaceLambert*)SurfaceMaterial)->TransparencyFactor.Get();
+					TVariant<FLinearColor, float> DefaultValue;
+					DefaultValue.Set<float>(0.f); // Opaque
+					ConnectInput(Phong::Parameters::Opacity, FbxSurfaceMaterial::sTransparentColor, TransparencyFactor, DefaultValue, true);
+				}
+
+				// Get specular color and shininess if FBX material is a Phong one
+				if (SurfaceMaterial->Is<FbxSurfacePhong>())
+				{
+					// Specular
+					{
+						const float Factor = (float)((FbxSurfacePhong*)SurfaceMaterial)->SpecularFactor.Get();
+						TVariant<FLinearColor, float> DefaultValue;
+						DefaultValue.Set<FLinearColor>(FLinearColor::Black);
+						ConnectInput(Phong::Parameters::SpecularColor, FbxSurfaceMaterial::sSpecular, Factor, DefaultValue, false);
+					}
+
+					// Shininess
+					ConvertShininessToShaderNode(*SurfaceMaterial, NodeContainer, ShaderGraphNode);
 				}
 
 				return ShaderGraphNode;

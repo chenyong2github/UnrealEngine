@@ -37,77 +37,77 @@ UClass* UInterchangeMaterialFactoryNode::GetObjectClass() const
 
 bool UInterchangeMaterialFactoryNode::GetBaseColorConnection(FString& ExpressionNodeUid, FString& OutputName) const
 {
-	return UInterchangeShaderPortsAPI::GetInputConnection(this, UE::Interchange::Materials::PBR::Parameters::BaseColor.ToString(), ExpressionNodeUid, OutputName);
+	return UInterchangeShaderPortsAPI::GetInputConnection(this, UE::Interchange::Materials::PBRMR::Parameters::BaseColor.ToString(), ExpressionNodeUid, OutputName);
 }
 
 bool UInterchangeMaterialFactoryNode::ConnectToBaseColor(const FString& AttributeValue)
 {
-	return UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(this, UE::Interchange::Materials::PBR::Parameters::BaseColor.ToString(), AttributeValue);
+	return UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(this, UE::Interchange::Materials::PBRMR::Parameters::BaseColor.ToString(), AttributeValue);
 }
 	
 bool UInterchangeMaterialFactoryNode::ConnectOutputToBaseColor(const FString& ExpressionNodeUid, const FString& OutputName)
 {
-	return UInterchangeShaderPortsAPI::ConnectOuputToInputByName(this, UE::Interchange::Materials::PBR::Parameters::BaseColor.ToString(), ExpressionNodeUid, OutputName);
+	return UInterchangeShaderPortsAPI::ConnectOuputToInputByName(this, UE::Interchange::Materials::PBRMR::Parameters::BaseColor.ToString(), ExpressionNodeUid, OutputName);
 }
 
 bool UInterchangeMaterialFactoryNode::GetMetallicConnection(FString& ExpressionNodeUid, FString& OutputName) const
 {
-	return UInterchangeShaderPortsAPI::GetInputConnection(this, UE::Interchange::Materials::PBR::Parameters::Metallic.ToString(), ExpressionNodeUid, OutputName);
+	return UInterchangeShaderPortsAPI::GetInputConnection(this, UE::Interchange::Materials::PBRMR::Parameters::Metallic.ToString(), ExpressionNodeUid, OutputName);
 }
 
 bool UInterchangeMaterialFactoryNode::ConnectToMetallic(const FString& AttributeValue)
 {
-	return UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(this, UE::Interchange::Materials::PBR::Parameters::Metallic.ToString(), AttributeValue);
+	return UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(this, UE::Interchange::Materials::PBRMR::Parameters::Metallic.ToString(), AttributeValue);
 }
 
 bool UInterchangeMaterialFactoryNode::ConnectOutputToMetallic(const FString& ExpressionNodeUid, const FString& OutputName)
 {
-	return UInterchangeShaderPortsAPI::ConnectOuputToInputByName(this, UE::Interchange::Materials::PBR::Parameters::Metallic.ToString(), ExpressionNodeUid, OutputName);
+	return UInterchangeShaderPortsAPI::ConnectOuputToInputByName(this, UE::Interchange::Materials::PBRMR::Parameters::Metallic.ToString(), ExpressionNodeUid, OutputName);
 }
 
 bool UInterchangeMaterialFactoryNode::GetSpecularConnection(FString& ExpressionNodeUid, FString& OutputName) const
 {
-	return UInterchangeShaderPortsAPI::GetInputConnection(this, UE::Interchange::Materials::PBR::Parameters::Specular.ToString(), ExpressionNodeUid, OutputName);
+	return UInterchangeShaderPortsAPI::GetInputConnection(this, UE::Interchange::Materials::PBRMR::Parameters::Specular.ToString(), ExpressionNodeUid, OutputName);
 }
 
 bool UInterchangeMaterialFactoryNode::ConnectToSpecular(const FString& ExpressionNodeUid)
 {
-	return UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(this, UE::Interchange::Materials::PBR::Parameters::Specular.ToString(), ExpressionNodeUid);
+	return UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(this, UE::Interchange::Materials::PBRMR::Parameters::Specular.ToString(), ExpressionNodeUid);
 }
 
 bool UInterchangeMaterialFactoryNode::ConnectOutputToSpecular(const FString& ExpressionNodeUid, const FString& OutputName)
 {
-	return UInterchangeShaderPortsAPI::ConnectOuputToInputByName(this, UE::Interchange::Materials::PBR::Parameters::Specular.ToString(), ExpressionNodeUid, OutputName);
+	return UInterchangeShaderPortsAPI::ConnectOuputToInputByName(this, UE::Interchange::Materials::PBRMR::Parameters::Specular.ToString(), ExpressionNodeUid, OutputName);
 }
 
 bool UInterchangeMaterialFactoryNode::GetRoughnessConnection(FString& ExpressionNodeUid, FString& OutputName) const
 {
-	return UInterchangeShaderPortsAPI::GetInputConnection(this, UE::Interchange::Materials::PBR::Parameters::Roughness.ToString(), ExpressionNodeUid, OutputName);
+	return UInterchangeShaderPortsAPI::GetInputConnection(this, UE::Interchange::Materials::PBRMR::Parameters::Roughness.ToString(), ExpressionNodeUid, OutputName);
 }
 
 bool UInterchangeMaterialFactoryNode::ConnectToRoughness(const FString& ExpressionNodeUid)
 {
-	return UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(this, UE::Interchange::Materials::PBR::Parameters::Roughness.ToString(), ExpressionNodeUid);
+	return UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(this, UE::Interchange::Materials::PBRMR::Parameters::Roughness.ToString(), ExpressionNodeUid);
 }
 
 bool UInterchangeMaterialFactoryNode::ConnectOutputToRoughness(const FString& ExpressionNodeUid, const FString& OutputName)
 {
-	return UInterchangeShaderPortsAPI::ConnectOuputToInputByName(this, UE::Interchange::Materials::PBR::Parameters::Roughness.ToString(), ExpressionNodeUid, OutputName);
+	return UInterchangeShaderPortsAPI::ConnectOuputToInputByName(this, UE::Interchange::Materials::PBRMR::Parameters::Roughness.ToString(), ExpressionNodeUid, OutputName);
 }
 
 bool UInterchangeMaterialFactoryNode::GetAnisotropyConnection(FString& ExpressionNodeUid, FString& OutputName) const
 {
-	return UInterchangeShaderPortsAPI::GetInputConnection(this, UE::Interchange::Materials::PBR::Parameters::Anisotropy.ToString(), ExpressionNodeUid, OutputName);
+	return UInterchangeShaderPortsAPI::GetInputConnection(this, UE::Interchange::Materials::PBRMR::Parameters::Anisotropy.ToString(), ExpressionNodeUid, OutputName);
 }
 
 bool UInterchangeMaterialFactoryNode::ConnectToAnisotropy(const FString& ExpressionNodeUid)
 {
-	return UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(this, UE::Interchange::Materials::PBR::Parameters::Anisotropy.ToString(), ExpressionNodeUid);
+	return UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(this, UE::Interchange::Materials::PBRMR::Parameters::Anisotropy.ToString(), ExpressionNodeUid);
 }
 
 bool UInterchangeMaterialFactoryNode::ConnectOutputToAnisotropy(const FString& ExpressionNodeUid, const FString& OutputName)
 {
-	return UInterchangeShaderPortsAPI::ConnectOuputToInputByName(this, UE::Interchange::Materials::PBR::Parameters::Anisotropy.ToString(), ExpressionNodeUid, OutputName);
+	return UInterchangeShaderPortsAPI::ConnectOuputToInputByName(this, UE::Interchange::Materials::PBRMR::Parameters::Anisotropy.ToString(), ExpressionNodeUid, OutputName);
 }
 
 bool UInterchangeMaterialFactoryNode::GetEmissiveColorConnection(FString& ExpressionNodeUid, FString& OutputName) const
@@ -122,7 +122,7 @@ bool UInterchangeMaterialFactoryNode::ConnectToEmissiveColor(const FString& Expr
 
 bool UInterchangeMaterialFactoryNode::ConnectOutputToEmissiveColor(const FString& ExpressionNodeUid, const FString& OutputName)
 {
-	return UInterchangeShaderPortsAPI::ConnectOuputToInputByName(this, UE::Interchange::Materials::PBR::Parameters::EmissiveColor.ToString(), ExpressionNodeUid, OutputName);
+	return UInterchangeShaderPortsAPI::ConnectOuputToInputByName(this, UE::Interchange::Materials::PBRMR::Parameters::EmissiveColor.ToString(), ExpressionNodeUid, OutputName);
 }
 
 bool UInterchangeMaterialFactoryNode::GetNormalConnection(FString& ExpressionNodeUid, FString& OutputName) const
@@ -137,7 +137,7 @@ bool UInterchangeMaterialFactoryNode::ConnectToNormal(const FString& ExpressionN
 
 bool UInterchangeMaterialFactoryNode::ConnectOutputToNormal(const FString& ExpressionNodeUid, const FString& OutputName)
 {
-	return UInterchangeShaderPortsAPI::ConnectOuputToInputByName(this, UE::Interchange::Materials::PBR::Parameters::Normal.ToString(), ExpressionNodeUid, OutputName);
+	return UInterchangeShaderPortsAPI::ConnectOuputToInputByName(this, UE::Interchange::Materials::PBRMR::Parameters::Normal.ToString(), ExpressionNodeUid, OutputName);
 }
 
 bool UInterchangeMaterialFactoryNode::GetTangentConnection(FString& ExpressionNodeUid, FString& OutputName) const
@@ -152,7 +152,7 @@ bool UInterchangeMaterialFactoryNode::ConnectToTangent(const FString& Expression
 
 bool UInterchangeMaterialFactoryNode::ConnectOutputToTangent(const FString& ExpressionNodeUid, const FString& OutputName)
 {
-	return UInterchangeShaderPortsAPI::ConnectOuputToInputByName(this, UE::Interchange::Materials::PBR::Parameters::Tangent.ToString(), ExpressionNodeUid, OutputName);
+	return UInterchangeShaderPortsAPI::ConnectOuputToInputByName(this, UE::Interchange::Materials::PBRMR::Parameters::Tangent.ToString(), ExpressionNodeUid, OutputName);
 }
 
 bool UInterchangeMaterialFactoryNode::GetSubsurfaceConnection(FString& ExpressionNodeUid, FString& OutputName) const
@@ -182,7 +182,7 @@ bool UInterchangeMaterialFactoryNode::ConnectToOpacity(const FString& AttributeV
 
 bool UInterchangeMaterialFactoryNode::ConnectOutputToOpacity(const FString& ExpressionNodeUid, const FString& OutputName)
 {
-	return UInterchangeShaderPortsAPI::ConnectOuputToInputByName(this, UE::Interchange::Materials::PBR::Parameters::Opacity.ToString(), ExpressionNodeUid, OutputName);
+	return UInterchangeShaderPortsAPI::ConnectOuputToInputByName(this, UE::Interchange::Materials::PBRMR::Parameters::Opacity.ToString(), ExpressionNodeUid, OutputName);
 }
 
 bool UInterchangeMaterialFactoryNode::GetOcclusionConnection(FString& ExpressionNodeUid, FString& OutputName) const
@@ -197,7 +197,7 @@ bool UInterchangeMaterialFactoryNode::ConnectToOcclusion(const FString& Attribut
 
 bool UInterchangeMaterialFactoryNode::ConnectOutputToOcclusion(const FString& ExpressionNodeUid, const FString& OutputName)
 {
-	return UInterchangeShaderPortsAPI::ConnectOuputToInputByName(this, UE::Interchange::Materials::PBR::Parameters::Occlusion.ToString(), ExpressionNodeUid, OutputName);
+	return UInterchangeShaderPortsAPI::ConnectOuputToInputByName(this, UE::Interchange::Materials::PBRMR::Parameters::Occlusion.ToString(), ExpressionNodeUid, OutputName);
 }
 
 bool UInterchangeMaterialFactoryNode::GetRefractionConnection(FString& ExpressionNodeUid, FString& OutputName) const
