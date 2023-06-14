@@ -299,12 +299,27 @@ void UClusterUnionComponent::ForceRebuildGTParticleGeometry()
 TArray<UPrimitiveComponent*> UClusterUnionComponent::GetPrimitiveComponents()
 {
 	TArray<UPrimitiveComponent*> PrimitiveComponents;
+	PrimitiveComponents.Reserve(ComponentToPhysicsObjects.Num());
+
 	for (auto Iter = ComponentToPhysicsObjects.CreateIterator(); Iter; ++Iter)
 	{
 		PrimitiveComponents.Add(Iter.Key().ResolveObjectPtr());
 	}
 
 	return PrimitiveComponents;
+}
+
+TArray<AActor*> UClusterUnionComponent::GetActors()
+{
+	TArray<AActor*> Actors;
+	Actors.Reserve(ActorToComponents.Num());
+
+	for (auto Iter = ActorToComponents.CreateIterator(); Iter; ++Iter)
+	{
+		Actors.Add(Iter.Key().ResolveObjectPtr());
+	}
+
+	return Actors;
 }
 
 void UClusterUnionComponent::SetIsAnchored(bool bIsAnchored)
@@ -1085,6 +1100,22 @@ TArray<UPrimitiveComponent*> UClusterUnionComponent::GetAllCurrentChildComponent
 	return Components;
 }
 
+TArray<AActor*> UClusterUnionComponent::GetAllCurrentActors() const
+{
+	TArray<AActor*> Actors;
+	Actors.Reserve(ActorToComponents.Num());
+
+	VisitAllCurrentActors(
+		[&Actors](AActor* Actor)
+		{
+			Actors.Add(Actor);
+			return true;
+		}
+	);
+
+	return Actors;
+}
+
 void UClusterUnionComponent::VisitAllCurrentChildComponents(const TFunction<bool(UPrimitiveComponent*)>& Lambda) const
 {
 	for (const TPair<TObjectKey<UPrimitiveComponent>, FClusterUnionPendingAddData>& Kvp : PendingComponentSync)
@@ -1103,6 +1134,20 @@ void UClusterUnionComponent::VisitAllCurrentChildComponents(const TFunction<bool
 		if (UPrimitiveComponent* Component = Kvp.Key.ResolveObjectPtr(); Component && Component->HasValidPhysicsState() && !Kvp.Value.bPendingDeletion)
 		{
 			if (!Lambda(Component))
+			{
+				return;
+			}
+		}
+	}
+}
+
+void UClusterUnionComponent::VisitAllCurrentActors(const TFunction<bool(AActor*)>& Lambda) const
+{
+	for (const TPair<TObjectKey<AActor>, FClusteredActorData>& Kvp : ActorToComponents)
+	{
+		if (AActor* Actor = Kvp.Key.ResolveObjectPtr())
+		{
+			if (!Lambda(Actor))
 			{
 				return;
 			}

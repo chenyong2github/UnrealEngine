@@ -156,6 +156,9 @@ public:
 	ENGINE_API TArray<UPrimitiveComponent*> GetPrimitiveComponents();
 
 	UFUNCTION(BlueprintCallable, Category = "Cluster Union")
+	ENGINE_API TArray<AActor*> GetActors();
+
+	UFUNCTION(BlueprintCallable, Category = "Cluster Union")
 	ENGINE_API void SetIsAnchored(bool bIsAnchored);
 
 	// SyncClusterUnionFromProxy will examine the make up of the cluster union (particles, child to parent, etc.) and do whatever is needed on the GT in terms of bookkeeping.
@@ -181,6 +184,7 @@ public:
 
 	// Lambda returns whether or not iteration should continue;
 	ENGINE_API void VisitAllCurrentChildComponents(const TFunction<bool(UPrimitiveComponent*)>& Lambda) const;
+	ENGINE_API void VisitAllCurrentActors(const TFunction<bool(AActor*)>& Lambda) const;
 
 	ENGINE_API int32 NumChildClusterComponents() const;
 
@@ -266,6 +270,7 @@ private:
 	ENGINE_API void HandleRemovedClusteredComponent(UPrimitiveComponent* ChangedComponent, bool bDestroyReplicatedProxy);
 
 	ENGINE_API TArray<UPrimitiveComponent*> GetAllCurrentChildComponents() const;
+	ENGINE_API TArray<AActor*> GetAllCurrentActors() const;
 	ENGINE_API void VisitAllCurrentChildComponentsForCollision(ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams, const TFunction<bool(UPrimitiveComponent*)>& Lambda) const;
 
 	// Whether or not this code is running on the server.
