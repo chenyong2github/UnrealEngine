@@ -1711,12 +1711,18 @@ namespace UnrealBuildTool
 
 		/// <summary>
 		/// Set flags require for deterministic compiling and linking.
+		/// Enabling deterministic mode for msvc disables codegen multithreading so compiling will be slower
 		/// </summary>
 		[CommandLine("-Deterministic", Value = "true")]
 		[CommandLine("-NonDeterministic", Value = "false")]
 		[XmlConfigFile(Category = "BuildConfiguration")]
 		[RequiresUniqueBuildEnvironment]
-		public bool bDeterministic = true;
+		public bool bDeterministic
+		{
+			get => bDeterministicPrivate ?? (Configuration == UnrealTargetConfiguration.Shipping);
+			set => bDeterministicPrivate = value;
+		}
+		private bool? bDeterministicPrivate;
 
 		/// <summary>
 		/// Whether PCHs should be chained when compiling with clang.
