@@ -92,8 +92,9 @@ enum class EGameplayEffectVersion : uint8
 {
 	Monolithic,	// Legacy version from Pre-UE5.3 (before we were versioning)
 	Modular53,	// New modular version available in UE5.3
+	AbilitiesComponent53,	// Granted Abilities are moved into the Abilities Component
 
-	Current = Modular53
+	Current = AbilitiesComponent53
 };
 
 struct GAMEPLAYABILITIES_API FGameplayEffectConstants
@@ -1196,6 +1197,7 @@ public:
 	uint32 bDurationLocked : 1;
 
 	/** List of abilities granted by this effect */
+	UE_DEPRECATED(5.3, "This variable will be removed in favor of (immutable) GASpecs that live on GameplayEffectComponents (e.g. AbilitiesGameplayEffectComponent)")
 	UPROPERTY()
 	TArray<FGameplayAbilitySpecDef> GrantedAbilitySpecs;
 
@@ -1356,6 +1358,10 @@ struct GAMEPLAYABILITIES_API FActiveGameplayEffect : public FFastArraySerializer
 
 	UPROPERTY()
 	FPredictionKey	PredictionKey;
+	
+	/** Handles of Gameplay Abilities that were granted to the target by this Active Gameplay Effect */
+	UPROPERTY()
+	TArray<FGameplayAbilitySpecHandle> GrantedAbilityHandles;
 
 	/** Server time this started */
 	UPROPERTY()
@@ -2148,10 +2154,8 @@ protected:
 	void SetVersion(EGameplayEffectVersion Version);
 
 private:
-	/** Logic that determines if we can upgrade this Gameplay Effect to use Gameplay Effect Components (or not if it's already been done). Used in the upgrade paths below. */
-	bool VersionAllowsCreateGEComponentsDuringUpgrade() const;
-
 	// Helper functions for converting data to use components
+	void ConvertAbilitiesComponent();
 	void ConvertAdditionalEffectsComponent();
 	void ConvertAssetTagsComponent();
 	void ConvertBlockByTagsComponent();
@@ -2340,7 +2344,8 @@ public:
 	// ----------------------------------------------------------------------
 	
 	/** Policy for what abilities this GE will grant. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Granted Abilities")
+	UE_DEPRECATED(5.3, "GrantedAbilities are deprecated in favor of AbilitiesGameplayEffectComponent")
+	UPROPERTY(BlueprintReadOnly, Category = "Granted Abilities")
 	TArray<FGameplayAbilitySpecDef>	GrantedAbilities;
 
 	// ----------------------------------------------------------------------

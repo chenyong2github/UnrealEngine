@@ -1127,12 +1127,21 @@ FActiveGameplayEffectHandle UAbilitySystemComponent::FindActiveGameplayEffectHan
 {
 	for (const FActiveGameplayEffect& ActiveGE : &ActiveGameplayEffects)
 	{
+		// Old, deprecated way of handling these (before AbilitiesGameplayEffectComponent):
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		for (const FGameplayAbilitySpecDef& AbilitySpecDef : ActiveGE.Spec.GrantedAbilitySpecs)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{
 			if (AbilitySpecDef.AssignedHandle == Handle)
 			{
 				return ActiveGE.Handle;
 			}
+		}
+
+		// Where AbilitiesGameplayEffectComponent stores its data
+		if (ActiveGE.GrantedAbilityHandles.Contains(Handle))
+		{
+			return ActiveGE.Handle;
 		}
 	}
 	return FActiveGameplayEffectHandle();
