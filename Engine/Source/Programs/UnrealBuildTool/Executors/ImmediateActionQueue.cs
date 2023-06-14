@@ -798,6 +798,24 @@ namespace UnrealBuildTool
 			}
 		}
 
+		public int GetQueuedActionsCount()
+		{
+			lock (Actions)
+			{
+				int count = 0;
+
+				for (int actionIndex = _firstPendingAction; actionIndex != Actions.Length; ++actionIndex)
+				{
+
+					if (Actions[actionIndex].Status == ActionStatus.Queued)
+					{
+						++count;
+					}
+				}
+				return count;
+			}
+		}
+
 		/// <summary>
 		/// Purge the pending logging actions
 		/// </summary>
