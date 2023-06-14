@@ -29,6 +29,7 @@
 class UAnimInstance;
 class UBlendProfile;
 class UBlendSpace;
+class FTokenizedMessage;
 namespace EMessageSeverity { enum Type : int; }
 struct FAnimationPoseData;
 struct FAnimBlueprintDebugData_NodeVisit;
