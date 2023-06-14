@@ -799,6 +799,7 @@ void UAssetEditorSubsystem::OpenEditorForAsset(const FString& AssetPathName, con
 		
 		if (Object != nullptr)
 		{
+			OpenEditorForAsset(Object, EToolkitMode::Standalone, TSharedPtr<IToolkitHost>(), true, OpenedMethod);
 		}
 	}
 }
