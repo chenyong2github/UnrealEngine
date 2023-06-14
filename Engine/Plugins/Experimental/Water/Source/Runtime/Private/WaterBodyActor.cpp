@@ -532,6 +532,22 @@ void AWaterBody::DeprecateData()
 			}
 		}
 	}
+
+	// Static meshes should be duplicate transient so we don't run into issues with async builders running tasks. Instead we can just rely on them being recreated after the water body is duplicated.
+	if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WaterBodyStaticMeshRename)
+	{
+		TArray<TObjectPtr<UWaterBodyMeshComponent>> MeshComponents = { WaterInfoMeshComponent, DilatedWaterInfoMeshComponent };
+		MeshComponents.Append(WaterBodyStaticMeshComponents);
+
+		for (TObjectPtr<UWaterBodyMeshComponent> MeshComponent : MeshComponents)
+		{
+			if (IsValid(MeshComponent) && IsValid(MeshComponent->GetStaticMesh()))
+			{
+				UStaticMesh* StaticMesh = MeshComponent->GetStaticMesh();
+				StaticMesh->SetFlags(StaticMesh->GetFlags() | RF_DuplicateTransient | RF_TextExportTransient);
+			}
+		}
+	}
 #endif // WITH_EDITORONLY_DATA
 }
 

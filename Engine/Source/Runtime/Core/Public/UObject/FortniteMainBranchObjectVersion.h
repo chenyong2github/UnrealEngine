@@ -339,6 +339,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Water bodies before this version need to update their water zone on load since they won't have been serialized yet.
 		WaterOwningZonePointerFixup,
 
+		// Set flags on water static meshes to duplicate transient to avoid underlying static mesh duplication issue
+		WaterBodyStaticMeshDuplicateTransient,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
