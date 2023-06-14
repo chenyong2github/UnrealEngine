@@ -4,6 +4,7 @@
 
 #include "Components/SplineComponent.h"
 #include "SceneManagement.h" // FPrimitiveDrawInterface
+#include "SceneView.h"
 #include "Styling/StyleColors.h"
 #include "ToolContextInterfaces.h" // IToolsContextRenderAPI
 

@@ -8,16 +8,18 @@
 #include "BaseGizmos/GizmoMath.h"
 #include "Components/SplineComponent.h"
 #include "CoreGlobals.h" // GUndo
-#include "Kismet2/ComponentEditorUtils.h" // GenerateValidVariableName
 #include "Drawing/PreviewGeometryActor.h"
 #include "Editor/UnrealEdEngine.h" // DuplicateActors
+#include "Engine/Blueprint.h"
 #include "Engine/World.h" 
 #include "GameFramework/Actor.h"
 #include "InputState.h" // FInputDeviceRay
 #include "InteractiveToolManager.h"
+#include "Kismet2/ComponentEditorUtils.h" // GenerateValidVariableName
 #include "Mechanics/ConstructionPlaneMechanic.h"
 #include "SceneManagement.h" // FPrimitiveDrawInterface
 #include "Selection/ToolSelectionUtil.h"
+#include "Settings/LevelEditorViewportSettings.h"
 #include "SplineUtil.h"
 #include "ToolBuilderUtil.h"
 #include "UnrealEdGlobals.h" // GUnrealEd
