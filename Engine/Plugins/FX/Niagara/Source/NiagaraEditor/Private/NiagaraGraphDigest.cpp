@@ -3849,7 +3849,7 @@ FNiagaraCompilationNodeStaticSwitch::FNiagaraCompilationNodeStaticSwitch(const U
 	bSetByCompiler = InNode->IsSetByCompiler();
 	bSetByPin = InNode->IsSetByPin();
 	SwitchType = InNode->SwitchTypeData.SwitchType;
-	SwitchBranchCount = InNode->GetNumberOfCases();
+	SwitchBranchCount = InNode->GetOptionValues().Num();
 	InputParameterName = InNode->InputParameterName;
 	SwitchConstant = InNode->SwitchTypeData.SwitchConstant;
 	InputType = InNode->GetInputType();
@@ -4369,7 +4369,7 @@ FNiagaraCompilationNodeSelect::FNiagaraCompilationNodeSelect(const UNiagaraNodeS
 	, SelectorPinType(InNode->SelectorPinType)
 {
 	SelectorPinIndex = GetInputPinIndexByPersistentId(InNode->SelectorPinGuid);
-	NumOptionsPerVariable = InNode->GetNumberOfCases();
+	NumOptionsPerVariable = InNode->GetOptionValues().Num();
 	SelectorValues = InNode->GetOptionValues();
 }
 

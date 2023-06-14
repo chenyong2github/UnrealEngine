@@ -46,7 +46,6 @@ public:
 
 	/** Helper function to create a variable to add to the OutputVars and FGuid to add to OutputVarGuids. */
 	FGuid AddOutput(FNiagaraTypeDefinition Type, const FName& Name);
-	virtual int32 GetNumberOfCases() const { return NumOptionsPerVariable; }
 
 	void AttemptUpdatePins();
 	bool AreInputPinsOutdated() const;
@@ -84,6 +83,7 @@ protected:
 	//~ End UNiagaraNodeWithDynamicPins Interface
 
 protected:
+	/** Primarily used for integer options where the number of entries is not derivable from something else (i.e. enum or bool which clearly define entries) */
 	UPROPERTY()
 	int32 NumOptionsPerVariable = 0;
 private:

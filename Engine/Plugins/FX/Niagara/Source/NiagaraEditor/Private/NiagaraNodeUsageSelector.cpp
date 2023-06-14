@@ -260,8 +260,6 @@ void UNiagaraNodeUsageSelector::AddWidgetsToInputBox(TSharedPtr<SVerticalBox> In
 		return;
 	}
 
-	TArray<FString> Cases;
-
 	TArray<UEdGraphPin*> InputPins;
 	GetInputPins(InputPins);
 
@@ -273,8 +271,7 @@ void UNiagaraNodeUsageSelector::AddWidgetsToInputBox(TSharedPtr<SVerticalBox> In
 	int32 WidgetIndexOffset = 0;
 	// insert separators to make the grouping apparent.
 	TArray<int32> OptionValues = GetOptionValues();
-	ensure(OptionValues.Num() == GetNumberOfCases());
-	for (int32 Idx = 0; Idx < OutputVars.Num() * GetNumberOfCases(); Idx += OutputVars.Num())
+	for (int32 Idx = 0; Idx < OutputVars.Num() * OptionValues.Num(); Idx += OutputVars.Num())
 	{
 		const int32 OptionValueIndex = Idx / OutputVars.Num();
 		const int32 OptionValue = OptionValues[OptionValueIndex];

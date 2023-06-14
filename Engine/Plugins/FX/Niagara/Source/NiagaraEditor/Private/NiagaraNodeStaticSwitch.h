@@ -101,9 +101,7 @@ public:
 	virtual ENiagaraNumericOutputTypeSelectionMode GetNumericOutputTypeSelectionMode() const override;
 	//~ End UNiagaraNode Interface
 
-	//~ Begin UNiagaraNodeUsageSelector Interface
-	virtual int32 GetNumberOfCases() const override;
-	// ~End UNiagaraNodeUsageSelector Interface
+	virtual TArray<int32> GetOptionValues() const override;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -123,7 +121,6 @@ protected:
 	
 	virtual FString GetInputCaseName(int32 Case) const override;
 	virtual FName GetOptionPinName(const FNiagaraVariable& Variable, int32 Value) const override;
-	virtual TArray<int32> GetOptionValues() const override;
 	//~ End UNiagaraNodeUsageSelector Interface
 
 	virtual bool CanModifyPin(const UEdGraphPin* Pin) const override;

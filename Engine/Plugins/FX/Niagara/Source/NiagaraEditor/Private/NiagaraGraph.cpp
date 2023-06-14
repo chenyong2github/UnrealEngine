@@ -2851,7 +2851,7 @@ bool UNiagaraGraph::RenameStaticSwitch(UNiagaraNodeStaticSwitch* SwitchNode, FNa
 
 		if (!StaticSwitchInputs.Contains(OrigVariable))
 		{
-			RemoveParameter(OrigVariable);
+			RemoveParameter(OrigVariable, true);
 		}
 	}
 

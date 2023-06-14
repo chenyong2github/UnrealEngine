@@ -214,21 +214,6 @@ void UNiagaraNodeStaticSwitch::PostEditChangeProperty(struct FPropertyChangedEve
 	}
 }
 
-int32 UNiagaraNodeStaticSwitch::GetNumberOfCases() const
-{
-	if(SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Integer)
-	{
-		if(UNiagaraScriptVariable* ScriptVariable = GetStaticSwitchScriptVariable())
-		{
-			if(ScriptVariable->Metadata.WidgetCustomization.WidgetType == ENiagaraInputWidgetType::EnumStyle)
-			{
-				return ScriptVariable->Metadata.WidgetCustomization.EnumStyleDropdownValues.Num();
-			}
-		}
-	}
-
-	return Super::GetNumberOfCases();
-}
 #endif
 
 TArray<int32> UNiagaraNodeStaticSwitch::GetOptionValues() const
@@ -240,17 +225,18 @@ TArray<int32> UNiagaraNodeStaticSwitch::GetOptionValues() const
 	}
 	else if (SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Integer)
 	{
-		// we want complete sync of the enum entries, if selected
-		bool bEnsureMinimumCases = true;
+		int32 EnumEntries = INDEX_NONE;
+		bool bUseEnumDisplay = false;
 		if(UNiagaraScriptVariable* ScriptVariable = GetStaticSwitchScriptVariable())
 		{
 			if(ScriptVariable->Metadata.WidgetCustomization.WidgetType == ENiagaraInputWidgetType::EnumStyle)
 			{
-				bEnsureMinimumCases = false;
+				EnumEntries = ScriptVariable->Metadata.WidgetCustomization.EnumStyleDropdownValues.Num();
+				bUseEnumDisplay = true;
 			}
 		}
 		
-		int32 NewOptionsCount = bEnsureMinimumCases ? FMath::Max(2, GetNumberOfCases()) : GetNumberOfCases();
+		int32 NewOptionsCount = bUseEnumDisplay ? EnumEntries : NumOptionsPerVariable;
 		for(int32 Counter = 0; Counter < NewOptionsCount; Counter++)
 		{
 			OptionValues.Add(Counter);
@@ -364,6 +350,8 @@ FName UNiagaraNodeStaticSwitch::GetOptionPinName(const FNiagaraVariable& Variabl
 void UNiagaraNodeStaticSwitch::ChangeSwitchParameterName(const FName& NewName)
 {
 	GetNiagaraGraph()->RenameStaticSwitch(this, NewName);
+	// due to renaming of the static switch, it is possible we are now pointing to another pre-existing static switch variable, so we need to reallocate pins.
+	ReallocatePins();
 	VisualsChangedDelegate.Broadcast(this);
 }
 
@@ -487,9 +475,7 @@ void UNiagaraNodeStaticSwitch::AllocateDefaultPins()
 	}
 	
 	TArray<int32> OptionValues = GetOptionValues();
-	NumOptionsPerVariable = OptionValues.Num();
-	
-	for (int32 i = 0; i < NumOptionsPerVariable; i++)
+	for (int32 i = 0; i < OptionValues.Num(); i++)
 	{
 		for (const FNiagaraVariable& Variable : OutputVars)
 		{
@@ -916,11 +902,15 @@ void UNiagaraNodeStaticSwitch::AddIntegerInputPin()
 	
 	if(UNiagaraScriptVariable* ScriptVariable = GetStaticSwitchScriptVariable())
 	{
-		ScriptVariable->PreEditChange(nullptr);
-		FNiagaraWidgetNamedIntegerInputValue& NewEntry = ScriptVariable->Metadata.WidgetCustomization.EnumStyleDropdownValues.AddDefaulted_GetRef();
-		NewEntry.DisplayName = FText::FromString(FString::FromInt(NumOptionsPerVariable - 1));
-		FPropertyChangedEvent PropertyChangedEvent(nullptr);
-		ScriptVariable->PostEditChangeProperty(PropertyChangedEvent);
+		// we only want to add a new inline enum entry if we are in enum style mode
+		if(ScriptVariable->Metadata.WidgetCustomization.WidgetType == ENiagaraInputWidgetType::EnumStyle)
+		{
+			ScriptVariable->PreEditChange(nullptr);
+			FNiagaraWidgetNamedIntegerInputValue& NewEntry = ScriptVariable->Metadata.WidgetCustomization.EnumStyleDropdownValues.AddDefaulted_GetRef();
+			NewEntry.DisplayName = FText::FromString(FString::FromInt(ScriptVariable->Metadata.WidgetCustomization.EnumStyleDropdownValues.Num() - 1));
+			FPropertyChangedEvent PropertyChangedEvent(nullptr);
+			ScriptVariable->PostEditChangeProperty(PropertyChangedEvent);
+		}
 	}
 	
 	ReallocatePins();
@@ -936,10 +926,14 @@ void UNiagaraNodeStaticSwitch::RemoveIntegerInputPin()
 	
 	if(UNiagaraScriptVariable* ScriptVariable = GetStaticSwitchScriptVariable())
 	{
-		ScriptVariable->PreEditChange(nullptr);
-		ScriptVariable->Metadata.WidgetCustomization.EnumStyleDropdownValues.RemoveAt(ScriptVariable->Metadata.WidgetCustomization.EnumStyleDropdownValues.Num() - 1);
-		FPropertyChangedEvent PropertyChangedEvent(nullptr);
-		ScriptVariable->PostEditChangeProperty(PropertyChangedEvent);
+		// we only want to remove an inline enum entry if we are in enum style mode
+		if(ScriptVariable->Metadata.WidgetCustomization.WidgetType == ENiagaraInputWidgetType::EnumStyle)
+		{
+			ScriptVariable->PreEditChange(nullptr);
+			ScriptVariable->Metadata.WidgetCustomization.EnumStyleDropdownValues.RemoveAt(ScriptVariable->Metadata.WidgetCustomization.EnumStyleDropdownValues.Num() - 1);
+			FPropertyChangedEvent PropertyChangedEvent(nullptr);
+			ScriptVariable->PostEditChangeProperty(PropertyChangedEvent);
+		}
 	}
 	
 	ReallocatePins();
@@ -962,7 +956,23 @@ EVisibility UNiagaraNodeStaticSwitch::ShowAddIntegerButton() const
 
 EVisibility UNiagaraNodeStaticSwitch::ShowRemoveIntegerButton() const
 {
-	return SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Integer && NumOptionsPerVariable > 2 ? EVisibility::Visible : EVisibility::Collapsed;
+	if(SwitchTypeData.SwitchType != ENiagaraStaticSwitchType::Integer)
+	{
+		return EVisibility::Collapsed;
+	}
+	
+	if(UNiagaraScriptVariable* ScriptVariable = GetStaticSwitchScriptVariable())
+	{
+		if(ScriptVariable->Metadata.WidgetCustomization.WidgetType == ENiagaraInputWidgetType::EnumStyle)
+		{
+			if(ScriptVariable->Metadata.WidgetCustomization.EnumStyleDropdownValues.Num() > 2)
+			{
+				return EVisibility::Visible;
+			}
+		}
+	}
+	
+	return NumOptionsPerVariable > 2 ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 void UNiagaraNodeStaticSwitch::PostLoad()

@@ -47,6 +47,17 @@ FString UNiagaraNodeSimTargetSelector::GetInputCaseName(int32 Case) const
 	return Case == 0 ? TEXT("CPU VM") : TEXT("GPU Shader");
 }
 
+TArray<int32> UNiagaraNodeSimTargetSelector::GetOptionValues() const
+{
+	TArray<int32> OptionValues;
+	for(int32 Value = 0; Value < StaticEnum<ENiagaraSimTarget>()->NumEnums(); Value++)
+	{
+		OptionValues.Add(Value);
+	}
+	
+	return OptionValues; 
+}
+
 void UNiagaraNodeSimTargetSelector::Compile(FTranslator* Translator, TArray<int32>& Outputs) const
 {
 	FPinCollectorArray InputPins;

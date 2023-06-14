@@ -26,5 +26,6 @@ public:
 protected:
 	//~ Begin UNiagaraNodeUsageSelector Interface
 	virtual FString GetInputCaseName(int32 Case) const override;
+	virtual TArray<int32> GetOptionValues() const override;
 	//~ End UNiagaraNodeUsageSelector Interface
 };
