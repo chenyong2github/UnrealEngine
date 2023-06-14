@@ -432,11 +432,6 @@ void FCompressibleAnimData::ResampleAnimationTrackData(const FFrameRate& SampleR
 	if (AnimSequence->ShouldDataModelBeValid())
 	{
 		TScriptInterface<IAnimationDataModel> DataModelInterface = AnimSequence->GetDataModelInterface();
-
-		// Make a copy, deals with bone name and index
-		TArray<FName> TrackNames;
-		DataModelInterface->GetBoneTrackNames(TrackNames);
-	
 		ensure(DataModelInterface != nullptr);
 		{
 			IAnimationDataModel::FEvaluationAndModificationLock Lock(*DataModelInterface, [this]() -> bool
@@ -448,6 +443,10 @@ void FCompressibleAnimData::ResampleAnimationTrackData(const FFrameRate& SampleR
             {		
             	return;
             }
+
+			// Make a copy, deals with bone name and index
+			TArray<FName> TrackNames;
+			DataModelInterface->GetBoneTrackNames(TrackNames);
 			
 			FMemMark Mark(FMemStack::Get());
 			FByFramePoseEvalContext EvalContext(AnimSequence);
