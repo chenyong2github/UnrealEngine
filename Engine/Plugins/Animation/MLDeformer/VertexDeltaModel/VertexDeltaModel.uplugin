@@ -43,6 +43,10 @@
 			"Enabled": true
 		},
 		{
+			"Name": "NNERuntimeRDG",
+			"Enabled": true
+		},
+		{
 			"Name": "DeformerGraph",
 			"Enabled": true
 		},

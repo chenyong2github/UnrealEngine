@@ -119,7 +119,6 @@ namespace UE::VertexDeltaModel
 
 				if (NNEModelInstanceRDG)
 				{
-					const FVertexMapBuffer& VertexMapBuffer = VertexDeltaModel->GetVertexMapBuffer();
 					Weight = DeformerComponent->GetWeight();
 					VertexMapBufferSRV = VertexDeltaModel->GetVertexMapBuffer().ShaderResourceViewRHI;
 				}
@@ -134,14 +133,14 @@ namespace UE::VertexDeltaModel
 			return false;
 		}
 
-		if (!bCanRunNeuralNet || SkeletalMeshObject == nullptr || NNEModelInstanceRDG == nullptr || VertexMapBufferSRV == nullptr)
+		if (SkeletalMeshObject == nullptr || NNEModelInstanceRDG == nullptr || VertexMapBufferSRV == nullptr)
 		{
 			return false;
 		}
 
 		return true;
 	}
-
+	
 
 	void FVertexDeltaGraphDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuilder)
 	{

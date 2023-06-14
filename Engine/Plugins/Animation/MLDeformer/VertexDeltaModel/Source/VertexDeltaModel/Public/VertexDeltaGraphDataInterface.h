@@ -92,6 +92,5 @@ namespace UE::VertexDeltaModel
 		FRDGBufferSRV* BufferSRV = nullptr;
 		int32 NeuralNetworkInferenceHandle = -1;
 		float Weight = 1.0f;
-		bool bCanRunNeuralNet = false;
 	};
 }	// namespace UE::VertexDeltaModel
