@@ -329,7 +329,7 @@ TSharedRef< SWidget > SPDD_TargetRow::GenerateWidgetForColumn(const FName& Colum
 						.Padding(FMargin(6, 0, 3, 0))
 						[
 							SNew(SCheckBox)
-							.IsChecked_Lambda([=]() { return IsHidden() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+							.IsChecked_Lambda([this]() { return IsHidden() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
 							.OnCheckStateChanged(this, &SPDD_TargetRow::OnIsHiddenChanged)
 							.Padding(FMargin(4.0f, 0.0f))
 							.ToolTipText(LOCTEXT("IsHiddenToolTip", "Define if this target should be hidden from debug drawing."))
@@ -382,7 +382,7 @@ TSharedRef< SWidget > SPDD_TargetRow::GenerateWidgetForColumn(const FName& Colum
 						.Padding(FMargin(6, 0, 3, 0))
 						[
 							SNew(SSearchableComboBox)
-							.Visibility_Lambda([=]() { return IsCustomCurveEnabled() ? EVisibility::Collapsed : EVisibility::Visible;  })
+							.Visibility_Lambda([this]() { return IsCustomCurveEnabled() ? EVisibility::Collapsed : EVisibility::Visible;  })
 							.OptionsSource(&FunctionTypeOptions)
 							.OnGenerateWidget(this, &SPDD_TargetRow::MakeDrivenNameWidget)
 							.OnSelectionChanged(this, &SPDD_TargetRow::OnFunctionTypeChanged)
@@ -409,7 +409,7 @@ TSharedRef< SWidget > SPDD_TargetRow::GenerateWidgetForColumn(const FName& Colum
 						.Padding(FMargin(6, 0, 3, 0))
 						[
 							SNew(SCheckBox)
-							.IsChecked_Lambda([=]() { return IsCustomCurveEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+							.IsChecked_Lambda([this]() { return IsCustomCurveEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
 							.OnCheckStateChanged(this, &SPDD_TargetRow::OnApplyCustomCurveChanged)
 							.Padding(FMargin(4.0f, 0.0f))
 							.ToolTipText(LOCTEXT("CustomCurveTooltip", "Define a custom response curve for this target."))
@@ -428,7 +428,7 @@ TSharedRef< SWidget > SPDD_TargetRow::GenerateWidgetForColumn(const FName& Colum
 					.VAlign(VAlign_Fill)
 					[
 						SNew(SBox)
-						.Visibility_Lambda([=]() { return IsCustomCurveEnabled() ? EVisibility::Visible : EVisibility::Collapsed;  })
+						.Visibility_Lambda([this]() { return IsCustomCurveEnabled() ? EVisibility::Visible : EVisibility::Collapsed;  })
 						.IsEnabled_Lambda([this]() { return IsOverrideEnabled(); })
 						.Content()
 						[
@@ -1091,7 +1091,7 @@ void FPoseDriverDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 			.Padding(FMargin(6, 0, 3, 0))
 			[
 				SNew(SCheckBox)
-				.IsChecked_Lambda([=]() { return IsSoloDrivenOnly() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+				.IsChecked_Lambda([this]() { return IsSoloDrivenOnly() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
 				.OnCheckStateChanged(this, &FPoseDriverDetails::OnSoloDrivenOnlyChanged)
 				.Padding(FMargin(4.0f, 0.0f))
 				.ToolTipText(LOCTEXT("SoloDrivenOnlyHelp", "Only solo the driven poses or curves and leave the source joint(s) in place."))

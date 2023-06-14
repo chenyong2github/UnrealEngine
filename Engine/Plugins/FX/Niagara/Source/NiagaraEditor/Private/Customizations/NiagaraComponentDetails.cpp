@@ -798,7 +798,7 @@ void FNiagaraUserParameterNodeBuilder::GenerateUserParameterRows(IDetailChildren
 								ActiveSection = Section;
 								OnRebuildChildren.ExecuteIfBound();
 							})
-							.IsChecked_Lambda([=]()
+						.IsChecked_Lambda([this, Section]()
 							{
 								return ActiveSection == Section ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 							})
@@ -831,7 +831,7 @@ void FNiagaraUserParameterNodeBuilder::GenerateUserParameterRows(IDetailChildren
 						ActiveSection = nullptr;
 						OnRebuildChildren.ExecuteIfBound();
 					})
-					.IsChecked_Lambda([=]()
+					.IsChecked_Lambda([this]()
 					{
 						return ActiveSection == nullptr ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 					})

@@ -321,25 +321,25 @@ void UNiagaraNodeWithDynamicPins::GetNodeContextMenuActions(UToolMenu* Menu, UGr
 					"MoveDynamicPinUp",
 					MoveUpLabel, 
 					MoveUpTooltip,
-					FNewToolMenuDelegate::CreateLambda([=](UToolMenu* InSubMenuBuilder)
-				{
-					FToolMenuSection& SubSection = InSubMenuBuilder->FindOrAddSection("MovePin");
-					for (int i = PinIdx - 1; i >= 0; i--)
+					FNewToolMenuDelegate::CreateLambda([=,this](UToolMenu* InSubMenuBuilder)
 					{
-						int32 MoveAmount = i - PinIdx;
-						if (!CanMovePin(Context->Pin, MoveAmount))
+						FToolMenuSection& SubSection = InSubMenuBuilder->FindOrAddSection("MovePin");
+						for (int i = PinIdx - 1; i >= 0; i--)
 						{
-							break;
+							int32 MoveAmount = i - PinIdx;
+							if (!CanMovePin(Context->Pin, MoveAmount))
+							{
+								break;
+							}
+							FText PinName = FText::FromName(SameDirectionPins[i]->PinName);
+							SubSection.AddMenuEntry(FName("MoveDynamicPinUp" + FString::FromInt(i)),
+								FText::Format(LOCTEXT("MoveDynamicPinUpLabel", "Move up {0} - above '{1}'"), abs(MoveAmount), PinName),
+								MoveUpTooltip,
+								FSlateIcon(),
+								FUIAction(FExecuteAction::CreateUObject(const_cast<UNiagaraNodeWithDynamicPins*>(this), &UNiagaraNodeWithDynamicPins::MoveDynamicPinFromMenu, const_cast<UEdGraphPin*>(Context->Pin), MoveAmount))
+							);
 						}
-						FText PinName = FText::FromName(SameDirectionPins[i]->PinName);
-						SubSection.AddMenuEntry(FName("MoveDynamicPinUp" + FString::FromInt(i)),
-							FText::Format(LOCTEXT("MoveDynamicPinUpLabel", "Move up {0} - above '{1}'"), abs(MoveAmount), PinName),
-							MoveUpTooltip,
-							FSlateIcon(),
-							FUIAction(FExecuteAction::CreateUObject(const_cast<UNiagaraNodeWithDynamicPins*>(this), &UNiagaraNodeWithDynamicPins::MoveDynamicPinFromMenu, const_cast<UEdGraphPin*>(Context->Pin), MoveAmount))
-						);
-					}
-				}));
+					}));
 			}
 			else
 			{
@@ -362,7 +362,7 @@ void UNiagaraNodeWithDynamicPins::GetNodeContextMenuActions(UToolMenu* Menu, UGr
 					"MoveDynamicPinDown",
 					MoveDownLabel, 
 					MoveDownTooltip,
-					FNewToolMenuDelegate::CreateLambda([=](UToolMenu* InSubMenuBuilder)
+					FNewToolMenuDelegate::CreateLambda([=, this](UToolMenu* InSubMenuBuilder)
 				{
 					FToolMenuSection& SubSection = InSubMenuBuilder->FindOrAddSection("MovePin");
 					for (int i = PinIdx + 1; i < SameDirectionPins.Num(); i++)

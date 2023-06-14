@@ -71,7 +71,7 @@ TSharedRef<SWidget> FBaseMediaSourceCustomization::MakePlatformPlayersMenu(const
 		LOCTEXT("AutoPlayerTooltip", "Select a player automatically based on the media source"),
 		FSlateIcon(),
 		FUIAction(
-			FExecuteAction::CreateLambda([=] { SetPlatformPlayerNamesValue(IniPlatformName, NAME_None); }),
+		FExecuteAction::CreateLambda([this, IniPlatformName] { SetPlatformPlayerNamesValue(IniPlatformName, NAME_None); }),
 			FCanExecuteAction()
 		),
 		NAME_None,
@@ -100,7 +100,7 @@ TSharedRef<SWidget> FBaseMediaSourceCustomization::MakePlatformPlayersMenu(const
 				FText::FromString(FString::Join(Factory->GetSupportedPlatforms(), TEXT(", "))),
 				FSlateIcon(),
 				FUIAction(
-					FExecuteAction::CreateLambda([=] { SetPlatformPlayerNamesValue(IniPlatformName, PlayerName); }),
+				FExecuteAction::CreateLambda([this, IniPlatformName, PlayerName] { SetPlatformPlayerNamesValue(IniPlatformName, PlayerName); }),
 					FCanExecuteAction::CreateLambda([=] { return SupportsPlatform; })
 				),
 				NAME_None,

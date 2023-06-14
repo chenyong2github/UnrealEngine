@@ -158,7 +158,7 @@ void ASTOp::Assert()
     });
 
     // Validate the children
-    ForEachChild( [=](ASTChild&c)
+	ForEachChild( [this](ASTChild&c)
     {
         if(c)
         {

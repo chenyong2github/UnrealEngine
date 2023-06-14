@@ -711,7 +711,7 @@ void FLevelEditorSequencerIntegration::OnEndPlayMap()
 	}
 	if (bAddRestoreCallback)
 	{
-		AcquiredResources.Add([=] { this->RestoreRealtimeViewports(); });
+		AcquiredResources.Add([this] { this->RestoreRealtimeViewports(); });
 	}
 
 	IterateAllSequencers(
@@ -1163,7 +1163,7 @@ void FLevelEditorSequencerIntegration::ActivateRealtimeViewports()
 		}
 	}
 
-	AcquiredResources.Add([=]{ this->RestoreRealtimeViewports(); });
+	AcquiredResources.Add([this]{ this->RestoreRealtimeViewports(); });
 }
 
 void FLevelEditorSequencerIntegration::RestoreRealtimeViewports()

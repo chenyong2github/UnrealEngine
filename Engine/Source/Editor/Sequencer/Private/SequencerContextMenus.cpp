@@ -154,7 +154,7 @@ void FKeyContextMenu::PopulateMenu(FMenuBuilder& MenuBuilder, TSharedPtr<FExtend
 			FUIAction (
 				FExecuteAction(),
 				// @todo sequencer: only one struct per structure view supported right now :/
-				FCanExecuteAction::CreateLambda([=]{ return KeyStruct.IsValid(); })
+				FCanExecuteAction::CreateLambda([this]{ return KeyStruct.IsValid(); })
 			),
 			NAME_None,
 			EUserInterfaceActionType::Button
@@ -261,7 +261,7 @@ void FSectionContextMenu::PopulateMenu(FMenuBuilder& MenuBuilder, TSharedPtr<FEx
 	MenuBuilder.AddSubMenu(
 		LOCTEXT("SectionProperties", "Properties"),
 		LOCTEXT("SectionPropertiesTooltip", "Modify the section properties"),
-		FNewMenuDelegate::CreateLambda([=](FMenuBuilder& SubMenuBuilder)
+		FNewMenuDelegate::CreateLambda([this](FMenuBuilder& SubMenuBuilder)
 		{
 			TArray<TWeakObjectPtr<UObject>> Sections;
 			for (TViewModelPtr<FSectionModel> SectionModel : Sequencer->GetViewModel()->GetSelection()->TrackArea.Filter<FSectionModel>())
@@ -452,9 +452,9 @@ void FSectionContextMenu::AddEditMenu(FMenuBuilder& MenuBuilder)
 		LOCTEXT("DeleteKeysWhenTrimmingTooltip", "Delete keys outside of the trimmed range"),
 		FSlateIcon(),
 		FUIAction(
-			FExecuteAction::CreateLambda([=] { Sequencer->GetSequencerSettings()->SetDeleteKeysWhenTrimming(!Sequencer->GetSequencerSettings()->GetDeleteKeysWhenTrimming()); }),
+			FExecuteAction::CreateLambda([this] { Sequencer->GetSequencerSettings()->SetDeleteKeysWhenTrimming(!Sequencer->GetSequencerSettings()->GetDeleteKeysWhenTrimming()); }),
 			FCanExecuteAction(),
-			FIsActionChecked::CreateLambda([=] { return Sequencer->GetSequencerSettings()->GetDeleteKeysWhenTrimming(); })),
+			FIsActionChecked::CreateLambda([this] { return Sequencer->GetSequencerSettings()->GetDeleteKeysWhenTrimming(); })),
 		NAME_None,
 		EUserInterfaceActionType::ToggleButton
 	);
@@ -541,7 +541,7 @@ void FSectionContextMenu::AddEditMenu(FMenuBuilder& MenuBuilder)
 			FCanExecuteAction::CreateLambda([=]{ return Shared->CanReduceKeys(); }))
 	);
 
-	auto OnReduceKeysToleranceChanged = [=](float NewValue) {
+	auto OnReduceKeysToleranceChanged = [this](float NewValue) {
 		Sequencer->GetSequencerSettings()->SetReduceKeysTolerance(NewValue);
 	};
 
@@ -560,7 +560,7 @@ void FSectionContextMenu::AddEditMenu(FMenuBuilder& MenuBuilder)
 				.OnValueChanged_Lambda(OnReduceKeysToleranceChanged)
 				.MinValue(0)
 				.MaxValue(TOptional<float>())
-				.Value_Lambda([=]() -> float {
+				.Value_Lambda([this]() -> float {
 				return Sequencer->GetSequencerSettings()->GetReduceKeysTolerance();
 				})
 			],
@@ -1766,7 +1766,7 @@ void FEasingContextMenu::PopulateMenu(FMenuBuilder& MenuBuilder, TSharedPtr<FExt
 					.MaxValue(TOptional<double>())
 					.MaxSliderValue(TOptional<double>())
 					.MinSliderValue(0.f)
-					.Delta_Lambda([=]() -> double { return Sequencer->GetDisplayRateDeltaFrameCount(); })
+					.Delta_Lambda([this]() -> double { return Sequencer->GetDisplayRateDeltaFrameCount(); })
 					.Value_Lambda([=] {
 						TOptional<int32> Current = Shared->GetCurrentLength();
 						if (Current.IsSet())

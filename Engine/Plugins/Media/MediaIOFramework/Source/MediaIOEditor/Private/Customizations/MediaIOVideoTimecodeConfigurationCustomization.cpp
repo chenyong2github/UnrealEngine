@@ -67,7 +67,7 @@ namespace MediaIOVideoTimecodeConfigurationCustomization
 TAttribute<FText> FMediaIOVideoTimecodeConfigurationCustomization::GetContentText()
 {
 	FMediaIOVideoTimecodeConfiguration* Value = GetPropertyValueFromPropertyHandle<FMediaIOVideoTimecodeConfiguration>();
-	return MakeAttributeLambda([=]
+	return MakeAttributeLambda([this, Value]
 	{
 		const bool bIsAutoDetected = IsAutoDetected();
 		return Value->ToText(bIsAutoDetected);

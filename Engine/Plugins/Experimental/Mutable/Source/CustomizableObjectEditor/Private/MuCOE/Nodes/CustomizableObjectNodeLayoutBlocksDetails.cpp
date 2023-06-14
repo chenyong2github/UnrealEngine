@@ -102,7 +102,7 @@ void FCustomizableObjectNodeLayoutBlocksDetails::CustomizeDetails( IDetailLayout
 				.Padding(5.0f,0.0f,0.0f,0.0f)
 				[
 					SAssignNew(LODSelectorWidget, SSpinBox<int32>)
-					.Value_Lambda([=]()->int32
+					.Value_Lambda([this]()->int32
 					{
 						if (Node->Layout)
 						{

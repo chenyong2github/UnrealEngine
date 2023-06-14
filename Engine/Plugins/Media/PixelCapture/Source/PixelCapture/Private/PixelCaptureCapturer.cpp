@@ -55,7 +55,7 @@ void FPixelCaptureCapturer::Capture(const IPixelCaptureInputFrame& InputFrame)
 void FPixelCaptureCapturer::Initialize(int32 InputWidth, int32 InputHeight)
 {
 	Buffer = MakeUnique<UE::PixelCapture::FOutputFrameBuffer>();
-	Buffer->Reset(3, 10, [=]() { return TSharedPtr<IPixelCaptureOutputFrame>(CreateOutputBuffer(InputWidth, InputHeight)); });
+	Buffer->Reset(3, 10, [this, InputWidth, InputHeight]() { return TSharedPtr<IPixelCaptureOutputFrame>(CreateOutputBuffer(InputWidth, InputHeight)); });
 	ExpectedInputWidth = InputWidth;
 	ExpectedInputHeight = InputHeight;
 	bHasOutput = false;

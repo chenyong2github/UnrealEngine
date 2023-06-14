@@ -714,7 +714,7 @@ void FTrackModel::BuildContextMenu(FMenuBuilder& MenuBuilder)
 		MenuBuilder.AddSubMenu(
 			TrackSections.Num() > 1 ? LOCTEXT("BatchEditSections", "Batch Edit Sections") : LOCTEXT("EditSection", "Edit Section"),
 			FText(),
-			FNewMenuDelegate::CreateLambda([=](FMenuBuilder& SubMenuBuilder){
+			FNewMenuDelegate::CreateLambda([this, TrackSections](FMenuBuilder& SubMenuBuilder){
 				FSequencer* Sequencer = static_cast<FSequencer*>(GetEditor()->GetSequencer().Get());
 				SequencerHelpers::AddPropertiesMenu(*Sequencer, SubMenuBuilder, TrackSections);
 			})

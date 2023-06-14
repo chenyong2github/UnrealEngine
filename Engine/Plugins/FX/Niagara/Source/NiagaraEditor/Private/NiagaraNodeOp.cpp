@@ -330,7 +330,7 @@ bool UNiagaraNodeOp::AllowNiagaraTypeForAddPin(const FNiagaraTypeDefinition& InT
 		return true;
 	}
 
-	auto FindPredicate = [=](const FNiagaraTypeDefinition& PinType)
+	auto FindPredicate = [this, InType](const FNiagaraTypeDefinition& PinType)
 	{
 		if (bAllStatic)
 			return PinType.ToStaticDef() == InType;

@@ -437,7 +437,7 @@ void FCurveEditorTree::SortTreeItems(FSortedCurveEditorTreeItems& TreeItemIDsToS
 	// If there is more than one item, sort the items and then repopulate the ChildIDs from the sorted list of items.
 	if (TreeItemIDsToSort.bRequiresSort && TreeItemsToSort.Num() > 1)
 	{
-		TreeItemsToSort.Sort([=](const FCurveEditorTreeItem& ItemA, const FCurveEditorTreeItem& ItemB) { return SortPredicate.Execute(ItemA.GetItem().Get(), ItemB.GetItem().Get()); });
+		TreeItemsToSort.Sort([this](const FCurveEditorTreeItem& ItemA, const FCurveEditorTreeItem& ItemB) { return SortPredicate.Execute(ItemA.GetItem().Get(), ItemB.GetItem().Get()); });
 		for (int32 i = 0; i < TreeItemsToSort.Num(); ++i)
 		{
 			TreeItemIDsToSort.ChildIDs[i] = TreeItemsToSort[i]->GetID();

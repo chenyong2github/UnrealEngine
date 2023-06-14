@@ -190,7 +190,7 @@ void SNewPluginWizard::Construct(const FArguments& Args, TSharedPtr<SDockTab> In
 			SNew(SCheckBox)
 			.OnCheckStateChanged(this, &SNewPluginWizard::OnEnginePluginCheckboxChanged)
 			.IsChecked(this, &SNewPluginWizard::IsEnginePlugin)
-			.Visibility_Lambda([=]()
+			.Visibility_Lambda([this]()
 			{
 				FPluginTemplateDescription* Template = PluginWizardDefinition->GetSelectedTemplate().Get();
 				return ((Template != nullptr) && Template->bCanBePlacedInEngine) ? EVisibility::Visible : EVisibility::Collapsed;
@@ -238,7 +238,7 @@ void SNewPluginWizard::Construct(const FArguments& Args, TSharedPtr<SDockTab> In
 		[
 			SAssignNew(ShowPluginContentDirectoryCheckBox, SCheckBox)
 			.IsChecked(ECheckBoxState::Checked)
-			.Visibility_Lambda([=]()
+			.Visibility_Lambda([this]()
 			{
 				FPluginTemplateDescription* Template = PluginWizardDefinition->GetSelectedTemplate().Get();
 				return ((Template != nullptr) && Template->bCanContainContent) ? EVisibility::Visible : EVisibility::Collapsed;

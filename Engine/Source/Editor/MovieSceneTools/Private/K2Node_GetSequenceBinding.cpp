@@ -270,7 +270,7 @@ void UK2Node_GetSequenceBinding::GetNodeContextMenuActions(UToolMenu* Menu, UGra
 				"SetSequence",
 				LOCTEXT("SetSequence_Text", "Sequence"),
 				LOCTEXT("SetSequence_ToolTip", "Sets the sequence to get a binding from"),
-				FNewToolMenuDelegate::CreateLambda([=](UToolMenu* SubMenu)
+				FNewToolMenuDelegate::CreateLambda([this, Sequence](UToolMenu* SubMenu)
 				{
 					TArray<const UClass*> AllowedClasses({ UMovieSceneSequence::StaticClass() });
 

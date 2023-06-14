@@ -788,7 +788,7 @@ void FSkeletalAnimationSection::BuildSectionContextMenu(FMenuBuilder& MenuBuilde
 		auto MatchToBone = [=](bool bMatchPrevious, int32 Index)
 		{
 			return FUIAction(
-				FExecuteAction::CreateLambda([=]
+				FExecuteAction::CreateLambda([=, this]
 					{
 						FScopedTransaction MatchSection(LOCTEXT("MatchSectionByBone_Transaction", "Match Section By Bone"));
 						Section.Modify();	
@@ -810,7 +810,7 @@ void FSkeletalAnimationSection::BuildSectionContextMenu(FMenuBuilder& MenuBuilde
 					{ 
 						return SequencerPtr.IsValid(); 
 					}),
-				FIsActionChecked::CreateLambda([=]()->bool
+				FIsActionChecked::CreateLambda([=, this]()->bool
 					{
 						if (Index >= 0)
 						{
@@ -874,14 +874,14 @@ void FSkeletalAnimationSection::BuildSectionContextMenu(FMenuBuilder& MenuBuilde
 				LOCTEXT("MatchTranslationTooltip", "Match the Translation to the Specified Bone"),
 				FSlateIcon(),
 				FUIAction(
-					FExecuteAction::CreateLambda([=]()->void {
+					FExecuteAction::CreateLambda([=, this]()->void {
 						FScopedTransaction MatchTransaction(LOCTEXT("MatchTranslation_Transaction", "Match Translation"));
 						Section.Modify();	
 						Section.ToggleMatchTranslation();
 						Section.MatchSectionByBoneTransform(SkelMeshComp, SequencerPtr->GetLocalTime().Time, SequencerPtr->GetLocalTime().Rate, Section.MatchedBoneName);
 						SequencerPtr->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::TrackValueChanged);}),
-					FCanExecuteAction::CreateLambda([=]()->bool { return true; }),
-					FIsActionChecked::CreateLambda([=]()->bool { return Section.bMatchTranslation; })),
+						FCanExecuteAction::CreateLambda([]()->bool { return true; }),
+						FIsActionChecked::CreateLambda([this]()->bool { return Section.bMatchTranslation; })),
 				NAME_None,
 				EUserInterfaceActionType::ToggleButton
 			);
@@ -891,14 +891,14 @@ void FSkeletalAnimationSection::BuildSectionContextMenu(FMenuBuilder& MenuBuilde
 				LOCTEXT("MatchZHeightTooltip", "Match the Z Height, may want this off for better matching"),
 				FSlateIcon(),
 				FUIAction(
-					FExecuteAction::CreateLambda([=]()->void { 
+					FExecuteAction::CreateLambda([=, this]()->void { 
 						FScopedTransaction MatchTransaction(LOCTEXT("MatchZHeight_Transaction", "Match Z Height"));
 						Section.Modify();
 						Section.ToggleMatchIncludeZHeight(); 
 						Section.MatchSectionByBoneTransform(SkelMeshComp, SequencerPtr->GetLocalTime().Time, SequencerPtr->GetLocalTime().Rate, Section.MatchedBoneName);
 						SequencerPtr->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::TrackValueChanged); }),
-					FCanExecuteAction::CreateLambda([=]()->bool { return true; }),
-					FIsActionChecked::CreateLambda([=]()->bool { return Section.bMatchIncludeZHeight;  })),
+						FCanExecuteAction::CreateLambda([]()->bool { return true; }),
+						FIsActionChecked::CreateLambda([this]()->bool { return Section.bMatchIncludeZHeight;  })),
 				NAME_None,
 				EUserInterfaceActionType::ToggleButton
 			);
@@ -908,14 +908,14 @@ void FSkeletalAnimationSection::BuildSectionContextMenu(FMenuBuilder& MenuBuilde
 				LOCTEXT("MatchYawRotationTooltip", "Match the Yaw Rotation, may want this off for better matching"),
 				FSlateIcon(),
 				FUIAction(
-					FExecuteAction::CreateLambda([=]()->void {
+					FExecuteAction::CreateLambda([=, this]()->void {
 						FScopedTransaction MatchTransaction(LOCTEXT("MatchYawRotation_Transaction", "Match Yaw Rotation"));
 						Section.Modify();
 						Section.ToggleMatchIncludeYawRotation();
 						Section.MatchSectionByBoneTransform(SkelMeshComp, SequencerPtr->GetLocalTime().Time, SequencerPtr->GetLocalTime().Rate, Section.MatchedBoneName);
 						SequencerPtr->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::TrackValueChanged); }),
-					FCanExecuteAction::CreateLambda([=]()->bool { return true; }),
-							FIsActionChecked::CreateLambda([=]()->bool { return Section.bMatchRotationYaw; })),
+						FCanExecuteAction::CreateLambda([]()->bool { return true; }),
+						FIsActionChecked::CreateLambda([this]()->bool { return Section.bMatchRotationYaw; })),
 				NAME_None,
 							EUserInterfaceActionType::ToggleButton
 							);
@@ -931,8 +931,8 @@ void FSkeletalAnimationSection::BuildSectionContextMenu(FMenuBuilder& MenuBuilde
 						Section.ToggleMatchIncludePitchRotation();
 						Section.MatchSectionByBoneTransform(SkelMeshComp, SequencerPtr->GetLocalTime().Time, SequencerPtr->GetLocalTime().Rate, Section.MatchedBoneName);
 						SequencerPtr->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::TrackValueChanged); }),
-					FCanExecuteAction::CreateLambda([=]()->bool { return true; }),
-					FIsActionChecked::CreateLambda([=]()->bool { return Section.bMatchRotationPitch;})),
+						FCanExecuteAction::CreateLambda([]()->bool { return true; }),
+						FIsActionChecked::CreateLambda([this]()->bool { return Section.bMatchRotationPitch;})),
 				NAME_None,
 				EUserInterfaceActionType::ToggleButton
 			);
@@ -942,14 +942,14 @@ void FSkeletalAnimationSection::BuildSectionContextMenu(FMenuBuilder& MenuBuilde
 				LOCTEXT("MatchRollRotationTooltip", "Match the Roll Rotation, may want this off for better matching"),
 				FSlateIcon(),
 				FUIAction(
-					FExecuteAction::CreateLambda([=]()->void {
+					FExecuteAction::CreateLambda([=, this]()->void {
 						FScopedTransaction MatchTransaction(LOCTEXT("MatchRollRotation_Transaction", "Match Roll Rotation"));
 						Section.Modify();
 						Section.ToggleMatchIncludeRollRotation();
 						Section.MatchSectionByBoneTransform(SkelMeshComp, SequencerPtr->GetLocalTime().Time, SequencerPtr->GetLocalTime().Rate, Section.MatchedBoneName);
 						SequencerPtr->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::TrackValueChanged); }),
-					FCanExecuteAction::CreateLambda([=]()->bool { return true; }),
-							FIsActionChecked::CreateLambda([=]()->bool { return Section.bMatchRotationRoll; })),
+						FCanExecuteAction::CreateLambda([]()->bool { return true; }),
+						FIsActionChecked::CreateLambda([this]()->bool { return Section.bMatchRotationRoll; })),
 				NAME_None,
 							EUserInterfaceActionType::ToggleButton
 				);
@@ -965,13 +965,13 @@ void FSkeletalAnimationSection::BuildSectionContextMenu(FMenuBuilder& MenuBuilde
 				NSLOCTEXT("Sequencer", "ShowSkeletonsTooltip", "Show A Skeleton for this Section."),
 				FSlateIcon(),
 				FUIAction(
-					FExecuteAction::CreateLambda([=]()->void {
+					FExecuteAction::CreateLambda([this, SequencerPtr]()->void {
 						Section.ToggleShowSkeleton();
 						SequencerPtr->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::TrackValueChanged);
 
 						}),
 					FCanExecuteAction::CreateLambda([=]()->bool { return SequencerPtr != nullptr; }),
-						FIsActionChecked::CreateLambda([=]()->bool { return Section.bShowSkeleton; })),
+						FIsActionChecked::CreateLambda([this]()->bool { return Section.bShowSkeleton; })),
 						NAME_None,
 						EUserInterfaceActionType::ToggleButton
 					);

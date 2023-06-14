@@ -198,7 +198,7 @@ void SMediaPlayerEditorPlaylist::Construct(const FArguments& InArgs, UMediaPlaye
 							{
 								return SNew(SMediaSourceTableRow, OwnerTable)
 									.Entry(Entry)
-									.Opened_Lambda([=]() { return MediaPlayer->GetPlaylistIndex() == Entry->Index; })
+									.Opened_Lambda([this, Entry]() { return MediaPlayer->GetPlaylistIndex() == Entry->Index; })
 									.Style(Style);
 							})
 							.OnMouseButtonDoubleClick_Lambda([this](TSharedPtr<FMediaSourceTableEntry> InItem)

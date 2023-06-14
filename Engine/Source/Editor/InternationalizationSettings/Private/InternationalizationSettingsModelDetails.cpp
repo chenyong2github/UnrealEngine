@@ -110,7 +110,7 @@ namespace
 		{
 			FCulturePtr EditorLanguage = FInternationalization::Get().GetCurrentLanguage();
 
-			const auto& OnSelectionChangedLambda = [=](FCulturePtr& SelectedCulture, ESelectInfo::Type SelectInfo)
+			const auto& OnSelectionChangedLambda = [this](FCulturePtr& SelectedCulture, ESelectInfo::Type SelectInfo)
 			{
 				if (SettingsModel.IsValid())
 				{
@@ -152,7 +152,7 @@ namespace
 				}
 			};
 
-			const auto& IsCulturePickableLambda = [=](FCulturePtr Culture) -> bool
+			const auto& IsCulturePickableLambda = [this](FCulturePtr Culture) -> bool
 			{
 				TArray<FString> CultureNames = Culture->GetPrioritizedParentCultureNames();
 				for (const FString& CultureName : CultureNames)
@@ -220,7 +220,7 @@ namespace
 		{
 			FCulturePtr EditorLocale = FInternationalization::Get().GetCurrentLocale();
 
-			const auto& OnSelectionChangedLambda = [=](FCulturePtr& SelectedCulture, ESelectInfo::Type SelectInfo)
+			const auto& OnSelectionChangedLambda = [this](FCulturePtr& SelectedCulture, ESelectInfo::Type SelectInfo)
 			{
 				if (SettingsModel.IsValid())
 				{
@@ -331,7 +331,7 @@ namespace
 				}
 			}
 
-			const auto& CulturePickerSelectLambda = [=](FCulturePtr& SelectedCulture, ESelectInfo::Type SelectInfo)
+			const auto& CulturePickerSelectLambda = [this](FCulturePtr& SelectedCulture, ESelectInfo::Type SelectInfo)
 			{
 				if (SettingsModel.IsValid())
 				{
@@ -348,7 +348,7 @@ namespace
 					PreviewGameCultureComboButton->SetIsOpen(false);
 				}
 			};
-			const auto& CulturePickerIsPickableLambda = [=](FCulturePtr Culture) -> bool
+			const auto& CulturePickerIsPickableLambda = [this](FCulturePtr Culture) -> bool
 			{
 				TArray<FString> CultureNames = Culture->GetPrioritizedParentCultureNames();
 				for (const FString& CultureName : CultureNames)

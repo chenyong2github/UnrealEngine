@@ -497,7 +497,7 @@ TSharedPtr<SWidget> SBlendSpaceGridWidget::CreateGridEntryBox(const int32 BoxInd
 		[
 			SNew(STextBlock)
 			.Visibility(bShowLabel ? EVisibility::Visible : EVisibility::Collapsed)
-			.Text_Lambda([=]() { return (BoxIndex == 0) ? ParameterXName : ParameterYName; })
+			.Text_Lambda([this, BoxIndex]() { return (BoxIndex == 0) ? ParameterXName : ParameterYName; })
 		];
 }
 

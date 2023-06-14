@@ -99,7 +99,7 @@ bool FDirectoryWatcherSimpleCreateTest::RunTest(const FString& Parameters)
 		// Create a file and check that it got reported as created
 		FFileHelper::SaveStringToFile(TEXT(""), *(WorkingDir / Filename));
 
-		AddCommand(new FDelayedFunctionLatentCommand([=]{
+		AddCommand(new FDelayedFunctionLatentCommand([this, Test]{
 
 			FFileChangeData::EFileChangeAction* Action = Test->ReportedChanges.Find(Filename);
 
@@ -130,12 +130,12 @@ bool FDirectoryWatcherSimpleModifyTest::RunTest(const FString& Parameters)
 		// Start watching the directory
 		TSharedPtr<FDirectoryWatcherTestPayload> Test = MakeShareable(new FDirectoryWatcherTestPayload(WorkingDir));
 
-		AddCommand(new FDelayedFunctionLatentCommand([=]{
+		AddCommand(new FDelayedFunctionLatentCommand([this, WorkingDir, Test]{
 
 			// Manipulate the file
 			FFileHelper::SaveStringToFile(TEXT("Some content"), *(WorkingDir / Filename));
 
-			AddCommand(new FDelayedFunctionLatentCommand([=]{
+			AddCommand(new FDelayedFunctionLatentCommand([this, Test]{
 
 				FFileChangeData::EFileChangeAction* Action = Test->ReportedChanges.Find(Filename);
 
@@ -172,7 +172,7 @@ bool FDirectoryWatcherSimpleDeleteTest::RunTest(const FString& Parameters)
 		// Delete the file
 		IFileManager::Get().Delete(*(WorkingDir / Filename));
 
-		AddCommand(new FDelayedFunctionLatentCommand([=]{
+		AddCommand(new FDelayedFunctionLatentCommand([this, Test]{
 
 			FFileChangeData::EFileChangeAction* Action = Test->ReportedChanges.Find(Filename);
 
@@ -209,7 +209,7 @@ bool FDirectoryWatcherSubFolderTest::RunTest(const FString& Parameters)
 		TSharedPtr<FDirectoryWatcherTestPayload> Test = MakeShareable(new FDirectoryWatcherTestPayload(WorkingDir));
 
 		// Give the stream time to start up before doing the test
-		AddCommand(new FDelayedFunctionLatentCommand([=]{
+		AddCommand(new FDelayedFunctionLatentCommand([this, WorkingDir, Test]{
 
 			// Create a new file
 			FFileHelper::SaveStringToFile(TEXT(""), *(WorkingDir / CreatedFilename));
@@ -218,7 +218,7 @@ bool FDirectoryWatcherSubFolderTest::RunTest(const FString& Parameters)
 			// Delete a file
 			IFileManager::Get().Delete(*(WorkingDir / RemovedFilename));
 
-			AddCommand(new FDelayedFunctionLatentCommand([=]{
+			AddCommand(new FDelayedFunctionLatentCommand([this, Test]{
 
 				FFileChangeData::EFileChangeAction* Action = Test->ReportedChanges.Find(CreatedFilename);
 				if (!Action || *Action != FFileChangeData::FCA_Added)
@@ -266,12 +266,12 @@ bool FDirectoryWatcherNewFolderTest::RunTest(const FString& Parameters)
 		TSharedPtr<FDirectoryWatcherTestPayload> Test = MakeShareable(new FDirectoryWatcherTestPayload(WorkingDir, IDirectoryWatcher::WatchOptions::IncludeDirectoryChanges));
 
 		// Give the stream time to start up before doing the test
-		AddCommand(new FDelayedFunctionLatentCommand([=] {
+		AddCommand(new FDelayedFunctionLatentCommand([this, WorkingDir, Test] {
 
 			IFileManager::Get().MakeDirectory(*(WorkingDir / CreatedDirectory), true);
 			IFileManager::Get().DeleteDirectory(*(WorkingDir / RemovedDirectory), true);
 
-			AddCommand(new FDelayedFunctionLatentCommand([=] {
+			AddCommand(new FDelayedFunctionLatentCommand([this, Test] {
 
 				FFileChangeData::EFileChangeAction* Action = Test->ReportedChanges.Find(CreatedDirectory);
 				if (!Action || *Action != FFileChangeData::FCA_Added)
@@ -311,12 +311,12 @@ bool FDirectoryWatcherIgnoreSubtreeTest::RunTest(const FString& Parameters)
 		TSharedPtr<FDirectoryWatcherTestPayload> Test = MakeShareable(new FDirectoryWatcherTestPayload(WorkingDir, IDirectoryWatcher::WatchOptions::IgnoreChangesInSubtree | IDirectoryWatcher::WatchOptions::IncludeDirectoryChanges));
 
 		// Give the stream time to start up before doing the test
-		AddCommand(new FDelayedFunctionLatentCommand([=]{
+		AddCommand(new FDelayedFunctionLatentCommand([this, WorkingDir, Test]{
 
 			IFileManager::Get().MakeDirectory(*(WorkingDir / ChildDirectory), true);
 			IFileManager::Get().MakeDirectory(*(WorkingDir / ChildDirectory / GrandchildDirectory), true);
 
-			AddCommand(new FDelayedFunctionLatentCommand([=]{
+			AddCommand(new FDelayedFunctionLatentCommand([this, Test]{
 
 				FFileChangeData::EFileChangeAction* Action = Test->ReportedChanges.Find(ChildDirectory);
 				if (!Action || *Action != FFileChangeData::FCA_Added)

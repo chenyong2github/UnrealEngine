@@ -565,7 +565,7 @@ void UScrollBox::OnDescendantDeselectedByDesigner( UWidget* DescendantWidget )
 	}
 
 	// because we get a deselect before we get a select, we need to delay this call until we're sure we didn't scroll to another widget.
-	TickHandle = FTSTicker::GetCoreTicker().AddTicker( FTickerDelegate::CreateLambda( [=]( float ) -> bool
+	TickHandle = FTSTicker::GetCoreTicker().AddTicker( FTickerDelegate::CreateLambda( [this]( float ) -> bool
 	                                                                                {
                                                                                         QUICK_SCOPE_CYCLE_COUNTER(STAT_UScrollBox_ScrollToStart_LambdaTick);
 		                                                                                this->ScrollToStart();

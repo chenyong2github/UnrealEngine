@@ -402,7 +402,7 @@ void UNiagaraStackFunctionInputCollection::RefreshIssues(const TArray<FName>& Du
 				FText ConversionFixDescription = LOCTEXT("ConvertInputToStaticSwitchTransaction", "Copy value to static switch parameter");
 				FStackIssueFix ConvertInputOverrideFix(
 					ConversionFixDescription,
-					UNiagaraStackEntry::FStackIssueFixDelegate::CreateLambda([=]()
+					UNiagaraStackEntry::FStackIssueFixDelegate::CreateLambda([=, this]()
 						{
 							FScopedTransaction ScopedTransaction(ConversionFixDescription);
 							SwitchPin->Modify();
@@ -561,7 +561,7 @@ UNiagaraStackEntry::FStackIssueFix UNiagaraStackFunctionInputCollection::GetNode
 {
 	return FStackIssueFix(
 		FixDescription,
-		UNiagaraStackEntry::FStackIssueFixDelegate::CreateLambda([=]()
+		UNiagaraStackEntry::FStackIssueFixDelegate::CreateLambda([=, this]()
 			{
 				FScopedTransaction ScopedTransaction(FixDescription);
 				TArray<TWeakObjectPtr<UNiagaraDataInterface>> RemovedDataObjects;

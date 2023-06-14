@@ -347,7 +347,7 @@ int32 FSequencerTimeSliderController::DrawMarkedFrames( const FGeometry& Allotte
 	//const FLinearColor SelectedColor = FLinearColor::White; //FAppStyle::GetSlateColor("SelectionColor").GetColor(InWidgetStyle);
 	const FLinearColor WhiteColorHSV = FLinearColor::White.LinearRGBToHSV();
 
-	auto DrawFrameMarkers = ([=](const TArray<FMovieSceneMarkedFrame> & InMarkedFrames, FSlateWindowElementList& DrawElements, bool bIsGlobal)
+	auto DrawFrameMarkers = ([=, this](const TArray<FMovieSceneMarkedFrame> & InMarkedFrames, FSlateWindowElementList& DrawElements, bool bIsGlobal)
 	{
 		for (int32 MarkIndex = 0; MarkIndex < InMarkedFrames.Num(); ++MarkIndex)
 		{
@@ -1558,8 +1558,8 @@ TSharedRef<SWidget> FSequencerTimeSliderController::OpenSetPlaybackRangeMenu(con
 			FText(),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateLambda([=]{ SetPlaybackRangeStart(FrameNumber); }),
-				FCanExecuteAction::CreateLambda([=]{ return !TimeSliderArgs.IsPlaybackRangeLocked.Get() && FrameNumber < UE::MovieScene::DiscreteExclusiveUpper(PlaybackRange); })
+				FExecuteAction::CreateLambda([this, FrameNumber]{ SetPlaybackRangeStart(FrameNumber); }),
+				FCanExecuteAction::CreateLambda([this, FrameNumber, PlaybackRange]{ return !TimeSliderArgs.IsPlaybackRangeLocked.Get() && FrameNumber < UE::MovieScene::DiscreteExclusiveUpper(PlaybackRange); })
 			)
 		);
 
@@ -1568,8 +1568,8 @@ TSharedRef<SWidget> FSequencerTimeSliderController::OpenSetPlaybackRangeMenu(con
 			FText(),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateLambda([=]{ SetPlaybackRangeEnd(FrameNumber); }),
-				FCanExecuteAction::CreateLambda([=]{ return !TimeSliderArgs.IsPlaybackRangeLocked.Get() && FrameNumber >= UE::MovieScene::DiscreteInclusiveLower(PlaybackRange); })
+				FExecuteAction::CreateLambda([this, FrameNumber]{ SetPlaybackRangeEnd(FrameNumber); }),
+				FCanExecuteAction::CreateLambda([this, FrameNumber, PlaybackRange]{ return !TimeSliderArgs.IsPlaybackRangeLocked.Get() && FrameNumber >= UE::MovieScene::DiscreteInclusiveLower(PlaybackRange); })
 			)
 		);
 
@@ -1578,9 +1578,9 @@ TSharedRef<SWidget> FSequencerTimeSliderController::OpenSetPlaybackRangeMenu(con
 			LOCTEXT("ToggleLockedTooltip", "Lock/Unlock the playback range"),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateLambda([=] { TimeSliderArgs.OnTogglePlaybackRangeLocked.ExecuteIfBound(); }),
-				FCanExecuteAction::CreateLambda([=]{ return !bReadOnly; }),
-				FIsActionChecked::CreateLambda([=] { return TimeSliderArgs.IsPlaybackRangeLocked.Get(); })
+				FExecuteAction::CreateLambda([this] { TimeSliderArgs.OnTogglePlaybackRangeLocked.ExecuteIfBound(); }),
+				FCanExecuteAction::CreateLambda([bReadOnly]{ return !bReadOnly; }),
+				FIsActionChecked::CreateLambda([this] { return TimeSliderArgs.IsPlaybackRangeLocked.Get(); })
 			),
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
@@ -1596,7 +1596,7 @@ TSharedRef<SWidget> FSequencerTimeSliderController::OpenSetPlaybackRangeMenu(con
 			FText(),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateLambda([=]{ SetSelectionRangeStart(FrameNumber); }),
+				FExecuteAction::CreateLambda([this, FrameNumber]{ SetSelectionRangeStart(FrameNumber); }),
 				FCanExecuteAction::CreateLambda([=]{ return SelectionRange.IsEmpty() || FrameNumber < UE::MovieScene::DiscreteExclusiveUpper(SelectionRange); })
 			)
 		);
@@ -1606,7 +1606,7 @@ TSharedRef<SWidget> FSequencerTimeSliderController::OpenSetPlaybackRangeMenu(con
 			FText(),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateLambda([=]{ SetSelectionRangeEnd(FrameNumber); }),
+				FExecuteAction::CreateLambda([this, FrameNumber]{ SetSelectionRangeEnd(FrameNumber); }),
 				FCanExecuteAction::CreateLambda([=]{ return SelectionRange.IsEmpty() || FrameNumber >= UE::MovieScene::DiscreteInclusiveLower(SelectionRange); })
 			)
 		);
@@ -1616,7 +1616,7 @@ TSharedRef<SWidget> FSequencerTimeSliderController::OpenSetPlaybackRangeMenu(con
 			FText(),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateLambda([=]{ TimeSliderArgs.OnSelectionRangeChanged.ExecuteIfBound(TRange<FFrameNumber>::Empty()); }),
+				FExecuteAction::CreateLambda([this]{ TimeSliderArgs.OnSelectionRangeChanged.ExecuteIfBound(TRange<FFrameNumber>::Empty()); }),
 				FCanExecuteAction::CreateLambda([=]{ return !SelectionRange.IsEmpty(); })
 			)
 		);
@@ -1649,9 +1649,9 @@ TSharedRef<SWidget> FSequencerTimeSliderController::OpenSetPlaybackRangeMenu(con
 					FText::Format(LOCTEXT("DisplayTimeSpace", "Display time in the space of {0}"), ParentText),
 					FSlateIcon(),
 					FUIAction(
-						FExecuteAction::CreateLambda([=] { TimeSliderArgs.OnScrubPositionParentChanged.ExecuteIfBound(ParentID); }),
+						FExecuteAction::CreateLambda([this, ParentID] { TimeSliderArgs.OnScrubPositionParentChanged.ExecuteIfBound(ParentID); }),
 						FCanExecuteAction(),
-						FIsActionChecked::CreateLambda([=] { return TimeSliderArgs.ScrubPositionParent.Get() == MovieSceneSequenceID::Invalid ? ParentID == TimeSliderArgs.ScrubPositionParentChain.Get().Last() : TimeSliderArgs.ScrubPositionParent.Get() == ParentID; })
+						FIsActionChecked::CreateLambda([this, ParentID] { return TimeSliderArgs.ScrubPositionParent.Get() == MovieSceneSequenceID::Invalid ? ParentID == TimeSliderArgs.ScrubPositionParentChain.Get().Last() : TimeSliderArgs.ScrubPositionParent.Get() == ParentID; })
 					),
 					NAME_None,
 					EUserInterfaceActionType::RadioButton
@@ -1709,7 +1709,7 @@ TSharedRef<SWidget> FSequencerTimeSliderController::OpenSetPlaybackRangeMenu(con
 					TSharedPtr<FStructOnScope> StructOnScope = MakeShared<FStructOnScope>(FMovieSceneMarkedFrame::StaticStruct(), (uint8 *)&InMovieScene->GetMarkedFrames()[InMarkedFrameIndex]);
 
 					DetailsView = PropertyEditorModule.CreateStructureDetailView(DetailsViewArgs, StructureDetailsViewArgs, nullptr);
-					DetailsView->GetDetailsView()->RegisterInstancedCustomPropertyTypeLayout("FrameNumber", FOnGetPropertyTypeCustomizationInstance::CreateLambda([=]() {
+					DetailsView->GetDetailsView()->RegisterInstancedCustomPropertyTypeLayout("FrameNumber", FOnGetPropertyTypeCustomizationInstance::CreateLambda([this]() {
 						return MakeShared<FFrameNumberDetailsCustomization>(WeakSequencer.Pin()->GetNumericTypeInterface()); }));
 					DetailsView->SetStructureData(StructOnScope);
 
@@ -1742,8 +1742,8 @@ TSharedRef<SWidget> FSequencerTimeSliderController::OpenSetPlaybackRangeMenu(con
 			FText(),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateLambda( [=]{ AddMarkAtFrame(FrameNumber); }),
-				FCanExecuteAction::CreateLambda([=]{ return !TimeSliderArgs.AreMarkedFramesLocked.Get() && MarkedIndex == INDEX_NONE; }))
+				FExecuteAction::CreateLambda( [this, FrameNumber]{ AddMarkAtFrame(FrameNumber); }),
+				FCanExecuteAction::CreateLambda([this, MarkedIndex]{ return !TimeSliderArgs.AreMarkedFramesLocked.Get() && MarkedIndex == INDEX_NONE; }))
 		);
 
 		MenuBuilder.AddMenuEntry( 
@@ -1751,8 +1751,8 @@ TSharedRef<SWidget> FSequencerTimeSliderController::OpenSetPlaybackRangeMenu(con
 			FText(),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateLambda([=]{ DeleteMarkAtIndex(MarkedIndex); }),
-				FCanExecuteAction::CreateLambda([=]{ return !TimeSliderArgs.AreMarkedFramesLocked.Get() && MarkedIndex != INDEX_NONE; }))
+				FExecuteAction::CreateLambda([this, MarkedIndex]{ DeleteMarkAtIndex(MarkedIndex); }),
+				FCanExecuteAction::CreateLambda([this, MarkedIndex]{ return !TimeSliderArgs.AreMarkedFramesLocked.Get() && MarkedIndex != INDEX_NONE; }))
 		);
 
 		MenuBuilder.AddMenuEntry( 
@@ -1760,8 +1760,8 @@ TSharedRef<SWidget> FSequencerTimeSliderController::OpenSetPlaybackRangeMenu(con
 			FText(),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateLambda([=]{ DeleteAllMarks(); }),
-				FCanExecuteAction::CreateLambda([=]{ return !TimeSliderArgs.AreMarkedFramesLocked.Get() && bHasMarks; }))
+				FExecuteAction::CreateLambda([this]{ DeleteAllMarks(); }),
+				FCanExecuteAction::CreateLambda([this, bHasMarks]{ return !TimeSliderArgs.AreMarkedFramesLocked.Get() && bHasMarks; }))
 			);
 
 		MenuBuilder.AddMenuEntry(
@@ -1769,9 +1769,9 @@ TSharedRef<SWidget> FSequencerTimeSliderController::OpenSetPlaybackRangeMenu(con
 			LOCTEXT("ToggleLockedMarksTooltip", "Lock/Unlock all marked frames"),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateLambda([=]{ TimeSliderArgs.OnToggleMarkedFramesLocked.ExecuteIfBound(); }),
+				FExecuteAction::CreateLambda([this]{ TimeSliderArgs.OnToggleMarkedFramesLocked.ExecuteIfBound(); }),
 				FCanExecuteAction::CreateLambda([=]{ return !bReadOnly; }),
-				FIsActionChecked::CreateLambda([=]{ return TimeSliderArgs.AreMarkedFramesLocked.Get(); })),
+				FIsActionChecked::CreateLambda([this]{ return TimeSliderArgs.AreMarkedFramesLocked.Get(); })),
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
 			);

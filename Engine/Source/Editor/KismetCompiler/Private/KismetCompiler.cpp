@@ -3759,7 +3759,7 @@ void FKismetCompilerContext::MergeUbergraphPagesIn(UEdGraph* Ubergraph)
 // Expands out nodes that need it
 void FKismetCompilerContext::ExpansionStep(UEdGraph* Graph, bool bAllowUbergraphExpansions)
 {
-	auto PruneInner = [=]()
+	auto PruneInner = [this, Graph]()
 	{
 		// Find the connected subgraph starting at the root node and prune out unused nodes
 		const bool bIncludePotentialRootNodes = true;

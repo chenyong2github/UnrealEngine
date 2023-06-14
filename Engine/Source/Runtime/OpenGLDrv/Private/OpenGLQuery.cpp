@@ -567,9 +567,9 @@ bool FOpenGLDynamicRHI::RHIGetRenderQueryResult(FRHIRenderQuery* QueryRHI, uint6
 				if (IsRunningRHIInDedicatedThread())
 				{
 					// send a command that will wait, so if the RHIT runs out of work, it just blocks and waits for the GPU
-					ALLOC_COMMAND_CL(RHICmdList, FRHICommandGLCommand)([=]() {GetRenderQueryResult_OnThisThread(ResourceCast(QueryRHI), true); });
+					ALLOC_COMMAND_CL(RHICmdList, FRHICommandGLCommand)([this, QueryRHI]() {GetRenderQueryResult_OnThisThread(ResourceCast(QueryRHI), true); });
 					FGraphEventRef Done = RHICmdList.RHIThreadFence(false);
-					ALLOC_COMMAND_CL(RHICmdList, FRHICommandGLCommand)([=]() {GBatcher.Flush(*this, QueryRHI); });
+					ALLOC_COMMAND_CL(RHICmdList, FRHICommandGLCommand)([this, QueryRHI]() {GBatcher.Flush(*this, QueryRHI); });
 					RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 					while (!Done->IsComplete())
 					{
@@ -587,9 +587,9 @@ bool FOpenGLDynamicRHI::RHIGetRenderQueryResult(FRHIRenderQuery* QueryRHI, uint6
 				}
 				else
 				{
-					ALLOC_COMMAND_CL(RHICmdList, FRHICommandGLCommand)([=]() {GetRenderQueryResult_OnThisThread(ResourceCast(QueryRHI), true); });
+					ALLOC_COMMAND_CL(RHICmdList, FRHICommandGLCommand)([this, QueryRHI]() {GetRenderQueryResult_OnThisThread(ResourceCast(QueryRHI), true); });
 					FGraphEventRef Done = RHICmdList.RHIThreadFence(false);
-					ALLOC_COMMAND_CL(RHICmdList, FRHICommandGLCommand)([=]() {GBatcher.Flush(*this, QueryRHI); });
+					ALLOC_COMMAND_CL(RHICmdList, FRHICommandGLCommand)([this, QueryRHI]() {GBatcher.Flush(*this, QueryRHI); });
 					RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 					FRHICommandListExecutor::WaitOnRHIThreadFence(Done);
 				}

@@ -279,11 +279,11 @@ void UNiagaraNodeSelect::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeCo
 			FText::Format(LOCTEXT("BrowseToEnumLabel", "Browse to {0}"), FText::FromString(SelectorPinType.GetEnum()->GetName())),
 			LOCTEXT("BrowseToEnumTooltip", "Browses to the enum in the content browser."),
 			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateLambda([=]()
+			FUIAction(FExecuteAction::CreateLambda([this]()
 			{
 				FContentBrowserModule& Module = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
 				Module.Get().SyncBrowserToAssets({ FAssetData(SelectorPinType.GetEnum()) });
-			}), FCanExecuteAction::CreateLambda([=]()
+			}), FCanExecuteAction::CreateLambda([this]()
 			{
 				return Cast<UUserDefinedEnum>(SelectorPinType.GetEnum()) != nullptr;
 			})));
@@ -293,10 +293,10 @@ void UNiagaraNodeSelect::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeCo
 			FText::Format(LOCTEXT("OpenEnumLabel", "Open {0}"), FText::FromString(SelectorPinType.GetEnum()->GetName())),
 			LOCTEXT("OpenEnumTooltip", "Opens up the enum asset."),
 			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateLambda([=]()
+			FUIAction(FExecuteAction::CreateLambda([this]()
 			{
 				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(SelectorPinType.GetEnum());
-			}), FCanExecuteAction::CreateLambda([=]()
+			}), FCanExecuteAction::CreateLambda([this]()
 			{
 				return Cast<UUserDefinedEnum>(SelectorPinType.GetEnum()) != nullptr;
 			})));

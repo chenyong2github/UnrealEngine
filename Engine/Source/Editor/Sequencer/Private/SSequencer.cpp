@@ -159,7 +159,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 
 	// Get the desired display format from the user's settings each time.
 	TAttribute<EFrameNumberDisplayFormats> GetDisplayFormatAttr = MakeAttributeLambda(
-		[=]
+		[this]
 		{
 			if (USequencerSettings* Settings = GetSequencerSettings())
 			{
@@ -171,7 +171,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 
 	// Get the number of zero pad frames from the user's settings as well.
 	TAttribute<uint8> GetZeroPadFramesAttr = MakeAttributeLambda(
-		[=]()->uint8
+		[this]()->uint8
 		{
 			if (USequencerSettings* Settings = GetSequencerSettings())
 			{
@@ -1149,7 +1149,7 @@ TSharedRef<SWidget> SSequencer::MakeAddButton()
 	.OnGetMenuContent(this, &SSequencer::MakeAddMenu)
 	.Icon(FAppStyle::Get().GetBrush("Icons.Plus"))
 	.Text(LOCTEXT("Track", "Track"))
-	.IsEnabled_Lambda([=]() { return !SequencerPtr.Pin()->IsReadOnly(); });
+	.IsEnabled_Lambda([this]() { return !SequencerPtr.Pin()->IsReadOnly(); });
 }
 
 TSharedRef<SWidget> SSequencer::MakeFilterButton()
@@ -2107,7 +2107,7 @@ TSharedRef<SWidget> SSequencer::MakeViewMenu()
 	MenuBuilder.AddMenuEntry( FSequencerCommands::Get().ToggleShowPreAndPostRoll );
 
 	// Menu entry for zero padding
-	auto OnZeroPadChanged = [=](uint8 NewValue) {
+	auto OnZeroPadChanged = [this](uint8 NewValue) {
 		GetSequencerSettings()->SetZeroPadFrames(NewValue);
 	};
 
@@ -2126,7 +2126,7 @@ TSharedRef<SWidget> SSequencer::MakeViewMenu()
 			.OnValueChanged_Lambda(OnZeroPadChanged)
 			.MinValue(0)
 			.MaxValue(8)
-			.Value_Lambda([=]() -> uint8 {
+			.Value_Lambda([this]() -> uint8 {
 			return GetSequencerSettings()->GetZeroPadFrames();
 		})
 		],
@@ -2309,7 +2309,7 @@ void SSequencer::FillTimeDisplayFormatMenu(FMenuBuilder& MenuBuilder)
 					FUIAction(
 						FExecuteAction::CreateUObject(GetSequencerSettings(), &USequencerSettings::SetTimeDisplayFormat, Value),
 						FCanExecuteAction(),
-						FIsActionChecked::CreateLambda([=] { return GetSequencerSettings()->GetTimeDisplayFormat() == Value; })
+						FIsActionChecked::CreateLambda([this, Value] { return GetSequencerSettings()->GetTimeDisplayFormat() == Value; })
 					),
 					NAME_None,
 					EUserInterfaceActionType::RadioButton
@@ -2327,7 +2327,7 @@ TSharedRef<SWidget> SSequencer::MakePlaybackMenu()
 	MenuBuilder.BeginSection("PlaybackThisSequence", LOCTEXT("PlaybackThisSequenceHeader", "Playback - This Sequence"));
 	{
 		// Menu entry for the start position
-		auto OnStartChanged = [=](double NewValue){
+		auto OnStartChanged = [this](double NewValue){
 
 			FFrameNumber ValueAsFrame = FFrameTime::FromDecimal(NewValue).GetFrame();
 			FFrameNumber PlayStart = ValueAsFrame;
@@ -2369,17 +2369,17 @@ TSharedRef<SWidget> SSequencer::MakePlaybackMenu()
 				[
 					SNew(SSpinBox<double>)
 						.TypeInterface(NumericTypeInterface)
-						.IsEnabled_Lambda([=]() {
+						.IsEnabled_Lambda([this]() {
 							return !SequencerPtr.Pin()->IsPlaybackRangeLocked();
 						})
 						.Style(&FAppStyle::GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
 						.OnValueCommitted_Lambda([=](double Value, ETextCommit::Type){ OnStartChanged(Value); })
 						.OnValueChanged_Lambda([=](double Value) { OnStartChanged(Value); })
 						.OnBeginSliderMovement(OnPlaybackRangeBeginDrag)
-						.OnEndSliderMovement_Lambda([=](double Value){ OnStartChanged(Value); OnPlaybackRangeEndDrag.ExecuteIfBound(); })
+						.OnEndSliderMovement_Lambda([=, this](double Value){ OnStartChanged(Value); OnPlaybackRangeEndDrag.ExecuteIfBound(); })
 						.MinValue(TOptional<double>())
 						.MaxValue(TOptional<double>())
-						.Value_Lambda([=]() -> double {
+						.Value_Lambda([this]() -> double {
 							return SequencerPtr.Pin()->GetPlaybackRange().GetLowerBoundValue().Value;
 						})
 						.Delta(this, &SSequencer::GetSpinboxDelta)
@@ -2388,7 +2388,7 @@ TSharedRef<SWidget> SSequencer::MakePlaybackMenu()
 			LOCTEXT("PlaybackStartLabel", "Start"));
 
 		// Menu entry for the end position
-		auto OnEndChanged = [=](double NewValue) {
+		auto OnEndChanged = [this](double NewValue) {
 
 			FFrameNumber ValueAsFrame = FFrameTime::FromDecimal(NewValue).GetFrame();
 			FFrameNumber PlayStart = UE::MovieScene::DiscreteInclusiveLower(SequencerPtr.Pin()->GetPlaybackRange());
@@ -2430,17 +2430,17 @@ TSharedRef<SWidget> SSequencer::MakePlaybackMenu()
 				[
 					SNew(SSpinBox<double>)
 						.TypeInterface(NumericTypeInterface)
-						.IsEnabled_Lambda([=]() {
+						.IsEnabled_Lambda([this]() {
 					 		return !SequencerPtr.Pin()->IsPlaybackRangeLocked();
 						})
 						.Style(&FAppStyle::GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
 						.OnValueCommitted_Lambda([=](double Value, ETextCommit::Type){ OnEndChanged(Value); })
 						.OnValueChanged_Lambda([=](double Value) { OnEndChanged(Value); })
 						.OnBeginSliderMovement(OnPlaybackRangeBeginDrag)
-						.OnEndSliderMovement_Lambda([=](double Value){ OnEndChanged(Value); OnPlaybackRangeEndDrag.ExecuteIfBound(); })
+						.OnEndSliderMovement_Lambda([=, this](double Value){ OnEndChanged(Value); OnPlaybackRangeEndDrag.ExecuteIfBound(); })
 						.MinValue(TOptional<double>())
 						.MaxValue(TOptional<double>())
-						.Value_Lambda([=]() -> double {
+						.Value_Lambda([this]() -> double {
 					 		return SequencerPtr.Pin()->GetPlaybackRange().GetUpperBoundValue().Value;
 						})
 						.Delta(this, &SSequencer::GetSpinboxDelta)
@@ -2484,7 +2484,7 @@ TSharedRef<SWidget> SSequencer::MakePlaybackMenu()
 	MenuBuilder.EndSection();
 
 	// Menu entry for the jump frame increment
-	auto OnJumpFrameIncrementChanged = [=](double NewValue) {
+	auto OnJumpFrameIncrementChanged = [this](double NewValue) {
 		FFrameRate TickResolution = SequencerPtr.Pin()->GetFocusedTickResolution();
 		FFrameRate DisplayRate = SequencerPtr.Pin()->GetFocusedDisplayRate();
 		FFrameNumber JumpFrameIncrement = FFrameRate::TransformTime(FFrameTime::FromDecimal(NewValue), TickResolution, DisplayRate).CeilToFrame();						
@@ -2507,7 +2507,7 @@ TSharedRef<SWidget> SSequencer::MakePlaybackMenu()
 					.OnValueChanged_Lambda([=](double Value) { OnJumpFrameIncrementChanged(Value); })
 					.MinValue(TOptional<double>())
 					.MaxValue(TOptional<double>())
-					.Value_Lambda([=]() -> double {
+					.Value_Lambda([this]() -> double {
 						FFrameNumber JumpFrameIncrement = SequencerPtr.Pin()->GetSequencerSettings()->GetJumpFrameIncrement();
 						FFrameRate TickResolution = SequencerPtr.Pin()->GetFocusedTickResolution();
 						FFrameRate DisplayRate = SequencerPtr.Pin()->GetFocusedDisplayRate();

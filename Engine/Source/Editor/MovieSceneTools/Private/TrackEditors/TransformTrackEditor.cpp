@@ -881,11 +881,11 @@ void F3DTransformTrackEditor::AddTransformKeys( UObject* ObjectToKey, const TOpt
 	{
 		NewTrack->SetPropertyNameAndPath(TransformPropertyName, TransformPropertyName.ToString());
 	};
-	auto GenerateKeys = [=](UMovieSceneSection* Section, FGeneratedTrackKeys& GeneratedKeys)
+	auto GenerateKeys = [=, this](UMovieSceneSection* Section, FGeneratedTrackKeys& GeneratedKeys)
 	{
 		this->GetTransformKeys(LastTransform, CurrentTransform, ChannelsToKey, ObjectToKey, Section, GeneratedKeys);
 	};
-	auto OnKeyProperty = [=](FFrameNumber Time) -> FKeyPropertyResult
+	auto OnKeyProperty = [=, this](FFrameNumber Time) -> FKeyPropertyResult
 	{
 		FKeyPropertyResult KeyPropertyResult = this->AddKeysToObjects(MakeArrayView(&ObjectToKey, 1), Time,  KeyMode, UMovieScene3DTransformTrack::StaticClass(), TransformPropertyName, InitializeNewTrack, GenerateKeys);
 		if (KeyPropertyResult.SectionsKeyed.Num() > 0)

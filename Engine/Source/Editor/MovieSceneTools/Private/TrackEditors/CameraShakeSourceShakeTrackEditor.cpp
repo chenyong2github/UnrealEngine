@@ -328,7 +328,7 @@ void FCameraShakeSourceShakeTrackEditor::AddCameraShakeSection(TArray<FGuid> Obj
 		}
 	}
 
-	auto OnAddShakeSourceShakeSection = [=](FFrameNumber Time) -> FKeyPropertyResult
+	auto OnAddShakeSourceShakeSection = [this, Objects](FFrameNumber Time) -> FKeyPropertyResult
 	{
 		return this->AddCameraShakeSectionKeyInternal(Time, Objects, true);
 	};
@@ -663,7 +663,7 @@ void FCameraShakeSourceShakeTrackEditor::AddCameraShakeTriggerTrack(const TArray
 		}
 	}
 
-	auto OnAddShakeSourceShakeSection = [=](FFrameNumber Time) -> FKeyPropertyResult
+	auto OnAddShakeSourceShakeSection = [this, Objects](FFrameNumber Time) -> FKeyPropertyResult
 	{
 		return this->AddCameraShakeTriggerTrackInternal(Time, Objects, nullptr);
 	};

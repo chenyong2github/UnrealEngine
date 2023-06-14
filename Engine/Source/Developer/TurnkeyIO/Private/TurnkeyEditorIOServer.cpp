@@ -167,7 +167,7 @@ private:
 
 	void DoPauseForUser( TSharedPtr<FJsonObject> JsonObject )
 	{
-		AsyncTask( ENamedThreads::GameThread, [=]()
+		AsyncTask( ENamedThreads::GameThread, [this, JsonObject]()
 		{
 			// read parameters
 			FString Message;
@@ -186,7 +186,7 @@ private:
 
 	void DoReadInput( TSharedPtr<FJsonObject> JsonObject )
 	{
-		AsyncTask( ENamedThreads::GameThread, [=]()
+		AsyncTask( ENamedThreads::GameThread, [this, JsonObject]()
 		{
 			// read parameters
 			FString Prompt;
@@ -208,7 +208,7 @@ private:
 
 	void DoReadInputInt( TSharedPtr<FJsonObject> JsonObject )
 	{
-		AsyncTask( ENamedThreads::GameThread, [=]()
+		AsyncTask( ENamedThreads::GameThread, [this, JsonObject]()
 		{
 			// read parameters
 			FString Prompt;
@@ -237,7 +237,7 @@ private:
 
 	void DoGetUserConfirmation( TSharedPtr<FJsonObject> JsonObject )
 	{
-		AsyncTask( ENamedThreads::GameThread, [=]()
+		AsyncTask( ENamedThreads::GameThread, [this, JsonObject]()
 		{
 			// read parameters
 			FString Message;
@@ -273,7 +273,7 @@ private:
 			];
 
 		// even though HasCloseButton is false, the window can still be closed via Windows' alt-tab screen
-		Window->GetOnWindowClosedEvent().AddLambda( [=]( const TSharedRef<SWindow>& InWindow )
+		Window->GetOnWindowClosedEvent().AddLambda( [this]( const TSharedRef<SWindow>& InWindow )
 		{
 			if (Window.IsValid())
 			{

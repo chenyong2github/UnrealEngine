@@ -1185,11 +1185,11 @@ void UNiagaraNodeStaticSwitch::GetNodeContextMenuActions(UToolMenu* Menu, UGraph
 			FText::Format(LOCTEXT("BrowseToEnumLabel", "Browse to {0}"), FText::FromString(SwitchTypeData.Enum->GetName())),
 			LOCTEXT("BrowseToEnumTooltip", "Browses to the enum in the content browser."),
 			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateLambda([=]()
+			FUIAction(FExecuteAction::CreateLambda([this]()
 			{
 				FContentBrowserModule& Module = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
 				Module.Get().SyncBrowserToAssets({ FAssetData(SwitchTypeData.Enum) });
-			}) , FCanExecuteAction::CreateLambda([=]()
+			}) , FCanExecuteAction::CreateLambda([this]()
 			{
 				return Cast<UUserDefinedEnum>(SwitchTypeData.Enum) != nullptr;
 			})));
@@ -1216,7 +1216,7 @@ void UNiagaraNodeStaticSwitch::GetNodeContextMenuActions(UToolMenu* Menu, UGraph
 			FUIAction(FExecuteAction::CreateLambda([=]()
 			{
 				GetMutableDefault<UNiagaraSettings>()->AddEnumParameterType(SwitchTypeData.Enum);
-			}), FCanExecuteAction::CreateLambda([=]()
+			}), FCanExecuteAction::CreateLambda([this]()
 			{
 				return !GetDefault<UNiagaraSettings>()->AdditionalParameterEnums.Contains(SwitchTypeData.Enum);
 			})));

@@ -618,7 +618,7 @@ TSharedRef<SWidget> SAnimViewportToolBar::GenerateViewMenu() const
 					InSubMenuBuilder.AddSubMenu(
 						LOCTEXT("CameraFollowBone_DisplayName", "Orbit Bone"),
 						LOCTEXT("CameraFollowBone_ToolTip", "Select a bone for the camera to follow and orbit around"),
-						FNewMenuDelegate::CreateLambda([=](FMenuBuilder& SubMenuBuilder)
+						FNewMenuDelegate::CreateLambda([this](FMenuBuilder& SubMenuBuilder)
 						{
 							SubMenuBuilder.BeginSection("CameraFollowModeBoneSubmenu", LOCTEXT("CameraFollowModeBoneSubmenu_Label", "Follow Bone Options"));
 							SubMenuBuilder.AddWidget(MakeFollowBoneWidget(), FText());

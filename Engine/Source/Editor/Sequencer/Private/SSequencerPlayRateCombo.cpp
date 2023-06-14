@@ -279,7 +279,7 @@ TSharedRef<SWidget> SSequencerPlayRateCombo::OnCreateMenu()
 				SNew(SFrameRateEntryBox)
 				.Value(this, &SSequencerPlayRateCombo::GetDisplayRate)
 				.OnValueChanged(this, &SSequencerPlayRateCombo::SetDisplayRate)
-				.IsEnabled_Lambda([=] { return !GetIsSequenceReadOnly(); })
+				.IsEnabled_Lambda([this] { return !GetIsSequenceReadOnly(); })
 			],
 			LOCTEXT("CustomFramerateDisplayLabel", "Custom")
 		);

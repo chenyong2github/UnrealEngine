@@ -161,7 +161,7 @@ void FMaterialOptionsCustomization::CustomizeDetails(IDetailLayoutBuilder& Detai
 	}
 
 	// Only allow changes to LOD indices if we have a valid options instance and if there is actually more than one index
-	ContentBox->SetEnabled(TAttribute<bool>::Create([=]() -> bool { return NumLODs > 1 && CurrentOptions != nullptr; }));
+	ContentBox->SetEnabled(TAttribute<bool>::Create([this, CurrentOptions]() -> bool { return NumLODs > 1 && CurrentOptions != nullptr; }));
 	for (int32 LODIndex = 0; LODIndex < NumLODs; ++LODIndex)
 	{
 		ContentBox->AddSlot()

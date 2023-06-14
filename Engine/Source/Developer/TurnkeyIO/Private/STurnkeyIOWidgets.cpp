@@ -49,9 +49,9 @@ void STurnkeyReadInputModal::Construct( const FArguments& InArgs )
 			.VAlign(VAlign_Top)
 			[
 				SNew(SEditableTextBox)
-				.Text_Lambda( [=]() { return FText::FromString(Value); } )
-				.OnTextChanged_Lambda( [=]( const FText& NewText ) { Value = NewText.ToString(); } )
-				.OnTextCommitted_Lambda( [=]( const FText& NewText, ETextCommit::Type CommitType )
+				.Text_Lambda( [this]() { return FText::FromString(Value); } )
+				.OnTextChanged_Lambda( [this]( const FText& NewText ) { Value = NewText.ToString(); } )
+				.OnTextCommitted_Lambda( [this]( const FText& NewText, ETextCommit::Type CommitType )
 				{
 					if (CommitType == ETextCommit::OnEnter)
 					{
@@ -74,7 +74,7 @@ void STurnkeyReadInputModal::Construct( const FArguments& InArgs )
 				[
 					SNew(SPrimaryButton)
 					.Text(LOCTEXT("OK", "OK"))
-					.OnClicked_Lambda( [=]()
+					.OnClicked_Lambda( [this]()
 					{ 
 						FinishAction(); 
 						return FReply::Handled();
@@ -152,8 +152,8 @@ void STurnkeyReadInputIntModal::Construct( const FArguments& InArgs )
 				[
 					SNew(SPrimaryButton)
 					.Text(LOCTEXT("OK", "OK"))
-					.IsEnabled_Lambda( [=]() { return Value > 0; } )
-					.OnClicked_Lambda( [=]()
+					.IsEnabled_Lambda( [this]() { return Value > 0; } )
+					.OnClicked_Lambda( [this]()
 					{ 
 						FinishAction();
 						return FReply::Handled();
@@ -176,7 +176,7 @@ void STurnkeyReadInputIntModal::Construct( const FArguments& InArgs )
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			.Text(LOCTEXT("Cancel", "Cancel"))
-			.OnClicked_Lambda( [=]()
+			.OnClicked_Lambda( [this]()
 			{ 
 				Value = 0;
 				FinishAction();
@@ -216,8 +216,8 @@ void STurnkeyReadInputIntModal::Construct( const FArguments& InArgs )
 				[
 					SNew(SCheckBox)
 					.Style(FAppStyle::Get(), "RadioButton")
-					.IsChecked_Lambda( [=]() { return (Value == ResultValue) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; } )
-					.OnCheckStateChanged_Lambda([=](const ECheckBoxState NewState)
+					.IsChecked_Lambda( [this, ResultValue]() { return (Value == ResultValue) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; } )
+					.OnCheckStateChanged_Lambda([this, ResultValue](const ECheckBoxState NewState)
 					{
 						if (NewState == ECheckBoxState::Checked)
 						{
@@ -234,7 +234,7 @@ void STurnkeyReadInputIntModal::Construct( const FArguments& InArgs )
 				[
 					SAssignNew(TextBlock, STextBlock)
 					.Text( FText::FromString(OptionValue) )
-					.OnDoubleClicked_Lambda([=](const FGeometry& MyGeometry, const FPointerEvent& PointerEvent)
+					.OnDoubleClicked_Lambda([this, ResultValue](const FGeometry& MyGeometry, const FPointerEvent& PointerEvent)
 					{
 						// double click the label to select the option immediately
 						Value = ResultValue;
@@ -246,7 +246,7 @@ void STurnkeyReadInputIntModal::Construct( const FArguments& InArgs )
 			];
 
 			// change the option if the user clicks on the label
-			TextBlock->SetOnMouseButtonUp( FPointerEventHandler::CreateLambda( [=](const FGeometry& MyGeometry, const FPointerEvent& PointerEvent)
+			TextBlock->SetOnMouseButtonUp( FPointerEventHandler::CreateLambda( [this, ResultValue](const FGeometry& MyGeometry, const FPointerEvent& PointerEvent)
 			{
 				Value = ResultValue;
 				return FReply::Handled();

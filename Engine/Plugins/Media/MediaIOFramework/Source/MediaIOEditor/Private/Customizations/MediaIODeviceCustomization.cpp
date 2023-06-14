@@ -59,7 +59,7 @@ TSharedRef<SWidget> FMediaIODeviceCustomization::HandleSourceComboButtonMenuCont
 				DeviceProviderPtr->ToText(Device),
 				FSlateIcon(),
 				FUIAction(
-					FExecuteAction::CreateLambda([=] {
+					FExecuteAction::CreateLambda([this, Device] {
 						AssignValue(Device);
 					}),
 					FCanExecuteAction(),

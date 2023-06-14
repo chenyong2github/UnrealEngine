@@ -126,7 +126,7 @@ void FContentDirectoryMonitor::Tick()
 	// Immediately resolve any changes that we should not consider
 	const FDateTime Threshold = FDateTime::UtcNow() - FTimespan::FromSeconds(GetDefault<UEditorLoadingSavingSettings>()->AutoReimportThreshold);
 
-	TArray<DirectoryWatcher::FUpdateCacheTransaction> InsignificantTransactions = Cache.FilterOutstandingChanges([=](const DirectoryWatcher::FUpdateCacheTransaction& Transaction, const FDateTime& TimeOfChange){
+	TArray<DirectoryWatcher::FUpdateCacheTransaction> InsignificantTransactions = Cache.FilterOutstandingChanges([this, Threshold](const DirectoryWatcher::FUpdateCacheTransaction& Transaction, const FDateTime& TimeOfChange){
 		return TimeOfChange <= Threshold && !ShouldConsiderChange(Transaction);
 	});
 
@@ -168,7 +168,7 @@ int32 FContentDirectoryMonitor::GetNumUnprocessedChanges() const
 	int32 Total = 0;
 
 	// Get all the changes that have happend beyond our import threshold
-	Cache.IterateOutstandingChanges([=, &Total](const DirectoryWatcher::FUpdateCacheTransaction& Transaction, const FDateTime& TimeOfChange){
+	Cache.IterateOutstandingChanges([this, &Total, Threshold](const DirectoryWatcher::FUpdateCacheTransaction& Transaction, const FDateTime& TimeOfChange){
 		if (TimeOfChange <= Threshold && ShouldConsiderChange(Transaction))
 		{
 			++Total;
@@ -191,7 +191,7 @@ int32 FContentDirectoryMonitor::StartProcessing()
 	const FDateTime Threshold = FDateTime::UtcNow() - FTimespan::FromSeconds(GetDefault<UEditorLoadingSavingSettings>()->AutoReimportThreshold);
 
 	// Get all the changes that have happend beyond our import threshold
-	auto OutstandingChanges = Cache.FilterOutstandingChanges([=](const DirectoryWatcher::FUpdateCacheTransaction& Transaction, const FDateTime& TimeOfChange){
+	auto OutstandingChanges = Cache.FilterOutstandingChanges([this, Threshold](const DirectoryWatcher::FUpdateCacheTransaction& Transaction, const FDateTime& TimeOfChange){
 		return TimeOfChange <= Threshold && ShouldConsiderChange(Transaction);
 	});
 

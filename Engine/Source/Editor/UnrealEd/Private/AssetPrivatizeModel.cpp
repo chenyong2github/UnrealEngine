@@ -51,14 +51,14 @@ void FPendingPrivateAsset::CheckForIllegalReferences()
 
 	AssetRegistryModule.Get().GetReferencers(OwningPackage->GetFName(), IllegalDiskReferences);
 
-	IllegalDiskReferences.RemoveAll([=](const FName& Reference)
+	IllegalDiskReferences.RemoveAll([this](const FName& Reference)
 		{
 			return !IsReferenceIllegal(Reference);
 		});
 
 	ObjectTools::GatherObjectReferencersForDeletion(Object, bIsReferencedInMemoryByNonUndo, bIsReferencedInMemoryByUndo, &IllegalMemoryReferences);
 
-	IllegalMemoryReferences.ExternalReferences.RemoveAll([=](const FReferencerInformation& ReferenceInfo)
+	IllegalMemoryReferences.ExternalReferences.RemoveAll([this](const FReferencerInformation& ReferenceInfo)
 		{
 			if (ReferenceInfo.Referencer->HasAnyFlags(RF_Transient))
 			{
@@ -67,7 +67,7 @@ void FPendingPrivateAsset::CheckForIllegalReferences()
 			return !IsReferenceIllegal(ReferenceInfo.Referencer->GetPackage()->GetFName());
 		});
 
-	IllegalMemoryReferences.InternalReferences.RemoveAll([=](const FReferencerInformation& ReferenceInfo)
+	IllegalMemoryReferences.InternalReferences.RemoveAll([this](const FReferencerInformation& ReferenceInfo)
 		{
 			if (ReferenceInfo.Referencer->HasAnyFlags(RF_Transient))
 			{

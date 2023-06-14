@@ -84,7 +84,7 @@ public:
 			MenuBuilder.AddSubMenu(
 				LOCTEXT("TakesMenu", "Takes"),
 				LOCTEXT("TakesMenuTooltip", "Subsequence takes"),
-				FNewMenuDelegate::CreateLambda([=](FMenuBuilder& InMenuBuilder) { SubTrackEditor.Pin()->AddTakesMenu(Section, InMenuBuilder); }));
+				FNewMenuDelegate::CreateLambda([this, Section](FMenuBuilder& InMenuBuilder) { SubTrackEditor.Pin()->AddTakesMenu(Section, InMenuBuilder); }));
 
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("NewTake", "New Take"),
