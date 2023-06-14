@@ -610,9 +610,13 @@ private:
 
 	void Execute(FRHIComputeCommandList& RHICmdList) override
 	{
+#if !USE_NULL_RHI
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FRDGPass_Execute);
 		RHICmdList.SetStaticUniformBuffers(ParameterStruct.GetStaticUniformBuffers());
 		ExecuteLambdaFunc<TRDGPass>(static_cast<TRHICommandList&>(RHICmdList));
+#else
+		checkNoEntry();
+#endif // !USE_NULL_RHI
 	}
 
 	ExecuteLambdaType ExecuteLambda;
