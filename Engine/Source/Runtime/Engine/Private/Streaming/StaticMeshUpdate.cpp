@@ -168,6 +168,16 @@ void FStaticMeshStreamIn::CreateBuffers_Internal(const FContext& Context)
 		for (int32 LODIdx = PendingFirstLODIdx; LODIdx < CurrentFirstLODIdx; ++LODIdx)
 		{
 			FStaticMeshLODResources& LODResource = *Context.LODResourcesView[LODIdx];
+
+#if ALLOW_RENDER_ASSET_STREAMING_BREADCRUMB
+			const FStaticMeshVertexBuffer& TangentTexCoordBuffers = LODResource.VertexBuffers.StaticMeshVertexBuffer;
+			if (GStreamingEnableRenderAssetUpdateBreadcrumb != 0 && TangentTexCoordBuffers.GetNumVertices() > 0 && !TangentTexCoordBuffers.GetTangentData() && Context.Mesh)
+			{
+				FRenderAssetUpdateBreadcrumb* Breadcrumb = (FRenderAssetUpdateBreadcrumb*)alloca(sizeof(FRenderAssetUpdateBreadcrumb));
+				Breadcrumb->SetDebugData(Context.Mesh->GetPathName(), LODIdx, TangentTexCoordBuffers.GetNumVertices(), false);
+				*(uint32*)3 = 0xed000002;
+			}
+#endif
 			if (bRenderThread)
 			{
 				IntermediateBuffersArray[LODIdx].CreateFromCPUData_RenderThread(LODResource);
@@ -571,6 +581,16 @@ void FStaticMeshStreamIn_IO::SerializeLODData(const FContext& Context)
 			typename FStaticMeshLODResources::FStaticMeshBuffersSize DummyBuffersSize;
 			LODResource.SerializeBuffers(Ar, const_cast<UStaticMesh*>(Mesh), DummyStripFlags, DummyBuffersSize);
 			check(DummyBuffersSize.CalcBuffersSize() == LODResource.BuffersSize);
+
+#if ALLOW_RENDER_ASSET_STREAMING_BREADCRUMB
+			const FStaticMeshVertexBuffer& TangentTexCoordBuffers = LODResource.VertexBuffers.StaticMeshVertexBuffer;
+			if (GStreamingEnableRenderAssetUpdateBreadcrumb != 0 && TangentTexCoordBuffers.GetNumVertices() > 0 && !TangentTexCoordBuffers.GetTangentData())
+			{
+				FRenderAssetUpdateBreadcrumb* Breadcrumb = (FRenderAssetUpdateBreadcrumb*)alloca(sizeof(FRenderAssetUpdateBreadcrumb));
+				Breadcrumb->SetDebugData(Mesh->GetPathName(), LODIdx, TangentTexCoordBuffers.GetNumVertices(), Ar.GetError());
+				*(uint32*)3 = 0xed000002;
+			}
+#endif
 		}
 
 		BulkData = FIoBuffer();

@@ -152,6 +152,16 @@ void FSkeletalMeshStreamIn::CreateBuffers_Internal(const FContext& Context)
 		for (int32 LODIndex = PendingFirstLODIdx; LODIndex < CurrentFirstLODIdx; ++LODIndex)
 		{
 			FSkeletalMeshLODRenderData& LODResource = *Context.LODResourcesView[LODIndex];
+
+#if ALLOW_RENDER_ASSET_STREAMING_BREADCRUMB
+			const FStaticMeshVertexBuffer& TangentTexCoordBuffers = LODResource.StaticVertexBuffers.StaticMeshVertexBuffer;
+			if (GStreamingEnableRenderAssetUpdateBreadcrumb != 0 && TangentTexCoordBuffers.GetNumVertices() > 0 && !TangentTexCoordBuffers.GetTangentData())
+			{
+				FRenderAssetUpdateBreadcrumb* Breadcrumb = (FRenderAssetUpdateBreadcrumb*)alloca(sizeof(FRenderAssetUpdateBreadcrumb));
+				Breadcrumb->SetDebugData(Mesh->GetPathName(), LODIndex, TangentTexCoordBuffers.GetNumVertices(), false);
+				*(uint32*)3 = 0xed000001;
+			}
+#endif
 			if (bRenderThread)
 			{
 				IntermediateBuffersArray[LODIndex].CreateFromCPUData_RenderThread(LODResource);
@@ -530,6 +540,16 @@ void FSkeletalMeshStreamIn_IO::SerializeLODData(const FContext& Context)
 			const bool bNeedsCPUAccess = FSkeletalMeshLODRenderData::ShouldKeepCPUResources(Mesh, LODIndex + Context.AssetLODBias, bForceKeepCPUResources);
 			constexpr uint8 DummyStripFlags = 0;
 			LODResource.SerializeStreamedData(Ar, const_cast<USkeletalMesh*>(Mesh), LODIndex + Context.AssetLODBias, DummyStripFlags, bNeedsCPUAccess, bForceKeepCPUResources);
+
+#if ALLOW_RENDER_ASSET_STREAMING_BREADCRUMB
+			const FStaticMeshVertexBuffer& TangentTexCoordBuffers = LODResource.StaticVertexBuffers.StaticMeshVertexBuffer;
+			if (GStreamingEnableRenderAssetUpdateBreadcrumb != 0 && TangentTexCoordBuffers.GetNumVertices() > 0 && !TangentTexCoordBuffers.GetTangentData())
+			{
+				FRenderAssetUpdateBreadcrumb* Breadcrumb = (FRenderAssetUpdateBreadcrumb*)alloca(sizeof(FRenderAssetUpdateBreadcrumb));
+				Breadcrumb->SetDebugData(Mesh->GetPathName(), LODIndex, TangentTexCoordBuffers.GetNumVertices(), Ar.GetError());
+				*(uint32*)3 = 0xed000001;
+			}
+#endif
 		}
 
 		BulkData = FIoBuffer();

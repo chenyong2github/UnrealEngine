@@ -12,6 +12,10 @@ TextureStreamingHelpers.h: Definitions of classes used for texture streaming.
 #include "Misc/MemStack.h"
 #include "Engine/TextureDefines.h"
 
+#ifndef ALLOW_RENDER_ASSET_STREAMING_BREADCRUMB
+#define ALLOW_RENDER_ASSET_STREAMING_BREADCRUMB 0
+#endif
+
 class AActor;
 class UStreamableRenderAsset;
 
@@ -187,3 +191,17 @@ struct FRenderAssetStreamingStats
 
 // Helper to access the level bStaticComponentsRegisteredInStreamingManager flag.
 extern bool OwnerLevelHasRegisteredStaticComponentsInStreamingManager(const class AActor* Owner);
+
+#if ALLOW_RENDER_ASSET_STREAMING_BREADCRUMB
+struct FRenderAssetUpdateBreadcrumb
+{
+	ANSICHAR AssetName[256];
+	int32 LODIndex;
+	uint32 NumVertices;
+	bool bIsArError;
+
+	FORCENOINLINE void SetDebugData(const FString& InAssetName, int32 InLODIndex, uint32 InNumVertices, bool bInIsArError);
+};
+
+extern int32 GStreamingEnableRenderAssetUpdateBreadcrumb;
+#endif

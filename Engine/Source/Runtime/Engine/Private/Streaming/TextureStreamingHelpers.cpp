@@ -299,6 +299,28 @@ static TAutoConsoleVariable<int32> CVarStreamingVRAMPercentageClamp(
 	TEXT("This avoids reserving too much space for systems with a lot of VRAM. (default=1024)"),
 	ECVF_Cheat);
 
+#if ALLOW_RENDER_ASSET_STREAMING_BREADCRUMB
+int32 GStreamingEnableRenderAssetUpdateBreadcrumb = 1;
+static FAutoConsoleVariableRef CVarStreamingEnableRenderAssetUpdateBreadcrumb(
+	TEXT("r.Streaming.EnableRenderAssetUpdateBreadcrumb"),
+	GStreamingEnableRenderAssetUpdateBreadcrumb,
+	TEXT("Whether to detect invalid streaming states, crash when detected, and store debug info onto stack"),
+	ECVF_Default);
+
+void FRenderAssetUpdateBreadcrumb::SetDebugData(const FString& InAssetName, int32 InLODIndex, uint32 InNumVertices, bool bInIsArError)
+{
+	FMemory::Memzero(this, sizeof(FRenderAssetUpdateBreadcrumb));
+	const int32 CopySize = FMath::Min<int32>(InAssetName.Len(), UE_ARRAY_COUNT(AssetName) - 1);
+	if (CopySize > 0)
+	{
+		FCStringAnsi::Strncpy(AssetName, TCHAR_TO_ANSI(*InAssetName), CopySize);
+	}
+	LODIndex = InLODIndex;
+	NumVertices = InNumVertices;
+	bIsArError = bInIsArError;
+}
+#endif
+
 void FRenderAssetStreamingSettings::Update()
 {
 	MaxEffectiveScreenSize = CVarStreamingScreenSizeEffectiveMax.GetValueOnAnyThread();
