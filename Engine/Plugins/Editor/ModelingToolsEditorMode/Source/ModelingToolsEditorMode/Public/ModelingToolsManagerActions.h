@@ -55,6 +55,7 @@ public:
 	TSharedPtr<FUICommandInfo> BeginDrawAndRevolveTool;
 	TSharedPtr<FUICommandInfo> BeginRevolveSplineTool;
 	TSharedPtr<FUICommandInfo> BeginShapeSprayTool;
+	TSharedPtr<FUICommandInfo> BeginDrawSplineTool;
 	TSharedPtr<FUICommandInfo> BeginTriangulateSplinesTool;
 
 	TSharedPtr<FUICommandInfo> BeginSculptMeshTool;

@@ -83,6 +83,7 @@ void FModelingToolsManagerCommands::RegisterCommands()
 		REGISTER_MODELING_TOOL_COMMAND(BeginRevolveBoundaryTool, "BdryRev", "Revolve Mesh boundary loops to create new objects");
 		REGISTER_MODELING_TOOL_COMMAND(BeginCombineMeshesTool, "Merge", "Merge multiple Meshes to create new objects");
 		REGISTER_MODELING_TOOL_COMMAND(BeginDuplicateMeshesTool, "Dupe", "Duplicate single Meshes to create new objects");
+		REGISTER_MODELING_TOOL_COMMAND(BeginDrawSplineTool, "DrwSpln", "Draw a spline in the level");
 		REGISTER_MODELING_TOOL_COMMAND(BeginTriangulateSplinesTool, "MshSpln", "Triangulate the Spline Components of selected actors to create new objects");
 	}
 	else
@@ -94,6 +95,7 @@ void FModelingToolsManagerCommands::RegisterCommands()
 		REGISTER_MODELING_TOOL_COMMAND(BeginRevolveBoundaryTool, "Revolve Boundary", "Revolve Mesh boundary loops to create new objects");
 		REGISTER_MODELING_TOOL_COMMAND(BeginCombineMeshesTool, "Merge", "Merge multiple Meshes to create new objects");
 		REGISTER_MODELING_TOOL_COMMAND(BeginDuplicateMeshesTool, "Duplicate", "Duplicate single Meshes to create new objects");
+		REGISTER_MODELING_TOOL_COMMAND(BeginDrawSplineTool, "Draw Spline", "Draw a spline in the level");
 		REGISTER_MODELING_TOOL_COMMAND(BeginTriangulateSplinesTool, "Mesh Splines", "Triangulate the Spline Components of selected actors to create new objects");
 	}
 

@@ -260,6 +260,7 @@ void FModelingToolsEditorModeToolkit::RegisterPalettes()
 		Commands.BeginDrawPolyPathTool,
 		Commands.BeginDrawAndRevolveTool,
 		Commands.BeginRevolveSplineTool,
+		Commands.BeginDrawSplineTool,
 		Commands.BeginTriangulateSplinesTool
 	});
 	ToolkitBuilder->AddPalette(

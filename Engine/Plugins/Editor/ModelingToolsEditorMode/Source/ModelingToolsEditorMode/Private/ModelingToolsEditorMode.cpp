@@ -45,6 +45,7 @@
 #include "DrawPolygonTool.h"
 #include "DrawPolyPathTool.h"
 #include "DrawAndRevolveTool.h"
+#include "DrawSplineTool.h"
 #include "RevolveSplineTool.h"
 #include "ShapeSprayTool.h"
 #include "VoxelSolidifyMeshesTool.h"
@@ -601,6 +602,9 @@ void UModelingToolsEditorMode::Enter()
 
 	auto CubeGridToolBuilder = NewObject<UCubeGridToolBuilder>();
 	RegisterTool(ToolManagerCommands.BeginCubeGridTool, TEXT("BeginCubeGridTool"), CubeGridToolBuilder);
+
+	auto DrawSplineToolBuilder = NewObject<UDrawSplineToolBuilder>();
+	RegisterTool(ToolManagerCommands.BeginDrawSplineTool, TEXT("BeginDrawSplineTool"), DrawSplineToolBuilder);
 
 	auto TriangulateSplinesToolBuilder = NewObject<UTriangulateSplinesToolBuilder>();
 	RegisterTool(ToolManagerCommands.BeginTriangulateSplinesTool, TEXT("BeginTriangulateSplinesTool"), TriangulateSplinesToolBuilder);
