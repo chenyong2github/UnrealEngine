@@ -10,6 +10,11 @@ namespace Horde.Server.Server
 	public static class ServerAclAction
 	{
 		/// <summary>
+		/// Access to the debug endpoints
+		/// </summary>
+		public static AclAction Debug { get; } = new AclAction("Debug");
+
+		/// <summary>
 		/// Ability to impersonate another user
 		/// </summary>
 		public static AclAction Impersonate { get; } = new AclAction("Impersonate");
@@ -18,11 +23,6 @@ namespace Horde.Server.Server
 		/// View estimated costs for particular operations
 		/// </summary>
 		public static AclAction ViewCosts { get; } = new AclAction("ViewCosts");
-
-		/// <summary>
-		/// View estimated costs for particular operations
-		/// </summary>
-		public static AclAction ViewConfig { get; } = new AclAction("ViewConfig");
 
 		/// <summary>
 		/// Issue bearer token for the current user
