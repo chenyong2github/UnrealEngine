@@ -432,6 +432,7 @@ public sealed class BuildPlugin : BuildCommand
 		Filter.Include("/Intermediate/Build/.../Inc/...");
 		Filter.Include("/Shaders/...");
 		Filter.Include("/Source/...");
+		Filter.Exclude("/Tests/...");
 
 		// Add custom rules for all platforms
 		AddRulesFromFileToFilter(Filter, FileReference.Combine(PluginFile.Directory, "Config", "FilterPlugin.ini"));

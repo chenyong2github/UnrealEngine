@@ -85,13 +85,14 @@ namespace UnrealBuildBase
 				RootFolders.AddRange(GameFolders.SelectMany(x => Unreal.GetExtensionDirs(x)));
 			}
 
-			// Find all the plugin source directories
+			// Find all the plugin source and tests directories
 			foreach (DirectoryReference RootFolder in RootFolders)
 			{
 				DirectoryReference PluginsFolder = DirectoryReference.Combine(RootFolder, "Plugins");
 				foreach (FileReference PluginFile in PluginsBase.EnumeratePlugins(PluginsFolder))
 				{
 					Folders.Add(DirectoryReference.Combine(PluginFile.Directory, "Source"));
+					Folders.Add(DirectoryReference.Combine(PluginFile.Directory, "Tests"));
 				}
 			}
 
