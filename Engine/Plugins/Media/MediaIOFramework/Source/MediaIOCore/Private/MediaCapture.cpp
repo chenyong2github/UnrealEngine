@@ -13,6 +13,7 @@
 #include "MediaCaptureRenderPass.h"
 #include "MediaCaptureSceneViewExtension.h"
 #include "MediaCaptureSources.h"
+#include "MediaCaptureSyncPointWatcher.h"
 #include "MediaIOFrameManager.h"
 #include "MediaIOCoreModule.h"
 #include "MediaOutput.h"
@@ -277,6 +278,7 @@ bool UMediaCapture::StartSourceCapture(TSharedPtr<UE::MediaCapture::Private::FCa
 	bShouldCaptureRHIResource = ShouldCaptureRHIResource();
 
 	CaptureRenderPipeline = MakePimpl<UE::MediaCapture::FRenderPipeline>(this);
+	SyncPointWatcher = MakePimpl<UE::MediaCaptureData::FSyncPointWatcher>(this);
 
 	if (bInitialized)
 	{
@@ -545,13 +547,14 @@ void UMediaCapture::StopCapture(bool bAllowPendingFrameToBeProcess)
 				CaptureSource->ResetSourceBufferSize(bFlushRenderingCommands);
 				CaptureSource.Reset();
 			}
-			
+
 			DesiredSize = FIntPoint(1280, 720);
 			DesiredPixelFormat = EPixelFormat::PF_A2B10G10R10;
 			DesiredOutputSize = FIntPoint(1280, 720);
 			DesiredOutputPixelFormat = EPixelFormat::PF_A2B10G10R10;
 			DesiredCaptureOptions = FMediaCaptureOptions();
 			ConversionOperation = EMediaCaptureConversionOperation::NONE;
+			SyncPointWatcher.Reset();
 			ViewExtension.Reset();
 			CaptureRenderPipeline.Reset();
 			
@@ -618,6 +621,7 @@ void UMediaCapture::CaptureImmediate_RenderThread(const UE::MediaCaptureData::FC
 {
 	using namespace UE::MediaCaptureData;
 	TRACE_CPUPROFILER_EVENT_SCOPE(UMediaCapture::CaptureImmediate_RenderThread);
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("MediaCapturePipe: %llu"), GFrameCounterRenderThread));
 	
 	check(IsInRenderingThread());
 	
@@ -908,24 +912,7 @@ void UMediaCapture::WaitForSingleExperimentalSchedulingTaskToComplete()
 	if (UseExperimentalScheduling())
 	{
 		// Presumably the rendering thread could be in the process of dispatching the task
-		FScopeLock ScopedLock(&PendingReadbackTasksCriticalSection);
-		if (PendingReadbackTasks.Num())
-		{
-			auto It = PendingReadbackTasks.CreateIterator();
-
-			// Go through the list to find a pending task.
-			while (It && It->IsCompleted())
-			{
-				It.RemoveCurrent();
-				++It;
-			}
-
-			if (It)
-			{
-				// We have a pending task, wait until it's completeted.
-				It->BusyWait();
-			}
-		}
+		SyncPointWatcher->WaitForSinglePendingTaskToComplete();
 
 		if (!UseAnyThreadCapture())
 		{
@@ -938,40 +925,12 @@ void UMediaCapture::WaitForSingleExperimentalSchedulingTaskToComplete()
 	}
 }
 
-void UMediaCapture::CleanupCompletedExperimentalSchedulingTasks()
-{
-	FScopeLock ScopedLock(&PendingReadbackTasksCriticalSection);
-
-	for (auto It = PendingReadbackTasks.CreateIterator(); It; ++It)
-	{
-		if (It->IsCompleted())
-		{
-			It.RemoveCurrent();
-		}
-	}
-}
-
 void UMediaCapture::WaitForAllExperimentalSchedulingTasksToComplete()
 {
 	if (UseExperimentalScheduling())
 	{
-		FScopeLock ScopedLock(&PendingReadbackTasksCriticalSection);
+		SyncPointWatcher->WaitForAllPendingTasksToComplete();
 
-		// Clean up completed tasks.
-		for (auto It = PendingReadbackTasks.CreateIterator(); It; ++It)
-		{
-			if (It->IsCompleted())
-			{
-				It.RemoveCurrent();
-			}
-			else
-			{
-				It->BusyWait();
-				It.RemoveCurrent();
-			}
-		}
-
-		
 		if (!UseAnyThreadCapture())
 		{
 			// This code might have dispatched a task on the render thread, so we need to wait again
@@ -997,8 +956,6 @@ void UMediaCapture::ProcessCapture_GameThread()
 {
 	using namespace UE::MediaCaptureData;
 	
-	CleanupCompletedExperimentalSchedulingTasks();
-
 	// Acquire a frame
 	TSharedPtr<FCaptureFrame> CapturingFrame;
 	if(GetState() != EMediaCaptureState::StopRequested)
@@ -1336,19 +1293,6 @@ void UMediaCapture::OnEndFrame_GameThread()
 		// All the requested frames have been captured.
 		StopCapture(false);
 		return;
-	}
-
-	{
-		FScopeLock ScopedLock(&PendingReadbackTasksCriticalSection);
-
-		// Clean up completed tasks.
-		for (auto It = PendingReadbackTasks.CreateIterator(); It; ++It)
-		{
-			if (It->IsCompleted())
-			{
-				It.RemoveCurrent();
-			}
-		}
 	}
 
 	ProcessCapture_GameThread();

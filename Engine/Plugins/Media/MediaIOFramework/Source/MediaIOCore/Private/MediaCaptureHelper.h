@@ -19,6 +19,8 @@ namespace UE::MediaCaptureData
 	class FMediaCaptureHelper
 	{
 	public:
+		friend class FSyncPointWatcher;
+		
 		/** Validates the input and output size and format compatibility. */
 		static bool AreInputsValid(const UE::MediaCaptureData::FCaptureFrameArgs& Args);
 

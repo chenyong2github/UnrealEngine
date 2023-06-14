@@ -2,6 +2,7 @@
 
 #include "MediaCaptureHelper.h"
 #include "MediaCaptureRenderPass.h"
+#include "MediaCaptureSyncPointWatcher.h"
 
 DECLARE_CYCLE_STAT(TEXT("MediaCapture RenderThread LockResource"), STAT_MediaCaptureHelper_RenderThread_LockResource, STATGROUP_Media);
 DECLARE_CYCLE_STAT(TEXT("MediaCapture AnyThread LockResource"), STAT_MediaCaptureHelper_AnyThread_LockResource, STATGROUP_Media);
@@ -11,6 +12,7 @@ DECLARE_CYCLE_STAT(TEXT("MediaCapture RenderThread FrameCapture"), STAT_MediaCap
 DECLARE_CYCLE_STAT(TEXT("MediaCapture RenderThread RHI Capture Callback"), STAT_MediaCaptureHelper_RenderThread_RHI_CaptureCallback, STATGROUP_Media);
 
 DECLARE_GPU_STAT(MediaCapture_CaptureFrame);
+DECLARE_GPU_STAT(MediaCapture_SyncPoint);
 DECLARE_GPU_STAT(MediaCapture_CustomCapture);
 DECLARE_GPU_STAT(MediaCapture_Readback);
 
@@ -126,14 +128,11 @@ bool FMediaCaptureHelper::CaptureFrame(const UE::MediaCaptureData::FCaptureFrame
 		return false;
 	}
 
+	if (CapturingFrame->IsTextureResource())
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(UMediaCapture::LockDMATexture_RenderThread);
 		TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("LockDmaTexture Output Frame %d"), CapturingFrame->CaptureBaseData.SourceFrameNumberRenderThread));
-
-		if (CapturingFrame->IsTextureResource())
-		{
-			Args.MediaCapture->LockDMATexture_RenderThread(CapturingFrame->GetTextureResource());
-		}
+		Args.MediaCapture->LockDMATexture_RenderThread(CapturingFrame->GetTextureResource());
 	}
 
 	{
@@ -169,6 +168,7 @@ bool FMediaCaptureHelper::CaptureFrame(const UE::MediaCaptureData::FCaptureFrame
 
 		if (Args.MediaCapture->UseExperimentalScheduling())
 		{
+			RDG_GPU_STAT_SCOPE(Args.GraphBuilder, MediaCapture_SyncPoint);
 			if (CapturingFrame->IsTextureResource())
 			{
 				AddSyncPointPass<FTextureCaptureFrame>(Args.GraphBuilder, Args.MediaCapture, CapturingFrame, FinalPassOutputResource);
@@ -195,86 +195,12 @@ void FMediaCaptureHelper::ExecuteSyncPointPass(FRHICommandListImmediate& RHICmdL
 			RHICmdList.WriteGPUFence(SyncDataPtr->RHIFence);
 			SyncDataPtr->bIsBusy = true;
 
-			// Here we request a number to process the frames in order.
-			const uint32 ExecutionNumber = MediaCapture->OrderedAsyncGateCaptureReady.GetANumber();
-
-			// Spawn a task that will wait (poll) and continue the process of providing a new texture
-			UE::Tasks::FTask Task = UE::Tasks::Launch(UE_SOURCE_LOCATION, [MediaCapture, CapturingFrame, SyncDataPtr, ExecutionNumber]()
+			// Queue capture data and our thread will wait (poll) and continue the process of providing a new texture
 			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(UMediaCapture::SyncPass);
-
-				ON_SCOPE_EXIT
-				{
-					// Make sure that we give up our turn to execute when exiting this task,
-					// which will allow the other async tasks to execute after waiting for the fence.
-					MediaCapture->OrderedAsyncGateCaptureReady.GiveUpTurn(ExecutionNumber);
-				};
-
-				double WaitTime = 0.0;
-				bool bWaitedForCompletion = false;
-				{
-					FScopedDurationTimer Timer(WaitTime);
-
-					// Wait until fence has been written (shader has completed)
-					while (true)
-					{
-						if (SyncDataPtr->RHIFence->Poll())
-						{
-							bWaitedForCompletion = true;
-							break;
-						}
-
-						if (!CapturingFrame->bMediaCaptureActive)
-						{
-							bWaitedForCompletion = false;
-							break;
-						}
-
-						constexpr float SleepTimeSeconds = 50 * 1E-6;
-						FPlatformProcess::SleepNoStats(SleepTimeSeconds);
-					}
-
-					SyncDataPtr->RHIFence->Clear();
-					SyncDataPtr->bIsBusy = false;
-				}
-
-				if (CapturingFrame->bMediaCaptureActive && bWaitedForCompletion && MediaCapture)
-				{
-					// Ensure that we do not run the following code out of order with respect to the other sibling async tasks,
-					// because the Pending Frames are expected to be processed in order.
-					if (!MediaCapture->OrderedAsyncGateCaptureReady.IsMyTurn(ExecutionNumber))
-					{
-						TRACE_CPUPROFILER_EVENT_SCOPE(UMediaCapture::SyncPass::OutOfOrderWait);
-
-						UE_LOG(LogMediaIOCore, Warning, TEXT(
-							"The wait for the GPU fence for the next frame of MediaCapture '%s' unexpectedly happened out of order. "
-							"Order will be enforced by waiting until the previous frames are processed. "),
-							*MediaCapture->MediaOutputName);
-
-						MediaCapture->OrderedAsyncGateCaptureReady.WaitForTurn(ExecutionNumber);
-					}
-
-					if (MediaCapture->UseAnyThreadCapture())
-					{
-						OnReadbackComplete(FRHICommandListExecutor::GetImmediateCommandList(), MediaCapture, CapturingFrame);
-					}
-					else
-					{
-						++MediaCapture->WaitingForRenderCommandExecutionCounter;
-
-						ENQUEUE_RENDER_COMMAND(MediaOutputCaptureReadbackComplete)([MediaCapture, CapturingFrame](FRHICommandList& RHICommandList)
-							{
-								OnReadbackComplete(RHICommandList, MediaCapture, CapturingFrame);
-							});
-					}
-				}
-
-			}, static_cast<LowLevelTasks::ETaskPriority>(CVarMediaIOCapturePollTaskPriority.GetValueOnRenderThread()));
-
-			{
-				// Add the task to the capture's list of pending tasks.
-				FScopeLock ScopedLock(&MediaCapture->PendingReadbackTasksCriticalSection);
-				MediaCapture->PendingReadbackTasks.Add(MoveTemp(Task));
+				UE::MediaCaptureData::FPendingCaptureData NewCaptureData;
+				NewCaptureData.SyncHandler = SyncDataPtr;
+				NewCaptureData.CapturingFrame = CapturingFrame;
+				MediaCapture->SyncPointWatcher->QueuePendingCapture(MoveTemp(NewCaptureData));
 			}
 		}
 		else

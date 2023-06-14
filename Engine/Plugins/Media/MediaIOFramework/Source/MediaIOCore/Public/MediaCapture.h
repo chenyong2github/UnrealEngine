@@ -41,6 +41,8 @@ namespace UE::MediaCaptureData
 	struct FCaptureFrameArgs;
 	class FTextureCaptureFrame;
 	class FBufferCaptureFrame;
+	class FSyncPointWatcher;
+	struct FPendingCaptureData;
 }
 
 namespace UE::MediaCapture::Private
@@ -455,6 +457,7 @@ protected:
 
 	friend class UE::MediaCaptureData::FCaptureFrame;
 	friend class UE::MediaCaptureData::FMediaCaptureHelper;
+	friend class UE::MediaCaptureData::FSyncPointWatcher;
 	struct FCaptureBaseData
 	{
 		FTimecode SourceFrameTimecode;
@@ -462,6 +465,8 @@ protected:
 		uint32 SourceFrameNumberRenderThread = 0;
 		uint32 SourceFrameNumber = 0;
 	};
+
+	
 
 	/**
 	 * Capture the data that will pass along to the callback.
@@ -596,7 +601,6 @@ private:
 	
 	void WaitForSingleExperimentalSchedulingTaskToComplete();
 	void WaitForAllExperimentalSchedulingTasksToComplete();
-	void CleanupCompletedExperimentalSchedulingTasks();
 	
 	void CaptureImmediate_RenderThread(const UE::MediaCaptureData::FCaptureFrameArgs& Args);
 	// Capture pipeline stuff
@@ -697,6 +701,7 @@ private:
 	static constexpr int32 MaxCaptureDataAgeInFrames = 20;
 
 	/** Structure holding data used for synchronization of buffer output */
+	friend struct UE::MediaCaptureData::FPendingCaptureData;
 	struct FMediaCaptureSyncData
 	{
 		/**
@@ -713,19 +718,13 @@ private:
 	/** Array of sync handlers (fence) to sync when captured buffer is completed */
 	TArray<TSharedPtr<FMediaCaptureSyncData>> SyncHandlers;
 
-	/** Critical section used to synchronize access to the pending readback tasks accross threads. */
-	FCriticalSection PendingReadbackTasksCriticalSection;
-
-	/** List of pending readback tasks, when CVarMediaIOEnableExperimentalScheduling and CVarMediaIOScheduleOnAnyThread are set to true. */
-	TArray<UE::Tasks::FTask> PendingReadbackTasks;
+	/** Watcher thread looking after end of capturing frames */
+	TPimplPtr<UE::MediaCaptureData::FSyncPointWatcher> SyncPointWatcher;
 
 	TSharedPtr<UE::MediaCapture::Private::FCaptureSource> CaptureSource;
 
 	/** Holds a view extension that callbacks  */
 	TSharedPtr<class FMediaCaptureSceneViewExtension> ViewExtension;
-
-	/** Helper to ensure that the async processing of frames happens in the expected order */
-	UE::MediaIO::FOrderedAsyncGate OrderedAsyncGateCaptureReady;
 
 	/** Holds the render passes that a texture will go through during media capture. */
 	TPimplPtr<UE::MediaCapture::FRenderPipeline> CaptureRenderPipeline;
