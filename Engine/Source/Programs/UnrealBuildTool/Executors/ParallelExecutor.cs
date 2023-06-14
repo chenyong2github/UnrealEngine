@@ -210,7 +210,7 @@ namespace UnrealBuildTool
 			};
 		}
 
-		protected static async Task<ExecuteResults> RunAction(LinkedAction Action, ManagedProcessGroup ProcessGroup, CancellationToken CancellationToken)
+		protected static async Task<ExecuteResults> RunAction(LinkedAction Action, ManagedProcessGroup ProcessGroup, CancellationToken CancellationToken, string? AdditionalDescription = null)
 		{
 			CancellationToken.ThrowIfCancellationRequested();
 
@@ -227,7 +227,7 @@ namespace UnrealBuildTool
 			int ExitCode = Process.ExitCode;
 			TimeSpan ProcessorTime = Process.TotalProcessorTime;
 			TimeSpan ExecutionTime = Process.ExitTime - Process.StartTime;
-			return new ExecuteResults(LogLines, ExitCode, ExecutionTime, ProcessorTime);
+			return new ExecuteResults(LogLines, ExitCode, ExecutionTime, ProcessorTime, AdditionalDescription);
 		}
 	}
 

@@ -181,6 +181,9 @@ namespace UnrealBuildTool
 		public bool bCanExecuteRemotelyWithXGE { get; set; } = true;
 
 		/// <inheritdoc/>
+		public bool bCanExecuteInBox { get; set; } = true;
+
+		/// <inheritdoc/>
 		public bool bUseActionHistory => true;
 
 		/// <inheritdoc/>
