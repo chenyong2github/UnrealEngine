@@ -197,11 +197,6 @@ namespace Horde.Server.Server
 		public IMongoDatabase Database { get; private set; }
 
 		/// <summary>
-		/// Collection of credential documents
-		/// </summary>
-		public IMongoCollection<Credential> Credentials { get; }
-
-		/// <summary>
 		/// Collection of singleton documents
 		/// </summary>
 		IMongoCollection<BsonDocument> SingletonsV1 { get; }
@@ -333,8 +328,6 @@ namespace Horde.Server.Server
 
 				SingletonsV1 = GetCollection<BsonDocument>("Singletons");
 				SingletonsV2 = GetCollection<BsonDocument>("SingletonsV2");
-
-				Credentials = GetCollection<Credential>("Credentials");
 			}
 			catch (Exception ex)
 			{

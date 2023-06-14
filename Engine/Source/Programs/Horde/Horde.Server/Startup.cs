@@ -452,7 +452,6 @@ namespace Horde.Server
 			services.AddSingleton<ConsistencyService>();
 			services.AddSingleton<RequestTrackerService>();
 			services.AddSingleton<ComputeService>();
-			services.AddSingleton<CredentialService>();
 			services.AddSingleton<MongoService>();
 			services.AddSingleton<GlobalsService>();
 			services.AddSingleton<ICommitService, CommitService>();

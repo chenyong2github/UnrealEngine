@@ -10,6 +10,7 @@ using Horde.Server.Artifacts;
 using Horde.Server.Jobs;
 using Horde.Server.Jobs.Bisect;
 using Horde.Server.Projects;
+using Horde.Server.Secrets;
 using Horde.Server.Streams;
 using Horde.Server.Tools;
 using Microsoft.AspNetCore.Http;
@@ -107,6 +108,15 @@ namespace Horde.Server.Utilities
 		protected ActionResult Forbid(AclAction action, ProjectId projectId)
 		{
 			return Forbid(action, "project {ProjectId}", projectId);
+		}
+
+		/// <summary>
+		/// Returns a 403 (forbidden) response with the given action and object
+		/// </summary>
+		[NonAction]
+		protected ActionResult Forbid(AclAction action, SecretId secretId)
+		{
+			return Forbid(action, "secret {SecretId}", secretId);
 		}
 
 		/// <summary>
@@ -260,6 +270,15 @@ namespace Horde.Server.Utilities
 		protected ActionResult NotFound(BisectTaskId bisectTaskId)
 		{
 			return NotFound("Bisect task {BisectTaskId} not found", bisectTaskId);
+		}
+
+		/// <summary>
+		/// Returns a 404 response for the given object
+		/// </summary>
+		[NonAction]
+		protected ActionResult NotFound(SecretId secretId)
+		{
+			return NotFound("Secret {SecretId} not found", secretId);
 		}
 
 		/// <summary>

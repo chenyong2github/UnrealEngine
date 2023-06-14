@@ -114,7 +114,6 @@ namespace Horde.Server.Tests
 		public IArtifactCollectionV1 ArtifactCollection => ServiceProvider.GetRequiredService<IArtifactCollectionV1>();
 		public IDowntimeService DowntimeService => ServiceProvider.GetRequiredService<IDowntimeService>();
 		public RpcService RpcService => ServiceProvider.GetRequiredService<RpcService>();
-		public CredentialService CredentialService => ServiceProvider.GetRequiredService<CredentialService>();
 		public PoolService PoolService => ServiceProvider.GetRequiredService<PoolService>();
 		public LifetimeService LifetimeService => ServiceProvider.GetRequiredService<LifetimeService>();
 		public ScheduleService ScheduleService => ServiceProvider.GetRequiredService<ScheduleService>();
@@ -247,7 +246,6 @@ namespace Horde.Server.Tests
 			services.AddSingleton<ConsistencyService>();
 			services.AddSingleton<RequestTrackerService>();
 			services.AddSingleton<GlobalsService>();
-			services.AddSingleton<CredentialService>();
 			services.AddSingleton<JobTaskSource>();
 			services.AddSingleton<IDowntimeService, DowntimeServiceStub>();
 			services.AddSingleton<IssueService>();

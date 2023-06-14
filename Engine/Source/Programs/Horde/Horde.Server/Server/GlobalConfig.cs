@@ -19,11 +19,13 @@ using Horde.Server.Agents.Software;
 using Horde.Server.Artifacts;
 using Horde.Server.Configuration;
 using Horde.Server.Projects;
+using Horde.Server.Secrets;
 using Horde.Server.Storage;
 using Horde.Server.Streams;
 using Horde.Server.Tools;
 using Horde.Server.Users;
 using Horde.Server.Utilities;
+using Microsoft.Extensions.Configuration;
 
 namespace Horde.Server.Server
 {
@@ -166,6 +168,11 @@ namespace Horde.Server.Server
 		public List<ComputeClusterConfig> Compute { get; set; } = new List<ComputeClusterConfig>();
 
 		/// <summary>
+		/// List of secrets
+		/// </summary>
+		public List<SecretConfig> Secrets { get; set; } = new List<SecretConfig>();
+
+		/// <summary>
 		/// Device configuration
 		/// </summary>
 		public DeviceConfig? Devices { get; set; }
@@ -213,6 +220,7 @@ namespace Horde.Server.Server
 		private readonly Dictionary<ClusterId, ComputeClusterConfig> _computeClusterLookup = new Dictionary<ClusterId, ComputeClusterConfig>();
 		private readonly Dictionary<AclScopeName, IAclScope> _aclScopeLookup = new Dictionary<AclScopeName, IAclScope>();
 		private readonly Dictionary<ArtifactType, ArtifactTypeConfig> _artifactTypeLookup = new Dictionary<ArtifactType, ArtifactTypeConfig>();
+		private readonly Dictionary<SecretId, SecretConfig> _secretLookup = new Dictionary<SecretId, SecretConfig>();
 
 		/// <summary>
 		/// Called after the config file has been read
@@ -269,6 +277,13 @@ namespace Horde.Server.Server
 			foreach (ArtifactTypeConfig artifactType in ArtifactTypes)
 			{
 				_artifactTypeLookup.Add(artifactType.Name, artifactType);
+			}
+
+			_secretLookup.Clear();
+			foreach (SecretConfig secret in Secrets)
+			{
+				_secretLookup.Add(secret.Id, secret);
+				secret.PostLoad(this);
 			}
 
 			Storage.PostLoad(this);
@@ -330,6 +345,14 @@ namespace Horde.Server.Server
 		/// <param name="config">Receives the cluster configuration on success</param>
 		/// <returns>True on success</returns>
 		public bool TryGetComputeCluster(ClusterId clusterId, [NotNullWhen(true)] out ComputeClusterConfig? config) => _computeClusterLookup.TryGetValue(clusterId, out config);
+
+		/// <summary>
+		/// Attempts to get compute cluster configuration from this object
+		/// </summary>
+		/// <param name="secretId">Secret id</param>
+		/// <param name="config">Receives the secret configuration on success</param>
+		/// <returns>True on success</returns>
+		public bool TryGetSecret(SecretId secretId, [NotNullWhen(true)] out SecretConfig? config) => _secretLookup.TryGetValue(secretId, out config);
 
 		/// <summary>
 		/// Authorizes a user to perform a given action
