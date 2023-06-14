@@ -11,6 +11,8 @@
 #include "RenderResource.h"
 #include "Containers/IntrusiveDoubleLinkedList.h"
 #include "Containers/Map.h"
+#include "Containers/StaticArray.h"
+#include "Containers/Union.h"
 #include "RenderGraphBuilder.h"
 
 class UStreamableSparseVolumeTexture;
@@ -112,13 +114,17 @@ private:
 		int32 PhysicalTilesCapacity;
 		EPixelFormat FormatA;
 		EPixelFormat FormatB;
+		FVector4f FallbackValueA;
+		FVector4f FallbackValueB;
 		FTextureRHIRef TileDataTextureARHIRef;
 		FTextureRHIRef TileDataTextureBRHIRef;
 		TUniquePtr<class FTileUploader> TileUploader;
 		int32 NumTilesToUpload;
+		int32 NumVoxelsToUploadA;
+		int32 NumVoxelsToUploadB;
 
 		// Constructor. May change the requested ResolutionInTiles (and resulting PhysicalTilesCapacity) if it exceeds hardware limits.
-		FTileDataTexture(const FIntVector3& ResolutionInTiles, EPixelFormat FormatA, EPixelFormat FormatB);
+		FTileDataTexture(const FIntVector3& ResolutionInTiles, EPixelFormat FormatA, EPixelFormat FormatB, const FVector4f& FallbackValueA, const FVector4f& FallbackValueB);
 
 		// Allocate a tile slot in the texture. The resulting value is a packed coordinate (8 bit per component) of the allocated slot or INDEX_NONE if the allocation failed.
 		// The upper 8 bit are free to be used by the caller.
@@ -256,23 +262,21 @@ private:
 	};
 
 	// Encapsulates all the src/dst pointers for memcpy-ing the streamed data into GPU memory.
+	// See the comment on FMipLevelStreamingInfo for details about these pointers.
 	struct FUploadTask
 	{
-		enum class ETaskType
-		{
-			TileData, PageTable
-		};
-
 		struct FTileDataTask
 		{
-			uint8* DstA;
-			uint8* DstB;
+			TStaticArray<uint8*, 2> DstOccupancyBitsPtrs;
+			TStaticArray<uint8*, 2> DstTileDataOffsetsPtrs;
+			TStaticArray<uint8*, 2> DstTileDataPtrs;
 			uint8* DstPhysicalTileCoords;
-			const uint8* SrcA;
-			const uint8* SrcB;
+			TStaticArray<const uint8*, 2> SrcOccupancyBitsPtrs;
+			TStaticArray<const uint8*, 2> SrcTileDataOffsetsPtrs;
+			TStaticArray<const uint8*, 2> SrcTileDataPtrs;
 			const uint8* SrcPhysicalTileCoords;
-			int32 SizeA;
-			int32 SizeB;
+			TStaticArray<uint32, 2> TileDataBaseOffsets;
+			TStaticArray<int32, 2> TileDataSizes;
 			int32 NumPhysicalTiles;
 		};
 
@@ -286,12 +290,7 @@ private:
 			int32 NumPageTableUpdates;
 		};
 
-		ETaskType TaskType = ETaskType::TileData;
-		union
-		{
-			FTileDataTask TileDataTask;
-			FPageTableTask PageTableTask;
-		};
+		TUnion<FTileDataTask, FPageTableTask> Union;
 	};
 
 	struct FPageTableClear

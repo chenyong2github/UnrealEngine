@@ -55,10 +55,12 @@ FArchive& operator<<(FArchive& Ar, UE::SVT::FMipLevelStreamingInfo& MipLevelStre
 	Ar << MipLevelStreamingInfo.BulkSize;
 	Ar << MipLevelStreamingInfo.PageTableOffset;
 	Ar << MipLevelStreamingInfo.PageTableSize;
-	Ar << MipLevelStreamingInfo.TileDataAOffset;
-	Ar << MipLevelStreamingInfo.TileDataASize;
-	Ar << MipLevelStreamingInfo.TileDataBOffset;
-	Ar << MipLevelStreamingInfo.TileDataBSize;
+	Ar << MipLevelStreamingInfo.OccupancyBitsOffset;
+	Ar << MipLevelStreamingInfo.OccupancyBitsSize;
+	Ar << MipLevelStreamingInfo.TileDataOffsetsOffset;
+	Ar << MipLevelStreamingInfo.TileDataOffsetsSize;
+	Ar << MipLevelStreamingInfo.TileDataOffset;
+	Ar << MipLevelStreamingInfo.TileDataSize;
 	Ar << MipLevelStreamingInfo.NumPhysicalTiles;
 	return Ar;
 }
@@ -99,7 +101,7 @@ static int32 ComputeNumMipLevels(const FIntVector3& InResolution)
 
 static const FString& GetDerivedDataVersion()
 {
-	static FString CachedVersionString = TEXT("381AE2A9-A903-4C8F-8486-891E24D6FC71");	// Bump this if you want to ignore all cached data so far.
+	static FString CachedVersionString = TEXT("381AE2A9-A903-4C8F-8486-891E24D6FC72");	// Bump this if you want to ignore all cached data so far.
 	return CachedVersionString;
 }
 
@@ -313,6 +315,76 @@ bool FResources::Build(USparseVolumeTextureFrame* Owner, UE::Serialization::FEdi
 			return NumNonZeroEntries;
 		};
 
+		auto CompressTiles = [](int32 NumTiles, const TArray64<uint8>& PhysicalTileDataA, const TArray64<uint8>& PhysicalTileDataB, const TArrayView<EPixelFormat>& Formats, const TArrayView<FVector4f>& FallbackValues, TArray<uint8>& BulkData, FMipLevelStreamingInfo& MipStreamingInfo)
+		{
+			const int64 FormatSize[] = { GPixelFormats[Formats[0]].BlockBytes, GPixelFormats[Formats[1]].BlockBytes };
+			uint8 NullTileValuesU8[2][sizeof(float) * 4] = {};
+			int32 NumTextures = 0;
+			int32 EstimatedTileDataSize = NumTiles * SVT::NumVoxelsPerPaddedTile * (FormatSize[0] + FormatSize[1]);
+			for (int32 i = 0; i < 2; ++i)
+			{
+				if (Formats[i] != PF_Unknown)
+				{
+					++NumTextures;
+					SVT::WriteVoxel(0, NullTileValuesU8[i], Formats[i], FallbackValues[i]);
+				}
+			}
+
+			const int32 OccupancySizePerTexture = NumTiles * SVT::NumOccupancyWordsPerPaddedTile * sizeof(uint32);
+			const int32 OccupancySize = NumTextures * OccupancySizePerTexture;
+			const int32 TileDataOffsetsSize = NumTextures * NumTiles * sizeof(uint32);
+			BulkData.Reserve(BulkData.Num() + OccupancySize + TileDataOffsetsSize + EstimatedTileDataSize);
+
+			MipStreamingInfo.OccupancyBitsOffset[0] = BulkData.Num() - MipStreamingInfo.BulkOffset;
+			MipStreamingInfo.OccupancyBitsSize[0] = Formats[0] != PF_Unknown ? OccupancySizePerTexture : 0;
+			BulkData.SetNum(BulkData.Num() + MipStreamingInfo.OccupancyBitsSize[0]);
+			
+			MipStreamingInfo.OccupancyBitsOffset[1] = BulkData.Num() - MipStreamingInfo.BulkOffset;
+			MipStreamingInfo.OccupancyBitsSize[1] = Formats[1] != PF_Unknown ? OccupancySizePerTexture : 0;
+			BulkData.SetNum(BulkData.Num() + MipStreamingInfo.OccupancyBitsSize[1]);
+
+			MipStreamingInfo.TileDataOffsetsOffset[0] = BulkData.Num() - MipStreamingInfo.BulkOffset;
+			MipStreamingInfo.TileDataOffsetsSize[0] = Formats[0] != PF_Unknown ? NumTiles * sizeof(uint32) : 0;
+			BulkData.SetNum(BulkData.Num() + MipStreamingInfo.TileDataOffsetsSize[0]);
+
+			MipStreamingInfo.TileDataOffsetsOffset[1] = BulkData.Num() - MipStreamingInfo.BulkOffset;
+			MipStreamingInfo.TileDataOffsetsSize[1] = Formats[1] != PF_Unknown ? NumTiles * sizeof(uint32) : 0;
+			BulkData.SetNum(BulkData.Num() + MipStreamingInfo.TileDataOffsetsSize[1]);
+
+			FMemory::Memzero(BulkData.GetData() + MipStreamingInfo.BulkOffset + MipStreamingInfo.OccupancyBitsOffset[0], MipStreamingInfo.OccupancyBitsSize[0] + MipStreamingInfo.OccupancyBitsSize[1]);
+
+			for (int32 AttributesIdx = 0; AttributesIdx < 2; ++AttributesIdx)
+			{
+				MipStreamingInfo.TileDataOffset[AttributesIdx] = BulkData.Num() - MipStreamingInfo.BulkOffset;
+
+				if (Formats[AttributesIdx] != PF_Unknown)
+				{
+					uint32 NumValidVoxelsTotal = 0;
+					for (int64 TileIndex = 0; TileIndex < NumTiles; ++TileIndex)
+					{
+						uint32* TileDataOffsets = reinterpret_cast<uint32*>(BulkData.GetData() + MipStreamingInfo.BulkOffset + MipStreamingInfo.TileDataOffsetsOffset[AttributesIdx]);
+						TileDataOffsets[TileIndex] = NumValidVoxelsTotal;
+
+						for (int64 VoxelIndex = 0; VoxelIndex < SVT::NumVoxelsPerPaddedTile; ++VoxelIndex)
+						{
+							const uint8* Src = (AttributesIdx == 0 ? PhysicalTileDataA.GetData() : PhysicalTileDataB.GetData()) + FormatSize[AttributesIdx] * (TileIndex * SVT::NumVoxelsPerPaddedTile + VoxelIndex);
+							bool bIsFallbackValue = FMemory::Memcmp(Src, NullTileValuesU8[AttributesIdx], FormatSize[AttributesIdx]) == 0;
+							if (!bIsFallbackValue)
+							{
+								const int64 WordIndex = TileIndex * SVT::NumOccupancyWordsPerPaddedTile + (VoxelIndex / 32);
+								uint32* OccupancyBits = reinterpret_cast<uint32*>(BulkData.GetData() + MipStreamingInfo.BulkOffset + MipStreamingInfo.OccupancyBitsOffset[AttributesIdx]);
+								OccupancyBits[WordIndex] |= 1u << (static_cast<uint32>(VoxelIndex) % 32u);
+								NumValidVoxelsTotal++;
+								BulkData.Append(Src, FormatSize[AttributesIdx]);
+							}
+						}
+					}
+				}
+
+				MipStreamingInfo.TileDataSize[AttributesIdx] = BulkData.Num() - MipStreamingInfo.BulkOffset - MipStreamingInfo.TileDataOffset[AttributesIdx];
+			}
+		};
+
 		TArray<uint8> StreamableBulkData;
 		for (int32 MipLevelIdx = 0; MipLevelIdx < DerivedTextureData.MipMaps.Num(); ++MipLevelIdx)
 		{
@@ -330,13 +402,7 @@ bool FResources::Build(USparseVolumeTextureFrame* Owner, UE::Serialization::FEdi
 			const int32 NumNonZeroPageTableEntries = CompressPageTable(Mip.PageTable, MipPageTableResolution, BulkData);
 			MipStreamingInfo.PageTableSize = NumNonZeroPageTableEntries * 2 * sizeof(uint32);
 			
-			MipStreamingInfo.TileDataAOffset = BulkData.Num() - MipStreamingInfo.BulkOffset;
-			MipStreamingInfo.TileDataASize = Mip.PhysicalTileDataA.Num();
-			BulkData.Append(Mip.PhysicalTileDataA.GetData(), Mip.PhysicalTileDataA.Num());
-
-			MipStreamingInfo.TileDataBOffset = BulkData.Num() - MipStreamingInfo.BulkOffset;
-			MipStreamingInfo.TileDataBSize = Mip.PhysicalTileDataB.Num();
-			BulkData.Append(Mip.PhysicalTileDataB.GetData(), Mip.PhysicalTileDataB.Num());
+			CompressTiles(Mip.NumPhysicalTiles, Mip.PhysicalTileDataA, Mip.PhysicalTileDataB, Header.AttributesFormats, Header.FallbackValues, BulkData, MipStreamingInfo);
 
 			MipStreamingInfo.BulkSize = BulkData.Num() - MipStreamingInfo.BulkOffset;
 			MipStreamingInfo.NumPhysicalTiles = Mip.NumPhysicalTiles;
@@ -771,7 +837,12 @@ void USparseVolumeTextureFrame::Serialize(FArchive& Ar)
 
 	bool bCooked = Ar.IsCooking();
 	Ar << bCooked;
-	Resources.Serialize(Ar, this, bCooked);
+
+	// Inline the derived data for cooked builds.
+	if (bCooked && !IsTemplate() && !Ar.IsCountingMemory())
+	{
+		Resources.Serialize(Ar, this, bCooked);
+	}
 }
 
 void USparseVolumeTextureFrame::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)

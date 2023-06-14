@@ -67,6 +67,112 @@ void SparseVolumeTextureUpdateFromBufferCS(uint3 GroupId : SV_GroupID, uint Grou
 
 #endif // UPDATE_TILE_TEXTURE_FROM_BUFFER
 
+#ifdef UPDATE_TILE_TEXTURE_FROM_SPARSE_BUFFER
+
+RWTexture3D<float4> DstPhysicalTileTextureA;
+RWTexture3D<float4> DstPhysicalTileTextureB;
+Buffer<float4> SrcPhysicalTileBufferA;
+Buffer<float4> SrcPhysicalTileBufferB;
+ByteAddressBuffer OccupancyBitsBuffer;
+ByteAddressBuffer TileDataOffsetsBuffer;
+ByteAddressBuffer DstTileCoordsBuffer;
+float4 FallbackValueA;
+float4 FallbackValueB;
+uint NumTilesToCopy;
+uint BufferTileStep;
+uint NumDispatchedGroups;
+uint PaddedTileSize;
+uint CopyTexureMask;
+
+uint ComputeLocalVoxelDataLoadIndex(uint VoxelIndex, uint2 OccupancyBits, out bool bValidVoxel)
+{
+	VoxelIndex &= 63u;
+	bValidVoxel = false;
+	uint PrefixSum = 0;
+	if (VoxelIndex < 32u)
+	{
+		bValidVoxel = OccupancyBits.x & (1u << VoxelIndex);
+		PrefixSum = countbits(OccupancyBits.x & ((1u << VoxelIndex) - 1u));
+	}
+	else
+	{
+		const uint WrappedVoxelIndex = VoxelIndex - 32u;
+		bValidVoxel = OccupancyBits.y & (1u << WrappedVoxelIndex);
+		PrefixSum = countbits(OccupancyBits.x) + countbits(OccupancyBits.y & ((1u << WrappedVoxelIndex) - 1u));
+	}
+	return PrefixSum;
+}
+
+[numthreads(64, 1, 1)]
+void SparseVolumeTextureUpdateFromSparseBufferCS(uint3 GroupId : SV_GroupID, uint GroupThreadIndex : SV_GroupIndex)
+{
+	const bool bCopyTextureA = CopyTexureMask & 1u;
+	const bool bCopyTextureB = CopyTexureMask & 2u;
+	const uint GroupIdx = GroupId.x;
+	const uint NumVoxelsPerPaddedTile = PaddedTileSize * PaddedTileSize * PaddedTileSize;
+	const uint NumOccupancyWordsPerPaddedTile = (NumVoxelsPerPaddedTile + 31u) / 32u;
+
+	// Process one tile per workgroup
+	for (uint TileIdx = GroupIdx; TileIdx < NumTilesToCopy; TileIdx += NumDispatchedGroups)
+	{
+		const uint PackedDstCoord = DstTileCoordsBuffer.Load(TileIdx << 2u);
+		const uint3 DstBaseCoord = uint3(PackedDstCoord & 0xFFu, (PackedDstCoord >> 8u) & 0xFFu, (PackedDstCoord >> 16u) & 0xFFu) * PaddedTileSize;
+
+		// The start offset of the voxels and the occupancy bits of any given tile are stored per texture in a contiguous section of the buffer(s).
+		// This offset is used to jump to the offset for the current texture.
+		uint TextureTileOffset = 0;
+
+		// Iterate over both possible textures.
+		UNROLL for (uint TextureIdx = 0; TextureIdx < 2; ++TextureIdx)
+		{
+			BRANCH if ((TextureIdx == 0 && bCopyTextureA) || (TextureIdx == 1 && bCopyTextureB))
+			{
+				// The offset in the source buffer at which the tile data for this tile starts.
+				const uint TileDataOffset = TileDataOffsetsBuffer.Load((TileIdx + TextureTileOffset) << 2u);
+				uint OccupancyLoadIdx = (TileIdx + TextureTileOffset) * NumOccupancyWordsPerPaddedTile;
+				// Keep track of the number of voxels read from the source buffer (for this tile only).
+				uint NumReadVoxels = 0;
+
+				// Iterate over all voxels in the tile and copy them.
+				for (uint VoxelIdx = GroupThreadIndex; VoxelIdx < NumVoxelsPerPaddedTile; VoxelIdx += 64)
+				{
+					const uint2 OccupancyBits = OccupancyBitsBuffer.Load2(OccupancyLoadIdx << 2u);
+
+					bool bValidVoxel = false;
+					const uint LocalLoadIndex = ComputeLocalVoxelDataLoadIndex(VoxelIdx, OccupancyBits, bValidVoxel);
+					const uint3 DstCoord = DstBaseCoord + UnflattenCoord(VoxelIdx, PaddedTileSize);
+
+					BRANCH if (TextureIdx == 0)
+					{
+						float4 Voxel = FallbackValueA;
+						BRANCH if (bValidVoxel)
+						{
+							Voxel = SrcPhysicalTileBufferA.Load(TileDataOffset + NumReadVoxels + LocalLoadIndex);
+						}
+						DstPhysicalTileTextureA[DstCoord] = Voxel;
+					}
+					else
+					{
+						float4 Voxel = FallbackValueB;
+						BRANCH if (bValidVoxel)
+						{
+							Voxel = SrcPhysicalTileBufferB.Load(TileDataOffset + NumReadVoxels + LocalLoadIndex);
+						}
+						DstPhysicalTileTextureB[DstCoord] = Voxel;
+					}
+					
+					OccupancyLoadIdx += 2; // We just consumed 64 bits (2 uints)
+					NumReadVoxels += countbits(OccupancyBits.x) + countbits(OccupancyBits.y);
+				}
+
+				TextureTileOffset += BufferTileStep;
+			}
+		}
+	}
+}
+
+#endif // UPDATE_TILE_TEXTURE_FROM_SPARSE_BUFFER
+
 #ifdef UPDATE_PAGE_TABLE
 
 RWTexture3D<uint> PageTable;

@@ -47,16 +47,35 @@ struct FHeader
 };
 
 // Describes a mip level of a SVT frame in terms of the sizes and offsets of the data in the built bulk data.
+// Each mip level consists of 4 buffer sections:
+// 
+// Page table data is stored as two consecutive uint32 arrays, where the first array stores packed coordinates into the page table.
+// The second array stores the physical tile indices to be written to the page table. Only non-zero page table entries are stored.
+//
+// Since often about 30%-50% of all voxels in the physical tiles have values equal to the fallback value, the tile data (voxels) is also compressed.
+// For each tile, a bit mask with one bit per voxel is stored (occupancy bits). A set bit indicates that the voxel is actually stored and not equal
+// to the fallback value. When streaming in the data, the compressed voxel data is expanded on the GPU in the upload shader.
+// This bit mask costs 183 uint32 -> 732 bytes. A full 18x18x18 tile (16+2 padding) of 8bit unorm data is 5832 bytes, so if 30%-50% of that can be saved,
+// then paying 732 bytes for the occupancy bits should almost always be worth it.
+// 
+// Due to the above compression technique, the start offset of the voxel data for a given tile can now no longer be computed as NumVoxelsPerPaddedTile * TileIndex,
+// so a precomputed offset into the shared array of voxel data is needed (tile data offsets). This means that we need to store one additional uint32 per tile,
+// arriving at a total overhead of 736 bytes per tile.
+// 
+// Finally there is the actual voxel data, which is simply the all non-fallback voxels in contiguous memory.
+// 
 struct FMipLevelStreamingInfo
 {
 	int32 BulkOffset;
 	int32 BulkSize;
 	int32 PageTableOffset; // relative to BulkOffset
 	int32 PageTableSize;
-	int32 TileDataAOffset; // relative to BulkOffset
-	int32 TileDataASize;
-	int32 TileDataBOffset; // relative to BulkOffset
-	int32 TileDataBSize;
+	TStaticArray<int32, 2> OccupancyBitsOffset; // relative to BulkOffset
+	TStaticArray<int32, 2> OccupancyBitsSize;
+	TStaticArray<int32, 2> TileDataOffsetsOffset; // relative to BulkOffset. Per-tile offset into this mip levels voxel data
+	TStaticArray<int32, 2> TileDataOffsetsSize;
+	TStaticArray<int32, 2> TileDataOffset; // relative to BulkOffset
+	TStaticArray<int32, 2> TileDataSize;
 	int32 NumPhysicalTiles;
 };
 
