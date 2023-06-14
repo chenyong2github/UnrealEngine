@@ -8,6 +8,7 @@
 class STableViewBase;
 class UStateTreeState;
 enum class EStateTreeTransitionTrigger : uint8;
+struct FStateTreeStateLink;
 
 class UStateTreeEditorData;
 class SStateTreeView;
@@ -63,6 +64,7 @@ private:
 	EVisibility GetConditionalTransitionsVisibility() const;
 	FText GetConditionalTransitionsDesc() const;
 
+	static FText GetLinkDescription(const FStateTreeStateLink& Link);
 	FText GetTransitionsDesc(const UStateTreeState& State, const EStateTreeTransitionTrigger Trigger, const bool bUseMask = false) const;
 	FText GetTransitionsIcon(const UStateTreeState& State, const EStateTreeTransitionTrigger Trigger, const bool bUseMask = false) const;
 	EVisibility GetTransitionsVisibility(const UStateTreeState& State, const EStateTreeTransitionTrigger Trigger) const;
