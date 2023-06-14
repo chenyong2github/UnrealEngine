@@ -397,15 +397,18 @@ bool FStoreCborClient::SetStoreDirectories(const TCHAR* StoreDir, const TArray<F
 	{
 		Builder.AddString("StoreDir", TCHAR_TO_ANSI(StoreDir));
 	}
-	if (!AddWatchDirs.IsEmpty())
-	{
-		Builder.AddStringArray("Additionalwatchdirs", AddWatchDirs);
-	}
+	TArray<FString> WatchDirs;
 	if (!RemoveWatchDir.IsEmpty())
 	{
-		TArray<FString> RemoveDirs;
-		Algo::Transform(RemoveWatchDir, RemoveDirs, [](const FString& In) { return TEXT("-") + In; });
-		Builder.AddStringArray("Additionalwatchdirs", RemoveDirs);
+		Algo::Transform(RemoveWatchDir, WatchDirs, [](const FString& In) { return TEXT("-") + In; });
+	}
+	if (!AddWatchDirs.IsEmpty())
+	{
+		WatchDirs.Append(AddWatchDirs);
+	}
+	if (!WatchDirs.IsEmpty())
+	{
+		Builder.AddStringArray("Additionalwatchdirs", WatchDirs);
 	}
 	return Communicate(Builder.Done());
 }

@@ -1502,12 +1502,19 @@ FReply STraceDirectoryItem::OnModifyStore()
 		const bool bIsWatchDir = Window->WatchDirectoriesModel.FindByPredicate([&](const auto& Directory){ return FPathViews::Equals(SelectedDirectory, Directory->Path);}) != nullptr;
 		const bool bIsCurrentStoreDir = FPathViews::Equals(SelectedDirectory, CurrentStoreDirectory);
 
-		if (bHasSelected && !bIsWatchDir && !bIsCurrentStoreDir)
+		if (bHasSelected && !bIsCurrentStoreDir)
 		{
 			FPaths::MakePlatformFilename(SelectedDirectory);
 			FPaths::MakePlatformFilename(CurrentStoreDirectory);
-			TArray<FString> AddWatchDirs = { CurrentStoreDirectory };
-			if (!FInsightsManager::Get()->GetStoreClient()->SetStoreDirectories(*SelectedDirectory, AddWatchDirs, TArray<FString>()))
+			const TArray<FString> AddWatchDirs = { CurrentStoreDirectory };
+			TArray<FString> RemoveWatchDirs;
+			if (bIsWatchDir)
+			{
+				// If we are selecting a watch dir as new store dir, make
+				// sure we remove it as watch directory.
+				RemoveWatchDirs.Emplace(SelectedDirectory);
+			}
+			if (!FInsightsManager::Get()->GetStoreClient()->SetStoreDirectories(*SelectedDirectory, AddWatchDirs, RemoveWatchDirs))
 			{
 				FMessageLog(FInsightsManager::Get()->GetLogListingName()).Error(LOCTEXT("StoreCommunicationFail", "Failed to change settings on the store service."));
 			}
