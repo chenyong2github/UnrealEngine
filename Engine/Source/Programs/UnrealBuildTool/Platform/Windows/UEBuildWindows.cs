@@ -1361,7 +1361,7 @@ namespace UnrealBuildTool
 				CompileEnvironment.Definitions.Add(String.Format("OVERRIDE_PLATFORM_HEADER_NAME={0}", OverridePlatformHeaderName));
 			}
 
-			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows) && Target.WindowsPlatform.bEnableRayTracing)
+			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows) && Target.WindowsPlatform.bEnableRayTracing && Target.Type != TargetType.Server)
 			{
 				CompileEnvironment.Definitions.Add("RHI_RAYTRACING=1");
 			}

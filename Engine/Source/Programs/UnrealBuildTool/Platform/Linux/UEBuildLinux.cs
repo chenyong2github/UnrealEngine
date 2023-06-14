@@ -523,7 +523,7 @@ namespace UnrealBuildTool
 
 			CompileEnvironment.Definitions.Add("INT64_T_TYPES_NOT_LONG_LONG=1");
 
-			if (Target.LinuxPlatform.bEnableRayTracing)
+			if (Target.LinuxPlatform.bEnableRayTracing && Target.Type != TargetType.Server)
 			{
 				CompileEnvironment.Definitions.Add("RHI_RAYTRACING=1");
 			}

@@ -510,7 +510,7 @@ namespace UnrealBuildTool
 			CompileEnvironment.Definitions.Add("PLATFORM_MAC=1");
 			CompileEnvironment.Definitions.Add("PLATFORM_APPLE=1");
 
-			if (Target.MacPlatform.bEnableRayTracing)
+			if (Target.MacPlatform.bEnableRayTracing && Target.Type != TargetType.Server)
 			{
 				CompileEnvironment.Definitions.Add("RHI_RAYTRACING=1");
 			}
