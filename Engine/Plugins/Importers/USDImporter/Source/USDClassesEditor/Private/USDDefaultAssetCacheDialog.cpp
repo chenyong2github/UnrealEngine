@@ -262,7 +262,7 @@ FReply SUsdDefaultAssetCacheDialog::OnCreateNew()
 
 FReply SUsdDefaultAssetCacheDialog::OnDontCreate()
 {
-	bAccepted = false;
+	bAccepted = true;
 	if (Window.IsValid())
 	{
 		Window.Pin()->RequestDestroyWindow();
