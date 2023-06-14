@@ -30,6 +30,7 @@ namespace UnrealBuildTool.Rules
                     "MediaUtils",
 					"PlacementMode",
 					"PropertyEditor",
+					"SharedSettingsWidgets",
 					"Slate",
 					"SlateCore",
 					"TimeManagement",
