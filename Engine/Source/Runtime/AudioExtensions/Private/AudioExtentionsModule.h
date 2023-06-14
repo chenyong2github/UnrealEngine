@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "AudioExtentionsModule.h"
+#include "Modules/ModuleInterface.h"
 
 class FAudioExtensionsModule final : public IModuleInterface
 {
