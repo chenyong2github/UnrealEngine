@@ -150,8 +150,6 @@ void MainCS(
 	
 	float ClosestDeviceZ = DeviceZ;
 	int2 VelocityPixelOffset = int2(0, 0);
-	float ParallaxFactorForHistory = 1.0;
-	float ParallaxFactorForHistoryRejection = 1.0;
 	#if CONFIG_AA_CROSS
 	ISOLATE
 	{
@@ -175,9 +173,6 @@ void MainCS(
 		#endif
 
 		uint PackedDepthOffset = PackDepthAndOffset(/* Offset = */ int2(0, 0), CenterSubpixelDeviceZ);
-
-		float FurthestPairDeviceZ = DeviceZ;
-		float FurthestDeviceZ = DeviceZ;
 
 		#if CONFIG_DEPTH_EDGE_DETECTION
 		float DeviceZError;
@@ -252,13 +247,7 @@ void MainCS(
 				PackedDepthOffset = max(PackedDepthOffset, PackDepthAndOffset(-Offset, CombinedSampleSubpixelDeviceZ1));
 			}
 			#endif
-
-			FurthestPairDeviceZ = min(FurthestPairDeviceZ, max(SampleDeviceZ0, SampleDeviceZ1));
-			FurthestDeviceZ = min(FurthestDeviceZ, min(SampleDeviceZ0, SampleDeviceZ1));
 		}
-
-		ParallaxFactorForHistory = clamp(DeviceZ / FurthestPairDeviceZ, 0.0, MAX_PARALLAX_FACTOR);
-		ParallaxFactorForHistoryRejection = clamp(DeviceZ / FurthestDeviceZ, 0.0, MAX_PARALLAX_FACTOR);
 
 		UnpackDepthAndOffset(PackedDepthOffset, /* out */ VelocityPixelOffset, /* out */ ClosestDeviceZ);
 	}
@@ -371,18 +360,6 @@ void MainCS(
 		{
 			CompressedSubpixelDepth = 0;
 		}
-
-		if (ParallaxFactorForHistory > 1.005 && (!bIsMovingPixel || bIncludeDynamicDepthInSubpixelDetails))
-		{
-			FTSRSubpixelDepth FinalSubpixelDepth;
-			FinalSubpixelDepth.DeviceZ = DeviceZ;
-			FinalSubpixelDepth.Offset = 0.0;
-			FinalSubpixelDepth.RemainingLifetime = SubpixelDepthLifetime;
-
-			CompressedSubpixelDepth = CompressSubpixelDepth(FinalSubpixelDepth);
-
-			ParallaxFactorForHistory = 0.0;
-		}
 	}
 	#endif
 
@@ -447,19 +424,13 @@ void MainCS(
 		#if CONFIG_SUBPIXEL_DEPTH
 		{
 			SubpixelDepthOutput[OutputPixelPos] = CompressedSubpixelDepth;
-			R8Output[uint3(OutputPixelPos, 0)] = 0; // TODO save some memory bandwidth.
-		}
-		#else
-		{
-			// TODO save some memory bandwidth.
-			R8Output[uint3(OutputPixelPos, 0)] = CompressParallaxFactor(tsr_half(ParallaxFactorForHistory)) | (CompressParallaxFactor(tsr_half(ParallaxFactorForHistoryRejection)) << 4);
 		}
 		#endif
 
 		BRANCH
 		if (bOutputIsMovingTexture)
 		{
-			R8Output[uint3(OutputPixelPos, 1)] = uint(round(IsMovingMask * 255.0));
+			R8Output[uint3(OutputPixelPos, 0)] = uint(round(IsMovingMask * 255.0));
 		}
 
 		// Output motion blur velocity flatten

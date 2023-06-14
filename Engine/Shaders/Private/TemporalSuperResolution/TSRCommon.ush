@@ -222,11 +222,6 @@ static const uint kPlusIndexes3x3[5] = { 4, 1, 3, 7, 5 };
 #endif
 
 
-#define tsr_subpixel_details uint
-#define tsr_subpixel_details2 uint2
-#define tsr_subpixel_payload uint // TODO: uint16_t
-#define tsr_subpixel_payload2 uint2 // TODO: uint16_t
-
 // Largest encodable normal number in a half used on console.
 static const tsr_half LargestNormalNumber = tsr_half(65504.0);
 
@@ -290,8 +285,6 @@ float2 PrevHistoryInfo_UVViewportSizeInverse;
 float2 PrevHistoryInfo_UVViewportBilinearMin;
 float2 PrevHistoryInfo_UVViewportBilinearMax;
 FScreenTransform ScreenPosToPrevHistoryBufferUV;
-FScreenTransform ScreenPosToPrevSubpixelDetails;
-float2 PrevSubpixelDetailsExtent;
 float HistoryPreExposureCorrection;
 
 uint bCameraCut;
@@ -925,102 +918,6 @@ tsr_half MeasureRejectionFactor(
 		dpv_interleave_mono_registers(InputMinYCoCg), 
 		dpv_interleave_mono_registers(InputMaxYCoCg), 
 		dpv_interleave_mono_registers(BackbufferQuantizationError)));
-}
-
-struct FSubpixelNeighborhood
-{
-	// 2x2 quad of subpixels grid
-	tsr_subpixel_details SampleArray[4];
-
-	// Offset of subpixel
-	uint2 SubpixelOffset;
-
-	// Offset of the closest subpixel
-	bool2 ClosestSubpixelOffset;
-};
-
-FSubpixelNeighborhood GatherPrevSubpixelNeighborhood(Texture2D<tsr_subpixel_details> PrevSubPixelDetailTexture, float2 PrevHistoryBufferUV)
-{
-	float2 PixelCoord = PrevHistoryBufferUV * PrevSubpixelDetailsExtent;
-	float2 TopLeftPixelCoord = floor(PixelCoord - 0.5) + 0.5;
-	
-	FSubpixelNeighborhood Neighborhood;
-	#if 1 // TODO
-	{
-		Neighborhood.SampleArray[0] = PrevSubPixelDetailTexture[uint2(TopLeftPixelCoord + float2(0.0, 0.0))];
-		Neighborhood.SampleArray[1] = PrevSubPixelDetailTexture[uint2(TopLeftPixelCoord + float2(1.0, 0.0))];
-		Neighborhood.SampleArray[2] = PrevSubPixelDetailTexture[uint2(TopLeftPixelCoord + float2(0.0, 1.0))];
-		Neighborhood.SampleArray[3] = PrevSubPixelDetailTexture[uint2(TopLeftPixelCoord + float2(1.0, 1.0))];
-	}
-	#else
-	{
-		// (-,+),(+,+),(+,-),(-,-),
-		/**
-		 *  3 2
-		 *  0 1
-		 */
-		uint4 Samples = PrevSubPixelDetailTexture.Gather(GlobalPointClampedSampler, PrevHistoryBufferUV);
-
-		Neighborhood.SampleArray[0] = Samples[3]; // 00
-		Neighborhood.SampleArray[1] = Samples[2]; // 10
-		Neighborhood.SampleArray[2] = Samples[0]; // 01
-		Neighborhood.SampleArray[3] = Samples[1]; // 11
-	}
-	#endif
-
-	tsr_half2 Interp = tsr_half2(PixelCoord - TopLeftPixelCoord);
-	Neighborhood.SubpixelOffset = uint2(round(Interp * 2.0));
-	Neighborhood.ClosestSubpixelOffset = Interp > 0.5;
-
-	return Neighborhood;
-}
-
-tsr_subpixel_payload GetSubpixelPayload(FSubpixelNeighborhood Neighborhood, uint SubpixelId)
-{
-	const uint2 SubpixelCoord = uint2(SubpixelId % SUB_PIXEL_GRID_SIZE, SubpixelId / SUB_PIXEL_GRID_SIZE);
-
-	uint2 InputSubpixelCoord = Neighborhood.SubpixelOffset + SubpixelCoord;
-	uint2 InputTexelCoord = InputSubpixelCoord / SUB_PIXEL_GRID_SIZE;
-	uint2 QuadSubpixelCoord = InputSubpixelCoord % SUB_PIXEL_GRID_SIZE;
-
-
-	uint QuadSampleId = dot(InputTexelCoord, uint2(1, 2));
-	tsr_subpixel_details InputSample = Neighborhood.SampleArray[QuadSampleId];
-
-	uint BitShift = SUB_PIXEL_BIT_COUNT * dot(QuadSubpixelCoord, uint2(1, SUB_PIXEL_GRID_SIZE));
-
-	tsr_subpixel_payload SubpixelPayload = tsr_subpixel_payload(InputSample >> BitShift) & SUB_PIXEL_BIT_MASK;
-
-	return SubpixelPayload;
-}
-
-tsr_subpixel_payload GetClosestSubpixelPayload(FSubpixelNeighborhood Neighborhood)
-{
-	uint QuadSampleId = dot(uint2(Neighborhood.ClosestSubpixelOffset), uint2(1, 2));
-	tsr_subpixel_details InputSample = Neighborhood.SampleArray[QuadSampleId];
-
-	uint BitShift = SUB_PIXEL_BIT_COUNT * (3 - QuadSampleId);
-
-	tsr_subpixel_payload SubpixelPayload = tsr_subpixel_payload(InputSample >> BitShift) & SUB_PIXEL_BIT_MASK;
-
-	return SubpixelPayload;
-}
-
-CALL_SITE_DEBUGLOC
-tsr_subpixel_payload CompressParallaxFactor(tsr_half ParallaxFactor)
-{
-	return fastClamp(
-		tsr_subpixel_payload((ParallaxFactor - tsr_half(1.0)) * tsr_half(float(SUB_PIXEL_PARALLAX_FACTOR_BIT_MASK) / MAX_PARALLAX_FACTOR)),
-		tsr_subpixel_payload(0), tsr_subpixel_payload(SUB_PIXEL_PARALLAX_FACTOR_BIT_MASK));
-}
-
-CALL_SITE_DEBUGLOC
-tsr_half UncompressParallaxFactor(tsr_subpixel_payload CompressedParallaxFactor)
-{
-	return 
-		tsr_half(CompressedParallaxFactor & SUB_PIXEL_PARALLAX_FACTOR_BIT_MASK) *
-		tsr_half(MAX_PARALLAX_FACTOR / float(SUB_PIXEL_PARALLAX_FACTOR_BIT_MASK)) +
-		tsr_half(1.0);
 }
 
 CALL_SITE_DEBUGLOC

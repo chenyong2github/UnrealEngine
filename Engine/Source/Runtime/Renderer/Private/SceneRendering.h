@@ -997,15 +997,9 @@ struct FTSRHistory
 	TRefCountPtr<IPooledRenderTarget> TranslucencyAlpha;
 
 	// Input resolution representation of the output
-	TRefCountPtr<IPooledRenderTarget> SubpixelDetails;
 	TRefCountPtr<IPooledRenderTarget> SubpixelDepth;
 	TRefCountPtr<IPooledRenderTarget> Guide;
 	TRefCountPtr<IPooledRenderTarget> Moire;
-	TRefCountPtr<IPooledRenderTarget> Velocity;
-
-	// Previous frame's history.
-	TRefCountPtr<IPooledRenderTarget> PrevOutput;
-	TRefCountPtr<IPooledRenderTarget> PrevColorArray;
 
 	// Frame's input and output resolution.
 	FIntRect InputViewportRect;
