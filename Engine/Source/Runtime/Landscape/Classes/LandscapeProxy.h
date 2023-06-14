@@ -414,7 +414,7 @@ protected:
 	/** Guid for LandscapeEditorInfo, all proxies that belong to the same landscape should have the same LandscapeGuid, even if split across world partitions 
 	  * Note that this value may change when the landscape is instanced (or in PIE) in order to allow multiple instances of the same landscape to exist.
 	  **/
-	UPROPERTY()
+	UPROPERTY(meta = (LandscapeInherited))
 	FGuid LandscapeGuid;
 
 	/** 
@@ -423,10 +423,10 @@ protected:
 	FGuid OriginalLandscapeGuid;
 
 	/** Use Nanite to render landscape as a mesh on supported platforms. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Nanite)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Nanite, meta = (LandscapeInherited))
 	bool bEnableNanite = false;
 
-	UPROPERTY(EditAnywhere, Category = Landscape)
+	UPROPERTY(EditAnywhere, Category = Landscape, meta = (LandscapeOverridable))
 	TArray<FLandscapePerLODMaterialOverride> PerLODOverrideMaterials;
 
 #if WITH_EDITORONLY_DATA
@@ -434,7 +434,7 @@ protected:
 	TArray<FLandscapePerLODMaterialOverride> PreEditPerLODOverrideMaterials;
 
 	/** LOD level of the landscape when generating the Nanite mesh. Mostly there for debug reasons, since Nanite is meant to allow high density meshes, we want to use 0 most of the times. */
-	UPROPERTY(EditAnywhere, Category = Nanite, AdvancedDisplay, meta = (EditCondition = "bEnableNanite"))
+	UPROPERTY(EditAnywhere, Category = Nanite, AdvancedDisplay, meta = (EditCondition = "bEnableNanite", LandscapeInherited))
 	int32 NaniteLODIndex = 0;
 #endif // WITH_EDITORONLY_DATA
 
@@ -444,7 +444,7 @@ public:
 	FIntPoint LandscapeSectionOffset;
 
 	/** Max LOD level to use when rendering, -1 means the max available */
-	UPROPERTY(EditAnywhere, Category=LOD)
+	UPROPERTY(EditAnywhere, Category=LOD, meta = (LandscapeInherited))
 	int32 MaxLODLevel;
 
 #if WITH_EDITORONLY_DATA
@@ -456,22 +456,22 @@ public:
 #endif // WITH_EDITORONLY_DATA
 
 	/** Component screen size (0.0 - 1.0) at which we should keep sub sections. This is mostly pertinent if you have large component of > 64 and component are close to the camera. The goal is to reduce draw call, so if a component is smaller than the value, we merge all subsections into 1 drawcall. */
-	UPROPERTY(EditAnywhere, Category = LOD, meta=(ClampMin = "0.01", ClampMax = "1.0", UIMin = "0.01", UIMax = "1.0", DisplayName= "SubSection Min Component ScreenSize"))
+	UPROPERTY(EditAnywhere, Category = LOD, meta=(ClampMin = "0.01", ClampMax = "1.0", UIMin = "0.01", UIMax = "1.0", DisplayName= "SubSection Min Component ScreenSize", LandscapeInherited))
 	float ComponentScreenSizeToUseSubSections;
 
 	/** This is the starting screen size used to calculate the distribution. You can increase the value if you want less LOD0 component, and you use very large landscape component. */
-	UPROPERTY(EditAnywhere, Category = "LOD Distribution", meta = (DisplayName = "LOD 0 Screen Size", ClampMin = "0.1", ClampMax = "10.0", UIMin = "1.0", UIMax = "10.0"))
+	UPROPERTY(EditAnywhere, Category = "LOD Distribution", meta = (DisplayName = "LOD 0 Screen Size", ClampMin = "0.1", ClampMax = "10.0", UIMin = "1.0", UIMax = "10.0", LandscapeInherited))
 	float LOD0ScreenSize;
 
-	UPROPERTY(EditAnywhere, Category = LOD, AdvancedDisplay, meta = (ToolTip = "Specifies the LOD Group (Zero is No Group). All landscapes in the same group calculate their LOD together, allowing matching border LODs to fix geometry seams."))
+	UPROPERTY(EditAnywhere, Category = LOD, AdvancedDisplay, meta = (ToolTip = "Specifies the LOD Group (Zero is No Group). All landscapes in the same group calculate their LOD together, allowing matching border LODs to fix geometry seams.", LandscapeInherited))
 	uint32 LODGroupKey = 0;
 
 	/** The distribution setting used to change the LOD 0 generation, 1.75 is the normal distribution, numbers influence directly the LOD0 proportion on screen. */
-	UPROPERTY(EditAnywhere, Category = "LOD Distribution", meta = (DisplayName = "LOD 0", ClampMin = "1.0", ClampMax = "10.0", UIMin = "1.0", UIMax = "10.0"))
+	UPROPERTY(EditAnywhere, Category = "LOD Distribution", meta = (DisplayName = "LOD 0", ClampMin = "1.0", ClampMax = "10.0", UIMin = "1.0", UIMax = "10.0", LandscapeInherited))
 	float LOD0DistributionSetting;
 
 	/** The distribution setting used to change the LOD generation, 2 is the normal distribution, small number mean you want your last LODs to take more screen space and big number mean you want your first LODs to take more screen space. */
-	UPROPERTY(EditAnywhere, Category = "LOD Distribution", meta = (DisplayName = "Other LODs", ClampMin = "1.0", ClampMax = "10.0", UIMin = "1.0", UIMax = "10.0"))
+	UPROPERTY(EditAnywhere, Category = "LOD Distribution", meta = (DisplayName = "Other LODs", ClampMin = "1.0", ClampMax = "10.0", UIMin = "1.0", UIMax = "10.0", LandscapeInherited))
 	float LODDistributionSetting;
 
 #if WITH_EDITORONLY_DATA
@@ -480,11 +480,11 @@ public:
 	int32 ExportLOD;
 
 	/** Display Order of the targets */
-	UPROPERTY(NonTransactional)
+	UPROPERTY(NonTransactional, meta = (LandscapeInherited))
 	TArray<FName> TargetDisplayOrderList;
 
 	/** Display Order mode for the targets */
-	UPROPERTY(NonTransactional)
+	UPROPERTY(NonTransactional, meta = (LandscapeInherited))
 	ELandscapeLayerDisplayMode TargetDisplayOrder;
 #endif
 
@@ -493,7 +493,7 @@ public:
 	int32 StaticLightingLOD;
 
 	/** Default physical material, used when no per-layer values physical materials */
-	UPROPERTY(EditAnywhere, Category=Landscape)
+	UPROPERTY(EditAnywhere, Category=Landscape, meta = (LandscapeOverridable))
 	TObjectPtr<UPhysicalMaterial> DefaultPhysMaterial;
 
 	/**
@@ -505,7 +505,7 @@ public:
 	float StreamingDistanceMultiplier;
 
 	/** Combined material used to render the landscape */
-	UPROPERTY(EditAnywhere, BlueprintSetter=EditorSetLandscapeMaterial, Category=Landscape)
+	UPROPERTY(EditAnywhere, BlueprintSetter=EditorSetLandscapeMaterial, Category=Landscape, meta=(LandscapeOverridable))
 	TObjectPtr<UMaterialInterface> LandscapeMaterial;
 
 #if !WITH_EDITORONLY_DATA
@@ -520,7 +520,7 @@ public:
 #endif
 
 	/** Material used to render landscape components with holes. If not set, LandscapeMaterial will be used (blend mode will be overridden to Masked if it is set to Opaque) */
-	UPROPERTY(EditAnywhere, Category=Landscape, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category=Landscape, AdvancedDisplay, meta = (LandscapeOverridable))
 	TObjectPtr<UMaterialInterface> LandscapeHoleMaterial;
 
 
@@ -545,7 +545,7 @@ public:
 	 * Array of runtime virtual textures into which we draw this landscape.
 	 * The material also needs to be set up to output to a virtual texture.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = VirtualTexture, meta = (DisplayName = "Draw in Virtual Textures"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = VirtualTexture, meta = (DisplayName = "Draw in Virtual Textures", LandscapeOverridable))
 	TArray<TObjectPtr<URuntimeVirtualTexture>> RuntimeVirtualTextures;
 
 	/** Placeholder for details customization button. */
@@ -557,32 +557,32 @@ public:
 	 * This is the fastest path but it only gives correct results if the runtime virtual texture orientation is aligned with the landscape.
 	 * If the two are unaligned we need to render to the virtual texture using LODs with sufficient density.
 	 */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = VirtualTexture)
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = VirtualTexture, meta = (LandscapeOverridable))
 	bool bVirtualTextureRenderWithQuad = false;
 
 	/** 
 	 * Use highest quality heightmap interpolation when using a single quad to render this landscape to runtime virtual texture pages.
 	 * This also requires the project setting: r.VT.RVT.HighQualityPerPixelHeight.
 	 */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = VirtualTexture, meta = (DisplayName = "High Quality PerPixel Height", EditCondition = "bVirtualTextureRenderWithQuad"))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = VirtualTexture, meta = (DisplayName = "High Quality PerPixel Height", EditCondition = "bVirtualTextureRenderWithQuad", LandscapeOverridable))
 	bool bVirtualTextureRenderWithQuadHQ = true;
 
 	/** 
 	 * Number of mesh levels to use when rendering landscape into runtime virtual texture.
 	 * Lower values reduce vertex count when rendering to the runtime virtual texture but decrease accuracy when using values that require vertex interpolation.
 	 */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = VirtualTexture, meta = (DisplayName = "Virtual Texture Num LODs", EditCondition = "!bVirtualTextureRenderWithQuad", UIMin = "0", UIMax = "7"))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = VirtualTexture, meta = (DisplayName = "Virtual Texture Num LODs", EditCondition = "!bVirtualTextureRenderWithQuad", UIMin = "0", UIMax = "7", LandscapeOverridable))
 	int32 VirtualTextureNumLods = 6;
 
 	/** 
 	 * Bias to the LOD selected for rendering to runtime virtual textures.
 	 * Higher values reduce vertex count when rendering to the runtime virtual texture.
 	 */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = VirtualTexture, meta = (DisplayName = "Virtual Texture LOD Bias", EditCondition = "!bVirtualTextureRenderWithQuad", UIMin = "0", UIMax = "7"))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = VirtualTexture, meta = (DisplayName = "Virtual Texture LOD Bias", EditCondition = "!bVirtualTextureRenderWithQuad", UIMin = "0", UIMax = "7", LandscapeOverridable))
 	int32 VirtualTextureLodBias = 0;
 
 	/** Controls if this component draws in the main pass as well as in the virtual texture. */
-	UPROPERTY(EditAnywhere, BlueprintSetter = SetVirtualTextureRenderPassType, Category = VirtualTexture, meta = (DisplayName = "Draw in Main Pass"))
+	UPROPERTY(EditAnywhere, BlueprintSetter = SetVirtualTextureRenderPassType, Category = VirtualTexture, meta = (DisplayName = "Draw in Main Pass", LandscapeOverridable))
 	ERuntimeVirtualTextureMainPassType VirtualTextureRenderPassType = ERuntimeVirtualTextureMainPassType::Always;
 
 	UFUNCTION(BlueprintSetter)
@@ -591,13 +591,13 @@ public:
 	/** Allows overriding the landscape bounds. This is useful if you distort the landscape with world-position-offset, for example
 	 *  Extension value in the negative Z axis, positive value increases bound size
 	 *  Note that this can also be overridden per-component when the component is selected with the component select tool */
-	UPROPERTY(EditAnywhere, Category=Landscape)
+	UPROPERTY(EditAnywhere, Category=Landscape, meta = (LandscapeOverridable))
 	float NegativeZBoundsExtension;
 
 	/** Allows overriding the landscape bounds. This is useful if you distort the landscape with world-position-offset, for example
 	 *  Extension value in the positive Z axis, positive value increases bound size
 	 *  Note that this can also be overridden per-component when the component is selected with the component select tool */
-	UPROPERTY(EditAnywhere, Category=Landscape)
+	UPROPERTY(EditAnywhere, Category=Landscape, meta = (LandscapeOverridable))
 	float PositiveZBoundsExtension;
 
 	/** The array of LandscapeComponent that are used by the landscape */
@@ -635,15 +635,15 @@ public:
 	float StaticLightingResolution;
 
 	/** Controls whether the primitive component should cast a shadow or not. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Lighting)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Lighting, meta = (LandscapeOverridable))
 	uint8 CastShadow : 1;
 
 	/** Controls whether the primitive should cast shadows in the case of non precomputed shadowing.  This flag is only used if CastShadow is true. **/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Lighting, AdvancedDisplay, meta = (EditCondition = "CastShadow", DisplayName = "Dynamic Shadow"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Lighting, AdvancedDisplay, meta = (EditCondition = "CastShadow", DisplayName = "Dynamic Shadow", LandscapeOverridable))
 	uint8 bCastDynamicShadow : 1;
 
 	/** Whether the object should cast a static shadow from shadow casting lights.  This flag is only used if CastShadow is true. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Lighting, AdvancedDisplay, meta = (EditCondition = "CastShadow", DisplayName = "Static Shadow"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Lighting, AdvancedDisplay, meta = (EditCondition = "CastShadow", DisplayName = "Static Shadow", LandscapeOverridable))
 	uint8 bCastStaticShadow : 1;
 
 	/** Control shadow invalidation behavior, in particular with respect to Virtual Shadow Maps and material effects like World Position Offset. */
@@ -651,30 +651,30 @@ public:
 	EShadowCacheInvalidationBehavior ShadowCacheInvalidationBehavior;
 
 	/** Whether the object should cast contact shadows. This flag is only used if CastShadow is true. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Lighting, AdvancedDisplay, meta = (EditCondition = "CastShadow", DisplayName = "Contact Shadow"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Lighting, AdvancedDisplay, meta = (EditCondition = "CastShadow", DisplayName = "Contact Shadow", LandscapeOverridable))
 	uint8 bCastContactShadow : 1;
 
 	/** When enabled, the component will be rendering into the far shadow cascades(only for directional lights).  This flag is only used if CastShadow is true. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Lighting, meta = (EditCondition = "CastShadow", DisplayName = "Far Shadow"))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Lighting, meta = (EditCondition = "CastShadow", DisplayName = "Far Shadow", LandscapeOverridable))
 	uint32 bCastFarShadow : 1;
 
 	/** If true, the primitive will cast shadows even if bHidden is true.  Controls whether the primitive should cast shadows when hidden.  This flag is only used if CastShadow is true. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Lighting, meta = (EditCondition = "CastShadow", DisplayName = "Hidden Shadow"))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Lighting, meta = (EditCondition = "CastShadow", DisplayName = "Hidden Shadow", LandscapeOverridable))
 	uint8 bCastHiddenShadow : 1;
 
 	/** Whether this primitive should cast dynamic shadows as if it were a two sided material.  This flag is only used if CastShadow is true. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Lighting, meta = (EditCondition = "CastShadow", DisplayName = "Shadow Two Sided"))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Lighting, meta = (EditCondition = "CastShadow", DisplayName = "Shadow Two Sided", LandscapeOverridable))
 	uint32 bCastShadowAsTwoSided : 1;
 
 	/** Controls whether the primitive should affect dynamic distance field lighting methods.  This flag is only used if CastShadow is true. **/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Lighting, AdvancedDisplay, meta = (EditCondition = "CastShadow"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Lighting, AdvancedDisplay, meta = (EditCondition = "CastShadow", LandscapeOverridable))
 	uint8 bAffectDistanceFieldLighting:1;
 
 	/**
 	* Channels that this Landscape should be in.  Lights with matching channels will affect the Landscape.
 	* These channels only apply to opaque materials, direct lighting, and dynamic lighting and shadowing.
 	*/
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Lighting)
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Lighting, meta = (LandscapeOverridable))
 	FLightingChannels LightingChannels;
 
 	/** Whether to use the landscape material's vertical world position offset when calculating static lighting.
@@ -684,32 +684,32 @@ public:
 	uint32 bUseMaterialPositionOffsetInStaticLighting:1;
 
 	/** If true, the Landscape will be rendered in the CustomDepth pass (usually used for outlines) */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Rendering, meta=(DisplayName = "Render CustomDepth Pass"))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Rendering, meta=(DisplayName = "Render CustomDepth Pass", LandscapeOverridable))
 	uint32 bRenderCustomDepth:1;
 
 	/** Mask used for stencil buffer writes. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Rendering, meta = (editcondition = "bRenderCustomDepth"))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Rendering, meta = (editcondition = "bRenderCustomDepth", LandscapeOverridable))
 	ERendererStencilMask CustomDepthStencilWriteMask;
 
 	/** Optionally write this 0-255 value to the stencil buffer in CustomDepth pass (Requires project setting or r.CustomDepth == 3) */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Rendering,  meta=(UIMin = "0", UIMax = "255", editcondition = "bRenderCustomDepth", DisplayName = "CustomDepth Stencil Value"))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Rendering,  meta=(UIMin = "0", UIMax = "255", editcondition = "bRenderCustomDepth", DisplayName = "CustomDepth Stencil Value", LandscapeOverridable))
 	int32 CustomDepthStencilValue;
 
 	/**  Max draw distance exposed to LDs. The real max draw distance is the min (disregarding 0) of this and volumes affecting this object. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Rendering, meta = (DisplayName = "Desired Max Draw Distance"))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Rendering, meta = (DisplayName = "Desired Max Draw Distance", LandscapeOverridable))
 	float LDMaxDrawDistance;
 
 	/** The Lightmass settings for this object. */
-	UPROPERTY(EditAnywhere, Category=Lightmass)
+	UPROPERTY(EditAnywhere, Category=Lightmass, meta = (LandscapeInherited))
 	FLightmassPrimitiveSettings LightmassSettings;
 
 	// Landscape LOD to use for collision tests. Higher numbers use less memory and process faster, but are much less accurate
-	UPROPERTY(EditAnywhere, Category=Collision)
+	UPROPERTY(EditAnywhere, Category=Collision, meta = (LandscapeOverridable))
 	int32 CollisionMipLevel;
 
 	// If set higher than the "Collision Mip Level", this specifies the Landscape LOD to use for "simple collision" tests, otherwise the "Collision Mip Level" is used for both simple and complex collision.
 	// Does not work with an XY offset map (mesh collision)
-	UPROPERTY(EditAnywhere, Category=Collision)
+	UPROPERTY(EditAnywhere, Category=Collision, meta = (LandscapeOverridable))
 	int32 SimpleCollisionMipLevel;
 
 	UE_DEPRECATED(5.2, "CollisionThickness is not supported by Chaos Physics and therefore deprecated. Please remove any usage of this property")
@@ -773,13 +773,13 @@ public:
 #endif // WITH_EDITORONLY_DATA
 
 	/** Data set at creation time */
-	UPROPERTY()
+	UPROPERTY(meta = (LandscapeInherited))
 	int32 ComponentSizeQuads;    // Total number of quads in each component
 
-	UPROPERTY()
+	UPROPERTY(meta = (LandscapeInherited))
 	int32 SubsectionSizeQuads;    // Number of quads for a subsection of a component. SubsectionSizeQuads+1 must be a power of two.
 
-	UPROPERTY()
+	UPROPERTY(meta = (LandscapeInherited))
 	int32 NumSubsections;    // Number of subsections in X and Y axis
 
 	/** Hints navigation system whether this landscape will ever be navigated on. true by default, but make sure to set it to false for faraway, background landscapes */
@@ -811,7 +811,7 @@ public:
 	bool bHasLayersContent;
 
 	/** Enable compressed heightmap texture storage. */
-	UPROPERTY(EditAnywhere, Category = Landscape, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category = Landscape, AdvancedDisplay, meta = (LandscapeInherited))
 	bool bUseCompressedHeightmapStorage = false;
 
 #if WITH_EDITOR
@@ -1064,7 +1064,38 @@ public:
 	LANDSCAPE_API TArray<float> GetLODScreenSizeArray() const;
 
 	// Copy properties from parent Landscape actor
+	UE_DEPRECATED(5.3, "GetSharedProperties is being deprecated, please use CopySharedProperties or SynchronizeSharedProperties instead.")
 	LANDSCAPE_API void GetSharedProperties(ALandscapeProxy* Landscape);
+
+#if WITH_EDITOR
+	// Copy properties from parent Landscape actor
+	LANDSCAPE_API void CopySharedProperties(ALandscapeProxy* Landscape);
+
+	/**
+	* Enforce property sharing and requirements related to the parent Landscape actor
+	* @param InLandscape the parent landscape to use as a template.
+	* @return An array containing all synchronized properties names (properties that were different from the provided landscape).
+	*/
+	LANDSCAPE_API TArray<FName> SynchronizeSharedProperties(ALandscapeProxy* InLandscape);
+
+	// Returns true if the property is shared.
+	LANDSCAPE_API bool IsSharedProperty(const FName& InPropertyName) const;
+
+	// Returns true if the property is shared.
+	LANDSCAPE_API bool IsSharedProperty(const FProperty* InProperty) const;
+
+	// Returns true if the property is inherited.
+	LANDSCAPE_API bool IsPropertyInherited(const FProperty* InProperty) const;
+	
+	// Returns true if the property is overridable
+	LANDSCAPE_API bool IsPropertyOverridable(const FProperty* InProperty) const;
+	
+	// Returns true if the shared property is overridden by the object.
+	LANDSCAPE_API virtual bool IsSharedPropertyOverridden(const FString& InPropertyName) const { return false; }
+
+	// Modifies the override state of the property given as argument.
+	LANDSCAPE_API virtual void SetSharedPropertyOverride(const FString& InPropertyName, const bool bIsOverriden) { }
+#endif // WITH_EDITOR
 
 	// Get Landscape Material assigned to this Landscape
 	virtual UMaterialInterface* GetLandscapeMaterial(int8 InLODIndex = INDEX_NONE) const;
@@ -1127,6 +1158,9 @@ public:
 
 	// Changed Physical Material
 	LANDSCAPE_API void ChangedPhysMaterial();
+
+	// Converts shared properties overridden before explicit override, asking the user how to proceed.
+	LANDSCAPE_API void UpgradeSharedProperties(ALandscape* InParentLandscape);
 
 	// Assign only mismatching data and mark proxy package dirty
 	LANDSCAPE_API void FixupSharedData(ALandscape* Landscape, bool bMapCheck = false);
@@ -1397,9 +1431,14 @@ protected:
 	/** Initialize Layer with empty content if it hasn't been initialized yet. */
 	LANDSCAPE_API void InitializeLayerWithEmptyContent(const FGuid& InLayerGuid);
 
+	/** Fixup any internal representation for shared properties. Will be used when deprecating or renaming a property. */
+	LANDSCAPE_API virtual void FixupOverriddenSharedProperties() {}
+
 protected:
 	FLandscapeMaterialChangedDelegate LandscapeMaterialChangedDelegate;
 
+	// Used to know if the deprecation of shared properties modified before the enforcement system introduction has been performed on load.
+	bool bUpgradeSharedPropertiesPerformed = false;
 #endif // WITH_EDITOR
 private:
 
@@ -1438,7 +1477,12 @@ private:
 	static TArray<ALandscapeProxy*> LandscapeProxies;
 
 	FAsyncWorkMonitor AsyncWorkMonitor;
-#endif
+#endif // WITH_EDITORONLY_DATA
+
+#if WITH_EDITOR
+	static constexpr TCHAR const* LandscapeInheritedTag = TEXT("LandscapeInherited");
+	static constexpr TCHAR const* LandscapeOverridableTag = TEXT("LandscapeOverridable");
+#endif // WITH_EDITOR
 };
 
 

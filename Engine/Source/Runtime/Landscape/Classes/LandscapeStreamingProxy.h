@@ -31,7 +31,10 @@ public:
 private:
 	UPROPERTY(EditAnywhere, Category = LandscapeProxy, Meta = (DisplayName = "Landscape Actor"))
 	TSoftObjectPtr<ALandscape> LandscapeActorRef;
-	
+
+	UPROPERTY()
+	TSet<FString> OverriddenSharedProperties;
+
 public:
 	//~ Begin UObject Interface
 #if WITH_EDITOR
@@ -57,4 +60,14 @@ public:
 
 	// Check input Landscape actor is match for this LandscapeProxy (by GUID)
 	bool IsValidLandscapeActor(ALandscape* Landscape);
+
+#if WITH_EDITOR
+	//~ Begin ALandscapeProxy Interface
+	virtual bool IsSharedPropertyOverridden(const FString& InPropertyName) const override;
+	virtual void SetSharedPropertyOverride(const FString& InPropertyName, const bool bIsOverridden) override;
+	//~ End ALandscapeProxy Interface
+
+protected:
+	virtual void FixupOverriddenSharedProperties() override;
+#endif // WITH_EDITOR
 };

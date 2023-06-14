@@ -3517,6 +3517,19 @@ void ALandscapeProxy::PostLoad()
 
 	PostLoadFixupLandscapeGuidsIfInstanced();
 
+#if WITH_EDITOR
+	FixupOverriddenSharedProperties();
+
+	ALandscape* LandscapeActor = GetLandscapeActor();
+
+	// Try to fixup shared properties if everything is ready for it as some postload process may depend on it.
+	if ((GetLandscapeInfo() != nullptr) && (LandscapeActor != nullptr) && (LandscapeActor != this))
+	{
+		const bool bMapCheck = true;
+		FixupSharedData(LandscapeActor, bMapCheck);
+	}
+#endif // WITH_EDITOR
+
 	// Temporary
 	if (ComponentSizeQuads == 0 && LandscapeComponents.Num() > 0)
 	{
@@ -3609,6 +3622,14 @@ void ALandscapeProxy::PostLoad()
 		// Only validate if uncooked and in the editor/commandlet mode (we cannot re-build material instance constants if this is not the case : see UMaterialInstance::CacheResourceShadersForRendering, which is only called if FApp::CanEverRender() returns true) 
 		if (!Comp->GetOutermost()->HasAnyPackageFlags(PKG_FilterEditorOnly) && (GIsEditor && FApp::CanEverRender()))
 		{
+			// MaterialInstance is different from the used LandscapeMaterial, we need to update the material as we cannot properly validate used combinations.
+			if (MaterialInstance->GetMaterial() != GetLandscapeMaterial())
+			{
+				Comp->UpdateMaterialInstances();
+				bFixedUpInvalidMaterialInstances = true;
+				continue;
+			}
+
 			if (Comp->ValidateCombinationMaterial(CombinationMaterialInstance))
 			{
 				MaterialInstanceConstantMap.Add(*ULandscapeComponent::GetLayerAllocationKey(Comp->GetWeightmapLayerAllocations(), CombinationMaterialInstance->Parent), CombinationMaterialInstance);
@@ -3799,6 +3820,139 @@ void ALandscapeProxy::GetSharedProperties(ALandscapeProxy* Landscape)
 #endif // WITH_EDITOR
 }
 
+#if WITH_EDITOR
+
+namespace UE::Landscape::Private
+{
+	static bool CopyProperty(FProperty* InProperty, UObject* InSourceObject, UObject* InDestinationObject)
+	{
+		void* SrcValuePtr = InProperty->ContainerPtrToValuePtr<void>(InSourceObject);
+		void* DestValuePtr = InProperty->ContainerPtrToValuePtr<void>(InDestinationObject);
+
+		if ((DestValuePtr == nullptr) || (SrcValuePtr == nullptr))
+		{
+			return false;
+		}
+
+		InProperty->CopyCompleteValue(DestValuePtr, SrcValuePtr);
+
+		return true;
+	}
+
+	static bool CopyPostEditPropertyByName(const TWeakObjectPtr<ALandscapeProxy>& InLandscapeProxy, const TWeakObjectPtr<ALandscape>& InParentLandscape, const FString& InPropertyName)
+	{
+		if (!InLandscapeProxy.IsValid() || !InParentLandscape.IsValid())
+		{
+			return false;
+		}
+
+		UClass* LandscapeProxyClass = InLandscapeProxy->GetClass();
+
+		if (LandscapeProxyClass == nullptr)
+		{
+			return false;
+		}
+
+		FProperty* PropertyToCopy = LandscapeProxyClass->FindPropertyByName(FName(InPropertyName));
+
+		if (PropertyToCopy == nullptr)
+		{
+			return false;
+		}
+
+		CopyProperty(PropertyToCopy, InParentLandscape.Get(), InLandscapeProxy.Get());
+
+		// Some properties may need additional processing (ex: LandscapeMaterial), notify the proxy of the change.
+		FPropertyChangedEvent PropertyChangedEvent(PropertyToCopy);
+		InLandscapeProxy->PostEditChangeProperty(PropertyChangedEvent);
+
+		InLandscapeProxy->Modify();
+
+		return true;
+	}
+} // namespace UE::Landscape::Private
+
+void ALandscapeProxy::CopySharedProperties(ALandscapeProxy* Landscape)
+{
+	for (TFieldIterator<FProperty> PropertyIterator(GetClass()); PropertyIterator; ++PropertyIterator)
+	{
+		FProperty* Property = *PropertyIterator;
+
+		if (Property == nullptr)
+		{
+			continue;
+		}
+
+		if (IsSharedProperty(Property))
+		{
+			UE::Landscape::Private::CopyProperty(Property, Landscape, this);
+		}
+	}
+}
+
+TArray<FName> ALandscapeProxy::SynchronizeSharedProperties(ALandscapeProxy* InLandscape)
+{
+	TArray<FName> SynchronizedProperties;
+
+	for (TFieldIterator<FProperty> PropertyIterator(GetClass()); PropertyIterator; ++PropertyIterator)
+	{
+		FProperty* Property = *PropertyIterator;
+
+		if (Property == nullptr)
+		{
+			continue;
+		}
+
+		if ((IsPropertyInherited(Property) ||
+			(IsPropertyOverridable(Property) && !IsSharedPropertyOverridden(Property->GetName()))) &&
+			!Property->Identical_InContainer(this, InLandscape))
+		{
+			SynchronizedProperties.Emplace(Property->GetFName());
+			UE::Landscape::Private::CopyProperty(Property, InLandscape, this);
+		}
+	}
+
+	if (!SynchronizedProperties.IsEmpty())
+	{
+		Modify();
+	}
+
+	return SynchronizedProperties;
+}
+
+bool ALandscapeProxy::IsSharedProperty(const FName& InPropertyName) const
+{
+	FProperty* Property = StaticClass()->FindPropertyByName(InPropertyName);
+
+	return IsSharedProperty(Property);
+}
+
+bool ALandscapeProxy::IsSharedProperty(const FProperty* InProperty) const
+{
+	return IsPropertyInherited(InProperty) || IsPropertyOverridable(InProperty);
+}
+
+bool ALandscapeProxy::IsPropertyInherited(const FProperty* InProperty) const
+{
+	if (InProperty == nullptr)
+	{
+		return false;
+	}
+
+	return InProperty->HasMetaData(LandscapeInheritedTag);
+}
+
+bool ALandscapeProxy::IsPropertyOverridable(const FProperty* InProperty) const
+{
+	if (InProperty == nullptr)
+	{
+		return false;
+	}
+
+	return InProperty->HasMetaData(LandscapeOverridableTag);
+}
+#endif // WITH_EDITOR
+
 UMaterialInterface* ALandscapeProxy::GetLandscapeMaterial(int8 InLODIndex) const
 {
 	if (InLODIndex != INDEX_NONE)
@@ -3867,115 +4021,173 @@ UMaterialInterface* ALandscapeStreamingProxy::GetLandscapeHoleMaterial() const
 
 #if WITH_EDITOR
 
-void ALandscapeProxy::FixupSharedData(ALandscape* Landscape, bool bMapCheck)
+bool ALandscapeStreamingProxy::IsSharedPropertyOverridden(const FString& InPropertyName) const
+{
+	return OverriddenSharedProperties.Contains(InPropertyName);
+}
+
+void ALandscapeStreamingProxy::SetSharedPropertyOverride(const FString& InPropertyName, const bool bIsOverridden)
+{
+	check(IsSharedProperty(FName(InPropertyName)));
+
+	Modify();
+
+	if (bIsOverridden)
+	{
+		OverriddenSharedProperties.Add(InPropertyName);
+	}
+	else
+	{
+		TWeakObjectPtr<ALandscapeProxy> LandscapeProxy = this;
+		TWeakObjectPtr<ALandscape> ParentLandscape = GetLandscapeActor();
+		
+		if (!ParentLandscape.IsValid())
+		{
+			UE_LOG(LogLandscape, Warning, TEXT("Unable to retrieve the parent landscape's shared property value (ALandscapeStreamingProxy: %s, Property: %s). The proper value will be fixedup when reloading this proxy."),
+				   *GetFullName(), *InPropertyName);
+		}
+		else
+		{
+			UE::Landscape::Private::CopyPostEditPropertyByName(LandscapeProxy, ParentLandscape, InPropertyName);
+		}
+
+		OverriddenSharedProperties.Remove(InPropertyName);
+	}
+}
+
+void ALandscapeStreamingProxy::FixupOverriddenSharedProperties()
+{
+	const UClass* StreamingProxyClass = StaticClass();
+
+	for (const FString& PropertyName : OverriddenSharedProperties)
+	{
+		const FProperty* Property = StreamingProxyClass->FindPropertyByName(FName(PropertyName));
+		checkf(Property != nullptr, TEXT("An overridden property is referenced but cannot be found. Please check this property hasn't been renamed or deprecated and/or provide the proper adapting mechanism."));
+	}
+}
+
+void ALandscapeProxy::UpgradeSharedProperties(ALandscape* InParentLandscape)
+{
+	bool bOpenMapCheckWindow = false;
+
+	for (TFieldIterator<FProperty> PropertyIterator(GetClass()); PropertyIterator; ++PropertyIterator)
+	{
+		FProperty* Property = *PropertyIterator;
+
+		if (Property == nullptr)
+		{
+			continue;
+		}
+
+		if ((IsPropertyInherited(Property) ||
+			(IsPropertyOverridable(Property) && !IsSharedPropertyOverridden(Property->GetName()))) &&
+			!Property->Identical_InContainer(this, InParentLandscape))
+		{
+			FFormatNamedArguments Arguments;
+			TWeakObjectPtr<ALandscapeProxy> LandscapeProxy = this;
+			TWeakObjectPtr<ALandscape> ParentLandscape = InParentLandscape;
+			const FString PropertyName = Property->GetName();
+
+			bOpenMapCheckWindow = true;
+
+			Arguments.Add(TEXT("Proxy"), FText::FromString(GetActorNameOrLabel()));
+			Arguments.Add(TEXT("Landscape"), FText::FromString(InParentLandscape->GetActorNameOrLabel()));
+			FMessageLog("MapCheck").Warning()
+				->AddToken(FUObjectToken::Create(this, FText::FromString(GetActorNameOrLabel())))
+				->AddToken(FTextToken::Create(FText::Format(LOCTEXT("MapCheck_Message_LandscapeProxy_UpgradeSharedProperties", "Contains a property ({0}) different from parent's landscape actor. Please select between "), FText::FromString(PropertyName))))
+				->AddToken(FActionToken::Create(LOCTEXT("MapCheck_OverrideProperty", "Override property"), LOCTEXT("MapCheck_OverrideProperty_Desc", "Keeping the current value and marking the property as overriding the parent landscape's value."),
+					FOnActionTokenExecuted::CreateLambda([LandscapeProxy, PropertyName]()
+					{
+						if (LandscapeProxy.IsValid())
+						{
+							LandscapeProxy->SetSharedPropertyOverride(PropertyName, true);
+						}
+					}),
+					/*bInSingleUse = */true))
+				->AddToken(FTextToken::Create(LOCTEXT("MapCheck_Message_LandscapeProxy_UpgradeSharedProperties_Or", " or ")))
+				->AddToken(FActionToken::Create(LOCTEXT("MapCheck_InheritProperty", "Inherit from parent landscape"), LOCTEXT("MapCheck_InheritProperty_Desc", "Copying the parent landscape's value for this property."),
+					FOnActionTokenExecuted::CreateLambda([LandscapeProxy, ParentLandscape, PropertyName]()
+					{
+						UE::Landscape::Private::CopyPostEditPropertyByName(LandscapeProxy, ParentLandscape, PropertyName);
+					}),
+					/*bInSingleUse = */true))
+				->AddToken(FMapErrorToken::Create(FMapErrors::LandscapeComponentPostLoad_Warning));
+		}
+	}
+
+	if (bOpenMapCheckWindow)
+	{
+		// Show MapCheck window
+		FMessageLog("MapCheck").Open(EMessageSeverity::Warning);
+	}
+}
+
+void ALandscapeProxy::FixupSharedData(ALandscape* Landscape, const bool bMapCheck)
 {
 	if ((Landscape == nullptr) || (Landscape == this))
 	{
 		return;
 	}
 
-	ULandscapeInfo* LandscapeInfo = GetLandscapeInfo();
-	checkf(LandscapeInfo != nullptr, TEXT("FixupSharedData can only be called after the proxies are registered to ULandscapeInfo"));
-	ULandscapeSubsystem* LandscapeSubsystem = GetWorld() ? GetWorld()->GetSubsystem<ULandscapeSubsystem>() : nullptr;
-	checkf(LandscapeSubsystem != nullptr, TEXT("FixupSharedData can only be called when a subsystem is available"));
-
-	bool bUpdated = false;
-	if (MaxLODLevel != Landscape->MaxLODLevel)
+	if (!bUpgradeSharedPropertiesPerformed && GetLinkerCustomVersion(FFortniteReleaseBranchCustomObjectVersion::GUID) < FFortniteReleaseBranchCustomObjectVersion::LandscapeSharedPropertiesEnforcement)
 	{
-		MaxLODLevel = Landscape->MaxLODLevel;
-		bUpdated = true;
+		UpgradeSharedProperties(Landscape);
+		bUpgradeSharedPropertiesPerformed = true;
 	}
-	
-	if (ComponentScreenSizeToUseSubSections != Landscape->ComponentScreenSizeToUseSubSections)
+	else
 	{
-		ComponentScreenSizeToUseSubSections = Landscape->ComponentScreenSizeToUseSubSections;
-		bUpdated = true;
-	}
+		ULandscapeInfo* LandscapeInfo = GetLandscapeInfo();
+		checkf(LandscapeInfo != nullptr, TEXT("FixupSharedData can only be called after the proxies are registered to ULandscapeInfo"));
+		ULandscapeSubsystem* LandscapeSubsystem = GetWorld() ? GetWorld()->GetSubsystem<ULandscapeSubsystem>() : nullptr;
+		checkf(LandscapeSubsystem != nullptr, TEXT("FixupSharedData can only be called when a subsystem is available"));
 
-	if (LODDistributionSetting != Landscape->LODDistributionSetting)
-	{
-		LODDistributionSetting = Landscape->LODDistributionSetting;
-		bUpdated = true;
-	}
+		TArray<FName> SynchronizedProperties = SynchronizeSharedProperties(Landscape);
+		bool bUpdated = !SynchronizedProperties.IsEmpty();
 
-	if (LOD0DistributionSetting != Landscape->LOD0DistributionSetting)
-	{
-		LOD0DistributionSetting = Landscape->LOD0DistributionSetting;
-		bUpdated = true;
-	}
+		TSet<FGuid> LayerGuids;
+		Algo::Transform(Landscape->LandscapeLayers, LayerGuids, [](const FLandscapeLayer& Layer) { return Layer.Guid; });
+		bUpdated |= RemoveObsoleteLayers(LayerGuids);
 
-	if (LOD0ScreenSize != Landscape->LOD0ScreenSize)
-	{
-		LOD0ScreenSize = Landscape->LOD0ScreenSize;
-		bUpdated = true;
-	}
-
-	if (LODGroupKey != Landscape->LODGroupKey)
-	{
-		LODGroupKey = Landscape->LODGroupKey;
-		bUpdated = true;
-	}
-
-	if (bUseCompressedHeightmapStorage)
-	{
-		bUseCompressedHeightmapStorage = Landscape->bUseCompressedHeightmapStorage;
-		bUpdated = true;
-	}
-
-	if (TargetDisplayOrder != Landscape->TargetDisplayOrder)
-	{
-		TargetDisplayOrder = Landscape->TargetDisplayOrder;
-		bUpdated = true;
-	}
-
-	if (TargetDisplayOrderList != Landscape->TargetDisplayOrderList)
-	{
-		TargetDisplayOrderList = Landscape->TargetDisplayOrderList;
-		bUpdated = true;
-	}
-
-	if (bEnableNanite != Landscape->IsNaniteEnabled())
-	{
-		bEnableNanite = Landscape->IsNaniteEnabled();
-		bUpdated = true;
-	}
-
-	if (NaniteLODIndex != Landscape->GetNaniteLODIndex())
-	{
-		NaniteLODIndex = Landscape->GetNaniteLODIndex();
-		bUpdated = true;
-	}
-
-	TSet<FGuid> LayerGuids;
-	Algo::Transform(Landscape->LandscapeLayers, LayerGuids, [](const FLandscapeLayer& Layer) { return Layer.Guid; });
-	bUpdated |= RemoveObsoleteLayers(LayerGuids);
-
-	for (const FLandscapeLayer& Layer : Landscape->LandscapeLayers)
-	{
-		bUpdated |= AddLayer(Layer.Guid);
-	}
-
-	if (bUpdated)
-	{
-		// Force resave the proxy through the modified landscape system, so that the user can then use the Save Modified Landscapes menu and therefore manually trigger the re-save of all modified proxies. * /
-		bool bNeedsManualResave = LandscapeInfo->MarkObjectDirty(/*InObject = */this, /*bInForceResave = */true);
-
-		if (bMapCheck && bNeedsManualResave)
+		for (const FLandscapeLayer& Layer : Landscape->LandscapeLayers)
 		{
-			FFormatNamedArguments Arguments;
-			Arguments.Add(TEXT("Proxy"), FText::FromString(GetActorNameOrLabel()));
-			Arguments.Add(TEXT("Landscape"), FText::FromString(Landscape->GetActorNameOrLabel()));
-			FMessageLog("MapCheck").Warning()
-				->AddToken(FUObjectToken::Create(this, FText::FromString(GetActorNameOrLabel())))
-				->AddToken(FTextToken::Create(LOCTEXT("MapCheck_Message_LandscapeProxy_FixupSharedData", "had some shared properties not in sync with its parent landscape actor. This has been fixed but the proxy needs to be saved in order to ensure cooking behaves as expected. ")))
-				->AddToken(FActionToken::Create(LOCTEXT("MapCheck_SaveFixedUpData", "Save Modified Landscapes"), LOCTEXT("MapCheck_SaveFixedUpData_Desc", "Saves the modified landscape proxy actors"), 
-					FOnActionTokenExecuted::CreateUObject(LandscapeSubsystem, &ULandscapeSubsystem::SaveModifiedLandscapes), 
-					FCanExecuteActionToken::CreateUObject(LandscapeSubsystem, &ULandscapeSubsystem::HasModifiedLandscapes),
-					/*bInSingleUse = */false))
-				->AddToken(FMapErrorToken::Create(FMapErrors::LandscapeComponentPostLoad_Warning));
+			bUpdated |= AddLayer(Layer.Guid);
+		}
 
-			// Show MapCheck window
-			FMessageLog("MapCheck").Open(EMessageSeverity::Warning);
+		if (bUpdated)
+		{
+			// Force resave the proxy through the modified landscape system, so that the user can then use the Save Modified Landscapes menu and therefore manually trigger the re-save of all modified proxies. * /
+			bool bNeedsManualResave = LandscapeInfo->MarkObjectDirty(/*InObject = */this, /*bInForceResave = */true);
+
+			if (bMapCheck && bNeedsManualResave)
+			{
+				TStringBuilder<1024> SynchronizedPropertiesStringBuilder;
+
+				for (const FName& SynchronizedProperty : SynchronizedProperties)
+				{
+					if (SynchronizedPropertiesStringBuilder.Len() > 0)
+					{
+						SynchronizedPropertiesStringBuilder.Append(TEXT(", "));
+					}
+
+					SynchronizedPropertiesStringBuilder.Append(SynchronizedProperty.ToString());
+				}
+
+				FFormatNamedArguments Arguments;
+				Arguments.Add(TEXT("Proxy"), FText::FromString(GetActorNameOrLabel()));
+				Arguments.Add(TEXT("Landscape"), FText::FromString(Landscape->GetActorNameOrLabel()));
+				FMessageLog("MapCheck").Warning()
+					->AddToken(FUObjectToken::Create(this, FText::FromString(GetActorNameOrLabel())))
+					->AddToken(FTextToken::Create(LOCTEXT("MapCheck_Message_LandscapeProxy_FixupSharedData", "had some shared properties not in sync with its parent landscape actor. This has been fixed but the proxy needs to be saved in order to ensure cooking behaves as expected. ")))
+					->AddToken(FActionToken::Create(LOCTEXT("MapCheck_SaveFixedUpData", "Save Modified Landscapes"), LOCTEXT("MapCheck_SaveFixedUpData_Desc", "Saves the modified landscape proxy actors"),
+						FOnActionTokenExecuted::CreateUObject(LandscapeSubsystem, &ULandscapeSubsystem::SaveModifiedLandscapes),
+						FCanExecuteActionToken::CreateUObject(LandscapeSubsystem, &ULandscapeSubsystem::HasModifiedLandscapes),
+						/*bInSingleUse = */false))
+					->AddToken(FTextToken::Create(FText::Format(LOCTEXT("MapCheck_Message_LandscapeProxy_FixupSharedData_SharedProperties", "The following properties were synchronized: {0}."), FText::FromString(SynchronizedPropertiesStringBuilder.ToString()))))
+					->AddToken(FMapErrorToken::Create(FMapErrors::LandscapeComponentPostLoad_Warning));
+
+				// Show MapCheck window
+				FMessageLog("MapCheck").Open(EMessageSeverity::Warning);
+			}
 		}
 	}
 }
@@ -4705,10 +4917,10 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck, bool 
 		{
 			StreamingProxy->SetLandscapeActor(LandscapeActor.Get());
 			StreamingProxy->LODGroupKey = LandscapeActor.Get()->LODGroupKey;
-		}
 #if WITH_EDITOR
-		StreamingProxy->FixupSharedData(LandscapeActor.Get(), bMapCheck);
+			StreamingProxy->FixupSharedData(LandscapeActor.Get(), bMapCheck);
 #endif // WITH_EDITOR
+		}
 	}
 
 #if WITH_EDITOR

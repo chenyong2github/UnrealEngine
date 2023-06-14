@@ -41,6 +41,9 @@
 #include "VT/RuntimeVirtualTextureVolume.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/IToolTip.h"
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/Text/STextBlock.h"
 
 class IPropertyHandle;
@@ -323,6 +326,137 @@ void FLandscapeProxyUIDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBui
 				.OnClicked_Lambda([BuildNaniteData]() { return BuildNaniteData(/*bInForceRebuild = */true); })
 			]
 		];
+	}
+
+	TArray<TWeakObjectPtr<ALandscapeStreamingProxy>> EditingStreamingProxies;
+
+	for (const TWeakObjectPtr<UObject> EditingObject : EditingObjects)
+	{
+		TWeakObjectPtr<ALandscapeStreamingProxy> LandscapeStreamingProxyPtr = Cast<ALandscapeStreamingProxy>(EditingObject.Get());
+
+		if (LandscapeStreamingProxyPtr.IsValid())
+		{
+			EditingStreamingProxies.Add(MoveTemp(LandscapeStreamingProxyPtr));
+		}
+	}
+
+	ALandscapeStreamingProxy* LandscapeStreamingProxy = EditingStreamingProxies.IsEmpty() ? nullptr : EditingStreamingProxies[0].Get();
+
+	if (LandscapeStreamingProxy != nullptr)
+	{
+		for (TFieldIterator<FProperty> PropertyIterator(LandscapeStreamingProxy->GetClass()); PropertyIterator; ++PropertyIterator)
+		{
+			FProperty* Property = *PropertyIterator;
+
+			if (Property == nullptr)
+			{
+				continue;
+			}
+
+			if (LandscapeStreamingProxy->IsPropertyInherited(Property))
+			{
+				TSharedPtr<IPropertyHandle> PropertyHandle = DetailBuilder.GetProperty(Property->GetFName());
+				
+				if (PropertyHandle->IsValidHandle())
+				{
+					IDetailPropertyRow* DetailRow = DetailBuilder.EditDefaultProperty(PropertyHandle);
+
+					if (DetailRow != nullptr)
+					{
+						// Extend the tool tip to indicate this property is inherited
+						FText ToolTipText = PropertyHandle->GetToolTipText();
+						DetailRow->ToolTip(FText::Format(NSLOCTEXT("Landscape", "InheritedProperty", "{0} This property is inherited from the parent Landscape proxy."), ToolTipText));
+
+						// Disable the property editing
+						DetailRow->IsEnabled(false);
+					}
+				}
+			}
+			else if (LandscapeStreamingProxy->IsPropertyOverridable(Property))
+			{
+				TSharedPtr<IPropertyHandle> PropertyHandle = DetailBuilder.GetProperty(Property->GetFName());
+
+				if (PropertyHandle->IsValidHandle())
+				{
+					const FText TooltipText = NSLOCTEXT("Landscape", "OverriddenProperty", "Check this box to override the parent landscape's property.");
+					FString PropertyName = Property->GetName();
+					IDetailPropertyRow* DetailRow = DetailBuilder.EditDefaultProperty(PropertyHandle);
+					TSharedPtr<SWidget> NameWidget = nullptr;
+					TSharedPtr<SWidget> ValueWidget = nullptr;
+
+					DetailRow->GetDefaultWidgets(NameWidget, ValueWidget);
+
+					DetailRow->CustomWidget()
+					.NameContent()
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						[
+							SNew(SCheckBox)
+							.ToolTipText(TooltipText)
+							.IsChecked_Lambda([EditingStreamingProxies, PropertyName]() -> ECheckBoxState
+							{
+								bool bContainsOverriddenProperty = false;
+								bool bContainsDefaultProperty = false;
+
+								for (const TWeakObjectPtr<ALandscapeStreamingProxy> StreamingProxy : EditingStreamingProxies)
+								{
+									if (!StreamingProxy.IsValid())
+									{
+										continue;
+									}
+
+									const bool bIsPropertyOverridden = StreamingProxy->IsSharedPropertyOverridden(PropertyName);
+
+									bContainsOverriddenProperty |= bIsPropertyOverridden;
+									bContainsDefaultProperty |= !bIsPropertyOverridden;
+								}
+
+								if (bContainsOverriddenProperty && bContainsDefaultProperty)
+								{
+									return ECheckBoxState::Undetermined;
+								}
+
+								return bContainsOverriddenProperty ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+							})
+							.OnCheckStateChanged_Lambda([EditingStreamingProxies, PropertyName](ECheckBoxState NewState)
+							{
+								if (NewState == ECheckBoxState::Undetermined)
+								{
+									return;
+								}
+
+								const bool bChecked = NewState == ECheckBoxState::Checked;
+
+								for (const TWeakObjectPtr<ALandscapeStreamingProxy> StreamingProxy : EditingStreamingProxies)
+								{
+									if (!StreamingProxy.IsValid())
+									{
+										continue;
+									}
+
+									StreamingProxy->SetSharedPropertyOverride(PropertyName, bChecked);
+								}
+							})
+						]
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						[
+							NameWidget->AsShared()
+						]
+					]
+					.ValueContent()
+					[
+						SNew(SBox)
+						.IsEnabled_Lambda([LandscapeStreamingProxy, PropertyName]() { return LandscapeStreamingProxy->IsSharedPropertyOverridden(PropertyName); })
+						[
+							ValueWidget->AsShared()
+						]
+					];
+				}
+			}
+		}
 	}
 }
 

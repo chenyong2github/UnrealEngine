@@ -4963,7 +4963,7 @@ ALandscapeProxy* ULandscapeInfo::MoveComponentsToLevel(const TArray<ULandscapeCo
 		SpawnParams.OverrideLevel = TargetLevel;
 		LandscapeProxy = TargetLevel->GetWorld()->SpawnActor<ALandscapeStreamingProxy>(SpawnParams);
 
-		LandscapeProxy->GetSharedProperties(Landscape);
+		LandscapeProxy->SynchronizeSharedProperties(Landscape);
 		LandscapeProxy->CreateLandscapeInfo();
 		LandscapeProxy->SetActorLabel(LandscapeProxy->GetName());
 		bSetPositionAndOffset = true;
@@ -5956,7 +5956,7 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 	const FName PropertyName = PropertyChangedEvent.Property ? PropertyChangedEvent.Property->GetFName() : NAME_None;
 	const FName MemberPropertyName = PropertyChangedEvent.MemberProperty ? PropertyChangedEvent.MemberProperty->GetFName() : NAME_None;
 
-	bool ChangedMaterial = false;
+	bool bMaterialChanged = false;
 	bool bNeedsRecalcBoundingBox = false;
 	bool bChangedLighting = false;
 	bool bPropagateToProxies = false;
@@ -6005,7 +6005,7 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 			FMaterialUpdateContext MaterialUpdateContext;
 			Info->UpdateLayerInfoMap(/*this*/);
 
-			ChangedMaterial = true;
+			bMaterialChanged = true;
 
 			// Clear the parents out of combination material instances
 			for (const auto& MICPair : MaterialInstanceConstantMap)
@@ -6121,11 +6121,15 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 		bPropagateToProxies = true;
 		bMarkAllLandscapeRenderStateDirty = true;
 	}
+	else if (GIsEditor && IsSharedProperty(PropertyName))
+	{
+		bPropagateToProxies = true;
+	}
 
 	// Must do this *after* clamping values
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	bPropagateToProxies = bPropagateToProxies || bNeedsRecalcBoundingBox || bChangedLighting || bNaniteToggled;
+	bPropagateToProxies = bPropagateToProxies || bNeedsRecalcBoundingBox || bChangedLighting || bNaniteToggled || bMaterialChanged;
 
 	if (Info != nullptr)
 	{
@@ -6136,8 +6140,7 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 			{
 				if (ALandscapeProxy* Proxy = ProxyPtr.Get())
 				{
-					Proxy->GetSharedProperties(this);
-					
+					Proxy->SynchronizeSharedProperties(this);
 					Proxy->PostEditChangeProperty(PropertyChangedEvent);
 				}
 			}
@@ -6155,7 +6158,7 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 			LandscapeEdit.RecalculateNormals();
 		}
 
-		if (bNeedsRecalcBoundingBox || ChangedMaterial || bChangedLighting)
+		if (bNeedsRecalcBoundingBox || bMaterialChanged || bChangedLighting)
 		{
 			// We cannot iterate the XYtoComponentMap directly because reregistering components modifies the array.
 			TArray<ULandscapeComponent*> AllComponents;
@@ -6179,7 +6182,7 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 				}
 			}
 
-			if (ChangedMaterial)
+			if (bMaterialChanged)
 			{
 				UpdateAllComponentMaterialInstances();
 
@@ -6214,7 +6217,7 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 		}
 
 		// Must be done after the AActor::PostEditChange as we depend on the relinking of the landscapeInfo->LandscapeActor
-		if (ChangedMaterial)
+		if (bMaterialChanged)
 		{
 			LandscapeMaterialChangedDelegate.Broadcast();
 		}

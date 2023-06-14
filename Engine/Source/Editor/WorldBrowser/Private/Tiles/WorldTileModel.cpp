@@ -980,7 +980,7 @@ bool FWorldTileModel::CreateAdjacentLandscapeProxy(ALandscapeProxy* SourceLandsc
 	if (AdjacentLandscape)
 	{
 		// Copy source landscape properties 
-		AdjacentLandscape->GetSharedProperties(SourceLandscape);
+		AdjacentLandscape->CopySharedProperties(SourceLandscape);
 		
 		// Refresh level model bounding box
 		FBox AdjacentLandscapeBounds = AdjacentLandscape->GetComponentsBoundingBox(true);

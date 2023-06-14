@@ -70,7 +70,7 @@ ALandscapeProxy* FLandscapeConfigHelper::FindOrAddLandscapeStreamingProxy(UActor
 
 		ALandscapeProxy* LandscapeProxy = CastChecked<ALandscapeProxy>(PartitionActor);
 		// copy shared properties to this new proxy
-		LandscapeProxy->GetSharedProperties(Landscape);
+		LandscapeProxy->SynchronizeSharedProperties(Landscape);
 		const FVector ProxyLocation = Landscape->GetActorLocation() + FVector(CellLocation.X * Landscape->GetActorRelativeScale3D().X, CellLocation.Y * Landscape->GetActorRelativeScale3D().Y, 0.0f);
 
 		LandscapeProxy->CreateLandscapeInfo();
@@ -486,7 +486,7 @@ ULandscapeInfo* FLandscapeConfigHelper::ChangeConfiguration(ULandscapeInfo* InLa
 	FActorSpawnParameters SpawnParams;
 	ALandscape* NewLandscape = World->SpawnActor<ALandscape>(OldLandscape->GetActorLocation() + ActorOffset, OldLandscape->GetActorRotation(), SpawnParams);
 	
-	NewLandscape->GetSharedProperties(OldLandscape);
+	NewLandscape->CopySharedProperties(OldLandscape);
 	NewLandscape->SetLandscapeGuid(FGuid::NewGuid());
 	NewLandscape->GridSize = InNewConfig.GetGridSizeQuads();
 	NewLandscape->ComponentSizeQuads = InNewConfig.GetComponentSizeQuads();

@@ -990,7 +990,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 				FTransform LandscapeTransform = FirstProxy->LandscapeActorToWorld();
 				ALandscape* NewLandscape = MainWorld->SpawnActor<ALandscape>(ALandscape::StaticClass(), LandscapeTransform, SpawnParams);
 
-				NewLandscape->GetSharedProperties(FirstProxy);
+				NewLandscape->CopySharedProperties(FirstProxy);
 
 				LandscapeInfo->RegisterActor(NewLandscape);
 			}
