@@ -131,7 +131,7 @@ VkBufferUsageFlags FVulkanResourceMultiBuffer::UEToVKBufferUsageFlags(FVulkanDev
 		}
 #endif
 		// For descriptors buffers
-		if (InDevice->SupportsBindless())
+		if (InDevice->GetOptionalExtensions().HasBufferDeviceAddress)
 		{
 			OutVkUsage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 		}

@@ -2772,7 +2772,7 @@ namespace VulkanRHI
 		BufferCreateInfo.size = BufferSize;
 		BufferCreateInfo.usage = BufferUsageFlags;
 		// For descriptors buffers
-		if (Device->SupportsBindless())
+		if (Device->GetOptionalExtensions().HasBufferDeviceAddress)
 		{
 			BufferCreateInfo.usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 		}
@@ -4299,7 +4299,7 @@ namespace VulkanRHI
 		}
 
 		// For descriptors buffers
-		if (Device->SupportsBindless())
+		if (Device->GetOptionalExtensions().HasBufferDeviceAddress)
 		{
 			InUsageFlags |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 		}
