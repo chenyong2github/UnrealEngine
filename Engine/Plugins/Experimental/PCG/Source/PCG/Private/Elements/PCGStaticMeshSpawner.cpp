@@ -3,6 +3,7 @@
 #include "Elements/PCGStaticMeshSpawner.h"
 
 #include "PCGComponent.h"
+#include "PCGCustomVersion.h"
 #include "PCGManagedResource.h"
 #include "Data/PCGPointData.h"
 #include "Data/PCGSpatialData.h"
@@ -39,6 +40,26 @@ UPCGStaticMeshSpawnerSettings::UPCGStaticMeshSpawnerSettings(const FObjectInitia
 		MeshSelectorParameters = ObjectInitializer.CreateDefaultSubobject<UPCGMeshSelectorWeighted>(this, TEXT("DefaultSelectorInstance"));
 	}
 }
+
+#if WITH_EDITOR
+FText UPCGStaticMeshSpawnerSettings::GetDefaultNodeTitle() const
+{
+	return LOCTEXT("NodeTitle", "Static Mesh Spawner");
+}
+
+void UPCGStaticMeshSpawnerSettings::ApplyDeprecation(UPCGNode* InOutNode)
+{
+	check(InOutNode);
+
+	if (DataVersion < FPCGCustomVersion::StaticMeshSpawnerApplyMeshBoundsToPointsByDefault)
+	{
+		UE_LOG(LogPCG, Log, TEXT("Static Mesh Spawner node migrated from an older version. Disabling 'ApplyMeshBoundsToPoints' by default to match previous behavior."));
+		bApplyMeshBoundsToPoints = false;
+	}
+
+	Super::ApplyDeprecation(InOutNode);
+}
+#endif
 
 FPCGElementPtr UPCGStaticMeshSpawnerSettings::CreateElement() const
 {

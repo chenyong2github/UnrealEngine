@@ -51,6 +51,9 @@ struct FPCGStaticMeshSpawnerContext : public FPCGContext
 	FPCGMeshMaterialOverrideHelper MaterialOverrideHelper;
 	int32 CurrentPointIndex = 0;
 
+	// Used in all selectors
+	TMap<TSoftObjectPtr<UStaticMesh>, FBox> MeshToBoundingBox;
+
 	// Used in by-attribute selector
 	TMap<PCGMetadataValueKey, TSoftObjectPtr<UStaticMesh>> ValueKeyToMesh;
 

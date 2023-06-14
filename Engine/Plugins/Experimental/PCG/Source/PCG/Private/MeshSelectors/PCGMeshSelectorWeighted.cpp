@@ -3,13 +3,14 @@
 #include "MeshSelectors/PCGMeshSelectorWeighted.h"
 
 #include "Data/PCGPointData.h"
+#include "Data/PCGSpatialData.h"
 #include "Elements/PCGStaticMeshSpawner.h"
 #include "Elements/PCGStaticMeshSpawnerContext.h"
-#include "Data/PCGSpatialData.h"
 #include "Helpers/PCGBlueprintHelpers.h"
-
-#include "Math/RandomStream.h"
 #include "MeshSelectors/PCGMeshSelectorBase.h"
+
+#include "Engine/StaticMesh.h"
+#include "Math/RandomStream.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMeshSelectorWeighted)
 
@@ -204,10 +205,11 @@ bool UPCGMeshSelectorWeighted::SelectInstances(
 		int32 LastCheckpointIndex = CurrentPointIndex;
 		constexpr int32 TimeSlicingCheckFrequency = 1024;
 		TMap<TSoftObjectPtr<UStaticMesh>, PCGMetadataValueKey>& MeshToValueKey = Context.MeshToValueKey;
+		TMap<TSoftObjectPtr<UStaticMesh>, FBox>& MeshToBoundingBox = Context.MeshToBoundingBox;
 		const int32 TotalWeight = CumulativeWeights.Last();
 
 		const TArray<FPCGPoint>& Points = InPointData->GetPoints();
-		while(CurrentPointIndex < Points.Num())
+		while (CurrentPointIndex < Points.Num())
 		{
 			const FPCGPoint& Point = Points[CurrentPointIndex++];
 
@@ -236,16 +238,33 @@ bool UPCGMeshSelectorWeighted::SelectInstances(
 
 				if (OutPointData && OutAttribute)
 				{
+					FPCGPoint& OutPoint = OutPoints->Add_GetRef(Point);
+
+					// Update point bounds to reflect StaticMesh bounds
+					if (Settings->bApplyMeshBoundsToPoints)
+					{
+						if (!MeshToBoundingBox.Contains(Mesh) && Mesh.LoadSynchronous())
+						{
+							MeshToBoundingBox.Add(Mesh, Mesh->GetBoundingBox());
+						}
+
+						if (MeshToBoundingBox.Contains(Mesh))
+						{
+							const FBox MeshBounds = MeshToBoundingBox[Mesh];
+							OutPoint.BoundsMin = MeshBounds.Min;
+							OutPoint.BoundsMax = MeshBounds.Max;
+						}
+					}
+
 					PCGMetadataValueKey* OutValueKey = MeshToValueKey.Find(Mesh);
-					if(!OutValueKey)
+					if (!OutValueKey)
 					{
 						PCGMetadataValueKey ValueKey = OutAttribute->AddValue(Mesh.ToSoftObjectPath().ToString());
 						OutValueKey = &MeshToValueKey.Add(Mesh, ValueKey);
 					}
-					
+
 					check(OutValueKey);
-					
-					FPCGPoint& OutPoint = OutPoints->Add_GetRef(Point);
+
 					OutPointData->Metadata->InitializeOnSet(OutPoint.MetadataEntry);
 					OutAttribute->SetValueFromValueKey(OutPoint.MetadataEntry, *OutValueKey);
 				}

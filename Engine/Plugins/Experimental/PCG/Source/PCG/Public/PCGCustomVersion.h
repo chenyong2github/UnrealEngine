@@ -41,6 +41,9 @@ struct PCG_API FPCGCustomVersion
 		// Behavior change for SplineSampler which now defaults to being bounded
 		SplineSamplerBoundedByDefault = 10,
 
+		// StaticMeshSpawner now defaults to modify point bounds based on StaticMesh bounds
+		StaticMeshSpawnerApplyMeshBoundsToPointsByDefault = 11,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
