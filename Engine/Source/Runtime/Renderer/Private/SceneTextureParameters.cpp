@@ -64,7 +64,7 @@ FSceneLightingChannelParameters GetSceneLightingChannelParameters(FRDGBuilder& G
 	}
 	else
 	{
-		Parameters.SceneLightingChannels = GraphBuilder.RegisterExternalTexture(GSystemTextures.WhiteDummy);
+		Parameters.SceneLightingChannels = GSystemTextures.GetZeroUIntDummy(GraphBuilder);
 		Parameters.bSceneLightingChannelsValid = false;
 	}
 
