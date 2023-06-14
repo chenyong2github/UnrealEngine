@@ -33,8 +33,8 @@ namespace Horde.Server.Agents.Pools
 
 			public List<AgentWorkspace> Workspaces { get; set; } = new List<AgentWorkspace>();
 
-			[BsonIgnoreIfDefault, BsonDefaultValue(true)]
-			public bool UseAutoSdk { get; set; } = true;
+			[BsonIgnoreIfNull]
+			public AutoSdkConfig? AutoSdkConfig { get; set; }
 
 			public Dictionary<string, string> Properties { get; set; } = new Dictionary<string, string>();
 
@@ -112,7 +112,6 @@ namespace Horde.Server.Agents.Pools
 				Id = other.Id;
 				Name = String.IsNullOrEmpty(other.Name)? other.Id.ToString() : other.Name;
 				Condition = other.Condition;
-				UseAutoSdk = other.UseAutoSdk;
 				Properties = new Dictionary<string, string>(other.Properties);
 				EnableAutoscaling = other.EnableAutoscaling;
 				MinAgents = other.MinAgents;
@@ -316,9 +315,16 @@ namespace Horde.Server.Agents.Pools
 			{
 				transaction.Set(x => x.Workspaces, options.Workspaces);
 			}
-			if (options.UseAutoSdk != null)
+			if (options.AutoSdkConfig != null)
 			{
-				transaction.Set(x => x.UseAutoSdk, options.UseAutoSdk.Value);
+				if (options.AutoSdkConfig == AutoSdkConfig.None)
+				{
+					transaction.Unset(x => x.AutoSdkConfig!);
+				}
+				else
+				{
+					transaction.Set(x => x.AutoSdkConfig, options.AutoSdkConfig);
+				}
 			}
 			if (options.Properties != null)
 			{

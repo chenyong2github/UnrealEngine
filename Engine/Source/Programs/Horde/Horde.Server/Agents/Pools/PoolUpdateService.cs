@@ -142,7 +142,7 @@ namespace Horde.Server.Agents.Pools
 				List<IPool> currentPools = await _pools.GetAsync();
 
 				// Lookup table of pool id to workspaces
-				HashSet<PoolId> poolsWithAutoSdk = new HashSet<PoolId>();
+				Dictionary<PoolId, AutoSdkConfig> poolToAutoSdkView = new Dictionary<PoolId, AutoSdkConfig>();
 				Dictionary<PoolId, List<AgentWorkspace>> poolToAgentWorkspaces = new Dictionary<PoolId, List<AgentWorkspace>>();
 
 				// Capture the current config state
@@ -154,10 +154,8 @@ namespace Horde.Server.Agents.Pools
 					foreach (KeyValuePair<string, AgentConfig> agentTypePair in streamConfig.AgentTypes)
 					{
 						// Create the new agent workspace
-						(AgentWorkspace, bool)? result;
-						if (streamConfig.TryGetAgentWorkspace(agentTypePair.Value, out result))
+						if (streamConfig.TryGetAgentWorkspace(agentTypePair.Value, out AgentWorkspace? agentWorkspace, out AutoSdkConfig? autoSdkConfig))
 						{
-							(AgentWorkspace agentWorkspace, bool useAutoSdk) = result.Value;
 							AgentConfig agentType = agentTypePair.Value;
 
 							// Find or add a list of workspaces for this pool
@@ -173,9 +171,11 @@ namespace Horde.Server.Agents.Pools
 							{
 								agentWorkspaces.Add(agentWorkspace);
 							}
-							if (useAutoSdk)
+							if (autoSdkConfig != null)
 							{
-								poolsWithAutoSdk.Add(agentType.Pool);
+								AutoSdkConfig? existingAutoSdkConfig;
+								poolToAutoSdkView.TryGetValue(agentType.Pool, out existingAutoSdkConfig);
+								poolToAutoSdkView[agentType.Pool] = AutoSdkConfig.Merge(autoSdkConfig, existingAutoSdkConfig);
 							}
 						}
 					}
@@ -191,13 +191,19 @@ namespace Horde.Server.Agents.Pools
 						newWorkspaces = new List<AgentWorkspace>();
 					}
 
+					// Get the autosdk view
+					AutoSdkConfig? newAutoSdkConfig;
+					if (!poolToAutoSdkView.TryGetValue(currentPool.Id, out newAutoSdkConfig))
+					{
+						newAutoSdkConfig = AutoSdkConfig.None;
+					}
+
 					// Update the pools document
-					bool useAutoSdk = poolsWithAutoSdk.Contains(currentPool.Id);
-					if (!AgentWorkspace.SetEquals(currentPool.Workspaces, newWorkspaces) || currentPool.Workspaces.Count != newWorkspaces.Count || currentPool.UseAutoSdk != useAutoSdk)
+					if (!AgentWorkspace.SetEquals(currentPool.Workspaces, newWorkspaces) || currentPool.Workspaces.Count != newWorkspaces.Count || !AutoSdkConfig.Equals(currentPool.AutoSdkConfig, newAutoSdkConfig))
 					{
 						_logger.LogInformation("New workspaces for pool {Pool}:{Workspaces}", currentPool.Id, String.Join("", newWorkspaces.Select(x => $"\n  Identifier=\"{x.Identifier}\", Stream={x.Stream}")));
 
-						IPool? result = await _pools.TryUpdateAsync(currentPool, new UpdatePoolOptions { Workspaces = newWorkspaces, UseAutoSdk = useAutoSdk });
+						IPool? result = await _pools.TryUpdateAsync(currentPool, new UpdatePoolOptions { Workspaces = newWorkspaces, AutoSdkConfig = newAutoSdkConfig });
 						if (result == null)
 						{
 							_logger.LogInformation("Pool modified; will retry");

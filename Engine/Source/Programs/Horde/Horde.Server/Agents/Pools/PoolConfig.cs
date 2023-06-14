@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using EpicGames.Horde.Common;
 using Horde.Server.Agents.Fleet;
-using Horde.Server.Utilities;
 
 namespace Horde.Server.Agents.Pools
 {
@@ -27,11 +26,6 @@ namespace Horde.Server.Agents.Pools
 		/// Condition for agents to automatically be included in this pool
 		/// </summary>
 		public Condition? Condition { get; }
-
-		/// <summary>
-		/// Whether to sync autosdk alongside the workspaces for this pool
-		/// </summary>
-		public bool UseAutoSdk { get; }
 
 		/// <summary>
 		/// Arbitrary properties related to this pool

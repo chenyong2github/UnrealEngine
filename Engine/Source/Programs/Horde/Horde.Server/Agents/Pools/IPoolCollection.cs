@@ -174,9 +174,9 @@ namespace Horde.Server.Agents.Pools
 		public List<AgentWorkspace>? Workspaces { get; set; }
 
 		/// <summary>
-		/// New setting for whether to use autosdk
+		/// Settings for the autosdk workspace
 		/// </summary>
-		public bool? UseAutoSdk { get; set; }
+		public AutoSdkConfig? AutoSdkConfig { get; set; }
 
 		/// <summary>
 		/// New properties for the pool

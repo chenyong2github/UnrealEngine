@@ -155,7 +155,7 @@ namespace Horde.Server.Agents.Pools
 		/// <returns>List of workspaces</returns>
 		public async Task<HashSet<AgentWorkspace>> GetWorkspacesAsync(IAgent agent, DateTime validAtTime, GlobalConfig globalConfig)
 		{
-			bool addAutoSdkWorkspace = false;
+			AutoSdkConfig? autoSdkConfig = null;
 			HashSet<AgentWorkspace> workspaces = new HashSet<AgentWorkspace>();
 
 			Dictionary<PoolId, IPool> poolMapping = await GetPoolLookupAsync(validAtTime);
@@ -165,13 +165,13 @@ namespace Horde.Server.Agents.Pools
 				if (poolMapping.TryGetValue(poolId, out pool))
 				{
 					workspaces.UnionWith(pool.Workspaces);
-					addAutoSdkWorkspace |= pool.UseAutoSdk;
+					autoSdkConfig = AutoSdkConfig.Merge(autoSdkConfig, pool.AutoSdkConfig);
 				}
 			}
 
-			if (addAutoSdkWorkspace)
+			if (autoSdkConfig != null)
 			{
-				workspaces.UnionWith(agent.GetAutoSdkWorkspaces(globalConfig, workspaces.ToList()));
+				workspaces.UnionWith(agent.GetAutoSdkWorkspaces(globalConfig, autoSdkConfig, workspaces.ToList()));
 			}
 
 			return workspaces;

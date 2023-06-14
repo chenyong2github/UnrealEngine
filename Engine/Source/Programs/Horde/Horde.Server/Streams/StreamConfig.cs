@@ -152,6 +152,11 @@ namespace Horde.Server.Streams
 		public JobOptions JobOptions { get; set; } = new JobOptions();
 
 		/// <summary>
+		/// View for the AutoSDK paths to sync. If null, the whole thing will be synced.
+		/// </summary>
+		public List<string>? AutoSdkView { get; set; }
+
+		/// <summary>
 		/// Legacy name for the default preflight template
 		/// </summary>
 		[Obsolete("Use DefaultPreflight instead")]
@@ -604,6 +609,11 @@ namespace Horde.Server.Streams
 		/// Whether to use the AutoSDK
 		/// </summary>
 		public bool UseAutoSdk { get; set; } = true;
+
+		/// <summary>
+		/// View for the AutoSDK paths to sync. If null, the whole thing will be synced.
+		/// </summary>
+		public List<string>? AutoSdkView { get; set; }
 
 		/// <summary>
 		/// Method to use when syncing/materializing data from Perforce

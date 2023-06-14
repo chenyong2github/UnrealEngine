@@ -114,6 +114,11 @@ namespace Horde.Server.Agents.Pools
 		public IReadOnlyList<AgentWorkspace> Workspaces { get; }
 
 		/// <summary>
+		/// AutoSDK view for this pool
+		/// </summary>
+		public AutoSdkConfig? AutoSdkConfig { get; }
+
+		/// <summary>
 		/// Revision string for the config file describing this pool, or null if added manually.
 		/// </summary>
 		public string? Revision { get; }

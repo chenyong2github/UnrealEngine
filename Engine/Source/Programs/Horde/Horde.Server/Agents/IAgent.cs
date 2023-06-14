@@ -187,6 +187,81 @@ namespace Horde.Server.Agents
 	}
 
 	/// <summary>
+	/// Configuration for an AutoSDK workspace
+	/// </summary>
+	public class AutoSdkConfig
+	{
+		/// <summary>
+		/// Disables use of AutoSDK.
+		/// </summary>
+		public static AutoSdkConfig None { get; } = new AutoSdkConfig(Array.Empty<string>());
+
+		/// <summary>
+		/// Syncs the entire AutoSDK folder.
+		/// </summary>
+		public static AutoSdkConfig Full { get; } = new AutoSdkConfig(null);
+
+		/// <summary>
+		/// Additive filter for paths to include in the workspace
+		/// </summary>
+		public IReadOnlyList<string> View { get; set; }
+
+		static readonly string[] s_fullView = new[] { "..." };
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="filter">Filter for the workspace</param>
+		public AutoSdkConfig(IEnumerable<string>? filter)
+		{
+			if (filter == null)
+			{
+				View = s_fullView;
+			}
+			else
+			{
+				View = filter.OrderBy(x => x).Distinct().ToArray();
+			}
+		}
+
+		/// <summary>
+		/// Merge two workspaces together
+		/// </summary>
+		[return: NotNullIfNotNull(nameof(lhs))]
+		[return: NotNullIfNotNull(nameof(rhs))]
+		public static AutoSdkConfig? Merge(AutoSdkConfig? lhs, AutoSdkConfig? rhs)
+		{
+			if (lhs == null)
+			{
+				return rhs;
+			}
+			if (rhs == null)
+			{
+				return lhs;
+			}
+
+			return new AutoSdkConfig(Enumerable.Concat(lhs.View, rhs.View));
+		}
+
+		/// <summary>
+		/// Test whether two views are equal
+		/// </summary>
+		public static bool Equals(AutoSdkConfig? lhs, AutoSdkConfig? rhs)
+		{
+			if (lhs == null || lhs.View.Count == 0)
+			{
+				return rhs == null || rhs.View.Count == 0;
+			}
+			if (rhs == null || rhs.View.Count == 0)
+			{
+				return false;
+			}
+
+			return Enumerable.SequenceEqual(lhs.View, rhs.View);
+		}
+	}
+
+	/// <summary>
 	/// Document describing an active lease
 	/// </summary>
 	public class AgentLease
@@ -710,9 +785,10 @@ namespace Horde.Server.Agents
 		/// </summary>
 		/// <param name="agent"></param>
 		/// <param name="globalConfig"></param>
+		/// <param name="autoSdkConfig">Config for autosdk workspaces</param>
 		/// <param name="workspaces"></param>
 		/// <returns></returns>
-		public static HashSet<AgentWorkspace> GetAutoSdkWorkspaces(this IAgent agent, GlobalConfig globalConfig, List<AgentWorkspace> workspaces)
+		public static HashSet<AgentWorkspace> GetAutoSdkWorkspaces(this IAgent agent, GlobalConfig globalConfig, AutoSdkConfig autoSdkConfig, List<AgentWorkspace> workspaces)
 		{
 			HashSet<AgentWorkspace> autoSdkWorkspaces = new HashSet<AgentWorkspace>();
 			foreach (string? clusterName in workspaces.Select(x => x.Cluster).Distinct())
@@ -720,7 +796,7 @@ namespace Horde.Server.Agents
 				PerforceCluster? cluster = globalConfig.FindPerforceCluster(clusterName);
 				if (cluster != null)
 				{
-					AgentWorkspace? autoSdkWorkspace = GetAutoSdkWorkspace(agent, cluster);
+					AgentWorkspace? autoSdkWorkspace = GetAutoSdkWorkspace(agent, cluster, autoSdkConfig);
 					if (autoSdkWorkspace != null)
 					{
 						autoSdkWorkspaces.Add(autoSdkWorkspace);
@@ -735,14 +811,15 @@ namespace Horde.Server.Agents
 		/// </summary>
 		/// <param name="agent"></param>
 		/// <param name="cluster">The perforce cluster to get a workspace for</param>
+		/// <param name="autoSdkConfig">Configuration for autosdk</param>
 		/// <returns></returns>
-		public static AgentWorkspace? GetAutoSdkWorkspace(this IAgent agent, PerforceCluster cluster)
+		public static AgentWorkspace? GetAutoSdkWorkspace(this IAgent agent, PerforceCluster cluster, AutoSdkConfig autoSdkConfig)
 		{
 			foreach (AutoSdkWorkspace autoSdk in cluster.AutoSdk)
 			{
 				if (autoSdk.Stream != null && autoSdk.Properties.All(x => agent.Properties.Contains(x)))
 				{
-					return new AgentWorkspace(cluster.Name, autoSdk.UserName, autoSdk.Name ?? "AutoSDK", autoSdk.Stream!, null, true, null);
+					return new AgentWorkspace(cluster.Name, autoSdk.UserName, autoSdk.Name ?? "AutoSDK", autoSdk.Stream!, autoSdkConfig.View.ToList(), true, null);
 				}
 			}
 			return null;
@@ -830,14 +907,16 @@ namespace Horde.Server.Agents
 		/// <param name="streamConfig">The stream object</param>
 		/// <param name="agentType">The agent type</param>
 		/// <param name="workspace">Receives the agent workspace definition</param>
+		/// <param name="autoSdkConfig">Receives the autosdk workspace config</param>
 		/// <returns>True if the agent type was valid, and an agent workspace could be created</returns>
-		public static bool TryGetAgentWorkspace(this StreamConfig streamConfig, AgentConfig agentType, [NotNullWhen(true)] out (AgentWorkspace, bool)? workspace)
+		public static bool TryGetAgentWorkspace(this StreamConfig streamConfig, AgentConfig agentType, [NotNullWhen(true)] out AgentWorkspace? workspace, out AutoSdkConfig? autoSdkConfig)
 		{
 			// Get the workspace settings
 			if (agentType.Workspace == null)
 			{
 				// Use the default settings (fast switching workspace, clean 
-				workspace = (new AgentWorkspace(null, null, streamConfig.GetDefaultWorkspaceIdentifier(), streamConfig.Name, null, false, null), true);
+				workspace = new AgentWorkspace(null, null, streamConfig.GetDefaultWorkspaceIdentifier(), streamConfig.Name, null, false, null);
+				autoSdkConfig = AutoSdkConfig.Full;
 				return true;
 			}
 			else
@@ -847,6 +926,7 @@ namespace Horde.Server.Agents
 				if (!streamConfig.WorkspaceTypes.TryGetValue(agentType.Workspace, out workspaceType))
 				{
 					workspace = null;
+					autoSdkConfig = null;
 					return false;
 				}
 
@@ -866,7 +946,17 @@ namespace Horde.Server.Agents
 				}
 
 				// Create the new workspace
-				workspace = (new AgentWorkspace(workspaceType.Cluster, workspaceType.UserName, identifier, workspaceType.Stream ?? streamConfig.Name, workspaceType.View, workspaceType.Incremental, workspaceType.Method), workspaceType.UseAutoSdk);
+				workspace = new AgentWorkspace(workspaceType.Cluster, workspaceType.UserName, identifier, workspaceType.Stream ?? streamConfig.Name, workspaceType.View, workspaceType.Incremental, workspaceType.Method);
+
+				if (workspaceType.UseAutoSdk)
+				{
+					autoSdkConfig = AutoSdkConfig.Merge(new AutoSdkConfig(streamConfig.AutoSdkView), new AutoSdkConfig(workspaceType.AutoSdkView));
+				}
+				else
+				{
+					autoSdkConfig = null;
+				}
+
 				return true;
 			}
 		}
