@@ -414,7 +414,7 @@ namespace UE::Tasks
 			// tries to get execution permission and if successful, executes given task body and completes the task if there're no pending nested tasks. 
 			// does all required accounting before/after task execution. the task can be deleted as a result of this call.
 			// @returns true if the task was executed by the current thread
-			FORCENOINLINE bool TryExecute(FTaskBodyType TaskBody)
+			bool TryExecute(FTaskBodyType TaskBody)
 			{
 				if (!TrySetExecutionFlag())
 				{
@@ -487,7 +487,7 @@ namespace UE::Tasks
 
 			CORE_API void ClearPipe();
 
-			bool TryExecuteTask()
+			FORCEINLINE bool TryExecuteTask()
 			{
 				UE::FInheritedContextScope InheritedContextScope = RestoreInheritedContext();
 				return TryExecuteTaskVirtual();
@@ -678,7 +678,7 @@ namespace UE::Tasks
 			UE_NONCOPYABLE(TExecutableTaskBase);
 
 		public:
-			virtual bool TryExecuteTaskVirtual() override
+			virtual bool TryExecuteTaskVirtual() final
 			{
 				return FTaskBase::TryExecute(
 					[](FTaskBase& Task)
@@ -713,7 +713,7 @@ namespace UE::Tasks
 			UE_NONCOPYABLE(TExecutableTaskBase);
 
 		public:
-			virtual bool TryExecuteTaskVirtual() override
+			virtual bool TryExecuteTaskVirtual() final
 			{
 				return TryExecute(
 					[](FTaskBase& Task)

@@ -487,7 +487,7 @@ public:
 		TryLaunch(0);
 	}
 
-	void Execute(TArray<FBaseGraphTask*>& NewTasks, ENamedThreads::Type CurrentThread, bool bDeleteOnCompletion)
+	FORCEINLINE void Execute(TArray<FBaseGraphTask*>& NewTasks, ENamedThreads::Type CurrentThread, bool bDeleteOnCompletion)
 	{	// only called for named thread tasks, normal tasks are executed using `FTaskBase` API directly (see `TGraphTask`)
 		checkSlow(NewTasks.Num() == 0);
 		checkSlow(bDeleteOnCompletion);
@@ -648,7 +648,7 @@ private:
 		FBaseGraphTask::Init(TEXT("GraphTask"), InPriority, InExtendedPriority);
 	}
 
-	virtual bool TryExecuteTaskVirtual() override
+	virtual bool TryExecuteTaskVirtual() final
 	{
 		return TryExecute(
 			[](UE::Tasks::Private::FTaskBase& Task)
