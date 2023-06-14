@@ -117,6 +117,7 @@ public:
 class FNiagaraActiveCompilationDefault : public FNiagaraActiveCompilation
 {
 public:
+	virtual ~FNiagaraActiveCompilationDefault();
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	virtual FString GetReferencerName() const override
 	{

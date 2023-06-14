@@ -488,6 +488,12 @@ bool FNiagaraAsyncCompileTask::CompilationIdMatchesRequest() const
 	return IdMatches;
 }
 
+FNiagaraActiveCompilationDefault::~FNiagaraActiveCompilationDefault()
+{
+	// make sure that we release all of the compilation copies that have been created for the tasks
+	Reset();
+}
+
 void FNiagaraActiveCompilationDefault::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	Collector.AddStableReferenceSet(&RootObjects);
