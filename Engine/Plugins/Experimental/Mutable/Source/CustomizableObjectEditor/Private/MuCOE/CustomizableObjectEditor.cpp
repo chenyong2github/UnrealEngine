@@ -565,7 +565,7 @@ TSharedRef<SDockTab> FCustomizableObjectEditor::SpawnTab_InstanceProperties( con
 
 
 /** Create new tab for the supplied graph - don't call this directly, call SExplorer->FindTabForGraph.*/
-TSharedRef<SGraphEditor> FCustomizableObjectEditor::CreateGraphEditorWidget(UEdGraph* InGraph)
+void FCustomizableObjectEditor::CreateGraphEditorWidget(UEdGraph* InGraph)
 {
 	check(InGraph != NULL);
 
@@ -592,38 +592,7 @@ TSharedRef<SGraphEditor> FCustomizableObjectEditor::CreateGraphEditorWidget(UEdG
 		Action.FCustomizableObjectSchemaAction_NewNode::PerformAction(InGraph, nullptr, FVector2D::ZeroVector, false);
 	}
 	
-	GraphEditorCommands = MakeShareable( new FUICommandList );
-	{
-		// Editing commands
-		GraphEditorCommands->MapAction( FGenericCommands::Get().Delete,
-			FExecuteAction::CreateSP( this, &FCustomizableObjectEditor::DeleteSelectedNodes ),
-			FCanExecuteAction::CreateSP( this, &FCustomizableObjectEditor::CanDeleteNodes )
-			);
-
-		GraphEditorCommands->MapAction( FGenericCommands::Get().Copy,
-			FExecuteAction::CreateSP( this, &FCustomizableObjectEditor::CopySelectedNodes ),
-			FCanExecuteAction::CreateSP( this, &FCustomizableObjectEditor::CanCopyNodes )
-			);
-
-		GraphEditorCommands->MapAction( FGenericCommands::Get().Paste,
-			FExecuteAction::CreateSP( this, &FCustomizableObjectEditor::PasteNodes ),
-			FCanExecuteAction::CreateSP( this, &FCustomizableObjectEditor::CanPasteNodes )
-			);
-
-		GraphEditorCommands->MapAction( FGenericCommands::Get().Cut,
-			FExecuteAction::CreateSP( this, &FCustomizableObjectEditor::CutSelectedNodes ),
-			FCanExecuteAction::CreateSP( this, &FCustomizableObjectEditor::CanCutNodes )
-			);
-
-		GraphEditorCommands->MapAction(FGenericCommands::Get().Duplicate,
-			FExecuteAction::CreateSP(this, &FCustomizableObjectEditor::DuplicateSelectedNodes),
-			FCanExecuteAction::CreateSP(this, &FCustomizableObjectEditor::CanDuplicateSelectedNodes)
-			);
-
-		GraphEditorCommands->MapAction(FCustomizableObjectEditorNodeContextCommands::Get().CreateComment,
-			FExecuteAction::CreateSP(this, &FCustomizableObjectEditor::CreateCommentBoxFromKey)
-		);
-	}
+	GraphEditorCommands = MakeShareable(new FUICommandList);
 
 	TSharedRef<SWidget> TitleBarWidget =
 		SNew(SHorizontalBox)
@@ -648,13 +617,66 @@ TSharedRef<SGraphEditor> FCustomizableObjectEditor::CreateGraphEditorWidget(UEdG
 	InEvents.OnTextCommitted = FOnNodeTextCommitted::CreateSP(this, &FCustomizableObjectEditor::OnNodeTitleCommitted);
 
 	// Make full graph editor
-	return SNew(SGraphEditor)
+	GraphEditor = SNew(SGraphEditor)
 		.AdditionalCommands(GraphEditorCommands)
 		.Appearance(AppearanceInfo)
 		.GraphToEdit(InGraph)
 		.GraphEvents(InEvents)
 		.TitleBar(TitleBarWidget)
 		.ShowGraphStateOverlay(false); // Removes graph state overlays (border and text) such as "SIMULATING" and "READ-ONLY"
+
+	// Editing commands
+	GraphEditorCommands->MapAction(FGenericCommands::Get().Delete,
+		FExecuteAction::CreateSP(this, &FCustomizableObjectEditor::DeleteSelectedNodes),
+		FCanExecuteAction::CreateSP(this, &FCustomizableObjectEditor::CanDeleteNodes));
+
+	GraphEditorCommands->MapAction( FGenericCommands::Get().Copy,
+		FExecuteAction::CreateSP(this, &FCustomizableObjectEditor::CopySelectedNodes),
+		FCanExecuteAction::CreateSP(this, &FCustomizableObjectEditor::CanCopyNodes));
+
+	GraphEditorCommands->MapAction(FGenericCommands::Get().Paste,
+		FExecuteAction::CreateSP(this, &FCustomizableObjectEditor::PasteNodes),
+		FCanExecuteAction::CreateSP(this, &FCustomizableObjectEditor::CanPasteNodes));
+
+	GraphEditorCommands->MapAction(FGenericCommands::Get().Cut,
+		FExecuteAction::CreateSP(this, &FCustomizableObjectEditor::CutSelectedNodes),
+		FCanExecuteAction::CreateSP(this, &FCustomizableObjectEditor::CanCutNodes));
+
+	GraphEditorCommands->MapAction(FGenericCommands::Get().Duplicate,
+		FExecuteAction::CreateSP(this, &FCustomizableObjectEditor::DuplicateSelectedNodes),
+		FCanExecuteAction::CreateSP(this, &FCustomizableObjectEditor::CanDuplicateSelectedNodes));
+
+	GraphEditorCommands->MapAction(FCustomizableObjectEditorNodeContextCommands::Get().CreateComment,
+		FExecuteAction::CreateSP(this, &FCustomizableObjectEditor::CreateCommentBoxFromKey));
+
+	// Alignment Commands
+	GraphEditorCommands->MapAction(FGraphEditorCommands::Get().AlignNodesTop,
+		FExecuteAction::CreateSP(GraphEditor.Get(), &SGraphEditor::OnAlignTop));
+
+	GraphEditorCommands->MapAction(FGraphEditorCommands::Get().AlignNodesMiddle,
+		FExecuteAction::CreateSP(GraphEditor.Get(), &SGraphEditor::OnAlignMiddle));
+
+	GraphEditorCommands->MapAction(FGraphEditorCommands::Get().AlignNodesBottom,
+		FExecuteAction::CreateSP(GraphEditor.Get(), &SGraphEditor::OnAlignBottom));
+
+	GraphEditorCommands->MapAction(FGraphEditorCommands::Get().AlignNodesLeft,
+		FExecuteAction::CreateSP(GraphEditor.Get(), &SGraphEditor::OnAlignLeft));
+
+	GraphEditorCommands->MapAction(FGraphEditorCommands::Get().AlignNodesCenter,
+		FExecuteAction::CreateSP(GraphEditor.Get(), &SGraphEditor::OnAlignCenter));
+
+	GraphEditorCommands->MapAction(FGraphEditorCommands::Get().AlignNodesRight,
+		FExecuteAction::CreateSP(GraphEditor.Get(), &SGraphEditor::OnAlignRight));
+
+	GraphEditorCommands->MapAction(FGraphEditorCommands::Get().StraightenConnections,
+		FExecuteAction::CreateSP(GraphEditor.Get(), &SGraphEditor::OnStraightenConnections));
+
+	// Distribution Commands
+	GraphEditorCommands->MapAction(FGraphEditorCommands::Get().DistributeNodesHorizontally,
+		FExecuteAction::CreateSP(GraphEditor.Get(), &SGraphEditor::OnDistributeNodesH));
+	
+	GraphEditorCommands->MapAction(FGraphEditorCommands::Get().DistributeNodesVertically,
+		FExecuteAction::CreateSP(GraphEditor.Get(), &SGraphEditor::OnDistributeNodesV));
 }
 
 
@@ -662,7 +684,7 @@ TSharedRef<SDockTab> FCustomizableObjectEditor::SpawnTab_Graph( const FSpawnTabA
 {
 	check( Args.GetTabId().TabType == GraphTabId );
 
-	GraphEditor = CreateGraphEditorWidget(CustomizableObject->Source);
+	CreateGraphEditorWidget(CustomizableObject->Source);
 
 	TSharedRef<SDockTab> DockTab = SNew(SDockTab)
 		.Label( FText::FromString( GetTabPrefix() + LOCTEXT( "SourceGraph", "Source Graph" ).ToString() ) )

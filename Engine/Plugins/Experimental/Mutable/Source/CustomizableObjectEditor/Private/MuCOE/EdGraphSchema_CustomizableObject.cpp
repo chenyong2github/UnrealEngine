@@ -822,84 +822,106 @@ void UEdGraphSchema_CustomizableObject::GetContextMenuActionsReconstructAllChild
 
 void UEdGraphSchema_CustomizableObject::GetContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
 {
-	if (Context && Context->Node)
+	if (!Context || !Context->Node)
 	{
-		if (!Context->Pin) // On Node right click
+		return;
+	}
+	
+	if (!Context->Pin) // On Node right click
+	{
+		if (!Context->bIsDebugging)
 		{
-			if (!Context->bIsDebugging)
-			{
-				// Node contextual actions
-				FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaNodeActions", LOCTEXT("NodeActionsMenuHeader", "Node Actions"));
-				Section.AddMenuEntry(FGenericCommands::Get().Delete);
-				Section.AddMenuEntry(FGenericCommands::Get().Cut);
-				Section.AddMenuEntry(FGenericCommands::Get().Copy);
-				Section.AddMenuEntry(FGenericCommands::Get().Duplicate);
-				Section.AddMenuEntry(FGraphEditorCommands::Get().ReconstructNodes);
-				Section.AddMenuEntry(FGraphEditorCommands::Get().BreakNodeLinks);
-				
-				Section.AddSubMenu(
-					"ReconstructAllNodes",
-					LOCTEXT("ReconstructChildAllNodes", "Refresh All Child Nodes"),
-					LOCTEXT("ReconstructAllChildNodes_Tooltip", "Refresh all child nodes from the selected ones (inclusive)."),
-					FNewToolMenuDelegate::CreateUObject(this, &UEdGraphSchema_CustomizableObject::GetContextMenuActionsReconstructAllChildNodes, MakeWeakObjectPtr(Context)));
-			}
+			// Node contextual actions
+			FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaNodeActions", LOCTEXT("NodeActionsMenuHeader", "Node Actions"));
+			Section.AddMenuEntry(FGenericCommands::Get().Delete);
+			Section.AddMenuEntry(FGenericCommands::Get().Cut);
+			Section.AddMenuEntry(FGenericCommands::Get().Copy);
+			Section.AddMenuEntry(FGenericCommands::Get().Duplicate);
+			Section.AddMenuEntry(FGraphEditorCommands::Get().ReconstructNodes);
+			Section.AddMenuEntry(FGraphEditorCommands::Get().BreakNodeLinks);
 
-			struct SCommentUtility
+			Section.AddSubMenu("Alignment", LOCTEXT("AlignmentHeader", "Alignment"), FText(), FNewToolMenuDelegate::CreateLambda([](UToolMenu* AlignmentMenu)
 			{
-				static void CreateComment(const UEdGraphSchema_CustomizableObject* Schema, UEdGraph* Graph)
 				{
-					if (Schema && Graph)
-					{
-						Schema->AddComment(Graph, NULL, FVector2D::ZeroVector, true);
-					}
+					FToolMenuSection& SubSection = AlignmentMenu->AddSection("EdGraphSchemaAlignment", LOCTEXT("AlignHeader", "Align"));
+					SubSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesTop);
+					SubSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesMiddle);
+					SubSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesBottom);
+					SubSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesLeft);
+					SubSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesCenter);
+					SubSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesRight);
+					SubSection.AddMenuEntry(FGraphEditorCommands::Get().StraightenConnections);
 				}
-			};
 
-			FToolMenuSection& section = Menu->AddSection("SchemaActionComment", LOCTEXT("MultiCommentHeader", "Comment Group"));
-			section.AddMenuEntry("MultiCommentDesc", LOCTEXT("MultiCommentDesc", "Create Comment from Selection"),
-				LOCTEXT("CommentToolTip", "Create a resizable comment box around selection."),
-				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateStatic(SCommentUtility::CreateComment, this, const_cast<UEdGraph*>(ToRawPtr(Context->Graph)))));
+				{
+					FToolMenuSection& SubSection = AlignmentMenu->AddSection("EdGraphSchemaDistribution", LOCTEXT("DistributionHeader", "Distribution"));
+					SubSection.AddMenuEntry(FGraphEditorCommands::Get().DistributeNodesHorizontally);
+					SubSection.AddMenuEntry(FGraphEditorCommands::Get().DistributeNodesVertically);
+				}
+			}));
+			
+			Section.AddSubMenu(
+				"ReconstructAllNodes",
+				LOCTEXT("ReconstructChildAllNodes", "Refresh All Child Nodes"),
+				LOCTEXT("ReconstructAllChildNodes_Tooltip", "Refresh all child nodes from the selected ones (inclusive)."),
+				FNewToolMenuDelegate::CreateUObject(this, &UEdGraphSchema_CustomizableObject::GetContextMenuActionsReconstructAllChildNodes, MakeWeakObjectPtr(Context)));
 		}
-		else // On Pin right click
+
+		struct SCommentUtility
 		{
-			UCustomizableObjectNodeTable* TableNode = Cast<UCustomizableObjectNodeTable>(Context->Node);
-			UEdGraphPin* TexturePin = (UEdGraphPin*)Context->Pin;
-
-			if (TableNode && TexturePin && !TexturePin->LinkedTo.Num() && (TexturePin->PinType.PinCategory == PC_Image || TexturePin->PinType.PinCategory == PC_PassThroughImage))
+			static void CreateComment(const UEdGraphSchema_CustomizableObject* Schema, UEdGraph* Graph)
 			{
-				FText ActionText = FText::Format(LOCTEXT("ChangeTexturePinMode_Label", 
-					"Set as {0} texture"), Context->Pin->PinType.PinCategory == PC_PassThroughImage ? FText::FromString("Mutable") : FText::FromString("Pass Through"));
-				
-				FText ToolTipText = FText::Format(LOCTEXT("ChangeTexturePinMode_Tooltip",
-					"Set the texture pin as {0} texture."), Context->Pin->PinType.PinCategory == PC_PassThroughImage ? FText::FromString("Mutable") : FText::FromString("Pass Through"));
+				if (Schema && Graph)
+				{
+					Schema->AddComment(Graph, NULL, FVector2D::ZeroVector, true);
+				}
+			}
+		};
 
-				FToolMenuSection& Section = Menu->FindOrAddSection("EdGraphSchemaPinActions");
-				Section.InitSection("EdGraphSchemaPinActions", LOCTEXT("PinActionsMenuHeader", "Pin Actions"), FToolMenuInsert());
+		FToolMenuSection& section = Menu->AddSection("SchemaActionComment", LOCTEXT("MultiCommentHeader", "Comment Group"));
+		section.AddMenuEntry("MultiCommentDesc", LOCTEXT("MultiCommentDesc", "Create Comment from Selection"),
+			LOCTEXT("CommentToolTip", "Create a resizable comment box around selection."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateStatic(SCommentUtility::CreateComment, this, const_cast<UEdGraph*>(ToRawPtr(Context->Graph)))));
+	}
+	else // On Pin right click
+	{
+		UCustomizableObjectNodeTable* TableNode = Cast<UCustomizableObjectNodeTable>(Context->Node);
+		UEdGraphPin* TexturePin = (UEdGraphPin*)Context->Pin;
 
+		if (TableNode && TexturePin && !TexturePin->LinkedTo.Num() && (TexturePin->PinType.PinCategory == PC_Image || TexturePin->PinType.PinCategory == PC_PassThroughImage))
+		{
+			FText ActionText = FText::Format(LOCTEXT("ChangeTexturePinMode_Label", 
+				"Set as {0} texture"), Context->Pin->PinType.PinCategory == PC_PassThroughImage ? FText::FromString("Mutable") : FText::FromString("Pass Through"));
+			
+			FText ToolTipText = FText::Format(LOCTEXT("ChangeTexturePinMode_Tooltip",
+				"Set the texture pin as {0} texture."), Context->Pin->PinType.PinCategory == PC_PassThroughImage ? FText::FromString("Mutable") : FText::FromString("Pass Through"));
+
+			FToolMenuSection& Section = Menu->FindOrAddSection("EdGraphSchemaPinActions");
+			Section.InitSection("EdGraphSchemaPinActions", LOCTEXT("PinActionsMenuHeader", "Pin Actions"), FToolMenuInsert());
+
+			Section.AddMenuEntry
+			(
+				"ChangeTexturePinMode", ActionText, ToolTipText, FSlateIcon(),
+				FUIAction(FExecuteAction::CreateLambda([TableNode, TexturePin]()
+					{
+						TableNode->ChangeImagePinMode(TexturePin);
+					}))
+			);
+
+			if (!TableNode->IsImagePinDefault(TexturePin))
+			{
 				Section.AddMenuEntry
 				(
-					"ChangeTexturePinMode", ActionText, ToolTipText, FSlateIcon(),
+					"SetTexturePinModeDefault",
+					LOCTEXT("SetTexturePinModeDefault_Label","Set pin as default."),
+					LOCTEXT("SetTexturePinModeDefault_Tooltip","Set the selected texture pin to use the default node mode."),
+					FSlateIcon(),
 					FUIAction(FExecuteAction::CreateLambda([TableNode, TexturePin]()
 						{
-							TableNode->ChangeImagePinMode(TexturePin);
+							TableNode->ChangeImagePinMode(TexturePin, true);
 						}))
 				);
-
-				if (!TableNode->IsImagePinDefault(TexturePin))
-				{
-					Section.AddMenuEntry
-					(
-						"SetTexturePinModeDefault",
-						LOCTEXT("SetTexturePinModeDefault_Label","Set pin as default."),
-						LOCTEXT("SetTexturePinModeDefault_Tooltip","Set the selected texture pin to use the default node mode."),
-						FSlateIcon(),
-						FUIAction(FExecuteAction::CreateLambda([TableNode, TexturePin]()
-							{
-								TableNode->ChangeImagePinMode(TexturePin, true);
-							}))
-					);
-				}
 			}
 		}
 	}

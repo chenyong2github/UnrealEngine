@@ -310,8 +310,7 @@ private:
 	/** */
 	void OnPreviewInstanceUpdated();
 	
-	/** */
-	TSharedRef<SGraphEditor> CreateGraphEditorWidget(UEdGraph* InGraph);
+	void CreateGraphEditorWidget(UEdGraph* InGraph);
 
 	/** Copy the currently selected nodes */
 	void CopySelectedNodes();
