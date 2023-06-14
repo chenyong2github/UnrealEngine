@@ -541,7 +541,7 @@ bool FShaderParameterParser::ParseParameters(
 					static const TCHAR* KeywordTable[] =
 					{
 						TEXT("const"),
-						TEXT("globallycoherent")
+						TEXT("globallycoherent"),
 						TEXT("enum"),
 						TEXT("class"),
 						TEXT("struct"),
