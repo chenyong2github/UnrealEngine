@@ -47,12 +47,16 @@ namespace PCGAttributeExtractor
 		{
 		case 0:
 			Value.X = In;
+			break;
 		case 1:
 			Value.Y = In;
+			break;
 		case 2:
 			Value.Z = In;
+			break;
 		default:
 			Value.W = In;
+			break;
 		}
 	}
 
@@ -65,6 +69,21 @@ namespace PCGAttributeExtractor
 			bOutSuccess = true;
 			return MakeUnique<FPCGChainAccessor<double, VectorType>>(std::move(InAccessor),
 				[](const VectorType& Value) -> double { return Value.Size(); });
+		}
+		else if (Name == PCGAttributeExtractorConstants::VectorNormalized)
+		{
+			if constexpr (std::is_same_v<FQuat, VectorType>)
+			{
+				bOutSuccess = true;
+				return MakeUnique<FPCGChainAccessor<VectorType, VectorType>>(std::move(InAccessor),
+					[](const VectorType& Value) -> VectorType { return Value.GetNormalized(); });
+			}
+			else
+			{
+				bOutSuccess = true;
+				return MakeUnique<FPCGChainAccessor<VectorType, VectorType>>(std::move(InAccessor),
+					[](const VectorType& Value) -> VectorType { return Value.GetSafeNormal(); });
+			}
 		}
 
 		const FString NameStr = Name.ToString();

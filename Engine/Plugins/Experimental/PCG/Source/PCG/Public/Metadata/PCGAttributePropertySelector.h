@@ -62,13 +62,11 @@ public:
 	// Returns the text to display in the widget.
 	FText GetDisplayText() const;
 
-#if WITH_EDITOR
 	// Return true if the underlying name is valid.
 	bool IsValid() const;
 
 	// Update the selector with an incoming string.
 	bool Update(FString NewValue);
-#endif // WITH_EDITOR
 };
 
 /**

@@ -132,7 +132,6 @@ FText FPCGAttributePropertySelector::GetDisplayText() const
 	return FText::FromString(Res);
 }
 
-#if WITH_EDITOR
 bool FPCGAttributePropertySelector::IsValid() const
 {
 	return (Selection != EPCGAttributePropertySelection::Attribute) || FPCGMetadataAttributeBase::IsValidName(AttributeName);
@@ -186,7 +185,6 @@ bool FPCGAttributePropertySelector::Update(FString NewValue)
 
 	return SetAttributeName(NewName.IsEmpty() ? NAME_None : FName(NewName), /*bResetExtraNames=*/ false) || bExtraChanged;
 }
-#endif // WITH_EDITOR
 
 ///////////////////////////////////////////////////////////////////////
 

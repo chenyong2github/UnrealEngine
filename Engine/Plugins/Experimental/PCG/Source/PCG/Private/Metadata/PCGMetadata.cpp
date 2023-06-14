@@ -516,6 +516,25 @@ void UPCGMetadata::CreateBoolAttribute(FName AttributeName, bool DefaultValue, b
 namespace PCGMetadata
 {
 	template<typename DataType>
+	bool CreateAttributeFromPropertyHelper(UPCGMetadata* Metadata, FName AttributeName, const DataType* DataPtr, const FProperty* InProperty)
+	{
+		if (!InProperty || !DataPtr || !Metadata)
+		{
+			return false;
+		}
+
+		auto CreateAttribute = [AttributeName, Metadata](auto&& PropertyValue) -> bool
+		{
+			using PropertyType = std::decay_t<decltype(PropertyValue)>;
+			FPCGMetadataAttributeBase* BaseAttribute = Metadata->FindOrCreateAttribute<PropertyType>(AttributeName, PropertyValue, /*bAllowsInterpolation=*/false, /*bOverrideParent=*/false, /*bOverwriteIfTypeMismatch=*/true);
+			
+			return (BaseAttribute != nullptr);
+		};
+
+		return PCGPropertyHelpers::GetPropertyValueWithCallback(DataPtr, InProperty, CreateAttribute);
+	}
+
+	template<typename DataType>
 	bool SetAttributeFromPropertyHelper(UPCGMetadata* Metadata, FName AttributeName, PCGMetadataEntryKey& EntryKey, const DataType* DataPtr, const FProperty* InProperty, bool bCreate)
 	{
 		if (!InProperty || !DataPtr || !Metadata)
@@ -573,6 +592,16 @@ namespace PCGMetadata
 
 		return PCGPropertyHelpers::GetPropertyValueWithCallback(DataPtr, InProperty, CreateAttributeAndSet);
 	}
+}
+
+bool UPCGMetadata::CreateAttributeFromProperty(FName AttributeName, const UObject* Object, const FProperty* InProperty)
+{
+	return PCGMetadata::CreateAttributeFromPropertyHelper<UObject>(this, AttributeName, Object, InProperty);
+}
+
+bool UPCGMetadata::CreateAttributeFromDataProperty(FName AttributeName, const void* Data, const FProperty* InProperty)
+{
+	return PCGMetadata::CreateAttributeFromPropertyHelper<void>(this, AttributeName, Data, InProperty);
 }
 
 bool UPCGMetadata::SetAttributeFromProperty(FName AttributeName, PCGMetadataEntryKey& EntryKey, const UObject* Object, const FProperty* InProperty, bool bCreate)

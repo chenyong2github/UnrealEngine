@@ -124,6 +124,22 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
 	void CreateBoolAttribute(FName AttributeName, bool DefaultValue, bool bAllowsInterpolation, bool bOverrideParent = true);
 
+	/** Creates an attribute given a property.
+	* @param AttributeName: Target attribute to create
+	* @param Object: Object to get the property value from
+	* @param Property: The property to set from
+	* @returns true if the attribute creation succeeded
+	*/
+	bool CreateAttributeFromProperty(FName AttributeName, const UObject* Object, const FProperty* Property);
+
+	/** Creates an attribute given a property.
+	* @param AttributeName: Target attribute to create
+	* @param Data: Data pointer to get the property value from
+	* @param Property: The property to set from
+	* @returns true if the attribute creation succeeded
+	*/
+	bool CreateAttributeFromDataProperty(FName AttributeName, const void* Data, const FProperty* Property);
+
 	/** Set an attribute given a property and its value.
 	* @param AttributeName: Target attribute to set the property's value to
 	* @param EntryKey: Metadata entry key to set the value to

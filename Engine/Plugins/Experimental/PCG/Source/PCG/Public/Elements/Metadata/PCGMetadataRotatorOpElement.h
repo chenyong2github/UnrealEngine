@@ -13,6 +13,7 @@ enum class EPCGMedadataRotatorOperation : uint16
 	Combine,
 	Invert,
 	Lerp,
+	Normalize,
 
 	TransformOp = 100 UMETA(Hidden),
 	TransformRotation,

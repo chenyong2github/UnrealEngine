@@ -29,7 +29,8 @@ namespace PCGMetadataRotatorSettings
 {
 	inline constexpr bool IsUnaryOp(EPCGMedadataRotatorOperation Operation)
 	{
-		return Operation == EPCGMedadataRotatorOperation::Invert;
+		return Operation == EPCGMedadataRotatorOperation::Invert ||
+			Operation == EPCGMedadataRotatorOperation::Normalize;
 	}
 
 	inline constexpr bool IsTernaryOp(EPCGMedadataRotatorOperation Operation)
@@ -52,6 +53,8 @@ namespace PCGMetadataRotatorSettings
 			return PCGMetadataRotatorHelpers::RLerp(Input1, Input2, Ratio, false);
 		case EPCGMedadataRotatorOperation::Invert:
 			return Input1.GetInverse();
+		case EPCGMedadataRotatorOperation::Normalize:
+			return Input1.GetNormalized();
 		default:
 			return FRotator{};
 		}
@@ -67,6 +70,8 @@ namespace PCGMetadataRotatorSettings
 			return FQuat::Slerp(Input1, Input2, Ratio);
 		case EPCGMedadataRotatorOperation::Invert:
 			return Input1.Inverse();
+		case EPCGMedadataRotatorOperation::Normalize:
+			return Input1.GetNormalized();
 		default:
 			return FQuat{};
 		}

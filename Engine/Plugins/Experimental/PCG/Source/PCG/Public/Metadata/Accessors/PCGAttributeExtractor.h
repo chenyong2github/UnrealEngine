@@ -20,6 +20,7 @@ namespace PCGAttributeExtractorConstants
 	const FName VectorA = TEXT("A");
 	const FName VectorLength = TEXT("Length");
 	const FName VectorSize = TEXT("Size");
+	const FName VectorNormalized = TEXT("Normalized");
 
 	const FName VectorExtractorNames[] =
 	{
