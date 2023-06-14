@@ -63,7 +63,7 @@ private:
 	/** The highest severity of issues along this entry's tree. */
 	mutable TOptional<EStackIssueSeverity> HighestIssueSeverity;
 
-	TSharedPtr<FNiagaraEmitterHandleViewModel> OwningEmitterHandleViewModel;
+	TWeakPtr<FNiagaraEmitterHandleViewModel> OwningEmitterHandleViewModelWeak;
 };
 
 UCLASS()

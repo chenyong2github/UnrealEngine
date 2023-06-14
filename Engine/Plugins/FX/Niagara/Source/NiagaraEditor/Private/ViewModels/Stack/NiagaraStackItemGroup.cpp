@@ -41,7 +41,7 @@ FText UNiagaraStackItemGroup::GetTooltipText() const
 
 bool UNiagaraStackItemGroup::GetIsEnabled() const
 {
-	return OwningEmitterHandleViewModel.IsValid() == false || OwningEmitterHandleViewModel->GetIsEnabled();
+	return OwningEmitterHandleViewModelWeak.IsValid() == false || OwningEmitterHandleViewModelWeak.Pin()->GetIsEnabled();
 }
 
 INiagaraStackItemGroupAddUtilities* UNiagaraStackItemGroup::GetAddUtilities() const
@@ -99,14 +99,16 @@ void UNiagaraStackItemGroup::RefreshChildrenInternal(const TArray<UNiagaraStackE
 	TSharedPtr<FNiagaraEmitterViewModel> OwningEmitterViewModel = GetEmitterViewModel();
 	if (OwningEmitterViewModel.IsValid())
 	{
+		TSharedPtr<FNiagaraEmitterHandleViewModel> OwningEmitterHandleViewModel = OwningEmitterHandleViewModelWeak.Pin();
 		if (OwningEmitterHandleViewModel.IsValid() == false || OwningEmitterHandleViewModel->GetEmitterViewModel() != OwningEmitterViewModel)
 		{
-			OwningEmitterHandleViewModel = GetSystemViewModel()->GetEmitterHandleViewModelForEmitter(OwningEmitterViewModel->GetEmitter());
+			OwningEmitterHandleViewModelWeak = TWeakPtr<FNiagaraEmitterHandleViewModel>(
+				GetSystemViewModel()->GetEmitterHandleViewModelForEmitter(OwningEmitterViewModel->GetEmitter()));
 		}
 	}
 	else
 	{
-		OwningEmitterHandleViewModel.Reset();
+		OwningEmitterHandleViewModelWeak.Reset();
 	}
 }
 

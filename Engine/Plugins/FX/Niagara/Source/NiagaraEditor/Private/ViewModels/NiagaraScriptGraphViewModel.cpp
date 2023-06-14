@@ -44,7 +44,7 @@ FNiagaraScriptGraphViewModel::FNiagaraScriptGraphViewModel(TAttribute<FText> InD
 
 FNiagaraScriptGraphViewModel::~FNiagaraScriptGraphViewModel()
 {
-	if (bIsForDataProcessingOnly == false)
+	if (bIsForDataProcessingOnly == false && GEditor != nullptr)
 	{
 		GEditor->UnregisterForUndo(this);
 	}
