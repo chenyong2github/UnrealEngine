@@ -1064,7 +1064,7 @@ void FAndroidOpenGL::ProcessExtensions(const FString& ExtensionsString)
 
 FString FAndroidMisc::GetGPUFamily()
 {
-	return FAndroidGPUInfo::Get().GPUFamily;
+	return FAndroidGPUInfo::Get().GetGPUFamily();
 }
 
 FString FAndroidMisc::GetGLVersion()
