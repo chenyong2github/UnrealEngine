@@ -52,17 +52,27 @@ class UCameraComponent : public USceneComponent
 	UFUNCTION(BlueprintCallable, Category = Camera)
 	void SetOrthoFarClipPlane(float InOrthoFarClipPlane) { OrthoFarClipPlane = InOrthoFarClipPlane; }
 
-	// Aspect Ratio (Width/Height)
+	/** Aspect Ratio (Width/Height) */
 	UPROPERTY(Interp, EditAnywhere, BlueprintReadWrite, Category = CameraSettings, meta = (ClampMin = "0.1", ClampMax = "100.0", EditCondition = "bConstrainAspectRatio"))
 	float AspectRatio;
 	UFUNCTION(BlueprintCallable, Category = Camera)
 	void SetAspectRatio(float InAspectRatio) { AspectRatio = InAspectRatio; }
 
-	// If bConstrainAspectRatio is true, black bars will be added if the destination view has a different aspect ratio than this camera requested.
+	/** Override for the default aspect ratio axis constraint defined on the local player */
+	UPROPERTY(Interp, EditAnywhere, BlueprintReadWrite, Category = CameraOptions, meta = (EditCondition = "bOverrideAspectRatioAxisConstraint"))
+	TEnumAsByte<EAspectRatioAxisConstraint> AspectRatioAxisConstraint = EAspectRatioAxisConstraint::AspectRatio_MaintainXFOV;
+	UFUNCTION(BlueprintCallable, Category = Camera)
+	void SetAspectRatioAxisConstraint(EAspectRatioAxisConstraint InAspectRatioAxisConstraint) { AspectRatioAxisConstraint = InAspectRatioAxisConstraint; }
+
+	/** If bConstrainAspectRatio is true, black bars will be added if the destination view has a different aspect ratio than this camera requested. */
 	UPROPERTY(Interp, EditAnywhere, BlueprintReadWrite, Category = CameraOptions)
 	uint8 bConstrainAspectRatio : 1;
 	UFUNCTION(BlueprintCallable, Category = Camera)
 	void SetConstraintAspectRatio(bool bInConstrainAspectRatio) { bConstrainAspectRatio = bInConstrainAspectRatio; }
+
+	/** Whether to override the default aspect ratio axis constraint defined on the local player */
+	UPROPERTY(Interp, EditAnywhere, BlueprintReadWrite, Category = CameraOptions)
+	uint8 bOverrideAspectRatioAxisConstraint : 1;
 
 	// If true, account for the field of view angle when computing which level of detail to use for meshes.
 	UPROPERTY(Interp, EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = CameraOptions)

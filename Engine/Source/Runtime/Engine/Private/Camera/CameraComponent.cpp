@@ -396,6 +396,11 @@ void UCameraComponent::GetCameraView(float DeltaTime, FMinimalViewInfo& DesiredV
 	DesiredView.OrthoNearClipPlane = OrthoNearClipPlane;
 	DesiredView.OrthoFarClipPlane = OrthoFarClipPlane;
 
+	if (bOverrideAspectRatioAxisConstraint)
+	{
+		DesiredView.AspectRatioAxisConstraint = AspectRatioAxisConstraint;
+	}
+
 	// See if the CameraActor wants to override the PostProcess settings used.
 	DesiredView.PostProcessBlendWeight = PostProcessBlendWeight;
 	if (PostProcessBlendWeight > 0.0f)

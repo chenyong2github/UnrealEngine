@@ -86,6 +86,9 @@ struct FMinimalViewInfo
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Camera)
 	float AspectRatio;
 
+	// Aspect ratio axis constraint override
+	TOptional<EAspectRatioAxisConstraint> AspectRatioAxisConstraint;
+
 	// If bConstrainAspectRatio is true, black bars will be added if the destination view has a different aspect ratio than this camera requested.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Camera)
 	uint32 bConstrainAspectRatio:1; 

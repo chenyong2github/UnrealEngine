@@ -158,6 +158,9 @@ void FMinimalViewInfo::CalculateProjectionMatrixGivenViewRectangle(const FMinima
 		const int32 SizeX = ViewRect.Width();
 		const int32 SizeY = ViewRect.Height();
 
+		// Get effective aspect ratio axis constraint.
+		AspectRatioAxisConstraint = ViewInfo.AspectRatioAxisConstraint.Get(AspectRatioAxisConstraint);
+
 		// If x is bigger, and we're respecting x or major axis, AND mobile isn't forcing us to be Y axis aligned
 		const bool bMaintainXFOV = 
 			((SizeX > SizeY) && (AspectRatioAxisConstraint == AspectRatio_MajorAxisFOV)) || 
