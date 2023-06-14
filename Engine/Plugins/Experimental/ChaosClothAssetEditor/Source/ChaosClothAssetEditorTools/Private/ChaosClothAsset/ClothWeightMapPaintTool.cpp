@@ -748,8 +748,8 @@ bool UClothEditorWeightMapPaintTool::SyncMeshWithWeightBuffer(FDynamicMesh3* Mes
 				}
 				else
 				{
-					ActiveWeightEditChangeTracker->SaveVertexOneRingTriangles(VertIdx, true);
-					ActiveWeightMap->SetValue(VertIdx, &ROIWeightValueBuffer[k]);
+				ActiveWeightEditChangeTracker->SaveVertexOneRingTriangles(VertIdx, true);
+				ActiveWeightMap->SetValue(VertIdx, &ROIWeightValueBuffer[k]);
 				}
 				NumModified++;
 			}
@@ -1006,8 +1006,8 @@ void UClothEditorWeightMapPaintTool::ComputeGradient()
 
 	if (bHaveDynamicMeshToWeightConversion)
 	{
-		for (int32 vid : TempROIBuffer)
-		{
+	for (int32 vid : TempROIBuffer)
+	{
 			for (const int32 Idx : WeightToDynamicMesh[DynamicMeshToWeight[vid]])
 			{
 				ActiveWeightEditChangeTracker->SaveVertexOneRingTriangles(Idx, true);
@@ -1018,8 +1018,8 @@ void UClothEditorWeightMapPaintTool::ComputeGradient()
 	{
 		for (int32 vid : TempROIBuffer)
 		{
-			ActiveWeightEditChangeTracker->SaveVertexOneRingTriangles(vid, true);
-		}
+		ActiveWeightEditChangeTracker->SaveVertexOneRingTriangles(vid, true);
+	}
 	}
 
 
@@ -1063,8 +1063,8 @@ void UClothEditorWeightMapPaintTool::ComputeGradient()
 		}
 		else
 		{
-			ActiveWeightMap->SetValue(VertexIndex, &Value);
-		}
+		ActiveWeightMap->SetValue(VertexIndex, &Value);
+	}
 	}
 
 
@@ -1120,7 +1120,7 @@ void UClothEditorWeightMapPaintTool::SetVerticesToWeightMap(const TSet<int32>& V
 		ApplyVisibilityFilter(TempROIBuffer, VisibleVertices);
 		TempROIBuffer = MoveTemp(VisibleVertices);
 	}
-	
+
 	if (bHaveDynamicMeshToWeightConversion)
 	{
 		for (int32 vid : TempROIBuffer)
@@ -1134,14 +1134,14 @@ void UClothEditorWeightMapPaintTool::SetVerticesToWeightMap(const TSet<int32>& V
 	}
 	else
 	{
-		for (int32 vid : TempROIBuffer)
-		{
-			ActiveWeightEditChangeTracker->SaveVertexOneRingTriangles(vid, true);
-		}
-		for (int32 vid : TempROIBuffer)
-		{
-			ActiveWeightMap->SetValue(vid, &WeightValue);
-		}
+	for (int32 vid : TempROIBuffer)
+	{
+		ActiveWeightEditChangeTracker->SaveVertexOneRingTriangles(vid, true);
+	}
+	for (int32 vid : TempROIBuffer)
+	{		
+		ActiveWeightMap->SetValue(vid, &WeightValue);
+	}
 	}
 
 
@@ -1543,8 +1543,8 @@ void UClothEditorWeightMapPaintTool::FloodFillCurrentWeightAction()
 
 	if (bHaveDynamicMeshToWeightConversion)
 	{
-		for (int32 vid : TempROIBuffer)
-		{
+	for (int32 vid : TempROIBuffer)
+	{
 			for (const int32 Idx : WeightToDynamicMesh[DynamicMeshToWeight[vid]])
 			{
 				ActiveWeightEditChangeTracker->SaveVertexOneRingTriangles(Idx, true);
@@ -1556,12 +1556,12 @@ void UClothEditorWeightMapPaintTool::FloodFillCurrentWeightAction()
 	{
 		for (int32 vid : TempROIBuffer)
 		{
-			ActiveWeightEditChangeTracker->SaveVertexOneRingTriangles(vid, true);
-		}
-		for (int32 vid : TempROIBuffer)
-		{
-			ActiveWeightMap->SetValue(vid, &SetWeightValue);
-		}
+		ActiveWeightEditChangeTracker->SaveVertexOneRingTriangles(vid, true);
+	}
+	for (int32 vid : TempROIBuffer)
+	{
+		ActiveWeightMap->SetValue(vid, &SetWeightValue);
+	}
 	}
 
 	DynamicMeshComponent->FastNotifyVertexAttributesUpdated(EMeshRenderAttributeFlags::VertexColors);
@@ -1600,14 +1600,14 @@ void UClothEditorWeightMapPaintTool::ClearAllWeightsAction()
 	}
 	else
 	{
-		for (int32 vid : TempROIBuffer)
-		{
-			ActiveWeightEditChangeTracker->SaveVertexOneRingTriangles(vid, true);
-		}
-		for (int32 vid : TempROIBuffer)
-		{
-			ActiveWeightMap->SetValue(vid, &SetWeightValue);
-		}
+	for (int32 vid : TempROIBuffer)
+	{
+		ActiveWeightEditChangeTracker->SaveVertexOneRingTriangles(vid, true);
+	}
+	for (int32 vid : TempROIBuffer)
+	{
+		ActiveWeightMap->SetValue(vid, &SetWeightValue);
+	}
 	}
 
 	DynamicMeshComponent->FastNotifyVertexAttributesUpdated(EMeshRenderAttributeFlags::VertexColors);
