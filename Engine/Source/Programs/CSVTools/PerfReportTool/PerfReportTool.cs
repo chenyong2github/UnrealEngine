@@ -26,7 +26,7 @@ namespace PerfReportTool
     class Version
     {
 		// Format: Major.Minor.Bugfix
-        private static string VersionString = "4.105.0";
+        private static string VersionString = "4.106.0";
 
         public static string Get() { return VersionString; }
     };
@@ -169,10 +169,12 @@ namespace PerfReportTool
 			"  -summaryTableXmlRowSortAppend <list,of,stats> : append these stats to the summary table's row sort list\n" +
 			"  -transposeTable : write the summary tables transposed\n" +
 			"  -transposeCollatedTable : write the collated summary table transposed (disables min/max columns)\n" +
-            "  -addDiffRows : adds diff rows after the first two rows\n" +
-			"  -sortColumnsByDiff : sorts columns by the max of its diff scores (use with -addDiffRows)\n" +
-			"      Note: Diff score corresponds to the value of a column's diff row; the sign is reversed if LowIsBad\n" +
-			"  -columnDiffDisplayThreshold <value> : if specified, hides columns with max diff value below this threshold\n" +
+			"Diff rows\n" +
+			"  -addDiffRows : adds diff rows after the first two rows\n" +
+			"  -sortColumnsByDiff : sorts columns by the max of its diff scores (use with -addDiffRows).\n" +
+			"      Notes: Diff score corresponds to the value of a column's diff row; the sign is reversed if LowIsBad\n" +
+			"             Stats are sorted by prefixes first, e.g GPU/\n" +
+			"  -columnDiffDisplayThreshold <value> : if specified, hides columns with max diff value below this threshold\n"+
 			"\n" +
 			"Optional Column Filters\n" +
 			"  -debugShowFilteredColumns : grays out filtered columns instead of removing. Column tooltip will show filtered reason.\n" +

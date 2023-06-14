@@ -427,6 +427,20 @@ namespace PerfSummaries
 			return newColumn;
 		}
 
+		// In the case of CSV stats, returns the category. Otherwise, returns an empty string
+		public string GetStatCategory()
+		{
+			if (elementType == SummaryTableElement.Type.CsvStatAverage)
+			{
+				int lastSlashIndex = name.LastIndexOf('/');
+				if (lastSlashIndex != -1)
+				{
+					return name.Substring(0, lastSlashIndex);
+				}
+			}
+			return "";
+		}
+
 		// Returns true if we should displaya min/max/avg sub columns (if enabled).
 		public bool DisplayAggregates()
 		{
@@ -1470,10 +1484,20 @@ namespace PerfSummaries
 
 			columns = new List<SummaryTableColumn>();
 			columns.AddRange(staticColumns);
+
+			// Sort the numeric columns by stat
 			numericColumnSortKeyPairs.Sort((a, b) => -a.Item2.CompareTo(b.Item2));
+			List<SummaryTableColumn> sortedNumericColumns = new List<SummaryTableColumn>();
 			foreach (Tuple<SummaryTableColumn, double> pair in numericColumnSortKeyPairs)
 			{
-				SummaryTableColumn column = pair.Item1;
+				sortedNumericColumns.Add(pair.Item1);
+			}
+
+			// Stable sort the columns by stat prefix
+			IEnumerable<SummaryTableColumn> sortedNumericColumnsOrderedByCategory = sortedNumericColumns.OrderBy(column => column.GetStatCategory());
+
+			foreach (SummaryTableColumn column in sortedNumericColumnsOrderedByCategory)
+			{
 				columns.Add(column);
 				if (hasMinMaxColumns)
 				{
