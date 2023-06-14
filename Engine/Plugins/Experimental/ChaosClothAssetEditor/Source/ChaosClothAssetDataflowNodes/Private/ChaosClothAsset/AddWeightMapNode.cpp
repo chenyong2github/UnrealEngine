@@ -44,7 +44,7 @@ void FChaosClothAssetAddWeightMapNode::Evaluate(Dataflow::FContext& Context, con
 						VertexWeights.Num(),
 						ClothWeights.Num()));
 			}
-
+				
 			for (int32 VertexID = 0; VertexID < MaxWeightIndex; ++VertexID)
 			{
 				ClothWeights[VertexID] = VertexWeights[VertexID];
