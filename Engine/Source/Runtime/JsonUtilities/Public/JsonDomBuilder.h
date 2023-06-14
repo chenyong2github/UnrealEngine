@@ -41,6 +41,16 @@ public:
 		{
 		}
 
+		FObject(TSharedPtr<FJsonObject> InObject)
+			: Object(InObject.ToSharedRef())
+		{
+		}
+
+		FObject(TSharedRef<FJsonObject> InObject)
+			: Object(InObject)
+		{
+		}
+
 		TSharedRef<FJsonValueObject> AsJsonValue() const
 		{
 			return MakeShared<FJsonValueObject>(Object);
