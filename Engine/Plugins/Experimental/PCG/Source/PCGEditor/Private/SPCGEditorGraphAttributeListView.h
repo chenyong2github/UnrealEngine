@@ -96,7 +96,22 @@ private:
 	const FPCGDataCollection* GetInspectionData();
 	
 	void RefreshAttributeList();
+	void RefreshPinComboBox();
 	void RefreshDataComboBox();
+
+	/** Only connected input pins are added to combo box, so keep track of the node pin index for each item. */
+	struct FPinComboBoxItem
+	{
+		explicit FPinComboBoxItem(FName InName, int32 InPinIndex) : Name(InName), PinIndex(InPinIndex) {}
+
+		FName Name;
+		int32 PinIndex = INDEX_NONE;
+	};
+
+	FText OnGenerateSelectedPinText() const;
+	int32 GetSelectedPinIndex() const;
+	void OnSelectionChangedPin(TSharedPtr<FPinComboBoxItem> InItem, ESelectInfo::Type InSelectInfo);
+	TSharedRef<SWidget> OnGeneratePinWidget(TSharedPtr<FPinComboBoxItem> InItem) const;
 
 	const FSlateBrush* GetFilterBadgeIcon() const;
 	TSharedRef<SWidget> OnGenerateFilterMenu();
@@ -135,6 +150,9 @@ private:
 	TSharedPtr<SHeaderRow> ListViewHeader;
 	TSharedPtr<SListView<PCGListviewItemPtr>> ListView;
 	TArray<PCGListviewItemPtr> ListViewItems;
+
+	TSharedPtr<SComboBox<TSharedPtr<FPinComboBoxItem>>> PinComboBox;
+	TArray<TSharedPtr<FPinComboBoxItem>> PinComboBoxItems;
 
 	TSharedPtr<SComboBox<TSharedPtr<FName>>> DataComboBox;
 	TArray<TSharedPtr<FName>> DataComboBoxItems;

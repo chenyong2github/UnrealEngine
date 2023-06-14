@@ -244,7 +244,7 @@ public:
 	bool IsInspecting() const;
 	void EnableInspection();
 	void DisableInspection();
-	void StoreInspectionData(const FPCGStack* InStack, const UPCGNode* InNode, const FPCGDataCollection& InInspectionData);
+	void StoreInspectionData(const FPCGStack* InStack, const UPCGNode* InNode, const FPCGDataCollection& InInputData, const FPCGDataCollection& InOutputData);
 	const FPCGDataCollection* GetInspectionData(const FString& InStackPath) const;
 
 	/** Used by the tracking system to know if the component need to track actors. Not enabled for now, tracking is still done on the component.*/

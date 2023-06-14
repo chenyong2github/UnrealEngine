@@ -8,6 +8,7 @@
 #include "PCGInputOutputSettings.h"
 #include "PCGManagedResource.h"
 #include "PCGParamData.h"
+#include "PCGPin.h"
 #include "PCGSubsystem.h"
 #include "Data/PCGCollisionShapeData.h"
 #include "Data/PCGDifferenceData.h"
@@ -1730,18 +1731,38 @@ void UPCGComponent::DisableInspection()
 	}
 };
 
-void UPCGComponent::StoreInspectionData(const FPCGStack* InStack, const UPCGNode* InNode, const FPCGDataCollection& InInspectionData)
+void UPCGComponent::StoreInspectionData(const FPCGStack* InStack, const UPCGNode* InNode, const FPCGDataCollection& InInputData, const FPCGDataCollection& InOutputData)
 {
-	if (!IsInspecting())
+	if (!IsInspecting() || !InNode || !ensure(InStack))
 	{
 		return;
 	}
 
-	FString StackFramePath;
-	if (ensure(InStack) && ensure(InStack->CreateStackFramePath(StackFramePath, InNode)))
+	auto StorePinInspectionData = [InStack, InNode](const TArray<TObjectPtr<UPCGPin>>& InPins, const FPCGDataCollection& InData, TMap<FString, FPCGDataCollection>& InOutInspectionCache)
 	{
-		InspectionCache.Add(StackFramePath, InInspectionData);
-	}
+		for (const UPCGPin* Pin : InPins)
+		{
+			FString StackFramePath;
+			if (!ensure(InStack->CreateStackFramePath(StackFramePath, InNode, Pin)))
+			{
+				continue;
+			}
+
+			FPCGDataCollection PinDataCollection;
+			PinDataCollection.TaggedData = InData.GetInputsByPin(Pin->Properties.Label);
+			if (!PinDataCollection.TaggedData.IsEmpty())
+			{
+				InOutInspectionCache.Add(StackFramePath, PinDataCollection);
+			}
+			else
+			{
+				InOutInspectionCache.Remove(StackFramePath);
+			}
+		}
+	};
+
+	StorePinInspectionData(InNode->GetInputPins(), InInputData, InspectionCache);
+	StorePinInspectionData(InNode->GetOutputPins(), InOutputData, InspectionCache);
 }
 
 const FPCGDataCollection* UPCGComponent::GetInspectionData(const FString& InStackPath) const

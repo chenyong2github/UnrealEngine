@@ -4,9 +4,9 @@
 
 #include "PCGComponent.h"
 #include "PCGData.h"
-#include "PCGEditor.h"
-#include "PCGEditorGraphNodeBase.h"
+#include "PCGNode.h"
 #include "PCGParamData.h"
+#include "PCGPin.h"
 #include "PCGSubsystem.h"
 #include "Data/PCGPointData.h"
 #include "Data/PCGSpatialData.h"
@@ -16,6 +16,9 @@
 #include "Metadata/Accessors/PCGAttributeAccessorHelpers.h"
 #include "Metadata/Accessors/PCGAttributeAccessorKeys.h"
 #include "Metadata/Accessors/PCGCustomAccessor.h"
+
+#include "PCGEditor.h"
+#include "PCGEditorGraphNodeBase.h"
 
 #include "Fonts/FontMeasure.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -33,6 +36,7 @@ static TAutoConsoleVariable<bool> CVarShowAdvancedAttributesFields(
 namespace PCGEditorGraphAttributeListView
 {
 	const FString LastMetadataId = TEXT("@Last");
+	const FText NoPinAvailableText = LOCTEXT("NoPinAvailableText", "No pins");
 	const FText NoDataAvailableText = LOCTEXT("NoDataAvailableText", "No data available");
 	const FText NoNodeInspectedText = LOCTEXT("NoNodeInspectedText", "No node being inspected");
 	const FText NoNodeInspectedToolTip = LOCTEXT("NoNodeInspectedToolTip", "Inspect a node using the right click menu");
@@ -226,6 +230,15 @@ void SPCGEditorGraphAttributeListView::Construct(const FArguments& InArgs, TShar
 		.Visibility_Lambda(VisibilityTest)
 		.ConsumeMouseWheel(EConsumeMouseWheel::Always);
 
+	SAssignNew(PinComboBox, SComboBox<TSharedPtr<FPinComboBoxItem>>)
+		.OptionsSource(&PinComboBoxItems)
+		.OnGenerateWidget(this, &SPCGEditorGraphAttributeListView::OnGeneratePinWidget)
+		.OnSelectionChanged(this, &SPCGEditorGraphAttributeListView::OnSelectionChangedPin)
+		[
+			SNew(STextBlock)
+			.Text(this, &SPCGEditorGraphAttributeListView::OnGenerateSelectedPinText)
+		];
+
 	SAssignNew(DataComboBox, SComboBox<TSharedPtr<FName>>)
 		.OptionsSource(&DataComboBoxItems)
 		.OnGenerateWidget(this, &SPCGEditorGraphAttributeListView::OnGenerateDataWidget)
@@ -264,6 +277,12 @@ void SPCGEditorGraphAttributeListView::Construct(const FArguments& InArgs, TShar
 			.Padding(1.0f, 0.0f)
 			[
 				FilterButton->AsShared()
+			]
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(1.0f, 0.0f)
+			[
+				PinComboBox->AsShared()
 			]
 			+SHorizontalBox::Slot()
 			.AutoWidth()
@@ -332,6 +351,7 @@ void SPCGEditorGraphAttributeListView::Tick(const FGeometry& AllottedGeometry, c
 	{
 		bNeedsRefresh = false;
 
+		RefreshPinComboBox();
 		RefreshDataComboBox();
 		RefreshAttributeList();
 	}
@@ -404,12 +424,7 @@ const FPCGDataCollection* SPCGEditorGraphAttributeListView::GetInspectionData()
 		return nullptr;
 	}
 
-	if (!PCGEditorGraphNode.IsValid())
-	{
-		return nullptr;
-	}
-
-	const UPCGNode* PCGNode = PCGEditorGraphNode->GetPCGNode();
+	const UPCGNode* PCGNode = PCGEditorGraphNode.IsValid() ? PCGEditorGraphNode->GetPCGNode() : nullptr;
 	if (!PCGNode)
 	{
 		return nullptr;
@@ -418,8 +433,27 @@ const FPCGDataCollection* SPCGEditorGraphAttributeListView::GetInspectionData()
 	const TSharedPtr<FPCGEditor> PCGEditor = PCGEditorPtr.Pin();
 	const FPCGStack& PCGStack = PCGEditor->GetStackBeingInspected();
 
+	const int32 SelectedIndex = GetSelectedPinIndex();
+	if (SelectedIndex == INDEX_NONE)
+	{
+		return nullptr;
+	}
+
+	// Selected pin is an output if it's at the beginning of the list, otherwise it's an input
+	const UPCGPin* Pin = nullptr;
+	const int32 InputPinCount = PCGNode->GetInputPins().Num();
+	const int32 OutputPinCount = PCGNode->GetOutputPins().Num();
+	if (SelectedIndex < (InputPinCount + OutputPinCount))
+	{
+		Pin = (SelectedIndex < OutputPinCount) ? PCGNode->GetOutputPins()[SelectedIndex] : PCGNode->GetInputPins()[SelectedIndex - OutputPinCount];
+	}
+	if (!Pin)
+	{
+		return nullptr;
+	}
+
 	FString ResourcePath;
-	if (!PCGStack.CreateStackFramePath(ResourcePath, PCGNode))
+	if (!PCGStack.CreateStackFramePath(ResourcePath, PCGNode, Pin))
 	{
 		return nullptr;
 	}
@@ -520,6 +554,55 @@ void SPCGEditorGraphAttributeListView::RefreshAttributeList()
 	RefreshSorting();
 }
 
+void SPCGEditorGraphAttributeListView::RefreshPinComboBox()
+{
+	PinComboBoxItems.Empty();
+	PinComboBox->ClearSelection();
+	PinComboBox->RefreshOptions();
+
+	const UPCGNode* PCGNode = PCGEditorGraphNode.IsValid() ? PCGEditorGraphNode->GetPCGNode() : nullptr;
+	if (!PCGNode)
+	{
+		return;
+	}
+
+	// Add output and then input pins to list. Optionally output the first connected item - useful for initializing
+	// the selected item to the first connected output pin.
+	auto PopulatePins = [](
+		const TArray<TObjectPtr<UPCGPin>> InPins,
+		const FString& InFormatText,
+		TArray<TSharedPtr<FPinComboBoxItem>>& InOutItems,
+		int32* OutFirstConnectedItemIndex)
+	{
+		for (int32 i = 0; i < InPins.Num(); ++i)
+		{
+			// Pin is included in list if it is connected, or if it is an output pin.
+			if (InPins[i] && (InPins[i]->IsConnected() || InPins[i]->IsOutputPin()))
+			{
+				FString ItemName = FString::Format(*InFormatText, { InPins[i]->Properties.Label.ToString() });
+				InOutItems.Add(MakeShared<FPinComboBoxItem>(FName(ItemName), i));
+
+				// Look for first connected, null pointer once found so only first is taken.
+				if (OutFirstConnectedItemIndex && InPins[i]->IsConnected())
+				{
+					*OutFirstConnectedItemIndex = InOutItems.Num() - 1;
+					OutFirstConnectedItemIndex = nullptr;
+				}
+			}
+		}
+	};
+
+	// Pick first connected output pin by default if there is one, otherwise default to first output pin.
+	int32 FirstConnectedItemIndex = 0;
+	PopulatePins(PCGNode->GetOutputPins(), TEXT("Output: {0}"), PinComboBoxItems, &FirstConnectedItemIndex);
+	PopulatePins(PCGNode->GetInputPins(), TEXT("Input: {0}"), PinComboBoxItems, nullptr);
+
+	if (PinComboBoxItems.Num() > 0 && ensure(PinComboBoxItems.IsValidIndex(FirstConnectedItemIndex)))
+	{
+		PinComboBox->SetSelectedItem(PinComboBoxItems[FirstConnectedItemIndex]);
+	}
+}
+
 void SPCGEditorGraphAttributeListView::RefreshDataComboBox()
 {
 	DataComboBoxItems.Empty();
@@ -535,8 +618,9 @@ void SPCGEditorGraphAttributeListView::RefreshDataComboBox()
 	for(int32 TaggedDataIndex = 0; TaggedDataIndex < InspectionData->TaggedData.Num(); ++TaggedDataIndex)
 	{
 		const FPCGTaggedData& TaggedData = InspectionData->TaggedData[TaggedDataIndex];
-		FString ItemName = FString::Format(TEXT("[{0}] {1} - {2}"),
-			{ FText::AsNumber(TaggedDataIndex).ToString(), TaggedData.Pin.ToString(), (TaggedData.Data ? TaggedData.Data->GetClass()->GetDisplayNameText().ToString(): TEXT("No Data")) });
+		FString ItemName = FString::Format(
+			TEXT("[{0}] {1}"),
+			{ FText::AsNumber(TaggedDataIndex).ToString(), (TaggedData.Data ? TaggedData.Data->GetClass()->GetDisplayNameText().ToString(): TEXT("No Data")) });
 
 		if (!TaggedData.Tags.IsEmpty())
 		{
@@ -603,6 +687,44 @@ TSharedRef<SWidget> SPCGEditorGraphAttributeListView::OnGenerateFilterMenu()
 	}
 	
 	return MenuBuilder.MakeWidget();
+}
+
+FText SPCGEditorGraphAttributeListView::OnGenerateSelectedPinText() const
+{
+	if (const TSharedPtr<FPinComboBoxItem> SelectedPin = PinComboBox->GetSelectedItem())
+	{
+		return FText::FromName(SelectedPin->Name);
+	}
+	else
+	{
+		return PCGEditorGraphAttributeListView::NoPinAvailableText;
+	}
+}
+
+int32 SPCGEditorGraphAttributeListView::GetSelectedPinIndex() const
+{
+	int32 Index = INDEX_NONE;
+	if (const TSharedPtr<FPinComboBoxItem> SelectedPin = PinComboBox->GetSelectedItem())
+	{
+		PinComboBoxItems.Find(SelectedPin, Index);
+	}
+
+	return Index;
+}
+
+void SPCGEditorGraphAttributeListView::OnSelectionChangedPin(TSharedPtr<FPinComboBoxItem> InItem, ESelectInfo::Type InSelectInfo)
+{
+	RefreshDataComboBox();
+
+	if (InSelectInfo != ESelectInfo::Direct)
+	{
+		RefreshAttributeList();
+	}
+}
+
+TSharedRef<SWidget> SPCGEditorGraphAttributeListView::OnGeneratePinWidget(TSharedPtr<FPinComboBoxItem> InItem) const
+{
+	return SNew(STextBlock).Text(FText::FromName(InItem.IsValid() ? InItem->Name : NAME_None));
 }
 
 TSharedRef<SWidget> SPCGEditorGraphAttributeListView::OnGenerateDataWidget(TSharedPtr<FName> InItem) const
