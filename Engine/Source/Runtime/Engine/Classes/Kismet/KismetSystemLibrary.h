@@ -134,8 +134,16 @@ class UKismetSystemLibrary : public UBlueprintFunctionLibrary
 	static ENGINE_API FSoftClassPath GetSoftClassPath(const UClass* Class);
 
 	// Returns the full path to the specified class as a Top Level Asset Path used by asset utilities
-	UFUNCTION(BlueprintPure, Category = "Utilities")
+	UFUNCTION(BlueprintPure, Category = "Utilities", DisplayName="Get Class Path Name (Top Level Asset Path)", meta=(ScriptMethod="GetClassPathName"))
 	static ENGINE_API FTopLevelAssetPath GetClassTopLevelAssetPath(const UClass* Class);
+
+	// Returns the full path to the specified struct as a Top Level Asset Path used by asset utilities
+	UFUNCTION(BlueprintPure, Category = "Utilities", DisplayName = "Get Struct Path Name (Top Level Asset Path)", meta=(ScriptMethod="GetStructPathName"))
+	static FTopLevelAssetPath GetStructTopLevelAssetPath(const UScriptStruct* Struct);
+
+	// Returns the full path to the specified enum as a Top Level Asset Path used by asset utilities
+	UFUNCTION(BlueprintPure, Category = "Utilities", DisplayName = "Get Enum Path Name (Top Level Asset Path)", meta=(ScriptMethod="GetEnumPathName"))
+	static FTopLevelAssetPath GetEnumTopLevelAssetPath(const UEnum* Enum);
 
 	// Returns the outer object of an object.
 	UFUNCTION(BlueprintPure, Category = "Utilities")

@@ -169,6 +169,18 @@ FTopLevelAssetPath UKismetSystemLibrary::GetClassTopLevelAssetPath(const UClass*
 	return FTopLevelAssetPath(Class);
 }
 
+FTopLevelAssetPath UKismetSystemLibrary::GetStructTopLevelAssetPath(const UScriptStruct* Struct)
+{
+	// This will succeed for all valid structs as they are never subobjects
+	return FTopLevelAssetPath(Struct);
+}
+
+FTopLevelAssetPath UKismetSystemLibrary::GetEnumTopLevelAssetPath(const UEnum* Enum)
+{
+	// This will succeed for all valid enums as they are never subobjects
+	return FTopLevelAssetPath(Enum);
+}
+
 UObject* UKismetSystemLibrary::GetOuterObject(const UObject* Object)
 {
 	return Object ? Object->GetOuter() : nullptr;
