@@ -105,6 +105,11 @@ public:
 		}
 	}
 
+	inline bool IsSecondary() const
+	{
+		return bIsSecondary;
+	}
+
 	inline void LogError(FString&& Message)
 	{
 		FShaderCompilerError& CompilerError = Errors.AddDefaulted_GetRef();;
@@ -176,6 +181,7 @@ private:
 
 	double ElapsedTime = 0.0;
 	bool bSucceeded = false;
+	bool bIsSecondary = false;
 
 	FShaderParameterParser ParameterParser;
 };

@@ -201,7 +201,9 @@ public:
 	/** Input for the shader compile */
 	FShaderCompilerInput Input;
 	FShaderPreprocessOutput PreprocessOutput;
+	TUniquePtr<FShaderPreprocessOutput> SecondaryPreprocessOutput{};
 	FShaderCompilerOutput Output;
+	TUniquePtr<FShaderCompilerOutput> SecondaryOutput{};
 
 	// List of pipelines that are sharing this job.
 	TMap<const FVertexFactoryType*, TArray<const FShaderPipelineType*>> SharingPipelines;

@@ -975,9 +975,52 @@ int HandleShaderCompileException(Windows::LPEXCEPTION_POINTERS Info, FString& Ou
 class FInternalShaderCompilerFunctions
 {
 public:
+
+	static bool InvokePreprocess(
+		const IShaderFormat* Backend,
+		const FShaderCompilerInput& Input,
+		const FShaderCompilerEnvironment& Environment,
+		FShaderPreprocessOutput& Output,
+		FString& OutExceptionCallstack,
+		FString& OutExceptionMsg)
+	{
+#if PLATFORM_WINDOWS
+		__try
+#endif
+		{
+			return Backend->PreprocessShader(Input, Environment, Output);
+		}
+#if PLATFORM_WINDOWS
+		__except (HandleShaderCompileException(GetExceptionInformation(), OutExceptionMsg, OutExceptionCallstack))
+		{
+		}
+#endif
+		return false;
+	}
+
+	static void PreprocessShaderInternal(
+		const IShaderFormat* Backend, 
+		FShaderCompileJob& Job, 
+		const FShaderCompilerEnvironment& Environment,
+		FString& OutExceptionCallstack,
+		FString& OutExceptionMsg)
+	{
+		Job.PreprocessOutput.bSucceeded = InvokePreprocess(Backend, Job.Input, Environment, Job.PreprocessOutput, OutExceptionCallstack, OutExceptionMsg);
+		if (Job.PreprocessOutput.bSucceeded && Backend->RequiresSecondaryCompile(Job.Input, Environment, Job.PreprocessOutput))
+		{
+			Job.SecondaryPreprocessOutput = MakeUnique<FShaderPreprocessOutput>();
+			Job.SecondaryPreprocessOutput->bIsSecondary = true;
+			Job.PreprocessOutput.bSucceeded &= InvokePreprocess(Backend, Job.Input, Environment, *Job.SecondaryPreprocessOutput, OutExceptionCallstack, OutExceptionMsg);
+		}
+	}
+
 	static bool PreprocessShaderInternal(const IShaderFormat* Backend, FShaderCompileJob& Job)
 	{
 		const double StartPreprocessTime = FPlatformTime::Seconds();
+
+		FString ExceptionCallstack;
+		FString ExceptionMsg;
+
 		if (IsValidRef(Job.Input.SharedEnvironment))
 		{
 			// only create new environment & merge if necessary, save some allocs
@@ -985,11 +1028,20 @@ public:
 			// and affect what is passed to the workers)
 			FShaderCompilerEnvironment MergedEnvironment = Job.Input.Environment;
 			MergedEnvironment.Merge(*Job.Input.SharedEnvironment);
-			Job.PreprocessOutput.bSucceeded = Backend->PreprocessShader(Job.Input, MergedEnvironment, Job.PreprocessOutput);
+			PreprocessShaderInternal(Backend, Job, MergedEnvironment, ExceptionCallstack, ExceptionMsg);
 		}
 		else
 		{
-			Job.PreprocessOutput.bSucceeded = Backend->PreprocessShader(Job.Input, Job.Input.Environment, Job.PreprocessOutput);
+			PreprocessShaderInternal(Backend, Job, Job.Input.Environment, ExceptionCallstack, ExceptionMsg);
+		}
+
+		if (!Job.PreprocessOutput.bSucceeded && (!ExceptionMsg.IsEmpty() || !ExceptionCallstack.IsEmpty()))
+		{
+			FString StrippedErrorMessage = FString::Printf(
+				TEXT("Exception encountered in platform compiler: %s\nException Callstack:\n%s"),
+				*ExceptionMsg,
+				*ExceptionCallstack);
+			Job.PreprocessOutput.LogError(MoveTemp(StrippedErrorMessage));
 		}
 
 		if (Job.PreprocessOutput.bSucceeded && Job.Input.bCachePreprocessed)
@@ -1004,65 +1056,119 @@ public:
 		return Job.PreprocessOutput.bSucceeded;
 	}
 
-#if PLATFORM_WINDOWS
-	static void CompileShaderInternal(const IShaderFormat* Compiler, FShaderCompileJob& Job, const FString& WorkingDirectory, FString& OutExceptionMsg, FString& OutExceptionCallstack, int32* CompileCount)
-#else
-	static void CompileShaderInternal(const IShaderFormat* Compiler, FShaderCompileJob& Job, const FString& WorkingDirectory, int32* CompileCount)
-#endif
+	static void CombineOutputs(const IShaderFormat* Compiler, FShaderCompileJob& Job)
+	{
+		// Pack shader code results together
+		// [int32 key][uint32 primary length][uint32 secondary length][full primary shader code][full secondary shader code]
+		TArray<uint8> CombinedSource;
+
+		int32 PackedShaderKey = Compiler->GetPackedShaderKey();
+		CombinedSource.Append(reinterpret_cast<const uint8*>(&PackedShaderKey), sizeof(PackedShaderKey));
+
+		const uint32 PrimaryLength = Job.Output.ShaderCode.GetReadAccess().Num();
+		CombinedSource.Append(reinterpret_cast<const uint8*>(&PrimaryLength), sizeof(PrimaryLength));
+
+		const uint32 SecondaryLength = Job.SecondaryOutput->ShaderCode.GetReadAccess().Num();
+		CombinedSource.Append(reinterpret_cast<const uint8*>(&SecondaryLength), sizeof(SecondaryLength));
+
+		CombinedSource.Append(Job.Output.ShaderCode.GetReadAccess());
+		CombinedSource.Append(Job.SecondaryOutput->ShaderCode.GetReadAccess());
+
+		// Replace Output shader code with the combined result
+		Job.Output.ShaderCode = {};
+		TArray<uint8>& FinalShaderCode = Job.Output.ShaderCode.GetWriteAccess();
+		FinalShaderCode.Append(CombinedSource);
+		Job.Output.ShaderCode.FinalizeShaderCode();
+	}
+
+	static void InvokeCompile(const IShaderFormat* Compiler, FShaderCompileJob& Job, const FString& WorkingDirectory, FString& OutExceptionMsg, FString& OutExceptionCallstack)
 	{
 #if PLATFORM_WINDOWS
 		__try
 #endif
 		{
-			double TimeStart = FPlatformTime::Seconds();
-
-			if (Compiler->SupportsIndependentPreprocessing())
+			if (Job.SecondaryOutput.IsValid())
 			{
-				if (!Job.Input.bCachePreprocessed)
-				{
-					PreprocessShaderInternal(Compiler, Job);
-				}
-				if (Job.PreprocessOutput.bSucceeded)
-				{
-					Compiler->CompilePreprocessedShader(Job.Input, Job.PreprocessOutput, Job.Output, WorkingDirectory);
-				}
-				else
-				{
-					Job.Output.bSucceeded = false;
-				}
-				Job.Output.Errors.Append(Job.PreprocessOutput.Errors);
+				check(Job.SecondaryPreprocessOutput.IsValid());
+				Compiler->CompilePreprocessedShader(Job.Input, Job.PreprocessOutput, *Job.SecondaryPreprocessOutput, Job.Output, *Job.SecondaryOutput, WorkingDirectory);
+			}
+			else if (Compiler->SupportsIndependentPreprocessing())
+			{
+				Compiler->CompilePreprocessedShader(Job.Input, Job.PreprocessOutput, Job.Output, WorkingDirectory);
 			}
 			else
 			{
 				Compiler->CompileShader(Job.Input.ShaderFormat, Job.Input, Job.Output, WorkingDirectory);
 			}
 
-			if (Job.Output.bSucceeded)
-			{
-				Job.Output.GenerateOutputHash();
-				if (Job.Input.CompressionFormat != NAME_None)
-				{
-					Job.Output.CompressOutput(Job.Input.CompressionFormat, Job.Input.OodleCompressor, Job.Input.OodleLevel);
-				}
-			}
-			Job.Output.CompileTime = FPlatformTime::Seconds() - TimeStart;
-
-			if (Compiler->UsesHLSLcc(Job.Input))
-			{
-				Job.Output.bUsedHLSLccCompiler = true;
-			}
-
-			if (CompileCount)
-			{
-				++(*CompileCount);
-			}
 		}
 #if PLATFORM_WINDOWS
-		__except (HandleShaderCompileException(GetExceptionInformation(), OutExceptionMsg, OutExceptionCallstack))
+		__except(HandleShaderCompileException(GetExceptionInformation(), OutExceptionMsg, OutExceptionCallstack))
 		{
 			Job.Output.bSucceeded = false;
 		}
 #endif
+	}
+
+	static void CompileShaderInternal(const IShaderFormat* Compiler, FShaderCompileJob& Job, const FString& WorkingDirectory, FString& OutExceptionMsg, FString& OutExceptionCallstack, int32* CompileCount)
+	{
+		double TimeStart = FPlatformTime::Seconds();
+		if (Compiler->SupportsIndependentPreprocessing())
+		{
+			if (!Job.Input.bCachePreprocessed)
+			{
+				PreprocessShaderInternal(Compiler, Job);
+			}
+
+			Job.Output.Errors.Append(Job.PreprocessOutput.Errors);
+
+			if (Job.PreprocessOutput.bSucceeded)
+			{
+				if (Job.SecondaryPreprocessOutput.IsValid())
+				{
+					Job.SecondaryOutput = MakeUnique<FShaderCompilerOutput>();
+				}
+				InvokeCompile(Compiler, Job, WorkingDirectory, OutExceptionMsg, OutExceptionCallstack);
+				if (Job.SecondaryOutput.IsValid())
+				{
+					Job.Output.bSucceeded = Job.Output.bSucceeded && Job.SecondaryOutput->bSucceeded;
+					if (Job.Output.bSucceeded)
+					{
+						Job.SecondaryOutput->GenerateOutputHash();
+					}
+					CombineOutputs(Compiler, Job);
+				}
+			}
+			else
+			{
+				Job.Output.bSucceeded = false;
+			}
+		}
+		else
+		{
+			InvokeCompile(Compiler, Job, WorkingDirectory, OutExceptionMsg, OutExceptionCallstack);
+		}
+
+		if (Job.Output.bSucceeded)
+		{
+			Job.Output.GenerateOutputHash();
+
+			if (Job.Input.CompressionFormat != NAME_None)
+			{
+				Job.Output.CompressOutput(Job.Input.CompressionFormat, Job.Input.OodleCompressor, Job.Input.OodleLevel);
+			}
+		}
+		Job.Output.CompileTime = FPlatformTime::Seconds() - TimeStart;
+
+		if (Compiler->UsesHLSLcc(Job.Input))
+		{
+			Job.Output.bUsedHLSLccCompiler = true;
+		}
+
+		if (CompileCount)
+		{
+			++(*CompileCount);
+		}
 	}
 };
 
@@ -1121,8 +1227,6 @@ void CompileShader(const TArray<const IShaderFormat*>& ShaderFormats, FShaderCom
 	{
 		Job.Input.Environment.Merge(*Job.Input.SharedEnvironment);
 	}
-
-#if PLATFORM_WINDOWS
 	FString ExceptionMsg;
 	FString ExceptionCallstack;
 	FInternalShaderCompilerFunctions::CompileShaderInternal(Compiler, Job, WorkingDirectory, ExceptionMsg, ExceptionCallstack, CompileCount);
@@ -1135,9 +1239,6 @@ void CompileShader(const TArray<const IShaderFormat*>& ShaderFormats, FShaderCom
 			*ExceptionCallstack);
 		Job.Output.Errors.Add(Error);
 	}
-#else
-	FInternalShaderCompilerFunctions::CompileShaderInternal(Compiler, Job, WorkingDirectory, CompileCount);
-#endif
 
 	Job.bSucceeded = Job.Output.bSucceeded;
 	if (Job.Input.DumpDebugInfoEnabled())
@@ -1148,7 +1249,14 @@ void CompileShader(const TArray<const IShaderFormat*>& ShaderFormats, FShaderCom
 			// don't serialize preprocess output back to the cooker from SCW (if enabled this will occur in the job OnComplete callback)
 			if (!Job.Input.bCachePreprocessed)
 			{
-				Compiler->OutputDebugData(Job.Input, Job.PreprocessOutput, Job.Output);
+				if (Job.SecondaryPreprocessOutput.IsValid() && Job.SecondaryOutput.IsValid())
+				{
+					Compiler->OutputDebugData(Job.Input, Job.PreprocessOutput, *Job.SecondaryPreprocessOutput, Job.Output, *Job.SecondaryOutput);
+				}
+				else
+				{
+					Compiler->OutputDebugData(Job.Input, Job.PreprocessOutput, Job.Output);
+				}
 			}
 		}
 		else
@@ -2832,6 +2940,10 @@ FShaderCommonCompileJob::FInputHash FShaderCompileJob::GetInputHash()
 
 		// const_cast due to serialization API requiring non-const. better than not having const correctness in the API.
 		Hasher << const_cast<FString&>(PreprocessOutput.GetSource());
+		if (SecondaryPreprocessOutput.IsValid())
+		{
+			Hasher << const_cast<FString&>(SecondaryPreprocessOutput->GetSource());
+		}
 		InputHash = Hasher.Finalize();
 	}
 	else
@@ -3012,7 +3124,14 @@ void FShaderCompileJob::OnComplete()
 		// or matched another in-flight job's hash and so could share its results
 		if (Input.bCachePreprocessed && Input.DumpDebugInfoEnabled())
 		{
-			ShaderFormat->OutputDebugData(Input, PreprocessOutput, Output);
+			if (SecondaryPreprocessOutput.IsValid() && SecondaryOutput.IsValid())
+			{
+				ShaderFormat->OutputDebugData(Input, PreprocessOutput, *SecondaryPreprocessOutput, Output, *SecondaryOutput);
+			}
+			else
+			{
+				ShaderFormat->OutputDebugData(Input, PreprocessOutput, Output);
+			}
 		}
 	}
 }
@@ -3024,6 +3143,21 @@ void FShaderCompileJob::SerializeWorkerOutput(FArchive& Ar)
 	// or (b) the "extract shader source" setting is enabled (i.e. something upstream explicitly wants the final source passed to the compiler).
 	Output.bSerializeModifiedSource = (Input.bCachePreprocessed && Input.DumpDebugInfoEnabled()) || Input.ExtraSettings.bExtractShaderSource;
 
+
+	Ar << Output;
+
+	bool bSecondaryOutput = SecondaryOutput.IsValid();
+	Ar << bSecondaryOutput;
+
+	if (bSecondaryOutput)
+	{
+		if (Ar.IsLoading())
+		{
+			SecondaryOutput = MakeUnique<FShaderCompilerOutput>();
+		}
+		Ar << *SecondaryOutput;
+	}
+
 	// edge case for backends which have implemented independent preprocessing API when the preprocessed cache is not enabled.
 	// if no modifications have occurred as part of the compile step, we still need a copy of the source back in the cooker
 	// if bExtractShaderSource is set, so explicitly serialize just that portion of the preprocess output struct here.
@@ -3032,7 +3166,6 @@ void FShaderCompileJob::SerializeWorkerOutput(FArchive& Ar)
 		Ar << PreprocessOutput.EditSource();
 	}
 
-	Ar << Output;
 	bool bSucceededTemp = (bool)bSucceeded;
 	Ar << bSucceededTemp;
 	bSucceeded = bSucceededTemp;
@@ -3045,6 +3178,18 @@ void FShaderCompileJob::SerializeWorkerInput(FArchive& Ar)
 	if (Input.bCachePreprocessed)
 	{
 		Ar << PreprocessOutput;
+
+		bool bSecondaryPreprocessOutput = SecondaryPreprocessOutput.IsValid();
+		Ar << bSecondaryPreprocessOutput;
+
+		if (bSecondaryPreprocessOutput)
+		{
+			if (Ar.IsLoading())
+			{
+				SecondaryPreprocessOutput = MakeUnique<FShaderPreprocessOutput>();
+			}
+			Ar << *SecondaryPreprocessOutput;
+		}
 	}
 }
 

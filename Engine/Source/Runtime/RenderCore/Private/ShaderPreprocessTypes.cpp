@@ -290,6 +290,7 @@ void FShaderPreprocessOutput::RemapErrors(FShaderCompilerOutput& Output) const
 FArchive& operator<<(FArchive& Ar, FShaderPreprocessOutput& PreprocessOutput)
 {
 	Ar << PreprocessOutput.bSucceeded;
+	Ar << PreprocessOutput.bIsSecondary;
 	Ar << PreprocessOutput.Errors;
 	Ar << PreprocessOutput.PragmaDirectives;
 	Ar << PreprocessOutput.PreprocessedSource;
