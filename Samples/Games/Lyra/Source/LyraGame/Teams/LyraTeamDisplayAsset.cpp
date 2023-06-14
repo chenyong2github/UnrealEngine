@@ -92,7 +92,7 @@ void ULyraTeamDisplayAsset::ApplyToActor(AActor* TargetActor, bool bIncludeChild
 {
 	if (TargetActor != nullptr)
 	{
-		TargetActor->ForEachComponent(bIncludeChildActors, [=](UActorComponent* InComponent)
+		TargetActor->ForEachComponent(bIncludeChildActors, [this](UActorComponent* InComponent)
 		{
 			if (UMeshComponent* MeshComponent = Cast<UMeshComponent>(InComponent))
 			{
