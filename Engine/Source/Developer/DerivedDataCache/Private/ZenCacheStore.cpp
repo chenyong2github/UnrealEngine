@@ -91,6 +91,8 @@ public:
 		const TCHAR* Config,
 		ICacheStoreOwner* Owner);
 
+	~FZenCacheStore() final;
+
 	inline FString GetName() const { return ZenService.GetInstance().GetURL(); }
 
 	/**
@@ -1221,6 +1223,14 @@ FZenCacheStore::FZenCacheStore(
 	, StoreOwner(InStoreOwner)
 {
 	Initialize(InNamespace, InName, InConfig);
+}
+
+FZenCacheStore::~FZenCacheStore()
+{
+	if (StoreStats)
+	{
+		StoreOwner->DestroyStats(StoreStats);
+	}
 }
 
 void FZenCacheStore::Initialize(
