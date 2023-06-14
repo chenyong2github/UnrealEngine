@@ -82,11 +82,6 @@ private:
 	 */
 	void CleanupRequest();
 
-	/**
-	 * Cleans up request without triggering additional callbacks
-	*/
-	void DiscardExistingRequest();
-
 private:
 	/** This is the NSMutableURLRequest, all our Apple functionality will deal with this. */
 	NSMutableURLRequest* Request;
@@ -108,6 +103,12 @@ private:
 
 	/** Array used to retrieve back content set on the ObjC request when calling GetContent*/
 	mutable TArray<uint8> StorageForGetContent;
+
+	/** The stream to receive response body */
+	TSharedPtr<FArchive> ResponseBodyReceiveStream;
+
+	/** flag to mark wether we tried canceled this request */
+	bool bCanceled;
 
 	/** Start of the request */
 	double StartRequestTime;
@@ -187,6 +188,10 @@ public:
 	*/
 	const int32 GetNumBytesWritten() const;
 
+	/**
+	 * Cleans internal shared objects between request and response
+	 */
+	void CleanSharedObjects();
 	/**
 	 * Constructor
 	 *
