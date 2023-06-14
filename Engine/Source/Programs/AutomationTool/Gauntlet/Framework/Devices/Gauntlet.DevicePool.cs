@@ -1233,7 +1233,7 @@ namespace Gauntlet
 			}
 			catch (Exception Ex)
 			{
-				Log.Info(KnownLogEvents.Gauntlet_DeviceEvent, "Failed to create device {Name}. {Message}", Def.ToString(), Ex.Message);
+				Log.Warning(KnownLogEvents.Gauntlet_DeviceEvent, "Failed to create device {Name}. {Message}\n{StackTrace}", Def.ToString(), Ex.Message, Ex.StackTrace);
 			}
 
 			return NewDevice;
