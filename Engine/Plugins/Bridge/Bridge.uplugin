@@ -37,16 +37,6 @@
 				"Mac",
 				"Linux"
 			]
-		},
-		{
-			"Name": "MetaHumanProjectUtilities",
-			"Type": "Editor",
-			"LoadingPhase": "PostDefault",
-			"PlatformAllowList": [
-				"Win64",
-				"Mac",
-				"Linux"
-			]
 		}
 	],
 	"Plugins": [

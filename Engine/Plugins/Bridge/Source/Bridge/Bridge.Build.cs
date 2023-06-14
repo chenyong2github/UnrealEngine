@@ -44,8 +44,7 @@ namespace UnrealBuildTool.Rules
 					"ContentBrowserData",
 					"PlacementMode",
 					"MegascansPlugin",
-					"ApplicationCore",
-					"MetaHumanProjectUtilities"
+					"ApplicationCore"
 					});
 			}
 		}

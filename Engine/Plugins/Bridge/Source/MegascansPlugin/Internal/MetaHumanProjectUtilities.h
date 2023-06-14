@@ -50,9 +50,9 @@ class FMetaHumanProjectUtilities
 {
 public:
 	// Disable UI and enable automation of user input for headless testing
-	static void METAHUMANPROJECTUTILITIES_API EnableAutomation(IMetaHumanProjectUtilitiesAutomationHandler* Handler);
+	static void MEGASCANSPLUGIN_API EnableAutomation(IMetaHumanProjectUtilitiesAutomationHandler* Handler);
 	// Disable UI and enable automation of user input for headless testing
-	static void METAHUMANPROJECTUTILITIES_API SetBulkImportHandler(IMetaHumanBulkImportHandler* Handler);
+	static void MEGASCANSPLUGIN_API SetBulkImportHandler(IMetaHumanBulkImportHandler* Handler);
 	// Main entry-point used by Quixel Bridge
-	static void METAHUMANPROJECTUTILITIES_API ImportAsset(const FMetaHumanAssetImportDescription& AssetImportDescription);
+	static void MEGASCANSPLUGIN_API ImportAsset(const FMetaHumanAssetImportDescription& AssetImportDescription);
 };

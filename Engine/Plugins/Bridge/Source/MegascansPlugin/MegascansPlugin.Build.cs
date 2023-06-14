@@ -36,8 +36,10 @@ namespace UnrealBuildTool.Rules
 					"TargetPlatform",
 					"EditorScriptingUtilities",
 					"Projects",
-					"ApplicationCore", 
-					"MetaHumanProjectUtilities"
+					"ApplicationCore",
+					"InputCore",
+					"Projects",
+					"ToolWidgets"
 				}
 			);
 		}
