@@ -22,6 +22,24 @@ public:
 	static void ReinitializeStyle();
 private:
 	FNiagaraEditorWidgetsStyle();
+	void PreInit();
+	void InitColors();
+	void InitTextStyles();
+	void InitRowStyles();
+	void InitButtonStyles();
+	void InitToolbarStyles();
+	void InitInlineDynamicInputBrushes();
+	void InitSystemOverviewMisc();
+	void InitIcons();
+	void InitSizes();
+	void InitStackDropTarget();
+	void InitMisc();
+	
+	void InitSystemOverviewColors();
+	void InitScopeColors();
+	void InitStackTextStyles();
 
 	static TSharedPtr<FNiagaraEditorWidgetsStyle> NiagaraEditorWidgetsStyle;
+
+	FLinearColor CustomNoteBackgroundColor;
 };
