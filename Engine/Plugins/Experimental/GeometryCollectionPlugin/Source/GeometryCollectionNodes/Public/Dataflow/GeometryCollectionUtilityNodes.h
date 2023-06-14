@@ -469,6 +469,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bSumChildrenForClustersWithoutHulls = true;
 
+	/** Whether to take the volume of the union of selected hulls, rather than the sum of each hull volume separately. This is more expensive but more accurate when hulls overlap. */
+	UPROPERTY(EditAnywhere, Category = Options)
+	bool bVolumeOfUnion = false;
+
 	FGetConvexHullVolumeDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid());
 
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
