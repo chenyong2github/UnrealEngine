@@ -3,14 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GenericPlatform/HttpRequestCommon.h"
+#include "IHttpThreadedRequest.h"
 #include "Interfaces/IHttpResponse.h"
 #include "PlatformHttp.h"
 
 /**
  * Apple implementation of an Http request
  */
-class FAppleHttpNSUrlSessionRequest : public FHttpRequestCommon
+class FAppleHttpNSUrlSessionRequest : public IHttpThreadedRequest
 {
 public:
 	// implementation friends
@@ -49,6 +49,13 @@ public:
 	virtual float GetElapsedTime() const override;
 	//~ End IHttpRequest Interface
 
+	//~ Begin IHttpRequestThreaded Interface
+	virtual bool StartThreadedRequest() override;
+	virtual void FinishRequest() override;
+	virtual bool IsThreadedRequestComplete() override;
+	virtual void TickThreadedRequest(float DeltaSeconds) override;
+	//~ End IHttpRequestThreaded Interface
+
 	/**
 	 * Constructor
 	 *
@@ -70,12 +77,6 @@ private:
 	 * @return true if the request was started
 	 */
 	bool StartRequest();
-
-	/**
-	 * Process state for a finished request that no longer needs to be ticked
-	 * Calls the completion delegate
-	 */
-	void FinishedRequest();
 
 	/**
 	 * Close session/request handles and unregister callbacks
@@ -109,10 +110,7 @@ private:
 
 	/** flag to mark wether we tried canceled this request */
 	bool bCanceled;
-
-	/** Start of the request */
-	double StartRequestTime;
-
+	
 	/** Time taken to complete/cancel the request. */
 	float ElapsedTime;
 

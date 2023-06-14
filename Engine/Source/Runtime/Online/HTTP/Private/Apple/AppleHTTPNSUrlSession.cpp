@@ -230,10 +230,9 @@ FAppleHttpNSUrlSessionRequest::FAppleHttpNSUrlSessionRequest(NSURLSession* InSes
 ,	bIsPayloadFile(false)
 ,	ContentBytesLength(0)
 ,   bCanceled(false)
-,	StartRequestTime(0.0)
 ,	ElapsedTime(0.0f)
-,   LastReportedBytesWritten(0)
-,   LastReportedBytesRead(0)
+,	LastReportedBytesWritten(0)
+,	LastReportedBytesRead(0)
 {
 	UE_LOG(LogHttp, Verbose, TEXT("FAppleHttpNSUrlSessionRequest::FAppleHttpNSUrlSessionRequest()"));
 	Request = [[NSMutableURLRequest alloc] init];
@@ -524,19 +523,7 @@ bool FAppleHttpNSUrlSessionRequest::ProcessRequest()
 
 	if (!PreCheck() || !StartRequest())
 	{
-		// Ensure we run on game thread
-		if (!IsInGameThread())
-		{
-			FHttpModule::Get().GetHttpManager().AddGameThreadTask([StrongThis = StaticCastSharedRef<FAppleHttpNSUrlSessionRequest>(AsShared())]()
-			{
-				StrongThis->FinishedRequest();
-			});
-		}
-		else
-		{
-			FinishedRequest();
-		}
-
+		FinishRequestNotInHttpManager();
 		return false;
 	}
 
@@ -549,7 +536,7 @@ bool FAppleHttpNSUrlSessionRequest::StartRequest()
 	UE_LOG(LogHttp, Verbose, TEXT("FAppleHttpNSUrlSessionRequest::StartRequest()"));
 	bool bStarted = false;
 
-	// set the content-length and user-agent
+	// set the content-length and user-agent (it is possible that the OS ignores this value)
 	if(GetContentLength() > 0)
 	{
 		[Request setValue:[NSString stringWithFormat:@"%d", GetContentLength()] forHTTPHeaderField:@"Content-Length"];
@@ -566,8 +553,9 @@ bool FAppleHttpNSUrlSessionRequest::StartRequest()
 
 	LastReportedBytesWritten = 0;
 	LastReportedBytesRead = 0;
+	ElapsedTime = 0.0f;
 	bCanceled = false;
-	Response = nullptr;	
+	Response = nullptr;
 
 	Task = [Session dataTaskWithRequest: Request];
 	
@@ -585,7 +573,7 @@ bool FAppleHttpNSUrlSessionRequest::StartRequest()
 		[[Task retain] resume];
 		UE_LOG(LogHttp, Verbose, TEXT("[NSURLSessionTask resume]"));
 
-		FHttpModule::Get().GetHttpManager().AddRequest(SharedThis(this));
+		FHttpModule::Get().GetHttpManager().AddThreadedRequest(SharedThis(this));
 	}
 	else
 	{
@@ -593,18 +581,15 @@ bool FAppleHttpNSUrlSessionRequest::StartRequest()
 		CompletionStatus = EHttpRequestStatus::Failed_ConnectionError;
 	}
 
-	StartRequestTime = FPlatformTime::Seconds();
-	// reset the elapsed time.
-	ElapsedTime = 0.0f;
-
 	return bStarted;
 }
 
-void FAppleHttpNSUrlSessionRequest::FinishedRequest()
+void FAppleHttpNSUrlSessionRequest::FinishRequest()
 {
-	UE_LOG(LogHttp, Verbose, TEXT("FAppleHttpNSUrlSessionRequest::FinishedRequest()"));
-	ElapsedTime = (float)(FPlatformTime::Seconds() - StartRequestTime);
-	
+	check(IsInGameThread() || DelegateThreadPolicy == EHttpRequestDelegateThreadPolicy::CompleteOnHttpThread);
+
+	UE_LOG(LogHttp, Verbose, TEXT("FAppleHttpNSUrlSessionRequest::FinishRequest()"));
+
 	// Clean up session/request handles that may have been created
 	CleanupRequest();
 
@@ -641,13 +626,13 @@ void FAppleHttpNSUrlSessionRequest::CleanupRequest()
 	{
 		Response->CleanSharedObjects();
 	}
+
 	if(Task != nil)
 	{
-		if(CompletionStatus == EHttpRequestStatus::Processing)
+		if (CompletionStatus == EHttpRequestStatus::Processing)
 		{
 			[Task cancel];
 		}
-		
 		[Task release];
 		Task = nil;
 	}
@@ -657,32 +642,29 @@ void FAppleHttpNSUrlSessionRequest::CancelRequest()
 {
 	UE_LOG(LogHttp, Verbose, TEXT("FAppleHttpNSUrlSessionRequest::CancelRequest()"));
 
-	if( Task != nil )
+	if (Task != nil)
 	{
 		if (bCanceled)
 		{
 			return;
 		}
 		
-		bCanceled = true;		
+		bCanceled = true;
 		[Task cancel];
-
+		
 		if (Response != nullptr)
 		{
 			Response->CleanSharedObjects();
 		}
 
-		// Ensure we run on game thread
-		if (!IsInGameThread())
+		FHttpManager& HttpManager = FHttpModule::Get().GetHttpManager();
+		if (HttpManager.IsValidRequest(this))
 		{
-			FHttpModule::Get().GetHttpManager().AddGameThreadTask([StrongThis = StaticCastSharedRef<FAppleHttpNSUrlSessionRequest>(AsShared())]()
-			{
-				StrongThis->FinishedRequest();
-			});
+			HttpManager.CancelThreadedRequest(SharedThis(this));
 		}
 		else
 		{
-			FinishedRequest();
+			FinishRequestNotInHttpManager();
 		}
 	}
 }
@@ -707,16 +689,28 @@ void FAppleHttpNSUrlSessionRequest::Tick(float DeltaSeconds)
 				LastReportedBytesRead = BytesRead;
 			}
 		}
-		if (Response->IsReady())
-		{
-			FinishedRequest();
-		}
 	}
 }
 
 float FAppleHttpNSUrlSessionRequest::GetElapsedTime() const
 {
 	return ElapsedTime;
+}
+
+bool FAppleHttpNSUrlSessionRequest::StartThreadedRequest()
+{
+	return true;
+}
+
+bool FAppleHttpNSUrlSessionRequest::IsThreadedRequestComplete()
+{
+	TSharedPtr<FAppleHttpNSUrlSessionResponse> AliveResponse = Response;
+	return (AliveResponse.IsValid() && AliveResponse->IsReady());
+}
+
+void FAppleHttpNSUrlSessionRequest::TickThreadedRequest(float DeltaSeconds)
+{
+	ElapsedTime += DeltaSeconds;
 }
 
 /****************************************************************************

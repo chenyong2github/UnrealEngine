@@ -205,6 +205,7 @@ TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Http Methods", HTTP_TAG)
 
 	HttpRequest->OnProcessRequestComplete().BindLambda([](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded) {
 		CHECK(bSucceeded);
+		REQUIRE(HttpResponse != nullptr);
 		CHECK(HttpResponse->GetResponseCode() == 200);
 	});
 	HttpRequest->ProcessRequest();
@@ -217,6 +218,7 @@ TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Get large response content with
 	HttpRequest->SetVerb(TEXT("GET"));
 	HttpRequest->OnProcessRequestComplete().BindLambda([](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded) {
 		CHECK(bSucceeded);
+		REQUIRE(HttpResponse != nullptr);
 		CHECK(HttpResponse->GetResponseCode() == 200);
 	});
 	HttpRequest->ProcessRequest();
@@ -256,9 +258,10 @@ TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Streaming http download", HTTP_
 	SECTION("Success without stream provided")
 	{
 		HttpRequest->OnProcessRequestComplete().BindLambda([Chunks, ChunkSize](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded) {
-			CHECK(HttpResponse->GetContentLength() == Chunks * ChunkSize);
 			CHECK(bSucceeded);
+			REQUIRE(HttpResponse != nullptr);
 			CHECK(HttpResponse->GetResponseCode() == 200);
+			CHECK(HttpResponse->GetContentLength() == Chunks * ChunkSize);
 		});
 	}
 	SECTION("Success with customized stream")
@@ -283,11 +286,12 @@ TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Streaming http download", HTTP_
 		CHECK(HttpRequest->SetResponseBodyReceiveStream(Stream));
 
 		HttpRequest->OnProcessRequestComplete().BindLambda([Chunks, ChunkSize, TotalBytesReceived](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded) {
+			CHECK(bSucceeded);
+			REQUIRE(HttpResponse != nullptr);
+			CHECK(HttpResponse->GetResponseCode() == 200);
 			CHECK(HttpResponse->GetContentLength() == Chunks * ChunkSize);
 			CHECK(HttpResponse->GetContent().IsEmpty());
 			CHECK(*TotalBytesReceived == Chunks * ChunkSize);
-			CHECK(bSucceeded);
-			CHECK(HttpResponse->GetResponseCode() == 200);
 		});
 	}
 	SECTION("Success with customized stream delegate")
@@ -300,11 +304,12 @@ TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Streaming http download", HTTP_
 		CHECK(HttpRequest->SetResponseBodyReceiveStreamDelegate(Delegate));
 
 		HttpRequest->OnProcessRequestComplete().BindLambda([Chunks, ChunkSize, TotalBytesReceived](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded) {
+			CHECK(bSucceeded);
+			REQUIRE(HttpResponse != nullptr);
+			CHECK(HttpResponse->GetResponseCode() == 200);
 			CHECK(HttpResponse->GetContentLength() == Chunks * ChunkSize);
 			CHECK(HttpResponse->GetContent().IsEmpty());
 			CHECK(*TotalBytesReceived == Chunks * ChunkSize);
-			CHECK(bSucceeded);
-			CHECK(HttpResponse->GetResponseCode() == 200);
 		});
 	}
 	SECTION("Use customized stream to receive response body but failed when serialize")
@@ -359,9 +364,10 @@ TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Streaming http download", HTTP_
 		CHECK(HttpRequest->SetResponseBodyReceiveStream(FileToWrite));
 
 		HttpRequest->OnProcessRequestComplete().BindLambda([Chunks, ChunkSize, Filename, FileToWrite](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded) {
+			CHECK(bSucceeded);
+			REQUIRE(HttpResponse != nullptr);
 			CHECK(HttpResponse->GetContentLength() == Chunks * ChunkSize);
 			CHECK(HttpResponse->GetContent().IsEmpty());
-			CHECK(bSucceeded);
 			CHECK(HttpResponse->GetResponseCode() == 200);
 
 			FileToWrite->FlushCache();
@@ -433,6 +439,7 @@ TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Streaming http upload - gold pa
 
 	HttpRequest->OnProcessRequestComplete().BindLambda([](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded) {
 		CHECK(bSucceeded);
+		REQUIRE(HttpResponse != nullptr);
 		CHECK(HttpResponse->GetResponseCode() == 200);
 	});
 	HttpRequest->ProcessRequest();
@@ -574,4 +581,23 @@ TEST_CASE_METHOD(FWaitThreadedHttpFixture, "Threaded http request pre check will
 	StartTestHttpThread();
 }
 
+
+TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Cancel http request connect before timeout", HTTP_TAG)
+{
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = HttpModule->CreateRequest();
+	HttpRequest->SetURL(UrlWithInvalidPortToTestConnectTimeout());
+	HttpRequest->SetVerb(TEXT("GET"));
+	HttpRequest->SetTimeout(7);
+	FDateTime StartTime = FDateTime::Now();
+	HttpRequest->OnProcessRequestComplete().BindLambda([StartTime](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded) {
+		CHECK(!bSucceeded);
+
+		FTimespan Timespan = FDateTime::Now() - StartTime;
+		float DurationInSeconds = Timespan.GetTotalSeconds();
+		CHECK(DurationInSeconds < 2);
+	});
+	HttpRequest->ProcessRequest();
+	FPlatformProcess::Sleep(0.5);
+	HttpRequest->CancelRequest();
+}
 // TODO: Add cancel test, with multiple cancel calls

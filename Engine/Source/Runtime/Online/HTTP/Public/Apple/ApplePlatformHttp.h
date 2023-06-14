@@ -37,6 +37,13 @@ public:
 	 */
 	static IHttpRequest* ConstructRequest();
 
+	/**
+	 * Check if a platform uses the HTTP thread
+	 *
+	 * @return true if the platform uses threaded HTTP, false if not
+	 */
+	static bool UsesThreadedHttp();
+
 private:
 	/** Flag to allow fall back to use NSUrlConnection instead of NSUrlSession. Assigned from commandline */
 	static inline bool bUseNSUrlSession = false;

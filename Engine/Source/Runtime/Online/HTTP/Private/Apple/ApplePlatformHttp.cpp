@@ -284,3 +284,8 @@ IHttpRequest* FApplePlatformHttp::ConstructRequest()
 		return new FAppleHttpNSUrlConnectionRequest();
 	}
 }
+
+bool FApplePlatformHttp::UsesThreadedHttp()
+{
+	return bUseNSUrlSession;
+}
