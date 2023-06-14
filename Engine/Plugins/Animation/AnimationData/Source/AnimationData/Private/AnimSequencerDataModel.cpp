@@ -338,7 +338,7 @@ void UAnimationSequencerDataModel::GetBoneTrackNames(TArray<FName>& OutNames) co
 	if(const UMovieSceneControlRigParameterSection* Section = GetFKControlRigSection())
 	{
 		for (const FTransformParameterNameAndCurves& TransformParameter : Section->GetTransformParameterNamesAndCurves())
-	{
+		{
 			OutNames.Add(UFKControlRig::GetControlTargetName(TransformParameter.ParameterName, ERigElementType::Bone));
 		}
 	}
@@ -1188,12 +1188,15 @@ void UAnimationSequencerDataModel::GeneratePoseData(UControlRig* ControlRig, FAn
 					if (BoneIndex != INDEX_NONE)
 					{
 						const int32 SkeletonBoneIndex = SkeletonRefSkeleton.FindBoneIndex(BoneName);
-						const FCompactPoseBoneIndex CompactPoseBoneIndex = RequiredBones.GetCompactPoseIndexFromSkeletonIndex(SkeletonBoneIndex);
-						if (CompactPoseBoneIndex != INDEX_NONE)
+						if (SkeletonBoneIndex != INDEX_NONE)
 						{
-							RetargetingScope.AddTrackedBone(CompactPoseBoneIndex, SkeletonBoneIndex);
-							// Retrieve evaluated bone transform from Hierarchy
-							RigPose[CompactPoseBoneIndex] = RigHierarchy->GetLocalTransform(BoneElement->GetKey());
+							const FCompactPoseBoneIndex CompactPoseBoneIndex = RequiredBones.GetCompactPoseIndexFromSkeletonIndex(SkeletonBoneIndex);
+							if (CompactPoseBoneIndex != INDEX_NONE)
+							{
+								RetargetingScope.AddTrackedBone(CompactPoseBoneIndex, SkeletonBoneIndex);
+								// Retrieve evaluated bone transform from Hierarchy
+								RigPose[CompactPoseBoneIndex] = RigHierarchy->GetLocalTransform(BoneElement->GetKey());
+							}
 						}
 					}
 
