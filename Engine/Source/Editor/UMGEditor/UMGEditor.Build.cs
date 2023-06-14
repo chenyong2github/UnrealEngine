@@ -12,6 +12,7 @@ public class UMGEditor : ModuleRules
 			new string[]
 			{
 				"FieldNotification",
+				"SequencerCore",
 				"Sequencer",
 			});
 

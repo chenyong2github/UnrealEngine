@@ -53,6 +53,9 @@
 
 #include "Animation/MovieSceneWidgetMaterialTrack.h"
 #include "Animation/WidgetMaterialTrackUtilities.h"
+#include "MVVM/ObjectBindingModelStorageExtension.h"
+#include "MVVM/ViewModels/ObjectBindingModel.h"
+#include "MVVM/ViewModels/SequencerEditorViewModel.h"
 
 #include "ScopedTransaction.h"
 
@@ -1971,7 +1974,7 @@ void FWidgetBlueprintEditor::OnBuildCustomContextMenuForGuid(FMenuBuilder& MenuB
 			}
 		}
 		
-		if(ValidSelectedWidgets.Num() > 0)
+		if (ValidSelectedWidgets.Num() > 0)
 		{
 			MenuBuilder.AddMenuSeparator();
 			
@@ -2021,6 +2024,11 @@ void FWidgetBlueprintEditor::OnBuildCustomContextMenuForGuid(FMenuBuilder& MenuB
 				FSlateIcon(),
 				FExecuteAction::CreateRaw(this, &FWidgetBlueprintEditor::RemoveMissingWidgetsFromTrack, ObjectBinding)
 			);
+
+			MenuBuilder.AddSubMenu(
+				LOCTEXT("DynamicPossession", "Dynamic Possession"),
+				LOCTEXT("DynamicPossessionToolTip", "Specify a Blueprint method that will find a compatible widget for this binding"),
+				FNewMenuDelegate::CreateRaw(this, &FWidgetBlueprintEditor::AddDynamicPossessionMenu, ObjectBinding));
 		}
 	}
 }
@@ -2295,6 +2303,35 @@ void FWidgetBlueprintEditor::ReplaceTrackWithWidgets(TArray<FWidgetReference> Wi
 
 	UpdateTrackName(NewGuid);
 	SyncSequencersMovieSceneData();
+}
+
+void FWidgetBlueprintEditor::AddDynamicPossessionMenu(FMenuBuilder& MenuBuilder, FGuid ObjectId)
+{
+	using namespace UE::Sequencer;
+
+	TSharedPtr<ISequencer>& ActiveSequencer = GetSequencer();
+
+	UMovieScene* MovieScene = ActiveSequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
+	FMovieScenePossessable* Possessable = MovieScene->FindPossessable(ObjectId);
+	if (!Possessable)
+	{
+		return;
+	}
+
+	TSharedPtr<FSequencerEditorViewModel> SequencerViewModel = ActiveSequencer->GetViewModel();
+	FObjectBindingModelStorageExtension* ObjectStorage = SequencerViewModel->GetRootModel()->CastDynamic<FObjectBindingModelStorageExtension>();
+	if (!ObjectStorage)
+	{
+		return;
+	}
+
+	TSharedPtr<FObjectBindingModel> ObjectBindingModel = ObjectStorage->FindModelForObjectBinding(ObjectId);
+	if (!ObjectBindingModel)
+	{
+		return;
+	}
+
+	ObjectBindingModel->AddDynamicBindingMenu(MenuBuilder, Possessable->DynamicBinding);
 }
 
 void FWidgetBlueprintEditor::AddSlotTrack( UPanelSlot* Slot )

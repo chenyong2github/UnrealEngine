@@ -25,7 +25,7 @@ class FSequenceModel;
 class FViewModel;
 struct FViewModelChildren;
 
-class FObjectBindingModelStorageExtension
+class SEQUENCER_API FObjectBindingModelStorageExtension
 	: public IDynamicExtension
 	, private UE::MovieScene::TIntrusiveEventHandler<UE::MovieScene::ISequenceDataEventHandler>
 {

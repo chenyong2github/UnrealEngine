@@ -395,6 +395,9 @@ private:
 	/** Replace current widget bindings on a track with new widget bindings */
 	void ReplaceTrackWithWidgets(const TArray<FWidgetReference> Widgets, FGuid ObjectId);
 
+	/** Dynamic binding */
+	void AddDynamicPossessionMenu(FMenuBuilder& MenuBuilder, FGuid ObjectId);
+
 	/** Add an animation track for the supplied slot to the current animation. */
 	void AddSlotTrack( UPanelSlot* Slot );
 
