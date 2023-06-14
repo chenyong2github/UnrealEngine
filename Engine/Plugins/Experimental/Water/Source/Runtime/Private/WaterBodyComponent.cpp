@@ -1450,6 +1450,9 @@ void UWaterBodyComponent::OnPostRegisterAllComponents()
 			UpdateWaterZones();
 		}
 	}
+
+	// Ensure that the sprite component is updated once the water body is fully setup after PostRegister.
+	UpdateWaterSpriteComponent();
 #endif // WITH_EDITOR
 }
 
