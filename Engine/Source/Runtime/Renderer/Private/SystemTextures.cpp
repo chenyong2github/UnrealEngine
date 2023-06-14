@@ -752,9 +752,9 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 					for (int32 x = 0; x < Sheen_LTC_Size; ++x)
 					{
 						uint16* Dest = (uint16*)(DestBuffer + x * 4 * sizeof(uint16) + y * DestStride);
-						Dest[0] = FFloat16(Sheen_LTC_Volume[x][y].X).Encoded;
-						Dest[1] = FFloat16(Sheen_LTC_Volume[x][y].Y).Encoded;
-						Dest[2] = FFloat16(Sheen_LTC_Volume[x][y].Z).Encoded;
+						Dest[0] = FFloat16(Sheen_LTC_Volume[x][y][0]).Encoded;
+						Dest[1] = FFloat16(Sheen_LTC_Volume[x][y][1]).Encoded;
+						Dest[2] = FFloat16(Sheen_LTC_Volume[x][y][2]).Encoded;
 						Dest[3] = 0;
 					}
 				}
