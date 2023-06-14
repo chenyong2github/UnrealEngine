@@ -56,55 +56,11 @@ namespace Horde.Server.Agents.Pools
 		/// Creates a new pool
 		/// </summary>
 		/// <param name="name">Name of the new pool</param>
-		/// <param name="condition">Condition for agents to be automatically included in this pool</param>
-		/// <param name="enableAutoscaling">Whether to enable autoscaling for this pool</param>
-		/// <param name="minAgents">Minimum number of agents in the pool</param>
-		/// <param name="numReserveAgents">Minimum number of idle agents to maintain</param>
-		/// <param name="conformInterval">Interval between conforms. Set to zero to disable.</param>
-		/// <param name="scaleOutCooldown">Cooldown time between scale-out events</param>
-		/// <param name="scaleInCooldown">Cooldown time between scale-in events</param>
-		/// <param name="sizeStrategies">Pool sizing strategies</param>
-		/// <param name="fleetManagers">Fleet managers</param>
-		/// <param name="sizeStrategy">Pool sizing strategy</param>
-		/// <param name="leaseUtilizationSettings">Settings for lease utilization strategy</param>
-		/// <param name="jobQueueSettings">Settings for job queue strategy</param>
-		/// <param name="computeQueueAwsMetricSettings">Settings for compute queue AWS metric strategy</param>
-		/// <param name="properties">Properties for the new pool</param>
+		/// <param name="options">Options for the new pool</param>
 		/// <returns>The new pool document</returns>
-		public Task<IPool> CreatePoolAsync(
-			string name,
-			Condition? condition = null,
-			bool? enableAutoscaling = null,
-			int? minAgents = null,
-			int? numReserveAgents = null,
-			TimeSpan? conformInterval = null,
-			TimeSpan? scaleOutCooldown = null,
-			TimeSpan? scaleInCooldown = null,
-			List<PoolSizeStrategyInfo>? sizeStrategies = null,
-			List<FleetManagerInfo>? fleetManagers = null,
-			PoolSizeStrategy? sizeStrategy = null,
-			LeaseUtilizationSettings? leaseUtilizationSettings = null,
-			JobQueueSettings? jobQueueSettings = null,
-			ComputeQueueAwsMetricSettings? computeQueueAwsMetricSettings = null,
-			Dictionary<string, string>? properties = null)
+		public Task<IPool> CreatePoolAsync(string name, AddPoolOptions options)
 		{
-			return _pools.AddAsync(
-				new PoolId(StringId.Sanitize(name)),
-				name,
-				condition,
-				enableAutoscaling,
-				minAgents,
-				numReserveAgents,
-				conformInterval,
-				scaleOutCooldown,
-				scaleInCooldown,
-				sizeStrategies,
-				fleetManagers,
-				sizeStrategy,
-				leaseUtilizationSettings,
-				jobQueueSettings,
-				computeQueueAwsMetricSettings,
-				properties);
+			return _pools.AddAsync(new PoolId(StringId.Sanitize(name)), name, options);
 		}
 
 		/// <summary>
@@ -121,63 +77,13 @@ namespace Horde.Server.Agents.Pools
 		/// Updates an existing pool
 		/// </summary>
 		/// <param name="pool">The pool to update</param>
-		/// <param name="newName">The new name for the pool</param>
-		/// <param name="newCondition">New requirements for the pool</param>
-		/// <param name="newEnableAutoscaling">Whether to enable autoscaling</param>
-		/// <param name="newMinAgents">Minimum number of agents in the pool</param>
-		/// <param name="newNumReserveAgents">Minimum number of idle agents to maintain</param>
-		/// <param name="newProperties">Properties on the pool to update. Any properties with a value of null will be removed.</param>
-		/// <param name="conformInterval">Interval between conforms. Set to zero to disable.</param>
-		/// <param name="scaleOutCooldown">Cooldown time between scale-out events</param>
-		/// <param name="scaleInCooldown">Cooldown time between scale-in events</param>
-		/// <param name="sizeStrategy">New pool sizing strategy for the pool</param>
-		/// <param name="newSizeStrategies">New pool sizing strategies for the pool</param>
-		/// <param name="newFleetManagers">New fleet managers for the pool</param>
-		/// <param name="leaseUtilizationSettings">Settings for lease utilization-based strategy</param>
-		/// <param name="jobQueueSettings">Settings for job queue-based strategy</param>
-		/// <param name="computeQueueAwsMetricSettings">Settings for compute queue AWS metric strategy</param>
-		/// <param name="useDefaultStrategy">Whether to use the default strategy</param>
+		/// <param name="options">Options for the update</param>
 		/// <returns>Async task object</returns>
-		public async Task<IPool?> UpdatePoolAsync(
-			IPool? pool,
-			string? newName = null,
-			Condition? newCondition = null,
-			bool? newEnableAutoscaling = null,
-			int? newMinAgents = null,
-			int? newNumReserveAgents = null,
-			Dictionary<string, string?>? newProperties = null,
-			TimeSpan? conformInterval = null,
-			TimeSpan? scaleOutCooldown = null,
-			TimeSpan? scaleInCooldown = null,
-			PoolSizeStrategy? sizeStrategy = null,
-			List<PoolSizeStrategyInfo>? newSizeStrategies = null,
-			List<FleetManagerInfo>? newFleetManagers = null,
-			LeaseUtilizationSettings? leaseUtilizationSettings = null,
-			JobQueueSettings? jobQueueSettings = null,
-			ComputeQueueAwsMetricSettings? computeQueueAwsMetricSettings = null,
-			bool? useDefaultStrategy = null)
+		public async Task<IPool?> UpdatePoolAsync(IPool? pool, UpdatePoolOptions options)
 		{
 			for (; pool != null; pool = await _pools.GetAsync(pool.Id))
 			{
-				IPool? newPool = await _pools.TryUpdateAsync(
-					pool,
-					newName,
-					newCondition,
-					newEnableAutoscaling,
-					newMinAgents,
-					newNumReserveAgents,
-					newProperties: newProperties,
-					conformInterval: conformInterval,
-					scaleOutCooldown: scaleOutCooldown,
-					scaleInCooldown: scaleInCooldown,
-					sizeStrategy: sizeStrategy,
-					newSizeStrategies: newSizeStrategies,
-					newFleetManagers: newFleetManagers,
-					leaseUtilizationSettings: leaseUtilizationSettings,
-					jobQueueSettings: jobQueueSettings,
-					computeQueueAwsMetricSettings: computeQueueAwsMetricSettings,
-					useDefaultStrategy: useDefaultStrategy);
-				
+				IPool? newPool = await _pools.TryUpdateAsync(pool, options);
 				if (newPool != null)
 				{
 					return newPool;

@@ -160,48 +160,32 @@ namespace Horde.Server.Agents.Pools
 		}
 
 		/// <inheritdoc/>
-		public async Task<IPool> AddAsync(
-			PoolId id,
-			string name,
-			Condition? condition,
-			bool? enableAutoscaling,
-			int? minAgents,
-			int? numReserveAgents,
-			TimeSpan? conformInterval,
-			TimeSpan? scaleOutCooldown,
-			TimeSpan? scaleInCooldown,
-			List<PoolSizeStrategyInfo>? sizeStrategies,
-			List<FleetManagerInfo>? fleetManagers,
-			PoolSizeStrategy? sizeStrategy,
-			LeaseUtilizationSettings? leaseUtilizationSettings,
-			JobQueueSettings? jobQueueSettings,
-			ComputeQueueAwsMetricSettings? computeQueueAwsMetricSettings,
-			IEnumerable<KeyValuePair<string, string>>? properties)
+		public async Task<IPool> AddAsync(PoolId id, string name, AddPoolOptions options)
 		{
 			PoolDocument pool = new PoolDocument();
 			pool.Id = id;
 			pool.Name = name;
-			pool.Condition = condition;
-			if (enableAutoscaling != null)
+			pool.Condition = options.Condition;
+			if (options.EnableAutoscaling != null)
 			{
-				pool.EnableAutoscaling = enableAutoscaling.Value;
+				pool.EnableAutoscaling = options.EnableAutoscaling.Value;
 			}
-			pool.MinAgents = minAgents;
-			pool.NumReserveAgents = numReserveAgents;
-			if (properties != null)
+			pool.MinAgents = options.MinAgents;
+			pool.NumReserveAgents = options.NumReserveAgents;
+			if (options.Properties != null)
 			{
-				pool.Properties = new Dictionary<string, string>(properties);
+				pool.Properties = new Dictionary<string, string>(options.Properties);
 			}
 
-			pool.ConformInterval = conformInterval;
-			pool.ScaleOutCooldown = scaleOutCooldown;
-			pool.ScaleInCooldown = scaleInCooldown;
-			pool.SizeStrategy = sizeStrategy;
-			pool.LeaseUtilizationSettings = leaseUtilizationSettings;
-			pool.JobQueueSettings = jobQueueSettings;
-			pool.ComputeQueueAwsMetricSettings = computeQueueAwsMetricSettings;
-			if (sizeStrategies != null) { pool.SizeStrategies = sizeStrategies; }
-			if (fleetManagers != null) { pool.FleetManagers = fleetManagers; }
+			pool.ConformInterval = options.ConformInterval;
+			pool.ScaleOutCooldown = options.ScaleOutCooldown;
+			pool.ScaleInCooldown = options.ScaleInCooldown;
+			pool.SizeStrategy = options.SizeStrategy;
+			pool.LeaseUtilizationSettings = options.LeaseUtilizationSettings;
+			pool.JobQueueSettings = options.JobQueueSettings;
+			pool.ComputeQueueAwsMetricSettings = options.ComputeQueueAwsMetricSettings;
+			if (options.SizeStrategies != null) { pool.SizeStrategies = options.SizeStrategies; }
+			if (options.FleetManagers != null) { pool.FleetManagers = options.FleetManagers; }
 			
 			await _pools.InsertOneAsync(pool);
 			return pool;
@@ -277,164 +261,139 @@ namespace Horde.Server.Agents.Pools
 		}
 
 		/// <inheritdoc/>
-		public Task<IPool?> TryUpdateAsync(
-			IPool pool,
-			string? newName,
-			Condition? newCondition,
-			bool? newEnableAutoscaling,
-			int? newMinAgents,
-			int? newNumReserveAgents,
-			List<AgentWorkspace>? newWorkspaces,
-			bool? newUseAutoSdk,
-			Dictionary<string, string?>? newProperties,
-			TimeSpan? conformInterval,
-			DateTime? lastScaleUpTime,
-			DateTime? lastScaleDownTime,
-			TimeSpan? scaleOutCooldown,
-			TimeSpan? scaleInCooldown, 
-			TimeSpan? shutdownIfDisabledGracePeriod, 
-			ScaleResult? lastScaleResult, 
-			int? lastAgentCount, 
-			int? lastDesiredAgentCount, 
-			PoolSizeStrategy? sizeStrategy,
-			List<PoolSizeStrategyInfo>? newSizeStrategies,
-			List<FleetManagerInfo>? newFleetManagers,
-			LeaseUtilizationSettings? leaseUtilizationSettings,
-			JobQueueSettings? jobQueueSettings, 
-			ComputeQueueAwsMetricSettings? computeQueueAwsMetricSettings, 
-			bool? useDefaultStrategy)
+		public Task<IPool?> TryUpdateAsync(IPool pool, UpdatePoolOptions options)
 		{
 			TransactionBuilder<PoolDocument> transaction = new TransactionBuilder<PoolDocument>();
-			if (newName != null)
+			if (options.Name != null)
 			{
-				transaction.Set(x => x.Name, newName);
+				transaction.Set(x => x.Name, options.Name);
 			}
-			if (newCondition != null)
+			if (options.Condition != null)
 			{
-				if (newCondition.IsEmpty())
+				if (options.Condition.IsEmpty())
 				{
 					transaction.Unset(x => x.Condition!);
 				}
 				else
 				{
-					transaction.Set(x => x.Condition, newCondition);
+					transaction.Set(x => x.Condition, options.Condition);
 				}
 			}
-			if (newEnableAutoscaling != null)
+			if (options.EnableAutoscaling != null)
 			{
-				if (newEnableAutoscaling.Value)
+				if (options.EnableAutoscaling.Value)
 				{
 					transaction.Unset(x => x.EnableAutoscaling);
 				}
 				else
 				{
-					transaction.Set(x => x.EnableAutoscaling, newEnableAutoscaling.Value);
+					transaction.Set(x => x.EnableAutoscaling, options.EnableAutoscaling.Value);
 				}
 			}
-			if (newMinAgents != null)
+			if (options.MinAgents != null)
 			{
-				if (newMinAgents.Value < 0)
+				if (options.MinAgents.Value < 0)
 				{
 					transaction.Unset(x => x.MinAgents!);
 				}
 				else
 				{
-					transaction.Set(x => x.MinAgents, newMinAgents.Value);
+					transaction.Set(x => x.MinAgents, options.MinAgents.Value);
 				}
 			}
-			if (newNumReserveAgents != null)
+			if (options.NumReserveAgents != null)
 			{
-				if (newNumReserveAgents.Value < 0)
+				if (options.NumReserveAgents.Value < 0)
 				{
 					transaction.Unset(x => x.NumReserveAgents!);
 				}
 				else
 				{
-					transaction.Set(x => x.NumReserveAgents, newNumReserveAgents.Value);
+					transaction.Set(x => x.NumReserveAgents, options.NumReserveAgents.Value);
 				}
 			}
-			if (newWorkspaces != null)
+			if (options.Workspaces != null)
 			{
-				transaction.Set(x => x.Workspaces, newWorkspaces);
+				transaction.Set(x => x.Workspaces, options.Workspaces);
 			}
-			if (newUseAutoSdk != null)
+			if (options.UseAutoSdk != null)
 			{
-				transaction.Set(x => x.UseAutoSdk, newUseAutoSdk.Value);
+				transaction.Set(x => x.UseAutoSdk, options.UseAutoSdk.Value);
 			}
-			if (newProperties != null)
+			if (options.Properties != null)
 			{
-				transaction.UpdateDictionary(x => x.Properties, newProperties);
+				transaction.UpdateDictionary(x => x.Properties, options.Properties);
 			}
-			if (conformInterval != null)
+			if (options.ConformInterval != null)
 			{
-				if (conformInterval.Value < TimeSpan.Zero)
+				if (options.ConformInterval.Value < TimeSpan.Zero)
 				{
 					transaction.Unset(x => x.ConformInterval!);
 				}
 				else
 				{
-					transaction.Set(x => x.ConformInterval, conformInterval);
+					transaction.Set(x => x.ConformInterval, options.ConformInterval);
 				}
 			}
-			if (lastScaleUpTime != null)
+			if (options.LastScaleUpTime != null)
 			{
-				transaction.Set(x => x.LastScaleUpTime, lastScaleUpTime);
+				transaction.Set(x => x.LastScaleUpTime, options.LastScaleUpTime);
 			}
-			if (lastScaleDownTime != null)
+			if (options.LastScaleDownTime != null)
 			{
-				transaction.Set(x => x.LastScaleDownTime, lastScaleDownTime);
+				transaction.Set(x => x.LastScaleDownTime, options.LastScaleDownTime);
 			}
-			if (scaleOutCooldown != null)
+			if (options.ScaleOutCooldown != null)
 			{
-				transaction.Set(x => x.ScaleOutCooldown, scaleOutCooldown);
+				transaction.Set(x => x.ScaleOutCooldown, options.ScaleOutCooldown);
 			}
-			if (scaleInCooldown != null)
+			if (options.ScaleInCooldown != null)
 			{
-				transaction.Set(x => x.ScaleInCooldown, scaleInCooldown);
+				transaction.Set(x => x.ScaleInCooldown, options.ScaleInCooldown);
 			}
-			if (shutdownIfDisabledGracePeriod != null)
+			if (options.ShutdownIfDisabledGracePeriod != null)
 			{
-				transaction.Set(x => x.ShutdownIfDisabledGracePeriod, shutdownIfDisabledGracePeriod);
+				transaction.Set(x => x.ShutdownIfDisabledGracePeriod, options.ShutdownIfDisabledGracePeriod);
 			}
-			if (lastScaleResult != null)
+			if (options.LastScaleResult != null)
 			{
-				transaction.Set(x => x.LastScaleResult, lastScaleResult);
+				transaction.Set(x => x.LastScaleResult, options.LastScaleResult);
 			}
-			if (lastAgentCount != null)
+			if (options.LastAgentCount != null)
 			{
-				transaction.Set(x => x.LastAgentCount, lastAgentCount);
+				transaction.Set(x => x.LastAgentCount, options.LastAgentCount);
 			}
-			if (lastDesiredAgentCount != null)
+			if (options.LastDesiredAgentCount != null)
 			{
-				transaction.Set(x => x.LastDesiredAgentCount, lastDesiredAgentCount);
+				transaction.Set(x => x.LastDesiredAgentCount, options.LastDesiredAgentCount);
 			}
-			if (sizeStrategy != null)
+			if (options.SizeStrategy != null)
 			{
-				transaction.Set(x => x.SizeStrategy, sizeStrategy);				
+				transaction.Set(x => x.SizeStrategy, options.SizeStrategy);				
 			}
-			else if (useDefaultStrategy != null && useDefaultStrategy.Value)
+			else if (options.UseDefaultStrategy != null && options.UseDefaultStrategy.Value)
 			{
 				transaction.Set(x => x.SizeStrategy, null);
 			}
-			if (newSizeStrategies != null)
+			if (options.SizeStrategies != null)
 			{
-				transaction.Set(x => x.SizeStrategies, newSizeStrategies);				
+				transaction.Set(x => x.SizeStrategies, options.SizeStrategies);				
 			}
-			if (newFleetManagers != null)
+			if (options.FleetManagers != null)
 			{
-				transaction.Set(x => x.FleetManagers, newFleetManagers);				
+				transaction.Set(x => x.FleetManagers, options.FleetManagers);				
 			}
-			if (leaseUtilizationSettings != null)
+			if (options.LeaseUtilizationSettings != null)
 			{
-				transaction.Set(x => x.LeaseUtilizationSettings, leaseUtilizationSettings);
+				transaction.Set(x => x.LeaseUtilizationSettings, options.LeaseUtilizationSettings);
 			}
-			if (jobQueueSettings != null)
+			if (options.JobQueueSettings != null)
 			{
-				transaction.Set(x => x.JobQueueSettings, jobQueueSettings);
+				transaction.Set(x => x.JobQueueSettings, options.JobQueueSettings);
 			}
-			if (computeQueueAwsMetricSettings != null)
+			if (options.ComputeQueueAwsMetricSettings != null)
 			{
-				transaction.Set(x => x.ComputeQueueAwsMetricSettings, computeQueueAwsMetricSettings);
+				transaction.Set(x => x.ComputeQueueAwsMetricSettings, options.ComputeQueueAwsMetricSettings);
 			}
 			return TryUpdateAsync(pool, transaction);
 		}

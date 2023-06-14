@@ -98,7 +98,7 @@ namespace Horde.Server.Tests.Fleet
 		/// <param name="numBatchesReady">Num of job batches that should be in state waiting</param>
 		private async Task<(JobQueueStrategy, PoolSizeResult, IPool, List<IAgent> agents)> SetUpJobsAsync(int numBatchesRunning, int numBatchesReady, int numAgents = 8)
 		{
-			IPool pool = await PoolService.CreatePoolAsync("bogusPool1", null, true, 0, 0);
+			IPool pool = await PoolService.CreatePoolAsync("bogusPool1", new AddPoolOptions { EnableAutoscaling = true, MinAgents = 0, NumReserveAgents = 0 });
 			List<IAgent> agents = new();
 			for (int i = 0; i < numAgents; i++)
 			{

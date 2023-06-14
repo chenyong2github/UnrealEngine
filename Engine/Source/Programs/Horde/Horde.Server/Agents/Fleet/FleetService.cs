@@ -312,11 +312,15 @@ namespace Horde.Server.Agents.Fleet
 
 			await _poolCollection.TryUpdateAsync(
 				pool,
-				lastScaleUpTime: scaleOutTime,
-				lastScaleDownTime: scaleInTime,
-				lastScaleResult: isCooldownResult ? null : result,
-				lastAgentCount: currentAgentCount,
-				lastDesiredAgentCount: desiredAgentCount);
+				new UpdatePoolOptions
+				{
+					LastScaleUpTime = scaleOutTime,
+					LastScaleDownTime = scaleInTime,
+					LastScaleResult = isCooldownResult ? null : result,
+					LastAgentCount = currentAgentCount,
+					LastDesiredAgentCount = desiredAgentCount 
+				}
+				);
 
 			return result;
 		}

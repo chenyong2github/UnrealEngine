@@ -27,7 +27,7 @@ namespace Horde.Server.Tests.Agents.Pools
 		[TestInitialize]
 		public async Task Setup()
 		{
-			_pool = await PoolService.CreatePoolAsync("testPool", null, true);
+			_pool = await PoolService.CreatePoolAsync("testPool", new AddPoolOptions { EnableAutoscaling = true });
 			_enabledAgent = await CreateAgentAsync(_pool, true);
 			_disabledAgent = await CreateAgentAsync(_pool, false);
 			_disabledAgentBeyondGracePeriod = await CreateAgentAsync(_pool, enabled: false, adjustClockBy: -TimeSpan.FromHours(9));
@@ -68,7 +68,7 @@ namespace Horde.Server.Tests.Agents.Pools
 		{
 			// Arrange
 			// Explicitly set the grace period for the pool to be longer than the default of 8 hours
-			await PoolCollection.TryUpdateAsync(_pool, shutdownIfDisabledGracePeriod: TimeSpan.FromHours(24));
+			await PoolCollection.TryUpdateAsync(_pool, new UpdatePoolOptions { ShutdownIfDisabledGracePeriod = TimeSpan.FromHours(24) });
 			
 			// Act
 			await _pus.ShutdownDisabledAgentsAsync(CancellationToken.None);
@@ -84,7 +84,7 @@ namespace Horde.Server.Tests.Agents.Pools
 		public async Task ShutdownDisabledAgents_WithAutoScalingOff_DoesNotRequestShutdown()
 		{
 			// Arrange
-			await PoolCollection.TryUpdateAsync(_pool, newEnableAutoscaling: false);
+			await PoolCollection.TryUpdateAsync(_pool, new UpdatePoolOptions { EnableAutoscaling = false });
 			
 			// Act
 			await _pus.ShutdownDisabledAgentsAsync(CancellationToken.None);

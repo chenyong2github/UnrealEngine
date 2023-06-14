@@ -58,9 +58,23 @@ namespace Horde.Server.Agents.Pools
 			TimeSpan? scaleOutCooldown = create.ScaleOutCooldown == null ? null : TimeSpan.FromSeconds(create.ScaleOutCooldown.Value);
 			TimeSpan? scaleInCooldown = create.ScaleInCooldown == null ? null : TimeSpan.FromSeconds(create.ScaleInCooldown.Value);
 
-			IPool newPool = await _poolService.CreatePoolAsync(
-				create.Name, create.Condition, create.EnableAutoscaling, create.MinAgents, create.NumReserveAgents, conformInterval,
-				scaleOutCooldown, scaleInCooldown, sizeStrategies, fleetManagers, create.SizeStrategy, luSettings, jqSettings, cqamSettings, create.Properties);
+			AddPoolOptions options = new AddPoolOptions();
+			options.Condition = create.Condition;
+			options.EnableAutoscaling = create.EnableAutoscaling;
+			options.MinAgents = create.MinAgents;
+			options.NumReserveAgents = create.NumReserveAgents; 
+			options.ConformInterval = conformInterval;
+			options.ScaleOutCooldown = scaleOutCooldown;
+			options.ScaleInCooldown = scaleInCooldown; 
+			options.SizeStrategies = sizeStrategies;
+			options.FleetManagers = fleetManagers; 
+			options.SizeStrategy = create.SizeStrategy;
+			options.LeaseUtilizationSettings = luSettings; 
+			options.JobQueueSettings = jqSettings; 
+			options.ComputeQueueAwsMetricSettings = cqamSettings;
+			options.Properties = create.Properties;
+
+			IPool newPool = await _poolService.CreatePoolAsync(create.Name, options);
 			return new CreatePoolResponse(newPool.Id.ToString());
 		}
 
@@ -145,9 +159,25 @@ namespace Horde.Server.Agents.Pools
 			TimeSpan? scaleOutCooldown = update.ScaleOutCooldown == null ? null : TimeSpan.FromSeconds(update.ScaleOutCooldown.Value);
 			TimeSpan? scaleInCooldown = update.ScaleInCooldown == null ? null : TimeSpan.FromSeconds(update.ScaleInCooldown.Value);
 
-			await _poolService.UpdatePoolAsync(pool, update.Name, update.Condition, update.EnableAutoscaling,
-				update.MinAgents, update.NumReserveAgents, update.Properties, conformInterval, scaleOutCooldown, scaleInCooldown, update.SizeStrategy, newSizeStrategies, newFleetManagers,
-				update.LeaseUtilizationSettings?.Convert(), update.JobQueueSettings?.Convert(), update.ComputeQueueAwsMetricSettings?.Convert(), update.UseDefaultStrategy);
+			UpdatePoolOptions options = new UpdatePoolOptions();
+			options.Name = update.Name;
+			options.Condition = update.Condition;
+			options.EnableAutoscaling = update.EnableAutoscaling;
+			options.MinAgents = update.MinAgents;
+			options.NumReserveAgents = update.NumReserveAgents;
+			options.Properties = update.Properties;
+			options.ConformInterval = conformInterval;
+			options.ScaleOutCooldown = scaleOutCooldown;
+			options.ScaleInCooldown = scaleInCooldown;
+			options.SizeStrategy = update.SizeStrategy;
+			options.SizeStrategies = newSizeStrategies;
+			options.FleetManagers = newFleetManagers;
+			options.LeaseUtilizationSettings = update.LeaseUtilizationSettings?.Convert();
+			options.JobQueueSettings = update.JobQueueSettings?.Convert();
+			options.ComputeQueueAwsMetricSettings = update.ComputeQueueAwsMetricSettings?.Convert();
+			options.UseDefaultStrategy = update.UseDefaultStrategy;
+
+			await _poolService.UpdatePoolAsync(pool, options);
 			return new OkResult();
 		}
 
@@ -197,7 +227,7 @@ namespace Horde.Server.Agents.Pools
 					return NotFound(poolIdValue);
 				}
 
-				await _poolService.UpdatePoolAsync(pool, update.Name, newProperties: update.Properties);
+				await _poolService.UpdatePoolAsync(pool, new UpdatePoolOptions { Name = update.Name, Properties = update.Properties });
 			}
 			return Ok();
 		}

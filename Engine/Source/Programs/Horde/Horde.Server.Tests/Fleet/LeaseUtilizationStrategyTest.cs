@@ -38,7 +38,7 @@ namespace Horde.Server.Tests.Fleet
 		[TestMethod]
 		public async Task UtilizationFull()
 		{
-			IPool pool = await PoolService.CreatePoolAsync("AutoscalePool1", null, true, 0, 0);
+			IPool pool = await PoolService.CreatePoolAsync("AutoscalePool1", new AddPoolOptions { EnableAutoscaling = true, MinAgents = 0, NumReserveAgents = 0 });
 			CreateAgents(pool);
 			
 			await AddPlaceholderLease(_agent1, pool, Clock.UtcNow - TimeSpan.FromMinutes(120), TimeSpan.FromMinutes(120));
@@ -51,7 +51,7 @@ namespace Horde.Server.Tests.Fleet
 		[TestMethod]
 		public async Task UtilizationHalf()
 		{
-			IPool pool = await PoolService.CreatePoolAsync("AutoscalePool1", null, true, 0, 0);
+			IPool pool = await PoolService.CreatePoolAsync("AutoscalePool1", new AddPoolOptions { EnableAutoscaling = true, MinAgents = 0, NumReserveAgents = 0 });
 			CreateAgents(pool);
 			
 			await AddPlaceholderLease(_agent1, pool, Clock.UtcNow - TimeSpan.FromMinutes(120), TimeSpan.FromMinutes(120));
@@ -62,7 +62,7 @@ namespace Horde.Server.Tests.Fleet
 		[TestMethod]
 		public async Task UtilizationZero()
 		{
-			IPool pool = await PoolService.CreatePoolAsync("AutoscalePool1", null, true, 0, 0);
+			IPool pool = await PoolService.CreatePoolAsync("AutoscalePool1", new AddPoolOptions { EnableAutoscaling = true, MinAgents = 0, NumReserveAgents = 0 });
 			CreateAgents(pool);
 
 			await AssertPoolSizeAsync(pool, 0);
@@ -71,7 +71,7 @@ namespace Horde.Server.Tests.Fleet
 		[TestMethod]
 		public async Task ReserveAgents()
 		{
-			IPool pool = await PoolService.CreatePoolAsync("AutoscalePool1", null, true, 0, 5);
+			IPool pool = await PoolService.CreatePoolAsync("AutoscalePool1", new AddPoolOptions { EnableAutoscaling = true, MinAgents = 0, NumReserveAgents = 5 });
 			CreateAgents(pool);
 			
 			await AddPlaceholderLease(_agent1, pool, Clock.UtcNow - TimeSpan.FromMinutes(120), TimeSpan.FromMinutes(120));
@@ -86,7 +86,7 @@ namespace Horde.Server.Tests.Fleet
 		[TestMethod]
 		public async Task MinAgents()
 		{
-			IPool pool = await PoolService.CreatePoolAsync("AutoscalePool1", null, true, 2, 0);
+			IPool pool = await PoolService.CreatePoolAsync("AutoscalePool1", new AddPoolOptions { EnableAutoscaling = true, MinAgents = 2, NumReserveAgents = 0 });
 			CreateAgents(pool);
 			
 			// Even with no utilization, expect at least the min number of agents

@@ -103,7 +103,7 @@ namespace Horde.Server.Tests
 			await service._ticker.StartAsync();
 
 			Fixture fixture = await CreateFixtureAsync();
-			IPool pool = await PoolService.CreatePoolAsync("BogusPool", properties: new Dictionary<string, string>());
+			IPool pool = await PoolService.CreatePoolAsync("BogusPool", new AddPoolOptions { Properties = new Dictionary<string, string>() });
 
 			Assert.AreEqual(0, fakeSink.JobScheduledNotifications.Count);
 			service.NotifyJobScheduled(pool, false, fixture.Job1, fixture.Graph, SubResourceId.Random());
@@ -115,7 +115,7 @@ namespace Horde.Server.Tests
 			Assert.AreEqual(2, fakeSink.JobScheduledNotifications.Count);
 			Assert.AreEqual(1, fakeSink.JobScheduledCallCount);
 		}
-		
+
 		[TestMethod]
 		public async Task JobScheduledNotificationsAreDeduplicated()
 		{
@@ -123,7 +123,7 @@ namespace Horde.Server.Tests
 			NotificationService service = (NotificationService)ServiceProvider.GetRequiredService<INotificationService>();
 			await service._ticker.StartAsync();
 			Fixture fixture = await CreateFixtureAsync();
-			IPool pool = await PoolService.CreatePoolAsync("BogusPool", properties: new Dictionary<string, string>());
+			IPool pool = await PoolService.CreatePoolAsync("BogusPool", new AddPoolOptions { Properties = new Dictionary<string, string>()});
 
 			service.NotifyJobScheduled(pool, false, fixture.Job1, fixture.Graph, SubResourceId.Random());
 			service.NotifyJobScheduled(pool, false, fixture.Job1, fixture.Graph, SubResourceId.Random());

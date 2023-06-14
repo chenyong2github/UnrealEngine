@@ -16,7 +16,7 @@ namespace Horde.Server.Tests
         [TestMethod]
         public async Task GetPoolsTest()
         {
-	        IPool pool1 = await PoolService.CreatePoolAsync("Pool1", properties: new() { {"foo", "bar"}, {"lorem", "ipsum"} });
+	        IPool pool1 = await PoolService.CreatePoolAsync("Pool1", new AddPoolOptions { Properties = new Dictionary<string, string>() { { "foo", "bar" }, { "lorem", "ipsum" } } });
 	        ActionResult<List<object>> rawResult = await PoolsController.GetPoolsAsync();
 	        Assert.AreEqual(1, rawResult.Value!.Count);
 	        GetPoolResponse response = (rawResult.Value![0] as GetPoolResponse)!;
@@ -62,7 +62,7 @@ namespace Horde.Server.Tests
         [TestMethod]
         public async Task UpdatePoolTest()
         {
-	        IPool pool1 = await PoolService.CreatePoolAsync("Pool1", properties: new() { {"foo", "bar"}, {"lorem", "ipsum"} });
+	        IPool pool1 = await PoolService.CreatePoolAsync("Pool1", new AddPoolOptions { Properties = new Dictionary<string, string>() { { "foo", "bar" }, { "lorem", "ipsum" } } });
 
 	        await PoolsController.UpdatePoolAsync(pool1.Id.ToString(), new UpdatePoolRequest
 	        {

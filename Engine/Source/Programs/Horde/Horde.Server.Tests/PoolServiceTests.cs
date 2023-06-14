@@ -25,7 +25,7 @@ namespace Horde.Server.Tests
 
         private async Task<IPool> CreatePoolFixture(string name)
         {
-            return await PoolService.CreatePoolAsync(name, properties: _fixtureProps);
+            return await PoolService.CreatePoolAsync(name, new AddPoolOptions { Properties = _fixtureProps });
         }
 
         [TestMethod]
@@ -79,7 +79,7 @@ namespace Horde.Server.Tests
                 {"cookies", "yumyum"},
             };
 
-            IPool? updatedPool = await PoolService.UpdatePoolAsync(pool, $"update-pool-new-name-{uniqueSuffix}", newProperties: updatedProps);
+            IPool? updatedPool = await PoolService.UpdatePoolAsync(pool, new UpdatePoolOptions { Name = $"update-pool-new-name-{uniqueSuffix}", Properties = updatedProps });
 			Assert.IsNotNull(updatedPool);
             Assert.AreEqual(pool.Id, updatedPool!.Id);
             Assert.AreEqual($"update-pool-new-name-{uniqueSuffix}", updatedPool.Name);
@@ -92,7 +92,7 @@ namespace Horde.Server.Tests
         public async Task UpdatePoolCollectionTest()
         {
 	        IPool pool = await CreatePoolFixture("update-pool-2");
-	        await PoolCollection.TryUpdateAsync(pool, lastScaleUpTime: DateTime.UtcNow);
+	        await PoolCollection.TryUpdateAsync(pool, new UpdatePoolOptions { LastScaleUpTime = DateTime.UtcNow });
         }
     }
 }

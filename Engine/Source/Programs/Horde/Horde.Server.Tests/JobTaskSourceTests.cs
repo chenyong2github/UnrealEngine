@@ -160,7 +160,7 @@ namespace Horde.Server.Tests
 		private async Task<Fixture> SetupPoolWithAgentAsync(bool isPoolAutoScaled, bool shouldCreateAgent, bool isAgentEnabled)
 		{
 			Fixture fixture = await CreateFixtureAsync();
-			IPool pool = await PoolService.CreatePoolAsync(Fixture.PoolName, null, isPoolAutoScaled, 0, 0);
+			IPool pool = await PoolService.CreatePoolAsync(Fixture.PoolName, new AddPoolOptions { EnableAutoscaling = isPoolAutoScaled, MinAgents = 0, NumReserveAgents = 0 });
 
 			if (shouldCreateAgent)
 			{
