@@ -288,7 +288,7 @@ protected:
 protected:
 
 	/** Interface for node contexts to register log messages with the proxy */
-	ENGINE_API void LogMessageInternal(FName InLogType, EMessageSeverity::Type InSeverity, FText InMessage) const;
+	ENGINE_API void LogMessageInternal(FName InLogType, const TSharedRef<FTokenizedMessage>& InMessage) const;
 };
 
 
@@ -434,7 +434,8 @@ public:
 	float GetDeltaTime() const { return DeltaTime; }
 
 	// Log update message
-	void LogMessage(EMessageSeverity::Type InSeverity, FText InMessage) const { LogMessageInternal("Update", InSeverity, InMessage); }
+	void LogMessage(const TSharedRef<FTokenizedMessage>& InMessage) const { LogMessageInternal("Update", InMessage); }
+	void LogMessage(EMessageSeverity::Type InSeverity, FText InMessage) const { LogMessage(FTokenizedMessage::Create(InSeverity, InMessage)); }
 };
 
 
@@ -473,7 +474,8 @@ public:
 	void Initialize(FAnimInstanceProxy* InAnimInstanceProxy) { InitializeImpl(InAnimInstanceProxy); }
 
 	// Log evaluation message
-	void LogMessage(EMessageSeverity::Type InSeverity, FText InMessage) const { LogMessageInternal("Evaluate", InSeverity, InMessage); }
+	void LogMessage(const TSharedRef<FTokenizedMessage>& InMessage) const { LogMessageInternal("Evaluate", InMessage); }
+	void LogMessage(EMessageSeverity::Type InSeverity, FText InMessage) const { LogMessage(FTokenizedMessage::Create(InSeverity, InMessage)); }
 
 	void ResetToRefPose()
 	{

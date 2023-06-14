@@ -47,6 +47,7 @@
 #define LOCTEXT_NAMESPACE "AnimInstance"
 
 const FName NAME_AnimBlueprintLog(TEXT("AnimBlueprintLog"));
+const FName NAME_PIELog(TEXT("PIE"));
 const FName NAME_Evaluate(TEXT("Evaluate"));
 const FName NAME_Update(TEXT("Update"));
 const FName NAME_AnimGraph(TEXT("AnimGraph"));
@@ -73,6 +74,7 @@ FAnimInstanceProxy::FAnimInstanceProxy()
 	, bDeferRootNodeInitialization(false)
 #if WITH_EDITORONLY_DATA
 	, bIsBeingDebugged(false)
+	, bIsGameWorld(false)
 #endif
 	, bInitializeSubsystems(false)
 	, bUseMainInstanceMontageEvaluationData(false)
@@ -410,19 +412,33 @@ FGuid MakeGuidForMessage(const FText& Message)
 	return FGuid(Hash[0] ^ Hash[4], Hash[1], Hash[2], Hash[3]);
 }
 
-void FAnimInstanceProxy::LogMessage(FName InLogType, EMessageSeverity::Type InSeverity, const FText& InMessage) const
+FName FAnimInstanceProxy::GetTargetLogNameForCurrentWorldType() const
+{
+#if WITH_EDITORONLY_DATA
+	return bIsGameWorld ? NAME_PIELog : NAME_AnimBlueprintLog;
+#else
+	return NAME_AnimBlueprintLog;
+#endif
+}
+
+void FAnimInstanceProxy::LogMessage(FName InLogType, const TSharedRef<FTokenizedMessage>& InMessage) const
 {
 #if ENABLE_ANIM_LOGGING
-	FGuid CurrentMessageGuid = MakeGuidForMessage(InMessage);
+	FGuid CurrentMessageGuid = MakeGuidForMessage(InMessage->ToText());
 	if(!PreviouslyLoggedMessages.Contains(CurrentMessageGuid))
 	{
 		PreviouslyLoggedMessages.Add(CurrentMessageGuid);
 		if (TArray<FLogMessageEntry>* LoggedMessages = LoggedMessagesMap.Find(InLogType))
 		{
-			LoggedMessages->Emplace(InSeverity, InMessage);
+			LoggedMessages->Emplace(InMessage);
 		}
 	}
 #endif
+}
+
+void FAnimInstanceProxy::LogMessage(FName InLogType, EMessageSeverity::Type InSeverity, const FText& InMessage) const
+{
+	LogMessage(InLogType, FTokenizedMessage::Create(InSeverity, InMessage));
 }
 
 void FAnimInstanceProxy::Uninitialize(UAnimInstance* InAnimInstance)
@@ -459,6 +475,8 @@ void FAnimInstanceProxy::PreUpdate(UAnimInstance* InAnimInstance, float DeltaSec
 	bShouldExtractRootMotion = InAnimInstance->ShouldExtractRootMotion();
 
 #if WITH_EDITORONLY_DATA
+	bIsGameWorld = World ? World->IsGameWorld() : false;
+
 	if (FAnimBlueprintDebugData* DebugData = GetAnimBlueprintDebugData())
 	{
 		DebugData->ResetNodeVisitSites();
@@ -663,13 +681,13 @@ void FAnimInstanceProxy::PostUpdate(UAnimInstance* InAnimInstance) const
 #endif
 
 #if ENABLE_ANIM_LOGGING
-	FMessageLog MessageLog(NAME_AnimBlueprintLog);
+	FMessageLog MessageLog(GetTargetLogNameForCurrentWorldType());
 	const TArray<FLogMessageEntry>* Messages = LoggedMessagesMap.Find(NAME_Update);
 	if (ensureMsgf(Messages, TEXT("PreUpdate isn't called. This could potentially cause other issues.")))
 	{
 		for (const FLogMessageEntry& Message : *Messages)
 		{
-			MessageLog.Message(Message.Key, Message.Value);
+			MessageLog.AddMessage(Message);
 		}
 	}
 #endif
@@ -682,12 +700,12 @@ void FAnimInstanceProxy::PostEvaluate(UAnimInstance* InAnimInstance)
 	ClearObjects();
 
 #if ENABLE_ANIM_LOGGING
-	FMessageLog MessageLog(NAME_AnimBlueprintLog);
+	FMessageLog MessageLog(GetTargetLogNameForCurrentWorldType());
 	if(const TArray<FLogMessageEntry>* Messages = LoggedMessagesMap.Find(NAME_Evaluate))
 	{
 		for (const FLogMessageEntry& Message : *Messages)
 		{
-			MessageLog.Message(Message.Key, Message.Value);
+			MessageLog.AddMessage(Message);
 		}
 	}
 #endif

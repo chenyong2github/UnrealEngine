@@ -93,9 +93,9 @@ UAnimBlueprint* FAnimationBaseContext::GetAnimBlueprint() const
 }
 #endif //WITH_EDITORONLY_DATA
 
-void FAnimationBaseContext::LogMessageInternal(FName InLogType, EMessageSeverity::Type InSeverity, FText InMessage) const
+void FAnimationBaseContext::LogMessageInternal(FName InLogType, const TSharedRef<FTokenizedMessage>& InMessage) const
 {
-	AnimInstanceProxy->LogMessage(InLogType, InSeverity, InMessage);
+	AnimInstanceProxy->LogMessage(InLogType, InMessage);
 }
 /////////////////////////////////////////////////////
 // FPoseContext

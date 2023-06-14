@@ -930,6 +930,7 @@ protected:
 
 	/** Allow nodes to register log messages to be processed on the game thread */
 	ENGINE_API void LogMessage(FName InLogType, EMessageSeverity::Type InSeverity, const FText& InMessage) const;
+	ENGINE_API void LogMessage(FName InLogType, const TSharedRef<FTokenizedMessage>& InMessage) const;
 
 	/** Get the current value of all animation curves **/
 	TMap<FName, float>& GetAnimationCurves(EAnimCurveType InCurveType) { return AnimationCurves[(uint8)InCurveType]; }
@@ -969,6 +970,8 @@ protected:
 	}
 
 private:
+
+	FName GetTargetLogNameForCurrentWorldType() const;
 
 	/** Executes the provided functor on each valid state machine on this anim instance */
 	ENGINE_API void ForEachStateMachine(const TFunctionRef<void(FAnimNode_StateMachine&)>& Functor);
@@ -1136,7 +1139,7 @@ private:
 	/** Logged message queues. Allows nodes to report messages to MessageLog even though they may be running
 	 *  on a worked thread
 	 */
-	typedef TPair<EMessageSeverity::Type, FText> FLogMessageEntry;
+	typedef TSharedRef<FTokenizedMessage> FLogMessageEntry;
 	mutable TMap<FName, TArray<FLogMessageEntry>> LoggedMessagesMap;
 
 	/** Cache of guids generated from previously sent messages so we can stop spam*/
@@ -1162,6 +1165,9 @@ private:
 #if WITH_EDITORONLY_DATA
 	/** Whether this UAnimInstance is currently being debugged in the editor */
 	uint8 bIsBeingDebugged : 1;
+
+	/** Whether the world of this proxy's skeletal mesh component is a game world. */
+	uint8 bIsGameWorld : 1;
 #endif
 
 	// Whether subsystems should be initialized
