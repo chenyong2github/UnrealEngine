@@ -97,6 +97,10 @@ public:
 	UPROPERTY(Config)
 	bool bKeepPIEOpen;
 
+	/** Whether to automatically expand Automation Tests tree subgroups that have single non-leaf item as a child (default=true) */
+	UPROPERTY(Config)
+	bool bAutoExpandSingleItemSubgroups;
+
 private:
 	/** Whether to treat log warnings as test errors (default=true) */
 	UPROPERTY(Config, Meta = (DeprecatedProperty, DeprecationMessage = "Use bElevateLogWarningsToErrors instead."))

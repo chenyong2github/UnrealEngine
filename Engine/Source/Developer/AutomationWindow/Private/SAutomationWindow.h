@@ -250,6 +250,12 @@ private:
 	 */
 	void PopulateReportSearchStrings( const TSharedPtr< IAutomationReport >& Report, OUT TArray< FString >& OutSearchStrings ) const;
 
+	/** Callback for a test expansion changing */
+	void OnExpansionChanged(TSharedPtr<IAutomationReport> InItem, bool bExpanded);
+
+	/** Recursively expands subgroups as a reaction on expansion change (expands single-item subgroups without leafs recursively) */
+	void ExpandSingleItemSubgroups(TSharedPtr<IAutomationReport> InItem, bool bExpanded);
+
 	/** Gets children tests for a node in the hierarchy */
 	void OnGetChildren(TSharedPtr<IAutomationReport> InItem, TArray<TSharedPtr<IAutomationReport> >& OutItems);
 
@@ -343,6 +349,12 @@ private:
 
 	/** Toggles if PIE should be kept open when test pass end */
 	void HandleKeepPIEOpenBoxCheckStateChanged(ECheckBoxState CheckBoxState);
+
+	/** Returns if we should automatically expand single-item test subgroups */
+	ECheckBoxState AutoExpandSingleItemSubgroupsCheckBoxChecked() const;
+
+	/** Toggles if automatic expansion of single-item subgroups is enabled */
+	void HandleAutoExpandSingleItemSubgroupsCheckStateChanged(ECheckBoxState CheckBoxState);
 
 	/** Returns if a device group is enabled */
 	ECheckBoxState IsDeviceGroupCheckBoxIsChecked(const int32 DeviceGroupFlag) const;
@@ -637,6 +649,9 @@ private:
 
 	/** Flag to enable display of the text labels in the toolbar. */
 	bool bIsLabelVisibilityEnabled;
+
+	/** Flag to enable auto expand of subgroups that have single-item groups without children. */
+	bool bAutoExpandSingleItemSubgroups;
 
 	/** Holds a pointer to the preset manager. */
 	TSharedPtr<FAutomationTestPresetManager> TestPresetManager;

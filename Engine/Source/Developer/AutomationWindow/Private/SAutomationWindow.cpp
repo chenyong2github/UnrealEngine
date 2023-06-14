@@ -106,7 +106,15 @@ public:
 SAutomationWindow::SAutomationWindow() 
 	: ColumnWidth(90.0f)
 	, bIsLabelVisibilityEnabled(false)
+	, bAutoExpandSingleItemSubgroups(true)
 {
+	UAutomationControllerSettings* Settings = UAutomationControllerSettings::StaticClass()->GetDefaultObject<UAutomationControllerSettings>();
+	if (nullptr == Settings)
+	{
+		return;
+	}
+
+	bAutoExpandSingleItemSubgroups = Settings->bAutoExpandSingleItemSubgroups;
 }
 
 SAutomationWindow::~SAutomationWindow()
@@ -207,6 +215,7 @@ void SAutomationWindow::Construct( const FArguments& InArgs, const IAutomationCo
 		.OnSetExpansionRecursive(this, &SAutomationWindow::OnTestExpansionRecursive)
 		//on selection
 		.OnSelectionChanged(this, &SAutomationWindow::OnTestSelectionChanged)
+		.OnExpansionChanged( this, &SAutomationWindow::OnExpansionChanged)
 		// Allow for some spacing between items with a larger item height.
 		.ItemHeight(20.0f)
 #if WITH_EDITOR
@@ -1475,6 +1484,20 @@ TSharedRef< SWidget > SAutomationWindow::GenerateTestsOptionsMenuContent( )
 		];
 
 
+	TSharedRef<SWidget> AutoExpandSingleItemSubgroupsWidget =
+		SNew(SCheckBox)
+		.IsChecked(this, &SAutomationWindow::AutoExpandSingleItemSubgroupsCheckBoxChecked)
+		.OnCheckStateChanged(this, &SAutomationWindow::HandleAutoExpandSingleItemSubgroupsCheckStateChanged)
+		.Padding(FMargin(4.0f, 0.0f))
+		.ToolTipText(LOCTEXT("AutomationAutoExpandSingleItemSubgroupsTip", "If checked, automatic expansion of single-item test subgroups will be enabled"))
+		.IsEnabled(this, &SAutomationWindow::IsAutomationControllerIdle)
+		.Content()
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("AutomationAutoExpandSingleItemSubgroupsText", "Auto expand single-item subgroups"))
+		];
+
+
 	MenuBuilder.BeginSection("AutomationWindowRunTest", LOCTEXT("RunTestOptions", "Advanced Settings"));
 	{
 		MenuBuilder.AddWidget(NumTests, FText::GetEmpty());
@@ -1482,6 +1505,7 @@ TSharedRef< SWidget > SAutomationWindow::GenerateTestsOptionsMenuContent( )
 		#if WITH_EDITOR
 		MenuBuilder.AddWidget(KeepPIEOpenWidget, FText::GetEmpty());
 		#endif //WITH_EDITOR
+		MenuBuilder.AddWidget(AutoExpandSingleItemSubgroupsWidget, FText::GetEmpty());
 	}
 	MenuBuilder.EndSection();
 
@@ -1506,6 +1530,18 @@ ECheckBoxState SAutomationWindow::KeepPIEOpenCheckBoxChecked() const
 void SAutomationWindow::HandleKeepPIEOpenBoxCheckStateChanged(ECheckBoxState CheckBoxState)
 {
 	AutomationController->SetKeepPIEOpen(CheckBoxState == ECheckBoxState::Checked);
+}
+
+/** Returns if we should automatically expand single-item test subgroups */
+ECheckBoxState SAutomationWindow::AutoExpandSingleItemSubgroupsCheckBoxChecked() const
+{
+	return bAutoExpandSingleItemSubgroups ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+/** Toggles if automatic expansion of single-item subgroups is enabled */
+void SAutomationWindow::HandleAutoExpandSingleItemSubgroupsCheckStateChanged(ECheckBoxState CheckBoxState)
+{
+	bAutoExpandSingleItemSubgroups = (CheckBoxState == ECheckBoxState::Checked);
 }
 
 TArray<FString> SAutomationWindow::SaveExpandedTestNames(TSet<TSharedPtr<IAutomationReport>> ExpandedItems)
@@ -1703,6 +1739,46 @@ void SAutomationWindow::PopulateReportSearchStrings( const TSharedPtr< IAutomati
 	OutSearchStrings.Add( Report->GetFullTestPath() );
 }
 
+void SAutomationWindow::OnExpansionChanged(TSharedPtr<IAutomationReport> InItem, bool bExpanded)
+{
+	ExpandSingleItemSubgroups(InItem, bExpanded);
+}
+
+void SAutomationWindow::ExpandSingleItemSubgroups(TSharedPtr<IAutomationReport> InItem, bool bExpanded)
+{
+	check(InItem.IsValid());
+	if (bAutoExpandSingleItemSubgroups && bExpanded)
+	{
+		TArray<TSharedPtr<IAutomationReport>>& FilteredChildren = InItem->GetFilteredChildren();
+		if (FilteredChildren.Num() == 1)
+		{
+			TSharedPtr<IAutomationReport> SingleChild = FilteredChildren.Top();
+			check(SingleChild.IsValid());
+
+			if (!SingleChild->IsParent())
+			{
+				return;
+			}
+
+			TestTable->SetItemExpansion(InItem, bExpanded);
+
+			TArray<TSharedPtr<IAutomationReport>>& SingleChildFilteredChildren = SingleChild->GetFilteredChildren();
+			static auto IsChildPredicate = [](const TSharedPtr<IAutomationReport>& InItemToCheck) -> bool
+			{
+				check(InItemToCheck.IsValid());
+				return (!InItemToCheck->IsParent());
+			};
+
+			const bool bSingleChildHasAtLeastOneChildLeaf = (nullptr != SingleChildFilteredChildren.FindByPredicate(IsChildPredicate));
+			if (bSingleChildHasAtLeastOneChildLeaf)
+			{
+				return;
+			}
+
+			ExpandSingleItemSubgroups(SingleChild, bExpanded);
+		}
+	}
+}
 
 void SAutomationWindow::OnGetChildren(TSharedPtr<IAutomationReport> InItem, TArray<TSharedPtr<IAutomationReport> >& OutItems)
 {
