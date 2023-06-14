@@ -939,7 +939,7 @@ void FAutomationControllerManager::ProcessResults()
 	bHasWarning = false;
 	bHasLogs = false;
 
-	TArray< TSharedPtr< IAutomationReport > >& TestReports = GetReports();
+	TArray< TSharedPtr< IAutomationReport > > TestReports = GetEnabledReports();
 
 	if ( TestReports.Num() )
 	{

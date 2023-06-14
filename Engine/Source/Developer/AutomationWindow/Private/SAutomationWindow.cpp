@@ -188,7 +188,7 @@ void SAutomationWindow::Construct( const FArguments& InArgs, const IAutomationCo
 	AutomationControllerState = AutomationController->GetTestState();
 	
 	//cache off reference to filtered reports
-	TArray <TSharedPtr <IAutomationReport> >& TestReports = AutomationController->GetReports();
+	TArray <TSharedPtr <IAutomationReport> >& TestReports = AutomationController->GetFilteredReports();
 
 	// Create the search filter and set criteria
 	AutomationTextFilter = MakeShareable( new AutomationReportTextFilter( AutomationReportTextFilter::FItemToStringArray::CreateSP( this, &SAutomationWindow::PopulateReportSearchStrings ) ) );
@@ -1401,7 +1401,7 @@ void SAutomationWindow::HandlePresetCheckStateChanged(ECheckBoxState CheckBoxSta
 
 		//Expand selected items
 		TestTable->ClearExpandedItems();
-		TArray< TSharedPtr< IAutomationReport > >& TestReports = AutomationController->GetReports();
+		TArray< TSharedPtr< IAutomationReport > >& TestReports = AutomationController->GetFilteredReports();
 		for (int32 Index = 0; Index < TestReports.Num(); Index++)
 		{
 			ExpandEnabledTests(TestReports[Index]);
@@ -1658,7 +1658,7 @@ void SAutomationWindow::FindTestReportsForCurrentEditorLevel(TArray<TSharedPtr<I
 		const FString MapPath = GWorld->GetCurrentLevel()->GetPackage()->GetPathName();
 		if (!MapPath.IsEmpty())
 		{
-			auto FunctionTestsReport = GetFunctionalTestsReport(AutomationController->GetReports());
+			auto FunctionTestsReport = GetFunctionalTestsReport(AutomationController->GetFilteredReports());
 			if (FunctionTestsReport.IsValid())
 			{
 				FindReportByGameRelativeAssetPath(FunctionTestsReport, MapPath, OutLevelReports);
@@ -1692,7 +1692,7 @@ void SAutomationWindow::OnRunLevelTest()
 
 void SAutomationWindow::ScrollToTest(TSharedPtr<IAutomationReport> InReport)
 {
-	auto& RootReports = AutomationController->GetReports();
+	auto& RootReports = AutomationController->GetFilteredReports();
 	for ( auto ChildReport : RootReports )
 	{
 		auto ShouldExpand = ExpandToTest(ChildReport, InReport);
@@ -2074,7 +2074,7 @@ void SAutomationWindow::OnRefreshTestCallback()
 	// Only expand the child nodes if we have a text filter
 	bool ExpandChildren = !AutomationTextFilter->GetRawFilterText().IsEmpty();
 
-	TArray< TSharedPtr< IAutomationReport > >& TestReports = AutomationController->GetReports();
+	TArray< TSharedPtr< IAutomationReport > >& TestReports = AutomationController->GetFilteredReports();
 
 	for( int32 Index = 0; Index < TestReports.Num(); Index++ )
 	{
@@ -2102,7 +2102,7 @@ void SAutomationWindow::OnTestAvailableCallback( EAutomationControllerModuleStat
 	AutomationControllerState = InAutomationControllerState;
 
 	// Only list tests on opening the Window if the asset registry isn't in the middle of loading tests.
-	if ( InAutomationControllerState == EAutomationControllerModuleState::Ready && AutomationController->GetReports().Num() == 0 && !bIsRequestingTests)
+	if ( InAutomationControllerState == EAutomationControllerModuleState::Ready && AutomationController->GetFilteredReports().Num() == 0 && !bIsRequestingTests)
 	{
 #if WITH_EDITOR
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));

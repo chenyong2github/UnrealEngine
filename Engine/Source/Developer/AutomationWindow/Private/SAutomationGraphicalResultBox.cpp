@@ -72,7 +72,7 @@ void SAutomationGraphicalResultBox::PopulateData()
 {
 	//Get the report list
 	TArray< TSharedPtr< IAutomationReport > > AllReports;
-	AllReports = AutomationController->GetReports();
+	AllReports = AutomationController->GetEnabledReports();
 
 	//Find only the enabled tests
 	TArray< TSharedPtr< IAutomationReport > > EnabledReports;

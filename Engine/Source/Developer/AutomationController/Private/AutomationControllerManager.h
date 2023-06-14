@@ -244,9 +244,20 @@ public:
 		ReportManager.SetFilter( InFilter );
 	}
 
+	UE_DEPRECATED(5.3, "Use GetFilteredReports or GetEnabledReports instead.")
 	virtual TArray <TSharedPtr <IAutomationReport> >& GetReports() override
 	{
+		return GetFilteredReports();
+	}
+
+	virtual TArray <TSharedPtr <IAutomationReport> >& GetFilteredReports() override
+	{
 		return ReportManager.GetFilteredReports();
+	}
+
+	virtual TArray <TSharedPtr <IAutomationReport> > GetEnabledReports() override
+	{
+		return ReportManager.GetEnabledTestReports();
 	}
 
 	virtual int32 GetNumDeviceClusters() const override
