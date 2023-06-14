@@ -38,6 +38,8 @@ class ULocalPlayer;
 class UNetDriver;
 struct FMargin;
 
+enum class EViewStatusForScreenPercentage;
+
 /** Delegate for overriding the behavior when a navigation action is taken, Not to be confused with FNavigationDelegate which allows a specific widget to override behavior for itself */
 DECLARE_DELEGATE_RetVal_TwoParams(bool, FCustomNavigationHandler, const uint32, TSharedPtr<SWidget>);
 
@@ -891,6 +893,8 @@ public:
 	ENGINE_API bool HasSoftwareCursor(EMouseCursor::Type Cursor) const;
 
 	ENGINE_API void EnableCsvPlayerStats(int32 LocalPlayerCount);
+
+	ENGINE_API EViewStatusForScreenPercentage GetViewStatusForScreenPercentage() const;
 
 private:
 	/** Resets the platform type shape to nullptr, to restore it to the OS default. */

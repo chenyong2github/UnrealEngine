@@ -1223,6 +1223,26 @@ static UCanvas* GetCanvasByName(FName CanvasName)
 	return *FoundCanvas;
 }
 
+EViewStatusForScreenPercentage UGameViewportClient::GetViewStatusForScreenPercentage() const
+{
+	if (EngineShowFlags.PathTracing)
+	{
+		return EViewStatusForScreenPercentage::PathTracer;
+	}
+	else if (EngineShowFlags.StereoRendering)
+	{
+		return EViewStatusForScreenPercentage::VR;
+	}
+	else if (World && World->GetFeatureLevel() == ERHIFeatureLevel::ES3_1)
+	{
+		return EViewStatusForScreenPercentage::Mobile;
+	}
+	else
+	{
+		return EViewStatusForScreenPercentage::Desktop;
+	}
+}
+
 void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 {
 	//Valid SceneCanvas is required.  Make this explicit.
@@ -1647,19 +1667,8 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 			if (ViewFamily.EngineShowFlags.ScreenPercentage && !bDisableWorldRendering && ViewFamily.Views.Num() > 0)
 			{
 				// Get global view fraction.
-				FStaticResolutionFractionHeuristic StaticHeuristic(ViewFamily.EngineShowFlags);
-
-#if WITH_EDITOR
-				if (FStaticResolutionFractionHeuristic::FUserSettings::EditorOverridePIESettings())
-				{
-					StaticHeuristic.Settings.PullEditorRenderingSettings(/* bIsRealTime = */ true, /* bIsPathTraced = */ ViewFamily.EngineShowFlags.PathTracing);
-				}
-				else
-#endif
-				{
-					StaticHeuristic.Settings.PullRunTimeRenderingSettings();
-				}
-
+				FStaticResolutionFractionHeuristic StaticHeuristic;
+				StaticHeuristic.Settings.PullRunTimeRenderingSettings(GetViewStatusForScreenPercentage());
 				StaticHeuristic.PullViewFamilyRenderingSettings(ViewFamily);
 				StaticHeuristic.DPIScale = GetDPIScale();
 

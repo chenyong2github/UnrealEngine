@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SScalabilitySettings.h"
+#include "Widgets/SWidget.h"
 #include "Widgets/SBoxPanel.h"
 #include "Styling/SlateTypes.h"
 #include "Widgets/Layout/SBorder.h"
@@ -12,8 +13,26 @@
 #include "Editor.h"
 #include "Settings/EditorSettings.h"
 #include "Editor/EditorPerformanceSettings.h"
+#include "SceneUtils.h"
+#include "LegacyScreenPercentageDriver.h"
+#include "Engine/GameViewportClient.h"
+#include "UnrealClient.h"
 
 #define LOCTEXT_NAMESPACE "EngineScalabiltySettings"
+
+// static
+bool SScalabilitySettings::IsPlayInEditor()
+{
+	const TIndirectArray<FWorldContext>&WorldContexts = GEngine->GetWorldContexts();
+	for (const FWorldContext& Context : WorldContexts)
+	{
+		if (Context.WorldType == EWorldType::PIE && GEditor && !GEditor->bIsSimulatingInEditor)
+		{
+			return true;
+		}
+	}
+	return false;
+}
 
 ECheckBoxState SScalabilitySettings::IsGroupQualityLevelSelected(const TCHAR* InGroupName, int32 InQualityLevel) const
 {
@@ -55,7 +74,12 @@ void SScalabilitySettings::OnGroupQualityLevelChanged(ECheckBoxState NewState, c
 
 void SScalabilitySettings::OnResolutionScaleChanged(float InValue)
 {
-	CachedQualityLevels.ResolutionQuality = FMath::Lerp(Scalability::MinResolutionScale, Scalability::MaxResolutionScale, InValue);
+	if (!SScalabilitySettings::IsResolutionScaleEditable())
+	{
+		return;
+	}
+
+	CachedQualityLevels.ResolutionQuality = FMath::Lerp(Scalability::MinResolutionScale, Scalability::MaxResolutionScale, FMath::Clamp(InValue, 0.0f, 1.0f));
 
 	Scalability::SetQualityLevels(CachedQualityLevels);
 	Scalability::SaveState(GEditorSettingsIni);
@@ -69,7 +93,41 @@ float SScalabilitySettings::GetResolutionScale() const
 
 FText SScalabilitySettings::GetResolutionScaleString() const
 {
-	return FText::AsPercent(FMath::Square(CachedQualityLevels.ResolutionQuality / 100.0f));
+	return CachedQualityLevels.ResolutionQuality >= Scalability::MinResolutionScale ? FText::AsPercent(CachedQualityLevels.ResolutionQuality / 100.0f) : FText();
+}
+
+FReply SScalabilitySettings::OnResolutionPresetClicked(int32 PresetId)
+{
+	if (!SScalabilitySettings::IsResolutionScaleEditable())
+	{
+		return FReply::Handled();
+	}
+
+	TArray<Scalability::FResolutionPreset> ResolutionPresets = Scalability::GetResolutionPresets();
+	CachedQualityLevels.ResolutionQuality = ResolutionPresets[PresetId].ResolutionQuality;
+
+	Scalability::SetQualityLevels(CachedQualityLevels);
+	Scalability::SaveState(GEditorSettingsIni);
+	GEditor->RedrawAllViewports();
+
+	return FReply::Handled();
+}
+
+// static
+bool SScalabilitySettings::IsResolutionScaleEditable()
+{
+	if (!SScalabilitySettings::IsPlayInEditor())
+	{
+		return false;
+	}
+
+	static IConsoleVariable* CVarScreenPercentage = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ScreenPercentage"));
+	if ((uint32(CVarScreenPercentage->GetFlags()) & uint32(ECVF_SetByMask)) > uint32(ECVF_SetByScalability))
+	{
+		return false;
+	}
+	
+	return true;
 }
 
 TSharedRef<SWidget> SScalabilitySettings::MakeButtonWidget(const FText& InName, const TCHAR* InGroupName, int32 InQualityLevel, const FText& InToolTip)
@@ -191,115 +249,294 @@ void SScalabilitySettings::AddButtonsToGrid(int32 X0, int32 Y0, TSharedRef<SGrid
 	}
 }
 
+//static
+FFormatNamedArguments SScalabilitySettings::GetScreenPercentageFormatArguments(const UGameViewportClient* ViewportClient)
+{
+	FFormatNamedArguments FormatArguments;
+	if (ViewportClient == nullptr || !SScalabilitySettings::IsPlayInEditor())
+	{
+		FormatArguments.Add(TEXT("CurrentScreenPercentage"), LOCTEXT("ScreenPercentageNotInPIE", "Not currently in PIE"));
+
+		FormatArguments.Add(TEXT("ResolutionFromTo"), FText());
+		FormatArguments.Add(TEXT("ViewportMode"), FText());
+		FormatArguments.Add(TEXT("SettingSource"), FText());
+		FormatArguments.Add(TEXT("Setting"), FText());
+
+		return FormatArguments;
+	}
+
+	const FIntPoint DisplayResolution = ViewportClient->Viewport->GetSizeXY();
+
+	EViewStatusForScreenPercentage ViewportRenderingMode = ViewportClient->GetViewStatusForScreenPercentage();
+	FormatArguments.Add(TEXT("ViewportMode"), UEnum::GetDisplayValueAsText(ViewportRenderingMode));
+
+	static IConsoleVariable* CVarScreenPercentage = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ScreenPercentage"));
+	const TCHAR* CVarScreenPercentageSetBy = GetConsoleVariableSetByName(CVarScreenPercentage->GetFlags());
+	float CVarScreenPercentageValue = CVarScreenPercentage->GetFloat();
+	if (EConsoleVariableFlags(uint32(CVarScreenPercentage->GetFlags()) & uint32(ECVF_SetByMask)) > ECVF_SetByScalability)
+	{
+		if (CVarScreenPercentageValue > 0.0f)
+		{
+			FormatArguments.Add(TEXT("SettingSource"), FText::Format(
+				LOCTEXT("ScreenPercentageCVarSetBy", "r.ScreenPercentage={0} set by {1}"),
+				FText::AsNumber(CVarScreenPercentageValue),
+				FText::FromString(CVarScreenPercentageSetBy)));
+		}
+		else
+		{
+			FormatArguments.Add(TEXT("SettingSource"), FText::Format(
+				LOCTEXT("ScreenPercentageCVarSetByUsesProjectDefaults", "Project Settings' default due to r.ScreenPercentage={0} set by {1}"),
+				FText::AsNumber(CVarScreenPercentageValue),
+				FText::FromString(CVarScreenPercentageSetBy)));
+		}
+	}
+	else
+	{
+		if (CVarScreenPercentageValue > 0.0f)
+		{
+			FormatArguments.Add(TEXT("SettingSource"), LOCTEXT("EngineScalabilitySettings", "Engine Scalability Settings"));
+		}
+		else if (FStaticResolutionFractionHeuristic::FUserSettings::EditorOverridePIESettings())
+		{
+			FormatArguments.Add(TEXT("SettingSource"), LOCTEXT("ScreenPercentageEditorViewportDefaults", "Editor Preferences > Performance > Viewport Resolution"));
+		}
+		else
+		{
+			FormatArguments.Add(TEXT("SettingSource"), LOCTEXT("ScreenPercentageProjectDefaults", "Project Settings > Rendering > Default Screen Percentage"));
+		}
+	}
+
+	// Get global view fraction.
+	const FEngineShowFlags& EngineShowFlags = ViewportClient->EngineShowFlags;
+	FStaticResolutionFractionHeuristic StaticHeuristic;
+	StaticHeuristic.Settings.PullRunTimeRenderingSettings(ViewportRenderingMode);
+
+	{
+		StaticHeuristic.SecondaryViewFraction = 1.0; // TODO
+		StaticHeuristic.TotalDisplayedPixelCount = DisplayResolution.X * DisplayResolution.Y;
+		StaticHeuristic.DPIScale = ViewportClient->GetDPIScale();
+	}
+
+	EScreenPercentageMode FinalScreenPercentageMode = StaticHeuristic.Settings.Mode;
+	if (FinalScreenPercentageMode == EScreenPercentageMode::BasedOnDPIScale)
+	{
+		FormatArguments.Add(TEXT("Setting"), LOCTEXT("ScreenPercentage_Setting_BasedOnDPIScale", "Based on OS's DPI scale"));
+	}
+	else if (FinalScreenPercentageMode == EScreenPercentageMode::BasedOnDisplayResolution)
+	{
+		FormatArguments.Add(TEXT("Setting"), LOCTEXT("ScreenPercentage_Setting_BasedOnDisplayResolution", "Based on display resolution"));
+	}
+	else
+	{
+		FormatArguments.Add(TEXT("Setting"), LOCTEXT("ScreenPercentage_Setting_Manual", "Manual"));
+	}
+
+	float FinalResolutionFraction = StaticHeuristic.ResolveResolutionFraction();
+	float FinalScreenPercentage = FinalResolutionFraction * 100.0f;
+	FormatArguments.Add(TEXT("CurrentScreenPercentage"), FText::FromString(FString::Printf(TEXT("%3.1f"), FMath::RoundToFloat(FinalScreenPercentage * 10.0f) / 10.0f)));
+
+	{
+		FIntPoint RenderingResolution;
+		RenderingResolution.X = FMath::CeilToInt(DisplayResolution.X * FinalResolutionFraction);
+		RenderingResolution.Y = FMath::CeilToInt(DisplayResolution.Y * FinalResolutionFraction);
+
+		FormatArguments.Add(TEXT("ResolutionFromTo"), FText::FromString(FString::Printf(TEXT("%dx%d -> %dx%d"), RenderingResolution.X, RenderingResolution.Y, DisplayResolution.X, DisplayResolution.Y)));
+	}
+
+	return FormatArguments;
+}
+
 void SScalabilitySettings::Construct( const FArguments& InArgs )
 {
-	const FText NamesLow(LOCTEXT("QualityLowLabel", "Low"));
-	const FText NamesMedium(LOCTEXT("QualityMediumLabel", "Medium"));
-	const FText NamesHigh(LOCTEXT("QualityHighLabel", "High"));
-	const FText NamesEpic(LOCTEXT("QualityEpicLabel", "Epic"));
-	const FText NamesCine(LOCTEXT("QualityCineLabel", "Cinematic"));
-	const FText NamesAuto(LOCTEXT("QualityAutoLabel", "Auto"));
+	const float QualityColumnCoeff = 1.0f;
 
-	const FText DistanceNear = LOCTEXT("ViewDistanceLabel2", "Near");
-	const FText DistanceMedium = LOCTEXT("ViewDistanceLabel3", "Medium");
-	const FText DistanceFar = LOCTEXT("ViewDistanceLabel4", "Far");
-	const FText DistanceEpic = LOCTEXT("ViewDistanceLabel5", "Epic");
-	const FText DistanceCinematic = LOCTEXT("ViewDistanceLabel6", "Cinematic");
+	auto TitleFont = FAppStyle::GetFontStyle(FName("Scalability.TitleFont"));
+	auto GroupFont = FAppStyle::GetFontStyle(FName("Scalability.GroupFont"));
+
+	TSharedPtr<SWidget> ScalabilityGroupsWidget;
+	{
+		const FText NamesLow(LOCTEXT("QualityLowLabel", "Low"));
+		const FText NamesMedium(LOCTEXT("QualityMediumLabel", "Medium"));
+		const FText NamesHigh(LOCTEXT("QualityHighLabel", "High"));
+		const FText NamesEpic(LOCTEXT("QualityEpicLabel", "Epic"));
+		const FText NamesCine(LOCTEXT("QualityCineLabel", "Cinematic"));
+		const FText NamesAuto(LOCTEXT("QualityAutoLabel", "Auto"));
+
+		const FText DistanceNear = LOCTEXT("ViewDistanceLabel2", "Near");
+		const FText DistanceMedium = LOCTEXT("ViewDistanceLabel3", "Medium");
+		const FText DistanceFar = LOCTEXT("ViewDistanceLabel4", "Far");
+		const FText DistanceEpic = LOCTEXT("ViewDistanceLabel5", "Epic");
+		const FText DistanceCinematic = LOCTEXT("ViewDistanceLabel6", "Cinematic");
+
+		const FText FiveNames[5] = { NamesLow, NamesMedium, NamesHigh, NamesEpic, NamesCine };
+		const FText FiveDistanceNames[5] = { DistanceNear, DistanceMedium, DistanceFar, DistanceEpic, DistanceCinematic };
+
+		InitialQualityLevels = CachedQualityLevels = Scalability::GetQualityLevels();
 		
-	const FText FiveNames[5] = { NamesLow, NamesMedium, NamesHigh, NamesEpic, NamesCine };
-	const FText FiveDistanceNames[5] = { DistanceNear, DistanceMedium, DistanceFar, DistanceEpic, DistanceCinematic };
+		Scalability::FQualityLevels LevelCounts = Scalability::GetQualityLevelCounts();
+		const int32 MaxLevelCount =
+			FMath::Max(LevelCounts.ShadowQuality,
+			FMath::Max(LevelCounts.GlobalIlluminationQuality,
+			FMath::Max(LevelCounts.ReflectionQuality,
+			FMath::Max(LevelCounts.TextureQuality,
+			FMath::Max(LevelCounts.ViewDistanceQuality,
+			FMath::Max(LevelCounts.EffectsQuality,
+			FMath::Max(LevelCounts.FoliageQuality,
+			FMath::Max(LevelCounts.ShadingQuality,
+			FMath::Max(LevelCounts.PostProcessQuality, LevelCounts.AntiAliasingQuality)
+			))))))));
 
-	auto TitleFont = FAppStyle::GetFontStyle( FName( "Scalability.TitleFont" ) );
-	auto GroupFont = FAppStyle::GetFontStyle( FName( "Scalability.GroupFont" ) );
+		const int32 TotalWidth = MaxLevelCount + 1;
+		const int32 ScalabilityFirstRowId = 1;
 
-	InitialQualityLevels = CachedQualityLevels = Scalability::GetQualityLevels();
-	static float Padding = 1.0f;
-	static float QualityColumnCoeff = 1.0f;
-	static float QualityLevelColumnCoeff = 0.2f;
-		
-	Scalability::FQualityLevels LevelCounts = Scalability::GetQualityLevelCounts();
-	const int32 MaxLevelCount =
-		FMath::Max(LevelCounts.ShadowQuality,
-		FMath::Max(LevelCounts.GlobalIlluminationQuality,
-		FMath::Max(LevelCounts.ReflectionQuality,
-		FMath::Max(LevelCounts.TextureQuality,
-		FMath::Max(LevelCounts.ViewDistanceQuality,
-		FMath::Max(LevelCounts.EffectsQuality,
-		FMath::Max(LevelCounts.FoliageQuality,
-		FMath::Max(LevelCounts.ShadingQuality,
-		FMath::Max(LevelCounts.PostProcessQuality, LevelCounts.AntiAliasingQuality)
-		))))))));
-	const int32 TotalWidth = MaxLevelCount + 1;
+		ERHIFeatureLevel::Type FeatureLevel = GWorld ? GWorld->GetFeatureLevel() : GMaxRHIFeatureLevel;
+		EAntiAliasingMethod AntiAliasingMethod = GetDefaultAntiAliasingMethod(FeatureLevel);
+		FText AntiAliasingMethodShortName = FText::FromString(GetShortAntiAliasingName(AntiAliasingMethod));
 
-	TSharedRef<SGridPanel> ButtonMatrix = 
-		SNew(SGridPanel)
-		.FillColumn(0, QualityColumnCoeff)
+		TSharedRef<SGridPanel> ButtonMatrix =
+			SNew(SGridPanel)
+			.FillColumn(0, QualityColumnCoeff)
 
-		+MakeGridSlot(0,1,TotalWidth,1) [ SNew (SBorder).BorderImage(FAppStyle::GetBrush("Scalability.RowBackground")) ]
-		+MakeGridSlot(0,2,TotalWidth,1) [ SNew (SBorder).BorderImage(FAppStyle::GetBrush("Scalability.RowBackground")) ]
-		+MakeGridSlot(0,3,TotalWidth,1) [ SNew (SBorder).BorderImage(FAppStyle::GetBrush("Scalability.RowBackground")) ]
-		+MakeGridSlot(0,4,TotalWidth,1) [ SNew (SBorder).BorderImage(FAppStyle::GetBrush("Scalability.RowBackground")) ]
-		+MakeGridSlot(0,5,TotalWidth,1) [ SNew (SBorder).BorderImage(FAppStyle::GetBrush("Scalability.RowBackground")) ]
-		+MakeGridSlot(0,6,TotalWidth,1) [ SNew (SBorder).BorderImage(FAppStyle::GetBrush("Scalability.RowBackground")) ]
-		+MakeGridSlot(0,7,TotalWidth,1) [ SNew (SBorder).BorderImage(FAppStyle::GetBrush("Scalability.RowBackground")) ]
-		+MakeGridSlot(0,8,TotalWidth,1) [ SNew (SBorder).BorderImage(FAppStyle::GetBrush("Scalability.RowBackground")) ]
-		+MakeGridSlot(0,9,TotalWidth,1) [ SNew (SBorder).BorderImage(FAppStyle::GetBrush("Scalability.RowBackground")) ]
-		+MakeGridSlot(0,10,TotalWidth,1) [ SNew (SBorder).BorderImage(FAppStyle::GetBrush("Scalability.RowBackground")) ]
-		+MakeGridSlot(0,11,TotalWidth,1) [ SNew (SBorder).BorderImage(FAppStyle::GetBrush("Scalability.RowBackground")) ]
+			+MakeGridSlot(1,0) [ MakeHeaderButtonWidget(NamesLow, 0, LOCTEXT("QualityLow", "Set all groups to low quality"), Scalability::EQualityLevelBehavior::EAbsolute) ]
+			+MakeGridSlot(2,0) [ MakeHeaderButtonWidget(NamesMedium, 3, LOCTEXT("QualityMedium", "Set all groups to medium quality"), Scalability::EQualityLevelBehavior::ERelativeToMax) ]
+			+MakeGridSlot(3,0) [ MakeHeaderButtonWidget(NamesHigh, 2, LOCTEXT("QualityHigh", "Set all groups to high quality"), Scalability::EQualityLevelBehavior::ERelativeToMax) ]
+			+MakeGridSlot(4,0) [ MakeHeaderButtonWidget(NamesEpic, 1, LOCTEXT("QualityEpic", "Set all groups to epic quality"), Scalability::EQualityLevelBehavior::ERelativeToMax) ]
+			+MakeGridSlot(5,0) [ MakeHeaderButtonWidget(NamesCine, 0, LOCTEXT("QualityCinematic", "Set all groups to offline cinematic quality"), Scalability::EQualityLevelBehavior::ERelativeToMax)]
+			+MakeGridSlot(6,0) [ MakeAutoButtonWidget() ]
 
-		+MakeGridSlot(0,0).VAlign(VAlign_Center) [ SNew(STextBlock).Text(LOCTEXT("QualityLabel", "Quality")).Font(TitleFont) ]
-		+MakeGridSlot(1,0) [ MakeHeaderButtonWidget(NamesLow, 0, LOCTEXT("QualityLow", "Set all groups to low quality"), Scalability::EQualityLevelBehavior::EAbsolute) ]
-		+MakeGridSlot(2,0) [ MakeHeaderButtonWidget(NamesMedium, 3, LOCTEXT("QualityMedium", "Set all groups to medium quality"), Scalability::EQualityLevelBehavior::ERelativeToMax) ]
-		+MakeGridSlot(3,0) [ MakeHeaderButtonWidget(NamesHigh, 2, LOCTEXT("QualityHigh", "Set all groups to high quality"), Scalability::EQualityLevelBehavior::ERelativeToMax) ]
-		+MakeGridSlot(4,0) [ MakeHeaderButtonWidget(NamesEpic, 1, LOCTEXT("QualityEpic", "Set all groups to epic quality"), Scalability::EQualityLevelBehavior::ERelativeToMax) ]
-		+MakeGridSlot(5,0) [ MakeHeaderButtonWidget(NamesCine, 0, LOCTEXT("QualityCinematic", "Set all groups to offline cinematic quality"), Scalability::EQualityLevelBehavior::ERelativeToMax)]
-		+MakeGridSlot(6,0) [ MakeAutoButtonWidget() ]
+			+MakeGridSlot(0,ScalabilityFirstRowId+0,TotalWidth,1) [ SNew (SBorder).BorderImage(FAppStyle::GetBrush("Scalability.RowBackground")) ]
+			+MakeGridSlot(0,ScalabilityFirstRowId+1,TotalWidth,1) [ SNew (SBorder).BorderImage(FAppStyle::GetBrush("Scalability.RowBackground")) ]
+			+MakeGridSlot(0,ScalabilityFirstRowId+2,TotalWidth,1) [ SNew (SBorder).BorderImage(FAppStyle::GetBrush("Scalability.RowBackground")) ]
+			+MakeGridSlot(0,ScalabilityFirstRowId+3,TotalWidth,1) [ SNew (SBorder).BorderImage(FAppStyle::GetBrush("Scalability.RowBackground")) ]
+			+MakeGridSlot(0,ScalabilityFirstRowId+4,TotalWidth,1) [ SNew (SBorder).BorderImage(FAppStyle::GetBrush("Scalability.RowBackground")) ]
+			+MakeGridSlot(0,ScalabilityFirstRowId+5,TotalWidth,1) [ SNew (SBorder).BorderImage(FAppStyle::GetBrush("Scalability.RowBackground")) ]
+			+MakeGridSlot(0,ScalabilityFirstRowId+6,TotalWidth,1) [ SNew (SBorder).BorderImage(FAppStyle::GetBrush("Scalability.RowBackground")) ]
+			+MakeGridSlot(0,ScalabilityFirstRowId+7,TotalWidth,1) [ SNew (SBorder).BorderImage(FAppStyle::GetBrush("Scalability.RowBackground")) ]
+			+MakeGridSlot(0,ScalabilityFirstRowId+8,TotalWidth,1) [ SNew (SBorder).BorderImage(FAppStyle::GetBrush("Scalability.RowBackground")) ]
+			+MakeGridSlot(0,ScalabilityFirstRowId+9,TotalWidth,1) [ SNew (SBorder).BorderImage(FAppStyle::GetBrush("Scalability.RowBackground")) ]
 
-		+MakeGridSlot(0,1) [ SNew(STextBlock).Text(LOCTEXT("ResScaleLabel1", "Resolution Scale")).Font(GroupFont) ]
-		+MakeGridSlot(5,1) [ SNew(STextBlock).Text(this, &SScalabilitySettings::GetResolutionScaleString) ]
-		+MakeGridSlot(1,1,4,1) [ SNew(SSlider).OnValueChanged(this, &SScalabilitySettings::OnResolutionScaleChanged).Value(this, &SScalabilitySettings::GetResolutionScale) ]
-				
-		+MakeGridSlot(0,2) [ SNew(STextBlock).Text(LOCTEXT("ViewDistanceLabel1", "View Distance")).Font(GroupFont) ]
+			+MakeGridSlot(0,ScalabilityFirstRowId + 0) [ SNew(STextBlock).Text(LOCTEXT("ViewDistanceLabel1", "View Distance")).Font(GroupFont) ]
+			+MakeGridSlot(0,ScalabilityFirstRowId + 1) [ SNew(STextBlock).Text(FText::Format(LOCTEXT("AntiAliasingQualityLabel1", "Anti-Aliasing ({0})"), AntiAliasingMethodShortName)).Font(GroupFont) ]
+			+MakeGridSlot(0,ScalabilityFirstRowId + 2) [ SNew(STextBlock).Text(LOCTEXT("PostProcessQualityLabel1", "Post Processing")).Font(GroupFont) ]
+			+MakeGridSlot(0,ScalabilityFirstRowId + 3) [ SNew(STextBlock).Text(LOCTEXT("ShadowLabel1", "Shadows")).Font(GroupFont) ]
+			+MakeGridSlot(0,ScalabilityFirstRowId + 4) [ SNew(STextBlock).Text(LOCTEXT("GlobalIlluminationLabel1", "Global Illumination")).Font(GroupFont) ]
+			+MakeGridSlot(0,ScalabilityFirstRowId + 5) [ SNew(STextBlock).Text(LOCTEXT("Reflection1", "Reflections")).Font(GroupFont) ]
+			+MakeGridSlot(0,ScalabilityFirstRowId + 6) [ SNew(STextBlock).Text(LOCTEXT("TextureQualityLabel1", "Textures")).Font(GroupFont) ]
+			+MakeGridSlot(0,ScalabilityFirstRowId + 7) [ SNew(STextBlock).Text(LOCTEXT("EffectsQualityLabel1", "Effects")).Font(GroupFont) ]
+			+MakeGridSlot(0,ScalabilityFirstRowId + 8) [ SNew(STextBlock).Text(LOCTEXT("FoliageQualityLabel1", "Foliage")).Font(GroupFont) ]
+			+MakeGridSlot(0,ScalabilityFirstRowId + 9) [ SNew(STextBlock).Text(LOCTEXT("ShadingQualityLabel1", "Shading")).Font(GroupFont) ]
+			;
 
-		+MakeGridSlot(0,3) [ SNew(STextBlock).Text(LOCTEXT("AntiAliasingQualityLabel1", "Anti-Aliasing")).Font(GroupFont) ]
+		AddButtonsToGrid(1, ScalabilityFirstRowId + 0, ButtonMatrix, FiveDistanceNames, LevelCounts.ViewDistanceQuality, TEXT("ViewDistanceQuality"), LOCTEXT("ViewDistanceQualityTooltip", "Set view distance to {0}"));
+		AddButtonsToGrid(1, ScalabilityFirstRowId + 1, ButtonMatrix, FiveNames, LevelCounts.AntiAliasingQuality, TEXT("AntiAliasingQuality"), LOCTEXT("AntiAliasingQualityTooltip", "Set anti-aliasing quality to {0}"));
+		AddButtonsToGrid(1, ScalabilityFirstRowId + 2, ButtonMatrix, FiveNames, LevelCounts.PostProcessQuality, TEXT("PostProcessQuality"), LOCTEXT("PostProcessQualityTooltip", "Set post processing quality to {0}"));
+		AddButtonsToGrid(1, ScalabilityFirstRowId + 3, ButtonMatrix, FiveNames, LevelCounts.ShadowQuality, TEXT("ShadowQuality"), LOCTEXT("ShadowQualityTooltip", "Set shadow quality to {0}"));
+		AddButtonsToGrid(1, ScalabilityFirstRowId + 4, ButtonMatrix, FiveNames, LevelCounts.GlobalIlluminationQuality, TEXT("GlobalIlluminationQuality"), LOCTEXT("GlobalIlluminationQualityTooltip", "Set Global Illumination quality to {0}"));
+		AddButtonsToGrid(1, ScalabilityFirstRowId + 5, ButtonMatrix, FiveNames, LevelCounts.ReflectionQuality, TEXT("ReflectionQuality"), LOCTEXT("ReflectionQualityTooltip", "Set Reflection quality to {0}"));
+		AddButtonsToGrid(1, ScalabilityFirstRowId + 6, ButtonMatrix, FiveNames, LevelCounts.TextureQuality, TEXT("TextureQuality"), LOCTEXT("TextureQualityTooltip", "Set texture quality to {0}"));
+		AddButtonsToGrid(1, ScalabilityFirstRowId + 7, ButtonMatrix, FiveNames, LevelCounts.EffectsQuality, TEXT("EffectsQuality"), LOCTEXT("EffectsQualityTooltip", "Set effects quality to {0}"));
+		AddButtonsToGrid(1, ScalabilityFirstRowId + 8, ButtonMatrix, FiveNames, LevelCounts.FoliageQuality, TEXT("FoliageQuality"), LOCTEXT("FoliageQualityTooltip", "Set foliage quality to {0}"));
+		AddButtonsToGrid(1, ScalabilityFirstRowId + 9, ButtonMatrix, FiveNames, LevelCounts.ShadingQuality, TEXT("ShadingQuality"), LOCTEXT("ShadingQualityTooltip", "Set shading quality to {0}"));
+	
+		ScalabilityGroupsWidget = ButtonMatrix;
+	}
 
-		+MakeGridSlot(0,4) [ SNew(STextBlock).Text(LOCTEXT("PostProcessQualityLabel1", "Post Processing")).Font(GroupFont) ]
+	// PIE 3D resolution.
+	TSharedPtr<SWidget> ResolutionSliderWidget;
+	{
+		auto MakePresetButton = [this](const FText& InName, int32 ResolutionPresetId)
+		{
+			return SNew(SButton)
+				//.ToolTipText(InToolTip)
+				.OnClicked(this, &SScalabilitySettings::OnResolutionPresetClicked, ResolutionPresetId)
+				.IsEnabled_Lambda([]() {
+					return SScalabilitySettings::IsResolutionScaleEditable();
+				})
+				.Content()
+				[
+					SNew(STextBlock)
+					.Text(InName)
+				];
+		};
 
-		+MakeGridSlot(0,5) [ SNew(STextBlock).Text(LOCTEXT("ShadowLabel1", "Shadows")).Font(GroupFont) ]
-		+MakeGridSlot(0,6) [ SNew(STextBlock).Text(LOCTEXT("GlobalIlluminationLabel1", "Global Illumination")).Font(GroupFont) ]
-		+MakeGridSlot(0,7) [ SNew(STextBlock).Text(LOCTEXT("Reflection1", "Reflections")).Font(GroupFont) ]
+		const TArray<Scalability::FResolutionPreset> ResolutionPresets = Scalability::GetResolutionPresets();
 
-		+MakeGridSlot(0,8) [ SNew(STextBlock).Text(LOCTEXT("TextureQualityLabel1", "Textures")).Font(GroupFont) ]
+		TSharedRef<SGridPanel> ButtonMatrix =
+			SNew(SGridPanel)
+			.FillColumn(0, QualityColumnCoeff)
 
-		+MakeGridSlot(0,9) [ SNew(STextBlock).Text(LOCTEXT("EffectsQualityLabel1", "Effects")).Font(GroupFont) ]
-		+MakeGridSlot(0,10) [ SNew(STextBlock).Text(LOCTEXT("FoliageQualityLabel1", "Foliage")).Font(GroupFont) ]
-		+MakeGridSlot(0,11) [ SNew(STextBlock).Text(LOCTEXT("ShadingQualityLabel1", "Shading")).Font(GroupFont) ]
-		;
+			+MakeGridSlot(0,0)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("ScreenPercentage", "Screen Percentage"))
+				.Font(GroupFont)
+				.IsEnabled_Lambda([this]() {
+					return SScalabilitySettings::IsResolutionScaleEditable() && CachedQualityLevels.ResolutionQuality >= Scalability::MinResolutionScale;
+				})
+			]
+			+MakeGridSlot(1,0,ResolutionPresets.Num() - 1,1)
+			[
+				SNew(SSlider)
+				.OnValueChanged(this, &SScalabilitySettings::OnResolutionScaleChanged)
+				.Value(this, &SScalabilitySettings::GetResolutionScale)
+				.IsEnabled_Lambda([]() {
+					return true; // TODO: SScalabilitySettings::IsPlayInEditor(); but looks hugly
+				})
+			]
+			+MakeGridSlot(ResolutionPresets.Num(),0)
+			[
+				SNew(STextBlock)
+				.Text(this, &SScalabilitySettings::GetResolutionScaleString)
+				.IsEnabled_Lambda([this]() {
+					return SScalabilitySettings::IsResolutionScaleEditable() && CachedQualityLevels.ResolutionQuality >= Scalability::MinResolutionScale;
+				})
+			]
+			;
 
-	AddButtonsToGrid(1, 2, ButtonMatrix, FiveDistanceNames, LevelCounts.ViewDistanceQuality, TEXT("ViewDistanceQuality"), LOCTEXT("ViewDistanceQualityTooltip", "Set view distance to {0}"));
-	AddButtonsToGrid(1, 3, ButtonMatrix, FiveNames, LevelCounts.AntiAliasingQuality, TEXT("AntiAliasingQuality"), LOCTEXT("AntiAliasingQualityTooltip", "Set anti-aliasing quality to {0}"));
-	AddButtonsToGrid(1, 4, ButtonMatrix, FiveNames, LevelCounts.PostProcessQuality, TEXT("PostProcessQuality"), LOCTEXT("PostProcessQualityTooltip", "Set post processing quality to {0}"));
-	AddButtonsToGrid(1, 5, ButtonMatrix, FiveNames, LevelCounts.ShadowQuality, TEXT("ShadowQuality"), LOCTEXT("ShadowQualityTooltip", "Set shadow quality to {0}"));
-	AddButtonsToGrid(1, 6, ButtonMatrix, FiveNames, LevelCounts.GlobalIlluminationQuality, TEXT("GlobalIlluminationQuality"), LOCTEXT("GlobalIlluminationQualityTooltip", "Set Global Illumination quality to {0}"));
-	AddButtonsToGrid(1, 7, ButtonMatrix, FiveNames, LevelCounts.ReflectionQuality, TEXT("ReflectionQuality"), LOCTEXT("ReflectionQualityTooltip", "Set Reflection quality to {0}"));
-	AddButtonsToGrid(1, 8, ButtonMatrix, FiveNames, LevelCounts.TextureQuality, TEXT("TextureQuality"), LOCTEXT("TextureQualityTooltip", "Set texture quality to {0}"));
-	AddButtonsToGrid(1, 9, ButtonMatrix, FiveNames, LevelCounts.EffectsQuality, TEXT("EffectsQuality"), LOCTEXT("EffectsQualityTooltip", "Set effects quality to {0}"));
-	AddButtonsToGrid(1, 10, ButtonMatrix, FiveNames, LevelCounts.FoliageQuality, TEXT("FoliageQuality"), LOCTEXT("FoliageQualityTooltip", "Set foliage quality to {0}"));
-	AddButtonsToGrid(1, 11, ButtonMatrix, FiveNames, LevelCounts.ShadingQuality, TEXT("ShadingQuality"), LOCTEXT("ShadingQualityTooltip", "Set shading quality to {0}"));
+		for (int32 PresetId = 0; PresetId < ResolutionPresets.Num(); PresetId++)
+		{
+			const Scalability::FResolutionPreset& Preset = ResolutionPresets[PresetId];
+			FText PresetText = FText::FromString(Preset.Name);
 
+			ButtonMatrix->AddSlot(1 + PresetId, 1)
+				.Padding(2.f)
+			[
+				MakePresetButton(PresetText, PresetId)
+			];
+			//+MakeGridSlot(1, 1)[MakePresetButton(LOCTEXT("SuperResolution_Default", "Default"), 0)]
+			//	+ MakeGridSlot(2, 1)[MakePresetButton(LOCTEXT("SuperResolution_Performance", "Performance"), 1)]
+			//	+ MakeGridSlot(3, 1)[MakePresetButton(LOCTEXT("SuperResolution_Balanced", "Balanced"), 2)]
+			//	+ MakeGridSlot(4, 1)[MakePresetButton(LOCTEXT("SuperResolution_Quality", "Quality"), 3)]
+			//	+ MakeGridSlot(5, 1)[MakePresetButton(LOCTEXT("SuperResolution_Native", "Native"), 4)]
+			//	;
+		}
+
+		ResolutionSliderWidget = ButtonMatrix;
+	}
+
+	const UGameViewportClient* ViewportClient = GEngine->GameViewport;
 
 	this->ChildSlot
 		.HAlign(EHorizontalAlignment::HAlign_Fill)
 		[
 			SNew(SVerticalBox)
-			+SVerticalBox::Slot()
-			[
-				ButtonMatrix
-			]
-
 			+ SVerticalBox::Slot()
 			.AutoHeight()
-			.Padding(5.f)
+			.Padding(5.f, 2.f)
+			[
+				SNew(STextBlock).Text(LOCTEXT("ScalabilityGroups", "Scalability Groups")).Font(TitleFont)
+			]
+
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(10.f, 2.f)
+			[
+				ScalabilityGroupsWidget.ToSharedRef()
+			]
+
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(26.f, 3.f)
 			[
 				SNew(SCheckBox)
 				.OnCheckStateChanged(this, &SScalabilitySettings::OnMonitorPerformanceChanged)
@@ -310,6 +547,81 @@ void SScalabilitySettings::Construct( const FArguments& InArgs )
 					.Text(LOCTEXT("PerformanceWarningEnableDisableCheckbox", "Monitor Editor Performance?"))
 				]
 			]
+
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(5.f, 15.f, 5.f, 2.f)
+			[
+				SNew(STextBlock).Text(LOCTEXT("ResolutionPIE3D", "Play-In-Editor 3D Resolution")).Font(TitleFont)
+			]
+			
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(12.f, 2.f)
+			[
+				SNew(STextBlock)
+				.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+				.Text_Lambda([ViewportClient]() {
+					FFormatNamedArguments FormatArguments = GetScreenPercentageFormatArguments(ViewportClient);
+					return FText::Format(LOCTEXT("ScreenPercentageCurrent_Display", "Current Screen Percentage: {CurrentScreenPercentage}"), FormatArguments);
+				})
+			]
+			
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(12.f, 2.f)
+			[
+				SNew(STextBlock)
+				.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+				.Text_Lambda([ViewportClient]() {
+					FFormatNamedArguments FormatArguments = GetScreenPercentageFormatArguments(ViewportClient);
+					return FText::Format(LOCTEXT("ScreenPercentageResolutions", "Resolution: {ResolutionFromTo}"), FormatArguments);
+				})
+			]
+			
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(12.f, 2.f)
+			[
+				SNew(STextBlock)
+				.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+				.Text_Lambda([ViewportClient]() {
+					FFormatNamedArguments FormatArguments = GetScreenPercentageFormatArguments(ViewportClient);
+					return FText::Format(LOCTEXT("ScreenPercentageActiveViewport", "Active Viewport: {ViewportMode}"), FormatArguments);
+				})
+			]
+			
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(12.f, 2.f)
+			[
+				SNew(STextBlock)
+				.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+				.Text_Lambda([ViewportClient]() {
+					FFormatNamedArguments FormatArguments = GetScreenPercentageFormatArguments(ViewportClient);
+					return FText::Format(LOCTEXT("ScreenPercentageSetFrom", "Set From: {SettingSource}"), FormatArguments);
+				})
+			]
+
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(12.f, 2.f)
+			[
+				SNew(STextBlock)
+				.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+				.Text_Lambda([ViewportClient]() {
+					FFormatNamedArguments FormatArguments = GetScreenPercentageFormatArguments(ViewportClient);
+					return FText::Format(LOCTEXT("ScreenPercentageSetting", "Setting: {Setting}"), FormatArguments);
+				})
+			]
+			
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(10.f, 2.f)
+			[
+				ResolutionSliderWidget.ToSharedRef()
+			]
+
 		];
 }
 

@@ -9,6 +9,7 @@
 #include "Engine/DeveloperSettings.h"
 #include "PixelFormat.h"
 #include "PerPlatformProperties.h"
+#include "LegacyScreenPercentageDriver.h"
 
 #include "RendererSettings.generated.h"
 
@@ -701,6 +702,31 @@ class URendererSettings : public UDeveloperSettings
 		ToolTip = "Pixel format used for back buffer, when not specified",
 		ConfigRestartRequired=true))
 	TEnumAsByte<EDefaultBackBufferPixelFormat::Type> DefaultBackBufferPixelFormat;
+	
+	UPROPERTY(config, EditAnywhere, Category = DefaultScreenPercentage, meta = (
+		ConsoleVariable = "r.ScreenPercentage.Default", DisplayName = "Manual Screen Percentage",
+		ToolTip = ""))
+	float DefaultManualScreenPercentage;
+
+	UPROPERTY(config, EditAnywhere, Category = DefaultScreenPercentage, meta = (
+		ConsoleVariable = "r.ScreenPercentage.Default.Desktop.Mode", DisplayName = "Screen Percentage Mode for Desktop renderer",
+		ToolTip = ""))
+	EScreenPercentageMode DefaultScreenPercentageDesktopMode;
+
+	UPROPERTY(config, EditAnywhere, Category = DefaultScreenPercentage, meta = (
+		ConsoleVariable = "r.ScreenPercentage.Default.Mobile.Mode", DisplayName = "Screen Percentage Mode for Mobile renderer",
+		ToolTip = ""))
+	EScreenPercentageMode DefaultScreenPercentageMobileMode;
+
+	UPROPERTY(config, EditAnywhere, Category = DefaultScreenPercentage, meta = (
+		ConsoleVariable = "r.ScreenPercentage.Default.VR.Mode", DisplayName = "Screen Percentage Mode for VR",
+		ToolTip = ""))
+	EScreenPercentageMode DefaultScreenPercentageVRMode;
+
+	UPROPERTY(config, EditAnywhere, Category = DefaultScreenPercentage, meta = (
+		ConsoleVariable = "r.ScreenPercentage.Default.PathTracer.Mode", DisplayName = "Screen Percentage Mode for PathTracer",
+		ToolTip = ""))
+	EScreenPercentageMode DefaultScreenPercentagePathTracerMode;
 
 	UPROPERTY(config, EditAnywhere, Category=Optimizations, meta=(
 		ConsoleVariable="r.Shadow.UnbuiltPreviewInGame",DisplayName="Render Unbuilt Preview Shadows in game",

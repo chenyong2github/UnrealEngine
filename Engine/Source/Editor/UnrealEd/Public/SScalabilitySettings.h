@@ -8,6 +8,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Layout/SGridPanel.h"
+#include "Internationalization/Text.h"
 
 enum class ECheckBoxState : uint8;
 
@@ -30,6 +31,9 @@ public:
 	UNREALED_API ~SScalabilitySettings();
 private:
 
+	static bool IsPlayInEditor();
+	static FFormatNamedArguments GetScreenPercentageFormatArguments(const class UGameViewportClient* ViewportClient);
+
 	// Checks cached quality levels to see if the specified group is at the specified quality level
 	ECheckBoxState IsGroupQualityLevelSelected(const TCHAR* InGroupName, int32 InQualityLevel) const;
 
@@ -44,6 +48,12 @@ private:
 
 	// Callback to retrieve current resolution scale as a display string
 	FText GetResolutionScaleString() const;
+
+	// Callback for when a resolution preset is clicked
+	FReply OnResolutionPresetClicked(int32 Preset);
+
+	// Whether the resolution can be modified.
+	static bool IsResolutionScaleEditable();
 
 	// Makes a button widget for the group quality levels
 	TSharedRef<SWidget> MakeButtonWidget(const FText& InName, const TCHAR* InGroupName, int32 InQualityLevel, const FText& InToolTip);

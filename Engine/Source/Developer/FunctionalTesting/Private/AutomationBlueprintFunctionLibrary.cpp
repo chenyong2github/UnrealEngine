@@ -249,10 +249,8 @@ FAutomationTestScreenshotEnvSetup::FAutomationTestScreenshotEnvSetup()
 	, TonemapperGamma(TEXT("r.TonemapperGamma"))
 	, TonemapperSharpen(TEXT("r.Tonemapper.Sharpen"))
 	, ScreenPercentage(TEXT("r.ScreenPercentage"))
-	, ScreenPercentageMode(TEXT("r.ScreenPercentage.Mode"))
 	, DynamicResTestScreenPercentage(TEXT("r.DynamicRes.TestScreenPercentage"))
 	, DynamicResOperationMode(TEXT("r.DynamicRes.OperationMode"))
-	, EditorViewportOverrideGameScreenPercentage(TEXT("r.Editor.Viewport.OverridePIEScreenPercentage"))
 	, SecondaryScreenPercentage(TEXT("r.SecondaryScreenPercentage.GameViewport"))
 {
 }
@@ -288,11 +286,6 @@ void FAutomationTestScreenshotEnvSetup::Setup(UWorld* InWorld, FAutomationScreen
 
 	// Forces ScreenPercentage=100
 	{
-		if (GIsEditor)
-		{
-			EditorViewportOverrideGameScreenPercentage.Set(0);
-		}
-
 		// Completly disable dynamic resolution
 		{
 			DynamicResTestScreenPercentage.Set(0);
@@ -302,7 +295,6 @@ void FAutomationTestScreenshotEnvSetup::Setup(UWorld* InWorld, FAutomationScreen
 			GEngine->EmitDynamicResolutionEvent(EDynamicResolutionStateEvent::EndFrame);
 			GEngine->EmitDynamicResolutionEvent(EDynamicResolutionStateEvent::BeginFrame);
 		}
-		ScreenPercentageMode.Set(0);
 		ScreenPercentage.Set(100.f);
 	}
 
@@ -344,10 +336,8 @@ void FAutomationTestScreenshotEnvSetup::Restore()
 	TonemapperGamma.Restore();
 	//TonemapperSharpen.Restore();
 	ScreenPercentage.Restore();
-	ScreenPercentageMode.Restore();
 	DynamicResOperationMode.Restore();
 	DynamicResTestScreenPercentage.Restore();
-	EditorViewportOverrideGameScreenPercentage.Restore();
 	SecondaryScreenPercentage.Restore();
 
 	AutomationViewExtension.Reset();

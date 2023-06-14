@@ -244,10 +244,8 @@ private:
 	FConsoleVariableSwapperTempl<float> TonemapperGamma;
 	FConsoleVariableSwapperTempl<float> TonemapperSharpen;
 	FConsoleVariableSwapperTempl<float> ScreenPercentage;
-	FConsoleVariableSwapperTempl<int32> ScreenPercentageMode;
 	FConsoleVariableSwapperTempl<int32> DynamicResTestScreenPercentage;
 	FConsoleVariableSwapperTempl<int32> DynamicResOperationMode;
-	FConsoleVariableSwapperTempl<int32> EditorViewportOverrideGameScreenPercentage;
 	FConsoleVariableSwapperTempl<float> SecondaryScreenPercentage;
 
 	TWeakObjectPtr<UWorld> WorldPtr;

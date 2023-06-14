@@ -21,6 +21,7 @@
 #include "HAL/PlatformMemoryHelpers.h"
 #include "Stats/Stats.h"
 #include "UnrealClient.h"
+#include "LegacyScreenPercentageDriver.h"
 
 #ifndef FPS_CHART_SUPPORT_CSV_PROFILE
 #define FPS_CHART_SUPPORT_CSV_PROFILE (CSV_PROFILER && !UE_BUILD_SHIPPING)
@@ -986,7 +987,7 @@ void FPerformanceTrackingChart::DumpChartToAnalyticsParams(const FString& InMapN
 			}
 
 			// Screen percentage (3D render resolution)
-			InParamArray.Add(FAnalyticsEventAttribute(TEXT("ScreenPct"), Scalability::GetResolutionScreenPercentage()));
+			InParamArray.Add(FAnalyticsEventAttribute(TEXT("ScreenPct"), 100.0f * FLegacyScreenPercentageDriver::GetCVarResolutionFraction()));
 
 			// Window mode and window/monitor resolution
 			const EWindowMode::Type FullscreenMode = UserSettingsObj->GetLastConfirmedFullscreenMode();

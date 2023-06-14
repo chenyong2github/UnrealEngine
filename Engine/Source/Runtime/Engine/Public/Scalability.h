@@ -154,6 +154,16 @@ namespace Scalability
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnScalabilitySettingsChanged, const Scalability::FQualityLevels&);
 	ENGINE_API extern FOnScalabilitySettingsChanged OnScalabilitySettingsChanged;
 
+	/** Structure holding the details of a preset. */
+	struct ENGINE_API FResolutionPreset
+	{
+		FString Name;
+		int32 Id = 0;
+		float ResolutionQuality = 100.0f;
+	};
+
+	ENGINE_API TArray<FResolutionPreset> GetResolutionPresets();
+
 	/** This is the only suggested way to set the current state - don't set CVars directly **/
 	ENGINE_API void SetQualityLevels(const FQualityLevels& QualityLevels, bool bForce = false);
 
@@ -208,7 +218,7 @@ namespace Scalability
 	/** Maximum single axis scale for render resolution */
 	static const float MaxResolutionScale = 100.0f;
 
-	/** Returns the current screen percentage */
+	UE_DEPRECATED(5.3, "Uses FLegacyScreenPercentageDriver::GetCVarResolutionFraction() instead")
 	ENGINE_API float GetResolutionScreenPercentage();
 
 	/** Returns a human readable name for a scalability quality level */

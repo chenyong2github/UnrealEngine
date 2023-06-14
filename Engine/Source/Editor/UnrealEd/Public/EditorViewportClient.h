@@ -35,6 +35,7 @@ class FPreviewScene;
 class SEditorViewport;
 class UActorFactory;
 class UTypedElementViewportInteraction;
+enum class EViewStatusForScreenPercentage;
 
 /** Delegate called by FEditorViewportClient to check its visibility */
 DECLARE_DELEGATE_RetVal( bool, FViewportStateGetter );
@@ -1419,6 +1420,9 @@ public:
 
 	/** @return True if PreviewResolutionFraction is supported. */
 	UNREALED_API bool SupportsPreviewResolutionFraction() const;
+
+	/** @return the view status to select the corresponding default screen percentage behavior */
+	UNREALED_API EViewStatusForScreenPercentage GetViewStatusForScreenPercentage() const;
 
 	/** @return default resolution fraction for UI based on display resolution and user settings. */
 	UNREALED_API float GetDefaultPrimaryResolutionFractionTarget() const;

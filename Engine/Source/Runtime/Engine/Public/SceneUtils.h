@@ -69,6 +69,8 @@ ENGINE_API bool IsMobileColorsRGB();
 
 ENGINE_API EAntiAliasingMethod GetDefaultAntiAliasingMethod(const FStaticFeatureLevel InFeatureLevel);
 
+ENGINE_API const TCHAR* GetShortAntiAliasingName(EAntiAliasingMethod AntiAliasingMethod);
+
 ENGINE_API uint32 GetDefaultMSAACount(const FStaticFeatureLevel InFeatureLevel, uint32 PlatformMaxSampleCount = 8);
 
 // Callback for calling one action (typical use case: delay a clear until it's actually needed)

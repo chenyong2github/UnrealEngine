@@ -2798,11 +2798,34 @@ bool FEditorViewportClient::SupportsPreviewResolutionFraction() const
 	return true;
 }
 
+EViewStatusForScreenPercentage FEditorViewportClient::GetViewStatusForScreenPercentage() const
+{
+	if (EngineShowFlags.PathTracing)
+	{
+		return EViewStatusForScreenPercentage::PathTracer;
+	}
+	else if (EngineShowFlags.StereoRendering || EngineShowFlags.VREditing)
+	{
+		return EViewStatusForScreenPercentage::VR;
+	}
+	else if (!bIsRealtime)
+	{
+		return EViewStatusForScreenPercentage::NonRealtime;
+	}
+	else if (GetWorld() && GetWorld()->GetFeatureLevel() == ERHIFeatureLevel::ES3_1)
+	{
+		return EViewStatusForScreenPercentage::Mobile;
+	}
+	else
+	{
+		return EViewStatusForScreenPercentage::Desktop;
+	}
+}
 
 float FEditorViewportClient::GetDefaultPrimaryResolutionFractionTarget() const
 {
-	FStaticResolutionFractionHeuristic StaticHeuristic(EngineShowFlags);
-	StaticHeuristic.Settings.PullEditorRenderingSettings(bIsRealtime, /* bIsPathTraced = */ EngineShowFlags.PathTracing);
+	FStaticResolutionFractionHeuristic StaticHeuristic;
+	StaticHeuristic.Settings.PullEditorRenderingSettings(GetViewStatusForScreenPercentage());
 
 	if (SupportsLowDPIPreview() && IsLowDPIPreview()) // TODO: && ViewFamily.SupportsScreenPercentage())
 	{

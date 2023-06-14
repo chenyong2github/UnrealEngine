@@ -215,8 +215,16 @@ class UEditorPerformanceProjectSettings : public UDeveloperSettings
 public:
 	
 	UPROPERTY(EditAnywhere, config, Category=ViewportResolution, meta=(
-		DisplayName="Default screen percentage mode for realtime editor viewports."))
+		DisplayName="Default screen percentage mode for realtime editor viewports using desktop renderer."))
 	EScreenPercentageMode RealtimeScreenPercentageMode;
+	
+	UPROPERTY(EditAnywhere, config, Category=ViewportResolution, meta=(
+		DisplayName="Default screen percentage mode for realtime editor viewports using mobile renderer."))
+	EScreenPercentageMode MobileScreenPercentageMode;
+	
+	UPROPERTY(EditAnywhere, config, Category=ViewportResolution, meta=(
+		DisplayName="Default screen percentage mode for VR editor viewports."))
+	EScreenPercentageMode VRScreenPercentageMode;
 	
 	UPROPERTY(EditAnywhere, config, Category=ViewportResolution, meta=(
 		DisplayName="Default screen percentage mode for path traced editor viewports."))

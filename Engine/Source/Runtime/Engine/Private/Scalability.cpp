@@ -32,7 +32,7 @@ static TAutoConsoleVariable<float> CVarTestGPUPerfIndexOverride(
 
 static TAutoConsoleVariable<float> CVarResolutionQuality(
 	TEXT("sg.ResolutionQuality"),
-	100.0f,
+	0.0f,
 	TEXT("Scalability quality state (internally used by scalability system, ini load/save or using SCALABILITY console command)\n")
 	TEXT(" 10..100, default: 100"),
 	ECVF_ScalabilityGroup | ECVF_Preview);
@@ -443,7 +443,7 @@ void ApplyCachedQualityLevelForShaderPlatform(const EShaderPlatform& ShaderPlatf
 float GetResolutionScreenPercentage()
 {
 	static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ScreenPercentage"));
-	return CVar->GetFloat();
+	return FMath::Clamp(CVar->GetFloat(), MinResolutionScale, MaxResolutionScale);
 }
 
 FText GetScalabilityNameFromQualityLevel(int32 QualityLevel)
@@ -477,7 +477,7 @@ FText GetScalabilityNameFromQualityLevel(int32 QualityLevel)
 
 static void SetResolutionQualityLevel(float InResolutionQualityLevel)
 {
-	InResolutionQualityLevel = FMath::Clamp(InResolutionQualityLevel, Scalability::MinResolutionScale, Scalability::MaxResolutionScale);
+	//InResolutionQualityLevel = FMath::Clamp(InResolutionQualityLevel, Scalability::MinResolutionScale, Scalability::MaxResolutionScale);
 
 //	UE_LOG(LogConsoleResponse, Display, TEXT("  ResolutionQuality %.2f"), "", InResolutionQualityLevel);
 
@@ -605,6 +605,41 @@ static float GetRenderScaleLevelFromQualityLevel(int32 InQualityLevel, EQualityL
 	}
 
 	return FCString::Atof(*ResolutionValueStrings[InQualityLevel]);
+}
+
+TArray<FResolutionPreset> GetResolutionPresets()
+{
+	TArray<FResolutionPreset> Presets;
+	TArray<FString> AllPresetStrings;
+	GConfig->GetArray(TEXT("ResolutionQuality"), TEXT("ResolutionPresets"), /* out */ AllPresetStrings, GScalabilityIni);
+	for (FString PresetString : AllPresetStrings)
+	{
+		// Remove parentheses
+		PresetString.TrimStartAndEndInline();
+		PresetString.ReplaceInline(TEXT("("), TEXT(""));
+		PresetString.ReplaceInline(TEXT(")"), TEXT(""));
+
+		// Parse all properties
+		FResolutionPreset Preset;
+		bool bSuccess = true;
+
+		bSuccess &= FParse::Value(*PresetString, TEXT("Name="), /* out */ Preset.Name);
+		ensure(bSuccess);
+		bSuccess &= FParse::Value(*PresetString, TEXT("ResolutionQuality="), /* out */ Preset.ResolutionQuality);
+		ensure(bSuccess);
+
+		if (bSuccess)
+		{
+			Preset.Id = Presets.Num();
+			Presets.Add(Preset);
+		}
+		else
+		{
+			ensure(false);
+		}
+	}
+
+	return Presets;
 }
 
 ENGINE_API float GetResolutionQualityFromGPUPerfIndex(float GPUPerfIndex)
@@ -918,6 +953,7 @@ void FQualityLevels::SetDefaults()
 {
 	// Clamp to Epic (Max-1) settings, we don't allow Cinematic (Max) quality by default
 	SetFromSingleQualityLevelRelativeToMax(1);
+	ResolutionQuality = 0.0f; // fall back to project's default screen percentage
 }
 
 void FQualityLevels::SetFromSingleQualityLevel(int32 Value)

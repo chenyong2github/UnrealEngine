@@ -113,6 +113,36 @@ ENGINE_API EAntiAliasingMethod GetDefaultAntiAliasingMethod(const FStaticFeature
 	return AntiAliasingMethod;
 }
 
+ENGINE_API const TCHAR* GetShortAntiAliasingName(EAntiAliasingMethod AntiAliasingMethod)
+{
+	if (AntiAliasingMethod == AAM_None)
+	{
+		return TEXT("None");
+	}
+	else if (AntiAliasingMethod == AAM_FXAA)
+	{
+		return TEXT("FXAA");
+	}
+	else if (AntiAliasingMethod == AAM_TemporalAA)
+	{
+		return TEXT("TAA");
+	}
+	else if (AntiAliasingMethod == AAM_MSAA)
+	{
+		return TEXT("MSAA");
+	}
+	else if (AntiAliasingMethod == AAM_TSR)
+	{
+		return TEXT("TSR");
+	}
+	else
+	{
+		ensure(0);
+	}
+
+	return TEXT("UnknownAA");
+}
+
 ENGINE_API uint32 GetDefaultMSAACount(const FStaticFeatureLevel InFeatureLevel, uint32 PlatformMaxSampleCount/* = 8*/)
 {
 	uint32 NumSamples = 1;

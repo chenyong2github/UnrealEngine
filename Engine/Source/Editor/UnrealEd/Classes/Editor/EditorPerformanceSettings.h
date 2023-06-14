@@ -71,13 +71,21 @@ class UEditorPerformanceSettings : public UDeveloperSettings
 	uint32 bDisplayHighDPIViewports : 1;
 	
 	UPROPERTY(EditAnywhere, config, Category=ViewportResolution, meta=(
-		DisplayName="Override game screen percentage settings with editor settings in PIE",
+		DisplayName="Override project's default screen percentage settings with editor viewports' settings in PIE",
 		ConsoleVariable="r.Editor.Viewport.OverridePIEScreenPercentage"))
 	uint32 bOverridePIEScreenPercentage : 1;
 
 	UPROPERTY(EditAnywhere, config, Category=ViewportResolution, meta=(
-		DisplayName="Override project's default screen percentage mode for realtime editor viewports."))
+		DisplayName="Override project's default screen percentage mode for realtime editor viewports using desktop renderer."))
 	EEditorUserScreenPercentageModeOverride RealtimeScreenPercentageMode;
+	
+	UPROPERTY(EditAnywhere, config, Category=ViewportResolution, meta=(
+		DisplayName="Override project's default screen percentage mode for realtime editor viewports using mobile renderer."))
+	EEditorUserScreenPercentageModeOverride MobileScreenPercentageMode;
+	
+	UPROPERTY(EditAnywhere, config, Category=ViewportResolution, meta=(
+		DisplayName="Override project's default screen percentage mode for VR editor viewports."))
+	EEditorUserScreenPercentageModeOverride VRScreenPercentageMode;
 	
 	UPROPERTY(EditAnywhere, config, Category=ViewportResolution, meta=(
 		DisplayName="Override project's default screen percentage mode for path-traced editor viewports."))

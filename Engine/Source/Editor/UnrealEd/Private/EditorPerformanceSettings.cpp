@@ -23,6 +23,8 @@ UEditorPerformanceSettings::UEditorPerformanceSettings(const FObjectInitializer&
 	, bDisplayHighDPIViewports(true)
 	, bOverridePIEScreenPercentage(true)
 	, RealtimeScreenPercentageMode(EEditorUserScreenPercentageModeOverride::ProjectDefault)
+	, MobileScreenPercentageMode(EEditorUserScreenPercentageModeOverride::ProjectDefault)
+	, VRScreenPercentageMode(EEditorUserScreenPercentageModeOverride::ProjectDefault)
 	, PathTracerScreenPercentageMode(EEditorUserScreenPercentageModeOverride::ProjectDefault)
 	, NonRealtimeScreenPercentageMode(EEditorUserScreenPercentageModeOverride::ProjectDefault)
 	, bOverrideManualScreenPercentage(false)
@@ -60,8 +62,10 @@ void UEditorPerformanceSettings::PostEditChangeProperty(FPropertyChangedEvent& P
 	}
 		
 	if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UEditorPerformanceSettings, bDisplayHighDPIViewports) ||
-		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UEditorPerformanceSettings, bOverridePIEScreenPercentage) ||
 		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UEditorPerformanceSettings, RealtimeScreenPercentageMode) ||
+		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UEditorPerformanceSettings, MobileScreenPercentageMode) ||
+		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UEditorPerformanceSettings, VRScreenPercentageMode) ||
+		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UEditorPerformanceSettings, PathTracerScreenPercentageMode) ||
 		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UEditorPerformanceSettings, NonRealtimeScreenPercentageMode) ||
 		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UEditorPerformanceSettings, bOverrideManualScreenPercentage) ||
 		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UEditorPerformanceSettings, ManualScreenPercentage) ||
