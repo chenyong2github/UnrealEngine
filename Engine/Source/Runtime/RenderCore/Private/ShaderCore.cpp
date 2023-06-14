@@ -993,6 +993,7 @@ public:
 #if PLATFORM_WINDOWS
 		__except (HandleShaderCompileException(GetExceptionInformation(), OutExceptionMsg, OutExceptionCallstack))
 		{
+			return false;
 		}
 #endif
 		return false;
