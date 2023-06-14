@@ -22,8 +22,16 @@ namespace UnrealBuildTool.Rules
 			{
 				"ColorManagement",
 				"ImageCore",
-				"OpenColorIOLib"
 			});
+
+			if (Target.bBuildEditor)
+			{
+				PrivateDependencyModuleNames.Add("OpenColorIOLib");
+			}
+			else
+			{
+				PrivateDefinitions.Add("WITH_OCIO=0");
+			}
 
 			PublicDependencyModuleNames.AddRange(new string[]
 			{
