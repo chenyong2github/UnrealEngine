@@ -1068,6 +1068,7 @@ void FControlRigParameterTrackEditor::BakeToControlRig(UClass* InClass, FGuid Ob
 			FMovieSceneSequenceTransform RootToLocalTransform = ParentSequencer->GetFocusedMovieSceneSequenceTransform();
 			UAnimSeqExportOption* AnimSeqExportOption = NewObject<UAnimSeqExportOption>(GetTransientPackage(), NAME_None);
 			UBakeToControlRigSettings* BakeSettings = GetMutableDefault<UBakeToControlRigSettings>();
+			AnimSeqExportOption->bTransactRecording = false;
 
 			TSharedPtr<SWindow> ParentWindow;
 			if (FModuleManager::Get().IsModuleLoaded("MainFrame"))
