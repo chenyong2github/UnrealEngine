@@ -914,6 +914,11 @@ FLinearColor UControlRigGraphSchema::GetPinTypeColor(const FEdGraphPinType& PinT
 				return FLinearColor::White;
 			}
 
+			if (Struct->IsChildOf(FRigVMDecorator::StaticStruct()))
+			{
+				return FLinearColor::White;
+			}
+
 			if (Struct->IsChildOf(RigVMTypeUtils::GetWildCardCPPTypeObject()))
 			{
 				return FLinearColor(FVector3f::OneVector * 0.25f);

@@ -1390,6 +1390,26 @@ uint32 URigVMPin::GetStructureHash() const
 	return Hash;
 }
 
+bool URigVMPin::IsDecoratorPin() const
+{
+	if(const URigVMNode* Node = GetNode())
+	{
+		return Node->IsDecoratorPin(GetRootPin());
+	}
+	return false;
+}
+
+TSharedPtr<FStructOnScope> URigVMPin::GetDecoratorInstance(bool bUseDefaultValueFromPin) const
+{
+	if(const URigVMNode* Node = GetNode())
+	{
+		return Node->GetDecoratorInstance(GetRootPin(), bUseDefaultValueFromPin);
+	}
+
+	static const TSharedPtr<FStructOnScope> EmptyDecorator;
+	return EmptyDecorator;
+}
+
 void URigVMPin::UpdateTypeInformationIfRequired() const
 {
 	if (CPPTypeObject == nullptr)
@@ -1749,6 +1769,16 @@ bool URigVMPin::CanLink(const URigVMPin* InSourcePin, const URigVMPin* InTargetP
 		if (OutFailureReason)
 		{
 			*OutFailureReason = TEXT("Target pin only allows links to sub-pins.");
+		}
+		return false;
+	}
+
+	if((InSourcePin->IsDecoratorPin() && InSourcePin->IsRootPin()) ||
+		(InTargetPin->IsDecoratorPin() && InTargetPin->IsRootPin()))
+	{
+		if(OutFailureReason)
+		{
+			*OutFailureReason = TEXT("Cannot add link to root decorator pins.");
 		}
 		return false;
 	}

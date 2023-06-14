@@ -9,6 +9,7 @@
 #include "RigVMCore/RigVMExecuteContext.h"
 #include "RigVMCore/RigVMStruct.h"
 #include "RigVMUserWorkflowRegistry.h"
+#include "Logging/LogScopedVerbosityOverride.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMNode)
 
@@ -224,6 +225,19 @@ FText URigVMNode::GetToolTipTextForPin(const URigVMPin* InPin) const
 	return FText::FromName(InPin->GetFName());
 }
 
+void URigVMNode::UpdateDecoratorRootPinNames()
+{
+	TArray<FString> NewDecoratorRootPinNames;
+	for(URigVMPin* Pin : GetPins())
+	{
+		if(Pin->IsDecoratorPin())
+		{
+			NewDecoratorRootPinNames.Add(Pin->GetName());
+		}
+	}
+	DecoratorRootPinNames = NewDecoratorRootPinNames;
+}
+
 bool URigVMNode::IsSelected() const
 {
 	URigVMGraph* Graph = GetGraph();
@@ -394,6 +408,103 @@ uint32 URigVMNode::GetStructureHash() const
 		Hash = HashCombine(Hash, PinHash);
 	}
 	return Hash;
+}
+
+TArray<URigVMPin*> URigVMNode::GetDecoratorPins() const
+{
+	TArray<URigVMPin*> DecoratorPins;
+	DecoratorPins.Reserve(DecoratorRootPinNames.Num());
+	
+	for(const FString& DecoratorRootPinName : DecoratorRootPinNames)
+	{
+		URigVMPin* DecoratorPin = FindPin(DecoratorRootPinName);
+		check(DecoratorPin);
+
+		DecoratorPins.Add(DecoratorPin);
+	}
+
+	return DecoratorPins;
+}
+
+bool URigVMNode::IsDecoratorPin(FName InName) const
+{
+	if(const URigVMPin* Pin = FindPin(InName.ToString()))
+	{
+		return IsDecoratorPin(Pin);
+	}
+	return false;
+}
+
+bool URigVMNode::IsDecoratorPin(const URigVMPin* InDecoratorPin) const
+{
+	return FindDecorator(InDecoratorPin) != nullptr;
+}
+
+URigVMPin* URigVMNode::FindDecorator(const FName& InName) const
+{
+	const FString NameString = InName.ToString();
+	for(const FString& DecoratorRootPinName : DecoratorRootPinNames)
+	{
+		if(DecoratorRootPinName.Equals(NameString, ESearchCase::CaseSensitive))
+		{
+			return FindPin(DecoratorRootPinName);
+		}
+	}
+	return nullptr;
+}
+
+URigVMPin* URigVMNode::FindDecorator(const URigVMPin* InDecoratorPin) const
+{
+	if(InDecoratorPin)
+	{
+		const URigVMPin* RootPin = InDecoratorPin->GetRootPin();
+		if(RootPin->GetNode() == this)
+		{
+			return FindDecorator(RootPin->GetFName());
+		}
+	}
+	return nullptr;
+}
+
+TSharedPtr<FStructOnScope> URigVMNode::GetDecoratorInstance(const FName& InName, bool bUseDefaultValueFromPin) const
+{
+	return GetDecoratorInstance(FindPin(InName.ToString()), bUseDefaultValueFromPin);
+}
+
+TSharedPtr<FStructOnScope> URigVMNode::GetDecoratorInstance(const URigVMPin* InDecoratorPin, bool bUseDefaultValueFromPin) const
+{
+	if(const URigVMPin* RootPin = FindDecorator(InDecoratorPin))
+	{
+		check(RootPin->IsStruct());
+
+		UScriptStruct* ScriptStruct = RootPin->GetScriptStruct();
+		check(ScriptStruct->IsChildOf(FRigVMDecorator::StaticStruct()));
+
+		TSharedPtr<FStructOnScope> Scope(new FStructOnScope(ScriptStruct));
+		FRigVMDecorator* Decorator = (FRigVMDecorator*)Scope->GetStructMemory();
+
+		if(bUseDefaultValueFromPin)
+		{
+			const FString DefaultValue = RootPin->GetDefaultValue();
+			if(!DefaultValue.IsEmpty())
+			{
+				FRigVMPinDefaultValueImportErrorContext ErrorPipe;
+				{
+					// force logging to the error pipe for error detection
+					LOG_SCOPE_VERBOSITY_OVERRIDE(LogExec, ELogVerbosity::Verbose); 
+					ScriptStruct->ImportText(*DefaultValue, Decorator, nullptr, PPF_None, &ErrorPipe, ScriptStruct->GetName()); 
+				}
+			}
+		}
+
+		Decorator->Name = RootPin->GetFName();
+		Decorator->DecoratorStruct = ScriptStruct;
+		
+		return Scope;
+	}
+
+	static const TSharedPtr<FStructOnScope> EmptyScope;
+	return EmptyScope;
 }
 
 URigVMLibraryNode* URigVMNode::FindFunctionForNode() const  

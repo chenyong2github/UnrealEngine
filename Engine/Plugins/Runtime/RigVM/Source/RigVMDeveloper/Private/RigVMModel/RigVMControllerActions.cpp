@@ -2096,3 +2096,78 @@ bool FRigVMReplaceNodesAction::Redo()
 	return FRigVMBaseAction::Redo();
 }
 
+FRigVMAddDecoratorAction::FRigVMAddDecoratorAction()
+: FRigVMBaseAction()
+, NodeName(NAME_None)
+, DecoratorName(NAME_None)
+, ScriptStructPath()
+, DecoratorDefault()
+, PinIndex(INDEX_NONE)
+{
+}
+
+FRigVMAddDecoratorAction::FRigVMAddDecoratorAction(URigVMController* InController, const URigVMNode* InNode, const FName& InDecoratorName,
+	const UScriptStruct* InDecoratorScriptStruct, const FString& InDecoratorDefault, int32 InPinIndex)
+: FRigVMBaseAction(InController)
+, NodeName(InNode->GetFName())
+, DecoratorName(InDecoratorName)
+, ScriptStructPath(InDecoratorScriptStruct->GetPathName())
+, DecoratorDefault(InDecoratorDefault)
+, PinIndex(InPinIndex)
+{
+}
+
+bool FRigVMAddDecoratorAction::Undo()
+{
+	if (!FRigVMBaseAction::Undo())
+	{
+		return false;
+	}
+	return GetController()->RemoveDecorator(NodeName, DecoratorName, false);
+}
+
+bool FRigVMAddDecoratorAction::Redo()
+{
+	if(!CanUndoRedo())
+	{
+		return false;
+	}
+	if (GetController()->AddDecorator(NodeName, *ScriptStructPath, DecoratorName, DecoratorDefault, PinIndex, false, false) == DecoratorName)
+	{
+		return FRigVMBaseAction::Redo();
+	}
+	return false;
+}
+
+FRigVMRemoveDecoratorAction::FRigVMRemoveDecoratorAction()
+: FRigVMAddDecoratorAction()
+{
+}
+
+FRigVMRemoveDecoratorAction::FRigVMRemoveDecoratorAction(URigVMController* InController, const URigVMNode* InNode,
+	const FName& InDecoratorName, const UScriptStruct* InDecoratorScriptStruct, const FString& InDecoratorDefault, int32 InPinIndex)
+: FRigVMAddDecoratorAction(InController, InNode, InDecoratorName, InDecoratorScriptStruct, InDecoratorDefault, InPinIndex)
+{
+}
+
+bool FRigVMRemoveDecoratorAction::Undo()
+{
+	if (!FRigVMBaseAction::Undo())
+	{
+		return false;
+	}
+	return GetController()->AddDecorator(NodeName, *ScriptStructPath, DecoratorName, DecoratorDefault, PinIndex, false, false) == DecoratorName;
+}
+
+bool FRigVMRemoveDecoratorAction::Redo()
+{
+	if(!CanUndoRedo())
+	{
+		return false;
+	}
+	if (GetController()->RemoveDecorator(NodeName, DecoratorName, false))
+	{
+		return FRigVMBaseAction::Redo();
+	}
+	return false;
+}

@@ -2644,6 +2644,30 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 							InSection.AddMenuEntry(FGraphEditorCommands::Get().DistributeNodesVertically);
 						}
 					}));
+
+					// this struct is only available in EngineTest for now
+					static const FString DecoratorObjectPath = TEXT("/Script/EngineTestEditor.EngineTestRigVM_SimpleDecorator");
+					if(const UScriptStruct* SimpleDecoratorStruct = Cast<UScriptStruct>(RigVMTypeUtils::FindObjectFromCPPTypeObjectPath(DecoratorObjectPath)))
+					{
+						if(URigVMNode* ModelNode = RigNode->GetModelNode())
+						{
+							FToolMenuSection& EngineTestSection = Menu->AddSection("EdGraphSchemaEngineTest", LOCTEXT("EngineTestHeader", "EngineTest"));
+							EngineTestSection.AddMenuEntry(
+								"Add simple decorator",
+								LOCTEXT("AddSimpleDecorator", "Add simple decorator"),
+								LOCTEXT("AddSimpleDecorator_Tooltip", "Adds a simple test decorator to the node"),
+								FSlateIcon(),
+								FUIAction(FExecuteAction::CreateLambda([Controller, ModelNode, SimpleDecoratorStruct]()
+								{
+									(void)Controller->AddDecorator(
+										ModelNode->GetFName(),
+										*SimpleDecoratorStruct->GetPathName(),
+										TEXT("Decorator"),
+										FString(), INDEX_NONE, true, true);
+								}))
+							);
+						}
+					}
 				}
 			}
 		}

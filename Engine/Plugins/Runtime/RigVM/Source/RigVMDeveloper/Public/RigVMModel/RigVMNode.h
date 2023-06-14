@@ -5,8 +5,10 @@
 #include "RigVMPin.h"
 #include "RigVMCore/RigVM.h"
 #include "RigVMCore/RigVMStruct.h"
+#include "RigVMCore/RigVMDecorator.h"
 #include "RigVMCore/RigVMUserWorkflow.h"
 #include "RigVMCore/RigVMExecuteContext.h"
+#include "UObject/StructOnScope.h"
 #include "RigVMNode.generated.h"
 
 class URigVMGraph;
@@ -289,6 +291,24 @@ public:
 
 	virtual uint32 GetStructureHash() const;
 
+	UFUNCTION(BlueprintPure, Category = RigVMNode)
+	TArray<URigVMPin*> GetDecoratorPins() const;
+
+	const TArray<FString>& GetDecoratorNames() const { return DecoratorRootPinNames; }
+
+	UFUNCTION(BlueprintPure, Category = RigVMNode)
+	bool IsDecoratorPin(FName InName) const;
+
+	bool IsDecoratorPin(const URigVMPin* InDecoratorPin) const;
+
+	URigVMPin* FindDecorator(const FName& InName) const;
+
+	URigVMPin* FindDecorator(const URigVMPin* InDecoratorPin) const;
+
+	TSharedPtr<FStructOnScope> GetDecoratorInstance(const FName& InName, bool bUseDefaultValueFromPin = true) const;
+
+	TSharedPtr<FStructOnScope> GetDecoratorInstance(const URigVMPin* InDecoratorPin, bool bUseDefaultValueFromPin = true) const;
+
 private:
 
 	static const FString NodeColorName;
@@ -303,6 +323,7 @@ protected:
 	virtual FText GetToolTipTextForPin(const URigVMPin* InPin) const;
 	virtual bool AllowsLinksOn(const URigVMPin* InPin) const { return true; }
 	virtual bool ShouldInputPinComputeLazily(const URigVMPin* InPin) const { return false; }
+	void UpdateDecoratorRootPinNames();
 
 	UPROPERTY()
 	FString NodeTitle;
@@ -324,6 +345,9 @@ protected:
 
 	UPROPERTY(transient)
 	bool bHaltedAtThisNode;
+
+	UPROPERTY()
+	TArray<FString> DecoratorRootPinNames;
 
 private:
 

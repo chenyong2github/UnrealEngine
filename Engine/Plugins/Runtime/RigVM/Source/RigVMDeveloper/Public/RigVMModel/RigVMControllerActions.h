@@ -1443,3 +1443,54 @@ public:
 	virtual bool Undo() override;
 	virtual bool Redo() override;
 };
+
+/**
+ * An action to add a decorator to a node
+ */
+USTRUCT()
+struct FRigVMAddDecoratorAction : public FRigVMBaseAction
+{
+	GENERATED_BODY()
+
+public:
+
+	FRigVMAddDecoratorAction();
+	FRigVMAddDecoratorAction(URigVMController* InController, const URigVMNode* InNode, const FName& InDecoratorName, const UScriptStruct* InDecoratorScriptStruct, const FString& InDecoratorDefault, int32 InPinIndex);
+	virtual ~FRigVMAddDecoratorAction() {};
+	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMAddDecoratorAction::StaticStruct(); }
+	virtual bool Undo() override;
+	virtual bool Redo() override;
+
+	UPROPERTY()
+	FName NodeName;
+
+	UPROPERTY()
+	FName DecoratorName;
+
+	UPROPERTY()
+	FString ScriptStructPath;
+
+	UPROPERTY()
+	FString DecoratorDefault;
+
+	UPROPERTY()
+	int32 PinIndex;
+};
+
+/**
+ * An action to remove a decorator from a node
+ */
+USTRUCT()
+struct FRigVMRemoveDecoratorAction : public FRigVMAddDecoratorAction
+{
+	GENERATED_BODY()
+
+public:
+
+	FRigVMRemoveDecoratorAction();
+	FRigVMRemoveDecoratorAction(URigVMController* InController, const URigVMNode* InNode, const FName& InDecoratorName, const UScriptStruct* InDecoratorScriptStruct, const FString& InDecoratorDefault, int32 InPinIndex);
+	virtual ~FRigVMRemoveDecoratorAction() {};
+	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMRemoveDecoratorAction::StaticStruct(); }
+	virtual bool Undo() override;
+	virtual bool Redo() override;
+};

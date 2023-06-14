@@ -9,6 +9,8 @@
 #include "RigVMCore/RigVMByteCode.h"
 #include "RigVMCore/RigVMTemplate.h"
 #include "RigVMCompiler/RigVMASTProxy.h"
+#include "UObject/StructOnScope.h"
+#include <RigVMCore/RigVMDecorator.h>
 #include "RigVMPin.generated.h"
 
 class URigVMGraph;
@@ -456,6 +458,13 @@ public:
 	bool IsOrphanPin() const;
 
 	uint32 GetStructureHash() const;
+
+	// Returns true if this pin represents a decorator 
+	UFUNCTION(BlueprintPure, Category = RigVMPin)
+	bool IsDecoratorPin() const;
+
+	// Returns the decorator backing up this pin
+	TSharedPtr<FStructOnScope> GetDecoratorInstance(bool bUseDefaultValueFromPin = true) const;
 
 private:
 

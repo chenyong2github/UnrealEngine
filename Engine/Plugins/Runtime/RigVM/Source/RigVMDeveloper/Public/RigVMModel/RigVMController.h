@@ -259,6 +259,7 @@ public:
 	TArray<FString> GeneratePythonCommands();
 
 	TArray<FString> GetAddNodePythonCommands(URigVMNode* Node) const;
+	TArray<FString> GetAddDecoratorPythonCommands(URigVMNode* Node, const FName& DecoratorName) const;
 
 #if WITH_EDITOR
 	// Note: The functions below are scoped with WITH_EDITOR since we are considering
@@ -496,6 +497,14 @@ public:
 	// This causes a NodeAdded modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	URigVMInvokeEntryNode* AddInvokeEntryNode(const FName& InEntryName, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
+
+	// Adds a decorator to a node
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	FName AddDecorator(const FName& InNodeName, const FName& InDecoratorTypeObjectPath, const FName& InDecoratorName = NAME_None, const FString& InDefaultValue = TEXT(""), int32 InPinIndex = -1, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
+
+	// Removes a decorator from a node
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	bool RemoveDecorator(const FName& InNodeName, const FName& InDecoratorName, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Un-does the last action on the stack.
 	// Note: This should really only be used for unit tests,
@@ -1048,6 +1057,7 @@ public:
 		bool bIsExpanded;
 		bool bIsConstant;
 		bool bIsDynamicArray;
+		bool bIsDecorator;
 		TArray<int32> SubPins;
 
 		friend uint32 GetTypeHash(const FPinInfo& InPin);
@@ -1117,6 +1127,8 @@ private:
 	URigVMInjectionInfo* InjectNodeIntoPin(URigVMPin* InPin, bool bAsInput, const FName& InInputPinName, const FName& InOutputPinName, bool bSetupUndoRedo = true);
 	URigVMNode* EjectNodeFromPin(URigVMPin* InPin, bool bSetupUndoRedo = true, bool bPrintPythonCommands = false);
 	bool EjectAllInjectedNodes(URigVMNode* InNode, bool bSetupUndoRedo = true, bool bPrintPythonCommands = false);
+	FName AddDecorator(URigVMNode* InNode, UScriptStruct* InDecoratorScriptStruct, const FName& InDecoratorName, const FString& InDefaultValue, int32 InPinIndex = -1, bool bSetupUndoRedo = true);
+	bool RemoveDecorator(URigVMNode* InNode, const FName& InDecoratorName, bool bSetupUndoRedo = true);
 
 public:
 
