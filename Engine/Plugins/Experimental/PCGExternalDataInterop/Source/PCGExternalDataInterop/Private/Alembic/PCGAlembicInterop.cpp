@@ -165,11 +165,6 @@ void ParseAlembicObject(FPCGExternalDataContext* Context, const Alembic::Abc::IO
 			UPCGPointData* PointData = NewObject<UPCGPointData>();
 			check(PointData);
 
-			if (UPCGComponent* SourceComponent = Context->SourceComponent.Get())
-			{
-				PointData->TargetActor = SourceComponent->GetOwner();
-			}
-
 			FPCGExternalDataContext::FPointDataAccessorsMapping& PointDataAccessorMapping = Context->PointDataAccessorsMapping.Emplace_GetRef();
 			PointDataAccessorMapping.PointData = PointData;
 			// We're not going to use the input keys, but we still need to provide something

@@ -63,11 +63,6 @@ bool FPCGLoadDataTableElement::PrepareLoad(FPCGExternalDataContext* Context) con
 	UPCGPointData* PointData = NewObject<UPCGPointData>();
 	check(PointData);
 
-	if (Context->SourceComponent.Get())
-	{
-		PointData->TargetActor = Context->SourceComponent->GetOwner();
-	}
-
 	FPCGExternalDataContext::FPointDataAccessorsMapping& PointDataAccessorMapping = Context->PointDataAccessorsMapping.Emplace_GetRef();
 	PointDataAccessorMapping.PointData = PointData;
 
