@@ -160,6 +160,10 @@ void FTestRunner::ParseCommandLine(TConstArrayView<const ANSICHAR*> Args)
 		{
 			bAttachToDebugger = true;
 		}
+		else if (Arg == ANSITEXTVIEW("--waitfordebugger"))
+		{
+			bAttachToDebugger = true;
+		}
 		else if (Arg == ANSITEXTVIEW("--buildmachine"))
 		{
 			GIsBuildMachine = true;
