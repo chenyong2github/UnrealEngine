@@ -757,6 +757,9 @@ void ADisplayClusterLightCardActor::AddToRootActor(ADisplayClusterRootActor* InR
 		}
 	}
 
+#if WITH_EDITOR
+	StageActorComponent->Modify();
+#endif
 	StageActorComponent->SetRootActor(InRootActor);
 }
 
