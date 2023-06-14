@@ -1318,9 +1318,9 @@ void SvPositionToResolvedScreenPositionDeriv(float4 SvPosition, float2 PPZ_DDX_D
 float2 SvPositionToViewportUV(float4 SvPosition)
 {
 	// can be optimized from 2SUB+2MUL to 2MAD
-	float2 PixelPos = SvPosition.xy - View.ViewRectMin.xy;	
+	float2 PixelPos = SvPosition.xy - ResolvedView.ViewRectMin.xy;	
 
-	return PixelPos.xy * View.ViewSizeAndInvSize.zw;
+	return PixelPos.xy * ResolvedView.ViewSizeAndInvSize.zw;
 }
 
 float2 BufferUVToViewportUV(float2 BufferUV)

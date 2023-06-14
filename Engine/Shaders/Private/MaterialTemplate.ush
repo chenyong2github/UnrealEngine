@@ -898,7 +898,7 @@ float2 GetViewportUV(FMaterialPixelParameters Parameters)
 
 float2 GetPixelPosition(FMaterialPixelParameters Parameters)
 {
-	return Parameters.SvPosition.xy - float2(View.ViewRectMin.xy);
+	return Parameters.SvPosition.xy - ResolvedView.ViewRectMin.xy;
 }
 
 float2 GetViewportUV(FMaterialPixelParameters Parameters)
