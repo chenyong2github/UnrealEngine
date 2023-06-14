@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "ISequencerModule.h"
 #include "Misc/EnumClassFlags.h"
+#include "MVVM/ViewModelPtr.h"
 
 class FAssetDragDropOp;
 class FClassDragDropOp;
@@ -49,6 +50,9 @@ ENUM_CLASS_FLAGS(ESequencerPasteSupport);
 /** A delegate that customizes how the sequencer behaves when data is pasted into it */
 DECLARE_DELEGATE_RetVal(ESequencerPasteSupport, FOnSequencerPaste);
 
+/** A delegate that returns an extender */
+DECLARE_DELEGATE_RetVal_OneParam(TSharedPtr<FExtender>, FOnGetSequencerMenuExtender, UE::Sequencer::FViewModelPtr);
+
 /** Class for specifying customizations to apply to a sequence editor. */
 struct FSequencerCustomizationInfo
 {
@@ -57,6 +61,9 @@ struct FSequencerCustomizationInfo
 
 	/** Extender for the sequencer toolbar. */
 	TSharedPtr<FExtender> ToolbarExtender;
+
+	/** Extender for the object binding. */
+	FOnGetSequencerMenuExtender OnBuildObjectBindingContextMenu;
 
 	/** Called when something is dragged over the sequencer. */
 	FOptionalOnDragDrop OnReceivedDragOver;

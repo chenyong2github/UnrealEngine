@@ -12,7 +12,7 @@
 
 class FUICommandInfo;
 
-class FSequencerCommands : public TCommands<FSequencerCommands>
+class SEQUENCER_API FSequencerCommands : public TCommands<FSequencerCommands>
 {
 
 public:
@@ -429,12 +429,6 @@ public:
 
 	/** Rebinds all possessable references with their current bindings. */
 	TSharedPtr< FUICommandInfo > RebindPossessableReferences;
-
-	/** Imports animation from fbx. */
-	TSharedPtr< FUICommandInfo > ImportFBX;
-
-	/** Exports animation to fbx. */
-	TSharedPtr< FUICommandInfo > ExportFBX;
 
 	/** Toggle whether we should evaluate sub sequences in isolation */
 	TSharedPtr< FUICommandInfo > ToggleEvaluateSubSequencesInIsolation;

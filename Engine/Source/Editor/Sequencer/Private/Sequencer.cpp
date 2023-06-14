@@ -55,7 +55,6 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SButton.h"
 #include "Styling/AppStyle.h"
-#include "Exporters/Exporter.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Camera/CameraActor.h"
 #include "Engine/Selection.h"
@@ -63,7 +62,6 @@
 #include "LevelEditorViewport.h"
 #include "EditorModeManager.h"
 #include "UnrealEdMisc.h"
-#include "EditorDirectories.h"
 #include "FileHelpers.h"
 #include "UnrealEdGlobals.h"
 #include "SequencerCommands.h"
@@ -120,9 +118,7 @@
 #include "CameraRig_Crane.h"
 #include "DesktopPlatformModule.h"
 #include "Factories.h"
-#include "FbxExporter.h"
 #include "ObjectBindingTagCache.h"
-#include "UnrealExporter.h"
 #include "ISequencerEditorObjectBinding.h"
 #include "LevelSequence.h"
 #include "LevelSequenceActor.h"
@@ -139,7 +135,6 @@
 #include "MovieSceneTimeHelpers.h"
 #include "FrameNumberNumericInterface.h"
 #include "UObject/StrongObjectPtr.h"
-#include "SequencerExportTask.h"
 #include "LevelUtils.h"
 #include "Engine/Blueprint.h"
 #include "MovieSceneSequenceEditor.h"
@@ -8429,34 +8424,6 @@ void FSequencer::SaveSelectedNodesSpawnableState()
 	NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
 }
 
-void FSequencer::SetSelectedNodesSpawnableLevel(FName InLevelName)
-{
-	using namespace UE::Sequencer;
-
-	UMovieScene* MovieScene = GetFocusedMovieSceneSequence()->GetMovieScene();
-
-	if (MovieScene->IsReadOnly())
-	{
-		FSequencerUtilities::ShowReadOnlyError();
-		return;
-	}
-
-	const FScopedTransaction Transaction( LOCTEXT("SetSpawnableLevel", "Set Spawnable Level") );
-
-	MovieScene->Modify();
-
-	TArray<FMovieSceneSpawnable*> Spawnables;
-
-	for (TViewModelPtr<IObjectBindingExtension> ObjectBindingNode : ViewModel->GetSelection()->Outliner.Filter<IObjectBindingExtension>())
-	{
-		FMovieSceneSpawnable* Spawnable = MovieScene->FindSpawnable(ObjectBindingNode->GetObjectGuid());
-		if (Spawnable)
-		{
-			Spawnable->SetLevelName(InLevelName);
-		}
-	}
-}
-
 void FSequencer::ConvertToSpawnable(TSharedRef<UE::Sequencer::FObjectBindingModel> NodeToBeConverted)
 {
 	using namespace UE::Sequencer;
@@ -10217,217 +10184,6 @@ void FSequencer::RebindPossessableReferences()
 	}
 }
 
-void FSequencer::ImportFBX()
-{
-	using namespace UE::Sequencer;
-
-	TMap<FGuid, FString> ObjectBindingNameMap;
-
-	TParentFirstChildIterator<IObjectBindingExtension> ObjectBindingIt = NodeTree->GetRootNode()->GetDescendantsOfType<IObjectBindingExtension>();
-
-	// Only visit the first object binding in a given sub-hierarchy so we get top-level object bindings.
-	// This is done by skipping the branch on each iteration
-	for ( ; ObjectBindingIt; ++ObjectBindingIt)
-	{
-		FGuid ObjectBinding = ObjectBindingIt->GetObjectGuid();
-		ObjectBindingNameMap.Add(ObjectBinding, (*ObjectBindingIt).AsModel()->CastThisChecked<IOutlinerExtension>()->GetLabel().ToString());
-
-		ObjectBindingIt.IgnoreCurrentChildren();
-	}
-
-	MovieSceneToolHelpers::ImportFBXWithDialog(GetFocusedMovieSceneSequence(), *this, ObjectBindingNameMap, TOptional<bool>());
-}
-
-void FSequencer::ImportFBXOntoSelectedNodes()
-{
-	using namespace UE::Sequencer;
-
-	// The object binding and names to match when importing from fbx
-	TMap<FGuid, FString> ObjectBindingNameMap;
-
-	for (TViewModelPtr<FObjectBindingModel> ObjectBindingNode : ViewModel->GetSelection()->Outliner.Filter<FObjectBindingModel>())
-	{
-		FGuid ObjectBinding = ObjectBindingNode->GetObjectGuid();
-		ObjectBindingNameMap.Add(ObjectBinding, ObjectBindingNode->GetLabel().ToString());
-	}
-
-	MovieSceneToolHelpers::ImportFBXWithDialog(GetFocusedMovieSceneSequence(), *this, ObjectBindingNameMap, TOptional<bool>(false));
-}
-
-void FSequencer::ExportFBX()
-{
-	using namespace UE::Sequencer;
-
-	TArray<UExporter*> Exporters;
-	TArray<FString> SaveFilenames;
-	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
-	bool bExportFileNamePicked = false;
-	if ( DesktopPlatform != NULL )
-	{
-		FString FileTypes = "FBX document|*.fbx";
-		UMovieSceneSequence* Sequence = GetFocusedMovieSceneSequence();
-		for (TObjectIterator<UClass> It; It; ++It)
-		{
-			if (!It->IsChildOf(UExporter::StaticClass()) || It->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists))
-			{
-				continue;
-			}
-
-			UExporter* Default = It->GetDefaultObject<UExporter>();
-			if (!Default->SupportsObject(Sequence))
-			{
-				continue;
-			}
-
-			for (int32 i = 0; i < Default->FormatExtension.Num(); ++i)
-			{
-				const FString& FormatExtension = Default->FormatExtension[i];
-				const FString& FormatDescription = Default->FormatDescription[i];
-
-				if (FileTypes.Len() > 0)
-				{
-					FileTypes += TEXT("|");
-				}
-				FileTypes += FormatDescription;
-				FileTypes += TEXT("|*.");
-				FileTypes += FormatExtension;
-			}
-
-			Exporters.Add(Default);
-		}
-
-		bExportFileNamePicked = DesktopPlatform->SaveFileDialog(
-			FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr),
-			LOCTEXT( "ExportLevelSequence", "Export Level Sequence" ).ToString(),
-			*( FEditorDirectories::Get().GetLastDirectory( ELastDirectory::FBX ) ),
-			TEXT( "" ),
-			*FileTypes,
-			EFileDialogFlags::None,
-			SaveFilenames );
-	}
-
-	if ( bExportFileNamePicked )
-	{
-		FString ExportFilename = SaveFilenames[0];
-		FEditorDirectories::Get().SetLastDirectory( ELastDirectory::FBX, FPaths::GetPath( ExportFilename ) ); // Save path as default for next time.
-
-		// Make sure external selection is up to date since export could happen on tracks that have been right clicked but not have their underlying bound objects selected yet since that happens on mouse up.
-		SynchronizeExternalSelectionWithSequencerSelection();
-		
-		// Select selected nodes if there are selected nodes
-		TArray<FGuid> Bindings;
-		TArray<UMovieSceneTrack*> Tracks;
-		UMovieScene* MovieScene = GetFocusedMovieSceneSequence()->GetMovieScene();
-		for (FViewModelPtr Node : ViewModel->GetSelection()->Outliner)
-		{
-			if (TViewModelPtr<IObjectBindingExtension> ObjectBindingNode = Node.ImplicitCast())
-			{
-				Bindings.Add(ObjectBindingNode->GetObjectGuid());
-
-				for (TViewModelPtr<IOutlinerExtension> DescendantNode : Node->GetDescendantsOfType<IOutlinerExtension>())
-				{
-					if (!ViewModel->GetSelection()->Outliner.IsSelected(DescendantNode) && DescendantNode.AsModel()->IsA<IObjectBindingExtension>())
-					{
-						IObjectBindingExtension* DescendantObjectBindingNode = DescendantNode.AsModel()->CastThisChecked<IObjectBindingExtension>();
-						Bindings.Add(DescendantObjectBindingNode->GetObjectGuid());
-					}
-				}
-			}
-			else if (TViewModelPtr<ITrackExtension> TrackNode = Node.ImplicitCast())
-			{
-				UMovieSceneTrack* Track = TrackNode->GetTrack();
-				if (Track && MovieScene->ContainsTrack(*Track))
-				{
-					Tracks.Add(Track);
-				}
-			}
-		}
-
-		FString FileExtension = FPaths::GetExtension(ExportFilename);
-		if (FileExtension == TEXT("fbx"))
-		{
-			ExportFBXInternal(ExportFilename, Bindings, (Bindings.Num() + Tracks.Num()) > 0 ? Tracks : MovieScene->GetTracks());
-		}
-		else
-		{
-			for (UExporter* Exporter : Exporters)
-			{
-				if (Exporter->FormatExtension.Contains(FileExtension))
-				{
-					USequencerExportTask* ExportTask = NewObject<USequencerExportTask>();
-					TStrongObjectPtr<USequencerExportTask> ExportTaskGuard(ExportTask);
-					ExportTask->Object = GetFocusedMovieSceneSequence();
-					ExportTask->Exporter = nullptr;
-					ExportTask->Filename = ExportFilename;
-					ExportTask->bSelected = false;
-					ExportTask->bReplaceIdentical = true;
-					ExportTask->bPrompt = false;
-					ExportTask->bUseFileArchive = false;
-					ExportTask->bWriteEmptyFiles = false;
-					ExportTask->bAutomated = false;
-					ExportTask->Exporter = NewObject<UExporter>(GetTransientPackage(), Exporter->GetClass());
-
-					ExportTask->SequencerContext = GetPlaybackContext();
-
-					UExporter::RunAssetExportTask(ExportTask);
-
-					ExportTask->Object = nullptr;
-					ExportTask->Exporter = nullptr;
-					ExportTask->SequencerContext = nullptr;
-
-					break;
-				}
-			}
-		}
-	}
-}
-
-
-void FSequencer::ExportFBXInternal(const FString& ExportFilename, const TArray<FGuid>& Bindings, const TArray<UMovieSceneTrack*>& Tracks)
-{
-	{
-		UnFbx::FFbxExporter* Exporter = UnFbx::FFbxExporter::GetInstance();
-		//Show the fbx export dialog options
-		bool ExportCancel = false;
-		bool ExportAll = false;
-		Exporter->FillExportOptions(false, true, ExportFilename, ExportCancel, ExportAll);
-		if (!ExportCancel)
-		{
-			UMovieScene* MovieScene = GetFocusedMovieSceneSequence()->GetMovieScene();
-			UWorld* World = Cast<UWorld>(GetPlaybackContext());
-			FMovieSceneSequenceIDRef Template = GetFocusedTemplateID();
-			UnFbx::FFbxExporter::FLevelSequenceNodeNameAdapter NodeNameAdapter(MovieScene, this, Template);
-
-			{
-				FSpawnableRestoreState SpawnableRestoreState(MovieScene);
-				if (SpawnableRestoreState.bWasChanged)
-				{
-					// Evaluate at the beginning of the subscene time to ensure that spawnables are created before export
-					SetLocalTimeDirectly(UE::MovieScene::DiscreteInclusiveLower(GetTimeBounds()));
-				}
-
-				if (MovieSceneToolHelpers::ExportFBX(World, MovieScene, this, Bindings, Tracks, NodeNameAdapter, Template, ExportFilename, RootToLocalTransform))
-				{
-					FNotificationInfo Info(NSLOCTEXT("Sequencer", "ExportFBXSucceeded", "FBX Export Succeeded."));
-					Info.Hyperlink = FSimpleDelegate::CreateStatic([](FString InFilename) { FPlatformProcess::ExploreFolder(*InFilename); }, ExportFilename);
-					Info.HyperlinkText = FText::FromString(ExportFilename);
-					Info.ExpireDuration = 5.0f;
-					FSlateNotificationManager::Get().AddNotification(Info)->SetCompletionState(SNotificationItem::CS_Success);
-				}
-				else
-				{
-					FNotificationInfo Info(NSLOCTEXT("Sequencer", "ExportFBXFailed", "FBX Export Failed."));
-					Info.ExpireDuration = 5.0f;
-					FSlateNotificationManager::Get().AddNotification(Info)->SetCompletionState(SNotificationItem::CS_Fail);
-				}
-			}
-
-			ForceEvaluate();
-		}
-	}
-}
-
-
 void FSequencer::GenericTextEntryModeless(const FText& DialogText, const FText& DefaultText, FOnTextCommitted OnTextComitted)
 {
 	TSharedRef<STextEntryPopup> TextEntryPopup = 
@@ -11204,16 +10960,6 @@ void FSequencer::BindCommands()
 		Commands.RebindPossessableReferences,
 		FExecuteAction::CreateSP( this, &FSequencer::RebindPossessableReferences ),
 		FCanExecuteAction::CreateLambda( []{ return true; } ) );
-
-	SequencerCommandBindings->MapAction(
-		Commands.ImportFBX,
-		FExecuteAction::CreateSP( this, &FSequencer::ImportFBX ),
-		FCanExecuteAction::CreateLambda( [] { return true; } ) );
-
-	SequencerCommandBindings->MapAction(
-		Commands.ExportFBX,
-		FExecuteAction::CreateSP( this, &FSequencer::ExportFBX ),
-		FCanExecuteAction::CreateLambda( [] { return true; } ) );
 
 	SequencerCommandBindings->MapAction(
 		Commands.MoveToNewFolder,

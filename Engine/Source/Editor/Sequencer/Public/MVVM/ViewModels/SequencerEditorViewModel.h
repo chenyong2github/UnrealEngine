@@ -54,6 +54,11 @@ public:
 	/** Get the active customization infos */
 	TArrayView<const FSequencerCustomizationInfo> GetActiveCustomizationInfos() const;
 
+	/** Build a combined menu extender */
+	TSharedPtr<FExtender> GetSequencerMenuExtender(
+			TSharedPtr<FExtensibilityManager> ExtensibilityManager, const TArray<UObject*>& ContextObjects,
+			TFunctionRef<const FOnGetSequencerMenuExtender&(const FSequencerCustomizationInfo&)> Endpoint, FViewModelPtr InViewModel) const;
+
 	/** Gets the pinned track area view-model. */
 	TSharedPtr<FTrackAreaViewModel> GetPinnedTrackArea() const;
 

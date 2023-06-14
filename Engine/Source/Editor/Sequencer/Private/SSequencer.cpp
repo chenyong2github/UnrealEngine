@@ -1889,28 +1889,19 @@ bool SSequencer::IsTrackLevelFilterActive(const FString LevelName) const
 
 TSharedRef<SWidget> SSequencer::MakeActionsMenu()
 {
-	ISequencerModule& SequencerModule = FModuleManager::GetModuleChecked<ISequencerModule>("Sequencer");
+	using namespace UE::Sequencer;
 
+	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
+	TSharedPtr<FSequencerEditorViewModel> EditorViewModel = Sequencer->GetViewModel();
+
+	ISequencerModule& SequencerModule = FModuleManager::GetModuleChecked<ISequencerModule>("Sequencer");
 	TSharedPtr<FExtender> ActionsMenuExtender = SequencerModule.GetActionsMenuExtensibilityManager()->GetAllExtenders();
 
-	FMenuBuilder MenuBuilder(true, SequencerPtr.Pin()->GetCommandBindings(), ActionsMenuExtender);
-	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
+	FMenuBuilder MenuBuilder(true, Sequencer->GetCommandBindings(), ActionsMenuExtender);
 
 	MenuBuilder.BeginSection("SequenceOptions", LOCTEXT("SequenceOptionsHeader", "Sequence"));
 	{
-		if (SequencerPtr.Pin()->IsLevelEditorSequencer())
-		{
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("SaveAs", "Save As..."),
-				LOCTEXT("SaveAsTooltip", "Saves the current sequence under a different name"),
-				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.SaveAs"),
-				FUIAction(FExecuteAction::CreateSP(this, &SSequencer::OnSaveMovieSceneAsClicked)));
-
-			MenuBuilder.AddMenuEntry(FSequencerCommands::Get().ImportFBX);
-			MenuBuilder.AddMenuEntry(FSequencerCommands::Get().ExportFBX);
-		}
-
-		UMovieSceneSequence* RootSequence = SequencerPtr.Pin()->GetRootMovieSceneSequence();
+		UMovieSceneSequence* RootSequence = Sequencer->GetRootMovieSceneSequence();
 		if (RootSequence->GetTypedOuter<UBlueprint>() == nullptr)
 		{
 			// Only show this button where it makes sense (ie, if the sequence is not contained within a blueprint already)
@@ -3376,11 +3367,6 @@ void SSequencer::OnSaveMovieSceneClicked()
 	SequencerPtr.Pin()->SaveCurrentMovieScene();
 }
 
-
-void SSequencer::OnSaveMovieSceneAsClicked()
-{
-	SequencerPtr.Pin()->SaveCurrentMovieSceneAs();
-}
 
 void SSequencer::StepToNextKey()
 {

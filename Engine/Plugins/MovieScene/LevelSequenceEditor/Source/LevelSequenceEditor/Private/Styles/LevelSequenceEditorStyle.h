@@ -24,6 +24,7 @@ public:
 		const FVector2D Icon16x16(16.0f, 16.0f);
 		const FVector2D Icon20x20(20.0f, 20.0f);
 		const FVector2D Icon40x40(40.0f, 40.0f);
+		const FVector2D Icon48x48(48.0f, 48.0f);
 
 		SetContentRoot(FPaths::EnginePluginsDir() / TEXT("MovieScene/LevelSequenceEditor/Content"));
 		SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
@@ -45,6 +46,10 @@ public:
 		Set("LevelSequenceEditor.CinematicViewportRangeEnd", new BORDER_BRUSH("CinematicViewportRangeEnd", FMargin(0.f,.3f,1.f,.6f)));
 
 		Set("LevelSequenceEditor.CinematicViewportTransportRangeKey", new IMAGE_BRUSH("CinematicViewportTransportRangeKey", FVector2D(7.f, 7.f)));
+
+		Set("LevelSequenceEditor.SaveAs", new IMAGE_BRUSH("Icon_Sequencer_SaveAs_48x", Icon48x48));
+		Set("LevelSequenceEditor.ImportFBX", new IMAGE_BRUSH("Icon_Sequencer_ImportFBX_48x", Icon48x48));
+		Set("LevelSequenceEditor.ExportFBX", new IMAGE_BRUSH("Icon_Sequencer_ExportFBX_48x", Icon48x48));
 
 		Set("FilmOverlay.DefaultThumbnail", new IMAGE_BRUSH("DefaultFilmOverlayThumbnail", FVector2D(36, 24)));
 

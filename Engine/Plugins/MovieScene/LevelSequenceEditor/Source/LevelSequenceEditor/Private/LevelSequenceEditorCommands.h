@@ -30,4 +30,11 @@ public:
 	TSharedPtr<FUICommandInfo> ReplaceBindingWithActors;
 	TSharedPtr<FUICommandInfo> RemoveAllBindings;
 	TSharedPtr<FUICommandInfo> RemoveInvalidBindings;
+
+	/** Imports animation from fbx. */
+	TSharedPtr< FUICommandInfo > ImportFBX;
+
+	/** Exports animation to fbx. */
+	TSharedPtr< FUICommandInfo > ExportFBX;
+
 };

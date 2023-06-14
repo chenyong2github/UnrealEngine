@@ -6,12 +6,6 @@ public class Sequencer : ModuleRules
 {
 	public Sequencer(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"Editor/UnrealEd/Private" // TODO: Fix this, for now it's needed for the fbx exporter
-				}
-			);
-
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"TimeManagement",
@@ -87,6 +81,5 @@ public class Sequencer : ModuleRules
 			);
 
 		CircularlyReferencedDependentModules.Add("MovieSceneTools");
-		AddEngineThirdPartyPrivateStaticDependencies(Target, "FBX");
 	}
 }

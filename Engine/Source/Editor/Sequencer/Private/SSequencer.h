@@ -331,9 +331,6 @@ public:
 	/** Called when the save button is clicked */
 	void OnSaveMovieSceneClicked();
 
-	/** Called when the save-as button is clicked */
-	void OnSaveMovieSceneAsClicked();
-
 	/** Called when the curve editor is shown or hidden */
 	void OnCurveEditorVisibilityChanged(bool bShouldBeVisible);
 

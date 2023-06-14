@@ -194,4 +194,10 @@ struct SEQUENCER_API FSequencerUtilities
 	
 	/** Show an error if spawnable is not allowed in a movie scene*/
 	static void ShowSpawnableNotAllowedError();
+
+	// Methods exposing FSequencer functionality outside of the Sequencer module.
+	// This is needed while things are moving into view-models here and there, step by step.
+	static void SaveCurrentMovieSceneAs(TSharedRef<ISequencer> Sequencer);
+	static void SynchronizeExternalSelectionWithSequencerSelection (TSharedRef<ISequencer> Sequencer);
+	static TRange<FFrameNumber> GetTimeBounds(TSharedRef<ISequencer> Sequencer);
 };

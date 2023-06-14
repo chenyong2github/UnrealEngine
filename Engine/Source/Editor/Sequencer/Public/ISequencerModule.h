@@ -296,14 +296,14 @@ public:
 	virtual bool CanAnimateProperty(FProperty* Property) = 0;
 
 	/**
-	* Get the extensibility manager for menus.
+	* Get the extensibility manager for object binding menus.
 	*
 	* @return ObjectBinding Context Menu extensibility manager.
 	*/
 	virtual TSharedPtr<FExtensibilityManager> GetObjectBindingContextMenuExtensibilityManager() const = 0;
 
 	/**
-	 * Get the extensibility manager for menus.
+	 * Get the extensibility manager for add track menus.
 	 *
 	 * @return Add Track Menu extensibility manager.
 	 */

@@ -201,6 +201,36 @@ TArrayView<const FSequencerCustomizationInfo> FSequencerEditorViewModel::GetActi
 	return ActiveCustomizationInfos;
 }
 
+TSharedPtr<FExtender> FSequencerEditorViewModel::GetSequencerMenuExtender(
+		TSharedPtr<FExtensibilityManager> ExtensibilityManager, const TArray<UObject*>& ContextObjects,
+		TFunctionRef<const FOnGetSequencerMenuExtender&(const FSequencerCustomizationInfo&)> Endpoint, FViewModelPtr InViewModel) const
+{
+	TArray<TSharedPtr<FExtender>> Extenders;
+	// Get the extenders from the extensibility manager.
+	{
+		TSharedRef<FUICommandList> CommandList(new FUICommandList);
+		TSharedPtr<FExtender> ManagerExtender = ExtensibilityManager->GetAllExtenders(CommandList, ContextObjects);
+		if (ManagerExtender)
+		{
+			Extenders.Add(ManagerExtender);
+		}
+	}
+	// Get the extenders from any active sequencer customizations.
+	for (const FSequencerCustomizationInfo& CustomizationInfo : ActiveCustomizationInfos)
+	{
+		const FOnGetSequencerMenuExtender& Delegate = ::Invoke(Endpoint, CustomizationInfo);
+		if (Delegate.IsBound())
+		{
+			TSharedPtr<FExtender> CustomizationExtender = Delegate.Execute(InViewModel);
+			if (CustomizationExtender)
+			{
+				Extenders.Add(CustomizationExtender);
+			}
+		}
+	}
+	return FExtender::Combine(Extenders);
+}
+
 } // namespace Sequencer
 } // namespace UE
 

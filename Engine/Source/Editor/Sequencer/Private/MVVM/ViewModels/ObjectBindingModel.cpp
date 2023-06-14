@@ -42,7 +42,6 @@
 #include "SequencerUtilities.h"
 #include "Styling/AppStyle.h"
 #include "Styling/SlateIconFinder.h"
-#include "Tracks/MovieSceneSpawnTrack.h"
 
 #define LOCTEXT_NAMESPACE "ObjectBindingModel"
 
@@ -117,60 +116,6 @@ void GetKeyablePropertyPaths(UClass* Class, void* ValuePtr, UStruct* PropertySou
 		}
 	}
 }
-
-struct FMovieSceneSpawnableFlagCheckState
-{
-	FSequencer* Sequencer;
-	UMovieScene* MovieScene;
-	bool FMovieSceneSpawnable::*PtrToFlag;
-
-	ECheckBoxState operator()() const
-	{
-		using namespace UE::Sequencer;
-
-		ECheckBoxState CheckState = ECheckBoxState::Undetermined;
-		for (TViewModelPtr<IObjectBindingExtension> ObjectBinding : Sequencer->GetViewModel()->GetSelection()->Outliner.Filter<IObjectBindingExtension>())
-		{
-			FMovieSceneSpawnable* SelectedSpawnable = MovieScene->FindSpawnable(ObjectBinding->GetObjectGuid());
-			if (SelectedSpawnable)
-			{
-				if (CheckState != ECheckBoxState::Undetermined && SelectedSpawnable->*PtrToFlag != ( CheckState == ECheckBoxState::Checked ))
-				{
-					return ECheckBoxState::Undetermined;
-				}
-				CheckState = SelectedSpawnable->*PtrToFlag ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-			}
-		}
-		return CheckState;
-	}
-};
-
-struct FMovieSceneSpawnableFlagToggler
-{
-	FSequencer* Sequencer;
-	UMovieScene* MovieScene;
-	bool FMovieSceneSpawnable::*PtrToFlag;
-	FText TransactionText;
-
-	void operator()() const
-	{
-		using namespace UE::Sequencer;
-
-		FScopedTransaction Transaction(TransactionText);
-
-		const ECheckBoxState CheckState = FMovieSceneSpawnableFlagCheckState{Sequencer, MovieScene, PtrToFlag}();
-
-		MovieScene->Modify();
-		for (TViewModelPtr<IObjectBindingExtension> ObjectBinding : Sequencer->GetViewModel()->GetSelection()->Outliner.Filter<IObjectBindingExtension>())
-		{
-			FMovieSceneSpawnable* SelectedSpawnable = MovieScene->FindSpawnable(ObjectBinding->GetObjectGuid());
-			if (SelectedSpawnable)
-			{
-				SelectedSpawnable->*PtrToFlag = (CheckState == ECheckBoxState::Unchecked);
-			}
-		}
-	}
-};
 
 } // anon-namespace
 
@@ -912,117 +857,29 @@ void FObjectBindingModel::AddPropertyMenuItems(FMenuBuilder& AddTrackMenuBuilder
 
 void FObjectBindingModel::BuildContextMenu(FMenuBuilder& MenuBuilder)
 {
-	FSequencer* Sequencer = GetEditor()->GetSequencerImpl().Get();
+	TSharedPtr<FSequencerEditorViewModel> EditorViewModel = GetEditor();
+	FSequencer* Sequencer = EditorViewModel->GetSequencerImpl().Get();
 	ISequencerModule& SequencerModule = FModuleManager::GetModuleChecked<ISequencerModule>("Sequencer");
 
 	UObject* BoundObject = Sequencer->FindSpawnedObjectOrTemplate(ObjectBindingID);
 	const UClass* ObjectClass = FindObjectClass();
-
-	TSharedRef<FUICommandList> CommandList(new FUICommandList);
-	TSharedPtr<FExtender> Extender = SequencerModule.GetObjectBindingContextMenuExtensibilityManager()->GetAllExtenders(CommandList, TArrayBuilder<UObject*>().Add(BoundObject));
+	
+	TSharedPtr<FExtender> Extender = EditorViewModel->GetSequencerMenuExtender(
+			SequencerModule.GetObjectBindingContextMenuExtensibilityManager(), TArrayBuilder<UObject*>().Add(BoundObject),
+			&FSequencerCustomizationInfo::OnBuildObjectBindingContextMenu, SharedThis(this));
 	if (Extender.IsValid())
 	{
 		MenuBuilder.PushExtender(Extender.ToSharedRef());
 	}
-
-	if (Sequencer->IsLevelEditorSequencer())
-	{
-		UMovieScene* MovieScene = OwnerModel->GetMovieScene();
-		FMovieSceneSpawnable* Spawnable = MovieScene->FindSpawnable(ObjectBindingID);
-
-		if (Spawnable)
-		{
-			MenuBuilder.BeginSection("Spawnable", LOCTEXT("SpawnableMenuSectionName", "Spawnable"));
 	
-			MenuBuilder.AddSubMenu(
-				LOCTEXT("OwnerLabel", "Spawned Object Owner"),
-				LOCTEXT("OwnerTooltip", "Specifies how the spawned object is to be owned"),
-				FNewMenuDelegate::CreateSP(this, &FObjectBindingModel::AddSpawnOwnershipMenu)
-			);
+	// Extenders can go in there.
+	MenuBuilder.BeginSection("ObjectBindingActions");
+	MenuBuilder.EndSection();
 
-			MenuBuilder.AddSubMenu(
-				LOCTEXT("SubLevelLabel", "Spawnable Level"),
-				LOCTEXT("SubLevelTooltip", "Specifies which level the spawnable should be spawned into"),
-				FNewMenuDelegate::CreateSP(this, &FObjectBindingModel::AddSpawnLevelMenu)
-			);
-
-			MenuBuilder.AddSubMenu(
-				LOCTEXT("ChangeClassLabel", "Change Class"),
-				LOCTEXT("ChangeClassTooltip", "Change the class (object template) that this spawns from"),
-				FNewMenuDelegate::CreateSP(this, &FObjectBindingModel::AddChangeClassMenu));
-
-			MenuBuilder.AddSubMenu(
-				LOCTEXT("DynamicSpawn", "Dynamic Spawn"),
-				LOCTEXT("DynamicSpawnTooltip", "Specify a Blueprint method that will spawn or otherwise acquire a compatible actor for this binding"),
-				FNewMenuDelegate::CreateSP(this, &FObjectBindingModel::AddDynamicSpawnMenu));
-
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("ContinuouslyRespawn", "Continuously Respawn"),
-				LOCTEXT("ContinuouslyRespawnTooltip", "When enabled, this spawnable will always be respawned if it gets destroyed externally. When disabled, this object will only ever be spawned once for each spawn key even if it is destroyed externally"),
-				FSlateIcon(),
-				FUIAction(
-					FExecuteAction::CreateLambda(FMovieSceneSpawnableFlagToggler{Sequencer, MovieScene, &FMovieSceneSpawnable::bContinuouslyRespawn, LOCTEXT("ContinuouslyRespawnTransaction", "Set Continuously Respawn")}),
-					FCanExecuteAction(),
-					FGetActionCheckState::CreateLambda(FMovieSceneSpawnableFlagCheckState{Sequencer, MovieScene, &FMovieSceneSpawnable::bContinuouslyRespawn})
-				),
-				NAME_None,
-				EUserInterfaceActionType::ToggleButton
-			);
-
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("NetAddressable", "Net Addressable"),
-				LOCTEXT("NetAddressableTooltip", "When enabled, this spawnable will be spawned using a unique name that allows it to be addressed by the server and client (useful for relative movement calculations on spawned props)"),
-				FSlateIcon(),
-				FUIAction(
-					FExecuteAction::CreateLambda(FMovieSceneSpawnableFlagToggler{Sequencer, MovieScene, &FMovieSceneSpawnable::bNetAddressableName, LOCTEXT("NetAddressableTransaction", "Set Net Addressable")}),
-					FCanExecuteAction(),
-					FGetActionCheckState::CreateLambda(FMovieSceneSpawnableFlagCheckState{Sequencer, MovieScene, &FMovieSceneSpawnable::bNetAddressableName})
-				),
-				NAME_None,
-				EUserInterfaceActionType::ToggleButton
-			);
-
-			MenuBuilder.AddMenuEntry( FSequencerCommands::Get().SaveCurrentSpawnableState );
-			MenuBuilder.AddMenuEntry( FSequencerCommands::Get().ConvertToPossessable );
-
-			MenuBuilder.EndSection();
-		}
-		else
-		{
-			MenuBuilder.BeginSection("Possessable");
-
-			MenuBuilder.AddMenuEntry( FSequencerCommands::Get().ConvertToSpawnable );
-
-			MenuBuilder.AddSubMenu(
-				LOCTEXT("DynamicPossession", "Dynamic Possession"),
-				LOCTEXT("DynamicPossessionTooltip", "Specify a Blueprint method that will find a compatible possessable actor for this binding"),
-				FNewMenuDelegate::CreateSP(this, &FObjectBindingModel::AddDynamicPossessionMenu));
-
-			MenuBuilder.EndSection();
-		}
-
-		MenuBuilder.BeginSection("Import/Export", LOCTEXT("ImportExportMenuSectionName", "Import/Export"));
-		
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("ImportFBX", "Import..."),
-			LOCTEXT("ImportFBXTooltip", "Import FBX animation to this object"),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateLambda([=]{ Sequencer->ImportFBXOntoSelectedNodes(); })
-			));
-
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("ExportFBX", "Export..."),
-			LOCTEXT("ExportFBXTooltip", "Export FBX animation from this object"),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateLambda([=]{ Sequencer->ExportFBX(); })
-			));
-			
-		MenuBuilder.EndSection();
-	}
-
+	// External extension.
 	Sequencer->BuildCustomContextMenuForGuid(MenuBuilder, ObjectBindingID);
+
+	// Track editor extension.
 	TArray<FGuid> ObjectBindings;
 	ObjectBindings.Add(ObjectBindingID);
 	for (const TSharedPtr<ISequencerTrackEditor>& TrackEditor : Sequencer->GetTrackEditors())
@@ -1030,6 +887,7 @@ void FObjectBindingModel::BuildContextMenu(FMenuBuilder& MenuBuilder)
 		TrackEditor->BuildObjectBindingContextMenu(MenuBuilder, ObjectBindings, ObjectClass);
 	}
 
+	// Up-call.
 	FOutlinerItemModel::BuildContextMenu(MenuBuilder);
 }
 
@@ -1043,224 +901,7 @@ void FObjectBindingModel::BuildOrganizeContextMenu(FMenuBuilder& MenuBuilder)
 
 	FOutlinerItemModel::BuildOrganizeContextMenu(MenuBuilder);
 }
-
-void FObjectBindingModel::AddSpawnOwnershipMenu(FMenuBuilder& MenuBuilder)
-{
-	TSharedPtr<ISequencer> Sequencer = OwnerModel->GetSequencer();
-	UMovieScene* MovieScene = OwnerModel->GetMovieScene();
-	FMovieSceneSpawnable* Spawnable = MovieScene->FindSpawnable(ObjectBindingID);
-	if (!Spawnable)
-	{
-		return;
-	}
-	auto Callback = [=](ESpawnOwnership NewOwnership){
-
-		using namespace UE::Sequencer;
-
-		FScopedTransaction Transaction(LOCTEXT("SetSpawnOwnership", "Set Spawnable Ownership"));
-
-		MovieScene->Modify();
-
-		for (TViewModelPtr<IObjectBindingExtension> ObjectBinding : Sequencer->GetViewModel()->GetSelection()->Outliner.Filter<IObjectBindingExtension>())
-		{
-			FMovieSceneSpawnable* Spawnable = MovieScene->FindSpawnable(ObjectBinding->GetObjectGuid());
-		
-			Spawnable->SetSpawnOwnership(NewOwnership);
-
-			// Overwrite the completion state for all spawn sections to ensure the expected behaviour.
-			EMovieSceneCompletionMode NewCompletionMode = NewOwnership == ESpawnOwnership::InnerSequence ? EMovieSceneCompletionMode::RestoreState : EMovieSceneCompletionMode::KeepState;
-
-			// Make all spawn sections retain state
-			UMovieSceneSpawnTrack* SpawnTrack = MovieScene->FindTrack<UMovieSceneSpawnTrack>(ObjectBinding->GetObjectGuid());
-			if (SpawnTrack)
-			{
-				for (UMovieSceneSection* Section : SpawnTrack->GetAllSections())
-				{
-					Section->Modify();
-					Section->EvalOptions.CompletionMode = NewCompletionMode;
-				}
-			}
-		}
-	};
-
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("ThisSequence_Label", "This Sequence"),
-		LOCTEXT("ThisSequence_Tooltip", "Indicates that this sequence will own the spawned object. The object will be destroyed at the end of the sequence."),
-		FSlateIcon(),
-		FUIAction(
-			FExecuteAction::CreateLambda(Callback, ESpawnOwnership::InnerSequence),
-			FCanExecuteAction(),
-			FIsActionChecked::CreateLambda([=]{ return Spawnable->GetSpawnOwnership() == ESpawnOwnership::InnerSequence; })
-		),
-		NAME_None,
-		EUserInterfaceActionType::ToggleButton
-	);
-
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("RootSequence_Label", "Root Sequence"),
-		LOCTEXT("RootSequence_Tooltip", "Indicates that the outermost sequence will own the spawned object. The object will be destroyed when the outermost sequence stops playing."),
-		FSlateIcon(),
-		FUIAction(
-			FExecuteAction::CreateLambda(Callback, ESpawnOwnership::RootSequence),
-			FCanExecuteAction(),
-			FIsActionChecked::CreateLambda([=]{ return Spawnable->GetSpawnOwnership() == ESpawnOwnership::RootSequence; })
-		),
-		NAME_None,
-		EUserInterfaceActionType::ToggleButton
-	);
-
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("External_Label", "External"),
-		LOCTEXT("External_Tooltip", "Indicates this object's lifetime is managed externally once spawned. It will not be destroyed by sequencer."),
-		FSlateIcon(),
-		FUIAction(
-			FExecuteAction::CreateLambda(Callback, ESpawnOwnership::External),
-			FCanExecuteAction(),
-			FIsActionChecked::CreateLambda([=]{ return Spawnable->GetSpawnOwnership() == ESpawnOwnership::External; })
-		),
-		NAME_None,
-		EUserInterfaceActionType::ToggleButton
-	);
-}
-
-void FObjectBindingModel::AddSpawnLevelMenu(FMenuBuilder& MenuBuilder)
-{
-	TSharedPtr<FSequencer> Sequencer = OwnerModel->GetSequencerImpl();
-	UMovieScene* MovieScene = OwnerModel->GetMovieScene();
-	FMovieSceneSpawnable* Spawnable = MovieScene->FindSpawnable(ObjectBindingID);
-	if (!Spawnable)
-	{
-		return;
-	}
-
-	MenuBuilder.AddMenuEntry(
-		NSLOCTEXT("UnrealEd", "PersistentLevel", "Persistent Level"),
-		NSLOCTEXT("UnrealEd", "PersistentLevel", "Persistent Level"),
-		FSlateIcon(),
-		FUIAction(
-			FExecuteAction::CreateLambda([=] { Sequencer->SetSelectedNodesSpawnableLevel(NAME_None); }),
-			FCanExecuteAction(),
-			FIsActionChecked::CreateLambda([=] { return Spawnable->GetLevelName() == NAME_None; })
-		),
-		NAME_None,
-		EUserInterfaceActionType::ToggleButton
-	);
-
-	UWorld* World = Cast<UWorld>(Sequencer->GetPlaybackContext());
-	if (!World)
-	{
-		return;
-	}
-
-	for (ULevelStreaming* LevelStreaming : World->GetStreamingLevels())
-	{
-		if (LevelStreaming)
-		{
-			FName LevelName = FPackageName::GetShortFName( LevelStreaming->GetWorldAssetPackageFName() );
-
-			MenuBuilder.AddMenuEntry(
-				FText::FromName(LevelName),
-				FText::FromName(LevelName),
-				FSlateIcon(),
-				FUIAction(
-					FExecuteAction::CreateLambda([=] { Sequencer->SetSelectedNodesSpawnableLevel(LevelName); }),
-					FCanExecuteAction(),
-					FIsActionChecked::CreateLambda([=] { return Spawnable->GetLevelName() == LevelName; })
-				),
-				NAME_None,
-				EUserInterfaceActionType::ToggleButton
-			);
-		}
-	}
-}
-
-void FObjectBindingModel::AddChangeClassMenu(FMenuBuilder& MenuBuilder)
-{
-	UMovieScene* MovieScene = OwnerModel->GetMovieScene();
-	FMovieSceneSpawnable* Spawnable = MovieScene->FindSpawnable(ObjectBindingID);
-	if (!Spawnable)
-	{
-		return;
-	}
-
-	FClassViewerModule& ClassViewerModule = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer");
-
-	FClassViewerInitializationOptions Options;
-	Options.Mode = EClassViewerMode::ClassPicker;
-	Options.bIsActorsOnly = true;
-	Options.bIsPlaceableOnly = true;
-
-	const UClass* ClassForObjectBinding = FindObjectClass();
-	if (ClassForObjectBinding)
-	{
-		Options.ViewerTitleString = FText::FromString(TEXT("Change from: ") + ClassForObjectBinding->GetFName().ToString());
-	}
-	else
-	{
-		Options.ViewerTitleString = FText::FromString(TEXT("Change from: (empty)"));
-	}
-
-	MenuBuilder.AddWidget(
-		SNew(SBox)
-		.MinDesiredWidth(300.0f)
-		.MaxDesiredHeight(400.0f)
-		[
-			ClassViewerModule.CreateClassViewer(Options, FOnClassPicked::CreateRaw(this, &FObjectBindingModel::HandleTemplateActorClassPicked))
-		],
-		FText(), true, false
-	);
-}
-
-void FObjectBindingModel::HandleTemplateActorClassPicked(UClass* ChosenClass)
-{
-	FSlateApplication::Get().DismissAllMenus();
-
-	TSharedPtr<ISequencer> Sequencer = OwnerModel->GetSequencer();
-	UMovieScene* MovieScene = OwnerModel->GetMovieScene();
-	FMovieSceneSpawnable* Spawnable = MovieScene->FindSpawnable(ObjectBindingID);
-	if (!Spawnable)
-	{
-		return;
-	}
-
-	FScopedTransaction Transaction(LOCTEXT("ChangeClass", "Change Class"));
-
-	MovieScene->Modify();
-
-	TValueOrError<FNewSpawnable, FText> Result = Sequencer->GetSpawnRegister().CreateNewSpawnableType(*ChosenClass, *MovieScene, nullptr);
-	if (Result.IsValid())
-	{
-		Spawnable->SetObjectTemplate(Result.GetValue().ObjectTemplate);
-
-		Sequencer->GetSpawnRegister().DestroySpawnedObject(Spawnable->GetGuid(), OwnerModel->GetSequenceID(), *Sequencer.Get());
-		Sequencer->ForceEvaluate();
-	}
-}
-
-void FObjectBindingModel::AddDynamicSpawnMenu(FMenuBuilder& MenuBuilder)
-{
-	UMovieScene* MovieScene = OwnerModel->GetMovieScene();
-	FMovieSceneSpawnable* Spawnable = MovieScene->FindSpawnable(ObjectBindingID);
-	if (!Spawnable)
-	{
-		return;
-	}
-
-	AddDynamicBindingMenu(MenuBuilder, Spawnable->DynamicBinding);
-}
-
-void FObjectBindingModel::AddDynamicPossessionMenu(FMenuBuilder& MenuBuilder)
-{
-	UMovieScene* MovieScene = OwnerModel->GetMovieScene();
-	FMovieScenePossessable* Possessable = MovieScene->FindPossessable(ObjectBindingID);
-	if (!Possessable)
-	{
-		return;
-	}
-
-	AddDynamicBindingMenu(MenuBuilder, Possessable->DynamicBinding);
-}
-
+	
 void FObjectBindingModel::AddDynamicBindingMenu(FMenuBuilder& MenuBuilder, FMovieSceneDynamicBinding& DynamicBinding)
 {
 	FDetailsViewArgs DetailsViewArgs;

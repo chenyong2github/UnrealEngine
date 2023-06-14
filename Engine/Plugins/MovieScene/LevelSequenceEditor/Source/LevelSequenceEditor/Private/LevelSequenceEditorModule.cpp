@@ -1,33 +1,37 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LevelSequenceEditorModule.h"
-#include "Blueprint/BlueprintSupport.h"
-#include "Factories/Factory.h"
-#include "AssetToolsModule.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
 
-#include "IAssetTools.h"
-#include "LevelSequenceEditorCommands.h"
-#include "Misc/LevelSequenceEditorSettings.h"
-#include "Misc/LevelSequenceEditorHelpers.h"
-#include "Styles/LevelSequenceEditorStyle.h"
+#include "AssetToolsModule.h"
+#include "Blueprint/BlueprintSupport.h"
+#include "BlueprintAssetHandler.h"
 #include "Camera/CameraShakeSourceActor.h"
-#include "CineCameraActor.h"
 #include "CameraRig_Crane.h"
 #include "CameraRig_Rail.h"
+#include "CineCameraActor.h"
+#include "CinematicViewport/CinematicViewportLayoutEntity.h"
+#include "Factories/Factory.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Framework/MultiBox/MultiBoxExtender.h"
+#include "IAssetTools.h"
+#include "ILevelSequenceModule.h"
 #include "IPlacementModeModule.h"
+#include "ISequencerModule.h"
 #include "ISettingsModule.h"
 #include "LevelEditor.h"
 #include "LevelSequenceActor.h"
-#include "UObject/UObjectIterator.h"
-#include "CinematicViewport/CinematicViewportLayoutEntity.h"
-#include "ISequencerModule.h"
+#include "LevelSequenceEditorCommands.h"
+#include "Misc/LevelSequenceCustomization.h"
 #include "Misc/LevelSequenceEditorActorBinding.h"
-#include "ILevelSequenceModule.h"
 #include "Misc/LevelSequenceEditorActorSpawner.h"
-#include "SequencerSettings.h"
+#include "Misc/LevelSequenceEditorHelpers.h"
+#include "Misc/LevelSequenceEditorSettings.h"
+#include "Misc/LevelSequenceFBXInterop.h"
 #include "Misc/MovieSceneSequenceEditor_LevelSequence.h"
-#include "BlueprintAssetHandler.h"
+#include "SequencerCommands.h"
+#include "SequencerSettings.h"
+#include "Styles/LevelSequenceEditorStyle.h"
+#include "UObject/UObjectIterator.h"
 
 #define LOCTEXT_NAMESPACE "LevelSequenceEditor"
 
@@ -61,6 +65,7 @@ public:
 		RegisterPlacementModeExtensions();
 		RegisterSettings();
 		RegisterSequenceEditor();
+		RegisterSequenceCustomizations();
 
 		class FLevelSequenceAssetBlueprintHandler : public IBlueprintAssetHandler
 		{
@@ -88,6 +93,7 @@ public:
 		UnregisterPlacementModeExtensions();
 		UnregisterSettings();
 		UnregisterSequenceEditor();
+		UnregisterSequenceCustomizations();
 	}
 
 protected:
@@ -118,13 +124,16 @@ protected:
 	/** Register menu extensions for the level editor toolbar. */
 	void RegisterMenuExtensions()
 	{
+		FSequencerCommands::Register();
 		FLevelSequenceEditorCommands::Register();
 
+		const FLevelSequenceEditorCommands& Commands = FLevelSequenceEditorCommands::Get();
+
 		CommandList = MakeShareable(new FUICommandList);
-		CommandList->MapAction(FLevelSequenceEditorCommands::Get().CreateNewLevelSequenceInLevel,
+		CommandList->MapAction(Commands.CreateNewLevelSequenceInLevel,
 			FExecuteAction::CreateStatic(&FLevelSequenceEditorModule::OnCreateActorInLevel)
 		);
-		CommandList->MapAction(FLevelSequenceEditorCommands::Get().CreateNewLevelSequenceWithShotsInLevel,
+		CommandList->MapAction(Commands.CreateNewLevelSequenceWithShotsInLevel,
 			FExecuteAction::CreateStatic(&FLevelSequenceEditorModule::OnCreateLevelSequenceWithShotsInLevel)
 		);
 
@@ -188,6 +197,16 @@ protected:
 		SequenceEditorHandle = SequencerModule.RegisterSequenceEditor(ULevelSequence::StaticClass(), MakeUnique<FMovieSceneSequenceEditor_LevelSequence>());
 	}
 
+	void RegisterSequenceCustomizations()
+	{
+		ISequencerModule& SequencerModule = FModuleManager::LoadModuleChecked<ISequencerModule>("Sequencer");
+		SequencerModule.GetSequencerCustomizationManager()->RegisterInstancedSequencerCustomization(ULevelSequence::StaticClass(),
+				FOnGetSequencerCustomizationInstance::CreateLambda([]()
+				{
+					return new UE::Sequencer::FLevelSequenceCustomization();
+				}));
+	}
+
 protected:
 
 	/** Unregisters sequencer editor object bindings */
@@ -226,7 +245,7 @@ protected:
 		if (FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>("LevelEditor"))
 		{
 			LevelEditorModule->GetAllLevelEditorToolbarCinematicsMenuExtenders().Remove(CinematicsMenuExtender);
-	}
+		}
 
 		CinematicsMenuExtender = nullptr;
 		CommandList = nullptr;
@@ -263,6 +282,12 @@ protected:
 		{
 			SequencerModule->UnregisterSequenceEditor(SequenceEditorHandle);
 		}
+	}
+
+	void UnregisterSequenceCustomizations()
+	{
+		ISequencerModule& SequencerModule = FModuleManager::LoadModuleChecked<ISequencerModule>("Sequencer");
+		SequencerModule.GetSequencerCustomizationManager()->UnregisterInstancedSequencerCustomization(ULevelSequence::StaticClass());
 	}
 
 protected:

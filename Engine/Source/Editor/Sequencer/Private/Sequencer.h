@@ -357,11 +357,6 @@ public:
 	 */
 	void ConvertSelectedNodesToPossessables();
 
-	/*
-	 * Set the spawnable level for the currently selected objects
-	 */
-	void SetSelectedNodesSpawnableLevel(FName InLevelName);
-
 protected:
 
 	/**
@@ -641,13 +636,6 @@ public:
 	/** Rebinds all possessable references in the current sequence to update them to the latest referencing mechanism. */
 	void RebindPossessableReferences();
 
-	/** Imports the animation from an fbx file. */
-	void ImportFBX();
-	void ImportFBXOntoSelectedNodes();
-
-	/** Exports the animation to an fbx file. */
-	void ExportFBX();
-
 public:
 
 	/** Put the sequencer in a horizontally auto-scrolling state with the given rate */
@@ -828,6 +816,13 @@ public:
 	UE::Sequencer::FSequencerSelection& GetSelection();
 	FSequencerSelectionPreview& GetSelectionPreview();
 
+	/**
+	 * Gets the far time boundaries of the currently edited movie scene
+	 * If the scene has shots, it only takes the shot section boundaries
+	 * Otherwise, it finds the furthest boundaries of all sections
+	 */
+	TRange<FFrameNumber> GetTimeBounds() const;
+
 protected:
 
 	/** Reevaluate the sequence at the current time */
@@ -841,13 +836,6 @@ protected:
 
 	/** Update the time bounds to the focused movie scene */
 	void UpdateTimeBoundsToFocusedMovieScene();
-
-	/**
-	 * Gets the far time boundaries of the currently edited movie scene
-	 * If the scene has shots, it only takes the shot section boundaries
-	 * Otherwise, it finds the furthest boundaries of all sections
-	 */
-	TRange<FFrameNumber> GetTimeBounds() const;
 	
 	/**
 	 * Gets the time boundaries of the currently filtering shot sections.
@@ -919,9 +907,6 @@ protected:
 	
 	/** Called when the scrub position parent sequence is changed */
 	void OnScrubPositionParentChanged(FMovieSceneSequenceID InScrubPositionParent);
-
-	/** Exports sequence to a FBX file */
-	void ExportFBXInternal(const FString& Filename, const TArray<FGuid>& Bindings, const TArray<UMovieSceneTrack*>& Tracks);
 
 protected:
 
