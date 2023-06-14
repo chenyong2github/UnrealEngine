@@ -62,7 +62,7 @@ class FNiagaraGPURayTracingTransformsCS : public FGlobalShader
 		SHADER_PARAMETER(FVector3f,	ViewTilePosition)
 		SHADER_PARAMETER(FVector3f, RelativePreViewTranslation)
 
-		SHADER_PARAMETER_UAV(RWStructuredBuffer<float3x4>, TLASTransforms)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<float3x4>, TLASTransforms)
 	END_SHADER_PARAMETER_STRUCT()
 
 };
