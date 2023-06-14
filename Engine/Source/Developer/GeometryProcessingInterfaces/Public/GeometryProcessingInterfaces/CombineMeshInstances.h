@@ -10,7 +10,7 @@
 class UPrimitiveComponent;
 class UStaticMesh;
 class UMaterialInterface;
-
+struct FMeshDescription;
 
 /**
  * The CombineMeshInstances modular feature is used to provide a mechanism
@@ -49,19 +49,43 @@ public:
 	};
 
 
+	/**
+	 * FBaseMeshInstance is a base-struct for the various instance types below (FStaticMeshInstance, FMeshLODSetInstance)
+	 */
 	struct FBaseMeshInstance
 	{
 		EMeshDetailLevel DetailLevel = EMeshDetailLevel::Standard;
-		TArray<FTransform3d> TransformSequence;
+		TArray<FTransform3d> TransformSequence;		// set of transforms on this instance. Often just a single transform.
 		int32 GroupDataIndex = -1;		// index into FSourceInstanceList::InstanceGroupDatas
 	};
 
-	// a single instance of a static mesh asset
+
+	/**
+	 * FStaticMeshInstance represents a single instance of a static mesh asset
+	 */
 	struct FStaticMeshInstance : FBaseMeshInstance
 	{
 		UStaticMesh* SourceMesh = nullptr;
 		UPrimitiveComponent* SourceComponent = nullptr;
 		int32 SourceInstanceIndex = 0;		// custom index, eg if SourceComponent is an InstancedStaticMeshComponent, this is the Instance index
+	};
+
+	/**
+	 * FMeshLODSet represents a list of LOD meshes that are used by one or more instances (eg like a StaticMesh, but could be other sources).
+	 */
+	struct FMeshLODSet
+	{
+		TArray<const FMeshDescription*> ReferencedMeshLODs;
+	};
+
+	/**
+	 * FMeshLODSetInstance represents a single instance of a FMeshLODSet
+	 */
+	struct FMeshLODSetInstance : FBaseMeshInstance
+	{
+		int32 MeshLODSetIndex = -1;		// index into a list of fixed Mesh LODs shared across multiple instances (eg FSourceInstanceList.MeshLODSets)
+
+		int32 ExternalInstanceID = 0;	// external identifier used for Instance for debugging/convenience purposes, this is not used internally by CombineMeshInstances, 
 	};
 
 	/**
@@ -73,6 +97,10 @@ public:
 	struct FSourceInstanceList
 	{
 		TArray<FStaticMeshInstance> StaticMeshInstances;
+		TArray<FMeshLODSetInstance> MeshLODSetInstances;
+
+		// mesh sets shared across instances
+		TArray<FMeshLODSet> MeshLODSets;
 
 		// sets of data shared across multiple instances
 		TArray<FMeshInstanceGroupData> InstanceGroupDatas;
@@ -219,9 +247,14 @@ public:
 
 
 		//
-		// 
+		// Final processing options applied to each LOD after generation
 		//
+
+		// ensure that all triangles have some UV values set. Various geometry processing steps may discard UVs, this flag will
+		// cause missing UVs to be recomputed (currently using a box projection)
 		bool bAutoGenerateMissingUVs = false;
+
+		// generate tangents on the output meshes - requires that UVs be available
 		bool bAutoGenerateTangents = false;
 
 
