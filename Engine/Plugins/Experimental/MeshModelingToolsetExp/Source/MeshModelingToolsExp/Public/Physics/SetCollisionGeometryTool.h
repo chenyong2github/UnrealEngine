@@ -100,7 +100,7 @@ public:
 	bool bUseWorldSpace = false;
 
 	UPROPERTY(EditAnywhere, Category = Options, meta = (
-		EditCondition = "bUsingMultipleInputs && GeometryType != ECollisionGeometryType::Empty && GeometryType != ECollisionGeometryType::CopyFromInputs"))
+		EditCondition = "GeometryType != ECollisionGeometryType::Empty && GeometryType != ECollisionGeometryType::CopyFromInputs"))
 	ESetCollisionGeometryInputMode InputMode = ESetCollisionGeometryInputMode::PerInputObject;
 
 	UPROPERTY(EditAnywhere, Category = Options)
