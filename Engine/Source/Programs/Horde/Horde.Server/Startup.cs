@@ -101,6 +101,8 @@ using Polly;
 using Polly.Extensions.Http;
 using Horde.Server.Jobs.Bisect;
 using Microsoft.AspNetCore.Diagnostics;
+using EpicGames.Horde;
+using EpicGames.Horde.Api;
 
 namespace Horde.Server
 {
@@ -818,15 +820,9 @@ namespace Horde.Server
 
 		public static void ConfigureJsonSerializer(JsonSerializerOptions options)
 		{
-			options.AllowTrailingCommas = true;
-			options.ReadCommentHandling = JsonCommentHandling.Skip;
-			options.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
-			options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
-			options.PropertyNameCaseInsensitive = true;
+			HordeHttpClient.ConfigureJsonSerializer(options);
 			options.Converters.Add(new JsonObjectIdConverter());
-			options.Converters.Add(new JsonStringEnumConverter());
 			options.Converters.Add(new JsonKnownTypesConverterFactory());
-			options.Converters.Add(new StringIdJsonConverterFactory());
 			options.Converters.Add(new ObjectIdJsonConverterFactory());
 			options.Converters.Add(new JsonDateTimeConverter());
 			options.Converters.Add(new JsonTimeSpanConverter());

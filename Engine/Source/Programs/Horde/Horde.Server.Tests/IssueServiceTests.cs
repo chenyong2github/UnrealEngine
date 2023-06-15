@@ -28,6 +28,7 @@ using MongoDB.Driver;
 using Moq;
 using Horde.Server.Issues.Handlers;
 using System.Threading;
+using EpicGames.Horde.Api;
 
 namespace Horde.Server.Tests
 {

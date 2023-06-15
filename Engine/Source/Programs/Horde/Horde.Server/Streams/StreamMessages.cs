@@ -15,6 +15,7 @@ using Horde.Server.Projects;
 using Horde.Server.Jobs;
 using Microsoft.AspNetCore.DataProtection;
 using System.Linq;
+using EpicGames.Horde.Api;
 
 namespace Horde.Server.Streams
 {

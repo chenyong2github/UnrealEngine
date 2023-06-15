@@ -2,7 +2,8 @@
 
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
+using System.Text.RegularExpressions;
+using EpicGames.Horde.Api;
 using Horde.Server.Acls;
 using Horde.Server.Configuration;
 using Horde.Server.Server;
@@ -59,7 +60,7 @@ namespace Horde.Server.Projects
 					{
 						visibleStreams = projectConfig.Streams.Where(x => x.Authorize(StreamAclAction.ViewStream, User)).ToList();
 					}
-					responses.Add(GetProjectResponse.FromConfig(projectConfig, includeStreams, includeCategories, visibleStreams).ApplyFilter(filter));
+					responses.Add(CreateGetProjectResponse(projectConfig, includeStreams, includeCategories, visibleStreams).ApplyFilter(filter));
 				}
 			}
 			return responses;
@@ -95,7 +96,7 @@ namespace Horde.Server.Projects
 				visibleStreams = projectConfig.Streams.Where(x => x.Authorize(StreamAclAction.ViewStream, User)).ToList();
 			}
 
-			return GetProjectResponse.FromConfig(projectConfig, includeStreams, includeCategories, visibleStreams).ApplyFilter(filter);
+			return CreateGetProjectResponse(projectConfig, includeStreams, includeCategories, visibleStreams).ApplyFilter(filter);
 		}
 
 		/// <summary>
@@ -131,5 +132,74 @@ namespace Horde.Server.Projects
 
 			return new FileContentResult(logoResource.Data.ToArray(), contentType);
 		}
+
+		#region Messages
+
+		internal static GetProjectResponse CreateGetProjectResponse(ProjectConfig projectConfig, bool includeStreams, bool includeCategories, List<StreamConfig>? streamConfigs)
+		{
+			GetProjectResponse response = new GetProjectResponse(projectConfig.Id, projectConfig.Name, projectConfig.Order);
+
+			if (includeStreams)
+			{
+				response.Streams = streamConfigs!.ConvertAll(x => new GetProjectStreamResponse(x.Id.ToString(), x.Name));
+			}
+
+			if (includeCategories)
+			{
+				List<GetProjectCategoryResponse> categoryResponses = projectConfig.Categories.ConvertAll(x => CreateGetProjectCategoryResponse(x));
+				if (streamConfigs != null)
+				{
+					foreach (StreamConfig streamConfig in streamConfigs)
+					{
+						GetProjectCategoryResponse? categoryResponse = categoryResponses.FirstOrDefault(x => MatchCategory(streamConfig.Name, x));
+						if (categoryResponse == null)
+						{
+							int row = (categoryResponses.Count > 0) ? categoryResponses.Max(x => x.Row) : 0;
+							if (categoryResponses.Count(x => x.Row == row) >= 3)
+							{
+								row++;
+							}
+
+							ProjectCategoryConfig otherCategory = new ProjectCategoryConfig();
+							otherCategory.Name = "Other";
+							otherCategory.Row = row;
+							otherCategory.IncludePatterns.Add(".*");
+
+							categoryResponse = CreateGetProjectCategoryResponse(otherCategory);
+							categoryResponses.Add(categoryResponse);
+						}
+						categoryResponse.Streams!.Add(streamConfig.Id.ToString());
+					}
+				}
+				response.Categories = categoryResponses;
+			}
+
+			return response;
+		}
+
+
+		internal static GetProjectCategoryResponse CreateGetProjectCategoryResponse(ProjectCategoryConfig streamCategory)
+		{
+			GetProjectCategoryResponse response = new GetProjectCategoryResponse(streamCategory.Name, streamCategory.Row);
+			response.ShowOnNavMenu = streamCategory.ShowOnNavMenu;
+			response.IncludePatterns.AddRange(streamCategory.IncludePatterns);
+			response.ExcludePatterns.AddRange(streamCategory.ExcludePatterns);
+			return response;
+		}
+
+		// Tests if a category response matches a given stream name
+		static bool MatchCategory(string name, GetProjectCategoryResponse category)
+		{
+			if (category.IncludePatterns.Any(x => Regex.IsMatch(name, x)))
+			{
+				if (!category.ExcludePatterns.Any(x => Regex.IsMatch(name, x)))
+				{
+					return true;
+				}
+			}
+			return false;
+		}
+
+		#endregion
 	}
 }

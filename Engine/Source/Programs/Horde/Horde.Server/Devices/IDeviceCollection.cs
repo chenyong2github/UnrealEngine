@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using EpicGames.Horde.Api;
 using Horde.Server.Projects;
 using Horde.Server.Users;
 using Horde.Server.Utilities;

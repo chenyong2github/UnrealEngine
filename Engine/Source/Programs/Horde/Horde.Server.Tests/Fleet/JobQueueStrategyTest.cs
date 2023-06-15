@@ -14,6 +14,7 @@ using Horde.Server.Server;
 using Horde.Server.Utilities;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Horde.Server.Agents;
+using EpicGames.Horde.Api;
 
 namespace Horde.Server.Tests.Fleet
 {

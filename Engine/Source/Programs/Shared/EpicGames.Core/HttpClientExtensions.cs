@@ -30,7 +30,7 @@ namespace EpicGames.Core
 			using (HttpResponseMessage response = await client.GetAsync(url, cancellationToken))
 			{
 				response.EnsureSuccessStatusCode();
-				return await ParseJsonContent<TResponse>(response);
+				return await ParseJsonContent<TResponse>(response, cancellationToken);
 			}
 		}
 
@@ -40,7 +40,7 @@ namespace EpicGames.Core
 			using (HttpResponseMessage response = await client.GetAsync(url, cancellationToken))
 			{
 				response.EnsureSuccessStatusCode();
-				return await ParseJsonContent<TResponse>(response);
+				return await ParseJsonContent<TResponse>(response, cancellationToken);
 			}
 		}
 
@@ -81,7 +81,7 @@ namespace EpicGames.Core
 			using (HttpResponseMessage response = await PostAsync(client, url, request, cancellationToken))
 			{
 				response.EnsureSuccessStatusCode();
-				return await ParseJsonContent<TResponse>(response);
+				return await ParseJsonContent<TResponse>(response, cancellationToken);
 			}
 		}
 
@@ -91,7 +91,7 @@ namespace EpicGames.Core
 			using (HttpResponseMessage response = await PostAsync(client, url, request, cancellationToken))
 			{
 				response.EnsureSuccessStatusCode();
-				return await ParseJsonContent<TResponse>(response);
+				return await ParseJsonContent<TResponse>(response, cancellationToken);
 			}
 		}
 
@@ -132,7 +132,7 @@ namespace EpicGames.Core
 			using (HttpResponseMessage response = await PutAsync(client, url, request, cancellationToken))
 			{
 				response.EnsureSuccessStatusCode();
-				return await ParseJsonContent<TResponse>(response);
+				return await ParseJsonContent<TResponse>(response, cancellationToken);
 			}
 		}
 
@@ -142,7 +142,7 @@ namespace EpicGames.Core
 			using (HttpResponseMessage response = await PutAsync(client, url, request, cancellationToken))
 			{
 				response.EnsureSuccessStatusCode();
-				return await ParseJsonContent<TResponse>(response);
+				return await ParseJsonContent<TResponse>(response, cancellationToken);
 			}
 		}
 
@@ -162,10 +162,11 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <typeparam name="T">Type of the object to parse</typeparam>
 		/// <param name="message">The message received</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Parsed object instance</returns>
-		private static async Task<T> ParseJsonContent<T>(HttpResponseMessage message)
+		private static async Task<T> ParseJsonContent<T>(HttpResponseMessage message, CancellationToken cancellationToken)
 		{
-			byte[] bytes = await message.Content.ReadAsByteArrayAsync();
+			byte[] bytes = await message.Content.ReadAsByteArrayAsync(cancellationToken);
 			return JsonSerializer.Deserialize<T>(bytes, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
 		}
 	}

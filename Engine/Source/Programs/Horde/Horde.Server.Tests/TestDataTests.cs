@@ -21,6 +21,7 @@ using System.Linq;
 using System.Threading;
 using Horde.Server.Server;
 using EpicGames.Horde;
+using EpicGames.Horde.Api;
 
 namespace Horde.Server.Tests
 {

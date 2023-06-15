@@ -2,11 +2,9 @@
 
 using System.ComponentModel;
 using EpicGames.Core;
-using EpicGames.Horde;
 using EpicGames.Serialization;
-using Horde.Server.Utilities;
 
-namespace Horde.Server.Projects
+namespace EpicGames.Horde.Api
 {
 	/// <summary>
 	/// Identifier for a pool
@@ -35,7 +33,7 @@ namespace Horde.Server.Projects
 	/// <summary>
 	/// Converter to and from <see cref="StringId"/> instances.
 	/// </summary>
-	class ProjectIdConverter : StringIdConverter<ProjectId>
+	public class ProjectIdConverter : StringIdConverter<ProjectId>
 	{
 		/// <inheritdoc/>
 		public override ProjectId FromStringId(StringId id) => new ProjectId(id);

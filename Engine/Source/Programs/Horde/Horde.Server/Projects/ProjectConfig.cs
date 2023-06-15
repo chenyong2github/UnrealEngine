@@ -16,6 +16,7 @@ using Horde.Server.Streams;
 using Horde.Server.Utilities;
 using Horde.Common;
 using HordeCommon.Rpc.Tasks;
+using EpicGames.Horde.Api;
 
 namespace Horde.Server.Projects
 {

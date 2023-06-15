@@ -18,6 +18,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Horde.Server.Jobs.Graphs;
 using Horde.Server.Perforce;
+using EpicGames.Horde.Api;
 
 namespace Horde.Server.Tests
 {

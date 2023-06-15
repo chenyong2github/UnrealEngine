@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using EpicGames.Horde.Api;
 using Horde.Server.Projects;
 using Horde.Server.Streams;
 using Horde.Server.Users;

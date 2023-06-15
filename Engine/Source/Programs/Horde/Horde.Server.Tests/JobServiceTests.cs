@@ -23,7 +23,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Horde.Server.Tests
 {
-	using ProjectId = Projects.ProjectId;
+	using ProjectId = EpicGames.Horde.Api.ProjectId;
 
 	[TestClass]
 	public class JobServiceTests : TestSetup
