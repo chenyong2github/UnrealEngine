@@ -283,8 +283,7 @@ namespace Horde.Server.Jobs
 			[BsonIgnoreIfNull]
 			public JobOptions? JobOptions { get; set; }
 
-			[BsonIgnoreIfNull]
-			public List<AclClaimConfig> Claims { get; set; }
+			public List<AclClaimConfig> Claims { get; set; } = new List<AclClaimConfig>();
 			IReadOnlyList<AclClaimConfig> IJob.Claims => Claims;
 
 			[BsonIgnoreIfNull]
