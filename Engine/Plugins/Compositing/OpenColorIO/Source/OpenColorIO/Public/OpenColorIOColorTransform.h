@@ -245,7 +245,7 @@ private:
 	TMap<FString, FString> ContextKeyValues;
 
 	/** Enum used to indicate whether the working color space should be used as a source or destination. */
-	EOpenColorIOWorkingColorSpaceTransform WorkingColorSpaceTransformType = EOpenColorIOWorkingColorSpaceTransform::None;
+	EOpenColorIOWorkingColorSpaceTransform WorkingColorSpaceTransformType;
 
 	FRenderCommandFence ReleaseFence;
 

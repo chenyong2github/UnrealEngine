@@ -13,6 +13,7 @@
 #include "OpenColorIOShaderType.h"
 #include "OpenColorIOShader.h"
 #include "OpenColorIOShaderCompilationManager.h"
+#include "OpenColorIOWrapperDefines.h"
 #include "RendererInterface.h"
 #include "ShaderCompiler.h"
 #include "Stats/StatsMisc.h"
@@ -26,6 +27,15 @@
 IMPLEMENT_TYPE_LAYOUT(FOpenColorIOCompilationOutput);
 IMPLEMENT_TYPE_LAYOUT(FOpenColorIOShaderMapId);
 IMPLEMENT_TYPE_LAYOUT(FOpenColorIOShaderMapContent);
+
+FOpenColorIOTransformResource::FOpenColorIOTransformResource()
+	: GameThreadShaderMap(nullptr)
+	, RenderingThreadShaderMap(nullptr)
+	, FeatureLevel(ERHIFeatureLevel::SM5)
+	, bContainsInlineShaders(false)
+	, bLoadedCookedShaderMapId(false)
+	, WorkingColorSpaceTransformType(EOpenColorIOWorkingColorSpaceTransform::None)
+{}
 
 FOpenColorIOTransformResource::~FOpenColorIOTransformResource()
 {

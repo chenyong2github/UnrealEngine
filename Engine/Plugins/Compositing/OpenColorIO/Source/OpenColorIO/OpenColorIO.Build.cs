@@ -32,10 +32,7 @@ namespace UnrealBuildTool.Rules
 			PrivateIncludePathModuleNames.AddRange(
 				new string[] {
 					"DerivedDataCache",
-				});
-
-			PrivateIncludePaths.AddRange(
-				new string[] {
+					"OpenColorIOWrapper" //for OpenColorIOWrapperDefines.h
 				});
 
 			PublicDependencyModuleNames.AddRange(
@@ -54,9 +51,8 @@ namespace UnrealBuildTool.Rules
 						"TargetPlatform",
 						"EditorFramework",
 						"UnrealEd",
+						"OpenColorIOWrapper"
 					});
-
-				PublicDependencyModuleNames.Add("OpenColorIOWrapper");
 			}
 		}
 	}

@@ -16,13 +16,13 @@
 	"Installed" : false,
 	"Modules": [
 		{
-			"Name": "OpenColorIOWrapper",
+			"Name": "OpenColorIO",
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit"
 		},
 		{
-			"Name": "OpenColorIO",
-			"Type": "Runtime",
+			"Name": "OpenColorIOWrapper",
+			"Type": "Editor",
 			"LoadingPhase": "PostConfigInit"
 		},
 		{
