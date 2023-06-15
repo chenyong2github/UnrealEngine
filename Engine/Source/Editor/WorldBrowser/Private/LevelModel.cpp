@@ -14,6 +14,10 @@
 #include "LevelUtils.h"
 #include "EditorLevelUtils.h"
 #include "ActorEditorUtils.h"
+#include "LevelEditor.h"
+#include "Elements/Framework/TypedElementSelectionSet.h"
+#include "Elements/Framework/TypedElementCommonActions.h"
+#include "Elements/Interfaces/TypedElementDetailsInterface.h"
 
 #include "Engine/LevelScriptBlueprint.h"
 
@@ -337,8 +341,28 @@ void FLevelModel::SetLocked(bool bLocked)
 	// If locking the level, deselect all of its actors and BSP surfaces
 	if (bLocked)
 	{
-		DeselectAllActors();
 		DeselectAllSurfaces();
+
+		FLevelEditorModule& LevelEditorModule = FModuleManager::Get().LoadModuleChecked<FLevelEditorModule>("LevelEditor");
+		TSharedPtr<ILevelEditor> Editor = LevelEditorModule.GetFirstLevelEditor();
+		UTypedElementSelectionSet* SelectionSet = Editor->GetMutableElementSelectionSet();
+		TArray<FTypedElementHandle> LevelElementHandles;
+
+		LevelElementHandles.Reserve(Level->Actors.Num());
+
+		// filter out elements that don't belong to the current level
+		SelectionSet->ForEachSelectedElement<ITypedElementWorldInterface>(
+			[Level, &LevelElementHandles](const TTypedElement<ITypedElementWorldInterface>& Element)
+			{
+				if (Element.GetOwnerLevel() == Level)
+				{
+					LevelElementHandles.Add(Element);
+				}
+				return true;
+			});
+
+		// deselect all the elements in the current level
+		SelectionSet->DeselectElements(LevelElementHandles, FTypedElementSelectionOptions());
 
 		// Tell the editor selection status was changed.
 		GEditor->NoteSelectionChange();

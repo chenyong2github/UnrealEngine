@@ -49,7 +49,9 @@ public class WorldBrowser : ModuleRules
                 "RHI",
                 "Json",
 				"ToolMenus",
-            }
+				"TypedElementRuntime",
+				"TypedElementFramework",
+			}
 		);
 
         DynamicallyLoadedModuleNames.AddRange(
