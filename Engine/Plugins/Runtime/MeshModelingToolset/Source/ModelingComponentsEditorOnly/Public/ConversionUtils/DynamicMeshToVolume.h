@@ -12,6 +12,7 @@
 // one file).
 
 class AVolume;
+class FProgressCancel;
 PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
 
 namespace UE {
@@ -43,6 +44,13 @@ struct FDynamicMeshFace
 	FFrame3d Plane;
 	TArray<FVector3d> BoundaryLoop;
 };
+
+
+/**
+ * Gets an array of face objects that can be used to convert a dynamic mesh to a volume, based on given FMeshToVolumeOptions.
+ */
+void MODELINGCOMPONENTSEDITORONLY_API GetPolygonFaces(const FDynamicMesh3& InputMesh, const FMeshToVolumeOptions& Options, 
+	TArray<FDynamicMeshFace>& FacesOut, FProgressCancel* Progress = nullptr);
 
 /**
  * Gets an array of face objects that can be used to convert a dynamic mesh to a volume. This version tries to

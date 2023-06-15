@@ -66,8 +66,6 @@ public:
 			return;
 		}
 
-		bool bShowTooLargeWarning = false;
-
 		auto SimplifyToMax = [this](FDynamicMesh3& Mesh, int32 TriangleCount)
 		{
 			FVolPresMeshSimplification Simplifier(&Mesh);
@@ -76,34 +74,12 @@ public:
 
 		if (ConversionMode == EMeshToVolumeMode::MinimalPolygons)
 		{
-			// Since this tool is likely to be a sink, there isn't much reason to keep
-			// the group differentiations if they are coplanar.
-			bool bRespectGroupBoundaries = false;
-
-			// Apply minimal-planar simplification to remove extra vertices along straight edges
-			FDynamicMesh3 LocalMesh = *SourceMesh;
-			LocalMesh.DiscardAttributes();
-			FQEMSimplification PlanarSimplifier(&LocalMesh);
-			PlanarSimplifier.SimplifyToMinimalPlanar(0.1);		// angle tolerance in degrees
-
-			UE::Conversion::GetPolygonFaces(LocalMesh, *Result, bRespectGroupBoundaries);
-
-			bTooManyTriangles = (LocalMesh.TriangleCount() > MeshToVolumeOptions.MaxTriangles);
-
-			if (Progress && Progress->Cancelled())
-			{
-				return;
-			}
-
-			if (bTooManyTriangles)
-			{
-				SimplifyToMax(LocalMesh, MeshToVolumeOptions.MaxTriangles);
-				UE::Conversion::GetPolygonFaces(LocalMesh, *Result, bRespectGroupBoundaries);
-			}
+			UE::Conversion::GetPolygonFaces(*SourceMesh, MeshToVolumeOptions, *Result);
 		}
 		else
 		{
-			bTooManyTriangles = (SourceMesh->TriangleCount() > MeshToVolumeOptions.MaxTriangles);
+			bTooManyTriangles = MeshToVolumeOptions.bAutoSimplify 
+				&& (SourceMesh->TriangleCount() > MeshToVolumeOptions.MaxTriangles);
 
 			if (Progress && Progress->Cancelled())
 			{
@@ -165,9 +141,14 @@ void UMeshToVolumeTool::Setup()
 	Settings->RestoreProperties(this);
 	AddToolPropertySource(Settings);
 
-	Settings->WatchProperty(Settings->ConversionMode,
-							[this](EMeshToVolumeMode NewMode)
-							{ Compute->InvalidateResult(); });
+	Settings->WatchProperty(Settings->ConversionMode, 
+		[this](EMeshToVolumeMode NewMode) { Compute->InvalidateResult(); });
+	Settings->WatchProperty(Settings->bPreserveGroupBoundaries, 
+		[this](bool NewValue) { Compute->InvalidateResult(); });
+	Settings->WatchProperty(Settings->bAutoSimplify,
+		[this](bool NewValue) { Compute->InvalidateResult(); });
+	Settings->WatchProperty(Settings->SimplifyMaxTriangles,
+		[this](int32 NewValue) { Compute->InvalidateResult(); });
 
 
 	HandleSourcesProperties = NewObject<UOnAcceptHandleSourcesPropertiesSingle>(this);
@@ -321,6 +302,10 @@ TUniquePtr<UE::Geometry::TGenericDataOperator<FDynamicMeshFaceArray>> UMeshToVol
 
 	VolumeOp->SourceMesh = InputMesh;
 	VolumeOp->ConversionMode = Settings->ConversionMode;
+
+	VolumeOp->MeshToVolumeOptions.bAutoSimplify = Settings->bAutoSimplify;
+	VolumeOp->MeshToVolumeOptions.MaxTriangles = Settings->SimplifyMaxTriangles;
+	VolumeOp->MeshToVolumeOptions.bRespectGroupBoundaries = Settings->bPreserveGroupBoundaries;
 
 	return VolumeOp;
 }

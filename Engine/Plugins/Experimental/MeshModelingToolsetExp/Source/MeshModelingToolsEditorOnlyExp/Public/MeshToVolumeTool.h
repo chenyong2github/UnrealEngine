@@ -54,6 +54,25 @@ public:
 	UPROPERTY(EditAnywhere, Category = ConversionOptions)
 	EMeshToVolumeMode ConversionMode = EMeshToVolumeMode::MinimalPolygons;
 
+	/** 
+	 * When true, adjacent coplanar groups will not be merged together into single faces. Not relevant if 
+	 * conversion mode is set to emit all triangles separately.
+	 */
+	UPROPERTY(EditAnywhere, Category = ConversionOptions, meta = (EditCondition = "ConversionMode != EMeshToVolumeMode::TriangulatePolygons"))
+	bool bPreserveGroupBoundaries = false;
+
+	/**
+	 * Determines whether mesh gets auto simplified when its triangle count is too high.
+	 */
+	UPROPERTY(EditAnywhere, Category = ConversionOptions, AdvancedDisplay)
+	bool bAutoSimplify = true;
+
+	/**
+	 * Target triangle count for auto simplification when Auto Simplify is true.
+	 */
+	UPROPERTY(EditAnywhere, Category = ConversionOptions, AdvancedDisplay, meta = (EditCondition = "bAutoSimplify"))
+	int32 SimplifyMaxTriangles = 250;
+
 	/** Type of new Volume to create on Accept */
 	UPROPERTY(EditAnywhere, Category = NewVolume, meta = (EditCondition = "TargetVolume == nullptr") )
 	TSubclassOf<class AVolume> NewVolumeType = ABlockingVolume::StaticClass();
