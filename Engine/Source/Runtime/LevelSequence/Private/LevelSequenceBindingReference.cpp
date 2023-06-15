@@ -15,8 +15,33 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/LevelStreamingDynamic.h"
 #include "WorldPartition/IWorldPartitionObjectResolver.h"
+#include "IMovieSceneBoundObjectProxy.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LevelSequenceBindingReference)
+
+namespace UE::MovieScene
+{
+
+UObject* FindBoundObjectProxy(UObject* BoundObject)
+{
+	if (!BoundObject)
+	{
+		return nullptr;
+	}
+
+	IMovieSceneBoundObjectProxy* RawInterface = Cast<IMovieSceneBoundObjectProxy>(BoundObject);
+	if (RawInterface)
+	{
+		return RawInterface->NativeGetBoundObjectForSequencer(BoundObject);
+	}
+	else if (BoundObject->GetClass()->ImplementsInterface(UMovieSceneBoundObjectProxy::StaticClass()))
+	{
+		return IMovieSceneBoundObjectProxy::Execute_BP_GetBoundObjectForSequencer(BoundObject, BoundObject);
+	}
+	return BoundObject;
+}
+
+} // namespace UE::MovieScene
 
 FLevelSequenceBindingReference::FLevelSequenceBindingReference(UObject* InObject, UObject* InContext)
 {
@@ -275,6 +300,7 @@ void FLevelSequenceBindingReferences::RemoveObjects(const FGuid& ObjectId, const
 	for (int32 ReferenceIndex = 0; ReferenceIndex < ReferenceArray->References.Num(); )
 	{
 		UObject* ResolvedObject = ReferenceArray->References[ReferenceIndex].Resolve(InContext, FLevelSequenceBindingReference::FResolveBindingParams());
+		ResolvedObject = UE::MovieScene::FindBoundObjectProxy(ResolvedObject);
 
 		if (InObjects.Contains(ResolvedObject))
 		{
@@ -298,6 +324,7 @@ void FLevelSequenceBindingReferences::RemoveInvalidObjects(const FGuid& ObjectId
 	for (int32 ReferenceIndex = 0; ReferenceIndex < ReferenceArray->References.Num(); )
 	{
 		UObject* ResolvedObject = ReferenceArray->References[ReferenceIndex].Resolve(InContext, FLevelSequenceBindingReference::FResolveBindingParams());
+		ResolvedObject = UE::MovieScene::FindBoundObjectProxy(ResolvedObject);
 
 		if (!IsValid(ResolvedObject))
 		{
@@ -317,6 +344,7 @@ void FLevelSequenceBindingReferences::ResolveBinding(const FGuid& ObjectId, UObj
 		for (const FLevelSequenceBindingReference& Reference : ReferenceArray->References)
 		{
 			UObject* ResolvedObject = Reference.Resolve(InContext, InResolveBindingParams);
+			ResolvedObject = UE::MovieScene::FindBoundObjectProxy(ResolvedObject);
 			if (ResolvedObject && ResolvedObject->GetWorld())
 			{
 				OutObjects.Add(ResolvedObject);
@@ -371,6 +399,8 @@ UObject* FLevelSequenceObjectReferenceMap::ResolveBinding(const FGuid& ObjectId,
 {
 	const FLevelSequenceLegacyObjectReference* Reference = Map.Find(ObjectId);
 	UObject* ResolvedObject = Reference ? Reference->Resolve(InContext) : nullptr;
+	ResolvedObject = UE::MovieScene::FindBoundObjectProxy(ResolvedObject);
+
 	if (ResolvedObject != nullptr)
 	{
 		// if the resolved object does not have a valid world (e.g. world is being torn down), dont resolve
