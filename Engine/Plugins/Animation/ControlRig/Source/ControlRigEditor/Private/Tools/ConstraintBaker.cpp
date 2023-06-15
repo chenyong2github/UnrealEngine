@@ -206,7 +206,11 @@ bool FConstraintBaker::BakeMultiple(
 	TOptional< FBakingAnimationKeySettings> Settings = InSettings;
 	for (UTickableTransformConstraint* Constraint : InConstraints)
 	{
-		FConstraintBaker::Bake(InWorld, Constraint, InSequencer, Settings, Frames);
+		if (IsValid(Constraint->ChildTRSHandle) && Constraint->ChildTRSHandle->IsValid()
+			&& IsValid(Constraint->ParentTRSHandle) && Constraint->ParentTRSHandle->IsValid())
+		{
+			FConstraintBaker::Bake(InWorld, Constraint, InSequencer, Settings, Frames);
+		}
 	}
 	return true;
 }
@@ -268,7 +272,12 @@ void FConstraintBaker::Bake(UWorld* InWorld,
 			}
 		}
 	}
-	
+	if (FramesToBake.Num() == 0 || ConstraintSections.ConstraintSection == nullptr ||
+		ConstraintSections.ActiveChannel == nullptr)
+	{
+		return;
+	}
+
 	FCompensationEvaluator Evaluator(InConstraint);
 	Evaluator.ComputeLocalTransformsForBaking(InWorld, InSequencer, FramesToBake);
 	TArray<FTransform> Transforms = Evaluator.ChildLocals;
