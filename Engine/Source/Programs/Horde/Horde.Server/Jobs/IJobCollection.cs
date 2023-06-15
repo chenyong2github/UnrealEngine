@@ -17,6 +17,7 @@ using HordeCommon.Rpc.Tasks;
 using MongoDB.Bson;
 using Horde.Server.Jobs.Bisect;
 using System.Threading;
+using Horde.Server.Acls;
 
 namespace Horde.Server.Jobs
 {
@@ -54,6 +55,9 @@ namespace Horde.Server.Jobs
 
 		/// <inheritdoc cref="IJob.JobOptions"/>
 		public JobOptions? JobOptions { get; set; }
+
+		/// <inheritdoc cref="IJob.Claims"/>
+		public List<AclClaimConfig> Claims { get; set; } = new List<AclClaimConfig>();
 
 		/// <summary>
 		/// List of downstream job triggers

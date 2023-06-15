@@ -835,7 +835,9 @@ namespace Horde.Server.Jobs
 			string storagePrefix = $"{job.StreamId}/{job.Change}-{job.Id}";
 			claims.Add(new AclClaimConfig(HordeClaimTypes.ReadNamespace, $"{Namespace.Artifacts}:{storagePrefix}"));
 			claims.Add(new AclClaimConfig(HordeClaimTypes.WriteNamespace, $"{Namespace.Artifacts}:{storagePrefix}"));
-		
+
+			claims.AddRange(job.Claims);
+
 			// Encode the payload
 			ExecuteJobTask task = new ExecuteJobTask();
 			task.JobId = job.Id.ToString();

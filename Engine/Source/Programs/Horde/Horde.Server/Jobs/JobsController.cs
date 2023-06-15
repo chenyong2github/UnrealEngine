@@ -194,6 +194,7 @@ namespace Horde.Server.Jobs
 			options.Priority = priority;
 			options.AutoSubmit = create.AutoSubmit;
 			options.UpdateIssues = updateIssues;
+			options.Claims.AddRange(User.Claims.Select(x => new AclClaimConfig(x)));
 			options.Arguments.AddRange(arguments);
 
 			foreach ((string key, string value) in environment)

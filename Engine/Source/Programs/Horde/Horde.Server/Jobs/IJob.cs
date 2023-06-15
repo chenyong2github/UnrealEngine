@@ -664,6 +664,11 @@ namespace Horde.Server.Jobs
 		public JobOptions? JobOptions { get; }
 
 		/// <summary>
+		/// Claims inherited from the user that started this job
+		/// </summary>
+		public IReadOnlyList<AclClaimConfig> Claims { get; }
+
+		/// <summary>
 		/// Largest value of the CombinedPriority value for batches in the ready state.
 		/// </summary>
 		public int SchedulePriority { get; }

@@ -284,6 +284,10 @@ namespace Horde.Server.Jobs
 			public JobOptions? JobOptions { get; set; }
 
 			[BsonIgnoreIfNull]
+			public List<AclClaimConfig> Claims { get; set; }
+			IReadOnlyList<AclClaimConfig> IJob.Claims => Claims;
+
+			[BsonIgnoreIfNull]
 			public DateTime? CreateTimeUtc { get; set; }
 
 			public int SchedulePriority { get; set; }
@@ -352,6 +356,7 @@ namespace Horde.Server.Jobs
 				AutoSubmit = options.AutoSubmit ?? false;
 				UpdateIssues = options.UpdateIssues ?? (options.StartedByUserId == null && ( options.PreflightChange == 0 || options.PreflightChange == null));
 				PromoteIssuesByDefault = options.PromoteIssuesByDefault ?? false;
+				Claims = options.Claims;
 				JobOptions = options.JobOptions;
 				CreateTimeUtc = createTimeUtc;
 				ChainedJobs.AddRange(options.JobTriggers.Select(x => new ChainedJobDocument(x)));
