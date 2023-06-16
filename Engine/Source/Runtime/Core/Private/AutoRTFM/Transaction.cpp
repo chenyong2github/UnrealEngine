@@ -135,7 +135,9 @@ void FTransaction::AbortNested()
 
     Undo();
 
-    Parent->CommitTasks.AddAll(AbortTasks);
+	// We need to add the abort tasks in reverse order to the parent, as they need to be run in the reverse order.
+	AbortTasks.ForEachBackward([&](const TFunction<void()>& Task) -> bool { Parent->CommitTasks.Add(Task); return true; });
+
     Parent->AbortTasks.AddAll(MoveTemp(AbortTasks));
 }
 

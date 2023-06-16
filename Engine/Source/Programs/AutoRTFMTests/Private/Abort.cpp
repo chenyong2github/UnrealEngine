@@ -49,3 +49,32 @@ TEST_CASE("Abort")
     REQUIRE(m[6][1] == 8);
     REQUIRE(m[6][2] == 9);
 }
+
+TEST_CASE("Abort.NestedAbortOrder")
+{
+	AutoRTFM::ETransactionResult InnerResult;
+	unsigned Orderer = 0;
+
+	AutoRTFM::Commit([&]
+		{
+			InnerResult = AutoRTFM::Transact([&]
+				{
+					AutoRTFM::OpenAbort([&]
+						{
+							REQUIRE(1 == Orderer);
+							Orderer += 1;
+						});
+
+					AutoRTFM::OpenAbort([&]
+						{
+							REQUIRE(0 == Orderer);
+							Orderer += 1;
+						});
+
+					AutoRTFM::AbortTransaction();
+				});
+		});
+
+	REQUIRE(AutoRTFM::ETransactionResult::AbortedByRequest == InnerResult);
+	REQUIRE(2 == Orderer);
+}

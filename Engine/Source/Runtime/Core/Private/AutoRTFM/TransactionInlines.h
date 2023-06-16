@@ -57,7 +57,7 @@ inline void FTransaction::RecordWrite(void* LogicalAddress, size_t Size)
 
 inline void FTransaction::DidAllocate(void* LogicalAddress, size_t Size)
 {
-    if (Size <= FWriteLogBumpAllocator::MaxSize)
+    if ((0 < Size) && (Size <= FWriteLogBumpAllocator::MaxSize))
     {
         FMemoryLocation Key(LogicalAddress);
         Key.SetTopTag(static_cast<uint16_t>(Size));
