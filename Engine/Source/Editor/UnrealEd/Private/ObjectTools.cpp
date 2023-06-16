@@ -162,6 +162,17 @@ void ReloadEditorWorldForReferenceReplacementIfNecessary(TArray< TWeakObjectPtr<
 
 namespace ObjectTools
 {
+	static int32 MaxTimesToCheckSameObject = 3;
+	static FAutoConsoleVariableRef CVarMaxTimesToCheckSameObject(TEXT("ObjectTools.MaxTimesToCheckSameObject"),
+		MaxTimesToCheckSameObject,
+		TEXT("Number of times to recurse on the same object when mapping property chains to objects."));
+
+	static int32 MaxRecursionDepth = 4;
+	static FAutoConsoleVariableRef CVarMaxRecursionDepth(TEXT("ObjectTools.MaxRecursionDepth"),
+		MaxRecursionDepth,
+		TEXT("How many times to recurse to find the object to search for"));
+
+
 	/** Returns true if the specified object can be displayed in a content browser */
 	bool IsObjectBrowsable( UObject* Obj )	// const
 	{
@@ -486,6 +497,67 @@ namespace ObjectTools
 			}
 		}
 
+	}
+
+	// recursive private function to determine the property paths that bring in a uobject
+	void RecursiveBuildPropertyMap_Helper(TMap<const UObject*, int32>& CheckedObjects, TMap<FString, const UObject*>& PropertyToObject, const FString& InPropertyStr, const UObject* InObject, int32 Depth)
+	{
+		for (TPropertyValueIterator<FObjectProperty> PIter(InObject->GetClass(), InObject); PIter; ++PIter)
+		{
+			FObjectProperty* Property = PIter.Key();
+			void* Value = const_cast<void*>(PIter->Value);
+			if (const UObject* ValueObject = Property->GetPropertyValue(Value))
+			{
+				if (int32* TimesEncountered = CheckedObjects.Find(ValueObject))
+				{
+					(*TimesEncountered)++;
+					if (*TimesEncountered > MaxTimesToCheckSameObject)
+					{
+						continue;
+					}
+				}
+				else
+				{
+					CheckedObjects.Add(ValueObject, 1);
+				}
+
+				const FString FullPropertyKey = InPropertyStr.IsEmpty() ? Property->GetName() : InPropertyStr + TEXT(" -> ") + Property->GetName();
+				FString TestKey = FullPropertyKey;
+				int32 ArrayIndex = 1;
+				while (PropertyToObject.Contains(TestKey))
+				{
+					TestKey = FString::Printf(TEXT("%s[%d]"), *FullPropertyKey, ArrayIndex);
+					ArrayIndex++;
+				}
+				PropertyToObject.Add(TestKey, ValueObject);
+				if (Depth < MaxRecursionDepth)
+				{
+					RecursiveBuildPropertyMap_Helper(CheckedObjects, PropertyToObject, TestKey, ValueObject, Depth + 1);
+				}
+			}
+		}
+	}
+
+	bool GatherPropertyChainsToObject(const UObject* SourceObject, const UObject* ObjectToSearchFor, TArray<FString>& OutFoundPropertyChains)
+	{
+		OutFoundPropertyChains.Empty();
+
+		if (SourceObject && ObjectToSearchFor)
+		{
+			TMap<const UObject*, int32> CheckedObjects;
+			TMap<FString, const UObject*> PropertyToObject;
+			RecursiveBuildPropertyMap_Helper(CheckedObjects, PropertyToObject, TEXT(""), SourceObject, 0);
+
+			for (const TPair<FString, const UObject*>& PropertyObjectPair : PropertyToObject)
+			{
+				const UObject* CurrentObject = PropertyObjectPair.Value;
+				if (CurrentObject && CurrentObject == ObjectToSearchFor)
+				{
+					OutFoundPropertyChains.Add(PropertyObjectPair.Key);
+				}
+			}
+		}
+		return OutFoundPropertyChains.Num() > 0;
 	}
 
 	/**

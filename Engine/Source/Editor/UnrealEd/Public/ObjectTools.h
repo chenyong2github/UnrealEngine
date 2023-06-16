@@ -651,6 +651,20 @@ namespace ObjectTools
 	*/
 	UNREALED_API void GatherSubObjectsForReferenceReplacement(TSet<UObject*>& InObjects, TSet<UObject*>& ObjectsToExclude, TSet<UObject*>& OutObjectsAndSubObjects);
 
+	/**
+	 * Given a SourceObject and ObjectToSearchFor will attempt to find the ObjectToSearchFor on the given object.
+	 * If the ObjectToSearchFor is found this will report back properties needed to traverse to find this pointer.
+	 * This is useful to find out where a reference is being pulled in from.
+	 * 
+	 * Uses the CVar ObjectTools.MaxTimesToCheckSameObject to configure how many times the same object should be checked and traversed. This is to help avoid circular dependencies.
+	 * 
+	 * @param SourceObject - which object we will scan the properties on to attempt to find the given ObjectToSearchFor
+	 * @param ObjectToSearchFor - which object we will look for on each property of the SourceObject
+	 * @param OutFoundPropertyChains - an array of strings for which properties to traverse to find the ObjectToSearchFor
+	 * @return true when the ObjectToSearchFor is found, otherwise false.
+	 */
+	UNREALED_API bool GatherPropertyChainsToObject(const UObject* SourceObject, const UObject* ObjectToSearchFor, TArray<FString>& OutFoundPropertyChains);
+
 
 	/**
 	 * Batch version of UObject::GetArchetypeInstances.  Can be considerably faster in large worlds when querying multiple objects with the
