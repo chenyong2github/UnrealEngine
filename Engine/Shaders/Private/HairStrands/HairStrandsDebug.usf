@@ -1154,19 +1154,11 @@ uint					InstanceCount_CardsOrMeshesPrimaryView;
 uint					InstanceCount_CardsOrMeshesShadowView;
 
 Buffer<uint>			Infos;
-
-uint					InstanceNameInfoCount;
-uint					InstanceNameCharacterCount;
-StructuredBuffer<uint2> InstanceNameInfos;
-Buffer<uint>			InstanceNames;
 Buffer<int>				InstanceAABB;
-
 float4					InstanceScreenSphereBound;
 
-uint					AttributeNameInfoCount;
-uint					AttributeNameCharacterCount;
-StructuredBuffer<uint2> AttributeNameInfos;
-Buffer<uint>			AttributeNames;
+FSTRINGS(InstanceNames)
+FSTRINGS(AttributeNames)
 
 struct FInstanceInfo
 {
@@ -1298,70 +1290,6 @@ FInstanceInfo ReadInstanceInfo(uint Index)
 bool HasAttribute(FInstanceInfo In, uint InAttributeIt)
 {
 	return (In.Attributes & (1u<< InAttributeIt)) != 0;
-}
-
-struct FNameInfo
-{
-	uint PrimitiveID;
-	uint Length;
-	uint Offset;
-	uint Pad0;
-	uint Pad1;
-};
-
-FNameInfo UnpackDebugNameInfo(uint2 In)
-{
-	FNameInfo Out = (FNameInfo)0;
-	Out.PrimitiveID = In.x;
-	Out.Offset = (In.y) & 0xFFFF;
-	Out.Length = (In.y >> 16) & 0xFF;
-
-	return Out;
-}
-
-FNameInfo FindNameInfo(uint PrimitiveID)
-{
-	FNameInfo Out = (FNameInfo)0;
-	Out.PrimitiveID = ~0;
-	for (uint It = 0; It < InstanceNameInfoCount; ++It)
-	{
-		if (InstanceNameInfos[It].x == PrimitiveID)
-		{
-			return UnpackDebugNameInfo(InstanceNameInfos[It]);
-		}
-	}
-	return Out;
-}
-
-void PrintInstanceName(inout FShaderPrintContext Context, uint PrimitiveID, FFontColor InColor)
-{
-	const FNameInfo Info = FindNameInfo(PrimitiveID);
-	if (Info.PrimitiveID != ~0 && (Info.Length + Info.Offset) <= InstanceNameCharacterCount)
-	{
-		for (uint It = 0; It < Info.Length; ++It)
-		{
-			const uint Char = InstanceNames[It + Info.Offset];
-			PrintSymbol(Context, Char, InColor);
-		}
-	}
-}
-
-void PrintAttributeName(inout FShaderPrintContext Context, uint AttributeIt, FFontColor InColor)
-{
-	if (AttributeIt >= AttributeNameInfoCount)
-	{
-		return;
-	}
-
-	const FNameInfo Info = UnpackDebugNameInfo(AttributeNameInfos[AttributeIt]);
-	if ((Info.Length + Info.Offset) <= AttributeNameCharacterCount)
-	{
-		for (uint It = 0; It < Info.Length; ++It)
-		{
-			const uint Char = AttributeNames[It + Info.Offset];
-			PrintSymbol(Context, Char, InColor);
-		}
-	}
 }
 
 [numthreads(1, 1, 1)]
@@ -1523,7 +1451,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		Print(Context, TEXT("  "));
 		
 		// Name
-		PrintInstanceName(Context, InstanceIndex, FontWhite);
+		PrintInstanceNames(Context, InstanceIndex, FontWhite);
 
 		Newline(Context);
 	}
@@ -1540,9 +1468,10 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		Print(Context, TEXT("Radius "), FontWhite);
 		Print(Context, TEXT("Root  "), FontWhite);
 		Print(Context, TEXT("Tip   "), FontWhite);
+		const uint AttributeNameInfoCount = NumAttributeNames();
 		for (uint AttributeIt=0; AttributeIt < AttributeNameInfoCount; ++AttributeIt)
 		{
-			PrintAttributeName(Context, AttributeIt, FontWhite);
+			PrintAttributeNames(Context, AttributeIt, FontWhite);
 			Print(Context, TEXT(" "));
 		}
 		Newline(Context);
@@ -1575,10 +1504,10 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 			for (uint AttributeIt = 0; AttributeIt < AttributeNameInfoCount; ++AttributeIt)
 			{
 				PrintBool(Context, HasAttribute(Info, AttributeIt));
-				const FNameInfo Info = UnpackDebugNameInfo(AttributeNameInfos[AttributeIt]);
-				if (Info.Length > 3)
+				const uint AttributeLen = LenAttributeNames(AttributeIt);
+				if (AttributeLen > 3)
 				{
-					const uint SpaceCount = Info.Length - 3u;
+					const uint SpaceCount = AttributeLen - 3u;
 					for (uint SpaceIt = 0; SpaceIt < SpaceCount; ++SpaceIt)
 					{
 						Print(Context, TEXT(" "));
@@ -1586,7 +1515,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 				}
 			}
 
-			PrintInstanceName(Context, StrandInstanceIndex, FontWhite);
+			PrintInstanceNames(Context, StrandInstanceIndex, FontWhite);
 
 			Newline(Context);
 		}

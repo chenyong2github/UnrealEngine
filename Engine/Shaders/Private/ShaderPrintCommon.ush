@@ -1395,7 +1395,7 @@ uint LenString(uint InEntryID, uint InInfoCount, StructuredBuffer<uint2> InInfoB
 	return Info.EntryID != ~0 ? Info.Length : 0;
 }
 
-#define SHADERPRINT_STRINGS(N) \
+#define FSTRINGS(N) \
 	uint					N##_InfoCount;\
 	uint					N##_CharCount;\
 	StructuredBuffer<uint2> N##_InfoBuffer;\

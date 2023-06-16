@@ -150,7 +150,7 @@ namespace ShaderPrint
 	//	 MyVariable.Add(FString(...), StringId);
 	//
 	// In shader:
-	//   SHADERPRINT_STRINGS(MyVariable)
+	//   FSTRINGS(MyVariable)
 	//   void foo()
 	//   {  
 	//     InitShaderPrintContext Ctx = InitShaderPrintContext(...);
