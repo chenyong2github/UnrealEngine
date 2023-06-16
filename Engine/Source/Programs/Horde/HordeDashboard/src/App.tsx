@@ -32,6 +32,7 @@ import { UtilizationReportView } from './components/UtilizationReportView';
 import hordePlugins from './Plugins';
 import { modeColors, preloadFonts } from './styles/Styles';
 import { StepIssueReportTest } from './components/test/IssueStepReport';
+import { JobRedirector } from './components/JobRedirector';
 
 
 let router: any;
@@ -132,7 +133,8 @@ const Main: React.FC = () => {
                { path: "index", element: (dashboard.user?.dashboardFeatures?.showLandingPage === true) ? <DocView /> : <UserHomeView /> },
                { path: "project/:projectId", element: <ProjectHome /> },
                { path: "pools", element: <PoolView /> },
-               { path: "job/:jobId", element: <JobDetailViewV2 /> },
+               { path: "job/:jobId", element: <JobDetailViewV2 /> },               
+               { path: "job", element: <JobRedirector /> },
                { path: "log/:logId", element: <LogView /> },
                { path: "testreport/:testdataId", element: <TestReportView /> },
                { path: "stream/:streamId", element: <StreamView /> },
