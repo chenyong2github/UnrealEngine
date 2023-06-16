@@ -297,7 +297,7 @@ void UMovieSceneNiagaraEmitterTrack::CreateSections(const FFrameRate& InFrameRes
 
 					if(EmitterSection == nullptr)
 					{
-						EmitterSection = NewObject<UMovieSceneNiagaraEmitterSectionBase>(this, SectionClass);
+						EmitterSection = NewObject<UMovieSceneNiagaraEmitterSectionBase>(this, SectionClass, NAME_None, RF_Transient);
 						EmitterSection->Initialize(*SystemViewModel, EmitterHandleViewModel.Pin().ToSharedRef());
 						bSectionCreated = true;
 					}

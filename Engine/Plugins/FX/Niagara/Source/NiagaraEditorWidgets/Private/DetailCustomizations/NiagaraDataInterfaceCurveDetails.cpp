@@ -121,7 +121,8 @@ struct FNiagaraCurveDetailsTreeItem : public ICurveEditorTreeItem, TSharedFromTh
 		{
 			NewCurve->SetShortDisplayName(FText::FromName(CurveData.Name));
 		}
-		NewCurve->SetColor(CurveData.Color);
+		bool bModify = false; // Don't want to modify (and mark dirty) the underlying data when creating a view model for it.
+		NewCurve->SetColor(CurveData.Color, bModify);
 		NewCurve->OnCurveModified().AddSP(this, &FNiagaraCurveDetailsTreeItem::CurveChanged);
 		OutCurveModels.Add(MoveTemp(NewCurve));
 	}
