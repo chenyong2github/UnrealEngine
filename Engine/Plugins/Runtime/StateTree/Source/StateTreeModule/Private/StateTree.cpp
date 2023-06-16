@@ -5,6 +5,7 @@
 #include "StateTreeLinker.h"
 #include "StateTreeTaskBase.h"
 #include "StateTreeEvaluatorBase.h"
+#include "StateTreeConditionBase.h"
 #include "AssetRegistry/AssetData.h"
 #include "Misc/ScopeRWLock.h"
 #include "StateTreeDelegates.h"
@@ -350,6 +351,29 @@ bool UStateTree::Link()
 	// This data will be used to allocate runtime instance on all StateTree users.
 	ResetLinked();
 
+	// Resolves nodes references to other StateTree data
+	FStateTreeLinker Linker(Schema);
+	Linker.SetExternalDataBaseIndex(PropertyBindings.GetSourceStructNum());
+
+	for (int32 Index = 0; Index < Nodes.Num(); Index++)
+	{
+		FStructView Node = Nodes[Index];
+		if (FStateTreeNodeBase* NodePtr = Node.GetPtr<FStateTreeNodeBase>())
+		{
+			Linker.SetCurrentInstanceDataType(NodePtr->GetInstanceDataType(), NodePtr->DataViewIndex.Get());
+			const bool bLinkSucceeded = NodePtr->Link(Linker);
+			if (!bLinkSucceeded || Linker.GetStatus() == EStateTreeLinkerStatus::Failed)
+			{
+				UE_LOG(LogStateTree, Error, TEXT("%s: node '%s' failed to resolve its references."), *GetFullName(), *NodePtr->StaticStruct()->GetName());
+				return false;
+			}
+		}
+	}
+
+	ExternalDataBaseIndex = PropertyBindings.GetSourceStructNum();
+	ExternalDataDescs = Linker.GetExternalDataDescs();
+	NumDataViews = ExternalDataBaseIndex + ExternalDataDescs.Num();
+
 	if (States.Num() > 0 && Nodes.Num() > 0)
 	{
 		if (!DefaultInstanceData.IsValid())
@@ -380,140 +404,11 @@ bool UStateTree::Link()
 			return false;
 		}
 
-		
-		const TArrayView<FStateTreeBindableStructDesc> SourceStructs = PropertyBindings.SourceStructs;
-		const TArrayView<FStateTreePropertyCopyBatch> CopyBatches = PropertyBindings.CopyBatches;
-		const TArrayView<FStateTreePropertyPathBinding> PropertyPathBindings = PropertyBindings.PropertyPathBindings;
-
-		// Reconcile out of date classes.
-		for (FStateTreeBindableStructDesc& SourceStruct : SourceStructs)
+		if (!PatchBindings())
 		{
-			if (const UClass* SourceClass = Cast<UClass>(SourceStruct.Struct))
-			{
-				if (SourceClass->HasAnyClassFlags(CLASS_NewerVersionExists))
-				{
-					SourceStruct.Struct = SourceClass->GetAuthoritativeClass();
-				}
-			}
-		}
-		for (FStateTreePropertyCopyBatch& CopyBatch : CopyBatches)
-		{
-			if (const UClass* TargetClass = Cast<UClass>(CopyBatch.TargetStruct.Struct))
-			{
-				if (TargetClass->HasAnyClassFlags(CLASS_NewerVersionExists))
-				{
-					CopyBatch.TargetStruct.Struct = TargetClass->GetAuthoritativeClass();
-				}
-			}
+			return false;
 		}
 
-		auto PatchPropertyPath = [](FStateTreePropertyPath& PropertyPath)
-		{
-			for (FStateTreePropertyPathSegment& Segment : PropertyPath.GetMutableSegments())
-			{
-				if (const UClass* InstanceStruct = Cast<UClass>(Segment.GetInstanceStruct()))
-				{
-					if (InstanceStruct->HasAnyClassFlags(CLASS_NewerVersionExists))
-					{
-						Segment.SetInstanceStruct(InstanceStruct->GetAuthoritativeClass());
-					}
-				}
-			}
-		};
-		
-		for (FStateTreePropertyPathBinding& PropertyPathBinding : PropertyPathBindings)
-		{
-			PatchPropertyPath(PropertyPathBinding.GetMutableSourcePath());
-			PatchPropertyPath(PropertyPathBinding.GetMutableTargetPath());
-		}
-
-		// Update property bag structs before resolving binding.
-		if (ParametersDataViewIndex.IsValid() && SourceStructs.IsValidIndex(ParametersDataViewIndex.Get()))
-		{
-			SourceStructs[ParametersDataViewIndex.Get()].Struct = Parameters.GetPropertyBagStruct();
-		}
-		
-		for (FCompactStateTreeState& State : States)
-		{
-			if (State.Type == EStateTreeStateType::Subtree)
-			{
-				if (State.ParameterInstanceIndex.IsValid() == false)
-				{
-					UE_LOG(LogStateTree, Error, TEXT("%s: Data for state '%s' is malformed. Please recompile the StateTree asset."), *GetFullName(), *State.Name.ToString());
-					return false;
-				}
-
-				// Subtree is a bind source, update bag struct.
-				if (State.ParameterDataViewIndex.IsValid())
-				{
-					const FCompactStateTreeParameters& Params = DefaultInstanceData.GetMutableStruct(State.ParameterInstanceIndex.Get()).Get<FCompactStateTreeParameters>();
-					FStateTreeBindableStructDesc& Desc = SourceStructs[State.ParameterDataViewIndex.Get()];
-					Desc.Struct = Params.Parameters.GetPropertyBagStruct();
-				}
-			}
-			else if (State.Type == EStateTreeStateType::Linked && State.LinkedState.IsValid())
-			{
-				const FCompactStateTreeState& LinkedState = States[State.LinkedState.Index];
-
-				if (State.ParameterInstanceIndex.IsValid() == false
-					|| LinkedState.ParameterInstanceIndex.IsValid() == false)
-				{
-					UE_LOG(LogStateTree, Error, TEXT("%s: Data for state '%s' is malformed. Please recompile the StateTree asset."), *GetFullName(), *State.Name.ToString());
-					return false;
-				}
-
-				const FCompactStateTreeParameters& Params = DefaultInstanceData.GetMutableStruct(State.ParameterInstanceIndex.Get()).Get<FCompactStateTreeParameters>();
-
-				// Check that the bag in linked state matches.
-				const FCompactStateTreeParameters& LinkedStateParams = DefaultInstanceData.GetMutableStruct(LinkedState.ParameterInstanceIndex.Get()).Get<FCompactStateTreeParameters>();
-
-				if (LinkedStateParams.Parameters.GetPropertyBagStruct() != Params.Parameters.GetPropertyBagStruct())
-				{
-					UE_LOG(LogStateTree, Log, TEXT("%s: The parameters on state '%s' does not match the linked state parameters in state '%s'. Please recompile the StateTree asset."), *GetFullName(), *State.Name.ToString(), *LinkedState.Name.ToString());
-					return false;
-				}
-
-				if (Params.BindingsBatch.IsValid())
-				{
-					FStateTreePropertyCopyBatch& Batch = CopyBatches[Params.BindingsBatch.Get()];
-					Batch.TargetStruct.Struct = Params.Parameters.GetPropertyBagStruct();
-				}
-			}
-
-			// Update instance data num for each state.
-			State.TaskInstanceStructNum = 0;
-			State.TaskInstanceObjectNum = 0;
-
-			if (State.Type == EStateTreeStateType::Linked)
-			{
-				// Linked state parameters.
-				State.TaskInstanceStructNum++;
-			}
-			
-			for (int32 TaskIndex = (State.TasksBegin + State.TasksNum) - 1; TaskIndex >= State.TasksBegin; TaskIndex--)
-			{
-				const FStateTreeTaskBase& Task = Nodes[TaskIndex].Get<const FStateTreeTaskBase>();
-				if (Task.bInstanceIsObject)
-				{
-					if (State.TaskInstanceObjectNum == MAX_uint8)
-					{
-						UE_LOG(LogStateTree, Error, TEXT("%s: State '%s' has more than %d struct based task instances."), *GetFullName(), *State.Name.ToString(), (int32)MAX_uint8);
-						return false;
-					}
-					State.TaskInstanceObjectNum++;
-				}
-				else
-				{
-					if (State.TaskInstanceStructNum == MAX_uint8)
-					{
-						UE_LOG(LogStateTree, Error, TEXT("%s: State '%s' has more than %d object based task instances."), *GetFullName(), *State.Name.ToString(), (int32)MAX_uint8);
-						return false;
-					}
-					State.TaskInstanceStructNum++;
-				}
-			}
-		}
-		
 		// Resolves property paths used by bindings a store property pointers
 		if (!PropertyBindings.ResolvePaths())
 		{
@@ -521,32 +416,223 @@ bool UStateTree::Link()
 		}
 	}
 
-	// Resolves nodes references to other StateTree data
-	FStateTreeLinker Linker(Schema);
-	Linker.SetExternalDataBaseIndex(PropertyBindings.GetSourceStructNum());
+	// Link succeeded, setup tree to be ready to run
+	bIsLinked = true;
 	
-	for (int32 Index = 0; Index < Nodes.Num(); Index++)
+	return true;
+}
+
+bool UStateTree::PatchBindings()
+{
+	const TArrayView<FStateTreeBindableStructDesc> SourceStructs = PropertyBindings.SourceStructs;
+	const TArrayView<FStateTreePropertyCopyBatch> CopyBatches = PropertyBindings.CopyBatches;
+	const TArrayView<FStateTreePropertyPathBinding> PropertyPathBindings = PropertyBindings.PropertyPathBindings;
+
+	// Reconcile out of date classes.
+	for (FStateTreeBindableStructDesc& SourceStruct : SourceStructs)
 	{
-		FStructView Node = Nodes[Index];
-		if (FStateTreeNodeBase* NodePtr = Node.GetPtr<FStateTreeNodeBase>())
+		if (const UClass* SourceClass = Cast<UClass>(SourceStruct.Struct))
 		{
-			Linker.SetCurrentInstanceDataType(NodePtr->GetInstanceDataType(), NodePtr->DataViewIndex.Get());
-			const bool bLinkSucceeded = NodePtr->Link(Linker);
-			if (!bLinkSucceeded || Linker.GetStatus() == EStateTreeLinkerStatus::Failed)
+			if (SourceClass->HasAnyClassFlags(CLASS_NewerVersionExists))
 			{
-				UE_LOG(LogStateTree, Error, TEXT("%s: node '%s' failed to resolve its references."), *GetFullName(), *NodePtr->StaticStruct()->GetName());
+				SourceStruct.Struct = SourceClass->GetAuthoritativeClass();
+			}
+		}
+	}
+	for (FStateTreePropertyCopyBatch& CopyBatch : CopyBatches)
+	{
+		if (const UClass* TargetClass = Cast<UClass>(CopyBatch.TargetStruct.Struct))
+		{
+			if (TargetClass->HasAnyClassFlags(CLASS_NewerVersionExists))
+			{
+				CopyBatch.TargetStruct.Struct = TargetClass->GetAuthoritativeClass();
+			}
+		}
+	}
+
+	auto PatchPropertyPath = [](FStateTreePropertyPath& PropertyPath)
+	{
+		for (FStateTreePropertyPathSegment& Segment : PropertyPath.GetMutableSegments())
+		{
+			if (const UClass* InstanceStruct = Cast<UClass>(Segment.GetInstanceStruct()))
+			{
+				if (InstanceStruct->HasAnyClassFlags(CLASS_NewerVersionExists))
+				{
+					Segment.SetInstanceStruct(InstanceStruct->GetAuthoritativeClass());
+				}
+			}
+		}
+	};
+
+	for (FStateTreePropertyPathBinding& PropertyPathBinding : PropertyPathBindings)
+	{
+		PatchPropertyPath(PropertyPathBinding.GetMutableSourcePath());
+		PatchPropertyPath(PropertyPathBinding.GetMutableTargetPath());
+	}
+
+	// Update property bag structs before resolving binding.
+	if (ParametersDataViewIndex.IsValid() && SourceStructs.IsValidIndex(ParametersDataViewIndex.Get()))
+	{
+		SourceStructs[ParametersDataViewIndex.Get()].Struct = Parameters.GetPropertyBagStruct();
+	}
+
+	for (const FCompactStateTreeState& State : States)
+	{
+		if (State.Type == EStateTreeStateType::Subtree)
+		{
+			if (State.ParameterInstanceIndex.IsValid() == false)
+			{
+				UE_LOG(LogStateTree, Error, TEXT("%s: Data for state '%s' is malformed. Please recompile the StateTree asset."), *GetFullName(), *State.Name.ToString());
+				return false;
+			}
+
+			// Subtree is a bind source, update bag struct.
+			if (State.ParameterDataViewIndex.IsValid())
+			{
+				const FCompactStateTreeParameters& Params = DefaultInstanceData.GetMutableStruct(State.ParameterInstanceIndex.Get()).Get<FCompactStateTreeParameters>();
+				FStateTreeBindableStructDesc& Desc = SourceStructs[State.ParameterDataViewIndex.Get()];
+				Desc.Struct = Params.Parameters.GetPropertyBagStruct();
+			}
+		}
+		else if (State.Type == EStateTreeStateType::Linked && State.LinkedState.IsValid())
+		{
+			const FCompactStateTreeState& LinkedState = States[State.LinkedState.Index];
+
+			if (State.ParameterInstanceIndex.IsValid() == false
+				|| LinkedState.ParameterInstanceIndex.IsValid() == false)
+			{
+				UE_LOG(LogStateTree, Error, TEXT("%s: Data for state '%s' is malformed. Please recompile the StateTree asset."), *GetFullName(), *State.Name.ToString());
+				return false;
+			}
+
+			const FCompactStateTreeParameters& Params = DefaultInstanceData.GetMutableStruct(State.ParameterInstanceIndex.Get()).Get<FCompactStateTreeParameters>();
+
+			// Check that the bag in linked state matches.
+			const FCompactStateTreeParameters& LinkedStateParams = DefaultInstanceData.GetMutableStruct(LinkedState.ParameterInstanceIndex.Get()).Get<FCompactStateTreeParameters>();
+
+			if (LinkedStateParams.Parameters.GetPropertyBagStruct() != Params.Parameters.GetPropertyBagStruct())
+			{
+				UE_LOG(LogStateTree, Error, TEXT("%s: The parameters on state '%s' does not match the linked state parameters in state '%s'. Please recompile the StateTree asset."), *GetFullName(), *State.Name.ToString(), *LinkedState.Name.ToString());
+				return false;
+			}
+
+			if (Params.BindingsBatch.IsValid())
+			{
+				FStateTreePropertyCopyBatch& Batch = CopyBatches[Params.BindingsBatch.Get()];
+				Batch.TargetStruct.Struct = Params.Parameters.GetPropertyBagStruct();
+			}
+		}
+	}
+
+	TArray<FStateTreeDataView> DataViews;
+	DataViews.SetNum(NumDataViews);
+
+	// Tree parameters
+	DataViews[ParametersDataViewIndex.Get()] = Parameters.GetMutableValue();
+
+	// Setup data views for context data. Since the external data is passed at runtime, we can only provide the type.
+	for (const FStateTreeExternalDataDesc& DataDesc : ContextDataDescs)
+	{
+		DataViews[DataDesc.Handle.DataViewIndex.Get()] = FStateTreeDataView(DataDesc.Struct, nullptr);
+	}
+	
+	// Setup data views for state parameters.
+	for (FCompactStateTreeState& State : States)
+	{
+		if (State.Type == EStateTreeStateType::Linked && State.LinkedState.IsValid())
+		{
+			FCompactStateTreeParameters& Params = DefaultInstanceData.GetMutableStruct(State.ParameterInstanceIndex.Get()).Get<FCompactStateTreeParameters>();
+			if (Params.Parameters.IsValid())
+			{
+				const FCompactStateTreeState& LinkedState = States[State.LinkedState.Index];
+				DataViews[LinkedState.ParameterDataViewIndex.Get()] = Params.Parameters.GetMutableValue();
+			}
+		}
+	}
+
+	// Setup data views for all nodes.
+	for (FConstStructView NodeView : Nodes)
+	{
+		if (const FStateTreeConditionBase* Condition = NodeView.GetPtr<const FStateTreeConditionBase>())
+		{
+			if (Condition->bInstanceIsObject)
+			{
+				DataViews[Condition->DataViewIndex.Get()] = SharedInstanceData.GetMutableObject(Condition->InstanceIndex.Get());
+			}
+			else
+			{
+				DataViews[Condition->DataViewIndex.Get()] = SharedInstanceData.GetMutableStruct(Condition->InstanceIndex.Get());
+			}
+		}
+		else
+		{
+			const FStateTreeNodeBase& Node = NodeView.Get<const FStateTreeNodeBase>();
+			if (Node.bInstanceIsObject)
+			{
+				DataViews[Node.DataViewIndex.Get()] = DefaultInstanceData.GetMutableObject(Node.InstanceIndex.Get());
+			}
+			else
+			{
+				DataViews[Node.DataViewIndex.Get()] = DefaultInstanceData.GetMutableStruct(Node.InstanceIndex.Get());
+			}
+		}
+	}
+
+	for (int32 BatchIndex = 0; BatchIndex < CopyBatches.Num(); ++BatchIndex)
+	{
+		const FStateTreePropertyCopyBatch& Batch = CopyBatches[BatchIndex];
+		for (int32 i = Batch.BindingsBegin; i != Batch.BindingsEnd; i++)
+		{
+			FStateTreePropertyPathBinding& Binding = PropertyPathBindings[i];
+			FStateTreeIndex16 TargetStructIndex;
+			for (FConstStructView NodeView : GetNodes())
+			{
+				const FStateTreeNodeBase& Node = NodeView.Get<const FStateTreeNodeBase>();
+				if (Node.BindingsBatch.AsInt32() == BatchIndex)
+				{
+					TargetStructIndex = Node.DataViewIndex;
+					break;
+				}
+			}
+
+			if (!TargetStructIndex.IsValid())
+			{
+				for (const FCompactStateTreeState& State : GetStates())
+				{
+					if (State.Type == EStateTreeStateType::Linked)
+					{
+						const FCompactStateTreeParameters& Params = DefaultInstanceData.GetStruct(State.ParameterInstanceIndex.Get()).Get<const FCompactStateTreeParameters>();
+						if (Params.BindingsBatch.Get() == BatchIndex)
+						{
+							if (const FCompactStateTreeState* LinkedState = GetStateFromHandle(State.LinkedState))
+							{
+								TargetStructIndex = LinkedState->ParameterDataViewIndex;
+							}
+						}
+					}
+				}
+			}
+
+			if (!TargetStructIndex.IsValid())
+			{
+				UE_LOG(LogStateTree, Error, TEXT("%hs: Invalid target struct for property binding %s."), __FUNCTION__, *Binding.GetTargetPath().ToString());
+				return false;
+			}
+
+			if (!Binding.GetMutableSourcePath().UpdateInstanceStructsFromValue(DataViews[Binding.GetCompiledSourceStructIndex().Get()]))
+			{
+				UE_LOG(LogStateTree, Error, TEXT("%hs: Failed to update source instance structs for property binding %s."), __FUNCTION__, *Binding.GetTargetPath().ToString());
+				return false;
+			}
+
+			if (!Binding.GetMutableTargetPath().UpdateInstanceStructsFromValue(DataViews[TargetStructIndex.Get()]))
+			{
+				UE_LOG(LogStateTree, Error, TEXT("%hs: Failed to update target instance structs for property binding %s."), __FUNCTION__, *Binding.GetTargetPath().ToString());
 				return false;
 			}
 		}
 	}
 
-	// Link succeeded, setup tree to be ready to run
-	ExternalDataBaseIndex = PropertyBindings.GetSourceStructNum();
-	ExternalDataDescs = Linker.GetExternalDataDescs();
-	NumDataViews = ExternalDataBaseIndex + ExternalDataDescs.Num();
-
-	bIsLinked = true;
-	
 	return true;
 }
 

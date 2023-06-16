@@ -82,6 +82,9 @@ class STATETREEMODULE_API UStateTree : public UDataAsset
 	GENERATED_BODY()
 
 public:
+	/** @return Default instance data. */
+	const FStateTreeInstanceData& GetDefaultInstanceData() const { return DefaultInstanceData; }
+
 	/** @return Shared instance data. */
 	TSharedPtr<FStateTreeInstanceData> GetSharedInstanceData() const;
 
@@ -114,6 +117,9 @@ public:
 
 	/** @return Struct view of the node matching a given node index; invalid view if state not found. */
 	FConstStructView GetNode(const int32 NodeIndex) const;
+
+	/** @return Struct views of all nodes */
+	const FInstancedStructContainer& GetNodes() const { return Nodes; }
 
 	/** @return View of all states. */
 	TConstArrayView<FCompactStateTreeState> GetStates() const { return States; }
@@ -176,6 +182,8 @@ private:
      * Used during linking, or to invalidate the linked data when data version is old (requires recompile). 
 	 */
 	void ResetLinked();
+
+	bool PatchBindings();
 
 	// Data created during compilation, source data in EditorData.
 	

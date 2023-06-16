@@ -201,6 +201,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 private:
 	void FixObjectInstance(TSet<UObject*>& SeenObjects, UObject& Outer, FStateTreeEditorNode& Node);
 	void FixObjectNodes();
+	void UpdateBindingsInstanceStructs();
 
 public:
 	/** Schema describing which inputs, evaluators, and tasks a StateTree can contain */	

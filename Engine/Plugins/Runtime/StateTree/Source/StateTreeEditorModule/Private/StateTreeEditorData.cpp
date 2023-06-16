@@ -24,6 +24,7 @@ void UStateTreeEditorData::PostLoad()
 	Super::PostLoad();
 	ReparentStates();
 	FixObjectNodes();
+	UpdateBindingsInstanceStructs();
 }
 
 void UStateTreeEditorData::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
@@ -429,6 +430,24 @@ void UStateTreeEditorData::FixObjectNodes()
 	}
 }
 
+void UStateTreeEditorData::UpdateBindingsInstanceStructs()
+{
+	TMap<FGuid, const FStateTreeDataView> AllValues;
+	GetAllStructValues(AllValues);
+	for (FStateTreePropertyPathBinding& Binding : EditorBindings.GetMutableBindings())
+	{
+		if (AllValues.Contains(Binding.GetSourcePath().GetStructID()))
+		{
+			Binding.GetMutableSourcePath().UpdateInstanceStructsFromValue(AllValues[Binding.GetSourcePath().GetStructID()]);
+		}
+
+		if (AllValues.Contains(Binding.GetTargetPath().GetStructID()))
+		{
+			Binding.GetMutableTargetPath().UpdateInstanceStructsFromValue(AllValues[Binding.GetTargetPath().GetStructID()]);
+		}
+	}
+}
+
 EStateTreeVisitor UStateTreeEditorData::VisitStateNodes(const UStateTreeState& State, TFunctionRef<EStateTreeVisitor(const UStateTreeState* State, const FGuid& ID, const FName& Name, const EStateTreeNodeType NodeType, const UScriptStruct* NodeStruct, const UStruct* InstanceStruct)> InFunc) const
 {
 	bool bContinue = true;
@@ -701,8 +720,9 @@ EStateTreeVisitor UStateTreeEditorData::VisitGlobalNodes(TFunctionRef<EStateTree
 			Desc.Name = ContextDesc.Name;
 			Desc.ID = ContextDesc.ID;
 			Desc.DataSource = EStateTreeBindableStructSource::Context;
-			
-			if (InFunc(nullptr, Desc, FStateTreeDataView()) == EStateTreeVisitor::Break)
+
+			// We don't have value for the external objects, but return the type and null value so that users of GetAllStructValues() can use the type. 
+			if (InFunc(nullptr, Desc, FStateTreeDataView(Desc.Struct, nullptr)) == EStateTreeVisitor::Break)
 			{
 				return EStateTreeVisitor::Break;
 			}
