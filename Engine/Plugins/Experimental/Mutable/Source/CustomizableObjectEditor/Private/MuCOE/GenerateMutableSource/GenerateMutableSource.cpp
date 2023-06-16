@@ -330,7 +330,7 @@ void FPinData::Push(const UEdGraphPin* Pin)
 }
 
 
-FGraphCycleKey::FGraphCycleKey(const UEdGraphPin& Pin, uint32 Id) :
+FGraphCycleKey::FGraphCycleKey(const UEdGraphPin& Pin, const FString& Id) :
 	Pin(Pin),
 	Id(Id)
 {

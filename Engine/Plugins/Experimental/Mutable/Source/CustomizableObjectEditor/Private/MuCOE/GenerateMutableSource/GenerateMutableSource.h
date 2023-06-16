@@ -454,7 +454,7 @@ struct FGraphCycleKey
 {
 	friend uint32 GetTypeHash(const FGraphCycleKey& Key);
 
-	FGraphCycleKey(const UEdGraphPin& Pin, uint32 Id);
+	FGraphCycleKey(const UEdGraphPin& Pin, const FString& Id);
 
 	bool operator==(const FGraphCycleKey& Other) const;
 	
@@ -462,7 +462,7 @@ struct FGraphCycleKey
 	const UEdGraphPin& Pin;
 
 	/** Unique id. */
-	uint32 Id;
+	FString Id;
 };
 
 /** Graph Cycle scope.
@@ -488,7 +488,7 @@ private:
 
 /** Return the default value if there is a cycle. */
 #define RETURN_ON_CYCLE(Pin, GenerationContext) \
-	FGraphCycle GraphCycle(FGraphCycleKey(Pin, __COUNTER__), GenerationContext); \
+	FGraphCycle GraphCycle(FGraphCycleKey(Pin, TEXT(__FILE__ PREPROCESSOR_TO_STRING(__LINE__))), GenerationContext); \
 	if (GraphCycle.FoundCycle()) \
 	{ \
 		return {}; \
