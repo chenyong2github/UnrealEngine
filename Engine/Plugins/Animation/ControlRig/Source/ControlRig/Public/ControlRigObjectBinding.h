@@ -22,8 +22,8 @@ public:
 	virtual bool IsBoundToObject(UObject* InObject) const override;
 	virtual UObject* GetBoundObject() const override;
 	virtual AActor* GetHostingActor() const override;
-protected:
-	UObject* GetBindableObject(UObject* InObject) const;
+
+	static UObject* GetBindableObject(UObject* InObject);
 private:
 	/** The scene component or USkeleton we are bound to */
 	TWeakObjectPtr<UObject> BoundObject;

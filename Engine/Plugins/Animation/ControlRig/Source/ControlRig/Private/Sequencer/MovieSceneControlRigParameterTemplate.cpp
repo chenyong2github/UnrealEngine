@@ -1124,35 +1124,6 @@ struct FControlRigParameterExecutionToken : IMovieSceneExecutionToken
 	FControlRigParameterExecutionToken(const FControlRigParameterExecutionToken&) = delete;
 	FControlRigParameterExecutionToken& operator=(const FControlRigParameterExecutionToken&) = delete;
 
-	UObject* GetBindableObject(UObject* InObject) const
-	{
-		// If we are binding to an actor, find the first skeletal mesh component
-		if (AActor* Actor = Cast<AActor>(InObject))
-		{
-			if (UControlRigComponent* ControlRigComponent = Actor->FindComponentByClass<UControlRigComponent>())
-			{
-				return ControlRigComponent;
-			}
-			else if (USkeletalMeshComponent* SkeletalMeshComponent = Actor->FindComponentByClass<USkeletalMeshComponent>())
-			{
-				return SkeletalMeshComponent;
-			}
-		}
-		else if (UControlRigComponent* ControlRigComponent = Cast<UControlRigComponent>(InObject))
-		{
-			return ControlRigComponent;
-		}
-		else if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(InObject))
-		{
-			return SkeletalMeshComponent;
-		}
-		else if (USkeleton* Skeleton = Cast<USkeleton>(InObject))
-		{
-			return Skeleton;
-		}
-		return nullptr;
-	}
-
 	virtual void Execute(const FMovieSceneContext& Context, const FMovieSceneEvaluationOperand& Operand, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player)
 	{
 		MOVIESCENE_DETAILED_SCOPE_CYCLE_COUNTER(MovieSceneEval_ControlRigParameterTrack_TokenExecute)
@@ -1175,12 +1146,12 @@ struct FControlRigParameterExecutionToken : IMovieSceneExecutionToken
 					ControlRig->SetObjectBinding(MakeShared<FControlRigObjectBinding>());
 				}
 
-				if (ControlRig->GetObjectBinding()->GetBoundObject() != GetBindableObject(BoundObject))
+				if (ControlRig->GetObjectBinding()->GetBoundObject() != FControlRigObjectBinding::GetBindableObject(BoundObject))
 				{
 					ControlRig->GetObjectBinding()->BindToObject(BoundObject);
 					TArray<FName> SelectedControls = ControlRig->CurrentControlSelection();
 					ControlRig->Initialize();
-					if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(GetBindableObject(BoundObject)))
+					if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(FControlRigObjectBinding::GetBindableObject(BoundObject)))
 					{
 						ControlRig->RequestInit();
 						ControlRig->SetBoneInitialTransformsFromSkeletalMeshComponent(SkeletalMeshComponent, true);

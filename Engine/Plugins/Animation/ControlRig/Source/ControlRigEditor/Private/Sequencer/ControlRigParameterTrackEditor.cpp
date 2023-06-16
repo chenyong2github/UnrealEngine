@@ -3208,15 +3208,6 @@ void FControlRigParameterTrackEditor::HandleOnObjectBoundToControlRig(UObject* I
 		}
 	}
 
-	// reconstruct proxies
-	if (!SectionsToUpdate.IsEmpty())
-	{
-		for (UMovieSceneControlRigParameterSection* Section : SectionsToUpdate)
-		{
-			Section->ReconstructChannelProxy();
-			Section->MarkAsChanged();
-		}
-	}
 	if (ReselectIfNeeded.Num() > 0)
 	{
 		GEditor->GetTimerManager()->SetTimerForNextTick([ReselectIfNeeded]()

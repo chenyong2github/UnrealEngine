@@ -43,7 +43,7 @@ AActor* FControlRigObjectBinding::GetHostingActor() const
 	return nullptr;
 }
 
-UObject* FControlRigObjectBinding::GetBindableObject(UObject* InObject) const
+UObject* FControlRigObjectBinding::GetBindableObject(UObject* InObject) 
 {
 	// If we are binding to an actor, find the first skeletal mesh component
 	if (AActor* Actor = Cast<AActor>(InObject))
