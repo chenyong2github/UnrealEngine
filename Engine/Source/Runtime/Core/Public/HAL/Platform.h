@@ -439,10 +439,6 @@
 	#define PLATFORM_IMPLEMENTS_BeginNamedEventStatic			0
 #endif
 
-#ifndef PLATFORM_RHITHREAD_DEFAULT_BYPASS
-	#define PLATFORM_RHITHREAD_DEFAULT_BYPASS					1
-#endif
-
 #ifndef PLATFORM_HAS_UMA
 	#define PLATFORM_HAS_UMA 0
 #endif

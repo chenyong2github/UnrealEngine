@@ -91,8 +91,6 @@ typedef FIOSPlatformTypes FPlatformTypes;
 //mallocpoison not safe with aligned ansi allocator.  returns the larger unaligned size during Free() which causes writes off the end of the allocation.
 #define UE_USE_MALLOC_FILL_BYTES 0 
 
-#define PLATFORM_RHITHREAD_DEFAULT_BYPASS				1
-
 // Function type macros.
 #define VARARGS															/* Functions with variable arguments */
 #define CDECL															/* Standard C function */

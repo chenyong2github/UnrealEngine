@@ -4919,12 +4919,8 @@ public:
 class FRHICommandListExecutor
 {
 public:
-	enum
-	{
-		DefaultBypass = PLATFORM_RHITHREAD_DEFAULT_BYPASS
-	};
 	FRHICommandListExecutor()
-		: bLatchedBypass(!!DefaultBypass)
+		: bLatchedBypass(false)
 		, bLatchedUseParallelAlgorithms(false)
 	{
 	}
@@ -4933,12 +4929,12 @@ public:
 
 	RHI_API static void WaitOnRHIThreadFence(FGraphEventRef& Fence);
 
-	FORCEINLINE_DEBUGGABLE bool Bypass()
+	FORCEINLINE_DEBUGGABLE bool Bypass() const
 	{
 #if CAN_TOGGLE_COMMAND_LIST_BYPASS
 		return bLatchedBypass;
 #else
-		return !!DefaultBypass;
+		return false;
 #endif
 	}
 

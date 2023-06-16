@@ -26,12 +26,12 @@ FORCEINLINE_DEBUGGABLE FRHICommandListImmediate& FRHICommandListBase::GetAsImmed
 
 FORCEINLINE_DEBUGGABLE bool FRHICommandListBase::Bypass() const
 {
-	check(!IsImmediate() || IsInRenderingThread() || IsInRHIThread());
-	return GRHICommandList.Bypass()
 #if CAN_TOGGLE_COMMAND_LIST_BYPASS
-		&& PersistentState.RecordingThread == ERecordingThread::Render
+	check(!IsImmediate() || IsInRenderingThread() || IsInRHIThread());
+	return GRHICommandList.Bypass() && IsImmediate();
+#else
+	return false;
 #endif
-		;
 }
 
 FORCEINLINE_DEBUGGABLE FScopedRHIThreadStaller::FScopedRHIThreadStaller(class FRHICommandListImmediate& InImmed, bool bDoStall)

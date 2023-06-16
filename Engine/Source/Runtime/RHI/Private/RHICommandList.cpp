@@ -38,7 +38,7 @@ bool FScopedUniformBufferStaticBindings::bRecursionGuard = false;
 
 static TAutoConsoleVariable<int32> CVarRHICmdBypass(
 	TEXT("r.RHICmdBypass"),
-	FRHICommandListExecutor::DefaultBypass,
+	0,
 	TEXT("Whether to bypass the rhi command list and send the rhi commands immediately.\n")
 	TEXT("0: Disable (required for the multithreaded renderer)\n")
 	TEXT("1: Enable (convenient for debugging low level graphics API calls, can suppress artifacts from multithreaded renderer code)"));
@@ -159,10 +159,6 @@ FRHICommandListBase::FRHICommandListBase(FPersistentState&& InPersistentState)
 	{
 		GRHICommandList.OutstandingCmdListCount.Increment();
 	}
-	else
-	{
-		checkf(!PLATFORM_RHITHREAD_DEFAULT_BYPASS, TEXT("The platform has enabled RHI command list bypass mode for shipping builds. Only render thread command lists are allowed."));
-	}
 #endif
 }
 
@@ -194,10 +190,6 @@ FRHICommandListBase::FRHICommandListBase(FRHICommandListBase&& Other)
 	if (PersistentState.RecordingThread == ERecordingThread::Render)
 	{
 		GRHICommandList.OutstandingCmdListCount.Increment();
-	}
-	else
-	{
-		checkf(!PLATFORM_RHITHREAD_DEFAULT_BYPASS, TEXT("The platform has enabled RHI command list bypass mode for shipping builds. Only render thread command lists are allowed."));
 	}
 #endif
 
