@@ -10,6 +10,8 @@
 #include "MetasoundEditorSettings.h"
 #include "MetasoundFactory.h"
 #include "MetasoundUObjectRegistry.h"
+#include "Sound/SoundSourceBusSend.h"
+#include "Sound/SoundSubmixSend.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MetasoundEditorSubsystem)
 
