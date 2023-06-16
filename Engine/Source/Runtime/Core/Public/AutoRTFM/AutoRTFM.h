@@ -106,8 +106,14 @@ UE_AUTORTFM_FORCEINLINE bool autortfm_is_closed(void)
 // if this nested transaction succeeds.
 #if UE_AUTORTFM
 autortfm_result autortfm_transact(void (*work)(void* arg), void* arg);
+autortfm_result autortfm_transact_then_open(void (*work)(void* arg), void* arg);
 #else
 UE_AUTORTFM_FORCEINLINE autortfm_result autortfm_transact(void (*work)(void* arg), void* arg)
+{
+	work(arg);
+    return autortfm_committed;
+}
+UE_AUTORTFM_FORCEINLINE autortfm_result autortfm_transact_then_open(void (*work)(void* arg), void* arg)
 {
 	work(arg);
     return autortfm_committed;
@@ -360,6 +366,18 @@ UE_AUTORTFM_FORCEINLINE ETransactionResult Transact(const TFunctor& Functor)
     return static_cast<ETransactionResult>(autortfm_transact(
         [] (void* Arg) { (*static_cast<const TFunctor*>(Arg))(); },
         const_cast<void*>(static_cast<const void*>(&Functor))));
+}
+
+// This is just like calling Transact([&] { Open([&] { Functor(); }); });  
+// The reason we expose it is that it allows the caller's module to not
+// be compiled with the AutoRTFM instrumentation of functions if the only
+// thing that's being invoked is a function in the open.
+template<typename TFunctor>
+UE_AUTORTFM_FORCEINLINE ETransactionResult TransactThenOpen(const TFunctor& Functor)
+{
+	return static_cast<ETransactionResult>(autortfm_transact_then_open(
+		[] (void* Arg) { (*static_cast<const TFunctor*>(Arg))(); },
+		const_cast<void*>(static_cast<const void*>(&Functor))));
 }
 
 template<typename TFunctor>

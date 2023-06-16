@@ -34,6 +34,18 @@ static constexpr bool GAutoRTFMRuntimeEnabled = false;
 namespace AutoRTFM
 {
 
+UE_AUTORTFM_FORCEINLINE autortfm_result TransactThenOpenImpl(void (*Work)(void* Arg), void* Arg)
+{
+	return static_cast<autortfm_result>(
+		AutoRTFM::Transact([&]
+		{
+			AutoRTFM::Open([&]
+			{
+				Work(Arg);
+			});
+		}));
+}
+
 FORCENOINLINE extern "C" bool autortfm_is_transactional()
 {
 	if (GAutoRTFMRuntimeEnabled)
@@ -59,6 +71,11 @@ FORCENOINLINE extern "C" autortfm_result autortfm_transact(void (*Work)(void* Ar
 
 	Work(Arg);
 	return autortfm_committed;
+}
+
+FORCENOINLINE extern "C" autortfm_result autortfm_transact_then_open(void (*Work)(void* Arg), void* Arg)
+{
+    return TransactThenOpenImpl(Work, Arg);
 }
 
 FORCENOINLINE extern "C" void autortfm_commit(void (*Work)(void* Arg), void* Arg)
@@ -259,6 +276,12 @@ autortfm_result RTFM_autortfm_transact(void (*Work)(void* Arg), void* Arg, FCont
     return static_cast<autortfm_result>(Context->Transact(Work, Arg));
 }
 UE_AUTORTFM_REGISTER_OPEN_FUNCTION(autortfm_transact);
+
+autortfm_result RTFM_autortfm_transact_then_open(void (*Work)(void* Arg), void* Arg, FContext*)
+{
+    return TransactThenOpenImpl(Work, Arg);
+}
+UE_AUTORTFM_REGISTER_OPEN_FUNCTION(autortfm_transact_then_open);
 
 void RTFM_autortfm_commit(void (*Work)(void* Arg), void* Arg, FContext*)
 {
