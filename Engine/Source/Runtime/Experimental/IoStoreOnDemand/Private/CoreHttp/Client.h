@@ -170,7 +170,7 @@ public:
 
 							FEventLoop() = default;
 							~FEventLoop();
-	uint32					Tick();
+	uint32					Tick(uint32 PollTimeoutMs=0);
 	bool					IsIdle() const;
 	void					Cancel(FTicket Ticket);
 	[[nodiscard]] FRequest	Request(FAnsiStringView Method, FAnsiStringView Url, const FRequestParams* Params=nullptr);
