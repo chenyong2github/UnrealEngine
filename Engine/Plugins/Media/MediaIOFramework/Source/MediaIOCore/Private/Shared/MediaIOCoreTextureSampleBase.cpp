@@ -200,6 +200,8 @@ void FMediaIOCoreTextureSampleBase::CopyConfiguration(const TSharedPtr<FMediaIOC
 	Encoding = SourceSample->Encoding;
 	ColorSpace = SourceSample->ColorSpace;
 	ColorSpaceStruct = SourceSample->ColorSpaceStruct;
+	ColorConversionSettings = SourceSample->ColorConversionSettings;
+	CachedOCIOResources = SourceSample->CachedOCIOResources;
 
 	// Save original sample
 	OriginalSample = SourceSample;
