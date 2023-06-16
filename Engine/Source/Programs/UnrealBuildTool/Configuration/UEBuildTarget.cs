@@ -2283,6 +2283,12 @@ namespace UnrealBuildTool
 			// Check that each plugin declares its dependencies explicitly
 			foreach (UEBuildPlugin Plugin in BuildPlugins)
 			{
+				// Check that any plugins with the NoCode specifier do not contain modules.
+				if (Plugin.Descriptor.bNoCode && Plugin.Modules.Count > 0)
+				{
+					throw new BuildException("Plugin '{0}' cannot contain any code or modules. See the plugin descriptor property `NoCode`", Plugin.Name);
+				}
+
 				foreach (UEBuildModule Module in Plugin.Modules)
 				{
 					HashSet<UEBuildModule> DependencyModules = Module.GetDependencies(bWithIncludePathModules: true, bWithDynamicallyLoadedModules: true);

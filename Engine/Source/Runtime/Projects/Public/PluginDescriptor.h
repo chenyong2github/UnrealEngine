@@ -125,6 +125,9 @@ struct PROJECTS_API FPluginDescriptor
 	/** Prevents other plugins from depending on this plugin. */
 	bool bIsSealed;
 
+	/** Prevents this plugin from containing code or modules. */
+	bool bNoCode;
+
 	/** When true, this plugin's modules will not be loaded automatically nor will it's content be mounted automatically. It will load/mount when explicitly requested and LoadingPhases will be ignored */
 	bool bExplicitlyLoaded;
 

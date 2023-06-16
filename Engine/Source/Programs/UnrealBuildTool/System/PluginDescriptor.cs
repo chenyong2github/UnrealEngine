@@ -187,6 +187,11 @@ namespace UnrealBuildTool
 		public bool bIsSealed;
 
 		/// <summary>
+		/// When true, this plugin should not contain any code or modules.
+		/// </summary>
+		public bool bNoCode;
+
+		/// <summary>
 		/// When true, this plugin's modules will not be loaded automatically nor will it's content be mounted automatically. It will load/mount when explicitly requested and LoadingPhases will be ignored
 		/// </summary>
 		public bool bExplicitlyLoaded;
@@ -329,6 +334,7 @@ namespace UnrealBuildTool
 
 			RawObject.TryGetBoolField("RequiresBuildPlatform", out bRequiresBuildPlatform);
 			RawObject.TryGetBoolField("Sealed", out bIsSealed);
+			RawObject.TryGetBoolField("NoCode", out bNoCode);
 			RawObject.TryGetBoolField("ExplicitlyLoaded", out bExplicitlyLoaded);
 			RawObject.TryGetBoolField("HasExplicitPlatforms", out bHasExplicitPlatforms);
 
@@ -435,6 +441,11 @@ namespace UnrealBuildTool
 			if (bIsSealed)
 			{
 				Writer.WriteValue("Sealed", bIsSealed);
+			}
+
+			if (bNoCode)
+			{
+				Writer.WriteValue("NoCode", bNoCode);
 			}
 
 			if (bExplicitlyLoaded)

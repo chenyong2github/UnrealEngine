@@ -125,6 +125,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = Details)
 	bool bIsSealed;
 
+	UPROPERTY(EditAnywhere, Category = Details)
+	bool bNoCode;
+
 	/** Plugins used by this plugin */
 	UPROPERTY(EditAnywhere, Category = Dependencies, meta=(TitleProperty=Name))
 	TArray<FPluginReferenceMetadata> Plugins;

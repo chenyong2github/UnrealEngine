@@ -52,6 +52,7 @@ void UPluginMetadataObject::PopulateFromPlugin(TSharedPtr<IPlugin> InPlugin)
 	bIsEnabledByDefault = (InDescriptor.EnabledByDefault == EPluginEnabledByDefault::Enabled);
 	bExplicitlyLoaded = InDescriptor.bExplicitlyLoaded;
 	bIsSealed = InDescriptor.bIsSealed;
+	bNoCode = InDescriptor.bNoCode;
 
 	Plugins.Reset(InDescriptor.Plugins.Num());
 	for (const FPluginReferenceDescriptor& PluginRefDesc : InDescriptor.Plugins)
@@ -77,6 +78,7 @@ void UPluginMetadataObject::CopyIntoDescriptor(FPluginDescriptor& OutDescriptor)
 	OutDescriptor.bCanContainContent = bCanContainContent;
 	OutDescriptor.bIsBetaVersion = bIsBetaVersion;
 	OutDescriptor.bIsSealed = bIsSealed;
+	OutDescriptor.bNoCode = bNoCode;
 
 	TArray<FPluginReferenceDescriptor> NewPlugins;
 	NewPlugins.Reserve(Plugins.Num());
