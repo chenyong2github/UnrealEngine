@@ -100,6 +100,7 @@ class UTextRenderComponent : public UPrimitiveComponent
 	// -----------------------------
 	
 	/** Change the text value and signal the primitives to be rebuilt */
+	UFUNCTION()
 	ENGINE_API void SetText(const FText& Value);
 
 	/** Change the text value and signal the primitives to be rebuilt */
