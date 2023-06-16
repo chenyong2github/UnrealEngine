@@ -490,6 +490,61 @@ void FAssetTable::Reset()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void FAssetTable::EnumeratePluginDependencies(const FAssetTablePluginInfo& InPlugin, TFunction<void(int32 PluginIndex)> Callback) const
+{
+	for (int32 DependencyIndex : InPlugin.PluginDependencies)
+	{
+		Callback(DependencyIndex);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FAssetTable::EnumerateAssetsForPlugin(const FAssetTablePluginInfo& InPlugin, TFunction<void(int32 AssetIndex)> Callback) const
+{
+	const int32 AssetCount = Assets.Num();
+	for (int32 AssetIndex = 0; AssetIndex < AssetCount; ++AssetIndex)
+	{
+		// The StringStore makes this comparison safe
+		if (Assets[AssetIndex].GetPluginName() == InPlugin.PluginName)
+		{
+			Callback(AssetIndex);
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FAssetTablePluginInfo& FAssetTable::GetOrCreatePluginInfo(const TCHAR* StoredPluginName)
+{
+	if (int32* PluginIndex = PluginNameToIndexMap.Find(StoredPluginName))
+	{
+		return Plugins[*PluginIndex];
+	}
+	else
+	{
+		FAssetTablePluginInfo NewPlugin;
+		NewPlugin.PluginName = StoredPluginName;
+		int32 NewIndex = Plugins.Num();
+		Plugins.Add(NewPlugin);
+		PluginNameToIndexMap.Add(StoredPluginName, NewIndex);
+		return Plugins[NewIndex];
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+int32 FAssetTable::GetIndexForPlugin(const TCHAR* StoredPluginName) const
+{
+	if (const int32* Index = PluginNameToIndexMap.Find(StoredPluginName))
+	{
+		return *Index;
+	}
+	return -1;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FAssetTable::AddDefaultColumns()
 {
 	using namespace UE::Insights;

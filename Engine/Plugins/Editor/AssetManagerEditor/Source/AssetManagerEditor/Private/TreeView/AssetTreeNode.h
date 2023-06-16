@@ -80,11 +80,79 @@ public:
 
 	virtual ~FAssetDependenciesGroupTreeNode() {}
 
+	virtual const FSlateBrush* GetIcon() const override;
+	virtual FLinearColor GetColor() const override;
+
 	virtual const FText GetExtraDisplayName() const;
+	virtual bool OnLazyCreateChildren(TSharedPtr<class UE::Insights::STableTreeView> InTableTreeView) override;
+
+private:
+	bool bAreChildrenCreated;
+};
+
+/** Type definition for shared pointers to instances of FAssetDependenciesGroupTreeNode. */
+typedef TSharedPtr<class FAssetDependenciesGroupTreeNode> FAssetDependenciesGroupTreeNodePtr;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FPluginSimpleGroupNode : public FAssetTreeNode
+{
+	INSIGHTS_DECLARE_RTTI(FPluginSimpleGroupNode, FAssetTreeNode)
+
+public:
+	/** Initialization constructor. */
+	explicit FPluginSimpleGroupNode(const FName InGroupName, TWeakPtr<FAssetTable> InParentTable, int32 InPluginIndex)
+		: FAssetTreeNode(InGroupName, InParentTable)
+		, PluginIndex(InPluginIndex)
+	{
+	}
+
+	virtual ~FPluginSimpleGroupNode() {}
 
 	virtual const FSlateBrush* GetIcon() const override;
 	virtual FLinearColor GetColor() const override;
 
+	void AddAssetChildrenNodes();
+
+protected:
+	int32 PluginIndex;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FPluginAndDependenciesGroupNode : public FPluginSimpleGroupNode
+{
+	INSIGHTS_DECLARE_RTTI(FPluginAndDependenciesGroupNode, FPluginSimpleGroupNode)
+
+public:
+	/** Initialization constructor. */
+	explicit FPluginAndDependenciesGroupNode(const FName InGroupName, TWeakPtr<FAssetTable> InParentTable, int32 InPluginIndex)
+		: FPluginSimpleGroupNode(InGroupName, InParentTable, InPluginIndex)
+	{
+	}
+
+	TSharedPtr<FPluginSimpleGroupNode> CreateChildren();
+
+	virtual ~FPluginAndDependenciesGroupNode() {}
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FPluginDependenciesGroupNode : public FPluginSimpleGroupNode
+{
+	INSIGHTS_DECLARE_RTTI(FPluginDependenciesGroupNode, FPluginSimpleGroupNode)
+
+public:
+	/** Initialization constructor. */
+	explicit FPluginDependenciesGroupNode(const FName InGroupName, TWeakPtr<FAssetTable> InParentTable, int32 InPluginIndex)
+		: FPluginSimpleGroupNode(InGroupName, InParentTable, InPluginIndex)
+		, bAreChildrenCreated(false)
+	{
+	}
+
+	virtual ~FPluginDependenciesGroupNode() {}
+
+	virtual const FText GetExtraDisplayName() const;
 	virtual bool OnLazyCreateChildren(TSharedPtr<class UE::Insights::STableTreeView> InTableTreeView) override;
 
 private:

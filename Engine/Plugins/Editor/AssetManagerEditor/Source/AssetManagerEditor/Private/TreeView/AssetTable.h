@@ -133,6 +133,13 @@ struct FAssetTableDependencySizes
 	int64 SharedDependenciesSize = 0;
 };
 
+struct FAssetTablePluginInfo
+{
+	TSet<int32> PluginDependencies;
+	const TCHAR* PluginName = nullptr;
+	int64 Size = -1;
+};
+
 class FAssetTableRow
 {
 	friend class FAssetTable;
@@ -226,6 +233,27 @@ public:
 
 	void AddAsset(const FAssetTableRow& AssetRow) { Assets.Add(AssetRow); }
 
+	FAssetTablePluginInfo& GetOrCreatePluginInfo(const TCHAR* StoredPluginName);
+
+	const FAssetTablePluginInfo& GetPluginInfoByIndex(int32 PluginIndex) const { return Plugins[PluginIndex]; }
+	const FAssetTablePluginInfo& GetPluginInfoByIndexChecked(int32 PluginIndex) const { check(IsValidPluginIndex(PluginIndex)); return Plugins[PluginIndex]; }
+	int32 GetIndexForPlugin(const TCHAR* StoredPluginName) const;
+	int32 GetNumPlugins() const { return Plugins.Num(); }
+
+	FName GetNameForPlugin(int32 InPluginIndex) const
+	{
+		if (IsValidPluginIndex(InPluginIndex))
+		{
+			return FName(Plugins[InPluginIndex].PluginName);
+		}
+		return FName("<InvalidPlugin>");
+	}
+
+	bool IsValidPluginIndex(int32 Index) const { return Index >= 0 && Index < Plugins.Num(); }
+
+	void EnumeratePluginDependencies(const FAssetTablePluginInfo& InPlugin, TFunction<void(int32 PluginIndex)> Callback) const;
+	void EnumerateAssetsForPlugin(const FAssetTablePluginInfo& InPlugin, TFunction<void(int32 AssetIndex)> Callback) const;
+
 	const FStringView StoreString(const FStringView InStr) { return StringStore.Store(InStr); }
 	const TCHAR* StoreStr(const FString& InStr) { return StringStore.Store(InStr).GetData(); }
 	const FAssetTableStringStore& GetStringStore() const { return StringStore; }
@@ -236,6 +264,8 @@ public:
 		Assets.Empty();
 		VisibleAssetCount = 0;
 		StringStore.Reset();
+		Plugins.Empty();
+		PluginNameToIndexMap.Empty();
 	}
 
 private:
@@ -243,6 +273,8 @@ private:
 
 private:
 	TArray<FAssetTableRow> Assets;
+	TArray<FAssetTablePluginInfo> Plugins;
+	TMap<const TCHAR*, int32, FDefaultSetAllocator, TStringPointerMapKeyFuncs_DEPRECATED<const TCHAR*, int32>> PluginNameToIndexMap;
 	int32 VisibleAssetCount = 0;
 	FAssetTableStringStore StringStore;
 };

@@ -50,6 +50,7 @@ public class AssetManagerEditor : ModuleRules
 				"SourceControl",
 				"SourceControlWindows",
 				"UncontrolledChangelists",
+				"Projects"
 			}
 		);
 	}
