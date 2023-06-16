@@ -75,15 +75,14 @@ public:
 	/** Recompute camera and lens settings after each frame */
 	void RecalcDerivedData();
 
-	/** Register the stand-in class with the sequencer ECS component registry */
-	static void RegisterCameraStandIn();
-
-	/** Unregister the stand-in class with the sequencer ECS component registry */
-	static void UnregisterCameraStandIn();
-
 private:
 	void ResetDefaultValues(const FMinimalViewInfo& ViewInfo);
 	void UpdateInitialPropertyValues(UMovieSceneEntitySystemLinker* Linker);
+
+	/** Register the stand-in class with the sequencer ECS component registry */
+	static void RegisterCameraStandIn();
+	/** Unregister the stand-in class with the sequencer ECS component registry */
+	static void UnregisterCameraStandIn();
 
 private:
 	static bool bRegistered;
@@ -92,6 +91,8 @@ private:
 
 	bool bIsCineCamera = false;
 	float WorldToMeters = 0.f;
+
+	friend class FTemplateSequenceModule;
 };
 
 /**

@@ -24,8 +24,6 @@ public:
 		{
 			IModularFeatures::Get().RegisterModularFeature(ICameraModularFeature::GetModularFeatureName(), CameraModularFeature.Get());
 		}
-
-		UCameraAnimationSequenceCameraStandIn::RegisterCameraStandIn();
 	}
 
 	virtual void ShutdownModule() override
@@ -35,8 +33,6 @@ public:
 			IModularFeatures::Get().UnregisterModularFeature(ICameraModularFeature::GetModularFeatureName(), CameraModularFeature.Get());
 			CameraModularFeature = nullptr;
 		}
-
-		UCameraAnimationSequenceCameraStandIn::UnregisterCameraStandIn();
 	}
 
 private:

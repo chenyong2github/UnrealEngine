@@ -4,7 +4,6 @@
 #include "AssetRegistry/AssetData.h"
 #include "Engine/World.h"
 #include "Misc/PackageName.h"
-#include "Modules/ModuleManager.h"
 #include "MovieScene.h"
 #include "MovieSceneCommonHelpers.h"
 #include "MovieScenePossessable.h"
@@ -17,8 +16,6 @@
 
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TemplateSequence)
-
-IMPLEMENT_MODULE(FDefaultModuleImpl, TemplateSequence);
 
 DEFINE_LOG_CATEGORY(LogTemplateSequence);
 
