@@ -154,8 +154,22 @@ void ALevelInstance::PostLoad()
 	LevelInstanceComponent = Cast<ULevelInstanceComponent>(RootComponent);
 	OnLevelInstanceActorPostLoad.Broadcast(this);
 
-	UpdateCookedAsset();
+#if WITH_EDITORONLY_DATA
+	if (IsRunningCookCommandlet() && ShouldCookWorldAsset())
+	{
+		CookedWorldAsset = WorldAsset;
+	}
+#endif
 }
+
+#if WITH_EDITOR
+bool ALevelInstance::ShouldCookWorldAsset() const
+{
+	// If ALevelInstance actor gets loaded it means it needs to Cook its WorldAsset (World Partition Embedded Level Instances don't get loaded as they aren't runtime relevant)
+	// If ALevelInstnace is a template then we only need to Cook its WorldAsset if it's desired runtime behavior is to be Level Streamed
+	return !IsTemplate() || GetDesiredRuntimeBehavior() == ELevelInstanceRuntimeBehavior::LevelStreaming;
+}
+#endif
 
 void ALevelInstance::PreEditUndo()
 {
@@ -308,16 +322,6 @@ void ALevelInstance::PushLevelInstanceEditingStateToProxies(bool bInEditingState
 	Super::PushLevelInstanceEditingStateToProxies(bInEditingState);
 
 	LevelInstanceActorImpl.PushLevelInstanceEditingStateToProxies(bInEditingState);
-}
-
-void ALevelInstance::UpdateCookedAsset()
-{
-#if WITH_EDITORONLY_DATA
-	if (IsRunningCookCommandlet() && IsLoadingEnabled())
-	{
-		CookedWorldAsset = WorldAsset;
-	}
-#endif
 }
 
 #endif

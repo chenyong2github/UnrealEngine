@@ -105,7 +105,7 @@ public:
 	static ENGINE_API FOnLevelInstanceActorPostLoad OnLevelInstanceActorPostLoad;
 
 private:
-	ENGINE_API void UpdateCookedAsset();
+	ENGINE_API virtual bool ShouldCookWorldAsset() const;
 #endif
 };
 

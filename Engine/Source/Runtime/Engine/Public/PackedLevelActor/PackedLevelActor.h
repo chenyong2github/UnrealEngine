@@ -96,6 +96,8 @@ private:
 #endif
 
 #if WITH_EDITOR
+	bool ShouldCookWorldAsset() const override { return false; }
+
 	bool bChildChanged;
 	bool bLoadForPacking;
 #endif
