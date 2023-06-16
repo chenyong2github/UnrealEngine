@@ -1201,6 +1201,7 @@ struct FInstanceInfo
 	bool CacheRen;
 	bool CacheSim;
 	bool bHasLODSwitched;
+	bool bAutoLOD;
 
 	// Binding
 	uint UniqueTriangle;
@@ -1279,6 +1280,7 @@ FInstanceInfo ReadInstanceInfo(uint Index)
 	Out.ActivePointCount		= Data2.y;
 	Out.ActiveCurveCount		= Data2.z;
 	Out.Attributes				= Data2.w;
+	Out.bAutoLOD				= Data3.w >> 16u;
 
 	Out.Radius					= f16tof32(Data3.x & 0xFFFF);
 	Out.Density					= f16tof32(Data3.x >> 16u);
@@ -1286,7 +1288,7 @@ FInstanceInfo ReadInstanceInfo(uint Index)
 	Out.TipScale				= f16tof32(Data3.y >> 16u);
 	Out.Length					= f16tof32(Data3.z & 0xFFFF);
 	Out.LengthScale				= f16tof32(Data3.z >> 16u);
-	Out.CoverageScale			= Data3.w;
+	Out.CoverageScale			= f16tof32(Data3.w & 0xFFFF);
 
 	Out.bHasLODSwitched			= Data4.x > 0;
 
@@ -1424,7 +1426,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	Newline(Context);
 
 	// Draw instance details
-	Print(Context, TEXT("   Group  LOD     Geometry Binding Cache Sim RBF Clip Screen CovSc. Strands            Points             Bind.Tri/Sect Vis. Shad. SwLOD Name"));
+	Print(Context, TEXT("   Group  LOD     Geometry Binding Cache Sim RBF Clip Screen CovSc. Strands            Points             Bind.Tri/Sect Vis. Shad. SwLOD ALOD Name"));
 	Newline(Context);
 
 	for (uint InstanceIndex = 0; InstanceIndex < InstanceCount; ++InstanceIndex)
@@ -1516,6 +1518,10 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		PrintBool(Context, Info.bHasLODSwitched);
 		Print(Context, TEXT("  "));
 
+		// Auto LOD
+		PrintBool(Context, Info.bAutoLOD);
+		Print(Context, TEXT("  "));
+		
 		// Name
 		PrintInstanceName(Context, InstanceIndex, FontWhite);
 

@@ -50,13 +50,19 @@ enum class EGroomOverrideType : uint8
 	Disable UMETA(DisplayName = "Disable", ToolTip = "Override the asset value, and force disabled")
 };
 
-
 UENUM(BlueprintType)
 enum class EGroomGuideType : uint8
 {
 	Imported	UMETA(DisplayName = "Imported Guides", ToolTip = "Use imported asset guides."),
 	Generated	UMETA(DisplayName = "Generated Guides", ToolTip = "Generate guides from imported strands"),
 	Rigged 		UMETA(DisplayName = "Rigged  Guides", ToolTip = "Generated rigged guides from imported strands")
+};
+
+UENUM(BlueprintType)
+enum class EGroomLODType : uint8
+{
+	Manual 		UMETA(DisplayName = "Manual", ToolTip = "Hair strands curves & points adapt based on LOD settings"),
+	Auto		UMETA(DisplayName = "Auto (Experimental)", ToolTip = "Hair strands curves & points automatically adapt based on screen coverage. LOD settings are ignored.")
 };
 
 USTRUCT(BlueprintType)
@@ -213,6 +219,9 @@ USTRUCT(BlueprintType)
 struct HAIRSTRANDSCORE_API FHairGroupsLOD
 {
 	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(EditAnywhere, Category = "InterpolationSettings", meta = (ToolTip = "Define how LOD adapts curves & points for a given group."))
+	EGroomLODType LODType = EGroomLODType::Manual;
 
 	/** LODs  */
 	UPROPERTY(EditAnywhere, Category = "DecimationSettings", meta = (ToolTip = "Reduce the number of hair strands in a uniform manner", ClampMin = "0", UIMin = "0", UIMax = "1.0"))

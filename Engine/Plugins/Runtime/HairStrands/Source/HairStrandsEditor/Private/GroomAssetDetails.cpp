@@ -1084,16 +1084,19 @@ void FGroomRenderingDetails::ExpandStructForLOD(TSharedRef<IPropertyHandle>& Pro
 			continue;
 		}
 
+		const bool bAutoLOD = GroomAsset->HairGroupsLOD[GroupIndex].LODType == EGroomLODType::Auto;
 		if (bOverrideReset)
 		{
 			FIsResetToDefaultVisible IsResetVisible = FIsResetToDefaultVisible::CreateSP(this, &FGroomRenderingDetails::ShouldResetToDefault, GroupIndex, LODIndex);
 			FResetToDefaultHandler ResetHandler = FResetToDefaultHandler::CreateSP(this, &FGroomRenderingDetails::ResetToDefault, GroupIndex, LODIndex);
 			FResetToDefaultOverride ResetOverride = FResetToDefaultOverride::Create(IsResetVisible, ResetHandler);
-			ChildrenBuilder.AddProperty(ChildHandle.ToSharedRef()).OverrideResetToDefault(ResetOverride);
+			IDetailPropertyRow& Row = ChildrenBuilder.AddProperty(ChildHandle.ToSharedRef()).OverrideResetToDefault(ResetOverride);
+			Row.IsEnabled(!bAutoLOD);
 		}
 		else
 		{
-			ChildrenBuilder.AddProperty(ChildHandle.ToSharedRef());
+			IDetailPropertyRow& Row = ChildrenBuilder.AddProperty(ChildHandle.ToSharedRef());
+			Row.IsEnabled(!bAutoLOD);
 		}
 	}
 }
@@ -1756,6 +1759,12 @@ void FGroomRenderingDetails::OnGenerateElementForHairGroup(TSharedRef<IPropertyH
 		break;
 		case EMaterialPanelType::LODs:
 		{
+			// Reload layout when the LOD type change
+			if (PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupsLOD, LODType))
+			{
+				ChildHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FGroomRenderingDetails::OnGroomLODTypeChanged));
+			}
+
 			if (PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupsLOD, LODs))
 			{
 				// Add a custom builder for each LOD arrays within each group. This way we can customize this 'nested/inner' array
@@ -1810,6 +1819,11 @@ void FGroomRenderingDetails::OnGenerateElementForHairGroup(TSharedRef<IPropertyH
 		}
 
 	}
+}
+
+void FGroomRenderingDetails::OnGroomLODTypeChanged()
+{
+	GroomDetailLayout->ForceRefreshDetails();
 }
 
 // Hair binding display

@@ -47,6 +47,11 @@ static FAutoConsoleVariableRef CVarHairStrands_InterpolationFrustumCullingEnable
 static int32 GHairStrands_Streaming = 0;
 static FAutoConsoleVariableRef CVarHairStrands_Streaming(TEXT("r.HairStrands.Streaming"), GHairStrands_Streaming, TEXT("Hair strands streaming toggle."), ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
+static float GHairStrands_AutoLOD_Scale = 1.f;
+static float GHairStrands_AutoLOD_Bias = 0.f;
+static FAutoConsoleVariableRef CVarHairStrands_AutoLOD_Scale(TEXT("r.HairStrands.AutoLOD.Scale"), GHairStrands_Streaming, TEXT("Hair strands Auto LOD rate at which curves get decimated based on screen coverage."), ECVF_RenderThreadSafe | ECVF_ReadOnly);
+static FAutoConsoleVariableRef CVarHairStrands_AutoLOD_Bias(TEXT("r.HairStrands.AutoLOD.Bias"), GHairStrands_Streaming, TEXT("Hair strands Auto LOD screen size bias at which curves get decimated."), ECVF_RenderThreadSafe | ECVF_ReadOnly);
+
 EHairBufferSwapType GetHairSwapBufferType()
 {
 	switch (GHairStrands_SwapBufferType)
@@ -782,8 +787,9 @@ static float ComputeActiveCurveCoverageScale(uint32 InAvailableCurveCount, uint3
 
 static uint32 ComputeActiveCurveCount(float InScreenSize, uint32 InCurveCount)
 {
-	const float Power = 1.8f; // Per Groom settings?
-	const uint32 OutCurveCount = InCurveCount * FMath::Pow(FMath::Clamp(InScreenSize, 0.f, 1.0f), Power);
+	const float Power = FMath::Max(0.1f, GHairStrands_AutoLOD_Scale);
+	const float ScreenSizeBias = FMath::Clamp(GHairStrands_AutoLOD_Bias, 0.f, 1.f);
+	const uint32 OutCurveCount = InCurveCount * FMath::Pow(FMath::Clamp(InScreenSize + ScreenSizeBias, 0.f, 1.0f), Power);
 	return FMath::Clamp(OutCurveCount, 1, InCurveCount);
 }
 
@@ -883,7 +889,16 @@ static void RunHairLODSelection(
 
 			if (Instance->Strands.ClusterCullingResource)
 			{
-				const uint32 EffectiveCurveCount = Instance->Strands.ClusterCullingResource->BulkData.GetCurveCount(LODIndex);				            
+				uint32 EffectiveCurveCount = 0;
+				if (Instance->HairGroupPublicData->bAutoLOD)
+				{
+					EffectiveCurveCount = ComputeActiveCurveCount(Instance->HairGroupPublicData->ContinuousLODScreenSize, Instance->HairGroupPublicData->RestCurveCount);
+					LODIndex = 0;
+				}
+				else
+				{
+					EffectiveCurveCount = Instance->Strands.ClusterCullingResource->BulkData.GetCurveCount(LODIndex);
+				}
 				check(EffectiveCurveCount <= uint32(Instance->Strands.Data->Header.CurveToPointCount.Num()));
 
 				Instance->HairGroupPublicData->ContinuousLODCurveCount = EffectiveCurveCount;
