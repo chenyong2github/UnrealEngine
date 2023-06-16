@@ -196,7 +196,7 @@ void FExplodedViewDataflowNode::Evaluate(Dataflow::FContext& Context, const FDat
 
 		FFractureEngineFracturing::GenerateExplodedViewAttribute(InCollection, GetValue<FVector>(Context, &Scale), GetValue<float>(Context, &UniformScale));
 
-		SetValue<FManagedArrayCollection>(Context, MoveTemp(InCollection), &Collection);
+		SetValue(Context, MoveTemp(InCollection), &Collection);
 	}
 }
 

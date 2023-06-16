@@ -48,7 +48,7 @@ void FRadialTetrahedronDataflowNodes::Evaluate(Dataflow::FContext& Context, cons
 		TUniquePtr<FTetrahedralCollection> RadialCollection(FTetrahedralCollection::NewTetrahedralCollection(TetVertices, SurfaceElements, TetElements));
 		InCollection->AppendGeometry(*RadialCollection.Get());
 
-		SetValue(Context, MoveTemp((FManagedArrayCollection&)(*InCollection.Release())), &Collection);
+		SetValue<const DataType&>(Context, *InCollection, &Collection);
 	}
 }
 

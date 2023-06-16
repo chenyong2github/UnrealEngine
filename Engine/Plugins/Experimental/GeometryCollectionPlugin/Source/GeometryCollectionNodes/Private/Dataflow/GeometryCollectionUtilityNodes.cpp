@@ -131,7 +131,7 @@ void FSimplifyConvexHullsDataflowNode::Evaluate(Dataflow::FContext& Context, con
 		FManagedArrayCollection InCollection = GetValue(Context, &Collection);
 		if (InCollection.NumElements(FGeometryCollection::TransformGroup) == 0)
 		{
-			SetValue<FManagedArrayCollection>(Context, MoveTemp(InCollection), &Collection);
+			SetValue(Context, MoveTemp(InCollection), &Collection);
 			return;
 		}
 
@@ -153,7 +153,7 @@ void FSimplifyConvexHullsDataflowNode::Evaluate(Dataflow::FContext& Context, con
 		Settings.bUseExistingVertexPositions = bUseExistingVertices;
 		Settings.TargetTriangleCount = GetValue(Context, &MinTargetTriangleCount);
 		UE::FractureEngine::Convex::SimplifyConvexHulls(InCollection, Settings, bRestrictToSelection, SelectedBones);
-		SetValue<FManagedArrayCollection>(Context, MoveTemp(InCollection), &Collection);
+		SetValue(Context, MoveTemp(InCollection), &Collection);
 	}
 }
 
@@ -188,7 +188,7 @@ void FCreateNonOverlappingConvexHullsDataflowNode::Evaluate(Dataflow::FContext& 
 				(EConvexOverlapRemoval)OverlapRemovalMethod,
 				InOverlapRemovalShrinkPercent);
 
-			SetValue(Context, MoveTemp((FManagedArrayCollection&)(*GeomCollection.Release())), &Collection);
+			SetValue<const FManagedArrayCollection&>(Context, *GeomCollection, &Collection);
 		}
 	}
 }
@@ -345,7 +345,7 @@ void FGenerateClusterConvexHullsFromChildrenHullsDataflowNode::Evaluate(Dataflow
 				);
 			}
 
-			SetValue(Context, MoveTemp((FManagedArrayCollection&)(*GeomCollection.Release())), &Collection);
+			SetValue<const FManagedArrayCollection&>(Context, *GeomCollection, &Collection);
 			// Move the negative space to the output container at the end to be sure it is no longer needed
 			Spheres.Spheres = MoveTemp(NegativeSpace);
 		}
@@ -413,7 +413,7 @@ void FMergeConvexHullsDataflowNode::Evaluate(Dataflow::FContext& Context, const 
 
 		FGeometryCollectionConvexUtility::MergeHullsOnTransforms(InCollection, HullMergeSettings, bHasSelectionFilter, SelectionArray);
 
-		SetValue<FManagedArrayCollection>(Context, MoveTemp(InCollection), &Collection);
+		SetValue(Context, MoveTemp(InCollection), &Collection);
 
 		// Move the negative space to the output container at the end, after it is no longer needed
 		Spheres.Spheres = MoveTemp(NegativeSpace);

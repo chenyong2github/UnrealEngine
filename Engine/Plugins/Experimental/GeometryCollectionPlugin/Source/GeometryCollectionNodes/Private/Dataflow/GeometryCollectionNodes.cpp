@@ -649,7 +649,7 @@ void FSetAnchorStateDataflowNode::Evaluate(Dataflow::FContext& Context, const FD
 				AnchoringFacade.SetAnchored(BoneIndices, !bAnchored);
 			}
 
-			SetValue(Context, MoveTemp((FManagedArrayCollection&)(*GeomCollection)), &Collection);
+			SetValue<const FManagedArrayCollection&>(Context, *GeomCollection, &Collection);
 		}
 	}
 }
@@ -679,7 +679,7 @@ void FProximityDataflowNode::Evaluate(Dataflow::FContext& Context, const FDatafl
 			ProximityUtility.InvalidateProximity();
 			ProximityUtility.UpdateProximity();
 
-			SetValue(Context, MoveTemp((FManagedArrayCollection&)(*GeomCollection)), &Collection);
+			SetValue<const FManagedArrayCollection&>(Context, *GeomCollection, &Collection);
 		}
 	}
 }

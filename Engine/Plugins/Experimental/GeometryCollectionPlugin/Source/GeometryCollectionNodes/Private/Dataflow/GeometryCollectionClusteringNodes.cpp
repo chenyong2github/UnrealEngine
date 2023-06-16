@@ -87,7 +87,7 @@ void FAutoClusterDataflowNode::Evaluate(Dataflow::FContext& Context, const FData
 				InEnforceSiteParameters,
 				InGridX, InGridY, InGridZ, InMinimumClusterSize, InKMeansIterations);
 
-			SetValue(Context, MoveTemp((FManagedArrayCollection&)(*GeomCollection.Release())), &Collection);
+			SetValue<const FManagedArrayCollection&>(Context, *GeomCollection, &Collection);
 		}
 	}
 }
@@ -145,7 +145,7 @@ void FClusterUnclusterDataflowNode::Evaluate(Dataflow::FContext& Context, const 
 
 				HierarchyFacade.GenerateLevelAttribute();
 			}
-			SetValue(Context, MoveTemp((FManagedArrayCollection&)(*GeomCollection.Release())), &Collection);
+			SetValue<const FManagedArrayCollection&>(Context, *GeomCollection, &Collection);
 		}
 	}
 }

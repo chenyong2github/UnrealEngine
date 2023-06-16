@@ -66,7 +66,7 @@ void FPruneInCollectionDataflowNode::Evaluate(Dataflow::FContext& Context, const
 
 					FFractureEngineEdit::DeleteBranch(*GeomCollection, BoneIndices);
 
-					SetValue(Context, MoveTemp((FManagedArrayCollection&)(*GeomCollection.Release())), &Collection);
+					SetValue<const FManagedArrayCollection&>(Context, *GeomCollection, &Collection);
 					return;
 				}
 			}
@@ -172,7 +172,7 @@ void FMergeInCollectionDataflowNode::Evaluate(Dataflow::FContext& Context, const
 
 					FFractureEngineEdit::Merge(*GeomCollection, BoneIndices);
 
-					SetValue(Context, MoveTemp((FManagedArrayCollection&)(*GeomCollection.Release())), &Collection);
+					SetValue<const FManagedArrayCollection&>(Context, *GeomCollection, &Collection);
 					return;
 				}
 			}

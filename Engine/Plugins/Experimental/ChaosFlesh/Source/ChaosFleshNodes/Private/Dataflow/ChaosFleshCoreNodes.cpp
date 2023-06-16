@@ -37,7 +37,7 @@ void FAppendTetrahedralCollectionDataflowNode::Evaluate(Dataflow::FContext& Cont
 		{
 			GeometryGroupGuidsLocal2 = GuidArray2->GetConstArray();
 		}
-		SetValue(Context, MoveTemp((FManagedArrayCollection&)(*InCollection1.Release())), &Collection1);
+		SetValue<const FManagedArrayCollection&>(Context, *InCollection1, &Collection1);
 		SetValue(Context, MoveTemp(GeometryGroupGuidsLocal1), &GeometryGroupGuidsOut1);
 		SetValue(Context, MoveTemp(GeometryGroupGuidsLocal2), &GeometryGroupGuidsOut2);
 	}
