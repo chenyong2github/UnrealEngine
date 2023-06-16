@@ -114,13 +114,6 @@ static const TCHAR* GetLocalHostname(int32* OutHostnameLength = nullptr)
 	return *Hostname;
 }
 
-static void GetMemoryStats(uint64& OutAvailablePhysical, uint64& OutUsedPhysical)
-{
-	const FPlatformMemoryStats MemoryStats = FPlatformMemory::GetStats();
-	OutAvailablePhysical = MemoryStats.AvailablePhysical;
-	OutUsedPhysical = MemoryStats.UsedPhysical;
-}
-
 static int64 WriteOutputFileHeader(FArchive& OutputFile, int32 ErrorCode, int32 CallstackLength, const TCHAR* Callstack,
 	int32 ExceptionInfoLength, const TCHAR* ExceptionInfo)
 {
@@ -168,9 +161,16 @@ static int64 WriteOutputFileHeader(FArchive& OutputFile, int32 ErrorCode, int32 
 		// Store available and used physical memory of host machine on OOM error
 		if (ErrorCode == FSCWErrorCode::OutOfMemory)
 		{
-			uint64 AvailablePhysical = 0, UsedPhysical = 0;
-			GetMemoryStats(AvailablePhysical, UsedPhysical);
-			OutputFile << AvailablePhysical << UsedPhysical;
+			FPlatformMemoryStats MemoryStats = FPlatformMemory::GetStats();
+
+			OutputFile
+				<< MemoryStats.AvailablePhysical
+				<< MemoryStats.AvailableVirtual
+				<< MemoryStats.UsedPhysical
+				<< MemoryStats.PeakUsedPhysical
+				<< MemoryStats.UsedVirtual
+				<< MemoryStats.PeakUsedVirtual
+				;
 		}
 	}
 
