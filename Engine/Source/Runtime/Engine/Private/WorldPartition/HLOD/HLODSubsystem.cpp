@@ -456,6 +456,10 @@ void UHLODSubsystem::RegisterHLODActor(AWorldPartitionHLOD* InWorldPartitionHLOD
 	{
 		UE_LOG(LogHLODSubsystem, Verbose, TEXT("Found HLOD %s referencing nonexistent cell '%s'"), *InWorldPartitionHLOD->GetActorNameOrLabel(), *InWorldPartitionHLOD->GetSourceCellGuid().ToString());
 		InWorldPartitionHLOD->SetVisibility(false);
+
+#if WITH_EDITOR
+		OutdatedHLODActors.Add(InWorldPartitionHLOD);
+#endif
 	}
 
 	HLODActorsToWarmup.Remove(InWorldPartitionHLOD);
@@ -470,8 +474,13 @@ void UHLODSubsystem::UnregisterHLODActor(AWorldPartitionHLOD* InWorldPartitionHL
 	{
 		UE_LOG(LogHLODSubsystem, Verbose, TEXT("Unregistering HLOD %s for cell %s"), *InWorldPartitionHLOD->GetActorNameOrLabel(), *InWorldPartitionHLOD->GetSourceCellGuid().ToString());
 
-		int32 NumRemoved = CellData->LoadedHLODs.Remove(InWorldPartitionHLOD);
-		check(NumRemoved == 1);
+		verify(CellData->LoadedHLODs.Remove(InWorldPartitionHLOD));
+	}
+	else
+	{
+#if WITH_EDITOR
+		verify(OutdatedHLODActors.Remove(InWorldPartitionHLOD));
+#endif
 	}
 
 	HLODActorUnregisteredEvent.Broadcast(InWorldPartitionHLOD);

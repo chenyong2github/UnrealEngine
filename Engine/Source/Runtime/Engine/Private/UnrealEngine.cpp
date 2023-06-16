@@ -236,6 +236,10 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "RenderGraphBuilder.h"
 #endif
 
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#include "WorldPartition/HLOD/HLODSubsystem.h"
+#endif
+
 #if WITH_DUMPGPU
 
 static TAutoConsoleVariable<int32> GDumpGPUScreenshot(
@@ -12032,6 +12036,18 @@ float DrawMapWarnings(UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanv
 		{
 			SmallTextItem.SetColor(FLinearColor::Red);
 			SmallTextItem.Text = FText::Format(LOCTEXT("HLOD_CLUSTERS_NEED_TO_BE_REBUILT_FMT", "HLOD CLUSTERS NEED TO BE REBUILT ({0} unbuilt {0}|plural(one=object,other=objects))"), GUnbuiltHLODCount);
+			Canvas->DrawItem(SmallTextItem, FVector2D(MessageX, MessageY));
+			MessageY += FontSizeY;
+		}
+	}
+
+	if (UHLODSubsystem* HLODSubsystem = World->GetSubsystem<UHLODSubsystem>())
+	{
+		uint32 NumOutdatedHLODActors = HLODSubsystem->GetNumOutdatedHLODActors();
+		if (NumOutdatedHLODActors)
+		{
+			SmallTextItem.SetColor(FLinearColor::Yellow);
+			SmallTextItem.Text = FText::Format(LOCTEXT("OUTDATED_HLOD_ACTORS_FMT", "Outdated HLOD actors detected, HLODs need to be rebuilt ({0} outdated {0}|plural(one=actor,other=actors))"), NumOutdatedHLODActors);
 			Canvas->DrawItem(SmallTextItem, FVector2D(MessageX, MessageY));
 			MessageY += FontSizeY;
 		}

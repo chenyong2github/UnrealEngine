@@ -69,6 +69,7 @@ public:
 	ENGINE_API void OnCVarsChanged();
 
 #ifdef WITH_EDITOR
+	uint32 GetNumOutdatedHLODActors() const { return OutdatedHLODActors.Num(); }
 	static ENGINE_API bool WriteHLODStatsCSV(UWorld* InWorld, const FString& InFilename);
 #endif
 	
@@ -130,5 +131,9 @@ private:
 
 	FWorldPartitionHLODActorRegisteredEvent		HLODActorRegisteredEvent;
 	FWorldPartitionHLODActorUnregisteredEvent	HLODActorUnregisteredEvent;
+
+#if WITH_EDITOR
+	TSet<AWorldPartitionHLOD*> OutdatedHLODActors;
+#endif
 };
 
