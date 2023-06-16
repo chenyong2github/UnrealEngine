@@ -743,11 +743,9 @@ bool FNiagaraBakerRenderer::ExportVolume(FStringView FilePath, FIntVector ImageS
 	const FString FileExtension = FPaths::GetExtension(FilePath.GetData(), true);
 	if (FileExtension == TEXT(".vdb"))
 	{
-#if UE_USE_OPENVDB
-		return OpenVDBTools::WriteImageDataToOpenVDBFile(FilePath, ImageSize, ImageData, false);
-#else
+		UE_LOG(LogNiagara, Warning, TEXT("Exporting vdb grids from the Niagara Baker is no longer supported."));
+
 		return false;
-#endif
 	}
 	else
 	{
