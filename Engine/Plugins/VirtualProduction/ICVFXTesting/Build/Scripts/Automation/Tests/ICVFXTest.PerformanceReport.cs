@@ -514,10 +514,6 @@ namespace ICVFXTest
 			return "Nanite";
 		}
 
-		public override bool UseVulkan()
-		{
-			return true;
-		}
 		public override bool UseNanite()
 		{
 			return true;
