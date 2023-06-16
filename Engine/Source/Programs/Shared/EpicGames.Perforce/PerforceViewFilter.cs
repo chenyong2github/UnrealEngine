@@ -151,7 +151,7 @@ namespace EpicGames.Perforce
 		/// <returns></returns>
 		public static PerforceViewFilterEntry Parse(string entry)
 		{
-			Match match = Regex.Match(entry, @"^\s*(-?)\s*([^ ]+)\s*$");
+			Match match = Regex.Match(entry, @"^\s*(-?)\s*(.*[^ ])\s*$");
 			if (!match.Success)
 			{
 				throw new PerforceException($"Unable to parse view filter entry: {entry}");
