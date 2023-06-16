@@ -455,7 +455,9 @@ protected:
 		/* The pins match by name or redirect and have the same type (or we're ok with the mismatched type) */
 		ERedirectType_Name,
 		/* The pins match via a redirect and the value needs to also be redirected */
-		ERedirectType_Value
+		ERedirectType_Value,
+		/* The pins differ by type and have a default value*/
+		ERedirectType_DefaultValue,
 	};
 
 	// Handles the actual reconstruction (copying data, links, name, etc...) from two pins that have already been matched together
@@ -569,6 +571,16 @@ private:
 	 * insert a conversion node into the graph if one exists between the two types.
 	 */
 	void ValidateLinkedPinTypes(UEdGraphPin* OutputPin, FCompilerResultsLog& MessageLog) const;
+
+	/**
+	 * If there's a type mismatch between old and new pins during rewiring *and* the old pin has a default value,
+	 * then we'll need a way to keep the old default value and convert it to the new type.
+	 * This function achieves that by inserting both a literal and a conversion node.
+	 * The literal node will use the original default value.
+	 * 
+	 * Returns true if the conversion was successful.
+	 */
+	bool TryInsertDefaultValueConversionNode(const UEdGraphPin& OldPin, UEdGraphPin& NewPin) const;
 
 public:
 
