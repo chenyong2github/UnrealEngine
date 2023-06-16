@@ -111,7 +111,7 @@ class FGenericDataDrivenShaderPlatformInfo
 	uint32 bSupportsSwapchainUAVs : 1;
 	uint32 bSupportsClipDistance : 1;
 	uint32 bSupportsNNEShaders: 1;
-
+	uint32 bSupportsShaderPipelines : 1;
 	// NOTE: When adding fields, you must also add to ParseDataDrivenShaderInfo!
 	uint32 bContainsValidPlatformInfo : 1;
 
@@ -687,6 +687,11 @@ public:
 		return Infos[Platform].bSupportsVolumeTextureAtomics;
 	}
 
+	static FORCEINLINE_DEBUGGABLE const bool GetSupportsPipelineShaders(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bSupportsShaderPipelines;
+	}
+
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsROV(const FStaticShaderPlatform Platform)
 	{
 		return Infos[Platform].bSupportsROV;
@@ -920,7 +925,7 @@ inline bool RHISupportsNativeShaderLibraries(const FStaticShaderPlatform Platfor
 
 inline bool RHISupportsShaderPipelines(const FStaticShaderPlatform Platform)
 {
-	return !IsMobilePlatform(Platform);
+	return FDataDrivenShaderPlatformInfo::GetSupportsPipelineShaders(Platform);
 }
 
 inline bool RHISupportsDualSourceBlending(const FStaticShaderPlatform Platform)

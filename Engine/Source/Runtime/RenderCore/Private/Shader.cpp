@@ -81,6 +81,15 @@ static TAutoConsoleVariable<int32> CVarUsePipelines(
 	1,
 	TEXT("Enable using Shader pipelines."));
 
+static TAutoConsoleVariable<int32> CVarRemoveUnusedInterpolators(
+	TEXT("r.Shaders.RemoveUnusedInterpolators"),
+	0,
+	TEXT("Enables removing unused interpolators mode when compiling shader pipelines.\n")
+	TEXT(" 0: Disable (default)\n")
+	TEXT(" 1: Enable removing unused"),
+	ECVF_ReadOnly
+);
+
 static TAutoConsoleVariable<int32> CVarSkipShaderCompression(
 	TEXT("r.Shaders.SkipCompression"),
 	0,
@@ -1647,15 +1656,9 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		KeyString += TEXT("_NoPPSM");
 	}
 	
-	if (IsD3DPlatform(Platform) && IsPCPlatform(Platform))
+	if (UseRemoveUnsedInterpolators(Platform) && !IsOpenGLPlatform(Platform))
 	{
-		{
-			static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.D3D.RemoveUnusedInterpolators"));
-			if (CVar && CVar->GetInt() != 0)
-			{
-				KeyString += TEXT("_UnInt");
-			}
-		}
+		KeyString += TEXT("_UnInt");
 	}
 
 	if (IsMobilePlatform(Platform))

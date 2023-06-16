@@ -1195,17 +1195,29 @@ RENDERCORE_API bool UseNaniteLandscapeMesh(EShaderPlatform ShaderPlatform)
 	return DoesPlatformSupportNanite(ShaderPlatform);
 }
 
+RENDERCORE_API bool UseShaderPipelines(EShaderPlatform ShaderPlatform)
+{
+	static FShaderPlatformCachedIniValue<int32> PerPlatformCVar(TEXT("r.ShaderPipelines"));
+	bool bUseShaderPipelines = PerPlatformCVar.Get(ShaderPlatform) != 0;
+	return bUseShaderPipelines;
+}
+
+RENDERCORE_API bool UseRemoveUnsedInterpolators(EShaderPlatform ShaderPlatform)
+{
+	static FShaderPlatformCachedIniValue<int32> PerPlatformCVar(TEXT("r.Shaders.RemoveUnusedInterpolators"));
+	bool bRemoveUnusedInterpolators = PerPlatformCVar.Get(ShaderPlatform) != 0;
+	return bRemoveUnusedInterpolators;
+}
+
 RENDERCORE_API bool ExcludeNonPipelinedShaderTypes(EShaderPlatform ShaderPlatform)
 {
 	if (RHISupportsShaderPipelines(ShaderPlatform))
 	{
-		static const TConsoleVariableData<int32>* CVarShaderPipelines = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ShaderPipelines"));
-		bool bShaderPipelinesAreEnabled = CVarShaderPipelines && CVarShaderPipelines->GetValueOnAnyThread(IsInGameThread()) != 0;
+		bool bShaderPipelinesAreEnabled = UseShaderPipelines(ShaderPlatform);
 		if (bShaderPipelinesAreEnabled)
 		{
-			static const IConsoleVariable* CVarExcludeNonPipelinedShaders = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Material.ExcludeNonPipelinedShaders"));
-			bool bExcludeNonPipelinedShaders = CVarExcludeNonPipelinedShaders && CVarExcludeNonPipelinedShaders->GetInt() != 0;
-
+			static FShaderPlatformCachedIniValue<int32> PerPlatformCVar(TEXT("r.Material.ExcludeNonPipelinedShaders"));
+			bool bExcludeNonPipelinedShaders = PerPlatformCVar.Get(ShaderPlatform) != 0;
 			return bExcludeNonPipelinedShaders;
 		}
 	}

@@ -424,6 +424,16 @@ RENDERCORE_API bool UseNaniteLandscapeMesh(EShaderPlatform ShaderPlatform);
 RENDERCORE_API bool ExcludeNonPipelinedShaderTypes(EShaderPlatform ShaderPlatform);
 
 /**
+ *  Checks if shader pipelines is enable for a specific platform.
+ */
+RENDERCORE_API bool UseShaderPipelines(EShaderPlatform ShaderPlatform);
+
+/**
+ *  Checks if we can strip unused interpolators for a specific platform.
+ */
+RENDERCORE_API bool UseRemoveUnsedInterpolators(EShaderPlatform ShaderPlatform);
+
+/**
  *   Checks if skin cache shaders are enabled for the platform (via r.SkinCache.CompileShaders)
  */
 RENDERCORE_API bool AreSkinCacheShadersEnabled(EShaderPlatform Platform);

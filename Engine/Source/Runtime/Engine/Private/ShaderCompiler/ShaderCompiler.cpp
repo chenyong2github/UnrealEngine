@@ -1139,16 +1139,6 @@ static TAutoConsoleVariable<int32> CVarShaderFlowControl(
 	TEXT("\t2: Avoid - Attempt to unroll and flatten flow-control.\n"),
 	ECVF_ReadOnly);
 
-static TAutoConsoleVariable<int32> CVarD3DRemoveUnusedInterpolators(
-	TEXT("r.D3D.RemoveUnusedInterpolators"),
-	1,
-	TEXT("Enables removing unused interpolators mode when compiling pipelines for D3D.\n")
-	TEXT(" -1: Do not actually remove, but make the app think it did (for debugging)\n")
-	TEXT(" 0: Disable (default)\n")
-	TEXT(" 1: Enable removing unused"),
-	ECVF_ReadOnly
-	);
-
 static TAutoConsoleVariable<int32> CVarD3DCheckedForTypedUAVs(
 	TEXT("r.D3D.CheckedForTypedUAVs"),
 	1,
@@ -6369,12 +6359,14 @@ void GlobalBeginCompileShader(
 		Input.Environment.CompilerFlags.Add(CFLAG_WarningsAsErrors);
 	}
 
+	if (UseRemoveUnsedInterpolators((EShaderPlatform)Target.Platform) && !IsOpenGLPlatform((EShaderPlatform)Target.Platform))
+	{
+		Input.Environment.CompilerFlags.Add(CFLAG_ForceRemoveUnusedInterpolators);
+	}
+	
 	if (IsD3DPlatform((EShaderPlatform)Target.Platform) && IsPCPlatform((EShaderPlatform)Target.Platform))
 	{
-		if (CVarD3DRemoveUnusedInterpolators.GetValueOnAnyThread() != 0)
-		{
-			Input.Environment.CompilerFlags.Add(CFLAG_ForceRemoveUnusedInterpolators);
-		}
+
 
 		if (CVarD3DCheckedForTypedUAVs.GetValueOnAnyThread() == 0)
 		{

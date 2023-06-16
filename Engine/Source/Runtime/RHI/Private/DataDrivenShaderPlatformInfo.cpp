@@ -145,6 +145,7 @@ void FGenericDataDrivenShaderPlatformInfo::SetDefaultValues()
 	bSupportsManualVertexFetch = true;
 	bSupportsVolumeTextureAtomics = true;
 	bSupportsClipDistance = true;
+	bSupportsShaderPipelines = true;
 }
 
 void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConfigSection& Section, uint32 Index)
@@ -282,6 +283,7 @@ void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConf
 	GET_SECTION_BOOL_HELPER(bSupportsSwapchainUAVs);
 	GET_SECTION_BOOL_HELPER(bSupportsClipDistance);
 	GET_SECTION_BOOL_HELPER(bSupportsNNEShaders);
+	GET_SECTION_BOOL_HELPER(bSupportsShaderPipelines);
 #undef GET_SECTION_BOOL_HELPER
 #undef GET_SECTION_INT_HELPER
 #undef GET_SECTION_SUPPORT_HELPER
