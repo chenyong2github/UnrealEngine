@@ -17,7 +17,7 @@
  * Operation: A + B(1-a)
  * Result: Lerp(B, A + B(1-a), Alpha)
  */
-UCLASS(MinimalAPI, collapsecategories, hidecategories = Object, meta = (Private))
+UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
 class UMaterialExpressionMaterialXOver : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()

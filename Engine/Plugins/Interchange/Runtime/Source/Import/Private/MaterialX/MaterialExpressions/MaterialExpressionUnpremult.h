@@ -11,7 +11,7 @@
  * Alpha value is zero, the original color4 input value is passed through unchanged.
  * Input must be of type float4
  */
-UCLASS(collapsecategories, hidecategories = Object, MinimalAPI, meta = (Private))
+UCLASS(collapsecategories, hidecategories = Object, MinimalAPI)
 class UMaterialExpressionMaterialXUnpremult : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()

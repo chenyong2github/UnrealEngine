@@ -6,7 +6,7 @@
 
 #include "MaterialExpressionSwizzle.generated.h"
 
-UCLASS(collapsecategories, hidecategories = Object, MinimalAPI, meta = (Private))
+UCLASS(collapsecategories, hidecategories = Object, MinimalAPI)
 class UMaterialExpressionMaterialXSwizzle : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()

@@ -10,7 +10,7 @@
  * octaves of 3D Perlin noise, increasing the frequency and decreasing the amplitude at each octave.
  */
 
-UCLASS(collapsecategories, hidecategories = Object, MinimalAPI, meta = (Private))
+UCLASS(collapsecategories, hidecategories = Object, MinimalAPI)
 class UMaterialExpressionMaterialXFractal3D : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()

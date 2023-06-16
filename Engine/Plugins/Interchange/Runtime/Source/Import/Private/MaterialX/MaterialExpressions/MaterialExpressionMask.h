@@ -17,7 +17,7 @@
  * Operation: B*a
  * Result: Lerp(B, B*a, Alpha)
  */
-UCLASS(MinimalAPI, collapsecategories, hidecategories = Object, meta = (Private))
+UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
 class UMaterialExpressionMaterialXMask : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()

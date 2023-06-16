@@ -11,7 +11,7 @@
 /**
  * A material expression that allows combining 4 channels together to create a vector with more channel than the original
  */
-UCLASS(MinimalAPI, collapsecategories, hidecategories = Object, meta = (Private))
+UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
 class UMaterialExpressionMaterialXAppend4Vector : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()

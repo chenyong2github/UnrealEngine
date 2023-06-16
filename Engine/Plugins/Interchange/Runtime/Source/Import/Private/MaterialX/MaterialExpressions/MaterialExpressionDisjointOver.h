@@ -18,7 +18,7 @@
  *            A + B(1-a)/b if a + b > 1
  * Result: Lerp(B, Op, Alpha)
  */
-UCLASS(MinimalAPI, collapsecategories, hidecategories = Object, meta = (Private))
+UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
 class UMaterialExpressionMaterialXDisjointOver : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()

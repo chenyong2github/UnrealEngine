@@ -21,7 +21,7 @@ enum class EMaterialXLuminanceMode : uint8
 	Custom
 };
 
-UCLASS(collapsecategories, hidecategories = Object, MinimalAPI, meta = (Private))
+UCLASS(collapsecategories, hidecategories = Object, MinimalAPI)
 class UMaterialExpressionMaterialXLuminance : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()

@@ -8,7 +8,7 @@
 /**
  * A material expression that rotates a vector2 value about the origin in 2D.
  */
-UCLASS(collapsecategories, hidecategories = Object, MinimalAPI, meta = (Private))
+UCLASS(collapsecategories, hidecategories = Object, MinimalAPI)
 class UMaterialExpressionMaterialXRotate2D : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()

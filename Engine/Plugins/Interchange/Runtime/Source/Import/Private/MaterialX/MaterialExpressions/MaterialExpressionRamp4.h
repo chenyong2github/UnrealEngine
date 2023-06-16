@@ -9,7 +9,7 @@
 /**
  * A material expression that computes a 4-corner bilinear value ramp..
  */
-UCLASS(collapsecategories, hidecategories = Object, MinimalAPI, meta = (Private))
+UCLASS(collapsecategories, hidecategories = Object, MinimalAPI)
 class UMaterialExpressionMaterialXRamp4: public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()

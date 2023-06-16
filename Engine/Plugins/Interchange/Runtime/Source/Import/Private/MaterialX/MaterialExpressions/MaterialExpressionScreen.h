@@ -13,7 +13,7 @@
  * Operation: 1-(1-A)(1-B)
  * Result: Lerp(B, 1-(1-F)(1-B), Alpha)
  */
-UCLASS(MinimalAPI, collapsecategories, hidecategories = Object, meta = (Private))
+UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
 class UMaterialExpressionMaterialXScreen : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()

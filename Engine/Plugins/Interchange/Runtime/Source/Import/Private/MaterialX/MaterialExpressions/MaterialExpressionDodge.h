@@ -13,7 +13,7 @@
  * Operation: B/(1-A)
  * Result: Lerp(B, B/(1-A), Alpha)
  */
-UCLASS(MinimalAPI, collapsecategories, hidecategories = Object, meta = (Private))
+UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
 class UMaterialExpressionMaterialXDodge: public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()

@@ -10,7 +10,7 @@
  * Multiply the RGB channels of the input by the Alpha channel of the input.
  * Input must be of type float4
  */
-UCLASS(collapsecategories, hidecategories = Object, MinimalAPI, meta = (Private))
+UCLASS(collapsecategories, hidecategories = Object, MinimalAPI)
 class UMaterialExpressionMaterialXPremult : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
