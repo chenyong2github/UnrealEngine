@@ -72,6 +72,7 @@ FNiagaraEditorWidgetsStyle::FNiagaraEditorWidgetsStyle() : FSlateStyleSet("Niaga
 	InitTextStyles();
 	InitRowStyles();
 	InitButtonStyles();
+	InitToolbarStyles();
 	InitInlineDynamicInputBrushes();
 	InitSystemOverviewMisc();
 	InitIcons();
