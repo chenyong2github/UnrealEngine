@@ -962,6 +962,7 @@ void UAssetRegistryImpl::InitializeEvents(UE::AssetRegistry::Impl::FInitializeCo
 }
 
 UAssetRegistryImpl::UAssetRegistryImpl(FVTableHelper& Helper)
+	: Super(Helper)
 {
 }
 
