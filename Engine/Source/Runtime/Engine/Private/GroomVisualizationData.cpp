@@ -73,6 +73,7 @@ EGroomViewMode GetGroomViewMode(const FSceneView& View)
 		case 37: return EGroomViewMode::CardGuides;
 		case 38: return EGroomViewMode::AO;
 		case 39: return EGroomViewMode::ClumpID;
+		case 40: return EGroomViewMode::Memory;
 		default: break;
 		}
 
@@ -129,6 +130,7 @@ const TCHAR* GetGroomViewModeName(EGroomViewMode In)
 	case EGroomViewMode::Group:						return TEXT("Group");
 	case EGroomViewMode::LODColoration:				return TEXT("LODColoration");
 	case EGroomViewMode::CardGuides:				return TEXT("CardGuides");
+	case EGroomViewMode::Memory:					return TEXT("Memory");
 	}
 	return TEXT("None");
 }
@@ -217,6 +219,7 @@ void FGroomVisualizationData::Initialize()
 		AddVisualizationMode(ModeMap, true, EGroomViewMode::LODColoration,				LOCTEXT("LODColoration", "LOD Color"),						LOCTEXT("LODColorationDesc", "Hair LOD coloring"));
 		AddVisualizationMode(ModeMap, true, EGroomViewMode::AO,							LOCTEXT("AO", "Per-CV AO"),									LOCTEXT("AODesc", "Control point AO  (optional)"));
 		AddVisualizationMode(ModeMap, true, EGroomViewMode::ClumpID,					LOCTEXT("ClumpID", "Clump ID"),								LOCTEXT("ClumpIDDesc", "Curve clumpID  (optional)"));
+		AddVisualizationMode(ModeMap, true, EGroomViewMode::Memory,						LOCTEXT("Memory", "Memory"),								LOCTEXT("MemoryDesc", "Memory"));
 
 		ConsoleDocumentationVisualizationMode = ConfigureConsoleCommand(ModeMap);
 	}

@@ -128,6 +128,7 @@ void FGroomVisualizationMenuCommands::InternalBuildVisualisationSubMenu(FMenuBui
 				Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::Coverage);
 				Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::Tile);
 			}
+			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::Memory);
 			Menu.EndSection();
 		}
 	}

@@ -4,7 +4,7 @@
 #include "../HairShadingCommon.ush"
 #include "../ColorMap.ush"
 
-#if SHADER_PRINT_INSTANCE || SHADER_PRINT
+#if SHADER_PRINT_INSTANCE || SHADER_PRINT || SHADER_PRINT_MEMORY
 /////////////////////////////////////////////////////////////////////////////////////////
 // Utils function
 
@@ -2479,3 +2479,360 @@ void CSMain(
 }
 
 #endif // SHADER_ATTRIBUTE_DEBUG
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+// Print memory
+
+#if SHADER_PRINT_MEMORY
+
+FSTRINGS(GroomNames)
+FSTRINGS(BindingNames)
+FSTRINGS(ComponentNames)
+
+uint ComponentCount;
+uint GroomCount;
+uint BindingCount;
+
+Buffer<uint> ComponentBuffer;
+Buffer<uint> GroomBuffer;
+Buffer<uint> BindingBuffer;
+
+struct FInfo
+{
+	uint4 Data0;
+	uint4 Data1;
+	uint4 Data2;
+	uint4 Data3;
+	uint4 Data4;
+};
+
+FInfo ReadInfo(uint Index, Buffer<uint> InBuffer)
+{
+	const uint Index20 = Index * 20u;
+	FInfo Out;
+	Out.Data0.x = InBuffer[Index20 + 0];
+	Out.Data0.y = InBuffer[Index20 + 1];
+	Out.Data0.z = InBuffer[Index20 + 2];
+	Out.Data0.w = InBuffer[Index20 + 3];
+	Out.Data1.x = InBuffer[Index20 + 4];
+	Out.Data1.y = InBuffer[Index20 + 5];
+	Out.Data1.z = InBuffer[Index20 + 6];
+	Out.Data1.w = InBuffer[Index20 + 7];
+	Out.Data2.x = InBuffer[Index20 + 8];
+	Out.Data2.y = InBuffer[Index20 + 9];
+	Out.Data2.z = InBuffer[Index20 + 10];
+	Out.Data2.w = InBuffer[Index20 + 11];
+	Out.Data3.x = InBuffer[Index20 + 12];
+	Out.Data3.y = InBuffer[Index20 + 13];
+	Out.Data3.z = InBuffer[Index20 + 14];
+	Out.Data3.w = InBuffer[Index20 + 15];
+	Out.Data4.x = InBuffer[Index20 + 16];
+	Out.Data4.y = InBuffer[Index20 + 17];
+	Out.Data4.z = InBuffer[Index20 + 18];
+	Out.Data4.w = InBuffer[Index20 + 19];
+	return Out;
+}
+
+struct FComponent
+{
+	uint GroupIndex;
+	uint GroupCount;
+	uint RestCurve;
+	uint ActiveCurve;
+
+	uint GPU_Common;
+	uint GPU_Guides;
+	uint GPU_Strands;
+	uint GPU_Cards;
+	uint GPU_Meshes;
+};
+
+FComponent GetComponent(uint Index)
+{	
+	const FInfo In = ReadInfo(Index, ComponentBuffer);
+
+	FComponent Out;
+	Out.GroupIndex 			=In.Data0.x;
+	Out.GroupCount 			=In.Data0.y;
+	Out.ActiveCurve			=In.Data0.z;
+	Out.RestCurve			=In.Data0.w;
+	
+	Out.GPU_Guides 			=In.Data1.x;
+	Out.GPU_Strands 		=In.Data1.y;
+	Out.GPU_Cards 			=In.Data1.z;
+	Out.GPU_Meshes 			=In.Data1.w;
+	Out.GPU_Common			=In.Data2.x;
+
+	return Out;
+}
+
+struct FGroom
+{
+	uint GroupIndex;
+	uint GroupCount;
+	uint RestCurve;
+	uint ActiveCurve;
+
+	uint CPU_Guides;
+	uint CPU_Strands;
+	uint CPU_Cards;
+	uint CPU_Meshes;
+
+	uint GPU_Guides;
+	uint GPU_Strands;
+	uint GPU_Cards;
+	uint GPU_Meshes;
+
+	uint GPU_Rest;
+	uint GPU_Interpolation;
+	uint GPU_Cluster;
+	uint GPU_Raytracing;
+
+	uint Curve_Rest;
+	uint Curve_Interpolation;
+	uint Curve_Cluster;
+	uint Curve_Raytracing;
+};
+
+FGroom GetGroom(uint Index)
+{	
+	const FInfo In = ReadInfo(Index, GroomBuffer);
+
+	FGroom Out;
+	Out.GroupIndex 			= In.Data0.x;
+	Out.GroupCount 			= In.Data0.y;
+	Out.ActiveCurve			= In.Data0.z;
+	Out.RestCurve			= In.Data0.w;
+
+	Out.CPU_Guides 			= In.Data1.x;
+	Out.CPU_Strands 		= In.Data1.y;
+	Out.CPU_Cards 			= In.Data1.z;
+	Out.CPU_Meshes 			= In.Data1.w;
+
+	Out.GPU_Guides 			= In.Data2.x;
+	Out.GPU_Strands 		= In.Data2.y;
+	Out.GPU_Cards 			= In.Data2.z;
+	Out.GPU_Meshes 			= In.Data2.w;
+
+	Out.GPU_Rest			= In.Data3.x;
+	Out.GPU_Interpolation	= In.Data3.y;
+	Out.GPU_Cluster			= In.Data3.z;
+	Out.GPU_Raytracing		= In.Data3.w;
+
+	Out.Curve_Rest			= In.Data4.x;
+	Out.Curve_Interpolation	= In.Data4.x;
+	Out.Curve_Cluster     	= In.Data4.x;
+	Out.Curve_Raytracing  	= In.Data4.x;
+
+	return Out;
+}
+
+struct FBinding
+{
+	uint GroupIndex;
+	uint GroupCount;
+	uint RestCurve;
+	uint ActiveCurve;
+
+	uint CPU_Guides;
+	uint CPU_Strands;
+	uint CPU_Cards;
+	uint CPU_Meshes;
+
+	uint GPU_Guides;
+	uint GPU_Strands;
+	uint GPU_Cards;
+	uint GPU_Meshes;
+};
+
+FBinding GetBinding(uint Index)
+{	
+	const FInfo In = ReadInfo(Index, BindingBuffer);
+
+	FBinding Out;
+	Out.GroupIndex 	= In.Data0.x;
+	Out.GroupCount 	= In.Data0.y;
+	Out.ActiveCurve	= In.Data0.z;
+	Out.RestCurve	= In.Data0.w;
+
+	Out.CPU_Guides 	= In.Data1.x;
+	Out.CPU_Strands = In.Data1.y;
+	Out.CPU_Cards 	= In.Data1.z;
+	Out.CPU_Meshes 	= In.Data1.w;
+
+	Out.GPU_Guides 	= In.Data2.x;
+	Out.GPU_Strands = In.Data2.y;
+	Out.GPU_Cards 	= In.Data2.z;
+	Out.GPU_Meshes 	= In.Data2.w;
+	return Out;
+}
+
+void PrintGroup(inout FShaderPrintContext Ctx, uint GroupIndex, uint GroupCount)
+{
+	Print(Ctx, GroupIndex,	FontEmerald, 2, 0);	
+	Print(Ctx, TEXT("/"), FontWhite);
+	Print(Ctx, GroupCount,	FontEmerald, 2, 0);
+}
+
+FFontColor GetOccupancyColor(float In)
+{
+	float3 Color = lerp(float3(0, 1, 0), float3(1, 0, 0), saturate(In));
+	return InitFontColor(Color);
+}
+
+void PrintCurve(inout FShaderPrintContext Ctx, uint ActiveCurve, uint RestCurve)
+{
+	const float Curve = float(ActiveCurve) / float(RestCurve);
+	PrintPercentage(Ctx, Curve, GetOccupancyColor(Curve));
+	//PrintLargeNumber(Ctx, Info.ActiveCurve,	FontOrange);	Print(Ctx, TEXT(" "), FontWhite);
+	//Print(Ctx, TEXT("/"), FontWhite);
+	//PrintLargeNumber(Ctx, Info.RestCurve,	FontOrange);	Print(Ctx, TEXT(" "), FontWhite);
+}
+
+[numthreads(1, 1, 1)]
+void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	// Draw AABB of the instance groups
+	if (any(DispatchThreadId != 0))
+	{
+		return;
+	}
+
+	// Widgets
+	FShaderPrintContext Ctx2 = InitShaderPrintContext(true, uint2(900, 100));
+	Print(Ctx2, TEXT("Controls"), FontYellow); Newline(Ctx2);
+	const bool bComponent 	= AddCheckbox(Ctx2, TEXT("Components"), false, FontWhite); 	Newline(Ctx2);	
+	const bool bGroom     	= AddCheckbox(Ctx2, TEXT("Grooms"), true, FontWhite);     	Newline(Ctx2);	
+	const bool bBinding   	= AddCheckbox(Ctx2, TEXT("Bindings"), false, FontWhite);   	Newline(Ctx2);
+	const bool bStrandsOnly = AddCheckbox(Ctx2, TEXT("Strands Only"), true, FontWhite); Newline(Ctx2);
+
+	// Component
+	FShaderPrintContext Ctx = InitShaderPrintContext(true, uint2(50, 100));
+	uint Component_TotalGPU = 0;
+	if (bComponent)
+	{
+		Print(Ctx, TEXT("Components"), FontYellow); Newline(Ctx);
+		{
+			Print(Ctx, TEXT("Grp. Common Guides Strands Cards Meshes Total  Curv Name"), FontSilver); Newline(Ctx);
+			for (uint It = 0; It < ComponentCount; ++It)
+			{
+				const FComponent Info = GetComponent(It);
+				const uint Total
+					= Info.GPU_Common
+					+ Info.GPU_Guides
+					+ Info.GPU_Strands
+					+ Info.GPU_Cards;
+
+
+				PrintGroup(Ctx, Info.GroupIndex, Info.GroupCount);
+	
+				PrintLargeNumber(Ctx, Info.GPU_Common,	FontWhite);		Print(Ctx, TEXT(" "), FontWhite);
+				PrintLargeNumber(Ctx, Info.GPU_Guides,	FontWhite);		Print(Ctx, TEXT(" "), FontWhite);
+				PrintLargeNumber(Ctx, Info.GPU_Strands,	FontWhite);		Print(Ctx, TEXT(" "), FontWhite);
+				PrintLargeNumber(Ctx, Info.GPU_Cards,	FontWhite);		Print(Ctx, TEXT(" "), FontWhite);
+				PrintLargeNumber(Ctx, Info.GPU_Meshes,	FontWhite);		Print(Ctx, TEXT(" "), FontWhite);
+				PrintLargeNumber(Ctx, Total,			FontOrange);	Print(Ctx, TEXT(" "), FontWhite);
+				PrintCurve(Ctx, Info.ActiveCurve, Info.RestCurve);
+	
+				PrintComponentNames(Ctx, It, FontWhite);
+				Newline(Ctx);
+			}
+		}
+		Newline(Ctx);
+	}
+	// Total
+
+	// Grooms
+	if (bGroom)
+	{
+		Print(Ctx, TEXT("Grooms"), FontYellow); Newline(Ctx);
+		if (!bStrandsOnly)
+		{
+			Print(Ctx, TEXT("Grp. Guides Strands Cards Meshes Total Curv Name"), FontSilver); Newline(Ctx);
+			for (uint It = 0; It < GroomCount; ++It)
+			{
+				const FGroom Info = GetGroom(It);
+				PrintGroup(Ctx, Info.GroupIndex, Info.GroupCount);
+	
+				PrintLargeNumber(Ctx, Info.GPU_Guides, FontWhite);	Print(Ctx, TEXT(" "), FontWhite);
+				PrintLargeNumber(Ctx, Info.GPU_Strands, FontWhite);Print(Ctx, TEXT(" "), FontWhite);
+				PrintLargeNumber(Ctx, Info.GPU_Cards, FontWhite);	Print(Ctx, TEXT(" "), FontWhite);
+				PrintLargeNumber(Ctx, Info.GPU_Meshes, FontWhite);	Print(Ctx, TEXT(" "), FontWhite);
+				PrintCurve(Ctx, Info.ActiveCurve, Info.RestCurve);
+				PrintGroomNames(Ctx, It, FontWhite);
+				Newline(Ctx);
+			}
+		}
+		else
+		{
+			FFontColor FontMemory = FontWhite;
+			FFontColor FontCurve = FontSilver;
+
+			Print(Ctx, TEXT("Grp. Rest.  Intrp. Cluster  RT.  Total  Curv Name"), FontSilver); Newline(Ctx);
+			for (uint It = 0; It < GroomCount; ++It)
+			{
+				const FGroom Info = GetGroom(It);
+				const uint GPUStrandsTotal 
+					= Info.GPU_Rest
+					+ Info.GPU_Interpolation
+					+ Info.GPU_Cluster
+					+ Info.GPU_Raytracing;
+
+				PrintGroup(Ctx, Info.GroupIndex, Info.GroupCount);
+
+				PrintLargeNumber(Ctx, Info.GPU_Rest, FontMemory);	Print(Ctx, TEXT(" "), FontMemory);
+				PrintLargeNumber(Ctx, Info.GPU_Interpolation, FontMemory);Print(Ctx, TEXT(" "), FontMemory);
+				PrintLargeNumber(Ctx, Info.GPU_Cluster, FontMemory);	Print(Ctx, TEXT(" "), FontMemory);
+				PrintLargeNumber(Ctx, Info.GPU_Raytracing, FontMemory);	Print(Ctx, TEXT(" "), FontMemory);
+				PrintLargeNumber(Ctx, GPUStrandsTotal, FontOrange);	Print(Ctx, TEXT(" "), FontMemory);
+				PrintCurve(Ctx, Info.ActiveCurve, Info.RestCurve);
+				PrintGroomNames(Ctx, It, FontMemory);
+				Newline(Ctx);
+
+				// Curve count detail per resource type
+				#if 0
+				Print(Ctx, TEXT("     "), FontCurve);
+				PrintLargeNumber(Ctx, Info.Curve_Rest, FontCurve);	Print(Ctx, TEXT(" "), FontCurve);
+				PrintLargeNumber(Ctx, Info.Curve_Interpolation, FontCurve);Print(Ctx, TEXT(" "), FontCurve);
+				PrintLargeNumber(Ctx, Info.Curve_Cluster, FontCurve);	Print(Ctx, TEXT(" "), FontCurve);
+				PrintLargeNumber(Ctx, Info.Curve_Raytracing, FontCurve);	Print(Ctx, TEXT(" "), FontCurve);
+				Newline(Ctx);
+				#endif
+			}
+		}
+		Newline(Ctx);
+	}
+	// Total
+
+	// Bindings
+	if (bBinding)
+	{
+		Print(Ctx, TEXT("Bindings"), FontYellow); Newline(Ctx);
+		Print(Ctx, TEXT("Grp. Guides Strands Cards Meshes Total Curv Name"), FontSilver); Newline(Ctx);
+		for (uint It = 0; It < BindingCount; ++It)
+		{
+			const FBinding Info = GetBinding(It);
+			const uint Total
+				= Info.GPU_Guides
+				+ Info.GPU_Strands
+				+ Info.GPU_Cards
+				+ Info.GPU_Meshes;
+
+			PrintGroup(Ctx, Info.GroupIndex, Info.GroupCount);
+
+			PrintLargeNumber(Ctx, Info.GPU_Guides, FontWhite);	Print(Ctx, TEXT(" "), FontWhite);
+			PrintLargeNumber(Ctx, Info.GPU_Strands, FontWhite);	Print(Ctx, TEXT(" "), FontWhite);
+			PrintLargeNumber(Ctx, Info.GPU_Cards, FontWhite);	Print(Ctx, TEXT(" "), FontWhite);
+			PrintLargeNumber(Ctx, Info.GPU_Meshes, FontWhite);	Print(Ctx, TEXT(" "), FontWhite);
+			PrintLargeNumber(Ctx, Total, FontOrange);			Print(Ctx, TEXT(" "), FontWhite);
+			PrintCurve(Ctx, Info.ActiveCurve, Info.RestCurve);
+			PrintBindingNames(Ctx, It, FontWhite);
+			Newline(Ctx);
+		}
+		Newline(Ctx);
+	}
+	// Total
+}
+
+#endif // SHADER_PRINT_MEMORY

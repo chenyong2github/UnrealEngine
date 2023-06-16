@@ -19,6 +19,7 @@
 #include "GroomCacheData.h"
 #include "HairStrandsClusterCulling.h"
 #include "ShaderPrintParameters.h"
+#include "GroomComponent.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -1043,6 +1044,265 @@ static void AddHairDebugPrintInstancePass(
 	}
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FHairDebugPrintMemoryCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FHairDebugPrintMemoryCS);
+	SHADER_USE_PARAMETER_STRUCT(FHairDebugPrintMemoryCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(uint32, ComponentCount)
+		SHADER_PARAMETER(uint32, GroomCount)
+		SHADER_PARAMETER(uint32, BindingCount)
+		SHADER_PARAMETER_STRUCT(ShaderPrint::FStrings::FShaderParameters, ComponentNames)
+		SHADER_PARAMETER_STRUCT(ShaderPrint::FStrings::FShaderParameters, GroomNames)
+		SHADER_PARAMETER_STRUCT(ShaderPrint::FStrings::FShaderParameters, BindingNames)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ComponentBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, GroomBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, BindingBuffer)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintUniformBuffer)
+	END_SHADER_PARAMETER_STRUCT()
+
+public:
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Tool, Parameters.Platform); }
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		// Skip optimization for avoiding long compilation time due to large UAV writes
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.CompilerFlags.Add(CFLAG_Debug);
+		OutEnvironment.SetDefine(TEXT("SHADER_PRINT_MEMORY"), 1);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FHairDebugPrintMemoryCS, "/Engine/Private/HairStrands/HairStrandsDebug.usf", "MainCS", SF_Compute);
+
+const TCHAR* GetHairAttributeText(EHairAttribute In, uint32 InFlags);
+uint32 GetHairAttributeIndex(EHairAttribute In);
+EGroomCacheType GetHairInstanceCacheType(const FHairGroupInstance* Instance);
+
+static void AddHairDebugPrintMemoryPass(
+	FRDGBuilder& GraphBuilder, 
+	FGlobalShaderMap* ShaderMap,
+	const FSceneView& View,
+	const FShaderPrintData* ShaderPrintData)
+{
+
+	
+#if 0
+	// Streaming enabled
+	LOD Index | Auto LOD
+		rest
+		deformed
+		cluster
+		root
+
+		Total CPU | Total GPU
+#endif
+
+	if (!ShaderPrintData) { return; }
+
+	struct FInfos
+	{
+		FUintVector4 Data0 = { 0,0,0,0 };
+		FUintVector4 Data1 = { 0,0,0,0 };
+		FUintVector4 Data2 = { 0,0,0,0 };
+		FUintVector4 Data3 = { 0,0,0,0 };
+		FUintVector4 Data4 = { 0,0,0,0 };
+	};
+	const uint32 InfoInBytes  = sizeof(FInfos);
+	const uint32 InfoInUints = sizeof(FInfos) / sizeof(uint32);
+
+	// Component
+	uint32 ComponentCount = 0;
+	for (TObjectIterator<UGroomComponent> ComponentIt; ComponentIt; ++ComponentIt)
+	{
+		if (ComponentIt)
+		{
+			ComponentCount += ComponentIt->GetGroupCount();
+		}
+	}
+	ShaderPrint::FStrings ComponentNames(ComponentCount);
+	TArray<FInfos> ComponentBuffer;
+	ComponentBuffer.Reserve(ComponentCount);
+	for (TObjectIterator<UGroomComponent> ComponentIt; ComponentIt; ++ComponentIt)
+	{
+		if (ComponentIt)
+		{
+			const uint32 GroupCount = ComponentIt->GetGroupCount();
+			for (uint32 GroupIt = 0; GroupIt < GroupCount; ++GroupIt)
+			{
+				const FHairGroupInstance* Instance = ComponentIt->GetGroupInstance(GroupIt);
+				const FGroomComponentMemoryStats MemoryStats = FGroomComponentMemoryStats::Get(Instance);
+		
+				ComponentNames.Add(*Instance->Debug.GroomAssetName);
+		
+				FInfos& D = ComponentBuffer.AddDefaulted_GetRef();
+				D.Data0.X = Instance->Debug.GroupIndex;
+				D.Data0.Y = Instance->Debug.GroupCount;
+				D.Data0.Z = Instance->HairGroupPublicData->GetActiveStrandsCurveCount();
+				D.Data0.W = Instance->Strands.RestResource ? Instance->Strands.RestResource->BulkData.Header.CurveCount : 0;
+		
+				D.Data1.X = MemoryStats.Guides;
+				D.Data1.Y = MemoryStats.Strands;
+				D.Data1.Z = MemoryStats.Cards;
+				D.Data1.W = MemoryStats.Meshes;
+		
+				D.Data2.X = MemoryStats.Guides;
+				D.Data2.Y = MemoryStats.Strands;
+				D.Data2.Z = MemoryStats.Cards;
+				D.Data2.W = MemoryStats.Meshes;
+
+				D.Data3.X = MemoryStats.Common;
+				D.Data3.Y = 0;
+				D.Data3.Z = 0;
+				D.Data3.W = 0;
+			}
+		}
+	}
+
+	// Groom
+	uint32 GroomCount = 0;
+	for (TObjectIterator<UGroomAsset> AssetIt; AssetIt; ++AssetIt)
+	{
+		if (AssetIt)
+		{
+			GroomCount += AssetIt->GetHairGroupsPlatformData().Num();
+		}
+	}
+	ShaderPrint::FStrings GroomNames(GroomCount);
+	TArray<FInfos> GroomBuffer;
+	GroomBuffer.Reserve(GroomCount);
+	for (uint32 It = 0; It < GroomCount; ++It)
+	{
+		for (TObjectIterator<UGroomAsset> AssetIt; AssetIt; ++AssetIt)
+		{
+			if (AssetIt)
+			{
+				const uint32 GroupCount = AssetIt->GetHairGroupsPlatformData().Num();
+				for (uint32 GroupIt = 0; GroupIt < GroupCount; ++GroupIt)
+				{					
+					const FHairGroupPlatformData& Data = AssetIt->GetHairGroupsPlatformData()[GroupIt];
+					const FGroomAssetMemoryStats MemoryStats = FGroomAssetMemoryStats::Get(Data);
+
+					GroomNames.Add(AssetIt->GetName());
+
+					FInfos& D = GroomBuffer.AddDefaulted_GetRef();
+					D.Data0.X = GroupIt;
+					D.Data0.Y = GroupCount;
+					D.Data0.Z = Data.Strands.RestResource ? Data.Strands.RestResource->MaxAvailableCurveCount : 0;
+					D.Data0.W = Data.Strands.BulkData.IsValid() ? Data.Strands.BulkData.GetNumCurves() : 0;
+			
+					D.Data1.X = MemoryStats.CPU.Guides;
+					D.Data1.Y = MemoryStats.CPU.Strands;
+					D.Data1.Z = MemoryStats.CPU.Cards;
+					D.Data1.W = MemoryStats.CPU.Meshes;
+			
+					D.Data2.X = MemoryStats.GPU.Guides;
+					D.Data2.Y = MemoryStats.GPU.Strands;
+					D.Data2.Z = MemoryStats.GPU.Cards;
+					D.Data2.W = MemoryStats.GPU.Meshes;
+
+					D.Data3.X = MemoryStats.Memory.Rest;
+					D.Data3.Y = MemoryStats.Memory.Interpolation;
+					D.Data3.Z = MemoryStats.Memory.Cluster;
+					D.Data3.W = MemoryStats.Memory.Raytracing;
+
+					D.Data4.X = MemoryStats.Curves.Rest;
+					D.Data4.Y = MemoryStats.Curves.Interpolation;
+					D.Data4.Z = MemoryStats.Curves.Cluster;
+					D.Data4.W = MemoryStats.Curves.Raytracing;
+				}
+			}
+		}
+	}
+
+	// Binding
+	uint32 BindingCount = 0;
+	for (TObjectIterator<UGroomBindingAsset> AssetIt; AssetIt; ++AssetIt)
+	{
+		if (AssetIt)
+		{
+			BindingCount += AssetIt->GetHairGroupsPlatformData().Num();
+		}
+	}
+	ShaderPrint::FStrings BindingNames(BindingCount);
+	TArray<FInfos> BindingBuffer;
+	BindingBuffer.Reserve(BindingCount);
+	for (uint32 It = 0; It < BindingCount; ++It)
+	{
+		for (TObjectIterator<UGroomBindingAsset> AssetIt; AssetIt; ++AssetIt)
+		{
+			if (AssetIt)
+			{
+				const uint32 GroupCount = AssetIt->GetHairGroupsPlatformData().Num();
+				for (uint32 GroupIt = 0; GroupIt < GroupCount; ++GroupIt)
+				{
+					const UGroomBindingAsset::FHairGroupPlatformData& Data = AssetIt->GetHairGroupsPlatformData()[GroupIt];
+					const UGroomBindingAsset::FHairGroupResource& Resource = AssetIt->GetHairGroupResources()[GroupIt];
+					const FGroomBindingAssetMemoryStats MemoryStats = FGroomBindingAssetMemoryStats::Get(Data, Resource);
+			
+
+					BindingNames.Add(*AssetIt->GetName(), It);
+			
+					FInfos& D = BindingBuffer.AddDefaulted_GetRef();
+					D.Data0.X = GroupIt;
+					D.Data0.Y = GroupCount;
+					D.Data0.Z = Resource.RenRootResources ? Resource.RenRootResources->MaxAvailableCurveCount : 0;
+					D.Data0.W = Resource.RenRootResources ? Resource.RenRootResources->GetRootCount() : 0;
+			
+					D.Data1.X = MemoryStats.CPU.Guides;
+					D.Data1.Y = MemoryStats.CPU.Strands;
+					D.Data1.Z = MemoryStats.CPU.Cards;
+					D.Data1.W = 0;
+			
+					D.Data2.X = MemoryStats.GPU.Guides;
+					D.Data2.Y = MemoryStats.GPU.Strands;
+					D.Data2.Z = MemoryStats.GPU.Cards;
+					D.Data2.W = 0;
+				}
+			}
+		}
+	}
+
+	// Empty cases
+	if (ComponentCount == 0 && GroomCount == 0 && BindingCount == 0) return;
+	if (ComponentBuffer.IsEmpty())	{ ComponentBuffer.AddDefaulted(); }
+	if (GroomBuffer.IsEmpty())		{ GroomBuffer.AddDefaulted(); }
+	if (BindingBuffer.IsEmpty())	{ BindingBuffer.AddDefaulted(); }
+
+	// Force ShaderPrint on.
+	ShaderPrint::SetEnabled(true);
+	ShaderPrint::RequestSpaceForCharacters((ComponentCount + GroomCount + BindingCount) * 256 + 512);
+
+	FHairDebugPrintMemoryCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairDebugPrintMemoryCS::FParameters>();
+	Parameters->ComponentCount  = ComponentCount;
+	Parameters->ComponentNames  = ComponentNames.GetParameters(GraphBuilder);
+	Parameters->ComponentBuffer = GraphBuilder.CreateSRV(CreateVertexBuffer(GraphBuilder, TEXT("Hair.Debug.Component"), FRDGBufferDesc::CreateBufferDesc(4, InfoInUints * ComponentBuffer.Num()), ComponentBuffer.GetData(), InfoInBytes * ComponentBuffer.Num()), PF_R32_UINT);
+
+	Parameters->GroomCount		= GroomCount;
+	Parameters->GroomNames  	= GroomNames.GetParameters(GraphBuilder);
+	Parameters->GroomBuffer 	= GraphBuilder.CreateSRV(CreateVertexBuffer(GraphBuilder, TEXT("Hair.Debug.Groom"), FRDGBufferDesc::CreateBufferDesc(4, InfoInUints * GroomBuffer.Num()), GroomBuffer.GetData(), InfoInBytes * GroomBuffer.Num()), PF_R32_UINT);
+
+	Parameters->BindingCount  	= BindingCount;
+	Parameters->BindingNames  	= BindingNames.GetParameters(GraphBuilder);
+	Parameters->BindingBuffer 	= GraphBuilder.CreateSRV(CreateVertexBuffer(GraphBuilder, TEXT("Hair.Debug.Binding"), FRDGBufferDesc::CreateBufferDesc(4, InfoInUints * BindingBuffer.Num()), BindingBuffer.GetData(), InfoInBytes * BindingBuffer.Num()), PF_R32_UINT);
+
+	ShaderPrint::SetParameters(GraphBuilder, *ShaderPrintData, Parameters->ShaderPrintUniformBuffer);
+	TShaderMapRef<FHairDebugPrintMemoryCS> ComputeShader(ShaderMap);
+
+	ClearUnusedGraphResources(ComputeShader, Parameters);
+
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("HairStrands::DebugMemory(Info,Instances:%d, Groom:%d, Binding:%d)", ComponentCount, GroomCount, BindingCount),
+		ComputeShader,
+		Parameters,
+		FIntVector(1, 1, 1));
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 void RunHairStrandsDebug(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
@@ -1182,5 +1442,10 @@ void RunHairStrandsDebug(
 				AddDrawDebugStrandsCVsPass(GraphBuilder, View, ShaderMap, Instance, ShaderPrintData, SceneColorTexture, SceneDepthTexture);
 			}
 		}
+	}
+
+	if (ViewMode == EGroomViewMode::Memory)
+	{
+		AddHairDebugPrintMemoryPass(GraphBuilder, ShaderMap, View, ShaderPrintData);
 	}
 }

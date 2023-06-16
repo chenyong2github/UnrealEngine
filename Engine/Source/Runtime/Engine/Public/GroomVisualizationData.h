@@ -44,6 +44,7 @@ enum class EGroomViewMode : uint8
 	MaterialTangent,
 	CardGuides,
 	Tile,
+	Memory,
 	Count
 };
 
