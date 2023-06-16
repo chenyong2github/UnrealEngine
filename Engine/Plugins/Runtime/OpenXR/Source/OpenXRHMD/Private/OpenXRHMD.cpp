@@ -102,6 +102,32 @@ static TAutoConsoleVariable<bool> CVarOpenXRAllowDepthLayer(
 	TEXT("Enables the depth composition layer if the XR_KHR_composition_layer_depth extension is supported.\n"),
 	ECVF_Default);
 
+static TAutoConsoleVariable<int32> CVarOpenXRFBFoveationLevel(
+	TEXT("xr.OpenXRFBFoveationLevel"),
+	0,
+	TEXT("Possible foveation levels as specified by the XrFoveationLevelFB enumeration.\n")
+	TEXT("0 = None, 1 = Low , 2 = Medium, 3 = High.\n"),
+	ECVF_Default);
+
+static TAutoConsoleVariable<bool> CVarOpenXRFBFoveationDynamic(
+	TEXT("xr.OpenXRFBFoveationDynamic"),
+	false,
+	TEXT("Whether dynamic changing foveation based on performance headroom is enabled.\n"),
+	ECVF_Default);
+
+static TAutoConsoleVariable<float> CVarOpenXRFBFoveationVerticalOffset(
+	TEXT("xr.OpenXRFBFoveationVerticalOffset"),
+	0,
+	TEXT("Desired vertical offset in degrees for the center of the foveation pattern.\n"),
+	ECVF_Default);
+
+static TAutoConsoleVariable<int32> CVarFBFoveationPreview(
+	TEXT("xr.OpenXRFBFoveation.Preview"),
+	1,
+	TEXT("Whether to include FB foveation in VRS preview overlay. This is currently not implemented.")
+	TEXT("0 - off, 1 - on (default)"),
+	ECVF_RenderThreadSafe);
+
 namespace {
 	static TSet<XrViewConfigurationType> SupportedViewConfigurations{ XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO, XR_VIEW_CONFIGURATION_TYPE_PRIMARY_QUAD_VARJO };
 
@@ -1311,6 +1337,30 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 	bIsAcquireOnAnyThreadSupported = CheckPlatformAcquireOnAnyThreadSupport(InstanceProperties);
 	ReconfigureForShaderPlatform(GMaxRHIShaderPlatform);
 
+	bFoveationExtensionSupported = IsExtensionEnabled(XR_FB_SWAPCHAIN_UPDATE_STATE_EXTENSION_NAME) &&
+		IsExtensionEnabled(XR_FB_FOVEATION_EXTENSION_NAME) &&
+		IsExtensionEnabled(XR_FB_FOVEATION_CONFIGURATION_EXTENSION_NAME);
+
+#ifdef XR_USE_GRAPHICS_API_VULKAN
+	bFoveationExtensionSupported &= IsExtensionEnabled(XR_FB_FOVEATION_VULKAN_EXTENSION_NAME) && GRHISupportsAttachmentVariableRateShading;
+#endif
+
+	if(bFoveationExtensionSupported)
+	{
+		XR_ENSURE(xrGetInstanceProcAddr(Instance, "xrCreateFoveationProfileFB", (PFN_xrVoidFunction*)&xrCreateFoveationProfileFB));
+		XR_ENSURE(xrGetInstanceProcAddr(Instance, "xrUpdateSwapchainFB", (PFN_xrVoidFunction*)&xrUpdateSwapchainFB));
+		XR_ENSURE(xrGetInstanceProcAddr(Instance, "xrDestroyFoveationProfileFB", (PFN_xrVoidFunction*)&xrDestroyFoveationProfileFB));
+
+		int32 SanitisedFoveationLevel = FMath::Clamp(CVarOpenXRFBFoveationLevel->GetInt(), 0, 3);
+		bool bFoveationDynamic = CVarOpenXRFBFoveationDynamic->GetBool();
+		float SanitisedVerticalOffset = CVarOpenXRFBFoveationVerticalOffset->GetFloat();
+		SanitisedVerticalOffset = SanitisedVerticalOffset >= 0 ? SanitisedVerticalOffset : 0;
+
+		FoveationLevel = static_cast<XrFoveationLevelFB>(SanitisedFoveationLevel);
+		VerticalOffset = SanitisedVerticalOffset;
+		FoveationDynamic = bFoveationDynamic ? XR_FOVEATION_DYNAMIC_LEVEL_ENABLED_FB : XR_FOVEATION_DYNAMIC_DISABLED_FB;
+	}
+
 #if PLATFORM_HOLOLENS || PLATFORM_ANDROID
 	bIsStandaloneStereoOnlyDevice = IStereoRendering::IsStartInVR();
 #else
@@ -2211,6 +2261,12 @@ bool FOpenXRHMD::AllocateRenderTargetTextures(uint32 SizeX, uint32 SizeY, uint8 
 	{
 		UnifiedCreateFlags |= TexCreate_SRGB;
 	}
+	ETextureCreateFlags AuxiliaryCreateFlags = ETextureCreateFlags::None;
+
+	if(bFoveationExtensionSupported)
+	{
+		AuxiliaryCreateFlags |= TexCreate_Foveation;
+	}
 
 	// Temporary workaround to swapchain formats - OpenXR doesn't support 10-bit sRGB swapchains, so prefer 8-bit sRGB instead.
 	if (Format == PF_A2B10G10R10 && !RenderBridge->Support10BitSwapchain())
@@ -2229,7 +2285,7 @@ bool FOpenXRHMD::AllocateRenderTargetTextures(uint32 SizeX, uint32 SizeY, uint8 
 	{
 		ensureMsgf(NumSamples == 1, TEXT("OpenXR supports MSAA swapchains, but engine logic expects the swapchain target to be 1x."));
 
-		Swapchain = RenderBridge->CreateSwapchain(Session, Format, ActualFormat, SizeX, SizeY, bIsMobileMultiViewEnabled ? 2 : 1, NumMips, NumSamples, UnifiedCreateFlags, ClearColor);
+		Swapchain = RenderBridge->CreateSwapchain(Session, Format, ActualFormat, SizeX, SizeY, bIsMobileMultiViewEnabled ? 2 : 1, NumMips, NumSamples, UnifiedCreateFlags, ClearColor, AuxiliaryCreateFlags);
 		if (!Swapchain)
 		{
 			return false;
@@ -2241,6 +2297,12 @@ bool FOpenXRHMD::AllocateRenderTargetTextures(uint32 SizeX, uint32 SizeY, uint8 
 			ExecuteOnRHIThread([Swapchain]() {
 				Swapchain->IncrementSwapChainIndex_RHIThread();
 			});
+		}
+		if (bFoveationExtensionSupported)
+		{
+			UpdateFoveationImages();
+			FOpenXRSwapchain* ColorSwapchain = static_cast<FOpenXRSwapchain*>(Swapchain.Get());
+			ColorSwapchain->GetFragmentDensityMaps(FoveationImages, bIsMobileMultiViewEnabled);
 		}
 	}
 
@@ -3883,6 +3945,74 @@ void FOpenXRHMD::UpdateLayer(FOpenXRLayer& ManagerLayer, uint32 LayerId, bool bI
 			}
 		}
 	});
+}
+
+//---------------------------------------------------
+// IVariableRateShadingImageGenerator interface for XR_FB_foveation Implementation
+//---------------------------------------------------
+
+FRDGTextureRef FOpenXRHMD::GetImage(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo, FVariableRateShadingImageManager::EVRSImageType ImageType)
+{
+	if (!bFoveationExtensionSupported)
+	{
+		return nullptr;
+	}
+	if (PipelinedLayerStateRendering.ColorSwapchain != nullptr && !FoveationImages.IsEmpty())
+	{
+		FOpenXRSwapchain* ColorSwapchain = static_cast<FOpenXRSwapchain*>(PipelinedLayerStateRendering.ColorSwapchain.Get());
+		
+		FTextureRHIRef SwapchainTexture = FoveationImages[ColorSwapchain->GetSwapChainIndex_RHIThread()];
+		TRefCountPtr<IPooledRenderTarget> PooledRenderTarget = CreateRenderTarget(SwapchainTexture, *SwapchainTexture->GetName().ToString());
+
+		return GraphBuilder.RegisterExternalTexture(PooledRenderTarget, *SwapchainTexture->GetName().ToString(), ERDGTextureFlags::SkipTracking);
+	}
+	else 
+	{
+		UE_LOG(LogHMD, Error, TEXT("No valid color swapchain to get foveation images from."));
+		return nullptr;
+	}
+}
+
+void FOpenXRHMD::PrepareImages(FRDGBuilder& GraphBuilder, const FSceneViewFamily& ViewFamily, const FMinimalSceneTextures& SceneTextures)
+{
+	return; //Currently not implemented as the images are prepared only when the color swapchain is reallocated.
+}
+
+bool FOpenXRHMD::IsEnabledForView(const FSceneView& View) const
+{
+	return IsStereoEnabled() && bFoveationExtensionSupported && View.StereoPass != EStereoscopicPass::eSSP_FULL;
+}
+
+// This is currently not implemented.
+FRDGTextureRef FOpenXRHMD::GetDebugImage(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo, FVariableRateShadingImageManager::EVRSImageType ImageType)
+{
+	return nullptr;
+}
+
+void FOpenXRHMD::UpdateFoveationImages()
+{
+	XrFoveationLevelProfileCreateInfoFB FoveationLevelProfileInfo{ XR_TYPE_FOVEATION_LEVEL_PROFILE_CREATE_INFO_FB };
+	FoveationLevelProfileInfo.next = nullptr;
+	FoveationLevelProfileInfo.level = FoveationLevel;
+	FoveationLevelProfileInfo.verticalOffset = VerticalOffset;
+	FoveationLevelProfileInfo.dynamic = FoveationDynamic;
+
+	XrFoveationProfileCreateInfoFB FoveationCreateInfo{ XR_TYPE_FOVEATION_PROFILE_CREATE_INFO_FB };
+	FoveationCreateInfo.next = &FoveationLevelProfileInfo;
+
+	XrFoveationProfileFB FoveationProfile = XR_NULL_HANDLE;
+	XR_ENSURE(xrCreateFoveationProfileFB(Session, &FoveationCreateInfo, &FoveationProfile));
+
+	XrSwapchainStateFoveationFB SwapchainFoveationState{ XR_TYPE_SWAPCHAIN_STATE_FOVEATION_FB };
+	SwapchainFoveationState.flags = 0; // As per OpenXR specification.
+	SwapchainFoveationState.next = nullptr;
+	SwapchainFoveationState.profile = FoveationProfile;
+
+	FOpenXRSwapchain* ColorSwapchain = static_cast<FOpenXRSwapchain*>(PipelinedLayerStateRendering.ColorSwapchain.Get());
+
+	XR_ENSURE(xrUpdateSwapchainFB(ColorSwapchain->GetHandle(), reinterpret_cast<const XrSwapchainStateBaseHeaderFB*>(&SwapchainFoveationState)));
+
+	XR_ENSURE(xrDestroyFoveationProfileFB(FoveationProfile));
 }
 
 //---------------------------------------------------
