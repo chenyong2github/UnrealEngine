@@ -137,6 +137,10 @@ void PrintBSDF(inout FShaderPrintContext Context, inout FStrataAddressing Strata
 	const FFontColor FontBSDFPropName = FontOrange;
 	const FFontColor FontBSDFPropValu = FontWhite;
 
+	Print(Context, TEXT("Address = "), FontEmerald);
+	Print(Context, StrataAddressing.CurrentIndex, FontEmerald);
+	Newline(Context, RectMax);
+
 	const FStrataBSDF BSDF = UnpackStrataBSDFIn(Strata.MaterialTextureArray, StrataAddressing, Header);
 
 	// Draw Referential

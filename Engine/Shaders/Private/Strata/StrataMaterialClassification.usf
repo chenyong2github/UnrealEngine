@@ -4,6 +4,7 @@
 
 #define STRATA_INLINE_SHADING 0
 #define STRATA_SSS_MATERIAL_OVERRIDE 0
+#define STRATA_COMPLEXSPECIALPATH 1
 #include "/Engine/Private/Strata/Strata.ush"
 #include "StrataTile.ush"
 
