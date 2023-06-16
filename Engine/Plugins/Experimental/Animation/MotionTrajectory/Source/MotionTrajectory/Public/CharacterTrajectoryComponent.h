@@ -30,6 +30,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Trajectory")
 	void UpdateTrajectory(float DeltaSeconds);
 
+	// This can be used to override the facing used for trajectory calculation.
+	UFUNCTION(BlueprintNativeEvent, Category = "Trajectory")
+	FRotator GetFacingFromMeshComponent(const USkeletalMeshComponent* MeshComponent) const;
+	virtual FRotator GetFacingFromMeshComponent_Implementation(const USkeletalMeshComponent* MeshComponent) const;
+
 protected:
 	UFUNCTION()
 	void OnMovementUpdated(float DeltaSeconds, FVector OldLocation, FVector OldVelocity);
