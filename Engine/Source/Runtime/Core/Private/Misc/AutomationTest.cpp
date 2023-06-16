@@ -1011,7 +1011,16 @@ FString FAutomationExecutionEntry::ToString() const
 	FString ComplexString;
 
 	ComplexString = Event.Message;
-	
+
+	if (!Event.Context.IsEmpty())
+	{
+		ComplexString += TEXT(" [");
+		ComplexString += Event.Context;
+		ComplexString += TEXT("] ");
+	}
+
+	// Place the filename at the end so it can be extracted by the SAutomationWindow widget
+	// Expectation is "[filename(line)]"
 	if ( !Filename.IsEmpty() && LineNumber > 0 )
 	{
 		ComplexString += TEXT(" [");
@@ -1019,13 +1028,6 @@ FString FAutomationExecutionEntry::ToString() const
 		ComplexString += TEXT("(");
 		ComplexString += FString::FromInt(LineNumber);
 		ComplexString += TEXT(")]");
-	}
-
-	if ( !Event.Context.IsEmpty() )
-	{
-		ComplexString += TEXT(" [");
-		ComplexString += Event.Context;
-		ComplexString += TEXT("] ");
 	}
 
 	return ComplexString;
