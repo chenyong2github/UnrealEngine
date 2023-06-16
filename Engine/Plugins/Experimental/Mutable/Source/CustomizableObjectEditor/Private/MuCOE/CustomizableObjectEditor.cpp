@@ -815,12 +815,6 @@ void FCustomizableObjectEditor::BindCommands()
 		FIsActionChecked::CreateSP(this, &FCustomizableObjectEditor::CompileOptions_TextureCompression_IsChecked));
 
 	ToolkitCommands->MapAction(
-		Commands.CompileOptions_UseParallelCompilation,
-		FExecuteAction::CreateSP(this, &FCustomizableObjectEditor::CompileOptions_UseParallelCompilation_Toggled),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateSP(this, &FCustomizableObjectEditor::CompileOptions_UseParallelCompilation_IsChecked));
-
-	ToolkitCommands->MapAction(
 		Commands.CompileOptions_UseDiskCompilation,
 		FExecuteAction::CreateSP(this, &FCustomizableObjectEditor::CompileOptions_UseDiskCompilation_Toggled),
 		FCanExecuteAction(),
@@ -1069,7 +1063,6 @@ TSharedRef<SWidget> FCustomizableObjectEditor::GenerateCompileOptionsMenuContent
 				});
 		MenuBuilder.AddWidget(CompileTilingCombo.ToSharedRef(), LOCTEXT("MutableCompileImageTiling", "Image Tiling"));
 
-		MenuBuilder.AddMenuEntry(FCustomizableObjectEditorCommands::Get().CompileOptions_UseParallelCompilation);
 		MenuBuilder.AddMenuEntry(FCustomizableObjectEditorCommands::Get().CompileOptions_UseDiskCompilation);
 		MenuBuilder.AddMenuEntry(FCustomizableObjectEditorCommands::Get().CompileOptions_EnableTextureCompression);
 	}
@@ -1347,20 +1340,6 @@ void FCustomizableObjectEditor::OnChangeCompileOptimizationLevel(TSharedPtr<FStr
 	const FScopedTransaction Transaction(LOCTEXT("ChangedOptimizationLevelTransaction", "Changed Optimization Level"));
 	CustomizableObject->Modify();
 	CustomizableObject->CompileOptions.OptimizationLevel = CompileOptimizationStrings.Find(NewSelection);
-}
-
-
-void FCustomizableObjectEditor::CompileOptions_UseParallelCompilation_Toggled()
-{
-	const FScopedTransaction Transaction(LOCTEXT("ChangedEnableCompilingInMultipleThreadsTransaction", "Changed Enable compiling in multiple threads"));
-	CustomizableObject->Modify();
-	CustomizableObject->CompileOptions.bUseParallelCompilation = !CustomizableObject->CompileOptions.bUseParallelCompilation;
-}
-
-
-bool FCustomizableObjectEditor::CompileOptions_UseParallelCompilation_IsChecked()
-{
-	return CustomizableObject ? CustomizableObject->CompileOptions.bUseParallelCompilation : false;
 }
 
 

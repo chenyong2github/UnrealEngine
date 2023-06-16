@@ -714,9 +714,6 @@ void UCustomizableObject::CompileForTargetPlatform(const ITargetPlatform* Target
 		Options.TargetPlatform = TargetPlatform;
 		Options.CustomizableObjectNumBoneInfluences = ICustomizableObjectModule::Get().GetNumBoneInfluences();
 
-		// If this is enabled, there are determinism problems. Disable it for packaging.
-		Options.bUseParallelCompilation = false;
-
 		Compiler->Compile(*this, Options, false);
 	}
 

@@ -318,19 +318,6 @@ TSharedRef<SWidget> SMutableGraphViewer::GenerateCompileOptionsMenuContent()
 			;
 		MenuBuilder.AddWidget(CompileTilingCombo.ToSharedRef(), LOCTEXT("MutableCompileImageTiling", "Image Tiling"));
 
-		// Parallel compilation
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("MutableEnableParallelCompilation", "Enable compiling in multiple threads."),
-			LOCTEXT("MutableEnableParallelCompilationTooltip", "This is faster but use more memory."),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateLambda([this]() { CompileOptions.bUseParallelCompilation = !CompileOptions.bUseParallelCompilation; }),
-				FCanExecuteAction(),
-				FIsActionChecked::CreateLambda([this]() { return CompileOptions.bUseParallelCompilation; })),
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton
-		);
-
 		// Disk as cache
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("MutableDiskAsMemory", "Enable compiling using the disk as memory."),

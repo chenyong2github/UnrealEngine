@@ -287,8 +287,6 @@ private:
 	TArray< TSharedPtr<FString> > CompileOptimizationStrings;
 	TSharedPtr<SNumericDropDown<float>> CompileTilingCombo;
 
-	void CompileOptions_UseParallelCompilation_Toggled();
-	bool CompileOptions_UseParallelCompilation_IsChecked();
 	void CompileOptions_UseDiskCompilation_Toggled();
 	bool CompileOptions_UseDiskCompilation_IsChecked();
 	void CompileOptions_TextureCompression_Toggled();

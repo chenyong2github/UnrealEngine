@@ -165,12 +165,6 @@ struct FCompilationOptions
 	UPROPERTY()
 	int32 OptimizationLevel = 1;
 
-	// If enable, multi-threaded compilation will be used when compiling this models.
-	// For some memory-heavy models, this may need to be disabled, since it may multiply the
-	// use of memory during compilation for each thread.
-	UPROPERTY()
-	bool bUseParallelCompilation = true;
-
 	// Use the disk to store intermediate compilation data. This slows down the object compilation
 	// but it may be necessary for huge objects.
 	UPROPERTY()

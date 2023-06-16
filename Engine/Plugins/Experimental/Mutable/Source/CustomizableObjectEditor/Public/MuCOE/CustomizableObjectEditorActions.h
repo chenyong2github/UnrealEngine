@@ -19,7 +19,6 @@ public:
 	TSharedPtr< FUICommandInfo > CompileOnlySelected;
 	TSharedPtr< FUICommandInfo > ResetCompileOptions;
 	TSharedPtr< FUICommandInfo > CompileOptions_EnableTextureCompression;
-	TSharedPtr< FUICommandInfo > CompileOptions_UseParallelCompilation;
 	TSharedPtr< FUICommandInfo > CompileOptions_UseDiskCompilation;
 
 	TSharedPtr< FUICommandInfo > Debug;

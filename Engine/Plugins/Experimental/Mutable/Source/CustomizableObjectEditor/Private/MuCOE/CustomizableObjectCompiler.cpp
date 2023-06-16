@@ -924,6 +924,7 @@ void FCustomizableObjectCompiler::CompileInternal(UCustomizableObject* Object, c
 	Options.bSkinWeightProfilesEnabled = Object->bEnableAltSkinWeightProfiles;
 	Options.bPhysicsAssetMergeEnabled = Object->bEnablePhysicsAssetMerge;
 	Options.bAnimBpPhysicsManipulationEnabled = Object->bEnableAnimBpPhysicsAssetsManipualtion;
+	Options.ImageTiling = Object->CompileOptions.ImageTiling;
 
 	if (Object->IsLocked() || !UCustomizableObjectSystem::GetInstance()->LockObject(Object))
 	{
