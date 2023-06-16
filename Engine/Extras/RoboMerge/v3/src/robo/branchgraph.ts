@@ -322,7 +322,7 @@ if (botname === '__TEST__') {
 // temporarily. Probably worth rewriting entirely, given current knowledge.
 
 		// automatically alias streamName if specified
-		if (options.streamName && !this.config.noStreamAliases) {
+		if (options.streamName && !options.streamSubpath && !this.config.noStreamAliases) {
 			this.alias(name, options.streamName)
 		}
 

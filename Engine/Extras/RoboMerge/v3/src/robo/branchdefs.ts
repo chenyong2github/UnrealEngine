@@ -425,7 +425,7 @@ export class BranchDefs {
 				}
 			}
 
-			if (def.streamName && !defaultConfigForWholeBot.noStreamAliases) {
+			if (def.streamName && !def.streamSubpath && !defaultConfigForWholeBot.noStreamAliases) {
 				addAlias(upperName, def.streamName.toUpperCase())
 			}
 
