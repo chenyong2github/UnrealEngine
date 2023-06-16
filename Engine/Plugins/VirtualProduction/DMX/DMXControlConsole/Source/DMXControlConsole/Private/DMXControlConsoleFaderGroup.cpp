@@ -397,34 +397,6 @@ void UDMXControlConsoleFaderGroup::Destroy()
 #endif // WITH_EDITOR
 }
 
-bool UDMXControlConsoleFaderGroup::IsMuted() const
-{
-	const TArray<UDMXControlConsoleFaderBase*> AllFaders = GetAllFaders();
-	const bool bIsAnyFaderUnmuted = Algo::AnyOf(AllFaders, [this](UDMXControlConsoleFaderBase* Fader)
-		{
-			return Fader && !Fader->IsMuted();
-		});
-
-	return !bIsAnyFaderUnmuted;
-}
-
-void UDMXControlConsoleFaderGroup::SetMute(bool bMute)
-{
-	const TArray<UDMXControlConsoleFaderBase*> AllFaders = GetAllFaders();
-	for (UDMXControlConsoleFaderBase* Fader : AllFaders)
-	{
-		if (Fader)
-		{
-			Fader->SetMute(bMute);
-		}
-	}
-}
-
-void UDMXControlConsoleFaderGroup::ToggleMute()
-{
-	SetMute(!IsMuted());
-}
-
 bool UDMXControlConsoleFaderGroup::IsLocked() const
 {
 	const TArray<UDMXControlConsoleFaderBase*> AllFaders = GetAllFaders();
@@ -433,7 +405,7 @@ bool UDMXControlConsoleFaderGroup::IsLocked() const
 			return Fader && !Fader->IsLocked();
 		});
 
-	return !bIsAnyFaderUnlocked;
+	return !AllFaders.IsEmpty() && !bIsAnyFaderUnlocked;
 }
 
 void UDMXControlConsoleFaderGroup::SetLock(bool bLock)

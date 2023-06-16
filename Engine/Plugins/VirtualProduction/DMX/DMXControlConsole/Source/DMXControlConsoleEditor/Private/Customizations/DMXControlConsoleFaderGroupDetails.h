@@ -36,12 +36,6 @@ private:
 	/** Called when Clear button is clicked */
 	FReply OnClearButtonClicked();
 
-	/** Called to toggle the mute state of selected Fader Groups */
-	void OnMuteToggleChanged(ECheckBoxState CheckState);
-
-	/** Gets the current mute state of selected Fader Groups */
-	ECheckBoxState IsMuteChecked() const;
-
 	/** Called to toggle the lock state of selected Fader Groups */
 	void OnLockToggleChanged(ECheckBoxState CheckState);
 

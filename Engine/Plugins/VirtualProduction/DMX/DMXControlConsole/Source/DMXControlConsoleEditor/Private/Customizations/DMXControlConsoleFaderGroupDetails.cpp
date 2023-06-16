@@ -37,11 +37,13 @@ void FDMXControlConsoleFaderGroupDetails::CustomizeDetails(IDetailLayoutBuilder&
 	InDetailLayout.HideProperty(FaderGroupNameHandle);
 	const TSharedPtr<IPropertyHandle> EditorColorHandle = InDetailLayout.GetProperty(UDMXControlConsoleFaderGroup::GetEditorColorPropertyName());
 	InDetailLayout.HideProperty(EditorColorHandle);
+	const TSharedPtr<IPropertyHandle> IsMutedHandle = InDetailLayout.GetProperty(UDMXControlConsoleFaderGroup::GetIsMutedPropertyName());
+	InDetailLayout.HideProperty(IsMutedHandle);
 	
 	FaderGroupCategory.AddProperty(FaderGroupNameHandle);
 	FaderGroupCategory.AddProperty(EditorColorHandle)
 		.Visibility(TAttribute<EVisibility>::CreateSP(this, &FDMXControlConsoleFaderGroupDetails::GetEditorColorVisibility));
-
+	
 	// Fixture Patch section
 	FaderGroupCategory.AddCustomRow(FText::GetEmpty())
 		.NameContent()
@@ -77,35 +79,23 @@ void FDMXControlConsoleFaderGroupDetails::CustomizeDetails(IDetailLayoutBuilder&
 			]
 		];
 
-	// Mute CheckBox section
+	// Mute property section
+	FaderGroupCategory.AddProperty(IsMutedHandle);
+
+	// Lock CheckBox section
 	FaderGroupCategory.AddCustomRow(FText::GetEmpty())
 		.NameContent()
 		[
 			SNew(STextBlock)
 			.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-			.Text(LOCTEXT("FaderGroupMuteCheckBox", "Is Muted"))
+			.Text(LOCTEXT("FaderGroupLoxkCheckBox", "Is Locked"))
 		]
 		.ValueContent()
 		[
 			SNew(SCheckBox)
-			.IsChecked(this, &FDMXControlConsoleFaderGroupDetails::IsMuteChecked)
-			.OnCheckStateChanged(this, &FDMXControlConsoleFaderGroupDetails::OnMuteToggleChanged)
+			.IsChecked(this, &FDMXControlConsoleFaderGroupDetails::IsLockChecked)
+			.OnCheckStateChanged(this, &FDMXControlConsoleFaderGroupDetails::OnLockToggleChanged)
 		];
-
-		// Lock CheckBox section
-		FaderGroupCategory.AddCustomRow(FText::GetEmpty())
-			.NameContent()
-			[
-				SNew(STextBlock)
-				.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-				.Text(LOCTEXT("FaderGroupLoxkCheckBox", "Is Locked"))
-			]
-			.ValueContent()
-			[
-				SNew(SCheckBox)
-				.IsChecked(this, &FDMXControlConsoleFaderGroupDetails::IsLockChecked)
-				.OnCheckStateChanged(this, &FDMXControlConsoleFaderGroupDetails::OnLockToggleChanged)
-			];
 }
 
 void FDMXControlConsoleFaderGroupDetails::ForceRefresh() const
@@ -160,6 +150,8 @@ bool FDMXControlConsoleFaderGroupDetails::DoSelectedFaderGroupsHaveAnyFixturePat
 
 FReply FDMXControlConsoleFaderGroupDetails::OnClearButtonClicked()
 {
+	const FScopedTransaction FaderGroupFixturePatchClearTransaction(LOCTEXT("FaderGroupFixturePatchClearTransaction", "Clear Fixture Patch"));
+
 	UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
 	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
 	const TArray<TWeakObjectPtr<UObject>> SelectedFaderGroupsObjects = SelectionHandler->GetSelectedFaderGroups();
@@ -171,7 +163,6 @@ FReply FDMXControlConsoleFaderGroupDetails::OnClearButtonClicked()
 			continue;
 		}
 
-		const FScopedTransaction FaderGroupFixturePatchClearTransaction(LOCTEXT("FaderGroupFixturePatchClearTransaction", "Clear Fixture Patch"));
 		SelectedFaderGroup->PreEditChange(nullptr);
 
 		// Replace patched Fader Group with a not patched one
@@ -193,55 +184,6 @@ FReply FDMXControlConsoleFaderGroupDetails::OnClearButtonClicked()
 	SelectionHandler->RemoveInvalidObjectsFromSelection();
 
 	return FReply::Handled();
-}
-
-ECheckBoxState FDMXControlConsoleFaderGroupDetails::IsMuteChecked() const
-{
-	UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
-	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
-	TArray<TWeakObjectPtr<UObject>> SelectedFaderGroupObjects = SelectionHandler->GetSelectedFaderGroups();
-
-	// Remove Fader Groups which don't match filtering
-	SelectedFaderGroupObjects.RemoveAll([](const TWeakObjectPtr<UObject>& SelectedFaderGroupObject)
-		{
-			const UDMXControlConsoleFaderGroup* SelectedFaderGroup = Cast<UDMXControlConsoleFaderGroup>(SelectedFaderGroupObject);
-			return SelectedFaderGroup && !SelectedFaderGroup->IsMatchingFilter();
-		});
-	
-	const bool bAreAllFaderGroupsUnmuted = Algo::AllOf(SelectedFaderGroupObjects, [](const TWeakObjectPtr<UObject>& SelectedFaderGroupObject)
-		{
-			const UDMXControlConsoleFaderGroup* SelectedFaderGroup = Cast<UDMXControlConsoleFaderGroup>(SelectedFaderGroupObject);
-			return SelectedFaderGroup && !SelectedFaderGroup->IsMuted();
-		});
-
-	if (bAreAllFaderGroupsUnmuted)
-	{
-		return ECheckBoxState::Unchecked;
-	}
-	
-	const bool bIsAnyFaderGroupUnmuted = Algo::AnyOf(SelectedFaderGroupObjects, [](const TWeakObjectPtr<UObject>& SelectedFaderGroupObject)
-		{
-			const UDMXControlConsoleFaderGroup* SelectedFaderGroup = Cast<UDMXControlConsoleFaderGroup>(SelectedFaderGroupObject);
-			return SelectedFaderGroup && !SelectedFaderGroup->IsMuted();
-		});
-
-	return bIsAnyFaderGroupUnmuted ? ECheckBoxState::Undetermined : ECheckBoxState::Checked;
-}
-
-void FDMXControlConsoleFaderGroupDetails::OnMuteToggleChanged(ECheckBoxState CheckState)
-{
-	UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
-	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
-	const TArray<TWeakObjectPtr<UObject>> SelectedFaderGroupObjects = SelectionHandler->GetSelectedFaderGroups();
-	Algo::ForEach(SelectedFaderGroupObjects, [CheckState](const TWeakObjectPtr<UObject>& SelectedFaderGroupObject)
-		{
-			UDMXControlConsoleFaderGroup* SelectedFaderGroup = Cast<UDMXControlConsoleFaderGroup>(SelectedFaderGroupObject);
-			if (SelectedFaderGroup && SelectedFaderGroup->IsMatchingFilter())
-			{
-				const bool bIsMuted = CheckState == ECheckBoxState::Checked;
-				SelectedFaderGroup->SetMute(bIsMuted);
-			}
-		});
 }
 
 ECheckBoxState FDMXControlConsoleFaderGroupDetails::IsLockChecked() const

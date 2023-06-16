@@ -102,22 +102,22 @@ public:
 	void Destroy();
 
 	/** Gets wheter this Fader Group can send DMX data */
-	bool IsMuted() const;
+	bool IsMuted() const { return bIsMuted; }
 
 	/** Sets mute state of this Fader Group */
-	virtual void SetMute(bool bMute);
+	void SetMute(bool bMute) { bIsMuted = bMute; }
 
 	/** Mutes/Unmutes this Fader Group */
-	virtual void ToggleMute();
+	void ToggleMute() { bIsMuted = !bIsMuted; }
 
 	/** Gets wheter this Fader Group's Faders Value can be changed */
 	bool IsLocked() const;
 	
 	/** Sets lock state of this Fader Group */
-	virtual void SetLock(bool bLock);
+	void SetLock(bool bLock);
 
 	/** Locks/Unlocks this Fader Group  */
-	virtual void ToggleLock();
+	void ToggleLock();
 
 #if WITH_EDITOR
 	/** Gets Fader Group color for Editor representation */
@@ -168,6 +168,7 @@ public:
 	FORCEINLINE static FName GetFaderGroupNamePropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderGroup, FaderGroupName); }
 	FORCEINLINE static FName GetSoftFixturePatchPtrPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderGroup, SoftFixturePatchPtr); }
 	FORCEINLINE static FName GetCachedWeakFixturePatchPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderGroup, CachedWeakFixturePatch); }
+	FORCEINLINE static FName GetIsMutedPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderGroup, bIsMuted); }
 #if WITH_EDITOR
 	FORCEINLINE static FName GetEditorColorPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderGroup, EditorColor); }
 #endif // WITH_EDITOR
@@ -227,6 +228,10 @@ private:
 	/** Elements in this Fader Group */
 	UPROPERTY()
 	TArray<TScriptInterface<IDMXControlConsoleFaderGroupElement>> Elements;
+
+	UPROPERTY(EditAnywhere, Category = "DMX Fader Group")
+	/** If true, the Fader Group doesn't send DMX */
+	bool bIsMuted = false;
 
 #if WITH_EDITORONLY_DATA
 	/** Color for Fader Group representation on the Editor */

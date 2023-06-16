@@ -252,7 +252,7 @@ void UDMXControlConsoleData::Tick(float InDeltaTime)
 	const TArray<UDMXControlConsoleFaderGroup*> FaderGroups = GetAllFaderGroups();
 	for (const UDMXControlConsoleFaderGroup* FaderGroup : FaderGroups)
 	{
-		if (!FaderGroup)
+		if (!FaderGroup || FaderGroup->IsMuted())
 		{
 			continue;
 		}
