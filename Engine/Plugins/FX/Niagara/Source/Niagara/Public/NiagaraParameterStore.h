@@ -111,17 +111,11 @@ struct FNiagaraParameterStoreBinding
 	/** Bindings of UObject params. Src and Dest offsets.*/
 	TArray<FUObjectBinding> UObjectBindings;
 
-	FNiagaraParameterStoreBinding()
-	{
-	}
-	
 	FORCEINLINE_DEBUGGABLE void Empty(FNiagaraParameterStore* DestStore, FNiagaraParameterStore* SrcStore);
 	FORCEINLINE_DEBUGGABLE bool Initialize(FNiagaraParameterStore* DestStore, FNiagaraParameterStore* SrcStore, const FNiagaraBoundParameterArray* BoundParameters = nullptr);
 	FORCEINLINE_DEBUGGABLE bool VerifyBinding(const FNiagaraParameterStore* DestStore, const FNiagaraParameterStore* SrcStore)const;
-	void Tick(FNiagaraParameterStore* DestStore, FNiagaraParameterStore* SrcStore, bool bForce = false);
+	void CopyParameters(FNiagaraParameterStore* DestStore, const FNiagaraParameterStore* SrcStore) const;
 	FORCEINLINE_DEBUGGABLE void Dump(const FNiagaraParameterStore* DestStore, const FNiagaraParameterStore* SrcStore)const;
-	/** TODO: Merge contiguous ranges into a single binding? */
-	//FORCEINLINE_DEBUGGABLE void Optimize();
 
 	static void GetBindingData(FNiagaraParameterStore* DestStore, FNiagaraParameterStore* SrcStore, FNiagaraBoundParameterArray& OutBoundParameters);
 
@@ -273,7 +267,7 @@ public:
 	void SetOwner(UObject* InOwner);
 	UObject* GetOwner() const { return Owner.Get(); }
 
-	void Dump();
+	void Dump() const;
 	void DumpParameters(bool bDumpBindings = false)const;
 
 	SIZE_T GetResourceSize() const
@@ -671,7 +665,7 @@ public:
 	void TriggerOnLayoutChanged() { OnLayoutChange(); }
 
 protected:
-	void TickBindings();
+	void TickBindings() const;
 	void OnLayoutChange();
 	void CopySortedParameterOffsets(TArrayView<const FNiagaraVariableWithOffset> Src);
 	void AssignParameterData(TConstArrayView<uint8> SourceParameterData);
@@ -800,12 +794,6 @@ FORCEINLINE_DEBUGGABLE bool FNiagaraParameterStoreBinding::VerifyBinding(const F
 #endif
 	return bBindingValid;
 }
-
-/** Merge contiguous ranges into a single binding. */
-// FORCEINLINE_DEBUGGABLE void FNiagaraParameterStoreBinding::Optimize()
-// {
-// 	//TODO
-// }
 
 FORCEINLINE_DEBUGGABLE void FNiagaraParameterStoreBinding::Dump(const FNiagaraParameterStore* DestStore, const FNiagaraParameterStore* SrcStore)const
 {
