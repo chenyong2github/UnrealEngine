@@ -29,51 +29,109 @@ namespace Metasound
 
 		virtual ~IOperator() {}
 
-		/** Return the input parameters associated with this IOperator.
+		/** GetInputs() has been deprecated in favor of BindInputs(...). Please update
+		 * your code by removing the implementation to GetInputs() and implementing
+		 * BindInputs(...).  In future releases, the GetInputs() virtual method
+		 * will be removed.
 		 *
-		 * Implementations of IOperator should populate and return their input parameters
-		 * if they want to enable callers to query and write to their parameters. Most IOperator
-		 * implementations will return an empty FDataReferenceCollection because thier inputs are
-		 * set during the IOperator's construction and do not need to be updated afterwards. The
-		 * exceptions are input operators and graph operators which need to interface with external
-		 * systems even after the operator is created.
+		 * Note: IOperators which do not correctly implement BindInputs(...) and
+		 * BindOutputs(...) will not function correctly with MetaSound operator
+		 * caching and live auditioning in the MetaSound Builder BP API. 
 		 */
-		virtual FDataReferenceCollection GetInputs() const = 0;
+		UE_DEPRECATED(5.3, "GetInputs() has been replaced by BindInputs(FInputVertexInterfaceData&).")
+		virtual FDataReferenceCollection METASOUNDGRAPHCORE_API GetInputs() const;
 
-		/** Return the output parameters associated with this IOperator.
+		/** GetOutputs() has been deprecated in favor of BindOutputs(...). Please update
+		 * your code by removing the implementation to GetOutputs() and implementing
+		 * BindOutputs(...).  In future releases, the GetOutputs() virtual method
+		 * will be removed.
 		 *
-		 * Implementations of IOperator should return a collection of their output parameters
-		 * which other nodes can read.
+		 * Note: IOperators which do not correctly implement BindInputs(...) and
+		 * BindOutputs(...) will not function correctly with MetaSound operator
+		 * caching and live auditioning in the MetaSound Builder BP API. 
 		 */
-		virtual FDataReferenceCollection GetOutputs() const = 0;
+		UE_DEPRECATED(5.3, "GetOutputs() has been replaced by BindOutputs(FOutputVertexInterfaceData&)")
+		virtual FDataReferenceCollection METASOUNDGRAPHCORE_API GetOutputs() const;
 
-		/** Bind data references to the interface of this operator.
+		/** Bind(...) has been deprecated in favor of BindInputs(...) and BindOutputs(...). 
+		 * Please update your code by removing the implementation to Bind(...) 
+		 * and implementing BindOutputs(...).  In future releases, the Bind(...) 
+		 * virtual method will be removed.
 		 *
-		 * Operators should bind all data references to the vertices of the provided
-		 * InVertexData. This method is meant to replace GetInputs() and GetOutputs()
-		 * because it provides better error checking against mismatched vertex names.
+		 * Note: IOperators which do not correctly implement BindInputs(...) and
+		 * BindOutputs(...) will not function correctly with MetaSound operator
+		 * caching and live auditioning in the MetaSound Builder BP API. 
 		 */
-		virtual void Bind(FVertexInterfaceData& InVertexData) const
-		{
-			InVertexData.GetInputs().Set(GetInputs());
-			InVertexData.GetOutputs().Set(GetOutputs());
-		}
+		UE_DEPRECATED(5.3, "Bind(FVertexInterfaceData&) has been replaced by BindInputs(FInputVertexInterfaceDAta&) and BindOutputs(FOutputVertexInterfaceData&)")
+		virtual void METASOUNDGRAPHCORE_API Bind(FVertexInterfaceData& InVertexData) const;
 
-		virtual void BindInputs(FInputVertexInterfaceData& InVertexData)
-		{
-			FVertexInterfaceData Data;
-			Data.GetInputs() = InVertexData;
-			Bind(Data);
-			InVertexData = Data.GetInputs();
-		}
+		/** BindInputs binds data references in the IOperator with the FInputVertexInterfaceData.
+		 *
+		 * All input data references should be bound to the InVertexData to support
+		 * other MetaSound systems such as MetaSound BP API, Operator Caching, 
+		 * and live auditioning. 
+		 *
+		 * Note: The virtual function IOPerator::BindInputs(...) will be made a
+		 * pure virtual when IOperator::GetInputs() is removed at or after release 5.5
+		 *
+		 * Note: Binding an data reference may update the which underlying object 
+		 * the reference points to. Any operator which caches pointers or values 
+		 * from data references must update their cached pointers in the call to 
+		 * BindInputs(...).  Operators which do not cache the underlying pointer 
+		 * of a data reference do not need to update anything after BindInputs(...)
+		 *
+		 * Example:
+		 * 	FMyOperator::FMyOperator(TDataReadReference<float> InGain, TDataReadReference<FAudioBuffer> InAudioBuffer)
+		 * 	: Gain(InGain)
+		 * 	, AudioBuffer(InAudioBuffer)
+		 * 	{
+		 * 		MyBufferPtr = AudioBuffer->GetData();		
+		 * 	}
+		 *
+		 * 	void FMyOperator::BindInputs(FInputVertexInterfaceData& InVertexData)
+		 * 	{
+		 * 		InVertexData.BindReadVertex("Gain", Gain);
+		 * 		InVertexData.BindReadVertex("Audio", AudioBuffer);
+		 *
+		 * 		// Update MyBufferPtr in case AudioBuffer references a new FAudioBuffer.
+		 * 		MyBufferPtr = AudioBuffer->GetData();
+		 * 	}
+		 */
+		virtual void METASOUNDGRAPHCORE_API BindInputs(FInputVertexInterfaceData& InVertexData);
 
-		virtual void BindOutputs(FOutputVertexInterfaceData& InVertexData) 
-		{
-			FVertexInterfaceData Data;
-			Data.GetOutputs() = InVertexData;
-			Bind(Data);
-			InVertexData = Data.GetOutputs();
-		}
+		/** BindOutputs binds data references in the IOperator with the FOutputVertexInterfaceData.
+		 *
+		 * All output data references should be bound to the InVertexData to support
+		 * other MetaSound systems such as MetaSound BP API, Operator Caching, 
+		 * and live auditioning. 
+		 *
+		 * Note: The virtual function IOPerator::BindOutputs(...) will be made a
+		 * pure virtual when IOperator::GetOutputs() is removed at or after release 5.5
+		 *
+		 * Note: Binding an data reference may update the which underlying object 
+		 * the reference points to. Any operator which caches pointers or values 
+		 * from data references must update their cached pointers in the call to 
+		 * BindOutputs(...).  Operators which do not cache the underlying pointer 
+		 * of a data reference do not need to update anything after BindOutputs(...)
+		 *
+		 * Example:
+		 * 	FMyOperator::FMyOperator(TDataWriteReference<float> InGain, TDataWriteReference<FAudioBuffer> InAudioBuffer)
+		 * 	: Gain(InGain)
+		 * 	, AudioBuffer(InAudioBuffer)
+		 * 	{
+		 * 		MyBufferPtr = AudioBuffer->GetData();		
+		 * 	}
+		 *
+		 * 	void FMyOperator::BindOutputs(FOutputVertexInterfaceData& InVertexData)
+		 * 	{
+		 * 		InVertexData.BindReadVertex("Gain", Gain);
+		 * 		InVertexData.BindReadVertex("Audio", AudioBuffer);
+		 *
+		 * 		// Update MyBufferPtr in case AudioBuffer references a new FAudioBuffer.
+		 * 		MyBufferPtr = AudioBuffer->GetData();
+		 * 	}
+		 */
+		virtual void METASOUNDGRAPHCORE_API BindOutputs(FOutputVertexInterfaceData& InVertexData);
 
 		/** Pointer to initialize function for an operator.
 		 *

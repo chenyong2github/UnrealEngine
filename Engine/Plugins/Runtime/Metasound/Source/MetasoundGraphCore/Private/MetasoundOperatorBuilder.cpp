@@ -436,6 +436,8 @@ namespace Metasound
 	FOperatorBuilder::FBuildStatus FOperatorBuilder::CreateOperators(OperatorBuilder::FBuildContext& InOutContext, const TArray<const INode*>& InSortedNodes, const FInputVertexInterfaceData& InExternalInputData) const
 	{
 		METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(Metasound::FOperatorBuilder::CreateOperators);
+		METASOUND_DEBUG_DECLARE_SCOPE;
+
 		using namespace DirectedGraphAlgo;
 
 		FBuildStatus BuildStatus;
@@ -446,7 +448,7 @@ namespace Metasound
 		// Call operator factory for each node.
 		for (const INode* Node : InSortedNodes)
 		{
-			//ThreadLocalDebug::SetActiveNodeClass(Node->GetMetadata());
+			METASOUND_DEBUG_SET_ACTIVE_NODE_SCOPE(Node);
 
 			FOperatorID OperatorID = GetOperatorID(Node);
 			FGraphOperatorData::FOperatorInfo& OperatorInfo = OperatorMap.FindChecked(OperatorID);
@@ -500,8 +502,6 @@ namespace Metasound
 					}
 				}
 			}
-
-			//ThreadLocalDebug::ResetActiveNodeClass();
 		}
 
 		return BuildStatus;

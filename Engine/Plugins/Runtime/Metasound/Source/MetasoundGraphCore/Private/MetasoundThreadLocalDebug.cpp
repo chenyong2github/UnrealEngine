@@ -2,43 +2,95 @@
 
 #include "MetasoundThreadLocalDebug.h"
 
+#if UE_METASOUND_DEBUG_ENABLED
+
 #include "MetasoundNodeInterface.h"
 #include "Containers/UnrealString.h"
-
-#define ENABLE_METASOUND_THREAD_LOCAL_DEBUG (DO_CHECK || DO_ENSURE)
 
 namespace Metasound
 {
 	namespace ThreadLocalDebug
 	{
+		class FDebugInfo
+		{
+		public:
+			// Set the active node for the debug info.
+			void SetActiveNode(const INode* InNode);
+
+			// Return the active node.
+			const INode* GetActiveNode() const;
+
+			// Returns the class name and version string for the active node in the current thread.
+			const TCHAR* GetActiveNodeClassNameAndVersion() const;
+
+		private:
+
+			const INode* ActiveNode = nullptr;
+			FString NodeClassNameAndVersion;
+		};
+
 		namespace ThreadLocalDebugPrivate
 		{
-#if ENABLE_METASOUND_THREAD_LOCAL_DEBUG
-			static thread_local FString ActiveNodeClassNameAndVersion;
-#endif
+			static thread_local FDebugInfo DebugInfoOnThisThread;
 		}
 
-		void SetActiveNodeClass(const FNodeClassMetadata& InMetadata)
+		void FDebugInfo::SetActiveNode(const INode* InNode)
 		{
-#if ENABLE_METASOUND_THREAD_LOCAL_DEBUG
-			ThreadLocalDebugPrivate::ActiveNodeClassNameAndVersion = FString::Format(TEXT("{0} v{1}.{2}"), {InMetadata.ClassName.GetFullName().ToString(), InMetadata.MajorVersion, InMetadata.MinorVersion});
-#endif
+			ActiveNode = InNode;
+			if (ActiveNode)
+			{
+				const FNodeClassMetadata& Metadata = ActiveNode->GetMetadata();
+
+				NodeClassNameAndVersion = FString::Format(TEXT("{0} v{1}.{2}"), {Metadata.ClassName.GetFullName().ToString(), Metadata.MajorVersion, Metadata.MinorVersion});
+			}
+			else
+			{
+				NodeClassNameAndVersion = TEXT("[No Active Debug Node Set]");
+			}
 		}
 
-		void ResetActiveNodeClass()
+		const INode* FDebugInfo::GetActiveNode() const
 		{
-#if ENABLE_METASOUND_THREAD_LOCAL_DEBUG
-			ThreadLocalDebugPrivate::ActiveNodeClassNameAndVersion = TEXT("");
-#endif
+			return ActiveNode;
 		}
 
-		const TCHAR* GetActiveNodeClassNameAndVersion()
+		const TCHAR* FDebugInfo::GetActiveNodeClassNameAndVersion() const
 		{
-#if ENABLE_METASOUND_THREAD_LOCAL_DEBUG
-			return *ThreadLocalDebugPrivate::ActiveNodeClassNameAndVersion;	
-#else
+			if (ActiveNode)
+			{
+				return *NodeClassNameAndVersion;
+			}
 			return TEXT("");
-#endif
+		}
+
+		const TCHAR* GetActiveNodeClassNameAndVersionOnThisThread()
+		{
+			return ThreadLocalDebugPrivate::DebugInfoOnThisThread.GetActiveNodeClassNameAndVersion();
+		}
+
+		FDebugInfo* GetDebugInfoOnThisThread()
+		{
+			return &ThreadLocalDebugPrivate::DebugInfoOnThisThread;
+		}
+
+		FScopeDebugActiveNode::FScopeDebugActiveNode(FDebugInfo* InDebugInfo, const INode* InNode)
+		: DebugInfo(InDebugInfo)
+		{
+			if (DebugInfo)
+			{
+				PriorNode = DebugInfo->GetActiveNode();
+				DebugInfo->SetActiveNode(InNode);
+			}
+		}
+
+		FScopeDebugActiveNode::~FScopeDebugActiveNode()
+		{
+			if (DebugInfo)
+			{
+				DebugInfo->SetActiveNode(PriorNode);
+			}
 		}
 	}
 }
+
+#endif

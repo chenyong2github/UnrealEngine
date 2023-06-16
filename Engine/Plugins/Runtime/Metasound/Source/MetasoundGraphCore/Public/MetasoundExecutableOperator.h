@@ -180,16 +180,6 @@ namespace Metasound
 			{
 				return nullptr;
 			}
-
-			virtual FDataReferenceCollection GetInputs() const override
-			{
-				return FDataReferenceCollection{};
-			}
-
-			virtual FDataReferenceCollection GetOutputs() const override
-			{
-				return FDataReferenceCollection{};
-			}
 	};
 
 	/** FExecuter
@@ -266,30 +256,6 @@ namespace Metasound
 			bool IsValid() const
 			{
 				return Operator.IsValid();
-			}
-
-			virtual FDataReferenceCollection GetInputs() const override
-			{
-				static FDataReferenceCollection EmptyCollection;
-
-				if (Operator.IsValid())
-				{
-					return Operator->GetInputs();
-				}
-
-				return EmptyCollection;
-			}
-
-			virtual FDataReferenceCollection GetOutputs() const override
-			{
-				static FDataReferenceCollection EmptyCollection;
-
-				if (Operator.IsValid())
-				{
-					return Operator->GetOutputs();
-				}
-
-				return EmptyCollection;
 			}
 
 			virtual void BindInputs(FInputVertexInterfaceData& InVertexData) override
