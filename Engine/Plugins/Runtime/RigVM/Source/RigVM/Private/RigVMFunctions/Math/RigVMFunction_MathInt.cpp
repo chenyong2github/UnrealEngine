@@ -2,6 +2,7 @@
 
 #include "RigVMFunctions/Math/RigVMFunction_MathInt.h"
 #include "RigVMFunctions/RigVMDispatch_Core.h"
+#include "RigVMCore/RigVMStructTest.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMFunction_MathInt)
 
@@ -157,12 +158,31 @@ FRigVMFunction_MathIntArrayAverage_Execute()
 	}
 }
 
+FRigVMFunction_MathIntToString_Execute()
+{
+	Result = FString::FromInt(Number);
+	if(Number >= 0)
+	{
+		while(Result.Len() < FMath::Min<int32>(8, PaddedSize))
+		{
+			static const FString Zero = FString::FromInt(0);
+			Result = Zero + Result;
+		}
+	}
+}
 
+FRigVMFunction_MathIntToName_Execute()
+{
+	FString String;
+	FRigVMFunction_MathIntToString::StaticExecute(ExecuteContext, Number, PaddedSize, String);
+	Result = *String;
+}
 
-
-
-
-
-
-
-
+IMPLEMENT_RIGVMSTRUCT_AUTOMATION_TEST(FRigVMFunction_MathIntToName)
+{
+	Unit.Number = 13;
+	Unit.PaddedSize = 5;
+	Execute();
+	AddErrorIfFalse(Unit.Result == TEXT("00013"), TEXT("unexpected result"));
+	return true;
+}

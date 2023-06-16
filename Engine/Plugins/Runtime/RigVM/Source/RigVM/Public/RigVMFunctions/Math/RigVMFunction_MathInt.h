@@ -534,3 +534,65 @@ struct RIGVM_API FRigVMFunction_MathIntArrayAverage : public FRigVMFunction_Math
 	UPROPERTY(meta = (Output))
 	int32 Average;
 };
+
+/**
+ * Converts an integer to a string
+ */
+USTRUCT(meta = (DisplayName = "Int to String", TemplateName="Int to Name"))
+struct RIGVM_API FRigVMFunction_MathIntToString : public FRigVMFunction_MathIntBase
+{
+	GENERATED_BODY()
+
+	FRigVMFunction_MathIntToString()
+	{
+		Number = PaddedSize = 0;
+	}
+
+	/** Execute logic for this function */
+	RIGVM_METHOD()
+	virtual void Execute() override;
+
+	UPROPERTY(meta = (Input))
+	int32 Number;
+
+	/*
+	 * For positive numbers you can pad the result to a required with
+	 * so rather than '13' return '00013' for a padded size of 5.
+	 */
+	UPROPERTY(meta = (Input))
+	int32 PaddedSize;
+
+	UPROPERTY(meta = (Output))
+	FString Result;
+};
+
+/**
+ * Converts an integer to a name
+ */
+USTRUCT(meta = (DisplayName = "Int to Name", TemplateName="Int to Name"))
+struct RIGVM_API FRigVMFunction_MathIntToName : public FRigVMFunction_MathIntBase
+{
+	GENERATED_BODY()
+
+	FRigVMFunction_MathIntToName()
+	{
+		Number = PaddedSize = 0;
+	}
+
+	/** Execute logic for this function */
+	RIGVM_METHOD()
+	virtual void Execute() override;
+
+	UPROPERTY(meta = (Input))
+	int32 Number;
+
+	/*
+	 * For positive numbers you can pad the result to a required with
+	 * so rather than '13' return '00013' for a padded size of 5.
+	 */
+	UPROPERTY(meta = (Input))
+	int32 PaddedSize;
+
+	UPROPERTY(meta = (Output))
+	FName Result;
+};
