@@ -1101,8 +1101,6 @@ namespace mu
                                NumChannels, Semantics.GetData(), SemanticIndices.GetData(),
                                bIgnoreTextureCoords != 0, bOutSuccess);
 			
-				check(bOutSuccess);
-
 				Release(pBase);
 				Release(pTarget);
 
