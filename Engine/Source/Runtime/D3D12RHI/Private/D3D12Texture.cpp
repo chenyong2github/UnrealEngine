@@ -944,6 +944,20 @@ FD3D12Texture* FD3D12DynamicRHI::CreateD3D12Texture(const FRHITextureCreateDesc&
 			ResourceAllocator->AllocateTexture(Device->GetGPUIndex(), HeapType, ResourceDesc, (EPixelFormat)CreateDesc.Format, ED3D12ResourceStateMode::Default, CreateState, ClearValuePtr, CreateDesc.DebugName, Location);
 			Location.SetOwner(NewTexture);
 		}
+		else if(EnumHasAnyFlags(CreateDesc.Flags, TexCreate_CPUReadback))
+		{
+			uint64 Size = 0;
+			uint32 NumSubResources = ResourceDesc.MipLevels;
+			if (CreateDesc.IsTextureArray())
+			{
+				NumSubResources *= ResourceDesc.DepthOrArraySize;
+			}
+			Device->GetDevice()->GetCopyableFootprints(&ResourceDesc, 0, NumSubResources, 0, nullptr, nullptr, nullptr, &Size);
+
+			FD3D12Resource* Resource = nullptr;
+			VERIFYD3D12CREATETEXTURERESULT(Adapter->CreateBuffer(D3D12_HEAP_TYPE_READBACK, Device->GetGPUMask(), Device->GetVisibilityMask(), Size, &Resource, CreateDesc.DebugName), ResourceDesc, Device->GetDevice());
+			Location.AsStandAlone(Resource);
+		}
 		else if (CreateDesc.IsTexture3D())
 		{
 			VERIFYD3D12CREATETEXTURERESULT(Device->GetTextureAllocator().AllocateTexture(

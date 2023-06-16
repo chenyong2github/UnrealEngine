@@ -759,6 +759,23 @@ FD3D11Texture* FD3D11DynamicRHI::CreateD3D11Texture3D(FRHITextureCreateDesc cons
 		bCreateRTV = true;
 	}
 
+	bool bCreateShaderResource = true;
+
+	if (EnumHasAnyFlags(Flags, TexCreate_CPUReadback))
+	{
+		check(!EnumHasAnyFlags(Flags, TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_ShaderResource));
+
+		TextureDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+		TextureDesc.Usage = D3D11_USAGE_STAGING;
+		TextureDesc.BindFlags = 0;
+		bCreateShaderResource = false;
+	}
+
+	if (EnumHasAnyFlags(Flags, TexCreate_DisableSRVCreation))
+	{
+		bCreateShaderResource = false;
+	}
+
 	// Set up the texture bind flags.
 	check(!EnumHasAnyFlags(Flags, TexCreate_DepthStencilTargetable | TexCreate_ResolveTargetable));
 
@@ -803,6 +820,7 @@ FD3D11Texture* FD3D11DynamicRHI::CreateD3D11Texture3D(FRHITextureCreateDesc cons
 
 	// Create a shader resource view for the texture.
 	TRefCountPtr<ID3D11ShaderResourceView> ShaderResourceView;
+	if(bCreateShaderResource)
 	{
 		D3D11_SHADER_RESOURCE_VIEW_DESC SRVDesc;
 		SRVDesc.Format = PlatformShaderResourceFormat;

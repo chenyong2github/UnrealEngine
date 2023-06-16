@@ -801,7 +801,7 @@ void FVulkanTexture::GetMipSize(uint32 MipIndex, uint32& MipBytes)
 	}
 
 	// Size in bytes
-	MipBytes = NumBlocksX * NumBlocksY * BlockBytes;
+	MipBytes = NumBlocksX * NumBlocksY * BlockBytes * Desc.Depth;
 /*
 #if VULKAN_HAS_DEBUGGING_ENABLED
 	VkImageSubresource SubResource;
@@ -1454,7 +1454,6 @@ FVulkanTexture::FVulkanTexture(FVulkanDevice& InDevice, const FRHITextureCreateD
 		if (EnumHasAnyFlags(InCreateDesc.Flags, TexCreate_CPUReadback))
 		{
 			check(InCreateDesc.NumSamples == 1); //not implemented
-			check(InCreateDesc.Depth == 1);      //not implemented
 			check(InCreateDesc.ArraySize == 1);  //not implemented
 
 			CpuReadbackBuffer = new FVulkanCpuReadbackBuffer;

@@ -655,14 +655,13 @@ void FD3D11DynamicRHI::ReadSurfaceDataMSAARaw(FRHITexture* TextureRHI,FIntRect I
 
 void FD3D11DynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI, FRHIGPUFence* FenceRHI, void*& OutData, int32& OutWidth, int32& OutHeight, uint32 GPUIndex)
 {
-	ID3D11Texture2D* Texture = ResourceCast(TextureRHI)->GetD3D11Texture2D();
-	
-	D3D11_TEXTURE2D_DESC TextureDesc;
-	Texture->GetDesc(&TextureDesc);
-	uint32 BytesPerPixel = ComputeBytesPerPixel(TextureDesc.Format);
+	ID3D11Resource* Resource = ResourceCast(TextureRHI)->GetResource();
+
+	DXGI_FORMAT Format = (DXGI_FORMAT)GPixelFormats[TextureRHI->GetDesc().Format].PlatformFormat;
+	uint32 BytesPerPixel = ComputeBytesPerPixel(Format);
 
 	D3D11_MAPPED_SUBRESOURCE LockedRect;
-	VERIFYD3D11RESULT_EX(Direct3DDeviceIMContext->Map(Texture,0,D3D11_MAP_READ,0,&LockedRect), Direct3DDevice);
+	VERIFYD3D11RESULT_EX(Direct3DDeviceIMContext->Map(Resource, 0, D3D11_MAP_READ, 0, &LockedRect), Direct3DDevice);
 
 	OutData = LockedRect.pData;
 	OutWidth = LockedRect.RowPitch / BytesPerPixel;
@@ -673,9 +672,8 @@ void FD3D11DynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI, FRHIGPUFenc
 
 void FD3D11DynamicRHI::RHIUnmapStagingSurface(FRHITexture* TextureRHI, uint32 GPUIndex)
 {
-	ID3D11Texture2D* Texture = ResourceCast(TextureRHI)->GetD3D11Texture2D();
-
-	Direct3DDeviceIMContext->Unmap(Texture,0);
+	ID3D11Resource* Resource = ResourceCast(TextureRHI)->GetResource();
+	Direct3DDeviceIMContext->Unmap(Resource, 0);
 }
 
 void FD3D11DynamicRHI::RHIReadSurfaceFloatData(FRHITexture* TextureRHI,FIntRect InRect,TArray<FFloat16Color>& OutData,ECubeFace CubeFace,int32 ArrayIndex,int32 MipIndex)

@@ -94,8 +94,6 @@ void* FRHIGPUBufferReadback::Lock(uint32 NumBytes)
 	if (DestinationStagingBuffers[GPUIndex])
 	{
 		LastLockGPUIndex = GPUIndex;
-
-		ensure(Fence->Poll());
 		return RHILockStagingBuffer(DestinationStagingBuffers[GPUIndex], Fence.GetReference(), 0, NumBytes);
 	}
 	else
@@ -132,14 +130,13 @@ FRHIGPUTextureReadback::FRHIGPUTextureReadback(FName RequestName) : FRHIGPUMemor
 {
 }
 
-void FRHIGPUTextureReadback::EnqueueCopy(FRHICommandList& RHICmdList, FRHITexture* SourceTexture, FResolveRect Rect)
+void FRHIGPUTextureReadback::EnqueueCopy(FRHICommandList& RHICmdList, FRHITexture* SourceTexture, const FIntVector& SourcePosition, uint32 SourceSlice, const FIntVector& Size)
 {
 	Fence->Clear();
 	LastCopyGPUMask = RHICmdList.GetGPUMask();
 
 	if (SourceTexture)
 	{
-		check(SourceTexture->GetTexture2D());
 		check(!SourceTexture->IsMultisampled());
 
 		for (uint32 GPUIndex : LastCopyGPUMask)
@@ -147,12 +144,14 @@ void FRHIGPUTextureReadback::EnqueueCopy(FRHICommandList& RHICmdList, FRHITextur
 			SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::FromIndex(GPUIndex));
 
 			// Assume for now that every enqueue happens on a texture of the same format and size (when reused).
-			if (!DestinationStagingTextures[GPUIndex])
+			if (!DestinationStagingTextures[GPUIndex] || DestinationStagingTextures[GPUIndex]->GetDesc().Dimension != SourceTexture->GetDesc().Dimension)
 			{
 				FIntVector StagingTextureSize;
-				if (Rect.IsValid())
+
+				// Passing 0 or negative for size means read back the entire texture.
+				if (Size.X > 0 && Size.Y > 0)
 				{
-					StagingTextureSize = FIntVector(Rect.X2 - Rect.X1, Rect.Y2 - Rect.Y1, 1);
+					StagingTextureSize = Size;
 				}
 				else
 				{
@@ -161,10 +160,22 @@ void FRHIGPUTextureReadback::EnqueueCopy(FRHICommandList& RHICmdList, FRHITextur
 
 				FString FenceName = Fence->GetFName().ToString();
 
-				const FRHITextureCreateDesc Desc =
-					FRHITextureCreateDesc::Create2D(*FenceName, StagingTextureSize.X, StagingTextureSize.Y, SourceTexture->GetFormat())
-					.SetFlags(ETextureCreateFlags::CPUReadback | ETextureCreateFlags::HideInVisualizeTexture)
-					.SetInitialState(ERHIAccess::CopyDest);
+				FRHITextureCreateDesc Desc = FRHITextureCreateDesc(SourceTexture->GetDesc(), ERHIAccess::CopyDest, *FenceName)
+					.SetExtent(StagingTextureSize.X, StagingTextureSize.Y)
+					.SetFlags(ETextureCreateFlags::CPUReadback | ETextureCreateFlags::HideInVisualizeTexture);
+
+				switch (Desc.Dimension)
+				{
+					case ETextureDimension::Texture2DArray:
+					case ETextureDimension::TextureCubeArray:
+						ensureMsgf(Size.Z <= 1, TEXT("Readback for texture arrays supports only one slice at a time. Texture Name: %s, SourcePosition: (%d, %d, %d), SourceSlice: %u, Size: (%d, %d, %d)."),
+							*SourceTexture->GetName().ToString(), SourcePosition.X, SourcePosition.Y, SourcePosition.Z, SourceSlice, Size.X, Size.Y, Size.Z);
+						Desc.SetArraySize(1);
+						break;
+					case ETextureDimension::Texture3D:
+						Desc.SetDepth(StagingTextureSize.Z);
+						break;
+				}
 
 				DestinationStagingTextures[GPUIndex] = RHICreateTexture(Desc);
 			}
@@ -172,13 +183,23 @@ void FRHIGPUTextureReadback::EnqueueCopy(FRHICommandList& RHICmdList, FRHITextur
 			{
 				RHICmdList.Transition(FRHITransitionInfo(DestinationStagingTextures[GPUIndex], ERHIAccess::CPURead, ERHIAccess::CopyDest));
 			}
+			
 			FRHICopyTextureInfo CopyInfo;
 
-			if (Rect.IsValid())
+			// Make sure we're not passing negative coordinates or size.
+			if (SourcePosition.X >= 0 && SourcePosition.Y >= 0)
 			{
-				CopyInfo.SourcePosition = FIntVector(Rect.X1, Rect.Y1, 0);
-				CopyInfo.Size = FIntVector(Rect.X2 - Rect.X1, Rect.Y2 - Rect.Y1, 1);
+				CopyInfo.SourcePosition = SourcePosition;
 			}
+
+			if (Size.X > 0 && Size.Y > 0)
+			{
+				CopyInfo.Size = Size;
+			}
+
+			CopyInfo.SourceSliceIndex = SourceSlice;
+			CopyInfo.DestSliceIndex = 0;
+			CopyInfo.NumSlices = 1;
 
 			RHICmdList.CopyTexture(SourceTexture, DestinationStagingTextures[GPUIndex], CopyInfo);
 			RHICmdList.Transition(FRHITransitionInfo(DestinationStagingTextures[GPUIndex], ERHIAccess::CopyDest, ERHIAccess::CPURead));

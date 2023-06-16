@@ -7,6 +7,7 @@
 #include "RHIBufferTests.h"
 #include "RHITextureTests.h"
 #include "RHIDrawTests.h"
+#include "RHIReadbackTests.h"
 
 BEGIN_DEFINE_SPEC(FAutomationRHITest, "Rendering.RHI", EAutomationTestFlags::EngineFilter | EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::NonNullRHI)
 END_DEFINE_SPEC(FAutomationRHITest)
@@ -81,6 +82,21 @@ void FAutomationRHITest::Define()
 		{
 			bool bResult = RunOnRenderThreadSynchronous(FRHITextureTests::Test_RHICopyTexture);
 			TestEqual("RHICopyTexture", bResult, 1);
+		});
+	});
+
+	Describe("Test RHI Readback", [this]
+	{
+		It("Buffer Readback", [this]()
+		{
+			bool bResult = RunOnRenderThreadSynchronous(FRHIReadbackTests::Test_BufferReadback);
+			TestEqual("BufferReadback", bResult, 1);
+		});
+
+		It("Texture Readback", [this]()
+		{
+			bool bResult = RunOnRenderThreadSynchronous(FRHIReadbackTests::Test_TextureReadback);
+			TestEqual("TextureReadback", bResult, 1);
 		});
 	});
 

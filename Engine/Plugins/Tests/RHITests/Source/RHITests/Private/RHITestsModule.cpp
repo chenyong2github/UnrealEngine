@@ -8,6 +8,7 @@
 #include "RHIBufferTests.h"
 #include "RHITextureTests.h"
 #include "RHIDrawTests.h"
+#include "RHIReadbackTests.h"
 
 #define LOCTEXT_NAMESPACE "FRHITestsModule"
 
@@ -52,6 +53,14 @@ static bool RunTests_RenderThread(FRHICommandListImmediate& RHICmdList)
 		RUN_TEST(FRHITextureTests::Test_RHICopyTexture(RHICmdList));
 		RUN_TEST(FRHITextureTests::Test_UpdateTexture(RHICmdList));
 		RUN_TEST(FRHITextureTests::Test_MultipleLockTexture2D(RHICmdList));
+	}
+
+	// ------------------------------------------------
+	// Readback
+	// ------------------------------------------------
+	{
+		RUN_TEST(FRHIReadbackTests::Test_BufferReadback(RHICmdList));
+		RUN_TEST(FRHIReadbackTests::Test_TextureReadback(RHICmdList));
 	}
 
 	// ------------------------------------------------

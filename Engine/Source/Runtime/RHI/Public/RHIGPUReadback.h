@@ -51,9 +51,27 @@ public:
 		unimplemented();
 	}
 
-	virtual void EnqueueCopy(FRHICommandList& RHICmdList, FRHITexture* SourceTexture, FResolveRect Rect = FResolveRect())
+	virtual void EnqueueCopy(FRHICommandList& RHICmdList, FRHITexture* SourceTexture, const FIntVector& SourcePosition, uint32 SourceSlice, const FIntVector& Size)
 	{
 		unimplemented();
+	}
+
+	void EnqueueCopy(FRHICommandList& RHICmdList, FRHITexture* SourceTexture, FResolveRect Rect = FResolveRect())
+	{
+		FIntVector SourcePosition, Size;
+
+		if (Rect.IsValid())
+		{
+			SourcePosition = FIntVector(Rect.X1, Rect.Y1, 0);
+			Size = FIntVector(Rect.X2 - Rect.X1, Rect.Y2 - Rect.Y1, 1);
+		}
+		else
+		{
+			SourcePosition = FIntVector::ZeroValue;
+			Size = FIntVector::ZeroValue;
+		}
+		
+		EnqueueCopy(RHICmdList, SourceTexture, SourcePosition, 0, Size);
 	}
 
 	/**
@@ -114,7 +132,9 @@ class FRHIGPUTextureReadback final : public FRHIGPUMemoryReadback
 public:
 	RHI_API FRHIGPUTextureReadback(FName RequestName);
 
-	RHI_API void EnqueueCopy(FRHICommandList& RHICmdList, FRHITexture* SourceTexture, FResolveRect Rect = FResolveRect()) override;
+	using FRHIGPUMemoryReadback::EnqueueCopy;
+
+	RHI_API void EnqueueCopy(FRHICommandList& RHICmdList, FRHITexture* SourceTexture, const FIntVector& SourcePosition, uint32 SourceSlice, const FIntVector& Size) override;
 
 	UE_DEPRECATED(5.0, "Use FRHIGPUTextureReadback::Lock( int32& OutRowPitchInPixels) instead.")
 	RHI_API void* Lock(uint32 NumBytes) override;

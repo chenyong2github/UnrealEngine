@@ -254,7 +254,6 @@ void FVulkanDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rec
 
 void FVulkanDynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI, FRHIGPUFence* FenceRHI, void*& OutData, int32& OutWidth, int32& OutHeight, uint32 GPUIndex)
 {
-	check(TextureRHI->GetDesc().Dimension == ETextureDimension::Texture2D);
 	FVulkanTexture* Texture = ResourceCast(TextureRHI);
 
 	if (FenceRHI && !FenceRHI->Poll())

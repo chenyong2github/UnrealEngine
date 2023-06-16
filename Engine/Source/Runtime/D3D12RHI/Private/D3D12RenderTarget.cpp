@@ -1130,12 +1130,12 @@ void FD3D12DynamicRHI::ReadSurfaceDataMSAARaw(FRHITexture* TextureRHI, FIntRect 
 
 void FD3D12DynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI, FRHIGPUFence* FenceRHI, void*& OutData, int32& OutWidth, int32& OutHeight, uint32 GPUIndex)
 {	
-	FD3D12Texture* DestTexture2D = ResourceCast(TextureRHI->GetTexture2D(), GPUIndex);
+	FD3D12Texture* DestTexture = ResourceCast(TextureRHI, GPUIndex);
 
-	check(DestTexture2D);
-	FD3D12Resource* Texture = DestTexture2D->GetResource();
+	check(DestTexture);
+	FD3D12Resource* Texture = DestTexture->GetResource();
 
-	DXGI_FORMAT Format = (DXGI_FORMAT)GPixelFormats[DestTexture2D->GetFormat()].PlatformFormat;
+	DXGI_FORMAT Format = (DXGI_FORMAT)GPixelFormats[DestTexture->GetFormat()].PlatformFormat;
 
 	uint32 BytesPerPixel = ComputeBytesPerPixel(Format);
 
@@ -1153,7 +1153,7 @@ void FD3D12DynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI, FRHIGPUFenc
 	);
 
 	D3D12_PLACED_SUBRESOURCE_FOOTPRINT ReadBackHeapDesc;
-	DestTexture2D->GetReadBackHeapDesc(ReadBackHeapDesc, 0);
+	DestTexture->GetReadBackHeapDesc(ReadBackHeapDesc, 0);
 	OutData = pData;
 	OutWidth = ReadBackHeapDesc.Footprint.RowPitch / BytesPerPixel;
 	OutHeight = ReadBackHeapDesc.Footprint.Height;
@@ -1170,10 +1170,9 @@ void FD3D12DynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI, FRHIGPUFenc
 
 void FD3D12DynamicRHI::RHIUnmapStagingSurface(FRHITexture* TextureRHI, uint32 GPUIndex)
 {	
-	FD3D12Texture* DestTexture2D = ResourceCast(TextureRHI->GetTexture2D(), GPUIndex);
+	FD3D12Texture* DestTexture = ResourceCast(TextureRHI, GPUIndex);
 
-	check(DestTexture2D);
-	ID3D12Resource* Texture = DestTexture2D->GetResource()->GetResource();
+	ID3D12Resource* Texture = DestTexture->GetResource()->GetResource();
 
 	Texture->Unmap(0, nullptr);
 }
