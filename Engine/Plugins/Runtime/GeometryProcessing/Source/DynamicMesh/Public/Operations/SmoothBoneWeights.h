@@ -206,10 +206,11 @@ public:
 	 * @param Strength 				The lerp value between the old and the new weight.
 	 * @param FloodFillUpToDistance	For every vertex in Vertices, find vertices that are within FloodFillUpToDistance 
 	 * 								geodesic distance away and smooth them as well.
+	 * @param NumIterations			Number of times the smoothing will be run
 	 *
 	 * @return true if the algorithm succeeds, false if it failed or was canceled by the user.
 	 */
-	bool SmoothWeightsAtVerticesWithinDistance(const TArray<int32>& Vertices, const float Strength, const double FloodFillUpToDistance);
+	bool SmoothWeightsAtVerticesWithinDistance(const TArray<int32>& Vertices, const float Strength, const double FloodFillUpToDistance, const int32 NumIterations);
 
 protected:
 	TUniquePtr<TBoneWeightsDataSource<FBoneIndexType, float>> SkinWeightsAttributeDataSource = nullptr;

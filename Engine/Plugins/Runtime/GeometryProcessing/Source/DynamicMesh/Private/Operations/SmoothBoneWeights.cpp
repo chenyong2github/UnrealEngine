@@ -264,7 +264,8 @@ bool FSmoothDynamicMeshVertexSkinWeights::SmoothWeightsAtVertex(const int32 Vert
 
 bool FSmoothDynamicMeshVertexSkinWeights::SmoothWeightsAtVerticesWithinDistance(const TArray<int32>& Vertices, 
 																  				const float Strength, 
-																  				const double FloodFillUpToDistance)
+																  				const double FloodFillUpToDistance,
+																				const int32 NumIterations)
 {
 	TSet<int32> VerticesToSmooth;
 	VerticesToSmooth.Append(Vertices);
@@ -312,11 +313,14 @@ bool FSmoothDynamicMeshVertexSkinWeights::SmoothWeightsAtVerticesWithinDistance(
 		}
 	}
 
-	for (const int32 VertexID : VerticesToSmooth)
+	for (int32 Itr = 0; Itr < NumIterations; ++Itr)
 	{
-		if (!FSmoothDynamicMeshVertexSkinWeights::SmoothWeightsAtVertex(VertexID, Strength))
+		for (const int32 VertexID : VerticesToSmooth)
 		{
-			return false;
+			if (!FSmoothDynamicMeshVertexSkinWeights::SmoothWeightsAtVertex(VertexID, Strength))
+			{
+				return false;
+			}
 		}
 	}
 

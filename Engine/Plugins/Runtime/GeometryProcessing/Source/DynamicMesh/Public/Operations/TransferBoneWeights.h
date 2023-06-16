@@ -116,6 +116,16 @@ public:
 	/** Transform applied to the input target mesh or target point before transfer. */
 	FTransformSRT3d TargetToWorld = FTransformSRT3d::Identity(); 
 
+	/** 
+     * Completely ignore the source and target mesh bone attributes when transferring weights from one dynamic mesh to another.
+     * This skips re-indexing and simply copies skin weights over. Use with caution.
+	 */
+	bool bIgnoreBoneAttributes = false;
+
+	//
+	// Optional Inputs for ETransferBoneWeightsMethod::InpaintWeights method
+	//
+
 	/**  Radius for searching the closest point. If negative, all points are considered. */
 	double SearchRadius = -1;
 
@@ -124,18 +134,38 @@ public:
 	 * If negative, normals are ignored.
 	 */
 	double NormalThreshold = -1;
+	
+	/** 
+	 * If true, when the closest point doesn't pass the normal threshold test, will try again with a flipped normal. 
+	 * This helps with layered meshes where the "inner" and "outer" layers are close to each other but whose normals 
+	 * are pointing in the opposite directions. 
+	 */
+	bool LayeredMeshSupport = false;
+
+	/** The number of optional post-processing smoothing iterations applied to the vertices without the match. */
+	int32 NumSmoothingIterations = 0; 
+
+	/** The strength of each post-processing smoothing iteration. */
+	float SmoothingStrength = 0.0f;
+
+	/** If true, will use the intrinsic Delaunay mesh to construct sparse Cotangent Laplacian matrix. */
+	bool bUseIntrinsicLaplacian = false;
 
 	/** 
-     * Completely ignore the source and target mesh bone attributes when transferring weights from one dynamic mesh to another.
-     * This skips re-indexing and simply copies skin weights over. Use with caution.
+	 * Optional mask where if ForceInpaint[VertexID] > 0 we want to force the weights for the vertex to be computed  
+	 * automatically.
+	 * 
+	 * @note Only used when TransferMethod == ETransferBoneWeightsMethod::InpaintWeights.
+	 * 		 The size must be equal to the InSourceMesh.MaxVertexID(), otherwise the mask is ignored.
 	 */
-	bool bIgnoreBoneAttributes = false;
+	TArray<float> ForceInpaint;
+
 
 	//
 	// Outputs
 	//
 
-	/** MatchedVertices[VertexID] is set to true for a tartet mesh vertex ID with a match found, false otherwise. */
+	/** MatchedVertices[VertexID] is set to true for a target mesh vertex ID with a match found, false otherwise. */
 	TArray<bool> MatchedVertices;
 
 protected:
