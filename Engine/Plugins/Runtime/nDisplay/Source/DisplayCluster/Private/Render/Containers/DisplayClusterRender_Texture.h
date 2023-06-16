@@ -31,42 +31,37 @@ public:
 
 	virtual bool IsEnabled() const override
 	{
-		const TSharedPtr<FDisplayClusterRender_TextureResource, ESPMode::ThreadSafe>& TextureResource = GetResource();
-		if (TextureResource.IsValid())
-		{
-			return TextureResource->GetWidth() > 0 && TextureResource->GetHeight() > 0;
-		}
-
-		return false;
+		const TSharedPtr<FDisplayClusterRender_TextureResource, ESPMode::ThreadSafe>& TextureResource = GetTextureResource();
+		return TextureResource.IsValid() && TextureResource->IsRenderResourceInitialized();
 	}
 
 	virtual void* GetData() const override
 	{
-		const TSharedPtr<FDisplayClusterRender_TextureResource, ESPMode::ThreadSafe>& TextureResource = GetResource();
+		const TSharedPtr<FDisplayClusterRender_TextureResource, ESPMode::ThreadSafe>& TextureResource = GetTextureResource();
 		return TextureResource ? TextureResource->GetTextureData() : nullptr;
 	}
 
 	virtual uint32_t GetWidth() const override
 	{
-		const TSharedPtr<FDisplayClusterRender_TextureResource, ESPMode::ThreadSafe>& TextureResource = GetResource();
+		const TSharedPtr<FDisplayClusterRender_TextureResource, ESPMode::ThreadSafe>& TextureResource = GetTextureResource();
 		return TextureResource.IsValid() ? TextureResource->GetWidth() : 0;
 	}
 
 	virtual uint32_t GetHeight() const override
 	{
-		const TSharedPtr<FDisplayClusterRender_TextureResource, ESPMode::ThreadSafe>& TextureResource = GetResource();
+		const TSharedPtr<FDisplayClusterRender_TextureResource, ESPMode::ThreadSafe>& TextureResource = GetTextureResource();
 		return TextureResource.IsValid() ? TextureResource->GetHeight() : 0;
 	}
 
 	virtual EPixelFormat GetPixelFormat() const override
 	{
-		const TSharedPtr<FDisplayClusterRender_TextureResource, ESPMode::ThreadSafe>& TextureResource = GetResource();
+		const TSharedPtr<FDisplayClusterRender_TextureResource, ESPMode::ThreadSafe>& TextureResource = GetTextureResource();
 		return TextureResource.IsValid() ? TextureResource->GetPixelFormat() : PF_Unknown;
 	}
 
 	virtual FRHITexture* GetRHITexture() const override
 	{
-		const TSharedPtr<FDisplayClusterRender_TextureResource, ESPMode::ThreadSafe>& TextureResource = GetResource();
+		const TSharedPtr<FDisplayClusterRender_TextureResource, ESPMode::ThreadSafe>& TextureResource = GetTextureResource();
 		return TextureResource.IsValid() ? TextureResource->TextureRHI : nullptr;
 	}
 
@@ -85,25 +80,20 @@ public:
 	// ~~ End TDisplayClusterDataCache
 
 protected:
-	/** Set texture's resource, can be NULL */
-	void SetResource(const TSharedPtr<FDisplayClusterRender_TextureResource, ESPMode::ThreadSafe>& InResource);
+	/** Set new texture resource. */
+	void SetTextureResource(const TSharedPtr<FDisplayClusterRender_TextureResource, ESPMode::ThreadSafe>& InTextureResourcePtr);
 
-	/** Get the texture's resource, can be NULL */
-	const TSharedPtr<FDisplayClusterRender_TextureResource, ESPMode::ThreadSafe>& GetResource() const;
-
-	/**
-	 * Resets the resource for the texture.
-	 */
-	void ReleaseResource();
+	/** Get texture resource: supports both the game thread and the rendering thread. */
+	const TSharedPtr<FDisplayClusterRender_TextureResource, ESPMode::ThreadSafe>& GetTextureResource() const;
 
 private:
 	// The texture's resource, can be NULL
-	TSharedPtr<FDisplayClusterRender_TextureResource, ESPMode::ThreadSafe> PrivateResource;
+	TSharedPtr<FDisplayClusterRender_TextureResource, ESPMode::ThreadSafe> TextureResourcePtr;
 
 	// Value updated and returned by the render-thread to allow
 	// fenceless update from the game-thread without causing
 	// potential crash in the render thread.
-	TSharedPtr<FDisplayClusterRender_TextureResource, ESPMode::ThreadSafe> PrivateResourceRenderThread;
+	TSharedPtr<FDisplayClusterRender_TextureResource, ESPMode::ThreadSafe> TextureResourceProxyPtr;
 
 	// Unique texture name
 	FString UniqueTextureName;

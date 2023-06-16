@@ -106,6 +106,8 @@ FDisplayClusterRender_TextureResource::~FDisplayClusterRender_TextureResource()
 
 void FDisplayClusterRender_TextureResource::InitializeRenderResource()
 {
+	bRenderResourceInitialized = true;
+
 	// Initialize on render thread
 	ENQUEUE_RENDER_COMMAND(DisplayClusterRenderTextureResource_Initialize)([This = SharedThis(this)](FRHICommandListImmediate& RHICmdList)
 	{
@@ -115,6 +117,8 @@ void FDisplayClusterRender_TextureResource::InitializeRenderResource()
 
 void FDisplayClusterRender_TextureResource::ReleaseRenderResource()
 {
+	bRenderResourceInitialized = false;
+
 	// Release on render thread
 	ENQUEUE_RENDER_COMMAND(DisplayClusterRenderTextureResource_Release)([This = SharedThis(this)](FRHICommandListImmediate& RHICmdList)
 	{
@@ -129,9 +133,6 @@ void FDisplayClusterRender_TextureResource::ReleaseTextureData()
 		FMemory::Free(TextureData);
 		TextureData = nullptr;
 
-		Width = 0;
-		Height = 0;
-		PixelFormat = PF_Unknown;
 		bHasCPUAccess = false;
 	}
 }

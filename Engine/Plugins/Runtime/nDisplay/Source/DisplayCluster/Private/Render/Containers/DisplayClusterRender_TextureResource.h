@@ -30,6 +30,18 @@ public:
 	/** Prepares the resource for deletion. */
 	void ReleaseRenderResource();
 
+	/** Whether this texture resource has data in CPU memory. */
+	bool HasCPUAccess() const
+	{
+		return bHasCPUAccess;
+	}
+
+	/** Get ptr to resource data in memory. The variable bHasCPUAccess must be true. */
+	bool IsRenderResourceInitialized() const
+	{
+		return bRenderResourceInitialized;
+	}
+
 	/** Get ptr to resource data in memory. The variable bHasCPUAccess must be true. */
 	void* GetTextureData() const
 	{
@@ -56,17 +68,20 @@ public:
 
 private:
 	// RAW data of the texture. Mips not supported now
-	void* TextureData;
+	void* TextureData = nullptr;
 	
 	// Width of the texture.
-	uint32_t Width;
+	uint32_t Width = 0;
 	
 	// Height of the texture.
-	uint32_t Height;
+	uint32_t Height = 0;
 	
 	// Format in which mip data is stored.
-	EPixelFormat PixelFormat;
+	EPixelFormat PixelFormat = EPixelFormat::PF_Unknown;
 	
 	// has CPU access to texture data, dont release from memory
-	bool bHasCPUAccess;
+	bool bHasCPUAccess = false;
+
+	// Is render resource initialized
+	bool bRenderResourceInitialized = false;
 };

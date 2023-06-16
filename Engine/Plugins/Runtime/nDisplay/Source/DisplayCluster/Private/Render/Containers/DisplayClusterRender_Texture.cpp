@@ -29,24 +29,57 @@ FDisplayClusterRender_Texture::FDisplayClusterRender_Texture(const FString& InUn
 
 FDisplayClusterRender_Texture::~FDisplayClusterRender_Texture()
 {
-	if (PrivateResource.IsValid())
+	SetTextureResource(nullptr);
+}
+
+const TSharedPtr<FDisplayClusterRender_TextureResource, ESPMode::ThreadSafe>& FDisplayClusterRender_Texture::GetTextureResource() const
+{
+	if (IsInActualRenderingThread() || IsInRHIThread())
 	{
-		PrivateResource->ReleaseRenderResource();
-		PrivateResource.Reset();
+		return TextureResourceProxyPtr;
 	}
 
-	if (PrivateResourceRenderThread.IsValid())
+	return TextureResourcePtr;
+}
+
+void FDisplayClusterRender_Texture::SetTextureResource(const TSharedPtr<FDisplayClusterRender_TextureResource, ESPMode::ThreadSafe>& InTextureResourcePtr)
+{
+	check(!IsInActualRenderingThread() && !IsInRHIThread());
+
+	if (InTextureResourcePtr == TextureResourcePtr)
 	{
-		PrivateResourceRenderThread->ReleaseRenderResource();
-		PrivateResourceRenderThread.Reset();
+		// ignore the same resoures
+		return;
 	}
+
+	// Each PrivateResource value must be updated in it's own thread because any
+	// rendering code trying to access the Resource
+	// crash if it suddenly sees nullptr or a new resource that has not had it's InitRHI called.
+
+	if (TextureResourcePtr.IsValid())
+	{
+		// Always call ReleaseRenderResource before destructor
+		TextureResourcePtr->ReleaseRenderResource();
+		TextureResourcePtr.Reset();
+	}
+	TextureResourcePtr = InTextureResourcePtr;
+
+	// Update render thread
+	ENQUEUE_RENDER_COMMAND(FDisplayClusterRender_Texture_UpdateResource)([This = SharedThis(this), InTextureResourcePtr](FRHICommandListImmediate& RHICmdList)
+	{
+		if (This->TextureResourceProxyPtr.IsValid())
+		{
+			// Always call ReleaseRenderResource before destructor
+			This->TextureResourceProxyPtr->ReleaseRenderResource();
+			This->TextureResourceProxyPtr.Reset();
+		}
+
+		This->TextureResourceProxyPtr = InTextureResourcePtr;
+	});
 }
 
 void FDisplayClusterRender_Texture::CreateTexture(const void* InTextureData, const uint32 InComponentDepth, const uint32 InBytesPerComponent, uint32_t InWidth, uint32_t InHeight, bool bInHasCPUAccess)
 {
-	// Release the existing texture resource.
-	ReleaseResource();
-
 	//Dedicated servers have no texture internals
 	if (FApp::CanEverRender())
 	{
@@ -55,42 +88,12 @@ void FDisplayClusterRender_Texture::CreateTexture(const void* InTextureData, con
 		if (NewResource.IsValid())
 		{
 			NewResource->InitializeRenderResource();
+			SetTextureResource(NewResource);
 		}
-
-		SetResource(NewResource);
-	}
-}
-
-const TSharedPtr<FDisplayClusterRender_TextureResource>& FDisplayClusterRender_Texture::GetResource() const
-{
-	if (IsInActualRenderingThread() || IsInRHIThread())
-	{
-		return PrivateResourceRenderThread;
-	}
-	return PrivateResource;
-}
-
-void FDisplayClusterRender_Texture::SetResource(const TSharedPtr<FDisplayClusterRender_TextureResource>& InResource)
-{
-	check(!IsInActualRenderingThread() && !IsInRHIThread());
-
-	// Each PrivateResource value must be updated in it's own thread because any
-	// rendering code trying to access the Resource
-	// crash if it suddenly sees nullptr or a new resource that has not had it's InitRHI called.
-
-	PrivateResource = InResource;
-	ENQUEUE_RENDER_COMMAND(DisplayCluster_SetResourceRenderThread)([This = SharedThis(this), InResource](FRHICommandListImmediate& RHICmdList)
-	{
-		This->PrivateResourceRenderThread = InResource;
-	});
-}
-
-void FDisplayClusterRender_Texture::ReleaseResource()
-{
-	if (PrivateResource)
-	{
-		// Free the resource.
-		SetResource(nullptr);
+		else
+		{
+			SetTextureResource(nullptr);
+		}
 	}
 }
 
