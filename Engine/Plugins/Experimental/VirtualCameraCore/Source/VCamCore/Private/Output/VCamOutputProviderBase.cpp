@@ -12,8 +12,8 @@
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetTree.h"
 #include "Engine/Engine.h"
-#include "GameFramework/PlayerController.h"
 #include "Framework/Application/SlateApplication.h"
+#include "GameFramework/PlayerController.h"
 #include "SceneViewExtensionContext.h"
 #include "Slate/SceneViewport.h"
 #include "UObject/UObjectBaseUtility.h"
@@ -560,6 +560,31 @@ FLevelEditorViewportClient* UVCamOutputProviderBase::GetTargetLevelViewportClien
 TSharedPtr<SLevelViewport> UVCamOutputProviderBase::GetTargetLevelViewport() const
 {
 	return UE::VCamCore::LevelViewportUtils::Private::GetLevelViewport(TargetViewport);
+}
+
+void UVCamOutputProviderBase::PreEditUndo()
+{
+	Super::PreEditUndo();
+
+	// If bIsActive is about to be set to false, we need to deactivate here because either
+	// - UMGWidget will be null-ed, or
+	// - the UVPFullScreenWidget::CurrentDisplayType will be set to Inactive
+	// Both prevent us from removing the widget from the viewport correctly so we'll just ALWAYS disable and optionally restore in PostEditUndo.
+	OnDeactivate();
+}
+
+void UVCamOutputProviderBase::PostEditUndo()
+{
+	Super::PostEditUndo();
+
+	// Need to restore because we killed the widget in PreEditUndo
+	if (bIsActive)
+	{
+		// The transaction has overwritten our properties, e.g. UMGWidget, which would make OnActivate fail 
+		OnDeactivate();
+		// Now we're in a clean base state to re-activate
+		OnActivate();
+	}
 }
 
 void UVCamOutputProviderBase::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)

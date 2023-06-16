@@ -126,6 +126,8 @@ public:
 
 #if WITH_EDITOR
 	//~ Begin UObject Interface
+	virtual void PreEditUndo() override;
+	virtual void PostEditUndo() override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	//~ End UObject Interface
 #endif
