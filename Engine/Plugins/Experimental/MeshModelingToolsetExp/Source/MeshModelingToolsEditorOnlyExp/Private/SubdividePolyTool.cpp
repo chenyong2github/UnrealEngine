@@ -28,21 +28,29 @@ public:
 
 	SubdivPostProcessor(int InSubdivisionLevel,
 						ESubdivisionScheme InSubdivisionScheme,
+						ESubdivisionBoundaryScheme InBoundaryScheme,
 						ESubdivisionOutputNormals InNormalComputationMethod,
 						ESubdivisionOutputUVs InUVComputationMethod,
-						bool bInNewPolyGroups) :
+						bool bInNewPolyGroups,
+						TFunction<bool(const FGroupTopology& GroupTopology, 
+							int32 Vid, const FIndex2i& AttachedGroupEdgeEids)> ShouldAddExtraCornerAtVertIn) :
 		SubdivisionLevel(InSubdivisionLevel),
 		SubdivisionScheme(InSubdivisionScheme),
+		BoundaryScheme(InBoundaryScheme),
 		NormalComputationMethod(InNormalComputationMethod),
 		UVComputationMethod(InUVComputationMethod),
-		bNewPolyGroups(bInNewPolyGroups)
+		bNewPolyGroups(bInNewPolyGroups),
+		ShouldAddExtraCornerAtVert(ShouldAddExtraCornerAtVertIn)
 	{}
 
 	int SubdivisionLevel = 3;
 	ESubdivisionScheme SubdivisionScheme = ESubdivisionScheme::CatmullClark;
+	ESubdivisionBoundaryScheme BoundaryScheme = ESubdivisionBoundaryScheme::SmoothCorners;
 	ESubdivisionOutputNormals NormalComputationMethod = ESubdivisionOutputNormals::Generated;
 	ESubdivisionOutputUVs UVComputationMethod = ESubdivisionOutputUVs::Interpolated;
 	bool bNewPolyGroups = false;
+	// Function passed to the group topology to add extra corners
+	TFunction<bool(const FGroupTopology& GroupTopology, int32 Vid, const FIndex2i& AttachedGroupEdgeEids)> ShouldAddExtraCornerAtVert;
 
 	void ProcessMesh(const FDynamicMesh3& Mesh, FDynamicMesh3& OutRenderMesh) final
 	{
@@ -56,10 +64,14 @@ public:
 			return;
 		}
 
-		constexpr bool bAutoCompute = true;
-		FGroupTopology Topo(&Mesh, bAutoCompute);
+		constexpr bool bBuildTopologyImmediately = false; // need to attach extra corner function first
+		FGroupTopology Topo(&Mesh, bBuildTopologyImmediately);
+		Topo.ShouldAddExtraCornerAtVert = ShouldAddExtraCornerAtVert;
+		Topo.RebuildTopology();
+
 		FSubdividePoly Subd(Topo, Mesh, SubdivisionLevel);
 		Subd.SubdivisionScheme = SubdivisionScheme;
+		Subd.BoundaryScheme = BoundaryScheme;
 		Subd.NormalComputationMethod = NormalComputationMethod;
 		Subd.UVComputationMethod = UVComputationMethod;
 		Subd.bNewPolyGroups = bNewPolyGroups;
@@ -83,42 +95,48 @@ bool USubdividePolyTool::CheckGroupTopology(FText& Message)
 {
 	Message = FText();
 
-	FGroupTopology Topo(OriginalMesh.Get(), true);
-	FSubdividePoly TempSubD(Topo, *OriginalMesh, 1);
+	if (!ensure(Topology.IsValid()))
+	{
+		return false;
+	}
+
+	FSubdividePoly TempSubD(*Topology, *OriginalMesh, 1);
+	TempSubD.BoundaryScheme = Properties->BoundaryScheme; // will only matter here if we someday support NoBoundaryFaces
 	FSubdividePoly::ETopologyCheckResult CheckResult = TempSubD.ValidateTopology();
 
 	if (CheckResult == FSubdividePoly::ETopologyCheckResult::NoGroups)
 	{
 		Message = LOCTEXT("NoGroupsWarning",
-						  "This object has no PolyGroups.\nUse the PolyGroups or Select Tool to assign PolyGroups.\nTool will be limited to Loop subdivision scheme.");
+						  "This object has no PolyGroups.\nTool can only use Loop subdivision scheme.\nUse the PolyGroups or Select Tool to assign PolyGroups.");
 		return false;
 	}
 
 	if (CheckResult == FSubdividePoly::ETopologyCheckResult::InsufficientGroups)
 	{
 		Message = LOCTEXT("SingleGroupsWarning",
-						  "This object has only one PolyGroup.\nUse the PolyGroups or Select Tool to assign PolyGroups.\nTool will be limited to Loop subdivision scheme.");
+						  "This object has only one PolyGroup.\nTool can only use Loop subdivision scheme.\nUse the PolyGroups or Select Tool to assign PolyGroups.");
 		return false;
 	}
 
 	if (CheckResult == FSubdividePoly::ETopologyCheckResult::UnboundedPolygroup)
 	{
 		Message = LOCTEXT("NoGroupBoundaryWarning",
-			"Found a PolyGroup with no boundaries.\nUse the PolyGroups or Select Tool to assign PolyGroups.\nTool will be limited to Loop subdivision scheme.");
+			"Found a PolyGroup with no boundaries.\nTool can only use Loop subdivision scheme.\nUse the PolyGroups or Select Tool to assign PolyGroups.");
 		return false;
 	}
 
 	if (CheckResult == FSubdividePoly::ETopologyCheckResult::MultiBoundaryPolygroup)
 	{
 		Message = LOCTEXT("MultipleGroupBoundaryWarning",
-			"Found a PolyGroup with multiple boundaries, which is not supported.\nUse the PolyGroups or Select Tool to assign PolyGroups.\nTool will be limited to Loop subdivision scheme.");
+			"Found a PolyGroup with multiple boundaries, which is not supported.\nTool can only use Loop subdivision scheme.\nUse the PolyGroups or Select Tool to assign PolyGroups.");
 		return false;
 	}
 
 	if (CheckResult == FSubdividePoly::ETopologyCheckResult::DegeneratePolygroup)
 	{
 		Message = LOCTEXT("DegenerateGroupPolygon",
-			"One PolyGroup has fewer than three boundary edges.\nUse the PolyGroups or Select Tool to assign/fix PolyGroups.\nTool will be limited to Loop subdivision scheme.");
+			"One PolyGroup has fewer than three boundary edges.\nTool can only use Loop subdivision scheme.\n"
+			"Use the PolyGroups or Select Tool to assign/fix PolyGroups, or use the \"Extra Corner\" settings to break up edges.");
 		return false;
 	}
 
@@ -138,16 +156,14 @@ void USubdividePolyTool::CapSubdivisionLevel(ESubdivisionScheme Scheme, int Desi
 	}
 	else
 	{
-		constexpr bool bAutoCompute = true;
-		FGroupTopology Topo(OriginalMesh.Get(), bAutoCompute);
-		NumOriginalFaces = Topo.Groups.Num();
+		NumOriginalFaces = Topology->Groups.Num();
 	}
 	int MaxLevel = (int)floor(log2(MaxFaces / (NumOriginalFaces+1)) / 2.0);
 
-	FText WarningText;
+	CappedSubdivisionMessage = FText();
 	if (DesiredLevel > MaxLevel)
 	{
-		WarningText = FText::Format(LOCTEXT("SubdivisionLevelTooHigh", "Subdivision level clamped: desired subdivision level ({0}) exceeds maximum level ({1}) for a mesh with this number of faces."),
+		CappedSubdivisionMessage = FText::Format(LOCTEXT("SubdivisionLevelTooHigh", "Subdivision level clamped: desired subdivision level ({0}) exceeds maximum level ({1}) for a mesh with this number of faces."),
 										  FText::AsNumber(DesiredLevel),
 										  FText::AsNumber(MaxLevel));
 		
@@ -155,14 +171,28 @@ void USubdividePolyTool::CapSubdivisionLevel(ESubdivisionScheme Scheme, int Desi
 		Properties->SubdivisionLevel = MaxLevel;
 		Properties->SilentUpdateWatched();		// Don't trigger this function again due to setting SubdivisionLevel above
 	}
-	
-	if (!PersistentErrorMessage.IsEmpty())
+}
+
+ESubdivisionScheme USubdividePolyTool::GetSubdivisionSchemeToUse()
+{
+	return Properties->bOverriddenSubdivisionScheme ? ESubdivisionScheme::Loop : Properties->SubdivisionScheme;
+}
+
+void USubdividePolyTool::UpdateDisplayedMessage()
+{
+	FText Message;
+	if (Properties->bOverriddenSubdivisionScheme && Properties->SubdivisionScheme != ESubdivisionScheme::Loop)
 	{
-		FText Delimiter = FText::FromString("\n");
-		WarningText = WarningText.IsEmpty() ?  PersistentErrorMessage : FText::Join(Delimiter, PersistentErrorMessage, WarningText);
+		Message = OverriddenSchemeMessage;
 	}
-	// if WarningText is empty this will clear possible lingering warning message 
-	GetToolManager()->DisplayMessage(WarningText, EToolMessageLevel::UserWarning);
+
+	FText Delimiter = FText::FromString("\n");
+	if (!CappedSubdivisionMessage.IsEmpty())
+	{
+		Message = FText::Join(Delimiter, Message, CappedSubdivisionMessage);
+	}
+
+	GetToolManager()->DisplayMessage(Message, EToolMessageLevel::UserWarning);
 }
 
 
@@ -178,23 +208,29 @@ void USubdividePolyTool::Setup()
 
 	GetToolManager()->DisplayMessage(LOCTEXT("SubdividePolyToolMessage", "Set the subdivision level and hit Accept to create a new subdivided mesh"), EToolMessageLevel::UserNotification);
 
+	Properties = NewObject<USubdividePolyToolProperties>(this, TEXT("Subdivide Mesh Tool Settings"));
+	Properties->RestoreProperties(this);
+
 	bool bWantVertexNormals = false;
 	OriginalMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>(bWantVertexNormals, false, false, false);
 	FMeshDescriptionToDynamicMesh Converter;
 	Converter.Convert(UE::ToolTarget::GetMeshDescription(Target), *OriginalMesh);
 
-	const bool bCatmullClarkOK = CheckGroupTopology(PersistentErrorMessage);
-
-	if (!bCatmullClarkOK)
+	Topology = MakeShared<FGroupTopology>(OriginalMesh.Get(), false);
+	auto ShouldAddExtraCornerAtVert = [this](const FGroupTopology& GroupTopology, int32 Vid, const FIndex2i& AttachedGroupEdgeEids)
 	{
-		GetToolManager()->DisplayMessage(PersistentErrorMessage, EToolMessageLevel::UserWarning);
-	}
-	
-	Properties = NewObject<USubdividePolyToolProperties>(this, TEXT("Subdivide Mesh Tool Settings"));
-	Properties->RestoreProperties(this);
+		return Properties->bAddExtraCorners && FGroupTopology::IsEdgeAngleSharp(GroupTopology.GetMesh(), Vid, AttachedGroupEdgeEids, ExtraCornerDotProductThreshold);
+	};
+	Topology->ShouldAddExtraCornerAtVert = ShouldAddExtraCornerAtVert;
 
-	Properties->bCatmullClarkOK = bCatmullClarkOK;
-	if (!bCatmullClarkOK)
+	auto UpdateExtraCornerThreshold = [this]() { ExtraCornerDotProductThreshold = FMathd::Cos(Properties->ExtraCornerAngleThresholdDegrees * FMathd::DegToRad); };
+	UpdateExtraCornerThreshold();
+
+	Topology->RebuildTopology();
+
+	Properties->bOverriddenSubdivisionScheme = !CheckGroupTopology(OverriddenSchemeMessage);
+
+	if (Properties->bOverriddenSubdivisionScheme)
 	{
 		Properties->SubdivisionScheme = ESubdivisionScheme::Loop;
 	}
@@ -225,12 +261,7 @@ void USubdividePolyTool::Setup()
 		Properties->SubdivisionLevel = 1;
 	}
 	
-	CapSubdivisionLevel(Properties->SubdivisionScheme, Properties->SubdivisionLevel);
-	PreviewDynamicMeshComponent->SetRenderMeshPostProcessor(MakeUnique<SubdivPostProcessor>(Properties->SubdivisionLevel,
-																							Properties->SubdivisionScheme,
-																							Properties->NormalComputationMethod,
-																							Properties->UVComputationMethod,
-																							Properties->bNewPolyGroups));
+	CapSubdivisionLevel(GetSubdivisionSchemeToUse(), Properties->SubdivisionLevel);
 
 	// Use the input mesh's material on the preview
 	FComponentMaterialSet MaterialSet;
@@ -248,29 +279,35 @@ void USubdividePolyTool::Setup()
 	}
 
 	// dynamic mesh configuration settings
-	auto RebuildMeshPostProcessor = [this]()
+	auto RebuildMeshPostProcessor = [this, ShouldAddExtraCornerAtVert]()
 	{
 		UDynamicMeshComponent* PreviewDynamicMeshComponent = (UDynamicMeshComponent*)PreviewMesh->GetRootComponent();
-		PreviewDynamicMeshComponent->SetRenderMeshPostProcessor(MakeUnique<SubdivPostProcessor>(Properties->SubdivisionLevel,
-																								Properties->SubdivisionScheme,
-																								Properties->NormalComputationMethod,
-																								Properties->UVComputationMethod,
-																								Properties->bNewPolyGroups));
+		PreviewDynamicMeshComponent->SetRenderMeshPostProcessor(MakeUnique<SubdivPostProcessor>(
+			Properties->SubdivisionLevel,
+			GetSubdivisionSchemeToUse(),
+			Properties->BoundaryScheme,
+			Properties->NormalComputationMethod,
+			Properties->UVComputationMethod,
+			Properties->bNewPolyGroups,
+			ShouldAddExtraCornerAtVert));
 		PreviewDynamicMeshComponent->NotifyMeshUpdated();
 	};
+	RebuildMeshPostProcessor();
 
 	// Watch for property changes
 	Properties->WatchProperty(Properties->SubdivisionLevel, [this, RebuildMeshPostProcessor](int NewSubdLevel)
 	{
-		CapSubdivisionLevel(Properties->SubdivisionScheme, NewSubdLevel);
+		CapSubdivisionLevel(GetSubdivisionSchemeToUse(), NewSubdLevel);
+		UpdateDisplayedMessage();
 		RebuildMeshPostProcessor();
 	});
 
 	Properties->WatchProperty(Properties->SubdivisionScheme, [this, RebuildMeshPostProcessor](ESubdivisionScheme NewScheme)
 	{
-		CapSubdivisionLevel(NewScheme, Properties->SubdivisionLevel);
+		CapSubdivisionLevel(GetSubdivisionSchemeToUse(), Properties->SubdivisionLevel);
+		UpdateDisplayedMessage();
 		RebuildMeshPostProcessor();
-		bPreviewGeometryNeedsUpdate = true;		// Switch from rendering poly cage to all triangle edges
+		bPreviewGeometryNeedsUpdate = true;
 	});
 
 	Properties->WatchProperty(Properties->NormalComputationMethod, [this, RebuildMeshPostProcessor](ESubdivisionOutputNormals)
@@ -285,7 +322,28 @@ void USubdividePolyTool::Setup()
 	{
 		RebuildMeshPostProcessor();
 	});
+	Properties->WatchProperty(Properties->BoundaryScheme, [this, RebuildMeshPostProcessor](ESubdivisionBoundaryScheme)
+	{
+		RebuildMeshPostProcessor();
+	});
 
+	auto OnCornerChange = [this, UpdateExtraCornerThreshold, RebuildMeshPostProcessor]() {
+		UpdateExtraCornerThreshold();
+		Topology->RebuildTopology();
+
+		Properties->bOverriddenSubdivisionScheme = !CheckGroupTopology(OverriddenSchemeMessage);
+		UpdateDisplayedMessage();
+		NotifyOfPropertyChangeByTool(Properties);
+
+		bPreviewGeometryNeedsUpdate = true;
+		RebuildMeshPostProcessor();
+	};
+	Properties->WatchProperty(Properties->bAddExtraCorners, [this, OnCornerChange](bool) {
+		OnCornerChange();
+	});
+	Properties->WatchProperty(Properties->ExtraCornerAngleThresholdDegrees, [this, OnCornerChange](double) {
+		OnCornerChange();
+	});
 
 	auto RenderGroupsChanged = [this](bool bNewRenderGroups)
 	{
@@ -323,6 +381,9 @@ void USubdividePolyTool::Setup()
 
 	TargetComponent->SetOwnerVisibility(false);
 	PreviewMesh->SetVisible(true);
+
+	Properties->SilentUpdateWatched();
+	UpdateDisplayedMessage();
 }
 
 void USubdividePolyTool::CreateOrUpdatePreviewGeometry()
@@ -334,7 +395,7 @@ void USubdividePolyTool::CreateOrUpdatePreviewGeometry()
 		return;
 	}
 
-	if (Properties->SubdivisionScheme == ESubdivisionScheme::Loop)
+	if (GetSubdivisionSchemeToUse() == ESubdivisionScheme::Loop)
 	{
 		int NumEdges = OriginalMesh->EdgeCount();
 
@@ -359,16 +420,15 @@ void USubdividePolyTool::CreateOrUpdatePreviewGeometry()
 	}
 	else
 	{
-		FGroupTopology Topology(OriginalMesh.Get(), true);
-		int NumEdges = Topology.Edges.Num();
+		int NumEdges = Topology->Edges.Num();
 
 		PreviewGeometry->RemoveLineSet(TEXT("AllEdges"));
 
 		PreviewGeometry->CreateOrUpdateLineSet(TEXT("TopologyEdges"),
 											   NumEdges,
-											   [&Topology, this](int32 Index, TArray<FRenderableLine>& LinesOut)
+											   [this](int32 Index, TArray<FRenderableLine>& LinesOut)
 		{
-			const FGroupTopology::FGroupEdge& Edge = Topology.Edges[Index];
+			const FGroupTopology::FGroupEdge& Edge = Topology->Edges[Index];
 			FIndex2i EdgeCorners = Edge.EndpointCorners;
 
 			if (EdgeCorners[0] == FDynamicMesh3::InvalidID || EdgeCorners[1] == FDynamicMesh3::InvalidID)
@@ -376,8 +436,8 @@ void USubdividePolyTool::CreateOrUpdatePreviewGeometry()
 				return;
 			}
 
-			FIndex2i EdgeVertices{ Topology.Corners[EdgeCorners[0]].VertexID,
-									Topology.Corners[EdgeCorners[1]].VertexID };
+			FIndex2i EdgeVertices{ Topology->Corners[EdgeCorners[0]].VertexID,
+									Topology->Corners[EdgeCorners[1]].VertexID };
 			FVector A = (FVector)OriginalMesh->GetVertex(EdgeVertices[0]);
 			FVector B = (FVector)OriginalMesh->GetVertex(EdgeVertices[1]);
 

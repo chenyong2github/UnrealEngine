@@ -42,12 +42,12 @@ public:
 	UPROPERTY(EditAnywhere, Category=Settings, meta = (UIMin = "1", ClampMin = "1", Delta = 1, LinearDeltaSensitivity = 50))
 	int SubdivisionLevel = 3;
 
-	// Controls whether the user can select Catmull-Clark or is forced to use Loop
-	UPROPERTY(meta = (TransientToolProperty))
-	bool bCatmullClarkOK = true;
-
-	UPROPERTY(EditAnywhere, Category = Settings, meta = (EditCondition = "bCatmullClarkOK", HideEditConditionToggle))
+	UPROPERTY(EditAnywhere, Category = Settings)
 	ESubdivisionScheme SubdivisionScheme = ESubdivisionScheme::CatmullClark;
+
+	// How to treat mesh boundaries
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (EditCondition = "SubdivisionScheme != ESubdivisionScheme::Bilinear || bOverriddenSubdivisionScheme"))
+	ESubdivisionBoundaryScheme BoundaryScheme = ESubdivisionBoundaryScheme::SmoothCorners;
 
 	UPROPERTY(EditAnywhere, Category=Settings)
 	ESubdivisionOutputNormals NormalComputationMethod = ESubdivisionOutputNormals::Generated;
@@ -67,6 +67,17 @@ public:
 	UPROPERTY(EditAnywhere, Category = Settings)
 	bool bRenderCage = true;
 
+	/** When using the group topology for subdivision, whether to add extra corners at sharp group edge bends. */
+	UPROPERTY(EditAnywhere, Category = TopologyOptions, meta = (EditCondition = "SubdivisionScheme != ESubdivisionScheme::Loop"))
+	bool bAddExtraCorners = true;
+
+	/** How acute an angle between two edges needs to be to add an extra corner there when Add Extra Corners is true. */
+	UPROPERTY(EditAnywhere, Category = TopologyOptions, meta = (ClampMin = "0", ClampMax = "180", EditCondition = "SubdivisionScheme != ESubdivisionScheme::Loop && bAddExtraCorners"))
+	double ExtraCornerAngleThresholdDegrees = 135;
+
+	/** Shows whether the current subdivision scheme is overridden to be "Loop" because the group topology is unsuitable. */
+	UPROPERTY(VisibleAnywhere, Category = Settings, AdvancedDisplay, meta = (TransientToolProperty))
+	bool bOverriddenSubdivisionScheme = false;
 };
 
 
@@ -102,6 +113,8 @@ protected:
 	// Input mesh
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
 
+	TSharedPtr<UE::Geometry::FGroupTopology> Topology;
+
 	UPROPERTY()
 	TObjectPtr<UPreviewGeometry> PreviewGeometry = nullptr;
 
@@ -114,7 +127,10 @@ protected:
 
 	void CapSubdivisionLevel(ESubdivisionScheme Scheme, int DesiredLevel);
 
-	// Tool message when no explicit parameter-related warnings are being pushed.  
-	FText PersistentErrorMessage;
+	double ExtraCornerDotProductThreshold = 2;
+	ESubdivisionScheme GetSubdivisionSchemeToUse();
+	FText OverriddenSchemeMessage;
+	FText CappedSubdivisionMessage;
+	void UpdateDisplayedMessage();
 };
 

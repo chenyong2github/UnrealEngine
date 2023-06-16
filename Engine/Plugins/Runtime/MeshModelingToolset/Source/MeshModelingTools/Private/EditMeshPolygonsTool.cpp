@@ -358,43 +358,11 @@ void UEditMeshPolygonsTool::Setup()
 		Topology->ShouldAddExtraCornerAtVert = 
 			[this](const FGroupTopology& GroupTopology, int32 Vid, const FIndex2i& AttachedGroupEdgeEids)
 		{
-			if (!TopologyProperties->bAddExtraCorners)
-			{
-				return false;
-			}
-
 			// Note: it's important that we don't use CurrentMesh here. It's possible that an activity might create a copy of 
 			// the topology that uses the same corner forcing function but points to a different mesh, so we want to use
 			// whatever mesh the passed-in topology uses.
-			const FDynamicMesh3* Mesh = GroupTopology.GetMesh();
-			
-			if (!ensure(Mesh->IsEdge(AttachedGroupEdgeEids.A) && Mesh->IsEdge(AttachedGroupEdgeEids.B)))
-			{
-				return false;
-			}
-
-			// Gets vector pointing from the Vid along the edge.
-			auto GetEdgeUnitVector = [Mesh, Vid](int32 Eid, FVector3d& VectorOut)->bool
-			{
-				FIndex2i EdgeVids = Mesh->GetEdgeV(Eid);
-				// Make sure that the Vid is at EdgeVids.A
-				if (EdgeVids.B == Vid)
-				{
-					Swap(EdgeVids.A, EdgeVids.B);
-				}
-				VectorOut = Mesh->GetVertex(EdgeVids.B) - Mesh->GetVertex(EdgeVids.A);
-				return VectorOut.Normalize(KINDA_SMALL_NUMBER);
-			};
-
-			FVector Edge1, Edge2;
-			if (!GetEdgeUnitVector(AttachedGroupEdgeEids.A, Edge1) || !GetEdgeUnitVector(AttachedGroupEdgeEids.B, Edge2))
-			{
-				// If either edge was degenerate, we won't consider this a corner because otherwise we will end up
-				// with two corners connected by the degenerate edge, which is not ideal.
-				return false;
-			}
-
-			return Edge1.Dot(Edge2) >= ExtraCornerDotProductThreshold;
+			return TopologyProperties->bAddExtraCorners 
+				&& FGroupTopology::IsEdgeAngleSharp(GroupTopology.GetMesh(), Vid, AttachedGroupEdgeEids, ExtraCornerDotProductThreshold);
 		};
 	}
 
@@ -405,6 +373,10 @@ void UEditMeshPolygonsTool::Setup()
 	auto UpdateExtraCornerThreshold = [this]() { ExtraCornerDotProductThreshold = FMathd::Cos(TopologyProperties->ExtraCornerAngleThresholdDegrees * FMathd::DegToRad); };
 	UpdateExtraCornerThreshold();
 	TopologyProperties->WatchProperty(TopologyProperties->ExtraCornerAngleThresholdDegrees,
+		// Note: it may seem tempting to auto-rebuild the topology as the user drags the threshold slider (rather than waiting for
+		// the button click or next topology rebuild), but we have to transact corner additions/removals so that selection events in the 
+		// undo stack are able to refer to the same edges/corners (this is also why we store the current extra corners in FEditMeshPolygonsToolMeshChange).
+		// In an ideal world, we would know the end of a slider drag and only transact at that point, but we don't have that.
 		[this, UpdateExtraCornerThreshold](double) { UpdateExtraCornerThreshold(); });
 
 	Topology->RebuildTopology();

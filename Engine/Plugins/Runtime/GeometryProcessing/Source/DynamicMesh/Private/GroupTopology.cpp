@@ -936,6 +936,36 @@ void FGroupTopology::GetSelectedTriangles(const FGroupTopologySelection& Selecti
 	}
 }
 
+bool UE::Geometry::FGroupTopology::IsEdgeAngleSharp(const FDynamicMesh3* Mesh, int32 SharedVid, const FIndex2i& AttachedEids, double DotThreshold)
+{
+	if (!ensure(Mesh && Mesh->IsEdge(AttachedEids.A) && Mesh->IsEdge(AttachedEids.B)))
+	{
+		return false;
+	}
+
+	// Gets vector pointing from the Vid along the edge.
+	auto GetEdgeUnitVector = [Mesh, SharedVid](int32 Eid, FVector3d& VectorOut)->bool
+	{
+		FIndex2i EdgeVids = Mesh->GetEdgeV(Eid);
+		// Make sure that the Vid is at EdgeVids.A
+		if (EdgeVids.B == SharedVid)
+		{
+			Swap(EdgeVids.A, EdgeVids.B);
+		}
+		VectorOut = Mesh->GetVertex(EdgeVids.B) - Mesh->GetVertex(EdgeVids.A);
+		return VectorOut.Normalize(KINDA_SMALL_NUMBER);
+	};
+
+	FVector Edge1, Edge2;
+	if (!GetEdgeUnitVector(AttachedEids.A, Edge1) || !GetEdgeUnitVector(AttachedEids.B, Edge2))
+	{
+		// If either edge was degenerate, we don't want to consider the angle "sharp"
+		return false;
+	}
+
+	return Edge1.Dot(Edge2) >= DotThreshold;
+}
+
 
 
 void FGroupTopology::GetAllVertexGroups(int32 VertexID, TArray<int32>& GroupsOut) const

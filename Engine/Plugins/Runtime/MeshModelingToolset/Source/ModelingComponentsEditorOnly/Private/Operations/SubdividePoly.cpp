@@ -631,7 +631,28 @@ bool FSubdividePoly::ComputeTopologySubdivision()
 	using RefinerFactory = OpenSubdiv::Far::TopologyRefinerFactory<OpenSubdiv::Far::TopologyDescriptor>;
 	RefinerFactory::Options RefinerOptions;
 
-	RefinerOptions.schemeOptions.SetVtxBoundaryInterpolation(OpenSubdiv::Sdc::Options::VTX_BOUNDARY_EDGE_AND_CORNER);
+	OpenSubdiv::Sdc::Options::VtxBoundaryInterpolation BoundaryInterpolation = OpenSubdiv::Sdc::Options::VTX_BOUNDARY_EDGE_ONLY;
+	switch (BoundaryScheme)
+	{
+	case ESubdivisionBoundaryScheme::SmoothCorners:
+		BoundaryInterpolation = OpenSubdiv::Sdc::Options::VTX_BOUNDARY_EDGE_ONLY;
+		break;
+	case ESubdivisionBoundaryScheme::SharpCorners:
+		BoundaryInterpolation = OpenSubdiv::Sdc::Options::VTX_BOUNDARY_EDGE_AND_CORNER;
+		break;
+
+	// Note that supporting the below option is a little bit more work than just uncommenting.
+	// This option tags the boundary faces as holes, so we have to use the FTopologyLevel::IsFaceHole
+	// function where we output the faces, and then probably remove unused verts on the boundary.
+	//case ESubdivisionBoundaryScheme::NoBoundaryFaces:
+	//	BoundaryInterpolation = OpenSubdiv::Sdc::Options::VTX_BOUNDARY_NONE;
+	//	break;
+
+	default:
+		ensure(false);
+		break;
+	}
+	RefinerOptions.schemeOptions.SetVtxBoundaryInterpolation(BoundaryInterpolation);
 
 	switch (SubdivisionScheme)
 	{
@@ -1003,11 +1024,6 @@ FSubdividePoly::ETopologyCheckResult FSubdividePoly::ValidateTopology()
 		return ETopologyCheckResult::NoGroups;
 	}
 
-	if (GroupTopology.Groups.Num() < 2)
-	{
-		return ETopologyCheckResult::InsufficientGroups;
-	}
-
 	for (const FGroupTopology::FGroup& Group : GroupTopology.Groups)
 	{
 		if (Group.Boundaries.Num() == 0)
@@ -1028,6 +1044,12 @@ FSubdividePoly::ETopologyCheckResult FSubdividePoly::ValidateTopology()
 			}
 		}
 	}
+
+	// May be necessary if we ever support this option:
+	//if (BoundaryScheme == ESubdivisionBoundaryScheme::NoBoundaryFaces)
+	//{
+	//	// Verify that there is at least one non-boundary face.
+	//}
 
 	return ETopologyCheckResult::Ok;
 }

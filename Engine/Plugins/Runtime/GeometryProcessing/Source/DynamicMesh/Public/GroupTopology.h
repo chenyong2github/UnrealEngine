@@ -437,6 +437,16 @@ public:
 	 */
 	void GetSelectedTriangles(const FGroupTopologySelection& Selection, TArray<int32>& Triangles) const;
 
+	/**
+	 * Helper function for use with ShouldAddExtraCornerAtVert. Checks that the dot product of the two mesh edge
+	 * unit vectors starting from shared vertex is greater than or equal to the given threshold. Assumes that SharedVid 
+	 * actually is shared by the two edges, and returns false if either edge is degenerate.
+	 * 
+	 * @param DotThreshold Threshold usually set equal to FMathd::Cos(ThresholdDegrees * FMathd::DegToRad). The
+	 *   parameter is not degrees just to avoid that calculation on each invocation.
+	 */ 
+	static bool IsEdgeAngleSharp(const FDynamicMesh3* Mesh, int32 SharedVid, const FIndex2i& AttachedGroupEdgeEids, double DotThreshold);
+
 protected:
 	const FDynamicMesh3* Mesh = nullptr;
 	const FDynamicMeshPolygroupAttribute* GroupLayer = nullptr;
