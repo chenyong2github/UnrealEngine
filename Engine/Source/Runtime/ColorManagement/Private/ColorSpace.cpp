@@ -201,10 +201,15 @@ FMatrix44d FColorSpace::CalcRgbToXYZ() const
 
 bool FColorSpace::Equals(const FColorSpace& ColorSpace, double Tolerance) const
 {
-	return	Chromaticities[0].Equals(ColorSpace.Chromaticities[0], Tolerance) &&
-		Chromaticities[1].Equals(ColorSpace.Chromaticities[1], Tolerance) &&
-		Chromaticities[2].Equals(ColorSpace.Chromaticities[2], Tolerance) &&
-		Chromaticities[3].Equals(ColorSpace.Chromaticities[3], Tolerance);
+	return Equals(ColorSpace.Chromaticities, Tolerance);
+}
+
+bool FColorSpace::Equals(const TStaticArray<FVector2d, 4>& InChromaticities, double Tolerance) const
+{
+	return Chromaticities[0].Equals(InChromaticities[0], Tolerance) &&
+		Chromaticities[1].Equals(InChromaticities[1], Tolerance) &&
+		Chromaticities[2].Equals(InChromaticities[2], Tolerance) &&
+		Chromaticities[3].Equals(InChromaticities[3], Tolerance);
 }
 
 bool FColorSpace::IsSRGB() const

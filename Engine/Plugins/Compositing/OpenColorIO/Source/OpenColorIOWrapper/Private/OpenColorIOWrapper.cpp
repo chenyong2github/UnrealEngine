@@ -827,29 +827,34 @@ FOpenColorIOWrapperProcessor FOpenColorIOWrapperProcessor::CreateTransformToWork
 			break;
 		}
 
-		const EChromaticAdaptationMethod ChromaticAdapation = static_cast<EChromaticAdaptationMethod>(InColorSettings.ChromaticAdaptationMethod);
+		TOptional<FColorSpace> SourceColorSpace;
 
 		if (InColorSettings.ColorSpaceOverride.IsSet())
 		{
-			const FColorSpace SourceColorSpace = FColorSpace
-			(
-				InColorSettings.ColorSpaceOverride.GetValue()[0],
-				InColorSettings.ColorSpaceOverride.GetValue()[1],
-				InColorSettings.ColorSpaceOverride.GetValue()[2],
-				InColorSettings.ColorSpaceOverride.GetValue()[3]
+			const TStaticArray<FVector2d, 4>& SourceChromaticities = InColorSettings.ColorSpaceOverride.GetValue();
+			SourceColorSpace = FColorSpace(
+				SourceChromaticities[0],
+				SourceChromaticities[1],
+				SourceChromaticities[2],
+				SourceChromaticities[3]
 			);
-			MatrixTransformRcPtr MatrixTransform = MatrixTransform::Create();
-			const FMatrix44d ToWorkingMat = Transpose<double>(FColorSpaceTransform(SourceColorSpace, FColorSpace::GetWorking(), ChromaticAdapation));
-			MatrixTransform->setMatrix(&ToWorkingMat.M[0][0]);
-			TransformToWCS->appendTransform(MatrixTransform);
 		}
 		else if (InColorSettings.ColorSpace != EColorSpace::None)
 		{
-			const FColorSpace SourceColorSpace = FColorSpace(static_cast<EColorSpace>(InColorSettings.ColorSpace));
-			const FMatrix44d ToWorkingMat = Transpose<double>(FColorSpaceTransform(SourceColorSpace, FColorSpace::GetWorking(), ChromaticAdapation));
-			MatrixTransformRcPtr MatrixTransform = MatrixTransform::Create();
-			MatrixTransform->setMatrix(&ToWorkingMat.M[0][0]);
-			TransformToWCS->appendTransform(MatrixTransform);
+			SourceColorSpace = FColorSpace(InColorSettings.ColorSpace);
+		}
+
+		if (SourceColorSpace.IsSet())
+		{
+			if (!SourceColorSpace.GetValue().Equals(FColorSpace::GetWorking()))
+			{
+				const EChromaticAdaptationMethod ChromaticAdapation = static_cast<EChromaticAdaptationMethod>(InColorSettings.ChromaticAdaptationMethod);
+				const FMatrix44d ToWorkingMat = Transpose<double>(FColorSpaceTransform(SourceColorSpace.GetValue(), FColorSpace::GetWorking(), ChromaticAdapation));
+				MatrixTransformRcPtr MatrixTransform = MatrixTransform::Create();
+				MatrixTransform->setMatrix(&ToWorkingMat.M[0][0]);
+				
+				TransformToWCS->appendTransform(MatrixTransform);
+			}
 		}
 
 		ParentTransform->setTransform(TransformToWCS, TRANSFORM_DIR_FORWARD);

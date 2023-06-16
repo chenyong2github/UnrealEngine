@@ -250,7 +250,7 @@ public:
 	 * Check against another color space for equality.
 	 *
 	 * @param ColorSpace The vector to check against.
-	 * @return true if the vectors are equal, false otherwise.
+	 * @return true if the color spaces are equal, false otherwise.
 	 */
 	inline bool operator==(const FColorSpace& ColorSpace) const
 	{
@@ -260,8 +260,8 @@ public:
 	/**
 	 * Check against another color space for inequality.
 	 *
-	 * @param ColorSpace The vector to check against.
-	 * @return true if the vectors are not equal, false otherwise.
+	 * @param ColorSpace The color space to check against.
+	 * @return true if the color spaces are not equal, false otherwise.
 	 */
 	inline bool operator!=(const FColorSpace& ColorSpace) const
 	{
@@ -271,11 +271,21 @@ public:
 	/**
 	 * Check against another color space for equality, within specified error limits.
 	 *
-	 * @param ColorSpace The vector to check against.
+	 * @param ColorSpace The color space to check against.
 	 * @param Tolerance Error tolerance.
-	 * @return true if the vectors are equal within tolerance limits, false otherwise.
+	 * @return true if the color spaces are equal within tolerance limits, false otherwise.
 	 */
 	bool Equals(const FColorSpace& ColorSpace, double Tolerance = 1.e-7) const;
+
+
+	/**
+	 * Check against color space chromaticities for equality, within specified error limits.
+	 *
+	 * @param InChromaticities The color space chromaticities to check against.
+	 * @param Tolerance Error tolerance.
+	 * @return true if the color spaces are equal within tolerance limits, false otherwise.
+	 */
+	bool Equals(const TStaticArray<FVector2d, 4>& InChromaticities, double Tolerance = 1.e-7) const;
 
 	/**
 	 * Convenience function to verify if the color space matches the engine's default sRGB chromaticities.
