@@ -575,7 +575,7 @@ TSharedRef<SWidget> CreateKeyEditor(const TMovieSceneChannelHandle<FMovieSceneAc
 
 	TSequencerKeyEditor<FMovieSceneActorReferenceData, FMovieSceneActorReferenceKey> KeyEditor(InObjectBindingID, Channel, Section, InSequencer, PropertyBindings, Func);
 
-	auto OnSetCurrentValueLambda = [KeyEditor](FMovieSceneActorReferenceKey& ActorKey) mutable
+	auto OnSetCurrentValueLambda = [KeyEditor](const FMovieSceneActorReferenceKey& ActorKey) mutable
 	{
 		FScopedTransaction Transaction(LOCTEXT("SetActorReferenceKey", "Set Actor Reference Key Value"));
 		KeyEditor.SetValueWithNotify(ActorKey, EMovieSceneDataChangeType::TrackValueChangedRefreshImmediately);
@@ -614,8 +614,10 @@ TSharedRef<SWidget> CreateKeyEditor(const TMovieSceneChannelHandle<FMovieSceneAc
 		TSharedPtr<SWidget> ComponentMenuWidget =
 			SNew(SComponentChooserPopup)
 			.Actor(Actor)
-			.OnComponentChosen_Lambda([=](FName InComponentName) mutable
+			.OnComponentChosen_Lambda([Actor, LevelEditor, KeyEditor, ActorKey = ActorKey](FName InComponentName) mutable
 				{
+					// ActorKey is self-captured so that the lambda can mutate its copy.
+
 					ActorKey.ComponentName = InComponentName;
 					KeyEditor.SetValueWithNotify(ActorKey, EMovieSceneDataChangeType::TrackValueChangedRefreshImmediately);
 

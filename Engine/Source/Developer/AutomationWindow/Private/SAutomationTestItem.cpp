@@ -537,7 +537,7 @@ FReply SAutomationTestItem::OnEditExcludeOptionsClicked()
 					SNew(SEditableTextBox)
 					.OverflowPolicy(ETextOverflowPolicy::Ellipsis)
 					.Text(FText::FromName(Options->Reason))
-					.OnTextCommitted_Lambda([this, Options](const FText& NewReason, ETextCommit::Type&) { Options->Reason = FName(NewReason.ToString()); })
+					.OnTextCommitted_Lambda([this, Options](const FText& NewReason, const ETextCommit::Type&) { Options->Reason = FName(NewReason.ToString()); })
 					.ToolTipText(LOCTEXT("ExcludeOptions_Reason_ToolTip", "The reason as to why the test is excluded"))
 				]
 			]

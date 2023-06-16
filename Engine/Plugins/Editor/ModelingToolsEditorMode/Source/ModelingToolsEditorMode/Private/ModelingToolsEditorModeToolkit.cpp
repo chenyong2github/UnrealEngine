@@ -1040,7 +1040,7 @@ TSharedRef<SWidget> FModelingToolsEditorModeToolkit::GetPresetCreateButtonConten
 				[
 					SNew(SEditableTextBox)
 					// Cap the number of characters sent out of the text box, so we don't overflow menus and tooltips
-					.OnTextCommitted_Lambda([this](const FText& NewLabel, ETextCommit::Type&) { NewPresetLabel = NewLabel.ToString().Left(255); })
+					.OnTextCommitted_Lambda([this](const FText& NewLabel, const ETextCommit::Type&) { NewPresetLabel = NewLabel.ToString().Left(255); })
 					.OverflowPolicy(ETextOverflowPolicy::Ellipsis)
 					.ToolTipText(LOCTEXT("ToolPresets_CreatePresetLabel_Tooltip", "A short, descriptive identifier for the new preset."))
 				]
@@ -1059,7 +1059,7 @@ TSharedRef<SWidget> FModelingToolsEditorModeToolkit::GetPresetCreateButtonConten
 				[
 					SNew(SEditableTextBox)
 					// Cap the number of characters sent out of the text box, so we don't overflow menus and tooltips
-					.OnTextCommitted_Lambda([this](const FText& NewToolTip, ETextCommit::Type&) { NewPresetTooltip = NewToolTip.ToString().Left(2048); })
+					.OnTextCommitted_Lambda([this](const FText& NewToolTip, const ETextCommit::Type&) { NewPresetTooltip = NewToolTip.ToString().Left(2048); })
 					.OverflowPolicy(ETextOverflowPolicy::Ellipsis)
 					.ToolTipText(LOCTEXT("ToolPresets_CreatePresetTooltip_Tooltip", "A descriptive tooltip for the new preset."))
 				]

@@ -110,7 +110,7 @@ namespace
 		{
 			FCulturePtr EditorLanguage = FInternationalization::Get().GetCurrentLanguage();
 
-			const auto& OnSelectionChangedLambda = [this](FCulturePtr& SelectedCulture, ESelectInfo::Type SelectInfo)
+			const auto& OnSelectionChangedLambda = [this](const FCulturePtr& SelectedCulture, ESelectInfo::Type SelectInfo)
 			{
 				if (SettingsModel.IsValid())
 				{
@@ -220,7 +220,7 @@ namespace
 		{
 			FCulturePtr EditorLocale = FInternationalization::Get().GetCurrentLocale();
 
-			const auto& OnSelectionChangedLambda = [this](FCulturePtr& SelectedCulture, ESelectInfo::Type SelectInfo)
+			const auto& OnSelectionChangedLambda = [this](const FCulturePtr& SelectedCulture, ESelectInfo::Type SelectInfo)
 			{
 				if (SettingsModel.IsValid())
 				{
@@ -331,7 +331,7 @@ namespace
 				}
 			}
 
-			const auto& CulturePickerSelectLambda = [this](FCulturePtr& SelectedCulture, ESelectInfo::Type SelectInfo)
+			const auto& CulturePickerSelectLambda = [this](const FCulturePtr& SelectedCulture, ESelectInfo::Type SelectInfo)
 			{
 				if (SettingsModel.IsValid())
 				{
