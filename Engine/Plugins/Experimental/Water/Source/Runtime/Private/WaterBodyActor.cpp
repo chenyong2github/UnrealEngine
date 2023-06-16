@@ -544,7 +544,7 @@ void AWaterBody::DeprecateData()
 			if (IsValid(MeshComponent) && IsValid(MeshComponent->GetStaticMesh()))
 			{
 				UStaticMesh* StaticMesh = MeshComponent->GetStaticMesh();
-				StaticMesh->SetFlags(StaticMesh->GetFlags() | RF_DuplicateTransient | RF_TextExportTransient);
+				StaticMesh->SetFlags(StaticMesh->GetFlags() | RF_NonPIEDuplicateTransient | RF_TextExportTransient);
 			}
 		}
 	}
