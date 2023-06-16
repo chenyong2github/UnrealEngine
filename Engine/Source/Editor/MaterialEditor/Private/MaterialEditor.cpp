@@ -6064,15 +6064,19 @@ FText FMaterialEditor::GetOriginalObjectName() const
 
 void FMaterialEditor::UpdateStrataTopologyPreview()
 {
-	if (Strata::IsGlintEnabled())
+	if (Strata::IsStrataEnabled())
 	{
-		// Update all Strata node which have a preview
+		// Update all Strata node which have a preview.
 		for (int32 Index = 0; Index < Material->MaterialGraph->Nodes.Num(); ++Index)
 		{
 			UMaterialGraphNode* MaterialNode = Cast<UMaterialGraphNode>(Material->MaterialGraph->Nodes[Index]);
 			if (MaterialNode && MaterialNode->MaterialExpression && MaterialNode->MaterialExpression->IsA(UMaterialExpressionStrataBSDF::StaticClass()))
 			{
-				MaterialNode->ReconstructNode();
+				UEdGraph* Graph = MaterialNode->GetGraph();
+				if (Graph)
+				{
+					Graph->NotifyGraphChanged();
+				}
 			}
 		}
 	}
