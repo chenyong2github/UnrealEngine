@@ -109,7 +109,7 @@ void FChaosVDScene::UpdateFromRecordedStepData(const int32 SolverID, const FStri
 			if (AChaosVDParticleActor* NewParticleVDInstance = SpawnParticleFromRecordedData(Particle, InFrameData))
 			{
 				FStringFormatOrderedArguments Args {SolverName, FString::FromInt(SolverID)};
-				const FName FolderPath = *FPaths::Combine(FString::Format(TEXT("Solver {0} | ID {1}"), Args), UEnum::GetDisplayValueAsText(NewParticleVDInstance->GetParticleData().Type).ToString());
+				const FName FolderPath = *FPaths::Combine(FString::Format(TEXT("Solver {0} | ID {1}"), Args), UEnum::GetDisplayValueAsText(NewParticleVDInstance->GetParticleData()->Type).ToString());
 
 				NewParticleVDInstance->SetFolderPath(FolderPath);
 
@@ -262,6 +262,12 @@ const TSharedPtr<const Chaos::FImplicitObject>* FChaosVDScene::GetUpdatedGeometr
 	}
 
 	return nullptr;
+}
+
+AChaosVDParticleActor* FChaosVDScene::GetParticleActor(int32 SolverID, int32 ParticleID)
+{
+	AChaosVDParticleActor** ParticleActorPtrPtr = ParticlesBySolverID[SolverID].Find(ParticleID);
+	return ParticleActorPtrPtr ? *ParticleActorPtrPtr : nullptr;
 }
 
 AChaosVDParticleActor* FChaosVDScene::SpawnParticleFromRecordedData(const FChaosVDParticleDataWrapper& InParticleData, const FChaosVDSolverFrameData& InFrameData)

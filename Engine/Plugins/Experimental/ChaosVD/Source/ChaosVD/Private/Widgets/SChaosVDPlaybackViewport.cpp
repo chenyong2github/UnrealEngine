@@ -91,6 +91,7 @@ void SChaosVDPlaybackViewport::Construct(const FArguments& InArgs, TWeakPtr<FCha
 			[
 				SAssignNew(GameFramesTimelineWidget, SChaosVDTimelineWidget)
 				.HidePlayStopButtons(false)
+				.HideLockButton(true)
 				.OnFrameChanged_Raw(this, &SChaosVDPlaybackViewport::OnFrameSelectionUpdated)
 				.MaxFrames(0)
 			]

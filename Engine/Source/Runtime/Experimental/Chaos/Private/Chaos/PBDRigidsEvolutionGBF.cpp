@@ -574,7 +574,10 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 	}
 
 	{
-		CVD_SCOPE_TRACE_SOLVER_STEP(TEXT("Evolution End"))
+		CVD_SCOPE_TRACE_SOLVER_STEP(TEXT("Evolution End"));
+
+		CVD_TRACE_MID_PHASES_FROM_COLLISION_CONSTRAINTS(GetCollisionConstraints());
+
 		CVD_TRACE_PARTICLES_SOA(Particles);
 	}
 	

@@ -6,6 +6,7 @@
 #include "Templates/SharedPointer.h"
 #include "Widgets/SCompoundWidget.h"
 
+class FChaosVDEditorSettingsTab;
 class FChaosVDSolversTracksTab;
 class FChaosVDEngine;
 class FChaosVDOutputLogTab;
@@ -37,11 +38,13 @@ private:
 
 	TSharedPtr<FChaosVDEngine> ChaosVDEngine;
 
+	// TODO Convert this to a map ID-> Tab
 	TSharedPtr<FChaosVDWorldOutlinerTab> WorldOutlinerTab;
 	TSharedPtr<FChaosVDObjectDetailsTab> ObjectDetailsTab;
 	TSharedPtr<FChaosVDPlaybackViewportTab> PlaybackViewportTab;
 	TSharedPtr<FChaosVDSolversTracksTab> SolversTracksTab;
 	TSharedPtr<FChaosVDOutputLogTab> OutputLogTab;
+	TSharedPtr<FChaosVDEditorSettingsTab> EditorSettingsTab;
 
 	TSharedPtr<FTabManager> TabManager;
 };

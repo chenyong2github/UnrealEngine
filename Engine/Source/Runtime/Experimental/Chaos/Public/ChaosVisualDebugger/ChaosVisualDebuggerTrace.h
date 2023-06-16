@@ -78,6 +78,11 @@
 #ifndef CVD_TRACE_PARTICLES_VIEW
 	#define CVD_TRACE_PARTICLES_VIEW(ParticleHandlesView)
 #endif
+
+#ifndef CVD_TRACE_MID_PHASES_FROM_COLLISION_CONSTRAINTS
+	#define CVD_TRACE_MID_PHASES_FROM_COLLISION_CONSTRAINTS(CollisionConstraints)
+#endif
+
 #else
 
 #include "ChaosVDRuntimeModule.h"
@@ -268,10 +273,16 @@ UE_TRACE_EVENT_END()
 	FChaosVisualDebuggerTrace::TraceCollisionConstraintView(ConstraintView);
 #endif
 
+#ifndef CVD_TRACE_MID_PHASES_FROM_COLLISION_CONSTRAINTS
+	#define CVD_TRACE_MID_PHASES_FROM_COLLISION_CONSTRAINTS(CollisionConstraints) \
+	FChaosVisualDebuggerTrace::TraceMidPhasesFromCollisionConstraints(CollisionConstraints);
+#endif
+
 struct FChaosVDContext;
 
 namespace Chaos
 {
+	class FPBDCollisionConstraints;
 	class FPBDRigidsSOAs;
 	class FImplicitObject;
 	class FPhysicsSolverBase;
@@ -326,6 +337,9 @@ public:
 
 	/** Traces a Particle pair MidPhase as binary data */
 	static CHAOS_API void TraceMidPhase(const Chaos::FParticlePairMidPhase* MidPhase);
+
+	/** Traces a Particle pair MidPhase as binary data from a provided CollisionConstraints object */
+	static CHAOS_API void TraceMidPhasesFromCollisionConstraints(Chaos::FPBDCollisionConstraints& InCollisionConstraints);
 
 	/** Traces a Particle pair MidPhase as binary data */
 	static CHAOS_API void TraceCollisionConstraint(const Chaos::FPBDCollisionConstraint* CollisionConstraint);

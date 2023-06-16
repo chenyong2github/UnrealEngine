@@ -54,6 +54,7 @@ bool FChaosVDConstraint::Serialize(FArchive& Ar)
 	Ar << AccumulatedImpulse;
 	Ar << ShapesType;
 	Ar << ShapeWorldTransforms;
+	Ar << ImplicitTransforms;
 	Ar << CullDistance;
 	Ar << CollisionMargins;	
 	Ar << CollisionTolerance;	

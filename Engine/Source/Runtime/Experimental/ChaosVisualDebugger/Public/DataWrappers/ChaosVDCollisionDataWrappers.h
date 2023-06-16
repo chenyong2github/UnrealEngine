@@ -190,6 +190,9 @@ struct CHAOSVDRUNTIME_API FChaosVDConstraint
 	
 	UPROPERTY(EditAnywhere, Category=Collision)
 	TArray<FTransform> ShapeWorldTransforms;
+
+	UPROPERTY(EditAnywhere, Category=Collision)
+	TArray<FTransform> ImplicitTransforms;
 	
 	UPROPERTY(EditAnywhere, Category=Collision)
 	float CullDistance;

@@ -14,4 +14,5 @@ public:
 	static const FName DetailsPanel;
 	static const FName OutputLog;
 	static const FName SolversTrack;
+	static const FName CVDEditorSettings;
 };

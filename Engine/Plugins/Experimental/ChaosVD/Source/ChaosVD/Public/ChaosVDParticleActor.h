@@ -5,6 +5,9 @@
 #include "DataWrappers/ChaosVDParticleDataWrapper.h"
 #include "DataWrappers/ChaosVDCollisionDataWrappers.h"
 #include "GameFramework/Actor.h"
+#include "Visualizers/ChaosVDCollisionDataVisualizer.h"
+#include "Visualizers/ChaosVDParticleDataVisualizer.h"
+#include "Visualizers/ChaosVDDataVisualizerBase.h"
 
 #include "ChaosVDParticleActor.generated.h"
 
@@ -30,7 +33,7 @@ ENUM_CLASS_FLAGS(EChaosVDActorGeometryUpdateFlags)
 
 /** Actor used to represent a Chaos Particle in the Visual Debugger's world */
 UCLASS()
-class AChaosVDParticleActor : public AActor
+class AChaosVDParticleActor : public AActor, public IChaosVDParticleVisualizationDataProvider, public IChaosVDVisualizerContainerInterface
 {
 	GENERATED_BODY()
 public:
@@ -48,7 +51,12 @@ public:
 
 	virtual void BeginDestroy() override;
 
-	const FChaosVDParticleDataWrapper& GetParticleData() { return ParticleDataViewer; }
+	virtual const FChaosVDParticleDataWrapper* GetParticleData() override { return &ParticleDataViewer; }
+	virtual void GetVisualizationContext(FChaosVDVisualizationContext& OutVisualizationContext) override;
+
+	void CreateVisualizers();
+
+	virtual void DrawVisualization(const FSceneView* View, FPrimitiveDrawInterface* PDI) override;
 	
 #if WITH_EDITOR
 	virtual bool IsSelectedInEditor() const override;
@@ -56,9 +64,20 @@ public:
 #endif
 
 protected:
+	
+	UPROPERTY(EditAnywhere, Category = "Viewport Visualization Flags", meta = (Bitmask, BitmaskEnum = EChaosVDParticleDataVisualizationFlags))
+	uint8 LocalParticleDataVisualizationFlags;
+	
+	UPROPERTY(EditAnywhere, Category = "Viewport Visualization Flags", meta = (Bitmask, BitmaskEnum = EChaosVDCollisionVisualizationFlags))
+	uint8 LocalCollisionDataVisualizationFlags;
 
-	UPROPERTY(EditAnywhere, Category="Particle Data")
+	UPROPERTY(EditAnywhere, Category = "Viewport Visualization Flags")
+	bool bShowDebugText = false;
+
+	UPROPERTY(EditAnywhere, Category = "Particle Data")
 	FChaosVDParticleDataWrapper ParticleDataViewer;
+
+	FTransform CachedSimulationTransform;
 
 	bool bIsGeometryDataGenerationStarted = false;
 
@@ -67,4 +86,6 @@ protected:
 	TArray<TWeakObjectPtr<UMeshComponent>> MeshComponents;
 
 	FDelegateHandle GeometryUpdatedDelegate;
+
+	TMap<FStringView, TUniquePtr<FChaosVDDataVisualizerBase>> CVDVisualizers;
 };

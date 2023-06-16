@@ -31,6 +31,7 @@ struct FChaosVDTrackInfo
 	EChaosVDTrackType TrackType = EChaosVDTrackType::Invalid;
 	int32 CurrentFrame = INDEX_NONE;
 	int32 CurrentStep = INDEX_NONE;
+	int32 LockedOnStep = INDEX_NONE;
 	int32 MaxFrames = INDEX_NONE;
 	FString TrackName;
 };
@@ -123,6 +124,14 @@ public:
 	 */
 	int32 GetTrackCurrentStep(EChaosVDTrackType TrackType, int32 InTrackID) const;
 
+	/**
+	 * Gets the index number of the last step available (available steps -1)
+	 * @param TrackType Type of the track to evaluate
+	 * @param InTrackID ID of the track to evaluate
+	 * @return Number of the last step
+	 */
+	int32 GetTrackLastStepAtFrame(EChaosVDTrackType TrackType, int32 InTrackID, int32 InFrameNumber) const;
+
 	/** Converts the current frame number of a track, to a frame number in other tracks space time
 	 * @param FromTrack Track info with the current frame number we want to convert
 	 * @param ToTrack Track info we want to use to convert the frame to
@@ -153,6 +162,29 @@ public:
 	 * @return Ptr to the found track info data - Null if nothing was found
 	 */
 	const FChaosVDTrackInfo* GetTrackInfo(EChaosVDTrackType TrackType, int32 TrackID);
+
+	/**
+	 * Gets the track info of the specified type with the specified ID
+	 * @param TrackType Type of the track to find
+	 * @param TrackID ID of the track to find
+	 * @return Ptr to the found track info data - Null if nothing was found.
+	 */
+	FChaosVDTrackInfo* GetMutableTrackInfo(EChaosVDTrackType TrackType, int32 TrackID);
+
+
+	/**
+	 * Locks the steps timeline of a given track so each time you move between frames, it will automatically scrub to the locked in step
+	 * @param TrackType Type of the track to find
+	 * @param TrackID ID of the track to find
+	 */
+	void LockTrackInCurrentStep(EChaosVDTrackType TrackType, int32 TrackID);
+
+	/**
+	 * UnLocks the steps timeline of a given track so each time you move between frames, it will automatically scrub to the default step
+	 * @param TrackType Type of the track to find
+	 * @param TrackID ID of the track to find
+	 */
+	void UnlockTrackStep(EChaosVDTrackType TrackType, int32 TrackID);
 
 	/** Returns a weak ptr pointer to the loaded recording */
 	TWeakPtr<FChaosVDRecording> GetCurrentRecording() { return LoadedRecording; }

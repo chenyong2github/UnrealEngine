@@ -2,6 +2,7 @@
 
 #include "Widgets/SChaosVDSolverPlaybackControls.h"
 
+#include "ChaosVDEditorSettings.h"
 #include "ChaosVDPlaybackController.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SChaosVDPlaybackViewport.h"
@@ -39,6 +40,7 @@ void SChaosVDSolverPlaybackControls::Construct(const FArguments& InArgs, int32 I
 				[
 					SAssignNew(FramesTimelineWidget, SChaosVDTimelineWidget)
 						.HidePlayStopButtons(false)
+						.HideLockButton(true)
 						.OnFrameChanged_Raw(this, &SChaosVDSolverPlaybackControls::OnFrameSelectionUpdated)
 						.MaxFrames(0)
 				]
@@ -59,6 +61,7 @@ void SChaosVDSolverPlaybackControls::Construct(const FArguments& InArgs, int32 I
 				[
 					SAssignNew(StepsTimelineWidget, SChaosVDTimelineWidget)
 					.HidePlayStopButtons(true)
+					.OnFrameLockStateChanged_Raw(this, &SChaosVDSolverPlaybackControls::HandleLockStateChanged)
 					.OnFrameChanged_Raw(this, &SChaosVDSolverPlaybackControls::OnStepSelectionUpdated)
 					.MaxFrames(0)
 				]
@@ -158,8 +161,22 @@ void SChaosVDSolverPlaybackControls::HandleControllerTrackFrameUpdated(TWeakPtr<
 		{
 			FramesTimelineWidget->SetCurrentTimelineFrame(SolverTrackInfo->CurrentFrame, EChaosVDSetTimelineFrameFlags::None);
 
-			constexpr int32 StepNumber = 0;
-			UpdateStepsWidgetForFrame(*CurrentPlaybackControllerPtr.Get(), SolverTrackInfo->CurrentFrame, StepNumber);
+			UpdateStepsWidgetForFrame(*CurrentPlaybackControllerPtr.Get(), SolverTrackInfo->CurrentFrame, SolverTrackInfo->CurrentStep);
+		}
+	}
+}
+
+void SChaosVDSolverPlaybackControls::HandleLockStateChanged(bool NewIsLocked)
+{
+	if (const TSharedPtr<FChaosVDPlaybackController> CurrentPlaybackControllerPtr = PlaybackController.Pin())
+	{
+		if (NewIsLocked)
+		{
+			CurrentPlaybackControllerPtr->LockTrackInCurrentStep(EChaosVDTrackType::Solver, SolverID);
+		}
+		else
+		{
+			CurrentPlaybackControllerPtr->UnlockTrackStep(EChaosVDTrackType::Solver, SolverID);
 		}
 	}
 }
@@ -168,7 +185,12 @@ void SChaosVDSolverPlaybackControls::OnFrameSelectionUpdated(int32 NewFrameIndex
 {
 	if (const TSharedPtr<FChaosVDPlaybackController> PlaybackControllerPtr = PlaybackController.Pin())
 	{
-		constexpr int32 StepNumber = 0;
+		const int32 LastStepNumber = PlaybackControllerPtr->GetTrackLastStepAtFrame(EChaosVDTrackType::Solver, SolverID, NewFrameIndex);
+		const int32 CurrentStep = PlaybackControllerPtr->GetTrackCurrentStep(EChaosVDTrackType::Solver, SolverID);
+
+		// If the steps control is unlocked, each time we go to a new frame we should start at step 0.
+		const int32 StepNumber = StepsTimelineWidget->IsUnlocked() ? LastStepNumber : CurrentStep;
+
 		UpdateStepsWidgetForFrame(*PlaybackControllerPtr.Get(), NewFrameIndex, StepNumber);
 
 		PlaybackControllerPtr->GoToTrackFrame(GetInstigatorID(), EChaosVDTrackType::Solver, SolverID, NewFrameIndex, StepNumber);

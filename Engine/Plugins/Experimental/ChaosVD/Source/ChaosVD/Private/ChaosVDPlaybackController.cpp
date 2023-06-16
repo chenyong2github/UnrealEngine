@@ -117,21 +117,55 @@ void FChaosVDPlaybackController::GoToRecordedSolverStep(const int32 InTrackID, c
 			TraceServices::FAnalysisSessionReadScope SessionReadScope(*TraceSession);
 
 			const FChaosVDSolverFrameData* SolverFrameData = LoadedRecording->GetSolverFrameData(InTrackID, FrameNumber);
-			if (SolverFrameData && SolverFrameData->SolverSteps.IsValidIndex(Step))
-			{
-				SceneToControlSharedPtr->UpdateFromRecordedStepData(InTrackID, SolverFrameData->DebugName, SolverFrameData->SolverSteps[Step], *SolverFrameData);
-			}
 
+			TSharedPtr<FChaosVDTrackInfo> CurrentTrackInfo;
 			if (TrackInfoByIDMap* TrackInfoByID = TrackInfoPerType.Find(EChaosVDTrackType::Solver))
 			{
 				if (TSharedPtr<FChaosVDTrackInfo>* TrackInfo = TrackInfoByID->Find(InTrackID))
 				{
-					TrackInfo->Get()->CurrentFrame = FrameNumber;
-					TrackInfo->Get()->CurrentStep = Step;
-
-					OnTrackFrameUpdated().Broadcast(AsWeak(), TrackInfo->Get(), InstigatorID);
+					CurrentTrackInfo = *TrackInfo;
+					if (!ensure(CurrentTrackInfo.IsValid()))
+					{
+						UE_LOG(LogChaosVDEditor, Warning, TEXT("[%s] Track info for track ID [%d]. We can't continue..."), ANSI_TO_TCHAR(__FUNCTION__), InTrackID);
+						return;
+					}
 				}
 			}
+
+			if (CurrentTrackInfo->LockedOnStep != INDEX_NONE)
+			{
+				// If this track is locked to a specific step, we need to play back the previous steps on the current frame, because not all steps capture the same data.
+				// For example, Particles positions are fully captured in the first sub-step and the last one
+				for (int32 StepIndex = 0; StepIndex <= CurrentTrackInfo->LockedOnStep; StepIndex++)
+				{
+					if (SolverFrameData && ensure(SolverFrameData->SolverSteps.IsValidIndex(CurrentTrackInfo->LockedOnStep)))
+					{
+						SceneToControlSharedPtr->UpdateFromRecordedStepData(InTrackID, SolverFrameData->DebugName, SolverFrameData->SolverSteps[StepIndex], *SolverFrameData);
+					}
+					else
+					{
+						UE_LOG(LogChaosVDEditor, Error, TEXT("[%s] Tried to scrub to an invalid step | Step Number [%d] | Available Steps [%d]..."), ANSI_TO_TCHAR(__FUNCTION__), CurrentTrackInfo->LockedOnStep, SolverFrameData->SolverSteps.Num());
+						return;
+					}
+				}
+			}
+			else
+			{
+				if (SolverFrameData && ensure(SolverFrameData->SolverSteps.IsValidIndex(Step)))
+				{
+					SceneToControlSharedPtr->UpdateFromRecordedStepData(InTrackID, SolverFrameData->DebugName, SolverFrameData->SolverSteps[Step], *SolverFrameData);
+				}
+				else
+				{
+					UE_LOG(LogChaosVDEditor, Error, TEXT("[%s] Tried to scrub to an invalid step | Step Number [%d] | Available Steps [%d]..."), ANSI_TO_TCHAR(__FUNCTION__), CurrentTrackInfo->LockedOnStep, SolverFrameData->SolverSteps.Num());
+				}
+			}
+			
+
+			CurrentTrackInfo->CurrentFrame = FrameNumber;
+			CurrentTrackInfo->CurrentStep = Step;
+
+			OnTrackFrameUpdated().Broadcast(AsWeak(), CurrentTrackInfo.Get(), InstigatorID);
 		}
 	}
 	else
@@ -157,11 +191,12 @@ void FChaosVDPlaybackController::GoToRecordedGameFrame(const int32 FrameNumber, 
 
 					for (int32 SolverID : AvailableSolversID)
 					{
-						constexpr int32 StepNumber = 0;
-
 						// When Scrubbing the timeline by game frames instead of solvers, try to go to the first solver frame on the first platform cycle of the game frame.
 						// Game Frames are not in sync with Solver Frames and Solver steps.
-						int32 SolverFrameNumber = LoadedRecording->GetLowestSolverFrameNumberAtCycle(SolverID, FrameData->FirstCycle);
+						const int32 SolverFrameNumber = LoadedRecording->GetLowestSolverFrameNumberAtCycle(SolverID, FrameData->FirstCycle);
+	
+						const int32 StepNumber = GetTrackLastStepAtFrame(EChaosVDTrackType::Solver, SolverID,SolverFrameNumber);
+
 						GoToTrackFrame(InstigatorID, EChaosVDTrackType::Solver, SolverID, SolverFrameNumber, StepNumber);
 					}
 
@@ -358,7 +393,31 @@ int32 FChaosVDPlaybackController::GetTrackCurrentStep(EChaosVDTrackType TrackTyp
 	return INDEX_NONE;
 }
 
+int32 FChaosVDPlaybackController::GetTrackLastStepAtFrame(EChaosVDTrackType TrackType, int32 InTrackID, int32 InFrameNumber) const
+{
+	switch (TrackType)
+	{
+		case EChaosVDTrackType::Solver:
+		{
+			const int32 AvailableSteps = GetTrackStepsNumberAtFrame(EChaosVDTrackType::Solver, InTrackID, InFrameNumber);
+			return AvailableSteps == INDEX_NONE ? INDEX_NONE: AvailableSteps -1;
+			break;
+		}
+		case EChaosVDTrackType::Game:
+		default:
+			ensureMsgf(false, TEXT("Unsuported Track Type"));
+			return INDEX_NONE;
+			break;
+	}
+	
+}
+
 const FChaosVDTrackInfo* FChaosVDPlaybackController::GetTrackInfo(EChaosVDTrackType TrackType, int32 TrackID)
+{
+	return GetMutableTrackInfo(TrackType, TrackID);
+}
+
+FChaosVDTrackInfo* FChaosVDPlaybackController::GetMutableTrackInfo(EChaosVDTrackType TrackType, int32 TrackID)
 {
 	if (const TrackInfoByIDMap* TrackInfoByID = TrackInfoPerType.Find(TrackType))
 	{
@@ -370,6 +429,22 @@ const FChaosVDTrackInfo* FChaosVDPlaybackController::GetTrackInfo(EChaosVDTrackT
 	}
 
 	return nullptr;
+}
+
+void FChaosVDPlaybackController::LockTrackInCurrentStep(EChaosVDTrackType TrackType, int32 TrackID)
+{
+	if (FChaosVDTrackInfo* TrackInfo = GetMutableTrackInfo(TrackType, TrackID))
+	{
+		TrackInfo->LockedOnStep = TrackInfo->CurrentStep;
+	}
+}
+
+void FChaosVDPlaybackController::UnlockTrackStep(EChaosVDTrackType TrackType, int32 TrackID)
+{
+	if (FChaosVDTrackInfo* TrackInfo = GetMutableTrackInfo(TrackType, TrackID))
+	{
+		TrackInfo->LockedOnStep = INDEX_NONE;
+	}
 }
 
 void FChaosVDPlaybackController::GetAvailableTracks(EChaosVDTrackType TrackType, TArray<TSharedPtr<FChaosVDTrackInfo>>& OutTrackInfo)

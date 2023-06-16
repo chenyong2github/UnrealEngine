@@ -16,6 +16,7 @@ void SChaosVDTimelineWidget::Construct(const FArguments& InArgs)
 {
 	MaxFrames = InArgs._MaxFrames;
 	FrameChangedDelegate = InArgs._OnFrameChanged;
+	FrameLockedDelegate = InArgs._OnFrameLockStateChanged;
 
 	SetCanTick(false);
 
@@ -25,13 +26,14 @@ void SChaosVDTimelineWidget::Construct(const FArguments& InArgs)
 			+SHorizontalBox::Slot()
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
-			.FillWidth(0.2f)
+			.FillWidth(0.25f)
 			[
 				SNew(SHorizontalBox)
 				+SHorizontalBox::Slot()
 				[
 					SNew(SButton)
-					.Visibility(InArgs._HidePlayStopButtons ? EVisibility::Collapsed : EVisibility::Visible)
+					.Visibility(InArgs._HidePlayStopButtons.Get() ? EVisibility::Collapsed : EVisibility::Visible)
+					.IsEnabled_Raw(this, &SChaosVDTimelineWidget::IsUnlocked)
 					.OnClicked( FOnClicked::CreateRaw(this, &SChaosVDTimelineWidget::Play))
 					.ContentPadding( 2.0f )
 					.ForegroundColor( FSlateColor::UseForeground() )
@@ -46,7 +48,8 @@ void SChaosVDTimelineWidget::Construct(const FArguments& InArgs)
 				+SHorizontalBox::Slot()
 				[
 					SNew(SButton)
-					.Visibility(InArgs._HidePlayStopButtons ? EVisibility::Collapsed : EVisibility::Visible)
+					.Visibility(InArgs._HidePlayStopButtons.Get() ? EVisibility::Collapsed : EVisibility::Visible)
+					.IsEnabled_Raw(this, &SChaosVDTimelineWidget::IsUnlocked)
 					.OnClicked( FOnClicked::CreateRaw(this, &SChaosVDTimelineWidget::Stop))
 					.ContentPadding( 2.0f )
 					.ForegroundColor( FSlateColor::UseForeground() )
@@ -61,6 +64,8 @@ void SChaosVDTimelineWidget::Construct(const FArguments& InArgs)
 				+SHorizontalBox::Slot()
 				[
 					SNew(SButton)
+					.Visibility(InArgs._HideNextPrevButtons.Get() ? EVisibility::Collapsed : EVisibility::Visible)
+					.IsEnabled_Raw(this, &SChaosVDTimelineWidget::IsUnlocked)
 					.OnClicked( FOnClicked::CreateRaw(this, &SChaosVDTimelineWidget::Prev))
 					.ContentPadding( 2.0f )
 					.ForegroundColor( FSlateColor::UseForeground() )
@@ -75,6 +80,8 @@ void SChaosVDTimelineWidget::Construct(const FArguments& InArgs)
 				+SHorizontalBox::Slot()
 				[
 					SNew(SButton)
+					.Visibility(InArgs._HideNextPrevButtons.Get() ? EVisibility::Collapsed : EVisibility::Visible)
+					.IsEnabled_Raw(this, &SChaosVDTimelineWidget::IsUnlocked)
 					.OnClicked( FOnClicked::CreateRaw(this, &SChaosVDTimelineWidget::Next))
 					.ContentPadding( 2.0f )
 					.ForegroundColor( FSlateColor::UseForeground() )
@@ -86,10 +93,25 @@ void SChaosVDTimelineWidget::Construct(const FArguments& InArgs)
 						.ColorAndOpacity( FSlateColor::UseForeground() )
 					]
 				]
+				+SHorizontalBox::Slot()
+				[
+					SNew(SButton)
+					.Visibility(InArgs._HideLockButton.Get() ? EVisibility::Collapsed : EVisibility::Visible)
+					.OnClicked( FOnClicked::CreateRaw(this, &SChaosVDTimelineWidget::ToggleLockState))
+					.ContentPadding( 2.0f )
+					.ForegroundColor( FSlateColor::UseForeground())
+					.IsFocusable( false )
+					[
+						SNew( SImage )
+						.Image_Raw(this, &SChaosVDTimelineWidget::GetLockStateIcon)
+						.DesiredSizeOverride(FVector2D(16.0f,16.0f))
+						.ColorAndOpacity( FSlateColor::UseForeground() )
+					]
+				]
 			]
 			+SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
-			.FillWidth(0.7f)
+			.FillWidth(0.65f)
 			[
 			  SAssignNew(TimelineSlider, SSlider)
 			  .ToolTipText_Lambda([this]()-> FText{ return FText::AsNumber(CurrentFrame); })
@@ -207,11 +229,24 @@ FReply SChaosVDTimelineWidget::Prev()
 	return FReply::Handled();
 }
 
+FReply SChaosVDTimelineWidget::ToggleLockState()
+{
+	bIsLocked = !bIsLocked;
+
+	FrameLockedDelegate.ExecuteIfBound(bIsLocked);
+
+	return FReply::Handled();
+}
+
 const FSlateBrush* SChaosVDTimelineWidget::GetPlayOrPauseIcon() const
 {
 	return bIsPlaying ? FChaosVDStyle::Get().GetBrush("PauseIcon") : FChaosVDStyle::Get().GetBrush("PlayIcon");
 }
 
+const FSlateBrush* SChaosVDTimelineWidget::GetLockStateIcon() const
+{
+	return bIsLocked ? FChaosVDStyle::Get().GetBrush("LockIcon") : FChaosVDStyle::Get().GetBrush("UnlockedIcon");
+}
 
 void SChaosVDTimelineWidget::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {

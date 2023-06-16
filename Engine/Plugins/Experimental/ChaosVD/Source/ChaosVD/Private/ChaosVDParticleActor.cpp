@@ -4,12 +4,13 @@
 
 #include "ChaosVDGeometryBuilder.h"
 #include "ChaosVDScene.h"
-#include "DataWrappers/ChaosVDParticleDataWrapper.h"
 #include "Components/MeshComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "DataWrappers/ChaosVDParticleDataWrapper.h"
 #include "Engine/CollisionProfile.h"
 #include "Engine/StaticMesh.h"
+#include "Visualizers/ChaosVDParticleDataVisualizer.h"
 
 static FAutoConsoleVariable CVarChaosVDHideVolumeAndBrushesHack(
 	TEXT("p.Chaos.VD.Tool.HideVolumeAndBrushesHack"),
@@ -19,10 +20,15 @@ static FAutoConsoleVariable CVarChaosVDHideVolumeAndBrushesHack(
 AChaosVDParticleActor::AChaosVDParticleActor(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("SceneComponent0"));
+	CreateVisualizers();
 }
 
 void AChaosVDParticleActor::UpdateFromRecordedParticleData(const FChaosVDParticleDataWrapper& InRecordedData, const Chaos::FRigidTransform3& SimulationTransform)
 {
+	//TODO: Make the simulation transform be cached on the CVD Scene, so we can query from it when needed
+	// Copying it to each particle actor is not efficient
+	CachedSimulationTransform = SimulationTransform;
+
 	if (InRecordedData.ParticlePositionRotation.HasValidData())
 	{
 		// TODO: Only update if the transform (either the simulation or the particle) has changed;
@@ -166,7 +172,21 @@ void AChaosVDParticleActor::BeginDestroy()
 	Super::BeginDestroy();
 }
 
+void AChaosVDParticleActor::GetVisualizationContext(FChaosVDVisualizationContext& OutVisualizationContext)
+{
+	OutVisualizationContext.SpaceTransform = CachedSimulationTransform;
+	OutVisualizationContext.CVDScene = OwningScene;
+	OutVisualizationContext.SolverID = ParticleDataViewer.SolverID;
+}
+
+void AChaosVDParticleActor::CreateVisualizers()
+{
+	CVDVisualizers.Add(FChaosVDParticleDataVisualizer::VisualizerID,MakeUnique<FChaosVDParticleDataVisualizer>(*this));
+	CVDVisualizers.Add(FChaosVDCollisionDataVisualizer::VisualizerID, MakeUnique<FChaosVDCollisionDataVisualizer>(*this));
+}
+
 #if WITH_EDITOR
+
 bool AChaosVDParticleActor::IsSelectedInEditor() const
 {
 	// The implementation of this method in UObject, used a global edit callback,
@@ -192,5 +212,33 @@ void AChaosVDParticleActor::PostEditChangeProperty(FPropertyChangedEvent& Proper
 			UpdateGeometry(ParticleDataViewer.GeometryHash, EChaosVDActorGeometryUpdateFlags::ForceUpdate);
 		}
 	}
+
+	if (PropertyChangedEvent.GetMemberPropertyName() == GET_MEMBER_NAME_STRING_CHECKED(AChaosVDParticleActor, LocalCollisionDataVisualizationFlags))
+	{
+		if (TUniquePtr<FChaosVDDataVisualizerBase>* CollisionVisualizer = CVDVisualizers.Find(FChaosVDCollisionDataVisualizer::VisualizerID))
+		{
+			CollisionVisualizer->Get()->UpdateVisualizationFlags(LocalCollisionDataVisualizationFlags);
+		}
+	}
+
+	if (PropertyChangedEvent.GetMemberPropertyName() == GET_MEMBER_NAME_STRING_CHECKED(AChaosVDParticleActor, LocalParticleDataVisualizationFlags))
+	{
+		if (TUniquePtr<FChaosVDDataVisualizerBase>* ParticleDataVisualizer = CVDVisualizers.Find(FChaosVDParticleDataVisualizer::VisualizerID))
+		{
+			ParticleDataVisualizer->Get()->UpdateVisualizationFlags(LocalParticleDataVisualizationFlags);
+		}
+	}
 }
+
+void AChaosVDParticleActor::DrawVisualization(const FSceneView* View, FPrimitiveDrawInterface* PDI)
+{
+	for (const TPair<FStringView, TUniquePtr<FChaosVDDataVisualizerBase>>& VisualizerWithID : CVDVisualizers)
+	{
+		if (VisualizerWithID.Value)
+		{
+			VisualizerWithID.Value->DrawVisualization(View, PDI);
+		}
+	}
+}
+
 #endif //WITH_EDITOR

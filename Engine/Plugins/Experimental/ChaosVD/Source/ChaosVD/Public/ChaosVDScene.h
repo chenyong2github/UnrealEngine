@@ -76,6 +76,12 @@ public:
 	/** Event triggered when an object is focused in the scene (double click in the scene outliner)*/
 	FChaosVDOnObjectSelectedDelegate& OnObjectFocused() { return ObjectFocusedDelegate; }
 
+	/** Returns a ptr to the particle actor representing the provided Particle ID
+	 * @param SolverID ID of the solver owning the Particle
+	 * @param ParticleID ID of the particle
+	 */
+	AChaosVDParticleActor* GetParticleActor(int32 SolverID, int32 ParticleID);
+
 	TSharedPtr<FChaosVDRecording> LoadedRecording;
 
 private:

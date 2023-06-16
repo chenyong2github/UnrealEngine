@@ -54,6 +54,9 @@ TSharedRef< FSlateStyleSet > FChaosVDStyle::Create()
 	Style->Set("TabIconDetailsPanel",  new IMAGE_BRUSH_SVG(TEXT("Details"), Icon16x16));
 	Style->Set("TabIconPlaybackViewport",  new IMAGE_BRUSH(TEXT("icon_tab_PlaybackViewport_16x"), Icon16x16));
 	Style->Set("TabIconWorldOutliner", new IMAGE_BRUSH_SVG(TEXT("WorldOutliner"), Icon16x16));
+	
+	Style->Set("LockIcon", new IMAGE_BRUSH_SVG(TEXT("lock"), Icon16x16));
+	Style->Set("UnlockedIcon", new IMAGE_BRUSH_SVG(TEXT("lock-unlocked"), Icon16x16));
 
 	return Style;
 }

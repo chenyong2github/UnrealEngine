@@ -2,8 +2,12 @@
 
 #include "ChaosVDPlaybackViewportClient.h"
 
+#include "ChaosVDParticleActor.h"
 #include "ChaosVDScene.h"
 #include "EngineUtils.h"
+#include "Elements/Framework/TypedElementSelectionSet.h"
+#include "Visualizers/ChaosVDDebugDrawUtils.h"
+
 
 FChaosVDPlaybackViewportClient::FChaosVDPlaybackViewportClient() : FEditorViewportClient(nullptr), CVDWorld(nullptr)
 {
@@ -57,4 +61,29 @@ void FChaosVDPlaybackViewportClient::HandleObjectFocused(UObject* FocusedObject)
 	{
 		FocusViewportOnBox(FocusedActor->GetComponentsBoundingBox(false));
 	}
+}
+
+void FChaosVDPlaybackViewportClient::Draw(const FSceneView* View, FPrimitiveDrawInterface* PDI)
+{
+	FEditorViewportClient::Draw(View, PDI);
+
+	if (TSharedPtr<FChaosVDScene> ScenePtr = CVDScene.Pin())
+	{	
+		TArray<AActor*> SelectedActors = ScenePtr->GetElementSelectionSet()->GetSelectedObjects<AActor>();
+
+		for (AActor* SelectedActor : SelectedActors)
+		{
+			if (IChaosVDVisualizerContainerInterface* VisualizerContainer = Cast<IChaosVDVisualizerContainerInterface>(SelectedActor))
+			{
+				VisualizerContainer->DrawVisualization(View, PDI);
+			}
+		}
+	}
+}
+
+void FChaosVDPlaybackViewportClient::DrawCanvas(FViewport& InViewport, FSceneView& View, FCanvas& Canvas)
+{
+	FEditorViewportClient::DrawCanvas(InViewport, View, Canvas);
+
+	FChaosVDDebugDrawUtils::DrawCanvas(InViewport, View, Canvas);
 }

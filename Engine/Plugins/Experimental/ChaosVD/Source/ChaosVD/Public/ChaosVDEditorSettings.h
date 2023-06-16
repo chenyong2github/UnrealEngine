@@ -15,9 +15,15 @@ class UChaosVDEditorSettings : public UObject
 	GENERATED_BODY()
 public:
 
-	UPROPERTY(Config, EditAnywhere, Category = Debug)
-	TSoftObjectPtr<UStaticMesh> DebugMesh;
+	UPROPERTY(EditAnywhere, Category = "Viewport Visualization Flags", meta = (Bitmask, BitmaskEnum = EChaosVDParticleDataVisualizationFlags))
+	uint8 GlobalParticleDataVisualizationFlags = 0;
+	
+	UPROPERTY(EditAnywhere, Category = "Viewport Visualization Flags", meta = (Bitmask, BitmaskEnum = EChaosVDCollisionVisualizationFlags))
+	uint8 GlobalCollisionDataVisualizationFlags = 0;
 
-	UPROPERTY(Config, EditAnywhere, Category = Debug)
+	UPROPERTY(EditAnywhere, Category = "Viewport Visualization Flags", meta = (Bitmask, BitmaskEnum = EChaosVDCollisionVisualizationFlags))
+	bool bShowDebugText = false;
+
+	UPROPERTY(Config, EditInstanceOnly, Category = "Editor Options")
 	TSoftObjectPtr<UWorld> BasePhysicsVDWorld;
 };
