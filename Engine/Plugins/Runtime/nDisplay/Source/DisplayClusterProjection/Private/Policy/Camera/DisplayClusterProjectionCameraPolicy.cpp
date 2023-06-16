@@ -86,6 +86,12 @@ bool FDisplayClusterProjectionCameraPolicy::CalculateView(IDisplayClusterViewpor
 	ZNear = NCP;
 	ZFar  = FCP;
 
+	if (CustomNearClippingPlane >= 0)
+	{
+		ZNear = CustomNearClippingPlane;
+		ZFar = (NCP == FCP) ? CustomNearClippingPlane : FCP;
+	}
+
 	return true;
 }
 
@@ -144,6 +150,8 @@ bool FDisplayClusterProjectionCameraPolicy::GetViewPoint(IDisplayClusterViewport
 	InOutViewLocation = FVector::ZeroVector;
 	InOutViewRotation = FRotator::ZeroRotator;
 
+	CustomNearClippingPlane = -1;
+
 	// Use assigned camera
 	if (UCameraComponent* CameraComponent = GetCameraComponent())
 	{
@@ -151,8 +159,7 @@ bool FDisplayClusterProjectionCameraPolicy::GetViewPoint(IDisplayClusterViewport
 		{
 			if (CineCameraComponent->bOverride_CustomNearClippingPlane)
 			{
-				ZNear = CineCameraComponent->CustomNearClippingPlane;
-				ZFar = ZNear;
+				CustomNearClippingPlane = CineCameraComponent->CustomNearClippingPlane;
 			}
 		}
 

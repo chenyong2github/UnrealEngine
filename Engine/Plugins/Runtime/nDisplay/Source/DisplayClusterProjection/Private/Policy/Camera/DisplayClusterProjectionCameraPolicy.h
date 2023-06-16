@@ -53,4 +53,7 @@ private:
 	FDisplayClusterProjectionCameraPolicySettings CameraSettings;
 	float ZNear = 1.f;
 	float ZFar = 1.f;
+
+	// A value less than zero means that the variable is not used.
+	float CustomNearClippingPlane = -1;
 };
