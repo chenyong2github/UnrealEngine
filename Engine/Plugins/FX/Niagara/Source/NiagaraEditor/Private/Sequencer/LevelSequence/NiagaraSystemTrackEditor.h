@@ -32,6 +32,7 @@ class FNiagaraSystemTrackEditor : public FMovieSceneTrackEditor
 {
 public:
 	static TSharedRef<ISequencerTrackEditor> CreateTrackEditor(TSharedRef<ISequencer> InSequencer);
+	static void AddDefaultSystemTracks(const AActor& SourceActor, const FGuid& Binding, TSharedPtr<ISequencer> Sequencer);
 
 public:
 	FNiagaraSystemTrackEditor(TSharedRef<ISequencer> InSequencer);

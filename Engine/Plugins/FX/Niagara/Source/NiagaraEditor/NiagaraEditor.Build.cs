@@ -47,7 +47,8 @@ public class NiagaraEditor : ModuleRules
 				"AssetDefinition",
 				"ContentBrowser",
 				"ToolWidgets",
-				"AssetTools"
+				"AssetTools",
+				"LevelSequence",
 			}
 		);
 

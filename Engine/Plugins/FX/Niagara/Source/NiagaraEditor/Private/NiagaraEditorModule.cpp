@@ -4,7 +4,6 @@
 #include "NiagaraModule.h"
 #include "NiagaraEditorTickables.h"
 #include "Modules/ModuleManager.h"
-#include "IAssetTypeActions.h"
 #include "AssetToolsModule.h"
 #include "ISequencerModule.h"
 #include "ISettingsModule.h"
@@ -99,7 +98,6 @@
 
 #include "Customizations/NiagaraComponentDetails.h"
 #include "Customizations/NiagaraFunctionCallNodeDetails.h"
-#include "Customizations/NiagaraEventScriptPropertiesCustomization.h"
 #include "Customizations/NiagaraParameterBindingCustomization.h"
 #include "Customizations/NiagaraPlatformSetCustomization.h"
 #include "Customizations/NiagaraScriptVariableCustomization.h"
@@ -122,7 +120,6 @@
 #include "NiagaraMeshRendererProperties.h"
 
 #include "HAL/IConsoleManager.h"
-#include "NiagaraHlslTranslator.h"
 #include "NiagaraThumbnailRenderer.h"
 #include "Misc/FeedbackContext.h"
 #include "NiagaraNodeFunctionCall.h"
@@ -131,6 +128,7 @@
 #include "INiagaraEditorOnlyDataUtlities.h"
 
 #include "Editor.h"
+#include "ILevelSequenceModule.h"
 #include "HAL/PlatformFileManager.h"
 #include "HAL/FileManager.h"
 #include "ISourceControlOperation.h"
@@ -166,7 +164,6 @@
 #include "NiagaraDataChannel.h"
 
 #include "Engine/AssetManager.h"
-#include "Engine/AssetManagerSettings.h"
 #include "ViewModels/HierarchyEditor/NiagaraHierarchyCommands.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraEditorModule)
@@ -1430,6 +1427,8 @@ void FNiagaraEditorModule::StartupModule()
 	INiagaraDataInterfaceNodeActionProvider::Register<UNiagaraDataInterfaceDataChannelRead, FNiagaraDataInterfaceNodeActionProvider_DataChannelRead>();
 
 	FAssetCompilingManager::Get().RegisterManager(&FNiagaraSystemCompilingManager::Get());
+	ILevelSequenceModule& LevelSequenceModule = FModuleManager::LoadModuleChecked<ILevelSequenceModule>("LevelSequence");
+	DefaultTrackHandle = LevelSequenceModule.OnNewActorTrackAdded().AddStatic(&FNiagaraSystemTrackEditor::AddDefaultSystemTracks);
 }
 
 void FNiagaraEditorModule::ShutdownModule()
@@ -1460,6 +1459,11 @@ void FNiagaraEditorModule::ShutdownModule()
 	{
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 		PropertyModule.UnregisterCustomClassLayout("NiagaraComponent");
+	}
+	if (FModuleManager::Get().IsModuleLoaded("LevelSequence"))
+	{
+		ILevelSequenceModule& LevelSequenceModule = FModuleManager::LoadModuleChecked<ILevelSequenceModule>("LevelSequence");
+		LevelSequenceModule.OnNewActorTrackAdded().Remove(DefaultTrackHandle);
 	}
 
 	FNiagaraEditorStyle::Unregister();

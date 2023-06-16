@@ -8,7 +8,6 @@
 #include "Toolkits/AssetEditorToolkit.h"
 #include "NiagaraTypes.h"
 #include "INiagaraCompiler.h"
-#include "AssetTypeCategories.h"
 #include "NiagaraCompilationTypes.h"
 #include "NiagaraPerfBaseline.h"
 #include "NiagaraDebuggerCommon.h"
@@ -388,6 +387,8 @@ private:
 	FDelegateHandle AssetRegistryOnLoadCompleteHandle;
 	
 	FDelegateHandle OnAssetsPreDeleteHandle;
+
+	FDelegateHandle DefaultTrackHandle;
 	
 	TObjectPtr<USequencerSettings> SequencerSettings;
 

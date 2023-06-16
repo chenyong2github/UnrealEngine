@@ -76,6 +76,19 @@ enum class ENiagaraNamespaceMetadataOptions
 	HideInDefinitions,
 };
 
+UENUM()
+enum class ENiagaraAddDefaultsTrackMode : uint8
+{
+	/** Adding a Niagara actor to a sequence will not add any additional subtracks by default */
+	NoSubtracks,
+
+	/** Adding a Niagara actor will add a component subtrack, but nothing else */
+	ComponentTrackOnly,
+	
+	/** Adding a Niagara actor to a sequence will also add a life cycle track to it by default  */
+	LifecycleTrack,
+};
+
 USTRUCT()
 struct NIAGARAEDITOR_API FNiagaraNamespaceMetadata
 {
@@ -300,6 +313,9 @@ public:
 
 	UPROPERTY(config, EditAnywhere, Category = Niagara)
 	ENiagaraCategoryExpandState RendererCategoryExpandState = ENiagaraCategoryExpandState::Default;
+	
+	UPROPERTY(config, EditAnywhere, Category = Niagara)
+	ENiagaraAddDefaultsTrackMode DefaultsSequencerSubtracks = ENiagaraAddDefaultsTrackMode::NoSubtracks;
 
 	TArray<float> GetPlaybackSpeeds() const;
 

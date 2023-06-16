@@ -178,6 +178,71 @@ TSharedPtr<SWidget> FNiagaraSystemTrackEditor::BuildOutlinerEditWidget(const FGu
 	return FMovieSceneTrackEditor::BuildOutlinerEditWidget(ObjectBinding, Track, Params);
 }
 
+void FNiagaraSystemTrackEditor::AddDefaultSystemTracks(const AActor& SourceActor, const FGuid& Binding,	TSharedPtr<ISequencer> Sequencer)
+{
+	ENiagaraAddDefaultsTrackMode TrackMode = GetDefault<UNiagaraEditorSettings>()->DefaultsSequencerSubtracks;
+	if (!SourceActor.IsA<ANiagaraActor>() || TrackMode == ENiagaraAddDefaultsTrackMode::NoSubtracks)
+	{
+		return;
+	}
+
+	const ANiagaraActor* NiagaraActor = Cast<ANiagaraActor>(&SourceActor);
+	UNiagaraComponent* NiagaraComponent = NiagaraActor->GetNiagaraComponent();
+	if (NiagaraComponent && NiagaraComponent->GetAsset())
+	{
+		UMovieSceneSequence* Sequence = Sequencer->GetFocusedMovieSceneSequence();
+		UMovieScene* MovieScene = Sequence->GetMovieScene();
+		FGuid ComponentBinding = Sequencer->GetHandleToObject(NiagaraComponent);
+		
+		if (MovieScene->FindSpawnable(Binding))
+		{
+			// we only want to add tracks for possessables
+			return;
+		}
+
+		if (TrackMode == ENiagaraAddDefaultsTrackMode::ComponentTrackOnly)
+		{
+			FMovieScenePossessable* BoundComponent = MovieScene->FindPossessable(ComponentBinding);
+			if (!BoundComponent)
+			{
+				Sequence->CreatePossessable(NiagaraComponent);
+			}
+		}
+		else if (TrackMode == ENiagaraAddDefaultsTrackMode::LifecycleTrack)
+		{
+			UClass* TrackClass = UMovieSceneNiagaraSystemTrack::StaticClass();
+			UMovieSceneTrack* NewTrack = MovieScene->FindTrack(TrackClass, ComponentBinding);
+			if (!NewTrack)
+			{
+				UNiagaraSystem* System = NiagaraComponent->GetAsset();
+
+				UMovieSceneNiagaraSystemTrack* NiagaraSystemTrack = MovieScene->AddTrack<UMovieSceneNiagaraSystemTrack>(ComponentBinding);
+				NiagaraSystemTrack->SetDisplayName(LOCTEXT("SystemLifeCycleTrackName", "System Life Cycle"));
+				UMovieSceneNiagaraSystemSpawnSection* SpawnSection = NewObject<UMovieSceneNiagaraSystemSpawnSection>(NiagaraSystemTrack, NAME_None, RF_Transactional);
+
+				FFrameRate FrameResolution = MovieScene->GetTickResolution();
+				FFrameTime SpawnSectionStartTime = Sequencer->GetLocalTime().ConvertTo(FrameResolution);
+				FFrameTime SpawnSectionDuration;
+
+				UNiagaraSystemEditorData* SystemEditorData = Cast<UNiagaraSystemEditorData>(System->GetEditorData());
+				if (SystemEditorData != nullptr && SystemEditorData->GetPlaybackRange().HasLowerBound() && SystemEditorData->GetPlaybackRange().HasUpperBound())
+				{
+					SpawnSectionDuration = FrameResolution.AsFrameTime(SystemEditorData->GetPlaybackRange().Size<float>());
+				}
+				else
+				{
+					SpawnSectionDuration = FrameResolution.AsFrameTime(5.0);
+				}
+
+				SpawnSection->SetRange(TRange<FFrameNumber>(
+					SpawnSectionStartTime.RoundToFrame(),
+					(SpawnSectionStartTime + SpawnSectionDuration).RoundToFrame()));
+				NiagaraSystemTrack->AddSection(*SpawnSection);
+			}
+		}
+	}
+}
+
 void FNiagaraSystemTrackEditor::AddNiagaraSystemTrack(TArray<FGuid> ObjectBindings)
 {
 	UMovieScene* MovieScene = GetSequencer()->GetFocusedMovieSceneSequence()->GetMovieScene();
