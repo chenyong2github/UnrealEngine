@@ -48,22 +48,22 @@ TSharedRef<SWidget> FRCControllerModel::GetWidget() const
 
 	const TSharedRef<SHorizontalBox> FieldWidget = SNew(SHorizontalBox);
 	if (VirtualPropertyWeakPtr.IsValid())
-	{		
-		const FString& CustomName = UE::RCCustomControllers::GetCustomControllerTypeName(VirtualPropertyWeakPtr.Get());
-
+	{
+		static const FMargin SlotMargin(10.0f, 2.0f);
+		
 		// If this is a custom controller, we will use its custom widget
-		if (!CustomName.IsEmpty())
+		if (const TSharedPtr<SWidget>& CustomControllerWidget = IRemoteControlUIModule::Get().CreateCustomControllerWidget(VirtualPropertyWeakPtr.Get()))
 		{
 			FieldWidget->AddSlot()
-				.Padding(FMargin(10.0f, 2.0f))
+				.Padding(SlotMargin)
 				[
-					GetCustomControllerWidget(CustomName)
+					CustomControllerWidget.ToSharedRef()
 				];
 		}
 		else if (NodeWidgets.ValueWidget)
 		{
 			FieldWidget->AddSlot()
-				.Padding(FMargin(10.0f, 2.0f))
+				.Padding(SlotMargin)
 				.HAlign(HAlign_Left)
 				[
 					NodeWidgets.ValueWidget.ToSharedRef()
@@ -72,7 +72,7 @@ TSharedRef<SWidget> FRCControllerModel::GetWidget() const
 		else if (NodeWidgets.WholeRowWidget)
 		{
 			FieldWidget->AddSlot()
-				.Padding(FMargin(10.0f, 2.0f))
+				.Padding(SlotMargin)
 				[
 					NodeWidgets.WholeRowWidget.ToSharedRef()
 				];

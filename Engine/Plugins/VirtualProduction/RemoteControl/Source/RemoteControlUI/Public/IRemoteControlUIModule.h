@@ -11,15 +11,16 @@
 #include "Widgets/Layout/SSplitter.h"
 
 class FDelegateHandle;
+class FPropertyPath;
 class FRCPanelWidgetRegistry;
-struct FOnGenerateGlobalRowExtensionArgs;
-struct FRemoteControlEntity;
-class IPropertyHandle;
 class IDetailCategoryBuilder;
 class IDetailLayoutBuilder;
-struct SRCPanelTreeNode;
+class IPropertyHandle;
+class URCVirtualPropertyBase;
 class URemoteControlPreset;
-class FPropertyPath;
+struct FOnGenerateGlobalRowExtensionArgs;
+struct FRemoteControlEntity;
+struct SRCPanelTreeNode;
 
 struct FRCColumnSizeData
 {
@@ -210,4 +211,9 @@ public:
 	 * Set the list of selected objects.
 	 */
 	virtual void SelectObjects(const TArray<UObject*>& Objects) const = 0;
+
+	/**
+	 * Tries to retrieve a Custom Controller Widget for the specified Controller
+	 */
+	virtual TSharedPtr<SWidget> CreateCustomControllerWidget(URCVirtualPropertyBase* InController) const = 0;
 };

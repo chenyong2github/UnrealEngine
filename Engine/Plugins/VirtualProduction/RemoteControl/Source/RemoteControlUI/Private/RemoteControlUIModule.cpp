@@ -8,6 +8,7 @@
 #include "Commands/RemoteControlCommands.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Controller/RCCustomControllerUtilities.h"
 #include "DetailTreeNode.h"
 #include "Elements/Framework/TypedElementRegistry.h"
 #include "Elements/Framework/TypedElementSelectionSet.h"
@@ -35,6 +36,7 @@
 #include "UI/Action/SRCActionPanel.h"
 #include "UI/Behaviour/Builtin/Conditional/SRCBehaviourConditional.h"
 #include "UI/Behaviour/SRCBehaviourPanel.h"
+#include "UI/Controller/CustomControllers/SCustomTextureControllerWidget.h"
 #include "UI/Customizations/FPassphraseCustomization.h"
 #include "UI/Customizations/NetworkAddressCustomization.h"
 #include "UI/Customizations/RemoteControlEntityCustomization.h"
@@ -1010,6 +1012,18 @@ void FRemoteControlUIModule::SelectObjects(const TArray<UObject*>& Objects) cons
 		UTypedElementSelectionSet* SelectionSet = LevelEditorSubsystem->GetSelectionSet();
 		SelectionSet->SetSelection(ElementHandles->GetElementHandles(), FTypedElementSelectionOptions());
 	}
+}
+
+TSharedPtr<SWidget> FRemoteControlUIModule::CreateCustomControllerWidget(URCVirtualPropertyBase* InController) const
+{
+	TSharedPtr<SWidget> CustomControllerWidget;
+	const FString& CustomName = UE::RCCustomControllers::GetCustomControllerTypeName(InController);
+	if (CustomName == UE::RCCustomControllers::CustomTextureControllerName)
+	{
+		CustomControllerWidget = SNew(SCustomTextureControllerWidget, InController);
+	}
+
+	return CustomControllerWidget;
 }
 
 void FRemoteControlUIModule::RegisterWidgetFactories()
