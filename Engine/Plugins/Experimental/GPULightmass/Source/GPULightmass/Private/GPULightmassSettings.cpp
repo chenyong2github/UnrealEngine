@@ -14,6 +14,7 @@
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
 #include "Misc/MessageDialog.h"
+#include "EngineAnalytics.h"
 
 
 #define LOCTEXT_NAMESPACE "StaticLightingSystem"
@@ -274,6 +275,11 @@ void UGPULightmassSubsystem::Launch()
 
 						SubSlowTask.EnterProgressFrame(1, LOCTEXT("RegisteringComponentsWithStaticLightingSystem", "Registering components with static lighting system"));
 					}
+				}
+
+				if (FEngineAnalytics::IsAvailable())
+				{
+					FEngineAnalytics::GetProvider().RecordEvent(TEXT("GPULightmass.Capture"));
 				}
 			}
 			else
