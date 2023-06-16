@@ -21,6 +21,7 @@ namespace Chaos
 		extern bool bChaos_PBDCollisionSolver_Velocity_AveragePointEnabled;
 		extern bool bChaos_PBDCollisionSolver_Velocity_FrictionEnabled;
 		extern float Chaos_PBDCollisionSolver_Position_StaticFrictionStiffness;
+		extern float Chaos_PBDCollisionSolver_Velocity_StaticFrictionStiffness;
 	}
 
 	namespace Private
@@ -584,8 +585,6 @@ namespace Chaos
 			FPBDCollisionSolverManifoldPoint& ManifoldPoint)
 		{
 			FSolverReal ImpulseNormal = -Stiffness * ManifoldPoint.ContactMassNormal * ContactVelocityDeltaNormal;
-			FSolverReal ImpulseTangentU = -Stiffness * ManifoldPoint.ContactMassTangentU * ContactVelocityDeltaTangent0;
-			FSolverReal ImpulseTangentV = -Stiffness * ManifoldPoint.ContactMassTangentV * ContactVelocityDeltaTangent1;
 
 			// Clamp the total impulse to be positive along the normal. We can apply a net negative impulse, 
 			// but only to correct the velocity that was added by pushout (in which case MinImpulseNormal will be negative).
@@ -596,9 +595,19 @@ namespace Chaos
 				ImpulseNormal = MinImpulseNormal - ManifoldPoint.NetImpulseNormal;
 			}
 
+			ManifoldPoint.NetImpulseNormal += ImpulseNormal;
+
+			FSolverVec3 Impulse = ImpulseNormal * ManifoldPoint.ContactNormal;
+
 			// Clamp the tangential impulses to the friction cone
+			FSolverReal ImpulseTangentU = 0;
+			FSolverReal ImpulseTangentV = 0;
 			if ((DynamicFriction > 0) && (Dt > 0))
 			{
+				const FSolverReal FrictionStiffness = Stiffness * CVars::Chaos_PBDCollisionSolver_Velocity_StaticFrictionStiffness;
+				ImpulseTangentU = -FrictionStiffness * ManifoldPoint.ContactMassTangentU * ContactVelocityDeltaTangent0;
+				ImpulseTangentV = -FrictionStiffness * ManifoldPoint.ContactMassTangentV * ContactVelocityDeltaTangent1;
+
 				const FSolverReal MaxImpulseTangent = FMath::Max(FSolverReal(0), DynamicFriction * (ManifoldPoint.NetImpulseNormal + ImpulseNormal + ManifoldPoint.NetPushOutNormal / Dt));
 				const FSolverReal MaxImpulseTangentSq = FMath::Square(MaxImpulseTangent);
 				const FSolverReal ImpulseTangentSq = FMath::Square(ImpulseTangentU) + FMath::Square(ImpulseTangentV);
@@ -608,14 +617,14 @@ namespace Chaos
 					ImpulseTangentU *= ImpulseTangentScale;
 					ImpulseTangentV *= ImpulseTangentScale;
 				}
+
+				ManifoldPoint.NetImpulseTangentU += ImpulseTangentU;
+				ManifoldPoint.NetImpulseTangentV += ImpulseTangentV;
+
+				Impulse += ImpulseTangentU * ManifoldPoint.ContactTangentU + ImpulseTangentV * ManifoldPoint.ContactTangentV;
 			}
 
-			ManifoldPoint.NetImpulseNormal += ImpulseNormal;
-			ManifoldPoint.NetImpulseTangentU += ImpulseTangentU;
-			ManifoldPoint.NetImpulseTangentV += ImpulseTangentV;
-
 			// Apply the velocity deltas from the impulse
-			const FSolverVec3 Impulse = ImpulseNormal * ManifoldPoint.ContactNormal + ImpulseTangentU * ManifoldPoint.ContactTangentU + ImpulseTangentV * ManifoldPoint.ContactTangentV;
 			if (IsDynamic(0))
 			{
 				const FSolverVec3 DV0 = State.InvMs[0] * Impulse;
