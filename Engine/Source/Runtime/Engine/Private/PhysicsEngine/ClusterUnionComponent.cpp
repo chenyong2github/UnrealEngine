@@ -28,9 +28,6 @@ namespace
 	bool bClusterUnionCallFlushNetDormancy = true;
 	FAutoConsoleVariableRef CVarClusterUnionCallFlushNetDormanc(TEXT("clusterunion.callflushnetdormancy"), bClusterUnionCallFlushNetDormancy, TEXT("Whether or not to call FlushNetDormancy"));
 
-	bool bClusterUnionUsePrimitiveComponentTransformReplication = true;
-	FAutoConsoleVariableRef CVarClusterUnionUsePrimitiveComponentTransformReplication(TEXT("clusterunion.UsePrimitiveComponentTransformReplication"), bClusterUnionUsePrimitiveComponentTransformReplication, TEXT("When true, cluster union components will directly replicate their transforms as long as Physics Prediction replication is disabled"));
-
 	// TODO: Should this be exposed in Chaos instead?
 	using FAccelerationStructure = Chaos::TAABBTree<FExternalSpatialAccelerationPayload, Chaos::TAABBTreeLeafArray<FExternalSpatialAccelerationPayload>>;
 
@@ -839,13 +836,10 @@ void UClusterUnionComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty
 
 	DOREPLIFETIME_WITH_PARAMS_FAST(UClusterUnionComponent, ReplicatedRigidState, Params);
 
-	if (!bClusterUnionUsePrimitiveComponentTransformReplication || UPhysicsSettings::Get()->PhysicsPrediction.bEnablePhysicsPrediction)
-	{
-		// Allow the physical parameters of this component to be replicated via
-		// physicsreplication even if component replication is enabled
-		DISABLE_REPLICATED_PROPERTY_FAST(USceneComponent, RelativeLocation);
-		DISABLE_REPLICATED_PROPERTY_FAST(USceneComponent, RelativeRotation);
-	}
+	// Allow the physical parameters of this component to be replicated via
+	// physicsreplication even if component replication is enabled
+	DISABLE_REPLICATED_PROPERTY_FAST(USceneComponent, RelativeLocation);
+	DISABLE_REPLICATED_PROPERTY_FAST(USceneComponent, RelativeRotation);
 }
 
 void UClusterUnionComponent::ForceSetChildToParent(UPrimitiveComponent* InComponent, const TArray<int32>& BoneIds, const TArray<FTransform>& ChildToParent)
