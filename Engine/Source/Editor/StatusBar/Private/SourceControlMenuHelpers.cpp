@@ -106,7 +106,7 @@ bool FSourceControlCommands::ViewChangelists_CanExecute()
 
 bool FSourceControlCommands::ViewChangelists_IsVisible()
 {
-	return ISourceControlModule::Get().GetProvider().UsesChangelists();
+	return ISourceControlModule::Get().GetProvider().UsesChangelists() || ISourceControlModule::Get().GetProvider().UsesUncontrolledChangelists();
 }
 
 bool FSourceControlCommands::SubmitContent_IsVisible()
