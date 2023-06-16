@@ -29,7 +29,7 @@ public:
 	FInstancedStruct Value;
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FLocalizableMessage
 {
 	GENERATED_BODY();
