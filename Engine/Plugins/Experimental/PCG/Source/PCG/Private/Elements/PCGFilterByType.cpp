@@ -46,7 +46,7 @@ bool FPCGFilterByTypeElement::ExecuteInternal(FPCGContext* InContext) const
 	const UPCGFilterByTypeSettings* Settings = InContext->GetInputSettings<UPCGFilterByTypeSettings>();
 	check(Settings);
 
-	TArray<FPCGTaggedData> Inputs = InContext->InputData.GetInputs();
+	TArray<FPCGTaggedData> Inputs = InContext->InputData.TaggedData;
 	TArray<FPCGTaggedData>& Outputs = InContext->OutputData.TaggedData;
 
 	for (const FPCGTaggedData& Input : Inputs)
