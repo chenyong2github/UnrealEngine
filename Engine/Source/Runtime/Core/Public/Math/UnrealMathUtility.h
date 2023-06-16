@@ -776,14 +776,14 @@ public:
 	UE_NODISCARD static FORCEINLINE float FastAsin(float Value)
 	{
 		// Clamp input to [-1,1].
-		bool nonnegative = (Value >= 0.0f);
-		float x = FMath::Abs(Value);
+		const bool nonnegative = (Value >= 0.0f);
+		const float x = FMath::Abs(Value);
 		float omx = 1.0f - x;
 		if (omx < 0.0f)
 		{
 			omx = 0.0f;
 		}
-		float root = FMath::Sqrt(omx);
+		const float root = FMath::Sqrt(omx);
 		// 7-degree minimax approximation
 		float result = ((((((-0.0012624911f * x + 0.0066700901f) * x - 0.0170881256f) * x + 0.0308918810f) * x - 0.0501743046f) * x + 0.0889789874f) * x - 0.2145988016f) * x + FASTASIN_HALF_PI;
 		result *= root;  // acos(|x|)
@@ -811,8 +811,8 @@ public:
 		return RadVal * (180.f / UE_PI);
 	}
 
-	static FORCEINLINE float RadiansToDegrees(float const& RadVal) { return RadVal * (180.f / UE_PI); }
-	static FORCEINLINE double RadiansToDegrees(double const& RadVal) { return RadVal * (180.0 / UE_DOUBLE_PI); }
+	static constexpr FORCEINLINE float RadiansToDegrees(float const& RadVal) { return RadVal * (180.f / UE_PI); }
+	static constexpr FORCEINLINE double RadiansToDegrees(double const& RadVal) { return RadVal * (180.0 / UE_DOUBLE_PI); }
 
 	/** 
 	 * Converts degrees to radians.
@@ -825,8 +825,8 @@ public:
 		return DegVal * (UE_PI / 180.f);
 	}
 
-	static FORCEINLINE float DegreesToRadians(float const& DegVal) { return DegVal * (UE_PI / 180.f); }
-	static FORCEINLINE double DegreesToRadians(double const& DegVal) { return DegVal * (UE_DOUBLE_PI / 180.0); }
+	static constexpr FORCEINLINE float DegreesToRadians(float const& DegVal) { return DegVal * (UE_PI / 180.f); }
+	static constexpr FORCEINLINE double DegreesToRadians(double const& DegVal) { return DegVal * (UE_DOUBLE_PI / 180.0); }
 
 	/** 
 	 * Clamps an arbitrary angle to be between the given angles.  Will clamp to nearest boundary.
