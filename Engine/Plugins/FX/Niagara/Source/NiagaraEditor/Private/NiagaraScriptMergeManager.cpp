@@ -1203,7 +1203,6 @@ bool FNiagaraEmitterDiffResults::IsEmpty() const
 		ModifiedOtherRenderers.Num() == 0 &&
 		AddedSummaryEntriesInOther.Num() == 0 &&
 		AddedSummarySectionsInOther.Num() == 0 &&
-		RemovedSummaryEntriesInBase.Num() == 0 && 
 		ModifiedStackEntryDisplayNames.Num() == 0 &&
 		bScratchPadModified == false &&
 		NewShouldShowSummaryViewValue.IsSet() == false;
@@ -2479,8 +2478,7 @@ void FNiagaraScriptMergeManager::DiffEmitterSummary(const UNiagaraEmitterEditorD
 		BaseItems,
 		OtherItems,
 		[](UNiagaraHierarchyItemBase* HierarchyItem) { return HierarchyItem->GetPersistentIdentity(); });
-
-	DiffResults.RemovedSummaryEntriesInBase.Append(SummaryItemDiff.RemovedBaseValues);
+	
 	DiffResults.AddedSummaryEntriesInOther.Append(SummaryItemDiff.AddedOtherValues);
 	
 	TArray<UNiagaraHierarchySection*> BaseSections = BaseRoot->GetSectionData();
@@ -3776,11 +3774,6 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::ApplyE
 				}
 			}
 		}
-	}
-
-	for (UNiagaraHierarchyItemBase* RemovedInputInBase : DiffResults.RemovedSummaryEntriesInBase)
-	{
-		bool bChildRemoved = BaseRoot->RemoveChildWithIdentity(RemovedInputInBase->GetPersistentIdentity(), true);
 	}
 
 	if (DiffResults.NewShouldShowSummaryViewValue.IsSet())

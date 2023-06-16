@@ -409,7 +409,6 @@ struct FNiagaraEmitterDiffResults
 	TArray<TSharedRef<FNiagaraRendererMergeAdapter>> ModifiedBaseRenderers;
 	TArray<TSharedRef<FNiagaraRendererMergeAdapter>> ModifiedOtherRenderers;
 
-	TArray<UNiagaraHierarchyItemBase*> RemovedSummaryEntriesInBase;
 	TArray<UNiagaraHierarchyItemBase*> AddedSummaryEntriesInOther;	
 	TArray<UNiagaraHierarchySection*> AddedSummarySectionsInOther;
 
