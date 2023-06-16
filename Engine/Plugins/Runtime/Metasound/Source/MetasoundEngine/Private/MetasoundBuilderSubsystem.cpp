@@ -10,6 +10,9 @@
 #include "Interfaces/MetasoundFrontendSourceInterface.h"
 #include "Metasound.h"
 #include "MetasoundAssetSubsystem.h"
+#include "MetasoundDataReference.h"
+#include "MetasoundDynamicOperatorTransactor.h"
+#include "MetasoundFrontendDataTypeRegistry.h"
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundFrontendSearchEngine.h"
@@ -20,6 +23,7 @@
 #include "MetasoundSource.h"
 #include "MetasoundTrace.h"
 #include "MetasoundUObjectRegistry.h"
+#include "MetasoundVertex.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MetasoundBuilderSubsystem)
 
@@ -28,6 +32,8 @@ namespace Metasound::Engine
 {
 	namespace BuilderSubsystemPrivate
 	{
+		static int32 LiveUpdateEnabledCVar = 0;
+
 		template <typename TLiteralType>
 		FMetasoundFrontendLiteral CreatePODMetaSoundLiteral(const TLiteralType& Value, FName& OutDataType)
 		{
@@ -38,6 +44,16 @@ namespace Metasound::Engine
 			return Literal;
 		}
 
+		TUniquePtr<INode> CreateDynamicNodeFromFrontendLiteral(const FName DataType, const FMetasoundFrontendLiteral& InLiteral)
+		{
+			using namespace Frontend;
+			FLiteral ValueLiteral = InLiteral.ToLiteral(DataType);
+
+			// TODO: Node name "Literal" is always the same.  Consolidate and deprecate providing unique node name to avoid unnecessary FName table bloat.
+			FLiteralNodeConstructorParams Params { "Literal", FGuid::NewGuid(), MoveTemp(ValueLiteral) };
+			return IDataTypeRegistry::Get().CreateLiteralNode(DataType, MoveTemp(Params));
+		}
+
 		template <typename BuilderClass>
 		BuilderClass& CreateTransientBuilder()
 		{
@@ -46,22 +62,22 @@ namespace Metasound::Engine
 			const FName ObjectName = MakeUniqueObjectName(TransientPackage, BuilderClass::StaticClass());
 			TObjectPtr<BuilderClass> NewBuilder = NewObject<BuilderClass>(TransientPackage, ObjectName, NewObjectFlags);
 			check(NewBuilder);
-			NewBuilder->CreateTransientDocument();
+			NewBuilder->InitFrontendBuilder();
 			return *NewBuilder.Get();
 		}
 	} // namespace BuilderSubsystemPrivate
 } // namespace Metasound::Engine
 
+FAutoConsoleVariableRef CVarMetaSoundEditorAudioConnectSpacing(
+	TEXT("au.MetaSound.Builder.Audition.LiveUpdatesEnabled"),
+	Metasound::Engine::BuilderSubsystemPrivate::LiveUpdateEnabledCVar,
+	TEXT("Whether or not the MetaSound builder's audition feature supports live updates (mutating a MetaSound graph while it is being executed at runtime).\n")
+	TEXT("Values: 0 (Disabled), !=0 (Enabled)"),
+	ECVF_Default);
+
+
 FMetaSoundBuilderNodeOutputHandle UMetaSoundBuilderBase::AddGraphInputNode(FName Name, FName DataType, FMetasoundFrontendLiteral DefaultValue, EMetaSoundBuilderResult& OutResult, bool bIsConstructorInput)
 {
-	FMetasoundFrontendClassInput Description;
-	Description.Name = Name;
-	Description.TypeName = DataType;
-	Description.NodeID = FGuid::NewGuid();
-	Description.VertexID = FGuid::NewGuid();
-	Description.DefaultLiteral = static_cast<FMetasoundFrontendLiteral>(DefaultValue);
-	Description.AccessType = bIsConstructorInput ? EMetasoundFrontendVertexAccessType::Value : EMetasoundFrontendVertexAccessType::Reference;
-
 	FMetaSoundBuilderNodeOutputHandle NewHandle;
 
 	const FMetasoundFrontendNode* Node = Builder.FindGraphInputNode(Name);
@@ -71,6 +87,13 @@ FMetaSoundBuilderNodeOutputHandle UMetaSoundBuilderBase::AddGraphInputNode(FName
 	}
 	else
 	{
+		FMetasoundFrontendClassInput Description;
+		Description.Name = Name;
+		Description.TypeName = DataType;
+		Description.NodeID = FGuid::NewGuid();
+		Description.VertexID = FGuid::NewGuid();
+		Description.DefaultLiteral = static_cast<FMetasoundFrontendLiteral>(DefaultValue);
+		Description.AccessType = bIsConstructorInput ? EMetasoundFrontendVertexAccessType::Value : EMetasoundFrontendVertexAccessType::Reference;
 		Node = Builder.AddGraphInput(Description);
 	}
 
@@ -89,13 +112,6 @@ FMetaSoundBuilderNodeOutputHandle UMetaSoundBuilderBase::AddGraphInputNode(FName
 
 FMetaSoundBuilderNodeInputHandle UMetaSoundBuilderBase::AddGraphOutputNode(FName Name, FName DataType, FMetasoundFrontendLiteral DefaultValue, EMetaSoundBuilderResult& OutResult, bool bIsConstructorOutput)
 {
-	FMetasoundFrontendClassOutput Description;
-	Description.Name = Name;
-	Description.TypeName = DataType;
-	Description.NodeID = FGuid::NewGuid();
-	Description.VertexID = FGuid::NewGuid();
-	Description.AccessType = bIsConstructorOutput ? EMetasoundFrontendVertexAccessType::Value : EMetasoundFrontendVertexAccessType::Reference;
-
 	FMetaSoundBuilderNodeInputHandle NewHandle;
 	const FMetasoundFrontendNode* Node = Builder.FindGraphOutputNode(Name);
 	if (Node)
@@ -104,6 +120,12 @@ FMetaSoundBuilderNodeInputHandle UMetaSoundBuilderBase::AddGraphOutputNode(FName
 	}
 	else
 	{
+		FMetasoundFrontendClassOutput Description;
+		Description.Name = Name;
+		Description.TypeName = DataType;
+		Description.NodeID = FGuid::NewGuid();
+		Description.VertexID = FGuid::NewGuid();
+		Description.AccessType = bIsConstructorOutput ? EMetasoundFrontendVertexAccessType::Value : EMetasoundFrontendVertexAccessType::Reference;
 		Node = Builder.AddGraphOutput(Description);
 	}
 
@@ -149,10 +171,24 @@ FMetaSoundNodeHandle UMetaSoundBuilderBase::AddNode(const TScriptInterface<IMeta
 
 			if (const FMetasoundFrontendNode* NewNode = Builder.AddGraphNode(NodeClassGraph))
 			{
-				FMetasoundFrontendClassMetadata NodeClassMetadata = NodeClassGraph.Metadata;
 				NewHandle.NodeID = NewNode->GetID();
 			}
 		}
+	}
+
+	OutResult = NewHandle.IsSet() ? EMetaSoundBuilderResult::Succeeded : EMetaSoundBuilderResult::Failed;
+	return NewHandle;
+}
+
+FMetaSoundNodeHandle UMetaSoundBuilderBase::AddNodeByClassName(const FMetasoundFrontendClassName& ClassName, int32 MajorVersion, EMetaSoundBuilderResult& OutResult)
+{
+	using namespace Metasound;
+	using namespace Metasound::Frontend;
+
+	FMetaSoundNodeHandle NewHandle;
+	if (const FMetasoundFrontendNode* NewNode = Builder.AddNodeByClassName(ClassName, MajorVersion))
+	{
+		NewHandle.NodeID = NewNode->GetID();
 	}
 
 	OutResult = NewHandle.IsSet() ? EMetaSoundBuilderResult::Succeeded : EMetaSoundBuilderResult::Failed;
@@ -456,6 +492,7 @@ FMetaSoundNodeHandle UMetaSoundBuilderBase::FindGraphInputNode(FName InputName, 
 {
 	if (const FMetasoundFrontendNode* GraphInputNode = Builder.FindGraphInputNode(InputName))
 	{
+		OutResult = EMetaSoundBuilderResult::Succeeded;
 		return FMetaSoundNodeHandle { GraphInputNode->GetID() };
 	}
 
@@ -477,12 +514,17 @@ FMetaSoundNodeHandle UMetaSoundBuilderBase::FindGraphOutputNode(FName OutputName
 	return { };
 }
 
-void UMetaSoundBuilderBase::CreateTransientDocument()
+UMetaSoundBuilderDocument* UMetaSoundBuilderBase::CreateTransientDocumentObject() const
 {
-	UMetaSoundBuilderDocument* NewDoc = NewObject<UMetaSoundBuilderDocument>();
-	NewDoc->SetBaseMetaSoundUClass(GetBuilderUClass());
-	TScriptInterface<IMetaSoundDocumentInterface> MetaSoundSourceDocInterface = NewDoc;
-	Builder = FMetaSoundFrontendDocumentBuilder(MetaSoundSourceDocInterface);
+	UMetaSoundBuilderDocument* DocObject = NewObject<UMetaSoundBuilderDocument>();
+	DocObject->SetBaseMetaSoundUClass(GetBuilderUClass());
+	return DocObject;
+}
+
+void UMetaSoundBuilderBase::InitFrontendBuilder()
+{
+	UMetaSoundBuilderDocument* DocObject = CreateTransientDocumentObject();
+	Builder = FMetaSoundFrontendDocumentBuilder(DocObject);
 	Builder.InitDocument();
 }
 
@@ -576,6 +618,12 @@ void UMetaSoundBuilderBase::RemoveNode(const FMetaSoundNodeHandle& NodeHandle, E
 	OutResult = bNodeRemoved ? EMetaSoundBuilderResult::Succeeded : EMetaSoundBuilderResult::Failed;
 }
 
+void UMetaSoundBuilderBase::RemoveNodeInputDefault(const FMetaSoundBuilderNodeInputHandle& InputHandle, EMetaSoundBuilderResult& OutResult)
+{
+	const bool bInputDefaultRemoved = Builder.RemoveNodeInputDefault(InputHandle.NodeID, InputHandle.VertexID);
+	OutResult = bInputDefaultRemoved ? EMetaSoundBuilderResult::Succeeded : EMetaSoundBuilderResult::Failed;
+}
+
 #if WITH_EDITOR
 void UMetaSoundBuilderBase::SetAuthor(const FString& InAuthor)
 {
@@ -585,9 +633,6 @@ void UMetaSoundBuilderBase::SetAuthor(const FString& InAuthor)
 
 void UMetaSoundBuilderBase::SetNodeInputDefault(const FMetaSoundBuilderNodeInputHandle& InputHandle, const FMetasoundFrontendLiteral& Literal, EMetaSoundBuilderResult& OutResult)
 {
-	using namespace Metasound;
-	using namespace Metasound::Frontend;
-
 	const bool bInputDefaultSet = Builder.SetNodeInputDefault(InputHandle.NodeID, InputHandle.VertexID, Literal);
 	OutResult = bInputDefaultSet ? EMetaSoundBuilderResult::Succeeded : EMetaSoundBuilderResult::Failed;
 }
@@ -653,6 +698,30 @@ void UMetaSoundBuilderBase::GetNodeInputData(const FMetaSoundBuilderNodeInputHan
 	}
 }
 
+FMetasoundFrontendLiteral UMetaSoundBuilderBase::GetNodeInputDefault(const FMetaSoundBuilderNodeInputHandle& InputHandle, EMetaSoundBuilderResult& OutResult)
+{
+	if (const FMetasoundFrontendLiteral* Default = Builder.GetNodeInputDefault(InputHandle.NodeID, InputHandle.VertexID))
+	{
+		OutResult = EMetaSoundBuilderResult::Succeeded;
+		return *Default;
+	}
+
+	OutResult = EMetaSoundBuilderResult::Failed;
+	return { };
+}
+
+FMetasoundFrontendLiteral UMetaSoundBuilderBase::GetNodeInputClassDefault(const FMetaSoundBuilderNodeInputHandle& InputHandle, EMetaSoundBuilderResult& OutResult)
+{
+	if (const FMetasoundFrontendLiteral* Default = Builder.GetNodeInputClassDefault(InputHandle.NodeID, InputHandle.VertexID))
+	{
+		OutResult = EMetaSoundBuilderResult::Succeeded;
+		return *Default;
+	}
+
+	OutResult = EMetaSoundBuilderResult::Failed;
+	return { };
+}
+
 void UMetaSoundBuilderBase::GetNodeOutputData(const FMetaSoundBuilderNodeOutputHandle& OutputHandle, FName& Name, FName& DataType, EMetaSoundBuilderResult& OutResult)
 {
 	if (const FMetasoundFrontendVertex* Vertex = Builder.FindNodeOutput(OutputHandle.NodeID, OutputHandle.VertexID))
@@ -711,7 +780,7 @@ void UMetaSoundBuilderBase::ConvertToPreset(const TScriptInterface<IMetaSoundDoc
 
 TScriptInterface<IMetaSoundDocumentInterface> UMetaSoundPatchBuilder::Build(UObject* Parent, const FMetaSoundBuilderOptions& InBuilderOptions) const
 {
-	return BuildInternal<UMetaSoundPatch>(Parent, InBuilderOptions);
+	return &BuildInternal<UMetaSoundPatch>(Parent, InBuilderOptions);
 }
 
 const UClass& UMetaSoundPatchBuilder::GetBuilderUClass() const
@@ -719,9 +788,52 @@ const UClass& UMetaSoundPatchBuilder::GetBuilderUClass() const
 	return *UMetaSoundPatch::StaticClass();
 }
 
-void UMetaSoundSourceBuilder::Audition(UObject* Parent, UAudioComponent* AudioComponent, FOnCreateAuditionGeneratorHandleDelegate CreateGenerator)
+UMetaSoundBuilderBase& UMetaSoundBuilderSubsystem::AttachBuilderToAssetChecked(UObject& InObject) const
 {
-	using namespace Metasound;
+	const UClass* BaseClass = InObject.GetClass();
+	if (BaseClass == UMetaSoundSource::StaticClass())
+	{
+		UMetaSoundSourceBuilder* NewBuilder = AttachSourceBuilderToAsset(CastChecked<UMetaSoundSource>(&InObject));
+		return *NewBuilder;
+	}
+	else if (BaseClass == UMetaSoundPatch::StaticClass())
+	{
+		UMetaSoundPatchBuilder* NewBuilder = AttachPatchBuilderToAsset(CastChecked<UMetaSoundPatch>(&InObject));
+		return *NewBuilder;
+	}
+	else
+	{
+		checkf(false, TEXT("UClass '%s' is not a base MetaSound that supports attachment via the MetaSoundBuilderSubsystem"), *BaseClass->GetFullName());
+		return Metasound::Engine::BuilderSubsystemPrivate::CreateTransientBuilder<UMetaSoundPatchBuilder>();
+	}
+}
+
+UMetaSoundPatchBuilder* UMetaSoundBuilderSubsystem::AttachPatchBuilderToAsset(UMetaSoundPatch* InPatch) const
+{
+	if (InPatch)
+	{
+		return &AttachBuilderToAssetCheckedPrivate<UMetaSoundPatchBuilder>(InPatch);
+	}
+
+	return nullptr;
+}
+
+UMetaSoundSourceBuilder* UMetaSoundBuilderSubsystem::AttachSourceBuilderToAsset(UMetaSoundSource* InSource) const
+{
+	if (InSource)
+	{
+		UMetaSoundSourceBuilder& SourceBuilder = AttachBuilderToAssetCheckedPrivate<UMetaSoundSourceBuilder>(InSource);
+		SourceBuilder.AuditionSound = InSource;
+		return &SourceBuilder;
+	}
+
+	return nullptr;
+}
+
+void UMetaSoundSourceBuilder::Audition(UObject* Parent, UAudioComponent* AudioComponent, FOnCreateAuditionGeneratorHandleDelegate CreateGenerator, bool bLiveUpdatesEnabled)
+{
+	using namespace Metasound::Engine;
+	using namespace Metasound::Engine::BuilderSubsystemPrivate;
 	using namespace Metasound::Frontend;
 
 	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(UMetaSoundSourceBuilder::Audition);
@@ -732,32 +844,43 @@ void UMetaSoundSourceBuilder::Audition(UObject* Parent, UAudioComponent* AudioCo
 		return;
 	}
 
-	FMetaSoundBuilderOptions BuilderOptions;
-	BuilderOptions.bAddToRegistry = true;
-
-	if (AuditionSound.IsValid())
+	if (!bIsAttached)
 	{
-		BuilderOptions.ExistingMetaSound = AuditionSound.Get();
-		if (USoundBase* Sound = AudioComponent->GetSound())
+		FMetaSoundBuilderOptions BuilderOptions;
+		BuilderOptions.bAddToRegistry = true;
+
+		if (AuditionSound.IsValid())
 		{
-			if (Sound != AuditionSound)
+			BuilderOptions.ExistingMetaSound = AuditionSound.Get();
+			if (USoundBase* Sound = AudioComponent->GetSound())
 			{
-				UE_LOG(LogMetaSound, Warning, TEXT("MetaSoundBuilder '%s' supplied AudioComponent with unlinked sound '%s'. Stopping sound and replacing with builder's audition sound."),
-					*GetFullName(),
-					*Sound->GetFullName());
+				if (Sound != AuditionSound)
+				{
+					UE_LOG(LogMetaSound, Warning, TEXT("MetaSoundBuilder '%s' supplied AudioComponent with unlinked sound '%s'. Stopping sound and replacing with builder's audition sound."),
+						*GetFullName(),
+						*Sound->GetFullName());
+				}
 			}
 		}
-	}
-	else
-	{
-		BuilderOptions.Name = MakeUniqueObjectName(nullptr, UMetaSoundSource::StaticClass(), FName(GetName() + TEXT("_Audition")));
+		else
+		{
+			BuilderOptions.Name = MakeUniqueObjectName(nullptr, UMetaSoundSource::StaticClass(), FName(GetName() + TEXT("_Audition")));
+		}
+
+		AuditionSound = &BuildInternal<UMetaSoundSource>(Parent, BuilderOptions);
 	}
 
-	AuditionSound = BuildInternal<UMetaSoundSource>(Parent, BuilderOptions);
-	if (AuditionSound.IsValid())
+	AudioComponent->SetSound(AuditionSound.Get());
+
+	if (bLiveUpdatesEnabled && !BuilderSubsystemPrivate::LiveUpdateEnabledCVar)
 	{
-		AudioComponent->SetSound(AuditionSound.Get());
+		UE_LOG(LogMetaSound, Warning, TEXT("Attempting to audition MetaSoundBuilder '%s' with live update enabled, but feature's console variable is disabled. Request is being ignored and updates will not be audible."),
+			*GetFullName(),
+			* AuditionSound->GetFullName());
 	}
+
+	const bool bEnableDynamicGenerators = bLiveUpdatesEnabled && BuilderSubsystemPrivate::LiveUpdateEnabledCVar;
+	AuditionSound->EnableDynamicGenerators(bEnableDynamicGenerators);
 
 	if (CreateGenerator.IsBound())
 	{
@@ -769,9 +892,40 @@ void UMetaSoundSourceBuilder::Audition(UObject* Parent, UAudioComponent* AudioCo
 	AudioComponent->Play();
 }
 
+bool UMetaSoundSourceBuilder::ExecuteAuditionableTransaction(FAuditionableTransaction Transaction) const
+{
+	using namespace Metasound::Engine::BuilderSubsystemPrivate;
+	using namespace Metasound::DynamicGraph;
+
+	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(UMetaSoundSourceBuilder::ExecuteAuditionableTransaction);
+
+	if (LiveUpdateEnabledCVar && AuditionSound.IsValid())
+	{
+		TSharedPtr<FDynamicOperatorTransactor> Transactor = AuditionSound->GetDynamicGeneratorTransactor();
+		if (Transactor.IsValid())
+		{
+			return Transaction(*Transactor);
+		}
+	}
+
+	return false;
+}
+
 TScriptInterface<IMetaSoundDocumentInterface> UMetaSoundSourceBuilder::Build(UObject* Parent, const FMetaSoundBuilderOptions& InBuilderOptions) const
 {
-	return BuildInternal<UMetaSoundSource>(Parent, InBuilderOptions);
+	return &BuildInternal<UMetaSoundSource>(Parent, InBuilderOptions);
+}
+
+void UMetaSoundSourceBuilder::InitFrontendBuilder()
+{
+	using namespace Metasound::Frontend;
+
+	TSharedRef<FDocumentModifyDelegates> DocumentDelegates = MakeShared<FDocumentModifyDelegates>();
+	InitDelegates(*DocumentDelegates);
+
+	UMetaSoundBuilderDocument* DocObject = CreateTransientDocumentObject();
+	Builder = FMetaSoundFrontendDocumentBuilder(DocObject, DocumentDelegates);
+	Builder.InitDocument();
 }
 
 const Metasound::Engine::FOutputAudioFormatInfoPair* UMetaSoundSourceBuilder::FindOutputAudioFormatInfo() const
@@ -792,6 +946,286 @@ const Metasound::Engine::FOutputAudioFormatInfoPair* UMetaSoundSourceBuilder::Fi
 const UClass& UMetaSoundSourceBuilder::GetBuilderUClass() const
 {
 	return *UMetaSoundSource::StaticClass();
+}
+
+bool UMetaSoundSourceBuilder::GetLiveUpdatesEnabled() const
+{
+	using namespace Metasound::Engine::BuilderSubsystemPrivate;
+
+	if (!LiveUpdateEnabledCVar)
+	{
+		return false;
+	}
+
+	if (!AuditionSound.IsValid())
+	{
+		return false;
+	}
+	
+	return AuditionSound->GetDynamicGeneratorTransactor().IsValid();
+}
+
+void UMetaSoundSourceBuilder::InitDelegates(Metasound::Frontend::FDocumentModifyDelegates& OutDocumentDelegates) const
+{
+	OutDocumentDelegates.EdgeDelegates.OnEdgeAdded.AddUObject(this, &UMetaSoundSourceBuilder::OnEdgeAdded);
+	OutDocumentDelegates.EdgeDelegates.OnRemovingEdge.AddUObject(this, &UMetaSoundSourceBuilder::OnRemovingEdge);
+
+	OutDocumentDelegates.InterfaceDelegates.OnInputAdded.AddUObject(this, &UMetaSoundSourceBuilder::OnInputAdded);
+	OutDocumentDelegates.InterfaceDelegates.OnOutputAdded.AddUObject(this, &UMetaSoundSourceBuilder::OnOutputAdded);
+	OutDocumentDelegates.InterfaceDelegates.OnRemovingInput.AddUObject(this, &UMetaSoundSourceBuilder::OnRemovingInput);
+	OutDocumentDelegates.InterfaceDelegates.OnRemovingOutput.AddUObject(this, &UMetaSoundSourceBuilder::OnRemovingOutput);
+
+	OutDocumentDelegates.NodeDelegates.OnNodeAdded.AddUObject(this, &UMetaSoundSourceBuilder::OnNodeAdded);
+	OutDocumentDelegates.NodeDelegates.OnNodeInputLiteralSet.AddUObject(this, &UMetaSoundSourceBuilder::OnNodeInputLiteralSet);
+	OutDocumentDelegates.NodeDelegates.OnRemovingNode.AddUObject(this, &UMetaSoundSourceBuilder::OnRemovingNode);
+	OutDocumentDelegates.NodeDelegates.OnRemovingNodeInputLiteral.AddUObject(this, &UMetaSoundSourceBuilder::OnRemovingNodeInputLiteral);
+}
+
+void UMetaSoundSourceBuilder::OnEdgeAdded(int32 EdgeIndex) const
+{
+	using namespace Metasound::DynamicGraph;
+
+	const FMetasoundFrontendDocument& Doc = Builder.GetDocument();
+	const FMetasoundFrontendEdge& NewEdge = Doc.RootGraph.Graph.Edges[EdgeIndex];
+	ExecuteAuditionableTransaction([this, &NewEdge](Metasound::DynamicGraph::FDynamicOperatorTransactor& Transactor)
+	{
+		const FMetaSoundFrontendDocumentBuilder& Builder = GetConstBuilder();
+		const FMetasoundFrontendVertex* FromNodeOutput = Builder.FindNodeOutput(NewEdge.FromNodeID, NewEdge.FromVertexID);
+		const FMetasoundFrontendVertex* ToNodeInput = Builder.FindNodeInput(NewEdge.ToNodeID, NewEdge.ToVertexID);
+		if (FromNodeOutput && ToNodeInput)
+		{
+			Transactor.AddDataEdge(NewEdge.FromNodeID, FromNodeOutput->Name, NewEdge.ToNodeID, ToNodeInput->Name);
+			return true;
+		}
+
+		return false;
+	});
+}
+
+TOptional<Metasound::FAnyDataReference> UMetaSoundSourceBuilder::CreateDataReference(const Metasound::FOperatorSettings& InOperatorSettings, const Metasound::FLiteral& InLiteral, Metasound::EDataReferenceAccessType AccessType)
+{
+	using namespace Metasound;
+	using namespace Metasound::Frontend;
+
+	// TODO: move to TFunctionRef
+	const FName DataType = GetMetasoundDataTypeName<float>();
+	return IDataTypeRegistry::Get().CreateDataReference(DataType, AccessType, InLiteral, InOperatorSettings);
+};
+
+void UMetaSoundSourceBuilder::OnInputAdded(int32 InputIndex) const
+{
+	using namespace Metasound::DynamicGraph;
+
+	ExecuteAuditionableTransaction([this, InputIndex](FDynamicOperatorTransactor& Transactor)
+	{
+		using namespace Metasound;
+		using namespace Metasound::Frontend;
+
+		const FMetasoundFrontendDocument& Doc = Builder.GetDocument();
+		const FMetasoundFrontendGraphClass& GraphClass = Doc.RootGraph;
+		const FMetasoundFrontendClassInput& NewInput = GraphClass.Interface.Inputs[InputIndex];
+		const FLiteral NewInputLiteral = NewInput.DefaultLiteral.ToLiteral(NewInput.TypeName);
+		Transactor.AddInputDataDestination(NewInput.NodeID, NewInput.Name, NewInputLiteral, &UMetaSoundSourceBuilder::CreateDataReference);
+		return true;
+	});
+}
+
+void UMetaSoundSourceBuilder::OnNodeAdded(int32 NodeIndex) const
+{
+	using namespace Metasound::DynamicGraph;
+
+	ExecuteAuditionableTransaction([this, NodeIndex](FDynamicOperatorTransactor& Transactor)
+	{
+		using namespace Metasound;
+		using namespace Metasound::Frontend;
+
+		const FMetasoundFrontendDocument& Doc = Builder.GetDocument();
+		const FMetasoundFrontendGraphClass& GraphClass = Doc.RootGraph;
+		const FMetasoundFrontendNode& AddedNode = GraphClass.Graph.Nodes[NodeIndex];
+		const Metasound::FNodeInitData InitData { AddedNode.Name, AddedNode.GetID() };
+
+		const FMetasoundFrontendClass* NodeClass = Builder.FindDependency(AddedNode.ClassID);
+		checkf(NodeClass, TEXT("Node successfully added to graph but document is missing associated dependency"));
+
+		auto MatchesVertexNodeID = [&InitData](const FMetasoundFrontendClassVertex& Vertex) { return Vertex.NodeID == InitData.InstanceID; };
+		switch (NodeClass->Metadata.GetType())
+		{
+			case EMetasoundFrontendClassType::Input:
+			case EMetasoundFrontendClassType::Output:
+			case EMetasoundFrontendClassType::External:
+			{
+			const FNodeRegistryKey& ClassKey = NodeRegistryKey::CreateKey(NodeClass->Metadata);
+				FMetasoundFrontendRegistryContainer& Registry = *FMetasoundFrontendRegistryContainer::Get();
+				TUniquePtr<INode> NewNode = Registry.CreateNode(ClassKey, InitData);
+				Transactor.AddNode(InitData.InstanceID, MoveTemp(NewNode));
+				return true;
+			}
+			break;
+
+			case EMetasoundFrontendClassType::Graph:
+			case EMetasoundFrontendClassType::Invalid:
+			case EMetasoundFrontendClassType::Literal:
+			case EMetasoundFrontendClassType::Template:
+			case EMetasoundFrontendClassType::Variable:
+			case EMetasoundFrontendClassType::VariableAccessor:
+			case EMetasoundFrontendClassType::VariableDeferredAccessor:
+			case EMetasoundFrontendClassType::VariableMutator:
+			default:
+			{
+				static_assert(static_cast<int32>(EMetasoundFrontendClassType::Invalid) == 10, "Possible missing EMetasoundFrontendClassType case coverage");
+				UE_LOG(LogMetaSound, Error, TEXT("Builder '%s' Audition Error: Addition of node was not propagated to active runtime graph: Runtime manipualtion of node ClassType unsupported."), *GetName());
+				return false;
+			}
+		}
+	});
+}
+
+void UMetaSoundSourceBuilder::OnNodeInputLiteralSet(int32 NodeIndex, int32 VertexIndex, int32 LiteralIndex) const
+{
+	using namespace Metasound::DynamicGraph;
+
+	ExecuteAuditionableTransaction([this, &NodeIndex, &VertexIndex, &LiteralIndex](FDynamicOperatorTransactor& Transactor)
+	{
+		using namespace Metasound;
+		using namespace Metasound::Engine;
+		using namespace Metasound::Frontend;
+
+		const FMetasoundFrontendGraphClass& GraphClass = Builder.GetDocument().RootGraph;
+		const FMetasoundFrontendNode& Node = GraphClass.Graph.Nodes[NodeIndex];
+		const FMetasoundFrontendVertex& Input = Node.Interface.Inputs[VertexIndex];
+		const FMetasoundFrontendLiteral& InputDefault = Node.InputLiterals[LiteralIndex].Value;
+		TUniquePtr<INode> LiteralNode = BuilderSubsystemPrivate::CreateDynamicNodeFromFrontendLiteral(Input.TypeName, InputDefault);
+		Transactor.SetValue(Node.GetID(), Input.Name, MoveTemp(LiteralNode));
+
+		return true;
+	});
+}
+
+void UMetaSoundSourceBuilder::OnOutputAdded(int32 OutputIndex) const
+{
+	using namespace Metasound::DynamicGraph;
+
+	ExecuteAuditionableTransaction([this, OutputIndex](FDynamicOperatorTransactor& Transactor)
+	{
+		using namespace Metasound::Frontend;
+
+		const FMetasoundFrontendDocument& Doc = Builder.GetDocument();
+		const FMetasoundFrontendGraphClass& GraphClass = Doc.RootGraph;
+		const FMetasoundFrontendClassOutput& NewOutput = GraphClass.Interface.Outputs[OutputIndex];
+
+		Transactor.AddOutputDataSource(NewOutput.NodeID, NewOutput.Name);
+		return true;
+	});
+}
+
+void UMetaSoundSourceBuilder::OnRemovingEdge(int32 EdgeIndex) const
+{
+	using namespace Metasound::DynamicGraph;
+
+	const FMetasoundFrontendDocument& Doc = Builder.GetDocument();
+	const FMetasoundFrontendEdge& EdgeBeingRemoved = Doc.RootGraph.Graph.Edges[EdgeIndex];
+	ExecuteAuditionableTransaction([this, EdgeBeingRemoved](FDynamicOperatorTransactor& Transactor)
+	{
+		using namespace Metasound;
+		using namespace Metasound::Engine;
+
+		const FMetaSoundFrontendDocumentBuilder& Builder = GetConstBuilder();
+		const FMetasoundFrontendVertex* FromNodeOutput = Builder.FindNodeOutput(EdgeBeingRemoved.FromNodeID, EdgeBeingRemoved.FromVertexID);
+		const FMetasoundFrontendVertex* ToNodeInput = Builder.FindNodeInput(EdgeBeingRemoved.ToNodeID, EdgeBeingRemoved.ToVertexID);
+		if (FromNodeOutput && ToNodeInput)
+		{
+			const FMetasoundFrontendLiteral* InputDefault = Builder.GetNodeInputDefault(EdgeBeingRemoved.ToNodeID, EdgeBeingRemoved.ToVertexID);
+			if (!InputDefault)
+			{
+				InputDefault = Builder.GetNodeInputClassDefault(EdgeBeingRemoved.ToNodeID, EdgeBeingRemoved.ToVertexID);
+			}
+
+			if (ensureAlwaysMsgf(InputDefault, TEXT("Could not dynamically assign default literal upon removing edge: literal should be assigned by either the frontend document's input or the class definition")))
+			{
+				TUniquePtr<INode> LiteralNode = BuilderSubsystemPrivate::CreateDynamicNodeFromFrontendLiteral(ToNodeInput->TypeName, *InputDefault);
+				Transactor.RemoveDataEdge(EdgeBeingRemoved.FromNodeID, FromNodeOutput->Name, EdgeBeingRemoved.ToNodeID, ToNodeInput->Name, MoveTemp(LiteralNode));
+				return true;
+			}
+		}
+
+		return false;
+	});
+}
+
+void UMetaSoundSourceBuilder::OnRemovingInput(int32 InputIndex) const
+{
+	using namespace Metasound::DynamicGraph;
+
+	ExecuteAuditionableTransaction([this, InputIndex](FDynamicOperatorTransactor& Transactor)
+	{
+		using namespace Metasound::Frontend;
+
+		const FMetasoundFrontendDocument& Doc = Builder.GetDocument();
+		const FMetasoundFrontendGraphClass& GraphClass = Doc.RootGraph;
+		const FMetasoundFrontendClassInput& InputBeingRemoved = GraphClass.Interface.Inputs[InputIndex];
+
+		Transactor.RemoveInputDataDestination(InputBeingRemoved.Name);
+		return true;
+	});
+}
+
+void UMetaSoundSourceBuilder::OnRemovingNode(int32 NodeIndex) const
+{
+	using namespace Metasound::DynamicGraph;
+	ExecuteAuditionableTransaction([this, NodeIndex](FDynamicOperatorTransactor& Transactor)
+	{
+		using namespace Metasound::Frontend;
+
+		const FMetasoundFrontendDocument& Doc = Builder.GetDocument();
+		const FMetasoundFrontendGraphClass& GraphClass = Doc.RootGraph;
+		const FMetasoundFrontendNode& NodeBeingRemoved = GraphClass.Graph.Nodes[NodeIndex];
+		const FGuid& NodeID = NodeBeingRemoved.GetID();
+		Transactor.RemoveNode(NodeID);
+		return true;
+	});
+}
+
+void UMetaSoundSourceBuilder::OnRemovingNodeInputLiteral(int32 NodeIndex, int32 VertexIndex, int32 LiteralIndex) const
+{
+	using namespace Metasound::DynamicGraph;
+
+	ExecuteAuditionableTransaction([this, &NodeIndex, &VertexIndex, &LiteralIndex](FDynamicOperatorTransactor& Transactor)
+	{
+		using namespace Metasound;
+		using namespace Metasound::Engine;
+		using namespace Metasound::Frontend;
+
+		const TArray<FMetasoundFrontendNode>& Nodes = Builder.GetDocument().RootGraph.Graph.Nodes;
+		const FMetasoundFrontendNode& Node = Nodes[NodeIndex];
+		const FMetasoundFrontendVertex& Input = Node.Interface.Inputs[VertexIndex];
+
+		const FMetasoundFrontendLiteral* InputDefault = Builder.GetNodeInputClassDefault(Node.GetID(), Input.VertexID);
+		if (ensureAlwaysMsgf(InputDefault, TEXT("Could not dynamically assign default literal from class definition upon removing input literal: document's dependency entry invalid and has no default assigned")))
+		{
+			TUniquePtr<INode> LiteralNode = BuilderSubsystemPrivate::CreateDynamicNodeFromFrontendLiteral(Input.TypeName, *InputDefault);
+			Transactor.SetValue(Node.GetID(), Input.Name, MoveTemp(LiteralNode));
+			return true;
+		}
+
+		return false;
+	});
+}
+
+void UMetaSoundSourceBuilder::OnRemovingOutput(int32 OutputIndex) const
+{
+	using namespace Metasound::DynamicGraph;
+
+	ExecuteAuditionableTransaction([this, OutputIndex](FDynamicOperatorTransactor& Transactor)
+	{
+		using namespace Metasound::Frontend;
+
+		const FMetasoundFrontendDocument& Doc = Builder.GetDocument();
+		const FMetasoundFrontendGraphClass& GraphClass = Doc.RootGraph;
+		const FMetasoundFrontendClassOutput& OutputBeingRemoved = GraphClass.Interface.Outputs[OutputIndex];
+
+		Transactor.RemoveOutputDataSource(OutputBeingRemoved.Name);
+		return true;
+	});
 }
 
 void UMetaSoundSourceBuilder::SetFormat(EMetaSoundOutputAudioFormat OutputFormat, EMetaSoundBuilderResult& OutResult)
@@ -998,53 +1432,6 @@ const UMetaSoundBuilderSubsystem& UMetaSoundBuilderSubsystem::GetConstChecked()
 	return *BuilderSubsystem;
 }
 
-UMetaSoundBuilderBase& UMetaSoundBuilderSubsystem::AttachBuilderToObjectChecked(TScriptInterface<IMetaSoundDocumentInterface> InInterface) const
-{
-	checkf(InInterface.GetInterface(), TEXT("Failed to attach MetaSound builder to asset: Interface not supplied"))
-	const UClass* BaseClass = &InInterface->GetBaseMetaSoundUClass();
-	if (BaseClass == UMetaSoundSource::StaticClass())
-	{
-		UMetaSoundSourceBuilder* NewBuilder = AttachSourceBuilderToAsset(CastChecked<UMetaSoundSource>(InInterface.GetObject()));
-		return *NewBuilder;
-	}
-	else if (BaseClass == UMetaSoundPatch::StaticClass())
-	{
-		UMetaSoundPatchBuilder* NewBuilder = AttachPatchBuilderToAsset(CastChecked<UMetaSoundPatch>(InInterface.GetObject()));
-		return *NewBuilder;
-	}
-	else
-	{
-		checkf(false, TEXT("UClass '%s' is not a base MetaSound that supports attachment via the MetaSoundBuilderSubsystem"), *BaseClass->GetFullName());
-		return Metasound::Engine::BuilderSubsystemPrivate::CreateTransientBuilder<UMetaSoundPatchBuilder>();
-	}
-}
-
-UMetaSoundPatchBuilder* UMetaSoundBuilderSubsystem::AttachPatchBuilderToAsset(UMetaSoundPatch* InPatch) const
-{
-	if (InPatch)
-	{
-		TObjectPtr<UMetaSoundPatchBuilder> NewBuilder = NewObject<UMetaSoundPatchBuilder>(InPatch);
-		TScriptInterface<IMetaSoundDocumentInterface> MetaSoundPatchDocInterface = InPatch;
-		NewBuilder->Builder = FMetaSoundFrontendDocumentBuilder(MetaSoundPatchDocInterface);
-		return NewBuilder;
-	}
-
-	return nullptr;
-}
-
-UMetaSoundSourceBuilder* UMetaSoundBuilderSubsystem::AttachSourceBuilderToAsset(UMetaSoundSource* InSource) const
-{
-	if (InSource)
-	{
-		TObjectPtr<UMetaSoundSourceBuilder> NewBuilder = NewObject<UMetaSoundSourceBuilder>(InSource);
-		TScriptInterface<IMetaSoundDocumentInterface> MetaSoundSourceDocInterface = InSource;
-		NewBuilder->Builder = FMetaSoundFrontendDocumentBuilder(MetaSoundSourceDocInterface);
-		return NewBuilder;
-	}
-
-	return nullptr;
-}
-
 FMetasoundFrontendLiteral UMetaSoundBuilderSubsystem::CreateBoolMetaSoundLiteral(bool Value, FName& OutDataType)
 {
 	return Metasound::Engine::BuilderSubsystemPrivate::CreatePODMetaSoundLiteral(Value, OutDataType);
@@ -1104,14 +1491,45 @@ FMetasoundFrontendLiteral UMetaSoundBuilderSubsystem::CreateMetaSoundLiteralFrom
 	return FMetasoundFrontendLiteral { Param };
 }
 
+bool UMetaSoundBuilderSubsystem::DetachBuilderFromAsset(const FMetasoundFrontendClassName& InClassName)
+{
+	return AssetBuilders.Remove(InClassName.GetFullName()) > 0;
+}
+
+const Metasound::Frontend::FDocumentModifyDelegates* UMetaSoundBuilderSubsystem::FindModifyDelegates(const FMetasoundFrontendClassName& InClassName) const
+{
+	using namespace Metasound::Frontend;
+
+	TWeakObjectPtr<UMetaSoundBuilderBase> BuilderPtr = AssetBuilders.FindRef(InClassName.GetFullName());
+	if (BuilderPtr.IsValid())
+	{
+		return &BuilderPtr->GetConstBuilder().GetDocumentDelegates();
+	}
+
+	return nullptr;
+}
+
 UMetaSoundPatchBuilder* UMetaSoundBuilderSubsystem::FindPatchBuilder(FName BuilderName)
 {
-	return PatchBuilders.FindRef(BuilderName);
+	return NamedPatchBuilders.FindRef(BuilderName);
 }
 
 UMetaSoundSourceBuilder* UMetaSoundBuilderSubsystem::FindSourceBuilder(FName BuilderName)
 {
-	return SourceBuilders.FindRef(BuilderName);
+	return NamedSourceBuilders.FindRef(BuilderName);
+}
+
+void UMetaSoundBuilderSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+{
+	using namespace Metasound::Frontend;
+
+	IMetaSoundDocumentBuilderRegistry::Set([]() -> IMetaSoundDocumentBuilderRegistry&
+	{
+		check(GEngine);
+		UMetaSoundBuilderSubsystem* BuilderSubsystem = GEngine->GetEngineSubsystem<UMetaSoundBuilderSubsystem>();
+		check(BuilderSubsystem);
+		return static_cast<IMetaSoundDocumentBuilderRegistry&>(*BuilderSubsystem);
+	});
 }
 
 bool UMetaSoundBuilderSubsystem::IsInterfaceRegistered(FName InInterfaceName) const
@@ -1124,20 +1542,20 @@ bool UMetaSoundBuilderSubsystem::IsInterfaceRegistered(FName InInterfaceName) co
 
 void UMetaSoundBuilderSubsystem::RegisterPatchBuilder(FName BuilderName, UMetaSoundPatchBuilder* Builder)
 {
-	PatchBuilders.FindOrAdd(BuilderName) = Builder;
+	NamedPatchBuilders.FindOrAdd(BuilderName) = Builder;
 }
 
 void UMetaSoundBuilderSubsystem::RegisterSourceBuilder(FName BuilderName, UMetaSoundSourceBuilder* Builder)
 {
-	SourceBuilders.FindOrAdd(BuilderName) = Builder;
+	NamedSourceBuilders.FindOrAdd(BuilderName) = Builder;
 }
 
 bool UMetaSoundBuilderSubsystem::UnregisterPatchBuilder(FName BuilderName)
 {
-	return PatchBuilders.Remove(BuilderName) > 0;
+	return NamedPatchBuilders.Remove(BuilderName) > 0;
 }
 
 bool UMetaSoundBuilderSubsystem::UnregisterSourceBuilder(FName BuilderName)
 {
-	return SourceBuilders.Remove(BuilderName) > 0;
+	return NamedSourceBuilders.Remove(BuilderName) > 0;
 }

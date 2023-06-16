@@ -1,5 +1,4 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #pragma once
 
 #include "Algo/Transform.h"
@@ -664,11 +663,9 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendGraph
 	TArray<FMetasoundFrontendVariable> Variables;
 
 #if WITH_EDITORONLY_DATA
-
 	// Style of graph display.
 	UPROPERTY()
 	FMetasoundFrontendGraphStyle Style;
-
 #endif // WITH_EDITORONLY_DATA
 };
 
@@ -1192,7 +1189,7 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendInterface : public FMetasoundFron
 
 
 // Name of a Metasound class
-USTRUCT()
+USTRUCT(BlueprintType)
 struct METASOUNDFRONTEND_API FMetasoundFrontendClassName
 {
 	GENERATED_BODY()

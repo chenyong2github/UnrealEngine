@@ -8,6 +8,7 @@
 #include "Engine/AssetManager.h"
 #include "Metasound.h"
 #include "MetasoundAssetBase.h"
+#include "MetasoundBuilderSubsystem.h"
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundFrontendTransform.h"
@@ -17,6 +18,7 @@
 #include "MetasoundUObjectRegistry.h"
 #include "Misc/CoreDelegates.h"
 #include "UObject/NoExportTypes.h"
+
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MetasoundAssetSubsystem)
 
@@ -572,7 +574,11 @@ void UMetaSoundAssetSubsystem::RemoveAsset(const UObject& InObject)
 	{
 		const FNodeClassInfo ClassInfo = MetaSoundAsset->GetAssetClassInfo();
 		FNodeRegistryKey RegistryKey = FMetasoundFrontendRegistryContainer::Get()->GetRegistryKey(ClassInfo);
-		AssetSubsystemPrivate::RemoveIfExactMatch(PathMap, RegistryKey, FSoftObjectPath(&InObject));
+		const FSoftObjectPath ObjectPath(&InObject);
+		if (AssetSubsystemPrivate::RemoveIfExactMatch(PathMap, RegistryKey, ObjectPath))
+		{
+			UMetaSoundBuilderSubsystem::GetChecked().DetachBuilderFromAsset(ClassInfo.ClassName);
+		}
 	}
 }
 
@@ -585,7 +591,11 @@ void UMetaSoundAssetSubsystem::RemoveAsset(const FAssetData& InAssetData)
 	if (ensureAlways(AssetSubsystemPrivate::GetAssetClassInfo(InAssetData, ClassInfo)))
 	{
 		FNodeRegistryKey RegistryKey = FMetasoundFrontendRegistryContainer::Get()->GetRegistryKey(ClassInfo);
-		AssetSubsystemPrivate::RemoveIfExactMatch(PathMap, RegistryKey, InAssetData.GetSoftObjectPath());
+		const FSoftObjectPath ObjectPath = InAssetData.GetSoftObjectPath();
+		if (AssetSubsystemPrivate::RemoveIfExactMatch(PathMap, RegistryKey, ObjectPath))
+		{
+			UMetaSoundBuilderSubsystem::GetChecked().DetachBuilderFromAsset(ClassInfo.ClassName);
+		}
 	}
 }
 

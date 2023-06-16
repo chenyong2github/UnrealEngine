@@ -52,6 +52,8 @@ class METASOUNDENGINE_API UMetaSoundSource : public USoundWaveProcedural, public
 	GENERATED_BODY()
 
 	friend struct Metasound::FMetaSoundEngineAssetHelper;
+	friend class UMetaSoundSourceBuilder;
+
 protected:
 	UPROPERTY(EditAnywhere, Category = CustomView)
 	FMetasoundFrontendDocument RootMetasoundDocument;
