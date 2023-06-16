@@ -128,7 +128,10 @@ void SClothCollectionOutliner::SetClothCollection(TSharedPtr<FManagedArrayCollec
 	{
 		ClothCollectionGroupNames.Reset();
 		HeaderRowWidget->ClearColumns();
-		HeaderData->AttributeNames.Empty();
+		if (HeaderData)
+		{
+			HeaderData->AttributeNames.Empty();
+		}
 		ListItems.Empty();
 		SelectedGroupName = FName();
 	}
