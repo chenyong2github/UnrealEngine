@@ -42,7 +42,7 @@ namespace UE::MLDeformer
 		TabFactories.RegisterFactory(MakeShared<FMLDeformerTimelineTabSummoner>(MLDeformerEditor));
 
 		// Create tab layout.
-		TabLayout = FTabManager::NewLayout("Standalone_MLDeformerEditor_Layout_v0.032")
+		TabLayout = FTabManager::NewLayout("Standalone_MLDeformerEditor_Layout_v5.3.001")
 			->AddArea
 			(
 				FTabManager::NewPrimaryArea()

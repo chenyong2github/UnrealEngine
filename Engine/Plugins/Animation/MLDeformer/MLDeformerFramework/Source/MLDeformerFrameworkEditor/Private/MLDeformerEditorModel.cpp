@@ -1961,6 +1961,43 @@ namespace UE::MLDeformer
 	void FMLDeformerEditorModel::HandleVizModeChanged(EMLDeformerVizMode Mode)
 	{
 		UpdateRanges();
+
+		// Update the preview scene so that the debug rendering draws the skeleton for the correct actor, depending on whether we are in training or testing mode.
+		// On default we render the bones etc for the ML Deformed character.
+		// Additionally trigger the input assets changed event, as that updates the animation play offsets etc. This is needed when we switch from say training back to testing mode.
+		UpdatePreviewScene();
+		TriggerInputAssetChanged();
+	}
+
+	void FMLDeformerEditorModel::UpdatePreviewScene()
+	{
+		FMLDeformerEditorActor* EditorActor = nullptr;
+		UAnimationAsset* AnimAsset = nullptr;
+		IPersonaPreviewScene& Scene = GetEditor()->GetPersonaToolkit()->GetPreviewScene().Get();
+		const EMLDeformerVizMode Mode = Model->GetVizSettings()->GetVisualizationMode();
+		if (Mode == EMLDeformerVizMode::TrainingData)
+		{
+			EditorActor = FindEditorActor(ActorID_Train_Base);
+			AnimAsset = Model->GetAnimSequence();
+		}
+		else if (Mode == EMLDeformerVizMode::TestData)
+		{
+			EditorActor = FindEditorActor(ActorID_Test_MLDeformed);
+			AnimAsset = Model->GetVizSettings()->GetTestAnimSequence();
+		}
+
+		if (EditorActor)
+		{
+			Scene.SetActor(EditorActor->GetActor());
+			Scene.SetSelectedActor(EditorActor->GetActor());
+			UDebugSkelMeshComponent* SkelMeshComponent = EditorActor->GetSkeletalMeshComponent();
+			if (SkelMeshComponent)
+			{
+				Scene.SetPreviewMeshComponent(SkelMeshComponent);
+				Scene.SetPreviewMesh(SkelMeshComponent->GetSkeletalMeshAsset());
+			}
+			Scene.SetPreviewAnimationAsset(AnimAsset);
+		}
 	}
 
 	/** Get the current view range */

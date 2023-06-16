@@ -579,6 +579,9 @@ namespace UE::MLDeformer
 		 */
 		virtual TSharedPtr<SMLDeformerInputWidget> CreateInputWidget();
 
+		/** Update the persona preview scene's actor, skeletal mesh component, mesh and anim asset. These are based on the current visualization mode. */
+		virtual void UpdatePreviewScene();
+
 		/**
 		 * Generate the normals for a given morph target.
 		 * @param LOD The LOD level.
