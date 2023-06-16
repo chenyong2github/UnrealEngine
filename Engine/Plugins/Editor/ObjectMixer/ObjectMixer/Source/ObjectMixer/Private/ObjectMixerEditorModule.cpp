@@ -336,10 +336,10 @@ void FObjectMixerEditorModule::BindDelegates()
 
 	DelegateHandles.Add(GEditor->OnBlueprintCompiled().AddLambda([this] ()
 	{
-		if (ListModel)
-		{
-			ListModel->CacheAndRebuildFilters(true);
-		}
+//		if (ListModel)
+//		{
+//			ListModel->CacheAndRebuildFilters(true);
+//		}
 	}));
 	DelegateHandles.Add(GEditor->OnLevelActorAdded().AddLambda([this] (AActor*)
 	{
