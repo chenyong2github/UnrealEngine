@@ -14,13 +14,12 @@ class UEdGraphPin;
  * - Follows External Pin nodes.
  *
  * @param Pin Pin to follow.
- * @param CycleDetected If provided, it will set to true if a cycle has been found.
- * @return Connected pins.
- */
-TArray<UEdGraphPin*> FollowInputPinArray(const UEdGraphPin& Pin, bool* CycleDetected = nullptr);
+ * @param bOutCycleDetected If provided, it will set to true if a cycle has been found.
+ * @return Connected pins. */
+TArray<UEdGraphPin*> FollowInputPinArray(const UEdGraphPin& Pin, bool* bOutCycleDetected = nullptr);
 
 /** Non-array version of FollowInputPinArray. The pin can only have one connected pin. */
-UEdGraphPin* FollowInputPin(const UEdGraphPin& Pin, bool* CycleDetected = nullptr);
+UEdGraphPin* FollowInputPin(const UEdGraphPin& Pin, bool* bOutCycleDetected = nullptr);
 
 /** Follow the given input output returning the input connected pin.
  * 
@@ -29,10 +28,9 @@ UEdGraphPin* FollowInputPin(const UEdGraphPin& Pin, bool* CycleDetected = nullpt
  * - It will only follow External Pin nodes of loaded CO (i.e., Expose Pin nodes of CO which are NOT loaded will not be found)!
  *
  * @param Pin Pin to follow.
- * @param CycleDetected If provided, it will set to true if a cycle has been found.
- * @return Connected pins.
- */
-TArray<UEdGraphPin*> FollowOutputPinArray(const UEdGraphPin& Pin, bool* CycleDetected = nullptr);
+ * @param bOutCycleDetected If provided, it will set to true if a cycle has been found.
+ * @return Connected pins. */
+TArray<UEdGraphPin*> FollowOutputPinArray(const UEdGraphPin& Pin, bool* bOutCycleDetected = nullptr);
 
 /** Non-array version of FollowOutputPinArray. The pin can only have one connected pin. */
 UEdGraphPin* FollowOutputPin(const UEdGraphPin& Pin, bool* CycleDetected = nullptr);

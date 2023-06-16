@@ -104,6 +104,7 @@ public:
 	static const FName PC_Enum;
 	static const FName PC_Stack;
 	static const FName PC_MaterialAsset;
+	static const FName PC_Wildcard;
 
 private:
 	/** List of all node types. */

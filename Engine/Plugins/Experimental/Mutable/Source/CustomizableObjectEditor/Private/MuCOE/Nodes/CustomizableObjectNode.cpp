@@ -314,20 +314,17 @@ void UCustomizableObjectNode::AutowireNewNode(UEdGraphPin* FromPin)
 
 	const UEdGraphSchema_CustomizableObject* Schema = GetDefault<UEdGraphSchema_CustomizableObject>();
 
-	for ( int PinIndex=0; PinIndex<Pins.Num(); ++PinIndex )
-	{
-		if ( FromPin->PinType.PinCategory == Pins[PinIndex]->PinType.PinCategory 
-			&&
-			FromPin->Direction != Pins[PinIndex]->Direction )
+	for (UEdGraphPin* Pin : GetAllNonOrphanPins())
+	{	
+		UEdGraphNode* OwningNode = FromPin->GetOwningNode(); // TryCreateConnection can reconstruct the node invalidating the FromPin. Get the OwningNode before.
+
+		if (Schema->TryCreateConnection(FromPin, Pin))
 		{
-			UEdGraphNode* OwningNode = FromPin->GetOwningNode(); // TryCreateConnection can reconstruct the node invalidating the FromPin. Save the OwningNode here.
-			if (Schema->TryCreateConnection(FromPin, Pins[PinIndex]))
-			{
-				OwningNode->NodeConnectionListChanged();
-				NodeConnectionListChanged();
-			}
+			OwningNode->NodeConnectionListChanged();
+			NodeConnectionListChanged();
+
 			break;
-		}
+		}		
 	}
 }
 
@@ -404,7 +401,10 @@ bool UCustomizableObjectNode::CanConnect( const UEdGraphPin* InOwnedInputPin, co
 {
 	bOutIsOtherNodeBlocklisted = false;
 
-	bOutArePinsCompatible = InOwnedInputPin->PinType.PinCategory == InOutputPin->PinType.PinCategory;
+	bOutArePinsCompatible = InOwnedInputPin->PinType.PinCategory == InOutputPin->PinType.PinCategory ||
+		InOwnedInputPin->PinType.PinCategory == UEdGraphSchema_CustomizableObject::PC_Wildcard ||
+		InOutputPin->PinType.PinCategory == UEdGraphSchema_CustomizableObject::PC_Wildcard;
+	
 	return bOutArePinsCompatible;
 }
 
@@ -551,11 +551,11 @@ int32 UCustomizableObjectNode::GetLOD() const
 	const UCustomizableObjectNode* CurrentElement;
 	while (PotentialCustomizableNodeObjects.Dequeue(CurrentElement))
 	{
-		for (UEdGraphPin* Pin : CurrentElement->GetAllNonOrphanPins())
+		for (const UEdGraphPin* Pin : CurrentElement->GetAllNonOrphanPins())
 		{
-			if (Pin->Direction == EEdGraphPinDirection::EGPD_Output)
+			if (Pin->Direction == EGPD_Output)
 			{
-				for (UEdGraphPin* LinkedPin : Pin->LinkedTo)
+				for (UEdGraphPin* LinkedPin : FollowOutputPinArray(*Pin))
 				{
 					if (UCustomizableObjectNodeObject* CurrentCustomizableObjectNode = Cast<UCustomizableObjectNodeObject>(LinkedPin->GetOwningNode()))
 					{

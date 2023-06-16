@@ -74,6 +74,7 @@
 #include "Settings/EditorStyleSettings.h"
 #include "ToolMenu.h"
 #include "ToolMenuSection.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeReroute.h"
 #include "Toolkits/ToolkitManager.h"
 
 class IToolkit;
@@ -224,6 +225,7 @@ const FName UEdGraphSchema_CustomizableObject::PC_Bool("bool");
 const FName UEdGraphSchema_CustomizableObject::PC_Enum("enum");
 const FName UEdGraphSchema_CustomizableObject::PC_Stack("stack");
 const FName UEdGraphSchema_CustomizableObject::PC_MaterialAsset("materialAsset");
+const FName UEdGraphSchema_CustomizableObject::PC_Wildcard("wildcard");
 
 
 UEdGraphSchema_CustomizableObject::UEdGraphSchema_CustomizableObject()
@@ -327,7 +329,7 @@ namespace
 		TemplateNode->BeginConstruct();
 		TemplateNode->ReconstructNode();
 		
-		for (const UEdGraphPin* Pin : TemplateNode->GetAllPins())
+		for (const UEdGraphPin* Pin : TemplateNode->GetAllNonOrphanPins())
 		{
 			const UEdGraphPin* InputPin = nullptr;
 			const UEdGraphPin* OutputPin = nullptr;
@@ -604,6 +606,12 @@ void UEdGraphSchema_CustomizableObject::GetGraphContextActions(FGraphContextMenu
 		Action->NodeTemplate = Node;
 	}
 
+	{
+		UCustomizableObjectNodeReroute* Node = NewObject<UCustomizableObjectNodeReroute>();
+		TSharedPtr<FCustomizableObjectSchemaAction_NewNode> Action = AddNewNodeAction(ContextMenuBuilder, FString(), Node->GetNodeTitle(ENodeTitleType::ListView), FText(), 1);
+		Action->NodeTemplate = Node;
+	}
+
 	// Add Paste here if appropriate
 	if (!ContextMenuBuilder.FromPin)
 	{
@@ -690,59 +698,63 @@ FLinearColor UEdGraphSchema_CustomizableObject::GetPinTypeColor(const FName& Typ
 {
 	if (TypeString == PC_Enum)
 	{
-		return FLinearColor(0.357667f, 0.500000f, 0.060000f, 1.000000f);
+		return FLinearColor(0.357667f, 0.500000f, 0.060000f, 1.000000f); // Light green
 	}
 	else if (TypeString == PC_Float)
 	{
-		return FLinearColor(0.357667f, 1.000000f, 0.060000f, 1.000000f);
+		return FLinearColor(0.357667f, 1.000000f, 0.060000f, 1.000000f); // Green
 	}
 	else if (TypeString == PC_Color)
 	{
-		return FLinearColor(1.000000f, 0.591255f, 0.016512f, 1.000000f);
+		return FLinearColor(1.000000f, 0.591255f, 0.016512f, 1.000000f); // Yellow
 	}
 	else if (TypeString == PC_Bool)
 	{
-		return FLinearColor(0.470000f, 0.0f, 0.000000f, 1.000000f);
+		return FLinearColor(0.470000f, 0.0f, 0.000000f, 1.000000f); // Red
 	}
 	else if (TypeString == PC_Projector)
 	{
-		return FLinearColor(1.000000f, 0.500000f, 1.000000f, 0.600000f);
+		return FLinearColor(1.000000f, 0.500000f, 1.000000f, 0.600000f); // Light pink
 	}
 	else if (TypeString == PC_GroupProjector)
 	{
-		return FLinearColor(1.000000f, 0.172585f, 0.000000f, 1.000000f);
+		return FLinearColor(1.000000f, 0.172585f, 0.000000f, 1.000000f); // Orange
 	}
 	else if (TypeString == PC_Mesh)
 	{
-		return FLinearColor(0.100000f, 0.000000f, 0.500000f, 1.000000f);
+		return FLinearColor(0.100000f, 0.000000f, 0.500000f, 1.000000f); // Purple
 	}
 	else if (TypeString == PC_Layout)
 	{
-		return FLinearColor(0.500000f, 0.500000f, 0.100000f, 1.000000f);
+		return FLinearColor(0.500000f, 0.500000f, 0.100000f, 1.000000f); // Light yellow
 	}
 	else if (TypeString == PC_Image)
 	{
-		return FLinearColor(0.353393f, 0.454175f, 1.000000f, 1.000000f);
+		return FLinearColor(0.353393f, 0.454175f, 1.000000f, 1.000000f); // Grey
 	}
 	else if (TypeString == PC_PassThroughImage)
 	{
-		return FLinearColor(0.353393f, 0.454175f, 0.353393f, 1.000000f);
+		return FLinearColor(0.353393f, 0.454175f, 0.353393f, 1.000000f); // Dark green
 	}
 	else if (TypeString == PC_Material)
 	{
-		return FLinearColor(0.000000f, 0.100000f, 0.600000f, 1.000000f);
+		return FLinearColor(0.000000f, 0.100000f, 0.600000f, 1.000000f); // Blue
 	}
 	else if (TypeString == PC_Object)
 	{
-		return FLinearColor(0.000000f, 0.400000f, 0.910000f, 1.000000f);
+		return FLinearColor(0.000000f, 0.400000f, 0.910000f, 1.000000f); // Light blue
 	}
 	else if (TypeString == PC_Stack)
 	{
-		return FLinearColor(1.000000f, 0.000000f, 0.800000f, 1.000000f);
+		return FLinearColor(1.000000f, 0.000000f, 0.800000f, 1.000000f); // Pink
 	}
 	else if (TypeString == PC_MaterialAsset)
 	{
-		return FLinearColor(1.000000f, 1.000000f, 1.000000f, 1.000000f);
+		return FLinearColor(0.000000f, 1.000000f, 0.1000f, 1.000000f); // Cian
+	}
+	else if (TypeString == PC_Wildcard)
+	{
+		return FLinearColor(1.000000f, 1.000000f, 1.000000f, 1.000000f); // White
 	}
 
 	for (const FRegisteredCustomizableObjectPinType& PinType : ICustomizableObjectModule::Get().GetExtendedPinTypes())
@@ -1267,6 +1279,10 @@ FText UEdGraphSchema_CustomizableObject::GetPinCategoryName(const FName& PinCate
 	else if (PinCategory == UEdGraphSchema_CustomizableObject::PC_MaterialAsset)
 	{
 		return LOCTEXT("Material_Asset_Pin_Category", "materialAsset");
+	}
+	else if (PinCategory == UEdGraphSchema_CustomizableObject::PC_MaterialAsset)
+	{
+		return LOCTEXT("Wildcard_Pin_Category", "Wildcard");
 	}
 	else
 	{

@@ -50,7 +50,7 @@ const FSlateBrush* SCustomizableObjectNodeMaterialPinImage::GetPinIcon() const
 {
 	if (CastChecked<UCustomizableObjectNodeMaterial>(GraphPinObj->GetOwningNode())->IsImageMutableMode(*GraphPinObj))
 	{
-		if (FollowInputPin(*GraphPinObj))
+		if (GraphPinObj->LinkedTo.Num())
 		{
 			return CachedPinMutableConnected;
 		}
