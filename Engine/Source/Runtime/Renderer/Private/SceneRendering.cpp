@@ -1968,11 +1968,14 @@ void FViewInfo::SetupUniformBufferParameters(
 	if (ViewState)
 	{
 		ViewUniformShaderParameters.GlintTexture = ViewState->GlintShadingLUTsData.RHIGlintShadingLUTs ? ViewState->GlintShadingLUTsData.RHIGlintShadingLUTs : nullptr;
-		ViewUniformShaderParameters.GlintLUTParameters = FVector4f(
+		ViewUniformShaderParameters.GlintLUTParameters0 = FVector4f(
 			ViewState->GlintShadingLUTsData.Dictionary_Alpha,
 			*reinterpret_cast<float*>(&ViewState->GlintShadingLUTsData.Dictionary_N),
 			*reinterpret_cast<float*>(&ViewState->GlintShadingLUTsData.Dictionary_NLevels),
-			0.0f);
+			Strata::GlintLevelBias());
+		ViewUniformShaderParameters.GlintLUTParameters1 = FVector4f(
+			Strata::GlintLevelMin(),
+			0.0f, 0.0f, 0.0f);
 	}
 	ViewUniformShaderParameters.GlintTexture = OrBlack2DArrayIfNull(ViewUniformShaderParameters.GlintTexture);
 

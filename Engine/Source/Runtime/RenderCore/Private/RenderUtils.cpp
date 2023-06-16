@@ -1638,6 +1638,18 @@ static TAutoConsoleVariable<int32> CVarSubstrateGlintsLUT(
 	TEXT("Select one of the glint rendering LUT for testing."),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<float> CVarSubstrateGlintsLevelBias(
+	TEXT("r.Substrate.Glints.LevelBias"),
+	0.0f,
+	TEXT("Constantly bias the glint level. A negative value will reinforce the glint effect while a positive value will attenuate it. Be careful as this might cause aliasing."),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<float> CVarSubstrateGlintsLevelMin(
+	TEXT("r.Substrate.Glints.LevelMin"),
+	0.0f,
+	TEXT("The minimum glint level used to render glints. Mostly affect the look of distance surfaces. A value greater than 0 will force glints to always be visible instead of using the analytic BSDF. Be careful as this might cause aliasing."),
+	ECVF_RenderThreadSafe);
+
 static TAutoConsoleVariable<int32> CVarSubstrateSpecularProfile(
 	TEXT("r.Substrate.SpecularProfile"),
 	1,
@@ -1751,6 +1763,17 @@ namespace Strata
 	uint32 GlintLUTIndex()
 	{
 		return CVarSubstrateGlintsLUT.GetValueOnAnyThread()<= 0 ? 0u : 1u;
+	}
+
+	float GlintLevelBias()
+	{
+		return CVarSubstrateGlintsLevelBias.GetValueOnAnyThread();
+	}
+
+	float GlintLevelMin()
+	{
+		const float MinLevel = CVarSubstrateGlintsLevelMin.GetValueOnAnyThread();
+		return MinLevel < 0.0f ? 0.0f : MinLevel;
 	}
 
 	bool IsSpecularProfileEnabled()
