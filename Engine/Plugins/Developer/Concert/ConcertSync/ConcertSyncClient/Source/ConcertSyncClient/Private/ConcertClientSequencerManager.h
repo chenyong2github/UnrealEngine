@@ -17,6 +17,7 @@ class ALevelSequenceActor;
 #if WITH_EDITOR
 
 class ISequencer;
+class FConcertClientSequencePreloader;
 class FConcertClientWorkspace;
 struct FSequencerInitParams;
 class ULevelSequence;
@@ -200,13 +201,6 @@ private:
 	void OnTimeAdjustmentEvent(const FConcertSessionContext& InEventContext, const FConcertSequencerTimeAdjustmentEvent& InEvent);
 
 	/**
-	 * Called on receipt of an external sequence precaching event from the server
-	 * @param InEventContext             The session context for the received message.
-	 * @param InEvent                    The sequence precache event.
-	 */
-	void OnPrecacheEvent(const FConcertSessionContext& InEventContext, const FConcertSequencerPrecacheEvent& InEvent);
-
-	/**
 	 * Called when the global time has been changed for the specified Sequencer
 	 *
 	 * @param InSequencer                 The sequencer that has just updated its time
@@ -362,8 +356,8 @@ private:
 	/** Map of opened sequence players, if not in editor mode. */
 	TMap<FName, TObjectPtr<ALevelSequenceActor>> SequencePlayers;
 
-	/** Map of precached sequence assets. */
-	TMap<FName, TObjectPtr<ULevelSequence>> PrecachedSequences;
+	/** Handle preload requests from the server, asynchronously loading and maintaining GC references to sequence assets. */
+	TSharedRef<FConcertClientSequencePreloader> Preloader;
 
 	/** Boolean that is set when we are handling any transport event to prevent re-entrancy */
 	bool bRespondingToTransportEvent;

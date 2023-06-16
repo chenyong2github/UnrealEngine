@@ -5,6 +5,8 @@
 #include "ConcertSyncServerLiveSession.h"
 #include "ConcertWorkspaceMessages.h"
 #include "ConcertLogGlobal.h"
+#include "Logging/StructuredLog.h"
+
 
 FConcertServerSequencerManager::FConcertServerSequencerManager(const TSharedRef<FConcertSyncServerLiveSession>& InLiveSession)
 {
@@ -29,7 +31,9 @@ void FConcertServerSequencerManager::BindSession(const TSharedRef<FConcertSyncSe
 	LiveSession->GetSession().RegisterCustomEventHandler<FConcertSequencerOpenEvent>(this, &FConcertServerSequencerManager::HandleSequencerOpenEvent);
 	LiveSession->GetSession().RegisterCustomEventHandler<FConcertSequencerTimeAdjustmentEvent>(this, &FConcertServerSequencerManager::HandleSequencerTimeAdjustmentEvent);
 	LiveSession->GetSession().RegisterCustomEventHandler<FConcertWorkspaceSyncAndFinalizeCompletedEvent>(this, &FConcertServerSequencerManager::HandleWorkspaceSyncAndFinalizeCompletedEvent);
-	LiveSession->GetSession().RegisterCustomEventHandler<FConcertSequencerPrecacheEvent>(this, &FConcertServerSequencerManager::HandleSequencerPrecacheEvent);
+
+	LiveSession->GetSession().RegisterCustomEventHandler<FConcertSequencerPreloadRequest>(this, &FConcertServerSequencerManager::HandleSequencerPreloadRequestEvent);
+	LiveSession->GetSession().RegisterCustomEventHandler<FConcertSequencerPreloadAssetStatusMap>(this, &FConcertServerSequencerManager::HandleSequencerPreloadStatusEvent);
 }
 
 void FConcertServerSequencerManager::UnbindSession()
@@ -42,7 +46,9 @@ void FConcertServerSequencerManager::UnbindSession()
 		LiveSession->GetSession().UnregisterCustomEventHandler<FConcertSequencerOpenEvent>(this);
 		LiveSession->GetSession().UnregisterCustomEventHandler<FConcertSequencerTimeAdjustmentEvent>(this);
 		LiveSession->GetSession().UnregisterCustomEventHandler<FConcertWorkspaceSyncAndFinalizeCompletedEvent>(this);
-		LiveSession->GetSession().UnregisterCustomEventHandler<FConcertSequencerPrecacheEvent>(this);
+
+		LiveSession->GetSession().UnregisterCustomEventHandler<FConcertSequencerPreloadRequest>(this);
+		LiveSession->GetSession().UnregisterCustomEventHandler<FConcertSequencerPreloadAssetStatusMap>(this);
 
 		LiveSession.Reset();
 	}
@@ -108,27 +114,27 @@ void FConcertServerSequencerManager::HandleSequencerCloseEvent(const FConcertSes
 	}
 }
 
-void FConcertServerSequencerManager::HandleSequencerPrecacheEvent(const FConcertSessionContext& InEventContext, const FConcertSequencerPrecacheEvent& InEvent)
+void FConcertServerSequencerManager::HandleSequencerPreloadRequestEvent(const FConcertSessionContext& InEventContext, const FConcertSequencerPreloadRequest& InEvent)
 {
 	const FGuid& RequestClient = InEventContext.SourceEndpointId;
-	const bool bClientWantsPrecached = InEvent.bShouldBePrecached;
+	const bool bClientWantsPreloaded = InEvent.bShouldBePreloaded;
 
-	UE_LOG(LogConcert, Verbose,
-		TEXT("FConcertServerSequencerManager: Precache request from client %s to %s %u sequences"),
+	UE_LOGFMT(LogConcert, Verbose,
+		"FConcertServerSequencerManager: Preload request from client {Client} to {AddOrRemove} {NumSequences} sequences",
 		*RequestClient.ToString(),
-		bClientWantsPrecached ? TEXT("add") : TEXT("remove"),
+		bClientWantsPreloaded ? TEXT("add") : TEXT("remove"),
 		InEvent.SequenceObjectPaths.Num());
 
 	// Represents the net result to broadcast, if any. Contains only sequences
 	// which gained their first, or lost their last, referencer.
-	FConcertSequencerPrecacheEvent OutChanges;
-	OutChanges.bShouldBePrecached = bClientWantsPrecached;
+	FConcertSequencerPreloadRequest OutChanges;
+	OutChanges.bShouldBePreloaded = bClientWantsPreloaded;
 
-	for (const FString& SequenceObjectPath : InEvent.SequenceObjectPaths)
+	for (const FTopLevelAssetPath& SequenceObjectPath : InEvent.SequenceObjectPaths)
 	{
-		if (bClientWantsPrecached)
+		if (bClientWantsPreloaded)
 		{
-			const bool bAddedFirstReferencer = AddSequencePrecacheForClient(RequestClient, SequenceObjectPath);
+			const bool bAddedFirstReferencer = AddSequencePreloadForClient(RequestClient, SequenceObjectPath);
 			if (bAddedFirstReferencer)
 			{
 				OutChanges.SequenceObjectPaths.Add(SequenceObjectPath);
@@ -136,26 +142,40 @@ void FConcertServerSequencerManager::HandleSequencerPrecacheEvent(const FConcert
 		}
 		else
 		{
-			const bool bRemovedLastReferencer = RemoveSequencePrecacheForClient(RequestClient, SequenceObjectPath);
+			const bool bRemovedLastReferencer = RemoveSequencePreloadForClient(RequestClient, SequenceObjectPath);
 			if (bRemovedLastReferencer)
 			{
 				OutChanges.SequenceObjectPaths.Add(SequenceObjectPath);
+				ClientPreloadStatuses.Remove(SequenceObjectPath);
 			}
 		}
 	}
 
 	if (OutChanges.SequenceObjectPaths.Num() > 0)
 	{
-		for (const FString& SequenceObjectPath : OutChanges.SequenceObjectPaths)
+		for (const FTopLevelAssetPath& SequenceObjectPath : OutChanges.SequenceObjectPaths)
 		{
-			UE_LOG(LogConcert, Verbose,
-				TEXT("FConcertServerSequencerManager: Sequence '%s' %s precache set"),
-				*SequenceObjectPath,
-				bClientWantsPrecached ? TEXT("added to") : TEXT("removed from"));
+			UE_LOGFMT(LogConcert, Verbose,
+				"FConcertServerSequencerManager: Sequence {Path} {AddedOrRemoved} preload set",
+				SequenceObjectPath.ToString(),
+				bClientWantsPreloaded ? TEXT("added to") : TEXT("removed from"));
 		}
 
 		LiveSession->GetSession().SendCustomEvent(OutChanges, LiveSession->GetSession().GetSessionClientEndpointIds(), EConcertMessageFlags::ReliableOrdered | EConcertMessageFlags::UniqueId);
 	}
+}
+
+void FConcertServerSequencerManager::HandleSequencerPreloadStatusEvent(const FConcertSessionContext& InEventContext, const FConcertSequencerPreloadAssetStatusMap& InEvent)
+{
+	// Update our cached status, and then forward the change to other clients.
+	const FGuid& Sender = InEventContext.SourceEndpointId;
+	ClientPreloadStatuses.UpdateFrom(Sender, InEvent);
+
+	FConcertSequencerPreloadClientStatusMap ForwardEvent;
+	ForwardEvent.UpdateFrom(Sender, InEvent);
+	TArray<FGuid> ForwardRecipients = LiveSession->GetSession().GetSessionClientEndpointIds();
+	ForwardRecipients.RemoveSingle(InEventContext.SourceEndpointId);
+	LiveSession->GetSession().SendCustomEvent(ForwardEvent, ForwardRecipients, EConcertMessageFlags::ReliableOrdered | EConcertMessageFlags::UniqueId);
 }
 
 void FConcertServerSequencerManager::HandleWorkspaceSyncAndFinalizeCompletedEvent(const FConcertSessionContext& InEventContext, const FConcertWorkspaceSyncAndFinalizeCompletedEvent& InEvent)
@@ -172,6 +192,7 @@ void FConcertServerSequencerManager::HandleWorkspaceSyncAndFinalizeCompletedEven
 void FConcertServerSequencerManager::HandleSessionClientChanged(IConcertServerSession& InSession, EConcertClientStatus InClientStatus, const FConcertSessionClientInfo& InClientInfo)
 {
 	check(&InSession == &LiveSession->GetSession());
+
 	// Remove the client from all open sequences
 	if (InClientStatus == EConcertClientStatus::Disconnected)
 	{
@@ -192,64 +213,64 @@ void FConcertServerSequencerManager::HandleSessionClientChanged(IConcertServerSe
 		}
 	}
 
-	// Newly connected clients need to be sent the current set of precached sequences.
+	// Newly connected clients need to be sent the current set of preloaded sequences.
 	// Disconnecting clients need their references removed, which may update other clients.
 	if (InClientStatus == EConcertClientStatus::Connected ||
 		InClientStatus == EConcertClientStatus::Disconnected)
 	{
-		FConcertSequencerPrecacheEvent PrecacheEvent;
+		FConcertSequencerPreloadRequest PreloadRequest;
 		TArray<FGuid> EventRecipients;
 
 		if (InClientStatus == EConcertClientStatus::Connected)
 		{
-			PrecacheEvent.bShouldBePrecached = true;
+			PreloadRequest.bShouldBePreloaded = true;
 			EventRecipients.Add(InClientInfo.ClientEndpointId);
 		}
 		else
 		{
-			PrecacheEvent.bShouldBePrecached = false;
+			PreloadRequest.bShouldBePreloaded = false;
 			EventRecipients = LiveSession->GetSession().GetSessionClientEndpointIds();
 		}
 
-		for (TMap<FName, FPrecachingState>::TIterator It = PrecacheStates.CreateIterator(); It; ++It)
+		for (TMap<FTopLevelAssetPath, TSet<FGuid>>::TIterator It = PreloadRequesters.CreateIterator(); It; ++It)
 		{
 			if (InClientStatus == EConcertClientStatus::Connected)
 			{
-				ensure(It->Value.ReferencingClientEndpoints.Num() > 0);
-				PrecacheEvent.SequenceObjectPaths.Add(It->Key.ToString());
+				ensure(It->Value.Num() > 0);
+				PreloadRequest.SequenceObjectPaths.Add(It->Key);
 			}
 			else
 			{
-				if (It->Value.ReferencingClientEndpoints.Remove(InClientInfo.ClientEndpointId))
+				if (It->Value.Remove(InClientInfo.ClientEndpointId))
 				{
-					if (It->Value.ReferencingClientEndpoints.Num() == 0)
+					if (It->Value.Num() == 0)
 					{
-						PrecacheEvent.SequenceObjectPaths.Add(It->Key.ToString());
+						PreloadRequest.SequenceObjectPaths.Add(It->Key);
 						It.RemoveCurrent();
 					}
 				}
 			}
 		}
 
-		if (PrecacheEvent.SequenceObjectPaths.Num() > 0)
+		if (PreloadRequest.SequenceObjectPaths.Num() > 0)
 		{
-			for (const FString& SequenceObjectPath : PrecacheEvent.SequenceObjectPaths)
+			for (const FTopLevelAssetPath& SequenceObjectPath : PreloadRequest.SequenceObjectPaths)
 			{
 				if (InClientStatus == EConcertClientStatus::Connected)
 				{
-					UE_LOG(LogConcert, Verbose,
-						TEXT("FConcertServerSequencerManager: Client connected; notifying precache set contains sequence '%s'"),
-						*SequenceObjectPath);
+					UE_LOGFMT(LogConcert, Verbose,
+						"FConcertServerSequencerManager: Client connected; notifying preload set contains sequence '{Path}'",
+						SequenceObjectPath.ToString());
 				}
 				else
 				{
-					UE_LOG(LogConcert, Verbose,
-						TEXT("FConcertServerSequencerManager: Client disconnected; last reference to '%s' was released, removed from precache set"),
-						*SequenceObjectPath);
+					UE_LOGFMT(LogConcert, Verbose,
+						"FConcertServerSequencerManager: Client disconnected; last reference to '{Path}' was released, removed from preload set",
+						SequenceObjectPath.ToString());
 				}
 			}
 
-			LiveSession->GetSession().SendCustomEvent(PrecacheEvent, EventRecipients, EConcertMessageFlags::ReliableOrdered | EConcertMessageFlags::UniqueId);
+			LiveSession->GetSession().SendCustomEvent(PreloadRequest, EventRecipients, EConcertMessageFlags::ReliableOrdered | EConcertMessageFlags::UniqueId);
 		}
 	}
 
@@ -259,48 +280,48 @@ void FConcertServerSequencerManager::HandleSessionClientChanged(IConcertServerSe
 	// stream.
 }
 
-bool FConcertServerSequencerManager::AddSequencePrecacheForClient(const FGuid& RequestClient, const FString& SequenceObjectPath)
+bool FConcertServerSequencerManager::AddSequencePreloadForClient(const FGuid& RequestClient, const FTopLevelAssetPath& SequenceObjectPath)
 {
 	bool bAddedFirstReferencer = false;
 
-	FPrecachingState& State = PrecacheStates.FindOrAdd(*SequenceObjectPath);
+	TSet<FGuid>& Requesters = PreloadRequesters.FindOrAdd(SequenceObjectPath);
 	bool bAlreadyInSet = false;
-	State.ReferencingClientEndpoints.Add(RequestClient, &bAlreadyInSet);
+	Requesters.Add(RequestClient, &bAlreadyInSet);
 	if (!bAlreadyInSet)
 	{
-		if (State.ReferencingClientEndpoints.Num() == 1)
+		if (Requesters.Num() == 1)
 		{
 			bAddedFirstReferencer = true;
 		}
 	}
 	else
 	{
-		UE_LOG(LogConcert, Warning, TEXT("FConcertServerSequencerManager: Client %s requested redundant add precache for sequence %s"),
-			*RequestClient.ToString(), *SequenceObjectPath);
+		UE_LOGFMT(LogConcert, Warning, "FConcertServerSequencerManager: Client {Client} requested redundant add preload for sequence {Path}",
+			RequestClient.ToString(), SequenceObjectPath.ToString());
 	}
 
 	return bAddedFirstReferencer;
 }
 
-bool FConcertServerSequencerManager::RemoveSequencePrecacheForClient(const FGuid& RequestClient, const FString& SequenceObjectPath)
+bool FConcertServerSequencerManager::RemoveSequencePreloadForClient(const FGuid& RequestClient, const FTopLevelAssetPath& SequenceObjectPath)
 {
 	bool bRemovedLastReferencer = false;
 
-	FPrecachingState* MaybeState = PrecacheStates.Find(*SequenceObjectPath);
-	if (MaybeState && MaybeState->ReferencingClientEndpoints.Remove(RequestClient))
+	TSet<FGuid>* MaybeRequesters = PreloadRequesters.Find(SequenceObjectPath);
+	if (MaybeRequesters && MaybeRequesters->Remove(RequestClient))
 	{
-		if (MaybeState->ReferencingClientEndpoints.Num() == 0)
+		if (MaybeRequesters->Num() == 0)
 		{
 			// Removed last reference.
-			MaybeState = nullptr;
-			PrecacheStates.Remove(*SequenceObjectPath);
+			MaybeRequesters = nullptr;
+			PreloadRequesters.Remove(SequenceObjectPath);
 			bRemovedLastReferencer = true;
 		}
 	}
 	else
 	{
-		UE_LOG(LogConcert, Warning, TEXT("FConcertServerSequencerManager: Client %s attempted invalid release precache for sequence %s"),
-			*RequestClient.ToString(), *SequenceObjectPath);
+		UE_LOGFMT(LogConcert, Warning, "FConcertServerSequencerManager: Client {Client} attempted invalid release preload for sequence {Path}",
+			RequestClient.ToString(), SequenceObjectPath.ToString());
 	}
 
 	return bRemovedLastReferencer;

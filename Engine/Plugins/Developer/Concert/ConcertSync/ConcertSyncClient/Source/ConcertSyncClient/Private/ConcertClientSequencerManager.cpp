@@ -8,6 +8,7 @@
 #include "Misc/QualifiedFrameTime.h"
 #include "Modules/ModuleManager.h"
 #include "Logging/LogMacros.h"
+#include "Logging/StructuredLog.h"
 
 #include "IConcertClient.h"
 #include "IConcertSyncClient.h"
@@ -60,8 +61,53 @@ static TAutoConsoleVariable<int32> CVarEnableUnrelatedTimelineSync(TEXT("Concert
 static TAutoConsoleVariable<int32> CVarAlwaysCloseGamePlayerOnCloseEvent(
 	TEXT("Concert.AlwaysCloseGamePlayerOnCloseEvent"), 1, TEXT("Force this player to close even if other editors have it open. This CVar only works on `-game` instances."));
 
+
+class FConcertClientSequencePreloader : public TSharedFromThis<FConcertClientSequencePreloader>
+{
+public:
+	void OnPreloadEvent(const FConcertSessionContext& InEventContext, const FConcertSequencerPreloadRequest& InEvent);
+
+	void OnRegister(TSharedRef<IConcertClientSession> InSession)
+	{
+		WeakSession = InSession;
+
+		InSession->RegisterCustomEventHandler<FConcertSequencerPreloadRequest>(this, &FConcertClientSequencePreloader::OnPreloadEvent);
+	}
+
+	void OnUnregister(TSharedRef<IConcertClientSession> InSession)
+	{
+		PreloadPendingSequences.Empty();
+		PreloadedSequences.Empty();
+
+		// Unregister our events and explicitly reset the session ptr
+		if (TSharedPtr<IConcertClientSession> Session = WeakSession.Pin())
+		{
+			check(Session == InSession);
+			Session->UnregisterCustomEventHandler<FConcertSequencerPreloadRequest>(this);
+		}
+
+		WeakSession.Reset();
+	}
+
+	void AddReferencedObjects(FReferenceCollector& Collector)
+	{
+		Collector.AddReferencedObjects(PreloadedSequences);
+	}
+
+protected:
+	TWeakPtr<IConcertClientSession> WeakSession;
+
+	/** Map of sequence assets for which preload has been requested but not completed. */
+	TMap<FTopLevelAssetPath, TSoftObjectPtr<ULevelSequence>> PreloadPendingSequences;
+
+	/** Map of preloaded sequence assets. */
+	TMap<FTopLevelAssetPath, TObjectPtr<ULevelSequence>> PreloadedSequences;
+};
+
+
 FConcertClientSequencerManager::FConcertClientSequencerManager(IConcertSyncClient* InOwnerSyncClient)
 	: OwnerSyncClient(InOwnerSyncClient)
+	, Preloader(MakeShared<FConcertClientSequencePreloader>())
 {
 	check(OwnerSyncClient);
 
@@ -199,13 +245,12 @@ void FConcertClientSequencerManager::Register(TSharedRef<IConcertClientSession> 
 	InSession->RegisterCustomEventHandler<FConcertSequencerOpenEvent>(this, &FConcertClientSequencerManager::OnOpenEvent);
 	InSession->RegisterCustomEventHandler<FConcertSequencerStateSyncEvent>(this, &FConcertClientSequencerManager::OnStateSyncEvent);
 	InSession->RegisterCustomEventHandler<FConcertSequencerTimeAdjustmentEvent>(this, &FConcertClientSequencerManager::OnTimeAdjustmentEvent);
-	InSession->RegisterCustomEventHandler<FConcertSequencerPrecacheEvent>(this, &FConcertClientSequencerManager::OnPrecacheEvent);
+
+	Preloader->OnRegister(InSession);
 }
 
 void FConcertClientSequencerManager::Unregister(TSharedRef<IConcertClientSession> InSession)
 {
-	PrecachedSequences.Empty();
-
 	// Unregister our events and explicitly reset the session ptr
 	if (TSharedPtr<IConcertClientSession> Session = WeakSession.Pin())
 	{
@@ -215,9 +260,12 @@ void FConcertClientSequencerManager::Unregister(TSharedRef<IConcertClientSession
 		Session->UnregisterCustomEventHandler<FConcertSequencerOpenEvent>(this);
 		Session->UnregisterCustomEventHandler<FConcertSequencerStateSyncEvent>(this);
 		Session->UnregisterCustomEventHandler<FConcertSequencerTimeAdjustmentEvent>(this);
-		Session->UnregisterCustomEventHandler<FConcertSequencerPrecacheEvent>(this);
+		Session->UnregisterCustomEventHandler<FConcertSequencerPreloadRequest>(this);
 	}
+
 	WeakSession.Reset();
+
+	Preloader->OnUnregister(InSession);
 }
 
 void SetConsoleVariableRespectingPriority(IConsoleVariable* AsVariable, bool bValue)
@@ -814,37 +862,111 @@ void FConcertClientSequencerManager::ApplyTimeAdjustmentToPlayers(const FConcert
 	}
 }
 
-void FConcertClientSequencerManager::OnPrecacheEvent(const FConcertSessionContext& InEventContext, const FConcertSequencerPrecacheEvent& InEvent)
+void FConcertClientSequencePreloader::OnPreloadEvent(const FConcertSessionContext& InEventContext, const FConcertSequencerPreloadRequest& InEvent)
 {
-	for (const FString& SequenceObjectPathStr : InEvent.SequenceObjectPaths)
+	for (const FTopLevelAssetPath& SequenceObjectPath : InEvent.SequenceObjectPaths)
 	{
-		const FName SequenceObjectPath = *SequenceObjectPathStr;
-		const bool bShouldPrecache = InEvent.bShouldBePrecached;
-		UE_LOG(LogConcertSequencerSync, Verbose, TEXT("OnPrecacheEvent: %s should be %s the precache set"),
-			*SequenceObjectPathStr, bShouldPrecache ? TEXT("added to") : TEXT("removed from"));
-		if (bShouldPrecache)
+		const bool bShouldPreload = InEvent.bShouldBePreloaded;
+		UE_LOGFMT(LogConcertSequencerSync, Verbose, "OnPreloadEvent: {Path} should be {Action} the preload set",
+			SequenceObjectPath.ToString(), bShouldPreload ? TEXT("added to") : TEXT("removed from"));
+		if (bShouldPreload)
 		{
-			if (TObjectPtr<ULevelSequence>* ExistingSequence = PrecachedSequences.Find(SequenceObjectPath);
+			if (TObjectPtr<ULevelSequence>* ExistingSequence = PreloadedSequences.Find(SequenceObjectPath);
 				ExistingSequence && *ExistingSequence)
 			{
-				UE_LOG(LogConcertSequencerSync, Warning, TEXT("OnPrecacheEvent: %s already in precache set"), *SequenceObjectPath.ToString());
+				UE_LOGFMT(LogConcertSequencerSync, Warning, "OnPreloadEvent: {Path} already in preload set", SequenceObjectPath.ToString());
 				continue;
 			}
-
-			ULevelSequence* LoadedSequence = LoadObject<ULevelSequence>(nullptr, *SequenceObjectPathStr);
-			if (!LoadedSequence)
+			else if (PreloadPendingSequences.Contains(SequenceObjectPath))
 			{
-				UE_LOG(LogConcertSequencerSync, Warning, TEXT("OnPrecacheEvent: Failed to load sequence %s"), *SequenceObjectPath.ToString());
+				UE_LOGFMT(LogConcertSequencerSync, Warning, "OnPreloadEvent: {Path} already has outstanding async load", SequenceObjectPath.ToString());
 				continue;
 			}
 
-			PrecachedSequences.Add(SequenceObjectPath, LoadedSequence);
+			const FSoftObjectPath SoftSequenceObjectPath(SequenceObjectPath);
+			TSoftObjectPtr<ULevelSequence> SoftSequenceObject(SoftSequenceObjectPath);
+
+			if (ULevelSequence* AlreadyLoadedSequence = SoftSequenceObject.Get())
+			{
+				UE_LOGFMT(LogConcertSequencerSync, Verbose, "OnPreloadEvent: {Path} was already loaded", SequenceObjectPath.ToString());
+				PreloadedSequences.Add(SequenceObjectPath, AlreadyLoadedSequence);
+
+				if (TSharedPtr<IConcertClientSession> Session = WeakSession.Pin(); ensure(Session))
+				{
+					// Inform the server.
+					FConcertSequencerPreloadAssetStatusMap Response;
+					Response.Sequences.Add(SequenceObjectPath, EConcertSequencerPreloadStatus::Succeeded);
+					Session->SendCustomEvent(Response, Session->GetSessionServerEndpointId(), EConcertMessageFlags::ReliableOrdered);
+				}
+			}
+			else
+			{
+				UE_LOGFMT(LogConcertSequencerSync, Verbose, "OnPreloadEvent: Initiating async package load for {Path}", SequenceObjectPath.ToString());
+				PreloadPendingSequences.Add(SequenceObjectPath, SoftSequenceObject);
+				LoadPackageAsync(SoftSequenceObject.GetLongPackageName(), FLoadPackageAsyncDelegate::CreateLambda(
+					[WeakThis = AsWeak(),
+					WeakRequestSession = WeakSession,
+					SequenceObjectPath,
+					SoftSequenceObject]
+					(const FName& PackageName, UPackage* LoadedPackage, EAsyncLoadingResult::Type Result)
+					{
+						TSharedPtr<FConcertClientSequencePreloader> This = WeakThis.Pin();
+						if (!This)
+						{
+							UE_LOGFMT(LogConcertSequencerSync, Warning, "Discarding async load result for stale preloader");
+							return;
+						}
+
+						TSharedPtr<IConcertClientSession> Session = This->WeakSession.Pin();
+						if (!Session || Session != WeakRequestSession)
+						{
+							UE_LOGFMT(LogConcertSequencerSync, Warning, "Discarding async load result issued by mismatched session");
+							return;
+						}
+
+						if (!This->PreloadPendingSequences.Remove(SequenceObjectPath))
+						{
+							UE_LOGFMT(LogConcertSequencerSync, Warning, "Discarding async load result for sequence no longer pending");
+							return;
+						}
+
+						if (Result != EAsyncLoadingResult::Succeeded)
+						{
+							UE_LOGFMT(LogConcertSequencerSync, Error, "EAsyncLoadingResult != Succeeded for {Package} ({Result})", PackageName, Result);
+						}
+
+						ULevelSequence* LoadedSequence = SoftSequenceObject.Get();
+						if (!LoadedSequence)
+						{
+							UE_LOGFMT(LogConcertSequencerSync, Error, "Failed to resolve {Path} after async package load", SequenceObjectPath.ToString());
+						}
+
+						// Inform the server of the async load result, and GC ref the loaded sequence if successful.
+						FConcertSequencerPreloadAssetStatusMap Response;
+
+						if (Result == EAsyncLoadingResult::Succeeded && LoadedSequence)
+						{
+							UE_LOGFMT(LogConcertSequencerSync, Verbose, "OnPreloadEvent: Async load completed successfully for {Path}", SequenceObjectPath.ToString());
+							This->PreloadedSequences.Add(SequenceObjectPath, LoadedSequence);
+
+							Response.Sequences.Add(SequenceObjectPath, EConcertSequencerPreloadStatus::Succeeded);
+						}
+						else
+						{
+							Response.Sequences.Add(SequenceObjectPath, EConcertSequencerPreloadStatus::Failed);
+						}
+
+						Session->SendCustomEvent(Response, Session->GetSessionServerEndpointId(), EConcertMessageFlags::ReliableOrdered);
+					}
+				));
+			}
 		}
 		else
 		{
-			if (!PrecachedSequences.Remove(SequenceObjectPath))
+			if (!(PreloadPendingSequences.Remove(SequenceObjectPath)
+				|| PreloadedSequences.Remove(SequenceObjectPath)))
 			{
-				UE_LOG(LogConcertSequencerSync, Warning, TEXT("OnPrecacheEvent: %s not in precache set"), *SequenceObjectPath.ToString());
+				UE_LOGFMT(LogConcertSequencerSync, Warning, "OnPreloadEvent: Tried to remove {Path} not in preload set", *SequenceObjectPath.ToString());
 			}
 		}
 	}
@@ -1142,7 +1264,7 @@ void FConcertClientSequencerManager::OnWorkspaceEndFrameCompleted()
 void FConcertClientSequencerManager::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	Collector.AddReferencedObjects(SequencePlayers);
-	Collector.AddReferencedObjects(PrecachedSequences);
+	Preloader->AddReferencedObjects(Collector);
 }
 
 #endif

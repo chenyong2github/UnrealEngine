@@ -12,7 +12,9 @@
 class STableViewBase;
 
 struct FAssetData;
+class IConcertClientSession;
 class SDockTab;
+class SHeaderRow;
 class SMenuAnchor;
 class SMultiLineEditableTextBox;
 class SSequencerPlaylistItemWidget;
@@ -51,6 +53,7 @@ public:
 	static const FName ColumnName_Offset;
 	static const FName ColumnName_Pause;
 	static const FName ColumnName_Loop;
+	static const FName ColumnName_Preload;
 	static const FName ColumnName_HoverDetails;
 
 	void Construct(const FArguments& InArgs, TSharedPtr<SDockTab> InContainingTab);
@@ -109,6 +112,10 @@ private:
 	TOptional<EItemDropZone> HandleCanAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, TSharedPtr<FSequencerPlaylistRowData> RowData);
 	FReply HandleAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, TSharedPtr<FSequencerPlaylistRowData> RowData);
 
+	// Multi-user event handling
+	void OnConcertSessionStartup(TSharedRef<IConcertClientSession> InSession);
+	void OnConcertSessionShutdown(TSharedRef<IConcertClientSession> InSession);
+
 private:
 	TWeakObjectPtr<USequencerPlaylistPlayer> WeakPlayer;
 	TWeakObjectPtr<USequencerPlaylist> WeakLoadedPlaylist;
@@ -118,6 +125,7 @@ private:
 	TWeakPtr<SDockTab> WeakContainingTab;
 	TSharedPtr<SSearchBox> SearchBox;
 	TSharedPtr<TTextFilter<const FSequencerPlaylistRowData&>> SearchTextFilter;
+	TSharedPtr<SHeaderRow> HeaderRow;
 	TArray<TSharedPtr<FSequencerPlaylistRowData>> ItemRows;
 	TSharedPtr<SListView<TSharedPtr<FSequencerPlaylistRowData>>> ItemListView;
 };

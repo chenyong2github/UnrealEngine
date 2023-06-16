@@ -36,8 +36,11 @@ private:
 	/** Handler for the sequencer time adjustment event. */
 	void HandleSequencerTimeAdjustmentEvent(const FConcertSessionContext& InEventContext, const FConcertSequencerTimeAdjustmentEvent& InEvent);
 
-	/** Handler for sequence precaching requests. */
-	void HandleSequencerPrecacheEvent(const FConcertSessionContext& InEventContext, const FConcertSequencerPrecacheEvent& InEvent);
+	/** Handler for sequence preloading requests. */
+	void HandleSequencerPreloadRequestEvent(const FConcertSessionContext& InEventContext, const FConcertSequencerPreloadRequest& InEvent);
+
+	/** Handler for sequence preloading status updates. */
+	void HandleSequencerPreloadStatusEvent(const FConcertSessionContext& InEventContext, const FConcertSequencerPreloadAssetStatusMap& InEvent);
 
 	/** Handler for the workspace sync and finalize completed event. */
 	void HandleWorkspaceSyncAndFinalizeCompletedEvent(const FConcertSessionContext& InEventContext, const FConcertWorkspaceSyncAndFinalizeCompletedEvent& InEvent);
@@ -47,10 +50,10 @@ private:
 
 
 	/** Adds the specified client endpoint as a referencer for the specified sequence, and returns true if that was the first reference for that sequence. */
-	bool AddSequencePrecacheForClient(const FGuid& RequestClient, const FString& SequenceObjectPath);
+	bool AddSequencePreloadForClient(const FGuid& RequestClient, const FTopLevelAssetPath& SequenceObjectPath);
 
 	/** Adds the specified client endpoint as a referencer for the specified sequence, and returns true if that was the last remaining reference for that sequence. */
-	bool RemoveSequencePrecacheForClient(const FGuid& RequestClient, const FString& SequenceObjectPath);
+	bool RemoveSequencePreloadForClient(const FGuid& RequestClient, const FTopLevelAssetPath& SequenceObjectPath);
 
 
 	struct FConcertOpenSequencerState
@@ -68,12 +71,9 @@ private:
 	/** Live session tracked by this manager. */
 	TSharedPtr<FConcertSyncServerLiveSession> LiveSession;
 
-	struct FPrecachingState
-	{
-		/** Client endpoints which have requested this sequence be precached. */
-		TSet<FGuid> ReferencingClientEndpoints;
-	};
+	/** Map of level sequences indicating which client endpoints have requested preloading for them. */
+	TMap<FTopLevelAssetPath, TSet<FGuid>> PreloadRequesters;
 
-	/** Map of all level sequences for which precaching has been requested. */
-	TMap<FName, FPrecachingState> PrecacheStates;
+	/** Map of clients' individual progress preloading specific sequences. */
+	FConcertSequencerPreloadClientStatusMap ClientPreloadStatuses;
 };

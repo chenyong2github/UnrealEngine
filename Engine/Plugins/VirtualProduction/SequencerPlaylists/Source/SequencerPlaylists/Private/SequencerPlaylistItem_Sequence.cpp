@@ -96,7 +96,7 @@ void USequencerPlaylistItem_Sequence::PostEditChangeProperty(FPropertyChangedEve
 			GEditor->GetEditorSubsystem<USequencerPlaylistsSubsystem>();
 		if (Subsystem)
 		{
-			Subsystem->UpdatePrecacheSet();
+			Subsystem->UpdatePreloadSet();
 		}
 	}
 }
@@ -108,7 +108,7 @@ void USequencerPlaylistItem_Sequence::SetSequence(ULevelSequence* NewSequence)
 
 	if (USequencerPlaylistsSubsystem* Subsystem = GEditor->GetEditorSubsystem<USequencerPlaylistsSubsystem>())
 	{
-		Subsystem->UpdatePrecacheSet();
+		Subsystem->UpdatePreloadSet();
 	}
 }
 

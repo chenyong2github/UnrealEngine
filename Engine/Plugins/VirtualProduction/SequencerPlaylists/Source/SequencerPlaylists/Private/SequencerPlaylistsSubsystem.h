@@ -6,6 +6,11 @@
 #include "SequencerPlaylistsSubsystem.generated.h"
 
 
+enum class EConcertClientStatus : uint8;
+enum class EConcertSequencerPreloadStatus : uint8;
+struct FConcertSessionClientInfo;
+struct FConcertSessionContext;
+struct FConcertSequencerPreloadClientStatusMap;
 class IConcertClientSession;
 class SSequencerPlaylistPanel;
 class ULevelSequence;
@@ -54,13 +59,23 @@ public:
 	USequencerPlaylistPlayer* CreatePlayerForEditor(TSharedRef<SSequencerPlaylistPanel> Editor);
 	void NotifyEditorClosed(SSequencerPlaylistPanel* Editor);
 
-	void UpdatePrecacheSet();
+	void UpdatePreloadSet();
+
+	bool IsPreloadingActive() const;
+
+	/** If any client has failed or is pending, the enum will indicate failure or pending respectively (otherwise, success).
+	 * The accompanying text contains a (potentially multi-line) summary of which multi-user clients are in which states.
+	 */
+	TPair<EConcertSequencerPreloadStatus, FText> GetPreloadStatusForSequence(const FTopLevelAssetPath& SequencePath);
 
 protected:
 	USequencerPlaylist* CreateTransientPlaylistForEditor(TSharedRef<SSequencerPlaylistPanel> Editor);
 
 	void OnConcertSessionStartup(TSharedRef<IConcertClientSession> InSession);
 	void OnConcertSessionShutdown(TSharedRef<IConcertClientSession> InSession);
+
+	void HandleSessionClientChanged(IConcertClientSession& InSession, EConcertClientStatus InClientStatus, const FConcertSessionClientInfo& InClientInfo);
+	void HandleSequencerPreloadStatusEvent(const FConcertSessionContext& InEventContext, const FConcertSequencerPreloadClientStatusMap& InEvent);
 
 protected:
 	UPROPERTY(Transient)
@@ -73,7 +88,10 @@ protected:
 	TMap<FSequencerPlaylistEditorHandle, TObjectPtr<USequencerPlaylist>> EditorPlaylists;
 
 	UPROPERTY(Transient)
-	TSet<TObjectPtr<ULevelSequence>> PrecacheSequences;
+	TSet<TObjectPtr<ULevelSequence>> PreloadSequences;
+
+	using FClientSequenceKey = TPair<FGuid, FTopLevelAssetPath>;
+	TMap<FClientSequenceKey, EConcertSequencerPreloadStatus> PreloadStates;
 
 	/** Weak pointer to the client session with which to send events. May be null or stale. */
 	TWeakPtr<IConcertClientSession> WeakSession;

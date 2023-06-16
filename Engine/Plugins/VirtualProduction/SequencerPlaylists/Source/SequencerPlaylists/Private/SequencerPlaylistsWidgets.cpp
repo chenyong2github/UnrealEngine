@@ -17,9 +17,13 @@
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
+#include "ConcertSequencerMessages.h"
 #include "ContentBrowserModule.h"
+#include "EditorFontGlyphs.h"
 #include "FileHelpers.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "IConcertSyncClient.h"
+#include "IConcertSyncClientModule.h"
 #include "IContentBrowserSingleton.h"
 #include "ISinglePropertyView.h"
 #include "Layout/WidgetPath.h"
@@ -50,6 +54,7 @@ const FName SSequencerPlaylistPanel::ColumnName_Items(TEXT("Items"));
 const FName SSequencerPlaylistPanel::ColumnName_Offset(TEXT("Offset"));
 const FName SSequencerPlaylistPanel::ColumnName_Pause(TEXT("Pause"));
 const FName SSequencerPlaylistPanel::ColumnName_Loop(TEXT("Loop"));
+const FName SSequencerPlaylistPanel::ColumnName_Preload(TEXT("Preload"));
 const FName SSequencerPlaylistPanel::ColumnName_HoverDetails(TEXT("HoverDetails"));
 
 
@@ -161,12 +166,26 @@ void SSequencerPlaylistPanel::Construct(const FArguments& InArgs, TSharedPtr<SDo
 			]
 		]
 	];
+
+	if (TSharedPtr<IConcertSyncClient> ConcertSyncClient = IConcertSyncClientModule::Get().GetClient(TEXT("MultiUser")))
+	{
+		IConcertClientRef ConcertClient = ConcertSyncClient->GetConcertClient();
+		ConcertClient->OnSessionStartup().AddRaw(this, &SSequencerPlaylistPanel::OnConcertSessionStartup);
+		ConcertClient->OnSessionShutdown().AddRaw(this, &SSequencerPlaylistPanel::OnConcertSessionShutdown);
+	}
 }
 
 
 SSequencerPlaylistPanel::~SSequencerPlaylistPanel()
 {
 	GEditor->GetEditorSubsystem<USequencerPlaylistsSubsystem>()->NotifyEditorClosed(this);
+
+	if (TSharedPtr<IConcertSyncClient> ConcertSyncClient = IConcertSyncClientModule::Get().GetClient(TEXT("MultiUser")))
+	{
+		IConcertClientRef ConcertClient = ConcertSyncClient->GetConcertClient();
+		ConcertClient->OnSessionStartup().RemoveAll(this);
+		ConcertClient->OnSessionShutdown().RemoveAll(this);
+	}
 }
 
 
@@ -472,10 +491,15 @@ TSharedRef<SWidget> SSequencerPlaylistPanel::Construct_ItemListView()
 					.OnAcceptDrop(this, &SSequencerPlaylistPanel::HandleAcceptDrop);
 			})
 		.HeaderRow(
-			SNew(SHeaderRow)
+			SAssignNew(HeaderRow, SHeaderRow)
 			+ SHeaderRow::Column(ColumnName_HoverTransport)
 				.DefaultLabel(FText::GetEmpty())
 				.FillSized(60.0f)
+			+ SHeaderRow::Column(ColumnName_Preload)
+				.DefaultLabel(LOCTEXT("ColumnLabelPreload", "Preload"))
+				.FillSized(60.0f)
+				.HAlignCell(HAlign_Center)
+				.VAlignCell(VAlign_Center)
 			+ SHeaderRow::Column(ColumnName_Items)
 				.DefaultLabel(LOCTEXT("ColumnLabelItems", "Playlist Items"))
 				.FillWidth(1.0f)
@@ -495,6 +519,12 @@ TSharedRef<SWidget> SSequencerPlaylistPanel::Construct_ItemListView()
 				.HAlignCell(HAlign_Center)
 				.VAlignCell(VAlign_Center)
 		);
+
+	if (ensure(HeaderRow))
+	{
+		const bool bPreloadVisible = IConcertSyncClientModule::Get().GetClient(TEXT("MultiUser")).IsValid();
+		HeaderRow->SetShowGeneratedColumn(ColumnName_Preload, bPreloadVisible);
+	}
 }
 
 
@@ -768,7 +798,7 @@ void SSequencerPlaylistPanel::LoadPlaylist(USequencerPlaylist* PlaylistToLoad)
 
 	if (USequencerPlaylistsSubsystem* Subsystem = GEditor->GetEditorSubsystem<USequencerPlaylistsSubsystem>())
 	{
-		Subsystem->UpdatePrecacheSet();
+		Subsystem->UpdatePreloadSet();
 	}
 }
 
@@ -1060,6 +1090,23 @@ FReply SSequencerPlaylistPanel::HandleAcceptDrop(const FDragDropEvent& DragDropE
 	}
 
 	return FReply::Unhandled();
+}
+
+
+void SSequencerPlaylistPanel::OnConcertSessionStartup(TSharedRef<IConcertClientSession> InSession)
+{
+	if (ensure(HeaderRow))
+	{
+		HeaderRow->SetShowGeneratedColumn(ColumnName_Preload, true);
+	}
+}
+
+void SSequencerPlaylistPanel::OnConcertSessionShutdown(TSharedRef<IConcertClientSession> InSession)
+{
+	if (ensure(HeaderRow))
+	{
+		HeaderRow->SetShowGeneratedColumn(ColumnName_Preload, false);
+	}
 }
 
 
@@ -1544,6 +1591,45 @@ TSharedRef<SWidget> SSequencerPlaylistItemWidget::GenerateWidgetForColumn(const 
 			+ SVerticalBox::Slot()
 			[
 				SNullWidget::NullWidget
+			];
+	}
+
+	if (ColumnName == SSequencerPlaylistPanel::ColumnName_Preload)
+	{
+		return SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			[
+				SNew(STextBlock)
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.18"))
+				.Text(FEditorFontGlyphs::Circle)
+				.ColorAndOpacity_Lambda([this, WeakItem]() {
+					USequencerPlaylistsSubsystem* Subsystem = GEditor->GetEditorSubsystem<USequencerPlaylistsSubsystem>();
+					USequencerPlaylistItem_Sequence* SeqItem = Cast<USequencerPlaylistItem_Sequence>(WeakItem);
+					if (Subsystem && SeqItem)
+					{
+						const FTopLevelAssetPath SeqPath(SeqItem->GetSequence());
+						TPair<EConcertSequencerPreloadStatus, FText> Status = Subsystem->GetPreloadStatusForSequence(SeqPath);
+						switch (Status.Key)
+						{
+						case EConcertSequencerPreloadStatus::Succeeded: return FSlateColor(EStyleColor::Success);
+						case EConcertSequencerPreloadStatus::Pending: return FSlateColor(EStyleColor::Warning);
+						}
+					}
+
+					return FSlateColor(EStyleColor::Error);
+				})
+				.ToolTipText_Lambda([this, WeakItem]() {
+					USequencerPlaylistsSubsystem* Subsystem = GEditor->GetEditorSubsystem<USequencerPlaylistsSubsystem>();
+					USequencerPlaylistItem_Sequence* SeqItem = Cast<USequencerPlaylistItem_Sequence>(WeakItem);
+					if (Subsystem && SeqItem)
+					{
+						const FTopLevelAssetPath SeqPath(SeqItem->GetSequence());
+						TPair<EConcertSequencerPreloadStatus, FText> Status = Subsystem->GetPreloadStatusForSequence(SeqPath);
+						return Status.Value;
+					}
+
+					return FText::GetEmpty();
+				})
 			];
 	}
 

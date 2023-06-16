@@ -131,7 +131,7 @@ struct FConcertSequencerTimeAdjustmentEvent
 
 /**
  * Event indicating one or more sequences have been added or removed from the
- * set of sequences to keep precached for quick dynamic instantiation.
+ * set of sequences to keep preloaded for quick dynamic instantiation.
  *
  * Can be sent by clients as a request to add or remove their references.
  *
@@ -139,17 +139,69 @@ struct FConcertSequencerTimeAdjustmentEvent
  * or as an initial snapshot of the complete set when joining a session.
  */
 USTRUCT()
-struct FConcertSequencerPrecacheEvent
+struct FConcertSequencerPreloadRequest
 {
 	GENERATED_BODY()
 
 	/** The list of full paths to affected sequences. */
 	UPROPERTY()
-	TArray<FString> SequenceObjectPaths;
+	TArray<FTopLevelAssetPath> SequenceObjectPaths;
 
-	/** True if being added to the precache set, false if being removed. */
+	/** True if being added to the preload set, false if being removed. */
 	UPROPERTY()
-	bool bShouldBePrecached = false;
+	bool bShouldBePreloaded = false;
+};
+
+UENUM()
+enum class EConcertSequencerPreloadStatus : uint8
+{
+	Pending,
+	Succeeded,
+	Failed,
+};
+
+/**
+ * Can be sent as an event by clients to indicate loading success/failure
+ * result of attempting to preload one or more sequence assets.
+ */
+USTRUCT()
+struct FConcertSequencerPreloadAssetStatusMap
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TMap<FTopLevelAssetPath, EConcertSequencerPreloadStatus> Sequences;
+};
+
+/**
+ * Sent as an event by server with preload status of one or more clients.
+ */
+USTRUCT()
+struct FConcertSequencerPreloadClientStatusMap
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TMap<FGuid, FConcertSequencerPreloadAssetStatusMap> ClientEndpoints;
+
+	/** Merge (add or replace) statuses for a specified client into this object. */
+	void UpdateFrom(const FGuid& Client, const FConcertSequencerPreloadAssetStatusMap& Updates)
+	{
+		FConcertSequencerPreloadAssetStatusMap& List = ClientEndpoints.FindOrAdd(Client);
+		for (const TPair<FTopLevelAssetPath, EConcertSequencerPreloadStatus>& Update : Updates.Sequences)
+		{
+			List.Sequences.FindOrAdd(Update.Key) = Update.Value;
+		}
+	}
+
+	/** Clear all clients' references to a specified asset. */
+	void Remove(const FTopLevelAssetPath& Sequence)
+	{
+		for (TPair<FGuid, FConcertSequencerPreloadAssetStatusMap>& Client : ClientEndpoints)
+		{
+			Client.Value.Sequences.Remove(Sequence);
+		}
+	}
 };
 
 
