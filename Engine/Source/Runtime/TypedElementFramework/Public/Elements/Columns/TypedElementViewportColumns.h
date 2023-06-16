@@ -16,5 +16,5 @@ struct FTypedElementViewportColorColumn final : public FTypedElementDataStorageC
 	GENERATED_BODY()
 
 	UPROPERTY(meta = (ClampMin = "0", ClampMax = "7"))
-	uint8 SelectionOutlineColorIndex;
+	uint8 SelectionOutlineColorIndex = 0;
 };
