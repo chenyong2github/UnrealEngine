@@ -186,7 +186,7 @@ enum ESparseVolumeTextureShaderUniform
 };
 
 // SparseVolumeTexture base interface to communicate with material graph and shader bindings.
-UCLASS(ClassGroup = Rendering, BlueprintType, MinimalAPI)
+UCLASS(MinimalAPI, ClassGroup = Rendering, BlueprintType)
 class USparseVolumeTexture : public UObject
 {
 	GENERATED_UCLASS_BODY()
@@ -238,7 +238,7 @@ public:
 };
 
 // Represents a frame in a SparseVolumeTexture sequence and owns the actual data needed for rendering. Is owned by a UStreamableSparseVolumeTexture object.
-UCLASS(ClassGroup = Rendering, BlueprintType, MinimalAPI)
+UCLASS(MinimalAPI, ClassGroup = Rendering, BlueprintType)
 class USparseVolumeTextureFrame : public USparseVolumeTexture
 {
 	GENERATED_UCLASS_BODY()
@@ -316,7 +316,7 @@ private:
 };
 
 // Represents a streamable SparseVolumeTexture asset and serves as base class for UStaticSparseVolumeTexture and UAnimatedSparseVolumeTexture. It has an array of USparseVolumeTextureFrame.
-UCLASS(ClassGroup = Rendering, BlueprintType)//, hidecategories = (Object))
+UCLASS(MinimalAPI, ClassGroup = Rendering, BlueprintType)
 class UStreamableSparseVolumeTexture : public USparseVolumeTexture
 {
 	GENERATED_UCLASS_BODY()
@@ -357,15 +357,20 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture", meta = (DisplayName = "Local DDC Only"), AssetRegistrySearchable, AdvancedDisplay)
 	bool bLocalDDCOnly = true;
 
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(VisibleAnywhere, Instanced, Category = ImportSettings)
+	TObjectPtr<class UAssetImportData> AssetImportData;
+#endif // WITH_EDITORONLY_DATA
+
 	UStreamableSparseVolumeTexture();
 	virtual ~UStreamableSparseVolumeTexture() = default;
 
 	// Multi-phase initialization: Call BeginInitialize(), then call AppendFrame() for each frame to add and then finish initialization with a call to EndInitialize().
 	// The NumExpectedFrames parameter on BeginInitialize() just serves as a potential optimization to reserve memory for the frames to be appended
 	// and doesn't need to match the exact number if it is not known at the time.
-	virtual bool BeginInitialize(int32 NumExpectedFrames);
-	virtual bool AppendFrame(UE::SVT::FTextureData& UncookedFrame);
-	virtual bool EndInitialize(int32 NumMipLevels = INDEX_NONE /*Create entire mip chain by default*/);
+	ENGINE_API virtual bool BeginInitialize(int32 NumExpectedFrames);
+	ENGINE_API virtual bool AppendFrame(UE::SVT::FTextureData& UncookedFrame);
+	ENGINE_API virtual bool EndInitialize(int32 NumMipLevels = INDEX_NONE /*Create entire mip chain by default*/);
 
 	// Convenience function wrapping the multi-phase initialization functions above
 	virtual bool Initialize(const TArrayView<UE::SVT::FTextureData>& UncookedData, int32 NumMipLevels = INDEX_NONE /*Create entire mip chain by default*/);
@@ -373,14 +378,16 @@ public:
 	USparseVolumeTextureFrame* GetFrame(int32 FrameIndex) const { return Frames.IsValidIndex(FrameIndex) ? Frames[FrameIndex] : nullptr; }
 
 	//~ Begin UObject Interface.
-	virtual void PostLoad() override;
-	virtual void FinishDestroy() override;
-	virtual void BeginDestroy() override;
-	virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void PostInitProperties() override;
+	ENGINE_API virtual void PostLoad() override;
+	ENGINE_API virtual void FinishDestroy() override;
+	ENGINE_API virtual void BeginDestroy() override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
-	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
+	ENGINE_API virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
+	ENGINE_API virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 	//~ End UObject Interface.
 
 	//~ Begin USparseVolumeTexture Interface.
@@ -426,7 +433,7 @@ protected:
 };
 
 // Represents a streamable SparseVolumeTexture asset with a single frame. Although there is only a single frame, it is still recommended to use USparseVolumeTextureFrame::GetFrameAndIssueStreamingRequest().
-UCLASS(MinimalAPI, ClassGroup = Rendering, BlueprintType)//, hidecategories = (Object), MinimalAPI)
+UCLASS(MinimalAPI, ClassGroup = Rendering, BlueprintType)
 class UStaticSparseVolumeTexture : public UStreamableSparseVolumeTexture
 {
 	GENERATED_UCLASS_BODY()
@@ -449,7 +456,7 @@ private:
 };
 
 // Represents a streamable SparseVolumeTexture with one or more frames. Use USparseVolumeTextureFrame::GetFrameAndIssueStreamingRequest() to bind extract a particular frame to be used for rendering.
-UCLASS(MinimalAPI, ClassGroup = Rendering, BlueprintType)//, hidecategories = (Object), MinimalAPI)
+UCLASS(MinimalAPI, ClassGroup = Rendering, BlueprintType)
 class UAnimatedSparseVolumeTexture : public UStreamableSparseVolumeTexture
 {
 	GENERATED_UCLASS_BODY()
@@ -468,7 +475,7 @@ private:
 };
 
 // Utility (blueprint) class for controlling SparseVolumeTexture playback.
-UCLASS(ClassGroup = Rendering, BlueprintType)//, hidecategories = (Object), MinimalAPI)
+UCLASS(MinimalAPI, ClassGroup = Rendering, BlueprintType)
 class UAnimatedSparseVolumeTextureController : public UObject
 {
 	GENERATED_UCLASS_BODY()

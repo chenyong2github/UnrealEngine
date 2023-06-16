@@ -25,6 +25,7 @@
 #include "DerivedDataCache.h"
 #include "DerivedDataRequestOwner.h"
 #endif
+#include "EditorFramework/AssetImportData.h"
 
 #include "Serialization/LargeMemoryReader.h"
 #include "Serialization/LargeMemoryWriter.h"
@@ -1074,6 +1075,18 @@ bool UStreamableSparseVolumeTexture::Initialize(const TArrayView<UE::SVT::FTextu
 	return true;
 }
 
+void UStreamableSparseVolumeTexture::PostInitProperties()
+{
+	Super::PostInitProperties();
+
+#if WITH_EDITORONLY_DATA
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		AssetImportData = NewObject<UAssetImportData>(this, TEXT("AssetImportData"));
+	}
+#endif
+}
+
 void UStreamableSparseVolumeTexture::PostLoad()
 {
 	Super::PostLoad();
@@ -1143,6 +1156,18 @@ void UStreamableSparseVolumeTexture::GetResourceSizeEx(FResourceSizeEx& Cumulati
 	}
 	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(SizeCPU);
 	CumulativeResourceSize.AddDedicatedVideoMemoryBytes(SizeGPU);
+}
+
+void UStreamableSparseVolumeTexture::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
+{
+	Super::GetAssetRegistryTags(OutTags);
+
+#if WITH_EDITORONLY_DATA
+	if (AssetImportData)
+	{
+		OutTags.Add(FAssetRegistryTag(SourceFileTagName(), AssetImportData->GetSourceData().ToJson(), FAssetRegistryTag::TT_Hidden));
+	}
+#endif
 }
 
 #if WITH_EDITORONLY_DATA

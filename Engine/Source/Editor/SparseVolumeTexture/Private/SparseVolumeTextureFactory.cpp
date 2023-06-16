@@ -18,6 +18,7 @@
 #include "Async/ParallelFor.h"
 
 #include "Editor.h"
+#include "EditorFramework/AssetImportData.h"
 
 #include "OpenVDBImportWindow.h"
 #include "HAL/PlatformApplicationMisc.h"
@@ -342,7 +343,7 @@ USparseVolumeTextureFactory::USparseVolumeTextureFactory(const FObjectInitialize
 	bCreateNew = true;
 	bEditAfterNew = true;
 	bEditorImport = true;
-	SupportedClass = USparseVolumeTexture::StaticClass();
+	SupportedClass = nullptr; // This factory supports multiple classes, so SupportedClass needs to be nullptr
 
 	Formats.Add(TEXT("vdb;OpenVDB Format"));
 }
@@ -388,11 +389,12 @@ UObject* USparseVolumeTextureFactory::FactoryCreateNew(UClass* InClass, UObject*
 
 bool USparseVolumeTextureFactory::DoesSupportClass(UClass* Class)
 {
-	return Class == USparseVolumeTexture::StaticClass();
+	return Class == USparseVolumeTexture::StaticClass() || Class == UStaticSparseVolumeTexture::StaticClass() || Class == UAnimatedSparseVolumeTexture::StaticClass();
 }
 
 UClass* USparseVolumeTextureFactory::ResolveSupportedClass()
 {
+	// SVT_TODO: Do we need to return UStaticSparseVolumeTexture::StaticClass() or UAnimatedSparseVolumeTexture::StaticClass() here instead? Using the base class seems to work.
 	return USparseVolumeTexture::StaticClass();
 }
 
@@ -414,6 +416,70 @@ void USparseVolumeTextureFactory::CleanUp()
 UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, const FString& Filename,
 	const TCHAR* Parms, FFeedbackContext* Warn, bool& bOutOperationCanceled)
 {
+	return ImportInternal(InClass, InParent, InName, Flags, Filename, Parms, bOutOperationCanceled);
+}
+
+bool USparseVolumeTextureFactory::CanReimport(UObject* Obj, TArray<FString>& OutFilenames)
+{
+#if OPENVDB_AVAILABLE
+	UStreamableSparseVolumeTexture* StreamableSVT = Cast<UStreamableSparseVolumeTexture>(Obj);
+	if (StreamableSVT && StreamableSVT->AssetImportData)
+	{
+		StreamableSVT->AssetImportData->ExtractFilenames(OutFilenames);
+		return true;
+	}
+#endif // OPENVDB_AVAILABLE
+	return false;
+}
+
+void USparseVolumeTextureFactory::SetReimportPaths(UObject* Obj, const TArray<FString>& NewReimportPaths)
+{
+#if OPENVDB_AVAILABLE
+	UStreamableSparseVolumeTexture* StreamableSVT = Cast<UStreamableSparseVolumeTexture>(Obj);
+	if (StreamableSVT && ensure(NewReimportPaths.Num() == 1))
+	{
+		StreamableSVT->AssetImportData->UpdateFilenameOnly(NewReimportPaths[0]);
+	}
+#endif // OPENVDB_AVAILABLE
+}
+
+EReimportResult::Type USparseVolumeTextureFactory::Reimport(UObject* Obj)
+{
+#if OPENVDB_AVAILABLE
+	UStreamableSparseVolumeTexture* StreamableSVT = Cast<UStreamableSparseVolumeTexture>(Obj);
+	if (!StreamableSVT)
+	{
+		return EReimportResult::Failed;
+	}
+
+	// Make sure file is valid and exists
+	const FString Filename = StreamableSVT->AssetImportData->GetFirstFilename();
+	if (!Filename.Len() || IFileManager::Get().FileSize(*Filename) == INDEX_NONE || !FactoryCanImport(Filename))
+	{
+		UE_LOG(LogSparseVolumeTextureFactory, Error, TEXT("Reimport failed! Filename '%s' is invalid or no such file exists."), *Filename);
+		return EReimportResult::Failed;
+	}
+
+	bool OutCanceled = false;
+	if (!ImportInternal(StreamableSVT->GetClass(), StreamableSVT->GetOuter(), *StreamableSVT->GetName(), RF_Public | RF_Standalone, Filename, nullptr, OutCanceled))
+	{
+		if (OutCanceled)
+		{
+			return EReimportResult::Cancelled;
+		}
+
+		return EReimportResult::Failed;
+	}
+
+	return EReimportResult::Succeeded;
+#else
+	UE_LOG(LogSparseVolumeTextureFactory, Error, TEXT("Cannot import OpenVDB asset any platform other than Windows."));
+	return EReimportResult::Failed;
+#endif // OPENVDB_AVAILABLE
+}
+
+UObject* USparseVolumeTextureFactory::ImportInternal(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, const FString& Filename, const TCHAR* Parms, bool& bOutOperationCanceled)
+{
 #if OPENVDB_AVAILABLE
 
 	GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPreImport(this, InClass, InParent, InName, Parms);
@@ -434,7 +500,7 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 	}
 
 	FOpenVDBImportOptions ImportOptions = PreviewData.DefaultImportOptions;
-	
+
 	if (!bIsUnattended)
 	{
 		// Show dialog for import options
@@ -527,10 +593,10 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 	else
 	{
 		// Import as an animated sparse volume texture asset.
-		
+
 		// Data from original file is no longer needed; we iterate over all frames later
 		PreviewData.LoadedFile.Empty();
-		
+
 		const int32 NumFrames = PreviewData.SequenceFilenames.Num();
 
 		FScopedSlowTask ImportTask(NumFrames + 1, LOCTEXT("ImportingVDBAnim", "Importing OpenVDB animation"));
@@ -623,10 +689,10 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 				std::atomic_int& Counter;
 				int32 MaxValue;
 				FEvent* Event;
-				explicit FScopedIncrementer(std::atomic_int& InCounter, int32 InMaxValue, FEvent* InEvent) 
+				explicit FScopedIncrementer(std::atomic_int& InCounter, int32 InMaxValue, FEvent* InEvent)
 					: Counter(InCounter), MaxValue(InMaxValue), Event(InEvent) {}
-				~FScopedIncrementer() 
-				{ 
+				~FScopedIncrementer()
+				{
 					if ((Counter.fetch_add(1) + 1) == MaxValue)
 					{
 						Event->Trigger();
@@ -634,7 +700,7 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 				}
 			};
 
-			AsyncTask(ENamedThreads::AnyNormalThreadNormalTask, 
+			AsyncTask(ENamedThreads::AnyNormalThreadNormalTask,
 				[FrameIdx, NumFrames, &PreviewData, &ImportOptions, &UncookedFramesData,
 				AllTasksFinishedEvent, &bErrored, &bCanceled, &FinishedTasksCounter, &ProcessedFramesCounter, &VolumeBoundsMin]()
 				{
@@ -680,7 +746,7 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 		{
 			int NumFinishedTasks = 0;
 			int NumProcessedFrames = 0;
-			
+
 			while (NumFinishedTasks < NumFrames)
 			{
 				// We can't block here because we want to regularly update the progress bar and check for user input.
@@ -732,6 +798,7 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 
 	// Now notify the system about the imported/updated/created assets
 	check(ResultAssets.Num() == 1);
+	CastChecked<UStreamableSparseVolumeTexture>(ResultAssets[0])->AssetImportData->Update(Filename);
 	GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostImport(this, ResultAssets[0]);
 
 	return ResultAssets[0];
@@ -743,7 +810,6 @@ UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject
 	return nullptr;
 
 #endif // OPENVDB_AVAILABLE
-
 }
 
 #endif // WITH_EDITORONLY_DATA
