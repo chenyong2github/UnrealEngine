@@ -235,6 +235,7 @@ if (botname === '__TEST__') {
 			notify: (options.notify || []).concat(this.config.globalNotify),
 			forceFlowTo: [], // will compute
 			defaultFlow: options.defaultFlow || [],
+			macros: options.macros,
 			blockAssetTargets: new Set<string>(),
 			enabled: !options.disabled,
 			allowDeadend: !options.disallowDeadend,

@@ -1658,13 +1658,27 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 			change.desc = '<description not available>'
 		}
 
+		let combinedMacros: { [name: string]: string[] } = {}
+		for (let macroName in this.branch.macros)
+		{
+			combinedMacros[macroName.toLowerCase()] = this.branch.macros[macroName]
+		}
+		for (let macroName in this.branchGraph.config.macros)
+		{
+			const macroNameLower = macroName.toLowerCase()
+			if (combinedMacros[macroNameLower] === undefined)
+			{
+				combinedMacros[macroNameLower] = this.branchGraph.config.macros[macroName]
+			}
+		}
+
 		const parse = (lines: string[]) => parseDescriptionLines({
 			lines,
 			isDefaultBot: this.branch.isDefaultBot,
 			graphBotName: this.graphBotName,
 			cl: change.change,
 			aliasesUpper: this.branchGraph.config.aliases.map(s => s.toUpperCase()),
-			macros: this.branchGraph.config.macros,
+			macros: combinedMacros,
 			logger: this.nodeBotLogger
 		})
 

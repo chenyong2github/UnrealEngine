@@ -48,6 +48,7 @@ const branchBasePrototype = {
 	flowsTo: [''],
 	forceFlowTo: [''],
 	defaultFlow: [''],
+	macros: {} as { [name: string]: string[] } | undefined,
 	resolver: '' as string | null,
 	triager: '' as string | null,
 	nagWhenBlocked: false as boolean | null,
