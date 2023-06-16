@@ -415,6 +415,7 @@ public:
 	uint32 ContinuousLODPointCount = 0;
 	uint32 ContinuousLODCurveCount = 0;
 	float ContinuousLODScreenSize = 1.f;
+	float ContinuousLODCoverageScale = 1.f;
 	FVector2f ContinuousLODScreenPos = FVector2f(0,0);
 	FBoxSphereBounds ContinuousLODBounds; 	//used by Continuous LOD
 

@@ -36,12 +36,6 @@ FHairGroupsInterpolation::FHairGroupsInterpolation()
 	InterpolationSettings = FHairInterpolationSettings();
 }
 
-FHairGroupsLOD::FHairGroupsLOD()
-{
-	ClusterWorldSize = 1; // 1cm diameter
-	ClusterScreenSizeScale = 1;
-}
-
 bool FHairLODSettings::operator==(const FHairLODSettings& A) const
 {
 	return
@@ -68,9 +62,7 @@ bool FHairGroupsLOD::operator==(const FHairGroupsLOD& A) const
 		}
 	}
 
-	return
-		ClusterWorldSize == A.ClusterWorldSize &&
-		ClusterScreenSizeScale == A.ClusterScreenSizeScale;
+	return true;
 }
 
 
@@ -117,9 +109,6 @@ void FHairGroupsInterpolation::BuildDDCKey(FArchive& Ar)
 
 void FHairGroupsLOD::BuildDDCKey(FArchive& Ar)
 {
-	Ar << ClusterWorldSize;
-	Ar << ClusterScreenSizeScale;
-
 	for (FHairLODSettings& LOD : LODs)
 	{
 		Ar << LOD.CurveDecimation;

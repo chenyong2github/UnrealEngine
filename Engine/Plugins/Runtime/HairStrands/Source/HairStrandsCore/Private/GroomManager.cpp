@@ -888,6 +888,7 @@ static void RunHairLODSelection(
 			Instance->HairGroupPublicData->ContinuousLODScreenSize = MaxScreenSize_RestBound;
 			Instance->HairGroupPublicData->ContinuousLODScreenPos = MaxContinuousLODScreenPos;
 			Instance->HairGroupPublicData->ContinuousLODBounds = SphereBound;
+			Instance->HairGroupPublicData->ContinuousLODCoverageScale = 1.f;
 
 			if (IsHairStrandsContinousLODEnabled())
 			{
@@ -899,6 +900,25 @@ static void RunHairLODSelection(
 			{
 				Instance->HairGroupPublicData->ContinuousLODPointCount = GetHairVisibilityComputeRasterPointCount(MaxScreenSize_Bound, Instance->HairGroupPublicData->RestPointCount);
 				Instance->HairGroupPublicData->ContinuousLODCurveCount = Instance->HairGroupPublicData->RestCurveCount;
+			}
+			else if (Instance->Strands.ClusterCullingResource)
+			{
+				const TArray<FHairLODInfo>& LODInfos = Instance->Strands.ClusterCullingResource->BulkData.Header.LODInfos;
+
+				const int32 iLODIndex = LODIndex;
+				const float S = LODIndex - iLODIndex;
+
+				const uint32 LODIndex0 = FMath::Min(iLODIndex,   LODInfos.Num()-1);
+				const uint32 LODIndex1 = FMath::Min(iLODIndex+1, LODInfos.Num()-1);
+				const uint32 EffectiveCurveCount = FMath::Lerp(LODInfos[LODIndex1].CurveCount, LODInfos[LODIndex0].CurveCount, 1.f-S);
+
+				// Compensate lost in curve by a coverage scale increase
+				const float CurveRatio = EffectiveCurveCount / float(Instance->HairGroupPublicData->RestCurveCount);
+
+				check(EffectiveCurveCount <= uint32(Instance->Strands.Data->Header.CurveToPointCount.Num()));
+				Instance->HairGroupPublicData->ContinuousLODCurveCount = EffectiveCurveCount;
+				Instance->HairGroupPublicData->ContinuousLODPointCount = EffectiveCurveCount > 0 ? Instance->Strands.Data->Header.CurveToPointCount[EffectiveCurveCount - 1] : 0;
+				Instance->HairGroupPublicData->ContinuousLODCoverageScale = 1.f/FMath::Max(CurveRatio, 0.01f);
 			}
 		}
 

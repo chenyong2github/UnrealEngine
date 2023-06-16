@@ -108,6 +108,9 @@ class FHairPrintLODInfoCS : public FGlobalShader
 		SHADER_PARAMETER(FVector3f, GroupColor)
 		SHADER_PARAMETER(uint32, GroupIndex)
 		SHADER_PARAMETER(uint32, GeometryType)
+		SHADER_PARAMETER(uint32, CurveCount)
+		SHADER_PARAMETER(uint32, PointCount)
+		SHADER_PARAMETER(float, CoverageScale)
 		SHADER_PARAMETER(float, ScreenSize)
 		SHADER_PARAMETER(float, LOD)
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintUniformBuffer)
@@ -153,6 +156,9 @@ static void AddPrintLODInfoPass(
 	Parameters->LOD = Data->LODIndex;
 	Parameters->GroupColor = FVector3f(GroupColor.R, GroupColor.G, GroupColor.B);
 	Parameters->ScreenSize = Data->DebugScreenSize;
+	Parameters->CurveCount = Data->GetActiveStrandsCurveCount();
+	Parameters->PointCount = Data->GetActiveStrandsPointCount();
+	Parameters->CoverageScale = Data->GetActiveStrandsCoverageScale();
 	switch (Data->VFInput.GeometryType)
 	{
 	case EHairGeometryType::Strands: Parameters->GeometryType = 0; break;

@@ -125,8 +125,6 @@ uint32 FHairGroupPlatformData::FStrands::GetDataSize() const
 	Total += FBaseWithInterpolation::GetDataSize();
 	uint32 CTotal = 0;
 	uint32 BTotal = 0;
-	CTotal += ClusterCullingBulkData.Header.LODVisibility.GetAllocatedSize();
-	CTotal += ClusterCullingBulkData.Header.CPULODScreenSize.GetAllocatedSize();
 	BTotal += ClusterCullingBulkData.Data.CurveToClusterIds.IsBulkDataLoaded()	? ClusterCullingBulkData.Data.CurveToClusterIds.GetBulkDataSize() : 0;
 	CTotal += ClusterCullingBulkData.Data.PackedClusterInfos.IsBulkDataLoaded()	? ClusterCullingBulkData.Data.PackedClusterInfos.GetBulkDataSize() : 0;
 	CTotal += ClusterCullingBulkData.Data.PointLODs.IsBulkDataLoaded()	? ClusterCullingBulkData.Data.PointLODs.GetBulkDataSize() : 0;
@@ -1569,8 +1567,6 @@ static bool IsStrandsLODAttributes(const FName PropertyName)
 		PropertyName == UGroomAsset::GetHairGroupsLODMemberName()
 
 		// LOD groups needs for cluster rebuilding
-		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupsLOD, ClusterWorldSize)
-		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupsLOD, ClusterScreenSizeScale)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupsLOD, LODs)
 
 		// LOD settings needs for cluster rebuilding

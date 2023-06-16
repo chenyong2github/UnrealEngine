@@ -40,7 +40,7 @@ static FAutoConsoleVariableRef CVarHairGroupIndexBuilder_MaxVoxelResolution(TEXT
 
 FString FGroomBuilder::GetVersion()
 {
-	return TEXT("v8r37_a");
+	return TEXT("v8r39");
 }
 
 namespace FHairStrandsDecimation
@@ -2782,7 +2782,7 @@ struct FClusterGrid
 	TArray<FCluster> Clusters;
 };
 
-static void DecimateCurve(
+static void DecimateCurveLOD(
 	const TArray<FVector3f>& InPoints,
 	const uint32 InOffset,
 	const uint32 InCount,
@@ -2790,6 +2790,8 @@ static void DecimateCurve(
 	uint32* OutCountPerLOD,
 	TArray<uint8>& OutVertexLODMask)
 {
+	OutVertexLODMask.SetNum(InCount);
+
 	// Insure that all settings have more and more agressive, and rectify it is not the case.
 	TArray<FHairLODSettings> Settings = InSettings;
 	{
@@ -2879,15 +2881,14 @@ static void DecimateCurve(
 		// For all remaining vertices, we mark them as 'used'/'valid' for the current LOD levl
 		for (uint32 LocalIndex : OutIndices)
 		{
-			const uint32 VertexIndex = InOffset + LocalIndex;
-			OutVertexLODMask[VertexIndex] |= 1 << LODIt;
+			OutVertexLODMask[LocalIndex] |= 1 << LODIt;
 		}
 	}
 
 	// Sanity check to insure that vertex LOD in a continuous fashion.
-	for (uint32 VertexIt = 0; VertexIt < InCount; ++VertexIt)
+	for (uint32 PointIt = 0; PointIt < InCount; ++PointIt)
 	{
-		const uint8 Mask = OutVertexLODMask[InOffset + VertexIt];
+		const uint8 Mask = OutVertexLODMask[PointIt];
 		check(Mask == 0 || Mask == 1 || Mask == 3 || Mask == 7 || Mask == 15 || Mask == 31 || Mask == 63 || Mask == 127 || Mask == 255);
 	}
 }
@@ -2915,307 +2916,151 @@ static void BuildClusterData(
 	Out.CurveCount = InRenStrandsData.GetNumCurves();
 	check(Out.PointCount > 0 && Out.CurveCount > 0);
 
-	// 1. Allocate cluster per voxel containing contains >=1 render curve root
-	const FVector GroupMinBound = InRenStrandsData.BoundingBox.Min;
-	FVector GroupMaxBound = InRenStrandsData.BoundingBox.Max;
-	const float GroupRadius = FVector::Distance(GroupMaxBound, GroupMinBound) * 0.5f;
-
-	// Compute the voxel volume resolution, and snap the max bound to the voxel grid
-	// Iterate until voxel size are below max resolution, so that computation is not too long
-	FIntVector VoxelResolution = FIntVector::ZeroValue;
-	{
-		const int32 MaxResolution = FMath::Max(GHairClusterBuilder_MaxVoxelResolution, 2);
-
-		float ClusterWorldSize = FMath::Max(InSettings.ClusterWorldSize, 0.001f);
-		bool bIsValid = false;
-		while (!bIsValid)
-		{
-			FVector VoxelResolutionF = (GroupMaxBound - GroupMinBound) / ClusterWorldSize;
-			VoxelResolution = FIntVector(FMath::CeilToInt(VoxelResolutionF.X), FMath::CeilToInt(VoxelResolutionF.Y), FMath::CeilToInt(VoxelResolutionF.Z));
-			bIsValid = VoxelResolution.X <= MaxResolution && VoxelResolution.Y <= MaxResolution && VoxelResolution.Z <= MaxResolution;
-			if (!bIsValid)
-			{
-				ClusterWorldSize *= 2;
-			}
-		}
-		GroupMaxBound = GroupMinBound + FVector(VoxelResolution) * ClusterWorldSize;
-	}
-
-	// 2. Insert all rendering curves into the voxel structure
-	FClusterGrid ClusterGrid(VoxelResolution, GroupMinBound, GroupMaxBound);
-	for (uint32 RenCurveIndex = 0; RenCurveIndex < RenCurveCount; ++RenCurveIndex)
-	{
-		FClusterGrid::FCurve RCurve;
-		RCurve.CurveIndex = RenCurveIndex;
-		RCurve.Count = InRenStrandsData.StrandsCurves.CurvesCount[RenCurveIndex];
-		RCurve.Offset = InRenStrandsData.StrandsCurves.CurvesOffset[RenCurveIndex];
-		RCurve.Area = 0.0f;
-		RCurve.AvgRadius = 0;
-		RCurve.MaxRadius = 0;
-
-		// Compute area of each curve to later compute area correction
-		for (uint32 RenPointIndex = 0; RenPointIndex < RCurve.Count; ++RenPointIndex)
-		{
-			uint32 PointGlobalIndex = RenPointIndex + RCurve.Offset;
-			const FVector& V0 = (FVector)InRenStrandsData.StrandsPoints.PointsPosition[PointGlobalIndex];
-			if (RenPointIndex > 0)
-			{
-				const FVector& V1 = (FVector)InRenStrandsData.StrandsPoints.PointsPosition[PointGlobalIndex - 1];
-				FVector OutDir;
-				float OutLength;
-				(V1 - V0).ToDirectionAndLength(OutDir, OutLength);
-				RCurve.Area += InRenStrandsData.StrandsPoints.PointsRadius[PointGlobalIndex] * OutLength;
-			}
-
-			const float PointRadius = InRenStrandsData.StrandsPoints.PointsRadius[PointGlobalIndex];
-			RCurve.AvgRadius += PointRadius;
-			RCurve.MaxRadius = FMath::Max(RCurve.MaxRadius, PointRadius);
-		}
-		RCurve.AvgRadius /= FMath::Max(1u, RCurve.Count);
-
-		const FVector Root = (FVector)InRenStrandsData.StrandsPoints.PointsPosition[RCurve.Offset];
-		ClusterGrid.InsertRenderingCurve(RCurve, Root);
-	}
-
-	// 3. Count non-empty clusters
-	TArray<uint32> ValidClusterIndices;
-	{
-		uint32 GridLinearIndex = 0;
-		ValidClusterIndices.Reserve(ClusterGrid.Clusters.Num() * 0.2);
-		for (FClusterGrid::FCluster& Cluster : ClusterGrid.Clusters)
-		{
-			if (Cluster.ClusterCurves.Num() > 0)
-			{
-				ValidClusterIndices.Add(GridLinearIndex);
-			}
-			++GridLinearIndex;
-		}
-	}
-	Out.ClusterCount = ValidClusterIndices.Num();
-	Out.ClusterInfos.Init(FHairClusterInfo(), Out.ClusterCount);
-	Out.CurveToClusterIds.SetNum(Out.CurveCount);
+	// 1. Compute the number of curves per LOD
 	Out.LODInfos.SetNum(LODCount);
-	Out.PointLODs.Init(0, Out.PointCount);
-
-	// 4. Write out cluster information
-	TArray<uint8> VertexLODMasks;
-	VertexLODMasks.SetNum(InRenStrandsData.GetNumPoints());
-
-	// Local variable for being capture by the lambda
-	TArray<FHairClusterInfo>& LocalClusterInfos = Out.ClusterInfos;
-	TArray<uint32>& LocalCurveToClusterIds = Out.CurveToClusterIds;
-	TArray<uint32>& LocalPointLODs = Out.PointLODs;
-#define USE_PARALLE_FOR 0
-#if USE_PARALLE_FOR
-	ParallelFor(Out.ClusterCount,
-		[
-			LODCount,
-			InGroomAssetRadius,
-			InSettings,
-			&ValidClusterIndices,
-			&InRenStrandsData,
-			&ClusterGrid,
-			&LocalClusterInfos,
-			&LocalCurveToClusterIds,
-			&VertexLODMasks,
-		]
-	(uint32 ClusterIt)
-#else
-	for (uint32 ClusterIt = 0; ClusterIt < Out.ClusterCount; ++ClusterIt)
-#endif
+	for (uint8 LODIt = 0; LODIt < LODCount; ++LODIt)
 	{
-		const uint32 GridLinearIndex = ValidClusterIndices[ClusterIt];
-		FClusterGrid::FCluster& Cluster = ClusterGrid.Clusters[GridLinearIndex];
-		check(Cluster.ClusterCurves.Num() != 0);
+		const float CurveDecimation = FMath::Clamp(InSettings.LODs[LODIt].CurveDecimation, 0.0f, 1.0f);
+		Out.LODInfos[LODIt].CurveCount = FMath::Clamp(FMath::CeilToInt(Out.CurveCount * CurveDecimation), 1, InRenStrandsData.GetNumCurves());
+		Out.LODInfos[LODIt].PointCount = 0;
+		Out.LODInfos[LODIt].RadiusScale= 1;
+		Out.LODInfos[LODIt].ScreenSize = InSettings.LODs[LODIt].ScreenSize;
+		Out.LODInfos[LODIt].bIsVisible = InSettings.LODs[LODIt].bVisible;
+	}
 
-		// 4.1 Sort curves
-		// Sort curve to have largest area first, so that lower area curves with less influence are removed first.
-		// This also helps the radius scaling to not explode.
-		Cluster.ClusterCurves.Sort([](const FClusterGrid::FCurve& A, const FClusterGrid::FCurve& B) -> bool
+	// 2. Compute control point LOD
+	for (uint32 CurveIt = 0; CurveIt < Out.CurveCount; ++CurveIt)
+	{
+		const uint32 PointOffset = InRenStrandsData.StrandsCurves.CurvesOffset[CurveIt];
+		const uint32 PointCount  = InRenStrandsData.StrandsCurves.CurvesCount[CurveIt];
+
+		uint32 CountPerLOD[FHairClusterInfo::MaxLOD];
+
+		// 2.1 Write out cluster information
+		// Don't need to DecimateCurve if there are only 2 control vertices
+		TArray<uint8> PointLODMasks;
+		PointLODMasks.SetNum(PointCount);
+		if (PointCount > 2)
 		{
-			return A.Area > B.Area;
-		});
-
-		// 4.2 Compute cluster's area & fill in the vertex to cluster ID mapping
-		float ClusterArea = 0;
-		FVector ClusterMinBound(FLT_MAX);
-		FVector ClusterMaxBound(-FLT_MAX);
-
-		FVector RootMinBound(FLT_MAX);
-		FVector RootMaxBound(-FLT_MAX);
-
-		Cluster.CurveMaxRadius = 0;
-		Cluster.CurveAvgRadius = 0;
-		Cluster.Area = 0;
-		for (FClusterGrid::FCurve& ClusterCurve : Cluster.ClusterCurves)
-		{
-			check(ClusterCurve.CurveIndex < uint32(LocalCurveToClusterIds.Num()));
-			LocalCurveToClusterIds[ClusterCurve.CurveIndex] = ClusterIt;
-
-			for (uint32 RenPointIndex = 0; RenPointIndex < ClusterCurve.Count; ++RenPointIndex)
-			{
-				const uint32 PointGlobalIndex = RenPointIndex + ClusterCurve.Offset;
-
-				const FVector& P = (FVector)InRenStrandsData.StrandsPoints.PointsPosition[PointGlobalIndex];
-				{
-					ClusterMinBound.X = FMath::Min(ClusterMinBound.X, P.X);
-					ClusterMinBound.Y = FMath::Min(ClusterMinBound.Y, P.Y);
-					ClusterMinBound.Z = FMath::Min(ClusterMinBound.Z, P.Z);
-
-					ClusterMaxBound.X = FMath::Max(ClusterMaxBound.X, P.X);
-					ClusterMaxBound.Y = FMath::Max(ClusterMaxBound.Y, P.Y);
-					ClusterMaxBound.Z = FMath::Max(ClusterMaxBound.Z, P.Z);
-				}
-
-				if (RenPointIndex == 0)
-				{
-					RootMinBound.X = FMath::Min(RootMinBound.X, P.X);
-					RootMinBound.Y = FMath::Min(RootMinBound.Y, P.Y);
-					RootMinBound.Z = FMath::Min(RootMinBound.Z, P.Z);
-
-					RootMaxBound.X = FMath::Max(RootMaxBound.X, P.X);
-					RootMaxBound.Y = FMath::Max(RootMaxBound.Y, P.Y);
-					RootMaxBound.Z = FMath::Max(RootMaxBound.Z, P.Z);
-				}
-			}
-			Cluster.CurveMaxRadius = FMath::Max(Cluster.CurveMaxRadius, ClusterCurve.MaxRadius);
-			Cluster.CurveAvgRadius += ClusterCurve.AvgRadius;
-			Cluster.Area += ClusterCurve.Area;
-		}
-		Cluster.CurveAvgRadius /= FMath::Max(1, Cluster.ClusterCurves.Num());
-		Cluster.RootBoundRadius = (RootMaxBound - RootMinBound).GetMax() * 0.5f + Cluster.CurveAvgRadius;
-
-		// Compute the max radius that a cluster can have. This is done by computing an estimate of the cluster coverage (using pre-computed LUT) 
-		// and computing how much is visible
-		// This supposes the radius is proportional to the radius of the roots bounding volume
-		const float NormalizedAvgRadius = Cluster.CurveAvgRadius / Cluster.RootBoundRadius;
-		const float ClusterCoverage = GetHairCoverage(Cluster.ClusterCurves.Num(), NormalizedAvgRadius);
-		const float ClusterVisibleRadius = Cluster.RootBoundRadius * ClusterCoverage;
-
-		const float ClusterRadius = FVector::Distance(ClusterMaxBound, ClusterMinBound) * 0.5f;
-
-
-		// 4.3 Compute the number of curve per LOD
-		// Compute LOD infos (vertx count, vertex offset, radius scale ...)
-		// Compute the ratio of the cluster related the actual groom and scale the screen size accordingly
-		TArray<uint32> LODCurveCount;
-		LODCurveCount.SetNum(LODCount);
-		for (uint8 LODIt = 0; LODIt < LODCount; ++LODIt)
-		{
-			const float CurveDecimation = FMath::Clamp(InSettings.LODs[LODIt].CurveDecimation, 0.0f, 1.0f);
-			LODCurveCount[LODIt] = FMath::Clamp(FMath::CeilToInt(Cluster.ClusterCurves.Num() * CurveDecimation), 1, Cluster.ClusterCurves.Num());
+			DecimateCurveLOD(
+				InRenStrandsData.StrandsPoints.PointsPosition,
+				PointOffset,
+				PointCount,
+				InSettings.LODs,
+				CountPerLOD,
+				PointLODMasks);
 
 			// For stats
-			Out.LODInfos[LODIt].CurveCount += LODCurveCount[LODIt];
-		}
-
-		// 4.4 Decimate each curve for all LODs
-		// This fill in a bitfield per vertex which indiates on which LODs a vertex can be used
-		for (uint32 CurveIt = 0, CurveCount = uint32(Cluster.ClusterCurves.Num()); CurveIt < CurveCount; ++CurveIt)
-		{
-			FClusterGrid::FCurve& ClusterCurve = Cluster.ClusterCurves[CurveIt];
-
-			// Don't need to DecimateCurve if there are only 2 control vertices
-			if (ClusterCurve.Count > 2)
+			for (uint32 LODIt = 0; LODIt < LODCount; ++LODIt)
 			{
-				DecimateCurve(
-					InRenStrandsData.StrandsPoints.PointsPosition,
-					ClusterCurve.Offset,
-					ClusterCurve.Count,
-					InSettings.LODs,
-					ClusterCurve.CountPerLOD,
-					VertexLODMasks);
-
-				// For stats
-				for (uint32 LODIt = 0; LODIt < LODCount; ++LODIt)
-				{
-					Out.LODInfos[LODIt].PointCount += ClusterCurve.CountPerLOD[LODIt];
-				}
+				Out.LODInfos[LODIt].PointCount += CountPerLOD[LODIt];
 			}
 		}
 
-		// 4.5 Record/Insert vertex min LOD for each curve
-
-		FHairClusterInfo& ClusterInfo = LocalClusterInfos[ClusterIt];
-		ClusterInfo.LODCount = LODCount;
+		// 2.2 Write LOD mask per control point
+		Out.PointLODs.SetNum(InRenStrandsData.GetNumPoints());
 		for (uint8 LODIt = 0; LODIt < LODCount; ++LODIt)
 		{
-			ClusterInfo.ScreenSize[LODIt] = 1.f;
-			ClusterInfo.RadiusScale[LODIt]= 1.f;
-			ClusterInfo.bIsVisible[LODIt] = false;
-
-			const uint32 CurveCount = LODCurveCount[LODIt];
-			const uint32 NextCurveCount = LODIt < LODCount - 1 ? LODCurveCount[LODIt + 1] : CurveCount;
-			for (uint32 CurveIt = 0; CurveIt < CurveCount; ++CurveIt)
+			for (uint32 PointIt = 0; PointIt < PointCount; ++PointIt)
 			{
-				FClusterGrid::FCurve& ClusterCurve = Cluster.ClusterCurves[CurveIt];
-
-				for (uint32 PointIt = 0; PointIt < ClusterCurve.Count; ++PointIt)
+				const uint8 LODMask = PointLODMasks[PointIt];
+				if (LODMask & (1 << LODIt))
 				{
-					const uint32 GlobalPointIndex = PointIt + ClusterCurve.Offset;
-					const uint8 LODMask = VertexLODMasks[GlobalPointIndex];
-					if (LODMask & (1 << LODIt))
-					{
-						// Store the minimum/coarser LOD at which the current point is visible
-						LocalPointLODs[GlobalPointIndex] = LODIt;
-					}
+					// Store the minimum/coarser LOD at which the current point is visible
+					const uint32 GlobalPointIndex = PointOffset + PointIt;
+					Out.PointLODs[GlobalPointIndex] = LODIt;
 				}
 			}
-		}
-
-		// 4.6 Compute the radius scaling to preserve the cluster apperance as we decimate 
-		// the number of strands
-		for (uint8 LODIt = 0; LODIt < LODCount; ++LODIt)
-		{
-			// Compute the visible area for various orientation? 
-			// Reference: Stochastic Simplification of Aggregate Detail
-			float  LODAvgRadiusRef = 0;
-			float  LODMaxRadiusRef = 0;
-
-			const uint32 ClusterCurveCount = LODCurveCount[LODIt];
-			for (uint32 CurveIt = 0; CurveIt < ClusterCurveCount; ++CurveIt)
-			{
-				const FClusterGrid::FCurve& ClusterCurve = Cluster.ClusterCurves[CurveIt];
-				LODAvgRadiusRef += ClusterCurve.AvgRadius;
-				LODMaxRadiusRef = FMath::Max(LODMaxRadiusRef, ClusterCurve.MaxRadius);
-			}
-			LODAvgRadiusRef /= ClusterCurveCount;
-
-			// Compute what should be the average (normalized) radius of the strands, and scale it 
-			// with the radius of the clusters/roots to get an actual world radius.
-			const float LODAvgRadiusTarget = Cluster.RootBoundRadius * GetHairAvgRadius(ClusterCurveCount, ClusterCoverage);
-
-			// Compute the ratio between the size of the cluster and the size of the groom (at rest position)
-			// On the GPU, we compute the screen size of the cluster, and use the LOD screensize to know which 
-			// LOD needs to be pick up. Since the screen area are setup by artists based the entire groom (not 
-			// based on the cluster size), we precompute the correcting ratio here, and pre-scale the LOD screensize
-			const float ScreenSizeScale = InSettings.ClusterScreenSizeScale * ClusterRadius / InGroomAssetRadius;
-
-			float LODScale = LODAvgRadiusTarget / LODAvgRadiusRef;
-			if (LODMaxRadiusRef * LODScale > ClusterVisibleRadius)
-			{
-				LODScale = FMath::Max(LODMaxRadiusRef, ClusterVisibleRadius) / LODMaxRadiusRef;
-			}
-			LODScale *= FMath::Max(InSettings.LODs[LODIt].ThicknessScale, 0.f);
-			//if (LODMaxRadiusRef * LODScale > Cluster.RootBoundRadius)
-			//{
-			//	LODScale = Cluster.RootBoundRadius / LODMaxRadiusRef;
-			//}
-
-			ClusterInfo.ScreenSize[LODIt] = InSettings.LODs[LODIt].ScreenSize * ScreenSizeScale;
-			ClusterInfo.bIsVisible[LODIt] = InSettings.LODs[LODIt].bVisible;
-			ClusterInfo.RadiusScale[LODIt]= LODScale;
 		}
 	}
-#if USE_PARALLE_FOR
-	);
-#endif
 
-	// Compute the screen size of the entire group at which the groom need to change LOD
-	for (uint32 LODIt = 0; LODIt < LODCount; ++LODIt)
+	// 3. Compute radius scale per LOD
 	{
-		Out.CPULODScreenSize.Add(InSettings.LODs[LODIt].ScreenSize);
-		Out.LODVisibility.Add(InSettings.LODs[LODIt].bVisible);
+		struct FCurveInfo
+		{
+			float Area = 0;
+			float MinRadius = FLT_MAX;
+			float MaxRadius = 0;
+			float AvgRadius = 0;
+		};
+		// Compute curves area
+		TArray<FCurveInfo> CurveInfos;
+		CurveInfos.SetNum(RenCurveCount);
+		float AvgCurveArea = 0;
+		for (uint32 CurveIt = 0; CurveIt < Out.CurveCount; ++CurveIt)
+		{
+			FCurveInfo& CurveInfo = CurveInfos[CurveIt];
+			const uint32 PointOffset = InRenStrandsData.StrandsCurves.CurvesOffset[CurveIt];
+			const uint32 PointCount  = InRenStrandsData.StrandsCurves.CurvesCount[CurveIt];
+
+			// Compute area of each curve to later compute area correction
+			for (uint32 PointIt = 0; PointIt < PointCount; ++PointIt)
+			{
+				uint32 PointGlobalIndex = PointIt + PointOffset;
+				const FVector& V0 = (FVector)InRenStrandsData.StrandsPoints.PointsPosition[PointGlobalIndex];
+				if (PointIt > 0)
+				{
+					const FVector& V1 = (FVector)InRenStrandsData.StrandsPoints.PointsPosition[PointGlobalIndex - 1];
+					FVector OutDir;
+					float OutLength;
+					(V1 - V0).ToDirectionAndLength(OutDir, OutLength);
+					CurveInfo.Area += InRenStrandsData.StrandsPoints.PointsRadius[PointGlobalIndex] * OutLength;
+				}
+
+				const float PointRadius = InRenStrandsData.StrandsPoints.PointsRadius[PointGlobalIndex];
+				CurveInfo.AvgRadius += PointRadius;
+				CurveInfo.MaxRadius = FMath::Max(CurveInfo.MaxRadius, PointRadius);
+				CurveInfo.MinRadius = FMath::Max(CurveInfo.MinRadius, PointRadius);
+			}
+			CurveInfo.AvgRadius /= FMath::Max(1u, PointCount);
+
+			AvgCurveArea += CurveInfo.Area;
+		}
+		AvgCurveArea /= FMath::Max(1u, Out.CurveCount);
+
+		const FVector3f GroupMinBound(InRenStrandsData.BoundingBox.Min);
+		const FVector3f GroupMaxBound(InRenStrandsData.BoundingBox.Max);
+		const FVector3f GroupSize = GroupMaxBound - GroupMinBound;
+		const FVector3f Area3(GroupSize.X * GroupSize.Y, GroupSize.X * GroupSize.Z, GroupSize.Y * GroupSize.Z);
+		const float MaxArea = FMath::Max3(Area3.X, Area3.Y, Area3.Z);
+		const float AvgArea = (Area3.X + Area3.Y + Area3.Z) / 3.f;
+		//		const float MaxArea = FMath::Max3(GroupSize.X, GroupSize.Y, GroupSize.Z);
+
+		// Reference: "Stochastic Simplification of Aggregate Detail"
+		const float DepthComplexity = Out.CurveCount * AvgCurveArea / MaxArea;
+		const float r = DepthComplexity / Out.CurveCount;
+
+		for (uint8 LODIt = 0; LODIt < LODCount; ++LODIt)
+		{
+			const float Lambda = InSettings.LODs[LODIt].CurveDecimation;
+			Out.LODInfos[LODIt].RadiusScale  = (1.f - FMath::Pow(1.f - r, 1.f / Lambda)) / r;
+			Out.LODInfos[LODIt].RadiusScale *= InSettings.LODs[LODIt].ThicknessScale;
+		}
+	}
+
+	// 4. Fill in cluster Info for legacy compatibility
+	Out.ClusterCount = FMath::Min(FMath::DivideAndRoundUp(InRenStrandsData.GetNumCurves(), 100u), 1024u);
+	Out.CurveToClusterIds.SetNum(InRenStrandsData.GetNumCurves());
+	Out.ClusterInfos.SetNum(Out.ClusterCount);
+	const uint32 CurvePerCluster = FMath::DivideAndRoundUp(InRenStrandsData.GetNumCurves(), Out.ClusterCount);
+	for (uint32 ClusterIt = 0; ClusterIt < Out.ClusterCount; ++ClusterIt)
+	{
+		// Every 'CurvePerCluster' is assigned to the current cluster
+		for (uint32 CurveIt = 0; CurveIt < CurvePerCluster; ++CurveIt)
+		{
+			const uint32 CurveIndex = CurveIt * CurvePerCluster;
+			if (CurveIndex < InRenStrandsData.GetNumCurves())
+			{
+				Out.CurveToClusterIds[CurveIndex] = ClusterIt;
+			}
+		}
+		Out.ClusterInfos[ClusterIt].LODCount = LODCount;
+		for (uint8 LODIt = 0; LODIt < LODCount; ++LODIt)
+		{
+			Out.ClusterInfos[ClusterIt].ScreenSize[LODIt]  = Out.LODInfos[LODIt].ScreenSize;
+			Out.ClusterInfos[ClusterIt].RadiusScale[LODIt] = Out.LODInfos[LODIt].RadiusScale;
+			Out.ClusterInfos[ClusterIt].bIsVisible[LODIt]  = Out.LODInfos[LODIt].bIsVisible;
+		}
 	}
 }
 
@@ -3224,13 +3069,9 @@ static void BuildClusterBulkData(
 	FHairStrandsClusterCullingBulkData& Out)
 {
 	Out.Reset();
-
 	Out.Header.ClusterCount		= In.ClusterCount;
 	Out.Header.PointCount		= In.PointCount;
 	Out.Header.CurveCount		= In.CurveCount;
-
-	Out.Header.CPULODScreenSize	= In.CPULODScreenSize;
-	Out.Header.LODVisibility	= In.LODVisibility;
 	Out.Header.LODInfos			= In.LODInfos;
 
 	// Sanity check

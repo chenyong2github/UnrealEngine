@@ -922,12 +922,6 @@ bool FGroomRenderingDetails::CommonResetToDefault(TSharedPtr<IPropertyHandle> Ch
 	// LODs
 	if (bIsGroupIndexValid)
 	{
-		{
-			FHairGroupsLOD Default;
-			HAIR_RESET0(GetHairGroupsLOD(), FHairGroupsLOD, ClusterWorldSize);
-			HAIR_RESET0(GetHairGroupsLOD(), FHairGroupsLOD, ClusterScreenSizeScale);
-		}
-
 		if (LODIndex>=0 && LODIndex < GroomAsset->GetHairGroupsLOD()[GroupIndex].LODs.Num())
 		{
 			FHairLODSettings Default;

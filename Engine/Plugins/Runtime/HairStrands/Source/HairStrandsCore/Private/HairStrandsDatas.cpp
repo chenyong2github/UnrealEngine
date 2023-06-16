@@ -657,8 +657,6 @@ void FHairStrandsClusterCullingBulkData::Reset()
 	Header.PointCount = 0;
 	Header.CurveCount = 0;
 	Header.ClusterInfoParameters = FVector4f::Zero();
-	Header.LODVisibility.Empty();
-	Header.CPULODScreenSize.Empty();
 	Header.LODInfos.Empty();
 
 	Data.CurveToClusterIds.RemoveBulkData();
@@ -683,8 +681,6 @@ void FHairStrandsClusterCullingBulkData::SerializeHeader(FArchive& Ar, UObject* 
 	Ar << Header.ClusterCount;
 	Ar << Header.PointCount;
 	Ar << Header.CurveCount;
-	Ar << Header.LODVisibility;
-	Ar << Header.CPULODScreenSize;
 	Ar << Header.ClusterInfoParameters;
 	uint32 LODInfosCount = Header.LODInfos.Num();
 	Ar << LODInfosCount;
@@ -696,6 +692,9 @@ void FHairStrandsClusterCullingBulkData::SerializeHeader(FArchive& Ar, UObject* 
 	{
 		Ar << Header.LODInfos[It].CurveCount;
 		Ar << Header.LODInfos[It].PointCount;
+		Ar << Header.LODInfos[It].RadiusScale;
+		Ar << Header.LODInfos[It].ScreenSize;
+		Ar << Header.LODInfos[It].bIsVisible;
 	}
 }
 

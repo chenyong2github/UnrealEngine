@@ -505,8 +505,7 @@ uint32 FHairGroupPublicData::GetActiveStrandsCurveCount() const
 
 float FHairGroupPublicData::GetActiveStrandsCoverageScale() const
 {
-	const float CurveRatio = ContinuousLODCurveCount / float(RestCurveCount);
-	return 1.f/FMath::Max(CurveRatio, 0.01f);
+	return ContinuousLODCoverageScale; 
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

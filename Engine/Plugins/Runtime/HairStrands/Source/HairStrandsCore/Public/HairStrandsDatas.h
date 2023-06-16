@@ -284,6 +284,9 @@ struct FHairLODInfo
 {
 	uint32 CurveCount = 0;
 	uint32 PointCount = 0;
+	float RadiusScale = 1;
+	float ScreenSize = 1;
+	bool bIsVisible = true;
 };
 
 struct FHairClusterInfoFormat
@@ -694,12 +697,6 @@ struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingData
 	void Reset();
 	bool IsValid() const { return ClusterCount > 0 && PointCount > 0; }
 
-	/* Set LOD visibility, allowing to remove the simulation/rendering of certain LOD */
-	TArray<bool>				LODVisibility;
-
-	/* Screen size at which LOD should switches on CPU */
-	TArray<float>				CPULODScreenSize;
-
 	/* LOD info for the various clusters for LOD management on GPU */
 	TArray<FHairClusterInfo>	ClusterInfos;
 	TArray<uint32>				CurveToClusterIds;
@@ -724,12 +721,6 @@ struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingBulkData : FHairStrandsBulk
 
 	struct FHeader
 	{
-		/* Set LOD visibility, allowing to remove the simulation/rendering of certain LOD */
-		TArray<bool> LODVisibility;
-	
-		/* Screen size at which LOD should switches on CPU */
-		TArray<float> CPULODScreenSize;
-	
 		/* Curve count and Point count per LOD */
 		TArray<FHairLODInfo> LODInfos;
 	

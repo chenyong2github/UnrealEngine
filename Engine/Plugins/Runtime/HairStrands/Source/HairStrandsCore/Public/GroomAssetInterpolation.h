@@ -214,19 +214,9 @@ struct HAIRSTRANDSCORE_API FHairGroupsLOD
 {
 	GENERATED_USTRUCT_BODY()
 
-	FHairGroupsLOD();
-
 	/** LODs  */
 	UPROPERTY(EditAnywhere, Category = "DecimationSettings", meta = (ToolTip = "Reduce the number of hair strands in a uniform manner", ClampMin = "0", UIMin = "0", UIMax = "1.0"))
 	TArray<FHairLODSettings> LODs;
-
-	/** Size of the hair clusters used for LOD decimation */
-	UPROPERTY(EditAnywhere, Category = "DecimationSettings", meta = (ToolTip = "If enable this LOD version will use cards representation"))
-	float ClusterWorldSize;
-
-	/** Size in pixel of a hair cluster when fully visible (screensize is equal to 1) */
-	UPROPERTY(EditAnywhere, Category = "DecimationSettings", meta = (ToolTip = "If enable this LOD version will use cards representation"))
-	float ClusterScreenSizeScale;
 
 	bool operator==(const FHairGroupsLOD& A) const;
 

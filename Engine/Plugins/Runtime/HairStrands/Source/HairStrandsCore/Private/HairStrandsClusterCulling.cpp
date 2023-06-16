@@ -65,6 +65,7 @@ class FHairClusterCullCS: public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<float>, OutRadiusScaleBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, OutCulledCurveBuffer)
 
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintUniformBuffer)
 		END_SHADER_PARAMETER_STRUCT()
 
@@ -113,6 +114,7 @@ static void AddClusterCullingPass(
 	const FShaderPrintData* ShaderPrintData,
 	FHairStrandClusterData::FHairGroup& ClusterData)
 {
+	check(View);
 
 	ShaderPrint::SetEnabled(true);
 	ShaderPrint::RequestSpaceForCharacters(2048);
@@ -134,7 +136,7 @@ static void AddClusterCullingPass(
 		Parameters->PointLODBuffer 		 = RegisterAsSRV(GraphBuilder, *ClusterData.PointLODBuffer);
 		Parameters->ClusterInfoBuffer 	 = RegisterAsSRV(GraphBuilder, *ClusterData.ClusterInfoBuffer);
 		Parameters->ClusterInfoParameters= ClusterData.ClusterInfoParameters;
-
+		Parameters->ViewUniformBuffer	 = View->ViewUniformBuffer;
 		Parameters->OutPointCounter 	 = PointCounterUAV;
 		Parameters->OutIndexBuffer 		 = RegisterAsUAV(GraphBuilder, *ClusterData.GetCulledVertexIdBuffer());
 		Parameters->OutRadiusScaleBuffer = RegisterAsUAV(GraphBuilder, *ClusterData.GetCulledVertexRadiusScaleBuffer());

@@ -1193,6 +1193,7 @@ struct FInstanceInfo
 	float RootScale;
 	float Length;
 	float LengthScale;
+	float CoverageScale;
 	bool Voxel;
 	bool Scatter;
 	bool RTGeometry;
@@ -1285,6 +1286,7 @@ FInstanceInfo ReadInstanceInfo(uint Index)
 	Out.TipScale				= f16tof32(Data3.y >> 16u);
 	Out.Length					= f16tof32(Data3.z & 0xFFFF);
 	Out.LengthScale				= f16tof32(Data3.z >> 16u);
+	Out.CoverageScale			= Data3.w;
 
 	Out.bHasLODSwitched			= Data4.x > 0;
 
@@ -1422,7 +1424,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	Newline(Context);
 
 	// Draw instance details
-	Print(Context, TEXT("   Group  LOD     Geometry Binding Cache Sim RBF Clip Screen Strands            Points             Bind.Tri/Sect Vis. Shad. SwLOD Name"));
+	Print(Context, TEXT("   Group  LOD     Geometry Binding Cache Sim RBF Clip Screen CovSc. Strands            Points             Bind.Tri/Sect Vis. Shad. SwLOD Name"));
 	Newline(Context);
 
 	for (uint InstanceIndex = 0; InstanceIndex < InstanceCount; ++InstanceIndex)
@@ -1475,6 +1477,9 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 
 		// Strands effective
 		Print(Context, Info.ScreenSize, FontOrange, 4, 2);
+		Print(Context, TEXT("   "));
+
+		Print(Context, Info.CoverageScale, FontOrange, 4, 2);
 		Print(Context, TEXT("   "));
 
 		// Curve sCount
@@ -1743,6 +1748,9 @@ void MainCS(int2 DispatchThreadId : SV_DispatchThreadID)
 int2 MaxResolution;
 uint GroupIndex;
 uint GeometryType;
+uint CurveCount;
+uint PointCount;
+float CoverageScale;
 float LOD;
 float ScreenSize;
 float3 GroupColor;
@@ -1753,43 +1761,41 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	// Legend
 	if (GroupIndex == 0)
 	{
-		FShaderPrintContext Context = InitShaderPrintContext(true, uint2(10, 50));
-		Print(Context, TEXT("  Group Geom.   LOD  Screen Size"), FontSilver); Newline(Context);
+		FShaderPrintContext Ctx = InitShaderPrintContext(true, uint2(10, 50));
+		Print(Ctx, TEXT("  Group Geom.   LOD  Screen Size #Curve      #Point      Scale"), FontSilver); Newline(Ctx);
 	}
 
 	// Values
 	{
-		FShaderPrintContext Context = InitShaderPrintContext(true, uint2(10, 65 + GroupIndex * 15));
+		FShaderPrintContext Ctx = InitShaderPrintContext(true, uint2(10, 65 + GroupIndex * 15));
 
 		// Group Color
-		Print(Context, TEXT("* "), InitFontColor(GroupColor));
+		Print(Ctx, TEXT("* "), InitFontColor(GroupColor));
 
 		// Group index
-		Print(Context, GroupIndex, FontEmerald, 3, 0);
+		Print(Ctx, GroupIndex, FontEmerald, 3, 0);
 
 		// Geometry Type
-		Print(Context, TEXT("   "));
+		Print(Ctx, TEXT("   "));
 		if (GeometryType == 0)
 		{
-			Print(Context, TEXT("Strands "), FontOrange);
+			Print(Ctx, TEXT("Strands "), FontOrange);
 		}
 		else if (GeometryType == 1)
 		{
-			Print(Context, TEXT("Cards   "), FontOrange);
+			Print(Ctx, TEXT("Cards   "), FontOrange);
 		}
 		else if (GeometryType == 2)
 		{
-			Print(Context, TEXT("Meshes  "), FontOrange);
+			Print(Ctx, TEXT("Meshes  "), FontOrange);
 		}
 
-		// LOD
-		Print(Context, LOD, FontWhite, 4, 2);
-		Print(Context, TEXT(" "));
-
-		// Screen size
-		Print(Context, saturate(ScreenSize), FontWhite);
-
-		Newline(Context);
+		Print(Ctx, LOD, FontWhite, 4, 2); Print(Ctx, TEXT(" "));
+		Print(Ctx, saturate(ScreenSize), FontWhite);
+		Print(Ctx, CurveCount, FontWhite);
+		Print(Ctx, PointCount, FontWhite);
+		Print(Ctx, CoverageScale, FontWhite);
+		Newline(Ctx);
 	}
 }
 
