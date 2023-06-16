@@ -13,7 +13,7 @@ public:
 
 	virtual void StartupModule() override
 	{
-		// Register any modular features here
+		FModuleManager::Get().LoadModule("GeometryProcessingInterfaces");
 	}
 
 	virtual void ShutdownModule() override

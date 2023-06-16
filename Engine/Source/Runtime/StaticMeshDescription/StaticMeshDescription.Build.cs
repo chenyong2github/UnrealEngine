@@ -23,6 +23,23 @@ namespace UnrealBuildTool.Rules
 				}
 			);
 
+			if (Target.bBuildEditor == true)
+			{
+				PrivateIncludePathModuleNames.AddRange(
+					new string[]
+					{
+						"GeometryProcessingInterfaces"
+					}
+				);
+
+				DynamicallyLoadedModuleNames.AddRange(
+					new string[]
+					{
+						"GeometryProcessingInterfaces"
+					}
+				);
+			}
+
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "MikkTSpace");
 		}
 	}

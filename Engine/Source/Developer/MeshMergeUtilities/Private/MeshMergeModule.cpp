@@ -18,6 +18,10 @@ public:
 		return Utilities;
 	}
 
+	virtual void StartupModule() override
+	{
+		FModuleManager::Get().LoadModuleChecked("StaticMeshDescription");
+	}
 
 	virtual void ShutdownModule() override
 	{
