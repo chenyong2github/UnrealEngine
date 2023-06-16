@@ -8,7 +8,7 @@
 
 #if SHADER_RT_GEOMETRY
 
-uint VertexCount;
+uint PointCount;
 
 float HairStrandsVF_HairRadius;
 float HairStrandsVF_HairRootScale;
@@ -36,7 +36,7 @@ FHairControlPoint GetControlPoint(uint ControlPointId)
 {
 	FHairControlPoint Out = (FHairControlPoint)0;
 
-	if (ControlPointId < VertexCount)
+	if (ControlPointId < PointCount)
 	{
 		Out = UnpackHairControlPoint(
 			PositionBuffer[ControlPointId],
@@ -159,7 +159,7 @@ void MainCS(uint DispatchThreadId : SV_DispatchThreadID)
 	uint VertexIndex0 = DispatchThreadId;
 	uint VertexIndex1 = VertexIndex0 + 1;
 
-	const bool bIsValid = VertexIndex0 < VertexCount && VertexIndex1 < VertexCount;
+	const bool bIsValid = VertexIndex0 < PointCount && VertexIndex1 < PointCount;
 	if (!bIsValid)
 	{
 		SetInvalidSegment(VertexIndex0);
@@ -297,7 +297,7 @@ void MainCS(uint DispatchThreadId : SV_DispatchThreadID)
 #error GROUP_SIZE has changed, please update the reduction code.
 #endif
 
-uint VertexCount;
+uint PointCount;
 uint bDrawInvalidElement;
 float PositionThreshold2;
 
@@ -323,7 +323,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex : SV_
 	{
 		// Fetch vertex index if culling is enabled
 		uint VertexIndex0 = DispatchThreadId.x;
-		bool bIsValid = VertexIndex0 < VertexCount;
+		bool bIsValid = VertexIndex0 < PointCount;
 		if (bIsValid && HairStrandsVF_bCullingEnable)
 		{
 			const uint VertexCountAfterCulling = HairStrandsVF_CullingIndirectBuffer[3];

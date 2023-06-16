@@ -1169,7 +1169,7 @@ class FHairRaytracingGeometryCS : public FGlobalShader
 	using FPermutationDomain = TShaderPermutationDomain<FCulling, FProceduralPrimitive>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(uint32, VertexCount)
+		SHADER_PARAMETER(uint32, PointCount)
 		SHADER_PARAMETER(float, HairStrandsVF_HairRadius)
 		SHADER_PARAMETER(float, HairStrandsVF_HairRootScale)
 		SHADER_PARAMETER(float, HairStrandsVF_HairTipScale)
@@ -1215,7 +1215,7 @@ static void AddGenerateRaytracingGeometryPass(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
 	const FShaderPrintData* ShaderPrintData,
-	uint32 VertexCount,
+	uint32 PointCount,
 	bool bProceduralPrimitive,
 	int ProceduralSplits,
 	float HairRadius,
@@ -1229,7 +1229,7 @@ static void AddGenerateRaytracingGeometryPass(
 	const FRDGBufferUAVRef& OutIndexBuffer)
 {
 	FHairRaytracingGeometryCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairRaytracingGeometryCS::FParameters>();
-	Parameters->VertexCount = VertexCount;
+	Parameters->PointCount = PointCount;
 	Parameters->PositionOffsetBuffer = HairWorldOffsetBuffer;
 	Parameters->HairStrandsVF_HairRadius = HairRadius;
 	Parameters->HairStrandsVF_HairRootScale = RootScale;
@@ -1260,7 +1260,7 @@ static void AddGenerateRaytracingGeometryPass(
 	PermutationVector.Set<FHairRaytracingGeometryCS::FProceduralPrimitive>(bProceduralPrimitive);
 	TShaderMapRef<FHairRaytracingGeometryCS> ComputeShader(ShaderMap, PermutationVector);
 
-	const FIntVector DispatchCount(FMath::DivideAndRoundUp(VertexCount, FHairRaytracingGeometryCS::GetGroupSize()), 1, 1);
+	const FIntVector DispatchCount(FMath::DivideAndRoundUp(PointCount, FHairRaytracingGeometryCS::GetGroupSize()), 1, 1);
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("HairStrands::GenerateRaytracingGeometry(bCulling:%d, Procedural:%d)", bCullingEnable, bProceduralPrimitive),
