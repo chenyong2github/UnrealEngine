@@ -326,7 +326,7 @@ TOptional<TRange<FFrameNumber> > UMovieSceneAudioSection::GetAutoSizeRange() con
 	// @todo ^^ Why? Infinte sections would mean there's no starting time?
 	FFrameTime DurationToUse = 1.f * FrameRate; // if all else fails, use 1 second duration
 
-	if (SoundDuration != INDEFINITELY_LOOPING_DURATION)
+	if (SoundDuration != INDEFINITELY_LOOPING_DURATION && SoundDuration > 0)
 	{
 		DurationToUse = FMath::Max(SoundDuration * FrameRate - StartFrameOffset, FFrameTime(1));
 	}

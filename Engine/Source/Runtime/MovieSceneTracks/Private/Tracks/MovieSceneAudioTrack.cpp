@@ -89,8 +89,8 @@ UMovieSceneSection* UMovieSceneAudioTrack::AddNewSoundOnRow(USoundBase* Sound, F
 	// @todo ^^ Why? Infinte sections would mean there's no starting time?
 	FFrameTime DurationToUse = 1.f * FrameRate; // if all else fails, use 1 second duration
 
-	float SoundDuration = MovieSceneHelpers::GetSoundDuration(Sound);
-	if (SoundDuration != INDEFINITELY_LOOPING_DURATION)
+	const float SoundDuration = MovieSceneHelpers::GetSoundDuration(Sound);
+	if (SoundDuration != INDEFINITELY_LOOPING_DURATION && SoundDuration > 0)
 	{
 		DurationToUse = SoundDuration * FrameRate;
 	}
