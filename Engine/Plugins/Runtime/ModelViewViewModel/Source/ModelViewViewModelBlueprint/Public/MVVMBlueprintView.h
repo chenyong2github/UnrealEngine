@@ -96,6 +96,7 @@ public:
 #endif
 
 	virtual void PostLoad() override;
+	virtual void Serialize(FArchive& Ar) override;
 
 	DECLARE_EVENT(UMVVMBlueprintView, FOnBindingsUpdated);
 	FOnBindingsUpdated OnBindingsUpdated;

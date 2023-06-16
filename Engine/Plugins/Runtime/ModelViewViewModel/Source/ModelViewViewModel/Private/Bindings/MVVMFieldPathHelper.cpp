@@ -9,6 +9,10 @@
 #include "Types/MVVMAvailableBinding.h"
 #include "Types/MVVMFieldContext.h"
 
+#if WITH_EDITOR
+#include "Kismet2/BlueprintEditorUtils.h"
+#endif
+
 #define LOCTEXT_NAMESPACE "MVVMFieldPathHelper"
 
 namespace UE::MVVM::FieldPathHelper
@@ -51,8 +55,21 @@ const FProperty* FindProperty(FMVVMConstFieldVariant Field)
 	return nullptr;
 }
 
+const UStruct* GetMostUpToDateStruct(const UStruct* Struct)
+{
+#if WITH_EDITOR
+	if (const UClass* Class = Cast<UClass>(Struct))
+	{
+		return FBlueprintEditorUtils::GetMostUpToDateClass(Class);
+	}
+	return Struct;
+#else
+	return Struct;
+#endif
+}
 
-TValueOrError<FMVVMConstFieldVariant, FText> TransformWithAccessor(UStruct* CurrentContainer, FMVVMConstFieldVariant CurrentField, bool bForReading)
+
+TValueOrError<FMVVMConstFieldVariant, FText> TransformWithAccessor(const UStruct* CurrentContainer, FMVVMConstFieldVariant CurrentField, bool bForReading)
 {
 #if WITH_EDITORONLY_DATA
 	if (bForReading)
@@ -206,7 +223,7 @@ TValueOrError<TArray<FMVVMConstFieldVariant>, FText> GenerateFieldPathList(TArra
 
 	TArray<FMVVMConstFieldVariant> Result;
 	Result.Reserve(InFieldPath.Num());
-	UStruct* CurrentContainer = InFieldPath[0].GetOwner();
+	const UStruct* CurrentContainer = InFieldPath[0].GetOwner();
 
 	for (int32 Index = 0; Index < InFieldPath.Num(); ++Index)
 	{
@@ -223,8 +240,10 @@ TValueOrError<TArray<FMVVMConstFieldVariant>, FText> GenerateFieldPathList(TArra
 			return MakeError(FText::Format(LOCTEXT("FieldDoesNotExist", "The field '{0}' does not exist."), FText::FromName(Field.GetName())));
 		}
 
-		const bool bIsChild = Field.GetOwner()->IsChildOf(CurrentContainer);
-		const bool bIsDownCast = CurrentContainer->IsChildOf(Field.GetOwner());
+		const UStruct* SkeletalOwner = Private::GetMostUpToDateStruct(Field.GetOwner());
+		const UStruct* SkeletalCurrentContainer = Private::GetMostUpToDateStruct(CurrentContainer);
+		const bool bIsChild = SkeletalOwner->IsChildOf(SkeletalCurrentContainer);
+		const bool bIsDownCast = SkeletalCurrentContainer->IsChildOf(SkeletalOwner);
 		if (!(bIsChild || bIsDownCast))
 		{
 			return MakeError(FText::Format(LOCTEXT("FieldDoesNotExistInStruct", "The field '{0}' does not exist in the struct '{1}'."), 
@@ -287,9 +306,13 @@ TValueOrError<FParsedNotifyBindingInfo, FText> GetNotifyBindingInfoFromFieldPath
 		return MakeError(LOCTEXT("FieldPathEmpty", "The field path is empty."));
 	}
 
-	if (!InAccessor->IsChildOf(InFieldPath[0].GetOwner()))
 	{
-		return MakeError(LOCTEXT("FieldPathDoesntStartWithAccessor", "Field path that doesn't start with the accessor is not supported."));
+		const UStruct* SkeletalFieldOwner = Private::GetMostUpToDateStruct(InFieldPath[0].GetOwner());
+		const UStruct* SkeletalAccessor = Private::GetMostUpToDateStruct(InAccessor);
+		if (!SkeletalAccessor->IsChildOf(SkeletalFieldOwner))
+		{
+			return MakeError(LOCTEXT("FieldPathDoesntStartWithAccessor", "Field path that doesn't start with the accessor is not supported."));
+		}
 	}
 
 	FParsedNotifyBindingInfo Result;
@@ -328,8 +351,10 @@ TValueOrError<FParsedNotifyBindingInfo, FText> GetNotifyBindingInfoFromFieldPath
 			return MakeError(FText::Format(LOCTEXT("InvalidFieldParent", "The field '{0}' is not a container."), Index - 1));
 		}
 
-		const bool bIsChild = FieldOwner->IsChildOf(ParentContainerType);
-		const bool bIsDownCast = ParentContainerType->IsChildOf(FieldOwner);
+		const UStruct* SkeletalFieldOwner = Private::GetMostUpToDateStruct(FieldOwner);
+		const UStruct* SkeletalParentContainer = Private::GetMostUpToDateStruct(ParentContainerType);
+		const bool bIsChild = SkeletalFieldOwner->IsChildOf(SkeletalParentContainer);
+		const bool bIsDownCast = SkeletalParentContainer->IsChildOf(SkeletalFieldOwner);
 		if (!(bIsChild || bIsDownCast))
 		{
 			return MakeError(FText::Format(LOCTEXT("FieldDoesNotExistInStruct", "The field '{0}' does not exist in the struct '{1}'."),
@@ -450,7 +475,9 @@ TValueOrError<UObject*, void> EvaluateObjectProperty(const FFieldContext& InSour
 		check(InSource.GetObjectVariant().GetUObject());
 
 		UFunction* Function = InSource.GetFieldVariant().GetFunction();
-		if (!InSource.GetObjectVariant().GetUObject()->GetClass()->IsChildOf(Function->GetOuterUClass()))
+		const UStruct* SkeletalFunctionOwner = Private::GetMostUpToDateStruct(Function->GetOuterUClass());
+		const UStruct* SkeletalObjectClass = Private::GetMostUpToDateStruct(InSource.GetObjectVariant().GetUObject()->GetClass());
+		if (!SkeletalObjectClass->IsChildOf(SkeletalFunctionOwner))
 		{
 			return MakeError();
 		}

@@ -78,7 +78,7 @@ void SPropertyPath::SetPropertyPath(const FMVVMBlueprintPropertyPath& InProperty
 			[
 				SNew(SFieldPaths)
 				.TextStyle(TextStyle)
-				.FieldPaths(InPropertyPath.GetFields())
+				.FieldPaths(InPropertyPath.GetFields(WidgetBlueprint.Get()->SkeletonGeneratedClass))
 				.ShowOnlyLast(bShowOnlyLastPath)
 			];
 	}

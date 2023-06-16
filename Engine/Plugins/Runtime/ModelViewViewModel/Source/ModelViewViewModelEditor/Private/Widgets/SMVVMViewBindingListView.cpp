@@ -679,7 +679,7 @@ private:
 			Result.BindingMode = ViewBinding->BindingType;
 
 			{
-				TArray<FMVVMConstFieldVariant> Fields = bSource ? ViewBinding->DestinationPath.GetFields() : ViewBinding->SourcePath.GetFields();
+				TArray<FMVVMConstFieldVariant> Fields = bSource ? ViewBinding->DestinationPath.GetFields(WidgetBlueprintPtr->SkeletonGeneratedClass) : ViewBinding->SourcePath.GetFields(WidgetBlueprintPtr->SkeletonGeneratedClass);
 				if (Fields.Num() > 0)
 				{
 					FMVVMConstFieldVariant LastField = Fields.Last();
@@ -753,10 +753,10 @@ private:
 					TArray<FFieldVariant> FieldPath = bIsViewModelProperty ? ViewModelFieldDragDropOp->DraggedField : WidgetPropertyDragDropOp->DraggedPropertyPath;
 					FMVVMBlueprintPropertyPath PropertyPath;
 
-					PropertyPath.ResetBasePropertyPath();
+					PropertyPath.ResetPropertyPath();
 					for (const FFieldVariant& Field : FieldPath)
 					{
-						PropertyPath.AppendBasePropertyPath(FMVVMConstFieldVariant(Field));
+						PropertyPath.AppendPropertyPath(WidgetBlueprintPtr, FMVVMConstFieldVariant(Field));
 					}
 
 					UMVVMEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();

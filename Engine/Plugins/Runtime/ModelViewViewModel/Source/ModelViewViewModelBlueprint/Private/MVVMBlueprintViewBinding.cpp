@@ -16,7 +16,7 @@ FName FMVVMBlueprintViewBinding::GetFName() const
 
 namespace UE::MVVM::Private
 {
-	void AppendViewModelPathString(const UMVVMBlueprintView* BlueprintView, const FMVVMBlueprintPropertyPath& ViewModelPath, FStringBuilderBase& PathBuilder)
+	void AppendViewModelPathString(const UWidgetBlueprint* WidgetBlueprint, const UMVVMBlueprintView* BlueprintView, const FMVVMBlueprintPropertyPath& ViewModelPath, FStringBuilderBase& PathBuilder)
 	{
 		if (ViewModelPath.IsEmpty())
 		{
@@ -34,7 +34,7 @@ namespace UE::MVVM::Private
 			PathBuilder << TEXT("<none>");
 		}
 
-		const FString PropertyPath = ViewModelPath.GetBasePropertyPath();
+		const FString PropertyPath = ViewModelPath.GetPropertyPath(WidgetBlueprint->SkeletonGeneratedClass);
 		if (!PropertyPath.IsEmpty())
 		{
 			PathBuilder << TEXT(".");
@@ -74,7 +74,7 @@ namespace UE::MVVM::Private
 					FMVVMBlueprintPropertyPath ArgumentPath = ConversionFunctionHelper::GetPropertyPathForArgument(WidgetBlueprint, CallFunctionNode, Pin->GetFName(), true);
 					if (!ArgumentPath.IsEmpty())
 					{
-						AppendViewModelPathString(BlueprintView, ArgumentPath, NameBuilder);
+						AppendViewModelPathString(WidgetBlueprint, BlueprintView, ArgumentPath, NameBuilder);
 					}
 					else
 					{
@@ -98,7 +98,7 @@ namespace UE::MVVM::Private
 				NameBuilder << SourceToDestFunction->GetName();
 				NameBuilder << TEXT("(");
 			
-				AppendViewModelPathString(BlueprintView, Binding.SourcePath, NameBuilder);
+				AppendViewModelPathString(WidgetBlueprint, BlueprintView, Binding.SourcePath, NameBuilder);
 
 				NameBuilder << TEXT(")");
 			}
@@ -110,7 +110,7 @@ namespace UE::MVVM::Private
 		}
 		else if (!Binding.SourcePath.IsEmpty())
 		{
-			AppendViewModelPathString(BlueprintView, Binding.SourcePath, NameBuilder);
+			AppendViewModelPathString(WidgetBlueprint, BlueprintView, Binding.SourcePath, NameBuilder);
 		}
 
 		FString Name = NameBuilder.ToString();
@@ -137,7 +137,7 @@ namespace UE::MVVM::Private
 			PathBuilder << WidgetPath.GetWidgetName();
 		}
 
-		const FString PropertyPath = WidgetPath.GetBasePropertyPath();
+		const FString PropertyPath = WidgetPath.GetPropertyPath(WidgetBlueprint->SkeletonGeneratedClass);
 		if (!PropertyPath.IsEmpty())
 		{
 			PathBuilder << TEXT(".");

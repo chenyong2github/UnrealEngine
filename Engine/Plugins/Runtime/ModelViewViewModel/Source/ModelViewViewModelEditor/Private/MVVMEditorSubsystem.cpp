@@ -402,7 +402,7 @@ void UMVVMEditorSubsystem::SetSourceToDestinationConversionFunction(UWidgetBluep
 {
 	if (UMVVMBlueprintView* View = GetView(WidgetBlueprint))
 	{
-		if (ConversionFunction == nullptr || IsValidConversionFunction(ConversionFunction, Binding.SourcePath, Binding.DestinationPath))
+		if (ConversionFunction == nullptr || IsValidConversionFunction(WidgetBlueprint, ConversionFunction, Binding.SourcePath, Binding.DestinationPath))
 		{
 			FScopedTransaction Transaction(LOCTEXT("SetConversionFunction", "Set Conversion Function"));
 
@@ -436,7 +436,7 @@ void UMVVMEditorSubsystem::SetDestinationToSourceConversionFunction(UWidgetBluep
 {
 	if (UMVVMBlueprintView* View = GetView(WidgetBlueprint))
 	{
-		if (ConversionFunction == nullptr || IsValidConversionFunction(ConversionFunction, Binding.DestinationPath, Binding.SourcePath))
+		if (ConversionFunction == nullptr || IsValidConversionFunction(WidgetBlueprint, ConversionFunction, Binding.DestinationPath, Binding.SourcePath))
 		{
 			FScopedTransaction Transaction(LOCTEXT("SetConversionFunction", "Set Conversion Function"));
 
@@ -580,7 +580,7 @@ void UMVVMEditorSubsystem::SetCompileForBinding(UWidgetBlueprint* WidgetBlueprin
 	}
 }
 
-bool UMVVMEditorSubsystem::IsValidConversionFunction(const UFunction* Function, const FMVVMBlueprintPropertyPath& Source, const FMVVMBlueprintPropertyPath& Destination) const
+bool UMVVMEditorSubsystem::IsValidConversionFunction(const UWidgetBlueprint* WidgetBlueprint, const UFunction* Function, const FMVVMBlueprintPropertyPath& Source, const FMVVMBlueprintPropertyPath& Destination) const
 {
 	TValueOrError<const FProperty*, FText> ReturnResult = UE::MVVM::BindingHelper::TryGetReturnTypeForConversionFunction(Function);
 	if (ReturnResult.HasError())
@@ -602,7 +602,7 @@ bool UMVVMEditorSubsystem::IsValidConversionFunction(const UFunction* Function, 
 
 	const FProperty* SourceProperty = nullptr;
 
-	TArray<UE::MVVM::FMVVMConstFieldVariant> SourceFields = Source.GetFields();
+	TArray<UE::MVVM::FMVVMConstFieldVariant> SourceFields = Source.GetFields(WidgetBlueprint->SkeletonGeneratedClass);
 	if (SourceFields.Num() > 0)
 	{
 		SourceProperty = SourceFields.Last().IsProperty() ? SourceFields.Last().GetProperty() : UE::MVVM::BindingHelper::GetReturnProperty(SourceFields.Last().GetFunction());
@@ -610,7 +610,7 @@ bool UMVVMEditorSubsystem::IsValidConversionFunction(const UFunction* Function, 
 
 	const FProperty* DestinationProperty = nullptr;
 
-	TArray<UE::MVVM::FMVVMConstFieldVariant> DestFields = Destination.GetFields();
+	TArray<UE::MVVM::FMVVMConstFieldVariant> DestFields = Destination.GetFields(WidgetBlueprint->SkeletonGeneratedClass);
 	if (DestFields.Num() > 0)
 	{
 		DestinationProperty = DestFields.Last().IsProperty() ? DestFields.Last().GetProperty() : UE::MVVM::BindingHelper::GetFirstArgumentProperty(DestFields.Last().GetFunction());
@@ -687,7 +687,7 @@ TArray<UFunction*> UMVVMEditorSubsystem::GetAvailableConversionFunctions(const U
 		bool bFromBlueprintFunctionLibrary = FunctionClass->IsChildOf<UBlueprintFunctionLibrary>() && Function->HasAllFunctionFlags(FUNC_Static | FUNC_BlueprintPure);
 		if (bIsFromWidgetBlueprint || bIsFromSkeletonWidgetBlueprint || bFromBlueprintFunctionLibrary)
 		{
-			if (IsValidConversionFunction(Function, Source, Destination))
+			if (IsValidConversionFunction(WidgetBlueprint, Function, Source, Destination))
 			{
 				ConversionFunctions.Add(const_cast<UFunction*>(Function));
 			}
@@ -866,7 +866,7 @@ void UMVVMEditorSubsystem::SetPathForConversionFunctionArgument(UWidgetBlueprint
 		return;
 	}
 
-	TArray<UE::MVVM::FMVVMConstFieldVariant> Fields = Path.GetFields();
+	TArray<UE::MVVM::FMVVMConstFieldVariant> Fields = Path.GetFields(WidgetBlueprint->SkeletonGeneratedClass);
 
 	float PosX = ConversionNode->NodePosX - 300 * (Fields.Num() + 1);
 	const float PosY = ConversionNode->NodePosY + ArgumentIndex * 100;

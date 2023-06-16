@@ -3,7 +3,9 @@
 #include "Bindings/MVVMCompiledBindingLibraryCompiler.h"
 
 #include "Bindings/MVVMBindingHelper.h"
+#include "Engine/Blueprint.h"
 #include "Engine/Engine.h"
+#include "Kismet2/BlueprintEditorUtils.h"
 #include "MVVMDeveloperProjectSettings.h"
 #include "MVVMSubsystem.h"
 #include "Misc/TVariantMeta.h"
@@ -117,6 +119,67 @@ public:
 	}
 };
 
+/** */
+//FMVVMConstFieldVariant GetMostUpToDate(FMVVMConstFieldVariant Field)
+//{
+//	if (Field.IsValid())
+//	{
+//		UClass* Class = Cast<UClass>(Field.GetOwner());
+//		if (!Class)
+//		{
+//			return Field;
+//		}
+//		if (Field.IsProperty())
+//		{
+//			return FMVVMConstFieldVariant(FBlueprintEditorUtils::GetMostUpToDateProperty(Field.GetProperty()));
+//		}
+//		else if (Field.IsFunction())
+//		{
+//			return FMVVMConstFieldVariant(FBlueprintEditorUtils::GetMostUpToDateFunction(Field.GetFunction()));
+//		}
+//	}
+//	return Field;
+//}
+
+
+/** */
+const UStruct* GetSavedGeneratedStruct(FMVVMConstFieldVariant Field)
+{
+	const UStruct* Result = Field.GetOwner();
+	const UClass* Class = Cast<UClass>(Result);
+	if (!Class || Class->HasAnyClassFlags(CLASS_Native) || Class->bCooked || !Field.IsValid())
+	{
+		return Result;
+	}
+
+	const UBlueprint* Blueprint = Cast<const UBlueprint>(Class->ClassGeneratedBy);
+	if (!Blueprint)
+	{
+		return Result;
+	}
+
+	ensure(Blueprint->GeneratedClass);
+	return Blueprint->GeneratedClass;
+}
+
+/** */
+const UClass* GetSavedGeneratedStruct(const UClass* Class)
+{
+	if (!Class || Class->HasAnyClassFlags(CLASS_Native) || Class->bCooked)
+	{
+		return Class;
+	}
+
+	UBlueprint* Blueprint = Cast<UBlueprint>(Class->ClassGeneratedBy);
+	if (!Blueprint)
+	{
+		return Class;
+	}
+
+	ensure(Blueprint->GeneratedClass);
+	return Blueprint->GeneratedClass;
+}
+
 } //namespace
 
 
@@ -139,9 +202,11 @@ FCompiledBindingLibraryCompiler::FCompiledBindingLibraryCompiler()
 
 }
 
-TValueOrError<FCompiledBindingLibraryCompiler::FFieldIdHandle, FText> FCompiledBindingLibraryCompiler::AddFieldId(const UClass* SourceClass, FName FieldId)
+TValueOrError<FCompiledBindingLibraryCompiler::FFieldIdHandle, FText> FCompiledBindingLibraryCompiler::AddFieldId(const UClass* InSourceClass, FName FieldId)
 {
 	Impl->bCompiled = false;
+
+	const UClass* SourceClass = FBlueprintEditorUtils::GetMostUpToDateClass(InSourceClass);
 
 	if (FieldId.IsNone())
 	{
@@ -238,7 +303,13 @@ TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FText> FCompile
 
 	for (int32 Index = 0; Index < InFieldPath.Num(); ++Index)
 	{
+		// Make sure the FieldVariant is not from a skeletalclass
 		FMVVMConstFieldVariant FieldVariant = InFieldPath[Index];
+		if (!FieldVariant.IsValid())
+		{
+			return MakeError(FText::Format(LOCTEXT("FieldDoesNotHaveValidOwner", "The field {0} doesn't have a valid owner."), FText::FromName(InFieldPath[Index].GetName())));
+		}
+
 		const bool bIsLast = Index == InFieldPath.Num() - 1;
 		if (FieldVariant.IsProperty())
 		{
@@ -339,14 +410,16 @@ TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FText> FCompile
 		return MakeError(FText::Format(LOCTEXT("FieldDoesNotReturnType", "The field does not return a '{0}'."), ExpectedType->GetDisplayNameText()));
 	}
 
+	UE::MVVM::FMVVMConstFieldVariant Last = FieldPath.Last();
+
 	const FObjectPropertyBase* ObjectPropertyBase = nullptr;
-	if (FieldPath.Last().IsProperty())
+	if (Last.IsProperty())
 	{
-		ObjectPropertyBase = CastField<const FObjectPropertyBase>(FieldPath.Last().GetProperty());
+		ObjectPropertyBase = CastField<const FObjectPropertyBase>(Last.GetProperty());
 	}
-	else if (FieldPath.Last().IsFunction())
+	else if (Last.IsFunction())
 	{
-		ObjectPropertyBase = CastField<const FObjectPropertyBase>(BindingHelper::GetReturnProperty(FieldPath.Last().GetFunction()));
+		ObjectPropertyBase = CastField<const FObjectPropertyBase>(BindingHelper::GetReturnProperty(Last.GetFunction()));
 	}
 
 	if (ObjectPropertyBase == nullptr)
@@ -362,9 +435,12 @@ TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FText> FCompile
 }
 
 
-TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FText> FCompiledBindingLibraryCompiler::AddConversionFunctionFieldPath(const UClass* SourceClass, const UFunction* Function)
+TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FText> FCompiledBindingLibraryCompiler::AddConversionFunctionFieldPath(const UClass* InSourceClass, const UFunction* InFunction)
 {
 	Impl->bCompiled = false;
+
+	const UClass* SourceClass = FBlueprintEditorUtils::GetMostUpToDateClass(InSourceClass);
+	const UFunction* Function = FBlueprintEditorUtils::GetMostUpToDateFunction(InFunction);
 
 	if (SourceClass == nullptr)
 	{
@@ -575,7 +651,7 @@ TValueOrError<FCompiledBindingLibraryCompiler::FCompileResult, FText> FCompiledB
 		TArray<int32> RawFieldIdIndex;
 	};
 
-	// create the list of UClass
+	// create the list of UClass. Uses the Generated class, not the SkeletalClass.
 	TMap<const UStruct*, FCompiledClassInfo> MapOfFieldInClass;
 	{
 		for (int32 Index = 0; Index < Impl->Fields.Num(); ++Index)
@@ -583,11 +659,11 @@ TValueOrError<FCompiledBindingLibraryCompiler::FCompileResult, FText> FCompiledB
 			const Private::FRawField& RawField = Impl->Fields[Index];
 			check(!RawField.Field.IsEmpty());
 
-			const UStruct* Owner = RawField.Field.IsProperty() ? RawField.Field.GetProperty()->GetOwnerStruct() : RawField.Field.GetFunction()->GetOwnerClass();
-			check(Owner);
-			FCompiledClassInfo& ClassInfo = MapOfFieldInClass.FindOrAdd(Owner);
+			const UStruct* FinalOwner = Private::GetSavedGeneratedStruct(RawField.Field);
+			check(FinalOwner);
+			FCompiledClassInfo& ClassInfo = MapOfFieldInClass.FindOrAdd(FinalOwner);
 
-			// Test if the Field is not there more than one
+			// Test if the Field is there more than one
 			{
 				FMVVMConstFieldVariant FieldToTest = RawField.Field;
 				const TArray<Private::FRawField>& ListOfFields = Impl->Fields;
@@ -608,7 +684,7 @@ TValueOrError<FCompiledBindingLibraryCompiler::FCompileResult, FText> FCompiledB
 			check(RawFieldId.FieldId.IsValid());
 			check(RawFieldId.NotifyFieldValueChangedClass);
 
-			FCompiledClassInfo& ClassInfo = MapOfFieldInClass.FindOrAdd(RawFieldId.NotifyFieldValueChangedClass);
+			FCompiledClassInfo& ClassInfo = MapOfFieldInClass.FindOrAdd(Private::GetSavedGeneratedStruct(RawFieldId.NotifyFieldValueChangedClass));
 
 			// Test if the Field is not there more than one
 			{
@@ -625,9 +701,11 @@ TValueOrError<FCompiledBindingLibraryCompiler::FCompileResult, FText> FCompiledB
 		}
 	}
 
-
 	// Todo optimize that list to group common type. ie UWidget::ToolTip == UProgressBar::ToolTip. We can merge UWidget in UProgressBar.
-	//The difficulty is with type that may be not loaded at runtime and would create runtime issue with type that would be loaded otherwise.
+	//Algo: for each class entry
+		// if: a class is child of another class in the list (ProgressBar is child of Widget all property inside Widget are also in ProgressBar)
+		// then: merge the 2 and restart the algo
+
 
 	FCompileResult Result;
 
@@ -638,7 +716,7 @@ TValueOrError<FCompiledBindingLibraryCompiler::FCompileResult, FText> FCompiledB
 	for (TPair<const UStruct*, FCompiledClassInfo>& StructCompiledFields : MapOfFieldInClass)
 	{
 		FMVVMVCompiledFields CompiledFields;
-		CompiledFields.ClassOrScriptStruct = StructCompiledFields.Key;
+		CompiledFields.ClassOrScriptStruct = StructCompiledFields.Key; // The generated class not the skeletal class
 		check(StructCompiledFields.Key);
 
 		TArray<FName> PropertyNames;
@@ -652,6 +730,7 @@ TValueOrError<FCompiledBindingLibraryCompiler::FCompileResult, FText> FCompiledB
 
 			if (Field.IsProperty())
 			{
+				// N.B. no need to translate from skeletal to generated, we only use the the name or the index.
 				Result.Library.LoadedProperties.Add(const_cast<FProperty*>(Field.GetProperty()));
 				PropertyNames.Add(Field.GetName());
 				RawField.LoadedPropertyOrFunctionIndex = TotalNumberOfProperties;
@@ -660,6 +739,7 @@ TValueOrError<FCompiledBindingLibraryCompiler::FCompileResult, FText> FCompiledB
 			else
 			{
 				check(Field.IsFunction());
+				// N.B. no need to translate from skeletal to generated, we only use the the name or the index.
 				Result.Library.LoadedFunctions.Add(const_cast<UFunction*>(Field.GetFunction()));
 				FunctionNames.Add(Field.GetName());
 				RawField.LoadedPropertyOrFunctionIndex = TotalNumberOfFunctions;

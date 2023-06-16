@@ -81,12 +81,12 @@ static void ExtendBindingsMenu(FMenuBuilder& MenuBuilder, const UWidgetBlueprint
 		return HorizontalBox;
 	};
 
-	auto CreateBinding = [MVVMBlueprintView](UWidget* Widget, TSharedPtr<IPropertyHandle> WidgetPropertyHandle, FGuid ViewModelId, const FProperty* ViewModelProperty)
+	auto CreateBinding = [WidgetBlueprint, MVVMBlueprintView](UWidget* Widget, TSharedPtr<IPropertyHandle> WidgetPropertyHandle, FGuid ViewModelId, const FProperty* ViewModelProperty)
 	{
 		FMVVMBlueprintViewBinding& NewBinding = MVVMBlueprintView->AddDefaultBinding();
 
 		NewBinding.SourcePath.SetViewModelId(ViewModelId);
-		NewBinding.SourcePath.SetBasePropertyPath(UE::MVVM::FMVVMConstFieldVariant(ViewModelProperty));
+		NewBinding.SourcePath.SetPropertyPath(WidgetBlueprint, UE::MVVM::FMVVMConstFieldVariant(ViewModelProperty));
 
 		// Generate the destination path from the widget property that we are dropping on.
 		FCachedPropertyPath CachedPropertyPath(WidgetPropertyHandle->GeneratePathToProperty());
@@ -94,12 +94,12 @@ static void ExtendBindingsMenu(FMenuBuilder& MenuBuilder, const UWidgetBlueprint
 
 		// Set the destination path.
 		FMVVMBlueprintPropertyPath DestinationPropertyPath;
-		DestinationPropertyPath.ResetBasePropertyPath();
+		DestinationPropertyPath.ResetPropertyPath();
 
 		for (int32 SegNum = 0; SegNum < CachedPropertyPath.GetNumSegments(); SegNum++)
 		{
 			FFieldVariant Field = CachedPropertyPath.GetSegment(SegNum).GetField();
-			DestinationPropertyPath.AppendBasePropertyPath(UE::MVVM::FMVVMConstFieldVariant(Field));
+			DestinationPropertyPath.AppendPropertyPath(WidgetBlueprint, UE::MVVM::FMVVMConstFieldVariant(Field));
 		}
 
 		DestinationPropertyPath.SetWidgetName(Widget->GetFName());
@@ -180,7 +180,7 @@ TOptional<FName> FMVVMPropertyBindingExtension::GetCurrentValue(const UWidgetBlu
 		return TOptional<FName>();
 	}
 
-	TArray<FName> Names = Binding->SourcePath.GetPaths();
+	TArray<FName> Names = Binding->SourcePath.GetFieldNames(WidgetBlueprint->SkeletonGeneratedClass);
 	if (Names.Num() > 0)
 	{
 		return Names.Last();
@@ -203,7 +203,7 @@ const FSlateBrush* FMVVMPropertyBindingExtension::GetCurrentIcon(const UWidgetBl
 		return nullptr;
 	}
 
-	TArray<UE::MVVM::FMVVMConstFieldVariant> Fields = Binding->SourcePath.GetFields();
+	TArray<UE::MVVM::FMVVMConstFieldVariant> Fields = Binding->SourcePath.GetFields(WidgetBlueprint->SkeletonGeneratedClass);
 	if (Fields.IsEmpty())
 	{
 		return nullptr;
@@ -232,7 +232,7 @@ void FMVVMPropertyBindingExtension::ClearCurrentValue(const UWidgetBlueprint* Wi
 		{
 			if (FMVVMBlueprintViewBinding* Binding = MVVMBlueprintView->FindBinding(Widget, Property))
 			{
-				Binding->SourcePath.ResetBasePropertyPath();
+				Binding->SourcePath.ResetPropertyPath();
 			}
 		}
 	}
@@ -283,10 +283,10 @@ IPropertyBindingExtension::EDropResult FMVVMPropertyBindingExtension::OnDrop(con
 
 		// Set the source path (view model property from the drop event).
 		FMVVMBlueprintPropertyPath SourcePropertyPath;
-		SourcePropertyPath.ResetBasePropertyPath();
+		SourcePropertyPath.ResetPropertyPath();
 		for (const FFieldVariant& Field : SourceFieldPath)
 		{
-			SourcePropertyPath.AppendBasePropertyPath(UE::MVVM::FMVVMConstFieldVariant(Field));
+			SourcePropertyPath.AppendPropertyPath(WidgetBlueprint, UE::MVVM::FMVVMConstFieldVariant(Field));
 		}
 		if (ViewModelFieldDragDropOp->ViewModelId.IsValid())
 		{
@@ -302,12 +302,12 @@ IPropertyBindingExtension::EDropResult FMVVMPropertyBindingExtension::OnDrop(con
 
 		// Set the destination path.
 		FMVVMBlueprintPropertyPath DestinationPropertyPath;
-		DestinationPropertyPath.ResetBasePropertyPath();
+		DestinationPropertyPath.ResetPropertyPath();
 
 		for (int32 SegNum = 0; SegNum < CachedPropertyPath.GetNumSegments(); SegNum++)
 		{
 			FFieldVariant Field = CachedPropertyPath.GetSegment(SegNum).GetField();
-			DestinationPropertyPath.AppendBasePropertyPath(UE::MVVM::FMVVMConstFieldVariant(Field));
+			DestinationPropertyPath.AppendPropertyPath(WidgetBlueprint, UE::MVVM::FMVVMConstFieldVariant(Field));
 		}
 
 		DestinationPropertyPath.SetWidgetName(Widget->GetFName());

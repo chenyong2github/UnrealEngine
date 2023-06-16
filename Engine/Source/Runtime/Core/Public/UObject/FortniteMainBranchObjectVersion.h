@@ -342,6 +342,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Set flags on water static meshes to duplicate transient to avoid underlying static mesh duplication issue
 		WaterBodyStaticMeshDuplicateTransient,
 
+		// Update paths to use the SkeletalClass
+		MVVMConvertPropertyPathToSkeletalClass,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

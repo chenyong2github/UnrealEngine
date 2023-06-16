@@ -561,11 +561,10 @@ FMVVMBlueprintPropertyPath SSourceBindingList::CreateBlueprintPropertyPath(SProp
 				PropertyPath.SetWidgetName(Source->Key.Name);
 			}
 
-			PropertyPath.ResetBasePropertyPath();
-
+			PropertyPath.ResetPropertyPath();
 			for (const FFieldVariant& Field : FieldPath)
 			{
-				PropertyPath.AppendBasePropertyPath(FMVVMConstFieldVariant(Field));
+				PropertyPath.AppendPropertyPath(WidgetBlueprintPtr, FMVVMConstFieldVariant(Field));
 			}
 		}
 	}
@@ -604,7 +603,7 @@ FMVVMBlueprintPropertyPath SSourceBindingList::CreateBlueprintPropertyPath(SProp
 				{
 					PropertyPath.SetWidgetName(Source->Key.Name);
 				}
-				PropertyPath.ResetBasePropertyPath();
+				PropertyPath.ResetPropertyPath();
 			}
 		}
 	}
@@ -654,6 +653,12 @@ void SSourceBindingList::SetSelectedProperty(const FMVVMBlueprintPropertyPath& P
 		return;
 	}
 
+	const UWidgetBlueprint* WidgetBlueprintPtr = WidgetBlueprint.Get();
+	if (!WidgetBlueprintPtr)
+	{
+		return;
+	}
+
 	SPropertyViewer::FHandle SelectedHandle;
 	for (TPair<FBindingSource, SPropertyViewer::FHandle>& Source : Sources)
 	{
@@ -669,7 +674,7 @@ void SSourceBindingList::SetSelectedProperty(const FMVVMBlueprintPropertyPath& P
 	TArray<FFieldVariant, TMemStackAllocator<>> FieldPath;
 	if (SelectedHandle.IsValid())
 	{
-		TArray<FMVVMConstFieldVariant> FieldVariants = Property.GetFields();
+		TArray<FMVVMConstFieldVariant> FieldVariants = Property.GetFields(WidgetBlueprintPtr->SkeletonGeneratedClass);
 		FieldPath.Reserve(FieldVariants.Num());
 
 		for (const FMVVMConstFieldVariant& Variant : FieldVariants)

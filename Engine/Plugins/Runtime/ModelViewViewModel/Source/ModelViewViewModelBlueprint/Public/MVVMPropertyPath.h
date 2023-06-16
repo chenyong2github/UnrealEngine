@@ -8,6 +8,8 @@
 
 #include "MVVMPropertyPath.generated.h"
 
+class UBlueprint;
+
 /**
  * A single item in a Property Path
  */
@@ -26,136 +28,40 @@ private:
 	EBindingKind BindingKind = EBindingKind::Function;
 
 public:
-	/** Get the binding name, resolves reference deprecation / redirectors / etc before returning */
-	FName GetFieldName() const
-	{
-		// Resolve any redirectors
-		if (!BindingReference.GetMemberName().IsNone())
-		{
-			if (BindingKind == EBindingKind::Property)
-			{
-				if (BindingReference.IsLocalScope())
-				{
-					if (UPackage* Package = BindingReference.GetMemberParentPackage())
-					{
-						UObjectBase* FoundObject = FindObjectWithOuter(Package, UScriptStruct::StaticClass(), *BindingReference.GetMemberScopeName());
-						if (UScriptStruct* Struct = Cast<UScriptStruct>(static_cast<UObject*>(FoundObject)))
-						{
-							if (const FProperty* FoundProperty = FindUFieldOrFProperty<FProperty>(Struct, BindingReference.GetMemberName(), EFieldIterationFlags::IncludeAll))
-							{
-								return FoundProperty->GetFName();
-							}
-						}
-					}
-				}
-				else if (BindingReference.ResolveMember<FProperty>())
-				{
-					return BindingReference.GetMemberName();
-				}
-			}
-			else if (BindingKind == EBindingKind::Function)
-			{
-				if (BindingReference.ResolveMember<UFunction>())
-				{
-					return BindingReference.GetMemberName();
-				}
-			}
-		}
+	FMVVMBlueprintFieldPath() = default;
 
-		return FName();
-	}
+	MODELVIEWVIEWMODELBLUEPRINT_API FMVVMBlueprintFieldPath(const UBlueprint* InContext, UE::MVVM::FMVVMConstFieldVariant InField);
+
+	/** Get the binding name, resolves reference deprecation / redirectors / etc before returning */
+	MODELVIEWVIEWMODELBLUEPRINT_API FName GetFieldName(const UClass* SelfContext) const;
 
 	/** */
-	UE::MVVM::FMVVMConstFieldVariant GetField() const
-	{
-		if (!BindingReference.GetMemberName().IsNone())
-		{
-			if (BindingKind == EBindingKind::Property)
-			{
-				if (BindingReference.IsLocalScope())
-				{
-					if (UPackage* Package = BindingReference.GetMemberParentPackage())
-					{
-						UObjectBase* FoundObject = FindObjectWithOuter(Package, UScriptStruct::StaticClass(), *BindingReference.GetMemberScopeName());
-						if (UScriptStruct* Struct = Cast<UScriptStruct>(static_cast<UObject*>(FoundObject)))
-						{
-							if (const FProperty* FoundProperty = FindUFieldOrFProperty<FProperty>(Struct, BindingReference.GetMemberName(), EFieldIterationFlags::IncludeAll))
-							{
-								return UE::MVVM::FMVVMConstFieldVariant(FoundProperty);
-							}
-						}
-					}
-				}
-				else
-				{
-					return UE::MVVM::FMVVMConstFieldVariant(BindingReference.ResolveMember<FProperty>());
-				}
-			}
-			else if (BindingKind == EBindingKind::Function)
-			{
-				return UE::MVVM::FMVVMConstFieldVariant(BindingReference.ResolveMember<UFunction>());
-			}
-		}
-		return UE::MVVM::FMVVMConstFieldVariant();
-	}
+	MODELVIEWVIEWMODELBLUEPRINT_API UE::MVVM::FMVVMConstFieldVariant GetField(const UClass* SelfContext) const;
 
 	bool IsFieldLocalScope() const
 	{
 		return BindingReference.IsLocalScope();
 	}
 
-	UClass* GetParentClass() const
-	{
-		return BindingReference.GetMemberParentClass();
-	}
+	MODELVIEWVIEWMODELBLUEPRINT_API UClass* GetParentClass(const UClass* SelfContext) const;
 
 	EBindingKind GetBindingKind() const
 	{
 		return BindingKind;
 	}
 
+#if WITH_EDITOR
 	/** */
-	void SetBindingReference(UE::MVVM::FMVVMConstFieldVariant InField)
-	{
-		if (InField.IsEmpty())
-		{
-			Reset();
-			return;
-		}
-
-		BindingReference = CreateMemberReference(InField);
-
-		if (InField.IsProperty())
-		{
-			BindingKind = EBindingKind::Property;
-		}
-		else if (InField.IsFunction())
-		{
-			BindingKind = EBindingKind::Function;
-		}
-		else
-		{
-			ensureAlwaysMsgf(false, TEXT("Binding to field of unknown type!"));
-		}
-	}
-
+	void SetDeprecatedBindingReference(const FMemberReference& InBindingReference, EBindingKind InBindingKind);
 	/** */
-	void Reset()
-	{
-		BindingReference = FMemberReference();
-	}
-
-	/** */
-	void SetDeprecatedBindingReference(const FMemberReference& InBindingReference, EBindingKind InBindingKind)
-	{
-		BindingReference = InBindingReference;
-		BindingKind = InBindingKind;
-	}
+	void SetDeprecatedSelfReference(const UBlueprint* Context);
+#endif
 
 public:
 	bool operator==(const FMVVMBlueprintFieldPath& Other) const
 	{
-		return BindingReference.GetMemberName() == Other.BindingReference.GetMemberName();
+		return BindingReference.IsSameReference(Other.BindingReference)
+			&& BindingKind == Other.BindingKind;
 	}
 	bool operator!=(const FMVVMBlueprintFieldPath& Other) const
 	{
@@ -163,40 +69,8 @@ public:
 	}
 
 private:
-	/**
-	 * Create a serializable member reference from this field.
-	 */
-	static FMemberReference CreateMemberReference(UE::MVVM::FMVVMConstFieldVariant InField)
-	{
-		FMemberReference BindingReference = FMemberReference();
-		if (InField.IsProperty())
-		{
-			const FProperty* Property = InField.GetProperty();
-			if (Property->GetOwnerClass())
-			{
-				BindingReference.SetFromField<FProperty>(Property, false);
-			}
-			else
-			{
-				BindingReference.SetGlobalField(Property->GetFName(), Property->GetOutermost());
-				BindingReference.SetLocalMember(Property->GetFName(), Property->GetOwnerStruct(), FGuid());
-			}
-		}
-		else if (InField.IsFunction())
-		{
-			// Functions should never be self context references
-			const UFunction* Function = InField.GetFunction();
-			bool bSelfContext = false;
-			BindingReference.SetFromField<UFunction>(Function, bSelfContext);
-		}
-		return BindingReference;
-	}
+	UE::MVVM::FMVVMConstFieldVariant GetFieldInternal(const UClass* SelfContext) const;
 };
-
-inline uint32 GetTypeHash(const FMVVMBlueprintFieldPath& FieldPath)
-{
-	return GetTypeHash(FieldPath.GetFieldName());
-}
 
 /**
  * Base path to properties for MVVM view models and widgets.
@@ -233,72 +107,45 @@ public:
 		return Paths.Num() > 0;
 	}
 
-	/** Get the binding name, resolves reference deprecation / redirectors / etc before returning */
-	TArray<FName> GetPaths() const
-	{
-		TArray<FName> Result;
-		Result.Reserve(Paths.Num());
-
-		for (const FMVVMBlueprintFieldPath& Path : Paths)
-		{
-			Result.Add(Path.GetFieldName());
-		}
-
-		return Result;
-	}
-
 	TArrayView<FMVVMBlueprintFieldPath const> GetFieldPaths() const
 	{
 		return Paths;
 	}
 
-	/** Get the binding name, resolves reference deprecation / redirectors / etc before returning */
-	TArray<UE::MVVM::FMVVMConstFieldVariant> GetFields() const
+	/** Get the binding names, resolves reference deprecation / redirectors / etc before returning */
+	MODELVIEWVIEWMODELBLUEPRINT_API TArray<FName> GetFieldNames(const UClass* SelfContext) const;
+
+	/** Get the binding fields, resolves reference deprecation / redirectors / etc before returning */
+	MODELVIEWVIEWMODELBLUEPRINT_API TArray<UE::MVVM::FMVVMConstFieldVariant> GetFields(const UClass* SelfContext) const;
+
+	/**
+	 * Get the full path without the first property name.
+	 * returns Field.SubProperty.SubProperty from ViewModel.Field.SubProeprty.SubProperty
+	 */
+	MODELVIEWVIEWMODELBLUEPRINT_API FString GetPropertyPath(const UClass* SelfContext) const;
+
+	MODELVIEWVIEWMODELBLUEPRINT_API bool HasFieldInLocalScope() const;
+
+	bool PropertyPathContains(const UClass* InSelfContext, UE::MVVM::FMVVMConstFieldVariant Field) const
 	{
-		TArray<UE::MVVM::FMVVMConstFieldVariant> Result;
-		Result.Reserve(Paths.Num());
-
-		for (const FMVVMBlueprintFieldPath& Path : Paths)
-		{
-			Result.Add(Path.GetField());
-		}
-
-		return Result;
+		return Paths.ContainsByPredicate([InSelfContext, Field](const FMVVMBlueprintFieldPath& FieldPath) { return FieldPath.GetField(InSelfContext) == Field; });
 	}
 
-	bool HasFieldInLocalScope() const
+	void SetPropertyPath(const UBlueprint* InContext, UE::MVVM::FMVVMConstFieldVariant InField)
 	{
-		for (const FMVVMBlueprintFieldPath& Path : Paths)
-		{
-			if (Path.IsFieldLocalScope())
-			{
-				return true;
-			}
-		}
-
-		return false;
+		ResetPropertyPath();
+		AppendPropertyPath(InContext, InField);
 	}
 
-	bool BasePropertyPathContains(UE::MVVM::FMVVMConstFieldVariant Field) const
-	{
-		return Paths.ContainsByPredicate([Field](const FMVVMBlueprintFieldPath& FieldPath) { return FieldPath.GetField() == Field;  });
-	}
-
-	void SetBasePropertyPath(UE::MVVM::FMVVMConstFieldVariant InField)
-	{
-		ResetBasePropertyPath();
-		AppendBasePropertyPath(InField);
-	}
-
-	void AppendBasePropertyPath(UE::MVVM::FMVVMConstFieldVariant InField)
+	void AppendPropertyPath(const UBlueprint* InContext, UE::MVVM::FMVVMConstFieldVariant InField)
 	{
 		if (!InField.IsEmpty() && !InField.GetName().IsNone())
 		{
-			Paths.AddDefaulted_GetRef().SetBindingReference(InField);
+			Paths.Emplace(InContext, InField);
 		}
 	}
 
-	void ResetBasePropertyPath()
+	void ResetPropertyPath()
 	{
 		Paths.Reset();
 	}
@@ -346,24 +193,6 @@ public:
 		return !IsFromWidget() && !IsFromViewModel() && BindingReference_DEPRECATED.GetMemberName() == FName();
 	}
 
-	/**
-	 * Get the full path without the first property name.
-	 * returns Field.SubProperty.SubProperty from ViewModel.Field.SubProeprty.SubProperty
-	 */
-	FString GetBasePropertyPath() const
-	{
-		TStringBuilder<512> Result;
-		for (const FMVVMBlueprintFieldPath& Path : Paths)
-		{
-			if (Result.Len() > 0)
-			{
-				Result << TEXT('.');
-			}
-			Result << Path.GetFieldName();
-		}
-		return Result.ToString();
-	}
-
 	bool operator==(const FMVVMBlueprintPropertyPath& Other) const
 	{
 		return WidgetName == Other.WidgetName && 
@@ -388,18 +217,6 @@ public:
 		}
 	}
 };
-
-inline uint32 GetTypeHash(const FMVVMBlueprintPropertyPath& Path)
-{
-	uint32 Hash = 0;
-	TArray<FName> Paths = Path.GetPaths();
-
-	for (const FName& SubPath : Paths)
-	{
-		Hash = HashCombine(Hash, GetTypeHash(SubPath));
-	}
-	return Hash;
-}
 
 template<>
 struct TStructOpsTypeTraits<FMVVMBlueprintPropertyPath> : public TStructOpsTypeTraitsBase2<FMVVMBlueprintPropertyPath>

@@ -5,6 +5,8 @@
 #include "Components/Widget.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "MVVMWidgetBlueprintExtension_View.h"
+#include "WidgetBlueprint.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMBlueprintView)
 
@@ -99,10 +101,10 @@ const FMVVMBlueprintViewBinding* UMVVMBlueprintView::FindBinding(const UWidget* 
 FMVVMBlueprintViewBinding* UMVVMBlueprintView::FindBinding(const UWidget* Widget, const FProperty* Property)
 {
 	FName WidgetName = Widget->GetFName();
-	return Bindings.FindByPredicate([WidgetName, Property](const FMVVMBlueprintViewBinding& Binding)
+	return Bindings.FindByPredicate([WidgetBlueprint = GetOuterUMVVMWidgetBlueprintExtension_View()->GetWidgetBlueprint(), WidgetName, Property](const FMVVMBlueprintViewBinding& Binding)
 		{
 			return Binding.DestinationPath.GetWidgetName() == WidgetName &&
-				Binding.DestinationPath.BasePropertyPathContains(UE::MVVM::FMVVMConstFieldVariant(Property));
+				Binding.DestinationPath.PropertyPathContains(WidgetBlueprint->GeneratedClass, UE::MVVM::FMVVMConstFieldVariant(Property));
 		});
 }
 
@@ -133,7 +135,7 @@ FMVVMBlueprintViewBinding& UMVVMBlueprintView::AddBinding(const UWidget* Widget,
 {
 	FMVVMBlueprintViewBinding& NewBinding = Bindings.AddDefaulted_GetRef();
 	NewBinding.DestinationPath.SetWidgetName(Widget->GetFName());
-	NewBinding.DestinationPath.SetBasePropertyPath(UE::MVVM::FMVVMConstFieldVariant(Property));
+	NewBinding.DestinationPath.SetPropertyPath(GetOuterUMVVMWidgetBlueprintExtension_View()->GetWidgetBlueprint(), UE::MVVM::FMVVMConstFieldVariant(Property));
 	NewBinding.BindingId = FGuid::NewGuid();
 
 	OnBindingsUpdated.Broadcast();
@@ -222,6 +224,12 @@ void UMVVMBlueprintView::ResetBindingMessages()
 	BindingMessages.Reset();
 }
 
+void UMVVMBlueprintView::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);	
+}
+
 void UMVVMBlueprintView::PostLoad()
 {
 	Super::PostLoad();
@@ -233,6 +241,28 @@ void UMVVMBlueprintView::PostLoad()
 			Binding.BindingId = FGuid::NewGuid();
 		}
 	}
+
+#if WITH_EDITOR
+	// Make sure all bindings uses the skeletal class
+	if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::MVVMConvertPropertyPathToSkeletalClass)
+	{
+		GetOuterUMVVMWidgetBlueprintExtension_View()->ConditionalPostLoad();
+		GetOuterUMVVMWidgetBlueprintExtension_View()->GetWidgetBlueprint()->ConditionalPostLoad();
+		const UWidgetBlueprint* ThisWidgetBlueprint = GetOuterUMVVMWidgetBlueprintExtension_View()->GetWidgetBlueprint();
+
+		for (FMVVMBlueprintViewBinding& Binding : Bindings)
+		{
+			for (const FMVVMBlueprintFieldPath& FieldPath : Binding.SourcePath.GetFieldPaths())
+			{
+				const_cast<FMVVMBlueprintFieldPath&>(FieldPath).SetDeprecatedSelfReference(ThisWidgetBlueprint);
+			}
+			for (const FMVVMBlueprintFieldPath& FieldPath : Binding.DestinationPath.GetFieldPaths())
+			{
+				const_cast<FMVVMBlueprintFieldPath&>(FieldPath).SetDeprecatedSelfReference(ThisWidgetBlueprint);
+			}
+		}
+	}
+#endif
 }
 
 #if WITH_EDITOR

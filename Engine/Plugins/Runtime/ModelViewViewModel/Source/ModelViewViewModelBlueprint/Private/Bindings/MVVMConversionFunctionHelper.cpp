@@ -16,33 +16,6 @@ static const FName ConversionFunctionMetadataKey = "ConversionFunction";
 
 namespace Private
 {
-
-	void BuildPropertyPath(TArray<FMVVMBlueprintPropertyPath>& Result, FMVVMBlueprintPropertyPath BasePath, UClass* Class, const UK2Node_VariableGet* CurrentNode)
-	{
-		bool bAddPath = false;
-		const UEdGraphPin* OutputPin = CurrentNode->FindPinByPredicate([](UEdGraphPin* Pin) { return Pin->Direction == EGPD_Output; });
-		if (OutputPin)
-		{
-			for (const UEdGraphPin* LinkedTo : OutputPin->LinkedTo)
-			{
-				if (const UK2Node_VariableGet* LinkToVariable = Cast<UK2Node_VariableGet>(LinkedTo->GetOwningNode()))
-				{
-					BasePath.SetBasePropertyPath(UE::MVVM::FMVVMConstFieldVariant(LinkToVariable->VariableReference.ResolveMember<FProperty>(Class)));
-					BuildPropertyPath(Result, BasePath, Class, LinkToVariable);
-				}
-				else
-				{
-					bAddPath = true;
-				}
-			}
-		}
-
-		if (bAddPath)
-		{
-			Result.Add(BasePath);
-		}
-	}
-
 	UEdGraph* FindExistingConversionFunctionWrapper(const UWidgetBlueprint* WidgetBlueprint, FName WrapperName)
 	{
 		const TObjectPtr<UEdGraph>* Result = WidgetBlueprint->FunctionGraphs.FindByPredicate([WrapperName](const UEdGraph* GraphPtr) { return GraphPtr->GetFName() == WrapperName; });
@@ -197,11 +170,11 @@ namespace Private
 		{
 			if (UFunction* Function = MemberReference.ResolveMember<UFunction>(WidgetBlueprint->SkeletonGeneratedClass)) 
 			{
-				ResultPath.AppendBasePropertyPath(UE::MVVM::FMVVMConstFieldVariant(Function));
+				ResultPath.AppendPropertyPath(WidgetBlueprint, UE::MVVM::FMVVMConstFieldVariant(Function));
 			}
 			else if (const FProperty* Property = MemberReference.ResolveMember<FProperty>(WidgetBlueprint->SkeletonGeneratedClass))
 			{
-				ResultPath.AppendBasePropertyPath(UE::MVVM::FMVVMConstFieldVariant(Property));
+				ResultPath.AppendPropertyPath(WidgetBlueprint, UE::MVVM::FMVVMConstFieldVariant(Property));
 			}
 		}
 
