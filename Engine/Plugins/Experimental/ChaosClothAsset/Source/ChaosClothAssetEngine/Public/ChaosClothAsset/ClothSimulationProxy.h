@@ -61,6 +61,14 @@ namespace UE::Chaos::ClothAsset
 
 		const ::Chaos::FClothVisualization* GetVisualization() const { return Visualization.Get(); }
 
+		int32 GetNumCloths() const { return NumCloths; }
+		int32 GetNumKinematicParticles() const { return NumKinematicParticles; }
+		int32 GetNumDynamicParticles() const { return NumDynamicParticles; }
+		int32 GetNumIterations() const { return NumIterations; }
+		int32 GetNumSubsteps() const { return NumSubsteps; }
+		float GetSimulationTime() const { return SimulationTime; }
+		bool IsTeleported() const { return bIsTeleported; }
+
 	protected:
 		void Tick();
 		void WriteSimulationData();

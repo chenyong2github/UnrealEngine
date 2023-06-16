@@ -23,6 +23,7 @@ public:
 	void ExtendViewportShowMenu(FMenuBuilder& MenuBuilder, TSharedRef<FChaosClothAssetEditor3DViewportClient> ViewportClient);
 	void DebugDrawSimulation(const UChaosClothComponent* ClothComponent, FPrimitiveDrawInterface* PDI);
 	void DebugDrawSimulationTexts(const UChaosClothComponent* ClothComponent, FCanvas* Canvas, const FSceneView* SceneView);
+	FText GetDisplayString(const UChaosClothComponent* ClothComponent) const;
 
 private:
 	/** Return whether or not - given the current enabled options - the simulation should be disabled. */

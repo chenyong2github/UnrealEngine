@@ -148,6 +148,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		Solver->AddCloth(Cloths[ClothIndex].Get());
 		Cloths[ClothIndex]->Reset();
 
+		// Update cloth stats
+		NumCloths = 1;
+		NumKinematicParticles = Cloths[ClothIndex]->GetNumActiveKinematicParticles();
+		NumDynamicParticles = Cloths[ClothIndex]->GetNumActiveDynamicParticles();
+
 		// Create solver config simulation thread object
 		const int32 SolverConfigIndex = Configs.Emplace(MakeUnique<FClothingSimulationConfig>(ClothComponent.GetPropertyCollection()));  // TODO: Use a separate solver config for outfits
 		Solver->SetConfig(Configs[SolverConfigIndex].Get());
@@ -244,6 +249,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		// Keep the actual used number of iterations for the stats
 		NumIterations = Solver->GetNumUsedIterations();
+		NumSubsteps = Solver->GetNumSubsteps();
 
 		// Update simulation time in ms (and provide an instant average instead of the value in real-time)
 		const float CurrSimulationTime = (float)((FPlatformTime::Seconds() - StartTime) * 1000.);
