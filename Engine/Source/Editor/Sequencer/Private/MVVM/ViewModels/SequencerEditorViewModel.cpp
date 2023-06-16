@@ -160,6 +160,16 @@ void FSequencerEditorViewModel::OnTrackAreaHotspotChanged(TSharedPtr<ITrackAreaH
 	CurrentHotspot = NewHotspot;
 }
 
+FSequencerEditorViewModel::~FSequencerEditorViewModel()
+{
+	// Get rid of previously active customizations.
+	for (const TUniquePtr<ISequencerCustomization>& Customization : ActiveCustomizations)
+	{
+		Customization->UnregisterSequencerCustomization();
+	}
+	ActiveCustomizations.Reset();
+}
+
 bool FSequencerEditorViewModel::UpdateSequencerCustomizations(const UMovieSceneSequence* PreviousFocusedSequence)
 {
 	ISequencerModule& SequencerModule = FModuleManager::LoadModuleChecked<ISequencerModule>("Sequencer");

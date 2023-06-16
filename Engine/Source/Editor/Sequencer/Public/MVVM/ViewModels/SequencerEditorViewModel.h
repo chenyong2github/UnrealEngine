@@ -34,6 +34,7 @@ public:
 	UE_SEQUENCER_DECLARE_CASTABLE(FSequencerEditorViewModel, FEditorViewModel);
 
 	FSequencerEditorViewModel(TSharedRef<ISequencer> InSequencer, const FSequencerHostCapabilities& InHostCapabilities);
+	~FSequencerEditorViewModel();
 
 	/** Retrieve this editor's selection class */
 	TSharedPtr<FSequencerSelection> GetSelection() const;
