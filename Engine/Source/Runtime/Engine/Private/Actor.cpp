@@ -2198,6 +2198,16 @@ void AActor::SetAutoDestroyWhenFinished(bool bVal)
 	}
 }
 
+void AActor::K2_AttachRootComponentTo(USceneComponent* InParent, FName InSocketName, EAttachLocation::Type AttachLocationType /*= EAttachLocation::KeepRelativeOffset */, bool bWeldSimulatedBodies /*=true*/)
+{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (RootComponent && InParent)
+	{
+		RootComponent->K2_AttachTo(InParent, InSocketName, AttachLocationType, bWeldSimulatedBodies);
+	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
 bool AActor::K2_AttachToComponent(USceneComponent* Parent, FName SocketName, EAttachmentRule LocationRule, EAttachmentRule RotationRule, EAttachmentRule ScaleRule, bool bWeldSimulatedBodies)
 {
 	return AttachToComponent(Parent, FAttachmentTransformRules(LocationRule, RotationRule, ScaleRule, bWeldSimulatedBodies), SocketName);
@@ -2258,6 +2268,20 @@ void AActor::OnRep_AttachmentReplication()
 	}
 }
 
+void AActor::K2_AttachRootComponentToActor(AActor* InParentActor, FName InSocketName /*= NAME_None*/, EAttachLocation::Type AttachLocationType /*= EAttachLocation::KeepRelativeOffset */, bool bWeldSimulatedBodies /*=true*/)
+{
+	if (RootComponent && InParentActor)
+	{
+		USceneComponent* ParentDefaultAttachComponent = InParentActor->GetDefaultAttachComponent();
+		if (ParentDefaultAttachComponent)
+		{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			RootComponent->K2_AttachTo(ParentDefaultAttachComponent, InSocketName, AttachLocationType, bWeldSimulatedBodies );
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		}
+	}
+}
+
 bool AActor::K2_AttachToActor(AActor* ParentActor, FName SocketName, EAttachmentRule LocationRule, EAttachmentRule RotationRule, EAttachmentRule ScaleRule, bool bWeldSimulatedBodies)
 {
 	return AttachToActor(ParentActor, FAttachmentTransformRules(LocationRule, RotationRule, ScaleRule, bWeldSimulatedBodies), SocketName);
@@ -2275,6 +2299,20 @@ bool AActor::AttachToActor(AActor* ParentActor, const FAttachmentTransformRules&
 	}
 
 	return false;
+}
+
+void AActor::DetachRootComponentFromParent(bool bMaintainWorldPosition)
+{
+	if(RootComponent)
+	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		RootComponent->DetachFromParent(bMaintainWorldPosition);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS		
+
+		// Clear AttachmentReplication struct
+		AttachmentReplication = FRepAttachment();
+		MARK_PROPERTY_DIRTY_FROM_NAME(AActor, AttachmentReplication, this);
+	}
 }
 
 void AActor::K2_DetachFromActor(EDetachmentRule LocationRule /*= EDetachmentRule::KeepRelative*/, EDetachmentRule RotationRule /*= EDetachmentRule::KeepRelative*/, EDetachmentRule ScaleRule /*= EDetachmentRule::KeepRelative*/)

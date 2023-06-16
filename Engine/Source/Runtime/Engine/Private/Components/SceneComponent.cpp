@@ -1881,6 +1881,17 @@ void USceneComponent::SetupAttachment(class USceneComponent* InParent, FName InS
 	}
 }
 
+//This function is used for giving AttachTo different bWeldSimulatedBodies default, but only when called from BP
+bool USceneComponent::K2_AttachTo(class USceneComponent* InParent, FName InSocketName, EAttachLocation::Type AttachLocationType, bool bWeldSimulatedBodies /*= true*/)
+{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FAttachmentTransformRules AttachmentRules(EAttachmentRule::KeepRelative, bWeldSimulatedBodies);
+	ConvertAttachLocation(AttachLocationType, AttachmentRules.LocationRule, AttachmentRules.RotationRule, AttachmentRules.ScaleRule);
+
+	return AttachToComponent(InParent, AttachmentRules, InSocketName);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
 //This function is used for giving AttachToComponent different bWeldSimulatedBodies default, but only when called from BP
 bool USceneComponent::K2_AttachToComponent(USceneComponent* Parent, FName SocketName, EAttachmentRule LocationRule, EAttachmentRule RotationRule, EAttachmentRule ScaleRule, bool bWeldSimulatedBodies)
 {
