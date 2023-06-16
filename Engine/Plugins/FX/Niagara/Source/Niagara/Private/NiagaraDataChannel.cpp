@@ -84,6 +84,15 @@ void FNiagaraDataChannelGameData::SetNum(int32 NewNum)
 	}
 }
 
+void FNiagaraDataChannelGameData::Reserve(int32 NewNum)
+{
+	//NumElements = NewNum;
+	for (auto& Buffer : VariableData)
+	{
+		Buffer.Reserve(NewNum);
+	}
+}
+
 FNiagaraDataChannelVariableBuffer* FNiagaraDataChannelGameData::FindVariableBuffer(const FNiagaraVariableBase& Var)
 {
 	const FNiagaraDataChannelGameDataLayout& Layout = DataChannel->GetGameDataLayout();

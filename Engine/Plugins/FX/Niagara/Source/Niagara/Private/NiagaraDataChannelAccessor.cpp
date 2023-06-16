@@ -5,9 +5,12 @@
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Package.h"
 
+#include "NiagaraDataChannelPublic.h"
 #include "NiagaraDataChannelCommon.h"
 #include "NiagaraDataChannel.h"
 #include "NiagaraDataChannelHandler.h"
+
+#include "NiagaraWorldManager.h"
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -264,3 +267,72 @@ void UNiagaraDataChannelWriter::WritePosition(FName VarName, int32 Index, FVecto
 {
 	WriteData(FNiagaraVariableBase(FNiagaraTypeDefinition::GetPositionDef(), VarName), Index, InData);
 }
+
+
+//////////////////////////////////////////////////////////////////////////
+
+void FNiagaraDataChannelGameDataWriterBase::BeginWrite()
+{
+	if(Data)
+	{
+		Data->BeginFrame();
+	}
+}
+
+void FNiagaraDataChannelGameDataWriterBase::Publish(FNiagaraDataChannelDataPtr& Destination)
+{
+	if (Data->Num() > 0)
+	{
+		FNiagaraDataChannelPublishRequest PublishRequest;
+		PublishRequest.bVisibleToCPUSims = true;
+		PublishRequest.bVisibleToGPUSims = true;
+		PublishRequest.GameData = Data;
+		Destination->Publish(PublishRequest);
+	}
+}
+
+void FNiagaraDataChannelGameDataWriterBase::SetNum(int32 Num)
+{
+	if (Data)
+	{
+		Data->SetNum(Num);
+	}
+}
+
+void FNiagaraDataChannelGameDataWriterBase::Reserve(int32 Num)
+{
+	if (Data)
+	{
+		Data->Reserve(Num);
+	}
+}
+
+int32 FNiagaraDataChannelGameDataWriterBase::Add(int32 Count)
+{
+	if (Data)
+	{
+		return Data->Add(Count);
+	}
+	return INDEX_NONE;
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+FNiagaraDataChannelDataPtr FNiagaraDataChannelGameDataGroupedWriterBase::FindDataChannelData(UWorld* World, const UNiagaraDataChannel* NDC, const FNiagaraDataChannelSearchParameters& ItemSearchParams)
+{
+	if(World == nullptr || NDC == nullptr)
+	{
+		return nullptr;
+	}
+
+	if (FNiagaraWorldManager* WorldMan = FNiagaraWorldManager::Get(World))
+	{
+		if (UNiagaraDataChannelHandler* NDCHandler = WorldMan->FindDataChannelHandler(NDC))
+		{
+			return NDCHandler->FindData(ItemSearchParams, ENiagaraResourceAccess::WriteOnly);
+		}
+	}
+	return nullptr;
+}
+
+//////////////////////////////////////////////////////////////////////////
