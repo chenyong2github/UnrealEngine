@@ -1359,7 +1359,7 @@ void VolumetricLightmapPathTracingMainRG()
 				
 			if (HalfSampleIndex == 0)
 			{
-				SkyBentNormal[VoxelPos].rgb = SkyLightBentNormal;
+				SkyBentNormal[VoxelPos].rgb += SkyLightBentNormal;
 			}
 		
 		#ifndef LIGHTMAP_PATH_TRACING_MAIN_RG
