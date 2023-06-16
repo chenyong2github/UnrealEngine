@@ -904,6 +904,13 @@ class DeviceUnreal(Device):
             tool_tip="List of roles for this device"
         )
 
+        self.setting_ddc_build_platforms = MultiOptionSetting(
+            attr_name="ddc_build_platforms",
+            nice_name="DDC Build Platforms",
+            value=["Windows", "WindowsEditor", "Linux", "LinuxEditor"],
+            tool_tip="List of platforms for which to build the DDC cache for this device"
+        )
+
         autojoin_mu_server = kwargs.get("autojoin_mu_server", True)
         self.autojoin_mu_server = BoolSetting(
             attr_name="autojoin_mu_server",
@@ -1171,6 +1178,7 @@ class DeviceUnreal(Device):
     def device_settings(self):
         return super().device_settings() + [
             self.setting_roles,
+            self.setting_ddc_build_platforms,
             self.autojoin_mu_server,
             self.last_launch_command,
             self.last_log_path,
@@ -2061,6 +2069,50 @@ class DeviceUnreal(Device):
         return (
             self.generate_unreal_exe_path(),
             self.generate_unreal_command_line_args(map_name))
+
+    def fill_derived_data_cache(self, current_level_only=False, program_name="unreal_ddc"):
+
+        possible_platforms = self.setting_ddc_build_platforms.get_value()
+        if (len(possible_platforms) == 0):
+            LOGGER.error("No platforms selected for fill_derived_data_cache, canceling...")
+            return 0
+
+        separator = '+'
+        platform_string = ''
+
+        for platform in possible_platforms:
+            if self.setting_ddc_build_platforms.get_value(platform):
+                platform_string += platform + separator
+        platform_string = platform_string.removesuffix(separator) 
+        
+        current_level = CONFIG.CURRENT_LEVEL
+        current_level_valid = current_level_only and current_level != None and current_level != DEFAULT_MAP_TEXT
+        map_name = ' Map=' + current_level if current_level_valid else ''
+
+        args = CONFIG.UPROJECT_PATH.get_value(self.name) + map_name + " -run=DerivedDataCache -TargetPlatform=" + platform_string + " -fill -DDC=CreateInstalledEnginePak"
+        LOGGER.info('Filling ddc with arguments: ' + args)
+
+        puuid, msg = message_protocol.create_start_process_message(
+            prog_path= self.generate_unreal_exe_path(),
+            prog_args=args,
+            prog_name=program_name,
+            caller=self.name,
+            update_clients_with_stdout=True,
+            priority_modifier=sb_utils.PriorityModifier.Normal.value,
+            lock_gpu_clock=False,
+        )
+
+        self.program_start_queue.add(
+            ProgramStartQueueItem(
+                name=program_name,
+                puuid_dependency=None,
+                puuid=puuid,
+                msg_to_unreal_client=msg,
+            ),
+            unreal_client=self.unreal_client,
+        )
+
+        return puuid
 
     def launch(self, map_name, program_name="unreal"):
         if map_name == DEFAULT_MAP_TEXT:
@@ -2995,6 +3047,7 @@ class DeviceWidgetUnreal(DeviceWidget):
     signal_open_last_log = QtCore.Signal(object)
     signal_open_last_trace = QtCore.Signal(object)
     signal_copy_last_launch_command = QtCore.Signal(object)
+    signal_device_widget_fill_ddc = QtCore.Signal(object, bool)
 
     def __init__(self, name, device_hash, address, icons, parent=None):
         self._autojoin_visible = True
@@ -3370,3 +3423,9 @@ class DeviceWidgetUnreal(DeviceWidget):
         cmenu.addAction("Open fetched trace", lambda: self.signal_open_last_trace.emit(self))
         cmenu.addAction("Copy last launch command", lambda: self.signal_copy_last_launch_command.emit(self))
 
+        # Only create DDC submenu if node is connected
+        if self.connect_button.isChecked():
+            fill_ddc_menu = cmenu.addMenu("Fill DDC (Prepare Shaders)")
+        
+            current_level_action = fill_ddc_menu.addAction("Current Level", lambda: self.signal_device_widget_fill_ddc.emit(self, True))
+            all_levels_action = fill_ddc_menu.addAction("All Levels", lambda: self.signal_device_widget_fill_ddc.emit(self, False))
