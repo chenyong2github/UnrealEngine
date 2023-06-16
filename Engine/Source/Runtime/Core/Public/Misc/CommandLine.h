@@ -110,8 +110,7 @@ struct FCommandLine
 	CORE_API static FString BuildFromArgV(const ANSICHAR* Prefix, int32 ArgC, ANSICHAR* ArgV[], const ANSICHAR* Suffix);
 
 	/**
-	* FilterCLIUsingGrammarBasedParser parses CLI style arguments.
-	* filters for commands or keys specified in the AllowedList
+	* Filter Move parses CLI style arguments in the InLine, filters for commands or keys specified in the AllowedList
 	* and writes the to the OutLine.
 	* OutLine and InLine may be point to the same buffer.
 	* 
@@ -122,7 +121,7 @@ struct FCommandLine
 	* 
 	* Returns true if Outline was large enough to hold the filtered string, Otherwise returns false.
 	*/
-	static bool FilterCLIUsingGrammarBasedParser(TCHAR* OutLine, int32 MaxLen, const TCHAR* InLine, const TArrayView<FString>& AllowedList);
+	static bool FilterMove(TCHAR* OutLine, int32 MaxLen, const TCHAR* InLine, const TArrayView<FString>& AllowedList);
 private:
 #if UE_COMMAND_LINE_USES_ALLOW_LIST
 	/** Filters both the original and current command line list for approved only args */

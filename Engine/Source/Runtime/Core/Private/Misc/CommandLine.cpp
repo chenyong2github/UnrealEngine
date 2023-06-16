@@ -108,7 +108,7 @@ bool FCommandLine::IsCommandLineLoggingFiltered()
 #endif
 }
 
-bool FCommandLine::FilterCLIUsingGrammarBasedParser(TCHAR* OutLine, int32 MaxLen, const TCHAR* InLine, const TArrayView<FString>& AllowedList)
+bool FCommandLine::FilterMove(TCHAR* OutLine, int32 MaxLen, const TCHAR* InLine, const TArrayView<FString>& AllowedList)
 {
 	if (MaxLen == 0)
 	{
@@ -225,13 +225,17 @@ void FCommandLine::ApplyCommandLineAllowList()
 		FCommandLine::Parse(FilterForLoggingList, FilterArgsForLogging, Ignored);
 	}
 	// Process the original command line
-	FilterCLIUsingGrammarBasedParser(OriginalCmdLine, UE_ARRAY_COUNT(OriginalCmdLine), OriginalCmdLine, ApprovedArgs);
+	TArray<FString> OriginalList = FilterCommandLine(OriginalCmdLine);
+	BuildCommandLineAllowList(OriginalCmdLine, UE_ARRAY_COUNT(OriginalCmdLine), OriginalList);
 	// Process the current command line
-	FilterCLIUsingGrammarBasedParser(CmdLine, UE_ARRAY_COUNT(CmdLine), CmdLine, ApprovedArgs);
+	TArray<FString> CmdList = FilterCommandLine(CmdLine);
+	BuildCommandLineAllowList(CmdLine, UE_ARRAY_COUNT(CmdLine), CmdList);
 	// Process the command line for logging purposes
-	FilterCLIUsingGrammarBasedParser(LoggingCmdLine, UE_ARRAY_COUNT(LoggingCmdLine), LoggingCmdLine, FilterArgsForLogging);
+	TArray<FString> LoggingCmdList = FilterCommandLineForLogging(LoggingCmdLine);
+	BuildCommandLineAllowList(LoggingCmdLine, UE_ARRAY_COUNT(LoggingCmdLine), LoggingCmdList);
 	// Process the original command line for logging purposes
-	FilterCLIUsingGrammarBasedParser(LoggingOriginalCmdLine, UE_ARRAY_COUNT(LoggingOriginalCmdLine), LoggingOriginalCmdLine, FilterArgsForLogging);
+	TArray<FString> LoggingOriginalCmdList = FilterCommandLineForLogging(LoggingOriginalCmdLine);
+	BuildCommandLineAllowList(LoggingOriginalCmdLine, UE_ARRAY_COUNT(LoggingOriginalCmdLine), LoggingOriginalCmdList);
 }
 
 TArray<FString> FCommandLine::FilterCommandLine(TCHAR* CommandLine)
