@@ -318,7 +318,7 @@ private:
 		TArray<FFrameInfo> FrameInfo; // Only Resources and TextureRenderResources are initialized
 	};
 
-	TMap<UStreamableSparseVolumeTexture*, FStreamingInfo> StreamingInfo; // Do not dereference the key! We just read the pointer itself.
+	TMap<UStreamableSparseVolumeTexture*, TUniquePtr<FStreamingInfo>> StreamingInfo; // Do not dereference the key! We just read the pointer itself.
 	TMap<FMipLevelKey, uint32> RequestsHashTable;
 	TArray<FPendingMipLevel> PendingMipLevels;
 #if WITH_EDITORONLY_DATA
@@ -338,7 +338,7 @@ private:
 	// Transient lifetime
 	TArray<FStreamingRequest> ParentRequestsToAdd;
 	TSet<FTileDataTexture*> TileDataTexturesToUpdate;
-	TSet<FStreamingInfo*> InvalidatedStreamingInfos;
+	TSet<FStreamingInfo*> SVTsWithInvalidatedStreamingInfoBuffer; // Changes in the lowest resident mip level cause invalidation
 	TArray<FStreamingRequest> PrioritizedRequestsHeap;
 	TArray<FStreamingRequest> SelectedRequests;
 	TArray<FPageTableClear> PageTableClears;
@@ -352,9 +352,10 @@ private:
 	void AddParentRequests(); // Add requests for all parent mip levels
 	void SelectHighestPriorityRequestsAndUpdateLRU(int32 MaxSelectedRequests);
 	void IssueRequests(int32 MaxSelectedRequests);
-	void StreamOutMipLevel(FStreamingInfo& SVTInfo, FLRUNode* LRUNode);
+	void StreamOutMipLevel(FStreamingInfo* SVTInfo, FLRUNode* LRUNode);
 	int32 DetermineReadyMipLevels();
 	void InstallReadyMipLevels();
+	FStreamingInfo* FindStreamingInfo(UStreamableSparseVolumeTexture* Key); // Returns nullptr if the key can't be found
 
 #if WITH_EDITORONLY_DATA
 	UE::DerivedData::FCacheGetChunkRequest BuildDDCRequest(const FResources& Resources, const FMipLevelStreamingInfo& MipLevelStreamingInfo, const uint32 PendingMipLevelIndex);
