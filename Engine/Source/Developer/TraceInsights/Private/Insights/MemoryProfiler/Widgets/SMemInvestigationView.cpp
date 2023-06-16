@@ -211,7 +211,6 @@ TSharedRef<SWidget> SMemInvestigationView::ConstructInvestigationWidgetArea()
 		.HAlign(HAlign_Fill)
 		[
 			SAssignNew(SymbolPathsTextBlock, STextBlock)
-			.Text(GetSymbolPathsText())
 			.ColorAndOpacity(FLinearColor(0.3f, 0.3f, 0.3f, 1.0f))
 			.AutoWrapText(true)
 		]
@@ -367,13 +366,14 @@ void SMemInvestigationView::InsightsManager_OnSessionChanged()
 
 void SMemInvestigationView::Reset()
 {
-	SymbolPathsTextBlock->SetText(GetSymbolPathsText());
+	SymbolPathsTextBlock->SetText(FText::GetEmpty());
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void SMemInvestigationView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
+	UpdateSymbolPathsText();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -474,16 +474,16 @@ void SMemInvestigationView::QueryTarget_OnSelectionChanged(TSharedPtr<Insights::
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-FText SMemInvestigationView::GetSymbolPathsText() const
+
+void SMemInvestigationView::UpdateSymbolPathsText() const
 {
-	if (Session)
+	if (SymbolPathsTextBlock->GetText().IsEmpty() && Session)
 	{
 		if (const TraceServices::IModuleProvider* ModuleProvider = ReadModuleProvider(*Session.Get()))
 		{
-			return FSymbolSearchPathsHelper::GetLocalizedSymbolSearchPathsText(ModuleProvider);
+			SymbolPathsTextBlock->SetText(FSymbolSearchPathsHelper::GetLocalizedSymbolSearchPathsText(ModuleProvider));
 		}
 	}
-	return FText();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

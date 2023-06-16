@@ -61,7 +61,7 @@ public:
 	void QueryTarget_OnSelectionChanged(TSharedPtr<Insights::FQueryTargetWindowSpec> InRule, ESelectInfo::Type SelectInfo);
 
 private:
-	FText GetSymbolPathsText() const;
+	void UpdateSymbolPathsText() const;
 	TSharedRef<SWidget> ConstructInvestigationWidgetArea();
 	TSharedRef<SWidget> ConstructTimeMarkerWidget(uint32 TimeMarkerIndex);
 
