@@ -9,15 +9,6 @@
 #include "Templates/Greater.h"
 #include "ReplicationGraphTypes.generated.h"
 
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "EngineGlobals.h"
-#include "UObject/Package.h"
-#include "Engine/ActorChannel.h"
-#include "Engine/LocalPlayer.h"
-#include "Engine/NetConnection.h"
-#include "Misc/ConfigCacheIni.h"
-#endif
-
 class AActor;
 class AController;
 class UActorChannel;
@@ -2076,3 +2067,12 @@ private:
 	/** Keeps track if a node was already collected since the same node can be shared across connections and visited multiple times */
 	TMap<const UObject*, bool> VisitedNodes;
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "EngineGlobals.h"
+#include "UObject/Package.h"
+#include "Engine/ActorChannel.h"
+#include "Engine/LocalPlayer.h"
+#include "Engine/NetConnection.h"
+#include "Misc/ConfigCacheIni.h"
+#endif
